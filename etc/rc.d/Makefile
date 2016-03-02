@@ -196,14 +196,6 @@ BSNMPDIR=	/etc/rc.d
 BSNMPMODE=	${BINMODE}
 BSNMPPACKAGE=	bsnmp
 
-.if ${MK_CASPER} != "no"
-FILESGROUPS+=	CASPER
-CASPER+=	casperd
-.endif
-CASPERDIR=	/etc/rc.d
-CASPERMODE=	${BINMODE}
-CASPERPACKAGE=	casper
-
 .if ${MK_CCD} != "no"
 FILES+=		ccd
 .endif

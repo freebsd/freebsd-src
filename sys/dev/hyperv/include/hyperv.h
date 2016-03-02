@@ -753,8 +753,6 @@ typedef struct hv_vmbus_channel {
 	 */
 	hv_vmbus_ring_buffer_info	inbound;
 
-	struct mtx			inbound_lock;
-
 	struct taskqueue *		rxq;
 	struct task			channel_task;
 	hv_vmbus_pfn_channel_callback	on_channel_callback;
@@ -824,11 +822,16 @@ typedef struct hv_vmbus_channel {
 	 * This will be NULL for the primary channel.
 	 */
 	struct hv_vmbus_channel		*primary_channel;
+
 	/*
-	 * Support per channel state for use by vmbus drivers.
+	 * Driver private data
 	 */
-	void				*per_channel_state;
+	void				*hv_chan_priv1;
+	void				*hv_chan_priv2;
+	void				*hv_chan_priv3;
 } hv_vmbus_channel;
+
+#define HV_VMBUS_CHAN_ISPRIMARY(chan)	((chan)->primary_channel == NULL)
 
 static inline void
 hv_set_channel_read_state(hv_vmbus_channel* channel, boolean_t state)
@@ -919,40 +922,5 @@ hv_get_phys_addr(void *virt)
 	return (ret);
 }
 
-
-/**
- * KVP related structures
- * 
- */
-typedef struct hv_vmbus_service {
-        hv_guid       guid;             /* Hyper-V GUID */
-        char          *name;            /* name of service */
-        boolean_t     enabled;          /* service enabled */
-	void*		context;
-	struct task	task;
-        /*
-         * function to initialize service
-         */
-        int (*init)(struct hv_vmbus_service *);
-
-        /*
-         * function to process Hyper-V messages
-         */
-        void (*callback)(void *);
-
-	/*
-	 * function to uninitilize service
-	 */
-	int (*uninit)(struct hv_vmbus_service *);
-} hv_vmbus_service;
-
-extern uint8_t* receive_buffer[];
-extern hv_vmbus_service service_table[];
 extern uint32_t hv_vmbus_protocal_version;
-
-void hv_kvp_callback(void *context);
-int hv_kvp_init(hv_vmbus_service *serv);
-void hv_kvp_deinit(void);
-
 #endif  /* __HYPERV_H__ */
-

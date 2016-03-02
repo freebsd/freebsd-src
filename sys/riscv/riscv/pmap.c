@@ -13,7 +13,7 @@
  * All rights reserved.
  * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -216,8 +216,6 @@ vm_offset_t kernel_vm_end = 0;
 struct msgbuf *msgbufp = NULL;
 
 static struct rwlock_padalign pvh_global_lock;
-
-extern uint64_t pagetable_l0;
 
 /*
  * Data for the pv entry allocation mechanism
@@ -452,7 +450,7 @@ pmap_bootstrap_dmap(vm_offset_t l1pt, vm_paddr_t kernstart)
 	pd_entry_t *l1;
 	u_int l1_slot;
 	pt_entry_t entry;
-	u_int pn;
+	pn_t pn;
 
 	pa = kernstart & ~L1_OFFSET;
 	va = DMAP_MIN_ADDRESS;
@@ -926,7 +924,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 	vm_offset_t va;
 	vm_page_t m;
 	pt_entry_t entry;
-	u_int pn;
+	pn_t pn;
 	int i;
 
 	va = sva;
@@ -1145,7 +1143,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 	vm_page_t m, /*pdppg, */pdpg;
 	pt_entry_t entry;
 	vm_paddr_t phys;
-	int pn;
+	pn_t pn;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
@@ -1325,7 +1323,7 @@ pmap_growkernel(vm_offset_t addr)
 	vm_page_t nkpg;
 	pd_entry_t *l1, *l2;
 	pt_entry_t entry;
-	int pn;
+	pn_t pn;
 
 	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
 
@@ -1345,10 +1343,11 @@ pmap_growkernel(vm_offset_t addr)
 				pmap_zero_page(nkpg);
 			paddr = VM_PAGE_TO_PHYS(nkpg);
 
-			panic("%s: implement grow l1\n", __func__);
-#if 0
-			pmap_load_store(l1, paddr | L1_TABLE);
-#endif
+			pn = (paddr / PAGE_SIZE);
+			entry = (PTE_VALID | (PTE_TYPE_PTR << PTE_TYPE_S));
+			entry |= (pn << PTE_PPN0_S);
+			pmap_load_store(l1, entry);
+
 			PTE_SYNC(l1);
 			continue; /* try again */
 		}
@@ -1935,9 +1934,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	vm_page_t mpte, om, l2_m, l3_m;
 	boolean_t nosleep;
 	pt_entry_t entry;
-	int l2_pn;
-	int l3_pn;
-	int pn;
+	pn_t l2_pn;
+	pn_t l3_pn;
+	pn_t pn;
 
 	va = trunc_page(va);
 	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
@@ -2213,7 +2212,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	pt_entry_t *l3;
 	vm_paddr_t pa;
 	pt_entry_t entry;
-	int pn;
+	pn_t pn;
 
 	KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva ||
 	    (m->oflags & VPO_UNMANAGED) != 0,
@@ -3086,8 +3085,8 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 void
 pmap_activate(struct thread *td)
 {
-	uint64_t entry;
-	uint64_t pn;
+	pt_entry_t entry;
+	pn_t pn;
 	pmap_t pmap;
 
 	critical_enter();
@@ -3097,7 +3096,7 @@ pmap_activate(struct thread *td)
 	pn = (td->td_pcb->pcb_l1addr / PAGE_SIZE);
 	entry = (PTE_VALID | (PTE_TYPE_PTR << PTE_TYPE_S));
 	entry |= (pn << PTE_PPN0_S);
-	pmap_load_store(&pagetable_l0, entry);
+	pmap_load_store((uint64_t *)PCPU_GET(sptbr), entry);
 
 	pmap_invalidate_all(pmap);
 	critical_exit();

@@ -1216,8 +1216,8 @@ sn_activate(device_t dev)
 	struct sn_softc *sc = device_get_softc(dev);
 
 	sc->port_rid = 0;
-	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
-	    0, ~0, SMC_IO_EXTENT, RF_ACTIVE);
+	sc->port_res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+	    &sc->port_rid, SMC_IO_EXTENT, RF_ACTIVE);
 	if (!sc->port_res) {
 		if (bootverbose)
 			device_printf(dev, "Cannot allocate ioport\n");

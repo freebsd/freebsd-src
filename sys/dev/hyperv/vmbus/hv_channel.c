@@ -30,11 +30,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 #include <machine/bus.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -77,6 +79,90 @@ vmbus_channel_set_event(hv_vmbus_channel *channel)
 		hv_vmbus_set_event(channel);
 	}
 
+}
+
+static int
+vmbus_channel_sysctl_monalloc(SYSCTL_HANDLER_ARGS)
+{
+	struct hv_vmbus_channel *chan = arg1;
+	int alloc = 0;
+
+	if (chan->offer_msg.monitor_allocated)
+		alloc = 1;
+	return sysctl_handle_int(oidp, &alloc, 0, req);
+}
+
+static void
+vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
+{
+	device_t dev;
+	struct sysctl_oid *devch_sysctl;
+	struct sysctl_oid *devch_id_sysctl, *devch_sub_sysctl;
+	struct sysctl_oid *devch_id_in_sysctl, *devch_id_out_sysctl;
+	struct sysctl_ctx_list *ctx;
+	uint32_t ch_id;
+	uint16_t sub_ch_id;
+	char name[16];
+	
+	hv_vmbus_channel* primary_ch = channel->primary_channel;
+
+	if (primary_ch == NULL) {
+		dev = channel->device->device;
+		ch_id = channel->offer_msg.child_rel_id;
+	} else {
+		dev = primary_ch->device->device;
+		ch_id = primary_ch->offer_msg.child_rel_id;
+		sub_ch_id = channel->offer_msg.offer.sub_channel_index;
+	}
+	ctx = device_get_sysctl_ctx(dev);
+	/* This creates dev.DEVNAME.DEVUNIT.channel tree */
+	devch_sysctl = SYSCTL_ADD_NODE(ctx,
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    OID_AUTO, "channel", CTLFLAG_RD, 0, "");
+	/* This creates dev.DEVNAME.DEVUNIT.channel.CHANID tree */
+	snprintf(name, sizeof(name), "%d", ch_id);
+	devch_id_sysctl = SYSCTL_ADD_NODE(ctx,
+	    	    SYSCTL_CHILDREN(devch_sysctl),
+	    	    OID_AUTO, name, CTLFLAG_RD, 0, "");
+
+	if (primary_ch != NULL) {
+		devch_sub_sysctl = SYSCTL_ADD_NODE(ctx,
+			SYSCTL_CHILDREN(devch_id_sysctl),
+			OID_AUTO, "sub", CTLFLAG_RD, 0, "");
+		snprintf(name, sizeof(name), "%d", sub_ch_id);
+		devch_id_sysctl = SYSCTL_ADD_NODE(ctx,
+			SYSCTL_CHILDREN(devch_sub_sysctl),
+			OID_AUTO, name, CTLFLAG_RD, 0, "");
+
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl),
+		    OID_AUTO, "chanid", CTLFLAG_RD,
+		    &channel->offer_msg.child_rel_id, 0, "channel id");
+	}
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
+	    "cpu", CTLFLAG_RD, &channel->target_cpu, 0, "owner CPU id");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
+	    "monitor_allocated", CTLTYPE_INT | CTLFLAG_RD, channel, 0,
+	    vmbus_channel_sysctl_monalloc, "I",
+	    "is monitor allocated to this channel");
+
+	devch_id_in_sysctl = SYSCTL_ADD_NODE(ctx,
+                    SYSCTL_CHILDREN(devch_id_sysctl),
+                    OID_AUTO,
+		    "in",
+		    CTLFLAG_RD, 0, "");
+	devch_id_out_sysctl = SYSCTL_ADD_NODE(ctx,
+                    SYSCTL_CHILDREN(devch_id_sysctl),
+                    OID_AUTO,
+		    "out",
+		    CTLFLAG_RD, 0, "");
+	hv_ring_buffer_stat(ctx,
+		SYSCTL_CHILDREN(devch_id_in_sysctl),
+		&(channel->inbound),
+		"inbound ring buffer stats");
+	hv_ring_buffer_stat(ctx,
+		SYSCTL_CHILDREN(devch_id_out_sysctl),
+		&(channel->outbound),
+		"outbound ring buffer stats");
 }
 
 /**
@@ -142,6 +228,9 @@ hv_vmbus_channel_open(
 		in,
 		recv_ring_buffer_size);
 
+	/* Create sysctl tree for this channel */
+	vmbus_channel_sysctl_create(new_channel);
+
 	/**
 	 * Establish the gpadl for the ring buffer
 	 */
@@ -194,7 +283,7 @@ hv_vmbus_channel_open(
 	if (ret != 0)
 	    goto cleanup;
 
-	ret = sema_timedwait(&open_info->wait_sema, 500); /* KYS 5 seconds */
+	ret = sema_timedwait(&open_info->wait_sema, 5 * hz); /* KYS 5 seconds */
 
 	if (ret) {
 	    if(bootverbose)
@@ -383,17 +472,22 @@ hv_vmbus_channel_establish_gpadl(
 	hv_vmbus_channel_msg_info*	curr;
 	uint32_t			next_gpadl_handle;
 
-	next_gpadl_handle = hv_vmbus_g_connection.next_gpadl_handle;
-	atomic_add_int((int*) &hv_vmbus_g_connection.next_gpadl_handle, 1);
+	next_gpadl_handle = atomic_fetchadd_int(
+	    &hv_vmbus_g_connection.next_gpadl_handle, 1);
 
 	ret = vmbus_channel_create_gpadl_header(
 		contig_buffer, size, &msg_info, &msg_count);
 
-	if(ret != 0) { /* if(allocation failed) return immediately */
-	    /* reverse atomic_add_int above */
-	    atomic_subtract_int((int*)
-		    &hv_vmbus_g_connection.next_gpadl_handle, 1);
-	    return ret;
+	if(ret != 0) {
+		/*
+		 * XXX
+		 * We can _not_ even revert the above incremental,
+		 * if multiple GPADL establishments are running
+		 * parallelly, decrement the global next_gpadl_handle
+		 * is calling for _big_ trouble.  A better solution
+		 * is to have a 0-based GPADL id bitmap ...
+		 */
+		return ret;
 	}
 
 	sema_init(&msg_info->wait_sema, 0, "Open Info Sema");
@@ -439,7 +533,7 @@ hv_vmbus_channel_establish_gpadl(
 	    }
 	}
 
-	ret = sema_timedwait(&msg_info->wait_sema, 500); /* KYS 5 seconds*/
+	ret = sema_timedwait(&msg_info->wait_sema, 5 * hz); /* KYS 5 seconds*/
 	if (ret != 0)
 	    goto cleanup;
 
@@ -499,7 +593,7 @@ hv_vmbus_channel_teardown_gpdal(
 	if (ret != 0) 
 	    goto cleanup;
 	
-	ret = sema_timedwait(&info->wait_sema, 500); /* KYS 5 seconds */
+	ret = sema_timedwait(&info->wait_sema, 5 * hz); /* KYS 5 seconds */
 
 cleanup:
 	/*
@@ -531,13 +625,7 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	 */
 	channel->rxq = NULL;
 	taskqueue_drain(rxq, &channel->channel_task);
-	/*
-	 * Grab the lock to prevent race condition when a packet received
-	 * and unloading driver is in the process.
-	 */
-	mtx_lock(&channel->inbound_lock);
 	channel->on_channel_callback = NULL;
-	mtx_unlock(&channel->inbound_lock);
 
 	/**
 	 * Send a closing message
@@ -856,7 +944,6 @@ hv_vmbus_channel_recv_packet_raw(
 {
 	int		ret;
 	uint32_t	packetLen;
-	uint32_t	userLen;
 	hv_vm_packet_descriptor	desc;
 
 	*buffer_actual_len = 0;
@@ -870,8 +957,6 @@ hv_vmbus_channel_recv_packet_raw(
 	    return (0);
 
 	packetLen = desc.length8 << 3;
-	userLen = packetLen - (desc.data_offset8 << 3);
-
 	*buffer_actual_len = packetLen;
 
 	if (packetLen > buffer_len)
@@ -914,12 +999,6 @@ VmbusProcessChannelEvent(void* context, int pending)
 	 * callback to NULL. This closes the window.
 	 */
 
-	/*
-	 * Disable the lock due to newly added WITNESS check in r277723.
-	 * Will seek other way to avoid race condition.
-	 * -- whu
-	 */
-	// mtx_lock(&channel->inbound_lock);
 	if (channel->on_channel_callback != NULL) {
 		arg = channel->channel_callback_context;
 		is_batched_reading = channel->batched_reading;
@@ -946,5 +1025,4 @@ VmbusProcessChannelEvent(void* context, int pending)
 				bytes_to_read = 0;
 		} while (is_batched_reading && (bytes_to_read != 0));
 	}
-	// mtx_unlock(&channel->inbound_lock);
 }

@@ -12,7 +12,9 @@ buildconfig: ${${group}}
 .endfor
 .endif
 
+.if !defined(_SKIP_BUILD)
 all: buildconfig
+.endif
 
 .if !target(installconfig)
 .for group in ${CONFGROUPS}

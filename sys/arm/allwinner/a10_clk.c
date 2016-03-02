@@ -43,6 +43,18 @@ __FBSDID("$FreeBSD$");
 
 #include "a10_clk.h"
 
+#define	TCON_PLL_WORST		1000000
+#define	TCON_PLL_N_MIN		1
+#define	TCON_PLL_N_MAX		15
+#define	TCON_PLL_M_MIN		9
+#define	TCON_PLL_M_MAX		127
+#define	TCON_PLLREF_SINGLE	3000	/* kHz */
+#define	TCON_PLLREF_DOUBLE	6000	/* kHz */
+#define	TCON_RATE_KHZ(rate_hz)	((rate_hz) / 1000)
+#define	TCON_RATE_HZ(rate_khz)	((rate_khz) * 1000)
+#define	HDMI_DEFAULT_RATE	297000000
+#define	DEBE_DEFAULT_RATE	300000000
+
 struct a10_ccm_softc {
 	struct resource		*res;
 	bus_space_tag_t		bst;
@@ -307,6 +319,47 @@ a10_clk_pll2_set_rate(unsigned int freq)
 	return (0);
 }
 
+static int
+a10_clk_pll3_set_rate(unsigned int freq)
+{
+	struct a10_ccm_softc *sc;
+	uint32_t reg_value;
+	int m;
+
+	sc = a10_ccm_sc;
+	if (sc == NULL)
+		return (ENXIO);
+
+	if (freq == 0) {
+		/* Disable PLL3 */
+		ccm_write_4(sc, CCM_PLL3_CFG, 0);
+		return (0);
+	}
+
+	m = freq / TCON_RATE_HZ(TCON_PLLREF_SINGLE);
+
+	reg_value = CCM_PLL_CFG_ENABLE | CCM_PLL3_CFG_MODE_SEL_INT | m;
+	ccm_write_4(sc, CCM_PLL3_CFG, reg_value);
+
+	return (0);
+}
+
+static unsigned int
+a10_clk_pll5x_get_rate(void)
+{
+	struct a10_ccm_softc *sc;
+	uint32_t k, n, p, reg_value;
+
+	sc = a10_ccm_sc;
+	reg_value = ccm_read_4(sc, CCM_PLL5_CFG);
+	n = ((reg_value & CCM_PLL_CFG_FACTOR_N) >> CCM_PLL_CFG_FACTOR_N_SHIFT);
+	k = ((reg_value & CCM_PLL_CFG_FACTOR_K) >> CCM_PLL_CFG_FACTOR_K_SHIFT) +
+	    1;
+	p = ((reg_value & CCM_PLL5_CFG_OUT_EXT_DIV_P) >> CCM_PLL5_CFG_OUT_EXT_DIV_P_SHIFT);
+
+	return ((CCM_CLK_REF_FREQ * n * k) >> p);
+}
+
 int
 a10_clk_ahci_activate(void)
 {
@@ -462,6 +515,193 @@ a10_clk_codec_activate(unsigned int freq)
 	reg_value = ccm_read_4(sc, CCM_AUDIO_CODEC_CLK);
 	reg_value |= CCM_AUDIO_CODEC_ENABLE;
 	ccm_write_4(sc, CCM_AUDIO_CODEC_CLK, reg_value);
+
+	return (0);
+}
+
+static void
+calc_tcon_pll(int f_ref, int f_out, int *pm, int *pn)
+{
+	int best, m, n, f_cur, diff;
+
+	best = TCON_PLL_WORST;
+	for (n = TCON_PLL_N_MIN; n <= TCON_PLL_N_MAX; n++) {
+		for (m = TCON_PLL_M_MIN; m <= TCON_PLL_M_MAX; m++) {
+			f_cur = (m * f_ref) / n;
+			diff = f_out - f_cur;
+			if (diff > 0 && diff < best) {
+				best = diff;
+				*pm = m;
+				*pn = n;
+			}
+		}
+	}
+}
+
+int
+a10_clk_debe_activate(void)
+{
+	struct a10_ccm_softc *sc;
+	int pll_rate, clk_div;
+	uint32_t reg_value;
+
+	sc = a10_ccm_sc;
+	if (sc == NULL)
+		return (ENXIO);
+
+	/* Leave reset */
+	reg_value = ccm_read_4(sc, CCM_BE0_SCLK);
+	reg_value |= CCM_BE_CLK_RESET;
+	ccm_write_4(sc, CCM_BE0_SCLK, reg_value);
+
+	pll_rate = a10_clk_pll5x_get_rate();
+
+	clk_div = howmany(pll_rate, DEBE_DEFAULT_RATE);
+
+	/* Set BE0 source to PLL5 (DDR external peripheral clock) */
+	reg_value = CCM_BE_CLK_RESET;
+	reg_value |= (CCM_BE_CLK_SRC_SEL_PLL5 << CCM_BE_CLK_SRC_SEL_SHIFT);
+	reg_value |= (clk_div - 1);
+	ccm_write_4(sc, CCM_BE0_SCLK, reg_value);
+
+	/* Gating AHB clock for BE0 */
+	reg_value = ccm_read_4(sc, CCM_AHB_GATING1);
+	reg_value |= CCM_AHB_GATING_DE_BE0;
+	ccm_write_4(sc, CCM_AHB_GATING1, reg_value);
+
+	/* Enable DRAM clock to BE0 */
+	reg_value = ccm_read_4(sc, CCM_DRAM_CLK);
+	reg_value |= CCM_DRAM_CLK_BE0_CLK_ENABLE;
+	ccm_write_4(sc, CCM_DRAM_CLK, reg_value);
+
+	/* Enable BE0 clock */
+	reg_value = ccm_read_4(sc, CCM_BE0_SCLK);
+	reg_value |= CCM_BE_CLK_SCLK_GATING;
+	ccm_write_4(sc, CCM_BE0_SCLK, reg_value);
+
+	return (0);
+}
+
+int
+a10_clk_lcd_activate(void)
+{
+	struct a10_ccm_softc *sc;
+	uint32_t reg_value;
+
+	sc = a10_ccm_sc;
+	if (sc == NULL)
+		return (ENXIO);
+
+	/* Clear LCD0 reset */
+	reg_value = ccm_read_4(sc, CCM_LCD0_CH0_CLK);
+	reg_value |= CCM_LCD_CH0_RESET;
+	ccm_write_4(sc, CCM_LCD0_CH0_CLK, reg_value);
+
+	/* Gating AHB clock for LCD0 */
+	reg_value = ccm_read_4(sc, CCM_AHB_GATING1);
+	reg_value |= CCM_AHB_GATING_LCD0;
+	ccm_write_4(sc, CCM_AHB_GATING1, reg_value);
+
+	return (0);
+}
+
+int
+a10_clk_tcon_activate(unsigned int freq)
+{
+	struct a10_ccm_softc *sc;
+	int m, n, m2, n2, f_single, f_double, dbl, src_sel;
+
+	sc = a10_ccm_sc;
+	if (sc == NULL)
+		return (ENXIO);
+
+	m = n = m2 = n2 = 0;
+	dbl = 0;
+
+	calc_tcon_pll(TCON_PLLREF_SINGLE, TCON_RATE_KHZ(freq), &m, &n);
+	calc_tcon_pll(TCON_PLLREF_DOUBLE, TCON_RATE_KHZ(freq), &m2, &n2);
+
+	f_single = n ? (m * TCON_PLLREF_SINGLE) / n : 0;
+	f_double = n2 ? (m2 * TCON_PLLREF_DOUBLE) / n2 : 0;
+
+	if (f_double > f_single) {
+		dbl = 1;
+		m = m2;
+		n = n2;
+	}
+	src_sel = dbl ? CCM_LCD_CH1_SRC_SEL_PLL3_2X : CCM_LCD_CH1_SRC_SEL_PLL3;
+
+	if (n == 0 || m == 0)
+		return (EINVAL);
+
+	/* Set PLL3 to the closest possible rate */
+	a10_clk_pll3_set_rate(TCON_RATE_HZ(m * TCON_PLLREF_SINGLE));
+
+	/* Enable LCD0 CH1 clock */
+	ccm_write_4(sc, CCM_LCD0_CH1_CLK,
+	    CCM_LCD_CH1_SCLK2_GATING | CCM_LCD_CH1_SCLK1_GATING |
+	    (src_sel << CCM_LCD_CH1_SRC_SEL_SHIFT) | (n - 1));
+
+	return (0);
+}
+
+int
+a10_clk_tcon_get_config(int *pdiv, int *pdbl)
+{
+	struct a10_ccm_softc *sc;
+	uint32_t reg_value;
+	int src;
+
+	sc = a10_ccm_sc;
+	if (sc == NULL)
+		return (ENXIO);
+
+	reg_value = ccm_read_4(sc, CCM_LCD0_CH1_CLK);
+
+	*pdiv = (reg_value & CCM_LCD_CH1_CLK_DIV_RATIO_M) + 1;
+
+	src = (reg_value & CCM_LCD_CH1_SRC_SEL) >> CCM_LCD_CH1_SRC_SEL_SHIFT;
+	switch (src) {
+	case CCM_LCD_CH1_SRC_SEL_PLL3:
+	case CCM_LCD_CH1_SRC_SEL_PLL7:
+		*pdbl = 0;
+		break;
+	case CCM_LCD_CH1_SRC_SEL_PLL3_2X:
+	case CCM_LCD_CH1_SRC_SEL_PLL7_2X:
+		*pdbl = 1;
+		break;
+	}
+
+	return (0);
+}
+
+int
+a10_clk_hdmi_activate(void)
+{
+	struct a10_ccm_softc *sc;
+	uint32_t reg_value;
+	int error;
+
+	sc = a10_ccm_sc;
+	if (sc == NULL)
+		return (ENXIO);
+
+	/* Set PLL3 to 297MHz */
+	error = a10_clk_pll3_set_rate(HDMI_DEFAULT_RATE);
+	if (error != 0)
+		return (error);
+
+	/* Enable HDMI clock, source PLL3 */
+	reg_value = ccm_read_4(sc, CCM_HDMI_CLK);
+	reg_value |= CCM_HDMI_CLK_SCLK_GATING;
+	reg_value &= ~CCM_HDMI_CLK_SRC_SEL;
+	reg_value |= (CCM_HDMI_CLK_SRC_SEL_PLL3 << CCM_HDMI_CLK_SRC_SEL_SHIFT);
+	ccm_write_4(sc, CCM_HDMI_CLK, reg_value);
+
+	/* Gating AHB clock for HDMI */
+	reg_value = ccm_read_4(sc, CCM_AHB_GATING1);
+	reg_value |= CCM_AHB_GATING_HDMI;
+	ccm_write_4(sc, CCM_AHB_GATING1, reg_value);
 
 	return (0);
 }

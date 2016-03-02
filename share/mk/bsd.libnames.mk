@@ -30,7 +30,6 @@ LIBBZ2?=	${DESTDIR}${LIBDIR}/libbz2.a
 LIBC?=		${DESTDIR}${LIBDIR}/libc.a
 LIBCALENDAR?=	${DESTDIR}${LIBDIR}/libcalendar.a
 LIBCAM?=	${DESTDIR}${LIBDIR}/libcam.a
-LIBCAPSICUM?=	${DESTDIR}${LIBDIR}/libcapsicum.a
 LIBCASPER?=	${DESTDIR}${LIBDIR}/libcasper.a
 LIBCOMPAT?=	${DESTDIR}${LIBDIR}/libcompat.a
 LIBCOMPILER_RT?=${DESTDIR}${LIBDIR}/libcompiler_rt.a

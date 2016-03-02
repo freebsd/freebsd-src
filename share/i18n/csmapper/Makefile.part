@@ -73,8 +73,9 @@ FILES+=	${MAPS}
 CLEANFILES+= ${MAPS}
 .endif
 
-realall: all
-all: ${FILES} mapper.dir.${ESUBDIR} charset.pivot.${ESUBDIR}
-
 .include "./Makefile.inc"
 .include <bsd.prog.mk>
+
+.if !defined(_SKIP_BUILD)
+all: mapper.dir.${ESUBDIR} charset.pivot.${ESUBDIR}
+.endif

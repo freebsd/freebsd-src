@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_s_mem 3"
-.TH BIO_s_mem 3 "2016-01-28" "1.0.2f" "OpenSSL"
+.TH BIO_s_mem 3 "2016-03-01" "1.0.2g" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -153,7 +153,7 @@ BIO_get_mem_ptr, BIO_new_mem_buf \- memory BIO
 \& BIO_set_mem_buf(BIO *b,BUF_MEM *bm,int c)
 \& BIO_get_mem_ptr(BIO *b,BUF_MEM **pp)
 \&
-\& BIO *BIO_new_mem_buf(void *buf, int len);
+\& BIO *BIO_new_mem_buf(const void *buf, int len);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -198,7 +198,7 @@ It is a macro.
 a macro.
 .PP
 \&\fIBIO_new_mem_buf()\fR creates a memory \s-1BIO\s0 using \fBlen\fR bytes of data at \fBbuf\fR,
-if \fBlen\fR is \-1 then the \fBbuf\fR is assumed to be null terminated and its
+if \fBlen\fR is \-1 then the \fBbuf\fR is assumed to be nul terminated and its
 length is determined by \fBstrlen\fR. The \s-1BIO\s0 is set to a read only state and
 as a result cannot be written to. This is useful when some data needs to be
 made available from a static area of memory in the form of a \s-1BIO.\s0 The

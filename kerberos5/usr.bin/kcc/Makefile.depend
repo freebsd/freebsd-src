@@ -17,6 +17,7 @@ DIRDEPS = \
 	kerberos5/lib/libsl \
 	kerberos5/lib/libvers \
 	kerberos5/lib/libwind \
+	kerberos5/tools/slc.host \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcom_err \
@@ -32,16 +33,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-copy_cred_cache.o: kcc-commands.h
-copy_cred_cache.po: kcc-commands.h
-kcc-commands.o: kcc-commands.c
-kcc-commands.o: kcc-commands.h
-kcc-commands.po: kcc-commands.c
-kcc-commands.po: kcc-commands.h
-kcc.o: kcc-commands.h
-kcc.po: kcc-commands.h
-klist.o: kcc-commands.h
-klist.po: kcc-commands.h
-kswitch.o: kcc-commands.h
-kswitch.po: kcc-commands.h
 .endif

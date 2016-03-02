@@ -5,13 +5,16 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <signal.h>
 #include <sys/wait.h>
-#include <err.h>
 #include <ctype.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <dirent.h>
+#include <err.h>
 #include <limits.h>
 #include <locale.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "../histedit.h"
 

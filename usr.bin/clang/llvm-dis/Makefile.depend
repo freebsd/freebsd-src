@@ -24,6 +24,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-llvm-dis.o: Intrinsics.inc.h
-llvm-dis.po: Intrinsics.inc.h
 .endif

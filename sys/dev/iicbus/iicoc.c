@@ -207,8 +207,8 @@ iicoc_attach(device_t dev)
 	sc->dev = dev;
 	mtx_init(&sc->sc_mtx, "iicoc", "iicoc", MTX_DEF);
 	sc->mem_rid = 0;
-	sc->mem_res = bus_alloc_resource(dev,
-	    SYS_RES_MEMORY, &sc->mem_rid, 0ul, ~0ul, 0x100, RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_anywhere(dev,
+	    SYS_RES_MEMORY, &sc->mem_rid, 0x100, RF_ACTIVE);
 
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "Could not allocate bus resource.\n");

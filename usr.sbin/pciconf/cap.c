@@ -534,6 +534,141 @@ cap_pciaf(int fd, struct pci_conf *p, uint8_t ptr)
 	    cap & PCIM_PCIAFCAP_TP  ? " TP"  : "");
 }
 
+static const char *
+ea_bei_to_name(int bei)
+{
+	static const char *barstr[] = {
+		"BAR0", "BAR1", "BAR2", "BAR3", "BAR4", "BAR5"
+	};
+	static const char *vfbarstr[] = {
+		"VFBAR0", "VFBAR1", "VFBAR2", "VFBAR3", "VFBAR4", "VFBAR5"
+	};
+
+	if ((bei >= PCIM_EA_BEI_BAR_0) && (bei <= PCIM_EA_BEI_BAR_5))
+		return (barstr[bei - PCIM_EA_BEI_BAR_0]);
+	if ((bei >= PCIM_EA_BEI_VF_BAR_0) && (bei <= PCIM_EA_BEI_VF_BAR_5))
+		return (vfbarstr[bei - PCIM_EA_BEI_VF_BAR_0]);
+
+	switch (bei) {
+	case PCIM_EA_BEI_BRIDGE:
+		return "BRIDGE";
+	case PCIM_EA_BEI_ENI:
+		return "ENI";
+	case PCIM_EA_BEI_ROM:
+		return "ROM";
+	case PCIM_EA_BEI_RESERVED:
+	default:
+		return "RSVD";
+	}
+}
+
+static const char *
+ea_prop_to_name(uint8_t prop)
+{
+
+	switch (prop) {
+	case PCIM_EA_P_MEM:
+		return "Non-Prefetchable Memory";
+	case PCIM_EA_P_MEM_PREFETCH:
+		return "Prefetchable Memory";
+	case PCIM_EA_P_IO:
+		return "I/O Space";
+	case PCIM_EA_P_VF_MEM_PREFETCH:
+		return "VF Prefetchable Memory";
+	case PCIM_EA_P_VF_MEM:
+		return "VF Non-Prefetchable Memory";
+	case PCIM_EA_P_BRIDGE_MEM:
+		return "Bridge Non-Prefetchable Memory";
+	case PCIM_EA_P_BRIDGE_MEM_PREFETCH:
+		return "Bridge Prefetchable Memory";
+	case PCIM_EA_P_BRIDGE_IO:
+		return "Bridge I/O Space";
+	case PCIM_EA_P_MEM_RESERVED:
+		return "Reserved Memory";
+	case PCIM_EA_P_IO_RESERVED:
+		return "Reserved I/O Space";
+	case PCIM_EA_P_UNAVAILABLE:
+		return "Unavailable";
+	default:
+		return "Reserved";
+	}
+}
+
+static void
+cap_ea(int fd, struct pci_conf *p, uint8_t ptr)
+{
+	int num_ent;
+	int a, b;
+	uint32_t bei;
+	uint32_t val;
+	int ent_size;
+	uint32_t dw[4];
+	uint32_t flags, flags_pp, flags_sp;
+	uint64_t base, max_offset;
+	uint8_t fixed_sub_bus_nr, fixed_sec_bus_nr;
+
+	/* Determine the number of entries */
+	num_ent = read_config(fd, &p->pc_sel, ptr + PCIR_EA_NUM_ENT, 2);
+	num_ent &= PCIM_EA_NUM_ENT_MASK;
+
+	printf("PCI Enhanced Allocation (%d entries)", num_ent);
+
+	/* Find the first entry to care of */
+	ptr += PCIR_EA_FIRST_ENT;
+
+	/* Print BUS numbers for bridges */
+	if ((p->pc_hdr & PCIM_HDRTYPE) == PCIM_HDRTYPE_BRIDGE) {
+		val = read_config(fd, &p->pc_sel, ptr, 4);
+
+		fixed_sec_bus_nr = PCIM_EA_SEC_NR(val);
+		fixed_sub_bus_nr = PCIM_EA_SUB_NR(val);
+
+		printf("\n\t\t BRIDGE, sec bus [%d], sub bus [%d]",
+		    fixed_sec_bus_nr, fixed_sub_bus_nr);
+		ptr += 4;
+	}
+
+	for (a = 0; a < num_ent; a++) {
+		/* Read a number of dwords in the entry */
+		val = read_config(fd, &p->pc_sel, ptr, 4);
+		ptr += 4;
+		ent_size = (val & PCIM_EA_ES);
+
+		for (b = 0; b < ent_size; b++) {
+			dw[b] = read_config(fd, &p->pc_sel, ptr, 4);
+			ptr += 4;
+		}
+
+		flags = val;
+		flags_pp = (flags & PCIM_EA_PP) >> PCIM_EA_PP_OFFSET;
+		flags_sp = (flags & PCIM_EA_SP) >> PCIM_EA_SP_OFFSET;
+		bei = (PCIM_EA_BEI & val) >> PCIM_EA_BEI_OFFSET;
+
+		base = dw[0] & PCIM_EA_FIELD_MASK;
+		max_offset = dw[1] | ~PCIM_EA_FIELD_MASK;
+		b = 2;
+		if (((dw[0] & PCIM_EA_IS_64) != 0) && (b < ent_size)) {
+			base |= (uint64_t)dw[b] << 32UL;
+			b++;
+		}
+		if (((dw[1] & PCIM_EA_IS_64) != 0)
+			&& (b < ent_size)) {
+			max_offset |= (uint64_t)dw[b] << 32UL;
+			b++;
+		}
+
+		printf("\n\t\t [%d] %s, %s, %s, base [0x%jx], size [0x%jx]"
+		    "\n\t\t\tPrimary properties [0x%x] (%s)"
+		    "\n\t\t\tSecondary properties [0x%x] (%s)",
+		    bei, ea_bei_to_name(bei),
+		    (flags & PCIM_EA_ENABLE ? "Enabled" : "Disabled"),
+		    (flags & PCIM_EA_WRITABLE ? "Writable" : "Read-only"),
+		    (uintmax_t)base, (uintmax_t)(max_offset + 1),
+		    flags_pp, ea_prop_to_name(flags_pp),
+		    flags_sp, ea_prop_to_name(flags_sp));
+	}
+}
+
 void
 list_caps(int fd, struct pci_conf *p)
 {
@@ -604,6 +739,9 @@ list_caps(int fd, struct pci_conf *p)
 			break;
 		case PCIY_PCIAF:
 			cap_pciaf(fd, p, ptr);
+			break;
+		case PCIY_EA:
+			cap_ea(fd, p, ptr);
 			break;
 		default:
 			printf("unknown");

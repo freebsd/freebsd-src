@@ -21,7 +21,9 @@ buildincludes: ${${group}}
 .endfor
 .endif
 
+.if !defined(_SKIP_BUILD)
 all: buildincludes
+.endif
 
 .if !target(installincludes)
 .for group in ${INCSGROUPS}

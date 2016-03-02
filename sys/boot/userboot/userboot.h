@@ -34,6 +34,14 @@
 #define	USERBOOT_VERSION_3      3
 
 /*
+ * Version 4 added more generic callbacks for setting up
+ * registers and descriptors. The callback structure is
+ * backward compatible (new callbacks have been added at
+ * the tail end).
+ */
+#define	USERBOOT_VERSION_4      4
+
+/*
  * Exit codes from the loader
  */
 #define	USERBOOT_EXIT_QUIT      1
@@ -195,4 +203,11 @@ struct loader_callbacks {
 	 * each invocation will add 1 to the previous value of 'num'.
 	 */
 	const char *	(*getenv)(void *arg, int num);
+
+	/*
+	 * Version 4 additions.
+	 */
+	int	(*vm_set_register)(void *arg, int vcpu, int reg, uint64_t val);
+	int	(*vm_set_desc)(void *arg, int vcpu, int reg, uint64_t base,
+	    u_int limit, u_int access);
 };

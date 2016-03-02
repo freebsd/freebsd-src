@@ -61,7 +61,7 @@ extern int errno;
 #include <sys/un.h>
 #include <sys/queue.h>
 #include <sys/wait.h>
-#ifdef HAVE_LIBCAPSICUM
+#ifdef HAVE_LIBCASPER
 #include <sys/nv.h>
 #endif
 #include <arpa/inet.h>
@@ -70,12 +70,6 @@ extern int errno;
 #include <err.h>
 #include <grp.h>
 #include <inttypes.h>
-#ifdef HAVE_LIBCAPSICUM
-#include <libcapsicum.h>
-#include <libcapsicum_grp.h>
-#include <libcapsicum_pwd.h>
-#include <libcapsicum_service.h>
-#endif
 #include <locale.h>
 #include <netdb.h>
 #include <nl_types.h>
@@ -90,6 +84,13 @@ extern int errno;
 #include <vis.h>
 #include "ktrace.h"
 #include "kdump_subr.h"
+
+#ifdef HAVE_LIBCASPER
+#include <libcasper.h>
+
+#include <casper/cap_grp.h>
+#include <casper/cap_pwd.h>
+#endif
 
 u_int abidump(struct ktr_header *);
 int fetchprocinfo(struct ktr_header *, u_int *);
@@ -151,7 +152,7 @@ struct proc_info
 
 static TAILQ_HEAD(trace_procs, proc_info) trace_procs;
 
-#ifdef HAVE_LIBCAPSICUM
+#ifdef HAVE_LIBCASPER
 static cap_channel_t *cappwd, *capgrp;
 #endif
 
@@ -180,7 +181,7 @@ localtime_init(void)
 	(void)localtime(&ltime);
 }
 
-#ifdef HAVE_LIBCAPSICUM
+#ifdef HAVE_LIBCASPER
 static int
 cappwdgrp_setup(cap_channel_t **cappwdp, cap_channel_t **capgrpp)
 {
@@ -189,8 +190,8 @@ cappwdgrp_setup(cap_channel_t **cappwdp, cap_channel_t **capgrpp)
 
 	capcas = cap_init();
 	if (capcas == NULL) {
-		warn("unable to contact casperd");
-		return (-1);
+		err(1, "unable to create casper process");
+		exit(1);
 	}
 	cappwdloc = cap_service_open(capcas, "system.pwd");
 	capgrploc = cap_service_open(capcas, "system.grp");
@@ -222,7 +223,7 @@ cappwdgrp_setup(cap_channel_t **cappwdp, cap_channel_t **capgrpp)
 	*capgrpp = capgrploc;
 	return (0);
 }
-#endif	/* HAVE_LIBCAPSICUM */
+#endif	/* HAVE_LIBCASPER */
 
 int
 main(int argc, char *argv[])
@@ -302,7 +303,7 @@ main(int argc, char *argv[])
 
 	strerror_init();
 	localtime_init();
-#ifdef HAVE_LIBCAPSICUM
+#ifdef HAVE_LIBCASPER
 	if (resolv != 0) {
 		if (cappwdgrp_setup(&cappwd, &capgrp) < 0) {
 			cappwd = NULL;
@@ -520,6 +521,9 @@ abidump(struct ktr_header *kth)
 	case SV_ABI_FREEBSD:
 		abi = "F";
 		break;
+	case SV_ABI_CLOUDABI:
+		abi = "C";
+		break;
 	default:
 		abi = "U";
 		break;
@@ -673,6 +677,10 @@ syscallabi(u_int sv_flags)
 			return (SYSDECODE_ABI_LINUX32);
 #endif
 		return (SYSDECODE_ABI_LINUX);
+#endif
+#if defined(__aarch64__) || defined(__amd64__)
+	case SV_ABI_CLOUDABI:
+		return (SYSDECODE_ABI_CLOUDABI64);
 #endif
 	default:
 		return (SYSDECODE_ABI_UNKNOWN);
@@ -1641,7 +1649,7 @@ ktrstat(struct stat *statp)
 	if (resolv == 0) {
 		pwd = NULL;
 	} else {
-#ifdef HAVE_LIBCAPSICUM
+#ifdef HAVE_LIBCASPER
 		if (cappwd != NULL)
 			pwd = cap_getpwuid(cappwd, statp->st_uid);
 		else
@@ -1655,7 +1663,7 @@ ktrstat(struct stat *statp)
 	if (resolv == 0) {
 		grp = NULL;
 	} else {
-#ifdef HAVE_LIBCAPSICUM
+#ifdef HAVE_LIBCASPER
 		if (capgrp != NULL)
 			grp = cap_getgrgid(capgrp, statp->st_gid);
 		else

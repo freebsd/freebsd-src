@@ -234,8 +234,8 @@ spic_probe(device_t dev)
 
 	bzero(sc, sizeof(struct spic_softc));
 
-	if (!(sc->sc_port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-		&sc->sc_port_rid, 0, ~0, 5, RF_ACTIVE))) {
+	if (!(sc->sc_port_res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+		&sc->sc_port_rid, 5, RF_ACTIVE))) {
 		device_printf(dev,"Couldn't map I/O\n");
 		return ENXIO;
 	}

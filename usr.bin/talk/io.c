@@ -46,6 +46,7 @@ static const char sccsid[] = "@(#)io.c	8.1 (Berkeley) 6/6/93";
 #include <errno.h>
 #include <signal.h>
 #include <netdb.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,8 +68,8 @@ void
 talk(void)
 {
 	struct hostent *hp, *hp2;
+	struct pollfd fds[2];
 	int nb;
-	fd_set read_set;
 	wchar_t buf[BUFSIZ];
 	char **addr, *his_machine_name;
 	FILE *sockfp;
@@ -107,10 +108,11 @@ talk(void)
 	 * Wait on both the other process (sockt) and standard input.
 	 */
 	for (;;) {
-		FD_ZERO(&read_set);
-		FD_SET(sockt, &read_set);
-		FD_SET(fileno(stdin), &read_set);
-		nb = select(32, &read_set, 0, 0, NULL);
+		fds[0].fd = fileno(stdin);
+		fds[0].events = POLLIN;
+		fds[1].fd = sockt;
+		fds[1].events = POLLIN;
+		nb = poll(fds, 2, INFTIM);
 		if (gotwinch) {
 			resize_display();
 			gotwinch = 0;
@@ -119,10 +121,10 @@ talk(void)
 			if (errno == EINTR)
 				continue;
 			/* Panic, we don't know what happened. */
-			p_error("Unexpected error from select");
+			p_error("Unexpected error from poll");
 			quit();
 		}
-		if (FD_ISSET(sockt, &read_set)) {
+		if (fds[1].revents & POLLIN) {
 			wint_t w;
 
 			/* There is data on sockt. */
@@ -133,7 +135,7 @@ talk(void)
 			}
 			display(&his_win, &w);
 		}
-		if (FD_ISSET(fileno(stdin), &read_set)) {
+		if (fds[0].revents & POLLIN) {
 			wint_t w;
 
 			if ((w = getwchar()) != WEOF) {

@@ -6,6 +6,7 @@
 
 # we need this until there is an alternative
 MK_INSTALL_AS_USER= yes
+MK_FAST_DEPEND= yes
 
 _default_makeobjdir=$${.CURDIR:S,^$${SRCTOP},$${OBJTOP},}
 

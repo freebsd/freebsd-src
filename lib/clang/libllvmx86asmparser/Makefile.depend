@@ -13,18 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-X86AsmInstrumentation.o: X86GenInstrInfo.inc.h
-X86AsmInstrumentation.o: X86GenRegisterInfo.inc.h
-X86AsmInstrumentation.o: X86GenSubtargetInfo.inc.h
-X86AsmInstrumentation.po: X86GenInstrInfo.inc.h
-X86AsmInstrumentation.po: X86GenRegisterInfo.inc.h
-X86AsmInstrumentation.po: X86GenSubtargetInfo.inc.h
-X86AsmParser.o: X86GenAsmMatcher.inc.h
-X86AsmParser.o: X86GenInstrInfo.inc.h
-X86AsmParser.o: X86GenRegisterInfo.inc.h
-X86AsmParser.o: X86GenSubtargetInfo.inc.h
-X86AsmParser.po: X86GenAsmMatcher.inc.h
-X86AsmParser.po: X86GenInstrInfo.inc.h
-X86AsmParser.po: X86GenRegisterInfo.inc.h
-X86AsmParser.po: X86GenSubtargetInfo.inc.h
 .endif

@@ -117,7 +117,7 @@ handled:
 	     * not deliver any more messages
 	     * since there is no empty slot
 	     */
-	    wmb();
+	    atomic_thread_fence_seq_cst();
 
 	    if (msg->header.message_flags.u.message_pending) {
 			/*
@@ -187,7 +187,7 @@ hv_vmbus_isr(struct trapframe *frame)
 		 * not deliver any more messages
 		 * since there is no empty slot
 		 */
-		wmb();
+		atomic_thread_fence_seq_cst();
 
 		if (msg->header.message_flags.u.message_pending) {
 			/*

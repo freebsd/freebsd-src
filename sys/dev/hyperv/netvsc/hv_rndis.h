@@ -608,6 +608,8 @@ typedef enum ndis_per_pkt_infotype_ {
 	max_perpkt_info
 } ndis_per_pkt_infotype;
 
+#define nbl_hash_value	pkt_cancel_id
+
 typedef struct ndis_8021q_info_ {
 	union {
 		struct {
@@ -619,6 +621,10 @@ typedef struct ndis_8021q_info_ {
 		uint32_t    value;
 	} u1;
 } ndis_8021q_info;
+
+struct ndis_hash_info {
+	uint32_t	hash;
+} __packed;
 
 struct rndis_object_header {
 	uint8_t type;
@@ -712,6 +718,9 @@ typedef struct rndis_tcp_tso_info_ {
 		uint32_t  value;
 	};
 } rndis_tcp_tso_info;
+
+#define RNDIS_HASH_PPI_SIZE	(sizeof(rndis_per_packet_info) + \
+				sizeof(struct ndis_hash_info))
 
 #define RNDIS_VLAN_PPI_SIZE	(sizeof(rndis_per_packet_info) + \
 				sizeof(ndis_8021q_info))
@@ -1046,11 +1055,11 @@ typedef struct rndismp_rx_bufs_info_ {
 /*
  * Externs
  */
-int netvsc_recv(struct hv_device *device_ctx, 
-    netvsc_packet *packet, 
-    rndis_tcp_ip_csum_info *csum_info);
-void netvsc_recv_rollup(struct hv_device *device_ctx);
-void netvsc_channel_rollup(struct hv_device *device_ctx);
+struct hv_vmbus_channel;
+
+int netvsc_recv(struct hv_vmbus_channel *chan,
+    netvsc_packet *packet, rndis_tcp_ip_csum_info *csum_info);
+void netvsc_channel_rollup(struct hv_vmbus_channel *chan);
 
 void* hv_set_rppi_data(rndis_msg *rndis_mesg,
     uint32_t rppi_size,

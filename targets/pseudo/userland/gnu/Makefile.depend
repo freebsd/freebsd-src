@@ -27,7 +27,6 @@ DIRDEPS = \
 	gnu/usr.bin/binutils/libbinutils \
 	gnu/usr.bin/binutils/libiberty \
 	gnu/usr.bin/binutils/libopcodes \
-	gnu/usr.bin/binutils/objcopy \
 	gnu/usr.bin/binutils/objdump \
 	gnu/usr.bin/binutils/ranlib \
 	gnu/usr.bin/dialog \
@@ -111,6 +110,10 @@ DIRDEPS = \
 	gnu/usr.bin/texinfo/libtxi \
 	gnu/usr.bin/texinfo/makeinfo \
 	gnu/usr.bin/texinfo/texindex \
+
+.if ${MK_ELFCOPY_AS_OBJCOPY} == "no"
+DIRDEPS+=	gnu/usr.bin/binutils/objcopy
+.endif
 
 .if ${MK_GPL_DTC} != "no"
 DIRDEPS+= gnu/usr.bin/dtc

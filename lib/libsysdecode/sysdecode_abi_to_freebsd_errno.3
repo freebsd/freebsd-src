@@ -43,7 +43,7 @@
 The
 .Fn sysdecode_abi_to_freebsd_errno
 function returns the native
-.Xr errno 3
+.Xr errno 2
 value that corresponds to the error indicated by
 .Fa error
 for the process ABI
@@ -60,19 +60,19 @@ The
 function the error value for the process ABI
 .Fa abi
 that corresponds to the native
-.Xr errno 3
+.Xr errno 2
 value
 .Fa error .
 If
 .Fa error
 does not identify a valid
-.Xr errno 3
+.Xr errno 2
 error,
 .Dv INT_MAX
 is returned.
 .Pp
 Note that the mappings between native
-.Xr errno 3
+.Xr errno 2
 values and errors for other ABIs are not exhaustive.
 If a mapping does not exist,
 these functions return
