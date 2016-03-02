@@ -1078,9 +1078,11 @@ typedef struct hn_softc {
 	netvsc_dev  	*net_dev;
 
 	int		hn_rx_ring_cnt;
+	int		hn_rx_ring_inuse;
 	struct hn_rx_ring *hn_rx_ring;
 
 	int		hn_tx_ring_cnt;
+	int		hn_tx_ring_inuse;
 	struct hn_tx_ring *hn_tx_ring;
 	int		hn_tx_chimney_max;
 	struct taskqueue *hn_tx_taskq;
