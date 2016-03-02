@@ -1433,7 +1433,7 @@ create-world-packages:	_pkgbootstrap
 			/^name/ { printf("===> Creating %s-", $$2); next } \
 			/^version/ { print $$2; next } \
 			' ${DESTDIR}/$${pkgname}.ucl ; \
-		pkg -o ABI_FILE=${DESTDIR}/bin/sh \
+		pkg -o ABI_FILE=${DESTDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 			create -M ${DESTDIR}/$${pkgname}.ucl \
 			-p ${DESTDIR}/$${pkgname}.plist \
 			-r ${DESTDIR} \
@@ -1461,7 +1461,7 @@ create-kernel-packages:	_pkgbootstrap
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
 		${DESTDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}-${flavor}.ucl ; \
-	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh \
+	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 		create -M ${DESTDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}-${flavor}.ucl \
 		-p ${DESTDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}-${flavor}.plist \
 		-r ${DESTDIR}/${DISTDIR} \
@@ -1490,7 +1490,7 @@ create-kernel-packages:	_pkgbootstrap
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
 		${DESTDIR}/kernel.${_kernel}/kernel.${_kernel}-${flavor}.ucl ; \
-	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh \
+	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 		create -M ${DESTDIR}/kernel.${_kernel}/kernel.${_kernel}-${flavor}.ucl \
 		-p ${DESTDIR}/kernel.${_kernel}/kernel.${_kernel}-${flavor}.plist \
 		-r ${DESTDIR}/kernel.${_kernel} \
