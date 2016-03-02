@@ -62,6 +62,8 @@ static int  hv_nv_destroy_rx_buffer(netvsc_dev *net_dev);
 static int  hv_nv_connect_to_vsp(struct hv_device *device);
 static void hv_nv_on_send_completion(netvsc_dev *net_dev,
     struct hv_device *device, hv_vm_packet_descriptor *pkt);
+static void hv_nv_on_receive_completion(struct hv_vmbus_channel *chan,
+    uint64_t tid, uint32_t status);
 static void hv_nv_on_receive(netvsc_dev *net_dev,
     struct hv_device *device, struct hv_vmbus_channel *chan,
     hv_vm_packet_descriptor *pkt);
@@ -911,7 +913,7 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hv_device *device,
 	 * messages (not just data messages) will trigger a response
 	 * message back to the host.
 	 */
-	hv_nv_on_receive_completion(device, vm_xfer_page_pkt->d.transaction_id,
+	hv_nv_on_receive_completion(chan, vm_xfer_page_pkt->d.transaction_id,
 	    status);
 }
 
@@ -920,8 +922,8 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hv_device *device,
  *
  * Send a receive completion packet to RNDIS device (ie NetVsp)
  */
-void
-hv_nv_on_receive_completion(struct hv_device *device, uint64_t tid,
+static void
+hv_nv_on_receive_completion(struct hv_vmbus_channel *chan, uint64_t tid,
     uint32_t status)
 {
 	nvsp_msg rx_comp_msg;
@@ -936,7 +938,7 @@ hv_nv_on_receive_completion(struct hv_device *device, uint64_t tid,
 
 retry_send_cmplt:
 	/* Send the completion */
-	ret = hv_vmbus_channel_send_packet(device->channel, &rx_comp_msg,
+	ret = hv_vmbus_channel_send_packet(chan, &rx_comp_msg,
 	    sizeof(nvsp_msg), tid, HV_VMBUS_PACKET_TYPE_COMPLETION, 0);
 	if (ret == 0) {
 		/* success */
