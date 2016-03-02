@@ -1053,6 +1053,7 @@ MLINKS+=\
 	mbuf.9 m_append.9 \
 	mbuf.9 m_apply.9 \
 	mbuf.9 m_cat.9 \
+	mbuf.9 m_catpkt.9 \
 	mbuf.9 MCHTYPE.9 \
 	mbuf.9 MCLGET.9 \
 	mbuf.9 m_collapse.9 \
