@@ -49,6 +49,9 @@
 #include "hv_rndis.h"
 #include "hv_rndis_filter.h"
 
+/* priv1 and priv1 are consumed by the main driver */
+#define hv_chan_rdbuf	hv_chan_priv3
+
 MALLOC_DEFINE(M_NETVSC, "netvsc", "Hyper-V netvsc driver");
 
 /*
@@ -666,25 +669,30 @@ hv_nv_disconnect_from_vsp(netvsc_dev *net_dev)
 netvsc_dev *
 hv_nv_on_device_add(struct hv_device *device, void *additional_info)
 {
+	struct hv_vmbus_channel *chan = device->channel;
 	netvsc_dev *net_dev;
 	int ret = 0;
 
 	net_dev = hv_nv_alloc_net_device(device);
-	if (!net_dev)
-		goto cleanup;
+	if (net_dev == NULL)
+		return NULL;
 
 	/* Initialize the NetVSC channel extension */
 
 	sema_init(&net_dev->channel_init_sema, 0, "netdev_sema");
 
+	chan->hv_chan_rdbuf = malloc(NETVSC_PACKET_SIZE, M_NETVSC, M_WAITOK);
+
 	/*
 	 * Open the channel
 	 */
-	ret = hv_vmbus_channel_open(device->channel,
+	ret = hv_vmbus_channel_open(chan,
 	    NETVSC_DEVICE_RING_BUFFER_SIZE, NETVSC_DEVICE_RING_BUFFER_SIZE,
-	    NULL, 0, hv_nv_on_channel_callback, device->channel);
-	if (ret != 0)
+	    NULL, 0, hv_nv_on_channel_callback, chan);
+	if (ret != 0) {
+		free(chan->hv_chan_rdbuf, M_NETVSC);
 		goto cleanup;
+	}
 
 	/*
 	 * Connect with the NetVsp
@@ -697,8 +705,8 @@ hv_nv_on_device_add(struct hv_device *device, void *additional_info)
 
 close:
 	/* Now, we can close the channel safely */
-
-	hv_vmbus_channel_close(device->channel);
+	free(chan->hv_chan_rdbuf, M_NETVSC);
+	hv_vmbus_channel_close(chan);
 
 cleanup:
 	/*
@@ -736,6 +744,7 @@ hv_nv_on_device_remove(struct hv_device *device, boolean_t destroy_channel)
 		    HV_CHANNEL_CLOSING_NONDESTRUCTIVE_STATE;
 	}
 
+	free(device->channel->hv_chan_rdbuf, M_NETVSC);
 	hv_vmbus_channel_close(device->channel);
 
 	sema_destroy(&net_dev->channel_init_sema);
@@ -975,7 +984,7 @@ hv_nv_on_channel_callback(void *xchan)
 	if (net_dev == NULL)
 		return;
 
-	buffer = net_dev->callback_buf;
+	buffer = chan->hv_chan_rdbuf;
 
 	do {
 		ret = hv_vmbus_channel_recv_packet_raw(chan,

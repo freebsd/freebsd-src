@@ -923,8 +923,6 @@ typedef struct netvsc_dev_ {
 	hv_bool_uint8_t				destroy;
 	/* Negotiated NVSP version */
 	uint32_t				nvsp_version;
-	
-	uint8_t					callback_buf[NETVSC_PACKET_SIZE]; 
 } netvsc_dev;
 
 
