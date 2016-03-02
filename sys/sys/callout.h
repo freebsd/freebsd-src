@@ -62,6 +62,12 @@ struct callout_handle {
 	struct callout *callout;
 };
 
+/* Flags for callout_stop_safe() */
+#define	CS_DRAIN		0x0001 /* callout_drain(), wait allowed */
+#define	CS_MIGRBLOCK		0x0002 /* Block migration, return value
+					  indicates that the callout was
+				          executing */
+
 #ifdef _KERNEL
 /* 
  * Note the flags field is actually *two* fields. The c_flags
@@ -81,7 +87,7 @@ struct callout_handle {
  */
 #define	callout_active(c)	((c)->c_flags & CALLOUT_ACTIVE)
 #define	callout_deactivate(c)	((c)->c_flags &= ~CALLOUT_ACTIVE)
-#define	callout_drain(c)	_callout_stop_safe(c, 1, NULL)
+#define	callout_drain(c)	_callout_stop_safe(c, CS_DRAIN, NULL)
 void	callout_init(struct callout *, int);
 void	_callout_init_lock(struct callout *, struct lock_object *, int);
 #define	callout_init_mtx(c, mtx, flags)					\
