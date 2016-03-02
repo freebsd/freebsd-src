@@ -677,8 +677,12 @@ mb_free_ext(struct mbuf *m)
 		case EXT_NET_DRV:
 		case EXT_MOD_TYPE:
 		case EXT_DISPOSABLE:
+			KASSERT(m->m_ext.ext_free != NULL,
+				("%s: ext_free not set", __func__));
+			(*(m->m_ext.ext_free))(m, m->m_ext.ext_arg1,
+			    m->m_ext.ext_arg2);
 			uma_zfree(zone_mbuf, mref);
-			/* FALLTHROUGH */
+			break;
 		case EXT_EXTREF:
 			KASSERT(m->m_ext.ext_free != NULL,
 				("%s: ext_free not set", __func__));
