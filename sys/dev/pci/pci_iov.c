@@ -513,6 +513,37 @@ pci_iov_init_rman(device_t pf, struct pcicfg_iov *iov)
 }
 
 static int
+pci_iov_alloc_bar_ea(struct pci_devinfo *dinfo, int bar)
+{
+	struct pcicfg_iov *iov;
+	rman_res_t start, end;
+	struct resource *res;
+	struct resource_list *rl;
+	struct resource_list_entry *rle;
+
+	rl = &dinfo->resources;
+	iov = dinfo->cfg.iov;
+
+	rle = resource_list_find(rl, SYS_RES_MEMORY,
+	    iov->iov_pos + PCIR_SRIOV_BAR(bar));
+	if (rle == NULL)
+		rle = resource_list_find(rl, SYS_RES_IOPORT,
+		    iov->iov_pos + PCIR_SRIOV_BAR(bar));
+	if (rle == NULL)
+		return (ENXIO);
+	res = rle->res;
+
+	iov->iov_bar[bar].res = res;
+	iov->iov_bar[bar].bar_size = rman_get_size(res) / iov->iov_num_vfs;
+	iov->iov_bar[bar].bar_shift = pci_mapsize(iov->iov_bar[bar].bar_size);
+
+	start = rman_get_start(res);
+	end = rman_get_end(res);
+
+	return (rman_manage_region(&iov->rman, start, end));
+}
+
+static int
 pci_iov_setup_bars(struct pci_devinfo *dinfo)
 {
 	device_t dev;
@@ -524,7 +555,18 @@ pci_iov_setup_bars(struct pci_devinfo *dinfo)
 	dev = dinfo->cfg.dev;
 	last_64 = 0;
 
+	pci_add_resources_ea(device_get_parent(dev), dev, 1);
+
 	for (i = 0; i <= PCIR_MAX_BAR_0; i++) {
+		/* First, try to use BARs allocated with EA */
+		error = pci_iov_alloc_bar_ea(dinfo, i);
+		if (error == 0)
+			continue;
+
+		/* Allocate legacy-BAR only if EA is not enabled */
+		if (pci_ea_is_enabled(dev, iov->iov_pos + PCIR_SRIOV_BAR(i)))
+			continue;
+
 		/*
 		 * If a PCI BAR is a 64-bit wide BAR, then it spans two
 		 * consecutive registers.  Therefore if the last BAR that
