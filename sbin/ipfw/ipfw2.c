@@ -779,7 +779,7 @@ fill_dscp(ipfw_insn *cmd, char *av, int cblen)
 				errx(EX_DATAERR, "Invalid DSCP value");
 		}
 
-		if (code > 32)
+		if (code >= 32)
 			*high |= 1 << (code - 32);
 		else
 			*low |= 1 << code;
