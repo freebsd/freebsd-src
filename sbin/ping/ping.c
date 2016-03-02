@@ -75,10 +75,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
 #include <arpa/inet.h>
-#ifdef HAVE_LIBCAPSICUM
-#include <libcapsicum.h>
-#include <libcapsicum_dns.h>
-#include <libcapsicum_service.h>
+
+#ifdef HAVE_LIBCASPER
+#include <libcasper.h>
+#include <casper/cap_dns.h>
 #endif
 
 #ifdef IPSEC
@@ -204,13 +204,13 @@ static double tsumsq = 0.0;	/* sum of all times squared, for std. dev. */
 static volatile sig_atomic_t finish_up;
 static volatile sig_atomic_t siginfo_p;
 
-#ifdef HAVE_LIBCAPSICUM
+#ifdef HAVE_LIBCASPER
 static cap_channel_t *capdns;
 #endif
 
 static void fill(char *, char *);
 static u_short in_cksum(u_short *, int);
-#ifdef HAVE_LIBCAPSICUM
+#ifdef HAVE_LIBCASPER
 static cap_channel_t *capdns_setup(void);
 #endif
 static void check_status(void);
@@ -553,7 +553,7 @@ main(int argc, char *const *argv)
 	if (options & F_PINGFILLED) {
 		fill((char *)datap, payload);
 	}
-#ifdef HAVE_LIBCAPSICUM
+#ifdef HAVE_LIBCASPER
 	capdns = capdns_setup();
 #endif
 	if (source) {
@@ -562,7 +562,7 @@ main(int argc, char *const *argv)
 		if (inet_aton(source, &sock_in.sin_addr) != 0) {
 			shostname = source;
 		} else {
-#ifdef HAVE_LIBCAPSICUM
+#ifdef HAVE_LIBCASPER
 			if (capdns != NULL)
 				hp = cap_gethostbyname2(capdns, source,
 				    AF_INET);
@@ -596,7 +596,7 @@ main(int argc, char *const *argv)
 	if (inet_aton(target, &to->sin_addr) != 0) {
 		hostname = target;
 	} else {
-#ifdef HAVE_LIBCAPSICUM
+#ifdef HAVE_LIBCASPER
 		if (capdns != NULL)
 			hp = cap_gethostbyname2(capdns, target, AF_INET);
 		else
@@ -614,7 +614,7 @@ main(int argc, char *const *argv)
 		hostname = hnamebuf;
 	}
 
-#ifdef HAVE_LIBCAPSICUM
+#ifdef HAVE_LIBCASPER
 	/* From now on we will use only reverse DNS lookups. */
 	if (capdns != NULL) {
 		const char *types[1];
@@ -722,7 +722,7 @@ main(int argc, char *const *argv)
 
 	if (options & F_NUMERIC)
 		cansandbox = true;
-#ifdef HAVE_LIBCAPSICUM
+#ifdef HAVE_LIBCASPER
 	else if (capdns != NULL)
 		cansandbox = true;
 #endif
@@ -1704,7 +1704,7 @@ pr_addr(struct in_addr ina)
 	if (options & F_NUMERIC)
 		return inet_ntoa(ina);
 
-#ifdef HAVE_LIBCAPSICUM
+#ifdef HAVE_LIBCASPER
 	if (capdns != NULL)
 		hp = cap_gethostbyaddr(capdns, (char *)&ina, 4, AF_INET);
 	else
@@ -1788,7 +1788,7 @@ fill(char *bp, char *patp)
 	}
 }
 
-#ifdef HAVE_LIBCAPSICUM
+#ifdef HAVE_LIBCASPER
 static cap_channel_t *
 capdns_setup(void)
 {
@@ -1797,10 +1797,8 @@ capdns_setup(void)
 	int families[1];
 
 	capcas = cap_init();
-	if (capcas == NULL) {
-		warn("unable to contact casperd");
-		return (NULL);
-	}
+	if (capcas == NULL)
+		err(1, "unable to create casper process");
 	capdnsloc = cap_service_open(capcas, "system.dns");
 	/* Casper capability no longer needed. */
 	cap_close(capcas);
@@ -1816,7 +1814,7 @@ capdns_setup(void)
 
 	return (capdnsloc);
 }
-#endif /* HAVE_LIBCAPSICUM */
+#endif /* HAVE_LIBCASPER */
 
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 #define	SECOPT		" [-P policy]"

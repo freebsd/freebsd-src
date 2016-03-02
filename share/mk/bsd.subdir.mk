@@ -39,7 +39,7 @@
 __<bsd.subdir.mk>__:
 
 SUBDIR_TARGETS+= \
-		all all-man buildconfig buildfiles buildincludes \
+		all all-man analyze buildconfig buildfiles buildincludes \
 		checkdpadd clean cleandepend cleandir cleanilinks \
 		cleanobj depend distribute files includes installconfig \
 		installfiles installincludes realinstall lint maninstall \
@@ -47,8 +47,15 @@ SUBDIR_TARGETS+= \
 
 # Described above.
 STANDALONE_SUBDIR_TARGETS+= \
-		obj check checkdpadd clean cleandepend cleandir \
-		cleanilinks cleanobj installconfig \
+		all-man buildconfig buildfiles buildincludes check checkdpadd \
+		clean cleandepend cleandir cleanilinks cleanobj files includes \
+		installconfig installincludes installfiles maninstall manlint \
+		obj objlink \
+
+# It is safe to install in parallel when staging.
+.if defined(NO_ROOT)
+STANDALONE_SUBDIR_TARGETS+= realinstall
+.endif
 
 .include <bsd.init.mk>
 
@@ -138,14 +145,14 @@ __subdir_targets=
 .if ${__dir} == .WAIT
 __subdir_targets+= .WAIT
 .else
-__subdir_targets+= ${__target}_subdir_${__dir}
+__subdir_targets+= ${__target}_subdir_${DIRPRFX}${__dir}
 __deps=
 .if ${_is_standalone_target} == 0
 .for __dep in ${SUBDIR_DEPEND_${__dir}}
-__deps+= ${__target}_subdir_${__dep}
+__deps+= ${__target}_subdir_${DIRPRFX}${__dep}
 .endfor
 .endif
-${__target}_subdir_${__dir}: .PHONY .MAKE ${__deps}
+${__target}_subdir_${DIRPRFX}${__dir}: .PHONY .MAKE .SILENT ${__deps}
 .if !defined(NO_SUBDIR)
 	@${_+_}target=${__target:realinstall=install}; \
 	    dir=${__dir}; \

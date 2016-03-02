@@ -280,8 +280,8 @@ ndis_alloc_amem(arg)
 
 	sc = arg;
 	rid = NDIS_AM_RID;
-	sc->ndis_res_am = bus_alloc_resource(sc->ndis_dev, SYS_RES_MEMORY,
-	    &rid, 0UL, ~0UL, 0x1000, RF_ACTIVE);
+	sc->ndis_res_am = bus_alloc_resource_anywhere(sc->ndis_dev,
+	    SYS_RES_MEMORY, &rid, 0x1000, RF_ACTIVE);
 
 	if (sc->ndis_res_am == NULL) {
 		device_printf(sc->ndis_dev,

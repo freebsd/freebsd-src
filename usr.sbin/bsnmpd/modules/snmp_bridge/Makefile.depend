@@ -18,24 +18,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-bridge_addrs.So: bridge_tree.h
-bridge_addrs.po: bridge_tree.h
-bridge_if.So: bridge_oid.h
-bridge_if.So: bridge_tree.h
-bridge_if.po: bridge_oid.h
-bridge_if.po: bridge_tree.h
-bridge_pf.So: bridge_tree.h
-bridge_pf.po: bridge_tree.h
-bridge_port.So: bridge_tree.h
-bridge_port.po: bridge_tree.h
-bridge_snmp.So: bridge_oid.h
-bridge_snmp.So: bridge_tree.h
-bridge_snmp.po: bridge_oid.h
-bridge_snmp.po: bridge_tree.h
-bridge_sys.So: bridge_tree.h
-bridge_sys.po: bridge_tree.h
-bridge_tree.So: bridge_tree.c
-bridge_tree.So: bridge_tree.h
-bridge_tree.po: bridge_tree.c
-bridge_tree.po: bridge_tree.h
 .endif

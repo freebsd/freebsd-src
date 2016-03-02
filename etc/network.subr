@@ -214,16 +214,14 @@ ifconfig_up()
 	ifalias $1 link alias
 	ifalias $1 ether alias
 
-	if [ ${_cfg} -eq 0 ]; then
-		${IFCONFIG_CMD} $1 up
-	fi
-
 	if wpaif $1; then
 		/etc/rc.d/wpa_supplicant start $1
 		_cfg=0		# XXX: not sure this should count
 	elif hostapif $1; then
 		/etc/rc.d/hostapd start $1
 		_cfg=0
+	elif [ ${_cfg} -eq 0 ]; then
+		${IFCONFIG_CMD} $1 up
 	fi
 
 	if dhcpif $1; then

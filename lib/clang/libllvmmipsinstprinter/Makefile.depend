@@ -13,12 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-MipsInstPrinter.o: MipsGenAsmWriter.inc.h
-MipsInstPrinter.o: MipsGenInstrInfo.inc.h
-MipsInstPrinter.o: MipsGenRegisterInfo.inc.h
-MipsInstPrinter.o: MipsGenSubtargetInfo.inc.h
-MipsInstPrinter.po: MipsGenAsmWriter.inc.h
-MipsInstPrinter.po: MipsGenInstrInfo.inc.h
-MipsInstPrinter.po: MipsGenRegisterInfo.inc.h
-MipsInstPrinter.po: MipsGenSubtargetInfo.inc.h
 .endif

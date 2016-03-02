@@ -19,12 +19,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-aliases_parse.o: aliases_parse.c
-aliases_parse.o: aliases_parse.h
-aliases_parse.po: aliases_parse.c
-aliases_parse.po: aliases_parse.h
-aliases_scan.o: aliases_parse.h
-aliases_scan.o: aliases_scan.c
-aliases_scan.po: aliases_parse.h
-aliases_scan.po: aliases_scan.c
 .endif

@@ -257,8 +257,8 @@ tws_attach(device_t dev)
 #ifndef TWS_PULL_MODE_ENABLE
     /* Allocate bus space for inbound mfa */ 
     sc->mfa_res_id = TWS_PCI_BAR2; /* BAR2 offset */
-    if ((sc->mfa_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-                          &(sc->mfa_res_id), 0, ~0, 0x100000, RF_ACTIVE))
+    if ((sc->mfa_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+                          &(sc->mfa_res_id), RF_ACTIVE))
                                 == NULL) {
         tws_log(sc, ALLOC_MEMORY_RES);
         goto attach_fail_2;

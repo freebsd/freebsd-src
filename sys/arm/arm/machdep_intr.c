@@ -52,11 +52,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
+#include <sys/smp.h>
 
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/cpu.h>
+#include <machine/smp.h>
+
+#ifdef ARM_INTRNG
+#include "pic_if.h"
+
+#ifdef SMP
+static struct intr_irqsrc ipi_sources[INTR_IPI_COUNT];
+static u_int ipi_next_num;
+#endif
+#endif
 
 /*
  * arm_irq_memory_barrier()
@@ -121,3 +132,127 @@ arm_irq_memory_barrier(uintptr_t irq)
 	cpu_l2cache_drain_writebuf();
 }
 
+#ifdef ARM_INTRNG
+#ifdef SMP
+/*
+ *  Lookup IPI source.
+ */
+static struct intr_irqsrc *
+intr_ipi_lookup(u_int ipi)
+{
+
+	if (ipi >= INTR_IPI_COUNT)
+		panic("%s: no such IPI %u", __func__, ipi);
+
+	return (&ipi_sources[ipi]);
+}
+
+/*
+ *  interrupt controller dispatch function for IPIs. It should
+ *  be called straight from the interrupt controller, when associated
+ *  interrupt source is learned. Or from anybody who has an interrupt
+ *  source mapped.
+ */
+void
+intr_ipi_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
+{
+	void *arg;
+
+	KASSERT(isrc != NULL, ("%s: no source", __func__));
+
+	intr_ipi_increment_count(isrc->isrc_count, PCPU_GET(cpuid));
+
+	/*
+	 * Supply ipi filter with trapframe argument
+	 * if none is registered.
+	 */
+	arg = isrc->isrc_arg != NULL ? isrc->isrc_arg : tf;
+	isrc->isrc_ipifilter(arg);
+}
+
+/*
+ *  Map IPI into interrupt controller.
+ *
+ *  Not SMP coherent.
+ */
+static int
+ipi_map(struct intr_irqsrc *isrc, u_int ipi)
+{
+	boolean_t is_percpu;
+	int error;
+
+	if (ipi >= INTR_IPI_COUNT)
+		panic("%s: no such IPI %u", __func__, ipi);
+
+	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
+
+	isrc->isrc_type = INTR_ISRCT_NAMESPACE;
+	isrc->isrc_nspc_type = INTR_IRQ_NSPC_IPI;
+	isrc->isrc_nspc_num = ipi_next_num;
+
+	error = PIC_REGISTER(intr_irq_root_dev, isrc, &is_percpu);
+	if (error == 0) {
+		isrc->isrc_dev = intr_irq_root_dev;
+		ipi_next_num++;
+	}
+	return (error);
+}
+
+/*
+ *  Setup IPI handler to interrupt source.
+ *
+ *  Note that there could be more ways how to send and receive IPIs
+ *  on a platform like fast interrupts for example. In that case,
+ *  one can call this function with ASIF_NOALLOC flag set and then
+ *  call intr_ipi_dispatch() when appropriate.
+ *
+ *  Not SMP coherent.
+ */
+int
+intr_ipi_set_handler(u_int ipi, const char *name, intr_ipi_filter_t *filter,
+    void *arg, u_int flags)
+{
+	struct intr_irqsrc *isrc;
+	int error;
+
+	if (filter == NULL)
+		return(EINVAL);
+
+	isrc = intr_ipi_lookup(ipi);
+	if (isrc->isrc_ipifilter != NULL)
+		return (EEXIST);
+
+	if ((flags & AISHF_NOALLOC) == 0) {
+		error = ipi_map(isrc, ipi);
+		if (error != 0)
+			return (error);
+	}
+
+	isrc->isrc_ipifilter = filter;
+	isrc->isrc_arg = arg;
+	isrc->isrc_handlers = 1;
+	isrc->isrc_count = intr_ipi_setup_counters(name);
+	isrc->isrc_index = 0; /* it should not be used in IPI case */
+
+	if (isrc->isrc_dev != NULL) {
+		PIC_ENABLE_INTR(isrc->isrc_dev, isrc);
+		PIC_ENABLE_SOURCE(isrc->isrc_dev, isrc);
+	}
+	return (0);
+}
+
+/*
+ *  Send IPI thru interrupt controller.
+ */
+void
+pic_ipi_send(cpuset_t cpus, u_int ipi)
+{
+	struct intr_irqsrc *isrc;
+
+	isrc = intr_ipi_lookup(ipi);
+
+	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
+	PIC_IPI_SEND(intr_irq_root_dev, isrc, cpus);
+}
+#endif
+#endif

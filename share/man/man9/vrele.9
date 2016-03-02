@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2010
+.Dd February 24, 2016
 .Dt VRELE 9
 .Os
 .Sh NAME
@@ -81,9 +81,11 @@ If the
 .Va v_usecount
 field of the non-doomed vnode reaches zero, then it will be inactivated
 and placed on the free list.
-Since the functions might need to call VOPs for the vnode, the
-.Va Giant
-mutex should be conditionally locked around the call.
+.Pp
+The
+.Fn vrele
+function may lock the vnode.
+All three functions may sleep.
 .Pp
 The hold count for the vnode is always greater or equal to the usecount.
 Non-forced unmount fails when mount point owns a vnode that has non-zero

@@ -233,7 +233,7 @@ nexus_attach(device_t dev)
 		    rman_init(&sc->sc_mem_rman) != 0 ||
 		    rman_manage_region(&sc->sc_intr_rman, 0,
 		    IV_MAX - 1) != 0 ||
-		    rman_manage_region(&sc->sc_mem_rman, 0ULL, ~0ULL) != 0)
+		    rman_manage_region(&sc->sc_mem_rman, 0, BUS_SPACE_MAXADDR) != 0)
 			panic("%s: failed to set up rmans.", __func__);
 	} else
 		node = ofw_bus_get_node(dev);

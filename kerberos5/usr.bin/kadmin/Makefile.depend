@@ -19,6 +19,7 @@ DIRDEPS = \
 	kerberos5/lib/libsl \
 	kerberos5/lib/libvers \
 	kerberos5/lib/libwind \
+	kerberos5/tools/slc.host \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcom_err \
@@ -36,40 +37,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-add_enctype.o: kadmin-commands.h
-add_enctype.po: kadmin-commands.h
-ank.o: kadmin-commands.h
-ank.po: kadmin-commands.h
-check.o: kadmin-commands.h
-check.po: kadmin-commands.h
-cpw.o: kadmin-commands.h
-cpw.po: kadmin-commands.h
-del.o: kadmin-commands.h
-del.po: kadmin-commands.h
-del_enctype.o: kadmin-commands.h
-del_enctype.po: kadmin-commands.h
-dump.o: kadmin-commands.h
-dump.po: kadmin-commands.h
-ext.o: kadmin-commands.h
-ext.po: kadmin-commands.h
-get.o: kadmin-commands.h
-get.po: kadmin-commands.h
-init.o: kadmin-commands.h
-init.po: kadmin-commands.h
-kadmin-commands.o: kadmin-commands.c
-kadmin-commands.o: kadmin-commands.h
-kadmin-commands.po: kadmin-commands.c
-kadmin-commands.po: kadmin-commands.h
-kadmin.o: kadmin-commands.h
-kadmin.po: kadmin-commands.h
-load.o: kadmin-commands.h
-load.po: kadmin-commands.h
-mod.o: kadmin-commands.h
-mod.po: kadmin-commands.h
-pw_quality.o: kadmin-commands.h
-pw_quality.po: kadmin-commands.h
-rename.o: kadmin-commands.h
-rename.po: kadmin-commands.h
-stash.o: kadmin-commands.h
-stash.po: kadmin-commands.h
 .endif

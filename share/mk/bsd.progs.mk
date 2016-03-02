@@ -27,18 +27,6 @@ UPDATE_DEPENDFILE_PROG = ${PROGS:[1]}
 .export UPDATE_DEPENDFILE_PROG
 .endif
 
-.ifndef PROG
-# They may have asked us to build just one
-.for t in ${PROGS}
-.if make($t)
-.if ${PROGS_CXX:U:M${t}}
-PROG_CXX ?= $t
-.endif
-PROG ?= $t
-.endif
-.endfor
-.endif
-
 .if defined(PROG)
 # just one of many
 PROG_OVERRIDE_VARS +=	BINDIR BINGRP BINOWN BINMODE DPSRCS MAN NO_WERROR \
@@ -65,16 +53,27 @@ UPDATE_DEPENDFILE ?= NO
 
 # prog.mk will do the rest
 .else # !defined(PROG)
+.if !defined(_SKIP_BUILD)
 all: ${PROGS}
+.endif
 
 # We cannot capture dependencies for meta mode here
 UPDATE_DEPENDFILE = NO
+
+.if ${MK_STAGING} != "no"
+.if !empty(PROGS)
+stage_files.prog: ${PROGS}
+.endif
+.endif	# ${MK_STAGING} != "no"
 .endif
 .endif	# PROGS || PROGS_CXX
 
 # These are handled by the main make process.
 .ifdef _RECURSING_PROGS
-_PROGS_GLOBAL_VARS= CLEANFILES CLEANDIRS FILESGROUPS SCRIPTS CONFGROUPS
+MK_STAGING= no
+
+_PROGS_GLOBAL_VARS= CLEANFILES CLEANDIRS CONFGROUPS FILESGROUPS INCSGROUPS \
+		    SCRIPTS
 .for v in ${_PROGS_GLOBAL_VARS}
 $v =
 .endfor
@@ -134,6 +133,8 @@ $p.$t: .PHONY .MAKE
 
 # Depend main pseudo targets on all PROG.pseudo targets too.
 .for t in ${PROGS_TARGETS:O:u}
+.if make(${t})
 $t: ${PROGS:%=%.$t}
+.endif
 .endfor
 .endif	# !empty(PROGS) && !defined(_RECURSING_PROGS) && !defined(PROG)

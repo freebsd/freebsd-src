@@ -893,7 +893,6 @@ typedef struct nvsp_msg_ {
  */
 typedef struct netvsc_dev_ {
 	struct hv_device			*dev;
-	int					num_outstanding_sends;
 
 	/* Send buffer allocated by us but manages by NetVSP */
 	void					*send_buf;
@@ -924,8 +923,6 @@ typedef struct netvsc_dev_ {
 	hv_bool_uint8_t				destroy;
 	/* Negotiated NVSP version */
 	uint32_t				nvsp_version;
-	
-	uint8_t					callback_buf[NETVSC_PACKET_SIZE]; 
 } netvsc_dev;
 
 
@@ -1000,10 +997,12 @@ struct buf_ring;
 #endif
 
 struct hn_rx_ring {
-	struct lro_ctrl	hn_lro;
+	struct ifnet	*hn_ifp;
+	int		hn_rx_idx;
 
 	/* Trust csum verification on host side */
 	int		hn_trust_hcsum;	/* HN_TRUST_HCSUM_ */
+	struct lro_ctrl	hn_lro;
 
 	u_long		hn_csum_ip;
 	u_long		hn_csum_tcp;
@@ -1016,6 +1015,8 @@ struct hn_rx_ring {
 #define HN_TRUST_HCSUM_IP	0x0001
 #define HN_TRUST_HCSUM_TCP	0x0002
 #define HN_TRUST_HCSUM_UDP	0x0004
+
+struct hv_vmbus_channel;
 
 struct hn_tx_ring {
 #ifndef HN_USE_TXDESC_BUFRING
@@ -1034,8 +1035,13 @@ struct hn_tx_ring {
 	struct task	hn_tx_task;
 	struct task	hn_txeof_task;
 
+	struct buf_ring	*hn_mbuf_br;
+	int		hn_oactive;
+	int		hn_tx_idx;
+
 	struct mtx	hn_tx_lock;
 	struct hn_softc	*hn_sc;
+	struct hv_vmbus_channel *hn_chan;
 
 	int		hn_direct_tx_size;
 	int		hn_tx_chimney_size;
@@ -1072,9 +1078,11 @@ typedef struct hn_softc {
 	netvsc_dev  	*net_dev;
 
 	int		hn_rx_ring_cnt;
+	int		hn_rx_ring_inuse;
 	struct hn_rx_ring *hn_rx_ring;
 
 	int		hn_tx_ring_cnt;
+	int		hn_tx_ring_inuse;
 	struct hn_tx_ring *hn_tx_ring;
 	int		hn_tx_chimney_max;
 	struct taskqueue *hn_tx_taskq;
@@ -1087,13 +1095,11 @@ typedef struct hn_softc {
 extern int hv_promisc_mode;
 
 void netvsc_linkstatus_callback(struct hv_device *device_obj, uint32_t status);
-void hv_nv_on_receive_completion(struct hv_device *device,
-    uint64_t tid, uint32_t status);
 netvsc_dev *hv_nv_on_device_add(struct hv_device *device,
     void *additional_info);
 int hv_nv_on_device_remove(struct hv_device *device,
     boolean_t destroy_channel);
-int hv_nv_on_send(struct hv_device *device, netvsc_packet *pkt);
+int hv_nv_on_send(struct hv_vmbus_channel *chan, netvsc_packet *pkt);
 int hv_nv_get_next_send_section(netvsc_dev *net_dev);
 
 #endif  /* __HV_NET_VSC_H__ */

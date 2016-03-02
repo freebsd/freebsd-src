@@ -28,8 +28,5 @@ esdb.alias: ${SUBDIR}
 esdb.alias.db: esdb.alias
 	${MKESDB} -m -o ${.TARGET} ${.ALLSRC}
 
-all: ${FILES}
-realall: ${FILES}
-
 .include "./Makefile.inc"
 .include <bsd.prog.mk>

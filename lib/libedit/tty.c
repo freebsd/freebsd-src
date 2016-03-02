@@ -1,4 +1,4 @@
-/*	$NetBSD: tty.c,v 1.49 2015/12/08 16:53:27 gson Exp $	*/
+/*	$NetBSD: tty.c,v 1.58 2016/02/27 18:13:21 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: tty.c,v 1.49 2015/12/08 16:53:27 gson Exp $");
+__RCSID("$NetBSD: tty.c,v 1.58 2016/02/27 18:13:21 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
@@ -48,11 +48,13 @@ __FBSDID("$FreeBSD$");
  */
 #include <assert.h>
 #include <errno.h>
-#include <unistd.h>	/* for isatty */
-#include <strings.h>	/* for ffs */
 #include <stdlib.h>	/* for abort */
+#include <string.h>
+#include <strings.h>	/* for ffs */
+#include <unistd.h>	/* for isatty */
+
 #include "el.h"
-#include "tty.h"
+#include "parse.h"
 
 typedef struct ttymodes_t {
 	const char *m_name;
@@ -61,7 +63,7 @@ typedef struct ttymodes_t {
 }          ttymodes_t;
 
 typedef struct ttymap_t {
-	Int nch, och;		/* Internal and termio rep of chars */
+	wint_t nch, och;	/* Internal and termio rep of chars */
 	el_action_t bind[3];	/* emacs, vi, and vi-cmd */
 } ttymap_t;
 
@@ -157,7 +159,7 @@ private const ttymap_t tty_map[] = {
 	{C_LNEXT, VLNEXT,
 	{ED_QUOTED_INSERT, ED_QUOTED_INSERT, ED_UNASSIGNED}},
 #endif /* VLNEXT */
-	{(Int)-1, (Int)-1,
+	{(wint_t)-1, (wint_t)-1,
 	{ED_UNASSIGNED, ED_UNASSIGNED, ED_UNASSIGNED}}
 };
 
@@ -498,6 +500,7 @@ tty_setup(EditLine *el)
 {
 	int rst = 1;
 
+	el->el_tty.t_initialized = 0;
 	if (el->el_flags & EDIT_DISABLED)
 		return 0;
 
@@ -560,6 +563,7 @@ tty_setup(EditLine *el)
 
 	tty__setchar(&el->el_tty.t_ed, el->el_tty.t_c[ED_IO]);
 	tty_bind_char(el, 1);
+	el->el_tty.t_initialized = 1;
 	return 0;
 }
 
@@ -583,6 +587,9 @@ protected void
 tty_end(EditLine *el)
 {
 	if (el->el_flags & EDIT_DISABLED)
+		return;
+
+	if (el->el_tty.t_initialized)
 		return;
 
 	if (tty_setty(el, TCSAFLUSH, &el->el_tty.t_or) == -1) {
@@ -904,9 +911,9 @@ tty_bind_char(EditLine *el, int force)
 		dalt = NULL;
 	}
 
-	for (tp = tty_map; tp->nch != (Int)-1; tp++) {
-		new[0] = t_n[tp->nch];
-		old[0] = t_o[tp->och];
+	for (tp = tty_map; tp->nch != (wint_t)-1; tp++) {
+		new[0] = (Char)t_n[tp->nch];
+		old[0] = (Char)t_o[tp->och];
 		if (new[0] == old[0] && !force)
 			continue;
 		/* Put the old default binding back, and set the new binding */
@@ -978,7 +985,7 @@ tty_update_char(EditLine *el, int mode, int c) {
 
 
 /* tty_rawmode():
- * 	Set terminal into 1 character at a time mode.
+ *	Set terminal into 1 character at a time mode.
  */
 protected int
 tty_rawmode(EditLine *el)
@@ -1176,8 +1183,8 @@ tty_stty(EditLine *el, int argc __attribute__((__unused__)), const Char **argv)
 			break;
 		default:
 			(void) fprintf(el->el_errfile,
-			    "%s: Unknown switch `" FCHAR "'.\n",
-			    name, (Int)argv[0][1]);
+			    "%s: Unknown switch `%lc'.\n",
+			    name, (wint_t)argv[0][1]);
 			return -1;
 		}
 

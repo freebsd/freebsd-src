@@ -77,12 +77,6 @@ static bus_space_handle_t bs_periph;
 	bus_space_write_4(fdtbus_bs_tag, bs_periph, (addr), (val))
 
 void
-platform_mp_init_secondary(void)
-{
-
-}
-
-void
 platform_mp_setmaxid(void)
 {
 
@@ -93,17 +87,6 @@ platform_mp_setmaxid(void)
 	mp_ncpus = 4;
 	mp_maxid = mp_ncpus - 1;
 	DPRINTF("mp_maxid=%d\n", mp_maxid);
-}
-
-int
-platform_mp_probe(void)
-{
-
-	DPRINTF("platform_mp_probe\n");
-	CPU_SETOF(0, &all_cpus);
-	if (mp_ncpus == 0)
-		platform_mp_setmaxid();
-	return (mp_ncpus > 1);
 }
 
 void
@@ -192,11 +175,4 @@ pic_ipi_read(int i)
 void
 pic_ipi_clear(int ipi)
 {
-}
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
 }

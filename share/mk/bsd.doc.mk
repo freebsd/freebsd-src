@@ -114,9 +114,11 @@ COMPAT?=	-C
 
 .PATH: ${.CURDIR} ${SRCDIR}
 
+.if !defined(_SKIP_BUILD)
 .for _dev in ${PRINTERDEVICE}
 all: ${DFILE.${_dev}}
 .endfor
+.endif
 
 .if !target(print)
 .for _dev in ${PRINTERDEVICE}

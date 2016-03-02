@@ -119,24 +119,11 @@ platform_mp_get_core_cnt(void)
 }
 
 void
-platform_mp_init_secondary(void)
-{
-
-	intr_pic_init_secondary();
-}
-
-void
 platform_mp_setmaxid(void)
 {
 
 	mp_ncpus = platform_mp_get_core_cnt();
 	mp_maxid = mp_ncpus - 1;
-}
-
-int
-platform_mp_probe(void)
-{
-	return (1);
 }
 
 static int
@@ -323,11 +310,4 @@ alpine_serdes_resource_get(uint32_t group, bus_space_tag_t *tag, bus_addr_t *bad
 	baddr_mapped[group] = *baddr;
 
 	return (0);
-}
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
 }

@@ -10,7 +10,7 @@
 #undef HAVE_BPF_DUMP
 
 /* capsicum support available */
-#undef HAVE_CAPSICUM
+#undef HAVE_CAPSPER
 
 /* Define to 1 if you have the `cap_enter' function. */
 #undef HAVE_CAP_ENTER

@@ -140,9 +140,7 @@ hv_vmbus_allocate_channel(void)
 					M_DEVBUF,
 					M_WAITOK | M_ZERO);
 
-	mtx_init(&channel->inbound_lock, "channel inbound", NULL, MTX_DEF);
 	mtx_init(&channel->sc_lock, "vmbus multi channel", NULL, MTX_DEF);
-
 	TAILQ_INIT(&channel->sc_list_anchor);
 
 	return (channel);
@@ -155,8 +153,6 @@ void
 hv_vmbus_free_vmbus_channel(hv_vmbus_channel* channel)
 {
 	mtx_destroy(&channel->sc_lock);
-	mtx_destroy(&channel->inbound_lock);
-
 	free(channel, M_DEVBUF);
 }
 
@@ -215,6 +211,7 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 			 * It is a sub channel offer, process it.
 			 */
 			new_channel->primary_channel = channel;
+			new_channel->device = channel->device;
 			mtx_lock(&channel->sc_lock);
 			TAILQ_INSERT_TAIL(
 			    &channel->sc_list_anchor,
@@ -277,6 +274,21 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	}
 }
 
+static void
+vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu)
+{
+	KASSERT(cpu >= 0 && cpu < mp_ncpus, ("invalid cpu %d", cpu));
+
+	chan->target_cpu = cpu;
+	chan->target_vcpu = hv_vmbus_g_context.hv_vcpu_index[cpu];
+
+	if (bootverbose) {
+		printf("vmbus_chan%u: assigned to cpu%u [vcpu%u]\n",
+		    chan->offer_msg.child_rel_id,
+		    chan->target_cpu, chan->target_vcpu);
+	}
+}
+
 /**
  * Array of device guids that are performance critical. We try to distribute
  * the interrupt load for these devices across all online cpus. 
@@ -309,11 +321,12 @@ static uint32_t next_vcpu;
  * distributed across all available CPUs.
  */
 static void
-vmbus_channel_select_cpu(hv_vmbus_channel *channel, hv_guid *guid)
+vmbus_channel_select_defcpu(struct hv_vmbus_channel *channel)
 {
 	uint32_t current_cpu;
 	int i;
 	boolean_t is_perf_channel = FALSE;
+	const hv_guid *guid = &channel->offer_msg.offer.interface_type;
 
 	for (i = PERF_CHN_NIC; i < MAX_PERF_CHN; i++) {
 		if (memcmp(guid->data, high_perf_devices[i].data,
@@ -326,21 +339,13 @@ vmbus_channel_select_cpu(hv_vmbus_channel *channel, hv_guid *guid)
 	if ((hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008) ||
 	    (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7) ||
 	    (!is_perf_channel)) {
-		/* Host's view of guest cpu */
-		channel->target_vcpu = 0;
-		/* Guest's own view of cpu */
-		channel->target_cpu = 0;
+		/* Stick to cpu0 */
+		vmbus_channel_cpu_set(channel, 0);
 		return;
 	}
 	/* mp_ncpus should have the number cpus currently online */
 	current_cpu = (++next_vcpu % mp_ncpus);
-	channel->target_cpu = current_cpu;
-	channel->target_vcpu =
-	    hv_vmbus_g_context.hv_vcpu_index[current_cpu];
-	if (bootverbose)
-		printf("VMBUS: Total online cpus %d, assign perf channel %d "
-		    "to vcpu %d, cpu %d\n", mp_ncpus, i, channel->target_vcpu,
-		    current_cpu);
+	vmbus_channel_cpu_set(channel, current_cpu);
 }
 
 /**
@@ -411,16 +416,13 @@ vmbus_channel_on_offer_internal(void* context)
 		    offer->connection_id;
 	}
 
-	/*
-	 * Bind the channel to a chosen cpu.
-	 */
-	vmbus_channel_select_cpu(new_channel,
-	    &offer->offer.interface_type);
-
 	memcpy(&new_channel->offer_msg, offer,
 	    sizeof(hv_vmbus_channel_offer_channel));
 	new_channel->monitor_group = (uint8_t) offer->monitor_id / 32;
 	new_channel->monitor_bit = (uint8_t) offer->monitor_id % 32;
+
+	/* Select default cpu for this channel. */
+	vmbus_channel_select_defcpu(new_channel);
 
 	vmbus_channel_process_offer(new_channel);
 
@@ -455,7 +457,10 @@ vmbus_channel_on_offer_rescind_internal(void *context)
 	hv_vmbus_channel*               channel;
 
 	channel = (hv_vmbus_channel*)context;
-	hv_vmbus_child_device_unregister(channel->device);
+	if (HV_VMBUS_CHAN_ISPRIMARY(channel)) {
+		/* Only primary channel owns the hv_device */
+		hv_vmbus_child_device_unregister(channel->device);
+	}
 }
 
 /**
@@ -676,7 +681,10 @@ hv_vmbus_release_unattached_channels(void)
 	    TAILQ_REMOVE(&hv_vmbus_g_connection.channel_anchor,
 			    channel, list_entry);
 
-	    hv_vmbus_child_device_unregister(channel->device);
+	    if (HV_VMBUS_CHAN_ISPRIMARY(channel)) {
+		/* Only primary channel owns the hv_device */
+		hv_vmbus_child_device_unregister(channel->device);
+	    }
 	    hv_vmbus_free_vmbus_channel(channel);
 	}
 	bzero(hv_vmbus_g_connection.channels, 

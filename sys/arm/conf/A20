@@ -120,6 +120,14 @@ device		sound
 # Pinmux
 device		fdt_pinctrl
 
+# Framebuffer support
+device		vt
+device		kbdmux
+device		ums
+device		ukbd
+device		videomode
+device		hdmi
+
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
 makeoptions	MODULES_EXTRA=dtb/allwinner

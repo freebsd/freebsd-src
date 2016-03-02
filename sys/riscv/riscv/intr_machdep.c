@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -38,7 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/cpuset.h>
 #include <sys/interrupt.h>
+#include <sys/smp.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -46,12 +48,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/intr.h>
 
-enum {
-	IRQ_SOFTWARE,
-	IRQ_TIMER,
-	IRQ_HTIF,
-	NIRQS
-};
+#ifdef SMP
+#include <machine/smp.h>
+#endif
 
 u_long intrcnt[NIRQS];
 size_t sintrcnt = sizeof(intrcnt);
@@ -159,8 +158,12 @@ riscv_setup_intr(const char *name, driver_filter_t *filt,
 		riscv_unmask_irq((void*)(uintptr_t)irq);
 	}
 
-	intr_event_add_handler(event, name, filt, handler, arg,
+	error = intr_event_add_handler(event, name, filt, handler, arg,
 	    intr_priority(flags), flags, cookiep);
+	if (error) {
+		printf("Failed to setup intr: %d\n", irq);
+		return (error);
+	}
 
 	riscv_intrcnt_setname(riscv_intr_counters[irq],
 			     event->ie_fullname);
@@ -221,3 +224,74 @@ riscv_cpu_intr(struct trapframe *frame)
 
 	critical_exit();
 }
+
+#ifdef SMP
+void
+riscv_setup_ipihandler(driver_filter_t *filt)
+{
+
+	riscv_setup_intr("ipi", filt, NULL, NULL, IRQ_SOFTWARE,
+	    INTR_TYPE_MISC, NULL);
+}
+
+void
+riscv_unmask_ipi(void)
+{
+
+	csr_set(sie, SIE_SSIE);
+}
+
+/* Sending IPI */
+static void
+ipi_send(struct pcpu *pc, int ipi)
+{
+
+	CTR3(KTR_SMP, "%s: cpu=%d, ipi=%x", __func__, pc->pc_cpuid, ipi);
+
+	atomic_set_32(&pc->pc_pending_ipis, ipi);
+	machine_command(ECALL_SEND_IPI, pc->pc_reg);
+
+	CTR1(KTR_SMP, "%s: sent", __func__);
+}
+
+void
+ipi_all_but_self(u_int ipi)
+{
+	cpuset_t other_cpus;
+
+	other_cpus = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+
+	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
+	ipi_selected(other_cpus, ipi);
+}
+
+void
+ipi_cpu(int cpu, u_int ipi)
+{
+	cpuset_t cpus;
+
+	CPU_ZERO(&cpus);
+	CPU_SET(cpu, &cpus);
+
+	CTR3(KTR_SMP, "%s: cpu: %d, ipi: %x\n", __func__, cpu, ipi);
+	ipi_send(cpuid_to_pcpu[cpu], ipi);
+}
+
+void
+ipi_selected(cpuset_t cpus, u_int ipi)
+{
+	struct pcpu *pc;
+
+	CTR1(KTR_SMP, "ipi_selected: ipi: %x", ipi);
+
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
+		if (CPU_ISSET(pc->pc_cpuid, &cpus)) {
+			CTR3(KTR_SMP, "%s: pc: %p, ipi: %x\n", __func__, pc,
+			    ipi);
+			ipi_send(pc, ipi);
+		}
+	}
+}
+
+#endif
