@@ -1155,14 +1155,14 @@ callout_schedule(struct callout *c, int to_ticks)
 }
 
 int
-_callout_stop_safe(struct callout *c, int safe, void (*drain)(void *))
+_callout_stop_safe(struct callout *c, int flags, void (*drain)(void *))
 {
 	struct callout_cpu *cc, *old_cc;
 	struct lock_class *class;
 	int direct, sq_locked, use_lock;
 	int not_on_a_list;
 
-	if (safe)
+	if ((flags & CS_DRAIN) != 0)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, c->c_lock,
 		    "calling %s", __func__);
 
@@ -1170,7 +1170,7 @@ _callout_stop_safe(struct callout *c, int safe, void (*drain)(void *))
 	 * Some old subsystems don't hold Giant while running a callout_stop(),
 	 * so just discard this check for the moment.
 	 */
-	if (!safe && c->c_lock != NULL) {
+	if ((flags & CS_DRAIN) == 0 && c->c_lock != NULL) {
 		if (c->c_lock == &Giant.lock_object)
 			use_lock = mtx_owned(&Giant);
 		else {
@@ -1253,7 +1253,7 @@ again:
 			return (-1);
 		}
 
-		if (safe) {
+		if ((flags & CS_DRAIN) != 0) {
 			/*
 			 * The current callout is running (or just
 			 * about to run) and blocking is allowed, so
@@ -1370,7 +1370,7 @@ again:
 				cc_exec_drain(cc, direct) = drain;
 			}
 			CC_UNLOCK(cc);
-			return (0);
+			return ((flags & CS_MIGRBLOCK) != 0);
 		}
 		CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
 		    c, c->c_func, c->c_arg);
