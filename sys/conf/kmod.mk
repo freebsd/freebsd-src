@@ -456,11 +456,13 @@ cleanilinks:
 	rm -f ${_ILINKS}
 
 OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
+
+.include <bsd.dep.mk>
+
 .if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
 ${OBJS}: ${OBJS_DEPEND_GUESS}
 .endif
 
-.include <bsd.dep.mk>
 .include <bsd.clang-analyze.mk>
 .include <bsd.obj.mk>
 .include "kern.mk"
