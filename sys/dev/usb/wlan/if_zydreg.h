@@ -1291,6 +1291,7 @@ struct zyd_softc {
 	uint8_t			sc_ofdm36_cal[14];
 	uint8_t			sc_ofdm48_cal[14];
 	uint8_t			sc_ofdm54_cal[14];
+	uint8_t			sc_bssid[IEEE80211_ADDR_LEN];
 
 	struct mtx		sc_mtx;
 	struct zyd_tx_data	tx_data[ZYD_TX_LIST_CNT];
