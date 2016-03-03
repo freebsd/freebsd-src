@@ -60,8 +60,8 @@ __FBSDID("$FreeBSD$");
  *	at the time it indicated completion is stored there.  Returns 0 if the
  *	operation completes and	-EAGAIN	otherwise.
  */
-int t4_wait_op_done_val(struct adapter *adapter, int reg, u32 mask,
-		        int polarity, int attempts, int delay, u32 *valp)
+static int t4_wait_op_done_val(struct adapter *adapter, int reg, u32 mask,
+			       int polarity, int attempts, int delay, u32 *valp)
 {
 	while (1) {
 		u32 val = t4_read_reg(adapter, reg);
@@ -76,6 +76,13 @@ int t4_wait_op_done_val(struct adapter *adapter, int reg, u32 mask,
 		if (delay)
 			udelay(delay);
 	}
+}
+
+static inline int t4_wait_op_done(struct adapter *adapter, int reg, u32 mask,
+				  int polarity, int attempts, int delay)
+{
+	return t4_wait_op_done_val(adapter, reg, mask, polarity, attempts,
+				   delay, NULL);
 }
 
 /**
@@ -1870,7 +1877,7 @@ void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
 		     FW_PORT_CAP_SPEED_100G | FW_PORT_CAP_ANEG)
 
 /**
- *	t4_link_start - apply link configuration to MAC/PHY
+ *	t4_link_l1cfg - apply link configuration to MAC/PHY
  *	@phy: the PHY to setup
  *	@mac: the MAC to setup
  *	@lc: the requested link configuration
@@ -1882,7 +1889,7 @@ void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
  *	- If auto-negotiation is off set the MAC to the proper speed/duplex/FC,
  *	  otherwise do it later based on the outcome of auto-negotiation.
  */
-int t4_link_start(struct adapter *adap, unsigned int mbox, unsigned int port,
+int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		  struct link_config *lc)
 {
 	struct fw_port_cmd c;
@@ -2909,7 +2916,7 @@ static int rd_rss_row(struct adapter *adap, int row, u32 *val)
 	return t4_wait_op_done_val(adap, A_TP_RSS_LKP_TABLE, F_LKPTBLROWVLD, 1,
 				   5, 0, val);
 }
-	
+
 /**
  *	t4_read_rss - read the contents of the RSS mapping table
  *	@adapter: the adapter
@@ -3189,18 +3196,18 @@ void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
 	if (v4) {
 		t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, val,
 				 ARRAY_SIZE(val), A_TP_MIB_TCP_OUT_RST);
-		v4->tcpOutRsts = STAT(OUT_RST);
-		v4->tcpInSegs  = STAT64(IN_SEG);
-		v4->tcpOutSegs = STAT64(OUT_SEG);
-		v4->tcpRetransSegs = STAT64(RXT_SEG);
+		v4->tcp_out_rsts = STAT(OUT_RST);
+		v4->tcp_in_segs  = STAT64(IN_SEG);
+		v4->tcp_out_segs = STAT64(OUT_SEG);
+		v4->tcp_retrans_segs = STAT64(RXT_SEG);
 	}
 	if (v6) {
 		t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, val,
 				 ARRAY_SIZE(val), A_TP_MIB_TCP_V6OUT_RST);
-		v6->tcpOutRsts = STAT(OUT_RST);
-		v6->tcpInSegs  = STAT64(IN_SEG);
-		v6->tcpOutSegs = STAT64(OUT_SEG);
-		v6->tcpRetransSegs = STAT64(RXT_SEG);
+		v6->tcp_out_rsts = STAT(OUT_RST);
+		v6->tcp_in_segs  = STAT64(IN_SEG);
+		v6->tcp_out_segs = STAT64(OUT_SEG);
+		v6->tcp_retrans_segs = STAT64(RXT_SEG);
 	}
 #undef STAT64
 #undef STAT
@@ -3216,18 +3223,27 @@ void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
  */
 void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st)
 {
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, st->macInErrs,
-			 12, A_TP_MIB_MAC_IN_ERR_0);
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, st->tnlCongDrops,
-			 8, A_TP_MIB_TNL_CNG_DROP_0);
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, st->tnlTxDrops,
-			 4, A_TP_MIB_TNL_DROP_0);
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, st->ofldVlanDrops,
-			 4, A_TP_MIB_OFD_VLN_DROP_0);
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, st->tcp6InErrs,
-			 4, A_TP_MIB_TCP_V6IN_ERR_0);
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, &st->ofldNoNeigh,
-			 2, A_TP_MIB_OFD_ARP_DROP);
+	int nchan = NCHAN;
+
+	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
+			st->mac_in_errs, nchan, A_TP_MIB_MAC_IN_ERR_0);
+	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
+			st->hdr_in_errs, nchan, A_TP_MIB_HDR_IN_ERR_0);
+	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
+			st->tcp_in_errs, nchan, A_TP_MIB_TCP_IN_ERR_0);
+	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
+			st->tnl_cong_drops, nchan, A_TP_MIB_TNL_CNG_DROP_0);
+	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
+			st->ofld_chan_drops, nchan, A_TP_MIB_OFD_CHN_DROP_0);
+	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
+			st->tnl_tx_drops, nchan, A_TP_MIB_TNL_DROP_0);
+	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
+			st->ofld_vlan_drops, nchan, A_TP_MIB_OFD_VLN_DROP_0);
+	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
+			st->tcp6_in_errs, nchan, A_TP_MIB_TCP_V6IN_ERR_0);
+
+	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
+			 &st->ofld_no_neigh, 2, A_TP_MIB_OFD_ARP_DROP);
 }
 
 /**
@@ -3266,7 +3282,7 @@ void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st)
 void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st)
 {
 	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, &st->rqe_dfr_mod,
-			 2, A_TP_MIB_RQE_DFR_MOD);
+			 2, A_TP_MIB_RQE_DFR_PKT);
 }
 
 /**
@@ -3282,13 +3298,13 @@ void t4_get_fcoe_stats(struct adapter *adap, unsigned int idx,
 {
 	u32 val[2];
 
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, &st->framesDDP,
+	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, &st->frames_ddp,
 			 1, A_TP_MIB_FCOE_DDP_0 + idx);
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, &st->framesDrop,
+	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, &st->frames_drop,
 			 1, A_TP_MIB_FCOE_DROP_0 + idx);
 	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, val,
 			 2, A_TP_MIB_FCOE_BYTE_0_HI + 2 * idx);
-	st->octetsDDP = ((u64)val[0] << 32) | val[1];
+	st->octets_ddp = ((u64)val[0] << 32) | val[1];
 }
 
 /**
@@ -3865,6 +3881,36 @@ static unsigned int get_mps_bg_map(struct adapter *adap, int idx)
 	if (n == 1)
 		return idx < 2 ? (3 << (2 * idx)) : 0;
 	return 1 << idx;
+}
+
+/**
+ *	t4_get_port_type_description - return Port Type string description
+ *	@port_type: firmware Port Type enumeration
+ */
+const char *t4_get_port_type_description(enum fw_port_type port_type)
+{
+	static const char *port_type_description[] = {
+		"Fiber_XFI",
+		"Fiber_XAUI",
+		"BT_SGMII",
+		"BT_XFI",
+		"BT_XAUI",
+		"KX4",
+		"CX4",
+		"KX",
+		"KR",
+		"SFP",
+		"BP_AP",
+		"BP4_AP",
+		"QSFP_10G",
+		"",
+		"QSFP",
+		"BP40_BA",
+	};
+
+	if (port_type < ARRAY_SIZE(port_type_description))
+		return port_type_description[port_type];
+	return "UNKNOWN";
 }
 
 /**
@@ -5272,37 +5318,6 @@ int t4_identify_port(struct adapter *adap, unsigned int mbox, unsigned int viid,
 			     F_FW_CMD_EXEC | V_FW_VI_ENABLE_CMD_VIID(viid));
 	c.ien_to_len16 = htonl(F_FW_VI_ENABLE_CMD_LED | FW_LEN16(c));
 	c.blinkdur = htons(nblinks);
-	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
-}
-
-/**
- *	t4_iq_start_stop - enable/disable an ingress queue and its FLs
- *	@adap: the adapter
- *	@mbox: mailbox to use for the FW command
- *	@start: %true to enable the queues, %false to disable them
- *	@pf: the PF owning the queues
- *	@vf: the VF owning the queues
- *	@iqid: ingress queue id
- *	@fl0id: FL0 queue id or 0xffff if no attached FL0
- *	@fl1id: FL1 queue id or 0xffff if no attached FL1
- *
- *	Starts or stops an ingress queue and its associated FLs, if any.
- */
-int t4_iq_start_stop(struct adapter *adap, unsigned int mbox, bool start,
-		     unsigned int pf, unsigned int vf, unsigned int iqid,
-		     unsigned int fl0id, unsigned int fl1id)
-{
-	struct fw_iq_cmd c;
-
-	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(V_FW_CMD_OP(FW_IQ_CMD) | F_FW_CMD_REQUEST |
-			    F_FW_CMD_EXEC | V_FW_IQ_CMD_PFN(pf) |
-			    V_FW_IQ_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(V_FW_IQ_CMD_IQSTART(start) |
-				 V_FW_IQ_CMD_IQSTOP(!start) | FW_LEN16(c));
-	c.iqid = htons(iqid);
-	c.fl0id = htons(fl0id);
-	c.fl1id = htons(fl1id);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
