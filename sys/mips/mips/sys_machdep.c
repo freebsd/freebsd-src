@@ -72,14 +72,8 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		 * 	'git show c6be4f4d2d1b71c04de5d3bbb6933ce2dbcdb317'
 		 */
 		if (cpuinfo.userlocal_reg == true) {
-#if defined(__mips_n64) && defined(COMPAT_FREEBSD32)
-			if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
-				mips_wr_userlocal((unsigned long)(uap->parms +
-				    TLS_TP_OFFSET + TLS_TCB_SIZE32));
-			else
-#endif
 			mips_wr_userlocal((unsigned long)(uap->parms +
-			    TLS_TP_OFFSET + TLS_TCB_SIZE));
+			    td->td_md.md_tls_tcb_offset));
 		}
 		return (0);
 
