@@ -301,8 +301,8 @@ sbc_probe(device_t dev)
 		io = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
 					 pcm_iat, 16, RF_ACTIVE);
 #else
-		io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-		  		    	0, ~0, 16, RF_ACTIVE);
+		io = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
+						 16, RF_ACTIVE);
 #endif
 		if (!io) goto bad;
 #ifdef PC98
@@ -708,8 +708,11 @@ alloc_resource(struct sbc_softc *scp)
 						   io_range[i]);
 #else
 			scp->io_rid[i] = i;
-			scp->io[i] = bus_alloc_resource(scp->dev, SYS_RES_IOPORT, &scp->io_rid[i],
-							0, ~0, io_range[i], RF_ACTIVE);
+			scp->io[i] = bus_alloc_resource_anywhere(scp->dev,
+								 SYS_RES_IOPORT,
+								 &scp->io_rid[i],
+								io_range[i],
+								RF_ACTIVE);
 #endif
 			if (i == 0 && scp->io[i] == NULL)
 				return (1);

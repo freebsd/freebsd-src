@@ -29,20 +29,6 @@
 __FBSDID("$FreeBSD$");
 
 static __inline void
-filemon_filemon_lock(struct filemon *filemon)
-{
-
-	sx_xlock(&filemon->lock);
-}
-
-static __inline void
-filemon_filemon_unlock(struct filemon *filemon)
-{
-
-	sx_xunlock(&filemon->lock);
-}
-
-static __inline void
 filemon_lock_read(void)
 {
 

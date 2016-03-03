@@ -389,7 +389,7 @@ pcib_alloc_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 	int error, rid;
 
 	if (max_address != (rman_res_t)max_address)
-		max_address = ~0ul;
+		max_address = ~0;
 	w->rman.rm_start = 0;
 	w->rman.rm_end = max_address;
 	w->rman.rm_type = RMAN_ARRAY;
@@ -577,14 +577,14 @@ pcib_setup_secbus(device_t dev, struct pcib_secbus *bus, int min_count)
 	 * if one exists, or a new bus range if one does not.
 	 */
 	rid = 0;
-	bus->res = bus_alloc_resource(dev, PCI_RES_BUS, &rid, 0ul, ~0ul,
+	bus->res = bus_alloc_resource_anywhere(dev, PCI_RES_BUS, &rid,
 	    min_count, 0);
 	if (bus->res == NULL) {
 		/*
 		 * Fall back to just allocating a range of a single bus
 		 * number.
 		 */
-		bus->res = bus_alloc_resource(dev, PCI_RES_BUS, &rid, 0ul, ~0ul,
+		bus->res = bus_alloc_resource_anywhere(dev, PCI_RES_BUS, &rid,
 		    1, 0);
 	} else if (rman_get_size(bus->res) < min_count)
 		/*

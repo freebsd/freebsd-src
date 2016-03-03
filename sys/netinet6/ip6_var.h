@@ -382,7 +382,7 @@ int	ip6_sysctl(int *, u_int, void *, size_t *, void *, size_t);
 
 void	ip6_forward(struct mbuf *, int);
 
-void	ip6_mloopback(struct ifnet *, const struct mbuf *);
+void	ip6_mloopback(struct ifnet *, struct mbuf *);
 int	ip6_output(struct mbuf *, struct ip6_pktopts *,
 			struct route_in6 *,
 			int,

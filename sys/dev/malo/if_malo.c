@@ -397,9 +397,9 @@ malo_intr(void *arg)
 	    __func__, status, sc->malo_imask);
 
 	if (status & MALO_A2HRIC_BIT_RX_RDY)
-		taskqueue_enqueue_fast(sc->malo_tq, &sc->malo_rxtask);
+		taskqueue_enqueue(sc->malo_tq, &sc->malo_rxtask);
 	if (status & MALO_A2HRIC_BIT_TX_DONE)
-		taskqueue_enqueue_fast(sc->malo_tq, &sc->malo_txtask);
+		taskqueue_enqueue(sc->malo_tq, &sc->malo_txtask);
 	if (status & MALO_A2HRIC_BIT_OPC_DONE)
 		malo_hal_cmddone(mh);
 	if (status & MALO_A2HRIC_BIT_MAC_EVENT)

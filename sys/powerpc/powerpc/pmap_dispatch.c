@@ -564,6 +564,13 @@ pmap_quick_remove_page(vm_offset_t addr)
 	MMU_QUICK_REMOVE_PAGE(mmu_obj, addr);
 }
 
+int
+pmap_change_attr(vm_offset_t addr, vm_size_t size, vm_memattr_t mode)
+{
+	CTR4(KTR_PMAP, "%s(%#x, %#zx, %d)", __func__, addr, size, mode);
+	return (MMU_CHANGE_ATTR(mmu_obj, addr, size, mode));
+}
+
 /*
  * MMU install routines. Highest priority wins, equal priority also
  * overrides allowing last-set to win.

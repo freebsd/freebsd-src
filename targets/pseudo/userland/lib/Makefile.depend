@@ -33,7 +33,6 @@ DIRDEPS = \
 	lib/libc++ \
 	lib/libcalendar \
 	lib/libcam \
-	lib/libcasper \
 	lib/libcom_err/doc \
 	lib/libcompat \
 	lib/libcompiler_rt \
@@ -185,6 +184,17 @@ DIRDEPS+= \
 
 .if ${MK_NAND} != "no"
 DIRDEPS+= lib/libnandfs
+.endif
+
+.if ${MK_CASPER} != "no"
+DIRDEPS+= \
+	lib/libcasper/libcasper \
+	lib/libcasper/services/cap_dns \
+	lib/libcasper/services/cap_grp \
+	lib/libcasper/services/cap_pwd \
+	lib/libcasper/services/cap_random \
+	lib/libcasper/services/cap_sysctl \
+
 .endif
 
 .include <dirdeps.mk>

@@ -3289,7 +3289,7 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ieee80211vap *vap = ifp->if_softc;
 	struct ieee80211com *ic = vap->iv_ic;
-	int error = 0;
+	int error = 0, wait = 0;
 	struct ifreq *ifr;
 	struct ifaddr *ifa;			/* XXX */
 
@@ -3308,18 +3308,24 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 * then it will automatically be brought up as a
 			 * side-effect of bringing ourself up.
 			 */
-			if (vap->iv_state == IEEE80211_S_INIT)
+			if (vap->iv_state == IEEE80211_S_INIT) {
+				if (ic->ic_nrunning == 0)
+					wait = 1;
 				ieee80211_start_locked(vap);
+			}
 		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			/*
 			 * Stop ourself.  If we are the last vap to be
 			 * marked down the parent will also be taken down.
 			 */
+			if (ic->ic_nrunning == 1)
+				wait = 1;
 			ieee80211_stop_locked(vap);
 		}
 		IEEE80211_UNLOCK(ic);
 		/* Wait for parent ioctl handler if it was queued */
-		ieee80211_waitfor_parent(ic);
+		if (wait)
+			ieee80211_waitfor_parent(ic);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:

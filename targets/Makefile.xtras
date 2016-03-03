@@ -54,7 +54,9 @@ show-help:
 not-valid-target:
 	@echo "ERROR: '${_TARGETS}' is not a valid target for ${MACHINE}."
 
+.if make(destroy*)
 .include <bsd.obj.mk>
+.endif
 
 .for t in ${_TARGETS:Nlove}
 .if !target($t)

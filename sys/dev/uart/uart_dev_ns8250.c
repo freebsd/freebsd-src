@@ -397,6 +397,7 @@ struct uart_class uart_ns8250_class = {
 #ifdef FDT
 static struct ofw_compat_data compat_data[] = {
 	{"ns16550",		(uintptr_t)&uart_ns8250_class},
+	{"ns16550a",		(uintptr_t)&uart_ns8250_class},
 	{"snps,dw-apb-uart",	(uintptr_t)&uart_ns8250_class},
 	{NULL,			(uintptr_t)NULL},
 };

@@ -8,6 +8,7 @@ README
 autogen.sh
 autom4te.cache/
 bin/
+build-aux/
 config.*
 configure*
 coverage.sh
@@ -26,6 +27,7 @@ include/jemalloc/internal/public_symbols.txt
 include/jemalloc/internal/public_unnamespace.h
 include/jemalloc/internal/public_unnamespace.sh
 include/jemalloc/internal/size_classes.sh
+include/jemalloc/internal/smoothstep.sh
 include/jemalloc/jemalloc.h.in
 include/jemalloc/jemalloc.sh
 include/jemalloc/jemalloc_defs.h
@@ -44,6 +46,7 @@ include/jemalloc/jemalloc_typedefs.h.in
 include/msvc_compat/
 install-sh
 jemalloc.pc*
+msvc/
 src/valgrind.c
 src/zone.c
 test/

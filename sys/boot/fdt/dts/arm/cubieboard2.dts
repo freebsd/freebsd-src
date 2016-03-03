@@ -28,6 +28,7 @@
  */
 
 #include "sun7i-a20-cubieboard2.dts"
+#include "sun7i-a20-hdmi.dtsi"
 
 / {
 	soc@01c00000 {
@@ -36,6 +37,14 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = < 0x01c20000 0x400 >;
+		};
+
+		hdmi@01c16000 {
+			status = "okay";
+		};
+
+		hdmiaudio {
+			status = "okay";
 		};
 	};
 };

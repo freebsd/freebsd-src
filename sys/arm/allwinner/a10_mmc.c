@@ -48,8 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/mmc/mmcreg.h>
 #include <dev/mmc/mmcbrvar.h>
 
+#include <arm/allwinner/allwinner_machdep.h>
 #include <arm/allwinner/a10_clk.h>
 #include <arm/allwinner/a10_mmc.h>
+#include <arm/allwinner/a31/a31_clk.h>
 
 #define	A10_MMC_MEMRES		0
 #define	A10_MMC_IRQRES		1
@@ -84,6 +86,7 @@ struct a10_mmc_softc {
 	uint32_t		a10_intr;
 	uint32_t		a10_intr_wait;
 	void *			a10_intrhand;
+	bus_size_t		a10_fifo_reg;
 
 	/* Fields required for DMA access. */
 	bus_addr_t	  	a10_dma_desc_phys;
@@ -144,6 +147,7 @@ a10_mmc_attach(device_t dev)
 	struct a10_mmc_softc *sc;
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid_list *tree;
+	int clk;
 
 	sc = device_get_softc(dev);
 	sc->a10_dev = dev;
@@ -167,8 +171,40 @@ a10_mmc_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	/*
+	 * Later chips use a different FIFO offset. Unfortunately the FDT
+	 * uses the same compatible string for old and new implementations.
+	 */
+	switch (allwinner_soc_family()) {
+	case ALLWINNERSOC_SUN4I:
+	case ALLWINNERSOC_SUN5I:
+	case ALLWINNERSOC_SUN7I:
+		sc->a10_fifo_reg = A10_MMC_FIFO;
+		break;
+	default:
+		sc->a10_fifo_reg = A31_MMC_FIFO;
+		break;
+	}
+
 	/* Activate the module clock. */
-	if (a10_clk_mmc_activate(sc->a10_id) != 0) {
+	switch (allwinner_soc_type()) {
+#if defined(SOC_ALLWINNER_A10) || defined(SOC_ALLWINNER_A20)
+	case ALLWINNERSOC_A10:
+	case ALLWINNERSOC_A10S:
+	case ALLWINNERSOC_A20:
+		clk = a10_clk_mmc_activate(sc->a10_id);
+		break;
+#endif
+#if defined(SOC_ALLWINNER_A31) || defined(SOC_ALLWINNER_A31S)
+	case ALLWINNERSOC_A31:
+	case ALLWINNERSOC_A31S:
+		clk = a31_clk_mmc_activate(sc->a10_id);
+		break;
+#endif
+	default:
+		clk = -1;
+	}
+	if (clk != 0) {
 		bus_teardown_intr(dev, sc->a10_res[A10_MMC_IRQRES],
 		    sc->a10_intrhand);
 		bus_release_resources(dev, a10_mmc_res_spec, sc->a10_res);
@@ -493,9 +529,9 @@ a10_mmc_pio_transfer(struct a10_mmc_softc *sc, struct mmc_data *data)
 		if ((A10_MMC_READ_4(sc, A10_MMC_STAS) & bit))
 			return (1);
 		if (write)
-			A10_MMC_WRITE_4(sc, A10_MMC_FIFO, buf[i]);
+			A10_MMC_WRITE_4(sc, sc->a10_fifo_reg, buf[i]);
 		else
-			buf[i] = A10_MMC_READ_4(sc, A10_MMC_FIFO);
+			buf[i] = A10_MMC_READ_4(sc, sc->a10_fifo_reg);
 		sc->a10_resid = i + 1;
 	}
 
@@ -790,7 +826,23 @@ a10_mmc_update_ios(device_t bus, device_t child)
 			return (error);
 
 		/* Set the MMC clock. */
-		error = a10_clk_mmc_cfg(sc->a10_id, ios->clock);
+		switch (allwinner_soc_type()) {
+#if defined(SOC_ALLWINNER_A10) || defined(SOC_ALLWINNER_A20)
+		case ALLWINNERSOC_A10:
+		case ALLWINNERSOC_A10S:
+		case ALLWINNERSOC_A20:
+			error = a10_clk_mmc_cfg(sc->a10_id, ios->clock);
+			break;
+#endif
+#if defined(SOC_ALLWINNER_A31) || defined(SOC_ALLWINNER_A31S)
+		case ALLWINNERSOC_A31:
+		case ALLWINNERSOC_A31S:
+			error = a31_clk_mmc_cfg(sc->a10_id, ios->clock);
+			break;
+#endif
+		default:
+			error = ENXIO;
+		}
 		if (error != 0)
 			return (error);
 
