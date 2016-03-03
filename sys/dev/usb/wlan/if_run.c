@@ -2141,8 +2141,8 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			run_set_txpreamble(sc);
 			run_set_basicrates(sc);
 			ni = ieee80211_ref_node(vap->iv_bss);
-			IEEE80211_ADDR_COPY(ic->ic_macaddr, ni->ni_bssid);
-			run_set_bssid(sc, ni->ni_bssid);
+			IEEE80211_ADDR_COPY(sc->sc_bssid, ni->ni_bssid);
+			run_set_bssid(sc, sc->sc_bssid);
 			ieee80211_free_node(ni);
 			run_enable_tsf_sync(sc);
 
@@ -4811,8 +4811,7 @@ run_scan_end(struct ieee80211com *ic)
 	RUN_LOCK(sc);
 
 	run_enable_tsf_sync(sc);
-	/* XXX keep local copy */
-	run_set_bssid(sc, ic->ic_macaddr);
+	run_set_bssid(sc, sc->sc_bssid);
 
 	RUN_UNLOCK(sc);
 
