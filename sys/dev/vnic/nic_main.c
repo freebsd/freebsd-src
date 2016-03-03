@@ -87,7 +87,6 @@ struct nicvf_info {
 
 struct nicpf {
 	device_t		dev;
-	uint8_t			rev_id;
 	uint8_t			node;
 	u_int			flags;
 	uint8_t			num_vf_en;      /* No of VF enabled */
@@ -200,7 +199,6 @@ nicpf_attach(device_t dev)
 	}
 
 	nic->node = nic_get_node_id(nic->reg_base);
-	nic->rev_id = pci_read_config(dev, PCIR_REVID, 1);
 
 	/* Enable Traffic Network Switch (TNS) bypass mode by default */
 	nic->flags &= ~NIC_TNS_ENABLED;
@@ -416,7 +414,7 @@ nic_send_msg_to_vf(struct nicpf *nic, int vf, union nic_mbx *mbx)
 	 * when PF writes to MBOX(1), in next revisions when
 	 * PF writes to MBOX(0)
 	 */
-	if (nic->rev_id == 0) {
+	if (pass1_silicon(nic->dev)) {
 		nic_reg_write(nic, mbx_addr + 0, msg[0]);
 		nic_reg_write(nic, mbx_addr + 8, msg[1]);
 	} else {
@@ -628,9 +626,6 @@ nic_init_hw(struct nicpf *nic)
 {
 	int i;
 
-	/* Reset NIC, in case the driver is repeatedly inserted and removed */
-	nic_reg_write(nic, NIC_PF_SOFT_RESET, 1);
-
 	/* Enable NIC HW block */
 	nic_reg_write(nic, NIC_PF_CFG, 0x3);
 
@@ -732,8 +727,17 @@ nic_config_cpi(struct nicpf *nic, struct cpi_cfg_msg *cfg)
 			padd = cpi % 8; /* 3 bits CS out of 6bits DSCP */
 
 		/* Leave RSS_SIZE as '0' to disable RSS */
-		nic_reg_write(nic, NIC_PF_CPI_0_2047_CFG | (cpi << 3),
-		    (vnic << 24) | (padd << 16) | (rssi_base + rssi));
+		if (pass1_silicon(nic->dev)) {
+			nic_reg_write(nic, NIC_PF_CPI_0_2047_CFG | (cpi << 3),
+			    (vnic << 24) | (padd << 16) | (rssi_base + rssi));
+		} else {
+			/* Set MPI_ALG to '0' to disable MCAM parsing */
+			nic_reg_write(nic, NIC_PF_CPI_0_2047_CFG | (cpi << 3),
+			    (padd << 16));
+			/* MPI index is same as CPI if MPI_ALG is not enabled */
+			nic_reg_write(nic, NIC_PF_MPI_0_2047_CFG | (cpi << 3),
+			    (vnic << 24) | (rssi_base + rssi));
+		}
 
 		if ((rssi + 1) >= cfg->rq_cnt)
 			continue;

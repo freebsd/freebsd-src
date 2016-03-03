@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "REQ 1"
-.TH REQ 1 "2016-01-28" "1.0.2f" "OpenSSL"
+.TH REQ 1 "2016-03-01" "1.0.2g" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -433,9 +433,12 @@ command line options \fBpassin\fR and \fBpassout\fR override the
 configuration file values.
 .IP "\fBdefault_bits\fR" 4
 .IX Item "default_bits"
-This specifies the default key size in bits. If not specified then
-512 is used. It is used if the \fB\-new\fR option is used. It can be
-overridden by using the \fB\-newkey\fR option.
+Specifies the default key size in bits.
+.Sp
+This option is used in conjunction with the \fB\-new\fR option to generate
+a new key. It can be overridden by specifying an explicit key size in
+the \fB\-newkey\fR option. The smallest accepted key size is 512 bits. If
+no key size is specified then 2048 bits is used.
 .IP "\fBdefault_keyfile\fR" 4
 .IX Item "default_keyfile"
 This is the default filename to write a private key to. If not

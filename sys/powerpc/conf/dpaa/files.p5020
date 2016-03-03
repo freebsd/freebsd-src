@@ -1,0 +1,3 @@
+# $FreeBSD$
+
+contrib/ncsw/integrations/P5020/module_strings.c	optional dpaa

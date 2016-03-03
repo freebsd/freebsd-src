@@ -31,7 +31,6 @@ SUBDIR=	\
 	ahci \
 	${_aic} \
 	aic7xxx \
-	aio \
 	alc \
 	ale \
 	alq \

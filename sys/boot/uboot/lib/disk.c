@@ -156,7 +156,8 @@ stor_strategy(void *devdata, int rw, daddr_t blk, size_t size, char *buf,
 	}
 
 	if (size % SI(dev).bsize) {
-		stor_printf("size=%d not multiple of device block size=%d\n",
+		stor_printf("size=%zu not multiple of device "
+		    "block size=%d\n",
 		    size, SI(dev).bsize);
 		return (EIO);
 	}

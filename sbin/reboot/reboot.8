@@ -125,7 +125,7 @@ This option should probably not be used.
 The system kills all processes, unmounts all filesystems, mounts the new
 root filesystem, and begins the usual startup sequence.
 After changing vfs.root.mountfrom with
-.Xr kenv 8 ,
+.Xr kenv 1 ,
 .Nm Fl r
 can be used to change the root filesystem while preserving kernel state.
 .El
@@ -153,6 +153,7 @@ kenv vfs.root.mountfrom=ufs:/dev/ada0s1a
 reboot -r
 .Ed
 .Sh SEE ALSO
+.Xr kenv 1 ,
 .Xr getutxent 3 ,
 .Xr boot 8 ,
 .Xr dumpon 8 ,

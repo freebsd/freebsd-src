@@ -1714,7 +1714,6 @@ ap_start(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 	st->st_scangen++;
 	st->st_newscan = 1;
 
-	ieee80211_promisc(vap, true);
 	return 0;
 }
 
@@ -1724,7 +1723,6 @@ ap_start(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 static int
 ap_cancel(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 {
-	ieee80211_promisc(vap, false);
 	return 0;
 }
 
@@ -1798,7 +1796,6 @@ ap_end(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 			return 0;
 		}
 	}
-	ieee80211_promisc(vap, false);
 	if (ss->ss_flags & (IEEE80211_SCAN_NOPICK | IEEE80211_SCAN_NOJOIN)) {
 		/*
 		 * Manual/background scan, don't select+join the

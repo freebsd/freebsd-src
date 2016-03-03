@@ -88,8 +88,7 @@ MALLOC_DEFINE(M_INTRNG, "intr", "intr interrupt handling");
 void intr_irq_handler(struct trapframe *tf);
 
 /* Root interrupt controller stuff. */
-static struct intr_irqsrc *irq_root_isrc;
-static device_t irq_root_dev;
+device_t intr_irq_root_dev;
 static intr_irq_filter_t *irq_root_filter;
 static void *irq_root_arg;
 static u_int irq_root_ipicount;
@@ -115,9 +114,6 @@ u_int irq_next_free;
 
 #ifdef SMP
 static boolean_t irq_assign_cpu = FALSE;
-
-static struct intr_irqsrc ipi_sources[INTR_IPI_COUNT];
-static u_int ipi_next_num;
 #endif
 
 /*
@@ -239,36 +235,20 @@ isrc_setup_counters(struct intr_irqsrc *isrc)
 
 #ifdef SMP
 /*
- *  Virtualization for interrupt source IPI counter increment.
- */
-static inline void
-isrc_increment_ipi_count(struct intr_irqsrc *isrc, u_int cpu)
-{
-
-	isrc->isrc_count[cpu]++;
-}
-
-/*
  *  Virtualization for interrupt source IPI counters setup.
  */
-static void
-isrc_setup_ipi_counters(struct intr_irqsrc *isrc, const char *name)
+u_long *
+intr_ipi_setup_counters(const char *name)
 {
 	u_int index, i;
 	char str[INTRNAME_LEN];
 
 	index = atomic_fetchadd_int(&intrcnt_index, MAXCPU);
-	isrc->isrc_index = index;
-	isrc->isrc_count = &intrcnt[index];
-
 	for (i = 0; i < MAXCPU; i++) {
-		/*
-		 * We do not expect any race in IPI case here,
-		 * so locking is not needed.
-		 */
 		snprintf(str, INTRNAME_LEN, "cpu%d:%s", i, name);
 		intrcnt_setname(str, index + i);
 	}
+	return (&intrcnt[index]);
 }
 #endif
 
@@ -679,7 +659,7 @@ intr_isrc_assign_cpu(void *arg, int cpu)
 	struct intr_irqsrc *isrc = arg;
 	int error;
 
-	if (isrc->isrc_dev != irq_root_dev)
+	if (isrc->isrc_dev != intr_irq_root_dev)
 		return (EINVAL);
 
 	mtx_lock(&isrc_table_lock);
@@ -732,7 +712,11 @@ isrc_event_create(struct intr_irqsrc *isrc)
 	 * Make sure that we do not mix the two ways
 	 * how we handle interrupt sources. Let contested event wins.
 	 */
+#ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL || isrc->isrc_event != NULL) {
+#else
+	if (isrc->isrc_event != NULL) {
+#endif
 		mtx_unlock(&isrc_table_lock);
 		intr_event_destroy(ie);
 		return (isrc->isrc_event != NULL ? EBUSY : 0);
@@ -909,8 +893,6 @@ int
 intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
     void *arg, u_int ipicount)
 {
-	int error;
-	u_int rootirq;
 
 	if (pic_lookup(dev, xref) == NULL) {
 		device_printf(dev, "not registered\n");
@@ -926,30 +908,12 @@ intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
 	 * Note that we further suppose that there is not threaded interrupt
 	 * routine (handler) on the root. See intr_irq_handler().
 	 */
-	if (irq_root_dev != NULL) {
+	if (intr_irq_root_dev != NULL) {
 		device_printf(dev, "another root already set\n");
 		return (EBUSY);
 	}
 
-	rootirq = intr_namespace_map_irq(device_get_parent(dev), 0, 0);
-	if (rootirq == IRQ_INVALID) {
-		device_printf(dev, "failed to map an irq for the root pic\n");
-		return (ENOMEM);
-	}
-
-        /* Create the isrc. */
-	irq_root_isrc = isrc_lookup(rootirq);
-
-        /* XXX "register" with the PIC.  We are the "pic" here, so fake it. */
-	irq_root_isrc->isrc_flags |= INTR_ISRCF_REGISTERED;
-
-	error = intr_irq_add_handler(device_get_parent(dev), 
-		(void*)filter, NULL, arg, rootirq, INTR_TYPE_CLK, NULL);
-	if (error != 0) {
-		device_printf(dev, "failed to install root pic handler\n");
-		return (error);
-	}
-	irq_root_dev = dev;
+	intr_irq_root_dev = dev;
 	irq_root_filter = filter;
 	irq_root_arg = arg;
 	irq_root_ipicount = ipicount;
@@ -1032,7 +996,7 @@ intr_irq_remove_handler(device_t dev, u_int irq, void *cookie)
 	isrc = isrc_lookup(irq);
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
-
+#ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL) {
 		if (isrc != cookie)
 			return (EINVAL);
@@ -1047,7 +1011,7 @@ intr_irq_remove_handler(device_t dev, u_int irq, void *cookie)
 		mtx_unlock(&isrc_table_lock);
 		return (0);
 	}
-
+#endif
 	if (isrc != intr_handler_source(cookie))
 		return (EINVAL);
 
@@ -1098,7 +1062,7 @@ intr_irq_describe(u_int irq, void *cookie, const char *descr)
 	isrc = isrc_lookup(irq);
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
-
+#ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL) {
 		if (isrc != cookie)
 			return (EINVAL);
@@ -1108,7 +1072,7 @@ intr_irq_describe(u_int irq, void *cookie, const char *descr)
 		mtx_unlock(&isrc_table_lock);
 		return (0);
 	}
-
+#endif
 	error = intr_event_describe_handler(isrc->isrc_event, cookie, descr);
 	if (error == 0) {
 		mtx_lock(&isrc_table_lock);
@@ -1127,10 +1091,10 @@ intr_irq_bind(u_int irq, int cpu)
 	isrc = isrc_lookup(irq);
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
-
+#ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL)
 		return (intr_isrc_assign_cpu(isrc, cpu));
-
+#endif
 	return (intr_event_bind(isrc->isrc_event, cpu));
 }
 
@@ -1211,132 +1175,6 @@ dosoftints(void)
 
 #ifdef SMP
 /*
- *  Lookup IPI source.
- */
-static struct intr_irqsrc *
-intr_ipi_lookup(u_int ipi)
-{
-
-	if (ipi >= INTR_IPI_COUNT)
-		panic("%s: no such IPI %u", __func__, ipi);
-
-	return (&ipi_sources[ipi]);
-}
-
-/*
- *  interrupt controller dispatch function for IPIs. It should
- *  be called straight from the interrupt controller, when associated
- *  interrupt source is learned. Or from anybody who has an interrupt
- *  source mapped.
- */
-void
-intr_ipi_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
-{
-	void *arg;
-
-	KASSERT(isrc != NULL, ("%s: no source", __func__));
-
-	isrc_increment_ipi_count(isrc, PCPU_GET(cpuid));
-
-	/*
-	 * Supply ipi filter with trapframe argument
-	 * if none is registered.
-	 */
-	arg = isrc->isrc_arg != NULL ? isrc->isrc_arg : tf;
-	isrc->isrc_ipifilter(arg);
-}
-
-/*
- *  Map IPI into interrupt controller.
- *
- *  Not SMP coherent.
- */
-static int
-ipi_map(struct intr_irqsrc *isrc, u_int ipi)
-{
-	boolean_t is_percpu;
-	int error;
-
-	if (ipi >= INTR_IPI_COUNT)
-		panic("%s: no such IPI %u", __func__, ipi);
-
-	KASSERT(irq_root_dev != NULL, ("%s: no root attached", __func__));
-
-	isrc->isrc_type = INTR_ISRCT_NAMESPACE;
-	isrc->isrc_nspc_type = INTR_IRQ_NSPC_IPI;
-	isrc->isrc_nspc_num = ipi_next_num;
-
-	error = PIC_REGISTER(irq_root_dev, isrc, &is_percpu);
-
-	debugf("ipi %u mapped to %u on %s - error %d\n", ipi, ipi_next_num,
-	    device_get_nameunit(irq_root_dev), error);
-
-	if (error == 0) {
-		isrc->isrc_dev = irq_root_dev;
-		ipi_next_num++;
-	}
-	return (error);
-}
-
-/*
- *  Setup IPI handler to interrupt source.
- *
- *  Note that there could be more ways how to send and receive IPIs
- *  on a platform like fast interrupts for example. In that case,
- *  one can call this function with ASIF_NOALLOC flag set and then
- *  call intr_ipi_dispatch() when appropriate.
- *
- *  Not SMP coherent.
- */
-int
-intr_ipi_set_handler(u_int ipi, const char *name, intr_ipi_filter_t *filter,
-    void *arg, u_int flags)
-{
-	struct intr_irqsrc *isrc;
-	int error;
-
-	if (filter == NULL)
-		return(EINVAL);
-
-	isrc = intr_ipi_lookup(ipi);
-	if (isrc->isrc_ipifilter != NULL)
-		return (EEXIST);
-
-	if ((flags & AISHF_NOALLOC) == 0) {
-		error = ipi_map(isrc, ipi);
-		if (error != 0)
-			return (error);
-	}
-
-	isrc->isrc_ipifilter = filter;
-	isrc->isrc_arg = arg;
-	isrc->isrc_handlers = 1;
-	isrc_setup_ipi_counters(isrc, name);
-
-	if (isrc->isrc_dev != NULL) {
-		mtx_lock(&isrc_table_lock);
-		PIC_ENABLE_INTR(isrc->isrc_dev, isrc);
-		PIC_ENABLE_SOURCE(isrc->isrc_dev, isrc);
-		mtx_unlock(&isrc_table_lock);
-	}
-	return (0);
-}
-
-/*
- *  Send IPI thru interrupt controller.
- */
-void
-pic_ipi_send(cpuset_t cpus, u_int ipi)
-{
-	struct intr_irqsrc *isrc;
-
-	isrc = intr_ipi_lookup(ipi);
-
-	KASSERT(irq_root_dev != NULL, ("%s: no root attached", __func__));
-	PIC_IPI_SEND(irq_root_dev, isrc, cpus);
-}
-
-/*
  *  Init interrupt controller on another CPU.
  */
 void
@@ -1346,10 +1184,10 @@ intr_pic_init_secondary(void)
 	/*
 	 * QQQ: Only root PIC is aware of other CPUs ???
 	 */
-	KASSERT(irq_root_dev != NULL, ("%s: no root attached", __func__));
+	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
 
 	//mtx_lock(&isrc_table_lock);
-	PIC_INIT_SECONDARY(irq_root_dev);
+	PIC_INIT_SECONDARY(intr_irq_root_dev);
 	//mtx_unlock(&isrc_table_lock);
 }
 #endif
@@ -1359,25 +1197,6 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
 {
 	u_int i, irqsum;
 	struct intr_irqsrc *isrc;
-
-#ifdef SMP
-	for (i = 0; i <= mp_maxid; i++) {
-		struct pcpu *pc;
-		u_int ipi, ipisum;
-
-		pc = pcpu_find(i);
-		if (pc != NULL) {
-			for (ipisum = 0, ipi = 0; ipi < INTR_IPI_COUNT; ipi++) {
-				isrc = intr_ipi_lookup(ipi);
-				if (isrc->isrc_count != NULL)
-					ipisum += isrc->isrc_count[i];
-			}
-			printf ("cpu%u: total %u ipis %u\n", i,
-			    pc->pc_cnt.v_intr, ipisum);
-		}
-	}
-	db_printf("\n");
-#endif
 
 	for (irqsum = 0, i = 0; i < NIRQ; i++) {
 		isrc = irq_sources[i];

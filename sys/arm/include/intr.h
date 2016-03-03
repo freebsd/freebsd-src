@@ -51,6 +51,15 @@
 
 #include <sys/intr.h>
 
+#ifdef SMP
+void intr_ipi_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf);
+
+#define AISHF_NOALLOC	0x0001
+
+int intr_ipi_set_handler(u_int ipi, const char *name, intr_ipi_filter_t *filter,
+    void *arg, u_int flags);
+#endif
+
 #else /* ARM_INTRNG */
 
 /* XXX move to std.* files? */

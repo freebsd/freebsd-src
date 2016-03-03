@@ -219,7 +219,8 @@ static int
 qoriq_gpio_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "fsl,qoriq-gpio"))
+	if (!ofw_bus_is_compatible(dev, "fsl,qoriq-gpio") &&
+	    !ofw_bus_is_compatible(dev, "fsl,mpc8572-gpio"))
 		return (ENXIO);
 
 	device_set_desc(dev, "Freescale QorIQ GPIO driver");

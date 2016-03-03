@@ -485,7 +485,6 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m,
 	int hdrspace, need_tap = 1;	/* mbuf need to be tapped. */
 	uint8_t dir, type, subtype, qos;
 	uint8_t *bssid;
-	uint16_t rxseq;
 
 	if (m->m_flags & M_AMPDU_MPDU) {
 		/*
@@ -573,24 +572,8 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m,
 			if (IEEE80211_QOS_HAS_SEQ(wh) &&
 			    TID_TO_WME_AC(tid) >= WME_AC_VI)
 				ic->ic_wme.wme_hipri_traffic++;
-			rxseq = le16toh(*(uint16_t *)wh->i_seq);
-			if (! ieee80211_check_rxseq(ni, wh)) {
-				/* duplicate, discard */
-				IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
-				    bssid, "duplicate",
-				    "seqno <%u,%u> fragno <%u,%u> tid %u",
-				    rxseq >> IEEE80211_SEQ_SEQ_SHIFT,
-				    ni->ni_rxseqs[tid] >>
-					IEEE80211_SEQ_SEQ_SHIFT,
-				    rxseq & IEEE80211_SEQ_FRAG_MASK,
-				    ni->ni_rxseqs[tid] &
-					IEEE80211_SEQ_FRAG_MASK,
-				    tid);
-				vap->iv_stats.is_rx_dup++;
-				IEEE80211_NODE_STAT(ni, rx_dup);
+			if (! ieee80211_check_rxseq(ni, wh, bssid))
 				goto out;
-			}
-			ni->ni_rxseqs[tid] = rxseq;
 		}
 	}
 

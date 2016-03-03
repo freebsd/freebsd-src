@@ -66,6 +66,7 @@ static void	f_obs(char *);
 static void	f_of(char *);
 static void	f_seek(char *);
 static void	f_skip(char *);
+static void	f_speed(char *);
 static void	f_status(char *);
 static uintmax_t get_num(const char *);
 static off_t	get_off_t(const char *);
@@ -89,6 +90,7 @@ static const struct arg {
 	{ "oseek",	f_seek,		C_SEEK,	 C_SEEK },
 	{ "seek",	f_seek,		C_SEEK,	 C_SEEK },
 	{ "skip",	f_skip,		C_SKIP,	 C_SKIP },
+	{ "speed",	f_speed,	0,	 0 },
 	{ "status",	f_status,	C_STATUS,C_STATUS },
 };
 
@@ -292,6 +294,13 @@ f_skip(char *arg)
 {
 
 	in.offset = get_off_t(arg);
+}
+
+static void
+f_speed(char *arg)
+{
+
+	speed = get_num(arg);
 }
 
 static void

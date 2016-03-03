@@ -164,8 +164,8 @@ vga_pci_map_bios(device_t dev, size_t *size)
 #endif
 
 	rid = PCIR_BIOS;
-	res = vga_pci_alloc_resource(dev, NULL, SYS_RES_MEMORY, &rid, 0ul,
-	    ~0ul, 1, RF_ACTIVE);
+	res = vga_pci_alloc_resource(dev, NULL, SYS_RES_MEMORY, &rid, 0,
+	    ~0, 1, RF_ACTIVE);
 	if (res == NULL) {
 		return (NULL);
 	}

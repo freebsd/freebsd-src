@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 11, 2015
+.Dd February 29, 2016
 .Dt MBUF 9
 .Os
 .\"
@@ -122,6 +122,8 @@
 .Fc
 .Ft void
 .Fn m_cat "struct mbuf *m" "struct mbuf *n"
+.Ft void
+.Fn m_catpkt "struct mbuf *m" "struct mbuf *n"
 .Ft u_int
 .Fn m_fixhdr "struct mbuf *mbuf"
 .Ft void
@@ -907,12 +909,26 @@ to
 Both
 .Vt mbuf chains
 must be of the same type.
-.Fa N
-is still valid after the function returned.
-.Sy Note :
-It does not handle
-.Dv M_PKTHDR
-and friends.
+.Fa n
+is not guaranteed to be valid after
+.Fn m_cat
+returns.
+.Fn m_cat
+does not update any packet header fields or free mbuf tags.
+.\"
+.It Fn m_catpkt m n
+A variant of
+.Fn m_cat
+that operates on packets.
+Both
+.Fa m
+and
+.Fa n
+must contain packet headers.
+.Fa n
+is not guaranteed to be valid after
+.Fn m_catpkt
+returns.
 .\"
 .It Fn m_split mbuf len how
 Partition an

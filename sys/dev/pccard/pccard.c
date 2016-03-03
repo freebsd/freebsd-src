@@ -506,7 +506,7 @@ pccard_function_init(struct pccard_function *pf, int entry)
 			if (start)
 				end = start + ios->length - 1;
 			else
-				end = ~0UL;
+				end = ~0;
 			DEVPRINTF((bus, "I/O rid %d start %#lx end %#lx\n",
 			    i, start, end));
 			rid = i;
@@ -530,7 +530,7 @@ pccard_function_init(struct pccard_function *pf, int entry)
 			if (start)
 				end = start + mems->length - 1;
 			else
-				end = ~0UL;
+				end = ~0;
 			DEVPRINTF((bus, "Memory rid %d start %#lx end %#lx\ncardaddr %#lx hostaddr %#lx length %#lx\n",
 			    i, start, end, mems->cardaddr, mems->hostaddr,
 			    mems->length));
@@ -693,8 +693,8 @@ pccard_function_enable(struct pccard_function *pf)
 	}
 	if (tmp == NULL) {
 		pf->ccr_rid = 0;
-		pf->ccr_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-		    &pf->ccr_rid, 0, ~0, PCCARD_MEM_PAGE_SIZE, RF_ACTIVE);
+		pf->ccr_res = bus_alloc_resource_anywhere(dev, SYS_RES_MEMORY,
+		    &pf->ccr_rid, PCCARD_MEM_PAGE_SIZE, RF_ACTIVE);
 		if (!pf->ccr_res)
 			goto bad;
 		DEVPRINTF((dev, "ccr_res == %#lx-%#lx, base=%#x\n",

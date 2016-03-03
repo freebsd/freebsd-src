@@ -1873,7 +1873,7 @@ nfe_intr(void *arg)
 	if (status == 0 || status == 0xffffffff)
 		return (FILTER_STRAY);
 	nfe_disable_intr(sc);
-	taskqueue_enqueue_fast(sc->nfe_tq, &sc->nfe_int_task);
+	taskqueue_enqueue(sc->nfe_tq, &sc->nfe_int_task);
 
 	return (FILTER_HANDLED);
 }
@@ -1932,7 +1932,7 @@ nfe_int_task(void *arg, int pending)
 	NFE_UNLOCK(sc);
 
 	if (domore || (NFE_READ(sc, sc->nfe_irq_status) != 0)) {
-		taskqueue_enqueue_fast(sc->nfe_tq, &sc->nfe_int_task);
+		taskqueue_enqueue(sc->nfe_tq, &sc->nfe_int_task);
 		return;
 	}
 

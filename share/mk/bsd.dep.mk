@@ -61,11 +61,10 @@ _MKDEPCC:=	${CC:N${CCACHE_BIN}}
 _MKDEPCC+=	${DEPFLAGS}
 .endif
 MKDEPCMD?=	CC='${_MKDEPCC}' mkdep
-DEPENDFILE?=	.depend
 .if ${MK_DIRDEPS_BUILD} == "no"
 .MAKE.DEPENDFILE= ${DEPENDFILE}
 .endif
-CLEANDEPENDFILES=	${DEPENDFILE} ${DEPENDFILE}.*
+CLEANDEPENDFILES+=	${DEPENDFILE} ${DEPENDFILE}.*
 
 # Keep `tags' here, before SRCS are mangled below for `depend'.
 .if !target(tags) && defined(SRCS) && !defined(NO_TAGS)
@@ -84,7 +83,7 @@ tags: ${SRCS}
 # Skip reading .depend when not needed to speed up tree-walks
 # and simple lookups.
 .if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(obj) || make(clean*) || \
-    make(install*)
+    make(install*) || make(analyze)
 _SKIP_READ_DEPEND=	1
 .if ${MK_DIRDEPS_BUILD} == "no"
 .MAKE.DEPENDFILE=	/dev/null
@@ -201,7 +200,7 @@ CFLAGS+=	${DEPEND_CFLAGS}
 .endif
 .if !defined(_SKIP_READ_DEPEND)
 .for __depend_obj in ${DEPENDFILES_OBJS}
-.sinclude "${__depend_obj}"
+.sinclude "${.OBJDIR}/${__depend_obj}"
 .endfor
 .endif	# !defined(_SKIP_READ_DEPEND)
 .endif	# !defined(_meta_filemon)

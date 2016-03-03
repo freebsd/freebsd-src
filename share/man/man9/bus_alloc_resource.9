@@ -34,6 +34,7 @@
 .Sh NAME
 .Nm bus_alloc_resource ,
 .Nm bus_alloc_resource_any
+.Nm bus_alloc_resource_anywhere
 .Nd allocate resources from a parent bus
 .Sh SYNOPSIS
 .In sys/param.h
@@ -49,6 +50,10 @@
 .Fc
 .Ft struct resource *
 .Fn bus_alloc_resource_any "device_t dev" "int type" "int *rid" "u_int flags"
+.Fc
+.Ft struct resource *
+.Fn bus_alloc_resource_anywhere
+.Fa "device_t dev" "int type" "int *rid" "rman_res_t count" "u_int flags"
 .Sh DESCRIPTION
 This is an easy interface to the resource-management functions.
 It hides the indirection through the parent's method table.
@@ -57,9 +62,12 @@ rare cases) never earlier.
 .Pp
 The
 .Fn bus_alloc_resource_any
-function is a convenience wrapper for
+and
+.Fn bus_alloc_resource_anywhere
+functions are convenience wrappers for
 .Fn bus_alloc_resource .
-It sets the values for
+.Fn bus_alloc_resource_any
+sets
 .Fa start ,
 .Fa end ,
 and
@@ -67,6 +75,14 @@ and
 to the default resource (see description of
 .Fa start
 below).
+.Fn bus_alloc_resource_anywhere
+sets
+.Fa start
+and
+.Fa end
+to the default resource and uses the provided
+.Fa count
+argument.
 .Pp
 The arguments are as follows:
 .Bl -item

@@ -3490,6 +3490,7 @@ key_setdumpsa(struct secasvar *sav, u_int8_t type, u_int8_t satype,
 	}
 
 	m_cat(result, tres);
+	tres = NULL;
 	if (result->m_len < sizeof(struct sadb_msg)) {
 		result = m_pullup(result, sizeof(struct sadb_msg));
 		if (result == NULL)

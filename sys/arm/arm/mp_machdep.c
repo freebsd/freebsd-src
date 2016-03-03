@@ -86,9 +86,12 @@ void *dpcpu[MAXCPU - 1];
 int
 cpu_mp_probe(void)
 {
+
+	KASSERT(mp_ncpus != 0, ("cpu_mp_probe: mp_ncpus is unset"));
+
 	CPU_SETOF(0, &all_cpus);
 
-	return (platform_mp_probe());
+	return (mp_ncpus > 1);
 }
 
 /* Start Application Processor via platform specific function */
@@ -231,7 +234,7 @@ init_secondary(int cpu)
 	cpu_initclocks_ap();
 
 	CTR0(KTR_SMP, "go into scheduler");
-	platform_mp_init_secondary();
+	intr_pic_init_secondary();
 
 	/* Enter the scheduler */
 	sched_throw(NULL);
@@ -499,7 +502,7 @@ ipi_all_but_self(u_int ipi)
 	other_cpus = all_cpus;
 	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	platform_ipi_send(other_cpus, ipi);
+	pic_ipi_send(other_cpus, ipi);
 }
 
 void
@@ -511,7 +514,7 @@ ipi_cpu(int cpu, u_int ipi)
 	CPU_SET(cpu, &cpus);
 
 	CTR3(KTR_SMP, "%s: cpu: %d, ipi: %x", __func__, cpu, ipi);
-	platform_ipi_send(cpus, ipi);
+	pic_ipi_send(cpus, ipi);
 }
 
 void
@@ -519,6 +522,6 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 {
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	platform_ipi_send(cpus, ipi);
+	pic_ipi_send(cpus, ipi);
 }
 

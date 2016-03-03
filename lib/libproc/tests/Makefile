@@ -12,6 +12,4 @@ LIBADD=	elf proc rtld_db util
 # for testing symbol lookup.
 STRIP=
 
-WARNS?=	6
-
 .include <bsd.test.mk>

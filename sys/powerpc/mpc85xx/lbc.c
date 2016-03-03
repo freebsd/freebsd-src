@@ -31,6 +31,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -68,6 +70,11 @@ static MALLOC_DEFINE(M_LBC, "localbus", "localbus devices information");
 static int lbc_probe(device_t);
 static int lbc_attach(device_t);
 static int lbc_shutdown(device_t);
+static int lbc_activate_resource(device_t bus __unused, device_t child __unused,
+    int type, int rid __unused, struct resource *r);
+static int lbc_deactivate_resource(device_t bus __unused,
+    device_t child __unused, int type __unused, int rid __unused,
+    struct resource *r);
 static struct resource *lbc_alloc_resource(device_t, device_t, int, int *,
     rman_res_t, rman_res_t, rman_res_t, u_int);
 static int lbc_print_child(device_t, device_t);
@@ -91,8 +98,8 @@ static device_method_t lbc_methods[] = {
 
 	DEVMETHOD(bus_alloc_resource,	lbc_alloc_resource),
 	DEVMETHOD(bus_release_resource,	lbc_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_activate_resource, lbc_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, lbc_deactivate_resource),
 
 	/* OFW bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	lbc_get_devinfo),
@@ -504,8 +511,6 @@ lbc_attach(device_t dev)
 	rm = &sc->sc_rman;
 	rm->rm_type = RMAN_ARRAY;
 	rm->rm_descr = "Local Bus Space";
-	rm->rm_start = 0UL;
-	rm->rm_end = ~0UL;
 	error = rman_init(rm);
 	if (error)
 		goto fail;
@@ -674,7 +679,7 @@ lbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	int needactivate;
 
 	/* We only support default allocations. */
-	if (start != 0ul || end != ~0ul)
+	if (!RMAN_IS_DEFAULT_RANGE(start, end))
 		return (NULL);
 
 	sc = device_get_softc(bus);
@@ -764,6 +769,23 @@ lbc_release_resource(device_t dev, device_t child, int type, int rid,
 	}
 
 	return (rman_release_resource(res));
+}
+
+static int
+lbc_activate_resource(device_t bus __unused, device_t child __unused,
+    int type __unused, int rid __unused, struct resource *r)
+{
+
+	/* Child resources were already mapped, just activate. */
+	return (rman_activate_resource(r));
+}
+
+static int
+lbc_deactivate_resource(device_t bus __unused, device_t child __unused,
+    int type __unused, int rid __unused, struct resource *r)
+{
+
+	return (rman_deactivate_resource(r));
 }
 
 static const struct ofw_bus_devinfo *

@@ -20,6 +20,7 @@ SCRIPTS=	blocking \
 		nfsclienttime \
 		siftr \
 		tcpconn \
+		tcpdebug \
 		tcpstate \
 		tcptrack \
 		udptrack \
