@@ -743,7 +743,7 @@ tcp_destroy(void *unused __unused)
 	 * Sleep to let all tcpcb timers really disappear and then cleanup.
 	 * Timewait will cleanup it's queue and will be ready to go.
 	 */
-	DELAY(hz);
+	DELAY(1000000 / hz);
 	tcp_hc_destroy();
 	syncache_destroy();
 	tcp_tw_destroy();
