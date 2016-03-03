@@ -478,14 +478,14 @@ void	bus_enumerate_hinted_children(device_t bus);
 static __inline struct resource *
 bus_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
 {
-	return (bus_alloc_resource(dev, type, rid, 0ul, ~0ul, 1, flags));
+	return (bus_alloc_resource(dev, type, rid, 0, ~0, 1, flags));
 }
 
 static __inline struct resource *
 bus_alloc_resource_anywhere(device_t dev, int type, int *rid,
     rman_res_t count, u_int flags)
 {
-	return (bus_alloc_resource(dev, type, rid, 0ul, ~0ul, count, flags));
+	return (bus_alloc_resource(dev, type, rid, 0, ~0, count, flags));
 }
 
 /*
