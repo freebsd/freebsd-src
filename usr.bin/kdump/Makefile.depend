@@ -9,7 +9,9 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
-	lib/libcapsicum \
+	lib/libcasper/libcasper \
+	lib/libcasper/services/cap_grp \
+	lib/libcasper/services/cap_pwd \
 	lib/libcompiler_rt \
 	lib/libnv \
 	lib/libsysdecode \
@@ -19,14 +21,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-kdump.o: kdump_subr.h
-kdump.o: linux32_syscalls.c
-kdump.o: linux_syscalls.c
-kdump.po: kdump_subr.h
-kdump.po: linux32_syscalls.c
-kdump.po: linux_syscalls.c
-kdump_subr.o: kdump_subr.c
-kdump_subr.o: kdump_subr.h
-kdump_subr.po: kdump_subr.c
-kdump_subr.po: kdump_subr.h
 .endif

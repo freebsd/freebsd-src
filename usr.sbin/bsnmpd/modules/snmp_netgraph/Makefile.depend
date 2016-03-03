@@ -18,12 +18,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-netgraph_tree.So: netgraph_tree.c
-netgraph_tree.So: netgraph_tree.h
-netgraph_tree.po: netgraph_tree.c
-netgraph_tree.po: netgraph_tree.h
-snmp_netgraph.So: netgraph_oid.h
-snmp_netgraph.So: netgraph_tree.h
-snmp_netgraph.po: netgraph_oid.h
-snmp_netgraph.po: netgraph_tree.h
 .endif

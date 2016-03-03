@@ -83,8 +83,9 @@ api_search_sig(struct api_signature **sig)
 	if (uboot_address == 0)
 		uboot_address = 255 * 1024 * 1024;
 
-	sp = (void *)(uboot_address & ~0x000fffff);
-	spend = sp + 0x00300000 - API_SIG_MAGLEN;
+	sp = (void *)(uboot_address & API_SIG_SEARCH_MASK);
+	spend = sp + API_SIG_SEARCH_LEN - API_SIG_MAGLEN;
+
 	while (sp < spend) {
 		if (!bcmp(sp, API_SIG_MAGIC, API_SIG_MAGLEN)) {
 			*sig = (struct api_signature *)sp;
@@ -109,7 +110,7 @@ ub_getc(void)
 {
 	int c;
 
-	if (!syscall(API_GETC, NULL, (uint32_t)&c))
+	if (!syscall(API_GETC, NULL, &c))
 		return (-1);
 
 	return (c);
@@ -120,24 +121,24 @@ ub_tstc(void)
 {
 	int t;
 
-	if (!syscall(API_TSTC, NULL, (uint32_t)&t))
+	if (!syscall(API_TSTC, NULL, &t))
 		return (-1);
 
 	return (t);
 }
 
 void
-ub_putc(char c)
+ub_putc(const char c)
 {
 
-	syscall(API_PUTC, NULL, (uint32_t)&c);
+	syscall(API_PUTC, NULL, &c);
 }
 
 void
 ub_puts(const char *s)
 {
 
-	syscall(API_PUTS, NULL, (uint32_t)s);
+	syscall(API_PUTS, NULL, s);
 }
 
 /****************************************
@@ -166,7 +167,7 @@ ub_get_sys_info(void)
 	si.mr_no = UB_MAX_MR;
 	memset(&mr, 0, sizeof(mr));
 
-	if (!syscall(API_GET_SYS_INFO, &err, (u_int32_t)&si))
+	if (!syscall(API_GET_SYS_INFO, &err, &si))
 		return (NULL);
 
 	return ((err) ? NULL : &si);
@@ -433,7 +434,7 @@ ub_dump_di(int handle)
 	int i;
 
 	printf("device info (%d):\n", handle);
-	printf("  cookie\t= 0x%08x\n", (uint32_t)di->cookie);
+	printf("  cookie\t= 0x%p\n", di->cookie);
 	printf("  type\t\t= 0x%08x\n", di->type);
 
 	if (di->type == DEV_TYP_NET) {
@@ -483,7 +484,7 @@ ub_env_get(const char *name)
 {
 	char *value;
 
-	if (!syscall(API_ENV_GET, NULL, (uint32_t)name, (uint32_t)&value))
+	if (!syscall(API_ENV_GET, NULL, name, &value))
 		return (NULL);
 
 	return (value);
@@ -493,7 +494,7 @@ void
 ub_env_set(const char *name, char *value)
 {
 
-	syscall(API_ENV_SET, NULL, (uint32_t)name, (uint32_t)value);
+	syscall(API_ENV_SET, NULL, name, value);
 }
 
 static char env_name[256];
@@ -510,7 +511,7 @@ ub_env_enum(const char *last)
 	 * internally, which handles such case
 	 */
 	env = NULL;
-	if (!syscall(API_ENV_ENUM, NULL, (uint32_t)last, (uint32_t)&env))
+	if (!syscall(API_ENV_ENUM, NULL, last, &env))
 		return (NULL);
 
 	if (env == NULL || last == env)

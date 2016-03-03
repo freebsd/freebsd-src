@@ -54,6 +54,7 @@ typedef struct {
 	const char	*name;		/* name */
 	int		fd;		/* file descriptor */
 	off_t		offset;		/* # of blocks to skip */
+	off_t		seek_offset;	/* offset of last seek past output hole */
 } IO;
 
 typedef struct {

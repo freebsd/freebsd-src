@@ -13,12 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ARMInstPrinter.o: ARMGenAsmWriter.inc.h
-ARMInstPrinter.o: ARMGenInstrInfo.inc.h
-ARMInstPrinter.o: ARMGenRegisterInfo.inc.h
-ARMInstPrinter.o: ARMGenSubtargetInfo.inc.h
-ARMInstPrinter.po: ARMGenAsmWriter.inc.h
-ARMInstPrinter.po: ARMGenInstrInfo.inc.h
-ARMInstPrinter.po: ARMGenRegisterInfo.inc.h
-ARMInstPrinter.po: ARMGenSubtargetInfo.inc.h
 .endif

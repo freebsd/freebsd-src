@@ -83,7 +83,11 @@ CCACHE_NOCPP2=	1
 .export CCACHE_NOCPP2
 .endif
 # Canonicalize CCACHE_DIR for meta mode usage.
-.if defined(CCACHE_DIR) && empty(.MAKE.META.IGNORE_PATHS:M${CCACHE_DIR})
+.if !defined(CCACHE_DIR)
+CCACHE_DIR!=	${CCACHE_BIN} -p | awk '$$2 == "cache_dir" {print $$4}'
+.export CCACHE_DIR
+.endif
+.if !empty(CCACHE_DIR) && empty(.MAKE.META.IGNORE_PATHS:M${CCACHE_DIR})
 CCACHE_DIR:=	${CCACHE_DIR:tA}
 .MAKE.META.IGNORE_PATHS+= ${CCACHE_DIR}
 .export CCACHE_DIR

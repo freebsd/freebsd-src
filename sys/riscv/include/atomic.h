@@ -310,6 +310,19 @@ atomic_readandclear_64(volatile uint64_t *p)
 	return (ret);
 }
 
+static __inline uint32_t
+atomic_swap_32(volatile uint32_t *p, uint32_t val)
+{
+	uint32_t old;
+
+	__asm __volatile("amoswap.w %0, %2, %1"
+			: "=&r"(old), "+A" (*p)
+			: "r" (val)
+			: "memory");
+
+	return (old);
+}
+
 static __inline uint64_t
 atomic_swap_64(volatile uint64_t *p, uint64_t val)
 {
@@ -385,10 +398,6 @@ atomic_store_rel_64(volatile uint64_t *p, uint64_t val)
 
 	*p = val;
 }
-
-#define	atomic_add_acq_int	atomic_add_acq_32
-#define	atomic_clear_acq_int	atomic_clear_acq_32
-#define	atomic_cmpset_acq_int	atomic_cmpset_acq_32
 
 #define	atomic_add_acq_long		atomic_add_acq_64
 #define	atomic_clear_acq_long		atomic_add_acq_64

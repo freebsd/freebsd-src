@@ -310,7 +310,7 @@ meta2deps() {
 	*)  seen=$dir;;
 	esac
 	case "$dir" in
-	${CURDIR:-.}|${CURDIR:-.}/*|"") continue;;
+	${CURDIR:-.}|"") continue;;
 	$src_re)
 	    # avoid repeating ourselves...
 	    case "$DPDEPS,$seensrc," in

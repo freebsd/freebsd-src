@@ -117,7 +117,7 @@ powerpc64_freebsd32_fetch_retval(struct trussinfo *trussinfo, long *retval, int 
 
 static struct procabi powerpc64_freebsd32 = {
 	"FreeBSD ELF32",
-	FREEBSD32,
+	SYSDECODE_ABI_FREEBSD32,
 	powerpc64_freebsd32_fetch_args,
 	powerpc64_freebsd32_fetch_retval
 };

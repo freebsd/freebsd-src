@@ -1,4 +1,4 @@
-.\"	$NetBSD: editline.3,v 1.84 2014/12/25 13:39:41 wiz Exp $
+.\"	$NetBSD: editline.3,v 1.88 2016/02/25 14:59:22 wiz Exp $
 .\"
 .\" Copyright (c) 1997-2014 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2014
+.Dd February 24, 2016
 .Dt EDITLINE 3
 .Os
 .Sh NAME
@@ -72,7 +72,7 @@
 .Nm tok_wreset ,
 .Nm tok_line ,
 .Nm tok_wline ,
-.Nm tok_str
+.Nm tok_str ,
 .Nm tok_wstr
 .Nd line editor, history and tokenization functions
 .Sh LIBRARY
@@ -130,9 +130,9 @@
 .Ft void
 .Fn el_wdeletestr "EditLine *e" "int count"
 .Ft History *
-.Fn history_init
+.Fn history_init void
 .Ft HistoryW *
-.Fn history_winit
+.Fn history_winit void
 .Ft void
 .Fn history_end "History *h"
 .Ft void
@@ -175,6 +175,16 @@ library (which needs the
 library).
 Programs should be linked with
 .Fl ledit ltermcap .
+.Pp
+The
+.Nm
+library respects the
+.Ev LC_CTYPE
+locale set by the application program and never uses
+.Xr setlocale 3
+to change the locale.
+The only locales supported are UTF-8 and the default C or POSIX locale.
+If any other locale is set, behaviour is undefined.
 .Sh LINE EDITING FUNCTIONS
 The line editing functions use a common data structure,
 .Fa EditLine ,
@@ -191,7 +201,7 @@ counterparts.
 The following functions are available:
 .Bl -tag -width 4n
 .It Fn el_init
-Initialise the line editor, and return a data structure
+Initialize the line editor, and return a data structure
 to be used by all other line editing functions, or
 .Dv NULL
 on failure.
@@ -240,14 +250,42 @@ contains the error code that caused it.
 The return value may not remain valid across calls to
 .Fn el_gets
 and must be copied if the data is to be retained.
+.It Fn el_wgetc
+Read a wide character from the tty, respecting the current locale,
+or from the input stream written by
+.Fn el_wpush
+and
+.Fn el_push
+if that is not empty, and store it in
+.Fa ch .
+If an invalid or incomplete character is found, it is discarded,
+.Va errno
+is set to
+.Er EILSEQ ,
+and the next character is read and stored in
+.Fa ch .
+Returns 1 if a valid character was read, 0 on end of file, or \-1 on
+.Xr read 2
+failure.
+In the latter case,
+.Va errno
+is set to indicate the error.
 .It Fn el_getc
-Read a character from the tty.
-.Fa ch
-is modified to contain the character read.
-Returns the number of characters read if successful, \-1 otherwise,
-in which case
-.Dv errno
-can be inspected for the cause.
+Read a wide character as described for
+.Fn el_wgetc
+and return 0 on end of file or \-1 on failure.
+If the wide character can be represented as a single-byte character,
+convert it with
+.Xr wctob 3 ,
+store the result in
+.Fa ch ,
+and return 1; otherwise, set
+.Va errno
+to
+.Er ERANGE
+and return \-1.
+In the C or POSIX locale, this simply reads a byte, but for any other
+locale, including UTF-8, this is rarely useful.
 .It Fn el_push
 Pushes
 .Fa str
@@ -521,61 +559,68 @@ are supported, along with actual type of
 .Fa result :
 .Bl -tag -width 4n
 .It Dv EL_PROMPT , Fa "char *(*f)(EditLine *)" , Fa "char *c"
-Return a pointer to the function that displays the prompt in
+Set
 .Fa f .
+to a pointer to the function that displays the prompt.
 If
 .Fa c
 is not
 .Dv NULL ,
-return the start/stop literal prompt character in it.
+set it to the start/stop literal prompt character.
 .It Dv EL_RPROMPT , Fa "char *(*f)(EditLine *)" , Fa "char *c"
-Return a pointer to the function that displays the prompt in
+Set
 .Fa f .
+to a pointer to the function that displays the prompt.
 If
 .Fa c
 is not
 .Dv NULL ,
-return the start/stop literal prompt character in it.
-.It Dv EL_EDITOR , Fa "const char **"
-Return the name of the editor, which will be one of
+set it to the start/stop literal prompt character.
+.It Dv EL_EDITOR , Fa "const char **n"
+Set the name of the editor in
+.Fa n ,
+which will be one of
 .Dq emacs
 or
 .Dq vi .
 .It Dv EL_GETTC , Fa "const char *name" , Fa "void *value"
-Return non-zero if
+If
 .Fa name
 is a valid
 .Xr termcap 5
-capability
-and set
+capability set
 .Fa value
 to the current value of that capability.
-.It Dv EL_SIGNAL , Fa "int *"
-Return non-zero if
+.It Dv EL_SIGNAL , Fa "int *s"
+Set
+.Fa s
+to non zero if
 .Nm
 has installed private signal handlers (see
 .Fn el_get
 above).
-.It Dv EL_EDITMODE , Fa "int *"
-Return non-zero if editing is enabled.
+.It Dv EL_EDITMODE , Fa "int *c"
+Set
+.Fa c
+to non-zero if editing is enabled.
 .It Dv EL_GETCFN , Fa "int (**f)(EditLine *, char *)"
 Return a pointer to the function that read characters, which is equal to
 .Dq Dv EL_BUILTIN_GETCFN
 in the case of the default builtin function.
 .It Dv EL_CLIENTDATA , Fa "void **data"
-Retrieve
+Set
 .Fa data
-previously registered with the corresponding
+to the previously registered client data set by an
 .Fn el_set
 call.
-.It Dv EL_UNBUFFERED , Fa "int"
-Return non-zero if unbuffered mode is enabled.
-.It Dv EL_PREP_TERM , Fa "int"
-Sets or clears terminal editing mode.
+.It Dv EL_UNBUFFERED , Fa "int *c"
+Set
+.Fa c
+to non-zero if unbuffered mode is enabled.
 .It Dv EL_GETFP , Fa "int fd", Fa "FILE **fp"
-Return in
+Set
 .Fa fp
-the current
+to the current
 .Nm editline
 file pointer for
 .Dq input
@@ -593,7 +638,7 @@ or
 .Dv 2 .
 .El
 .It Fn el_source
-Initialise
+Initialize
 .Nm
 by reading the contents of
 .Fa file .
@@ -671,7 +716,7 @@ and freed by
 The following functions are available:
 .Bl -tag -width 4n
 .It Fn history_init
-Initialise the history list, and return a data structure
+Initialize the history list, and return a data structure
 to be used by all other history list functions, or
 .Dv NULL
 on failure.
@@ -739,7 +784,7 @@ to the last new element of the history.
 .It Dv H_ENTER , Fa "const char *str"
 Add
 .Fa str
-as a new element to the history, and, if necessary,
+as a new element to the history and, if necessary,
 removing the oldest entry to keep the list to the created size.
 If
 .Dv H_SETUNIQUE
@@ -810,7 +855,7 @@ and freed by
 The following functions are available:
 .Bl -tag -width 4n
 .It Fn tok_init
-Initialise the tokenizer, and return a data structure
+Initialize the tokenizer, and return a data structure
 to be used by all other tokenizer functions.
 .Fa IFS
 contains the Input Field Separators, which defaults to

@@ -134,6 +134,9 @@ SYSCTL_NODE(_vfs_zfs, OID_AUTO, vol, CTLFLAG_RW, 0, "ZFS VOLUME");
 static int	volmode = ZFS_VOLMODE_GEOM;
 SYSCTL_INT(_vfs_zfs_vol, OID_AUTO, mode, CTLFLAG_RWTUN, &volmode, 0,
     "Expose as GEOM providers (1), device files (2) or neither");
+static boolean_t zpool_on_zvol = B_FALSE;
+SYSCTL_INT(_vfs_zfs_vol, OID_AUTO, recursive, CTLFLAG_RWTUN, &zpool_on_zvol, 0,
+    "Allow zpools to use zvols as vdevs (DANGEROUS)");
 
 #endif
 typedef struct zvol_extent {
@@ -1114,7 +1117,9 @@ zvol_open(struct g_provider *pp, int flag, int count)
 		return (err);
 	}
 #else	/* !illumos */
-	if (tsd_get(zfs_geom_probe_vdev_key) != NULL) {
+	boolean_t locked = B_FALSE;
+
+	if (!zpool_on_zvol && tsd_get(zfs_geom_probe_vdev_key) != NULL) {
 		/*
 		 * if zfs_geom_probe_vdev_key is set, that means that zfs is
 		 * attempting to probe geom providers while looking for a
@@ -1125,19 +1130,34 @@ zvol_open(struct g_provider *pp, int flag, int count)
 		 */
 		return (EOPNOTSUPP);
 	}
-
-	mutex_enter(&zfsdev_state_lock);
+	/*
+	 * Protect against recursively entering spa_namespace_lock
+	 * when spa_open() is used for a pool on a (local) ZVOL(s).
+	 * This is needed since we replaced upstream zfsdev_state_lock
+	 * with spa_namespace_lock in the ZVOL code.
+	 * We are using the same trick as spa_open().
+	 * Note that calls in zvol_first_open which need to resolve
+	 * pool name to a spa object will enter spa_open()
+	 * recursively, but that function already has all the
+	 * necessary protection.
+	 */
+	if (!MUTEX_HELD(&zfsdev_state_lock)) {
+		mutex_enter(&zfsdev_state_lock);
+		locked = B_TRUE;
+	}
 
 	zv = pp->private;
 	if (zv == NULL) {
-		mutex_exit(&zfsdev_state_lock);
+		if (locked)
+			mutex_exit(&zfsdev_state_lock);
 		return (SET_ERROR(ENXIO));
 	}
 
 	if (zv->zv_total_opens == 0) {
 		err = zvol_first_open(zv);
 		if (err) {
-			mutex_exit(&zfsdev_state_lock);
+			if (locked)
+				mutex_exit(&zfsdev_state_lock);
 			return (err);
 		}
 		pp->mediasize = zv->zv_volsize;
@@ -1171,7 +1191,8 @@ zvol_open(struct g_provider *pp, int flag, int count)
 	mutex_exit(&zfsdev_state_lock);
 #else
 	zv->zv_total_opens += count;
-	mutex_exit(&zfsdev_state_lock);
+	if (locked)
+		mutex_exit(&zfsdev_state_lock);
 #endif
 
 	return (err);
@@ -1181,7 +1202,8 @@ out:
 #ifdef illumos
 	mutex_exit(&zfsdev_state_lock);
 #else
-	mutex_exit(&zfsdev_state_lock);
+	if (locked)
+		mutex_exit(&zfsdev_state_lock);
 #endif
 	return (err);
 }

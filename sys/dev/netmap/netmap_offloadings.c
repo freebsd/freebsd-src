@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/param.h>	/* defines used in kernel.h */
+#include <sys/malloc.h>	/* types used in module initialization */
 #include <sys/kernel.h>	/* types used in module initialization */
 #include <sys/sockio.h>
 #include <sys/socketvar.h>	/* struct socket */

@@ -37,8 +37,6 @@ struct arm_devmap_entry {
 	vm_offset_t	pd_va;		/* virtual address */
 	vm_paddr_t	pd_pa;		/* physical address */
 	vm_size_t	pd_size;	/* size of region */
-	vm_prot_t	pd_prot;	/* protection code */
-	int		pd_cache;	/* cache attributes */
 };
 
 /*
@@ -70,7 +68,7 @@ void arm_devmap_register_table(const struct arm_devmap_entry * _table);
  * custom initarm() routines in older code.  If the table pointer is NULL, this
  * will use the table installed previously by arm_devmap_register_table().
  */
-void arm_devmap_bootstrap(vm_offset_t _l1pt, 
+void arm_devmap_bootstrap(vm_offset_t _l1pt,
     const struct arm_devmap_entry *_table);
 
 /*

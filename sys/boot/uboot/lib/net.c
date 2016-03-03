@@ -108,9 +108,19 @@ get_env_net_params()
 	char *envstr;
 	in_addr_t rootaddr, serveraddr;
 
-	/* Silently get out right away if we don't have rootpath. */
-	if (ub_env_get("rootpath") == NULL)
+	/*
+	 * Silently get out right away if we don't have rootpath, because none
+	 * of the other info we obtain below is sufficient to boot without it.
+	 *
+	 * If we do have rootpath, copy it into the global var and also set
+	 * dhcp.root-path in the env.  If we don't get all the other info from
+	 * the u-boot env below, we will still try dhcp/bootp, but the server-
+	 * provided path will not replace the user-provided value we set here.
+	 */
+	if ((envstr = ub_env_get("rootpath")) == NULL)
 		return;
+	strlcpy(rootpath, envstr, sizeof(rootpath));
+	setenv("dhcp.root-path", rootpath, 0);
 
 	/*
 	 * Our own IP address must be valid.  Silently get out if it's not set,
@@ -154,9 +164,6 @@ get_env_net_params()
 	 * There must be a rootpath.  It may be ip:/path or it may be just the
 	 * path in which case the ip needs to be in serverip.
 	 */
-	if ((envstr = ub_env_get("rootpath")) == NULL)
-		return;
-	strncpy(rootpath, envstr, sizeof(rootpath) - 1);
 	rootaddr = net_parse_rootpath();
 	if (rootaddr == INADDR_NONE)
 		rootaddr = serveraddr;

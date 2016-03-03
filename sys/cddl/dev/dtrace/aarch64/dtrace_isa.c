@@ -44,7 +44,6 @@
 #include <machine/atomic.h>
 #include <machine/db_machdep.h>
 #include <machine/md_var.h>
-#include <machine/vmparam.h>
 #include <machine/stack.h>
 #include <ddb/db_sym.h>
 #include <ddb/ddb.h>

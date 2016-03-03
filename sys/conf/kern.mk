@@ -104,6 +104,11 @@ CFLAGS += -mgeneral-regs-only
 CFLAGS += -ffixed-x18
 .endif
 
+.if ${MACHINE_CPUARCH} == "riscv"
+CFLAGS.gcc+=	-mcmodel=medany
+INLINE_LIMIT?=	8000
+.endif
+
 #
 # For sparc64 we want the medany code model so modules may be located
 # anywhere in the 64-bit address space.  We also tell GCC to use floating
@@ -205,10 +210,10 @@ CFLAGS+= ${CFLAGS.${COMPILER_TYPE}} ${CFLAGS.${.IMPSRC:T}}
 PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 		beforelinking build build-tools buildfiles buildincludes \
 		checkdpadd clean cleandepend cleandir cleanobj configure \
-		depend dependall distclean distribute exe \
+		depend distclean distribute exe \
 		html includes install installfiles installincludes lint \
-		obj objlink objs objwarn realall realdepend \
-		realinstall regress subdir-all subdir-depend subdir-install \
+		obj objlink objs objwarn \
+		realinstall regress \
 		tags whereobj
 
 .PHONY: ${PHONY_NOTMAIN}

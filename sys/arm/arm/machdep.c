@@ -123,7 +123,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 
 #if __ARM_ARCH >= 6
-#include <machine/cpu-v6.h>
 
 DB_SHOW_COMMAND(cp15, db_show_cp15)
 {
@@ -199,7 +198,7 @@ static char *loader_envp;
 
 vm_paddr_t pmap_pa;
 
-#ifdef ARM_NEW_PMAP
+#if __ARM_ARCH >= 6
 vm_offset_t systempage;
 vm_offset_t irqstack;
 vm_offset_t undstack;
@@ -397,7 +396,7 @@ arm_vector_init(vm_offset_t va, int which)
 	}
 
 	/* Now sync the vectors. */
-	cpu_icache_sync_range(va, (ARM_NVEC * 2) * sizeof(u_int));
+	icache_sync(va, (ARM_NVEC * 2) * sizeof(u_int));
 
 	vector_page = va;
 
@@ -427,10 +426,8 @@ cpu_startup(void *dummy)
 {
 	struct pcb *pcb = thread0.td_pcb;
 	const unsigned int mbyte = 1024 * 1024;
-#ifdef ARM_TP_ADDRESS
-#ifndef ARM_CACHE_LOCK_ENABLE
+#if __ARM_ARCH < 6 && !defined(ARM_CACHE_LOCK_ENABLE)
 	vm_page_t m;
-#endif
 #endif
 
 	identify_arm_cpu();
@@ -455,12 +452,10 @@ cpu_startup(void *dummy)
 	vm_pager_bufferinit();
 	pcb->pcb_regs.sf_sp = (u_int)thread0.td_kstack +
 	    USPACE_SVC_STACK_TOP;
-	pmap_set_pcb_pagedir(pmap_kernel(), pcb);
-#ifndef ARM_NEW_PMAP
+	pmap_set_pcb_pagedir(kernel_pmap, pcb);
+#if __ARM_ARCH < 6
 	vector_page_setprot(VM_PROT_READ);
 	pmap_postinit();
-#endif
-#ifdef ARM_TP_ADDRESS
 #ifdef ARM_CACHE_LOCK_ENABLE
 	pmap_kenter_user(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
 	arm_lock_cache_line(ARM_TP_ADDRESS);
@@ -483,12 +478,7 @@ void
 cpu_flush_dcache(void *ptr, size_t len)
 {
 
-	cpu_dcache_wb_range((uintptr_t)ptr, len);
-#ifdef ARM_L2_PIPT
-	cpu_l2cache_wb_range((uintptr_t)vtophys(ptr), len);
-#else
-	cpu_l2cache_wb_range((uintptr_t)ptr, len);
-#endif
+	dcache_wb_poc((vm_offset_t)ptr, (vm_paddr_t)vtophys(ptr), len);
 }
 
 /* Get current clock frequency for the given cpu id. */
@@ -1283,7 +1273,7 @@ arm_predict_branch(void *cookie, u_int insn, register_t pc, register_t *new_pc,
 	}
 }
 
-#ifdef ARM_NEW_PMAP
+#if __ARM_ARCH >= 6
 void
 set_stackptrs(int cpu)
 {
@@ -1315,7 +1305,7 @@ set_stackptrs(int cpu)
 
 static void
 add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
-    int *mrcnt, uint32_t *memsize)
+    int *mrcnt)
 {
 	struct efi_md *map, *p;
 	const char *type;
@@ -1340,7 +1330,6 @@ add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
 	};
 
 	*mrcnt = 0;
-	*memsize = 0;
 
 	/*
 	 * Memory map data provided by UEFI via the GetMemoryMap
@@ -1412,7 +1401,6 @@ add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
 	}
 
 	*mrcnt = j;
-	*memsize = memory_size;
 }
 #endif /* EFI */
 
@@ -1447,7 +1435,7 @@ print_kenv(void)
 		debugf(" %x %s\n", (uint32_t)cp, cp);
 }
 
-#ifndef ARM_NEW_PMAP
+#if __ARM_ARCH < 6
 void *
 initarm(struct arm_boot_params *abp)
 {
@@ -1455,7 +1443,8 @@ initarm(struct arm_boot_params *abp)
 	struct pv_addr kernel_l1pt;
 	struct pv_addr dpcpu;
 	vm_offset_t dtbp, freemempos, l2_start, lastaddr;
-	uint32_t memsize, l2size;
+	uint64_t memsize;
+	uint32_t l2size;
 	char *env;
 	void *kmdp;
 	u_int l1pagetable;
@@ -1626,7 +1615,7 @@ initarm(struct arm_boot_params *abp)
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	pmap_pa = kernel_l1pt.pv_pa;
-	setttb(kernel_l1pt.pv_pa);
+	cpu_setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2));
 
@@ -1679,7 +1668,7 @@ initarm(struct arm_boot_params *abp)
 	/*
 	 * We must now clean the cache again....
 	 * Cleaning may be done by reading new data to displace any
-	 * dirty data in the cache. This will have happened in setttb()
+	 * dirty data in the cache. This will have happened in cpu_setttb()
 	 * but since we are boot strapping the addresses used for the read
 	 * may have just been remapped and thus the cache could be out
 	 * of sync. A re-clean after the switch will cure this.
@@ -1717,14 +1706,13 @@ initarm(struct arm_boot_params *abp)
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }
-#else /* !ARM_NEW_PMAP */
+#else /* __ARM_ARCH < 6 */
 void *
 initarm(struct arm_boot_params *abp)
 {
 	struct mem_region mem_regions[FDT_MEM_REGIONS];
 	vm_paddr_t lastaddr;
 	vm_offset_t dtbp, kernelstack, dpcpu;
-	uint32_t memsize;
 	char *env;
 	void *kmdp;
 	int err_devmap, mem_regions_sz;
@@ -1736,7 +1724,6 @@ initarm(struct arm_boot_params *abp)
 	arm_physmem_kernaddr = abp->abp_physaddr;
 	lastaddr = parse_boot_param(abp) - KERNVIRTADDR + arm_physmem_kernaddr;
 
-	memsize = 0;
 	set_cpufuncs();
 	cpuinfo_init();
 
@@ -1764,14 +1751,12 @@ initarm(struct arm_boot_params *abp)
 	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
 	if (efihdr != NULL) {
-		add_efi_map_entries(efihdr, mem_regions, &mem_regions_sz,
-		   &memsize);
+		add_efi_map_entries(efihdr, mem_regions, &mem_regions_sz);
 	} else
 #endif
 	{
 		/* Grab physical memory regions information from device tree. */
-		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,
-		    &memsize) != 0)
+		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,NULL) != 0)
 			panic("Cannot get physical memory regions");
 	}
 	arm_physmem_hardware_regions(mem_regions, mem_regions_sz);
@@ -1871,7 +1856,7 @@ initarm(struct arm_boot_params *abp)
 	/*
 	 * We must now clean the cache again....
 	 * Cleaning may be done by reading new data to displace any
-	 * dirty data in the cache. This will have happened in setttb()
+	 * dirty data in the cache. This will have happened in cpu_setttb()
 	 * but since we are boot strapping the addresses used for the read
 	 * may have just been remapped and thus the cache could be out
 	 * of sync. A re-clean after the switch will cure this.
@@ -1905,7 +1890,7 @@ initarm(struct arm_boot_params *abp)
 
 }
 
-#endif /* !ARM_NEW_PMAP */
+#endif /* __ARM_ARCH < 6 */
 #endif /* FDT */
 
 uint32_t (*arm_cpu_fill_vdso_timehands)(struct vdso_timehands *,

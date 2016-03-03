@@ -212,7 +212,7 @@ dialog_menu_main()
 		 *) menu_program="$menuitem/$menu_program"
 		esac
 
-		tag=$( f_substr "$DIALOG_MENU_TAGS" $index 1 )
+		f_substr -v tag "$DIALOG_MENU_TAGS" $index 1
 		setvar "menu_program$tag" "$menu_program"
 
 		f_shell_escape "$menu_title" menu_title
@@ -256,7 +256,7 @@ dialog_menu_main()
 		 *) menu_program="$BSDCFG_LOCAL_LIBE/$menuitem/$menu_program"
 		esac
 
-		tag=$( f_substr "$DIALOG_MENU_TAGS" $index 1 )
+		f_substr -v tag "$DIALOG_MENU_TAGS" $index 1
 		setvar "menu_program$tag" "$menu_program"
 
 		f_shell_escape "$menu_title" menu_title

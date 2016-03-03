@@ -157,7 +157,17 @@
 #define	EHCI_PS_CS		0x00000001	/* RO connect status */
 #define	EHCI_PS_CLEAR		(EHCI_PS_OCC | EHCI_PS_PEC | EHCI_PS_CSC)
 
-#define	EHCI_USBMODE		0x68	/* RW USB Device mode register */
+#define	EHCI_PORT_RESET_COMPLETE	2	/* ms */
+
+/*
+ * Registers not covered by EHCI specification
+ *
+ *
+ * EHCI_USBMODE register offset is different for cores with LPM support,
+ * bits are equal
+ */
+#define	EHCI_USBMODE_NOLPM	0x68	/* RW USB Device mode reg (no LPM) */
+#define	EHCI_USBMODE_LPM	0xC8	/* RW USB Device mode reg (LPM) */
 #define	EHCI_UM_CM		0x00000003	/* R/WO Controller Mode */
 #define	EHCI_UM_CM_IDLE		0x0	/* Idle */
 #define	EHCI_UM_CM_HOST		0x3	/* Host Controller */
@@ -166,6 +176,18 @@
 #define	EHCI_UM_ES_BE		0x4	/* Big-endian byte alignment */
 #define	EHCI_UM_SDIS		0x00000010	/* R/WO Stream Disable Mode */
 
-#define	EHCI_PORT_RESET_COMPLETE	2	/* ms */
+/*
+ * Actual port speed bits depends on EHCI_HOSTC(n) registers presence,
+ * speed encoding is equal
+ */
+#define	EHCI_HOSTC(n)		(0x80+(4*(n)))	/* RO, RW Host mode control reg */
+#define	EHCI_HOSTC_PSPD_SHIFT	25
+#define	EHCI_HOSTC_PSPD_MASK	0x3
 
+#define	EHCI_PORTSC_PSPD_SHIFT	26
+#define	EHCI_PORTSC_PSPD_MASK	0x3
+
+#define	EHCI_PORT_SPEED_FULL	0
+#define	EHCI_PORT_SPEED_LOW	1
+#define	EHCI_PORT_SPEED_HIGH	2
 #endif	/* _EHCIREG_H_ */

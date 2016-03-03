@@ -438,7 +438,7 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	uint64_t cend, cstart, offset;
 	int i, isdefault, passthrough, ridx;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
 	sc = device_get_softc(bus);
 	rl = BUS_GET_RESOURCE_LIST(bus, child);

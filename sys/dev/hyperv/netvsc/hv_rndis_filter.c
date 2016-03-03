@@ -58,6 +58,7 @@ static void hv_rf_receive_response(rndis_device *device, rndis_msg *response);
 static void hv_rf_receive_indicate_status(rndis_device *device,
 					  rndis_msg *response);
 static void hv_rf_receive_data(rndis_device *device, rndis_msg *message,
+			       struct hv_vmbus_channel *chan,
 			       netvsc_packet *pkt);
 static int  hv_rf_query_device(rndis_device *device, uint32_t oid,
 			       void *result, uint32_t *result_size);
@@ -135,12 +136,9 @@ hv_get_rndis_device(void)
 {
 	rndis_device *device;
 
-	device = malloc(sizeof(rndis_device), M_NETVSC, M_NOWAIT | M_ZERO);
-	if (device == NULL) {
-		return (NULL);
-	}
+	device = malloc(sizeof(rndis_device), M_NETVSC, M_WAITOK | M_ZERO);
 
-	mtx_init(&device->req_lock, "HV-FRL", NULL, MTX_SPIN | MTX_RECURSE);
+	mtx_init(&device->req_lock, "HV-FRL", NULL, MTX_DEF);
 
 	/* Same effect as STAILQ_HEAD_INITIALIZER() static initializer */
 	STAILQ_INIT(&device->myrequest_list);
@@ -171,10 +169,7 @@ hv_rndis_request(rndis_device *device, uint32_t message_type,
 	rndis_msg *rndis_mesg;
 	rndis_set_request *set;
 
-	request = malloc(sizeof(rndis_request), M_NETVSC, M_NOWAIT | M_ZERO);
-	if (request == NULL) {
-		return (NULL);
-	}
+	request = malloc(sizeof(rndis_request), M_NETVSC, M_WAITOK | M_ZERO);
 
 	sema_init(&request->wait_sema, 0, "rndis sema");
 	
@@ -193,9 +188,9 @@ hv_rndis_request(rndis_device *device, uint32_t message_type,
 	set->request_id += 1;
 
 	/* Add to the request list */
-	mtx_lock_spin(&device->req_lock);
+	mtx_lock(&device->req_lock);
 	STAILQ_INSERT_TAIL(&device->myrequest_list, request, mylist_entry);
-	mtx_unlock_spin(&device->req_lock);
+	mtx_unlock(&device->req_lock);
 
 	return (request);
 }
@@ -206,14 +201,14 @@ hv_rndis_request(rndis_device *device, uint32_t message_type,
 static inline void
 hv_put_rndis_request(rndis_device *device, rndis_request *request)
 {
-	mtx_lock_spin(&device->req_lock);
+	mtx_lock(&device->req_lock);
 	/* Fixme:  Has O(n) performance */
 	/*
 	 * XXXKYS: Use Doubly linked lists.
 	 */
 	STAILQ_REMOVE(&device->myrequest_list, request, rndis_request_,
 	    mylist_entry);
-	mtx_unlock_spin(&device->req_lock);
+	mtx_unlock(&device->req_lock);
 
 	sema_destroy(&request->wait_sema);
 	free(request, M_NETVSC);
@@ -255,7 +250,7 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 	    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
 	packet->send_buf_section_size = 0;
 
-	ret = hv_nv_on_send(device->net_dev->dev, packet);
+	ret = hv_nv_on_send(device->net_dev->dev->channel, packet);
 
 	return (ret);
 }
@@ -270,7 +265,7 @@ hv_rf_receive_response(rndis_device *device, rndis_msg *response)
 	rndis_request *next_request;
 	boolean_t found = FALSE;
 
-	mtx_lock_spin(&device->req_lock);
+	mtx_lock(&device->req_lock);
 	request = STAILQ_FIRST(&device->myrequest_list);
 	while (request != NULL) {
 		/*
@@ -285,7 +280,7 @@ hv_rf_receive_response(rndis_device *device, rndis_msg *response)
 		next_request = STAILQ_NEXT(request, mylist_entry);
 		request = next_request;
 	}
-	mtx_unlock_spin(&device->req_lock);
+	mtx_unlock(&device->req_lock);
 
 	if (found) {
 		if (response->msg_len <= sizeof(rndis_msg)) {
@@ -358,7 +353,7 @@ hv_rf_send_offload_request(struct hv_device *device,
 		goto cleanup;
 	}
 
-	ret = sema_timedwait(&request->wait_sema, 500);
+	ret = sema_timedwait(&request->wait_sema, 5 * hz);
 	if (ret != 0) {
 		device_printf(dev, "hv send offload request timeout\n");
 		goto cleanup;
@@ -411,7 +406,8 @@ hv_rf_receive_indicate_status(rndis_device *device, rndis_msg *response)
  * RNDIS filter receive data
  */
 static void
-hv_rf_receive_data(rndis_device *device, rndis_msg *message, netvsc_packet *pkt)
+hv_rf_receive_data(rndis_device *device, rndis_msg *message,
+    struct hv_vmbus_channel *chan, netvsc_packet *pkt)
 {
 	rndis_packet *rndis_pkt;
 	ndis_8021q_info *rppi_vlan_info;
@@ -449,14 +445,15 @@ hv_rf_receive_data(rndis_device *device, rndis_msg *message, netvsc_packet *pkt)
 	}
 
 	csum_info = hv_get_ppi_data(rndis_pkt, tcpip_chksum_info);
-	netvsc_recv(device->net_dev->dev, pkt, csum_info);
+	netvsc_recv(chan, pkt, csum_info);
 }
 
 /*
  * RNDIS filter on receive
  */
 int
-hv_rf_on_receive(netvsc_dev *net_dev, struct hv_device *device, netvsc_packet *pkt)
+hv_rf_on_receive(netvsc_dev *net_dev, struct hv_device *device,
+    struct hv_vmbus_channel *chan, netvsc_packet *pkt)
 {
 	rndis_device *rndis_dev;
 	rndis_msg *rndis_hdr;
@@ -479,7 +476,7 @@ hv_rf_on_receive(netvsc_dev *net_dev, struct hv_device *device, netvsc_packet *p
 
 	/* data message */
 	case REMOTE_NDIS_PACKET_MSG:
-		hv_rf_receive_data(rndis_dev, rndis_hdr, pkt);
+		hv_rf_receive_data(rndis_dev, rndis_hdr, chan, pkt);
 		break;
 	/* completion messages */
 	case REMOTE_NDIS_INITIALIZE_CMPLT:
@@ -625,7 +622,7 @@ hv_rf_set_packet_filter(rndis_device *device, uint32_t new_filter)
 	 * us when the response has arrived.  In the failure case,
 	 * sema_timedwait() returns a non-zero status after waiting 5 seconds.
 	 */
-	ret = sema_timedwait(&request->wait_sema, 500);
+	ret = sema_timedwait(&request->wait_sema, 5 * hz);
 	if (ret == 0) {
 		/* Response received, check status */
 		set_complete = &request->response_msg.msg.set_complete;
@@ -818,7 +815,8 @@ hv_rf_close_device(rndis_device *device)
  * RNDIS filter on device add
  */
 int
-hv_rf_on_device_add(struct hv_device *device, void *additl_info)
+hv_rf_on_device_add(struct hv_device *device, void *additl_info,
+    int nchan __unused)
 {
 	int ret;
 	netvsc_dev *net_dev;
@@ -963,32 +961,9 @@ hv_rf_on_send_request_halt_completion(void *context)
 	request->halt_complete_flag = 1;
 }
 
-/*
- * RNDIS filter when "all" reception is done
- */
 void
-hv_rf_receive_rollup(netvsc_dev *net_dev)
+hv_rf_channel_rollup(struct hv_vmbus_channel *chan)
 {
-	rndis_device *rndis_dev;
 
-	rndis_dev = (rndis_device *)net_dev->extension;
-	netvsc_recv_rollup(rndis_dev->net_dev->dev);
-}
-
-void
-hv_rf_channel_rollup(netvsc_dev *net_dev)
-{
-	rndis_device *rndis_dev;
-
-	rndis_dev = (rndis_device *)net_dev->extension;
-
-	/*
-	 * This could be called pretty early, so we need
-	 * to make sure everything has been setup.
-	 */
-	if (rndis_dev == NULL ||
-	    rndis_dev->net_dev == NULL ||
-	    rndis_dev->net_dev->dev == NULL)
-		return;
-	netvsc_channel_rollup(rndis_dev->net_dev->dev);
+	netvsc_channel_rollup(chan);
 }

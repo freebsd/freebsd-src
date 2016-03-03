@@ -8,7 +8,5 @@ makeoptions	CONF_CFLAGS="-march=armv7a"
 makeoptions	KERNVIRTADDR=0xc0200000
 options 	KERNVIRTADDR=0xc0200000
 
-options 	ARM_L2_PIPT
-
 files		"../allwinner/files.allwinner"
 files		"../allwinner/files.a10"

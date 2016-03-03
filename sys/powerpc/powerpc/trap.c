@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/fpu.h>
 #include <machine/frame.h>
 #include <machine/pcb.h>
-#include <machine/pmap.h>
 #include <machine/psl.h>
 #include <machine/trap.h>
 #include <machine/spr.h>

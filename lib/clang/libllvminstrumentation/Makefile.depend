@@ -13,20 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-AddressSanitizer.o: Intrinsics.inc.h
-AddressSanitizer.po: Intrinsics.inc.h
-BoundsChecking.o: Intrinsics.inc.h
-BoundsChecking.po: Intrinsics.inc.h
-DataFlowSanitizer.o: Intrinsics.inc.h
-DataFlowSanitizer.po: Intrinsics.inc.h
-GCOVProfiling.o: Intrinsics.inc.h
-GCOVProfiling.po: Intrinsics.inc.h
-InstrProfiling.o: Intrinsics.inc.h
-InstrProfiling.po: Intrinsics.inc.h
-MemorySanitizer.o: Intrinsics.inc.h
-MemorySanitizer.po: Intrinsics.inc.h
-SafeStack.o: Intrinsics.inc.h
-SafeStack.po: Intrinsics.inc.h
-ThreadSanitizer.o: Intrinsics.inc.h
-ThreadSanitizer.po: Intrinsics.inc.h
 .endif

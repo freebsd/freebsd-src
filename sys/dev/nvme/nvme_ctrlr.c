@@ -52,8 +52,8 @@ nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
 
 	ctrlr->resource_id = PCIR_BAR(0);
 
-	ctrlr->resource = bus_alloc_resource(ctrlr->dev, SYS_RES_MEMORY,
-	    &ctrlr->resource_id, 0, ~0, 1, RF_ACTIVE);
+	ctrlr->resource = bus_alloc_resource_any(ctrlr->dev, SYS_RES_MEMORY,
+	    &ctrlr->resource_id, RF_ACTIVE);
 
 	if(ctrlr->resource == NULL) {
 		nvme_printf(ctrlr, "unable to allocate pci resource\n");
@@ -72,8 +72,8 @@ nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
 	 *  bus_alloc_resource() will just return NULL which is OK.
 	 */
 	ctrlr->bar4_resource_id = PCIR_BAR(4);
-	ctrlr->bar4_resource = bus_alloc_resource(ctrlr->dev, SYS_RES_MEMORY,
-	    &ctrlr->bar4_resource_id, 0, ~0, 1, RF_ACTIVE);
+	ctrlr->bar4_resource = bus_alloc_resource_any(ctrlr->dev, SYS_RES_MEMORY,
+	    &ctrlr->bar4_resource_id, RF_ACTIVE);
 
 	return (0);
 }
@@ -725,15 +725,17 @@ nvme_ctrlr_start(void *ctrlr_arg)
 	 *  explicit specify how many queues it will use.  This value should
 	 *  never change between resets, so panic if somehow that does happen.
 	 */
-	old_num_io_queues = ctrlr->num_io_queues;
-	if (nvme_ctrlr_set_num_qpairs(ctrlr) != 0) {
-		nvme_ctrlr_fail(ctrlr);
-		return;
-	}
+	if (ctrlr->is_resetting) {
+		old_num_io_queues = ctrlr->num_io_queues;
+		if (nvme_ctrlr_set_num_qpairs(ctrlr) != 0) {
+			nvme_ctrlr_fail(ctrlr);
+			return;
+		}
 
-	if (old_num_io_queues != ctrlr->num_io_queues) {
-		panic("num_io_queues changed from %u to %u", old_num_io_queues,
-		    ctrlr->num_io_queues);
+		if (old_num_io_queues != ctrlr->num_io_queues) {
+			panic("num_io_queues changed from %u to %u",
+			      old_num_io_queues, ctrlr->num_io_queues);
+		}
 	}
 
 	if (nvme_ctrlr_create_qpairs(ctrlr) != 0) {
@@ -808,7 +810,7 @@ nvme_ctrlr_intx_handler(void *arg)
 
 	nvme_qpair_process_completions(&ctrlr->adminq);
 
-	if (ctrlr->ioq[0].cpl)
+	if (ctrlr->ioq && ctrlr->ioq[0].cpl)
 		nvme_qpair_process_completions(&ctrlr->ioq[0]);
 
 	nvme_mmio_write_4(ctrlr, intmc, 1);

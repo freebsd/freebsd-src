@@ -39,7 +39,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: main.c 3268 2015-12-07 20:30:55Z emaste $");
+ELFTC_VCSID("$Id: main.c 3399 2016-02-12 18:07:56Z emaste $");
 
 enum options
 {
@@ -316,6 +316,7 @@ create_elf(struct elfcopy *ecp)
 	oeh.e_entry	      = ieh.e_entry;
 	oeh.e_version	      = ieh.e_version;
 
+	ecp->flags &= ~(EXECUTABLE | DYNAMIC | RELOCATABLE);
 	if (ieh.e_type == ET_EXEC)
 		ecp->flags |= EXECUTABLE;
 	else if (ieh.e_type == ET_DYN)
@@ -640,6 +641,18 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 	 * ELF object before processing.
 	 */
 	if (ecp->itf != ETF_ELF) {
+		/*
+		 * If the output object is not an ELF file, choose an arbitrary
+		 * ELF format for the intermediate file. srec, ihex and binary
+		 * formats are independent of class, endianness and machine
+		 * type so these choices do not affect the output.
+		 */
+		if (ecp->otf != ETF_ELF) {
+			if (ecp->oec == ELFCLASSNONE)
+				ecp->oec = ELFCLASS64;
+			if (ecp->oed == ELFDATANONE)
+				ecp->oed = ELFDATA2LSB;
+		}
 		create_tempfile(&elftemp, &efd);
 		if ((ecp->eout = elf_begin(efd, ELF_C_WRITE, NULL)) == NULL)
 			errx(EXIT_FAILURE, "elf_begin() failed: %s",
@@ -721,6 +734,15 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 			case ETF_SREC:
 				create_srec(ecp, ofd, ofd0,
 				    dst != NULL ? dst : src);
+				break;
+			case ETF_PE:
+			case ETF_EFI:
+#if	WITH_PE
+				create_pe(ecp, ofd, ofd0);
+#else
+				errx(EXIT_FAILURE, "PE/EFI support not enabled"
+				    " at compile time");
+#endif
 				break;
 			default:
 				errx(EXIT_FAILURE, "Internal: unsupported"
@@ -1345,6 +1367,9 @@ set_output_target(struct elfcopy *ecp, const char *target_name)
 		ecp->oed = elftc_bfd_target_byteorder(tgt);
 		ecp->oem = elftc_bfd_target_machine(tgt);
 	}
+	if (ecp->otf == ETF_EFI || ecp->otf == ETF_PE)
+		ecp->oem = elftc_bfd_target_machine(tgt);
+
 	ecp->otgt = target_name;
 }
 
@@ -1366,7 +1391,7 @@ set_osabi(struct elfcopy *ecp, const char *abi)
 
 #define	ELFCOPY_USAGE_MESSAGE	"\
 Usage: %s [options] infile [outfile]\n\
-  Transform an ELF object.\n\n\
+  Transform object files.\n\n\
   Options:\n\
   -d | -g | --strip-debug      Remove debugging information from the output.\n\
   -j SECTION | --only-section=SECTION\n\
@@ -1382,6 +1407,8 @@ Usage: %s [options] infile [outfile]\n\
   -N SYM | --strip-symbol=SYM  Do not copy symbol SYM to the output.\n\
   -O FORMAT | --output-target=FORMAT\n\
                                Specify object format for the output file.\n\
+                               FORMAT should be a target name understood by\n\
+                               elftc_bfd_find_target(3).\n\
   -R NAME | --remove-section=NAME\n\
                                Remove the named section.\n\
   -S | --strip-all             Remove all symbol and relocation information\n\
@@ -1471,6 +1498,7 @@ Usage: %s [options] file...\n\
   Options:\n\
   -d | -g | -S | --strip-debug    Remove debugging symbols.\n\
   -h | --help                     Print a help message.\n\
+  -o FILE | --output-file FILE    Write output to FILE.\n\
   --only-keep-debug               Keep debugging information only.\n\
   -p | --preserve-dates           Preserve access and modification times.\n\
   -s | --strip-all                Remove all symbols.\n\

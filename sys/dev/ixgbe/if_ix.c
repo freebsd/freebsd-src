@@ -592,6 +592,12 @@ ixgbe_attach(device_t dev)
 	if (error) 
 		goto err_late;
 
+	/* Enable the optics for 82599 SFP+ fiber */
+	ixgbe_enable_tx_laser(hw);
+
+	/* Enable power to the phy. */
+	ixgbe_set_phy_power(hw, TRUE);
+
 	/* Setup OS specific network interface */
 	if (ixgbe_setup_interface(dev, adapter) != 0)
 		goto err_late;
@@ -1011,6 +1017,7 @@ static void
 ixgbe_set_if_hwassist(struct adapter *adapter)
 {
 	struct ifnet *ifp = adapter->ifp;
+	struct ixgbe_hw *hw = &adapter->hw;
 
 	ifp->if_hwassist = 0;
 #if __FreeBSD_version >= 1000000
@@ -1018,18 +1025,21 @@ ixgbe_set_if_hwassist(struct adapter *adapter)
 		ifp->if_hwassist |= CSUM_IP_TSO;
 	if (ifp->if_capenable & IFCAP_TSO6)
 		ifp->if_hwassist |= CSUM_IP6_TSO;
-	if (ifp->if_capenable & IFCAP_TXCSUM)
-		ifp->if_hwassist |= (CSUM_IP | CSUM_IP_UDP | CSUM_IP_TCP |
-		    CSUM_IP_SCTP);
-	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
-		ifp->if_hwassist |= (CSUM_IP6_UDP | CSUM_IP6_TCP |
-		    CSUM_IP6_SCTP);
+	if (ifp->if_capenable & IFCAP_TXCSUM) {
+		ifp->if_hwassist |= (CSUM_IP | CSUM_IP_UDP | CSUM_IP_TCP);
+		if (hw->mac.type != ixgbe_mac_82598EB)
+			ifp->if_hwassist |= CSUM_IP_SCTP;
+	}
+	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6) {
+		ifp->if_hwassist |= (CSUM_IP6_UDP | CSUM_IP6_TCP);
+		if (hw->mac.type != ixgbe_mac_82598EB)
+			ifp->if_hwassist |= CSUM_IP6_SCTP;
+	}
 #else
 	if (ifp->if_capenable & IFCAP_TSO)
 		ifp->if_hwassist |= CSUM_TSO;
 	if (ifp->if_capenable & IFCAP_TXCSUM) {
 		ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
-		struct ixgbe_hw *hw = &adapter->hw;
 		if (hw->mac.type != ixgbe_mac_82598EB)
 			ifp->if_hwassist |= CSUM_SCTP;
 	}
@@ -1259,6 +1269,9 @@ ixgbe_init_locked(struct adapter *adapter)
 		if (err)
 			device_printf(dev, "Error setting up EEE: %d\n", err);
 	}
+
+	/* Enable power to the phy. */
+	ixgbe_set_phy_power(hw, TRUE);
 
 	/* Config/Enable Link */
 	ixgbe_config_link(adapter);
@@ -3979,6 +3992,9 @@ ixgbe_setup_low_power_mode(struct adapter *adapter)
 	s32 error = 0;
 
 	mtx_assert(&adapter->core_mtx, MA_OWNED);
+
+	if (!hw->wol_enabled)
+		ixgbe_set_phy_power(hw, FALSE);
 
 	/* Limit power management flow to X550EM baseT */
 	if (hw->device_id == IXGBE_DEV_ID_X550EM_X_10G_T

@@ -757,7 +757,7 @@ static int
 bcm2835_audio_probe(device_t dev)
 {
 
-	device_set_desc(dev, "VCHQI audio");
+	device_set_desc(dev, "VCHIQ audio");
 	return (BUS_PROBE_DEFAULT);
 }
 

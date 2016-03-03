@@ -160,7 +160,10 @@ struct pkthdr {
  * they are correct.
  */
 struct m_ext {
-	volatile u_int	*ext_cnt;	/* pointer to ref count info */
+	union {
+		volatile u_int	 ext_count;	/* value of ref count info */
+		volatile u_int	*ext_cnt;	/* pointer to ref count info */
+	};
 	caddr_t		 ext_buf;	/* start of buffer */
 	uint32_t	 ext_size;	/* size of buffer, for ext_free */
 	uint32_t	 ext_type:8,	/* type of external storage */
@@ -370,7 +373,7 @@ struct mbuf {
  * Flags for external mbuf buffer types.
  * NB: limited to the lower 24 bits.
  */
-#define	EXT_FLAG_EMBREF		0x000001	/* embedded ext_cnt, notyet */
+#define	EXT_FLAG_EMBREF		0x000001	/* embedded ext_count */
 #define	EXT_FLAG_EXTREF		0x000002	/* external ext_cnt, notyet */
 #define	EXT_FLAG_NOFREE		0x000010	/* don't free mbuf to pool, notyet */
 
@@ -396,7 +399,6 @@ struct mbuf {
 /*
  * External reference/free functions.
  */
-void sf_ext_ref(void *, void *);
 void sf_ext_free(void *, void *);
 void sf_ext_free_nocache(void *, void *);
 
@@ -524,11 +526,53 @@ extern uma_zone_t	zone_pack;
 extern uma_zone_t	zone_jumbop;
 extern uma_zone_t	zone_jumbo9;
 extern uma_zone_t	zone_jumbo16;
-extern uma_zone_t	zone_ext_refcnt;
 
-void		 mb_dupcl(struct mbuf *, const struct mbuf *);
+void		 mb_dupcl(struct mbuf *, struct mbuf *);
 void		 mb_free_ext(struct mbuf *);
+void		 m_adj(struct mbuf *, int);
+int		 m_apply(struct mbuf *, int, int,
+		    int (*)(void *, void *, u_int), void *);
+int		 m_append(struct mbuf *, int, c_caddr_t);
+void		 m_cat(struct mbuf *, struct mbuf *);
+void		 m_catpkt(struct mbuf *, struct mbuf *);
+int		 m_clget(struct mbuf *m, int how);
+void 		*m_cljget(struct mbuf *m, int how, int size);
+struct mbuf	*m_collapse(struct mbuf *, int, int);
+void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
+void		 m_copydata(const struct mbuf *, int, int, caddr_t);
+struct mbuf	*m_copym(struct mbuf *, int, int, int);
+struct mbuf	*m_copypacket(struct mbuf *, int);
+void		 m_copy_pkthdr(struct mbuf *, struct mbuf *);
+struct mbuf	*m_copyup(struct mbuf *, int, int);
+struct mbuf	*m_defrag(struct mbuf *, int);
+void		 m_demote_pkthdr(struct mbuf *);
+void		 m_demote(struct mbuf *, int, int);
+struct mbuf	*m_devget(char *, int, int, struct ifnet *,
+		    void (*)(char *, caddr_t, u_int));
+struct mbuf	*m_dup(const struct mbuf *, int);
+int		 m_dup_pkthdr(struct mbuf *, const struct mbuf *, int);
+void		 m_extadd(struct mbuf *, caddr_t, u_int,
+		    void (*)(struct mbuf *, void *, void *), void *, void *,
+		    int, int);
+u_int		 m_fixhdr(struct mbuf *);
+struct mbuf	*m_fragment(struct mbuf *, int, int);
+void		 m_freem(struct mbuf *);
+struct mbuf	*m_get2(int, int, short, int);
+struct mbuf	*m_getjcl(int, short, int, int);
+struct mbuf	*m_getm2(struct mbuf *, int, int, short, int);
+struct mbuf	*m_getptr(struct mbuf *, int, int *);
+u_int		 m_length(struct mbuf *, struct mbuf **);
+int		 m_mbuftouio(struct uio *, struct mbuf *, int);
+void		 m_move_pkthdr(struct mbuf *, struct mbuf *);
 int		 m_pkthdr_init(struct mbuf *, int);
+struct mbuf	*m_prepend(struct mbuf *, int, int);
+void		 m_print(const struct mbuf *, int);
+struct mbuf	*m_pulldown(struct mbuf *, int, int, int *);
+struct mbuf	*m_pullup(struct mbuf *, int);
+int		 m_sanity(struct mbuf *, int);
+struct mbuf	*m_split(struct mbuf *, int, int);
+struct mbuf	*m_uiotombuf(struct uio *, int, int, int, int);
+struct mbuf	*m_unshare(struct mbuf *, int);
 
 static __inline int
 m_gettype(int size)
@@ -618,8 +662,7 @@ m_getzone(int size)
  * should go away with constant propagation for !MGETHDR.
  */
 static __inline int
-m_init(struct mbuf *m, uma_zone_t zone __unused, int size __unused, int how,
-    short type, int flags)
+m_init(struct mbuf *m, int how, short type, int flags)
 {
 	int error;
 
@@ -647,23 +690,6 @@ m_get(int how, short type)
 	return (uma_zalloc_arg(zone_mbuf, &args, how));
 }
 
-/*
- * XXX This should be deprecated, very little use.
- */
-static __inline struct mbuf *
-m_getclr(int how, short type)
-{
-	struct mbuf *m;
-	struct mb_args args;
-
-	args.flags = 0;
-	args.type = type;
-	m = uma_zalloc_arg(zone_mbuf, &args, how);
-	if (m != NULL)
-		bzero(m->m_data, MLEN);
-	return (m);
-}
-
 static __inline struct mbuf *
 m_gethdr(int how, short type)
 {
@@ -684,71 +710,30 @@ m_getcl(int how, short type, int flags)
 	return (uma_zalloc_arg(zone_pack, &args, how));
 }
 
-static __inline int
-m_clget(struct mbuf *m, int how)
-{
-
-	KASSERT((m->m_flags & M_EXT) == 0, ("%s: mbuf %p has M_EXT",
-	    __func__, m));
-	m->m_ext.ext_buf = (char *)NULL;
-	uma_zalloc_arg(zone_clust, m, how);
-	/*
-	 * On a cluster allocation failure, drain the packet zone and retry,
-	 * we might be able to loosen a few clusters up on the drain.
-	 */
-	if ((how & M_NOWAIT) && (m->m_ext.ext_buf == NULL)) {
-		zone_drain(zone_pack);
-		uma_zalloc_arg(zone_clust, m, how);
-	}
-	return (m->m_flags & M_EXT);
-}
-
 /*
- * m_cljget() is different from m_clget() as it can allocate clusters without
- * attaching them to an mbuf.  In that case the return value is the pointer
- * to the cluster of the requested size.  If an mbuf was specified, it gets
- * the cluster attached to it and the return value can be safely ignored.
- * For size it takes MCLBYTES, MJUMPAGESIZE, MJUM9BYTES, MJUM16BYTES.
+ * XXX: m_cljset() is a dangerous API.  One must attach only a new,
+ * unreferenced cluster to an mbuf(9).  It is not possible to assert
+ * that, so care can be taken only by users of the API.
  */
-static __inline void *
-m_cljget(struct mbuf *m, int how, int size)
-{
-	uma_zone_t zone;
-
-	if (m != NULL) {
-		KASSERT((m->m_flags & M_EXT) == 0, ("%s: mbuf %p has M_EXT",
-		    __func__, m));
-		m->m_ext.ext_buf = NULL;
-	}
-
-	zone = m_getzone(size);
-	return (uma_zalloc_arg(zone, m, how));
-}
-
 static __inline void
 m_cljset(struct mbuf *m, void *cl, int type)
 {
-	uma_zone_t zone;
 	int size;
 
 	switch (type) {
 	case EXT_CLUSTER:
 		size = MCLBYTES;
-		zone = zone_clust;
 		break;
 #if MJUMPAGESIZE != MCLBYTES
 	case EXT_JUMBOP:
 		size = MJUMPAGESIZE;
-		zone = zone_jumbop;
 		break;
 #endif
 	case EXT_JUMBO9:
 		size = MJUM9BYTES;
-		zone = zone_jumbo9;
 		break;
 	case EXT_JUMBO16:
 		size = MJUM16BYTES;
-		zone = zone_jumbo16;
 		break;
 	default:
 		panic("%s: unknown cluster type %d", __func__, type);
@@ -759,10 +744,9 @@ m_cljset(struct mbuf *m, void *cl, int type)
 	m->m_ext.ext_free = m->m_ext.ext_arg1 = m->m_ext.ext_arg2 = NULL;
 	m->m_ext.ext_size = size;
 	m->m_ext.ext_type = type;
-	m->m_ext.ext_flags = 0;
-	m->m_ext.ext_cnt = uma_find_refcnt(zone, cl);
+	m->m_ext.ext_flags = EXT_FLAG_EMBREF;
+	m->m_ext.ext_count = 1;
 	m->m_flags |= M_EXT;
-
 }
 
 static __inline void
@@ -791,6 +775,16 @@ m_last(struct mbuf *m)
 	return (m);
 }
 
+static inline u_int
+m_extrefcnt(struct mbuf *m)
+{
+
+	KASSERT(m->m_flags & M_EXT, ("%s: M_EXT missing", __func__));
+
+	return ((m->m_ext.ext_flags & EXT_FLAG_EMBREF) ? m->m_ext.ext_count :
+	    *m->m_ext.ext_cnt);
+}
+
 /*
  * mbuf, cluster, and external object allocation macros (for compatibility
  * purposes).
@@ -800,8 +794,8 @@ m_last(struct mbuf *m)
 #define	MGETHDR(m, how, type)	((m) = m_gethdr((how), (type)))
 #define	MCLGET(m, how)		m_clget((m), (how))
 #define	MEXTADD(m, buf, size, free, arg1, arg2, flags, type)		\
-    (void )m_extadd((m), (caddr_t)(buf), (size), (free), (arg1), (arg2),\
-    (flags), (type), M_NOWAIT)
+    m_extadd((m), (caddr_t)(buf), (size), (free), (arg1), (arg2),	\
+    (flags), (type))
 #define	m_getm(m, len, how, type)					\
     m_getm2((m), (len), (how), (type), M_PKTHDR)
 
@@ -812,7 +806,7 @@ m_last(struct mbuf *m)
  */
 #define	M_WRITABLE(m)	(!((m)->m_flags & M_RDONLY) &&			\
 			 (!(((m)->m_flags & M_EXT)) ||			\
-			 (*((m)->m_ext.ext_cnt) == 1)) )		\
+			 (m_extrefcnt(m) == 1)))
 
 /* Check if the supplied mbuf has a packet header, or else panic. */
 #define	M_ASSERTPKTHDR(m)						\
@@ -941,50 +935,6 @@ extern int		max_hdr;	/* Largest link + protocol header */
 extern int		max_linkhdr;	/* Largest link-level header */
 extern int		max_protohdr;	/* Largest protocol header */
 extern int		nmbclusters;	/* Maximum number of clusters */
-
-struct uio;
-
-void		 m_adj(struct mbuf *, int);
-int		 m_apply(struct mbuf *, int, int,
-		    int (*)(void *, void *, u_int), void *);
-int		 m_append(struct mbuf *, int, c_caddr_t);
-void		 m_cat(struct mbuf *, struct mbuf *);
-void		 m_catpkt(struct mbuf *, struct mbuf *);
-int		 m_extadd(struct mbuf *, caddr_t, u_int,
-		    void (*)(struct mbuf *, void *, void *), void *, void *,
-		    int, int, int);
-struct mbuf	*m_collapse(struct mbuf *, int, int);
-void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
-void		 m_copydata(const struct mbuf *, int, int, caddr_t);
-struct mbuf	*m_copym(const struct mbuf *, int, int, int);
-struct mbuf	*m_copypacket(struct mbuf *, int);
-void		 m_copy_pkthdr(struct mbuf *, struct mbuf *);
-struct mbuf	*m_copyup(struct mbuf *, int, int);
-struct mbuf	*m_defrag(struct mbuf *, int);
-void		 m_demote_pkthdr(struct mbuf *);
-void		 m_demote(struct mbuf *, int, int);
-struct mbuf	*m_devget(char *, int, int, struct ifnet *,
-		    void (*)(char *, caddr_t, u_int));
-struct mbuf	*m_dup(const struct mbuf *, int);
-int		 m_dup_pkthdr(struct mbuf *, const struct mbuf *, int);
-u_int		 m_fixhdr(struct mbuf *);
-struct mbuf	*m_fragment(struct mbuf *, int, int);
-void		 m_freem(struct mbuf *);
-struct mbuf	*m_get2(int, int, short, int);
-struct mbuf	*m_getjcl(int, short, int, int);
-struct mbuf	*m_getm2(struct mbuf *, int, int, short, int);
-struct mbuf	*m_getptr(struct mbuf *, int, int *);
-u_int		 m_length(struct mbuf *, struct mbuf **);
-int		 m_mbuftouio(struct uio *, struct mbuf *, int);
-void		 m_move_pkthdr(struct mbuf *, struct mbuf *);
-struct mbuf	*m_prepend(struct mbuf *, int, int);
-void		 m_print(const struct mbuf *, int);
-struct mbuf	*m_pulldown(struct mbuf *, int, int, int *);
-struct mbuf	*m_pullup(struct mbuf *, int);
-int		 m_sanity(struct mbuf *, int);
-struct mbuf	*m_split(struct mbuf *, int, int);
-struct mbuf	*m_uiotombuf(struct uio *, int, int, int, int);
-struct mbuf	*m_unshare(struct mbuf *, int);
 
 /*-
  * Network packets may have annotations attached by affixing a list of

@@ -80,12 +80,12 @@
         ..
     ..
     lib
+        casper
+        ..
         geom
         ..
     ..
     libexec
-        casper
-        ..
         resolvconf
         ..
     ..

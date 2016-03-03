@@ -29,33 +29,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/imgact.h>
 #include <sys/eventhandler.h>
 #include <sys/sx.h>
+#include <sys/vnode.h>
 
 #include "opt_compat.h"
 
-#if __FreeBSD_version > 800032
-#define FILEMON_HAS_LINKAT
-#endif
-
-#if __FreeBSD_version < 900044	/* r225617 (2011-09-16) failed to bump
-				   __FreeBSD_version.  This really should
-				   be based on "900045".  "900044" is r225469
-				   (2011-09-10) so this code is broken for
-				   9-CURRENT September 10th-16th. */
-#define sys_chdir	chdir
-#define sys_execve	execve
-#define sys_link	link
-#define sys_open	open
-#define sys_rename	rename
-#define sys_stat	stat
-#define sys_symlink	symlink
-#define sys_unlink	unlink
-#ifdef FILEMON_HAS_LINKAT
-#define sys_linkat	linkat
-#endif
-#endif	/* __FreeBSD_version */
-
+static eventhandler_tag filemon_exec_tag;
 static eventhandler_tag filemon_exit_tag;
 static eventhandler_tag filemon_fork_tag;
 
@@ -94,11 +75,11 @@ filemon_pid_check(struct proc *p)
 		return (NULL);
 	}
 	sx_slock(&proctree_lock);
-	while (p != initproc) {
+	while (p->p_pid != 0) {
 		TAILQ_FOREACH(filemon, &filemons_inuse, link) {
-			if (p->p_pid == filemon->pid) {
+			if (p == filemon->p) {
 				sx_sunlock(&proctree_lock);
-				filemon_filemon_lock(filemon);
+				sx_xlock(&filemon->lock);
 				filemon_unlock_read();
 				return (filemon);
 			}
@@ -129,70 +110,39 @@ filemon_wrapper_chdir(struct thread *td, struct chdir_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
 	return (ret);
 }
 
-static int
-filemon_wrapper_execve(struct thread *td, struct execve_args *uap)
+static void
+filemon_event_process_exec(void *arg __unused, struct proc *p,
+    struct image_params *imgp)
 {
-	char fname[MAXPATHLEN];
-	int ret;
-	size_t done;
-	size_t len;
 	struct filemon *filemon;
-
-	copyinstr(uap->fname, fname, sizeof(fname), &done);
-
-	if ((ret = sys_execve(td, uap)) == 0) {
-		if ((filemon = filemon_pid_check(curproc)) != NULL) {
-			len = snprintf(filemon->msgbufr,
-			    sizeof(filemon->msgbufr), "E %d %s\n",
-			    curproc->p_pid, fname);
-
-			filemon_output(filemon, filemon->msgbufr, len);
-
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
-		}
-	}
-
-	return (ret);
-}
-
-#if defined(COMPAT_IA32) || defined(COMPAT_FREEBSD32) || defined(COMPAT_ARCH32)
-static int
-filemon_wrapper_freebsd32_execve(struct thread *td,
-    struct freebsd32_execve_args *uap)
-{
-	char fname[MAXPATHLEN];
-	int ret;
-	size_t done;
+	char *fullpath, *freepath;
 	size_t len;
-	struct filemon *filemon;
 
-	copyinstr(uap->fname, fname, sizeof(fname), &done);
+	if ((filemon = filemon_pid_check(p)) != NULL) {
+		fullpath = "<unknown>";
+		freepath = NULL;
 
-	if ((ret = freebsd32_execve(td, uap)) == 0) {
-		if ((filemon = filemon_pid_check(curproc)) != NULL) {
-			len = snprintf(filemon->msgbufr,
-			    sizeof(filemon->msgbufr), "E %d %s\n",
-			    curproc->p_pid, fname);
+		vn_fullpath(FIRST_THREAD_IN_PROC(p), imgp->vp, &fullpath,
+		    &freepath);
 
-			filemon_output(filemon, filemon->msgbufr, len);
+		len = snprintf(filemon->msgbufr,
+		    sizeof(filemon->msgbufr), "E %d %s\n",
+		    p->p_pid, fullpath);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
-		}
+		filemon_output(filemon, filemon->msgbufr, len);
+
+		sx_xunlock(&filemon->lock);
+
+		free(freepath, M_TEMP);
 	}
-
-	return (ret);
 }
-#endif
 
 static int
 filemon_wrapper_open(struct thread *td, struct open_args *uap)
@@ -226,8 +176,7 @@ filemon_wrapper_open(struct thread *td, struct open_args *uap)
 			    curproc->p_pid, filemon->fname1);
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
@@ -279,8 +228,7 @@ filemon_wrapper_openat(struct thread *td, struct openat_args *uap)
 			    curproc->p_pid, filemon->fname2, filemon->fname1);
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
@@ -308,8 +256,7 @@ filemon_wrapper_rename(struct thread *td, struct rename_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
@@ -337,8 +284,7 @@ filemon_wrapper_link(struct thread *td, struct link_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
@@ -366,15 +312,13 @@ filemon_wrapper_symlink(struct thread *td, struct symlink_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
 	return (ret);
 }
 
-#ifdef FILEMON_HAS_LINKAT
 static int
 filemon_wrapper_linkat(struct thread *td, struct linkat_args *uap)
 {
@@ -396,14 +340,12 @@ filemon_wrapper_linkat(struct thread *td, struct linkat_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
 	return (ret);
 }
-#endif
 
 static int
 filemon_wrapper_stat(struct thread *td, struct stat_args *uap)
@@ -424,8 +366,7 @@ filemon_wrapper_stat(struct thread *td, struct stat_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
@@ -453,8 +394,7 @@ filemon_wrapper_freebsd32_stat(struct thread *td,
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
@@ -479,18 +419,17 @@ filemon_event_process_exit(void *arg __unused, struct proc *p)
 		filemon_output(filemon, filemon->msgbufr, len);
 
 		/* Check if the monitored process is about to exit. */
-		if (filemon->pid == p->p_pid) {
+		if (filemon->p == p) {
 			len = snprintf(filemon->msgbufr,
 			    sizeof(filemon->msgbufr),
 			    "# Stop %ju.%06ju\n# Bye bye\n",
 			    (uintmax_t)now.tv_sec, (uintmax_t)now.tv_usec);
 
 			filemon_output(filemon, filemon->msgbufr, len);
-			filemon->pid = -1;
+			filemon->p = NULL;
 		}
 
-		/* Unlock the found filemon structure. */
-		filemon_filemon_unlock(filemon);
+		sx_xunlock(&filemon->lock);
 	}
 }
 
@@ -513,8 +452,7 @@ filemon_wrapper_unlink(struct thread *td, struct unlink_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
@@ -535,8 +473,7 @@ filemon_event_process_fork(void *arg __unused, struct proc *p1,
 
 		filemon_output(filemon, filemon->msgbufr, len);
 
-		/* Unlock the found filemon structure. */
-		filemon_filemon_unlock(filemon);
+		sx_xunlock(&filemon->lock);
 	}
 }
 
@@ -550,7 +487,6 @@ filemon_wrapper_install(void)
 #endif
 
 	sv_table[SYS_chdir].sy_call = (sy_call_t *) filemon_wrapper_chdir;
-	sv_table[SYS_execve].sy_call = (sy_call_t *) filemon_wrapper_execve;
 	sv_table[SYS_open].sy_call = (sy_call_t *) filemon_wrapper_open;
 	sv_table[SYS_openat].sy_call = (sy_call_t *) filemon_wrapper_openat;
 	sv_table[SYS_rename].sy_call = (sy_call_t *) filemon_wrapper_rename;
@@ -558,15 +494,12 @@ filemon_wrapper_install(void)
 	sv_table[SYS_unlink].sy_call = (sy_call_t *) filemon_wrapper_unlink;
 	sv_table[SYS_link].sy_call = (sy_call_t *) filemon_wrapper_link;
 	sv_table[SYS_symlink].sy_call = (sy_call_t *) filemon_wrapper_symlink;
-#ifdef FILEMON_HAS_LINKAT
 	sv_table[SYS_linkat].sy_call = (sy_call_t *) filemon_wrapper_linkat;
-#endif
 
 #if defined(COMPAT_IA32) || defined(COMPAT_FREEBSD32) || defined(COMPAT_ARCH32)
 	sv_table = ia32_freebsd_sysvec.sv_table;
 
 	sv_table[FREEBSD32_SYS_chdir].sy_call = (sy_call_t *) filemon_wrapper_chdir;
-	sv_table[FREEBSD32_SYS_freebsd32_execve].sy_call = (sy_call_t *) filemon_wrapper_freebsd32_execve;
 	sv_table[FREEBSD32_SYS_open].sy_call = (sy_call_t *) filemon_wrapper_open;
 	sv_table[FREEBSD32_SYS_openat].sy_call = (sy_call_t *) filemon_wrapper_openat;
 	sv_table[FREEBSD32_SYS_rename].sy_call = (sy_call_t *) filemon_wrapper_rename;
@@ -574,11 +507,11 @@ filemon_wrapper_install(void)
 	sv_table[FREEBSD32_SYS_unlink].sy_call = (sy_call_t *) filemon_wrapper_unlink;
 	sv_table[FREEBSD32_SYS_link].sy_call = (sy_call_t *) filemon_wrapper_link;
 	sv_table[FREEBSD32_SYS_symlink].sy_call = (sy_call_t *) filemon_wrapper_symlink;
-#ifdef FILEMON_HAS_LINKAT
 	sv_table[FREEBSD32_SYS_linkat].sy_call = (sy_call_t *) filemon_wrapper_linkat;
-#endif
 #endif	/* COMPAT_ARCH32 */
 
+	filemon_exec_tag = EVENTHANDLER_REGISTER(process_exec,
+	    filemon_event_process_exec, NULL, EVENTHANDLER_PRI_LAST);
 	filemon_exit_tag = EVENTHANDLER_REGISTER(process_exit,
 	    filemon_event_process_exit, NULL, EVENTHANDLER_PRI_LAST);
 	filemon_fork_tag = EVENTHANDLER_REGISTER(process_fork,
@@ -595,7 +528,6 @@ filemon_wrapper_deinstall(void)
 #endif
 
 	sv_table[SYS_chdir].sy_call = (sy_call_t *)sys_chdir;
-	sv_table[SYS_execve].sy_call = (sy_call_t *)sys_execve;
 	sv_table[SYS_open].sy_call = (sy_call_t *)sys_open;
 	sv_table[SYS_openat].sy_call = (sy_call_t *)sys_openat;
 	sv_table[SYS_rename].sy_call = (sy_call_t *)sys_rename;
@@ -603,15 +535,12 @@ filemon_wrapper_deinstall(void)
 	sv_table[SYS_unlink].sy_call = (sy_call_t *)sys_unlink;
 	sv_table[SYS_link].sy_call = (sy_call_t *)sys_link;
 	sv_table[SYS_symlink].sy_call = (sy_call_t *)sys_symlink;
-#ifdef FILEMON_HAS_LINKAT
 	sv_table[SYS_linkat].sy_call = (sy_call_t *)sys_linkat;
-#endif
 
 #if defined(COMPAT_IA32) || defined(COMPAT_FREEBSD32) || defined(COMPAT_ARCH32)
 	sv_table = ia32_freebsd_sysvec.sv_table;
 
 	sv_table[FREEBSD32_SYS_chdir].sy_call = (sy_call_t *)sys_chdir;
-	sv_table[FREEBSD32_SYS_freebsd32_execve].sy_call = (sy_call_t *)freebsd32_execve;
 	sv_table[FREEBSD32_SYS_open].sy_call = (sy_call_t *)sys_open;
 	sv_table[FREEBSD32_SYS_openat].sy_call = (sy_call_t *)sys_openat;
 	sv_table[FREEBSD32_SYS_rename].sy_call = (sy_call_t *)sys_rename;
@@ -619,11 +548,10 @@ filemon_wrapper_deinstall(void)
 	sv_table[FREEBSD32_SYS_unlink].sy_call = (sy_call_t *)sys_unlink;
 	sv_table[FREEBSD32_SYS_link].sy_call = (sy_call_t *)sys_link;
 	sv_table[FREEBSD32_SYS_symlink].sy_call = (sy_call_t *)sys_symlink;
-#ifdef FILEMON_HAS_LINKAT
 	sv_table[FREEBSD32_SYS_linkat].sy_call = (sy_call_t *)sys_linkat;
-#endif
 #endif	/* COMPAT_ARCH32 */
 
+	EVENTHANDLER_DEREGISTER(process_exec, filemon_exec_tag);
 	EVENTHANDLER_DEREGISTER(process_exit, filemon_exit_tag);
 	EVENTHANDLER_DEREGISTER(process_fork, filemon_fork_tag);
 }

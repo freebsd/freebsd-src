@@ -17,6 +17,7 @@ FILES=	\
 	auto.obj.mk \
 	bsd.README \
 	bsd.arch.inc.mk \
+	bsd.clang-analyze.mk \
 	bsd.compiler.mk \
 	bsd.confs.mk \
 	bsd.cpu.mk \

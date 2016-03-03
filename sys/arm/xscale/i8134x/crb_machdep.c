@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 
 
-#include <arm/xscale/i80321/i80321var.h> /* For i80321_calibrate_delay() */
+#include <arm/xscale/i8134x/i80321var.h> /* For i80321_calibrate_delay() */
 
 #include <arm/xscale/i8134x/i81342reg.h>
 #include <arm/xscale/i8134x/i81342var.h>
@@ -125,8 +125,6 @@ static const struct arm_devmap_entry iq81342_devmap[] = {
 		    IOP34X_VADDR,
 		    IOP34X_HWADDR,
 		    IOP34X_SIZE,
-		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_DEVICE,
 	    },
 	    {
 		    /*
@@ -136,19 +134,13 @@ static const struct arm_devmap_entry iq81342_devmap[] = {
 		    IOP34X_PCIX_OIOBAR_VADDR &~ (0x100000 - 1),
 		    IOP34X_PCIX_OIOBAR &~ (0x100000 - 1),
 		    0x100000,
-		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_DEVICE,
 	    },
 	    {
 		    IOP34X_PCE1_VADDR,
 		    IOP34X_PCE1,
 		    IOP34X_PCE1_SIZE,
-		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_DEVICE,
 	    },
 	    {	
-		    0,
-		    0,
 		    0,
 		    0,
 		    0,
@@ -267,7 +259,7 @@ initarm(struct arm_boot_params *abp)
 	xscale_cache_clean_addr = 0xff000000U;
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT);
-	setttb(kernel_l1pt.pv_pa);
+	cpu_setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2));
 	/*
@@ -284,7 +276,7 @@ initarm(struct arm_boot_params *abp)
 	/*
 	 * We must now clean the cache again....
 	 * Cleaning may be done by reading new data to displace any
-	 * dirty data in the cache. This will have happened in setttb()
+	 * dirty data in the cache. This will have happened in cpu_setttb()
 	 * but since we are boot strapping the addresses used for the read
 	 * may have just been remapped and thus the cache could be out
 	 * of sync. A re-clean after the switch will cure this.

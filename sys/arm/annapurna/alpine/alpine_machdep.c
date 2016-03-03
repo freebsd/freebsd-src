@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/frame.h> /* For trapframe_t, used in <machine/machdep.h> */
 #include <machine/machdep.h>
-#include <machine/pmap.h>
 #include <machine/devmap.h>
 #include <machine/platform.h>
 #include <machine/fdt.h>
@@ -123,7 +122,7 @@ platform_late_init(void)
 }
 
 /*
- * Construct pmap_devmap[] with DT-derived config data.
+ * Construct devmap table with DT-derived config data.
  */
 int
 platform_devmap_init(void)

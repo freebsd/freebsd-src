@@ -128,11 +128,6 @@ PO_FLAG=-pg
 	    -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.if !defined(_SKIP_BUILD)
-all: beforebuild .WAIT
-beforebuild: objwarn
-.endif
-
 _LIBDIR:=${LIBDIR}
 _SHLIBDIR:=${SHLIBDIR}
 
@@ -304,7 +299,7 @@ CLEANFILES+=	${_LIBS}
 .endif
 
 .if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
-all: _manpages
+all: all-man
 .endif
 .endif
 
@@ -405,8 +400,8 @@ _libinstall:
 .include <bsd.links.mk>
 
 .if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
-realinstall: _maninstall
-.ORDER: beforeinstall _maninstall
+realinstall: maninstall
+.ORDER: beforeinstall maninstall
 .endif
 
 .endif
@@ -420,28 +415,37 @@ lint: ${SRCS:M*.c}
 .include <bsd.man.mk>
 .endif
 
-.include <bsd.dep.mk>
-
-.if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
 .if defined(LIB) && !empty(LIB)
-.if !exists(${.OBJDIR}/${DEPENDFILE})
-${OBJS} ${STATICOBJS} ${POBJS}: ${SRCS:M*.h}
-.endif
+OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
 .for _S in ${SRCS:N*.[hly]}
-${_S:R}.po: ${_S}
+OBJS_DEPEND_GUESS.${_S:R}.po=	${_S}
 .endfor
 .endif
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
-.if !exists(${.OBJDIR}/${DEPENDFILE})
-${SOBJS}: ${SRCS:M*.h}
-.endif
 .for _S in ${SRCS:N*.[hly]}
-${_S:R}.So: ${_S}
+OBJS_DEPEND_GUESS.${_S:R}.So=	${_S}
+.endfor
+.endif
+
+.include <bsd.dep.mk>
+
+.if defined(LIB) && !empty(LIB)
+.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
+${OBJS} ${STATICOBJS} ${POBJS}: ${OBJS_DEPEND_GUESS}
+.for _S in ${SRCS:N*.[hly]}
+${_S:R}.po: ${OBJS_DEPEND_GUESS.${_S:R}.po}
+.endfor
+.if defined(SHLIB_NAME) || \
+    defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
+${SOBJS}: ${OBJS_DEPEND_GUESS}
+.for _S in ${SRCS:N*.[hly]}
+${_S:R}.So: ${OBJS_DEPEND_GUESS.${_S:R}.So}
 .endfor
 .endif
 .endif
+.endif
 
+.include <bsd.clang-analyze.mk>
 .include <bsd.obj.mk>
-
 .include <bsd.sys.mk>

@@ -117,7 +117,7 @@ amd64_freebsd32_fetch_retval(struct trussinfo *trussinfo, long *retval,
 
 static struct procabi amd64_freebsd32 = {
 	"FreeBSD ELF32",
-	FREEBSD32,
+	SYSDECODE_ABI_FREEBSD32,
 	amd64_freebsd32_fetch_args,
 	amd64_freebsd32_fetch_retval
 };
@@ -126,7 +126,7 @@ PROCABI(amd64_freebsd32);
 
 static struct procabi amd64_freebsd32_aout = {
 	"FreeBSD a.out",
-	FREEBSD32,
+	SYSDECODE_ABI_FREEBSD32,
 	amd64_freebsd32_fetch_args,
 	amd64_freebsd32_fetch_retval
 };

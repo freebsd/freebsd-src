@@ -64,14 +64,6 @@ ENTRY(fa526_tlb_flushID_SE)
 	mov	pc, lr
 END(fa526_tlb_flushID_SE)
 
-/*
- * TLB functions
- */
-ENTRY(fa526_tlb_flushI_SE)
-	mcr	p15, 0, r0, c8, c5, 1	/* flush Itlb single entry */
-	mov	pc, lr
-END(fa526_tlb_flushI_SE)
-
 ENTRY(fa526_cpu_sleep)
 	mov	r0, #0
 /*	nop
@@ -79,12 +71,6 @@ ENTRY(fa526_cpu_sleep)
 	mcr	p15, 0, r0, c7, c0, 4	/* Wait for interrupt*/
 	mov	pc, lr
 END(fa526_cpu_sleep)
-
-ENTRY(fa526_flush_prefetchbuf)
-	mov	r0, #0
-	mcr	p15, 0, r0, c7, c5, 4	/* Pre-fetch flush */
-	mov	pc, lr
-END(fa526_flush_prefetchbuf)
 
 /*
  * Cache functions
@@ -96,12 +82,6 @@ ENTRY(fa526_idcache_wbinv_all)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 	mov	pc, lr
 END(fa526_idcache_wbinv_all)
-
-ENTRY(fa526_icache_sync_all)
-	mov	r0, #0
-	mcr	p15, 0, r0, c7, c5, 0	/* invalidate I$ */
-	mov	pc, lr
-END(fa526_icache_sync_all)
 
 ENTRY(fa526_dcache_wbinv_all)
 	mov	r0, #0
@@ -184,7 +164,7 @@ END(fa526_idcache_wbinv_range)
 
 ENTRY(fa526_icache_sync_range)
 	cmp	r1, #0x4000
-	bhs	_C_LABEL(fa526_icache_sync_all)
+	bhs	.Lfa526_icache_sync_all
 
 	and	r2, r0, #(CACHELINE_SIZE - 1)
 	add	r1, r1, r2
@@ -198,13 +178,12 @@ ENTRY(fa526_icache_sync_range)
 
 2:	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 	mov	pc, lr
-END(fa526_icache_sync_range)
 
-ENTRY(fa526_flush_brnchtgt_E)
+.Lfa526_icache_sync_all:
 	mov	r0, #0
-	mcr	p15, 0, r0, c7, c5, 6	/* invalidate BTB cache */
+	mcr	p15, 0, r0, c7, c5, 0	/* invalidate I$ */
 	mov	pc, lr
-END(fa526_flush_brnchtgt_E)
+END(fa526_icache_sync_range)
 
 ENTRY(fa526_context_switch)
 	/*

@@ -14,6 +14,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-make-roken.o: make-roken.c
-make-roken.po: make-roken.c
 .endif

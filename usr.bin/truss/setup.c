@@ -422,8 +422,7 @@ exit_syscall(struct trussinfo *info, struct ptrace_lwpinfo *pl)
 		}
 	}
 
-	print_syscall_ret(info, t->cs.name, t->cs.nargs, t->cs.s_args,
-	    errorp, retval, sc);
+	print_syscall_ret(info, errorp, retval);
 	free_syscall(t);
 
 	/*
@@ -440,26 +439,46 @@ exit_syscall(struct trussinfo *info, struct ptrace_lwpinfo *pl)
 	}
 }
 
+int
+print_line_prefix(struct trussinfo *info)
+{
+	struct timespec timediff;
+	struct threadinfo *t;
+	int len;
+
+	len = 0;
+	t = info->curthread;
+	if (info->flags & (FOLLOWFORKS | DISPLAYTIDS)) {
+		if (info->flags & FOLLOWFORKS)
+			len += fprintf(info->outfile, "%5d", t->proc->pid);
+		if ((info->flags & (FOLLOWFORKS | DISPLAYTIDS)) ==
+		    (FOLLOWFORKS | DISPLAYTIDS))
+			len += fprintf(info->outfile, " ");
+		if (info->flags & DISPLAYTIDS)
+			len += fprintf(info->outfile, "%6d", t->tid);
+		len += fprintf(info->outfile, ": ");
+	}
+	if (info->flags & ABSOLUTETIMESTAMPS) {
+		timespecsubt(&t->after, &info->start_time, &timediff);
+		len += fprintf(info->outfile, "%jd.%09ld ",
+		    (intmax_t)timediff.tv_sec, timediff.tv_nsec);
+	}
+	if (info->flags & RELATIVETIMESTAMPS) {
+		timespecsubt(&t->after, &t->before, &timediff);
+		len += fprintf(info->outfile, "%jd.%09ld ",
+		    (intmax_t)timediff.tv_sec, timediff.tv_nsec);
+	}
+	return (len);
+}
+
 static void
 report_exit(struct trussinfo *info, siginfo_t *si)
 {
-	struct timespec timediff;
+	struct threadinfo *t;
 
-	if (info->flags & FOLLOWFORKS)
-		fprintf(info->outfile, "%5d: ", si->si_pid);
-	clock_gettime(CLOCK_REALTIME, &info->curthread->after);
-	if (info->flags & ABSOLUTETIMESTAMPS) {
-		timespecsubt(&info->curthread->after, &info->start_time,
-		    &timediff);
-		fprintf(info->outfile, "%jd.%09ld ", (intmax_t)timediff.tv_sec,
-		    timediff.tv_nsec);
-	}
-	if (info->flags & RELATIVETIMESTAMPS) {
-		timespecsubt(&info->curthread->after, &info->curthread->before,
-		    &timediff);
-		fprintf(info->outfile, "%jd.%09ld ", (intmax_t)timediff.tv_sec,
-		    timediff.tv_nsec);
-	}
+	t = info->curthread;
+	clock_gettime(CLOCK_REALTIME, &t->after);
+	print_line_prefix(info);
 	if (si->si_code == CLD_EXITED)
 		fprintf(info->outfile, "process exit, rval = %u\n",
 		    si->si_status);
@@ -470,48 +489,26 @@ report_exit(struct trussinfo *info, siginfo_t *si)
 }
 
 static void
-report_new_child(struct trussinfo *info, pid_t pid)
+report_new_child(struct trussinfo *info)
 {
-	struct timespec timediff;
+	struct threadinfo *t;
 
-	clock_gettime(CLOCK_REALTIME, &info->curthread->after);
-	assert(info->flags & FOLLOWFORKS);
-	fprintf(info->outfile, "%5d: ", pid);
-	if (info->flags & ABSOLUTETIMESTAMPS) {
-		timespecsubt(&info->curthread->after, &info->start_time,
-		    &timediff);
-		fprintf(info->outfile, "%jd.%09ld ", (intmax_t)timediff.tv_sec,
-		    timediff.tv_nsec);
-	}
-	if (info->flags & RELATIVETIMESTAMPS) {
-		timediff.tv_sec = 0;
-		timediff.tv_nsec = 0;
-		fprintf(info->outfile, "%jd.%09ld ", (intmax_t)timediff.tv_sec,
-		    timediff.tv_nsec);
-	}
+	t = info->curthread;
+	clock_gettime(CLOCK_REALTIME, &t->after);
+	t->before = t->after;
+	print_line_prefix(info);
 	fprintf(info->outfile, "<new process>\n");
 }
 
 static void
 report_signal(struct trussinfo *info, siginfo_t *si)
 {
-	struct timespec timediff;
+	struct threadinfo *t;
 	char *signame;
 
-	if (info->flags & FOLLOWFORKS)
-		fprintf(info->outfile, "%5d: ", si->si_pid);
-	if (info->flags & ABSOLUTETIMESTAMPS) {
-		timespecsubt(&info->curthread->after, &info->start_time,
-		    &timediff);
-		fprintf(info->outfile, "%jd.%09ld ", (intmax_t)timediff.tv_sec,
-		    timediff.tv_nsec);
-	}
-	if (info->flags & RELATIVETIMESTAMPS) {
-		timespecsubt(&info->curthread->after, &info->curthread->before,
-		    &timediff);
-		fprintf(info->outfile, "%jd.%09ld ", (intmax_t)timediff.tv_sec,
-		    timediff.tv_nsec);
-	}
+	t = info->curthread;
+	clock_gettime(CLOCK_REALTIME, &t->after);
+	print_line_prefix(info);
 	signame = strsig(si->si_status);
 	fprintf(info->outfile, "SIGNAL %u (%s)\n", si->si_status,
 	    signame == NULL ? "?" : signame);
@@ -573,7 +570,7 @@ eventloop(struct trussinfo *info)
 				pending_signal = 0;
 			} else if (pl.pl_flags & PL_FLAG_CHILD) {
 				if ((info->flags & COUNTONLY) == 0)
-					report_new_child(info, si.si_pid);
+					report_new_child(info);
 				pending_signal = 0;
 			} else {
 				if ((info->flags & NOSIGS) == 0)

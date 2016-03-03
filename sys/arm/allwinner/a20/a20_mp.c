@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
@@ -58,13 +59,6 @@ __FBSDID("$FreeBSD$");
 #define	CPUCFG_DBGCTL1		0x1e4
 
 void
-platform_mp_init_secondary(void)
-{
-
-	intr_pic_init_secondary();
-}
-
-void
 platform_mp_setmaxid(void)
 {
 	int ncpu;
@@ -80,16 +74,6 @@ platform_mp_setmaxid(void)
 	mp_maxid = ncpu - 1;
 }
 
-int
-platform_mp_probe(void)
-{
-
-	if (mp_ncpus == 0)
-		platform_mp_setmaxid();
-
-	return (mp_ncpus > 1);
-}
-
 void
 platform_mp_start_ap(void)
 {
@@ -101,8 +85,7 @@ platform_mp_start_ap(void)
 	    &cpucfg) != 0)
 		panic("Couldn't map the CPUCFG\n");
 
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	bus_space_write_4(fdtbus_bs_tag, cpucfg, CPUCFG_P_REG0,
 	    pmap_kextract((vm_offset_t)mpentry));
@@ -152,11 +135,4 @@ platform_mp_start_ap(void)
 
 	armv7_sev();
 	bus_space_unmap(fdtbus_bs_tag, cpucfg, CPUCFG_SIZE);
-}
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
 }

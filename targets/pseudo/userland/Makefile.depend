@@ -297,7 +297,6 @@ DIRDEPS+= \
 	usr.bin/mklocale \
 	usr.bin/mkstr \
 	usr.bin/mktemp \
-	usr.bin/mkulzma \
 	usr.bin/mkuzip \
 	usr.bin/msgs \
 	usr.bin/mt \
@@ -893,10 +892,6 @@ DIRDEPS.powerpc= \
 
 .if ${MK_GPL_DTC} != "yes"
 DIRDEPS+= usr.bin/dtc
-.endif
-
-.if ${MK_CASPER} == "yes"
-DIRDEPS+= sbin/casperd
 .endif
 
 DIRDEPS+= ${DIRDEPS.${MACHINE}:U}

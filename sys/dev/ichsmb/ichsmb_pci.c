@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD$");
 #define ID_WCPT				0x8ca28086
 #define ID_WCPTLP			0x9ca28086
 #define	ID_WELLSBURG			0x8d228086
+#define	ID_SRPT				0xa1238086
 
 #define PCIS_SERIALBUS_SMBUS_PROGIF	0x00
 
@@ -216,6 +217,9 @@ ichsmb_pci_probe(device_t dev)
 	case ID_WELLSBURG:
 		device_set_desc(dev, "Intel Wellsburg SMBus controller");
 		break;
+	case ID_SRPT:
+		device_set_desc(dev, "Intel Sunrise Point-H SMBus controller");
+		break;
 	default:
 		return (ENXIO);
 	}
@@ -237,11 +241,11 @@ ichsmb_pci_attach(device_t dev)
 
 	/* Allocate an I/O range */
 	sc->io_rid = ICH_SMB_BASE;
-	sc->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-	    &sc->io_rid, 0, ~0, 16, RF_ACTIVE);
+	sc->io_res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+	    &sc->io_rid, 16, RF_ACTIVE);
 	if (sc->io_res == NULL)
-		sc->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-		    &sc->io_rid, 0ul, ~0ul, 32, RF_ACTIVE);
+		sc->io_res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+		    &sc->io_rid, 32, RF_ACTIVE);
 	if (sc->io_res == NULL) {
 		device_printf(dev, "can't map I/O\n");
 		error = ENXIO;
