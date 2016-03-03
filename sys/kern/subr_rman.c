@@ -135,7 +135,7 @@ rman_init(struct rman *rm)
 	}
 
 	if (rm->rm_start == 0 && rm->rm_end == 0)
-		rm->rm_end = ~0ul;
+		rm->rm_end = ~0;
 	if (rm->rm_type == RMAN_UNINIT)
 		panic("rman_init");
 	if (rm->rm_type == RMAN_GAUGE)

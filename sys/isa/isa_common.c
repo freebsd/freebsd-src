@@ -483,7 +483,7 @@ isa_claim_resources(device_t dev, device_t child)
 		if (!rle->res) {
 			rid = rle->rid;
 			resource_list_alloc(rl, dev, child, rle->type, &rid,
-			    0ul, ~0ul, 1, 0);
+			    0, ~0, 1, 0);
 		}
 	}
 }

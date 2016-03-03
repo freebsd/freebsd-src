@@ -330,8 +330,8 @@ pci_iov_alloc_bar(struct pci_devinfo *dinfo, int bar, pci_addr_t bar_shift)
 	rid = iov->iov_pos + PCIR_SRIOV_BAR(bar);
 	bar_size = 1 << bar_shift;
 
-	res = pci_alloc_multi_resource(bus, dev, SYS_RES_MEMORY, &rid, 0ul,
-	    ~0ul, 1, iov->iov_num_vfs, RF_ACTIVE);
+	res = pci_alloc_multi_resource(bus, dev, SYS_RES_MEMORY, &rid, 0,
+	    ~0, 1, iov->iov_num_vfs, RF_ACTIVE);
 
 	if (res == NULL)
 		return (ENXIO);
@@ -498,7 +498,7 @@ pci_iov_init_rman(device_t pf, struct pcicfg_iov *iov)
 	int error;
 
 	iov->rman.rm_start = 0;
-	iov->rman.rm_end = ~0ul;
+	iov->rman.rm_end = ~0;
 	iov->rman.rm_type = RMAN_ARRAY;
 	snprintf(iov->rman_name, sizeof(iov->rman_name), "%s VF I/O memory",
 	    device_get_nameunit(pf));
