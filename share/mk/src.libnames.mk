@@ -515,6 +515,12 @@ LIBWINDDIR=	${OBJTOP}/kerberos5/lib/libwind
 LIBALIASDIR=	${OBJTOP}/lib/libalias/libalias
 LIBBLOCKSRUNTIMEDIR=	${OBJTOP}/lib/libblocksruntime
 LIBBSNMPDIR=	${OBJTOP}/lib/libbsnmp/libbsnmp
+LIBCAP_CASPERDIR=	${OBJTOP}/lib/libcasper/libcasper
+LIBCAP_DNSDIR=	${OBJTOP}/lib/libcasper/services/cap_dns
+LIBCAP_GRPDIR=	${OBJTOP}/lib/libcasper/services/cap_grp
+LIBCAP_PWDDIR=	${OBJTOP}/lib/libcasper/services/cap_pwd
+LIBCAP_RANDOMDIR=	${OBJTOP}/lib/libcasper/services/cap_random
+LIBCAP_SYSCTLDIR=	${OBJTOP}/lib/libcasper/services/cap_sysctl
 LIBBSDXMLDIR=	${OBJTOP}/lib/libexpat
 LIBKVMDIR=	${OBJTOP}/lib/libkvm
 LIBPTHREADDIR=	${OBJTOP}/lib/libthr
@@ -547,25 +553,6 @@ LIB${lib:tu}?=		${DESTDIR}${LIBDIR}/lib${lib}.a
 .for lib in ${_LIBRARIES}
 LIB${lib:tu}DIR?=	${OBJTOP}/lib/lib${lib}
 .endfor
-
-# Casper exception.
-LIBCAP_CASPERDIR=	${OBJTOP}/lib/libcasper/libcasper
-LIBCAP_CASPER=		${DESTDIR}${LIBDIR}/libcasper.a
-
-LIBCAP_DNSDIR=		${OBJTOP}/lib/libcasper/services/cap_dns
-LIBCAP_DNS?=		${DESTDIR}${LIBDIR}/libcap_dns.a
-
-LIBCAP_GRPDIR=		${OBJTOP}/lib/libcasper/services/cap_grp
-LIBCAP_GRP?=		${DESTDIR}${LIBDIR}/libcap_grp.a
-
-LIBCAP_PWDDIR=		${OBJTOP}/lib/libcasper/services/cap_pwd
-LIBCAP_PWD?=		${DESTDIR}${LIBDIR}/libcap_pwd.a
-
-LIBCAP_RANDOMDIR=	${OBJTOP}/lib/libcasper/services/cap_random
-LIBCAP_RANDOM?=		${DESTDIR}${LIBDIR}/libcap_random.a
-
-LIBCAP_SYSCTLDIR=	${OBJTOP}/lib/libcasper/services/cap_sysctl
-LIBCAP_SYSCTL?=		${DESTDIR}${LIBDIR}/libcap_sysctl.a
 
 # Validate that listed LIBADD are valid.
 .for _l in ${LIBADD}
