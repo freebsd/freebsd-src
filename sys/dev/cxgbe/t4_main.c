@@ -828,7 +828,7 @@ t4_attach(device_t dev)
 		pi->link_cfg.fc &= ~(PAUSE_TX | PAUSE_RX);
 		pi->link_cfg.fc |= t4_pause_settings;
 
-		rc = -t4_link_start(sc, sc->mbox, pi->tx_chan, &pi->link_cfg);
+		rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, &pi->link_cfg);
 		if (rc != 0) {
 			device_printf(dev, "port %d l1cfg failed: %d\n", i, rc);
 			free(pi->vi, M_CXGBE);
@@ -5935,7 +5935,7 @@ sysctl_pause_settings(SYSCTL_HANDLER_ARGS)
 
 			lc->requested_fc &= ~(PAUSE_TX | PAUSE_RX);
 			lc->requested_fc |= n;
-			rc = -t4_link_start(sc, sc->mbox, pi->tx_chan, lc);
+			rc = -t4_link_l1cfg(sc, sc->mbox, pi->tx_chan, lc);
 			lc->link_ok = link_ok;	/* restore */
 		}
 		end_synchronized_op(sc, 0);
@@ -6494,13 +6494,14 @@ sysctl_fcoe_stats(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(sb, "                   channel 0        channel 1        "
 	    "channel 2        channel 3\n");
 	sbuf_printf(sb, "octetsDDP:  %16ju %16ju %16ju %16ju\n",
-	    stats[0].octetsDDP, stats[1].octetsDDP, stats[2].octetsDDP,
-	    stats[3].octetsDDP);
-	sbuf_printf(sb, "framesDDP:  %16u %16u %16u %16u\n", stats[0].framesDDP,
-	    stats[1].framesDDP, stats[2].framesDDP, stats[3].framesDDP);
+	    stats[0].octets_ddp, stats[1].octets_ddp, stats[2].octets_ddp,
+	    stats[3].octets_ddp);
+	sbuf_printf(sb, "framesDDP:  %16u %16u %16u %16u\n",
+	    stats[0].frames_ddp, stats[1].frames_ddp, stats[2].frames_ddp,
+	    stats[3].frames_ddp);
 	sbuf_printf(sb, "framesDrop: %16u %16u %16u %16u",
-	    stats[0].framesDrop, stats[1].framesDrop, stats[2].framesDrop,
-	    stats[3].framesDrop);
+	    stats[0].frames_drop, stats[1].frames_drop, stats[2].frames_drop,
+	    stats[3].frames_drop);
 
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
@@ -7099,13 +7100,13 @@ sysctl_tcp_stats(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(sb,
 	    "                                IP                 IPv6\n");
 	sbuf_printf(sb, "OutRsts:      %20u %20u\n",
-	    v4.tcpOutRsts, v6.tcpOutRsts);
+	    v4.tcp_out_rsts, v6.tcp_out_rsts);
 	sbuf_printf(sb, "InSegs:       %20ju %20ju\n",
-	    v4.tcpInSegs, v6.tcpInSegs);
+	    v4.tcp_in_segs, v6.tcp_in_segs);
 	sbuf_printf(sb, "OutSegs:      %20ju %20ju\n",
-	    v4.tcpOutSegs, v6.tcpOutSegs);
+	    v4.tcp_out_segs, v6.tcp_out_segs);
 	sbuf_printf(sb, "RetransSegs:  %20ju %20ju",
-	    v4.tcpRetransSegs, v6.tcpRetransSegs);
+	    v4.tcp_retrans_segs, v6.tcp_retrans_segs);
 
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
@@ -7199,31 +7200,31 @@ sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(sb, "                 channel 0  channel 1  channel 2  "
 		      "channel 3\n");
 	sbuf_printf(sb, "macInErrs:      %10u %10u %10u %10u\n",
-	    stats.macInErrs[0], stats.macInErrs[1], stats.macInErrs[2],
-	    stats.macInErrs[3]);
+	    stats.mac_in_errs[0], stats.mac_in_errs[1], stats.mac_in_errs[2],
+	    stats.mac_in_errs[3]);
 	sbuf_printf(sb, "hdrInErrs:      %10u %10u %10u %10u\n",
-	    stats.hdrInErrs[0], stats.hdrInErrs[1], stats.hdrInErrs[2],
-	    stats.hdrInErrs[3]);
+	    stats.hdr_in_errs[0], stats.hdr_in_errs[1], stats.hdr_in_errs[2],
+	    stats.hdr_in_errs[3]);
 	sbuf_printf(sb, "tcpInErrs:      %10u %10u %10u %10u\n",
-	    stats.tcpInErrs[0], stats.tcpInErrs[1], stats.tcpInErrs[2],
-	    stats.tcpInErrs[3]);
+	    stats.tcp_in_errs[0], stats.tcp_in_errs[1], stats.tcp_in_errs[2],
+	    stats.tcp_in_errs[3]);
 	sbuf_printf(sb, "tcp6InErrs:     %10u %10u %10u %10u\n",
-	    stats.tcp6InErrs[0], stats.tcp6InErrs[1], stats.tcp6InErrs[2],
-	    stats.tcp6InErrs[3]);
+	    stats.tcp6_in_errs[0], stats.tcp6_in_errs[1], stats.tcp6_in_errs[2],
+	    stats.tcp6_in_errs[3]);
 	sbuf_printf(sb, "tnlCongDrops:   %10u %10u %10u %10u\n",
-	    stats.tnlCongDrops[0], stats.tnlCongDrops[1], stats.tnlCongDrops[2],
-	    stats.tnlCongDrops[3]);
+	    stats.tnl_cong_drops[0], stats.tnl_cong_drops[1],
+	    stats.tnl_cong_drops[2], stats.tnl_cong_drops[3]);
 	sbuf_printf(sb, "tnlTxDrops:     %10u %10u %10u %10u\n",
-	    stats.tnlTxDrops[0], stats.tnlTxDrops[1], stats.tnlTxDrops[2],
-	    stats.tnlTxDrops[3]);
+	    stats.tnl_tx_drops[0], stats.tnl_tx_drops[1], stats.tnl_tx_drops[2],
+	    stats.tnl_tx_drops[3]);
 	sbuf_printf(sb, "ofldVlanDrops:  %10u %10u %10u %10u\n",
-	    stats.ofldVlanDrops[0], stats.ofldVlanDrops[1],
-	    stats.ofldVlanDrops[2], stats.ofldVlanDrops[3]);
+	    stats.ofld_vlan_drops[0], stats.ofld_vlan_drops[1],
+	    stats.ofld_vlan_drops[2], stats.ofld_vlan_drops[3]);
 	sbuf_printf(sb, "ofldChanDrops:  %10u %10u %10u %10u\n\n",
-	    stats.ofldChanDrops[0], stats.ofldChanDrops[1],
-	    stats.ofldChanDrops[2], stats.ofldChanDrops[3]);
+	    stats.ofld_chan_drops[0], stats.ofld_chan_drops[1],
+	    stats.ofld_chan_drops[2], stats.ofld_chan_drops[3]);
 	sbuf_printf(sb, "ofldNoNeigh:    %u\nofldCongDefer:  %u",
-	    stats.ofldNoNeigh, stats.ofldCongDefer);
+	    stats.ofld_no_neigh, stats.ofld_cong_defer);
 
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
