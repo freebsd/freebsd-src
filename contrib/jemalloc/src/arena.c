@@ -1352,7 +1352,7 @@ static bool
 arena_decay_time_valid(ssize_t decay_time)
 {
 
-	return (decay_time >= -1 && decay_time <= NSTIME_SEC_MAX);
+	return (decay_time >= -1 && (uint64_t)decay_time <= NSTIME_SEC_MAX);
 }
 
 ssize_t
