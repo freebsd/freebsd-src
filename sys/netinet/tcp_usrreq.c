@@ -525,6 +525,7 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	error = tp->t_fb->tfb_tcp_output(tp);
 out:
 	TCPDEBUG2(PRU_CONNECT);
+	TCP_PROBE2(debug__user, tp, PRU_CONNECT);
 	INP_WUNLOCK(inp);
 	return (error);
 }
