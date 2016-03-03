@@ -1991,54 +1991,58 @@ ixl_assign_vsi_legacy(struct ixl_pf *pf)
 static void
 ixl_init_taskqueues(struct ixl_pf *pf)
 {
-       struct ixl_vsi *vsi = &pf->vsi;
-       struct ixl_queue *que = vsi->queues;
-       device_t dev = pf->dev;
+	struct ixl_vsi *vsi = &pf->vsi;
+	struct ixl_queue *que = vsi->queues;
+	device_t dev = pf->dev;
+#ifdef	RSS
+	int cpu_id;
+	cpuset_t cpu_mask;
+#endif
 
-       /* Tasklet for Admin Queue */
-       TASK_INIT(&pf->adminq, 0, ixl_do_adminq, pf);
+	/* Tasklet for Admin Queue */
+	TASK_INIT(&pf->adminq, 0, ixl_do_adminq, pf);
 #ifdef PCI_IOV
-       /* VFLR Tasklet */
-       TASK_INIT(&pf->vflr_task, 0, ixl_handle_vflr, pf);
+	/* VFLR Tasklet */
+	TASK_INIT(&pf->vflr_task, 0, ixl_handle_vflr, pf);
 #endif
 
-       /* Create and start PF taskqueue */
-       pf->tq = taskqueue_create_fast("ixl_adm", M_NOWAIT,
-           taskqueue_thread_enqueue, &pf->tq);
-       taskqueue_start_threads(&pf->tq, 1, PI_NET, "%s adminq",
-           device_get_nameunit(dev));
+	/* Create and start PF taskqueue */
+	pf->tq = taskqueue_create_fast("ixl_adm", M_NOWAIT,
+	    taskqueue_thread_enqueue, &pf->tq);
+	taskqueue_start_threads(&pf->tq, 1, PI_NET, "%s adminq",
+	    device_get_nameunit(dev));
 
-       /* Create queue tasks and start queue taskqueues */
-       for (int i = 0; i < vsi->num_queues; i++, que++) {
-               TASK_INIT(&que->tx_task, 0, ixl_deferred_mq_start, que);
-               TASK_INIT(&que->task, 0, ixl_handle_que, que);
-               que->tq = taskqueue_create_fast("ixl_que", M_NOWAIT,
-                   taskqueue_thread_enqueue, &que->tq);
+	/* Create queue tasks and start queue taskqueues */
+	for (int i = 0; i < vsi->num_queues; i++, que++) {
+		TASK_INIT(&que->tx_task, 0, ixl_deferred_mq_start, que);
+		TASK_INIT(&que->task, 0, ixl_handle_que, que);
+		que->tq = taskqueue_create_fast("ixl_que", M_NOWAIT,
+		    taskqueue_thread_enqueue, &que->tq);
 #ifdef RSS
-               CPU_SETOF(cpu_id, &cpu_mask);
-               taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
-                   &cpu_mask, "%s (bucket %d)",
-                   device_get_nameunit(dev), cpu_id);
+		cpu_id = rss_getcpu(i % rss_getnumbuckets());
+		CPU_SETOF(cpu_id, &cpu_mask);
+		taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
+		    &cpu_mask, "%s (bucket %d)",
+		    device_get_nameunit(dev), cpu_id);
 #else
-               taskqueue_start_threads(&que->tq, 1, PI_NET,
-                   "%s (que %d)", device_get_nameunit(dev), que->me);
+		taskqueue_start_threads(&que->tq, 1, PI_NET,
+		    "%s (que %d)", device_get_nameunit(dev), que->me);
 #endif
-       }
-
+	}
 }
 
 static void
 ixl_free_taskqueues(struct ixl_pf *pf)
 {
-       struct ixl_vsi          *vsi = &pf->vsi;
-       struct ixl_queue        *que = vsi->queues;
+	struct ixl_vsi *vsi = &pf->vsi;
+	struct ixl_queue *que = vsi->queues;
 
-       if (pf->tq)
-               taskqueue_free(pf->tq);
-       for (int i = 0; i < vsi->num_queues; i++, que++) {
-               if (que->tq)
-                       taskqueue_free(que->tq);
-       }
+	if (pf->tq)
+		taskqueue_free(pf->tq);
+	for (int i = 0; i < vsi->num_queues; i++, que++) {
+		if (que->tq)
+			taskqueue_free(que->tq);
+	}
 }
 
 /*********************************************************************
@@ -2054,9 +2058,6 @@ ixl_assign_vsi_msix(struct ixl_pf *pf)
 	struct 		ixl_queue *que = vsi->queues;
 	struct		tx_ring	 *txr;
 	int 		error, rid, vector = 0;
-#ifdef	RSS
-	cpuset_t cpu_mask;
-#endif
 
 	/* Admin Que is vector 0*/
 	rid = vector + 1;
