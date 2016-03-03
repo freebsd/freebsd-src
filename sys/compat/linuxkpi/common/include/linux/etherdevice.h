@@ -94,6 +94,12 @@ ether_addr_equal_64bits(const u8 *pa, const u8 *pb)
 }
 
 static inline void
+eth_broadcast_addr(u8 *pa)
+{
+	memset(pa, 0xff, 6);
+}
+
+static inline void
 random_ether_addr(u8 * dst)
 {
 	read_random(dst, 6);
