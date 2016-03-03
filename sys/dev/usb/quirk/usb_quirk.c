@@ -682,8 +682,6 @@ usb_test_quirk_by_info(const struct usbd_lookup_info *info, uint16_t quirk)
 				return (1);
 			}
 		}
-		/* no quirk found */
-		break;
 	}
 	mtx_unlock(&usb_quirk_mtx);
 done:
