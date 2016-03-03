@@ -125,16 +125,12 @@ xlr_pci_init_resources(void)
 	    || rman_manage_region(&irq_rman, 0, 255))
 		panic("pci_init_resources irq_rman");
 
-	port_rman.rm_start = 0;
-	port_rman.rm_end = ~0ul;
 	port_rman.rm_type = RMAN_ARRAY;
 	port_rman.rm_descr = "I/O ports";
 	if (rman_init(&port_rman)
 	    || rman_manage_region(&port_rman, 0x10000000, 0x1fffffff))
 		panic("pci_init_resources port_rman");
 
-	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0ul;
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "I/O memory";
 	if (rman_init(&mem_rman)
