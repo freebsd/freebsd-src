@@ -127,10 +127,11 @@ echo_resolv()
 # This also solves setting up duplicate zones in our subscribers.
 strip_trailing_dots()
 {
-	local n=
+	local n= d=
 
 	for n; do
-		printf "%s" "${n%.}"
+		printf "$d%s" "${n%.}"
+		d=" "
 	done
 	printf "\n"
 }
