@@ -389,7 +389,7 @@ pcib_alloc_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 	int error, rid;
 
 	if (max_address != (rman_res_t)max_address)
-		max_address = ~0ul;
+		max_address = ~0;
 	w->rman.rm_start = 0;
 	w->rman.rm_end = max_address;
 	w->rman.rm_type = RMAN_ARRAY;
