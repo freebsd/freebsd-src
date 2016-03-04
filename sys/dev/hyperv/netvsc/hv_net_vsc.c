@@ -64,7 +64,7 @@ static int  hv_nv_destroy_send_buffer(netvsc_dev *net_dev);
 static int  hv_nv_destroy_rx_buffer(netvsc_dev *net_dev);
 static int  hv_nv_connect_to_vsp(struct hv_device *device);
 static void hv_nv_on_send_completion(netvsc_dev *net_dev,
-    struct hv_device *device, hv_vm_packet_descriptor *pkt);
+    struct hv_device *device, struct hv_vmbus_channel *, hv_vm_packet_descriptor *pkt);
 static void hv_nv_on_receive_completion(struct hv_vmbus_channel *chan,
     uint64_t tid, uint32_t status);
 static void hv_nv_on_receive(netvsc_dev *net_dev,
@@ -787,7 +787,8 @@ hv_nv_on_device_remove(struct hv_device *device, boolean_t destroy_channel)
  */
 static void
 hv_nv_on_send_completion(netvsc_dev *net_dev,
-    struct hv_device *device, hv_vm_packet_descriptor *pkt)
+    struct hv_device *device, struct hv_vmbus_channel *chan,
+    hv_vm_packet_descriptor *pkt)
 {
 	nvsp_msg *nvsp_msg_pkt;
 	netvsc_packet *net_vsc_pkt;
@@ -838,7 +839,7 @@ hv_nv_on_send_completion(netvsc_dev *net_dev,
 			}
 			
 			/* Notify the layer above us */
-			net_vsc_pkt->compl.send.on_send_completion(
+			net_vsc_pkt->compl.send.on_send_completion(chan,
 			    net_vsc_pkt->compl.send.send_completion_context);
 
 		}
@@ -1065,7 +1066,8 @@ hv_nv_on_channel_callback(void *xchan)
 				desc = (hv_vm_packet_descriptor *)buffer;
 				switch (desc->type) {
 				case HV_VMBUS_PACKET_TYPE_COMPLETION:
-					hv_nv_on_send_completion(net_dev, device, desc);
+					hv_nv_on_send_completion(net_dev, device,
+					    chan, desc);
 					break;
 				case HV_VMBUS_PACKET_TYPE_DATA_USING_TRANSFER_PAGES:
 					hv_nv_on_receive(net_dev, device, chan, desc);
