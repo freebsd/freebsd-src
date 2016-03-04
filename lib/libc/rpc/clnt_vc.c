@@ -502,6 +502,20 @@ clnt_vc_abort(CLIENT *cl)
 {
 }
 
+static __inline void
+htonlp(void *dst, const void *src, uint32_t incr)
+{
+	/* We are aligned, so we think */
+	*(uint32_t *)dst = htonl(*(const uint32_t *)src + incr);
+}
+
+static __inline void
+ntohlp(void *dst, const void *src)
+{
+	/* We are aligned, so we think */
+	*(uint32_t *)dst = htonl(*(const uint32_t *)src);
+}
+
 static bool_t
 clnt_vc_control(CLIENT *cl, u_int request, void *info)
 {
@@ -576,14 +590,12 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 		 * first element in the call structure
 		 * This will get the xid of the PREVIOUS call
 		 */
-		*(u_int32_t *)info =
-		    ntohl(*(u_int32_t *)(void *)&ct->ct_u.ct_mcalli);
+		ntohlp(info, &ct->ct_u.ct_mcalli);
 		break;
 	case CLSET_XID:
 		/* This will set the xid of the NEXT call */
-		*(u_int32_t *)(void *)&ct->ct_u.ct_mcalli =
-		    htonl(*((u_int32_t *)info) + 1);
 		/* increment by 1 as clnt_vc_call() decrements once */
+		htonlp(&ct->ct_u.ct_mcalli, info, 1);
 		break;
 	case CLGET_VERS:
 		/*
@@ -592,15 +604,11 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 		 * begining of the RPC header. MUST be changed if the
 		 * call_struct is changed
 		 */
-		*(u_int32_t *)info =
-		    ntohl(*(u_int32_t *)(void *)(ct->ct_u.ct_mcallc +
-		    4 * BYTES_PER_XDR_UNIT));
+		ntohlp(info, ct->ct_u.ct_mcallc + 4 * BYTES_PER_XDR_UNIT);
 		break;
 
 	case CLSET_VERS:
-		*(u_int32_t *)(void *)(ct->ct_u.ct_mcallc +
-		    4 * BYTES_PER_XDR_UNIT) =
-		    htonl(*(u_int32_t *)info);
+		htonlp(ct->ct_u.ct_mcallc + 4 * BYTES_PER_XDR_UNIT, info, 0);
 		break;
 
 	case CLGET_PROG:
@@ -610,15 +618,11 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 		 * begining of the RPC header. MUST be changed if the
 		 * call_struct is changed
 		 */
-		*(u_int32_t *)info =
-		    ntohl(*(u_int32_t *)(void *)(ct->ct_u.ct_mcallc +
-		    3 * BYTES_PER_XDR_UNIT));
+		ntohlp(info, ct->ct_u.ct_mcallc + 3 * BYTES_PER_XDR_UNIT);
 		break;
 
 	case CLSET_PROG:
-		*(u_int32_t *)(void *)(ct->ct_u.ct_mcallc +
-		    3 * BYTES_PER_XDR_UNIT) =
-		    htonl(*(u_int32_t *)info);
+		htonlp(ct->ct_u.ct_mcallc + 3 * BYTES_PER_XDR_UNIT, info, 0);
 		break;
 
 	default:
