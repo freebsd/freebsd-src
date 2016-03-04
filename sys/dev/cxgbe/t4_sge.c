@@ -2467,7 +2467,6 @@ static inline void
 init_eq(struct sge_eq *eq, int eqtype, int qsize, uint8_t tx_chan,
     uint16_t iqid, char *name)
 {
-	KASSERT(tx_chan < NCHAN, ("%s: bad tx channel %d", __func__, tx_chan));
 	KASSERT(eqtype <= EQ_TYPEMASK, ("%s: bad qtype %d", __func__, eqtype));
 
 	eq->flags = eqtype & EQ_TYPEMASK;
@@ -2681,9 +2680,7 @@ alloc_iq_fl(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl,
 			}
 			fl->udb = (volatile void *)udb;
 		}
-		fl->dbval = F_DBPRIO | V_QID(qid);
-		if (is_t5(sc))
-			fl->dbval |= F_DBTYPE;
+		fl->dbval = V_QID(qid) | sc->chip_params->sge_fl_db;
 
 		FL_LOCK(fl);
 		/* Enough to make sure the SGE doesn't think it's starved */
