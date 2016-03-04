@@ -287,6 +287,8 @@ static int hn_single_tx_ring = 1;
 SYSCTL_INT(_hw_hn, OID_AUTO, single_tx_ring, CTLFLAG_RDTUN,
     &hn_single_tx_ring, 0, "Use one TX ring");
 
+static u_int hn_cpu_index;
+
 /*
  * Forward declarations
  */
@@ -438,6 +440,7 @@ netvsc_attach(device_t dev)
 	ring_cnt = hn_ring_cnt;
 	if (ring_cnt <= 0 || ring_cnt >= mp_ncpus)
 		ring_cnt = mp_ncpus;
+	sc->hn_cpu = atomic_fetchadd_int(&hn_cpu_index, ring_cnt) % mp_ncpus;
 
 	tx_ring_cnt = ring_cnt;
 	if (hn_single_tx_ring || hn_use_if_start) {
@@ -461,6 +464,7 @@ netvsc_attach(device_t dev)
 	chan->hv_chan_rxr = &sc->hn_rx_ring[0];
 	chan->hv_chan_txr = &sc->hn_tx_ring[0];
 	sc->hn_tx_ring[0].hn_chan = chan;
+	vmbus_channel_cpu_set(chan, sc->hn_cpu);
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_dunit = unit;
@@ -502,10 +506,17 @@ netvsc_attach(device_t dev)
 	error = hv_rf_on_device_add(device_ctx, &device_info, ring_cnt);
 	if (error)
 		goto failed;
+	KASSERT(sc->net_dev->num_channel <= ring_cnt,
+	    ("invalid channel count %u, should be less than %d",
+	     sc->net_dev->num_channel, ring_cnt));
 
-	/* TODO: vRSS */
-	sc->hn_tx_ring_inuse = 1;
-	sc->hn_rx_ring_inuse = 1;
+	/*
+	 * Set # of TX/RX rings that could be used according to
+	 * the # of channels that host offered.
+	 */
+	if (sc->hn_tx_ring_inuse > sc->net_dev->num_channel)
+		sc->hn_tx_ring_inuse = sc->net_dev->num_channel;
+	sc->hn_rx_ring_inuse = sc->net_dev->num_channel;
 	device_printf(dev, "%d TX ring, %d RX ring\n",
 	    sc->hn_tx_ring_inuse, sc->hn_rx_ring_inuse);
 
@@ -1337,6 +1348,7 @@ skip:
 	 */
 
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+	rxr->hn_pkts++;
 
 	if ((ifp->if_capenable & IFCAP_LRO) && do_lro) {
 #if defined(INET) || defined(INET6)
@@ -2074,6 +2086,13 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 #endif
 #endif	/* INET || INET6 */
 
+	ctx = device_get_sysctl_ctx(dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+
+	/* Create dev.hn.UNIT.rx sysctl tree */
+	sc->hn_rx_sysctl_tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "rx",
+	    CTLFLAG_RD, 0, "");
+
 	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
 		struct hn_rx_ring *rxr = &sc->hn_rx_ring[i];
 
@@ -2101,10 +2120,27 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 		rxr->hn_lro.lro_ackcnt_lim = HN_LRO_ACKCNT_DEF;
 #endif
 #endif	/* INET || INET6 */
-	}
 
-	ctx = device_get_sysctl_ctx(dev);
-	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+		if (sc->hn_rx_sysctl_tree != NULL) {
+			char name[16];
+
+			/*
+			 * Create per RX ring sysctl tree:
+			 * dev.hn.UNIT.rx.RINGID
+			 */
+			snprintf(name, sizeof(name), "%d", i);
+			rxr->hn_rx_sysctl_tree = SYSCTL_ADD_NODE(ctx,
+			    SYSCTL_CHILDREN(sc->hn_rx_sysctl_tree),
+			    OID_AUTO, name, CTLFLAG_RD, 0, "");
+
+			if (rxr->hn_rx_sysctl_tree != NULL) {
+				SYSCTL_ADD_ULONG(ctx,
+				    SYSCTL_CHILDREN(rxr->hn_rx_sysctl_tree),
+				    OID_AUTO, "packets", CTLFLAG_RW,
+				    &rxr->hn_pkts, "# of packets received");
+			}
+		}
+	}
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_queued",
 	    CTLTYPE_U64 | CTLFLAG_RW, sc,
@@ -2722,6 +2758,32 @@ hn_xmit_txeof_taskfunc(void *xtxr, int pending __unused)
 	txr->hn_oactive = 0;
 	hn_xmit(txr, 0);
 	mtx_unlock(&txr->hn_tx_lock);
+}
+
+void
+netvsc_subchan_callback(struct hn_softc *sc, struct hv_vmbus_channel *chan)
+{
+	int idx;
+
+	KASSERT(!HV_VMBUS_CHAN_ISPRIMARY(chan),
+	    ("subchannel callback on primary channel"));
+
+	idx = chan->offer_msg.offer.sub_channel_index;
+	KASSERT(idx > 0 && idx < sc->hn_rx_ring_inuse,
+	    ("invalid channel index %d, should > 0 && < %d",
+	     idx, sc->hn_rx_ring_inuse));
+	vmbus_channel_cpu_set(chan, (sc->hn_cpu + idx) % mp_ncpus);
+
+	chan->hv_chan_rxr = &sc->hn_rx_ring[idx];
+	if_printf(sc->hn_ifp, "link RX ring %d to channel%u\n",
+	    idx, chan->offer_msg.child_rel_id);
+
+	if (idx < sc->hn_tx_ring_inuse) {
+		chan->hv_chan_txr = &sc->hn_tx_ring[idx];
+		sc->hn_tx_ring[idx].hn_chan = chan;
+		if_printf(sc->hn_ifp, "link TX ring %d to channel%u\n",
+		    idx, chan->offer_msg.child_rel_id);
+	}
 }
 
 static void

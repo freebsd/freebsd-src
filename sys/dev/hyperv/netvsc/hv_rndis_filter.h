@@ -63,17 +63,32 @@ typedef struct rndis_request_ {
 	struct sema			wait_sema;	
 
 	/*
-	 * Fixme:  We assumed a fixed size response here.  If we do ever
-	 * need to handle a bigger response, we can either define a max
-	 * response message or add a response buffer variable above this field
+	 * The max response size is sizeof(rndis_msg) + PAGE_SIZE.
+	 *
+	 * XXX
+	 * This is ugly and should be cleaned up once we busdma-fy
+	 * RNDIS request bits.
 	 */
 	rndis_msg			response_msg;
+	uint8_t				buf_resp[PAGE_SIZE];
 
 	/* Simplify allocation by having a netvsc packet inline */
 	netvsc_packet			pkt;
 	hv_vmbus_page_buffer		buffer;
-	/* Fixme:  We assumed a fixed size request here. */
+
+	/*
+	 * The max request size is sizeof(rndis_msg) + PAGE_SIZE.
+	 *
+	 * NOTE:
+	 * This is required for the large request like RSS settings.
+	 *
+	 * XXX
+	 * This is ugly and should be cleaned up once we busdma-fy
+	 * RNDIS request bits.
+	 */
 	rndis_msg			request_msg;
+	uint8_t				buf_req[PAGE_SIZE];
+
 	/* Fixme:  Poor man's semaphore. */
 	uint32_t			halt_complete_flag;
 } rndis_request;
