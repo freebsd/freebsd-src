@@ -59,6 +59,15 @@ OLD_FILES+=libexec/casper/grp
 OLD_FILES+=libexec/casper/pwd
 OLD_FILES+=libexec/casper/random
 OLD_FILES+=libexec/casper/sysctl
+OLD_DIRS+=libexec/casper
+OLD_FILES+=usr/lib/libcapsicum.a
+OLD_FILES+=usr/lib/libcapsicum.so
+OLD_LIBS+=lib/libcapsicum.so.0
+OLD_FILES+=usr/lib/libcapsicum_p.a
+OLD_FILES+=usr/lib32/libcapsicum.a
+OLD_FILES+=usr/lib32/libcapsicum.so
+OLD_LIBS+=usr/lib32/libcapsicum.so.0
+OLD_FILES+=usr/lib32/libcapsicum_p.a
 # 20160223: functionality from mkulzma(1) merged into mkuzip(1)
 OLD_FILES+=usr/bin/mkulzma
 # 20160211: Remove obsolete unbound-control-setup
