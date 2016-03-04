@@ -27,9 +27,6 @@ extern "C" {
 #ifndef OPENSSL_NO_SCTP
 # define OPENSSL_NO_SCTP
 #endif
-#ifndef OPENSSL_NO_SSL2
-# define OPENSSL_NO_SSL2
-#endif
 #ifndef OPENSSL_NO_STORE
 # define OPENSSL_NO_STORE
 #endif
@@ -71,9 +68,6 @@ extern "C" {
 # endif
 # if defined(OPENSSL_NO_SCTP) && !defined(NO_SCTP)
 #  define NO_SCTP
-# endif
-# if defined(OPENSSL_NO_SSL2) && !defined(NO_SSL2)
-#  define NO_SSL2
 # endif
 # if defined(OPENSSL_NO_STORE) && !defined(NO_STORE)
 #  define NO_STORE
