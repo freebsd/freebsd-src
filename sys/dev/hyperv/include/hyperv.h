@@ -911,6 +911,8 @@ int		hv_vmbus_channel_teardown_gpdal(
 
 struct hv_vmbus_channel* vmbus_select_outgoing_channel(struct hv_vmbus_channel *promary);
 
+void		vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu);
+
 /**
  * @brief Get physical address from virtual
  */
