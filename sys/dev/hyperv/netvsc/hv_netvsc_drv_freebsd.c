@@ -1021,6 +1021,7 @@ again:
 			if (txd->m->m_flags & M_MCAST)
 				if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 		}
+		txr->hn_pkts++;
 	}
 	hn_txdesc_put(txr, txd);
 
@@ -2402,6 +2403,9 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 				    CTLFLAG_RD, &txr->hn_oactive, 0,
 				    "over active");
 			}
+			SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "packets",
+			    CTLFLAG_RW, &txr->hn_pkts,
+			    "# of packets transmitted");
 		}
 	}
 

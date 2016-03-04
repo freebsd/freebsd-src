@@ -1208,6 +1208,7 @@ struct hn_tx_ring {
 	u_long		hn_txdma_failed;
 	u_long		hn_tx_collapsed;
 	u_long		hn_tx_chimney;
+	u_long		hn_pkts;
 
 	/* Rarely used stuffs */
 	struct hn_txdesc *hn_txdesc;
