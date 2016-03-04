@@ -40,7 +40,6 @@
 typedef unsigned long	register_t;		/* 64-bit MIPS register */
 #endif
 typedef unsigned long	paddr_t;		/* Physical address */
-typedef unsigned long	vaddr_t;		/* Virtual address */
 
 #if 0
 typedef unsigned char	uint8_t;

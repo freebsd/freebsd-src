@@ -108,7 +108,6 @@ SYSCTL_UINT(_hw_altera_jtag_uart, OID_AUTO, ac_poll_delay,
 #define	MIPS_XKPHYS_UNCACHED_BASE	0x9000000000000000
 
 typedef	uint64_t	paddr_t;
-typedef	uint64_t	vaddr_t;
 
 static inline vaddr_t
 mips_phys_to_uncached(paddr_t phys)            
