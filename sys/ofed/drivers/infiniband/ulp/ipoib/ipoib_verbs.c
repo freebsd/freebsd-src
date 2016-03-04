@@ -89,6 +89,7 @@ int ipoib_init_qp(struct ipoib_dev_priv *priv)
 	    IB_QP_PORT |
 	    IB_QP_PKEY_INDEX |
 	    IB_QP_STATE;
+
 	ret = ib_modify_qp(priv->qp, &qp_attr, attr_mask);
 	if (ret) {
 		ipoib_warn(priv, "failed to modify QP to init, ret = %d\n", ret);

@@ -240,7 +240,7 @@ int mlx4_ib_umem_write_mtt(struct mlx4_ib_dev *dev, struct mlx4_mtt *mtt,
 			cur_start_addr =
 				sg_dma_address(sg);
 			len = sg_dma_len(sg);
-		}
+	}
 
 	/* Handle the last block */
 	if (len > 0) {
@@ -365,40 +365,40 @@ int mlx4_ib_umem_calc_optimal_mtt_size(struct ib_umem *umem,
 		next_block_start =
 			sg_dma_address(sg);
 		current_block_end = current_block_start
-				+ current_block_len;
-			/* If we have a split (non-contig.) between two block*/
-			if (current_block_end != next_block_start) {
-				block_shift = mlx4_ib_umem_calc_block_mtt(
-						next_block_start,
-						current_block_end,
-						block_shift);
+			+ current_block_len;
+		/* If we have a split (non-contig.) between two block*/
+		if (current_block_end != next_block_start) {
+			block_shift = mlx4_ib_umem_calc_block_mtt(
+					next_block_start,
+					current_block_end,
+					block_shift);
 
-				/* If we reached the minimum shift for 4k
-				     page we stop the loop.
-				*/
-				if (block_shift <= min_shift)
-					goto end;
-
-				/* If not saved yet we are in first block -
-				     we save the length of first block to
-				     calculate the non_aligned_pages number at
-				*    the end.
-				*/
-				total_len += current_block_len;
-
-				/* Start a new block */
-				current_block_start = next_block_start;
-				current_block_len =
-				sg_dma_len(sg);
-				continue;
-			}
-			/* The scatter entry is another part of
-			     the current block, increase the block size
-			* An entry in the scatter can be larger than
-			4k (page) as of dma mapping
-			which merge some blocks together.
+			/* If we reached the minimum shift for 4k
+			     page we stop the loop.
 			*/
-			current_block_len +=
+			if (block_shift <= min_shift)
+				goto end;
+
+			/* If not saved yet we are in first block -
+			     we save the length of first block to
+			     calculate the non_aligned_pages number at
+			*    the end.
+			*/
+			total_len += current_block_len;
+
+			/* Start a new block */
+			current_block_start = next_block_start;
+			current_block_len =
+				sg_dma_len(sg);
+			continue;
+		}
+		/* The scatter entry is another part of
+		     the current block, increase the block size
+		* An entry in the scatter can be larger than
+		4k (page) as of dma mapping
+		which merge some blocks together.
+		*/
+		current_block_len +=
 			sg_dma_len(sg);
 	}
 
@@ -641,7 +641,7 @@ int mlx4_ib_dereg_mr(struct ib_mr *ibmr)
 	if (!umem)
 		goto end;
 
-		ib_umem_release(mr->umem);
+	ib_umem_release(mr->umem);
 end:
 
 	kfree(mr);
