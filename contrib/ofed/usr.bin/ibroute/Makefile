@@ -5,7 +5,7 @@
 
 PROG=   ibroute
 SRCS=   ibroute.c ibdiag_common.c
-LIBADD= ibumad ibcommon ibmad osmcomp pthread
+LIBADD= ibcommon ibmad osmcomp
 CFLAGS+= -I${DIAGPATH}/include
 MAN=	ibroute.8
 
