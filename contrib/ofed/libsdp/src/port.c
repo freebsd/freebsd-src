@@ -40,6 +40,9 @@
 #define FASYNC 0
 #include <libgen.h>
 #endif
+#ifdef __FreeBSD__
+#include <libgen.h>
+#endif
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
@@ -217,7 +220,7 @@ volatile static int init_status = 0;	/* 0: idle, 1:during, 2:ready */
 
 /* glibc provides these symbols - for Solaris builds we fake them
  * until _init is called, at which point we quiz libdl.. */
-#ifdef SOLARIS_BUILD
+#if defined(SOLARIS_BUILD) || defined(__FreeBSD__)
 char *program_invocation_name = "[progname]", *program_invocation_short_name =
 	"[short_progname]";
 #else
@@ -2582,6 +2585,10 @@ void __sdp_init(void)
 		program_invocation_name = args_info.dla_argv[0];
 		program_invocation_short_name = basename(args_info.dla_argv[0]);
 	}
+#endif
+#ifdef __FreeBSD__
+	program_invocation_short_name = (char *)getprogname();
+	program_invocation_name = program_invocation_short_name;
 #endif
 
 	if (getenv("SIMPLE_LIBSDP") != NULL) {
