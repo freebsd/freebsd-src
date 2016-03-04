@@ -1077,8 +1077,9 @@ typedef struct netvsc_dev_ {
 	uint32_t                                vrss_send_table[VRSS_SEND_TABLE_SIZE];
 } netvsc_dev;
 
+struct hv_vmbus_channel;
 
-typedef void (*pfn_on_send_rx_completion)(void *);
+typedef void (*pfn_on_send_rx_completion)(struct hv_vmbus_channel *, void *);
 
 #define NETVSC_DEVICE_RING_BUFFER_SIZE	(128 * PAGE_SIZE)
 #define NETVSC_PACKET_MAXPAGE		32 
@@ -1171,8 +1172,6 @@ struct hn_rx_ring {
 #define HN_TRUST_HCSUM_IP	0x0001
 #define HN_TRUST_HCSUM_TCP	0x0002
 #define HN_TRUST_HCSUM_UDP	0x0004
-
-struct hv_vmbus_channel;
 
 struct hn_tx_ring {
 #ifndef HN_USE_TXDESC_BUFRING
