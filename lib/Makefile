@@ -308,8 +308,4 @@ _libusbhid=	libusbhid
 _libusb=	libusb
 .endif
 
-.if !make(install)
-SUBDIR_PARALLEL=
-.endif
-
 .include <bsd.subdir.mk>
