@@ -337,6 +337,18 @@ _DP_zfs=	md pthread umem util uutil m nvpair avl bsdxml geom nvpair z \
 		zfs_core
 _DP_zfs_core=	nvpair
 _DP_zpool=	md pthread z nvpair avl umem
+.if ${MK_OFED} != "no"
+_DP_cxgb4=	ibverbs pthread
+_DP_ibcm=	ibverbs
+_DP_ibmad=	ibcommon ibumad
+_DP_ibumad=	ibcommon
+_DP_mlx4=	ibverbs pthread
+_DP_mthca=	ibverbs pthread
+_DP_opensm=	pthread
+_DP_osmcomp=	pthread
+_DP_osmvendor=	ibumad opensm osmcomp pthread
+_DP_rdmacm=	ibverbs
+.endif
 
 _DP_helloworld=	cheri
 

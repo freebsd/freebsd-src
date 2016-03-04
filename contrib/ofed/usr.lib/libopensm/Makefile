@@ -13,6 +13,8 @@ MK_PROFILE=	no
 
 SRCS=	osm_log.c osm_mad_pool.c osm_helper.c
 
+LIBADD= pthread
+
 VERSION_MAP= ${OPENSMDIR}/opensm/libopensm.map
 
 .include <bsd.lib.mk>

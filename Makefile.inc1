@@ -2049,7 +2049,16 @@ _lib_libradius=	lib/libradius
 .endif
 
 .if ${MK_OFED} != "no"
-_ofed_lib=	contrib/ofed/usr.lib/
+_ofed_lib=		contrib/ofed/usr.lib
+_prebuild_libs+=	contrib/ofed/usr.lib/libosmcomp
+_prebuild_libs+=	contrib/ofed/usr.lib/libopensm
+_prebuild_libs+=	contrib/ofed/usr.lib/libibcommon
+_prebuild_libs+=	contrib/ofed/usr.lib/libibverbs
+_prebuild_libs+=	contrib/ofed/usr.lib/libibumad
+
+contrib/ofed/usr.lib/libopensm__L: lib/libthr__L
+contrib/ofed/usr.lib/libosmcomp__L: lib/libthr__L
+contrib/ofed/usr.lib/libibumad__L: contrib/ofed/usr.lib/libibcommon__L
 .endif
 
 .if ${MK_CASPER} != "no"

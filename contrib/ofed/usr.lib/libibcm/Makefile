@@ -15,6 +15,7 @@ SHLIB_MAJOR=	1
 MK_PROFILE=	no
 
 SRCS= cm.c
+LIBADD=	ibverbs
 CFLAGS+=	-I${IBCMDIR}/include
 
 MAN=
