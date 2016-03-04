@@ -2071,7 +2071,7 @@ lib/liblzma__L: lib/libthr__L
 
 _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib ${_ofed_lib}
 .for _DIR in ${LOCAL_LIB_DIRS}
-.if exists(${.CURDIR}/${_DIR}/Makefile)
+.if exists(${.CURDIR}/${_DIR}/Makefile) && empty(_generic_libs:M${_DIR})
 _generic_libs+= ${_DIR}
 .endif
 .endfor
