@@ -721,7 +721,7 @@ hn_txdesc_hold(struct hn_txdesc *txd)
 }
 
 static void
-hn_tx_done(void *xpkt)
+hn_tx_done(struct hv_vmbus_channel *chan, void *xpkt)
 {
 	netvsc_packet *packet = xpkt;
 	struct hn_txdesc *txd;
@@ -731,6 +731,11 @@ hn_tx_done(void *xpkt)
 	    packet->compl.send.send_completion_tid;
 
 	txr = txd->txr;
+	KASSERT(txr->hn_chan == chan,
+	    ("channel mismatch, on channel%u, should be channel%u",
+	     chan->offer_msg.offer.sub_channel_index,
+	     txr->hn_chan->offer_msg.offer.sub_channel_index));
+
 	txr->hn_has_txeof = 1;
 	hn_txdesc_put(txr, txd);
 }
