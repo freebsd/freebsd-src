@@ -19,3 +19,7 @@ CFLAGS+=	-DSYSCONFDIR=\"/etc\"
 CFLAGS+= -I${OFEDSYS}/include
 
 .include <bsd.lib.mk>
+
+# Remove .[ly] since the checked-in version is preferred.
+.SUFFIXES:
+.SUFFIXES: .o .po .So .c .ln
