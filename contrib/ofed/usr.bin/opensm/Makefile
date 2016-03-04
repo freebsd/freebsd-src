@@ -29,7 +29,7 @@ SRCS+=	osm_vl_arb_rcv.c st.c osm_perfmgr.c osm_perfmgr_db.c osm_event_plugin.c
 SRCS+=	osm_dump.c osm_ucast_cache.c osm_qos_parser_y.y osm_qos_parser_l.l
 SRCS+=	osm_qos_policy.c
 
-LIBADD= opensm osmvendor osmcomp ibmad ibumad ibcommon pthread
+LIBADD= opensm osmvendor osmcomp pthread
 CFLAGS+= -DVENDOR_RMPP_SUPPORT -DDUAL_SIDED_RMPP
 
 MAN=	opensm.8
