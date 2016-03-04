@@ -216,6 +216,8 @@ yp_dispatch(struct svc_req *req, SVCXPRT *trans)
 		return;
 	case YPPROC_ALL:
 		log_debug("ypproc_all");
+		xdr_argument = (xdrproc_t) xdr_ypreq_nokey;
+		xdr_result = (xdrproc_t) xdr_ypresp_all;
 		if (yp_check(req) == -1)
 			return;
 		cb = (void *)ypproc_all_2_svc;
@@ -236,6 +238,8 @@ yp_dispatch(struct svc_req *req, SVCXPRT *trans)
 		return;
 	case YPPROC_MAPLIST:
 		log_debug("ypproc_maplist");
+		xdr_argument = (xdrproc_t) xdr_domainname;
+		xdr_result = (xdrproc_t) xdr_ypresp_maplist;
 		if (yp_check(req) == -1)
 			return;
 		cb = (void *)ypproc_maplist_2_svc;
