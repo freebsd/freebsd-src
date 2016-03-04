@@ -154,26 +154,49 @@ void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
  * mechanism.  This guarantees that we get the real value even if we're
  * operating within a Virtual Machine and the Hypervisor is trapping our
  * Configuration Space accesses.
+ *
+ * N.B. This routine should only be used as a last resort: the firmware uses
+ *      the backdoor registers on a regular basis and we can end up
+ *      conflicting with it's uses!
  */
 u32 t4_hw_pci_read_cfg4(adapter_t *adap, int reg)
 {
-	t4_write_reg(adap, A_PCIE_CFG_SPACE_REQ,
-		     F_ENABLE | F_LOCALCFG | V_FUNCTION(adap->pf) |
-		     V_REGISTER(reg));
-	return t4_read_reg(adap, A_PCIE_CFG_SPACE_DATA);
+	u32 req = V_FUNCTION(adap->pf) | V_REGISTER(reg);
+	u32 val;
+
+	if (chip_id(adap) <= CHELSIO_T5)
+		req |= F_ENABLE;
+	else
+		req |= F_T6_ENABLE;
+
+	if (is_t4(adap))
+		req |= F_LOCALCFG;
+
+	t4_write_reg(adap, A_PCIE_CFG_SPACE_REQ, req);
+	val = t4_read_reg(adap, A_PCIE_CFG_SPACE_DATA);
+
+	/*
+	 * Reset F_ENABLE to 0 so reads of PCIE_CFG_SPACE_DATA won't cause a
+	 * Configuration Space read.  (None of the other fields matter when
+	 * F_ENABLE is 0 so a simple register write is easier than a
+	 * read-modify-write via t4_set_reg_field().)
+	 */
+	t4_write_reg(adap, A_PCIE_CFG_SPACE_REQ, 0);
+
+	return val;
 }
 
 /*
- *	t4_report_fw_error - report firmware error
- *	@adap: the adapter
+ * t4_report_fw_error - report firmware error
+ * @adap: the adapter
  *
- *	The adapter firmware can indicate error conditions to the host.
- *	This routine prints out the reason for the firmware error (as
- *	reported by the firmware).
+ * The adapter firmware can indicate error conditions to the host.
+ * If the firmware has indicated an error, print out the reason for
+ * the firmware error.
  */
 static void t4_report_fw_error(struct adapter *adap)
 {
-	static const char *reason[] = {
+	static const char *const reason[] = {
 		"Crash",			/* PCIE_FW_EVAL_CRASH */
 		"During Device Preparation",	/* PCIE_FW_EVAL_PREP */
 		"During Device Configuration",	/* PCIE_FW_EVAL_CONF */
@@ -1512,7 +1535,6 @@ out:
 void t4_read_cimq_cfg(struct adapter *adap, u16 *base, u16 *size, u16 *thres)
 {
 	unsigned int i, v;
-	int cim_num_obq = is_t4(adap) ? CIM_NUM_OBQ : CIM_NUM_OBQ_T5;
 
 	for (i = 0; i < CIM_NUM_IBQ; i++) {
 		t4_write_reg(adap, A_CIM_QUEUE_CONFIG_REF, F_IBQSELECT |
@@ -1522,7 +1544,7 @@ void t4_read_cimq_cfg(struct adapter *adap, u16 *base, u16 *size, u16 *thres)
 		*size++ = G_CIMQSIZE(v) * 256; /* value is in 256-byte units */
 		*thres++ = G_QUEFULLTHRSH(v) * 8;   /* 8-byte unit */
 	}
-	for (i = 0; i < cim_num_obq; i++) {
+	for (i = 0; i < adap->chip_params->cim_num_obq; i++) {
 		t4_write_reg(adap, A_CIM_QUEUE_CONFIG_REF, F_OBQSELECT |
 			     V_QUENUMSELECT(i));
 		v = t4_read_reg(adap, A_CIM_QUEUE_CONFIG_CTRL);
@@ -1587,9 +1609,8 @@ int t4_read_cim_obq(struct adapter *adap, unsigned int qid, u32 *data, size_t n)
 {
 	int i, err;
 	unsigned int addr, v, nwords;
-	int cim_num_obq = is_t4(adap) ? CIM_NUM_OBQ : CIM_NUM_OBQ_T5;
 
-	if (qid >= cim_num_obq || (n & 3))
+	if (qid >= adap->chip_params->cim_num_obq || (n & 3))
 		return -EINVAL;
 
 	t4_write_reg(adap, A_CIM_QUEUE_CONFIG_REF, F_OBQSELECT |
@@ -1743,7 +1764,15 @@ int t4_cim_read_la(struct adapter *adap, u32 *la_buf, unsigned int *wrptr)
 		ret = t4_cim_read(adap, A_UP_UP_DBG_LA_DATA, 1, &la_buf[i]);
 		if (ret)
 			break;
+		/* address can't exceed 0xfff (UpDbgLaRdPtr is of 12-bits) */
 		idx = (idx + 1) & M_UPDBGLARDPTR;
+		/*
+		 * Bits 0-3 of UpDbgLaRdPtr can be between 0000 to 1001 to
+		 * identify the 32-bit portion of the full 312-bit data
+		 */
+		if (is_t6(adap))
+			while ((idx & 0xf) > 9)
+				idx = (idx + 1) % M_UPDBGLARDPTR;
 	}
 restart:
 	if (cfg & F_UPDBGLAEN) {
@@ -3223,7 +3252,7 @@ void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
  */
 void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st)
 {
-	int nchan = NCHAN;
+	int nchan = adap->chip_params->nchan;
 
 	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA,
 			st->mac_in_errs, nchan, A_TP_MIB_MAC_IN_ERR_0);
@@ -3255,8 +3284,10 @@ void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st)
  */
 void t4_tp_get_proxy_stats(struct adapter *adap, struct tp_proxy_stats *st)
 {
+	int nchan = adap->chip_params->nchan;
+
 	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, st->proxy,
-			 4, A_TP_MIB_TNL_LPBK_0);
+			 nchan, A_TP_MIB_TNL_LPBK_0);
 }
 
 /**
@@ -3268,8 +3299,12 @@ void t4_tp_get_proxy_stats(struct adapter *adap, struct tp_proxy_stats *st)
  */
 void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st)
 {
+	int nchan = adap->chip_params->nchan;
+
 	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, st->req,
-			 8, A_TP_MIB_CPL_IN_REQ_0);
+			 nchan, A_TP_MIB_CPL_IN_REQ_0);
+	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, st->rsp,
+			 nchan, A_TP_MIB_CPL_OUT_RSP_0);
 }
 
 /**
@@ -3672,14 +3707,18 @@ void t4_get_chan_txrate(struct adapter *adap, u64 *nic_rate, u64 *ofld_rate)
 	v = t4_read_reg(adap, A_TP_TX_TRATE);
 	nic_rate[0] = chan_rate(adap, G_TNLRATE0(v));
 	nic_rate[1] = chan_rate(adap, G_TNLRATE1(v));
-	nic_rate[2] = chan_rate(adap, G_TNLRATE2(v));
-	nic_rate[3] = chan_rate(adap, G_TNLRATE3(v));
+	if (adap->chip_params->nchan > 2) {
+		nic_rate[2] = chan_rate(adap, G_TNLRATE2(v));
+		nic_rate[3] = chan_rate(adap, G_TNLRATE3(v));
+	}
 
 	v = t4_read_reg(adap, A_TP_TX_ORATE);
 	ofld_rate[0] = chan_rate(adap, G_OFDRATE0(v));
 	ofld_rate[1] = chan_rate(adap, G_OFDRATE1(v));
-	ofld_rate[2] = chan_rate(adap, G_OFDRATE2(v));
-	ofld_rate[3] = chan_rate(adap, G_OFDRATE3(v));
+	if (adap->chip_params->nchan > 2) {
+		ofld_rate[2] = chan_rate(adap, G_OFDRATE2(v));
+		ofld_rate[3] = chan_rate(adap, G_OFDRATE3(v));
+	}
 }
 
 /**
@@ -3822,7 +3861,7 @@ void t4_pmtx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
 	int i;
 	u32 data[2];
 
-	for (i = 0; i < PM_NSTATS; i++) {
+	for (i = 0; i < adap->chip_params->pm_stats_cnt; i++) {
 		t4_write_reg(adap, A_PM_TX_STAT_CONFIG, i + 1);
 		cnt[i] = t4_read_reg(adap, A_PM_TX_STAT_COUNT);
 		if (is_t4(adap))
@@ -3849,7 +3888,7 @@ void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
 	int i;
 	u32 data[2];
 
-	for (i = 0; i < PM_NSTATS; i++) {
+	for (i = 0; i < adap->chip_params->pm_stats_cnt; i++) {
 		t4_write_reg(adap, A_PM_RX_STAT_CONFIG, i + 1);
 		cnt[i] = t4_read_reg(adap, A_PM_RX_STAT_COUNT);
 		if (is_t4(adap))
@@ -3878,7 +3917,7 @@ static unsigned int get_mps_bg_map(struct adapter *adap, int idx)
 
 	if (n == 0)
 		return idx == 0 ? 0xf : 0;
-	if (n == 1)
+	if (n == 1 && chip_id(adap) <= CHELSIO_T5)
 		return idx < 2 ? (3 << (2 * idx)) : 0;
 	return 1 << idx;
 }
@@ -5130,9 +5169,7 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
 	int offset, ret = 0;
 	struct fw_vi_mac_cmd c;
 	unsigned int nfilters = 0;
-	unsigned int max_naddr = is_t4(adap) ?
-				       NUM_MPS_CLS_SRAM_L_INSTANCES :
-				       NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
+	unsigned int max_naddr = adap->chip_params->mps_tcam_size;
 	unsigned int rem = naddr;
 
 	if (naddr > max_naddr)
@@ -5223,9 +5260,7 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 	int ret, mode;
 	struct fw_vi_mac_cmd c;
 	struct fw_vi_mac_exact *p = c.u.exact;
-	unsigned int max_mac_addr = is_t4(adap) ?
-				    NUM_MPS_CLS_SRAM_L_INSTANCES :
-				    NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
+	unsigned int max_mac_addr = adap->chip_params->mps_tcam_size;
 
 	if (idx < 0)                             /* new allocation */
 		idx = persist ? FW_VI_MAC_ADD_PERSIST_MAC : FW_VI_MAC_ADD_MAC;
@@ -5581,6 +5616,54 @@ static void __devinit set_pcie_completion_timeout(struct adapter *adapter,
 	}
 }
 
+static const struct chip_params *get_chip_params(int chipid)
+{
+	static const struct chip_params chip_params[] = {
+		{
+			/* T4 */
+			.nchan = NCHAN,
+			.pm_stats_cnt = PM_NSTATS,
+			.cng_ch_bits_log = 2,
+			.nsched_cls = 15,
+			.cim_num_obq = CIM_NUM_OBQ,
+			.mps_rplc_size = 128,
+			.vfcount = 128,
+			.sge_fl_db = F_DBPRIO,
+			.mps_tcam_size = NUM_MPS_CLS_SRAM_L_INSTANCES,
+		},
+		{
+			/* T5 */
+			.nchan = NCHAN,
+			.pm_stats_cnt = PM_NSTATS,
+			.cng_ch_bits_log = 2,
+			.nsched_cls = 16,
+			.cim_num_obq = CIM_NUM_OBQ_T5,
+			.mps_rplc_size = 128,
+			.vfcount = 128,
+			.sge_fl_db = F_DBPRIO | F_DBTYPE,
+			.mps_tcam_size = NUM_MPS_T5_CLS_SRAM_L_INSTANCES,
+		},
+		{
+			/* T6 */
+			.nchan = T6_NCHAN,
+			.pm_stats_cnt = T6_PM_NSTATS,
+			.cng_ch_bits_log = 3,
+			.nsched_cls = 16,
+			.cim_num_obq = CIM_NUM_OBQ_T5,
+			.mps_rplc_size = 256,
+			.vfcount = 256,
+			.sge_fl_db = 0,
+			.mps_tcam_size = NUM_MPS_T5_CLS_SRAM_L_INSTANCES,
+		},
+	};
+
+	chipid -= CHELSIO_T4;
+	if (chipid < 0 || chipid >= ARRAY_SIZE(chip_params))
+		return NULL;
+
+	return &chip_params[chipid];
+}
+
 /**
  *	t4_prep_adapter - prepare SW and HW for operation
  *	@adapter: the adapter
@@ -5611,6 +5694,11 @@ int __devinit t4_prep_adapter(struct adapter *adapter)
 			return -EINVAL;
 		}
 	}
+
+	adapter->chip_params = get_chip_params(chip_id(adapter));
+	if (adapter->chip_params == NULL)
+		return -EINVAL;
+
 	adapter->params.pci.vpd_cap_addr =
 	    t4_os_find_pci_capability(adapter, PCI_CAP_ID_VPD);
 
@@ -5624,7 +5712,7 @@ int __devinit t4_prep_adapter(struct adapter *adapter)
 
 	/* Cards with real ASICs have the chipid in the PCIe device id */
 	t4_os_pci_read_cfg2(adapter, PCI_DEVICE_ID, &device_id);
-	if (device_id >> 12 == adapter->params.chipid)
+	if (device_id >> 12 == chip_id(adapter))
 		adapter->params.cim_la_size = CIMLA_SIZE;
 	else {
 		/* FPGA */
@@ -5662,7 +5750,7 @@ int __devinit t4_init_tp_params(struct adapter *adap)
 	adap->params.tp.dack_re = G_DELAYEDACKRESOLUTION(v);
 
 	/* MODQ_REQ_MAP defaults to setting queues 0-3 to chan 0-3 */
-	for (chan = 0; chan < NCHAN; chan++)
+	for (chan = 0; chan < MAX_NCHAN; chan++)
 		adap->params.tp.tx_modq[chan] = chan;
 
 	t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA,
