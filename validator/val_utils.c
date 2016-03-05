@@ -54,6 +54,8 @@
 #include "util/net_help.h"
 #include "util/module.h"
 #include "util/regional.h"
+#include "sldns/wire2str.h"
+#include "sldns/parseutil.h"
 
 enum val_classification 
 val_classify_response(uint16_t query_flags, struct query_info* origqinf,
@@ -690,6 +692,31 @@ val_dsset_isusable(struct ub_packed_rrset_key* ds_rrset)
 		if(ds_digest_algo_is_supported(ds_rrset, i) &&
 			ds_key_algo_is_supported(ds_rrset, i))
 			return 1;
+	}
+	if(verbosity < VERB_ALGO)
+		return 0;
+	if(rrset_get_count(ds_rrset) == 0)
+		verbose(VERB_ALGO, "DS is not usable");
+	else {
+		/* report usability for the first DS RR */
+		sldns_lookup_table *lt;
+		char herr[64], aerr[64];
+		lt = sldns_lookup_by_id(sldns_hashes,
+			(int)ds_get_digest_algo(ds_rrset, i));
+		if(lt) snprintf(herr, sizeof(herr), "%s", lt->name);
+		else snprintf(herr, sizeof(herr), "%d",
+			(int)ds_get_digest_algo(ds_rrset, i));
+		lt = sldns_lookup_by_id(sldns_algorithms,
+			(int)ds_get_key_algo(ds_rrset, i));
+		if(lt) snprintf(aerr, sizeof(aerr), "%s", lt->name);
+		else snprintf(aerr, sizeof(aerr), "%d",
+			(int)ds_get_key_algo(ds_rrset, i));
+		verbose(VERB_ALGO, "DS unsupported, hash %s %s, "
+			"key algorithm %s %s", herr,
+			(ds_digest_algo_is_supported(ds_rrset, 0)?
+			"(supported)":"(unsupported)"), aerr, 
+			(ds_key_algo_is_supported(ds_rrset, 0)?
+			"(supported)":"(unsupported)"));
 	}
 	return 0;
 }
