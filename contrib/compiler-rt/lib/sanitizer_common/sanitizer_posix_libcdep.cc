@@ -15,6 +15,7 @@
 #include "sanitizer_platform.h"
 
 #if SANITIZER_POSIX
+
 #include "sanitizer_common.h"
 #include "sanitizer_flags.h"
 #include "sanitizer_platform_limits_posix.h"
@@ -30,9 +31,9 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
 #if SANITIZER_FREEBSD
@@ -141,7 +142,7 @@ static const uptr kAltStackSize = SIGSTKSZ * 4;  // SIGSTKSZ is not enough.
 
 void SetAlternateSignalStack() {
   stack_t altstack, oldstack;
-  CHECK_EQ(0, sigaltstack(0, &oldstack));
+  CHECK_EQ(0, sigaltstack(nullptr, &oldstack));
   // If the alternate stack is already in place, do nothing.
   // Android always sets an alternate stack, but it's too small for us.
   if (!SANITIZER_ANDROID && !(oldstack.ss_flags & SS_DISABLE)) return;
@@ -152,12 +153,12 @@ void SetAlternateSignalStack() {
   altstack.ss_sp = (char*) base;
   altstack.ss_flags = 0;
   altstack.ss_size = kAltStackSize;
-  CHECK_EQ(0, sigaltstack(&altstack, 0));
+  CHECK_EQ(0, sigaltstack(&altstack, nullptr));
 }
 
 void UnsetAlternateSignalStack() {
   stack_t altstack, oldstack;
-  altstack.ss_sp = 0;
+  altstack.ss_sp = nullptr;
   altstack.ss_flags = SS_DISABLE;
   altstack.ss_size = kAltStackSize;  // Some sane value required on Darwin.
   CHECK_EQ(0, sigaltstack(&altstack, &oldstack));
@@ -176,7 +177,7 @@ static void MaybeInstallSigaction(int signum,
   // Clients are responsible for handling this correctly.
   sigact.sa_flags = SA_SIGINFO | SA_NODEFER;
   if (common_flags()->use_sigaltstack) sigact.sa_flags |= SA_ONSTACK;
-  CHECK_EQ(0, internal_sigaction(signum, &sigact, 0));
+  CHECK_EQ(0, internal_sigaction(signum, &sigact, nullptr));
   VReport(1, "Installed the sigaction for signal %d\n", signum);
 }
 
@@ -188,6 +189,8 @@ void InstallDeadlySignalHandlers(SignalHandlerType handler) {
   MaybeInstallSigaction(SIGSEGV, handler);
   MaybeInstallSigaction(SIGBUS, handler);
   MaybeInstallSigaction(SIGABRT, handler);
+  MaybeInstallSigaction(SIGFPE, handler);
+  MaybeInstallSigaction(SIGILL, handler);
 }
 #endif  // SANITIZER_GO
 
@@ -226,7 +229,7 @@ void PrepareForSandboxing(__sanitizer_sandbox_arguments *args) {
 #endif
 }
 
-#if SANITIZER_ANDROID
+#if SANITIZER_ANDROID || SANITIZER_GO
 int GetNamedMappingFd(const char *name, uptr size) {
   return -1;
 }
@@ -275,6 +278,48 @@ void *MmapNoAccess(uptr fixed_addr, uptr size, const char *name) {
                                0);
 }
 
-}  // namespace __sanitizer
+// This function is defined elsewhere if we intercepted pthread_attr_getstack.
+extern "C" {
+SANITIZER_WEAK_ATTRIBUTE int
+real_pthread_attr_getstack(void *attr, void **addr, size_t *size);
+} // extern "C"
 
-#endif  // SANITIZER_POSIX
+int my_pthread_attr_getstack(void *attr, void **addr, uptr *size) {
+#if !SANITIZER_GO && !SANITIZER_MAC
+  if (&real_pthread_attr_getstack)
+    return real_pthread_attr_getstack((pthread_attr_t *)attr, addr,
+                                      (size_t *)size);
+#endif
+  return pthread_attr_getstack((pthread_attr_t *)attr, addr, (size_t *)size);
+}
+
+#if !SANITIZER_GO
+void AdjustStackSize(void *attr_) {
+  pthread_attr_t *attr = (pthread_attr_t *)attr_;
+  uptr stackaddr = 0;
+  uptr stacksize = 0;
+  my_pthread_attr_getstack(attr, (void**)&stackaddr, &stacksize);
+  // GLibC will return (0 - stacksize) as the stack address in the case when
+  // stacksize is set, but stackaddr is not.
+  bool stack_set = (stackaddr != 0) && (stackaddr + stacksize != 0);
+  // We place a lot of tool data into TLS, account for that.
+  const uptr minstacksize = GetTlsSize() + 128*1024;
+  if (stacksize < minstacksize) {
+    if (!stack_set) {
+      if (stacksize != 0) {
+        VPrintf(1, "Sanitizer: increasing stacksize %zu->%zu\n", stacksize,
+                minstacksize);
+        pthread_attr_setstacksize(attr, minstacksize);
+      }
+    } else {
+      Printf("Sanitizer: pre-allocated stack size is insufficient: "
+             "%zu < %zu\n", stacksize, minstacksize);
+      Printf("Sanitizer: pthread_create is likely to fail.\n");
+    }
+  }
+}
+#endif // !SANITIZER_GO
+
+} // namespace __sanitizer
+
+#endif // SANITIZER_POSIX

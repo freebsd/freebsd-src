@@ -1625,11 +1625,11 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 _clang_tblgen= \
 	lib/clang/libllvmsupport \
 	lib/clang/libllvmtablegen \
-	usr.bin/clang/tblgen \
+	usr.bin/clang/llvm-tblgen \
 	usr.bin/clang/clang-tblgen
 
 ${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
-${_bt}-usr.bin/clang/tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
+${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
 .endif
 
 # Default to building the GPL DTC, but build the BSDL one if users explicitly
@@ -1843,7 +1843,7 @@ NXBENV=		MAKEOBJDIRPREFIX=${OBJTREE}/nxb \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${PATH}:${OBJTREE}/gperf_for_gcc/usr/bin
 NXBMAKE=	${NXBENV} ${MAKE} \
-		TBLGEN=${NXBDESTDIR}/usr/bin/tblgen \
+		LLVM_TBLGEN=${NXBDESTDIR}/usr/bin/llvm-tblgen \
 		CLANG_TBLGEN=${NXBDESTDIR}/usr/bin/clang-tblgen \
 		MACHINE=${TARGET} MACHINE_ARCH=${TARGET_ARCH} \
 		MK_GDB=no MK_TESTS=no \

@@ -31,7 +31,7 @@ using namespace llvm;
 
 #define DEBUG_TYPE "memory-builtins"
 
-enum AllocType {
+enum AllocType : uint8_t {
   OpNewLike          = 1<<0, // allocates; never returns null
   MallocLike         = 1<<1 | OpNewLike, // allocates; may return null
   CallocLike         = 1<<2, // allocates + bzero
@@ -62,6 +62,14 @@ static const AllocFnsTy AllocationFnData[] = {
   {LibFunc::ZnajRKSt9nothrow_t,  MallocLike,  2, 0,  -1}, // new[](unsigned int, nothrow)
   {LibFunc::Znam,                OpNewLike,   1, 0,  -1}, // new[](unsigned long)
   {LibFunc::ZnamRKSt9nothrow_t,  MallocLike,  2, 0,  -1}, // new[](unsigned long, nothrow)
+  {LibFunc::msvc_new_int,         OpNewLike,   1, 0,  -1}, // new(unsigned int)
+  {LibFunc::msvc_new_int_nothrow, MallocLike,  2, 0,  -1}, // new(unsigned int, nothrow)
+  {LibFunc::msvc_new_longlong,         OpNewLike,   1, 0,  -1}, // new(unsigned long long)
+  {LibFunc::msvc_new_longlong_nothrow, MallocLike,  2, 0,  -1}, // new(unsigned long long, nothrow)
+  {LibFunc::msvc_new_array_int,         OpNewLike,   1, 0,  -1}, // new[](unsigned int)
+  {LibFunc::msvc_new_array_int_nothrow, MallocLike,  2, 0,  -1}, // new[](unsigned int, nothrow)
+  {LibFunc::msvc_new_array_longlong,         OpNewLike,   1, 0,  -1}, // new[](unsigned long long)
+  {LibFunc::msvc_new_array_longlong_nothrow, MallocLike,  2, 0,  -1}, // new[](unsigned long long, nothrow)
   {LibFunc::calloc,              CallocLike,  2, 0,   1},
   {LibFunc::realloc,             ReallocLike, 2, 1,  -1},
   {LibFunc::reallocf,            ReallocLike, 2, 1,  -1},
@@ -107,18 +115,13 @@ static const AllocFnsTy *getAllocationData(const Value *V, AllocType AllocTy,
   if (!TLI || !TLI->getLibFunc(FnName, TLIFn) || !TLI->has(TLIFn))
     return nullptr;
 
-  unsigned i = 0;
-  bool found = false;
-  for ( ; i < array_lengthof(AllocationFnData); ++i) {
-    if (AllocationFnData[i].Func == TLIFn) {
-      found = true;
-      break;
-    }
-  }
-  if (!found)
+  const AllocFnsTy *FnData =
+      std::find_if(std::begin(AllocationFnData), std::end(AllocationFnData),
+                   [TLIFn](const AllocFnsTy &Fn) { return Fn.Func == TLIFn; });
+
+  if (FnData == std::end(AllocationFnData))
     return nullptr;
 
-  const AllocFnsTy *FnData = &AllocationFnData[i];
   if ((FnData->AllocTy & AllocTy) != FnData->AllocTy)
     return nullptr;
 
@@ -182,20 +185,6 @@ bool llvm::isCallocLikeFn(const Value *V, const TargetLibraryInfo *TLI,
 bool llvm::isAllocLikeFn(const Value *V, const TargetLibraryInfo *TLI,
                          bool LookThroughBitCast) {
   return getAllocationData(V, AllocLike, TLI, LookThroughBitCast);
-}
-
-/// \brief Tests if a value is a call or invoke to a library function that
-/// reallocates memory (such as realloc).
-bool llvm::isReallocLikeFn(const Value *V, const TargetLibraryInfo *TLI,
-                           bool LookThroughBitCast) {
-  return getAllocationData(V, ReallocLike, TLI, LookThroughBitCast);
-}
-
-/// \brief Tests if a value is a call or invoke to a library function that
-/// allocates memory and never returns null (such as operator new).
-bool llvm::isOperatorNewLikeFn(const Value *V, const TargetLibraryInfo *TLI,
-                               bool LookThroughBitCast) {
-  return getAllocationData(V, OpNewLike, TLI, LookThroughBitCast);
 }
 
 /// extractMallocCall - Returns the corresponding CallInst if the instruction
@@ -313,14 +302,26 @@ const CallInst *llvm::isFreeCall(const Value *I, const TargetLibraryInfo *TLI) {
   unsigned ExpectedNumParams;
   if (TLIFn == LibFunc::free ||
       TLIFn == LibFunc::ZdlPv || // operator delete(void*)
-      TLIFn == LibFunc::ZdaPv)   // operator delete[](void*)
+      TLIFn == LibFunc::ZdaPv || // operator delete[](void*)
+      TLIFn == LibFunc::msvc_delete_ptr32 || // operator delete(void*)
+      TLIFn == LibFunc::msvc_delete_ptr64 || // operator delete(void*)
+      TLIFn == LibFunc::msvc_delete_array_ptr32 || // operator delete[](void*)
+      TLIFn == LibFunc::msvc_delete_array_ptr64)   // operator delete[](void*)
     ExpectedNumParams = 1;
   else if (TLIFn == LibFunc::ZdlPvj ||              // delete(void*, uint)
            TLIFn == LibFunc::ZdlPvm ||              // delete(void*, ulong)
            TLIFn == LibFunc::ZdlPvRKSt9nothrow_t || // delete(void*, nothrow)
            TLIFn == LibFunc::ZdaPvj ||              // delete[](void*, uint)
            TLIFn == LibFunc::ZdaPvm ||              // delete[](void*, ulong)
-           TLIFn == LibFunc::ZdaPvRKSt9nothrow_t)   // delete[](void*, nothrow)
+           TLIFn == LibFunc::ZdaPvRKSt9nothrow_t || // delete[](void*, nothrow)
+           TLIFn == LibFunc::msvc_delete_ptr32_int ||      // delete(void*, uint)
+           TLIFn == LibFunc::msvc_delete_ptr64_longlong || // delete(void*, ulonglong)
+           TLIFn == LibFunc::msvc_delete_ptr32_nothrow || // delete(void*, nothrow)
+           TLIFn == LibFunc::msvc_delete_ptr64_nothrow || // delete(void*, nothrow)
+           TLIFn == LibFunc::msvc_delete_array_ptr32_int ||      // delete[](void*, uint)
+           TLIFn == LibFunc::msvc_delete_array_ptr64_longlong || // delete[](void*, ulonglong)
+           TLIFn == LibFunc::msvc_delete_array_ptr32_nothrow || // delete[](void*, nothrow)
+           TLIFn == LibFunc::msvc_delete_array_ptr64_nothrow)   // delete[](void*, nothrow)
     ExpectedNumParams = 2;
   else
     return nullptr;
@@ -621,7 +622,7 @@ SizeOffsetEvalType ObjectSizeOffsetEvaluator::compute_(Value *V) {
 
   // always generate code immediately before the instruction being
   // processed, so that the generated code dominates the same BBs
-  Instruction *PrevInsertPoint = Builder.GetInsertPoint();
+  BuilderTy::InsertPointGuard Guard(Builder);
   if (Instruction *I = dyn_cast<Instruction>(V))
     Builder.SetInsertPoint(I);
 
@@ -649,9 +650,6 @@ SizeOffsetEvalType ObjectSizeOffsetEvaluator::compute_(Value *V) {
           << *V << '\n');
     Result = unknown();
   }
-
-  if (PrevInsertPoint)
-    Builder.SetInsertPoint(PrevInsertPoint);
 
   // Don't reuse CacheIt since it may be invalid at this point.
   CacheMap[V] = Result;
@@ -742,7 +740,7 @@ SizeOffsetEvalType ObjectSizeOffsetEvaluator::visitPHINode(PHINode &PHI) {
 
   // compute offset/size for each PHI incoming pointer
   for (unsigned i = 0, e = PHI.getNumIncomingValues(); i != e; ++i) {
-    Builder.SetInsertPoint(PHI.getIncomingBlock(i)->getFirstInsertionPt());
+    Builder.SetInsertPoint(&*PHI.getIncomingBlock(i)->getFirstInsertionPt());
     SizeOffsetEvalType EdgeData = compute_(PHI.getIncomingValue(i));
 
     if (!bothKnown(EdgeData)) {

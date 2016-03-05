@@ -40,14 +40,15 @@ ItaniumABILanguageRuntime::CouldHaveDynamicValue (ValueObject &in_value)
 {
     const bool check_cxx = true;
     const bool check_objc = false;
-    return in_value.GetClangType().IsPossibleDynamicType (NULL, check_cxx, check_objc);
+    return in_value.GetCompilerType().IsPossibleDynamicType (NULL, check_cxx, check_objc);
 }
 
 bool
 ItaniumABILanguageRuntime::GetDynamicTypeAndAddress (ValueObject &in_value, 
                                                      lldb::DynamicValueType use_dynamic, 
                                                      TypeAndOrName &class_type_or_name, 
-                                                     Address &dynamic_address)
+                                                     Address &dynamic_address,
+                                                     Value::ValueType &value_type)
 {
     // For Itanium, if the type has a vtable pointer in the object, it will be at offset 0
     // in the object.  That will point to the "address point" within the vtable (not the beginning of the
@@ -58,6 +59,7 @@ ItaniumABILanguageRuntime::GetDynamicTypeAndAddress (ValueObject &in_value,
     //
     
     class_type_or_name.Clear();
+    value_type = Value::ValueType::eValueTypeScalar;
     
     // Only a pointer or reference type can have a different dynamic and static type:
     if (CouldHaveDynamicValue (in_value))
@@ -189,7 +191,7 @@ ItaniumABILanguageRuntime::GetDynamicTypeAndAddress (ValueObject &in_value,
                                 type_sp = class_types.GetTypeAtIndex(i);
                                 if (type_sp)
                                 {
-                                    if (type_sp->GetClangFullType().IsCXXClassType())
+                                    if (ClangASTContext::IsCXXClassType(type_sp->GetFullCompilerType ()))
                                     {
                                         if (log)
                                             log->Printf ("0x%16.16" PRIx64 ": static-type = '%s' has multiple matching dynamic types, picking this one: uid={0x%" PRIx64 "}, type-name='%s'\n",
@@ -221,8 +223,8 @@ ItaniumABILanguageRuntime::GetDynamicTypeAndAddress (ValueObject &in_value,
                         // the value we were handed.
                         if (type_sp)
                         {
-                            if (ClangASTContext::AreTypesSame (in_value.GetClangType(),
-                                                               type_sp->GetClangFullType()))
+                            if (ClangASTContext::AreTypesSame (in_value.GetCompilerType(),
+                                                               type_sp->GetFullCompilerType ()))
                             {
                                 // The dynamic type we found was the same type,
                                 // so we don't have a dynamic type here...
@@ -268,6 +270,42 @@ ItaniumABILanguageRuntime::GetDynamicTypeAndAddress (ValueObject &in_value,
     return class_type_or_name.IsEmpty() == false;
 }
 
+TypeAndOrName
+ItaniumABILanguageRuntime::FixUpDynamicType(const TypeAndOrName& type_and_or_name,
+                                            ValueObject& static_value)
+{
+    CompilerType static_type(static_value.GetCompilerType());
+    Flags static_type_flags(static_type.GetTypeInfo());
+    
+    TypeAndOrName ret(type_and_or_name);
+    if (type_and_or_name.HasType())
+    {
+        // The type will always be the type of the dynamic object.  If our parent's type was a pointer,
+        // then our type should be a pointer to the type of the dynamic object.  If a reference, then the original type
+        // should be okay...
+        CompilerType orig_type = type_and_or_name.GetCompilerType();
+        CompilerType corrected_type = orig_type;
+        if (static_type_flags.AllSet(eTypeIsPointer))
+            corrected_type = orig_type.GetPointerType ();
+        else if (static_type_flags.AllSet(eTypeIsReference))
+            corrected_type = orig_type.GetLValueReferenceType();
+        ret.SetCompilerType(corrected_type);
+    }
+    else
+    {
+        // If we are here we need to adjust our dynamic type name to include the correct & or * symbol
+        std::string corrected_name (type_and_or_name.GetName().GetCString());
+        if (static_type_flags.AllSet(eTypeIsPointer))
+            corrected_name.append(" *");
+        else if (static_type_flags.AllSet(eTypeIsReference))
+            corrected_name.append(" &");
+        // the parent type should be a correctly pointer'ed or referenc'ed type
+        ret.SetCompilerType(static_type);
+        ret.SetName(corrected_name.c_str());
+    }
+    return ret;
+}
+
 bool
 ItaniumABILanguageRuntime::IsVTableName (const char *name)
 {
@@ -279,46 +317,6 @@ ItaniumABILanguageRuntime::IsVTableName (const char *name)
         return true;
     else
         return false;
-}
-
-static std::map<ConstString, std::vector<ConstString> >&
-GetAlternateManglingPrefixes()
-{
-    static std::map<ConstString, std::vector<ConstString> > g_alternate_mangling_prefixes;
-    return g_alternate_mangling_prefixes;
-}
-
-
-size_t
-ItaniumABILanguageRuntime::GetAlternateManglings(const ConstString &mangled, std::vector<ConstString> &alternates)
-{
-    if (!mangled)
-        return static_cast<size_t>(0);
-
-    alternates.clear();
-    const char *mangled_cstr = mangled.AsCString();
-    std::map<ConstString, std::vector<ConstString> >& alternate_mangling_prefixes = GetAlternateManglingPrefixes();
-    for (std::map<ConstString, std::vector<ConstString> >::iterator it = alternate_mangling_prefixes.begin();
-         it != alternate_mangling_prefixes.end();
-         ++it)
-    {
-        const char *prefix_cstr = it->first.AsCString();
-        if (strncmp(mangled_cstr, prefix_cstr, strlen(prefix_cstr)) == 0)
-        {
-            const std::vector<ConstString> &alternate_prefixes = it->second;
-            for (size_t i = 0; i < alternate_prefixes.size(); ++i)
-            {
-                std::string alternate_mangling(alternate_prefixes[i].AsCString());
-                alternate_mangling.append(mangled_cstr + strlen(prefix_cstr));
-
-                alternates.push_back(ConstString(alternate_mangling.c_str()));
-            }
-
-            return alternates.size();
-        }
-    }
-
-    return static_cast<size_t>(0);
 }
 
 //------------------------------------------------------------------
@@ -344,17 +342,6 @@ ItaniumABILanguageRuntime::Initialize()
     PluginManager::RegisterPlugin (GetPluginNameStatic(),
                                    "Itanium ABI for the C++ language",
                                    CreateInstance);    
-
-    // Alternate manglings for std::basic_string<...>
-    std::vector<ConstString> basic_string_alternates;
-    basic_string_alternates.push_back(ConstString("_ZNSs"));
-    basic_string_alternates.push_back(ConstString("_ZNKSs"));
-    std::map<ConstString, std::vector<ConstString> >& alternate_mangling_prefixes = GetAlternateManglingPrefixes();
-
-    alternate_mangling_prefixes[ConstString("_ZNSbIcSt17char_traits<char>St15allocator<char>E")] =
-        basic_string_alternates;
-    alternate_mangling_prefixes[ConstString("_ZNKSbIcSt17char_traits<char>St15allocator<char>E")] =
-        basic_string_alternates;
 }
 
 void
@@ -420,6 +407,7 @@ ItaniumABILanguageRuntime::CreateExceptionResolver (Breakpoint *bkpt, bool catch
                                                                   exception_names.data(),
                                                                   exception_names.size(),
                                                                   eFunctionNameTypeBase,
+                                                                  eLanguageTypeUnknown,
                                                                   eLazyBoolNo));
 
     return resolver_sp;

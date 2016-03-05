@@ -48,9 +48,13 @@ private:
   int IndentSpaces;
   int CurrentIndent;
 
-  std::list<Regex> CompilandFilters;
-  std::list<Regex> TypeFilters;
-  std::list<Regex> SymbolFilters;
+  std::list<Regex> ExcludeCompilandFilters;
+  std::list<Regex> ExcludeTypeFilters;
+  std::list<Regex> ExcludeSymbolFilters;
+
+  std::list<Regex> IncludeCompilandFilters;
+  std::list<Regex> IncludeTypeFilters;
+  std::list<Regex> IncludeSymbolFilters;
 };
 
 template <class T>
@@ -80,8 +84,7 @@ public:
   raw_ostream &get() { return OS; }
 
 private:
-  void translateColor(PDB_ColorItem C, raw_ostream::Colors &Color,
-                      bool &Bold) const;
+  void applyColor(PDB_ColorItem C);
   raw_ostream &OS;
 };
 }

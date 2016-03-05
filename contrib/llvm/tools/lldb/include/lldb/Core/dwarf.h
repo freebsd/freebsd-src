@@ -14,13 +14,16 @@
 
 // Get the DWARF constant definitions from llvm
 #include "llvm/Support/Dwarf.h"
+
+#include "lldb/Core/RangeMap.h"
+
 // and stuff them in our default namespace
 using namespace llvm::dwarf;
 
 typedef uint32_t    dw_uleb128_t;
 typedef int32_t     dw_sleb128_t;
 typedef uint16_t    dw_attr_t;
-typedef uint8_t     dw_form_t;
+typedef uint16_t    dw_form_t;
 typedef uint16_t    dw_tag_t;
 typedef uint64_t    dw_addr_t;      // Dwarf address define that must be big enough for any addresses in the compile units that get parsed
 
@@ -59,5 +62,6 @@ typedef uint32_t    dw_offset_t;    // Dwarf Debug Information Entry offset for 
 //#define DW_OP_APPLE_clear         0xFE // clears the entire expression stack, ok if the stack is empty
 //#define DW_OP_APPLE_error         0xFF // Stops expression evaluation and returns an error (no args)
 
+typedef lldb_private::RangeArray<dw_addr_t, dw_addr_t, 2> DWARFRangeList;
 
 #endif  // DebugBase_dwarf_h_

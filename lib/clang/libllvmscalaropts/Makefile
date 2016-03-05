@@ -26,6 +26,7 @@ SRCS=	ADCE.cpp \
 	LoopDistribute.cpp \
 	LoopIdiomRecognize.cpp \
 	LoopInterchange.cpp \
+	LoopLoadElimination.cpp \
 	LoopRerollPass.cpp \
 	LoopRotation.cpp \
 	LoopStrengthReduce.cpp \
@@ -43,7 +44,6 @@ SRCS=	ADCE.cpp \
 	RewriteStatepointsForGC.cpp \
 	SCCP.cpp \
 	SROA.cpp \
-	SampleProfile.cpp \
 	ScalarReplAggregates.cpp \
 	Scalarizer.cpp \
 	SeparateConstOffsetFromGEP.cpp \
@@ -59,6 +59,7 @@ SRCS+=	LoopInstSimplify.cpp \
 	Scalar.cpp
 .endif
 
-TGHDRS=	Intrinsics
+TGHDRS=	Attributes \
+	Intrinsics
 
 .include "../clang.lib.mk"

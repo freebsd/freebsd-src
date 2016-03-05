@@ -71,6 +71,11 @@ public:
     ///                  /help/topic/com.arm.doc.ihi0059a/IHI0059A_cppabi64.pdf
     iOS64,
 
+    /// WatchOS is a modernisation of the iOS ABI, which roughly means it's
+    /// the iOS64 ABI ported to 32-bits. The primary difference from iOS64 is
+    /// that RTTI objects must still be unique at the moment.
+    WatchOS,
+
     /// The generic AArch64 ABI is also a modified version of the Itanium ABI,
     /// but it has fewer divergences than the 32-bit ARM ABI.
     ///
@@ -84,6 +89,21 @@ public:
     /// At the moment, only change from the generic ABI in this case is:
     ///   - representation of member function pointers adjusted as in ARM.
     GenericMIPS,
+
+    /// The WebAssembly ABI is a modified version of the Itanium ABI.
+    ///
+    /// The changes from the Itanium ABI are:
+    ///   - representation of member function pointers is adjusted, as in ARM;
+    ///   - member functions are not specially aligned;
+    ///   - constructors and destructors return 'this', as in ARM;
+    ///   - guard variables are 32-bit on wasm32, as in ARM;
+    ///   - unused bits of guard variables are reserved, as in ARM;
+    ///   - inline functions are never key functions, as in ARM;
+    ///   - C++11 POD rules are used for tail padding, as in iOS64.
+    ///
+    /// TODO: At present the WebAssembly ABI is not considered stable, so none
+    /// of these details is necessarily final yet.
+    WebAssembly,
 
     /// The Microsoft ABI is the ABI used by Microsoft Visual Studio (and
     /// compatible compilers).
@@ -120,7 +140,9 @@ public:
     case GenericARM:
     case iOS:
     case iOS64:
+    case WatchOS:
     case GenericMIPS:
+    case WebAssembly:
       return true;
 
     case Microsoft:
@@ -137,9 +159,41 @@ public:
     case GenericARM:
     case iOS:
     case iOS64:
+    case WatchOS:
     case GenericMIPS:
+    case WebAssembly:
       return false;
 
+    case Microsoft:
+      return true;
+    }
+    llvm_unreachable("bad ABI kind");
+  }
+
+  /// \brief Are member functions differently aligned?
+  ///
+  /// Many Itanium-style C++ ABIs require member functions to be aligned, so
+  /// that a pointer to such a function is guaranteed to have a zero in the
+  /// least significant bit, so that pointers to member functions can use that
+  /// bit to distinguish between virtual and non-virtual functions. However,
+  /// some Itanium-style C++ ABIs differentiate between virtual and non-virtual
+  /// functions via other means, and consequently don't require that member
+  /// functions be aligned.
+  bool areMemberFunctionsAligned() const {
+    switch (getKind()) {
+    case WebAssembly:
+      // WebAssembly doesn't require any special alignment for member functions.
+      return false;
+    case GenericARM:
+    case GenericAArch64:
+    case GenericMIPS:
+      // TODO: ARM-style pointers to member functions put the discriminator in
+      //       the this adjustment, so they don't require functions to have any
+      //       special alignment and could therefore also return false.
+    case GenericItanium:
+    case iOS:
+    case iOS64:
+    case WatchOS:
     case Microsoft:
       return true;
     }
@@ -214,6 +268,8 @@ public:
     switch (getKind()) {
     case GenericARM:
     case iOS64:
+    case WebAssembly:
+    case WatchOS:
       return false;
 
     case GenericAArch64:
@@ -261,7 +317,7 @@ public:
     switch (getKind()) {
     // To preserve binary compatibility, the generic Itanium ABI has
     // permanently locked the definition of POD to the rules of C++ TR1,
-    // and that trickles down to all the derived ABIs.
+    // and that trickles down to derived ABIs.
     case GenericItanium:
     case GenericAArch64:
     case GenericARM:
@@ -269,9 +325,11 @@ public:
     case GenericMIPS:
       return UseTailPaddingUnlessPOD03;
 
-    // iOS on ARM64 uses the C++11 POD rules.  It does not honor the
-    // Itanium exception about classes with over-large bitfields.
+    // iOS on ARM64 and WebAssembly use the C++11 POD rules.  They do not honor
+    // the Itanium exception about classes with over-large bitfields.
     case iOS64:
+    case WebAssembly:
+    case WatchOS:
       return UseTailPaddingUnlessPOD11;
 
     // MSVC always allocates fields in the tail-padding of a base class
@@ -281,9 +339,6 @@ public:
     }
     llvm_unreachable("bad ABI kind");
   }
-
-  /// Try to parse an ABI name, returning false on error.
-  bool tryParse(llvm::StringRef name);
 
   friend bool operator==(const TargetCXXABI &left, const TargetCXXABI &right) {
     return left.getKind() == right.getKind();

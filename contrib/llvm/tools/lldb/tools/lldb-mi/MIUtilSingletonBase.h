@@ -22,15 +22,13 @@ namespace MI
 //   // Overridden:
 //   public:
 //       // From MI::ISingleton
-//       bool Initialize(void) override;
-//       bool Shutdown(void) override;
+//       bool Initialize() override;
+//       bool Shutdown() override;
 //   };
 
 //++ ============================================================================
 // Details: Base class for the singleton pattern.
 // Gotchas: Derived class must specify MI::ISingleton<> as a friend class.
-// Authors: Aidan Dodds 17/03/2014.
-// Changes: None.
 //--
 template <typename T> class ISingleton
 {
@@ -38,7 +36,7 @@ template <typename T> class ISingleton
   public:
     // Return an instance of the derived class
     static T &
-    Instance(void)
+    Instance()
     {
         // This will fail if the derived class has not
         // declared itself to be a friend of MI::ISingleton
@@ -49,10 +47,10 @@ template <typename T> class ISingleton
 
     // Overrideable:
   public:
-    virtual bool Initialize(void) = 0;
-    virtual bool Shutdown(void) = 0;
+    virtual bool Initialize() = 0;
+    virtual bool Shutdown() = 0;
     //
-    /* dtor */ virtual ~ISingleton(void){};
+    /* dtor */ virtual ~ISingleton(){}
 };
 
 } // namespace MI

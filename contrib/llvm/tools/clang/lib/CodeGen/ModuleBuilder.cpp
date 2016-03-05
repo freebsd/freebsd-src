@@ -30,7 +30,6 @@ using namespace clang;
 namespace {
   class CodeGeneratorImpl : public CodeGenerator {
     DiagnosticsEngine &Diags;
-    std::unique_ptr<const llvm::DataLayout> TD;
     ASTContext *Ctx;
     const HeaderSearchOptions &HeaderSearchOpts; // Only used for debug info.
     const PreprocessorOptions &PreprocessorOpts; // Only used for debug info.
@@ -99,14 +98,10 @@ namespace {
       Ctx = &Context;
 
       M->setTargetTriple(Ctx->getTargetInfo().getTriple().getTriple());
-      M->setDataLayout(Ctx->getTargetInfo().getTargetDescription());
-      TD.reset(
-          new llvm::DataLayout(Ctx->getTargetInfo().getTargetDescription()));
-      Builder.reset(new CodeGen::CodeGenModule(Context,
-                                               HeaderSearchOpts,
-                                               PreprocessorOpts,
-                                               CodeGenOpts, *M, *TD,
-                                               Diags, CoverageInfo));
+      M->setDataLayout(Ctx->getTargetInfo().getDataLayoutString());
+      Builder.reset(new CodeGen::CodeGenModule(Context, HeaderSearchOpts,
+                                               PreprocessorOpts, CodeGenOpts,
+                                               *M, Diags, CoverageInfo));
 
       for (size_t i = 0, e = CodeGenOpts.DependentLibraries.size(); i < e; ++i)
         HandleDependentLibrary(CodeGenOpts.DependentLibraries[i]);
@@ -180,7 +175,7 @@ namespace {
 
       // For MSVC compatibility, treat declarations of static data members with
       // inline initializers as definitions.
-      if (Ctx->getLangOpts().MSVCCompat) {
+      if (Ctx->getTargetInfo().getCXXABI().isMicrosoft()) {
         for (Decl *Member : D->decls()) {
           if (VarDecl *VD = dyn_cast<VarDecl>(Member)) {
             if (Ctx->isMSStaticDataMemberInlineDefinition(VD) &&

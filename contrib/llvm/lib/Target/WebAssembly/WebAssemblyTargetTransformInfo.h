@@ -38,7 +38,7 @@ class WebAssemblyTTIImpl final : public BasicTTIImplBase<WebAssemblyTTIImpl> {
   const WebAssemblyTargetLowering *getTLI() const { return TLI; }
 
 public:
-  WebAssemblyTTIImpl(const WebAssemblyTargetMachine *TM, Function &F)
+  WebAssemblyTTIImpl(const WebAssemblyTargetMachine *TM, const Function &F)
       : BaseT(TM, F.getParent()->getDataLayout()), ST(TM->getSubtargetImpl(F)),
         TLI(ST->getTargetLowering()) {}
 
@@ -54,7 +54,7 @@ public:
 
   // TODO: Implement more Scalar TTI for WebAssembly
 
-  TTI::PopcntSupportKind getPopcntSupport(unsigned TyWidth);
+  TTI::PopcntSupportKind getPopcntSupport(unsigned TyWidth) const;
 
   /// @}
 

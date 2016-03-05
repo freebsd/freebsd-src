@@ -89,6 +89,19 @@ namespace llvm {
       return VecTy;
     }
 
+    /// Return the type converted to an equivalently sized integer or vector
+    /// with integer element type. Similar to changeVectorElementTypeToInteger,
+    /// but also handles scalars.
+    EVT changeTypeToInteger() {
+      if (isVector())
+        return changeVectorElementTypeToInteger();
+
+      if (isSimple())
+        return MVT::getIntegerVT(getSizeInBits());
+
+      return changeExtendedTypeToInteger();
+    }
+
     /// isSimple - Test if the given EVT is simple (as opposed to being
     /// extended).
     bool isSimple() const {
@@ -149,6 +162,11 @@ namespace llvm {
     /// is1024BitVector - Return true if this is a 1024-bit vector type.
     bool is1024BitVector() const {
       return isSimple() ? V.is1024BitVector() : isExtended1024BitVector();
+    }
+
+    /// is2048BitVector - Return true if this is a 2048-bit vector type.
+    bool is2048BitVector() const {
+      return isSimple() ? V.is2048BitVector() : isExtended2048BitVector();
     }
 
     /// isOverloaded - Return true if this is an overloaded type for TableGen.
@@ -342,6 +360,7 @@ namespace llvm {
     // Methods for handling the Extended-type case in functions above.
     // These are all out-of-line to prevent users of this header file
     // from having a dependency on Type.h.
+    EVT changeExtendedTypeToInteger() const;
     EVT changeExtendedVectorElementTypeToInteger() const;
     static EVT getExtendedIntegerVT(LLVMContext &C, unsigned BitWidth);
     static EVT getExtendedVectorVT(LLVMContext &C, EVT VT,
@@ -356,6 +375,7 @@ namespace llvm {
     bool isExtended256BitVector() const LLVM_READONLY;
     bool isExtended512BitVector() const LLVM_READONLY;
     bool isExtended1024BitVector() const LLVM_READONLY;
+    bool isExtended2048BitVector() const LLVM_READONLY;
     EVT getExtendedVectorElementType() const;
     unsigned getExtendedVectorNumElements() const LLVM_READONLY;
     unsigned getExtendedSizeInBits() const;

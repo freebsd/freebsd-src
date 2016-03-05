@@ -26,27 +26,24 @@ class CMIUtilString;
 //          created to hold each of those option's values belong to *this argument
 //          object and so are deleted when *this object goes out of scope.
 //          Based on the Interpreter pattern.
-// Gotchas: None.
-// Authors: Illya Rudkin 16/04/2014.
-// Changes: None.
 //--
 class CMICmdArgValOptionLong : public CMICmdArgValListBase
 {
     // Methods:
   public:
-    /* ctor */ CMICmdArgValOptionLong(void);
+    /* ctor */ CMICmdArgValOptionLong();
     /* ctor */ CMICmdArgValOptionLong(const CMIUtilString &vrArgName, const bool vbMandatory, const bool vbHandleByCmd);
     /* ctor */ CMICmdArgValOptionLong(const CMIUtilString &vrArgName, const bool vbMandatory, const bool vbHandleByCmd,
                                       const ArgValType_e veType, const MIuint vnExpectingNOptions);
     //
     bool IsArgLongOption(const CMIUtilString &vrTxt) const;
-    const VecArgObjPtr_t &GetExpectedOptions(void) const;
+    const VecArgObjPtr_t &GetExpectedOptions() const;
     template <class T1, typename T2> bool GetExpectedOption(T2 &vrwValue) const;
 
     // Overridden:
   public:
     // From CMICmdArgValBase
-    /* dtor */ ~CMICmdArgValOptionLong(void) override;
+    /* dtor */ ~CMICmdArgValOptionLong() override;
     // From CMICmdArgSet::IArg
     bool Validate(CMICmdArgContext &vArgContext) override;
 
@@ -61,7 +58,7 @@ class CMICmdArgValOptionLong : public CMICmdArgValListBase
 
     // Methods:
   private:
-    void Destroy(void);
+    void Destroy();
 
     // Attributes:
   private:

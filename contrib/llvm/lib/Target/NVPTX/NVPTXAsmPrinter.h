@@ -212,28 +212,21 @@ private:
   MCOperand GetSymbolRef(const MCSymbol *Symbol);
   unsigned encodeVirtualRegister(unsigned Reg);
 
-  void EmitAlignment(unsigned NumBits, const GlobalValue *GV = nullptr) const {}
-
   void printVecModifiedImmediate(const MachineOperand &MO, const char *Modifier,
                                  raw_ostream &O);
   void printMemOperand(const MachineInstr *MI, int opNum, raw_ostream &O,
                        const char *Modifier = nullptr);
-  void printImplicitDef(const MachineInstr *MI, raw_ostream &O) const;
   void printModuleLevelGV(const GlobalVariable *GVar, raw_ostream &O,
                           bool = false);
-  void printParamName(int paramIndex, raw_ostream &O);
   void printParamName(Function::const_arg_iterator I, int paramIndex,
                       raw_ostream &O);
   void emitGlobals(const Module &M);
   void emitHeader(Module &M, raw_ostream &O, const NVPTXSubtarget &STI);
   void emitKernelFunctionDirectives(const Function &F, raw_ostream &O) const;
   void emitVirtualRegister(unsigned int vr, raw_ostream &);
-  void emitFunctionExternParamList(const MachineFunction &MF);
   void emitFunctionParamList(const Function *, raw_ostream &O);
   void emitFunctionParamList(const MachineFunction &MF, raw_ostream &O);
   void setAndEmitFunctionVirtualRegisters(const MachineFunction &MF);
-  void emitFunctionTempData(const MachineFunction &MF, unsigned &FrameSize);
-  bool isImageType(const Type *Ty);
   void printReturnValStr(const Function *, raw_ostream &O);
   void printReturnValStr(const MachineFunction &MF, raw_ostream &O);
   bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
@@ -271,7 +264,7 @@ private:
 
   // Build the map between type name and ID based on module's type
   // symbol table.
-  std::map<const Type *, std::string> TypeNameMap;
+  std::map<Type *, std::string> TypeNameMap;
 
   // List of variables demoted to a function scope.
   std::map<const Function *, std::vector<const GlobalVariable *> > localDecls;
@@ -282,19 +275,15 @@ private:
 
   void emitPTXGlobalVariable(const GlobalVariable *GVar, raw_ostream &O);
   void emitPTXAddressSpace(unsigned int AddressSpace, raw_ostream &O) const;
-  std::string getPTXFundamentalTypeStr(const Type *Ty, bool = true) const;
+  std::string getPTXFundamentalTypeStr(Type *Ty, bool = true) const;
   void printScalarConstant(const Constant *CPV, raw_ostream &O);
   void printFPConstant(const ConstantFP *Fp, raw_ostream &O);
   void bufferLEByte(const Constant *CPV, int Bytes, AggBuffer *aggBuffer);
   void bufferAggregateConstant(const Constant *CV, AggBuffer *aggBuffer);
 
-  void printOperandProper(const MachineOperand &MO);
-
   void emitLinkageDirective(const GlobalValue *V, raw_ostream &O);
   void emitDeclarations(const Module &, raw_ostream &O);
   void emitDeclaration(const Function *, raw_ostream &O);
-
-  static const char *getRegisterName(unsigned RegNo);
   void emitDemotedVars(const Function *, raw_ostream &);
 
   bool lowerImageHandleOperand(const MachineInstr *MI, unsigned OpNo,

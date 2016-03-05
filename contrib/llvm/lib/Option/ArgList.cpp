@@ -13,6 +13,7 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/Option.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -258,6 +259,21 @@ void ArgList::AddLastArg(ArgStringList &Output, OptSpecifier Id0,
   }
 }
 
+void ArgList::AddAllArgs(ArgStringList &Output,
+                         ArrayRef<OptSpecifier> Ids) const {
+  for (const Arg *Arg : Args) {
+    for (OptSpecifier Id : Ids) {
+      if (Arg->getOption().matches(Id)) {
+        Arg->claim();
+        Arg->render(*this, Output);
+        break;
+      }
+    }
+  }
+}
+
+/// This 3-opt variant of AddAllArgs could be eliminated in favor of one
+/// that accepts a single specifier, given the above which accepts any number.
 void ArgList::AddAllArgs(ArgStringList &Output, OptSpecifier Id0,
                          OptSpecifier Id1, OptSpecifier Id2) const {
   for (auto Arg: filtered(Id0, Id1, Id2)) {
@@ -312,6 +328,15 @@ const char *ArgList::GetOrMakeJoinedArgString(unsigned Index,
 
   return MakeArgString(LHS + RHS);
 }
+
+void ArgList::print(raw_ostream &O) const {
+  for (Arg *A : *this) {
+    O << "* ";
+    A->print(O);
+  }
+}
+
+LLVM_DUMP_METHOD void ArgList::dump() const { print(dbgs()); }
 
 //
 

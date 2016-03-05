@@ -24,6 +24,7 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Mangler.h"
 #include "llvm/IR/Module.h"
+#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSectionCOFF.h"
@@ -32,6 +33,7 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbolELF.h"
 #include "llvm/MC/MCValue.h"
+#include "llvm/Support/COFF.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ELF.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -58,9 +60,8 @@ MCSymbol *TargetLoweringObjectFileELF::getCFIPersonalitySymbol(
   report_fatal_error("We do not support this DWARF encoding yet!");
 }
 
-void TargetLoweringObjectFileELF::emitPersonalityValue(MCStreamer &Streamer,
-                                                       const TargetMachine &TM,
-                                                       const MCSymbol *Sym) const {
+void TargetLoweringObjectFileELF::emitPersonalityValue(
+    MCStreamer &Streamer, const DataLayout &DL, const MCSymbol *Sym) const {
   SmallString<64> NameData("DW.ref.");
   NameData += Sym->getName();
   MCSymbolELF *Label =
@@ -72,9 +73,9 @@ void TargetLoweringObjectFileELF::emitPersonalityValue(MCStreamer &Streamer,
   unsigned Flags = ELF::SHF_ALLOC | ELF::SHF_WRITE | ELF::SHF_GROUP;
   MCSection *Sec = getContext().getELFSection(NameData, ELF::SHT_PROGBITS,
                                               Flags, 0, Label->getName());
-  unsigned Size = TM.getDataLayout()->getPointerSize();
+  unsigned Size = DL.getPointerSize();
   Streamer.SwitchSection(Sec);
-  Streamer.EmitValueToAlignment(TM.getDataLayout()->getPointerABIAlignment());
+  Streamer.EmitValueToAlignment(DL.getPointerABIAlignment());
   Streamer.EmitSymbolAttribute(Label, MCSA_ELF_TypeObject);
   const MCExpr *E = MCConstantExpr::create(Size, getContext());
   Streamer.emitELFSize(Label, E);
@@ -232,14 +233,8 @@ static StringRef getSectionPrefixForGlobal(SectionKind Kind) {
     return ".tdata";
   if (Kind.isThreadBSS())
     return ".tbss";
-  if (Kind.isDataNoRel())
+  if (Kind.isData())
     return ".data";
-  if (Kind.isDataRelLocal())
-    return ".data.rel.local";
-  if (Kind.isDataRel())
-    return ".data.rel";
-  if (Kind.isReadOnlyWithRelLocal())
-    return ".data.rel.ro.local";
   assert(Kind.isReadOnlyWithRel() && "Unknown section kind");
   return ".data.rel.ro";
 }
@@ -282,8 +277,8 @@ selectELFSectionForGlobal(MCContext &Ctx, const GlobalValue *GV,
     // We also need alignment here.
     // FIXME: this is getting the alignment of the character, not the
     // alignment of the global!
-    unsigned Align =
-        TM.getDataLayout()->getPreferredAlignment(cast<GlobalVariable>(GV));
+    unsigned Align = GV->getParent()->getDataLayout().getPreferredAlignment(
+        cast<GlobalVariable>(GV));
 
     std::string SizeSpec = ".rodata.str" + utostr(EntrySize) + ".";
     Name = SizeSpec + utostr(Align);
@@ -350,9 +345,8 @@ bool TargetLoweringObjectFileELF::shouldPutJumpTableInFunctionSection(
 
 /// Given a mergeable constant with the specified size and relocation
 /// information, return a section that it should be placed in.
-MCSection *
-TargetLoweringObjectFileELF::getSectionForConstant(SectionKind Kind,
-                                                   const Constant *C) const {
+MCSection *TargetLoweringObjectFileELF::getSectionForConstant(
+    const DataLayout &DL, SectionKind Kind, const Constant *C) const {
   if (Kind.isMergeableConst4() && MergeableConst4Section)
     return MergeableConst4Section;
   if (Kind.isMergeableConst8() && MergeableConst8Section)
@@ -362,7 +356,6 @@ TargetLoweringObjectFileELF::getSectionForConstant(SectionKind Kind,
   if (Kind.isReadOnly())
     return ReadOnlySection;
 
-  if (Kind.isReadOnlyWithRelLocal()) return DataRelROLocalSection;
   assert(Kind.isReadOnlyWithRel() && "Unknown section kind");
   return DataRelROSection;
 }
@@ -507,7 +500,7 @@ emitModuleFlags(MCStreamer &Streamer,
 
   // Get the section.
   MCSectionMachO *S = getContext().getMachOSection(
-      Segment, Section, TAA, StubSize, SectionKind::getDataNoRel());
+      Segment, Section, TAA, StubSize, SectionKind::getData());
   Streamer.SwitchSection(S);
   Streamer.EmitLabel(getContext().
                      getOrCreateSymbol(StringRef("L_OBJC_IMAGE_INFO")));
@@ -589,14 +582,16 @@ MCSection *TargetLoweringObjectFileMachO::SelectSectionForGlobal(
 
   // FIXME: Alignment check should be handled by section classifier.
   if (Kind.isMergeable1ByteCString() &&
-      TM.getDataLayout()->getPreferredAlignment(cast<GlobalVariable>(GV)) < 32)
+      GV->getParent()->getDataLayout().getPreferredAlignment(
+          cast<GlobalVariable>(GV)) < 32)
     return CStringSection;
 
   // Do not put 16-bit arrays in the UString section if they have an
   // externally visible label, this runs into issues with certain linker
   // versions.
   if (Kind.isMergeable2ByteCString() && !GV->hasExternalLinkage() &&
-      TM.getDataLayout()->getPreferredAlignment(cast<GlobalVariable>(GV)) < 32)
+      GV->getParent()->getDataLayout().getPreferredAlignment(
+          cast<GlobalVariable>(GV)) < 32)
     return UStringSection;
 
   // With MachO only variables whose corresponding symbol starts with 'l' or
@@ -634,12 +629,11 @@ MCSection *TargetLoweringObjectFileMachO::SelectSectionForGlobal(
   return DataSection;
 }
 
-MCSection *
-TargetLoweringObjectFileMachO::getSectionForConstant(SectionKind Kind,
-                                                     const Constant *C) const {
+MCSection *TargetLoweringObjectFileMachO::getSectionForConstant(
+    const DataLayout &DL, SectionKind Kind, const Constant *C) const {
   // If this constant requires a relocation, we have to put it in the data
   // segment, not in the text segment.
-  if (Kind.isDataRel() || Kind.isReadOnlyWithRel())
+  if (Kind.isData() || Kind.isReadOnlyWithRel())
     return ConstDataSection;
 
   if (Kind.isMergeableConst4())
@@ -706,7 +700,7 @@ MCSymbol *TargetLoweringObjectFileMachO::getCFIPersonalitySymbol(
 const MCExpr *TargetLoweringObjectFileMachO::getIndirectSymViaGOTPCRel(
     const MCSymbol *Sym, const MCValue &MV, int64_t Offset,
     MachineModuleInfo *MMI, MCStreamer &Streamer) const {
-  // Although MachO 32-bit targets do not explictly have a GOTPCREL relocation
+  // Although MachO 32-bit targets do not explicitly have a GOTPCREL relocation
   // as 64-bit do, we replace the GOT equivalent by accessing the final symbol
   // through a non_lazy_ptr stub instead. One advantage is that it allows the
   // computation of deltas to final external symbols. Example:
@@ -740,7 +734,7 @@ const MCExpr *TargetLoweringObjectFileMachO::getIndirectSymViaGOTPCRel(
   // non_lazy_ptr stubs.
   SmallString<128> Name;
   StringRef Suffix = "$non_lazy_ptr";
-  Name += DL->getPrivateGlobalPrefix();
+  Name += MMI->getModule()->getDataLayout().getPrivateGlobalPrefix();
   Name += Sym->getName();
   Name += Suffix;
   MCSymbol *Stub = Ctx.getOrCreateSymbol(Name);
@@ -761,6 +755,29 @@ const MCExpr *TargetLoweringObjectFileMachO::getIndirectSymViaGOTPCRel(
   const MCExpr *RHS =
     MCBinaryExpr::createAdd(BSymExpr, MCConstantExpr::create(Offset, Ctx), Ctx);
   return MCBinaryExpr::createSub(LHS, RHS, Ctx);
+}
+
+static bool canUsePrivateLabel(const MCAsmInfo &AsmInfo,
+                               const MCSection &Section) {
+  if (!AsmInfo.isSectionAtomizableBySymbols(Section))
+    return true;
+
+  // If it is not dead stripped, it is safe to use private labels.
+  const MCSectionMachO &SMO = cast<MCSectionMachO>(Section);
+  if (SMO.hasAttribute(MachO::S_ATTR_NO_DEAD_STRIP))
+    return true;
+
+  return false;
+}
+
+void TargetLoweringObjectFileMachO::getNameWithPrefix(
+    SmallVectorImpl<char> &OutName, const GlobalValue *GV, Mangler &Mang,
+    const TargetMachine &TM) const {
+  SectionKind GVKind = TargetLoweringObjectFile::getKindForGlobal(GV, TM);
+  const MCSection *TheSection = SectionForGlobal(GV, GVKind, Mang, TM);
+  bool CannotUsePrivateLabel =
+      !canUsePrivateLabel(*TM.getMCAsmInfo(), *TheSection);
+  Mang.getNameWithPrefix(OutName, GV, CannotUsePrivateLabel);
 }
 
 //===----------------------------------------------------------------------===//
@@ -918,7 +935,7 @@ MCSection *TargetLoweringObjectFileCOFF::SelectSectionForGlobal(
                                          COMDATSymName, Selection);
     } else {
       SmallString<256> TmpData;
-      getNameWithPrefix(TmpData, GV, /*CannotUsePrivateLabel=*/true, Mang, TM);
+      Mang.getNameWithPrefix(TmpData, GV, /*CannotUsePrivateLabel=*/true);
       return getContext().getCOFFSection(Name, Characteristics, Kind, TmpData,
                                          Selection);
     }
@@ -943,8 +960,9 @@ MCSection *TargetLoweringObjectFileCOFF::SelectSectionForGlobal(
 }
 
 void TargetLoweringObjectFileCOFF::getNameWithPrefix(
-    SmallVectorImpl<char> &OutName, const GlobalValue *GV,
-    bool CannotUsePrivateLabel, Mangler &Mang, const TargetMachine &TM) const {
+    SmallVectorImpl<char> &OutName, const GlobalValue *GV, Mangler &Mang,
+    const TargetMachine &TM) const {
+  bool CannotUsePrivateLabel = false;
   if (GV->hasPrivateLinkage() &&
       ((isa<Function>(GV) && TM.getFunctionSections()) ||
        (isa<GlobalVariable>(GV) && TM.getDataSections())))
@@ -1043,7 +1061,7 @@ void TargetLoweringObjectFileCOFF::emitLinkerFlagsForGlobal(
     raw_string_ostream FlagOS(Flag);
     Mang.getNameWithPrefix(FlagOS, GV, false);
     FlagOS.flush();
-    if (Flag[0] == DL->getGlobalPrefix())
+    if (Flag[0] == GV->getParent()->getDataLayout().getGlobalPrefix())
       OS << Flag.substr(1);
     else
       OS << Flag;

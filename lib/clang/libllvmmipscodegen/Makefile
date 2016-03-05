@@ -38,7 +38,8 @@ SRCS=	Mips16FrameLowering.cpp \
 	MipsTargetMachine.cpp \
 	MipsTargetObjectFile.cpp
 
-TGHDRS=	Intrinsics \
+TGHDRS=	Attributes \
+	Intrinsics \
 	MipsGenAsmWriter \
 	MipsGenCallingConv \
 	MipsGenCodeEmitter \

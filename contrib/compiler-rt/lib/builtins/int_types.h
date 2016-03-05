@@ -20,6 +20,10 @@
 
 #include "int_endianness.h"
 
+/* si_int is defined in Linux sysroot's asm-generic/siginfo.h */
+#ifdef si_int
+#undef si_int
+#endif
 typedef      int si_int;
 typedef unsigned su_int;
 
@@ -57,7 +61,8 @@ typedef union
 } udwords;
 
 /* MIPS64 issue: PR 20098 */
-#if defined(__LP64__) && !(defined(__mips__) && defined(__clang__))
+#if (defined(__LP64__) || defined(__wasm__)) && \
+    !(defined(__mips__) && defined(__clang__))
 #define CRT_HAS_128BIT
 #endif
 
@@ -95,14 +100,14 @@ typedef union
     }s;
 } utwords;
 
-static inline ti_int make_ti(di_int h, di_int l) {
+static __inline ti_int make_ti(di_int h, di_int l) {
     twords r;
     r.s.high = h;
     r.s.low = l;
     return r.all;
 }
 
-static inline tu_int make_tu(du_int h, du_int l) {
+static __inline tu_int make_tu(du_int h, du_int l) {
     utwords r;
     r.s.high = h;
     r.s.low = l;
@@ -140,5 +145,22 @@ typedef union
     long double f;
 } long_double_bits;
 
+#if __STDC_VERSION__ >= 199901L
+typedef float _Complex Fcomplex;
+typedef double _Complex Dcomplex;
+typedef long double _Complex Lcomplex;
+
+#define COMPLEX_REAL(x) __real__(x)
+#define COMPLEX_IMAGINARY(x) __imag__(x)
+#else
+typedef struct { float real, imaginary; } Fcomplex;
+
+typedef struct { double real, imaginary; } Dcomplex;
+
+typedef struct { long double real, imaginary; } Lcomplex;
+
+#define COMPLEX_REAL(x) (x).real
+#define COMPLEX_IMAGINARY(x) (x).imaginary
+#endif
 #endif /* INT_TYPES_H */
 

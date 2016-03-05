@@ -15,6 +15,7 @@ SRCS=	ASTCommon.cpp \
 	GeneratePCH.cpp \
 	GlobalModuleIndex.cpp \
 	Module.cpp \
+	ModuleFileExtension.cpp \
 	ModuleManager.cpp
 
 TGHDRS=	AttrList \

@@ -126,6 +126,9 @@ namespace llvm {
       /// 1 is the number of bytes of stack to pop.
       RET_FLAG,
 
+      /// Return from interrupt. Operand 0 is the number of bytes to pop.
+      IRET,
+
       /// Repeat fill, corresponds to X86::REP_STOSx.
       REP_STOS,
 
@@ -182,6 +185,8 @@ namespace llvm {
 
       /// Compute Sum of Absolute Differences.
       PSADBW,
+      /// Compute Double Block Packed Sum-Absolute-Differences
+      DBPSADBW,
 
       /// Bitwise Logical AND NOT of Packed FP values.
       ANDNP,
@@ -211,6 +216,8 @@ namespace llvm {
 
       // FP vector get exponent 
       FGETEXP_RND,
+      // Extract Normalized Mantissas
+      VGETMANT,
       // FP Scale
       SCALEF,
       // Integer add/sub with unsigned saturation.
@@ -235,6 +242,9 @@ namespace llvm {
 
       // Integer absolute value
       ABS,
+
+      // Detect Conflicts Within a Vector
+      CONFLICT,
 
       /// Floating point max and min.
       FMAX, FMIN,
@@ -282,9 +292,8 @@ namespace llvm {
 
       // Vector integer truncate.
       VTRUNC,
-
-      // Vector integer truncate with mask.
-      VTRUNCM,
+      // Vector integer truncate with unsigned/signed saturation.
+      VTRUNCUS, VTRUNCS,
 
       // Vector FP extend.
       VFPEXT,
@@ -295,6 +304,9 @@ namespace llvm {
       // Vector signed/unsigned integer to double.
       CVTDQ2PD, CVTUDQ2PD,
 
+      // Convert a vector to mask, set bits base on MSB.
+      CVT2MASK,
+
       // 128-bit vector logical left / right shift
       VSHLDQ, VSRLDQ,
 
@@ -303,6 +315,9 @@ namespace llvm {
 
       // Vector shift elements by immediate
       VSHLI, VSRLI, VSRAI,
+
+      // Bit rotate by immediate
+      VROTLI, VROTRI,
 
       // Vector packed double/float comparison.
       CMPP,
@@ -349,6 +364,7 @@ namespace llvm {
 
       // OR/AND test for masks
       KORTEST,
+      KTEST,
 
       // Several flavors of instructions with vector shuffle behaviors.
       PACKSS,
@@ -382,12 +398,24 @@ namespace llvm {
       VPERMIV3,
       VPERMI,
       VPERM2X128,
-      //Fix Up Special Packed Float32/64 values
+      // Bitwise ternary logic
+      VPTERNLOG,
+      // Fix Up Special Packed Float32/64 values
       VFIXUPIMM,
-      //Range Restriction Calculation For Packed Pairs of Float32/64 values
+      // Range Restriction Calculation For Packed Pairs of Float32/64 values
       VRANGE,
+      // Reduce - Perform Reduction Transformation on scalar\packed FP
+      VREDUCE,
+      // RndScale - Round FP Values To Include A Given Number Of Fraction Bits
+      VRNDSCALE,
+      // VFPCLASS - Tests Types Of a FP Values for packed types.
+      VFPCLASS, 
+      // VFPCLASSS - Tests Types Of a FP Values for scalar types.
+      VFPCLASSS, 
       // Broadcast scalar to vector
       VBROADCAST,
+      // Broadcast mask to vector
+      VBROADCASTM,
       // Broadcast subvector to vector
       SUBV_BROADCAST,
       // Insert/Extract vector element
@@ -397,13 +425,21 @@ namespace llvm {
       /// SSE4A Extraction and Insertion.
       EXTRQI, INSERTQI,
 
+      // XOP variable/immediate rotations
+      VPROT, VPROTI,
+      // XOP arithmetic/logical shifts
+      VPSHA, VPSHL,
+      // XOP signed/unsigned integer comparisons
+      VPCOM, VPCOMU,
+
       // Vector multiply packed unsigned doubleword integers
       PMULUDQ,
       // Vector multiply packed signed doubleword integers
       PMULDQ,
       // Vector Multiply Packed UnsignedIntegers with Round and Scale
       MULHRS,
-
+      // Multiply and Add Packed Integers
+      VPMADDUBSW, VPMADDWD,
       // FMA nodes
       FMADD,
       FNMADD,
@@ -418,7 +454,6 @@ namespace llvm {
       FNMSUB_RND,
       FMADDSUB_RND,
       FMSUBADD_RND,
-      RNDSCALE,
 
       // Compress and expand
       COMPRESS,
@@ -442,9 +477,6 @@ namespace llvm {
       // segmented stacks. Check if the current stacklet has enough space, and
       // falls back to heap allocation if not.
       SEG_ALLOCA,
-
-      // Windows's _ftol2 runtime routine to do fptoui.
-      WIN_FTOL,
 
       // Memory barrier
       MEMBARRIER,
@@ -580,15 +612,6 @@ namespace llvm {
     bool isCalleePop(CallingConv::ID CallingConv,
                      bool is64Bit, bool IsVarArg, bool TailCallOpt);
 
-    /// AVX512 static rounding constants.  These need to match the values in
-    /// avx512fintrin.h.
-    enum STATIC_ROUNDING {
-      TO_NEAREST_INT = 0,
-      TO_NEG_INF = 1,
-      TO_POS_INF = 2,
-      TO_ZERO = 3,
-      CUR_DIRECTION = 4
-    };
   }
 
   //===--------------------------------------------------------------------===//
@@ -676,6 +699,10 @@ namespace llvm {
     /// i16 is legal, but undesirable since i16 instruction encodings are longer
     /// and some i16 instructions are slow.
     bool IsDesirableToPromoteOp(SDValue Op, EVT &PVT) const override;
+
+    /// Return true if the MachineFunction contains a COPY which would imply
+    /// HasOpaqueSPAdjustment.
+    bool hasCopyImplyingStackAdjustment(MachineFunction *MF) const override;
 
     MachineBasicBlock *
       EmitInstrWithCustomInserter(MachineInstr *MI,
@@ -813,6 +840,13 @@ namespace llvm {
     /// from i32 to i8 but not from i32 to i16.
     bool isNarrowingProfitable(EVT VT1, EVT VT2) const override;
 
+    /// Given an intrinsic, checks if on the target the intrinsic will need to map
+    /// to a MemIntrinsicNode (touches memory). If this is the case, it returns
+    /// true and stores the intrinsic information into the IntrinsicInfo that was
+    /// passed to the function.
+    bool getTgtMemIntrinsic(IntrinsicInfo &Info, const CallInst &I,
+                            unsigned Intrinsic) const override;
+
     /// Returns true if the target can instruction select the
     /// specified FP immediate natively. If false, the legalizer will
     /// materialize the FP immediate as a load from a constant pool.
@@ -850,16 +884,7 @@ namespace llvm {
     /// register, not on the X87 floating point stack.
     bool isScalarFPTypeInSSEReg(EVT VT) const {
       return (VT == MVT::f64 && X86ScalarSSEf64) || // f64 is when SSE2
-      (VT == MVT::f32 && X86ScalarSSEf32);   // f32 is when SSE1
-    }
-
-    /// Return true if the target uses the MSVC _ftol2 routine for fptoui.
-    bool isTargetFTOL() const;
-
-    /// Return true if the MSVC _ftol2 routine should be used for fptoui to the
-    /// given type.
-    bool isIntegerTypeFTOL(EVT VT) const {
-      return isTargetFTOL() && VT == MVT::i64;
+             (VT == MVT::f32 && X86ScalarSSEf32);   // f32 is when SSE1
     }
 
     /// \brief Returns true if it is beneficial to convert a load of a constant
@@ -879,6 +904,16 @@ namespace llvm {
     unsigned getRegisterByName(const char* RegName, EVT VT,
                                SelectionDAG &DAG) const override;
 
+    /// If a physical register, this returns the register that receives the
+    /// exception address on entry to an EH pad.
+    unsigned
+    getExceptionPointerRegister(const Constant *PersonalityFn) const override;
+
+    /// If a physical register, this returns the register that receives the
+    /// exception typeid on entry to a landing pad.
+    unsigned
+    getExceptionSelectorRegister(const Constant *PersonalityFn) const override;
+
     /// This method returns a target specific FastISel object,
     /// or null if the target does not support "fast" ISel.
     FastISel *createFastISel(FunctionLoweringInfo &funcInfo,
@@ -890,6 +925,11 @@ namespace llvm {
     bool getStackCookieLocation(unsigned &AddressSpace,
                                 unsigned &Offset) const override;
 
+    /// Return true if the target stores SafeStack pointer at a fixed offset in
+    /// some non-standard address space, and populates the address space and
+    /// offset as appropriate.
+    Value *getSafeStackPointerLocation(IRBuilder<> &IRB) const override;
+
     SDValue BuildFILD(SDValue Op, EVT SrcVT, SDValue Chain, SDValue StackSlot,
                       SelectionDAG &DAG) const;
 
@@ -898,6 +938,8 @@ namespace llvm {
     bool useLoadStackGuardNode() const override;
     /// \brief Customize the preferred legalization strategy for certain types.
     LegalizeTypeAction getPreferredVectorAction(EVT VT) const override;
+
+    bool isIntDivCheap(EVT VT, AttributeSet Attr) const override;
 
   protected:
     std::pair<const TargetRegisterClass *, uint8_t>
@@ -908,7 +950,6 @@ namespace llvm {
     /// Keep a pointer to the X86Subtarget around so that we can
     /// make the right decision when generating code for different targets.
     const X86Subtarget *Subtarget;
-    const DataLayout *TD;
 
     /// Select between SSE or x87 floating point ops.
     /// When SSE is available, use it for f32 operations.
@@ -955,7 +996,6 @@ namespace llvm {
                                     const SmallVectorImpl<SDValue> &OutVals,
                                     const SmallVectorImpl<ISD::InputArg> &Ins,
                                            SelectionDAG& DAG) const;
-    bool IsCalleePop(bool isVarArg, CallingConv::ID CallConv) const;
     SDValue EmitTailCallLoadRetAddr(SelectionDAG &DAG, SDValue &OutRetAddr,
                                 SDValue Chain, bool IsTailCall, bool Is64Bit,
                                 int FPDiff, SDLoc dl) const;
@@ -969,7 +1009,6 @@ namespace llvm {
 
     SDValue LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerBUILD_VECTORvXi1(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerVSELECT(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerEXTRACT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const;
     SDValue ExtractBitFromMaskVector(SDValue Op, SelectionDAG &DAG) const;
@@ -994,9 +1033,9 @@ namespace llvm {
     SDValue LowerToBT(SDValue And, ISD::CondCode CC,
                       SDLoc dl, SelectionDAG &DAG) const;
     SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSETCCE(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerSELECT(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerBRCOND(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerMEMSET(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerJumpTable(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerDYNAMIC_STACKALLOC(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerVASTART(SDValue Op, SelectionDAG &DAG) const;
@@ -1028,6 +1067,15 @@ namespace llvm {
                         const SmallVectorImpl<SDValue> &OutVals,
                         SDLoc dl, SelectionDAG &DAG) const override;
 
+    bool supportSplitCSR(MachineFunction *MF) const override {
+      return MF->getFunction()->getCallingConv() == CallingConv::CXX_FAST_TLS &&
+          MF->getFunction()->hasFnAttribute(Attribute::NoUnwind);
+    }
+    void initializeSplitCSR(MachineBasicBlock *Entry) const override;
+    void insertCopiesSplitCSR(
+      MachineBasicBlock *Entry,
+      const SmallVectorImpl<MachineBasicBlock *> &Exits) const override;
+
     bool isUsedByReturnOnly(SDNode *N, SDValue &Chain) const override;
 
     bool mayBeEmittedAsTailCall(CallInst *CI) const override;
@@ -1042,27 +1090,16 @@ namespace llvm {
 
     const MCPhysReg *getScratchRegisters(CallingConv::ID CC) const override;
 
-    bool shouldExpandAtomicLoadInIR(LoadInst *SI) const override;
+    TargetLoweringBase::AtomicExpansionKind
+    shouldExpandAtomicLoadInIR(LoadInst *SI) const override;
     bool shouldExpandAtomicStoreInIR(StoreInst *SI) const override;
-    TargetLoweringBase::AtomicRMWExpansionKind
+    TargetLoweringBase::AtomicExpansionKind
     shouldExpandAtomicRMWInIR(AtomicRMWInst *AI) const override;
 
     LoadInst *
     lowerIdempotentRMWIntoFencedLoad(AtomicRMWInst *AI) const override;
 
-    bool needsCmpXchgNb(const Type *MemType) const;
-
-    /// Utility function to emit atomic-load-arith operations (and, or, xor,
-    /// nand, max, min, umax, umin). It takes the corresponding instruction to
-    /// expand, the associated machine basic block, and the associated X86
-    /// opcodes for reg/reg.
-    MachineBasicBlock *EmitAtomicLoadArith(MachineInstr *MI,
-                                           MachineBasicBlock *MBB) const;
-
-    /// Utility function to emit atomic-load-arith operations (and, or, xor,
-    /// nand, add, sub, swap) for 64-bit operands on 32-bit target.
-    MachineBasicBlock *EmitAtomicLoadArith6432(MachineInstr *MI,
-                                               MachineBasicBlock *MBB) const;
+    bool needsCmpXchgNb(Type *MemType) const;
 
     // Utility function to emit the low-level va_arg code for X86-64.
     MachineBasicBlock *EmitVAARG64WithCustomInserter(
@@ -1077,16 +1114,25 @@ namespace llvm {
     MachineBasicBlock *EmitLoweredSelect(MachineInstr *I,
                                          MachineBasicBlock *BB) const;
 
+    MachineBasicBlock *EmitLoweredAtomicFP(MachineInstr *I,
+                                           MachineBasicBlock *BB) const;
+
     MachineBasicBlock *EmitLoweredWinAlloca(MachineInstr *MI,
                                               MachineBasicBlock *BB) const;
+
+    MachineBasicBlock *EmitLoweredCatchRet(MachineInstr *MI,
+                                           MachineBasicBlock *BB) const;
+
+    MachineBasicBlock *EmitLoweredCatchPad(MachineInstr *MI,
+                                           MachineBasicBlock *BB) const;
 
     MachineBasicBlock *EmitLoweredSegAlloca(MachineInstr *MI,
                                             MachineBasicBlock *BB) const;
 
-    MachineBasicBlock *EmitLoweredTLSCall(MachineInstr *MI,
+    MachineBasicBlock *EmitLoweredTLSAddr(MachineInstr *MI,
                                           MachineBasicBlock *BB) const;
 
-    MachineBasicBlock *emitLoweredTLSAddr(MachineInstr *MI,
+    MachineBasicBlock *EmitLoweredTLSCall(MachineInstr *MI,
                                           MachineBasicBlock *BB) const;
 
     MachineBasicBlock *emitEHSjLjSetJmp(MachineInstr *MI,
@@ -1121,7 +1167,7 @@ namespace llvm {
                              unsigned &RefinementSteps) const override;
 
     /// Reassociate floating point divisions into multiply by reciprocal.
-    bool combineRepeatedFPDivisors(unsigned NumUsers) const override;
+    unsigned combineRepeatedFPDivisors() const override;
   };
 
   namespace X86 {

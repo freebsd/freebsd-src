@@ -19,6 +19,7 @@
 #include "llvm/CodeGen/MachineCombinerPattern.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/MC/MCInstrInfo.h"
+#include "llvm/Support/BranchProbability.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 
 namespace llvm {
@@ -38,7 +39,6 @@ class SelectionDAG;
 class ScheduleDAG;
 class TargetRegisterClass;
 class TargetRegisterInfo;
-class BranchProbability;
 class TargetSubtargetInfo;
 class TargetSchedModel;
 class DFAPacketizer;
@@ -54,12 +54,17 @@ class TargetInstrInfo : public MCInstrInfo {
   TargetInstrInfo(const TargetInstrInfo &) = delete;
   void operator=(const TargetInstrInfo &) = delete;
 public:
-  TargetInstrInfo(unsigned CFSetupOpcode = ~0u, unsigned CFDestroyOpcode = ~0u)
-    : CallFrameSetupOpcode(CFSetupOpcode),
-      CallFrameDestroyOpcode(CFDestroyOpcode) {
-  }
+  TargetInstrInfo(unsigned CFSetupOpcode = ~0u, unsigned CFDestroyOpcode = ~0u,
+                  unsigned CatchRetOpcode = ~0u)
+      : CallFrameSetupOpcode(CFSetupOpcode),
+        CallFrameDestroyOpcode(CFDestroyOpcode),
+        CatchRetOpcode(CatchRetOpcode) {}
 
   virtual ~TargetInstrInfo();
+
+  static bool isGenericOpcode(unsigned Opc) {
+    return Opc <= TargetOpcode::GENERIC_OP_END;
+  }
 
   /// Given a machine instruction descriptor, returns the register
   /// class constraint for OpNum, or NULL.
@@ -94,6 +99,41 @@ protected:
     return false;
   }
 
+  /// This method commutes the operands of the given machine instruction MI.
+  /// The operands to be commuted are specified by their indices OpIdx1 and
+  /// OpIdx2.
+  ///
+  /// If a target has any instructions that are commutable but require
+  /// converting to different instructions or making non-trivial changes
+  /// to commute them, this method can be overloaded to do that.
+  /// The default implementation simply swaps the commutable operands.
+  ///
+  /// If NewMI is false, MI is modified in place and returned; otherwise, a
+  /// new machine instruction is created and returned.
+  ///
+  /// Do not call this method for a non-commutable instruction.
+  /// Even though the instruction is commutable, the method may still
+  /// fail to commute the operands, null pointer is returned in such cases.
+  virtual MachineInstr *commuteInstructionImpl(MachineInstr *MI,
+                                               bool NewMI,
+                                               unsigned OpIdx1,
+                                               unsigned OpIdx2) const;
+
+  /// Assigns the (CommutableOpIdx1, CommutableOpIdx2) pair of commutable
+  /// operand indices to (ResultIdx1, ResultIdx2).
+  /// One or both input values of the pair: (ResultIdx1, ResultIdx2) may be
+  /// predefined to some indices or be undefined (designated by the special
+  /// value 'CommuteAnyOperandIndex').
+  /// The predefined result indices cannot be re-defined.
+  /// The function returns true iff after the result pair redefinition
+  /// the fixed result pair is equal to or equivalent to the source pair of
+  /// indices: (CommutableOpIdx1, CommutableOpIdx2). It is assumed here that
+  /// the pairs (x,y) and (y,x) are equivalent.
+  static bool fixCommutedOpIndices(unsigned &ResultIdx1,
+                                   unsigned &ResultIdx2,
+                                   unsigned CommutableOpIdx1,
+                                   unsigned CommutableOpIdx2);
+
 private:
   /// For instructions with opcodes for which the M_REMATERIALIZABLE flag is
   /// set and the target hook isReallyTriviallyReMaterializable returns false,
@@ -110,6 +150,8 @@ public:
   ///
   unsigned getCallFrameSetupOpcode() const { return CallFrameSetupOpcode; }
   unsigned getCallFrameDestroyOpcode() const { return CallFrameDestroyOpcode; }
+
+  unsigned getCatchReturnOpcode() const { return CatchRetOpcode; }
 
   /// Returns the actual stack pointer adjustment made by an instruction
   /// as part of a call sequence. By default, only call frame setup/destroy
@@ -250,20 +292,51 @@ public:
     return nullptr;
   }
 
-  /// If a target has any instructions that are commutable but require
-  /// converting to different instructions or making non-trivial changes to
-  /// commute them, this method can overloaded to do that.
-  /// The default implementation simply swaps the commutable operands.
-  /// If NewMI is false, MI is modified in place and returned; otherwise, a
-  /// new machine instruction is created and returned.  Do not call this
-  /// method for a non-commutable instruction, but there may be some cases
-  /// where this method fails and returns null.
-  virtual MachineInstr *commuteInstruction(MachineInstr *MI,
-                                           bool NewMI = false) const;
+  // This constant can be used as an input value of operand index passed to
+  // the method findCommutedOpIndices() to tell the method that the
+  // corresponding operand index is not pre-defined and that the method
+  // can pick any commutable operand.
+  static const unsigned CommuteAnyOperandIndex = ~0U;
 
-  /// If specified MI is commutable, return the two operand indices that would
-  /// swap value. Return false if the instruction
-  /// is not in a form which this routine understands.
+  /// This method commutes the operands of the given machine instruction MI.
+  ///
+  /// The operands to be commuted are specified by their indices OpIdx1 and
+  /// OpIdx2. OpIdx1 and OpIdx2 arguments may be set to a special value
+  /// 'CommuteAnyOperandIndex', which means that the method is free to choose
+  /// any arbitrarily chosen commutable operand. If both arguments are set to
+  /// 'CommuteAnyOperandIndex' then the method looks for 2 different commutable
+  /// operands; then commutes them if such operands could be found.
+  ///
+  /// If NewMI is false, MI is modified in place and returned; otherwise, a
+  /// new machine instruction is created and returned.
+  ///
+  /// Do not call this method for a non-commutable instruction or
+  /// for non-commuable operands.
+  /// Even though the instruction is commutable, the method may still
+  /// fail to commute the operands, null pointer is returned in such cases.
+  MachineInstr *
+  commuteInstruction(MachineInstr *MI,
+                     bool NewMI = false,
+                     unsigned OpIdx1 = CommuteAnyOperandIndex,
+                     unsigned OpIdx2 = CommuteAnyOperandIndex) const;
+
+  /// Returns true iff the routine could find two commutable operands in the
+  /// given machine instruction.
+  /// The 'SrcOpIdx1' and 'SrcOpIdx2' are INPUT and OUTPUT arguments.
+  /// If any of the INPUT values is set to the special value
+  /// 'CommuteAnyOperandIndex' then the method arbitrarily picks a commutable
+  /// operand, then returns its index in the corresponding argument.
+  /// If both of INPUT values are set to 'CommuteAnyOperandIndex' then method
+  /// looks for 2 commutable operands.
+  /// If INPUT values refer to some operands of MI, then the method simply
+  /// returns true if the corresponding operands are commutable and returns
+  /// false otherwise.
+  ///
+  /// For example, calling this method this way:
+  ///     unsigned Op1 = 1, Op2 = CommuteAnyOperandIndex;
+  ///     findCommutedOpIndices(MI, Op1, Op2);
+  /// can be interpreted as a query asking to find an operand that would be
+  /// commutable with the operand#1.
   virtual bool findCommutedOpIndices(MachineInstr *MI, unsigned &SrcOpIdx1,
                                      unsigned &SrcOpIdx2) const;
 
@@ -511,7 +584,7 @@ public:
   virtual
   bool isProfitableToIfCvt(MachineBasicBlock &MBB, unsigned NumCycles,
                            unsigned ExtraPredCycles,
-                           const BranchProbability &Probability) const {
+                           BranchProbability Probability) const {
     return false;
   }
 
@@ -526,7 +599,7 @@ public:
                       unsigned NumTCycles, unsigned ExtraTCycles,
                       MachineBasicBlock &FMBB,
                       unsigned NumFCycles, unsigned ExtraFCycles,
-                      const BranchProbability &Probability) const {
+                      BranchProbability Probability) const {
     return false;
   }
 
@@ -538,7 +611,7 @@ public:
   /// will be properly predicted.
   virtual bool
   isProfitableToDupForIfCvt(MachineBasicBlock &MBB, unsigned NumCycles,
-                            const BranchProbability &Probability) const {
+                            BranchProbability Probability) const {
     return false;
   }
 
@@ -724,12 +797,29 @@ public:
   /// order since the pattern evaluator stops checking as soon as it finds a
   /// faster sequence.
   /// \param Root - Instruction that could be combined with one of its operands
-  /// \param Pattern - Vector of possible combination patterns
+  /// \param Patterns - Vector of possible combination patterns
   virtual bool getMachineCombinerPatterns(
       MachineInstr &Root,
-      SmallVectorImpl<MachineCombinerPattern::MC_PATTERN> &Pattern) const {
+      SmallVectorImpl<MachineCombinerPattern> &Patterns) const;
+
+  /// Return true if the input \P Inst is part of a chain of dependent ops
+  /// that are suitable for reassociation, otherwise return false.
+  /// If the instruction's operands must be commuted to have a previous
+  /// instruction of the same type define the first source operand, \P Commuted
+  /// will be set to true.
+  bool isReassociationCandidate(const MachineInstr &Inst, bool &Commuted) const;
+
+  /// Return true when \P Inst is both associative and commutative.
+  virtual bool isAssociativeAndCommutative(const MachineInstr &Inst) const {
     return false;
   }
+
+  /// Return true when \P Inst has reassociable operands in the same \P MBB.
+  virtual bool hasReassociableOperands(const MachineInstr &Inst,
+                                       const MachineBasicBlock *MBB) const;
+
+  /// Return true when \P Inst has reassociable sibling.
+  bool hasReassociableSibling(const MachineInstr &Inst, bool &Commuted) const;
 
   /// When getMachineCombinerPatterns() finds patterns, this function generates
   /// the instructions that could replace the original code sequence. The client
@@ -742,12 +832,26 @@ public:
   /// \param InstrIdxForVirtReg - map of virtual register to instruction in
   /// InsInstr that defines it
   virtual void genAlternativeCodeSequence(
-      MachineInstr &Root, MachineCombinerPattern::MC_PATTERN Pattern,
+      MachineInstr &Root, MachineCombinerPattern Pattern,
       SmallVectorImpl<MachineInstr *> &InsInstrs,
       SmallVectorImpl<MachineInstr *> &DelInstrs,
-      DenseMap<unsigned, unsigned> &InstrIdxForVirtReg) const {
+      DenseMap<unsigned, unsigned> &InstrIdxForVirtReg) const;
+
+  /// Attempt to reassociate \P Root and \P Prev according to \P Pattern to
+  /// reduce critical path length.
+  void reassociateOps(MachineInstr &Root, MachineInstr &Prev,
+                      MachineCombinerPattern Pattern,
+                      SmallVectorImpl<MachineInstr *> &InsInstrs,
+                      SmallVectorImpl<MachineInstr *> &DelInstrs,
+                      DenseMap<unsigned, unsigned> &InstrIdxForVirtReg) const;
+
+  /// This is an architecture-specific helper function of reassociateOps.
+  /// Set special operand attributes for new instructions after reassociation.
+  virtual void setSpecialOperandAttr(MachineInstr &OldMI1, MachineInstr &OldMI2,
+                                     MachineInstr &NewMI1,
+                                     MachineInstr &NewMI2) const {
     return;
-  }
+  };
 
   /// Return true when a target supports MachineCombiner.
   virtual bool useMachineCombiner() const { return false; }
@@ -819,10 +923,6 @@ protected:
   }
 
 public:
-  /// Returns true for the specified load / store if folding is possible.
-  virtual bool canFoldMemoryOperand(const MachineInstr *MI,
-                                    ArrayRef<unsigned> Ops) const;
-
   /// unfoldMemoryOperand - Separate a single instruction which folded a load or
   /// a store or a load and a store into two or more instruction. If this is
   /// possible, returns true as well as the new instructions by reference.
@@ -1266,8 +1366,73 @@ public:
     return 5;
   }
 
+  /// Return an array that contains the ids of the target indices (used for the
+  /// TargetIndex machine operand) and their names.
+  ///
+  /// MIR Serialization is able to serialize only the target indices that are
+  /// defined by this method.
+  virtual ArrayRef<std::pair<int, const char *>>
+  getSerializableTargetIndices() const {
+    return None;
+  }
+
+  /// Decompose the machine operand's target flags into two values - the direct
+  /// target flag value and any of bit flags that are applied.
+  virtual std::pair<unsigned, unsigned>
+  decomposeMachineOperandsTargetFlags(unsigned /*TF*/) const {
+    return std::make_pair(0u, 0u);
+  }
+
+  /// Return an array that contains the direct target flag values and their
+  /// names.
+  ///
+  /// MIR Serialization is able to serialize only the target flags that are
+  /// defined by this method.
+  virtual ArrayRef<std::pair<unsigned, const char *>>
+  getSerializableDirectMachineOperandTargetFlags() const {
+    return None;
+  }
+
+  /// Return an array that contains the bitmask target flag values and their
+  /// names.
+  ///
+  /// MIR Serialization is able to serialize only the target flags that are
+  /// defined by this method.
+  virtual ArrayRef<std::pair<unsigned, const char *>>
+  getSerializableBitmaskMachineOperandTargetFlags() const {
+    return None;
+  }
+
 private:
   unsigned CallFrameSetupOpcode, CallFrameDestroyOpcode;
+  unsigned CatchRetOpcode;
+};
+
+/// \brief Provide DenseMapInfo for TargetInstrInfo::RegSubRegPair.
+template<>
+struct DenseMapInfo<TargetInstrInfo::RegSubRegPair> {
+  typedef DenseMapInfo<unsigned> RegInfo;
+
+  static inline TargetInstrInfo::RegSubRegPair getEmptyKey() {
+    return TargetInstrInfo::RegSubRegPair(RegInfo::getEmptyKey(),
+                         RegInfo::getEmptyKey());
+  }
+  static inline TargetInstrInfo::RegSubRegPair getTombstoneKey() {
+    return TargetInstrInfo::RegSubRegPair(RegInfo::getTombstoneKey(),
+                         RegInfo::getTombstoneKey());
+  }
+  /// \brief Reuse getHashValue implementation from
+  /// std::pair<unsigned, unsigned>.
+  static unsigned getHashValue(const TargetInstrInfo::RegSubRegPair &Val) {
+    std::pair<unsigned, unsigned> PairVal =
+        std::make_pair(Val.Reg, Val.SubReg);
+    return DenseMapInfo<std::pair<unsigned, unsigned>>::getHashValue(PairVal);
+  }
+  static bool isEqual(const TargetInstrInfo::RegSubRegPair &LHS,
+                      const TargetInstrInfo::RegSubRegPair &RHS) {
+    return RegInfo::isEqual(LHS.Reg, RHS.Reg) &&
+           RegInfo::isEqual(LHS.SubReg, RHS.SubReg);
+  }
 };
 
 } // End llvm namespace

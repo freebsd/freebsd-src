@@ -20,7 +20,6 @@
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/Core/ValueObjectRegister.h"
 #include "lldb/Core/ValueObjectMemory.h"
-#include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/UnwindPlan.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Process.h"
@@ -34,133 +33,91 @@
 using namespace lldb;
 using namespace lldb_private;
 
-enum gcc_dwarf_regnums
+enum dwarf_regnums
 {
-    gcc_dwarf_r0 = 0,
-    gcc_dwarf_r1,
-    gcc_dwarf_r2,
-    gcc_dwarf_r3,
-    gcc_dwarf_r4,
-    gcc_dwarf_r5,
-    gcc_dwarf_r6,
-    gcc_dwarf_r7,
-    gcc_dwarf_r8,
-    gcc_dwarf_r9,
-    gcc_dwarf_r10,
-    gcc_dwarf_r11,
-    gcc_dwarf_r12,
-    gcc_dwarf_r13,
-    gcc_dwarf_r14,
-    gcc_dwarf_r15,
-    gcc_dwarf_r16,
-    gcc_dwarf_r17,
-    gcc_dwarf_r18,
-    gcc_dwarf_r19,
-    gcc_dwarf_r20,
-    gcc_dwarf_r21,
-    gcc_dwarf_r22,
-    gcc_dwarf_r23,
-    gcc_dwarf_r24,
-    gcc_dwarf_r25,
-    gcc_dwarf_r26,
-    gcc_dwarf_r27,
-    gcc_dwarf_r28,
-    gcc_dwarf_r29,
-    gcc_dwarf_r30,
-    gcc_dwarf_r31,
-    gcc_dwarf_sr,
-    gcc_dwarf_lo,
-    gcc_dwarf_hi,
-    gcc_dwarf_bad,
-    gcc_dwarf_cause,
-    gcc_dwarf_pc
-};
-
-enum gdb_regnums
-{
-    gdb_r0 = 0,
-    gdb_r1,
-    gdb_r2,
-    gdb_r3,
-    gdb_r4,
-    gdb_r5,
-    gdb_r6,
-    gdb_r7,
-    gdb_r8,
-    gdb_r9,
-    gdb_r10,
-    gdb_r11,
-    gdb_r12,
-    gdb_r13,
-    gdb_r14,
-    gdb_r15,
-    gdb_r16,
-    gdb_r17,
-    gdb_r18,
-    gdb_r19,
-    gdb_r20,
-    gdb_r21,
-    gdb_r22,
-    gdb_r23,
-    gdb_r24,
-    gdb_r25,
-    gdb_r26,
-    gdb_r27,
-    gdb_r28,
-    gdb_r29,
-    gdb_r30,
-    gdb_r31,
-    gdb_sr,
-    gdb_lo,
-    gdb_hi,
-    gdb_bad,
-    gdb_cause,
-    gdb_pc
+    dwarf_r0 = 0,
+    dwarf_r1,
+    dwarf_r2,
+    dwarf_r3,
+    dwarf_r4,
+    dwarf_r5,
+    dwarf_r6,
+    dwarf_r7,
+    dwarf_r8,
+    dwarf_r9,
+    dwarf_r10,
+    dwarf_r11,
+    dwarf_r12,
+    dwarf_r13,
+    dwarf_r14,
+    dwarf_r15,
+    dwarf_r16,
+    dwarf_r17,
+    dwarf_r18,
+    dwarf_r19,
+    dwarf_r20,
+    dwarf_r21,
+    dwarf_r22,
+    dwarf_r23,
+    dwarf_r24,
+    dwarf_r25,
+    dwarf_r26,
+    dwarf_r27,
+    dwarf_r28,
+    dwarf_r29,
+    dwarf_r30,
+    dwarf_r31,
+    dwarf_sr,
+    dwarf_lo,
+    dwarf_hi,
+    dwarf_bad,
+    dwarf_cause,
+    dwarf_pc
 };
 
 static const RegisterInfo
 g_register_infos_mips64[] =
 {
-   //  NAME      ALT    SZ OFF ENCODING        FORMAT        COMPILER                DWARF                 GENERIC                   GDB           LLDB NATIVE       VALUE REGS  INVALIDATE REGS
-  //  ========  ======  == === =============  =================== ============ ===================== ==================== =================     ====================== ========== ===============
-    { "r0"    , "zero", 8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r0,      gcc_dwarf_r0,           LLDB_INVALID_REGNUM,        gdb_r0,     LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r1"    , "AT",   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r1,      gcc_dwarf_r1,           LLDB_INVALID_REGNUM,        gdb_r1,     LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r2"    , "v0",   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r2,      gcc_dwarf_r2,           LLDB_INVALID_REGNUM,        gdb_r2,     LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r3"    , "v1",   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r3,      gcc_dwarf_r3,           LLDB_INVALID_REGNUM,        gdb_r3,     LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r4"    , "arg1", 8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r4,      gcc_dwarf_r4,           LLDB_REGNUM_GENERIC_ARG1,   gdb_r4,     LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r5"    , "arg2", 8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r5,      gcc_dwarf_r5,           LLDB_REGNUM_GENERIC_ARG2,   gdb_r5,     LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r6"    , "arg3", 8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r6,      gcc_dwarf_r6,           LLDB_REGNUM_GENERIC_ARG3,   gdb_r6,     LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r7"    , "arg4", 8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r7,      gcc_dwarf_r7,           LLDB_REGNUM_GENERIC_ARG4,   gdb_r7,     LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r8"    , "arg5", 8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r8,      gcc_dwarf_r8,           LLDB_REGNUM_GENERIC_ARG5,   gdb_r8,     LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r9"    , "arg6", 8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r9,      gcc_dwarf_r9,           LLDB_REGNUM_GENERIC_ARG6,   gdb_r9,     LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r10"   , "arg7", 8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r10,     gcc_dwarf_r10,          LLDB_REGNUM_GENERIC_ARG7,   gdb_r10,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r11"   , "arg8", 8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r11,     gcc_dwarf_r11,          LLDB_REGNUM_GENERIC_ARG8,   gdb_r11,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r12"   , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r12,     gcc_dwarf_r12,          LLDB_INVALID_REGNUM,        gdb_r12,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r13"   , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r13,     gcc_dwarf_r13,          LLDB_INVALID_REGNUM,        gdb_r13,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r14"   , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r14,     gcc_dwarf_r14,          LLDB_INVALID_REGNUM,        gdb_r14,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r15"   , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r15,     gcc_dwarf_r15,          LLDB_INVALID_REGNUM,        gdb_r15,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r16"   , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r16,     gcc_dwarf_r16,          LLDB_INVALID_REGNUM,        gdb_r16,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r17"   , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r17,     gcc_dwarf_r17,          LLDB_INVALID_REGNUM,        gdb_r17,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r18"   , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r18,     gcc_dwarf_r18,          LLDB_INVALID_REGNUM,        gdb_r18,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r19"   , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r19,     gcc_dwarf_r19,          LLDB_INVALID_REGNUM,        gdb_r19,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r20"   , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r20,     gcc_dwarf_r20,          LLDB_INVALID_REGNUM,        gdb_r20,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r21"   , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r21,     gcc_dwarf_r21,          LLDB_INVALID_REGNUM,        gdb_r21,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r22"   , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r22,     gcc_dwarf_r22,          LLDB_INVALID_REGNUM,        gdb_r22,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r23"   , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r23,     gcc_dwarf_r23,          LLDB_INVALID_REGNUM,        gdb_r23,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r24"   , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r24,     gcc_dwarf_r24,          LLDB_INVALID_REGNUM,        gdb_r24,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r25"   , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r25,     gcc_dwarf_r25,          LLDB_INVALID_REGNUM,        gdb_r25,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r26"   , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r26,     gcc_dwarf_r26,          LLDB_INVALID_REGNUM,        gdb_r26,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r27"   , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r27,     gcc_dwarf_r27,          LLDB_INVALID_REGNUM,        gdb_r27,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r28"   , "gp",   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r28,     gcc_dwarf_r28,          LLDB_INVALID_REGNUM,        gdb_r28,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r29"   , "sp",   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r29,     gcc_dwarf_r29,          LLDB_REGNUM_GENERIC_SP,     gdb_r29,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r30"   , "fp",   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r30,     gcc_dwarf_r30,          LLDB_REGNUM_GENERIC_FP,     gdb_r30,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "r31"   , "ra",   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_r31,     gcc_dwarf_r31,          LLDB_REGNUM_GENERIC_RA,     gdb_r31,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "sr"    , NULL,   4,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_sr,      gcc_dwarf_sr,           LLDB_REGNUM_GENERIC_FLAGS,  gdb_sr,     LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "lo"    , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_lo,      gcc_dwarf_lo,           LLDB_INVALID_REGNUM,        gdb_lo,     LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "hi"    , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_hi,      gcc_dwarf_hi,           LLDB_INVALID_REGNUM,        gdb_hi,     LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "bad"   , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_bad,     gcc_dwarf_bad,          LLDB_INVALID_REGNUM,        gdb_bad,    LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "cause" , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_cause,   gcc_dwarf_cause,        LLDB_INVALID_REGNUM,        gdb_cause,  LLDB_INVALID_REGNUM },  NULL,      NULL},
-    { "pc"    , NULL,   8,  0, eEncodingUint, eFormatHex,  { gcc_dwarf_pc,      gcc_dwarf_pc,           LLDB_REGNUM_GENERIC_PC,     gdb_pc,     LLDB_INVALID_REGNUM },  NULL,      NULL},
+   //  NAME      ALT    SZ OFF ENCODING        FORMAT         EH_FRAME           DWARF                   GENERIC                     PROCESS PLUGIN          LLDB NATIVE            VALUE REGS INVALIDATE REGS
+  //  ========  ======  == === =============  ==========     =============      =================       ====================        =================       ====================    ========== ===============
+    { "r0"    , "zero", 8,  0, eEncodingUint, eFormatHex,  {     dwarf_r0,          dwarf_r0,           LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r1"    , "AT",   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r1,          dwarf_r1,           LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r2"    , "v0",   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r2,          dwarf_r2,           LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r3"    , "v1",   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r3,          dwarf_r3,           LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r4"    , "arg1", 8,  0, eEncodingUint, eFormatHex,  {     dwarf_r4,          dwarf_r4,           LLDB_REGNUM_GENERIC_ARG1,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r5"    , "arg2", 8,  0, eEncodingUint, eFormatHex,  {     dwarf_r5,          dwarf_r5,           LLDB_REGNUM_GENERIC_ARG2,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r6"    , "arg3", 8,  0, eEncodingUint, eFormatHex,  {     dwarf_r6,          dwarf_r6,           LLDB_REGNUM_GENERIC_ARG3,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r7"    , "arg4", 8,  0, eEncodingUint, eFormatHex,  {     dwarf_r7,          dwarf_r7,           LLDB_REGNUM_GENERIC_ARG4,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r8"    , "arg5", 8,  0, eEncodingUint, eFormatHex,  {     dwarf_r8,          dwarf_r8,           LLDB_REGNUM_GENERIC_ARG5,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r9"    , "arg6", 8,  0, eEncodingUint, eFormatHex,  {     dwarf_r9,          dwarf_r9,           LLDB_REGNUM_GENERIC_ARG6,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r10"   , "arg7", 8,  0, eEncodingUint, eFormatHex,  {     dwarf_r10,         dwarf_r10,          LLDB_REGNUM_GENERIC_ARG7,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r11"   , "arg8", 8,  0, eEncodingUint, eFormatHex,  {     dwarf_r11,         dwarf_r11,          LLDB_REGNUM_GENERIC_ARG8,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r12"   , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r12,         dwarf_r12,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r13"   , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r13,         dwarf_r13,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r14"   , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r14,         dwarf_r14,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r15"   , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r15,         dwarf_r15,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r16"   , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r16,         dwarf_r16,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r17"   , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r17,         dwarf_r17,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r18"   , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r18,         dwarf_r18,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r19"   , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r19,         dwarf_r19,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r20"   , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r20,         dwarf_r20,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r21"   , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r21,         dwarf_r21,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r22"   , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r22,         dwarf_r22,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r23"   , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r23,         dwarf_r23,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r24"   , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r24,         dwarf_r24,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r25"   , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r25,         dwarf_r25,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r26"   , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r26,         dwarf_r26,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r27"   , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r27,         dwarf_r27,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r28"   , "gp",   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r28,         dwarf_r28,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r29"   , "sp",   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r29,         dwarf_r29,          LLDB_REGNUM_GENERIC_SP,     LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r30"   , "fp",   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r30,         dwarf_r30,          LLDB_REGNUM_GENERIC_FP,     LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "r31"   , "ra",   8,  0, eEncodingUint, eFormatHex,  {     dwarf_r31,         dwarf_r31,          LLDB_REGNUM_GENERIC_RA,     LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "sr"    , NULL,   4,  0, eEncodingUint, eFormatHex,  {     dwarf_sr,          dwarf_sr,           LLDB_REGNUM_GENERIC_FLAGS,  LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "lo"    , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_lo,          dwarf_lo,           LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "hi"    , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_hi,          dwarf_hi,           LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "bad"   , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_bad,         dwarf_bad,          LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "cause" , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_cause,       dwarf_cause,        LLDB_INVALID_REGNUM,        LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
+    { "pc"    , NULL,   8,  0, eEncodingUint, eFormatHex,  {     dwarf_pc,          dwarf_pc,           LLDB_REGNUM_GENERIC_PC,     LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM },  NULL,      NULL},
 };
 
 static const uint32_t k_num_register_infos = llvm::array_lengthof(g_register_infos_mips64);
@@ -249,16 +206,28 @@ ABISysV_mips64::PrepareTrivialCall (Thread &thread,
     const RegisterInfo *pc_reg_info = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_PC);
     const RegisterInfo *sp_reg_info = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_SP);
     const RegisterInfo *ra_reg_info = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_RA);
+    const RegisterInfo *r25_info = reg_ctx->GetRegisterInfoByName("r25", 0);
+    const RegisterInfo *r0_info = reg_ctx->GetRegisterInfoByName("zero", 0);
 
     if (log)
-    log->Printf("Writing SP: 0x%" PRIx64, (uint64_t)sp);
+        log->Printf("Writing R0: 0x%" PRIx64, (uint64_t)0);
+
+    /* Write r0 with 0, in case we are stopped in syscall,
+     * such setting prevents automatic decrement of the PC.
+     * This clears the bug 23659 for MIPS.
+    */ 
+    if (!reg_ctx->WriteRegisterFromUnsigned (r0_info, (uint64_t)0))
+        return false;
+
+    if (log)
+        log->Printf("Writing SP: 0x%" PRIx64, (uint64_t)sp);
 
     // Set "sp" to the requested value
     if (!reg_ctx->WriteRegisterFromUnsigned (sp_reg_info, sp))
         return false;
 
     if (log)
-    log->Printf("Writing RA: 0x%" PRIx64, (uint64_t)return_addr);
+        log->Printf("Writing RA: 0x%" PRIx64, (uint64_t)return_addr);
 
     // Set "ra" to the return address
     if (!reg_ctx->WriteRegisterFromUnsigned (ra_reg_info, return_addr))
@@ -269,6 +238,13 @@ ABISysV_mips64::PrepareTrivialCall (Thread &thread,
 
     // Set pc to the address of the called function.
     if (!reg_ctx->WriteRegisterFromUnsigned (pc_reg_info, func_addr))
+        return false;
+
+    if (log)
+        log->Printf("Writing r25: 0x%" PRIx64, (uint64_t)func_addr);
+
+    // All callers of position independent functions must place the address of the called function in t9 (r25)
+    if (!reg_ctx->WriteRegisterFromUnsigned (r25_info, func_addr))
         return false;
 
     return true;
@@ -290,8 +266,8 @@ ABISysV_mips64::SetReturnValueObject(lldb::StackFrameSP &frame_sp, lldb::ValueOb
         return error;
     }
 
-    ClangASTType clang_type = new_value_sp->GetClangType();
-    if (!clang_type)
+    CompilerType compiler_type = new_value_sp->GetCompilerType();
+    if (!compiler_type)
     {
         error.SetErrorString ("Null clang type for return value.");
         return error;
@@ -313,7 +289,7 @@ ABISysV_mips64::SetReturnValueObject(lldb::StackFrameSP &frame_sp, lldb::ValueOb
         return error;
     }
 
-    const uint32_t type_flags = clang_type.GetTypeInfo (NULL);
+    const uint32_t type_flags = compiler_type.GetTypeInfo (NULL);
     
     if (type_flags & eTypeIsScalar ||
         type_flags & eTypeIsPointer)
@@ -368,42 +344,50 @@ ABISysV_mips64::SetReturnValueObject(lldb::StackFrameSP &frame_sp, lldb::ValueOb
 
 
 ValueObjectSP
-ABISysV_mips64::GetReturnValueObjectSimple (Thread &thread, ClangASTType &return_clang_type) const
+ABISysV_mips64::GetReturnValueObjectSimple (Thread &thread, CompilerType &return_compiler_type) const
 {
     ValueObjectSP return_valobj_sp;
     return return_valobj_sp;
 }
 
 ValueObjectSP
-ABISysV_mips64::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_clang_type) const
+ABISysV_mips64::GetReturnValueObjectImpl (Thread &thread, CompilerType &return_compiler_type) const
 {
     ValueObjectSP return_valobj_sp;
     Value value;
-
+    Error error;
+    
     ExecutionContext exe_ctx (thread.shared_from_this());
     if (exe_ctx.GetTargetPtr() == NULL || exe_ctx.GetProcessPtr() == NULL)
         return return_valobj_sp;
 
-    value.SetClangType(return_clang_type);
+    value.SetCompilerType(return_compiler_type);
 
     RegisterContext *reg_ctx = thread.GetRegisterContext().get();
     if (!reg_ctx)
         return return_valobj_sp;
 
-    const size_t byte_size = return_clang_type.GetByteSize(nullptr);
-    const uint32_t type_flags = return_clang_type.GetTypeInfo (NULL);
+    Target *target = exe_ctx.GetTargetPtr();
+    ByteOrder target_byte_order = target->GetArchitecture().GetByteOrder();
+    const size_t byte_size = return_compiler_type.GetByteSize(nullptr);
+    const uint32_t type_flags = return_compiler_type.GetTypeInfo (NULL);
+    
+    const RegisterInfo *r2_info = reg_ctx->GetRegisterInfoByName("r2", 0);
+    const RegisterInfo *r3_info = reg_ctx->GetRegisterInfoByName("r3", 0);
 
-    if (type_flags & eTypeIsScalar)
+    if (type_flags & eTypeIsScalar ||
+        type_flags & eTypeIsPointer)
     {
         value.SetValueType(Value::eValueTypeScalar);
 
         bool success = false;
-        if (type_flags & eTypeIsInteger)
+        if (type_flags & eTypeIsInteger ||
+            type_flags & eTypeIsPointer)
         {
             // Extract the register context so we can read arguments from registers
             // In MIPS register "r2" (v0) holds the integer function return values
 
-            uint64_t raw_value = reg_ctx->ReadRegisterAsUnsigned(reg_ctx->GetRegisterInfoByName("r2", 0), 0);
+            uint64_t raw_value = reg_ctx->ReadRegisterAsUnsigned(r2_info, 0);
 
             const bool is_signed = (type_flags & eTypeIsSigned) != 0;
             switch (byte_size)
@@ -444,25 +428,302 @@ ABISysV_mips64::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_c
                     break;
             }
         }
+        else if (type_flags & eTypeIsFloat)
+        {
+            if (type_flags & eTypeIsComplex)
+            {
+                // Don't handle complex yet.
+            }
+            else
+            {
+                if (byte_size <= sizeof(long double))
+                {
+                    const RegisterInfo *f0_info = reg_ctx->GetRegisterInfoByName("f0", 0);
+                    const RegisterInfo *f2_info = reg_ctx->GetRegisterInfoByName("f2", 0);
+                    RegisterValue f0_value, f2_value;
+                    DataExtractor f0_data, f2_data;
+                    
+                    reg_ctx->ReadRegister (f0_info, f0_value);
+                    reg_ctx->ReadRegister (f2_info, f2_value);
+                    
+                    f0_value.GetData(f0_data);
+                    f2_value.GetData(f2_data);
+
+                    lldb::offset_t offset = 0;
+                    if (byte_size == sizeof(float))
+                    {
+                        value.GetScalar() = (float) f0_data.GetFloat(&offset);
+                        success = true;
+                    }
+                    else if (byte_size == sizeof(double))
+                    {
+                        value.GetScalar() = (double) f0_data.GetDouble(&offset);
+                        success = true;
+                    }
+                    else if (byte_size == sizeof(long double))
+                    {
+                        DataExtractor *copy_from_extractor = NULL;
+                        DataBufferSP data_sp (new DataBufferHeap(16, 0));
+                        DataExtractor return_ext (data_sp, 
+                                                  target_byte_order, 
+                                                  target->GetArchitecture().GetAddressByteSize());
+
+                        if (target_byte_order == eByteOrderLittle)
+                        {
+                             f0_data.Append(f2_data);
+                             copy_from_extractor = &f0_data;
+                        }
+                        else
+                        {
+                            f2_data.Append(f0_data);
+                            copy_from_extractor = &f2_data;
+                        }
+
+                        copy_from_extractor->CopyByteOrderedData (0,
+                                                                  byte_size, 
+                                                                  data_sp->GetBytes(),
+                                                                  byte_size, 
+                                                                  target_byte_order);
+
+                        return_valobj_sp = ValueObjectConstResult::Create (&thread, 
+                                                                           return_compiler_type,
+                                                                           ConstString(""),
+                                                                           return_ext);
+                        return return_valobj_sp;
+
+                    }
+                }
+            }
+        }
 
         if (success)
         return_valobj_sp = ValueObjectConstResult::Create (thread.GetStackFrameAtIndex(0).get(),
                                                            value,
                                                            ConstString(""));
     }
-    else if (type_flags & eTypeIsPointer)
+    else if (type_flags & eTypeIsStructUnion ||
+             type_flags & eTypeIsClass ||
+             type_flags & eTypeIsVector)
     {
-        value.SetValueType(Value::eValueTypeScalar);
-        uint64_t raw_value = reg_ctx->ReadRegisterAsUnsigned(reg_ctx->GetRegisterInfoByName("r2", 0), 0);
-        value.GetScalar() = (uint64_t)(raw_value);
+        // Any structure of up to 16 bytes in size is returned in the registers.
+        if (byte_size <= 16)
+        {
+            DataBufferSP data_sp (new DataBufferHeap(16, 0));
+            DataExtractor return_ext (data_sp, 
+                                      target_byte_order, 
+                                      target->GetArchitecture().GetAddressByteSize());
 
-        return_valobj_sp = ValueObjectConstResult::Create (thread.GetStackFrameAtIndex(0).get(),
-                                                           value,
-                                                           ConstString(""));
-    }
-    else if (type_flags & eTypeIsVector)
-    {
-        // TODO: Handle vector types
+            RegisterValue r2_value, r3_value, f0_value, f1_value, f2_value;
+
+            uint32_t integer_bytes = 0;         // Tracks how much bytes of r2 and r3 registers we've consumed so far
+            bool use_fp_regs = 0;               // True if return values are in FP return registers.
+            bool found_non_fp_field = 0;        // True if we found any non floating point field in structure.
+            bool use_r2 = 0;                    // True if return values are in r2 register.
+            bool use_r3 = 0;                    // True if return values are in r3 register.
+            bool sucess = 0;                    // True if the result is copied into our data buffer
+            std::string name;
+            bool is_complex;
+            uint32_t count;
+            const uint32_t num_children = return_compiler_type.GetNumFields ();
+
+            // A structure consisting of one or two FP values (and nothing else) will be
+            // returned in the two FP return-value registers i.e fp0 and fp2.
+            if (num_children <= 2)
+            {
+                uint64_t field_bit_offset = 0;
+
+                // Check if this structure contains only floating point fields
+                for (uint32_t idx = 0; idx < num_children; idx++)
+                {
+                    CompilerType field_compiler_type = return_compiler_type.GetFieldAtIndex (idx, name, &field_bit_offset, NULL, NULL);
+                    
+                    if (field_compiler_type.IsFloatingPointType (count, is_complex))
+                        use_fp_regs = 1;
+                    else
+                        found_non_fp_field = 1;
+                }
+
+                if (use_fp_regs && !found_non_fp_field)
+                {
+                    // We have one or two FP-only values in this structure. Get it from f0/f2 registers.
+                    DataExtractor f0_data, f1_data, f2_data;
+                    const RegisterInfo *f0_info = reg_ctx->GetRegisterInfoByName("f0", 0);
+                    const RegisterInfo *f1_info = reg_ctx->GetRegisterInfoByName("f1", 0);
+                    const RegisterInfo *f2_info = reg_ctx->GetRegisterInfoByName("f2", 0);
+
+                    reg_ctx->ReadRegister (f0_info, f0_value);
+                    reg_ctx->ReadRegister (f2_info, f2_value);
+
+                    f0_value.GetData(f0_data);
+                    f2_value.GetData(f2_data);
+
+                    for (uint32_t idx = 0; idx < num_children; idx++)
+                    {
+                        CompilerType field_compiler_type = return_compiler_type.GetFieldAtIndex (idx, name, &field_bit_offset, NULL, NULL);
+                        const size_t field_byte_width = field_compiler_type.GetByteSize(nullptr);
+
+                        DataExtractor *copy_from_extractor = NULL;
+
+                        if (idx == 0)
+                        {
+                            if (field_byte_width == 16)                 // This case is for long double type.
+                            {
+                                // If structure contains long double type, then it is returned in fp0/fp1 registers.
+                                reg_ctx->ReadRegister (f1_info, f1_value);
+                                f1_value.GetData(f1_data);
+                                
+                                if (target_byte_order == eByteOrderLittle)
+                                {
+                                    f0_data.Append(f1_data);
+                                    copy_from_extractor = &f0_data;
+                                }
+                                else
+                                {
+                                    f1_data.Append(f0_data);
+                                    copy_from_extractor = &f1_data;
+                                }
+                            }
+                            else
+                                copy_from_extractor = &f0_data;        // This is in f0, copy from register to our result structure
+                        }
+                        else
+                            copy_from_extractor = &f2_data;        // This is in f2, copy from register to our result structure
+
+                        // Sanity check to avoid crash
+                        if (!copy_from_extractor || field_byte_width > copy_from_extractor->GetByteSize())
+                            return return_valobj_sp;
+
+                        // copy the register contents into our data buffer
+                        copy_from_extractor->CopyByteOrderedData (0,
+                                                                  field_byte_width, 
+                                                                  data_sp->GetBytes() + (field_bit_offset/8),
+                                                                  field_byte_width, 
+                                                                  target_byte_order);
+                    }
+
+                    // The result is in our data buffer.  Create a variable object out of it
+                    return_valobj_sp = ValueObjectConstResult::Create (&thread, 
+                                                                       return_compiler_type,
+                                                                       ConstString(""),
+                                                                       return_ext);
+
+                    return return_valobj_sp;
+                }
+            }
+
+            // If we reach here, it means this structure either contains more than two fields or 
+            // it contains at least one non floating point type.
+            // In that case, all fields are returned in GP return registers.
+            for (uint32_t idx = 0; idx < num_children; idx++)
+            {
+                uint64_t field_bit_offset = 0;
+                bool is_signed;
+                uint32_t padding;
+
+                CompilerType field_compiler_type = return_compiler_type.GetFieldAtIndex (idx, name, &field_bit_offset, NULL, NULL);
+                const size_t field_byte_width = field_compiler_type.GetByteSize(nullptr);
+
+                // if we don't know the size of the field (e.g. invalid type), just bail out
+                if (field_byte_width == 0)
+                    break;
+
+                uint32_t field_byte_offset = field_bit_offset/8;
+
+                if (field_compiler_type.IsIntegerType (is_signed)
+                    || field_compiler_type.IsPointerType ()
+                    || field_compiler_type.IsFloatingPointType (count, is_complex))
+                {
+                    padding = field_byte_offset - integer_bytes;
+
+                    if (integer_bytes < 8)
+                    {
+                        // We have not yet consumed r2 completely.
+                        if (integer_bytes + field_byte_width + padding <= 8)
+                        {
+                            // This field fits in r2, copy its value from r2 to our result structure
+                            integer_bytes = integer_bytes + field_byte_width + padding;  // Increase the consumed bytes.
+                            use_r2 = 1;
+                        }
+                        else
+                        {
+                            // There isn't enough space left in r2 for this field, so this will be in r3.
+                            integer_bytes = integer_bytes + field_byte_width + padding;  // Increase the consumed bytes.
+                            use_r3 = 1;
+                        }
+                    }
+                    // We already have consumed at-least 8 bytes that means r2 is done, and this field will be in r3.
+                    // Check if this field can fit in r3.
+                    else if (integer_bytes + field_byte_width + padding <= 16)
+                    {
+                        integer_bytes = integer_bytes + field_byte_width + padding;
+                        use_r3 = 1;
+                    }
+                    else
+                    {
+                        // There isn't any space left for this field, this should not happen as we have already checked
+                        // the overall size is not greater than 16 bytes. For now, return a NULL return value object.
+                        return return_valobj_sp;
+                    }
+                }
+            }
+            // Vector types upto 16 bytes are returned in GP return registers
+            if (type_flags & eTypeIsVector)
+            {
+                if (byte_size <= 8)
+                    use_r2 = 1;
+                else
+                {
+                    use_r2 = 1;
+                    use_r3 = 1;
+                }    
+            }
+
+            if (use_r2)
+            {
+                reg_ctx->ReadRegister (r2_info, r2_value);
+
+                const size_t bytes_copied = r2_value.GetAsMemoryData (r2_info,
+                                                                      data_sp->GetBytes(),
+                                                                      r2_info->byte_size,
+                                                                      target_byte_order,
+                                                                      error);
+                if (bytes_copied != r2_info->byte_size)
+                    return return_valobj_sp;
+                sucess = 1;
+            }
+            if (use_r3)
+            {
+                reg_ctx->ReadRegister (r3_info, r3_value);
+                const size_t bytes_copied = r3_value.GetAsMemoryData (r3_info,
+                                                                      data_sp->GetBytes() + r2_info->byte_size,
+                                                                      r3_info->byte_size,
+                                                                      target_byte_order,
+                                                                      error);                                                       
+                                                        
+                if (bytes_copied != r3_info->byte_size)
+                    return return_valobj_sp;
+                sucess = 1;
+            }
+            if (sucess)
+            {
+                // The result is in our data buffer.  Create a variable object out of it
+                return_valobj_sp = ValueObjectConstResult::Create (&thread, 
+                                                                   return_compiler_type,
+                                                                   ConstString(""),
+                                                                   return_ext);
+            }
+            return return_valobj_sp;
+        }
+
+        // Any structure/vector greater than 16 bytes in size is returned in memory.
+        // The pointer to that memory is returned in r2.
+        uint64_t mem_address = reg_ctx->ReadRegisterAsUnsigned(reg_ctx->GetRegisterInfoByName("r2", 0), 0);
+
+        // We have got the address. Create a memory object out of it
+        return_valobj_sp = ValueObjectMemory::Create (&thread,
+                                                      "",
+                                                      Address (mem_address, NULL),
+                                                      return_compiler_type);
     }
     return return_valobj_sp;
 }
@@ -476,17 +737,17 @@ ABISysV_mips64::CreateFunctionEntryUnwindPlan (UnwindPlan &unwind_plan)
     UnwindPlan::RowSP row(new UnwindPlan::Row);
 
     // Our Call Frame Address is the stack pointer value
-    row->GetCFAValue().SetIsRegisterPlusOffset(gcc_dwarf_r29, 0);
+    row->GetCFAValue().SetIsRegisterPlusOffset(dwarf_r29, 0);
 
     // The previous PC is in the RA
-    row->SetRegisterLocationToRegister(gcc_dwarf_pc, gcc_dwarf_r31, true);
+    row->SetRegisterLocationToRegister(dwarf_pc, dwarf_r31, true);
     unwind_plan.AppendRow (row);
 
     // All other registers are the same.
 
     unwind_plan.SetSourceName ("mips64 at-func-entry default");
     unwind_plan.SetSourcedFromCompiler (eLazyBoolNo);
-    unwind_plan.SetReturnAddressRegister(gcc_dwarf_r31);
+    unwind_plan.SetReturnAddressRegister(dwarf_r31);
     return true;
 }
 
@@ -498,9 +759,9 @@ ABISysV_mips64::CreateDefaultUnwindPlan (UnwindPlan &unwind_plan)
 
     UnwindPlan::RowSP row(new UnwindPlan::Row);
 
-    row->GetCFAValue().SetIsRegisterPlusOffset(gcc_dwarf_r29, 0);
+    row->GetCFAValue().SetIsRegisterPlusOffset(dwarf_r29, 0);
 
-    row->SetRegisterLocationToRegister(gcc_dwarf_pc, gcc_dwarf_r31, true);
+    row->SetRegisterLocationToRegister(dwarf_pc, dwarf_r31, true);
 
     unwind_plan.AppendRow (row);
     unwind_plan.SetSourceName ("mips64 default unwind plan");

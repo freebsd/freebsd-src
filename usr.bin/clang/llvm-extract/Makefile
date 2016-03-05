@@ -7,9 +7,9 @@ PROG_CXX=llvm-extract
 SRCDIR=	tools/llvm-extract
 SRCS=	llvm-extract.cpp
 
-LIBDEPS=llvmirreader \
-	llvmasmparser \
-	llvmbitwriter \
+TGHDRS=	Attributes
+
+LIBDEPS=llvmbitwriter \
 	llvmipo \
 	llvmvectorize \
 	llvmscalaropts \
@@ -17,10 +17,12 @@ LIBDEPS=llvmirreader \
 	llvmobject \
 	llvmmcparser \
 	llvmmc \
+	llvmlinker \
+	llvmirreader \
 	llvmbitreader \
+	llvmasmparser \
 	llvminstcombine \
 	llvmtransformutils \
-	llvmipa \
 	llvmanalysis \
 	llvmcore \
 	llvmsupport

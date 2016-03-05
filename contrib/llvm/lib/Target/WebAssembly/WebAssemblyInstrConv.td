@@ -13,32 +13,99 @@
 ///
 //===----------------------------------------------------------------------===//
 
-/*
- * TODO(jfb): Add the following.
- *
- * int32.wrap[int64]: wrap a 64-bit integer to a 32-bit integer
- * int32.trunc_signed[float32]: truncate a 32-bit float to a signed 32-bit integer
- * int32.trunc_signed[float64]: truncate a 64-bit float to a signed 32-bit integer
- * int32.trunc_unsigned[float32]: truncate a 32-bit float to an unsigned 32-bit integer
- * int32.trunc_unsigned[float64]: truncate a 64-bit float to an unsigned 32-bit integer
- * int32.reinterpret[float32]: reinterpret the bits of a 32-bit float as a 32-bit integer
- * int64.extend_signed[int32]: extend a signed 32-bit integer to a 64-bit integer
- * int64.extend_unsigned[int32]: extend an unsigned 32-bit integer to a 64-bit integer
- * int64.trunc_signed[float32]: truncate a 32-bit float to a signed 64-bit integer
- * int64.trunc_signed[float64]: truncate a 64-bit float to a signed 64-bit integer
- * int64.trunc_unsigned[float32]: truncate a 32-bit float to an unsigned 64-bit integer
- * int64.trunc_unsigned[float64]: truncate a 64-bit float to an unsigned 64-bit integer
- * int64.reinterpret[float64]: reinterpret the bits of a 64-bit float as a 64-bit integer
- * float32.demote[float64]: demote a 64-bit float to a 32-bit float
- * float32.cvt_signed[int32]: convert a signed 32-bit integer to a 32-bit float
- * float32.cvt_signed[int64]: convert a signed 64-bit integer to a 32-bit float
- * float32.cvt_unsigned[int32]: convert an unsigned 32-bit integer to a 32-bit float
- * float32.cvt_unsigned[int64]: convert an unsigned 64-bit integer to a 32-bit float
- * float32.reinterpret[int32]: reinterpret the bits of a 32-bit integer as a 32-bit float
- * float64.promote[float32]: promote a 32-bit float to a 64-bit float
- * float64.cvt_signed[int32]: convert a signed 32-bit integer to a 64-bit float
- * float64.cvt_signed[int64]: convert a signed 64-bit integer to a 64-bit float
- * float64.cvt_unsigned[int32]: convert an unsigned 32-bit integer to a 64-bit float
- * float64.cvt_unsigned[int64]: convert an unsigned 64-bit integer to a 64-bit float
- * float64.reinterpret[int64]: reinterpret the bits of a 64-bit integer as a 64-bit float
- */
+let Defs = [ARGUMENTS] in {
+
+def I32_WRAP_I64 : I<(outs I32:$dst), (ins I64:$src),
+                      [(set I32:$dst, (trunc I64:$src))],
+                      "i32.wrap/i64\t$dst, $src">;
+
+def I64_EXTEND_S_I32 : I<(outs I64:$dst), (ins I32:$src),
+                          [(set I64:$dst, (sext I32:$src))],
+                          "i64.extend_s/i32\t$dst, $src">;
+def I64_EXTEND_U_I32 : I<(outs I64:$dst), (ins I32:$src),
+                         [(set I64:$dst, (zext I32:$src))],
+                         "i64.extend_u/i32\t$dst, $src">;
+
+} // defs = [ARGUMENTS]
+
+// Expand a "don't care" extend into zero-extend (chosen over sign-extend
+// somewhat arbitrarily, although it favors popular hardware architectures
+// and is conceptually a simpler operation).
+def : Pat<(i64 (anyext I32:$src)), (I64_EXTEND_U_I32 I32:$src)>;
+
+let Defs = [ARGUMENTS] in {
+
+// Conversion from floating point to integer traps on overflow and invalid.
+let hasSideEffects = 1 in {
+def I32_TRUNC_S_F32 : I<(outs I32:$dst), (ins F32:$src),
+                        [(set I32:$dst, (fp_to_sint F32:$src))],
+                        "i32.trunc_s/f32\t$dst, $src">;
+def I32_TRUNC_U_F32 : I<(outs I32:$dst), (ins F32:$src),
+                        [(set I32:$dst, (fp_to_uint F32:$src))],
+                        "i32.trunc_u/f32\t$dst, $src">;
+def I64_TRUNC_S_F32 : I<(outs I64:$dst), (ins F32:$src),
+                        [(set I64:$dst, (fp_to_sint F32:$src))],
+                        "i64.trunc_s/f32\t$dst, $src">;
+def I64_TRUNC_U_F32 : I<(outs I64:$dst), (ins F32:$src),
+                        [(set I64:$dst, (fp_to_uint F32:$src))],
+                        "i64.trunc_u/f32\t$dst, $src">;
+def I32_TRUNC_S_F64 : I<(outs I32:$dst), (ins F64:$src),
+                        [(set I32:$dst, (fp_to_sint F64:$src))],
+                        "i32.trunc_s/f64\t$dst, $src">;
+def I32_TRUNC_U_F64 : I<(outs I32:$dst), (ins F64:$src),
+                        [(set I32:$dst, (fp_to_uint F64:$src))],
+                        "i32.trunc_u/f64\t$dst, $src">;
+def I64_TRUNC_S_F64 : I<(outs I64:$dst), (ins F64:$src),
+                        [(set I64:$dst, (fp_to_sint F64:$src))],
+                        "i64.trunc_s/f64\t$dst, $src">;
+def I64_TRUNC_U_F64 : I<(outs I64:$dst), (ins F64:$src),
+                        [(set I64:$dst, (fp_to_uint F64:$src))],
+                        "i64.trunc_u/f64\t$dst, $src">;
+} // hasSideEffects = 1
+
+def F32_CONVERT_S_I32 : I<(outs F32:$dst), (ins I32:$src),
+                          [(set F32:$dst, (sint_to_fp I32:$src))],
+                          "f32.convert_s/i32\t$dst, $src">;
+def F32_CONVERT_U_I32 : I<(outs F32:$dst), (ins I32:$src),
+                          [(set F32:$dst, (uint_to_fp I32:$src))],
+                          "f32.convert_u/i32\t$dst, $src">;
+def F64_CONVERT_S_I32 : I<(outs F64:$dst), (ins I32:$src),
+                          [(set F64:$dst, (sint_to_fp I32:$src))],
+                          "f64.convert_s/i32\t$dst, $src">;
+def F64_CONVERT_U_I32 : I<(outs F64:$dst), (ins I32:$src),
+                          [(set F64:$dst, (uint_to_fp I32:$src))],
+                          "f64.convert_u/i32\t$dst, $src">;
+def F32_CONVERT_S_I64 : I<(outs F32:$dst), (ins I64:$src),
+                          [(set F32:$dst, (sint_to_fp I64:$src))],
+                          "f32.convert_s/i64\t$dst, $src">;
+def F32_CONVERT_U_I64 : I<(outs F32:$dst), (ins I64:$src),
+                          [(set F32:$dst, (uint_to_fp I64:$src))],
+                          "f32.convert_u/i64\t$dst, $src">;
+def F64_CONVERT_S_I64 : I<(outs F64:$dst), (ins I64:$src),
+                          [(set F64:$dst, (sint_to_fp I64:$src))],
+                          "f64.convert_s/i64\t$dst, $src">;
+def F64_CONVERT_U_I64 : I<(outs F64:$dst), (ins I64:$src),
+                          [(set F64:$dst, (uint_to_fp I64:$src))],
+                          "f64.convert_u/i64\t$dst, $src">;
+
+def F64_PROMOTE_F32 : I<(outs F64:$dst), (ins F32:$src),
+                        [(set F64:$dst, (fextend F32:$src))],
+                        "f64.promote/f32\t$dst, $src">;
+def F32_DEMOTE_F64 : I<(outs F32:$dst), (ins F64:$src),
+                       [(set F32:$dst, (fround F64:$src))],
+                       "f32.demote/f64\t$dst, $src">;
+
+def I32_REINTERPRET_F32 : I<(outs I32:$dst), (ins F32:$src),
+                            [(set I32:$dst, (bitconvert F32:$src))],
+                            "i32.reinterpret/f32\t$dst, $src">;
+def F32_REINTERPRET_I32 : I<(outs F32:$dst), (ins I32:$src),
+                            [(set F32:$dst, (bitconvert I32:$src))],
+                            "f32.reinterpret/i32\t$dst, $src">;
+def I64_REINTERPRET_F64 : I<(outs I64:$dst), (ins F64:$src),
+                            [(set I64:$dst, (bitconvert F64:$src))],
+                            "i64.reinterpret/f64\t$dst, $src">;
+def F64_REINTERPRET_I64 : I<(outs F64:$dst), (ins I64:$src),
+                            [(set F64:$dst, (bitconvert I64:$src))],
+                            "f64.reinterpret/i64\t$dst, $src">;
+
+} // Defs = [ARGUMENTS]

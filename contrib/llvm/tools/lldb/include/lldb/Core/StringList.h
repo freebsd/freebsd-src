@@ -10,18 +10,24 @@
 #ifndef liblldb_StringList_h_
 #define liblldb_StringList_h_
 
+// C Includes
 #include <stdint.h>
 
-#include "lldb/Core/STLUtils.h"
-#include "lldb/lldb-forward.h"
+// C++ Includes
+#include <string>
+
+// Other libraries and framework includes
 #include "llvm/ADT/StringRef.h"
+
+// Project includes
+#include "lldb/lldb-forward.h"
+#include "lldb/Core/STLUtils.h"
 
 namespace lldb_private {
 
 class StringList
 {
 public:
-
     StringList ();
 
     StringList (const char *str);
@@ -120,15 +126,22 @@ public:
     SplitIntoLines (const char *lines, size_t len);
     
     std::string
-    CopyList(const char* item_preamble = NULL,
+    CopyList(const char* item_preamble = nullptr,
              const char* items_sep = "\n") const;
     
     StringList&
     operator << (const char* str);
 
     StringList&
+    operator << (const std::string &s);
+
+    StringList&
     operator << (StringList strings);
     
+    // Copy assignment for a vector of strings
+    StringList&
+    operator = (const std::vector<std::string> &rhs);
+
     // This string list contains a list of valid auto completion
     // strings, and the "s" is passed in. "matches" is filled in
     // with zero or more string values that start with "s", and
@@ -141,8 +154,24 @@ public:
                   StringList &matches,
                   size_t &exact_matches_idx) const;
 
-private:
+    // Dump the StringList to the given lldb_private::Log, `log`, one item per line.
+    // If given, `name` will be used to identify the start and end of the list in the output.
+    virtual void LogDump(Log *log, const char *name = nullptr);
 
+    // Static helper to convert an iterable of strings to a StringList, and then
+    // dump it with the semantics of the `LogDump` method.
+    template<typename T> static void LogDump(Log *log, T s_iterable, const char *name = nullptr)
+    {
+        if (!log)
+            return;
+        // Make a copy of the iterable as a StringList
+        StringList l{};
+        for (const auto &s : s_iterable)
+            l << s;
+
+        l.LogDump(log, name);
+    }
+private:
     STLStringArray m_strings;
 };
 

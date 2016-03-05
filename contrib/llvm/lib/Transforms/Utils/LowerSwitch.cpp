@@ -49,8 +49,7 @@ namespace {
     return I != Ranges.end() && I->Low <= R.Low;
   }
 
-  /// LowerSwitch Pass - Replace all SwitchInst instructions with chained branch
-  /// instructions.
+  /// Replace all SwitchInst instructions with chained branch instructions.
   class LowerSwitch : public FunctionPass {
   public:
     static char ID; // Pass identification, replacement for typeid
@@ -78,7 +77,7 @@ namespace {
     typedef std::vector<CaseRange> CaseVector;
     typedef std::vector<CaseRange>::iterator CaseItr;
   private:
-    void processSwitchInst(SwitchInst *SI);
+    void processSwitchInst(SwitchInst *SI, SmallPtrSetImpl<BasicBlock*> &DeleteList);
 
     BasicBlock *switchConvert(CaseItr Begin, CaseItr End,
                               ConstantInt *LowerBound, ConstantInt *UpperBound,
@@ -116,21 +115,30 @@ FunctionPass *llvm::createLowerSwitchPass() {
 
 bool LowerSwitch::runOnFunction(Function &F) {
   bool Changed = false;
+  SmallPtrSet<BasicBlock*, 8> DeleteList;
 
   for (Function::iterator I = F.begin(), E = F.end(); I != E; ) {
-    BasicBlock *Cur = I++; // Advance over block so we don't traverse new blocks
+    BasicBlock *Cur = &*I++; // Advance over block so we don't traverse new blocks
+
+    // If the block is a dead Default block that will be deleted later, don't
+    // waste time processing it.
+    if (DeleteList.count(Cur))
+      continue;
 
     if (SwitchInst *SI = dyn_cast<SwitchInst>(Cur->getTerminator())) {
       Changed = true;
-      processSwitchInst(SI);
+      processSwitchInst(SI, DeleteList);
     }
+  }
+
+  for (BasicBlock* BB: DeleteList) {
+    DeleteDeadBlock(BB);
   }
 
   return Changed;
 }
 
-// operator<< - Used for debugging purposes.
-//
+/// Used for debugging purposes.
 static raw_ostream& operator<<(raw_ostream &O,
                                const LowerSwitch::CaseVector &C)
     LLVM_ATTRIBUTE_USED;
@@ -147,23 +155,24 @@ static raw_ostream& operator<<(raw_ostream &O,
   return O << "]";
 }
 
-// \brief Update the first occurrence of the "switch statement" BB in the PHI
-// node with the "new" BB. The other occurrences will:
-//
-// 1) Be updated by subsequent calls to this function.  Switch statements may
-// have more than one outcoming edge into the same BB if they all have the same
-// value. When the switch statement is converted these incoming edges are now
-// coming from multiple BBs.
-// 2) Removed if subsequent incoming values now share the same case, i.e.,
-// multiple outcome edges are condensed into one. This is necessary to keep the
-// number of phi values equal to the number of branches to SuccBB.
+/// \brief Update the first occurrence of the "switch statement" BB in the PHI
+/// node with the "new" BB. The other occurrences will:
+///
+/// 1) Be updated by subsequent calls to this function.  Switch statements may
+/// have more than one outcoming edge into the same BB if they all have the same
+/// value. When the switch statement is converted these incoming edges are now
+/// coming from multiple BBs.
+/// 2) Removed if subsequent incoming values now share the same case, i.e.,
+/// multiple outcome edges are condensed into one. This is necessary to keep the
+/// number of phi values equal to the number of branches to SuccBB.
 static void fixPhis(BasicBlock *SuccBB, BasicBlock *OrigBB, BasicBlock *NewBB,
                     unsigned NumMergedCases) {
-  for (BasicBlock::iterator I = SuccBB->begin(), IE = SuccBB->getFirstNonPHI();
+  for (BasicBlock::iterator I = SuccBB->begin(),
+                            IE = SuccBB->getFirstNonPHI()->getIterator();
        I != IE; ++I) {
     PHINode *PN = cast<PHINode>(I);
 
-    // Only update the first occurence.
+    // Only update the first occurrence.
     unsigned Idx = 0, E = PN->getNumIncomingValues();
     unsigned LocalNumMergedCases = NumMergedCases;
     for (; Idx != E; ++Idx) {
@@ -173,7 +182,7 @@ static void fixPhis(BasicBlock *SuccBB, BasicBlock *OrigBB, BasicBlock *NewBB,
       }
     }
 
-    // Remove additional occurences coming from condensed cases and keep the
+    // Remove additional occurrences coming from condensed cases and keep the
     // number of incoming values equal to the number of branches to SuccBB.
     SmallVector<unsigned, 8> Indices;
     for (++Idx; LocalNumMergedCases > 0 && Idx < E; ++Idx)
@@ -188,11 +197,11 @@ static void fixPhis(BasicBlock *SuccBB, BasicBlock *OrigBB, BasicBlock *NewBB,
   }
 }
 
-// switchConvert - Convert the switch statement into a binary lookup of
-// the case values. The function recursively builds this tree.
-// LowerBound and UpperBound are used to keep track of the bounds for Val
-// that have already been checked by a block emitted by one of the previous
-// calls to switchConvert in the call stack.
+/// Convert the switch statement into a binary lookup of the case values.
+/// The function recursively builds this tree. LowerBound and UpperBound are
+/// used to keep track of the bounds for Val that have already been checked by
+/// a block emitted by one of the previous calls to switchConvert in the call
+/// stack.
 BasicBlock *
 LowerSwitch::switchConvert(CaseItr Begin, CaseItr End, ConstantInt *LowerBound,
                            ConstantInt *UpperBound, Value *Val,
@@ -278,28 +287,24 @@ LowerSwitch::switchConvert(CaseItr Begin, CaseItr End, ConstantInt *LowerBound,
                                       UpperBound, Val, NewNode, OrigBlock,
                                       Default, UnreachableRanges);
 
-  Function::iterator FI = OrigBlock;
-  F->getBasicBlockList().insert(++FI, NewNode);
+  F->getBasicBlockList().insert(++OrigBlock->getIterator(), NewNode);
   NewNode->getInstList().push_back(Comp);
 
   BranchInst::Create(LBranch, RBranch, Comp, NewNode);
   return NewNode;
 }
 
-// newLeafBlock - Create a new leaf block for the binary lookup tree. It
-// checks if the switch's value == the case's value. If not, then it
-// jumps to the default branch. At this point in the tree, the value
-// can't be another valid case value, so the jump to the "default" branch
-// is warranted.
-//
+/// Create a new leaf block for the binary lookup tree. It checks if the
+/// switch's value == the case's value. If not, then it jumps to the default
+/// branch. At this point in the tree, the value can't be another valid case
+/// value, so the jump to the "default" branch is warranted.
 BasicBlock* LowerSwitch::newLeafBlock(CaseRange& Leaf, Value* Val,
                                       BasicBlock* OrigBlock,
                                       BasicBlock* Default)
 {
   Function* F = OrigBlock->getParent();
   BasicBlock* NewLeaf = BasicBlock::Create(Val->getContext(), "LeafBlock");
-  Function::iterator FI = OrigBlock;
-  F->getBasicBlockList().insert(++FI, NewLeaf);
+  F->getBasicBlockList().insert(++OrigBlock->getIterator(), NewLeaf);
 
   // Emit comparison
   ICmpInst* Comp = nullptr;
@@ -352,7 +357,7 @@ BasicBlock* LowerSwitch::newLeafBlock(CaseRange& Leaf, Value* Val,
   return NewLeaf;
 }
 
-// Clusterify - Transform simple list of Cases into list of CaseRange's
+/// Transform simple list of Cases into list of CaseRange's.
 unsigned LowerSwitch::Clusterify(CaseVector& Cases, SwitchInst *SI) {
   unsigned numCmps = 0;
 
@@ -394,10 +399,10 @@ unsigned LowerSwitch::Clusterify(CaseVector& Cases, SwitchInst *SI) {
   return numCmps;
 }
 
-// processSwitchInst - Replace the specified switch instruction with a sequence
-// of chained if-then insts in a balanced binary search.
-//
-void LowerSwitch::processSwitchInst(SwitchInst *SI) {
+/// Replace the specified switch instruction with a sequence of chained if-then
+/// insts in a balanced binary search.
+void LowerSwitch::processSwitchInst(SwitchInst *SI,
+                                    SmallPtrSetImpl<BasicBlock*> &DeleteList) {
   BasicBlock *CurBlock = SI->getParent();
   BasicBlock *OrigBlock = CurBlock;
   Function *F = CurBlock->getParent();
@@ -424,7 +429,7 @@ void LowerSwitch::processSwitchInst(SwitchInst *SI) {
   std::vector<IntRange> UnreachableRanges;
 
   if (isa<UnreachableInst>(Default->getFirstNonPHIOrDbg())) {
-    // Make the bounds tightly fitted around the case value range, becase we
+    // Make the bounds tightly fitted around the case value range, because we
     // know that the value passed to the switch must be exactly one of the case
     // values.
     assert(!Cases.empty());
@@ -495,7 +500,7 @@ void LowerSwitch::processSwitchInst(SwitchInst *SI) {
   // Create a new, empty default block so that the new hierarchy of
   // if-then statements go to this and the PHI nodes are happy.
   BasicBlock *NewDefault = BasicBlock::Create(SI->getContext(), "NewDefault");
-  F->getBasicBlockList().insert(Default, NewDefault);
+  F->getBasicBlockList().insert(Default->getIterator(), NewDefault);
   BranchInst::Create(Default, NewDefault);
 
   // If there is an entry in any PHI nodes for the default edge, make sure
@@ -518,7 +523,7 @@ void LowerSwitch::processSwitchInst(SwitchInst *SI) {
   BasicBlock *OldDefault = SI->getDefaultDest();
   CurBlock->getInstList().erase(SI);
 
-  // If the Default block has no more predecessors just remove it.
+  // If the Default block has no more predecessors just add it to DeleteList.
   if (pred_begin(OldDefault) == pred_end(OldDefault))
-    DeleteDeadBlock(OldDefault);
+    DeleteList.insert(OldDefault);
 }

@@ -34,13 +34,24 @@ class SocketAddress;
 class ConnectionFileDescriptor : public Connection
 {
   public:
+    static const char* LISTEN_SCHEME;
+    static const char* ACCEPT_SCHEME;
+    static const char* UNIX_ACCEPT_SCHEME;
+    static const char* CONNECT_SCHEME;
+    static const char* TCP_CONNECT_SCHEME;
+    static const char* UDP_SCHEME;
+    static const char* UNIX_CONNECT_SCHEME;
+    static const char* UNIX_ABSTRACT_CONNECT_SCHEME;
+    static const char* FD_SCHEME;
+    static const char* FILE_SCHEME;
+
     ConnectionFileDescriptor(bool child_processes_inherit = false);
 
     ConnectionFileDescriptor(int fd, bool owns_fd);
 
     ConnectionFileDescriptor(Socket* socket);
 
-    virtual ~ConnectionFileDescriptor();
+    ~ConnectionFileDescriptor() override;
 
     bool IsConnected() const override;
 
@@ -83,6 +94,8 @@ class ConnectionFileDescriptor : public Connection
     lldb::ConnectionStatus NamedSocketConnect(const char *socket_name, Error *error_ptr);
 
     lldb::ConnectionStatus NamedSocketAccept(const char *socket_name, Error *error_ptr);
+
+    lldb::ConnectionStatus UnixAbstractSocketConnect(const char *socket_name, Error *error_ptr);
 
     lldb::IOObjectSP m_read_sp;
     lldb::IOObjectSP m_write_sp;

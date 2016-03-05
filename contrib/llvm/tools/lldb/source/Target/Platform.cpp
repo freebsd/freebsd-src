@@ -26,6 +26,7 @@
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
+#include "lldb/Core/StreamFile.h"
 #include "lldb/Core/StructuredData.h"
 #include "lldb/Host/FileSpec.h"
 #include "lldb/Host/FileSystem.h"
@@ -39,8 +40,10 @@
 #include "lldb/Target/UnixSignals.h"
 #include "lldb/Utility/Utils.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
 
 #include "Utility/ModuleCache.h"
+
 
 // Define these constants from POSIX mman.h rather than include the file
 // so that they will be correct even when compiled on Linux.
@@ -99,13 +102,17 @@ PlatformProperties::PlatformProperties ()
     m_collection_sp->Initialize (g_properties);
 
     auto module_cache_dir = GetModuleCacheDirectory ();
-    if (!module_cache_dir)
-    {
-        if (!HostInfo::GetLLDBPath (ePathTypeGlobalLLDBTempSystemDir, module_cache_dir))
-            module_cache_dir = FileSpec ("/tmp/lldb", false);
-        module_cache_dir.AppendPathComponent ("module_cache");
-        SetModuleCacheDirectory (module_cache_dir);
-    }
+    if (module_cache_dir)
+        return;
+
+    llvm::SmallString<64> user_home_dir;
+    if (!llvm::sys::path::home_directory (user_home_dir))
+        return;
+
+    module_cache_dir = FileSpec (user_home_dir.c_str(), false);
+    module_cache_dir.AppendPathComponent (".lldb");
+    module_cache_dir.AppendPathComponent ("module_cache");
+    SetModuleCacheDirectory (module_cache_dir);
 }
 
 bool
@@ -272,8 +279,11 @@ Platform::GetSharedModule (const ModuleSpec &module_spec,
                                   module_sp,
                                   [&](const ModuleSpec &spec)
                                   {
-                                      return ModuleList::GetSharedModule (
+                                      Error error = ModuleList::GetSharedModule (
                                           spec, module_sp, module_search_paths_ptr, old_module_sp_ptr, did_create_ptr, false);
+                                      if (error.Success() && module_sp)
+                                          module_sp->SetPlatformFileSpec(spec.GetFileSpec());
+                                      return error;
                                   },
                                   did_create_ptr);
 }
@@ -466,7 +476,11 @@ Platform::GetStatus (Stream &strm)
     if (arch.IsValid())
     {
         if (!arch.GetTriple().str().empty())
-        strm.Printf("    Triple: %s\n", arch.GetTriple().str().c_str());        
+        {
+            strm.Printf("    Triple: ");
+            arch.DumpTriple(strm);
+            strm.EOL();
+        }
     }
 
     if (GetOSVersion(major, minor, update))
@@ -515,7 +529,8 @@ Platform::GetStatus (Stream &strm)
 bool
 Platform::GetOSVersion (uint32_t &major, 
                         uint32_t &minor, 
-                        uint32_t &update)
+                        uint32_t &update,
+                        Process *process)
 {
     Mutex::Locker locker (m_mutex);
 
@@ -565,6 +580,12 @@ Platform::GetOSVersion (uint32_t &major,
         major = m_major_os_version;
         minor = m_minor_os_version;
         update = m_update_os_version;
+    }
+    else if (process)
+    {
+        // Check with the process in case it can answer the question if
+        // a process was provided
+        return process->GetHostOSVersion(major, minor, update);
     }
     return success;
 }
@@ -945,6 +966,12 @@ Platform::GetHostname ()
     if (m_name.empty())        
         return NULL;
     return m_name.c_str();
+}
+
+ConstString
+Platform::GetFullNameForDylib (ConstString basename)
+{
+    return basename;
 }
 
 bool
@@ -1811,7 +1838,7 @@ Platform::GetRemoteSharedModule (const ModuleSpec &module_spec,
     {
         // Try to get module information from the process
         if (process->GetModuleSpec (module_spec.GetFileSpec (), module_spec.GetArchitecture (), resolved_module_spec))
-          got_module_spec = true;
+            got_module_spec = true;
     }
 
     if (!got_module_spec)
@@ -1838,7 +1865,8 @@ Platform::GetCachedSharedModule (const ModuleSpec &module_spec,
                                  bool *did_create_ptr)
 {
     if (IsHost() ||
-        !GetGlobalPlatformProperties ()->GetUseModuleCache ())
+        !GetGlobalPlatformProperties ()->GetUseModuleCache () ||
+        !GetGlobalPlatformProperties ()->GetModuleCacheDirectory ())
         return false;
 
     Log *log = GetLogIfAnyCategoriesSet (LIBLLDB_LOG_PLATFORM);
@@ -1848,13 +1876,17 @@ Platform::GetCachedSharedModule (const ModuleSpec &module_spec,
         GetModuleCacheRoot (),
         GetCacheHostname (),
         module_spec,
-        [=](const ModuleSpec &module_spec, const FileSpec &tmp_download_file_spec)
+        [this](const ModuleSpec &module_spec, const FileSpec &tmp_download_file_spec)
         {
             return DownloadModuleSlice (module_spec.GetFileSpec (),
                                         module_spec.GetObjectOffset (),
                                         module_spec.GetObjectSize (),
                                         tmp_download_file_spec);
 
+        },
+        [this](const ModuleSP& module_sp, const FileSpec& tmp_download_file_spec)
+        {
+            return DownloadSymbolFile (module_sp, tmp_download_file_spec);
         },
         module_sp,
         did_create_ptr);
@@ -1918,6 +1950,12 @@ Platform::DownloadModuleSlice (const FileSpec& src_file_spec,
     return error;
 }
 
+Error
+Platform::DownloadSymbolFile (const lldb::ModuleSP& module_sp, const FileSpec& dst_file_spec)
+{
+    return Error ("Symbol file downloading not supported by the default platform.");
+}
+
 FileSpec
 Platform::GetModuleCacheRoot ()
 {
@@ -1945,4 +1983,107 @@ Platform::GetUnixSignals()
     if (IsHost())
         return Host::GetUnixSignals();
     return GetRemoteUnixSignals();
+}
+
+uint32_t
+Platform::LoadImage(lldb_private::Process* process,
+                    const lldb_private::FileSpec& local_file,
+                    const lldb_private::FileSpec& remote_file,
+                    lldb_private::Error& error)
+{
+    if (local_file && remote_file)
+    {
+        // Both local and remote file was specified. Install the local file to the given location.
+        if (IsRemote() || local_file != remote_file)
+        {
+            error = Install(local_file, remote_file);
+            if (error.Fail())
+                return LLDB_INVALID_IMAGE_TOKEN;
+        }
+        return DoLoadImage(process, remote_file, error);
+    }
+
+    if (local_file)
+    {
+        // Only local file was specified. Install it to the current working directory.
+        FileSpec target_file = GetWorkingDirectory();
+        target_file.AppendPathComponent(local_file.GetFilename().AsCString());
+        if (IsRemote() || local_file != target_file)
+        {
+            error = Install(local_file, target_file);
+            if (error.Fail())
+                return LLDB_INVALID_IMAGE_TOKEN;
+        }
+        return DoLoadImage(process, target_file, error);
+    }
+
+    if (remote_file)
+    {
+        // Only remote file was specified so we don't have to do any copying
+        return DoLoadImage(process, remote_file, error);
+    }
+
+    error.SetErrorString("Neither local nor remote file was specified");
+    return LLDB_INVALID_IMAGE_TOKEN;
+}
+
+uint32_t
+Platform::DoLoadImage (lldb_private::Process* process,
+                       const lldb_private::FileSpec& remote_file,
+                       lldb_private::Error& error)
+{
+    error.SetErrorString("LoadImage is not supported on the current platform");
+    return LLDB_INVALID_IMAGE_TOKEN;
+}
+
+Error
+Platform::UnloadImage(lldb_private::Process* process, uint32_t image_token)
+{
+    return Error("UnloadImage is not supported on the current platform");
+}
+
+lldb::ProcessSP
+Platform::ConnectProcess(const char* connect_url,
+                         const char* plugin_name,
+                         lldb_private::Debugger &debugger,
+                         lldb_private::Target *target,
+                         lldb_private::Error &error)
+{
+    error.Clear();
+
+    if (!target)
+    {
+        TargetSP new_target_sp;
+        error = debugger.GetTargetList().CreateTarget(debugger,
+                                                      nullptr,
+                                                      nullptr,
+                                                      false,
+                                                      nullptr,
+                                                      new_target_sp);
+        target = new_target_sp.get();
+    }
+
+    if (!target || error.Fail())
+        return nullptr;
+
+    debugger.GetTargetList().SetSelectedTarget(target);
+
+    lldb::ProcessSP process_sp = target->CreateProcess(debugger.GetListener(),
+                                                       plugin_name,
+                                                       nullptr);
+    if (!process_sp)
+        return nullptr;
+
+    error = process_sp->ConnectRemote(debugger.GetOutputFile().get(), connect_url);
+    if (error.Fail())
+        return nullptr;
+
+    return process_sp;
+}
+
+size_t
+Platform::ConnectToWaitingProcesses(lldb_private::Debugger& debugger, lldb_private::Error& error)
+{
+    error.Clear();
+    return 0;
 }

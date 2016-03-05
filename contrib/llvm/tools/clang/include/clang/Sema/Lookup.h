@@ -139,7 +139,7 @@ public:
       Redecl(Redecl != Sema::NotForRedeclaration),
       HideTags(true),
       Diagnose(Redecl == Sema::NotForRedeclaration),
-      AllowHidden(Redecl == Sema::ForRedeclaration),
+      AllowHidden(false),
       Shadowed(false)
   {
     configure();
@@ -161,7 +161,7 @@ public:
       Redecl(Redecl != Sema::NotForRedeclaration),
       HideTags(true),
       Diagnose(Redecl == Sema::NotForRedeclaration),
-      AllowHidden(Redecl == Sema::ForRedeclaration),
+      AllowHidden(false),
       Shadowed(false)
   {
     configure();
@@ -228,10 +228,11 @@ public:
 
   /// \brief Determine whether this lookup is permitted to see hidden
   /// declarations, such as those in modules that have not yet been imported.
-  bool isHiddenDeclarationVisible() const {
-    return AllowHidden || LookupKind == Sema::LookupTagName;
+  bool isHiddenDeclarationVisible(NamedDecl *ND) const {
+    return AllowHidden ||
+           (isForRedeclaration() && ND->isExternallyVisible());
   }
-  
+
   /// Sets whether tag declarations should be hidden by non-tag
   /// declarations during resolution.  The default is true.
   void setHideTags(bool Hide) {
@@ -302,7 +303,7 @@ public:
     if (!D->isInIdentifierNamespace(IDNS))
       return nullptr;
 
-    if (isHiddenDeclarationVisible() || isVisible(getSema(), D))
+    if (isVisible(getSema(), D) || isHiddenDeclarationVisible(D))
       return D;
 
     return getAcceptableDeclSlow(D);
@@ -511,10 +512,10 @@ public:
   /// \brief Change this lookup's redeclaration kind.
   void setRedeclarationKind(Sema::RedeclarationKind RK) {
     Redecl = RK;
-    AllowHidden = (RK == Sema::ForRedeclaration);
     configure();
   }
 
+  void dump();
   void print(raw_ostream &);
 
   /// Suppress the diagnostics that would normally fire because of this
@@ -565,6 +566,11 @@ public:
     {}
 
   public:
+    Filter(Filter &&F)
+        : Results(F.Results), I(F.I), Changed(F.Changed),
+          CalledDone(F.CalledDone) {
+      F.CalledDone = true;
+    }
     ~Filter() {
       assert(CalledDone &&
              "LookupResult::Filter destroyed without done() call");

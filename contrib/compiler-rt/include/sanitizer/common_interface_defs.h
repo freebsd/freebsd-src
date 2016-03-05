@@ -105,12 +105,31 @@ extern "C" {
   int __sanitizer_verify_contiguous_container(const void *beg, const void *mid,
                                               const void *end);
 
+  // Similar to __sanitizer_verify_contiguous_container but returns the address
+  // of the first improperly poisoned byte otherwise. Returns null if the area
+  // is poisoned properly.
+  const void *__sanitizer_contiguous_container_find_bad_address(
+      const void *beg, const void *mid, const void *end);
+
   // Print the stack trace leading to this call. Useful for debugging user code.
   void __sanitizer_print_stack_trace();
 
   // Sets the callback to be called right before death on error.
   // Passing 0 will unset the callback.
   void __sanitizer_set_death_callback(void (*callback)(void));
+
+  // Interceptor hooks.
+  // Whenever a libc function interceptor is called it checks if the
+  // corresponding weak hook is defined, and it so -- calls it.
+  // The primary use case is data-flow-guided fuzzing, where the fuzzer needs
+  // to know what is being passed to libc functions, e.g. memcmp.
+  // FIXME: implement more hooks.
+  void __sanitizer_weak_hook_memcmp(void *called_pc, const void *s1,
+                                    const void *s2, size_t n, int result);
+  void __sanitizer_weak_hook_strncmp(void *called_pc, const char *s1,
+                                    const char *s2, size_t n, int result);
+  void __sanitizer_weak_hook_strcmp(void *called_pc, const char *s1,
+                                    const char *s2, int result);
 #ifdef __cplusplus
 }  // extern "C"
 #endif

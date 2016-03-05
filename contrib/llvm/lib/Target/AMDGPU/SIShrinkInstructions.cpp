@@ -141,8 +141,7 @@ static void foldImmediates(MachineInstr &MI, const SIInstrInfo *TII,
   if (!MRI.isSSA())
     return;
 
-  assert(TII->isVOP1(MI.getOpcode()) || TII->isVOP2(MI.getOpcode()) ||
-         TII->isVOPC(MI.getOpcode()));
+  assert(TII->isVOP1(MI) || TII->isVOP2(MI) || TII->isVOPC(MI));
 
   const SIRegisterInfo &TRI = TII->getRegisterInfo();
   int Src0Idx = AMDGPU::getNamedOperandIdx(MI.getOpcode(), AMDGPU::OpName::src0);
@@ -185,6 +184,21 @@ static void foldImmediates(MachineInstr &MI, const SIInstrInfo *TII,
   if (TryToCommute && MI.isCommutable() && TII->commuteInstruction(&MI))
     foldImmediates(MI, TII, MRI, false);
 
+}
+
+// Copy MachineOperand with all flags except setting it as implicit.
+static MachineOperand copyRegOperandAsImplicit(const MachineOperand &Orig) {
+  assert(!Orig.isImplicit());
+  return MachineOperand::CreateReg(Orig.getReg(),
+                                   Orig.isDef(),
+                                   true,
+                                   Orig.isKill(),
+                                   Orig.isDead(),
+                                   Orig.isUndef(),
+                                   Orig.isEarlyClobber(),
+                                   Orig.getSubReg(),
+                                   Orig.isDebug(),
+                                   Orig.isInternalRead());
 }
 
 bool SIShrinkInstructions::runOnMachineFunction(MachineFunction &MF) {
@@ -236,14 +250,10 @@ bool SIShrinkInstructions::runOnMachineFunction(MachineFunction &MF) {
       if (TII->isVOPC(Op32)) {
         unsigned DstReg = MI.getOperand(0).getReg();
         if (TargetRegisterInfo::isVirtualRegister(DstReg)) {
-          // VOPC instructions can only write to the VCC register.  We can't
-          // force them to use VCC here, because the register allocator has
-          // trouble with sequences like this, which cause the allocator to run
-          // out of registers if vreg0 and vreg1 belong to the VCCReg register
-          // class:
-          // vreg0 = VOPC;
-          // vreg1 = VOPC;
-          // S_AND_B64 vreg0, vreg1
+          // VOPC instructions can only write to the VCC register. We can't
+          // force them to use VCC here, because this is only one register and
+          // cannot deal with sequences which would require multiple copies of
+          // VCC, e.g. S_AND_B64 (vcc = V_CMP_...), (vcc = V_CMP_...)
           //
           // So, instead of forcing the instruction to write to VCC, we provide
           // a hint to the register allocator to use VCC and then we we will run
@@ -272,13 +282,22 @@ bool SIShrinkInstructions::runOnMachineFunction(MachineFunction &MF) {
       }
 
       // We can shrink this instruction
-      DEBUG(dbgs() << "Shrinking "; MI.dump(); dbgs() << '\n';);
+      DEBUG(dbgs() << "Shrinking " << MI);
 
       MachineInstrBuilder Inst32 =
           BuildMI(MBB, I, MI.getDebugLoc(), TII->get(Op32));
 
-      // dst
-      Inst32.addOperand(MI.getOperand(0));
+      // Add the dst operand if the 32-bit encoding also has an explicit $dst.
+      // For VOPC instructions, this is replaced by an implicit def of vcc.
+      int Op32DstIdx = AMDGPU::getNamedOperandIdx(Op32, AMDGPU::OpName::dst);
+      if (Op32DstIdx != -1) {
+        // dst
+        Inst32.addOperand(MI.getOperand(0));
+      } else {
+        assert(MI.getOperand(0).getReg() == AMDGPU::VCC &&
+               "Unexpected case");
+      }
+
 
       Inst32.addOperand(*TII->getNamedOperand(MI, AMDGPU::OpName::src0));
 
@@ -288,9 +307,19 @@ bool SIShrinkInstructions::runOnMachineFunction(MachineFunction &MF) {
         Inst32.addOperand(*Src1);
 
       const MachineOperand *Src2 =
-          TII->getNamedOperand(MI, AMDGPU::OpName::src2);
-      if (Src2)
-        Inst32.addOperand(*Src2);
+        TII->getNamedOperand(MI, AMDGPU::OpName::src2);
+      if (Src2) {
+        int Op32Src2Idx = AMDGPU::getNamedOperandIdx(Op32, AMDGPU::OpName::src2);
+        if (Op32Src2Idx != -1) {
+          Inst32.addOperand(*Src2);
+        } else {
+          // In the case of V_CNDMASK_B32_e32, the explicit operand src2 is
+          // replaced with an implicit read of vcc.
+          assert(Src2->getReg() == AMDGPU::VCC &&
+                 "Unexpected missing register operand");
+          Inst32.addOperand(copyRegOperandAsImplicit(*Src2));
+        }
+      }
 
       ++NumInstructionsShrunk;
       MI.eraseFromParent();

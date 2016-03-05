@@ -11,13 +11,14 @@
 
 #include "lldb/Core/ValueObjectChild.h"
 #include "lldb/Core/ValueObjectConstResult.h"
+#include "lldb/Core/ValueObjectConstResultCast.h"
 #include "lldb/Core/ValueObjectConstResultChild.h"
 #include "lldb/Core/ValueObjectMemory.h"
 #include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ValueObjectList.h"
 
-#include "lldb/Symbol/ClangASTType.h"
+#include "lldb/Symbol/CompilerType.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Symbol/Type.h"
@@ -68,27 +69,29 @@ ValueObjectConstResultImpl::CreateChildAtIndex (size_t idx, bool synthetic_array
     uint32_t child_bitfield_bit_offset = 0;
     bool child_is_base_class = false;
     bool child_is_deref_of_parent = false;
+    uint64_t language_flags;
     
     const bool transparent_pointers = synthetic_array_member == false;
-    ClangASTType clang_type = m_impl_backend->GetClangType();
-    ClangASTType child_clang_type;
+    CompilerType compiler_type = m_impl_backend->GetCompilerType();
+    CompilerType child_compiler_type;
     
     ExecutionContext exe_ctx (m_impl_backend->GetExecutionContextRef());
     
-    child_clang_type = clang_type.GetChildClangTypeAtIndex (&exe_ctx,
-                                                            idx,
-                                                            transparent_pointers,
-                                                            omit_empty_base_classes,
-                                                            ignore_array_bounds,
-                                                            child_name_str,
-                                                            child_byte_size,
-                                                            child_byte_offset,
-                                                            child_bitfield_bit_size,
-                                                            child_bitfield_bit_offset,
-                                                            child_is_base_class,
-                                                            child_is_deref_of_parent,
-                                                            m_impl_backend);
-    if (child_clang_type && child_byte_size)
+    child_compiler_type = compiler_type.GetChildCompilerTypeAtIndex (&exe_ctx,
+                                                                     idx,
+                                                                     transparent_pointers,
+                                                                     omit_empty_base_classes,
+                                                                     ignore_array_bounds,
+                                                                     child_name_str,
+                                                                     child_byte_size,
+                                                                     child_byte_offset,
+                                                                     child_bitfield_bit_size,
+                                                                     child_bitfield_bit_offset,
+                                                                     child_is_base_class,
+                                                                     child_is_deref_of_parent,
+                                                                     m_impl_backend,
+                                                                     language_flags);
+    if (child_compiler_type && child_byte_size)
     {
         if (synthetic_index)
             child_byte_offset += child_byte_size * synthetic_index;
@@ -96,25 +99,25 @@ ValueObjectConstResultImpl::CreateChildAtIndex (size_t idx, bool synthetic_array
         ConstString child_name;
         if (!child_name_str.empty())
             child_name.SetCString (child_name_str.c_str());
-        
+
         valobj = new ValueObjectConstResultChild (*m_impl_backend,
-                                                  child_clang_type,
+                                                  child_compiler_type,
                                                   child_name,
                                                   child_byte_size,
                                                   child_byte_offset,
                                                   child_bitfield_bit_size,
                                                   child_bitfield_bit_offset,
                                                   child_is_base_class,
-                                                  child_is_deref_of_parent);
-        if (m_live_address != LLDB_INVALID_ADDRESS)
-            valobj->m_impl.SetLiveAddress(m_live_address+child_byte_offset);
+                                                  child_is_deref_of_parent,
+                                                  m_live_address == LLDB_INVALID_ADDRESS ? m_live_address : m_live_address+child_byte_offset,
+                                                  language_flags);
     }
     
     return valobj;
 }
 
 lldb::ValueObjectSP
-ValueObjectConstResultImpl::GetSyntheticChildAtOffset (uint32_t offset, const ClangASTType& type, bool can_create)
+ValueObjectConstResultImpl::GetSyntheticChildAtOffset (uint32_t offset, const CompilerType& type, bool can_create)
 {
     if (m_impl_backend == NULL)
         return lldb::ValueObjectSP();
@@ -132,7 +135,7 @@ ValueObjectConstResultImpl::AddressOf (Error &error)
         return lldb::ValueObjectSP();
     if (m_live_address != LLDB_INVALID_ADDRESS)
     {
-        ClangASTType clang_type(m_impl_backend->GetClangType());
+        CompilerType compiler_type(m_impl_backend->GetCompilerType());
         
         lldb::DataBufferSP buffer(new lldb_private::DataBufferHeap(&m_live_address,sizeof(lldb::addr_t)));
         
@@ -140,10 +143,10 @@ ValueObjectConstResultImpl::AddressOf (Error &error)
         new_name.append(m_impl_backend->GetName().AsCString(""));
         ExecutionContext exe_ctx (m_impl_backend->GetExecutionContextRef());
         m_address_of_backend = ValueObjectConstResult::Create (exe_ctx.GetBestExecutionContextScope(),
-                                                               clang_type.GetPointerType(),
+                                                               compiler_type.GetPointerType(),
                                                                ConstString(new_name.c_str()),
                                                                buffer,
-                                                               lldb::endian::InlHostByteOrder(), 
+                                                               endian::InlHostByteOrder(),
                                                                exe_ctx.GetAddressByteSize());
         
         m_address_of_backend->GetValue().SetValueType(Value::eValueTypeScalar);
@@ -153,6 +156,17 @@ ValueObjectConstResultImpl::AddressOf (Error &error)
     }
     else
         return m_impl_backend->ValueObject::AddressOf(error);
+}
+
+lldb::ValueObjectSP
+ValueObjectConstResultImpl::Cast (const CompilerType &compiler_type)
+{
+    if (m_impl_backend == NULL)
+        return lldb::ValueObjectSP();
+
+    ValueObjectConstResultCast *result_cast = new ValueObjectConstResultCast(
+        *m_impl_backend, m_impl_backend->GetName(), compiler_type, m_live_address);
+    return result_cast->GetSP();
 }
 
 lldb::addr_t

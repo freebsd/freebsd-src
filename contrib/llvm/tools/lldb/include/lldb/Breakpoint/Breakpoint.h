@@ -12,7 +12,10 @@
 
 // C Includes
 // C++ Includes
+#include <memory>
+#include <string>
 #include <unordered_set>
+#include <vector>
 
 // Other libraries and framework includes
 // Project includes
@@ -81,10 +84,8 @@ class Breakpoint:
     public Stoppoint
 {
 public:
-
     static const ConstString &
     GetEventIdentifier ();
-
 
     //------------------------------------------------------------------
     /// An enum specifying the match style for breakpoint settings.  At
@@ -101,18 +102,16 @@ public:
         public EventData
     {
     public:
+        BreakpointEventData (lldb::BreakpointEventType sub_type,
+                             const lldb::BreakpointSP &new_breakpoint_sp);
+
+        ~BreakpointEventData() override;
 
         static const ConstString &
         GetFlavorString ();
 
-        virtual const ConstString &
-        GetFlavor () const;
-
-        BreakpointEventData (lldb::BreakpointEventType sub_type,
-                             const lldb::BreakpointSP &new_breakpoint_sp);
-
-        virtual
-        ~BreakpointEventData();
+        const ConstString &
+        GetFlavor() const override;
 
         lldb::BreakpointEventType
         GetBreakpointEventType () const;
@@ -126,9 +125,8 @@ public:
             return m_locations;
         }
 
-
-        virtual void
-        Dump (Stream *s) const;
+        void
+        Dump(Stream *s) const override;
 
         static lldb::BreakpointEventType
         GetBreakpointEventTypeFromEvent (const lldb::EventSP &event_sp);
@@ -146,7 +144,6 @@ public:
         GetEventDataFromEvent (const Event *event_sp);
 
     private:
-
         lldb::BreakpointEventType m_breakpoint_event;
         lldb::BreakpointSP m_new_breakpoint_sp;
         BreakpointLocationCollection m_locations;
@@ -154,11 +151,10 @@ public:
         DISALLOW_COPY_AND_ASSIGN (BreakpointEventData);
     };
 
-
     class BreakpointPrecondition
     {
     public:
-        virtual ~BreakpointPrecondition() {}
+        virtual ~BreakpointPrecondition() = default;
 
         virtual bool
         EvaluatePrecondition(StoppointCallbackContext &context);
@@ -167,7 +163,7 @@ public:
         ConfigurePrecondition(Args &options);
 
         virtual void
-        DescribePrecondition(Stream &stream, lldb::DescriptionLevel level);
+        GetDescription(Stream &stream, lldb::DescriptionLevel level);
     };
 
     typedef std::shared_ptr<BreakpointPrecondition> BreakpointPreconditionSP;
@@ -179,7 +175,7 @@ public:
     /// breakpoints.  The varieties of breakpoints are specified instead by
     /// providing different resolvers & filters.
     //------------------------------------------------------------------
-    ~Breakpoint();
+    ~Breakpoint() override;
 
     //------------------------------------------------------------------
     // Methods
@@ -197,13 +193,12 @@ public:
     /// Standard "Dump" method.  At present it does nothing.
     //------------------------------------------------------------------
     void
-    Dump (Stream *s);
+    Dump(Stream *s) override;
 
     //------------------------------------------------------------------
     // The next set of methods provide ways to tell the breakpoint to update
     // it's location list - usually done when modules appear or disappear.
     //------------------------------------------------------------------
-
 
     //------------------------------------------------------------------
     /// Tell this breakpoint to clear all its breakpoint sites.  Done
@@ -262,7 +257,6 @@ public:
                     bool load_event,
                     bool delete_locations = false);
 
-
     //------------------------------------------------------------------
     /// Tells the breakpoint the old module \a old_module_sp has been
     /// replaced by new_module_sp (usually because the underlying file has been
@@ -294,8 +288,8 @@ public:
     ///    Returns a pointer to the new location.
     //------------------------------------------------------------------
     lldb::BreakpointLocationSP
-    AddLocation (const Address &addr,
-                 bool *new_location = NULL);
+    AddLocation(const Address &addr,
+                bool *new_location = nullptr);
 
     //------------------------------------------------------------------
     /// Find a breakpoint location by Address.
@@ -304,7 +298,7 @@ public:
     ///    The Address specifying the location.
     /// @return
     ///    Returns a shared pointer to the location at \a addr.  The pointer
-    ///    in the shared pointer will be NULL if there is no location at that address.
+    ///    in the shared pointer will be nullptr if there is no location at that address.
     //------------------------------------------------------------------
     lldb::BreakpointLocationSP
     FindLocationByAddress (const Address &addr);
@@ -328,7 +322,7 @@ public:
     ///    The ID specifying the location.
     /// @return
     ///    Returns a shared pointer to the location with ID \a bp_loc_id.  The pointer
-    ///    in the shared pointer will be NULL if there is no location with that ID.
+    ///    in the shared pointer will be nullptr if there is no location with that ID.
     //------------------------------------------------------------------
     lldb::BreakpointLocationSP
     FindLocationByID (lldb::break_id_t bp_loc_id);
@@ -341,7 +335,7 @@ public:
     ///
     /// @return
     ///     Returns a shared pointer to the location with index \a 
-    ///     index. The shared pointer might contain NULL if \a index is
+    ///     index. The shared pointer might contain nullptr if \a index is
     ///     greater than then number of actual locations.
     //------------------------------------------------------------------
     lldb::BreakpointLocationSP
@@ -373,7 +367,7 @@ public:
     /// If \a enable is \b true, enable the breakpoint, if \b false disable it.
     //------------------------------------------------------------------
     void
-    SetEnabled (bool enable);
+    SetEnabled(bool enable) override;
 
     //------------------------------------------------------------------
     /// Check the Enable/Disable state.
@@ -381,7 +375,7 @@ public:
     ///     \b true if the breakpoint is enabled, \b false if disabled.
     //------------------------------------------------------------------
     bool
-    IsEnabled ();
+    IsEnabled() override;
 
     //------------------------------------------------------------------
     /// Set the breakpoint to ignore the next \a count breakpoint hits.
@@ -406,7 +400,6 @@ public:
     //------------------------------------------------------------------
     uint32_t
     GetHitCount () const;
-
 
     //------------------------------------------------------------------
     /// If \a one_shot is \b true, breakpoint will be deleted on first hit.
@@ -490,7 +483,7 @@ public:
     ///
     /// @param[in] condition
     ///    The condition expression to evaluate when the breakpoint is hit.
-    ///    Pass in NULL to clear the condition.
+    ///    Pass in nullptr to clear the condition.
     //------------------------------------------------------------------
     void SetCondition (const char *condition);
     
@@ -498,7 +491,7 @@ public:
     /// Return a pointer to the text of the condition expression.
     ///
     /// @return
-    ///    A pointer to the condition expression text, or NULL if no
+    ///    A pointer to the condition expression text, or nullptr if no
     //     condition has been set.
     //------------------------------------------------------------------
     const char *GetConditionText () const;
@@ -560,7 +553,7 @@ public:
     /// Return the "kind" description for a breakpoint.
     ///
     /// @return
-    ///     The breakpoint kind, or NULL if none is set.
+    ///     The breakpoint kind, or nullptr if none is set.
     //------------------------------------------------------------------
     const char *GetBreakpointKind () const
     {
@@ -618,7 +611,6 @@ public:
     //------------------------------------------------------------------
     BreakpointOptions *
     GetOptions ();
-
 
     //------------------------------------------------------------------
     /// Invoke the callback action when the breakpoint is hit.
@@ -713,7 +705,6 @@ protected:
     // Protected Methods
     //------------------------------------------------------------------
 
-
     //------------------------------------------------------------------
     /// Constructors and Destructors
     /// Only the Target can make a breakpoint, and it owns the breakpoint lifespans.
@@ -807,4 +798,4 @@ private:
 
 } // namespace lldb_private
 
-#endif  // liblldb_Breakpoint_h_
+#endif // liblldb_Breakpoint_h_

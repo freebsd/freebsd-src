@@ -62,7 +62,7 @@ public:
   // symbol in the target address space.
   void resolveRelocation(const RelocationEntry &RE, uint64_t Value) override {
     const SectionEntry &Section = Sections[RE.SectionID];
-    uint8_t *Target = Section.Address + RE.Offset;
+    uint8_t *Target = Section.getAddressWithOffset(RE.Offset);
 
     switch (RE.RelType) {
 
@@ -72,8 +72,7 @@ public:
     case COFF::IMAGE_REL_AMD64_REL32_3:
     case COFF::IMAGE_REL_AMD64_REL32_4:
     case COFF::IMAGE_REL_AMD64_REL32_5: {
-      uint32_t *TargetAddress = (uint32_t *)Target;
-      uint64_t FinalAddress = Section.LoadAddress + RE.Offset;
+      uint64_t FinalAddress = Section.getLoadAddressWithOffset(RE.Offset);
       // Delta is the distance from the start of the reloc to the end of the
       // instruction with the reloc.
       uint64_t Delta = 4 + (RE.RelType - COFF::IMAGE_REL_AMD64_REL32);
@@ -81,7 +80,7 @@ public:
       uint64_t Result = Value + RE.Addend;
       assert(((int64_t)Result <= INT32_MAX) && "Relocation overflow");
       assert(((int64_t)Result >= INT32_MIN) && "Relocation underflow");
-      *TargetAddress = Result;
+      writeBytesUnaligned(Result, Target, 4);
       break;
     }
 
@@ -92,14 +91,12 @@ public:
       // within a 32 bit offset from the base.
       //
       // For now we just set these to zero.
-      uint32_t *TargetAddress = (uint32_t *)Target;
-      *TargetAddress = 0;
+      writeBytesUnaligned(0, Target, 4);
       break;
     }
 
     case COFF::IMAGE_REL_AMD64_ADDR64: {
-      uint64_t *TargetAddress = (uint64_t *)Target;
-      *TargetAddress = Value + RE.Addend;
+      writeBytesUnaligned(Value + RE.Addend, Target, 8);
       break;
     }
 
@@ -119,8 +116,7 @@ public:
     symbol_iterator Symbol = RelI->getSymbol();
     if (Symbol == Obj.symbol_end())
       report_fatal_error("Unknown symbol in relocation");
-    section_iterator SecI(Obj.section_end());
-    Symbol->getSection(SecI);
+    section_iterator SecI = *Symbol->getSection();
     // If there is no section, this must be an external reference.
     const bool IsExtern = SecI == Obj.section_end();
 
@@ -129,7 +125,7 @@ public:
     uint64_t Offset = RelI->getOffset();
     uint64_t Addend = 0;
     SectionEntry &Section = Sections[SectionID];
-    uintptr_t ObjTarget = Section.ObjAddress + Offset;
+    uintptr_t ObjTarget = Section.getObjAddress() + Offset;
 
     switch (RelType) {
 
@@ -140,14 +136,14 @@ public:
     case COFF::IMAGE_REL_AMD64_REL32_4:
     case COFF::IMAGE_REL_AMD64_REL32_5:
     case COFF::IMAGE_REL_AMD64_ADDR32NB: {
-      uint32_t *Displacement = (uint32_t *)ObjTarget;
-      Addend = *Displacement;
+      uint8_t *Displacement = (uint8_t *)ObjTarget;
+      Addend = readBytesUnaligned(Displacement, 4);
       break;
     }
 
     case COFF::IMAGE_REL_AMD64_ADDR64: {
-      uint64_t *Displacement = (uint64_t *)ObjTarget;
-      Addend = *Displacement;
+      uint8_t *Displacement = (uint8_t *)ObjTarget;
+      Addend = readBytesUnaligned(Displacement, 8);
       break;
     }
 
@@ -182,9 +178,9 @@ public:
   unsigned getStubAlignment() override { return 1; }
   void registerEHFrames() override {
     for (auto const &EHFrameSID : UnregisteredEHFrameSections) {
-      uint8_t *EHFrameAddr = Sections[EHFrameSID].Address;
-      uint64_t EHFrameLoadAddr = Sections[EHFrameSID].LoadAddress;
-      size_t EHFrameSize = Sections[EHFrameSID].Size;
+      uint8_t *EHFrameAddr = Sections[EHFrameSID].getAddress();
+      uint64_t EHFrameLoadAddr = Sections[EHFrameSID].getLoadAddress();
+      size_t EHFrameSize = Sections[EHFrameSID].getSize();
       MemMgr.registerEHFrames(EHFrameAddr, EHFrameLoadAddr, EHFrameSize);
       RegisteredEHFrameSections.push_back(EHFrameSID);
     }

@@ -22,7 +22,7 @@ using namespace clang;
 using namespace ento;
 
 namespace {
-class PointerArithChecker 
+class PointerArithChecker
   : public Checker< check::PreStmt<BinaryOperator> > {
   mutable std::unique_ptr<BuiltinBug> BT;
 
@@ -48,10 +48,10 @@ void PointerArithChecker::checkPreStmt(const BinaryOperator *B,
 
   // If pointer arithmetic is done on variables of non-array type, this often
   // means behavior rely on memory organization, which is dangerous.
-  if (isa<VarRegion>(LR) || isa<CodeTextRegion>(LR) || 
+  if (isa<VarRegion>(LR) || isa<CodeTextRegion>(LR) ||
       isa<CompoundLiteralRegion>(LR)) {
 
-    if (ExplodedNode *N = C.addTransition()) {
+    if (ExplodedNode *N = C.generateNonFatalErrorNode()) {
       if (!BT)
         BT.reset(
             new BuiltinBug(this, "Dangerous pointer arithmetic",

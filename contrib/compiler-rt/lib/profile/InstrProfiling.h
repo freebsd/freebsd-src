@@ -10,32 +10,31 @@
 #ifndef PROFILE_INSTRPROFILING_H_
 #define PROFILE_INSTRPROFILING_H_
 
-#if defined(__FreeBSD__) && defined(__i386__)
+#include "InstrProfilingPort.h"
+#include "InstrProfData.inc"
 
-/* System headers define 'size_t' incorrectly on x64 FreeBSD (prior to
- * FreeBSD 10, r232261) when compiled in 32-bit mode.
- */
-#define PRIu64 "llu"
-typedef unsigned int uint32_t;
-typedef unsigned long long uint64_t;
-typedef uint32_t uintptr_t;
+enum ValueKind {
+#define VALUE_PROF_KIND(Enumerator, Value) Enumerator = Value,
+#include "InstrProfData.inc"
+};
 
-#else /* defined(__FreeBSD__) && defined(__i386__) */
-
-#include <inttypes.h>
-#include <stdint.h>
-
-#endif /* defined(__FreeBSD__) && defined(__i386__) */
-
-#define PROFILE_HEADER_SIZE 7
-
-typedef struct __llvm_profile_data {
-  const uint32_t NameSize;
-  const uint32_t NumCounters;
-  const uint64_t FuncHash;
-  const char *const Name;
-  uint64_t *const Counters;
+typedef void *IntPtrT;
+typedef struct COMPILER_RT_ALIGNAS(INSTR_PROF_DATA_ALIGNMENT)
+    __llvm_profile_data {
+#define INSTR_PROF_DATA(Type, LLVMType, Name, Initializer) Type Name;
+#include "InstrProfData.inc"
 } __llvm_profile_data;
+
+typedef struct __llvm_profile_header {
+#define INSTR_PROF_RAW_HEADER(Type, Name, Initializer) Type Name;
+#include "InstrProfData.inc"
+} __llvm_profile_header;
+
+/*!
+ * \brief Get number of bytes necessary to pad the argument to eight
+ * byte boundary.
+ */
+uint8_t __llvm_profile_get_num_padding_bytes(uint64_t SizeInBytes);
 
 /*!
  * \brief Get required size for profile buffer.
@@ -58,9 +57,37 @@ uint64_t *__llvm_profile_begin_counters(void);
 uint64_t *__llvm_profile_end_counters(void);
 
 /*!
+ * \brief Clear profile counters to zero.
+ *
+ */
+void __llvm_profile_reset_counters(void);
+
+/*!
+ * \brief Counts the number of times a target value is seen.
+ *
+ * Records the target value for the CounterIndex if not seen before. Otherwise,
+ * increments the counter associated w/ the target value.
+ * void __llvm_profile_instrument_target(uint64_t TargetValue, void *Data,
+ *                                       uint32_t CounterIndex);
+ */
+void INSTR_PROF_VALUE_PROF_FUNC(
+#define VALUE_PROF_FUNC_PARAM(ArgType, ArgName, ArgLLVMType) ArgType ArgName
+#include "InstrProfData.inc"
+);
+
+/*!
+ * \brief Prepares the value profiling data for output.
+ *
+ * Returns an array of pointers to value profile data.
+ */
+struct ValueProfData;
+struct ValueProfData **__llvm_profile_gather_value_data(uint64_t *Size);
+
+/*!
  * \brief Write instrumentation data to the current file.
  *
- * Writes to the file with the last name given to \a __llvm_profile_set_filename(),
+ * Writes to the file with the last name given to \a *
+ * __llvm_profile_set_filename(),
  * or if it hasn't been called, the \c LLVM_PROFILE_FILE environment variable,
  * or if that's not set, the last name given to
  * \a __llvm_profile_override_default_filename(), or if that's not set,

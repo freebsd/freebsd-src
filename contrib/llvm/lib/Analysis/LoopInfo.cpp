@@ -102,8 +102,8 @@ bool Loop::makeLoopInvariant(Instruction *I, bool &Changed,
     return false;
   if (I->mayReadFromMemory())
     return false;
-  // The landingpad instruction is immobile.
-  if (isa<LandingPadInst>(I))
+  // EH block instructions are immobile.
+  if (I->isEHPad())
     return false;
   // Determine the insertion point, unless one was given.
   if (!InsertPt) {
@@ -120,6 +120,13 @@ bool Loop::makeLoopInvariant(Instruction *I, bool &Changed,
 
   // Hoist.
   I->moveBefore(InsertPt);
+
+  // There is possibility of hoisting this instruction above some arbitrary
+  // condition. Any metadata defined on it can be control dependent on this
+  // condition. Conservatively strip it here so that we don't give any wrong
+  // information to the optimizer.
+  I->dropUnknownNonDebugMetadata();
+
   Changed = true;
   return true;
 }
@@ -172,7 +179,13 @@ PHINode *Loop::getCanonicalInductionVariable() const {
 bool Loop::isLCSSAForm(DominatorTree &DT) const {
   for (block_iterator BI = block_begin(), E = block_end(); BI != E; ++BI) {
     BasicBlock *BB = *BI;
-    for (BasicBlock::iterator I = BB->begin(), E = BB->end(); I != E;++I)
+    for (BasicBlock::iterator I = BB->begin(), E = BB->end(); I != E;++I) {
+      // Tokens can't be used in PHI nodes and live-out tokens prevent loop
+      // optimizations, so for the purposes of considered LCSSA form, we
+      // can ignore them.
+      if (I->getType()->isTokenTy())
+        continue;
+
       for (Use &U : I->uses()) {
         Instruction *UI = cast<Instruction>(U.getUser());
         BasicBlock *UserBB = UI->getParent();
@@ -188,9 +201,19 @@ bool Loop::isLCSSAForm(DominatorTree &DT) const {
             DT.isReachableFromEntry(UserBB))
           return false;
       }
+    }
   }
 
   return true;
+}
+
+bool Loop::isRecursivelyLCSSAForm(DominatorTree &DT) const {
+  if (!isLCSSAForm(DT))
+    return false;
+
+  return std::all_of(begin(), end(), [&](const Loop *L) {
+    return L->isRecursivelyLCSSAForm(DT);
+  });
 }
 
 /// isLoopSimplifyForm - Return true if the Loop is in the form that
@@ -211,15 +234,23 @@ bool Loop::isSafeToClone() const {
     if (isa<IndirectBrInst>((*I)->getTerminator()))
       return false;
 
-    if (const InvokeInst *II = dyn_cast<InvokeInst>((*I)->getTerminator()))
+    if (const InvokeInst *II = dyn_cast<InvokeInst>((*I)->getTerminator())) {
       if (II->cannotDuplicate())
         return false;
+      // Return false if any loop blocks contain invokes to EH-pads other than
+      // landingpads;  we don't know how to split those edges yet.
+      auto *FirstNonPHI = II->getUnwindDest()->getFirstNonPHI();
+      if (FirstNonPHI->isEHPad() && !isa<LandingPadInst>(FirstNonPHI))
+        return false;
+    }
 
     for (BasicBlock::iterator BI = (*I)->begin(), BE = (*I)->end(); BI != BE; ++BI) {
       if (const CallInst *CI = dyn_cast<CallInst>(BI)) {
         if (CI->cannotDuplicate())
           return false;
       }
+      if (BI->getType()->isTokenTy() && BI->isUsedOutsideOfBlock(*I))
+        return false;
     }
   }
   return true;
@@ -602,14 +633,14 @@ Loop *UnloopUpdater::getNearestLoop(BasicBlock *BB, Loop *BBLoop) {
   return NearLoop;
 }
 
-/// updateUnloop - The last backedge has been removed from a loop--now the
-/// "unloop". Find a new parent for the blocks contained within unloop and
-/// update the loop tree. We don't necessarily have valid dominators at this
-/// point, but LoopInfo is still valid except for the removal of this loop.
-///
-/// Note that Unloop may now be an empty loop. Calling Loop::getHeader without
-/// checking first is illegal.
-void LoopInfo::updateUnloop(Loop *Unloop) {
+LoopInfo::LoopInfo(const DominatorTreeBase<BasicBlock> &DomTree) {
+  analyze(DomTree);
+}
+
+void LoopInfo::markAsRemoved(Loop *Unloop) {
+  assert(!Unloop->isInvalid() && "Loop has already been removed");
+  Unloop->invalidate();
+  RemovedLoops.push_back(Unloop);
 
   // First handle the special case of no parent loop to simplify the algorithm.
   if (!Unloop->getParentLoop()) {
@@ -675,13 +706,27 @@ LoopInfo LoopAnalysis::run(Function &F, AnalysisManager<Function> *AM) {
   // objects. I don't want to add that kind of complexity until the scope of
   // the problem is better understood.
   LoopInfo LI;
-  LI.Analyze(AM->getResult<DominatorTreeAnalysis>(F));
+  LI.analyze(AM->getResult<DominatorTreeAnalysis>(F));
   return LI;
 }
 
 PreservedAnalyses LoopPrinterPass::run(Function &F,
                                        AnalysisManager<Function> *AM) {
   AM->getResult<LoopAnalysis>(F).print(OS);
+  return PreservedAnalyses::all();
+}
+
+PrintLoopPass::PrintLoopPass() : OS(dbgs()) {}
+PrintLoopPass::PrintLoopPass(raw_ostream &OS, const std::string &Banner)
+    : OS(OS), Banner(Banner) {}
+
+PreservedAnalyses PrintLoopPass::run(Loop &L) {
+  OS << Banner;
+  for (auto *Block : L.blocks())
+    if (Block)
+      Block->print(OS);
+    else
+      OS << "Printing <null> block";
   return PreservedAnalyses::all();
 }
 
@@ -698,7 +743,7 @@ INITIALIZE_PASS_END(LoopInfoWrapperPass, "loops", "Natural Loop Information",
 
 bool LoopInfoWrapperPass::runOnFunction(Function &) {
   releaseMemory();
-  LI.Analyze(getAnalysis<DominatorTreeWrapperPass>().getDomTree());
+  LI.analyze(getAnalysis<DominatorTreeWrapperPass>().getDomTree());
   return false;
 }
 

@@ -17,7 +17,6 @@
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FileUtilities.h"
-#include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Mutex.h"
 #include "llvm/Support/Program.h"
@@ -25,7 +24,6 @@
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <string>
-#include <vector>
 #if HAVE_EXECINFO_H
 # include <execinfo.h>         // For backtrace().
 #endif
@@ -58,8 +56,6 @@ static ManagedStatic<SmartMutex<true> > SignalsMutex;
 static void (*InterruptFunction)() = nullptr;
 
 static ManagedStatic<std::vector<std::string>> FilesToRemove;
-static ManagedStatic<std::vector<std::pair<void (*)(void *), void *>>>
-    CallBacksToRun;
 
 // IntSigs - Signals that represent requested termination. There's no bug
 // or failure, or if there is, it's not our direct responsibility. For whatever
@@ -90,12 +86,11 @@ static unsigned NumRegisteredSignals = 0;
 static struct {
   struct sigaction SA;
   int SigNo;
-} RegisteredSignalInfo[(sizeof(IntSigs)+sizeof(KillSigs))/sizeof(KillSigs[0])];
+} RegisteredSignalInfo[array_lengthof(IntSigs) + array_lengthof(KillSigs)];
 
 
 static void RegisterHandler(int Signal) {
-  assert(NumRegisteredSignals <
-         sizeof(RegisteredSignalInfo)/sizeof(RegisteredSignalInfo[0]) &&
+  assert(NumRegisteredSignals < array_lengthof(RegisteredSignalInfo) &&
          "Out of space for signal handlers!");
 
   struct sigaction NewHandler;
@@ -117,7 +112,7 @@ static void RegisterHandlers() {
   // during handling an actual signal because you can't safely call new in a
   // signal handler.
   *SignalsMutex;
-  
+
   // If the handlers are already registered, we're done.
   if (NumRegisteredSignals != 0) return;
 
@@ -148,9 +143,6 @@ static void RemoveFilesToRemove() {
   // memory.
   std::vector<std::string>& FilesToRemoveRef = *FilesToRemove;
   for (unsigned i = 0, e = FilesToRemoveRef.size(); i != e; ++i) {
-    // We rely on a std::string implementation for which repeated calls to
-    // 'c_str()' don't allocate memory. We pre-call 'c_str()' on all of these
-    // strings to try to ensure this is safe.
     const char *path = FilesToRemoveRef[i].c_str();
 
     // Get the status so we can determine if it's a file or directory. If we
@@ -164,7 +156,7 @@ static void RemoveFilesToRemove() {
     // super-user permissions.
     if (!S_ISREG(buf.st_mode))
       continue;
-  
+
     // Otherwise, remove the file. We ignore any errors here as there is nothing
     // else we can do.
     unlink(path);
@@ -205,11 +197,7 @@ static RETSIGTYPE SignalHandler(int Sig) {
   }
 
   // Otherwise if it is a fault (like SEGV) run any handler.
-  if (CallBacksToRun.isConstructed()) {
-    auto &CallBacksToRunRef = *CallBacksToRun;
-    for (unsigned i = 0, e = CallBacksToRun->size(); i != e; ++i)
-      CallBacksToRunRef[i].first(CallBacksToRunRef[i].second);
-  }
+  llvm::sys::RunSignalHandlers();
 
 #ifdef __s390__
   // On S/390, certain signals are delivered with PSW Address pointing to
@@ -239,21 +227,7 @@ bool llvm::sys::RemoveFileOnSignal(StringRef Filename,
                                    std::string* ErrMsg) {
   {
     sys::SmartScopedLock<true> Guard(*SignalsMutex);
-    std::vector<std::string>& FilesToRemoveRef = *FilesToRemove;
-    std::string *OldPtr =
-        FilesToRemoveRef.empty() ? nullptr : &FilesToRemoveRef[0];
-    FilesToRemoveRef.push_back(Filename);
-
-    // We want to call 'c_str()' on every std::string in this vector so that if
-    // the underlying implementation requires a re-allocation, it happens here
-    // rather than inside of the signal handler. If we see the vector grow, we
-    // have to call it on every entry. If it remains in place, we only need to
-    // call it on the latest one.
-    if (OldPtr == &FilesToRemoveRef[0])
-      FilesToRemoveRef.back().c_str();
-    else
-      for (unsigned i = 0, e = FilesToRemoveRef.size(); i != e; ++i)
-        FilesToRemoveRef[i].c_str();
+    FilesToRemove->push_back(Filename);
   }
 
   RegisterHandlers();
@@ -268,13 +242,6 @@ void llvm::sys::DontRemoveFileOnSignal(StringRef Filename) {
   std::vector<std::string>::iterator I = FilesToRemove->end();
   if (RI != FilesToRemove->rend())
     I = FilesToRemove->erase(RI.base()-1);
-
-  // We need to call c_str() on every element which would have been moved by
-  // the erase. These elements, in a C++98 implementation where c_str()
-  // requires a reallocation on the first call may have had the call to c_str()
-  // made on insertion become invalid by being copied down an element.
-  for (std::vector<std::string>::iterator E = FilesToRemove->end(); I != E; ++I)
-    I->c_str();
 }
 
 /// AddSignalHandler - Add a function to be called when a signal is delivered
@@ -285,10 +252,9 @@ void llvm::sys::AddSignalHandler(void (*FnPtr)(void *), void *Cookie) {
   RegisterHandlers();
 }
 
-#if defined(HAVE_BACKTRACE) && defined(ENABLE_BACKTRACES)
-
-#if HAVE_LINK_H && (defined(__linux__) || defined(__FreeBSD__) ||              \
-                    defined(__FreeBSD_kernel__) || defined(__NetBSD__))
+#if defined(HAVE_BACKTRACE) && defined(ENABLE_BACKTRACES) && HAVE_LINK_H &&    \
+    (defined(__linux__) || defined(__FreeBSD__) ||                             \
+     defined(__FreeBSD_kernel__) || defined(__NetBSD__))
 struct DlIteratePhdrData {
   void **StackTrace;
   int depth;
@@ -321,108 +287,27 @@ static int dl_iterate_phdr_cb(dl_phdr_info *info, size_t size, void *arg) {
   return 0;
 }
 
+/// If this is an ELF platform, we can find all loaded modules and their virtual
+/// addresses with dl_iterate_phdr.
 static bool findModulesAndOffsets(void **StackTrace, int Depth,
                                   const char **Modules, intptr_t *Offsets,
-                                  const char *MainExecutableName) {
+                                  const char *MainExecutableName,
+                                  StringSaver &StrPool) {
   DlIteratePhdrData data = {StackTrace, Depth,   true,
                             Modules,    Offsets, MainExecutableName};
   dl_iterate_phdr(dl_iterate_phdr_cb, &data);
   return true;
 }
 #else
+/// This platform does not have dl_iterate_phdr, so we do not yet know how to
+/// find all loaded DSOs.
 static bool findModulesAndOffsets(void **StackTrace, int Depth,
                                   const char **Modules, intptr_t *Offsets,
-                                  const char *MainExecutableName) {
+                                  const char *MainExecutableName,
+                                  StringSaver &StrPool) {
   return false;
 }
-#endif
-
-static bool printSymbolizedStackTrace(void **StackTrace, int Depth,
-                                      llvm::raw_ostream &OS) {
-  // FIXME: Subtract necessary number from StackTrace entries to turn return addresses
-  // into actual instruction addresses.
-  // Use llvm-symbolizer tool to symbolize the stack traces.
-  ErrorOr<std::string> LLVMSymbolizerPathOrErr =
-      sys::findProgramByName("llvm-symbolizer");
-  if (!LLVMSymbolizerPathOrErr)
-    return false;
-  const std::string &LLVMSymbolizerPath = *LLVMSymbolizerPathOrErr;
-  // We don't know argv0 or the address of main() at this point, but try
-  // to guess it anyway (it's possible on some platforms).
-  std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
-  if (MainExecutableName.empty() ||
-      MainExecutableName.find("llvm-symbolizer") != std::string::npos)
-    return false;
-
-  std::vector<const char *> Modules(Depth, nullptr);
-  std::vector<intptr_t> Offsets(Depth, 0);
-  if (!findModulesAndOffsets(StackTrace, Depth, Modules.data(), Offsets.data(),
-                             MainExecutableName.c_str()))
-    return false;
-  int InputFD;
-  SmallString<32> InputFile, OutputFile;
-  sys::fs::createTemporaryFile("symbolizer-input", "", InputFD, InputFile);
-  sys::fs::createTemporaryFile("symbolizer-output", "", OutputFile);
-  FileRemover InputRemover(InputFile.c_str());
-  FileRemover OutputRemover(OutputFile.c_str());
-
-  {
-    raw_fd_ostream Input(InputFD, true);
-    for (int i = 0; i < Depth; i++) {
-      if (Modules[i])
-        Input << Modules[i] << " " << (void*)Offsets[i] << "\n";
-    }
-  }
-
-  StringRef InputFileStr(InputFile);
-  StringRef OutputFileStr(OutputFile);
-  StringRef StderrFileStr;
-  const StringRef *Redirects[] = {&InputFileStr, &OutputFileStr,
-                                  &StderrFileStr};
-  const char *Args[] = {"llvm-symbolizer", "--functions=linkage", "--inlining",
-                        "--demangle", nullptr};
-  int RunResult =
-      sys::ExecuteAndWait(LLVMSymbolizerPath, Args, nullptr, Redirects);
-  if (RunResult != 0)
-    return false;
-
-  auto OutputBuf = MemoryBuffer::getFile(OutputFile.c_str());
-  if (!OutputBuf)
-    return false;
-  StringRef Output = OutputBuf.get()->getBuffer();
-  SmallVector<StringRef, 32> Lines;
-  Output.split(Lines, "\n");
-  auto CurLine = Lines.begin();
-  int frame_no = 0;
-  for (int i = 0; i < Depth; i++) {
-    if (!Modules[i]) {
-      OS << format("#%d %p\n", frame_no++, StackTrace[i]);
-      continue;
-    }
-    // Read pairs of lines (function name and file/line info) until we
-    // encounter empty line.
-    for (;;) {
-      if (CurLine == Lines.end())
-        return false;
-      StringRef FunctionName = *CurLine++;
-      if (FunctionName.empty())
-        break;
-      OS << format("#%d %p ", frame_no++, StackTrace[i]);
-      if (!FunctionName.startswith("??"))
-        OS << format("%s ", FunctionName.str().c_str());
-      if (CurLine == Lines.end())
-        return false;
-      StringRef FileLineInfo = *CurLine++;
-      if (!FileLineInfo.startswith("??"))
-        OS << format("%s", FileLineInfo.str().c_str());
-      else
-        OS << format("(%s+%p)", Modules[i], (void *)Offsets[i]);
-      OS << "\n";
-    }
-  }
-  return true;
-}
-#endif // defined(HAVE_BACKTRACE) && defined(ENABLE_BACKTRACES)
+#endif // defined(HAVE_BACKTRACE) && defined(ENABLE_BACKTRACES) && ...
 
 // PrintStackTrace - In the case of a program crash or fault, print out a stack
 // trace so that the user has an indication of why and where we died.

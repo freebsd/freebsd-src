@@ -71,8 +71,8 @@ namespace lldb_private {
         JSONString&
         operator = (const JSONString& s) = delete;
         
-        virtual void
-        Write (Stream& s);
+        void
+        Write(Stream& s) override;
         
         typedef std::shared_ptr<JSONString> SP;
         
@@ -84,8 +84,7 @@ namespace lldb_private {
             return V->GetKind() == JSONValue::Kind::String;
         }
         
-        virtual
-        ~JSONString () = default;
+        ~JSONString() override = default;
         
     private:
         
@@ -98,43 +97,79 @@ namespace lldb_private {
     class JSONNumber : public JSONValue
     {
     public:
-        JSONNumber ();
-        explicit JSONNumber (uint64_t i);
-        explicit JSONNumber (double d);
+        typedef std::shared_ptr<JSONNumber> SP;
+
+        // We cretae a constructor for all integer and floating point type with using templates and
+        // SFINAE to avoid having ambiguous overloads because of the implicit type promotion. If we
+        // would have constructors only with int64_t, uint64_t and double types then constructing a
+        // JSONNumber from an int32_t (or any other similar type) would fail to compile.
+
+        template <typename T,
+                  typename std::enable_if<std::is_integral<T>::value &&
+                                          std::is_unsigned<T>::value>::type* = nullptr>
+        explicit JSONNumber (T u) :
+            JSONValue(JSONValue::Kind::Number),
+            m_data_type(DataType::Unsigned)
+        {
+            m_data.m_unsigned = u;
+        }
+
+        template <typename T,
+                  typename std::enable_if<std::is_integral<T>::value &&
+                                          std::is_signed<T>::value>::type* = nullptr>
+        explicit JSONNumber (T s) :
+            JSONValue(JSONValue::Kind::Number),
+            m_data_type(DataType::Signed)
+        {
+            m_data.m_signed = s;
+        }
+
+        template <typename T,
+                  typename std::enable_if<std::is_floating_point<T>::value>::type* = nullptr>
+        explicit JSONNumber (T d) :
+            JSONValue(JSONValue::Kind::Number),
+            m_data_type(DataType::Double)
+        {
+            m_data.m_double = d;
+        }
+
+        ~JSONNumber() override = default;
 
         JSONNumber (const JSONNumber& s) = delete;
         JSONNumber&
         operator = (const JSONNumber& s) = delete;
 
-        virtual void
-        Write (Stream& s);
-        
-        typedef std::shared_ptr<JSONNumber> SP;
+        void
+        Write(Stream& s) override;
 
         uint64_t
-        GetData () { return m_data; }
+        GetAsUnsigned() const;
+
+        int64_t
+        GetAsSigned() const;
 
         double
-        GetAsDouble()
-        {
-            if (m_is_integer)
-                return (double)m_data;
-            else
-                return m_double;
-        }
+        GetAsDouble() const;
 
         static bool classof(const JSONValue *V)
         {
             return V->GetKind() == JSONValue::Kind::Number;
         }
-        
-        virtual
-        ~JSONNumber () = default;
-        
+
     private:
-        bool m_is_integer;
-        uint64_t m_data;
-        double m_double;
+        enum class DataType : uint8_t
+        {
+            Unsigned,
+            Signed,
+            Double
+        } m_data_type;
+
+        union
+        {
+            uint64_t m_unsigned;
+            int64_t  m_signed;
+            double   m_double;
+        } m_data;
     };
 
     class JSONTrue : public JSONValue
@@ -146,8 +181,8 @@ namespace lldb_private {
         JSONTrue&
         operator = (const JSONTrue& s) = delete;
         
-        virtual void
-        Write (Stream& s);
+        void
+        Write(Stream& s) override;
         
         typedef std::shared_ptr<JSONTrue> SP;
         
@@ -156,8 +191,7 @@ namespace lldb_private {
             return V->GetKind() == JSONValue::Kind::True;
         }
         
-        virtual
-        ~JSONTrue () = default;
+        ~JSONTrue() override = default;
     };
 
     class JSONFalse : public JSONValue
@@ -169,8 +203,8 @@ namespace lldb_private {
         JSONFalse&
         operator = (const JSONFalse& s) = delete;
         
-        virtual void
-        Write (Stream& s);
+        void
+        Write(Stream& s) override;
         
         typedef std::shared_ptr<JSONFalse> SP;
         
@@ -179,8 +213,7 @@ namespace lldb_private {
             return V->GetKind() == JSONValue::Kind::False;
         }
         
-        virtual
-        ~JSONFalse () = default;
+        ~JSONFalse() override = default;
     };
 
     class JSONNull : public JSONValue
@@ -192,8 +225,8 @@ namespace lldb_private {
         JSONNull&
         operator = (const JSONNull& s) = delete;
         
-        virtual void
-        Write (Stream& s);
+        void
+        Write(Stream& s) override;
         
         typedef std::shared_ptr<JSONNull> SP;
         
@@ -202,8 +235,7 @@ namespace lldb_private {
             return V->GetKind() == JSONValue::Kind::Null;
         }
         
-        virtual
-        ~JSONNull () = default;
+        ~JSONNull() override = default;
     };
 
     class JSONObject : public JSONValue
@@ -215,8 +247,8 @@ namespace lldb_private {
         JSONObject&
         operator = (const JSONObject& s) = delete;
 
-        virtual void
-        Write (Stream& s);
+        void
+        Write(Stream& s) override;
         
         typedef std::shared_ptr<JSONObject> SP;
         
@@ -232,8 +264,7 @@ namespace lldb_private {
         JSONValue::SP
         GetObject (const std::string& key);
         
-        virtual
-        ~JSONObject () = default;
+        ~JSONObject() override = default;
         
     private:
         typedef std::map<std::string, JSONValue::SP> Map;
@@ -250,8 +281,8 @@ namespace lldb_private {
         JSONArray&
         operator = (const JSONArray& s) = delete;
         
-        virtual void
-        Write (Stream& s);
+        void
+        Write(Stream& s) override;
         
         typedef std::shared_ptr<JSONArray> SP;
         
@@ -280,12 +311,10 @@ namespace lldb_private {
         Size
         GetNumElements ();
 
-        virtual
-        ~JSONArray () = default;
+        ~JSONArray() override = default;
         
         Vector m_elements;
     };
-
 
     class JSONParser : public StringExtractor
     {
@@ -327,6 +356,6 @@ namespace lldb_private {
         JSONValue::SP
         ParseJSONArray ();
     };
-}
+} // namespace lldb_private
 
-#endif // utility_ProcessStructReader_h_
+#endif // utility_JSON_h_

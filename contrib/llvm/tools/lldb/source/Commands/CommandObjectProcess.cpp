@@ -47,7 +47,7 @@ public:
         CommandObjectParsed (interpreter, name, help, syntax, flags),
         m_new_process_action (new_process_action) {}
     
-    virtual ~CommandObjectProcessLaunchOrAttach () {}
+    ~CommandObjectProcessLaunchOrAttach () override {}
 protected:
     bool
     StopProcessIfNecessary (Process *process, StateType &state, CommandReturnObject &result)
@@ -142,11 +142,11 @@ public:
     }
 
 
-    ~CommandObjectProcessLaunch ()
+    ~CommandObjectProcessLaunch () override
     {
     }
 
-    virtual int
+    int
     HandleArgumentCompletion (Args &input,
                               int &cursor_index,
                               int &cursor_char_position,
@@ -154,7 +154,7 @@ public:
                               int match_start_point,
                               int max_return_elements,
                               bool &word_complete,
-                              StringList &matches)
+                              StringList &matches) override
     {
         std::string completion_str (input.GetArgumentAtIndex(cursor_index));
         completion_str.erase (cursor_char_position);
@@ -171,12 +171,13 @@ public:
     }
 
     Options *
-    GetOptions ()
+    GetOptions () override
     {
         return &m_options;
     }
 
-    virtual const char *GetRepeatCommand (Args &current_command_args, uint32_t index)
+    const char *
+    GetRepeatCommand (Args &current_command_args, uint32_t index) override
     {
         // No repeat for "process launch"...
         return "";
@@ -184,7 +185,7 @@ public:
 
 protected:
     bool
-    DoExecute (Args& launch_args, CommandReturnObject &result)
+    DoExecute (Args& launch_args, CommandReturnObject &result) override
     {
         Debugger &debugger = m_interpreter.GetDebugger();
         Target *target = debugger.GetSelectedTarget().get();
@@ -338,12 +339,12 @@ public:
             OptionParsingStarting ();
         }
 
-        ~CommandOptions ()
+        ~CommandOptions () override
         {
         }
 
         Error
-        SetOptionValue (uint32_t option_idx, const char *option_arg)
+        SetOptionValue (uint32_t option_idx, const char *option_arg) override
         {
             Error error;
             const int short_option = m_getopt_table[option_idx].val;
@@ -392,18 +393,18 @@ public:
         }
 
         void
-        OptionParsingStarting ()
+        OptionParsingStarting () override
         {
             attach_info.Clear();
         }
 
         const OptionDefinition*
-        GetDefinitions ()
+        GetDefinitions () override
         {
             return g_option_table;
         }
 
-        virtual bool
+        bool
         HandleOptionArgumentCompletion (Args &input,
                                         int cursor_index,
                                         int char_pos,
@@ -412,7 +413,7 @@ public:
                                         int match_start_point,
                                         int max_return_elements,
                                         bool &word_complete,
-                                        StringList &matches)
+                                        StringList &matches) override
         {
             int opt_arg_pos = opt_element_vector[opt_element_index].opt_arg_pos;
             int opt_defs_index = opt_element_vector[opt_element_index].opt_defs_index;
@@ -476,20 +477,19 @@ public:
     {
     }
 
-    ~CommandObjectProcessAttach ()
+    ~CommandObjectProcessAttach () override
     {
     }
 
     Options *
-    GetOptions ()
+    GetOptions () override
     {
         return &m_options;
     }
 
 protected:
     bool
-    DoExecute (Args& command,
-             CommandReturnObject &result)
+    DoExecute (Args& command, CommandReturnObject &result) override
     {
         PlatformSP platform_sp (m_interpreter.GetDebugger().GetPlatformList().GetSelectedPlatform());
 
@@ -550,6 +550,7 @@ protected:
                     result.AppendMessage(stream.GetData());
                 result.SetStatus (eReturnStatusSuccessFinishNoResult);
                 result.SetDidChangeProcessState (true);
+                result.SetAbnormalStopWasExpected(true);
             }
             else
             {
@@ -646,7 +647,7 @@ public:
     }
 
 
-    ~CommandObjectProcessContinue ()
+    ~CommandObjectProcessContinue () override
     {
     }
 
@@ -663,12 +664,12 @@ protected:
             OptionParsingStarting ();
         }
 
-        ~CommandOptions ()
+        ~CommandOptions () override
         {
         }
 
         Error
-        SetOptionValue (uint32_t option_idx, const char *option_arg)
+        SetOptionValue (uint32_t option_idx, const char *option_arg) override
         {
             Error error;
             const int short_option = m_getopt_table[option_idx].val;
@@ -689,13 +690,13 @@ protected:
         }
 
         void
-        OptionParsingStarting ()
+        OptionParsingStarting () override
         {
             m_ignore = 0;
         }
 
         const OptionDefinition*
-        GetDefinitions ()
+        GetDefinitions () override
         {
             return g_option_table;
         }
@@ -708,7 +709,7 @@ protected:
     };
     
     bool
-    DoExecute (Args& command, CommandReturnObject &result)
+    DoExecute (Args& command, CommandReturnObject &result) override
     {
         Process *process = m_exe_ctx.GetProcessPtr();
         bool synchronous_execution = m_interpreter.GetSynchronous ();
@@ -807,7 +808,7 @@ protected:
     }
 
     Options *
-    GetOptions ()
+    GetOptions () override
     {
         return &m_options;
     }
@@ -842,12 +843,12 @@ public:
             OptionParsingStarting ();
         }
 
-        ~CommandOptions ()
+        ~CommandOptions () override
         {
         }
 
         Error
-        SetOptionValue (uint32_t option_idx, const char *option_arg)
+        SetOptionValue (uint32_t option_idx, const char *option_arg) override
         {
             Error error;
             const int short_option = m_getopt_table[option_idx].val;
@@ -876,13 +877,13 @@ public:
         }
 
         void
-        OptionParsingStarting ()
+        OptionParsingStarting () override
         {
             m_keep_stopped = eLazyBoolCalculate;
         }
 
         const OptionDefinition*
-        GetDefinitions ()
+        GetDefinitions () override
         {
             return g_option_table;
         }
@@ -907,12 +908,12 @@ public:
     {
     }
 
-    ~CommandObjectProcessDetach ()
+    ~CommandObjectProcessDetach () override
     {
     }
 
     Options *
-    GetOptions ()
+    GetOptions () override
     {
         return &m_options;
     }
@@ -920,7 +921,7 @@ public:
 
 protected:
     bool
-    DoExecute (Args& command, CommandReturnObject &result)
+    DoExecute (Args& command, CommandReturnObject &result) override
     {
         Process *process = m_exe_ctx.GetProcessPtr();
         // FIXME: This will be a Command Option:
@@ -982,12 +983,12 @@ public:
             OptionParsingStarting ();
         }
         
-        ~CommandOptions ()
+        ~CommandOptions () override
         {
         }
         
         Error
-        SetOptionValue (uint32_t option_idx, const char *option_arg)
+        SetOptionValue (uint32_t option_idx, const char *option_arg) override
         {
             Error error;
             const int short_option = m_getopt_table[option_idx].val;
@@ -1006,13 +1007,13 @@ public:
         }
         
         void
-        OptionParsingStarting ()
+        OptionParsingStarting () override
         {
             plugin_name.clear();
         }
         
         const OptionDefinition*
-        GetDefinitions ()
+        GetDefinitions () override
         {
             return g_option_table;
         }
@@ -1036,94 +1037,61 @@ public:
     {
     }
     
-    ~CommandObjectProcessConnect ()
+    ~CommandObjectProcessConnect () override
     {
     }
 
     
     Options *
-    GetOptions ()
+    GetOptions () override
     {
         return &m_options;
     }
     
 protected:
     bool
-    DoExecute (Args& command,
-             CommandReturnObject &result)
+    DoExecute (Args& command, CommandReturnObject &result) override
     {
-        
-        TargetSP target_sp (m_interpreter.GetDebugger().GetSelectedTarget());
-        Error error;        
-        Process *process = m_exe_ctx.GetProcessPtr();
-        if (process)
+        if (command.GetArgumentCount() != 1)
         {
-            if (process->IsAlive())
-            {
-                result.AppendErrorWithFormat ("Process %" PRIu64 " is currently being debugged, kill the process before connecting.\n",
-                                              process->GetID());
-                result.SetStatus (eReturnStatusFailed);
-                return false;
-            }
-        }
-        
-        if (!target_sp)
-        {
-            // If there isn't a current target create one.
-            
-            error = m_interpreter.GetDebugger().GetTargetList().CreateTarget (m_interpreter.GetDebugger(), 
-                                                                              NULL,
-                                                                              NULL, 
-                                                                              false,
-                                                                              NULL, // No platform options
-                                                                              target_sp);
-            if (!target_sp || error.Fail())
-            {
-                result.AppendError(error.AsCString("Error creating target"));
-                result.SetStatus (eReturnStatusFailed);
-                return false;
-            }
-            m_interpreter.GetDebugger().GetTargetList().SetSelectedTarget(target_sp.get());
-        }
-        
-        if (command.GetArgumentCount() == 1)
-        {
-            const char *plugin_name = NULL;
-            if (!m_options.plugin_name.empty())
-                plugin_name = m_options.plugin_name.c_str();
-
-            const char *remote_url = command.GetArgumentAtIndex(0);
-            process = target_sp->CreateProcess (m_interpreter.GetDebugger().GetListener(), plugin_name, NULL).get();
-            
-            if (process)
-            {
-                error = process->ConnectRemote (process->GetTarget().GetDebugger().GetOutputFile().get(), remote_url);
-
-                if (error.Fail())
-                {
-                    result.AppendError(error.AsCString("Remote connect failed"));
-                    result.SetStatus (eReturnStatusFailed);
-                    target_sp->DeleteCurrentProcess();
-                    return false;
-                }
-            }
-            else
-            {
-                result.AppendErrorWithFormat ("Unable to find process plug-in for remote URL '%s'.\nPlease specify a process plug-in name with the --plugin option, or specify an object file using the \"file\" command.\n", 
-                                              remote_url);
-                result.SetStatus (eReturnStatusFailed);
-            }
-        }
-        else
-        {
-            result.AppendErrorWithFormat ("'%s' takes exactly one argument:\nUsage: %s\n", 
+            result.AppendErrorWithFormat ("'%s' takes exactly one argument:\nUsage: %s\n",
                                           m_cmd_name.c_str(),
                                           m_cmd_syntax.c_str());
             result.SetStatus (eReturnStatusFailed);
+            return false;
         }
-        return result.Succeeded();
+
+        
+        Process *process = m_exe_ctx.GetProcessPtr();
+        if (process && process->IsAlive())
+        {
+            result.AppendErrorWithFormat ("Process %" PRIu64 " is currently being debugged, kill the process before connecting.\n",
+                                          process->GetID());
+            result.SetStatus (eReturnStatusFailed);
+            return false;
+        }
+
+        const char *plugin_name = nullptr;
+        if (!m_options.plugin_name.empty())
+            plugin_name = m_options.plugin_name.c_str();
+
+        Error error;
+        Debugger& debugger = m_interpreter.GetDebugger();
+        PlatformSP platform_sp = m_interpreter.GetPlatform(true);
+        ProcessSP process_sp = platform_sp->ConnectProcess(command.GetArgumentAtIndex(0),
+                                                           plugin_name,
+                                                           debugger,
+                                                           debugger.GetSelectedTarget().get(),
+                                                           error);
+        if (error.Fail() || process_sp == nullptr)
+        {
+            result.AppendError(error.AsCString("Error connecting to the process"));
+            result.SetStatus (eReturnStatusFailed);
+            return false;
+        }
+        return true;
     }
-    
+
     CommandOptions m_options;
 };
 
@@ -1152,12 +1120,12 @@ public:
     {
     }
     
-    ~CommandObjectProcessPlugin ()
+    ~CommandObjectProcessPlugin () override
     {
     }
 
-    virtual CommandObject *
-    GetProxyCommandObject()
+    CommandObject *
+    GetProxyCommandObject() override
     {
         Process *process = m_interpreter.GetExecutionContext().GetProcessPtr();
         if (process)
@@ -1175,6 +1143,57 @@ public:
 class CommandObjectProcessLoad : public CommandObjectParsed
 {
 public:
+    class CommandOptions : public Options
+    {
+    public:
+        CommandOptions (CommandInterpreter &interpreter) :
+            Options(interpreter)
+        {
+            // Keep default values of all options in one place: OptionParsingStarting ()
+            OptionParsingStarting ();
+        }
+
+        ~CommandOptions () override = default;
+
+        Error
+        SetOptionValue (uint32_t option_idx, const char *option_arg) override
+        {
+            Error error;
+            const int short_option = m_getopt_table[option_idx].val;
+            switch (short_option)
+            {
+            case 'i':
+                do_install = true;
+                if (option_arg && option_arg[0])
+                    install_path.SetFile(option_arg, false);
+                break;
+            default:
+                error.SetErrorStringWithFormat("invalid short option character '%c'", short_option);
+                break;
+            }
+            return error;
+        }
+
+        void
+        OptionParsingStarting () override
+        {
+            do_install = false;
+            install_path.Clear();
+        }
+
+        const OptionDefinition*
+        GetDefinitions () override
+        {
+            return g_option_table;
+        }
+
+        // Options table: Required for subclasses of Options.
+        static OptionDefinition g_option_table[];
+
+        // Instance variables to hold the values for command options.
+        bool do_install;
+        FileSpec install_path;
+    };
 
     CommandObjectProcessLoad (CommandInterpreter &interpreter) :
         CommandObjectParsed (interpreter,
@@ -1184,33 +1203,54 @@ public:
                              eCommandRequiresProcess       |
                              eCommandTryTargetAPILock      |
                              eCommandProcessMustBeLaunched |
-                             eCommandProcessMustBePaused   )
+                             eCommandProcessMustBePaused   ),
+        m_options (interpreter)
     {
     }
 
-    ~CommandObjectProcessLoad ()
+    ~CommandObjectProcessLoad () override = default;
+
+    Options *
+    GetOptions () override
     {
+        return &m_options;
     }
 
 protected:
     bool
-    DoExecute (Args& command,
-             CommandReturnObject &result)
+    DoExecute (Args& command, CommandReturnObject &result) override
     {
         Process *process = m_exe_ctx.GetProcessPtr();
 
         const size_t argc = command.GetArgumentCount();
-        
         for (uint32_t i=0; i<argc; ++i)
         {
             Error error;
+            PlatformSP platform = process->GetTarget().GetPlatform();
             const char *image_path = command.GetArgumentAtIndex(i);
-            FileSpec image_spec (image_path, false);
-            process->GetTarget().GetPlatform()->ResolveRemotePath(image_spec, image_spec);
-            uint32_t image_token = process->LoadImage(image_spec, error);
+            uint32_t image_token = LLDB_INVALID_IMAGE_TOKEN;
+
+            if (!m_options.do_install)
+            {
+                FileSpec image_spec (image_path, false);
+                platform->ResolveRemotePath(image_spec, image_spec);
+                image_token = platform->LoadImage(process, FileSpec(), image_spec, error);
+            }
+            else if (m_options.install_path)
+            {
+                FileSpec image_spec (image_path, true);
+                platform->ResolveRemotePath(m_options.install_path, m_options.install_path);
+                image_token = platform->LoadImage(process, image_spec, m_options.install_path, error);
+            }
+            else
+            {
+                FileSpec image_spec (image_path, true);
+                image_token = platform->LoadImage(process, image_spec, FileSpec(), error);
+            }
+
             if (image_token != LLDB_INVALID_IMAGE_TOKEN)
             {
-                result.AppendMessageWithFormat ("Loading \"%s\"...ok\nImage %u loaded.\n", image_path, image_token);  
+                result.AppendMessageWithFormat ("Loading \"%s\"...ok\nImage %u loaded.\n", image_path, image_token);
                 result.SetStatus (eReturnStatusSuccessFinishResult);
             }
             else
@@ -1221,8 +1261,16 @@ protected:
         }
         return result.Succeeded();
     }
+    
+    CommandOptions m_options;
 };
 
+OptionDefinition
+CommandObjectProcessLoad::CommandOptions::g_option_table[] =
+{
+    { LLDB_OPT_SET_ALL, false, "install", 'i', OptionParser::eOptionalArgument, nullptr, nullptr, 0, eArgTypePath, "Install the shared library to the target. If specified without an argument then the library will installed in the current working directory."},
+    { 0,                false, nullptr,    0 , 0,                               nullptr, nullptr, 0, eArgTypeNone, nullptr }
+};
 
 //-------------------------------------------------------------------------
 // CommandObjectProcessUnload
@@ -1245,14 +1293,13 @@ public:
     {
     }
 
-    ~CommandObjectProcessUnload ()
+    ~CommandObjectProcessUnload () override
     {
     }
 
 protected:
     bool
-    DoExecute (Args& command,
-             CommandReturnObject &result)
+    DoExecute (Args& command, CommandReturnObject &result) override
     {
         Process *process = m_exe_ctx.GetProcessPtr();
 
@@ -1270,7 +1317,7 @@ protected:
             }
             else
             {
-                Error error (process->UnloadImage(image_token));
+                Error error (process->GetTarget().GetPlatform()->UnloadImage(process, image_token));
                 if (error.Success())
                 {
                     result.AppendMessageWithFormat ("Unloading shared library with index %u...ok\n", image_token);  
@@ -1318,14 +1365,13 @@ public:
         m_arguments.push_back (arg);
     }
 
-    ~CommandObjectProcessSignal ()
+    ~CommandObjectProcessSignal () override
     {
     }
 
 protected:
     bool
-    DoExecute (Args& command,
-             CommandReturnObject &result)
+    DoExecute (Args& command, CommandReturnObject &result) override
     {
         Process *process = m_exe_ctx.GetProcessPtr();
 
@@ -1390,14 +1436,13 @@ public:
     {
     }
 
-    ~CommandObjectProcessInterrupt ()
+    ~CommandObjectProcessInterrupt () override
     {
     }
 
 protected:
     bool
-    DoExecute (Args& command,
-               CommandReturnObject &result)
+    DoExecute (Args& command, CommandReturnObject &result) override
     {
         Process *process = m_exe_ctx.GetProcessPtr();
         if (process == NULL)
@@ -1452,14 +1497,13 @@ public:
     {
     }
 
-    ~CommandObjectProcessKill ()
+    ~CommandObjectProcessKill () override
     {
     }
 
 protected:
     bool
-    DoExecute (Args& command,
-             CommandReturnObject &result)
+    DoExecute (Args& command, CommandReturnObject &result) override
     {
         Process *process = m_exe_ctx.GetProcessPtr();
         if (process == NULL)
@@ -1513,14 +1557,14 @@ public:
     {
     }
     
-    ~CommandObjectProcessSaveCore ()
+    ~CommandObjectProcessSaveCore () override
     {
     }
     
 protected:
     bool
     DoExecute (Args& command,
-               CommandReturnObject &result)
+               CommandReturnObject &result) override
     {
         ProcessSP process_sp = m_exe_ctx.GetProcessSP();
         if (process_sp)
@@ -1575,13 +1619,13 @@ public:
     {
     }
 
-    ~CommandObjectProcessStatus()
+    ~CommandObjectProcessStatus() override
     {
     }
 
 
     bool
-    DoExecute (Args& command, CommandReturnObject &result)
+    DoExecute (Args& command, CommandReturnObject &result) override
     {
         Stream &strm = result.GetOutputStream();
         result.SetStatus (eReturnStatusSuccessFinishNoResult);
@@ -1620,12 +1664,12 @@ public:
             OptionParsingStarting ();
         }
 
-        ~CommandOptions ()
+        ~CommandOptions () override
         {
         }
 
         Error
-        SetOptionValue (uint32_t option_idx, const char *option_arg)
+        SetOptionValue (uint32_t option_idx, const char *option_arg) override
         {
             Error error;
             const int short_option = m_getopt_table[option_idx].val;
@@ -1649,7 +1693,7 @@ public:
         }
 
         void
-        OptionParsingStarting ()
+        OptionParsingStarting () override
         {
             stop.clear();
             notify.clear();
@@ -1657,7 +1701,7 @@ public:
         }
 
         const OptionDefinition*
-        GetDefinitions ()
+        GetDefinitions () override
         {
             return g_option_table;
         }
@@ -1694,12 +1738,12 @@ public:
         m_arguments.push_back (arg);
     }
 
-    ~CommandObjectProcessHandle ()
+    ~CommandObjectProcessHandle () override
     {
     }
 
     Options *
-    GetOptions ()
+    GetOptions () override
     {
         return &m_options;
     }
@@ -1781,7 +1825,7 @@ public:
 
 protected:
     bool
-    DoExecute (Args &signal_args, CommandReturnObject &result)
+    DoExecute (Args &signal_args, CommandReturnObject &result) override
     {
         TargetSP target_sp = m_interpreter.GetDebugger().GetSelectedTarget();
         

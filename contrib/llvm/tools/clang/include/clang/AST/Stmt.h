@@ -22,6 +22,7 @@
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/PointerIntPair.h"
+#include "llvm/ADT/iterator.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <string>
@@ -49,57 +50,6 @@ namespace clang {
   class Token;
   class VarDecl;
 
-  //===--------------------------------------------------------------------===//
-  // ExprIterator - Iterators for iterating over Stmt* arrays that contain
-  //  only Expr*.  This is needed because AST nodes use Stmt* arrays to store
-  //  references to children (to be compatible with StmtIterator).
-  //===--------------------------------------------------------------------===//
-
-  class Stmt;
-  class Expr;
-
-  class ExprIterator : public std::iterator<std::forward_iterator_tag,
-                                            Expr *&, ptrdiff_t,
-                                            Expr *&, Expr *&> {
-    Stmt** I;
-  public:
-    ExprIterator(Stmt** i) : I(i) {}
-    ExprIterator() : I(nullptr) {}
-    ExprIterator& operator++() { ++I; return *this; }
-    ExprIterator operator-(size_t i) { return I-i; }
-    ExprIterator operator+(size_t i) { return I+i; }
-    Expr* operator[](size_t idx);
-    // FIXME: Verify that this will correctly return a signed distance.
-    signed operator-(const ExprIterator& R) const { return I - R.I; }
-    Expr* operator*() const;
-    Expr* operator->() const;
-    bool operator==(const ExprIterator& R) const { return I == R.I; }
-    bool operator!=(const ExprIterator& R) const { return I != R.I; }
-    bool operator>(const ExprIterator& R) const { return I > R.I; }
-    bool operator>=(const ExprIterator& R) const { return I >= R.I; }
-  };
-
-  class ConstExprIterator : public std::iterator<std::forward_iterator_tag,
-                                                 const Expr *&, ptrdiff_t,
-                                                 const Expr *&,
-                                                 const Expr *&> {
-    const Stmt * const *I;
-  public:
-    ConstExprIterator(const Stmt * const *i) : I(i) {}
-    ConstExprIterator() : I(nullptr) {}
-    ConstExprIterator& operator++() { ++I; return *this; }
-    ConstExprIterator operator+(size_t i) const { return I+i; }
-    ConstExprIterator operator-(size_t i) const { return I-i; }
-    const Expr * operator[](size_t idx) const;
-    signed operator-(const ConstExprIterator& R) const { return I - R.I; }
-    const Expr * operator*() const;
-    const Expr * operator->() const;
-    bool operator==(const ConstExprIterator& R) const { return I == R.I; }
-    bool operator!=(const ConstExprIterator& R) const { return I != R.I; }
-    bool operator>(const ConstExprIterator& R) const { return I > R.I; }
-    bool operator>=(const ConstExprIterator& R) const { return I >= R.I; }
-  };
-
 //===----------------------------------------------------------------------===//
 // AST classes for statements.
 //===----------------------------------------------------------------------===//
@@ -121,10 +71,10 @@ public:
 
   // Make vanilla 'new' and 'delete' illegal for Stmts.
 protected:
-  void* operator new(size_t bytes) throw() {
+  void *operator new(size_t bytes) LLVM_NOEXCEPT {
     llvm_unreachable("Stmts cannot be allocated with regular 'new'.");
   }
-  void operator delete(void* data) throw() {
+  void operator delete(void *data) LLVM_NOEXCEPT {
     llvm_unreachable("Stmts cannot be released with regular 'delete'.");
   }
 
@@ -180,7 +130,7 @@ protected:
     friend class CharacterLiteral;
     unsigned : NumExprBits;
 
-    unsigned Kind : 2;
+    unsigned Kind : 3;
   };
 
   enum APFloatSemantics {
@@ -322,20 +272,51 @@ public:
     return operator new(bytes, *C, alignment);
   }
 
-  void* operator new(size_t bytes, void* mem) throw() {
-    return mem;
-  }
+  void *operator new(size_t bytes, void *mem) LLVM_NOEXCEPT { return mem; }
 
-  void operator delete(void*, const ASTContext&, unsigned) throw() { }
-  void operator delete(void*, const ASTContext*, unsigned) throw() { }
-  void operator delete(void*, size_t) throw() { }
-  void operator delete(void*, void*) throw() { }
+  void operator delete(void *, const ASTContext &, unsigned) LLVM_NOEXCEPT {}
+  void operator delete(void *, const ASTContext *, unsigned) LLVM_NOEXCEPT {}
+  void operator delete(void *, size_t) LLVM_NOEXCEPT {}
+  void operator delete(void *, void *) LLVM_NOEXCEPT {}
 
 public:
   /// \brief A placeholder type used to construct an empty shell of a
   /// type, that will be filled in later (e.g., by some
   /// de-serialization).
   struct EmptyShell { };
+
+protected:
+  /// Iterator for iterating over Stmt * arrays that contain only Expr *
+  ///
+  /// This is needed because AST nodes use Stmt* arrays to store
+  /// references to children (to be compatible with StmtIterator).
+  struct ExprIterator
+      : llvm::iterator_adaptor_base<ExprIterator, Stmt **,
+                                    std::random_access_iterator_tag, Expr *> {
+    ExprIterator() : iterator_adaptor_base(nullptr) {}
+    ExprIterator(Stmt **I) : iterator_adaptor_base(I) {}
+
+    reference operator*() const {
+      assert((*I)->getStmtClass() >= firstExprConstant &&
+             (*I)->getStmtClass() <= lastExprConstant);
+      return *reinterpret_cast<Expr **>(I);
+    }
+  };
+
+  /// Const iterator for iterating over Stmt * arrays that contain only Expr *
+  struct ConstExprIterator
+      : llvm::iterator_adaptor_base<ConstExprIterator, const Stmt *const *,
+                                    std::random_access_iterator_tag,
+                                    const Expr *const> {
+    ConstExprIterator() : iterator_adaptor_base(nullptr) {}
+    ConstExprIterator(const Stmt *const *I) : iterator_adaptor_base(I) {}
+
+    reference operator*() const {
+      assert((*I)->getStmtClass() >= firstExprConstant &&
+             (*I)->getStmtClass() <= lastExprConstant);
+      return *reinterpret_cast<const Expr *const *>(I);
+    }
+  };
 
 private:
   /// \brief Whether statistic collection is enabled.
@@ -411,19 +392,20 @@ public:
   typedef StmtIterator       child_iterator;
   typedef ConstStmtIterator  const_child_iterator;
 
-  typedef StmtRange          child_range;
-  typedef ConstStmtRange     const_child_range;
+  typedef llvm::iterator_range<child_iterator> child_range;
+  typedef llvm::iterator_range<const_child_iterator> const_child_range;
 
   child_range children();
   const_child_range children() const {
-    return const_cast<Stmt*>(this)->children();
+    auto Children = const_cast<Stmt *>(this)->children();
+    return const_child_range(Children.begin(), Children.end());
   }
 
-  child_iterator child_begin() { return children().first; }
-  child_iterator child_end() { return children().second; }
+  child_iterator child_begin() { return children().begin(); }
+  child_iterator child_end() { return children().end(); }
 
-  const_child_iterator child_begin() const { return children().first; }
-  const_child_iterator child_end() const { return children().second; }
+  const_child_iterator child_begin() const { return children().begin(); }
+  const_child_iterator child_end() const { return children().end(); }
 
   /// \brief Produce a unique representation of the given statement.
   ///
@@ -544,7 +526,9 @@ public:
     return T->getStmtClass() == NullStmtClass;
   }
 
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 
   friend class ASTStmtReader;
   friend class ASTStmtWriter;
@@ -574,7 +558,7 @@ public:
     CompoundStmtBits.NumStmts = 0;
   }
 
-  void setStmts(const ASTContext &C, Stmt **Stmts, unsigned NumStmts);
+  void setStmts(const ASTContext &C, ArrayRef<Stmt *> Stmts);
 
   bool body_empty() const { return CompoundStmtBits.NumStmts == 0; }
   unsigned size() const { return CompoundStmtBits.NumStmts; }
@@ -643,7 +627,8 @@ public:
   }
 
   const_child_range children() const {
-    return child_range(Body, Body + CompoundStmtBits.NumStmts);
+    return const_child_range(child_iterator(Body),
+                             child_iterator(Body + CompoundStmtBits.NumStmts));
   }
 };
 
@@ -840,18 +825,20 @@ class AttributedStmt : public Stmt {
   AttributedStmt(SourceLocation Loc, ArrayRef<const Attr*> Attrs, Stmt *SubStmt)
     : Stmt(AttributedStmtClass), SubStmt(SubStmt), AttrLoc(Loc),
       NumAttrs(Attrs.size()) {
-    memcpy(getAttrArrayPtr(), Attrs.data(), Attrs.size() * sizeof(Attr *));
+    std::copy(Attrs.begin(), Attrs.end(), getAttrArrayPtr());
   }
 
   explicit AttributedStmt(EmptyShell Empty, unsigned NumAttrs)
     : Stmt(AttributedStmtClass, Empty), NumAttrs(NumAttrs) {
-    memset(getAttrArrayPtr(), 0, NumAttrs * sizeof(Attr *));
+    std::fill_n(getAttrArrayPtr(), NumAttrs, nullptr);
   }
 
-  Attr *const *getAttrArrayPtr() const {
-    return reinterpret_cast<Attr *const *>(this + 1);
+  const Attr *const *getAttrArrayPtr() const {
+    return reinterpret_cast<const Attr *const *>(this + 1);
   }
-  Attr **getAttrArrayPtr() { return reinterpret_cast<Attr **>(this + 1); }
+  const Attr **getAttrArrayPtr() {
+    return reinterpret_cast<const Attr **>(this + 1);
+  }
 
 public:
   static AttributedStmt *Create(const ASTContext &C, SourceLocation Loc,
@@ -1239,7 +1226,9 @@ public:
   }
 
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 };
 
 /// IndirectGotoStmt - This represents an indirect goto.
@@ -1307,7 +1296,9 @@ public:
   }
 
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 };
 
 /// BreakStmt - This represents a break.
@@ -1335,7 +1326,9 @@ public:
   }
 
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 };
 
 
@@ -1390,7 +1383,7 @@ public:
   // Iterators
   child_range children() {
     if (RetExpr) return child_range(&RetExpr, &RetExpr+1);
-    return child_range();
+    return child_range(child_iterator(), child_iterator());
   }
 };
 
@@ -1974,7 +1967,9 @@ public:
   }
 
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 };
 
 /// \brief This captures a statement into a function. For example, the following
@@ -1993,6 +1988,7 @@ public:
   enum VariableCaptureKind {
     VCK_This,
     VCK_ByRef,
+    VCK_ByCopy,
     VCK_VLAType,
   };
 
@@ -2012,24 +2008,10 @@ public:
     /// \param Var The variable being captured, or null if capturing this.
     ///
     Capture(SourceLocation Loc, VariableCaptureKind Kind,
-            VarDecl *Var = nullptr)
-      : VarAndKind(Var, Kind), Loc(Loc) {
-      switch (Kind) {
-      case VCK_This:
-        assert(!Var && "'this' capture cannot have a variable!");
-        break;
-      case VCK_ByRef:
-        assert(Var && "capturing by reference must have a variable!");
-        break;
-      case VCK_VLAType:
-        assert(!Var &&
-               "Variable-length array type capture cannot have a variable!");
-        break;
-      }
-    }
+            VarDecl *Var = nullptr);
 
     /// \brief Determine the kind of capture.
-    VariableCaptureKind getCaptureKind() const { return VarAndKind.getInt(); }
+    VariableCaptureKind getCaptureKind() const;
 
     /// \brief Retrieve the source location at which the variable or 'this' was
     /// first used.
@@ -2038,8 +2020,13 @@ public:
     /// \brief Determine whether this capture handles the C++ 'this' pointer.
     bool capturesThis() const { return getCaptureKind() == VCK_This; }
 
-    /// \brief Determine whether this capture handles a variable.
+    /// \brief Determine whether this capture handles a variable (by reference).
     bool capturesVariable() const { return getCaptureKind() == VCK_ByRef; }
+
+    /// \brief Determine whether this capture handles a variable by copy.
+    bool capturesVariableByCopy() const {
+      return getCaptureKind() == VCK_ByCopy;
+    }
 
     /// \brief Determine whether this capture handles a variable-length array
     /// type.
@@ -2050,11 +2037,8 @@ public:
     /// \brief Retrieve the declaration of the variable being captured.
     ///
     /// This operation is only valid if this capture captures a variable.
-    VarDecl *getCapturedVar() const {
-      assert(capturesVariable() &&
-             "No variable available for 'this' or VAT capture");
-      return VarAndKind.getPointer();
-    }
+    VarDecl *getCapturedVar() const;
+
     friend class ASTStmtReader;
   };
 
@@ -2076,8 +2060,10 @@ private:
   /// \brief Construct an empty captured statement.
   CapturedStmt(EmptyShell Empty, unsigned NumCaptures);
 
-  Stmt **getStoredStmts() const {
-    return reinterpret_cast<Stmt **>(const_cast<CapturedStmt *>(this) + 1);
+  Stmt **getStoredStmts() { return reinterpret_cast<Stmt **>(this + 1); }
+
+  Stmt *const *getStoredStmts() const {
+    return reinterpret_cast<Stmt *const *>(this + 1);
   }
 
   Capture *getStoredCaptures() const;
@@ -2096,31 +2082,20 @@ public:
 
   /// \brief Retrieve the statement being captured.
   Stmt *getCapturedStmt() { return getStoredStmts()[NumCaptures]; }
-  const Stmt *getCapturedStmt() const {
-    return const_cast<CapturedStmt *>(this)->getCapturedStmt();
-  }
+  const Stmt *getCapturedStmt() const { return getStoredStmts()[NumCaptures]; }
 
   /// \brief Retrieve the outlined function declaration.
-  CapturedDecl *getCapturedDecl() { return CapDeclAndKind.getPointer(); }
-  const CapturedDecl *getCapturedDecl() const {
-    return const_cast<CapturedStmt *>(this)->getCapturedDecl();
-  }
+  CapturedDecl *getCapturedDecl();
+  const CapturedDecl *getCapturedDecl() const;
 
   /// \brief Set the outlined function declaration.
-  void setCapturedDecl(CapturedDecl *D) {
-    assert(D && "null CapturedDecl");
-    CapDeclAndKind.setPointer(D);
-  }
+  void setCapturedDecl(CapturedDecl *D);
 
   /// \brief Retrieve the captured region kind.
-  CapturedRegionKind getCapturedRegionKind() const {
-    return CapDeclAndKind.getInt();
-  }
+  CapturedRegionKind getCapturedRegionKind() const;
 
   /// \brief Set the captured region kind.
-  void setCapturedRegionKind(CapturedRegionKind Kind) {
-    CapDeclAndKind.setInt(Kind);
-  }
+  void setCapturedRegionKind(CapturedRegionKind Kind);
 
   /// \brief Retrieve the record declaration for captured variables.
   const RecordDecl *getCapturedRecordDecl() const { return TheRecordDecl; }
@@ -2164,18 +2139,36 @@ public:
   typedef Expr **capture_init_iterator;
   typedef llvm::iterator_range<capture_init_iterator> capture_init_range;
 
-  capture_init_range capture_inits() const {
+  /// \brief Const iterator that walks over the capture initialization
+  /// arguments.
+  typedef Expr *const *const_capture_init_iterator;
+  typedef llvm::iterator_range<const_capture_init_iterator>
+      const_capture_init_range;
+
+  capture_init_range capture_inits() {
     return capture_init_range(capture_init_begin(), capture_init_end());
   }
 
+  const_capture_init_range capture_inits() const {
+    return const_capture_init_range(capture_init_begin(), capture_init_end());
+  }
+
   /// \brief Retrieve the first initialization argument.
-  capture_init_iterator capture_init_begin() const {
+  capture_init_iterator capture_init_begin() {
     return reinterpret_cast<Expr **>(getStoredStmts());
+  }
+
+  const_capture_init_iterator capture_init_begin() const {
+    return reinterpret_cast<Expr *const *>(getStoredStmts());
   }
 
   /// \brief Retrieve the iterator pointing one past the last initialization
   /// argument.
-  capture_init_iterator capture_init_end() const {
+  capture_init_iterator capture_init_end() {
+    return capture_init_begin() + NumCaptures;
+  }
+
+  const_capture_init_iterator capture_init_end() const {
     return capture_init_begin() + NumCaptures;
   }
 

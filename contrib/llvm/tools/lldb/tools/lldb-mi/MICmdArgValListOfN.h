@@ -31,25 +31,22 @@ class CMICmdArgContext;
 //          If vbMandatory argument is true it takes on the (...)+ specification
 //          otherwise assumed to be (...)* specification.
 //          Based on the Interpreter pattern.
-// Gotchas: None.
-// Authors: Illya Rudkin 16/04/2014.
-// Changes: None.
 //--
 class CMICmdArgValListOfN : public CMICmdArgValListBase
 {
     // Methods:
   public:
-    /* ctor */ CMICmdArgValListOfN(void);
+    /* ctor */ CMICmdArgValListOfN();
     /* ctor */ CMICmdArgValListOfN(const CMIUtilString &vrArgName, const bool vbMandatory, const bool vbHandleByCmd,
                                    const ArgValType_e veType);
     //
-    const VecArgObjPtr_t &GetExpectedOptions(void) const;
+    const VecArgObjPtr_t &GetExpectedOptions() const;
     template <class T1, typename T2> bool GetExpectedOption(T2 &vrwValue, const VecArgObjPtr_t::size_type vnAt = 0) const;
 
     // Overridden:
   public:
     // From CMICmdArgValBase
-    /* dtor */ ~CMICmdArgValListOfN(void) override;
+    /* dtor */ ~CMICmdArgValListOfN() override;
     // From CMICmdArgSet::IArg
     bool Validate(CMICmdArgContext &vArgContext) override;
 

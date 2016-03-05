@@ -41,9 +41,9 @@
 #include "../Commands/CommandObjectWatchpoint.h"
 #include "../Commands/CommandObjectLanguage.h"
 
-
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Log.h"
+#include "lldb/Core/PluginManager.h"
 #include "lldb/Core/State.h"
 #include "lldb/Core/Stream.h"
 #include "lldb/Core/StreamFile.h"
@@ -62,8 +62,6 @@
 #include "lldb/Interpreter/Options.h"
 #include "lldb/Interpreter/OptionValueProperties.h"
 #include "lldb/Interpreter/Property.h"
-#include "lldb/Interpreter/ScriptInterpreterNone.h"
-#include "lldb/Interpreter/ScriptInterpreterPython.h"
 
 
 #include "lldb/Target/Process.h"
@@ -87,6 +85,7 @@ g_properties[] =
     { "expand-regex-aliases", OptionValue::eTypeBoolean, true, false, nullptr, nullptr, "If true, regular expression alias commands will show the expanded command that will be executed. This can be used to debug new regular expression alias commands." },
     { "prompt-on-quit", OptionValue::eTypeBoolean, true, true, nullptr, nullptr, "If true, LLDB will prompt you before quitting if there are any live processes being debugged. If false, LLDB will quit without asking in any case." },
     { "stop-command-source-on-error", OptionValue::eTypeBoolean, true, true, nullptr, nullptr, "If true, LLDB will stop running a 'command source' script upon encountering an error." },
+    { "space-repl-prompts", OptionValue::eTypeBoolean, true, false, nullptr, nullptr, "If true, blank lines will be printed between between REPL submissions." },
     { nullptr                  , OptionValue::eTypeInvalid, true, 0    , nullptr, nullptr, nullptr }
 };
 
@@ -94,7 +93,8 @@ enum
 {
     ePropertyExpandRegexAliases = 0,
     ePropertyPromptOnQuit = 1,
-    ePropertyStopCmdSourceOnError = 2
+    ePropertyStopCmdSourceOnError = 2,
+    eSpaceReplPrompts = 3
 };
 
 ConstString &
@@ -104,29 +104,23 @@ CommandInterpreter::GetStaticBroadcasterClass ()
     return class_name;
 }
 
-CommandInterpreter::CommandInterpreter
-(
-    Debugger &debugger,
-    ScriptLanguage script_language,
-    bool synchronous_execution
-) :
-    Broadcaster (&debugger, CommandInterpreter::GetStaticBroadcasterClass().AsCString()),
-    Properties(OptionValuePropertiesSP(new OptionValueProperties(ConstString("interpreter")))),
-    IOHandlerDelegate (IOHandlerDelegate::Completion::LLDBCommand),
-    m_debugger (debugger),
-    m_synchronous_execution (synchronous_execution),
-    m_skip_lldbinit_files (false),
-    m_skip_app_init_files (false),
-    m_script_interpreter_ap (),
-    m_command_io_handler_sp (),
-    m_comment_char ('#'),
-    m_batch_command_mode (false),
-    m_truncation_warning(eNoTruncation),
-    m_command_source_depth (0),
-    m_num_errors(0),
-    m_quit_requested(false),
-    m_stopped_for_crash(false)
-
+CommandInterpreter::CommandInterpreter(Debugger &debugger, ScriptLanguage script_language, bool synchronous_execution)
+    : Broadcaster(&debugger, CommandInterpreter::GetStaticBroadcasterClass().AsCString()),
+      Properties(OptionValuePropertiesSP(new OptionValueProperties(ConstString("interpreter")))),
+      IOHandlerDelegate(IOHandlerDelegate::Completion::LLDBCommand),
+      m_debugger(debugger),
+      m_synchronous_execution(synchronous_execution),
+      m_skip_lldbinit_files(false),
+      m_skip_app_init_files(false),
+      m_script_interpreter_sp(),
+      m_command_io_handler_sp(),
+      m_comment_char('#'),
+      m_batch_command_mode(false),
+      m_truncation_warning(eNoTruncation),
+      m_command_source_depth(0),
+      m_num_errors(0),
+      m_quit_requested(false),
+      m_stopped_for_crash(false)
 {
     debugger.SetScriptLanguage (script_language);
     SetEventName (eBroadcastBitThreadShouldExit, "thread-should-exit");
@@ -172,6 +166,13 @@ bool
 CommandInterpreter::GetStopCmdSourceOnError () const
 {
     const uint32_t idx = ePropertyStopCmdSourceOnError;
+    return m_collection_sp->GetPropertyAtIndexAsBoolean (nullptr, idx, g_properties[idx].default_uint_value != 0);
+}
+
+bool
+CommandInterpreter::GetSpaceReplPrompts () const
+{
+    const uint32_t idx = eSpaceReplPrompts;
     return m_collection_sp->GetPropertyAtIndexAsBoolean (nullptr, idx, g_properties[idx].default_uint_value != 0);
 }
 
@@ -360,11 +361,19 @@ CommandInterpreter::Initialize ()
 #if defined (__arm__) || defined (__arm64__) || defined (__aarch64__)
         ProcessAliasOptionsArgs (cmd_obj_sp, "--", alias_arguments_vector_sp);
 #else
+    #if defined(__APPLE__)
+        std::string shell_option;
+        shell_option.append("--shell-expand-args");
+        shell_option.append(" true");
+        shell_option.append(" --");
+        ProcessAliasOptionsArgs (cmd_obj_sp, shell_option.c_str(), alias_arguments_vector_sp);
+    #else
         std::string shell_option;
         shell_option.append("--shell=");
         shell_option.append(HostInfo::GetDefaultShell().GetPath());
         shell_option.append(" --");
         ProcessAliasOptionsArgs (cmd_obj_sp, shell_option.c_str(), alias_arguments_vector_sp);
+    #endif
 #endif
         AddAlias ("r", cmd_obj_sp);
         AddAlias ("run", cmd_obj_sp);
@@ -392,9 +401,9 @@ void
 CommandInterpreter::Clear()
 {
     m_command_io_handler_sp.reset();
-    
-    if (m_script_interpreter_ap)
-        m_script_interpreter_ap->Clear();
+
+    if (m_script_interpreter_sp)
+        m_script_interpreter_sp->Clear();
 }
 
 const char *
@@ -511,8 +520,7 @@ CommandInterpreter::LoadCommandDictionary ()
             char buffer[1024];
             int num_printed = snprintf(buffer, 1024, "%s %s", break_regexes[i][1], "-o");
             assert (num_printed < 1024);
-	    // Quiet unused variable warning for release builds.
-	    (void) num_printed;
+            UNUSED_IF_ASSERT_DISABLED(num_printed);
             success = tbreak_regex_cmd_ap->AddRegexCommand (break_regexes[i][0], buffer);
             if (!success)
                 break;
@@ -2011,7 +2019,7 @@ CommandInterpreter::HandleCompletion (const char *current_line,
                                                    matches);
 
     if (num_command_matches <= 0)
-            return num_command_matches;
+        return num_command_matches;
 
     if (num_args == 0)
     {
@@ -2030,18 +2038,18 @@ CommandInterpreter::HandleCompletion (const char *current_line,
         std::string common_prefix;
         matches.LongestCommonPrefix (common_prefix);
         const size_t partial_name_len = command_partial_str.size();
+        common_prefix.erase (0, partial_name_len);
 
         // If we matched a unique single command, add a space...
         // Only do this if the completer told us this was a complete word, however...
         if (num_command_matches == 1 && word_complete)
         {
             char quote_char = parsed_line.GetArgumentQuoteCharAtIndex(cursor_index);
+            common_prefix = Args::EscapeLLDBCommandArgument(common_prefix, quote_char);
             if (quote_char != '\0')
                 common_prefix.push_back(quote_char);
-
             common_prefix.push_back(' ');
         }
-        common_prefix.erase (0, partial_name_len);
         matches.InsertStringAtIndex(0, common_prefix.c_str());
     }
     return num_command_matches;
@@ -2709,47 +2717,18 @@ CommandInterpreter::HandleCommandsFromFile (FileSpec &cmd_file,
 }
 
 ScriptInterpreter *
-CommandInterpreter::GetScriptInterpreter (bool can_create)
+CommandInterpreter::GetScriptInterpreter(bool can_create)
 {
-    if (m_script_interpreter_ap.get() != nullptr)
-        return m_script_interpreter_ap.get();
-    
+    if (m_script_interpreter_sp)
+        return m_script_interpreter_sp.get();
+
     if (!can_create)
         return nullptr;
- 
-    // <rdar://problem/11751427>
-    // we need to protect the initialization of the script interpreter
-    // otherwise we could end up with two threads both trying to create
-    // their instance of it, and for some languages (e.g. Python)
-    // this is a bulletproof recipe for disaster!
-    // this needs to be a function-level static because multiple Debugger instances living in the same process
-    // still need to be isolated and not try to initialize Python concurrently
-    static Mutex g_interpreter_mutex(Mutex::eMutexTypeRecursive);
-    Mutex::Locker interpreter_lock(g_interpreter_mutex);
-    
-    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_OBJECT));
-    if (log)
-        log->Printf("Initializing the ScriptInterpreter now\n");
-    
+
     lldb::ScriptLanguage script_lang = GetDebugger().GetScriptLanguage();
-    switch (script_lang)
-    {
-        case eScriptLanguagePython:
-#ifndef LLDB_DISABLE_PYTHON
-            m_script_interpreter_ap.reset (new ScriptInterpreterPython (*this));
-            break;
-#else
-            // Fall through to the None case when python is disabled
-#endif
-        case eScriptLanguageNone:
-            m_script_interpreter_ap.reset (new ScriptInterpreterNone (*this));
-            break;
-    };
-    
-    return m_script_interpreter_ap.get();
+    m_script_interpreter_sp = PluginManager::GetScriptInterpreterForLanguage(script_lang, *this);
+    return m_script_interpreter_sp.get();
 }
-
-
 
 bool
 CommandInterpreter::GetSynchronous ()
@@ -3059,7 +3038,10 @@ CommandInterpreter::IOHandlerInputComplete (IOHandler &io_handler, std::string &
                 for (ThreadSP thread_sp : process_sp->GetThreadList().Threads())
                 {
                     StopReason reason = thread_sp->GetStopReason();
-                    if (reason == eStopReasonSignal || reason == eStopReasonException || reason == eStopReasonInstrumentation)
+                    if ((reason == eStopReasonSignal
+                        || reason == eStopReasonException
+                        || reason == eStopReasonInstrumentation)
+                        && !result.GetAbnormalStopWasExpected())
                     {
                         should_stop = true;
                         break;

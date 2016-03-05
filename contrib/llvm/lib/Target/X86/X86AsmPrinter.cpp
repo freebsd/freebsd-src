@@ -217,10 +217,10 @@ static void printOperand(X86AsmPrinter &P, const MachineInstr *MI,
     if (AsmVariant == 0) O << '%';
     unsigned Reg = MO.getReg();
     if (Modifier && strncmp(Modifier, "subreg", strlen("subreg")) == 0) {
-      MVT::SimpleValueType VT = (strcmp(Modifier+6,"64") == 0) ?
-        MVT::i64 : ((strcmp(Modifier+6, "32") == 0) ? MVT::i32 :
-                    ((strcmp(Modifier+6,"16") == 0) ? MVT::i16 : MVT::i8));
-      Reg = getX86SubSuperRegister(Reg, VT);
+      unsigned Size = (strcmp(Modifier+6,"64") == 0) ? 64 :
+                      (strcmp(Modifier+6,"32") == 0) ? 32 :
+                      (strcmp(Modifier+6,"16") == 0) ? 16 : 8;
+      Reg = getX86SubSuperRegister(Reg, Size);
     }
     O << X86ATTInstPrinter::getRegisterName(Reg);
     return;
@@ -361,22 +361,21 @@ static bool printAsmMRegister(X86AsmPrinter &P, const MachineOperand &MO,
   switch (Mode) {
   default: return true;  // Unknown mode.
   case 'b': // Print QImode register
-    Reg = getX86SubSuperRegister(Reg, MVT::i8);
+    Reg = getX86SubSuperRegister(Reg, 8);
     break;
   case 'h': // Print QImode high register
-    Reg = getX86SubSuperRegister(Reg, MVT::i8, true);
+    Reg = getX86SubSuperRegister(Reg, 8, true);
     break;
   case 'w': // Print HImode register
-    Reg = getX86SubSuperRegister(Reg, MVT::i16);
+    Reg = getX86SubSuperRegister(Reg, 16);
     break;
   case 'k': // Print SImode register
-    Reg = getX86SubSuperRegister(Reg, MVT::i32);
+    Reg = getX86SubSuperRegister(Reg, 32);
     break;
   case 'q':
     // Print 64-bit register names if 64-bit integer registers are available.
     // Otherwise, print 32-bit register names.
-    MVT::SimpleValueType Ty = P.getSubtarget().is64Bit() ? MVT::i64 : MVT::i32;
-    Reg = getX86SubSuperRegister(Reg, Ty);
+    Reg = getX86SubSuperRegister(Reg, P.getSubtarget().is64Bit() ? 64 : 32);
     break;
   }
 
@@ -535,6 +534,7 @@ void X86AsmPrinter::EmitStartOfAsmFile(Module &M) {
           S, MCConstantExpr::create(int64_t(1), MMI->getContext()));
     }
   }
+  OutStreamer->EmitSyntaxDirective();
 }
 
 static void
@@ -565,10 +565,11 @@ MCSymbol *X86AsmPrinter::GetCPISymbol(unsigned CPID) const {
     const MachineConstantPoolEntry &CPE =
         MF->getConstantPool()->getConstants()[CPID];
     if (!CPE.isMachineConstantPoolEntry()) {
-      SectionKind Kind = CPE.getSectionKind(TM.getDataLayout());
+      const DataLayout &DL = MF->getDataLayout();
+      SectionKind Kind = CPE.getSectionKind(&DL);
       const Constant *C = CPE.Val.ConstVal;
       if (const MCSectionCOFF *S = dyn_cast<MCSectionCOFF>(
-            getObjFileLowering().getSectionForConstant(Kind, C))) {
+              getObjFileLowering().getSectionForConstant(DL, Kind, C))) {
         if (MCSymbol *Sym = S->getCOMDATSymbol()) {
           if (Sym->isUndefined())
             OutStreamer->EmitSymbolAttribute(Sym, MCSA_Global);

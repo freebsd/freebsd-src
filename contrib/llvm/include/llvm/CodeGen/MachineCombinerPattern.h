@@ -17,13 +17,30 @@
 
 namespace llvm {
 
-/// Enumeration of instruction pattern supported by machine combiner
-///
-///
-namespace MachineCombinerPattern {
-// Forward declaration
-enum MC_PATTERN : int;
-} // end namespace MachineCombinerPattern
+/// These are instruction patterns matched by the machine combiner pass.
+enum class MachineCombinerPattern {
+  // These are commutative variants for reassociating a computation chain. See
+  // the comments before getMachineCombinerPatterns() in TargetInstrInfo.cpp.
+  REASSOC_AX_BY,
+  REASSOC_AX_YB,
+  REASSOC_XA_BY,
+  REASSOC_XA_YB,
+
+  // These are multiply-add patterns matched by the AArch64 machine combiner.
+  MULADDW_OP1,
+  MULADDW_OP2,
+  MULSUBW_OP1,
+  MULSUBW_OP2,
+  MULADDWI_OP1,
+  MULSUBWI_OP1,
+  MULADDX_OP1,
+  MULADDX_OP2,
+  MULSUBX_OP1,
+  MULSUBX_OP2,
+  MULADDXI_OP1,
+  MULSUBXI_OP1
+};
+
 } // end namespace llvm
 
 #endif

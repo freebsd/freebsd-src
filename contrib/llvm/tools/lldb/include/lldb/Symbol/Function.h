@@ -10,7 +10,6 @@
 #ifndef liblldb_Function_h_
 #define liblldb_Function_h_
 
-#include "lldb/Core/ClangForward.h"
 #include "lldb/Core/AddressRange.h"
 #include "lldb/Symbol/Block.h"
 #include "lldb/Symbol/Declaration.h"
@@ -147,7 +146,6 @@ protected:
     Declaration m_declaration; ///< Information describing where this function information was defined.
 };
 
-
 //----------------------------------------------------------------------
 /// @class InlineFunctionInfo Function.h "lldb/Symbol/Function.h"
 /// @brief A class that describes information for an inlined function.
@@ -203,7 +201,7 @@ public:
     //------------------------------------------------------------------
     /// Destructor.
     //------------------------------------------------------------------
-    ~InlineFunctionInfo();
+    ~InlineFunctionInfo() override;
 
     //------------------------------------------------------------------
     /// Compare two inlined function information objects.
@@ -294,8 +292,8 @@ public:
     ///
     /// @see ConstString::StaticMemorySize ()
     //------------------------------------------------------------------
-    virtual size_t
-    MemorySize() const;
+    size_t
+    MemorySize() const override;
 
 private:
     //------------------------------------------------------------------
@@ -415,24 +413,24 @@ public:
     //------------------------------------------------------------------
     /// Destructor.
     //------------------------------------------------------------------
-    ~Function ();
+    ~Function() override;
 
     //------------------------------------------------------------------
     /// @copydoc SymbolContextScope::CalculateSymbolContext(SymbolContext*)
     ///
     /// @see SymbolContextScope
     //------------------------------------------------------------------
-    virtual void
-    CalculateSymbolContext(SymbolContext* sc);
+    void
+    CalculateSymbolContext(SymbolContext* sc) override;
 
-    virtual lldb::ModuleSP
-    CalculateSymbolContextModule ();
+    lldb::ModuleSP
+    CalculateSymbolContextModule() override;
     
-    virtual CompileUnit *
-    CalculateSymbolContextCompileUnit ();
+    CompileUnit *
+    CalculateSymbolContextCompileUnit() override;
     
-    virtual Function *
-    CalculateSymbolContextFunction ();
+    Function *
+    CalculateSymbolContextFunction() override;
 
     const AddressRange &
     GetAddressRange()
@@ -550,8 +548,8 @@ public:
     /// @return
     ///     The DeclContext, or NULL if none exists.
     //------------------------------------------------------------------
-    clang::DeclContext *
-    GetClangDeclContext();
+    CompilerDeclContext
+    GetDeclContext();
     
     //------------------------------------------------------------------
     /// Get accessor for the type that describes the function
@@ -573,8 +571,8 @@ public:
     const Type*
     GetType() const;
     
-    ClangASTType
-    GetClangType ();
+    CompilerType
+    GetCompilerType ();
 
     uint32_t
     GetPrologueByteSize ();
@@ -600,8 +598,8 @@ public:
     ///
     /// @see SymbolContextScope
     //------------------------------------------------------------------
-    virtual void
-    DumpSymbolContext(Stream *s);
+    void
+    DumpSymbolContext(Stream *s) override;
 
     //------------------------------------------------------------------
     /// Get the memory cost of this object.
@@ -615,6 +613,42 @@ public:
     //------------------------------------------------------------------
     size_t
     MemorySize () const;
+
+    //------------------------------------------------------------------
+    /// Get whether compiler optimizations were enabled for this function
+    ///
+    /// The debug information may provide information about whether this
+    /// function was compiled with optimization or not.  In this case,
+    /// "optimized" means that the debug experience may be difficult
+    /// for the user to understand.  Variables may not be available when
+    /// the developer would expect them, stepping through the source lines
+    /// in the function may appear strange, etc.
+    /// 
+    /// @return
+    ///     Returns 'true' if this function was compiled with 
+    ///     optimization.  'false' indicates that either the optimization
+    ///     is unknown, or this function was built without optimization.
+    //------------------------------------------------------------------
+    bool
+    GetIsOptimized ();
+    
+    //------------------------------------------------------------------
+    /// Get whether this function represents a 'top-level' function
+    ///
+    /// The concept of a top-level function is language-specific, mostly
+    /// meant to represent the notion of scripting-style code that has
+    /// global visibility of the variables/symbols/functions/...
+    /// defined within the containing file/module
+    ///
+    /// If stopped in a top-level function, LLDB will expose global variables
+    /// as-if locals in the 'frame variable' command
+    ///
+    /// @return
+    ///     Returns 'true' if this function is a top-level function,
+    ///     'false' otherwise.
+    //------------------------------------------------------------------
+    bool
+    IsTopLevelFunction ();
 
     lldb::DisassemblerSP
     GetInstructions (const ExecutionContext &exe_ctx,
@@ -634,8 +668,6 @@ protected:
         flagsCalculatedPrologueSize = (1 << 0)  ///< Have we already tried to calculate the prologue size?
     };
 
-
-
     //------------------------------------------------------------------
     // Member variables.
     //------------------------------------------------------------------
@@ -654,4 +686,4 @@ private:
 
 } // namespace lldb_private
 
-#endif  // liblldb_Function_h_
+#endif // liblldb_Function_h_

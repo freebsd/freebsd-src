@@ -40,7 +40,6 @@
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
-#include "llvm/Support/CrashRecoveryContext.h"
 using namespace clang;
 using namespace sema;
 
@@ -121,8 +120,7 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
     FieldCollector.reset(new CXXFieldCollector());
 
   // Tell diagnostics how to render things from the AST library.
-  PP.getDiagnostics().SetArgToStringFn(&FormatASTNodeDiagnosticArgument,
-                                       &Context);
+  Diags.SetArgToStringFn(&FormatASTNodeDiagnosticArgument, &Context);
 
   ExprEvalContexts.emplace_back(PotentiallyEvaluated, 0, false, nullptr, false);
 
@@ -139,10 +137,6 @@ void Sema::addImplicitTypedef(StringRef Name, QualType T) {
 }
 
 void Sema::Initialize() {
-  // Tell the AST consumer about this Sema object.
-  Consumer.Initialize(Context);
-
-  // FIXME: Isn't this redundant with the initialization above?
   if (SemaConsumer *SC = dyn_cast<SemaConsumer>(&Consumer))
     SC->InitializeSema(*this);
 
@@ -154,6 +148,9 @@ void Sema::Initialize() {
   // This needs to happen after ExternalSemaSource::InitializeSema(this) or we
   // will not be able to merge any duplicate __va_list_tag decls correctly.
   VAListTagName = PP.getIdentifierInfo("__va_list_tag");
+
+  if (!TUScope)
+    return;
 
   // Initialize predefined 128-bit integer types, if needed.
   if (Context.getTargetInfo().hasInt128Type()) {
@@ -170,7 +167,7 @@ void Sema::Initialize() {
 
 
   // Initialize predefined Objective-C types:
-  if (PP.getLangOpts().ObjC1) {
+  if (getLangOpts().ObjC1) {
     // If 'SEL' does not yet refer to any declarations, make it refer to the
     // predefined 'SEL'.
     DeclarationName SEL = &Context.Idents.get("SEL");
@@ -195,8 +192,8 @@ void Sema::Initialize() {
   }
 
   // Initialize Microsoft "predefined C++ types".
-  if (PP.getLangOpts().MSVCCompat) {
-    if (PP.getLangOpts().CPlusPlus &&
+  if (getLangOpts().MSVCCompat) {
+    if (getLangOpts().CPlusPlus &&
         IdResolver.begin(&Context.Idents.get("type_info")) == IdResolver.end())
       PushOnScopeChains(Context.buildImplicitRecord("type_info", TTK_Class),
                         TUScope);
@@ -205,7 +202,7 @@ void Sema::Initialize() {
   }
 
   // Initialize predefined OpenCL types.
-  if (PP.getLangOpts().OpenCL) {
+  if (getLangOpts().OpenCL) {
     addImplicitTypedef("image1d_t", Context.OCLImage1dTy);
     addImplicitTypedef("image1d_array_t", Context.OCLImage1dArrayTy);
     addImplicitTypedef("image1d_buffer_t", Context.OCLImage1dBufferTy);
@@ -215,6 +212,18 @@ void Sema::Initialize() {
     addImplicitTypedef("sampler_t", Context.OCLSamplerTy);
     addImplicitTypedef("event_t", Context.OCLEventTy);
     if (getLangOpts().OpenCLVersion >= 200) {
+      addImplicitTypedef("image2d_depth_t", Context.OCLImage2dDepthTy);
+      addImplicitTypedef("image2d_array_depth_t",
+                         Context.OCLImage2dArrayDepthTy);
+      addImplicitTypedef("image2d_msaa_t", Context.OCLImage2dMSAATy);
+      addImplicitTypedef("image2d_array_msaa_t", Context.OCLImage2dArrayMSAATy);
+      addImplicitTypedef("image2d_msaa_depth_t", Context.OCLImage2dMSAADepthTy);
+      addImplicitTypedef("image2d_array_msaa_depth_t",
+                         Context.OCLImage2dArrayMSAADepthTy);
+      addImplicitTypedef("clk_event_t", Context.OCLClkEventTy);
+      addImplicitTypedef("queue_t", Context.OCLQueueTy);
+      addImplicitTypedef("ndrange_t", Context.OCLNDRangeTy);
+      addImplicitTypedef("reserve_id_t", Context.OCLReserveIDTy);
       addImplicitTypedef("atomic_int", Context.getAtomicType(Context.IntTy));
       addImplicitTypedef("atomic_uint",
                          Context.getAtomicType(Context.UnsignedIntTy));
@@ -237,6 +246,12 @@ void Sema::Initialize() {
       addImplicitTypedef("atomic_ptrdiff_t",
                          Context.getAtomicType(Context.getPointerDiffType()));
     }
+  }
+
+  if (Context.getTargetInfo().hasBuiltinMSVaList()) {
+    DeclarationName MSVaList = &Context.Idents.get("__builtin_ms_va_list");
+    if (IdResolver.begin(MSVaList) == IdResolver.end())
+      PushOnScopeChains(Context.getBuiltinMSVaListDecl(), TUScope);
   }
 
   DeclarationName BuiltinVaList = &Context.Idents.get("__builtin_va_list");
@@ -280,7 +295,7 @@ Sema::~Sema() {
 /// make the relevant declaration unavailable instead of erroring, do
 /// so and return true.
 bool Sema::makeUnavailableInSystemHeader(SourceLocation loc,
-                                         StringRef msg) {
+                                      UnavailableAttr::ImplicitReason reason) {
   // If we're not in a function, it's an error.
   FunctionDecl *fn = dyn_cast<FunctionDecl>(CurContext);
   if (!fn) return false;
@@ -296,7 +311,7 @@ bool Sema::makeUnavailableInSystemHeader(SourceLocation loc,
   // If the function is already unavailable, it's not an error.
   if (fn->hasAttr<UnavailableAttr>()) return true;
 
-  fn->addAttr(UnavailableAttr::CreateImplicit(Context, msg, loc));
+  fn->addAttr(UnavailableAttr::CreateImplicit(Context, "", reason, loc));
   return true;
 }
 
@@ -334,6 +349,20 @@ void Sema::PrintStats() const {
   AnalysisWarnings.PrintStats();
 }
 
+void Sema::diagnoseNullableToNonnullConversion(QualType DstType,
+                                               QualType SrcType,
+                                               SourceLocation Loc) {
+  Optional<NullabilityKind> ExprNullability = SrcType->getNullability(Context);
+  if (!ExprNullability || *ExprNullability != NullabilityKind::Nullable)
+    return;
+
+  Optional<NullabilityKind> TypeNullability = DstType->getNullability(Context);
+  if (!TypeNullability || *TypeNullability != NullabilityKind::NonNull)
+    return;
+
+  Diag(Loc, diag::warn_nullability_lost) << SrcType << DstType;
+}
+
 /// ImpCastExprToType - If Expr is not of type 'Type', insert an implicit cast.
 /// If there is already an implicit cast, merge into the existing one.
 /// The result is of the given category.
@@ -357,18 +386,7 @@ ExprResult Sema::ImpCastExprToType(Expr *E, QualType Ty,
   assert((VK == VK_RValue || !E->isRValue()) && "can't cast rvalue to lvalue");
 #endif
 
-  // Check whether we're implicitly casting from a nullable type to a nonnull
-  // type.
-  if (auto exprNullability = E->getType()->getNullability(Context)) {
-    if (*exprNullability == NullabilityKind::Nullable) {
-      if (auto typeNullability = Ty->getNullability(Context)) {
-        if (*typeNullability == NullabilityKind::NonNull) {
-          Diag(E->getLocStart(), diag::warn_nullability_lost)
-            << E->getType() << Ty;
-        }
-      }
-    }
-  }
+  diagnoseNullableToNonnullConversion(Ty, E->getType(), E->getLocStart());
 
   QualType ExprTy = Context.getCanonicalType(E->getType());
   QualType TypeTy = Context.getCanonicalType(Ty);
@@ -689,6 +707,9 @@ void Sema::ActOnEndOfTranslationUnit() {
   assert(DelayedDefaultedMemberExceptionSpecs.empty());
   assert(DelayedExceptionSpecChecks.empty());
 
+  // All dllexport classes should have been processed already.
+  assert(DelayedDllExportClasses.empty());
+
   // Remove file scoped decls that turned out to be used.
   UnusedFileScopedDecls.erase(
       std::remove_if(UnusedFileScopedDecls.begin(nullptr, true),
@@ -708,8 +729,15 @@ void Sema::ActOnEndOfTranslationUnit() {
     if (WeakID.second.getUsed())
       continue;
 
-    Diag(WeakID.second.getLocation(), diag::warn_weak_identifier_undeclared)
-        << WeakID.first;
+    Decl *PrevDecl = LookupSingleName(TUScope, WeakID.first, SourceLocation(),
+                                      LookupOrdinaryName);
+    if (PrevDecl != nullptr &&
+        !(isa<FunctionDecl>(PrevDecl) || isa<VarDecl>(PrevDecl)))
+      Diag(WeakID.second.getLocation(), diag::warn_attribute_wrong_decl_type)
+          << "'weak'" << ExpectedVariableOrFunction;
+    else
+      Diag(WeakID.second.getLocation(), diag::warn_weak_identifier_undeclared)
+          << WeakID.first;
   }
 
   if (LangOpts.CPlusPlus11 &&
@@ -1443,7 +1471,7 @@ bool Sema::tryToRecoverWithCall(ExprResult &E, const PartialDiagnostic &PD,
     // arguments and that it returns something of a reasonable type,
     // so we can emit a fixit and carry on pretending that E was
     // actually a CallExpr.
-    SourceLocation ParenInsertionLoc = PP.getLocForEndOfToken(Range.getEnd());
+    SourceLocation ParenInsertionLoc = getLocForEndOfToken(Range.getEnd());
     Diag(Loc, PD)
       << /*zero-arg*/ 1 << Range
       << (IsCallableWithAppend(E.get())

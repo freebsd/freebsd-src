@@ -15,6 +15,7 @@ SRCS=	ABI.cpp \
 	InstrumentationRuntimeStopInfo.cpp \
 	JITLoader.cpp \
 	JITLoaderList.cpp \
+	Language.cpp \
 	LanguageRuntime.cpp \
 	Memory.cpp \
 	MemoryHistory.cpp \

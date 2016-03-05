@@ -48,7 +48,7 @@ class AArch64TTIImpl : public BasicTTIImplBase<AArch64TTIImpl> {
   };
 
 public:
-  explicit AArch64TTIImpl(const AArch64TargetMachine *TM, Function &F)
+  explicit AArch64TTIImpl(const AArch64TargetMachine *TM, const Function &F)
       : BaseT(TM, F.getParent()->getDataLayout()), ST(TM->getSubtargetImpl(F)),
         TLI(ST->getTargetLowering()) {}
 
@@ -63,18 +63,19 @@ public:
   /// @{
 
   using BaseT::getIntImmCost;
-  unsigned getIntImmCost(int64_t Val);
-  unsigned getIntImmCost(const APInt &Imm, Type *Ty);
-  unsigned getIntImmCost(unsigned Opcode, unsigned Idx, const APInt &Imm,
-                         Type *Ty);
-  unsigned getIntImmCost(Intrinsic::ID IID, unsigned Idx, const APInt &Imm,
-                         Type *Ty);
+  int getIntImmCost(int64_t Val);
+  int getIntImmCost(const APInt &Imm, Type *Ty);
+  int getIntImmCost(unsigned Opcode, unsigned Idx, const APInt &Imm, Type *Ty);
+  int getIntImmCost(Intrinsic::ID IID, unsigned Idx, const APInt &Imm,
+                    Type *Ty);
   TTI::PopcntSupportKind getPopcntSupport(unsigned TyWidth);
 
   /// @}
 
   /// \name Vector TTI Implementations
   /// @{
+
+  bool enableInterleavedAccessVectorization() { return true; }
 
   unsigned getNumberOfRegisters(bool Vector) {
     if (Vector) {
@@ -96,25 +97,25 @@ public:
 
   unsigned getMaxInterleaveFactor(unsigned VF);
 
-  unsigned getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src);
+  int getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src);
 
-  unsigned getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index);
+  int getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index);
 
-  unsigned getArithmeticInstrCost(
+  int getArithmeticInstrCost(
       unsigned Opcode, Type *Ty,
       TTI::OperandValueKind Opd1Info = TTI::OK_AnyValue,
       TTI::OperandValueKind Opd2Info = TTI::OK_AnyValue,
       TTI::OperandValueProperties Opd1PropInfo = TTI::OP_None,
       TTI::OperandValueProperties Opd2PropInfo = TTI::OP_None);
 
-  unsigned getAddressComputationCost(Type *Ty, bool IsComplex);
+  int getAddressComputationCost(Type *Ty, bool IsComplex);
 
-  unsigned getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy);
+  int getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy);
 
-  unsigned getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
-                           unsigned AddressSpace);
+  int getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
+                      unsigned AddressSpace);
 
-  unsigned getCostOfKeepingLiveOverCall(ArrayRef<Type *> Tys);
+  int getCostOfKeepingLiveOverCall(ArrayRef<Type *> Tys);
 
   void getUnrollingPreferences(Loop *L, TTI::UnrollingPreferences &UP);
 
@@ -123,11 +124,9 @@ public:
 
   bool getTgtMemIntrinsic(IntrinsicInst *Inst, MemIntrinsicInfo &Info);
 
-  unsigned getInterleavedMemoryOpCost(unsigned Opcode, Type *VecTy,
-                                      unsigned Factor,
-                                      ArrayRef<unsigned> Indices,
-                                      unsigned Alignment,
-                                      unsigned AddressSpace);
+  int getInterleavedMemoryOpCost(unsigned Opcode, Type *VecTy, unsigned Factor,
+                                 ArrayRef<unsigned> Indices, unsigned Alignment,
+                                 unsigned AddressSpace);
   /// @}
 };
 

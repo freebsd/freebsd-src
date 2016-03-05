@@ -16,6 +16,7 @@
 // Project includes
 #include "lldb/Core/IOHandler.h"
 #include "lldb/Interpreter/CommandObject.h"
+#include "lldb/Interpreter/OptionGroupBoolean.h"
 #include "lldb/Interpreter/OptionGroupFormat.h"
 #include "lldb/Interpreter/OptionGroupValueObjectDisplay.h"
 #include "lldb/Target/ExecutionContext.h"
@@ -34,22 +35,21 @@ public:
 
         CommandOptions ();
 
-        virtual
-        ~CommandOptions ();
+        ~CommandOptions() override;
 
-        virtual uint32_t
-        GetNumDefinitions ();
+        uint32_t
+        GetNumDefinitions() override;
         
-        virtual const OptionDefinition*
-        GetDefinitions ();
+        const OptionDefinition*
+        GetDefinitions() override;
         
-        virtual Error
-        SetOptionValue (CommandInterpreter &interpreter,
-                        uint32_t option_idx,
-                        const char *option_value);
+        Error
+        SetOptionValue(CommandInterpreter &interpreter,
+		       uint32_t option_idx,
+		       const char *option_value) override;
         
-        virtual void
-        OptionParsingStarting (CommandInterpreter &interpreter);
+        void
+        OptionParsingStarting(CommandInterpreter &interpreter) override;
 
         // Options table: Required for subclasses of Options.
 
@@ -61,35 +61,34 @@ public:
         bool        debug;
         uint32_t    timeout;
         bool        try_all_threads;
+        lldb::LanguageType language;
         LanguageRuntimeDescriptionDisplayVerbosity m_verbosity;
     };
 
     CommandObjectExpression (CommandInterpreter &interpreter);
 
-    virtual
-    ~CommandObjectExpression ();
+    ~CommandObjectExpression() override;
 
-    virtual
     Options *
-    GetOptions ();
+    GetOptions() override;
 
 protected:
     
     //------------------------------------------------------------------
     // IOHandler::Delegate functions
     //------------------------------------------------------------------
-    virtual void
-    IOHandlerInputComplete (IOHandler &io_handler,
-                            std::string &line);
+    void
+    IOHandlerInputComplete(IOHandler &io_handler,
+			   std::string &line) override;
 
     virtual LineStatus
     IOHandlerLinesUpdated (IOHandler &io_handler,
                            StringList &lines,
                            uint32_t line_idx,
                            Error &error);
-    virtual bool
-    DoExecute (const char *command,
-               CommandReturnObject &result);
+    bool
+    DoExecute(const char *command,
+	      CommandReturnObject &result) override;
 
     bool
     EvaluateExpression (const char *expr,
@@ -103,6 +102,7 @@ protected:
     OptionGroupOptions m_option_group;
     OptionGroupFormat m_format_options;
     OptionGroupValueObjectDisplay m_varobj_options;
+    OptionGroupBoolean m_repl_option;
     CommandOptions m_command_options;
     uint32_t m_expr_line_count;
     std::string m_expr_lines; // Multi-line expression support
@@ -110,4 +110,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif  // liblldb_CommandObjectExpression_h_
+#endif // liblldb_CommandObjectExpression_h_

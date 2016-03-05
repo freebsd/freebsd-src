@@ -305,13 +305,15 @@ void OpcodeDecoder::Decode(const uint8_t *Opcodes, off_t Offset, size_t Length) 
 
 template <typename ET>
 class PrinterContext {
-  StreamWriter &SW;
-  const object::ELFFile<ET> *ELF;
-
   typedef typename object::ELFFile<ET>::Elf_Sym Elf_Sym;
   typedef typename object::ELFFile<ET>::Elf_Shdr Elf_Shdr;
+  typedef typename object::ELFFile<ET>::Elf_Rel Elf_Rel;
+  typedef typename object::ELFFile<ET>::Elf_Word Elf_Word;
 
-  typedef typename object::ELFFile<ET>::Elf_Rel_Iter Elf_Rel_iterator;
+  StreamWriter &SW;
+  const object::ELFFile<ET> *ELF;
+  const Elf_Shdr *Symtab;
+  ArrayRef<Elf_Word> ShndxTable;
 
   static const size_t IndexTableEntrySize;
 
@@ -332,8 +334,9 @@ class PrinterContext {
   void PrintOpcodes(const uint8_t *Entry, size_t Length, off_t Offset) const;
 
 public:
-  PrinterContext(StreamWriter &Writer, const object::ELFFile<ET> *File)
-    : SW(Writer), ELF(File) {}
+  PrinterContext(StreamWriter &SW, const object::ELFFile<ET> *ELF,
+                 const Elf_Shdr *Symtab)
+      : SW(SW), ELF(ELF), Symtab(Symtab) {}
 
   void PrintUnwindInformation() const;
 };
@@ -345,10 +348,14 @@ template <typename ET>
 ErrorOr<StringRef>
 PrinterContext<ET>::FunctionAtAddress(unsigned Section,
                                       uint64_t Address) const {
-  for (const Elf_Sym &Sym : ELF->symbols())
+  ErrorOr<StringRef> StrTableOrErr = ELF->getStringTableForSymtab(*Symtab);
+  error(StrTableOrErr.getError());
+  StringRef StrTable = *StrTableOrErr;
+
+  for (const Elf_Sym &Sym : ELF->symbols(Symtab))
     if (Sym.st_shndx == Section && Sym.st_value == Address &&
         Sym.getType() == ELF::STT_FUNC)
-      return ELF->getSymbolName(&Sym, false);
+      return Sym.getName(StrTable);
   return readobj_error::unknown_symbol;
 }
 
@@ -365,24 +372,29 @@ PrinterContext<ET>::FindExceptionTable(unsigned IndexSectionIndex,
   /// table.
 
   for (const Elf_Shdr &Sec : ELF->sections()) {
-    if (Sec.sh_type == ELF::SHT_REL && Sec.sh_info == IndexSectionIndex) {
-      for (Elf_Rel_iterator RI = ELF->rel_begin(&Sec), RE = ELF->rel_end(&Sec);
-           RI != RE; ++RI) {
-        if (RI->r_offset == static_cast<unsigned>(IndexTableOffset)) {
-          typename object::ELFFile<ET>::Elf_Rela RelA;
-          RelA.r_offset = RI->r_offset;
-          RelA.r_info = RI->r_info;
-          RelA.r_addend = 0;
+    if (Sec.sh_type != ELF::SHT_REL || Sec.sh_info != IndexSectionIndex)
+      continue;
 
-          std::pair<const Elf_Shdr *, const Elf_Sym *> Symbol =
-              ELF->getRelocationSymbol(&Sec, &RelA);
+    ErrorOr<const Elf_Shdr *> SymTabOrErr = ELF->getSection(Sec.sh_link);
+    error(SymTabOrErr.getError());
+    const Elf_Shdr *SymTab = *SymTabOrErr;
 
-          ErrorOr<const Elf_Shdr *> Ret = ELF->getSection(Symbol.second);
-          if (std::error_code EC = Ret.getError())
-            report_fatal_error(EC.message());
-          return *Ret;
-        }
-      }
+    for (const Elf_Rel &R : ELF->rels(&Sec)) {
+      if (R.r_offset != static_cast<unsigned>(IndexTableOffset))
+        continue;
+
+      typename object::ELFFile<ET>::Elf_Rela RelA;
+      RelA.r_offset = R.r_offset;
+      RelA.r_info = R.r_info;
+      RelA.r_addend = 0;
+
+      const Elf_Sym *Symbol = ELF->getRelocationSymbol(&RelA, SymTab);
+
+      ErrorOr<const Elf_Shdr *> Ret =
+          ELF->getSection(Symbol, SymTab, ShndxTable);
+      if (std::error_code EC = Ret.getError())
+        report_fatal_error(EC.message());
+      return *Ret;
     }
   }
   return nullptr;

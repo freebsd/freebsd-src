@@ -1,4 +1,4 @@
-//===-- ARMMachineFuctionInfo.cpp - ARM machine function info -------------===//
+//===-- ARMMachineFunctionInfo.cpp - ARM machine function info ------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -21,4 +21,4 @@ ARMFunctionInfo::ARMFunctionInfo(MachineFunction &MF)
       FramePtrSpillOffset(0), GPRCS1Offset(0), GPRCS2Offset(0), DPRCSOffset(0),
       GPRCS1Size(0), GPRCS2Size(0), DPRCSSize(0),
       PICLabelUId(0), VarArgsFrameIndex(0), HasITBlocks(false),
-      GlobalBaseReg(0) {}
+      IsSplitCSR(false) {}

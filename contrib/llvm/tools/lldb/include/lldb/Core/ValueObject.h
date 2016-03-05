@@ -12,6 +12,8 @@
 
 // C Includes
 // C++ Includes
+#include <functional>
+#include <initializer_list>
 #include <map>
 #include <vector>
 
@@ -27,7 +29,7 @@
 #include "lldb/Core/ConstString.h"
 #include "lldb/Core/UserID.h"
 #include "lldb/Core/Value.h"
-#include "lldb/Symbol/ClangASTType.h"
+#include "lldb/Symbol/CompilerType.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/ExecutionContextScope.h"
 #include "lldb/Target/Process.h"
@@ -69,7 +71,6 @@ namespace lldb_private {
 class ValueObject : public UserID
 {
 public:
-    
     enum GetExpressionPathFormat
     {
         eGetExpressionPathFormatDereferencePointers = 1,
@@ -221,13 +222,11 @@ public:
             
             return g_default_options;
         }
-
     };
 
     class EvaluationPoint
     {
     public:
-        
         EvaluationPoint ();
         
         EvaluationPoint (ExecutionContextScope *exe_scope, bool use_selected = false);
@@ -326,6 +325,8 @@ public:
         bool m_needs_update;
     };
 
+    virtual ~ValueObject();
+
     const EvaluationPoint &
     GetUpdatePoint () const
     {
@@ -371,10 +372,8 @@ public:
     void
     SetNeedsUpdate ();
     
-    virtual ~ValueObject();
-    
-    ClangASTType
-    GetClangType ();
+    CompilerType
+    GetCompilerType ();
     
     // this vends a TypeImpl that is useful at the SB API layer
     virtual TypeImpl
@@ -408,7 +407,7 @@ public:
     GetObjectRuntimeLanguage();
 
     virtual uint32_t
-    GetTypeInfo (ClangASTType *pointee_or_element_clang_type = NULL);
+    GetTypeInfo(CompilerType *pointee_or_element_compiler_type = nullptr);
 
     virtual bool
     IsPointerType ();
@@ -425,8 +424,11 @@ public:
     virtual bool
     IsPossibleDynamicType ();
 
-    virtual bool
-    IsObjCNil ();
+    bool
+    IsNilReference ();
+    
+    bool
+    IsUninitializedReference ();
     
     virtual bool
     IsBaseClass ()
@@ -454,20 +456,20 @@ public:
     
     lldb::ValueObjectSP
     GetValueForExpressionPath(const char* expression,
-                              const char** first_unparsed = NULL,
-                              ExpressionPathScanEndReason* reason_to_stop = NULL,
-                              ExpressionPathEndResultType* final_value_type = NULL,
+                              const char** first_unparsed = nullptr,
+                              ExpressionPathScanEndReason* reason_to_stop = nullptr,
+                              ExpressionPathEndResultType* final_value_type = nullptr,
                               const GetValueForExpressionPathOptions& options = GetValueForExpressionPathOptions::DefaultOptions(),
-                              ExpressionPathAftermath* final_task_on_target = NULL);
+                              ExpressionPathAftermath* final_task_on_target = nullptr);
     
     int
     GetValuesForExpressionPath(const char* expression,
                                lldb::ValueObjectListSP& list,
-                               const char** first_unparsed = NULL,
-                               ExpressionPathScanEndReason* reason_to_stop = NULL,
-                               ExpressionPathEndResultType* final_value_type = NULL,
+                               const char** first_unparsed = nullptr,
+                               ExpressionPathScanEndReason* reason_to_stop = nullptr,
+                               ExpressionPathEndResultType* final_value_type = nullptr,
                                const GetValueForExpressionPathOptions& options = GetValueForExpressionPathOptions::DefaultOptions(),
-                               ExpressionPathAftermath* final_task_on_target = NULL);
+                               ExpressionPathAftermath* final_task_on_target = nullptr);
     
     virtual bool
     IsInScope ()
@@ -517,10 +519,10 @@ public:
                        std::string& destination);
     
     virtual uint64_t
-    GetValueAsUnsigned (uint64_t fail_value, bool *success = NULL);
+    GetValueAsUnsigned(uint64_t fail_value, bool *success = nullptr);
 
     virtual int64_t
-    GetValueAsSigned (int64_t fail_value, bool *success = NULL);
+    GetValueAsSigned(int64_t fail_value, bool *success = nullptr);
     
     virtual bool
     SetValueFromCString (const char *value_str, Error& error);
@@ -556,37 +558,37 @@ public:
 
     // this will always create the children if necessary
     lldb::ValueObjectSP
-    GetChildAtIndexPath (const std::initializer_list<size_t> &idxs,
-                         size_t* index_of_error = NULL);
+    GetChildAtIndexPath(const std::initializer_list<size_t> &idxs,
+                        size_t* index_of_error = nullptr);
     
     lldb::ValueObjectSP
-    GetChildAtIndexPath (const std::vector<size_t> &idxs,
-                         size_t* index_of_error = NULL);
+    GetChildAtIndexPath(const std::vector<size_t> &idxs,
+                        size_t* index_of_error = nullptr);
     
     lldb::ValueObjectSP
-    GetChildAtIndexPath (const std::initializer_list< std::pair<size_t, bool> > &idxs,
-                         size_t* index_of_error = NULL);
+    GetChildAtIndexPath(const std::initializer_list< std::pair<size_t, bool> > &idxs,
+                        size_t* index_of_error = nullptr);
 
     lldb::ValueObjectSP
-    GetChildAtIndexPath (const std::vector< std::pair<size_t, bool> > &idxs,
-                         size_t* index_of_error = NULL);
+    GetChildAtIndexPath(const std::vector< std::pair<size_t, bool> > &idxs,
+                        size_t* index_of_error = nullptr);
 
     // this will always create the children if necessary
     lldb::ValueObjectSP
-    GetChildAtNamePath (const std::initializer_list<ConstString> &names,
-                        ConstString* name_of_error = NULL);
+    GetChildAtNamePath(const std::initializer_list<ConstString> &names,
+                       ConstString* name_of_error = nullptr);
     
     lldb::ValueObjectSP
-    GetChildAtNamePath (const std::vector<ConstString> &names,
-                        ConstString* name_of_error = NULL);
+    GetChildAtNamePath(const std::vector<ConstString> &names,
+                       ConstString* name_of_error = nullptr);
     
     lldb::ValueObjectSP
-    GetChildAtNamePath (const std::initializer_list< std::pair<ConstString, bool> > &names,
-                        ConstString* name_of_error = NULL);
+    GetChildAtNamePath(const std::initializer_list< std::pair<ConstString, bool> > &names,
+                       ConstString* name_of_error = nullptr);
     
     lldb::ValueObjectSP
-    GetChildAtNamePath (const std::vector< std::pair<ConstString, bool> > &names,
-                        ConstString* name_of_error = NULL);
+    GetChildAtNamePath(const std::vector< std::pair<ConstString, bool> > &names,
+                       ConstString* name_of_error = nullptr);
     
     virtual lldb::ValueObjectSP
     GetChildMemberWithName (const ConstString &name, bool can_create);
@@ -595,7 +597,7 @@ public:
     GetIndexOfChildWithName (const ConstString &name);
 
     size_t
-    GetNumChildren ();
+    GetNumChildren (uint32_t max=UINT32_MAX);
 
     const Value &
     GetValue() const;
@@ -606,15 +608,22 @@ public:
     virtual bool
     ResolveValue (Scalar &scalar);
     
+    // return 'false' whenever you set the error, otherwise
+    // callers may assume true means everything is OK - this will
+    // break breakpoint conditions among potentially a few others
+    virtual bool
+    IsLogicalTrue (Error& error);
+    
     virtual const char *
     GetLocationAsCString ();
 
     const char *
-    GetSummaryAsCString ();
+    GetSummaryAsCString (lldb::LanguageType lang = lldb::eLanguageTypeUnknown);
     
     bool
     GetSummaryAsCString (TypeSummaryImpl* summary_ptr,
-                         std::string& destination);
+                         std::string& destination,
+                         lldb::LanguageType lang = lldb::eLanguageTypeUnknown);
     
     bool
     GetSummaryAsCString (std::string& destination,
@@ -671,11 +680,11 @@ public:
     SetName (const ConstString &name);
     
     virtual lldb::addr_t
-    GetAddressOf (bool scalar_is_load_address = true,
-                  AddressType *address_type = NULL);
+    GetAddressOf(bool scalar_is_load_address = true,
+                 AddressType *address_type = nullptr);
     
     lldb::addr_t
-    GetPointerValue (AddressType *address_type = NULL);
+    GetPointerValue(AddressType *address_type = nullptr);
     
     lldb::ValueObjectSP
     GetSyntheticChild (const ConstString &key) const;
@@ -690,10 +699,10 @@ public:
     GetSyntheticExpressionPathChild(const char* expression, bool can_create);
     
     virtual lldb::ValueObjectSP
-    GetSyntheticChildAtOffset(uint32_t offset, const ClangASTType& type, bool can_create);
+    GetSyntheticChildAtOffset(uint32_t offset, const CompilerType& type, bool can_create);
     
     virtual lldb::ValueObjectSP
-    GetSyntheticBase (uint32_t offset, const ClangASTType& type, bool can_create);
+    GetSyntheticBase (uint32_t offset, const CompilerType& type, bool can_create);
 
     virtual lldb::ValueObjectSP
     GetDynamicValue (lldb::DynamicValueType valueType);
@@ -746,11 +755,11 @@ public:
     GetCPPVTableAddress(AddressType &address_type);
     
     virtual lldb::ValueObjectSP
-    Cast (const ClangASTType &clang_ast_type);
+    Cast (const CompilerType &compiler_type);
     
     virtual lldb::ValueObjectSP
     CastPointerType (const char *name,
-                     ClangASTType &ast_type);
+                     CompilerType &ast_type);
 
     virtual lldb::ValueObjectSP
     CastPointerType (const char *name,
@@ -809,13 +818,13 @@ public:
     CreateValueObjectFromAddress (const char* name,
                                   uint64_t address,
                                   const ExecutionContext& exe_ctx,
-                                  ClangASTType type);
+                                  CompilerType type);
 
     static lldb::ValueObjectSP
     CreateValueObjectFromData (const char* name,
                                const DataExtractor& data,
                                const ExecutionContext& exe_ctx,
-                               ClangASTType type);
+                               CompilerType type);
     
     void
     LogValueObject (Log *log);
@@ -834,7 +843,7 @@ public:
     bool
     IsCStringContainer (bool check_pointer = false);
     
-    size_t
+    std::pair<size_t,bool>
     ReadPointedString (lldb::DataBufferSP& buffer_sp,
                        Error& error,
                        uint32_t max_length = 0,
@@ -861,7 +870,7 @@ public:
     bool
     NeedsUpdating ()
     {
-        const bool accept_invalid_exe_ctx = CanUpdateWithInvalidExecutionContext();
+        const bool accept_invalid_exe_ctx = (CanUpdateWithInvalidExecutionContext() == eLazyBoolYes);
         return m_update_point.NeedsUpdating(accept_invalid_exe_ctx);
     }
     
@@ -881,8 +890,7 @@ public:
             ClearUserVisibleData(eClearUserVisibleDataItemsValue);
         m_format = format;
     }
-    
-    
+
     virtual lldb::LanguageType
     GetPreferredDisplayLanguage ();
     
@@ -999,8 +1007,20 @@ public:
     virtual bool
     MightHaveChildren();
     
+    virtual lldb::VariableSP
+    GetVariable ()
+    {
+        return nullptr;
+    }
+
     virtual bool
     IsRuntimeSupportValue ();
+    
+    virtual uint64_t
+    GetLanguageFlags ();
+    
+    virtual void
+    SetLanguageFlags (uint64_t flags);
 
 protected:
     typedef ClusterManager<ValueObject> ValueObjectManager;
@@ -1018,21 +1038,15 @@ protected:
         HasChildAtIndex (size_t idx)
         {
             Mutex::Locker locker(m_mutex);
-            ChildrenIterator iter = m_children.find(idx);
-            ChildrenIterator end = m_children.end();
-            return (iter != end);
+            return (m_children.find(idx) != m_children.end());
         }
         
         ValueObject*
         GetChildAtIndex (size_t idx)
         {
             Mutex::Locker locker(m_mutex);
-            ChildrenIterator iter = m_children.find(idx);
-            ChildrenIterator end = m_children.end();
-            if (iter == end)
-                return NULL;
-            else
-                return iter->second;
+            const auto iter = m_children.find(idx);
+            return ((iter == m_children.end()) ? nullptr : iter->second);
         }
         
         void
@@ -1075,8 +1089,8 @@ protected:
     //------------------------------------------------------------------
     // Classes that inherit from ValueObject can see and modify these
     //------------------------------------------------------------------
-    ValueObject  *      m_parent;       // The parent value object, or NULL if this has no parent
-    ValueObject  *      m_root;         // The root of the hierarchy for this ValueObject (or NULL if never calculated)
+    ValueObject  *      m_parent;       // The parent value object, or nullptr if this has no parent
+    ValueObject  *      m_root;         // The root of the hierarchy for this ValueObject (or nullptr if never calculated)
     EvaluationPoint     m_update_point; // Stores both the stop id and the full context at which this value was last 
                                         // updated.  When we are asked to update the value object, we check whether
                                         // the context & stop id are the same before updating.
@@ -1093,7 +1107,7 @@ protected:
     
     llvm::Optional<std::pair<TypeValidatorResult, std::string>> m_validation_result;
     
-    ClangASTType        m_override_type;// If the type of the value object should be overridden, the type to impose.
+    CompilerType        m_override_type;// If the type of the value object should be overridden, the type to impose.
     
     ValueObjectManager *m_manager;      // This object is managed by the root object (any ValueObject that gets created
                                         // without a parent.)  The manager gets passed through all the generations of
@@ -1125,6 +1139,8 @@ protected:
     
     lldb::LanguageType m_preferred_display_language;
     
+    uint64_t m_language_flags;
+    
     bool                m_value_is_valid:1,
                         m_value_did_change:1,
                         m_children_count_valid:1,
@@ -1139,7 +1155,7 @@ protected:
     
     friend class ValueObjectChild;
     friend class ClangExpressionDeclMap;  // For GetValue
-    friend class ClangExpressionVariable; // For SetName
+    friend class ExpressionVariable;      // For SetName
     friend class Target;                  // For SetName
     friend class ValueObjectConstResultImpl;
     friend class ValueObjectSynthetic;    // For ClearUserVisibleData
@@ -1172,10 +1188,10 @@ protected:
     virtual bool
     UpdateValue () = 0;
 
-    virtual bool
+    virtual LazyBool
     CanUpdateWithInvalidExecutionContext ()
     {
-        return false;
+        return eLazyBoolCalculate;
     }
     
     virtual void
@@ -1203,7 +1219,7 @@ protected:
 
     // Should only be called by ValueObject::GetNumChildren()
     virtual size_t
-    CalculateNumChildren() = 0;
+    CalculateNumChildren(uint32_t max=UINT32_MAX) = 0;
 
     void
     SetNumChildren (size_t num_children);
@@ -1231,8 +1247,8 @@ protected:
     // Subclasses must implement the functions below.
     //------------------------------------------------------------------
     
-    virtual ClangASTType
-    GetClangTypeImpl () = 0;
+    virtual CompilerType
+    GetCompilerTypeImpl () = 0;
     
     const char *
     GetLocationAsCStringImpl (const Value& value,
@@ -1241,12 +1257,11 @@ protected:
     bool
     IsChecksumEmpty ();
     
-private:
-    //------------------------------------------------------------------
-    // For ValueObject only
-    //------------------------------------------------------------------
+    void
+    SetPreferredDisplayLanguageIfNeeded (lldb::LanguageType);
     
-    virtual ClangASTType
+private:
+    virtual CompilerType
     MaybeCalculateCompleteType ();
     
     lldb::ValueObjectSP
@@ -1270,12 +1285,10 @@ private:
                                ExpressionPathEndResultType* final_value_type,
                                const GetValueForExpressionPathOptions& options,
                                ExpressionPathAftermath* final_task_on_target);
-                               
-    
-    DISALLOW_COPY_AND_ASSIGN (ValueObject);
 
+    DISALLOW_COPY_AND_ASSIGN (ValueObject);
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_ValueObject_h_
+#endif // liblldb_ValueObject_h_

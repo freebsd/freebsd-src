@@ -185,7 +185,7 @@ protected:
   MachinePostDominatorTree *PDT;
   MachineLoopInfo *MLI;
   const R600InstrInfo *TII;
-  const AMDGPURegisterInfo *TRI;
+  const R600RegisterInfo *TRI;
 
   // PRINT FUNCTIONS
   /// Print the ordered Blocks.
@@ -881,7 +881,7 @@ bool AMDGPUCFGStructurizer::run() {
     } //while, "one iteration" over the function.
 
     MachineBasicBlock *EntryMBB =
-        GraphTraits<MachineFunction *>::nodes_begin(FuncRep);
+        &*GraphTraits<MachineFunction *>::nodes_begin(FuncRep);
     if (EntryMBB->succ_size() == 0) {
       Finish = true;
       DEBUG(
@@ -904,7 +904,7 @@ bool AMDGPUCFGStructurizer::run() {
   } while (!Finish && MakeProgress);
 
   // Misc wrap up to maintain the consistency of the Function representation.
-  wrapup(GraphTraits<MachineFunction *>::nodes_begin(FuncRep));
+  wrapup(&*GraphTraits<MachineFunction *>::nodes_begin(FuncRep));
 
   // Detach retired Block, release memory.
   for (MBBInfoMap::iterator It = BlockInfoMap.begin(), E = BlockInfoMap.end();
@@ -1164,7 +1164,7 @@ int AMDGPUCFGStructurizer::loopcontPatternMatch(MachineLoop *LoopRep,
 
   for (SmallVectorImpl<MachineBasicBlock *>::iterator It = ContMBB.begin(),
       E = ContMBB.end(); It != E; ++It) {
-    (*It)->removeSuccessor(LoopHeader);
+    (*It)->removeSuccessor(LoopHeader, true);
   }
 
   numLoopcontPatternMatch += NumCont;
@@ -1353,7 +1353,7 @@ int AMDGPUCFGStructurizer::improveSimpleJumpintoIf(MachineBasicBlock *HeadMBB,
     // If MigrateTrue is true, then TrueBB is the block being "branched into"
     // and if MigrateFalse is true, then FalseBB is the block being
     // "branched into"
-    // 
+    //
     // Here is the pseudo code for how I think the optimization should work:
     // 1. Insert MOV GPR0, 0 before the branch instruction in diamond_head.
     // 2. Insert MOV GPR0, 1 before the branch instruction in branch_from.
@@ -1372,7 +1372,7 @@ int AMDGPUCFGStructurizer::improveSimpleJumpintoIf(MachineBasicBlock *HeadMBB,
     // the late machine optimization passes, however if we implement
     // bool TargetRegisterInfo::requiresRegisterScavenging(
     //                                                const MachineFunction &MF)
-    // and have it return true, liveness will be tracked correctly 
+    // and have it return true, liveness will be tracked correctly
     // by generic optimization passes.  We will also need to make sure that
     // all of our target-specific passes that run after regalloc and before
     // the CFGStructurizer track liveness and we will need to modify this pass
@@ -1487,7 +1487,7 @@ void AMDGPUCFGStructurizer::mergeSerialBlock(MachineBasicBlock *DstMBB,
   );
   DstMBB->splice(DstMBB->end(), SrcMBB, SrcMBB->begin(), SrcMBB->end());
 
-  DstMBB->removeSuccessor(SrcMBB);
+  DstMBB->removeSuccessor(SrcMBB, true);
   cloneSuccessorList(DstMBB, SrcMBB);
 
   removeSuccessor(SrcMBB);
@@ -1537,9 +1537,9 @@ void AMDGPUCFGStructurizer::mergeIfthenelseBlock(MachineInstr *BranchMI,
 
   if (TrueMBB) {
     MBB->splice(I, TrueMBB, TrueMBB->begin(), TrueMBB->end());
-    MBB->removeSuccessor(TrueMBB);
+    MBB->removeSuccessor(TrueMBB, true);
     if (LandMBB && TrueMBB->succ_size()!=0)
-      TrueMBB->removeSuccessor(LandMBB);
+      TrueMBB->removeSuccessor(LandMBB, true);
     retireBlock(TrueMBB);
     MLI->removeBlock(TrueMBB);
   }
@@ -1548,9 +1548,9 @@ void AMDGPUCFGStructurizer::mergeIfthenelseBlock(MachineInstr *BranchMI,
     insertInstrBefore(I, AMDGPU::ELSE);
     MBB->splice(I, FalseMBB, FalseMBB->begin(),
                    FalseMBB->end());
-    MBB->removeSuccessor(FalseMBB);
+    MBB->removeSuccessor(FalseMBB, true);
     if (LandMBB && FalseMBB->succ_size() != 0)
-      FalseMBB->removeSuccessor(LandMBB);
+      FalseMBB->removeSuccessor(LandMBB, true);
     retireBlock(FalseMBB);
     MLI->removeBlock(FalseMBB);
   }
@@ -1570,8 +1570,7 @@ void AMDGPUCFGStructurizer::mergeLooplandBlock(MachineBasicBlock *DstBlk,
 
   insertInstrBefore(DstBlk, AMDGPU::WHILELOOP, DebugLoc());
   insertInstrEnd(DstBlk, AMDGPU::ENDLOOP, DebugLoc());
-  DstBlk->addSuccessor(LandMBB);
-  DstBlk->removeSuccessor(DstBlk);
+  DstBlk->replaceSuccessor(DstBlk, LandMBB);
 }
 
 
@@ -1592,7 +1591,7 @@ void AMDGPUCFGStructurizer::mergeLoopbreakBlock(MachineBasicBlock *ExitingMBB,
   //now branchInst can be erase safely
   BranchMI->eraseFromParent();
   //now take care of successors, retire blocks
-  ExitingMBB->removeSuccessor(LandMBB);
+  ExitingMBB->removeSuccessor(LandMBB, true);
 }
 
 void AMDGPUCFGStructurizer::settleLoopcontBlock(MachineBasicBlock *ContingMBB,
@@ -1666,8 +1665,7 @@ AMDGPUCFGStructurizer::cloneBlockForPredecessor(MachineBasicBlock *MBB,
   replaceInstrUseOfBlockWith(PredMBB, MBB, CloneMBB);
   //srcBlk, oldBlk, newBlk
 
-  PredMBB->removeSuccessor(MBB);
-  PredMBB->addSuccessor(CloneMBB);
+  PredMBB->replaceSuccessor(MBB, CloneMBB);
 
   // add all successor to cloneBlk
   cloneSuccessorList(CloneMBB, MBB);
@@ -1695,10 +1693,7 @@ void AMDGPUCFGStructurizer::migrateInstruction(MachineBasicBlock *SrcMBB,
     );
     SpliceEnd = SrcMBB->end();
   } else {
-    DEBUG(
-      dbgs() << "migrateInstruction see branch instr\n" ;
-      BranchMI->dump();
-    );
+    DEBUG(dbgs() << "migrateInstruction see branch instr: " << *BranchMI);
     SpliceEnd = BranchMI;
   }
   DEBUG(
@@ -1711,7 +1706,7 @@ void AMDGPUCFGStructurizer::migrateInstruction(MachineBasicBlock *SrcMBB,
 
   DEBUG(
     dbgs() << "migrateInstruction after splice dstSize = " << DstMBB->size()
-      << "srcSize = " << SrcMBB->size() << "\n";
+      << "srcSize = " << SrcMBB->size() << '\n';
   );
 }
 
@@ -1743,7 +1738,7 @@ void AMDGPUCFGStructurizer::removeUnconditionalBranch(MachineBasicBlock *MBB) {
   // test_fc_do_while_or.c need to fix the upstream on this to remove the loop.
   while ((BranchMI = getLoopendBlockBranchInstr(MBB))
           && isUncondBranch(BranchMI)) {
-    DEBUG(dbgs() << "Removing uncond branch instr"; BranchMI->dump(););
+    DEBUG(dbgs() << "Removing uncond branch instr: " << *BranchMI);
     BranchMI->eraseFromParent();
   }
 }
@@ -1759,10 +1754,10 @@ void AMDGPUCFGStructurizer::removeRedundantConditionalBranch(
 
   MachineInstr *BranchMI = getNormalBlockBranchInstr(MBB);
   assert(BranchMI && isCondBranch(BranchMI));
-  DEBUG(dbgs() << "Removing unneeded cond branch instr"; BranchMI->dump(););
+  DEBUG(dbgs() << "Removing unneeded cond branch instr: " << *BranchMI);
   BranchMI->eraseFromParent();
   SHOWNEWBLK(MBB1, "Removing redundant successor");
-  MBB->removeSuccessor(MBB1);
+  MBB->removeSuccessor(MBB1, true);
 }
 
 void AMDGPUCFGStructurizer::addDummyExitBlock(

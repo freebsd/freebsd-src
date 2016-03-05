@@ -35,7 +35,7 @@ namespace lldb_private
     // name (optional), encoding, size in bytes and the default display
     // format.
     //----------------------------------------------------------------------
-    typedef struct
+    struct RegisterInfo
     {
         const char *name;        // Name of this register, can't be NULL
         const char *alt_name;    // Alternate name of this register, can be NULL
@@ -51,15 +51,15 @@ namespace lldb_private
                                    // for this register will be valid.  For example, the value list for ah
                                    // would be eax (x86) or rax (x64).
         uint32_t *invalidate_regs; // List of registers (terminated with LLDB_INVALID_REGNUM).  If this value is not
-                                   // null, all registers in this list will be invalidateed when the value of this
+                                   // null, all registers in this list will be invalidated when the value of this
                                    // register changes.  For example, the invalidate list for eax would be rax
                                    // ax, ah, and al.
-    } RegisterInfo;
+    };
 
     //----------------------------------------------------------------------
     // Registers are grouped into register sets
     //----------------------------------------------------------------------
-    typedef struct
+    struct RegisterSet
     {
         const char *name;           // Name of this register set
         const char *short_name;     // A short name for this register set
@@ -69,14 +69,14 @@ namespace lldb_private
                                     // register array.  For example, if eax is defined at index 4 for a
                                     // particular RegisterContext, eax would be included in this RegisterSet
                                     // by adding the value 4.  Not by adding the value lldb_eax_i386.
-    } RegisterSet;
+    };
 
-    typedef struct
+    struct OptionEnumValueElement
     {
         int64_t value;
         const char *string_value;
         const char *usage;
-    } OptionEnumValueElement;
+    };
 
     struct OptionValidator
     {
@@ -85,7 +85,7 @@ namespace lldb_private
         virtual const char * ShortConditionString() const = 0;
         virtual const char * LongConditionString() const = 0;
     };
-    
+
     struct OptionDefinition
     {
         uint32_t usage_mask;                     // Used to mark options that can be used together.  If (1 << n & usage_mask) != 0
@@ -101,6 +101,8 @@ namespace lldb_private
         const char *usage_text;                  // Full text explaining what this options does and what (if any) argument to
                                                  // pass it.
     };
+
+    typedef struct type128 { uint64_t x[2]; } type128;
 
 } // namespace lldb_private
 

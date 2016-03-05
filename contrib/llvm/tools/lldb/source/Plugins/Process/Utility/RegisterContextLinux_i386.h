@@ -10,7 +10,7 @@
 #ifndef liblldb_RegisterContextLinux_i386_H_
 #define liblldb_RegisterContextLinux_i386_H_
 
-#include "RegisterContextPOSIX.h"
+#include "RegisterInfoInterface.h"
 
 class RegisterContextLinux_i386
   : public lldb_private::RegisterInfoInterface
@@ -29,6 +29,12 @@ public:
 
     uint32_t
     GetUserRegisterCount () const override;
+
+    const std::vector<lldb_private::RegisterInfo> *
+    GetDynamicRegisterInfoP() const override;
+
+private:
+    std::vector<lldb_private::RegisterInfo> d_register_infos;
 };
 
 #endif

@@ -35,7 +35,6 @@ SRCS=	Address.cpp \
 	FormatEntity.cpp \
 	History.cpp \
 	IOHandler.cpp \
-	Language.cpp \
 	Listener.cpp \
 	Log.cpp \
 	Logging.cpp \
@@ -69,6 +68,7 @@ SRCS=	Address.cpp \
 	ValueObjectCast.cpp \
 	ValueObjectChild.cpp \
 	ValueObjectConstResult.cpp \
+	ValueObjectConstResultCast.cpp \
 	ValueObjectConstResultChild.cpp \
 	ValueObjectConstResultImpl.cpp \
 	ValueObjectDynamicValue.cpp \

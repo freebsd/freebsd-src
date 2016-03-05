@@ -34,6 +34,7 @@ SRCS=	APFloat.cpp \
 	IntEqClasses.cpp \
 	IntervalMap.cpp \
 	IntrusiveRefCntPtr.cpp \
+	JamCRC.cpp \
 	LEB128.cpp \
 	LineIterator.cpp \
 	Locale.cpp \
@@ -64,7 +65,6 @@ SRCS=	APFloat.cpp \
 	StreamingMemoryObject.cpp \
 	StringExtras.cpp \
 	StringMap.cpp \
-	StringPool.cpp \
 	StringRef.cpp \
 	StringSaver.cpp \
 	TargetParser.cpp \
@@ -96,11 +96,16 @@ SRCS+=	ARMWinEH.cpp \
 	FileOutputBuffer.cpp \
 	FileUtilities.cpp \
 	SystemUtils.cpp \
+	ThreadPool.cpp \
 	Watchdog.cpp
 .endif
 
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
 SRCS+=	Memory.cpp
+.endif
+
+.if ${MK_LLDB} != "no"
+SRCS+=	StringPool.cpp
 .endif
 
 .include "../clang.lib.mk"
