@@ -596,6 +596,7 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	bcopy((void *)&regs->ast, (void *)&sf.sf_uc.uc_mcontext.mc_regs[1],
 	    sizeof(sf.sf_uc.uc_mcontext.mc_regs) - sizeof(register_t));
 	sf.sf_uc.uc_mcontext.mc_fpused = td->td_md.md_flags & MDTD_FPUSED;
+#if defined(CPU_HAVEFPU)
 	if (sf.sf_uc.uc_mcontext.mc_fpused) {
 		/* if FPU has current state, save it first */
 		if (td == PCPU_GET(fpcurthread))
@@ -604,6 +605,7 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		    (void *)sf.sf_uc.uc_mcontext.mc_fpregs,
 		    sizeof(sf.sf_uc.uc_mcontext.mc_fpregs));
 	}
+#endif
 	/* XXXRW: sf.sf_uc.uc_mcontext.sr seems never to be set? */
 	sf.sf_uc.uc_mcontext.cause = regs->cause;
 	cheri_memcpy(&sf.sf_uc.uc_mcontext.mc_cheriframe,
