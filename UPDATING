@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160301:
+	The AIO subsystem is now a standard part of the kernel.  The
+	VFS_AIO kernel option and aio.ko kernel module have been removed.
+	Due to stability concerns, asynchronous I/O requests are only
+	permitted on sockets and raw disks by default.  To enable
+	asynchronous I/O requests on all file types, set the
+	vfs.aio.enable_unsafe sysctl to a non-zero value.
+
 20160226:
 	The ELF object manipulation tool objcopy is now provided by the
 	ELF Tool Chain project rather than by GNU binutils. It should be a

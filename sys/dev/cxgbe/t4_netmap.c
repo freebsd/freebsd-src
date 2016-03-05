@@ -366,9 +366,8 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 	}
 	sc->sge.eqmap[cntxt_id] = (void *)nm_rxq;
 
-	nm_rxq->fl_db_val = F_DBPRIO | V_QID(nm_rxq->fl_cntxt_id) | V_PIDX(0);
-	if (is_t5(sc))
-		nm_rxq->fl_db_val |= F_DBTYPE;
+	nm_rxq->fl_db_val = V_QID(nm_rxq->fl_cntxt_id) |
+	    sc->chip_params->sge_fl_db;
 
 	if (is_t5(sc) && cong >= 0) {
 		uint32_t param, val;
