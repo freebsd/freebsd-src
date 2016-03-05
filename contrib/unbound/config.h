@@ -243,6 +243,9 @@
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #define HAVE_NETINET_IN_H 1
 
+/* Define to 1 if you have the <netinet/tcp.h> header file. */
+#define HAVE_NETINET_TCP_H 1
+
 /* Use libnettle for crypto */
 /* #undef HAVE_NETTLE */
 
@@ -294,7 +297,7 @@
 /* Define to 1 if you have the `recvmsg' function. */
 #define HAVE_RECVMSG 1
 
-/* Define to 1 if you have the `sbrk' function. */
+/* define if you have the sbrk() call */
 /* #undef HAVE_SBRK */
 
 /* Define to 1 if you have the `sendmsg' function. */
@@ -462,8 +465,7 @@
 /* if lex has yylex_destroy */
 #define LEX_HAS_YYLEX_DESTROY 1
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #define LT_OBJDIR ".libs/"
 
 /* Define to the maximum message length to pass to syslog. */
@@ -484,6 +486,9 @@
 
 /* Put -D_BSD_SOURCE define in config.h */
 /* #undef OMITTED__D_BSD_SOURCE */
+
+/* Put -D_DEFAULT_SOURCE define in config.h */
+/* #undef OMITTED__D_DEFAULT_SOURCE */
 
 /* Put -D_GNU_SOURCE define in config.h */
 /* #undef OMITTED__D_GNU_SOURCE */
@@ -510,7 +515,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.5.7"
+#define PACKAGE_STRING "unbound 1.5.8"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -519,7 +524,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.5.7"
+#define PACKAGE_VERSION "1.5.8"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -538,7 +543,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,5,7,0
+#define RSRC_PACKAGE_VERSION 1,5,8,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
@@ -739,6 +744,10 @@
 #define _BSD_SOURCE 1
 #endif 
 
+#if defined(OMITTED__D_DEFAULT_SOURCE) && !defined(_DEFAULT_SOURCE)
+#define _DEFAULT_SOURCE 1
+#endif 
+
 #if defined(OMITTED__D__EXTENSIONS__) && !defined(__EXTENSIONS__)
 #define __EXTENSIONS__ 1
 #endif 
@@ -810,6 +819,10 @@
 
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
+#endif
+
+#ifdef HAVE_NETINET_TCP_H
+#include <netinet/tcp.h>
 #endif
 
 #ifdef HAVE_ARPA_INET_H
