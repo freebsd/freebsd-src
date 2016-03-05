@@ -653,7 +653,7 @@ creturn_pop_stack:
 	 * perform that check.
 	 */
 	PTR_L		k0, U_PCB_CHERISTACK_TSP(k1)
-	sltiu		k0, CHERI_STACK_SIZE
+	sltiu		k0, k0, CHERI_STACK_SIZE
 	beqz		k0, CReturn_stack_underflow
 	nop
 
