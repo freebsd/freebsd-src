@@ -1,5 +1,4 @@
 /* $FreeBSD$ */
-/* include/llvm/Config/llvm-config.h.  Generated from llvm-config.h.in by configure.  */
 /*===------- llvm/Config/llvm-config.h - llvm configuration -------*- C -*-===*/
 /*                                                                            */
 /*                     The LLVM Compiler Infrastructure                       */
@@ -31,8 +30,9 @@
 /* Installation directory for documentation */
 /* #undef LLVM_DOCSDIR */
 
-/* Define to enable checks that alter the LLVM C++ ABI */
-#define LLVM_ENABLE_ABI_BREAKING_CHECKS 1
+/* Define if LLVM is built with asserts and checks that change the layout of
+   client-visible data structures.  */
+#define LLVM_ENABLE_ABI_BREAKING_CHECKS
 
 /* Define if threads enabled */
 #define LLVM_ENABLE_THREADS 1
@@ -86,21 +86,24 @@
 #define LLVM_PREFIX "/usr"
 
 /* Define if we have the Intel JIT API runtime support library */
-#define LLVM_USE_INTEL_JITEVENTS 0
+/* #undef LLVM_USE_INTEL_JITEVENTS */
 
 /* Define if we have the oprofile JIT-support library */
-#define LLVM_USE_OPROFILE 0
+/* #undef LLVM_USE_OPROFILE */
 
 /* Major version of the LLVM API */
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 7
+#define LLVM_VERSION_MINOR 8
 
 /* Patch version of the LLVM API */
-#define LLVM_VERSION_PATCH 1
+#define LLVM_VERSION_PATCH 0
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "3.7.1"
+#define LLVM_VERSION_STRING "3.8.0"
+
+/* Define if we link Polly to the tools */
+/* #undef LINK_POLLY_INTO_TOOLS */
 
 #endif

@@ -17,8 +17,10 @@
 
 // C++ Includes
 #include <list>
-#include <iosfwd>
+#include <memory>
+#include <string>
 #include <vector>
+#include <unordered_set>
 
 // Other libraries and framework includes
 // Project includes
@@ -28,6 +30,7 @@
 #include "lldb/Core/Communication.h"
 #include "lldb/Core/Error.h"
 #include "lldb/Core/Event.h"
+#include "lldb/Core/LoadedModuleInfoList.h"
 #include "lldb/Core/ThreadSafeValue.h"
 #include "lldb/Core/PluginInterface.h"
 #include "lldb/Core/StructuredData.h"
@@ -55,11 +58,10 @@ struct Range;
 class ProcessProperties : public Properties
 {
 public:
-    // Pass NULL for "process" if the ProcessProperties are to be the global copy
+    // Pass nullptr for "process" if the ProcessProperties are to be the global copy
     ProcessProperties (lldb_private::Process *process);
 
-    virtual
-    ~ProcessProperties();
+    ~ProcessProperties() override;
     
     bool
     GetDisableMemoryCache() const;
@@ -103,12 +105,14 @@ public:
     void
     SetDetachKeepsStopped (bool keep_stopped);
 
-protected:
+    bool
+    GetWarningsOptimization () const;
 
+protected:
     static void
     OptionValueChangedCallback (void *baton, OptionValue *option_value);
 
-    Process * m_process; // Can be NULL for global ProcessProperties
+    Process * m_process; // Can be nullptr for global ProcessProperties
 };
 
 typedef std::shared_ptr<ProcessProperties> ProcessPropertiesSP;
@@ -236,7 +240,8 @@ public:
         m_wait_for_launch (false),
         m_ignore_existing (true),
         m_continue_once_attached (false),
-        m_detach_on_error (true)
+        m_detach_on_error (true),
+        m_async (false)
     {
     }
 
@@ -249,7 +254,8 @@ public:
         m_wait_for_launch (false),
         m_ignore_existing (true),
         m_continue_once_attached (false),
-        m_detach_on_error(true)
+        m_detach_on_error (true),
+        m_async (false)
     {
         ProcessInfo::operator= (launch_info);
         SetProcessPluginName (launch_info.GetProcessPluginName());
@@ -269,6 +275,18 @@ public:
     SetWaitForLaunch (bool b)
     {
         m_wait_for_launch = b;
+    }
+
+    bool
+    GetAsync () const
+    {
+        return m_async;
+    }
+
+    void
+    SetAsync (bool b)
+    {
+        m_async = b;
     }
 
     bool
@@ -310,9 +328,7 @@ public:
     const char *
     GetProcessPluginName () const
     {
-        if (m_plugin_name.empty())
-            return NULL;
-        return m_plugin_name.c_str();
+        return (m_plugin_name.empty() ? nullptr : m_plugin_name.c_str());
     }
     
     void
@@ -384,7 +400,6 @@ public:
         m_listener_sp = listener_sp;
     }
 
-
     Listener &
     GetListenerForProcess (Debugger &debugger);
 
@@ -397,35 +412,33 @@ protected:
     bool m_ignore_existing;
     bool m_continue_once_attached; // Supports the use-case scenario of immediately continuing the process once attached.
     bool m_detach_on_error;  // If we are debugging remotely, instruct the stub to detach rather than killing the target on error.
+    bool m_async; // Use an async attach where we start the attach and return immediately (used by GUI programs with --waitfor so they can call SBProcess::Stop() to cancel attach)
 };
 
 class ProcessLaunchCommandOptions : public Options
 {
 public:
-    
     ProcessLaunchCommandOptions (CommandInterpreter &interpreter) :
         Options(interpreter)
     {
         // Keep default values of all options in one place: OptionParsingStarting ()
         OptionParsingStarting ();
     }
-    
-    ~ProcessLaunchCommandOptions ()
-    {
-    }
-    
+
+    ~ProcessLaunchCommandOptions() override = default;
+
     Error
-    SetOptionValue (uint32_t option_idx, const char *option_arg);
+    SetOptionValue (uint32_t option_idx, const char *option_arg) override;
     
     void
-    OptionParsingStarting ()
+    OptionParsingStarting() override
     {
         launch_info.Clear();
         disable_aslr = eLazyBoolCalculate;
     }
     
     const OptionDefinition*
-    GetDefinitions ()
+    GetDefinitions() override
     {
         return g_option_table;
     }
@@ -521,11 +534,8 @@ protected:
 class ProcessInstanceInfoList
 {
 public:
-    ProcessInstanceInfoList () :
-        m_infos()
-    {
-    }
-    
+    ProcessInstanceInfoList() = default;
+
     void
     Clear()
     {
@@ -547,25 +557,19 @@ public:
     const char *
     GetProcessNameAtIndex (size_t idx)
     {
-        if (idx < m_infos.size())
-            return m_infos[idx].GetName();
-        return NULL;
+        return ((idx < m_infos.size()) ? m_infos[idx].GetName() : nullptr);
     }
 
     size_t
     GetProcessNameLengthAtIndex (size_t idx)
     {
-        if (idx < m_infos.size())
-            return m_infos[idx].GetNameLength();
-        return 0;
+        return ((idx < m_infos.size()) ? m_infos[idx].GetNameLength() : 0);
     }
 
     lldb::pid_t
     GetProcessIDAtIndex (size_t idx)
     {
-        if (idx < m_infos.size())
-            return m_infos[idx].GetProcessID();
-        return 0;
+        return ((idx < m_infos.size()) ? m_infos[idx].GetProcessID() : 0);
     }
 
     bool
@@ -592,7 +596,6 @@ protected:
     collection m_infos;
 };
 
-
 // This class tracks the Modification state of the process.  Things that can currently modify
 // the program are running the program (which will up the StopID) and writing memory (which
 // will up the MemoryID.)  
@@ -600,7 +603,7 @@ protected:
 
 class ProcessModID
 {
-friend bool operator== (const ProcessModID &lhs, const ProcessModID &rhs);   
+    friend bool operator== (const ProcessModID &lhs, const ProcessModID &rhs);   
 public:
     ProcessModID () : 
         m_stop_id (0),
@@ -626,7 +629,7 @@ public:
         return *this;
     }
     
-    ~ProcessModID () {}
+    ~ProcessModID() = default;
     
     void BumpStopID () { 
         m_stop_id++;
@@ -709,6 +712,7 @@ private:
     uint32_t m_running_user_expression;
     lldb::EventSP m_last_natural_stop_event;
 };
+
 inline bool operator== (const ProcessModID &lhs, const ProcessModID &rhs)
 {
     if (lhs.StopIDEqual (rhs)
@@ -720,11 +724,7 @@ inline bool operator== (const ProcessModID &lhs, const ProcessModID &rhs)
 
 inline bool operator!= (const ProcessModID &lhs, const ProcessModID &rhs)
 {
-    if (!lhs.StopIDEqual (rhs)
-        || !lhs.MemoryIDEqual (rhs))
-        return true;
-    else
-        return false;
+    return (!lhs.StopIDEqual (rhs) || !lhs.MemoryIDEqual (rhs));
 }
     
 //----------------------------------------------------------------------
@@ -739,7 +739,7 @@ class Process :
     public ExecutionContextScope,
     public PluginInterface
 {
-    friend class ClangFunction;     // For WaitForStateChangeEventsPrivate
+    friend class FunctionCaller;     // For WaitForStateChangeEventsPrivate
     friend class Debugger;          // For PopProcessIOHandler and ProcessIOHandlerIsActive
     friend class ProcessEventData;
     friend class StopInfo;
@@ -747,7 +747,6 @@ class Process :
     friend class ThreadList;
 
 public:
-
     //------------------------------------------------------------------
     /// Broadcaster event bits definitions.
     //------------------------------------------------------------------
@@ -766,6 +765,14 @@ public:
         eBroadcastInternalStateControlPause = (1<<1),
         eBroadcastInternalStateControlResume = (1<<2)
     };
+
+    //------------------------------------------------------------------
+    /// Process warning types.
+    //------------------------------------------------------------------
+    enum Warnings
+    {
+        eWarningsOptimization = 1
+    };
     
     typedef Range<lldb::addr_t, lldb::addr_t> LoadRange;
     // We use a read/write lock to allow on or more clients to
@@ -781,12 +788,11 @@ public:
     
     static ConstString &GetStaticBroadcasterClass ();
 
-    virtual ConstString &GetBroadcasterClass() const
+    ConstString &GetBroadcasterClass() const override
     {
         return GetStaticBroadcasterClass();
     }
 
-    
     //------------------------------------------------------------------
     /// A notification structure that can be used by clients to listen
     /// for changes in a process's lifetime.
@@ -811,13 +817,13 @@ public:
             ProcessEventData ();
             ProcessEventData (const lldb::ProcessSP &process, lldb::StateType state);
 
-            virtual ~ProcessEventData();
+            ~ProcessEventData() override;
 
             static const ConstString &
             GetFlavorString ();
 
-            virtual const ConstString &
-            GetFlavor () const;
+            const ConstString &
+            GetFlavor() const override;
 
             lldb::ProcessSP
             GetProcessSP() const
@@ -845,10 +851,7 @@ public:
             const char *
             GetRestartedReasonAtIndex(size_t idx)
             {
-                if (idx > m_restarted_reasons.size())
-                    return NULL;
-                else
-                    return m_restarted_reasons[idx].c_str();
+                return ((idx < m_restarted_reasons.size()) ? m_restarted_reasons[idx].c_str() : nullptr);
             }
         
             bool
@@ -857,11 +860,11 @@ public:
                 return m_interrupted;
             }
 
-            virtual void
-            Dump (Stream *s) const;
+            void
+            Dump(Stream *s) const override;
 
-            virtual void
-            DoOnRemoval (Event *event_ptr);
+            void
+            DoOnRemoval(Event *event_ptr) override;
 
             static const Process::ProcessEventData *
             GetEventDataFromEvent (const Event *event_ptr);
@@ -897,22 +900,24 @@ public:
             SetUpdateStateOnRemoval (Event *event_ptr);
 
        private:
-
             void
             SetUpdateStateOnRemoval()
             {
                 m_update_state++;
             }
+
             void
             SetRestarted (bool new_value)
             {
                 m_restarted = new_value;
             }
+
             void
             SetInterrupted (bool new_value)
             {
                 m_interrupted = new_value;
             }
+
             void
             AddRestartedReason (const char *reason)
             {
@@ -925,11 +930,30 @@ public:
             bool m_restarted;  // For "eStateStopped" events, this is true if the target was automatically restarted.
             int m_update_state;
             bool m_interrupted;
+
             DISALLOW_COPY_AND_ASSIGN (ProcessEventData);
-
     };
+#endif // SWIG
 
-#endif
+    //------------------------------------------------------------------
+    /// Construct with a shared pointer to a target, and the Process listener.
+    /// Uses the Host UnixSignalsSP by default.
+    //------------------------------------------------------------------
+    Process(lldb::TargetSP target_sp, Listener &listener);
+
+    //------------------------------------------------------------------
+    /// Construct with a shared pointer to a target, the Process listener,
+    /// and the appropriate UnixSignalsSP for the process.
+    //------------------------------------------------------------------
+    Process(lldb::TargetSP target_sp, Listener &listener, const lldb::UnixSignalsSP &unix_signals_sp);
+
+    //------------------------------------------------------------------
+    /// Destructor.
+    ///
+    /// The destructor is virtual since this class is designed to be
+    /// inherited from by the plug-in instance.
+    //------------------------------------------------------------------
+    ~Process() override;
 
     static void
     SettingsInitialize ();
@@ -939,27 +963,6 @@ public:
     
     static const ProcessPropertiesSP &
     GetGlobalProperties();
-
-    //------------------------------------------------------------------
-    /// Construct with a shared pointer to a target, and the Process listener.
-    /// Uses the Host UnixSignalsSP by default.
-    //------------------------------------------------------------------
-    Process(Target &target, Listener &listener);
-
-    //------------------------------------------------------------------
-    /// Construct with a shared pointer to a target, the Process listener,
-    /// and the appropriate UnixSignalsSP for the process.
-    //------------------------------------------------------------------
-    Process(Target &target, Listener &listener, const lldb::UnixSignalsSP &unix_signals_sp);
-
-    //------------------------------------------------------------------
-    /// Destructor.
-    ///
-    /// The destructor is virtual since this class is designed to be
-    /// inherited from by the plug-in instance.
-    //------------------------------------------------------------------
-    virtual
-    ~Process();
 
     //------------------------------------------------------------------
     /// Find a Process plug-in that can debug \a module using the
@@ -973,19 +976,17 @@ public:
     ///     The module shared pointer that this process will debug.
     ///
     /// @param[in] plugin_name
-    ///     If NULL, select the best plug-in for the binary. If non-NULL
+    ///     If nullptr, select the best plug-in for the binary. If non-nullptr
     ///     then look for a plugin whose PluginInfo's name matches
     ///     this string.
     ///
     /// @see Process::CanDebug ()
     //------------------------------------------------------------------
     static lldb::ProcessSP
-    FindPlugin (Target &target, 
+    FindPlugin (lldb::TargetSP target_sp,
                 const char *plugin_name, 
                 Listener &listener, 
                 const FileSpec *crash_file_path);
-
-
 
     //------------------------------------------------------------------
     /// Static function that can be used with the \b host function
@@ -997,16 +998,16 @@ public:
     /// Subclasses should call Host::StartMonitoringChildProcess ()
     /// with:
     ///     callback = Process::SetHostProcessExitStatus
-    ///     callback_baton = NULL
+    ///     callback_baton = nullptr
     ///     pid = Process::GetID()
     ///     monitor_signals = false
     //------------------------------------------------------------------
     static bool
-    SetProcessExitStatus (void *callback_baton,   // The callback baton which should be set to NULL
-                          lldb::pid_t pid,        // The process ID we want to monitor
-                          bool exited,
-                          int signo,              // Zero for no signal
-                          int status);            // Exit value of process if signal is zero
+    SetProcessExitStatus(void *callback_baton,   // The callback baton which should be set to nullptr
+                         lldb::pid_t pid,        // The process ID we want to monitor
+                         bool exited,
+                         int signo,              // Zero for no signal
+                         int status);            // Exit value of process if signal is zero
 
     lldb::ByteOrder
     GetByteOrder () const;
@@ -1019,6 +1020,7 @@ public:
     {
         return m_process_unique_id;
     }
+
     //------------------------------------------------------------------
     /// Check if a plug-in instance can debug the file in \a module.
     ///
@@ -1031,9 +1033,8 @@ public:
     ///     debug the executable, \b false otherwise.
     //------------------------------------------------------------------
     virtual bool
-    CanDebug (Target &target,
+    CanDebug (lldb::TargetSP target,
               bool plugin_specified_by_name) = 0;
-
 
     //------------------------------------------------------------------
     /// This object is about to be destroyed, do any necessary cleanup.
@@ -1043,8 +1044,7 @@ public:
     //------------------------------------------------------------------
     virtual void
     Finalize();
-    
-    
+
     //------------------------------------------------------------------
     /// Return whether this object is valid (i.e. has not been finalized.)
     ///
@@ -1075,7 +1075,7 @@ public:
     virtual CommandObject *
     GetPluginCommandObject()
     {
-        return NULL;
+        return nullptr;
     }
 
     //------------------------------------------------------------------
@@ -1153,6 +1153,12 @@ public:
         return 0;
     }
 
+    virtual size_t
+    LoadModules (LoadedModuleInfoList &)
+    {
+       return 0;
+    }
+
 protected:
     virtual JITLoaderList &
     GetJITLoaders ();
@@ -1163,7 +1169,7 @@ public:
     ///
     /// @return
     ///   Returns a pointer to the SystemRuntime plugin for this Process
-    ///   if one is available.  Else returns NULL.
+    ///   if one is available.  Else returns nullptr.
     //------------------------------------------------------------------
     virtual SystemRuntime *
     GetSystemRuntime ();
@@ -1194,7 +1200,7 @@ public:
     /// @param[in] strm
     ///     A stream where output intended for the user
     ///     (if the driver has a way to display that) generated during
-    ///     the connection.  This may be NULL if no output is needed.A
+    ///     the connection.  This may be nullptr if no output is needed.A
     ///
     /// @param[in] remote_url
     ///     The URL format that we are connecting to.
@@ -1236,31 +1242,24 @@ public:
     GetImageInfoAddress ();
 
     //------------------------------------------------------------------
-    /// Load a shared library into this process.
+    /// Called when the process is about to broadcast a public stop.
     ///
-    /// Try and load a shared library into the current process. This
-    /// call might fail in the dynamic loader plug-in says it isn't safe
-    /// to try and load shared libraries at the moment.
-    ///
-    /// @param[in] image_spec
-    ///     The image file spec that points to the shared library that
-    ///     you want to load.
-    ///
-    /// @param[out] error
-    ///     An error object that gets filled in with any errors that
-    ///     might occur when trying to load the shared library.
-    ///
-    /// @return
-    ///     A token that represents the shared library that can be
-    ///     later used to unload the shared library. A value of
-    ///     LLDB_INVALID_IMAGE_TOKEN will be returned if the shared
-    ///     library can't be opened.
+    /// There are public and private stops. Private stops are when the
+    /// process is doing things like stepping and the client doesn't
+    /// need to know about starts and stop that implement a thread plan.
+    /// Single stepping over a source line in code might end up being
+    /// implemented by one or more process starts and stops. Public stops
+    /// are when clients will be notified that the process is stopped.
+    /// These events typically trigger UI updates (thread stack frames to
+    /// be displayed, variables to be displayed, and more). This function
+    /// can be overriden and allows process subclasses to do something
+    /// before the eBroadcastBitStateChanged event is sent to public
+    /// clients.
     //------------------------------------------------------------------
-    virtual uint32_t
-    LoadImage (const FileSpec &image_spec, Error &error);
-
-    virtual Error
-    UnloadImage (uint32_t image_token);
+    virtual void
+    WillPublicStop ()
+    {
+    }
 
     //------------------------------------------------------------------
     /// Register for process and thread notifications.
@@ -1278,6 +1277,7 @@ public:
     void
     RegisterNotificationCallbacks (const Process::Notifications& callbacks);
 #endif
+
     //------------------------------------------------------------------
     /// Unregister for process and thread notifications.
     ///
@@ -1298,6 +1298,7 @@ public:
     bool
     UnregisterNotificationCallbacks (const Process::Notifications& callbacks);
 #endif
+
     //==================================================================
     // Built in Process Control functions
     //==================================================================
@@ -1334,6 +1335,7 @@ public:
 
     Error
     ResumeSynchronous (Stream *stream);
+
     //------------------------------------------------------------------
     /// Halts a running process.
     ///
@@ -1346,12 +1348,15 @@ public:
     /// @param[in] clear_thread_plans
     ///     If true, when the process stops, clear all thread plans.
     ///
+    /// @param[in] use_run_lock
+    ///     Whether to release the run lock after the stop.
+    ///
     /// @return
     ///     Returns an error object.  If the error is empty, the process is halted.
     ///     otherwise the halt has failed.
     //------------------------------------------------------------------
     Error
-    Halt (bool clear_thread_plans = false);
+    Halt (bool clear_thread_plans = false, bool use_run_lock = true);
 
     //------------------------------------------------------------------
     /// Detaches from a running or stopped process.
@@ -1402,7 +1407,7 @@ public:
     Signal (int signal);
 
     void
-    SetUnixSignals(const lldb::UnixSignalsSP &signals_sp);
+    SetUnixSignals(lldb::UnixSignalsSP &&signals_sp);
 
     const lldb::UnixSignalsSP &
     GetUnixSignals();
@@ -1447,7 +1452,7 @@ public:
     /// @param[in] strm
     ///     A stream where output intended for the user 
     ///     (if the driver has a way to display that) generated during
-    ///     the connection.  This may be NULL if no output is needed.A
+    ///     the connection.  This may be nullptr if no output is needed.A
     ///
     /// @param[in] remote_url
     ///     The URL format that we are connecting to.
@@ -1525,7 +1530,6 @@ public:
         process_arch.Clear();
     }
 
-
     //------------------------------------------------------------------
     /// Called after a process re-execs itself.
     ///
@@ -1590,7 +1594,6 @@ public:
         return error;
     }
 
-    
     //------------------------------------------------------------------
     /// Called after launching a process.
     ///
@@ -1599,8 +1602,6 @@ public:
     //------------------------------------------------------------------
     virtual void
     DidLaunch () {}
-
-
 
     //------------------------------------------------------------------
     /// Called before resuming to a process.
@@ -1639,7 +1640,6 @@ public:
         return error;
     }
 
-
     //------------------------------------------------------------------
     /// Called after resuming a process.
     ///
@@ -1648,7 +1648,6 @@ public:
     //------------------------------------------------------------------
     virtual void
     DidResume () {}
-
 
     //------------------------------------------------------------------
     /// Called before halting to a process.
@@ -1668,9 +1667,8 @@ public:
     /// DoHalt must produce one and only one stop StateChanged event if it actually
     /// stops the process.  If the stop happens through some natural event (for
     /// instance a SIGSTOP), then forwarding that event will do.  Otherwise, you must 
-    /// generate the event manually.  Note also, the private event thread is stopped when 
-    /// DoHalt is run to prevent the events generated while halting to trigger
-    /// other state changes before the halt is complete.
+    /// generate the event manually. This function is called from the context of the
+    /// private state thread.
     ///
     /// @param[out] caused_stop
     ///     If true, then this Halt caused the stop, otherwise, the 
@@ -1687,7 +1685,6 @@ public:
         error.SetErrorStringWithFormat("error: %s does not support halting processes", GetPluginName().GetCString());
         return error;
     }
-
 
     //------------------------------------------------------------------
     /// Called after halting a process.
@@ -1727,7 +1724,6 @@ public:
         error.SetErrorStringWithFormat("error: %s does not support detaching from processes", GetPluginName().GetCString());
         return error;
     }
-
 
     //------------------------------------------------------------------
     /// Called after detaching from a process.
@@ -1781,7 +1777,6 @@ public:
     virtual bool
     DestroyRequiresHalt() { return true; }
 
-
     //------------------------------------------------------------------
     /// Called after sending a signal to a process.
     ///
@@ -1808,6 +1803,41 @@ public:
     RefreshStateAfterStop () = 0;
 
     //------------------------------------------------------------------
+    /// Sometimes the connection to a process can detect the host OS
+    /// version that the process is running on. The current platform
+    /// should be checked first in case the platform is connected, but
+    /// clients can fall back onto this function if the platform fails
+    /// to identify the host OS version. The platform should be checked
+    /// first in case you are running a simulator platform that might
+    /// itself be running natively, but have different heuristics for
+    /// figuring out which OS is is emulating.
+    ///
+    /// @param[out] major
+    ///    The major OS version, or UINT32_MAX if it can't be determined
+    ///
+    /// @param[out] minor
+    ///    The minor OS version, or UINT32_MAX if it can't be determined
+    ///
+    /// @param[out] update
+    ///    The update OS version, or UINT32_MAX if it can't be determined
+    ///
+    /// @return
+    ///     Returns \b true if the host OS version info was filled in
+    ///     and \b false otherwise.
+    //------------------------------------------------------------------
+    virtual bool
+    GetHostOSVersion(uint32_t &major,
+                     uint32_t &minor,
+                     uint32_t &update)
+    {
+        major = UINT32_MAX;
+        minor = UINT32_MAX;
+        update = UINT32_MAX;
+        return false;
+    }
+
+
+    //------------------------------------------------------------------
     /// Get the target object pointer for this module.
     ///
     /// @return
@@ -1817,7 +1847,7 @@ public:
     Target &
     GetTarget ()
     {
-        return m_target;
+        return *m_target_sp.lock();
     }
 
     //------------------------------------------------------------------
@@ -1830,7 +1860,7 @@ public:
     const Target &
     GetTarget () const
     {
-        return m_target;
+        return *m_target_sp.lock();
     }
 
     //------------------------------------------------------------------
@@ -1888,7 +1918,6 @@ public:
     virtual void
     ModulesDidLoad (ModuleList &module_list);
 
-
     //------------------------------------------------------------------
     /// Retrieve the list of shared libraries that are loaded for this process
     /// 
@@ -1919,30 +1948,20 @@ public:
         return StructuredData::ObjectSP();
     }
 
-protected:
-    
-    void
-    SetState (lldb::EventSP &event_sp);
-
-    lldb::StateType
-    GetPrivateState ();
-
     //------------------------------------------------------------------
-    /// The "private" side of resuming a process.  This doesn't alter the
-    /// state of m_run_lock, but just causes the process to resume.
+    /// Print a user-visible warning about a module being built with optimization
     ///
-    /// @return
-    ///     An Error object describing the success or failure of the resume.
-    //------------------------------------------------------------------
-    Error
-    PrivateResume ();
-
-    //------------------------------------------------------------------
-    // Called internally
+    /// Prints a async warning message to the user one time per Module
+    /// where a function is found that was compiled with optimization, per
+    /// Process.
+    ///
+    /// @param [in] sc
+    ///     A SymbolContext with eSymbolContextFunction and eSymbolContextModule
+    ///     pre-computed.
     //------------------------------------------------------------------
     void
-    CompleteAttach ();
-    
+    PrintWarningOptimization (const SymbolContext &sc);
+
 public:
     //------------------------------------------------------------------
     /// Get the exit status for a process.
@@ -1958,12 +1977,11 @@ public:
     /// Get a textual description of what the process exited.
     ///
     /// @return
-    ///     The textual description of why the process exited, or NULL
+    ///     The textual description of why the process exited, or nullptr
     ///     if there is no description available.
     //------------------------------------------------------------------
     const char *
     GetExitDescription ();
-
 
     virtual void
     DidExit ()
@@ -2045,7 +2063,7 @@ public:
     ///     otherwise.
     //------------------------------------------------------------------
     virtual bool
-    IsAlive () = 0;
+    IsAlive ();
 
     //------------------------------------------------------------------
     /// Before lldb detaches from a process, it warns the user that they are about to lose their debug session.
@@ -2255,7 +2273,6 @@ public:
         return 0;
     }
 
-
     //------------------------------------------------------------------
     /// Write all or part of a scalar value to memory.
     ///
@@ -2329,7 +2346,6 @@ public:
     size_t
     WriteMemory (lldb::addr_t vm_addr, const void *buf, size_t size, Error &error);
 
-
     //------------------------------------------------------------------
     /// Actually allocate memory in the process.
     ///
@@ -2352,9 +2368,34 @@ public:
         return LLDB_INVALID_ADDRESS;
     }
 
-
     //------------------------------------------------------------------
     /// The public interface to allocating memory in the process.
+    ///
+    /// This function will allocate memory in the process's address
+    /// space.  This can't rely on the generic function calling mechanism,
+    /// since that requires this function.
+    ///
+    /// @param[in] size
+    ///     The size of the allocation requested.
+    ///
+    /// @param[in] permissions
+    ///     Or together any of the lldb::Permissions bits.  The permissions on
+    ///     a given memory allocation can't be changed after allocation.  Note
+    ///     that a block that isn't set writable can still be written on from lldb,
+    ///     just not by the process itself.
+    ///
+    /// @param[in,out] error
+    ///     An error object to fill in if things go wrong.
+    /// @return
+    ///     The address of the allocated buffer in the process, or
+    ///     LLDB_INVALID_ADDRESS if the allocation failed.
+    //------------------------------------------------------------------
+    lldb::addr_t
+    AllocateMemory (size_t size, uint32_t permissions, Error &error);
+
+    //------------------------------------------------------------------
+    /// The public interface to allocating memory in the process, this also
+    /// clears the allocated memory.
     ///
     /// This function will allocate memory in the process's address
     /// space.  This can't rely on the generic function calling mechanism,
@@ -2377,8 +2418,7 @@ public:
     //------------------------------------------------------------------
 
     lldb::addr_t
-    AllocateMemory (size_t size, uint32_t permissions, Error &error);
-
+    CallocateMemory (size_t size, uint32_t permissions, Error &error);
 
     //------------------------------------------------------------------
     /// Resolve dynamically loaded indirect functions.
@@ -2393,7 +2433,6 @@ public:
     ///     The address of the resolved function.
     ///     LLDB_INVALID_ADDRESS if the resolution failed.
     //------------------------------------------------------------------
-
     virtual lldb::addr_t
     ResolveIndirectFunction(const Address *address, Error &error);
 
@@ -2518,7 +2557,6 @@ public:
     /// @return
     ///     \btrue if the memory was deallocated, \bfalse otherwise.
     //------------------------------------------------------------------
-
     virtual Error
     DoDeallocateMemory (lldb::addr_t ptr)
     {
@@ -2526,7 +2564,6 @@ public:
         error.SetErrorStringWithFormat("error: %s does not support deallocating in the debug process", GetPluginName().GetCString());
         return error;
     }
-
 
     //------------------------------------------------------------------
     /// The public interface to deallocating memory in the process.
@@ -2541,7 +2578,6 @@ public:
     /// @return
     ///     \btrue if the memory was deallocated, \bfalse otherwise.
     //------------------------------------------------------------------
-
     Error
     DeallocateMemory (lldb::addr_t ptr);
     
@@ -2671,7 +2707,6 @@ public:
         return error;
     }
 
-
     virtual Error
     DisableBreakpointSite (BreakpointSite *bp_site)
     {
@@ -2679,7 +2714,6 @@ public:
         error.SetErrorStringWithFormat("error: %s does not support disabling breakpoints", GetPluginName().GetCString());
         return error;
     }
-
 
     // This is implemented completely using the lldb::Process API. Subclasses
     // don't need to implement this function unless the standard flow of
@@ -2716,7 +2750,6 @@ public:
 
     Error
     EnableBreakpointSiteByID (lldb::user_id_t break_id);
-
 
     // BreakpointLocations use RemoveOwnerFromBreakpointSite to remove
     // themselves from the owner's list of this breakpoint sites.
@@ -2811,12 +2844,16 @@ public:
     // Returns the process state when it is stopped. If specified, event_sp_ptr
     // is set to the event which triggered the stop. If wait_always = false,
     // and the process is already stopped, this function returns immediately.
+    // If the process is hijacked and use_run_lock is true (the default), then this
+    // function releases the run lock after the stop. Setting use_run_lock to false
+    // will avoid this behavior.
     lldb::StateType
-    WaitForProcessToStop (const TimeValue *timeout,
-                          lldb::EventSP *event_sp_ptr = NULL,
-                          bool wait_always = true,
-                          Listener *hijack_listener = NULL,
-                          Stream *stream = NULL);
+    WaitForProcessToStop(const TimeValue *timeout,
+                         lldb::EventSP *event_sp_ptr = nullptr,
+                         bool wait_always = true,
+                         Listener *hijack_listener = nullptr,
+                         Stream *stream = nullptr,
+                         bool use_run_lock = true);
 
     uint32_t
     GetIOHandlerID () const
@@ -2838,9 +2875,9 @@ public:
     SyncIOHandler (uint32_t iohandler_id, uint64_t timeout_msec);
 
     lldb::StateType
-    WaitForStateChangedEvents (const TimeValue *timeout,
-                               lldb::EventSP &event_sp,
-                               Listener *hijack_listener); // Pass NULL to use builtin listener
+    WaitForStateChangedEvents(const TimeValue *timeout,
+                              lldb::EventSP &event_sp,
+                              Listener *hijack_listener); // Pass nullptr to use builtin listener
 
     //--------------------------------------------------------------------------------------
     /// Centralize the code that handles and prints descriptions for process state changes.
@@ -2851,7 +2888,7 @@ public:
     /// @param[in] stream
     ///     The output stream to get the state change description
     ///
-    /// @param[inout] pop_process_io_handler
+    /// @param[in,out] pop_process_io_handler
     ///     If this value comes in set to \b true, then pop the Process IOHandler if needed.
     ///     Else this variable will be set to \b true or \b false to indicate if the process
     ///     needs to have its process IOHandler popped.
@@ -2863,9 +2900,9 @@ public:
     HandleProcessStateChangedEvent (const lldb::EventSP &event_sp,
                                     Stream *stream,
                                     bool &pop_process_io_handler);
+
     Event *
     PeekAtStateChangedEvents ();
-    
 
     class
     ProcessEventHijacker
@@ -2876,6 +2913,7 @@ public:
         {
             m_process.HijackProcessEvents (listener);
         }
+
         ~ProcessEventHijacker ()
         {
             m_process.RestoreProcessEvents();
@@ -2884,6 +2922,7 @@ public:
     private:
         Process &m_process;
     };
+
     friend class ProcessEventHijacker;
     friend class ProcessProperties;
     //------------------------------------------------------------------
@@ -2910,27 +2949,6 @@ public:
     void
     RestoreProcessEvents ();
 
-private:
-    //------------------------------------------------------------------
-    /// This is the part of the event handling that for a process event.
-    /// It decides what to do with the event and returns true if the
-    /// event needs to be propagated to the user, and false otherwise.
-    /// If the event is not propagated, this call will most likely set
-    /// the target to executing again.
-    /// There is only one place where this call should be called, HandlePrivateEvent.
-    /// Don't call it from anywhere else...
-    ///
-    /// @param[in] event_ptr
-    ///     This is the event we are handling.
-    ///
-    /// @return
-    ///     Returns \b true if the event should be reported to the
-    ///     user, \b false otherwise.
-    //------------------------------------------------------------------
-    bool
-    ShouldBroadcastEvent (Event *event_ptr);
-
-public:
     const lldb::ABISP &
     GetABI ();
 
@@ -3004,29 +3022,29 @@ public:
     //------------------------------------------------------------------
     // lldb::ExecutionContextScope pure virtual functions
     //------------------------------------------------------------------
-    virtual lldb::TargetSP
-    CalculateTarget ();
+    lldb::TargetSP
+    CalculateTarget()  override;
     
-    virtual lldb::ProcessSP
-    CalculateProcess ()
+    lldb::ProcessSP
+    CalculateProcess() override
     {
         return shared_from_this();
     }
     
-    virtual lldb::ThreadSP
-    CalculateThread ()
+    lldb::ThreadSP
+    CalculateThread() override
     {
         return lldb::ThreadSP();
     }
     
-    virtual lldb::StackFrameSP
-    CalculateStackFrame ()
+    lldb::StackFrameSP
+    CalculateStackFrame() override
     {
         return lldb::StackFrameSP();
     }
 
-    virtual void
-    CalculateExecutionContext (ExecutionContext &exe_ctx);
+    void
+    CalculateExecutionContext(ExecutionContext &exe_ctx) override;
     
     void
     SetSTDIOFileDescriptor (int file_descriptor);
@@ -3129,8 +3147,97 @@ public:
         return Error("Not supported");
     }
 
-protected:
+    size_t
+    AddImageToken(lldb::addr_t image_ptr);
 
+    lldb::addr_t
+    GetImagePtrFromToken(size_t token) const;
+
+    void
+    ResetImageToken(size_t token);
+
+    //------------------------------------------------------------------
+    /// Find the next branch instruction to set a breakpoint on
+    ///
+    /// When instruction stepping through a source line, instead of 
+    /// stepping through each instruction, we can put a breakpoint on
+    /// the next branch instruction (within the range of instructions
+    /// we are stepping through) and continue the process to there,
+    /// yielding significant performance benefits over instruction
+    /// stepping.  
+    ///
+    /// @param[in] default_stop_addr
+    ///     The address of the instruction where lldb would put a 
+    ///     breakpoint normally.
+    ///
+    /// @param[in] range_bounds
+    ///     The range which the breakpoint must be contained within.
+    ///     Typically a source line.
+    ///
+    /// @return
+    ///     The address of the next branch instruction, or the end of
+    ///     the range provided in range_bounds.  If there are any
+    ///     problems with the disassembly or getting the instructions,
+    ///     the original default_stop_addr will be returned.
+    //------------------------------------------------------------------
+    Address
+    AdvanceAddressToNextBranchInstruction (Address default_stop_addr, 
+                                           AddressRange range_bounds);
+
+protected:
+    void
+    SetState (lldb::EventSP &event_sp);
+
+    lldb::StateType
+    GetPrivateState ();
+
+    //------------------------------------------------------------------
+    /// The "private" side of resuming a process.  This doesn't alter the
+    /// state of m_run_lock, but just causes the process to resume.
+    ///
+    /// @return
+    ///     An Error object describing the success or failure of the resume.
+    //------------------------------------------------------------------
+    Error
+    PrivateResume ();
+
+    //------------------------------------------------------------------
+    // Called internally
+    //------------------------------------------------------------------
+    void
+    CompleteAttach ();
+
+    //------------------------------------------------------------------
+    /// Print a user-visible warning one time per Process
+    ///
+    /// A facility for printing a warning to the user once per repeat_key.
+    ///
+    /// warning_type is from the Process::Warnings enums.
+    /// repeat_key is a pointer value that will be used to ensure that the
+    /// warning message is not printed multiple times.  For instance, with a
+    /// warning about a function being optimized, you can pass the CompileUnit
+    /// pointer to have the warning issued for only the first function in a
+    /// CU, or the Function pointer to have it issued once for every function,
+    /// or a Module pointer to have it issued once per Module.
+    ///
+    /// Classes outside Process should call a specific PrintWarning method
+    /// so that the warning strings are all centralized in Process, instead of
+    /// calling PrintWarning() directly.
+    ///
+    /// @param [in] warning_type
+    ///     One of the types defined in Process::Warnings.
+    ///
+    /// @param [in] repeat_key
+    ///     A pointer value used to ensure that the warning is only printed once.
+    ///     May be nullptr, indicating that the warning is printed unconditionally
+    ///     every time.
+    ///
+    /// @param [in] fmt
+    ///     printf style format string
+    //------------------------------------------------------------------
+    void
+    PrintWarning (uint64_t warning_type, const void *repeat_key, const char *fmt, ...) __attribute__((format(printf, 4, 5)));
+    
     //------------------------------------------------------------------
     // NextEventAction provides a way to register an action on the next
     // event that is delivered to this process.  There is currently only
@@ -3158,10 +3265,8 @@ protected:
         }
 
         virtual
-        ~NextEventAction() 
-        {
-        }
-        
+        ~NextEventAction() = default;
+
         virtual EventActionResult PerformAction (lldb::EventSP &event_sp) = 0;
         virtual void HandleBeingUnshipped () {}
         virtual EventActionResult HandleBeingInterrupted () = 0;
@@ -3170,6 +3275,7 @@ protected:
         {
             m_process->m_resume_requested = true;
         }
+
     protected:
         Process *m_process;
     };
@@ -3188,25 +3294,17 @@ protected:
     public:
         AttachCompletionHandler (Process *process, uint32_t exec_count);
 
-        virtual
-        ~AttachCompletionHandler() 
-        {
-        }
-        
-        virtual EventActionResult PerformAction (lldb::EventSP &event_sp);
-        virtual EventActionResult HandleBeingInterrupted ();
-        virtual const char *GetExitString();
+        ~AttachCompletionHandler() override = default;
+
+        EventActionResult PerformAction(lldb::EventSP &event_sp) override;
+        EventActionResult HandleBeingInterrupted() override;
+        const char *GetExitString() override;
+
     private:
         uint32_t m_exec_count;
         std::string m_exit_string;
     };
 
-    bool 
-    HijackPrivateProcessEvents (Listener *listener);
-    
-    void 
-    RestorePrivateProcessEvents ();
-    
     bool
     PrivateStateThreadIsValid () const
     {
@@ -3223,6 +3321,8 @@ protected:
     // Type definitions
     //------------------------------------------------------------------
     typedef std::map<lldb::LanguageType, lldb::LanguageRuntimeSP> LanguageRuntimeCollection;
+    typedef std::unordered_set<const void *> WarningsPointerSet;
+    typedef std::map<uint64_t, WarningsPointerSet> WarningsCollection;
 
     struct PreResumeCallbackAndBaton
     {
@@ -3238,7 +3338,7 @@ protected:
     //------------------------------------------------------------------
     // Member variables
     //------------------------------------------------------------------
-    Target &                    m_target;               ///< The target that owns this process.
+    std::weak_ptr<Target>       m_target_sp;            ///< The target that owns this process.
     ThreadSafeValue<lldb::StateType>  m_public_state;
     ThreadSafeValue<lldb::StateType>  m_private_state; // The actual state of our process
     Broadcaster                 m_private_state_broadcaster;  // This broadcaster feeds state changed events into the private state thread's listener.
@@ -3290,7 +3390,6 @@ protected:
     std::vector<PreResumeCallbackAndBaton> m_pre_resume_actions;
     ProcessRunLock              m_public_run_lock;
     ProcessRunLock              m_private_run_lock;
-    Predicate<bool>             m_currently_handling_event; // This predicate is set in HandlePrivateEvent while all its business is being done.
     ArchSpec::StopInfoOverrideCallbackType m_stop_info_override_callback;
     bool                        m_currently_handling_do_on_removals;
     bool                        m_resume_requested;         // If m_currently_handling_event or m_currently_handling_do_on_removals are true, Resume will only request a resume, using this flag to check.
@@ -3302,6 +3401,7 @@ protected:
     std::map<lldb::addr_t,lldb::addr_t> m_resolved_indirect_addresses;
     bool m_destroy_in_process;
     bool m_can_interpret_function_calls; // Some targets, e.g the OSX kernel, don't support the ability to modify the stack.
+    WarningsCollection          m_warnings_issued;  // A set of object pointers which have already had warnings printed
     
     enum {
         eCanJITDontKnow= 0,
@@ -3353,6 +3453,9 @@ protected:
     void
     HandlePrivateEvent (lldb::EventSP &event_sp);
 
+    Error
+    HaltPrivate();
+
     lldb::StateType
     WaitForProcessStopPrivate (const TimeValue *timeout, lldb::EventSP &event_sp);
 
@@ -3401,23 +3504,39 @@ protected:
     }
     
     Error
-    HaltForDestroyOrDetach(lldb::EventSP &exit_event_sp);
+    StopForDestroyOrDetach(lldb::EventSP &exit_event_sp);
 
     bool
     StateChangedIsExternallyHijacked();
 
     void
     LoadOperatingSystemPlugin(bool flush);
+
 private:
     //------------------------------------------------------------------
-    // For Process only
+    /// This is the part of the event handling that for a process event.
+    /// It decides what to do with the event and returns true if the
+    /// event needs to be propagated to the user, and false otherwise.
+    /// If the event is not propagated, this call will most likely set
+    /// the target to executing again.
+    /// There is only one place where this call should be called, HandlePrivateEvent.
+    /// Don't call it from anywhere else...
+    ///
+    /// @param[in] event_ptr
+    ///     This is the event we are handling.
+    ///
+    /// @return
+    ///     Returns \b true if the event should be reported to the
+    ///     user, \b false otherwise.
     //------------------------------------------------------------------
+    bool
+    ShouldBroadcastEvent (Event *event_ptr);
+
     void ControlPrivateStateThread (uint32_t signal);
     
     DISALLOW_COPY_AND_ASSIGN (Process);
-
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_Process_h_
+#endif // liblldb_Process_h_

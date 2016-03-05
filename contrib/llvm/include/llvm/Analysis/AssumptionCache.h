@@ -66,7 +66,7 @@ public:
 
   /// \brief Add an @llvm.assume intrinsic to this function's cache.
   ///
-  /// The call passed in must be an instruction within this fuction and must
+  /// The call passed in must be an instruction within this function and must
   /// not already be in the cache.
   void registerAssumption(CallInst *CI);
 
@@ -79,7 +79,7 @@ public:
   }
 
   /// \brief Access the list of assumption handles currently tracked for this
-  /// fuction.
+  /// function.
   ///
   /// Note that these produce weak handles that may be null. The caller must
   /// handle that case.
@@ -140,7 +140,7 @@ public:
 class AssumptionCacheTracker : public ImmutablePass {
   /// A callback value handle applied to function objects, which we use to
   /// delete our cache of intrinsics for a function when it is deleted.
-  class FunctionCallbackVH : public CallbackVH {
+  class FunctionCallbackVH final : public CallbackVH {
     AssumptionCacheTracker *ACT;
     void deleted() override;
 

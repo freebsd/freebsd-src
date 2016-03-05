@@ -45,15 +45,12 @@
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarCreate::CMICmdCmdVarCreate(void)
+CMICmdCmdVarCreate::CMICmdCmdVarCreate()
     : m_nChildren(0)
     , m_nThreadId(0)
     , m_strType("??")
     , m_bValid(false)
     , m_strValue("??")
-    , m_constStrArgThread("thread")
-    , m_constStrArgThreadGroup("thread-group")
-    , m_constStrArgFrame("frame")
     , m_constStrArgName("name")
     , m_constStrArgFrameAddr("frame-addr")
     , m_constStrArgExpression("expression")
@@ -72,7 +69,7 @@ CMICmdCmdVarCreate::CMICmdCmdVarCreate(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarCreate::~CMICmdCmdVarCreate(void)
+CMICmdCmdVarCreate::~CMICmdCmdVarCreate()
 {
 }
 
@@ -86,19 +83,12 @@ CMICmdCmdVarCreate::~CMICmdCmdVarCreate(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarCreate::ParseArgs(void)
+CMICmdCmdVarCreate::ParseArgs()
 {
-    bool bOk =
-        m_setCmdArgs.Add(*(new CMICmdArgValOptionLong(m_constStrArgThread, false, true, CMICmdArgValListBase::eArgValType_Number, 1)));
-    bOk = bOk &&
-          m_setCmdArgs.Add(
-              *(new CMICmdArgValOptionLong(m_constStrArgThreadGroup, false, false, CMICmdArgValListBase::eArgValType_ThreadGrp, 1)));
-    bOk = bOk &&
-          m_setCmdArgs.Add(*(new CMICmdArgValOptionLong(m_constStrArgFrame, false, true, CMICmdArgValListBase::eArgValType_Number, 1)));
-    bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValString(m_constStrArgName, false, true)));
-    bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValString(m_constStrArgFrameAddr, false, true)));
-    bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValString(m_constStrArgExpression, true, true, true, true)));
-    return (bOk && ParseValidateCmdOptions());
+    m_setCmdArgs.Add(new CMICmdArgValString(m_constStrArgName, false, true));
+    m_setCmdArgs.Add(new CMICmdArgValString(m_constStrArgFrameAddr, false, true));
+    m_setCmdArgs.Add(new CMICmdArgValString(m_constStrArgExpression, true, true, true, true));
+    return ParseValidateCmdOptions();
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -111,7 +101,7 @@ CMICmdCmdVarCreate::ParseArgs(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarCreate::Execute(void)
+CMICmdCmdVarCreate::Execute()
 {
     CMICMDBASE_GETOPTION(pArgThread, OptionLong, m_constStrArgThread);
     CMICMDBASE_GETOPTION(pArgFrame, OptionLong, m_constStrArgFrame);
@@ -182,7 +172,7 @@ CMICmdCmdVarCreate::Execute(void)
 
     if (rStrExpression[0] == '$')
     {
-        const CMIUtilString rStrRegister(rStrExpression.substr(1).c_str());
+        const CMIUtilString rStrRegister(rStrExpression.substr(1));
         value = frame.FindRegister(rStrRegister.c_str());
     }
     else
@@ -229,7 +219,7 @@ CMICmdCmdVarCreate::Execute(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarCreate::Acknowledge(void)
+CMICmdCmdVarCreate::Acknowledge()
 {
     if (m_bValid)
     {
@@ -258,7 +248,7 @@ CMICmdCmdVarCreate::Acknowledge(void)
     CMIUtilString strErrMsg(m_strValue);
     if (m_strValue.empty())
         strErrMsg = CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_VARIABLE_CREATION_FAILED), m_strExpression.c_str());
-    const CMICmnMIValueConst miValueConst(strErrMsg);
+    const CMICmnMIValueConst miValueConst(strErrMsg.Escape(true /* vbEscapeQuotes */));
     CMICmnMIValueResult miValueResult("msg", miValueConst);
     const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Error, miValueResult);
     m_miResultRecord = miRecordResult;
@@ -275,7 +265,7 @@ CMICmdCmdVarCreate::Acknowledge(void)
 // Throws:  None.
 //--
 CMICmdBase *
-CMICmdCmdVarCreate::CreateSelf(void)
+CMICmdCmdVarCreate::CreateSelf()
 {
     return new CMICmdCmdVarCreate();
 }
@@ -320,7 +310,7 @@ CMICmdCmdVarCreate::CompleteSBValue(lldb::SBValue &vrwValue)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarUpdate::CMICmdCmdVarUpdate(void)
+CMICmdCmdVarUpdate::CMICmdCmdVarUpdate()
     : m_constStrArgPrintValues("print-values")
     , m_constStrArgName("name")
     , m_bValueChanged(false)
@@ -340,7 +330,7 @@ CMICmdCmdVarUpdate::CMICmdCmdVarUpdate(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarUpdate::~CMICmdCmdVarUpdate(void)
+CMICmdCmdVarUpdate::~CMICmdCmdVarUpdate()
 {
 }
 
@@ -354,11 +344,11 @@ CMICmdCmdVarUpdate::~CMICmdCmdVarUpdate(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarUpdate::ParseArgs(void)
+CMICmdCmdVarUpdate::ParseArgs()
 {
-    bool bOk = m_setCmdArgs.Add(*(new CMICmdArgValPrintValues(m_constStrArgPrintValues, false, true)));
-    bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValString(m_constStrArgName, true, true)));
-    return (bOk && ParseValidateCmdOptions());
+    m_setCmdArgs.Add(new CMICmdArgValPrintValues(m_constStrArgPrintValues, false, true));
+    m_setCmdArgs.Add(new CMICmdArgValString(m_constStrArgName, true, true));
+    return ParseValidateCmdOptions();
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -371,7 +361,7 @@ CMICmdCmdVarUpdate::ParseArgs(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarUpdate::Execute(void)
+CMICmdCmdVarUpdate::Execute()
 {
     CMICMDBASE_GETOPTION(pArgPrintValues, PrintValues, m_constStrArgPrintValues);
     CMICMDBASE_GETOPTION(pArgName, String, m_constStrArgName);
@@ -399,7 +389,7 @@ CMICmdCmdVarUpdate::Execute(void)
                                (eVarInfoFormat == CMICmnLLDBDebugSessionInfo::eVariableInfoFormat_SimpleValues && rValue.GetNumChildren() == 0));
         const CMIUtilString strValue(bPrintValue ? varObj.GetValueFormatted() : "");
         const CMIUtilString strInScope(rValue.IsInScope() ? "true" : "false");
-        return MIFormResponse(rVarObjName, bPrintValue ? strValue.c_str() : nullptr, strInScope);
+        MIFormResponse(rVarObjName, bPrintValue ? strValue.c_str() : nullptr, strInScope);
     }
 
     return MIstatus::success;
@@ -415,7 +405,7 @@ CMICmdCmdVarUpdate::Execute(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarUpdate::Acknowledge(void)
+CMICmdCmdVarUpdate::Acknowledge()
 {
     if (m_bValueChanged)
     {
@@ -445,7 +435,7 @@ CMICmdCmdVarUpdate::Acknowledge(void)
 // Throws:  None.
 //--
 CMICmdBase *
-CMICmdCmdVarUpdate::CreateSelf(void)
+CMICmdCmdVarUpdate::CreateSelf()
 {
     return new CMICmdCmdVarUpdate();
 }
@@ -456,36 +446,32 @@ CMICmdCmdVarUpdate::CreateSelf(void)
 // Args:    vrStrVarName    - (R)   Session var object's name.
 //          vpValue         - (R)   Text version of the value held in the variable.
 //          vrStrScope      - (R)   In scope "yes" or "no".
-// Return:  MIstatus::success - Functional succeeded.
-//          MIstatus::failure - Functional failed.
+// Return:  None.
 // Throws:  None.
 //--
-bool
+void
 CMICmdCmdVarUpdate::MIFormResponse(const CMIUtilString &vrStrVarName, const char *const vpValue, const CMIUtilString &vrStrScope)
 {
     // MI print "[{name=\"%s\",value=\"%s\",in_scope=\"%s\",type_changed=\"false\",has_more=\"0\"}]"
     const CMICmnMIValueConst miValueConst(vrStrVarName);
     const CMICmnMIValueResult miValueResult("name", miValueConst);
     CMICmnMIValueTuple miValueTuple(miValueResult);
-    bool bOk = true;
     if (vpValue != nullptr)
     {
         const CMICmnMIValueConst miValueConst2(vpValue);
         const CMICmnMIValueResult miValueResult2("value", miValueConst2);
-        bOk = bOk && miValueTuple.Add(miValueResult2);
+        miValueTuple.Add(miValueResult2);
     }
     const CMICmnMIValueConst miValueConst3(vrStrScope);
     const CMICmnMIValueResult miValueResult3("in_scope", miValueConst3);
-    bOk = bOk && miValueTuple.Add(miValueResult3);
+    miValueTuple.Add(miValueResult3);
     const CMICmnMIValueConst miValueConst4("false");
     const CMICmnMIValueResult miValueResult4("type_changed", miValueConst4);
-    bOk = bOk && miValueTuple.Add(miValueResult4);
+    miValueTuple.Add(miValueResult4);
     const CMICmnMIValueConst miValueConst5("0");
     const CMICmnMIValueResult miValueResult5("has_more", miValueConst5);
-    bOk = bOk && miValueTuple.Add(miValueResult5);
-    bOk = bOk && m_miValueList.Add(miValueTuple);
-
-    return bOk;
+    miValueTuple.Add(miValueResult5);
+    m_miValueList.Add(miValueTuple);
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -543,7 +529,7 @@ CMICmdCmdVarUpdate::ExamineSBValueForChange(lldb::SBValue &vrwValue, bool &vrwbC
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarDelete::CMICmdCmdVarDelete(void)
+CMICmdCmdVarDelete::CMICmdCmdVarDelete()
     : m_constStrArgName("name")
 {
     // Command factory matches this name with that received from the stdin stream
@@ -563,10 +549,10 @@ CMICmdCmdVarDelete::CMICmdCmdVarDelete(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarDelete::ParseArgs(void)
+CMICmdCmdVarDelete::ParseArgs()
 {
-    bool bOk = m_setCmdArgs.Add(*(new CMICmdArgValString(m_constStrArgName, true, true)));
-    return (bOk && ParseValidateCmdOptions());
+    m_setCmdArgs.Add(new CMICmdArgValString(m_constStrArgName, true, true));
+    return ParseValidateCmdOptions();
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -576,7 +562,7 @@ CMICmdCmdVarDelete::ParseArgs(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarDelete::~CMICmdCmdVarDelete(void)
+CMICmdCmdVarDelete::~CMICmdCmdVarDelete()
 {
 }
 
@@ -590,7 +576,7 @@ CMICmdCmdVarDelete::~CMICmdCmdVarDelete(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarDelete::Execute(void)
+CMICmdCmdVarDelete::Execute()
 {
     CMICMDBASE_GETOPTION(pArgName, String, m_constStrArgName);
 
@@ -610,7 +596,7 @@ CMICmdCmdVarDelete::Execute(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarDelete::Acknowledge(void)
+CMICmdCmdVarDelete::Acknowledge()
 {
     const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Done);
     m_miResultRecord = miRecordResult;
@@ -627,7 +613,7 @@ CMICmdCmdVarDelete::Acknowledge(void)
 // Throws:  None.
 //--
 CMICmdBase *
-CMICmdCmdVarDelete::CreateSelf(void)
+CMICmdCmdVarDelete::CreateSelf()
 {
     return new CMICmdCmdVarDelete();
 }
@@ -643,7 +629,7 @@ CMICmdCmdVarDelete::CreateSelf(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarAssign::CMICmdCmdVarAssign(void)
+CMICmdCmdVarAssign::CMICmdCmdVarAssign()
     : m_bOk(true)
     , m_constStrArgName("name")
     , m_constStrArgExpression("expression")
@@ -662,7 +648,7 @@ CMICmdCmdVarAssign::CMICmdCmdVarAssign(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarAssign::~CMICmdCmdVarAssign(void)
+CMICmdCmdVarAssign::~CMICmdCmdVarAssign()
 {
 }
 
@@ -676,11 +662,11 @@ CMICmdCmdVarAssign::~CMICmdCmdVarAssign(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarAssign::ParseArgs(void)
+CMICmdCmdVarAssign::ParseArgs()
 {
-    bool bOk = m_setCmdArgs.Add(*(new CMICmdArgValString(m_constStrArgName, true, true)));
-    bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValString(m_constStrArgExpression, true, true)));
-    return (bOk && ParseValidateCmdOptions());
+    m_setCmdArgs.Add(new CMICmdArgValString(m_constStrArgName, true, true));
+    m_setCmdArgs.Add(new CMICmdArgValString(m_constStrArgExpression, true, true));
+    return ParseValidateCmdOptions();
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -693,7 +679,7 @@ CMICmdCmdVarAssign::ParseArgs(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarAssign::Execute(void)
+CMICmdCmdVarAssign::Execute()
 {
     CMICMDBASE_GETOPTION(pArgName, String, m_constStrArgName);
     CMICMDBASE_GETOPTION(pArgExpression, String, m_constStrArgExpression);
@@ -729,7 +715,7 @@ CMICmdCmdVarAssign::Execute(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarAssign::Acknowledge(void)
+CMICmdCmdVarAssign::Acknowledge()
 {
     if (m_bOk)
     {
@@ -761,7 +747,7 @@ CMICmdCmdVarAssign::Acknowledge(void)
 // Throws:  None.
 //--
 CMICmdBase *
-CMICmdCmdVarAssign::CreateSelf(void)
+CMICmdCmdVarAssign::CreateSelf()
 {
     return new CMICmdCmdVarAssign();
 }
@@ -777,7 +763,7 @@ CMICmdCmdVarAssign::CreateSelf(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarSetFormat::CMICmdCmdVarSetFormat(void)
+CMICmdCmdVarSetFormat::CMICmdCmdVarSetFormat()
     : m_constStrArgName("name")
     , m_constStrArgFormatSpec("format-spec")
 {
@@ -795,7 +781,7 @@ CMICmdCmdVarSetFormat::CMICmdCmdVarSetFormat(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarSetFormat::~CMICmdCmdVarSetFormat(void)
+CMICmdCmdVarSetFormat::~CMICmdCmdVarSetFormat()
 {
 }
 
@@ -809,11 +795,11 @@ CMICmdCmdVarSetFormat::~CMICmdCmdVarSetFormat(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarSetFormat::ParseArgs(void)
+CMICmdCmdVarSetFormat::ParseArgs()
 {
-    bool bOk = m_setCmdArgs.Add(*(new CMICmdArgValString(m_constStrArgName, true, true)));
-    bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValString(m_constStrArgFormatSpec, true, true)));
-    return (bOk && ParseValidateCmdOptions());
+    m_setCmdArgs.Add(new CMICmdArgValString(m_constStrArgName, true, true));
+    m_setCmdArgs.Add(new CMICmdArgValString(m_constStrArgFormatSpec, true, true));
+    return ParseValidateCmdOptions();
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -826,7 +812,7 @@ CMICmdCmdVarSetFormat::ParseArgs(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarSetFormat::Execute(void)
+CMICmdCmdVarSetFormat::Execute()
 {
     CMICMDBASE_GETOPTION(pArgName, String, m_constStrArgName);
     CMICMDBASE_GETOPTION(pArgFormatSpec, String, m_constStrArgFormatSpec);
@@ -863,7 +849,7 @@ CMICmdCmdVarSetFormat::Execute(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarSetFormat::Acknowledge(void)
+CMICmdCmdVarSetFormat::Acknowledge()
 {
     // MI print "%s^done,changelist=[{name=\"%s\",value=\"%s\",in_scope=\"%s\",type_changed=\"false\",has_more=\"0\"}]"
     CMICmnLLDBDebugSessionInfoVarObj varObj;
@@ -902,7 +888,7 @@ CMICmdCmdVarSetFormat::Acknowledge(void)
 // Throws:  None.
 //--
 CMICmdBase *
-CMICmdCmdVarSetFormat::CreateSelf(void)
+CMICmdCmdVarSetFormat::CreateSelf()
 {
     return new CMICmdCmdVarSetFormat();
 }
@@ -918,7 +904,7 @@ CMICmdCmdVarSetFormat::CreateSelf(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarListChildren::CMICmdCmdVarListChildren(void)
+CMICmdCmdVarListChildren::CMICmdCmdVarListChildren()
     : m_constStrArgPrintValues("print-values")
     , m_constStrArgName("name")
     , m_constStrArgFrom("from")
@@ -942,7 +928,7 @@ CMICmdCmdVarListChildren::CMICmdCmdVarListChildren(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarListChildren::~CMICmdCmdVarListChildren(void)
+CMICmdCmdVarListChildren::~CMICmdCmdVarListChildren()
 {
 }
 
@@ -956,13 +942,13 @@ CMICmdCmdVarListChildren::~CMICmdCmdVarListChildren(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarListChildren::ParseArgs(void)
+CMICmdCmdVarListChildren::ParseArgs()
 {
-    bool bOk = m_setCmdArgs.Add(*(new CMICmdArgValPrintValues(m_constStrArgPrintValues, false, true)));
-    bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValString(m_constStrArgName, true, true)));
-    bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValNumber(m_constStrArgFrom, false, true)));
-    bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValNumber(m_constStrArgTo, false, true)));
-    return (bOk && ParseValidateCmdOptions());
+    m_setCmdArgs.Add(new CMICmdArgValPrintValues(m_constStrArgPrintValues, false, true));
+    m_setCmdArgs.Add(new CMICmdArgValString(m_constStrArgName, true, true, true));
+    m_setCmdArgs.Add(new CMICmdArgValNumber(m_constStrArgFrom, false, true));
+    m_setCmdArgs.Add(new CMICmdArgValNumber(m_constStrArgTo, false, true));
+    return ParseValidateCmdOptions();
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -975,7 +961,7 @@ CMICmdCmdVarListChildren::ParseArgs(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarListChildren::Execute(void)
+CMICmdCmdVarListChildren::Execute()
 {
     CMICMDBASE_GETOPTION(pArgPrintValues, PrintValues, m_constStrArgPrintValues);
     CMICMDBASE_GETOPTION(pArgName, String, m_constStrArgName);
@@ -1022,9 +1008,14 @@ CMICmdCmdVarListChildren::Execute(void)
         lldb::SBValue member = rValue.GetChildAtIndex(i);
         const CMICmnLLDBUtilSBValue utilValue(member);
         const CMIUtilString strExp = utilValue.GetName();
-        const CMIUtilString name(CMIUtilString::Format("%s.%s", rVarObjName.c_str(), strExp.c_str()));
+        const CMIUtilString name(strExp.empty() ?
+            CMIUtilString::Format("%s.$%u", rVarObjName.c_str(), i) :
+            CMIUtilString::Format("%s.%s", rVarObjName.c_str(), strExp.c_str()));
         const MIuint nChildren = member.GetNumChildren();
         const CMIUtilString strThreadId(CMIUtilString::Format("%u", member.GetThread().GetIndexID()));
+
+        // Varobj gets added to CMICmnLLDBDebugSessionInfoVarObj static container of varObjs
+        CMICmnLLDBDebugSessionInfoVarObj var(strExp, name, member, rVarObjName);
 
         // MI print "child={name=\"%s\",exp=\"%s\",numchild=\"%d\",value=\"%s\",type=\"%s\",thread-id=\"%u\",has_more=\"%u\"}"
         const CMICmnMIValueConst miValueConst(name);
@@ -1032,36 +1023,32 @@ CMICmdCmdVarListChildren::Execute(void)
         CMICmnMIValueTuple miValueTuple(miValueResult);
         const CMICmnMIValueConst miValueConst2(strExp);
         const CMICmnMIValueResult miValueResult2("exp", miValueConst2);
-        bool bOk = miValueTuple.Add(miValueResult2);
+        miValueTuple.Add(miValueResult2);
         const CMIUtilString strNumChild(CMIUtilString::Format("%u", nChildren));
         const CMICmnMIValueConst miValueConst3(strNumChild);
         const CMICmnMIValueResult miValueResult3("numchild", miValueConst3);
-        bOk = bOk && miValueTuple.Add(miValueResult3);
+        miValueTuple.Add(miValueResult3);
         const CMICmnMIValueConst miValueConst5(utilValue.GetTypeNameDisplay());
         const CMICmnMIValueResult miValueResult5("type", miValueConst5);
-        bOk = bOk && miValueTuple.Add(miValueResult5);
+        miValueTuple.Add(miValueResult5);
         const CMICmnMIValueConst miValueConst6(strThreadId);
         const CMICmnMIValueResult miValueResult6("thread-id", miValueConst6);
-        bOk = bOk && miValueTuple.Add(miValueResult6);
+        miValueTuple.Add(miValueResult6);
         // nChildren == 0 is used to check for simple values
         if (eVarInfoFormat == CMICmnLLDBDebugSessionInfo::eVariableInfoFormat_AllValues ||
             (eVarInfoFormat == CMICmnLLDBDebugSessionInfo::eVariableInfoFormat_SimpleValues && nChildren == 0))
         {
-            // Varobj gets added to CMICmnLLDBDebugSessionInfoVarObj static container of varObjs
-            CMICmnLLDBDebugSessionInfoVarObj var(strExp, name, member, rVarObjName);
             const CMIUtilString strValue(
             CMICmnLLDBDebugSessionInfoVarObj::GetValueStringFormatted(member, CMICmnLLDBDebugSessionInfoVarObj::eVarFormat_Natural));
             const CMICmnMIValueConst miValueConst7(strValue);
             const CMICmnMIValueResult miValueResult7("value", miValueConst7);
-            bOk = bOk && miValueTuple.Add(miValueResult7);
+            miValueTuple.Add(miValueResult7);
         }
         const CMICmnMIValueConst miValueConst8("0");
         const CMICmnMIValueResult miValueResult8("has_more", miValueConst8);
-        bOk = bOk && miValueTuple.Add(miValueResult8);
+        miValueTuple.Add(miValueResult8);
         const CMICmnMIValueResult miValueResult9("child", miValueTuple);
-        bOk = bOk && m_miValueList.Add(miValueResult9);
-        if (!bOk)
-            return MIstatus::failure;
+        m_miValueList.Add(miValueResult9);
     }
 
     return MIstatus::success;
@@ -1077,7 +1064,7 @@ CMICmdCmdVarListChildren::Execute(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarListChildren::Acknowledge(void)
+CMICmdCmdVarListChildren::Acknowledge()
 {
     if (m_bValueValid)
     {
@@ -1085,14 +1072,11 @@ CMICmdCmdVarListChildren::Acknowledge(void)
         const CMIUtilString strNumChild(CMIUtilString::Format("%u", m_nChildren));
         const CMICmnMIValueConst miValueConst(strNumChild);
         CMICmnMIValueResult miValueResult("numchild", miValueConst);
-        bool bOk = MIstatus::success;
         if (m_nChildren != 0)
-            bOk = bOk && miValueResult.Add("children", m_miValueList);
+            miValueResult.Add("children", m_miValueList);
         const CMIUtilString strHasMore(m_bHasMore ? "1" : "0");
         const CMICmnMIValueConst miValueConst2(strHasMore);
-        bOk = bOk && miValueResult.Add("has_more", miValueConst2);
-        if (!bOk)
-            return MIstatus::failure;
+        miValueResult.Add("has_more", miValueConst2);
 
         const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Done, miValueResult);
         m_miResultRecord = miRecordResult;
@@ -1118,7 +1102,7 @@ CMICmdCmdVarListChildren::Acknowledge(void)
 // Throws:  None.
 //--
 CMICmdBase *
-CMICmdCmdVarListChildren::CreateSelf(void)
+CMICmdCmdVarListChildren::CreateSelf()
 {
     return new CMICmdCmdVarListChildren();
 }
@@ -1134,7 +1118,7 @@ CMICmdCmdVarListChildren::CreateSelf(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarEvaluateExpression::CMICmdCmdVarEvaluateExpression(void)
+CMICmdCmdVarEvaluateExpression::CMICmdCmdVarEvaluateExpression()
     : m_bValueValid(true)
     , m_constStrArgFormatSpec("-f")
     , m_constStrArgName("name")
@@ -1153,7 +1137,7 @@ CMICmdCmdVarEvaluateExpression::CMICmdCmdVarEvaluateExpression(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarEvaluateExpression::~CMICmdCmdVarEvaluateExpression(void)
+CMICmdCmdVarEvaluateExpression::~CMICmdCmdVarEvaluateExpression()
 {
 }
 
@@ -1167,12 +1151,12 @@ CMICmdCmdVarEvaluateExpression::~CMICmdCmdVarEvaluateExpression(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarEvaluateExpression::ParseArgs(void)
+CMICmdCmdVarEvaluateExpression::ParseArgs()
 {
-    bool bOk = m_setCmdArgs.Add(
-        *(new CMICmdArgValOptionShort(m_constStrArgFormatSpec, false, false, CMICmdArgValListBase::eArgValType_String, 1)));
-    bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValString(m_constStrArgName, true, true)));
-    return (bOk && ParseValidateCmdOptions());
+    m_setCmdArgs.Add(
+        new CMICmdArgValOptionShort(m_constStrArgFormatSpec, false, false, CMICmdArgValListBase::eArgValType_String, 1));
+    m_setCmdArgs.Add(new CMICmdArgValString(m_constStrArgName, true, true));
+    return ParseValidateCmdOptions();
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -1185,7 +1169,7 @@ CMICmdCmdVarEvaluateExpression::ParseArgs(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarEvaluateExpression::Execute(void)
+CMICmdCmdVarEvaluateExpression::Execute()
 {
     CMICMDBASE_GETOPTION(pArgName, String, m_constStrArgName);
 
@@ -1218,7 +1202,7 @@ CMICmdCmdVarEvaluateExpression::Execute(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarEvaluateExpression::Acknowledge(void)
+CMICmdCmdVarEvaluateExpression::Acknowledge()
 {
     if (m_bValueValid)
     {
@@ -1247,7 +1231,7 @@ CMICmdCmdVarEvaluateExpression::Acknowledge(void)
 // Throws:  None.
 //--
 CMICmdBase *
-CMICmdCmdVarEvaluateExpression::CreateSelf(void)
+CMICmdCmdVarEvaluateExpression::CreateSelf()
 {
     return new CMICmdCmdVarEvaluateExpression();
 }
@@ -1263,7 +1247,7 @@ CMICmdCmdVarEvaluateExpression::CreateSelf(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarInfoPathExpression::CMICmdCmdVarInfoPathExpression(void)
+CMICmdCmdVarInfoPathExpression::CMICmdCmdVarInfoPathExpression()
     : m_bValueValid(true)
     , m_constStrArgName("name")
 {
@@ -1281,7 +1265,7 @@ CMICmdCmdVarInfoPathExpression::CMICmdCmdVarInfoPathExpression(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarInfoPathExpression::~CMICmdCmdVarInfoPathExpression(void)
+CMICmdCmdVarInfoPathExpression::~CMICmdCmdVarInfoPathExpression()
 {
 }
 
@@ -1295,10 +1279,10 @@ CMICmdCmdVarInfoPathExpression::~CMICmdCmdVarInfoPathExpression(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarInfoPathExpression::ParseArgs(void)
+CMICmdCmdVarInfoPathExpression::ParseArgs()
 {
-    bool bOk = m_setCmdArgs.Add(*(new CMICmdArgValString(m_constStrArgName, true, true)));
-    return (bOk && ParseValidateCmdOptions());
+    m_setCmdArgs.Add(new CMICmdArgValString(m_constStrArgName, true, true));
+    return ParseValidateCmdOptions();
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -1311,7 +1295,7 @@ CMICmdCmdVarInfoPathExpression::ParseArgs(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarInfoPathExpression::Execute(void)
+CMICmdCmdVarInfoPathExpression::Execute()
 {
     CMICMDBASE_GETOPTION(pArgName, String, m_constStrArgName);
 
@@ -1380,7 +1364,7 @@ CMICmdCmdVarInfoPathExpression::Execute(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarInfoPathExpression::Acknowledge(void)
+CMICmdCmdVarInfoPathExpression::Acknowledge()
 {
     if (m_bValueValid)
     {
@@ -1408,7 +1392,7 @@ CMICmdCmdVarInfoPathExpression::Acknowledge(void)
 // Throws:  None.
 //--
 CMICmdBase *
-CMICmdCmdVarInfoPathExpression::CreateSelf(void)
+CMICmdCmdVarInfoPathExpression::CreateSelf()
 {
     return new CMICmdCmdVarInfoPathExpression();
 }
@@ -1424,7 +1408,7 @@ CMICmdCmdVarInfoPathExpression::CreateSelf(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarShowAttributes::CMICmdCmdVarShowAttributes(void)
+CMICmdCmdVarShowAttributes::CMICmdCmdVarShowAttributes()
     : m_constStrArgName("name")
 {
     // Command factory matches this name with that received from the stdin stream
@@ -1441,7 +1425,7 @@ CMICmdCmdVarShowAttributes::CMICmdCmdVarShowAttributes(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdVarShowAttributes::~CMICmdCmdVarShowAttributes(void)
+CMICmdCmdVarShowAttributes::~CMICmdCmdVarShowAttributes()
 {
 }
 
@@ -1455,10 +1439,10 @@ CMICmdCmdVarShowAttributes::~CMICmdCmdVarShowAttributes(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarShowAttributes::ParseArgs(void)
+CMICmdCmdVarShowAttributes::ParseArgs()
 {
-    bool bOk = m_setCmdArgs.Add(*(new CMICmdArgValString(m_constStrArgName, true, true)));
-    return (bOk && ParseValidateCmdOptions());
+    m_setCmdArgs.Add(new CMICmdArgValString(m_constStrArgName, true, true));
+    return ParseValidateCmdOptions();
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -1471,7 +1455,7 @@ CMICmdCmdVarShowAttributes::ParseArgs(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarShowAttributes::Execute(void)
+CMICmdCmdVarShowAttributes::Execute()
 {
     CMICMDBASE_GETOPTION(pArgName, String, m_constStrArgName);
 
@@ -1496,7 +1480,7 @@ CMICmdCmdVarShowAttributes::Execute(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarShowAttributes::Acknowledge(void)
+CMICmdCmdVarShowAttributes::Acknowledge()
 {
     // MI output: "%s^done,status=\"editable\"]"
     const CMICmnMIValueConst miValueConst("editable");
@@ -1516,7 +1500,7 @@ CMICmdCmdVarShowAttributes::Acknowledge(void)
 // Throws:  None.
 //--
 CMICmdBase *
-CMICmdCmdVarShowAttributes::CreateSelf(void)
+CMICmdCmdVarShowAttributes::CreateSelf()
 {
     return new CMICmdCmdVarShowAttributes();
 }

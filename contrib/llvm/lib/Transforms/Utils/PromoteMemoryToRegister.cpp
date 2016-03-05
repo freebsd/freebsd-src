@@ -205,10 +205,9 @@ public:
     // avoid gratuitus rescans.
     const BasicBlock *BB = I->getParent();
     unsigned InstNo = 0;
-    for (BasicBlock::const_iterator BBI = BB->begin(), E = BB->end(); BBI != E;
-         ++BBI)
-      if (isInterestingInstruction(BBI))
-        InstNumbers[BBI] = InstNo++;
+    for (const Instruction &BBI : *BB)
+      if (isInterestingInstruction(&BBI))
+        InstNumbers[&BBI] = InstNo++;
     It = InstNumbers.find(I);
 
     assert(It != InstNumbers.end() && "Didn't insert instruction?");
@@ -402,8 +401,7 @@ static bool rewriteSingleStoreAlloca(AllocaInst *AI, AllocaInfo &Info,
   // Record debuginfo for the store and remove the declaration's
   // debuginfo.
   if (DbgDeclareInst *DDI = Info.DbgDeclare) {
-    DIBuilder DIB(*AI->getParent()->getParent()->getParent(),
-                  /*AllowUnresolved*/ false);
+    DIBuilder DIB(*AI->getModule(), /*AllowUnresolved*/ false);
     ConvertDebugDeclareToDebugValue(DDI, Info.OnlyStore, DIB);
     DDI->eraseFromParent();
     LBI.deleteValue(DDI);
@@ -425,14 +423,17 @@ static bool rewriteSingleStoreAlloca(AllocaInst *AI, AllocaInfo &Info,
 /// using the Alloca.
 ///
 /// If we cannot promote this alloca (because it is read before it is written),
-/// return true.  This is necessary in cases where, due to control flow, the
-/// alloca is potentially undefined on some control flow paths.  e.g. code like
-/// this is potentially correct:
-///
-///   for (...) { if (c) { A = undef; undef = B; } }
-///
-/// ... so long as A is not used before undef is set.
-static void promoteSingleBlockAlloca(AllocaInst *AI, const AllocaInfo &Info,
+/// return false.  This is necessary in cases where, due to control flow, the
+/// alloca is undefined only on some control flow paths.  e.g. code like
+/// this is correct in LLVM IR:
+///  // A is an alloca with no stores so far
+///  for (...) {
+///    int t = *A;
+///    if (!first_iteration)
+///      use(t);
+///    *A = 42;
+///  }
+static bool promoteSingleBlockAlloca(AllocaInst *AI, const AllocaInfo &Info,
                                      LargeBlockInfo &LBI,
                                      AliasSetTracker *AST) {
   // The trickiest case to handle is when we have large blocks. Because of this,
@@ -467,10 +468,15 @@ static void promoteSingleBlockAlloca(AllocaInst *AI, const AllocaInfo &Info,
                          std::make_pair(LoadIdx,
                                         static_cast<StoreInst *>(nullptr)),
                          less_first());
-
-    if (I == StoresByIndex.begin())
-      // If there is no store before this load, the load takes the undef value.
-      LI->replaceAllUsesWith(UndefValue::get(LI->getType()));
+    if (I == StoresByIndex.begin()) {
+      if (StoresByIndex.empty())
+        // If there are no stores, the load takes the undef value.
+        LI->replaceAllUsesWith(UndefValue::get(LI->getType()));
+      else
+        // There is no store before this load, bail out (load may be affected
+        // by the following stores - see main comment).
+        return false;
+    }
     else
       // Otherwise, there was a store before this load, the load takes its value.
       LI->replaceAllUsesWith(std::prev(I)->second->getOperand(0));
@@ -486,8 +492,7 @@ static void promoteSingleBlockAlloca(AllocaInst *AI, const AllocaInfo &Info,
     StoreInst *SI = cast<StoreInst>(AI->user_back());
     // Record debuginfo for the store before removing it.
     if (DbgDeclareInst *DDI = Info.DbgDeclare) {
-      DIBuilder DIB(*AI->getParent()->getParent()->getParent(),
-                    /*AllowUnresolved*/ false);
+      DIBuilder DIB(*AI->getModule(), /*AllowUnresolved*/ false);
       ConvertDebugDeclareToDebugValue(DDI, SI, DIB);
     }
     SI->eraseFromParent();
@@ -506,6 +511,7 @@ static void promoteSingleBlockAlloca(AllocaInst *AI, const AllocaInfo &Info,
   }
 
   ++NumLocalPromoted;
+  return true;
 }
 
 void PromoteMem2Reg::run() {
@@ -557,9 +563,8 @@ void PromoteMem2Reg::run() {
 
     // If the alloca is only read and written in one basic block, just perform a
     // linear sweep over the block to eliminate it.
-    if (Info.OnlyUsedInOneBlock) {
-      promoteSingleBlockAlloca(AI, Info, LBI, AST);
-
+    if (Info.OnlyUsedInOneBlock &&
+        promoteSingleBlockAlloca(AI, Info, LBI, AST)) {
       // The alloca has been processed, move on.
       RemoveFromAllocasList(AllocaNum);
       continue;
@@ -636,7 +641,7 @@ void PromoteMem2Reg::run() {
   // and inserting the phi nodes we marked as necessary
   //
   std::vector<RenamePassData> RenamePassWorkList;
-  RenamePassWorkList.emplace_back(F.begin(), nullptr, std::move(Values));
+  RenamePassWorkList.emplace_back(&F.front(), nullptr, std::move(Values));
   do {
     RenamePassData RPD;
     RPD.swap(RenamePassWorkList.back());
@@ -854,7 +859,7 @@ bool PromoteMem2Reg::QueuePhiNode(BasicBlock *BB, unsigned AllocaNo,
   // BasicBlock.
   PN = PHINode::Create(Allocas[AllocaNo]->getAllocatedType(), getNumPreds(BB),
                        Allocas[AllocaNo]->getName() + "." + Twine(Version++),
-                       BB->begin());
+                       &BB->front());
   ++NumPHIInsert;
   PhiToAllocaMap[PN] = AllocaNo;
 
@@ -919,7 +924,7 @@ NextIteration:
     return;
 
   for (BasicBlock::iterator II = BB->begin(); !isa<TerminatorInst>(II);) {
-    Instruction *I = II++; // get the instruction, increment iterator
+    Instruction *I = &*II++; // get the instruction, increment iterator
 
     if (LoadInst *LI = dyn_cast<LoadInst>(I)) {
       AllocaInst *Src = dyn_cast<AllocaInst>(LI->getPointerOperand());

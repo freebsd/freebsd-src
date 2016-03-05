@@ -7,6 +7,7 @@ LIB=	llvmpasses
 SRCDIR=	lib/Passes
 SRCS=	PassBuilder.cpp
 
-TGHDRS=	Intrinsics
+TGHDRS=	Attributes \
+	Intrinsics
 
 .include "../clang.lib.mk"

@@ -20,6 +20,7 @@
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Frontend/CodeGenOptions.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/ValueHandle.h"
@@ -31,12 +32,13 @@ class MDNode;
 
 namespace clang {
 class CXXMethodDecl;
-class VarDecl;
-class ObjCInterfaceDecl;
-class ObjCIvarDecl;
 class ClassTemplateSpecializationDecl;
 class GlobalDecl;
+class ModuleMap;
+class ObjCInterfaceDecl;
+class ObjCIvarDecl;
 class UsingDecl;
+class VarDecl;
 
 namespace CodeGen {
 class CodeGenModule;
@@ -51,8 +53,10 @@ class CGDebugInfo {
   friend class SaveAndRestoreLocation;
   CodeGenModule &CGM;
   const CodeGenOptions::DebugInfoKind DebugKind;
+  bool DebugTypeExtRefs;
   llvm::DIBuilder DBuilder;
   llvm::DICompileUnit *TheCU = nullptr;
+  ModuleMap *ClangModuleMap = nullptr;
   SourceLocation CurLoc;
   llvm::DIType *VTablePtrType = nullptr;
   llvm::DIType *ClassTy = nullptr;
@@ -63,11 +67,23 @@ class CGDebugInfo {
   llvm::DIType *OCLImage1dBufferDITy = nullptr;
   llvm::DIType *OCLImage2dDITy = nullptr;
   llvm::DIType *OCLImage2dArrayDITy = nullptr;
+  llvm::DIType *OCLImage2dDepthDITy = nullptr;
+  llvm::DIType *OCLImage2dArrayDepthDITy = nullptr;
+  llvm::DIType *OCLImage2dMSAADITy = nullptr;
+  llvm::DIType *OCLImage2dArrayMSAADITy = nullptr;
+  llvm::DIType *OCLImage2dMSAADepthDITy = nullptr;
+  llvm::DIType *OCLImage2dArrayMSAADepthDITy = nullptr;
   llvm::DIType *OCLImage3dDITy = nullptr;
   llvm::DIType *OCLEventDITy = nullptr;
+  llvm::DIType *OCLClkEventDITy = nullptr;
+  llvm::DIType *OCLQueueDITy = nullptr;
+  llvm::DIType *OCLNDRangeDITy = nullptr;
+  llvm::DIType *OCLReserveIDDITy = nullptr;
 
   /// Cache of previously constructed Types.
   llvm::DenseMap<const void *, llvm::TrackingMDRef> TypeCache;
+
+  llvm::SmallDenseMap<llvm::StringRef, llvm::StringRef> DebugPrefixMap;
 
   struct ObjCInterfaceCacheEntry {
     const ObjCInterfaceType *Type;
@@ -81,8 +97,8 @@ class CGDebugInfo {
   /// Cache of previously constructed interfaces which may change.
   llvm::SmallVector<ObjCInterfaceCacheEntry, 32> ObjCInterfaceCache;
 
-  /// Cache of references to AST files such as PCHs or modules.
-  llvm::DenseMap<uint64_t, llvm::DIModule *> ModuleRefCache;
+  /// Cache of references to clang modules and precompiled headers.
+  llvm::DenseMap<const Module *, llvm::TrackingMDRef> ModuleCache;
 
   /// List of interfaces we want to keep even if orphaned.
   std::vector<void *> RetainedTypes;
@@ -117,13 +133,13 @@ class CGDebugInfo {
   llvm::DenseMap<const NamespaceDecl *, llvm::TrackingMDRef> NameSpaceCache;
   llvm::DenseMap<const NamespaceAliasDecl *, llvm::TrackingMDRef>
       NamespaceAliasCache;
-  llvm::DenseMap<const Decl *, llvm::TrackingMDRef> StaticDataMemberCache;
+  llvm::DenseMap<const Decl *, llvm::TypedTrackingMDRef<llvm::DIDerivedType>>
+      StaticDataMemberCache;
 
   /// Helper functions for getOrCreateType.
   /// @{
   /// Currently the checksum of an interface includes the number of
   /// ivars and property accessors.
-  unsigned Checksum(const ObjCInterfaceDecl *InterfaceDecl);
   llvm::DIType *CreateType(const BuiltinType *Ty);
   llvm::DIType *CreateType(const ComplexType *Ty);
   llvm::DIType *CreateQualifiedType(QualType Ty, llvm::DIFile *Fg);
@@ -152,6 +168,7 @@ class CGDebugInfo {
   llvm::DIType *CreateType(const RValueReferenceType *Ty, llvm::DIFile *Unit);
   llvm::DIType *CreateType(const MemberPointerType *Ty, llvm::DIFile *F);
   llvm::DIType *CreateType(const AtomicType *Ty, llvm::DIFile *F);
+  llvm::DIType *CreateType(const PipeType *Ty, llvm::DIFile *F);
   /// Get enumeration type.
   llvm::DIType *CreateEnumType(const EnumType *Ty);
   llvm::DIType *CreateTypeDefinition(const EnumType *Ty);
@@ -182,11 +199,8 @@ class CGDebugInfo {
   llvm::DIType *getOrCreateVTablePtrType(llvm::DIFile *F);
   /// \return namespace descriptor for the given namespace decl.
   llvm::DINamespace *getOrCreateNameSpace(const NamespaceDecl *N);
-  llvm::DIType *getOrCreateTypeDeclaration(QualType PointeeTy, llvm::DIFile *F);
   llvm::DIType *CreatePointerLikeType(llvm::dwarf::Tag Tag, const Type *Ty,
                                       QualType PointeeTy, llvm::DIFile *F);
-
-  llvm::Value *getCachedInterfaceTypeOrNull(const QualType Ty);
   llvm::DIType *getOrCreateStructPtrType(StringRef Name, llvm::DIType *&Cache);
 
   /// A helper function to create a subprogram for a single member
@@ -261,6 +275,14 @@ public:
 
   void finalize();
 
+  /// Set the main CU's DwoId field to \p Signature.
+  void setDwoId(uint64_t Signature);
+
+  /// When generating debug information for a clang module or
+  /// precompiled header, this module map will be used to determine
+  /// the module of origin of each Decl.
+  void setModuleMap(ModuleMap &MMap) { ClangModuleMap = &MMap; }
+
   /// Update the current source location. If \arg loc is invalid it is
   /// ignored.
   void setLocation(SourceLocation Loc);
@@ -277,6 +299,9 @@ public:
   void EmitFunctionStart(GlobalDecl GD, SourceLocation Loc,
                          SourceLocation ScopeLoc, QualType FnType,
                          llvm::Function *Fn, CGBuilderTy &Builder);
+
+  /// Emit debug info for a function declaration.
+  void EmitFunctionDecl(GlobalDecl GD, SourceLocation Loc, QualType FnType);
 
   /// Constructs the debug code for exiting a function.
   void EmitFunctionEnd(CGBuilderTy &Builder);
@@ -300,7 +325,7 @@ public:
                                          llvm::Value *storage,
                                          CGBuilderTy &Builder,
                                          const CGBlockInfo &blockInfo,
-                                         llvm::Instruction *InsertPoint = 0);
+                                         llvm::Instruction *InsertPoint = nullptr);
 
   /// Emit call to \c llvm.dbg.declare for an argument variable
   /// declaration.
@@ -341,6 +366,9 @@ public:
   /// Emit an Objective-C interface type standalone debug info.
   llvm::DIType *getOrCreateInterfaceType(QualType Ty, SourceLocation Loc);
 
+  /// Emit standalone debug info for a type.
+  llvm::DIType *getOrCreateStandaloneType(QualType Ty, SourceLocation Loc);
+
   void completeType(const EnumDecl *ED);
   void completeType(const RecordDecl *RD);
   void completeRequiredType(const RecordDecl *RD);
@@ -350,17 +378,18 @@ public:
 
 private:
   /// Emit call to llvm.dbg.declare for a variable declaration.
-  /// Tag accepts custom types DW_TAG_arg_variable and DW_TAG_auto_variable,
-  /// otherwise would be of type llvm::dwarf::Tag.
-  void EmitDeclare(const VarDecl *decl, llvm::dwarf::Tag Tag, llvm::Value *AI,
-                   unsigned ArgNo, CGBuilderTy &Builder);
+  void EmitDeclare(const VarDecl *decl, llvm::Value *AI,
+                   llvm::Optional<unsigned> ArgNo, CGBuilderTy &Builder);
 
   /// Build up structure info for the byref.  See \a BuildByRefType.
   llvm::DIType *EmitTypeForVarWithBlocksAttr(const VarDecl *VD,
                                              uint64_t *OffSet);
 
-  /// Get context info for the decl.
-  llvm::DIScope *getContextDescriptor(const Decl *Decl);
+  /// Get context info for the DeclContext of \p Decl.
+  llvm::DIScope *getDeclContextDescriptor(const Decl *D);
+  /// Get context info for a given DeclContext \p Decl.
+  llvm::DIScope *getContextDescriptor(const Decl *Context,
+                                      llvm::DIScope *Default);
 
   llvm::DIScope *getCurrentContextDescriptor(const Decl *Decl);
 
@@ -374,6 +403,9 @@ private:
   /// Create new compile unit.
   void CreateCompileUnit();
 
+  /// Remap a given path with the current debug prefix map
+  std::string remapDIPath(StringRef) const;
+
   /// Get the file debug info descriptor for the input location.
   llvm::DIFile *getOrCreateFile(SourceLocation Loc);
 
@@ -383,20 +415,22 @@ private:
   /// Get the type from the cache or create a new type if necessary.
   llvm::DIType *getOrCreateType(QualType Ty, llvm::DIFile *Fg);
 
-  /// Get a reference to a clang module.
+  /// Get a reference to a clang module.  If \p CreateSkeletonCU is true,
+  /// this also creates a split dwarf skeleton compile unit.
   llvm::DIModule *
-  getOrCreateModuleRef(ExternalASTSource::ASTSourceDescriptor Mod);
+  getOrCreateModuleRef(ExternalASTSource::ASTSourceDescriptor Mod,
+                       bool CreateSkeletonCU);
+
+  /// DebugTypeExtRefs: If \p D originated in a clang module, return it.
+  llvm::DIModule *getParentModuleOrNull(const Decl *D);
 
   /// Get the type from the cache or create a new partial type if
   /// necessary.
-  llvm::DIType *getOrCreateLimitedType(const RecordType *Ty, llvm::DIFile *F);
+  llvm::DICompositeType *getOrCreateLimitedType(const RecordType *Ty,
+                                                llvm::DIFile *F);
 
   /// Create type metadata for a source language type.
   llvm::DIType *CreateTypeNode(QualType Ty, llvm::DIFile *Fg);
-
-  /// Return the underlying ObjCInterfaceDecl if \arg Ty is an
-  /// ObjCInterface or a pointer to one.
-  ObjCInterfaceDecl *getObjCInterfaceDecl(QualType Ty);
 
   /// Create new member and increase Offset by FType's size.
   llvm::DIType *CreateMemberType(llvm::DIFile *Unit, QualType FType,
@@ -501,13 +535,16 @@ private:
                      SourceLocation TemporaryLocation);
 
   llvm::DebugLoc OriginalLocation;
-  CodeGenFunction &CGF;
+  CodeGenFunction *CGF;
 
 public:
   /// Set the location to the (valid) TemporaryLocation.
   ApplyDebugLocation(CodeGenFunction &CGF, SourceLocation TemporaryLocation);
   ApplyDebugLocation(CodeGenFunction &CGF, const Expr *E);
   ApplyDebugLocation(CodeGenFunction &CGF, llvm::DebugLoc Loc);
+  ApplyDebugLocation(ApplyDebugLocation &&Other) : CGF(Other.CGF) {
+    Other.CGF = nullptr;
+  }
 
   ~ApplyDebugLocation();
 
@@ -538,20 +575,14 @@ public:
   /// passing an empty SourceLocation to \a CGDebugInfo::setLocation()
   /// will result in the last valid location being reused.  Note that
   /// all instructions that do not have a location at the beginning of
-  /// a function are counted towards to funciton prologue.
+  /// a function are counted towards to function prologue.
   static ApplyDebugLocation CreateEmpty(CodeGenFunction &CGF) {
     return ApplyDebugLocation(CGF, true, SourceLocation());
   }
 
-  /// \brief Apply TemporaryLocation if it is valid. Otherwise set the IRBuilder
-  /// to not attach debug locations.
-  static ApplyDebugLocation
-  CreateDefaultEmpty(CodeGenFunction &CGF, SourceLocation TemporaryLocation) {
-    return ApplyDebugLocation(CGF, true, TemporaryLocation);
-  }
 };
 
 } // namespace CodeGen
 } // namespace clang
 
-#endif
+#endif // LLVM_CLANG_LIB_CODEGEN_CGDEBUGINFO_H

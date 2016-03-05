@@ -313,6 +313,18 @@ void Value::takeName(Value *V) {
     ST->reinsertValue(this);
 }
 
+void Value::assertModuleIsMaterialized() const {
+#ifndef NDEBUG
+  const GlobalValue *GV = dyn_cast<GlobalValue>(this);
+  if (!GV)
+    return;
+  const Module *M = GV->getParent();
+  if (!M)
+    return;
+  assert(M->isMaterialized());
+#endif
+}
+
 #ifndef NDEBUG
 static bool contains(SmallPtrSetImpl<ConstantExpr *> &Cache, ConstantExpr *Expr,
                      Constant *C) {
@@ -490,8 +502,7 @@ Value *Value::stripAndAccumulateInBoundsConstantOffsets(const DataLayout &DL,
         return V;
       Offset = GEPOffset;
       V = GEP->getPointerOperand();
-    } else if (Operator::getOpcode(V) == Instruction::BitCast ||
-               Operator::getOpcode(V) == Instruction::AddrSpaceCast) {
+    } else if (Operator::getOpcode(V) == Instruction::BitCast) {
       V = cast<Operator>(V)->getOperand(0);
     } else if (GlobalAlias *GA = dyn_cast<GlobalAlias>(V)) {
       V = GA->getAliasee();

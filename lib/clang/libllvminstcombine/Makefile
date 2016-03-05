@@ -19,6 +19,7 @@ SRCS=	InstCombineAddSub.cpp \
 	InstCombineVectorOps.cpp \
 	InstructionCombining.cpp
 
-TGHDRS=	Intrinsics
+TGHDRS=	Attributes \
+	Intrinsics
 
 .include "../clang.lib.mk"

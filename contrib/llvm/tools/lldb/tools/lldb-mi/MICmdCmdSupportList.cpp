@@ -22,7 +22,7 @@
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdSupportListFeatures::CMICmdCmdSupportListFeatures(void)
+CMICmdCmdSupportListFeatures::CMICmdCmdSupportListFeatures()
 {
     // Command factory matches this name with that received from the stdin stream
     m_strMiCmd = "list-features";
@@ -38,7 +38,7 @@ CMICmdCmdSupportListFeatures::CMICmdCmdSupportListFeatures(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdSupportListFeatures::~CMICmdCmdSupportListFeatures(void)
+CMICmdCmdSupportListFeatures::~CMICmdCmdSupportListFeatures()
 {
 }
 
@@ -52,7 +52,7 @@ CMICmdCmdSupportListFeatures::~CMICmdCmdSupportListFeatures(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdSupportListFeatures::Execute(void)
+CMICmdCmdSupportListFeatures::Execute()
 {
     // Do nothing
 
@@ -69,10 +69,15 @@ CMICmdCmdSupportListFeatures::Execute(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdSupportListFeatures::Acknowledge(void)
+CMICmdCmdSupportListFeatures::Acknowledge()
 {
-    const CMICmnMIValueConst miValueConst("data-read-memory-bytes");
-    const CMICmnMIValueList miValueList(miValueConst);
+    // Declare supported features here
+    const CMICmnMIValueConst miValueConst1("data-read-memory-bytes");
+    const CMICmnMIValueConst miValueConst2("exec-run-start-option");
+    // Some features may depend on host and/or target, decide what to add below
+    CMICmnMIValueList miValueList(true);
+    miValueList.Add(miValueConst1);
+    miValueList.Add(miValueConst2);
     const CMICmnMIValueResult miValueResult("features", miValueList);
     const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Done, miValueResult);
     m_miResultRecord = miRecordResult;
@@ -89,7 +94,7 @@ CMICmdCmdSupportListFeatures::Acknowledge(void)
 // Throws:  None.
 //--
 CMICmdBase *
-CMICmdCmdSupportListFeatures::CreateSelf(void)
+CMICmdCmdSupportListFeatures::CreateSelf()
 {
     return new CMICmdCmdSupportListFeatures();
 }

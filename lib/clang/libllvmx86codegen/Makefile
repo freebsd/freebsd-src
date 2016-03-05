@@ -17,9 +17,11 @@ SRCS=	X86AsmPrinter.cpp \
 	X86InstrInfo.cpp \
 	X86MCInstLower.cpp \
 	X86MachineFunctionInfo.cpp \
+	X86OptimizeLEAs.cpp \
 	X86PadShortFunction.cpp \
 	X86RegisterInfo.cpp \
 	X86SelectionDAGInfo.cpp \
+	X86ShuffleDecodeConstantPool.cpp \
 	X86Subtarget.cpp \
 	X86TargetMachine.cpp \
 	X86TargetObjectFile.cpp \
@@ -27,7 +29,8 @@ SRCS=	X86AsmPrinter.cpp \
 	X86VZeroUpper.cpp \
 	X86WinEHState.cpp
 
-TGHDRS=	Intrinsics \
+TGHDRS=	Attributes \
+	Intrinsics \
 	X86GenCallingConv \
 	X86GenDAGISel \
 	X86GenFastISel \

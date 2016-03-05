@@ -54,6 +54,7 @@ public:
         eServerPacketType_qGroupName,
         eServerPacketType_qHostInfo,
         eServerPacketType_qLaunchGDBServer,
+        eServerPacketType_qQueryGDBServer,
         eServerPacketType_qKillSpawnedProcess,
         eServerPacketType_qLaunchSuccess,
         eServerPacketType_qModuleInfo,
@@ -97,6 +98,7 @@ public:
         eServerPacketType_QSyncThreadState,
         eServerPacketType_QThreadSuffixSupported,
 
+        eServerPacketType_jThreadsInfo,
         eServerPacketType_qsThreadInfo,
         eServerPacketType_qfThreadInfo,
         eServerPacketType_qGetPid,
@@ -144,6 +146,8 @@ public:
         eServerPacketType_s,
         eServerPacketType_S,
         eServerPacketType_T,
+        eServerPacketType_x,
+        eServerPacketType_X,
         eServerPacketType_Z,
         eServerPacketType_z,
 

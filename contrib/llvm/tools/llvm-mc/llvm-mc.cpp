@@ -1,4 +1,4 @@
-//===-- llvm-mc.cpp - Machine Code Hacking Driver -------------------------===//
+//===-- llvm-mc.cpp - Machine Code Hacking Driver ---------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -39,6 +39,7 @@
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/ToolOutputFile.h"
+
 using namespace llvm;
 
 static cl::opt<std::string>
@@ -234,7 +235,7 @@ static void setDwarfDebugFlags(int argc, char **argv) {
 }
 
 static std::string DwarfDebugProducer;
-static void setDwarfDebugProducer(void) {
+static void setDwarfDebugProducer() {
   if(!getenv("DEBUG_PRODUCER"))
     return;
   DwarfDebugProducer += getenv("DEBUG_PRODUCER");
@@ -398,7 +399,7 @@ int main(int argc, char **argv) {
   ErrorOr<std::unique_ptr<MemoryBuffer>> BufferPtr =
       MemoryBuffer::getFileOrSTDIN(InputFilename);
   if (std::error_code EC = BufferPtr.getError()) {
-    errs() << ProgName << ": " << EC.message() << '\n';
+    errs() << InputFilename << ": " << EC.message() << '\n';
     return 1;
   }
   MemoryBuffer *Buffer = BufferPtr->get();
@@ -510,9 +511,10 @@ int main(int argc, char **argv) {
 
     MCCodeEmitter *CE = TheTarget->createMCCodeEmitter(*MCII, *MRI, Ctx);
     MCAsmBackend *MAB = TheTarget->createMCAsmBackend(*MRI, TripleName, MCPU);
-    Str.reset(TheTarget->createMCObjectStreamer(TheTriple, Ctx, *MAB, *OS, CE,
-                                                *STI, RelaxAll,
-                                                /*DWARFMustBeAtTheEnd*/ false));
+    Str.reset(TheTarget->createMCObjectStreamer(
+        TheTriple, Ctx, *MAB, *OS, CE, *STI, MCOptions.MCRelaxAll,
+        MCOptions.MCIncrementalLinkerCompatible,
+        /*DWARFMustBeAtTheEnd*/ false));
     if (NoExecStack)
       Str->InitSections(true);
   }

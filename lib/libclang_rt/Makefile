@@ -6,6 +6,7 @@
 SUBDIR+= include\
 	 asan\
 	 asan-preinit\
+	 asan_dynamic\
 	 asan_cxx\
 	 safestack\
 	 ubsan_standalone\

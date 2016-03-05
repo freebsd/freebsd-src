@@ -120,12 +120,10 @@ namespace {
     // Return a bitmask of FP registers in block's live-in list.
     static unsigned calcLiveInMask(MachineBasicBlock *MBB) {
       unsigned Mask = 0;
-      for (MachineBasicBlock::livein_iterator I = MBB->livein_begin(),
-           E = MBB->livein_end(); I != E; ++I) {
-        unsigned Reg = *I;
-        if (Reg < X86::FP0 || Reg > X86::FP6)
+      for (const auto &LI : MBB->liveins()) {
+        if (LI.PhysReg < X86::FP0 || LI.PhysReg > X86::FP6)
           continue;
-        Mask |= 1 << (Reg - X86::FP0);
+        Mask |= 1 << (LI.PhysReg - X86::FP0);
       }
       return Mask;
     }
@@ -301,8 +299,9 @@ bool FPS::runOnMachineFunction(MachineFunction &MF) {
   bool FPIsUsed = false;
 
   static_assert(X86::FP6 == X86::FP0+6, "Register enums aren't sorted right!");
+  const MachineRegisterInfo &MRI = MF.getRegInfo();
   for (unsigned i = 0; i <= 6; ++i)
-    if (MF.getRegInfo().isPhysRegUsed(X86::FP0+i)) {
+    if (!MRI.reg_nodbg_empty(X86::FP0 + i)) {
       FPIsUsed = true;
       break;
     }
@@ -321,7 +320,7 @@ bool FPS::runOnMachineFunction(MachineFunction &MF) {
   // Process the function in depth first order so that we process at least one
   // of the predecessors for every reachable block in the function.
   SmallPtrSet<MachineBasicBlock*, 8> Processed;
-  MachineBasicBlock *Entry = MF.begin();
+  MachineBasicBlock *Entry = &MF.front();
 
   bool Changed = false;
   for (MachineBasicBlock *BB : depth_first_ext(Entry, Processed))
@@ -329,9 +328,9 @@ bool FPS::runOnMachineFunction(MachineFunction &MF) {
 
   // Process any unreachable blocks in arbitrary order now.
   if (MF.size() != Processed.size())
-    for (MachineFunction::iterator BB = MF.begin(), E = MF.end(); BB != E; ++BB)
-      if (Processed.insert(BB).second)
-        Changed |= processBasicBlock(MF, *BB);
+    for (MachineBasicBlock &BB : MF)
+      if (Processed.insert(&BB).second)
+        Changed |= processBasicBlock(MF, BB);
 
   LiveBundles.clear();
 
@@ -348,13 +347,12 @@ void FPS::bundleCFG(MachineFunction &MF) {
   LiveBundles.resize(Bundles->getNumBundles());
 
   // Gather the actual live-in masks for all MBBs.
-  for (MachineFunction::iterator I = MF.begin(), E = MF.end(); I != E; ++I) {
-    MachineBasicBlock *MBB = I;
-    const unsigned Mask = calcLiveInMask(MBB);
+  for (MachineBasicBlock &MBB : MF) {
+    const unsigned Mask = calcLiveInMask(&MBB);
     if (!Mask)
       continue;
     // Update MBB ingoing bundle mask.
-    LiveBundles[Bundles->getBundle(MBB->getNumber(), false)].Mask |= Mask;
+    LiveBundles[Bundles->getBundle(MBB.getNumber(), false)].Mask |= Mask;
   }
 }
 
@@ -546,17 +544,9 @@ namespace {
   };
 }
 
-#ifndef NDEBUG
-static bool TableIsSorted(const TableEntry *Table, unsigned NumEntries) {
-  for (unsigned i = 0; i != NumEntries-1; ++i)
-    if (!(Table[i] < Table[i+1])) return false;
-  return true;
-}
-#endif
-
-static int Lookup(const TableEntry *Table, unsigned N, unsigned Opcode) {
-  const TableEntry *I = std::lower_bound(Table, Table+N, Opcode);
-  if (I != Table+N && I->from == Opcode)
+static int Lookup(ArrayRef<TableEntry> Table, unsigned Opcode) {
+  const TableEntry *I = std::lower_bound(Table.begin(), Table.end(), Opcode);
+  if (I != Table.end() && I->from == Opcode)
     return I->to;
   return -1;
 }
@@ -567,7 +557,7 @@ static int Lookup(const TableEntry *Table, unsigned N, unsigned Opcode) {
 #define ASSERT_SORTED(TABLE)                                              \
   { static bool TABLE##Checked = false;                                   \
     if (!TABLE##Checked) {                                                \
-       assert(TableIsSorted(TABLE, array_lengthof(TABLE)) &&              \
+       assert(std::is_sorted(std::begin(TABLE), std::end(TABLE)) &&       \
               "All lookup tables must be sorted for efficient access!");  \
        TABLE##Checked = true;                                             \
     }                                                                     \
@@ -746,7 +736,7 @@ static const TableEntry OpcodeTable[] = {
 
 static unsigned getConcreteOpcode(unsigned Opcode) {
   ASSERT_SORTED(OpcodeTable);
-  int Opc = Lookup(OpcodeTable, array_lengthof(OpcodeTable), Opcode);
+  int Opc = Lookup(OpcodeTable, Opcode);
   assert(Opc != -1 && "FP Stack instruction not in OpcodeTable!");
   return Opc;
 }
@@ -797,7 +787,7 @@ void FPS::popStackAfter(MachineBasicBlock::iterator &I) {
   RegMap[Stack[--StackTop]] = ~0;     // Update state
 
   // Check to see if there is a popping version of this instruction...
-  int Opcode = Lookup(PopTable, array_lengthof(PopTable), I->getOpcode());
+  int Opcode = Lookup(PopTable, I->getOpcode());
   if (Opcode != -1) {
     I->setDesc(TII->get(Opcode));
     if (Opcode == X86::UCOM_FPPr)
@@ -1193,7 +1183,7 @@ void FPS::handleTwoArgFP(MachineBasicBlock::iterator &I) {
 
   // We decide which form to use based on what is on the top of the stack, and
   // which operand is killed by this instruction.
-  const TableEntry *InstTable;
+  ArrayRef<TableEntry> InstTable;
   bool isForward = TOS == Op0;
   bool updateST0 = (TOS == Op0 && !KillsOp1) || (TOS == Op1 && !KillsOp0);
   if (updateST0) {
@@ -1208,8 +1198,7 @@ void FPS::handleTwoArgFP(MachineBasicBlock::iterator &I) {
       InstTable = ReverseSTiTable;
   }
 
-  int Opcode = Lookup(InstTable, array_lengthof(ForwardST0Table),
-                      MI->getOpcode());
+  int Opcode = Lookup(InstTable, MI->getOpcode());
   assert(Opcode != -1 && "Unknown TwoArgFP pseudo instruction!");
 
   // NotTOS - The register which is not on the top of stack...
@@ -1518,31 +1507,6 @@ void FPS::handleSpecialFP(MachineBasicBlock::iterator &Inst) {
 
     // Don't delete the inline asm!
     return;
-  }
-
-  case X86::WIN_FTOL_32:
-  case X86::WIN_FTOL_64: {
-    // Push the operand into ST0.
-    MachineOperand &Op = MI->getOperand(0);
-    assert(Op.isUse() && Op.isReg() &&
-      Op.getReg() >= X86::FP0 && Op.getReg() <= X86::FP6);
-    unsigned FPReg = getFPReg(Op);
-    if (Op.isKill())
-      moveToTop(FPReg, Inst);
-    else
-      duplicateToTop(FPReg, ScratchFPReg, Inst);
-
-    // Emit the call. This will pop the operand.
-    BuildMI(*MBB, Inst, MI->getDebugLoc(), TII->get(X86::CALLpcrel32))
-      .addExternalSymbol("_ftol2")
-      .addReg(X86::ST0, RegState::ImplicitKill)
-      .addReg(X86::ECX, RegState::ImplicitDefine)
-      .addReg(X86::EAX, RegState::Define | RegState::Implicit)
-      .addReg(X86::EDX, RegState::Define | RegState::Implicit)
-      .addReg(X86::EFLAGS, RegState::Define | RegState::Implicit);
-    --StackTop;
-
-    break;
   }
 
   case X86::RETQ:

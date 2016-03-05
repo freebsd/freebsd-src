@@ -10,6 +10,7 @@
 #ifndef LLVM_ADT_STRINGREF_H
 #define LLVM_ADT_STRINGREF_H
 
+#include "llvm/Support/Compiler.h"
 #include <algorithm>
 #include <cassert>
 #include <cstring>
@@ -53,6 +54,7 @@ namespace llvm {
 
     // Workaround memcmp issue with null pointers (undefined behavior)
     // by providing a specialized version
+    LLVM_ATTRIBUTE_ALWAYS_INLINE
     static int compareMemory(const char *Lhs, const char *Rhs, size_t Length) {
       if (Length == 0) { return 0; }
       return ::memcmp(Lhs,Rhs,Length);
@@ -73,6 +75,7 @@ namespace llvm {
       }
 
     /// Construct a string ref from a pointer and length.
+    LLVM_ATTRIBUTE_ALWAYS_INLINE
     /*implicit*/ StringRef(const char *data, size_t length)
       : Data(data), Length(length) {
         assert((data || length == 0) &&
@@ -80,6 +83,7 @@ namespace llvm {
       }
 
     /// Construct a string ref from an std::string.
+    LLVM_ATTRIBUTE_ALWAYS_INLINE
     /*implicit*/ StringRef(const std::string &Str)
       : Data(Str.data()), Length(Str.length()) {}
 
@@ -104,12 +108,15 @@ namespace llvm {
 
     /// data - Get a pointer to the start of the string (which may not be null
     /// terminated).
+    LLVM_ATTRIBUTE_ALWAYS_INLINE
     const char *data() const { return Data; }
 
     /// empty - Check if the string is empty.
+    LLVM_ATTRIBUTE_ALWAYS_INLINE
     bool empty() const { return Length == 0; }
 
     /// size - Get the string size.
+    LLVM_ATTRIBUTE_ALWAYS_INLINE
     size_t size() const { return Length; }
 
     /// front - Get the first character in the string.
@@ -133,6 +140,7 @@ namespace llvm {
 
     /// equals - Check for string equality, this is more efficient than
     /// compare() when the relative ordering of inequal strings isn't needed.
+    LLVM_ATTRIBUTE_ALWAYS_INLINE
     bool equals(StringRef RHS) const {
       return (Length == RHS.Length &&
               compareMemory(Data, RHS.Data, RHS.Length) == 0);
@@ -145,6 +153,7 @@ namespace llvm {
 
     /// compare - Compare two strings; the result is -1, 0, or 1 if this string
     /// is lexicographically less than, equal to, or greater than the \p RHS.
+    LLVM_ATTRIBUTE_ALWAYS_INLINE
     int compare(StringRef RHS) const {
       // Check the prefix for a mismatch.
       if (int Res = compareMemory(Data, RHS.Data, std::min(Length, RHS.Length)))
@@ -212,6 +221,7 @@ namespace llvm {
     /// @{
 
     /// Check if this string starts with the given \p Prefix.
+    LLVM_ATTRIBUTE_ALWAYS_INLINE
     bool startswith(StringRef Prefix) const {
       return Length >= Prefix.Length &&
              compareMemory(Data, Prefix.Data, Prefix.Length) == 0;
@@ -221,6 +231,7 @@ namespace llvm {
     bool startswith_lower(StringRef Prefix) const;
 
     /// Check if this string ends with the given \p Suffix.
+    LLVM_ATTRIBUTE_ALWAYS_INLINE
     bool endswith(StringRef Suffix) const {
       return Length >= Suffix.Length &&
         compareMemory(end() - Suffix.Length, Suffix.Data, Suffix.Length) == 0;
@@ -237,6 +248,7 @@ namespace llvm {
     ///
     /// \returns The index of the first occurrence of \p C, or npos if not
     /// found.
+    LLVM_ATTRIBUTE_ALWAYS_INLINE
     size_t find(char C, size_t From = 0) const {
       size_t FindBegin = std::min(From, Length);
       if (FindBegin < Length) { // Avoid calling memchr with nullptr.
@@ -402,6 +414,7 @@ namespace llvm {
     /// \param N The number of characters to included in the substring. If N
     /// exceeds the number of characters remaining in the string, the string
     /// suffix (starting with \p Start) will be returned.
+    LLVM_ATTRIBUTE_ALWAYS_INLINE
     StringRef substr(size_t Start, size_t N = npos) const {
       Start = std::min(Start, Length);
       return StringRef(Data + Start, std::min(N, Length - Start));
@@ -409,6 +422,7 @@ namespace llvm {
 
     /// Return a StringRef equal to 'this' but with the first \p N elements
     /// dropped.
+    LLVM_ATTRIBUTE_ALWAYS_INLINE
     StringRef drop_front(size_t N = 1) const {
       assert(size() >= N && "Dropping more elements than exist");
       return substr(N);
@@ -416,6 +430,7 @@ namespace llvm {
 
     /// Return a StringRef equal to 'this' but with the last \p N elements
     /// dropped.
+    LLVM_ATTRIBUTE_ALWAYS_INLINE
     StringRef drop_back(size_t N = 1) const {
       assert(size() >= N && "Dropping more elements than exist");
       return substr(0, size()-N);
@@ -431,6 +446,7 @@ namespace llvm {
     /// substring. If this is npos, or less than \p Start, or exceeds the
     /// number of characters remaining in the string, the string suffix
     /// (starting with \p Start) will be returned.
+    LLVM_ATTRIBUTE_ALWAYS_INLINE
     StringRef slice(size_t Start, size_t End) const {
       Start = std::min(Start, Length);
       End = std::min(std::max(Start, End), Length);
@@ -474,7 +490,7 @@ namespace llvm {
     /// Split into substrings around the occurrences of a separator string.
     ///
     /// Each substring is stored in \p A. If \p MaxSplit is >= 0, at most
-    /// \p MaxSplit splits are done and consequently <= \p MaxSplit
+    /// \p MaxSplit splits are done and consequently <= \p MaxSplit + 1
     /// elements are added to A.
     /// If \p KeepEmpty is false, empty strings are not added to \p A. They
     /// still count when considering \p MaxSplit
@@ -487,6 +503,23 @@ namespace llvm {
     /// \param KeepEmpty - True if empty substring should be added.
     void split(SmallVectorImpl<StringRef> &A,
                StringRef Separator, int MaxSplit = -1,
+               bool KeepEmpty = true) const;
+
+    /// Split into substrings around the occurrences of a separator character.
+    ///
+    /// Each substring is stored in \p A. If \p MaxSplit is >= 0, at most
+    /// \p MaxSplit splits are done and consequently <= \p MaxSplit + 1
+    /// elements are added to A.
+    /// If \p KeepEmpty is false, empty strings are not added to \p A. They
+    /// still count when considering \p MaxSplit
+    /// An useful invariant is that
+    /// Separator.join(A) == *this if MaxSplit == -1 and KeepEmpty == true
+    ///
+    /// \param A - Where to put the substrings.
+    /// \param Separator - The string to split on.
+    /// \param MaxSplit - The maximum number of times the string is split.
+    /// \param KeepEmpty - True if empty substring should be added.
+    void split(SmallVectorImpl<StringRef> &A, char Separator, int MaxSplit = -1,
                bool KeepEmpty = true) const;
 
     /// Split into two substrings around the last occurrence of a separator
@@ -530,10 +563,12 @@ namespace llvm {
   /// @name StringRef Comparison Operators
   /// @{
 
+  LLVM_ATTRIBUTE_ALWAYS_INLINE
   inline bool operator==(StringRef LHS, StringRef RHS) {
     return LHS.equals(RHS);
   }
 
+  LLVM_ATTRIBUTE_ALWAYS_INLINE
   inline bool operator!=(StringRef LHS, StringRef RHS) {
     return !(LHS == RHS);
   }

@@ -11,12 +11,10 @@
 #define liblldb_BreakpointLocation_h_
 
 // C Includes
-
 // C++ Includes
-#include <list>
+#include <memory>
 
 // Other libraries and framework includes
-
 // Project includes
 #include "lldb/lldb-private.h"
 #include "lldb/Breakpoint/StoppointLocation.h"
@@ -49,7 +47,7 @@ class BreakpointLocation :
     public StoppointLocation
 {
 public:
-    ~BreakpointLocation ();
+    ~BreakpointLocation() override;
 
     //------------------------------------------------------------------
     /// Gets the load address for this breakpoint location
@@ -58,7 +56,7 @@ public:
     ///     LLDB_INVALID_ADDRESS if not yet set.
     //------------------------------------------------------------------
     lldb::addr_t
-    GetLoadAddress () const;
+    GetLoadAddress() const override;
 
     //------------------------------------------------------------------
     /// Gets the Address for this breakpoint location
@@ -74,6 +72,9 @@ public:
     //------------------------------------------------------------------
     Breakpoint &
     GetBreakpoint ();
+    
+    Target &
+    GetTarget();
 
     //------------------------------------------------------------------
     /// Determines whether we should stop due to a hit at this
@@ -88,7 +89,7 @@ public:
     ///     \b false otherwise.
     //------------------------------------------------------------------
     bool
-    ShouldStop (StoppointCallbackContext *context);
+    ShouldStop(StoppointCallbackContext *context) override;
 
     //------------------------------------------------------------------
     // The next section deals with various breakpoint options.
@@ -169,15 +170,14 @@ public:
     /// Return a pointer to the text of the condition expression.
     ///
     /// @return
-    ///    A pointer to the condition expression text, or NULL if no
+    ///    A pointer to the condition expression text, or nullptr if no
     //     condition has been set.
     //------------------------------------------------------------------
     const char *
-    GetConditionText (size_t *hash = NULL) const;
+    GetConditionText(size_t *hash = nullptr) const;
     
     bool
     ConditionSaysStop (ExecutionContext &exe_ctx, Error &error);
-
 
     //------------------------------------------------------------------
     /// Set the valid thread to be checked when the breakpoint is hit.
@@ -270,7 +270,7 @@ public:
     /// Standard "Dump" method.  At present it does nothing.
     //------------------------------------------------------------------
     void
-    Dump (Stream *s) const;
+    Dump(Stream *s) const override;
 
     //------------------------------------------------------------------
     /// Use this to set location specific breakpoint options.
@@ -299,7 +299,6 @@ public:
     bool
     ValidForThisThread (Thread *thread);
 
-    
     //------------------------------------------------------------------
     /// Invoke the callback action when the breakpoint is hit.
     ///
@@ -418,7 +417,6 @@ private:
     void
     UndoBumpHitCount();
 
-
     //------------------------------------------------------------------
     // Constructors and Destructors
     //
@@ -459,9 +457,9 @@ private:
     bool m_is_indirect;
     Address m_address; ///< The address defining this location.
     Breakpoint &m_owner; ///< The breakpoint that produced this object.
-    std::unique_ptr<BreakpointOptions> m_options_ap; ///< Breakpoint options pointer, NULL if we're using our breakpoint's options.
+    std::unique_ptr<BreakpointOptions> m_options_ap; ///< Breakpoint options pointer, nullptr if we're using our breakpoint's options.
     lldb::BreakpointSiteSP m_bp_site_sp; ///< Our breakpoint site (it may be shared by more than one location.)
-    lldb::ClangUserExpressionSP m_user_expression_sp; ///< The compiled expression to use in testing our condition.
+    lldb::UserExpressionSP m_user_expression_sp; ///< The compiled expression to use in testing our condition.
     Mutex m_condition_mutex; ///< Guards parsing and evaluation of the condition, which could be evaluated by multiple processes.
     size_t m_condition_hash; ///< For testing whether the condition source code changed.
 
@@ -479,4 +477,4 @@ private:
 
 } // namespace lldb_private
 
-#endif  // liblldb_BreakpointLocation_h_
+#endif // liblldb_BreakpointLocation_h_
