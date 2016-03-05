@@ -136,7 +136,6 @@ enc_clone_destroy(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	KASSERT(sc == V_enc_sc, ("sc != ifp->if_softc"));
 
-	enc_remove_hhooks(sc);
 	bpfdetach(ifp);
 	if_detach(ifp);
 	if_free(ifp);
@@ -170,10 +169,6 @@ enc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_softc = sc;
 	if_attach(ifp);
 	bpfattach(ifp, DLT_ENC, sizeof(struct enchdr));
-	if (enc_add_hhooks(sc) != 0) {
-		enc_clone_destroy(ifp);
-		return (ENXIO);
-	}
 	return (0);
 }
 
@@ -373,6 +368,17 @@ VNET_SYSINIT(vnet_enc_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_enc_init, NULL);
 
 static void
+vnet_enc_init_proto(void *unused __unused)
+{
+	KASSERT(V_enc_sc != NULL, ("%s: V_enc_sc is %p\n", __func__, V_enc_sc));
+
+	if (enc_add_hhooks(V_enc_sc) != 0)
+		enc_clone_destroy(V_enc_sc->sc_ifp);
+}
+VNET_SYSINIT(vnet_enc_init_proto, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    vnet_enc_init_proto, NULL);
+
+static void
 vnet_enc_uninit(const void *unused __unused)
 {
 
@@ -380,6 +386,16 @@ vnet_enc_uninit(const void *unused __unused)
 }
 VNET_SYSUNINIT(vnet_enc_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_enc_uninit, NULL);
+
+static void
+vnet_enc_uninit_proto(void *unused __unused)
+{
+	KASSERT(V_enc_sc != NULL, ("%s: V_enc_sc is %p\n", __func__, V_enc_sc));
+
+	enc_remove_hhooks(V_enc_sc);
+}
+VNET_SYSUNINIT(vnet_enc_uninit_proto, SI_SUB_PROTO_IFATTACHDOMAIN,
+    SI_ORDER_ANY, vnet_enc_uninit_proto, NULL);
 
 static int
 enc_modevent(module_t mod, int type, void *data)
