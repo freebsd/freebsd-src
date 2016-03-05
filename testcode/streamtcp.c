@@ -265,7 +265,7 @@ static int get_random(void)
 	if (RAND_bytes((unsigned char*)&r, (int)sizeof(r)) == 1) {
 		return r;
 	}
-	return (int)random();
+	return arc4random();
 }
 
 /** send the TCP queries and print answers */

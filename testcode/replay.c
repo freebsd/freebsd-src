@@ -499,8 +499,7 @@ replay_scenario_delete(struct replay_scenario* scen)
 	struct replay_range* rng, *rngn;
 	if(!scen)
 		return;
-	if(scen->title)
-		free(scen->title);
+	free(scen->title);
 	mom = scen->mom_first;
 	while(mom) {
 		momn = mom->mom_next;

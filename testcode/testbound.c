@@ -142,7 +142,7 @@ spool_auto_file(FILE* in, int* lineno, FILE* cfg, char* id)
 	/* find filename for new file */
 	while(isspace((unsigned char)*id))
 		id++;
-	if(strlen(id)==0) 
+	if(*id == '\0') 
 		fatal_exit("AUTROTRUST_FILE must have id, line %d", *lineno);
 	id[strlen(id)-1]=0; /* remove newline */
 	fake_temp_file("_auto_", id, line, sizeof(line));

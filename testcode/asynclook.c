@@ -335,12 +335,17 @@ ext_thread(void* arg)
 		r = ub_wait(inf->ctx);
 		checkerr("ub_ctx_wait", r);
 	}
+	/* if these locks are destroyed, or if the async_ids is freed, then
+	   a use-after-free happens in another thread.
+	   The allocation is only part of this test, though. */
+	/*
 	if(async_ids) {
 		for(i=0; i<inf->numq; i++) {
 			lock_basic_destroy(&async_ids[i].lock);
 		}
 	}
 	free(async_ids);
+	*/
 	
 	return NULL;
 }
