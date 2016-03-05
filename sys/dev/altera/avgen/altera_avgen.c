@@ -516,12 +516,12 @@ altera_avgen_attach(struct altera_avgen_softc *sc, const char *str_fileio,
 		}
 		if (devunit != -1)
 			sc->avg_cdev = make_dev(&avg_cdevsw, sc->avg_unit,
-			    UID_ROOT, GID_WHEEL, S_IRUSR | S_IWUSR,
+			    UID_ROOT, GID_WHEEL, S_IRUSR | S_IWUSR, "%s%d",
 			    str_devname, devunit);
 		else
 			sc->avg_cdev = make_dev(&avg_cdevsw, sc->avg_unit,
 			    UID_ROOT, GID_WHEEL, S_IRUSR | S_IWUSR,
-			    str_devname);
+			    "%s", str_devname);
 		if (sc->avg_cdev == NULL) {
 			device_printf(sc->avg_dev, "%s: make_dev failed\n",
 			    __func__);
