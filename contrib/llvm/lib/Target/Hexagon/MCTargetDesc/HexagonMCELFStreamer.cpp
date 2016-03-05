@@ -37,9 +37,7 @@ static cl::opt<unsigned>
 
 void HexagonMCELFStreamer::EmitInstruction(const MCInst &MCK,
                                            const MCSubtargetInfo &STI) {
-  MCInst HMI;
-  HMI.setOpcode(Hexagon::BUNDLE);
-  HMI.addOperand(MCOperand::createImm(0));
+  MCInst HMI = HexagonMCInstrInfo::createBundle();
   MCInst *MCB;
 
   if (MCK.getOpcode() != Hexagon::BUNDLE) {
@@ -50,7 +48,7 @@ void HexagonMCELFStreamer::EmitInstruction(const MCInst &MCK,
 
   // Examines packet and pad the packet, if needed, when an
   // end-loop is in the bundle.
-  HexagonMCInstrInfo::padEndloop(*MCB);
+  HexagonMCInstrInfo::padEndloop(getContext(), *MCB);
   HexagonMCShuffle(*MCII, STI, *MCB);
 
   assert(HexagonMCInstrInfo::bundleSize(*MCB) <= HEXAGON_PACKET_SIZE);
@@ -60,9 +58,9 @@ void HexagonMCELFStreamer::EmitInstruction(const MCInst &MCK,
     if (Extended) {
       if (HexagonMCInstrInfo::isDuplex(*MCII, *MCI)) {
         MCInst *SubInst = const_cast<MCInst *>(MCI->getOperand(1).getInst());
-        HexagonMCInstrInfo::clampExtended(*MCII, *SubInst);
+        HexagonMCInstrInfo::clampExtended(*MCII, getContext(), *SubInst);
       } else {
-        HexagonMCInstrInfo::clampExtended(*MCII, *MCI);
+        HexagonMCInstrInfo::clampExtended(*MCII, getContext(), *MCI);
       }
       Extended = false;
     } else {
@@ -114,7 +112,7 @@ void HexagonMCELFStreamer::HexagonMCEmitCommonSymbol(MCSymbol *Symbol,
     MCSection *Section = getAssembler().getContext().getELFSection(
         SectionName, ELF::SHT_NOBITS, ELF::SHF_WRITE | ELF::SHF_ALLOC);
     SwitchSection(Section);
-    AssignSection(Symbol, Section);
+    AssignFragment(Symbol, getCurrentFragment());
 
     MCELFStreamer::EmitCommonSymbol(Symbol, Size, ByteAlignment);
     SwitchSection(CrntSection);

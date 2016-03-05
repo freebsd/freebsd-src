@@ -41,12 +41,12 @@ public:
 
   ~TargetLoweringObjectFileELF() override {}
 
-  void emitPersonalityValue(MCStreamer &Streamer, const TargetMachine &TM,
+  void emitPersonalityValue(MCStreamer &Streamer, const DataLayout &TM,
                             const MCSymbol *Sym) const override;
 
   /// Given a constant with the SectionKind, return a section that it should be
   /// placed in.
-  MCSection *getSectionForConstant(SectionKind Kind,
+  MCSection *getSectionForConstant(const DataLayout &DL, SectionKind Kind,
                                    const Constant *C) const override;
 
   MCSection *getExplicitSectionGlobal(const GlobalValue *GV, SectionKind Kind,
@@ -103,7 +103,7 @@ public:
                                       Mangler &Mang,
                                       const TargetMachine &TM) const override;
 
-  MCSection *getSectionForConstant(SectionKind Kind,
+  MCSection *getSectionForConstant(const DataLayout &DL, SectionKind Kind,
                                    const Constant *C) const override;
 
   /// The mach-o version of this method defaults to returning a stub reference.
@@ -123,6 +123,9 @@ public:
                                           const MCValue &MV, int64_t Offset,
                                           MachineModuleInfo *MMI,
                                           MCStreamer &Streamer) const override;
+
+  void getNameWithPrefix(SmallVectorImpl<char> &OutName, const GlobalValue *GV,
+                         Mangler &Mang, const TargetMachine &TM) const override;
 };
 
 
@@ -140,8 +143,7 @@ public:
                                     const TargetMachine &TM) const override;
 
   void getNameWithPrefix(SmallVectorImpl<char> &OutName, const GlobalValue *GV,
-                         bool CannotUsePrivateLabel, Mangler &Mang,
-                         const TargetMachine &TM) const override;
+                         Mangler &Mang, const TargetMachine &TM) const override;
 
   MCSection *getSectionForJumpTable(const Function &F, Mangler &Mang,
                                     const TargetMachine &TM) const override;

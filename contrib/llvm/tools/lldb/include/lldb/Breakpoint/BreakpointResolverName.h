@@ -14,6 +14,7 @@
 // C++ Includes
 #include <vector>
 #include <string>
+
 // Other libraries and framework includes
 // Project includes
 #include "lldb/Breakpoint/BreakpointResolver.h"
@@ -34,6 +35,7 @@ public:
     BreakpointResolverName (Breakpoint *bkpt,
                             const char *name,
                             uint32_t name_type_mask,
+                            lldb::LanguageType language,
                             Breakpoint::MatchType type,
                             bool skip_prologue);
 
@@ -42,17 +44,20 @@ public:
                             const char *names[],
                             size_t num_names,
                             uint32_t name_type_mask,
+                            lldb::LanguageType language,
                             bool skip_prologue);
 
     // This one takes a C++ array of names.  It is always MatchType = Exact.
     BreakpointResolverName (Breakpoint *bkpt,
                             std::vector<std::string> names,
                             uint32_t name_type_mask,
+                            lldb::LanguageType language,
                             bool skip_prologue);
 
     // Creates a function breakpoint by regular expression.  Takes over control of the lifespan of func_regex.
     BreakpointResolverName (Breakpoint *bkpt,
                             RegularExpression &func_regex,
+                            lldb::LanguageType language,
                             bool skip_prologue);
 
     BreakpointResolverName (Breakpoint *bkpt,
@@ -61,8 +66,7 @@ public:
                             Breakpoint::MatchType type,
                             bool skip_prologue);
 
-    virtual
-    ~BreakpointResolverName ();
+    ~BreakpointResolverName() override;
 
     Searcher::CallbackReturn
     SearchCallback (SearchFilter &filter,
@@ -114,6 +118,7 @@ protected:
     ConstString m_class_name;
     RegularExpression m_regex;
     Breakpoint::MatchType m_match_type;
+    lldb::LanguageType m_language;
     bool m_skip_prologue;
 
     void
@@ -122,4 +127,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif  // liblldb_BreakpointResolverName_h_
+#endif // liblldb_BreakpointResolverName_h_

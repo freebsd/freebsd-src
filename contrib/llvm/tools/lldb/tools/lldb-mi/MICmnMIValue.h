@@ -28,22 +28,19 @@
 //          list ==>  "[]" | "[" value ( "," value )* "]" | "[" result ( "," result )* "]"
 //          More information see:
 //          http://ftp.gnu.org/old-gnu/Manuals/gdb-5.1.1/html_chapter/gdb_22.html
-// Gotchas: None.
-// Authors: Illya Rudkin 24/02/2014.
-// Changes: None.
 //--
 class CMICmnMIValue : public CMICmnBase
 {
     // Methods:
   public:
-    /* ctor */ CMICmnMIValue(void);
+    /* ctor */ CMICmnMIValue();
     //
-    const CMIUtilString &GetString(void) const;
+    const CMIUtilString &GetString() const;
 
     // Overridden:
   public:
     // From CMICmnBase
-    /* dtor */ ~CMICmnMIValue(void) override;
+    /* dtor */ ~CMICmnMIValue() override;
 
     // Attributes:
   protected:

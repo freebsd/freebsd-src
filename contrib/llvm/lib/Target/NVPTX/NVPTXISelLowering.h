@@ -441,12 +441,8 @@ public:
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
 
   SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
-  SDValue LowerGlobalAddress(const GlobalValue *GV, int64_t Offset,
-                             SelectionDAG &DAG) const;
 
   const char *getTargetNodeName(unsigned Opcode) const override;
-
-  bool isTypeSupportedInIntrinsic(MVT VT) const;
 
   bool getTgtMemIntrinsic(IntrinsicInfo &Info, const CallInst &I,
                           unsigned Intrinsic) const override;
@@ -459,8 +455,13 @@ public:
   bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM, Type *Ty,
                              unsigned AS) const override;
 
-  /// getFunctionAlignment - Return the Log2 alignment of this function.
-  unsigned getFunctionAlignment(const Function *F) const;
+  bool isTruncateFree(Type *SrcTy, Type *DstTy) const override {
+    // Truncating 64-bit to 32-bit is free in SASS.
+    if (!SrcTy->isIntegerTy() || !DstTy->isIntegerTy())
+      return false;
+    return SrcTy->getPrimitiveSizeInBits() == 64 &&
+           DstTy->getPrimitiveSizeInBits() == 32;
+  }
 
   EVT getSetCCResultType(const DataLayout &DL, LLVMContext &Ctx,
                          EVT VT) const override {
@@ -515,11 +516,7 @@ public:
 
 private:
   const NVPTXSubtarget &STI; // cache the subtarget here
-
-  SDValue getExtSymb(SelectionDAG &DAG, const char *name, int idx,
-                     EVT = MVT::i32) const;
   SDValue getParamSymbol(SelectionDAG &DAG, int idx, EVT) const;
-  SDValue getParamHelpSymbol(SelectionDAG &DAG, int idx);
 
   SDValue LowerCONCAT_VECTORS(SDValue Op, SelectionDAG &DAG) const;
 

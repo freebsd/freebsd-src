@@ -33,8 +33,9 @@
 #include "lldb/Interpreter/OptionGroupFormat.h"
 #include "lldb/Interpreter/OptionGroupValueObjectDisplay.h"
 #include "lldb/Interpreter/OptionGroupVariable.h"
-#include "lldb/Symbol/ClangASTType.h"
+#include "lldb/Symbol/CompilerType.h"
 #include "lldb/Symbol/ClangASTContext.h"
+#include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Symbol/Type.h"
@@ -70,13 +71,13 @@ public:
     {
     }
 
-    ~CommandObjectFrameInfo ()
+    ~CommandObjectFrameInfo () override
     {
     }
 
 protected:
     bool
-    DoExecute (Args& command, CommandReturnObject &result)
+    DoExecute (Args& command, CommandReturnObject &result) override
     {
         m_exe_ctx.GetFrameRef().DumpUsingSettingsFormat (&result.GetOutputStream());
         result.SetStatus (eReturnStatusSuccessFinishResult);
@@ -104,13 +105,12 @@ public:
             OptionParsingStarting ();
         }
 
-        virtual
-        ~CommandOptions ()
+        ~CommandOptions () override
         {
         }
 
-        virtual Error
-        SetOptionValue (uint32_t option_idx, const char *option_arg)
+        Error
+        SetOptionValue (uint32_t option_idx, const char *option_arg) override
         {
             Error error;
             bool success = false;
@@ -132,13 +132,13 @@ public:
         }
 
         void
-        OptionParsingStarting ()
+        OptionParsingStarting () override
         {
             relative_frame_offset = INT32_MIN;
         }
 
         const OptionDefinition*
-        GetDefinitions ()
+        GetDefinitions () override
         {
             return g_option_table;
         }
@@ -174,13 +174,12 @@ public:
         m_arguments.push_back (arg);
     }
 
-    ~CommandObjectFrameSelect ()
+    ~CommandObjectFrameSelect () override
     {
     }
 
-    virtual
     Options *
-    GetOptions ()
+    GetOptions () override
     {
         return &m_options;
     }
@@ -188,7 +187,7 @@ public:
 
 protected:
     bool
-    DoExecute (Args& command, CommandReturnObject &result)
+    DoExecute (Args& command, CommandReturnObject &result) override
     {
         // No need to check "thread" for validity as eCommandRequiresThread ensures it is valid
         Thread *thread = m_exe_ctx.GetThreadPtr();
@@ -263,8 +262,10 @@ protected:
             }
             else
             {
-                result.AppendError ("invalid arguments.\n");
+                result.AppendErrorWithFormat ("too many arguments; expected frame-index, saw '%s'.\n",
+                                              command.GetArgumentAtIndex(0));
                 m_options.GenerateOptionUsage (result.GetErrorStream(), this);
+                return false;
             }
         }
 
@@ -341,20 +342,18 @@ public:
         m_option_group.Finalize();
     }
 
-    virtual
-    ~CommandObjectFrameVariable ()
+    ~CommandObjectFrameVariable () override
     {
     }
 
-    virtual
     Options *
-    GetOptions ()
+    GetOptions () override
     {
         return &m_option_group;
     }
     
     
-    virtual int
+    int
     HandleArgumentCompletion (Args &input,
                               int &cursor_index,
                               int &cursor_char_position,
@@ -362,7 +361,7 @@ public:
                               int match_start_point,
                               int max_return_elements,
                               bool &word_complete,
-                              StringList &matches)
+                              StringList &matches) override
     {
         // Arguments are the standard source file completer.
         std::string completion_str (input.GetArgumentAtIndex(cursor_index));
@@ -380,8 +379,8 @@ public:
     }
 
 protected:
-    virtual bool
-    DoExecute (Args& command, CommandReturnObject &result)
+    bool
+    DoExecute (Args& command, CommandReturnObject &result) override
     {
         // No need to check "frame" for validity as eCommandRequiresFrame ensures it is valid
         StackFrame *frame = m_exe_ctx.GetFramePtr();
@@ -408,6 +407,10 @@ protected:
             summary_format_sp.reset(new StringSummaryFormat(TypeSummaryImpl::Flags(),m_option_variable.summary_string.GetCurrentValue()));
         
         DumpValueObjectOptions options(m_varobj_options.GetAsDumpOptions(eLanguageRuntimeDescriptionDisplayVerbosityFull,eFormatDefault,summary_format_sp));
+        
+        const SymbolContext& sym_ctx = frame->GetSymbolContext(eSymbolContextFunction);
+        if (sym_ctx.function && sym_ctx.function->IsTopLevelFunction())
+            m_option_variable.show_globals = true;
         
         if (variable_list)
         {
@@ -477,7 +480,8 @@ protected:
                     {
                         Error error;
                         uint32_t expr_path_options = StackFrame::eExpressionPathOptionCheckPtrVsMember |
-                                                     StackFrame::eExpressionPathOptionsAllowDirectIVarAccess;
+                                                     StackFrame::eExpressionPathOptionsAllowDirectIVarAccess |
+                                                     StackFrame::eExpressionPathOptionsInspectAnonymousUnions;
                         lldb::VariableSP var_sp;
                         valobj_sp = frame->GetValueForVariableExpressionPath (name_cstr, 
                                                                               m_varobj_options.use_dynamic, 
@@ -495,6 +499,7 @@ protected:
                             }
                             
                             options.SetFormat(format);
+                            options.SetVariableFormatDisplayLanguage(valobj_sp->GetPreferredDisplayLanguage());
 
                             Stream &output_stream = result.GetOutputStream();
                             options.SetRootValueObjectName(valobj_sp->GetParent() ? name_cstr : NULL);
@@ -581,6 +586,7 @@ protected:
                                     }
                                     
                                     options.SetFormat(format);
+                                    options.SetVariableFormatDisplayLanguage(valobj_sp->GetPreferredDisplayLanguage());
                                     options.SetRootValueObjectName(name_cstr);
                                     valobj_sp->Dump(result.GetOutputStream(),options);
                                 }

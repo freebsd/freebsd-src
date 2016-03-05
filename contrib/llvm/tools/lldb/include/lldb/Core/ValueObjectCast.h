@@ -1,4 +1,4 @@
-//===-- ValueObjectDynamicValue.h -----------------------------------*- C++ -*-===//
+//===-- ValueObjectDynamicValue.h -------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -24,64 +24,54 @@ namespace lldb_private {
 class ValueObjectCast : public ValueObject
 {
 public:
+    ~ValueObjectCast() override;
+
     static lldb::ValueObjectSP
     Create (ValueObject &parent, 
             const ConstString &name, 
-            const ClangASTType &cast_type);
+            const CompilerType &cast_type);
 
-    virtual
-    ~ValueObjectCast();
+    uint64_t
+    GetByteSize() override;
     
-    virtual uint64_t
-    GetByteSize();
+    size_t
+    CalculateNumChildren(uint32_t max) override;
     
-    virtual size_t
-    CalculateNumChildren();
+    lldb::ValueType
+    GetValueType() const override;
     
-    virtual lldb::ValueType
-    GetValueType() const;
+    bool
+    IsInScope() override;
     
-    virtual bool
-    IsInScope ();
-    
-    virtual ValueObject *
-    GetParent()
+    ValueObject *
+    GetParent() override
     {
-        if (m_parent)
-            return m_parent->GetParent();
-        else
-            return NULL;
+        return ((m_parent != nullptr) ? m_parent->GetParent() : nullptr);
     }
     
-    virtual const ValueObject *
-    GetParent() const
+    const ValueObject *
+    GetParent() const override
     {
-        if (m_parent)
-            return m_parent->GetParent();
-        else
-            return NULL;
+        return ((m_parent != nullptr) ? m_parent->GetParent() : nullptr);
     }
     
 protected:
-    virtual bool
-    UpdateValue ();
+    ValueObjectCast(ValueObject &parent, 
+                    const ConstString &name, 
+                    const CompilerType &cast_type);
+
+    bool
+    UpdateValue () override;
     
-    virtual ClangASTType
-    GetClangTypeImpl ();
+    CompilerType
+    GetCompilerTypeImpl () override;
     
-    ClangASTType m_cast_type;
+    CompilerType m_cast_type;
     
 private:
-    ValueObjectCast (ValueObject &parent, 
-                     const ConstString &name, 
-                     const ClangASTType &cast_type);
-    
-    //------------------------------------------------------------------
-    // For ValueObject only
-    //------------------------------------------------------------------
     DISALLOW_COPY_AND_ASSIGN (ValueObjectCast);
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_ValueObjectCast_h_
+#endif // liblldb_ValueObjectCast_h_

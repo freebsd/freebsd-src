@@ -29,6 +29,7 @@ namespace clang {
   class ObjCContainerDecl;
   class ObjCInterfaceDecl;
   class ObjCPropertyDecl;
+  class ParmVarDecl;
   class QualType;
   class RecordDecl;
   class TagDecl;
@@ -88,21 +89,12 @@ public:
   /// \brief A function template's definition was instantiated.
   virtual void FunctionDefinitionInstantiated(const FunctionDecl *D) {}
 
+  /// \brief A default argument was instantiated.
+  virtual void DefaultArgumentInstantiated(const ParmVarDecl *D) {}
+
   /// \brief A new objc category class was added for an interface.
   virtual void AddedObjCCategoryToInterface(const ObjCCategoryDecl *CatD,
                                             const ObjCInterfaceDecl *IFD) {}
-
-  /// \brief A objc class extension redeclared or introduced a property.
-  ///
-  /// \param Prop the property in the class extension
-  ///
-  /// \param OrigProp the property from the original interface that was declared
-  /// or null if the property was introduced.
-  ///
-  /// \param ClassExt the class extension.
-  virtual void AddedObjCPropertyInClassExtension(const ObjCPropertyDecl *Prop,
-                                            const ObjCPropertyDecl *OrigProp,
-                                            const ObjCCategoryDecl *ClassExt) {}
 
   /// \brief A declaration is marked used which was not previously marked used.
   ///

@@ -39,13 +39,24 @@ CXXFLAGS.clang+= -stdlib=libc++
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 
-TBLGEN?=	tblgen
+LLVM_TBLGEN?=	llvm-tblgen
 CLANG_TBLGEN?=	clang-tblgen
 
+Attributes.inc.h: ${LLVM_SRCS}/include/llvm/IR/Attributes.td
+	${LLVM_TBLGEN} -gen-attrs \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
+	    ${LLVM_SRCS}/include/llvm/IR/Attributes.td
+
+AttributesCompatFunc.inc.h: ${LLVM_SRCS}/lib/IR/AttributesCompatFunc.td
+	${LLVM_TBLGEN} -gen-attrs \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
+	    ${LLVM_SRCS}/lib/IR/AttributesCompatFunc.td
+
 Intrinsics.inc.h: ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
-	${TBLGEN} -gen-intrinsic \
+	${LLVM_TBLGEN} -gen-intrinsic \
 	    -I ${LLVM_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
+
 .for arch in \
 	AArch64/AArch64 ARM/ARM Mips/Mips PowerPC/PPC Sparc/Sparc X86/X86
 . for hdr in \
@@ -63,7 +74,7 @@ Intrinsics.inc.h: ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
 	RegisterInfo/-gen-register-info \
 	SubtargetInfo/-gen-subtarget
 ${arch:T}Gen${hdr:H:C/$/.inc.h/}: ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td
-	${TBLGEN} ${hdr:T:C/,/ /g} \
+	${LLVM_TBLGEN} ${hdr:T:C/,/ /g} \
 	    -I ${LLVM_SRCS}/include -I ${LLVM_SRCS}/lib/Target/${arch:H} \
 	    -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td
@@ -212,13 +223,13 @@ Diagnostic${hdr}Kinds.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 # XXX: Atrocious hack, need to clean this up later
 .if defined(LIB) && ${LIB} == "llvmlibdriver"
 Options.inc.h: ${LLVM_SRCS}/lib/LibDriver/Options.td
-	${TBLGEN} -gen-opt-parser-defs \
+	${LLVM_TBLGEN} -gen-opt-parser-defs \
 	    -I ${LLVM_SRCS}/include \
 	    -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${LLVM_SRCS}/lib/LibDriver/Options.td
 .else
 Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/Options.td
-	${TBLGEN} -gen-opt-parser-defs \
+	${LLVM_TBLGEN} -gen-opt-parser-defs \
 	    -I ${LLVM_SRCS}/include -I ${CLANG_SRCS}/include/clang/Driver \
 	    -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/include/clang/Driver/Options.td

@@ -5,19 +5,23 @@
 LIB=	lldbSymbol
 
 SRCDIR=	tools/lldb/source/Symbol
-SRCS=	Block.cpp \
+SRCS=	ArmUnwindInfo.cpp \
+	Block.cpp \
 	ClangASTContext.cpp \
 	ClangASTImporter.cpp \
-	ClangASTType.cpp \
 	ClangExternalASTSourceCallbacks.cpp \
 	ClangExternalASTSourceCommon.cpp \
-	ClangNamespaceDecl.cpp \
+	CompilerDecl.cpp \
+	CompilerDeclContext.cpp \
+	CompilerType.cpp \
 	CompactUnwindInfo.cpp \
+	DebugMacros.cpp \
 	CompileUnit.cpp \
 	Declaration.cpp \
 	DWARFCallFrameInfo.cpp \
 	Function.cpp \
 	FuncUnwinders.cpp \
+	GoASTContext.cpp \
 	LineEntry.cpp \
 	LineTable.cpp \
 	ObjectFile.cpp \
@@ -28,6 +32,8 @@ SRCS=	Block.cpp \
 	Symtab.cpp \
 	Type.cpp \
 	TypeList.cpp \
+	TypeMap.cpp \
+	TypeSystem.cpp \
 	UnwindPlan.cpp \
 	UnwindTable.cpp \
 	Variable.cpp \

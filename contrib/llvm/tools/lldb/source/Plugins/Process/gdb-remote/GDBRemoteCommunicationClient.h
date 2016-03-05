@@ -12,6 +12,8 @@
 
 // C Includes
 // C++ Includes
+#include <map>
+#include <string>
 #include <vector>
 
 // Other libraries and framework includes
@@ -28,12 +30,9 @@ namespace process_gdb_remote {
 class GDBRemoteCommunicationClient : public GDBRemoteCommunication
 {
 public:
-    //------------------------------------------------------------------
-    // Constructors and Destructors
-    //------------------------------------------------------------------
     GDBRemoteCommunicationClient();
 
-    ~GDBRemoteCommunicationClient();
+    ~GDBRemoteCommunicationClient() override;
 
     //------------------------------------------------------------------
     // After connecting, send the handshake to the server to make sure
@@ -79,6 +78,7 @@ public:
                                           const char *packet_payload,
                                           size_t packet_length,
                                           StringExtractorGDBRemote &response);
+
     bool
     SendvContPacket (ProcessGDBRemote *process,
                      const char *payload,
@@ -114,9 +114,15 @@ public:
     bool
     GetLaunchSuccess (std::string &error_str);
 
-    uint16_t
-    LaunchGDBserverAndGetPort (lldb::pid_t &pid, const char *remote_accept_hostname);
-    
+    bool
+    LaunchGDBServer (const char *remote_accept_hostname,
+                     lldb::pid_t &pid,
+                     uint16_t &port,
+                     std::string &socket_name);
+
+    size_t
+    QueryGDBServer (std::vector<std::pair<uint16_t, std::string>>& connection_urls);
+
     bool
     KillSpawnedProcess (lldb::pid_t pid);
 
@@ -161,7 +167,7 @@ public:
     SendLaunchArchPacket (const char *arch);
     
     int
-    SendLaunchEventDataPacket (const char *data, bool *was_supported = NULL);
+    SendLaunchEventDataPacket(const char *data, bool *was_supported = nullptr);
     
     //------------------------------------------------------------------
     /// Sends a "vAttach:PID" where PID is in hex. 
@@ -181,7 +187,6 @@ public:
     int
     SendAttach (lldb::pid_t pid, 
                 StringExtractorGDBRemote& response);
-
 
     //------------------------------------------------------------------
     /// Sends a GDB remote protocol 'I' packet that delivers stdin
@@ -396,6 +401,7 @@ public:
         default:                    return false;
         }
     }
+
     uint8_t
     SendGDBStoppointTypePacket (GDBStoppointType type,   // Type of breakpoint or watchpoint
                                 bool insert,              // Insert or remove?
@@ -505,11 +511,11 @@ public:
     GetFileExists (const FileSpec& file_spec);
     
     Error
-    RunShellCommand(const char *command,           // Shouldn't be NULL
+    RunShellCommand(const char *command,           // Shouldn't be nullptr
                     const FileSpec &working_dir,   // Pass empty FileSpec to use the current working directory
-                    int *status_ptr,               // Pass NULL if you don't want the process exit status
-                    int *signo_ptr,                // Pass NULL if you don't want the signal that caused the process to exit
-                    std::string *command_output,   // Pass NULL if you don't want the command output
+                    int *status_ptr,               // Pass nullptr if you don't want the process exit status
+                    int *signo_ptr,                // Pass nullptr if you don't want the signal that caused the process to exit
+                    std::string *command_output,   // Pass nullptr if you don't want the command output
                     uint32_t timeout_sec);         // Timeout in seconds to wait for shell program to finish
 
     bool
@@ -567,26 +573,6 @@ public:
     ServeSymbolLookups(lldb_private::Process *process);
 
 protected:
-
-    PacketResult
-    SendPacketAndWaitForResponseNoLock (const char *payload,
-                                        size_t payload_length,
-                                        StringExtractorGDBRemote &response);
-
-    bool
-    GetCurrentProcessInfo (bool allow_lazy_pid = true);
-
-    bool
-    GetGDBServerVersion();
-
-    // Given the list of compression types that the remote debug stub can support,
-    // possibly enable compression if we find an encoding we can handle.
-    void
-    MaybeEnableCompression (std::vector<std::string> supported_compressions);
-
-    //------------------------------------------------------------------
-    // Classes that inherit from GDBRemoteCommunicationClient can see and modify these
-    //------------------------------------------------------------------
     LazyBool m_supports_not_sending_acks;
     LazyBool m_supports_thread_suffix;
     LazyBool m_supports_threads_in_stop_reply;
@@ -633,12 +619,13 @@ protected:
         m_supports_QEnvironment:1,
         m_supports_QEnvironmentHexEncoded:1,
         m_supports_qSymbol:1,
+        m_qSymbol_requests_done:1,
+        m_supports_qModuleInfo:1,
         m_supports_jThreadsInfo:1;
     
     lldb::pid_t m_curr_pid;
     lldb::tid_t m_curr_tid;         // Current gdb remote protocol thread index for all other operations
     lldb::tid_t m_curr_tid_run;     // Current gdb remote protocol thread index for continue, step, etc
-
 
     uint32_t m_num_supported_hardware_watchpoints;
 
@@ -667,18 +654,31 @@ protected:
     uint32_t m_default_packet_timeout;
     uint64_t m_max_packet_size;  // as returned by qSupported
 
-    
+    PacketResult
+    SendPacketAndWaitForResponseNoLock (const char *payload,
+                                        size_t payload_length,
+                                        StringExtractorGDBRemote &response);
+
+    bool
+    GetCurrentProcessInfo (bool allow_lazy_pid = true);
+
+    bool
+    GetGDBServerVersion();
+
+    // Given the list of compression types that the remote debug stub can support,
+    // possibly enable compression if we find an encoding we can handle.
+    void
+    MaybeEnableCompression (std::vector<std::string> supported_compressions);
+
     bool
     DecodeProcessInfoResponse (StringExtractorGDBRemote &response, 
                                ProcessInstanceInfo &process_info);
+
 private:
-    //------------------------------------------------------------------
-    // For GDBRemoteCommunicationClient only
-    //------------------------------------------------------------------
     DISALLOW_COPY_AND_ASSIGN (GDBRemoteCommunicationClient);
 };
 
 } // namespace process_gdb_remote
 } // namespace lldb_private
 
-#endif  // liblldb_GDBRemoteCommunicationClient_h_
+#endif // liblldb_GDBRemoteCommunicationClient_h_

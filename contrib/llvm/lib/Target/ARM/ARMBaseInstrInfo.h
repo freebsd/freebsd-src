@@ -86,6 +86,18 @@ protected:
                             RegSubRegPair &BaseReg,
                             RegSubRegPairAndIdx &InsertedReg) const override;
 
+  /// Commutes the operands in the given instruction.
+  /// The commutable operands are specified by their indices OpIdx1 and OpIdx2.
+  ///
+  /// Do not call this method for a non-commutable instruction or for
+  /// non-commutable pair of operand indices OpIdx1 and OpIdx2.
+  /// Even though the instruction is commutable, the method may still
+  /// fail to commute the operands, null pointer is returned in such cases.
+  MachineInstr *commuteInstructionImpl(MachineInstr *MI,
+                                       bool NewMI,
+                                       unsigned OpIdx1,
+                                       unsigned OpIdx2) const override;
+
 public:
   // Return whether the target has an explicit NOP encoding.
   bool hasNOP() const;
@@ -188,9 +200,6 @@ public:
   MachineInstr *duplicate(MachineInstr *Orig,
                           MachineFunction &MF) const override;
 
-  MachineInstr *commuteInstruction(MachineInstr*,
-                                   bool=false) const override;
-
   const MachineInstrBuilder &AddDReg(MachineInstrBuilder &MIB, unsigned Reg,
                                      unsigned SubIdx, unsigned State,
                                      const TargetRegisterInfo *TRI) const;
@@ -224,15 +233,15 @@ public:
 
   bool isProfitableToIfCvt(MachineBasicBlock &MBB,
                            unsigned NumCycles, unsigned ExtraPredCycles,
-                           const BranchProbability &Probability) const override;
+                           BranchProbability Probability) const override;
 
   bool isProfitableToIfCvt(MachineBasicBlock &TMBB, unsigned NumT,
                            unsigned ExtraT, MachineBasicBlock &FMBB,
                            unsigned NumF, unsigned ExtraF,
-                           const BranchProbability &Probability) const override;
+                           BranchProbability Probability) const override;
 
   bool isProfitableToDupForIfCvt(MachineBasicBlock &MBB, unsigned NumCycles,
-                          const BranchProbability &Probability) const override {
+                                 BranchProbability Probability) const override {
     return NumCycles == 1;
   }
 
@@ -342,6 +351,8 @@ private:
 
   virtual void expandLoadStackGuard(MachineBasicBlock::iterator MI,
                                     Reloc::Model RM) const = 0;
+
+  void expandMEMCPY(MachineBasicBlock::iterator) const;
 
 private:
   /// Modeling special VFP / NEON fp MLA / MLS hazards.

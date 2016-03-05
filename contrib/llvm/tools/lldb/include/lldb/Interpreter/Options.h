@@ -11,7 +11,6 @@
 #define liblldb_Options_h_
 
 // C Includes
-
 // C++ Includes
 #include <set>
 #include <vector>
@@ -31,7 +30,6 @@ namespace lldb_private {
           return false;
       return isprint(ch);
   }
-
 
 //----------------------------------------------------------------------
 /// @class Options Options.h "lldb/Interpreter/Options.h"
@@ -72,7 +70,7 @@ namespace lldb_private {
 ///             case 'g': debug = true; break;
 ///             case 'v': verbose = true; break;
 ///             case 'l': log_file = option_arg; break;
-///             case 'f': log_flags = strtoull(option_arg, NULL, 0); break;
+///             case 'f': log_flags = strtoull(option_arg, nullptr, 0); break;
 ///             default:
 ///                 error.SetErrorStringWithFormat("unrecognized short option %c", option_val);
 ///                 break;
@@ -95,11 +93,11 @@ namespace lldb_private {
 ///
 ///     struct option CommandOptions::g_options[] =
 ///     {
-///         { "debug",              no_argument,        NULL,   'g' },
-///         { "log-file",           required_argument,  NULL,   'l' },
-///         { "log-flags",          required_argument,  NULL,   'f' },
-///         { "verbose",            no_argument,        NULL,   'v' },
-///         { NULL,                 0,                  NULL,   0   }
+///         { "debug",              no_argument,        nullptr,   'g' },
+///         { "log-file",           required_argument,  nullptr,   'l' },
+///         { "log-flags",          required_argument,  nullptr,   'f' },
+///         { "verbose",            no_argument,        nullptr,   'v' },
+///         { nullptr,              0,                  nullptr,   0   }
 ///     };
 ///
 ///     int main (int argc, const char **argv, const char **envp)
@@ -119,7 +117,6 @@ namespace lldb_private {
 class Options
 {
 public:
-
     Options (CommandInterpreter &interpreter);
 
     virtual
@@ -153,7 +150,6 @@ public:
     // Verify that the options given are in the options table and can 
     // be used together, but there may be some required options that are
     // missing (used to verify options that get folded into command aliases).
-
     bool
     VerifyPartialOptions (CommandReturnObject &result);
 
@@ -173,7 +169,10 @@ public:
     // class that inherits from this class.
 
     virtual const OptionDefinition*
-    GetDefinitions () { return NULL; }
+    GetDefinitions()
+    {
+        return nullptr;
+    }
 
     // Call this prior to parsing any options. This call will call the
     // subclass OptionParsingStarting() and will avoid the need for all
@@ -195,7 +194,7 @@ public:
     ///
     /// @param[in] option_arg
     ///     The argument value for the option that the user entered, or
-    ///     NULL if there is no argument for the current option.
+    ///     nullptr if there is no argument for the current option.
     ///
     ///
     /// @see Args::ParseOptions (Options&)
@@ -359,15 +358,11 @@ protected:
     class OptionGroup
     {
     public:
-        OptionGroup () 
-        {
-        }
-        
+        OptionGroup() = default;
+
         virtual 
-        ~OptionGroup () 
-        {
-        }
-        
+        ~OptionGroup() = default;
+
         virtual uint32_t
         GetNumDefinitions () = 0;
 
@@ -395,7 +390,6 @@ protected:
     class OptionGroupOptions : public Options
     {
     public:
-        
         OptionGroupOptions (CommandInterpreter &interpreter) :
             Options (interpreter),
             m_option_defs (),
@@ -404,12 +398,8 @@ protected:
         {
         }
         
-        virtual
-        ~OptionGroupOptions ()
-        {
-        }
-        
-        
+        ~OptionGroupOptions() override = default;
+
         //----------------------------------------------------------------------
         /// Append options from a OptionGroup class.
         ///
@@ -459,18 +449,18 @@ protected:
             return m_did_finalize;
         }
         
-        virtual Error
-        SetOptionValue (uint32_t option_idx, 
-                        const char *option_arg);
+        Error
+        SetOptionValue(uint32_t option_idx, 
+                       const char *option_arg) override;
         
-        virtual void
-        OptionParsingStarting ();
+        void
+        OptionParsingStarting() override;
         
-        virtual Error
-        OptionParsingFinished ();
+        Error
+        OptionParsingFinished() override;
         
         const OptionDefinition*
-        GetDefinitions ()
+        GetDefinitions() override
         {
             assert (m_did_finalize);
             return &m_option_defs[0];
@@ -495,8 +485,7 @@ protected:
         OptionInfos m_option_infos;
         bool m_did_finalize;
     };
-    
 
 } // namespace lldb_private
 
-#endif  // liblldb_Options_h_
+#endif // liblldb_Options_h_

@@ -8,7 +8,9 @@ SRCDIR=	lib/Target/Mips/Disassembler
 INCDIR=	lib/Target/Mips
 SRCS=	MipsDisassembler.cpp
 
-TGHDRS=	MipsGenDisassemblerTables \
+TGHDRS=	Attributes \
+	Intrinsics \
+	MipsGenDisassemblerTables \
 	MipsGenInstrInfo \
 	MipsGenRegisterInfo \
 	MipsGenSubtargetInfo

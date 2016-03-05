@@ -259,6 +259,9 @@ public:
   void AddLastArg(ArgStringList &Output, OptSpecifier Id0,
                   OptSpecifier Id1) const;
 
+  /// AddAllArgs - Render all arguments matching any of the given ids.
+  void AddAllArgs(ArgStringList &Output, ArrayRef<OptSpecifier> Ids) const;
+
   /// AddAllArgs - Render all arguments matching the given ids.
   void AddAllArgs(ArgStringList &Output, OptSpecifier Id0,
                   OptSpecifier Id1 = 0U, OptSpecifier Id2 = 0U) const;
@@ -302,6 +305,9 @@ public:
   /// string at \p Index if possible.
   const char *GetOrMakeJoinedArgString(unsigned Index, StringRef LHS,
                                         StringRef RHS) const;
+
+  void print(raw_ostream &O) const;
+  void dump() const;
 
   /// @}
 };

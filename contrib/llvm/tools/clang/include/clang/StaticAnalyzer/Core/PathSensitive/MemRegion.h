@@ -19,6 +19,7 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
@@ -46,7 +47,7 @@ class RegionOffset {
   /// The base region.
   const MemRegion *R;
 
-  /// The bit offset within the base region. It shouldn't be negative.
+  /// The bit offset within the base region. Can be negative.
   int64_t Offset;
 
 public:
@@ -79,7 +80,7 @@ class MemRegion : public llvm::FoldingSetNode {
 public:
   enum Kind {
     // Memory spaces.
-    GenericMemSpaceRegionKind,
+    CodeSpaceRegionKind,
     StackLocalsSpaceRegionKind,
     StackArgumentsSpaceRegionKind,
     HeapSpaceRegionKind,
@@ -88,29 +89,29 @@ public:
     GlobalInternalSpaceRegionKind,
     GlobalSystemSpaceRegionKind,
     GlobalImmutableSpaceRegionKind,
-    BEG_NON_STATIC_GLOBAL_MEMSPACES = GlobalInternalSpaceRegionKind,
+    BEGIN_NON_STATIC_GLOBAL_MEMSPACES = GlobalInternalSpaceRegionKind,
     END_NON_STATIC_GLOBAL_MEMSPACES = GlobalImmutableSpaceRegionKind,
-    BEG_GLOBAL_MEMSPACES = StaticGlobalSpaceRegionKind,
+    BEGIN_GLOBAL_MEMSPACES = StaticGlobalSpaceRegionKind,
     END_GLOBAL_MEMSPACES = GlobalImmutableSpaceRegionKind,
-    BEG_MEMSPACES = GenericMemSpaceRegionKind,
+    BEGIN_MEMSPACES = CodeSpaceRegionKind,
     END_MEMSPACES = GlobalImmutableSpaceRegionKind,
     // Untyped regions.
     SymbolicRegionKind,
     AllocaRegionKind,
     // Typed regions.
-    BEG_TYPED_REGIONS,
-    FunctionTextRegionKind = BEG_TYPED_REGIONS,
-    BlockTextRegionKind,
+    BEGIN_TYPED_REGIONS,
+    FunctionCodeRegionKind = BEGIN_TYPED_REGIONS,
+    BlockCodeRegionKind,
     BlockDataRegionKind,
-    BEG_TYPED_VALUE_REGIONS,
-    CompoundLiteralRegionKind = BEG_TYPED_VALUE_REGIONS,
+    BEGIN_TYPED_VALUE_REGIONS,
+    CompoundLiteralRegionKind = BEGIN_TYPED_VALUE_REGIONS,
     CXXThisRegionKind,
     StringRegionKind,
     ObjCStringRegionKind,
     ElementRegionKind,
     // Decl Regions.
-    BEG_DECL_REGIONS,
-    VarRegionKind = BEG_DECL_REGIONS,
+    BEGIN_DECL_REGIONS,
+    VarRegionKind = BEGIN_DECL_REGIONS,
     FieldRegionKind,
     ObjCIvarRegionKind,
     END_DECL_REGIONS = ObjCIvarRegionKind,
@@ -192,12 +193,9 @@ public:
 ///  for example, the set of global variables, the stack frame, etc.
 class MemSpaceRegion : public MemRegion {
 protected:
-  friend class MemRegionManager;
-  
   MemRegionManager *Mgr;
 
-  MemSpaceRegion(MemRegionManager *mgr, Kind k = GenericMemSpaceRegionKind)
-    : MemRegion(k), Mgr(mgr) {
+  MemSpaceRegion(MemRegionManager *mgr, Kind k) : MemRegion(k), Mgr(mgr) {
     assert(classof(this));
   }
 
@@ -210,10 +208,26 @@ public:
 
   static bool classof(const MemRegion *R) {
     Kind k = R->getKind();
-    return k >= BEG_MEMSPACES && k <= END_MEMSPACES;
+    return k >= BEGIN_MEMSPACES && k <= END_MEMSPACES;
   }
 };
-  
+
+/// CodeSpaceRegion - The memory space that holds the executable code of
+/// functions and blocks.
+class CodeSpaceRegion : public MemSpaceRegion {
+  friend class MemRegionManager;
+
+  CodeSpaceRegion(MemRegionManager *mgr)
+      : MemSpaceRegion(mgr, CodeSpaceRegionKind) {}
+
+public:
+  void dumpToStream(raw_ostream &os) const override;
+
+  static bool classof(const MemRegion *R) {
+    return R->getKind() == CodeSpaceRegionKind;
+  }
+};
+
 class GlobalsSpaceRegion : public MemSpaceRegion {
   virtual void anchor();
 protected:
@@ -222,7 +236,7 @@ protected:
 public:
   static bool classof(const MemRegion *R) {
     Kind k = R->getKind();
-    return k >= BEG_GLOBAL_MEMSPACES && k <= END_GLOBAL_MEMSPACES;
+    return k >= BEGIN_GLOBAL_MEMSPACES && k <= END_GLOBAL_MEMSPACES;
   }
 };
 
@@ -258,17 +272,15 @@ public:
 /// RegionStoreManager::invalidateRegions (instead of finding all the dependent
 /// globals, we invalidate the whole parent region).
 class NonStaticGlobalSpaceRegion : public GlobalsSpaceRegion {
-  friend class MemRegionManager;
-  
 protected:
   NonStaticGlobalSpaceRegion(MemRegionManager *mgr, Kind k)
     : GlobalsSpaceRegion(mgr, k) {}
-  
+
 public:
 
   static bool classof(const MemRegion *R) {
     Kind k = R->getKind();
-    return k >= BEG_NON_STATIC_GLOBAL_MEMSPACES &&
+    return k >= BEGIN_NON_STATIC_GLOBAL_MEMSPACES &&
            k <= END_NON_STATIC_GLOBAL_MEMSPACES;
   }
 };
@@ -356,7 +368,7 @@ public:
     return R->getKind() == UnknownSpaceRegionKind;
   }
 };
-  
+
 class StackSpaceRegion : public MemSpaceRegion {
 private:
   const StackFrameContext *SFC;
@@ -367,18 +379,18 @@ protected:
     assert(classof(this));
   }
 
-public:  
+public:
   const StackFrameContext *getStackFrame() const { return SFC; }
-  
+
   void Profile(llvm::FoldingSetNodeID &ID) const override;
 
   static bool classof(const MemRegion *R) {
     Kind k = R->getKind();
     return k >= StackLocalsSpaceRegionKind &&
            k <= StackArgumentsSpaceRegionKind;
-  }  
+  }
 };
-  
+
 class StackLocalsSpaceRegion : public StackSpaceRegion {
   virtual void anchor();
   friend class MemRegionManager;
@@ -490,7 +502,7 @@ public:
 
   static bool classof(const MemRegion* R) {
     unsigned k = R->getKind();
-    return k >= BEG_TYPED_REGIONS && k <= END_TYPED_REGIONS;
+    return k >= BEGIN_TYPED_REGIONS && k <= END_TYPED_REGIONS;
   }
 };
 
@@ -522,7 +534,7 @@ public:
 
   static bool classof(const MemRegion* R) {
     unsigned k = R->getKind();
-    return k >= BEG_TYPED_VALUE_REGIONS && k <= END_TYPED_VALUE_REGIONS;
+    return k >= BEGIN_TYPED_VALUE_REGIONS && k <= END_TYPED_VALUE_REGIONS;
   }
 };
 
@@ -537,16 +549,16 @@ public:
 
   static bool classof(const MemRegion* R) {
     Kind k = R->getKind();
-    return k >= FunctionTextRegionKind && k <= BlockTextRegionKind;
+    return k >= FunctionCodeRegionKind && k <= BlockCodeRegionKind;
   }
 };
 
-/// FunctionTextRegion - A region that represents code texts of function.
-class FunctionTextRegion : public CodeTextRegion {
+/// FunctionCodeRegion - A region that represents code texts of function.
+class FunctionCodeRegion : public CodeTextRegion {
   const NamedDecl *FD;
 public:
-  FunctionTextRegion(const NamedDecl *fd, const MemRegion* sreg)
-    : CodeTextRegion(sreg, FunctionTextRegionKind), FD(fd) {
+  FunctionCodeRegion(const NamedDecl *fd, const MemRegion* sreg)
+    : CodeTextRegion(sreg, FunctionCodeRegionKind), FD(fd) {
     assert(isa<ObjCMethodDecl>(fd) || isa<FunctionDecl>(fd));
   }
 
@@ -576,27 +588,27 @@ public:
                             const MemRegion*);
   
   static bool classof(const MemRegion* R) {
-    return R->getKind() == FunctionTextRegionKind;
+    return R->getKind() == FunctionCodeRegionKind;
   }
 };
   
   
-/// BlockTextRegion - A region that represents code texts of blocks (closures).
-///  Blocks are represented with two kinds of regions.  BlockTextRegions
+/// BlockCodeRegion - A region that represents code texts of blocks (closures).
+///  Blocks are represented with two kinds of regions.  BlockCodeRegions
 ///  represent the "code", while BlockDataRegions represent instances of blocks,
 ///  which correspond to "code+data".  The distinction is important, because
 ///  like a closure a block captures the values of externally referenced
 ///  variables.
-class BlockTextRegion : public CodeTextRegion {
+class BlockCodeRegion : public CodeTextRegion {
   friend class MemRegionManager;
 
   const BlockDecl *BD;
   AnalysisDeclContext *AC;
   CanQualType locTy;
 
-  BlockTextRegion(const BlockDecl *bd, CanQualType lTy,
+  BlockCodeRegion(const BlockDecl *bd, CanQualType lTy,
                   AnalysisDeclContext *ac, const MemRegion* sreg)
-    : CodeTextRegion(sreg, BlockTextRegionKind), BD(bd), AC(ac), locTy(lTy) {}
+    : CodeTextRegion(sreg, BlockCodeRegionKind), BD(bd), AC(ac), locTy(lTy) {}
 
 public:
   QualType getLocationType() const override {
@@ -618,32 +630,32 @@ public:
                             const MemRegion*);
   
   static bool classof(const MemRegion* R) {
-    return R->getKind() == BlockTextRegionKind;
+    return R->getKind() == BlockCodeRegionKind;
   }
 };
   
 /// BlockDataRegion - A region that represents a block instance.
-///  Blocks are represented with two kinds of regions.  BlockTextRegions
+///  Blocks are represented with two kinds of regions.  BlockCodeRegions
 ///  represent the "code", while BlockDataRegions represent instances of blocks,
 ///  which correspond to "code+data".  The distinction is important, because
 ///  like a closure a block captures the values of externally referenced
 ///  variables.
 class BlockDataRegion : public TypedRegion {
   friend class MemRegionManager;
-  const BlockTextRegion *BC;
+  const BlockCodeRegion *BC;
   const LocationContext *LC; // Can be null */
   unsigned BlockCount;
   void *ReferencedVars;
   void *OriginalVars;
 
-  BlockDataRegion(const BlockTextRegion *bc, const LocationContext *lc,
+  BlockDataRegion(const BlockCodeRegion *bc, const LocationContext *lc,
                   unsigned count, const MemRegion *sreg)
   : TypedRegion(sreg, BlockDataRegionKind), BC(bc), LC(lc),
      BlockCount(count),
     ReferencedVars(nullptr), OriginalVars(nullptr) {}
 
 public:
-  const BlockTextRegion *getCodeRegion() const { return BC; }
+  const BlockCodeRegion *getCodeRegion() const { return BC; }
   
   const BlockDecl *getDecl() const { return BC->getDecl(); }
 
@@ -690,7 +702,7 @@ public:
 
   void Profile(llvm::FoldingSetNodeID& ID) const override;
 
-  static void ProfileRegion(llvm::FoldingSetNodeID&, const BlockTextRegion *,
+  static void ProfileRegion(llvm::FoldingSetNodeID&, const BlockCodeRegion *,
                             const LocationContext *, unsigned,
                             const MemRegion *);
     
@@ -855,7 +867,7 @@ public:
 
   static bool classof(const MemRegion* R) {
     unsigned k = R->getKind();
-    return k >= BEG_DECL_REGIONS && k <= END_DECL_REGIONS;
+    return k >= BEGIN_DECL_REGIONS && k <= END_DECL_REGIONS;
   }
 };
 
@@ -1137,7 +1149,7 @@ class MemRegionManager {
 
   HeapSpaceRegion *heap;
   UnknownSpaceRegion *unknown;
-  MemSpaceRegion *code;
+  CodeSpaceRegion *code;
 
 public:
   MemRegionManager(ASTContext &c, llvm::BumpPtrAllocator &a)
@@ -1173,9 +1185,9 @@ public:
 
   /// getUnknownRegion - Retrieve the memory region associated with unknown
   /// memory space.
-  const MemSpaceRegion *getUnknownRegion();
+  const UnknownSpaceRegion *getUnknownRegion();
 
-  const MemSpaceRegion *getCodeRegion();
+  const CodeSpaceRegion *getCodeRegion();
 
   /// getAllocaRegion - Retrieve a region associated with a call to alloca().
   const AllocaRegion *getAllocaRegion(const Expr *Ex, unsigned Cnt,
@@ -1261,8 +1273,8 @@ public:
                                   baseReg->isVirtual());
   }
 
-  const FunctionTextRegion *getFunctionTextRegion(const NamedDecl *FD);
-  const BlockTextRegion *getBlockTextRegion(const BlockDecl *BD,
+  const FunctionCodeRegion *getFunctionCodeRegion(const NamedDecl *FD);
+  const BlockCodeRegion *getBlockCodeRegion(const BlockDecl *BD,
                                             CanQualType locTy,
                                             AnalysisDeclContext *AC);
   
@@ -1270,7 +1282,7 @@ public:
   ///  of a block.  Unlike many other MemRegions, the LocationContext*
   ///  argument is allowed to be NULL for cases where we have no known
   ///  context.
-  const BlockDataRegion *getBlockDataRegion(const BlockTextRegion *bc,
+  const BlockDataRegion *getBlockDataRegion(const BlockCodeRegion *bc,
                                             const LocationContext *lc,
                                             unsigned blockCount);
 
@@ -1333,7 +1345,12 @@ public:
     /// Tells that a region's contents is not changed.
     TK_PreserveContents = 0x1,
     /// Suppress pointer-escaping of a region.
-    TK_SuppressEscape = 0x2
+    TK_SuppressEscape = 0x2,
+    // Do not invalidate super region.
+    TK_DoNotInvalidateSuperRegion = 0x4,
+    /// When applied to a MemSpaceRegion, indicates the entire memory space
+    /// should be invalidated.
+    TK_EntireMemSpace = 0x8
 
     // Do not forget to extend StorageTypeForKinds if number of traits exceed 
     // the number of bits StorageTypeForKinds can store.
