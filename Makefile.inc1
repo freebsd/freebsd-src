@@ -1651,13 +1651,12 @@ _kerberos5_bootstrap_tools= \
 .ORDER: ${_kerberos5_bootstrap_tools:C/^/${_bt}-/g}
 .endif
 
-.if ${MK_MANDOCDB} != "no"
+# r283777 makewhatis(1) replaced with mandoc version which builds a database.
+.if ${MK_MANDOCDB} != "no" && ${BOOTSTRAPPING} < 1100075
 _libopenbsd?=	lib/libopenbsd
 _makewhatis=	lib/libsqlite3 \
 		usr.bin/mandoc
 ${_bt}-usr.bin/mandoc: ${_bt}-lib/libopenbsd ${_bt}-lib/libsqlite3
-.else
-_makewhatis=usr.bin/makewhatis
 .endif
 
 bootstrap-tools: .PHONY
