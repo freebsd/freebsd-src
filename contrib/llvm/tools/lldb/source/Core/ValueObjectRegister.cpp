@@ -15,7 +15,7 @@
 // Other libraries and framework includes
 // Project includes
 #include "lldb/Core/Module.h"
-#include "lldb/Symbol/ClangASTType.h"
+#include "lldb/Symbol/CompilerType.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/TypeList.h"
 #include "lldb/Target/ExecutionContext.h"
@@ -42,10 +42,10 @@ ValueObjectRegisterContext::~ValueObjectRegisterContext()
 {
 }
 
-ClangASTType
-ValueObjectRegisterContext::GetClangTypeImpl ()
+CompilerType
+ValueObjectRegisterContext::GetCompilerTypeImpl ()
 {
-    return ClangASTType();
+    return CompilerType();
 }
 
 ConstString
@@ -67,9 +67,10 @@ ValueObjectRegisterContext::GetQualifiedTypeName()
 }
 
 size_t
-ValueObjectRegisterContext::CalculateNumChildren()
+ValueObjectRegisterContext::CalculateNumChildren(uint32_t max)
 {
-    return m_reg_ctx_sp->GetRegisterSetCount();
+    auto reg_set_count = m_reg_ctx_sp->GetRegisterSetCount();
+    return reg_set_count <= max ? reg_set_count : max;
 }
 
 uint64_t
@@ -144,10 +145,10 @@ ValueObjectRegisterSet::~ValueObjectRegisterSet()
 {
 }
 
-ClangASTType
-ValueObjectRegisterSet::GetClangTypeImpl ()
+CompilerType
+ValueObjectRegisterSet::GetCompilerTypeImpl ()
 {
-    return ClangASTType();
+    return CompilerType();
 }
 
 ConstString
@@ -163,11 +164,14 @@ ValueObjectRegisterSet::GetQualifiedTypeName()
 }
 
 size_t
-ValueObjectRegisterSet::CalculateNumChildren()
+ValueObjectRegisterSet::CalculateNumChildren(uint32_t max)
 {
     const RegisterSet *reg_set = m_reg_ctx_sp->GetRegisterSet(m_reg_set_idx);
     if (reg_set)
-        return reg_set->num_registers;
+    {
+        auto reg_count = reg_set->num_registers;
+        return reg_count <= max ? reg_count : max;
+    }
     return 0;
 }
 
@@ -279,7 +283,7 @@ ValueObjectRegister::ValueObjectRegister (ValueObject &parent, lldb::RegisterCon
     m_reg_info (),
     m_reg_value (),
     m_type_name (),
-    m_clang_type ()
+    m_compiler_type ()
 {
     assert (reg_ctx_sp.get());
     ConstructObject(reg_num);
@@ -297,7 +301,7 @@ ValueObjectRegister::ValueObjectRegister (ExecutionContextScope *exe_scope, lldb
     m_reg_info (),
     m_reg_value (),
     m_type_name (),
-    m_clang_type ()
+    m_compiler_type ()
 {
     assert (reg_ctx);
     ConstructObject(reg_num);
@@ -307,10 +311,10 @@ ValueObjectRegister::~ValueObjectRegister()
 {
 }
 
-ClangASTType
-ValueObjectRegister::GetClangTypeImpl ()
+CompilerType
+ValueObjectRegister::GetCompilerTypeImpl ()
 {
-    if (!m_clang_type.IsValid())
+    if (!m_compiler_type.IsValid())
     {
         ExecutionContext exe_ctx (GetExecutionContextRef());
         Target *target = exe_ctx.GetTargetPtr();
@@ -319,26 +323,29 @@ ValueObjectRegister::GetClangTypeImpl ()
             Module *exe_module = target->GetExecutableModulePointer();
             if (exe_module)
             {
-                m_clang_type = exe_module->GetClangASTContext().GetBuiltinTypeForEncodingAndBitSize (m_reg_info.encoding, 
-                                                                                                     m_reg_info.byte_size * 8);
+                TypeSystem *type_system = exe_module->GetTypeSystemForLanguage (eLanguageTypeC);
+                if (type_system)
+                    m_compiler_type = type_system->GetBuiltinTypeForEncodingAndBitSize (m_reg_info.encoding,
+                                                                                     m_reg_info.byte_size * 8);
             }
         }
     }
-    return m_clang_type;
+    return m_compiler_type;
 }
 
 ConstString
 ValueObjectRegister::GetTypeName()
 {
     if (m_type_name.IsEmpty())
-        m_type_name = GetClangType().GetConstTypeName ();
+        m_type_name = GetCompilerType().GetConstTypeName ();
     return m_type_name;
 }
 
 size_t
-ValueObjectRegister::CalculateNumChildren()
+ValueObjectRegister::CalculateNumChildren(uint32_t max)
 {
-    return GetClangType().GetNumChildren(true);
+    auto children_count = GetCompilerType().GetNumChildren (true);
+    return children_count <= max ? children_count : max;
 }
 
 uint64_t

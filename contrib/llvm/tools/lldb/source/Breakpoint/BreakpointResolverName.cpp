@@ -7,22 +7,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/Breakpoint/BreakpointResolverName.h"
-
 // C Includes
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
+#include "lldb/Breakpoint/BreakpointResolverName.h"
+
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/StreamString.h"
-#include "lldb/Symbol/ClangNamespaceDecl.h"
 #include "lldb/Symbol/Block.h"
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/Symbol.h"
 #include "lldb/Symbol/SymbolContext.h"
-#include "lldb/Target/ObjCLanguageRuntime.h"
+#include "Plugins/Language/ObjC/ObjCLanguage.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -30,15 +29,16 @@ using namespace lldb_private;
 BreakpointResolverName::BreakpointResolverName (Breakpoint *bkpt,
                                                 const char *name_cstr,
                                                 uint32_t name_type_mask,
+                                                LanguageType language,
                                                 Breakpoint::MatchType type,
                                                 bool skip_prologue) :
     BreakpointResolver (bkpt, BreakpointResolver::NameResolver),
     m_class_name (),
     m_regex (),
     m_match_type (type),
+    m_language (language),
     m_skip_prologue (skip_prologue)
 {
-    
     if (m_match_type == Breakpoint::Regexp)
     {
         if (!m_regex.Compile (name_cstr))
@@ -59,9 +59,11 @@ BreakpointResolverName::BreakpointResolverName (Breakpoint *bkpt,
                                                 const char *names[],
                                                 size_t num_names,
                                                 uint32_t name_type_mask,
+                                                LanguageType language,
                                                 bool skip_prologue) :
     BreakpointResolver (bkpt, BreakpointResolver::NameResolver),
     m_match_type (Breakpoint::Exact),
+    m_language (language),
     m_skip_prologue (skip_prologue)
 {
     for (size_t i = 0; i < num_names; i++)
@@ -73,9 +75,11 @@ BreakpointResolverName::BreakpointResolverName (Breakpoint *bkpt,
 BreakpointResolverName::BreakpointResolverName (Breakpoint *bkpt,
                                                 std::vector<std::string> names,
                                                 uint32_t name_type_mask,
+                                                LanguageType language,
                                                 bool skip_prologue) :
     BreakpointResolver (bkpt, BreakpointResolver::NameResolver),
     m_match_type (Breakpoint::Exact),
+    m_language (language),
     m_skip_prologue (skip_prologue)
 {
     for (const std::string& name : names)
@@ -86,27 +90,27 @@ BreakpointResolverName::BreakpointResolverName (Breakpoint *bkpt,
 
 BreakpointResolverName::BreakpointResolverName (Breakpoint *bkpt,
                                                 RegularExpression &func_regex,
+                                                lldb::LanguageType language,
                                                 bool skip_prologue) :
     BreakpointResolver (bkpt, BreakpointResolver::NameResolver),
-    m_class_name (NULL),
+    m_class_name (nullptr),
     m_regex (func_regex),
     m_match_type (Breakpoint::Regexp),
+    m_language (language),
     m_skip_prologue (skip_prologue)
 {
 }
 
-BreakpointResolverName::BreakpointResolverName
-(
-    Breakpoint *bkpt,
-    const char *class_name,
-    const char *method,
-    Breakpoint::MatchType type,
-    bool skip_prologue
-) :
+BreakpointResolverName::BreakpointResolverName(Breakpoint *bkpt,
+                                               const char *class_name,
+                                               const char *method,
+                                               Breakpoint::MatchType type,
+                                               bool skip_prologue ) :
     BreakpointResolver (bkpt, BreakpointResolver::NameResolver),
     m_class_name (class_name),
     m_regex (),
     m_match_type (type),
+    m_language (eLanguageTypeUnknown),
     m_skip_prologue (skip_prologue)
 {
     LookupInfo lookup;
@@ -117,9 +121,7 @@ BreakpointResolverName::BreakpointResolverName
     m_lookups.push_back (lookup);
 }
 
-BreakpointResolverName::~BreakpointResolverName ()
-{
-}
+BreakpointResolverName::~BreakpointResolverName() = default;
 
 BreakpointResolverName::BreakpointResolverName(const BreakpointResolverName &rhs) :
     BreakpointResolver(rhs.m_breakpoint, BreakpointResolver::NameResolver),
@@ -127,15 +129,15 @@ BreakpointResolverName::BreakpointResolverName(const BreakpointResolverName &rhs
     m_class_name(rhs.m_class_name),
     m_regex(rhs.m_regex),
     m_match_type (rhs.m_match_type),
+    m_language (rhs.m_language),
     m_skip_prologue (rhs.m_skip_prologue)
 {
-
 }
 
 void
 BreakpointResolverName::AddNameLookup (const ConstString &name, uint32_t name_type_mask)
 {
-    ObjCLanguageRuntime::MethodName objc_method(name.GetCString(), false);
+    ObjCLanguage::MethodName objc_method(name.GetCString(), false);
     if (objc_method.IsValid(false))
     {
         std::vector<ConstString> objc_names;
@@ -154,11 +156,10 @@ BreakpointResolverName::AddNameLookup (const ConstString &name, uint32_t name_ty
     {
         LookupInfo lookup;
         lookup.name = name;
-        Module::PrepareForFunctionNameLookup(lookup.name, name_type_mask, lookup.lookup_name, lookup.name_type_mask, lookup.match_name_after_lookup);
+        Module::PrepareForFunctionNameLookup(lookup.name, name_type_mask, m_language, lookup.lookup_name, lookup.name_type_mask, lookup.match_name_after_lookup);
         m_lookups.push_back (lookup);
     }
 }
-
 
 void
 BreakpointResolverName::LookupInfo::Prune (SymbolContextList &sc_list, size_t start_idx) const
@@ -172,7 +173,7 @@ BreakpointResolverName::LookupInfo::Prune (SymbolContextList &sc_list, size_t st
             if (!sc_list.GetContextAtIndex(i, sc))
                 break;
             ConstString full_name (sc.GetFunctionName());
-            if (full_name && ::strstr(full_name.GetCString(), name.GetCString()) == NULL)
+            if (full_name && ::strstr(full_name.GetCString(), name.GetCString()) == nullptr)
             {
                 sc_list.RemoveContextAtIndex(i);
             }
@@ -184,19 +185,15 @@ BreakpointResolverName::LookupInfo::Prune (SymbolContextList &sc_list, size_t st
     }
 }
 
-
 // FIXME: Right now we look at the module level, and call the module's "FindFunctions".
 // Greg says he will add function tables, maybe at the CompileUnit level to accelerate function
 // lookup.  At that point, we should switch the depth to CompileUnit, and look in these tables.
 
 Searcher::CallbackReturn
-BreakpointResolverName::SearchCallback
-(
-    SearchFilter &filter,
-    SymbolContext &context,
-    Address *addr,
-    bool containing
-)
+BreakpointResolverName::SearchCallback(SearchFilter &filter,
+                                       SymbolContext &context,
+                                       Address *addr,
+                                       bool containing)
 {
     SymbolContextList func_list;
     //SymbolContextList sym_list;
@@ -204,7 +201,7 @@ BreakpointResolverName::SearchCallback
     uint32_t i;
     bool new_location;
     Address break_addr;
-    assert (m_breakpoint != NULL);
+    assert (m_breakpoint != nullptr);
     
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_BREAKPOINTS));
     
@@ -215,7 +212,8 @@ BreakpointResolverName::SearchCallback
         return Searcher::eCallbackReturnStop;
     }
     bool filter_by_cu = (filter.GetFilterRequiredItems() & eSymbolContextCompUnit) != 0;
-    const bool include_symbols = filter_by_cu == false;
+    bool filter_by_language = (m_language != eLanguageTypeUnknown);
+    const bool include_symbols = !filter_by_cu;
     const bool include_inlines = true;
     const bool append = true;
 
@@ -227,13 +225,13 @@ BreakpointResolverName::SearchCallback
                 for (const LookupInfo &lookup : m_lookups)
                 {
                     const size_t start_func_idx = func_list.GetSize();
-                    context.module_sp->FindFunctions (lookup.lookup_name,
-                                                      NULL,
-                                                      lookup.name_type_mask,
-                                                      include_symbols,
-                                                      include_inlines,
-                                                      append,
-                                                      func_list);
+                    context.module_sp->FindFunctions(lookup.lookup_name,
+                                                     nullptr,
+                                                     lookup.name_type_mask,
+                                                     include_symbols,
+                                                     include_inlines,
+                                                     append,
+                                                     func_list);
                     const size_t end_func_idx = func_list.GetSize();
 
                     if (start_func_idx < end_func_idx)
@@ -258,15 +256,33 @@ BreakpointResolverName::SearchCallback
     }
 
     // If the filter specifies a Compilation Unit, remove the ones that don't pass at this point.
-    if (filter_by_cu)
+    if (filter_by_cu || filter_by_language)
     {
         uint32_t num_functions = func_list.GetSize();
         
         for (size_t idx = 0; idx < num_functions; idx++)
         {
+            bool remove_it = false;
             SymbolContext sc;
             func_list.GetContextAtIndex(idx, sc);
-            if (!sc.comp_unit || !filter.CompUnitPasses(*sc.comp_unit))
+            if (filter_by_cu)
+            {
+                if (!sc.comp_unit || !filter.CompUnitPasses(*sc.comp_unit))
+                    remove_it = true;
+            }
+            
+            if (filter_by_language)
+            {
+                LanguageType sym_language = sc.GetLanguage();
+                if ((Language::GetPrimaryLanguage(sym_language) !=
+                     Language::GetPrimaryLanguage(m_language)) &&
+                    (sym_language != eLanguageTypeUnknown))
+                {
+                    remove_it = true;
+                }
+            }
+            
+            if  (remove_it)
             {
                 func_list.RemoveContextAtIndex(idx);
                 num_functions--;
@@ -374,12 +390,15 @@ BreakpointResolverName::GetDescription (Stream *s)
             s->Printf ("'%s'}", m_lookups[num_names - 1].name.GetCString());
         }
     }
+    if (m_language != eLanguageTypeUnknown)
+    {
+        s->Printf (", language = %s", Language::GetNameForLanguageType(m_language));
+    }
 }
 
 void
 BreakpointResolverName::Dump (Stream *s) const
 {
-
 }
 
 lldb::BreakpointResolverSP

@@ -190,17 +190,15 @@ module LLVM_Utils {
     // Exclude this; it's fundamentally non-modular.
     exclude header "Support/PluginLoader.h"
 
-    // Exclude this; it's a weirdly-factored part of llvm-gcov and conflicts
-    // with the Analysis module (which also defines an llvm::GCOVOptions).
-    exclude header "Support/GCOV.h"
-
     // FIXME: Mislayered?
     exclude header "Support/TargetRegistry.h"
 
     // These are intended for textual inclusion.
+    textual header "Support/ARMTargetParser.def"
     textual header "Support/Dwarf.def"
     textual header "Support/ELFRelocs/AArch64.def"
     textual header "Support/ELFRelocs/ARM.def"
+    textual header "Support/ELFRelocs/AVR.def"
     textual header "Support/ELFRelocs/Hexagon.def"
     textual header "Support/ELFRelocs/i386.def"
     textual header "Support/ELFRelocs/Mips.def"
@@ -209,6 +207,13 @@ module LLVM_Utils {
     textual header "Support/ELFRelocs/Sparc.def"
     textual header "Support/ELFRelocs/SystemZ.def"
     textual header "Support/ELFRelocs/x86_64.def"
+    textual header "Support/ELFRelocs/WebAssembly.def"
+  }
+
+  // This part of the module is usable from both C and C++ code.
+  module ConvertUTF {
+    header "Support/ConvertUTF.h"
+    export *
   }
 }
 

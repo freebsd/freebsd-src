@@ -23,7 +23,7 @@ using namespace clang;
 using namespace ento;
 
 namespace {
-class ReturnPointerRangeChecker : 
+class ReturnPointerRangeChecker :
     public Checker< check::PreStmt<ReturnStmt> > {
   mutable std::unique_ptr<BuiltinBug> BT;
 
@@ -39,7 +39,7 @@ void ReturnPointerRangeChecker::checkPreStmt(const ReturnStmt *RS,
   const Expr *RetE = RS->getRetValue();
   if (!RetE)
     return;
- 
+
   SVal V = state->getSVal(RetE, C.getLocationContext());
   const MemRegion *R = V.getAsRegion();
 
@@ -62,11 +62,11 @@ void ReturnPointerRangeChecker::checkPreStmt(const ReturnStmt *RS,
   ProgramStateRef StInBound = state->assumeInBound(Idx, NumElements, true);
   ProgramStateRef StOutBound = state->assumeInBound(Idx, NumElements, false);
   if (StOutBound && !StInBound) {
-    ExplodedNode *N = C.generateSink(StOutBound);
+    ExplodedNode *N = C.generateErrorNode(StOutBound);
 
     if (!N)
       return;
-  
+
     // FIXME: This bug correspond to CWE-466.  Eventually we should have bug
     // types explicitly reference such exploit categories (when applicable).
     if (!BT)

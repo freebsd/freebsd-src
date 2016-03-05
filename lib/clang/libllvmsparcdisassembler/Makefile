@@ -8,7 +8,9 @@ SRCDIR=	lib/Target/Sparc/Disassembler
 INCDIR=	lib/Target/Sparc
 SRCS=	SparcDisassembler.cpp
 
-TGHDRS=	SparcGenDisassemblerTables \
+TGHDRS=	Attributes \
+	Intrinsics \
+	SparcGenDisassemblerTables \
 	SparcGenInstrInfo \
 	SparcGenRegisterInfo \
 	SparcGenSubtargetInfo

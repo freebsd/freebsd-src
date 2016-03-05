@@ -43,20 +43,20 @@ class CMICmdCmdGdbShow : public CMICmdBase
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdGdbShow(void);
+    /* ctor */ CMICmdCmdGdbShow();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdGdbShow(void) override;
+    /* dtor */ ~CMICmdCmdGdbShow() override;
 
     // Typedefs:
   private:
@@ -74,8 +74,7 @@ class CMICmdCmdGdbShow : public CMICmdBase
     // Attributes:
   private:
     const static MapGdbOptionNameToFnGdbOptionPtr_t ms_mapGdbOptionNameToFnGdbOptionPtr;
-    //
-    const CMIUtilString m_constStrArgNamedThreadGrp;
+
     const CMIUtilString m_constStrArgNamedGdbOption;
     bool m_bGdbOptionRecognised;   // True = This command has a function with a name that matches the Print argument, false = not found
     bool m_bGdbOptionFnSuccessful; // True = The print function completed its task ok, false = function failed for some reason

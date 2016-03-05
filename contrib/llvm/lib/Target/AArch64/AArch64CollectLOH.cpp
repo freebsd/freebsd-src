@@ -168,6 +168,8 @@ namespace llvm {
 void initializeAArch64CollectLOHPass(PassRegistry &);
 }
 
+#define AARCH64_COLLECT_LOH_NAME "AArch64 Collect Linker Optimization Hint (LOH)"
+
 namespace {
 struct AArch64CollectLOH : public MachineFunctionPass {
   static char ID;
@@ -178,7 +180,7 @@ struct AArch64CollectLOH : public MachineFunctionPass {
   bool runOnMachineFunction(MachineFunction &MF) override;
 
   const char *getPassName() const override {
-    return "AArch64 Collect Linker Optimization Hint (LOH)";
+    return AARCH64_COLLECT_LOH_NAME;
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
@@ -220,12 +222,10 @@ typedef SmallVector<unsigned, 32> MapIdToReg;
 char AArch64CollectLOH::ID = 0;
 
 INITIALIZE_PASS_BEGIN(AArch64CollectLOH, "aarch64-collect-loh",
-                      "AArch64 Collect Linker Optimization Hint (LOH)", false,
-                      false)
+                      AARCH64_COLLECT_LOH_NAME, false, false)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
 INITIALIZE_PASS_END(AArch64CollectLOH, "aarch64-collect-loh",
-                    "AArch64 Collect Linker Optimization Hint (LOH)", false,
-                    false)
+                    AARCH64_COLLECT_LOH_NAME, false, false)
 
 /// Given a couple (MBB, reg) get the corresponding set of instruction from
 /// the given "sets".
@@ -353,9 +353,17 @@ static void initReachingDef(const MachineFunction &MF,
 
         for (MCRegAliasIterator AI(CurReg, TRI, true); AI.isValid(); ++AI) {
           MapRegToId::const_iterator ItRegId = RegToId.find(*AI);
-          assert(ItRegId != RegToId.end() &&
-                 "Sub-register of an "
-                 "involved register, not recorded as involved!");
+          // If this alias has not been recorded, then it is not interesting
+          // for the current analysis.
+          // We can end up in this situation because of tuple registers.
+          // E.g., Let say we are interested in S1. When we register
+          // S1, we will also register its aliases and in particular
+          // the tuple Q1_Q2.
+          // Now, when we encounter Q1_Q2, we will look through its aliases
+          // and will find that S2 is not registered.
+          if (ItRegId == RegToId.end())
+            continue;
+
           BBKillSet.set(ItRegId->second);
           BBGen[ItRegId->second] = &MI;
         }
@@ -523,6 +531,8 @@ static bool isCandidateStore(const MachineInstr *Instr) {
   switch (Instr->getOpcode()) {
   default:
     return false;
+  case AArch64::STRBBui:
+  case AArch64::STRHHui:
   case AArch64::STRBui:
   case AArch64::STRHui:
   case AArch64::STRWui:
@@ -884,7 +894,8 @@ static void computeOthers(const InstrToInstrs &UseToDefs,
     bool IsL2Add = (ImmediateDefOpc == AArch64::ADDXri);
     // If the chain is three instructions long and ldr is the second element,
     // then this ldr must load form GOT, otherwise this is not a correct chain.
-    if (L2 && !IsL2Add && L2->getOperand(2).getTargetFlags() != AArch64II::MO_GOT)
+    if (L2 && !IsL2Add &&
+        !(L2->getOperand(2).getTargetFlags() & AArch64II::MO_GOT))
       continue;
     SmallVector<const MachineInstr *, 3> Args;
     MCLOHType Kind;
@@ -1000,7 +1011,8 @@ static void collectInvolvedReg(const MachineFunction &MF, MapRegToId &RegToId,
   DEBUG(dbgs() << "** Collect Involved Register\n");
   for (const auto &MBB : MF) {
     for (const MachineInstr &MI : MBB) {
-      if (!canDefBePartOfLOH(&MI))
+      if (!canDefBePartOfLOH(&MI) &&
+          !isCandidateLoad(&MI) && !isCandidateStore(&MI))
         continue;
 
       // Process defs

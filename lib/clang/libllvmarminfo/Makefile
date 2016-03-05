@@ -10,6 +10,7 @@ SRCS=	ARMTargetInfo.cpp
 
 TGHDRS=	ARMGenInstrInfo \
 	ARMGenRegisterInfo \
-	ARMGenSubtargetInfo
+	ARMGenSubtargetInfo \
+	Attributes
 
 .include "../clang.lib.mk"

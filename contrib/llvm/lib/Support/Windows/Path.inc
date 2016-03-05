@@ -38,6 +38,7 @@ typedef int errno_t;
 
 #ifdef _MSC_VER
 # pragma comment(lib, "advapi32.lib")  // This provides CryptAcquireContextW.
+# pragma comment(lib, "ole32.lib")     // This provides CoTaskMemFree
 #endif
 
 using namespace llvm;
@@ -182,7 +183,8 @@ std::error_code current_path(SmallVectorImpl<char> &result) {
   return UTF16ToUTF8(cur_path.begin(), cur_path.size(), result);
 }
 
-std::error_code create_directory(const Twine &path, bool IgnoreExisting) {
+std::error_code create_directory(const Twine &path, bool IgnoreExisting,
+                                 perms Perms) {
   SmallVector<wchar_t, 128> path_utf16;
 
   if (std::error_code ec = widenPath(path, path_utf16))
@@ -252,17 +254,34 @@ std::error_code rename(const Twine &from, const Twine &to) {
     return ec;
 
   std::error_code ec = std::error_code();
+
+  // Retry while we see ERROR_ACCESS_DENIED.
+  // System scanners (eg. indexer) might open the source file when it is written
+  // and closed.
+
   for (int i = 0; i < 2000; i++) {
+    // Try ReplaceFile first, as it is able to associate a new data stream with
+    // the destination even if the destination file is currently open.
+    if (::ReplaceFileW(wide_to.begin(), wide_from.begin(), NULL, 0, NULL, NULL))
+      return std::error_code();
+
+    // We get ERROR_FILE_NOT_FOUND if the destination file is missing.
+    // MoveFileEx can handle this case.
+    DWORD ReplaceError = ::GetLastError();
+    ec = mapWindowsError(ReplaceError);
+    if (ReplaceError != ERROR_ACCESS_DENIED &&
+        ReplaceError != ERROR_FILE_NOT_FOUND &&
+        ReplaceError != ERROR_SHARING_VIOLATION)
+      break;
+
     if (::MoveFileExW(wide_from.begin(), wide_to.begin(),
                       MOVEFILE_COPY_ALLOWED | MOVEFILE_REPLACE_EXISTING))
       return std::error_code();
-    DWORD LastError = ::GetLastError();
-    ec = mapWindowsError(LastError);
-    if (LastError != ERROR_ACCESS_DENIED)
-      break;
-    // Retry MoveFile() at ACCESS_DENIED.
-    // System scanners (eg. indexer) might open the source file when
-    // It is written and closed.
+
+    DWORD MoveError = ::GetLastError();
+    ec = mapWindowsError(MoveError);
+    if (MoveError != ERROR_ACCESS_DENIED) break;
+
     ::Sleep(1);
   }
 
@@ -301,6 +320,11 @@ std::error_code access(const Twine &Path, AccessMode Mode) {
   return std::error_code();
 }
 
+bool can_execute(const Twine &Path) {
+  return !access(Path, AccessMode::Execute) ||
+         !access(Path + ".exe", AccessMode::Execute);
+}
+
 bool equivalent(file_status A, file_status B) {
   assert(status_known(A) && status_known(B));
   return A.FileIndexHigh      == B.FileIndexHigh &&
@@ -325,10 +349,12 @@ std::error_code equivalent(const Twine &A, const Twine &B, bool &result) {
 static bool isReservedName(StringRef path) {
   // This list of reserved names comes from MSDN, at:
   // http://msdn.microsoft.com/en-us/library/aa365247%28v=vs.85%29.aspx
-  static const char *sReservedNames[] = { "nul", "con", "prn", "aux",
-                              "com1", "com2", "com3", "com4", "com5", "com6",
-                              "com7", "com8", "com9", "lpt1", "lpt2", "lpt3",
-                              "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9" };
+  static const char *const sReservedNames[] = { "nul", "con", "prn", "aux",
+                                                "com1", "com2", "com3", "com4",
+                                                "com5", "com6", "com7", "com8",
+                                                "com9", "lpt1", "lpt2", "lpt3",
+                                                "lpt4", "lpt5", "lpt6", "lpt7",
+                                                "lpt8", "lpt9" };
 
   // First, check to see if this is a device namespace, which always
   // starts with \\.\, since device namespaces are not legal file paths.
@@ -643,9 +669,10 @@ std::error_code openFileForRead(const Twine &Name, int &ResultFD) {
   if (std::error_code EC = widenPath(Name, PathUTF16))
     return EC;
 
-  HANDLE H = ::CreateFileW(PathUTF16.begin(), GENERIC_READ,
-                           FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+  HANDLE H =
+      ::CreateFileW(PathUTF16.begin(), GENERIC_READ,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                    NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
   if (H == INVALID_HANDLE_VALUE) {
     DWORD LastError = ::GetLastError();
     std::error_code EC = mapWindowsError(LastError);
@@ -728,30 +755,31 @@ std::error_code openFileForWrite(const Twine &Name, int &ResultFD,
 } // end namespace fs
 
 namespace path {
-
-bool home_directory(SmallVectorImpl<char> &result) {
-  wchar_t Path[MAX_PATH];
-  if (::SHGetFolderPathW(0, CSIDL_APPDATA | CSIDL_FLAG_CREATE, 0,
-                         /*SHGFP_TYPE_CURRENT*/0, Path) != S_OK)
+static bool getKnownFolderPath(KNOWNFOLDERID folderId,
+                               SmallVectorImpl<char> &result) {
+  wchar_t *path = nullptr;
+  if (::SHGetKnownFolderPath(folderId, KF_FLAG_CREATE, nullptr, &path) != S_OK)
     return false;
 
-  if (UTF16ToUTF8(Path, ::wcslen(Path), result))
-    return false;
-
-  return true;
+  bool ok = !UTF16ToUTF8(path, ::wcslen(path), result);
+  ::CoTaskMemFree(path);
+  return ok;
 }
 
-static bool getTempDirEnvVar(const char *Var, SmallVectorImpl<char> &Res) {
-  SmallVector<wchar_t, 128> NameUTF16;
-  if (windows::UTF8ToUTF16(Var, NameUTF16))
-    return false;
+bool getUserCacheDir(SmallVectorImpl<char> &Result) {
+  return getKnownFolderPath(FOLDERID_LocalAppData, Result);
+}
 
+bool home_directory(SmallVectorImpl<char> &result) {
+  return getKnownFolderPath(FOLDERID_Profile, result);
+}
+
+static bool getTempDirEnvVar(const wchar_t *Var, SmallVectorImpl<char> &Res) {
   SmallVector<wchar_t, 1024> Buf;
   size_t Size = 1024;
   do {
     Buf.reserve(Size);
-    Size =
-        GetEnvironmentVariableW(NameUTF16.data(), Buf.data(), Buf.capacity());
+    Size = GetEnvironmentVariableW(Var, Buf.data(), Buf.capacity());
     if (Size == 0)
       return false;
 
@@ -759,14 +787,12 @@ static bool getTempDirEnvVar(const char *Var, SmallVectorImpl<char> &Res) {
   } while (Size > Buf.capacity());
   Buf.set_size(Size);
 
-  if (windows::UTF16ToUTF8(Buf.data(), Size, Res))
-    return false;
-  return true;
+  return !windows::UTF16ToUTF8(Buf.data(), Size, Res);
 }
 
 static bool getTempDirEnvVar(SmallVectorImpl<char> &Res) {
-  const char *EnvironmentVariables[] = {"TMP", "TEMP", "USERPROFILE"};
-  for (const char *Env : EnvironmentVariables) {
+  const wchar_t *EnvironmentVariables[] = {L"TMP", L"TEMP", L"USERPROFILE"};
+  for (auto *Env : EnvironmentVariables) {
     if (getTempDirEnvVar(Env, Res))
       return true;
   }
@@ -777,13 +803,19 @@ void system_temp_directory(bool ErasedOnReboot, SmallVectorImpl<char> &Result) {
   (void)ErasedOnReboot;
   Result.clear();
 
-  // Check whether the temporary directory is specified by an environment
-  // variable.
-  if (getTempDirEnvVar(Result))
+  // Check whether the temporary directory is specified by an environment var.
+  // This matches GetTempPath logic to some degree. GetTempPath is not used
+  // directly as it cannot handle evn var longer than 130 chars on Windows 7
+  // (fixed on Windows 8).
+  if (getTempDirEnvVar(Result)) {
+    assert(!Result.empty() && "Unexpected empty path");
+    native(Result); // Some Unix-like shells use Unix path separator in $TMP.
+    fs::make_absolute(Result); // Make it absolute if not already.
     return;
+  }
 
   // Fall back to a system default.
-  const char *DefaultResult = "C:\\TEMP";
+  const char *DefaultResult = "C:\\Temp";
   Result.append(DefaultResult, DefaultResult + strlen(DefaultResult));
 }
 } // end namespace path

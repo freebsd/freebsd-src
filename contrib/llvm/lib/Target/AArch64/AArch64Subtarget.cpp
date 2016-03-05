@@ -31,6 +31,11 @@ static cl::opt<bool>
 EnableEarlyIfConvert("aarch64-early-ifcvt", cl::desc("Enable the early if "
                      "converter pass"), cl::init(true), cl::Hidden);
 
+// If OS supports TBI, use this flag to enable it.
+static cl::opt<bool>
+UseAddressTopByteIgnored("aarch64-use-tbi", cl::desc("Assume that top byte of "
+                         "an address is ignored"), cl::init(false), cl::Hidden);
+
 AArch64Subtarget &
 AArch64Subtarget::initializeSubtargetDependencies(StringRef FS) {
   // Determine default and user-specified characteristics
@@ -46,9 +51,11 @@ AArch64Subtarget::AArch64Subtarget(const Triple &TT, const std::string &CPU,
                                    const std::string &FS,
                                    const TargetMachine &TM, bool LittleEndian)
     : AArch64GenSubtargetInfo(TT, CPU, FS), ARMProcFamily(Others),
-      HasV8_1aOps(false), HasFPARMv8(false), HasNEON(false), HasCrypto(false),
-      HasCRC(false), HasZeroCycleRegMove(false), HasZeroCycleZeroing(false),
-      IsLittle(LittleEndian), CPUString(CPU), TargetTriple(TT), FrameLowering(),
+      HasV8_1aOps(false), HasV8_2aOps(false), HasFPARMv8(false), HasNEON(false),
+      HasCrypto(false), HasCRC(false), HasPerfMon(false), HasFullFP16(false),
+      HasZeroCycleRegMove(false), HasZeroCycleZeroing(false),
+      StrictAlign(false), ReserveX18(TT.isOSDarwin()), IsLittle(LittleEndian),
+      CPUString(CPU), TargetTriple(TT), FrameLowering(),
       InstrInfo(initializeSubtargetDependencies(FS)), TSInfo(),
       TLInfo(TM, *this) {}
 
@@ -113,10 +120,28 @@ void AArch64Subtarget::overrideSchedPolicy(MachineSchedPolicy &Policy,
   // bi-directional scheduling. 253.perlbmk.
   Policy.OnlyTopDown = false;
   Policy.OnlyBottomUp = false;
+  // Enabling or Disabling the latency heuristic is a close call: It seems to
+  // help nearly no benchmark on out-of-order architectures, on the other hand
+  // it regresses register pressure on a few benchmarking.
+  if (isCyclone())
+    Policy.DisableLatencyHeuristic = true;
 }
 
 bool AArch64Subtarget::enableEarlyIfConversion() const {
   return EnableEarlyIfConvert;
+}
+
+bool AArch64Subtarget::supportsAddressTopByteIgnored() const {
+  if (!UseAddressTopByteIgnored)
+    return false;
+
+  if (TargetTriple.isiOS()) {
+    unsigned Major, Minor, Micro;
+    TargetTriple.getiOSVersion(Major, Minor, Micro);
+    return Major >= 8;
+  }
+
+  return false;
 }
 
 std::unique_ptr<PBQPRAConstraint>

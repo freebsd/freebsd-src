@@ -373,6 +373,10 @@ def OP_QDMLSLHi_LN : Op<(call "vqdmlsl", $p0, (call "vget_high", $p1),
                                               (splat $p2, $p3))>;
 def OP_QDMULH_LN : Op<(call "vqdmulh", $p0, (splat $p1, $p2))>;
 def OP_QRDMULH_LN : Op<(call "vqrdmulh", $p0, (splat $p1, $p2))>;
+def OP_QRDMLAH : Op<(call "vqadd", $p0, (call "vqrdmulh", $p1, $p2))>;
+def OP_QRDMLSH : Op<(call "vqsub", $p0, (call "vqrdmulh", $p1, $p2))>;
+def OP_QRDMLAH_LN : Op<(call "vqadd", $p0, (call "vqrdmulh", $p1, (splat $p2, $p3)))>;
+def OP_QRDMLSH_LN : Op<(call "vqsub", $p0, (call "vqrdmulh", $p1, (splat $p2, $p3)))>;
 def OP_FMS_LN   : Op<(call "vfma_lane", $p0, $p1, (op "-", $p2), $p3)>;
 def OP_FMS_LNQ  : Op<(call "vfma_laneq", $p0, $p1, (op "-", $p2), $p3)>;
 def OP_TRN1     : Op<(shuffle $p0, $p1, (interleave (decimate mask0, 2),
@@ -414,7 +418,7 @@ def OP_XTN      : Op<(call "vcombine", $p0, (call "vmovn", $p1))>;
 def OP_SQXTUN   : Op<(call "vcombine", (cast $p0, "U", $p0),
                                        (call "vqmovun", $p1))>;
 def OP_QXTN     : Op<(call "vcombine", $p0, (call "vqmovn", $p1))>;
-def OP_VCVT_NA_HI_F16 : Op<(call "vcombine", $p0, (call "vcvt_f16", $p1))>;
+def OP_VCVT_NA_HI_F16 : Op<(call "vcombine", $p0, (call "vcvt_f16_f32", $p1))>;
 def OP_VCVT_NA_HI_F32 : Op<(call "vcombine", $p0, (call "vcvt_f32_f64", $p1))>;
 def OP_VCVT_EX_HI_F32 : Op<(call "vcvt_f32_f16", (call "vget_high", $p0))>;
 def OP_VCVT_EX_HI_F64 : Op<(call "vcvt_f64_f32", (call "vget_high", $p0))>;
@@ -473,6 +477,11 @@ def OP_SCALAR_QDMULL_LN : ScalarMulOp<"vqdmull">;
 def OP_SCALAR_QDMULH_LN : ScalarMulOp<"vqdmulh">;
 def OP_SCALAR_QRDMULH_LN : ScalarMulOp<"vqrdmulh">;
 
+def OP_SCALAR_QRDMLAH_LN : Op<(call "vqadd", $p0, (call "vqrdmulh", $p1,
+                              (call "vget_lane", $p2, $p3)))>;
+def OP_SCALAR_QRDMLSH_LN : Op<(call "vqsub", $p0, (call "vqrdmulh", $p1,
+                              (call "vget_lane", $p2, $p3)))>;
+
 def OP_SCALAR_HALF_GET_LN : Op<(bitcast "float16_t",
                                    (call "vget_lane",
                                          (bitcast "int16x4_t", $p0), $p1))>;
@@ -514,6 +523,12 @@ def VMLS     : IOpInst<"vmls", "dddd", "csifUcUsUiQcQsQiQfQUcQUsQUi", OP_MLS>;
 def VMLSL    : SOpInst<"vmlsl", "wwdd", "csiUcUsUi", OP_MLSL>;
 def VQDMULH  : SInst<"vqdmulh", "ddd", "siQsQi">;
 def VQRDMULH : SInst<"vqrdmulh", "ddd", "siQsQi">;
+
+let ArchGuard = "defined(__ARM_FEATURE_QRDMX)" in {
+def VQRDMLAH : SOpInst<"vqrdmlah", "dddd", "siQsQi", OP_QRDMLAH>;
+def VQRDMLSH : SOpInst<"vqrdmlsh", "dddd", "siQsQi", OP_QRDMLSH>;
+}
+
 def VQDMLAL  : SInst<"vqdmlal", "wwdd", "si">;
 def VQDMLSL  : SInst<"vqdmlsl", "wwdd", "si">;
 def VMULL    : SInst<"vmull", "wdd", "csiUcUsUiPc">;
@@ -687,16 +702,19 @@ def VGET_LOW  : NoTestOpInst<"vget_low", "dk", "csilhfUcUsUiUlPcPs", OP_LO>;
 
 ////////////////////////////////////////////////////////////////////////////////
 // E.3.22 Converting vectors
+
+def VCVT_F16_F32 : SInst<"vcvt_f16_f32", "md", "Hf">;
+def VCVT_F32_F16 : SInst<"vcvt_f32_f16", "wd", "h">;
+
 def VCVT_S32     : SInst<"vcvt_s32", "xd",  "fQf">;
 def VCVT_U32     : SInst<"vcvt_u32", "ud",  "fQf">;
-def VCVT_F16     : SInst<"vcvt_f16", "hk",  "f">;
 def VCVT_F32     : SInst<"vcvt_f32", "fd",  "iUiQiQUi">;
-def VCVT_F32_F16 : SInst<"vcvt_f32_f16", "fd",  "h">;
 let isVCVT_N = 1 in {
 def VCVT_N_S32   : SInst<"vcvt_n_s32", "xdi", "fQf">;
 def VCVT_N_U32   : SInst<"vcvt_n_u32", "udi", "fQf">;
 def VCVT_N_F32   : SInst<"vcvt_n_f32", "fdi", "iUiQiQUi">;
 }
+
 def VMOVN        : IInst<"vmovn", "hk",  "silUsUiUl">;
 def VMOVL        : SInst<"vmovl", "wd",  "csiUcUsUi">;
 def VQMOVN       : SInst<"vqmovn", "hk",  "silUsUiUl">;
@@ -738,6 +756,12 @@ def VQDMULH_N     : SInst<"vqdmulh_n", "dda", "siQsQi">;
 def VQDMULH_LANE  : SOpInst<"vqdmulh_lane", "ddgi", "siQsQi", OP_QDMULH_LN>;
 def VQRDMULH_N    : SInst<"vqrdmulh_n", "dda", "siQsQi">;
 def VQRDMULH_LANE : SOpInst<"vqrdmulh_lane", "ddgi", "siQsQi", OP_QRDMULH_LN>;
+
+let ArchGuard = "defined(__ARM_FEATURE_QRDMX)" in {
+def VQRDMLAH_LANE : SOpInst<"vqrdmlah_lane", "dddgi", "siQsQi", OP_QRDMLAH_LN>;
+def VQRDMLSH_LANE : SOpInst<"vqrdmlsh_lane", "dddgi", "siQsQi", OP_QRDMLSH_LN>;
+}
+
 def VMLA_N        : IOpInst<"vmla_n", "ddda", "siUsUifQsQiQUsQUiQf", OP_MLA_N>;
 def VMLAL_N       : SOpInst<"vmlal_n", "wwda", "siUsUi", OP_MLAL_N>;
 def VQDMLAL_N     : SInst<"vqdmlal_n", "wwda", "si">;
@@ -923,6 +947,9 @@ def USQADD : SInst<"vsqadd", "ddd", "UcUsUiUlQUcQUsQUiQUl">;
 // Reciprocal/Sqrt
 def FRECPS  : IInst<"vrecps", "ddd", "dQd">;
 def FRSQRTS : IInst<"vrsqrts", "ddd", "dQd">;
+def FRECPE  : SInst<"vrecpe", "dd", "dQd">;
+def FRSQRTE : SInst<"vrsqrte", "dd", "dQd">;
+def FSQRT   : SInst<"vsqrt", "dd", "fdQfQd">;
 
 ////////////////////////////////////////////////////////////////////////////////
 // bitwise reverse
@@ -942,20 +969,21 @@ def QXTN2 : SOpInst<"vqmovn_high", "qhk", "silUsUiUl", OP_QXTN>;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Converting vectors
-def VCVT_HIGH_F16 : SOpInst<"vcvt_high_f16", "qhj", "f", OP_VCVT_NA_HI_F16>;
-def VCVT_HIGH_F32_F16 : SOpInst<"vcvt_high_f32", "wk", "h", OP_VCVT_EX_HI_F32>;
+
 def VCVT_F32_F64 : SInst<"vcvt_f32_f64", "md", "Qd">;
-def VCVT_HIGH_F32_F64 : SOpInst<"vcvt_high_f32", "qfj", "d", OP_VCVT_NA_HI_F32>;
 def VCVT_F64_F32 : SInst<"vcvt_f64_f32", "wd", "f">;
-def VCVT_F64 : SInst<"vcvt_f64", "Fd",  "lUlQlQUl">;
-def VCVT_HIGH_F64_F32 : SOpInst<"vcvt_high_f64", "wj", "f", OP_VCVT_EX_HI_F64>;
-def VCVTX_F32_F64 : SInst<"vcvtx_f32", "fj",  "d">;
-def VCVTX_HIGH_F32_F64 : SOpInst<"vcvtx_high_f32", "qfj", "d", OP_VCVTX_HI>;
+
 def VCVT_S64 : SInst<"vcvt_s64", "xd",  "dQd">;
 def VCVT_U64 : SInst<"vcvt_u64", "ud",  "dQd">;
-def FRECPE  : SInst<"vrecpe", "dd", "dQd">;
-def FRSQRTE : SInst<"vrsqrte", "dd", "dQd">;
-def FSQRT   : SInst<"vsqrt", "dd", "fdQfQd">;
+def VCVT_F64 : SInst<"vcvt_f64", "Fd",  "lUlQlQUl">;
+
+def VCVT_HIGH_F16_F32 : SOpInst<"vcvt_high_f16", "hmj", "Hf", OP_VCVT_NA_HI_F16>;
+def VCVT_HIGH_F32_F16 : SOpInst<"vcvt_high_f32", "wk", "h", OP_VCVT_EX_HI_F32>;
+def VCVT_HIGH_F32_F64 : SOpInst<"vcvt_high_f32", "qfj", "d", OP_VCVT_NA_HI_F32>;
+def VCVT_HIGH_F64_F32 : SOpInst<"vcvt_high_f64", "wj", "f", OP_VCVT_EX_HI_F64>;
+
+def VCVTX_F32_F64      : SInst<"vcvtx_f32", "fj",  "d">;
+def VCVTX_HIGH_F32_F64 : SOpInst<"vcvtx_high_f32", "qfj", "d", OP_VCVTX_HI>;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Comparison
@@ -1152,6 +1180,11 @@ def VQDMULL_HIGH_LANEQ  : SOpInst<"vqdmull_high_laneq", "wkki", "si",
 
 def VQDMULH_LANEQ  : SOpInst<"vqdmulh_laneq", "ddji", "siQsQi", OP_QDMULH_LN>;
 def VQRDMULH_LANEQ : SOpInst<"vqrdmulh_laneq", "ddji", "siQsQi", OP_QRDMULH_LN>;
+
+let ArchGuard = "defined(__ARM_FEATURE_QRDMX) && defined(__aarch64__)" in {
+def VQRDMLAH_LANEQ : SOpInst<"vqrdmlah_laneq", "dddji", "siQsQi", OP_QRDMLAH_LN>;
+def VQRDMLSH_LANEQ : SOpInst<"vqrdmlsh_laneq", "dddji", "siQsQi", OP_QRDMLSH_LN>;
+}
 
 // Note: d type implemented by SCALAR_VMULX_LANE
 def VMULX_LANE : IOpInst<"vmulx_lane", "ddgi", "fQfQd", OP_MULX_LN>;
@@ -1398,6 +1431,16 @@ def SCALAR_SQDMULH : SInst<"vqdmulh", "sss", "SsSi">;
 // Scalar Integer Saturating Rounding Doubling Multiply Half High
 def SCALAR_SQRDMULH : SInst<"vqrdmulh", "sss", "SsSi">;
 
+let ArchGuard = "defined(__ARM_FEATURE_QRDMX) && defined(__aarch64__)" in {
+////////////////////////////////////////////////////////////////////////////////
+// Signed Saturating Rounding Doubling Multiply Accumulate Returning High Half
+def SCALAR_SQRDMLAH : SOpInst<"vqrdmlah", "ssss", "SsSi", OP_QRDMLAH>;
+
+////////////////////////////////////////////////////////////////////////////////
+// Signed Saturating Rounding Doubling Multiply Subtract Returning High Half
+def SCALAR_SQRDMLSH : SOpInst<"vqrdmlsh", "ssss", "SsSi", OP_QRDMLSH>;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Scalar Floating-point Multiply Extended
 def SCALAR_FMULX : IInst<"vmulx", "sss", "SfSd">;
@@ -1598,6 +1641,16 @@ def SCALAR_SQDMULH_LANEQ : SOpInst<"vqdmulh_laneq", "ssji", "SsSi", OP_SCALAR_QD
 // Scalar Integer Saturating Rounding Doubling Multiply Half High
 def SCALAR_SQRDMULH_LANE : SOpInst<"vqrdmulh_lane", "ssdi", "SsSi", OP_SCALAR_QRDMULH_LN>;
 def SCALAR_SQRDMULH_LANEQ : SOpInst<"vqrdmulh_laneq", "ssji", "SsSi", OP_SCALAR_QRDMULH_LN>;
+
+let ArchGuard = "defined(__ARM_FEATURE_QRDMX) && defined(__aarch64__)" in {
+// Signed Saturating Rounding Doubling Multiply Accumulate Returning High Half
+def SCALAR_SQRDMLAH_LANE : SOpInst<"vqrdmlah_lane", "sssdi", "SsSi", OP_SCALAR_QRDMLAH_LN>;
+def SCALAR_SQRDMLAH_LANEQ : SOpInst<"vqrdmlah_laneq", "sssji", "SsSi", OP_SCALAR_QRDMLAH_LN>;
+
+// Signed Saturating Rounding Doubling Multiply Subtract Returning High Half
+def SCALAR_SQRDMLSH_LANE : SOpInst<"vqrdmlsh_lane", "sssdi", "SsSi", OP_SCALAR_QRDMLSH_LN>;
+def SCALAR_SQRDMLSH_LANEQ : SOpInst<"vqrdmlsh_laneq", "sssji", "SsSi", OP_SCALAR_QRDMLSH_LN>;
+}
 
 def SCALAR_VDUP_LANE : IInst<"vdup_lane", "sdi", "ScSsSiSlSfSdSUcSUsSUiSUlSPcSPs">;
 def SCALAR_VDUP_LANEQ : IInst<"vdup_laneq", "sji", "ScSsSiSlSfSdSUcSUsSUiSUlSPcSPs">;

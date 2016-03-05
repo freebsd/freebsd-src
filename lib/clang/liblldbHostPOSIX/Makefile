@@ -6,6 +6,7 @@ LIB=	lldbHostPOSIX
 
 SRCDIR=	tools/lldb/source/Host/posix
 SRCS=	ConnectionFileDescriptorPosix.cpp \
+	DomainSocket.cpp \
 	FileSystem.cpp \
 	HostInfoPosix.cpp \
 	HostProcessPosix.cpp \

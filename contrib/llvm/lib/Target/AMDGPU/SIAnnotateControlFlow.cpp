@@ -312,11 +312,10 @@ void SIAnnotateControlFlow::closeControlFlow(BasicBlock *BB) {
       if (std::find(Latches.begin(), Latches.end(), *PI) == Latches.end())
         Preds.push_back(*PI);
     }
-    BB = llvm::SplitBlockPredecessors(BB, Preds, "endcf.split", nullptr, DT,
-                                      LI, false);
+    BB = llvm::SplitBlockPredecessors(BB, Preds, "endcf.split", DT, LI, false);
   }
 
-  CallInst::Create(EndCf, popSaved(), "", BB->getFirstInsertionPt());
+  CallInst::Create(EndCf, popSaved(), "", &*BB->getFirstInsertionPt());
 }
 
 /// \brief Annotate the control flow with intrinsics so the backend can

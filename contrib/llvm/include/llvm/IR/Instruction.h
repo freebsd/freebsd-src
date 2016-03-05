@@ -30,25 +30,11 @@ class BasicBlock;
 struct AAMDNodes;
 
 template <>
-struct ilist_traits<Instruction>
-    : public SymbolTableListTraits<Instruction, BasicBlock> {
+struct SymbolTableListSentinelTraits<Instruction>
+    : public ilist_half_embedded_sentinel_traits<Instruction> {};
 
-  /// \brief Return a node that marks the end of a list.
-  ///
-  /// The sentinel is relative to this instance, so we use a non-static
-  /// method.
-  Instruction *createSentinel() const;
-  static void destroySentinel(Instruction *) {}
-
-  Instruction *provideInitialHead() const { return createSentinel(); }
-  Instruction *ensureHead(Instruction *) const { return createSentinel(); }
-  static void noteHead(Instruction *, Instruction *) {}
-
-private:
-  mutable ilist_half_node<Instruction> Sentinel;
-};
-
-class Instruction : public User, public ilist_node<Instruction> {
+class Instruction : public User,
+                    public ilist_node_with_parent<Instruction, BasicBlock> {
   void operator=(const Instruction &) = delete;
   Instruction(const Instruction &) = delete;
 
@@ -80,6 +66,13 @@ public:
   const Module *getModule() const;
   Module *getModule();
 
+  /// \brief Return the function this instruction belongs to.
+  ///
+  /// Note: it is undefined behavior to call this on an instruction not
+  /// currently inserted into a function.
+  const Function *getFunction() const;
+  Function *getFunction();
+
   /// removeFromParent - This method unlinks 'this' from the containing basic
   /// block, but does not delete it.
   ///
@@ -89,7 +82,7 @@ public:
   /// block and deletes it.
   ///
   /// \returns an iterator pointing to the element after the erased one
-  iplist<Instruction>::iterator eraseFromParent();
+  SymbolTableList<Instruction>::iterator eraseFromParent();
 
   /// Insert an unlinked instruction into a basic block immediately before
   /// the specified instruction.
@@ -116,6 +109,7 @@ public:
   bool isBinaryOp() const { return isBinaryOp(getOpcode()); }
   bool isShift() { return isShift(getOpcode()); }
   bool isCast() const { return isCast(getOpcode()); }
+  bool isFuncletPad() const { return isFuncletPad(getOpcode()); }
 
   static const char* getOpcodeName(unsigned OpCode);
 
@@ -146,6 +140,11 @@ public:
   /// @brief Determine if the OpCode is one of the CastInst instructions.
   static inline bool isCast(unsigned OpCode) {
     return OpCode >= CastOpsBegin && OpCode < CastOpsEnd;
+  }
+
+  /// @brief Determine if the OpCode is one of the FuncletPadInst instructions.
+  static inline bool isFuncletPad(unsigned OpCode) {
+    return OpCode >= FuncletPadOpsBegin && OpCode < FuncletPadOpsEnd;
   }
 
   //===--------------------------------------------------------------------===//
@@ -204,20 +203,22 @@ public:
   void setMetadata(unsigned KindID, MDNode *Node);
   void setMetadata(StringRef Kind, MDNode *Node);
 
-  /// \brief Drop unknown metadata.
+  /// Drop all unknown metadata except for debug locations.
+  /// @{
   /// Passes are required to drop metadata they don't understand. This is a
   /// convenience method for passes to do so.
-  void dropUnknownMetadata(ArrayRef<unsigned> KnownIDs);
-  void dropUnknownMetadata() {
-    return dropUnknownMetadata(None);
+  void dropUnknownNonDebugMetadata(ArrayRef<unsigned> KnownIDs);
+  void dropUnknownNonDebugMetadata() {
+    return dropUnknownNonDebugMetadata(None);
   }
-  void dropUnknownMetadata(unsigned ID1) {
-    return dropUnknownMetadata(makeArrayRef(ID1));
+  void dropUnknownNonDebugMetadata(unsigned ID1) {
+    return dropUnknownNonDebugMetadata(makeArrayRef(ID1));
   }
-  void dropUnknownMetadata(unsigned ID1, unsigned ID2) {
+  void dropUnknownNonDebugMetadata(unsigned ID1, unsigned ID2) {
     unsigned IDs[] = {ID1, ID2};
-    return dropUnknownMetadata(IDs);
+    return dropUnknownNonDebugMetadata(IDs);
   }
+  /// @}
 
   /// setAAMetadata - Sets the metadata on this instruction from the
   /// AAMDNodes structure.
@@ -388,6 +389,19 @@ public:
     return mayWriteToMemory() || mayThrow() || !mayReturn();
   }
 
+  /// \brief Return true if the instruction is a variety of EH-block.
+  bool isEHPad() const {
+    switch (getOpcode()) {
+    case Instruction::CatchSwitch:
+    case Instruction::CatchPad:
+    case Instruction::CleanupPad:
+    case Instruction::LandingPad:
+      return true;
+    default:
+      return false;
+    }
+  }
+
   /// clone() - Create a copy of 'this' instruction that is identical in all
   /// ways except the following:
   ///   * The instruction has no parent
@@ -468,6 +482,13 @@ public:
 #include "llvm/IR/Instruction.def"
   };
 
+  enum FuncletPadOps {
+#define  FIRST_FUNCLETPAD_INST(N)             FuncletPadOpsBegin = N,
+#define HANDLE_FUNCLETPAD_INST(N, OPC, CLASS) OPC = N,
+#define   LAST_FUNCLETPAD_INST(N)             FuncletPadOpsEnd = N+1
+#include "llvm/IR/Instruction.def"
+  };
+
   enum OtherOps {
 #define  FIRST_OTHER_INST(N)             OtherOpsBegin = N,
 #define HANDLE_OTHER_INST(N, OPC, CLASS) OPC = N,
@@ -489,7 +510,7 @@ private:
                          (V ? HasMetadataBit : 0));
   }
 
-  friend class SymbolTableListTraits<Instruction, BasicBlock>;
+  friend class SymbolTableListTraits<Instruction>;
   void setParent(BasicBlock *P);
 protected:
   // Instruction subclasses can stick up to 15 bits of stuff into the
@@ -514,17 +535,6 @@ private:
   /// Create a copy of this instruction.
   Instruction *cloneImpl() const;
 };
-
-inline Instruction *ilist_traits<Instruction>::createSentinel() const {
-  // Since i(p)lists always publicly derive from their corresponding traits,
-  // placing a data member in this class will augment the i(p)list.  But since
-  // the NodeTy is expected to be publicly derive from ilist_node<NodeTy>,
-  // there is a legal viable downcast from it to NodeTy. We use this trick to
-  // superimpose an i(p)list with a "ghostly" NodeTy, which becomes the
-  // sentinel. Dereferencing the sentinel is forbidden (save the
-  // ilist_node<NodeTy>), so no one will ever notice the superposition.
-  return static_cast<Instruction *>(&Sentinel);
-}
 
 // Instruction* is only 4-byte aligned.
 template<>

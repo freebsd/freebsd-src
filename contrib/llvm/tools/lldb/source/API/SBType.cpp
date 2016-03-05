@@ -13,24 +13,24 @@
 #include "lldb/API/SBStream.h"
 #include "lldb/Core/ConstString.h"
 #include "lldb/Core/Log.h"
+#include "lldb/Core/Mangled.h"
 #include "lldb/Core/Stream.h"
-#include "lldb/Symbol/ClangASTContext.h"
-#include "lldb/Symbol/ClangASTType.h"
+#include "lldb/Symbol/CompilerType.h"
 #include "lldb/Symbol/Type.h"
+#include "lldb/Symbol/TypeSystem.h"
 
-#include "clang/AST/Decl.h"
+#include "llvm/ADT/APSInt.h"
 
 using namespace lldb;
 using namespace lldb_private;
-using namespace clang;
 
 SBType::SBType() :
     m_opaque_sp()
 {
 }
 
-SBType::SBType (const ClangASTType &type) :
-    m_opaque_sp(new TypeImpl(ClangASTType(type.GetASTContext(),
+SBType::SBType (const CompilerType &type) :
+    m_opaque_sp(new TypeImpl(CompilerType(type.GetTypeSystem(),
                                           type.GetOpaqueQualType())))
 {
 }
@@ -143,7 +143,7 @@ SBType::GetByteSize()
     if (!IsValid())
         return 0;
     
-    return m_opaque_sp->GetClangASTType(false).GetByteSize(nullptr);
+    return m_opaque_sp->GetCompilerType(false).GetByteSize(nullptr);
     
 }
 
@@ -152,7 +152,7 @@ SBType::IsPointerType()
 {
     if (!IsValid())
         return false;
-    return m_opaque_sp->GetClangASTType(true).IsPointerType();
+    return m_opaque_sp->GetCompilerType(true).IsPointerType();
 }
 
 bool
@@ -160,7 +160,7 @@ SBType::IsArrayType()
 {
     if (!IsValid())
         return false;
-    return m_opaque_sp->GetClangASTType(true).IsArrayType(nullptr, nullptr, nullptr);
+    return m_opaque_sp->GetCompilerType(true).IsArrayType(nullptr, nullptr, nullptr);
 }
 
 bool
@@ -168,7 +168,7 @@ SBType::IsVectorType()
 {
     if (!IsValid())
         return false;
-    return m_opaque_sp->GetClangASTType(true).IsVectorType(nullptr, nullptr);
+    return m_opaque_sp->GetCompilerType(true).IsVectorType(nullptr, nullptr);
 }
 
 bool
@@ -176,7 +176,7 @@ SBType::IsReferenceType()
 {
     if (!IsValid())
         return false;
-    return m_opaque_sp->GetClangASTType(true).IsReferenceType();
+    return m_opaque_sp->GetCompilerType(true).IsReferenceType();
 }
 
 SBType
@@ -225,7 +225,7 @@ SBType::GetArrayElementType()
 {
     if (!IsValid())
         return SBType();
-    return SBType(TypeImplSP(new TypeImpl(m_opaque_sp->GetClangASTType(true).GetArrayElementType())));
+    return SBType(TypeImplSP(new TypeImpl(m_opaque_sp->GetCompilerType(true).GetArrayElementType())));
 }
 
 SBType
@@ -234,8 +234,8 @@ SBType::GetVectorElementType ()
     SBType type_sb;
     if (IsValid())
     {
-        ClangASTType vector_element_type;
-        if (m_opaque_sp->GetClangASTType(true).IsVectorType(&vector_element_type, nullptr))
+        CompilerType vector_element_type;
+        if (m_opaque_sp->GetCompilerType(true).IsVectorType(&vector_element_type, nullptr))
             type_sb.SetSP(TypeImplSP(new TypeImpl(vector_element_type)));
     }
     return type_sb;
@@ -246,7 +246,7 @@ SBType::IsFunctionType ()
 {
     if (!IsValid())
         return false;
-    return m_opaque_sp->GetClangASTType(true).IsFunctionType();
+    return m_opaque_sp->GetCompilerType(true).IsFunctionType();
 }
 
 bool
@@ -254,7 +254,7 @@ SBType::IsPolymorphicClass ()
 {
     if (!IsValid())
         return false;
-    return m_opaque_sp->GetClangASTType(true).IsPolymorphicClass();
+    return m_opaque_sp->GetCompilerType(true).IsPolymorphicClass();
 }
 
 bool
@@ -262,7 +262,15 @@ SBType::IsTypedefType ()
 {
     if (!IsValid())
         return false;
-    return m_opaque_sp->GetClangASTType(true).IsTypedefType();
+    return m_opaque_sp->GetCompilerType(true).IsTypedefType();
+}
+
+bool
+SBType::IsAnonymousType ()
+{
+    if (!IsValid())
+        return false;
+    return m_opaque_sp->GetCompilerType(true).IsAnonymousType();
 }
 
 lldb::SBType
@@ -270,9 +278,9 @@ SBType::GetFunctionReturnType ()
 {
     if (IsValid())
     {
-        ClangASTType return_clang_type (m_opaque_sp->GetClangASTType(true).GetFunctionReturnType());
-        if (return_clang_type.IsValid())
-            return SBType(return_clang_type);
+        CompilerType return_type (m_opaque_sp->GetCompilerType(true).GetFunctionReturnType());
+        if (return_type.IsValid())
+            return SBType(return_type);
     }
     return lldb::SBType();
 }
@@ -283,7 +291,7 @@ SBType::GetFunctionArgumentTypes ()
     SBTypeList sb_type_list;
     if (IsValid())
     {
-        ClangASTType func_type(m_opaque_sp->GetClangASTType(true));
+        CompilerType func_type(m_opaque_sp->GetCompilerType(true));
         size_t count = func_type.GetNumberOfFunctionArguments();
         for (size_t i = 0;
              i < count;
@@ -300,7 +308,7 @@ SBType::GetNumberOfMemberFunctions ()
 {
     if (IsValid())
     {
-        return m_opaque_sp->GetClangASTType(true).GetNumMemberFunctions();
+        return m_opaque_sp->GetCompilerType(true).GetNumMemberFunctions();
     }
     return 0;
 }
@@ -310,7 +318,7 @@ SBType::GetMemberFunctionAtIndex (uint32_t idx)
 {
     SBTypeMemberFunction sb_func_type;
     if (IsValid())
-        sb_func_type.reset(new TypeMemberFunctionImpl(m_opaque_sp->GetClangASTType(true).GetMemberFunctionAtIndex(idx)));
+        sb_func_type.reset(new TypeMemberFunctionImpl(m_opaque_sp->GetCompilerType(true).GetMemberFunctionAtIndex(idx)));
     return sb_func_type;
 }
 
@@ -335,15 +343,15 @@ lldb::BasicType
 SBType::GetBasicType()
 {
     if (IsValid())
-        return m_opaque_sp->GetClangASTType(false).GetBasicTypeEnumeration ();
+        return m_opaque_sp->GetCompilerType(false).GetBasicTypeEnumeration ();
     return eBasicTypeInvalid;
 }
 
 SBType
 SBType::GetBasicType(lldb::BasicType basic_type)
 {
-    if (IsValid())
-        return SBType (ClangASTContext::GetBasicType (m_opaque_sp->GetClangASTContext(false), basic_type));
+    if (IsValid() && m_opaque_sp->IsValid())
+        return SBType(m_opaque_sp->GetTypeSystem(false)->GetBasicTypeFromAST(basic_type));
     return SBType();
 }
 
@@ -351,7 +359,7 @@ uint32_t
 SBType::GetNumberOfDirectBaseClasses ()
 {
     if (IsValid())
-        return m_opaque_sp->GetClangASTType(true).GetNumDirectBaseClasses();
+        return m_opaque_sp->GetCompilerType(true).GetNumDirectBaseClasses();
     return 0;
 }
 
@@ -359,7 +367,7 @@ uint32_t
 SBType::GetNumberOfVirtualBaseClasses ()
 {
     if (IsValid())
-        return m_opaque_sp->GetClangASTType(true).GetNumVirtualBaseClasses();
+        return m_opaque_sp->GetCompilerType(true).GetNumVirtualBaseClasses();
     return 0;
 }
 
@@ -367,7 +375,7 @@ uint32_t
 SBType::GetNumberOfFields ()
 {
     if (IsValid())
-        return m_opaque_sp->GetClangASTType(true).GetNumFields();
+        return m_opaque_sp->GetCompilerType(true).GetNumFields();
     return 0;
 }
 
@@ -394,16 +402,10 @@ SBType::GetDirectBaseClassAtIndex (uint32_t idx)
     SBTypeMember sb_type_member;
     if (IsValid())
     {
-        ClangASTType this_type (m_opaque_sp->GetClangASTType (true));
-        if (this_type.IsValid())
-        {
-            uint32_t bit_offset = 0;
-            ClangASTType base_class_type (this_type.GetDirectBaseClassAtIndex(idx, &bit_offset));
-            if (base_class_type.IsValid())
-            {
-                sb_type_member.reset (new TypeMemberImpl (TypeImplSP(new TypeImpl(base_class_type)), bit_offset));
-            }
-        }
+        uint32_t bit_offset = 0;
+        CompilerType base_class_type = m_opaque_sp->GetCompilerType (true).GetDirectBaseClassAtIndex(idx, &bit_offset);
+        if (base_class_type.IsValid())
+            sb_type_member.reset (new TypeMemberImpl (TypeImplSP(new TypeImpl(base_class_type)), bit_offset));
     }
     return sb_type_member;
 
@@ -415,16 +417,10 @@ SBType::GetVirtualBaseClassAtIndex (uint32_t idx)
     SBTypeMember sb_type_member;
     if (IsValid())
     {
-        ClangASTType this_type (m_opaque_sp->GetClangASTType (true));
-        if (this_type.IsValid())
-        {
-            uint32_t bit_offset = 0;
-            ClangASTType base_class_type (this_type.GetVirtualBaseClassAtIndex(idx, &bit_offset));
-            if (base_class_type.IsValid())
-            {
-                sb_type_member.reset (new TypeMemberImpl (TypeImplSP(new TypeImpl(base_class_type)), bit_offset));
-            }
-        }
+        uint32_t bit_offset = 0;
+        CompilerType base_class_type = m_opaque_sp->GetCompilerType (true).GetVirtualBaseClassAtIndex(idx, &bit_offset);
+        if (base_class_type.IsValid())
+            sb_type_member.reset (new TypeMemberImpl (TypeImplSP(new TypeImpl(base_class_type)), bit_offset));
     }
     return sb_type_member;
 }
@@ -435,16 +431,14 @@ SBType::GetEnumMembers ()
     SBTypeEnumMemberList sb_enum_member_list;
     if (IsValid())
     {
-        const clang::EnumDecl *enum_decl = m_opaque_sp->GetClangASTType(true).GetFullyUnqualifiedType().GetAsEnumDecl();
-        if (enum_decl)
+        CompilerType this_type (m_opaque_sp->GetCompilerType (true));
+        if (this_type.IsValid())
         {
-            clang::EnumDecl::enumerator_iterator enum_pos, enum_end_pos;
-            for (enum_pos = enum_decl->enumerator_begin(), enum_end_pos = enum_decl->enumerator_end(); enum_pos != enum_end_pos; ++enum_pos)
-            {
-                SBTypeEnumMember enum_member;
-                enum_member.reset(new TypeEnumMemberImpl(*enum_pos, ClangASTType(m_opaque_sp->GetClangASTContext(true), enum_decl->getIntegerType())));
+            this_type.ForEachEnumerator([&sb_enum_member_list] (const CompilerType &integer_type, const ConstString &name, const llvm::APSInt &value) -> bool {
+                SBTypeEnumMember enum_member (lldb::TypeEnumMemberImplSP (new TypeEnumMemberImpl(lldb::TypeImplSP(new TypeImpl(integer_type)), name, value)));
                 sb_enum_member_list.Append(enum_member);
-            }
+                return true; // Keep iterating
+            });
         }
     }
     return sb_enum_member_list;
@@ -456,14 +450,14 @@ SBType::GetFieldAtIndex (uint32_t idx)
     SBTypeMember sb_type_member;
     if (IsValid())
     {
-        ClangASTType this_type (m_opaque_sp->GetClangASTType (false));
+        CompilerType this_type (m_opaque_sp->GetCompilerType (false));
         if (this_type.IsValid())
         {
             uint64_t bit_offset = 0;
             uint32_t bitfield_bit_size = 0;
             bool is_bitfield = false;
             std::string name_sstr;
-            ClangASTType field_type (this_type.GetFieldAtIndex (idx,
+            CompilerType field_type (this_type.GetFieldAtIndex (idx,
                                                                 name_sstr,
                                                                 &bit_offset,
                                                                 &bitfield_bit_size,
@@ -489,7 +483,7 @@ SBType::IsTypeComplete()
 {
     if (!IsValid())
         return false;    
-    return m_opaque_sp->GetClangASTType(false).IsCompleteType();
+    return m_opaque_sp->GetCompilerType(false).IsCompleteType();
 }
 
 uint32_t
@@ -497,7 +491,7 @@ SBType::GetTypeFlags ()
 {
     if (!IsValid())
         return 0;
-    return m_opaque_sp->GetClangASTType(true).GetTypeInfo();
+    return m_opaque_sp->GetCompilerType(true).GetTypeInfo();
 }
 
 const char*
@@ -520,7 +514,7 @@ lldb::TypeClass
 SBType::GetTypeClass ()
 {
     if (IsValid())
-        return m_opaque_sp->GetClangASTType(true).GetTypeClass();
+        return m_opaque_sp->GetCompilerType(true).GetTypeClass();
     return lldb::eTypeClassInvalid;
 }
 
@@ -528,7 +522,7 @@ uint32_t
 SBType::GetNumberOfTemplateArguments ()
 {
     if (IsValid())
-        return m_opaque_sp->GetClangASTType(false).GetNumTemplateArguments();
+        return m_opaque_sp->GetCompilerType(false).GetNumTemplateArguments();
     return 0;
 }
 
@@ -538,7 +532,7 @@ SBType::GetTemplateArgumentType (uint32_t idx)
     if (IsValid())
     {
         TemplateArgumentKind kind = eTemplateArgumentKindNull;
-        ClangASTType template_arg_type = m_opaque_sp->GetClangASTType(false).GetTemplateArgument (idx, kind);
+        CompilerType template_arg_type = m_opaque_sp->GetCompilerType(false).GetTemplateArgument(idx, kind);
         if (template_arg_type.IsValid())
             return SBType(template_arg_type);
     }
@@ -551,7 +545,7 @@ SBType::GetTemplateArgumentKind (uint32_t idx)
 {
     TemplateArgumentKind kind = eTemplateArgumentKindNull;
     if (IsValid())
-        m_opaque_sp->GetClangASTType(false).GetTemplateArgument (idx, kind);
+        m_opaque_sp->GetCompilerType(false).GetTemplateArgument(idx, kind);
     return kind;
 }
 
@@ -790,6 +784,30 @@ SBTypeMemberFunction::GetName ()
         return m_opaque_sp->GetName().GetCString();
     return NULL;
 }
+
+const char *
+SBTypeMemberFunction::GetDemangledName ()
+{
+    if (m_opaque_sp)
+    {
+        ConstString mangled_str = m_opaque_sp->GetMangledName();
+        if (mangled_str)
+        {
+            Mangled mangled(mangled_str, true);
+            return mangled.GetDemangledName(mangled.GuessLanguage()).GetCString();
+        }
+    }
+    return NULL;
+}
+
+const char *
+SBTypeMemberFunction::GetMangledName()
+{
+    if (m_opaque_sp)
+        return m_opaque_sp->GetMangledName().GetCString();
+    return NULL;
+}
+
 
 SBType
 SBTypeMemberFunction::GetType ()

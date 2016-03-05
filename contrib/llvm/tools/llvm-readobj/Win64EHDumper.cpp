@@ -149,11 +149,8 @@ static std::error_code resolveRelocation(const Dumper::Context &Ctx,
     return EC;
   ResolvedAddress = *ResolvedAddressOrErr;
 
-  section_iterator SI = Ctx.COFF.section_begin();
-  if (std::error_code EC = Symbol.getSection(SI))
-    return EC;
-
-  ResolvedSection = Ctx.COFF.getCOFFSection(*SI);
+  ErrorOr<section_iterator> SI = Symbol.getSection();
+  ResolvedSection = Ctx.COFF.getCOFFSection(**SI);
   return std::error_code();
 }
 
@@ -257,7 +254,7 @@ void Dumper::printUnwindInfo(const Context &Ctx, const coff_section *Section,
         return;
       }
 
-      printUnwindCode(UI, ArrayRef<UnwindCode>(UCI, UCE));
+      printUnwindCode(UI, makeArrayRef(UCI, UCE));
       UCI = UCI + UsedSlots - 1;
     }
   }
@@ -284,11 +281,11 @@ void Dumper::printRuntimeFunction(const Context &Ctx,
 
   const coff_section *XData;
   uint64_t Offset;
-  if (error(resolveRelocation(Ctx, Section, SectionOffset + 8, XData, Offset)))
-    return;
+  resolveRelocation(Ctx, Section, SectionOffset + 8, XData, Offset);
 
   ArrayRef<uint8_t> Contents;
-  if (error(Ctx.COFF.getSectionContents(XData, Contents)) || Contents.empty())
+  error(Ctx.COFF.getSectionContents(XData, Contents));
+  if (Contents.empty())
     return;
 
   Offset = Offset + RF.UnwindInfoOffset;
@@ -302,15 +299,15 @@ void Dumper::printRuntimeFunction(const Context &Ctx,
 void Dumper::printData(const Context &Ctx) {
   for (const auto &Section : Ctx.COFF.sections()) {
     StringRef Name;
-    if (error(Section.getName(Name)))
-      continue;
+    Section.getName(Name);
 
     if (Name != ".pdata" && !Name.startswith(".pdata$"))
       continue;
 
     const coff_section *PData = Ctx.COFF.getCOFFSection(Section);
     ArrayRef<uint8_t> Contents;
-    if (error(Ctx.COFF.getSectionContents(PData, Contents)) || Contents.empty())
+    error(Ctx.COFF.getSectionContents(PData, Contents));
+    if (Contents.empty())
       continue;
 
     const RuntimeFunction *Entries =

@@ -441,6 +441,30 @@ class Instruction {
   string PostEncoderMethod = "";
   string DecoderMethod = "";
 
+  // Is the instruction decoder method able to completely determine if the
+  // given instruction is valid or not. If the TableGen definition of the
+  // instruction specifies bitpattern A??B where A and B are static bits, the
+  // hasCompleteDecoder flag says whether the decoder method fully handles the
+  // ?? space, i.e. if it is a final arbiter for the instruction validity.
+  // If not then the decoder attempts to continue decoding when the decoder
+  // method fails.
+  //
+  // This allows to handle situations where the encoding is not fully
+  // orthogonal. Example:
+  // * InstA with bitpattern 0b0000????,
+  // * InstB with bitpattern 0b000000?? but the associated decoder method
+  //   DecodeInstB() returns Fail when ?? is 0b00 or 0b11.
+  //
+  // The decoder tries to decode a bitpattern that matches both InstA and
+  // InstB bitpatterns first as InstB (because it is the most specific
+  // encoding). In the default case (hasCompleteDecoder = 1), when
+  // DecodeInstB() returns Fail the bitpattern gets rejected. By setting
+  // hasCompleteDecoder = 0 in InstB, the decoder is informed that
+  // DecodeInstB() is not able to determine if all possible values of ?? are
+  // valid or not. If DecodeInstB() returns Fail the decoder will attempt to
+  // decode the bitpattern as InstA too.
+  bit hasCompleteDecoder = 1;
+
   /// Target-specific flags. This becomes the TSFlags field in TargetInstrDesc.
   bits<64> TSFlags = 0;
 
@@ -595,6 +619,8 @@ class Operand<ValueType ty> : DAGOperand {
   string PrintMethod = "printOperand";
   string EncoderMethod = "";
   string DecoderMethod = "";
+  bit hasCompleteDecoder = 1;
+  string OperandNamespace = "MCOI";
   string OperandType = "OPERAND_UNKNOWN";
   dag MIOperandInfo = (ops);
 
@@ -911,8 +937,9 @@ class AsmParser {
   // written register name matcher
   bit ShouldEmitMatchRegisterName = 1;
 
-  /// Does the instruction mnemonic allow '.'
-  bit MnemonicContainsDot = 0;
+  // HasMnemonicFirst - Set to false if target instructions don't always
+  // start with a mnemonic as the first token.
+  bit HasMnemonicFirst = 1;
 }
 def DefaultAsmParser : AsmParser;
 
@@ -940,6 +967,15 @@ class AsmParserVariant {
   // register tokens as constrained registers, instead of tokens, for the
   // purposes of matching.
   string RegisterPrefix = "";
+
+  // TokenizingCharacters - Characters that are standalone tokens
+  string TokenizingCharacters = "[]*!";
+
+  // SeparatorCharacters - Characters that are not tokens
+  string SeparatorCharacters = " \t,";
+
+  // BreakCharacters - Characters that start new identifiers
+  string BreakCharacters = "";
 }
 def DefaultAsmParserVariant : AsmParserVariant;
 

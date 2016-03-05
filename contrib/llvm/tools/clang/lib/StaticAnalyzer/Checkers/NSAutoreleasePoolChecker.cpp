@@ -11,7 +11,7 @@
 //  about subpar uses of NSAutoreleasePool.  Note that while the check itself
 //  (in its current form) could be written as a flow-insensitive check, in
 //  can be potentially enhanced in the future with flow-sensitive information.
-//  It is also a good example of the CheckerVisitor interface. 
+//  It is also a good example of the CheckerVisitor interface.
 //
 //===----------------------------------------------------------------------===//
 
@@ -48,7 +48,7 @@ void NSAutoreleasePoolChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
 
   const ObjCInterfaceDecl *OD = msg.getReceiverInterface();
   if (!OD)
-    return;  
+    return;
   if (!OD->getIdentifier()->isStr("NSAutoreleasePool"))
     return;
 
@@ -62,7 +62,7 @@ void NSAutoreleasePoolChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
     BT.reset(new BugType(this, "Use -drain instead of -release",
                          "API Upgrade (Apple)"));
 
-  ExplodedNode *N = C.addTransition();
+  ExplodedNode *N = C.generateNonFatalErrorNode();
   if (!N) {
     assert(0);
     return;

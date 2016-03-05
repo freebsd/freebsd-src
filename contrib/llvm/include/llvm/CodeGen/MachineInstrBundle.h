@@ -28,7 +28,7 @@ namespace llvm {
 void finalizeBundle(MachineBasicBlock &MBB,
                     MachineBasicBlock::instr_iterator FirstMI,
                     MachineBasicBlock::instr_iterator LastMI);
-  
+
 /// finalizeBundle - Same functionality as the previous finalizeBundle except
 /// the last instruction in the bundle is not provided as an input. This is
 /// used in cases where bundles are pre-determined by marking instructions
@@ -44,23 +44,23 @@ bool finalizeBundles(MachineFunction &MF);
 /// getBundleStart - Returns the first instruction in the bundle containing MI.
 ///
 inline MachineInstr *getBundleStart(MachineInstr *MI) {
-  MachineBasicBlock::instr_iterator I = MI;
+  MachineBasicBlock::instr_iterator I(MI);
   while (I->isBundledWithPred())
     --I;
-  return I;
+  return &*I;
 }
 
 inline const MachineInstr *getBundleStart(const MachineInstr *MI) {
-  MachineBasicBlock::const_instr_iterator I = MI;
+  MachineBasicBlock::const_instr_iterator I(MI);
   while (I->isBundledWithPred())
     --I;
-  return I;
+  return &*I;
 }
 
 /// Return an iterator pointing beyond the bundle containing MI.
 inline MachineBasicBlock::instr_iterator
 getBundleEnd(MachineInstr *MI) {
-  MachineBasicBlock::instr_iterator I = MI;
+  MachineBasicBlock::instr_iterator I(MI);
   while (I->isBundledWithSucc())
     ++I;
   return ++I;
@@ -69,7 +69,7 @@ getBundleEnd(MachineInstr *MI) {
 /// Return an iterator pointing beyond the bundle containing MI.
 inline MachineBasicBlock::const_instr_iterator
 getBundleEnd(const MachineInstr *MI) {
-  MachineBasicBlock::const_instr_iterator I = MI;
+  MachineBasicBlock::const_instr_iterator I(MI);
   while (I->isBundledWithSucc())
     ++I;
   return ++I;
@@ -116,10 +116,10 @@ protected:
   ///
   explicit MachineOperandIteratorBase(MachineInstr *MI, bool WholeBundle) {
     if (WholeBundle) {
-      InstrI = getBundleStart(MI);
+      InstrI = getBundleStart(MI)->getIterator();
       InstrE = MI->getParent()->instr_end();
     } else {
-      InstrI = InstrE = MI;
+      InstrI = InstrE = MI->getIterator();
       ++InstrE;
     }
     OpI = InstrI->operands_begin();
@@ -164,27 +164,32 @@ public:
     bool Tied;
   };
 
-  /// PhysRegInfo - Information about a physical register used by a set of
+  /// Information about how a physical register Reg is used by a set of
   /// operands.
   struct PhysRegInfo {
-    /// Clobbers - Reg or an overlapping register is defined, or a regmask
-    /// clobbers Reg.
-    bool Clobbers;
+    /// There is a regmask operand indicating Reg is clobbered.
+    /// \see MachineOperand::CreateRegMask().
+    bool Clobbered;
 
-    /// Defines - Reg or a super-register is defined.
-    bool Defines;
+    /// Reg or one of its aliases is defined. The definition may only cover
+    /// parts of the register.
+    bool Defined;
+    /// Reg or a super-register is defined. The definition covers the full
+    /// register.
+    bool FullyDefined;
 
-    /// Reads - Read or a super-register is read.
-    bool Reads;
+    /// Reg or one of its aliases is read. The register may only be read
+    /// partially.
+    bool Read;
+    /// Reg or a super-register is read. The full register is read.
+    bool FullyRead;
 
-    /// ReadsOverlap - Reg or an overlapping register is read.
-    bool ReadsOverlap;
+    /// Reg is FullyDefined and all defs of reg or an overlapping register are
+    /// dead.
+    bool DeadDef;
 
-    /// DefinesDead - All defs of a Reg or a super-register are dead.
-    bool DefinesDead;
-
-    /// There is a kill of Reg or a super-register.
-    bool Kills;
+    /// There is a use operand of reg or a super-register with kill flag set.
+    bool Killed;
   };
 
   /// analyzeVirtReg - Analyze how the current instruction or bundle uses a

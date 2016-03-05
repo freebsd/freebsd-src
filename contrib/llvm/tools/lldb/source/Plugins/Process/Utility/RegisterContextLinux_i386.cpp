@@ -26,7 +26,7 @@ struct GPR
     uint32_t es;
     uint32_t fs;
     uint32_t gs;
-    uint32_t orig_ax;
+    uint32_t orig_eax;
     uint32_t eip;
     uint32_t cs;
     uint32_t eflags;
@@ -38,7 +38,8 @@ struct FPR_i386
 {
     uint16_t fctrl;         // FPU Control Word (fcw)
     uint16_t fstat;         // FPU Status Word (fsw)
-    uint16_t ftag;          // FPU Tag Word (ftw)
+    uint8_t ftag;           // FPU Tag Word (ftw)
+    uint8_t reserved_1;     // Reserved
     uint16_t fop;           // Last Instruction Opcode (fop)
     union
     {
@@ -98,6 +99,9 @@ struct UserArea
 RegisterContextLinux_i386::RegisterContextLinux_i386(const ArchSpec &target_arch) :
     RegisterInfoInterface(target_arch)
 {
+    RegisterInfo orig_ax = { "orig_eax", NULL, sizeof(((GPR*)NULL)->orig_eax), (LLVM_EXTENSION offsetof(GPR, orig_eax)), eEncodingUint, \
+              eFormatHex, { LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM }, NULL, NULL };
+    d_register_infos.push_back(orig_ax);
 }
 
 size_t
@@ -130,4 +134,10 @@ uint32_t
 RegisterContextLinux_i386::GetUserRegisterCount () const
 {
     return static_cast<uint32_t> (k_num_user_registers_i386);
+}
+
+const std::vector<lldb_private::RegisterInfo> *
+RegisterContextLinux_i386::GetDynamicRegisterInfoP() const
+{
+    return &d_register_infos;
 }

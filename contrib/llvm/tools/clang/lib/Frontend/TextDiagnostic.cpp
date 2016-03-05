@@ -777,7 +777,7 @@ void TextDiagnostic::emitDiagnosticLoc(SourceLocation Loc, PresumedLoc PLoc,
   if (PLoc.isInvalid()) {
     // At least print the file name if available:
     FileID FID = SM.getFileID(Loc);
-    if (!FID.isInvalid()) {
+    if (FID.isValid()) {
       const FileEntry* FE = SM.getFileEntryForID(FID);
       if (FE && FE->isValid()) {
         OS << FE->getName();
@@ -875,7 +875,7 @@ void TextDiagnostic::emitDiagnosticLoc(SourceLocation Loc, PresumedLoc PLoc,
 void TextDiagnostic::emitIncludeLocation(SourceLocation Loc,
                                          PresumedLoc PLoc,
                                          const SourceManager &SM) {
-  if (DiagOpts->ShowLocation)
+  if (DiagOpts->ShowLocation && PLoc.getFilename())
     OS << "In file included from " << PLoc.getFilename() << ':'
        << PLoc.getLine() << ":\n";
   else
@@ -885,11 +885,11 @@ void TextDiagnostic::emitIncludeLocation(SourceLocation Loc,
 void TextDiagnostic::emitImportLocation(SourceLocation Loc, PresumedLoc PLoc,
                                         StringRef ModuleName,
                                         const SourceManager &SM) {
-  if (DiagOpts->ShowLocation)
+  if (DiagOpts->ShowLocation && PLoc.getFilename())
     OS << "In module '" << ModuleName << "' imported from "
        << PLoc.getFilename() << ':' << PLoc.getLine() << ":\n";
   else
-    OS << "In module " << ModuleName << "':\n";
+    OS << "In module '" << ModuleName << "':\n";
 }
 
 void TextDiagnostic::emitBuildingModuleLocation(SourceLocation Loc,
@@ -1060,7 +1060,7 @@ void TextDiagnostic::emitSnippetAndCaret(
     SmallVectorImpl<CharSourceRange>& Ranges,
     ArrayRef<FixItHint> Hints,
     const SourceManager &SM) {
-  assert(!Loc.isInvalid() && "must have a valid source location here");
+  assert(Loc.isValid() && "must have a valid source location here");
   assert(Loc.isFileID() && "must have a file location here");
 
   // If caret diagnostics are enabled and we have location, we want to

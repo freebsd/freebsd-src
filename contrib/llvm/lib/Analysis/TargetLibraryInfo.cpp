@@ -52,19 +52,27 @@ static bool hasSinCosPiStret(const Triple &T) {
 /// specified target triple.  This should be carefully written so that a missing
 /// target triple gets a sane set of defaults.
 static void initialize(TargetLibraryInfoImpl &TLI, const Triple &T,
-                       const char *const *StandardNames) {
-#ifndef NDEBUG
+                       ArrayRef<const char *> StandardNames) {
   // Verify that the StandardNames array is in alphabetical order.
-  for (unsigned F = 1; F < LibFunc::NumLibFuncs; ++F) {
-    if (strcmp(StandardNames[F-1], StandardNames[F]) >= 0)
-      llvm_unreachable("TargetLibraryInfoImpl function names must be sorted");
+  assert(std::is_sorted(StandardNames.begin(), StandardNames.end(),
+                        [](const char *LHS, const char *RHS) {
+                          return strcmp(LHS, RHS) < 0;
+                        }) &&
+         "TargetLibraryInfoImpl function names must be sorted");
+
+  if (T.getArch() == Triple::r600 ||
+      T.getArch() == Triple::amdgcn) {
+    TLI.setUnavailable(LibFunc::ldexp);
+    TLI.setUnavailable(LibFunc::ldexpf);
+    TLI.setUnavailable(LibFunc::ldexpl);
   }
-#endif // !NDEBUG
 
   // There are no library implementations of mempcy and memset for AMD gpus and
   // these can be difficult to lower in the backend.
   if (T.getArch() == Triple::r600 ||
-      T.getArch() == Triple::amdgcn) {
+      T.getArch() == Triple::amdgcn ||
+      T.getArch() == Triple::wasm32 ||
+      T.getArch() == Triple::wasm64) {
     TLI.setUnavailable(LibFunc::memcpy);
     TLI.setUnavailable(LibFunc::memset);
     TLI.setUnavailable(LibFunc::memset_pattern16);
@@ -72,13 +80,14 @@ static void initialize(TargetLibraryInfoImpl &TLI, const Triple &T,
   }
 
   // memset_pattern16 is only available on iOS 3.0 and Mac OS X 10.5 and later.
+  // All versions of watchOS support it.
   if (T.isMacOSX()) {
     if (T.isMacOSXVersionLT(10, 5))
       TLI.setUnavailable(LibFunc::memset_pattern16);
   } else if (T.isiOS()) {
     if (T.isOSVersionLT(3, 0))
       TLI.setUnavailable(LibFunc::memset_pattern16);
-  } else {
+  } else if (!T.isWatchOS()) {
     TLI.setUnavailable(LibFunc::memset_pattern16);
   }
 
@@ -286,8 +295,13 @@ static void initialize(TargetLibraryInfoImpl &TLI, const Triple &T,
     }
     break;
   case Triple::IOS:
+  case Triple::TvOS:
+  case Triple::WatchOS:
     TLI.setUnavailable(LibFunc::exp10l);
-    if (T.isOSVersionLT(7, 0)) {
+    if (!T.isWatchOS() && (T.isOSVersionLT(7, 0) ||
+                           (T.isOSVersionLT(9, 0) &&
+                            (T.getArch() == Triple::x86 ||
+                             T.getArch() == Triple::x86_64)))) {
       TLI.setUnavailable(LibFunc::exp10);
       TLI.setUnavailable(LibFunc::exp10f);
     } else {
@@ -311,12 +325,14 @@ static void initialize(TargetLibraryInfoImpl &TLI, const Triple &T,
   // ffsl is available on at least Darwin, Mac OS X, iOS, FreeBSD, and
   // Linux (GLIBC):
   // http://developer.apple.com/library/mac/#documentation/Darwin/Reference/ManPages/man3/ffsl.3.html
-  // http://svn.freebsd.org/base/user/eri/pf45/head/lib/libc/string/ffsl.c
+  // http://svn.freebsd.org/base/head/lib/libc/string/ffsl.c
   // http://www.gnu.org/software/gnulib/manual/html_node/ffsl.html
   switch (T.getOS()) {
   case Triple::Darwin:
   case Triple::MacOSX:
   case Triple::IOS:
+  case Triple::TvOS:
+  case Triple::WatchOS:
   case Triple::FreeBSD:
   case Triple::Linux:
     break;
@@ -325,14 +341,29 @@ static void initialize(TargetLibraryInfoImpl &TLI, const Triple &T,
   }
 
   // ffsll is available on at least FreeBSD and Linux (GLIBC):
-  // http://svn.freebsd.org/base/user/eri/pf45/head/lib/libc/string/ffsll.c
+  // http://svn.freebsd.org/base/head/lib/libc/string/ffsll.c
   // http://www.gnu.org/software/gnulib/manual/html_node/ffsll.html
   switch (T.getOS()) {
+  case Triple::Darwin:
+  case Triple::MacOSX:
+  case Triple::IOS:
+  case Triple::TvOS:
+  case Triple::WatchOS:
   case Triple::FreeBSD:
   case Triple::Linux:
     break;
   default:
     TLI.setUnavailable(LibFunc::ffsll);
+  }
+
+  // The following functions are available on at least FreeBSD:
+  // http://svn.freebsd.org/base/head/lib/libc/string/fls.c
+  // http://svn.freebsd.org/base/head/lib/libc/string/flsl.c
+  // http://svn.freebsd.org/base/head/lib/libc/string/flsll.c
+  if (!T.isOSFreeBSD()) {
+    TLI.setUnavailable(LibFunc::fls);
+    TLI.setUnavailable(LibFunc::flsl);
+    TLI.setUnavailable(LibFunc::flsll);
   }
 
   // The following functions are available on at least Linux:

@@ -1,4 +1,4 @@
-//===-- MICmdCmdGdbInfo.h --------------------------*- C++ -*-===//
+//===-- MICmdCmdGdbInfo.h ---------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -37,29 +37,26 @@
 //          class instantiates a request info command for a matching request. The
 //          design/code of *this class then does not then become bloated. Use a
 //          lightweight version of the current MI command system.
-// Gotchas: None.
-// Authors: Illya Rudkin 05/06/2014.
-// Changes: None.
 //--
 class CMICmdCmdGdbInfo : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdGdbInfo(void);
+    /* ctor */ CMICmdCmdGdbInfo();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdGdbInfo(void) override;
+    /* dtor */ ~CMICmdCmdGdbInfo() override;
 
     // Typedefs:
   private:
@@ -69,7 +66,7 @@ class CMICmdCmdGdbInfo : public CMICmdBase
     // Methods:
   private:
     bool GetPrintFn(const CMIUtilString &vrPrintFnName, FnPrintPtr &vrwpFn) const;
-    bool PrintFnSharedLibrary(void);
+    bool PrintFnSharedLibrary();
 
     // Attributes:
   private:
