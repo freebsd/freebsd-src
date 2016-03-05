@@ -337,6 +337,10 @@ _libusbhid=	libusbhid
 _libusb=	libusb
 .endif
 
+.if !make(install)
+SUBDIR_PARALLEL=
+.endif
+
 .if defined(LIBCHERI)
 .if ${MK_LIBCHERI_ALL} == "no"
 SUBDIR:=	csu \
