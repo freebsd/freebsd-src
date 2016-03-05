@@ -1217,7 +1217,8 @@ worker_init(struct worker* worker, struct config_file *cfg,
 		cfg->do_tcp?cfg->outgoing_num_tcp:0, 
 		worker->daemon->env->infra_cache, worker->rndstate,
 		cfg->use_caps_bits_for_id, worker->ports, worker->numports,
-		cfg->unwanted_threshold, &worker_alloc_cleanup, worker,
+		cfg->unwanted_threshold, cfg->outgoing_tcp_mss,
+		&worker_alloc_cleanup, worker,
 		cfg->do_udp, worker->daemon->connect_sslctx, cfg->delay_close,
 		dtenv);
 	if(!worker->back) {

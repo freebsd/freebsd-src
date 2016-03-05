@@ -242,6 +242,9 @@
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #undef HAVE_NETINET_IN_H
 
+/* Define to 1 if you have the <netinet/tcp.h> header file. */
+#undef HAVE_NETINET_TCP_H
+
 /* Use libnettle for crypto */
 #undef HAVE_NETTLE
 
@@ -293,7 +296,7 @@
 /* Define to 1 if you have the `recvmsg' function. */
 #undef HAVE_RECVMSG
 
-/* Define to 1 if you have the `sbrk' function. */
+/* define if you have the sbrk() call */
 #undef HAVE_SBRK
 
 /* Define to 1 if you have the `sendmsg' function. */
@@ -461,8 +464,7 @@
 /* if lex has yylex_destroy */
 #undef LEX_HAS_YYLEX_DESTROY
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
 /* Define to the maximum message length to pass to syslog. */
@@ -483,6 +485,9 @@
 
 /* Put -D_BSD_SOURCE define in config.h */
 #undef OMITTED__D_BSD_SOURCE
+
+/* Put -D_DEFAULT_SOURCE define in config.h */
+#undef OMITTED__D_DEFAULT_SOURCE
 
 /* Put -D_GNU_SOURCE define in config.h */
 #undef OMITTED__D_GNU_SOURCE
@@ -738,6 +743,10 @@
 #define _BSD_SOURCE 1
 #endif 
 
+#if defined(OMITTED__D_DEFAULT_SOURCE) && !defined(_DEFAULT_SOURCE)
+#define _DEFAULT_SOURCE 1
+#endif 
+
 #if defined(OMITTED__D__EXTENSIONS__) && !defined(__EXTENSIONS__)
 #define __EXTENSIONS__ 1
 #endif 
@@ -809,6 +818,10 @@
 
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
+#endif
+
+#ifdef HAVE_NETINET_TCP_H
+#include <netinet/tcp.h>
 #endif
 
 #ifdef HAVE_ARPA_INET_H

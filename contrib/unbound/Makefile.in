@@ -54,6 +54,7 @@ LEX=@LEX@
 STRIP=@STRIP@
 CC=@CC@
 CPPFLAGS=-I. @CPPFLAGS@
+PYTHON_CPPFLAGS=-I. @PYTHON_CPPFLAGS@
 CFLAGS=@CFLAGS@
 LDFLAGS=@LDFLAGS@
 LIBS=@LIBS@
@@ -216,14 +217,14 @@ WINAPPS=@WINAPPS@
 WIN_DAEMON_THE_SRC=winrc/win_svc.c winrc/w_inst.c
 SVCINST_SRC=winrc/unbound-service-install.c
 SVCINST_OBJ=unbound-service-install.lo
-SVCINST_OBJ_LINK=$(SVCINST_OBJ) w_inst.lo rsrc_svcinst.o $(COMPAT_OBJ_WITHOUT_CTIME)
+SVCINST_OBJ_LINK=$(SVCINST_OBJ) w_inst.lo rsrc_svcinst.o $(COMPAT_OBJ_WITHOUT_CTIMEARC4)
 SVCUNINST_SRC=winrc/unbound-service-remove.c
 SVCUNINST_OBJ=unbound-service-remove.lo
 SVCUNINST_OBJ_LINK=$(SVCUNINST_OBJ) w_inst.lo rsrc_svcuninst.o \
-$(COMPAT_OBJ_WITHOUT_CTIME)
+$(COMPAT_OBJ_WITHOUT_CTIMEARC4)
 ANCHORUPD_SRC=winrc/anchor-update.c
 ANCHORUPD_OBJ=anchor-update.lo
-ANCHORUPD_OBJ_LINK=$(ANCHORUPD_OBJ) rsrc_anchorupd.o $(COMPAT_OBJ_WITHOUT_CTIME)
+ANCHORUPD_OBJ_LINK=$(ANCHORUPD_OBJ) rsrc_anchorupd.o $(COMPAT_OBJ_WITHOUT_CTIMEARC4)
 RSRC_OBJ=rsrc_svcinst.o rsrc_svcuninst.o rsrc_anchorupd.o rsrc_unbound.o \
 	rsrc_unbound_host.o rsrc_unbound_anchor.o rsrc_unbound_control.o \
 	rsrc_unbound_checkconf.o
@@ -243,7 +244,7 @@ ALL_OBJ=$(COMMON_OBJ) $(UNITTEST_OBJ) $(DAEMON_OBJ) \
 	$(COMPAT_OBJ) $(PYUNBOUND_OBJ) \
 	$(SVCINST_OBJ) $(SVCUNINST_OBJ) $(ANCHORUPD_OBJ) $(SLDNS_OBJ)
 
-COMPILE=$(LIBTOOL) --tag=CC --mode=compile $(CC) $(CPPFLAGS) $(CFLAGS)
+COMPILE=$(LIBTOOL) --tag=CC --mode=compile $(CC) $(CPPFLAGS) $(CFLAGS) @PTHREAD_CFLAGS_ONLY@
 LINK=$(LIBTOOL) --tag=CC --mode=link $(CC) $(staticexe) $(RUNTIME_PATH) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 LINK_LIB=$(LIBTOOL) --tag=CC --mode=link $(CC) $(RUNTIME_PATH) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(staticexe) -version-info @LIBUNBOUND_CURRENT@:@LIBUNBOUND_REVISION@:@LIBUNBOUND_AGE@ -no-undefined
 
@@ -353,7 +354,7 @@ delayer$(EXEEXT):	$(DELAYER_OBJ_LINK)
 	$(LINK) -o $@ $(DELAYER_OBJ_LINK) $(SSLLIB) $(LIBS)
 
 signit$(EXEEXT):	testcode/signit.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ testcode/signit.c $(LDFLAGS) -lldns $(SSLLIB) $(LIBS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) @PTHREAD_CFLAGS_ONLY@ -o $@ testcode/signit.c $(LDFLAGS) -lldns $(SSLLIB) $(LIBS)
 
 unbound.h:	$(srcdir)/libunbound/unbound.h
 	sed -e 's/@''UNBOUND_VERSION_MAJOR@/$(UNBOUND_VERSION_MAJOR)/' -e 's/@''UNBOUND_VERSION_MINOR@/$(UNBOUND_VERSION_MINOR)/' -e 's/@''UNBOUND_VERSION_MICRO@/$(UNBOUND_VERSION_MICRO)/' < $(srcdir)/libunbound/unbound.h > $@
@@ -389,13 +390,13 @@ pythonmod.lo pythonmod.o: $(srcdir)/pythonmod/pythonmod.c config.h \
 
 pythonmod/interface.h:	$(srcdir)/pythonmod/interface.i config.h
 	@-if test ! -d pythonmod; then $(INSTALL) -d pythonmod; fi
-	$(SWIG) $(CPPFLAGS) -o $@ -python $(srcdir)/pythonmod/interface.i
+	$(SWIG) $(PYTHON_CPPFLAGS) -o $@ -python $(srcdir)/pythonmod/interface.i
 
 libunbound_wrap.lo libunbound_wrap.o: libunbound/python/libunbound_wrap.c \
 	unbound.h
 libunbound/python/libunbound_wrap.c:	$(srcdir)/libunbound/python/libunbound.i unbound.h
 	@-if test ! -d libunbound/python; then $(INSTALL) -d libunbound/python; fi
-	$(SWIG) -python -o $@ $(CPPFLAGS) -DPY_MAJOR_VERSION=$(PY_MAJOR_VERSION) $(srcdir)/libunbound/python/libunbound.i
+	$(SWIG) -python -o $@ $(PYTHON_CPPFLAGS) -DPY_MAJOR_VERSION=$(PY_MAJOR_VERSION) $(srcdir)/libunbound/python/libunbound.i
 
 # Pyunbound python unbound wrapper
 _unbound.la:	libunbound_wrap.lo libunbound.la
@@ -506,11 +507,11 @@ install-all:	all $(PYTHONMOD_INSTALL) $(PYUNBOUND_INSTALL) $(UNBOUND_EVENT_INSTA
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man8
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man5
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man1
-	$(LIBTOOL) --mode=install cp unbound$(EXEEXT) $(DESTDIR)$(sbindir)/unbound$(EXEEXT)
-	$(LIBTOOL) --mode=install cp unbound-checkconf$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-checkconf$(EXEEXT)
-	$(LIBTOOL) --mode=install cp unbound-control$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-control$(EXEEXT)
-	$(LIBTOOL) --mode=install cp unbound-host$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-host$(EXEEXT)
-	$(LIBTOOL) --mode=install cp unbound-anchor$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-anchor$(EXEEXT)
+	$(LIBTOOL) --mode=install cp -f unbound$(EXEEXT) $(DESTDIR)$(sbindir)/unbound$(EXEEXT)
+	$(LIBTOOL) --mode=install cp -f unbound-checkconf$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-checkconf$(EXEEXT)
+	$(LIBTOOL) --mode=install cp -f unbound-control$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-control$(EXEEXT)
+	$(LIBTOOL) --mode=install cp -f unbound-host$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-host$(EXEEXT)
+	$(LIBTOOL) --mode=install cp -f unbound-anchor$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-anchor$(EXEEXT)
 	$(INSTALL) -c -m 644 doc/unbound.8 $(DESTDIR)$(mandir)/man8
 	$(INSTALL) -c -m 644 doc/unbound-checkconf.8 $(DESTDIR)$(mandir)/man8
 	$(INSTALL) -c -m 644 doc/unbound-control.8 $(DESTDIR)$(mandir)/man8
@@ -567,7 +568,7 @@ DEPEND_TARGET2=Makefile.in
 # then, remove srcdir from the (generated) parser and lexer.
 # and mention the .lo
 depend:
-	(cd $(srcdir) ; $(CC) $(DEPFLAG) $(CPPFLAGS) $(CFLAGS) $(ALL_SRC) $(COMPAT_SRC)) | \
+	(cd $(srcdir) ; $(CC) $(DEPFLAG) $(CPPFLAGS) $(CFLAGS) @PTHREAD_CFLAGS_ONLY@ $(ALL_SRC) $(COMPAT_SRC)) | \
 		sed -e 's!'$$HOME'[^ ]* !!g' -e 's!'$$HOME'[^ ]*$$!!g' \
 			-e 's!/usr[^ ]* !!g' -e 's!/usr[^ ]*$$!!g' \
 			-e 's!/opt[^ ]* !!g' -e 's!/opt[^ ]*$$!!g' | \

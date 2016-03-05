@@ -228,7 +228,6 @@ ub_random_max(struct ub_randstate* state, long int x)
 void 
 ub_randfree(struct ub_randstate* s)
 {
-	if(s)
-		free(s);
+	free(s);
 	/* user app must do RAND_cleanup(); */
 }
