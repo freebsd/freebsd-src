@@ -386,7 +386,6 @@ poll_more:
 	spin_lock(&priv->drain_lock);
 	for (;;) {
 		n = ib_poll_cq(priv->recv_cq, IPOIB_NUM_WC, priv->ibwc);
-
 		for (i = 0; i < n; i++) {
 			struct ib_wc *wc = priv->ibwc + i;
 

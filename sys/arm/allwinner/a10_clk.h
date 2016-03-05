@@ -112,7 +112,9 @@
 /* AHB_GATING_REG0 */
 #define	CCM_AHB_GATING_USB0	(1 << 0)
 #define	CCM_AHB_GATING_EHCI0	(1 << 1)
+#define	CCM_AHB_GATING_OHCI0	(1 << 2)
 #define	CCM_AHB_GATING_EHCI1	(1 << 3)
+#define	CCM_AHB_GATING_OHCI1	(1 << 4)
 #define	CCM_AHB_GATING_DMA	(1 << 6)
 #define	CCM_AHB_GATING_SDMMC0	(1 << 8)
 #define	CCM_AHB_GATING_EMAC	(1 << 17)
@@ -129,10 +131,13 @@
 /* APB1_GATING_REG */
 #define	CCM_APB1_GATING_TWI	(1 << 0)
 
+/* USB */
 #define	CCM_USB_PHY		(1 << 8)
-#define	CCM_USB0_RESET		(1 << 0)
-#define	CCM_USB1_RESET		(1 << 1)
-#define	CCM_USB2_RESET		(1 << 2)
+#define	CCM_SCLK_GATING_OHCI1	(1 << 7)
+#define	CCM_SCLK_GATING_OHCI0	(1 << 6)
+#define	CCM_USBPHY2_RESET	(1 << 2)
+#define	CCM_USBPHY1_RESET	(1 << 1)
+#define	CCM_USBPHY0_RESET	(1 << 0)
 
 #define	CCM_PLL_CFG_ENABLE	(1U << 31)
 #define	CCM_PLL_CFG_BYPASS	(1U << 30)
@@ -221,8 +226,10 @@
 
 #define	CCM_CLK_REF_FREQ	24000000U
 
-int a10_clk_usb_activate(void);
-int a10_clk_usb_deactivate(void);
+int a10_clk_ehci_activate(void);
+int a10_clk_ehci_deactivate(void);
+int a10_clk_ohci_activate(void);
+int a10_clk_ohci_deactivate(void);
 int a10_clk_emac_activate(void);
 int a10_clk_gmac_activate(phandle_t);
 int a10_clk_ahci_activate(void);

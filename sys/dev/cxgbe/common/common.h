@@ -188,25 +188,25 @@ struct tp_fcoe_stats {
 };
 
 struct tp_err_stats {
-	u32 mac_in_errs[4];
-	u32 hdr_in_errs[4];
-	u32 tcp_in_errs[4];
-	u32 tnl_cong_drops[4];
-	u32 ofld_chan_drops[4];
-	u32 tnl_tx_drops[4];
-	u32 ofld_vlan_drops[4];
-	u32 tcp6_in_errs[4];
+	u32 mac_in_errs[MAX_NCHAN];
+	u32 hdr_in_errs[MAX_NCHAN];
+	u32 tcp_in_errs[MAX_NCHAN];
+	u32 tnl_cong_drops[MAX_NCHAN];
+	u32 ofld_chan_drops[MAX_NCHAN];
+	u32 tnl_tx_drops[MAX_NCHAN];
+	u32 ofld_vlan_drops[MAX_NCHAN];
+	u32 tcp6_in_errs[MAX_NCHAN];
 	u32 ofld_no_neigh;
 	u32 ofld_cong_defer;
 };
 
 struct tp_proxy_stats {
-	u32 proxy[4];
+	u32 proxy[MAX_NCHAN];
 };
 
 struct tp_cpl_stats {
-	u32 req[4];
-	u32 rsp[4];
+	u32 req[MAX_NCHAN];
+	u32 rsp[MAX_NCHAN];
 };
 
 struct tp_rdma_stats {
@@ -219,7 +219,7 @@ struct tp_params {
 	unsigned int tre;            /* log2 of core clocks per TP tick */
 	unsigned int dack_re;        /* DACK timer resolution */
 	unsigned int la_mask;        /* what events are recorded by TP LA */
-	unsigned short tx_modq[NCHAN];  /* channel to modulation queue map */
+	unsigned short tx_modq[MAX_NCHAN];  /* channel to modulation queue map */
 	uint32_t vlan_pri_map;
 	uint32_t ingress_config;
 	int8_t vlan_shift;
@@ -251,6 +251,19 @@ struct devlog_params {
 	u32 memtype;			/* which memory (FW_MEMTYPE_* ) */
 	u32 start;			/* start of log in firmware memory */
 	u32 size;			/* size of log */
+};
+
+/* Stores chip specific parameters */
+struct chip_params {
+	u8 nchan;
+	u8 pm_stats_cnt;
+	u8 cng_ch_bits_log;		/* congestion channel map bits width */
+	u8 nsched_cls;
+	u8 cim_num_obq;
+	u16 mps_rplc_size;
+	u16 vfcount;
+	u32 sge_fl_db;
+	u16 mps_tcam_size;
 };
 
 struct adapter_params {
@@ -292,6 +305,7 @@ struct adapter_params {
 
 #define CHELSIO_T4		0x4
 #define CHELSIO_T5		0x5
+#define CHELSIO_T6		0x6
 
 struct trace_params {
 	u32 data[TRACE_LEN / 4];
@@ -364,6 +378,11 @@ static inline int is_t4(struct adapter *adap)
 static inline int is_t5(struct adapter *adap)
 {
 	return adap->params.chipid == CHELSIO_T5;
+}
+
+static inline int is_t6(struct adapter *adap)
+{
+	return adap->params.chipid == CHELSIO_T6;
 }
 
 static inline int is_fpga(struct adapter *adap)
