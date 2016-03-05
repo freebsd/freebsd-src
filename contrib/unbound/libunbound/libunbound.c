@@ -924,6 +924,88 @@ ub_ctx_set_fwd(struct ub_ctx* ctx, const char* addr)
 	return UB_NOERROR;
 }
 
+int ub_ctx_set_stub(struct ub_ctx* ctx, const char* zone, const char* addr,
+	int isprime)
+{
+	char* a;
+	struct config_stub **prev, *elem;
+
+	/* check syntax for zone name */
+	if(zone) {
+		uint8_t* nm;
+		int nmlabs;
+		size_t nmlen;
+		if(!parse_dname(zone, &nm, &nmlen, &nmlabs)) {
+			errno=EINVAL;
+			return UB_SYNTAX;
+		}
+		free(nm);
+	} else {
+		zone = ".";
+	}
+
+	/* check syntax for addr (if not NULL) */
+	if(addr) {
+		struct sockaddr_storage storage;
+		socklen_t stlen;
+		if(!extstrtoaddr(addr, &storage, &stlen)) {
+			errno=EINVAL;
+			return UB_SYNTAX;
+		}
+	}
+
+	lock_basic_lock(&ctx->cfglock);
+	if(ctx->finalized) {
+		lock_basic_unlock(&ctx->cfglock);
+		errno=EINVAL;
+		return UB_AFTERFINAL;
+	}
+
+	/* arguments all right, now find or add the stub */
+	prev = &ctx->env->cfg->stubs;
+	elem = cfg_stub_find(&prev, zone);
+	if(!elem && !addr) {
+		/* not found and we want to delete, nothing to do */
+		lock_basic_unlock(&ctx->cfglock);
+		return UB_NOERROR;
+	} else if(elem && !addr) {
+		/* found, and we want to delete */
+		*prev = elem->next;
+		config_delstub(elem);
+		lock_basic_unlock(&ctx->cfglock);
+		return UB_NOERROR;
+	} else if(!elem) {
+		/* not found, create the stub entry */
+		elem=(struct config_stub*)calloc(1, sizeof(struct config_stub));
+		if(elem) elem->name = strdup(zone);
+		if(!elem || !elem->name) {
+			free(elem);
+			lock_basic_unlock(&ctx->cfglock);
+			errno = ENOMEM;
+			return UB_NOMEM;
+		}
+		elem->next = ctx->env->cfg->stubs;
+		ctx->env->cfg->stubs = elem;
+	}
+
+	/* add the address to the list and set settings */
+	elem->isprime = isprime;
+	a = strdup(addr);
+	if(!a) {
+		lock_basic_unlock(&ctx->cfglock);
+		errno = ENOMEM;
+		return UB_NOMEM;
+	}
+	if(!cfg_strlist_insert(&elem->addrs, a)) {
+		lock_basic_unlock(&ctx->cfglock);
+		free(a);
+		errno = ENOMEM;
+		return UB_NOMEM;
+	}
+	lock_basic_unlock(&ctx->cfglock);
+	return UB_NOERROR;
+}
+
 int 
 ub_ctx_resolvconf(struct ub_ctx* ctx, const char* fname)
 {
