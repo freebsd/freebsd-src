@@ -36,7 +36,7 @@ struct cheriabi_execdata {
 	int		ce_argc;
 	int		_ce_spareint;
 	uint64_t	_ce_spare_uint64[2];	/* pad out to 32 bytes */
-#if __has_feature(capabilities)
+#if !defined(_KERNEL) && __has_feature(capabilities)
 	char		**ce_argv;
 	char		**ce_envp;
 	struct cheriabi_auxarg *ce_auxargs;
