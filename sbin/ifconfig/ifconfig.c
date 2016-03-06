@@ -93,6 +93,7 @@ int	clearaddr;
 int	newaddr = 1;
 int	verbose;
 int	noload;
+int	printifname = 0;
 
 int	supmedia = 0;
 int	printkeys = 0;		/* Print keying material for interfaces. */
@@ -107,6 +108,8 @@ static	void usage(void);
 static struct afswtch *af_getbyname(const char *name);
 static struct afswtch *af_getbyfamily(int af);
 static void af_other_status(int);
+
+void printifnamemaybe(void);
 
 static struct option *opts = NULL;
 
@@ -141,6 +144,12 @@ usage(void)
 	exit(1);
 }
 
+void printifnamemaybe()
+{
+	if (printifname)
+		printf("%s\n", name);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -156,6 +165,12 @@ main(int argc, char *argv[])
 	size_t iflen;
 
 	all = downonly = uponly = namesonly = noload = verbose = 0;
+	
+	/*
+	 * Ensure we print interface name when expected to,
+	 * even if we terminate early due to error.
+	 */
+	atexit(printifnamemaybe);
 
 	/* Parse leading line options */
 	strlcpy(options, "adklmnuv", sizeof(options));
@@ -856,6 +871,8 @@ setifname(const char *val, int dummy __unused, int s,
     const struct afswtch *afp)
 {
 	char *newname;
+	
+	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 
 	newname = strdup(val);
 	if (newname == NULL)
@@ -865,6 +882,7 @@ setifname(const char *val, int dummy __unused, int s,
 		free(newname);
 		err(1, "ioctl SIOCSIFNAME (set name)");
 	}
+	printifname = 1;
 	strlcpy(name, newname, sizeof(name));
 	free(newname);
 }
@@ -876,6 +894,8 @@ setifdescr(const char *val, int dummy __unused, int s,
 {
 	char *newdescr;
 
+	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	
 	ifr.ifr_buffer.length = strlen(val) + 1;
 	if (ifr.ifr_buffer.length == 1) {
 		ifr.ifr_buffer.buffer = newdescr = NULL;
