@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_common.h>
 
+#include <arm/allwinner/aw_mp.h>
 #include <arm/allwinner/aw_wdog.h>
 #include <arm/allwinner/allwinner_machdep.h>
 
@@ -152,6 +153,10 @@ static platform_method_t a20_methods[] = {
 	PLATFORMMETHOD(platform_lastaddr,       allwinner_lastaddr),
 	PLATFORMMETHOD(platform_devmap_init,    allwinner_devmap_init),
 
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_start_ap,	a20_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid,	aw_mp_setmaxid),
+#endif
 	PLATFORMMETHOD_END,
 };
 
@@ -160,6 +165,10 @@ static platform_method_t a31_methods[] = {
 	PLATFORMMETHOD(platform_lastaddr,       allwinner_lastaddr),
 	PLATFORMMETHOD(platform_devmap_init,    allwinner_devmap_init),
 
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_start_ap,	a31_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid,	aw_mp_setmaxid),
+#endif
 	PLATFORMMETHOD_END,
 };
 
@@ -168,6 +177,10 @@ static platform_method_t a31s_methods[] = {
 	PLATFORMMETHOD(platform_lastaddr,       allwinner_lastaddr),
 	PLATFORMMETHOD(platform_devmap_init,    allwinner_devmap_init),
 
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_start_ap,	a31_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid,	aw_mp_setmaxid),
+#endif
 	PLATFORMMETHOD_END,
 };
 
