@@ -31,6 +31,7 @@ options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
 options 	PLATFORM
+options 	PLATFORM_SMP
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
