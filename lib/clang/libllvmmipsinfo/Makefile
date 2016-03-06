@@ -8,7 +8,8 @@ SRCDIR=	lib/Target/Mips/TargetInfo
 INCDIR=	lib/Target/Mips
 SRCS=	MipsTargetInfo.cpp
 
-TGHDRS=	MipsGenInstrInfo \
+TGHDRS=	Attributes \
+	MipsGenInstrInfo \
 	MipsGenRegisterInfo \
 	MipsGenSubtargetInfo
 

@@ -28,16 +28,13 @@ namespace CMICmdMgrSetCmdDeleteCallback
 //          inherit this interface and register interest in command object
 //          deletion. An object deleting a command must not do it itself but call
 //          the Command Manager CmdDelete() function to delete a command object.
-// Gotchas: None.
-// Authors: Illya Rudkin 21/02/2014.
-// Changes: None.
 //--
 class ICallback
 {
   public:
     virtual void Delete(SMICmdData &vCmd) = 0;
 
-    /* dtor */ virtual ~ICallback(void){};
+    /* dtor */ virtual ~ICallback(){}
 };
 
 //++ ============================================================================
@@ -47,15 +44,12 @@ class ICallback
 //          Manager to delete the command object. In so do all other registered
 //          objects get called to about the deletion including the object wanting
 //          to do the delete in the first place.
-// Gotchas: None.
-// Authors: Illya Rudkin 21/02/2014.
-// Changes: None.
 //--
 class CSetClients : public std::set<class ICallback *>, public CMICmnBase
 {
     // Methods:
   public:
-    /* ctor */ CSetClients(void);
+    /* ctor */ CSetClients();
 
     bool Register(class ICallback &vObject);
     bool Unregister(class ICallback &vObject);
@@ -64,7 +58,7 @@ class CSetClients : public std::set<class ICallback *>, public CMICmnBase
     // Overridden:
   public:
     // From CMICmnBase
-    /* dtor */ ~CSetClients(void) override;
+    /* dtor */ ~CSetClients() override;
 
     // Attributes:
   private:

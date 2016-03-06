@@ -251,7 +251,7 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			ieee80211_cancel_scan(vap);
 			break;
 		default:
-			goto invalid;
+			break;
 		}
 		if (ostate != IEEE80211_S_INIT) {
 			/* NB: optimize INIT -> INIT case */

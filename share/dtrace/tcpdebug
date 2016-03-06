@@ -83,7 +83,8 @@ tcp:kernel::debug-output
 {
 	seq = args[1]->tcp_seq;
 	ack = args[1]->tcp_ack;
-	len = args[2]->ip_plength - 20;
+	len = args[2]->ip_plength - sizeof(struct tcphdr);
+	flags = args[1]->tcp_flags;
 
 	printf("%p %s: output [%x..%x]", arg0,
 	       tcp_state_string[args[0]->tcps_state], seq, seq + len);
@@ -120,7 +121,8 @@ tcp:kernel::debug-drop
 
 	seq = args[1]->tcp_seq;
 	ack = args[1]->tcp_ack;
-	len = args[2]->ip_plength;
+	len = args[2]->ip_plength - sizeof(struct tcphdr);
+	flags = args[1]->tcp_flags;
 
 	printf("%p %s: drop [%x..%x]", arg0,
 	       tcp_state_string[args[0]->tcps_state], seq, seq + len);

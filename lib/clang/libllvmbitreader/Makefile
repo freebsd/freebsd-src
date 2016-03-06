@@ -1,14 +1,18 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	llvmbitreader
 
 SRCDIR=	lib/Bitcode/Reader
-SRCS=	BitReader.cpp \
-	BitcodeReader.cpp \
+SRCS=	BitcodeReader.cpp \
 	BitstreamReader.cpp
 
-TGHDRS=	Intrinsics
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	BitReader.cpp
+.endif
+
+TGHDRS=	Attributes \
+	Intrinsics
 
 .include "../clang.lib.mk"

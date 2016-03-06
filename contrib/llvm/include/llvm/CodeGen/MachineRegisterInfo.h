@@ -73,7 +73,7 @@ private:
 
   /// PhysRegUseDefLists - This is an array of the head of the use/def list for
   /// physical registers.
-  std::vector<MachineOperand *> PhysRegUseDefLists;
+  std::unique_ptr<MachineOperand *[]> PhysRegUseDefLists;
 
   /// getRegUseDefListHead - Return the head pointer for the register use/def
   /// list for the specified virtual or physical register.
@@ -95,20 +95,8 @@ private:
     return MO->Contents.Reg.Next;
   }
 
-  /// UsedRegUnits - This is a bit vector that is computed and set by the
-  /// register allocator, and must be kept up to date by passes that run after
-  /// register allocation (though most don't modify this).  This is used
-  /// so that the code generator knows which callee save registers to save and
-  /// for other target specific uses.
-  /// This vector has bits set for register units that are modified in the
-  /// current function. It doesn't include registers clobbered by function
-  /// calls with register mask operands.
-  BitVector UsedRegUnits;
-
   /// UsedPhysRegMask - Additional used physregs including aliases.
   /// This bit vector represents all the registers clobbered by function calls.
-  /// It can model things that UsedRegUnits can't, such as function calls that
-  /// clobber ymm7 but preserve the low half in xmm7.
   BitVector UsedPhysRegMask;
 
   /// ReservedRegs - This is a bit vector of reserved registers.  The target
@@ -246,7 +234,7 @@ public:
   static reg_iterator reg_end() { return reg_iterator(nullptr); }
 
   inline iterator_range<reg_iterator>  reg_operands(unsigned Reg) const {
-    return iterator_range<reg_iterator>(reg_begin(Reg), reg_end());
+    return make_range(reg_begin(Reg), reg_end());
   }
 
   /// reg_instr_iterator/reg_instr_begin/reg_instr_end - Walk all defs and uses
@@ -262,8 +250,7 @@ public:
 
   inline iterator_range<reg_instr_iterator>
   reg_instructions(unsigned Reg) const {
-    return iterator_range<reg_instr_iterator>(reg_instr_begin(Reg),
-                                              reg_instr_end());
+    return make_range(reg_instr_begin(Reg), reg_instr_end());
   }
 
   /// reg_bundle_iterator/reg_bundle_begin/reg_bundle_end - Walk all defs and uses
@@ -278,8 +265,7 @@ public:
   }
 
   inline iterator_range<reg_bundle_iterator> reg_bundles(unsigned Reg) const {
-    return iterator_range<reg_bundle_iterator>(reg_bundle_begin(Reg),
-                                               reg_bundle_end());
+    return make_range(reg_bundle_begin(Reg), reg_bundle_end());
   }
 
   /// reg_empty - Return true if there are no instructions using or defining the
@@ -299,8 +285,7 @@ public:
 
   inline iterator_range<reg_nodbg_iterator>
   reg_nodbg_operands(unsigned Reg) const {
-    return iterator_range<reg_nodbg_iterator>(reg_nodbg_begin(Reg),
-                                              reg_nodbg_end());
+    return make_range(reg_nodbg_begin(Reg), reg_nodbg_end());
   }
 
   /// reg_instr_nodbg_iterator/reg_instr_nodbg_begin/reg_instr_nodbg_end - Walk
@@ -317,8 +302,7 @@ public:
 
   inline iterator_range<reg_instr_nodbg_iterator>
   reg_nodbg_instructions(unsigned Reg) const {
-    return iterator_range<reg_instr_nodbg_iterator>(reg_instr_nodbg_begin(Reg),
-                                                    reg_instr_nodbg_end());
+    return make_range(reg_instr_nodbg_begin(Reg), reg_instr_nodbg_end());
   }
 
   /// reg_bundle_nodbg_iterator/reg_bundle_nodbg_begin/reg_bundle_nodbg_end - Walk
@@ -333,10 +317,9 @@ public:
     return reg_bundle_nodbg_iterator(nullptr);
   }
 
-  inline iterator_range<reg_bundle_nodbg_iterator> 
+  inline iterator_range<reg_bundle_nodbg_iterator>
   reg_nodbg_bundles(unsigned Reg) const {
-    return iterator_range<reg_bundle_nodbg_iterator>(reg_bundle_nodbg_begin(Reg),
-                                                     reg_bundle_nodbg_end());
+    return make_range(reg_bundle_nodbg_begin(Reg), reg_bundle_nodbg_end());
   }
 
   /// reg_nodbg_empty - Return true if the only instructions using or defining
@@ -354,7 +337,7 @@ public:
   static def_iterator def_end() { return def_iterator(nullptr); }
 
   inline iterator_range<def_iterator> def_operands(unsigned Reg) const {
-    return iterator_range<def_iterator>(def_begin(Reg), def_end());
+    return make_range(def_begin(Reg), def_end());
   }
 
   /// def_instr_iterator/def_instr_begin/def_instr_end - Walk all defs of the
@@ -370,8 +353,7 @@ public:
 
   inline iterator_range<def_instr_iterator>
   def_instructions(unsigned Reg) const {
-    return iterator_range<def_instr_iterator>(def_instr_begin(Reg),
-                                              def_instr_end());
+    return make_range(def_instr_begin(Reg), def_instr_end());
   }
 
   /// def_bundle_iterator/def_bundle_begin/def_bundle_end - Walk all defs of the
@@ -386,8 +368,7 @@ public:
   }
 
   inline iterator_range<def_bundle_iterator> def_bundles(unsigned Reg) const {
-    return iterator_range<def_bundle_iterator>(def_bundle_begin(Reg),
-                                               def_bundle_end());
+    return make_range(def_bundle_begin(Reg), def_bundle_end());
   }
 
   /// def_empty - Return true if there are no instructions defining the
@@ -412,7 +393,7 @@ public:
   static use_iterator use_end() { return use_iterator(nullptr); }
 
   inline iterator_range<use_iterator> use_operands(unsigned Reg) const {
-    return iterator_range<use_iterator>(use_begin(Reg), use_end());
+    return make_range(use_begin(Reg), use_end());
   }
 
   /// use_instr_iterator/use_instr_begin/use_instr_end - Walk all uses of the
@@ -428,8 +409,7 @@ public:
 
   inline iterator_range<use_instr_iterator>
   use_instructions(unsigned Reg) const {
-    return iterator_range<use_instr_iterator>(use_instr_begin(Reg),
-                                              use_instr_end());
+    return make_range(use_instr_begin(Reg), use_instr_end());
   }
 
   /// use_bundle_iterator/use_bundle_begin/use_bundle_end - Walk all uses of the
@@ -444,8 +424,7 @@ public:
   }
 
   inline iterator_range<use_bundle_iterator> use_bundles(unsigned Reg) const {
-    return iterator_range<use_bundle_iterator>(use_bundle_begin(Reg),
-                                               use_bundle_end());
+    return make_range(use_bundle_begin(Reg), use_bundle_end());
   }
 
   /// use_empty - Return true if there are no instructions using the specified
@@ -474,8 +453,7 @@ public:
 
   inline iterator_range<use_nodbg_iterator>
   use_nodbg_operands(unsigned Reg) const {
-    return iterator_range<use_nodbg_iterator>(use_nodbg_begin(Reg),
-                                              use_nodbg_end());
+    return make_range(use_nodbg_begin(Reg), use_nodbg_end());
   }
 
   /// use_instr_nodbg_iterator/use_instr_nodbg_begin/use_instr_nodbg_end - Walk
@@ -492,8 +470,7 @@ public:
 
   inline iterator_range<use_instr_nodbg_iterator>
   use_nodbg_instructions(unsigned Reg) const {
-    return iterator_range<use_instr_nodbg_iterator>(use_instr_nodbg_begin(Reg),
-                                                    use_instr_nodbg_end());
+    return make_range(use_instr_nodbg_begin(Reg), use_instr_nodbg_end());
   }
 
   /// use_bundle_nodbg_iterator/use_bundle_nodbg_begin/use_bundle_nodbg_end - Walk
@@ -510,8 +487,7 @@ public:
 
   inline iterator_range<use_bundle_nodbg_iterator>
   use_nodbg_bundles(unsigned Reg) const {
-    return iterator_range<use_bundle_nodbg_iterator>(use_bundle_nodbg_begin(Reg),
-                                                     use_bundle_nodbg_end());
+    return make_range(use_bundle_nodbg_begin(Reg), use_bundle_nodbg_end());
   }
 
   /// use_nodbg_empty - Return true if there are no non-Debug instructions
@@ -540,7 +516,7 @@ public:
   /// apply sub registers to ToReg in order to obtain a final/proper physical
   /// register.
   void replaceRegWith(unsigned FromReg, unsigned ToReg);
-  
+
   /// getVRegDef - Return the machine instr that defines the specified virtual
   /// register or null if none is found.  This assumes that the code is in SSA
   /// form, so there should only be one definition.
@@ -626,6 +602,12 @@ public:
     RegAllocHints[VReg].second = PrefReg;
   }
 
+  /// Specify the preferred register allocation hint for the specified virtual
+  /// register.
+  void setSimpleHint(unsigned VReg, unsigned PrefReg) {
+    setRegAllocationHint(VReg, /*Type=*/0, PrefReg);
+  }
+
   /// getRegAllocationHint - Return the register allocation hint for the
   /// specified virtual register.
   std::pair<unsigned, unsigned>
@@ -650,41 +632,15 @@ public:
   /// Return true if the specified register is modified in this function.
   /// This checks that no defining machine operands exist for the register or
   /// any of its aliases. Definitions found on functions marked noreturn are
-  /// ignored.
+  /// ignored. The register is also considered modified when it is set in the
+  /// UsedPhysRegMask.
   bool isPhysRegModified(unsigned PhysReg) const;
 
-  //===--------------------------------------------------------------------===//
-  // Physical Register Use Info
-  //===--------------------------------------------------------------------===//
-
-  /// isPhysRegUsed - Return true if the specified register is used in this
-  /// function. Also check for clobbered aliases and registers clobbered by
-  /// function calls with register mask operands.
-  ///
-  /// This only works after register allocation.
-  bool isPhysRegUsed(unsigned Reg) const {
-    if (UsedPhysRegMask.test(Reg))
-      return true;
-    for (MCRegUnitIterator Units(Reg, getTargetRegisterInfo());
-         Units.isValid(); ++Units)
-      if (UsedRegUnits.test(*Units))
-        return true;
-    return false;
-  }
-
-  /// Mark the specified register unit as used in this function.
-  /// This should only be called during and after register allocation.
-  void setRegUnitUsed(unsigned RegUnit) {
-    UsedRegUnits.set(RegUnit);
-  }
-
-  /// setPhysRegUsed - Mark the specified register used in this function.
-  /// This should only be called during and after register allocation.
-  void setPhysRegUsed(unsigned Reg) {
-    for (MCRegUnitIterator Units(Reg, getTargetRegisterInfo());
-         Units.isValid(); ++Units)
-      UsedRegUnits.set(*Units);
-  }
+  /// Return true if the specified register is modified or read in this
+  /// function. This checks that no machine operands exist for the register or
+  /// any of its aliases. The register is also considered used when it is set
+  /// in the UsedPhysRegMask.
+  bool isPhysRegUsed(unsigned PhysReg) const;
 
   /// addPhysRegsUsedFromRegMask - Mark any registers not in RegMask as used.
   /// This corresponds to the bit mask attached to register mask operands.
@@ -692,15 +648,9 @@ public:
     UsedPhysRegMask.setBitsNotInMask(RegMask);
   }
 
-  /// setPhysRegUnused - Mark the specified register unused in this function.
-  /// This should only be called during and after register allocation.
-  void setPhysRegUnused(unsigned Reg) {
-    UsedPhysRegMask.reset(Reg);
-    for (MCRegUnitIterator Units(Reg, getTargetRegisterInfo());
-         Units.isValid(); ++Units)
-      UsedRegUnits.reset(*Units);
-  }
+  const BitVector &getUsedPhysRegsMask() const { return UsedPhysRegMask; }
 
+  void setUsedPhysRegMask(BitVector &Mask) { UsedPhysRegMask = Mask; }
 
   //===--------------------------------------------------------------------===//
   // Reserved Register Info
@@ -797,7 +747,7 @@ public:
 
   /// Returns a mask covering all bits that can appear in lane masks of
   /// subregisters of the virtual register @p Reg.
-  unsigned getMaxLaneMaskForVReg(unsigned Reg) const;
+  LaneBitmask getMaxLaneMaskForVReg(unsigned Reg) const;
 
   /// defusechain_iterator - This class provides iterator support for machine
   /// operands in the function that use or define a specific register.  If

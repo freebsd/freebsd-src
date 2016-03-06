@@ -13,4 +13,7 @@ SRCS=	BitcodeWriter.cpp \
 SRCS+=	BitWriter.cpp
 .endif
 
+TGHDRS=	Attributes \
+	Intrinsics
+
 .include "../clang.lib.mk"

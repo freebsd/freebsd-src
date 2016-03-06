@@ -88,6 +88,7 @@ namespace COFF {
     IMAGE_FILE_MACHINE_AMD64     = 0x8664,
     IMAGE_FILE_MACHINE_ARM       = 0x1C0,
     IMAGE_FILE_MACHINE_ARMNT     = 0x1C4,
+    IMAGE_FILE_MACHINE_ARM64     = 0xAA64,
     IMAGE_FILE_MACHINE_EBC       = 0xEBC,
     IMAGE_FILE_MACHINE_I386      = 0x14C,
     IMAGE_FILE_MACHINE_IA64      = 0x200,
@@ -247,6 +248,7 @@ namespace COFF {
   enum SectionCharacteristics : uint32_t {
     SC_Invalid = 0xffffffff,
 
+    IMAGE_SCN_TYPE_NOLOAD            = 0x00000002,
     IMAGE_SCN_TYPE_NO_PAD            = 0x00000008,
     IMAGE_SCN_CNT_CODE               = 0x00000020,
     IMAGE_SCN_CNT_INITIALIZED_DATA   = 0x00000040,
@@ -652,6 +654,15 @@ namespace COFF {
     ImportNameType getNameType() const {
       return static_cast<ImportNameType>((TypeInfo & 0x1C) >> 3);
     }
+  };
+
+  enum CodeViewLine : unsigned {
+    CVL_LineNumberStartBits = 24,
+    CVL_LineNumberEndDeltaBits = 7,
+    CVL_LineNumberEndDeltaMask = (1U << CVL_LineNumberEndDeltaBits) - 1,
+    CVL_MaxLineNumber = (1U << CVL_LineNumberStartBits) - 1,
+    CVL_IsStatement = 1U << 31,
+    CVL_MaxColumnNumber = UINT16_MAX,
   };
 
   enum CodeViewIdentifiers {

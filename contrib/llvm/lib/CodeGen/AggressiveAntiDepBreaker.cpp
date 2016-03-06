@@ -142,16 +142,15 @@ void AggressiveAntiDepBreaker::StartBlock(MachineBasicBlock *BB) {
   assert(!State);
   State = new AggressiveAntiDepState(TRI->getNumRegs(), BB);
 
-  bool IsReturnBlock = (!BB->empty() && BB->back().isReturn());
+  bool IsReturnBlock = BB->isReturnBlock();
   std::vector<unsigned> &KillIndices = State->GetKillIndices();
   std::vector<unsigned> &DefIndices = State->GetDefIndices();
 
   // Examine the live-in regs of all successors.
   for (MachineBasicBlock::succ_iterator SI = BB->succ_begin(),
          SE = BB->succ_end(); SI != SE; ++SI)
-    for (MachineBasicBlock::livein_iterator I = (*SI)->livein_begin(),
-           E = (*SI)->livein_end(); I != E; ++I) {
-      for (MCRegAliasIterator AI(*I, TRI, true); AI.isValid(); ++AI) {
+    for (const auto &LI : (*SI)->liveins()) {
+      for (MCRegAliasIterator AI(LI.PhysReg, TRI, true); AI.isValid(); ++AI) {
         unsigned Reg = *AI;
         State->UnionGroups(Reg, 0);
         KillIndices[Reg] = BB->size();
@@ -365,9 +364,11 @@ void AggressiveAntiDepBreaker::PrescanInstruction(MachineInstr *MI,
 
     // If MI's defs have a special allocation requirement, don't allow
     // any def registers to be changed. Also assume all registers
-    // defined in a call must not be changed (ABI).
+    // defined in a call must not be changed (ABI). Inline assembly may
+    // reference either system calls or the register directly. Skip it until we
+    // can tell user specified registers from compiler-specified.
     if (MI->isCall() || MI->hasExtraDefRegAllocReq() ||
-        TII->isPredicated(MI)) {
+        TII->isPredicated(MI) || MI->isInlineAsm()) {
       DEBUG(if (State->GetGroup(Reg) != 0) dbgs() << "->g0(alloc-req)");
       State->UnionGroups(Reg, 0);
     }
@@ -429,6 +430,7 @@ void AggressiveAntiDepBreaker::ScanInstruction(MachineInstr *MI,
   // If MI's uses have special allocation requirement, don't allow
   // any use registers to be changed. Also assume all registers
   // used in a call must not be changed (ABI).
+  // Inline Assembly register uses also cannot be safely changed.
   // FIXME: The issue with predicated instruction is more complex. We are being
   // conservatively here because the kill markers cannot be trusted after
   // if-conversion:
@@ -444,7 +446,7 @@ void AggressiveAntiDepBreaker::ScanInstruction(MachineInstr *MI,
   // changed.
   bool Special = MI->isCall() ||
     MI->hasExtraSrcRegAllocReq() ||
-    TII->isPredicated(MI);
+    TII->isPredicated(MI) || MI->isInlineAsm();
 
   // Scan the register uses for this instruction and update
   // live-ranges, groups and RegRefs.
@@ -509,15 +511,8 @@ BitVector AggressiveAntiDepBreaker::GetRenameRegisters(unsigned Reg) {
   // Check all references that need rewriting for Reg. For each, use
   // the corresponding register class to narrow the set of registers
   // that are appropriate for renaming.
-  std::pair<std::multimap<unsigned,
-                     AggressiveAntiDepState::RegisterReference>::iterator,
-            std::multimap<unsigned,
-                     AggressiveAntiDepState::RegisterReference>::iterator>
-    Range = State->GetRegRefs().equal_range(Reg);
-  for (std::multimap<unsigned,
-       AggressiveAntiDepState::RegisterReference>::iterator Q = Range.first,
-       QE = Range.second; Q != QE; ++Q) {
-    const TargetRegisterClass *RC = Q->second.RC;
+  for (const auto &Q : make_range(State->GetRegRefs().equal_range(Reg))) {
+    const TargetRegisterClass *RC = Q.second.RC;
     if (!RC) continue;
 
     BitVector RCBV = TRI->getAllocatableSet(MF, RC);
@@ -685,14 +680,27 @@ bool AggressiveAntiDepBreaker::FindSuitableFreeRegisters(
 
       // We cannot rename 'Reg' to 'NewReg' if one of the uses of 'Reg' also
       // defines 'NewReg' via an early-clobber operand.
-      auto Range = RegRefs.equal_range(Reg);
-      for (auto Q = Range.first, QE = Range.second; Q != QE; ++Q) {
-        auto UseMI = Q->second.Operand->getParent();
+      for (const auto &Q : make_range(RegRefs.equal_range(Reg))) {
+        MachineInstr *UseMI = Q.second.Operand->getParent();
         int Idx = UseMI->findRegisterDefOperandIdx(NewReg, false, true, TRI);
         if (Idx == -1)
           continue;
 
         if (UseMI->getOperand(Idx).isEarlyClobber()) {
+          DEBUG(dbgs() << "(ec)");
+          goto next_super_reg;
+        }
+      }
+
+      // Also, we cannot rename 'Reg' to 'NewReg' if the instruction defining
+      // 'Reg' is an early-clobber define and that instruction also uses
+      // 'NewReg'.
+      for (const auto &Q : make_range(RegRefs.equal_range(Reg))) {
+        if (!Q.second.Operand->isDef() || !Q.second.Operand->isEarlyClobber())
+          continue;
+
+        MachineInstr *DefMI = Q.second.Operand->getParent();
+        if (DefMI->readsRegister(NewReg, TRI)) {
           DEBUG(dbgs() << "(ec)");
           goto next_super_reg;
         }
@@ -920,23 +928,16 @@ unsigned AggressiveAntiDepBreaker::BreakAntiDependencies(
 
             // Update the references to the old register CurrReg to
             // refer to the new register NewReg.
-            std::pair<std::multimap<unsigned,
-                           AggressiveAntiDepState::RegisterReference>::iterator,
-                      std::multimap<unsigned,
-                           AggressiveAntiDepState::RegisterReference>::iterator>
-              Range = RegRefs.equal_range(CurrReg);
-            for (std::multimap<unsigned,
-                 AggressiveAntiDepState::RegisterReference>::iterator
-                   Q = Range.first, QE = Range.second; Q != QE; ++Q) {
-              Q->second.Operand->setReg(NewReg);
+            for (const auto &Q : make_range(RegRefs.equal_range(CurrReg))) {
+              Q.second.Operand->setReg(NewReg);
               // If the SU for the instruction being updated has debug
               // information related to the anti-dependency register, make
               // sure to update that as well.
-              const SUnit *SU = MISUnitMap[Q->second.Operand->getParent()];
+              const SUnit *SU = MISUnitMap[Q.second.Operand->getParent()];
               if (!SU) continue;
               for (DbgValueVector::iterator DVI = DbgValues.begin(),
                      DVE = DbgValues.end(); DVI != DVE; ++DVI)
-                if (DVI->second == Q->second.Operand->getParent())
+                if (DVI->second == Q.second.Operand->getParent())
                   UpdateDbgValue(DVI->first, AntiDepReg, NewReg);
             }
 

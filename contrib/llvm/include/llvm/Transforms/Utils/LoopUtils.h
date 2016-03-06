@@ -15,11 +15,12 @@
 #define LLVM_TRANSFORMS_UTILS_LOOPUTILS_H
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/EHPersonalities.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IRBuilder.h"
 
 namespace llvm {
-class AliasAnalysis;
 class AliasSet;
 class AliasSetTracker;
 class AssumptionCache;
@@ -39,6 +40,8 @@ struct LICMSafetyInfo {
   bool MayThrow;           // The current loop contains an instruction which
                            // may throw.
   bool HeaderMayThrow;     // Same as previous, but specific to loop header
+  // Used to update funclet bundle operands.
+  DenseMap<BasicBlock *, ColorVector> BlockColors;
   LICMSafetyInfo() : MayThrow(false), HeaderMayThrow(false)
   {}
 };
@@ -85,23 +88,34 @@ public:
 
   RecurrenceDescriptor()
       : StartValue(nullptr), LoopExitInstr(nullptr), Kind(RK_NoRecurrence),
-        MinMaxKind(MRK_Invalid) {}
+        MinMaxKind(MRK_Invalid), UnsafeAlgebraInst(nullptr),
+        RecurrenceType(nullptr), IsSigned(false) {}
 
   RecurrenceDescriptor(Value *Start, Instruction *Exit, RecurrenceKind K,
-                       MinMaxRecurrenceKind MK)
-      : StartValue(Start), LoopExitInstr(Exit), Kind(K), MinMaxKind(MK) {}
+                       MinMaxRecurrenceKind MK, Instruction *UAI, Type *RT,
+                       bool Signed, SmallPtrSetImpl<Instruction *> &CI)
+      : StartValue(Start), LoopExitInstr(Exit), Kind(K), MinMaxKind(MK),
+        UnsafeAlgebraInst(UAI), RecurrenceType(RT), IsSigned(Signed) {
+    CastInsts.insert(CI.begin(), CI.end());
+  }
 
   /// This POD struct holds information about a potential recurrence operation.
   class InstDesc {
 
   public:
-    InstDesc(bool IsRecur, Instruction *I)
-        : IsRecurrence(IsRecur), PatternLastInst(I), MinMaxKind(MRK_Invalid) {}
+    InstDesc(bool IsRecur, Instruction *I, Instruction *UAI = nullptr)
+        : IsRecurrence(IsRecur), PatternLastInst(I), MinMaxKind(MRK_Invalid),
+          UnsafeAlgebraInst(UAI) {}
 
-    InstDesc(Instruction *I, MinMaxRecurrenceKind K)
-        : IsRecurrence(true), PatternLastInst(I), MinMaxKind(K) {}
+    InstDesc(Instruction *I, MinMaxRecurrenceKind K, Instruction *UAI = nullptr)
+        : IsRecurrence(true), PatternLastInst(I), MinMaxKind(K),
+          UnsafeAlgebraInst(UAI) {}
 
     bool isRecurrence() { return IsRecurrence; }
+
+    bool hasUnsafeAlgebra() { return UnsafeAlgebraInst != nullptr; }
+
+    Instruction *getUnsafeAlgebraInst() { return UnsafeAlgebraInst; }
 
     MinMaxRecurrenceKind getMinMaxKind() { return MinMaxKind; }
 
@@ -115,6 +129,8 @@ public:
     Instruction *PatternLastInst;
     // If this is a min/max pattern the comparison predicate.
     MinMaxRecurrenceKind MinMaxKind;
+    // Recurrence has unsafe algebra.
+    Instruction *UnsafeAlgebraInst;
   };
 
   /// Returns a struct describing if the instruction 'I' can be a recurrence
@@ -125,7 +141,7 @@ public:
   static InstDesc isRecurrenceInstr(Instruction *I, RecurrenceKind Kind,
                                     InstDesc &Prev, bool HasFunNoNaNAttr);
 
-  /// Returns true if instuction I has multiple uses in Insts
+  /// Returns true if instruction I has multiple uses in Insts
   static bool hasMultipleUsesOf(Instruction *I,
                                 SmallPtrSetImpl<Instruction *> &Insts);
 
@@ -167,6 +183,51 @@ public:
 
   Instruction *getLoopExitInstr() { return LoopExitInstr; }
 
+  /// Returns true if the recurrence has unsafe algebra which requires a relaxed
+  /// floating-point model.
+  bool hasUnsafeAlgebra() { return UnsafeAlgebraInst != nullptr; }
+
+  /// Returns first unsafe algebra instruction in the PHI node's use-chain.
+  Instruction *getUnsafeAlgebraInst() { return UnsafeAlgebraInst; }
+
+  /// Returns true if the recurrence kind is an integer kind.
+  static bool isIntegerRecurrenceKind(RecurrenceKind Kind);
+
+  /// Returns true if the recurrence kind is a floating point kind.
+  static bool isFloatingPointRecurrenceKind(RecurrenceKind Kind);
+
+  /// Returns true if the recurrence kind is an arithmetic kind.
+  static bool isArithmeticRecurrenceKind(RecurrenceKind Kind);
+
+  /// Determines if Phi may have been type-promoted. If Phi has a single user
+  /// that ANDs the Phi with a type mask, return the user. RT is updated to
+  /// account for the narrower bit width represented by the mask, and the AND
+  /// instruction is added to CI.
+  static Instruction *lookThroughAnd(PHINode *Phi, Type *&RT,
+                                     SmallPtrSetImpl<Instruction *> &Visited,
+                                     SmallPtrSetImpl<Instruction *> &CI);
+
+  /// Returns true if all the source operands of a recurrence are either
+  /// SExtInsts or ZExtInsts. This function is intended to be used with
+  /// lookThroughAnd to determine if the recurrence has been type-promoted. The
+  /// source operands are added to CI, and IsSigned is updated to indicate if
+  /// all source operands are SExtInsts.
+  static bool getSourceExtensionKind(Instruction *Start, Instruction *Exit,
+                                     Type *RT, bool &IsSigned,
+                                     SmallPtrSetImpl<Instruction *> &Visited,
+                                     SmallPtrSetImpl<Instruction *> &CI);
+
+  /// Returns the type of the recurrence. This type can be narrower than the
+  /// actual type of the Phi if the recurrence has been type-promoted.
+  Type *getRecurrenceType() { return RecurrenceType; }
+
+  /// Returns a reference to the instructions used for type-promoting the
+  /// recurrence.
+  SmallPtrSet<Instruction *, 8> &getCastInsts() { return CastInsts; }
+
+  /// Returns true if all source operands of the recurrence are SExtInsts.
+  bool isSigned() { return IsSigned; }
+
 private:
   // The starting value of the recurrence.
   // It does not have to be zero!
@@ -177,19 +238,74 @@ private:
   RecurrenceKind Kind;
   // If this a min/max recurrence the kind of recurrence.
   MinMaxRecurrenceKind MinMaxKind;
+  // First occurance of unasfe algebra in the PHI's use-chain.
+  Instruction *UnsafeAlgebraInst;
+  // The type of the recurrence.
+  Type *RecurrenceType;
+  // True if all source operands of the recurrence are SExtInsts.
+  bool IsSigned;
+  // Instructions used for type-promoting the recurrence.
+  SmallPtrSet<Instruction *, 8> CastInsts;
 };
 
-BasicBlock *InsertPreheaderForLoop(Loop *L, Pass *P);
+/// A struct for saving information about induction variables.
+class InductionDescriptor {
+public:
+  /// This enum represents the kinds of inductions that we support.
+  enum InductionKind {
+    IK_NoInduction,  ///< Not an induction variable.
+    IK_IntInduction, ///< Integer induction variable. Step = C.
+    IK_PtrInduction  ///< Pointer induction var. Step = C / sizeof(elem).
+  };
+
+public:
+  /// Default constructor - creates an invalid induction.
+  InductionDescriptor()
+    : StartValue(nullptr), IK(IK_NoInduction), StepValue(nullptr) {}
+
+  /// Get the consecutive direction. Returns:
+  ///   0 - unknown or non-consecutive.
+  ///   1 - consecutive and increasing.
+  ///  -1 - consecutive and decreasing.
+  int getConsecutiveDirection() const;
+
+  /// Compute the transformed value of Index at offset StartValue using step
+  /// StepValue.
+  /// For integer induction, returns StartValue + Index * StepValue.
+  /// For pointer induction, returns StartValue[Index * StepValue].
+  /// FIXME: The newly created binary instructions should contain nsw/nuw
+  /// flags, which can be found from the original scalar operations.
+  Value *transform(IRBuilder<> &B, Value *Index) const;
+
+  Value *getStartValue() const { return StartValue; }
+  InductionKind getKind() const { return IK; }
+  ConstantInt *getStepValue() const { return StepValue; }
+
+  static bool isInductionPHI(PHINode *Phi, ScalarEvolution *SE,
+                             InductionDescriptor &D);
+
+private:
+  /// Private constructor - used by \c isInductionPHI.
+  InductionDescriptor(Value *Start, InductionKind K, ConstantInt *Step);
+
+  /// Start value.
+  TrackingVH<Value> StartValue;
+  /// Induction kind.
+  InductionKind IK;
+  /// Step value.
+  ConstantInt *StepValue;
+};
+
+BasicBlock *InsertPreheaderForLoop(Loop *L, DominatorTree *DT, LoopInfo *LI,
+                                   bool PreserveLCSSA);
 
 /// \brief Simplify each loop in a loop nest recursively.
 ///
 /// This takes a potentially un-simplified loop L (and its children) and turns
-/// it into a simplified loop nest with preheaders and single backedges. It
-/// will optionally update \c AliasAnalysis and \c ScalarEvolution analyses if
-/// passed into it.
-bool simplifyLoop(Loop *L, DominatorTree *DT, LoopInfo *LI, Pass *PP,
-                  AliasAnalysis *AA = nullptr, ScalarEvolution *SE = nullptr,
-                  AssumptionCache *AC = nullptr);
+/// it into a simplified loop nest with preheaders and single backedges. It will
+/// update \c AliasAnalysis and \c ScalarEvolution analyses if they're non-null.
+bool simplifyLoop(Loop *L, DominatorTree *DT, LoopInfo *LI, ScalarEvolution *SE,
+                  AssumptionCache *AC, bool PreserveLCSSA);
 
 /// \brief Put loop into LCSSA form.
 ///
@@ -203,7 +319,7 @@ bool simplifyLoop(Loop *L, DominatorTree *DT, LoopInfo *LI, Pass *PP,
 ///
 /// Returns true if any modifications are made to the loop.
 bool formLCSSA(Loop &L, DominatorTree &DT, LoopInfo *LI,
-               ScalarEvolution *SE = nullptr);
+               ScalarEvolution *SE);
 
 /// \brief Put a loop nest into LCSSA form.
 ///
@@ -215,7 +331,7 @@ bool formLCSSA(Loop &L, DominatorTree &DT, LoopInfo *LI,
 ///
 /// Returns true if any modifications are made to the loop.
 bool formLCSSARecursively(Loop &L, DominatorTree &DT, LoopInfo *LI,
-                          ScalarEvolution *SE = nullptr);
+                          ScalarEvolution *SE);
 
 /// \brief Walk the specified region of the CFG (defined by all blocks
 /// dominated by the specified block, and that are in the current loop) in
@@ -242,10 +358,10 @@ bool hoistRegion(DomTreeNode *, AliasAnalysis *, LoopInfo *, DominatorTree *,
 
 /// \brief Try to promote memory values to scalars by sinking stores out of
 /// the loop and moving loads to before the loop.  We do this by looping over
-/// the stores in the loop, looking for stores to Must pointers which are 
+/// the stores in the loop, looking for stores to Must pointers which are
 /// loop invariant. It takes AliasSet, Loop exit blocks vector, loop exit blocks
 /// insertion point vector, PredIteratorCache, LoopInfo, DominatorTree, Loop,
-/// AliasSet information for all instructions of the loop and loop safety 
+/// AliasSet information for all instructions of the loop and loop safety
 /// information as arguments. It returns changed status.
 bool promoteLoopAccessesToScalars(AliasSet &, SmallVectorImpl<BasicBlock*> &,
                                   SmallVectorImpl<Instruction*> &,
@@ -254,15 +370,13 @@ bool promoteLoopAccessesToScalars(AliasSet &, SmallVectorImpl<BasicBlock*> &,
                                   LICMSafetyInfo *);
 
 /// \brief Computes safety information for a loop
-/// checks loop body & header for the possiblity of may throw
+/// checks loop body & header for the possibility of may throw
 /// exception, it takes LICMSafetyInfo and loop as argument.
 /// Updates safety information in LICMSafetyInfo argument.
 void computeLICMSafetyInfo(LICMSafetyInfo *, Loop *);
 
-/// \brief Checks if the given PHINode in a loop header is an induction
-/// variable. Returns true if this is an induction PHI along with the step
-/// value.
-bool isInductionPHI(PHINode *, ScalarEvolution *, ConstantInt *&);
+/// \brief Returns the instructions that use values defined in the loop.
+SmallVector<Instruction *, 8> findDefsUsedOutsideOfLoop(Loop *L);
 }
 
 #endif

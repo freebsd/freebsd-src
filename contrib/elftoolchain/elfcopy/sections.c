@@ -1522,6 +1522,9 @@ add_gnu_debuglink(struct elfcopy *ecp)
 		err(EXIT_FAILURE, "strdup failed");
 	if (stat(ecp->debuglink, &sb) == -1)
 		err(EXIT_FAILURE, "stat failed");
+	if (sb.st_size == 0)
+		errx(EXIT_FAILURE, "empty debug link target %s",
+		    ecp->debuglink);
 	if ((buf = malloc(sb.st_size)) == NULL)
 		err(EXIT_FAILURE, "malloc failed");
 	if ((fp = fopen(ecp->debuglink, "r")) == NULL)

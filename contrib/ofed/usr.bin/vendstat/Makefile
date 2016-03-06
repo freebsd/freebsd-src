@@ -5,7 +5,7 @@
 
 PROG=   vendstat
 SRCS=   vendstat.c ibdiag_common.c
-LIBADD= ibumad ibcommon ibmad
+LIBADD= ibumad ibmad
 CFLAGS+= -I${DIAGPATH}/include
 MAN=	vendstat.8
 

@@ -609,8 +609,8 @@ zyd_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		/* make data LED blink upon Tx */
 		zyd_write32_m(sc, sc->sc_fwbase + ZYD_FW_LINK_STATUS, 1);
 
-		IEEE80211_ADDR_COPY(ic->ic_macaddr, vap->iv_bss->ni_bssid);
-		zyd_set_bssid(sc, ic->ic_macaddr);
+		IEEE80211_ADDR_COPY(sc->sc_bssid, vap->iv_bss->ni_bssid);
+		zyd_set_bssid(sc, sc->sc_bssid);
 		break;
 	default:
 		break;
@@ -2860,7 +2860,7 @@ zyd_scan_end(struct ieee80211com *ic)
 
 	ZYD_LOCK(sc);
 	/* restore previous bssid */
-	zyd_set_bssid(sc, ic->ic_macaddr);
+	zyd_set_bssid(sc, sc->sc_bssid);
 	ZYD_UNLOCK(sc);
 }
 

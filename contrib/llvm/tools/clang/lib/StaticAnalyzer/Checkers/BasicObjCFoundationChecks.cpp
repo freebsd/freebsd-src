@@ -140,10 +140,10 @@ void NilArgChecker::warnIfNilExpr(const Expr *E,
   ProgramStateRef State = C.getState();
   if (State->isNull(C.getSVal(E)).isConstrainedTrue()) {
 
-    if (ExplodedNode *N = C.generateSink()) {
+    if (ExplodedNode *N = C.generateErrorNode()) {
       generateBugReport(N, Msg, E->getSourceRange(), E, C);
     }
-    
+
   }
 }
 
@@ -156,8 +156,8 @@ void NilArgChecker::warnIfNilArg(CheckerContext &C,
   ProgramStateRef State = C.getState();
   if (!State->isNull(msg.getArgSVal(Arg)).isConstrainedTrue())
       return;
-      
-  if (ExplodedNode *N = C.generateSink()) {
+
+  if (ExplodedNode *N = C.generateErrorNode()) {
     SmallString<128> sbuf;
     llvm::raw_svector_ostream os(sbuf);
 
@@ -193,7 +193,7 @@ void NilArgChecker::warnIfNilArg(CheckerContext &C,
         os << "' cannot be nil";
       }
     }
-    
+
     generateBugReport(N, os.str(), msg.getArgSourceRange(Arg),
                       msg.getArgExpr(Arg), C);
   }
@@ -224,7 +224,7 @@ void NilArgChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
   static const unsigned InvalidArgIndex = UINT_MAX;
   unsigned Arg = InvalidArgIndex;
   bool CanBeSubscript = false;
-  
+
   if (Class == FC_NSString) {
     Selector S = msg.getSelector();
 
@@ -307,8 +307,7 @@ void NilArgChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
       warnIfNilArg(C, msg, /* Arg */1, Class);
     } else if (S == SetObjectForKeyedSubscriptSel) {
       CanBeSubscript = true;
-      Arg = 0;
-      warnIfNilArg(C, msg, /* Arg */1, Class, CanBeSubscript);
+      Arg = 1;
     } else if (S == RemoveObjectForKeySel) {
       Arg = 0;
     }
@@ -433,7 +432,7 @@ void CFNumberCreateChecker::checkPreStmt(const CallExpr *CE,
   const FunctionDecl *FD = C.getCalleeDecl(CE);
   if (!FD)
     return;
-  
+
   ASTContext &Ctx = C.getASTContext();
   if (!II)
     II = &Ctx.Idents.get("CFNumberCreate");
@@ -489,23 +488,24 @@ void CFNumberCreateChecker::checkPreStmt(const CallExpr *CE,
   if (SourceSize == TargetSize)
     return;
 
-  // Generate an error.  Only generate a sink if 'SourceSize < TargetSize';
-  // otherwise generate a regular node.
+  // Generate an error.  Only generate a sink error node
+  // if 'SourceSize < TargetSize'; otherwise generate a non-fatal error node.
   //
   // FIXME: We can actually create an abstract "CFNumber" object that has
   //  the bits initialized to the provided values.
   //
-  if (ExplodedNode *N = SourceSize < TargetSize ? C.generateSink() 
-                                                : C.addTransition()) {
+  ExplodedNode *N = SourceSize < TargetSize ? C.generateErrorNode()
+                                            : C.generateNonFatalErrorNode();
+  if (N) {
     SmallString<128> sbuf;
     llvm::raw_svector_ostream os(sbuf);
-    
+
     os << (SourceSize == 8 ? "An " : "A ")
        << SourceSize << " bit integer is used to initialize a CFNumber "
                         "object that represents "
        << (TargetSize == 8 ? "an " : "a ")
        << TargetSize << " bit integer. ";
-    
+
     if (SourceSize < TargetSize)
       os << (TargetSize - SourceSize)
       << " bits of the CFNumber value will be garbage." ;
@@ -549,7 +549,7 @@ void CFRetainReleaseChecker::checkPreStmt(const CallExpr *CE,
   const FunctionDecl *FD = C.getCalleeDecl(CE);
   if (!FD)
     return;
-  
+
   if (!BT) {
     ASTContext &Ctx = C.getASTContext();
     Retain = &Ctx.Idents.get("CFRetain");
@@ -589,7 +589,7 @@ void CFRetainReleaseChecker::checkPreStmt(const CallExpr *CE,
   std::tie(stateTrue, stateFalse) = state->assume(ArgIsNull);
 
   if (stateTrue && !stateFalse) {
-    ExplodedNode *N = C.generateSink(stateTrue);
+    ExplodedNode *N = C.generateErrorNode(stateTrue);
     if (!N)
       return;
 
@@ -635,7 +635,7 @@ public:
 
 void ClassReleaseChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
                                               CheckerContext &C) const {
-  
+
   if (!BT) {
     BT.reset(new APIMisuse(
         this, "message incorrectly sent to class instead of class instance"));
@@ -646,7 +646,7 @@ void ClassReleaseChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
     autoreleaseS = GetNullarySelector("autorelease", Ctx);
     drainS = GetNullarySelector("drain", Ctx);
   }
-  
+
   if (msg.isInstanceMessage())
     return;
   const ObjCInterfaceDecl *Class = msg.getReceiverInterface();
@@ -655,8 +655,8 @@ void ClassReleaseChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
   Selector S = msg.getSelector();
   if (!(S == releaseS || S == retainS || S == autoreleaseS || S == drainS))
     return;
-  
-  if (ExplodedNode *N = C.addTransition()) {
+
+  if (ExplodedNode *N = C.generateNonFatalErrorNode()) {
     SmallString<200> buf;
     llvm::raw_svector_ostream os(buf);
 
@@ -665,7 +665,7 @@ void ClassReleaseChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
     os << "' message should be sent to instances "
           "of class '" << Class->getName()
        << "' and not the class directly";
-  
+
     auto report = llvm::make_unique<BugReport>(*BT, os.str(), N);
     report->addRange(msg.getSourceRange());
     C.emitReport(std::move(report));
@@ -699,12 +699,12 @@ public:
 bool
 VariadicMethodTypeChecker::isVariadicMessage(const ObjCMethodCall &msg) const {
   const ObjCMethodDecl *MD = msg.getDecl();
-  
+
   if (!MD || !MD->isVariadic() || isa<ObjCProtocolDecl>(MD->getDeclContext()))
     return false;
-  
+
   Selector S = msg.getSelector();
-  
+
   if (msg.isInstanceMessage()) {
     // FIXME: Ideally we'd look at the receiver interface here, but that's not
     // useful for init, because alloc returns 'id'. In theory, this could lead
@@ -751,7 +751,7 @@ void VariadicMethodTypeChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
 
     ASTContext &Ctx = C.getASTContext();
     arrayWithObjectsS = GetUnarySelector("arrayWithObjects", Ctx);
-    dictionaryWithObjectsAndKeysS = 
+    dictionaryWithObjectsAndKeysS =
       GetUnarySelector("dictionaryWithObjectsAndKeys", Ctx);
     setWithObjectsS = GetUnarySelector("setWithObjects", Ctx);
     orderedSetWithObjectsS = GetUnarySelector("orderedSetWithObjects", Ctx);
@@ -789,18 +789,18 @@ void VariadicMethodTypeChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
     // Ignore pointer constants.
     if (msg.getArgSVal(I).getAs<loc::ConcreteInt>())
       continue;
-    
+
     // Ignore pointer types annotated with 'NSObject' attribute.
     if (C.getASTContext().isObjCNSObjectType(ArgTy))
       continue;
-    
+
     // Ignore CF references, which can be toll-free bridged.
     if (coreFoundation::isCFObjectRef(ArgTy))
       continue;
 
     // Generate only one error node to use for all bug reports.
     if (!errorNode.hasValue())
-      errorNode = C.addTransition();
+      errorNode = C.generateNonFatalErrorNode();
 
     if (!errorNode.getValue())
       continue;
@@ -861,7 +861,7 @@ static bool isKnownNonNilCollectionType(QualType T) {
   const ObjCObjectPointerType *PT = T->getAs<ObjCObjectPointerType>();
   if (!PT)
     return false;
-  
+
   const ObjCInterfaceDecl *ID = PT->getInterfaceDecl();
   if (!ID)
     return false;
@@ -992,9 +992,7 @@ static bool alreadyExecutedAtLeastOneLoopIteration(const ExplodedNode *N,
 
   ProgramPoint P = N->getLocation();
   if (Optional<BlockEdge> BE = P.getAs<BlockEdge>()) {
-    if (BE->getSrc()->getLoopTarget() == FCS)
-      return true;
-    return false;
+    return BE->getSrc()->getLoopTarget() == FCS;
   }
 
   // Keep looking for a block edge.
@@ -1023,9 +1021,9 @@ void ObjCLoopChecker::checkPostStmt(const ObjCForCollectionStmt *FCS,
     State = checkElementNonNil(C, State, FCS);
     State = assumeCollectionNonEmpty(C, State, FCS, /*Assumption*/true);
   }
-  
+
   if (!State)
-    C.generateSink();
+    C.generateSink(C.getState(), C.getPredecessor());
   else if (State != C.getState())
     C.addTransition(State);
 }
@@ -1038,11 +1036,8 @@ bool ObjCLoopChecker::isCollectionCountMethod(const ObjCMethodCall &M,
     CountSelectorII = &C.getASTContext().Idents.get("count");
 
   // If the method returns collection count, record the value.
-  if (S.isUnarySelector() &&
-      (S.getIdentifierInfoForSlot(0) == CountSelectorII))
-    return true;
-  
-  return false;
+  return S.isUnarySelector() &&
+         (S.getIdentifierInfoForSlot(0) == CountSelectorII);
 }
 
 void ObjCLoopChecker::checkPostObjCMessage(const ObjCMethodCall &M,
@@ -1069,7 +1064,7 @@ void ObjCLoopChecker::checkPostObjCMessage(const ObjCMethodCall &M,
   // a call to "count" and add it to the map.
   if (!isCollectionCountMethod(M, C))
     return;
-  
+
   const Expr *MsgExpr = M.getOriginExpr();
   SymbolRef CountS = C.getSVal(MsgExpr).getAsSymbol();
   if (CountS) {

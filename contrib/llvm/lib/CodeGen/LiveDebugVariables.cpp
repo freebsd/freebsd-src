@@ -91,9 +91,7 @@ public:
   bool dominates(MachineBasicBlock *MBB) {
     if (LBlocks.empty())
       LS.getMachineBasicBlocks(DL, LBlocks);
-    if (LBlocks.count(MBB) != 0 || LS.dominates(DL, MBB))
-      return true;
-    return false;
+    return LBlocks.count(MBB) != 0 || LS.dominates(DL, MBB);
   }
 };
 } // end anonymous namespace
@@ -512,7 +510,7 @@ bool LDVImpl::collectDebugValues(MachineFunction &mf) {
   bool Changed = false;
   for (MachineFunction::iterator MFI = mf.begin(), MFE = mf.end(); MFI != MFE;
        ++MFI) {
-    MachineBasicBlock *MBB = MFI;
+    MachineBasicBlock *MBB = &*MFI;
     for (MachineBasicBlock::iterator MBBI = MBB->begin(), MBBE = MBB->end();
          MBBI != MBBE;) {
       if (!MBBI->isDebugValue()) {
@@ -536,65 +534,49 @@ bool LDVImpl::collectDebugValues(MachineFunction &mf) {
   return Changed;
 }
 
-void UserValue::extendDef(SlotIndex Idx, unsigned LocNo,
-                          LiveRange *LR, const VNInfo *VNI,
-                          SmallVectorImpl<SlotIndex> *Kills,
+/// We only propagate DBG_VALUES locally here. LiveDebugValues performs a
+/// data-flow analysis to propagate them beyond basic block boundaries.
+void UserValue::extendDef(SlotIndex Idx, unsigned LocNo, LiveRange *LR,
+                          const VNInfo *VNI, SmallVectorImpl<SlotIndex> *Kills,
                           LiveIntervals &LIS, MachineDominatorTree &MDT,
                           UserValueScopes &UVS) {
-  SmallVector<SlotIndex, 16> Todo;
-  Todo.push_back(Idx);
-  do {
-    SlotIndex Start = Todo.pop_back_val();
-    MachineBasicBlock *MBB = LIS.getMBBFromIndex(Start);
-    SlotIndex Stop = LIS.getMBBEndIdx(MBB);
-    LocMap::iterator I = locInts.find(Start);
+  SlotIndex Start = Idx;
+  MachineBasicBlock *MBB = LIS.getMBBFromIndex(Start);
+  SlotIndex Stop = LIS.getMBBEndIdx(MBB);
+  LocMap::iterator I = locInts.find(Start);
 
-    // Limit to VNI's live range.
-    bool ToEnd = true;
-    if (LR && VNI) {
-      LiveInterval::Segment *Segment = LR->getSegmentContaining(Start);
-      if (!Segment || Segment->valno != VNI) {
-        if (Kills)
-          Kills->push_back(Start);
-        continue;
-      }
-      if (Segment->end < Stop)
-        Stop = Segment->end, ToEnd = false;
+  // Limit to VNI's live range.
+  bool ToEnd = true;
+  if (LR && VNI) {
+    LiveInterval::Segment *Segment = LR->getSegmentContaining(Start);
+    if (!Segment || Segment->valno != VNI) {
+      if (Kills)
+        Kills->push_back(Start);
+      return;
     }
+    if (Segment->end < Stop)
+      Stop = Segment->end, ToEnd = false;
+  }
 
-    // There could already be a short def at Start.
-    if (I.valid() && I.start() <= Start) {
-      // Stop when meeting a different location or an already extended interval.
-      Start = Start.getNextSlot();
-      if (I.value() != LocNo || I.stop() != Start)
-        continue;
-      // This is a one-slot placeholder. Just skip it.
-      ++I;
-    }
+  // There could already be a short def at Start.
+  if (I.valid() && I.start() <= Start) {
+    // Stop when meeting a different location or an already extended interval.
+    Start = Start.getNextSlot();
+    if (I.value() != LocNo || I.stop() != Start)
+      return;
+    // This is a one-slot placeholder. Just skip it.
+    ++I;
+  }
 
-    // Limited by the next def.
-    if (I.valid() && I.start() < Stop)
-      Stop = I.start(), ToEnd = false;
-    // Limited by VNI's live range.
-    else if (!ToEnd && Kills)
-      Kills->push_back(Stop);
+  // Limited by the next def.
+  if (I.valid() && I.start() < Stop)
+    Stop = I.start(), ToEnd = false;
+  // Limited by VNI's live range.
+  else if (!ToEnd && Kills)
+    Kills->push_back(Stop);
 
-    if (Start >= Stop)
-      continue;
-
+  if (Start < Stop)
     I.insert(Start, Stop, LocNo);
-
-    // If we extended to the MBB end, propagate down the dominator tree.
-    if (!ToEnd)
-      continue;
-    const std::vector<MachineDomTreeNode*> &Children =
-      MDT.getNode(MBB)->getChildren();
-    for (unsigned i = 0, e = Children.size(); i != e; ++i) {
-      MachineBasicBlock *MBB = Children[i]->getBlock();
-      if (UVS.dominates(MBB))
-        Todo.push_back(LIS.getMBBStartIdx(MBB));
-    }
-  } while (!Todo.empty());
 }
 
 void
@@ -763,7 +745,7 @@ static void removeDebugValues(MachineFunction &mf) {
 bool LiveDebugVariables::runOnMachineFunction(MachineFunction &mf) {
   if (!EnableLDV)
     return false;
-  if (!FunctionDIs.count(mf.getFunction())) {
+  if (!mf.getFunction()->getSubprogram()) {
     removeDebugValues(mf);
     return false;
   }
@@ -1004,11 +986,11 @@ void UserValue::emitDebugValues(VirtRegMap *VRM, LiveIntervals &LIS,
     SlotIndex Stop = I.stop();
     unsigned LocNo = I.value();
     DEBUG(dbgs() << "\t[" << Start << ';' << Stop << "):" << LocNo);
-    MachineFunction::iterator MBB = LIS.getMBBFromIndex(Start);
-    SlotIndex MBBEnd = LIS.getMBBEndIdx(MBB);
+    MachineFunction::iterator MBB = LIS.getMBBFromIndex(Start)->getIterator();
+    SlotIndex MBBEnd = LIS.getMBBEndIdx(&*MBB);
 
     DEBUG(dbgs() << " BB#" << MBB->getNumber() << '-' << MBBEnd);
-    insertDebugValue(MBB, Start, LocNo, LIS, TII);
+    insertDebugValue(&*MBB, Start, LocNo, LIS, TII);
     // This interval may span multiple basic blocks.
     // Insert a DBG_VALUE into each one.
     while(Stop > MBBEnd) {
@@ -1016,9 +998,9 @@ void UserValue::emitDebugValues(VirtRegMap *VRM, LiveIntervals &LIS,
       Start = MBBEnd;
       if (++MBB == MFEnd)
         break;
-      MBBEnd = LIS.getMBBEndIdx(MBB);
+      MBBEnd = LIS.getMBBEndIdx(&*MBB);
       DEBUG(dbgs() << " BB#" << MBB->getNumber() << '-' << MBBEnd);
-      insertDebugValue(MBB, Start, LocNo, LIS, TII);
+      insertDebugValue(&*MBB, Start, LocNo, LIS, TII);
     }
     DEBUG(dbgs() << '\n');
     if (MBB == MFEnd)
@@ -1047,7 +1029,6 @@ void LiveDebugVariables::emitDebugValues(VirtRegMap *VRM) {
 }
 
 bool LiveDebugVariables::doInitialization(Module &M) {
-  FunctionDIs = makeSubprogramMap(M);
   return Pass::doInitialization(M);
 }
 

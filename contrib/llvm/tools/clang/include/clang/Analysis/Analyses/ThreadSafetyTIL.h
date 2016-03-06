@@ -1395,7 +1395,7 @@ public:
 
   /// Return the list of basic blocks that this terminator can branch to.
   ArrayRef<BasicBlock*> successors() {
-    return ArrayRef<BasicBlock*>(&TargetBlock, 1);
+    return TargetBlock;
   }
 
   template <class V>
@@ -1445,7 +1445,7 @@ public:
 
   /// Return the list of basic blocks that this terminator can branch to.
   ArrayRef<BasicBlock*> successors() {
-    return ArrayRef<BasicBlock*>(Branches, 2);
+    return llvm::makeArrayRef(Branches);
   }
 
   template <class V>
@@ -1479,7 +1479,7 @@ public:
 
   /// Return an empty list.
   ArrayRef<BasicBlock*> successors() {
-    return ArrayRef<BasicBlock*>();
+    return None;
   }
 
   SExpr *returnValue() { return Retval; }
@@ -1507,7 +1507,7 @@ inline ArrayRef<BasicBlock*> Terminator::successors() {
     case COP_Branch: return cast<Branch>(this)->successors();
     case COP_Return: return cast<Return>(this)->successors();
     default:
-      return ArrayRef<BasicBlock*>();
+      return None;
   }
 }
 

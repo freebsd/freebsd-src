@@ -16,7 +16,6 @@
 // Project includes
 #include "lldb/Interpreter/CommandObject.h"
 #include "lldb/Interpreter/Options.h"
-#include "lldb/Core/Language.h"
 
 namespace lldb_private {
     
@@ -30,17 +29,16 @@ namespace lldb_private {
             
             CommandOptions (CommandInterpreter &interpreter);
             
-            virtual
-            ~CommandOptions ();
+            ~CommandOptions() override;
             
-            virtual Error
-            SetOptionValue (uint32_t option_idx, const char *option_arg);
+            Error
+            SetOptionValue(uint32_t option_idx, const char *option_arg) override;
             
             void
-            OptionParsingStarting ();
+            OptionParsingStarting() override;
             
             const OptionDefinition*
-            GetDefinitions ();
+            GetDefinitions() override;
             
             // Options table: Required for subclasses of Options.
             
@@ -49,24 +47,20 @@ namespace lldb_private {
         
         CommandObjectArgs (CommandInterpreter &interpreter);
         
-        virtual
-        ~CommandObjectArgs ();
+        ~CommandObjectArgs() override;
         
-        virtual
         Options *
-        GetOptions ();
-        
+        GetOptions() override;
         
     protected:
         
         CommandOptions m_options;
 
-        virtual bool
-        DoExecute (    Args& command,
-                 CommandReturnObject &result);
-        
+        bool
+        DoExecute(Args& command,
+		  CommandReturnObject &result) override;
     };
     
 } // namespace lldb_private
 
-#endif  // liblldb_CommandObjectArgs_h_
+#endif // liblldb_CommandObjectArgs_h_

@@ -8,7 +8,8 @@ SRCDIR=	lib/Target/PowerPC/TargetInfo
 INCDIR=	lib/Target/PowerPC
 SRCS=	PowerPCTargetInfo.cpp
 
-TGHDRS=	PPCGenInstrInfo \
+TGHDRS=	Attributes \
+	PPCGenInstrInfo \
 	PPCGenRegisterInfo \
 	PPCGenSubtargetInfo
 

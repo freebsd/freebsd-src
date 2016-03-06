@@ -982,6 +982,7 @@ distributeworld installworld stageworld: _installcheck_world
 	cp $$libs $$progs ${INSTALLTMP}
 	cp -R $${PATH_LOCALE:-"/usr/share/locale"} ${INSTALLTMP}/locale
 .if defined(NO_ROOT)
+	-mkdir -p ${METALOG:H}
 	echo "#${MTREE_MAGIC}" > ${METALOG}
 .endif
 .if make(distributeworld)
@@ -1644,6 +1645,11 @@ ${_bt}-usr.sbin/nmtree: ${_bt}-lib/libnetbsd
 _cat=		bin/cat
 .endif
 
+# r264059 support for status=
+.if ${BOOTSTRAPPING} < 1100017
+_dd=		bin/dd
+.endif
+
 # r277259 crunchide: Correct 64-bit section header offset
 # r281674 crunchide: always include both 32- and 64-bit ELF support
 # r285986 crunchen: use STRIPBIN rather than STRIP
@@ -1670,11 +1676,11 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 _clang_tblgen= \
 	lib/clang/libllvmsupport \
 	lib/clang/libllvmtablegen \
-	usr.bin/clang/tblgen \
+	usr.bin/clang/llvm-tblgen \
 	usr.bin/clang/clang-tblgen
 
 ${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
-${_bt}-usr.bin/clang/tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
+${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
 .endif
 
 # Default to building the GPL DTC, but build the BSDL one if users explicitly
@@ -1696,13 +1702,12 @@ _kerberos5_bootstrap_tools= \
 .ORDER: ${_kerberos5_bootstrap_tools:C/^/${_bt}-/g}
 .endif
 
-.if ${MK_MANDOCDB} != "no"
+# r283777 makewhatis(1) replaced with mandoc version which builds a database.
+.if ${MK_MANDOCDB} != "no" && ${BOOTSTRAPPING} < 1100075
 _libopenbsd?=	lib/libopenbsd
 _makewhatis=	lib/libsqlite3 \
 		usr.bin/mandoc
 ${_bt}-usr.bin/mandoc: ${_bt}-lib/libopenbsd ${_bt}-lib/libsqlite3
-.else
-_makewhatis=usr.bin/makewhatis
 .endif
 
 bootstrap-tools: .PHONY
@@ -1719,6 +1724,7 @@ bootstrap-tools: .PHONY
     ${_dtc} \
     ${_awk} \
     ${_cat} \
+    ${_dd} \
     usr.bin/lorder \
     ${_libopenbsd} \
     ${_makewhatis} \
@@ -1881,7 +1887,7 @@ NXBENV=		MAKEOBJDIRPREFIX=${OBJTREE}/nxb \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${PATH}:${OBJTREE}/gperf_for_gcc/usr/bin
 NXBMAKE=	${NXBENV} ${MAKE} \
-		TBLGEN=${NXBDESTDIR}/usr/bin/tblgen \
+		LLVM_TBLGEN=${NXBDESTDIR}/usr/bin/llvm-tblgen \
 		CLANG_TBLGEN=${NXBDESTDIR}/usr/bin/clang-tblgen \
 		MACHINE=${TARGET} MACHINE_ARCH=${TARGET_ARCH} \
 		MK_GDB=no MK_TESTS=no \
@@ -2079,7 +2085,16 @@ _lib_libradius=	lib/libradius
 .endif
 
 .if ${MK_OFED} != "no"
-_ofed_lib=	contrib/ofed/usr.lib/
+_ofed_lib=		contrib/ofed/usr.lib
+_prebuild_libs+=	contrib/ofed/usr.lib/libosmcomp
+_prebuild_libs+=	contrib/ofed/usr.lib/libopensm
+_prebuild_libs+=	contrib/ofed/usr.lib/libibcommon
+_prebuild_libs+=	contrib/ofed/usr.lib/libibverbs
+_prebuild_libs+=	contrib/ofed/usr.lib/libibumad
+
+contrib/ofed/usr.lib/libopensm__L: lib/libthr__L
+contrib/ofed/usr.lib/libosmcomp__L: lib/libthr__L
+contrib/ofed/usr.lib/libibumad__L: contrib/ofed/usr.lib/libibcommon__L
 .endif
 
 .if ${MK_CASPER} != "no"
@@ -2092,7 +2107,7 @@ lib/liblzma__L: lib/libthr__L
 
 _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib ${_ofed_lib}
 .for _DIR in ${LOCAL_LIB_DIRS}
-.if exists(${.CURDIR}/${_DIR}/Makefile)
+.if exists(${.CURDIR}/${_DIR}/Makefile) && empty(_generic_libs:M${_DIR})
 _generic_libs+= ${_DIR}
 .endif
 .endfor

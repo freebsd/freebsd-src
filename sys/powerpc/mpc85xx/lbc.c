@@ -511,8 +511,6 @@ lbc_attach(device_t dev)
 	rm = &sc->sc_rman;
 	rm->rm_type = RMAN_ARRAY;
 	rm->rm_descr = "Local Bus Space";
-	rm->rm_start = 0UL;
-	rm->rm_end = ~0UL;
 	error = rman_init(rm);
 	if (error)
 		goto fail;
