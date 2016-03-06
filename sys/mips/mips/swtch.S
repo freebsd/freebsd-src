@@ -79,7 +79,8 @@
 LEAF(fork_trampoline)
 	move	a0,s0
 	move	a1,s1
-	jal	_C_LABEL(fork_exit)
+	PTR_LA	t9, _C_LABEL(fork_exit)
+	jalr	t9
 	move	a2,s2			  #BDSlot
 
 	DO_AST
@@ -291,7 +292,8 @@ userland_cop2:
 	nop
 
 do_cop2_save:
-	jal	octeon_cop2_save
+	PTR_LA	t9, octeon_cop2_save
+	jalr	t9
 	nop
 
 no_cop2_context:
@@ -427,8 +429,8 @@ entry0set:
 sw2:
 	PTR_L	s0, TD_PCB(s7)
 	RESTORE_U_PCB_CONTEXT(sp, PCB_REG_SP, s0)
-	PTR_LA	t1, _C_LABEL(pmap_activate)	# s7 = new proc pointer
-	jalr	t1				# s7 = new proc pointer
+	PTR_LA	t9, _C_LABEL(pmap_activate)	# s7 = new proc pointer
+	jalr	t9				# s7 = new proc pointer
 	move	a0, s7				# BDSLOT
 /*
  * Restore registers and return.

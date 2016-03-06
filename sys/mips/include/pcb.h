@@ -1,3 +1,4 @@
+
 /*	$OpenBSD: pcb.h,v 1.3 1998/09/15 10:50:12 pefo Exp $	*/
 
 /*-
@@ -84,8 +85,8 @@
 	COP0_SYNC                                   ;\
 	beq	s2, zero, 4f                        ;\
 	nop                                         ;\
-	PTR_LA	s0, _C_LABEL(ast)                   ;\
-	jalr	s0                                  ;\
+	PTR_LA	t9, _C_LABEL(ast)                   ;\
+	jalr	t9                                  ;\
 	PTR_ADDU a0, s3, U_PCB_REGS                 ;\
 	j	44b		                    ;\
         nop                                         ;\

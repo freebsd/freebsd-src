@@ -202,7 +202,8 @@ VECTOR(_locore, unknown)
 	PTR_LA	gp, _C_LABEL(_gp)
 
 	/* Call the platform-specific startup code. */
-	jal	_C_LABEL(platform_start)
+	PTR_LA	t9, _C_LABEL(platform_start)
+	jalr	t9
 	nop
 
 	PTR_LA	sp, _C_LABEL(thread0)
@@ -211,7 +212,8 @@ VECTOR(_locore, unknown)
 	and	a0, a0, t0
 	PTR_SUBU	sp, a0, CALLFRAME_SIZ
 
-	jal	_C_LABEL(mi_startup)		# mi_startup(frame)
+	PTR_LA	t9, _C_LABEL(mi_startup)
+	jalr	t9				# mi_startup(frame)
 	sw	zero, CALLFRAME_SIZ - 8(sp)	# Zero out old fp for debugger
 
 	PANIC("Startup failed!")

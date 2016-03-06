@@ -541,8 +541,8 @@ NESTED_NOPROFILE(MipsKernGenException, KERN_EXC_FRAME_SIZE, ra)
  *  Call the exception handler. a0 points at the saved frame.
  */
 	PTR_LA	gp, _C_LABEL(_gp)
-	PTR_LA	k0, _C_LABEL(trap)
-	jalr	k0
+	PTR_LA	t9, _C_LABEL(trap)
+	jalr	t9
 	REG_S	a3, CALLFRAME_RA + KERN_REG_SIZE(sp)		# for debugging
 
 	/*
@@ -613,8 +613,8 @@ NESTED_NOPROFILE(MipsUserGenException, CALLFRAME_SIZ, ra)
 /*
  * Call the exception handler.
  */
-	PTR_LA	k0, _C_LABEL(trap)
-	jalr	k0
+	PTR_LA	t9, _C_LABEL(trap)
+	jalr	t9
 	nop
 
 /*
@@ -673,7 +673,8 @@ NESTED(mips_wait, CALLFRAME_SIZ, ra)
 	xori	t1, t0, MIPS_SR_INT_IE
 	mtc0	t1, MIPS_COP_0_STATUS
 	COP0_SYNC
-	jal	sched_runnable
+	PTR_LA	t9, sched_runnable
+	jalr	t9
 	nop
 	REG_L   ra, CALLFRAME_RA(sp)
 	mfc0	t0, MIPS_COP_0_STATUS
@@ -737,8 +738,8 @@ NESTED_NOPROFILE(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
  *  Call the interrupt handler. a0 points at the saved frame.
  */
 	PTR_LA	gp, _C_LABEL(_gp)
-	PTR_LA	k0, _C_LABEL(cpu_intr)
-	jalr	k0
+	PTR_LA	t9, _C_LABEL(cpu_intr)
+	jalr	t9
 	REG_S	a3, CALLFRAME_RA + KERN_REG_SIZE(sp)		# for debugging
 
 	/*
@@ -859,8 +860,8 @@ NESTED_NOPROFILE(MipsUserIntr, CALLFRAME_SIZ, ra)
 /*
  * Call the interrupt handler.
  */
-	PTR_LA	k0, _C_LABEL(cpu_intr)
-	jalr	k0
+	PTR_LA	t9, _C_LABEL(cpu_intr)
+	jalr	t9
 	REG_S	a3, CALLFRAME_RA(sp)	# for debugging
 
 /*
@@ -1362,8 +1363,8 @@ NESTED(MipsFPTrap, CALLFRAME_SIZ, ra)
 	PTR_ADDU a0, a0, U_PCB_REGS		# first arg is ptr to CPU registers
 	move	a1, a2				# second arg is instruction PC
 	move	a2, t1				# third arg is floating point CSR
-	PTR_LA	t3, _C_LABEL(MipsEmulateBranch)	# compute PC after branch
-	jalr	t3				# compute PC after branch
+	PTR_LA	t9, _C_LABEL(MipsEmulateBranch)	# compute PC after branch
+	jalr	t9				# compute PC after branch
 	move	a3, zero			# fourth arg is FALSE
 /*
  * Now load the floating-point instruction in the branch delay slot
@@ -1399,8 +1400,8 @@ NESTED(MipsFPTrap, CALLFRAME_SIZ, ra)
 	PTR_L	a0, PC_CURTHREAD(a0)		# get current thread
 	cfc1	a2, MIPS_FPU_CSR		# code = FP execptions
 	ctc1	zero, MIPS_FPU_CSR		# Clear exceptions
-	PTR_LA	t3, _C_LABEL(trapsignal)
-	jalr	t3
+	PTR_LA	t9, _C_LABEL(trapsignal)
+	jalr	t9
 	li	a1, SIGFPE
 	b	FPReturn
 	nop
@@ -1409,8 +1410,8 @@ NESTED(MipsFPTrap, CALLFRAME_SIZ, ra)
  * Finally, we can call MipsEmulateFP() where a0 is the instruction to emulate.
  */
 4:
-	PTR_LA	t3, _C_LABEL(MipsEmulateFP)
-	jalr	t3
+	PTR_LA	t9, _C_LABEL(MipsEmulateFP)
+	jalr	t9
 	nop
 
 /*

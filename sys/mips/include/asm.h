@@ -240,7 +240,8 @@ _C_LABEL(x):
  */
 #define	PANIC(msg)			\
 	PTR_LA	a0, 9f;			\
-	jal	_C_LABEL(panic);	\
+	PTR_LA	t9, _C_LABEL(panic);	\
+	jalr	t9;			\
 	nop;				\
 	MSG(msg)
 
@@ -248,7 +249,8 @@ _C_LABEL(x):
 
 #define	PRINTF(msg)			\
 	PTR_LA	a0, 9f;			\
-	jal	_C_LABEL(printf);	\
+	PTR_LA	t9, _C_LABEL(printf);	\
+	jalr	t9;			\
 	nop;				\
 	MSG(msg)
 

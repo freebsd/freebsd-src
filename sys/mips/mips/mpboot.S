@@ -63,7 +63,8 @@ GLOBAL(mpentry)
 	mtc0	t0, MIPS_COP_0_CONFIG
 	COP0_SYNC
 
-	jal	platform_processor_id	/* get the processor number */
+	PTR_LA	t9, platform_processor_id	/* get the processor number */
+	jalr	t9
 	nop
 	move	s0, v0
 
@@ -81,9 +82,11 @@ GLOBAL(mpentry)
 
 	PTR_LA	gp, _C_LABEL(_gp)
 
-	jal	platform_init_ap
+	PTR_LA	t9,	platform_init_ap
+	jalr	t9
 	move	a0, s0
-	jal	smp_init_secondary
+	PTR_LA	t9, smp_init_secondary
+	jalr	t9
 	move	a0, s0
 
 	PANIC("AP startup failed!")
