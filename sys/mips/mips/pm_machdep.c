@@ -542,10 +542,11 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 }
 
 #ifdef CPU_CHERI
-#define CHERI_CAP_ADDTAG(dst, src, crn) do {			\
-	uint64_t tag;						\
+#define CHERI_CAP_ADDTAG(dst, src) do {				\
+	register_t tag;						\
 								\
-	CHERI_CGETTAG(tag, (crn));				\
+	cheri_capability_load(CHERI_CR_CTEMP0, (struct chericap *)src);	\
+	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);			\
 	*dst = (*src & ~(1ULL << 63)) | (tag << 63);		\
 	dst++; src++;						\
 	*dst = *src;	/* cursor */				\
@@ -573,34 +574,34 @@ fill_capregs(struct thread *td, void *_capregs)
 	 *
 	 * XXXSS This needs to match 'struct cheri_frame' in cheri.h.
 	 */
-	CHERI_CAP_ADDTAG(dst, src,  0);
-	CHERI_CAP_ADDTAG(dst, src,  1);
-	CHERI_CAP_ADDTAG(dst, src,  2);
-	CHERI_CAP_ADDTAG(dst, src,  3);
-	CHERI_CAP_ADDTAG(dst, src,  4);
-	CHERI_CAP_ADDTAG(dst, src,  5);
-	CHERI_CAP_ADDTAG(dst, src,  6);
-	CHERI_CAP_ADDTAG(dst, src,  7);
-	CHERI_CAP_ADDTAG(dst, src,  8);
-	CHERI_CAP_ADDTAG(dst, src,  9);
-	CHERI_CAP_ADDTAG(dst, src, 10);
-	CHERI_CAP_ADDTAG(dst, src, 11);
-	CHERI_CAP_ADDTAG(dst, src, 12);
-	CHERI_CAP_ADDTAG(dst, src, 13);
-	CHERI_CAP_ADDTAG(dst, src, 14);
-	CHERI_CAP_ADDTAG(dst, src, 15);
-	CHERI_CAP_ADDTAG(dst, src, 16);
-	CHERI_CAP_ADDTAG(dst, src, 17);
-	CHERI_CAP_ADDTAG(dst, src, 18);
-	CHERI_CAP_ADDTAG(dst, src, 19);
-	CHERI_CAP_ADDTAG(dst, src, 20);
-	CHERI_CAP_ADDTAG(dst, src, 21);
-	CHERI_CAP_ADDTAG(dst, src, 22);
-	CHERI_CAP_ADDTAG(dst, src, 23);
-	CHERI_CAP_ADDTAG(dst, src, 24);		/* RCC */
-	CHERI_CAP_ADDTAG(dst, src, 25);
-	CHERI_CAP_ADDTAG(dst, src, 26);		/* IDC */
-	CHERI_CAP_ADDTAG(dst, src, 31);		/* PCC (from EPCC) */
+	CHERI_CAP_ADDTAG(dst, src);	/* 0 */
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);	/* 4 */
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);	/* 8 */
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);	/* 12 */
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);	/* 16 */
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);	/* 20 */
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);	/* 24 */
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);
+	CHERI_CAP_ADDTAG(dst, src);
 
 	*dst = *src; /* capcause register */
 
