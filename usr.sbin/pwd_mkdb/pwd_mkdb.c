@@ -225,14 +225,14 @@ main(int argc, char *argv[])
 		clean = FILE_INSECURE;
 		cp(buf2, buf, PERM_INSECURE);
 		dp = dbopen(buf,
-		    O_RDWR|O_EXCL|O_SYNC, PERM_INSECURE, DB_HASH, &openinfo);
+		    O_RDWR|O_EXCL, PERM_INSECURE, DB_HASH, &openinfo);
 		if (dp == NULL)
 			error(buf);
 
 		clean = FILE_SECURE;
 		cp(sbuf2, sbuf, PERM_SECURE);
 		sdp = dbopen(sbuf,
-		    O_RDWR|O_EXCL|O_SYNC, PERM_SECURE, DB_HASH, &openinfo);
+		    O_RDWR|O_EXCL, PERM_SECURE, DB_HASH, &openinfo);
 		if (sdp == NULL)
 			error(sbuf);
 
@@ -289,13 +289,13 @@ main(int argc, char *argv[])
 		method = 0;
 	} else {
 		dp = dbopen(buf,
-		    O_RDWR|O_CREAT|O_EXCL|O_SYNC, PERM_INSECURE, DB_HASH, &openinfo);
+		    O_RDWR|O_CREAT|O_EXCL, PERM_INSECURE, DB_HASH, &openinfo);
 		if (dp == NULL)
 			error(buf);
 		clean = FILE_INSECURE;
 
 		sdp = dbopen(sbuf,
-		    O_RDWR|O_CREAT|O_EXCL|O_SYNC, PERM_SECURE, DB_HASH, &openinfo);
+		    O_RDWR|O_CREAT|O_EXCL, PERM_SECURE, DB_HASH, &openinfo);
 		if (sdp == NULL)
 			error(sbuf);
 		clean = FILE_SECURE;
