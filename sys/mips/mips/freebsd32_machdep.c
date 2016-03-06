@@ -398,6 +398,7 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	for (i = 1; i < 32; i++)
 		sf.sf_uc.uc_mcontext.mc_regs[i] = regs.r_regs[i];
 	sf.sf_uc.uc_mcontext.mc_fpused = td->td_md.md_flags & MDTD_FPUSED;
+#if defined(CPU_HAVEFPU)
 	if (sf.sf_uc.uc_mcontext.mc_fpused) {
 		/* if FPU has current state, save it first */
 		if (td == PCPU_GET(fpcurthread))
@@ -406,6 +407,7 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		for (i = 0; i < 33; i++)
 			sf.sf_uc.uc_mcontext.mc_fpregs[i] = fpregs.r_regs[i];
 	}
+#endif
 
 	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&

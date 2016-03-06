@@ -1195,6 +1195,11 @@ dofault:
 #endif
 
 	case T_FPE + T_USER:
+#if !defined(CPU_HAVEFPU)
+	  i = SIGILL;
+	  addr = trapframe->pc;
+	  break;
+#else
 		if (!emulate_fp) {
 			i = SIGILL;
 			addr = trapframe->pc;
@@ -1202,6 +1207,7 @@ dofault:
 		}
 		MipsFPTrap(trapframe->sr, trapframe->cause, trapframe->pc);
 		goto out;
+#endif
 
 	case T_OVFLOW + T_USER:
 		i = SIGFPE;

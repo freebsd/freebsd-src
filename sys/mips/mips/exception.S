@@ -1331,6 +1331,7 @@ END(MipsTLBMissException)
  *
  *----------------------------------------------------------------------------
  */
+#if defined(CPU_HAVEFPU)
 NESTED(MipsFPTrap, CALLFRAME_SIZ, ra)
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
 	mfc0	t0, MIPS_COP_0_STATUS
@@ -1426,6 +1427,7 @@ FPReturn:
 	j	ra
 	PTR_ADDU sp, sp, CALLFRAME_SIZ
 END(MipsFPTrap)
+#endif /* CPU_HAVEFPU */
 
 /*
  * Interrupt counters for vmstat.

@@ -197,8 +197,10 @@ loop:
 		subr = (uintptr_t)savectx;
 	else if (pcBetween(cpu_throw, cpu_switch))
 		subr = (uintptr_t)cpu_throw;
+#if defined(CPU_HAVEFPU)
 	else if (pcBetween(cpu_switch, MipsSwitchFPState))
 		subr = (uintptr_t)cpu_switch;
+#endif
 	else if (pcBetween(_locore, _locoreEnd)) {
 		subr = (uintptr_t)_locore;
 		ra = 0;

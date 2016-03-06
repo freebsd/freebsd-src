@@ -494,6 +494,7 @@ END(cpu_switch)
  *
  *----------------------------------------------------------------------------
  */
+#if defined(CPU_HAVEFPU)
 LEAF(MipsSwitchFPState)
 	mfc0	t1, MIPS_COP_0_STATUS	# Save old SR
 	li	t0, MIPS_SR_COP_1_BIT	# enable the coprocessor
@@ -597,6 +598,7 @@ LEAF(MipsSwitchFPState)
 	j	ra
 	nop
 END(MipsSwitchFPState)
+#endif /* CPU_HAVEFPU */
 
 /*----------------------------------------------------------------------------
  *
@@ -615,6 +617,7 @@ END(MipsSwitchFPState)
  *
  *----------------------------------------------------------------------------
  */
+#if defined(CPU_HAVEFPU)
 LEAF(MipsSaveCurFPState)
 	PTR_L	a0, TD_PCB(a0)			# get pointer to pcb for thread
 	mfc0	t1, MIPS_COP_0_STATUS		# Disable interrupts and
@@ -675,6 +678,7 @@ LEAF(MipsSaveCurFPState)
 	j	ra
 	nop
 END(MipsSaveCurFPState)
+#endif /* CPU_HAVEFPU */
 
 /*
  * This code is copied the user's stack for returning from signal handlers

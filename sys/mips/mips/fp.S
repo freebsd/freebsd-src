@@ -96,6 +96,7 @@
  *
  *----------------------------------------------------------------------------
  */
+#if defined(CPU_HAVEFPU)
 NESTED(MipsEmulateFP, CALLFRAME_SIZ, ra)
 	subu	sp, sp, CALLFRAME_SIZ
 	sw	ra, CALLFRAME_RA(sp)
@@ -3608,3 +3609,4 @@ LEAF(renorm_ft_d)
 	sll	ta3, ta3, t9
 	j	ra
 END(renorm_ft_d)
+#endif /* CPU_HAVEFPU */

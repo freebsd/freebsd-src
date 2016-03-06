@@ -152,8 +152,10 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	td2->td_frame->v1 = 1;
 	td2->td_frame->a3 = 0;
 
+#if defined(CPU_HAVEFPU)
 	if (td1 == PCPU_GET(fpcurthread))
 		MipsSaveCurFPState(td1);
+#endif
 
 	pcb2->pcb_context[PCB_REG_RA] = (register_t)(intptr_t)fork_trampoline;
 	/* Make sp 64-bit aligned */
