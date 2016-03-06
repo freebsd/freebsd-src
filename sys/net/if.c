@@ -175,6 +175,9 @@ static int	if_getgroupmembers(struct ifgroupreq *);
 static void	if_delgroups(struct ifnet *);
 static void	if_attach_internal(struct ifnet *, int, struct if_clone *);
 static int	if_detach_internal(struct ifnet *, int, struct if_clone **);
+#ifdef VIMAGE
+static void	if_vmove(struct ifnet *, struct vnet *);
+#endif
 
 #ifdef INET6
 /*
