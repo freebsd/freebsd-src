@@ -18,7 +18,7 @@
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdArgValOptionShort::CMICmdArgValOptionShort(void)
+CMICmdArgValOptionShort::CMICmdArgValOptionShort()
 {
 }
 
@@ -60,7 +60,7 @@ CMICmdArgValOptionShort::CMICmdArgValOptionShort(const CMIUtilString &vrArgName,
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdArgValOptionShort::~CMICmdArgValOptionShort(void)
+CMICmdArgValOptionShort::~CMICmdArgValOptionShort()
 {
 }
 
@@ -115,6 +115,6 @@ CMICmdArgValOptionShort::IsArgOptionCorrect(const CMIUtilString &vrTxt) const
 bool
 CMICmdArgValOptionShort::ArgNameMatch(const CMIUtilString &vrTxt) const
 {
-    const CMIUtilString strArg = vrTxt.substr(1).c_str();
+    const CMIUtilString strArg = vrTxt.substr(1);
     return (strArg == GetName());
 }

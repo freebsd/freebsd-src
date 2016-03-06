@@ -59,7 +59,7 @@ namespace {
       }
 
       // Called when decoding an IT instruction. Sets the IT state for the following
-      // instructions that for the IT block. Firstcond and Mask correspond to the 
+      // instructions that for the IT block. Firstcond and Mask correspond to the
       // fields in the IT instruction encoding.
       void setITState(char Firstcond, char Mask) {
         // (3 - the number of trailing zeros) is the number of then / else.
@@ -459,21 +459,18 @@ DecodeStatus ARMDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
 
   // VFP and NEON instructions, similarly, are shared between ARM
   // and Thumb modes.
-  MI.clear();
   Result = decodeInstruction(DecoderTableVFP32, MI, Insn, Address, this, STI);
   if (Result != MCDisassembler::Fail) {
     Size = 4;
     return Result;
   }
 
-  MI.clear();
   Result = decodeInstruction(DecoderTableVFPV832, MI, Insn, Address, this, STI);
   if (Result != MCDisassembler::Fail) {
     Size = 4;
     return Result;
   }
 
-  MI.clear();
   Result =
       decodeInstruction(DecoderTableNEONData32, MI, Insn, Address, this, STI);
   if (Result != MCDisassembler::Fail) {
@@ -485,7 +482,6 @@ DecodeStatus ARMDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
     return Result;
   }
 
-  MI.clear();
   Result = decodeInstruction(DecoderTableNEONLoadStore32, MI, Insn, Address,
                              this, STI);
   if (Result != MCDisassembler::Fail) {
@@ -497,7 +493,6 @@ DecodeStatus ARMDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
     return Result;
   }
 
-  MI.clear();
   Result =
       decodeInstruction(DecoderTableNEONDup32, MI, Insn, Address, this, STI);
   if (Result != MCDisassembler::Fail) {
@@ -509,7 +504,6 @@ DecodeStatus ARMDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
     return Result;
   }
 
-  MI.clear();
   Result =
       decodeInstruction(DecoderTablev8NEON32, MI, Insn, Address, this, STI);
   if (Result != MCDisassembler::Fail) {
@@ -517,7 +511,6 @@ DecodeStatus ARMDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
     return Result;
   }
 
-  MI.clear();
   Result =
       decodeInstruction(DecoderTablev8Crypto32, MI, Insn, Address, this, STI);
   if (Result != MCDisassembler::Fail) {
@@ -525,7 +518,6 @@ DecodeStatus ARMDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
     return Result;
   }
 
-  MI.clear();
   Size = 0;
   return MCDisassembler::Fail;
 }
@@ -718,7 +710,6 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
     return Result;
   }
 
-  MI.clear();
   Result = decodeInstruction(DecoderTableThumbSBit16, MI, Insn16, Address, this,
                              STI);
   if (Result) {
@@ -729,7 +720,6 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
     return Result;
   }
 
-  MI.clear();
   Result =
       decodeInstruction(DecoderTableThumb216, MI, Insn16, Address, this, STI);
   if (Result != MCDisassembler::Fail) {
@@ -763,7 +753,6 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
 
   uint32_t Insn32 =
       (Bytes[3] << 8) | (Bytes[2] << 0) | (Bytes[1] << 24) | (Bytes[0] << 16);
-  MI.clear();
   Result =
       decodeInstruction(DecoderTableThumb32, MI, Insn32, Address, this, STI);
   if (Result != MCDisassembler::Fail) {
@@ -774,7 +763,6 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
     return Result;
   }
 
-  MI.clear();
   Result =
       decodeInstruction(DecoderTableThumb232, MI, Insn32, Address, this, STI);
   if (Result != MCDisassembler::Fail) {
@@ -784,7 +772,6 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
   }
 
   if (fieldFromInstruction(Insn32, 28, 4) == 0xE) {
-    MI.clear();
     Result =
         decodeInstruction(DecoderTableVFP32, MI, Insn32, Address, this, STI);
     if (Result != MCDisassembler::Fail) {
@@ -794,7 +781,6 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
     }
   }
 
-  MI.clear();
   Result =
       decodeInstruction(DecoderTableVFPV832, MI, Insn32, Address, this, STI);
   if (Result != MCDisassembler::Fail) {
@@ -803,7 +789,6 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
   }
 
   if (fieldFromInstruction(Insn32, 28, 4) == 0xE) {
-    MI.clear();
     Result = decodeInstruction(DecoderTableNEONDup32, MI, Insn32, Address, this,
                                STI);
     if (Result != MCDisassembler::Fail) {
@@ -814,7 +799,6 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
   }
 
   if (fieldFromInstruction(Insn32, 24, 8) == 0xF9) {
-    MI.clear();
     uint32_t NEONLdStInsn = Insn32;
     NEONLdStInsn &= 0xF0FFFFFF;
     NEONLdStInsn |= 0x04000000;
@@ -828,7 +812,6 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
   }
 
   if (fieldFromInstruction(Insn32, 24, 4) == 0xF) {
-    MI.clear();
     uint32_t NEONDataInsn = Insn32;
     NEONDataInsn &= 0xF0FFFFFF; // Clear bits 27-24
     NEONDataInsn |= (NEONDataInsn & 0x10000000) >> 4; // Move bit 28 to bit 24
@@ -841,7 +824,6 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
       return Result;
     }
 
-    MI.clear();
     uint32_t NEONCryptoInsn = Insn32;
     NEONCryptoInsn &= 0xF0FFFFFF; // Clear bits 27-24
     NEONCryptoInsn |= (NEONCryptoInsn & 0x10000000) >> 4; // Move bit 28 to bit 24
@@ -853,7 +835,6 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
       return Result;
     }
 
-    MI.clear();
     uint32_t NEONv8Insn = Insn32;
     NEONv8Insn &= 0xF3FFFFFF; // Clear bits 27-26
     Result = decodeInstruction(DecoderTablev8NEON32, MI, NEONv8Insn, Address,
@@ -864,7 +845,6 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
     }
   }
 
-  MI.clear();
   Size = 0;
   return MCDisassembler::Fail;
 }
@@ -902,7 +882,7 @@ static DecodeStatus
 DecodeGPRnopcRegisterClass(MCInst &Inst, unsigned RegNo,
                            uint64_t Address, const void *Decoder) {
   DecodeStatus S = MCDisassembler::Success;
-  
+
   if (RegNo == 15) 
     S = MCDisassembler::SoftFail;
 
@@ -986,8 +966,13 @@ static DecodeStatus DecodetcGPRRegisterClass(MCInst &Inst, unsigned RegNo,
 static DecodeStatus DecoderGPRRegisterClass(MCInst &Inst, unsigned RegNo,
                                    uint64_t Address, const void *Decoder) {
   DecodeStatus S = MCDisassembler::Success;
-  if (RegNo == 13 || RegNo == 15)
+
+  const FeatureBitset &featureBits =
+    ((const MCDisassembler*)Decoder)->getSubtargetInfo().getFeatureBits();
+
+  if ((RegNo == 13 && !featureBits[ARM::HasV8Ops]) || RegNo == 15)
     S = MCDisassembler::SoftFail;
+
   Check(S, DecodeGPRRegisterClass(Inst, RegNo, Address, Decoder));
   return S;
 }
@@ -1147,7 +1132,7 @@ static DecodeStatus DecodeSORegImmOperand(MCInst &Inst, unsigned Val,
   unsigned imm = fieldFromInstruction(Val, 7, 5);
 
   // Register-immediate
-  if (!Check(S, DecodeGPRRegisterClass(Inst, Rm, Address, Decoder)))
+  if (!Check(S, DecoderGPRRegisterClass(Inst, Rm, Address, Decoder)))
     return MCDisassembler::Fail;
 
   ARM_AM::ShiftOpc Shift = ARM_AM::lsl;
@@ -1658,7 +1643,7 @@ DecodeAddrMode3Instruction(MCInst &Inst, unsigned Insn,
     case ARM::STRD_POST:
       if (P == 0 && W == 1)
         S = MCDisassembler::SoftFail;
-      
+
       if (writeback && (Rn == 15 || Rn == Rt || Rn == Rt2))
         S = MCDisassembler::SoftFail;
       if (type && Rm == 15)
@@ -4131,7 +4116,7 @@ static DecodeStatus DecodeMSRMask(MCInst &Inst, unsigned Val,
         // indicates the move for the GE{3:0} bits, the mask{0} bit can be set
         // only if the processor includes the DSP extension.
         if (Mask == 0 || (Mask != 2 && ValLow > 3) ||
-            (!(FeatureBits[ARM::FeatureDSPThumb2]) && (Mask & 1)))
+            (!(FeatureBits[ARM::FeatureDSP]) && (Mask & 1)))
           S = MCDisassembler::SoftFail;
       }
     }
@@ -5065,6 +5050,10 @@ static DecodeStatus DecodeSwap(MCInst &Inst, unsigned Insn,
 
 static DecodeStatus DecodeVCVTD(MCInst &Inst, unsigned Insn,
                                 uint64_t Address, const void *Decoder) {
+  const FeatureBitset &featureBits =
+      ((const MCDisassembler *)Decoder)->getSubtargetInfo().getFeatureBits();
+  bool hasFullFP16 = featureBits[ARM::FeatureFullFP16];
+
   unsigned Vd = (fieldFromInstruction(Insn, 12, 4) << 0);
   Vd |= (fieldFromInstruction(Insn, 22, 1) << 4);
   unsigned Vm = (fieldFromInstruction(Insn, 0, 4) << 0);
@@ -5075,10 +5064,35 @@ static DecodeStatus DecodeVCVTD(MCInst &Inst, unsigned Insn,
 
   DecodeStatus S = MCDisassembler::Success;
 
-  // VMOVv2f32 is ambiguous with these decodings.
-  if (!(imm & 0x38) && cmode == 0xF) {
-    if (op == 1) return MCDisassembler::Fail;
-    Inst.setOpcode(ARM::VMOVv2f32);
+  // If the top 3 bits of imm are clear, this is a VMOV (immediate)
+  if (!(imm & 0x38)) {
+    if (cmode == 0xF) {
+      if (op == 1) return MCDisassembler::Fail;
+      Inst.setOpcode(ARM::VMOVv2f32);
+    }
+    if (hasFullFP16) {
+      if (cmode == 0xE) {
+        if (op == 1) {
+          Inst.setOpcode(ARM::VMOVv1i64);
+        } else {
+          Inst.setOpcode(ARM::VMOVv8i8);
+        }
+      }
+      if (cmode == 0xD) {
+        if (op == 1) {
+          Inst.setOpcode(ARM::VMVNv2i32);
+        } else {
+          Inst.setOpcode(ARM::VMOVv2i32);
+        }
+      }
+      if (cmode == 0xC) {
+        if (op == 1) {
+          Inst.setOpcode(ARM::VMVNv2i32);
+        } else {
+          Inst.setOpcode(ARM::VMOVv2i32);
+        }
+      }
+    }
     return DecodeNEONModImmInstruction(Inst, Insn, Address, Decoder);
   }
 
@@ -5095,6 +5109,10 @@ static DecodeStatus DecodeVCVTD(MCInst &Inst, unsigned Insn,
 
 static DecodeStatus DecodeVCVTQ(MCInst &Inst, unsigned Insn,
                                 uint64_t Address, const void *Decoder) {
+  const FeatureBitset &featureBits =
+      ((const MCDisassembler *)Decoder)->getSubtargetInfo().getFeatureBits();
+  bool hasFullFP16 = featureBits[ARM::FeatureFullFP16];
+
   unsigned Vd = (fieldFromInstruction(Insn, 12, 4) << 0);
   Vd |= (fieldFromInstruction(Insn, 22, 1) << 4);
   unsigned Vm = (fieldFromInstruction(Insn, 0, 4) << 0);
@@ -5105,10 +5123,35 @@ static DecodeStatus DecodeVCVTQ(MCInst &Inst, unsigned Insn,
 
   DecodeStatus S = MCDisassembler::Success;
 
-  // VMOVv4f32 is ambiguous with these decodings.
-  if (!(imm & 0x38) && cmode == 0xF) {
-    if (op == 1) return MCDisassembler::Fail;
-    Inst.setOpcode(ARM::VMOVv4f32);
+  // If the top 3 bits of imm are clear, this is a VMOV (immediate)
+  if (!(imm & 0x38)) {
+    if (cmode == 0xF) {
+      if (op == 1) return MCDisassembler::Fail;
+      Inst.setOpcode(ARM::VMOVv4f32);
+    }
+    if (hasFullFP16) {
+      if (cmode == 0xE) {
+        if (op == 1) {
+          Inst.setOpcode(ARM::VMOVv2i64);
+        } else {
+          Inst.setOpcode(ARM::VMOVv16i8);
+        }
+      }
+      if (cmode == 0xD) {
+        if (op == 1) {
+          Inst.setOpcode(ARM::VMVNv4i32);
+        } else {
+          Inst.setOpcode(ARM::VMOVv4i32);
+        }
+      }
+      if (cmode == 0xC) {
+        if (op == 1) {
+          Inst.setOpcode(ARM::VMVNv4i32);
+        } else {
+          Inst.setOpcode(ARM::VMOVv4i32);
+        }
+      }
+    }
     return DecodeNEONModImmInstruction(Inst, Insn, Address, Decoder);
   }
 
@@ -5132,7 +5175,7 @@ static DecodeStatus DecodeLDR(MCInst &Inst, unsigned Val,
   unsigned Rm = fieldFromInstruction(Val, 0, 4);
   Rm |= (fieldFromInstruction(Val, 23, 1) << 4);
   unsigned Cond = fieldFromInstruction(Val, 28, 4);
- 
+
   if (fieldFromInstruction(Val, 8, 4) != 0 || Rn == Rt)
     S = MCDisassembler::SoftFail;
 

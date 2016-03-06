@@ -20,12 +20,12 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/InstructionSimplify.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Type.h"
 #include "llvm/Pass.h"
-#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
 
@@ -64,7 +64,7 @@ namespace {
           // Here be subtlety: the iterator must be incremented before the loop
           // body (not sure why), so a range-for loop won't work here.
           for (BasicBlock::iterator BI = BB->begin(), BE = BB->end(); BI != BE;) {
-            Instruction *I = BI++;
+            Instruction *I = &*BI++;
             // The first time through the loop ToSimplify is empty and we try to
             // simplify all instructions.  On later iterations ToSimplify is not
             // empty and we only bother simplifying instructions that are in it.

@@ -41,6 +41,10 @@ class InstSI <dag outs, dag ins, string asm, list<dag> pattern> :
   field bits<1> WQM = 0;
   field bits<1> VGPRSpill = 0;
 
+  // This bit tells the assembler to use the 32-bit encoding in case it
+  // is unable to infer the encoding from the operands.
+  field bits<1> VOPAsmPrefer32Bit = 0;
+
   // These need to be kept in sync with the enum in SIInstrFlags.
   let TSFlags{0} = VM_CNT;
   let TSFlags{1} = EXP_CNT;
@@ -68,10 +72,8 @@ class InstSI <dag outs, dag ins, string asm, list<dag> pattern> :
   let TSFlags{19} = FLAT;
   let TSFlags{20} = WQM;
   let TSFlags{21} = VGPRSpill;
+  let TSFlags{22} = VOPAsmPrefer32Bit;
 
-  // Most instructions require adjustments after selection to satisfy
-  // operand requirements.
-  let hasPostISelHook = 1;
   let SchedRW = [Write32Bit];
 }
 
@@ -86,7 +88,6 @@ class Enc64 {
 }
 
 class VOPDstOperand <RegisterClass rc> : RegisterOperand <rc, "printVOPDst">;
-def VOPDstVCC : VOPDstOperand <VCCReg>;
 
 let Uses = [EXEC] in {
 
@@ -101,11 +102,11 @@ class VOPAnyCommon <dag outs, dag ins, string asm, list<dag> pattern> :
 }
 
 class VOPCCommon <dag ins, string asm, list<dag> pattern> :
-    VOPAnyCommon <(outs VOPDstVCC:$dst), ins, asm, pattern> {
+    VOPAnyCommon <(outs), ins, asm, pattern> {
 
-  let DisableEncoding = "$dst";
   let VOPC = 1;
   let Size = 4;
+  let Defs = [VCC];
 }
 
 class VOP1Common <dag outs, dag ins, string asm, list<dag> pattern> :
@@ -138,6 +139,11 @@ class VOP3Common <dag outs, dag ins, string asm, list<dag> pattern> :
   let isCodeGenOnly = 0;
 
   int Size = 8;
+
+  // Because SGPRs may be allowed if there are multiple operands, we
+  // need a post-isel hook to insert copies in order to avoid
+  // violating constant bus requirements.
+  let hasPostISelHook = 1;
 }
 
 } // End Uses = [EXEC]
@@ -222,6 +228,20 @@ class SMRDe <bits<5> op, bits<1> imm> : Enc32 {
   let Inst{31-27} = 0x18; //encoding
 }
 
+class SMRD_IMMe_ci <bits<5> op> : Enc64 {
+  bits<7> sdst;
+  bits<7> sbase;
+  bits<32> offset;
+
+  let Inst{7-0}   = 0xff;
+  let Inst{8}     = 0;
+  let Inst{14-9}  = sbase{6-1};
+  let Inst{21-15} = sdst;
+  let Inst{26-22} = op;
+  let Inst{31-27} = 0x18; //encoding
+  let Inst{63-32} = offset;
+}
+
 let SchedRW = [WriteSALU] in {
 class SOP1 <dag outs, dag ins, string asm, list<dag> pattern> :
     InstSI<outs, ins, asm, pattern> {
@@ -249,13 +269,13 @@ class SOP2 <dag outs, dag ins, string asm, list<dag> pattern> :
 class SOPC <bits<7> op, dag outs, dag ins, string asm, list<dag> pattern> :
   InstSI<outs, ins, asm, pattern>, SOPCe <op> {
 
-  let DisableEncoding = "$dst";
   let mayLoad = 0;
   let mayStore = 0;
   let hasSideEffects = 0;
   let SALU = 1;
   let SOPC = 1;
   let isCodeGenOnly = 0;
+  let Defs = [SCC];
 
   let UseNamedOperandTable = 1;
 }
@@ -598,15 +618,13 @@ class VINTRPCommon <dag outs, dag ins, string asm, list<dag> pattern> :
 // Vector I/O operations
 //===----------------------------------------------------------------------===//
 
-let Uses = [EXEC] in {
-
 class DS <dag outs, dag ins, string asm, list<dag> pattern> :
     InstSI <outs, ins, asm, pattern> {
 
   let LGKM_CNT = 1;
   let DS = 1;
   let UseNamedOperandTable = 1;
-  let Uses = [M0];
+  let Uses = [M0, EXEC];
 
   // Most instruction load and store data, so set this as the default.
   let mayLoad = 1;
@@ -623,6 +641,7 @@ class MUBUF <dag outs, dag ins, string asm, list<dag> pattern> :
   let VM_CNT = 1;
   let EXP_CNT = 1;
   let MUBUF = 1;
+  let Uses = [EXEC];
 
   let hasSideEffects = 0;
   let UseNamedOperandTable = 1;
@@ -636,6 +655,7 @@ class MTBUF <dag outs, dag ins, string asm, list<dag> pattern> :
   let VM_CNT = 1;
   let EXP_CNT = 1;
   let MTBUF = 1;
+  let Uses = [EXEC];
 
   let hasSideEffects = 0;
   let UseNamedOperandTable = 1;
@@ -665,9 +685,7 @@ class MIMG <bits<7> op, dag outs, dag ins, string asm, list<dag> pattern> :
   let VM_CNT = 1;
   let EXP_CNT = 1;
   let MIMG = 1;
+  let Uses = [EXEC];
 
   let hasSideEffects = 0; // XXX ????
 }
-
-
-} // End Uses = [EXEC]

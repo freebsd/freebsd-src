@@ -16,26 +16,36 @@
 #include "HexagonISelLowering.h"
 #include "HexagonMachineScheduler.h"
 #include "HexagonTargetObjectFile.h"
+#include "HexagonTargetTransformInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/TargetRegistry.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/Scalar.h"
 
 using namespace llvm;
 
-static cl:: opt<bool> DisableHardwareLoops("disable-hexagon-hwloops",
+
+static cl::opt<bool> EnableRDFOpt("rdf-opt", cl::Hidden, cl::ZeroOrMore,
+  cl::init(true), cl::desc("Enable RDF-based optimizations"));
+
+static cl::opt<bool> DisableHardwareLoops("disable-hexagon-hwloops",
   cl::Hidden, cl::desc("Disable Hardware Loops for Hexagon target"));
 
 static cl::opt<bool> DisableHexagonCFGOpt("disable-hexagon-cfgopt",
   cl::Hidden, cl::ZeroOrMore, cl::init(false),
   cl::desc("Disable Hexagon CFG Optimization"));
 
+static cl::opt<bool> DisableStoreWidening("disable-store-widen",
+  cl::Hidden, cl::init(false), cl::desc("Disable store widening"));
+
 static cl::opt<bool> EnableExpandCondsets("hexagon-expand-condsets",
   cl::init(true), cl::Hidden, cl::ZeroOrMore,
   cl::desc("Early expansion of MUX"));
+
+static cl::opt<bool> EnableEarlyIf("hexagon-eif", cl::init(true), cl::Hidden,
+  cl::ZeroOrMore, cl::desc("Enable early if-conversion"));
 
 static cl::opt<bool> EnableGenInsert("hexagon-insert", cl::init(true),
   cl::Hidden, cl::desc("Generate \"insert\" instructions"));
@@ -46,9 +56,21 @@ static cl::opt<bool> EnableCommGEP("hexagon-commgep", cl::init(true),
 static cl::opt<bool> EnableGenExtract("hexagon-extract", cl::init(true),
   cl::Hidden, cl::desc("Generate \"extract\" instructions"));
 
+static cl::opt<bool> EnableGenMux("hexagon-mux", cl::init(true), cl::Hidden,
+  cl::desc("Enable converting conditional transfers into MUX instructions"));
+
 static cl::opt<bool> EnableGenPred("hexagon-gen-pred", cl::init(true),
   cl::Hidden, cl::desc("Enable conversion of arithmetic operations to "
   "predicate instructions"));
+
+static cl::opt<bool> DisableHSDR("disable-hsdr", cl::init(false), cl::Hidden,
+  cl::desc("Disable splitting double registers"));
+
+static cl::opt<bool> EnableBitSimplify("hexagon-bit", cl::init(true),
+  cl::Hidden, cl::desc("Bit simplification"));
+
+static cl::opt<bool> EnableLoopResched("hexagon-loop-resched", cl::init(true),
+  cl::Hidden, cl::desc("Loop rescheduling"));
 
 /// HexagonTargetMachineModule - Note that this is used on hosts that
 /// cannot link in a library unless there are references into the
@@ -72,23 +94,31 @@ SchedCustomRegistry("hexagon", "Run Hexagon's custom scheduler",
                     createVLIWMachineSched);
 
 namespace llvm {
+  FunctionPass *createHexagonBitSimplify();
+  FunctionPass *createHexagonCallFrameInformation();
   FunctionPass *createHexagonCFGOptimizer();
   FunctionPass *createHexagonCommonGEP();
   FunctionPass *createHexagonCopyToCombine();
+  FunctionPass *createHexagonEarlyIfConversion();
   FunctionPass *createHexagonExpandCondsets();
   FunctionPass *createHexagonExpandPredSpillCode();
   FunctionPass *createHexagonFixupHwLoops();
   FunctionPass *createHexagonGenExtract();
   FunctionPass *createHexagonGenInsert();
+  FunctionPass *createHexagonGenMux();
   FunctionPass *createHexagonGenPredicate();
   FunctionPass *createHexagonHardwareLoops();
   FunctionPass *createHexagonISelDag(HexagonTargetMachine &TM,
                                      CodeGenOpt::Level OptLevel);
+  FunctionPass *createHexagonLoopRescheduling();
   FunctionPass *createHexagonNewValueJump();
+  FunctionPass *createHexagonOptimizeSZextends();
   FunctionPass *createHexagonPacketizer();
   FunctionPass *createHexagonPeephole();
-  FunctionPass *createHexagonRemoveExtendArgs(const HexagonTargetMachine &TM);
+  FunctionPass *createHexagonRDFOpt();
   FunctionPass *createHexagonSplitConst32AndConst64();
+  FunctionPass *createHexagonSplitDoubleRegs();
+  FunctionPass *createHexagonStoreWidening();
 } // end namespace llvm;
 
 /// HexagonTargetMachine ctor - Create an ILP32 architecture model.
@@ -101,12 +131,45 @@ HexagonTargetMachine::HexagonTargetMachine(const Target &T, const Triple &TT,
                                            const TargetOptions &Options,
                                            Reloc::Model RM, CodeModel::Model CM,
                                            CodeGenOpt::Level OL)
-    : LLVMTargetMachine(T, "e-m:e-p:32:32-i1:32-i64:64-a:0-n32", TT, CPU, FS,
-                        Options, RM, CM, OL),
-      TLOF(make_unique<HexagonTargetObjectFile>()),
-      Subtarget(TT, CPU, FS, *this) {
-    initAsmInfo();
+    : LLVMTargetMachine(T, "e-m:e-p:32:32:32-i64:64:64-i32:32:32-i16:16:16-"
+                        "i1:8:8-f64:64:64-f32:32:32-v64:64:64-v32:32:32-a:0-"
+                        "n16:32", TT, CPU, FS, Options, RM, CM, OL),
+      TLOF(make_unique<HexagonTargetObjectFile>()) {
+  initAsmInfo();
 }
+
+const HexagonSubtarget *
+HexagonTargetMachine::getSubtargetImpl(const Function &F) const {
+  AttributeSet FnAttrs = F.getAttributes();
+  Attribute CPUAttr =
+      FnAttrs.getAttribute(AttributeSet::FunctionIndex, "target-cpu");
+  Attribute FSAttr =
+      FnAttrs.getAttribute(AttributeSet::FunctionIndex, "target-features");
+
+  std::string CPU = !CPUAttr.hasAttribute(Attribute::None)
+                        ? CPUAttr.getValueAsString().str()
+                        : TargetCPU;
+  std::string FS = !FSAttr.hasAttribute(Attribute::None)
+                       ? FSAttr.getValueAsString().str()
+                       : TargetFS;
+
+  auto &I = SubtargetMap[CPU + FS];
+  if (!I) {
+    // This needs to be done before we create a new subtarget since any
+    // creation will depend on the TM and the code generation flags on the
+    // function that reside in TargetOptions.
+    resetTargetOptions(F);
+    I = llvm::make_unique<HexagonSubtarget>(TargetTriple, CPU, FS, *this);
+  }
+  return I.get();
+}
+
+TargetIRAnalysis HexagonTargetMachine::getTargetIRAnalysis() {
+  return TargetIRAnalysis([this](const Function &F) {
+    return TargetTransformInfo(HexagonTTIImpl(this, F));
+  });
+}
+
 
 HexagonTargetMachine::~HexagonTargetMachine() {}
 
@@ -166,7 +229,7 @@ bool HexagonPassConfig::addInstSelector() {
   bool NoOpt = (getOptLevel() == CodeGenOpt::None);
 
   if (!NoOpt)
-    addPass(createHexagonRemoveExtendArgs(TM));
+    addPass(createHexagonOptimizeSZextends());
 
   addPass(createHexagonISelDag(TM, getOptLevel()));
 
@@ -174,25 +237,42 @@ bool HexagonPassConfig::addInstSelector() {
     // Create logical operations on predicate registers.
     if (EnableGenPred)
       addPass(createHexagonGenPredicate(), false);
+    // Rotate loops to expose bit-simplification opportunities.
+    if (EnableLoopResched)
+      addPass(createHexagonLoopRescheduling(), false);
+    // Split double registers.
+    if (!DisableHSDR)
+      addPass(createHexagonSplitDoubleRegs());
+    // Bit simplification.
+    if (EnableBitSimplify)
+      addPass(createHexagonBitSimplify(), false);
     addPass(createHexagonPeephole());
     printAndVerify("After hexagon peephole pass");
     if (EnableGenInsert)
       addPass(createHexagonGenInsert(), false);
+    if (EnableEarlyIf)
+      addPass(createHexagonEarlyIfConversion(), false);
   }
 
   return false;
 }
 
 void HexagonPassConfig::addPreRegAlloc() {
-  if (getOptLevel() != CodeGenOpt::None)
+  if (getOptLevel() != CodeGenOpt::None) {
+    if (!DisableStoreWidening)
+      addPass(createHexagonStoreWidening(), false);
     if (!DisableHardwareLoops)
       addPass(createHexagonHardwareLoops(), false);
+  }
 }
 
 void HexagonPassConfig::addPostRegAlloc() {
-  if (getOptLevel() != CodeGenOpt::None)
+  if (getOptLevel() != CodeGenOpt::None) {
+    if (EnableRDFOpt)
+      addPass(createHexagonRDFOpt());
     if (!DisableHexagonCFGOpt)
       addPass(createHexagonCFGOptimizer(), false);
+  }
 }
 
 void HexagonPassConfig::addPreSched2() {
@@ -215,6 +295,13 @@ void HexagonPassConfig::addPreEmitPass() {
   if (!NoOpt) {
     if (!DisableHardwareLoops)
       addPass(createHexagonFixupHwLoops(), false);
+    // Generate MUX from pairs of conditional transfers.
+    if (EnableGenMux)
+      addPass(createHexagonGenMux(), false);
+
     addPass(createHexagonPacketizer(), false);
   }
+
+  // Add CFI instructions if necessary.
+  addPass(createHexagonCallFrameInformation(), false);
 }

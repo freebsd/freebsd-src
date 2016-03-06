@@ -166,7 +166,7 @@ public:
     }
 
     if (IID == Intrinsic::ctlz) {
-       if (getTLI()->isCheapToSpeculateCtlz())
+      if (getTLI()->isCheapToSpeculateCtlz())
         return TargetTransformInfo::TCC_Basic;
       return TargetTransformInfo::TCC_Expensive;
     }
@@ -256,7 +256,7 @@ public:
 
       for (BasicBlock::iterator J = BB->begin(), JE = BB->end(); J != JE; ++J)
         if (isa<CallInst>(J) || isa<InvokeInst>(J)) {
-          ImmutableCallSite CS(J);
+          ImmutableCallSite CS(&*J);
           if (const Function *F = CS.getCalledFunction()) {
             if (!static_cast<T *>(this)->isLoweredToCall(F))
               continue;
@@ -302,12 +302,8 @@ public:
 
     if (TLI->isOperationLegalOrPromote(ISD, LT.second)) {
       // The operation is legal. Assume it costs 1.
-      // If the type is split to multiple registers, assume that there is some
-      // overhead to this.
       // TODO: Once we have extract/insert subvector cost we need to use them.
-      if (LT.first > 1)
-        return LT.first * 2 * OpCost;
-      return LT.first * 1 * OpCost;
+      return LT.first * OpCost;
     }
 
     if (!TLI->isOperationExpand(ISD, LT.second)) {
@@ -496,13 +492,11 @@ public:
       // itself. Unless the corresponding extending load or truncating store is
       // legal, then this will scalarize.
       TargetLowering::LegalizeAction LA = TargetLowering::Expand;
-      EVT MemVT = getTLI()->getValueType(DL, Src, true);
-      if (MemVT.isSimple() && MemVT != MVT::Other) {
-        if (Opcode == Instruction::Store)
-          LA = getTLI()->getTruncStoreAction(LT.second, MemVT.getSimpleVT());
-        else
-          LA = getTLI()->getLoadExtAction(ISD::EXTLOAD, LT.second, MemVT);
-      }
+      EVT MemVT = getTLI()->getValueType(DL, Src);
+      if (Opcode == Instruction::Store)
+        LA = getTLI()->getTruncStoreAction(LT.second, MemVT);
+      else
+        LA = getTLI()->getLoadExtAction(ISD::EXTLOAD, LT.second, MemVT);
 
       if (LA != TargetLowering::Legal && LA != TargetLowering::Custom) {
         // This is a vector load/store for some illegal type that is scalarized.
@@ -530,7 +524,8 @@ public:
     VectorType *SubVT = VectorType::get(VT->getElementType(), NumSubElts);
 
     // Firstly, the cost of load/store operation.
-    unsigned Cost = getMemoryOpCost(Opcode, VecTy, Alignment, AddressSpace);
+    unsigned Cost = static_cast<T *>(this)->getMemoryOpCost(
+        Opcode, VecTy, Alignment, AddressSpace);
 
     // Then plus the cost of interleave operation.
     if (Opcode == Instruction::Load) {
@@ -545,18 +540,20 @@ public:
 
       assert(Indices.size() <= Factor &&
              "Interleaved memory op has too many members");
+
       for (unsigned Index : Indices) {
         assert(Index < Factor && "Invalid index for interleaved memory op");
 
         // Extract elements from loaded vector for each sub vector.
         for (unsigned i = 0; i < NumSubElts; i++)
-          Cost += getVectorInstrCost(Instruction::ExtractElement, VT,
-                                     Index + i * Factor);
+          Cost += static_cast<T *>(this)->getVectorInstrCost(
+              Instruction::ExtractElement, VT, Index + i * Factor);
       }
 
       unsigned InsSubCost = 0;
       for (unsigned i = 0; i < NumSubElts; i++)
-        InsSubCost += getVectorInstrCost(Instruction::InsertElement, SubVT, i);
+        InsSubCost += static_cast<T *>(this)->getVectorInstrCost(
+            Instruction::InsertElement, SubVT, i);
 
       Cost += Indices.size() * InsSubCost;
     } else {
@@ -571,17 +568,51 @@ public:
 
       unsigned ExtSubCost = 0;
       for (unsigned i = 0; i < NumSubElts; i++)
-        ExtSubCost += getVectorInstrCost(Instruction::ExtractElement, SubVT, i);
-
-      Cost += Factor * ExtSubCost;
+        ExtSubCost += static_cast<T *>(this)->getVectorInstrCost(
+            Instruction::ExtractElement, SubVT, i);
+      Cost += ExtSubCost * Factor;
 
       for (unsigned i = 0; i < NumElts; i++)
-        Cost += getVectorInstrCost(Instruction::InsertElement, VT, i);
+        Cost += static_cast<T *>(this)
+                    ->getVectorInstrCost(Instruction::InsertElement, VT, i);
     }
 
     return Cost;
   }
 
+  /// Get intrinsic cost based on arguments  
+  unsigned getIntrinsicInstrCost(Intrinsic::ID IID, Type *RetTy,
+                                 ArrayRef<Value *> Args) {
+    switch (IID) {
+    default: {
+      SmallVector<Type *, 4> Types;
+      for (Value *Op : Args)
+        Types.push_back(Op->getType());
+      return getIntrinsicInstrCost(IID, RetTy, Types);
+    }
+    case Intrinsic::masked_scatter: {
+      Value *Mask = Args[3];
+      bool VarMask = !isa<Constant>(Mask);
+      unsigned Alignment = cast<ConstantInt>(Args[2])->getZExtValue();
+      return
+        static_cast<T *>(this)->getGatherScatterOpCost(Instruction::Store,
+                                                       Args[0]->getType(),
+                                                       Args[1], VarMask,
+                                                       Alignment);
+    }
+    case Intrinsic::masked_gather: {
+      Value *Mask = Args[2];
+      bool VarMask = !isa<Constant>(Mask);
+      unsigned Alignment = cast<ConstantInt>(Args[1])->getZExtValue();
+      return
+        static_cast<T *>(this)->getGatherScatterOpCost(Instruction::Load,
+                                                       RetTy, Args[0], VarMask,
+                                                       Alignment);
+    }
+    }
+  }
+  
+  /// Get intrinsic cost based on argument types
   unsigned getIntrinsicInstrCost(Intrinsic::ID IID, Type *RetTy,
                                  ArrayRef<Type *> Tys) {
     unsigned ISD = 0;
@@ -800,7 +831,7 @@ class BasicTTIImpl : public BasicTTIImplBase<BasicTTIImpl> {
   const TargetLoweringBase *getTLI() const { return TLI; }
 
 public:
-  explicit BasicTTIImpl(const TargetMachine *ST, Function &F);
+  explicit BasicTTIImpl(const TargetMachine *ST, const Function &F);
 
   // Provide value semantics. MSVC requires that we spell all of these out.
   BasicTTIImpl(const BasicTTIImpl &Arg)

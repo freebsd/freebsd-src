@@ -169,10 +169,10 @@ struct lb_port_stats {
 };
 
 struct tp_tcp_stats {
-	u32 tcpOutRsts;
-	u64 tcpInSegs;
-	u64 tcpOutSegs;
-	u64 tcpRetransSegs;
+	u32 tcp_out_rsts;
+	u64 tcp_in_segs;
+	u64 tcp_out_segs;
+	u64 tcp_retrans_segs;
 };
 
 struct tp_usm_stats {
@@ -182,36 +182,36 @@ struct tp_usm_stats {
 };
 
 struct tp_fcoe_stats {
-	u32 framesDDP;
-	u32 framesDrop;
-	u64 octetsDDP;
+	u32 frames_ddp;
+	u32 frames_drop;
+	u64 octets_ddp;
 };
 
 struct tp_err_stats {
-	u32 macInErrs[4];
-	u32 hdrInErrs[4];
-	u32 tcpInErrs[4];
-	u32 tnlCongDrops[4];
-	u32 ofldChanDrops[4];
-	u32 tnlTxDrops[4];
-	u32 ofldVlanDrops[4];
-	u32 tcp6InErrs[4];
-	u32 ofldNoNeigh;
-	u32 ofldCongDefer;
+	u32 mac_in_errs[MAX_NCHAN];
+	u32 hdr_in_errs[MAX_NCHAN];
+	u32 tcp_in_errs[MAX_NCHAN];
+	u32 tnl_cong_drops[MAX_NCHAN];
+	u32 ofld_chan_drops[MAX_NCHAN];
+	u32 tnl_tx_drops[MAX_NCHAN];
+	u32 ofld_vlan_drops[MAX_NCHAN];
+	u32 tcp6_in_errs[MAX_NCHAN];
+	u32 ofld_no_neigh;
+	u32 ofld_cong_defer;
 };
 
 struct tp_proxy_stats {
-	u32 proxy[4];
+	u32 proxy[MAX_NCHAN];
 };
 
 struct tp_cpl_stats {
-	u32 req[4];
-	u32 rsp[4];
+	u32 req[MAX_NCHAN];
+	u32 rsp[MAX_NCHAN];
 };
 
 struct tp_rdma_stats {
-	u32 rqe_dfr_mod;
 	u32 rqe_dfr_pkt;
+	u32 rqe_dfr_mod;
 };
 
 struct tp_params {
@@ -219,7 +219,7 @@ struct tp_params {
 	unsigned int tre;            /* log2 of core clocks per TP tick */
 	unsigned int dack_re;        /* DACK timer resolution */
 	unsigned int la_mask;        /* what events are recorded by TP LA */
-	unsigned short tx_modq[NCHAN];  /* channel to modulation queue map */
+	unsigned short tx_modq[MAX_NCHAN];  /* channel to modulation queue map */
 	uint32_t vlan_pri_map;
 	uint32_t ingress_config;
 	int8_t vlan_shift;
@@ -251,6 +251,19 @@ struct devlog_params {
 	u32 memtype;			/* which memory (FW_MEMTYPE_* ) */
 	u32 start;			/* start of log in firmware memory */
 	u32 size;			/* size of log */
+};
+
+/* Stores chip specific parameters */
+struct chip_params {
+	u8 nchan;
+	u8 pm_stats_cnt;
+	u8 cng_ch_bits_log;		/* congestion channel map bits width */
+	u8 nsched_cls;
+	u8 cim_num_obq;
+	u16 mps_rplc_size;
+	u16 vfcount;
+	u32 sge_fl_db;
+	u16 mps_tcam_size;
 };
 
 struct adapter_params {
@@ -292,6 +305,7 @@ struct adapter_params {
 
 #define CHELSIO_T4		0x4
 #define CHELSIO_T5		0x5
+#define CHELSIO_T6		0x6
 
 struct trace_params {
 	u32 data[TRACE_LEN / 4];
@@ -366,6 +380,11 @@ static inline int is_t5(struct adapter *adap)
 	return adap->params.chipid == CHELSIO_T5;
 }
 
+static inline int is_t6(struct adapter *adap)
+{
+	return adap->params.chipid == CHELSIO_T6;
+}
+
 static inline int is_fpga(struct adapter *adap)
 {
 	 return adap->params.fpga;
@@ -389,15 +408,6 @@ static inline unsigned int dack_ticks_to_usec(const struct adapter *adap,
 }
 
 void t4_set_reg_field(struct adapter *adap, unsigned int addr, u32 mask, u32 val);
-int t4_wait_op_done_val(struct adapter *adapter, int reg, u32 mask, int polarity,
-			int attempts, int delay, u32 *valp);
-
-static inline int t4_wait_op_done(struct adapter *adapter, int reg, u32 mask,
-				  int polarity, int attempts, int delay)
-{
-	return t4_wait_op_done_val(adapter, reg, mask, polarity, attempts,
-				   delay, NULL);
-}
 
 int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 		    void *rpl, bool sleep_ok);
@@ -431,7 +441,7 @@ void t4_intr_clear(struct adapter *adapter);
 int t4_slow_intr_handler(struct adapter *adapter);
 
 int t4_hash_mac_addr(const u8 *addr);
-int t4_link_start(struct adapter *adap, unsigned int mbox, unsigned int port,
+int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		  struct link_config *lc);
 int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port);
 int t4_seeprom_read(struct adapter *adapter, u32 addr, u32 *data);
@@ -500,6 +510,7 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *pari
 int t4_mem_read(struct adapter *adap, int mtype, u32 addr, u32 size,
 		__be32 *data);
 
+const char *t4_get_port_type_description(enum fw_port_type port_type);
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p);
 void t4_get_port_stats_offset(struct adapter *adap, int idx,
 		struct port_stats *stats,
@@ -597,9 +608,6 @@ int t4_i2c_wr(struct adapter *adap, unsigned int mbox,
 	      int port, unsigned int devid,
 	      unsigned int offset, unsigned int len,
 	      u8 *buf);
-int t4_iq_start_stop(struct adapter *adap, unsigned int mbox, bool start,
-		     unsigned int pf, unsigned int vf, unsigned int iqid,
-		     unsigned int fl0id, unsigned int fl1id);
 int t4_iq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 	       unsigned int vf, unsigned int iqtype, unsigned int iqid,
 	       unsigned int fl0id, unsigned int fl1id);

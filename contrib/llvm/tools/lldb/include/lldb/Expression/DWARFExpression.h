@@ -11,18 +11,19 @@
 #define liblldb_DWARFExpression_h_
 
 #include "lldb/lldb-private.h"
-#include "lldb/Core/ClangForward.h"
 #include "lldb/Core/Address.h"
 #include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/Error.h"
 #include "lldb/Core/Scalar.h"
 
+class DWARFCompileUnit;
+
 namespace lldb_private {
     
+class ClangExpressionDeclMap;
 class ClangExpressionVariable;
 class ClangExpressionVariableList;
 
-class ClangExpressionDeclMap;
 
 //----------------------------------------------------------------------
 /// @class DWARFExpression DWARFExpression.h "lldb/Expression/DWARFExpression.h"
@@ -40,10 +41,17 @@ class ClangExpressionDeclMap;
 class DWARFExpression
 {
 public:
+    enum LocationListFormat : uint8_t
+    {
+        NonLocationList,        // Not a location list
+        RegularLocationList,    // Location list format used in non-split dwarf files
+        SplitDwarfLocationList, // Location list format used in split dwarf files
+    };
+
     //------------------------------------------------------------------
     /// Constructor
     //------------------------------------------------------------------
-    DWARFExpression();
+    explicit DWARFExpression(DWARFCompileUnit* dwarf_cu);
 
     //------------------------------------------------------------------
     /// Constructor
@@ -60,6 +68,7 @@ public:
     //------------------------------------------------------------------
     DWARFExpression(lldb::ModuleSP module,
                     const DataExtractor& data,
+                    DWARFCompileUnit* dwarf_cu,
                     lldb::offset_t data_offset,
                     lldb::offset_t data_length);
 
@@ -356,6 +365,7 @@ public:
               RegisterContext *reg_ctx,
               lldb::ModuleSP opcode_ctx,
               const DataExtractor& opcodes,
+              DWARFCompileUnit* dwarf_cu,
               const lldb::offset_t offset,
               const lldb::offset_t length,
               const lldb::RegisterKind reg_set,
@@ -397,6 +407,24 @@ public:
                             lldb::addr_t address,
                             ABI *abi);
 
+    static size_t
+    LocationListSize(const DWARFCompileUnit* dwarf_cu,
+                     const DataExtractor& debug_loc_data,
+                     lldb::offset_t offset);
+
+    static bool
+    PrintDWARFExpression(Stream &s,
+                         const DataExtractor& data,
+                         int address_size,
+                         int dwarf_ref_size,
+                         bool location_expression);
+
+    static void
+    PrintDWARFLocationList(Stream &s,
+                           const DWARFCompileUnit* cu,
+                           const DataExtractor& debug_loc_data,
+                           lldb::offset_t offset);
+
 protected:
     //------------------------------------------------------------------
     /// Pretty-prints the location expression to a stream
@@ -430,17 +458,26 @@ protected:
                  lldb::offset_t &offset, 
                  lldb::offset_t &len);
 
+    static bool
+    AddressRangeForLocationListEntry(const DWARFCompileUnit* dwarf_cu,
+                                     const DataExtractor& debug_loc_data,
+                                     lldb::offset_t* offset_ptr,
+                                     lldb::addr_t& low_pc,
+                                     lldb::addr_t& high_pc);
+
     //------------------------------------------------------------------
     /// Classes that inherit from DWARFExpression can see and modify these
     //------------------------------------------------------------------
 
     lldb::ModuleWP m_module_wp;                 ///< Module which defined this expression.
     DataExtractor m_data;                       ///< A data extractor capable of reading opcode bytes
+    DWARFCompileUnit* m_dwarf_cu;               ///< The DWARF compile unit this expression belongs to. It is used
+                                                ///< to evaluate values indexing into the .debug_addr section (e.g.
+                                                ///< DW_OP_GNU_addr_index, DW_OP_GNU_const_index)
     lldb::RegisterKind m_reg_kind;              ///< One of the defines that starts with LLDB_REGKIND_
     lldb::addr_t m_loclist_slide;               ///< A value used to slide the location list offsets so that 
                                                 ///< they are relative to the object that owns the location list
                                                 ///< (the function for frame base and variable location lists)
-
 };
 
 } // namespace lldb_private

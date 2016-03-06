@@ -10,13 +10,6 @@
 // In-house headers:
 #include "MICmnLogMediumFile.h"
 #include "MICmnResources.h"
-#if defined(_MSC_VER)
-#include "MIUtilSystemWindows.h"
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__linux__)
-#include "MIUtilSystemLinux.h"
-#elif defined(__APPLE__)
-#include "MIUtilSystemOsx.h"
-#endif // defined( _MSC_VER )
 
 //++ ------------------------------------------------------------------------------------
 // Details: CMICmnLogMediumFile constructor.
@@ -25,11 +18,11 @@
 // Return:  None.
 // Throws:  None.
 //--
-CMICmnLogMediumFile::CMICmnLogMediumFile(void)
+CMICmnLogMediumFile::CMICmnLogMediumFile()
     : m_constThisMediumName(MIRSRC(IDS_MEDIUMFILE_NAME))
     , m_constMediumFileNameFormat("lldb-mi-%s.log")
     , m_strMediumFileName(MIRSRC(IDS_MEDIUMFILE_ERR_INVALID_PATH))
-    , m_strMediumFileDirectory(MIRSRC(IDS_MEDIUMFILE_ERR_INVALID_PATH))
+    , m_strMediumFileDirectory(".")
     , m_fileNamePath(MIRSRC(IDS_MEDIUMFILE_ERR_INVALID_PATH))
     , m_eVerbosityType(CMICmnLog::eLogVerbosity_Log)
     , m_strDate(CMIUtilDateTimeStd().GetDate())
@@ -44,7 +37,7 @@ CMICmnLogMediumFile::CMICmnLogMediumFile(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmnLogMediumFile::~CMICmnLogMediumFile(void)
+CMICmnLogMediumFile::~CMICmnLogMediumFile()
 {
 }
 
@@ -56,7 +49,7 @@ CMICmnLogMediumFile::~CMICmnLogMediumFile(void)
 // Throws:  None.
 //--
 CMICmnLogMediumFile &
-CMICmnLogMediumFile::Instance(void)
+CMICmnLogMediumFile::Instance()
 {
     static CMICmnLogMediumFile instance;
 
@@ -72,12 +65,10 @@ CMICmnLogMediumFile::Instance(void)
 // Throws:  None.
 //--
 bool
-CMICmnLogMediumFile::Initialize(void)
+CMICmnLogMediumFile::Initialize()
 {
-    m_bInitialized = CMIUtilSystem().GetLogFilesPath(m_strMediumFileDirectory);
-    m_bInitialized &= FileFormFileNamePath();
-
-    return m_bInitialized;
+    m_bInitialized = true;
+    return FileFormFileNamePath();
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -88,7 +79,7 @@ CMICmnLogMediumFile::Initialize(void)
 // Throws:  None.
 //--
 bool
-CMICmnLogMediumFile::Shutdown(void)
+CMICmnLogMediumFile::Shutdown()
 {
     if (m_bInitialized)
     {
@@ -106,7 +97,7 @@ CMICmnLogMediumFile::Shutdown(void)
 // Throws:  None.
 //--
 const CMIUtilString &
-CMICmnLogMediumFile::GetName(void) const
+CMICmnLogMediumFile::GetName() const
 {
     return m_constThisMediumName;
 }
@@ -155,7 +146,7 @@ CMICmnLogMediumFile::Write(const CMIUtilString &vData, const CMICmnLog::ELogVerb
 // Throws:  None.
 //--
 const CMIUtilString &
-CMICmnLogMediumFile::GetError(void) const
+CMICmnLogMediumFile::GetError() const
 {
     return m_strMILastErrorDescription;
 }
@@ -183,7 +174,7 @@ CMICmnLogMediumFile::SetVerbosity(const MIuint veType)
 // Throws:  None.
 //--
 MIuint
-CMICmnLogMediumFile::GetVerbosity(void) const
+CMICmnLogMediumFile::GetVerbosity() const
 {
     return m_eVerbosityType;
 }
@@ -210,29 +201,22 @@ CMICmnLogMediumFile::FileWriteEnglish(const CMIUtilString &vData)
 // Throws:  None.
 //--
 bool
-CMICmnLogMediumFile::FileFormFileNamePath(void)
+CMICmnLogMediumFile::FileFormFileNamePath()
 {
     ClrErrorDescription();
 
     m_fileNamePath = MIRSRC(IDS_MEDIUMFILE_ERR_INVALID_PATH);
 
-    if (m_strMediumFileDirectory.compare(MIRSRC(IDS_MEDIUMFILE_ERR_INVALID_PATH)) != 0)
-    {
-        CMIUtilDateTimeStd date;
-        m_strMediumFileName = CMIUtilString::Format(m_constMediumFileNameFormat.c_str(), date.GetDateTimeLogFilename().c_str());
+    CMIUtilDateTimeStd date;
+    m_strMediumFileName = CMIUtilString::Format(m_constMediumFileNameFormat.c_str(), date.GetDateTimeLogFilename().c_str());
 
 #if defined(_MSC_VER)
-        m_fileNamePath = CMIUtilString::Format("%s\\%s", m_strMediumFileDirectory.c_str(), m_strMediumFileName.c_str());
+    m_fileNamePath = CMIUtilString::Format("%s\\%s", m_strMediumFileDirectory.c_str(), m_strMediumFileName.c_str());
 #else
-        m_fileNamePath = CMIUtilString::Format("%s/%s", m_strMediumFileDirectory.c_str(), m_strMediumFileName.c_str());
+    m_fileNamePath = CMIUtilString::Format("%s/%s", m_strMediumFileDirectory.c_str(), m_strMediumFileName.c_str());
 #endif // defined ( _MSC_VER )
 
-        return MIstatus::success;
-    }
-
-    SetErrorDescription(MIRSRC(IDE_MEDIUMFILE_ERR_GET_FILE_PATHNAME_SYS));
-
-    return MIstatus::failure;
+    return MIstatus::success;
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -243,7 +227,7 @@ CMICmnLogMediumFile::FileFormFileNamePath(void)
 // Throws:  None.
 //--
 const CMIUtilString &
-CMICmnLogMediumFile::GetFileNamePath(void) const
+CMICmnLogMediumFile::GetFileNamePath() const
 {
     return m_fileNamePath;
 }
@@ -256,7 +240,7 @@ CMICmnLogMediumFile::GetFileNamePath(void) const
 // Throws:  None.
 //--
 const CMIUtilString &
-CMICmnLogMediumFile::GetFileName(void) const
+CMICmnLogMediumFile::GetFileName() const
 {
     return m_strMediumFileName;
 }
@@ -332,7 +316,7 @@ CMICmnLogMediumFile::ConvertLogVerbosityTypeToId(const CMICmnLog::ELogVerbosity 
 // Throws:  None.
 //--
 bool
-CMICmnLogMediumFile::IsOk(void) const
+CMICmnLogMediumFile::IsOk() const
 {
     return m_file.IsOk();
 }
@@ -346,7 +330,7 @@ CMICmnLogMediumFile::IsOk(void) const
 // Throws:  None.
 //--
 bool
-CMICmnLogMediumFile::IsFileExist(void) const
+CMICmnLogMediumFile::IsFileExist() const
 {
     return m_file.IsFileExist(GetFileNamePath());
 }
@@ -360,7 +344,7 @@ CMICmnLogMediumFile::IsFileExist(void) const
 // Throws:  None.
 //--
 bool
-CMICmnLogMediumFile::FileWriteHeader(void)
+CMICmnLogMediumFile::FileWriteHeader()
 {
     return FileWriteEnglish(ConvertCr(m_fileHeaderTxt));
 }
@@ -419,7 +403,7 @@ CMICmnLogMediumFile::SetHeaderTxt(const CMIUtilString &vText)
 // Throws:  None.
 //--
 const CMIUtilString &
-CMICmnLogMediumFile::GetLineReturn(void) const
+CMICmnLogMediumFile::GetLineReturn() const
 {
     return m_file.GetLineReturn();
 }

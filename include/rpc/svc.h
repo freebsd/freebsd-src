@@ -89,6 +89,7 @@ enum xprt_stat {
  */
 typedef struct __rpc_svcxprt {
 	int		xp_fd;
+#define	xp_sock		xp_fd
 	u_short		xp_port;	 /* associated port number */
 	const struct xp_ops {
 	    /* receive incoming requests */

@@ -3092,7 +3092,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 		flags |= RF_PREFETCHABLE;
 	if (basezero || base == pci_mapbase(testval) || pci_clear_bars) {
 		start = 0;	/* Let the parent decide. */
-		end = ~0ul;
+		end = ~0;
 	} else {
 		start = base;
 		end = base + count - 1;
@@ -3107,7 +3107,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	 */
 	res = resource_list_reserve(rl, bus, dev, type, &reg, start, end, count,
 	    flags);
-	if (pci_do_realloc_bars && res == NULL && (start != 0 || end != ~0ul)) {
+	if (pci_do_realloc_bars && res == NULL && (start != 0 || end != ~0)) {
 		/*
 		 * If the allocation fails, try to allocate a resource for
 		 * this BAR using any available range.  The firmware felt
@@ -3115,8 +3115,8 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 		 * disable decoding if we can help it.
 		 */
 		resource_list_delete(rl, type, reg);
-		resource_list_add(rl, type, reg, 0, ~0ul, count);
-		res = resource_list_reserve(rl, bus, dev, type, &reg, 0, ~0ul,
+		resource_list_add(rl, type, reg, 0, ~0, count);
+		res = resource_list_reserve(rl, bus, dev, type, &reg, 0, ~0,
 		    count, flags);
 	}
 	if (res == NULL) {
@@ -3507,7 +3507,7 @@ pci_reserve_secbus(device_t bus, device_t dev, pcicfgregs *cfg,
 		end = sub_bus;
 		count = end - start + 1;
 
-		resource_list_add(rl, PCI_RES_BUS, 0, 0ul, ~0ul, count);
+		resource_list_add(rl, PCI_RES_BUS, 0, 0, ~0, count);
 
 		/*
 		 * If requested, clear secondary bus registers in

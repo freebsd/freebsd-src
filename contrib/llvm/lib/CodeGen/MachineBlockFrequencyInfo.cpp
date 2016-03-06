@@ -57,7 +57,7 @@ struct GraphTraits<MachineBlockFrequencyInfo *> {
 
   static inline
   const NodeType *getEntryNode(const MachineBlockFrequencyInfo *G) {
-    return G->getFunction()->begin();
+    return &G->getFunction()->front();
   }
 
   static ChildIteratorType child_begin(const NodeType *N) {
@@ -143,7 +143,7 @@ bool MachineBlockFrequencyInfo::runOnMachineFunction(MachineFunction &F) {
   MachineLoopInfo &MLI = getAnalysis<MachineLoopInfo>();
   if (!MBFI)
     MBFI.reset(new ImplType);
-  MBFI->doFunction(&F, &MBPI, &MLI);
+  MBFI->calculate(F, MBPI, MLI);
 #ifndef NDEBUG
   if (ViewMachineBlockFreqPropagationDAG != GVDT_None) {
     view();

@@ -41,53 +41,47 @@ MI commands implemented are:
 //          *this class implements MI command "enable-pretty-printing".
 //          Enables Python base pretty printing.
 // Ref:     http://sourceware.org/gdb/onlinedocs/gdb/GDB_002fMI-Variable-Objects.html
-// Gotchas: None.
-// Authors: Illya Rudkin 03/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdEnablePrettyPrinting : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdEnablePrettyPrinting(void);
+    /* ctor */ CMICmdCmdEnablePrettyPrinting();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdEnablePrettyPrinting(void) override;
+    /* dtor */ ~CMICmdCmdEnablePrettyPrinting() override;
 };
 
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "source".
-// Gotchas: None.
-// Authors: Illya Rudkin 05/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdSource : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdSource(void);
+    /* ctor */ CMICmdCmdSource();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdSource(void) override;
+    /* dtor */ ~CMICmdCmdSource() override;
 };

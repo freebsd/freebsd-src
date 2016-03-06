@@ -21,7 +21,7 @@
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdFactory::CMICmdFactory(void)
+CMICmdFactory::CMICmdFactory()
 {
 }
 
@@ -32,7 +32,7 @@ CMICmdFactory::CMICmdFactory(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdFactory::~CMICmdFactory(void)
+CMICmdFactory::~CMICmdFactory()
 {
     Shutdown();
 }
@@ -46,7 +46,7 @@ CMICmdFactory::~CMICmdFactory(void)
 // Throws:  None.
 //--
 bool
-CMICmdFactory::Initialize(void)
+CMICmdFactory::Initialize()
 {
     m_clientUsageRefCnt++;
 
@@ -69,7 +69,7 @@ CMICmdFactory::Initialize(void)
 // Throws:  None.
 //--
 bool
-CMICmdFactory::Shutdown(void)
+CMICmdFactory::Shutdown()
 {
     if (--m_clientUsageRefCnt > 0)
         return MIstatus::success;
@@ -194,8 +194,6 @@ CMICmdFactory::CmdExist(const CMIUtilString &vMiCmd) const
 bool
 CMICmdFactory::CmdCreate(const CMIUtilString &vMiCmd, const SMICmdData &vCmdData, CMICmdBase *&vpNewCmd)
 {
-    bool bOk = MIstatus::success;
-
     vpNewCmd = nullptr;
 
     if (!IsValid(vMiCmd))
@@ -217,9 +215,8 @@ CMICmdFactory::CmdCreate(const CMIUtilString &vMiCmd, const SMICmdData &vCmdData
 
     SMICmdData cmdData(vCmdData);
     cmdData.id = pCmd->GetGUID();
-    bOk = pCmd->SetCmdData(cmdData);
-    if (bOk)
-        vpNewCmd = pCmd;
+    pCmd->SetCmdData(cmdData);
+    vpNewCmd = pCmd;
 
-    return bOk;
+    return MIstatus::success;
 }

@@ -275,8 +275,8 @@ wait_child(pid_t pid, sigset_t *mask)
 static void
 usage(void)
 {
-	(void)fprintf(stderr,
-	    "usage: daemon [-cfr] [-p child_pidfile] [-P supervisor_pidfile] "
-	    "[-u user]\n              command arguments ...\n");
+	(void)fprintf(stderr, "%s\n\t%s\n",
+	    "usage: daemon [-cfr] [-p child_pidfile] [-P supervisor_pidfile]",
+	    "[-t title] [-u user] command arguments ...");
 	exit(1);
 }

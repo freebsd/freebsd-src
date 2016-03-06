@@ -35,6 +35,34 @@ public:
         } value;
         const uint8_t* data;
     } ValueType;
+    
+    class FixedFormSizes
+    {
+    public:
+        FixedFormSizes() :
+            m_fix_sizes(nullptr), m_size(0)
+        {}
+
+        FixedFormSizes(const uint8_t* fix_sizes, size_t size) :
+            m_fix_sizes(fix_sizes), m_size(size)
+        {}
+
+        uint8_t
+        GetSize(uint32_t index) const
+        {
+            return index < m_size ? m_fix_sizes[index] : 0;
+        }
+
+        bool
+        Empty() const
+        {
+            return m_size == 0;
+        }
+
+    private:
+        const uint8_t* m_fix_sizes;
+        size_t         m_size;
+    };
 
     enum
     {
@@ -52,10 +80,9 @@ public:
     dw_form_t           Form()  const { return m_form; }
     void                SetForm(dw_form_t form) { m_form = form; }
     const ValueType&    Value() const { return m_value; }
-    void                Dump(lldb_private::Stream &s, const lldb_private::DWARFDataExtractor* debug_str_data) const;
+    void                Dump(lldb_private::Stream &s) const;
     bool                ExtractValue(const lldb_private::DWARFDataExtractor& data,
                                      lldb::offset_t* offset_ptr);
-    bool                IsInlinedCStr() const { return (m_value.data != NULL) && m_value.data == (const uint8_t*)m_value.value.cstr; }
     const uint8_t*      BlockData() const;
     uint64_t            Reference() const;
     uint64_t            Reference (dw_offset_t offset) const;
@@ -64,13 +91,16 @@ public:
     void                SetUnsigned(uint64_t uval) { m_value.value.uval = uval; }
     int64_t             Signed() const { return m_value.value.sval; }
     void                SetSigned(int64_t sval) { m_value.value.sval = sval; }
-    const char*         AsCString(const lldb_private::DWARFDataExtractor* debug_str_data_ptr) const;
+    const char*         AsCString() const;
+    dw_addr_t           Address() const;
+    bool                IsValid() const { return m_form != 0; }
     bool                SkipValue(const lldb_private::DWARFDataExtractor& debug_info_data, lldb::offset_t *offset_ptr) const;
     static bool         SkipValue(const dw_form_t form, const lldb_private::DWARFDataExtractor& debug_info_data, lldb::offset_t *offset_ptr, const DWARFCompileUnit* cu);
     static bool         IsBlockForm(const dw_form_t form);
     static bool         IsDataForm(const dw_form_t form);
-    static const uint8_t * GetFixedFormSizesForAddressSize (uint8_t addr_size, bool is_dwarf64);
-    static int          Compare (const DWARFFormValue& a, const DWARFFormValue& b, const lldb_private::DWARFDataExtractor* debug_str_data_ptr);
+    static FixedFormSizes GetFixedFormSizesForAddressSize (uint8_t addr_size, bool is_dwarf64);
+    static int          Compare (const DWARFFormValue& a, 
+                                 const DWARFFormValue& b);
 protected:
     const DWARFCompileUnit* m_cu; // Compile unit for this form
     dw_form_t   m_form;     // Form for this value

@@ -126,9 +126,9 @@ class FileManager : public RefCountedBase<FileManager> {
   ///
   /// For each virtual file (e.g. foo/bar/baz.cpp), we add all of its parent
   /// directories (foo/ and foo/bar/) here.
-  SmallVector<DirectoryEntry*, 4> VirtualDirectoryEntries;
+  SmallVector<std::unique_ptr<DirectoryEntry>, 4> VirtualDirectoryEntries;
   /// \brief The virtual files that we have allocated.
-  SmallVector<FileEntry*, 4> VirtualFileEntries;
+  SmallVector<std::unique_ptr<FileEntry>, 4> VirtualFileEntries;
 
   /// \brief A cache that maps paths to directory entries (either real or
   /// virtual) we have looked up
@@ -218,7 +218,8 @@ public:
                            bool CacheFailure = true);
 
   /// \brief Returns the current file system options
-  const FileSystemOptions &getFileSystemOptions() { return FileSystemOpts; }
+  FileSystemOptions &getFileSystemOpts() { return FileSystemOpts; }
+  const FileSystemOptions &getFileSystemOpts() const { return FileSystemOpts; }
 
   IntrusiveRefCntPtr<vfs::FileSystem> getVirtualFileSystem() const {
     return FS;
@@ -254,7 +255,13 @@ public:
   /// \brief If path is not absolute and FileSystemOptions set the working
   /// directory, the path is modified to be relative to the given
   /// working directory.
-  void FixupRelativePath(SmallVectorImpl<char> &path) const;
+  /// \returns true if \c path changed.
+  bool FixupRelativePath(SmallVectorImpl<char> &path) const;
+
+  /// Makes \c Path absolute taking into account FileSystemOptions and the
+  /// working directory option.
+  /// \returns true if \c Path changed to absolute.
+  bool makeAbsolutePath(SmallVectorImpl<char> &Path) const;
 
   /// \brief Produce an array mapping from the unique IDs assigned to each
   /// file to the corresponding FileEntry pointer.
@@ -265,9 +272,6 @@ public:
   /// FileEntry. Use with caution.
   static void modifyFileEntry(FileEntry *File, off_t Size,
                               time_t ModificationTime);
-
-  /// \brief Remove any './' components from a path.
-  static bool removeDotPaths(SmallVectorImpl<char> &Path);
 
   /// \brief Retrieve the canonical name for a given directory.
   ///

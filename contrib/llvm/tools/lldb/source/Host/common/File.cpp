@@ -22,6 +22,8 @@
 #include <sys/ioctl.h>
 #endif
 
+#include "llvm/Support/Process.h" // for llvm::sys::Process::FileDescriptorHasColors()
+
 #include "lldb/Core/DataBufferHeap.h"
 #include "lldb/Core/Error.h"
 #include "lldb/Core/Log.h"
@@ -143,7 +145,13 @@ File::GetDescriptor() const
     // Don't open the file descriptor if we don't need to, just get it from the
     // stream if we have one.
     if (StreamIsValid())
-        return fileno (m_stream);
+    {
+#if defined(LLVM_ON_WIN32)
+        return _fileno(m_stream);
+#else
+        return fileno(m_stream);
+#endif
+    }
 
     // Invalid descriptor and invalid stream, return invalid descriptor.
     return kInvalidDescriptor;
@@ -1045,7 +1053,11 @@ File::CalculateInteractiveAndTerminal ()
             if (::ioctl (fd, TIOCGWINSZ, &window_size) == 0)
             {
                 if (window_size.ws_col > 0)
+                {
                     m_is_real_terminal = eLazyBoolYes;
+                    if (llvm::sys::Process::FileDescriptorHasColors(fd))
+                        m_supports_colors = eLazyBoolYes;
+                }
             }
         }
 #endif
@@ -1066,5 +1078,13 @@ File::GetIsRealTerminal ()
     if (m_is_real_terminal == eLazyBoolCalculate)
         CalculateInteractiveAndTerminal();
     return m_is_real_terminal == eLazyBoolYes;
+}
+
+bool
+File::GetIsTerminalWithColors ()
+{
+    if (m_supports_colors == eLazyBoolCalculate)
+        CalculateInteractiveAndTerminal();
+    return m_supports_colors == eLazyBoolYes;
 }
 

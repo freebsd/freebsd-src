@@ -114,32 +114,24 @@ xlp_simplebus_init_resources(void)
 	    || rman_manage_region(&irq_rman, 0, 255))
 		panic("xlp_simplebus_init_resources irq_rman");
 
-	port_rman.rm_start = 0;
-	port_rman.rm_end = ~0ul;
 	port_rman.rm_type = RMAN_ARRAY;
 	port_rman.rm_descr = "I/O ports";
 	if (rman_init(&port_rman)
 	    || rman_manage_region(&port_rman, PCIE_IO_BASE, PCIE_IO_LIMIT))
 		panic("xlp_simplebus_init_resources port_rman");
 
-	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0ul;
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "I/O memory";
 	if (rman_init(&mem_rman)
 	    || rman_manage_region(&mem_rman, PCIE_MEM_BASE, PCIE_MEM_LIMIT))
 		panic("xlp_simplebus_init_resources mem_rman");
 
-	pci_ecfg_rman.rm_start = 0;
-	pci_ecfg_rman.rm_end = ~0ul;
 	pci_ecfg_rman.rm_type = RMAN_ARRAY;
 	pci_ecfg_rman.rm_descr = "PCI ECFG IO";
 	if (rman_init(&pci_ecfg_rman) || rman_manage_region(&pci_ecfg_rman,
 	    PCI_ECFG_BASE, PCI_ECFG_LIMIT))
 		panic("xlp_simplebus_init_resources pci_ecfg_rman");
 
-	gbu_rman.rm_start = 0;
-	gbu_rman.rm_end = ~0ul;
 	gbu_rman.rm_type = RMAN_ARRAY;
 	gbu_rman.rm_descr = "Flash region";
 	if (rman_init(&gbu_rman)

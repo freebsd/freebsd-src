@@ -44,8 +44,7 @@ public:
         std::unique_ptr<uint8_t[]> data_ap;     /* host data pointer */
     };
 
-    virtual
-    ~ABI();
+    ~ABI() override;
 
     virtual size_t
     GetRedZoneSize () const = 0;
@@ -78,7 +77,7 @@ public:
     
     lldb::ValueObjectSP
     GetReturnValueObject (Thread &thread,
-                          ClangASTType &type,
+                          CompilerType &type,
                           bool persistent = true) const;
     
     // specialized to work with llvm IR types
@@ -95,7 +94,7 @@ protected:
     // This is the method the ABI will call to actually calculate the return value.
     // Don't put it in a persistent value object, that will be done by the ABI::GetReturnValueObject.
     virtual lldb::ValueObjectSP
-    GetReturnValueObjectImpl (Thread &thread, ClangASTType &ast_type) const = 0;
+    GetReturnValueObjectImpl (Thread &thread, CompilerType &ast_type) const = 0;
     
     // specialized to work with llvm IR types
     virtual lldb::ValueObjectSP
@@ -148,14 +147,17 @@ public:
     FindPlugin (const ArchSpec &arch);
     
 protected:
+
     //------------------------------------------------------------------
     // Classes that inherit from ABI can see and modify these
     //------------------------------------------------------------------
     ABI();
+
 private:
+
     DISALLOW_COPY_AND_ASSIGN (ABI);
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_ABI_h_
+#endif // liblldb_ABI_h_

@@ -12,6 +12,9 @@
 
 // C Includes
 // C++ Includes
+#include <memory>
+#include <string>
+
 // Other libraries and framework includes
 // Project includes
 #include "lldb/lldb-private.h"
@@ -115,7 +118,6 @@ public:
     //------------------------------------------------------------------
     void SetCallback (BreakpointHitCallback callback, const lldb::BatonSP &baton_sp, bool synchronous = false);
     
-    
     //------------------------------------------------------------------
     /// Remove the callback from this option set.
     //------------------------------------------------------------------
@@ -184,10 +186,10 @@ public:
     /// Return a pointer to the text of the condition expression.
     ///
     /// @return
-    ///    A pointer to the condition expression text, or NULL if no
+    ///    A pointer to the condition expression text, or nullptr if no
     //     condition has been set.
     //------------------------------------------------------------------
-    const char *GetConditionText (size_t *hash = NULL) const;
+    const char *GetConditionText(size_t *hash = nullptr) const;
     
     //------------------------------------------------------------------
     // Enabled/Ignore Count
@@ -257,10 +259,10 @@ public:
     }
 
     //------------------------------------------------------------------
-    /// Return the current thread spec for this option.  This will return NULL if the no thread
+    /// Return the current thread spec for this option. This will return nullptr if the no thread
     /// specifications have been set for this Option yet.     
     /// @return
-    ///     The thread specification pointer for this option, or NULL if none has
+    ///     The thread specification pointer for this option, or nullptr if none has
     ///     been set yet.
     //------------------------------------------------------------------
     const ThreadSpec *
@@ -298,7 +300,6 @@ public:
                   lldb::user_id_t break_id,
                   lldb::user_id_t break_loc_id);
     
-    
     struct CommandData
     {
         CommandData () :
@@ -308,10 +309,8 @@ public:
         {
         }
 
-        ~CommandData ()
-        {
-        }
-        
+        ~CommandData() = default;
+
         StringList user_source;
         std::string script_source;
         bool stop_on_error;
@@ -325,16 +324,14 @@ public:
         {
         }
 
-        virtual
-        ~CommandBaton ()
+        ~CommandBaton() override
         {
             delete ((CommandData *)m_data);
-            m_data = NULL;
+            m_data = nullptr;
         }
         
-        virtual void
-        GetDescription (Stream *s, lldb::DescriptionLevel level) const;
-
+        void
+        GetDescription (Stream *s, lldb::DescriptionLevel level) const override;
     };
 
 protected:
@@ -359,4 +356,4 @@ private:
 
 } // namespace lldb_private
 
-#endif  // liblldb_BreakpointOptions_h_
+#endif // liblldb_BreakpointOptions_h_

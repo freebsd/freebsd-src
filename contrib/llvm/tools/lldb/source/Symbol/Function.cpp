@@ -12,11 +12,12 @@
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Section.h"
 #include "lldb/Host/Host.h"
-#include "lldb/Symbol/ClangASTType.h"
+#include "lldb/Symbol/CompilerType.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/LineTable.h"
 #include "lldb/Symbol/SymbolFile.h"
 #include "lldb/Symbol/SymbolVendor.h"
+#include "lldb/Target/Language.h"
 #include "llvm/Support/Casting.h"
 
 using namespace lldb;
@@ -217,7 +218,7 @@ Function::Function
     m_mangled (mangled),
     m_block (func_uid),
     m_range (range),
-    m_frame_base (),
+    m_frame_base (nullptr),
     m_flags (),
     m_prologue_byte_size (0)
 {
@@ -241,7 +242,7 @@ Function::Function
     m_mangled (ConstString(mangled), true),
     m_block (func_uid),
     m_range (range),
-    m_frame_base (),
+    m_frame_base (nullptr),
     m_flags (),
     m_prologue_byte_size (0)
 {
@@ -466,6 +467,32 @@ Function::MemorySize () const
     return mem_size;
 }
 
+bool
+Function::GetIsOptimized ()
+{
+    bool result = false;
+
+    // Currently optimization is only indicted by the
+    // vendor extension DW_AT_APPLE_optimized which
+    // is set on a compile unit level.
+    if (m_comp_unit)
+    {
+        result = m_comp_unit->GetIsOptimized();
+    }
+    return result;
+}
+
+bool
+Function::IsTopLevelFunction ()
+{
+    bool result = false;
+    
+    if (Language* language = Language::FindPlugin(GetLanguage()))
+        result = language->IsTopLevelFunction(*this);
+    
+    return result;
+}
+
 ConstString
 Function::GetDisplayName () const
 {
@@ -474,27 +501,24 @@ Function::GetDisplayName () const
     return m_mangled.GetDisplayDemangledName(GetLanguage());
 }
 
-clang::DeclContext *
-Function::GetClangDeclContext()
+CompilerDeclContext
+Function::GetDeclContext()
 {
-    SymbolContext sc;
-    
-    CalculateSymbolContext (&sc);
-    
-    if (!sc.module_sp)
-        return nullptr;
-    
-    SymbolVendor *sym_vendor = sc.module_sp->GetSymbolVendor();
-    
-    if (!sym_vendor)
-        return nullptr;
-    
-    SymbolFile *sym_file = sym_vendor->GetSymbolFile();
-    
-    if (!sym_file)
-        return nullptr;
-    
-    return sym_file->GetClangDeclContextForTypeUID (sc, m_uid);
+    ModuleSP module_sp = CalculateSymbolContextModule ();
+
+    if (module_sp)
+    {
+        SymbolVendor *sym_vendor = module_sp->GetSymbolVendor();
+
+        if (sym_vendor)
+        {
+            SymbolFile *sym_file = sym_vendor->GetSymbolFile();
+
+            if (sym_file)
+                return sym_file->GetDeclContextForUID (GetID());
+        }
+    }
+    return CompilerDeclContext();
 }
 
 Type*
@@ -530,13 +554,13 @@ Function::GetType() const
     return m_type;
 }
 
-ClangASTType
-Function::GetClangType()
+CompilerType
+Function::GetCompilerType()
 {
     Type *function_type = GetType();
     if (function_type)
-        return function_type->GetClangFullType();
-    return ClangASTType();
+        return function_type->GetFullCompilerType ();
+    return CompilerType();
 }
 
 uint32_t

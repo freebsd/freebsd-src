@@ -163,12 +163,12 @@ StringExtractorGDBRemote::GetServerPacketType () const
         case 'K':
             if (PACKET_STARTS_WITH ("qKillSpawnedProcess"))     return eServerPacketType_qKillSpawnedProcess;
             break;
-        
+
         case 'L':
             if (PACKET_STARTS_WITH ("qLaunchGDBServer"))        return eServerPacketType_qLaunchGDBServer;
             if (PACKET_MATCHES ("qLaunchSuccess"))              return eServerPacketType_qLaunchSuccess;
             break;
-            
+
         case 'M':
             if (PACKET_STARTS_WITH ("qMemoryRegionInfo:"))      return eServerPacketType_qMemoryRegionInfo;
             if (PACKET_MATCHES ("qMemoryRegionInfo"))           return eServerPacketType_qMemoryRegionInfoSupported;
@@ -182,7 +182,11 @@ StringExtractorGDBRemote::GetServerPacketType () const
             if (PACKET_STARTS_WITH ("qPlatform_chmod:"))        return eServerPacketType_qPlatform_chmod;
             if (PACKET_MATCHES ("qProcessInfo"))                return eServerPacketType_qProcessInfo;
             break;
-                
+        
+        case 'Q':
+            if (PACKET_MATCHES ("qQueryGDBServer"))             return eServerPacketType_qQueryGDBServer;
+            break;
+
         case 'R':
             if (PACKET_STARTS_WITH ("qRcmd,"))                  return eServerPacketType_qRcmd;
             if (PACKET_STARTS_WITH ("qRegisterInfo"))           return eServerPacketType_qRegisterInfo;
@@ -221,7 +225,9 @@ StringExtractorGDBRemote::GetServerPacketType () const
         break;
 
     case 'j':
-        if (PACKET_MATCHES("jSignalInfo")) return eServerPacketType_jSignalsInfo;
+        if (PACKET_MATCHES("jSignalsInfo"))                     return eServerPacketType_jSignalsInfo;
+        if (PACKET_MATCHES("jThreadsInfo"))                     return eServerPacketType_jThreadsInfo;
+
 
     case 'v':
             if (PACKET_STARTS_WITH("vFile:"))
@@ -307,6 +313,12 @@ StringExtractorGDBRemote::GetServerPacketType () const
 
       case 'S':
         return eServerPacketType_S;
+
+      case 'x':
+        return eServerPacketType_x;
+
+      case 'X':
+        return eServerPacketType_X;
 
       case 'T':
         return eServerPacketType_T;

@@ -104,10 +104,19 @@ C_DIRDEPS= \
 	gnu/lib/csu \
 	gnu/lib/libgcc \
 	include \
+	include/arpa \
+	include/protocols \
+	include/rpc  \
+	include/rpcsvc \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
+
+
+.if ${MK_GSSAPI} != "no"
+C_DIRDEPS+=  include/gssapi
+.endif
 
 .if !empty(SRCS:M*.c)
 DIRDEPS+= ${C_DIRDEPS}

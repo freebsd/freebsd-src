@@ -26,26 +26,23 @@ namespace lldb_private {
 class OptionGroupArchitecture : public OptionGroup
 {
 public:
-    
     OptionGroupArchitecture ();
     
-    virtual
-    ~OptionGroupArchitecture ();
+    ~OptionGroupArchitecture() override;
 
+    uint32_t
+    GetNumDefinitions() override;
     
-    virtual uint32_t
-    GetNumDefinitions ();
+    const OptionDefinition*
+    GetDefinitions() override;
     
-    virtual const OptionDefinition*
-    GetDefinitions ();
+    Error
+    SetOptionValue(CommandInterpreter &interpreter,
+                   uint32_t option_idx,
+                   const char *option_value) override;
     
-    virtual Error
-    SetOptionValue (CommandInterpreter &interpreter,
-                    uint32_t option_idx,
-                    const char *option_value);
-    
-    virtual void
-    OptionParsingStarting (CommandInterpreter &interpreter);
+    void
+    OptionParsingStarting(CommandInterpreter &interpreter) override;
     
     bool
     GetArchitecture (Platform *platform, ArchSpec &arch);
@@ -55,19 +52,17 @@ public:
     {
         return !m_arch_str.empty();
     }
+
     const char *
-    GetArchitectureName ()
+    GetArchitectureName()
     {
-        if (m_arch_str.empty())
-            return NULL;
-        return m_arch_str.c_str();
+        return (m_arch_str.empty() ? nullptr : m_arch_str.c_str());
     }
 
 protected:
-
     std::string m_arch_str; // Save the arch triple in case a platform is specified after the architecture
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_OptionGroupArchitecture_h_
+#endif // liblldb_OptionGroupArchitecture_h_

@@ -7,7 +7,6 @@ LIB=	llvmarmdesc
 SRCDIR=	lib/Target/ARM/MCTargetDesc
 SRCS=	ARMAsmBackend.cpp \
 	ARMELFObjectWriter.cpp \
-	ARMELFObjectWriter.cpp \
 	ARMELFStreamer.cpp \
 	ARMMCAsmInfo.cpp \
 	ARMMCCodeEmitter.cpp \
@@ -24,6 +23,7 @@ CFLAGS+= -I${LLVM_SRCS}/${SRCDIR}/..
 TGHDRS=	ARMGenInstrInfo \
 	ARMGenMCCodeEmitter \
 	ARMGenRegisterInfo \
-	ARMGenSubtargetInfo
+	ARMGenSubtargetInfo \
+	Attributes
 
 .include "../clang.lib.mk"

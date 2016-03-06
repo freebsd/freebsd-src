@@ -323,7 +323,6 @@ namespace llvm {
 
 ProcessInfo sys::Wait(const ProcessInfo &PI, unsigned SecondsToWait,
                       bool WaitUntilTerminates, std::string *ErrMsg) {
-#ifdef HAVE_SYS_WAIT_H
   struct sigaction Act, Old;
   assert(PI.Pid && "invalid pid to wait on, process not started?");
 
@@ -417,12 +416,6 @@ ProcessInfo sys::Wait(const ProcessInfo &PI, unsigned SecondsToWait,
     // signal during execution as opposed to failing to execute.
     WaitResult.ReturnCode = -2;
   }
-#else
-  if (ErrMsg)
-    *ErrMsg = "Program::Wait is not implemented on this platform yet!";
-  ProcessInfo WaitResult;
-  WaitResult.ReturnCode = -2;
-#endif
   return WaitResult;
 }
 
@@ -453,7 +446,7 @@ llvm::sys::writeFileWithEncoding(StringRef FileName, StringRef Contents,
   return EC;
 }
 
-bool llvm::sys::argumentsFitWithinSystemLimits(ArrayRef<const char*> Args) {
+bool llvm::sys::commandLineFitsWithinSystemLimits(StringRef Program, ArrayRef<const char*> Args) {
   static long ArgMax = sysconf(_SC_ARG_MAX);
 
   // System says no practical limit.
@@ -463,7 +456,7 @@ bool llvm::sys::argumentsFitWithinSystemLimits(ArrayRef<const char*> Args) {
   // Conservatively account for space required by environment variables.
   long HalfArgMax = ArgMax / 2;
 
-  size_t ArgLength = 0;
+  size_t ArgLength = Program.size() + 1;
   for (ArrayRef<const char*>::iterator I = Args.begin(), E = Args.end();
        I != E; ++I) {
     ArgLength += strlen(*I) + 1;

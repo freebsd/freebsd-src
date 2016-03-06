@@ -16,6 +16,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/TableGen/Record.h"
@@ -36,6 +37,10 @@ class MatcherTableEmitter {
   
   DenseMap<TreePattern *, unsigned> NodePredicateMap;
   std::vector<TreePredicateFn> NodePredicates;
+
+  // We de-duplicate the predicates by code string, and use this map to track
+  // all the patterns with "identical" predicates.
+  StringMap<TinyPtrVector<TreePattern *>> NodePredicatesByCodeToRun;
   
   StringMap<unsigned> PatternPredicateMap;
   std::vector<std::string> PatternPredicates;
@@ -62,10 +67,23 @@ private:
                        formatted_raw_ostream &OS);
 
   unsigned getNodePredicate(TreePredicateFn Pred) {
-    unsigned &Entry = NodePredicateMap[Pred.getOrigPatFragRecord()];
+    TreePattern *TP = Pred.getOrigPatFragRecord();
+    unsigned &Entry = NodePredicateMap[TP];
     if (Entry == 0) {
-      NodePredicates.push_back(Pred);
-      Entry = NodePredicates.size();
+      TinyPtrVector<TreePattern *> &SameCodePreds =
+          NodePredicatesByCodeToRun[Pred.getCodeToRunOnSDNode()];
+      if (SameCodePreds.empty()) {
+        // We've never seen a predicate with the same code: allocate an entry.
+        NodePredicates.push_back(Pred);
+        Entry = NodePredicates.size();
+      } else {
+        // We did see an identical predicate: re-use it.
+        Entry = NodePredicateMap[SameCodePreds.front()];
+        assert(Entry != 0);
+      }
+      // In both cases, we've never seen this particular predicate before, so
+      // mark it in the list of predicates sharing the same code.
+      SameCodePreds.push_back(TP);
     }
     return Entry-1;
   }
@@ -625,13 +643,6 @@ void MatcherTableEmitter::EmitPredicateFunctions(formatted_raw_ostream &OS) {
   }
 
   // Emit Node predicates.
-  // FIXME: Annoyingly, these are stored by name, which we never even emit. Yay?
-  StringMap<TreePattern*> PFsByName;
-
-  for (CodeGenDAGPatterns::pf_iterator I = CGP.pf_begin(), E = CGP.pf_end();
-       I != E; ++I)
-    PFsByName[I->first->getName()] = I->second.get();
-
   if (!NodePredicates.empty()) {
     OS << "bool CheckNodePredicate(SDNode *Node,\n";
     OS << "                        unsigned PredNo) const override {\n";
@@ -642,7 +653,10 @@ void MatcherTableEmitter::EmitPredicateFunctions(formatted_raw_ostream &OS) {
       TreePredicateFn PredFn = NodePredicates[i];
       
       assert(!PredFn.isAlwaysTrue() && "No code in this predicate");
-      OS << "  case " << i << ": { // " << NodePredicates[i].getFnName() <<'\n';
+      OS << "  case " << i << ": { \n";
+      for (auto *SimilarPred :
+           NodePredicatesByCodeToRun[PredFn.getCodeToRunOnSDNode()])
+        OS << "    // " << TreePredicateFn(SimilarPred).getFnName() <<'\n';
       
       OS << PredFn.getCodeToRunOnSDNode() << "\n  }\n";
     }
