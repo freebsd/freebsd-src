@@ -1,4 +1,4 @@
-/*	$NetBSD: refresh.c,v 1.44 2016/02/17 19:47:49 christos Exp $	*/
+/*	$NetBSD: refresh.c,v 1.37 2011/07/29 23:44:45 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)refresh.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: refresh.c,v 1.44 2016/02/17 19:47:49 christos Exp $");
+__RCSID("$NetBSD: refresh.c,v 1.37 2011/07/29 23:44:45 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
@@ -47,17 +47,18 @@ __FBSDID("$FreeBSD$");
  * refresh.c: Lower level screen refreshing functions
  */
 #include <stdio.h>
-#include <string.h>
+#include <ctype.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "el.h"
 
 private void	re_nextline(EditLine *);
-private void	re_addc(EditLine *, wint_t);
+private void	re_addc(EditLine *, Int);
 private void	re_update_line(EditLine *, Char *, Char *, int);
 private void	re_insert (EditLine *, Char *, int, int, Char *, int);
 private void	re_delete(EditLine *, Char *, int, int, int);
-private void	re_fastputc(EditLine *, wint_t);
+private void	re_fastputc(EditLine *, Int);
 private void	re_clear_eol(EditLine *, int, int, int);
 private void	re__strncopy(Char *, Char *, size_t);
 private void	re__copy_and_pad(Char *, const Char *, size_t);
@@ -65,7 +66,7 @@ private void	re__copy_and_pad(Char *, const Char *, size_t);
 #ifdef DEBUG_REFRESH
 private void	re_printstr(EditLine *, const char *, char *, char *);
 #define	__F el->el_errfile
-#define	ELRE_ASSERT(a, b, c)	do				\
+#define	ELRE_ASSERT(a, b, c)	do 				\
 				    if (/*CONSTCOND*/ a) {	\
 					(void) fprintf b;	\
 					c;			\
@@ -111,7 +112,7 @@ re_nextline(EditLine *el)
 		for(i = 1; i < lins; i++)
 			el->el_vdisplay[i - 1] = el->el_vdisplay[i];
 
-		firstline[0] = '\0';		/* empty the string */
+		firstline[0] = '\0';		/* empty the string */	
 		el->el_vdisplay[i - 1] = firstline;
 	} else
 		el->el_refresh.r_cursor.v++;
@@ -126,7 +127,7 @@ re_nextline(EditLine *el)
  *	Draw c, expanding tabs, control chars etc.
  */
 private void
-re_addc(EditLine *el, wint_t c)
+re_addc(EditLine *el, Int c)
 {
 	switch (ct_chr_class((Char)c)) {
 	case CHTYPE_TAB:        /* expand the tab */
@@ -162,16 +163,16 @@ re_addc(EditLine *el, wint_t c)
  *	Draw the character given
  */
 protected void
-re_putc(EditLine *el, wint_t c, int shift)
+re_putc(EditLine *el, Int c, int shift)
 {
 	int i, w = Width(c);
-	ELRE_DEBUG(1, (__F, "printing %5x '%lc'\r\n", c, c));
+	ELRE_DEBUG(1, (__F, "printing %5x '%c'\r\n", c, c));
 
 	while (shift && (el->el_refresh.r_cursor.h + w > el->el_terminal.t_size.h))
 	    re_putc(el, ' ', 1);
 
 	el->el_vdisplay[el->el_refresh.r_cursor.v]
-	    [el->el_refresh.r_cursor.h] = (Char)c;
+	    [el->el_refresh.r_cursor.h] = c;
 	/* assumes !shift is only used for single-column chars */
 	i = w;
 	while (--i > 0)
@@ -193,7 +194,7 @@ re_putc(EditLine *el, wint_t c, int shift)
 
 /* re_refresh():
  *	draws the new virtual screen image from the current input
- *	line, then goes line-by-line changing the real image to the new
+ *  	line, then goes line-by-line changing the real image to the new
  *	virtual image. The routine to re-draw a line can be replaced
  *	easily in hopes of a smarter one being placed there.
  */
@@ -452,7 +453,7 @@ re__strncopy(Char *a, Char *b, size_t n)
  *	in order to make sure that we have cleared the previous contents of
  *	the line. fx and sx is the number of characters inserted or deleted
  *	in the first or second diff, diff is the difference between the
- *	number of characters between the new and old line.
+ * 	number of characters between the new and old line.
  */
 private void
 re_clear_eol(EditLine *el, int fx, int sx, int diff)
@@ -1053,14 +1054,14 @@ re_refresh_cursor(EditLine *el)
  *	Add a character fast.
  */
 private void
-re_fastputc(EditLine *el, wint_t c)
+re_fastputc(EditLine *el, Int c)
 {
 	int w = Width((Char)c);
 	while (w > 1 && el->el_cursor.h + w > el->el_terminal.t_size.h)
 	    re_fastputc(el, ' ');
 
 	terminal__putc(el, c);
-	el->el_display[el->el_cursor.v][el->el_cursor.h++] = (Char)c;
+	el->el_display[el->el_cursor.v][el->el_cursor.h++] = c;
 	while (--w > 0)
 		el->el_display[el->el_cursor.v][el->el_cursor.h++]
 			= MB_FILL_CHAR;
@@ -1078,7 +1079,7 @@ re_fastputc(EditLine *el, wint_t c)
 		if (el->el_cursor.v + 1 >= el->el_terminal.t_size.v) {
 			int i, lins = el->el_terminal.t_size.v;
 			Char *firstline = el->el_display[0];
-
+	
 			for(i = 1; i < lins; i++)
 				el->el_display[i - 1] = el->el_display[i];
 
