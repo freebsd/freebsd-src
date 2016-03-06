@@ -1,4 +1,4 @@
-/*	$NetBSD: emacs.c,v 1.32 2016/02/16 22:53:14 christos Exp $	*/
+/*	$NetBSD: emacs.c,v 1.25 2011/07/29 15:16:33 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)emacs.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: emacs.c,v 1.32 2016/02/16 22:53:14 christos Exp $");
+__RCSID("$NetBSD: emacs.c,v 1.25 2011/07/29 15:16:33 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
@@ -46,10 +46,7 @@ __FBSDID("$FreeBSD$");
 /*
  * emacs.c: Emacs functions
  */
-#include <ctype.h>
-
 #include "el.h"
-#include "emacs.h"
 
 /* em_delete_or_list():
  *	Delete character under cursor or list completions if at end of line
@@ -57,7 +54,7 @@ __FBSDID("$FreeBSD$");
  */
 protected el_action_t
 /*ARGSUSED*/
-em_delete_or_list(EditLine *el, wint_t c)
+em_delete_or_list(EditLine *el, Int c)
 {
 
 	if (el->el_line.cursor == el->el_line.lastchar) {
@@ -93,7 +90,7 @@ em_delete_or_list(EditLine *el, wint_t c)
  */
 protected el_action_t
 /*ARGSUSED*/
-em_delete_next_word(EditLine *el, wint_t c __attribute__((__unused__)))
+em_delete_next_word(EditLine *el, Int c __attribute__((__unused__)))
 {
 	Char *cp, *p, *kp;
 
@@ -122,7 +119,7 @@ em_delete_next_word(EditLine *el, wint_t c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-em_yank(EditLine *el, wint_t c __attribute__((__unused__)))
+em_yank(EditLine *el, Int c __attribute__((__unused__)))
 {
 	Char *kp, *cp;
 
@@ -158,7 +155,7 @@ em_yank(EditLine *el, wint_t c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-em_kill_line(EditLine *el, wint_t c __attribute__((__unused__)))
+em_kill_line(EditLine *el, Int c __attribute__((__unused__)))
 {
 	Char *kp, *cp;
 
@@ -180,7 +177,7 @@ em_kill_line(EditLine *el, wint_t c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-em_kill_region(EditLine *el, wint_t c __attribute__((__unused__)))
+em_kill_region(EditLine *el, Int c __attribute__((__unused__)))
 {
 	Char *kp, *cp;
 
@@ -213,7 +210,7 @@ em_kill_region(EditLine *el, wint_t c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-em_copy_region(EditLine *el, wint_t c __attribute__((__unused__)))
+em_copy_region(EditLine *el, Int c __attribute__((__unused__)))
 {
 	Char *kp, *cp;
 
@@ -242,14 +239,14 @@ em_copy_region(EditLine *el, wint_t c __attribute__((__unused__)))
  *	Gosling emacs transpose chars [^T]
  */
 protected el_action_t
-em_gosmacs_transpose(EditLine *el, wint_t c)
+em_gosmacs_transpose(EditLine *el, Int c)
 {
 
 	if (el->el_line.cursor > &el->el_line.buffer[1]) {
 		/* must have at least two chars entered */
 		c = el->el_line.cursor[-2];
 		el->el_line.cursor[-2] = el->el_line.cursor[-1];
-		el->el_line.cursor[-1] = (Char)c;
+		el->el_line.cursor[-1] = c;
 		return CC_REFRESH;
 	} else
 		return CC_ERROR;
@@ -262,7 +259,7 @@ em_gosmacs_transpose(EditLine *el, wint_t c)
  */
 protected el_action_t
 /*ARGSUSED*/
-em_next_word(EditLine *el, wint_t c __attribute__((__unused__)))
+em_next_word(EditLine *el, Int c __attribute__((__unused__)))
 {
 	if (el->el_line.cursor == el->el_line.lastchar)
 		return CC_ERROR;
@@ -287,7 +284,7 @@ em_next_word(EditLine *el, wint_t c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-em_upper_case(EditLine *el, wint_t c __attribute__((__unused__)))
+em_upper_case(EditLine *el, Int c __attribute__((__unused__)))
 {
 	Char *cp, *ep;
 
@@ -311,7 +308,7 @@ em_upper_case(EditLine *el, wint_t c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-em_capitol_case(EditLine *el, wint_t c __attribute__((__unused__)))
+em_capitol_case(EditLine *el, Int c __attribute__((__unused__)))
 {
 	Char *cp, *ep;
 
@@ -343,7 +340,7 @@ em_capitol_case(EditLine *el, wint_t c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-em_lower_case(EditLine *el, wint_t c __attribute__((__unused__)))
+em_lower_case(EditLine *el, Int c __attribute__((__unused__)))
 {
 	Char *cp, *ep;
 
@@ -367,7 +364,7 @@ em_lower_case(EditLine *el, wint_t c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-em_set_mark(EditLine *el, wint_t c __attribute__((__unused__)))
+em_set_mark(EditLine *el, Int c __attribute__((__unused__)))
 {
 
 	el->el_chared.c_kill.mark = el->el_line.cursor;
@@ -381,7 +378,7 @@ em_set_mark(EditLine *el, wint_t c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-em_exchange_mark(EditLine *el, wint_t c __attribute__((__unused__)))
+em_exchange_mark(EditLine *el, Int c __attribute__((__unused__)))
 {
 	Char *cp;
 
@@ -398,7 +395,7 @@ em_exchange_mark(EditLine *el, wint_t c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-em_universal_argument(EditLine *el, wint_t c __attribute__((__unused__)))
+em_universal_argument(EditLine *el, Int c __attribute__((__unused__)))
 {				/* multiply current argument by 4 */
 
 	if (el->el_state.argument > 1000000)
@@ -415,7 +412,7 @@ em_universal_argument(EditLine *el, wint_t c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-em_meta_next(EditLine *el, wint_t c __attribute__((__unused__)))
+em_meta_next(EditLine *el, Int c __attribute__((__unused__)))
 {
 
 	el->el_state.metanext = 1;
@@ -428,7 +425,7 @@ em_meta_next(EditLine *el, wint_t c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-em_toggle_overwrite(EditLine *el, wint_t c __attribute__((__unused__)))
+em_toggle_overwrite(EditLine *el, Int c __attribute__((__unused__)))
 {
 
 	el->el_state.inputmode = (el->el_state.inputmode == MODE_INSERT) ?
@@ -442,7 +439,7 @@ em_toggle_overwrite(EditLine *el, wint_t c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-em_copy_prev_word(EditLine *el, wint_t c __attribute__((__unused__)))
+em_copy_prev_word(EditLine *el, Int c __attribute__((__unused__)))
 {
 	Char *cp, *oldc, *dp;
 
@@ -469,7 +466,7 @@ em_copy_prev_word(EditLine *el, wint_t c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-em_inc_search_next(EditLine *el, wint_t c __attribute__((__unused__)))
+em_inc_search_next(EditLine *el, Int c __attribute__((__unused__)))
 {
 
 	el->el_search.patlen = 0;
@@ -482,7 +479,7 @@ em_inc_search_next(EditLine *el, wint_t c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-em_inc_search_prev(EditLine *el, wint_t c __attribute__((__unused__)))
+em_inc_search_prev(EditLine *el, Int c __attribute__((__unused__)))
 {
 
 	el->el_search.patlen = 0;
@@ -496,7 +493,7 @@ em_inc_search_prev(EditLine *el, wint_t c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-em_delete_prev_char(EditLine *el, wint_t c __attribute__((__unused__)))
+em_delete_prev_char(EditLine *el, Int c __attribute__((__unused__)))
 {
 
 	if (el->el_line.cursor <= el->el_line.buffer)

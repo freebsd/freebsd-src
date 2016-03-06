@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.35 2016/02/17 19:47:49 christos Exp $	*/
+/*	$NetBSD: parse.c,v 1.27 2014/07/06 18:15:34 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: parse.c,v 1.35 2016/02/17 19:47:49 christos Exp $");
+__RCSID("$NetBSD: parse.c,v 1.27 2014/07/06 18:15:34 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
@@ -56,19 +56,16 @@ __FBSDID("$FreeBSD$");
  *	settc
  *	setty
  */
-#include <stdlib.h>
-#include <string.h>
-
 #include "el.h"
-#include "parse.h"
+#include <stdlib.h>
 
 private const struct {
 	const Char *name;
 	int (*func)(EditLine *, int, const Char **);
 } cmds[] = {
-	{ STR("bind"),		map_bind	},
+	{ STR("bind"),  	map_bind	},
 	{ STR("echotc"),	terminal_echotc	},
-	{ STR("edit"),		el_editmode	},
+	{ STR("edit"),  	el_editmode	},
 	{ STR("history"),	hist_command	},
 	{ STR("telltc"),	terminal_telltc	},
 	{ STR("settc"),	        terminal_settc	},
@@ -144,7 +141,7 @@ protected int
 parse__escape(const Char **ptr)
 {
 	const Char *p;
-	wint_t c;
+	Int c;
 
 	p = *ptr;
 
@@ -256,7 +253,7 @@ parse__string(Char *out, const Char *in)
 		case '^':
 			if ((n = parse__escape(&in)) == -1)
 				return NULL;
-			*out++ = (Char)n;
+			*out++ = n;
 			break;
 
 		case 'M':
