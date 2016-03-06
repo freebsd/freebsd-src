@@ -31,6 +31,20 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160306:
+	On amd64, clang 3.8.0 can now insert sections of type AMD64_UNWIND into
+	kernel modules.  Therefore, if you load any kernel modules at boot time,
+	please install the boot loaders after you install the kernel, but before
+	rebooting, e.g.:
+
+	make buildworld
+	make kernel KERNCONF=YOUR_KERNEL_HERE
+	make -C sys/boot install
+	<reboot in single user>
+
+	Then follow the usual steps, described in the General Notes section,
+	below.
+
 20160305:
 	Clang, llvm, lldb and compiler-rt have been upgraded to 3.8.0.  Please
 	see the 20141231 entry below for information about prerequisites and
