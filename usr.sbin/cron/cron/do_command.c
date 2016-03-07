@@ -337,8 +337,9 @@ child_process(e, u)
 				_exit(OK_EXIT);
 			}
 # endif /*DEBUGGING*/
-			execle(shell, shell, "-c", e->cmd, (char *)0, e->envp);
-			warn("execl: couldn't exec `%s'", shell);
+			execle(shell, shell, "-c", e->cmd, (char *)NULL,
+			    e->envp);
+			warn("execle: couldn't exec `%s'", shell);
 			_exit(ERROR_EXIT);
 		}
 		break;
