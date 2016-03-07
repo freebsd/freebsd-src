@@ -864,14 +864,18 @@ void
 tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
     tcp_seq ack, tcp_seq seq, int flags)
 {
+	struct tcpopt to;
 	struct inpcb *inp;
 	struct ip *ip;
+	struct mbuf *optm;
 	struct tcphdr *nth;
+	u_char *optp;
 #ifdef INET6
 	struct ip6_hdr *ip6;
 	int isipv6;
 #endif /* INET6 */
-	int tlen, win;
+	int optlen, tlen, win;
+	bool incl_opts;
 
 	KASSERT(tp != NULL || m != NULL, ("tcp_respond: tp and m both NULL"));
 
@@ -888,6 +892,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	} else
 		inp = NULL;
 
+	incl_opts = false;
 	win = 0;
 	if (tp != NULL) {
 		if (!(flags & TH_RST)) {
@@ -895,12 +900,13 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			if (win > (long)TCP_MAXWIN << tp->rcv_scale)
 				win = (long)TCP_MAXWIN << tp->rcv_scale;
 		}
+		if ((tp->t_flags & TF_NOOPT) == 0)
+			incl_opts = true;
 	}
 	if (m == NULL) {
 		m = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m == NULL)
 			return;
-		tlen = 0;
 		m->m_data += max_linkhdr;
 #ifdef INET6
 		if (isipv6) {
@@ -926,7 +932,6 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		m->m_next = NULL;
 		m->m_data = (caddr_t)ipgen;
 		/* m_len is set later */
-		tlen = 0;
 #define xchg(a,b,type) { type t; t=a; a=b; b=t; }
 #ifdef INET6
 		if (isipv6) {
@@ -950,12 +955,64 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		xchg(nth->th_dport, nth->th_sport, uint16_t);
 #undef xchg
 	}
+	tlen = 0;
+#ifdef INET6
+	if (isipv6)
+		tlen = sizeof (struct ip6_hdr) + sizeof (struct tcphdr);
+#endif
+#if defined(INET) && defined(INET6)
+	else
+#endif
+#ifdef INET
+		tlen = sizeof (struct tcpiphdr);
+#endif
+#ifdef INVARIANTS
+	m->m_len = 0;
+	KASSERT(M_TRAILINGSPACE(m) >= tlen,
+	    ("Not enough trailing space for message (m=%p, need=%d, have=%ld)",
+	    m, tlen, (long)M_TRAILINGSPACE(m)));
+#endif
+	m->m_len = tlen;
+	to.to_flags = 0;
+	if (incl_opts) {
+		/* Make sure we have room. */
+		if (M_TRAILINGSPACE(m) < TCP_MAXOLEN) {
+			m->m_next = m_get(M_NOWAIT, MT_DATA);
+			if (m->m_next) {
+				optp = mtod(m->m_next, u_char *);
+				optm = m->m_next;
+			} else
+				incl_opts = false;
+		} else {
+			optp = (u_char *) (nth + 1);
+			optm = m;
+		}
+	}
+	if (incl_opts) {
+		/* Timestamps. */
+		if (tp->t_flags & TF_RCVD_TSTMP) {
+			to.to_tsval = tcp_ts_getticks() + tp->ts_offset;
+			to.to_tsecr = tp->ts_recent;
+			to.to_flags |= TOF_TS;
+		}
+#ifdef TCP_SIGNATURE
+		/* TCP-MD5 (RFC2385). */
+		if (tp->t_flags & TF_SIGNATURE)
+			to.to_flags |= TOF_SIGNATURE;
+#endif
+
+		/* Add the options. */
+		tlen += optlen = tcp_addoptions(&to, optp);
+
+		/* Update m_len in the correct mbuf. */
+		optm->m_len += optlen;
+	} else
+		optlen = 0;
 #ifdef INET6
 	if (isipv6) {
 		ip6->ip6_flow = 0;
 		ip6->ip6_vfc = IPV6_VERSION;
 		ip6->ip6_nxt = IPPROTO_TCP;
-		tlen += sizeof (struct ip6_hdr) + sizeof (struct tcphdr);
 		ip6->ip6_plen = htons(tlen - sizeof(*ip6));
 	}
 #endif
@@ -964,14 +1021,12 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 #endif
 #ifdef INET
 	{
-		tlen += sizeof (struct tcpiphdr);
 		ip->ip_len = htons(tlen);
 		ip->ip_ttl = V_ip_defttl;
 		if (V_path_mtu_discovery)
 			ip->ip_off |= htons(IP_DF);
 	}
 #endif
-	m->m_len = tlen;
 	m->m_pkthdr.len = tlen;
 	m->m_pkthdr.rcvif = NULL;
 #ifdef MAC
@@ -993,13 +1048,20 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	nth->th_seq = htonl(seq);
 	nth->th_ack = htonl(ack);
 	nth->th_x2 = 0;
-	nth->th_off = sizeof (struct tcphdr) >> 2;
+	nth->th_off = (sizeof (struct tcphdr) + optlen) >> 2;
 	nth->th_flags = flags;
 	if (tp != NULL)
 		nth->th_win = htons((u_short) (win >> tp->rcv_scale));
 	else
 		nth->th_win = htons((u_short)win);
 	nth->th_urp = 0;
+
+#ifdef TCP_SIGNATURE
+	if (to.to_flags & TOF_SIGNATURE) {
+		tcp_signature_compute(m, 0, 0, optlen, to.to_signature,
+		    IPSEC_DIR_OUTBOUND);
+	}
+#endif
 
 	m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 #ifdef INET6
