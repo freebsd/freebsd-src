@@ -864,16 +864,14 @@ void
 tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
     tcp_seq ack, tcp_seq seq, int flags)
 {
-	int tlen;
-	int win = 0;
+	struct inpcb *inp;
 	struct ip *ip;
 	struct tcphdr *nth;
 #ifdef INET6
 	struct ip6_hdr *ip6;
 	int isipv6;
 #endif /* INET6 */
-	int ipflags = 0;
-	struct inpcb *inp;
+	int tlen, win;
 
 	KASSERT(tp != NULL || m != NULL, ("tcp_respond: tp and m both NULL"));
 
@@ -890,6 +888,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	} else
 		inp = NULL;
 
+	win = 0;
 	if (tp != NULL) {
 		if (!(flags & TH_RST)) {
 			win = sbspace(&inp->inp_socket->so_rcv);
@@ -1034,13 +1033,13 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	TCP_PROBE5(send, NULL, tp, mtod(m, const char *), tp, nth);
 #ifdef INET6
 	if (isipv6)
-		(void) ip6_output(m, NULL, NULL, ipflags, NULL, NULL, inp);
+		(void) ip6_output(m, NULL, NULL, 0, NULL, NULL, inp);
 #endif /* INET6 */
 #if defined(INET) && defined(INET6)
 	else
 #endif
 #ifdef INET
-		(void) ip_output(m, NULL, NULL, ipflags, NULL, inp);
+		(void) ip_output(m, NULL, NULL, 0, NULL, inp);
 #endif
 }
 
