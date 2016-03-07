@@ -305,6 +305,7 @@ filemon_modevent(module_t mod __unused, int type, void *data)
 		 * Require forcing an unload.
 		 */
 		error = EBUSY;
+		break;
 
 	case MOD_SHUTDOWN:
 		break;
