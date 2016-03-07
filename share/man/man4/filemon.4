@@ -194,3 +194,6 @@ Only children of the set process are logged.
 Processes can escape being traced by double forking.
 This is not seen as a problem as the intended use is build monitoring, which
 does not make sense to have daemons for.
+.Pp
+Unloading the module may panic the system, thus requires using
+.Ic kldunload -f .
