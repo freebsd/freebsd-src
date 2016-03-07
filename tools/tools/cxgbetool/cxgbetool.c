@@ -79,8 +79,9 @@ struct field_desc {
 };
 
 #include "reg_defs_t4.c"
-#include "reg_defs_t4vf.c"
 #include "reg_defs_t5.c"
+#include "reg_defs_t6.c"
+#include "reg_defs_t4vf.c"
 
 static void
 usage(FILE *fp)
@@ -350,20 +351,6 @@ dump_regs_t4(int argc, const char *argv[], const uint32_t *regs)
 }
 #undef T4_MODREGS
 
-static int
-dump_regs_t4vf(int argc, const char *argv[], const uint32_t *regs)
-{
-	static struct mod_regs t4vf_mod[] = {
-		{ "sge", t4vf_sge_regs },
-		{ "mps", t4vf_mps_regs },
-		{ "pl", t4vf_pl_regs },
-		{ "mbdata", t4vf_mbdata_regs },
-		{ "cim", t4vf_cim_regs },
-	};
-
-	return dump_regs_table(argc, argv, regs, t4vf_mod, nitems(t4vf_mod));
-}
-
 #define T5_MODREGS(name) { #name, t5_##name##_regs }
 static int
 dump_regs_t5(int argc, const char *argv[], const uint32_t *regs)
@@ -402,6 +389,85 @@ dump_regs_t5(int argc, const char *argv[], const uint32_t *regs)
 }
 #undef T5_MODREGS
 
+#define T6_MODREGS(name) { #name, t6_##name##_regs }
+static int
+dump_regs_t6(int argc, const char *argv[], const uint32_t *regs)
+{
+	static struct mod_regs t6_mod[] = {
+		T6_MODREGS(sge),
+		{ "pci", t6_pcie_regs },
+		T6_MODREGS(dbg),
+		{ "mc0", t6_mc_0_regs },
+		T6_MODREGS(ma),
+		{ "edc0", t6_edc_t60_regs },
+		{ "edc1", t6_edc_t61_regs },
+		T6_MODREGS(cim),
+		T6_MODREGS(tp),
+		{ "ulprx", t6_ulp_rx_regs },
+		{ "ulptx", t6_ulp_tx_regs },
+		{ "pmrx", t6_pm_rx_regs },
+		{ "pmtx", t6_pm_tx_regs },
+		T6_MODREGS(mps),
+		{ "cplsw", t6_cpl_switch_regs },
+		T6_MODREGS(smb),
+		{ "i2c", t6_i2cm_regs },
+		T6_MODREGS(mi),
+		T6_MODREGS(uart),
+		T6_MODREGS(pmu),
+		T6_MODREGS(sf),
+		T6_MODREGS(pl),
+		T6_MODREGS(le),
+		T6_MODREGS(ncsi),
+		T6_MODREGS(mac),
+		{ "hma", t6_hma_t6_regs }
+	};
+
+	return dump_regs_table(argc, argv, regs, t6_mod, nitems(t6_mod));
+}
+#undef T6_MODREGS
+
+static int
+dump_regs_t4vf(int argc, const char *argv[], const uint32_t *regs)
+{
+	static struct mod_regs t4vf_mod[] = {
+		{ "sge", t4vf_sge_regs },
+		{ "mps", t4vf_mps_regs },
+		{ "pl", t4vf_pl_regs },
+		{ "mbdata", t4vf_mbdata_regs },
+		{ "cim", t4vf_cim_regs },
+	};
+
+	return dump_regs_table(argc, argv, regs, t4vf_mod, nitems(t4vf_mod));
+}
+
+static int
+dump_regs_t5vf(int argc, const char *argv[], const uint32_t *regs)
+{
+	static struct mod_regs t5vf_mod[] = {
+		{ "sge", t5vf_sge_regs },
+		{ "mps", t4vf_mps_regs },
+		{ "pl", t5vf_pl_regs },
+		{ "mbdata", t4vf_mbdata_regs },
+		{ "cim", t4vf_cim_regs },
+	};
+
+	return dump_regs_table(argc, argv, regs, t5vf_mod, nitems(t5vf_mod));
+}
+
+static int
+dump_regs_t6vf(int argc, const char *argv[], const uint32_t *regs)
+{
+	static struct mod_regs t6vf_mod[] = {
+		{ "sge", t5vf_sge_regs },
+		{ "mps", t4vf_mps_regs },
+		{ "pl", t6vf_pl_regs },
+		{ "mbdata", t4vf_mbdata_regs },
+		{ "cim", t4vf_cim_regs },
+	};
+
+	return dump_regs_table(argc, argv, regs, t6vf_mod, nitems(t6vf_mod));
+}
+
 static int
 dump_regs(int argc, const char *argv[])
 {
@@ -429,9 +495,17 @@ dump_regs(int argc, const char *argv[])
 			rc = dump_regs_t4vf(argc, argv, regs.data);
 		else
 			rc = dump_regs_t4(argc, argv, regs.data);
-	} else if (vers == 5)
-		rc = dump_regs_t5(argc, argv, regs.data);
-	else {
+	} else if (vers == 5) {
+		if (revision == 0x3f)
+			rc = dump_regs_t5vf(argc, argv, regs.data);
+		else
+			rc = dump_regs_t5(argc, argv, regs.data);
+	} else if (vers == 6) {
+		if (revision == 0x3f)
+			rc = dump_regs_t6vf(argc, argv, regs.data);
+		else
+			rc = dump_regs_t6(argc, argv, regs.data);
+	} else {
 		warnx("%s (type %d, rev %d) is not a known card.",
 		    nexus, vers, revision);
 		return (ENOTSUP);
