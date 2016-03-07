@@ -313,7 +313,7 @@ ostiInitiatorIOCompleted(tiRoot_t      *ptiRoot,
       }
       sense_len = MIN( pSenseData->senseLen,
                        pccb->senseLen - csio->sense_resid );
-      bzero(&csio->sense_data, sizeof(&csio->sense_data));
+      bzero(&csio->sense_data, sizeof(csio->sense_data));
       AGTIAPI_PRINTK("ostiInitiatorIOCompleted: check condition copying\n");
       memcpy( (void *)pccb->pSenseData,
               pSenseData->senseData,
