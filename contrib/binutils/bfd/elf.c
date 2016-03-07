@@ -8934,14 +8934,14 @@ elf_create_symbuf (bfd_size_type symcount, Elf_Internal_Sym *isymbuf)
 	shndx_count++;
 
   ssymbuf = bfd_malloc ((shndx_count + 1) * sizeof (*ssymbuf)
-			+ (indbufend - indbuf) * sizeof (*ssymbuf));
+			+ (indbufend - indbuf) * sizeof (*ssym));
   if (ssymbuf == NULL)
     {
       free (indbuf);
       return NULL;
     }
 
-  ssym = (struct elf_symbuf_symbol *) (ssymbuf + shndx_count);
+  ssym = (struct elf_symbuf_symbol *) (ssymbuf + shndx_count + 1);
   ssymbuf->ssym = NULL;
   ssymbuf->count = shndx_count;
   ssymbuf->st_shndx = 0;
