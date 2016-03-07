@@ -1,14 +1,19 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
-	"../../../share/xml/freebsd50.dtd" [
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+	  "http://www.FreeBSD.org/XML/share/xml/freebsd50.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN"
+	 "http://www.FreeBSD.org/release/XML/share/xml/release.ent">
  %release;
-<!ENTITY % sponsor PUBLIC "-//FreeBSD//ENTITIES Sponsor Specification//EN" "sponsor.ent">
+<!ENTITY % sponsor PUBLIC "-//FreeBSD//ENTITIES Sponsor Specification//EN"
+	 "http://www.FreeBSD.org/release/XML/share/xml/sponsor.ent">
  %sponsor;
-<!ENTITY % vendor PUBLIC "-//FreeBSD//ENTITIES Vendor Specification//EN" "vendor.ent">
+<!ENTITY % vendor PUBLIC "-//FreeBSD//ENTITIES Vendor Specification//EN"
+	 "http://www.FreeBSD.org/release/XML/share/xml/vendor.ent">
  %vendor;
-<!ENTITY security SYSTEM "../../share/xml/security.xml">
-<!ENTITY errata SYSTEM "../../share/xml/errata.xml">
+<!ENTITY security PUBLIC "-//FreeBSD//ENTITIES Security Advisory List//EN"
+	 "http://www.FreeBSD.org/release/XML/share/xml/security.xml">
+<!ENTITY errata PUBLIC "-//FreeBSD//ENTITIES Errata List//EN"
+	 "http://www.FreeBSD.org/release/XML/share/xml/errata.xml">
 ]>
 <article xmlns="http://docbook.org/ns/docbook"
   xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
@@ -26,7 +31,7 @@
     <!-- Last rev: 284813 -->
 
     <copyright>
-      <year>2015</year>
+      <year>2016</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation
 	Project</holder>
     </copyright>
@@ -166,42 +171,13 @@
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
 
-      <para revision="286064">The &man.jail.8; utility has been
-	updated to include a new flag, <literal>-l</literal>, which
-	ensures a clean environment in the target jail when used.
-	Additionally, &man.jail.8; will run a shell within the target
-	jail when run no commands are specified.</para>
-
-      <para revision="287122">The &man.mkimg.1; utility has been
-	updated to include support for <literal>NTFS</literal>
-	filesystems in both <acronym>MBR</acronym> and
-	<acronym>GPT</acronym> partitioning schemes.</para>
-
-      <para revision="288202" contrib="sponsor" sponsor="&ff;">The
-	&man.ar.1; utility now enables deterministic mode
-	(<literal>-D</literal>) by default.  This behavior can be
-	disabled by specifying the <literal>-U</literal> flag.</para>
-
-      <para revision="287746">The &man.pciconf.8; utility has been
-	updated to use the PCI ID database from the <filename
-	  role="package">misc/pciids</filename> package, if present,
-	falling back to the PCI ID database in the &os; base
-	system.</para>
-
-      <para revision="288710" contrib="sponsor" sponsor="&gandi;">A
-	new utility, &man.sesutil.8;, has been added, which is used
-	to manage &man.ses.4; devices.</para>
+      <para>&nbsp;</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
-      <para revision="286082">The &man.libarchive.3; library has been
-	updated to properly skip a sparse file entry in a &man.tar.1;
-	file, which would previously produce errors.</para>
-
-      <para revision="286751">Timezone data files have been updated to
-	version 2015f.</para>
+      <para>&nbsp;</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
@@ -247,10 +223,7 @@
     <sect2 xml:id="kernel-bugfix">
       <title>Kernel Bug Fixes</title>
 
-      <para revision="288167" contrib="sponsor"
-	sponsor="&multiplay;">The &man.kqueue.2; system call has been
-	updated to handle write events to files larger than 2
-	gigabytes.</para>
+      <para></para>
     </sect2>
 
     <sect2 xml:id="kernel-config">
@@ -262,10 +235,7 @@
     <sect2 xml:id="kernel-sysctl">
       <title>System Tuning and Controls</title>
 
-      <para revision="287037">The &man.uart.4; driver has been
-	updated to allow tuning pulses per second captured in the
-	CTS line during runtime, whereas previously only the DCD line
-	could be used without rebuilding the kernel.</para>
+      <para></para>
     </sect2>
   </sect1>
 
@@ -284,12 +254,7 @@
     <sect2 xml:id="drivers-storage">
       <title>Storage Drivers</title>
 
-      <para revision="288732" contrib="sponsor" sponsor="&ix;">The
-	<acronym>CTL</acronym> High Availability implementation has
-	been rewritten.</para>
-
-      <para revision="288810">The &man.ctl.4; driver has been updated
-	to support CD-ROM and removable devices.</para>
+      <para></para>
     </sect2>
 
     <sect2 xml:id="drivers-network">
@@ -316,9 +281,7 @@
     <sect2 xml:id="hardware-virtualization">
       <title>Virtualization Support</title>
 
-      <para revision="287802">The &man.xen.4; driver has been updated
-	to include support for <literal>blkif</literal> indirect
-	segment I/O.</para>
+      <para></para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
@@ -349,11 +312,7 @@
     <sect2 xml:id="storage-zfs">
       <title>ZFS</title>
 
-      <para revision="287665" contrib="sponsor"
-	sponsor="&clusterhq;">The &man.zfs.8; <literal>l2arc</literal>
-	code has been updated to take <literal>ashift</literal> into
-	account when gathering buffers to be written to the
-	<literal>l2arc</literal> device.</para>
+      <para></para>
     </sect2>
 
     <sect2 xml:id="storage-geom">
