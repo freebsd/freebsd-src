@@ -3,8 +3,8 @@
 .include <bsd.own.mk>
 
 # OpenSSL version used for manual page generation
-OPENSSL_VER=	0.9.8zd
-OPENSSL_DATE=	2015-01-08
+OPENSSL_VER=	0.9.8zh
+OPENSSL_DATE=	2015-12-03
 
 LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl
 LCRYPTO_DOC=	${.CURDIR}/../../../crypto/openssl/doc
@@ -17,8 +17,12 @@ CFLAGS+=	-DOPENSSL_THREADS -DDSO_DLFCN -DHAVE_DLFCN_H
 CFLAGS+=	-DOPENSSL_NO_IDEA
 .endif
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
-CFLAGS+= -DL_ENDIAN
+.include <bsd.endian.mk>
+
+.if ${TARGET_ENDIANNESS} == 1234
+CFLAGS+=	-DL_ENDIAN
+.elif ${TARGET_ENDIANNESS} == 4321
+CFLAGS+=	-DB_ENDIAN
 .endif
 
 MANDIR=	${SHAREDIR}/openssl/man/man

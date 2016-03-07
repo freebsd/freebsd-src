@@ -378,14 +378,6 @@ fips_rand.h:
 
 CLEANFILES+=	fips.h fips_rand.h
 
-OLDSYMLINKS+=	libdes.a libdes.so libdes.so.3 libdes_p.a
-afterinstall:
-	@${ECHO} "Removing stale symlinks."
-	rm -f ${DESTDIR}${INCLUDEDIR}/des.h
-.for symlink in ${OLDSYMLINKS}
-	rm -f ${DESTDIR}${LIBDIR}/${symlink}
-.endfor
-
 .include <bsd.lib.mk>
 
 .if ${MACHINE_CPUARCH} == "i386"

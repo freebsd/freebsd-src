@@ -105,7 +105,7 @@ The following is a list of all permitted cipher strings and their meanings.
 =item B<DEFAULT>
 
 the default cipher list. This is determined at compile time and is normally
-B<AES:ALL:!aNULL:!eNULL:+RC4:@STRENGTH>. This must be the first cipher string
+B<ALL:!EXPORT:!aNULL:!eNULL:!SSLv2:@STRENGTH>. This must be the first cipher string
 specified.
 
 =item B<COMPLEMENTOFDEFAULT>
@@ -383,11 +383,11 @@ Note: these ciphers can also be used in SSL v3.
 =head2 SSL v2.0 cipher suites.
 
  SSL_CK_RC4_128_WITH_MD5                 RC4-MD5
- SSL_CK_RC4_128_EXPORT40_WITH_MD5        EXP-RC4-MD5
- SSL_CK_RC2_128_CBC_WITH_MD5             RC2-MD5
- SSL_CK_RC2_128_CBC_EXPORT40_WITH_MD5    EXP-RC2-MD5
+ SSL_CK_RC4_128_EXPORT40_WITH_MD5        Not implemented.
+ SSL_CK_RC2_128_CBC_WITH_MD5             RC2-CBC-MD5
+ SSL_CK_RC2_128_CBC_EXPORT40_WITH_MD5    Not implemented.
  SSL_CK_IDEA_128_CBC_WITH_MD5            IDEA-CBC-MD5
- SSL_CK_DES_64_CBC_WITH_MD5              DES-CBC-MD5
+ SSL_CK_DES_64_CBC_WITH_MD5              Not implemented.
  SSL_CK_DES_192_EDE3_CBC_WITH_MD5        DES-CBC3-MD5
 
 =head1 NOTES
