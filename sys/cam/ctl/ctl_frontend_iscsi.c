@@ -2369,6 +2369,7 @@ cfiscsi_datamove_in(union ctl_io *io)
 			bhsdi->bhsdi_opcode = ISCSI_BHS_OPCODE_SCSI_DATA_IN;
 			bhsdi->bhsdi_initiator_task_tag =
 			    bhssc->bhssc_initiator_task_tag;
+			bhsdi->bhsdi_target_transfer_tag = 0xffffffff;
 			bhsdi->bhsdi_datasn = htonl(PDU_EXPDATASN(request));
 			PDU_EXPDATASN(request)++;
 			bhsdi->bhsdi_buffer_offset = htonl(buffer_offset);
