@@ -140,8 +140,8 @@ static struct xhci_endpoint_ext *xhci_get_endpoint_ext(struct usb_device *,
 static usb_proc_callback_t xhci_configure_msg;
 static usb_error_t xhci_configure_device(struct usb_device *);
 static usb_error_t xhci_configure_endpoint(struct usb_device *,
-		    struct usb_endpoint_descriptor *, uint64_t, uint16_t,
-		    uint8_t, uint8_t, uint8_t, uint16_t, uint16_t);
+    struct usb_endpoint_descriptor *, struct xhci_endpoint_ext *,
+    uint16_t, uint8_t, uint8_t, uint8_t, uint16_t, uint16_t);
 static usb_error_t xhci_configure_mask(struct usb_device *,
 		    uint32_t, uint8_t);
 static usb_error_t xhci_cmd_evaluate_ctx(struct xhci_softc *,
@@ -1405,7 +1405,7 @@ xhci_set_address(struct usb_device *udev, struct mtx *mtx, uint16_t address)
 		USB_BUS_UNLOCK(udev->bus);
 
 		err = xhci_configure_endpoint(udev,
-		    &udev->ctrl_ep_desc, pepext->physaddr,
+		    &udev->ctrl_ep_desc, pepext,
 		    0, 1, 1, 0, mps, mps);
 
 		if (err != 0) {
@@ -2301,13 +2301,15 @@ xhci_configure_mask(struct usb_device *udev, uint32_t mask, uint8_t drop)
 
 static usb_error_t
 xhci_configure_endpoint(struct usb_device *udev,
-    struct usb_endpoint_descriptor *edesc, uint64_t ring_addr,
-    uint16_t interval, uint8_t max_packet_count, uint8_t mult,
-    uint8_t fps_shift, uint16_t max_packet_size, uint16_t max_frame_size)
+    struct usb_endpoint_descriptor *edesc, struct xhci_endpoint_ext *pepext,
+    uint16_t interval, uint8_t max_packet_count,
+    uint8_t mult, uint8_t fps_shift, uint16_t max_packet_size,
+    uint16_t max_frame_size)
 {
 	struct usb_page_search buf_inp;
 	struct xhci_softc *sc = XHCI_BUS2SC(udev->bus);
 	struct xhci_input_dev_ctx *pinp;
+	uint64_t ring_addr = pepext->physaddr;
 	uint32_t temp;
 	uint8_t index;
 	uint8_t epno;
@@ -2337,6 +2339,10 @@ xhci_configure_endpoint(struct usb_device *udev,
 
 	if (mult == 0)
 		return (USB_ERR_BAD_BUFSIZE);
+
+	/* store bMaxPacketSize for control endpoints */
+	pepext->trb_ep_maxp = edesc->wMaxPacketSize[0];
+	usb_pc_cpu_flush(pepext->page_cache);
 
 	temp = XHCI_EPCTX_0_EPSTATE_SET(0) |
 	    XHCI_EPCTX_0_MAXP_STREAMS_SET(0) |
@@ -2457,7 +2463,7 @@ xhci_configure_endpoint_by_xfer(struct usb_xfer *xfer)
 	usb_pc_cpu_flush(pepext->page_cache);
 
 	return (xhci_configure_endpoint(xfer->xroot->udev,
-	    xfer->endpoint->edesc, pepext->physaddr,
+	    xfer->endpoint->edesc, pepext,
 	    xfer->interval, xfer->max_packet_count,
 	    (ecomp != NULL) ? (ecomp->bmAttributes & 3) + 1 : 1,
 	    usbd_xfer_get_fps_shift(xfer), xfer->max_packet_size,
@@ -2847,6 +2853,17 @@ xhci_transfer_insert(struct usb_xfer *xfer)
 	if (pepext->trb_used >= trb_limit) {
 		DPRINTFN(8, "Too many TDs queued.\n");
 		return (USB_ERR_NOMEM);
+	}
+
+	/* check if bMaxPacketSize changed */
+	if (xfer->flags_int.control_xfr != 0 &&
+	    pepext->trb_ep_maxp != xfer->endpoint->edesc->wMaxPacketSize[0]) {
+
+		DPRINTFN(8, "Reconfigure control endpoint\n");
+
+		/* force driver to reconfigure endpoint */
+		pepext->trb_halted = 1;
+		pepext->trb_running = 0;
 	}
 
 	/* check for stopped condition, after putting transfer on interrupt queue */
