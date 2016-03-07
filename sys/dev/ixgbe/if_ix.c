@@ -332,7 +332,7 @@ SYSCTL_INT(_hw_ix, OID_AUTO, enable_msix, CTLFLAG_RDTUN, &ixgbe_enable_msix, 0,
 static int ixgbe_num_queues = 0;
 TUNABLE_INT("hw.ix.num_queues", &ixgbe_num_queues);
 SYSCTL_INT(_hw_ix, OID_AUTO, num_queues, CTLFLAG_RDTUN, &ixgbe_num_queues, 0,
-    "Number of queues to configure up to a mximum of 8,"
+    "Number of queues to configure up to a maximum of 8,"
     "0 indicates autoconfigure");
 
 /*
