@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
-  "../../../share/xml/freebsd50.dtd" [
+	  "http://www.FreeBSD.org/XML/share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
 %release;
 <!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN" "nonexistent">

@@ -4,8 +4,10 @@
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN"
   "http://www.FreeBSD.org/release/XML/release.ent">
 %release;
-<!ENTITY security SYSTEM "../../share/xml/security.xml">
-<!ENTITY errata SYSTEM "../../share/xml/errata.xml">
+<!ENTITY security PUBLIC "-//FreeBSD//ENTITIES Security Advisory List//EN"
+	 "http://www.FreeBSD.org/release/XML/share/xml/security.xml">
+<!ENTITY errata PUBLIC "-//FreeBSD//ENTITIES Errata List//EN"
+	 "http://www.FreeBSD.org/release/XML/share/xml/errata.xml">
 ]>
 
 <article xmlns="http://docbook.org/ns/docbook"
