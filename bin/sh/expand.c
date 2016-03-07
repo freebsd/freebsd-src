@@ -463,7 +463,6 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 	argbackq = saveargbackq;
 
 	p = in.buf;
-	lastc = '\0';
 	nnl = 0;
 	if (!quoted && flag & EXP_SPLIT)
 		ifs = ifsset() ? ifsval() : " \t\n";
@@ -1288,7 +1287,7 @@ patmatch(const char *pattern, const char *string)
 				if (wc == 0)
 					goto backtrack;
 			} else
-				wc = (unsigned char)*q++;
+				q++;
 			break;
 		case '*':
 			c = *p;
