@@ -28,10 +28,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/i915/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
 #include <dev/drm2/i915/intel_drv.h>
+
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <dev/acpica/acpivar.h>
@@ -147,12 +150,14 @@ struct opregion_asle {
 #define ACPI_DIGITAL_OUTPUT (3<<8)
 #define ACPI_LVDS_OUTPUT (4<<8)
 
-#if defined(CONFIG_ACPI)
+#ifdef CONFIG_ACPI
 static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct opregion_asle *asle = dev_priv->opregion.asle;
+	struct opregion_asle __iomem *asle = dev_priv->opregion.asle;
 	u32 max;
+
+	DRM_DEBUG_DRIVER("bclp = 0x%08x\n", bclp);
 
 	if (!(bclp & ASLE_BCLP_VALID))
 		return ASLE_BACKLIGHT_FAILED;
@@ -163,7 +168,7 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 
 	max = intel_panel_get_max_backlight(dev);
 	intel_panel_set_backlight(dev, bclp * max / 255);
-	asle->cblv = (bclp*0x64)/0xff | ASLE_CBLV_VALID;
+	iowrite32((bclp*0x64)/0xff | ASLE_CBLV_VALID, &asle->cblv);
 
 	return 0;
 }
@@ -200,71 +205,71 @@ static u32 asle_set_pfit(struct drm_device *dev, u32 pfit)
 void intel_opregion_asle_intr(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct opregion_asle *asle = dev_priv->opregion.asle;
+	struct opregion_asle __iomem *asle = dev_priv->opregion.asle;
 	u32 asle_stat = 0;
 	u32 asle_req;
 
 	if (!asle)
 		return;
 
-	asle_req = asle->aslc & ASLE_REQ_MSK;
+	asle_req = ioread32(&asle->aslc) & ASLE_REQ_MSK;
 
 	if (!asle_req) {
-		DRM_DEBUG("non asle set request??\n");
+		DRM_DEBUG_DRIVER("non asle set request??\n");
 		return;
 	}
 
 	if (asle_req & ASLE_SET_ALS_ILLUM)
-		asle_stat |= asle_set_als_illum(dev, asle->alsi);
+		asle_stat |= asle_set_als_illum(dev, ioread32(&asle->alsi));
 
 	if (asle_req & ASLE_SET_BACKLIGHT)
-		asle_stat |= asle_set_backlight(dev, asle->bclp);
+		asle_stat |= asle_set_backlight(dev, ioread32(&asle->bclp));
 
 	if (asle_req & ASLE_SET_PFIT)
-		asle_stat |= asle_set_pfit(dev, asle->pfit);
+		asle_stat |= asle_set_pfit(dev, ioread32(&asle->pfit));
 
 	if (asle_req & ASLE_SET_PWM_FREQ)
-		asle_stat |= asle_set_pwm_freq(dev, asle->pfmb);
+		asle_stat |= asle_set_pwm_freq(dev, ioread32(&asle->pfmb));
 
-	asle->aslc = asle_stat;
+	iowrite32(asle_stat, &asle->aslc);
 }
 
 void intel_opregion_gse_intr(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct opregion_asle *asle = dev_priv->opregion.asle;
+	struct opregion_asle __iomem *asle = dev_priv->opregion.asle;
 	u32 asle_stat = 0;
 	u32 asle_req;
 
 	if (!asle)
 		return;
 
-	asle_req = asle->aslc & ASLE_REQ_MSK;
+	asle_req = ioread32(&asle->aslc) & ASLE_REQ_MSK;
 
 	if (!asle_req) {
-		DRM_DEBUG("non asle set request??\n");
+		DRM_DEBUG_DRIVER("non asle set request??\n");
 		return;
 	}
 
 	if (asle_req & ASLE_SET_ALS_ILLUM) {
-		DRM_DEBUG("Illum is not supported\n");
+		DRM_DEBUG_DRIVER("Illum is not supported\n");
 		asle_stat |= ASLE_ALS_ILLUM_FAILED;
 	}
 
 	if (asle_req & ASLE_SET_BACKLIGHT)
-		asle_stat |= asle_set_backlight(dev, asle->bclp);
+		asle_stat |= asle_set_backlight(dev, ioread32(&asle->bclp));
 
 	if (asle_req & ASLE_SET_PFIT) {
-		DRM_DEBUG("Pfit is not supported\n");
+		DRM_DEBUG_DRIVER("Pfit is not supported\n");
 		asle_stat |= ASLE_PFIT_FAILED;
 	}
 
 	if (asle_req & ASLE_SET_PWM_FREQ) {
-		DRM_DEBUG("PWM freq is not supported\n");
+		DRM_DEBUG_DRIVER("PWM freq is not supported\n");
 		asle_stat |= ASLE_PWM_FREQ_FAILED;
 	}
 
-	asle->aslc = asle_stat;
+	iowrite32(asle_stat, &asle->aslc);
 }
 #define ASLE_ALS_EN    (1<<0)
 #define ASLE_BLC_EN    (1<<1)
@@ -274,15 +279,16 @@ void intel_opregion_gse_intr(struct drm_device *dev)
 void intel_opregion_enable_asle(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct opregion_asle *asle = dev_priv->opregion.asle;
+	struct opregion_asle __iomem *asle = dev_priv->opregion.asle;
 
 	if (asle) {
 		if (IS_MOBILE(dev))
 			intel_enable_asle(dev);
 
-		asle->tche = ASLE_ALS_EN | ASLE_BLC_EN | ASLE_PFIT_EN |
-			ASLE_PFMB_EN;
-		asle->ardy = 1;
+		iowrite32(ASLE_ALS_EN | ASLE_BLC_EN | ASLE_PFIT_EN |
+			  ASLE_PFMB_EN,
+			  &asle->tche);
+		iowrite32(1, &asle->ardy);
 	}
 }
 
@@ -292,7 +298,7 @@ void intel_opregion_enable_asle(struct drm_device *dev)
 
 static struct intel_opregion *system_opregion;
 
-#if 0
+#ifdef FREEBSD_WIP
 static int intel_opregion_video_event(struct notifier_block *nb,
 				      unsigned long val, void *data)
 {
@@ -300,7 +306,8 @@ static int intel_opregion_video_event(struct notifier_block *nb,
 	   either a docking event, lid switch or display switch request. In
 	   Linux, these are handled by the dock, button and video drivers.
 	*/
-	struct opregion_acpi *acpi;
+
+	struct opregion_acpi __iomem *acpi;
 	struct acpi_bus_event *event = data;
 	int ret = NOTIFY_OK;
 
@@ -312,10 +319,11 @@ static int intel_opregion_video_event(struct notifier_block *nb,
 
 	acpi = system_opregion->acpi;
 
-	if (event->type == 0x80 && !(acpi->cevt & 0x1))
+	if (event->type == 0x80 &&
+	    (ioread32(&acpi->cevt) & 1) == 0)
 		ret = NOTIFY_BAD;
 
-	acpi->csts = 0;
+	iowrite32(0, &acpi->csts);
 
 	return ret;
 }
@@ -323,7 +331,7 @@ static int intel_opregion_video_event(struct notifier_block *nb,
 static struct notifier_block intel_opregion_notifier = {
 	.notifier_call = intel_opregion_video_event,
 };
-#endif
+#endif /* FREEBSD_WIP */
 
 /*
  * Initialise the DIDL field in opregion. This passes a list of devices to
@@ -345,9 +353,10 @@ static void intel_didl_outputs(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_opregion *opregion = &dev_priv->opregion;
 	struct drm_connector *connector;
+	ACPI_HANDLE handle, acpi_cdev, acpi_video_bus = NULL;
 	u32 device_id;
-	ACPI_HANDLE handle, acpi_video_bus, acpi_cdev;
 	ACPI_STATUS status;
+	u32 temp;
 	int i = 0;
 
 	handle = acpi_get_handle(dev->dev);
@@ -358,7 +367,6 @@ static void intel_didl_outputs(struct drm_device *dev)
 		acpi_video_bus = handle;
 	else {
 		acpi_cdev = NULL;
-		acpi_video_bus = NULL;
 		while (AcpiGetNextObject(ACPI_TYPE_DEVICE, handle, acpi_cdev,
 					&acpi_cdev) != AE_NOT_FOUND) {
 			if (acpi_is_video_device(acpi_cdev)) {
@@ -366,14 +374,6 @@ static void intel_didl_outputs(struct drm_device *dev)
 				break;
 			}
 		}
-#if 0
-		list_for_each_entry(acpi_cdev, &acpi_dev->children, node) {
-			if (acpi_is_video_device(acpi_cdev)) {
-				acpi_video_bus = acpi_cdev;
-				break;
-			}
-		}
-#endif
 	}
 
 	if (!acpi_video_bus) {
@@ -388,37 +388,22 @@ static void intel_didl_outputs(struct drm_device *dev)
 			device_printf(dev->dev, "More than 8 outputs detected\n");
 			return;
 		}
-		status = acpi_GetInteger(acpi_cdev, "_ADR", &device_id);
-		if (ACPI_SUCCESS(status)) {
-			if (!device_id)
-				goto blind_set;
-			opregion->acpi->didl[i] = (u32)(device_id & 0x0f0f);
-			i++;
-		}
-	}
-#if 0
-	list_for_each_entry(acpi_cdev, &acpi_video_bus->children, node) {
-		if (i >= 8) {
-			dev_printk(KERN_ERR, &dev->pdev->dev,
-				    "More than 8 outputs detected\n");
-			return;
-		}
 		status =
-			acpi_evaluate_integer(acpi_cdev->handle, "_ADR",
-						NULL, &device_id);
+			acpi_GetInteger(acpi_cdev, "_ADR",
+						&device_id);
 		if (ACPI_SUCCESS(status)) {
 			if (!device_id)
 				goto blind_set;
-			opregion->acpi->didl[i] = (u32)(device_id & 0x0f0f);
+			iowrite32((u32)(device_id & 0x0f0f),
+				  &opregion->acpi->didl[i]);
 			i++;
 		}
 	}
-#endif
 
 end:
 	/* If fewer than 8 outputs, the list must be null terminated */
 	if (i < 8)
-		opregion->acpi->didl[i] = 0;
+		iowrite32(0, &opregion->acpi->didl[i]);
 	return;
 
 blind_set:
@@ -452,7 +437,9 @@ blind_set:
 			output_type = ACPI_LVDS_OUTPUT;
 			break;
 		}
-		opregion->acpi->didl[i] |= (1<<31) | output_type | i;
+		temp = ioread32(&opregion->acpi->didl[i]);
+		iowrite32(temp | (1<<31) | output_type | i,
+			  &opregion->acpi->didl[i]);
 		i++;
 	}
 	goto end;
@@ -472,8 +459,8 @@ static void intel_setup_cadls(struct drm_device *dev)
 	 * display switching hotkeys. Just like DIDL, CADL is NULL-terminated if
 	 * there are less than eight devices. */
 	do {
-		disp_id = opregion->acpi->didl[i];
-		opregion->acpi->cadl[i] = disp_id;
+		disp_id = ioread32(&opregion->acpi->didl[i]);
+		iowrite32(disp_id, &opregion->acpi->cadl[i]);
 	} while (++i < 8 && disp_id != 0);
 }
 
@@ -494,13 +481,13 @@ void intel_opregion_init(struct drm_device *dev)
 		/* Notify BIOS we are ready to handle ACPI video ext notifs.
 		 * Right now, all the events are handled by the ACPI video module.
 		 * We don't actually need to do anything with them. */
-		opregion->acpi->csts = 0;
-		opregion->acpi->drdy = 1;
+		iowrite32(0, &opregion->acpi->csts);
+		iowrite32(1, &opregion->acpi->drdy);
 
 		system_opregion = opregion;
-#if 0
+#ifdef FREEBSD_WIP
 		register_acpi_notifier(&intel_opregion_notifier);
-#endif
+#endif /* FREEBSD_WIP */
 	}
 
 	if (opregion->asle)
@@ -516,40 +503,15 @@ void intel_opregion_fini(struct drm_device *dev)
 		return;
 
 	if (opregion->acpi) {
-		opregion->acpi->drdy = 0;
+		iowrite32(0, &opregion->acpi->drdy);
 
 		system_opregion = NULL;
-#if 0
+#ifdef FREEBSD_WIP
 		unregister_acpi_notifier(&intel_opregion_notifier);
-#endif
+#endif /* FREEBSD_WIP */
 	}
 
 	/* just clear all opregion memory pointers now */
-	pmap_unmapdev((vm_offset_t)opregion->header, OPREGION_SIZE);
-	opregion->header = NULL;
-	opregion->acpi = NULL;
-	opregion->swsci = NULL;
-	opregion->asle = NULL;
-	opregion->vbt = NULL;
-}
-#else
-void
-intel_opregion_init(struct drm_device *dev)
-{
-}
-
-void
-intel_opregion_fini(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv;
-	struct intel_opregion *opregion;
-
-	dev_priv = dev->dev_private;
-	opregion = &dev_priv->opregion;
-
-	if (opregion->header == NULL)
-		return;
-
 	pmap_unmapdev((vm_offset_t)opregion->header, OPREGION_SIZE);
 	opregion->header = NULL;
 	opregion->acpi = NULL;
@@ -563,14 +525,15 @@ int intel_opregion_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_opregion *opregion = &dev_priv->opregion;
-	char *base;
+	void __iomem *base;
 	u32 asls, mboxes;
+	char buf[sizeof(OPREGION_SIGNATURE)];
 	int err = 0;
 
-	asls = pci_read_config(dev->dev, PCI_ASLS, 4);
-	DRM_DEBUG("graphic opregion physical addr: 0x%x\n", asls);
+	pci_read_config_dword(dev->dev, PCI_ASLS, &asls);
+	DRM_DEBUG_DRIVER("graphic opregion physical addr: 0x%x\n", asls);
 	if (asls == 0) {
-		DRM_DEBUG("ACPI OpRegion not supported!\n");
+		DRM_DEBUG_DRIVER("ACPI OpRegion not supported!\n");
 		return -ENOTSUP;
 	}
 
@@ -578,31 +541,33 @@ int intel_opregion_setup(struct drm_device *dev)
 	if (!base)
 		return -ENOMEM;
 
-	if (memcmp(base, OPREGION_SIGNATURE, 16)) {
-		DRM_DEBUG("opregion signature mismatch\n");
+	memcpy_fromio(buf, base, sizeof(buf));
+
+	if (memcmp(buf, OPREGION_SIGNATURE, 16)) {
+		DRM_DEBUG_DRIVER("opregion signature mismatch\n");
 		err = -EINVAL;
 		goto err_out;
 	}
 	opregion->header = (struct opregion_header *)base;
-	opregion->vbt = base + OPREGION_VBT_OFFSET;
+	opregion->vbt = (char *)base + OPREGION_VBT_OFFSET;
 
-	opregion->lid_state = (u32 *)(base + ACPI_CLID);
+	opregion->lid_state = (u32 *)((char *)base + ACPI_CLID);
 
 	mboxes = opregion->header->mboxes;
 	if (mboxes & MBOX_ACPI) {
-		DRM_DEBUG("Public ACPI methods supported\n");
-		opregion->acpi = (struct opregion_acpi *)(base +
+		DRM_DEBUG_DRIVER("Public ACPI methods supported\n");
+		opregion->acpi = (struct opregion_acpi *)((char *)base +
 		    OPREGION_ACPI_OFFSET);
 	}
 
 	if (mboxes & MBOX_SWSCI) {
-		DRM_DEBUG("SWSCI supported\n");
-		opregion->swsci = (struct opregion_swsci *)(base +
+		DRM_DEBUG_DRIVER("SWSCI supported\n");
+		opregion->swsci = (struct opregion_swsci *)((char *)base +
 		    OPREGION_SWSCI_OFFSET);
 	}
 	if (mboxes & MBOX_ASLE) {
-		DRM_DEBUG("ASLE supported\n");
-		opregion->asle = (struct opregion_asle *)(base +
+		DRM_DEBUG_DRIVER("ASLE supported\n");
+		opregion->asle = (struct opregion_asle *)((char *)base +
 		    OPREGION_ASLE_OFFSET);
 	}
 

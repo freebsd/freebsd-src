@@ -250,6 +250,10 @@ struct agp_i810_driver {
 	void (*chipset_flush)(device_t);
 };
 
+static struct {
+	struct intel_gtt base;
+} intel_private;
+
 static const struct agp_i810_driver agp_i810_i810_driver = {
 	.chiptype = CHIP_I810,
 	.gen = 1,
@@ -526,6 +530,29 @@ static const struct agp_i810_driver agp_i810_hsw_driver = {
 	.chipset_flush = agp_i810_chipset_flush,
 };
 
+static const struct agp_i810_driver agp_i810_valleyview_driver = {
+	.chiptype = CHIP_SB,
+	.gen = 7,
+	.busdma_addr_mask_sz = 40,
+	.res_spec = agp_g4x_res_spec,
+	.check_active = agp_sb_check_active,
+	.set_desc = agp_i810_set_desc,
+	.dump_regs = agp_sb_dump_regs,
+	.get_stolen_size = agp_sb_get_stolen_size,
+	.get_gtt_mappable_entries = agp_i915_get_gtt_mappable_entries,
+	.get_gtt_total_entries = agp_sb_get_gtt_total_entries,
+	.install_gatt = agp_g4x_install_gatt,
+	.deinstall_gatt = agp_i830_deinstall_gatt,
+	.write_gtt = agp_sb_write_gtt,
+	.install_gtt_pte = agp_sb_install_gtt_pte,
+	.read_gtt_pte = agp_g4x_read_gtt_pte,
+	.read_gtt_pte_paddr = agp_sb_read_gtt_pte_paddr,
+	.set_aperture = agp_i915_set_aperture,
+	.chipset_flush_setup = agp_i810_chipset_flush_setup,
+	.chipset_flush_teardown = agp_i810_chipset_flush_teardown,
+	.chipset_flush = agp_i810_chipset_flush,
+};
+
 /* For adding new devices, devid is the id of the graphics controller
  * (pci:0:2:0, for example).  The placeholder (usually at pci:0:2:1) for the
  * second head should never be added.  The bridge_offset is the offset to
@@ -763,38 +790,198 @@ static const struct agp_i810_match {
 	},
 	{
 		.devid = 0x04028086,
-		.name = "Haswell desktop GT1",
-		.driver = &agp_i810_hsw_driver
-	},
-	{
-		.devid = 0x04128086,
-		.name = "Haswell desktop GT2",
-		.driver = &agp_i810_hsw_driver
-	},
-	{
-		.devid = 0x040a8086,
-		.name = "Haswell server GT1",
-		.driver = &agp_i810_hsw_driver
-	},
-	{
-		.devid = 0x041a8086,
-		.name = "Haswell server GT2",
+		.name = "Haswell GT1 desktop",
 		.driver = &agp_i810_hsw_driver
 	},
 	{
 		.devid = 0x04068086,
-		.name = "Haswell mobile GT1",
+		.name = "Haswell GT1 mobile",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x040A8086,
+		.name = "Haswell GT1 server",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x04128086,
+		.name = "Haswell GT2 desktop",
 		.driver = &agp_i810_hsw_driver
 	},
 	{
 		.devid = 0x04168086,
-		.name = "Haswell mobile GT2",
+		.name = "Haswell GT2 mobile",
 		.driver = &agp_i810_hsw_driver
 	},
 	{
-		.devid = 0x0c168086,
-		.name = "Haswell SDV",
+		.devid = 0x041A8086,
+		.name = "Haswell GT2 server",
 		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x04228086,
+		.name = "Haswell GT2 desktop",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x04268086,
+		.name = "Haswell GT2 mobile",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x042A8086,
+		.name = "Haswell GT2 server",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0A028086,
+		.name = "Haswell ULT GT1 desktop",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0A068086,
+		.name = "Haswell ULT GT1 mobile",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0A0A8086,
+		.name = "Haswell ULT GT1 server",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0A128086,
+		.name = "Haswell ULT GT2 desktop",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0A168086,
+		.name = "Haswell ULT GT2 mobile",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0A1A8086,
+		.name = "Haswell ULT GT2 server",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0A228086,
+		.name = "Haswell ULT GT2 desktop",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0A268086,
+		.name = "Haswell ULT GT2 mobile",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0A2A8086,
+		.name = "Haswell ULT GT2 server",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0C028086,
+		.name = "Haswell SDV GT1 desktop",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0C068086,
+		.name = "Haswell SDV GT1 mobile",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0C0A8086,
+		.name = "Haswell SDV GT1 server",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0C128086,
+		.name = "Haswell SDV GT2 desktop",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0C168086,
+		.name = "Haswell SDV GT2 mobile",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0C1A8086,
+		.name = "Haswell SDV GT2 server",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0C228086,
+		.name = "Haswell SDV GT2 desktop",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0C268086,
+		.name = "Haswell SDV GT2 mobile",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0C2A8086,
+		.name = "Haswell SDV GT2 server",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0D028086,
+		.name = "Haswell CRW GT1 desktop",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0D068086,
+		.name = "Haswell CRW GT1 mobile",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0D0A8086,
+		.name = "Haswell CRW GT1 server",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0D128086,
+		.name = "Haswell CRW GT2 desktop",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0D168086,
+		.name = "Haswell CRW GT2 mobile",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0D1A8086,
+		.name = "Haswell CRW GT2 server",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0D228086,
+		.name = "Haswell CRW GT2 desktop",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0D268086,
+		.name = "Haswell CRW GT2 mobile",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0D2A8086,
+		.name = "Haswell CRW GT2 server",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x01558086,
+		.name = "Valleyview (desktop)",
+		.driver = &agp_i810_valleyview_driver
+	},
+	{
+		.devid = 0x01578086,
+		.name = "Valleyview (mobile)",
+		.driver = &agp_i810_valleyview_driver
+	},
+	{
+		.devid = 0x0F308086,
+		.name = "Valleyview (mobile)",
+		.driver = &agp_i810_valleyview_driver
 	},
 	{
 		.devid = 0,
@@ -2285,6 +2472,10 @@ agp_intel_gtt_get(device_t dev)
 	res.gtt_mappable_entries = sc->gtt_mappable_entries;
 	res.do_idle_maps = 0;
 	res.scratch_page_dma = VM_PAGE_TO_PHYS(bogus_page);
+	if (sc->agp.as_aperture != NULL)
+		res.gma_bus_addr = rman_get_start(sc->agp.as_aperture);
+	else
+		res.gma_bus_addr = 0;
 	return (res);
 }
 
@@ -2588,11 +2779,12 @@ intel_gtt_insert_pages(u_int first_entry, u_int num_entries, vm_page_t *pages,
 	    pages, flags);
 }
 
-struct intel_gtt
+struct intel_gtt *
 intel_gtt_get(void)
 {
 
-	return (agp_intel_gtt_get(intel_agp));
+	intel_private.base = agp_intel_gtt_get(intel_agp);
+	return (&intel_private.base);
 }
 
 int
