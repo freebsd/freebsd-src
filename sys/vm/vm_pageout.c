@@ -439,7 +439,7 @@ more:
 			break;
 		}
 		vm_page_lock(p);
-		if (p->queue != PQ_LAUNDRY ||
+		if (!vm_page_in_laundry(p) ||
 		    p->hold_count != 0) {	/* may be undergoing I/O */
 			vm_page_unlock(p);
 			ib = 0;
@@ -467,7 +467,7 @@ more:
 		if (p->dirty == 0)
 			break;
 		vm_page_lock(p);
-		if (p->queue != PQ_LAUNDRY ||
+		if (!vm_page_in_laundry(p) ||
 		    p->hold_count != 0) {	/* may be undergoing I/O */
 			vm_page_unlock(p);
 			break;
@@ -651,10 +651,10 @@ vm_pageout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 					act_delta = 1;
 				vm_page_aflag_clear(p, PGA_REFERENCED);
 			}
-			if (p->queue != PQ_ACTIVE && act_delta != 0) {
+			if (!vm_page_active(p) && act_delta != 0) {
 				vm_page_activate(p);
 				p->act_count += act_delta;
-			} else if (p->queue == PQ_ACTIVE) {
+			} else if (vm_page_active(p)) {
 				if (act_delta == 0) {
 					p->act_count -= min(p->act_count,
 					    ACT_DECLINE);
@@ -670,7 +670,7 @@ vm_pageout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 						p->act_count += ACT_ADVANCE;
 					vm_page_requeue(p);
 				}
-			} else if (p->queue == PQ_INACTIVE)
+			} else if (vm_page_inactive(p))
 				pmap_remove_all(p);
 			vm_page_unlock(p);
 		}
@@ -831,7 +831,7 @@ vm_pageout_clean(vm_page_t m, int *numpagedout)
 		 * (3) reallocated to a different offset, or
 		 * (4) cleaned.
 		 */
-		if (m->queue != PQ_LAUNDRY || m->object != object ||
+		if (!vm_page_in_laundry(m) || m->object != object ||
 		    m->pindex != pindex || m->dirty == 0) {
 			vm_page_unlock(m);
 			error = ENXIO;
@@ -914,7 +914,7 @@ vm_pageout_launder(struct vm_domain *vmd)
 	    m = next) {
 		vm_pagequeue_assert_locked(pq);
 		KASSERT(queue_locked, ("unlocked laundry queue"));
-		KASSERT(m->queue == PQ_LAUNDRY,
+		KASSERT(vm_page_in_laundry(m),
 		    ("page %p has an inconsistent queue", m));
 		next = TAILQ_NEXT(m, plinks.q);
 		if ((m->flags & PG_MARKER) != 0)
@@ -1150,7 +1150,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	     m = next) {
 		vm_pagequeue_assert_locked(pq);
 		KASSERT(queue_locked, ("unlocked inactive queue"));
-		KASSERT(m->queue == PQ_INACTIVE, ("Inactive queue %p", m));
+		KASSERT(vm_page_inactive(m), ("Inactive queue %p", m));
 
 		PCPU_INC(cnt.v_pdpages);
 		next = TAILQ_NEXT(m, plinks.q);

@@ -697,5 +697,26 @@ vm_page_replace_checked(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex,
 	(void)mret;
 }
 
+static inline bool
+vm_page_active(vm_page_t m)
+{
+
+	return (m->queue == PQ_ACTIVE);
+}
+
+static inline bool
+vm_page_inactive(vm_page_t m)
+{
+
+	return (m->queue == PQ_INACTIVE);
+}
+
+static inline bool
+vm_page_in_laundry(vm_page_t m)
+{
+
+	return (m->queue == PQ_LAUNDRY);
+}
+
 #endif				/* _KERNEL */
 #endif				/* !_VM_PAGE_ */
