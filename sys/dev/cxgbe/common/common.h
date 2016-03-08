@@ -234,17 +234,25 @@ struct sge_params {
 };
 
 struct tp_params {
-	unsigned int ntxchan;        /* # of Tx channels */
 	unsigned int tre;            /* log2 of core clocks per TP tick */
 	unsigned int dack_re;        /* DACK timer resolution */
 	unsigned int la_mask;        /* what events are recorded by TP LA */
 	unsigned short tx_modq[MAX_NCHAN];  /* channel to modulation queue map */
+
 	uint32_t vlan_pri_map;
 	uint32_t ingress_config;
-	int8_t vlan_shift;
-	int8_t vnic_shift;
+	uint32_t rx_pkt_encap;
+
+	int8_t fcoe_shift;
 	int8_t port_shift;
+	int8_t vnic_shift;
+	int8_t vlan_shift;
+	int8_t tos_shift;
 	int8_t protocol_shift;
+	int8_t ethertype_shift;
+	int8_t macmatch_shift;
+	int8_t matchtype_shift;
+	int8_t frag_shift;
 };
 
 struct vpd_params {
@@ -492,7 +500,6 @@ int t4_init_sge_params(struct adapter *adapter);
 int t4_init_tp_params(struct adapter *adap);
 int t4_filter_field_shift(const struct adapter *adap, int filter_sel);
 int t4_port_init(struct port_info *p, int mbox, int pf, int vf);
-int t4_reinit_adapter(struct adapter *adap);
 void t4_fatal_err(struct adapter *adapter);
 int t4_set_trace_filter(struct adapter *adapter, const struct trace_params *tp,
 			int filter_index, int enable);
@@ -505,8 +512,10 @@ int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
 int t4_config_vi_rss(struct adapter *adapter, int mbox, unsigned int viid,
 		     unsigned int flags, unsigned int defq);
 int t4_read_rss(struct adapter *adapter, u16 *entries);
+void t4_fw_tp_pio_rw(struct adapter *adap, u32 *vals, unsigned int nregs,
+		  unsigned int start_index, unsigned int rw);
 void t4_read_rss_key(struct adapter *adapter, u32 *key);
-void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx);
+void t4_write_rss_key(struct adapter *adap, u32 *key, int idx);
 void t4_read_rss_pf_config(struct adapter *adapter, unsigned int index, u32 *valp);
 void t4_write_rss_pf_config(struct adapter *adapter, unsigned int index, u32 val);
 void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,

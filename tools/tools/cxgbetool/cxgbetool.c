@@ -532,7 +532,10 @@ do_show_info_header(uint32_t mode)
 			break;
 
 		case T4_FILTER_VNIC:
-			printf("      vld:VNIC");
+			if (mode & T4_FILTER_IC_VNIC)
+				printf("   VFvld:PF:VF");
+			else
+				printf("     vld:oVLAN");
 			break;
 
 		case T4_FILTER_VLAN:
@@ -789,11 +792,19 @@ do_show_one_filter_info(struct t4_filter *t, uint32_t mode)
 			break;
 
 		case T4_FILTER_VNIC:
-			printf(" %1d:%1x:%02x/%1d:%1x:%02x",
-			    t->fs.val.vnic_vld, (t->fs.val.vnic >> 7) & 0x7,
-			    t->fs.val.vnic & 0x7f, t->fs.mask.vnic_vld,
-			    (t->fs.mask.vnic >> 7) & 0x7,
-			    t->fs.mask.vnic & 0x7f);
+			if (mode & T4_FILTER_IC_VNIC) {
+				printf(" %1d:%1x:%02x/%1d:%1x:%02x",
+				    t->fs.val.pfvf_vld,
+				    (t->fs.val.vnic >> 13) & 0x7,
+				    t->fs.val.vnic & 0x1fff,
+				    t->fs.mask.pfvf_vld,
+				    (t->fs.mask.vnic >> 13) & 0x7,
+				    t->fs.mask.vnic & 0x1fff);
+			} else {
+				printf(" %1d:%04x/%1d:%04x",
+				    t->fs.val.ovlan_vld, t->fs.val.vnic,
+				    t->fs.mask.ovlan_vld, t->fs.mask.vnic);
+			}
 			break;
 
 		case T4_FILTER_VLAN:
@@ -971,8 +982,12 @@ get_filter_mode(void)
 	if (mode & T4_FILTER_VLAN)
 		printf("vlan ");
 
-	if (mode & T4_FILTER_VNIC)
-		printf("vnic/ovlan ");
+	if (mode & T4_FILTER_VNIC) {
+		if (mode & T4_FILTER_IC_VNIC)
+			printf("vnic_id ");
+		else
+			printf("ovlan ");
+	}
 
 	if (mode & T4_FILTER_PORT)
 		printf("iport ");
@@ -989,6 +1004,7 @@ static int
 set_filter_mode(int argc, const char *argv[])
 {
 	uint32_t mode = 0;
+	int vnic = 0, ovlan = 0;
 
 	for (; argc; argc--, argv++) {
 		if (!strcmp(argv[0], "frag"))
@@ -1012,15 +1028,27 @@ set_filter_mode(int argc, const char *argv[])
 		if (!strcmp(argv[0], "vlan"))
 			mode |= T4_FILTER_VLAN;
 
-		if (!strcmp(argv[0], "ovlan") ||
-		    !strcmp(argv[0], "vnic"))
+		if (!strcmp(argv[0], "ovlan")) {
 			mode |= T4_FILTER_VNIC;
+			ovlan++;
+		}
+
+		if (!strcmp(argv[0], "vnic_id")) {
+			mode |= T4_FILTER_VNIC;
+			mode |= T4_FILTER_IC_VNIC;
+			vnic++;
+		}
 
 		if (!strcmp(argv[0], "iport"))
 			mode |= T4_FILTER_PORT;
 
 		if (!strcmp(argv[0], "fcoe"))
 			mode |= T4_FILTER_FCoE;
+	}
+
+	if (vnic > 0 && ovlan > 0) {
+		warnx("\"vnic_id\" and \"ovlan\" are mutually exclusive.");
+		return (EINVAL);
 	}
 
 	return doit(CHELSIO_T4_SET_FILTER_MODE, &mode);
@@ -1081,18 +1109,27 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 		} else if (!parse_val_mask("ovlan", args, &val, &mask)) {
 			t.fs.val.vnic = val;
 			t.fs.mask.vnic = mask;
-			t.fs.val.vnic_vld = 1;
-			t.fs.mask.vnic_vld = 1;
-		} else if (!parse_val_mask("vnic", args, &val, &mask)) {
-			t.fs.val.vnic = val;
-			t.fs.mask.vnic = mask;
-			t.fs.val.vnic_vld = 1;
-			t.fs.mask.vnic_vld = 1;
+			t.fs.val.ovlan_vld = 1;
+			t.fs.mask.ovlan_vld = 1;
 		} else if (!parse_val_mask("ivlan", args, &val, &mask)) {
 			t.fs.val.vlan = val;
 			t.fs.mask.vlan = mask;
 			t.fs.val.vlan_vld = 1;
 			t.fs.mask.vlan_vld = 1;
+		} else if (!parse_val_mask("pf", args, &val, &mask)) {
+			t.fs.val.vnic &= 0x1fff;
+			t.fs.val.vnic |= (val & 0x7) << 13;
+			t.fs.mask.vnic &= 0x1fff;
+			t.fs.mask.vnic |= (mask & 0x7) << 13;
+			t.fs.val.pfvf_vld = 1;
+			t.fs.mask.pfvf_vld = 1;
+		} else if (!parse_val_mask("vf", args, &val, &mask)) {
+			t.fs.val.vnic &= 0xe000;
+			t.fs.val.vnic |= val & 0x1fff;
+			t.fs.mask.vnic &= 0xe000;
+			t.fs.mask.vnic |= mask & 0x1fff;
+			t.fs.val.pfvf_vld = 1;
+			t.fs.mask.pfvf_vld = 1;
 		} else if (!parse_val_mask("tos", args, &val, &mask)) {
 			t.fs.val.tos = val;
 			t.fs.mask.tos = mask;
@@ -1226,6 +1263,10 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 	    (t.fs.rpttid || t.fs.dirsteer || t.fs.maskhash)) {
 		warnx("rpttid, queue and tcbhash don't make sense with"
 		     " action \"drop\" or \"switch\"");
+		return (EINVAL);
+	}
+	if (t.fs.val.ovlan_vld && t.fs.val.pfvf_vld) {
+		warnx("ovlan and vnic_id (pf/vf) are mutually exclusive");
 		return (EINVAL);
 	}
 

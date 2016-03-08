@@ -1026,6 +1026,17 @@ tx_resume_threshold(struct sge_eq *eq)
 	return (eq->sidx / 4);
 }
 
+static inline int
+t4_use_ldst(struct adapter *sc)
+{
+
+#ifdef notyet
+	return (sc->flags & FW_OK || !sc->use_bd);
+#else
+	return (0);
+#endif
+}
+
 /* t4_main.c */
 int t4_os_find_pci_capability(struct adapter *, int);
 int t4_os_pci_save_state(struct adapter *);
