@@ -280,7 +280,7 @@ cheriabi_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	sa->narg = sa->callp->sy_narg;
 
 	nptrargs = bitcount(CHERIABI_SYS_argmap[sa->code].sam_ptrmask);
-	nintargs = sa->narg - nintargs;
+	nintargs = sa->narg - nptrargs;
 	KASSERT(nintargs <= isaved,
 	    ("SYSCALL #%u pid:%u, nintargs (%u) > isaved (%u).\n",
 	     sa->code, td->td_proc->p_pid, nintargs, isaved));
