@@ -184,17 +184,18 @@ mergeaddr(SVCXPRT *xprt, char *netid, char *uaddr, char *saddr)
 	dg_data = (struct svc_dg_data*)xprt->xp_p2;
 	if (dg_data != NULL && dg_data->su_srcaddr.buf != NULL) {
 		c_uaddr = taddr2uaddr(fdl->nconf, &dg_data->su_srcaddr);
+		allocated_uaddr = c_uaddr;
 	}
 	else if (saddr != NULL) {
 		c_uaddr = saddr;
 	} else {
 		c_uaddr = taddr2uaddr(fdl->nconf, svc_getrpccaller(xprt));
-		if (c_uaddr == NULL) {
-			syslog(LOG_ERR, "taddr2uaddr failed for %s",
-				fdl->nconf->nc_netid);
-			return (NULL);
-		}
 		allocated_uaddr = c_uaddr;
+	}
+	if (c_uaddr == NULL) {
+		syslog(LOG_ERR, "taddr2uaddr failed for %s",
+			fdl->nconf->nc_netid);
+		return (NULL);
 	}
 
 #ifdef ND_DEBUG

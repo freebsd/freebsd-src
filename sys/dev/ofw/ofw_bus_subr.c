@@ -629,13 +629,16 @@ ofw_bus_find_child_device_by_phandle(device_t bus, phandle_t node)
  *  node - consumers device node
  *  list_name  - name of parsed list - "clocks"
  *  cells_name - name of size property - "#clock-cells"
+ *  idx - the index of the requested list entry, or, if -1, an indication
+ *        to return the number of entries in the parsed list.
  * Output arguments:
  *  producer - handle of producer
- *  ncells   - number of cells in result
+ *  ncells   - number of cells in result or the number of items in the list when
+ *             idx == -1.
  *  cells    - array of decoded cells
  */
-int
-ofw_bus_parse_xref_list_alloc(phandle_t node, const char *list_name,
+static int
+ofw_bus_parse_xref_list_internal(phandle_t node, const char *list_name,
     const char *cells_name, int idx, phandle_t *producer, int *ncells,
     pcell_t **cells)
 {
@@ -649,7 +652,7 @@ ofw_bus_parse_xref_list_alloc(phandle_t node, const char *list_name,
 	    (void **)&elems);
 	if (nelems <= 0)
 		return (ENOENT);
-	rv = ENOENT;
+	rv = (idx == -1) ? 0 : ENOENT;
 	for (i = 0, cnt = 0; i < nelems; i += pcells, cnt++) {
 		pnode = elems[i++];
 		if (OF_getencprop(OF_node_from_xref(pnode),
@@ -678,7 +681,55 @@ ofw_bus_parse_xref_list_alloc(phandle_t node, const char *list_name,
 	}
 	if (elems != NULL)
 		free(elems, M_OFWPROP);
+	if (idx == -1 && rv == 0)
+		*ncells = cnt;
 	return (rv);
+}
+
+/*
+ * Parse property that contain list of xrefs and values
+ * (like standard "clocks" and "resets" properties)
+ * Input arguments:
+ *  node - consumers device node
+ *  list_name  - name of parsed list - "clocks"
+ *  cells_name - name of size property - "#clock-cells"
+ *  idx - the index of the requested list entry (>= 0)
+ * Output arguments:
+ *  producer - handle of producer
+ *  ncells   - number of cells in result
+ *  cells    - array of decoded cells
+ */
+int
+ofw_bus_parse_xref_list_alloc(phandle_t node, const char *list_name,
+    const char *cells_name, int idx, phandle_t *producer, int *ncells,
+    pcell_t **cells)
+{
+
+	KASSERT(idx >= 0,
+	    ("ofw_bus_parse_xref_list_alloc: negative index supplied"));
+
+	return (ofw_bus_parse_xref_list_internal(node, list_name, cells_name,
+		    idx, producer, ncells, cells));
+}
+
+/*
+ * Parse property that contain list of xrefs and values
+ * (like standard "clocks" and "resets" properties)
+ * and determine the number of items in the list
+ * Input arguments:
+ *  node - consumers device node
+ *  list_name  - name of parsed list - "clocks"
+ *  cells_name - name of size property - "#clock-cells"
+ * Output arguments:
+ *  count - number of items in list
+ */
+int
+ofw_bus_parse_xref_list_get_length(phandle_t node, const char *list_name,
+    const char *cells_name, int *count)
+{
+
+	return (ofw_bus_parse_xref_list_internal(node, list_name, cells_name,
+		    -1, NULL, count, NULL));
 }
 
 /*
@@ -716,9 +767,10 @@ ofw_bus_find_string_index(phandle_t node, const char *list_name,
  */
 int
 ofw_bus_string_list_to_array(phandle_t node, const char *list_name,
-   const char ***array)
+   const char ***out_array)
 {
 	char *elems, *tptr;
+	const char **array;
 	int i, cnt, nelems, len;
 
 	elems = NULL;
@@ -731,11 +783,11 @@ ofw_bus_string_list_to_array(phandle_t node, const char *list_name,
 		i += strlen(elems + i) + 1;
 
 	/* Allocate space for arrays and all strings. */
-	*array = malloc((cnt + 1) * sizeof(char *) + nelems, M_OFWPROP,
+	array = malloc((cnt + 1) * sizeof(char *) + nelems, M_OFWPROP,
 	    M_WAITOK);
 
 	/* Get address of first string. */
-	tptr = (char *)(*array + cnt);
+	tptr = (char *)(array + cnt + 1);
 
 	/* Copy strings. */
 	memcpy(tptr, elems, nelems);
@@ -743,12 +795,13 @@ ofw_bus_string_list_to_array(phandle_t node, const char *list_name,
 
 	/* Fill string pointers. */
 	for (i = 0, cnt = 0; i < nelems; cnt++) {
-		len = strlen(tptr + i) + 1;
-		*array[cnt] = tptr;
+		len = strlen(tptr) + 1;
+		array[cnt] = tptr;
 		i += len;
 		tptr += len;
 	}
-	*array[cnt] = 0;
+	array[cnt] = 0;
+	*out_array = array;
 
 	return (cnt);
 }

@@ -44,11 +44,21 @@ __ENV_ONLY_OPTIONS:= \
 
 .if ${MK_DIRDEPS_BUILD} == "yes"
 .sinclude <meta.sys.mk>
-.elif ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS)
-.if ${.MAKEFLAGS:M-B} == ""
-.MAKE.MODE= meta verbose
+.elif ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS) && ${.MAKEFLAGS:M-B} == ""
+# verbose will show .MAKE.META.PREFIX for each target.
+META_MODE=	meta verbose
+# silent will hide command output if a .meta file is created.
+.if !defined(NO_SILENT)
+META_MODE+=	silent=yes
+.endif
+.if !exists(/dev/filemon)
+META_MODE+= nofilemon
 .endif
 .endif
+META_MODE?= normal
+.export META_MODE
+.MAKE.MODE?= ${META_MODE}
+
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
 # Don't do this for 'make showconfig' as it enables all options where meta mode
@@ -276,8 +286,8 @@ YFLAGS		?=	-d
 
 # non-Posix rule set
 
-.sh: .NOMETA
-	cp -fp ${.IMPSRC} ${.TARGET}
+.sh:
+	cp -f ${.IMPSRC} ${.TARGET}
 	chmod a+x ${.TARGET}
 
 .c.ln:

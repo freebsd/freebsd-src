@@ -411,8 +411,8 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		reloc->offset += obj->gtt_offset;
 		reloc_page = pmap_mapdev_attr(dev->agp->base + (reloc->offset &
 		    ~PAGE_MASK), PAGE_SIZE, PAT_WRITE_COMBINING);
-		reloc_entry = (uint32_t *)(reloc_page + (reloc->offset &
-		    PAGE_MASK));
+		reloc_entry = (uint32_t *)
+			(reloc_page + (reloc->offset & PAGE_MASK));
 		*(volatile uint32_t *)reloc_entry = reloc->delta;
 		pmap_unmapdev((vm_offset_t)reloc_page, PAGE_SIZE);
 	}
@@ -502,7 +502,7 @@ i915_gem_execbuffer_relocate(struct drm_device *dev,
 			     struct list_head *objects)
 {
 	struct drm_i915_gem_object *obj;
-	int ret, pflags;
+	int ret = 0, pflags;
 
 	/* Try to move as many of the relocation targets off the active list
 	 * to avoid unnecessary fallbacks to the slow path, as we cannot wait
@@ -510,7 +510,6 @@ i915_gem_execbuffer_relocate(struct drm_device *dev,
 	 */
 	i915_gem_retire_requests(dev);
 
-	ret = 0;
 	/* This is the fast path and we cannot handle a pagefault whilst
 	 * holding the device lock lest the user pass in the relocations
 	 * contained within a mmaped bo. For in such a case we, the page
@@ -952,6 +951,7 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec, int count,
 	*map = malloc(count * sizeof(*ma), DRM_I915_GEM, M_WAITOK | M_ZERO);
 	*maplen = malloc(count * sizeof(*maplen), DRM_I915_GEM, M_WAITOK |
 	    M_ZERO);
+
 	for (i = 0; i < count; i++) {
 		/* First check for malicious input causing overflow */
 		if (exec[i].relocation_count >

@@ -43,6 +43,7 @@ class FileID {
 public:
   FileID() : ID(0) {}
 
+  bool isValid() const { return ID != 0; }
   bool isInvalid() const { return ID == 0; }
 
   bool operator==(const FileID &RHS) const { return ID == RHS.ID; }
@@ -252,7 +253,7 @@ public:
   
   SourceLocation getBegin() const { return Range.getBegin(); }
   SourceLocation getEnd() const { return Range.getEnd(); }
-  const SourceRange &getAsRange() const { return Range; }
+  SourceRange getAsRange() const { return Range; }
  
   void setBegin(SourceLocation b) { Range.setBegin(b); }
   void setEnd(SourceLocation e) { Range.setEnd(e); }

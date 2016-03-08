@@ -83,7 +83,7 @@ foldConstantCastPair(
   assert(DstTy && DstTy->isFirstClassType() && "Invalid cast destination type");
   assert(CastInst::isCast(opc) && "Invalid cast opcode");
 
-  // The the types and opcodes for the two Cast constant expressions
+  // The types and opcodes for the two Cast constant expressions
   Type *SrcTy = Op->getOperand(0)->getType();
   Type *MidTy = Op->getType();
   Instruction::CastOps firstOp = Instruction::CastOps(Op->getOpcode());
@@ -109,7 +109,7 @@ static Constant *FoldBitCast(Constant *V, Type *DestTy) {
   if (PointerType *PTy = dyn_cast<PointerType>(V->getType()))
     if (PointerType *DPTy = dyn_cast<PointerType>(DestTy))
       if (PTy->getAddressSpace() == DPTy->getAddressSpace()
-          && DPTy->getElementType()->isSized()) {
+          && PTy->getElementType()->isSized()) {
         SmallVector<Value*, 8> IdxList;
         Value *Zero =
           Constant::getNullValue(Type::getInt32Ty(DPTy->getContext()));
@@ -1187,7 +1187,7 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode,
         (void)C3V.divide(C2V, APFloat::rmNearestTiesToEven);
         return ConstantFP::get(C1->getContext(), C3V);
       case Instruction::FRem:
-        (void)C3V.mod(C2V, APFloat::rmNearestTiesToEven);
+        (void)C3V.mod(C2V);
         return ConstantFP::get(C1->getContext(), C3V);
       }
     }
@@ -1277,9 +1277,9 @@ static bool isMaybeZeroSizedType(Type *Ty) {
 }
 
 /// IdxCompare - Compare the two constants as though they were getelementptr
-/// indices.  This allows coersion of the types to be the same thing.
+/// indices.  This allows coercion of the types to be the same thing.
 ///
-/// If the two constants are the "same" (after coersion), return 0.  If the
+/// If the two constants are the "same" (after coercion), return 0.  If the
 /// first is less than the second, return -1, if the second is less than the
 /// first, return 1.  If the constants are not integral, return -2.
 ///
@@ -1685,7 +1685,7 @@ Constant *llvm::ConstantFoldCompareInstruction(unsigned short pred,
     // Otherwise, for integer compare, pick the same value as the non-undef
     // operand, and fold it to true or false.
     if (isIntegerPredicate)
-      return ConstantInt::get(ResultTy, CmpInst::isTrueWhenEqual(pred));
+      return ConstantInt::get(ResultTy, CmpInst::isTrueWhenEqual(Predicate));
 
     // Choosing NaN for the undef will always make unordered comparison succeed
     // and ordered comparison fails.
@@ -1869,7 +1869,8 @@ Constant *llvm::ConstantFoldCompareInstruction(unsigned short pred,
   } else {
     // Evaluate the relation between the two constants, per the predicate.
     int Result = -1;  // -1 = unknown, 0 = known false, 1 = known true.
-    switch (evaluateICmpRelation(C1, C2, CmpInst::isSigned(pred))) {
+    switch (evaluateICmpRelation(C1, C2,
+                                 CmpInst::isSigned((CmpInst::Predicate)pred))) {
     default: llvm_unreachable("Unknown relational!");
     case ICmpInst::BAD_ICMP_PREDICATE:
       break;  // Couldn't determine anything about these constants.
@@ -1950,8 +1951,10 @@ Constant *llvm::ConstantFoldCompareInstruction(unsigned short pred,
 
     // If the left hand side is an extension, try eliminating it.
     if (ConstantExpr *CE1 = dyn_cast<ConstantExpr>(C1)) {
-      if ((CE1->getOpcode() == Instruction::SExt && ICmpInst::isSigned(pred)) ||
-          (CE1->getOpcode() == Instruction::ZExt && !ICmpInst::isSigned(pred))){
+      if ((CE1->getOpcode() == Instruction::SExt &&
+           ICmpInst::isSigned((ICmpInst::Predicate)pred)) ||
+          (CE1->getOpcode() == Instruction::ZExt &&
+           !ICmpInst::isSigned((ICmpInst::Predicate)pred))){
         Constant *CE1Op0 = CE1->getOperand(0);
         Constant *CE1Inverse = ConstantExpr::getTrunc(CE1, CE1Op0->getType());
         if (CE1Inverse == CE1Op0) {
@@ -1997,17 +2000,17 @@ static bool isInBoundsIndices(ArrayRef<IndexTy> Idxs) {
 }
 
 /// \brief Test whether a given ConstantInt is in-range for a SequentialType.
-static bool isIndexInRangeOfSequentialType(const SequentialType *STy,
+static bool isIndexInRangeOfSequentialType(SequentialType *STy,
                                            const ConstantInt *CI) {
-  if (const PointerType *PTy = dyn_cast<PointerType>(STy))
-    // Only handle pointers to sized types, not pointers to functions.
-    return PTy->getElementType()->isSized();
+  // And indices are valid when indexing along a pointer
+  if (isa<PointerType>(STy))
+    return true;
 
   uint64_t NumElements = 0;
   // Determine the number of elements in our sequential type.
-  if (const ArrayType *ATy = dyn_cast<ArrayType>(STy))
+  if (auto *ATy = dyn_cast<ArrayType>(STy))
     NumElements = ATy->getNumElements();
-  else if (const VectorType *VTy = dyn_cast<VectorType>(STy))
+  else if (auto *VTy = dyn_cast<VectorType>(STy))
     NumElements = VTy->getNumElements();
 
   assert((isa<ArrayType>(STy) || NumElements > 0) &&
@@ -2178,7 +2181,7 @@ static Constant *ConstantFoldGetElementPtrImpl(Type *PointeeTy, Constant *C,
             // dimension.
             NewIdxs.resize(Idxs.size());
             uint64_t NumElements = 0;
-            if (const ArrayType *ATy = dyn_cast<ArrayType>(Ty))
+            if (auto *ATy = dyn_cast<ArrayType>(Ty))
               NumElements = ATy->getNumElements();
             else
               NumElements = cast<VectorType>(Ty)->getNumElements();

@@ -20,7 +20,7 @@ HEAP_OBJS=$(HEAP_SRCS:.c=.o)
 
 VPATH=	.:..
 
-CFLAGS = -I.. -I. -Wall -Werror -O3 -DIPFW
+CFLAGS = -I.. -I. -Wall -Werror -O3 -Wextra
 TARGETS= test_sched # no test_heap by default
 
 all:	$(TARGETS)

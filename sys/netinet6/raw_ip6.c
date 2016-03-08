@@ -397,6 +397,7 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 	int type = 0, code = 0;		/* for ICMPv6 output statistics only */
 	int scope_ambiguous = 0;
 	int use_defzone = 0;
+	int hlim = 0;
 	struct in6_addr in6a;
 	va_list ap;
 
@@ -460,8 +461,9 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 	/*
 	 * Source address selection.
 	 */
-	error = in6_selectsrc(dstsock, optp, in6p, so->so_cred,
-	    &oifp, &in6a);
+	error = in6_selectsrc_socket(dstsock, optp, in6p, so->so_cred,
+	    scope_ambiguous, &in6a, &hlim);
+
 	if (error)
 		goto bad;
 	error = prison_check_ip6(in6p->inp_cred, &in6a);
@@ -469,19 +471,6 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 		goto bad;
 	ip6->ip6_src = in6a;
 
-	if (oifp && scope_ambiguous) {
-		/*
-		 * Application should provide a proper zone ID or the use of
-		 * default zone IDs should be enabled.  Unfortunately, some
-		 * applications do not behave as it should, so we need a
-		 * workaround.  Even if an appropriate ID is not determined
-		 * (when it's required), if we can determine the outgoing
-		 * interface. determine the zone ID based on the interface.
-		 */
-		error = in6_setscope(&dstsock->sin6_addr, oifp, NULL);
-		if (error != 0)
-			goto bad;
-	}
 	ip6->ip6_dst = dstsock->sin6_addr;
 
 	/*
@@ -496,7 +485,7 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 	 * ip6_plen will be filled in ip6_output, so not fill it here.
 	 */
 	ip6->ip6_nxt = in6p->inp_ip_p;
-	ip6->ip6_hlim = in6_selecthlim(in6p, oifp);
+	ip6->ip6_hlim = hlim;
 
 	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6 ||
 	    in6p->in6p_cksum != -1) {
@@ -784,7 +773,6 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct inpcb *inp;
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)nam;
 	struct in6_addr in6a;
-	struct ifnet *ifp = NULL;
 	int error = 0, scope_ambiguous = 0;
 
 	inp = sotoinpcb(so);
@@ -813,21 +801,14 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);
 	/* Source address selection. XXX: need pcblookup? */
-	error = in6_selectsrc(addr, inp->in6p_outputopts,
-	    inp, so->so_cred, &ifp, &in6a);
+	error = in6_selectsrc_socket(addr, inp->in6p_outputopts,
+	    inp, so->so_cred, scope_ambiguous, &in6a, NULL);
 	if (error) {
 		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&V_ripcbinfo);
 		return (error);
 	}
 
-	/* XXX: see above */
-	if (ifp && scope_ambiguous &&
-	    (error = in6_setscope(&addr->sin6_addr, ifp, NULL)) != 0) {
-		INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&V_ripcbinfo);
-		return (error);
-	}
 	inp->in6p_faddr = addr->sin6_addr;
 	inp->in6p_laddr = in6a;
 	soisconnected(so);

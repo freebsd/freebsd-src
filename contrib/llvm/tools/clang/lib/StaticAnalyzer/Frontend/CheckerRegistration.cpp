@@ -42,7 +42,7 @@ public:
   ClangCheckerRegistry(ArrayRef<std::string> plugins,
                        DiagnosticsEngine *diags = nullptr);
 };
-  
+
 } // end anonymous namespace
 
 ClangCheckerRegistry::ClangCheckerRegistry(ArrayRef<std::string> plugins,
@@ -52,7 +52,12 @@ ClangCheckerRegistry::ClangCheckerRegistry(ArrayRef<std::string> plugins,
   for (ArrayRef<std::string>::iterator i = plugins.begin(), e = plugins.end();
        i != e; ++i) {
     // Get access to the plugin.
-    DynamicLibrary lib = DynamicLibrary::getPermanentLibrary(i->c_str());
+    std::string err;
+    DynamicLibrary lib = DynamicLibrary::getPermanentLibrary(i->c_str(), &err);
+    if (!lib.isValid()) {
+      diags->Report(diag::err_fe_unable_to_load_plugin) << *i << err;
+      continue;
+    }
 
     // See if it's compatible with this build of clang.
     const char *pluginAPIVersion =
@@ -78,10 +83,7 @@ bool ClangCheckerRegistry::isCompatibleAPIVersion(const char *versionString) {
 
   // For now, none of the static analyzer API is considered stable.
   // Versions must match exactly.
-  if (strcmp(versionString, CLANG_ANALYZER_API_VERSION_STRING) == 0)
-    return true;
-
-  return false;
+  return strcmp(versionString, CLANG_ANALYZER_API_VERSION_STRING) == 0;
 }
 
 void ClangCheckerRegistry::warnIncompatible(DiagnosticsEngine *diags,

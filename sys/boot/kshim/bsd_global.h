@@ -55,7 +55,6 @@
 #include <dev/usb/usb_pf.h>
 #include <dev/usb/usb_request.h>
 #include <dev/usb/usb_util.h>
-#include <dev/usb/usb_compat_linux.h>
 #include <dev/usb/usbhid.h>
 #include <dev/usb/usb_ioctl.h>
 #include <dev/usb/usb_generic.h>

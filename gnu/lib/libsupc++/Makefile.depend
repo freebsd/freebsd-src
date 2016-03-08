@@ -16,49 +16,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-eh_alloc.So: unwind.h
-eh_alloc.o: unwind.h
-eh_alloc.po: unwind.h
-eh_arm.So: unwind.h
-eh_arm.o: unwind.h
-eh_arm.po: unwind.h
-eh_aux_runtime.So: unwind.h
-eh_aux_runtime.o: unwind.h
-eh_aux_runtime.po: unwind.h
-eh_call.So: unwind.h
-eh_call.o: unwind.h
-eh_call.po: unwind.h
-eh_catch.So: unwind.h
-eh_catch.o: unwind.h
-eh_catch.po: unwind.h
-eh_exception.So: unwind.h
-eh_exception.o: unwind.h
-eh_exception.po: unwind.h
-eh_globals.So: unwind.h
-eh_globals.o: unwind.h
-eh_globals.po: unwind.h
-eh_personality.So: unwind.h
-eh_personality.o: unwind.h
-eh_personality.po: unwind.h
-eh_term_handler.So: unwind.h
-eh_term_handler.o: unwind.h
-eh_term_handler.po: unwind.h
-eh_terminate.So: unwind.h
-eh_terminate.o: unwind.h
-eh_terminate.po: unwind.h
-eh_throw.So: unwind.h
-eh_throw.o: unwind.h
-eh_throw.po: unwind.h
-eh_type.So: unwind.h
-eh_type.o: unwind.h
-eh_type.po: unwind.h
-eh_unex_handler.So: unwind.h
-eh_unex_handler.o: unwind.h
-eh_unex_handler.po: unwind.h
-pure.So: unwind.h
-pure.o: unwind.h
-pure.po: unwind.h
-vec.So: unwind.h
-vec.o: unwind.h
-vec.po: unwind.h
 .endif

@@ -70,7 +70,15 @@ recurse_body()
 	echo -e "cod\ndover sole\nhaddock\nhalibut\npilchard" > recurse/d/fish
 	echo -e "cod\nhaddock\nplaice" > recurse/a/f/favourite-fish
 
+	# Begin FreeBSD
+	if true; then
+		atf_check -o file:"$(atf_get_srcdir)/d_recurse.out" -x "grep -r haddock recurse | sort"
+	else
+	# End FreeBSD
 	atf_check -o file:"$(atf_get_srcdir)/d_recurse.out" grep -r haddock recurse
+	# Begin FreeBSD
+	fi
+	# End FreeBSD
 }
 
 atf_test_case recurse_symlink

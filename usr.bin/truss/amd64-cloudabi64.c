@@ -31,11 +31,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/psl.h>
 
-#include <errno.h>
 #include <stdio.h>
+#include <sysdecode.h>
 
-#include "cloudabi.h"
-#include "cloudabi64_syscalls.h"
 #include "truss.h"
 
 static int
@@ -83,15 +81,12 @@ amd64_cloudabi64_fetch_retval(struct trussinfo *trussinfo, long *retval,
 	retval[0] = regs.r_rax;
 	retval[1] = regs.r_rdx;
 	*errorp = (regs.r_rflags & PSL_C) != 0;
-	if (*errorp)
-		retval[0] = cloudabi_convert_errno(retval[0]);
 	return (0);
 }
 
 static struct procabi amd64_cloudabi64 = {
 	"CloudABI ELF64",
-	syscallnames,
-	nitems(syscallnames),
+	SYSDECODE_ABI_CLOUDABI64,
 	amd64_cloudabi64_fetch_args,
 	amd64_cloudabi64_fetch_retval
 };

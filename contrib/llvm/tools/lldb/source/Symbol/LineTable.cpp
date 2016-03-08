@@ -104,7 +104,17 @@ LineTable::AppendLineEntryToSequence
     // here to avoid these kinds of inconsistencies. We will need tor revisit this if the DWARF line
     // tables are updated to allow multiple entries at the same address legally.
     if (!entries.empty() && entries.back().file_addr == file_addr)
+    {
+        // GCC don't use the is_prologue_end flag to mark the first instruction after the prologue.
+        // Instead of it it is issueing a line table entry for the first instruction of the prologue
+        // and one for the first instruction after the prologue. If the size of the prologue is 0
+        // instruction then the 2 line entry will have the same file address. Removing it will remove
+        // our ability to properly detect the location of the end of prologe so we set the prologue_end
+        // flag to preserve this information (setting the prologue_end flag for an entry what is after
+        // the prologue end don't have any effect)
+        entry.is_prologue_end = entry.file_idx == entries.back().file_idx;
         entries.back() = entry;
+    }
     else
         entries.push_back (entry);
 }
@@ -133,6 +143,13 @@ LineTable::InsertSequence (LineSequence* sequence)
     entry_collection::iterator end_pos = m_entries.end();
     LineTable::Entry::LessThanBinaryPredicate less_than_bp(this);
     entry_collection::iterator pos = upper_bound(begin_pos, end_pos, entry, less_than_bp);
+
+    // We should never insert a sequence in the middle of another sequence
+    if (pos != begin_pos) {
+        while (pos < end_pos && !((pos - 1)->is_terminal_entry))
+            pos++;
+    }
+
 #ifdef LLDB_CONFIGURATION_DEBUG
     // If we aren't inserting at the beginning, the previous entry should
     // terminate a sequence.
@@ -215,7 +232,7 @@ LineTable::FindLineEntryByAddress (const Address &so_addr, LineEntry& line_entry
                         --pos;
                     else if (pos->file_addr == search_entry.file_addr)
                     {
-                        // If this is a termination entry, it should't match since
+                        // If this is a termination entry, it shouldn't match since
                         // entries with the "is_terminal_entry" member set to true 
                         // are termination entries that define the range for the 
                         // previous entry.
@@ -529,7 +546,7 @@ LineTable::LinkLineTable (const FileRangeMap &file_range_map)
         {
             entry_linked_file_addr = entry.file_addr - file_range_entry->GetRangeBase() + file_range_entry->data;
             // Determine if we need to terminate the previous entry when the previous
-            // entry was not contguous with this one after being linked.
+            // entry was not contiguous with this one after being linked.
             if (range_changed && prev_file_range_entry)
             {
                 prev_end_entry_linked_file_addr = std::min<lldb::addr_t>(entry.file_addr, prev_file_range_entry->GetRangeEnd()) - prev_file_range_entry->GetRangeBase() + prev_file_range_entry->data;

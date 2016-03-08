@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
@@ -70,13 +71,6 @@ exynos_get_soc_id(void)
 }
 
 void
-platform_mp_init_secondary(void)
-{
-
-	intr_pic_init_secondary();
-}
-
-void
 platform_mp_setmaxid(void)
 {
 
@@ -86,13 +80,6 @@ platform_mp_setmaxid(void)
 		mp_ncpus = 2;
 
 	mp_maxid = mp_ncpus - 1;
-}
-
-int
-platform_mp_probe(void)
-{
-
-	return (mp_ncpus > 1);
 }
 
 void
@@ -135,17 +122,9 @@ platform_mp_start_ap(void)
 	bus_space_write_4(fdtbus_bs_tag, sysram, 0x0,
 	    pmap_kextract((vm_offset_t)mpentry));
 
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	armv7_sev();
 	bus_space_unmap(fdtbus_bs_tag, sysram, 0x100);
 	bus_space_unmap(fdtbus_bs_tag, pmu, 0x20000);
-}
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
 }

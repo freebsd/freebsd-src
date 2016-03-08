@@ -1,4 +1,5 @@
-/* mdXhl.c * ----------------------------------------------------------------------------
+/* mdXhl.c
+ * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
  * <phk@FreeBSD.org> wrote this file.  As long as you retain this notice you
  * can do whatever you want with this stuff. If we meet some day, and you think
@@ -52,43 +53,44 @@ MDXFileChunk(const char *filename, char *buf, off_t ofs, off_t len)
 	unsigned char buffer[16*1024];
 	MDX_CTX ctx;
 	struct stat stbuf;
-	int f, i, e;
-	off_t n;
+	int fd, readrv, e;
+	off_t remain;
+
+	if (len < 0) {
+		errno = EINVAL;
+		return NULL;
+	}
 
 	MDXInit(&ctx);
-	f = open(filename, O_RDONLY);
-	if (f < 0)
-		return 0;
-	if (fstat(f, &stbuf) < 0) {
-		i = -1;
-		goto error;
+	fd = open(filename, O_RDONLY);
+	if (fd < 0)
+		return NULL;
+	if (ofs != 0) {
+		errno = 0;
+		if (lseek(fd, ofs, SEEK_SET) != ofs ||
+		    (ofs == -1 && errno != 0)) {
+			readrv = -1;
+			goto error;
+		}
 	}
-	if (ofs > stbuf.st_size)
-		ofs = stbuf.st_size;
-	if ((len == 0) || (len > stbuf.st_size - ofs))
-		len = stbuf.st_size - ofs;
-	if (lseek(f, ofs, SEEK_SET) < 0) {
-		i = -1;
-		goto error;
-	}
-	n = len;
-	i = 0;
-	while (n > 0) {
-		if (n > sizeof(buffer))
-			i = read(f, buffer, sizeof(buffer));
+	remain = len;
+	readrv = 0;
+	while (len == 0 || remain > 0) {
+		if (len == 0 || remain > sizeof(buffer))
+			readrv = read(fd, buffer, sizeof(buffer));
 		else
-			i = read(f, buffer, n);
-		if (i <= 0) 
+			readrv = read(fd, buffer, remain);
+		if (readrv <= 0) 
 			break;
-		MDXUpdate(&ctx, buffer, i);
-		n -= i;
+		MDXUpdate(&ctx, buffer, readrv);
+		remain -= readrv;
 	} 
 error:
 	e = errno;
-	close(f);
+	close(fd);
 	errno = e;
-	if (i < 0)
-		return 0;
+	if (readrv < 0)
+		return NULL;
 	return (MDXEnd(&ctx, buf));
 }
 

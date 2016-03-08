@@ -2097,7 +2097,7 @@ export_table_info(struct ip_fw_chain *ch, struct table_config *tc,
 	i->count = table_get_count(ch, tc);
 	i->limit = tc->limit;
 	i->flags |= (tc->locked != 0) ? IPFW_TGFLAGS_LOCKED : 0;
-	i->size = tc->count * sizeof(ipfw_obj_tentry);
+	i->size = i->count * sizeof(ipfw_obj_tentry);
 	i->size += sizeof(ipfw_obj_header) + sizeof(ipfw_xtable_info);
 	strlcpy(i->tablename, tc->tablename, sizeof(i->tablename));
 	ti = KIDX_TO_TI(ch, tc->no.kidx);

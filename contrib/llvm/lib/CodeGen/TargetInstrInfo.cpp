@@ -118,23 +118,24 @@ TargetInstrInfo::ReplaceTailWithBranchTo(MachineBasicBlock::iterator Tail,
   MBB->addSuccessor(NewDest);
 }
 
-// commuteInstruction - The default implementation of this method just exchanges
-// the two operands returned by findCommutedOpIndices.
-MachineInstr *TargetInstrInfo::commuteInstruction(MachineInstr *MI,
-                                                  bool NewMI) const {
+MachineInstr *TargetInstrInfo::commuteInstructionImpl(MachineInstr *MI,
+                                                      bool NewMI,
+                                                      unsigned Idx1,
+                                                      unsigned Idx2) const {
   const MCInstrDesc &MCID = MI->getDesc();
   bool HasDef = MCID.getNumDefs();
   if (HasDef && !MI->getOperand(0).isReg())
     // No idea how to commute this instruction. Target should implement its own.
     return nullptr;
-  unsigned Idx1, Idx2;
-  if (!findCommutedOpIndices(MI, Idx1, Idx2)) {
-    assert(MI->isCommutable() && "Precondition violation: MI must be commutable.");
-    return nullptr;
-  }
 
+  unsigned CommutableOpIdx1 = Idx1; (void)CommutableOpIdx1;
+  unsigned CommutableOpIdx2 = Idx2; (void)CommutableOpIdx2;
+  assert(findCommutedOpIndices(MI, CommutableOpIdx1, CommutableOpIdx2) &&
+         CommutableOpIdx1 == Idx1 && CommutableOpIdx2 == Idx2 &&
+         "TargetInstrInfo::CommuteInstructionImpl(): not commutable operands.");
   assert(MI->getOperand(Idx1).isReg() && MI->getOperand(Idx2).isReg() &&
          "This only knows how to commute register operands so far");
+
   unsigned Reg0 = HasDef ? MI->getOperand(0).getReg() : 0;
   unsigned Reg1 = MI->getOperand(Idx1).getReg();
   unsigned Reg2 = MI->getOperand(Idx2).getReg();
@@ -184,9 +185,53 @@ MachineInstr *TargetInstrInfo::commuteInstruction(MachineInstr *MI,
   return MI;
 }
 
-/// findCommutedOpIndices - If specified MI is commutable, return the two
-/// operand indices that would swap value. Return true if the instruction
-/// is not in a form which this routine understands.
+MachineInstr *TargetInstrInfo::commuteInstruction(MachineInstr *MI,
+                                                  bool NewMI,
+                                                  unsigned OpIdx1,
+                                                  unsigned OpIdx2) const {
+  // If OpIdx1 or OpIdx2 is not specified, then this method is free to choose
+  // any commutable operand, which is done in findCommutedOpIndices() method
+  // called below.
+  if ((OpIdx1 == CommuteAnyOperandIndex || OpIdx2 == CommuteAnyOperandIndex) &&
+      !findCommutedOpIndices(MI, OpIdx1, OpIdx2)) {
+    assert(MI->isCommutable() &&
+           "Precondition violation: MI must be commutable.");
+    return nullptr;
+  }
+  return commuteInstructionImpl(MI, NewMI, OpIdx1, OpIdx2);
+}
+
+bool TargetInstrInfo::fixCommutedOpIndices(unsigned &ResultIdx1,
+                                           unsigned &ResultIdx2,
+                                           unsigned CommutableOpIdx1,
+                                           unsigned CommutableOpIdx2) {
+  if (ResultIdx1 == CommuteAnyOperandIndex &&
+      ResultIdx2 == CommuteAnyOperandIndex) {
+    ResultIdx1 = CommutableOpIdx1;
+    ResultIdx2 = CommutableOpIdx2;
+  } else if (ResultIdx1 == CommuteAnyOperandIndex) {
+    if (ResultIdx2 == CommutableOpIdx1)
+      ResultIdx1 = CommutableOpIdx2;
+    else if (ResultIdx2 == CommutableOpIdx2)
+      ResultIdx1 = CommutableOpIdx1;
+    else
+      return false;
+  } else if (ResultIdx2 == CommuteAnyOperandIndex) {
+    if (ResultIdx1 == CommutableOpIdx1)
+      ResultIdx2 = CommutableOpIdx2;
+    else if (ResultIdx1 == CommutableOpIdx2)
+      ResultIdx2 = CommutableOpIdx1;
+    else
+      return false;
+  } else
+    // Check that the result operand indices match the given commutable
+    // operand indices.
+    return (ResultIdx1 == CommutableOpIdx1 && ResultIdx2 == CommutableOpIdx2) ||
+           (ResultIdx1 == CommutableOpIdx2 && ResultIdx2 == CommutableOpIdx1);
+
+  return true;
+}
+
 bool TargetInstrInfo::findCommutedOpIndices(MachineInstr *MI,
                                             unsigned &SrcOpIdx1,
                                             unsigned &SrcOpIdx2) const {
@@ -196,17 +241,21 @@ bool TargetInstrInfo::findCommutedOpIndices(MachineInstr *MI,
   const MCInstrDesc &MCID = MI->getDesc();
   if (!MCID.isCommutable())
     return false;
+
   // This assumes v0 = op v1, v2 and commuting would swap v1 and v2. If this
   // is not true, then the target must implement this.
-  SrcOpIdx1 = MCID.getNumDefs();
-  SrcOpIdx2 = SrcOpIdx1 + 1;
+  unsigned CommutableOpIdx1 = MCID.getNumDefs();
+  unsigned CommutableOpIdx2 = CommutableOpIdx1 + 1;
+  if (!fixCommutedOpIndices(SrcOpIdx1, SrcOpIdx2,
+                            CommutableOpIdx1, CommutableOpIdx2))
+    return false;
+
   if (!MI->getOperand(SrcOpIdx1).isReg() ||
       !MI->getOperand(SrcOpIdx2).isReg())
     // No idea.
     return false;
   return true;
 }
-
 
 bool
 TargetInstrInfo::isUnpredicatedTerminator(const MachineInstr *MI) const {
@@ -315,7 +364,7 @@ bool TargetInstrInfo::getStackSlotRange(const TargetRegisterClass *RC,
 
   assert(RC->getSize() >= (Offset + Size) && "bad subregister range");
 
-  if (!MF.getTarget().getDataLayout()->isLittleEndian()) {
+  if (!MF.getDataLayout().isLittleEndian()) {
     Offset = RC->getSize() - (Offset + Size);
   }
   return true;
@@ -382,11 +431,6 @@ static const TargetRegisterClass *canFoldCopy(const MachineInstr *MI,
 
 void TargetInstrInfo::getNoopForMachoTarget(MCInst &NopInst) const {
   llvm_unreachable("Not a MachO target");
-}
-
-bool TargetInstrInfo::canFoldMemoryOperand(const MachineInstr *MI,
-                                           ArrayRef<unsigned> Ops) const {
-  return MI->isCopy() && Ops.size() == 1 && canFoldCopy(MI, Ops[0]);
 }
 
 static MachineInstr *foldPatchpoint(MachineFunction &MF, MachineInstr *MI,
@@ -489,10 +533,9 @@ MachineInstr *TargetInstrInfo::foldMemoryOperand(MachineBasicBlock::iterator MI,
            "Folded a use to a non-load!");
     const MachineFrameInfo &MFI = *MF.getFrameInfo();
     assert(MFI.getObjectOffset(FI) != -1);
-    MachineMemOperand *MMO =
-      MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FI),
-                              Flags, MFI.getObjectSize(FI),
-                              MFI.getObjectAlignment(FI));
+    MachineMemOperand *MMO = MF.getMachineMemOperand(
+        MachinePointerInfo::getFixedStack(MF, FI), Flags, MFI.getObjectSize(FI),
+        MFI.getObjectAlignment(FI));
     NewMI->addMemOperand(MF, MMO);
 
     return NewMI;
@@ -515,6 +558,217 @@ MachineInstr *TargetInstrInfo::foldMemoryOperand(MachineBasicBlock::iterator MI,
   else
     loadRegFromStackSlot(*MBB, Pos, MO.getReg(), FI, RC, TRI);
   return --Pos;
+}
+
+bool TargetInstrInfo::hasReassociableOperands(
+    const MachineInstr &Inst, const MachineBasicBlock *MBB) const {
+  const MachineOperand &Op1 = Inst.getOperand(1);
+  const MachineOperand &Op2 = Inst.getOperand(2);
+  const MachineRegisterInfo &MRI = MBB->getParent()->getRegInfo();
+
+  // We need virtual register definitions for the operands that we will
+  // reassociate.
+  MachineInstr *MI1 = nullptr;
+  MachineInstr *MI2 = nullptr;
+  if (Op1.isReg() && TargetRegisterInfo::isVirtualRegister(Op1.getReg()))
+    MI1 = MRI.getUniqueVRegDef(Op1.getReg());
+  if (Op2.isReg() && TargetRegisterInfo::isVirtualRegister(Op2.getReg()))
+    MI2 = MRI.getUniqueVRegDef(Op2.getReg());
+
+  // And they need to be in the trace (otherwise, they won't have a depth).
+  return MI1 && MI2 && MI1->getParent() == MBB && MI2->getParent() == MBB;
+}
+
+bool TargetInstrInfo::hasReassociableSibling(const MachineInstr &Inst,
+                                             bool &Commuted) const {
+  const MachineBasicBlock *MBB = Inst.getParent();
+  const MachineRegisterInfo &MRI = MBB->getParent()->getRegInfo();
+  MachineInstr *MI1 = MRI.getUniqueVRegDef(Inst.getOperand(1).getReg());
+  MachineInstr *MI2 = MRI.getUniqueVRegDef(Inst.getOperand(2).getReg());
+  unsigned AssocOpcode = Inst.getOpcode();
+
+  // If only one operand has the same opcode and it's the second source operand,
+  // the operands must be commuted.
+  Commuted = MI1->getOpcode() != AssocOpcode && MI2->getOpcode() == AssocOpcode;
+  if (Commuted)
+    std::swap(MI1, MI2);
+
+  // 1. The previous instruction must be the same type as Inst.
+  // 2. The previous instruction must have virtual register definitions for its
+  //    operands in the same basic block as Inst.
+  // 3. The previous instruction's result must only be used by Inst.
+  return MI1->getOpcode() == AssocOpcode &&
+         hasReassociableOperands(*MI1, MBB) &&
+         MRI.hasOneNonDBGUse(MI1->getOperand(0).getReg());
+}
+
+// 1. The operation must be associative and commutative.
+// 2. The instruction must have virtual register definitions for its
+//    operands in the same basic block.
+// 3. The instruction must have a reassociable sibling.
+bool TargetInstrInfo::isReassociationCandidate(const MachineInstr &Inst,
+                                               bool &Commuted) const {
+  return isAssociativeAndCommutative(Inst) &&
+         hasReassociableOperands(Inst, Inst.getParent()) &&
+         hasReassociableSibling(Inst, Commuted);
+}
+
+// The concept of the reassociation pass is that these operations can benefit
+// from this kind of transformation:
+//
+// A = ? op ?
+// B = A op X (Prev)
+// C = B op Y (Root)
+// -->
+// A = ? op ?
+// B = X op Y
+// C = A op B
+//
+// breaking the dependency between A and B, allowing them to be executed in
+// parallel (or back-to-back in a pipeline) instead of depending on each other.
+
+// FIXME: This has the potential to be expensive (compile time) while not
+// improving the code at all. Some ways to limit the overhead:
+// 1. Track successful transforms; bail out if hit rate gets too low.
+// 2. Only enable at -O3 or some other non-default optimization level.
+// 3. Pre-screen pattern candidates here: if an operand of the previous
+//    instruction is known to not increase the critical path, then don't match
+//    that pattern.
+bool TargetInstrInfo::getMachineCombinerPatterns(
+    MachineInstr &Root,
+    SmallVectorImpl<MachineCombinerPattern> &Patterns) const {
+
+  bool Commute;
+  if (isReassociationCandidate(Root, Commute)) {
+    // We found a sequence of instructions that may be suitable for a
+    // reassociation of operands to increase ILP. Specify each commutation
+    // possibility for the Prev instruction in the sequence and let the
+    // machine combiner decide if changing the operands is worthwhile.
+    if (Commute) {
+      Patterns.push_back(MachineCombinerPattern::REASSOC_AX_YB);
+      Patterns.push_back(MachineCombinerPattern::REASSOC_XA_YB);
+    } else {
+      Patterns.push_back(MachineCombinerPattern::REASSOC_AX_BY);
+      Patterns.push_back(MachineCombinerPattern::REASSOC_XA_BY);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+/// Attempt the reassociation transformation to reduce critical path length.
+/// See the above comments before getMachineCombinerPatterns().
+void TargetInstrInfo::reassociateOps(
+    MachineInstr &Root, MachineInstr &Prev,
+    MachineCombinerPattern Pattern,
+    SmallVectorImpl<MachineInstr *> &InsInstrs,
+    SmallVectorImpl<MachineInstr *> &DelInstrs,
+    DenseMap<unsigned, unsigned> &InstrIdxForVirtReg) const {
+  MachineFunction *MF = Root.getParent()->getParent();
+  MachineRegisterInfo &MRI = MF->getRegInfo();
+  const TargetInstrInfo *TII = MF->getSubtarget().getInstrInfo();
+  const TargetRegisterInfo *TRI = MF->getSubtarget().getRegisterInfo();
+  const TargetRegisterClass *RC = Root.getRegClassConstraint(0, TII, TRI);
+
+  // This array encodes the operand index for each parameter because the
+  // operands may be commuted. Each row corresponds to a pattern value,
+  // and each column specifies the index of A, B, X, Y.
+  unsigned OpIdx[4][4] = {
+    { 1, 1, 2, 2 },
+    { 1, 2, 2, 1 },
+    { 2, 1, 1, 2 },
+    { 2, 2, 1, 1 }
+  };
+
+  int Row;
+  switch (Pattern) {
+  case MachineCombinerPattern::REASSOC_AX_BY: Row = 0; break;
+  case MachineCombinerPattern::REASSOC_AX_YB: Row = 1; break;
+  case MachineCombinerPattern::REASSOC_XA_BY: Row = 2; break;
+  case MachineCombinerPattern::REASSOC_XA_YB: Row = 3; break;
+  default: llvm_unreachable("unexpected MachineCombinerPattern");
+  }
+
+  MachineOperand &OpA = Prev.getOperand(OpIdx[Row][0]);
+  MachineOperand &OpB = Root.getOperand(OpIdx[Row][1]);
+  MachineOperand &OpX = Prev.getOperand(OpIdx[Row][2]);
+  MachineOperand &OpY = Root.getOperand(OpIdx[Row][3]);
+  MachineOperand &OpC = Root.getOperand(0);
+
+  unsigned RegA = OpA.getReg();
+  unsigned RegB = OpB.getReg();
+  unsigned RegX = OpX.getReg();
+  unsigned RegY = OpY.getReg();
+  unsigned RegC = OpC.getReg();
+
+  if (TargetRegisterInfo::isVirtualRegister(RegA))
+    MRI.constrainRegClass(RegA, RC);
+  if (TargetRegisterInfo::isVirtualRegister(RegB))
+    MRI.constrainRegClass(RegB, RC);
+  if (TargetRegisterInfo::isVirtualRegister(RegX))
+    MRI.constrainRegClass(RegX, RC);
+  if (TargetRegisterInfo::isVirtualRegister(RegY))
+    MRI.constrainRegClass(RegY, RC);
+  if (TargetRegisterInfo::isVirtualRegister(RegC))
+    MRI.constrainRegClass(RegC, RC);
+
+  // Create a new virtual register for the result of (X op Y) instead of
+  // recycling RegB because the MachineCombiner's computation of the critical
+  // path requires a new register definition rather than an existing one.
+  unsigned NewVR = MRI.createVirtualRegister(RC);
+  InstrIdxForVirtReg.insert(std::make_pair(NewVR, 0));
+
+  unsigned Opcode = Root.getOpcode();
+  bool KillA = OpA.isKill();
+  bool KillX = OpX.isKill();
+  bool KillY = OpY.isKill();
+
+  // Create new instructions for insertion.
+  MachineInstrBuilder MIB1 =
+      BuildMI(*MF, Prev.getDebugLoc(), TII->get(Opcode), NewVR)
+          .addReg(RegX, getKillRegState(KillX))
+          .addReg(RegY, getKillRegState(KillY));
+  MachineInstrBuilder MIB2 =
+      BuildMI(*MF, Root.getDebugLoc(), TII->get(Opcode), RegC)
+          .addReg(RegA, getKillRegState(KillA))
+          .addReg(NewVR, getKillRegState(true));
+
+  setSpecialOperandAttr(Root, Prev, *MIB1, *MIB2);
+
+  // Record new instructions for insertion and old instructions for deletion.
+  InsInstrs.push_back(MIB1);
+  InsInstrs.push_back(MIB2);
+  DelInstrs.push_back(&Prev);
+  DelInstrs.push_back(&Root);
+}
+
+void TargetInstrInfo::genAlternativeCodeSequence(
+    MachineInstr &Root, MachineCombinerPattern Pattern,
+    SmallVectorImpl<MachineInstr *> &InsInstrs,
+    SmallVectorImpl<MachineInstr *> &DelInstrs,
+    DenseMap<unsigned, unsigned> &InstIdxForVirtReg) const {
+  MachineRegisterInfo &MRI = Root.getParent()->getParent()->getRegInfo();
+
+  // Select the previous instruction in the sequence based on the input pattern.
+  MachineInstr *Prev = nullptr;
+  switch (Pattern) {
+  case MachineCombinerPattern::REASSOC_AX_BY:
+  case MachineCombinerPattern::REASSOC_XA_BY:
+    Prev = MRI.getUniqueVRegDef(Root.getOperand(1).getReg());
+    break;
+  case MachineCombinerPattern::REASSOC_AX_YB:
+  case MachineCombinerPattern::REASSOC_XA_YB:
+    Prev = MRI.getUniqueVRegDef(Root.getOperand(2).getReg());
+    break;
+  default:
+    break;
+  }
+
+  assert(Prev && "Unknown pattern for machine combiner");
+
+  reassociateOps(Root, *Prev, Pattern, InsInstrs, DelInstrs, InstIdxForVirtReg);
+  return;
 }
 
 /// foldMemoryOperand - Same as the previous version except it allows folding
@@ -661,6 +915,7 @@ int TargetInstrInfo::getSPAdjust(const MachineInstr *MI) const {
     return 0;
  
   int SPAdj = MI->getOperand(0).getImm();
+  SPAdj = TFI->alignSPAdjust(SPAdj);
 
   if ((!StackGrowsDown && MI->getOpcode() == FrameSetupOpcode) ||
        (StackGrowsDown && MI->getOpcode() == FrameDestroyOpcode))
@@ -686,10 +941,7 @@ bool TargetInstrInfo::isSchedulingBoundary(const MachineInstr *MI,
   // modification.
   const TargetLowering &TLI = *MF.getSubtarget().getTargetLowering();
   const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
-  if (MI->modifiesRegister(TLI.getStackPointerRegisterToSaveRestore(), TRI))
-    return true;
-
-  return false;
+  return MI->modifiesRegister(TLI.getStackPointerRegisterToSaveRestore(), TRI);
 }
 
 // Provide a global flag for disabling the PreRA hazard recognizer that targets

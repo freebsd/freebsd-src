@@ -63,13 +63,16 @@
 #ifndef illumos
 #include <sys/dtrace_bsd.h>
 #include <sys/eventhandler.h>
+#include <sys/rmlock.h>
 #include <sys/sysctl.h>
 #include <sys/u8_textprep.h>
 #include <sys/user.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
+
 #include <cddl/dev/dtrace/dtrace_cddl.h>
 #endif
 
@@ -224,7 +227,7 @@ static void fasttrap_thread_dtor(void *, struct thread *);
 #define	FASTTRAP_PROCS_INDEX(pid) ((pid) & fasttrap_procs.fth_mask)
 
 #ifndef illumos
-static kmutex_t fasttrap_cpuc_pid_lock[MAXCPU];
+struct rmlock fasttrap_tp_lock;
 static eventhandler_tag fasttrap_thread_dtor_tag;
 #endif
 
@@ -439,10 +442,15 @@ fasttrap_mod_barrier(uint64_t gen)
 
 	fasttrap_mod_gen++;
 
+#ifdef illumos
 	CPU_FOREACH(i) {
 		mutex_enter(&fasttrap_cpuc_pid_lock[i]);
 		mutex_exit(&fasttrap_cpuc_pid_lock[i]);
 	}
+#else
+	rm_wlock(&fasttrap_tp_lock);
+	rm_wunlock(&fasttrap_tp_lock);
+#endif
 }
 
 /*
@@ -2574,10 +2582,7 @@ fasttrap_load(void)
 		mutex_init(&fasttrap_procs.fth_table[i].ftb_mtx,
 		    "processes bucket mtx", MUTEX_DEFAULT, NULL);
 
-	CPU_FOREACH(i) {
-		mutex_init(&fasttrap_cpuc_pid_lock[i], "fasttrap barrier",
-		    MUTEX_DEFAULT, NULL);
-	}
+	rm_init(&fasttrap_tp_lock, "fasttrap tracepoint");
 
 	/*
 	 * This event handler must run before kdtrace_thread_dtor() since it
@@ -2710,9 +2715,7 @@ fasttrap_unload(void)
 #ifndef illumos
 	destroy_dev(fasttrap_cdev);
 	mutex_destroy(&fasttrap_count_mtx);
-	CPU_FOREACH(i) {
-		mutex_destroy(&fasttrap_cpuc_pid_lock[i]);
-	}
+	rm_destroy(&fasttrap_tp_lock);
 #endif
 
 	return (0);

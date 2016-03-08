@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/mips_opcode.h>
 
-#include <machine/param.h>
 #include <machine/pcb.h>
 #include <machine/regnum.h>
 

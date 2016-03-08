@@ -56,6 +56,7 @@ void ScalarEnumerationTraits<COFF::MachineTypes>::enumeration(
   ECase(IMAGE_FILE_MACHINE_AMD64);
   ECase(IMAGE_FILE_MACHINE_ARM);
   ECase(IMAGE_FILE_MACHINE_ARMNT);
+  ECase(IMAGE_FILE_MACHINE_ARM64);
   ECase(IMAGE_FILE_MACHINE_EBC);
   ECase(IMAGE_FILE_MACHINE_I386);
   ECase(IMAGE_FILE_MACHINE_IA64);
@@ -210,6 +211,7 @@ void ScalarBitSetTraits<COFF::Characteristics>::bitset(
 
 void ScalarBitSetTraits<COFF::SectionCharacteristics>::bitset(
     IO &IO, COFF::SectionCharacteristics &Value) {
+  BCase(IMAGE_SCN_TYPE_NOLOAD);
   BCase(IMAGE_SCN_TYPE_NO_PAD);
   BCase(IMAGE_SCN_CNT_CODE);
   BCase(IMAGE_SCN_CNT_INITIALIZED_DATA);

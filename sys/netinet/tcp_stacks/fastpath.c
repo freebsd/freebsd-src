@@ -81,19 +81,15 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
 #define TCPSTATES		/* for logging */
 
-#include <netinet/cc.h>
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
-#include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>	/* required for icmp_var.h */
 #include <netinet/icmp_var.h>	/* for ICMP_BANDLIM */
@@ -103,7 +99,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/nd6.h>
+#include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -111,6 +107,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/tcp6_var.h>
 #include <netinet/tcpip.h>
 #include <netinet/tcp_syncache.h>
+#include <netinet/cc/cc.h>
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
@@ -127,7 +124,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-const int tcprexmtthresh;
+extern const int tcprexmtthresh;
 
 VNET_DECLARE(int, tcp_autorcvbuf_inc);
 #define	V_tcp_autorcvbuf_inc	VNET(tcp_autorcvbuf_inc)
@@ -294,7 +291,6 @@ tcp_do_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 */
 		tp->snd_wl2 = th->th_ack;
 		tp->t_dupacks = 0;
-		m_freem(m);
 
 		/*
 		 * If all outstanding data are acked, stop
@@ -311,6 +307,8 @@ tcp_do_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				  (void *)tcp_saveipgen,
 				  &tcp_savetcp, 0);
 #endif
+		TCP_PROBE3(debug__input, tp, th, mtod(m, const char *));
+		m_freem(m);
 		if (tp->snd_una == tp->snd_max)
 			tcp_timer_activate(tp, TT_REXMT, 0);
 		else if (!tcp_timer_active(tp, TT_PERSIST))
@@ -401,6 +399,7 @@ tcp_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		tcp_trace(TA_INPUT, ostate, tp,
 			  (void *)tcp_saveipgen, &tcp_savetcp, 0);
 #endif
+	TCP_PROBE3(debug__input, tp, th, mtod(m, const char *));
 	/*
 	 * Automatic sizing of receive socket buffer.  Often the send
 	 * buffer size is not optimally adjusted to the actual network
@@ -1698,7 +1697,7 @@ dropafterack:
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
 			  &tcp_savetcp, 0);
 #endif
-	TCP_PROBE3(debug__input, tp, th, mtod(m, const char *));
+	TCP_PROBE3(debug__drop, tp, th, mtod(m, const char *));
 	if (ti_locked == TI_RLOCKED) {
 		INP_INFO_RUNLOCK(&V_tcbinfo);
 	}
@@ -1741,7 +1740,7 @@ drop:
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
 			  &tcp_savetcp, 0);
 #endif
-	TCP_PROBE3(debug__input, tp, th, mtod(m, const char *));
+	TCP_PROBE3(debug__drop, tp, th, mtod(m, const char *));
 	if (tp != NULL)
 		INP_WUNLOCK(tp->t_inpcb);
 	m_freem(m);
@@ -2137,7 +2136,6 @@ tcp_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 		tp->snd_una = th->th_ack;
 		tp->t_dupacks = 0;
-		m_freem(m);
 
 		/*
 		 * If all outstanding data are acked, stop
@@ -2154,6 +2152,8 @@ tcp_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				  (void *)tcp_saveipgen,
 				  &tcp_savetcp, 0);
 #endif
+		TCP_PROBE3(debug__input, tp, th, mtod(m, const char *));
+		m_freem(m);
 		if (tp->snd_una == tp->snd_max)
 			tcp_timer_activate(tp, TT_REXMT, 0);
 		else if (!tcp_timer_active(tp, TT_PERSIST))
@@ -2456,4 +2456,4 @@ static moduledata_t new_tcp_fastpaths = {
 };
 
 MODULE_VERSION(kern_tcpfastpaths, 1);
-DECLARE_MODULE(kern_tcpfastpaths, new_tcp_fastpaths, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(kern_tcpfastpaths, new_tcp_fastpaths, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY);

@@ -817,14 +817,6 @@ namespace {
     QualType TransformSubstTemplateTypeParmPackType(TypeLocBuilder &TLB,
                                            SubstTemplateTypeParmPackTypeLoc TL);
 
-    ExprResult TransformCallExpr(CallExpr *CE) {
-      getSema().CallsUndergoingInstantiation.push_back(CE);
-      ExprResult Result =
-          TreeTransform<TemplateInstantiator>::TransformCallExpr(CE);
-      getSema().CallsUndergoingInstantiation.pop_back();
-      return Result;
-    }
-
     ExprResult TransformLambdaExpr(LambdaExpr *E) {
       LocalInstantiationScope Scope(SemaRef, /*CombineWithOuterScope=*/true);
       return TreeTransform<TemplateInstantiator>::TransformLambdaExpr(E);
@@ -1231,7 +1223,7 @@ TemplateInstantiator::TransformFunctionParmPackExpr(FunctionParmPackExpr *E) {
 
   // Transform each of the parameter expansions into the corresponding
   // parameters in the instantiation of the function decl.
-  SmallVector<Decl *, 8> Parms;
+  SmallVector<ParmVarDecl *, 8> Parms;
   Parms.reserve(E->getNumExpansions());
   for (FunctionParmPackExpr::iterator I = E->begin(), End = E->end();
        I != End; ++I) {
@@ -1682,15 +1674,17 @@ ParmVarDecl *Sema::SubstParmVarDecl(ParmVarDecl *OldParm,
     UnparsedDefaultArgInstantiations[OldParm].push_back(NewParm);
   } else if (Expr *Arg = OldParm->getDefaultArg()) {
     FunctionDecl *OwningFunc = cast<FunctionDecl>(OldParm->getDeclContext());
-    CXXRecordDecl *ClassD = dyn_cast<CXXRecordDecl>(OwningFunc->getDeclContext());
-    if (ClassD && ClassD->isLocalClass() && !ClassD->isLambda()) {
-      // If this is a method of a local class, as per DR1484 its default
-      // arguments must be instantiated.
-      Sema::ContextRAII SavedContext(*this, ClassD);
+    if (OwningFunc->isLexicallyWithinFunctionOrMethod()) {
+      // Instantiate default arguments for methods of local classes (DR1484)
+      // and non-defining declarations.
+      Sema::ContextRAII SavedContext(*this, OwningFunc);
       LocalInstantiationScope Local(*this);
       ExprResult NewArg = SubstExpr(Arg, TemplateArgs);
-      if (NewArg.isUsable())
-        NewParm->setDefaultArg(NewArg.get());
+      if (NewArg.isUsable()) {
+        // It would be nice if we still had this.
+        SourceLocation EqualLoc = NewArg.get()->getLocStart();
+        SetParamDefaultArgument(NewParm, NewArg.get(), EqualLoc);
+      }
     } else {
       // FIXME: if we non-lazily instantiated non-dependent default args for
       // non-dependent parameter types we could remove a bunch of duplicate
@@ -1843,9 +1837,7 @@ Sema::SubstBaseSpecifiers(CXXRecordDecl *Instantiation,
       Invalid = true;
   }
 
-  if (!Invalid &&
-      AttachBaseSpecifiers(Instantiation, InstantiatedBases.data(),
-                           InstantiatedBases.size()))
+  if (!Invalid && AttachBaseSpecifiers(Instantiation, InstantiatedBases))
     Invalid = true;
 
   return Invalid;
@@ -2050,7 +2042,7 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
 
   // Default arguments are parsed, if not instantiated. We can go instantiate
   // default arg exprs for default constructors if necessary now.
-  ActOnFinishCXXMemberDefaultArgs(Instantiation);
+  ActOnFinishCXXNonNestedClass(Instantiation);
 
   // Instantiate late parsed attributes, and attach them to their decls.
   // See Sema::InstantiateAttrs
@@ -2672,16 +2664,17 @@ ExprResult Sema::SubstInitializer(Expr *Init,
   return Instantiator.TransformInitializer(Init, CXXDirectInit);
 }
 
-bool Sema::SubstExprs(Expr **Exprs, unsigned NumExprs, bool IsCall,
+bool Sema::SubstExprs(ArrayRef<Expr *> Exprs, bool IsCall,
                       const MultiLevelTemplateArgumentList &TemplateArgs,
                       SmallVectorImpl<Expr *> &Outputs) {
-  if (NumExprs == 0)
+  if (Exprs.empty())
     return false;
 
   TemplateInstantiator Instantiator(*this, TemplateArgs,
                                     SourceLocation(),
                                     DeclarationName());
-  return Instantiator.TransformExprs(Exprs, NumExprs, IsCall, Outputs);
+  return Instantiator.TransformExprs(Exprs.data(), Exprs.size(),
+                                     IsCall, Outputs);
 }
 
 NestedNameSpecifierLoc
@@ -2806,14 +2799,14 @@ void LocalInstantiationScope::InstantiatedLocal(const Decl *D, Decl *Inst) {
 #endif
     Stored = Inst;
   } else if (DeclArgumentPack *Pack = Stored.dyn_cast<DeclArgumentPack *>()) {
-    Pack->push_back(Inst);
+    Pack->push_back(cast<ParmVarDecl>(Inst));
   } else {
     assert(Stored.get<Decl *>() == Inst && "Already instantiated this local");
   }
 }
 
-void LocalInstantiationScope::InstantiatedLocalPackArg(const Decl *D, 
-                                                       Decl *Inst) {
+void LocalInstantiationScope::InstantiatedLocalPackArg(const Decl *D,
+                                                       ParmVarDecl *Inst) {
   D = getCanonicalParmVarDecl(D);
   DeclArgumentPack *Pack = LocalDecls[D].get<DeclArgumentPack *>();
   Pack->push_back(Inst);

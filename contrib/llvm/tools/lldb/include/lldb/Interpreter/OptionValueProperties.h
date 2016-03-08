@@ -1,4 +1,4 @@
-//===-- OptionValueProperties.h --------------------------------------*- C++ -*-===//
+//===-- OptionValueProperties.h ---------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,6 +12,8 @@
 
 // C Includes
 // C++ Includes
+#include <vector>
+
 // Other libraries and framework includes
 // Project includes
 #include "lldb/Core/ConstString.h"
@@ -27,10 +29,6 @@ class OptionValueProperties :
     public std::enable_shared_from_this<OptionValueProperties>
 {
 public:
-
-    //---------------------------------------------------------------------
-    // OptionValueProperties
-    //---------------------------------------------------------------------
     OptionValueProperties () :
         OptionValue(),
         m_name (),
@@ -42,34 +40,32 @@ public:
     OptionValueProperties (const ConstString &name);
 
     OptionValueProperties (const OptionValueProperties &global_properties);
-    
-    virtual
-    ~OptionValueProperties()
-    {
-    }
-    
-    virtual Type
-    GetType () const
+
+    ~OptionValueProperties() override = default;
+
+    Type
+    GetType() const override
     {
         return eTypeProperties;
     }
     
-    virtual bool
-    Clear ();
+    bool
+    Clear() override;
 
-    virtual lldb::OptionValueSP
-    DeepCopy () const;
+    lldb::OptionValueSP
+    DeepCopy() const override;
     
-    virtual Error
-    SetValueFromString (llvm::StringRef value, VarSetOperationType op = eVarSetOperationAssign);
+    Error
+    SetValueFromString(llvm::StringRef value,
+		       VarSetOperationType op = eVarSetOperationAssign) override;
 
-    virtual void
-    DumpValue (const ExecutionContext *exe_ctx,
-               Stream &strm,
-               uint32_t dump_mask);
+    void
+    DumpValue(const ExecutionContext *exe_ctx,
+	      Stream &strm,
+	      uint32_t dump_mask) override;
 
-    virtual ConstString
-    GetName () const
+    ConstString
+    GetName() const override
     {
         return m_name;
     }
@@ -149,16 +145,16 @@ public:
                      bool value_will_be_modified) const;
 
     lldb::OptionValueSP
-    GetSubValue (const ExecutionContext *exe_ctx,
-                 const char *name,
-                 bool value_will_be_modified,
-                 Error &error) const;
+    GetSubValue(const ExecutionContext *exe_ctx,
+		const char *name,
+		bool value_will_be_modified,
+		Error &error) const override;
 
-    virtual Error
-    SetSubValue (const ExecutionContext *exe_ctx,
-                 VarSetOperationType op,
-                 const char *path,
-                 const char *value);
+    Error
+    SetSubValue(const ExecutionContext *exe_ctx,
+		VarSetOperationType op,
+		const char *path,
+		const char *value) override;
 
     virtual bool
     PredicateMatches (const ExecutionContext *exe_ctx,
@@ -170,6 +166,9 @@ public:
 
     OptionValueArch *
     GetPropertyAtIndexAsOptionValueArch (const ExecutionContext *exe_ctx, uint32_t idx) const;
+
+    OptionValueLanguage *
+    GetPropertyAtIndexAsOptionValueLanguage (const ExecutionContext *exe_ctx, uint32_t idx) const;
 
     bool
     GetPropertyAtIndexAsArgs (const ExecutionContext *exe_ctx, uint32_t idx, Args &args) const;
@@ -251,22 +250,18 @@ public:
     SetValueChangedCallback (uint32_t property_idx,
                              OptionValueChangedCallback callback,
                              void *baton);
-protected:
 
+protected:
     Property *
-    ProtectedGetPropertyAtIndex (uint32_t idx)
+    ProtectedGetPropertyAtIndex(uint32_t idx)
     {
-        if (idx < m_properties.size())
-            return &m_properties[idx];
-        return NULL;
+        return ((idx < m_properties.size()) ? &m_properties[idx] : nullptr);
     }
 
     const Property *
-    ProtectedGetPropertyAtIndex (uint32_t idx) const
+    ProtectedGetPropertyAtIndex(uint32_t idx) const
     {
-        if (idx < m_properties.size())
-            return &m_properties[idx];
-        return NULL;
+        return ((idx < m_properties.size()) ? &m_properties[idx] : nullptr);
     }
 
     typedef UniqueCStringMap<size_t> NameToIndex;
@@ -278,4 +273,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif  // liblldb_OptionValueProperties_h_
+#endif // liblldb_OptionValueProperties_h_

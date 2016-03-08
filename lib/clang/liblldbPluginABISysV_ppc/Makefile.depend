@@ -13,12 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ABISysV_ppc.o: CommentCommandList.inc.h
-ABISysV_ppc.o: DeclNodes.inc.h
-ABISysV_ppc.o: DiagnosticCommonKinds.inc.h
-ABISysV_ppc.o: StmtNodes.inc.h
-ABISysV_ppc.po: CommentCommandList.inc.h
-ABISysV_ppc.po: DeclNodes.inc.h
-ABISysV_ppc.po: DiagnosticCommonKinds.inc.h
-ABISysV_ppc.po: StmtNodes.inc.h
 .endif

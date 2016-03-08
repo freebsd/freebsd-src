@@ -112,6 +112,12 @@ _arm_minidump_initvtop(kvm_t *kd)
 	vmst->hdr.bitmapsize = _kvm32toh(kd, vmst->hdr.bitmapsize);
 	vmst->hdr.ptesize = _kvm32toh(kd, vmst->hdr.ptesize);
 	vmst->hdr.kernbase = _kvm32toh(kd, vmst->hdr.kernbase);
+	vmst->hdr.arch = _kvm32toh(kd, vmst->hdr.arch);
+	vmst->hdr.mmuformat = _kvm32toh(kd, vmst->hdr.mmuformat);
+	if (vmst->hdr.mmuformat == MINIDUMP_MMU_FORMAT_UNKNOWN) {
+		/* This is a safe default as 1K pages are not used. */
+		vmst->hdr.mmuformat = MINIDUMP_MMU_FORMAT_V6;
+	}
 
 	/* Skip header and msgbuf */
 	off = ARM_PAGE_SIZE + arm_round_page(vmst->hdr.msgbufsize);
@@ -179,19 +185,27 @@ _arm_minidump_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 	if (va >= vm->hdr.kernbase) {
 		pteindex = (va - vm->hdr.kernbase) >> ARM_PAGE_SHIFT;
 		pte = _kvm32toh(kd, ptemap[pteindex]);
-		if (!pte) {
+		if ((pte & ARM_L2_TYPE_MASK) == ARM_L2_TYPE_INV) {
 			_kvm_err(kd, kd->program,
 			    "_arm_minidump_kvatop: pte not valid");
 			goto invalid;
 		}
 		if ((pte & ARM_L2_TYPE_MASK) == ARM_L2_TYPE_L) {
-			offset = va & ARM_L2_L_OFFSET;
-			a = pte & ARM_L2_L_FRAME;
-		} else if ((pte & ARM_L2_TYPE_MASK) == ARM_L2_TYPE_S) {
+			/* 64K page -> convert to be like 4K page */
+			offset = va & ARM_L2_S_OFFSET;
+			a = (pte & ARM_L2_L_FRAME) +
+			    (va & ARM_L2_L_OFFSET & ARM_L2_S_FRAME);
+		} else {
+			if (kd->vmst->hdr.mmuformat == MINIDUMP_MMU_FORMAT_V4 &&
+			    (pte & ARM_L2_TYPE_MASK) == ARM_L2_TYPE_T) {
+				_kvm_err(kd, kd->program,
+				    "_arm_minidump_kvatop: pte not supported");
+				goto invalid;
+			}
+			/* 4K page */
 			offset = va & ARM_L2_S_OFFSET;
 			a = pte & ARM_L2_S_FRAME;
-		} else
-			goto invalid;
+		}
 
 		ofs = _kvm_hpt_find(&vm->hpt, a);
 		if (ofs == -1) {
@@ -203,7 +217,6 @@ _arm_minidump_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 
 		*pa = ofs + offset;
 		return (ARM_PAGE_SIZE - offset);
-
 	} else
 		_kvm_err(kd, kd->program, "_arm_minidump_kvatop: virtual "
 		    "address 0x%jx not minidumped", (uintmax_t)va);

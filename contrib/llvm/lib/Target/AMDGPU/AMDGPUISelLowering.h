@@ -54,6 +54,9 @@ private:
   SDValue LowerFROUND(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFFLOOR(SDValue Op, SelectionDAG &DAG) const;
 
+  SDValue LowerCTLZ(SDValue Op, SelectionDAG &DAG) const;
+
+  SDValue LowerINT_TO_FP32(SDValue Op, SelectionDAG &DAG, bool Signed) const;
   SDValue LowerINT_TO_FP64(SDValue Op, SelectionDAG &DAG, bool Signed) const;
   SDValue LowerUINT_TO_FP(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerSINT_TO_FP(SDValue Op, SelectionDAG &DAG) const;
@@ -67,6 +70,9 @@ private:
   SDValue performStoreCombine(SDNode *N, DAGCombinerInfo &DCI) const;
   SDValue performShlCombine(SDNode *N, DAGCombinerInfo &DCI) const;
   SDValue performMulCombine(SDNode *N, DAGCombinerInfo &DCI) const;
+  SDValue performCtlzCombine(SDLoc SL, SDValue Cond, SDValue LHS, SDValue RHS,
+                             DAGCombinerInfo &DCI) const;
+  SDValue performSelectCombine(SDNode *N, DAGCombinerInfo &DCI) const;
 
 protected:
   static EVT getEquivalentMemType(LLVMContext &Context, EVT VT);
@@ -109,6 +115,8 @@ protected:
                                SmallVectorImpl<ISD::InputArg> &OrigIns) const;
   void AnalyzeFormalArguments(CCState &State,
                               const SmallVectorImpl<ISD::InputArg> &Ins) const;
+  void AnalyzeReturn(CCState &State,
+                     const SmallVectorImpl<ISD::OutputArg> &Outs) const;
 
 public:
   AMDGPUTargetLowering(TargetMachine &TM, const AMDGPUSubtarget &STI);
@@ -138,6 +146,7 @@ public:
   bool storeOfVectorConstantIsCheap(EVT MemVT,
                                     unsigned NumElem,
                                     unsigned AS) const override;
+  bool aggressivelyPreferBuildVectorSources(EVT VecVT) const override;
   bool isCheapToSpeculateCttz() const override;
   bool isCheapToSpeculateCtlz() const override;
 
@@ -148,6 +157,9 @@ public:
                       SDLoc DL, SelectionDAG &DAG) const override;
   SDValue LowerCall(CallLoweringInfo &CLI,
                     SmallVectorImpl<SDValue> &InVals) const override;
+
+  SDValue LowerDYNAMIC_STACKALLOC(SDValue Op,
+                                  SelectionDAG &DAG) const;
 
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
   SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
@@ -165,14 +177,6 @@ public:
                                SDValue False,
                                SDValue CC,
                                DAGCombinerInfo &DCI) const;
-  SDValue CombineIMinMax(SDLoc DL,
-                         EVT VT,
-                         SDValue LHS,
-                         SDValue RHS,
-                         SDValue True,
-                         SDValue False,
-                         SDValue CC,
-                         SelectionDAG &DAG) const;
 
   const char* getTargetNodeName(unsigned Opcode) const override;
 
@@ -216,7 +220,7 @@ public:
 
   /// \brief Helper function that returns the byte offset of the given
   /// type of implicit parameter.
-  unsigned getImplicitParameterOffset(const AMDGPUMachineFunction *MFI,
+  uint32_t getImplicitParameterOffset(const AMDGPUMachineFunction *MFI,
                                       const ImplicitParameter Param) const;
 };
 
@@ -267,7 +271,7 @@ enum NodeType : unsigned {
   BFE_I32, // Extract range of bits with sign extension to 32-bits.
   BFI, // (src0 & src1) | (~src0 & src2)
   BFM, // Insert a range of bits into a 32-bit word.
-  BREV, // Reverse bits.
+  FFBH_U32, // ctlz with -1 if input is zero.
   MUL_U24,
   MUL_I24,
   MAD_U24,

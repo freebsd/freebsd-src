@@ -18,14 +18,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-wlan_snmp.So: wlan_oid.h
-wlan_snmp.So: wlan_tree.h
-wlan_snmp.po: wlan_oid.h
-wlan_snmp.po: wlan_tree.h
-wlan_sys.So: wlan_tree.h
-wlan_sys.po: wlan_tree.h
-wlan_tree.So: wlan_tree.c
-wlan_tree.So: wlan_tree.h
-wlan_tree.po: wlan_tree.c
-wlan_tree.po: wlan_tree.h
 .endif

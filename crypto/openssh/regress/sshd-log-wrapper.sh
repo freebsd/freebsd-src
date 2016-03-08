@@ -3,11 +3,9 @@
 #       Placed in the Public Domain.
 #
 # simple wrapper for sshd proxy mode to catch stderr output
-# sh sshd-log-wrapper.sh /path/to/sshd /path/to/logfile
+# sh sshd-log-wrapper.sh /path/to/logfile /path/to/sshd [args...]
 
-sshd=$1
-log=$2
-shift
+log=$1
 shift
 
-exec $sshd -E$log $@
+exec "$@" -E$log

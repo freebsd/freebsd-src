@@ -83,6 +83,7 @@ NOASM=
 .if ${LIBC_ARCH} != "aarch64" && \
     ${LIBC_ARCH} != "amd64" && \
     ${LIBC_ARCH} != "powerpc64" && \
+    ${LIBC_ARCH} != "riscv" && \
     ${LIBC_ARCH} != "sparc64" && \
     ${MACHINE_ARCH:Mmipsn32*} == "" && \
     ${MACHINE_ARCH:Mmips64*} == ""
@@ -168,15 +169,15 @@ SUBDIR+=	tests
 .if !defined(_SKIP_BUILD)
 # We need libutil.h, get it directly to avoid
 # recording a build dependency
-CFLAGS+= -I${.CURDIR:H}/libutil
+CFLAGS+= -I${SRCTOP}/lib/libutil
 # Same issue with libm
-MSUN_ARCH_SUBDIR != ${MAKE} -B -C ${.CURDIR:H}/msun -V ARCH_SUBDIR
+MSUN_ARCH_SUBDIR != ${MAKE} -B -C ${SRCTOP}/lib/msun -V ARCH_SUBDIR
 # unfortunately msun/src contains both private and public headers
-CFLAGS+= -I${.CURDIR:H}/msun/${MSUN_ARCH_SUBDIR} 
+CFLAGS+= -I${SRCTOP}/lib/msun/${MSUN_ARCH_SUBDIR}
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-CFLAGS+= -I${.CURDIR:H}/msun/x86
+CFLAGS+= -I${SRCTOP}/lib/msun/x86
 .endif
-CFLAGS+= -I${.CURDIR:H}/msun/src
+CFLAGS+= -I${SRCTOP}/lib/msun/src
 # and we do not want to record a dependency on msun
 .if ${.MAKE.LEVEL} > 0
 GENDIRDEPS_FILTER+= N${RELDIR:H}/msun

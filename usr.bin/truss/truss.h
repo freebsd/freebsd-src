@@ -35,14 +35,14 @@
 #define	EXECVEARGS		0x00000010
 #define	EXECVEENVS		0x00000020
 #define	COUNTONLY		0x00000040
+#define	DISPLAYTIDS		0x00000080
 
 struct procinfo;
 struct trussinfo;
 
 struct procabi {
 	const char *type;
-	const char **syscallnames;
-	int nsyscalls;
+	enum sysdecode_abi abi;
 	int (*fetch_args)(struct trussinfo *, u_int);
 	int (*fetch_retval)(struct trussinfo *, long *, int *);
 };

@@ -264,6 +264,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 #if VM_NRESERVLEVEL > 0
 	LIST_INIT(&object->rvq);
 #endif
+	umtx_shm_object_init(object);
 }
 
 /*
@@ -475,6 +476,9 @@ vm_object_vndeallocate(vm_object_t object)
 	}
 #endif
 
+	if (object->ref_count == 1)
+		umtx_shm_object_terminated(object);
+
 	/*
 	 * The test for text of vp vnode does not need a bypass to
 	 * reach right VV_TEXT there, since it is obtained from
@@ -647,6 +651,7 @@ retry:
 			return;
 		}
 doterm:
+		umtx_shm_object_terminated(object);
 		temp = object->backing_object;
 		if (temp != NULL) {
 			KASSERT((object->flags & OBJ_TMPFS_NODE) == 0,

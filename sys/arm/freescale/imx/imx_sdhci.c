@@ -429,6 +429,7 @@ imx_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_
 		} else {
 			imx_sdhc_set_clock(sc, false);
 		}
+		return;
 	}
 
 	/*

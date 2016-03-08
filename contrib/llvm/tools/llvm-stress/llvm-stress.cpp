@@ -612,7 +612,8 @@ struct CmpModifier: public Modifier {
     }
 
     Value *V = CmpInst::Create(fp ? Instruction::FCmp : Instruction::ICmp,
-                               op, Val0, Val1, "Cmp", BB->getTerminator());
+                               (CmpInst::Predicate)op, Val0, Val1, "Cmp",
+                               BB->getTerminator());
     return PT->push_back(V);
   }
 };
@@ -666,7 +667,7 @@ static void IntroduceControlFlow(Function *F, Random &R) {
 
   for (auto *Instr : BoolInst) {
     BasicBlock *Curr = Instr->getParent();
-    BasicBlock::iterator Loc = Instr;
+    BasicBlock::iterator Loc = Instr->getIterator();
     BasicBlock *Next = Curr->splitBasicBlock(Loc, "CF");
     Instr->moveBefore(Curr->getTerminator());
     if (Curr != &F->getEntryBlock()) {

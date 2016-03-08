@@ -166,7 +166,7 @@ clkintr(void *arg)
 		mtx_unlock_spin(&clock_lock);
 	}
 
-	if (sc && sc->et.et_active && sc->mode != MODE_STOP)
+	if (sc->et.et_active && sc->mode != MODE_STOP)
 		sc->et.et_event_cb(&sc->et, sc->et.et_arg);
 
 #ifdef DEV_MCA
@@ -656,7 +656,7 @@ static int
 attimer_attach(device_t dev)
 {
 	struct attimer_softc *sc;
-	u_long s;
+	rman_res_t s;
 	int i;
 
 	attimer_sc = sc = device_get_softc(dev);

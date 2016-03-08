@@ -15,6 +15,7 @@
 #include "llvm/Config/config.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/Support/Process.h"
 
 namespace llvm {
 
@@ -48,16 +49,27 @@ uint8_t *SectionMemoryManager::allocateSection(MemoryGroup &MemGroup,
 
   // Look in the list of free memory regions and use a block there if one
   // is available.
-  for (int i = 0, e = MemGroup.FreeMem.size(); i != e; ++i) {
-    sys::MemoryBlock &MB = MemGroup.FreeMem[i];
-    if (MB.size() >= RequiredSize) {
-      Addr = (uintptr_t)MB.base();
-      uintptr_t EndOfBlock = Addr + MB.size();
+  for (FreeMemBlock &FreeMB : MemGroup.FreeMem) {
+    if (FreeMB.Free.size() >= RequiredSize) {
+      Addr = (uintptr_t)FreeMB.Free.base();
+      uintptr_t EndOfBlock = Addr + FreeMB.Free.size();
       // Align the address.
       Addr = (Addr + Alignment - 1) & ~(uintptr_t)(Alignment - 1);
-      // Store cutted free memory block.
-      MemGroup.FreeMem[i] = sys::MemoryBlock((void*)(Addr + Size),
-                                             EndOfBlock - Addr - Size);
+
+      if (FreeMB.PendingPrefixIndex == (unsigned)-1) {
+        // The part of the block we're giving out to the user is now pending
+        MemGroup.PendingMem.push_back(sys::MemoryBlock((void *)Addr, Size));
+
+        // Remember this pending block, such that future allocations can just
+        // modify it rather than creating a new one
+        FreeMB.PendingPrefixIndex = MemGroup.PendingMem.size() - 1;
+      } else {
+        sys::MemoryBlock &PendingMB = MemGroup.PendingMem[FreeMB.PendingPrefixIndex];
+        PendingMB = sys::MemoryBlock(PendingMB.base(), Addr + Size - (uintptr_t)PendingMB.base());
+      }
+
+      // Remember how much free space is now left in this block
+      FreeMB.Free = sys::MemoryBlock((void *)(Addr + Size), EndOfBlock - Addr - Size);
       return (uint8_t*)Addr;
     }
   }
@@ -85,6 +97,7 @@ uint8_t *SectionMemoryManager::allocateSection(MemoryGroup &MemGroup,
   // Save this address as the basis for our next request
   MemGroup.Near = MB;
 
+  // Remember that we allocated this memory
   MemGroup.AllocatedMem.push_back(MB);
   Addr = (uintptr_t)MB.base();
   uintptr_t EndOfBlock = Addr + MB.size();
@@ -92,11 +105,18 @@ uint8_t *SectionMemoryManager::allocateSection(MemoryGroup &MemGroup,
   // Align the address.
   Addr = (Addr + Alignment - 1) & ~(uintptr_t)(Alignment - 1);
 
+  // The part of the block we're giving out to the user is now pending
+  MemGroup.PendingMem.push_back(sys::MemoryBlock((void *)Addr, Size));
+
   // The allocateMappedMemory may allocate much more memory than we need. In
   // this case, we store the unused memory as a free memory block.
   unsigned FreeSize = EndOfBlock-Addr-Size;
-  if (FreeSize > 16)
-    MemGroup.FreeMem.push_back(sys::MemoryBlock((void*)(Addr + Size), FreeSize));
+  if (FreeSize > 16) {
+    FreeMemBlock FreeMB;
+    FreeMB.Free = sys::MemoryBlock((void*)(Addr + Size), FreeSize);
+    FreeMB.PendingPrefixIndex = (unsigned)-1;
+    MemGroup.FreeMem.push_back(FreeMB);
+  }
 
   // Return aligned address
   return (uint8_t*)Addr;
@@ -107,9 +127,6 @@ bool SectionMemoryManager::finalizeMemory(std::string *ErrMsg)
   // FIXME: Should in-progress permissions be reverted if an error occurs?
   std::error_code ec;
 
-  // Don't allow free memory blocks to be used after setting protection flags.
-  CodeMem.FreeMem.clear();
-
   // Make code memory executable.
   ec = applyMemoryGroupPermissions(CodeMem,
                                    sys::Memory::MF_READ | sys::Memory::MF_EXEC);
@@ -119,9 +136,6 @@ bool SectionMemoryManager::finalizeMemory(std::string *ErrMsg)
     }
     return true;
   }
-
-  // Don't allow free memory blocks to be used after setting protection flags.
-  RODataMem.FreeMem.clear();
 
   // Make read-only data memory read-only.
   ec = applyMemoryGroupPermissions(RODataMem,
@@ -143,36 +157,62 @@ bool SectionMemoryManager::finalizeMemory(std::string *ErrMsg)
   return false;
 }
 
+static sys::MemoryBlock trimBlockToPageSize(sys::MemoryBlock M) {
+  static const size_t PageSize = sys::Process::getPageSize();
+
+  size_t StartOverlap =
+      (PageSize - ((uintptr_t)M.base() % PageSize)) % PageSize;
+
+  size_t TrimmedSize = M.size();
+  TrimmedSize -= StartOverlap;
+  TrimmedSize -= TrimmedSize % PageSize;
+
+  sys::MemoryBlock Trimmed((void *)((uintptr_t)M.base() + StartOverlap), TrimmedSize);
+
+  assert(((uintptr_t)Trimmed.base() % PageSize) == 0);
+  assert((Trimmed.size() % PageSize) == 0);
+  assert(M.base() <= Trimmed.base() && Trimmed.size() <= M.size());
+
+  return Trimmed;
+}
+
+
 std::error_code
 SectionMemoryManager::applyMemoryGroupPermissions(MemoryGroup &MemGroup,
                                                   unsigned Permissions) {
+  for (sys::MemoryBlock &MB : MemGroup.PendingMem)
+    if (std::error_code EC = sys::Memory::protectMappedMemory(MB, Permissions))
+      return EC;
 
-  for (int i = 0, e = MemGroup.AllocatedMem.size(); i != e; ++i) {
-    std::error_code ec;
-    ec =
-        sys::Memory::protectMappedMemory(MemGroup.AllocatedMem[i], Permissions);
-    if (ec) {
-      return ec;
-    }
+  MemGroup.PendingMem.clear();
+
+  // Now go through free blocks and trim any of them that don't span the entire
+  // page because one of the pending blocks may have overlapped it.
+  for (FreeMemBlock &FreeMB : MemGroup.FreeMem) {
+    FreeMB.Free = trimBlockToPageSize(FreeMB.Free);
+    // We cleared the PendingMem list, so all these pointers are now invalid
+    FreeMB.PendingPrefixIndex = (unsigned)-1;
   }
+
+  // Remove all blocks which are now empty
+  MemGroup.FreeMem.erase(
+      std::remove_if(MemGroup.FreeMem.begin(), MemGroup.FreeMem.end(),
+                     [](FreeMemBlock &FreeMB) { return FreeMB.Free.size() == 0; }),
+      MemGroup.FreeMem.end());
 
   return std::error_code();
 }
 
 void SectionMemoryManager::invalidateInstructionCache() {
-  for (int i = 0, e = CodeMem.AllocatedMem.size(); i != e; ++i)
-    sys::Memory::InvalidateInstructionCache(CodeMem.AllocatedMem[i].base(),
-                                            CodeMem.AllocatedMem[i].size());
+  for (sys::MemoryBlock &Block : CodeMem.PendingMem)
+    sys::Memory::InvalidateInstructionCache(Block.base(), Block.size());
 }
 
 SectionMemoryManager::~SectionMemoryManager() {
-  for (unsigned i = 0, e = CodeMem.AllocatedMem.size(); i != e; ++i)
-    sys::Memory::releaseMappedMemory(CodeMem.AllocatedMem[i]);
-  for (unsigned i = 0, e = RWDataMem.AllocatedMem.size(); i != e; ++i)
-    sys::Memory::releaseMappedMemory(RWDataMem.AllocatedMem[i]);
-  for (unsigned i = 0, e = RODataMem.AllocatedMem.size(); i != e; ++i)
-    sys::Memory::releaseMappedMemory(RODataMem.AllocatedMem[i]);
+  for (MemoryGroup *Group : {&CodeMem, &RWDataMem, &RODataMem}) {
+    for (sys::MemoryBlock &Block : Group->AllocatedMem)
+      sys::Memory::releaseMappedMemory(Block);
+  }
 }
 
 } // namespace llvm
-

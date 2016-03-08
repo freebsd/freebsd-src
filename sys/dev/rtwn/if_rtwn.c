@@ -168,6 +168,8 @@ static void	rtwn_get_txpower(struct rtwn_softc *, int,
 		    uint16_t[]);
 static void	rtwn_set_txpower(struct rtwn_softc *,
 		    struct ieee80211_channel *, struct ieee80211_channel *);
+static void	rtwn_set_rx_bssid_all(struct rtwn_softc *, int);
+static void	rtwn_set_gain(struct rtwn_softc *, uint8_t);
 static void	rtwn_scan_start(struct ieee80211com *);
 static void	rtwn_scan_end(struct ieee80211com *);
 static void	rtwn_set_channel(struct ieee80211com *);
@@ -185,12 +187,10 @@ static void	rtwn_iq_calib_write_results(struct rtwn_softc *, uint16_t[2],
 static void	rtwn_iq_calib(struct rtwn_softc *);
 static void	rtwn_lc_calib(struct rtwn_softc *);
 static void	rtwn_temp_calib(struct rtwn_softc *);
-static void	rtwn_init_locked(struct rtwn_softc *);
-static void	rtwn_init(struct rtwn_softc *);
+static int	rtwn_init(struct rtwn_softc *);
 static void	rtwn_stop_locked(struct rtwn_softc *);
 static void	rtwn_stop(struct rtwn_softc *);
 static void	rtwn_intr(void *);
-static void	rtwn_hw_reset(void *, int);
 
 /* Aliases. */
 #define	rtwn_bb_write	rtwn_write_4
@@ -295,7 +295,6 @@ rtwn_attach(device_t dev)
 	RTWN_LOCK_INIT(sc);
 	callout_init_mtx(&sc->calib_to, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->watchdog_to, &sc->sc_mtx, 0);
-	TASK_INIT(&sc->sc_reinit_task, 0, rtwn_hw_reset, sc);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
 
 	error = rtwn_read_chipid(sc);
@@ -406,7 +405,6 @@ rtwn_detach(device_t dev)
 	int i;
 
 	if (sc->sc_ic.ic_softc != NULL) {
-		ieee80211_draintask(&sc->sc_ic, &sc->sc_reinit_task);
 		rtwn_stop(sc);
 
 		callout_drain(&sc->calib_to);
@@ -1241,22 +1239,6 @@ rtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		rtwn_set_led(sc, RTWN_LED_LINK, 0);
 		break;
 	case IEEE80211_S_SCAN:
-		if (vap->iv_state != IEEE80211_S_SCAN) {
-			/* Allow Rx from any BSSID. */
-			rtwn_write_4(sc, R92C_RCR,
-			    rtwn_read_4(sc, R92C_RCR) &
-			    ~(R92C_RCR_CBSSID_DATA | R92C_RCR_CBSSID_BCN));
-
-			/* Set gain for scanning. */
-			reg = rtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(0));
-			reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, 0x20);
-			rtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(0), reg);
-
-			reg = rtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(1));
-			reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, 0x20);
-			rtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(1), reg);
-		}
-
 		/* Make link LED blink during scan. */
 		rtwn_set_led(sc, RTWN_LED_LINK, !sc->ledlink);
 
@@ -1265,14 +1247,6 @@ rtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		    rtwn_read_1(sc, R92C_TXPAUSE) | 0x0f);
 		break;
 	case IEEE80211_S_AUTH:
-		/* Set initial gain under link. */
-		reg = rtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(0));
-		reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, 0x32);
-		rtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(0), reg);
-
-		reg = rtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(1));
-		reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, 0x32);
-		rtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(1), reg);
 		rtwn_set_chan(sc, ic->ic_curchan, NULL);
 		break;
 	case IEEE80211_S_RUN:
@@ -1438,7 +1412,7 @@ rtwn_rx_frame(struct rtwn_softc *sc, struct r92c_rx_desc *rx_desc,
     struct rtwn_rx_data *rx_data, int desc_idx)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211_frame *wh;
+	struct ieee80211_frame_min *wh;
 	struct ieee80211_node *ni;
 	struct r92c_rx_phystat *phy = NULL;
 	uint32_t rxdw0, rxdw3;
@@ -1462,7 +1436,8 @@ rtwn_rx_frame(struct rtwn_softc *sc, struct r92c_rx_desc *rx_desc,
 	}
 
 	pktlen = MS(rxdw0, R92C_RXDW0_PKTLEN);
-	if (__predict_false(pktlen < sizeof(*wh) || pktlen > MCLBYTES)) {
+	if (__predict_false(pktlen < sizeof(struct ieee80211_frame_ack) ||
+	    pktlen > MCLBYTES)) {
 		counter_u64_add(ic->ic_ierrors, 1);
 		return;
 	}
@@ -1554,10 +1529,13 @@ rtwn_rx_frame(struct rtwn_softc *sc, struct r92c_rx_desc *rx_desc,
 	}
 
 	RTWN_UNLOCK(sc);
-	wh = mtod(m, struct ieee80211_frame *);
+	wh = mtod(m, struct ieee80211_frame_min *);
+	if (m->m_len >= sizeof(*wh))
+		ni = ieee80211_find_rxnode(ic, wh);
+	else
+		ni = NULL;
 
 	/* Send the frame to the 802.11 layer. */
-	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
 	if (ni != NULL) {
 		(void)ieee80211_input(ni, m, rssi - nf, nf);
 		/* Node is no longer needed. */
@@ -1683,7 +1661,7 @@ rtwn_tx(struct rtwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, 0));
 	}
 	/* Set sequence number (already little endian). */
-	txd->txdseq = *(uint16_t *)wh->i_seq;
+	txd->txdseq = htole16(M_SEQNO_GET(m) % IEEE80211_SEQ_RANGE);
 	
 	if (!qos) {
 		/* Use HW sequence numbering for non-QoS frames. */
@@ -1845,19 +1823,15 @@ static void
 rtwn_parent(struct ieee80211com *ic)
 {
 	struct rtwn_softc *sc = ic->ic_softc;
-	int startall = 0;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
-	RTWN_LOCK(sc);
-	if (ic->ic_nrunning> 0) {
-		if (!(sc->sc_flags & RTWN_RUNNING)) {
-			rtwn_init_locked(sc);
-			startall = 1;
-		}
-	} else if (sc->sc_flags & RTWN_RUNNING)
-		 rtwn_stop_locked(sc);
-	RTWN_UNLOCK(sc);
-	if (startall)
-		ieee80211_start_all(ic);
+	if (ic->ic_nrunning > 0) {
+		if (rtwn_init(sc) == 0)
+			ieee80211_start_all(ic);
+		else
+			ieee80211_stop(vap);
+	} else
+		rtwn_stop(sc);
 }
 
 static void
@@ -1895,7 +1869,7 @@ rtwn_watchdog(void *arg)
 
 	if (sc->sc_tx_timer != 0 && --sc->sc_tx_timer == 0) {
 		ic_printf(ic, "device timeout\n");
-		ieee80211_runtask(ic, &sc->sc_reinit_task);
+		ieee80211_restart_all(ic);
 		return;
 	}
 	callout_reset(&sc->watchdog_to, hz, rtwn_watchdog, sc);
@@ -2688,17 +2662,56 @@ rtwn_set_txpower(struct rtwn_softc *sc, struct ieee80211_channel *c,
 }
 
 static void
+rtwn_set_rx_bssid_all(struct rtwn_softc *sc, int enable)
+{
+	uint32_t reg;
+
+	reg = rtwn_read_4(sc, R92C_RCR);
+	if (enable)
+		reg &= ~R92C_RCR_CBSSID_BCN;
+	else
+		reg |= R92C_RCR_CBSSID_BCN;
+	rtwn_write_4(sc, R92C_RCR, reg);
+}
+
+static void
+rtwn_set_gain(struct rtwn_softc *sc, uint8_t gain)
+{
+	uint32_t reg;
+
+	reg = rtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(0));
+	reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, gain);
+	rtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(0), reg);
+
+	reg = rtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(1));
+	reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, gain);
+	rtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(1), reg);
+}
+
+static void
 rtwn_scan_start(struct ieee80211com *ic)
 {
+	struct rtwn_softc *sc = ic->ic_softc;
 
-	/* XXX do nothing?  */
+	RTWN_LOCK(sc);
+	/* Receive beacons / probe responses from any BSSID. */
+	rtwn_set_rx_bssid_all(sc, 1);
+	/* Set gain for scanning. */
+	rtwn_set_gain(sc, 0x20);
+	RTWN_UNLOCK(sc);
 }
 
 static void
 rtwn_scan_end(struct ieee80211com *ic)
 {
+	struct rtwn_softc *sc = ic->ic_softc;
 
-	/* XXX do nothing?  */
+	RTWN_LOCK(sc);
+	/* Restore limitations. */
+	rtwn_set_rx_bssid_all(sc, 0);
+	/* Set gain under link. */
+	rtwn_set_gain(sc, 0x32);
+	RTWN_UNLOCK(sc);
 }
 
 static void
@@ -3218,8 +3231,8 @@ rtwn_temp_calib(struct rtwn_softc *sc)
 	}
 }
 
-static void
-rtwn_init_locked(struct rtwn_softc *sc)
+static int
+rtwn_init(struct rtwn_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
@@ -3227,7 +3240,13 @@ rtwn_init_locked(struct rtwn_softc *sc)
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
 	int i, error;
 
-	RTWN_LOCK_ASSERT(sc);
+	RTWN_LOCK(sc);
+
+	if (sc->sc_flags & RTWN_RUNNING) {
+		RTWN_UNLOCK(sc);
+		return 0;
+	}
+	sc->sc_flags |= RTWN_RUNNING;
 
 	/* Init firmware commands ring. */
 	sc->fwcur = 0;
@@ -3347,25 +3366,15 @@ rtwn_init_locked(struct rtwn_softc *sc)
 	/* Enable interrupts. */
 	rtwn_write_4(sc, R92C_HIMR, RTWN_INT_ENABLE);
 
-	sc->sc_flags |= RTWN_RUNNING;
-
 	callout_reset(&sc->watchdog_to, hz, rtwn_watchdog, sc);
-	return;
 
 fail:
-	rtwn_stop_locked(sc);
-}
+	if (error != 0)
+		rtwn_stop_locked(sc);
 
-static void
-rtwn_init(struct rtwn_softc *sc)
-{
-
-	RTWN_LOCK(sc);
-	rtwn_init_locked(sc);
 	RTWN_UNLOCK(sc);
 
-	if (sc->sc_flags & RTWN_RUNNING)
-		ieee80211_start_all(&sc->sc_ic);
+	return error;
 }
 
 static void
@@ -3375,6 +3384,9 @@ rtwn_stop_locked(struct rtwn_softc *sc)
 	int i;
 
 	RTWN_LOCK_ASSERT(sc);
+
+	if (!(sc->sc_flags & RTWN_RUNNING))
+		return;
 
 	sc->sc_tx_timer = 0;
 	callout_stop(&sc->watchdog_to);
@@ -3476,15 +3488,4 @@ rtwn_intr(void *arg)
 	rtwn_write_4(sc, R92C_HIMR, RTWN_INT_ENABLE);
 
 	RTWN_UNLOCK(sc);
-}
-
-static void
-rtwn_hw_reset(void *arg0, int pending)
-{
-	struct rtwn_softc *sc = arg0;
-	struct ieee80211com *ic = &sc->sc_ic;
-
-	rtwn_stop(sc);
-	rtwn_init(sc);
-	ieee80211_notify_radio(ic, 1);
 }

@@ -143,8 +143,8 @@ int scc_bfe_detach(device_t dev);
 int scc_bfe_probe(device_t dev, u_int regshft, u_int rclk, u_int rid);
 
 struct resource *scc_bus_alloc_resource(device_t, device_t, int, int *,
-    u_long, u_long, u_long, u_int);
-int scc_bus_get_resource(device_t, device_t, int, int, u_long *, u_long *);
+    rman_res_t, rman_res_t, rman_res_t, u_int);
+int scc_bus_get_resource(device_t, device_t, int, int, rman_res_t *, rman_res_t *);
 int scc_bus_read_ivar(device_t, device_t, int, uintptr_t *);
 int scc_bus_release_resource(device_t, device_t, int, int, struct resource *);
 int scc_bus_setup_intr(device_t, device_t, struct resource *, int,

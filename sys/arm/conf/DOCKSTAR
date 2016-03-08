@@ -117,6 +117,7 @@ device		u3g  			# USB-based 3G modems (Option, Huawei, Sierra)
 # I2C (TWSI)
 device		iic
 device		iicbus
+device		twsi
 
 # Sound
 device		sound
@@ -147,6 +148,9 @@ options 	IPDIVERT
 device		pf
 device		pflog
 device		pfsync
+
+# GPIO
+device		gpio
 
 # ALTQ, required for PF
 options 	ALTQ			# Basic ALTQ support

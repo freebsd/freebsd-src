@@ -28,36 +28,36 @@
 using namespace clang;
 using namespace ento;
 
-namespace {  
-  
+namespace {
+
 /// A simple visitor to record what VarDecls occur in EH-handling code.
 class EHCodeVisitor : public RecursiveASTVisitor<EHCodeVisitor> {
 public:
   bool inEH;
   llvm::DenseSet<const VarDecl *> &S;
-  
+
   bool TraverseObjCAtFinallyStmt(ObjCAtFinallyStmt *S) {
     SaveAndRestore<bool> inFinally(inEH, true);
     return ::RecursiveASTVisitor<EHCodeVisitor>::TraverseObjCAtFinallyStmt(S);
   }
-  
+
   bool TraverseObjCAtCatchStmt(ObjCAtCatchStmt *S) {
     SaveAndRestore<bool> inCatch(inEH, true);
     return ::RecursiveASTVisitor<EHCodeVisitor>::TraverseObjCAtCatchStmt(S);
   }
-  
+
   bool TraverseCXXCatchStmt(CXXCatchStmt *S) {
     SaveAndRestore<bool> inCatch(inEH, true);
     return TraverseStmt(S->getHandlerBlock());
   }
-  
+
   bool VisitDeclRefExpr(DeclRefExpr *DR) {
     if (inEH)
       if (const VarDecl *D = dyn_cast<VarDecl>(DR->getDecl()))
         S.insert(D);
     return true;
   }
-  
+
   EHCodeVisitor(llvm::DenseSet<const VarDecl *> &S) :
   inEH(false), S(S) {}
 };
@@ -70,9 +70,9 @@ class ReachableCode {
 public:
   ReachableCode(const CFG &cfg)
     : cfg(cfg), reachable(cfg.getNumBlockIDs(), false) {}
-  
+
   void computeReachableBlocks();
-  
+
   bool isReachable(const CFGBlock *block) const {
     return reachable[block->getBlockID()];
   }
@@ -82,7 +82,7 @@ public:
 void ReachableCode::computeReachableBlocks() {
   if (!cfg.getNumBlockIDs())
     return;
-  
+
   SmallVector<const CFGBlock*, 10> worklist;
   worklist.push_back(&cfg.getEntry());
 
@@ -160,19 +160,19 @@ public:
     // to analyze that yet.
     return InEH->count(D);
   }
-  
+
   void Report(const VarDecl *V, DeadStoreKind dsk,
               PathDiagnosticLocation L, SourceRange R) {
     if (Escaped.count(V))
       return;
-    
+
     // Compute reachable blocks within the CFG for trivial cases
     // where a bogus dead store can be reported because itself is unreachable.
     if (!reachableCode.get()) {
       reachableCode.reset(new ReachableCode(cfg));
       reachableCode->computeReachableBlocks();
     }
-    
+
     if (!reachableCode->isReachable(currentBlock))
       return;
 
@@ -196,7 +196,7 @@ public:
 
       case Enclosing:
         // Don't report issues in this case, e.g.: "if (x = foo())",
-        // where 'x' is unused later.  We have yet to see a case where 
+        // where 'x' is unused later.  We have yet to see a case where
         // this is a real bug.
         return;
     }
@@ -259,7 +259,7 @@ public:
                    const LiveVariables::LivenessValues &Live) override {
 
     currentBlock = block;
-    
+
     // Skip statements in macros.
     if (S->getLocStart().isMacroID())
       return;
@@ -276,7 +276,7 @@ public:
           const Expr *RHS =
             LookThroughTransitiveAssignmentsAndCommaOperators(B->getRHS());
           RHS = RHS->IgnoreParenCasts();
-          
+
           QualType T = VD->getType();
           if (T->isPointerType() || T->isObjCObjectPointerType()) {
             if (RHS->isNullPointerConstant(Ctx, Expr::NPC_ValueDependentIsNull))
@@ -318,27 +318,27 @@ public:
 
         if (!V)
           continue;
-          
-        if (V->hasLocalStorage()) {          
+
+        if (V->hasLocalStorage()) {
           // Reference types confuse the dead stores checker.  Skip them
           // for now.
           if (V->getType()->getAs<ReferenceType>())
             return;
-            
+
           if (const Expr *E = V->getInit()) {
             while (const ExprWithCleanups *exprClean =
                     dyn_cast<ExprWithCleanups>(E))
               E = exprClean->getSubExpr();
-            
+
             // Look through transitive assignments, e.g.:
             // int x = y = 0;
             E = LookThroughTransitiveAssignmentsAndCommaOperators(E);
-            
+
             // Don't warn on C++ objects (yet) until we can show that their
             // constructors/destructors don't have side effects.
             if (isa<CXXConstructExpr>(E))
               return;
-            
+
             // A dead initialization is a variable that is dead after it
             // is initialized.  We don't flag warnings for those variables
             // marked 'unused' or 'objc_precise_lifetime'.
@@ -401,6 +401,11 @@ public:
     // Check for '&'. Any VarDecl whose address has been taken we treat as
     // escaped.
     // FIXME: What about references?
+    if (auto *LE = dyn_cast<LambdaExpr>(S)) {
+      findLambdaReferenceCaptures(LE);
+      return;
+    }
+
     const UnaryOperator *U = dyn_cast<UnaryOperator>(S);
     if (!U)
       return;
@@ -411,6 +416,28 @@ public:
     if (const DeclRefExpr *DR = dyn_cast<DeclRefExpr>(E))
       if (const VarDecl *VD = dyn_cast<VarDecl>(DR->getDecl()))
         Escaped.insert(VD);
+  }
+
+  // Treat local variables captured by reference in C++ lambdas as escaped.
+  void findLambdaReferenceCaptures(const LambdaExpr *LE)  {
+    const CXXRecordDecl *LambdaClass = LE->getLambdaClass();
+    llvm::DenseMap<const VarDecl *, FieldDecl *> CaptureFields;
+    FieldDecl *ThisCaptureField;
+    LambdaClass->getCaptureFields(CaptureFields, ThisCaptureField);
+
+    for (const LambdaCapture &C : LE->captures()) {
+      if (!C.capturesVariable())
+        continue;
+
+      VarDecl *VD = C.getCapturedVar();
+      const FieldDecl *FD = CaptureFields[VD];
+      if (!FD)
+        continue;
+
+      // If the capture field is a reference type, it is capture-by-reference.
+      if (FD->getType()->isReferenceType())
+        Escaped.insert(VD);
+    }
   }
 };
 } // end anonymous namespace

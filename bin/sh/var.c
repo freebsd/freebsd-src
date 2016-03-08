@@ -791,6 +791,7 @@ poplocalvars(void)
 {
 	struct localvar *lvp;
 	struct var *vp;
+	int islocalevar;
 
 	INTOFF;
 	while ((lvp = localvars) != NULL) {
@@ -801,12 +802,23 @@ poplocalvars(void)
 			ckfree(lvp->text);
 			optschanged();
 		} else if ((lvp->flags & (VUNSET|VSTRFIXED)) == VUNSET) {
+			vp->flags &= ~VREADONLY;
 			(void)unsetvar(vp->text);
 		} else {
+			islocalevar = (vp->flags | lvp->flags) & VEXPORT &&
+			    localevar(lvp->text);
 			if ((vp->flags & VTEXTFIXED) == 0)
 				ckfree(vp->text);
 			vp->flags = lvp->flags;
 			vp->text = lvp->text;
+			if (vp->func)
+				(*vp->func)(vp->text + vp->name_len + 1);
+			if (islocalevar) {
+				change_env(vp->text, vp->flags & VEXPORT &&
+				    (vp->flags & VUNSET) == 0);
+				setlocale(LC_ALL, "");
+				updatecharset();
+			}
 		}
 		ckfree(lvp);
 	}

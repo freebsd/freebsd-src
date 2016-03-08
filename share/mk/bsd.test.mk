@@ -60,11 +60,16 @@ _TESTS=
 .include <plain.test.mk>
 .include <tap.test.mk>
 
+# kyua automatically descends directories; only run make check on the
+# top-level directory
+.if !make(check)
 .for ts in ${TESTS_SUBDIRS}
 .if empty(SUBDIR:M${ts})
 SUBDIR+= ${ts}
 .endif
 .endfor
+SUBDIR_PARALLEL= t
+.endif
 
 # it is rare for test cases to have man pages
 .if !defined(MAN)
@@ -79,44 +84,13 @@ PROGS_TARGETS+= install
 .include <suite.test.mk>
 .endif
 
-.if !target(realtest)
-realtest: .PHONY
+.if !target(realcheck)
+realcheck: .PHONY
 	@echo "$@ not defined; skipping"
 .endif
 
-test: .PHONY
-.ORDER: beforetest realtest
-test: beforetest realtest
+beforecheck realcheck aftercheck check: .PHONY
+.ORDER: beforecheck realcheck aftercheck
+check: beforecheck realcheck aftercheck
 
-.if target(aftertest)
-.ORDER: realtest aftertest
-test: aftertest
-.endif
-
-.ifdef PROG
-# we came here via bsd.progs.mk below
-# parent will do staging.
-MK_STAGING= no
-.endif
-
-.if !empty(PROGS) || !empty(PROGS_CXX) || !empty(SCRIPTS)
 .include <bsd.progs.mk>
-.endif
-.include <bsd.files.mk>
-
-.if !defined(PROG) && ${MK_STAGING} != "no"
-.if !defined(_SKIP_BUILD)
-# this will handle staging if needed
-_SKIP_STAGING= no
-# but we don't want it to build anything
-_SKIP_BUILD=
-.endif
-.if !empty(PROGS)
-stage_files.prog: ${PROGS}
-.endif
-.include <bsd.prog.mk>
-.endif
-
-.if !target(objwarn)
-.include <bsd.obj.mk>
-.endif

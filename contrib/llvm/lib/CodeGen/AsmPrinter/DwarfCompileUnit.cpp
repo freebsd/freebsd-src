@@ -151,28 +151,33 @@ DIE *DwarfCompileUnit::getOrCreateGlobalVariableDIE(
     DIELoc *Loc = new (DIEValueAllocator) DIELoc;
     const MCSymbol *Sym = Asm->getSymbol(Global);
     if (Global->isThreadLocal()) {
-      // FIXME: Make this work with -gsplit-dwarf.
-      unsigned PointerSize = Asm->getDataLayout().getPointerSize();
-      assert((PointerSize == 4 || PointerSize == 8) &&
-             "Add support for other sizes if necessary");
-      // Based on GCC's support for TLS:
-      if (!DD->useSplitDwarf()) {
-        // 1) Start with a constNu of the appropriate pointer size
-        addUInt(*Loc, dwarf::DW_FORM_data1,
-                PointerSize == 4 ? dwarf::DW_OP_const4u : dwarf::DW_OP_const8u);
-        // 2) containing the (relocated) offset of the TLS variable
-        //    within the module's TLS block.
-        addExpr(*Loc, dwarf::DW_FORM_udata,
-                Asm->getObjFileLowering().getDebugThreadLocalSymbol(Sym));
+      if (Asm->TM.Options.EmulatedTLS) {
+        // TODO: add debug info for emulated thread local mode.
       } else {
-        addUInt(*Loc, dwarf::DW_FORM_data1, dwarf::DW_OP_GNU_const_index);
-        addUInt(*Loc, dwarf::DW_FORM_udata,
-                DD->getAddressPool().getIndex(Sym, /* TLS */ true));
+        // FIXME: Make this work with -gsplit-dwarf.
+        unsigned PointerSize = Asm->getDataLayout().getPointerSize();
+        assert((PointerSize == 4 || PointerSize == 8) &&
+               "Add support for other sizes if necessary");
+        // Based on GCC's support for TLS:
+        if (!DD->useSplitDwarf()) {
+          // 1) Start with a constNu of the appropriate pointer size
+          addUInt(*Loc, dwarf::DW_FORM_data1, PointerSize == 4
+                                                  ? dwarf::DW_OP_const4u
+                                                  : dwarf::DW_OP_const8u);
+          // 2) containing the (relocated) offset of the TLS variable
+          //    within the module's TLS block.
+          addExpr(*Loc, dwarf::DW_FORM_udata,
+                  Asm->getObjFileLowering().getDebugThreadLocalSymbol(Sym));
+        } else {
+          addUInt(*Loc, dwarf::DW_FORM_data1, dwarf::DW_OP_GNU_const_index);
+          addUInt(*Loc, dwarf::DW_FORM_udata,
+                  DD->getAddressPool().getIndex(Sym, /* TLS */ true));
+        }
+        // 3) followed by an OP to make the debugger do a TLS lookup.
+        addUInt(*Loc, dwarf::DW_FORM_data1,
+                DD->useGNUTLSOpcode() ? dwarf::DW_OP_GNU_push_tls_address
+                                      : dwarf::DW_OP_form_tls_address);
       }
-      // 3) followed by an OP to make the debugger do a TLS lookup.
-      addUInt(*Loc, dwarf::DW_FORM_data1,
-              DD->useGNUTLSOpcode() ? dwarf::DW_OP_GNU_push_tls_address
-                                    : dwarf::DW_OP_form_tls_address);
     } else {
       DD->addArangeLabel(SymbolCU(this, Sym));
       addOpAddress(*Loc, Sym);
@@ -338,9 +343,9 @@ void DwarfCompileUnit::constructScopeDIE(
     // Skip imported directives in gmlt-like data.
     if (!includeMinimalInlineScopes()) {
       // There is no need to emit empty lexical block DIE.
-      for (const auto &E : DD->findImportedEntitiesForScope(DS))
+      for (const auto *IE : ImportedEntities[DS])
         Children.push_back(
-            constructImportedEntityDIE(cast<DIImportedEntity>(E.second)));
+            constructImportedEntityDIE(cast<DIImportedEntity>(IE)));
     }
 
     // If there are only other scopes as children, put them directly in the
@@ -435,6 +440,9 @@ DIE *DwarfCompileUnit::constructInlinedScopeDIE(LexicalScope *Scope) {
   addUInt(*ScopeDIE, dwarf::DW_AT_call_file, None,
           getOrCreateSourceID(IA->getFilename(), IA->getDirectory()));
   addUInt(*ScopeDIE, dwarf::DW_AT_call_line, None, IA->getLine());
+  if (IA->getDiscriminator())
+    addUInt(*ScopeDIE, dwarf::DW_AT_GNU_discriminator, None,
+            IA->getDiscriminator());
 
   // Add name to the name table, we do this here because we're guaranteed
   // to have concrete versions of our DW_TAG_inlined_subprogram nodes.
@@ -517,8 +525,7 @@ DIE *DwarfCompileUnit::constructVariableDIEImpl(const DbgVariable &DV,
     unsigned FrameReg = 0;
     const TargetFrameLowering *TFI = Asm->MF->getSubtarget().getFrameLowering();
     int Offset = TFI->getFrameIndexReference(*Asm->MF, FI, FrameReg);
-    assert(Expr != DV.getExpression().end() &&
-           "Wrong number of expressions");
+    assert(Expr != DV.getExpression().end() && "Wrong number of expressions");
     DwarfExpr.AddMachineRegIndirect(FrameReg, Offset);
     DwarfExpr.AddExpression((*Expr)->expr_op_begin(), (*Expr)->expr_op_end());
     ++Expr;
@@ -597,8 +604,8 @@ DIE *DwarfCompileUnit::createAndAddScopeChildren(LexicalScope *Scope,
   return ObjectPointer;
 }
 
-void
-DwarfCompileUnit::constructAbstractSubprogramScopeDIE(LexicalScope *Scope) {
+void DwarfCompileUnit::constructAbstractSubprogramScopeDIE(
+    LexicalScope *Scope) {
   DIE *&AbsDef = DU->getAbstractSPDies()[Scope->getScopeNode()];
   if (AbsDef)
     return;

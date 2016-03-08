@@ -1,6 +1,7 @@
-/*	$Id: tbl_html.c,v 1.16 2015/01/30 17:32:16 schwarze Exp $ */
+/*	$Id: tbl_html.c,v 1.18 2015/10/12 00:08:16 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -36,14 +37,14 @@ static size_t
 html_tbl_len(size_t sz, void *arg)
 {
 
-	return(sz);
+	return sz;
 }
 
 static size_t
 html_tbl_strlen(const char *p, void *arg)
 {
 
-	return(strlen(p));
+	return strlen(p);
 }
 
 static void
@@ -107,7 +108,6 @@ print_tbl(struct html *h, const struct tbl_span *sp)
 
 	switch (sp->pos) {
 	case TBL_SPAN_HORIZ:
-		/* FALLTHROUGH */
 	case TBL_SPAN_DHORIZ:
 		PAIR_INIT(&tag, ATTR_COLSPAN, "0");
 		print_otag(h, TAG_TD, 1, &tag);

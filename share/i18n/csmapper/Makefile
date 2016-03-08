@@ -31,8 +31,5 @@ charset.pivot.pvdb: charset.pivot
 FILES+=	charset.pivot charset.pivot.pvdb
 CLEANFILES+= charset.pivot charset.pivot.pvdb
 
-all: ${FILES}
-realall: ${FILES}
-
 .include "./Makefile.inc"
 .include <bsd.prog.mk>

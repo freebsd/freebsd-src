@@ -7,7 +7,6 @@
 # Arch dependent files
 mips/mips/autoconf.c			standard
 mips/mips/bus_space_generic.c		standard
-mips/mips/bus_space_fdt.c		optional	fdt
 mips/mips/busdma_machdep.c		standard
 mips/mips/cache.c			standard
 mips/mips/cache_mipsNN.c		standard
@@ -80,7 +79,6 @@ dev/syscons/scvtb.c			optional	sc
 mips/mips/sc_machdep.c			optional	sc
 
 # FDT support
-dev/fdt/fdt_mips.c			optional	fdt
 dev/uart/uart_cpu_fdt.c			optional	uart fdt
 
 # crypto support -- use generic

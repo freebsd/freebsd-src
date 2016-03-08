@@ -28,10 +28,17 @@
  */
 
 #ifndef	_MACHINE_MINIDUMP_H_
-#define	_MACHINE_MINIDUMP_H_ 1
+#define	_MACHINE_MINIDUMP_H_
 
 #define	MINIDUMP_MAGIC		"minidump FreeBSD/arm"
 #define	MINIDUMP_VERSION	1
+
+/*
+ * The first page of vmcore is dedicated to the following header.
+ * As the rest of the page is zeroed, any header extension can be
+ * done without version bumping. It should be taken into account
+ * only that new entries will be zero in old vmcores.
+ */
 
 struct minidumphdr {
 	char magic[24];
@@ -40,6 +47,13 @@ struct minidumphdr {
 	uint32_t bitmapsize;
 	uint32_t ptesize;
 	uint32_t kernbase;
+	uint32_t arch;
+	uint32_t mmuformat;
 };
+
+#define MINIDUMP_MMU_FORMAT_UNKNOWN	0
+#define MINIDUMP_MMU_FORMAT_V4		1
+#define MINIDUMP_MMU_FORMAT_V6		2
+#define MINIDUMP_MMU_FORMAT_V6_LPAE	3
 
 #endif /* _MACHINE_MINIDUMP_H_ */

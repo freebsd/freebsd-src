@@ -29,6 +29,9 @@
 
 #include <linux/types.h>
 
+#include <sys/random.h>
+#include <sys/libkern.h>
+
 #define	ETH_MODULE_SFF_8079		1
 #define	ETH_MODULE_SFF_8079_LEN		256
 #define	ETH_MODULE_SFF_8472		2
@@ -76,6 +79,33 @@ static inline void
 ether_addr_copy(u8 * dst, const u8 * src)
 {
 	memcpy(dst, src, 6);
+}
+
+static inline bool
+ether_addr_equal(const u8 *pa, const u8 *pb)
+{
+	return (memcmp(pa, pb, 6) == 0);
+}
+
+static inline bool
+ether_addr_equal_64bits(const u8 *pa, const u8 *pb)
+{
+	return (memcmp(pa, pb, 6) == 0);
+}
+
+static inline void
+eth_broadcast_addr(u8 *pa)
+{
+	memset(pa, 0xff, 6);
+}
+
+static inline void
+random_ether_addr(u8 * dst)
+{
+	read_random(dst, 6);
+
+	dst[0] &= 0xfe;
+	dst[0] |= 0x02;
 }
 
 #endif					/* _LINUX_ETHERDEVICE */

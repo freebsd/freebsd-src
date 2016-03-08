@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <efipciio.h>
 #include <machine/metadata.h>
 
+#include "framebuffer.h"
+
 static EFI_GUID gop_guid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
 static EFI_GUID pciio_guid = EFI_PCI_IO_PROTOCOL_GUID;
 static EFI_GUID uga_guid = EFI_UGA_DRAW_PROTOCOL_GUID;
@@ -270,7 +272,7 @@ efifb_from_uga(struct efi_fb *efifb, EFI_UGA_DRAW_PROTOCOL *uga)
 	char *ev, *p;
 	EFI_STATUS status;
 	ssize_t offset;
-	uint64_t fbaddr, fbsize;
+	uint64_t fbaddr;
 	uint32_t horiz, vert, stride;
 	uint32_t np, depth, refresh;
 

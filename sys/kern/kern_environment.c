@@ -217,6 +217,9 @@ done:
  * environment obtained from a boot loader, or to provide an empty buffer into
  * which MD code can store an initial environment using kern_setenv() calls.
  *
+ * When a copy of an initial environment is passed in, we start by scanning that
+ * env for overrides to the compiled-in envmode and hintmode variables.
+ *
  * If the global envmode is 1, the environment is initialized from the global
  * static_env[], regardless of the arguments passed.  This implements the env
  * keyword described in config(5).  In this case env_pos is set to env_len,
@@ -238,6 +241,14 @@ done:
 void
 init_static_kenv(char *buf, size_t len)
 {
+	char *cp;
+	
+	for (cp = buf; cp != NULL && cp[0] != '\0'; cp += strlen(cp) + 1) {
+		if (strcmp(cp, "static_env.disabled=1") == 0)
+			envmode = 0;
+		if (strcmp(cp, "static_hints.disabled=1") == 0)
+			hintmode = 0;
+	}
 
 	if (envmode == 1) {
 		kern_envp = static_env;

@@ -242,6 +242,8 @@ PUNCTUATOR(greatergreatergreater, ">>>")
 //   KEYZVECTOR - This is a keyword for the System z vector extensions,
 //                which are heavily based on AltiVec
 //   KEYBORLAND - This is a keyword if Borland extensions are enabled
+//   KEYCOROUTINES - This is a keyword if support for the C++ coroutines
+//                   TS is enabled
 //   BOOLSUPPORT - This is a keyword if 'bool' is a built-in type
 //   HALFSUPPORT - This is a keyword if 'half' is a built-in type
 //   WCHARSUPPORT - This is a keyword if 'wchar_t' is a built-in type
@@ -282,7 +284,7 @@ KEYWORD(volatile                    , KEYALL)
 KEYWORD(while                       , KEYALL)
 KEYWORD(_Alignas                    , KEYALL)
 KEYWORD(_Alignof                    , KEYALL)
-KEYWORD(_Atomic                     , KEYALL|KEYNOMS18|KEYNOOPENCL)
+KEYWORD(_Atomic                     , KEYALL|KEYNOOPENCL)
 KEYWORD(_Bool                       , KEYNOCXX)
 KEYWORD(_Complex                    , KEYALL)
 KEYWORD(_Generic                    , KEYALL)
@@ -356,6 +358,11 @@ CXX11_KEYWORD(thread_local          , 0)
 CONCEPTS_KEYWORD(concept)
 CONCEPTS_KEYWORD(requires)
 
+// C++ coroutines TS keywords
+KEYWORD(co_await                    , KEYCOROUTINES)
+KEYWORD(co_return                   , KEYCOROUTINES)
+KEYWORD(co_yield                    , KEYCOROUTINES)
+
 // GNU Extensions (in impl-reserved namespace)
 KEYWORD(_Decimal32                  , KEYALL)
 KEYWORD(_Decimal64                  , KEYALL)
@@ -377,6 +384,7 @@ KEYWORD(__real                      , KEYALL)
 KEYWORD(__thread                    , KEYALL)
 KEYWORD(__FUNCTION__                , KEYALL)
 KEYWORD(__PRETTY_FUNCTION__         , KEYALL)
+KEYWORD(__auto_type                 , KEYALL)
 
 // GNU Extensions (outside impl-reserved namespace)
 KEYWORD(typeof                      , KEYGNU)
@@ -469,8 +477,11 @@ KEYWORD(__array_extent              , KEYCXX)
 KEYWORD(__private_extern__          , KEYALL)
 KEYWORD(__module_private__          , KEYALL)
 
+// Extension that will be enabled for Microsoft, Borland and PS4, but can be
+// disabled via '-fno-declspec'.
+KEYWORD(__declspec                  , 0)
+
 // Microsoft Extension.
-KEYWORD(__declspec                  , KEYMS|KEYBORLAND)
 KEYWORD(__cdecl                     , KEYALL)
 KEYWORD(__stdcall                   , KEYALL)
 KEYWORD(__fastcall                  , KEYALL)
@@ -507,6 +518,8 @@ KEYWORD(vec_step                    , KEYOPENCL|KEYALTIVEC|KEYZVECTOR)
 
 // OpenMP Type Traits
 KEYWORD(__builtin_omp_required_simd_align, KEYALL)
+
+KEYWORD(pipe                        , KEYOPENCL)
 
 // Borland Extensions.
 KEYWORD(__pascal                    , KEYALL)
@@ -685,6 +698,11 @@ ANNOTATION(pragma_parser_crash)
 // The lexer produces these so that they only take effect when the parser
 // handles them.
 ANNOTATION(pragma_captured)
+
+// Annotation for #pragma clang __debug dump...
+// The lexer produces these so that the parser and semantic analysis can
+// look up and dump the operand.
+ANNOTATION(pragma_dump)
 
 // Annotation for #pragma ms_struct...
 // The lexer produces these so that they only take effect when the parser

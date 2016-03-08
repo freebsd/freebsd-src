@@ -125,14 +125,6 @@ device		u3g			# USB modems
 #device		wlan_tkip		# 802.11 TKIP support
 #device		wlan_amrr		# AMRR transmit rate control algorithm
 
-# NOTE: serial console will be disabled if syscons enabled
-# Uncomment following lines for framebuffer/syscons support
-# Wandboard has no video console support yet.
-#device		sc
-#device		kbdmux
-#options 	SC_DFLT_FONT		# compile font in
-#makeoptions	SC_DFLT_FONT=cp437
-
 device		vt
 device		kbdmux
 device		ukbd

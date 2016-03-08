@@ -383,7 +383,8 @@ ACPI_STATUS	acpi_lookup_irq_resource(device_t dev, int rid,
 ACPI_STATUS	acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
 		    struct acpi_parse_resource_set *set, void *arg);
 struct resource *acpi_alloc_sysres(device_t child, int type, int *rid,
-		    u_long start, u_long end, u_long count, u_int flags);
+		    rman_res_t start, rman_res_t end, rman_res_t count,
+		    u_int flags);
 
 /* ACPI event handling */
 UINT32		acpi_event_power_button_sleep(void *context);
@@ -439,6 +440,8 @@ int		acpi_wakeup_machdep(struct acpi_softc *sc, int state,
 		    int sleep_result, int intr_enabled);
 int		acpi_table_quirks(int *quirks);
 int		acpi_machdep_quirks(int *quirks);
+
+uint32_t	hpet_get_uid(device_t dev);
 
 /* Battery Abstraction. */
 struct acpi_battinfo;

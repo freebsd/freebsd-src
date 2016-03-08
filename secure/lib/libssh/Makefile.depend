@@ -6,6 +6,7 @@ DIRDEPS = \
 	gnu/lib/libgcc \
 	include \
 	include/arpa \
+	include/gssapi \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \

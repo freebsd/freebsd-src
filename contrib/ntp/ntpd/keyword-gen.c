@@ -202,6 +202,9 @@ struct key_tok ntp_keywords[] = {
 { "ntp",		T_Ntp,			FOLLBY_TOKEN },
 { "mode7",		T_Mode7,		FOLLBY_TOKEN },
 { "stats",		T_Stats,		FOLLBY_TOKEN },
+{ "unpeer_crypto_early",	T_UEcrypto,	FOLLBY_TOKEN },
+{ "unpeer_crypto_nak_early",	T_UEcryptonak,	FOLLBY_TOKEN },
+{ "unpeer_digest_early",	T_UEdigest,	FOLLBY_TOKEN },
 /* rlimit_option */
 { "memlock",		T_Memlock,		FOLLBY_TOKEN },
 { "stacksize",		T_Stacksize,		FOLLBY_TOKEN },

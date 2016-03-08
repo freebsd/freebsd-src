@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2016
+.Dd January 14, 2016
 .Dt IOAT 4
 .Os
 .Sh NAME
@@ -134,7 +134,7 @@ Null operations do nothing, but may be used to test the interrupt and callback
 mechanism.
 .Pp
 All operations can optionally trigger an interrupt at completion with the
-.Ar DMA_EN_INT
+.Ar DMA_INT_EN
 flag.
 For example, a user might submit multiple operations to the same channel and
 only enable an interrupt and callback for the last operation.
@@ -159,6 +159,17 @@ flag.
 (Of course, allocations may fail and operations requested with
 .Ar DMA_NO_WAIT
 may return NULL.)
+.Pp
+Operations that depend on the result of prior operations should use
+.Ar DMA_FENCE .
+For example, such a scenario can happen when two related DMA operations are
+queued.
+First, a DMA copy to one location (A), followed directly by a DMA copy
+from A to B.
+In this scenario, some classes of I/OAT hardware may prefetch A for the second
+operation before it is written by the first operation.
+To avoid reading a stale value in sequences of dependent operations, use
+.Ar DMA_FENCE .
 .Pp
 All operations, as well as
 .Fn ioat_get_dmaengine ,

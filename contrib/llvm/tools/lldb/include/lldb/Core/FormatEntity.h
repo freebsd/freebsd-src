@@ -9,18 +9,21 @@
 
 #ifndef liblldb_FormatEntity_h_
 #define liblldb_FormatEntity_h_
-#if defined(__cplusplus)
 
+// C Includes
+// C++ Includes
 #include <string>
 #include <vector>
 
+// Other libraries and framework includes
+// Project includes
 #include "lldb/lldb-private.h"
 #include "lldb/Core/Error.h"
 
 namespace llvm
 {
     class StringRef;
-}
+} // namespace llvm
 
 namespace lldb_private
 {
@@ -81,6 +84,7 @@ namespace lldb_private
                 FunctionPCOffset,
                 FunctionInitial,
                 FunctionChanged,
+                FunctionIsOptimized,
                 LineEntryFile,
                 LineEntryLineNumber,
                 LineEntryStartAddress,
@@ -108,13 +112,13 @@ namespace lldb_private
                 bool keep_separator;
             };
 
-            Entry (Type t = Type::Invalid,
-                   const char *s = NULL,
-                   const char *f = NULL) :
+            Entry(Type t = Type::Invalid,
+                  const char *s = nullptr,
+                  const char *f = nullptr) :
                 string (s ? s : ""),
                 printf_format (f ? f : ""),
                 children (),
-                definition (NULL),
+                definition (nullptr),
                 type (t),
                 fmt (lldb::eFormatDefault),
                 number (0),
@@ -146,7 +150,7 @@ namespace lldb_private
                 string.clear();
                 printf_format.clear();
                 children.clear();
-                definition = NULL;
+                definition = nullptr;
                 type = Type::Invalid;
                 fmt = lldb::eFormatDefault;
                 number = 0;
@@ -252,12 +256,10 @@ namespace lldb_private
         static bool
         FormatFileSpec (const FileSpec &file, Stream &s, llvm::StringRef elements, llvm::StringRef element_format);
     protected:
-
         static Error
         ParseInternal (llvm::StringRef &format, Entry &parent_entry, uint32_t depth);
 
     };
+} // namespace lldb_private
 
-}
-#endif  // #if defined(__cplusplus)
-#endif  // liblldb_FormatEntity_h_
+#endif // liblldb_FormatEntity_h_

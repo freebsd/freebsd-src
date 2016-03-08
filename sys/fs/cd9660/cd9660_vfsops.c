@@ -309,13 +309,13 @@ iso_mountfs(devvp, mp)
 		default:
 			break;
 		}
-		if (bp) {
+		if (bp != NULL) {
 			brelse(bp);
 			bp = NULL;
 		}
 	}
  vd_end:
-	if (bp) {
+	if (bp != NULL) {
 		brelse(bp);
 		bp = NULL;
 	}
@@ -474,11 +474,11 @@ iso_mountfs(devvp, mp)
 
 	return 0;
 out:
-	if (bp)
+	if (bp != NULL)
 		brelse(bp);
-	if (pribp)
+	if (pribp != NULL)
 		brelse(pribp);
-	if (supbp)
+	if (supbp != NULL)
 		brelse(supbp);
 	if (cp != NULL) {
 		DROP_GIANT();
@@ -741,8 +741,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		if (off + isonum_711(isodir->length) >
 		    imp->logical_block_size) {
 			vput(vp);
-			if (bp != 0)
-				brelse(bp);
+			brelse(bp);
 			printf("fhtovp: directory crosses block boundary %d[off=%d/len=%d]\n",
 			       off +isonum_711(isodir->length), off,
 			       isonum_711(isodir->length));
@@ -752,8 +751,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 #if 0
 		if (isonum_733(isodir->extent) +
 		    isonum_711(isodir->ext_attr_length) != ifhp->ifid_start) {
-			if (bp != 0)
-				brelse(bp);
+			brelse(bp);
 			printf("fhtovp: file start miss %d vs %d\n",
 			       isonum_733(isodir->extent) + isonum_711(isodir->ext_attr_length),
 			       ifhp->ifid_start);
@@ -771,7 +769,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		 * read the `.' entry out of a dir.
 		 */
 		ip->iso_start = ino >> imp->im_bshift;
-		if (bp != 0)
+		if (bp != NULL)
 			brelse(bp);
 		if ((error = cd9660_blkatoff(vp, (off_t)0, NULL, &bp)) != 0) {
 			vput(vp);
@@ -810,8 +808,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		break;
 	}
 
-	if (bp != 0)
-		brelse(bp);
+	brelse(bp);
 
 	/*
 	 * Initialize the associated vnode

@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2014
+.Dd January 21, 2016
 .Dt MOD_CC 9
 .Os
 .Sh NAME
@@ -40,7 +40,8 @@
 .Nm CCV
 .Nd Modular Congestion Control
 .Sh SYNOPSIS
-.In netinet/cc.h
+.In netinet/tcp.h
+.In netinet/cc/cc.h
 .In netinet/cc/cc_module.h
 .Fn DECLARE_CC_MODULE "ccname" "ccalgo"
 .Fn CCV "ccv" "what"
@@ -74,6 +75,7 @@ struct cc_algo {
 	void	(*cong_signal) (struct cc_var *ccv, uint32_t type);
 	void	(*post_recovery) (struct cc_var *ccv);
 	void	(*after_idle) (struct cc_var *ccv);
+	int	(*ctl_output)(struct cc_var *, struct sockopt *, void *);
 };
 .Ed
 .Pp
@@ -164,6 +166,20 @@ The
 .Va after_idle
 function is called when data transfer resumes after an idle period.
 It should be implemented to adjust state as required.
+.Pp
+The
+.Va ctl_output
+function is called when
+.Xr getsockopt 2
+or
+.Xr setsockopt 2
+is called on a
+.Xr tcp 4
+socket with the
+.Va struct sockopt
+pointer forwarded unmodified from the TCP control, and a
+.Va void *
+pointer to algorithm specific argument.
 .Pp
 The
 .Fn DECLARE_CC_MODULE

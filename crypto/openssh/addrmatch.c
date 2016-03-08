@@ -1,4 +1,4 @@
-/*	$OpenBSD: addrmatch.c,v 1.9 2014/01/19 11:21:51 dtucker Exp $ */
+/*	$OpenBSD: addrmatch.c,v 1.10 2015/07/08 19:04:21 markus Exp $ */
 
 /*
  * Copyright (c) 2004-2008 Damien Miller <djm@mindrot.org>
@@ -31,7 +31,6 @@
 
 #include "match.h"
 #include "log.h"
-#include "xmalloc.h"
 
 struct xaddr {
 	sa_family_t	af;

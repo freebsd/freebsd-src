@@ -4566,7 +4566,7 @@ fi
 $as_echo_n "checking whether to sandbox using capsicum... " >&6; }
 if test "x$ac_lbl_capsicum_function_seen" = "xyes" -a "x$ac_lbl_capsicum_function_not_seen" != "xyes"; then
 
-$as_echo "#define HAVE_CAPSICUM 1" >>confdefs.h
+$as_echo "#define HAVE_CAPSPER 1" >>confdefs.h
 
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }

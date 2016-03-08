@@ -376,6 +376,7 @@ again:
 		ia = ifatoia(rte->rt_ifa);
 		ifp = rte->rt_ifp;
 		counter_u64_add(rte->rt_pksent, 1);
+		rt_update_ro_flags(ro);
 		if (rte->rt_flags & RTF_GATEWAY)
 			gw = (struct sockaddr_in *)rte->rt_gateway;
 		if (rte->rt_flags & RTF_HOST)

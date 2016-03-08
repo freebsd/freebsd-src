@@ -18,25 +18,25 @@ main(void)
 
 	if (ftsp == NULL) {
 		perror("fts_open");
-		return(1);
+		return 1;
 	}
 
 	entry = fts_read(ftsp);
 
 	if (entry == NULL) {
 		perror("fts_read");
-		return(1);
+		return 1;
 	}
 
 	if (fts_set(ftsp, entry, FTS_SKIP) != 0) {
 		perror("fts_set");
-		return(1);
+		return 1;
 	}
 
 	if (fts_close(ftsp) != 0) {
 		perror("fts_close");
-		return(1);
+		return 1;
 	}
 
-	return(0);
+	return 0;
 }

@@ -1,9 +1,9 @@
-.Dd January 7 2016
+.Dd January 20 2016
 .Dt NTP_KEYS 5 File Formats
 .Os SunOS 5.10
 .\"  EDIT THIS FILE WITH CAUTION  (ntp.mdoc)
 .\"
-.\"  It has been AutoGen-ed  January  7, 2016 at 11:31:00 PM by AutoGen 5.18.5
+.\"  It has been AutoGen-ed  January 20, 2016 at 04:18:10 AM by AutoGen 5.18.5
 .\"  From the definitions    ntp.keys.def
 .\"  and the template file   agmdoc-file.tpl
 .Sh NAME
@@ -44,7 +44,7 @@ The key file uses the same comment conventions
 as the configuration file.
 Key entries use a fixed format of the form
 .Pp
-.D1 Ar keyno type key
+.D1 Ar keyno type key opt_IP_list
 .Pp
 where
 .Ar keyno
@@ -53,7 +53,15 @@ is a positive integer (between 1 and 65534),
 is the message digest algorithm,
 and
 .Ar key
-is the key itself.
+is the key itself, and
+.Ar opt_IP_list
+is an optional comma\-separated list of IPs
+that are allowed to serve time.
+If
+.Ar opt_IP_list
+is empty,
+any properly\-authenticated server message will be
+accepted.
 .Pp
 The
 .Ar key
@@ -147,7 +155,7 @@ it to autogen\-users@lists.sourceforge.net.  Thank you.
 .Sh "AUTHORS"
 The University of Delaware and Network Time Foundation
 .Sh "COPYRIGHT"
-Copyright (C) 1992\-2015 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992\-2016 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .Sh "BUGS"
 Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org

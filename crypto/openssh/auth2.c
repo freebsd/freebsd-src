@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2.c,v 1.130 2014/01/29 06:18:35 djm Exp $ */
+/* $OpenBSD: auth2.c,v 1.135 2015/01/19 20:07:45 markus Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -42,6 +42,7 @@ __RCSID("$FreeBSD$");
 #include "packet.h"
 #include "log.h"
 #include "buffer.h"
+#include "misc.h"
 #include "servconf.h"
 #include "compat.h"
 #include "key.h"
@@ -88,8 +89,8 @@ Authmethod *authmethods[] = {
 
 /* protocol */
 
-static void input_service_request(int, u_int32_t, void *);
-static void input_userauth_request(int, u_int32_t, void *);
+static int input_service_request(int, u_int32_t, void *);
+static int input_userauth_request(int, u_int32_t, void *);
 
 /* helper */
 static Authmethod *authmethod_lookup(Authctxt *, const char *);
@@ -152,9 +153,7 @@ userauth_banner(void)
 {
 	char *banner = NULL;
 
-	if (options.banner == NULL ||
-	    strcasecmp(options.banner, "none") == 0 ||
-	    (datafellows & SSH_BUG_BANNER) != 0)
+	if (options.banner == NULL || (datafellows & SSH_BUG_BANNER) != 0)
 		return;
 
 	if ((banner = PRIVSEP(auth2_read_banner())) == NULL)
@@ -177,7 +176,7 @@ do_authentication2(Authctxt *authctxt)
 }
 
 /*ARGSUSED*/
-static void
+static int
 input_service_request(int type, u_int32_t seq, void *ctxt)
 {
 	Authctxt *authctxt = ctxt;
@@ -208,10 +207,11 @@ input_service_request(int type, u_int32_t seq, void *ctxt)
 		packet_disconnect("bad service request %s", service);
 	}
 	free(service);
+	return 0;
 }
 
 /*ARGSUSED*/
-static void
+static int
 input_userauth_request(int type, u_int32_t seq, void *ctxt)
 {
 	Authctxt *authctxt = ctxt;
@@ -315,6 +315,7 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 	free(service);
 	free(user);
 	free(method);
+	return 0;
 }
 
 void
@@ -385,14 +386,14 @@ userauth_finish(Authctxt *authctxt, int authenticated, const char *method,
 	} else {
 
 		/* Allow initial try of "none" auth without failure penalty */
-		if (!authctxt->server_caused_failure &&
+		if (!partial && !authctxt->server_caused_failure &&
 		    (authctxt->attempt > 1 || strcmp(method, "none") != 0))
 			authctxt->failures++;
 		if (authctxt->failures >= options.max_authtries) {
 #ifdef SSH_AUDIT_EVENTS
 			PRIVSEP(audit_event(SSH_LOGIN_EXCEED_MAXTRIES));
 #endif
-			packet_disconnect(AUTH_FAIL_MSG, authctxt->user);
+			auth_maxtries_exceeded(authctxt);
 		}
 		methods = authmethods_get(authctxt);
 		debug3("%s: failure partial=%d next methods=\"%s\"", __func__,

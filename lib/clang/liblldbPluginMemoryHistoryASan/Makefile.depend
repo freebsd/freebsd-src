@@ -13,6 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-MemoryHistoryASan.o: DiagnosticCommonKinds.inc.h
-MemoryHistoryASan.po: DiagnosticCommonKinds.inc.h
 .endif

@@ -4143,7 +4143,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 			u_int32_t rid0 = PCIR_BAR(0);
 			vm_offset_t	mem_base0;
 
-			acb->sys_res_arcmsr[0] = bus_alloc_resource(dev,SYS_RES_MEMORY, &rid0, 0ul, ~0ul, 0x1000, RF_ACTIVE);
+			acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev,SYS_RES_MEMORY, &rid0, RF_ACTIVE);
 			if(acb->sys_res_arcmsr[0] == NULL) {
 				arcmsr_free_resource(acb);
 				printf("arcmsr%d: bus_alloc_resource failure!\n", device_get_unit(dev));
@@ -4177,11 +4177,11 @@ static u_int32_t arcmsr_initialize(device_t dev)
 				size = sizeof(struct HBB_DOORBELL);
 			for(i=0; i < 2; i++) {
 				if(i == 0) {
-					acb->sys_res_arcmsr[i] = bus_alloc_resource(dev,SYS_RES_MEMORY, &rid[i],
-											0ul, ~0ul, size, RF_ACTIVE);
+					acb->sys_res_arcmsr[i] = bus_alloc_resource_any(dev,SYS_RES_MEMORY, &rid[i],
+											RF_ACTIVE);
 				} else {
-					acb->sys_res_arcmsr[i] = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid[i],
-											0ul, ~0ul, sizeof(struct HBB_RWBUFFER), RF_ACTIVE);
+					acb->sys_res_arcmsr[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid[i],
+											RF_ACTIVE);
 				}
 				if(acb->sys_res_arcmsr[i] == NULL) {
 					arcmsr_free_resource(acb);
@@ -4224,7 +4224,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 			u_int32_t rid0 = PCIR_BAR(1);
 			vm_offset_t	mem_base0;
 
-			acb->sys_res_arcmsr[0] = bus_alloc_resource(dev,SYS_RES_MEMORY, &rid0, 0ul, ~0ul, sizeof(struct HBC_MessageUnit), RF_ACTIVE);
+			acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev,SYS_RES_MEMORY, &rid0, RF_ACTIVE);
 			if(acb->sys_res_arcmsr[0] == NULL) {
 				arcmsr_free_resource(acb);
 				printf("arcmsr%d: bus_alloc_resource failure!\n", device_get_unit(dev));
@@ -4251,7 +4251,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 			u_int32_t rid0 = PCIR_BAR(0);
 			vm_offset_t	mem_base0;
 
-			acb->sys_res_arcmsr[0] = bus_alloc_resource(dev,SYS_RES_MEMORY, &rid0, 0ul, ~0ul, sizeof(struct HBD_MessageUnit), RF_ACTIVE);
+			acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev,SYS_RES_MEMORY, &rid0, RF_ACTIVE);
 			if(acb->sys_res_arcmsr[0] == NULL) {
 				arcmsr_free_resource(acb);
 				printf("arcmsr%d: bus_alloc_resource failure!\n", device_get_unit(dev));
@@ -4323,7 +4323,7 @@ static int arcmsr_attach(device_t dev)
 	}
 	/* After setting up the adapter, map our interrupt */
 	rid = 0;
-	irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0ul, ~0ul, 1, RF_SHAREABLE | RF_ACTIVE);
+	irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE);
 	if(irqres == NULL || 
 #if __FreeBSD_version >= 700025
 		bus_setup_intr(dev, irqres, INTR_TYPE_CAM|INTR_ENTROPY|INTR_MPSAFE, NULL, arcmsr_intr_handler, acb, &acb->ih)) {

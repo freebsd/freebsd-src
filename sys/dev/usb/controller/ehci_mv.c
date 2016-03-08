@@ -99,6 +99,24 @@ static void *ih_err;
 #define	MV_USB_HOST_OVERFLOW   (1 << 2)
 #define	MV_USB_DEVICE_UNDERFLOW (1 << 3)
 
+static struct ofw_compat_data compat_data[] = {
+	{"mrvl,usb-ehci",	true},
+	{"marvell,orion-ehci",	true},
+	{NULL,			false}
+};
+
+static void
+mv_ehci_post_reset(struct ehci_softc *ehci_softc)
+{
+	uint32_t usbmode;
+
+	/* Force HOST mode */
+	usbmode = EOREAD4(ehci_softc, EHCI_USBMODE_NOLPM);
+	usbmode &= ~EHCI_UM_CM;
+	usbmode |= EHCI_UM_CM_HOST;
+	EOWRITE4(ehci_softc, EHCI_USBMODE_NOLPM, usbmode);
+}
+
 static int
 mv_ehci_probe(device_t self)
 {
@@ -106,7 +124,7 @@ mv_ehci_probe(device_t self)
 	if (!ofw_bus_status_okay(self))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(self, "mrvl,usb-ehci"))
+	if (!ofw_bus_search_compatible(self, compat_data)->ocd_data)
 		return (ENXIO);
 
 	device_set_desc(self, EHCI_HC_DEVSTR);
@@ -156,12 +174,15 @@ mv_ehci_attach(device_t self)
 		    device_get_name(self));
 
 	rid = 0;
-	irq_err = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
-	    RF_SHAREABLE | RF_ACTIVE);
-	if (irq_err == NULL) {
-		device_printf(self, "Could not allocate error irq\n");
-		mv_ehci_detach(self);
-		return (ENXIO);
+	if (!ofw_bus_is_compatible(self, "marvell,orion-ehci")) {
+		irq_err = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
+		    RF_SHAREABLE | RF_ACTIVE);
+		if (irq_err == NULL) {
+			device_printf(self, "Could not allocate error irq\n");
+			mv_ehci_detach(self);
+			return (ENXIO);
+		}
+		rid = 1;
 	}
 
 	/*
@@ -169,7 +190,6 @@ mv_ehci_attach(device_t self)
 	 * sure to use the correct rid for the main one (controller interrupt)
 	 * -- refer to DTS for the right resource number to use here.
 	 */
-	rid = 1;
 	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->sc_irq_res == NULL) {
@@ -187,12 +207,14 @@ mv_ehci_attach(device_t self)
 
 	sprintf(sc->sc_vendor, "Marvell");
 
-	err = bus_setup_intr(self, irq_err, INTR_TYPE_BIO,
-	    err_intr, NULL, sc, &ih_err);
-	if (err) {
-		device_printf(self, "Could not setup error irq, %d\n", err);
-		ih_err = NULL;
-		goto error;
+	if (!ofw_bus_is_compatible(self, "marvell,orion-ehci")) {
+		err = bus_setup_intr(self, irq_err, INTR_TYPE_BIO,
+		    err_intr, NULL, sc, &ih_err);
+		if (err) {
+			device_printf(self, "Could not setup error irq, %d\n", err);
+			ih_err = NULL;
+			goto error;
+		}
 	}
 
 	EWRITE4(sc, USB_BRIDGE_INTR_MASK, MV_USB_ADDR_DECODE_ERR |
@@ -216,13 +238,13 @@ mv_ehci_attach(device_t self)
 	 * Refer to errata document MV-S500832-00D.pdf (p. 5.24 GL USB-2) for
 	 * details.
 	 */
-	sc->sc_flags |= EHCI_SCFLG_SETMODE;
+	sc->sc_vendor_post_reset = mv_ehci_post_reset;
 	if (bootverbose)
 		device_printf(self, "5.24 GL USB-2 workaround enabled\n");
 
 	/* XXX all MV chips need it? */
-	sc->sc_flags |= EHCI_SCFLG_FORCESPEED | EHCI_SCFLG_NORESTERM;
-
+	sc->sc_flags |= EHCI_SCFLG_TT | EHCI_SCFLG_NORESTERM;
+	sc->sc_vendor_get_port_speed = ehci_get_port_speed_portsc;
 	err = ehci_init(sc);
 	if (!err) {
 		err = device_probe_and_attach(sc->sc_bus.bdev);

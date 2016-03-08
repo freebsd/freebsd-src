@@ -283,16 +283,31 @@ multiclass Load<string OpcStr, bits<6> Op3Val, SDPatternOperator OpNode,
                  [(set Ty:$dst, (OpNode ADDRri:$addr))]>;
 }
 
+// TODO: Instructions of the LoadASI class are currently asm only; hooking up
+// CodeGen's address spaces to use these is a future task.
+class LoadASI<string OpcStr, bits<6> Op3Val, SDPatternOperator OpNode,
+              RegisterClass RC, ValueType Ty> :
+  F3_1_asi<3, Op3Val, (outs RC:$dst), (ins MEMrr:$addr, i8imm:$asi),
+                !strconcat(OpcStr, "a [$addr] $asi, $dst"),
+                []>;
+
 // LoadA multiclass - As above, but also define alternate address space variant
 multiclass LoadA<string OpcStr, bits<6> Op3Val, bits<6> LoadAOp3Val,
                  SDPatternOperator OpNode, RegisterClass RC, ValueType Ty> :
              Load<OpcStr, Op3Val, OpNode, RC, Ty> {
-  // TODO: The LD*Arr instructions are currently asm only; hooking up
-  // CodeGen's address spaces to use these is a future task.
-  def Arr  : F3_1_asi<3, LoadAOp3Val, (outs RC:$dst), (ins MEMrr:$addr, i8imm:$asi),
-                !strconcat(OpcStr, "a [$addr] $asi, $dst"),
-                []>;
+  def Arr  : LoadASI<OpcStr, LoadAOp3Val, OpNode, RC, Ty>;
 }
+
+// The LDSTUB instruction is supported for asm only.
+// It is unlikely that general-purpose code could make use of it.
+// CAS is preferred for sparc v9.
+def LDSTUBrr : F3_1<3, 0b001101, (outs IntRegs:$dst), (ins MEMrr:$addr),
+                  "ldstub [$addr], $dst", []>;
+def LDSTUBri : F3_2<3, 0b001101, (outs IntRegs:$dst), (ins MEMri:$addr),
+                  "ldstub [$addr], $dst", []>;
+def LDSTUBArr : F3_1_asi<3, 0b011101, (outs IntRegs:$dst),
+                         (ins MEMrr:$addr, i8imm:$asi),
+                         "ldstuba [$addr] $asi, $dst", []>;
 
 // Store multiclass - Define both Reg+Reg/Reg+Imm patterns in one shot.
 multiclass Store<string OpcStr, bits<6> Op3Val, SDPatternOperator OpNode,
@@ -307,14 +322,18 @@ multiclass Store<string OpcStr, bits<6> Op3Val, SDPatternOperator OpNode,
                  [(OpNode Ty:$rd, ADDRri:$addr)]>;
 }
 
+// TODO: Instructions of the StoreASI class are currently asm only; hooking up
+// CodeGen's address spaces to use these is a future task.
+class StoreASI<string OpcStr, bits<6> Op3Val,
+                  SDPatternOperator OpNode, RegisterClass RC, ValueType Ty> :
+  F3_1_asi<3, Op3Val, (outs), (ins MEMrr:$addr, RC:$rd, i8imm:$asi),
+                  !strconcat(OpcStr, "a $rd, [$addr] $asi"),
+                  []>;
+
 multiclass StoreA<string OpcStr, bits<6> Op3Val, bits<6> StoreAOp3Val,
                   SDPatternOperator OpNode, RegisterClass RC, ValueType Ty> :
              Store<OpcStr, Op3Val, OpNode, RC, Ty> {
-  // TODO: The ST*Arr instructions are currently asm only; hooking up
-  // CodeGen's address spaces to use these is a future task.
-  def Arr  : F3_1_asi<3, StoreAOp3Val, (outs), (ins MEMrr:$addr, RC:$rd, i8imm:$asi),
-                  !strconcat(OpcStr, "a $rd, [$addr] $asi"),
-                  []>;
+  def Arr : StoreASI<OpcStr, StoreAOp3Val, OpNode, RC, Ty>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -408,14 +427,39 @@ let DecoderMethod = "DecodeLoadInt" in {
   defm LD   : LoadA<"ld",   0b000000, 0b010000, load,        IntRegs, i32>;
 }
 
+let DecoderMethod = "DecodeLoadIntPair" in
+  defm LDD : LoadA<"ldd", 0b000011, 0b010011, load, IntPair, v2i32>;
+
 // Section B.2 - Load Floating-point Instructions, p. 92
-let DecoderMethod = "DecodeLoadFP" in
-  defm LDF   : Load<"ld",  0b100000, load, FPRegs,  f32>;
-let DecoderMethod = "DecodeLoadDFP" in
-  defm LDDF  : Load<"ldd", 0b100011, load, DFPRegs, f64>;
+let DecoderMethod = "DecodeLoadFP" in {
+  defm LDF   : Load<"ld",  0b100000, load,    FPRegs,  f32>;
+  def LDFArr : LoadASI<"ld",  0b110000, load, FPRegs,  f32>,
+                Requires<[HasV9]>;
+}
+let DecoderMethod = "DecodeLoadDFP" in {
+  defm LDDF   : Load<"ldd", 0b100011, load,    DFPRegs, f64>;
+  def LDDFArr : LoadASI<"ldd", 0b110011, load, DFPRegs, f64>,
+                 Requires<[HasV9]>;
+}
 let DecoderMethod = "DecodeLoadQFP" in
-  defm LDQF  : Load<"ldq", 0b100010, load, QFPRegs, f128>,
+  defm LDQF  : LoadA<"ldq", 0b100010, 0b110010, load, QFPRegs, f128>,
                Requires<[HasV9, HasHardQuad]>;
+
+let DecoderMethod = "DecodeLoadFP" in
+  let Defs = [FSR] in {
+    let rd = 0 in {
+      def LDFSRrr : F3_1<3, 0b100001, (outs), (ins MEMrr:$addr),
+                     "ld [$addr], %fsr", []>;
+      def LDFSRri : F3_2<3, 0b100001, (outs), (ins MEMri:$addr),
+                     "ld [$addr], %fsr", []>;
+    }
+    let rd = 1 in {
+      def LDXFSRrr : F3_1<3, 0b100001, (outs), (ins MEMrr:$addr),
+                     "ldx [$addr], %fsr", []>, Requires<[HasV9]>;
+      def LDXFSRri : F3_2<3, 0b100001, (outs), (ins MEMri:$addr),
+                     "ldx [$addr], %fsr", []>, Requires<[HasV9]>;
+    }
+  }
 
 // Section B.4 - Store Integer Instructions, p. 95
 let DecoderMethod = "DecodeStoreInt" in {
@@ -424,14 +468,39 @@ let DecoderMethod = "DecodeStoreInt" in {
   defm ST    : StoreA<"st",  0b000100, 0b010100, store,         IntRegs, i32>;
 }
 
+let DecoderMethod = "DecodeStoreIntPair" in
+  defm STD   : StoreA<"std", 0b000111, 0b010111, store, IntPair, v2i32>;
+
 // Section B.5 - Store Floating-point Instructions, p. 97
-let DecoderMethod = "DecodeStoreFP" in
+let DecoderMethod = "DecodeStoreFP" in {
   defm STF   : Store<"st",  0b100100, store,         FPRegs,  f32>;
-let DecoderMethod = "DecodeStoreDFP" in
-  defm STDF  : Store<"std", 0b100111, store,         DFPRegs, f64>;
+  def STFArr : StoreASI<"st",  0b110100, store,      FPRegs,  f32>,
+               Requires<[HasV9]>;
+}
+let DecoderMethod = "DecodeStoreDFP" in {
+  defm STDF   : Store<"std", 0b100111, store,         DFPRegs, f64>;
+  def STDFArr : StoreASI<"std", 0b110111, store,      DFPRegs, f64>,
+                Requires<[HasV9]>;
+}
 let DecoderMethod = "DecodeStoreQFP" in
-  defm STQF  : Store<"stq", 0b100110, store,         QFPRegs, f128>,
+  defm STQF  : StoreA<"stq", 0b100110, 0b110110, store, QFPRegs, f128>,
                Requires<[HasV9, HasHardQuad]>;
+
+let DecoderMethod = "DecodeStoreFP" in
+  let Defs = [FSR] in {
+    let rd = 0 in {
+      def STFSRrr : F3_1<3, 0b100101, (outs MEMrr:$addr), (ins),
+                     "st %fsr, [$addr]", []>;
+      def STFSRri : F3_2<3, 0b100101, (outs MEMri:$addr), (ins),
+                     "st %fsr, [$addr]", []>;
+    }
+    let rd = 1 in {
+      def STXFSRrr : F3_1<3, 0b100101, (outs MEMrr:$addr), (ins),
+                     "stx %fsr, [$addr]", []>, Requires<[HasV9]>;
+      def STXFSRri : F3_2<3, 0b100101, (outs MEMri:$addr), (ins),
+                     "stx %fsr, [$addr]", []>, Requires<[HasV9]>;
+    }
+  }
 
 // Section B.8 - SWAP Register with Memory Instruction
 // (Atomic swap)
@@ -557,6 +626,10 @@ let Defs = [Y] in {
 let Defs = [Y, ICC] in {
   defm UMULCC : F3_12np<"umulcc", 0b011010>;
   defm SMULCC : F3_12np<"smulcc", 0b011011>;
+}
+
+let Defs = [Y, ICC], Uses = [Y, ICC] in {
+  defm MULSCC : F3_12np<"mulscc", 0b100100>;
 }
 
 // Section B.19 - Divide Instructions, p. 115
@@ -1221,8 +1294,8 @@ let Predicates = [HasV9] in {
 // the top 32-bits before using it.  To do this clearing, we use a SRLri X,0.
 let rs1 = 0 in
   def POPCrr : F3_1<2, 0b101110,
-                    (outs IntRegs:$dst), (ins IntRegs:$src),
-                    "popc $src, $dst", []>, Requires<[HasV9]>;
+                    (outs IntRegs:$rd), (ins IntRegs:$rs2),
+                    "popc $rs2, $rd", []>, Requires<[HasV9]>;
 def : Pat<(ctpop i32:$src),
           (POPCrr (SRLri $src, 0))>;
 
@@ -1252,6 +1325,25 @@ let hasSideEffects = 1 in {
   defm TADDCCTV : F3_12np<"taddcctv", 0b100010>;
   defm TSUBCCTV : F3_12np<"tsubcctv", 0b100011>;
 }
+}
+
+
+// Section A.43 - Read Privileged Register Instructions
+let Predicates = [HasV9] in {
+let rs2 = 0 in
+  def RDPR : F3_1<2, 0b101010,
+                 (outs IntRegs:$rd), (ins PRRegs:$rs1),
+                 "rdpr $rs1, $rd", []>;
+}
+
+// Section A.62 - Write Privileged Register Instructions
+let Predicates = [HasV9] in {
+  def WRPRrr : F3_1<2, 0b110010,
+                   (outs PRRegs:$rd), (ins IntRegs:$rs1, IntRegs:$rs2),
+                   "wrpr $rs1, $rs2, $rd", []>;
+  def WRPRri : F3_2<2, 0b110010,
+                   (outs PRRegs:$rd), (ins IntRegs:$rs1, simm13Op:$simm13),
+                   "wrpr $rs1, $simm13, $rd", []>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1326,6 +1418,18 @@ def : Pat<(i32 (atomic_load ADDRri:$src)), (LDri ADDRri:$src)>;
 // atomic_store_32 val, addr -> store val, addr
 def : Pat<(atomic_store ADDRrr:$dst, i32:$val), (STrr ADDRrr:$dst, $val)>;
 def : Pat<(atomic_store ADDRri:$dst, i32:$val), (STri ADDRri:$dst, $val)>;
+
+// extract_vector
+def : Pat<(extractelt (v2i32 IntPair:$Rn), 0),
+          (i32 (EXTRACT_SUBREG IntPair:$Rn, sub_even))>;
+def : Pat<(extractelt (v2i32 IntPair:$Rn), 1),
+          (i32 (EXTRACT_SUBREG IntPair:$Rn, sub_odd))>;
+
+// build_vector
+def : Pat<(build_vector (i32 IntRegs:$a1), (i32 IntRegs:$a2)),
+          (INSERT_SUBREG
+	    (INSERT_SUBREG (v2i32 (IMPLICIT_DEF)), (i32 IntRegs:$a1), sub_even),
+            (i32 IntRegs:$a2), sub_odd)>;
 
 
 include "SparcInstr64Bit.td"

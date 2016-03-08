@@ -60,23 +60,17 @@ struct cpu_functions {
 
 	/* CPU functions */
 
-	u_int	(*cf_id)		(void);
 	void	(*cf_cpwait)		(void);
 
 	/* MMU functions */
 
 	u_int	(*cf_control)		(u_int bic, u_int eor);
-	void	(*cf_domains)		(u_int domains);
 	void	(*cf_setttb)		(u_int ttb);
-	u_int	(*cf_faultstatus)	(void);
-	u_int	(*cf_faultaddress)	(void);
 
 	/* TLB functions */
 
 	void	(*cf_tlb_flushID)	(void);
 	void	(*cf_tlb_flushID_SE)	(u_int va);
-	void	(*cf_tlb_flushI)	(void);
-	void	(*cf_tlb_flushI_SE)	(u_int va);
 	void	(*cf_tlb_flushD)	(void);
 	void	(*cf_tlb_flushD_SE)	(u_int va);
 
@@ -85,7 +79,6 @@ struct cpu_functions {
 	 *
 	 * We define the following primitives:
 	 *
-	 *	icache_sync_all		Synchronize I-cache
 	 *	icache_sync_range	Synchronize I-cache range
 	 *
 	 *	dcache_wbinv_all	Write-back and Invalidate D-cache
@@ -110,7 +103,7 @@ struct cpu_functions {
 	 *		state (such as when it may have lines tagged as valid
 	 *		that belong to a previous set of mappings).
 	 *
-	 *	I-cache Synch (all or range):
+	 *	I-cache Sync range:
 	 *		The goal is to synchronize the instruction stream,
 	 *		so you may beed to write-back dirty D-cache blocks
 	 *		first.  If a range is requested, and you can't
@@ -136,7 +129,6 @@ struct cpu_functions {
 	 *		Valid virtual addresses must be passed to each
 	 *		cache operation.
 	 */
-	void	(*cf_icache_sync_all)	(void);
 	void	(*cf_icache_sync_range)	(vm_offset_t, vm_size_t);
 
 	void	(*cf_dcache_wbinv_all)	(void);
@@ -155,17 +147,11 @@ struct cpu_functions {
 
 	/* Other functions */
 
-	void	(*cf_flush_prefetchbuf)	(void);
 	void	(*cf_drain_writebuf)	(void);
-	void	(*cf_flush_brnchtgt_C)	(void);
-	void	(*cf_flush_brnchtgt_E)	(u_int va);
 
 	void	(*cf_sleep)		(int mode);
 
 	/* Soft functions */
-
-	int	(*cf_dataabt_fixup)	(void *arg);
-	int	(*cf_prefetchabt_fixup)	(void *arg);
 
 	void	(*cf_context_switch)	(void);
 
@@ -175,70 +161,19 @@ struct cpu_functions {
 extern struct cpu_functions cpufuncs;
 extern u_int cputype;
 
-#define cpu_ident()		cpufuncs.cf_id()
+#if __ARM_ARCH < 6
 #define	cpu_cpwait()		cpufuncs.cf_cpwait()
+#endif
 
 #define cpu_control(c, e)	cpufuncs.cf_control(c, e)
-#define cpu_domains(d)		cpufuncs.cf_domains(d)
+#if __ARM_ARCH < 6
 #define cpu_setttb(t)		cpufuncs.cf_setttb(t)
-#define cpu_faultstatus()	cpufuncs.cf_faultstatus()
-#define cpu_faultaddress()	cpufuncs.cf_faultaddress()
-
-#ifndef SMP
 
 #define	cpu_tlb_flushID()	cpufuncs.cf_tlb_flushID()
 #define	cpu_tlb_flushID_SE(e)	cpufuncs.cf_tlb_flushID_SE(e)
-#define	cpu_tlb_flushI()	cpufuncs.cf_tlb_flushI()
-#define	cpu_tlb_flushI_SE(e)	cpufuncs.cf_tlb_flushI_SE(e)
 #define	cpu_tlb_flushD()	cpufuncs.cf_tlb_flushD()
 #define	cpu_tlb_flushD_SE(e)	cpufuncs.cf_tlb_flushD_SE(e)
 
-#else
-void tlb_broadcast(int);
-
-#if defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
-#define TLB_BROADCAST	/* No need to explicitely send an IPI */
-#else
-#define TLB_BROADCAST	tlb_broadcast(7)
-#endif
-
-#define	cpu_tlb_flushID() do { \
-	cpufuncs.cf_tlb_flushID(); \
-	TLB_BROADCAST; \
-} while(0)
-
-#define	cpu_tlb_flushID_SE(e) do { \
-	cpufuncs.cf_tlb_flushID_SE(e); \
-	TLB_BROADCAST; \
-} while(0)
-
-
-#define	cpu_tlb_flushI() do { \
-	cpufuncs.cf_tlb_flushI(); \
-	TLB_BROADCAST; \
-} while(0)
-
-
-#define	cpu_tlb_flushI_SE(e) do { \
-	cpufuncs.cf_tlb_flushI_SE(e); \
-	TLB_BROADCAST; \
-} while(0)
-
-
-#define	cpu_tlb_flushD() do { \
-	cpufuncs.cf_tlb_flushD(); \
-	TLB_BROADCAST; \
-} while(0)
-
-
-#define	cpu_tlb_flushD_SE(e) do { \
-	cpufuncs.cf_tlb_flushD_SE(e); \
-	TLB_BROADCAST; \
-} while(0)
-
-#endif
-
-#define	cpu_icache_sync_all()	cpufuncs.cf_icache_sync_all()
 #define	cpu_icache_sync_range(a, s) cpufuncs.cf_icache_sync_range((a), (s))
 
 #define	cpu_dcache_wbinv_all()	cpufuncs.cf_dcache_wbinv_all()
@@ -249,24 +184,17 @@ void tlb_broadcast(int);
 #define	cpu_idcache_inv_all()	cpufuncs.cf_idcache_inv_all()
 #define	cpu_idcache_wbinv_all()	cpufuncs.cf_idcache_wbinv_all()
 #define	cpu_idcache_wbinv_range(a, s) cpufuncs.cf_idcache_wbinv_range((a), (s))
+#endif
 #define cpu_l2cache_wbinv_all()	cpufuncs.cf_l2cache_wbinv_all()
 #define cpu_l2cache_wb_range(a, s) cpufuncs.cf_l2cache_wb_range((a), (s))
 #define cpu_l2cache_inv_range(a, s) cpufuncs.cf_l2cache_inv_range((a), (s))
 #define cpu_l2cache_wbinv_range(a, s) cpufuncs.cf_l2cache_wbinv_range((a), (s))
 #define cpu_l2cache_drain_writebuf() cpufuncs.cf_l2cache_drain_writebuf()
 
-#define	cpu_flush_prefetchbuf()	cpufuncs.cf_flush_prefetchbuf()
+#if __ARM_ARCH < 6
 #define	cpu_drain_writebuf()	cpufuncs.cf_drain_writebuf()
-#define	cpu_flush_brnchtgt_C()	cpufuncs.cf_flush_brnchtgt_C()
-#define	cpu_flush_brnchtgt_E(e)	cpufuncs.cf_flush_brnchtgt_E(e)
-
+#endif
 #define cpu_sleep(m)		cpufuncs.cf_sleep(m)
-
-#define cpu_dataabt_fixup(a)		cpufuncs.cf_dataabt_fixup(a)
-#define cpu_prefetchabt_fixup(a)	cpufuncs.cf_prefetchabt_fixup(a)
-#define ABORT_FIXUP_OK		0	/* fixup succeeded */
-#define ABORT_FIXUP_FAILED	1	/* fixup failed */
-#define ABORT_FIXUP_RETURN	2	/* abort handler should return */
 
 #define cpu_setup()			cpufuncs.cf_setup()
 
@@ -275,15 +203,12 @@ int	set_cpufuncs		(void);
 #define ARCHITECTURE_NOT_SUPPORTED	2	/* not known */
 
 void	cpufunc_nullop		(void);
-int	cpufunc_null_fixup	(void *);
-int	early_abort_fixup	(void *);
-int	late_abort_fixup	(void *);
-u_int	cpufunc_id		(void);
-u_int	cpufunc_cpuid		(void);
+u_int	cpu_ident		(void);
 u_int	cpufunc_control		(u_int clear, u_int bic);
-void	cpufunc_domains		(u_int domains);
-u_int	cpufunc_faultstatus	(void);
-u_int	cpufunc_faultaddress	(void);
+void	cpu_domains		(u_int domains);
+u_int	cpu_faultstatus		(void);
+u_int	cpu_faultaddress	(void);
+u_int	cpu_get_control		(void);
 u_int	cpu_pfr			(int);
 
 #if defined(CPU_FA526)
@@ -291,12 +216,8 @@ void	fa526_setup		(void);
 void	fa526_setttb		(u_int ttb);
 void	fa526_context_switch	(void);
 void	fa526_cpu_sleep		(int);
-void	fa526_tlb_flushI_SE	(u_int);
 void	fa526_tlb_flushID_SE	(u_int);
-void	fa526_flush_prefetchbuf	(void);
-void	fa526_flush_brnchtgt_E	(u_int);
 
-void	fa526_icache_sync_all	(void);
 void	fa526_icache_sync_range(vm_offset_t start, vm_size_t end);
 void	fa526_dcache_wbinv_all	(void);
 void	fa526_dcache_wbinv_range(vm_offset_t start, vm_size_t end);
@@ -307,12 +228,13 @@ void	fa526_idcache_wbinv_range(vm_offset_t start, vm_size_t end);
 #endif
 
 
-#ifdef CPU_ARM9
+#if defined(CPU_ARM9) || defined(CPU_ARM9E)
 void	arm9_setttb		(u_int);
-
 void	arm9_tlb_flushID_SE	(u_int va);
+void	arm9_context_switch	(void);
+#endif
 
-void	arm9_icache_sync_all	(void);
+#if defined(CPU_ARM9)
 void	arm9_icache_sync_range	(vm_offset_t, vm_size_t);
 
 void	arm9_dcache_wbinv_all	(void);
@@ -323,8 +245,6 @@ void	arm9_dcache_wb_range	(vm_offset_t, vm_size_t);
 void	arm9_idcache_wbinv_all	(void);
 void	arm9_idcache_wbinv_range (vm_offset_t, vm_size_t);
 
-void	arm9_context_switch	(void);
-
 void	arm9_setup		(void);
 
 extern unsigned arm9_dcache_sets_max;
@@ -334,11 +254,6 @@ extern unsigned arm9_dcache_index_inc;
 #endif
 
 #if defined(CPU_ARM9E)
-void	arm10_tlb_flushID_SE	(u_int);
-void	arm10_tlb_flushI_SE	(u_int);
-
-void	arm10_context_switch	(void);
-
 void	arm10_setup		(void);
 
 u_int	sheeva_control_ext 		(u_int, u_int);
@@ -362,7 +277,6 @@ void	armv6_idcache_wbinv_all		(void);
 void	armv7_setttb			(u_int);
 void	armv7_tlb_flushID		(void);
 void	armv7_tlb_flushID_SE		(u_int);
-void	armv7_icache_sync_all		(void);
 void	armv7_icache_sync_range		(vm_offset_t, vm_size_t);
 void	armv7_idcache_wbinv_range	(vm_offset_t, vm_size_t);
 void	armv7_idcache_inv_all		(void);
@@ -390,8 +304,6 @@ void	pj4bv7_setup			(void);
 #if defined(CPU_ARM1176)
 void	arm11_tlb_flushID	(void);
 void	arm11_tlb_flushID_SE	(u_int);
-void	arm11_tlb_flushI	(void);
-void	arm11_tlb_flushI_SE	(u_int);
 void	arm11_tlb_flushD	(void);
 void	arm11_tlb_flushD_SE	(u_int va);
 
@@ -408,8 +320,6 @@ void	armv6_idcache_inv_all		(void);
 void    arm11x6_setttb                  (u_int);
 void    arm11x6_idcache_wbinv_all       (void);
 void    arm11x6_dcache_wbinv_all        (void);
-void    arm11x6_icache_sync_all         (void);
-void    arm11x6_flush_prefetchbuf       (void);
 void    arm11x6_icache_sync_range       (vm_offset_t, vm_size_t);
 void    arm11x6_idcache_wbinv_range     (vm_offset_t, vm_size_t);
 void    arm11x6_setup                   (void);
@@ -419,7 +329,6 @@ void    arm11x6_sleep                   (int);  /* no ref. for errata */
 #if defined(CPU_ARM9E)
 void	armv5_ec_setttb(u_int);
 
-void	armv5_ec_icache_sync_all(void);
 void	armv5_ec_icache_sync_range(vm_offset_t, vm_size_t);
 
 void	armv5_ec_dcache_wbinv_all(void);
@@ -432,13 +341,11 @@ void	armv5_ec_idcache_wbinv_range(vm_offset_t, vm_size_t);
 #endif
 
 #if defined(CPU_ARM9) || defined(CPU_ARM9E) ||				\
-  defined(CPU_XSCALE_80321) ||						\
   defined(CPU_FA526) ||							\
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
-  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
+  defined(CPU_XSCALE_81342)
 
 void	armv4_tlb_flushID	(void);
-void	armv4_tlb_flushI	(void);
 void	armv4_tlb_flushD	(void);
 void	armv4_tlb_flushD_SE	(u_int va);
 
@@ -446,9 +353,8 @@ void	armv4_drain_writebuf	(void);
 void	armv4_idcache_inv_all	(void);
 #endif
 
-#if defined(CPU_XSCALE_80321) ||				\
-  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
-  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
+#if defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
+  defined(CPU_XSCALE_81342)
 void	xscale_cpwait		(void);
 
 void	xscale_cpu_sleep	(int mode);
@@ -486,8 +392,7 @@ void	xscale_cache_flushD_rng	(vm_offset_t start, vm_size_t end);
 void	xscale_context_switch	(void);
 
 void	xscale_setup		(void);
-#endif	/* CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425
-	   CPU_XSCALE_80219 */
+#endif	/* CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 */
 
 #ifdef	CPU_XSCALE_81342
 
@@ -513,9 +418,6 @@ void	xscalec3_setttb		(u_int ttb);
 void	xscalec3_context_switch	(void);
 
 #endif /* CPU_XSCALE_81342 */
-
-#define setttb		cpu_setttb
-#define drain_writebuf	cpu_drain_writebuf
 
 /*
  * Macros for manipulating CPU interrupts

@@ -2,18 +2,11 @@
 
 NO_WERROR=
 PROG=	truss
-SRCS=	cloudabi.c main.c setup.c syscalls.c
+SRCS=	main.c setup.c syscalls.c
 
 LIBADD=	sysdecode
 
 CFLAGS+= -I${.CURDIR} -I. -I${.CURDIR}/../../sys
-
-# Define where to generate syscalls for each ABI.
-ABI_SYSPATH.freebsd=		sys/kern
-ABI_SYSPATH.freebsd32=		sys/compat/freebsd32
-ABI_SYSPATH.cloudabi64=		sys/compat/cloudabi64
-ABI_SYSPATH.i386-linux=		sys/i386/linux
-ABI_SYSPATH.amd64-linux32=	sys/amd64/linux32
 
 ABIS+=		freebsd
 # Each ABI is expected to have an ABI.c, MACHINE_ARCH-ABI.c or
@@ -42,21 +35,7 @@ ABI_SRCS=	${abi}.c ${MACHINE_ARCH}-${abi}.c ${MACHINE_CPUARCH}-${abi}.c
 abi_src=	${f}
 .endif
 .endfor
-SRCS:=		${SRCS} ${abi_src} ${abi}_syscalls.h
-CLEANFILES+=	${abi}_syscalls.conf ${abi}_syscalls.master ${abi}_syscalls.h
-${abi}_syscalls.conf: ${.CURDIR}/makesyscallsconf.sh
-	/bin/sh ${.CURDIR}/makesyscallsconf.sh ${abi} ${.TARGET}
-
-${abi}_syscalls.master:	${.CURDIR:H:H}/${ABI_SYSPATH.${abi}}/syscalls.master
-	cp -f ${.ALLSRC} ${.TARGET}
-
-${abi}_syscalls.h:	${abi}_syscalls.master ${abi}_syscalls.conf \
-			${.CURDIR:H:H}/sys/kern/makesyscalls.sh
-	/bin/sh ${.CURDIR:H:H}/sys/kern/makesyscalls.sh \
-	    ${abi}_syscalls.master ${abi}_syscalls.conf
-# Eliminate compiler warning about non-static global.
-	sed -i '' '/^const char \*/s/^/static /' ${.TARGET}.tmp
-	mv ${.TARGET}.tmp ${.TARGET}
+SRCS:=		${SRCS} ${abi_src}
 .endfor
 
 .include <bsd.prog.mk>

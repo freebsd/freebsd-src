@@ -104,6 +104,7 @@ static void	syncer_shutdown(void *arg, int howto);
 static int	vtryrecycle(struct vnode *vp);
 static void	v_init_counters(struct vnode *);
 static void	v_incr_usecount(struct vnode *);
+static void	v_incr_usecount_locked(struct vnode *);
 static void	v_incr_devcount(struct vnode *);
 static void	v_decr_devcount(struct vnode *);
 static void	vnlru_free(int);
@@ -406,6 +407,27 @@ vnode_fini(void *mem, int size)
 	rw_destroy(BO_LOCKPTR(bo));
 }
 
+/*
+ * Provide the size of NFS nclnode and NFS fh for calculation of the
+ * vnode memory consumption.  The size is specified directly to
+ * eliminate dependency on NFS-private header.
+ *
+ * Other filesystems may use bigger or smaller (like UFS and ZFS)
+ * private inode data, but the NFS-based estimation is ample enough.
+ * Still, we care about differences in the size between 64- and 32-bit
+ * platforms.
+ *
+ * Namecache structure size is heuristically
+ * sizeof(struct namecache_ts) + CACHE_PATH_CUTOFF + 1.
+ */
+#ifdef _LP64
+#define	NFS_NCLNODE_SZ	(528 + 64)
+#define	NC_SZ		148
+#else
+#define	NFS_NCLNODE_SZ	(360 + 32)
+#define	NC_SZ		92
+#endif
+
 static void
 vntblinit(void *dummy __unused)
 {
@@ -421,12 +443,12 @@ vntblinit(void *dummy __unused)
 	 * marginal ratio of desiredvnodes to the physical memory size is
 	 * 1:64.  However, desiredvnodes is limited by the kernel's heap
 	 * size.  The memory required by desiredvnodes vnodes and vm objects
-	 * must not exceed 1/7th of the kernel's heap size.
+	 * must not exceed 1/10th of the kernel's heap size.
 	 */
 	physvnodes = maxproc + pgtok(vm_cnt.v_page_count) / 64 +
 	    3 * min(98304 * 16, pgtok(vm_cnt.v_page_count)) / 64;
-	virtvnodes = vm_kmem_size / (7 * (sizeof(struct vm_object) +
-	    sizeof(struct vnode)));
+	virtvnodes = vm_kmem_size / (10 * (sizeof(struct vm_object) +
+	    sizeof(struct vnode) + NC_SZ * ncsizefactor + NFS_NCLNODE_SZ));
 	desiredvnodes = min(physvnodes, virtvnodes);
 	if (desiredvnodes > MAXVNODES_MAX) {
 		if (bootverbose)
@@ -1672,7 +1694,8 @@ bnoreuselist(struct bufv *bufv, struct bufobj *bo, daddr_t startn, daddr_t endn)
 	for (lblkno = startn;;) {
 again:
 		bp = BUF_PCTRIE_LOOKUP_GE(&bufv->bv_root, lblkno);
-		if (bp == NULL || bp->b_lblkno >= endn)
+		if (bp == NULL || bp->b_lblkno >= endn ||
+		    bp->b_lblkno < startn)
 			break;
 		error = BUF_TIMELOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL |
 		    LK_INTERLOCK, BO_LOCKPTR(bo), "brlsfl", 0, 0);
@@ -2371,6 +2394,20 @@ v_init_counters(struct vnode *vp)
 	refcount_init(&vp->v_usecount, 1);
 }
 
+static void
+v_incr_usecount_locked(struct vnode *vp)
+{
+
+	ASSERT_VI_LOCKED(vp, __func__);
+	if ((vp->v_iflag & VI_OWEINACT) != 0) {
+		VNASSERT(vp->v_usecount == 0, vp,
+		    ("vnode with usecount and VI_OWEINACT set"));
+		vp->v_iflag &= ~VI_OWEINACT;
+	}
+	refcount_acquire(&vp->v_usecount);
+	v_incr_devcount(vp);
+}
+
 /*
  * Increment the use and hold counts on the vnode, taking care to reference
  * the driver's usecount if this is a chardev.  The _vhold() will remove
@@ -2383,29 +2420,13 @@ v_incr_usecount(struct vnode *vp)
 	ASSERT_VI_UNLOCKED(vp, __func__);
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 
-	if (vp->v_type == VCHR) {
-		VI_LOCK(vp);
-		_vhold(vp, true);
-		if (vp->v_iflag & VI_OWEINACT) {
-			VNASSERT(vp->v_usecount == 0, vp,
-			    ("vnode with usecount and VI_OWEINACT set"));
-			vp->v_iflag &= ~VI_OWEINACT;
-		}
-		refcount_acquire(&vp->v_usecount);
-		v_incr_devcount(vp);
-		VI_UNLOCK(vp);
-		return;
-	}
-
-	_vhold(vp, false);
-	if (vfs_refcount_acquire_if_not_zero(&vp->v_usecount)) {
+	if (vp->v_type != VCHR &&
+	    vfs_refcount_acquire_if_not_zero(&vp->v_usecount)) {
 		VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
 		    ("vnode with usecount and VI_OWEINACT set"));
 	} else {
 		VI_LOCK(vp);
-		if (vp->v_iflag & VI_OWEINACT)
-			vp->v_iflag &= ~VI_OWEINACT;
-		refcount_acquire(&vp->v_usecount);
+		v_incr_usecount_locked(vp);
 		VI_UNLOCK(vp);
 	}
 }
@@ -2520,7 +2541,17 @@ vref(struct vnode *vp)
 {
 
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	_vhold(vp, false);
 	v_incr_usecount(vp);
+}
+
+void
+vrefl(struct vnode *vp)
+{
+
+	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	_vhold(vp, true);
+	v_incr_usecount_locked(vp);
 }
 
 /*

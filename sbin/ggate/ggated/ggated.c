@@ -26,32 +26,34 @@
  * $FreeBSD$
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <pthread.h>
 #include <sys/param.h>
-#include <sys/queue.h>
+#include <sys/bio.h>
+#include <sys/disk.h>
 #include <sys/endian.h>
-#include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/queue.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <sys/disk.h>
-#include <sys/bio.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <signal.h>
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
-#include <string.h>
+#include <fcntl.h>
 #include <libgen.h>
-#include <syslog.h>
+#include <libutil.h>
+#include <paths.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
 
 #include "ggate.h"
 
@@ -110,8 +112,8 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: %s [-nv] [-a address] [-p port] [-R rcvbuf] "
-	    "[-S sndbuf] [exports file]\n", getprogname());
+	fprintf(stderr, "usage: %s [-nv] [-a address] [-F pidfile] [-p port] "
+	    "[-R rcvbuf] [-S sndbuf] [exports file]\n", getprogname());
 	exit(EXIT_FAILURE);
 }
 
@@ -946,20 +948,18 @@ huphandler(int sig __unused)
 int
 main(int argc, char *argv[])
 {
+	const char *ggated_pidfile = _PATH_VARRUN "/ggated.pid";
+	struct pidfh *pfh;
 	struct sockaddr_in serv;
 	struct sockaddr from;
 	socklen_t fromlen;
-	int sfd, tmpsfd;
+	pid_t otherpid;
+	int ch, sfd, tmpsfd;
 	unsigned port;
 
 	bindaddr = htonl(INADDR_ANY);
 	port = G_GATE_PORT;
-	for (;;) {
-		int ch;
-
-		ch = getopt(argc, argv, "a:hnp:R:S:v");
-		if (ch == -1)
-			break;
+	while ((ch = getopt(argc, argv, "a:hnp:F:R:S:v")) != -1) {
 		switch (ch) {
 		case 'a':
 			bindaddr = g_gate_str2ip(optarg);
@@ -967,6 +967,9 @@ main(int argc, char *argv[])
 				errx(EXIT_FAILURE,
 				    "Invalid IP/host name to bind to.");
 			}
+			break;
+		case 'F':
+			ggated_pidfile = optarg;
 			break;
 		case 'n':
 			nagle = 0;
@@ -1004,11 +1007,22 @@ main(int argc, char *argv[])
 		exports_file = argv[0];
 	exports_get();
 
+	pfh = pidfile_open(ggated_pidfile, 0600, &otherpid);
+	if (pfh == NULL) {
+		if (errno == EEXIST) {
+			errx(EXIT_FAILURE, "Daemon already running, pid: %jd.",
+			    (intmax_t)otherpid);
+		}
+		err(EXIT_FAILURE, "Cannot open/create pidfile");
+	}
+
 	if (!g_gate_verbose) {
 		/* Run in daemon mode. */
 		if (daemon(0, 0) == -1)
 			g_gate_xlog("Cannot daemonize: %s", strerror(errno));
 	}
+
+	pidfile_write(pfh);
 
 	signal(SIGCHLD, SIG_IGN);
 
@@ -1046,5 +1060,6 @@ main(int argc, char *argv[])
 			close(tmpsfd);
 	}
 	close(sfd);
+	pidfile_remove(pfh);
 	exit(EXIT_SUCCESS);
 }

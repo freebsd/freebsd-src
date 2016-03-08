@@ -48,7 +48,7 @@ wcsncat(wchar_t * __restrict s1, const wchar_t * __restrict s2, size_t n)
 		p++;
 	q = p;
 	r = s2;
-	while (*r && n) {
+	while (n && *r) {
 		*q++ = *r++;
 		n--;
 	}

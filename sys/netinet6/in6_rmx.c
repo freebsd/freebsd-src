@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
+#include <net/route_var.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_var.h>
@@ -102,14 +103,12 @@ extern int	in6_detachhead(void **head, int off);
  * Do what we need to do when inserting a route.
  */
 static struct radix_node *
-in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
+in6_addroute(void *v_arg, void *n_arg, struct radix_head *head,
     struct radix_node *treenodes)
 {
 	struct rtentry *rt = (struct rtentry *)treenodes;
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)rt_key(rt);
-	struct radix_node *ret;
 
-	RADIX_NODE_HEAD_WLOCK_ASSERT(head);
 	if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 		rt->rt_flags |= RTF_MULTICAST;
 
@@ -148,41 +147,14 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 			rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
 	}
 
-	ret = rn_addroute(v_arg, n_arg, head, treenodes);
-	if (ret == NULL) {
-		struct rtentry *rt2;
-		/*
-		 * We are trying to add a net route, but can't.
-		 * The following case should be allowed, so we'll make a
-		 * special check for this:
-		 *	Two IPv6 addresses with the same prefix is assigned
-		 *	to a single interrface.
-		 *	# ifconfig if0 inet6 3ffe:0501::1 prefix 64 alias (*1)
-		 *	# ifconfig if0 inet6 3ffe:0501::2 prefix 64 alias (*2)
-		 *	In this case, (*1) and (*2) want to add the same
-		 *	net route entry, 3ffe:0501:: -> if0.
-		 *	This case should not raise an error.
-		 */
-		rt2 = in6_rtalloc1((struct sockaddr *)sin6, 0, RTF_RNH_LOCKED,
-		    rt->rt_fibnum);
-		if (rt2) {
-			if (((rt2->rt_flags & (RTF_HOST|RTF_GATEWAY)) == 0)
-			 && rt2->rt_gateway
-			 && rt2->rt_gateway->sa_family == AF_LINK
-			 && rt2->rt_ifp == rt->rt_ifp) {
-				ret = rt2->rt_nodes;
-			}
-			RTFREE_LOCKED(rt2);
-		}
-	}
-	return (ret);
+	return (rn_addroute(v_arg, n_arg, head, treenodes));
 }
 
 /*
  * Age old PMTUs.
  */
 struct mtuex_arg {
-	struct radix_node_head *rnh;
+	struct rib_head *rnh;
 	time_t nextstop;
 };
 static VNET_DEFINE(struct callout, rtq_mtutimer);
@@ -207,7 +179,7 @@ in6_mtuexpire(struct rtentry *rt, void *rock)
 #define	MTUTIMO_DEFAULT	(60*1)
 
 static void
-in6_mtutimo_setwa(struct radix_node_head *rnh, uint32_t fibum, int af,
+in6_mtutimo_setwa(struct rib_head *rnh, uint32_t fibum, int af,
     void *_arg)
 {
 	struct mtuex_arg *arg;
@@ -241,15 +213,14 @@ static VNET_DEFINE(int, _in6_rt_was_here);
 int
 in6_inithead(void **head, int off)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 
-	if (!rn_inithead(head, offsetof(struct sockaddr_in6, sin6_addr) << 3))
+	rh = rt_table_init(offsetof(struct sockaddr_in6, sin6_addr) << 3);
+	if (rh == NULL)
 		return (0);
 
-	rnh = *head;
-	RADIX_NODE_HEAD_LOCK_INIT(rnh);
-
-	rnh->rnh_addaddr = in6_addroute;
+	rh->rnh_addaddr = in6_addroute;
+	*head = (void *)rh;
 
 	if (V__in6_rt_was_here == 0) {
 		callout_init(&V_rtq_mtutimer, 1);
@@ -266,7 +237,9 @@ in6_detachhead(void **head, int off)
 {
 
 	callout_drain(&V_rtq_mtutimer);
-	return (rn_detachhead(head));
+	rt_table_destroy((struct rib_head *)(*head));
+
+	return (1);
 }
 #endif
 

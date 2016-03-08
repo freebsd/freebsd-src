@@ -52,7 +52,7 @@
 #endif
 
 #ifndef STANDARD_LIBRARY_PATH
-#define	STANDARD_LIBRARY_PATH	"/lib:/usr/lib"
+#define	STANDARD_LIBRARY_PATH	"/lib/casper:/lib:/usr/lib"
 #endif
 
 #ifndef LD_
@@ -62,7 +62,7 @@
 #define	_PATH_SOFT_ELF_HINTS	"/var/run/ld-elf-soft.so.hints"
 #define	_PATH_SOFT_LIBMAP_CONF	"/etc/libmap-soft.conf"
 #define	_PATH_SOFT_RTLD		"/libexec/ld-elf.so.1"
-#define	SOFT_STANDARD_LIBRARY_PATH "/libsoft:/usr/libsoft:/lib:/usr/lib"
+#define	SOFT_STANDARD_LIBRARY_PATH "/usr/libsoft"
 #define	LD_SOFT_		"LD_SOFT_"
 
 extern char *ld_elf_hints_default;

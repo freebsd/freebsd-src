@@ -20,11 +20,32 @@
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/ADT/iterator.h"
+#include "llvm/ProfileData/InstrProf.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/Endian.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/raw_ostream.h"
 #include <system_error>
 #include <tuple>
+
+namespace llvm {
+namespace coverage {
+enum class coveragemap_error {
+  success = 0,
+  eof,
+  no_data_found,
+  unsupported_version,
+  truncated,
+  malformed
+};
+} // end of coverage namespace.
+}
+
+namespace std {
+template <>
+struct is_error_code_enum<llvm::coverage::coveragemap_error> : std::true_type {
+};
+}
 
 namespace llvm {
 class IndexedInstrProfReader;
@@ -34,8 +55,6 @@ class CoverageMappingReader;
 
 class CoverageMapping;
 struct CounterExpressions;
-
-enum CoverageMappingVersion { CoverageMappingVersion1 };
 
 /// \brief A Counter is an abstract value that describes how to compute the
 /// execution count for a region of code using the collected profile count data.
@@ -104,7 +123,7 @@ struct CounterExpression {
 };
 
 /// \brief A Counter expression builder is used to construct the
-/// counter expressions. It avoids unecessary duplication
+/// counter expressions. It avoids unnecessary duplication
 /// and simplifies algebraic expressions.
 class CounterExpressionBuilder {
   /// \brief A list of all the counter expressions
@@ -236,7 +255,7 @@ class CounterMappingContext {
 
 public:
   CounterMappingContext(ArrayRef<CounterExpression> Expressions,
-                        ArrayRef<uint64_t> CounterValues = ArrayRef<uint64_t>())
+                        ArrayRef<uint64_t> CounterValues = None)
       : Expressions(Expressions), CounterValues(CounterValues) {}
 
   void setCounts(ArrayRef<uint64_t> Counts) { CounterValues = Counts; }
@@ -443,7 +462,7 @@ public:
 
   /// \brief Get the list of function instantiations in the file.
   ///
-  /// Fucntions that are instantiated more than once, such as C++ template
+  /// Functions that are instantiated more than once, such as C++ template
   /// specializations, have distinct coverage records for each instantiation.
   std::vector<const FunctionRecord *> getInstantiations(StringRef Filename);
 
@@ -452,6 +471,76 @@ public:
 
   /// \brief Get the coverage for an expansion within a coverage set.
   CoverageData getCoverageForExpansion(const ExpansionRecord &Expansion);
+};
+
+const std::error_category &coveragemap_category();
+
+inline std::error_code make_error_code(coveragemap_error E) {
+  return std::error_code(static_cast<int>(E), coveragemap_category());
+}
+
+// Profile coverage map has the following layout:
+// [CoverageMapFileHeader]
+// [ArrayStart]
+//  [CovMapFunctionRecord]
+//  [CovMapFunctionRecord]
+//  ...
+// [ArrayEnd]
+// [Encoded Region Mapping Data]
+LLVM_PACKED_START
+template <class IntPtrT> struct CovMapFunctionRecord {
+#define COVMAP_FUNC_RECORD(Type, LLVMType, Name, Init) Type Name;
+#include "llvm/ProfileData/InstrProfData.inc"
+
+  // Return the structural hash associated with the function.
+  template <support::endianness Endian> uint64_t getFuncHash() const {
+    return support::endian::byte_swap<uint64_t, Endian>(FuncHash);
+  }
+  // Return the coverage map data size for the funciton.
+  template <support::endianness Endian> uint32_t getDataSize() const {
+    return support::endian::byte_swap<uint32_t, Endian>(DataSize);
+  }
+  // Return function lookup key. The value is consider opaque.
+  template <support::endianness Endian> IntPtrT getFuncNameRef() const {
+    return support::endian::byte_swap<IntPtrT, Endian>(NamePtr);
+  }
+  // Return the PGO name of the function */
+  template <support::endianness Endian>
+  std::error_code getFuncName(InstrProfSymtab &ProfileNames,
+                              StringRef &FuncName) const {
+    IntPtrT NameRef = getFuncNameRef<Endian>();
+    uint32_t NameS = support::endian::byte_swap<uint32_t, Endian>(NameSize);
+    FuncName = ProfileNames.getFuncName(NameRef, NameS);
+    if (NameS && FuncName.empty())
+      return coveragemap_error::malformed;
+    return std::error_code();
+  }
+};
+// Per module coverage mapping data header, i.e. CoverageMapFileHeader
+// documented above.
+struct CovMapHeader {
+#define COVMAP_HEADER(Type, LLVMType, Name, Init) Type Name;
+#include "llvm/ProfileData/InstrProfData.inc"
+  template <support::endianness Endian> uint32_t getNRecords() const {
+    return support::endian::byte_swap<uint32_t, Endian>(NRecords);
+  }
+  template <support::endianness Endian> uint32_t getFilenamesSize() const {
+    return support::endian::byte_swap<uint32_t, Endian>(FilenamesSize);
+  }
+  template <support::endianness Endian> uint32_t getCoverageSize() const {
+    return support::endian::byte_swap<uint32_t, Endian>(CoverageSize);
+  }
+  template <support::endianness Endian> uint32_t getVersion() const {
+    return support::endian::byte_swap<uint32_t, Endian>(Version);
+  }
+};
+
+LLVM_PACKED_END
+
+enum CoverageMappingVersion {
+  CoverageMappingVersion1 = 0,
+  // The current versin is Version1
+  CoverageMappingCurrentVersion = INSTR_PROF_COVMAP_VERSION
 };
 
 } // end namespace coverage
@@ -484,26 +573,6 @@ template<> struct DenseMapInfo<coverage::CounterExpression> {
   }
 };
 
-const std::error_category &coveragemap_category();
-
-enum class coveragemap_error {
-  success = 0,
-  eof,
-  no_data_found,
-  unsupported_version,
-  truncated,
-  malformed
-};
-
-inline std::error_code make_error_code(coveragemap_error E) {
-  return std::error_code(static_cast<int>(E), coveragemap_category());
-}
-
 } // end namespace llvm
-
-namespace std {
-template <>
-struct is_error_code_enum<llvm::coveragemap_error> : std::true_type {};
-}
 
 #endif // LLVM_PROFILEDATA_COVERAGEMAPPING_H_

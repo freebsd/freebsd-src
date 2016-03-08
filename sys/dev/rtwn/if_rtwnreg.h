@@ -1295,7 +1295,6 @@ struct rtwn_softc {
 	bus_size_t			sc_mapsize;
 	int				sc_cap_off;
 
-	struct task			sc_reinit_task;
 	struct callout			calib_to;
 	struct callout			watchdog_to;
 

@@ -91,13 +91,13 @@ struct worddest {
 static char *expdest;			/* output of current string */
 static struct nodelist *argbackq;	/* list of back quote expressions */
 
-static char *argstr(char *, int, struct worddest *);
-static char *exptilde(char *, int);
-static char *expari(char *, int, struct worddest *);
+static const char *argstr(const char *, int, struct worddest *);
+static const char *exptilde(const char *, int);
+static const char *expari(const char *, int, struct worddest *);
 static void expbackq(union node *, int, int, struct worddest *);
-static void subevalvar_trim(char *, int, int, int);
-static int subevalvar_misc(char *, const char *, int, int, int);
-static char *evalvar(char *, int, struct worddest *);
+static void subevalvar_trim(const char *, int, int, int);
+static int subevalvar_misc(const char *, const char *, int, int, int);
+static const char *evalvar(const char *, int, struct worddest *);
 static int varisset(const char *, int);
 static void strtodest(const char *, int, int, int, struct worddest *);
 static void reprocess(int, int, int, int, struct worddest *);
@@ -262,8 +262,8 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
  *
  * If EXP_SPLIT is set, dst receives any complete words produced.
  */
-static char *
-argstr(char *p, int flag, struct worddest *dst)
+static const char *
+argstr(const char *p, int flag, struct worddest *dst)
 {
 	char c;
 	int quotes = flag & (EXP_GLOB | EXP_CASE);	/* do CTLESC */
@@ -352,12 +352,15 @@ argstr(char *p, int flag, struct worddest *dst)
  * Perform tilde expansion, placing the result in the stack string and
  * returning the next position in the input string to process.
  */
-static char *
-exptilde(char *p, int flag)
+static const char *
+exptilde(const char *p, int flag)
 {
-	char c, *startp = p;
+	char c;
+	const char *startp = p;
+	const char *user;
 	struct passwd *pw;
 	char *home;
+	int len;
 
 	for (;;) {
 		c = *p;
@@ -377,14 +380,17 @@ exptilde(char *p, int flag)
 		case '\0':
 		case '/':
 		case CTLENDVAR:
-			*p = '\0';
-			if (*(startp+1) == '\0') {
+			len = p - startp - 1;
+			STPUTBIN(startp + 1, len, expdest);
+			STACKSTRNUL(expdest);
+			user = expdest - len;
+			if (*user == '\0') {
 				home = lookupvar("HOME");
 			} else {
-				pw = getpwnam(startp+1);
+				pw = getpwnam(user);
 				home = pw != NULL ? pw->pw_dir : NULL;
 			}
-			*p = c;
+			STADJUST(-len, expdest);
 			if (home == NULL || *home == '\0')
 				return (startp);
 			strtodest(home, flag, VSNORMAL, 1, NULL);
@@ -398,8 +404,8 @@ exptilde(char *p, int flag)
 /*
  * Expand arithmetic expression.
  */
-static char *
-expari(char *p, int flag, struct worddest *dst)
+static const char *
+expari(const char *p, int flag, struct worddest *dst)
 {
 	char *q, *start;
 	arith_t result;
@@ -457,7 +463,6 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 	argbackq = saveargbackq;
 
 	p = in.buf;
-	lastc = '\0';
 	nnl = 0;
 	if (!quoted && flag & EXP_SPLIT)
 		ifs = ifsset() ? ifsval() : " \t\n";
@@ -532,7 +537,7 @@ recordleft(const char *str, const char *loc, char *startp)
 }
 
 static void
-subevalvar_trim(char *p, int strloc, int subtype, int startloc)
+subevalvar_trim(const char *p, int strloc, int subtype, int startloc)
 {
 	char *startp;
 	char *loc = NULL;
@@ -606,7 +611,7 @@ subevalvar_trim(char *p, int strloc, int subtype, int startloc)
 
 
 static int
-subevalvar_misc(char *p, const char *var, int subtype, int startloc,
+subevalvar_misc(const char *p, const char *var, int subtype, int startloc,
   int varflags)
 {
 	char *startp;
@@ -645,12 +650,12 @@ subevalvar_misc(char *p, const char *var, int subtype, int startloc,
  * input string.
  */
 
-static char *
-evalvar(char *p, int flag, struct worddest *dst)
+static const char *
+evalvar(const char *p, int flag, struct worddest *dst)
 {
 	int subtype;
 	int varflags;
-	char *var;
+	const char *var;
 	const char *val;
 	int patloc;
 	int c;
@@ -1282,7 +1287,7 @@ patmatch(const char *pattern, const char *string)
 				if (wc == 0)
 					goto backtrack;
 			} else
-				wc = (unsigned char)*q++;
+				q++;
 			break;
 		case '*':
 			c = *p;

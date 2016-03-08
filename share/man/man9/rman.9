@@ -65,7 +65,7 @@
 .Ft int
 .Fn rman_activate_resource "struct resource *r"
 .Ft int
-.Fn rman_adjust_resource "struct resource *r" "u_long start" "u_long end"
+.Fn rman_adjust_resource "struct resource *r" "rman_res_t start" "rman_res_t end"
 .Ft int
 .Fn rman_await_resource "struct resource *r" "int pri2" "int timo"
 .Ft int
@@ -79,32 +79,32 @@
 .Ft int
 .Fn rman_is_region_manager "struct resource *r" "struct rman *rm"
 .Ft int
-.Fn rman_manage_region "struct rman *rm" "u_long start" "u_long end"
+.Fn rman_manage_region "struct rman *rm" "rman_res_t start" "rman_res_t end"
 .Ft int
-.Fn rman_first_free_region "struct rman *rm" "u_long *start" "u_long *end"
+.Fn rman_first_free_region "struct rman *rm" "rman_res_t *start" "rman_res_t *end"
 .Ft int
-.Fn rman_last_free_region "struct rman *rm" "u_long *start" "u_long *end"
+.Fn rman_last_free_region "struct rman *rm" "rman_res_t *start" "rman_res_t *end"
 .Ft int
 .Fn rman_release_resource "struct resource *r"
 .Ft "struct resource *"
 .Fo rman_reserve_resource
-.Fa "struct rman *rm" "u_long start" "u_long end" "u_long count"
+.Fa "struct rman *rm" "rman_res_t start" "rman_res_t end" "rman_res_t count"
 .Fa "u_int flags" "struct device *dev"
 .Fc
 .Ft "struct resource *"
 .Fo rman_reserve_resource_bound
-.Fa "struct rman *rm" "u_long start" "u_long end" "u_long count"
-.Fa "u_long bound" "u_int flags" "struct device *dev"
+.Fa "struct rman *rm" "rman_res_t start" "rman_res_t end" "rman_res_t count"
+.Fa "rman_res_t bound" "u_int flags" "struct device *dev"
 .Fc
 .Ft uint32_t
 .Fn rman_make_alignment_flags "uint32_t size"
-.Ft u_long
+.Ft rman_res_t
 .Fn rman_get_start "struct resource *r"
-.Ft u_long
+.Ft rman_res_t
 .Fn rman_get_end "struct resource *r"
 .Ft "struct device *"
 .Fn rman_get_device "struct resource *r"
-.Ft u_long
+.Ft rman_res_t
 .Fn rman_get_size "struct resource *r"
 .Ft u_int
 .Fn rman_get_flags "struct resource *r"

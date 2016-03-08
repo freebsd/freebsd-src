@@ -443,6 +443,7 @@ mib_fetch_ifmib(struct mibif *ifp)
 	size_t len;
 	void *newmib;
 	struct ifmibdata oldmib = ifp->mib;
+	struct ifreq irr;
 
 	if (fetch_generic_mib(ifp, &oldmib) == -1)
 		return (-1);
@@ -514,6 +515,18 @@ mib_fetch_ifmib(struct mibif *ifp)
 	}
 
   out:
+	strncpy(irr.ifr_name, ifp->name, sizeof(irr.ifr_name));
+	irr.ifr_buffer.buffer = MIBIF_PRIV(ifp)->alias;
+	irr.ifr_buffer.length = sizeof(MIBIF_PRIV(ifp)->alias);
+	if (ioctl(mib_netsock, SIOCGIFDESCR, &irr) == -1) {
+		MIBIF_PRIV(ifp)->alias[0] = 0;
+		if (errno != ENOMSG)
+			syslog(LOG_WARNING, "SIOCGIFDESCR (%s): %m", ifp->name);
+	} else if (irr.ifr_buffer.buffer == NULL) {
+		MIBIF_PRIV(ifp)->alias[0] = 0;
+		syslog(LOG_WARNING, "SIOCGIFDESCR (%s): too long (%zu)",
+		    ifp->name, irr.ifr_buffer.length);
+	}
 	ifp->mibtick = get_ticks();
 	return (0);
 }
@@ -969,7 +982,7 @@ handle_rtmsg(struct rt_msghdr *rtm)
 {
 	struct sockaddr *addrs[RTAX_MAX];
 	struct if_msghdr *ifm;
-	struct ifa_msghdr ifam;
+	struct ifa_msghdr ifam, *ifamp;
 	struct ifma_msghdr *ifmam;
 #ifdef RTM_IFANNOUNCE
 	struct if_announcemsghdr *ifan;
@@ -989,8 +1002,9 @@ handle_rtmsg(struct rt_msghdr *rtm)
 	switch (rtm->rtm_type) {
 
 	  case RTM_NEWADDR:
-		memcpy(&ifam, rtm, sizeof(ifam));
-		mib_extract_addrs(ifam.ifam_addrs, (u_char *)(&ifam + 1), addrs);
+		ifamp = (struct ifa_msghdr *)rtm;
+		memcpy(&ifam, ifamp, sizeof(ifam));
+		mib_extract_addrs(ifam.ifam_addrs, (u_char *)(ifamp + 1), addrs);
 		if (addrs[RTAX_IFA] == NULL || addrs[RTAX_NETMASK] == NULL)
 			break;
 
@@ -1016,8 +1030,9 @@ handle_rtmsg(struct rt_msghdr *rtm)
 		break;
 
 	  case RTM_DELADDR:
-		memcpy(&ifam, rtm, sizeof(ifam));
-		mib_extract_addrs(ifam.ifam_addrs, (u_char *)(&ifam + 1), addrs);
+		ifamp = (struct ifa_msghdr *)rtm;
+		memcpy(&ifam, ifamp, sizeof(ifam));
+		mib_extract_addrs(ifam.ifam_addrs, (u_char *)(ifamp + 1), addrs);
 		if (addrs[RTAX_IFA] == NULL)
 			break;
 

@@ -13,9 +13,8 @@
 #ifndef LLVM_PROFILEDATA_SAMPLEPROFWRITER_H
 #define LLVM_PROFILEDATA_SAMPLEPROFWRITER_H
 
+#include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/Module.h"
 #include "llvm/ProfileData/SampleProf.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/FileSystem.h"
@@ -30,77 +29,102 @@ enum SampleProfileFormat { SPF_None = 0, SPF_Text, SPF_Binary, SPF_GCC };
 /// \brief Sample-based profile writer. Base class.
 class SampleProfileWriter {
 public:
-  SampleProfileWriter(StringRef Filename, std::error_code &EC,
-                      sys::fs::OpenFlags Flags)
-      : OS(Filename, EC, Flags) {}
   virtual ~SampleProfileWriter() {}
 
-  /// \brief Write sample profiles in \p S for function \p FName.
+  /// Write sample profiles in \p S for function \p FName.
   ///
-  /// \returns true if the file was updated successfully. False, otherwise.
-  virtual bool write(StringRef FName, const FunctionSamples &S) = 0;
+  /// \returns status code of the file update operation.
+  virtual std::error_code write(StringRef FName, const FunctionSamples &S) = 0;
 
-  /// \brief Write sample profiles in \p S for function \p F.
-  bool write(const Function &F, const FunctionSamples &S) {
-    return write(F.getName(), S);
-  }
-
-  /// \brief Write all the sample profiles for all the functions in \p M.
+  /// Write all the sample profiles in the given map of samples.
   ///
-  /// \returns true if the file was updated successfully. False, otherwise.
-  bool write(const Module &M, StringMap<FunctionSamples> &P) {
-    for (const auto &F : M) {
-      StringRef Name = F.getName();
-      if (!write(Name, P[Name]))
-        return false;
-    }
-    return true;
-  }
+  /// \returns status code of the file update operation.
+  std::error_code write(const StringMap<FunctionSamples> &ProfileMap) {
+    if (std::error_code EC = writeHeader(ProfileMap))
+      return EC;
 
-  /// \brief Write all the sample profiles in the given map of samples.
-  ///
-  /// \returns true if the file was updated successfully. False, otherwise.
-  bool write(StringMap<FunctionSamples> &ProfileMap) {
-    for (auto &I : ProfileMap) {
+    for (const auto &I : ProfileMap) {
       StringRef FName = I.first();
-      FunctionSamples &Profile = I.second;
-      if (!write(FName, Profile))
-        return false;
+      const FunctionSamples &Profile = I.second;
+      if (std::error_code EC = write(FName, Profile))
+        return EC;
     }
-    return true;
+    return sampleprof_error::success;
   }
 
-  /// \brief Profile writer factory. Create a new writer based on the value of
-  /// \p Format.
+  raw_ostream &getOutputStream() { return *OutputStream; }
+
+  /// Profile writer factory.
+  ///
+  /// Create a new file writer based on the value of \p Format.
   static ErrorOr<std::unique_ptr<SampleProfileWriter>>
   create(StringRef Filename, SampleProfileFormat Format);
 
+  /// Create a new stream writer based on the value of \p Format.
+  /// For testing.
+  static ErrorOr<std::unique_ptr<SampleProfileWriter>>
+  create(std::unique_ptr<raw_ostream> &OS, SampleProfileFormat Format);
+
 protected:
+  SampleProfileWriter(std::unique_ptr<raw_ostream> &OS)
+      : OutputStream(std::move(OS)) {}
+
+  /// \brief Write a file header for the profile file.
+  virtual std::error_code
+  writeHeader(const StringMap<FunctionSamples> &ProfileMap) = 0;
+
   /// \brief Output stream where to emit the profile to.
-  raw_fd_ostream OS;
+  std::unique_ptr<raw_ostream> OutputStream;
 };
 
 /// \brief Sample-based profile writer (text format).
 class SampleProfileWriterText : public SampleProfileWriter {
 public:
-  SampleProfileWriterText(StringRef F, std::error_code &EC)
-      : SampleProfileWriter(F, EC, sys::fs::F_Text) {}
+  std::error_code write(StringRef FName, const FunctionSamples &S) override;
 
-  bool write(StringRef FName, const FunctionSamples &S) override;
-  bool write(const Module &M, StringMap<FunctionSamples> &P) {
-    return SampleProfileWriter::write(M, P);
+protected:
+  SampleProfileWriterText(std::unique_ptr<raw_ostream> &OS)
+      : SampleProfileWriter(OS), Indent(0) {}
+
+  std::error_code
+  writeHeader(const StringMap<FunctionSamples> &ProfileMap) override {
+    return sampleprof_error::success;
   }
+
+private:
+  /// Indent level to use when writing.
+  ///
+  /// This is used when printing inlined callees.
+  unsigned Indent;
+
+  friend ErrorOr<std::unique_ptr<SampleProfileWriter>>
+  SampleProfileWriter::create(std::unique_ptr<raw_ostream> &OS,
+                              SampleProfileFormat Format);
 };
 
 /// \brief Sample-based profile writer (binary format).
 class SampleProfileWriterBinary : public SampleProfileWriter {
 public:
-  SampleProfileWriterBinary(StringRef F, std::error_code &EC);
+  std::error_code write(StringRef F, const FunctionSamples &S) override;
 
-  bool write(StringRef F, const FunctionSamples &S) override;
-  bool write(const Module &M, StringMap<FunctionSamples> &P) {
-    return SampleProfileWriter::write(M, P);
-  }
+protected:
+  SampleProfileWriterBinary(std::unique_ptr<raw_ostream> &OS)
+      : SampleProfileWriter(OS), NameTable() {}
+
+  std::error_code
+  writeHeader(const StringMap<FunctionSamples> &ProfileMap) override;
+  std::error_code writeNameIdx(StringRef FName);
+  std::error_code writeBody(StringRef FName, const FunctionSamples &S);
+
+private:
+  void addName(StringRef FName);
+  void addNames(const FunctionSamples &S);
+
+  MapVector<StringRef, uint32_t> NameTable;
+
+  friend ErrorOr<std::unique_ptr<SampleProfileWriter>>
+  SampleProfileWriter::create(std::unique_ptr<raw_ostream> &OS,
+                              SampleProfileFormat Format);
 };
 
 } // End namespace sampleprof

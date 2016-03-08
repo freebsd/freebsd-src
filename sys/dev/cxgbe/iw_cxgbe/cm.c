@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 Chelsio, Inc. All rights reserved.
+ * Copyright (c) 2009-2013, 2016 Chelsio, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -111,8 +111,6 @@ static void ep_timeout(unsigned long arg);
 static void init_sock(struct c4iw_ep_common *epc);
 static void process_data(struct c4iw_ep *ep);
 static void process_connected(struct c4iw_ep *ep);
-static struct socket * dequeue_socket(struct socket *head, struct sockaddr_in **remote, struct c4iw_ep *child_ep);
-static void process_newconn(struct c4iw_ep *parent_ep);
 static int c4iw_so_upcall(struct socket *so, void *arg, int waitflag);
 static void process_socket_event(struct c4iw_ep *ep);
 static void release_ep_resources(struct c4iw_ep *ep);
@@ -623,40 +621,21 @@ process_connected(struct c4iw_ep *ep)
 	}
 }
 
-static struct socket *
-dequeue_socket(struct socket *head, struct sockaddr_in **remote,
-    struct c4iw_ep *child_ep)
+void
+process_newconn(struct iw_cm_id *parent_cm_id, struct socket *child_so)
 {
-	struct socket *so;
-
-	ACCEPT_LOCK();
-	so = TAILQ_FIRST(&head->so_comp);
-	if (!so) {
-		ACCEPT_UNLOCK();
-		return (NULL);
-	}
-	TAILQ_REMOVE(&head->so_comp, so, so_list);
-	head->so_qlen--;
-	SOCK_LOCK(so);
-	so->so_qstate &= ~SQ_COMP;
-	so->so_head = NULL;
-	soref(so);
-	soupcall_set(so, SO_RCV, c4iw_so_upcall, child_ep);
-	so->so_state |= SS_NBIO;
-	SOCK_UNLOCK(so);
-	ACCEPT_UNLOCK();
-	soaccept(so, (struct sockaddr **)remote);
-
-	return (so);
-}
-
-static void
-process_newconn(struct c4iw_ep *parent_ep)
-{
-	struct socket *child_so;
 	struct c4iw_ep *child_ep;
+	struct sockaddr_in *local;
 	struct sockaddr_in *remote;
+	struct c4iw_ep *parent_ep = parent_cm_id->provider_data;
 
+	if (!child_so) {
+		CTR4(KTR_IW_CXGBE,
+		    "%s: parent so %p, parent ep %p, child so %p, invalid so",
+		    __func__, parent_ep->com.so, parent_ep, child_so);
+		log(LOG_ERR, "%s: invalid child socket\n", __func__);
+		return;
+	}
 	child_ep = alloc_ep(sizeof(*child_ep), M_NOWAIT);
 	if (!child_ep) {
 		CTR3(KTR_IW_CXGBE, "%s: parent so %p, parent ep %p, ENOMEM",
@@ -664,23 +643,18 @@ process_newconn(struct c4iw_ep *parent_ep)
 		log(LOG_ERR, "%s: failed to allocate ep entry\n", __func__);
 		return;
 	}
-
-	child_so = dequeue_socket(parent_ep->com.so, &remote, child_ep);
-	if (!child_so) {
-		CTR4(KTR_IW_CXGBE,
-		    "%s: parent so %p, parent ep %p, child ep %p, dequeue err",
-		    __func__, parent_ep->com.so, parent_ep, child_ep);
-		log(LOG_ERR, "%s: failed to dequeue child socket\n", __func__);
-		__free_ep(&child_ep->com);
-		return;
-
-	}
+	SOCKBUF_LOCK(&child_so->so_rcv);
+	soupcall_set(child_so, SO_RCV, c4iw_so_upcall, child_ep);
+	SOCKBUF_UNLOCK(&child_so->so_rcv);
 
 	CTR5(KTR_IW_CXGBE,
 	    "%s: parent so %p, parent ep %p, child so %p, child ep %p",
 	     __func__, parent_ep->com.so, parent_ep, child_so, child_ep);
 
-	child_ep->com.local_addr = parent_ep->com.local_addr;
+	in_getsockaddr(child_so, (struct sockaddr **)&local);
+	in_getpeeraddr(child_so, (struct sockaddr **)&remote);
+
+	child_ep->com.local_addr = *local;
 	child_ep->com.remote_addr = *remote;
 	child_ep->com.dev = parent_ep->com.dev;
 	child_ep->com.so = child_so;
@@ -688,15 +662,17 @@ process_newconn(struct c4iw_ep *parent_ep)
 	child_ep->com.thread = parent_ep->com.thread;
 	child_ep->parent_ep = parent_ep;
 
+	free(local, M_SONAME);
 	free(remote, M_SONAME);
+
 	c4iw_get_ep(&parent_ep->com);
-	child_ep->parent_ep = parent_ep;
 	init_timer(&child_ep->timer);
 	state_set(&child_ep->com, MPA_REQ_WAIT);
 	START_EP_TIMER(child_ep);
 
 	/* maybe the request has already been queued up on the socket... */
 	process_mpa_request(child_ep);
+	return;
 }
 
 static int
@@ -738,7 +714,10 @@ process_socket_event(struct c4iw_ep *ep)
 	}
 
 	if (state == LISTEN) {
-		process_newconn(ep);
+		/* socket listening events are handled at IWCM */
+		CTR3(KTR_IW_CXGBE, "%s Invalid ep state:%u, ep:%p", __func__,
+			    ep->com.state, ep);
+		BUG();
 		return;
 	}
 
@@ -919,7 +898,6 @@ void _c4iw_free_ep(struct kref *kref)
 
 	ep = container_of(kref, struct c4iw_ep, com.kref);
 	epc = &ep->com;
-	KASSERT(!epc->so, ("%s ep->so %p", __func__, epc->so));
 	KASSERT(!epc->entry.tqe_prev, ("%s epc %p still on req list",
 	    __func__, epc));
 	kfree(ep);
@@ -2126,10 +2104,10 @@ out:
 }
 
 /*
- * iwcm->create_listen.  Returns -errno on failure.
+ * iwcm->create_listen_ep.  Returns -errno on failure.
  */
 int
-c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
+c4iw_create_listen_ep(struct iw_cm_id *cm_id, int backlog)
 {
 	int rc;
 	struct c4iw_dev *dev = to_c4iw_dev(cm_id->device);
@@ -2154,17 +2132,6 @@ c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	ep->com.thread = curthread;
 	state_set(&ep->com, LISTEN);
 	ep->com.so = so;
-	init_sock(&ep->com);
-
-	rc = solisten(so, ep->backlog, ep->com.thread);
-	if (rc != 0) {
-		log(LOG_ERR, "%s: failed to start listener: %d\n", __func__,
-		    rc);
-		close_socket(&ep->com, 0);
-		cm_id->rem_ref(cm_id);
-		c4iw_put_ep(&ep->com);
-		goto failed;
-	}
 
 	cm_id->provider_data = ep;
 	return (0);
@@ -2174,21 +2141,19 @@ failed:
 	return (-rc);
 }
 
-int
-c4iw_destroy_listen(struct iw_cm_id *cm_id)
+void
+c4iw_destroy_listen_ep(struct iw_cm_id *cm_id)
 {
-	int rc;
 	struct c4iw_listen_ep *ep = to_listen_ep(cm_id);
 
-	CTR4(KTR_IW_CXGBE, "%s: cm_id %p, so %p, inp %p", __func__, cm_id,
-	    cm_id->so, cm_id->so->so_pcb);
+	CTR4(KTR_IW_CXGBE, "%s: cm_id %p, so %p, state %s", __func__, cm_id,
+	    cm_id->so, states[ep->com.state]);
 
 	state_set(&ep->com, DEAD);
-	rc = close_socket(&ep->com, 0);
 	cm_id->rem_ref(cm_id);
 	c4iw_put_ep(&ep->com);
 
-	return (rc);
+	return;
 }
 
 int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
@@ -2365,15 +2330,18 @@ static int fw6_cqe_handler(struct adapter *sc, const __be64 *rpl)
 
 static int terminate(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
-
 	struct adapter *sc = iq->adapter;
-
-	const struct cpl_rdma_terminate *rpl = (const void *)(rss + 1);
-	unsigned int tid = GET_TID(rpl);
+	const struct cpl_rdma_terminate *cpl = mtod(m, const void *);
+	unsigned int tid = GET_TID(cpl);
 	struct c4iw_qp_attributes attrs;
 	struct toepcb *toep = lookup_tid(sc, tid);
-	struct socket *so = inp_inpcbtosocket(toep->inp);
-	struct c4iw_ep *ep = so->so_rcv.sb_upcallarg;
+	struct socket *so;
+	struct c4iw_ep *ep;
+
+	INP_WLOCK(toep->inp);
+	so = inp_inpcbtosocket(toep->inp);
+	ep = so->so_rcv.sb_upcallarg;
+	INP_WUNLOCK(toep->inp);
 
 	CTR2(KTR_IW_CXGBE, "%s:tB %p %d", __func__, ep);
 

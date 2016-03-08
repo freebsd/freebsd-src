@@ -19,6 +19,7 @@ CFLAGS+= -I${LLVM_SRCS}/${SRCDIR}/..
 TGHDRS=	AArch64GenInstrInfo \
 	AArch64GenMCCodeEmitter \
 	AArch64GenRegisterInfo \
-	AArch64GenSubtargetInfo
+	AArch64GenSubtargetInfo \
+	Attributes
 
 .include "../clang.lib.mk"

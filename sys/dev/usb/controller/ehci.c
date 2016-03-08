@@ -189,24 +189,8 @@ ehci_reset(ehci_softc_t *sc)
 		usb_pause_mtx(NULL, hz / 128);
 		hcr = EOREAD4(sc, EHCI_USBCMD) & EHCI_CMD_HCRESET;
 		if (!hcr) {
-			if (sc->sc_flags & (EHCI_SCFLG_SETMODE | EHCI_SCFLG_BIGEMMIO)) {
-				/*
-				 * Force USBMODE as requested.  Controllers
-				 * may have multiple operating modes.
-				 */
-				uint32_t usbmode = EOREAD4(sc, EHCI_USBMODE);
-				if (sc->sc_flags & EHCI_SCFLG_SETMODE) {
-					usbmode = (usbmode &~ EHCI_UM_CM) | EHCI_UM_CM_HOST;
-					device_printf(sc->sc_bus.bdev,
-					    "set host controller mode\n");
-				}
-				if (sc->sc_flags & EHCI_SCFLG_BIGEMMIO) {
-					usbmode = (usbmode &~ EHCI_UM_ES) | EHCI_UM_ES_BE;
-					device_printf(sc->sc_bus.bdev,
-					    "set big-endian mode\n");
-				}
-				EOWRITE4(sc,  EHCI_USBMODE, usbmode);
-			}
+			if (sc->sc_vendor_post_reset != NULL)
+				sc->sc_vendor_post_reset(sc);
 			return (0);
 		}
 	}
@@ -3066,6 +3050,36 @@ struct usb_hub_descriptor ehci_hubd =
 	.bDescriptorType = UDESC_HUB,
 };
 
+uint16_t
+ehci_get_port_speed_portsc(struct ehci_softc *sc, uint16_t index)
+{
+	uint32_t v;
+
+	v = EOREAD4(sc, EHCI_PORTSC(index));
+	v = (v >> EHCI_PORTSC_PSPD_SHIFT) & EHCI_PORTSC_PSPD_MASK;
+
+	if (v == EHCI_PORT_SPEED_HIGH)
+		return (UPS_HIGH_SPEED);
+	if (v == EHCI_PORT_SPEED_LOW)
+		return (UPS_LOW_SPEED);
+	return (0);
+}
+
+uint16_t
+ehci_get_port_speed_hostc(struct ehci_softc *sc, uint16_t index)
+{
+	uint32_t v;
+
+	v = EOREAD4(sc, EHCI_HOSTC(index));
+	v = (v >> EHCI_HOSTC_PSPD_SHIFT) & EHCI_HOSTC_PSPD_MASK;
+
+	if (v == EHCI_PORT_SPEED_HIGH)
+		return (UPS_HIGH_SPEED);
+	if (v == EHCI_PORT_SPEED_LOW)
+		return (UPS_LOW_SPEED);
+	return (0);
+}
+
 static void
 ehci_disown(ehci_softc_t *sc, uint16_t index, uint8_t lowspeed)
 {
@@ -3330,13 +3344,15 @@ ehci_roothub_exec(struct usb_device *udev,
 		}
 		v = EOREAD4(sc, EHCI_PORTSC(index));
 		DPRINTFN(9, "port status=0x%04x\n", v);
-		if (sc->sc_flags & (EHCI_SCFLG_FORCESPEED | EHCI_SCFLG_TT)) {
-			if ((v & 0xc000000) == 0x8000000)
+		if (sc->sc_flags & EHCI_SCFLG_TT) {
+			if (sc->sc_vendor_get_port_speed != NULL) {
+				i = sc->sc_vendor_get_port_speed(sc, index);
+			} else {
+				device_printf(sc->sc_bus.bdev,
+				    "EHCI_SCFLG_TT quirk is set but "
+				    "sc_vendor_get_hub_speed() is NULL\n");
 				i = UPS_HIGH_SPEED;
-			else if ((v & 0xc000000) == 0x4000000)
-				i = UPS_LOW_SPEED;
-			else
-				i = 0;
+			}
 		} else {
 			i = UPS_HIGH_SPEED;
 		}

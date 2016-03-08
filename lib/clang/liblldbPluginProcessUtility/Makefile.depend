@@ -13,36 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-DynamicRegisterInfo.o: AttrList.inc.h
-DynamicRegisterInfo.o: Attrs.inc.h
-DynamicRegisterInfo.o: CommentCommandList.inc.h
-DynamicRegisterInfo.o: DeclNodes.inc.h
-DynamicRegisterInfo.o: DiagnosticCommonKinds.inc.h
-DynamicRegisterInfo.o: StmtNodes.inc.h
-DynamicRegisterInfo.po: AttrList.inc.h
-DynamicRegisterInfo.po: Attrs.inc.h
-DynamicRegisterInfo.po: CommentCommandList.inc.h
-DynamicRegisterInfo.po: DeclNodes.inc.h
-DynamicRegisterInfo.po: DiagnosticCommonKinds.inc.h
-DynamicRegisterInfo.po: StmtNodes.inc.h
-InferiorCallPOSIX.o: CommentCommandList.inc.h
-InferiorCallPOSIX.o: DeclNodes.inc.h
-InferiorCallPOSIX.o: DiagnosticCommonKinds.inc.h
-InferiorCallPOSIX.o: StmtNodes.inc.h
-InferiorCallPOSIX.po: CommentCommandList.inc.h
-InferiorCallPOSIX.po: DeclNodes.inc.h
-InferiorCallPOSIX.po: DiagnosticCommonKinds.inc.h
-InferiorCallPOSIX.po: StmtNodes.inc.h
-RegisterContextDummy.o: DiagnosticCommonKinds.inc.h
-RegisterContextDummy.po: DiagnosticCommonKinds.inc.h
-RegisterContextHistory.o: DiagnosticCommonKinds.inc.h
-RegisterContextHistory.po: DiagnosticCommonKinds.inc.h
-RegisterContextLLDB.o: DiagnosticCommonKinds.inc.h
-RegisterContextLLDB.po: DiagnosticCommonKinds.inc.h
-StopInfoMachException.o: DiagnosticCommonKinds.inc.h
-StopInfoMachException.po: DiagnosticCommonKinds.inc.h
-UnwindLLDB.o: DiagnosticCommonKinds.inc.h
-UnwindLLDB.po: DiagnosticCommonKinds.inc.h
-UnwindMacOSXFrameBackchain.o: DiagnosticCommonKinds.inc.h
-UnwindMacOSXFrameBackchain.po: DiagnosticCommonKinds.inc.h
 .endif

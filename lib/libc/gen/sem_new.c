@@ -177,8 +177,10 @@ _sem_open(const char *name, int flags, ...)
 		if (ni->name != NULL && strcmp(name, ni->name) == 0) {
 			fd = _open(path, flags | O_RDWR | O_CLOEXEC |
 			    O_EXLOCK, mode);
-			if (fd == -1 || _fstat(fd, &sb) == -1)
+			if (fd == -1 || _fstat(fd, &sb) == -1) {
+				ni = NULL;
 				goto error;
+			}
 			if ((flags & (O_CREAT | O_EXCL)) == (O_CREAT |
 			    O_EXCL) || ni->dev != sb.st_dev ||
 			    ni->ino != sb.st_ino) {

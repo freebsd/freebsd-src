@@ -1470,7 +1470,9 @@ sctp_handle_addr_wq(void)
 	if (asc->cnt == 0) {
 		SCTP_FREE(asc, SCTP_M_ASC_IT);
 	} else {
-		(void)sctp_initiate_iterator(sctp_asconf_iterator_ep,
+		int ret;
+
+		ret = sctp_initiate_iterator(sctp_asconf_iterator_ep,
 		    sctp_asconf_iterator_stcb,
 		    NULL,	/* No ep end for boundall */
 		    SCTP_PCB_FLAGS_BOUNDALL,
@@ -1478,6 +1480,23 @@ sctp_handle_addr_wq(void)
 		    SCTP_ASOC_ANY_STATE,
 		    (void *)asc, 0,
 		    sctp_asconf_iterator_end, NULL, 0);
+		if (ret) {
+			SCTP_PRINTF("Failed to initiate iterator for handle_addr_wq\n");
+			/*
+			 * Freeing if we are stopping or put back on the
+			 * addr_wq.
+			 */
+			if (SCTP_BASE_VAR(sctp_pcb_initialized) == 0) {
+				sctp_asconf_iterator_end(asc, 0);
+			} else {
+				SCTP_WQ_ADDR_LOCK();
+				LIST_FOREACH(wi, &asc->list_of_work, sctp_nxt_addr) {
+					LIST_INSERT_HEAD(&SCTP_BASE_INFO(addr_wq), wi, sctp_nxt_addr);
+				}
+				SCTP_WQ_ADDR_UNLOCK();
+				SCTP_FREE(asc, SCTP_M_ASC_IT);
+			}
+		}
 	}
 }
 
@@ -1495,6 +1514,7 @@ sctp_timeout_handler(void *t)
 
 #endif
 	int did_output;
+	int type;
 
 	tmr = (struct sctp_timer *)t;
 	inp = (struct sctp_inpcb *)tmr->ep;
@@ -1563,8 +1583,9 @@ sctp_timeout_handler(void *t)
 			return;
 		}
 	}
+	type = tmr->type;
 	tmr->stopped_from = 0xa005;
-	SCTPDBG(SCTP_DEBUG_TIMER1, "Timer type %d goes off\n", tmr->type);
+	SCTPDBG(SCTP_DEBUG_TIMER1, "Timer type %d goes off\n", type);
 	if (!SCTP_OS_TIMER_ACTIVE(&tmr->timer)) {
 		if (inp) {
 			SCTP_INP_DECR_REF(inp);
@@ -1580,7 +1601,7 @@ sctp_timeout_handler(void *t)
 	if (stcb) {
 		SCTP_TCB_LOCK(stcb);
 		atomic_add_int(&stcb->asoc.refcnt, -1);
-		if ((tmr->type != SCTP_TIMER_TYPE_ASOCKILL) &&
+		if ((type != SCTP_TIMER_TYPE_ASOCKILL) &&
 		    ((stcb->asoc.state == 0) ||
 		    (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED))) {
 			SCTP_TCB_UNLOCK(stcb);
@@ -1592,7 +1613,7 @@ sctp_timeout_handler(void *t)
 		}
 	}
 	/* record in stopped what t-o occured */
-	tmr->stopped_from = tmr->type;
+	tmr->stopped_from = type;
 
 	/* mark as being serviced now */
 	if (SCTP_OS_TIMER_PENDING(&tmr->timer)) {
@@ -1610,7 +1631,7 @@ sctp_timeout_handler(void *t)
 	SCTP_OS_TIMER_DEACTIVATE(&tmr->timer);
 
 	/* call the handler for the appropriate timer type */
-	switch (tmr->type) {
+	switch (type) {
 	case SCTP_TIMER_TYPE_ZERO_COPY:
 		if (inp == NULL) {
 			break;
@@ -1894,11 +1915,11 @@ sctp_timeout_handler(void *t)
 		goto out_no_decr;
 	default:
 		SCTPDBG(SCTP_DEBUG_TIMER1, "sctp_timeout_handler:unknown timer %d\n",
-		    tmr->type);
+		    type);
 		break;
 	}
 #ifdef SCTP_AUDITING_ENABLED
-	sctp_audit_log(0xF1, (uint8_t) tmr->type);
+	sctp_audit_log(0xF1, (uint8_t) type);
 	if (inp)
 		sctp_auditing(5, inp, stcb, net);
 #endif
@@ -1921,8 +1942,7 @@ out_decr:
 		SCTP_INP_DECR_REF(inp);
 	}
 out_no_decr:
-	SCTPDBG(SCTP_DEBUG_TIMER1, "Timer now complete (type %d)\n",
-	    tmr->type);
+	SCTPDBG(SCTP_DEBUG_TIMER1, "Timer now complete (type = %d)\n", type);
 	CURVNET_RESTORE();
 }
 

@@ -136,6 +136,9 @@ static int selectroute(struct sockaddr_in6 *, struct ip6_pktopts *,
 static int in6_selectif(struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct ifnet **,
 	struct ifnet *, u_int);
+static int in6_selectsrc(uint32_t, struct sockaddr_in6 *,
+	struct ip6_pktopts *, struct inpcb *, struct ucred *,
+	struct ifnet **, struct in6_addr *);
 
 static struct in6_addrpolicy *lookup_addrsel_policy(struct sockaddr_in6 *);
 
@@ -175,9 +178,9 @@ static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
 	goto out;		/* XXX: we can't use 'break' here */ \
 } while(0)
 
-int
-in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
-    struct inpcb *inp, struct ucred *cred,
+static int
+in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
+    struct ip6_pktopts *opts, struct inpcb *inp, struct ucred *cred,
     struct ifnet **ifpp, struct in6_addr *srcp)
 {
 	struct rm_priotracker in6_ifa_tracker;
@@ -228,7 +231,7 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 
 		/* get the outgoing interface */
 		if ((error = in6_selectif(dstsock, opts, mopts, &ifp, oifp,
-		    (inp != NULL) ? inp->inp_inc.inc_fibnum : RT_DEFAULT_FIB))
+		    fibnum))
 		    != 0)
 			return (error);
 
@@ -542,6 +545,79 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		IP6STAT_INC(ip6s_sources_deprecated[best_scope]);
 	IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
 	return (0);
+}
+
+/*
+ * Select source address based on @inp, @dstsock and @opts.
+ * Stores selected address to @srcp. If @scope_ambiguous is set,
+ * embed scope from selected outgoing interface. If @hlim pointer
+ * is provided, stores calculated hop limit there.
+ * Returns 0 on success.
+ */
+int
+in6_selectsrc_socket(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
+    struct inpcb *inp, struct ucred *cred, int scope_ambiguous,
+    struct in6_addr *srcp, int *hlim)
+{
+	struct ifnet *retifp;
+	uint32_t fibnum;
+	int error;
+
+	fibnum = (inp != NULL) ? inp->inp_inc.inc_fibnum : RT_DEFAULT_FIB;
+	retifp = NULL;
+
+	error = in6_selectsrc(fibnum, dstsock, opts, inp, cred, &retifp, srcp);
+	if (error != 0)
+		return (error);
+
+	if (hlim != NULL)
+		*hlim = in6_selecthlim(inp, retifp);
+
+	if (retifp == NULL || scope_ambiguous == 0)
+		return (0);
+
+	/*
+	 * Application should provide a proper zone ID or the use of
+	 * default zone IDs should be enabled.  Unfortunately, some
+	 * applications do not behave as it should, so we need a
+	 * workaround.  Even if an appropriate ID is not determined
+	 * (when it's required), if we can determine the outgoing
+	 * interface. determine the zone ID based on the interface.
+	 */
+	error = in6_setscope(&dstsock->sin6_addr, retifp, NULL);
+
+	return (error);
+}
+
+/*
+ * Select source address based on @fibnum, @dst and @scopeid.
+ * Stores selected address to @srcp.
+ * Returns 0 on success.
+ *
+ * Used by non-socket based consumers (ND code mostly)
+ */
+int
+in6_selectsrc_addr(uint32_t fibnum, const struct in6_addr *dst,
+    uint32_t scopeid, struct ifnet *ifp, struct in6_addr *srcp,
+    int *hlim)
+{
+	struct ifnet *retifp;
+	struct sockaddr_in6 dst_sa;
+	int error;
+
+	retifp = ifp;
+	bzero(&dst_sa, sizeof(dst_sa));
+	dst_sa.sin6_family = AF_INET6;
+	dst_sa.sin6_len = sizeof(dst_sa);
+	dst_sa.sin6_addr = *dst;
+	dst_sa.sin6_scope_id = scopeid;
+	sa6_embedscope(&dst_sa, 0);
+
+	error = in6_selectsrc(fibnum, &dst_sa, NULL, NULL, NULL, &retifp, srcp);
+	if (hlim != NULL)
+		*hlim = in6_selecthlim(NULL, retifp);
+
+	return (error);
 }
 
 /*

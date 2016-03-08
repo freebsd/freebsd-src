@@ -1,4 +1,4 @@
-/* $OpenBSD: roaming_common.c,v 1.12 2014/01/09 23:20:00 djm Exp $ */
+/* $OpenBSD: roaming_common.c,v 1.13 2015/01/27 12:54:06 okan Exp $ */
 /*
  * Copyright (c) 2004-2009 AppGate Network Security AB
  *
@@ -22,9 +22,6 @@
 #include <sys/uio.h>
 
 #include <errno.h>
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-#endif
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>

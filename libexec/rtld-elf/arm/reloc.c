@@ -3,6 +3,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/mman.h>
 
 #include <errno.h>
@@ -21,6 +22,7 @@ void
 arm_abi_variant_hook(Elf_Auxinfo **aux_info)
 {
 	Elf_Word ehdr;
+	struct stat sb;
 
 	/*
 	 * If we're running an old kernel that doesn't provide any data fail
@@ -38,12 +40,19 @@ arm_abi_variant_hook(Elf_Auxinfo **aux_info)
 		return;
 
 	/*
+	 * If there's no /usr/libsoft, then we don't have a system with both
+	 * hard and soft float. In that case, hope for the best and just
+	 * return. Such systems are required to have all soft or all hard
+	 * float ABI binaries and libraries. This is, at best, a transition
+	 * compatibility hack. Once we're fully hard-float, this should
+	 * be removed.
+	 */
+	if (stat("/usr/libsoft", &sb) != 0 || !S_ISDIR(sb.st_mode))
+		return;
+
+	/*
 	 * This is a soft float ABI binary. We need to use the soft float
-	 * settings. For the moment, the standard library path includes the hard
-	 * float paths as well. When upgrading, we need to execute the wrong
-	 * kind of binary until we've installed the new binaries. We could go
-	 * off whether or not /libsoft exists, but the simplicity of having it
-	 * in the path wins.
+	 * settings.
 	 */
 	ld_elf_hints_default = _PATH_SOFT_ELF_HINTS;
 	ld_path_libmap_conf = _PATH_SOFT_LIBMAP_CONF;
@@ -92,8 +101,8 @@ do_copy_relocations(Obj_Entry *dstobj)
 			    ELF_R_SYM(rel->r_info));
 			req.flags = SYMLOOK_EARLY;
 
-			for (srcobj = dstobj->next;  srcobj != NULL; 
-			     srcobj = srcobj->next) {
+			for (srcobj = globallist_next(dstobj); srcobj != NULL;
+			    srcobj = globallist_next(srcobj)) {
 				res = symlook_obj(&req, srcobj);
 				if (res == 0) {
 					srcsym = req.sym_out;

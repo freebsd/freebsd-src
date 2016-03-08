@@ -20,6 +20,7 @@
 
 #include "SIISelLowering.h"
 #include "AMDGPU.h"
+#include "AMDGPUDiagnosticInfoUnsupported.h"
 #include "AMDGPUIntrinsicInfo.h"
 #include "AMDGPUSubtarget.h"
 #include "SIInstrInfo.h"
@@ -50,6 +51,9 @@ SITargetLowering::SITargetLowering(TargetMachine &TM,
   addRegisterClass(MVT::f64, &AMDGPU::VReg_64RegClass);
   addRegisterClass(MVT::v2i32, &AMDGPU::SReg_64RegClass);
   addRegisterClass(MVT::v2f32, &AMDGPU::VReg_64RegClass);
+
+  addRegisterClass(MVT::v2i64, &AMDGPU::SReg_128RegClass);
+  addRegisterClass(MVT::v2f64, &AMDGPU::SReg_128RegClass);
 
   addRegisterClass(MVT::v4i32, &AMDGPU::SReg_128RegClass);
   addRegisterClass(MVT::v4f32, &AMDGPU::VReg_128RegClass);
@@ -103,6 +107,7 @@ SITargetLowering::SITargetLowering(TargetMachine &TM,
   setOperationAction(ISD::SETCC, MVT::v4i1, Expand);
 
   setOperationAction(ISD::BSWAP, MVT::i32, Legal);
+  setOperationAction(ISD::BITREVERSE, MVT::i32, Legal);
 
   setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i1, Legal);
   setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::v2i1, Custom);
@@ -155,12 +160,29 @@ SITargetLowering::SITargetLowering(TargetMachine &TM,
   for (MVT VT : MVT::fp_valuetypes())
     setLoadExtAction(ISD::EXTLOAD, VT, MVT::f32, Expand);
 
+  setLoadExtAction(ISD::EXTLOAD, MVT::v2f64, MVT::v2f16, Expand);
+  setLoadExtAction(ISD::EXTLOAD, MVT::v2f64, MVT::v2f32, Expand);
+
   setTruncStoreAction(MVT::i64, MVT::i32, Expand);
   setTruncStoreAction(MVT::v8i32, MVT::v8i16, Expand);
   setTruncStoreAction(MVT::v16i32, MVT::v16i8, Expand);
   setTruncStoreAction(MVT::v16i32, MVT::v16i16, Expand);
 
+
+  setTruncStoreAction(MVT::v2i64, MVT::v2i32, Expand);
+
+  setTruncStoreAction(MVT::v2f64, MVT::v2f32, Expand);
+  setTruncStoreAction(MVT::v2f64, MVT::v2f16, Expand);
+
   setOperationAction(ISD::LOAD, MVT::i1, Custom);
+
+  setOperationAction(ISD::LOAD, MVT::v2i64, Promote);
+  AddPromotedToType(ISD::LOAD, MVT::v2i64, MVT::v4i32);
+
+  setOperationAction(ISD::STORE, MVT::v2i64, Promote);
+  AddPromotedToType(ISD::STORE, MVT::v2i64, MVT::v4i32);
+
+  setOperationAction(ISD::ConstantPool, MVT::v2i64, Expand);
 
   setOperationAction(ISD::GlobalAddress, MVT::i32, Custom);
   setOperationAction(ISD::GlobalAddress, MVT::i64, Custom);
@@ -173,9 +195,14 @@ SITargetLowering::SITargetLowering(TargetMachine &TM,
   setOperationAction(ISD::SELECT_CC, MVT::i1, Expand);
   setOperationAction(ISD::SELECT, MVT::i1, Promote);
 
+  setOperationAction(ISD::TRUNCATE, MVT::v2i32, Expand);
+
+
+  setOperationAction(ISD::FP_ROUND, MVT::v2f32, Expand);
+
   // We only support LOAD/STORE and vector manipulation ops for vectors
   // with > 4 elements.
-  for (MVT VT : {MVT::v8i32, MVT::v8f32, MVT::v16i32, MVT::v16f32}) {
+  for (MVT VT : {MVT::v8i32, MVT::v8f32, MVT::v16i32, MVT::v16f32, MVT::v2i64, MVT::v2f64}) {
     for (unsigned Op = 0; Op < ISD::BUILTIN_OP_END; ++Op) {
       switch(Op) {
       case ISD::LOAD:
@@ -186,6 +213,7 @@ SITargetLowering::SITargetLowering(TargetMachine &TM,
       case ISD::INSERT_VECTOR_ELT:
       case ISD::INSERT_SUBVECTOR:
       case ISD::EXTRACT_SUBVECTOR:
+      case ISD::SCALAR_TO_VECTOR:
         break;
       case ISD::CONCAT_VECTORS:
         setOperationAction(Op, VT, Custom);
@@ -195,6 +223,22 @@ SITargetLowering::SITargetLowering(TargetMachine &TM,
         break;
       }
     }
+  }
+
+  // Most operations are naturally 32-bit vector operations. We only support
+  // load and store of i64 vectors, so promote v2i64 vector operations to v4i32.
+  for (MVT Vec64 : { MVT::v2i64, MVT::v2f64 }) {
+    setOperationAction(ISD::BUILD_VECTOR, Vec64, Promote);
+    AddPromotedToType(ISD::BUILD_VECTOR, Vec64, MVT::v4i32);
+
+    setOperationAction(ISD::EXTRACT_VECTOR_ELT, Vec64, Promote);
+    AddPromotedToType(ISD::EXTRACT_VECTOR_ELT, Vec64, MVT::v4i32);
+
+    setOperationAction(ISD::INSERT_VECTOR_ELT, Vec64, Promote);
+    AddPromotedToType(ISD::INSERT_VECTOR_ELT, Vec64, MVT::v4i32);
+
+    setOperationAction(ISD::SCALAR_TO_VECTOR, Vec64, Promote);
+    AddPromotedToType(ISD::SCALAR_TO_VECTOR, Vec64, MVT::v4i32);
   }
 
   if (Subtarget->getGeneration() >= AMDGPUSubtarget::SEA_ISLANDS) {
@@ -215,7 +259,6 @@ SITargetLowering::SITargetLowering(TargetMachine &TM,
   setTargetDAGCombine(ISD::SMAX);
   setTargetDAGCombine(ISD::UMIN);
   setTargetDAGCombine(ISD::UMAX);
-  setTargetDAGCombine(ISD::SELECT_CC);
   setTargetDAGCombine(ISD::SETCC);
   setTargetDAGCombine(ISD::AND);
   setTargetDAGCombine(ISD::OR);
@@ -261,6 +304,41 @@ bool SITargetLowering::isLegalFlatAddressingMode(const AddrMode &AM) const {
   return AM.BaseOffs == 0 && (AM.Scale == 0 || AM.Scale == 1);
 }
 
+bool SITargetLowering::isLegalMUBUFAddressingMode(const AddrMode &AM) const {
+  // MUBUF / MTBUF instructions have a 12-bit unsigned byte offset, and
+  // additionally can do r + r + i with addr64. 32-bit has more addressing
+  // mode options. Depending on the resource constant, it can also do
+  // (i64 r0) + (i32 r1) * (i14 i).
+  //
+  // Private arrays end up using a scratch buffer most of the time, so also
+  // assume those use MUBUF instructions. Scratch loads / stores are currently
+  // implemented as mubuf instructions with offen bit set, so slightly
+  // different than the normal addr64.
+  if (!isUInt<12>(AM.BaseOffs))
+    return false;
+
+  // FIXME: Since we can split immediate into soffset and immediate offset,
+  // would it make sense to allow any immediate?
+
+  switch (AM.Scale) {
+  case 0: // r + i or just i, depending on HasBaseReg.
+    return true;
+  case 1:
+    return true; // We have r + r or r + i.
+  case 2:
+    if (AM.HasBaseReg) {
+      // Reject 2 * r + r.
+      return false;
+    }
+
+    // Allow 2 * r as r + r
+    // Or  2 * r + i is allowed as r + r + i.
+    return true;
+  default: // Don't allow n * r
+    return false;
+  }
+}
+
 bool SITargetLowering::isLegalAddressingMode(const DataLayout &DL,
                                              const AddrMode &AM, Type *Ty,
                                              unsigned AS) const {
@@ -269,7 +347,7 @@ bool SITargetLowering::isLegalAddressingMode(const DataLayout &DL,
     return false;
 
   switch (AS) {
-  case AMDGPUAS::GLOBAL_ADDRESS:
+  case AMDGPUAS::GLOBAL_ADDRESS: {
     if (Subtarget->getGeneration() >= AMDGPUSubtarget::VOLCANIC_ISLANDS) {
       // Assume the we will use FLAT for all global memory accesses
       // on VI.
@@ -282,51 +360,51 @@ bool SITargetLowering::isLegalAddressingMode(const DataLayout &DL,
       // because it has never been validated.
       return isLegalFlatAddressingMode(AM);
     }
-    // fall-through
-  case AMDGPUAS::PRIVATE_ADDRESS:
-  case AMDGPUAS::CONSTANT_ADDRESS: // XXX - Should we assume SMRD instructions?
-  case AMDGPUAS::UNKNOWN_ADDRESS_SPACE: {
-    // MUBUF / MTBUF instructions have a 12-bit unsigned byte offset, and
-    // additionally can do r + r + i with addr64. 32-bit has more addressing
-    // mode options. Depending on the resource constant, it can also do
-    // (i64 r0) + (i32 r1) * (i14 i).
-    //
-    // SMRD instructions have an 8-bit, dword offset.
-    //
-    // Assume nonunifom access, since the address space isn't enough to know
-    // what instruction we will use, and since we don't know if this is a load
-    // or store and scalar stores are only available on VI.
-    //
-    // We also know if we are doing an extload, we can't do a scalar load.
-    //
-    // Private arrays end up using a scratch buffer most of the time, so also
-    // assume those use MUBUF instructions. Scratch loads / stores are currently
-    // implemented as mubuf instructions with offen bit set, so slightly
-    // different than the normal addr64.
-    if (!isUInt<12>(AM.BaseOffs))
-      return false;
 
-    // FIXME: Since we can split immediate into soffset and immediate offset,
-    // would it make sense to allow any immediate?
-
-    switch (AM.Scale) {
-    case 0: // r + i or just i, depending on HasBaseReg.
-      return true;
-    case 1:
-      return true; // We have r + r or r + i.
-    case 2:
-      if (AM.HasBaseReg) {
-        // Reject 2 * r + r.
-        return false;
-      }
-
-      // Allow 2 * r as r + r
-      // Or  2 * r + i is allowed as r + r + i.
-      return true;
-    default: // Don't allow n * r
-      return false;
-    }
+    return isLegalMUBUFAddressingMode(AM);
   }
+  case AMDGPUAS::CONSTANT_ADDRESS: {
+    // If the offset isn't a multiple of 4, it probably isn't going to be
+    // correctly aligned.
+    if (AM.BaseOffs % 4 != 0)
+      return isLegalMUBUFAddressingMode(AM);
+
+    // There are no SMRD extloads, so if we have to do a small type access we
+    // will use a MUBUF load.
+    // FIXME?: We also need to do this if unaligned, but we don't know the
+    // alignment here.
+    if (DL.getTypeStoreSize(Ty) < 4)
+      return isLegalMUBUFAddressingMode(AM);
+
+    if (Subtarget->getGeneration() == AMDGPUSubtarget::SOUTHERN_ISLANDS) {
+      // SMRD instructions have an 8-bit, dword offset on SI.
+      if (!isUInt<8>(AM.BaseOffs / 4))
+        return false;
+    } else if (Subtarget->getGeneration() == AMDGPUSubtarget::SEA_ISLANDS) {
+      // On CI+, this can also be a 32-bit literal constant offset. If it fits
+      // in 8-bits, it can use a smaller encoding.
+      if (!isUInt<32>(AM.BaseOffs / 4))
+        return false;
+    } else if (Subtarget->getGeneration() == AMDGPUSubtarget::VOLCANIC_ISLANDS) {
+      // On VI, these use the SMEM format and the offset is 20-bit in bytes.
+      if (!isUInt<20>(AM.BaseOffs))
+        return false;
+    } else
+      llvm_unreachable("unhandled generation");
+
+    if (AM.Scale == 0) // r + i or just i, depending on HasBaseReg.
+      return true;
+
+    if (AM.Scale == 1 && AM.HasBaseReg)
+      return true;
+
+    return false;
+  }
+
+  case AMDGPUAS::PRIVATE_ADDRESS:
+  case AMDGPUAS::UNKNOWN_ADDRESS_SPACE:
+    return isLegalMUBUFAddressingMode(AM);
+
   case AMDGPUAS::LOCAL_ADDRESS:
   case AMDGPUAS::REGION_ADDRESS: {
     // Basic, single offset DS instructions allow a 16-bit unsigned immediate
@@ -374,7 +452,10 @@ bool SITargetLowering::allowsMisalignedMemoryAccesses(EVT VT,
     // ds_read/write_b64 require 8-byte alignment, but we can do a 4 byte
     // aligned, 8 byte access in a single operation using ds_read2/write2_b32
     // with adjacent offsets.
-    return Align % 4 == 0;
+    bool AlignedBy4 = (Align % 4 == 0);
+    if (IsFast)
+      *IsFast = AlignedBy4;
+    return AlignedBy4;
   }
 
   // Smaller than dword value must be aligned.
@@ -411,6 +492,32 @@ EVT SITargetLowering::getOptimalMemOpType(uint64_t Size, unsigned DstAlign,
   return MVT::Other;
 }
 
+static bool isFlatGlobalAddrSpace(unsigned AS) {
+  return AS == AMDGPUAS::GLOBAL_ADDRESS ||
+    AS == AMDGPUAS::FLAT_ADDRESS ||
+    AS == AMDGPUAS::CONSTANT_ADDRESS;
+}
+
+bool SITargetLowering::isNoopAddrSpaceCast(unsigned SrcAS,
+                                           unsigned DestAS) const {
+  return isFlatGlobalAddrSpace(SrcAS) &&  isFlatGlobalAddrSpace(DestAS);
+}
+
+
+bool SITargetLowering::isMemOpUniform(const SDNode *N) const {
+  const MemSDNode *MemNode = cast<MemSDNode>(N);
+  const Value *Ptr = MemNode->getMemOperand()->getValue();
+
+  // UndefValue means this is a load of a kernel input.  These are uniform.
+  // Sometimes LDS instructions have constant pointers
+  if (isa<UndefValue>(Ptr) || isa<Argument>(Ptr) || isa<Constant>(Ptr) ||
+      isa<GlobalValue>(Ptr))
+    return true;
+
+  const Instruction *I = dyn_cast_or_null<Instruction>(Ptr);
+  return I && I->getMetadata("amdgpu.uniform");
+}
+
 TargetLoweringBase::LegalizeTypeAction
 SITargetLowering::getPreferredVectorAction(EVT VT) const {
   if (VT.getVectorNumElements() != 1 && VT.getScalarType().bitsLE(MVT::i16))
@@ -426,12 +533,6 @@ bool SITargetLowering::shouldConvertConstantLoadToIntImm(const APInt &Imm,
   return TII->isInlineConstant(Imm);
 }
 
-static EVT toIntegerVT(EVT VT) {
-  if (VT.isVector())
-    return VT.changeVectorElementTypeToInteger();
-  return MVT::getIntegerVT(VT.getSizeInBits());
-}
-
 SDValue SITargetLowering::LowerParameter(SelectionDAG &DAG, EVT VT, EVT MemVT,
                                          SDLoc SL, SDValue Chain,
                                          unsigned Offset, bool Signed) const {
@@ -439,7 +540,7 @@ SDValue SITargetLowering::LowerParameter(SelectionDAG &DAG, EVT VT, EVT MemVT,
   MachineFunction &MF = DAG.getMachineFunction();
   const SIRegisterInfo *TRI =
       static_cast<const SIRegisterInfo*>(Subtarget->getRegisterInfo());
-  unsigned InputPtrReg = TRI->getPreloadedValue(MF, SIRegisterInfo::INPUT_PTR);
+  unsigned InputPtrReg = TRI->getPreloadedValue(MF, SIRegisterInfo::KERNARG_SEGMENT_PTR);
 
   Type *Ty = VT.getTypeForEVT(*DAG.getContext());
 
@@ -455,30 +556,10 @@ SDValue SITargetLowering::LowerParameter(SelectionDAG &DAG, EVT VT, EVT MemVT,
 
   unsigned Align = DL.getABITypeAlignment(Ty);
 
-  if (VT != MemVT && VT.isFloatingPoint()) {
-    // Do an integer load and convert.
-    // FIXME: This is mostly because load legalization after type legalization
-    // doesn't handle FP extloads.
-    assert(VT.getScalarType() == MVT::f32 &&
-           MemVT.getScalarType() == MVT::f16);
-
-    EVT IVT = toIntegerVT(VT);
-    EVT MemIVT = toIntegerVT(MemVT);
-    SDValue Load = DAG.getLoad(ISD::UNINDEXED, ISD::ZEXTLOAD,
-                               IVT, SL, Chain, Ptr, PtrOffset, PtrInfo, MemIVT,
-                               false, // isVolatile
-                               true, // isNonTemporal
-                               true, // isInvariant
-                               Align); // Alignment
-    SDValue Ops[] = {
-      DAG.getNode(ISD::FP16_TO_FP, SL, VT, Load),
-      Load.getValue(1)
-    };
-
-    return DAG.getMergeValues(Ops, SL);
-  }
-
   ISD::LoadExtType ExtTy = Signed ? ISD::SEXTLOAD : ISD::ZEXTLOAD;
+  if (MemVT.isFloatingPoint())
+    ExtTy = ISD::EXTLOAD;
+
   return DAG.getLoad(ISD::UNINDEXED, ExtTy,
                      VT, SL, Chain, Ptr, PtrOffset, PtrInfo, MemVT,
                      false, // isVolatile
@@ -497,8 +578,16 @@ SDValue SITargetLowering::LowerFormalArguments(
   MachineFunction &MF = DAG.getMachineFunction();
   FunctionType *FType = MF.getFunction()->getFunctionType();
   SIMachineFunctionInfo *Info = MF.getInfo<SIMachineFunctionInfo>();
+  const AMDGPUSubtarget &ST = MF.getSubtarget<AMDGPUSubtarget>();
 
-  assert(CallConv == CallingConv::C);
+  if (Subtarget->isAmdHsaOS() && Info->getShaderType() != ShaderType::COMPUTE) {
+    const Function *Fn = MF.getFunction();
+    DiagnosticInfoUnsupported NoGraphicsHSA(*Fn, "non-compute shaders with HSA");
+    DAG.getContext()->diagnose(NoGraphicsHSA);
+    return SDValue();
+  }
+
+  // FIXME: We currently assume all calling conventions are kernels.
 
   SmallVector<ISD::InputArg, 16> Splits;
   BitVector Skipped(Ins.size());
@@ -508,18 +597,20 @@ SDValue SITargetLowering::LowerFormalArguments(
 
     // First check if it's a PS input addr
     if (Info->getShaderType() == ShaderType::PIXEL && !Arg.Flags.isInReg() &&
-        !Arg.Flags.isByVal()) {
+        !Arg.Flags.isByVal() && PSInputNum <= 15) {
 
-      assert((PSInputNum <= 15) && "Too many PS inputs!");
-
-      if (!Arg.Used) {
-        // We can savely skip PS inputs
+      if (!Arg.Used && !Info->isPSInputAllocated(PSInputNum)) {
+        // We can safely skip PS inputs
         Skipped.set(i);
         ++PSInputNum;
         continue;
       }
 
-      Info->PSInputAddr |= 1 << PSInputNum++;
+      Info->markPSInputAllocated(PSInputNum);
+      if (Arg.Used)
+        Info->PSInputEna |= 1 << PSInputNum;
+
+      ++PSInputNum;
     }
 
     // Second split vertices into their elements
@@ -530,7 +621,7 @@ SDValue SITargetLowering::LowerFormalArguments(
 
       // We REALLY want the ORIGINAL number of vertex elements here, e.g. a
       // three or five element vertex only needs three or five registers,
-      // NOT four or eigth.
+      // NOT four or eight.
       Type *ParamType = FType->getParamType(Arg.getOrigArgIndex());
       unsigned NumElements = ParamType->getVectorNumElements();
 
@@ -549,46 +640,49 @@ SDValue SITargetLowering::LowerFormalArguments(
                  *DAG.getContext());
 
   // At least one interpolation mode must be enabled or else the GPU will hang.
+  //
+  // Check PSInputAddr instead of PSInputEna. The idea is that if the user set
+  // PSInputAddr, the user wants to enable some bits after the compilation
+  // based on run-time states. Since we can't know what the final PSInputEna
+  // will look like, so we shouldn't do anything here and the user should take
+  // responsibility for the correct programming.
+  //
+  // Otherwise, the following restrictions apply:
+  // - At least one of PERSP_* (0xF) or LINEAR_* (0x70) must be enabled.
+  // - If POS_W_FLOAT (11) is enabled, at least one of PERSP_* must be
+  //   enabled too.
   if (Info->getShaderType() == ShaderType::PIXEL &&
-      (Info->PSInputAddr & 0x7F) == 0) {
-    Info->PSInputAddr |= 1;
+      ((Info->getPSInputAddr() & 0x7F) == 0 ||
+       ((Info->getPSInputAddr() & 0xF) == 0 &&
+	Info->isPSInputAllocated(11)))) {
     CCInfo.AllocateReg(AMDGPU::VGPR0);
     CCInfo.AllocateReg(AMDGPU::VGPR1);
-  }
-
-  // The pointer to the list of arguments is stored in SGPR0, SGPR1
-	// The pointer to the scratch buffer is stored in SGPR2, SGPR3
-  if (Info->getShaderType() == ShaderType::COMPUTE) {
-    if (Subtarget->isAmdHsaOS())
-      Info->NumUserSGPRs = 2;  // FIXME: Need to support scratch buffers.
-    else
-      Info->NumUserSGPRs = 4;
-
-    unsigned InputPtrReg =
-        TRI->getPreloadedValue(MF, SIRegisterInfo::INPUT_PTR);
-    unsigned InputPtrRegLo =
-        TRI->getPhysRegSubReg(InputPtrReg, &AMDGPU::SReg_32RegClass, 0);
-    unsigned InputPtrRegHi =
-        TRI->getPhysRegSubReg(InputPtrReg, &AMDGPU::SReg_32RegClass, 1);
-
-    unsigned ScratchPtrReg =
-        TRI->getPreloadedValue(MF, SIRegisterInfo::SCRATCH_PTR);
-    unsigned ScratchPtrRegLo =
-        TRI->getPhysRegSubReg(ScratchPtrReg, &AMDGPU::SReg_32RegClass, 0);
-    unsigned ScratchPtrRegHi =
-        TRI->getPhysRegSubReg(ScratchPtrReg, &AMDGPU::SReg_32RegClass, 1);
-
-    CCInfo.AllocateReg(InputPtrRegLo);
-    CCInfo.AllocateReg(InputPtrRegHi);
-    CCInfo.AllocateReg(ScratchPtrRegLo);
-    CCInfo.AllocateReg(ScratchPtrRegHi);
-    MF.addLiveIn(InputPtrReg, &AMDGPU::SReg_64RegClass);
-    MF.addLiveIn(ScratchPtrReg, &AMDGPU::SReg_64RegClass);
+    Info->markPSInputAllocated(0);
+    Info->PSInputEna |= 1;
   }
 
   if (Info->getShaderType() == ShaderType::COMPUTE) {
     getOriginalFunctionArgs(DAG, DAG.getMachineFunction().getFunction(), Ins,
                             Splits);
+  }
+
+  // FIXME: How should these inputs interact with inreg / custom SGPR inputs?
+  if (Info->hasPrivateSegmentBuffer()) {
+    unsigned PrivateSegmentBufferReg = Info->addPrivateSegmentBuffer(*TRI);
+    MF.addLiveIn(PrivateSegmentBufferReg, &AMDGPU::SReg_128RegClass);
+    CCInfo.AllocateReg(PrivateSegmentBufferReg);
+  }
+
+  if (Info->hasDispatchPtr()) {
+    unsigned DispatchPtrReg = Info->addDispatchPtr(*TRI);
+    MF.addLiveIn(DispatchPtrReg, &AMDGPU::SReg_64RegClass);
+    CCInfo.AllocateReg(DispatchPtrReg);
+  }
+
+  if (Info->hasKernargSegmentPtr()) {
+    unsigned InputPtrReg = Info->addKernargSegmentPtr(*TRI);
+    MF.addLiveIn(InputPtrReg, &AMDGPU::SReg_64RegClass);
+    CCInfo.AllocateReg(InputPtrReg);
   }
 
   AnalyzeFormalArguments(CCInfo, Splits);
@@ -617,7 +711,7 @@ SDValue SITargetLowering::LowerFormalArguments(
                                    Offset, Ins[i].Flags.isSExt());
       Chains.push_back(Arg.getValue(1));
 
-      const PointerType *ParamTy =
+      auto *ParamTy =
         dyn_cast<PointerType>(FType->getParamType(Ins[i].getOrigArgIndex()));
       if (Subtarget->getGeneration() == AMDGPUSubtarget::SOUTHERN_ISLANDS &&
           ParamTy && ParamTy->getAddressSpace() == AMDGPUAS::LOCAL_ADDRESS) {
@@ -678,10 +772,113 @@ SDValue SITargetLowering::LowerFormalArguments(
     InVals.push_back(Val);
   }
 
-  if (Info->getShaderType() != ShaderType::COMPUTE) {
-    unsigned ScratchIdx = CCInfo.getFirstUnallocated(ArrayRef<MCPhysReg>(
-        AMDGPU::SGPR_32RegClass.begin(), AMDGPU::SGPR_32RegClass.getNumRegs()));
-    Info->ScratchOffsetReg = AMDGPU::SGPR_32RegClass.getRegister(ScratchIdx);
+  // TODO: Add GridWorkGroupCount user SGPRs when used. For now with HSA we read
+  // these from the dispatch pointer.
+
+  // Start adding system SGPRs.
+  if (Info->hasWorkGroupIDX()) {
+    unsigned Reg = Info->addWorkGroupIDX();
+    MF.addLiveIn(Reg, &AMDGPU::SReg_32RegClass);
+    CCInfo.AllocateReg(Reg);
+  } else
+    llvm_unreachable("work group id x is always enabled");
+
+  if (Info->hasWorkGroupIDY()) {
+    unsigned Reg = Info->addWorkGroupIDY();
+    MF.addLiveIn(Reg, &AMDGPU::SReg_32RegClass);
+    CCInfo.AllocateReg(Reg);
+  }
+
+  if (Info->hasWorkGroupIDZ()) {
+    unsigned Reg = Info->addWorkGroupIDZ();
+    MF.addLiveIn(Reg, &AMDGPU::SReg_32RegClass);
+    CCInfo.AllocateReg(Reg);
+  }
+
+  if (Info->hasWorkGroupInfo()) {
+    unsigned Reg = Info->addWorkGroupInfo();
+    MF.addLiveIn(Reg, &AMDGPU::SReg_32RegClass);
+    CCInfo.AllocateReg(Reg);
+  }
+
+  if (Info->hasPrivateSegmentWaveByteOffset()) {
+    // Scratch wave offset passed in system SGPR.
+    unsigned PrivateSegmentWaveByteOffsetReg
+      = Info->addPrivateSegmentWaveByteOffset();
+
+    MF.addLiveIn(PrivateSegmentWaveByteOffsetReg, &AMDGPU::SGPR_32RegClass);
+    CCInfo.AllocateReg(PrivateSegmentWaveByteOffsetReg);
+  }
+
+  // Now that we've figured out where the scratch register inputs are, see if
+  // should reserve the arguments and use them directly.
+
+  bool HasStackObjects = MF.getFrameInfo()->hasStackObjects();
+
+  if (ST.isAmdHsaOS()) {
+    // TODO: Assume we will spill without optimizations.
+    if (HasStackObjects) {
+      // If we have stack objects, we unquestionably need the private buffer
+      // resource. For the HSA ABI, this will be the first 4 user SGPR
+      // inputs. We can reserve those and use them directly.
+
+      unsigned PrivateSegmentBufferReg = TRI->getPreloadedValue(
+        MF, SIRegisterInfo::PRIVATE_SEGMENT_BUFFER);
+      Info->setScratchRSrcReg(PrivateSegmentBufferReg);
+
+      unsigned PrivateSegmentWaveByteOffsetReg = TRI->getPreloadedValue(
+        MF, SIRegisterInfo::PRIVATE_SEGMENT_WAVE_BYTE_OFFSET);
+      Info->setScratchWaveOffsetReg(PrivateSegmentWaveByteOffsetReg);
+    } else {
+      unsigned ReservedBufferReg
+        = TRI->reservedPrivateSegmentBufferReg(MF);
+      unsigned ReservedOffsetReg
+        = TRI->reservedPrivateSegmentWaveByteOffsetReg(MF);
+
+      // We tentatively reserve the last registers (skipping the last two
+      // which may contain VCC). After register allocation, we'll replace
+      // these with the ones immediately after those which were really
+      // allocated. In the prologue copies will be inserted from the argument
+      // to these reserved registers.
+      Info->setScratchRSrcReg(ReservedBufferReg);
+      Info->setScratchWaveOffsetReg(ReservedOffsetReg);
+    }
+  } else {
+    unsigned ReservedBufferReg = TRI->reservedPrivateSegmentBufferReg(MF);
+
+    // Without HSA, relocations are used for the scratch pointer and the
+    // buffer resource setup is always inserted in the prologue. Scratch wave
+    // offset is still in an input SGPR.
+    Info->setScratchRSrcReg(ReservedBufferReg);
+
+    if (HasStackObjects) {
+      unsigned ScratchWaveOffsetReg = TRI->getPreloadedValue(
+        MF, SIRegisterInfo::PRIVATE_SEGMENT_WAVE_BYTE_OFFSET);
+      Info->setScratchWaveOffsetReg(ScratchWaveOffsetReg);
+    } else {
+      unsigned ReservedOffsetReg
+        = TRI->reservedPrivateSegmentWaveByteOffsetReg(MF);
+      Info->setScratchWaveOffsetReg(ReservedOffsetReg);
+    }
+  }
+
+  if (Info->hasWorkItemIDX()) {
+    unsigned Reg = TRI->getPreloadedValue(MF, SIRegisterInfo::WORKITEM_ID_X);
+    MF.addLiveIn(Reg, &AMDGPU::VGPR_32RegClass);
+    CCInfo.AllocateReg(Reg);
+  } else
+    llvm_unreachable("workitem id x should always be enabled");
+
+  if (Info->hasWorkItemIDY()) {
+    unsigned Reg = TRI->getPreloadedValue(MF, SIRegisterInfo::WORKITEM_ID_Y);
+    MF.addLiveIn(Reg, &AMDGPU::VGPR_32RegClass);
+    CCInfo.AllocateReg(Reg);
+  }
+
+  if (Info->hasWorkItemIDZ()) {
+    unsigned Reg = TRI->getPreloadedValue(MF, SIRegisterInfo::WORKITEM_ID_Z);
+    MF.addLiveIn(Reg, &AMDGPU::VGPR_32RegClass);
+    CCInfo.AllocateReg(Reg);
   }
 
   if (Chains.empty())
@@ -690,30 +887,105 @@ SDValue SITargetLowering::LowerFormalArguments(
   return DAG.getNode(ISD::TokenFactor, DL, MVT::Other, Chains);
 }
 
+SDValue SITargetLowering::LowerReturn(SDValue Chain,
+                                      CallingConv::ID CallConv,
+                                      bool isVarArg,
+                                      const SmallVectorImpl<ISD::OutputArg> &Outs,
+                                      const SmallVectorImpl<SDValue> &OutVals,
+                                      SDLoc DL, SelectionDAG &DAG) const {
+  MachineFunction &MF = DAG.getMachineFunction();
+  SIMachineFunctionInfo *Info = MF.getInfo<SIMachineFunctionInfo>();
+
+  if (Info->getShaderType() == ShaderType::COMPUTE)
+    return AMDGPUTargetLowering::LowerReturn(Chain, CallConv, isVarArg, Outs,
+                                             OutVals, DL, DAG);
+
+  Info->setIfReturnsVoid(Outs.size() == 0);
+
+  SmallVector<ISD::OutputArg, 48> Splits;
+  SmallVector<SDValue, 48> SplitVals;
+
+  // Split vectors into their elements.
+  for (unsigned i = 0, e = Outs.size(); i != e; ++i) {
+    const ISD::OutputArg &Out = Outs[i];
+
+    if (Out.VT.isVector()) {
+      MVT VT = Out.VT.getVectorElementType();
+      ISD::OutputArg NewOut = Out;
+      NewOut.Flags.setSplit();
+      NewOut.VT = VT;
+
+      // We want the original number of vector elements here, e.g.
+      // three or five, not four or eight.
+      unsigned NumElements = Out.ArgVT.getVectorNumElements();
+
+      for (unsigned j = 0; j != NumElements; ++j) {
+        SDValue Elem = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, DL, VT, OutVals[i],
+                                   DAG.getConstant(j, DL, MVT::i32));
+        SplitVals.push_back(Elem);
+        Splits.push_back(NewOut);
+        NewOut.PartOffset += NewOut.VT.getStoreSize();
+      }
+    } else {
+      SplitVals.push_back(OutVals[i]);
+      Splits.push_back(Out);
+    }
+  }
+
+  // CCValAssign - represent the assignment of the return value to a location.
+  SmallVector<CCValAssign, 48> RVLocs;
+
+  // CCState - Info about the registers and stack slots.
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), RVLocs,
+                 *DAG.getContext());
+
+  // Analyze outgoing return values.
+  AnalyzeReturn(CCInfo, Splits);
+
+  SDValue Flag;
+  SmallVector<SDValue, 48> RetOps;
+  RetOps.push_back(Chain); // Operand #0 = Chain (updated below)
+
+  // Copy the result values into the output registers.
+  for (unsigned i = 0, realRVLocIdx = 0;
+       i != RVLocs.size();
+       ++i, ++realRVLocIdx) {
+    CCValAssign &VA = RVLocs[i];
+    assert(VA.isRegLoc() && "Can only return in registers!");
+
+    SDValue Arg = SplitVals[realRVLocIdx];
+
+    // Copied from other backends.
+    switch (VA.getLocInfo()) {
+    default: llvm_unreachable("Unknown loc info!");
+    case CCValAssign::Full:
+      break;
+    case CCValAssign::BCvt:
+      Arg = DAG.getNode(ISD::BITCAST, DL, VA.getLocVT(), Arg);
+      break;
+    }
+
+    Chain = DAG.getCopyToReg(Chain, DL, VA.getLocReg(), Arg, Flag);
+    Flag = Chain.getValue(1);
+    RetOps.push_back(DAG.getRegister(VA.getLocReg(), VA.getLocVT()));
+  }
+
+  // Update chain and glue.
+  RetOps[0] = Chain;
+  if (Flag.getNode())
+    RetOps.push_back(Flag);
+
+  return DAG.getNode(AMDGPUISD::RET_FLAG, DL, MVT::Other, RetOps);
+}
+
 MachineBasicBlock * SITargetLowering::EmitInstrWithCustomInserter(
     MachineInstr * MI, MachineBasicBlock * BB) const {
-
-  MachineBasicBlock::iterator I = *MI;
-  const SIInstrInfo *TII =
-      static_cast<const SIInstrInfo *>(Subtarget->getInstrInfo());
 
   switch (MI->getOpcode()) {
   default:
     return AMDGPUTargetLowering::EmitInstrWithCustomInserter(MI, BB);
   case AMDGPU::BRANCH:
     return BB;
-  case AMDGPU::SI_RegisterStorePseudo: {
-    MachineRegisterInfo &MRI = BB->getParent()->getRegInfo();
-    unsigned Reg = MRI.createVirtualRegister(&AMDGPU::SReg_64RegClass);
-    MachineInstrBuilder MIB =
-        BuildMI(*BB, I, MI->getDebugLoc(), TII->get(AMDGPU::SI_RegisterStore),
-                Reg);
-    for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i)
-      MIB.addOperand(MI->getOperand(i));
-
-    MI->eraseFromParent();
-    break;
-  }
   }
   return BB;
 }
@@ -944,20 +1216,8 @@ SDValue SITargetLowering::LowerGlobalAddress(AMDGPUMachineFunction *MFI,
   const GlobalValue *GV = GSD->getGlobal();
   MVT PtrVT = getPointerTy(DAG.getDataLayout(), GSD->getAddressSpace());
 
-  SDValue Ptr = DAG.getNode(AMDGPUISD::CONST_DATA_PTR, DL, PtrVT);
   SDValue GA = DAG.getTargetGlobalAddress(GV, DL, MVT::i32);
-
-  SDValue PtrLo = DAG.getNode(ISD::EXTRACT_ELEMENT, DL, MVT::i32, Ptr,
-                              DAG.getConstant(0, DL, MVT::i32));
-  SDValue PtrHi = DAG.getNode(ISD::EXTRACT_ELEMENT, DL, MVT::i32, Ptr,
-                              DAG.getConstant(1, DL, MVT::i32));
-
-  SDValue Lo = DAG.getNode(ISD::ADDC, DL, DAG.getVTList(MVT::i32, MVT::Glue),
-                           PtrLo, GA);
-  SDValue Hi = DAG.getNode(ISD::ADDE, DL, DAG.getVTList(MVT::i32, MVT::Glue),
-                           PtrHi, DAG.getConstant(0, DL, MVT::i32),
-                           SDValue(Lo.getNode(), 1));
-  return DAG.getNode(ISD::BUILD_PAIR, DL, MVT::i64, Lo, Hi);
+  return DAG.getNode(AMDGPUISD::CONST_DATA_PTR, DL, PtrVT, GA);
 }
 
 SDValue SITargetLowering::copyToM0(SelectionDAG &DAG, SDValue Chain, SDLoc DL,
@@ -977,6 +1237,18 @@ SDValue SITargetLowering::copyToM0(SelectionDAG &DAG, SDValue Chain, SDLoc DL,
                                                       // a glue result.
 }
 
+SDValue SITargetLowering::lowerImplicitZextParam(SelectionDAG &DAG,
+                                                 SDValue Op,
+                                                 MVT VT,
+                                                 unsigned Offset) const {
+  SDLoc SL(Op);
+  SDValue Param = LowerParameter(DAG, MVT::i32, MVT::i32, SL,
+                                 DAG.getEntryNode(), Offset, false);
+  // The local size values will have the hi 16-bits as zero.
+  return DAG.getNode(ISD::AssertZext, SL, MVT::i32, Param,
+                     DAG.getValueType(VT));
+}
+
 SDValue SITargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
                                                   SelectionDAG &DAG) const {
   MachineFunction &MF = DAG.getMachineFunction();
@@ -988,7 +1260,20 @@ SDValue SITargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
   SDLoc DL(Op);
   unsigned IntrinsicID = cast<ConstantSDNode>(Op.getOperand(0))->getZExtValue();
 
+  // TODO: Should this propagate fast-math-flags?
+
   switch (IntrinsicID) {
+  case Intrinsic::amdgcn_dispatch_ptr:
+    if (!Subtarget->isAmdHsaOS()) {
+      DiagnosticInfoUnsupported BadIntrin(*MF.getFunction(),
+                                          "hsa intrinsic without hsa target");
+      DAG.getContext()->diagnose(BadIntrin);
+      return DAG.getUNDEF(VT);
+    }
+
+    return CreateLiveInRegister(DAG, &AMDGPU::SReg_64RegClass,
+      TRI->getPreloadedValue(MF, SIRegisterInfo::DISPATCH_PTR), VT);
+
   case Intrinsic::r600_read_ngroups_x:
     return LowerParameter(DAG, VT, VT, DL, DAG.getEntryNode(),
                           SI::KernelInputOffsets::NGROUPS_X, false);
@@ -1008,37 +1293,36 @@ SDValue SITargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
     return LowerParameter(DAG, VT, VT, DL, DAG.getEntryNode(),
                           SI::KernelInputOffsets::GLOBAL_SIZE_Z, false);
   case Intrinsic::r600_read_local_size_x:
-    return LowerParameter(DAG, VT, VT, DL, DAG.getEntryNode(),
-                          SI::KernelInputOffsets::LOCAL_SIZE_X, false);
+    return lowerImplicitZextParam(DAG, Op, MVT::i16,
+                                  SI::KernelInputOffsets::LOCAL_SIZE_X);
   case Intrinsic::r600_read_local_size_y:
-    return LowerParameter(DAG, VT, VT, DL, DAG.getEntryNode(),
-                          SI::KernelInputOffsets::LOCAL_SIZE_Y, false);
+    return lowerImplicitZextParam(DAG, Op, MVT::i16,
+                                  SI::KernelInputOffsets::LOCAL_SIZE_Y);
   case Intrinsic::r600_read_local_size_z:
-    return LowerParameter(DAG, VT, VT, DL, DAG.getEntryNode(),
-                          SI::KernelInputOffsets::LOCAL_SIZE_Z, false);
-
+    return lowerImplicitZextParam(DAG, Op, MVT::i16,
+                                  SI::KernelInputOffsets::LOCAL_SIZE_Z);
   case Intrinsic::AMDGPU_read_workdim:
-    return LowerParameter(DAG, VT, VT, DL, DAG.getEntryNode(),
-                          getImplicitParameterOffset(MFI, GRID_DIM), false);
-
+    // Really only 2 bits.
+    return lowerImplicitZextParam(DAG, Op, MVT::i8,
+                                  getImplicitParameterOffset(MFI, GRID_DIM));
   case Intrinsic::r600_read_tgid_x:
     return CreateLiveInRegister(DAG, &AMDGPU::SReg_32RegClass,
-      TRI->getPreloadedValue(MF, SIRegisterInfo::TGID_X), VT);
+      TRI->getPreloadedValue(MF, SIRegisterInfo::WORKGROUP_ID_X), VT);
   case Intrinsic::r600_read_tgid_y:
     return CreateLiveInRegister(DAG, &AMDGPU::SReg_32RegClass,
-      TRI->getPreloadedValue(MF, SIRegisterInfo::TGID_Y), VT);
+      TRI->getPreloadedValue(MF, SIRegisterInfo::WORKGROUP_ID_Y), VT);
   case Intrinsic::r600_read_tgid_z:
     return CreateLiveInRegister(DAG, &AMDGPU::SReg_32RegClass,
-      TRI->getPreloadedValue(MF, SIRegisterInfo::TGID_Z), VT);
+      TRI->getPreloadedValue(MF, SIRegisterInfo::WORKGROUP_ID_Z), VT);
   case Intrinsic::r600_read_tidig_x:
     return CreateLiveInRegister(DAG, &AMDGPU::VGPR_32RegClass,
-      TRI->getPreloadedValue(MF, SIRegisterInfo::TIDIG_X), VT);
+      TRI->getPreloadedValue(MF, SIRegisterInfo::WORKITEM_ID_X), VT);
   case Intrinsic::r600_read_tidig_y:
     return CreateLiveInRegister(DAG, &AMDGPU::VGPR_32RegClass,
-      TRI->getPreloadedValue(MF, SIRegisterInfo::TIDIG_Y), VT);
+      TRI->getPreloadedValue(MF, SIRegisterInfo::WORKITEM_ID_Y), VT);
   case Intrinsic::r600_read_tidig_z:
     return CreateLiveInRegister(DAG, &AMDGPU::VGPR_32RegClass,
-      TRI->getPreloadedValue(MF, SIRegisterInfo::TIDIG_Z), VT);
+      TRI->getPreloadedValue(MF, SIRegisterInfo::WORKITEM_ID_Z), VT);
   case AMDGPUIntrinsic::SI_load_const: {
     SDValue Ops[] = {
       Op.getOperand(1),
@@ -1077,6 +1361,10 @@ SDValue SITargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
                        DAG.getConstant(2, DL, MVT::i32), // P0
                        Op.getOperand(1), Op.getOperand(2), Glue);
   }
+  case AMDGPUIntrinsic::SI_packf16:
+    if (Op.getOperand(1).isUndef() && Op.getOperand(2).isUndef())
+      return DAG.getUNDEF(MVT::i32);
+    return Op;
   case AMDGPUIntrinsic::SI_fs_interp: {
     SDValue IJ = Op.getOperand(4);
     SDValue I = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, DL, MVT::i32, IJ,
@@ -1091,6 +1379,19 @@ SDValue SITargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
     Glue = SDValue(P1.getNode(), 1);
     return DAG.getNode(AMDGPUISD::INTERP_P2, DL, MVT::f32, P1, J,
                              Op.getOperand(1), Op.getOperand(2), Glue);
+  }
+  case Intrinsic::amdgcn_interp_p1: {
+    SDValue M0 = copyToM0(DAG, DAG.getEntryNode(), DL, Op.getOperand(4));
+    SDValue Glue = M0.getValue(1);
+    return DAG.getNode(AMDGPUISD::INTERP_P1, DL, MVT::f32, Op.getOperand(1),
+                       Op.getOperand(2), Op.getOperand(3), Glue);
+  }
+  case Intrinsic::amdgcn_interp_p2: {
+    SDValue M0 = copyToM0(DAG, DAG.getEntryNode(), DL, Op.getOperand(5));
+    SDValue Glue = SDValue(M0.getNode(), 1);
+    return DAG.getNode(AMDGPUISD::INTERP_P2, DL, MVT::f32, Op.getOperand(1),
+                       Op.getOperand(2), Op.getOperand(3), Op.getOperand(4),
+                       Glue);
   }
   default:
     return AMDGPUTargetLowering::LowerOperation(Op, DAG);
@@ -1152,16 +1453,29 @@ SDValue SITargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
            "Custom lowering for non-i32 vectors hasn't been implemented.");
     unsigned NumElements = Op.getValueType().getVectorNumElements();
     assert(NumElements != 2 && "v2 loads are supported for all address spaces.");
+
     switch (Load->getAddressSpace()) {
       default: break;
+      case AMDGPUAS::CONSTANT_ADDRESS:
+      if (isMemOpUniform(Load))
+        break;
+        // Non-uniform loads will be selected to MUBUF instructions, so they
+        // have the same legalization requires ments as global and private
+        // loads.
+        //
+        // Fall-through
       case AMDGPUAS::GLOBAL_ADDRESS:
       case AMDGPUAS::PRIVATE_ADDRESS:
+        if (NumElements >= 8)
+          return SplitVectorLoad(Op, DAG);
+
         // v4 loads are supported for private and global memory.
         if (NumElements <= 4)
           break;
         // fall-through
       case AMDGPUAS::LOCAL_ADDRESS:
-        return ScalarizeVectorLoad(Op, DAG);
+        // If properly aligned, if we split we might be able to use ds_read_b64.
+        return SplitVectorLoad(Op, DAG);
     }
   }
 
@@ -1236,8 +1550,10 @@ SDValue SITargetLowering::LowerFastFDIV(SDValue Op, SelectionDAG &DAG) const {
   if (Unsafe) {
     // Turn into multiply by the reciprocal.
     // x / y -> x * (1.0 / y)
+    SDNodeFlags Flags;
+    Flags.setUnsafeAlgebra(true);
     SDValue Recip = DAG.getNode(AMDGPUISD::RCP, SL, VT, RHS);
-    return DAG.getNode(ISD::FMUL, SL, VT, LHS, Recip);
+    return DAG.getNode(ISD::FMUL, SL, VT, LHS, Recip, &Flags);
   }
 
   return SDValue();
@@ -1273,6 +1589,8 @@ SDValue SITargetLowering::LowerFDIV32(SDValue Op, SelectionDAG &DAG) const {
   SDValue r2 = DAG.getSetCC(SL, SetCCVT, r1, K0, ISD::SETOGT);
 
   SDValue r3 = DAG.getNode(ISD::SELECT, SL, MVT::f32, r2, K1, One);
+
+  // TODO: Should this propagate fast-math-flags?
 
   r1 = DAG.getNode(ISD::FMUL, SL, MVT::f32, RHS, r3);
 
@@ -1379,7 +1697,7 @@ SDValue SITargetLowering::LowerSTORE(SDValue Op, SelectionDAG &DAG) const {
     return Ret;
 
   if (VT.isVector() && VT.getVectorNumElements() >= 8)
-      return ScalarizeVectorStore(Op, DAG);
+      return SplitVectorStore(Op, DAG);
 
   if (VT == MVT::i1)
     return DAG.getTruncStore(Store->getChain(), DL,
@@ -1393,6 +1711,7 @@ SDValue SITargetLowering::LowerTrig(SDValue Op, SelectionDAG &DAG) const {
   SDLoc DL(Op);
   EVT VT = Op.getValueType();
   SDValue Arg = Op.getOperand(0);
+  // TODO: Should this propagate fast-math-flags?
   SDValue FractPart = DAG.getNode(AMDGPUISD::FRACT, DL, VT,
                                   DAG.getNode(ISD::FMUL, DL, VT, Arg,
                                               DAG.getConstantFP(0.5/M_PI, DL,
@@ -1821,7 +2140,7 @@ SDValue SITargetLowering::PerformDAGCombine(SDNode *N,
 
   case ISD::UINT_TO_FP: {
     return performUCharToFloatCombine(N, DCI);
-
+  }
   case ISD::FADD: {
     if (DCI.getDAGCombineLevel() < AfterLegalizeDAG)
       break;
@@ -1902,7 +2221,6 @@ SDValue SITargetLowering::PerformDAGCombine(SDNode *N,
     }
 
     break;
-  }
   }
   case ISD::LOAD:
   case ISD::STORE:
@@ -2125,9 +2443,14 @@ void SITargetLowering::AdjustInstrPostInstrSelection(MachineInstr *MI,
       static_cast<const SIInstrInfo *>(Subtarget->getInstrInfo());
 
   MachineRegisterInfo &MRI = MI->getParent()->getParent()->getRegInfo();
-  TII->legalizeOperands(MI);
 
-  if (TII->isMIMG(MI->getOpcode())) {
+  if (TII->isVOP3(MI->getOpcode())) {
+    // Make sure constant bus requirements are respected.
+    TII->legalizeOperandsVOP3(MRI, MI);
+    return;
+  }
+
+  if (TII->isMIMG(*MI)) {
     unsigned VReg = MI->getOperand(0).getReg();
     unsigned Writemask = MI->getOperand(1).getImm();
     unsigned BitsSet = 0;
@@ -2169,53 +2492,38 @@ MachineSDNode *SITargetLowering::wrapAddr64Rsrc(SelectionDAG &DAG,
                                                 SDLoc DL,
                                                 SDValue Ptr) const {
   const SIInstrInfo *TII =
-      static_cast<const SIInstrInfo *>(Subtarget->getInstrInfo());
-#if 1
-    // XXX - Workaround for moveToVALU not handling different register class
-    // inserts for REG_SEQUENCE.
+    static_cast<const SIInstrInfo *>(Subtarget->getInstrInfo());
 
-    // Build the half of the subregister with the constants.
-    const SDValue Ops0[] = {
-      DAG.getTargetConstant(AMDGPU::SGPR_64RegClassID, DL, MVT::i32),
-      buildSMovImm32(DAG, DL, 0),
-      DAG.getTargetConstant(AMDGPU::sub0, DL, MVT::i32),
-      buildSMovImm32(DAG, DL, TII->getDefaultRsrcDataFormat() >> 32),
-      DAG.getTargetConstant(AMDGPU::sub1, DL, MVT::i32)
-    };
+  // Build the half of the subregister with the constants before building the
+  // full 128-bit register. If we are building multiple resource descriptors,
+  // this will allow CSEing of the 2-component register.
+  const SDValue Ops0[] = {
+    DAG.getTargetConstant(AMDGPU::SGPR_64RegClassID, DL, MVT::i32),
+    buildSMovImm32(DAG, DL, 0),
+    DAG.getTargetConstant(AMDGPU::sub0, DL, MVT::i32),
+    buildSMovImm32(DAG, DL, TII->getDefaultRsrcDataFormat() >> 32),
+    DAG.getTargetConstant(AMDGPU::sub1, DL, MVT::i32)
+  };
 
-    SDValue SubRegHi = SDValue(DAG.getMachineNode(AMDGPU::REG_SEQUENCE, DL,
-                                                  MVT::v2i32, Ops0), 0);
+  SDValue SubRegHi = SDValue(DAG.getMachineNode(AMDGPU::REG_SEQUENCE, DL,
+                                                MVT::v2i32, Ops0), 0);
 
-    // Combine the constants and the pointer.
-    const SDValue Ops1[] = {
-      DAG.getTargetConstant(AMDGPU::SReg_128RegClassID, DL, MVT::i32),
-      Ptr,
-      DAG.getTargetConstant(AMDGPU::sub0_sub1, DL, MVT::i32),
-      SubRegHi,
-      DAG.getTargetConstant(AMDGPU::sub2_sub3, DL, MVT::i32)
-    };
+  // Combine the constants and the pointer.
+  const SDValue Ops1[] = {
+    DAG.getTargetConstant(AMDGPU::SReg_128RegClassID, DL, MVT::i32),
+    Ptr,
+    DAG.getTargetConstant(AMDGPU::sub0_sub1, DL, MVT::i32),
+    SubRegHi,
+    DAG.getTargetConstant(AMDGPU::sub2_sub3, DL, MVT::i32)
+  };
 
-    return DAG.getMachineNode(AMDGPU::REG_SEQUENCE, DL, MVT::v4i32, Ops1);
-#else
-    const SDValue Ops[] = {
-      DAG.getTargetConstant(AMDGPU::SReg_128RegClassID, MVT::i32),
-      Ptr,
-      DAG.getTargetConstant(AMDGPU::sub0_sub1, MVT::i32),
-      buildSMovImm32(DAG, DL, 0),
-      DAG.getTargetConstant(AMDGPU::sub2, MVT::i32),
-      buildSMovImm32(DAG, DL, TII->getDefaultRsrcFormat() >> 32),
-      DAG.getTargetConstant(AMDGPU::sub3, MVT::i32)
-    };
-
-    return DAG.getMachineNode(AMDGPU::REG_SEQUENCE, DL, MVT::v4i32, Ops);
-
-#endif
+  return DAG.getMachineNode(AMDGPU::REG_SEQUENCE, DL, MVT::v4i32, Ops1);
 }
 
 /// \brief Return a resource descriptor with the 'Add TID' bit enabled
-///        The TID (Thread ID) is multipled by the stride value (bits [61:48]
-///        of the resource descriptor) to create an offset, which is added to the
-///        resource ponter.
+///        The TID (Thread ID) is multiplied by the stride value (bits [61:48]
+///        of the resource descriptor) to create an offset, which is added to
+///        the resource pointer.
 MachineSDNode *SITargetLowering::buildRSRC(SelectionDAG &DAG,
                                            SDLoc DL,
                                            SDValue Ptr,
@@ -2248,15 +2556,6 @@ MachineSDNode *SITargetLowering::buildRSRC(SelectionDAG &DAG,
   return DAG.getMachineNode(AMDGPU::REG_SEQUENCE, DL, MVT::v4i32, Ops);
 }
 
-MachineSDNode *SITargetLowering::buildScratchRSRC(SelectionDAG &DAG,
-                                                  SDLoc DL,
-                                                  SDValue Ptr) const {
-  const SIInstrInfo *TII =
-      static_cast<const SIInstrInfo *>(Subtarget->getInstrInfo());
-
-  return buildRSRC(DAG, DL, Ptr, 0, TII->getScratchRsrcWords23());
-}
-
 SDValue SITargetLowering::CreateLiveInRegister(SelectionDAG &DAG,
                                                const TargetRegisterClass *RC,
                                                unsigned Reg, EVT VT) const {
@@ -2274,13 +2573,41 @@ std::pair<unsigned, const TargetRegisterClass *>
 SITargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
                                                StringRef Constraint,
                                                MVT VT) const {
-  if (Constraint == "r") {
-    switch(VT.SimpleTy) {
-      default: llvm_unreachable("Unhandled type for 'r' inline asm constraint");
-      case MVT::i64:
-        return std::make_pair(0U, &AMDGPU::SGPR_64RegClass);
-      case MVT::i32:
+
+  if (Constraint.size() == 1) {
+    switch (Constraint[0]) {
+    case 's':
+    case 'r':
+      switch (VT.getSizeInBits()) {
+      default:
+        return std::make_pair(0U, nullptr);
+      case 32:
         return std::make_pair(0U, &AMDGPU::SGPR_32RegClass);
+      case 64:
+        return std::make_pair(0U, &AMDGPU::SGPR_64RegClass);
+      case 128:
+        return std::make_pair(0U, &AMDGPU::SReg_128RegClass);
+      case 256:
+        return std::make_pair(0U, &AMDGPU::SReg_256RegClass);
+      }
+
+    case 'v':
+      switch (VT.getSizeInBits()) {
+      default:
+        return std::make_pair(0U, nullptr);
+      case 32:
+        return std::make_pair(0U, &AMDGPU::VGPR_32RegClass);
+      case 64:
+        return std::make_pair(0U, &AMDGPU::VReg_64RegClass);
+      case 96:
+        return std::make_pair(0U, &AMDGPU::VReg_96RegClass);
+      case 128:
+        return std::make_pair(0U, &AMDGPU::VReg_128RegClass);
+      case 256:
+        return std::make_pair(0U, &AMDGPU::VReg_256RegClass);
+      case 512:
+        return std::make_pair(0U, &AMDGPU::VReg_512RegClass);
+      }
     }
   }
 
@@ -2300,4 +2627,17 @@ SITargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
     }
   }
   return TargetLowering::getRegForInlineAsmConstraint(TRI, Constraint, VT);
+}
+
+SITargetLowering::ConstraintType
+SITargetLowering::getConstraintType(StringRef Constraint) const {
+  if (Constraint.size() == 1) {
+    switch (Constraint[0]) {
+    default: break;
+    case 's':
+    case 'v':
+      return C_RegisterClass;
+    }
+  }
+  return TargetLowering::getConstraintType(Constraint);
 }

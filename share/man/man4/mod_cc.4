@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2015
+.Dd January 21, 2016
 .Dt MOD_CC 4
 .Os
 .Sh NAME
@@ -49,7 +49,9 @@ using the
 facility.
 .Pp
 The default algorithm is NewReno, and all connections use the default unless
-explicitly overridden using the TCP_CONGESTION socket option (see
+explicitly overridden using the
+.Dv TCP_CONGESTION
+socket option (see
 .Xr tcp 4
 for details).
 The default can be changed using a
@@ -57,6 +59,14 @@ The default can be changed using a
 MIB variable detailed in the
 .Sx MIB Variables
 section below.
+.Pp
+Algorithm specific parameters can be set or queried using the
+.Dv TCP_CCALGOOPT
+socket option (see
+.Xr tcp 4
+for details).
+Callers must pass a pointer to an algorithm specific data, and specify
+its size.
 .Sh MIB Variables
 The framework exposes the following variables in the
 .Va net.inet.tcp.cc

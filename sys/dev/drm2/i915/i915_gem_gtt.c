@@ -107,21 +107,22 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 	    I915_PPGTT_PT_ENTRIES);
 	ppgtt->pd_offset = (first_pd_entry_in_global_pt) * sizeof(uint32_t);
 	dev_priv->mm.aliasing_ppgtt = ppgtt;
-	return (0);
+
+	return 0;
 }
 
-static void
-i915_ppgtt_insert_pages(struct i915_hw_ppgtt *ppgtt, unsigned first_entry,
-    unsigned num_entries, vm_page_t *pages, uint32_t pte_flags)
+static void i915_ppgtt_insert_pages(struct i915_hw_ppgtt *ppgtt,
+					 unsigned first_entry,
+					 unsigned num_entries,
+					 vm_page_t *pages,
+					 uint32_t pte_flags)
 {
 	uint32_t *pt_vaddr, pte;
-	struct sf_buf *sf;
-	unsigned act_pd, first_pte;
-	unsigned last_pte, i;
+	unsigned act_pd = first_entry / I915_PPGTT_PT_ENTRIES;
+	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
+	unsigned j, last_pte;
 	vm_paddr_t page_addr;
-
-	act_pd = first_entry / I915_PPGTT_PT_ENTRIES;
-	first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
+	struct sf_buf *sf;
 
 	while (num_entries) {
 		last_pte = first_pte + num_entries;
@@ -132,10 +133,10 @@ i915_ppgtt_insert_pages(struct i915_hw_ppgtt *ppgtt, unsigned first_entry,
 		sf = sf_buf_alloc(ppgtt->pt_pages[act_pd], SFB_CPUPRIVATE);
 		pt_vaddr = (uint32_t *)(uintptr_t)sf_buf_kva(sf);
 
-		for (i = first_pte; i < last_pte; i++) {
+		for (j = first_pte; j < last_pte; j++) {
 			page_addr = VM_PAGE_TO_PHYS(*pages);
 			pte = GEN6_PTE_ADDR_ENCODE(page_addr);
-			pt_vaddr[i] = pte | pte_flags;
+			pt_vaddr[j] = pte | pte_flags;
 
 			pages++;
 		}
@@ -194,18 +195,21 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 	struct intel_ring_buffer *ring;
 	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
 	u_int first_pd_entry_in_global_pt;
-	vm_paddr_t pt_addr;
 	uint32_t pd_entry;
 	int i;
 
 	if (!dev_priv->mm.aliasing_ppgtt)
 		return;
 
+
 	first_pd_entry_in_global_pt = 512 * 1024 - I915_PPGTT_PD_ENTRIES;
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
+		vm_paddr_t pt_addr;
+
 		pt_addr = VM_PAGE_TO_PHYS(ppgtt->pt_pages[i]);
 		pd_entry = GEN6_PDE_ADDR_ENCODE(pt_addr);
 		pd_entry |= GEN6_PDE_VALID;
+
 		intel_gtt_write(first_pd_entry_in_global_pt + i, pd_entry);
 	}
 	intel_gtt_read_pte(first_pd_entry_in_global_pt);
@@ -217,7 +221,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen == 6) {
 		uint32_t ecochk, gab_ctl, ecobits;
 
-		ecobits = I915_READ(GAC_ECO_BITS); 
+		ecobits = I915_READ(GAC_ECO_BITS);
 		I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_PPGTT_CACHE64B);
 
 		gab_ctl = I915_READ(GAB_CTL);
@@ -336,9 +340,8 @@ int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
-void
-i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
-    enum i915_cache_level cache_level)
+void i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
+			      enum i915_cache_level cache_level)
 {
 	struct drm_device *dev;
 	struct drm_i915_private *dev_priv;
@@ -375,15 +378,14 @@ void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
 }
 
 int i915_gem_init_global_gtt(struct drm_device *dev,
-			     unsigned long start,
-			     unsigned long mappable_end,
-			     unsigned long end)
+			      unsigned long start,
+			      unsigned long mappable_end,
+			      unsigned long end)
 {
-	drm_i915_private_t *dev_priv;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	unsigned long mappable;
 	int error;
 
-	dev_priv = dev->dev_private;
 	mappable = min(end, mappable_end) - start;
 
 	/* Substract the guard page ... */

@@ -129,6 +129,7 @@ struct sysentvec {
 	void		*sv_shared_page_obj;
 	void		(*sv_schedtail)(struct thread *);
 	void		(*sv_thread_detach)(struct thread *);
+	int		(*sv_trap)(struct thread *);
 };
 
 #define	SV_ILP32	0x000100	/* 32-bit executable. */

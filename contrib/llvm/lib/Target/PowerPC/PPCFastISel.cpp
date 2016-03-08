@@ -164,7 +164,8 @@ class PPCFastISel final : public FastISel {
                            unsigned DestReg, bool IsZExt);
     unsigned PPCMaterializeFP(const ConstantFP *CFP, MVT VT);
     unsigned PPCMaterializeGV(const GlobalValue *GV, MVT VT);
-    unsigned PPCMaterializeInt(const Constant *C, MVT VT, bool UseSExt = true);
+    unsigned PPCMaterializeInt(const ConstantInt *CI, MVT VT,
+                               bool UseSExt = true);
     unsigned PPCMaterialize32BitInt(int64_t Imm,
                                     const TargetRegisterClass *RC);
     unsigned PPCMaterialize64BitInt(int64_t Imm,
@@ -292,10 +293,7 @@ bool PPCFastISel::isValueAvailable(const Value *V) const {
     return true;
 
   const auto *I = cast<Instruction>(V);
-  if (FuncInfo.MBBMap[I->getParent()] == FuncInfo.MBB)
-    return true;
-
-  return false;
+  return FuncInfo.MBBMap[I->getParent()] == FuncInfo.MBB;
 }
 
 // Given a value Obj, create an Address object Addr that represents its
@@ -527,9 +525,9 @@ bool PPCFastISel::PPCEmitLoad(MVT VT, unsigned &ResultReg, Address &Addr,
     // VSX only provides an indexed load.
     if (Is32VSXLoad || Is64VSXLoad) return false;
 
-    MachineMemOperand *MMO =
-      FuncInfo.MF->getMachineMemOperand(
-        MachinePointerInfo::getFixedStack(Addr.Base.FI, Addr.Offset),
+    MachineMemOperand *MMO = FuncInfo.MF->getMachineMemOperand(
+        MachinePointerInfo::getFixedStack(*FuncInfo.MF, Addr.Base.FI,
+                                          Addr.Offset),
         MachineMemOperand::MOLoad, MFI.getObjectSize(Addr.Base.FI),
         MFI.getObjectAlignment(Addr.Base.FI));
 
@@ -660,9 +658,9 @@ bool PPCFastISel::PPCEmitStore(MVT VT, unsigned SrcReg, Address &Addr) {
     // VSX only provides an indexed store.
     if (Is32VSXStore || Is64VSXStore) return false;
 
-    MachineMemOperand *MMO =
-      FuncInfo.MF->getMachineMemOperand(
-        MachinePointerInfo::getFixedStack(Addr.Base.FI, Addr.Offset),
+    MachineMemOperand *MMO = FuncInfo.MF->getMachineMemOperand(
+        MachinePointerInfo::getFixedStack(*FuncInfo.MF, Addr.Base.FI,
+                                          Addr.Offset),
         MachineMemOperand::MOStore, MFI.getObjectSize(Addr.Base.FI),
         MFI.getObjectAlignment(Addr.Base.FI));
 
@@ -774,8 +772,7 @@ bool PPCFastISel::SelectBranch(const Instruction *I) {
 
       BuildMI(*BrBB, FuncInfo.InsertPt, DbgLoc, TII.get(PPC::BCC))
         .addImm(PPCPred).addReg(CondReg).addMBB(TBB);
-      fastEmitBranch(FBB, DbgLoc);
-      FuncInfo.MBB->addSuccessor(TBB);
+      finishCondBranch(BI->getParent(), TBB, FBB);
       return true;
     }
   } else if (const ConstantInt *CI =
@@ -1607,21 +1604,18 @@ bool PPCFastISel::SelectRet(const Instruction *I) {
     if (ValLocs.size() > 1)
       return false;
 
-    // Special case for returning a constant integer of any size.
-    // Materialize the constant as an i64 and copy it to the return
-    // register. We still need to worry about properly extending the sign. E.g:
-    // If the constant has only one bit, it means it is a boolean. Therefore
-    // we can't use PPCMaterializeInt because it extends the sign which will
-    // cause negations of the returned value to be incorrect as they are
-    // implemented as the flip of the least significant bit.
-    if (isa<ConstantInt>(*RV)) {
-      const Constant *C = cast<Constant>(RV);
-
+    // Special case for returning a constant integer of any size - materialize
+    // the constant as an i64 and copy it to the return register.
+    if (const ConstantInt *CI = dyn_cast<ConstantInt>(RV)) {
       CCValAssign &VA = ValLocs[0];
 
       unsigned RetReg = VA.getLocReg();
-      unsigned SrcReg = PPCMaterializeInt(C, MVT::i64,
-                                          VA.getLocInfo() == CCValAssign::SExt);
+      // We still need to worry about properly extending the sign. For example,
+      // we could have only a single bit or a constant that needs zero
+      // extension rather than sign extension. Make sure we pass the return
+      // value extension property to integer materialization.
+      unsigned SrcReg =
+          PPCMaterializeInt(CI, MVT::i64, VA.getLocInfo() != CCValAssign::ZExt);
 
       BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc,
             TII.get(TargetOpcode::COPY), RetReg).addReg(SrcReg);
@@ -1761,8 +1755,8 @@ bool PPCFastISel::SelectIndirectBr(const Instruction *I) {
   BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, TII.get(PPC::BCTR8));
 
   const IndirectBrInst *IB = cast<IndirectBrInst>(I);
-  for (unsigned i = 0, e = IB->getNumSuccessors(); i != e; ++i)
-    FuncInfo.MBB->addSuccessor(FuncInfo.MBBMap[IB->getSuccessor(i)]);
+  for (const BasicBlock *SuccBB : IB->successors())
+    FuncInfo.MBB->addSuccessor(FuncInfo.MBBMap[SuccBB]);
 
   return true;
 }
@@ -1898,10 +1892,9 @@ unsigned PPCFastISel::PPCMaterializeFP(const ConstantFP *CFP, MVT VT) {
   unsigned DestReg = createResultReg(TLI.getRegClassFor(VT));
   CodeModel::Model CModel = TM.getCodeModel();
 
-  MachineMemOperand *MMO =
-    FuncInfo.MF->getMachineMemOperand(
-      MachinePointerInfo::getConstantPool(), MachineMemOperand::MOLoad,
-      (VT == MVT::f32) ? 4 : 8, Align);
+  MachineMemOperand *MMO = FuncInfo.MF->getMachineMemOperand(
+      MachinePointerInfo::getConstantPool(*FuncInfo.MF),
+      MachineMemOperand::MOLoad, (VT == MVT::f32) ? 4 : 8, Align);
 
   unsigned Opc = (VT == MVT::f32) ? PPC::LFS : PPC::LFD;
   unsigned TmpReg = createResultReg(&PPC::G8RC_and_G8RC_NOX0RegClass);
@@ -1976,19 +1969,15 @@ unsigned PPCFastISel::PPCMaterializeGV(const GlobalValue *GV, MVT VT) {
     BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, TII.get(PPC::ADDIStocHA),
             HighPartReg).addReg(PPC::X2).addGlobalAddress(GV);
 
-    // If/when switches are implemented, jump tables should be handled
-    // on the "if" path here.
-    if (CModel == CodeModel::Large ||
-        (GV->getType()->getElementType()->isFunctionTy() &&
-         !GV->isStrongDefinitionForLinker()) ||
-        GV->isDeclaration() || GV->hasCommonLinkage() ||
-        GV->hasAvailableExternallyLinkage())
+    unsigned char GVFlags = PPCSubTarget->classifyGlobalReference(GV);
+    if (GVFlags & PPCII::MO_NLP_FLAG) {
       BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, TII.get(PPC::LDtocL),
               DestReg).addGlobalAddress(GV).addReg(HighPartReg);
-    else
+    } else {
       // Otherwise generate the ADDItocL.
       BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, TII.get(PPC::ADDItocL),
               DestReg).addReg(HighPartReg).addGlobalAddress(GV);
+    }
   }
 
   return DestReg;
@@ -2085,12 +2074,11 @@ unsigned PPCFastISel::PPCMaterialize64BitInt(int64_t Imm,
 
 // Materialize an integer constant into a register, and return
 // the register number (or zero if we failed to handle it).
-unsigned PPCFastISel::PPCMaterializeInt(const Constant *C, MVT VT,
-                                                           bool UseSExt) {
+unsigned PPCFastISel::PPCMaterializeInt(const ConstantInt *CI, MVT VT,
+                                        bool UseSExt) {
   // If we're using CR bit registers for i1 values, handle that as a special
   // case first.
   if (VT == MVT::i1 && PPCSubTarget->useCRBits()) {
-    const ConstantInt *CI = cast<ConstantInt>(C);
     unsigned ImmReg = createResultReg(&PPC::CRBITRCRegClass);
     BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc,
             TII.get(CI->isZero() ? PPC::CRUNSET : PPC::CRSET), ImmReg);
@@ -2103,20 +2091,21 @@ unsigned PPCFastISel::PPCMaterializeInt(const Constant *C, MVT VT,
 
   const TargetRegisterClass *RC = ((VT == MVT::i64) ? &PPC::G8RCRegClass :
                                    &PPC::GPRCRegClass);
+  int64_t Imm = UseSExt ? CI->getSExtValue() : CI->getZExtValue();
 
   // If the constant is in range, use a load-immediate.
-  const ConstantInt *CI = cast<ConstantInt>(C);
-  if (isInt<16>(CI->getSExtValue())) {
+  // Since LI will sign extend the constant we need to make sure that for
+  // our zeroext constants that the sign extended constant fits into 16-bits -
+  // a range of 0..0x7fff.
+  if (isInt<16>(Imm)) {
     unsigned Opc = (VT == MVT::i64) ? PPC::LI8 : PPC::LI;
     unsigned ImmReg = createResultReg(RC);
     BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, TII.get(Opc), ImmReg)
-      .addImm( (UseSExt) ? CI->getSExtValue() : CI->getZExtValue() );
+        .addImm(Imm);
     return ImmReg;
   }
 
   // Construct the constant piecewise.
-  int64_t Imm = CI->getZExtValue();
-
   if (VT == MVT::i64)
     return PPCMaterialize64BitInt(Imm, RC);
   else if (VT == MVT::i32)
@@ -2138,8 +2127,8 @@ unsigned PPCFastISel::fastMaterializeConstant(const Constant *C) {
     return PPCMaterializeFP(CFP, VT);
   else if (const GlobalValue *GV = dyn_cast<GlobalValue>(C))
     return PPCMaterializeGV(GV, VT);
-  else if (isa<ConstantInt>(C))
-    return PPCMaterializeInt(C, VT, VT != MVT::i1);
+  else if (const ConstantInt *CI = dyn_cast<ConstantInt>(C))
+    return PPCMaterializeInt(CI, VT, VT != MVT::i1);
 
   return 0;
 }

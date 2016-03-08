@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/aio.h> /* for aio_swake proto */
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -331,7 +332,7 @@ sowakeup(struct socket *so, struct sockbuf *sb)
 	} else
 		ret = SU_OK;
 	if (sb->sb_flags & SB_AIO)
-		aio_swake(so, sb);
+		sowakeup_aio(so, sb);
 	SOCKBUF_UNLOCK(sb);
 	if (ret == SU_ISCONNECTED)
 		soisconnected(so);

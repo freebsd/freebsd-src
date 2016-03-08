@@ -188,8 +188,11 @@ class ASTMatchFinder;
 /// Used by the implementation of Matcher<T> and DynTypedMatcher.
 /// In general, implement MatcherInterface<T> or SingleNodeMatcherInterface<T>
 /// instead.
-class DynMatcherInterface : public RefCountedBaseVPTR {
+class DynMatcherInterface
+    : public llvm::ThreadSafeRefCountedBase<DynMatcherInterface> {
 public:
+  virtual ~DynMatcherInterface() {}
+
   /// \brief Returns true if \p DynNode can be matched.
   ///
   /// May bind \p DynNode to an ID via \p Builder, or recurse into
@@ -209,8 +212,6 @@ public:
 template <typename T>
 class MatcherInterface : public DynMatcherInterface {
 public:
-  ~MatcherInterface() override {}
-
   /// \brief Returns true if 'Node' can be matched.
   ///
   /// May bind 'Node' to an ID via 'Builder', or recurse into
@@ -281,6 +282,7 @@ public:
   };
   static DynTypedMatcher
   constructVariadic(VariadicOperator Op,
+                    ast_type_traits::ASTNodeKind SupportedKind,
                     std::vector<DynTypedMatcher> InnerMatchers);
 
   /// \brief Get a "true" matcher for \p NodeKind.
@@ -556,22 +558,32 @@ bool matchesFirstInPointerRange(const MatcherT &Matcher, IteratorT Start,
   return false;
 }
 
-/// \brief Metafunction to determine if type T has a member called getDecl.
+// Metafunction to determine if type T has a member called
+// getDecl.
+#if defined(_MSC_VER) && !defined(__clang__)
+// For MSVC, we use a weird nonstandard __if_exists statement, as it
+// is not standards-conformant enough to properly compile the standard
+// code below. (At least up through MSVC 2015 require this workaround)
 template <typename T> struct has_getDecl {
-  struct Default { int getDecl; };
-  struct Derived : T, Default { };
-
-  template<typename C, C> struct CheckT;
-
-  // If T::getDecl exists, an ambiguity arises and CheckT will
-  // not be instantiable. This makes f(...) the only available
-  // overload.
-  template<typename C>
-  static char (&f(CheckT<int Default::*, &C::getDecl>*))[1];
-  template<typename C> static char (&f(...))[2];
-
-  static bool const value = sizeof(f<Derived>(nullptr)) == 2;
+  __if_exists(T::getDecl) {
+    enum { value = 1 };
+  }
+  __if_not_exists(T::getDecl) {
+    enum { value = 0 };
+  }
 };
+#else
+// There is a default template inheriting from "false_type". Then, a
+// partial specialization inherits from "true_type". However, this
+// specialization will only exist when the call to getDecl() isn't an
+// error -- it vanishes by SFINAE when the member doesn't exist.
+template <typename> struct type_sink_to_void { typedef void type; };
+template <typename T, typename = void> struct has_getDecl : std::false_type {};
+template <typename T>
+struct has_getDecl<
+    T, typename type_sink_to_void<decltype(std::declval<T>().getDecl())>::type>
+    : std::true_type {};
+#endif
 
 /// \brief Matches overloaded operators with a specific name.
 ///
@@ -667,16 +679,30 @@ private:
     return matchesDecl(Node.getDecl(), Finder, Builder);
   }
 
-  /// \brief Extracts the CXXRecordDecl or EnumDecl of a QualType and returns
-  /// whether the inner matcher matches on it.
+  /// \brief Extracts the TagDecl of a QualType and returns whether the inner
+  /// matcher matches on it.
   bool matchesSpecialized(const QualType &Node, ASTMatchFinder *Finder,
                           BoundNodesTreeBuilder *Builder) const {
-    /// FIXME: Add other ways to convert...
     if (Node.isNull())
       return false;
-    if (const EnumType *AsEnum = dyn_cast<EnumType>(Node.getTypePtr()))
-      return matchesDecl(AsEnum->getDecl(), Finder, Builder);
-    return matchesDecl(Node->getAsCXXRecordDecl(), Finder, Builder);
+
+    if (auto *TD = Node->getAsTagDecl())
+      return matchesDecl(TD, Finder, Builder);
+    else if (auto *TT = Node->getAs<TypedefType>())
+      return matchesDecl(TT->getDecl(), Finder, Builder);
+    // Do not use getAs<TemplateTypeParmType> instead of the direct dyn_cast.
+    // Calling getAs will return the canonical type, but that type does not
+    // store a TemplateTypeParmDecl. We *need* the uncanonical type, if it is
+    // available, and using dyn_cast ensures that.
+    else if (auto *TTP = dyn_cast<TemplateTypeParmType>(Node.getTypePtr()))
+      return matchesDecl(TTP->getDecl(), Finder, Builder);
+    else if (auto *OCIT = Node->getAs<ObjCInterfaceType>())
+      return matchesDecl(OCIT->getDecl(), Finder, Builder);
+    else if (auto *UUT = Node->getAs<UnresolvedUsingType>())
+      return matchesDecl(UUT->getDecl(), Finder, Builder);
+    else if (auto *ICNT = Node->getAs<InjectedClassNameType>())
+      return matchesDecl(ICNT->getDecl(), Finder, Builder);
+    return false;
   }
 
   /// \brief Gets the TemplateDecl from a TemplateSpecializationType
@@ -753,7 +779,7 @@ const bool IsBaseType<T>::value;
 ///   at least one ancestor matched.
 ///
 /// FIXME: Currently we only allow Stmt and Decl nodes to start a traversal.
-/// In the future, we wan to implement this for all nodes for which it makes
+/// In the future, we want to implement this for all nodes for which it makes
 /// sense. In the case of matchesAncestorOf, we'll want to implement it for
 /// all nodes, as all nodes have ancestors.
 class ASTMatchFinder {
@@ -833,8 +859,10 @@ public:
                          BoundNodesTreeBuilder *Builder,
                          AncestorMatchMode MatchMode) {
     static_assert(std::is_base_of<Decl, T>::value ||
-                  std::is_base_of<Stmt, T>::value,
-                  "only Decl or Stmt allowed for recursive matching");
+                      std::is_base_of<NestedNameSpecifierLoc, T>::value ||
+                      std::is_base_of<Stmt, T>::value ||
+                      std::is_base_of<TypeLoc, T>::value,
+                  "type not allowed for recursive matching");
     return matchesAncestorOf(ast_type_traits::DynTypedNode::create(Node),
                              Matcher, Builder, MatchMode);
   }
@@ -1137,7 +1165,8 @@ public:
 
   template <typename T> operator Matcher<T>() const {
     return DynTypedMatcher::constructVariadic(
-               Op, getMatchers<T>(llvm::index_sequence_for<Ps...>()))
+               Op, ast_type_traits::ASTNodeKind::getFromNodeKind<T>(),
+               getMatchers<T>(llvm::index_sequence_for<Ps...>()))
         .template unconditionalConvertTo<T>();
   }
 
@@ -1191,8 +1220,10 @@ BindableMatcher<T> makeAllOfComposite(
   std::vector<DynTypedMatcher> DynMatchers(PI(InnerMatchers.begin()),
                                            PI(InnerMatchers.end()));
   return BindableMatcher<T>(
-      DynTypedMatcher::constructVariadic(DynTypedMatcher::VO_AllOf,
-                                         std::move(DynMatchers))
+      DynTypedMatcher::constructVariadic(
+          DynTypedMatcher::VO_AllOf,
+          ast_type_traits::ASTNodeKind::getFromNodeKind<T>(),
+          std::move(DynMatchers))
           .template unconditionalConvertTo<T>());
 }
 

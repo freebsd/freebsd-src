@@ -11,6 +11,10 @@ SRCS=	cc1_main.cpp \
 
 .if ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?= yes
+
+.if ${MACHINE_CPUARCH} == "arm"
+CFLAGS+= -mlong-calls
+.endif
 .endif
 
 LINKS=	${BINDIR}/clang ${BINDIR}/clang++ \
@@ -30,7 +34,9 @@ MLINKS+= clang.1 cc.1 \
 	clang.1 cpp.1
 .endif
 
-TGHDRS=	DiagnosticCommonKinds \
+TGHDRS=	Attributes \
+	Intrinsics \
+	DiagnosticCommonKinds \
 	DiagnosticDriverKinds \
 	DiagnosticFrontendKinds \
 	DiagnosticLexKinds \
@@ -64,40 +70,37 @@ LIBDEPS=clangfrontendtool \
 	clangbasic \
 	llvmoption \
 	llvmobjcarcopts \
-	llvmlinker \
-	llvmirreader \
 	llvmipo \
 	llvmvectorize \
-	llvmbitwriter \
+	llvmlinker \
+	llvmirreader \
 	llvmasmparser \
 	llvmaarch64codegen \
 	llvmaarch64asmparser \
 	llvmaarch64desc \
 	llvmaarch64info \
-	llvmaarch64instprinter \
+	llvmaarch64asmprinter \
 	llvmaarch64utils \
-	llvmarmdisassembler \
 	llvmarmcodegen \
 	llvmarmasmparser \
 	llvmarmdesc \
 	llvmarminfo \
-	llvmarminstprinter \
+	llvmarmasmprinter \
 	llvmmipscodegen \
 	llvmmipsasmparser \
 	llvmmipsdesc \
 	llvmmipsinfo \
-	llvmmipsinstprinter \
-	llvmpowerpcdisassembler \
+	llvmmipsasmprinter \
 	llvmpowerpccodegen \
 	llvmpowerpcasmparser \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
-	llvmpowerpcinstprinter \
+	llvmpowerpcasmprinter \
 	llvmsparccodegen \
 	llvmsparcasmparser \
 	llvmsparcdesc \
 	llvmsparcinfo \
-	llvmsparcinstprinter \
+	llvmsparcasmprinter \
 	llvmx86asmparser \
 	llvmx86codegen \
 	llvmselectiondag \
@@ -105,11 +108,11 @@ LIBDEPS=clangfrontendtool \
 	llvmcodegen \
 	llvmtarget \
 	llvmscalaropts \
-	llvmprofiledata \
 	llvminstcombine \
 	llvminstrumentation \
+	llvmprofiledata \
 	llvmtransformutils \
-	llvmipa \
+	llvmbitwriter \
 	llvmanalysis \
 	llvmx86desc \
 	llvmobject \
@@ -117,7 +120,7 @@ LIBDEPS=clangfrontendtool \
 	llvmbitreader \
 	llvmmcdisassembler \
 	llvmx86info \
-	llvmx86instprinter \
+	llvmx86asmprinter \
 	llvmmc \
 	llvmx86utils \
 	llvmcore \

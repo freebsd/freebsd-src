@@ -24,16 +24,13 @@ using namespace clang;
 using namespace CodeGen;
 
 static void EmitDeclInit(CodeGenFunction &CGF, const VarDecl &D,
-                         llvm::Constant *DeclPtr) {
+                         ConstantAddress DeclPtr) {
   assert(D.hasGlobalStorage() && "VarDecl must have global storage!");
   assert(!D.getType()->isReferenceType() && 
          "Should not call EmitDeclInit on a reference!");
   
-  ASTContext &Context = CGF.getContext();
-
-  CharUnits alignment = Context.getDeclAlign(&D);
   QualType type = D.getType();
-  LValue lv = CGF.MakeAddrLValue(DeclPtr, type, alignment);
+  LValue lv = CGF.MakeAddrLValue(DeclPtr, type);
 
   const Expr *Init = D.getInit();
   switch (CGF.getEvaluationKind(type)) {
@@ -64,7 +61,7 @@ static void EmitDeclInit(CodeGenFunction &CGF, const VarDecl &D,
 /// Emit code to cause the destruction of the given variable with
 /// static storage duration.
 static void EmitDeclDestroy(CodeGenFunction &CGF, const VarDecl &D,
-                            llvm::Constant *addr) {
+                            ConstantAddress addr) {
   CodeGenModule &CGM = CGF.CGM;
 
   // FIXME:  __attribute__((cleanup)) ?
@@ -99,7 +96,7 @@ static void EmitDeclDestroy(CodeGenFunction &CGF, const VarDecl &D,
 
     function = CGM.getAddrOfCXXStructor(dtor, StructorType::Complete);
     argument = llvm::ConstantExpr::getBitCast(
-        addr, CGF.getTypes().ConvertType(type)->getPointerTo());
+        addr.getPointer(), CGF.getTypes().ConvertType(type)->getPointerTo());
 
   // Otherwise, the standard logic requires a helper function.
   } else {
@@ -162,25 +159,26 @@ void CodeGenFunction::EmitCXXGlobalVarDeclInit(const VarDecl &D,
     DeclPtr = llvm::ConstantExpr::getAddrSpaceCast(DeclPtr, PTy);
   }
 
+  ConstantAddress DeclAddr(DeclPtr, getContext().getDeclAlign(&D));
+
   if (!T->isReferenceType()) {
     if (getLangOpts().OpenMP && D.hasAttr<OMPThreadPrivateDeclAttr>())
       (void)CGM.getOpenMPRuntime().emitThreadPrivateVarDefinition(
-          &D, DeclPtr, D.getAttr<OMPThreadPrivateDeclAttr>()->getLocation(),
+          &D, DeclAddr, D.getAttr<OMPThreadPrivateDeclAttr>()->getLocation(),
           PerformInit, this);
     if (PerformInit)
-      EmitDeclInit(*this, D, DeclPtr);
+      EmitDeclInit(*this, D, DeclAddr);
     if (CGM.isTypeConstant(D.getType(), true))
       EmitDeclInvariant(*this, D, DeclPtr);
     else
-      EmitDeclDestroy(*this, D, DeclPtr);
+      EmitDeclDestroy(*this, D, DeclAddr);
     return;
   }
 
   assert(PerformInit && "cannot have constant initializer which needs "
          "destruction for reference");
-  unsigned Alignment = getContext().getDeclAlign(&D).getQuantity();
   RValue RV = EmitReferenceBindingToExpr(Init);
-  EmitStoreOfScalar(RV.getScalarVal(), DeclPtr, false, Alignment, T);
+  EmitStoreOfScalar(RV.getScalarVal(), DeclAddr, false, T);
 }
 
 /// Create a stub function, suitable for being passed to atexit,
@@ -195,13 +193,15 @@ llvm::Constant *CodeGenFunction::createAtExitStub(const VarDecl &VD,
     llvm::raw_svector_ostream Out(FnName);
     CGM.getCXXABI().getMangleContext().mangleDynamicAtExitDestructor(&VD, Out);
   }
+
+  const CGFunctionInfo &FI = CGM.getTypes().arrangeNullaryFunction();
   llvm::Function *fn = CGM.CreateGlobalInitOrDestructFunction(ty, FnName.str(),
+                                                              FI,
                                                               VD.getLocation());
 
   CodeGenFunction CGF(CGM);
 
-  CGF.StartFunction(&VD, CGM.getContext().VoidTy, fn,
-                    CGM.getTypes().arrangeNullaryFunction(), FunctionArgList());
+  CGF.StartFunction(&VD, CGM.getContext().VoidTy, fn, FI, FunctionArgList());
 
   llvm::CallInst *call = CGF.Builder.CreateCall(dtor, addr);
  
@@ -249,7 +249,8 @@ void CodeGenFunction::EmitCXXGuardedInit(const VarDecl &D,
 }
 
 llvm::Function *CodeGenModule::CreateGlobalInitOrDestructFunction(
-    llvm::FunctionType *FTy, const Twine &Name, SourceLocation Loc, bool TLS) {
+    llvm::FunctionType *FTy, const Twine &Name, const CGFunctionInfo &FI,
+    SourceLocation Loc, bool TLS) {
   llvm::Function *Fn =
     llvm::Function::Create(FTy, llvm::GlobalValue::InternalLinkage,
                            Name, &getModule());
@@ -259,7 +260,7 @@ llvm::Function *CodeGenModule::CreateGlobalInitOrDestructFunction(
       Fn->setSection(Section);
   }
 
-  SetLLVMFunctionAttributes(nullptr, getTypes().arrangeNullaryFunction(), Fn);
+  SetInternalFunctionAttributes(nullptr, Fn, FI);
 
   Fn->setCallingConv(getRuntimeCC());
 
@@ -317,7 +318,9 @@ CodeGenModule::EmitCXXGlobalVarDeclInitFunc(const VarDecl *D,
 
   // Create a variable initialization function.
   llvm::Function *Fn =
-      CreateGlobalInitOrDestructFunction(FTy, FnName.str(), D->getLocation());
+      CreateGlobalInitOrDestructFunction(FTy, FnName.str(),
+                                         getTypes().arrangeNullaryFunction(),
+                                         D->getLocation());
 
   auto *ISA = D->getAttr<InitSegAttr>();
   CodeGenFunction(*this).GenerateCXXGlobalVarDeclInitFunc(Fn, D, Addr,
@@ -334,7 +337,7 @@ CodeGenModule::EmitCXXGlobalVarDeclInitFunc(const VarDecl *D,
     // FIXME: We only need to register one __cxa_thread_atexit function for the
     // entire TU.
     CXXThreadLocalInits.push_back(Fn);
-    CXXThreadLocalInitVars.push_back(Addr);
+    CXXThreadLocalInitVars.push_back(D);
   } else if (PerformInit && ISA) {
     EmitPointerToInitFunc(D, Addr, Fn, ISA);
   } else if (auto *IPA = D->getAttr<InitPriorityAttr>()) {
@@ -392,7 +395,7 @@ CodeGenModule::EmitCXXGlobalInitFunc() {
     return;
 
   llvm::FunctionType *FTy = llvm::FunctionType::get(VoidTy, false);
-
+  const CGFunctionInfo &FI = getTypes().arrangeNullaryFunction();
 
   // Create our global initialization function.
   if (!PrioritizedCXXGlobalInits.empty()) {
@@ -416,7 +419,7 @@ CodeGenModule::EmitCXXGlobalInitFunc() {
       // Priority is always <= 65535 (enforced by sema).
       PrioritySuffix = std::string(6-PrioritySuffix.size(), '0')+PrioritySuffix;
       llvm::Function *Fn = CreateGlobalInitOrDestructFunction(
-          FTy, "_GLOBAL__I_" + PrioritySuffix);
+          FTy, "_GLOBAL__I_" + PrioritySuffix, FI);
 
       for (; I < PrioE; ++I)
         LocalCXXGlobalInits.push_back(I->second);
@@ -446,7 +449,7 @@ CodeGenModule::EmitCXXGlobalInitFunc() {
   }
 
   llvm::Function *Fn = CreateGlobalInitOrDestructFunction(
-      FTy, llvm::Twine("_GLOBAL__sub_I_", FileName));
+      FTy, llvm::Twine("_GLOBAL__sub_I_", FileName), FI);
 
   CodeGenFunction(*this).GenerateCXXGlobalInitFunc(Fn, CXXGlobalInits);
   AddGlobalCtor(Fn);
@@ -461,7 +464,9 @@ void CodeGenModule::EmitCXXGlobalDtorFunc() {
   llvm::FunctionType *FTy = llvm::FunctionType::get(VoidTy, false);
 
   // Create our global destructor function.
-  llvm::Function *Fn = CreateGlobalInitOrDestructFunction(FTy, "_GLOBAL__D_a");
+  const CGFunctionInfo &FI = getTypes().arrangeNullaryFunction();
+  llvm::Function *Fn =
+      CreateGlobalInitOrDestructFunction(FTy, "_GLOBAL__D_a", FI);
 
   CodeGenFunction(*this).GenerateCXXGlobalDtorsFunc(Fn, CXXGlobalDtors);
   AddGlobalDtor(Fn);
@@ -498,7 +503,7 @@ void CodeGenFunction::GenerateCXXGlobalVarDeclInitFunc(llvm::Function *Fn,
 void
 CodeGenFunction::GenerateCXXGlobalInitFunc(llvm::Function *Fn,
                                            ArrayRef<llvm::Function *> Decls,
-                                           llvm::GlobalVariable *Guard) {
+                                           Address Guard) {
   {
     auto NL = ApplyDebugLocation::CreateEmpty(*this);
     StartFunction(GlobalDecl(), getContext().VoidTy, Fn,
@@ -507,20 +512,20 @@ CodeGenFunction::GenerateCXXGlobalInitFunc(llvm::Function *Fn,
     auto AL = ApplyDebugLocation::CreateArtificial(*this);
 
     llvm::BasicBlock *ExitBlock = nullptr;
-    if (Guard) {
+    if (Guard.isValid()) {
       // If we have a guard variable, check whether we've already performed
       // these initializations. This happens for TLS initialization functions.
       llvm::Value *GuardVal = Builder.CreateLoad(Guard);
       llvm::Value *Uninit = Builder.CreateIsNull(GuardVal,
                                                  "guard.uninitialized");
-      // Mark as initialized before initializing anything else. If the
-      // initializers use previously-initialized thread_local vars, that's
-      // probably supposed to be OK, but the standard doesn't say.
-      Builder.CreateStore(llvm::ConstantInt::get(GuardVal->getType(),1), Guard);
       llvm::BasicBlock *InitBlock = createBasicBlock("init");
       ExitBlock = createBasicBlock("exit");
       Builder.CreateCondBr(Uninit, InitBlock, ExitBlock);
       EmitBlock(InitBlock);
+      // Mark as initialized before initializing anything else. If the
+      // initializers use previously-initialized thread_local vars, that's
+      // probably supposed to be OK, but the standard doesn't say.
+      Builder.CreateStore(llvm::ConstantInt::get(GuardVal->getType(),1), Guard);
     }
 
     RunCleanupsScope Scope(*this);
@@ -572,9 +577,10 @@ void CodeGenFunction::GenerateCXXGlobalDtorsFunc(llvm::Function *Fn,
 }
 
 /// generateDestroyHelper - Generates a helper function which, when
-/// invoked, destroys the given object.
+/// invoked, destroys the given object.  The address of the object
+/// should be in global memory.
 llvm::Function *CodeGenFunction::generateDestroyHelper(
-    llvm::Constant *addr, QualType type, Destroyer *destroyer,
+    Address addr, QualType type, Destroyer *destroyer,
     bool useEHCleanupForArray, const VarDecl *VD) {
   FunctionArgList args;
   ImplicitParamDecl dst(getContext(), nullptr, SourceLocation(), nullptr,
@@ -585,7 +591,7 @@ llvm::Function *CodeGenFunction::generateDestroyHelper(
       getContext().VoidTy, args, FunctionType::ExtInfo(), /*variadic=*/false);
   llvm::FunctionType *FTy = CGM.getTypes().GetFunctionType(FI);
   llvm::Function *fn = CGM.CreateGlobalInitOrDestructFunction(
-      FTy, "__cxx_global_array_dtor", VD->getLocation());
+      FTy, "__cxx_global_array_dtor", FI, VD->getLocation());
 
   CurEHLocation = VD->getLocStart();
 

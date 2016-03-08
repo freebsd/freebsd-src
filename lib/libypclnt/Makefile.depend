@@ -17,37 +17,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-yp_clnt.So: yp.h
-yp_clnt.So: yp_clnt.c
-yp_clnt.o: yp.h
-yp_clnt.o: yp_clnt.c
-yp_clnt.po: yp.h
-yp_clnt.po: yp_clnt.c
-ypclnt_passwd.So: yppasswd_private.h
-ypclnt_passwd.o: yppasswd_private.h
-ypclnt_passwd.po: yppasswd_private.h
-yppasswd_clnt.So: yppasswd.h
-yppasswd_clnt.So: yppasswd_clnt.c
-yppasswd_clnt.o: yppasswd.h
-yppasswd_clnt.o: yppasswd_clnt.c
-yppasswd_clnt.po: yppasswd.h
-yppasswd_clnt.po: yppasswd_clnt.c
-yppasswd_private_clnt.So: yppasswd_private.h
-yppasswd_private_clnt.So: yppasswd_private_clnt.c
-yppasswd_private_clnt.o: yppasswd_private.h
-yppasswd_private_clnt.o: yppasswd_private_clnt.c
-yppasswd_private_clnt.po: yppasswd_private.h
-yppasswd_private_clnt.po: yppasswd_private_clnt.c
-yppasswd_private_xdr.So: yppasswd_private.h
-yppasswd_private_xdr.So: yppasswd_private_xdr.c
-yppasswd_private_xdr.o: yppasswd_private.h
-yppasswd_private_xdr.o: yppasswd_private_xdr.c
-yppasswd_private_xdr.po: yppasswd_private.h
-yppasswd_private_xdr.po: yppasswd_private_xdr.c
-yppasswd_xdr.So: yppasswd.h
-yppasswd_xdr.So: yppasswd_xdr.c
-yppasswd_xdr.o: yppasswd.h
-yppasswd_xdr.o: yppasswd_xdr.c
-yppasswd_xdr.po: yppasswd.h
-yppasswd_xdr.po: yppasswd_xdr.c
 .endif

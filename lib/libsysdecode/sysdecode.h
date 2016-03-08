@@ -29,7 +29,19 @@
 #ifndef __SYSDECODE_H__
 #define	__SYSDECODE_H__
 
+enum sysdecode_abi {
+	SYSDECODE_ABI_UNKNOWN = 0,
+	SYSDECODE_ABI_FREEBSD,
+	SYSDECODE_ABI_FREEBSD32,
+	SYSDECODE_ABI_LINUX,
+	SYSDECODE_ABI_LINUX32,
+	SYSDECODE_ABI_CLOUDABI64
+};
+
+int	sysdecode_abi_to_freebsd_errno(enum sysdecode_abi _abi, int _error);
+int	sysdecode_freebsd_to_abi_errno(enum sysdecode_abi _abi, int _error);
 const char *sysdecode_ioctlname(unsigned long _val);
+const char *sysdecode_syscallname(enum sysdecode_abi _abi, unsigned int _code);
 int	sysdecode_utrace(FILE *_fp, void *_buf, size_t _len);
 
 #endif /* !__SYSDECODE_H__ */

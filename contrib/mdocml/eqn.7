@@ -1,4 +1,4 @@
-.\"	$Id: eqn.7,v 1.34 2015/03/09 20:17:23 schwarze Exp $
+.\"	$Id: eqn.7,v 1.35 2015/03/30 16:06:14 schwarze Exp $
 .\"
 .\" Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: March 9 2015 $
+.Dd $Mdocdate: March 30 2015 $
 .Dt EQN 7
 .Os
 .Sh NAME
@@ -146,7 +146,7 @@ is used as the delimiter for the value
 .Ar val .
 This allows for arbitrary enclosure of terms (not just quotes), such as
 .Pp
-.D1 Cm define Ar foo 'bar baz'
+.D1 Cm define Ar foo \(aqbar baz\(aq
 .D1 Cm define Ar foo cbar bazc
 .Pp
 It is an error to have an empty
@@ -166,8 +166,8 @@ created.
 Definitions can create arbitrary strings, for example, the following is
 a legal construction.
 .Bd -literal -offset indent
-define foo 'define'
-foo bar 'baz'
+define foo \(aqdefine\(aq
+foo bar \(aqbaz\(aq
 .Ed
 .Pp
 Self-referencing definitions will raise an error.

@@ -1,7 +1,7 @@
-.\"	$Id: mandoc.3,v 1.31 2015/01/15 04:26:40 schwarze Exp $
+.\"	$Id: mandoc.3,v 1.36 2016/01/08 17:48:09 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2010, 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2010-2016 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 15 2015 $
+.Dd $Mdocdate: January 8 2016 $
 .Dt MANDOC 3
 .Os
 .Sh NAME
@@ -37,7 +37,6 @@
 .Nm mparse_result ,
 .Nm mparse_strerror ,
 .Nm mparse_strlevel
-.Nm mparse_wait ,
 .Nd mandoc macro compiler library
 .Sh SYNOPSIS
 .In sys/types.h
@@ -51,7 +50,6 @@
 .Fa "int options"
 .Fa "enum mandoclevel wlevel"
 .Fa "mandocmsg mmsg"
-.Fa "const struct mchars *mchars"
 .Fa "char *defos"
 .Fc
 .Ft void
@@ -75,10 +73,9 @@
 .Fo mparse_keep
 .Fa "struct mparse *parse"
 .Fc
-.Ft "enum mandoclevel"
+.Ft int
 .Fo mparse_open
 .Fa "struct mparse *parse"
-.Fa "int *fd"
 .Fa "const char *fname"
 .Fc
 .Ft "enum mandoclevel"
@@ -105,10 +102,6 @@
 .Ft "const char *"
 .Fo mparse_strlevel
 .Fa "enum mandoclevel"
-.Fc
-.Ft "enum mandoclevel"
-.Fo mparse_wait
-.Fa "struct mparse *parse"
 .Fc
 .In sys/types.h
 .In mandoc.h
@@ -183,6 +176,9 @@ or
 parse it with
 .Fn mparse_readfd ;
 .It
+close it with
+.Xr close 2 ;
+.It
 retrieve the syntax tree with
 .Fn mparse_result ;
 .It
@@ -215,12 +211,6 @@ An error or warning message during parsing.
 A classification of an
 .Vt "enum mandocerr"
 as regards system operation.
-.It Vt "struct mchars"
-An opaque pointer to a a character table.
-Created with
-.Xr mchars_alloc 3
-and freed with
-.Xr mchars_free 3 .
 .It Vt "struct mparse"
 An opaque pointer to a running parse sequence.
 Created with
@@ -345,9 +335,6 @@ A callback function to handle errors and warnings.
 See
 .Pa main.c
 for an example.
-.It Ar mchars
-An opaque pointer to a a character table obtained from
-.Xr mchars_alloc 3 .
 .It Ar defos
 A default string for the
 .Xr mdoc 7
@@ -392,23 +379,15 @@ Declared in
 implemented in
 .Pa read.c .
 .It Fn mparse_open
-If the
+Open the file for reading.
+If that fails and
 .Fa fname
-ends in
-.Pa .gz ,
-open with
-.Xr gunzip 1 ;
-otherwise, with
-.Xr open 2 .
-If
-.Xr open 2
-fails, append
-.Pa .gz
-and try with
-.Xr gunzip 1 .
-Return a file descriptor open for reading in
-.Fa fd ,
-or -1 on failure.
+does not already end in
+.Ql .gz ,
+try again after appending
+.Ql .gz .
+Save the information whether the file is zipped or not.
+Return a file descriptor open for reading or -1 on failure.
 It can be passed to
 .Fn mparse_readfd
 or used directly.
@@ -423,10 +402,9 @@ or
 .Fn mparse_open .
 Pass the associated filename in
 .Va fname .
-Calls
-.Fn mparse_wait
-before returning.
 This function may be called multiple times with different parameters; however,
+.Xr close 2
+and
 .Fn mparse_reset
 should be invoked between parses.
 Declared in
@@ -456,28 +434,6 @@ implemented in
 .Pa read.c .
 .It Fn mparse_strlevel
 Return a statically-allocated string representation of a level code.
-Declared in
-.In mandoc.h ,
-implemented in
-.Pa read.c .
-.It Fn mparse_wait
-Bury a
-.Xr gunzip 1
-child process that was spawned with
-.Fn mparse_open .
-To be called after the parse sequence is complete.
-Not needed after
-.Fn mparse_readfd ,
-but does no harm in that case, either.
-Returns
-.Dv MANDOCLEVEL_OK
-on success and
-.Dv MANDOCLEVEL_SYSERR
-on failure, that is, when
-.Xr wait 2
-fails, or when
-.Xr gunzip 1
-died from a signal or exited with non-zero status.
 Declared in
 .In mandoc.h ,
 implemented in
@@ -601,7 +557,7 @@ and
 fields), its position in the tree (the
 .Va parent ,
 .Va child ,
-.Va nchild ,
+.Va last ,
 .Va next
 and
 .Va prev

@@ -957,16 +957,15 @@ void
 racct_proc_fork_done(struct proc *child)
 {
 
+	PROC_LOCK_ASSERT(child, MA_OWNED);
 #ifdef RCTL
 	if (!racct_enable)
 		return;
 
-	PROC_LOCK(child);
 	mtx_lock(&racct_lock);
 	rctl_enforce(child, RACCT_NPROC, 0);
 	rctl_enforce(child, RACCT_NTHR, 0);
 	mtx_unlock(&racct_lock);
-	PROC_UNLOCK(child);
 #endif
 }
 
@@ -1100,7 +1099,7 @@ racct_proc_throttle(struct proc *p)
 	 * Do not block kernel processes.  Also do not block processes with
 	 * low %cpu utilization to improve interactivity.
 	 */
-	if (((p->p_flag & (P_SYSTEM | P_KTHREAD)) != 0) ||
+	if (((p->p_flag & (P_SYSTEM | P_KPROC)) != 0) ||
 	    (p->p_racct->r_resources[RACCT_PCTCPU] <= pcpu_threshold))
 		return;
 	p->p_throttled = 1;

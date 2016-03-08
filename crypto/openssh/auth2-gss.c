@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-gss.c,v 1.21 2014/02/26 20:28:44 djm Exp $ */
+/* $OpenBSD: auth2-gss.c,v 1.22 2015/01/19 20:07:45 markus Exp $ */
 
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
@@ -40,6 +40,7 @@
 #include "log.h"
 #include "dispatch.h"
 #include "buffer.h"
+#include "misc.h"
 #include "servconf.h"
 #include "packet.h"
 #include "ssh-gss.h"
@@ -47,10 +48,10 @@
 
 extern ServerOptions options;
 
-static void input_gssapi_token(int type, u_int32_t plen, void *ctxt);
-static void input_gssapi_mic(int type, u_int32_t plen, void *ctxt);
-static void input_gssapi_exchange_complete(int type, u_int32_t plen, void *ctxt);
-static void input_gssapi_errtok(int, u_int32_t, void *);
+static int input_gssapi_token(int type, u_int32_t plen, void *ctxt);
+static int input_gssapi_mic(int type, u_int32_t plen, void *ctxt);
+static int input_gssapi_exchange_complete(int type, u_int32_t plen, void *ctxt);
+static int input_gssapi_errtok(int, u_int32_t, void *);
 
 /*
  * We only support those mechanisms that we know about (ie ones that we know
@@ -125,7 +126,7 @@ userauth_gssapi(Authctxt *authctxt)
 	return (0);
 }
 
-static void
+static int
 input_gssapi_token(int type, u_int32_t plen, void *ctxt)
 {
 	Authctxt *authctxt = ctxt;
@@ -177,9 +178,10 @@ input_gssapi_token(int type, u_int32_t plen, void *ctxt)
 	}
 
 	gss_release_buffer(&min_status, &send_tok);
+	return 0;
 }
 
-static void
+static int
 input_gssapi_errtok(int type, u_int32_t plen, void *ctxt)
 {
 	Authctxt *authctxt = ctxt;
@@ -211,6 +213,7 @@ input_gssapi_errtok(int type, u_int32_t plen, void *ctxt)
 	/* The client will have already moved on to the next auth */
 
 	gss_release_buffer(&maj_status, &send_tok);
+	return 0;
 }
 
 /*
@@ -219,7 +222,7 @@ input_gssapi_errtok(int type, u_int32_t plen, void *ctxt)
  * which only enables it once the GSSAPI exchange is complete.
  */
 
-static void
+static int
 input_gssapi_exchange_complete(int type, u_int32_t plen, void *ctxt)
 {
 	Authctxt *authctxt = ctxt;
@@ -243,9 +246,10 @@ input_gssapi_exchange_complete(int type, u_int32_t plen, void *ctxt)
 	dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_MIC, NULL);
 	dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_EXCHANGE_COMPLETE, NULL);
 	userauth_finish(authctxt, authenticated, "gssapi-with-mic", NULL);
+	return 0;
 }
 
-static void
+static int
 input_gssapi_mic(int type, u_int32_t plen, void *ctxt)
 {
 	Authctxt *authctxt = ctxt;
@@ -283,6 +287,7 @@ input_gssapi_mic(int type, u_int32_t plen, void *ctxt)
 	dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_MIC, NULL);
 	dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_EXCHANGE_COMPLETE, NULL);
 	userauth_finish(authctxt, authenticated, "gssapi-with-mic", NULL);
+	return 0;
 }
 
 Authmethod method_gssapi = {
