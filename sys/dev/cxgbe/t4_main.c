@@ -476,9 +476,11 @@ static int sysctl_tx_rate(SYSCTL_HANDLER_ARGS);
 static int sysctl_ulprx_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS);
 #endif
-static uint32_t fconf_to_mode(uint32_t);
+static uint32_t fconf_iconf_to_mode(uint32_t, uint32_t);
 static uint32_t mode_to_fconf(uint32_t);
-static uint32_t fspec_to_fconf(struct t4_filter_specification *);
+static uint32_t mode_to_iconf(uint32_t);
+static int check_fspec_against_fconf_iconf(struct adapter *,
+    struct t4_filter_specification *);
 static int get_filter_mode(struct adapter *, uint32_t *);
 static int set_filter_mode(struct adapter *, uint32_t);
 static inline uint64_t get_filter_hits(struct adapter *, uint32_t);
@@ -3917,7 +3919,7 @@ vi_full_init(struct vi_info *vi)
 	for (i = 0; i < nitems(rss_key); i++) {
 		rss_key[i] = htobe32(raw_rss_key[nitems(rss_key) - 1 - i]);
 	}
-	t4_write_rss_key(sc, (void *)&rss_key[0], -1);
+	t4_write_rss_key(sc, &rss_key[0], -1);
 #endif
 	rss = malloc(vi->rss_size * sizeof (*rss), M_CXGBE, M_ZERO | M_WAITOK);
 	for (i = 0; i < vi->rss_size;) {
@@ -7210,7 +7212,7 @@ sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS)
 #endif
 
 static uint32_t
-fconf_to_mode(uint32_t fconf)
+fconf_iconf_to_mode(uint32_t fconf, uint32_t iconf)
 {
 	uint32_t mode;
 
@@ -7238,8 +7240,11 @@ fconf_to_mode(uint32_t fconf)
 	if (fconf & F_VLAN)
 		mode |= T4_FILTER_VLAN;
 
-	if (fconf & F_VNIC_ID)
+	if (fconf & F_VNIC_ID) {
 		mode |= T4_FILTER_VNIC;
+		if (iconf & F_VNIC)
+			mode |= T4_FILTER_IC_VNIC;
+	}
 
 	if (fconf & F_PORT)
 		mode |= T4_FILTER_PORT;
@@ -7289,8 +7294,18 @@ mode_to_fconf(uint32_t mode)
 }
 
 static uint32_t
-fspec_to_fconf(struct t4_filter_specification *fs)
+mode_to_iconf(uint32_t mode)
 {
+
+	if (mode & T4_FILTER_IC_VNIC)
+		return (F_VNIC);
+	return (0);
+}
+
+static int check_fspec_against_fconf_iconf(struct adapter *sc,
+    struct t4_filter_specification *fs)
+{
+	struct tp_params *tpp = &sc->params.tp;
 	uint32_t fconf = 0;
 
 	if (fs->val.frag || fs->mask.frag)
@@ -7314,8 +7329,17 @@ fspec_to_fconf(struct t4_filter_specification *fs)
 	if (fs->val.vlan_vld || fs->mask.vlan_vld)
 		fconf |= F_VLAN;
 
-	if (fs->val.vnic_vld || fs->mask.vnic_vld)
+	if (fs->val.ovlan_vld || fs->mask.ovlan_vld) {
 		fconf |= F_VNIC_ID;
+		if (tpp->ingress_config & F_VNIC)
+			return (EINVAL);
+	}
+
+	if (fs->val.pfvf_vld || fs->mask.pfvf_vld) {
+		fconf |= F_VNIC_ID;
+		if ((tpp->ingress_config & F_VNIC) == 0)
+			return (EINVAL);
+	}
 
 	if (fs->val.iport || fs->mask.iport)
 		fconf |= F_PORT;
@@ -7323,40 +7347,44 @@ fspec_to_fconf(struct t4_filter_specification *fs)
 	if (fs->val.fcoe || fs->mask.fcoe)
 		fconf |= F_FCOE;
 
-	return (fconf);
+	if ((tpp->vlan_pri_map | fconf) != tpp->vlan_pri_map)
+		return (E2BIG);
+
+	return (0);
 }
 
 static int
 get_filter_mode(struct adapter *sc, uint32_t *mode)
 {
-	int rc;
-	uint32_t fconf;
+	struct tp_params *tpp = &sc->params.tp;
 
-	rc = begin_synchronized_op(sc, NULL, HOLD_LOCK | SLEEP_OK | INTR_OK,
-	    "t4getfm");
-	if (rc)
-		return (rc);
+	/*
+	 * We trust the cached values of the relevant TP registers.  This means
+	 * things work reliably only if writes to those registers are always via
+	 * t4_set_filter_mode.
+	 */
+	*mode = fconf_iconf_to_mode(tpp->vlan_pri_map, tpp->ingress_config);
 
-	t4_read_indirect(sc, A_TP_PIO_ADDR, A_TP_PIO_DATA, &fconf, 1,
-	    A_TP_VLAN_PRI_MAP);
-
-	if (sc->params.tp.vlan_pri_map != fconf) {
-		log(LOG_WARNING, "%s: cached filter mode out of sync %x %x.\n",
-		    device_get_nameunit(sc->dev), sc->params.tp.vlan_pri_map,
-		    fconf);
-	}
-
-	*mode = fconf_to_mode(fconf);
-
-	end_synchronized_op(sc, LOCK_HELD);
 	return (0);
 }
 
 static int
 set_filter_mode(struct adapter *sc, uint32_t mode)
 {
-	uint32_t fconf;
+	struct tp_params *tpp = &sc->params.tp;
+	uint32_t fconf, iconf;
 	int rc;
+
+	iconf = mode_to_iconf(mode);
+	if ((iconf ^ tpp->ingress_config) & F_VNIC) {
+		/*
+		 * For now we just complain if A_TP_INGRESS_CONFIG is not
+		 * already set to the correct value for the requested filter
+		 * mode.  It's not clear if it's safe to write to this register
+		 * on the fly.  (And we trust the cached value of the register).
+		 */
+		return (EBUSY);
+	}
 
 	fconf = mode_to_fconf(mode);
 
@@ -7390,6 +7418,7 @@ get_filter_hits(struct adapter *sc, uint32_t fid)
 	uint64_t hits;
 
 	memwin_info(sc, 0, &mw_base, NULL);
+
 	off = position_memwin(sc, 0,
 	    tcb_base + (fid + sc->tids.ftid_base) * TCB_SIZE);
 	if (is_t4(sc)) {
@@ -7471,12 +7500,10 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 		goto done;
 	}
 
-	/* Validate against the global filter mode */
-	if ((sc->params.tp.vlan_pri_map | fspec_to_fconf(&t->fs)) !=
-	    sc->params.tp.vlan_pri_map) {
-		rc = E2BIG;
+	/* Validate against the global filter mode and ingress config */
+	rc = check_fspec_against_fconf_iconf(sc, &t->fs);
+	if (rc != 0)
 		goto done;
-	}
 
 	if (t->fs.action == FILTER_SWITCH && t->fs.eport >= nports) {
 		rc = EINVAL;
@@ -7639,7 +7666,7 @@ set_filter_wr(struct adapter *sc, int fidx)
 {
 	struct filter_entry *f = &sc->tids.ftid_tab[fidx];
 	struct fw_filter_wr *fwr;
-	unsigned int ftid;
+	unsigned int ftid, vnic_vld, vnic_vld_mask;
 	struct wrq_cookie cookie;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
@@ -7656,6 +7683,18 @@ set_filter_wr(struct adapter *sc, int fidx)
 			return (ENOMEM);
 		}
 	}
+
+	/* Already validated against fconf, iconf */
+	MPASS((f->fs.val.pfvf_vld & f->fs.val.ovlan_vld) == 0);
+	MPASS((f->fs.mask.pfvf_vld & f->fs.mask.ovlan_vld) == 0);
+	if (f->fs.val.pfvf_vld || f->fs.val.ovlan_vld)
+		vnic_vld = 1;
+	else
+		vnic_vld = 0;
+	if (f->fs.mask.pfvf_vld || f->fs.mask.ovlan_vld)
+		vnic_vld_mask = 1;
+	else
+		vnic_vld_mask = 0;
 
 	ftid = sc->tids.ftid_base + fidx;
 
@@ -7694,9 +7733,9 @@ set_filter_wr(struct adapter *sc, int fidx)
 	    (V_FW_FILTER_WR_FRAG(f->fs.val.frag) |
 		V_FW_FILTER_WR_FRAGM(f->fs.mask.frag) |
 		V_FW_FILTER_WR_IVLAN_VLD(f->fs.val.vlan_vld) |
-		V_FW_FILTER_WR_OVLAN_VLD(f->fs.val.vnic_vld) |
+		V_FW_FILTER_WR_OVLAN_VLD(vnic_vld) |
 		V_FW_FILTER_WR_IVLAN_VLDM(f->fs.mask.vlan_vld) |
-		V_FW_FILTER_WR_OVLAN_VLDM(f->fs.mask.vnic_vld));
+		V_FW_FILTER_WR_OVLAN_VLDM(vnic_vld_mask));
 	fwr->smac_sel = 0;
 	fwr->rx_chan_rx_rpl_iq = htobe16(V_FW_FILTER_WR_RX_CHAN(0) |
 	    V_FW_FILTER_WR_RX_RPL_IQ(sc->sge.fwq.abs_id));

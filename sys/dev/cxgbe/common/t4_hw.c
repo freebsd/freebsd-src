@@ -4867,6 +4867,42 @@ int t4_read_rss(struct adapter *adapter, u16 *map)
 }
 
 /**
+ *	t4_fw_tp_pio_rw - Access TP PIO through LDST
+ *	@adap: the adapter
+ *	@vals: where the indirect register values are stored/written
+ *	@nregs: how many indirect registers to read/write
+ *	@start_idx: index of first indirect register to read/write
+ *	@rw: Read (1) or Write (0)
+ *
+ *	Access TP PIO registers through LDST
+ */
+void t4_fw_tp_pio_rw(struct adapter *adap, u32 *vals, unsigned int nregs,
+		     unsigned int start_index, unsigned int rw)
+{
+	int ret, i;
+	int cmd = FW_LDST_ADDRSPC_TP_PIO;
+	struct fw_ldst_cmd c;
+
+	for (i = 0 ; i < nregs; i++) {
+		memset(&c, 0, sizeof(c));
+		c.op_to_addrspace = cpu_to_be32(V_FW_CMD_OP(FW_LDST_CMD) |
+						F_FW_CMD_REQUEST |
+						(rw ? F_FW_CMD_READ :
+						     F_FW_CMD_WRITE) |
+						V_FW_LDST_CMD_ADDRSPACE(cmd));
+		c.cycles_to_len16 = cpu_to_be32(FW_LEN16(c));
+
+		c.u.addrval.addr = cpu_to_be32(start_index + i);
+		c.u.addrval.val  = rw ? 0 : cpu_to_be32(vals[i]);
+		ret = t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), &c);
+		if (ret == 0) {
+			if (rw)
+				vals[i] = be32_to_cpu(c.u.addrval.val);
+		}
+	}
+}
+
+/**
  *	t4_read_rss_key - read the global RSS key
  *	@adap: the adapter
  *	@key: 10-entry array holding the 320-bit RSS key
@@ -4875,8 +4911,11 @@ int t4_read_rss(struct adapter *adapter, u16 *map)
  */
 void t4_read_rss_key(struct adapter *adap, u32 *key)
 {
-	t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA, key, 10,
-			 A_TP_RSS_SECRET_KEY0);
+	if (t4_use_ldst(adap))
+		t4_fw_tp_pio_rw(adap, key, 10, A_TP_RSS_SECRET_KEY0, 1);
+	else
+		t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA, key, 10,
+				 A_TP_RSS_SECRET_KEY0);
 }
 
 /**
@@ -4889,13 +4928,35 @@ void t4_read_rss_key(struct adapter *adap, u32 *key)
  *	0..15 the corresponding entry in the RSS key table is written,
  *	otherwise the global RSS key is written.
  */
-void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx)
+void t4_write_rss_key(struct adapter *adap, u32 *key, int idx)
 {
-	t4_write_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA, key, 10,
-			  A_TP_RSS_SECRET_KEY0);
-	if (idx >= 0 && idx < 16)
-		t4_write_reg(adap, A_TP_RSS_CONFIG_VRT,
-			     V_KEYWRADDR(idx) | F_KEYWREN);
+	u8 rss_key_addr_cnt = 16;
+	u32 vrt = t4_read_reg(adap, A_TP_RSS_CONFIG_VRT);
+
+	/*
+	 * T6 and later: for KeyMode 3 (per-vf and per-vf scramble),
+	 * allows access to key addresses 16-63 by using KeyWrAddrX
+	 * as index[5:4](upper 2) into key table
+	 */
+	if ((chip_id(adap) > CHELSIO_T5) &&
+	    (vrt & F_KEYEXTEND) && (G_KEYMODE(vrt) == 3))
+		rss_key_addr_cnt = 32;
+
+	if (t4_use_ldst(adap))
+		t4_fw_tp_pio_rw(adap, key, 10, A_TP_RSS_SECRET_KEY0, 0);
+	else
+		t4_write_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA, key, 10,
+				  A_TP_RSS_SECRET_KEY0);
+
+	if (idx >= 0 && idx < rss_key_addr_cnt) {
+		if (rss_key_addr_cnt > 16)
+			t4_write_reg(adap, A_TP_RSS_CONFIG_VRT,
+				     V_KEYWRADDRX(idx >> 4) |
+				     V_T6_VFWRADDR(idx) | F_KEYWREN);
+		else
+			t4_write_reg(adap, A_TP_RSS_CONFIG_VRT,
+				     V_KEYWRADDR(idx) | F_KEYWREN);
+	}
 }
 
 /**
@@ -4907,10 +4968,15 @@ void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx)
  *	Reads the PF RSS Configuration Table at the specified index and returns
  *	the value found there.
  */
-void t4_read_rss_pf_config(struct adapter *adapter, unsigned int index, u32 *valp)
+void t4_read_rss_pf_config(struct adapter *adapter, unsigned int index,
+			   u32 *valp)
 {
-	t4_read_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-			 valp, 1, A_TP_RSS_PF0_CONFIG + index);
+	if (t4_use_ldst(adapter))
+		t4_fw_tp_pio_rw(adapter, valp, 1,
+				A_TP_RSS_PF0_CONFIG + index, 1);
+	else
+		t4_read_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
+				 valp, 1, A_TP_RSS_PF0_CONFIG + index);
 }
 
 /**
@@ -4922,10 +4988,15 @@ void t4_read_rss_pf_config(struct adapter *adapter, unsigned int index, u32 *val
  *	Writes the PF RSS Configuration Table at the specified index with the
  *	specified value.
  */
-void t4_write_rss_pf_config(struct adapter *adapter, unsigned int index, u32 val)
+void t4_write_rss_pf_config(struct adapter *adapter, unsigned int index,
+			    u32 val)
 {
-	t4_write_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-			  &val, 1, A_TP_RSS_PF0_CONFIG + index);
+	if (t4_use_ldst(adapter))
+		t4_fw_tp_pio_rw(adapter, &val, 1,
+				A_TP_RSS_PF0_CONFIG + index, 0);
+	else
+		t4_write_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
+				  &val, 1, A_TP_RSS_PF0_CONFIG + index);
 }
 
 /**
@@ -4941,28 +5012,40 @@ void t4_write_rss_pf_config(struct adapter *adapter, unsigned int index, u32 val
 void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
 			   u32 *vfl, u32 *vfh)
 {
-	u32 vrt;
+	u32 vrt, mask, data;
 
+	if (chip_id(adapter) <= CHELSIO_T5) {
+		mask = V_VFWRADDR(M_VFWRADDR);
+		data = V_VFWRADDR(index);
+	} else {
+		 mask =  V_T6_VFWRADDR(M_T6_VFWRADDR);
+		 data = V_T6_VFWRADDR(index);
+	}
 	/*
 	 * Request that the index'th VF Table values be read into VFL/VFH.
 	 */
 	vrt = t4_read_reg(adapter, A_TP_RSS_CONFIG_VRT);
-	vrt &= ~(F_VFRDRG | V_VFWRADDR(M_VFWRADDR) | F_VFWREN | F_KEYWREN);
-	vrt |= V_VFWRADDR(index) | F_VFRDEN;
+	vrt &= ~(F_VFRDRG | F_VFWREN | F_KEYWREN | mask);
+	vrt |= data | F_VFRDEN;
 	t4_write_reg(adapter, A_TP_RSS_CONFIG_VRT, vrt);
 
 	/*
 	 * Grab the VFL/VFH values ...
 	 */
-	t4_read_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-			 vfl, 1, A_TP_RSS_VFL_CONFIG);
-	t4_read_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-			 vfh, 1, A_TP_RSS_VFH_CONFIG);
+	if (t4_use_ldst(adapter)) {
+		t4_fw_tp_pio_rw(adapter, vfl, 1, A_TP_RSS_VFL_CONFIG, 1);
+		t4_fw_tp_pio_rw(adapter, vfh, 1, A_TP_RSS_VFH_CONFIG, 1);
+	} else {
+		t4_read_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
+				 vfl, 1, A_TP_RSS_VFL_CONFIG);
+		t4_read_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
+				 vfh, 1, A_TP_RSS_VFH_CONFIG);
+	}
 }
 
 /**
  *	t4_write_rss_vf_config - write VF RSS Configuration Table
- *	
+ *
  *	@adapter: the adapter
  *	@index: the entry in the VF RSS table to write
  *	@vfl: the VFL to store
@@ -4974,22 +5057,35 @@ void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
 void t4_write_rss_vf_config(struct adapter *adapter, unsigned int index,
 			    u32 vfl, u32 vfh)
 {
-	u32 vrt;
+	u32 vrt, mask, data;
+
+	if (chip_id(adapter) <= CHELSIO_T5) {
+		mask = V_VFWRADDR(M_VFWRADDR);
+		data = V_VFWRADDR(index);
+	} else {
+		mask =  V_T6_VFWRADDR(M_T6_VFWRADDR);
+		data = V_T6_VFWRADDR(index);
+	}
 
 	/*
 	 * Load up VFL/VFH with the values to be written ...
 	 */
-	t4_write_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-			  &vfl, 1, A_TP_RSS_VFL_CONFIG);
-	t4_write_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-			  &vfh, 1, A_TP_RSS_VFH_CONFIG);
+	if (t4_use_ldst(adapter)) {
+		t4_fw_tp_pio_rw(adapter, &vfl, 1, A_TP_RSS_VFL_CONFIG, 0);
+		t4_fw_tp_pio_rw(adapter, &vfh, 1, A_TP_RSS_VFH_CONFIG, 0);
+	} else {
+		t4_write_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
+				  &vfl, 1, A_TP_RSS_VFL_CONFIG);
+		t4_write_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
+				  &vfh, 1, A_TP_RSS_VFH_CONFIG);
+	}
 
 	/*
 	 * Write the VFL/VFH into the VF Table at index'th location.
 	 */
 	vrt = t4_read_reg(adapter, A_TP_RSS_CONFIG_VRT);
-	vrt &= ~(F_VFRDRG | F_VFRDEN | V_VFWRADDR(M_VFWRADDR) | F_KEYWREN);
-	vrt |= V_VFWRADDR(index) | F_VFWREN;
+	vrt &= ~(F_VFRDRG | F_VFWREN | F_KEYWREN | mask);
+	vrt |= data | F_VFRDEN;
 	t4_write_reg(adapter, A_TP_RSS_CONFIG_VRT, vrt);
 }
 
@@ -5003,8 +5099,11 @@ u32 t4_read_rss_pf_map(struct adapter *adapter)
 {
 	u32 pfmap;
 
-	t4_read_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-			 &pfmap, 1, A_TP_RSS_PF_MAP);
+	if (t4_use_ldst(adapter))
+		t4_fw_tp_pio_rw(adapter, &pfmap, 1, A_TP_RSS_PF_MAP, 1);
+	else
+		t4_read_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
+				 &pfmap, 1, A_TP_RSS_PF_MAP);
 	return pfmap;
 }
 
@@ -5017,8 +5116,11 @@ u32 t4_read_rss_pf_map(struct adapter *adapter)
  */
 void t4_write_rss_pf_map(struct adapter *adapter, u32 pfmap)
 {
-	t4_write_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-			  &pfmap, 1, A_TP_RSS_PF_MAP);
+	if (t4_use_ldst(adapter))
+		t4_fw_tp_pio_rw(adapter, &pfmap, 1, A_TP_RSS_PF_MAP, 0);
+	else
+		t4_write_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
+				  &pfmap, 1, A_TP_RSS_PF_MAP);
 }
 
 /**
@@ -5031,8 +5133,11 @@ u32 t4_read_rss_pf_mask(struct adapter *adapter)
 {
 	u32 pfmask;
 
-	t4_read_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-			 &pfmask, 1, A_TP_RSS_PF_MSK);
+	if (t4_use_ldst(adapter))
+		t4_fw_tp_pio_rw(adapter, &pfmask, 1, A_TP_RSS_PF_MSK, 1);
+	else
+		t4_read_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
+				 &pfmask, 1, A_TP_RSS_PF_MSK);
 	return pfmask;
 }
 
@@ -5045,61 +5150,11 @@ u32 t4_read_rss_pf_mask(struct adapter *adapter)
  */
 void t4_write_rss_pf_mask(struct adapter *adapter, u32 pfmask)
 {
-	t4_write_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-			  &pfmask, 1, A_TP_RSS_PF_MSK);
-}
-
-static void refresh_vlan_pri_map(struct adapter *adap)
-{
-
-        t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-                         &adap->params.tp.vlan_pri_map, 1,
-                         A_TP_VLAN_PRI_MAP);
-
-	/*
-	 * Now that we have TP_VLAN_PRI_MAP cached, we can calculate the field
-	 * shift positions of several elements of the Compressed Filter Tuple
-	 * for this adapter which we need frequently ...
-	 */
-	adap->params.tp.vlan_shift = t4_filter_field_shift(adap, F_VLAN);
-	adap->params.tp.vnic_shift = t4_filter_field_shift(adap, F_VNIC_ID);
-	adap->params.tp.port_shift = t4_filter_field_shift(adap, F_PORT);
-	adap->params.tp.protocol_shift = t4_filter_field_shift(adap, F_PROTOCOL);
-
-	/*
-	 * If TP_INGRESS_CONFIG.VNID == 0, then TP_VLAN_PRI_MAP.VNIC_ID
-	 * represents the presense of an Outer VLAN instead of a VNIC ID.
-	 */
-	if ((adap->params.tp.ingress_config & F_VNIC) == 0)
-		adap->params.tp.vnic_shift = -1;
-}
-
-/**
- *	t4_set_filter_mode - configure the optional components of filter tuples
- *	@adap: the adapter
- *	@mode_map: a bitmap selcting which optional filter components to enable
- *
- *	Sets the filter mode by selecting the optional components to enable
- *	in filter tuples.  Returns 0 on success and a negative error if the
- *	requested mode needs more bits than are available for optional
- *	components.
- */
-int t4_set_filter_mode(struct adapter *adap, unsigned int mode_map)
-{
-	static u8 width[] = { 1, 3, 17, 17, 8, 8, 16, 9, 3, 1 };
-
-	int i, nbits = 0;
-
-	for (i = S_FCOE; i <= S_FRAGMENTATION; i++)
-		if (mode_map & (1 << i))
-			nbits += width[i];
-	if (nbits > FILTER_OPT_LEN)
-		return -EINVAL;
-	t4_write_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA, &mode_map, 1,
-			  A_TP_VLAN_PRI_MAP);
-	refresh_vlan_pri_map(adap);
-
-	return 0;
+	if (t4_use_ldst(adapter))
+		t4_fw_tp_pio_rw(adapter, &pfmask, 1, A_TP_RSS_PF_MSK, 0);
+	else
+		t4_write_indirect(adapter, A_TP_PIO_ADDR, A_TP_PIO_DATA,
+				  &pfmask, 1, A_TP_RSS_PF_MSK);
 }
 
 /**
@@ -7700,41 +7755,91 @@ int t4_init_sge_params(struct adapter *adapter)
 	return 0;
 }
 
-/**
- *	t4_init_tp_params - initialize adap->params.tp
- *	@adap: the adapter
- *
- *	Initialize various fields of the adapter's TP Parameters structure.
+/*
+ * Read and cache the adapter's compressed filter mode and ingress config.
  */
-int __devinit t4_init_tp_params(struct adapter *adap)
+static void read_filter_mode_and_ingress_config(struct adapter *adap)
+{
+	struct tp_params *tpp = &adap->params.tp;
+
+	if (t4_use_ldst(adap)) {
+		t4_fw_tp_pio_rw(adap, &tpp->vlan_pri_map, 1,
+				A_TP_VLAN_PRI_MAP, 1);
+		t4_fw_tp_pio_rw(adap, &tpp->ingress_config, 1,
+				A_TP_INGRESS_CONFIG, 1);
+	} else {
+		t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA,
+				 &tpp->vlan_pri_map, 1, A_TP_VLAN_PRI_MAP);
+		t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA,
+				 &tpp->ingress_config, 1, A_TP_INGRESS_CONFIG);
+	}
+
+	/*
+	 * Now that we have TP_VLAN_PRI_MAP cached, we can calculate the field
+	 * shift positions of several elements of the Compressed Filter Tuple
+	 * for this adapter which we need frequently ...
+	 */
+	tpp->fcoe_shift = t4_filter_field_shift(adap, F_FCOE);
+	tpp->port_shift = t4_filter_field_shift(adap, F_PORT);
+	tpp->vnic_shift = t4_filter_field_shift(adap, F_VNIC_ID);
+	tpp->vlan_shift = t4_filter_field_shift(adap, F_VLAN);
+	tpp->tos_shift = t4_filter_field_shift(adap, F_TOS);
+	tpp->protocol_shift = t4_filter_field_shift(adap, F_PROTOCOL);
+	tpp->ethertype_shift = t4_filter_field_shift(adap, F_ETHERTYPE);
+	tpp->macmatch_shift = t4_filter_field_shift(adap, F_MACMATCH);
+	tpp->matchtype_shift = t4_filter_field_shift(adap, F_MPSHITTYPE);
+	tpp->frag_shift = t4_filter_field_shift(adap, F_FRAGMENTATION);
+
+	/*
+	 * If TP_INGRESS_CONFIG.VNID == 0, then TP_VLAN_PRI_MAP.VNIC_ID
+	 * represents the presense of an Outer VLAN instead of a VNIC ID.
+	 */
+	if ((tpp->ingress_config & F_VNIC) == 0)
+		tpp->vnic_shift = -1;
+}
+
+/**
+ *      t4_init_tp_params - initialize adap->params.tp
+ *      @adap: the adapter
+ *
+ *      Initialize various fields of the adapter's TP Parameters structure.
+ */
+int t4_init_tp_params(struct adapter *adap)
 {
 	int chan;
 	u32 v;
+	struct tp_params *tpp = &adap->params.tp;
 
 	v = t4_read_reg(adap, A_TP_TIMER_RESOLUTION);
-	adap->params.tp.tre = G_TIMERRESOLUTION(v);
-	adap->params.tp.dack_re = G_DELAYEDACKRESOLUTION(v);
+	tpp->tre = G_TIMERRESOLUTION(v);
+	tpp->dack_re = G_DELAYEDACKRESOLUTION(v);
 
 	/* MODQ_REQ_MAP defaults to setting queues 0-3 to chan 0-3 */
 	for (chan = 0; chan < MAX_NCHAN; chan++)
-		adap->params.tp.tx_modq[chan] = chan;
+		tpp->tx_modq[chan] = chan;
 
-	t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-			 &adap->params.tp.ingress_config, 1,
-			 A_TP_INGRESS_CONFIG);
-	refresh_vlan_pri_map(adap);
+	read_filter_mode_and_ingress_config(adap);
+
+	/*
+	 * For T6, cache the adapter's compressed error vector
+	 * and passing outer header info for encapsulated packets.
+	 */
+	if (chip_id(adap) > CHELSIO_T5) {
+		v = t4_read_reg(adap, A_TP_OUT_CONFIG);
+		tpp->rx_pkt_encap = (v & F_CRXPKTENC) ? 1 : 0;
+	}
 
 	return 0;
 }
 
 /**
- *	t4_filter_field_shift - calculate filter field shift
- *	@adap: the adapter
- *	@filter_sel: the desired field (from TP_VLAN_PRI_MAP bits)
+ *      t4_filter_field_shift - calculate filter field shift
+ *      @adap: the adapter
+ *      @filter_sel: the desired field (from TP_VLAN_PRI_MAP bits)
  *
- *	Return the shift position of a filter field within the Compressed
- *	Filter Tuple.  The filter field is specified via its selection bit
- *	within TP_VLAN_PRI_MAL (filter mode).  E.g. F_VLAN.
+ *      Return the shift position of a filter field within the Compressed
+ *      Filter Tuple.  The filter field is specified via its selection bit
+ *      within TP_VLAN_PRI_MAL (filter mode).  E.g. F_VLAN.
  */
 int t4_filter_field_shift(const struct adapter *adap, int filter_sel)
 {
@@ -7746,18 +7851,38 @@ int t4_filter_field_shift(const struct adapter *adap, int filter_sel)
 		return -1;
 
 	for (sel = 1, field_shift = 0; sel < filter_sel; sel <<= 1) {
-	    switch (filter_mode & sel) {
-		case F_FCOE:          field_shift += W_FT_FCOE;          break;
-		case F_PORT:          field_shift += W_FT_PORT;          break;
-		case F_VNIC_ID:       field_shift += W_FT_VNIC_ID;       break;
-		case F_VLAN:          field_shift += W_FT_VLAN;          break;
-		case F_TOS:           field_shift += W_FT_TOS;           break;
-		case F_PROTOCOL:      field_shift += W_FT_PROTOCOL;      break;
-		case F_ETHERTYPE:     field_shift += W_FT_ETHERTYPE;     break;
-		case F_MACMATCH:      field_shift += W_FT_MACMATCH;      break;
-		case F_MPSHITTYPE:    field_shift += W_FT_MPSHITTYPE;    break;
-		case F_FRAGMENTATION: field_shift += W_FT_FRAGMENTATION; break;
-	    }
+		switch (filter_mode & sel) {
+		case F_FCOE:
+			field_shift += W_FT_FCOE;
+			break;
+		case F_PORT:
+			field_shift += W_FT_PORT;
+			break;
+		case F_VNIC_ID:
+			field_shift += W_FT_VNIC_ID;
+			break;
+		case F_VLAN:
+			field_shift += W_FT_VLAN;
+			break;
+		case F_TOS:
+			field_shift += W_FT_TOS;
+			break;
+		case F_PROTOCOL:
+			field_shift += W_FT_PROTOCOL;
+			break;
+		case F_ETHERTYPE:
+			field_shift += W_FT_ETHERTYPE;
+			break;
+		case F_MACMATCH:
+			field_shift += W_FT_MACMATCH;
+			break;
+		case F_MPSHITTYPE:
+			field_shift += W_FT_MPSHITTYPE;
+			break;
+		case F_FRAGMENTATION:
+			field_shift += W_FT_FRAGMENTATION;
+			break;
+		}
 	}
 	return field_shift;
 }
@@ -7818,6 +7943,37 @@ int __devinit t4_port_init(struct port_info *p, int mbox, int pf, int vf)
 		/* MPASS((val >> 16) == rss_size); */
 		p->vi[0].rss_base = val & 0xffff;
 	}
+
+	return 0;
+}
+
+/**
+ *	t4_set_filter_mode - configure the optional components of filter tuples
+ *	@adap: the adapter
+ *	@mode_map: a bitmap selcting which optional filter components to enable
+ *
+ *	Sets the filter mode by selecting the optional components to enable
+ *	in filter tuples.  Returns 0 on success and a negative error if the
+ *	requested mode needs more bits than are available for optional
+ *	components.
+ */
+int t4_set_filter_mode(struct adapter *adap, unsigned int mode_map)
+{
+	static u8 width[] = { 1, 3, 17, 17, 8, 8, 16, 9, 3, 1 };
+
+	int i, nbits = 0;
+
+	for (i = S_FCOE; i <= S_FRAGMENTATION; i++)
+		if (mode_map & (1 << i))
+			nbits += width[i];
+	if (nbits > FILTER_OPT_LEN)
+		return -EINVAL;
+	if (t4_use_ldst(adap))
+		t4_fw_tp_pio_rw(adap, &mode_map, 1, A_TP_VLAN_PRI_MAP, 0);
+	else
+		t4_write_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA, &mode_map,
+				  1, A_TP_VLAN_PRI_MAP);
+	read_filter_mode_and_ingress_config(adap);
 
 	return 0;
 }
