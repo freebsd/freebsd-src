@@ -34,6 +34,20 @@ main() {
 	outname="$(echo ${outname} | tr '-' '_')"
 
 	case "${outname}" in
+		runtime)
+			outname="runtime"
+			uclfile="${uclfile}"
+			;;
+		runtime_manuals)
+			outname="${origname}"
+			pkgdeps="runtime"
+			;;
+		runtime_*)
+			outname="${origname}"
+			uclfile="${outname##*}${uclfile}"
+			pkgdeps="runtime"
+			_descr="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_DESCR)"
+			;;
 		*_lib32_development)
 			outname="${outname%%_lib32_development}"
 			_descr="32-bit Libraries, Development Files"
@@ -69,19 +83,8 @@ main() {
 			_descr="Debugging Symbols"
 			pkgdeps="${outname}"
 			;;
-		*_manuals)
-			outname="${origname}"
-			pkgdeps="runtime"
-			;;
-		runtime)
-			outname="runtime"
-			uclfile="${uclfile}"
-			;;
 		${origname})
 			pkgdeps="runtime"
-			;;
-		debug|development|lib32|profile)
-			uclfile="${outname##*}${uclfile}"
 			;;
 		*)
 			uclfile="${outname##*}${origname}"
