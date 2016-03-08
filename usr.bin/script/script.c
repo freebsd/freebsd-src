@@ -80,7 +80,6 @@ static struct termios tt;
 
 static void done(int) __dead2;
 static void doshell(char **);
-static void fail(void);
 static void finish(void);
 static void record(FILE *, char *, size_t, int);
 static void consume(FILE *, off_t, char *, int);
@@ -347,14 +346,7 @@ doshell(char **av)
 		execl(shell, shell, "-i", (char *)NULL);
 		warn("%s", shell);
 	}
-	fail();
-}
-
-static void
-fail(void)
-{
-	(void)kill(0, SIGTERM);
-	done(1);
+	exit(1);
 }
 
 static void
