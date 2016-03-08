@@ -270,7 +270,7 @@ vm_pageout_init_marker(vm_page_t marker, u_short queue)
  * 
  * Lock vm object currently associated with `m'. VM_OBJECT_TRYWLOCK is
  * known to have failed and page queue must be either PQ_ACTIVE or
- * PQ_INACTIVE.  To avoid lock order violation, unlock the page queues
+ * PQ_INACTIVE.  To avoid lock order violation, unlock the page queue
  * while locking the vm object.  Use marker page to detect page queue
  * changes and maintain notion of next page on page queue.  Return
  * TRUE if no changes were detected, FALSE otherwise.  vm object is
@@ -883,7 +883,7 @@ vm_pageout_launder(struct vm_domain *vmd)
 	struct vm_pagequeue *pq;
 	vm_object_t object;
 	int act_delta, error, launder, maxscan, numpagedout, vnodes_skipped;
-	boolean_t pageout_ok, queues_locked;
+	boolean_t pageout_ok, queue_locked;
 
 	/*
 	 * Compute the number of pages we want to move from the laundry queue to
@@ -908,12 +908,12 @@ vm_pageout_launder(struct vm_domain *vmd)
 	pq = &vmd->vmd_pagequeues[PQ_LAUNDRY];
 	maxscan = pq->pq_cnt;
 	vm_pagequeue_lock(pq);
-	queues_locked = TRUE;
+	queue_locked = TRUE;
 	for (m = TAILQ_FIRST(&pq->pq_pl);
 	    m != NULL && maxscan-- > 0 && launder > 0;
 	    m = next) {
 		vm_pagequeue_assert_locked(pq);
-		KASSERT(queues_locked, ("unlocked laundry queue"));
+		KASSERT(queue_locked, ("unlocked laundry queue"));
 		KASSERT(m->queue == PQ_LAUNDRY,
 		    ("page %p has an inconsistent queue", m));
 		next = TAILQ_NEXT(m, plinks.q);
@@ -944,7 +944,7 @@ vm_pageout_launder(struct vm_domain *vmd)
 		TAILQ_INSERT_AFTER(&pq->pq_pl, m, &vmd->vmd_laundry_marker,
 		    plinks.q);
 		vm_pagequeue_unlock(pq);
-		queues_locked = FALSE;
+		queue_locked = FALSE;
 
 		/*
 		 * Invalid pages can be easily freed.  They cannot be
@@ -1021,7 +1021,7 @@ free_page:
 			if (!pageout_ok) {
 requeue_page:
 				vm_pagequeue_lock(pq);
-				queues_locked = TRUE;
+				queue_locked = TRUE;
 				vm_page_requeue_locked(m);
 				goto drop_page;
 			}
@@ -1032,15 +1032,15 @@ requeue_page:
 				pageout_lock_miss++;
 				vnodes_skipped++;
 			}
-			goto relock_queues;
+			goto relock_queue;
 		}
 drop_page:
 		vm_page_unlock(m);
 		VM_OBJECT_WUNLOCK(object);
-relock_queues:
-		if (!queues_locked) {
+relock_queue:
+		if (!queue_locked) {
 			vm_pagequeue_lock(pq);
-			queues_locked = TRUE;
+			queue_locked = TRUE;
 		}
 		next = TAILQ_NEXT(&vmd->vmd_laundry_marker, plinks.q);
 		TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_laundry_marker, plinks.q);
@@ -1094,7 +1094,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	long min_scan;
 	int act_delta, addl_page_shortage, deficit, maxscan;
 	int page_shortage, scan_tick, scanned, starting_page_shortage;
-	boolean_t queues_locked;
+	boolean_t queue_locked;
 
 	/*
 	 * If we need to reclaim memory ask kernel caches to return
@@ -1144,12 +1144,12 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	pq = &vmd->vmd_pagequeues[PQ_INACTIVE];
 	maxscan = pq->pq_cnt;
 	vm_pagequeue_lock(pq);
-	queues_locked = TRUE;
+	queue_locked = TRUE;
 	for (m = TAILQ_FIRST(&pq->pq_pl);
 	     m != NULL && maxscan-- > 0 && page_shortage > 0;
 	     m = next) {
 		vm_pagequeue_assert_locked(pq);
-		KASSERT(queues_locked, ("unlocked queues"));
+		KASSERT(queue_locked, ("unlocked inactive queue"));
 		KASSERT(m->queue == PQ_INACTIVE, ("Inactive queue %p", m));
 
 		PCPU_INC(cnt.v_pdpages);
@@ -1220,7 +1220,7 @@ unlock_page:
 		TAILQ_INSERT_AFTER(&pq->pq_pl, m, &vmd->vmd_marker, plinks.q);
 		vm_page_dequeue_locked(m);
 		vm_pagequeue_unlock(pq);
-		queues_locked = FALSE;
+		queue_locked = FALSE;
 
 		/*
 		 * Invalid pages can be easily freed. They cannot be
@@ -1260,7 +1260,7 @@ unlock_page:
 				goto drop_page;
 			} else if ((object->flags & OBJ_DEAD) == 0) {
 				vm_pagequeue_lock(pq);
-				queues_locked = TRUE;
+				queue_locked = TRUE;
 				m->queue = PQ_INACTIVE;
 				TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
 				vm_pagequeue_cnt_inc(pq);
@@ -1299,9 +1299,9 @@ free_page:
 drop_page:
 		vm_page_unlock(m);
 		VM_OBJECT_WUNLOCK(object);
-		if (!queues_locked) {
+		if (!queue_locked) {
 			vm_pagequeue_lock(pq);
-			queues_locked = TRUE;
+			queue_locked = TRUE;
 		}
 		next = TAILQ_NEXT(&vmd->vmd_marker, plinks.q);
 		TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_marker, plinks.q);
