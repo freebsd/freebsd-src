@@ -70,7 +70,7 @@
 		if ($1 ~ /^\/usr\/lib\/debug\/boot/) {
 			output=output"-debug.plist"
 		} else {
-			output=output"-release.plist"
+			output=output".plist"
 		}
 	} else {
 		output=pkgname".plist"
