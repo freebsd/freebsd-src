@@ -24,6 +24,7 @@
  * Portions Copyright 2011 iXsystems, Inc
  * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 #include <sys/zfs_context.h>

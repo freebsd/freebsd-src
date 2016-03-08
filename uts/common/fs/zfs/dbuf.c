@@ -25,6 +25,7 @@
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 #include <sys/zfs_context.h>
