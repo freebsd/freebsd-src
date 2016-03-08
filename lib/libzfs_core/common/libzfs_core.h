@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 #ifndef	_LIBZFS_CORE_H
