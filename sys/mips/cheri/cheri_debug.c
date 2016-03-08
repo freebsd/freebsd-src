@@ -47,6 +47,10 @@
 #ifdef DDB
 /*
  * Variation that prints live register state from the capability coprocessor.
+ *
+ * NB: Over time we will shift towards special registers holding values such
+ * as $c0.  As a result, we must move those values through a temporary
+ * register that is hence overwritten.
  */
 DB_SHOW_COMMAND(cheri, ddb_dump_cheri)
 {
@@ -65,7 +69,10 @@ DB_SHOW_COMMAND(cheri, ddb_dump_cheri)
 	else
 		db_printf("RegNum: invalid (%d) ", regnum);
 	db_printf("(%s)\n", cheri_exccode_string(exccode));
-	DB_CHERI_REG_PRINT(0, 0);
+
+	/* Shift $c0 into $ctemp for printing. */
+	CHERI_CGETDEFAULT(CHERI_CR_CTEMP0);
+	DB_CHERI_REG_PRINT(CHERI_CR_CTEMP0, 0);
 	DB_CHERI_REG_PRINT(1, 1);
 	DB_CHERI_REG_PRINT(2, 2);
 	DB_CHERI_REG_PRINT(3, 3);
