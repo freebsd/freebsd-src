@@ -27,6 +27,11 @@ linux_start()
 
 	echo -n ' linux'
 	load_kld -e 'linux(aout|elf)' linux
+	case `sysctl -n hw.machine_arch` in
+	amd64)
+		load_kld -e 'linux64elf' linux64
+		;;
+	esac
 	if [ -x /compat/linux/sbin/ldconfigDisabled ]; then
 		_tmpdir=`mktemp -d -t linux-ldconfig`
 		/compat/linux/sbin/ldconfig -C ${_tmpdir}/ld.so.cache
