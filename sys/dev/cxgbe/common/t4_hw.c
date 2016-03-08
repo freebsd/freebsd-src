@@ -6775,7 +6775,7 @@ int t4_fw_initialize(struct adapter *adap, unsigned int mbox)
 }
 
 /**
- *	t4_query_params - query FW or device parameters
+ *	t4_query_params_rw - query FW or device parameters
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
  *	@pf: the PF
@@ -6783,13 +6783,14 @@ int t4_fw_initialize(struct adapter *adap, unsigned int mbox)
  *	@nparams: the number of parameters
  *	@params: the parameter names
  *	@val: the parameter values
+ *	@rw: Write and read flag
  *
  *	Reads the value of FW or device parameters.  Up to 7 parameters can be
  *	queried at once.
  */
-int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
-		    unsigned int vf, unsigned int nparams, const u32 *params,
-		    u32 *val)
+int t4_query_params_rw(struct adapter *adap, unsigned int mbox, unsigned int pf,
+		       unsigned int vf, unsigned int nparams, const u32 *params,
+		       u32 *val, int rw)
 {
 	int i, ret;
 	struct fw_params_cmd c;
@@ -6799,19 +6800,71 @@ int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		return -EINVAL;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(V_FW_CMD_OP(FW_PARAMS_CMD) | F_FW_CMD_REQUEST |
-			    F_FW_CMD_READ | V_FW_PARAMS_CMD_PFN(pf) |
-			    V_FW_PARAMS_CMD_VFN(vf));
-	c.retval_len16 = htonl(FW_LEN16(c));
+	c.op_to_vfn = cpu_to_be32(V_FW_CMD_OP(FW_PARAMS_CMD) |
+				  F_FW_CMD_REQUEST | F_FW_CMD_READ |
+				  V_FW_PARAMS_CMD_PFN(pf) |
+				  V_FW_PARAMS_CMD_VFN(vf));
+	c.retval_len16 = cpu_to_be32(FW_LEN16(c));
 
-	for (i = 0; i < nparams; i++, p += 2, params++)
-		*p = htonl(*params);
+	for (i = 0; i < nparams; i++) {
+		*p++ = cpu_to_be32(*params++);
+		if (rw)
+			*p = cpu_to_be32(*(val + i));
+		p++;
+	}
 
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 	if (ret == 0)
 		for (i = 0, p = &c.param[0].val; i < nparams; i++, p += 2)
-			*val++ = ntohl(*p);
+			*val++ = be32_to_cpu(*p);
 	return ret;
+}
+
+int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
+		    unsigned int vf, unsigned int nparams, const u32 *params,
+		    u32 *val)
+{
+	return t4_query_params_rw(adap, mbox, pf, vf, nparams, params, val, 0);
+}
+
+/**
+ *      t4_set_params_timeout - sets FW or device parameters
+ *      @adap: the adapter
+ *      @mbox: mailbox to use for the FW command
+ *      @pf: the PF
+ *      @vf: the VF
+ *      @nparams: the number of parameters
+ *      @params: the parameter names
+ *      @val: the parameter values
+ *      @timeout: the timeout time
+ *
+ *      Sets the value of FW or device parameters.  Up to 7 parameters can be
+ *      specified at once.
+ */
+int t4_set_params_timeout(struct adapter *adap, unsigned int mbox,
+			  unsigned int pf, unsigned int vf,
+			  unsigned int nparams, const u32 *params,
+			  const u32 *val, int timeout)
+{
+	struct fw_params_cmd c;
+	__be32 *p = &c.param[0].mnem;
+
+	if (nparams > 7)
+		return -EINVAL;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_vfn = cpu_to_be32(V_FW_CMD_OP(FW_PARAMS_CMD) |
+				  F_FW_CMD_REQUEST | F_FW_CMD_WRITE |
+				  V_FW_PARAMS_CMD_PFN(pf) |
+				  V_FW_PARAMS_CMD_VFN(vf));
+	c.retval_len16 = cpu_to_be32(FW_LEN16(c));
+
+	while (nparams--) {
+		*p++ = cpu_to_be32(*params++);
+		*p++ = cpu_to_be32(*val++);
+	}
+
+	return t4_wr_mbox_timeout(adap, mbox, &c, sizeof(c), NULL, timeout);
 }
 
 /**
@@ -6831,26 +6884,8 @@ int t4_set_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		  unsigned int vf, unsigned int nparams, const u32 *params,
 		  const u32 *val)
 {
-	struct fw_params_cmd c;
-	__be32 *p = &c.param[0].mnem;
-
-	if (nparams > 7)
-		return -EINVAL;
-
-	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(V_FW_CMD_OP(FW_PARAMS_CMD) | F_FW_CMD_REQUEST |
-			    F_FW_CMD_WRITE | V_FW_PARAMS_CMD_PFN(pf) |
-			    V_FW_PARAMS_CMD_VFN(vf));
-	c.retval_len16 = htonl(FW_LEN16(c));
-
-	while (nparams--) {
-		*p++ = htonl(*params);
-		params++;
-		*p++ = htonl(*val);
-		val++;
-	}
-
-	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+	return t4_set_params_timeout(adap, mbox, pf, vf, nparams, params, val,
+				     FW_CMD_MAX_TIMEOUT);
 }
 
 /**
@@ -7225,6 +7260,34 @@ int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,
 }
 
 /**
+ *      t4_enable_vi_params - enable/disable a virtual interface
+ *      @adap: the adapter
+ *      @mbox: mailbox to use for the FW command
+ *      @viid: the VI id
+ *      @rx_en: 1=enable Rx, 0=disable Rx
+ *      @tx_en: 1=enable Tx, 0=disable Tx
+ *      @dcb_en: 1=enable delivery of Data Center Bridging messages.
+ *
+ *      Enables/disables a virtual interface.  Note that setting DCB Enable
+ *      only makes sense when enabling a Virtual Interface ...
+ */
+int t4_enable_vi_params(struct adapter *adap, unsigned int mbox,
+			unsigned int viid, bool rx_en, bool tx_en, bool dcb_en)
+{
+	struct fw_vi_enable_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(V_FW_CMD_OP(FW_VI_ENABLE_CMD) |
+				   F_FW_CMD_REQUEST | F_FW_CMD_EXEC |
+				   V_FW_VI_ENABLE_CMD_VIID(viid));
+	c.ien_to_len16 = cpu_to_be32(V_FW_VI_ENABLE_CMD_IEN(rx_en) |
+				     V_FW_VI_ENABLE_CMD_EEN(tx_en) |
+				     V_FW_VI_ENABLE_CMD_DCB_INFO(dcb_en) |
+				     FW_LEN16(c));
+	return t4_wr_mbox_ns(adap, mbox, &c, sizeof(c), NULL);
+}
+
+/**
  *	t4_enable_vi - enable/disable a virtual interface
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
@@ -7232,19 +7295,13 @@ int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,
  *	@rx_en: 1=enable Rx, 0=disable Rx
  *	@tx_en: 1=enable Tx, 0=disable Tx
  *
- *	Enables/disables a virtual interface.
+ *	Enables/disables a virtual interface.  Note that setting DCB Enable
+ *	only makes sense when enabling a Virtual Interface ...
  */
 int t4_enable_vi(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		 bool rx_en, bool tx_en)
 {
-	struct fw_vi_enable_cmd c;
-
-	memset(&c, 0, sizeof(c));
-	c.op_to_viid = htonl(V_FW_CMD_OP(FW_VI_ENABLE_CMD) | F_FW_CMD_REQUEST |
-			     F_FW_CMD_EXEC | V_FW_VI_ENABLE_CMD_VIID(viid));
-	c.ien_to_len16 = htonl(V_FW_VI_ENABLE_CMD_IEN(rx_en) |
-			       V_FW_VI_ENABLE_CMD_EEN(tx_en) | FW_LEN16(c));
-	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+	return t4_enable_vi_params(adap, mbox, viid, rx_en, tx_en, 0);
 }
 
 /**
