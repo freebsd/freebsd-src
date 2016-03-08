@@ -7430,6 +7430,31 @@ int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 }
 
 /**
+ *	t4_link_down_rc_str - return a string for a Link Down Reason Code
+ *	@link_down_rc: Link Down Reason Code
+ *
+ *	Returns a string representation of the Link Down Reason Code.
+ */
+const char *t4_link_down_rc_str(unsigned char link_down_rc)
+{
+	static const char *reason[] = {
+		"Link Down",
+		"Remote Fault",
+		"Auto-negotiation Failure",
+		"Reserved3",
+		"Insufficient Airflow",
+		"Unable To Determine Reason",
+		"No RX Signal Detected",
+		"Reserved7",
+	};
+
+	if (link_down_rc >= ARRAY_SIZE(reason))
+		return "Bad Reason Code";
+
+	return reason[link_down_rc];
+}
+
+/**
  *	t4_handle_fw_rpl - process a FW reply message
  *	@adap: the adapter
  *	@rpl: start of the FW message
