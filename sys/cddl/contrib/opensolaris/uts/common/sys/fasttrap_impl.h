@@ -206,6 +206,10 @@ extern fasttrap_scrspace_t *fasttrap_scraddr(struct thread *,
 extern dtrace_id_t 		fasttrap_probe_id;
 extern fasttrap_hash_t		fasttrap_tpoints;
 
+#ifndef illumos
+extern struct rmlock		fasttrap_tp_lock;
+#endif
+
 #define	FASTTRAP_TPOINTS_INDEX(pid, pc) \
 	(((pc) / sizeof (fasttrap_instr_t) + (pid)) & fasttrap_tpoints.fth_mask)
 
