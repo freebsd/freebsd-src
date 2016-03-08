@@ -1282,8 +1282,7 @@ error:
 			venext = ve->ve_next;
 			for (ce = ve->ve_configs; ce != NULL; ce = cenext) {
 				cenext = ce->ce_next;
-				if (ce->ce_config)
-					nvlist_free(ce->ce_config);
+				nvlist_free(ce->ce_config);
 				free(ce);
 			}
 			free(ve);
