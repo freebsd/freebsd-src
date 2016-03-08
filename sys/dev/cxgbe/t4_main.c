@@ -1783,13 +1783,13 @@ cxgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 		return;
 
 	ifmr->ifm_active = IFM_ETHER | IFM_FDX;
-	if (speed == SPEED_10000)
+	if (speed == 10000)
 		ifmr->ifm_active |= IFM_10G_T;
-	else if (speed == SPEED_1000)
+	else if (speed == 1000)
 		ifmr->ifm_active |= IFM_1000_T;
-	else if (speed == SPEED_100)
+	else if (speed == 100)
 		ifmr->ifm_active |= IFM_100_TX;
-	else if (speed == SPEED_10)
+	else if (speed == 10)
 		ifmr->ifm_active |= IFM_10_T;
 	else
 		KASSERT(0, ("%s: link up but speed unknown (%u)", __func__,
