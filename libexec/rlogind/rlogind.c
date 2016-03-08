@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <libutil.h>
 #include <paths.h>
+#include <poll.h>
 #include <pwd.h>
 #include <syslog.h>
 #include <stdio.h>
@@ -350,34 +351,27 @@ protocol(int f, int p)
 		nfd = f + 1;
 	else
 		nfd = p + 1;
-	if (nfd > FD_SETSIZE) {
-		syslog(LOG_ERR, "select mask too small, increase FD_SETSIZE");
-		fatal(f, "internal error (select mask too small)", 0);
-	}
 	for (;;) {
-		fd_set ibits, obits, ebits, *omask;
+		struct pollfd set[2];
 
-		FD_ZERO(&ebits);
-		FD_ZERO(&ibits);
-		FD_ZERO(&obits);
-		omask = (fd_set *)NULL;
-		if (fcc) {
-			FD_SET(p, &obits);
-			omask = &obits;
-		} else
-			FD_SET(f, &ibits);
+		set[0].fd = p;
+		set[0].events = POLLPRI;
+		set[1].fd = f;
+		set[1].events = 0;
+		if (fcc)
+			set[0].events |= POLLOUT;
+		else
+			set[1].events |= POLLIN;
 		if (pcc >= 0) {
-			if (pcc) {
-				FD_SET(f, &obits);
-				omask = &obits;
-			} else
-				FD_SET(p, &ibits);
+			if (pcc)
+				set[1].events |= POLLOUT;
+			else
+				set[0].events |= POLLIN;
 		}
-		FD_SET(p, &ebits);
-		if ((n = select(nfd, &ibits, omask, &ebits, 0)) < 0) {
+		if ((n = poll(set, 2, INFTIM)) < 0) {
 			if (errno == EINTR)
 				continue;
-			fatal(f, "select", 1);
+			fatal(f, "poll", 1);
 		}
 		if (n == 0) {
 			/* shouldn't happen... */
@@ -385,18 +379,16 @@ protocol(int f, int p)
 			continue;
 		}
 #define	pkcontrol(c)	((c)&(TIOCPKT_FLUSHWRITE|TIOCPKT_NOSTOP|TIOCPKT_DOSTOP))
-		if (FD_ISSET(p, &ebits)) {
+		if (set[0].revents & POLLPRI) {
 			cc = read(p, &cntl, 1);
 			if (cc == 1 && pkcontrol(cntl)) {
 				cntl |= oobdata[0];
 				send(f, &cntl, 1, MSG_OOB);
-				if (cntl & TIOCPKT_FLUSHWRITE) {
+				if (cntl & TIOCPKT_FLUSHWRITE)
 					pcc = 0;
-					FD_CLR(p, &ibits);
-				}
 			}
 		}
-		if (FD_ISSET(f, &ibits)) {
+		if (set[1].revents & POLLIN) {
 			fcc = read(f, fibuf, sizeof(fibuf));
 			if (fcc < 0 && errno == EWOULDBLOCK)
 				fcc = 0;
@@ -422,11 +414,10 @@ protocol(int f, int p)
 							goto top; /* n^2 */
 						}
 					}
-				FD_SET(p, &obits);		/* try write */
 			}
 		}
 
-		if (FD_ISSET(p, &obits) && fcc > 0) {
+		if (set[0].revents & POLLOUT && fcc > 0) {
 			cc = write(p, fbp, fcc);
 			if (cc > 0) {
 				fcc -= cc;
@@ -434,7 +425,7 @@ protocol(int f, int p)
 			}
 		}
 
-		if (FD_ISSET(p, &ibits)) {
+		if (set[0].revents & POLLIN) {
 			pcc = read(p, pibuf, sizeof (pibuf));
 			pbp = pibuf;
 			if (pcc < 0 && errno == EWOULDBLOCK)
@@ -443,7 +434,6 @@ protocol(int f, int p)
 				break;
 			else if (pibuf[0] == 0) {
 				pbp++, pcc--;
-				FD_SET(f, &obits);	/* try write */
 			} else {
 				if (pkcontrol(pibuf[0])) {
 					pibuf[0] |= oobdata[0];
@@ -452,18 +442,8 @@ protocol(int f, int p)
 				pcc = 0;
 			}
 		}
-		if ((FD_ISSET(f, &obits)) && pcc > 0) {
+		if (set[1].revents & POLLOUT && pcc > 0) {
 			cc = write(f, pbp, pcc);
-			if (cc < 0 && errno == EWOULDBLOCK) {
-				/*
-				 * This happens when we try write after read
-				 * from p, but some old kernels balk at large
-				 * writes even when select returns true.
-				 */
-				if (!FD_ISSET(p, &ibits))
-					sleep(5);
-				continue;
-			}
 			if (cc > 0) {
 				pcc -= cc;
 				pbp += cc;

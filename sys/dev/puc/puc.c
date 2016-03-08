@@ -78,7 +78,7 @@ puc_get_bar(struct puc_softc *sc, int rid)
 {
 	struct puc_bar *bar;
 	struct rman *rm;
-	u_long end, start;
+	rman_res_t end, start;
 	int error, i;
 
 	/* Find the BAR entry with the given RID. */
@@ -474,7 +474,7 @@ puc_bfe_probe(device_t dev, const struct puc_cfg *cfg)
 
 struct resource *
 puc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct puc_port *port;
 	struct resource *res;
@@ -495,7 +495,7 @@ puc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		return (NULL);
 
 	/* We only support default allocations. */
-	if (start != 0UL || end != ~0UL)
+	if (!RMAN_IS_DEFAULT_RANGE(start, end))
 		return (NULL);
 
 	if (type == port->p_bar->b_type)
@@ -567,11 +567,11 @@ puc_bus_release_resource(device_t dev, device_t child, int type, int rid,
 
 int
 puc_bus_get_resource(device_t dev, device_t child, int type, int rid,
-    u_long *startp, u_long *countp)
+    rman_res_t *startp, rman_res_t *countp)
 {
 	struct puc_port *port;
 	struct resource *res;
-	u_long start;
+	rman_res_t start;
 
 	/* Get our immediate child. */
 	while (child != NULL && device_get_parent(child) != dev)

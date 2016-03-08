@@ -40,6 +40,23 @@ __RCSID("$NetBSD: t_assert.c,v 1.2 2011/06/14 05:28:00 jruoho Exp $");
 #include <string.h>
 #include <unistd.h>
 
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+
+static void
+disable_corefile(void)
+{
+	struct rlimit limits;
+
+	limits.rlim_cur = 0;
+	limits.rlim_max = 0;
+
+	ATF_REQUIRE(setrlimit(RLIMIT_CORE, &limits) == 0);
+}
+#endif
+
 static void		handler(int);
 
 static void
@@ -65,6 +82,9 @@ ATF_TC_BODY(assert_false, tc)
 
 	if (pid == 0) {
 
+#ifdef __FreeBSD__
+		disable_corefile();
+#endif
 		(void)closefrom(0);
 		(void)memset(&sa, 0, sizeof(struct sigaction));
 
@@ -102,6 +122,9 @@ ATF_TC_BODY(assert_true, tc)
 
 	if (pid == 0) {
 
+#ifdef __FreeBSD__
+		disable_corefile();
+#endif
 		(void)closefrom(0);
 		(void)memset(&sa, 0, sizeof(struct sigaction));
 

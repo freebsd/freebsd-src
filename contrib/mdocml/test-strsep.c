@@ -6,5 +6,5 @@ main(void)
 	char buf[6] = "aybxc";
 	char *workp = buf;
 	char *retp = strsep(&workp, "xy");
-	return( ! (retp == buf && '\0' == buf[1] && buf + 2 == workp));
+	return ! (retp == buf && buf[1] == '\0' && workp == buf + 2);
 }

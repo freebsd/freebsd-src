@@ -1,4 +1,4 @@
-.\"	$Id: mandoc.1,v 1.155 2015/02/23 13:31:03 schwarze Exp $
+.\"	$Id: mandoc.1,v 1.164 2015/11/05 17:47:51 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2012, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: February 23 2015 $
+.Dd $Mdocdate: November 5 2015 $
 .Dt MANDOC 1
 .Os
 .Sh NAME
@@ -24,14 +24,12 @@
 .Sh SYNOPSIS
 .Nm mandoc
 .Op Fl acfhkl
-.Sm off
-.Op Fl I Cm os Li = Ar name
-.Sm on
-.Op Fl K Ns Ar encoding
+.Op Fl I Cm os Ns = Ns Ar name
+.Op Fl K Ar encoding
 .Op Fl m Ns Ar format
-.Op Fl O Ns Ar option
-.Op Fl T Ns Ar output
-.Op Fl W Ns Ar level
+.Op Fl O Ar option
+.Op Fl T Ar output
+.Op Fl W Ar level
 .Op Ar
 .Sh DESCRIPTION
 The
@@ -49,7 +47,7 @@ or
 text from stdin, implying
 .Fl m Ns Cm andoc ,
 and produces
-.Fl T Ns Cm locale
+.Fl T Cm locale
 output.
 .Pp
 The options are as follows:
@@ -77,9 +75,7 @@ This overrides any earlier
 and
 .Fl l
 options.
-.Sm off
-.It Fl I Cm os Li = Ar name
-.Sm on
+.It Fl I Cm os Ns = Ns Ar name
 Override the default operating system
 .Ar name
 for the
@@ -93,7 +89,7 @@ macro.
 Display only the SYNOPSIS lines.
 Implies
 .Fl c .
-.It Fl K Ns Ar encoding
+.It Fl K Ar encoding
 Specify the input encoding.
 The supported
 .Ar encoding
@@ -141,16 +137,16 @@ See
 for available formats.
 Defaults to
 .Fl m Ns Cm andoc .
-.It Fl O Ns Ar option
+.It Fl O Ar option
 Comma-separated output options.
-.It Fl T Ns Ar output
+.It Fl T Ar output
 Output format.
 See
 .Sx Output Formats
 for available formats.
 Defaults to
-.Fl T Ns Cm locale .
-.It Fl W Ns Ar level
+.Fl T Cm locale .
+.It Fl W Ar level
 Specify the minimum message
 .Ar level
 to be reported on the standard error output and to affect the exit status.
@@ -174,7 +170,7 @@ and
 for details.
 .Pp
 The special option
-.Fl W Ns Cm stop
+.Fl W Cm stop
 tells
 .Nm
 to exit after parsing a file that causes warnings or errors of at least
@@ -185,7 +181,7 @@ If both a
 and
 .Cm stop
 are requested, they can be joined with a comma, for example
-.Fl W Ns Cm error , Ns Cm stop .
+.Fl W Cm error , Ns Cm stop .
 .It Ar file
 Read input from zero or more files.
 If unspecified, reads from stdin.
@@ -254,54 +250,56 @@ The
 utility accepts the following
 .Fl T
 arguments, which correspond to output modes:
-.Bl -tag -width "-Tlocale"
-.It Fl T Ns Cm ascii
+.Bl -tag -width "-T locale"
+.It Fl T Cm ascii
 Produce 7-bit ASCII output.
 See
 .Sx ASCII Output .
-.It Fl T Ns Cm html
+.It Fl T Cm html
 Produce HTML5, CSS1, and MathML output.
 See
 .Sx HTML Output .
-.It Fl T Ns Cm lint
+.It Fl T Cm lint
 Parse only: produce no output.
 Implies
-.Fl W Ns Cm warning .
-.It Fl T Ns Cm locale
+.Fl W Cm warning .
+.It Fl T Cm locale
 Encode output using the current locale.
 This is the default.
 See
 .Sx Locale Output .
-.It Fl T Ns Cm man
+.It Fl T Cm man
 Produce
 .Xr man 7
 format output.
 See
 .Sx Man Output .
-.It Fl T Ns Cm pdf
+.It Fl T Cm pdf
 Produce PDF output.
 See
 .Sx PDF Output .
-.It Fl T Ns Cm ps
+.It Fl T Cm ps
 Produce PostScript output.
 See
 .Sx PostScript Output .
-.It Fl T Ns Cm tree
+.It Fl T Cm tree
 Produce an indented parse tree.
-.It Fl T Ns Cm utf8
+See
+.Sx Syntax tree output .
+.It Fl T Cm utf8
 Encode output in the UTF\-8 multi-byte format.
 See
 .Sx UTF\-8 Output .
-.It Fl T Ns Cm xhtml
+.It Fl T Cm xhtml
 This is a synonym for
-.Fl T Ns Cm html .
+.Fl T Cm html .
 .El
 .Pp
 If multiple input files are specified, these will be processed by the
 corresponding filter in-order.
 .Ss ASCII Output
 Output produced by
-.Fl T Ns Cm ascii
+.Fl T Cm ascii
 is rendered in standard 7-bit ASCII documented in
 .Xr ascii 7 .
 .Pp
@@ -343,7 +341,7 @@ which will normalise to \(>=58.
 .El
 .Ss HTML Output
 Output produced by
-.Fl T Ns Cm html
+.Fl T Cm html
 conforms to HTML5 using optional self-closing tags.
 Default styles use only CSS1.
 Equations rendered from
@@ -351,11 +349,11 @@ Equations rendered from
 blocks use MathML.
 .Pp
 The
-.Pa example.style.css
+.Pa mandoc.css
 file documents style-sheet classes available for customising output.
 If a style-sheet is not specified with
-.Fl O Ns Ar style ,
-.Fl T Ns Cm html
+.Fl O Cm style ,
+.Fl T Cm html
 defaults to simple output (via an embedded style-sheet)
 readable in any graphical or text-based web
 browser.
@@ -411,13 +409,13 @@ relative URI.
 .El
 .Ss Locale Output
 Locale-depending output encoding is triggered with
-.Fl T Ns Cm locale .
+.Fl T Cm locale .
 This is the default.
 .Pp
 This option is not available on all systems: systems without locale
 support, or those whose internal representation is not natively UCS-4,
 will fall back to
-.Fl T Ns Cm ascii .
+.Fl T Cm ascii .
 See
 .Sx ASCII Output
 for font style specification and available command-line arguments.
@@ -447,7 +445,7 @@ level controls which
 are displayed before copying the input to the output.
 .Ss PDF Output
 PDF-1.1 output may be generated by
-.Fl T Ns Cm pdf .
+.Fl T Cm pdf .
 See
 .Sx PostScript Output
 for
@@ -457,7 +455,7 @@ arguments and defaults.
 PostScript
 .Qq Adobe-3.0
 Level-2 pages may be generated by
-.Fl T Ns Cm ps .
+.Fl T Cm ps .
 Output pages default to letter sized and are rendered in the Times font
 family, 11-point.
 Margins are calculated as 1/9 the page length and width.
@@ -489,11 +487,50 @@ is used.
 .El
 .Ss UTF\-8 Output
 Use
-.Fl T Ns Cm utf8
+.Fl T Cm utf8
 to force a UTF\-8 locale.
 See
 .Sx Locale Output
 for details and options.
+.Ss Syntax tree output
+Use
+.Fl T Cm tree
+to show a human readable representation of the syntax tree.
+It is useful for debugging the source code of manual pages.
+The exact format is subject to change, so don't write parsers for it.
+Each output line shows one syntax tree node.
+Child nodes are indented with respect to their parent node.
+The columns are:
+.Pp
+.Bl -enum -compact
+.It
+For macro nodes, the macro name; for text and
+.Xr tbl 7
+nodes, the content.
+There is a special format for
+.Xr eqn 7
+nodes.
+.It
+Node type (text, elem, block, head, body, body-end, tail, tbl, eqn).
+.It
+Flags:
+.Bl -dash -compact
+.It
+An opening parenthesis if the node is an opening delimiter.
+.It
+An asterisk if the node starts a new input line.
+.It
+The input line number (starting at one).
+.It
+A colon.
+.It
+The input column number (starting at one).
+.It
+A closing parenthesis if the node is a closing delimiter.
+.It
+A full stop if the node ends a sentence.
+.El
+.El
 .Sh ENVIRONMENT
 .Bl -tag -width MANPAGER
 .It Ev MANPAGER
@@ -506,7 +543,8 @@ Specifies the pagination program to use when
 .Ev MANPAGER
 is not defined.
 If neither PAGER nor MANPAGER is defined,
-.Pa /usr/bin/more Fl s
+.Xr more 1
+.Fl s
 will be used.
 .El
 .Sh EXIT STATUS
@@ -525,21 +563,21 @@ they were lower than the requested
 .Ar level .
 .It 2
 At least one warning occurred, but no error, and
-.Fl W Ns Cm warning
+.Fl W Cm warning
 was specified.
 .It 3
 At least one parsing error occurred,
 but no unsupported feature was encountered, and
-.Fl W Ns Cm error
+.Fl W Cm error
 or
-.Fl W Ns Cm warning
+.Fl W Cm warning
 was specified.
 .It 4
 At least one unsupported feature was encountered, and
-.Fl W Ns Cm unsupp ,
-.Fl W Ns Cm error
+.Fl W Cm unsupp ,
+.Fl W Cm error
 or
-.Fl W Ns Cm warning
+.Fl W Cm warning
 was specified.
 .It 5
 Invalid command line arguments were specified.
@@ -553,28 +591,28 @@ to exit at once, possibly in the middle of parsing or formatting a file.
 .El
 .Pp
 Note that selecting
-.Fl T Ns Cm lint
+.Fl T Cm lint
 output mode implies
-.Fl W Ns Cm warning .
+.Fl W Cm warning .
 .Sh EXAMPLES
 To page manuals to the terminal:
 .Pp
-.Dl $ mandoc \-Wall,stop mandoc.1 2\*(Gt&1 | less
+.Dl $ mandoc \-W all,stop mandoc.1 2\*(Gt&1 | less
 .Dl $ mandoc mandoc.1 mdoc.3 mdoc.7 | less
 .Pp
 To produce HTML manuals with
-.Ar style.css
+.Pa mandoc.css
 as the style-sheet:
 .Pp
-.Dl $ mandoc \-Thtml -Ostyle=style.css mdoc.7 \*(Gt mdoc.7.html
+.Dl $ mandoc \-T html -O style=mandoc.css mdoc.7 \*(Gt mdoc.7.html
 .Pp
 To check over a large set of manuals:
 .Pp
-.Dl $ mandoc \-Tlint `find /usr/src -name \e*\e.[1-9]`
+.Dl $ mandoc \-T lint \(gafind /usr/src -name \e*\e.[1-9]\(ga
 .Pp
 To produce a series of PostScript manuals for A4 paper:
 .Pp
-.Dl $ mandoc \-Tps \-Opaper=a4 mdoc.7 man.7 \*(Gt manuals.ps
+.Dl $ mandoc \-T ps \-O paper=a4 mdoc.7 man.7 \*(Gt manuals.ps
 .Pp
 Convert a modern
 .Xr mdoc 7
@@ -584,7 +622,7 @@ format, for use on systems lacking an
 .Xr mdoc 7
 parser:
 .Pp
-.Dl $ mandoc \-Tman foo.mdoc \*(Gt foo.man
+.Dl $ mandoc \-T man foo.mdoc \*(Gt foo.man
 .Sh DIAGNOSTICS
 Messages displayed by
 .Nm
@@ -651,7 +689,7 @@ levels except those about non-existent or unreadable input files
 are hidden unless their level, or a lower level, is requested using a
 .Fl W
 option or
-.Fl T Ns Cm lint
+.Fl T Cm lint
 output mode.
 .Ss Warnings related to the document prologue
 .Bl -ohang
@@ -817,7 +855,7 @@ In the SEE ALSO section, an
 macro with a lower section number follows one with a higher number,
 or two
 .Ic \&Xr
-macros refering to the same section are out of alphabetical order.
+macros referring to the same section are out of alphabetical order.
 .It Sy "unusual Xr punctuation"
 .Pq mdoc
 In the SEE ALSO section, punctuation between two
@@ -937,13 +975,6 @@ list block contains text or macros before the first
 .Ic \&It
 macro.
 The offending children are moved before the beginning of the list.
-.It Sy ".Vt block has child macro"
-.Pq mdoc
-The
-.Ic \&Vt
-macro supports plain text arguments only.
-Formatting may be ugly and semantic searching
-for the affected content might not work.
 .It Sy "fill mode already enabled, skipping"
 .Pq man
 A
@@ -1569,6 +1600,13 @@ By requesting the inclusion of a sensitive file, a malicious document
 might otherwise trick a privileged user into inadvertently displaying
 the file on the screen, revealing the file content to bystanders.
 The argument is ignored including the file name following it.
+.It Sy "skipping display without arguments"
+.Pq mdoc
+A
+.Ic \&Bd
+block macro does not have any arguments.
+The block is discarded, and the block content is displayed in
+whatever mode was active before the block.
 .It Sy "missing list type, using -item"
 .Pq mdoc
 A
@@ -1767,6 +1805,7 @@ as if they were a text line.
 .Xr roff 7 ,
 .Xr tbl 7
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 utility was written by
@@ -1775,10 +1814,10 @@ and is maintained by
 .An Ingo Schwarze Aq Mt schwarze@openbsd.org .
 .Sh BUGS
 In
-.Fl T Ns Cm html ,
+.Fl T Cm html ,
 the maximum size of an element attribute is determined by
 .Dv BUFSIZ ,
 which is usually 1024 bytes.
 Be aware of this when setting long link
 formats such as
-.Fl O Ns Cm style Ns = Ns Ar really/long/link .
+.Fl O Cm style Ns = Ns Ar really/long/link .

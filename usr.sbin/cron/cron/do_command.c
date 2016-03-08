@@ -161,8 +161,10 @@ child_process(e, u)
 
 	/* create some pipes to talk to our future child
 	 */
-	pipe(stdin_pipe);	/* child's stdin */
-	pipe(stdout_pipe);	/* child's stdout */
+	if (pipe(stdin_pipe) != 0 || pipe(stdout_pipe) != 0) {
+		log_it("CRON", getpid(), "error", "can't pipe");
+		exit(ERROR_EXIT);
+	}
 
 	/* since we are a forked process, we can diddle the command string
 	 * we were passed -- nobody else is going to use it again, right?
@@ -335,8 +337,9 @@ child_process(e, u)
 				_exit(OK_EXIT);
 			}
 # endif /*DEBUGGING*/
-			execle(shell, shell, "-c", e->cmd, (char *)0, e->envp);
-			warn("execl: couldn't exec `%s'", shell);
+			execle(shell, shell, "-c", e->cmd, (char *)NULL,
+			    e->envp);
+			warn("execle: couldn't exec `%s'", shell);
 			_exit(ERROR_EXIT);
 		}
 		break;

@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
@@ -42,24 +43,11 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/omap4/omap4_smc.h>
 
 void
-platform_mp_init_secondary(void)
-{
-	intr_pic_init_secondary();
-}
-
-void
 platform_mp_setmaxid(void)
 {
 
 	mp_maxid = 1;
 	mp_ncpus = 2;
-}
-
-int
-platform_mp_probe(void)
-{
-
-	return (1);
 }
 
 void    
@@ -72,16 +60,10 @@ platform_mp_start_ap(void)
 	/* Enable the SCU */
 	*(volatile unsigned int *)scu_addr |= 1;
 	//*(volatile unsigned int *)(scu_addr + 0x30) |= 1;
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
+	dcache_wbinv_poc_all();
+
 	ti_smc0(0x200, 0xfffffdff, MODIFY_AUX_CORE_0);
 	ti_smc0(pmap_kextract((vm_offset_t)mpentry), 0, WRITE_AUX_CORE_1);
 	armv7_sev();
 	bus_space_unmap(fdtbus_bs_tag, scu_addr, 0x1000);
-}
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-	pic_ipi_send(cpus, ipi);
 }

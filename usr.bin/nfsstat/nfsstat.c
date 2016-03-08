@@ -60,7 +60,6 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <ctype.h>
 #include <errno.h>
-#include <kvm.h>
 #include <limits.h>
 #include <nlist.h>
 #include <unistd.h>

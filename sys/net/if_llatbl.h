@@ -48,6 +48,7 @@ extern struct rwlock lltable_rwlock;
 #define	LLTABLE_WUNLOCK()	rw_wunlock(&lltable_rwlock)
 #define	LLTABLE_LOCK_ASSERT()	rw_assert(&lltable_rwlock, RA_LOCKED)
 
+#define	LLE_MAX_LINKHDR		24	/* Full IB header */
 /*
  * Code referencing llentry must at least hold
  * a shared lock
@@ -58,14 +59,11 @@ struct llentry {
 		struct in_addr	addr4;
 		struct in6_addr	addr6;
 	} r_l3addr;
-	union {
-		uint64_t	mac_aligned;
-		uint16_t	mac16[3];
-		uint8_t		mac8[20];	/* IB needs 20 bytes. */
-	} ll_addr;
+	char			r_linkdata[LLE_MAX_LINKHDR]; /* L2 data */
+	uint8_t			r_hdrlen;	/* length for LL header */
+	uint8_t			spare0[3];
 	uint16_t		r_flags;	/* LLE runtime flags */
 	uint16_t		r_skip_req;	/* feedback from fast path */
-	uint64_t		spare1;
 
 	struct lltable		 *lle_tbl;
 	struct llentries	 *lle_head;
@@ -82,6 +80,7 @@ struct llentry {
 	time_t			lle_remtime;	/* Real time remaining */
 	time_t			lle_hittime;	/* Time when r_skip_req was unset */
 	int			 lle_refcnt;
+	char			*ll_addr;	/* link-layer address */
 
 	LIST_ENTRY(llentry)	lle_chain;	/* chain of deleted items */
 	struct callout		lle_timer;
@@ -198,6 +197,8 @@ MALLOC_DECLARE(M_LLTABLE);
 /* LLE request flags */
 #define	LLE_EXCLUSIVE	0x2000	/* return lle xlocked  */
 #define	LLE_UNLOCKED	0x4000	/* return lle unlocked */
+#define	LLE_ADDRONLY	0x4000	/* return lladdr instead of full header */
+#define	LLE_CREATE	0x8000	/* hint to avoid lle lookup */
 
 /* LLE flags used by fastpath code */
 #define	RLLE_VALID	0x0001		/* entry is valid */
@@ -223,10 +224,13 @@ struct llentry  *llentry_alloc(struct ifnet *, struct lltable *,
 /* helper functions */
 size_t lltable_drop_entry_queue(struct llentry *);
 void lltable_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
-    const char *lladdr);
+    const char *linkhdr, size_t linkhdrsize, int lladdr_off);
 int lltable_try_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
-    const char *lladdr);
+    const char *linkhdr, size_t linkhdrsize, int lladdr_off);
 
+int lltable_calc_llheader(struct ifnet *ifp, int family, char *lladdr,
+    char *buf, size_t *bufsize, int *lladdr_off);
+void lltable_update_ifaddr(struct lltable *llt);
 struct llentry *lltable_alloc_entry(struct lltable *llt, u_int flags,
     const struct sockaddr *l4addr);
 void lltable_free_entry(struct lltable *llt, struct llentry *lle);

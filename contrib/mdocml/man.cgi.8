@@ -1,4 +1,4 @@
-.\"     $Id: man.cgi.8,v 1.11 2014/09/14 19:44:28 schwarze Exp $
+.\"     $Id: man.cgi.8,v 1.13 2015/11/05 20:55:41 schwarze Exp $
 .\"
 .\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: September 14 2014 $
+.Dd $Mdocdate: November 5 2015 $
 .Dt MAN.CGI 8
 .Os
 .Sh NAME
@@ -161,6 +161,9 @@ database inside each manpath.
 Configure your web server to execute CGI programs located in
 .Pa /cgi-bin .
 When using
+.Ox
+.Xr httpd 8
+or
 .Xr nginx 8 ,
 the
 .Xr slowcgi 8
@@ -187,14 +190,8 @@ and to be specified without a trailing slash.
 When not specified, the CSS files
 are assumed to be in the document root.
 This is used in generated HTML code.
-.It Ev CUSTOMIZE_BEGIN
-A HTML string to be inserted right after opening the
-.Aq BODY
-element.
 .It Ev CUSTOMIZE_TITLE
-An ASCII string to be used for the HTML
-.Aq TITLE
-element.
+An ASCII string to be used for the HTML <TITLE> element.
 .It Ev HTTP_HOST
 The FQDN of the (possibly virtual) host the HTTP server is running on.
 This is used for
@@ -349,15 +346,10 @@ Can be overridden by
 The path to the server document root relative to the server root.
 This is part of the web server configuration and not specific to
 .Nm .
-.It Pa /htdocs/man-cgi.css
-A style sheet for general
-.Nm
-styling, referenced from each generated HTML page.
-.It Pa /htdocs/man.css
+.It Pa /htdocs/mandoc.css
 A style sheet for
 .Xr mandoc 1
-HTML styling, referenced from each generated HTML page after
-.Pa man-cgi.css .
+HTML styling, referenced from each generated HTML page.
 .It Pa /man
 Default
 .Nm
@@ -376,6 +368,12 @@ or any character not contained in the
 .Sx Restricted character set ,
 .Nm
 reports an internal server error and exits without doing anything.
+.It Pa /man/header.html
+An optional file containing static HTML code to be inserted right
+after opening the <BODY> element.
+.It Pa /man/footer.html
+An optional file containing static HTML code to be inserted right
+before closing the <BODY> element.
 .It Pa /man/OpenBSD-current/man1/mandoc.1
 An example
 .Xr mdoc 7

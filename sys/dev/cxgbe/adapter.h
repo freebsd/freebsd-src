@@ -671,13 +671,6 @@ struct sge_nm_txq {
 #endif
 
 struct sge {
-	int timer_val[SGE_NTIMERS];
-	int counter_val[SGE_NCOUNTERS];
-	int fl_starve_threshold;
-	int fl_starve_threshold2;
-	int eq_s_qpp;
-	int iq_s_qpp;
-
 	int nrxq;	/* total # of Ethernet rx queues */
 	int ntxq;	/* total # of Ethernet tx tx queues */
 #ifdef TCP_OFFLOAD
@@ -710,8 +703,6 @@ struct sge {
 	struct sge_iq **iqmap;	/* iq->cntxt_id to iq mapping */
 	struct sge_eq **eqmap;	/* eq->cntxt_id to eq mapping */
 
-	int pad_boundary;
-	int pack_boundary;
 	int8_t safe_hwidx1;	/* may not have room for metadata */
 	int8_t safe_hwidx2;	/* with room for metadata and maybe more */
 	struct sw_zone_info sw_zone_info[SW_ZONE_SIZES];
@@ -758,15 +749,15 @@ struct adapter {
 	struct sge sge;
 	int lro_timeout;
 
-	struct taskqueue *tq[NCHAN];	/* General purpose taskqueues */
+	struct taskqueue *tq[MAX_NCHAN];	/* General purpose taskqueues */
 	struct port_info *port[MAX_NPORTS];
-	uint8_t chan_map[NCHAN];
+	uint8_t chan_map[MAX_NCHAN];
 
 #ifdef TCP_OFFLOAD
 	void *tom_softc;	/* (struct tom_data *) */
 	struct tom_tunables tt;
 	void *iwarp_softc;	/* (struct c4iw_dev *) */
-	void *iscsi_softc;
+	void *iscsi_ulp_softc;	/* (struct cxgbei_data *) */
 #endif
 	struct l2t_data *l2t;	/* L2 table */
 	struct tid_info tids;
@@ -791,6 +782,7 @@ struct adapter {
 	char cfg_file[32];
 	u_int cfcsum;
 	struct adapter_params params;
+	const struct chip_params *chip_params;
 	struct t4_virt_res vres;
 
 	uint16_t linkcaps;
@@ -813,7 +805,7 @@ struct adapter {
 	struct mtx regwin_lock;	/* for indirect reads and memory windows */
 
 	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
-	fw_msg_handler_t fw_msg_handler[5];	/* NUM_FW6_TYPES */
+	fw_msg_handler_t fw_msg_handler[7];	/* NUM_FW6_TYPES */
 	cpl_handler_t cpl_handler[0xef];	/* NUM_CPL_CMDS */
 
 #ifdef INVARIANTS
@@ -1008,6 +1000,22 @@ is_40G_port(const struct port_info *pi)
 {
 
 	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G) != 0);
+}
+
+static inline int
+port_top_speed(const struct port_info *pi)
+{
+
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100G)
+		return (100);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G)
+		return (40);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
+		return (10);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_1G)
+		return (1);
+
+	return (0);
 }
 
 static inline int

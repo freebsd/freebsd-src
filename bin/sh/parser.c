@@ -1671,7 +1671,7 @@ varname:
 					c = pgetc_linecont();
 				} while (is_digit(c));
 			} else {
-				STPUTC(c, out);
+				USTPUTC(c, out);
 				c = pgetc_linecont();
 			}
 		} else if (is_special(c)) {
@@ -1930,6 +1930,8 @@ static void
 setprompt(int which)
 {
 	whichprompt = which;
+	if (which == 0)
+		return;
 
 #ifndef NO_HISTORY
 	if (!el)

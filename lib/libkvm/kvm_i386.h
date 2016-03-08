@@ -70,7 +70,7 @@ _Static_assert(NBPDR == I386_NBPDR, "NBPDR mismatch");
 
 _Static_assert(PG_V == I386_PG_V, "PG_V mismatch");
 _Static_assert(PG_PS == I386_PG_PS, "PG_PS mismatch");
-_Static_assert(PG_FRAME == I386_PG_FRAME, "PG_FRAME mismatch");
+_Static_assert((u_int)PG_FRAME == I386_PG_FRAME, "PG_FRAME mismatch");
 _Static_assert(PG_PS_FRAME == I386_PG_PS_FRAME, "PG_PS_FRAME mismatch");
 #endif
 

@@ -31,10 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
 
 #if EFSYS_OPT_VPD
@@ -44,7 +41,7 @@ __FBSDID("$FreeBSD$");
 static	__checkReturn			efx_rc_t
 siena_vpd_get_static(
 	__in				efx_nic_t *enp,
-	__in				unsigned int partn,
+	__in				uint32_t partn,
 	__deref_out_bcount_opt(*sizep)	caddr_t *svpdp,
 	__out				size_t *sizep)
 {
@@ -207,7 +204,7 @@ siena_vpd_size(
 	__out			size_t *sizep)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	unsigned int partn;
+	uint32_t partn;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_SIENA);
@@ -328,6 +325,13 @@ siena_vpd_verify(
 			goto fail2;
 		if (dcont == 0)
 			break;
+
+		/*
+		 * Skip the RV keyword. It should be present in both the static
+		 * and dynamic cfg sectors.
+		 */
+		if (dtag == EFX_VPD_RO && dkey == EFX_VPD_KEYWORD('R', 'V'))
+			continue;
 
 		scont = 0;
 		_NOTE(CONSTANTCONDITION)

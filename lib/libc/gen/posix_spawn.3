@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 17, 2011
+.Dd January 5, 2016
 .Dt POSIX_SPAWN 3
 .Os
 .Sh NAME
@@ -126,7 +126,7 @@ the default path is set according to the
 definition in
 .In paths.h ,
 which is set to
-.Dq Ev /usr/bin:/bin .
+.Dq Ev /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin .
 .Pp
 If
 .Fa file_actions

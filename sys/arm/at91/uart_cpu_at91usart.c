@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;
 
-extern struct bus_space at91_bs_tag;
 extern struct uart_class at91_usart_class;
 
 int
@@ -69,7 +68,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		class->uc_rclk = at91_master_clock;
 	di->ops = uart_getops(class);
 	di->bas.chan = 0;
-	di->bas.bst = &at91_bs_tag;
+	di->bas.bst = arm_base_bs_tag;
 	/*
 	 * XXX: Not pretty, but will work because we map the needed addresses
 	 * early.  At least we probed this so that the console will work on
@@ -82,7 +81,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->databits = 8;
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;
-	uart_bus_space_io = &at91_bs_tag;
+	uart_bus_space_io = arm_base_bs_tag;
 	uart_bus_space_mem = NULL;
 	/* Check the environment for overrides */
 	uart_getenv(devtype, di, class);

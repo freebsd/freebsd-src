@@ -1,4 +1,4 @@
-/*	$Id: att.c,v 1.13 2014/11/28 18:57:31 schwarze Exp $ */
+/*	$Id: att.c,v 1.15 2015/10/06 18:32:19 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <string.h>
 
+#include "roff.h"
 #include "mdoc.h"
 #include "libmdoc.h"
 
@@ -45,5 +46,5 @@ mdoc_a2att(const char *p)
 	LINE("V.3",	"AT&T System\\~V Release\\~3 UNIX");
 	LINE("V.4",	"AT&T System\\~V Release\\~4 UNIX");
 
-	return(NULL);
+	return NULL;
 }

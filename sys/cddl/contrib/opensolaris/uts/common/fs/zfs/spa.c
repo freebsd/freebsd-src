@@ -610,7 +610,6 @@ spa_prop_validate(spa_t *spa, nvlist_t *props)
 					error = SET_ERROR(EINVAL);
 					break;
 				}
-				check++;
 			}
 			if (strlen(strval) > ZPROP_MAX_COMMENT)
 				error = E2BIG;
@@ -5952,6 +5951,8 @@ spa_async_remove(spa_t *spa, vdev_t *vd)
 		vd->vdev_stat.vs_checksum_errors = 0;
 
 		vdev_state_dirty(vd->vdev_top);
+		/* Tell userspace that the vdev is gone. */
+		zfs_post_remove(spa, vd);
 	}
 
 	for (int c = 0; c < vd->vdev_children; c++)
@@ -6767,16 +6768,10 @@ spa_sync(spa_t *spa, uint64_t txg)
 				if (svdcount == SPA_DVAS_PER_BP)
 					break;
 			}
-			error = vdev_config_sync(svd, svdcount, txg, B_FALSE);
-			if (error != 0)
-				error = vdev_config_sync(svd, svdcount, txg,
-				    B_TRUE);
+			error = vdev_config_sync(svd, svdcount, txg);
 		} else {
 			error = vdev_config_sync(rvd->vdev_child,
-			    rvd->vdev_children, txg, B_FALSE);
-			if (error != 0)
-				error = vdev_config_sync(rvd->vdev_child,
-				    rvd->vdev_children, txg, B_TRUE);
+			    rvd->vdev_children, txg);
 		}
 
 		if (error == 0)

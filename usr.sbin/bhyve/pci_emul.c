@@ -863,10 +863,9 @@ msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 		 int bytes, uint32_t val)
 {
 	uint16_t msgctrl, rwmask;
-	int off, table_bar;
+	int off;
 	
 	off = offset - capoff;
-	table_bar = pi->pi_msix.table_bar;
 	/* Message Control Register */
 	if (off == 2 && bytes == 2) {
 		rwmask = PCIM_MSIXCTRL_MSIX_ENABLE | PCIM_MSIXCTRL_FUNCTION_MASK;

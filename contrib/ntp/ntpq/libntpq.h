@@ -106,4 +106,4 @@ extern int ntpq_read_assoc_clockvars( associd_t associd, char *resultbuf, int ma
 extern int ntpq_dogetassoc(void);
 extern char ntpq_decodeaddrtype(sockaddr_u *sock);
 extern int ntpq_doquerylist(struct ntpq_varlist *, int, associd_t, int,
-			    u_short *, int *, const char **datap);
+			    u_short *, size_t *, const char **datap);

@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/pcpu.h>
-#include <machine/vmparam.h>
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
@@ -138,7 +137,6 @@ svc_handler(struct trapframe *frame)
 	int error;
 
 	td = curthread;
-	td->td_frame = frame;
 
 	error = syscallenter(td, &sa);
 	syscallret(td, error, &sa);
@@ -338,6 +336,9 @@ do_el0_sync(struct trapframe *frame)
 	    ("Invalid pcpu address from userland: %p (tpidr %lx)",
 	     get_pcpu(), READ_SPECIALREG(tpidr_el1)));
 
+	td = curthread;
+	td->td_frame = frame;
+
 	esr = READ_SPECIALREG(esr_el1);
 	exception = ESR_ELx_EXCEPTION(esr);
 	switch (exception) {
@@ -372,14 +373,25 @@ do_el0_sync(struct trapframe *frame)
 	case EXCP_UNKNOWN:
 		el0_excp_unknown(frame);
 		break;
+	case EXCP_SP_ALIGN:
+		call_trapsignal(td, SIGBUS, BUS_ADRALN, (void *)frame->tf_sp);
+		userret(td, frame);
+		break;
 	case EXCP_PC_ALIGN:
-		td = curthread;
 		call_trapsignal(td, SIGBUS, BUS_ADRALN, (void *)frame->tf_elr);
 		userret(td, frame);
 		break;
 	case EXCP_BRK:
-		td = curthread;
 		call_trapsignal(td, SIGTRAP, TRAP_BRKPT, (void *)frame->tf_elr);
+		userret(td, frame);
+		break;
+	case EXCP_SOFTSTP_EL0:
+		td->td_frame->tf_spsr &= ~PSR_SS;
+		td->td_pcb->pcb_flags &= ~PCB_SINGLE_STEP;
+		WRITE_SPECIALREG(MDSCR_EL1,
+		    READ_SPECIALREG(MDSCR_EL1) & ~DBG_MDSCR_SS);
+		call_trapsignal(td, SIGTRAP, TRAP_TRACE,
+		    (void *)frame->tf_elr);
 		userret(td, frame);
 		break;
 	default:

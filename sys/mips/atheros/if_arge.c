@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
 
@@ -78,7 +77,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_arge.h"
 
 #if defined(ARGE_MDIO)
-#include <dev/etherswitch/mdio.h>
+#include <dev/mdio/mdio.h>
 #include <dev/etherswitch/miiproxy.h>
 #include "mdio_if.h"
 #endif

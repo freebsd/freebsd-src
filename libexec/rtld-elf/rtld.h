@@ -139,7 +139,7 @@ typedef struct Struct_Obj_Entry {
     Elf_Size magic;		/* Magic number (sanity check) */
     Elf_Size version;		/* Version number of struct format */
 
-    struct Struct_Obj_Entry *next;
+    TAILQ_ENTRY(Struct_Obj_Entry) next;
     char *path;			/* Pathname of underlying file (%) */
     char *origin_path;		/* Directory path of origin file */
     int refcount;
@@ -264,6 +264,7 @@ typedef struct Struct_Obj_Entry {
     bool valid_hash_sysv : 1;	/* A valid System V hash hash tag is available */
     bool valid_hash_gnu : 1;	/* A valid GNU hash tag is available */
     bool dlopened : 1;		/* dlopen()-ed (vs. load statically) */
+    bool marker : 1;		/* marker on the global obj list */
 
     struct link_map linkmap;	/* For GDB and dlinfo() */
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
@@ -275,6 +276,8 @@ typedef struct Struct_Obj_Entry {
 
 #define RTLD_MAGIC	0xd550b87a
 #define RTLD_VERSION	1
+
+TAILQ_HEAD(obj_entry_q, Struct_Obj_Entry);
 
 #define RTLD_STATIC_TLS_EXTRA	128
 
@@ -367,6 +370,8 @@ const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
 void init_pltgot(Obj_Entry *);
 void lockdflt_init(void);
 void digest_notes(Obj_Entry *, Elf_Addr, Elf_Addr);
+Obj_Entry *globallist_curr(const Obj_Entry *obj);
+Obj_Entry *globallist_next(const Obj_Entry *obj);
 void obj_free(Obj_Entry *);
 Obj_Entry *obj_new(void);
 void _rtld_bind_start(void);
@@ -380,6 +385,7 @@ void *allocate_module_tls(int index);
 bool allocate_tls_offset(Obj_Entry *obj);
 void free_tls_offset(Obj_Entry *obj);
 const Ver_Entry *fetch_ventry(const Obj_Entry *obj, unsigned long);
+int convert_prot(int elfflags);
 
 /*
  * MD function declarations.

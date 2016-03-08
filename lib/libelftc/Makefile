@@ -25,6 +25,6 @@ SRCS=	elftc_bfdtarget.c                       \
 INCS=	libelftc.h
 CFLAGS+=-I${ELFTCDIR}/libelftc -I${ELFTCDIR}/common
 
-NO_MAN=	yes
+MAN=
 
 .include <bsd.lib.mk>

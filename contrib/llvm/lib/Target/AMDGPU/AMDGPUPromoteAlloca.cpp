@@ -54,7 +54,7 @@ bool AMDGPUPromoteAlloca::doInitialization(Module &M) {
 
 bool AMDGPUPromoteAlloca::runOnFunction(Function &F) {
 
-  const FunctionType *FTy = F.getFunctionType();
+  FunctionType *FTy = F.getFunctionType();
 
   LocalMemAvailable = ST.getLocalMemorySize();
 
@@ -63,7 +63,7 @@ bool AMDGPUPromoteAlloca::runOnFunction(Function &F) {
   // possible these arguments require the entire local memory space, so
   // we cannot use local memory in the pass.
   for (unsigned i = 0, e = FTy->getNumParams(); i != e; ++i) {
-    const Type *ParamTy = FTy->getParamType(i);
+    Type *ParamTy = FTy->getParamType(i);
     if (ParamTy->isPointerTy() &&
         ParamTy->getPointerAddressSpace() == AMDGPUAS::LOCAL_ADDRESS) {
       LocalMemAvailable = 0;
@@ -77,7 +77,7 @@ bool AMDGPUPromoteAlloca::runOnFunction(Function &F) {
     // Check how much local memory is being used by global objects
     for (Module::global_iterator I = Mod->global_begin(),
                                  E = Mod->global_end(); I != E; ++I) {
-      GlobalVariable *GV = I;
+      GlobalVariable *GV = &*I;
       PointerType *GVTy = GV->getType();
       if (GVTy->getAddressSpace() != AMDGPUAS::LOCAL_ADDRESS)
         continue;
@@ -101,7 +101,7 @@ bool AMDGPUPromoteAlloca::runOnFunction(Function &F) {
   return false;
 }
 
-static VectorType *arrayTypeToVecType(const Type *ArrayTy) {
+static VectorType *arrayTypeToVecType(Type *ArrayTy) {
   return VectorType::get(ArrayTy->getArrayElementType(),
                          ArrayTy->getArrayNumElements());
 }
@@ -134,13 +134,17 @@ static Value* GEPToVectorIndex(GetElementPtrInst *GEP) {
 //
 // TODO: Check isTriviallyVectorizable for calls and handle other
 // instructions.
-static bool canVectorizeInst(Instruction *Inst) {
+static bool canVectorizeInst(Instruction *Inst, User *User) {
   switch (Inst->getOpcode()) {
   case Instruction::Load:
-  case Instruction::Store:
   case Instruction::BitCast:
   case Instruction::AddrSpaceCast:
     return true;
+  case Instruction::Store: {
+    // Must be the stored pointer operand, not a stored value.
+    StoreInst *SI = cast<StoreInst>(Inst);
+    return SI->getPointerOperand() == User;
+  }
   default:
     return false;
   }
@@ -166,7 +170,7 @@ static bool tryPromoteAllocaToVector(AllocaInst *Alloca) {
   for (User *AllocaUser : Alloca->users()) {
     GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(AllocaUser);
     if (!GEP) {
-      if (!canVectorizeInst(cast<Instruction>(AllocaUser)))
+      if (!canVectorizeInst(cast<Instruction>(AllocaUser), Alloca))
         return false;
 
       WorkList.push_back(AllocaUser);
@@ -184,7 +188,7 @@ static bool tryPromoteAllocaToVector(AllocaInst *Alloca) {
 
     GEPVectorIdx[GEP] = Index;
     for (User *GEPUser : AllocaUser->users()) {
-      if (!canVectorizeInst(cast<Instruction>(GEPUser)))
+      if (!canVectorizeInst(cast<Instruction>(GEPUser), AllocaUser))
         return false;
 
       WorkList.push_back(GEPUser);
@@ -240,7 +244,12 @@ static bool collectUsesWithPtrTypes(Value *Val, std::vector<Value*> &WorkList) {
   for (User *User : Val->users()) {
     if(std::find(WorkList.begin(), WorkList.end(), User) != WorkList.end())
       continue;
-    if (isa<CallInst>(User)) {
+    if (CallInst *CI = dyn_cast<CallInst>(User)) {
+      // TODO: We might be able to handle some cases where the callee is a
+      // constantexpr bitcast of a function.
+      if (!CI->getCalledFunction())
+        return false;
+
       WorkList.push_back(User);
       continue;
     }
@@ -249,6 +258,12 @@ static bool collectUsesWithPtrTypes(Value *Val, std::vector<Value*> &WorkList) {
     Instruction *UseInst = dyn_cast<Instruction>(User);
     if (UseInst && UseInst->getOpcode() == Instruction::PtrToInt)
       return false;
+
+    if (StoreInst *SI = dyn_cast_or_null<StoreInst>(UseInst)) {
+      // Reject if the stored value is not the pointer operand.
+      if (SI->getPointerOperand() != Val)
+        return false;
+    }
 
     if (!User->getType()->isPointerTy())
       continue;
@@ -261,6 +276,9 @@ static bool collectUsesWithPtrTypes(Value *Val, std::vector<Value*> &WorkList) {
 }
 
 void AMDGPUPromoteAlloca::visitAlloca(AllocaInst &I) {
+  if (!I.isStaticAlloca())
+    return;
+
   IRBuilder<> Builder(&I);
 
   // First try to replace the alloca with a vector

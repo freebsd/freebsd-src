@@ -416,6 +416,9 @@ db_print_sockbuf(struct sockbuf *sb, const char *sockbufname, int indent)
 	db_printf("sb_flags: 0x%x (", sb->sb_flags);
 	db_print_sbflags(sb->sb_flags);
 	db_printf(")\n");
+
+	db_print_indent(indent);
+	db_printf("sb_aiojobq first: %p\n", TAILQ_FIRST(&sb->sb_aiojobq));
 }
 
 static void
@@ -461,16 +464,15 @@ db_print_socket(struct socket *so, const char *socketname, int indent)
 
 	db_print_indent(indent);
 	/* so_list skipped */
-	db_printf("so_qlen: %d   ", so->so_qlen);
-	db_printf("so_incqlen: %d   ", so->so_incqlen);
-	db_printf("so_qlimit: %d   ", so->so_qlimit);
+	db_printf("so_qlen: %u   ", so->so_qlen);
+	db_printf("so_incqlen: %u   ", so->so_incqlen);
+	db_printf("so_qlimit: %u   ", so->so_qlimit);
 	db_printf("so_timeo: %d   ", so->so_timeo);
 	db_printf("so_error: %d\n", so->so_error);
 
 	db_print_indent(indent);
 	db_printf("so_sigio: %p   ", so->so_sigio);
 	db_printf("so_oobmark: %lu   ", so->so_oobmark);
-	db_printf("so_aiojobq first: %p\n", TAILQ_FIRST(&so->so_aiojobq));
 
 	db_print_sockbuf(&so->so_rcv, "so_rcv", indent);
 	db_print_sockbuf(&so->so_snd, "so_snd", indent);

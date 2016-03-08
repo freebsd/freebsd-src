@@ -68,6 +68,7 @@
 		    mtx_assert(&(ring)->lock, MA_OWNED)
 
 #define	RT_SOFTC_TX_RING_COUNT		4
+#define	RT_SOFTC_RX_RING_COUNT		4
 
 #ifndef IF_RT_RING_DATA_COUNT
 #define	IF_RT_RING_DATA_COUNT	128
@@ -151,6 +152,7 @@ struct rt_softc_rx_ring
 	bus_dmamap_t spare_dma_map;
 	struct rt_softc_rx_data data[RT_SOFTC_RX_RING_DATA_COUNT];
 	int cur;
+	int qid;
 };
 
 struct rt_softc_tx_data
@@ -216,7 +218,7 @@ struct rt_softc
 	unsigned long	 periodic_round;
 	struct taskqueue *taskqueue;
 
-	struct rt_softc_rx_ring rx_ring;
+	struct rt_softc_rx_ring rx_ring[RT_SOFTC_RX_RING_COUNT];
 	struct rt_softc_tx_ring tx_ring[RT_SOFTC_TX_RING_COUNT];
 	int		 tx_ring_mgtqid;
 
@@ -227,7 +229,7 @@ struct rt_softc
 	unsigned long	 interrupts;
 	unsigned long	 tx_coherent_interrupts;
 	unsigned long	 rx_coherent_interrupts;
-	unsigned long	 rx_interrupts;
+	unsigned long	 rx_interrupts[RT_SOFTC_RX_RING_COUNT];
 	unsigned long	 rx_delay_interrupts;
 	unsigned long	 tx_interrupts[RT_SOFTC_TX_RING_COUNT];
 	unsigned long	 tx_delay_interrupts;
@@ -257,6 +259,25 @@ struct rt_softc
 #ifdef IF_RT_DEBUG
 	int		 debug;
 #endif
+
+        uint32_t        rt_chipid;
+        /* chip specific registers config */
+        int		rx_ring_count;
+        uint32_t	int_rx_done_mask;
+        uint32_t	int_tx_done_mask;
+        uint32_t        delay_int_cfg;
+        uint32_t        fe_int_status;
+        uint32_t        fe_int_enable;
+        uint32_t        pdma_glo_cfg;
+        uint32_t        pdma_rst_idx;
+        uint32_t        tx_base_ptr[RT_SOFTC_TX_RING_COUNT];
+        uint32_t        tx_max_cnt[RT_SOFTC_TX_RING_COUNT];
+        uint32_t        tx_ctx_idx[RT_SOFTC_TX_RING_COUNT];
+        uint32_t        tx_dtx_idx[RT_SOFTC_TX_RING_COUNT];
+        uint32_t        rx_base_ptr[RT_SOFTC_RX_RING_COUNT];
+        uint32_t        rx_max_cnt[RT_SOFTC_RX_RING_COUNT];
+        uint32_t        rx_calc_idx[RT_SOFTC_RX_RING_COUNT];
+        uint32_t        rx_drx_idx[RT_SOFTC_RX_RING_COUNT];
 };
 
 #ifdef IF_RT_DEBUG
@@ -274,7 +295,7 @@ enum
 
 #define	RT_DPRINTF(sc, m, fmt, ...)		\
 	do { if ((sc)->debug & (m)) 		\
-	    device_printf(sc->dev, fmt, __VA_ARGS__); } while (0)
+	    device_printf(sc->dev, fmt, ## __VA_ARGS__); } while (0)
 #else
 #define	RT_DPRINTF(sc, m, fmt, ...)
 #endif /* #ifdef IF_RT_DEBUG */

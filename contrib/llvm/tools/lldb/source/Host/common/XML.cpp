@@ -329,7 +329,7 @@ XMLNode::ForEachSiblingElementWithName (const char *name, NodeCallback const &ca
             else
             {
                 if (node->name)
-                    continue; // nullptr name specified and this elemnt has a name, ignore this one
+                    continue; // nullptr name specified and this element has a name, ignore this one
             }
             
             if (callback(XMLNode(node)) == false)
@@ -592,7 +592,7 @@ ApplePropertyList::ExtractStringFromValueNode (const XMLNode &node, std::string 
         if (element_name == "true" || element_name == "false")
         {
             // The text value _is_ the element name itself...
-            value = std::move(element_name.str());
+            value = element_name.str();
             return true;
         }
         else if (element_name == "dict" || element_name == "array")
@@ -689,5 +689,3 @@ ApplePropertyList::GetStructuredData()
 #endif
     return root_sp;
 }
-
-

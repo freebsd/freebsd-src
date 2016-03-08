@@ -34,7 +34,6 @@
 
 #include <x86/x86_var.h>
 
-extern	char	ctx_switch_xsave[];
 extern  uint64_t *vm_page_dump;
 
 /* XXX */

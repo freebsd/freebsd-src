@@ -1181,6 +1181,10 @@ bool MipsSETargetLowering::isEligibleForTailCallOptimization(
   if (!EnableMipsTailCalls)
     return false;
 
+  // Exception has to be cleared with eret.
+  if (FI.isISR())
+    return false;
+
   // Return false if either the callee or caller has a byval argument.
   if (CCInfo.getInRegsParamsCount() > 0 || FI.hasByvalArg())
     return false;
@@ -1786,9 +1790,11 @@ SDValue MipsSETargetLowering::lowerINTRINSIC_WO_CHAIN(SDValue Op,
     return DAG.getNode(ISD::UDIV, DL, Op->getValueType(0), Op->getOperand(1),
                        Op->getOperand(2));
   case Intrinsic::mips_fadd_w:
-  case Intrinsic::mips_fadd_d:
+  case Intrinsic::mips_fadd_d: {
+    // TODO: If intrinsics have fast-math-flags, propagate them.
     return DAG.getNode(ISD::FADD, DL, Op->getValueType(0), Op->getOperand(1),
                        Op->getOperand(2));
+  }
   // Don't lower mips_fcaf_[wd] since LLVM folds SETFALSE condcodes away
   case Intrinsic::mips_fceq_w:
   case Intrinsic::mips_fceq_d:
@@ -1831,9 +1837,11 @@ SDValue MipsSETargetLowering::lowerINTRINSIC_WO_CHAIN(SDValue Op,
     return DAG.getSetCC(DL, Op->getValueType(0), Op->getOperand(1),
                         Op->getOperand(2), ISD::SETUNE);
   case Intrinsic::mips_fdiv_w:
-  case Intrinsic::mips_fdiv_d:
+  case Intrinsic::mips_fdiv_d: {
+    // TODO: If intrinsics have fast-math-flags, propagate them.
     return DAG.getNode(ISD::FDIV, DL, Op->getValueType(0), Op->getOperand(1),
                        Op->getOperand(2));
+  }
   case Intrinsic::mips_ffint_u_w:
   case Intrinsic::mips_ffint_u_d:
     return DAG.getNode(ISD::UINT_TO_FP, DL, Op->getValueType(0),
@@ -1856,6 +1864,7 @@ SDValue MipsSETargetLowering::lowerINTRINSIC_WO_CHAIN(SDValue Op,
   }
   case Intrinsic::mips_fexp2_w:
   case Intrinsic::mips_fexp2_d: {
+    // TODO: If intrinsics have fast-math-flags, propagate them.
     EVT ResTy = Op->getValueType(0);
     return DAG.getNode(
         ISD::FMUL, SDLoc(Op), ResTy, Op->getOperand(1),
@@ -1869,11 +1878,14 @@ SDValue MipsSETargetLowering::lowerINTRINSIC_WO_CHAIN(SDValue Op,
     return DAG.getNode(ISD::FMA, SDLoc(Op), Op->getValueType(0),
                        Op->getOperand(1), Op->getOperand(2), Op->getOperand(3));
   case Intrinsic::mips_fmul_w:
-  case Intrinsic::mips_fmul_d:
+  case Intrinsic::mips_fmul_d: {
+    // TODO: If intrinsics have fast-math-flags, propagate them.
     return DAG.getNode(ISD::FMUL, DL, Op->getValueType(0), Op->getOperand(1),
                        Op->getOperand(2));
+  }
   case Intrinsic::mips_fmsub_w:
   case Intrinsic::mips_fmsub_d: {
+    // TODO: If intrinsics have fast-math-flags, propagate them.
     EVT ResTy = Op->getValueType(0);
     return DAG.getNode(ISD::FSUB, SDLoc(Op), ResTy, Op->getOperand(1),
                        DAG.getNode(ISD::FMUL, SDLoc(Op), ResTy,
@@ -1886,9 +1898,11 @@ SDValue MipsSETargetLowering::lowerINTRINSIC_WO_CHAIN(SDValue Op,
   case Intrinsic::mips_fsqrt_d:
     return DAG.getNode(ISD::FSQRT, DL, Op->getValueType(0), Op->getOperand(1));
   case Intrinsic::mips_fsub_w:
-  case Intrinsic::mips_fsub_d:
+  case Intrinsic::mips_fsub_d: {
+    // TODO: If intrinsics have fast-math-flags, propagate them.
     return DAG.getNode(ISD::FSUB, DL, Op->getValueType(0), Op->getOperand(1),
                        Op->getOperand(2));
+  }
   case Intrinsic::mips_ftrunc_u_w:
   case Intrinsic::mips_ftrunc_u_d:
     return DAG.getNode(ISD::FP_TO_UINT, DL, Op->getValueType(0),

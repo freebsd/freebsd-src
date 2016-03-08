@@ -49,8 +49,8 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("numtoa.c");
-  RUN_TEST(test_Address, 8);
-  RUN_TEST(test_Netmask, 9);
+  RUN_TEST(test_Address, 9);
+  RUN_TEST(test_Netmask, 10);
 
   return (UnityEnd());
 }

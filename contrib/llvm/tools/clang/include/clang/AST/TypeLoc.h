@@ -151,6 +151,14 @@ public:
 
   TypeLoc IgnoreParens() const;
 
+  /// \brief Find a type with the location of an explicit type qualifier.
+  ///
+  /// The result, if non-null, will be one of:
+  ///   QualifiedTypeLoc
+  ///   AtomicTypeLoc
+  ///   AttributedTypeLoc, for those type attributes that behave as qualifiers
+  TypeLoc findExplicitQualifierLoc() const;
+
   /// \brief Initializes this to state that every location in this
   /// type is the given location.
   ///
@@ -162,19 +170,18 @@ public:
 
   /// \brief Initializes this by copying its information from another
   /// TypeLoc of the same type.
-  void initializeFullCopy(TypeLoc Other) const {
+  void initializeFullCopy(TypeLoc Other) {
     assert(getType() == Other.getType());
-    size_t Size = getFullDataSize();
-    memcpy(getOpaqueData(), Other.getOpaqueData(), Size);
+    copy(Other);
   }
 
   /// \brief Initializes this by copying its information from another
   /// TypeLoc of the same type.  The given size must be the full data
   /// size.
-  void initializeFullCopy(TypeLoc Other, unsigned Size) const {
+  void initializeFullCopy(TypeLoc Other, unsigned Size) {
     assert(getType() == Other.getType());
     assert(getFullDataSize() == Size);
-    memcpy(getOpaqueData(), Other.getOpaqueData(), Size);
+    copy(Other);
   }
 
   /// Copies the other type loc into this one.
@@ -206,6 +213,7 @@ private:
 
 /// \brief Return the TypeLoc for a type source info.
 inline TypeLoc TypeSourceInfo::getTypeLoc() const {
+  // TODO: is this alignment already sufficient?
   return TypeLoc(Ty, const_cast<void*>(static_cast<const void*>(this + 1)));
 }
 
@@ -734,6 +742,10 @@ public:
 
   bool hasAttrOperand() const {
     return hasAttrExprOperand() || hasAttrEnumOperand();
+  }
+
+  bool isQualifier() const {
+    return getTypePtr()->isQualifier();
   }
 
   /// The modified type, which is generally canonically different from
@@ -2021,7 +2033,26 @@ public:
   }
 };
 
+struct PipeTypeLocInfo {
+  SourceLocation KWLoc;
+};
 
+class PipeTypeLoc : public ConcreteTypeLoc<UnqualTypeLoc, PipeTypeLoc, PipeType,
+                                           PipeTypeLocInfo> {
+public:
+  TypeLoc getValueLoc() const { return this->getInnerTypeLoc(); }
+
+  SourceRange getLocalSourceRange() const { return SourceRange(getKWLoc()); }
+
+  SourceLocation getKWLoc() const { return this->getLocalData()->KWLoc; }
+  void setKWLoc(SourceLocation Loc) { this->getLocalData()->KWLoc = Loc; }
+
+  void initializeLocal(ASTContext &Context, SourceLocation Loc) {
+    setKWLoc(Loc);
+  }
+
+  QualType getInnerType() const { return this->getTypePtr()->getElementType(); }
+};
 }
 
 #endif

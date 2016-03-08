@@ -1,4 +1,4 @@
-/*	$Id: html.h,v 1.70 2014/12/02 10:08:06 schwarze Exp $ */
+/*	$Id: html.h,v 1.72 2015/11/07 14:01:16 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -130,7 +130,6 @@ struct	html {
 	struct tagq	  tags; /* stack of open tags */
 	struct rofftbl	  tbl; /* current table */
 	struct tag	 *tblt; /* current open table scope */
-	const struct mchars *symtab; /* character table */
 	char		 *base_man; /* base for manpage href */
 	char		 *base_includes; /* base for include href */
 	char		 *style; /* style-sheet URI */
@@ -143,7 +142,6 @@ struct	html {
 #define	HTML_FRAGMENT	 (1 << 0) /* don't emit HTML/HEAD/BODY */
 };
 
-__BEGIN_DECLS
 
 struct	tbl_span;
 struct	eqn;
@@ -176,5 +174,3 @@ void		  buffmt_man(struct html *,
 void		  buffmt_includes(struct html *, const char *);
 
 int		  html_strlen(const char *);
-
-__END_DECLS

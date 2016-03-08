@@ -31,6 +31,56 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160306:
+	On amd64, clang 3.8.0 can now insert sections of type AMD64_UNWIND into
+	kernel modules.  Therefore, if you load any kernel modules at boot time,
+	please install the boot loaders after you install the kernel, but before
+	rebooting, e.g.:
+
+	make buildworld
+	make kernel KERNCONF=YOUR_KERNEL_HERE
+	make -C sys/boot install
+	<reboot in single user>
+
+	Then follow the usual steps, described in the General Notes section,
+	below.
+
+20160305:
+	Clang, llvm, lldb and compiler-rt have been upgraded to 3.8.0.  Please
+	see the 20141231 entry below for information about prerequisites and
+	upgrading, if you are not already using clang 3.5.0 or higher.
+
+20160301:
+	The AIO subsystem is now a standard part of the kernel.  The
+	VFS_AIO kernel option and aio.ko kernel module have been removed.
+	Due to stability concerns, asynchronous I/O requests are only
+	permitted on sockets and raw disks by default.  To enable
+	asynchronous I/O requests on all file types, set the
+	vfs.aio.enable_unsafe sysctl to a non-zero value.
+
+20160226:
+	The ELF object manipulation tool objcopy is now provided by the
+	ELF Tool Chain project rather than by GNU binutils. It should be a
+	drop-in replacement, with the addition of arm64 support. The
+	(temporary) src.conf knob WITHOUT_ELFCOPY_AS_OBJCOPY knob may be set
+	to obtain the GNU version if necessary.
+
+20160129:
+	Building ZFS pools on top of zvols is prohibited by default.  That
+	feature has never worked safely; it's always been prone to deadlocks.
+	Using a zvol as the backing store for a VM guest's virtual disk will
+	still work, even if the guest is using ZFS.  Legacy behavior can be
+	restored by setting vfs.zfs.vol.recursive=1.
+
+20160119:
+	The NONE and HPN patches has been removed from OpenSSH.  They are
+	still available in the security/openssh-portable port.
+
+20160113:
+	With the addition of ypldap(8), a new _ypldap user is now required
+	during installworld. "mergemaster -p" can be used to add the user
+	prior to installworld, as documented in the handbook.
+
 20151216:
 	The tftp loader (pxeboot) now uses the option root-path directive. As a
 	consequence it no longer looks for a pxeboot.4th file on the tftp

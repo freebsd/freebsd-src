@@ -38,6 +38,11 @@
 namespace dtc
 {
 
+namespace {
+struct expression;
+typedef std::unique_ptr<expression> expression_ptr;
+}
+
 /**
  * Class encapsulating the input file.  Can be used as a const char*, but has
  * range checking.  Attempting to access anything out of range will return a 0
@@ -61,6 +66,17 @@ class input_buffer
 	 */
 	int size;
 	private:
+	/**
+	 * Parse an expression.  If `stopAtParen` is set, then only parse a number
+	 * or a parenthetical expression, otherwise assume that either is the
+	 * left-hand side of a binary expression and try to parse the right-hand
+	 * side.
+	 */
+	expression_ptr parse_expression(bool stopAtParen=false);
+	/**
+	 * Parse a binary expression, having already parsed the right-hand side.
+	 */
+	expression_ptr parse_binary_expression(expression_ptr lhs);
 	/**
 	 * The current place in the buffer where we are reading.  This class
 	 * keeps a separate size, pointer, and cursor so that we can move
@@ -187,6 +203,11 @@ class input_buffer
 	 */
 	bool consume_integer(unsigned long long &outInt);
 	/**
+	 * Reads an arithmetic expression (containing any of the normal C
+	 * operators), evaluates it, and returns the result.
+	 */
+	bool consume_integer_expression(unsigned long long &outInt);
+	/**
 	 * Template function that consumes a binary value in big-endian format
 	 * from the input stream.  Returns true and advances the cursor if
 	 * there is a value of the correct size.  This function assumes that
@@ -233,12 +254,14 @@ class input_buffer
 	 * Prints a message indicating the location of a parse error.
 	 */
 	void parse_error(const char *msg);
+#ifndef NDEBUG
 	/**
 	 * Dumps the current cursor value and the unconsumed values in the
 	 * input buffer to the standard error.  This method is intended solely
 	 * for debugging.
 	 */
 	void dump();
+#endif
 };
 /**
  * Explicit specialisation for reading a single byte.

@@ -58,12 +58,12 @@
 extern int printf (const char *, ...);
 #endif
 
-static const u_char VT_INITIALISED      = 0x01;
-static const u_char VT_SYNCHRONISED     = 0x02;
-static const u_char VT_ALARM_STATE      = 0x04;
+/* static const u_char VT_INITIALISED      = 0x01; */
+/* static const u_char VT_SYNCHRONISED     = 0x02; */
+/* static const u_char VT_ALARM_STATE      = 0x04; */
 static const u_char VT_BST              = 0x08;
-static const u_char VT_SEASON_CHANGE    = 0x10;
-static const u_char VT_LAST_TELEGRAM_OK = 0x20;
+/* static const u_char VT_SEASON_CHANGE    = 0x10; */
+/* static const u_char VT_LAST_TELEGRAM_OK = 0x20; */
 
 /*
  * The Varitext receiver sends a datagram in the following format every minute
@@ -195,7 +195,7 @@ inp_varitext(
   struct varitext *t = (struct varitext *)parseio->parse_pdata;
   int    rtc;
 
-  parseprintf(DD_PARSE, ("inp_varitext(0x%lx, 0x%x, ...)\n", (long)parseio, ch));
+  parseprintf(DD_PARSE, ("inp_varitext(0x%p, 0x%x, ...)\n", (void*)parseio, ch));
 
   if (!t)
     return PARSE_INP_SKIP;	/* local data not allocated - sigh! */

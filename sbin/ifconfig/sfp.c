@@ -171,7 +171,7 @@ static struct _nv fc_speed[] = {
 
 /* 10/40G Ethernet compliance codes, byte 128 + 3 */
 static struct _nv eth_1040g[] = {
-	{ 0x80, "Reserved" },
+	{ 0x80, "Extended" },
 	{ 0x40, "10GBASE-LRM" },
 	{ 0x20, "10GBASE-LR" },
 	{ 0x10, "10GBASE-SR" },
@@ -180,6 +180,38 @@ static struct _nv eth_1040g[] = {
 	{ 0x02, "40GBASE-LR4" },
 	{ 0x01, "40G Active Cable" },
 	{ 0, NULL }
+};
+#define	SFF_8636_EXT_COMPLIANCE	0x80
+
+/* SFF-8024 Rev. 3.4 table 4.4: Extended Specification Compliance */
+static struct _nv eth_extended_comp[] = {
+	{ 0xFF, "Reserved" },
+	{ 0x1A, "2 lambda DWDM 100G" },
+	{ 0x19, "100G ACC or 25GAUI C2M ACC" },
+	{ 0x18, "100G AOC or 25GAUI C2M AOC" },
+	{ 0x17, "100G CLR4" },
+	{ 0x16, "10GBASE-T with SFI electrical interface" },
+	{ 0x15, "G959.1 profile P1L1-2D2" },
+	{ 0x14, "G959.1 profile P1S1-2D2" },
+	{ 0x13, "G959.1 profile P1I1-2D1" },
+	{ 0x12, "40G PSM4 Parallel SMF" },
+	{ 0x11, "4 x 10GBASE-SR" },
+	{ 0x10, "40GBASE-ER4" },
+	{ 0x0F, "Reserved" },
+	{ 0x0D, "25GBASE-CR CA-N" },
+	{ 0x0C, "25GBASE-CR CA-S" },
+	{ 0x0B, "100GBASE-CR4 or 25GBASE-CR CA-L" },
+	{ 0x0A, "Reserved" },
+	{ 0x09, "100G CWDM4 MSA without FEC" },
+	{ 0x08, "100G ACC (Active Copper Cable)" },
+	{ 0x07, "100G PSM4 Parallel SMF" },
+	{ 0x06, "100G CWDM4 MSA with FEC" },
+	{ 0x05, "100GBASE-SR10" },
+	{ 0x04, "100GBASE-ER4" },
+	{ 0x03, "100GBASE-LR4" },
+	{ 0x02, "100GBASE-SR4" },
+	{ 0x01, "100G AOC (Active Optical Cable) or 25GAUI C2M ACC" },
+	{ 0x00, "Unspecified" }
 };
 
 /* SFF-8636 Rev. 2.5 table 6.3: Revision compliance */
@@ -371,9 +403,16 @@ get_qsfp_transceiver_class(struct i2c_info *ii, char *buf, size_t size)
 	const char *tech_class;
 	uint8_t code;
 
-	/* Check 10/40G Ethernet class only */
-	read_i2c(ii, SFF_8436_BASE, SFF_8436_CODE_E1040G, 1, &code);
-	tech_class = find_zero_bit(eth_1040g, code, 1);
+	read_i2c(ii, SFF_8436_BASE, SFF_8436_CODE_E1040100G, 1, &code);
+
+	/* Check for extended specification compliance */
+	if (code & SFF_8636_EXT_COMPLIANCE) {
+		read_i2c(ii, SFF_8436_BASE, SFF_8436_OPTIONS_START, 1, &code);
+		tech_class = find_value(eth_extended_comp, code);
+	} else
+		/* Check 10/40G Ethernet class only */
+		tech_class = find_zero_bit(eth_1040g, code, 1);
+
 	if (tech_class == NULL)
 		tech_class = "Unknown";
 
@@ -873,6 +912,7 @@ sfp_status(int s, struct ifreq *ifr, int verbose)
 	switch (id_byte) {
 	case SFF_8024_ID_QSFP:
 	case SFF_8024_ID_QSFPPLUS:
+	case SFF_8024_ID_QSFP28:
 		print_qsfp_status(&ii, verbose);
 		break;
 	default:

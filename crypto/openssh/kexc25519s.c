@@ -1,4 +1,4 @@
-/* $OpenBSD: kexc25519s.c,v 1.4 2014/01/12 08:13:13 djm Exp $ */
+/* $OpenBSD: kexc25519s.c,v 1.9 2015/04/27 00:37:53 dtucker Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -27,100 +27,133 @@
 #include "includes.h"
 
 #include <sys/types.h>
+#include <stdio.h>
 #include <string.h>
 #include <signal.h>
 
-#include "xmalloc.h"
-#include "buffer.h"
-#include "key.h"
+#include "sshkey.h"
 #include "cipher.h"
+#include "digest.h"
 #include "kex.h"
 #include "log.h"
 #include "packet.h"
 #include "ssh2.h"
+#include "sshbuf.h"
+#include "ssherr.h"
 
-void
-kexc25519_server(Kex *kex)
+static int input_kex_c25519_init(int, u_int32_t, void *);
+
+int
+kexc25519_server(struct ssh *ssh)
 {
-	Key *server_host_private, *server_host_public;
+	debug("expecting SSH2_MSG_KEX_ECDH_INIT");
+	ssh_dispatch_set(ssh, SSH2_MSG_KEX_ECDH_INIT, &input_kex_c25519_init);
+	return 0;
+}
+
+static int
+input_kex_c25519_init(int type, u_int32_t seq, void *ctxt)
+{
+	struct ssh *ssh = ctxt;
+	struct kex *kex = ssh->kex;
+	struct sshkey *server_host_private, *server_host_public;
+	struct sshbuf *shared_secret = NULL;
 	u_char *server_host_key_blob = NULL, *signature = NULL;
 	u_char server_key[CURVE25519_SIZE];
 	u_char *client_pubkey = NULL;
 	u_char server_pubkey[CURVE25519_SIZE];
-	u_char *hash;
-	u_int slen, sbloblen, hashlen;
-	Buffer shared_secret;
+	u_char hash[SSH_DIGEST_MAX_LENGTH];
+	size_t slen, pklen, sbloblen, hashlen;
+	int r;
 
 	/* generate private key */
 	kexc25519_keygen(server_key, server_pubkey);
 #ifdef DEBUG_KEXECDH
 	dump_digest("server private key:", server_key, sizeof(server_key));
 #endif
-
 	if (kex->load_host_public_key == NULL ||
-	    kex->load_host_private_key == NULL)
-		fatal("Cannot load hostkey");
-	server_host_public = kex->load_host_public_key(kex->hostkey_type);
-	if (server_host_public == NULL)
-		fatal("Unsupported hostkey type %d", kex->hostkey_type);
-	server_host_private = kex->load_host_private_key(kex->hostkey_type);
+	    kex->load_host_private_key == NULL) {
+		r = SSH_ERR_INVALID_ARGUMENT;
+		goto out;
+	}
+	server_host_public = kex->load_host_public_key(kex->hostkey_type,
+	    kex->hostkey_nid, ssh);
+	server_host_private = kex->load_host_private_key(kex->hostkey_type,
+	    kex->hostkey_nid, ssh);
+	if (server_host_public == NULL) {
+		r = SSH_ERR_NO_HOSTKEY_LOADED;
+		goto out;
+	}
 
-	debug("expecting SSH2_MSG_KEX_ECDH_INIT");
-	packet_read_expect(SSH2_MSG_KEX_ECDH_INIT);
-	client_pubkey = packet_get_string(&slen);
-	if (slen != CURVE25519_SIZE)
-		fatal("Incorrect size for server Curve25519 pubkey: %d", slen);
-	packet_check_eom();
-
+	if ((r = sshpkt_get_string(ssh, &client_pubkey, &pklen)) != 0 ||
+	    (r = sshpkt_get_end(ssh)) != 0)
+		goto out;
+	if (pklen != CURVE25519_SIZE) {
+		r = SSH_ERR_SIGNATURE_INVALID;
+		goto out;
+	}
 #ifdef DEBUG_KEXECDH
 	dump_digest("client public key:", client_pubkey, CURVE25519_SIZE);
 #endif
 
-	buffer_init(&shared_secret);
-	kexc25519_shared_key(server_key, client_pubkey, &shared_secret);
+	if ((shared_secret = sshbuf_new()) == NULL) {
+		r = SSH_ERR_ALLOC_FAIL;
+		goto out;
+	}
+	if ((r = kexc25519_shared_key(server_key, client_pubkey,
+	    shared_secret)) < 0)
+		goto out;
 
 	/* calc H */
-	key_to_blob(server_host_public, &server_host_key_blob, &sbloblen);
-	kex_c25519_hash(
+	if ((r = sshkey_to_blob(server_host_public, &server_host_key_blob,
+	    &sbloblen)) != 0)
+		goto out;
+	hashlen = sizeof(hash);
+	if ((r = kex_c25519_hash(
 	    kex->hash_alg,
 	    kex->client_version_string,
 	    kex->server_version_string,
-	    buffer_ptr(&kex->peer), buffer_len(&kex->peer),
-	    buffer_ptr(&kex->my), buffer_len(&kex->my),
+	    sshbuf_ptr(kex->peer), sshbuf_len(kex->peer),
+	    sshbuf_ptr(kex->my), sshbuf_len(kex->my),
 	    server_host_key_blob, sbloblen,
 	    client_pubkey,
 	    server_pubkey,
-	    buffer_ptr(&shared_secret), buffer_len(&shared_secret),
-	    &hash, &hashlen
-	);
+	    sshbuf_ptr(shared_secret), sshbuf_len(shared_secret),
+	    hash, &hashlen)) < 0)
+		goto out;
 
 	/* save session id := H */
 	if (kex->session_id == NULL) {
 		kex->session_id_len = hashlen;
-		kex->session_id = xmalloc(kex->session_id_len);
+		kex->session_id = malloc(kex->session_id_len);
+		if (kex->session_id == NULL) {
+			r = SSH_ERR_ALLOC_FAIL;
+			goto out;
+		}
 		memcpy(kex->session_id, hash, kex->session_id_len);
 	}
 
 	/* sign H */
-	kex->sign(server_host_private, server_host_public, &signature, &slen,
-	    hash, hashlen);
-
-	/* destroy_sensitive_data(); */
+	if ((r = kex->sign(server_host_private, server_host_public,
+	    &signature, &slen, hash, hashlen, ssh->compat)) < 0)
+		goto out;
 
 	/* send server hostkey, ECDH pubkey 'Q_S' and signed H */
-	packet_start(SSH2_MSG_KEX_ECDH_REPLY);
-	packet_put_string(server_host_key_blob, sbloblen);
-	packet_put_string(server_pubkey, sizeof(server_pubkey));
-	packet_put_string(signature, slen);
-	packet_send();
+	if ((r = sshpkt_start(ssh, SSH2_MSG_KEX_ECDH_REPLY)) != 0 ||
+	    (r = sshpkt_put_string(ssh, server_host_key_blob, sbloblen)) != 0 ||
+	    (r = sshpkt_put_string(ssh, server_pubkey, sizeof(server_pubkey))) != 0 ||
+	    (r = sshpkt_put_string(ssh, signature, slen)) != 0 ||
+	    (r = sshpkt_send(ssh)) != 0)
+		goto out;
 
-	free(signature);
+	if ((r = kex_derive_keys(ssh, hash, hashlen, shared_secret)) == 0)
+		r = kex_send_newkeys(ssh);
+out:
+	explicit_bzero(hash, sizeof(hash));
+	explicit_bzero(server_key, sizeof(server_key));
 	free(server_host_key_blob);
-	/* have keys, free server key */
+	free(signature);
 	free(client_pubkey);
-
-	kex_derive_keys(kex, hash, hashlen,
-	    buffer_ptr(&shared_secret), buffer_len(&shared_secret));
-	buffer_free(&shared_secret);
-	kex_finish(kex);
+	sshbuf_free(shared_secret);
+	return r;
 }

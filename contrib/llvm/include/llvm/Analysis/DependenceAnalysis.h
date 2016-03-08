@@ -42,11 +42,11 @@
 
 #include "llvm/ADT/SmallBitVector.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Pass.h"
 
 namespace llvm {
-  class AliasAnalysis;
   class Loop;
   class LoopInfo;
   class ScalarEvolution;
@@ -69,6 +69,15 @@ namespace llvm {
   /// as singly-linked lists, with the "next" fields stored in the dependence
   /// itelf.
   class Dependence {
+  protected:
+    Dependence(const Dependence &) = default;
+
+    // FIXME: When we move to MSVC 2015 as the base compiler for Visual Studio
+    // support, uncomment this line to allow a defaulted move constructor for
+    // Dependence. Currently, FullDependence relies on the copy constructor, but
+    // that is acceptable given the triviality of the class.
+    // Dependence(Dependence &&) = default;
+
   public:
     Dependence(Instruction *Source,
                Instruction *Destination) :
@@ -176,37 +185,29 @@ namespace llvm {
 
     /// getNextPredecessor - Returns the value of the NextPredecessor
     /// field.
-    const Dependence *getNextPredecessor() const {
-      return NextPredecessor;
-    }
-    
+    const Dependence *getNextPredecessor() const { return NextPredecessor; }
+
     /// getNextSuccessor - Returns the value of the NextSuccessor
     /// field.
-    const Dependence *getNextSuccessor() const {
-      return NextSuccessor;
-    }
-    
+    const Dependence *getNextSuccessor() const { return NextSuccessor; }
+
     /// setNextPredecessor - Sets the value of the NextPredecessor
     /// field.
-    void setNextPredecessor(const Dependence *pred) {
-      NextPredecessor = pred;
-    }
-    
+    void setNextPredecessor(const Dependence *pred) { NextPredecessor = pred; }
+
     /// setNextSuccessor - Sets the value of the NextSuccessor
     /// field.
-    void setNextSuccessor(const Dependence *succ) {
-      NextSuccessor = succ;
-    }
-    
+    void setNextSuccessor(const Dependence *succ) { NextSuccessor = succ; }
+
     /// dump - For debugging purposes, dumps a dependence to OS.
     ///
     void dump(raw_ostream &OS) const;
+
   private:
     Instruction *Src, *Dst;
     const Dependence *NextPredecessor, *NextSuccessor;
     friend class DependenceAnalysis;
   };
-
 
   /// FullDependence - This class represents a dependence between two memory
   /// references in a function. It contains detailed information about the
@@ -216,11 +217,15 @@ namespace llvm {
   /// (for output, flow, and anti dependences), the dependence implies an
   /// ordering, where the source must precede the destination; in contrast,
   /// input dependences are unordered.
-  class FullDependence : public Dependence {
+  class FullDependence final : public Dependence {
   public:
     FullDependence(Instruction *Src, Instruction *Dst, bool LoopIndependent,
                    unsigned Levels);
-    ~FullDependence() override { delete[] DV; }
+
+    FullDependence(FullDependence &&RHS)
+        : Dependence(std::move(RHS)), Levels(RHS.Levels),
+          LoopIndependent(RHS.LoopIndependent), Consistent(RHS.Consistent),
+          DV(std::move(RHS.DV)) {}
 
     /// isLoopIndependent - Returns true if this is a loop-independent
     /// dependence.
@@ -268,16 +273,16 @@ namespace llvm {
     unsigned short Levels;
     bool LoopIndependent;
     bool Consistent; // Init to true, then refine.
-    DVEntry *DV;
+    std::unique_ptr<DVEntry[]> DV;
     friend class DependenceAnalysis;
   };
-
 
   /// DependenceAnalysis - This class is the main dependence-analysis driver.
   ///
   class DependenceAnalysis : public FunctionPass {
     void operator=(const DependenceAnalysis &) = delete;
     DependenceAnalysis(const DependenceAnalysis &) = delete;
+
   public:
     /// depends - Tests for a dependence between the Src and Dst instructions.
     /// Returns NULL if no dependence; otherwise, returns a Dependence (or a
@@ -387,6 +392,7 @@ namespace llvm {
       const SCEV *B;
       const SCEV *C;
       const Loop *AssociatedLoop;
+
     public:
       /// isEmpty - Return true if the constraint is of kind Empty.
       bool isEmpty() const { return Kind == Empty; }
@@ -452,7 +458,6 @@ namespace llvm {
       /// out to OS.
       void dump(raw_ostream &OS) const;
     };
-
 
     /// establishNestingLevels - Examines the loop nesting of the Src and Dst
     /// instructions and establishes their shared loops. Sets the variables
@@ -521,10 +526,10 @@ namespace llvm {
     /// in LoopNest.
     bool isLoopInvariant(const SCEV *Expression, const Loop *LoopNest) const;
 
-    /// Makes sure all subscript pairs share the same integer type by 
+    /// Makes sure all subscript pairs share the same integer type by
     /// sign-extending as necessary.
     /// Sign-extending a subscript is safe because getelementptr assumes the
-    /// array subscripts are signed. 
+    /// array subscripts are signed.
     void unifySubscriptType(ArrayRef<Subscript *> Pairs);
 
     /// removeMatchingExtensions - Examines a subscript pair.
@@ -806,7 +811,6 @@ namespace llvm {
                                const SCEV *Delta) const;
 
     /// testBounds - Returns true iff the current bounds are plausible.
-    ///
     bool testBounds(unsigned char DirKind,
                     unsigned Level,
                     BoundInfo *Bound,
@@ -913,9 +917,8 @@ namespace llvm {
     void updateDirection(Dependence::DVEntry &Level,
                          const Constraint &CurConstraint) const;
 
-    bool tryDelinearize(const SCEV *SrcSCEV, const SCEV *DstSCEV,
-                        SmallVectorImpl<Subscript> &Pair,
-                        const SCEV *ElementSize);
+    bool tryDelinearize(Instruction *Src, Instruction *Dst,
+                        SmallVectorImpl<Subscript> &Pair);
 
   public:
     static char ID; // Class identification, replacement for typeinfo

@@ -77,7 +77,7 @@ struct ispmdvec {
  */
 #define	MAX_TARGETS		16
 #ifndef	MAX_FC_TARG
-#define	MAX_FC_TARG		256
+#define	MAX_FC_TARG		1024
 #endif
 #define	ISP_MAX_TARGETS(isp)	(IS_FC(isp)? MAX_FC_TARG : MAX_TARGETS)
 #define	ISP_MAX_LUNS(isp)	(isp)->isp_maxluns
@@ -315,21 +315,16 @@ typedef struct {
 #	define	ISP_HANDLE_NONE		0
 #	define	ISP_HANDLE_INITIATOR	1
 #	define	ISP_HANDLE_TARGET	2
+#	define	ISP_HANDLE_CTRL		3
 #define	ISP_HANDLE_SEQ_MASK	0xffff0000
 #define	ISP_HANDLE_SEQ_SHIFT	16
 #define	ISP_H2SEQ(hdl)	((hdl & ISP_HANDLE_SEQ_MASK) >> ISP_HANDLE_SEQ_SHIFT)
-#define	ISP_VALID_INI_HANDLE(c, hdl)	\
-	(ISP_H2HT(hdl) == ISP_HANDLE_INITIATOR && (hdl & ISP_HANDLE_CMD_MASK) < (c)->isp_maxcmds && \
-	 ISP_H2SEQ(hdl) == ISP_H2SEQ((c)->isp_xflist[hdl & ISP_HANDLE_CMD_MASK].handle))
-#ifdef	ISP_TARGET_MODE
-#define	ISP_VALID_TGT_HANDLE(c, hdl)	\
-	(ISP_H2HT(hdl) == ISP_HANDLE_TARGET && (hdl & ISP_HANDLE_CMD_MASK) < (c)->isp_maxcmds && \
-	 ISP_H2SEQ(hdl) == ISP_H2SEQ((c)->isp_tgtlist[hdl & ISP_HANDLE_CMD_MASK].handle))
 #define	ISP_VALID_HANDLE(c, hdl)	\
-	(ISP_VALID_INI_HANDLE((c), hdl) || ISP_VALID_TGT_HANDLE((c), hdl))
-#else
-#define	ISP_VALID_HANDLE	ISP_VALID_INI_HANDLE
-#endif
+	((ISP_H2HT(hdl) == ISP_HANDLE_INITIATOR || \
+	  ISP_H2HT(hdl) == ISP_HANDLE_TARGET || \
+	  ISP_H2HT(hdl) == ISP_HANDLE_CTRL) && \
+	 ((hdl) & ISP_HANDLE_CMD_MASK) < (c)->isp_maxcmds && \
+	 (hdl) == ((c)->isp_xflist[(hdl) & ISP_HANDLE_CMD_MASK].handle))
 #define	ISP_BAD_HANDLE_INDEX	0xffffffff
 
 
@@ -477,6 +472,8 @@ typedef struct {
 	 */
 	void *			isp_scratch;
 	XS_DMA_ADDR_T		isp_scdma;
+
+	uint8_t			isp_scanscratch[ISP_FC_SCRLEN];
 } fcparam;
 
 #define	FW_CONFIG_WAIT		0
@@ -597,14 +594,6 @@ struct ispsoftc {
 	 */
 	isp_hdl_t		*isp_xflist;
 	isp_hdl_t		*isp_xffree;
-
-#ifdef	ISP_TARGET_MODE
-	/*
-	 * Active target commands are stored here, indexed by handle functions.
-	 */
-	isp_hdl_t		*isp_tgtlist;
-	isp_hdl_t		*isp_tgtfree;
-#endif
 
 	/*
 	 * request/result queue pointers and DMA handles for them.

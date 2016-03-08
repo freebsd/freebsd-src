@@ -93,6 +93,8 @@
         scsi
         ..
     ..
+    casper
+    ..
     crypto
     ..
     dev
@@ -270,6 +272,8 @@
         ..
     ..
     netinet
+        cc
+        ..
     ..
     netinet6
     ..

@@ -81,11 +81,11 @@ private:
     int LastDstChan = -1;
     do {
       bool isTrans = false;
-      int BISlot = getSlot(BI);
+      int BISlot = getSlot(&*BI);
       if (LastDstChan >= BISlot)
         isTrans = true;
       LastDstChan = BISlot;
-      if (TII->isPredicated(BI))
+      if (TII->isPredicated(&*BI))
         continue;
       int OperandIdx = TII->getOperandIdx(BI->getOpcode(), AMDGPU::OpName::write);
       if (OperandIdx > -1 && BI->getOperand(OperandIdx).getImm() == 0)
@@ -95,7 +95,7 @@ private:
         continue;
       }
       unsigned Dst = BI->getOperand(DstIdx).getReg();
-      if (isTrans || TII->isTransOnly(BI)) {
+      if (isTrans || TII->isTransOnly(&*BI)) {
         Result[Dst] = AMDGPU::PS;
         continue;
       }
@@ -149,7 +149,7 @@ private:
 public:
   // Ctor.
   R600PacketizerList(MachineFunction &MF, MachineLoopInfo &MLI)
-      : VLIWPacketizerList(MF, MLI, true),
+      : VLIWPacketizerList(MF, MLI, nullptr),
         TII(static_cast<const R600InstrInfo *>(
             MF.getSubtarget().getInstrInfo())),
         TRI(TII->getRegisterInfo()) {
@@ -162,14 +162,14 @@ public:
   }
 
   // ignorePseudoInstruction - Ignore bundling of pseudo instructions.
-  bool ignorePseudoInstruction(MachineInstr *MI,
-                               MachineBasicBlock *MBB) override {
+  bool ignorePseudoInstruction(const MachineInstr *MI,
+                               const MachineBasicBlock *MBB) override {
     return false;
   }
 
   // isSoloInstruction - return true if instruction MI can not be packetized
   // with any other instruction, which means that MI itself is a packet.
-  bool isSoloInstruction(MachineInstr *MI) override {
+  bool isSoloInstruction(const MachineInstr *MI) override {
     if (TII->isVector(*MI))
       return true;
     if (!TII->isALUInstr(MI->getOpcode()))
@@ -375,7 +375,7 @@ bool R600Packetizer::runOnMachineFunction(MachineFunction &Fn) {
       // instruction stream until we find the nearest boundary.
       MachineBasicBlock::iterator I = RegionEnd;
       for(;I != MBB->begin(); --I, --RemainingCount) {
-        if (TII->isSchedulingBoundary(std::prev(I), MBB, Fn))
+        if (TII->isSchedulingBoundary(&*std::prev(I), &*MBB, Fn))
           break;
       }
       I = MBB->begin();
@@ -392,7 +392,7 @@ bool R600Packetizer::runOnMachineFunction(MachineFunction &Fn) {
         continue;
       }
 
-      Packetizer.PacketizeMIs(MBB, I, RegionEnd);
+      Packetizer.PacketizeMIs(&*MBB, &*I, RegionEnd);
       RegionEnd = I;
     }
   }

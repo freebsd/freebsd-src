@@ -45,8 +45,9 @@
  * loadable kernel module ABI, and should not be changed across minor
  * releases.
  *
- * When adding a new privilege, remember to determine if it's appropriate for
- * use in jail, and update the privilege switch in kern_jail.c as necessary.
+ * When adding a new privilege, remember to determine if it's appropriate
+ * for use in jail, and update the privilege switch in prison_priv_check()
+ * in kern_jail.c as necessary.
  */
 
 /*

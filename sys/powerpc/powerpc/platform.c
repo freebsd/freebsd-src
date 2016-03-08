@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/ktr.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
@@ -86,8 +87,8 @@ static void
 memr_merge(struct mem_region *from, struct mem_region *to)
 {
 	vm_offset_t end;
-	end = ulmax(to->mr_start + to->mr_size, from->mr_start + from->mr_size);
-	to->mr_start = ulmin(from->mr_start, to->mr_start);
+	end = uqmax(to->mr_start + to->mr_size, from->mr_start + from->mr_size);
+	to->mr_start = uqmin(from->mr_start, to->mr_start);
 	to->mr_size = end - to->mr_start;
 }
 
@@ -250,6 +251,19 @@ void
 cpu_reset()
 {
         PLATFORM_RESET(plat_obj);
+}
+
+int
+cpu_idle_wakeup(int cpu)
+{
+	return (PLATFORM_IDLE_WAKEUP(plat_obj, cpu));
+}
+
+void
+platform_cpu_idle(int cpu)
+{
+
+	PLATFORM_IDLE(plat_obj, cpu);
 }
 
 /*

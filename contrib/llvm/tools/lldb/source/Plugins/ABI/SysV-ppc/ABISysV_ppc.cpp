@@ -20,7 +20,6 @@
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/Core/ValueObjectRegister.h"
 #include "lldb/Core/ValueObjectMemory.h"
-#include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/UnwindPlan.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Process.h"
@@ -34,122 +33,80 @@
 using namespace lldb;
 using namespace lldb_private;
 
-enum gcc_dwarf_regnums
+enum dwarf_regnums
 {
-    gcc_dwarf_r0 = 0,
-    gcc_dwarf_r1,
-    gcc_dwarf_r2,
-    gcc_dwarf_r3,
-    gcc_dwarf_r4,
-    gcc_dwarf_r5,
-    gcc_dwarf_r6,
-    gcc_dwarf_r7,
-    gcc_dwarf_r8,
-    gcc_dwarf_r9,
-    gcc_dwarf_r10,
-    gcc_dwarf_r11,
-    gcc_dwarf_r12,
-    gcc_dwarf_r13,
-    gcc_dwarf_r14,
-    gcc_dwarf_r15,
-    gcc_dwarf_r16,
-    gcc_dwarf_r17,
-    gcc_dwarf_r18,
-    gcc_dwarf_r19,
-    gcc_dwarf_r20,
-    gcc_dwarf_r21,
-    gcc_dwarf_r22,
-    gcc_dwarf_r23,
-    gcc_dwarf_r24,
-    gcc_dwarf_r25,
-    gcc_dwarf_r26,
-    gcc_dwarf_r27,
-    gcc_dwarf_r28,
-    gcc_dwarf_r29,
-    gcc_dwarf_r30,
-    gcc_dwarf_r31,
-    gcc_dwarf_f0,
-    gcc_dwarf_f1,
-    gcc_dwarf_f2,
-    gcc_dwarf_f3,
-    gcc_dwarf_f4,
-    gcc_dwarf_f5,
-    gcc_dwarf_f6,
-    gcc_dwarf_f7,
-    gcc_dwarf_f8,
-    gcc_dwarf_f9,
-    gcc_dwarf_f10,
-    gcc_dwarf_f11,
-    gcc_dwarf_f12,
-    gcc_dwarf_f13,
-    gcc_dwarf_f14,
-    gcc_dwarf_f15,
-    gcc_dwarf_f16,
-    gcc_dwarf_f17,
-    gcc_dwarf_f18,
-    gcc_dwarf_f19,
-    gcc_dwarf_f20,
-    gcc_dwarf_f21,
-    gcc_dwarf_f22,
-    gcc_dwarf_f23,
-    gcc_dwarf_f24,
-    gcc_dwarf_f25,
-    gcc_dwarf_f26,
-    gcc_dwarf_f27,
-    gcc_dwarf_f28,
-    gcc_dwarf_f29,
-    gcc_dwarf_f30,
-    gcc_dwarf_f31,
-    gcc_dwarf_cr,
-    gcc_dwarf_fpscr,
-    gcc_dwarf_xer = 101,
-    gcc_dwarf_lr = 108,
-    gcc_dwarf_ctr,
-    gcc_dwarf_pc,
-    gcc_dwarf_cfa,
+    dwarf_r0 = 0,
+    dwarf_r1,
+    dwarf_r2,
+    dwarf_r3,
+    dwarf_r4,
+    dwarf_r5,
+    dwarf_r6,
+    dwarf_r7,
+    dwarf_r8,
+    dwarf_r9,
+    dwarf_r10,
+    dwarf_r11,
+    dwarf_r12,
+    dwarf_r13,
+    dwarf_r14,
+    dwarf_r15,
+    dwarf_r16,
+    dwarf_r17,
+    dwarf_r18,
+    dwarf_r19,
+    dwarf_r20,
+    dwarf_r21,
+    dwarf_r22,
+    dwarf_r23,
+    dwarf_r24,
+    dwarf_r25,
+    dwarf_r26,
+    dwarf_r27,
+    dwarf_r28,
+    dwarf_r29,
+    dwarf_r30,
+    dwarf_r31,
+    dwarf_f0,
+    dwarf_f1,
+    dwarf_f2,
+    dwarf_f3,
+    dwarf_f4,
+    dwarf_f5,
+    dwarf_f6,
+    dwarf_f7,
+    dwarf_f8,
+    dwarf_f9,
+    dwarf_f10,
+    dwarf_f11,
+    dwarf_f12,
+    dwarf_f13,
+    dwarf_f14,
+    dwarf_f15,
+    dwarf_f16,
+    dwarf_f17,
+    dwarf_f18,
+    dwarf_f19,
+    dwarf_f20,
+    dwarf_f21,
+    dwarf_f22,
+    dwarf_f23,
+    dwarf_f24,
+    dwarf_f25,
+    dwarf_f26,
+    dwarf_f27,
+    dwarf_f28,
+    dwarf_f29,
+    dwarf_f30,
+    dwarf_f31,
+    dwarf_cr,
+    dwarf_fpscr,
+    dwarf_xer = 101,
+    dwarf_lr = 108,
+    dwarf_ctr,
+    dwarf_pc,
+    dwarf_cfa,
 };
-
-enum gdb_regnums
-{
-    gdb_r0 = 0,
-    gdb_r1,
-    gdb_r2,
-    gdb_r3,
-    gdb_r4,
-    gdb_r5,
-    gdb_r6,
-    gdb_r7,
-    gdb_r8,
-    gdb_r9,
-    gdb_r10,
-    gdb_r11,
-    gdb_r12,
-    gdb_r13,
-    gdb_r14,
-    gdb_r15,
-    gdb_r16,
-    gdb_r17,
-    gdb_r18,
-    gdb_r19,
-    gdb_r20,
-    gdb_r21,
-    gdb_r22,
-    gdb_r23,
-    gdb_r24,
-    gdb_r25,
-    gdb_r26,
-    gdb_r27,
-    gdb_r28,
-    gdb_r29,
-    gdb_r30,
-    gdb_r31,
-    gdb_lr,
-    gdb_cr,
-    gdb_xer,
-    gdb_ctr,
-    gdb_pc,
-};
-
 
 // Note that the size and offset will be updated by platform-specific classes.
 #define DEFINE_GPR(reg, alt, kind1, kind2, kind3, kind4)           \
@@ -158,45 +115,45 @@ enum gdb_regnums
 static const RegisterInfo
 g_register_infos[] =
 {
-    // General purpose registers.                 GCC,                  DWARF,              Generic,                GDB
-    DEFINE_GPR(r0,       NULL,  gcc_dwarf_r0,    gcc_dwarf_r0,    LLDB_INVALID_REGNUM,    gdb_r0),
-    DEFINE_GPR(r1,       "sp",  gcc_dwarf_r1,    gcc_dwarf_r1,    LLDB_REGNUM_GENERIC_SP, gdb_r1),
-    DEFINE_GPR(r2,       NULL,  gcc_dwarf_r2,    gcc_dwarf_r2,    LLDB_INVALID_REGNUM,    gdb_r2),
-    DEFINE_GPR(r3,       "arg1",gcc_dwarf_r3,    gcc_dwarf_r3,    LLDB_REGNUM_GENERIC_ARG1, gdb_r3),
-    DEFINE_GPR(r4,       "arg2",gcc_dwarf_r4,    gcc_dwarf_r4,    LLDB_REGNUM_GENERIC_ARG2 ,gdb_r4),
-    DEFINE_GPR(r5,       "arg3",gcc_dwarf_r5,    gcc_dwarf_r5,    LLDB_REGNUM_GENERIC_ARG3, gdb_r5),
-    DEFINE_GPR(r6,       "arg4",gcc_dwarf_r6,    gcc_dwarf_r6,    LLDB_REGNUM_GENERIC_ARG4, gdb_r6),
-    DEFINE_GPR(r7,       "arg5",gcc_dwarf_r7,    gcc_dwarf_r7,    LLDB_REGNUM_GENERIC_ARG5, gdb_r7),
-    DEFINE_GPR(r8,       "arg6",gcc_dwarf_r8,    gcc_dwarf_r8,    LLDB_REGNUM_GENERIC_ARG6, gdb_r8),
-    DEFINE_GPR(r9,       "arg7",gcc_dwarf_r9,    gcc_dwarf_r9,    LLDB_REGNUM_GENERIC_ARG7, gdb_r9),
-    DEFINE_GPR(r10,      "arg8",gcc_dwarf_r10,   gcc_dwarf_r10,   LLDB_REGNUM_GENERIC_ARG8, gdb_r10),
-    DEFINE_GPR(r11,      NULL,  gcc_dwarf_r11,   gcc_dwarf_r11,   LLDB_INVALID_REGNUM,    gdb_r11),
-    DEFINE_GPR(r12,      NULL,  gcc_dwarf_r12,   gcc_dwarf_r12,   LLDB_INVALID_REGNUM,    gdb_r12),
-    DEFINE_GPR(r13,      NULL,  gcc_dwarf_r13,   gcc_dwarf_r13,   LLDB_INVALID_REGNUM,    gdb_r13),
-    DEFINE_GPR(r14,      NULL,  gcc_dwarf_r14,   gcc_dwarf_r14,   LLDB_INVALID_REGNUM,    gdb_r14),
-    DEFINE_GPR(r15,      NULL,  gcc_dwarf_r15,   gcc_dwarf_r15,   LLDB_INVALID_REGNUM,    gdb_r15),
-    DEFINE_GPR(r16,      NULL,  gcc_dwarf_r16,   gcc_dwarf_r16,   LLDB_INVALID_REGNUM,    gdb_r16),
-    DEFINE_GPR(r17,      NULL,  gcc_dwarf_r17,   gcc_dwarf_r17,   LLDB_INVALID_REGNUM,    gdb_r17),
-    DEFINE_GPR(r18,      NULL,  gcc_dwarf_r18,   gcc_dwarf_r18,   LLDB_INVALID_REGNUM,    gdb_r18),
-    DEFINE_GPR(r19,      NULL,  gcc_dwarf_r19,   gcc_dwarf_r19,   LLDB_INVALID_REGNUM,    gdb_r19),
-    DEFINE_GPR(r20,      NULL,  gcc_dwarf_r20,   gcc_dwarf_r20,   LLDB_INVALID_REGNUM,    gdb_r20),
-    DEFINE_GPR(r21,      NULL,  gcc_dwarf_r21,   gcc_dwarf_r21,   LLDB_INVALID_REGNUM,    gdb_r21),
-    DEFINE_GPR(r22,      NULL,  gcc_dwarf_r22,   gcc_dwarf_r22,   LLDB_INVALID_REGNUM,    gdb_r22),
-    DEFINE_GPR(r23,      NULL,  gcc_dwarf_r23,   gcc_dwarf_r23,   LLDB_INVALID_REGNUM,    gdb_r23),
-    DEFINE_GPR(r24,      NULL,  gcc_dwarf_r24,   gcc_dwarf_r24,   LLDB_INVALID_REGNUM,    gdb_r24),
-    DEFINE_GPR(r25,      NULL,  gcc_dwarf_r25,   gcc_dwarf_r25,   LLDB_INVALID_REGNUM,    gdb_r25),
-    DEFINE_GPR(r26,      NULL,  gcc_dwarf_r26,   gcc_dwarf_r26,   LLDB_INVALID_REGNUM,    gdb_r26),
-    DEFINE_GPR(r27,      NULL,  gcc_dwarf_r27,   gcc_dwarf_r27,   LLDB_INVALID_REGNUM,    gdb_r27),
-    DEFINE_GPR(r28,      NULL,  gcc_dwarf_r28,   gcc_dwarf_r28,   LLDB_INVALID_REGNUM,    gdb_r28),
-    DEFINE_GPR(r29,      NULL,  gcc_dwarf_r29,   gcc_dwarf_r29,   LLDB_INVALID_REGNUM,    gdb_r29),
-    DEFINE_GPR(r30,      NULL,  gcc_dwarf_r30,   gcc_dwarf_r30,   LLDB_INVALID_REGNUM,    gdb_r30),
-    DEFINE_GPR(r31,      NULL,  gcc_dwarf_r31,   gcc_dwarf_r31,   LLDB_INVALID_REGNUM,    gdb_r31),
-    DEFINE_GPR(lr,       "lr",  gcc_dwarf_lr,    gcc_dwarf_lr,    LLDB_REGNUM_GENERIC_RA, gdb_lr),
-    DEFINE_GPR(cr,       "cr",  gcc_dwarf_cr,    gcc_dwarf_cr,    LLDB_REGNUM_GENERIC_FLAGS, LLDB_INVALID_REGNUM),
-    DEFINE_GPR(xer,      "xer", gcc_dwarf_xer,   gcc_dwarf_xer,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
-    DEFINE_GPR(ctr,      "ctr", gcc_dwarf_ctr,   gcc_dwarf_ctr,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
-    DEFINE_GPR(pc,       "pc",  gcc_dwarf_pc,    gcc_dwarf_pc,    LLDB_REGNUM_GENERIC_PC, LLDB_INVALID_REGNUM),
-    { NULL, NULL, 8, 0, eEncodingUint, eFormatHex, { gcc_dwarf_cfa, gcc_dwarf_cfa, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM}, NULL, NULL},
+    // General purpose registers.             eh_frame,                 DWARF,              Generic,    Process Plugin
+    DEFINE_GPR(r0,       NULL,  dwarf_r0,    dwarf_r0,    LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r1,       "sp",  dwarf_r1,    dwarf_r1,    LLDB_REGNUM_GENERIC_SP, LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r2,       NULL,  dwarf_r2,    dwarf_r2,    LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r3,       "arg1",dwarf_r3,    dwarf_r3,    LLDB_REGNUM_GENERIC_ARG1, LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r4,       "arg2",dwarf_r4,    dwarf_r4,    LLDB_REGNUM_GENERIC_ARG2 ,LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r5,       "arg3",dwarf_r5,    dwarf_r5,    LLDB_REGNUM_GENERIC_ARG3, LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r6,       "arg4",dwarf_r6,    dwarf_r6,    LLDB_REGNUM_GENERIC_ARG4, LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r7,       "arg5",dwarf_r7,    dwarf_r7,    LLDB_REGNUM_GENERIC_ARG5, LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r8,       "arg6",dwarf_r8,    dwarf_r8,    LLDB_REGNUM_GENERIC_ARG6, LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r9,       "arg7",dwarf_r9,    dwarf_r9,    LLDB_REGNUM_GENERIC_ARG7, LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r10,      "arg8",dwarf_r10,   dwarf_r10,   LLDB_REGNUM_GENERIC_ARG8, LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r11,      NULL,  dwarf_r11,   dwarf_r11,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r12,      NULL,  dwarf_r12,   dwarf_r12,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r13,      NULL,  dwarf_r13,   dwarf_r13,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r14,      NULL,  dwarf_r14,   dwarf_r14,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r15,      NULL,  dwarf_r15,   dwarf_r15,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r16,      NULL,  dwarf_r16,   dwarf_r16,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r17,      NULL,  dwarf_r17,   dwarf_r17,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r18,      NULL,  dwarf_r18,   dwarf_r18,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r19,      NULL,  dwarf_r19,   dwarf_r19,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r20,      NULL,  dwarf_r20,   dwarf_r20,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r21,      NULL,  dwarf_r21,   dwarf_r21,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r22,      NULL,  dwarf_r22,   dwarf_r22,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r23,      NULL,  dwarf_r23,   dwarf_r23,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r24,      NULL,  dwarf_r24,   dwarf_r24,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r25,      NULL,  dwarf_r25,   dwarf_r25,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r26,      NULL,  dwarf_r26,   dwarf_r26,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r27,      NULL,  dwarf_r27,   dwarf_r27,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r28,      NULL,  dwarf_r28,   dwarf_r28,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r29,      NULL,  dwarf_r29,   dwarf_r29,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r30,      NULL,  dwarf_r30,   dwarf_r30,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(r31,      NULL,  dwarf_r31,   dwarf_r31,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(lr,       "lr",  dwarf_lr,    dwarf_lr,    LLDB_REGNUM_GENERIC_RA, LLDB_INVALID_REGNUM),
+    DEFINE_GPR(cr,       "cr",  dwarf_cr,    dwarf_cr,    LLDB_REGNUM_GENERIC_FLAGS, LLDB_INVALID_REGNUM),
+    DEFINE_GPR(xer,      "xer", dwarf_xer,   dwarf_xer,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(ctr,      "ctr", dwarf_ctr,   dwarf_ctr,   LLDB_INVALID_REGNUM,    LLDB_INVALID_REGNUM),
+    DEFINE_GPR(pc,       "pc",  dwarf_pc,    dwarf_pc,    LLDB_REGNUM_GENERIC_PC, LLDB_INVALID_REGNUM),
+    { NULL, NULL, 8, 0, eEncodingUint, eFormatHex, { dwarf_cfa, dwarf_cfa, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM}, NULL, NULL},
 };
 
 static const uint32_t k_num_register_infos = llvm::array_lengthof(g_register_infos);
@@ -436,25 +393,25 @@ ABISysV_ppc::GetArgumentValues (Thread &thread,
 
         // We currently only support extracting values with Clang QualTypes.
         // Do we care about others?
-        ClangASTType clang_type = value->GetClangType();
-        if (!clang_type)
+        CompilerType compiler_type = value->GetCompilerType();
+        if (!compiler_type)
             return false;
         bool is_signed;
 
-        if (clang_type.IsIntegerType (is_signed))
+        if (compiler_type.IsIntegerType (is_signed))
         {
             ReadIntegerArgument(value->GetScalar(),
-                                clang_type.GetBitSize(&thread),
+                                compiler_type.GetBitSize(&thread),
                                 is_signed,
                                 thread,
                                 argument_register_ids,
                                 current_argument_register,
                                 current_stack_argument);
         }
-        else if (clang_type.IsPointerType ())
+        else if (compiler_type.IsPointerType ())
         {
             ReadIntegerArgument(value->GetScalar(),
-                                clang_type.GetBitSize(&thread),
+                                compiler_type.GetBitSize(&thread),
                                 false,
                                 thread,
                                 argument_register_ids,
@@ -476,8 +433,8 @@ ABISysV_ppc::SetReturnValueObject(lldb::StackFrameSP &frame_sp, lldb::ValueObjec
         return error;
     }
 
-    ClangASTType clang_type = new_value_sp->GetClangType();
-    if (!clang_type)
+    CompilerType compiler_type = new_value_sp->GetCompilerType();
+    if (!compiler_type)
     {
         error.SetErrorString ("Null clang type for return value.");
         return error;
@@ -492,7 +449,7 @@ ABISysV_ppc::SetReturnValueObject(lldb::StackFrameSP &frame_sp, lldb::ValueObjec
     RegisterContext *reg_ctx = thread->GetRegisterContext().get();
 
     bool set_it_simple = false;
-    if (clang_type.IsIntegerType (is_signed) || clang_type.IsPointerType())
+    if (compiler_type.IsIntegerType (is_signed) || compiler_type.IsPointerType())
     {
         const RegisterInfo *reg_info = reg_ctx->GetRegisterInfoByName("r3", 0);
 
@@ -518,13 +475,13 @@ ABISysV_ppc::SetReturnValueObject(lldb::StackFrameSP &frame_sp, lldb::ValueObjec
         }
 
     }
-    else if (clang_type.IsFloatingPointType (count, is_complex))
+    else if (compiler_type.IsFloatingPointType (count, is_complex))
     {
         if (is_complex)
             error.SetErrorString ("We don't support returning complex values at present");
         else
         {
-            size_t bit_width = clang_type.GetBitSize(frame_sp.get());
+            size_t bit_width = compiler_type.GetBitSize(frame_sp.get());
             if (bit_width <= 64)
             {
                 DataExtractor data;
@@ -563,22 +520,22 @@ ABISysV_ppc::SetReturnValueObject(lldb::StackFrameSP &frame_sp, lldb::ValueObjec
 
 ValueObjectSP
 ABISysV_ppc::GetReturnValueObjectSimple (Thread &thread,
-                                            ClangASTType &return_clang_type) const
+                                         CompilerType &return_compiler_type) const
 {
     ValueObjectSP return_valobj_sp;
     Value value;
 
-    if (!return_clang_type)
+    if (!return_compiler_type)
         return return_valobj_sp;
 
     //value.SetContext (Value::eContextTypeClangType, return_value_type);
-    value.SetClangType (return_clang_type);
+    value.SetCompilerType (return_compiler_type);
 
     RegisterContext *reg_ctx = thread.GetRegisterContext().get();
     if (!reg_ctx)
         return return_valobj_sp;
 
-    const uint32_t type_flags = return_clang_type.GetTypeInfo ();
+    const uint32_t type_flags = return_compiler_type.GetTypeInfo ();
     if (type_flags & eTypeIsScalar)
     {
         value.SetValueType(Value::eValueTypeScalar);
@@ -588,7 +545,7 @@ ABISysV_ppc::GetReturnValueObjectSimple (Thread &thread,
         {
             // Extract the register context so we can read arguments from registers
 
-            const size_t byte_size = return_clang_type.GetByteSize(nullptr);
+            const size_t byte_size = return_compiler_type.GetByteSize(nullptr);
             uint64_t raw_value = thread.GetRegisterContext()->ReadRegisterAsUnsigned(reg_ctx->GetRegisterInfoByName("r3", 0), 0);
             const bool is_signed = (type_flags & eTypeIsSigned) != 0;
             switch (byte_size)
@@ -637,7 +594,7 @@ ABISysV_ppc::GetReturnValueObjectSimple (Thread &thread,
             }
             else
             {
-                const size_t byte_size = return_clang_type.GetByteSize(nullptr);
+                const size_t byte_size = return_compiler_type.GetByteSize(nullptr);
                 if (byte_size <= sizeof(long double))
                 {
                     const RegisterInfo *f1_info = reg_ctx->GetRegisterInfoByName("f1", 0);
@@ -681,7 +638,7 @@ ABISysV_ppc::GetReturnValueObjectSimple (Thread &thread,
     }
     else if (type_flags & eTypeIsVector)
     {
-        const size_t byte_size = return_clang_type.GetByteSize(nullptr);
+        const size_t byte_size = return_compiler_type.GetByteSize(nullptr);
         if (byte_size > 0)
         {
 
@@ -709,7 +666,7 @@ ABISysV_ppc::GetReturnValueObjectSimple (Thread &thread,
                                                     byte_order,
                                                     process_sp->GetTarget().GetArchitecture().GetAddressByteSize());
                                 return_valobj_sp = ValueObjectConstResult::Create (&thread,
-                                                                                   return_clang_type,
+                                                                                   return_compiler_type,
                                                                                    ConstString(""),
                                                                                    data);
                             }
@@ -724,15 +681,15 @@ ABISysV_ppc::GetReturnValueObjectSimple (Thread &thread,
 }
 
 ValueObjectSP
-ABISysV_ppc::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_clang_type) const
+ABISysV_ppc::GetReturnValueObjectImpl (Thread &thread, CompilerType &return_compiler_type) const
 {
     ValueObjectSP return_valobj_sp;
 
-    if (!return_clang_type)
+    if (!return_compiler_type)
         return return_valobj_sp;
 
     ExecutionContext exe_ctx (thread.shared_from_this());
-    return_valobj_sp = GetReturnValueObjectSimple(thread, return_clang_type);
+    return_valobj_sp = GetReturnValueObjectSimple(thread, return_compiler_type);
     if (return_valobj_sp)
         return return_valobj_sp;
 
@@ -740,8 +697,8 @@ ABISysV_ppc::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_clan
     if (!reg_ctx_sp)
         return return_valobj_sp;
 
-    const size_t bit_width = return_clang_type.GetBitSize(&thread);
-    if (return_clang_type.IsAggregateType())
+    const size_t bit_width = return_compiler_type.GetBitSize(&thread);
+    if (return_compiler_type.IsAggregateType())
     {
         Target *target = exe_ctx.GetTargetPtr();
         bool is_memory = true;
@@ -768,7 +725,7 @@ ABISysV_ppc::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_clan
             uint32_t fp_bytes = 0;       // Tracks how much of the xmm registers we've consumed so far
             uint32_t integer_bytes = 0;  // Tracks how much of the r3/rds registers we've consumed so far
 
-            const uint32_t num_children = return_clang_type.GetNumFields ();
+            const uint32_t num_children = return_compiler_type.GetNumFields ();
 
             // Since we are in the small struct regime, assume we are not in memory.
             is_memory = false;
@@ -781,8 +738,8 @@ ABISysV_ppc::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_clan
                 bool is_complex;
                 uint32_t count;
 
-                ClangASTType field_clang_type = return_clang_type.GetFieldAtIndex (idx, name, &field_bit_offset, NULL, NULL);
-                const size_t field_bit_width = field_clang_type.GetBitSize(&thread);
+                CompilerType field_compiler_type = return_compiler_type.GetFieldAtIndex (idx, name, &field_bit_offset, NULL, NULL);
+                const size_t field_bit_width = field_compiler_type.GetBitSize(&thread);
 
                 // If there are any unaligned fields, this is stored in memory.
                 if (field_bit_offset % field_bit_width != 0)
@@ -798,7 +755,7 @@ ABISysV_ppc::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_clan
                 DataExtractor *copy_from_extractor = NULL;
                 uint32_t       copy_from_offset    = 0;
 
-                if (field_clang_type.IsIntegerType (is_signed) || field_clang_type.IsPointerType ())
+                if (field_compiler_type.IsIntegerType (is_signed) || field_compiler_type.IsPointerType ())
                 {
                     if (integer_bytes < 8)
                     {
@@ -831,7 +788,7 @@ ABISysV_ppc::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_clan
                         return return_valobj_sp;
                     }
                 }
-                else if (field_clang_type.IsFloatingPointType (count, is_complex))
+                else if (field_compiler_type.IsFloatingPointType (count, is_complex))
                 {
                     // Structs with long doubles are always passed in memory.
                     if (field_bit_width == 128)
@@ -858,12 +815,12 @@ ABISysV_ppc::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_clan
                             else
                             {
                                 uint64_t next_field_bit_offset = 0;
-                                ClangASTType next_field_clang_type = return_clang_type.GetFieldAtIndex (idx + 1,
+                                CompilerType next_field_compiler_type = return_compiler_type.GetFieldAtIndex (idx + 1,
                                                                                                         name,
                                                                                                         &next_field_bit_offset,
                                                                                                         NULL,
                                                                                                         NULL);
-                                if (next_field_clang_type.IsIntegerType (is_signed))
+                                if (next_field_compiler_type.IsIntegerType (is_signed))
                                     in_gpr = true;
                                 else
                                 {
@@ -882,12 +839,12 @@ ABISysV_ppc::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_clan
                             else
                             {
                                 uint64_t prev_field_bit_offset = 0;
-                                ClangASTType prev_field_clang_type = return_clang_type.GetFieldAtIndex (idx - 1,
+                                CompilerType prev_field_compiler_type = return_compiler_type.GetFieldAtIndex (idx - 1,
                                                                                                         name,
                                                                                                         &prev_field_bit_offset,
                                                                                                         NULL,
                                                                                                         NULL);
-                                if (prev_field_clang_type.IsIntegerType (is_signed))
+                                if (prev_field_compiler_type.IsIntegerType (is_signed))
                                     in_gpr = true;
                                 else
                                 {
@@ -946,7 +903,7 @@ ABISysV_ppc::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_clan
             {
                 // The result is in our data buffer.  Let's make a variable object out of it:
                 return_valobj_sp = ValueObjectConstResult::Create (&thread,
-                                                                   return_clang_type,
+                                                                   return_compiler_type,
                                                                    ConstString(""),
                                                                    return_ext);
             }
@@ -965,7 +922,7 @@ ABISysV_ppc::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_clan
             return_valobj_sp = ValueObjectMemory::Create (&thread,
                                                           "",
                                                           Address (storage_addr, NULL),
-                                                          return_clang_type);
+                                                          return_compiler_type);
         }
     }
 
@@ -978,9 +935,9 @@ ABISysV_ppc::CreateFunctionEntryUnwindPlan (UnwindPlan &unwind_plan)
     unwind_plan.Clear();
     unwind_plan.SetRegisterKind (eRegisterKindDWARF);
 
-    uint32_t lr_reg_num = gcc_dwarf_lr;
-    uint32_t sp_reg_num = gcc_dwarf_r1;
-    uint32_t pc_reg_num = gcc_dwarf_pc;
+    uint32_t lr_reg_num = dwarf_lr;
+    uint32_t sp_reg_num = dwarf_r1;
+    uint32_t pc_reg_num = dwarf_pc;
 
     UnwindPlan::RowSP row(new UnwindPlan::Row);
 
@@ -1005,8 +962,8 @@ ABISysV_ppc::CreateDefaultUnwindPlan (UnwindPlan &unwind_plan)
     unwind_plan.Clear();
     unwind_plan.SetRegisterKind (eRegisterKindDWARF);
 
-    uint32_t sp_reg_num = gcc_dwarf_r1;
-    uint32_t pc_reg_num = gcc_dwarf_lr;
+    uint32_t sp_reg_num = dwarf_r1;
+    uint32_t pc_reg_num = dwarf_lr;
 
     UnwindPlan::RowSP row(new UnwindPlan::Row);
 
@@ -1020,7 +977,7 @@ ABISysV_ppc::CreateDefaultUnwindPlan (UnwindPlan &unwind_plan)
     unwind_plan.SetSourceName ("ppc default unwind plan");
     unwind_plan.SetSourcedFromCompiler (eLazyBoolNo);
     unwind_plan.SetUnwindPlanValidAtAllInstructions (eLazyBoolNo);
-    unwind_plan.SetReturnAddressRegister(gcc_dwarf_lr);
+    unwind_plan.SetReturnAddressRegister(dwarf_lr);
     return true;
 }
 

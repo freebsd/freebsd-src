@@ -70,6 +70,7 @@ rt305x_sysctl_dump_config(device_t dev)
 	    (val >> 24) & 0xff);
 
 	DUMPREG(SYSCTL_SYSCFG);
+#if !defined(RT5350) && !defined(MT7620)
 	if ( val & SYSCTL_SYSCFG_INIC_EE_SDRAM)
 		printf("\tGet SDRAM config from EEPROM\n");
 	if ( val & SYSCTL_SYSCFG_INIC_8MB_SDRAM)
@@ -123,6 +124,7 @@ rt305x_sysctl_dump_config(device_t dev)
 	    ((val & SYSCTL_CLKCFG1_PCM_CLK_DIV_MASK) >> 
 		SYSCTL_CLKCFG1_PCM_CLK_DIV_SHIFT));
 	DUMPREG(SYSCTL_GPIOMODE);
+#endif
 #undef DUMPREG
 
 	return;

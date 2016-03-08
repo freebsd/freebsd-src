@@ -25,27 +25,37 @@
 # 		This is a variant of install, which will
 # 		put the stuff into the right "distribution".
 #
-# 	See ALL_SUBDIR_TARGETS for list of targets that will recurse.
-# 	Custom targets can be added to SUBDIR_TARGETS in src.conf.
+# 	See SUBDIR_TARGETS for list of targets that will recurse.
 #
 # 	Targets defined in STANDALONE_SUBDIR_TARGETS will always be ran
 # 	with SUBDIR_PARALLEL and will not respect .WAIT or SUBDIR_DEPEND_
 # 	values.
 #
+# 	SUBDIR_TARGETS and STANDALONE_SUBDIR_TARGETS can be appended to
+# 	via make.conf or src.conf.
+#
 
 .if !target(__<bsd.subdir.mk>__)
 __<bsd.subdir.mk>__:
 
-ALL_SUBDIR_TARGETS= all all-man buildconfig buildfiles buildincludes \
-		    checkdpadd clean cleandepend cleandir cleanilinks \
-		    cleanobj depend distribute files includes installconfig \
-		    installfiles installincludes realinstall lint maninstall \
-		    manlint obj objlink regress tags \
-		    ${SUBDIR_TARGETS}
+SUBDIR_TARGETS+= \
+		all all-man analyze buildconfig buildfiles buildincludes \
+		checkdpadd clean cleandepend cleandir cleanilinks \
+		cleanobj depend distribute files includes installconfig \
+		installfiles installincludes realinstall lint maninstall \
+		manlint obj objlink tags \
 
 # Described above.
-STANDALONE_SUBDIR_TARGETS?= obj checkdpadd clean cleandepend cleandir \
-			    cleanilinks cleanobj
+STANDALONE_SUBDIR_TARGETS+= \
+		all-man buildconfig buildfiles buildincludes check checkdpadd \
+		clean cleandepend cleandir cleanilinks cleanobj files includes \
+		installconfig installincludes installfiles maninstall manlint \
+		obj objlink \
+
+# It is safe to install in parallel when staging.
+.if defined(NO_ROOT)
+STANDALONE_SUBDIR_TARGETS+= realinstall
+.endif
 
 .include <bsd.init.mk>
 
@@ -86,6 +96,7 @@ ${__stage}install:
 install:	beforeinstall realinstall afterinstall
 .ORDER:		beforeinstall realinstall afterinstall
 .endif
+.ORDER: all install
 
 # SUBDIR recursing may be disabled for MK_DIRDEPS_BUILD
 .if !target(_SUBDIR)
@@ -115,7 +126,7 @@ ${SUBDIR:N.WAIT}: .PHONY .MAKE
 	    dir=${.TARGET}; \
 	    ${_SUBDIR_SH};
 
-.for __target in ${ALL_SUBDIR_TARGETS}
+.for __target in ${SUBDIR_TARGETS}
 # Only recurse on directly-called targets.  I.e., don't recurse on dependencies
 # such as 'install' becoming {before,real,after}install, just recurse
 # 'install'.  Despite that, 'realinstall' is special due to ordering issues
@@ -134,14 +145,14 @@ __subdir_targets=
 .if ${__dir} == .WAIT
 __subdir_targets+= .WAIT
 .else
-__subdir_targets+= ${__target}_subdir_${__dir}
+__subdir_targets+= ${__target}_subdir_${DIRPRFX}${__dir}
 __deps=
 .if ${_is_standalone_target} == 0
 .for __dep in ${SUBDIR_DEPEND_${__dir}}
-__deps+= ${__target}_subdir_${__dep}
+__deps+= ${__target}_subdir_${DIRPRFX}${__dep}
 .endfor
 .endif
-${__target}_subdir_${__dir}: .PHONY .MAKE ${__deps}
+${__target}_subdir_${DIRPRFX}${__dir}: .PHONY .MAKE .SILENT ${__deps}
 .if !defined(NO_SUBDIR)
 	@${_+_}target=${__target:realinstall=install}; \
 	    dir=${__dir}; \
@@ -154,12 +165,12 @@ ${__target}: ${__subdir_targets}
 ${__target}: _SUBDIR
 .endif	# SUBDIR_PARALLEL || _is_standalone_target
 .endif	# make(${__target})
-.endfor	# __target in ${ALL_SUBDIR_TARGETS}
+.endfor	# __target in ${SUBDIR_TARGETS}
 
 .endif	# !target(_SUBDIR)
 
 # Ensure all targets exist
-.for __target in ${ALL_SUBDIR_TARGETS}
+.for __target in ${SUBDIR_TARGETS}
 .if !target(${__target})
 ${__target}:
 .endif

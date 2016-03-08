@@ -82,6 +82,9 @@ device		da
 # NAND
 device		nand
 
+# GPIO
+device		gpio
+
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
 options 	FDT_DTB_STATIC

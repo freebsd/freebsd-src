@@ -26,12 +26,13 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <sys/types.h>
-#include <err.h>
+#include <unistd.h>
 
 typedef enum {
         AH_FALSE = 0,           /* NB: lots of code assumes false is zero */
@@ -128,12 +129,10 @@ eeprom_v4k_modal_print(uint16_t *buf)
 
 	printf("| Modal Version: %.2x |\n", mh->version);
 
-	printf("| futureModal: 0x%.2x 0x%.2x 0x%.2x 0x%.2x |\n",
-	    mh->futureModal[0],
-	    mh->futureModal[1],
-	    mh->futureModal[2],
-	    mh->futureModal[3]
-	);
+	printf("| tx_diversity: 0x%.2x |\n", mh->tx_diversity);
+	printf("| flc_pwr_thresh: 0x%.2x |\n", mh->flc_pwr_thresh);
+	printf("| bb_scale_smrt_antenna: 0x%.2x |\n", mh->bb_scale_smrt_antenna);
+	printf("| futureModal: 0x%.2x |\n", mh->futureModal[0]);
 
 	/* and now, spur channels */
 	for (i = 0; i < AR5416_EEPROM_MODAL_SPURS; i++) {

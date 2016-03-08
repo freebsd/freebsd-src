@@ -121,12 +121,12 @@ static struct resource_list *acpi_get_rlist(device_t dev, device_t child);
 static void	acpi_reserve_resources(device_t dev);
 static int	acpi_sysres_alloc(device_t dev);
 static int	acpi_set_resource(device_t dev, device_t child, int type,
-			int rid, u_long start, u_long count);
+			int rid, rman_res_t start, rman_res_t count);
 static struct resource *acpi_alloc_resource(device_t bus, device_t child,
-			int type, int *rid, u_long start, u_long end,
-			u_long count, u_int flags);
+			int type, int *rid, rman_res_t start, rman_res_t end,
+			rman_res_t count, u_int flags);
 static int	acpi_adjust_resource(device_t bus, device_t child, int type,
-			struct resource *r, u_long start, u_long end);
+			struct resource *r, rman_res_t start, rman_res_t end);
 static int	acpi_release_resource(device_t bus, device_t child, int type,
 			int rid, struct resource *r);
 static void	acpi_delete_resource(device_t bus, device_t child, int type,
@@ -459,8 +459,6 @@ acpi_attach(device_t dev)
     if (rman_init(&acpi_rman_io) != 0)
 	panic("acpi rman_init IO ports failed");
     acpi_rman_mem.rm_type = RMAN_ARRAY;
-    acpi_rman_mem.rm_start = 0;
-    acpi_rman_mem.rm_end = ~0ul;
     acpi_rman_mem.rm_descr = "ACPI I/O memory addresses";
     if (rman_init(&acpi_rman_mem) != 0)
 	panic("acpi rman_init memory failed");
@@ -558,16 +556,20 @@ acpi_attach(device_t dev)
 			       device_get_name(dev), CTLFLAG_RD, 0, "");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "supported_sleep_state", CTLTYPE_STRING | CTLFLAG_RD,
-	0, 0, acpi_supported_sleep_state_sysctl, "A", "");
+	0, 0, acpi_supported_sleep_state_sysctl, "A",
+	"List supported ACPI sleep states.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "power_button_state", CTLTYPE_STRING | CTLFLAG_RW,
-	&sc->acpi_power_button_sx, 0, acpi_sleep_state_sysctl, "A", "");
+	&sc->acpi_power_button_sx, 0, acpi_sleep_state_sysctl, "A",
+	"Power button ACPI sleep state.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "sleep_button_state", CTLTYPE_STRING | CTLFLAG_RW,
-	&sc->acpi_sleep_button_sx, 0, acpi_sleep_state_sysctl, "A", "");
+	&sc->acpi_sleep_button_sx, 0, acpi_sleep_state_sysctl, "A",
+	"Sleep button ACPI sleep state.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "lid_switch_state", CTLTYPE_STRING | CTLFLAG_RW,
-	&sc->acpi_lid_switch_sx, 0, acpi_sleep_state_sysctl, "A", "");
+	&sc->acpi_lid_switch_sx, 0, acpi_sleep_state_sysctl, "A",
+	"Lid ACPI sleep state. Set to S3 if you want to suspend your laptop when close the Lid.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "standby_state", CTLTYPE_STRING | CTLFLAG_RW,
 	&sc->acpi_standby_sx, 0, acpi_sleep_state_sysctl, "A", "");
@@ -1247,13 +1249,13 @@ acpi_reserve_resources(device_t dev)
 
 static int
 acpi_set_resource(device_t dev, device_t child, int type, int rid,
-    u_long start, u_long count)
+    rman_res_t start, rman_res_t count)
 {
     struct acpi_softc *sc = device_get_softc(dev);
     struct acpi_device *ad = device_get_ivars(child);
     struct resource_list *rl = &ad->ad_rl;
     ACPI_DEVICE_INFO *devinfo;
-    u_long end;
+    rman_res_t end;
     
     /* Ignore IRQ resources for PCI link devices. */
     if (type == SYS_RES_IRQ && ACPI_ID_PROBE(dev, child, pcilink_ids) != NULL)
@@ -1323,14 +1325,14 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
 
 static struct resource *
 acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
     ACPI_RESOURCE ares;
     struct acpi_device *ad;
     struct resource_list_entry *rle;
     struct resource_list *rl;
     struct resource *res;
-    int isdefault = (start == 0UL && end == ~0UL);
+    int isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 
     /*
      * First attempt at allocating the resource.  For direct children,
@@ -1399,8 +1401,8 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
  * system resources.
  */
 struct resource *
-acpi_alloc_sysres(device_t child, int type, int *rid, u_long start, u_long end,
-    u_long count, u_int flags)
+acpi_alloc_sysres(device_t child, int type, int *rid, rman_res_t start,
+    rman_res_t end, rman_res_t count, u_int flags)
 {
     struct rman *rm;
     struct resource *res;
@@ -1450,7 +1452,7 @@ acpi_is_resource_managed(int type, struct resource *r)
 
 static int
 acpi_adjust_resource(device_t bus, device_t child, int type, struct resource *r,
-    u_long start, u_long end)
+    rman_res_t start, rman_res_t end)
 {
 
     if (acpi_is_resource_managed(type, r))

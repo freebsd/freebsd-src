@@ -40,6 +40,15 @@ class CF_MEM_RAT <bits<6> rat_inst, bits<4> rat_id, dag ins, string name,
     : EG_CF_RAT <0x56, rat_inst, rat_id, 0xf /* mask */, (outs), ins,
                  "MEM_RAT "#name, pattern>;
 
+class CF_MEM_RAT_STORE_TYPED<bits<1> has_eop>
+    : CF_MEM_RAT <0x1, ?, (ins R600_Reg128:$rw_gpr, R600_Reg128:$index_gpr,
+                           i32imm:$rat_id, InstFlag:$eop),
+                  "STORE_TYPED RAT($rat_id) $rw_gpr, $index_gpr"
+                               #!if(has_eop, ", $eop", ""),
+                  [(int_r600_rat_store_typed R600_Reg128:$rw_gpr,
+                                             R600_Reg128:$index_gpr,
+                                             (i32 imm:$rat_id))]>;
+
 def RAT_MSKOR : CF_MEM_RAT <0x11, 0,
   (ins R600_Reg128:$rw_gpr, R600_TReg32_X:$index_gpr),
   "MSKOR $rw_gpr.XW, $index_gpr",
@@ -104,6 +113,8 @@ def RAT_WRITE_CACHELESS_128_eg : CF_MEM_RAT_CACHELESS <0x2, 0, 0xf,
   "STORE_RAW $rw_gpr.XYZW, $index_gpr, $eop",
   [(global_store v4i32:$rw_gpr, i32:$index_gpr)]
 >;
+
+def RAT_STORE_TYPED_eg: CF_MEM_RAT_STORE_TYPED<1>;
 
 } // End usesCustomInserter = 1
 
@@ -338,7 +349,7 @@ def BCNT_INT : R600_1OP_Helper <0xAA, "BCNT_INT", ctpop, VecALU>;
 def ADDC_UINT : R600_2OP_Helper <0x52, "ADDC_UINT", AMDGPUcarry>;
 def SUBB_UINT : R600_2OP_Helper <0x53, "SUBB_UINT", AMDGPUborrow>;
 
-def FFBH_UINT : R600_1OP_Helper <0xAB, "FFBH_UINT", ctlz_zero_undef, VecALU>;
+def FFBH_UINT : R600_1OP_Helper <0xAB, "FFBH_UINT", AMDGPUffbh_u32, VecALU>;
 def FFBL_INT : R600_1OP_Helper <0xAC, "FFBL_INT", cttz_zero_undef, VecALU>;
 
 let hasSideEffects = 1 in {

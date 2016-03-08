@@ -67,7 +67,6 @@ efipart_init(void)
 	EFI_HANDLE *hin, *hout, *aliases, handle;
 	EFI_STATUS status;
 	UINTN sz;
-	CHAR16 *path;
 	u_int n, nin, nout;
 	int err;
 	size_t devpathlen;

@@ -67,8 +67,7 @@ struct ProcessInfo {
   /// \returns The fully qualified path to the first \p Name in \p Paths if it
   ///   exists. \p Name if \p Name has slashes in it. Otherwise an error.
   ErrorOr<std::string>
-  findProgramByName(StringRef Name,
-                    ArrayRef<StringRef> Paths = ArrayRef<StringRef>());
+  findProgramByName(StringRef Name, ArrayRef<StringRef> Paths = None);
 
   // These functions change the specified standard stream (stdin or stdout) to
   // binary mode. They return errc::success if the specified stream
@@ -131,7 +130,7 @@ struct ProcessInfo {
 
   /// Return true if the given arguments fit within system-specific
   /// argument length limits.
-  bool argumentsFitWithinSystemLimits(ArrayRef<const char*> Args);
+  bool commandLineFitsWithinSystemLimits(StringRef Program, ArrayRef<const char*> Args);
 
   /// File encoding options when writing contents that a non-UTF8 tool will
   /// read (on Windows systems). For UNIX, we always use UTF-8.

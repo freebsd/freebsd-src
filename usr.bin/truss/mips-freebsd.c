@@ -41,10 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/reg.h>
 
 #include <stdio.h>
+#include <sysdecode.h>
 
 #include "truss.h"
-
-#include "freebsd_syscalls.h"
 
 static int
 mips_fetch_args(struct trussinfo *trussinfo, u_int narg)
@@ -132,8 +131,7 @@ static struct procabi mips_freebsd = {
 #else
 	"FreeBSD ELF32",
 #endif
-	syscallnames,
-	nitems(syscallnames),
+	SYSDECODE_ABI_FREEBSD,
 	mips_fetch_args,
 	mips_fetch_retval
 };

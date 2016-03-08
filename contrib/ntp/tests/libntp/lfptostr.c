@@ -20,6 +20,7 @@ static const int HALF_PROMILLE_UP = 2147484; /* slightly more than 0.0005 */
 static const int HALF_PROMILLE_DOWN = 2147483; /* slightly less than 0.0005 */
 
 
+void setUp(void);
 void test_PositiveInteger(void);
 void test_NegativeInteger(void);
 void test_PositiveIntegerWithFraction(void);
@@ -32,6 +33,14 @@ void test_MillisecondsRoundingUp(void);
 void test_MillisecondsRoundingDown(void);
 void test_UnsignedInteger(void);
 
+
+void
+setUp(void)
+{
+	init_lib();
+
+	return;
+}
 
 
 void

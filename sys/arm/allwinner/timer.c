@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/kdb.h>
 
-#include "a20/a20_cpu_cfg.h"
+#include <arm/allwinner/allwinner_machdep.h>
 
 /**
  * Timer registers addr
@@ -84,7 +84,6 @@ struct a10_timer_softc {
 	uint32_t 	sc_period;
 	uint32_t 	timer0_freq;
 	struct eventtimer et;
-	uint8_t 	sc_timer_type;	/* 0 for A10, 1 for A20 */
 };
 
 int a10_timer_get_timerfreq(struct a10_timer_softc *);
@@ -127,10 +126,6 @@ timer_read_counter64(void)
 {
 	uint32_t lo, hi;
 
-	/* In case of A20 get appropriate counter info */
-	if (a10_timer_sc->sc_timer_type)
-		return (a20_read_counter64());
-
 	/* Latch counter, wait for it to be ready to read. */
 	timer_write_4(a10_timer_sc, CNT64_CTRL_REG, CNT64_RL_EN);
 	while (timer_read_4(a10_timer_sc, CNT64_CTRL_REG) & CNT64_RL_EN)
@@ -146,14 +141,16 @@ static int
 a10_timer_probe(device_t dev)
 {
 	struct a10_timer_softc *sc;
+	u_int soc_family;
 
 	sc = device_get_softc(dev);
 
-	if (ofw_bus_is_compatible(dev, "allwinner,sun4i-timer"))
-		sc->sc_timer_type = 0;
-	else if (ofw_bus_is_compatible(dev, "allwinner,sun7i-timer"))
-		sc->sc_timer_type = 1;
-	else
+	if (!ofw_bus_is_compatible(dev, "allwinner,sun4i-a10-timer"))
+		return (ENXIO);
+
+	soc_family = allwinner_soc_family();
+	if (soc_family != ALLWINNERSOC_SUN4I &&
+	    soc_family != ALLWINNERSOC_SUN5I)
 		return (ENXIO);
 
 	device_set_desc(dev, "Allwinner A10/A20 timer");
@@ -352,7 +349,8 @@ static driver_t a10_timer_driver = {
 
 static devclass_t a10_timer_devclass;
 
-DRIVER_MODULE(a10_timer, simplebus, a10_timer_driver, a10_timer_devclass, 0, 0);
+EARLY_DRIVER_MODULE(a10_timer, simplebus, a10_timer_driver, a10_timer_devclass, 0, 0,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 
 void
 DELAY(int usec)

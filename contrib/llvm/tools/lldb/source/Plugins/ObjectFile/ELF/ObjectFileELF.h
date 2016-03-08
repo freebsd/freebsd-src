@@ -10,9 +10,14 @@
 #ifndef liblldb_ObjectFileELF_h_
 #define liblldb_ObjectFileELF_h_
 
+// C Includes
 #include <stdint.h>
+
+// C++ Includes
 #include <vector>
 
+// Other libraries and framework includes
+// Project includes
 #include "lldb/lldb-private.h"
 #include "lldb/Host/FileSpec.h"
 #include "lldb/Symbol/ObjectFile.h"
@@ -47,6 +52,12 @@ struct ELFNote
     ///    True if the ELFRel entry was successfully read and false otherwise.
     bool
     Parse(const lldb_private::DataExtractor &data, lldb::offset_t *offset);
+
+    size_t
+    GetByteSize() const
+    {
+        return 12 + llvm::RoundUpToAlignment (n_namesz, 4) + llvm::RoundUpToAlignment (n_descsz, 4);
+    }
 };
 
 //------------------------------------------------------------------------------
@@ -59,6 +70,8 @@ class ObjectFileELF :
     public lldb_private::ObjectFile
 {
 public:
+    ~ObjectFileELF() override;
+
     //------------------------------------------------------------------
     // Static Functions
     //------------------------------------------------------------------
@@ -113,9 +126,6 @@ public:
     //------------------------------------------------------------------
     // ObjectFile Protocol.
     //------------------------------------------------------------------
-    virtual
-    ~ObjectFileELF();
-
     bool
     ParseHeader() override;
 
@@ -211,6 +221,7 @@ private:
     {
         lldb_private::ConstString section_name;
     };
+
     typedef std::vector<ELFSectionHeaderInfo>   SectionHeaderColl;
     typedef SectionHeaderColl::iterator         SectionHeaderCollIter;
     typedef SectionHeaderColl::const_iterator   SectionHeaderCollConstIter;
@@ -428,4 +439,4 @@ private:
     RefineModuleDetailsFromNote (lldb_private::DataExtractor &data, lldb_private::ArchSpec &arch_spec, lldb_private::UUID &uuid);
 };
 
-#endif // #ifndef liblldb_ObjectFileELF_h_
+#endif // liblldb_ObjectFileELF_h_

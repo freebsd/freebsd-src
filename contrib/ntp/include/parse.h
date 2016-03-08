@@ -107,9 +107,9 @@ extern unsigned int splclock (void);
 /*
  * some constants useful for GPS time conversion
  */
-#define GPSORIGIN       2524953600UL                /* NTP origin - GPS origin in seconds */
-#define GPSWRAP         990U                        /* assume week count less than this in the previous epoch */
-#define GPSWEEKS        1024U                       /* number of weeks until the GPS epch rolls over */
+#define GPSORIGIN       2524953600UL         /* NTP origin - GPS origin in seconds */
+#define GPSWRAP         990                  /* assume week count less than this in the previous epoch */
+#define GPSWEEKS        1024                 /* number of weeks until the GPS epch rolls over */
 
 /*
  * state flags

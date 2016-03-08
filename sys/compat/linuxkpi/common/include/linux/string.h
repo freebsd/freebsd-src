@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,8 +37,7 @@
 
 #include <sys/libkern.h>
 
-#define strnicmp strncasecmp
-
+#define	strnicmp(...) strncasecmp(__VA_ARGS__)
 
 static inline void *
 kmemdup(const void *src, size_t len, gfp_t gfp)
@@ -49,6 +48,12 @@ kmemdup(const void *src, size_t len, gfp_t gfp)
 	if (dst)
 		memcpy(dst, src, len);
 	return (dst);
+}
+
+static inline const char *
+kstrdup_const(const char *src, gfp_t gfp)
+{
+	return (kmemdup(src, strlen(src) + 1, gfp));
 }
 
 #endif	/* _LINUX_STRING_H_ */

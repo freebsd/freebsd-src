@@ -412,6 +412,8 @@ do {									\
 #define	TDB_STOPATFORK	0x00000080 /* Stop at the return from fork (child
 				      only) */
 #define	TDB_CHILD	0x00000100 /* New child indicator for ptrace() */
+#define	TDB_BORN	0x00000200 /* New LWP indicator for ptrace() */
+#define	TDB_EXIT	0x00000400 /* Exiting LWP indicator for ptrace() */
 
 /*
  * "Private" flags kept in td_pflags:
@@ -577,6 +579,7 @@ struct proc {
 	struct itimers	*p_itimers;	/* (c) POSIX interval timers. */
 	struct procdesc	*p_procdesc;	/* (e) Process descriptor, if any. */
 	u_int		p_treeflag;	/* (e) P_TREE flags */
+	int		p_pendingexits; /* (c) Count of pending thread exits. */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
@@ -655,7 +658,7 @@ struct proc {
 /* These flags are kept in p_flag. */
 #define	P_ADVLOCK	0x00001	/* Process may hold a POSIX advisory lock. */
 #define	P_CONTROLT	0x00002	/* Has a controlling terminal. */
-#define	P_KTHREAD	0x00004	/* Kernel thread (*). */
+#define	P_KPROC		0x00004	/* Kernel process. */
 #define	P_FOLLOWFORK	0x00008	/* Attach parent debugger to children. */
 #define	P_PPWAIT	0x00010	/* Parent is waiting for child to exec/exit. */
 #define	P_PROFIL	0x00020	/* Has started profiling. */
@@ -695,6 +698,7 @@ struct proc {
 #define	P2_NOTRACE	0x00000002	/* No ptrace(2) attach or coredumps. */
 #define	P2_NOTRACE_EXEC 0x00000004	/* Keep P2_NOPTRACE on exec(2). */
 #define	P2_AST_SU	0x00000008	/* Handles SU ast for kthreads. */
+#define	P2_LWP_EVENTS	0x00000010	/* Report LWP events via ptrace(2). */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
@@ -903,6 +907,16 @@ struct	proc *pfind_locked(pid_t pid);
 struct	pgrp *pgfind(pid_t);		/* Find process group by id. */
 struct	proc *zpfind(pid_t);		/* Find zombie process by id. */
 
+struct	fork_req {
+	int		fr_flags;
+	int		fr_pages;
+	int 		*fr_pidp;
+	struct proc 	**fr_procp;
+	int 		*fr_pd_fd;
+	int 		fr_pd_flags;
+	struct filecaps	*fr_pd_fcaps;
+};
+
 /*
  * pget() flags.
  */
@@ -926,14 +940,14 @@ int	enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp,
 int	enterthispgrp(struct proc *p, struct pgrp *pgrp);
 void	faultin(struct proc *p);
 void	fixjobc(struct proc *p, struct pgrp *pgrp, int entering);
-int	fork1(struct thread *, int, int, struct proc **, int *, int,
-	    struct filecaps *);
+int	fork1(struct thread *, struct fork_req *);
 void	fork_exit(void (*)(void *, struct trapframe *), void *,
 	    struct trapframe *);
 void	fork_return(struct thread *, struct trapframe *);
 int	inferior(struct proc *p);
 void	kern_yield(int);
 void 	kick_proc0(void);
+void	killjobc(void);
 int	leavepgrp(struct proc *p);
 int	maybe_preempt(struct thread *td);
 void	maybe_yield(void);

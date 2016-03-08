@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include "config.h"
 #include "ntp_fp.h"
+#include "ntp_stdlib.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
@@ -54,14 +55,14 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("sfptostr.c");
-  RUN_TEST(test_PositiveInteger, 11);
-  RUN_TEST(test_NegativeInteger, 12);
-  RUN_TEST(test_PositiveIntegerPositiveFraction, 13);
-  RUN_TEST(test_NegativeIntegerNegativeFraction, 14);
-  RUN_TEST(test_PositiveIntegerNegativeFraction, 15);
-  RUN_TEST(test_NegativeIntegerPositiveFraction, 16);
-  RUN_TEST(test_SingleDecimalInteger, 17);
-  RUN_TEST(test_SingleDecimalRounding, 18);
+  RUN_TEST(test_PositiveInteger, 13);
+  RUN_TEST(test_NegativeInteger, 14);
+  RUN_TEST(test_PositiveIntegerPositiveFraction, 15);
+  RUN_TEST(test_NegativeIntegerNegativeFraction, 16);
+  RUN_TEST(test_PositiveIntegerNegativeFraction, 17);
+  RUN_TEST(test_NegativeIntegerPositiveFraction, 18);
+  RUN_TEST(test_SingleDecimalInteger, 19);
+  RUN_TEST(test_SingleDecimalRounding, 20);
 
   return (UnityEnd());
 }

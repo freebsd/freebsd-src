@@ -67,6 +67,7 @@ my %callback = (
 	mdorder => \&callback_mdorder,
 	altmon => \&callback_altmon,
 	cformat => \&callback_cformat,
+	dtformat => \&callback_dtformat,
 	cbabmon => \&callback_abmon,
 	data => undef,
 );
@@ -184,7 +185,7 @@ if ($TYPE eq "timedef") {
 	    "c_fmt"		=> "<cformat<d_t_fmt<s",
 	    "am_pm"		=> "as",
 	    "d_fmt"		=> "s",
-	    "d_t_fmt"		=> "s",
+	    "d_t_fmt"		=> "<dtformat<d_t_fmt<s",
 	    "altmon"		=> "<altmon<mon<as",
 	    "md_order"		=> "<mdorder<d_fmt<s",
 	    "t_fmt_ampm"	=> "s",
@@ -199,6 +200,16 @@ sub callback_cformat {
  	$s =~ s/ %Z//;
  	$s =~ s/ %z//;
  	return $s;
+};
+
+sub callback_dtformat {
+ 	my $s = shift;
+	my $nl = $callback{data}{l} . "_" . $callback{data}{c};
+
+	if ($nl eq 'ja_JP') {
+	    $s =~ s/(> )(%H)/$1%A $2/;
+	}
+	return $s;
 };
 
 sub callback_mdorder {

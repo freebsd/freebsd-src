@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -624,8 +625,8 @@ otus_attachhook(struct otus_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	usb_device_request_t req;
 	uint32_t in, out;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
 	int error;
-	uint8_t bands;
 
 	/* Not locked */
 	error = otus_load_firmware(sc, "otusfw_init", AR_FW_INIT_ADDR);
@@ -743,19 +744,19 @@ otus_attachhook(struct otus_softc *sc)
 	otus_get_chanlist(sc);
 #else
 	/* Set supported .11b and .11g rates. */
-	bands = 0;
+	memset(bands, 0, sizeof(bands));
 	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11G) {
-		setbit(&bands, IEEE80211_MODE_11B);
-		setbit(&bands, IEEE80211_MODE_11G);
+		setbit(bands, IEEE80211_MODE_11B);
+		setbit(bands, IEEE80211_MODE_11G);
 	}
 	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11A) {
-		setbit(&bands, IEEE80211_MODE_11A);
+		setbit(bands, IEEE80211_MODE_11A);
 	}
 #if 0
 	if (sc->sc_ht)
-		setbit(&bands, IEEE80211_MODE_11NG);
+		setbit(bands, IEEE80211_MODE_11NG);
 #endif
-	ieee80211_init_channels(ic, NULL, &bands);
+	ieee80211_init_channels(ic, NULL, bands);
 #endif
 
 	ieee80211_ifattach(ic);

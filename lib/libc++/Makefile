@@ -6,6 +6,9 @@ _LIBCXXRTDIR=	${.CURDIR}/../../contrib/libcxxrt
 HDRDIR=		${.CURDIR}/../../contrib/libc++/include
 SRCDIR=		${.CURDIR}/../../contrib/libc++/src
 CXXINCLUDEDIR=	${INCLUDEDIR}/c++/v${SHLIB_MAJOR}
+.if ${MACHINE_CPUARCH} == "arm"
+STATIC_CXXFLAGS+= -mlong-calls
+.endif
 
 .PATH: ${SRCDIR}
 

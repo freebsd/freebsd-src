@@ -25,7 +25,7 @@ MAKE_PRINT_VAR_ON_ERROR += .MAKE.MAKEFILES .PATH
 
 .include "src.sys.mk"
 
-.if ${.MAKE.MODE:Unormal:Mmeta*} != ""
+.if ${.MAKE.MODE:Mmeta*} != ""
 # we can afford to use cookies to prevent some targets
 # re-running needlessly
 META_COOKIE_TOUCH= touch ${COOKIE.${.TARGET}:U${.OBJDIR}/${.TARGET}}

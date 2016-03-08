@@ -532,7 +532,7 @@ replace_cmd() {
 	Set_LineNum(1)
 	while (EOF != (ch = get_char(NewCrontab)))
 		putc(ch, tmp);
-	ftruncate(fileno(tmp), ftell(tmp));
+	ftruncate(fileno(tmp), ftello(tmp));
 	fflush(tmp);  rewind(tmp);
 
 	if (ferror(tmp)) {
@@ -558,7 +558,7 @@ replace_cmd() {
 		case FALSE:
 			e = load_entry(tmp, check_error, pw, envp);
 			if (e)
-				free(e);
+				free_entry(e);
 			break;
 		case TRUE:
 			break;

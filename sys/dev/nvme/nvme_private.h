@@ -265,7 +265,7 @@ struct nvme_controller {
 	uint32_t		enable_aborts;
 
 	uint32_t		num_io_queues;
-	boolean_t		per_cpu_io_queues;
+	uint32_t		num_cpus_per_ioq;
 
 	/* Fields for tracking progress during controller initialization. */
 	struct intr_config_hook	config_hook;
@@ -275,8 +275,6 @@ struct nvme_controller {
 	struct task		reset_task;
 	struct task		fail_req_task;
 	struct taskqueue	*taskqueue;
-
-	struct resource		*msi_res[MAXCPU + 1];
 
 	/* For shared legacy interrupt. */
 	int			rid;

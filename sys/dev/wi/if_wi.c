@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -1994,8 +1995,8 @@ wi_alloc(device_t dev, int rid)
 
 	if (sc->wi_bus_type != WI_BUS_PCI_NATIVE) {
 		sc->iobase_rid = rid;
-		sc->iobase = bus_alloc_resource(dev, SYS_RES_IOPORT,
-		    &sc->iobase_rid, 0, ~0, (1 << 6),
+		sc->iobase = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+		    &sc->iobase_rid, (1 << 6),
 		    rman_make_alignment_flags(1 << 6) | RF_ACTIVE);
 		if (sc->iobase == NULL) {
 			device_printf(dev, "No I/O space?!\n");

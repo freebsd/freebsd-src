@@ -47,7 +47,6 @@
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/pmap.h>
 
 enum dma_data_direction {
 	DMA_BIDIRECTIONAL = 0,

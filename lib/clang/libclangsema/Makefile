@@ -24,6 +24,7 @@ SRCS=	AnalysisBasedWarnings.cpp \
 	SemaChecking.cpp \
 	SemaCodeComplete.cpp \
 	SemaConsumer.cpp \
+	SemaCoroutine.cpp \
 	SemaDecl.cpp \
 	SemaDeclAttr.cpp \
 	SemaDeclCXX.cpp \

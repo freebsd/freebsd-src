@@ -159,7 +159,7 @@ isc_netaddr_totext(const isc_netaddr_t *netaddr, isc_buffer_t *target) {
 	if (r == NULL)
 		return (ISC_R_FAILURE);
 
-	alen = strlen(abuf);
+	alen = (unsigned int)strlen(abuf); /* no overflow possible */
 	INSIST(alen < sizeof(abuf));
 
 	zlen = 0;

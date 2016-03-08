@@ -40,12 +40,11 @@
 int
 main(void)
 {
-	int pipes[10000], returnval;
+	int pipes[10000];
 	unsigned int i;
 
-	for (i = 0; i < nitems(pipes); i++) {
-		returnval = pipe(&pipes[i]);
-	}
+	for (i = 0; i < nitems(pipes); i++)
+		(void)pipe(&pipes[i]);
 	printf("PASS\n");
 
 	exit(0);

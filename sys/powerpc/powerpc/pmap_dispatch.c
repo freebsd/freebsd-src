@@ -74,7 +74,7 @@ struct msgbuf *msgbufp;
 vm_offset_t    msgbuf_phys;
 
 vm_offset_t kernel_vm_end;
-vm_offset_t phys_avail[PHYS_AVAIL_SZ];
+vm_paddr_t phys_avail[PHYS_AVAIL_SZ];
 vm_offset_t virtual_avail;
 vm_offset_t virtual_end;
 
@@ -562,6 +562,13 @@ pmap_quick_remove_page(vm_offset_t addr)
 {
 	CTR2(KTR_PMAP, "%s(%#x)", __func__, addr);
 	MMU_QUICK_REMOVE_PAGE(mmu_obj, addr);
+}
+
+int
+pmap_change_attr(vm_offset_t addr, vm_size_t size, vm_memattr_t mode)
+{
+	CTR4(KTR_PMAP, "%s(%#x, %#zx, %d)", __func__, addr, size, mode);
+	return (MMU_CHANGE_ATTR(mmu_obj, addr, size, mode));
 }
 
 /*

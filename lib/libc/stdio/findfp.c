@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 #include <spinlock.h>
@@ -96,11 +97,13 @@ moreglue(int n)
 	struct glue *g;
 	static FILE empty = { ._fl_mutex = PTHREAD_MUTEX_INITIALIZER };
 	FILE *p;
+	size_t align;
 
-	g = (struct glue *)malloc(sizeof(*g) + ALIGNBYTES + n * sizeof(FILE));
+	align = __alignof__(FILE);
+	g = (struct glue *)malloc(sizeof(*g) + align + n * sizeof(FILE));
 	if (g == NULL)
 		return (NULL);
-	p = (FILE *)ALIGN(g + 1);
+	p = (FILE *)roundup((uintptr_t)(g + 1), align);
 	g->next = NULL;
 	g->niobs = n;
 	g->iobs = p;

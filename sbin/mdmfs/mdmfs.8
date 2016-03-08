@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 4, 2011
+.Dd March 7, 2016
 .Dt MDMFS 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 driver
 .Sh SYNOPSIS
 .Nm
-.Op Fl DLlMNPStUX
+.Op Fl DLlMNnPStUX
 .Op Fl a Ar maxcontig
 .Op Fl b Ar block-size
 .Op Fl c Ar blocks-per-cylinder-group
@@ -47,7 +47,6 @@ driver
 .Op Fl f Ar frag-size
 .Op Fl i Ar bytes
 .Op Fl m Ar percent-free
-.Op Fl n Ar rotational-positions
 .Op Fl O Ar optimization
 .Op Fl o Ar mount-options
 .Op Fl p Ar permissions
@@ -167,8 +166,10 @@ The percentage of space reserved for the superuser.
 Do not actually run the helper programs.
 This is most useful in conjunction with
 .Fl X .
-.It Fl n Ar rotational-positions
-The default number of rotational positions to distinguish.
+.It Fl n
+Do not create a
+.Pa .snap
+directory on the new file system.
 .It Fl O Ar optimization
 Select the optimization preference;
 valid choices are

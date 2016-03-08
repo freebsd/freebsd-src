@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2014 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2007-2017 QLogic Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -11,7 +11,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
@@ -28,7 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 
-static const struct iro e2_iro_arr[379] = {
+static const struct iro e2_iro_arr[385] = {
 	{     0x40,      0x0,      0x0,      0x0,      0x0},	// COMMON_SB_SIZE
 	{     0x40,      0x0,      0x0,      0x0,      0x0},	// COMMON_SB_DATA_SIZE
 	{     0x28,      0x0,      0x0,      0x0,      0x0},	// COMMON_SP_SB_SIZE
@@ -132,6 +132,10 @@ static const struct iro e2_iro_arr[379] = {
 	{   0x16c8,      0x0,      0x0,      0x0,      0x8},	// TSTORM_COMMON_RTC_PARAMS_OFFSET
 	{   0x2008,     0x10,      0x0,      0x0,     0x10},	// TSTORM_ASSERT_LIST_OFFSET(assertListEntry)
 	{   0x2000,      0x0,      0x0,      0x0,      0x8},	// TSTORM_ASSERT_LIST_INDEX_OFFSET
+	{   0x1aa8,      0x0,      0x0,      0x0,     0x10},	// TSTORM_MEASURE_PCI_LATENCY_CTRL_OFFSET
+	{   0x1ab8,      0x0,      0x0,      0x0,     0x10},	// TSTORM_MEASURE_PCI_LATENCY_DATA_OFFSET
+	{      0x1,      0x0,      0x0,      0x0,      0x0},	// TSTORM_AGG_MEASURE_PCI_LATENCY_INDEX
+	{      0x2,      0x0,      0x0,      0x0,      0x0},	// TSTORM_AGG_MEASURE_PCI_LATENCY_COMP_TYPE
 	{   0x17e0,      0x8,      0x0,      0x0,      0x1},	// TSTORM_FUNC_EN_OFFSET(funcId)
 	{   0x17e1,      0x8,      0x0,      0x0,      0x1},	// TSTORM_VF_TO_PF_OFFSET(funcId)
 	{   0x17e2,      0x8,      0x0,      0x0,      0x1},	// TSTORM_RECORD_SLOW_PATH_OFFSET(funcId)
@@ -233,7 +237,9 @@ static const struct iro e2_iro_arr[379] = {
 	{UNDEF_IRO,      0x0,      0x0,      0x0,      0x0},	// TSTORM_FUNCTION_COMMON_CONFIG_OFFSET(pfId)
 	{UNDEF_IRO,      0x0,      0x0,      0x0,      0x0},	// TSTORM_MAC_FILTER_CONFIG_OFFSET(pfId)
 	{UNDEF_IRO,      0x0,      0x0,      0x0,      0x0},	// TSTORM_APPROXIMATE_MATCH_MULTICAST_FILTERING_OFFSET(pfId)
-	{   0x3128,      0x0,      0x0,      0x0,      0x8},	// TSTORM_ACCEPT_CLASSIFY_FAILED_OFFSET
+	{UNDEF_IRO,      0x0,      0x0,      0x0,      0x0},	// TSTORM_ACCEPT_CLASSIFY_FAILED_OFFSET
+	{   0x3128,      0x8,      0x0,      0x0,      0x1},	// TSTORM_ACCEPT_CLASSIFY_FAIL_E2_ENABLE_OFFSET(portId)
+	{   0x3129,      0x8,      0x0,      0x0,      0x1},	// TSTORM_ACCEPT_CLASSIFY_FAIL_E2_VNIC_OFFSET(portId)
 	{  0x62a20,   0x2600,     0x40,      0x0,      0x8},	// USTORM_CQE_PAGE_NEXT_OFFSET(portId,clientId)
 	{   0xa000,      0x0,      0x0,      0x0,   0x2000},	// USTORM_AGG_DATA_OFFSET
 	{   0x40c1,      0x0,      0x0,      0x0,      0x1},	// USTORM_TPA_BTR_OFFSET
@@ -396,14 +402,14 @@ static const struct iro e2_iro_arr[379] = {
 	{   0xbcb0,      0x0,      0x0,      0x0,      0x4},	// XSTORM_DEBUG_ABTS_BLOCK_SQ_CNT_OFFSET
 	{   0xbcb4,      0x0,      0x0,      0x0,      0x4},	// XSTORM_DEBUG_CLEANUP_BLOCK_SQ_CNT_OFFSET
 	{   0xbcb0,      0x0,      0x0,      0x0,     0x48},	// XSTORM_DEBUG_OFFSET
-	{   0xd858,      0x0,      0x0,      0x0,      0x4},	// TSTORM_STAT_FCOE_VER_CNT_OFFSET
-	{   0xd850,      0x0,      0x0,      0x0,      0x4},	// TSTORM_STAT_FCOE_RX_PKT_CNT_OFFSET
-	{   0xd854,      0x0,      0x0,      0x0,      0x4},	// TSTORM_STAT_FCOE_RX_BYTE_CNT_OFFSET
-	{   0xd85c,      0x0,      0x0,      0x0,      0x4},	// TSTORM_STAT_FCOE_RX_DROP_PKT_CNT_OFFSET
-	{   0xd850,      0x0,      0x0,      0x0,     0x10},	// TSTORM_STAT_OFFSET
-	{   0xd840,      0x0,      0x0,      0x0,      0x4},	// TSTORM_PORT_DEBUG_WAIT_FOR_YOUR_TURN_SP_CNT_OFFSET
-	{   0xd844,      0x0,      0x0,      0x0,      0x4},	// TSTORM_PORT_DEBUG_AFEX_ERROR_PACKETS_OFFSET
-	{   0xd840,      0x0,      0x0,      0x0,      0x8},	// TSTORM_PORT_DEBUG_OFFSET
+	{   0xd868,      0x0,      0x0,      0x0,      0x4},	// TSTORM_STAT_FCOE_VER_CNT_OFFSET
+	{   0xd860,      0x0,      0x0,      0x0,      0x4},	// TSTORM_STAT_FCOE_RX_PKT_CNT_OFFSET
+	{   0xd864,      0x0,      0x0,      0x0,      0x4},	// TSTORM_STAT_FCOE_RX_BYTE_CNT_OFFSET
+	{   0xd86c,      0x0,      0x0,      0x0,      0x4},	// TSTORM_STAT_FCOE_RX_DROP_PKT_CNT_OFFSET
+	{   0xd860,      0x0,      0x0,      0x0,     0x10},	// TSTORM_STAT_OFFSET
+	{   0xd850,      0x0,      0x0,      0x0,      0x4},	// TSTORM_PORT_DEBUG_WAIT_FOR_YOUR_TURN_SP_CNT_OFFSET
+	{   0xd854,      0x0,      0x0,      0x0,      0x4},	// TSTORM_PORT_DEBUG_AFEX_ERROR_PACKETS_OFFSET
+	{   0xd850,      0x0,      0x0,      0x0,      0x8},	// TSTORM_PORT_DEBUG_OFFSET
 	{   0xd4c8,      0x0,      0x0,      0x0,      0x8},	// TSTORM_REORDER_DATA_OFFSET
 	{   0xd4d8,      0x0,      0x0,      0x0,     0x80},	// TSTORM_REORDER_WAITING_TABLE_OFFSET
 	{     0x10,      0x0,      0x0,      0x0,      0x0},	// TSTORM_WAITING_LIST_SIZE

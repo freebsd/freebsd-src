@@ -23,6 +23,7 @@
   ESC-)  RightArrow *  Left  one half screen width (or _N positions).
   ESC-(  LeftArrow  *  Right one half screen width (or _N positions).
   F                    Forward forever; like "tail -f".
+  ESC-F                Like F but stop when search pattern is found.
   r  ^R  ^L            Repaint screen.
   R                    Repaint screen, discarding buffered input.
         ---------------------------------------------------
@@ -201,6 +202,8 @@
                   Don't send termcap keypad init/deinit strings.
       ........  --follow-name
                   The F command changes files if the input file is renamed.
+      ........  --use-backslash
+                  Subsequent options use backslash as escape char.
 
 
  ---------------------------------------------------------------------------
@@ -210,21 +213,21 @@
         These keys can be used to edit text being entered 
         on the "command line" at the bottom of the screen.
 
- RightArrow                       ESC-l     Move cursor right one character.
- LeftArrow                        ESC-h     Move cursor left one character.
- ctrl-RightArrow  ESC-RightArrow  ESC-w     Move cursor right one word.
- ctrl-LeftArrow   ESC-LeftArrow   ESC-b     Move cursor left one word.
- HOME                             ESC-0     Move cursor to start of line.
- END                              ESC-$     Move cursor to end of line.
- BACKSPACE                                  Delete char to left of cursor.
- DELETE                           ESC-x     Delete char under cursor.
- ctrl-BACKSPACE   ESC-BACKSPACE             Delete word to left of cursor.
- ctrl-DELETE      ESC-DELETE      ESC-X     Delete word under cursor.
- ctrl-U           ESC (MS-DOS only)         Delete entire line.
- UpArrow                          ESC-k     Retrieve previous command line.
- DownArrow                        ESC-j     Retrieve next command line.
- TAB                                        Complete filename & cycle.
- SHIFT-TAB                        ESC-TAB   Complete filename & reverse cycle.
- ctrl-L                                     Complete filename, list all.
+ RightArrow ..................... ESC-l ... Move cursor right one character.
+ LeftArrow ...................... ESC-h ... Move cursor left one character.
+ ctrl-RightArrow  ESC-RightArrow  ESC-w ... Move cursor right one word.
+ ctrl-LeftArrow   ESC-LeftArrow   ESC-b ... Move cursor left one word.
+ HOME ........................... ESC-0 ... Move cursor to start of line.
+ END ............................ ESC-$ ... Move cursor to end of line.
+ BACKSPACE ................................ Delete char to left of cursor.
+ DELETE ......................... ESC-x ... Delete char under cursor.
+ ctrl-BACKSPACE   ESC-BACKSPACE ........... Delete word to left of cursor.
+ ctrl-DELETE .... ESC-DELETE .... ESC-X ... Delete word under cursor.
+ ctrl-U ......... ESC (MS-DOS only) ....... Delete entire line.
+ UpArrow ........................ ESC-k ... Retrieve previous command line.
+ DownArrow ...................... ESC-j ... Retrieve next command line.
+ TAB ...................................... Complete filename & cycle.
+ SHIFT-TAB ...................... ESC-TAB   Complete filename & reverse cycle.
+ ctrl-L ................................... Complete filename, list all.
 
 

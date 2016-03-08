@@ -885,9 +885,9 @@ printhdr(int maxid, u_long cpumask)
 
 	num_shown = (num_selected < maxshowdevs) ? num_selected : maxshowdevs;
 	if (hflag) {
-		xo_emit("{T:procs}  {T:memory}       ${T:/page%*s}", 19, "");
+		xo_emit("{T:procs}  {T:memory}       {T:/page%*s}", 19, "");
 	} else {
-		xo_emit("{T:procs}     {T:memory}        ${T:/page%*s}", 19, "");
+		xo_emit("{T:procs}     {T:memory}        {T:/page%*s}", 19, "");
 	}
 	if (num_shown > 1)
 		xo_emit(" {T:/disks %*s}", num_shown * 4 - 7, ""); 
@@ -1094,8 +1094,8 @@ dosum(void)
 		sum.v_active_count);
 	xo_emit("{:inactive-pages/%9u} {N:pages inactive}\n",
 		sum.v_inactive_count);
-	xo_emit("{:vm-laundry-pages/%9u} {N:pages in the laundry queue}\n",
-		sum.v_cache_count);
+	xo_emit("{:laundry-pages/%9u} {N:pages in the laundry queue}\n",
+		sum.v_laundry_count);
 	xo_emit("{:wired-pages/%9u} {N:pages wired down}\n",
 		sum.v_wire_count);
 	xo_emit("{:free-pages/%9u} {N:pages free}\n",

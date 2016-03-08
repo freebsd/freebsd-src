@@ -98,6 +98,8 @@ config_create(void)
 	cfg->do_udp = 1;
 	cfg->do_tcp = 1;
 	cfg->tcp_upstream = 0;
+	cfg->tcp_mss = 0;
+	cfg->outgoing_tcp_mss = 0;
 	cfg->ssl_service_key = NULL;
 	cfg->ssl_service_pem = NULL;
 	cfg->ssl_port = 853;
@@ -210,6 +212,7 @@ config_create(void)
 	cfg->local_zones_nodefault = NULL;
 	cfg->local_data = NULL;
 	cfg->unblock_lan_zones = 0;
+	cfg->insecure_lan_zones = 0;
 	cfg->python_script = NULL;
 	cfg->remote_control_enable = 0;
 	cfg->control_ifs = NULL;
@@ -368,6 +371,8 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_YNO("do-udp:", do_udp)
 	else S_YNO("do-tcp:", do_tcp)
 	else S_YNO("tcp-upstream:", tcp_upstream)
+	else S_NUMBER_NONZERO("tcp-mss:", tcp_mss)
+	else S_NUMBER_NONZERO("outgoing-tcp-mss:", outgoing_tcp_mss)
 	else S_YNO("ssl-upstream:", ssl_upstream)
 	else S_STR("ssl-service-key:", ssl_service_key)
 	else S_STR("ssl-service-pem:", ssl_service_pem)
@@ -458,6 +463,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_YNO("rrset-roundrobin:", rrset_roundrobin)
 	else S_STRLIST("local-data:", local_data)
 	else S_YNO("unblock-lan-zones:", unblock_lan_zones)
+	else S_YNO("insecure-lan-zones:", insecure_lan_zones)
 	else S_YNO("control-enable:", remote_control_enable)
 	else S_STRLIST("control-interface:", control_ifs)
 	else S_NUMBER_NONZERO("control-port:", control_port)
@@ -675,6 +681,8 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "do-udp", do_udp)
 	else O_YNO(opt, "do-tcp", do_tcp)
 	else O_YNO(opt, "tcp-upstream", tcp_upstream)
+	else O_DEC(opt, "tcp-mss", tcp_mss)
+	else O_DEC(opt, "outgoing-tcp-mss", outgoing_tcp_mss)
 	else O_YNO(opt, "ssl-upstream", ssl_upstream)
 	else O_STR(opt, "ssl-service-key", ssl_service_key)
 	else O_STR(opt, "ssl-service-pem", ssl_service_pem)
@@ -739,6 +747,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "minimal-responses", minimal_responses)
 	else O_YNO(opt, "rrset-roundrobin", rrset_roundrobin)
 	else O_YNO(opt, "unblock-lan-zones", unblock_lan_zones)
+	else O_YNO(opt, "insecure-lan-zones", insecure_lan_zones)
 	else O_DEC(opt, "max-udp-size", max_udp_size)
 	else O_STR(opt, "python-script", python_script)
 	else O_DEC(opt, "ratelimit", ratelimit)
@@ -864,6 +873,18 @@ config_read(struct config_file* cfg, const char* filename, const char* chroot)
 	return 1;
 }
 
+struct config_stub* cfg_stub_find(struct config_stub*** pp, const char* nm)
+{
+	struct config_stub* p = *(*pp);
+	while(p) {
+		if(strcmp(p->name, nm) == 0)
+			return p;
+		(*pp) = &p->next;
+		p = p->next;
+	}
+	return NULL;
+}
+
 void
 config_delstrlist(struct config_strlist* p)
 {
@@ -890,15 +911,22 @@ config_deldblstrlist(struct config_str2list* p)
 }
 
 void
+config_delstub(struct config_stub* p)
+{
+	if(!p) return;
+	free(p->name);
+	config_delstrlist(p->hosts);
+	config_delstrlist(p->addrs);
+	free(p);
+}
+
+void
 config_delstubs(struct config_stub* p)
 {
 	struct config_stub* np;
 	while(p) {
 		np = p->next;
-		free(p->name);
-		config_delstrlist(p->hosts);
-		config_delstrlist(p->addrs);
-		free(p);
+		config_delstub(p);
 		p = np;
 	}
 }

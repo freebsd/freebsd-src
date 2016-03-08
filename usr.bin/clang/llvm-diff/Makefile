@@ -10,6 +10,8 @@ SRCS=	llvm-diff.cpp \
 	DiffLog.cpp \
 	DifferenceEngine.cpp
 
+TGHDRS=	Attributes
+
 LIBDEPS=llvmirreader \
 	llvmbitreader \
 	llvmasmparser \

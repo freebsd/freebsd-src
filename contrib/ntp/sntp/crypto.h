@@ -17,16 +17,18 @@
 /* #include "sntp-opts.h" */
 
 struct key {
-	struct key *next;
-	int key_id;
-	int key_len;
-	char type[10];
-	char key_seq[64];
+	struct key *	next;
+	int		key_id;
+	int		key_len;
+	char		type[10];
+	char		key_seq[64];
 };
 
-int auth_init(const char *keyfile, struct key **keys);
-void get_key(int key_id, struct key **d_key);
-int make_mac(char *pkt_data, int pkt_size, int mac_size, struct key *cmp_key, char *digest);
-int auth_md5(char *pkt_data, int pkt_size, int mac_size, struct key *cmp_key);
+extern	int	auth_init(const char *keyfile, struct key **keys);
+extern	void	get_key(int key_id, struct key **d_key);
+extern	int	make_mac(const void *pkt_data, int pkt_size, int mac_size,
+			 const struct key *cmp_key, void *digest);
+extern	int	auth_md5(const void *pkt_data, int pkt_size, int mac_size,
+			 const struct key *cmp_key);
 
 #endif

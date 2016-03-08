@@ -74,6 +74,7 @@ options 	HZ=1000
 # I2C (TWSI)
 device		iic
 device		iicbus
+device		twsi
 device		ds133x
 
 # USB
@@ -87,6 +88,9 @@ device		da
 
 # SATA
 device		mvs
+
+# GPIO
+device		gpio
 
 # Flattened Device Tree
 options 	FDT

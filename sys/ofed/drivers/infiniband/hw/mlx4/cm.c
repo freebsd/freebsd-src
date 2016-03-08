@@ -82,8 +82,8 @@ static void set_local_comm_id(struct ib_mad *mad, u32 cm_id)
 		pr_err("trying to set local_comm_id in SIDR_REP\n");
 		return;
 	} else {
-	struct cm_generic_msg *msg = (struct cm_generic_msg *)mad;
-	msg->local_comm_id = cpu_to_be32(cm_id);
+		struct cm_generic_msg *msg = (struct cm_generic_msg *)mad;
+		msg->local_comm_id = cpu_to_be32(cm_id);
 	}
 }
 
@@ -97,8 +97,8 @@ static u32 get_local_comm_id(struct ib_mad *mad)
 		pr_err("trying to set local_comm_id in SIDR_REP\n");
 		return -1;
 	} else {
-	struct cm_generic_msg *msg = (struct cm_generic_msg *)mad;
-	return be32_to_cpu(msg->local_comm_id);
+		struct cm_generic_msg *msg = (struct cm_generic_msg *)mad;
+		return be32_to_cpu(msg->local_comm_id);
 	}
 }
 
@@ -112,8 +112,8 @@ static void set_remote_comm_id(struct ib_mad *mad, u32 cm_id)
 		pr_err("trying to set remote_comm_id in SIDR_REQ\n");
 		return;
 	} else {
-	struct cm_generic_msg *msg = (struct cm_generic_msg *)mad;
-	msg->remote_comm_id = cpu_to_be32(cm_id);
+		struct cm_generic_msg *msg = (struct cm_generic_msg *)mad;
+		msg->remote_comm_id = cpu_to_be32(cm_id);
 	}
 }
 
@@ -127,8 +127,8 @@ static u32 get_remote_comm_id(struct ib_mad *mad)
 		pr_err("trying to set remote_comm_id in SIDR_REQ\n");
 		return -1;
 	} else {
-	struct cm_generic_msg *msg = (struct cm_generic_msg *)mad;
-	return be32_to_cpu(msg->remote_comm_id);
+		struct cm_generic_msg *msg = (struct cm_generic_msg *)mad;
+		return be32_to_cpu(msg->remote_comm_id);
 	}
 }
 

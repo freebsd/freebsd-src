@@ -82,8 +82,7 @@ s32 ixgbe_init_ops_X540(struct ixgbe_hw *hw)
 	/* PHY */
 	phy->ops.init = ixgbe_init_phy_ops_generic;
 	phy->ops.reset = NULL;
-	if (!ixgbe_mng_present(hw))
-		phy->ops.set_phy_power = ixgbe_set_copper_phy_power;
+	phy->ops.set_phy_power = ixgbe_set_copper_phy_power;
 
 	/* MAC */
 	mac->ops.reset_hw = ixgbe_reset_hw_X540;
@@ -138,8 +137,8 @@ s32 ixgbe_init_ops_X540(struct ixgbe_hw *hw)
 	 * ARC supported; valid only if manageability features are
 	 * enabled.
 	 */
-	mac->arc_subsystem_valid = (IXGBE_READ_REG(hw, IXGBE_FWSM) &
-				   IXGBE_FWSM_MODE_MASK) ? TRUE : FALSE;
+	mac->arc_subsystem_valid = !!(IXGBE_READ_REG(hw, IXGBE_FWSM_BY_MAC(hw))
+				     & IXGBE_FWSM_MODE_MASK);
 
 	hw->mbx.ops.init_params = ixgbe_init_mbx_params_pf;
 
@@ -356,7 +355,7 @@ s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw)
 		eeprom->semaphore_delay = 10;
 		eeprom->type = ixgbe_flash;
 
-		eec = IXGBE_READ_REG(hw, IXGBE_EEC);
+		eec = IXGBE_READ_REG(hw, IXGBE_EEC_BY_MAC(hw));
 		eeprom_size = (u16)((eec & IXGBE_EEC_SIZE) >>
 				    IXGBE_EEC_SIZE_SHIFT);
 		eeprom->word_size = 1 << (eeprom_size +
@@ -681,8 +680,8 @@ s32 ixgbe_update_flash_X540(struct ixgbe_hw *hw)
 		goto out;
 	}
 
-	flup = IXGBE_READ_REG(hw, IXGBE_EEC) | IXGBE_EEC_FLUP;
-	IXGBE_WRITE_REG(hw, IXGBE_EEC, flup);
+	flup = IXGBE_READ_REG(hw, IXGBE_EEC_BY_MAC(hw)) | IXGBE_EEC_FLUP;
+	IXGBE_WRITE_REG(hw, IXGBE_EEC_BY_MAC(hw), flup);
 
 	status = ixgbe_poll_flash_update_done_X540(hw);
 	if (status == IXGBE_SUCCESS)
@@ -691,11 +690,11 @@ s32 ixgbe_update_flash_X540(struct ixgbe_hw *hw)
 		DEBUGOUT("Flash update time out\n");
 
 	if (hw->mac.type == ixgbe_mac_X540 && hw->revision_id == 0) {
-		flup = IXGBE_READ_REG(hw, IXGBE_EEC);
+		flup = IXGBE_READ_REG(hw, IXGBE_EEC_BY_MAC(hw));
 
 		if (flup & IXGBE_EEC_SEC1VAL) {
 			flup |= IXGBE_EEC_FLUP;
-			IXGBE_WRITE_REG(hw, IXGBE_EEC, flup);
+			IXGBE_WRITE_REG(hw, IXGBE_EEC_BY_MAC(hw), flup);
 		}
 
 		status = ixgbe_poll_flash_update_done_X540(hw);
@@ -724,7 +723,7 @@ static s32 ixgbe_poll_flash_update_done_X540(struct ixgbe_hw *hw)
 	DEBUGFUNC("ixgbe_poll_flash_update_done_X540");
 
 	for (i = 0; i < IXGBE_FLUDONE_ATTEMPTS; i++) {
-		reg = IXGBE_READ_REG(hw, IXGBE_EEC);
+		reg = IXGBE_READ_REG(hw, IXGBE_EEC_BY_MAC(hw));
 		if (reg & IXGBE_EEC_FLUDONE) {
 			status = IXGBE_SUCCESS;
 			break;
@@ -775,10 +774,11 @@ s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
 		if (ixgbe_get_swfw_sync_semaphore(hw))
 			return IXGBE_ERR_SWFW_SYNC;
 
-		swfw_sync = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC);
+		swfw_sync = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC_BY_MAC(hw));
 		if (!(swfw_sync & (fwmask | swmask | hwmask))) {
 			swfw_sync |= swmask;
-			IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC, swfw_sync);
+			IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC_BY_MAC(hw),
+					swfw_sync);
 			ixgbe_release_swfw_sync_semaphore(hw);
 			msec_delay(5);
 			return IXGBE_SUCCESS;
@@ -805,10 +805,10 @@ s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
 	 */
 	if (ixgbe_get_swfw_sync_semaphore(hw))
 		return IXGBE_ERR_SWFW_SYNC;
-	swfw_sync = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC);
+	swfw_sync = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC_BY_MAC(hw));
 	if (swfw_sync & (fwmask | hwmask)) {
 		swfw_sync |= swmask;
-		IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC, swfw_sync);
+		IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC_BY_MAC(hw), swfw_sync);
 		ixgbe_release_swfw_sync_semaphore(hw);
 		msec_delay(5);
 		return IXGBE_SUCCESS;
@@ -852,9 +852,9 @@ void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
 		swmask |= mask & IXGBE_GSSR_I2C_MASK;
 	ixgbe_get_swfw_sync_semaphore(hw);
 
-	swfw_sync = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC);
+	swfw_sync = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC_BY_MAC(hw));
 	swfw_sync &= ~swmask;
-	IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC, swfw_sync);
+	IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC_BY_MAC(hw), swfw_sync);
 
 	ixgbe_release_swfw_sync_semaphore(hw);
 	msec_delay(5);
@@ -881,7 +881,7 @@ static s32 ixgbe_get_swfw_sync_semaphore(struct ixgbe_hw *hw)
 		 * If the SMBI bit is 0 when we read it, then the bit will be
 		 * set and we have the semaphore
 		 */
-		swsm = IXGBE_READ_REG(hw, IXGBE_SWSM);
+		swsm = IXGBE_READ_REG(hw, IXGBE_SWSM_BY_MAC(hw));
 		if (!(swsm & IXGBE_SWSM_SMBI)) {
 			status = IXGBE_SUCCESS;
 			break;
@@ -892,7 +892,7 @@ static s32 ixgbe_get_swfw_sync_semaphore(struct ixgbe_hw *hw)
 	/* Now get the semaphore between SW/FW through the REGSMP bit */
 	if (status == IXGBE_SUCCESS) {
 		for (i = 0; i < timeout; i++) {
-			swsm = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC);
+			swsm = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC_BY_MAC(hw));
 			if (!(swsm & IXGBE_SWFW_REGSMP))
 				break;
 
@@ -932,13 +932,13 @@ static void ixgbe_release_swfw_sync_semaphore(struct ixgbe_hw *hw)
 
 	/* Release both semaphores by writing 0 to the bits REGSMP and SMBI */
 
-	swsm = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC);
+	swsm = IXGBE_READ_REG(hw, IXGBE_SWFW_SYNC_BY_MAC(hw));
 	swsm &= ~IXGBE_SWFW_REGSMP;
-	IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC, swsm);
+	IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC_BY_MAC(hw), swsm);
 
-	swsm = IXGBE_READ_REG(hw, IXGBE_SWSM);
+	swsm = IXGBE_READ_REG(hw, IXGBE_SWSM_BY_MAC(hw));
 	swsm &= ~IXGBE_SWSM_SMBI;
-	IXGBE_WRITE_REG(hw, IXGBE_SWSM, swsm);
+	IXGBE_WRITE_REG(hw, IXGBE_SWSM_BY_MAC(hw), swsm);
 
 	IXGBE_WRITE_FLUSH(hw);
 }

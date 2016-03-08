@@ -32,13 +32,16 @@
 #ifndef _MACHINE_OFW_MACHDEP_H_
 #define _MACHINE_OFW_MACHDEP_H_
 
+#include <sys/types.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
 #include <vm/vm.h>
 
 typedef	uint32_t	cell_t;
 
 struct mem_region {
-	vm_offset_t	mr_start;
-	vm_size_t	mr_size;
+	uint64_t	mr_start;
+	uint64_t	mr_size;
 };
 
 #endif /* _MACHINE_OFW_MACHDEP_H_ */

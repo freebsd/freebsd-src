@@ -132,8 +132,8 @@ meminfo(void)
 	for (i = 0; i < 3; i++) {
 		size = memsize(si, t[i]);
 		if (size > 0)
-			printf("%s: %lldMB\n", ub_mem_type(t[i]),
-			    size / 1024 / 1024);
+			printf("%s: %juMB\n", ub_mem_type(t[i]),
+			    (uintmax_t)(size / 1024 / 1024));
 	}
 }
 
@@ -426,7 +426,7 @@ main(void)
 	 * Set up console.
 	 */
 	cons_probe();
-	printf("Compatible U-Boot API signature found @%x\n", (uint32_t)sig);
+	printf("Compatible U-Boot API signature found @%p\n", sig);
 
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
@@ -511,7 +511,7 @@ static int
 command_heap(int argc, char *argv[])
 {
 
-	printf("heap base at %p, top at %p, used %d\n", end, sbrk(0),
+	printf("heap base at %p, top at %p, used %td\n", end, sbrk(0),
 	    sbrk(0) - end);
 
 	return (CMD_OK);
@@ -585,6 +585,10 @@ handle_uboot_env_var(enum ubenv_action action, const char * var)
 	 */
 	if (action == UBENV_IMPORT) { 
 		len = strcspn(var, "=");
+		if (len == 0) {
+			printf("name cannot start with '=': '%s'\n", var);
+			return;
+		}
 		if (var[len] == 0) {
 			strcpy(ldvar, "uboot.");
 			strncat(ldvar, var, sizeof(ldvar) - 7);
@@ -604,9 +608,11 @@ handle_uboot_env_var(enum ubenv_action action, const char * var)
 		var = &var[6];
 	}
 
-	/* If ldvar is malformed or there's no variable name left, punt. */
-	if (ldvar[0] == 0 || var[0] == 0)
+	/* If there is no variable name left, punt. */
+	if (var[0] == 0) {
+		printf("empty variable name\n");
 		return;
+	}
 
 	val = ub_env_get(var);
 	if (action == UBENV_SHOW) {

@@ -26,6 +26,6 @@ LIBDEPS=llvmdebuginfopdb \
 	llvmcore \
 	llvmsupport
 
-LIBADD=	z
+LIBADD+=	z
 
 .include "../clang.prog.mk"

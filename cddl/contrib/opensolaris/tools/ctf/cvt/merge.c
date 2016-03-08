@@ -283,7 +283,6 @@ static int
 equiv_su(tdesc_t *stdp, tdesc_t *ttdp, equiv_data_t *ed)
 {
 	mlist_t *ml1 = stdp->t_members, *ml2 = ttdp->t_members;
-	mlist_t *olm1 = NULL;
 
 	while (ml1 && ml2) {
 		if (ml1->ml_offset != ml2->ml_offset ||
@@ -292,7 +291,6 @@ equiv_su(tdesc_t *stdp, tdesc_t *ttdp, equiv_data_t *ed)
 		    !equiv_node(ml1->ml_type, ml2->ml_type, ed))
 			return (0);
 
-		olm1 = ml1;
 		ml1 = ml1->ml_next;
 		ml2 = ml2->ml_next;
 	}

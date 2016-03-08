@@ -36,6 +36,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
@@ -48,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 /*
  * This is a replacement rcmd() function that uses the rsh(1)
@@ -99,7 +101,7 @@ rcmdsh(char **ahost, int rport, const char *locuser, const char *remuser,
 	}
 
 	/* Get a socketpair we'll use for stdin and stdout. */
-	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, sp) == -1) {
+	if (_socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, sp) == -1) {
 		perror("rcmdsh: socketpair");
 		return (-1);
 	}
@@ -112,8 +114,8 @@ rcmdsh(char **ahost, int rport, const char *locuser, const char *remuser,
 		/*
 		 * Child.  We use sp[1] to be stdin/stdout, and close sp[0].
 		 */
-		(void)close(sp[0]);
-		if (dup2(sp[1], 0) == -1 || dup2(0, 1) == -1) {
+		(void)_close(sp[0]);
+		if (_dup2(sp[1], 0) == -1 || _dup2(0, 1) == -1) {
 			perror("rcmdsh: dup2 failed");
 			_exit(255);
 		}
@@ -156,9 +158,9 @@ rcmdsh(char **ahost, int rport, const char *locuser, const char *remuser,
 		_exit(255);
 	} else {
 		/* Parent. close sp[1], return sp[0]. */
-		(void)close(sp[1]);
+		(void)_close(sp[1]);
 		/* Reap child. */
-		(void)wait(NULL);
+		(void)_waitpid(cpid, NULL, 0);
 		return (sp[0]);
 	}
 	/* NOTREACHED */

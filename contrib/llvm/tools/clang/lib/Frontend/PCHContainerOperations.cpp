@@ -16,6 +16,7 @@
 #include "llvm/Bitcode/BitstreamReader.h"
 #include "llvm/Support/raw_ostream.h"
 #include "clang/Lex/ModuleLoader.h"
+
 using namespace clang;
 
 namespace {
@@ -26,17 +27,11 @@ class RawPCHContainerGenerator : public ASTConsumer {
   raw_pwrite_stream *OS;
 
 public:
-  RawPCHContainerGenerator(DiagnosticsEngine &Diags,
-                           const HeaderSearchOptions &HSO,
-                           const PreprocessorOptions &PPO,
-                           const TargetOptions &TO, const LangOptions &LO,
-                           const std::string &MainFileName,
-                           const std::string &OutputFileName,
-                           llvm::raw_pwrite_stream *OS,
+  RawPCHContainerGenerator(llvm::raw_pwrite_stream *OS,
                            std::shared_ptr<PCHBuffer> Buffer)
       : Buffer(Buffer), OS(OS) {}
 
-  virtual ~RawPCHContainerGenerator() {}
+  ~RawPCHContainerGenerator() override = default;
 
   void HandleTranslationUnit(ASTContext &Ctx) override {
     if (Buffer->IsComplete) {
@@ -49,16 +44,14 @@ public:
     Buffer->Data = std::move(Empty);
   }
 };
-}
+
+} // anonymous namespace
 
 std::unique_ptr<ASTConsumer> RawPCHContainerWriter::CreatePCHContainerGenerator(
-    DiagnosticsEngine &Diags, const HeaderSearchOptions &HSO,
-    const PreprocessorOptions &PPO, const TargetOptions &TO,
-    const LangOptions &LO, const std::string &MainFileName,
+    CompilerInstance &CI, const std::string &MainFileName,
     const std::string &OutputFileName, llvm::raw_pwrite_stream *OS,
     std::shared_ptr<PCHBuffer> Buffer) const {
-  return llvm::make_unique<RawPCHContainerGenerator>(
-      Diags, HSO, PPO, TO, LO, MainFileName, OutputFileName, OS, Buffer);
+  return llvm::make_unique<RawPCHContainerGenerator>(OS, Buffer);
 }
 
 void RawPCHContainerReader::ExtractPCH(

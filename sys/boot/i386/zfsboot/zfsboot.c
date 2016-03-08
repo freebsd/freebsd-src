@@ -42,13 +42,9 @@ __FBSDID("$FreeBSD$");
 #include "util.h"
 #include "cons.h"
 #include "bootargs.h"
+#include "paths.h"
 
 #include "libzfs.h"
-
-#define PATH_DOTCONFIG	"/boot.config"
-#define PATH_CONFIG	"/boot/config"
-#define PATH_BOOT3	"/boot/zfsloader"
-#define PATH_KERNEL	"/boot/kernel/kernel"
 
 #define ARGS		0x900
 #define NOPT		14
@@ -238,7 +234,7 @@ bios_getmem(void)
 	v86.es = VTOPSEG(&smap);
 	v86.edi = VTOPOFF(&smap);
 	v86int();
-	if ((v86.efl & 1) || (v86.eax != SMAP_SIG))
+	if (V86_CY(v86.efl) || (v86.eax != SMAP_SIG))
 	    break;
 	/* look for a low-memory segment that's large enough */
 	if ((smap.type == SMAP_TYPE_MEMORY) && (smap.base == 0) &&
@@ -285,7 +281,7 @@ bios_getmem(void)
 	v86.addr = 0x15;		/* int 0x15 function 0xe801*/
 	v86.eax = 0xe801;
 	v86int();
-	if (!(v86.efl & 1)) {
+	if (!V86_CY(v86.efl)) {
 	    bios_extmem = ((v86.ecx & 0xffff) + ((v86.edx & 0xffff) * 64)) * 1024;
 	}
     }
@@ -320,7 +316,7 @@ int13probe(int drive)
     v86.edx = drive;
     v86int();
     
-    if (!(v86.efl & 0x1) &&				/* carry clear */
+    if (!V86_CY(v86.efl) &&				/* carry clear */
 	((v86.edx & 0xff) != (drive & DRV_MASK))) {	/* unit # OK */
 	if ((v86.ecx & 0x3f) == 0) {			/* absurd sector size */
 		return(0);				/* skip device */
@@ -550,12 +546,12 @@ main(void)
     }
 
     /*
-     * Try to exec stage 3 boot loader. If interrupted by a keypress,
+     * Try to exec /boot/loader. If interrupted by a keypress,
      * or in case of failure, try to load a kernel directly instead.
      */
 
     if (autoboot && !*kname) {
-	memcpy(kname, PATH_BOOT3, sizeof(PATH_BOOT3));
+	memcpy(kname, PATH_LOADER_ZFS, sizeof(PATH_LOADER_ZFS));
 	if (!keyhit(3)) {
 	    load();
 	    memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));

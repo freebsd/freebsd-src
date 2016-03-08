@@ -35,6 +35,7 @@
 #include <sys/param.h>
 
 #include <sys/dtrace.h>
+#include <machine/stack.h>
 #include <machine/trap.h>
 
 #include "fbt.h"
@@ -42,6 +43,7 @@
 #define	FBT_PUSHM		0xe92d0000
 #define	FBT_POPM		0xe8bd0000
 #define	FBT_JUMP		0xea000000
+#define	FBT_SUBSP		0xe24dd000
 
 #define	FBT_ENTRY	"entry"
 #define	FBT_RETURN	"return"
@@ -81,7 +83,7 @@ fbt_patch_tracepoint(fbt_probe_t *fbt, fbt_patchval_t val)
 {
 
 	*fbt->fbtp_patchpoint = val;
-	cpu_icache_sync_range((vm_offset_t)fbt->fbtp_patchpoint, sizeof(val));
+	icache_sync((vm_offset_t)fbt->fbtp_patchpoint, sizeof(val));
 }
 
 int
@@ -111,12 +113,18 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	instr = (uint32_t *)symval->value;
 	limit = (uint32_t *)(symval->value + symval->size);
 
-	for (; instr < limit; instr++)
-		if ((*instr & 0xffff0000) == FBT_PUSHM &&
-		    (*instr & 0x4000) != 0)
-			break;
+	/*
+	 * va_arg functions has first instruction of
+	 * sub sp, sp, #?
+	 */
+	if ((*instr & 0xfffff000) == FBT_SUBSP)
+		instr++;
 
-	if (instr >= limit)
+	/*
+	 * check if insn is a pushm with LR
+	 */
+	if ((*instr & 0xffff0000) != FBT_PUSHM ||
+	    (*instr & (1 << LR)) == 0)
 		return (0);
 
 	fbt = malloc(sizeof (fbt_probe_t), M_FBT, M_WAITOK | M_ZERO);

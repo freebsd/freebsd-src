@@ -12,16 +12,16 @@
 
 // C Includes
 // C++ Includes
-
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+// Other libraries and framework includes
 #include "llvm/ADT/StringRef.h"
 
-// Other libraries and framework includes
 // Project includes
 #include "lldb/lldb-defines.h"
 #include "lldb/Core/ConstString.h"
@@ -47,7 +47,6 @@ namespace lldb_private {
 class StructuredData
 {
 public:
-
     class Object;
     class Array;
     class Integer;
@@ -89,9 +88,7 @@ public:
         {
         }
 
-        virtual ~Object ()
-        {
-        }
+        virtual ~Object() = default;
 
         virtual bool
         IsValid() const
@@ -120,80 +117,62 @@ public:
         Array *
         GetAsArray ()
         {
-            if (m_type == Type::eTypeArray)
-                return (Array *)this;
-            return NULL;
+            return ((m_type == Type::eTypeArray) ? static_cast<Array *>(this) : nullptr);
         }
 
         Dictionary *
         GetAsDictionary ()
         {
-            if (m_type == Type::eTypeDictionary)
-                return (Dictionary *)this;
-            return NULL;
+            return ((m_type == Type::eTypeDictionary) ? static_cast<Dictionary *>(this) : nullptr);
         }
 
         Integer *
         GetAsInteger ()
         {
-            if (m_type == Type::eTypeInteger)
-                return (Integer *)this;
-            return NULL;
+            return ((m_type == Type::eTypeInteger) ? static_cast<Integer *>(this) : nullptr);
         }
 
         uint64_t
         GetIntegerValue (uint64_t fail_value = 0)
         {
             Integer *integer = GetAsInteger ();
-            if (integer)
-                return integer->GetValue();
-            return fail_value;
+            return ((integer != nullptr) ? integer->GetValue() : fail_value);
         }
 
         Float *
         GetAsFloat ()
         {
-            if (m_type == Type::eTypeFloat)
-                return (Float *)this;
-            return NULL;
+            return ((m_type == Type::eTypeFloat) ? static_cast<Float *>(this) : nullptr);
         }
 
         double
         GetFloatValue (double fail_value = 0.0)
         {
             Float *f = GetAsFloat ();
-            if (f)
-                return f->GetValue();
-            return fail_value;
+            return ((f != nullptr) ? f->GetValue() : fail_value);
         }
 
         Boolean *
         GetAsBoolean ()
         {
-            if (m_type == Type::eTypeBoolean)
-                return (Boolean *)this;
-            return NULL;
+            return ((m_type == Type::eTypeBoolean) ? static_cast<Boolean *>(this) : nullptr);
         }
 
         bool
         GetBooleanValue (bool fail_value = false)
         {
             Boolean *b = GetAsBoolean ();
-            if (b)
-                return b->GetValue();
-            return fail_value;
+            return ((b != nullptr) ? b->GetValue() : fail_value);
         }
 
         String *
         GetAsString ()
         {
-            if (m_type == Type::eTypeString)
-                return (String *)this;
-            return NULL;
+            return ((m_type == Type::eTypeString) ? static_cast<String *>(this) : nullptr);
         }
 
         std::string
-        GetStringValue(const char *fail_value = NULL)
+        GetStringValue(const char *fail_value = nullptr)
         {
             String *s = GetAsString ();
             if (s)
@@ -208,9 +187,7 @@ public:
         Generic *
         GetAsGeneric()
         {
-            if (m_type == Type::eTypeGeneric)
-                return (Generic *)this;
-            return NULL;
+            return ((m_type == Type::eTypeGeneric) ? static_cast<Generic *>(this) : nullptr);
         }
 
         ObjectSP
@@ -233,10 +210,7 @@ public:
         {
         }
 
-        virtual
-        ~Array()
-        {
-        }
+        ~Array() override = default;
 
         bool
         ForEach (std::function <bool(Object* object)> const &foreach_callback) const
@@ -248,7 +222,6 @@ public:
             }
             return true;
         }
-
 
         size_t
         GetSize() const
@@ -277,11 +250,14 @@ public:
         bool
         GetItemAtIndexAsInteger(size_t idx, IntType &result) const
         {
-            ObjectSP value = GetItemAtIndex(idx);
-            if (auto int_value = value->GetAsInteger())
+            ObjectSP value_sp = GetItemAtIndex(idx);
+            if (value_sp.get())
             {
-                result = static_cast<IntType>(int_value->GetValue());
-                return true;
+                if (auto int_value = value_sp->GetAsInteger())
+                {
+                    result = static_cast<IntType>(int_value->GetValue());
+                    return true;
+                }
             }
             return false;
         }
@@ -299,11 +275,14 @@ public:
         bool
         GetItemAtIndexAsString(size_t idx, std::string &result) const
         {
-            ObjectSP value = GetItemAtIndex(idx);
-            if (auto string_value = value->GetAsString())
+            ObjectSP value_sp = GetItemAtIndex(idx);
+            if (value_sp.get())
             {
-                result = string_value->GetValue();
-                return true;
+                if (auto string_value = value_sp->GetAsString())
+                {
+                    result = string_value->GetValue();
+                    return true;
+                }
             }
             return false;
         }
@@ -320,13 +299,13 @@ public:
         bool
         GetItemAtIndexAsString(size_t idx, ConstString &result) const
         {
-            ObjectSP value = GetItemAtIndex(idx);
-            if (!value)
-                return false;
-            if (auto string_value = value->GetAsString())
-            {
-                result = ConstString(string_value->GetValue());
-                return true;
+            ObjectSP value_sp = GetItemAtIndex(idx);
+            if (value_sp.get()) {
+                if (auto string_value = value_sp->GetAsString())
+                {
+                    result = ConstString(string_value->GetValue());
+                    return true;
+                }
             }
             return false;
         }
@@ -343,17 +322,27 @@ public:
         bool
         GetItemAtIndexAsDictionary(size_t idx, Dictionary *&result) const
         {
-            ObjectSP value = GetItemAtIndex(idx);
-            result = value->GetAsDictionary();
-            return (result != nullptr);
+            result = nullptr;
+            ObjectSP value_sp = GetItemAtIndex(idx);
+            if (value_sp.get()) 
+            {
+                result = value_sp->GetAsDictionary();
+                return (result != nullptr);
+            }
+            return false;
         }
 
         bool
         GetItemAtIndexAsArray(size_t idx, Array *&result) const
         {
-            ObjectSP value = GetItemAtIndex(idx);
-            result = value->GetAsArray();
-            return (result != nullptr);
+            result = nullptr;
+            ObjectSP value_sp = GetItemAtIndex(idx);
+            if (value_sp.get())
+            {
+                result = value_sp->GetAsArray();
+                return (result != nullptr);
+            }
+            return false;
         }
 
         void
@@ -375,8 +364,7 @@ public:
         collection m_items;
     };
 
-
-    class Integer  : public Object
+    class Integer : public Object
     {
     public:
         Integer (uint64_t i = 0) :
@@ -385,9 +373,7 @@ public:
         {
         }
 
-        virtual ~Integer()
-        {
-        }
+        ~Integer() override = default;
 
         void
         SetValue (uint64_t value)
@@ -407,7 +393,7 @@ public:
         uint64_t m_value;
     };
 
-    class Float  : public Object
+    class Float : public Object
     {
     public:
         Float (double d = 0.0) :
@@ -416,9 +402,7 @@ public:
         {
         }
 
-        virtual ~Float()
-        {
-        }
+        ~Float() override = default;
 
         void
         SetValue (double value)
@@ -438,7 +422,7 @@ public:
         double m_value;
     };
 
-    class Boolean  : public Object
+    class Boolean : public Object
     {
     public:
         Boolean (bool b = false) :
@@ -447,9 +431,7 @@ public:
         {
         }
 
-        virtual ~Boolean()
-        {
-        }
+        ~Boolean() override = default;
 
         void
         SetValue (bool value)
@@ -469,12 +451,10 @@ public:
         bool m_value;
     };
 
-
-
-    class String  : public Object
+    class String : public Object
     {
     public:
-        String (const char *cstr = NULL) :
+        String(const char *cstr = nullptr) :
             Object (Type::eTypeString),
             m_value ()
         {
@@ -522,9 +502,7 @@ public:
         {
         }
 
-        virtual ~Dictionary()
-        {
-        }
+        ~Dictionary() override = default;
 
         size_t
         GetSize() const
@@ -580,13 +558,13 @@ public:
         bool
         GetValueForKeyAsInteger(llvm::StringRef key, IntType &result) const
         {
-            ObjectSP value = GetValueForKey(key);
-            if (!value)
-                return false;
-            if (auto int_value = value->GetAsInteger())
-            {
-                result = static_cast<IntType>(int_value->GetValue());
-                return true;
+            ObjectSP value_sp = GetValueForKey(key);
+            if (value_sp) {
+                if (auto int_value = value_sp->GetAsInteger())
+                {
+                    result = static_cast<IntType>(int_value->GetValue());
+                    return true;
+                }
             }
             return false;
         }
@@ -604,13 +582,14 @@ public:
         bool
         GetValueForKeyAsString(llvm::StringRef key, std::string &result) const
         {
-            ObjectSP value = GetValueForKey(key);
-            if (!value)
-                return false;
-            if (auto string_value = value->GetAsString())
+            ObjectSP value_sp = GetValueForKey(key);
+            if (value_sp.get())
             {
-                result = string_value->GetValue();
-                return true;
+                if (auto string_value = value_sp->GetAsString())
+                {
+                    result = string_value->GetValue();
+                    return true;
+                }
             }
             return false;
         }
@@ -632,13 +611,14 @@ public:
         bool
         GetValueForKeyAsString(llvm::StringRef key, ConstString &result) const
         {
-            ObjectSP value = GetValueForKey(key);
-            if (!value)
-                return false;
-            if (auto string_value = value->GetAsString())
+            ObjectSP value_sp = GetValueForKey(key);
+            if (value_sp.get())
             {
-                result = ConstString(string_value->GetValue());
-                return true;
+                if (auto string_value = value_sp->GetAsString())
+                {
+                    result = ConstString(string_value->GetValue());
+                    return true;
+                }
             }
             return false;
         }
@@ -656,22 +636,26 @@ public:
         GetValueForKeyAsDictionary(llvm::StringRef key, Dictionary *&result) const
         {
             result = nullptr;
-            ObjectSP value = GetValueForKey(key);
-            if (!value)
-                return false;
-            result = value->GetAsDictionary();
-            return true;
+            ObjectSP value_sp = GetValueForKey(key);
+            if (value_sp.get())
+            {
+                result = value_sp->GetAsDictionary();
+                return (result != nullptr);
+            }
+            return false;
         }
 
         bool
         GetValueForKeyAsArray(llvm::StringRef key, Array *&result) const
         {
             result = nullptr;
-            ObjectSP value = GetValueForKey(key);
-            if (!value)
-                return false;
-            result = value->GetAsArray();
-            return true;
+            ObjectSP value_sp = GetValueForKey(key);
+            if (value_sp.get())
+            {
+                result = value_sp->GetAsArray();
+                return (result != nullptr);
+            }
+            return false;
         }
 
         bool
@@ -683,10 +667,10 @@ public:
         }
 
         void
-        AddItem (llvm::StringRef key, ObjectSP value)
+        AddItem (llvm::StringRef key, ObjectSP value_sp)
         {
             ConstString key_cs(key);
-            m_dict[key_cs] = value;
+            m_dict[key_cs] = value_sp;
         }
 
         void
@@ -728,9 +712,7 @@ public:
         {
         }
 
-        virtual ~Null()
-        {
-        }
+        ~Null() override = default;
 
         bool
         IsValid() const override
@@ -739,13 +721,11 @@ public:
         }
 
         void Dump(Stream &s) const override;
-
-    protected:
     };
 
     class Generic : public Object
     {
-      public:
+    public:
         explicit Generic(void *object = nullptr) :
             Object (Type::eTypeGeneric),
             m_object (object)
@@ -772,16 +752,14 @@ public:
 
         void Dump(Stream &s) const override;
 
-      private:
+    private:
         void *m_object;
     };
 
     static ObjectSP
     ParseJSON (std::string json_text);
-
-};  // class StructuredData
-
+};
 
 } // namespace lldb_private
 
-#endif  // liblldb_StructuredData_h_
+#endif // liblldb_StructuredData_h_

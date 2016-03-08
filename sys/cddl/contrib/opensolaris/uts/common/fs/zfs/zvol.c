@@ -134,6 +134,9 @@ SYSCTL_NODE(_vfs_zfs, OID_AUTO, vol, CTLFLAG_RW, 0, "ZFS VOLUME");
 static int	volmode = ZFS_VOLMODE_GEOM;
 SYSCTL_INT(_vfs_zfs_vol, OID_AUTO, mode, CTLFLAG_RWTUN, &volmode, 0,
     "Expose as GEOM providers (1), device files (2) or neither");
+static boolean_t zpool_on_zvol = B_FALSE;
+SYSCTL_INT(_vfs_zfs_vol, OID_AUTO, recursive, CTLFLAG_RWTUN, &zpool_on_zvol, 0,
+    "Allow zpools to use zvols as vdevs (DANGEROUS)");
 
 #endif
 typedef struct zvol_extent {
@@ -1116,6 +1119,17 @@ zvol_open(struct g_provider *pp, int flag, int count)
 #else	/* !illumos */
 	boolean_t locked = B_FALSE;
 
+	if (!zpool_on_zvol && tsd_get(zfs_geom_probe_vdev_key) != NULL) {
+		/*
+		 * if zfs_geom_probe_vdev_key is set, that means that zfs is
+		 * attempting to probe geom providers while looking for a
+		 * replacement for a missing VDEV.  In this case, the
+		 * spa_namespace_lock will not be held, but it is still illegal
+		 * to use a zvol as a vdev.  Deadlocks can result if another
+		 * thread has spa_namespace_lock
+		 */
+		return (EOPNOTSUPP);
+	}
 	/*
 	 * Protect against recursively entering spa_namespace_lock
 	 * when spa_open() is used for a pool on a (local) ZVOL(s).

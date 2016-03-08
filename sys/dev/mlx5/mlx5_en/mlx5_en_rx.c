@@ -100,20 +100,23 @@ mlx5e_lro_update_hdr(struct mbuf *mb, struct mlx5_cqe64 *cqe)
 	/* TODO: consider vlans, ip options, ... */
 	struct ether_header *eh;
 	uint16_t eh_type;
+	uint16_t tot_len;
 	struct ip6_hdr *ip6 = NULL;
 	struct ip *ip4 = NULL;
 	struct tcphdr *th;
 	uint32_t *ts_ptr;
+	uint8_t l4_hdr_type;
+	int tcp_ack;
 
 	eh = mtod(mb, struct ether_header *);
 	eh_type = ntohs(eh->ether_type);
 
-	u8 l4_hdr_type = get_cqe_l4_hdr_type(cqe);
-	int tcp_ack = ((CQE_L4_HDR_TYPE_TCP_ACK_NO_DATA == l4_hdr_type) ||
+	l4_hdr_type = get_cqe_l4_hdr_type(cqe);
+	tcp_ack = ((CQE_L4_HDR_TYPE_TCP_ACK_NO_DATA == l4_hdr_type) ||
 	    (CQE_L4_HDR_TYPE_TCP_ACK_AND_DATA == l4_hdr_type));
 
 	/* TODO: consider vlan */
-	u16 tot_len = be32_to_cpu(cqe->byte_cnt) - ETHER_HDR_LEN;
+	tot_len = be32_to_cpu(cqe->byte_cnt) - ETHER_HDR_LEN;
 
 	switch (eh_type) {
 	case ETHERTYPE_IP:
@@ -248,6 +251,74 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
 	}
 }
 
+static inline void
+mlx5e_read_cqe_slot(struct mlx5e_cq *cq, u32 cc, void *data)
+{
+	memcpy(data, mlx5_cqwq_get_wqe(&cq->wq, (cc & cq->wq.sz_m1)),
+	    sizeof(struct mlx5_cqe64));
+}
+
+static inline void
+mlx5e_write_cqe_slot(struct mlx5e_cq *cq, u32 cc, void *data)
+{
+	memcpy(mlx5_cqwq_get_wqe(&cq->wq, cc & cq->wq.sz_m1),
+	    data, sizeof(struct mlx5_cqe64));
+}
+
+static inline void
+mlx5e_decompress_cqe(struct mlx5e_cq *cq, struct mlx5_cqe64 *title,
+    struct mlx5_mini_cqe8 *mini,
+    u16 wqe_counter, int i)
+{
+	/*
+	 * NOTE: The fields which are not set here are copied from the
+	 * initial and common title. See memcpy() in
+	 * mlx5e_write_cqe_slot().
+	 */
+	title->byte_cnt = mini->byte_cnt;
+	title->wqe_counter = cpu_to_be16((wqe_counter + i) & cq->wq.sz_m1);
+	title->check_sum = mini->checksum;
+	title->op_own = (title->op_own & 0xf0) |
+	    (((cq->wq.cc + i) >> cq->wq.log_sz) & 1);
+}
+
+#define MLX5E_MINI_ARRAY_SZ 8
+/* Make sure structs are not packet differently */
+CTASSERT(sizeof(struct mlx5_cqe64) ==
+    sizeof(struct mlx5_mini_cqe8) * MLX5E_MINI_ARRAY_SZ);
+static void
+mlx5e_decompress_cqes(struct mlx5e_cq *cq)
+{
+	struct mlx5_mini_cqe8 mini_array[MLX5E_MINI_ARRAY_SZ];
+	struct mlx5_cqe64 title;
+	u32 cqe_count;
+	u32 i = 0;
+	u16 title_wqe_counter;
+
+	mlx5e_read_cqe_slot(cq, cq->wq.cc, &title);
+	title_wqe_counter = be16_to_cpu(title.wqe_counter);
+	cqe_count = be32_to_cpu(title.byte_cnt);
+
+	/* Make sure we won't overflow */
+	KASSERT(cqe_count <= cq->wq.sz_m1,
+	    ("%s: cqe_count %u > cq->wq.sz_m1 %u", __func__,
+	    cqe_count, cq->wq.sz_m1));
+
+	mlx5e_read_cqe_slot(cq, cq->wq.cc + 1, mini_array);
+	while (true) {
+		mlx5e_decompress_cqe(cq, &title,
+		    &mini_array[i % MLX5E_MINI_ARRAY_SZ],
+		    title_wqe_counter, i);
+		mlx5e_write_cqe_slot(cq, cq->wq.cc + i, &title);
+		i++;
+
+		if (i == cqe_count)
+			break;
+		if (i % MLX5E_MINI_ARRAY_SZ == 0)
+			mlx5e_read_cqe_slot(cq, cq->wq.cc + i, mini_array);
+	}
+}
+
 static int
 mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 {
@@ -267,6 +338,11 @@ mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 		cqe = mlx5e_get_cqe(&rq->cq);
 		if (!cqe)
 			break;
+
+		if (mlx5_get_cqe_format(cqe) == MLX5_COMPRESSED)
+			mlx5e_decompress_cqes(&rq->cq);
+
+		mlx5_cqwq_pop(&rq->cq.wq);
 
 		wqe_counter_be = cqe->wqe_counter;
 		wqe_counter = be16_to_cpu(wqe_counter_be);

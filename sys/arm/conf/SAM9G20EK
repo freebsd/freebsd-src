@@ -82,9 +82,11 @@ options 	DDB			# Enable the kernel debugger
 #options 	BOOTP_NFSV3
 #options 	BOOTP_WIRED_TO=ate0
 
-# s2 because s1 is reserved for the DOS parittions sometimes needed to
-# boot off SD cards on the G20 and newer chips.
-options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s2a\"
+# s3 because s1 is reserved for the DOS parittions sometimes needed to
+# boot off SD cards on the G20 and newer chips. s2 is reserved for
+# nanobsd's config partition. s3 and s4 are for the ping-pong upgrade
+# path.
+options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s3a\"
 
 # kernel/memory size reduction
 options 	MUTEX_NOINLINE

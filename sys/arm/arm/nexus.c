@@ -82,9 +82,10 @@ static	int nexus_attach(device_t);
 static	int nexus_print_child(device_t, device_t);
 static	device_t nexus_add_child(device_t, u_int, const char *, int);
 static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
-    u_long, u_long, u_long, u_int);
+    rman_res_t, rman_res_t, rman_res_t, u_int);
 static	int nexus_activate_resource(device_t, device_t, int, int,
     struct resource *);
+static bus_space_tag_t nexus_get_bus_tag(device_t, device_t);
 #ifdef ARM_INTRNG
 #ifdef SMP
 static	int nexus_bind_intr(device_t, device_t, struct resource *, int);
@@ -124,6 +125,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_release_resource,	nexus_release_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
+	DEVMETHOD(bus_get_bus_tag,	nexus_get_bus_tag),
 #ifdef ARM_INTRNG
 	DEVMETHOD(bus_describe_intr,	nexus_describe_intr),
 #ifdef SMP
@@ -159,10 +161,11 @@ nexus_attach(device_t dev)
 {
 
 	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0ul;
+	mem_rman.rm_end = BUS_SPACE_MAXADDR;
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "I/O memory addresses";
-	if (rman_init(&mem_rman) || rman_manage_region(&mem_rman, 0, ~0))
+	if (rman_init(&mem_rman) ||
+	    rman_manage_region(&mem_rman, 0, BUS_SPACE_MAXADDR))
 		panic("nexus_probe mem_rman");
 
 	/*
@@ -212,7 +215,7 @@ nexus_add_child(device_t bus, u_int order, const char *name, int unit)
  */
 static struct resource *
 nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *rv;
 	struct rman *rm;
@@ -258,6 +261,17 @@ nexus_release_resource(device_t bus, device_t child, int type, int rid,
 			return (error);
 	}
 	return (rman_release_resource(res));
+}
+
+static bus_space_tag_t
+nexus_get_bus_tag(device_t bus __unused, device_t child __unused)
+{
+
+#ifdef FDT
+		return(fdtbus_bs_tag);
+#else
+		return((void *)1);
+#endif
 }
 
 static int

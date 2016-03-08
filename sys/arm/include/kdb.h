@@ -29,12 +29,18 @@
 #ifndef _MACHINE_KDB_H_
 #define _MACHINE_KDB_H_
 
+#include <machine/cpu.h>
+#include <machine/db_machdep.h>
 #include <machine/frame.h>
 #include <machine/psl.h>
-#include <machine/cpufunc.h>
 
 #define	KDB_STOPPEDPCB(pc)	&stoppcbs[pc->pc_cpuid]
 
+#if __ARM_ARCH >= 6
+extern void kdb_cpu_clear_singlestep(void);
+extern void kdb_cpu_set_singlestep(void);
+boolean_t kdb_cpu_pc_is_singlestep(db_addr_t);
+#else
 static __inline void
 kdb_cpu_clear_singlestep(void)
 {
@@ -44,12 +50,13 @@ static __inline void
 kdb_cpu_set_singlestep(void)
 {
 }
+#endif
 
 static __inline void
 kdb_cpu_sync_icache(unsigned char *addr, size_t size)
 {
 
-	cpu_icache_sync_range((vm_offset_t)addr, size);
+	icache_sync((vm_offset_t)addr, size);
 }
 
 static __inline void

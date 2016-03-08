@@ -74,12 +74,6 @@ static driver_filter_t xen_cpususpend_handler;
 static driver_filter_t xen_cpustophard_handler;
 #endif
 
-/*---------------------------- Extern Declarations ---------------------------*/
-/* Variables used by mp_machdep to perform the MMU related IPIs */
-#ifdef __amd64__
-extern int pmap_pcid_enabled;
-#endif
-
 /*---------------------------------- Macros ----------------------------------*/
 #define	IPI_TO_IDX(ipi) ((ipi) - APIC_IPI_INTS)
 

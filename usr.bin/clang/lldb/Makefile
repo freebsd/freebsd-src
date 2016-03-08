@@ -8,6 +8,9 @@ LLDB_SRCS=${.CURDIR}/../../../contrib/llvm/tools/lldb
 
 CFLAGS+=	-I${LLDB_SRCS}/include
 CXXFLAGS+=	-std=c++11
+.if ${MACHINE_CPUARCH} == "arm"
+CFLAGS+=	-mlong-calls
+.endif
 
 SRCDIR=	tools/lldb/tools/driver
 SRCS=	Driver.cpp \
@@ -16,7 +19,7 @@ SRCS=	Driver.cpp \
 # Man page directory
 .PATH: ${LLDB_SRCS}/docs
 
-LIBADD=	edit panel ncursesw execinfo z
+LIBADD+=	edit panel ncursesw execinfo z
 
 LLDB_LIBS=\
 	lldb \
@@ -46,12 +49,16 @@ LLDB_LIBS=\
 	lldbPluginABISysV_x86_64 \
 	lldbPluginCXXItaniumABI \
 	lldbPluginDisassemblerLLVM \
+	lldbPluginExpressionParserClang \
+	lldbPluginExpressionParserGo \
 	lldbPluginInstructionARM \
 	lldbPluginInstructionARM64 \
 	lldbPluginInstructionMIPS \
 	lldbPluginInstructionMIPS64 \
 	lldbPluginInstrumentationRuntimeAddressSanitizer \
 	lldbPluginJITLoaderGDB \
+	lldbPluginLanguageCPlusPlus \
+	lldbPluginLanguageObjC \
 	lldbPluginSymbolFileDWARF \
 	lldbPluginSymbolFileSymtab \
 	lldbPluginDynamicLoaderStatic \
@@ -60,6 +67,7 @@ LLDB_LIBS=\
 	lldbPluginObjectContainerBSDArchive \
 	lldbPluginObjectFileELF \
 	lldbPluginObjectFileJIT \
+	lldbPluginScriptInterpreterNone \
 	lldbPluginSymbolVendorELF \
 	lldbPluginPlatformFreeBSD \
 	lldbPluginPlatformGDB \
@@ -109,32 +117,32 @@ LIBDEPS=\
 	llvmaarch64asmparser \
 	llvmaarch64desc \
 	llvmaarch64info \
-	llvmaarch64instprinter \
+	llvmaarch64asmprinter \
 	llvmaarch64utils \
 	llvmarmdisassembler \
 	llvmarmcodegen \
 	llvmarmasmparser \
 	llvmarmdesc \
 	llvmarminfo \
-	llvmarminstprinter \
+	llvmarmasmprinter \
 	llvmmipsdisassembler \
 	llvmmipscodegen \
 	llvmmipsasmparser \
 	llvmmipsdesc \
 	llvmmipsinfo \
-	llvmmipsinstprinter \
+	llvmmipsasmprinter \
 	llvmpowerpcdisassembler \
 	llvmpowerpccodegen \
 	llvmpowerpcasmparser \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
-	llvmpowerpcinstprinter \
+	llvmpowerpcasmprinter \
 	llvmsparcdisassembler \
 	llvmsparccodegen \
 	llvmsparcasmparser \
 	llvmsparcdesc \
 	llvmsparcinfo \
-	llvmsparcinstprinter \
+	llvmsparcasmprinter \
 	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \
@@ -146,7 +154,6 @@ LIBDEPS=\
 	llvmprofiledata \
 	llvminstcombine \
 	llvmtransformutils \
-	llvmipa \
 	llvmanalysis \
 	llvminstrumentation \
 	llvmx86desc \
@@ -155,7 +162,7 @@ LIBDEPS=\
 	llvmbitreader \
 	llvmmcdisassembler \
 	llvmx86info \
-	llvmx86instprinter \
+	llvmx86asmprinter \
 	llvmmc \
 	llvmx86utils \
 	llvmcore \

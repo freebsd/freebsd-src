@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/fdt.h>
 #include <machine/vmparam.h>
+#include <machine/intr.h>
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
@@ -104,6 +105,10 @@ static void decode_win_idma_dump(u_long base);
 static void decode_win_xor_dump(u_long base);
 
 static int fdt_get_ranges(const char *, void *, int, int *, int *);
+#ifdef SOC_MV_ARMADA38X
+int gic_decode_fdt(phandle_t iparent, pcell_t *intr, int *interrupt,
+    int *trig, int *pol);
+#endif
 
 static int win_cpu_from_dt(void);
 static int fdt_win_setup(void);
@@ -260,7 +265,7 @@ write_cpu_ctrl(uint32_t reg, uint32_t val)
 	bus_space_write_4(fdtbus_bs_tag, MV_CPU_CONTROL_BASE, reg, val);
 }
 
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 uint32_t
 read_cpu_mp_clocks(uint32_t reg)
 {
@@ -294,7 +299,7 @@ void
 cpu_reset(void)
 {
 
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined (SOC_MV_ARMADA38X)
 	write_cpu_misc(RSTOUTn_MASK, SOFT_RST_OUT_EN);
 	write_cpu_misc(SYSTEM_SOFT_RESET, SYS_SOFT_RST);
 #else
@@ -372,7 +377,7 @@ soc_id(uint32_t *dev, uint32_t *rev)
 	 * Notice: system identifiers are available in the registers range of
 	 * PCIE controller, so using this function is only allowed (and
 	 * possible) after the internal registers range has been mapped in via
-	 * pmap_devmap_bootstrap().
+	 * arm_devmap_bootstrap().
 	 */
 	*dev = bus_space_read_4(fdtbus_bs_tag, MV_PCIE_BASE, 0) >> 16;
 	*rev = bus_space_read_4(fdtbus_bs_tag, MV_PCIE_BASE, 8) & 0xff;
@@ -441,6 +446,15 @@ soc_identify(void)
 			rev = "A0";
 		else if (r == 1)
 			rev = "A1";
+		break;
+	case MV_DEV_88F6828:
+		dev = "Marvell 88F6828";
+		break;
+	case MV_DEV_88F6820:
+		dev = "Marvell 88F6820";
+		break;
+	case MV_DEV_88F6810:
+		dev = "Marvell 88F6810";
 		break;
 	case MV_DEV_MV78100_Z0:
 		dev = "Marvell MV78100 Z0";
@@ -719,6 +733,9 @@ win_cpu_can_remap(int i)
 	    (dev == MV_DEV_88F5281 && i < 4) ||
 	    (dev == MV_DEV_88F6281 && i < 4) ||
 	    (dev == MV_DEV_88F6282 && i < 4) ||
+	    (dev == MV_DEV_88F6828 && i < 20) ||
+	    (dev == MV_DEV_88F6820 && i < 20) ||
+	    (dev == MV_DEV_88F6810 && i < 20) ||
 	    (dev == MV_DEV_88RC8180 && i < 2) ||
 	    (dev == MV_DEV_88F6781 && i < 4) ||
 	    (dev == MV_DEV_MV78100_Z0 && i < 8) ||
@@ -900,11 +917,11 @@ decode_win_sdram_fixup(void)
 {
 	struct mem_region mr[FDT_MEM_REGIONS];
 	uint8_t window_valid[MV_WIN_DDR_MAX];
-	int mr_cnt, memsize, err, i, j;
+	int mr_cnt, err, i, j;
 	uint32_t valid_win_num = 0;
 
 	/* Grab physical memory regions information from device tree. */
-	err = fdt_get_mem_regions(mr, &mr_cnt, &memsize);
+	err = fdt_get_mem_regions(mr, &mr_cnt, NULL);
 	if (err != 0)
 		return (err);
 
@@ -2055,7 +2072,7 @@ fdt_win_setup(void)
 		 */
 		child = OF_peer(child);
 		if ((child == 0) && (node == OF_finddevice("/"))) {
-			node = fdt_find_compatible(node, "simple-bus", 1);
+			node = fdt_find_compatible(node, "simple-bus", 0);
 			if (node == 0)
 				return (ENXIO);
 			child = OF_child(node);
@@ -2164,6 +2181,7 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
+#ifndef ARM_INTRNG
 static int
 fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
     int *pol)
@@ -2181,9 +2199,13 @@ fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
 }
 
 fdt_pic_decode_t fdt_pic_table[] = {
+#ifdef SOC_MV_ARMADA38X
+	&gic_decode_fdt,
+#endif
 	&fdt_pic_decode_ic,
 	NULL
 };
+#endif
 
 uint64_t
 get_sar_value(void)
@@ -2195,6 +2217,10 @@ get_sar_value(void)
 	    SAMPLE_AT_RESET_HI);
 	sar_low = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
 	    SAMPLE_AT_RESET_LO);
+#elif defined(SOC_MV_ARMADA38X)
+	sar_high = 0;
+	sar_low = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
+	    SAMPLE_AT_RESET);
 #else
 	/*
 	 * TODO: Add getting proper values for other SoC configurations

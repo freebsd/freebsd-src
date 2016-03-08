@@ -55,14 +55,14 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("ntp_restrict.c");
-  RUN_TEST(test_RestrictionsAreEmptyAfterInit, 59);
-  RUN_TEST(test_ReturnsCorrectDefaultRestrictions, 85);
-  RUN_TEST(test_HackingDefaultRestriction, 96);
-  RUN_TEST(test_CantRemoveDefaultEntry, 119);
-  RUN_TEST(test_AddingNewRestriction, 130);
-  RUN_TEST(test_TheMostFittingRestrictionIsMatched, 143);
-  RUN_TEST(test_DeletedRestrictionIsNotMatched, 165);
-  RUN_TEST(test_RestrictUnflagWorks, 189);
+  RUN_TEST(test_RestrictionsAreEmptyAfterInit, 60);
+  RUN_TEST(test_ReturnsCorrectDefaultRestrictions, 86);
+  RUN_TEST(test_HackingDefaultRestriction, 97);
+  RUN_TEST(test_CantRemoveDefaultEntry, 120);
+  RUN_TEST(test_AddingNewRestriction, 131);
+  RUN_TEST(test_TheMostFittingRestrictionIsMatched, 144);
+  RUN_TEST(test_DeletedRestrictionIsNotMatched, 166);
+  RUN_TEST(test_RestrictUnflagWorks, 190);
 
   return (UnityEnd());
 }

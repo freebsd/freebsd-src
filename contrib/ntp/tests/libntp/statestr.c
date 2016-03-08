@@ -6,10 +6,21 @@
 
 #include "unity.h"
 
+void setUp(void);
 void test_PeerRestart(void);
 void test_SysUnspecified(void);
 void test_ClockCodeExists(void);
 void test_ClockCodeUnknown(void);
+
+
+void
+setUp(void)
+{
+	init_lib();
+
+	return;
+}
+
 
 // eventstr()
 void

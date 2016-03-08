@@ -1,4 +1,4 @@
-$Id: NEWS,v 1.9 2015/03/13 12:35:32 schwarze Exp $
+$Id: NEWS,v 1.10 2015/11/05 16:58:20 schwarze Exp $
 
 This file lists the most important changes in the mdocml.bsd.lv distribution.
 
@@ -93,7 +93,7 @@ Changes in version 1.13.3, released on March 13, 2015
  * roff(7): Three minor fixes with respect to evaluation of conditionals.
  * roff(7): Let .it accept numerical expressions, not just constants.
  * mandoc_char(7): Correct some character names and renderings.
- * If earlier files set a non-zero exit status, never reset it to zero.
+ * If earlier files set a non-zero exit status, never reset it to zero.
     --- THANKS TO ---
  * Jonathan Gray (OpenBSD) for yet more testing with afl (the American
    Fuzzy Lop security fuzzer), again resulting in many bug reports.

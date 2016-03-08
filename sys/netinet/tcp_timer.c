@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 #include <net/netisr.h>
 
-#include <netinet/cc.h>
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
@@ -65,9 +64,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_pcb.h>
 #endif
 #include <netinet/ip_var.h>
+#include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#include <netinet/cc/cc.h>
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
@@ -75,6 +76,14 @@ __FBSDID("$FreeBSD$");
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
+
+int    tcp_persmin;
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, persmin, CTLTYPE_INT|CTLFLAG_RW,
+    &tcp_persmin, 0, sysctl_msec_to_ticks, "I", "minimum persistence interval");
+
+int    tcp_persmax;
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, persmax, CTLTYPE_INT|CTLFLAG_RW,
+    &tcp_persmax, 0, sysctl_msec_to_ticks, "I", "maximum persistence interval");
 
 int	tcp_keepinit;
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_KEEPINIT, keepinit, CTLTYPE_INT|CTLFLAG_RW,
@@ -643,7 +652,8 @@ tcp_timer_rexmt(void * xtp)
 	} else
 		tp->t_flags &= ~TF_PREVVALID;
 	TCPSTAT_INC(tcps_rexmttimeo);
-	if (tp->t_state == TCPS_SYN_SENT)
+	if ((tp->t_state == TCPS_SYN_SENT) ||
+	    (tp->t_state == TCPS_SYN_RECEIVED))
 		rexmt = TCPTV_RTOBASE * tcp_syn_backoff[tp->t_rxtshift];
 	else
 		rexmt = TCP_REXMTVAL(tp) * tcp_backoff[tp->t_rxtshift];
@@ -659,7 +669,6 @@ tcp_timer_rexmt(void * xtp)
 	 */
 	if (V_tcp_pmtud_blackhole_detect && (((tp->t_state == TCPS_ESTABLISHED))
 	    || (tp->t_state == TCPS_FIN_WAIT_1))) {
-		int optlen;
 #ifdef INET6
 		int isipv6;
 #endif
@@ -683,8 +692,7 @@ tcp_timer_rexmt(void * xtp)
 			tp->t_flags2 |= TF2_PLPMTU_BLACKHOLE;
 
 			/* Keep track of previous MSS. */
-			optlen = tp->t_maxopd - tp->t_maxseg;
-			tp->t_pmtud_saved_maxopd = tp->t_maxopd;
+			tp->t_pmtud_saved_maxseg = tp->t_maxseg;
 
 			/* 
 			 * Reduce the MSS to blackhole value or to the default
@@ -693,13 +701,13 @@ tcp_timer_rexmt(void * xtp)
 #ifdef INET6
 			isipv6 = (tp->t_inpcb->inp_vflag & INP_IPV6) ? 1 : 0;
 			if (isipv6 &&
-			    tp->t_maxopd > V_tcp_v6pmtud_blackhole_mss) {
+			    tp->t_maxseg > V_tcp_v6pmtud_blackhole_mss) {
 				/* Use the sysctl tuneable blackhole MSS. */
-				tp->t_maxopd = V_tcp_v6pmtud_blackhole_mss;
+				tp->t_maxseg = V_tcp_v6pmtud_blackhole_mss;
 				V_tcp_pmtud_blackhole_activated++;
 			} else if (isipv6) {
 				/* Use the default MSS. */
-				tp->t_maxopd = V_tcp_v6mssdflt;
+				tp->t_maxseg = V_tcp_v6mssdflt;
 				/*
 				 * Disable Path MTU Discovery when we switch to
 				 * minmss.
@@ -712,13 +720,13 @@ tcp_timer_rexmt(void * xtp)
 			else
 #endif
 #ifdef INET
-			if (tp->t_maxopd > V_tcp_pmtud_blackhole_mss) {
+			if (tp->t_maxseg > V_tcp_pmtud_blackhole_mss) {
 				/* Use the sysctl tuneable blackhole MSS. */
-				tp->t_maxopd = V_tcp_pmtud_blackhole_mss;
+				tp->t_maxseg = V_tcp_pmtud_blackhole_mss;
 				V_tcp_pmtud_blackhole_activated++;
 			} else {
 				/* Use the default MSS. */
-				tp->t_maxopd = V_tcp_mssdflt;
+				tp->t_maxseg = V_tcp_mssdflt;
 				/*
 				 * Disable Path MTU Discovery when we switch to
 				 * minmss.
@@ -727,7 +735,6 @@ tcp_timer_rexmt(void * xtp)
 				V_tcp_pmtud_blackhole_activated_min_mss++;
 			}
 #endif
-			tp->t_maxseg = tp->t_maxopd - optlen;
 			/*
 			 * Reset the slow-start flight size
 			 * as it may depend on the new MSS.
@@ -747,9 +754,7 @@ tcp_timer_rexmt(void * xtp)
 			    (tp->t_rxtshift > 6)) {
 				tp->t_flags2 |= TF2_PLPMTU_PMTUD;
 				tp->t_flags2 &= ~TF2_PLPMTU_BLACKHOLE;
-				optlen = tp->t_maxopd - tp->t_maxseg;
-				tp->t_maxopd = tp->t_pmtud_saved_maxopd;
-				tp->t_maxseg = tp->t_maxopd - optlen;
+				tp->t_maxseg = tp->t_pmtud_saved_maxseg;
 				V_tcp_pmtud_blackhole_failed++;
 				/*
 				 * Reset the slow-start flight size as it

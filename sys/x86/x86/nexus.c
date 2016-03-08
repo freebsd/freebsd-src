@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 
 #include <machine/metadata.h>
 #include <machine/nexusvar.h>
@@ -99,9 +98,10 @@ static	int nexus_print_child(device_t, device_t);
 static device_t nexus_add_child(device_t bus, u_int order, const char *name,
 				int unit);
 static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
-					      u_long, u_long, u_long, u_int);
+					      rman_res_t, rman_res_t, rman_res_t,
+					      u_int);
 static	int nexus_adjust_resource(device_t, device_t, int, struct resource *,
-				  u_long, u_long);
+				  rman_res_t, rman_res_t);
 #ifdef SMP
 static	int nexus_bind_intr(device_t, device_t, struct resource *, int);
 #endif
@@ -122,8 +122,10 @@ static	int nexus_setup_intr(device_t, device_t, struct resource *, int flags,
 static	int nexus_teardown_intr(device_t, device_t, struct resource *,
 				void *);
 static struct resource_list *nexus_get_reslist(device_t dev, device_t child);
-static	int nexus_set_resource(device_t, device_t, int, int, u_long, u_long);
-static	int nexus_get_resource(device_t, device_t, int, int, u_long *, u_long *);
+static	int nexus_set_resource(device_t, device_t, int, int,
+			       rman_res_t, rman_res_t);
+static	int nexus_get_resource(device_t, device_t, int, int,
+			       rman_res_t *, rman_res_t *);
 static void nexus_delete_resource(device_t, device_t, int, int);
 #ifdef DEV_APIC
 static	int nexus_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs);
@@ -259,11 +261,15 @@ nexus_init_resources(void)
 		panic("nexus_init_resources port_rman");
 
 	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0ul;
+#ifndef PAE
+	mem_rman.rm_end = BUS_SPACE_MAXADDR;
+#else
+	mem_rman.rm_end = ((1ULL << cpu_maxphyaddr) - 1);
+#endif
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "I/O memory addresses";
 	if (rman_init(&mem_rman)
-	    || rman_manage_region(&mem_rman, 0, ~0))
+	    || rman_manage_region(&mem_rman, 0, mem_rman.rm_end))
 		panic("nexus_init_resources mem_rman");
 }
 
@@ -359,7 +365,8 @@ nexus_rman(int type)
  */
 static struct resource *
 nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		     u_long start, u_long end, u_long count, u_int flags)
+		     rman_res_t start, rman_res_t end, rman_res_t count,
+		     u_int flags)
 {
 	struct nexus_device *ndev = DEVTONX(child);
 	struct	resource *rv;
@@ -373,7 +380,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * (ie. they aren't maintained by a child bus), then work out
 	 * the start/end values.
 	 */
-	if ((start == 0UL) && (end == ~0UL) && (count == 1)) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end) && (count == 1)) {
 		if (device_get_parent(child) != bus || ndev == NULL)
 			return(NULL);
 		rle = resource_list_find(&ndev->nx_resources, type, *rid);
@@ -406,7 +413,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 static int
 nexus_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *r, u_long start, u_long end)
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct rman *rm;
 
@@ -574,7 +581,8 @@ nexus_get_reslist(device_t dev, device_t child)
 }
 
 static int
-nexus_set_resource(device_t dev, device_t child, int type, int rid, u_long start, u_long count)
+nexus_set_resource(device_t dev, device_t child, int type, int rid,
+    rman_res_t start, rman_res_t count)
 {
 	struct nexus_device	*ndev = DEVTONX(child);
 	struct resource_list	*rl = &ndev->nx_resources;
@@ -585,7 +593,8 @@ nexus_set_resource(device_t dev, device_t child, int type, int rid, u_long start
 }
 
 static int
-nexus_get_resource(device_t dev, device_t child, int type, int rid, u_long *startp, u_long *countp)
+nexus_get_resource(device_t dev, device_t child, int type, int rid,
+    rman_res_t *startp, rman_res_t *countp)
 {
 	struct nexus_device	*ndev = DEVTONX(child);
 	struct resource_list	*rl = &ndev->nx_resources;

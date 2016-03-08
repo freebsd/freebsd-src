@@ -40,7 +40,6 @@
 #define JMP_cr	22*REGWIDTH
 #define JMP_ctr	23*REGWIDTH
 #define JMP_xer	24*REGWIDTH
-#define JMP_sig	25*REGWIDTH
 
 ASENTRY_NOPROF(setjmp)
 	ST_REG 31, JMP_r31(3)

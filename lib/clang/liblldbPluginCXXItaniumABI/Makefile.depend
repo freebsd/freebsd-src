@@ -13,12 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ItaniumABILanguageRuntime.o: CommentCommandList.inc.h
-ItaniumABILanguageRuntime.o: DeclNodes.inc.h
-ItaniumABILanguageRuntime.o: DiagnosticCommonKinds.inc.h
-ItaniumABILanguageRuntime.o: StmtNodes.inc.h
-ItaniumABILanguageRuntime.po: CommentCommandList.inc.h
-ItaniumABILanguageRuntime.po: DeclNodes.inc.h
-ItaniumABILanguageRuntime.po: DiagnosticCommonKinds.inc.h
-ItaniumABILanguageRuntime.po: StmtNodes.inc.h
 .endif

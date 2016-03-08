@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,6 +58,9 @@ extern struct net init_net;
 #define	dev_get_by_index(n, idx)	ifnet_byindex_ref((idx))
 #define	dev_hold(d)	if_ref((d))
 #define	dev_put(d)	if_rele((d))
+#define	dev_net(d)	(&init_net)
+
+#define	net_eq(a,b)	((a) == (b))
 
 #define	netif_running(dev)	!!((dev)->if_drv_flags & IFF_DRV_RUNNING)
 #define	netif_oper_up(dev)	!!((dev)->if_flags & IFF_UP)
@@ -69,103 +72,16 @@ netdev_priv(const struct net_device *dev)
 	return (dev->if_softc);
 }
 
-static inline void
-_handle_ifnet_link_event(void *arg, struct ifnet *ifp, int linkstate)
+static inline struct net_device *
+netdev_notifier_info_to_dev(void *ifp)
 {
-	struct notifier_block *nb;
-
-	nb = arg;
-	if (linkstate == LINK_STATE_UP)
-		nb->notifier_call(nb, NETDEV_UP, ifp);
-	else
-		nb->notifier_call(nb, NETDEV_DOWN, ifp);
+	return (ifp);
 }
 
-static inline void
-_handle_ifnet_arrival_event(void *arg, struct ifnet *ifp)
-{
-	struct notifier_block *nb;
-
-	nb = arg;
-	nb->notifier_call(nb, NETDEV_REGISTER, ifp);
-}
-
-static inline void
-_handle_ifnet_departure_event(void *arg, struct ifnet *ifp)
-{
-	struct notifier_block *nb;
-
-	nb = arg;
-	nb->notifier_call(nb, NETDEV_UNREGISTER, ifp);
-}
-
-static inline void
-_handle_iflladdr_event(void *arg, struct ifnet *ifp)
-{
-	struct notifier_block *nb;
-
-	nb = arg;
-	nb->notifier_call(nb, NETDEV_CHANGEADDR, ifp);
-}
-
-static inline void
-_handle_ifaddr_event(void *arg, struct ifnet *ifp)
-{
-	struct notifier_block *nb;
-
-	nb = arg;
-	nb->notifier_call(nb, NETDEV_CHANGEIFADDR, ifp);
-}
-
-static inline int
-register_netdevice_notifier(struct notifier_block *nb)
-{
-
-	nb->tags[NETDEV_UP] = EVENTHANDLER_REGISTER(
-	    ifnet_link_event, _handle_ifnet_link_event, nb, 0);
-	nb->tags[NETDEV_REGISTER] = EVENTHANDLER_REGISTER(
-	    ifnet_arrival_event, _handle_ifnet_arrival_event, nb, 0);
-	nb->tags[NETDEV_UNREGISTER] = EVENTHANDLER_REGISTER(
-	    ifnet_departure_event, _handle_ifnet_departure_event, nb, 0);
-	nb->tags[NETDEV_CHANGEADDR] = EVENTHANDLER_REGISTER(
-	    iflladdr_event, _handle_iflladdr_event, nb, 0);
-
-	return (0);
-}
-
-static inline int
-register_inetaddr_notifier(struct notifier_block *nb)
-{
-
-        nb->tags[NETDEV_CHANGEIFADDR] = EVENTHANDLER_REGISTER(
-            ifaddr_event, _handle_ifaddr_event, nb, 0);
-        return (0);
-}
-
-static inline int
-unregister_netdevice_notifier(struct notifier_block *nb)
-{
-
-        EVENTHANDLER_DEREGISTER(ifnet_link_event, nb->tags[NETDEV_UP]);
-        EVENTHANDLER_DEREGISTER(ifnet_arrival_event, nb->tags[NETDEV_REGISTER]);
-        EVENTHANDLER_DEREGISTER(ifnet_departure_event,
-	    nb->tags[NETDEV_UNREGISTER]);
-        EVENTHANDLER_DEREGISTER(iflladdr_event,
-            nb->tags[NETDEV_CHANGEADDR]);
-
-	return (0);
-}
-
-static inline int
-unregister_inetaddr_notifier(struct notifier_block *nb)
-{
-
-        EVENTHANDLER_DEREGISTER(ifaddr_event,
-            nb->tags[NETDEV_CHANGEIFADDR]);
-
-        return (0);
-}
-
+int	register_netdevice_notifier(struct notifier_block *);
+int	register_inetaddr_notifier(struct notifier_block *);
+int	unregister_netdevice_notifier(struct notifier_block *);
+int	unregister_inetaddr_notifier(struct notifier_block *);
 
 #define	rtnl_lock()
 #define	rtnl_unlock()
@@ -184,6 +100,12 @@ dev_mc_delete(struct net_device *dev, void *addr, int alen, int all)
 	memcpy(&sdl.sdl_data, addr, alen);
 
 	return -if_delmulti(dev, (struct sockaddr *)&sdl);
+}
+
+static inline int
+dev_mc_del(struct net_device *dev, void *addr)
+{
+	return (dev_mc_delete(dev, addr, 6, 0));
 }
 
 static inline int

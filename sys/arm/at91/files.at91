@@ -9,6 +9,8 @@ arm/at91/at91_smc.c		standard
 arm/at91/at91_cfata.c		optional	at91_cfata
 arm/at91/at91_common.c		optional	fdt
 arm/at91/at91_mci.c		optional	at91_mci
+arm/at91/at91_ohci.c		optional	ohci ! fdt
+arm/at91/at91_ohci_fdt.c	optional	ohci fdt
 arm/at91/at91_pinctrl.c		optional	fdt fdt_pinctrl
 arm/at91/at91_pit.c		optional	at91sam9
 arm/at91/at91_reset.S		optional	at91sam9
@@ -58,8 +60,14 @@ arm/at91/board_tsc4370.c	optional	at91_board_tsc4370
 #
 # usb
 #
+# XXX these should likely move to sys/at91 as well. They are also
+# XXX slightly inconsistent with sys/conf/files and that ambiguity
+# XXX should be fixed when this can be tested on real kit. The dci
+# XXX code has hard-coded GPIO pins which is almost certainly wrong.
 dev/usb/controller/at91dci.c		optional	at91_dci
-dev/usb/controller/at91dci_atmelarm.c	optional	at91_dci !fdt
-dev/usb/controller/ohci_atmelarm.c	optional	ohci !fdt
+dev/usb/controller/at91dci_atmelarm.c	optional	at91_dci ! fdt
 dev/usb/controller/at91dci_fdt.c	optional	at91_dci fdt
-dev/usb/controller/ohci_fdt.c		optional	ohci fdt
+
+# We need this for both FDT and !FDT since we use arm_base_bs_ta
+# files.arm picks it up for FDT.
+arm/arm/bus_space_base.c	optional	!fdt

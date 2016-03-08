@@ -122,7 +122,7 @@ struct protoent {
 
 struct addrinfo {
 	int	ai_flags;	/* AI_PASSIVE, AI_CANONNAME, AI_NUMERICHOST */
-	int	ai_family;	/* PF_xxx */
+	int	ai_family;	/* AF_xxx */
 	int	ai_socktype;	/* SOCK_xxx */
 	int	ai_protocol;	/* 0 or IPPROTO_xxx for IPv4 and IPv6 */
 	socklen_t ai_addrlen;	/* length of ai_addr */

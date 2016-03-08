@@ -53,12 +53,17 @@ void DAGTypeLegalizer::ExpandRes_BITCAST(SDNode *N, SDValue &Lo, SDValue &Hi) {
     case TargetLowering::TypePromoteFloat:
       llvm_unreachable("Bitcast of a promotion-needing float should never need"
                        "expansion");
-    case TargetLowering::TypeSoftenFloat:
-      // Convert the integer operand instead.
-      SplitInteger(GetSoftenedFloat(InOp), Lo, Hi);
+    case TargetLowering::TypeSoftenFloat: {
+      // Expand the floating point operand only if it was converted to integers.
+      // Otherwise, it is a legal type like f128 that can be saved in a register.
+      auto SoftenedOp = GetSoftenedFloat(InOp);
+      if (SoftenedOp == InOp)
+        break;
+      SplitInteger(SoftenedOp, Lo, Hi);
       Lo = DAG.getNode(ISD::BITCAST, dl, NOutVT, Lo);
       Hi = DAG.getNode(ISD::BITCAST, dl, NOutVT, Hi);
       return;
+    }
     case TargetLowering::TypeExpandInteger:
     case TargetLowering::TypeExpandFloat: {
       auto &DL = DAG.getDataLayout();
@@ -161,7 +166,8 @@ void DAGTypeLegalizer::ExpandRes_BITCAST(SDNode *N, SDValue &Lo, SDValue &Hi) {
       NOutVT.getTypeForEVT(*DAG.getContext()));
   SDValue StackPtr = DAG.CreateStackTemporary(InVT, Alignment);
   int SPFI = cast<FrameIndexSDNode>(StackPtr.getNode())->getIndex();
-  MachinePointerInfo PtrInfo = MachinePointerInfo::getFixedStack(SPFI);
+  MachinePointerInfo PtrInfo =
+      MachinePointerInfo::getFixedStack(DAG.getMachineFunction(), SPFI);
 
   // Emit a store to the stack slot.
   SDValue Store = DAG.getStore(DAG.getEntryNode(), dl, InOp, StackPtr, PtrInfo,

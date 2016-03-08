@@ -161,9 +161,8 @@ singlethread_map_stacks_exec(void)
 	    rlim.rlim_cur, _rtld_get_stack_prot());
 }
 
-void __pthread_map_stacks_exec(void);
 void
-__pthread_map_stacks_exec(void)
+__thr_map_stacks_exec(void)
 {
 	struct pthread *curthread, *thrd;
 	struct stack *st;

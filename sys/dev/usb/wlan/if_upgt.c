@@ -243,7 +243,8 @@ upgt_attach(device_t dev)
 	struct upgt_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
-	uint8_t bands, iface_index = UPGT_IFACE_INDEX;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t iface_index = UPGT_IFACE_INDEX;
 	int error;
 
 	sc->sc_dev = dev;
@@ -337,10 +338,10 @@ upgt_attach(device_t dev)
 	        | IEEE80211_C_WPA		/* 802.11i */
 		;
 
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
-	ieee80211_init_channels(ic, NULL, &bands);
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
 	ic->ic_raw_xmit = upgt_raw_xmit;

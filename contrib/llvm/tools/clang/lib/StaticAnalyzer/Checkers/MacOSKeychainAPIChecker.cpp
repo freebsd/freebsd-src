@@ -118,7 +118,7 @@ private:
                                    SValBuilder &Builder) const {
     return definitelyReturnedError(RetSym, State, Builder, true);
   }
-                                                 
+
   /// Mark an AllocationPair interesting for diagnostic reporting.
   void markInteresting(BugReport *R, const AllocationPair &AP) const {
     R->markInteresting(AP.first);
@@ -136,7 +136,6 @@ private:
 
   public:
     SecKeychainBugVisitor(SymbolRef S) : Sym(S) {}
-    ~SecKeychainBugVisitor() override {}
 
     void Profile(llvm::FoldingSetNodeID &ID) const override {
       static int X = 0;
@@ -202,12 +201,8 @@ unsigned MacOSKeychainAPIChecker::getTrackedFunctionIndex(StringRef Name,
 static bool isBadDeallocationArgument(const MemRegion *Arg) {
   if (!Arg)
     return false;
-  if (isa<AllocaRegion>(Arg) ||
-      isa<BlockDataRegion>(Arg) ||
-      isa<TypedRegion>(Arg)) {
-    return true;
-  }
-  return false;
+  return isa<AllocaRegion>(Arg) || isa<BlockDataRegion>(Arg) ||
+         isa<TypedRegion>(Arg);
 }
 
 /// Given the address expression, retrieve the value it's pointing to. Assume
@@ -241,11 +236,7 @@ bool MacOSKeychainAPIChecker::definitelyReturnedError(SymbolRef RetSym,
   DefinedOrUnknownSVal NoErr = Builder.evalEQ(State, NoErrVal,
                                                      nonloc::SymbolVal(RetSym));
   ProgramStateRef ErrState = State->assume(NoErr, noError);
-  if (ErrState == State) {
-    return true;
-  }
-
-  return false;
+  return ErrState == State;
 }
 
 // Report deallocator mismatch. Remove the region from tracking - reporting a
@@ -256,7 +247,7 @@ void MacOSKeychainAPIChecker::
                                     CheckerContext &C) const {
   ProgramStateRef State = C.getState();
   State = State->remove<AllocatedData>(AP.first);
-  ExplodedNode *N = C.addTransition(State);
+  ExplodedNode *N = C.generateNonFatalErrorNode(State);
 
   if (!N)
     return;
@@ -283,7 +274,7 @@ void MacOSKeychainAPIChecker::checkPreStmt(const CallExpr *CE,
   const FunctionDecl *FD = C.getCalleeDecl(CE);
   if (!FD || FD->getKind() != Decl::Function)
     return;
-  
+
   StringRef funName = C.getCalleeName(FD);
   if (funName.empty())
     return;
@@ -302,7 +293,7 @@ void MacOSKeychainAPIChecker::checkPreStmt(const CallExpr *CE,
           // Remove the value from the state. The new symbol will be added for
           // tracking when the second allocator is processed in checkPostStmt().
           State = State->remove<AllocatedData>(V);
-          ExplodedNode *N = C.addTransition(State);
+          ExplodedNode *N = C.generateNonFatalErrorNode(State);
           if (!N)
             return;
           initBugType();
@@ -365,7 +356,7 @@ void MacOSKeychainAPIChecker::checkPreStmt(const CallExpr *CE,
     if (isEnclosingFunctionParam(ArgExpr))
       return;
 
-    ExplodedNode *N = C.addTransition(State);
+    ExplodedNode *N = C.generateNonFatalErrorNode(State);
     if (!N)
       return;
     initBugType();
@@ -431,7 +422,7 @@ void MacOSKeychainAPIChecker::checkPreStmt(const CallExpr *CE,
   // report a bad call to free.
   if (State->assume(ArgSVal.castAs<DefinedSVal>(), false) &&
       !definitelyDidnotReturnError(AS->Region, State, C.getSValBuilder())) {
-    ExplodedNode *N = C.addTransition(State);
+    ExplodedNode *N = C.generateNonFatalErrorNode(State);
     if (!N)
       return;
     initBugType();
@@ -585,10 +576,12 @@ void MacOSKeychainAPIChecker::checkDeadSymbols(SymbolReaper &SR,
   }
 
   static CheckerProgramPointTag Tag(this, "DeadSymbolsLeak");
-  ExplodedNode *N = C.addTransition(C.getState(), C.getPredecessor(), &Tag);
+  ExplodedNode *N = C.generateNonFatalErrorNode(C.getState(), &Tag);
+  if (!N)
+    return;
 
   // Generate the error reports.
-  for (const auto P : Errors)
+  for (const auto &P : Errors)
     C.emitReport(generateAllocatedDataNotReleasedReport(P, N, C));
 
   // Generate the new, cleaned up state.

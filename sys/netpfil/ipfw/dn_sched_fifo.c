@@ -61,6 +61,7 @@ fifo_enqueue(struct dn_sch_inst *si, struct dn_queue *q, struct mbuf *m)
 	 * re-enqueue from an existing scheduler, which we should
 	 * handle.
 	 */
+	(void)q;
 	return dn_enqueue((struct dn_queue *)(si+1), m, 0);
 }
 

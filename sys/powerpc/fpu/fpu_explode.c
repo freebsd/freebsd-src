@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/fpu.h>
 #include <machine/ieee.h>
-#include <machine/reg.h>
+#include <machine/pcb.h>
 
 #include <powerpc/fpu/fpu_arith.h>
 #include <powerpc/fpu/fpu_emu.h>
@@ -211,9 +211,9 @@ fpu_explode(struct fpemu *fe, struct fpn *fp, int type, int reg)
 	u_int s, *space;
 	u_int64_t l, *xspace;
 
-	xspace = (u_int64_t *)&fe->fe_fpstate->fpreg[reg].fpr;
+	xspace = (u_int64_t *)&fe->fe_fpstate->fpr[reg].fpr;
 	l = xspace[0];
-	space = (u_int *)&fe->fe_fpstate->fpreg[reg].fpr;
+	space = (u_int *)&fe->fe_fpstate->fpr[reg].fpr;
 	s = space[0];
 	fp->fp_sign = s >> 31;
 	fp->fp_sticky = 0;

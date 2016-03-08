@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,12 +60,16 @@ struct idr {
 	struct idr_layer	*top;
 	struct idr_layer	*free;
 	int			layers;
+	int			next_cyclic_id;
 };
 
 #define DEFINE_IDR(name)						\
 	struct idr name;						\
 	SYSINIT(name##_idr_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
 	    idr_init, &(name));
+
+#define	idr_preload(x) do { } while (0)
+#define	idr_preload_end() do { } while (0)
 
 void	*idr_find(struct idr *idp, int id);
 int	idr_pre_get(struct idr *idp, gfp_t gfp_mask);
@@ -76,5 +80,7 @@ void	idr_remove(struct idr *idp, int id);
 void	idr_remove_all(struct idr *idp);
 void	idr_destroy(struct idr *idp);
 void	idr_init(struct idr *idp);
+int	idr_alloc(struct idr *idp, void *ptr, int start, int end, gfp_t);
+int	idr_alloc_cyclic(struct idr *idp, void *ptr, int start, int end, gfp_t);
 
 #endif	/* _LINUX_IDR_H_ */

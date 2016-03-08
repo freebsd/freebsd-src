@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/refcount.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/time.h>
@@ -54,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/route.h>
+#include <net/route_var.h>
 #include <net/radix.h>
 #include <net/vnet.h>
 
@@ -219,6 +221,8 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	struct nd_defrouter *dr;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
+	dr = NULL;
+
 	/*
 	 * We only accept RAs only when the per-interface flag
 	 * ND6_IFF_ACCEPT_RTADV is on the receiving interface.
@@ -271,7 +275,7 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 
 	bzero(&dr0, sizeof(dr0));
 	dr0.rtaddr = saddr6;
-	dr0.flags  = nd_ra->nd_ra_flags_reserved;
+	dr0.raflags = nd_ra->nd_ra_flags_reserved;
 	/*
 	 * Effectively-disable routes from RA messages when
 	 * ND6_IFF_NO_RADR enabled on the receiving interface or
@@ -368,6 +372,10 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 			(void)prelist_update(&pr, dr, m, mcast);
 		}
 	}
+	if (dr != NULL) {
+		defrouter_rele(dr);
+		dr = NULL;
+	}
 
 	/*
 	 * MTU
@@ -445,10 +453,6 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	m_freem(m);
 }
 
-/*
- * default router list proccessing sub routines
- */
-
 /* tell the change to user processes watching the routing socket. */
 static void
 nd6_rtmsg(int cmd, struct rtentry *rt)
@@ -477,6 +481,10 @@ nd6_rtmsg(int cmd, struct rtentry *rt)
 		ifa_free(ifa);
 }
 
+/*
+ * default router list proccessing sub routines
+ */
+
 static void
 defrouter_addreq(struct nd_defrouter *new)
 {
@@ -502,7 +510,20 @@ defrouter_addreq(struct nd_defrouter *new)
 	}
 	if (error == 0)
 		new->installed = 1;
-	return;
+}
+
+struct nd_defrouter *
+defrouter_lookup_locked(struct in6_addr *addr, struct ifnet *ifp)
+{
+	struct nd_defrouter *dr;
+
+	ND6_LOCK_ASSERT();
+	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry)
+		if (dr->ifp == ifp && IN6_ARE_ADDR_EQUAL(addr, &dr->rtaddr)) {
+			defrouter_ref(dr);
+			return (dr);
+		}
+	return (NULL);
 }
 
 struct nd_defrouter *
@@ -510,12 +531,25 @@ defrouter_lookup(struct in6_addr *addr, struct ifnet *ifp)
 {
 	struct nd_defrouter *dr;
 
-	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
-		if (dr->ifp == ifp && IN6_ARE_ADDR_EQUAL(addr, &dr->rtaddr))
-			return (dr);
-	}
+	ND6_RLOCK();
+	dr = defrouter_lookup_locked(addr, ifp);
+	ND6_RUNLOCK();
+	return (dr);
+}
 
-	return (NULL);		/* search failed */
+void
+defrouter_ref(struct nd_defrouter *dr)
+{
+
+	refcount_acquire(&dr->refcnt);
+}
+
+void
+defrouter_rele(struct nd_defrouter *dr)
+{
+
+	if (refcount_release(&dr->refcnt))
+		free(dr, M_IP6NDP);
 }
 
 /*
@@ -550,15 +584,41 @@ defrouter_delreq(struct nd_defrouter *dr)
 }
 
 /*
- * remove all default routes from default router list
+ * Remove all default routes from default router list.
  */
 void
 defrouter_reset(void)
 {
-	struct nd_defrouter *dr;
+	struct nd_defrouter *dr, **dra;
+	int count, i;
 
+	count = i = 0;
+
+	/*
+	 * We can't delete routes with the ND lock held, so make a copy of the
+	 * current default router list and use that when deleting routes.
+	 */
+	ND6_RLOCK();
 	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry)
-		defrouter_delreq(dr);
+		count++;
+	ND6_RUNLOCK();
+
+	dra = malloc(count * sizeof(*dra), M_TEMP, M_WAITOK | M_ZERO);
+
+	ND6_RLOCK();
+	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
+		if (i == count)
+			break;
+		defrouter_ref(dr);
+		dra[i++] = dr;
+	}
+	ND6_RUNLOCK();
+
+	for (i = 0; i < count && dra[i] != NULL; i++) {
+		defrouter_delreq(dra[i]);
+		defrouter_rele(dra[i]);
+	}
+	free(dra, M_TEMP);
 
 	/*
 	 * XXX should we also nuke any default routers in the kernel, by
@@ -566,11 +626,48 @@ defrouter_reset(void)
 	 */
 }
 
+/*
+ * Remove a router from the global list and free it.
+ *
+ * The ND lock must be held and is released before returning. The caller must
+ * hold a reference on the router object.
+ */
 void
-defrtrlist_del(struct nd_defrouter *dr)
+defrouter_remove(struct nd_defrouter *dr)
+{
+
+	ND6_WLOCK_ASSERT();
+	KASSERT(dr->refcnt >= 2, ("unexpected refcount 0x%x", dr->refcnt));
+
+	defrouter_unlink(dr, NULL);
+	ND6_WUNLOCK();
+	defrouter_del(dr);
+	defrouter_rele(dr);
+}
+
+/*
+ * Remove a router from the global list and optionally stash it in a
+ * caller-supplied queue.
+ *
+ * The ND lock must be held.
+ */
+void
+defrouter_unlink(struct nd_defrouter *dr, struct nd_drhead *drq)
+{
+
+	ND6_WLOCK_ASSERT();
+	TAILQ_REMOVE(&V_nd_defrouter, dr, dr_entry);
+	if (drq != NULL)
+		TAILQ_INSERT_TAIL(drq, dr, dr_entry);
+}
+
+void
+defrouter_del(struct nd_defrouter *dr)
 {
 	struct nd_defrouter *deldr = NULL;
 	struct nd_prefix *pr;
+
+	ND6_UNLOCK_ASSERT();
 
 	/*
 	 * Flush all the routing table entries that use the router
@@ -583,7 +680,6 @@ defrtrlist_del(struct nd_defrouter *dr)
 		deldr = dr;
 		defrouter_delreq(dr);
 	}
-	TAILQ_REMOVE(&V_nd_defrouter, dr, dr_entry);
 
 	/*
 	 * Also delete all the pointers to the router in each prefix lists.
@@ -603,7 +699,10 @@ defrtrlist_del(struct nd_defrouter *dr)
 	if (deldr)
 		defrouter_select();
 
-	free(dr, M_IP6NDP);
+	/*
+	 * Release the list reference.
+	 */
+	defrouter_rele(dr);
 }
 
 /*
@@ -630,27 +729,32 @@ defrtrlist_del(struct nd_defrouter *dr)
 void
 defrouter_select(void)
 {
-	struct nd_defrouter *dr, *selected_dr = NULL, *installed_dr = NULL;
+	struct nd_defrouter *dr, *selected_dr, *installed_dr;
 	struct llentry *ln = NULL;
 
+	ND6_RLOCK();
 	/*
 	 * Let's handle easy case (3) first:
 	 * If default router list is empty, there's nothing to be done.
 	 */
-	if (TAILQ_EMPTY(&V_nd_defrouter))
+	if (TAILQ_EMPTY(&V_nd_defrouter)) {
+		ND6_RUNLOCK();
 		return;
+	}
 
 	/*
 	 * Search for a (probably) reachable router from the list.
 	 * We just pick up the first reachable one (if any), assuming that
 	 * the ordering rule of the list described in defrtrlist_update().
 	 */
+	selected_dr = installed_dr = NULL;
 	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
 		IF_AFDATA_RLOCK(dr->ifp);
 		if (selected_dr == NULL &&
 		    (ln = nd6_lookup(&dr->rtaddr, 0, dr->ifp)) &&
 		    ND6_IS_LLINFO_PROBREACH(ln)) {
 			selected_dr = dr;
+			defrouter_ref(selected_dr);
 		}
 		IF_AFDATA_RUNLOCK(dr->ifp);
 		if (ln != NULL) {
@@ -658,12 +762,15 @@ defrouter_select(void)
 			ln = NULL;
 		}
 
-		if (dr->installed && installed_dr == NULL)
-			installed_dr = dr;
-		else if (dr->installed && installed_dr) {
-			/* this should not happen.  warn for diagnosis. */
-			log(LOG_ERR, "defrouter_select: more than one router"
-			    " is installed\n");
+		if (dr->installed) {
+			if (installed_dr == NULL) {
+				installed_dr = dr;
+				defrouter_ref(installed_dr);
+			} else {
+				/* this should not happen.  warn for diagnosis. */
+				log(LOG_ERR,
+		    "defrouter_select: more than one router is installed\n");
+			}
 		}
 	}
 	/*
@@ -675,21 +782,25 @@ defrouter_select(void)
 	 * or when the new one has a really higher preference value.
 	 */
 	if (selected_dr == NULL) {
-		if (installed_dr == NULL || !TAILQ_NEXT(installed_dr, dr_entry))
+		if (installed_dr == NULL ||
+		    TAILQ_NEXT(installed_dr, dr_entry) == NULL)
 			selected_dr = TAILQ_FIRST(&V_nd_defrouter);
 		else
 			selected_dr = TAILQ_NEXT(installed_dr, dr_entry);
-	} else if (installed_dr) {
+		defrouter_ref(selected_dr);
+	} else if (installed_dr != NULL) {
 		IF_AFDATA_RLOCK(installed_dr->ifp);
 		if ((ln = nd6_lookup(&installed_dr->rtaddr, 0, installed_dr->ifp)) &&
 		    ND6_IS_LLINFO_PROBREACH(ln) &&
 		    rtpref(selected_dr) <= rtpref(installed_dr)) {
+			defrouter_rele(selected_dr);
 			selected_dr = installed_dr;
 		}
 		IF_AFDATA_RUNLOCK(installed_dr->ifp);
 		if (ln != NULL)
 			LLE_RUNLOCK(ln);
 	}
+	ND6_RUNLOCK();
 
 	/*
 	 * If the selected router is different than the installed one,
@@ -697,12 +808,13 @@ defrouter_select(void)
 	 * Note that the selected router is never NULL here.
 	 */
 	if (installed_dr != selected_dr) {
-		if (installed_dr)
+		if (installed_dr != NULL) {
 			defrouter_delreq(installed_dr);
+			defrouter_rele(installed_dr);
+		}
 		defrouter_addreq(selected_dr);
 	}
-
-	return;
+	defrouter_rele(selected_dr);
 }
 
 /*
@@ -712,7 +824,7 @@ defrouter_select(void)
 static int
 rtpref(struct nd_defrouter *dr)
 {
-	switch (dr->flags & ND_RA_FLAG_RTPREF_MASK) {
+	switch (dr->raflags & ND_RA_FLAG_RTPREF_MASK) {
 	case ND_RA_FLAG_RTPREF_HIGH:
 		return (RTPREF_HIGH);
 	case ND_RA_FLAG_RTPREF_MEDIUM:
@@ -726,7 +838,7 @@ rtpref(struct nd_defrouter *dr)
 		 * serious bug of kernel internal.  We thus always bark here.
 		 * Or, can we even panic?
 		 */
-		log(LOG_ERR, "rtpref: impossible RA flag %x\n", dr->flags);
+		log(LOG_ERR, "rtpref: impossible RA flag %x\n", dr->raflags);
 		return (RTPREF_INVALID);
 	}
 	/* NOTREACHED */
@@ -736,53 +848,56 @@ static struct nd_defrouter *
 defrtrlist_update(struct nd_defrouter *new)
 {
 	struct nd_defrouter *dr, *n;
+	int oldpref;
 
-	if ((dr = defrouter_lookup(&new->rtaddr, new->ifp)) != NULL) {
-		/* entry exists */
+	ND6_WLOCK();
+	if ((dr = defrouter_lookup_locked(&new->rtaddr, new->ifp)) != NULL) {
 		if (new->rtlifetime == 0) {
-			defrtrlist_del(dr);
-			dr = NULL;
-		} else {
-			int oldpref = rtpref(dr);
-
-			/* override */
-			dr->flags = new->flags; /* xxx flag check */
-			dr->rtlifetime = new->rtlifetime;
-			dr->expire = new->expire;
-
-			/*
-			 * If the preference does not change, there's no need
-			 * to sort the entries. Also make sure the selected
-			 * router is still installed in the kernel.
-			 */
-			if (dr->installed && rtpref(new) == oldpref)
-				return (dr);
-
-			/*
-			 * preferred router may be changed, so relocate
-			 * this router.
-			 * XXX: calling TAILQ_REMOVE directly is a bad manner.
-			 * However, since defrtrlist_del() has many side
-			 * effects, we intentionally do so here.
-			 * defrouter_select() below will handle routing
-			 * changes later.
-			 */
-			TAILQ_REMOVE(&V_nd_defrouter, dr, dr_entry);
-			n = dr;
-			goto insert;
+			/* releases the ND lock */
+			defrouter_remove(dr);
+			return (NULL);
 		}
-		return (dr);
+
+		oldpref = rtpref(dr);
+
+		/* override */
+		dr->raflags = new->raflags; /* XXX flag check */
+		dr->rtlifetime = new->rtlifetime;
+		dr->expire = new->expire;
+
+		/*
+		 * If the preference does not change, there's no need
+		 * to sort the entries. Also make sure the selected
+		 * router is still installed in the kernel.
+		 */
+		if (dr->installed && rtpref(new) == oldpref) {
+			ND6_WUNLOCK();
+			return (dr);
+		}
+
+		/*
+		 * The preferred router may have changed, so relocate this
+		 * router.
+		 */
+		TAILQ_REMOVE(&V_nd_defrouter, dr, dr_entry);
+		n = dr;
+		goto insert;
 	}
 
 	/* entry does not exist */
-	if (new->rtlifetime == 0)
+	if (new->rtlifetime == 0) {
+		ND6_WUNLOCK();
 		return (NULL);
+	}
 
-	n = (struct nd_defrouter *)malloc(sizeof(*n), M_IP6NDP, M_NOWAIT);
-	if (n == NULL)
+	n = malloc(sizeof(*n), M_IP6NDP, M_NOWAIT | M_ZERO);
+	if (n == NULL) {
+		ND6_WUNLOCK();
 		return (NULL);
-	bzero(n, sizeof(*n));
-	*n = *new;
+	}
+	memcpy(n, new, sizeof(*n));
+	/* Initialize with an extra reference for the caller. */
+	refcount_init(&n->refcnt, 2);
 
 insert:
 	/*
@@ -797,10 +912,11 @@ insert:
 		if (rtpref(n) > rtpref(dr))
 			break;
 	}
-	if (dr)
+	if (dr != NULL)
 		TAILQ_INSERT_BEFORE(dr, n, dr_entry);
 	else
 		TAILQ_INSERT_TAIL(&V_nd_defrouter, n, dr_entry);
+	ND6_WUNLOCK();
 
 	defrouter_select();
 
@@ -825,11 +941,11 @@ pfxrtr_add(struct nd_prefix *pr, struct nd_defrouter *dr)
 {
 	struct nd_pfxrouter *new;
 
-	new = (struct nd_pfxrouter *)malloc(sizeof(*new), M_IP6NDP, M_NOWAIT);
+	new = malloc(sizeof(*new), M_IP6NDP, M_NOWAIT | M_ZERO);
 	if (new == NULL)
 		return;
-	bzero(new, sizeof(*new));
 	new->router = dr;
+	defrouter_ref(dr);
 
 	LIST_INSERT_HEAD(&pr->ndpr_advrtrs, new, pfr_entry);
 
@@ -839,7 +955,9 @@ pfxrtr_add(struct nd_prefix *pr, struct nd_defrouter *dr)
 static void
 pfxrtr_del(struct nd_pfxrouter *pfr)
 {
+
 	LIST_REMOVE(pfr, pfr_entry);
+	defrouter_rele(pfr->router);
 	free(pfr, M_IP6NDP);
 }
 
@@ -868,10 +986,9 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 	int error = 0;
 	char ip6buf[INET6_ADDRSTRLEN];
 
-	new = (struct nd_prefix *)malloc(sizeof(*new), M_IP6NDP, M_NOWAIT);
+	new = malloc(sizeof(*new), M_IP6NDP, M_NOWAIT | M_ZERO);
 	if (new == NULL)
-		return(ENOMEM);
-	bzero(new, sizeof(*new));
+		return (ENOMEM);
 	new->ndpr_ifp = pr->ndpr_ifp;
 	new->ndpr_prefix = pr->ndpr_prefix;
 	new->ndpr_plen = pr->ndpr_plen;
@@ -946,9 +1063,9 @@ prelist_remove(struct nd_prefix *pr)
 	/* unlink ndpr_entry from nd_prefix list */
 	LIST_REMOVE(pr, ndpr_entry);
 
-	/* free list of routers that adversed the prefix */
+	/* free list of routers that advertised the prefix */
 	LIST_FOREACH_SAFE(pfr, &pr->ndpr_advrtrs, pfr_entry, next) {
-		free(pfr, M_IP6NDP);
+		pfxrtr_del(pfr);
 	}
 	free(pr, M_IP6NDP);
 
@@ -1355,6 +1472,7 @@ pfxlist_onlink_check()
 	 * that does not advertise any prefixes.
 	 */
 	if (pr == NULL) {
+		ND6_RLOCK();
 		TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
 			struct nd_prefix *pr0;
 
@@ -1365,6 +1483,7 @@ pfxlist_onlink_check()
 			if (pfxrtr != NULL)
 				break;
 		}
+		ND6_RUNLOCK();
 	}
 	if (pr != NULL || (!TAILQ_EMPTY(&V_nd_defrouter) && pfxrtr == NULL)) {
 		/*
@@ -1525,7 +1644,7 @@ static int
 nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 {
 	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
-	struct radix_node_head *rnh;
+	struct rib_head *rnh;
 	struct rtentry *rt;
 	struct sockaddr_in6 mask6;
 	u_long rtflags;
@@ -1554,7 +1673,7 @@ nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 
 			rnh = rt_tables_get_rnh(rt->rt_fibnum, AF_INET6);
 			/* XXX what if rhn == NULL? */
-			RADIX_NODE_HEAD_LOCK(rnh);
+			RIB_WLOCK(rnh);
 			RT_LOCK(rt);
 			if (rt_setgate(rt, rt_key(rt),
 			    (struct sockaddr *)&null_sdl) == 0) {
@@ -1564,7 +1683,7 @@ nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 				dl->sdl_type = rt->rt_ifp->if_type;
 				dl->sdl_index = rt->rt_ifp->if_index;
 			}
-			RADIX_NODE_HEAD_UNLOCK(rnh);
+			RIB_WUNLOCK(rnh);
 			nd6_rtmsg(RTM_ADD, rt);
 			RT_UNLOCK(rt);
 			pr->ndpr_stateflags |= NDPRF_ONLINK;

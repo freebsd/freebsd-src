@@ -164,11 +164,6 @@ MachineInstr *AMDGPUInstrInfo::foldMemoryOperandImpl(
   // TODO: Implement this function
   return nullptr;
 }
-bool AMDGPUInstrInfo::canFoldMemoryOperand(const MachineInstr *MI,
-                                           ArrayRef<unsigned> Ops) const {
-  // TODO: Implement this function
-  return false;
-}
 bool
 AMDGPUInstrInfo::unfoldMemoryOperand(MachineFunction &MF, MachineInstr *MI,
                                  unsigned Reg, bool UnfoldLoad,
@@ -312,7 +307,9 @@ int AMDGPUInstrInfo::getIndirectIndexEnd(const MachineFunction &MF) const {
     return -1;
   }
 
-  Offset = MF.getSubtarget().getFrameLowering()->getFrameIndexOffset(MF, -1);
+  unsigned IgnoredFrameReg;
+  Offset = MF.getSubtarget().getFrameLowering()->getFrameIndexReference(
+      MF, -1, IgnoredFrameReg);
 
   return getIndirectIndexBegin(MF) + Offset;
 }
@@ -366,4 +363,15 @@ int AMDGPUInstrInfo::pseudoToMCOpcode(int Opcode) const {
     return -1;
 
   return MCOp;
+}
+
+ArrayRef<std::pair<int, const char *>>
+AMDGPUInstrInfo::getSerializableTargetIndices() const {
+  static const std::pair<int, const char *> TargetIndices[] = {
+      {AMDGPU::TI_CONSTDATA_START, "amdgpu-constdata-start"},
+      {AMDGPU::TI_SCRATCH_RSRC_DWORD0, "amdgpu-scratch-rsrc-dword0"},
+      {AMDGPU::TI_SCRATCH_RSRC_DWORD1, "amdgpu-scratch-rsrc-dword1"},
+      {AMDGPU::TI_SCRATCH_RSRC_DWORD2, "amdgpu-scratch-rsrc-dword2"},
+      {AMDGPU::TI_SCRATCH_RSRC_DWORD3, "amdgpu-scratch-rsrc-dword3"}};
+  return makeArrayRef(TargetIndices);
 }

@@ -80,6 +80,7 @@ __DEFAULT_YES_OPTIONS = \
     DYNAMICROOT \
     ED_CRYPTO \
     EE \
+    ELFCOPY_AS_OBJCOPY \
     ELFTOOLCHAIN_BOOTSTRAP \
     EXAMPLES \
     FDT \
@@ -180,6 +181,7 @@ __DEFAULT_NO_OPTIONS = \
     DTRACE_TESTS \
     EISA \
     HESIOD \
+    LIBSOFT \
     NAND \
     OFED \
     OPENLDAP \
@@ -230,9 +232,9 @@ __DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
 # In-tree binutils/gcc are older versions without modern architecture support.
 .if ${__T} == "aarch64" || ${__T} == "riscv64"
 BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GCC GCC_BOOTSTRAP GDB
-__DEFAULT_YES_OPTIONS+=ELFCOPY_AS_OBJCOPY
+__DEFAULT_YES_OPTIONS+=LLVM_LIBUNWIND
 .else
-__DEFAULT_NO_OPTIONS+=ELFCOPY_AS_OBJCOPY
+__DEFAULT_NO_OPTIONS+=LLVM_LIBUNWIND
 .endif
 .if ${__T} == "riscv64"
 BROKEN_OPTIONS+=PROFILE # "sorry, unimplemented: profiler support for RISC-V"
@@ -247,6 +249,10 @@ __DEFAULT_NO_OPTIONS+=LLDB
 # LLVM lacks support for FreeBSD 64-bit atomic operations for ARMv4/ARMv5
 .if ${__T} == "arm" || ${__T} == "armeb"
 BROKEN_OPTIONS+=LLDB
+.endif
+# Only doing soft float API stuff on armv6
+.if ${__T} != "armv6"
+BROKEN_OPTIONS+=LIBSOFT
 .endif
 
 .include <bsd.mkopt.mk>

@@ -559,10 +559,10 @@ pfr_get_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int *size,
 	w.pfrw_op = PFRW_GET_ADDRS;
 	w.pfrw_addr = addr;
 	w.pfrw_free = kt->pfrkt_cnt;
-	rv = kt->pfrkt_ip4->rnh_walktree(kt->pfrkt_ip4, pfr_walktree, &w);
+	rv = kt->pfrkt_ip4->rnh_walktree(&kt->pfrkt_ip4->rh, pfr_walktree, &w);
 	if (!rv)
-		rv = kt->pfrkt_ip6->rnh_walktree(kt->pfrkt_ip6, pfr_walktree,
-		    &w);
+		rv = kt->pfrkt_ip6->rnh_walktree(&kt->pfrkt_ip6->rh,
+		    pfr_walktree, &w);
 	if (rv)
 		return (rv);
 
@@ -601,10 +601,10 @@ pfr_get_astats(struct pfr_table *tbl, struct pfr_astats *addr, int *size,
 	w.pfrw_op = PFRW_GET_ASTATS;
 	w.pfrw_astats = addr;
 	w.pfrw_free = kt->pfrkt_cnt;
-	rv = kt->pfrkt_ip4->rnh_walktree(kt->pfrkt_ip4, pfr_walktree, &w);
+	rv = kt->pfrkt_ip4->rnh_walktree(&kt->pfrkt_ip4->rh, pfr_walktree, &w);
 	if (!rv)
-		rv = kt->pfrkt_ip6->rnh_walktree(kt->pfrkt_ip6, pfr_walktree,
-		    &w);
+		rv = kt->pfrkt_ip6->rnh_walktree(&kt->pfrkt_ip6->rh,
+		    pfr_walktree, &w);
 	if (!rv && (flags & PFR_FLAG_CLSTATS)) {
 		pfr_enqueue_addrs(kt, &workq, NULL, 0);
 		pfr_clstats_kentries(&workq, tzero, 0);
@@ -710,12 +710,12 @@ pfr_enqueue_addrs(struct pfr_ktable *kt, struct pfr_kentryworkq *workq,
 	w.pfrw_op = sweep ? PFRW_SWEEP : PFRW_ENQUEUE;
 	w.pfrw_workq = workq;
 	if (kt->pfrkt_ip4 != NULL)
-		if (kt->pfrkt_ip4->rnh_walktree(kt->pfrkt_ip4, pfr_walktree,
-		    &w))
+		if (kt->pfrkt_ip4->rnh_walktree(&kt->pfrkt_ip4->rh,
+		    pfr_walktree, &w))
 			printf("pfr_enqueue_addrs: IPv4 walktree failed.\n");
 	if (kt->pfrkt_ip6 != NULL)
-		if (kt->pfrkt_ip6->rnh_walktree(kt->pfrkt_ip6, pfr_walktree,
-		    &w))
+		if (kt->pfrkt_ip6->rnh_walktree(&kt->pfrkt_ip6->rh,
+		    pfr_walktree, &w))
 			printf("pfr_enqueue_addrs: IPv6 walktree failed.\n");
 	if (naddr != NULL)
 		*naddr = w.pfrw_cnt;
@@ -728,9 +728,9 @@ pfr_mark_addrs(struct pfr_ktable *kt)
 
 	bzero(&w, sizeof(w));
 	w.pfrw_op = PFRW_MARK;
-	if (kt->pfrkt_ip4->rnh_walktree(kt->pfrkt_ip4, pfr_walktree, &w))
+	if (kt->pfrkt_ip4->rnh_walktree(&kt->pfrkt_ip4->rh, pfr_walktree, &w))
 		printf("pfr_mark_addrs: IPv4 walktree failed.\n");
-	if (kt->pfrkt_ip6->rnh_walktree(kt->pfrkt_ip6, pfr_walktree, &w))
+	if (kt->pfrkt_ip6->rnh_walktree(&kt->pfrkt_ip6->rh, pfr_walktree, &w))
 		printf("pfr_mark_addrs: IPv6 walktree failed.\n");
 }
 
@@ -739,7 +739,7 @@ static struct pfr_kentry *
 pfr_lookup_addr(struct pfr_ktable *kt, struct pfr_addr *ad, int exact)
 {
 	union sockaddr_union	 sa, mask;
-	struct radix_node_head	*head = NULL;
+	struct radix_head	*head = NULL;
 	struct pfr_kentry	*ke;
 
 	PF_RULES_ASSERT();
@@ -747,10 +747,10 @@ pfr_lookup_addr(struct pfr_ktable *kt, struct pfr_addr *ad, int exact)
 	bzero(&sa, sizeof(sa));
 	if (ad->pfra_af == AF_INET) {
 		FILLIN_SIN(sa.sin, ad->pfra_ip4addr);
-		head = kt->pfrkt_ip4;
+		head = &kt->pfrkt_ip4->rh;
 	} else if ( ad->pfra_af == AF_INET6 ) {
 		FILLIN_SIN6(sa.sin6, ad->pfra_ip6addr);
-		head = kt->pfrkt_ip6;
+		head = &kt->pfrkt_ip6->rh;
 	}
 	if (ADDR_NETWORK(ad)) {
 		pfr_prepare_network(&mask, ad->pfra_af, ad->pfra_net);
@@ -929,15 +929,15 @@ pfr_route_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 {
 	union sockaddr_union	 mask;
 	struct radix_node	*rn;
-	struct radix_node_head	*head = NULL;
+	struct radix_head	*head = NULL;
 
 	PF_RULES_WASSERT();
 
 	bzero(ke->pfrke_node, sizeof(ke->pfrke_node));
 	if (ke->pfrke_af == AF_INET)
-		head = kt->pfrkt_ip4;
+		head = &kt->pfrkt_ip4->rh;
 	else if (ke->pfrke_af == AF_INET6)
-		head = kt->pfrkt_ip6;
+		head = &kt->pfrkt_ip6->rh;
 
 	if (KENTRY_NETWORK(ke)) {
 		pfr_prepare_network(&mask, ke->pfrke_af, ke->pfrke_net);
@@ -953,12 +953,12 @@ pfr_unroute_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 {
 	union sockaddr_union	 mask;
 	struct radix_node	*rn;
-	struct radix_node_head	*head = NULL;
+	struct radix_head	*head = NULL;
 
 	if (ke->pfrke_af == AF_INET)
-		head = kt->pfrkt_ip4;
+		head = &kt->pfrkt_ip4->rh;
 	else if (ke->pfrke_af == AF_INET6)
-		head = kt->pfrkt_ip6;
+		head = &kt->pfrkt_ip6->rh;
 
 	if (KENTRY_NETWORK(ke)) {
 		pfr_prepare_network(&mask, ke->pfrke_af, ke->pfrke_net);
@@ -1907,7 +1907,7 @@ pfr_match_addr(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af)
 		sin.sin_len = sizeof(sin);
 		sin.sin_family = AF_INET;
 		sin.sin_addr.s_addr = a->addr32[0];
-		ke = (struct pfr_kentry *)rn_match(&sin, kt->pfrkt_ip4);
+		ke = (struct pfr_kentry *)rn_match(&sin, &kt->pfrkt_ip4->rh);
 		if (ke && KENTRY_RNF_ROOT(ke))
 			ke = NULL;
 		break;
@@ -1922,7 +1922,7 @@ pfr_match_addr(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af)
 		sin6.sin6_len = sizeof(sin6);
 		sin6.sin6_family = AF_INET6;
 		bcopy(a, &sin6.sin6_addr, sizeof(sin6.sin6_addr));
-		ke = (struct pfr_kentry *)rn_match(&sin6, kt->pfrkt_ip6);
+		ke = (struct pfr_kentry *)rn_match(&sin6, &kt->pfrkt_ip6->rh);
 		if (ke && KENTRY_RNF_ROOT(ke))
 			ke = NULL;
 		break;
@@ -1958,7 +1958,7 @@ pfr_update_stats(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af,
 		sin.sin_len = sizeof(sin);
 		sin.sin_family = AF_INET;
 		sin.sin_addr.s_addr = a->addr32[0];
-		ke = (struct pfr_kentry *)rn_match(&sin, kt->pfrkt_ip4);
+		ke = (struct pfr_kentry *)rn_match(&sin, &kt->pfrkt_ip4->rh);
 		if (ke && KENTRY_RNF_ROOT(ke))
 			ke = NULL;
 		break;
@@ -1973,7 +1973,7 @@ pfr_update_stats(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af,
 		sin6.sin6_len = sizeof(sin6);
 		sin6.sin6_family = AF_INET6;
 		bcopy(a, &sin6.sin6_addr, sizeof(sin6.sin6_addr));
-		ke = (struct pfr_kentry *)rn_match(&sin6, kt->pfrkt_ip6);
+		ke = (struct pfr_kentry *)rn_match(&sin6, &kt->pfrkt_ip6->rh);
 		if (ke && KENTRY_RNF_ROOT(ke))
 			ke = NULL;
 		break;
@@ -2120,11 +2120,11 @@ _next_block:
 		switch (af) {
 		case AF_INET:
 			ke2 = (struct pfr_kentry *)rn_match(&uaddr,
-			    kt->pfrkt_ip4);
+			    &kt->pfrkt_ip4->rh);
 			break;
 		case AF_INET6:
 			ke2 = (struct pfr_kentry *)rn_match(&uaddr,
-			    kt->pfrkt_ip6);
+			    &kt->pfrkt_ip6->rh);
 			break;
 		}
 		/* no need to check KENTRY_RNF_ROOT() here */
@@ -2162,12 +2162,12 @@ pfr_kentry_byidx(struct pfr_ktable *kt, int idx, int af)
 	switch (af) {
 #ifdef INET
 	case AF_INET:
-		kt->pfrkt_ip4->rnh_walktree(kt->pfrkt_ip4, pfr_walktree, &w);
+		kt->pfrkt_ip4->rnh_walktree(&kt->pfrkt_ip4->rh, pfr_walktree, &w);
 		return (w.pfrw_kentry);
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		kt->pfrkt_ip6->rnh_walktree(kt->pfrkt_ip6, pfr_walktree, &w);
+		kt->pfrkt_ip6->rnh_walktree(&kt->pfrkt_ip6->rh, pfr_walktree, &w);
 		return (w.pfrw_kentry);
 #endif /* INET6 */
 	default:
@@ -2187,7 +2187,7 @@ pfr_dynaddr_update(struct pfr_ktable *kt, struct pfi_dynaddr *dyn)
 	dyn->pfid_acnt4 = 0;
 	dyn->pfid_acnt6 = 0;
 	if (!dyn->pfid_af || dyn->pfid_af == AF_INET)
-		kt->pfrkt_ip4->rnh_walktree(kt->pfrkt_ip4, pfr_walktree, &w);
+		kt->pfrkt_ip4->rnh_walktree(&kt->pfrkt_ip4->rh, pfr_walktree, &w);
 	if (!dyn->pfid_af || dyn->pfid_af == AF_INET6)
-		kt->pfrkt_ip6->rnh_walktree(kt->pfrkt_ip6, pfr_walktree, &w);
+		kt->pfrkt_ip6->rnh_walktree(&kt->pfrkt_ip6->rh, pfr_walktree, &w);
 }

@@ -243,7 +243,10 @@ char *exp;
 	regcode = r->program;
 	regc(MAGIC);
 	if (reg(0, &flags) == NULL)
+	{
+		free(r);
 		return(NULL);
+	}
 
 	/* Dig out information for optimizations. */
 	r->regstart = '\0';	/* Worst-case defaults. */
@@ -274,7 +277,7 @@ char *exp;
 			for (; scan != NULL; scan = regnext(scan))
 				if (OP(scan) == EXACTLY && ((int) strlen(OPERAND(scan))) >= len) {
 					longest = OPERAND(scan);
-					len = strlen(OPERAND(scan));
+					len = (int) strlen(OPERAND(scan));
 				}
 			r->regmust = longest;
 			r->regmlen = len;
@@ -554,7 +557,7 @@ int *flagp;
 			register char ender;
 
 			regparse--;
-			len = strcspn(regparse, META);
+			len = (int) strcspn(regparse, META);
 			if (len <= 0)
 				FAIL("internal disaster");
 			ender = *(regparse+len);
@@ -670,9 +673,9 @@ char *val;
 	}
 
 	if (OP(scan) == BACK)
-		offset = scan - val;
+		offset = (int) (scan - val);
 	else
-		offset = val - scan;
+		offset = (int) (val - scan);
 	*(scan+1) = (offset>>8)&0377;
 	*(scan+2) = offset&0377;
 }
@@ -870,7 +873,7 @@ char *prog;
 				/* Inline the first character, for speed. */
 				if (*opnd != *reginput)
 					return(0);
-				len = strlen(opnd);
+				len = (int) strlen(opnd);
 				if (len > 1 && strncmp(opnd, reginput, len) != 0)
 					return(0);
 				reginput += len;
@@ -1034,7 +1037,7 @@ char *p;
 	opnd = OPERAND(p);
 	switch (OP(p)) {
 	case ANY:
-		count = strlen(scan);
+		count = (int) strlen(scan);
 		scan += count;
 		break;
 	case EXACTLY:

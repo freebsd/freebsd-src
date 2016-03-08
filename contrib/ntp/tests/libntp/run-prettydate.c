@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("prettydate.c");
-  RUN_TEST(test_ConstantDate, 9);
+  RUN_TEST(test_ConstantDate, 10);
 
   return (UnityEnd());
 }

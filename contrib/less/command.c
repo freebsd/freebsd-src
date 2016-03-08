@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2012  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -35,6 +35,7 @@ extern int top_scroll;
 extern int ignore_eoi;
 extern int secure;
 extern int hshift;
+extern int bs_mode;
 extern int show_attn;
 extern int less_is_more;
 extern POSITION highest_hilite;
@@ -56,6 +57,7 @@ extern int screen_trashed;	/* The screen has been overwritten */
 extern int shift_count;
 extern int oldbot;
 extern int forw_prompt;
+extern int same_pos_bell;
 
 #if SHELL_ESCAPE
 static char *shellcmd = NULL;	/* For holding last shell command for "!!" */
@@ -70,6 +72,7 @@ static int optflag;
 static int optgetname;
 static POSITION bottompos;
 static int save_hshift;
+static int save_bs_mode;
 #if PIPEC
 static char pipec;
 #endif
@@ -77,9 +80,9 @@ static char pipec;
 struct ungot {
 	struct ungot *ug_next;
 	char ug_char;
+	char ug_end_command;
 };
 static struct ungot* ungot = NULL;
-static int unget_end = 0;
 
 static void multi_search();
 
@@ -160,6 +163,7 @@ mca_search()
 		cmd_putstr("/");
 	else
 		cmd_putstr("?");
+	forw_prompt = 0;
 	set_mlist(ml_search, 0);
 }
 
@@ -194,6 +198,7 @@ mca_opt_toggle()
 		cmd_putstr("!");
 		break;
 	}
+	forw_prompt = 0;
 	set_mlist(NULL, 0);
 }
 
@@ -212,7 +217,7 @@ exec_mca()
 	{
 	case A_F_SEARCH:
 	case A_B_SEARCH:
-		multi_search(cbuf, (int) number);
+		multi_search(cbuf, (int) number, 0);
 		break;
 #if HILITE_SEARCH
 	case A_FILTER:
@@ -688,7 +693,7 @@ prompt()
 {
 	register constant char *p;
 
-	if (ungot != NULL)
+	if (ungot != NULL && !ungot->ug_end_command)
 	{
 		/*
 		 * No prompt necessary if commands are from 
@@ -778,40 +783,6 @@ dispversion()
 	public int
 getcc()
 {
-	if (unget_end) 
-	{
-		/*
-		 * We have just run out of ungotten chars.
-		 */
-		unget_end = 0;
-		if (len_cmdbuf() == 0 || !empty_screen())
-			return (getchr());
-		/*
-		 * Command is incomplete, so try to complete it.
-		 */
-		switch (mca)
-		{
-		case A_DIGIT:
-			/*
-			 * We have a number but no command.  Treat as #g.
-			 */
-			return ('g');
-
-		case A_F_SEARCH:
-		case A_B_SEARCH:
-			/*
-			 * We have "/string" but no newline.  Add the \n.
-			 */
-			return ('\n'); 
-
-		default:
-			/*
-			 * Some other incomplete command.  Let user complete it.
-			 */
-			return (getchr());
-		}
-	}
-
 	if (ungot == NULL)
 	{
 		/*
@@ -826,9 +797,36 @@ getcc()
 	{
 		struct ungot *ug = ungot;
 		char c = ug->ug_char;
+		int end_command = ug->ug_end_command;
 		ungot = ug->ug_next;
 		free(ug);
-		unget_end = (ungot == NULL);
+		if (end_command)
+		{
+			/*
+			 * Command is incomplete, so try to complete it.
+			 */
+			switch (mca)
+			{
+			case A_DIGIT:
+				/*
+				 * We have a number but no command.  Treat as #g.
+				 */
+				return ('g');
+
+			case A_F_SEARCH:
+			case A_B_SEARCH:
+				/*
+				 * We have "/string" but no newline.  Add the \n.
+				 */
+				return ('\n'); 
+
+			default:
+				/*
+				 * Some other incomplete command.  Let user complete it.
+				 */
+				return (getchr());
+			}
+		}
 		return (c);
 	}
 }
@@ -843,10 +841,10 @@ ungetcc(c)
 {
 	struct ungot *ug = (struct ungot *) ecalloc(1, sizeof(struct ungot));
 
-	ug->ug_char = c;
+	ug->ug_char = (char) c;
+	ug->ug_end_command = (c == CHAR_END_COMMAND);
 	ug->ug_next = ungot;
 	ungot = ug;
-	unget_end = 0;
 }
 
 /*
@@ -869,9 +867,10 @@ ungetsc(s)
  * If SRCH_PAST_EOF is set, continue the search thru multiple files.
  */
 	static void
-multi_search(pattern, n)
+multi_search(pattern, n, silent)
 	char *pattern;
 	int n;
+	int silent;
 {
 	register int nomore;
 	IFILE save_ifile;
@@ -946,7 +945,7 @@ multi_search(pattern, n)
 	 * Didn't find it.
 	 * Print an error message if we haven't already.
 	 */
-	if (n > 0)
+	if (n > 0 && !silent)
 		error("Pattern not found", NULL_PARG);
 
 	if (changed_file)
@@ -974,7 +973,7 @@ forw_loop(until_hilite)
 		return (A_NOACTION);
 
 	cmd_exec();
-	jump_forw();
+	jump_forw_buffered();
 	curr_len = ch_length();
 	highest_hilite = until_hilite ? curr_len : NULL_POSITION;
 	ignore_eoi = 1;
@@ -1019,7 +1018,6 @@ commands()
 	IFILE old_ifile;
 	IFILE new_ifile;
 	char *tagfile;
-	int until_hilite = 0;
 
 	search_type = SRCH_FORW;
 	wscroll = (sc_height + 1) / 2;
@@ -1247,6 +1245,8 @@ commands()
 			/*
 			 * Forward forever, ignoring EOF.
 			 */
+			if (show_attn)
+				set_attnpos(bottompos);
 			newaction = forw_loop(0);
 			break;
 
@@ -1332,6 +1332,17 @@ commands()
 				jump_back(number);
 			break;
 
+		case A_GOEND_BUF:
+			/*
+			 * Go to line N, default last buffered byte.
+			 */
+			cmd_exec();
+			if (number <= 0)
+				jump_forw_buffered();
+			else
+				jump_back(number);
+			break;
+
 		case A_GOPOS:
 			/*
 			 * Go to a specified byte position in the file.
@@ -1374,6 +1385,7 @@ commands()
 				 * previous file.
 				 */
 				hshift = save_hshift;
+				bs_mode = save_bs_mode;
 				if (edit_prev(1) == 0)
 					break;
 			}
@@ -1389,7 +1401,7 @@ commands()
 			if (number <= 0) number = 1;	\
 			mca_search();			\
 			cmd_exec();			\
-			multi_search((char *)NULL, (int) number);
+			multi_search((char *)NULL, (int) number, 0);
 
 
 		case A_F_SEARCH:
@@ -1477,6 +1489,8 @@ commands()
 			cmd_exec();
 			save_hshift = hshift;
 			hshift = 0;
+			save_bs_mode = bs_mode;
+			bs_mode = BS_SPECIAL;
 			(void) edit(FAKE_HELPFILE);
 			break;
 

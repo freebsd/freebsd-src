@@ -868,7 +868,7 @@ void BT::visitNonBranch(const MachineInstr *MI) {
       continue;
 
     bool Changed = false;
-    if (!Eval || !ResMap.has(RD.Reg)) {
+    if (!Eval || ResMap.count(RD.Reg) == 0) {
       // Set to "ref" (aka "bottom").
       uint16_t DefBW = ME.getRegBitWidth(RD);
       RegisterCell RefC = RegisterCell::self(RD.Reg, DefBW);
@@ -951,11 +951,11 @@ void BT::visitBranchesFrom(const MachineInstr *BI) {
     // be processed.
     for (succ_iterator I = B.succ_begin(), E = B.succ_end(); I != E; ++I) {
       const MachineBasicBlock *SB = *I;
-      if (SB->isLandingPad())
+      if (SB->isEHPad())
         Targets.insert(SB);
     }
     if (FallsThrough) {
-      MachineFunction::const_iterator BIt = &B;
+      MachineFunction::const_iterator BIt = B.getIterator();
       MachineFunction::const_iterator Next = std::next(BIt);
       if (Next != MF.end())
         Targets.insert(&*Next);
@@ -1005,7 +1005,7 @@ void BT::put(RegisterRef RR, const RegisterCell &RC) {
 // Replace all references to bits from OldRR with the corresponding bits
 // in NewRR.
 void BT::subst(RegisterRef OldRR, RegisterRef NewRR) {
-  assert(Map.has(OldRR.Reg) && "OldRR not present in map");
+  assert(Map.count(OldRR.Reg) > 0 && "OldRR not present in map");
   BitMask OM = ME.mask(OldRR.Reg, OldRR.Sub);
   BitMask NM = ME.mask(NewRR.Reg, NewRR.Sub);
   uint16_t OMB = OM.first(), OME = OM.last();
@@ -1104,9 +1104,9 @@ void BT::run() {
     }
     // If block end has been reached, add the fall-through edge to the queue.
     if (It == End) {
-      MachineFunction::const_iterator BIt = &B;
+      MachineFunction::const_iterator BIt = B.getIterator();
       MachineFunction::const_iterator Next = std::next(BIt);
-      if (Next != MF.end()) {
+      if (Next != MF.end() && B.isSuccessor(&*Next)) {
         int ThisN = B.getNumber();
         int NextN = Next->getNumber();
         FlowQ.push(CFGEdge(ThisN, NextN));

@@ -468,8 +468,9 @@ rum_attach(device_t self)
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct rum_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t iface_index, bands;
 	uint32_t tmp;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t iface_index;
 	int error, ntries;
 
 	device_set_usb_desc(self);
@@ -537,12 +538,12 @@ rum_attach(device_t self)
 	    IEEE80211_CRYPTO_TKIPMIC |
 	    IEEE80211_CRYPTO_TKIP;
 
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
 	if (sc->rf_rev == RT2573_RF_5225 || sc->rf_rev == RT2573_RF_5226)
-		setbit(&bands, IEEE80211_MODE_11A);
-	ieee80211_init_channels(ic, NULL, &bands);
+		setbit(bands, IEEE80211_MODE_11A);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
 	ic->ic_update_promisc = rum_update_promisc;
@@ -2731,7 +2732,7 @@ rum_pair_key_del_cb(struct rum_softc *sc, union sec_param *data,
 	DPRINTF("%s: removing key %d\n", __func__, k->wk_keyix);
 	rum_clrbits(sc, (k->wk_keyix < 32) ? RT2573_SEC_CSR2 : RT2573_SEC_CSR3,
 	    1 << (k->wk_keyix % 32));
-	sc->keys_bmap &= ~(1 << k->wk_keyix);
+	sc->keys_bmap &= ~(1ULL << k->wk_keyix);
 	if (--sc->vap_key_count[rvp_id] == 0)
 		rum_clrbits(sc, RT2573_SEC_CSR4, 1 << rvp_id);
 }
@@ -2748,8 +2749,8 @@ rum_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 		if (!(k->wk_flags & IEEE80211_KEY_SWCRYPT)) {
 			RUM_LOCK(sc);
 			for (i = 0; i < RT2573_ADDR_MAX; i++) {
-				if ((sc->keys_bmap & (1 << i)) == 0) {
-					sc->keys_bmap |= 1 << i;
+				if ((sc->keys_bmap & (1ULL << i)) == 0) {
+					sc->keys_bmap |= (1ULL << i);
 					*keyix = i;
 					break;
 				}

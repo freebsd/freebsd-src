@@ -44,8 +44,8 @@ INTERFACE bus;
 CODE {
 	static struct resource *
 	null_alloc_resource(device_t dev, device_t child,
-	    int type, int *rid, u_long start, u_long end,
-	    u_long count, u_int flags)
+	    int type, int *rid, rman_res_t start, rman_res_t end,
+	    rman_res_t count, u_int flags)
 	{
 	    return (0);
 	}
@@ -247,9 +247,9 @@ METHOD device_t add_child {
  * @param _type		the type of resource to allocate
  * @param _rid		a pointer to the resource identifier
  * @param _start	hint at the start of the resource range - pass
- *			@c 0UL for any start address
+ *			@c 0 for any start address
  * @param _end		hint at the end of the resource range - pass
- *			@c ~0UL for any end address
+ *			@c ~0 for any end address
  * @param _count	hint at the size of range required - pass @c 1
  *			for any size
  * @param _flags	any extra flags to control the resource
@@ -264,9 +264,9 @@ METHOD struct resource * alloc_resource {
 	device_t	_child;
 	int		_type;
 	int	       *_rid;
-	u_long		_start;
-	u_long		_end;
-	u_long		_count;
+	rman_res_t	_start;
+	rman_res_t	_end;
+	rman_res_t	_count;
 	u_int		_flags;
 } DEFAULT null_alloc_resource;
 
@@ -332,8 +332,8 @@ METHOD int adjust_resource {
 	device_t	_child;
 	int		_type;
 	struct resource *_res;
-	u_long		_start;
-	u_long		_end;
+	rman_res_t	_start;
+	rman_res_t	_end;
 };
 
 /**
@@ -433,8 +433,8 @@ METHOD int set_resource {
 	device_t	_child;
 	int		_type;
 	int		_rid;
-	u_long		_start;
-	u_long		_count;
+	rman_res_t	_start;
+	rman_res_t	_count;
 };
 
 /**
@@ -457,8 +457,8 @@ METHOD int get_resource {
 	device_t	_child;
 	int		_type;
 	int		_rid;
-	u_long		*_startp;
-	u_long		*_countp;
+	rman_res_t	*_startp;
+	rman_res_t	*_countp;
 };
 
 /**
@@ -635,6 +635,17 @@ METHOD bus_dma_tag_t get_dma_tag {
 	device_t	_dev;
 	device_t	_child;
 } DEFAULT bus_generic_get_dma_tag;
+
+/**
+ * @brief Returns bus_space_tag_t for use w/ devices on the bus.
+ *
+ * @param _dev		the parent device of @p _child
+ * @param _child	the device to which the tag will belong
+ */
+METHOD bus_space_tag_t get_bus_tag {
+	device_t	_dev;
+	device_t	_child;
+} DEFAULT bus_generic_get_bus_tag;
 
 /**
  * @brief Allow the bus to determine the unit number of a device.

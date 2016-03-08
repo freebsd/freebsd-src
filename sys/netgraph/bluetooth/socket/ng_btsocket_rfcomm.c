@@ -972,7 +972,7 @@ ng_btsocket_rfcomm_send(struct socket *so, int flags, struct mbuf *m,
 	}
 
 	/* Put the packet on the socket's send queue and wakeup RFCOMM task */
-	sbappend(&pcb->so->so_snd, m);
+	sbappend(&pcb->so->so_snd, m, flags);
 	m = NULL;
 	
 	if (!(pcb->flags & NG_BTSOCKET_RFCOMM_DLC_SENDING)) {
@@ -2396,7 +2396,7 @@ ng_btsocket_rfcomm_receive_uih(ng_btsocket_rfcomm_session_p s, int dlci,
 			error = ENOBUFS;
 		} else {
 			/* Append packet to the socket receive queue */
-			sbappend(&pcb->so->so_rcv, m0);
+			sbappend(&pcb->so->so_rcv, m0, 0);
 			m0 = NULL;
 
 			sorwakeup(pcb->so);

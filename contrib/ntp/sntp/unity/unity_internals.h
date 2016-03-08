@@ -305,6 +305,18 @@ extern int UNITY_OUTPUT_CHAR(int);
 #   undef UNITY_WEAK_PRAGMA
 #endif
 
+#if !defined(UNITY_NORETURN_ATTRIBUTE)
+#   ifdef __GNUC__ // includes clang
+#       if !(defined(__WIN32__) && defined(__clang__))
+#           define UNITY_NORETURN_ATTRIBUTE __attribute__((noreturn))
+#       endif
+#   endif
+#endif
+
+#ifndef UNITY_NORETURN_ATTRIBUTE
+#   define UNITY_NORETURN_ATTRIBUTE
+#endif
+
 
 //-------------------------------------------------------
 // Internal Structs Needed
@@ -465,7 +477,7 @@ void UnityAssertNumbersWithin(const _U_SINT delta,
                               const UNITY_LINE_TYPE lineNumber,
                               const UNITY_DISPLAY_STYLE_T style);
 
-void UnityFail(const char* message, const UNITY_LINE_TYPE line);
+void UnityFail(const char* message, const UNITY_LINE_TYPE line) UNITY_NORETURN_ATTRIBUTE;
 
 void UnityIgnore(const char* message, const UNITY_LINE_TYPE line);
 
@@ -602,7 +614,7 @@ extern const char UnityStrErr64[];
 
 #define UNITY_TEST_ASSERT_EQUAL_PTR(expected, actual, line, message)                             UnityAssertEqualNumber((_U_SINT)(_UP)(expected), (_U_SINT)(_UP)(actual), (message), (UNITY_LINE_TYPE)line, UNITY_DISPLAY_STYLE_POINTER)
 #define UNITY_TEST_ASSERT_EQUAL_STRING(expected, actual, line, message)                          UnityAssertEqualString((const char*)(expected), (const char*)(actual), (message), (UNITY_LINE_TYPE)line)
-#define UNITY_TEST_ASSERT_EQUAL_MEMORY(expected, actual, len, line, message)                     UnityAssertEqualMemory((UNITY_PTR_ATTRIBUTE void*)(expected), (UNITY_PTR_ATTRIBUTE void*)(actual), (_UU32)(len), 1, (message), (UNITY_LINE_TYPE)line)
+#define UNITY_TEST_ASSERT_EQUAL_MEMORY(expected, actual, len, line, message)                     UnityAssertEqualMemory((UNITY_PTR_ATTRIBUTE const void*)(expected), (UNITY_PTR_ATTRIBUTE const void*)(actual), (_UU32)(len), 1, (message), (UNITY_LINE_TYPE)line)
 
 #define UNITY_TEST_ASSERT_EQUAL_INT_ARRAY(expected, actual, num_elements, line, message)         UnityAssertEqualIntArray((UNITY_PTR_ATTRIBUTE const void*)(expected), (UNITY_PTR_ATTRIBUTE const void*)(actual), (_UU32)(num_elements), (message), (UNITY_LINE_TYPE)line, UNITY_DISPLAY_STYLE_INT)
 #define UNITY_TEST_ASSERT_EQUAL_INT8_ARRAY(expected, actual, num_elements, line, message)        UnityAssertEqualIntArray((UNITY_PTR_ATTRIBUTE const void*)(expected), (UNITY_PTR_ATTRIBUTE const void*)(actual), (_UU32)(num_elements), (message), (UNITY_LINE_TYPE)line, UNITY_DISPLAY_STYLE_INT8)

@@ -1,15 +1,15 @@
-/*	$Id: cgi.c,v 1.104 2015/02/10 08:05:30 schwarze Exp $ */
+/*	$Id: cgi.c,v 1.116 2016/01/04 12:36:26 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014 Ingo Schwarze <schwarze@usta.de>
+ * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@usta.de>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHORS DISCLAIM ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -30,10 +30,13 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "mandoc.h"
 #include "mandoc_aux.h"
+#include "mandoc.h"
+#include "roff.h"
+#include "mdoc.h"
+#include "man.h"
 #include "main.h"
-#include "manpath.h"
+#include "manconf.h"
 #include "mansearch.h"
 #include "cgi.h"
 
@@ -60,9 +63,6 @@ static	void		 html_print(const char *);
 static	void		 html_putchar(char);
 static	int		 http_decode(char *);
 static	void		 http_parse(struct req *, const char *);
-static	void		 http_print(const char *);
-static	void		 http_putchar(char);
-static	void		 http_printquery(const struct req *, const char *);
 static	void		 pathgen(struct req *);
 static	void		 pg_error_badrequest(const char *);
 static	void		 pg_error_internal(void);
@@ -74,6 +74,7 @@ static	void		 pg_searchres(const struct req *,
 static	void		 pg_show(struct req *, const char *);
 static	void		 resp_begin_html(int, const char *);
 static	void		 resp_begin_http(int, const char *);
+static	void		 resp_copy(const char *);
 static	void		 resp_end_html(void);
 static	void		 resp_searchform(const struct req *);
 static	void		 resp_show(const struct req *, const char *);
@@ -143,40 +144,6 @@ html_putchar(char c)
 		putchar((unsigned char)c);
 		break;
 	}
-}
-
-static void
-http_printquery(const struct req *req, const char *sep)
-{
-
-	if (NULL != req->q.query) {
-		printf("query=");
-		http_print(req->q.query);
-	}
-	if (0 == req->q.equal)
-		printf("%sapropos=1", sep);
-	if (NULL != req->q.sec) {
-		printf("%ssec=", sep);
-		http_print(req->q.sec);
-	}
-	if (NULL != req->q.arch) {
-		printf("%sarch=", sep);
-		http_print(req->q.arch);
-	}
-	if (strcmp(req->q.manpath, req->p[0])) {
-		printf("%smanpath=", sep);
-		http_print(req->q.manpath);
-	}
-}
-
-static void
-http_print(const char *p)
-{
-
-	if (NULL == p)
-		return;
-	while ('\0' != *p)
-		http_putchar(*p++);
 }
 
 /*
@@ -299,20 +266,6 @@ next:
 	}
 }
 
-static void
-http_putchar(char c)
-{
-
-	if (isalnum((unsigned char)c)) {
-		putchar((unsigned char)c);
-		return;
-	} else if (' ' == c) {
-		putchar('+');
-		return;
-	}
-	printf("%%%.2x", c);
-}
-
 /*
  * HTTP-decode a string.  The standard explanation is that this turns
  * "%4e+foo" into "n foo" in the regular way.  This is done in-place
@@ -331,13 +284,13 @@ http_decode(char *p)
 	for ( ; '\0' != *p; p++, q++) {
 		if ('%' == *p) {
 			if ('\0' == (hex[0] = *(p + 1)))
-				return(0);
+				return 0;
 			if ('\0' == (hex[1] = *(p + 2)))
-				return(0);
+				return 0;
 			if (1 != sscanf(hex, "%x", &c))
-				return(0);
+				return 0;
 			if ('\0' == c)
-				return(0);
+				return 0;
 
 			*q = (char)c;
 			p += 2;
@@ -346,7 +299,7 @@ http_decode(char *p)
 	}
 
 	*q = '\0';
-	return(1);
+	return 1;
 }
 
 static void
@@ -365,6 +318,20 @@ resp_begin_http(int code, const char *msg)
 }
 
 static void
+resp_copy(const char *filename)
+{
+	char	 buf[4096];
+	ssize_t	 sz;
+	int	 fd;
+
+	if ((fd = open(filename, O_RDONLY)) != -1) {
+		fflush(stdout);
+		while ((sz = read(fd, buf, sizeof(buf))) > 0)
+			write(STDOUT_FILENO, buf, sz);
+	}
+}
+
+static void
 resp_begin_html(int code, const char *msg)
 {
 
@@ -374,20 +341,22 @@ resp_begin_html(int code, const char *msg)
 	       "<HTML>\n"
 	       "<HEAD>\n"
 	       "<META CHARSET=\"UTF-8\" />\n"
-	       "<LINK REL=\"stylesheet\" HREF=\"%s/man-cgi.css\""
-	       " TYPE=\"text/css\" media=\"all\">\n"
-	       "<LINK REL=\"stylesheet\" HREF=\"%s/man.css\""
+	       "<LINK REL=\"stylesheet\" HREF=\"%s/mandoc.css\""
 	       " TYPE=\"text/css\" media=\"all\">\n"
 	       "<TITLE>%s</TITLE>\n"
 	       "</HEAD>\n"
 	       "<BODY>\n"
 	       "<!-- Begin page content. //-->\n",
-	       CSS_DIR, CSS_DIR, CUSTOMIZE_TITLE);
+	       CSS_DIR, CUSTOMIZE_TITLE);
+
+	resp_copy(MAN_DIR "/header.html");
 }
 
 static void
 resp_end_html(void)
 {
+
+	resp_copy(MAN_DIR "/footer.html");
 
 	puts("</BODY>\n"
 	     "</HTML>");
@@ -398,7 +367,6 @@ resp_searchform(const struct req *req)
 {
 	int		 i;
 
-	puts(CUSTOMIZE_BEGIN);
 	puts("<!-- Begin search form. //-->");
 	printf("<DIV ID=\"mancgi\">\n"
 	       "<FORM ACTION=\"%s\" METHOD=\"get\">\n"
@@ -498,10 +466,10 @@ validate_urifrag(const char *frag)
 		if ( ! (isalnum((unsigned char)*frag) ||
 		    '-' == *frag || '.' == *frag ||
 		    '/' == *frag || '_' == *frag))
-			return(0);
+			return 0;
 		frag++;
 	}
-	return(1);
+	return 1;
 }
 
 static int
@@ -510,13 +478,13 @@ validate_manpath(const struct req *req, const char* manpath)
 	size_t	 i;
 
 	if ( ! strcmp(manpath, "mandoc"))
-		return(1);
+		return 1;
 
 	for (i = 0; i < req->psz; i++)
 		if ( ! strcmp(manpath, req->p[i]))
-			return(1);
+			return 1;
 
-	return(0);
+	return 0;
 }
 
 static int
@@ -526,8 +494,8 @@ validate_filename(const char *file)
 	if ('.' == file[0] && '/' == file[1])
 		file += 2;
 
-	return ( ! (strstr(file, "../") || strstr(file, "/..") ||
-	    (strncmp(file, "man", 3) && strncmp(file, "cat", 3))));
+	return ! (strstr(file, "../") || strstr(file, "/..") ||
+	    (strncmp(file, "man", 3) && strncmp(file, "cat", 3)));
 }
 
 static void
@@ -604,9 +572,8 @@ pg_searchres(const struct req *req, struct manpage *r, size_t sz)
 		 * without any delay.
 		 */
 		printf("Status: 303 See Other\r\n");
-		printf("Location: http://%s%s/%s/%s?",
+		printf("Location: http://%s%s/%s/%s",
 		    HTTP_HOST, scriptname, req->q.manpath, r[0].file);
-		http_printquery(req, "&");
 		printf("\r\n"
 		     "Content-Type: text/html; charset=utf-8\r\n"
 		     "\r\n");
@@ -621,9 +588,8 @@ pg_searchres(const struct req *req, struct manpage *r, size_t sz)
 	for (i = 0; i < sz; i++) {
 		printf("<TR>\n"
 		       "<TD CLASS=\"title\">\n"
-		       "<A HREF=\"%s/%s/%s?",
+		       "<A HREF=\"%s/%s/%s",
 		    scriptname, req->q.manpath, r[i].file);
-		http_printquery(req, "&amp;");
 		printf("\">");
 		html_print(r[i].names);
 		printf("</A>\n"
@@ -685,12 +651,13 @@ static void
 catman(const struct req *req, const char *file)
 {
 	FILE		*f;
-	size_t		 len;
-	int		 i;
 	char		*p;
+	size_t		 sz;
+	ssize_t		 len;
+	int		 i;
 	int		 italic, bold;
 
-	if (NULL == (f = fopen(file, "r"))) {
+	if ((f = fopen(file, "r")) == NULL) {
 		puts("<P>You specified an invalid manual file.</P>");
 		return;
 	}
@@ -698,9 +665,12 @@ catman(const struct req *req, const char *file)
 	puts("<DIV CLASS=\"catman\">\n"
 	     "<PRE>");
 
-	while (NULL != (p = fgetln(f, &len))) {
+	p = NULL;
+	sz = 0;
+
+	while ((len = getline(&p, &sz, f)) != -1) {
 		bold = italic = 0;
-		for (i = 0; i < (int)len - 1; i++) {
+		for (i = 0; i < len - 1; i++) {
 			/*
 			 * This means that the catpage is out of state.
 			 * Ignore it and keep going (although the
@@ -725,7 +695,7 @@ catman(const struct req *req, const char *file)
 				italic = bold = 0;
 				html_putchar(p[i]);
 				continue;
-			} else if (i + 2 >= (int)len)
+			} else if (i + 2 >= len)
 				continue;
 
 			/* Italic mode. */
@@ -801,11 +771,12 @@ catman(const struct req *req, const char *file)
 		if (bold)
 			printf("</B>");
 
-		if (i == (int)len - 1 && '\n' != p[i])
+		if (i == len - 1 && p[i] != '\n')
 			html_putchar(p[i]);
 
 		putchar('\n');
 	}
+	free(p);
 
 	puts("</PRE>\n"
 	     "</DIV>");
@@ -816,12 +787,10 @@ catman(const struct req *req, const char *file)
 static void
 format(const struct req *req, const char *file)
 {
+	struct manoutput conf;
 	struct mparse	*mp;
-	struct mchars	*mchars;
-	struct mdoc	*mdoc;
-	struct man	*man;
+	struct roff_man	*man;
 	void		*vp;
-	char		*opts;
 	int		 fd;
 	int		 usepath;
 
@@ -830,42 +799,45 @@ format(const struct req *req, const char *file)
 		return;
 	}
 
-	mchars = mchars_alloc();
-	mp = mparse_alloc(MPARSE_SO, MANDOCLEVEL_BADARG, NULL,
-	    mchars, req->q.manpath);
+	mchars_alloc();
+	mp = mparse_alloc(MPARSE_SO, MANDOCLEVEL_BADARG, NULL, req->q.manpath);
 	mparse_readfd(mp, fd, file);
 	close(fd);
 
+	memset(&conf, 0, sizeof(conf));
+	conf.fragment = 1;
 	usepath = strcmp(req->q.manpath, req->p[0]);
-	mandoc_asprintf(&opts,
-	    "fragment,man=%s?query=%%N&sec=%%S%s%s%s%s",
+	mandoc_asprintf(&conf.man, "%s?query=%%N&sec=%%S%s%s%s%s",
 	    scriptname,
 	    req->q.arch	? "&arch="       : "",
 	    req->q.arch	? req->q.arch    : "",
 	    usepath	? "&manpath="    : "",
 	    usepath	? req->q.manpath : "");
 
-	mparse_result(mp, &mdoc, &man, NULL);
-	if (NULL == man && NULL == mdoc) {
+	mparse_result(mp, &man, NULL);
+	if (man == NULL) {
 		fprintf(stderr, "fatal mandoc error: %s/%s\n",
 		    req->q.manpath, file);
 		pg_error_internal();
 		mparse_free(mp);
-		mchars_free(mchars);
+		mchars_free();
 		return;
 	}
 
-	vp = html_alloc(mchars, opts);
+	vp = html_alloc(&conf);
 
-	if (NULL != mdoc)
-		html_mdoc(vp, mdoc);
-	else
+	if (man->macroset == MACROSET_MDOC) {
+		mdoc_validate(man);
+		html_mdoc(vp, man);
+	} else {
+		man_validate(man);
 		html_man(vp, man);
+	}
 
 	html_free(vp);
 	mparse_free(mp);
-	mchars_free(mchars);
-	free(opts);
+	mchars_free();
+	free(conf.man);
 }
 
 static void
@@ -1030,7 +1002,7 @@ main(void)
 	if (setitimer(ITIMER_VIRTUAL, &itimer, NULL) == -1) {
 		fprintf(stderr, "setitimer: %s\n", strerror(errno));
 		pg_error_internal();
-		return(EXIT_FAILURE);
+		return EXIT_FAILURE;
 	}
 
 	/* Scan our run-time environment. */
@@ -1042,7 +1014,7 @@ main(void)
 		fprintf(stderr, "unsafe SCRIPT_NAME \"%s\"\n",
 		    scriptname);
 		pg_error_internal();
-		return(EXIT_FAILURE);
+		return EXIT_FAILURE;
 	}
 
 	/*
@@ -1055,7 +1027,7 @@ main(void)
 		fprintf(stderr, "MAN_DIR: %s: %s\n",
 		    MAN_DIR, strerror(errno));
 		pg_error_internal();
-		return(EXIT_FAILURE);
+		return EXIT_FAILURE;
 	}
 
 	memset(&req, 0, sizeof(struct req));
@@ -1071,13 +1043,13 @@ main(void)
 	else if ( ! validate_manpath(&req, req.q.manpath)) {
 		pg_error_badrequest(
 		    "You specified an invalid manpath.");
-		return(EXIT_FAILURE);
+		return EXIT_FAILURE;
 	}
 
 	if ( ! (NULL == req.q.arch || validate_urifrag(req.q.arch))) {
 		pg_error_badrequest(
 		    "You specified an invalid architecture.");
-		return(EXIT_FAILURE);
+		return EXIT_FAILURE;
 	}
 
 	/* Dispatch to the three different pages. */
@@ -1102,7 +1074,7 @@ main(void)
 	for (i = 0; i < (int)req.psz; i++)
 		free(req.p[i]);
 	free(req.p);
-	return(EXIT_SUCCESS);
+	return EXIT_SUCCESS;
 }
 
 /*
@@ -1114,6 +1086,7 @@ pathgen(struct req *req)
 	FILE	*fp;
 	char	*dp;
 	size_t	 dpsz;
+	ssize_t	 len;
 
 	if (NULL == (fp = fopen("manpath.conf", "r"))) {
 		fprintf(stderr, "%s/manpath.conf: %s\n",
@@ -1122,12 +1095,14 @@ pathgen(struct req *req)
 		exit(EXIT_FAILURE);
 	}
 
-	while (NULL != (dp = fgetln(fp, &dpsz))) {
-		if ('\n' == dp[dpsz - 1])
-			dpsz--;
+	dp = NULL;
+	dpsz = 0;
+
+	while ((len = getline(&dp, &dpsz, fp)) != -1) {
+		if (dp[len - 1] == '\n')
+			dp[--len] = '\0';
 		req->p = mandoc_realloc(req->p,
 		    (req->psz + 1) * sizeof(char *));
-		dp = mandoc_strndup(dp, dpsz);
 		if ( ! validate_urifrag(dp)) {
 			fprintf(stderr, "%s/manpath.conf contains "
 			    "unsafe path \"%s\"\n", MAN_DIR, dp);
@@ -1141,7 +1116,10 @@ pathgen(struct req *req)
 			exit(EXIT_FAILURE);
 		}
 		req->p[req->psz++] = dp;
+		dp = NULL;
+		dpsz = 0;
 	}
+	free(dp);
 
 	if ( req->p == NULL ) {
 		fprintf(stderr, "%s/manpath.conf is empty\n", MAN_DIR);

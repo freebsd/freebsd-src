@@ -50,7 +50,7 @@
 #include <machine/bus.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
-#include <dev/etherswitch/mdio.h>
+#include <dev/mdio/mdio.h>
 
 #include <dev/etherswitch/etherswitch.h>
 

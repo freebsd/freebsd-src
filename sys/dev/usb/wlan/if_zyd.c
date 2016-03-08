@@ -334,7 +334,8 @@ zyd_attach(device_t dev)
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct zyd_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t iface_index, bands;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t iface_index;
 	int error;
 
 	if (uaa->info.bcdDevice < 0x4330) {
@@ -387,10 +388,10 @@ zyd_attach(device_t dev)
 	        | IEEE80211_C_WPA		/* 802.11i */
 		;
 
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
-	ieee80211_init_channels(ic, NULL, &bands);
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
 	ic->ic_raw_xmit = zyd_raw_xmit;
@@ -608,8 +609,8 @@ zyd_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		/* make data LED blink upon Tx */
 		zyd_write32_m(sc, sc->sc_fwbase + ZYD_FW_LINK_STATUS, 1);
 
-		IEEE80211_ADDR_COPY(ic->ic_macaddr, vap->iv_bss->ni_bssid);
-		zyd_set_bssid(sc, ic->ic_macaddr);
+		IEEE80211_ADDR_COPY(sc->sc_bssid, vap->iv_bss->ni_bssid);
+		zyd_set_bssid(sc, sc->sc_bssid);
 		break;
 	default:
 		break;
@@ -2859,7 +2860,7 @@ zyd_scan_end(struct ieee80211com *ic)
 
 	ZYD_LOCK(sc);
 	/* restore previous bssid */
-	zyd_set_bssid(sc, ic->ic_macaddr);
+	zyd_set_bssid(sc, sc->sc_bssid);
 	ZYD_UNLOCK(sc);
 }
 

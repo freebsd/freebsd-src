@@ -383,7 +383,6 @@ linux_sigaltstack(struct thread *td, struct linux_sigaltstack_args *uap)
 	return (error);
 }
 
-/* XXX do all */
 int
 linux_arch_prctl(struct thread *td, struct linux_arch_prctl_args *args)
 {

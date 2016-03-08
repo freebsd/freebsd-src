@@ -55,7 +55,7 @@ void  ficlTextOut(FICL_VM *pVM, char *msg, int fNewline)
     IGNORE(pVM);
 
     while(*msg != 0)
-	putchar(*(msg++));
+	putchar((unsigned char)*(msg++));
     if (fNewline)
 	putchar('\n');
 

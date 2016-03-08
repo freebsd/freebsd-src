@@ -16,6 +16,7 @@ MK_PROFILE=	no
 
 SRCS=	dev.c cq.c qp.c verbs.c
 
+LIBADD=	ibverbs pthread
 CFLAGS+= -g -DHAVE_CONFIG_H -DDEBUG
 CFLAGS+= -I${.CURDIR} -I${CXGBSRCDIR} -I${IBVERBSDIR}/include 
 

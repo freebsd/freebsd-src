@@ -275,6 +275,7 @@ extra_chroot_setup() {
 			PBUILD_FLAGS="${PBUILD_FLAGS} OSREL=${REVISION}"
 			chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
 				${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" \
+				FORCE_PKG_REGISTER=1 \
 				install clean distclean
 		fi
 	fi

@@ -156,7 +156,7 @@ i915_gem_wait_for_error(struct drm_device *dev)
 	int ret;
 
 	if (!atomic_load_acq_int(&dev_priv->mm.wedged))
-		return (0);
+		return 0;
 
 	mtx_lock(&dev_priv->error_completion_lock);
 	while (dev_priv->error_completion == 0) {
@@ -166,7 +166,7 @@ i915_gem_wait_for_error(struct drm_device *dev)
 			ret = -ERESTARTSYS;
 		if (ret != 0) {
 			mtx_unlock(&dev_priv->error_completion_lock);
-			return (ret);
+			return ret;
 		}
 	}
 	mtx_unlock(&dev_priv->error_completion_lock);
@@ -1861,26 +1861,30 @@ i915_gem_object_put_pages_range(struct drm_i915_gem_object *obj,
 static void
 i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 {
-	vm_page_t page;
-	int page_count, i;
+	int page_count = obj->base.size / PAGE_SIZE;
+	int i;
 
 	KASSERT(obj->madv != I915_MADV_PURGED_INTERNAL, ("Purged object"));
 
 	if (obj->tiling_mode != I915_TILING_NONE)
 		i915_gem_object_save_bit_17_swizzle(obj);
+
 	if (obj->madv == I915_MADV_DONTNEED)
 		obj->dirty = 0;
-	page_count = obj->base.size / PAGE_SIZE;
+
 	VM_OBJECT_WLOCK(obj->base.vm_obj);
 #if GEM_PARANOID_CHECK_GTT
 	i915_gem_assert_pages_not_mapped(obj->base.dev, obj->pages, page_count);
 #endif
 	for (i = 0; i < page_count; i++) {
-		page = obj->pages[i];
+		vm_page_t page = obj->pages[i];
+
 		if (obj->dirty)
 			vm_page_dirty(page);
+
 		if (obj->madv == I915_MADV_WILLNEED)
 			vm_page_reference(page);
+
 		vm_page_lock(page);
 		vm_page_unwire(obj->pages[i], PQ_ACTIVE);
 		vm_page_unlock(page);
@@ -1888,6 +1892,7 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 	}
 	VM_OBJECT_WUNLOCK(obj->base.vm_obj);
 	obj->dirty = 0;
+
 	free(obj->pages, DRM_I915_GEM);
 	obj->pages = NULL;
 }

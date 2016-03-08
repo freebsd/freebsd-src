@@ -43,10 +43,9 @@ int isp_send_cmd(ispsoftc_t *, void *, void *, uint32_t, uint32_t, isp_ddir_t, i
  *
  * These handles are associate with a command.
  */
-int isp_allocate_xs(ispsoftc_t *, XS_T *, uint32_t *);
-XS_T * isp_find_xs(ispsoftc_t *, uint32_t);
-uint32_t isp_find_handle(ispsoftc_t *, XS_T *);
-uint32_t isp_handle_index(ispsoftc_t *, uint32_t);
+uint32_t isp_allocate_handle(ispsoftc_t *, void *, int);
+void *isp_find_xs(ispsoftc_t *, uint32_t);
+uint32_t isp_find_handle(ispsoftc_t *, void *);
 void isp_destroy_handle(ispsoftc_t *, uint32_t);
 
 /*
@@ -71,9 +70,6 @@ void isp_gen_role_str(char *, size_t, uint16_t);
 const char *isp_fc_fw_statename(int);
 const char *isp_fc_loop_statename(int);
 const char *isp_fc_toponame(fcparam *);
-
-int isp_fc_change_role(ispsoftc_t *, int, int);
-
 
 /*
  * Cleanup
@@ -165,11 +161,6 @@ void isp_put_fcp_rsp_iu(ispsoftc_t *isp, fcp_rsp_iu_t *, fcp_rsp_iu_t *);
 #endif
 
 int isp_send_tgt_cmd(ispsoftc_t *, void *, void *, uint32_t, uint32_t, isp_ddir_t, void *, uint32_t);
-
-int isp_allocate_xs_tgt(ispsoftc_t *, void *, uint32_t *);
-void *isp_find_xs_tgt(ispsoftc_t *, uint32_t);
-uint32_t isp_find_tgt_handle(ispsoftc_t *, void *);
-void isp_destroy_tgt_handle(ispsoftc_t *, uint32_t);
 #endif
 int isp_find_pdb_empty(ispsoftc_t *, int, fcportdb_t **);
 int isp_find_pdb_by_wwpn(ispsoftc_t *, int, uint64_t, fcportdb_t **);

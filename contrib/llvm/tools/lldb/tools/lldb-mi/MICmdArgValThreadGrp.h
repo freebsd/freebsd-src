@@ -23,15 +23,12 @@ class CMICmdArgContext;
 //          argument and so extract a value from it. Thread group looks like
 //          "i1" in the options text.
 //          Based on the Interpreter pattern.
-// Gotchas: None.
-// Authors: Illya Rudkin 15/04/2014.
-// Changes: None.
 //--
 class CMICmdArgValThreadGrp : public CMICmdArgValBaseTemplate<MIuint>
 {
     // Methods:
   public:
-    /* ctor */ CMICmdArgValThreadGrp(void);
+    /* ctor */ CMICmdArgValThreadGrp();
     /* ctor */ CMICmdArgValThreadGrp(const CMIUtilString &vrArgName, const bool vbMandatory, const bool vbHandleByCmd);
     //
     bool IsArgThreadGrp(const CMIUtilString &vrTxt) const;
@@ -39,14 +36,14 @@ class CMICmdArgValThreadGrp : public CMICmdArgValBaseTemplate<MIuint>
     // Overridden:
   public:
     // From CMICmdArgValBase
-    /* dtor */ ~CMICmdArgValThreadGrp(void) override;
+    /* dtor */ ~CMICmdArgValThreadGrp() override;
     // From CMICmdArgSet::IArg
     bool Validate(CMICmdArgContext &vArgContext) override;
 
     // Methods:
   private:
     bool ExtractNumber(const CMIUtilString &vrTxt);
-    MIuint GetNumber(void) const;
+    MIuint GetNumber() const;
 
     // Attributes:
   private:

@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/route.h>
+#include <net/route_var.h>
 #include <net/vnet.h>
 
 #ifdef RADIX_MPATH
@@ -170,7 +171,7 @@ int
 fib6_lookup_nh_basic(uint32_t fibnum, const struct in6_addr *dst, uint32_t scopeid,
     uint32_t flags, uint32_t flowid, struct nhop6_basic *pnh6)
 {
-	struct radix_node_head *rh;
+	struct rib_head *rh;
 	struct radix_node *rn;
 	struct sockaddr_in6 sin6;
 	struct rtentry *rte;
@@ -188,18 +189,18 @@ fib6_lookup_nh_basic(uint32_t fibnum, const struct in6_addr *dst, uint32_t scope
 	if (IN6_IS_SCOPE_LINKLOCAL(dst))
 		sin6.sin6_addr.s6_addr16[1] = htons(scopeid & 0xffff);
 
-	RADIX_NODE_HEAD_RLOCK(rh);
-	rn = rh->rnh_matchaddr((void *)&sin6, rh);
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin6, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
 			fib6_rte_to_nh_basic(rte, &sin6.sin6_addr, flags, pnh6);
-			RADIX_NODE_HEAD_RUNLOCK(rh);
+			RIB_RUNLOCK(rh);
 			return (0);
 		}
 	}
-	RADIX_NODE_HEAD_RUNLOCK(rh);
+	RIB_RUNLOCK(rh);
 
 	return (ENOENT);
 }
@@ -219,7 +220,7 @@ int
 fib6_lookup_nh_ext(uint32_t fibnum, const struct in6_addr *dst,uint32_t scopeid,
     uint32_t flags, uint32_t flowid, struct nhop6_extended *pnh6)
 {
-	struct radix_node_head *rh;
+	struct rib_head *rh;
 	struct radix_node *rn;
 	struct sockaddr_in6 sin6;
 	struct rtentry *rte;
@@ -237,10 +238,17 @@ fib6_lookup_nh_ext(uint32_t fibnum, const struct in6_addr *dst,uint32_t scopeid,
 	if (IN6_IS_SCOPE_LINKLOCAL(dst))
 		sin6.sin6_addr.s6_addr16[1] = htons(scopeid & 0xffff);
 
-	RADIX_NODE_HEAD_RLOCK(rh);
-	rn = rh->rnh_matchaddr((void *)&sin6, rh);
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin6, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rte = RNTORT(rn);
+#ifdef RADIX_MPATH
+		rte = rt_mpath_select(rte, flowid);
+		if (rte == NULL) {
+			RIB_RUNLOCK(rh);
+			return (ENOENT);
+		}
+#endif
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
 			fib6_rte_to_nh_extended(rte, &sin6.sin6_addr, flags,
@@ -248,12 +256,12 @@ fib6_lookup_nh_ext(uint32_t fibnum, const struct in6_addr *dst,uint32_t scopeid,
 			if ((flags & NHR_REF) != 0) {
 				/* TODO: Do lwref on egress ifp's */
 			}
-			RADIX_NODE_HEAD_RUNLOCK(rh);
+			RIB_RUNLOCK(rh);
 
 			return (0);
 		}
 	}
-	RADIX_NODE_HEAD_RUNLOCK(rh);
+	RIB_RUNLOCK(rh);
 
 	return (ENOENT);
 }

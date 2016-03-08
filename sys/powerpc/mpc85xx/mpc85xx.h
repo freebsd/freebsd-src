@@ -40,6 +40,25 @@ extern vm_offset_t		ccsrbar_va;
 #define	OCP85XX_CCSRBAR		(CCSRBAR_VA + 0x0)
 #define	OCP85XX_BPTR		(CCSRBAR_VA + 0x20)
 
+#define	OCP85XX_BSTRH		(CCSRBAR_VA + 0x20)
+#define	OCP85XX_BSTRL		(CCSRBAR_VA + 0x24)
+#define	OCP85XX_BSTAR		(CCSRBAR_VA + 0x28)
+
+#define	OCP85XX_COREDISR	(CCSRBAR_VA + 0xE0094)
+#define	OCP85XX_BRR		(CCSRBAR_VA + 0xE00E4)
+
+/*
+ * Run Control and Power Management registers
+ */
+#define CCSR_CTBENR		(CCSRBAR_VA + 0xE2084)
+#define CCSR_CTBCKSELR		(CCSRBAR_VA + 0xE208C)
+#define CCSR_CTBCHLTCR		(CCSRBAR_VA + 0xE2094)
+
+/*
+ * DDR Memory controller.
+ */
+#define	OCP85XX_DDR1_CS0_CONFIG		(CCSRBAR_VA + 0x8080)
+
 /*
  * E500 Coherency Module registers
  */
@@ -68,6 +87,7 @@ extern vm_offset_t		ccsrbar_va;
 #define	OCP85XX_TGTIF_RAM1	0x10
 #define	OCP85XX_TGTIF_RAM2	0x11
 #define	OCP85XX_TGTIF_BMAN	0x18
+#define	OCP85XX_TGTIF_DCSR	0x1D
 #define	OCP85XX_TGTIF_QMAN	0x3C
 #define	OCP85XX_TRGT_SHIFT	20
 #else
@@ -84,6 +104,20 @@ extern vm_offset_t		ccsrbar_va;
 #define OCP85XX_L2CTL		(CCSRBAR_VA + 0x20000)
 
 /*
+ * L3 CoreNet platform cache (CPC) registers
+ */
+#define	OCP85XX_CPC_CSR0		(CCSRBAR_VA + 0x10000)
+#define	  OCP85XX_CPC_CSR0_CE		  0x80000000
+#define	  OCP85XX_CPC_CSR0_PE		  0x40000000
+#define	  OCP85XX_CPC_CSR0_FI		  0x00200000
+#define	  OCP85XX_CPC_CSR0_WT		  0x00080000
+#define	  OCP85XX_CPC_CSR0_FL		  0x00000800
+#define	  OCP85XX_CPC_CSR0_LFC		  0x00000400
+#define	OCP85XX_CPC_CFG0		(CCSRBAR_VA + 0x10008)
+#define	  OCP85XX_CPC_CFG_SZ_MASK	  0x00003fff
+#define	  OCP85XX_CPC_CFG0_SZ_K(x)	  (((x) & OCP85XX_CPC_CFG_SZ_MASK) << 6)
+
+/*
  * Power-On Reset configuration
  */
 #define	OCP85XX_PORDEVSR	(CCSRBAR_VA + 0xe000c)
@@ -98,6 +132,12 @@ extern vm_offset_t		ccsrbar_va;
 #define	OCP85XX_RSTCR		(CCSRBAR_VA + 0xe00b0)
 
 /*
+ * Run Control/Power Management Registers.
+ */
+#define	OCP85XX_RCPM_CDOZSR	(CCSRBAR_VA + 0xe2004)
+#define	OCP85XX_RCPM_CDOZCR	(CCSRBAR_VA + 0xe200c)
+
+/*
  * Prototypes.
  */
 uint32_t ccsr_read4(uintptr_t addr);
@@ -109,5 +149,9 @@ int law_pci_target(struct resource *, int *, int *);
 
 DECLARE_CLASS(mpc85xx_platform);
 int mpc85xx_attach(platform_t);
+
+void mpc85xx_enable_l3_cache(void);
+void mpc85xx_fix_errata(vm_offset_t);
+void dataloss_erratum_access(vm_offset_t, uint32_t);
 
 #endif /* _MPC85XX_H_ */

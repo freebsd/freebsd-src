@@ -43,10 +43,9 @@ __FBSDID("$FreeBSD$");
 
 #include <stddef.h>
 #include <stdio.h>
+#include <sysdecode.h>
 
 #include "truss.h"
-
-#include "freebsd_syscalls.h"
 
 static int
 sparc64_fetch_args(struct trussinfo *trussinfo, u_int narg)
@@ -116,8 +115,7 @@ sparc64_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
 
 static struct procabi sparc64_freebsd = {
 	"FreeBSD ELF64",
-	syscallnames,
-	nitems(syscallnames),
+	SYSDECODE_ABI_FREEBSD,
 	sparc64_fetch_args,
 	sparc64_fetch_retval
 };

@@ -56,8 +56,13 @@ __FBSDID("$FreeBSD$");
 
 #define	IOAT_DMACAPABILITY_OFFSET	0x10
 #define	IOAT_DMACAP_PB			(1 << 0)
+#define	IOAT_DMACAP_CRC			(1 << 1)
+#define	IOAT_DMACAP_MARKER_SKIP		(1 << 2)
+#define	IOAT_DMACAP_OLD_XOR		(1 << 3)
 #define	IOAT_DMACAP_DCA			(1 << 4)
+#define	IOAT_DMACAP_MOVECRC		(1 << 5)
 #define	IOAT_DMACAP_BFILL		(1 << 6)
+#define	IOAT_DMACAP_EXT_APIC		(1 << 7)
 #define	IOAT_DMACAP_XOR			(1 << 8)
 #define	IOAT_DMACAP_PQ			(1 << 9)
 #define	IOAT_DMACAP_DMA_DIF		(1 << 10)
@@ -69,7 +74,8 @@ __FBSDID("$FreeBSD$");
 #define	IOAT_DMACAP_STR \
     "\20\24Completion_Timeout_Support\23DMA_with_Multicasting_Support" \
     "\22RAID_Super_descriptors\16Descriptor_Write_Back_Error_Support" \
-    "\13DMA_with_DIF\12PQ\11XOR\07Block_Fill\05DCA\01Page_Break"
+    "\13DMA_with_DIF\12PQ\11XOR\10Extended_APIC_ID\07Block_Fill\06Move_CRC" \
+    "\05DCA\04Old_XOR\03Marker_Skipping\02CRC\01Page_Break"
 
 /* DMA Channel Registers */
 #define	IOAT_CHANCTRL_OFFSET			0x80

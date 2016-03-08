@@ -36,8 +36,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/endian.h>
 #include <sys/errno.h>
 #include <sys/firmware.h>
@@ -8327,7 +8328,7 @@ bwn_intr(void *arg)
 	BWN_BARRIER(mac, BUS_SPACE_BARRIER_READ);
 	BWN_BARRIER(mac, BUS_SPACE_BARRIER_WRITE);
 
-	taskqueue_enqueue_fast(sc->sc_tq, &mac->mac_intrtask);
+	taskqueue_enqueue(sc->sc_tq, &mac->mac_intrtask);
 	return (FILTER_HANDLED);
 }
 

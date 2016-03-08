@@ -40,7 +40,7 @@ dolfptoa(
 	 * including a possible rounding from the fractional part.
 	 */
 	cp = cpend = cpdec = &cbuf[10];
-	for (dec = cp - cbuf; dec > 0 && fpi != 0; dec--) {
+	for (dec = (int)(cp - cbuf); dec > 0 && fpi != 0; dec--) {
 		/* can add another digit */
 		u_int32 digit;
 		
@@ -62,7 +62,7 @@ dolfptoa(
 		cpdec += 3;
 	}
 	if ((size_t)dec > sizeof(cbuf) - (cpend - cbuf))
-		dec = sizeof(cbuf) - (cpend - cbuf);
+		dec = (int)(sizeof(cbuf) - (cpend - cbuf));
 	
 	/*
 	 * If there's a fraction to deal with, do so.
@@ -95,7 +95,7 @@ dolfptoa(
 		u_char *tp    = cpend;
 		int     carry = ((fpv & 0x80000000) != 0);
 
-		for (dec = tp - cbuf;  carry && dec > 0;  dec--) {
+		for (dec = (int)(tp - cbuf);  carry && dec > 0;  dec--) {
 			*--tp += 1;
 			if (*tp == 10)
 				*tp = 0;

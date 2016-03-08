@@ -52,6 +52,61 @@ const MappingDesc kMemoryLayout[] = {
 #define MEM_TO_SHADOW(mem) (((uptr)(mem)) & ~0x4000000000ULL)
 #define SHADOW_TO_ORIGIN(shadow) (((uptr)(shadow)) + 0x002000000000)
 
+#elif SANITIZER_LINUX && defined(__aarch64__)
+
+// The mapping describes both 39-bits and 42-bits.  AArch64 maps:
+// - 0x00000000000-0x00010000000: 39/42-bits program own segments
+// - 0x05500000000-0x05600000000: 39-bits PIE program segments
+// - 0x07f80000000-0x07fffffffff: 39-bits libraries segments
+// - 0x2aa00000000-0x2ab00000000: 42-bits PIE program segments
+// - 0x3ff00000000-0x3ffffffffff: 42-bits libraries segments
+// It is fragmented in multiples segments to increase the memory available
+// on 42-bits (12.21% of total VMA available for 42-bits and 13.28 for
+// 39 bits).
+const MappingDesc kMemoryLayout[] = {
+    {0x00000000000ULL, 0x01000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x01000000000ULL, 0x02000000000ULL, MappingDesc::SHADOW, "shadow-2"},
+    {0x02000000000ULL, 0x03000000000ULL, MappingDesc::ORIGIN, "origin-2"},
+    {0x03000000000ULL, 0x04000000000ULL, MappingDesc::SHADOW, "shadow-1"},
+    {0x04000000000ULL, 0x05000000000ULL, MappingDesc::ORIGIN, "origin-1"},
+    {0x05000000000ULL, 0x06000000000ULL, MappingDesc::APP, "app-1"},
+    {0x06000000000ULL, 0x07000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x07000000000ULL, 0x08000000000ULL, MappingDesc::APP, "app-2"},
+    {0x08000000000ULL, 0x09000000000ULL, MappingDesc::INVALID, "invalid"},
+    // The mappings below are used only for 42-bits VMA.
+    {0x09000000000ULL, 0x0A000000000ULL, MappingDesc::SHADOW, "shadow-3"},
+    {0x0A000000000ULL, 0x0B000000000ULL, MappingDesc::ORIGIN, "origin-3"},
+    {0x0B000000000ULL, 0x0F000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x0F000000000ULL, 0x10000000000ULL, MappingDesc::APP, "app-3"},
+    {0x10000000000ULL, 0x11000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x11000000000ULL, 0x12000000000ULL, MappingDesc::APP, "app-4"},
+    {0x12000000000ULL, 0x17000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x17000000000ULL, 0x18000000000ULL, MappingDesc::SHADOW, "shadow-4"},
+    {0x18000000000ULL, 0x19000000000ULL, MappingDesc::ORIGIN, "origin-4"},
+    {0x19000000000ULL, 0x20000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x20000000000ULL, 0x21000000000ULL, MappingDesc::APP, "app-5"},
+    {0x21000000000ULL, 0x26000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x26000000000ULL, 0x27000000000ULL, MappingDesc::SHADOW, "shadow-5"},
+    {0x27000000000ULL, 0x28000000000ULL, MappingDesc::ORIGIN, "origin-5"},
+    {0x28000000000ULL, 0x29000000000ULL, MappingDesc::SHADOW, "shadow-7"},
+    {0x29000000000ULL, 0x2A000000000ULL, MappingDesc::ORIGIN, "origin-7"},
+    {0x2A000000000ULL, 0x2B000000000ULL, MappingDesc::APP, "app-6"},
+    {0x2B000000000ULL, 0x2C000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x2C000000000ULL, 0x2D000000000ULL, MappingDesc::SHADOW, "shadow-6"},
+    {0x2D000000000ULL, 0x2E000000000ULL, MappingDesc::ORIGIN, "origin-6"},
+    {0x2E000000000ULL, 0x2F000000000ULL, MappingDesc::APP, "app-7"},
+    {0x2F000000000ULL, 0x39000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x39000000000ULL, 0x3A000000000ULL, MappingDesc::SHADOW, "shadow-9"},
+    {0x3A000000000ULL, 0x3B000000000ULL, MappingDesc::ORIGIN, "origin-9"},
+    {0x3B000000000ULL, 0x3C000000000ULL, MappingDesc::APP, "app-8"},
+    {0x3C000000000ULL, 0x3D000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x3D000000000ULL, 0x3E000000000ULL, MappingDesc::SHADOW, "shadow-8"},
+    {0x3E000000000ULL, 0x3F000000000ULL, MappingDesc::ORIGIN, "origin-8"},
+    {0x3F000000000ULL, 0x40000000000ULL, MappingDesc::APP, "app-9"},
+};
+# define MEM_TO_SHADOW(mem) ((uptr)mem ^ 0x6000000000ULL)
+# define SHADOW_TO_ORIGIN(shadow) (((uptr)(shadow)) + 0x1000000000ULL)
+
 #elif SANITIZER_LINUX && defined(__powerpc64__)
 
 const MappingDesc kMemoryLayout[] = {
@@ -94,6 +149,7 @@ const MappingDesc kMemoryLayout[] = {
 
 #elif SANITIZER_LINUX && SANITIZER_WORDSIZE == 64
 
+#ifdef MSAN_LINUX_X86_64_OLD_MAPPING
 // Requries PIE binary and ASLR enabled.
 // Main thread stack and DSOs at 0x7f0000000000 (sometimes 0x7e0000000000).
 // Heap at 0x600000000000.
@@ -105,6 +161,28 @@ const MappingDesc kMemoryLayout[] = {
 
 #define MEM_TO_SHADOW(mem) (((uptr)(mem)) & ~0x400000000000ULL)
 #define SHADOW_TO_ORIGIN(mem) (((uptr)(mem)) + 0x200000000000ULL)
+#else  // MSAN_LINUX_X86_64_OLD_MAPPING
+// All of the following configurations are supported.
+// ASLR disabled: main executable and DSOs at 0x555550000000
+// PIE and ASLR: main executable and DSOs at 0x7f0000000000
+// non-PIE: main executable below 0x100000000, DSOs at 0x7f0000000000
+// Heap at 0x700000000000.
+const MappingDesc kMemoryLayout[] = {
+    {0x000000000000ULL, 0x010000000000ULL, MappingDesc::APP, "app-1"},
+    {0x010000000000ULL, 0x100000000000ULL, MappingDesc::SHADOW, "shadow-2"},
+    {0x100000000000ULL, 0x110000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x110000000000ULL, 0x200000000000ULL, MappingDesc::ORIGIN, "origin-2"},
+    {0x200000000000ULL, 0x300000000000ULL, MappingDesc::SHADOW, "shadow-3"},
+    {0x300000000000ULL, 0x400000000000ULL, MappingDesc::ORIGIN, "origin-3"},
+    {0x400000000000ULL, 0x500000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x500000000000ULL, 0x510000000000ULL, MappingDesc::SHADOW, "shadow-1"},
+    {0x510000000000ULL, 0x600000000000ULL, MappingDesc::APP, "app-2"},
+    {0x600000000000ULL, 0x610000000000ULL, MappingDesc::ORIGIN, "origin-1"},
+    {0x610000000000ULL, 0x700000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x700000000000ULL, 0x800000000000ULL, MappingDesc::APP, "app-3"}};
+#define MEM_TO_SHADOW(mem) (((uptr)(mem)) ^ 0x500000000000ULL)
+#define SHADOW_TO_ORIGIN(mem) (((uptr)(mem)) + 0x100000000000ULL)
+#endif  // MSAN_LINUX_X86_64_OLD_MAPPING
 
 #else
 #error "Unsupported platform"
@@ -148,6 +226,7 @@ bool InitShadow(bool init_origins);
 char *GetProcSelfMaps();
 void InitializeInterceptors();
 
+void MsanAllocatorInit();
 void MsanAllocatorThreadFinish();
 void *MsanCalloc(StackTrace *stack, uptr nmemb, uptr size);
 void *MsanReallocate(StackTrace *stack, void *oldp, uptr size,
@@ -167,7 +246,6 @@ struct SymbolizerScope {
   ~SymbolizerScope() { ExitSymbolizer(); }
 };
 
-void MsanDie();
 void PrintWarning(uptr pc, uptr bp);
 void PrintWarningWithOrigin(uptr pc, uptr bp, u32 origin);
 
@@ -223,8 +301,6 @@ class ScopedThreadLocalStateBackup {
  private:
   u64 va_arg_overflow_size_tls;
 };
-
-extern void (*death_callback)(void);
 
 void MsanTSDInit(void (*destructor)(void *tsd));
 void *MsanTSDGet();

@@ -78,6 +78,6 @@ truncate_test_FILESGRP= wheel
 
 CLEANFILES=	truncate_test.root_owned
 truncate_test.root_owned:
-	dd if=/dev/null bs=1 count=1 of=${.TARGET}
+	dd if=/dev/null bs=1 count=1 of=${.TARGET} status=none
 
 .include <bsd.test.mk>

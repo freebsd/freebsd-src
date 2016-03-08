@@ -54,9 +54,9 @@ try_0send(const char *test, int fd)
 	ch = 0;
 	len = send(fd, &ch, 0, 0);
 	if (len < 0)
-		err(-1, "%s: try_0send", test);
+		err(1, "%s: try_0send", test);
 	if (len != 0)
-		errx(-1, "%s: try_0send: returned %zd", test, len);
+		errx(1, "%s: try_0send: returned %zd", test, len);
 }
 
 static void
@@ -68,13 +68,13 @@ try_0write(const char *test, int fd)
 	ch = 0;
 	len = write(fd, &ch, 0);
 	if (len < 0)
-		err(-1, "%s: try_0write", test);
+		err(1, "%s: try_0write", test);
 	if (len != 0)
-		errx(-1, "%s: try_0write: returned %zd", test, len);
+		errx(1, "%s: try_0write: returned %zd", test, len);
 }
 
 static void
-setup_udp(const char *test, int *fdp)
+setup_udp(const char *test, int *fdp, int port1, int port2)
 {
 	struct sockaddr_in sin;
 	int sock1, sock2;
@@ -84,27 +84,27 @@ setup_udp(const char *test, int *fdp)
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-	sin.sin_port = htons(PORT1);
+	sin.sin_port = htons(port1);
 	sock1 = socket(PF_INET, SOCK_DGRAM, 0);
 	if (sock1 < 0)
-		err(-1, "%s: setup_udp: socket", test);
+		err(1, "%s: setup_udp: socket", test);
 	if (bind(sock1, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(-1, "%s: setup_udp: bind(%s, %d)", test,
+		err(1, "%s: setup_udp: bind(%s, %d)", test,
 		    inet_ntoa(sin.sin_addr), PORT1);
-	sin.sin_port = htons(PORT2);
+	sin.sin_port = htons(port2);
 	if (connect(sock1, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(-1, "%s: setup_udp: connect(%s, %d)", test,
+		err(1, "%s: setup_udp: connect(%s, %d)", test,
 		    inet_ntoa(sin.sin_addr), PORT2);
 
 	sock2 = socket(PF_INET, SOCK_DGRAM, 0);
 	if (sock2 < 0)
-		err(-1, "%s: setup_udp: socket", test);
+		err(1, "%s: setup_udp: socket", test);
 	if (bind(sock2, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(-1, "%s: setup_udp: bind(%s, %d)", test,
+		err(1, "%s: setup_udp: bind(%s, %d)", test,
 		    inet_ntoa(sin.sin_addr), PORT2);
-	sin.sin_port = htons(PORT1);
+	sin.sin_port = htons(port1);
 	if (connect(sock2, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(-1, "%s: setup_udp: connect(%s, %d)", test,
+		err(1, "%s: setup_udp: connect(%s, %d)", test,
 		    inet_ntoa(sin.sin_addr), PORT1);
 
 	fdp[0] = sock1;
@@ -112,7 +112,7 @@ setup_udp(const char *test, int *fdp)
 }
 
 static void
-setup_tcp(const char *test, int *fdp)
+setup_tcp(const char *test, int *fdp, int port)
 {
 	fd_set writefds, exceptfds;
 	struct sockaddr_in sin;
@@ -127,15 +127,15 @@ setup_tcp(const char *test, int *fdp)
 	/*
 	 * First set up the listen socket.
 	 */
-	sin.sin_port = htons(PORT1);
+	sin.sin_port = htons(port);
 	sock1 = socket(PF_INET, SOCK_STREAM, 0);
 	if (sock1 < 0)
-		err(-1, "%s: setup_tcp: socket", test);
+		err(1, "%s: setup_tcp: socket", test);
 	if (bind(sock1, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(-1, "%s: bind(%s, %d)", test, inet_ntoa(sin.sin_addr),
+		err(1, "%s: bind(%s, %d)", test, inet_ntoa(sin.sin_addr),
 		    PORT1);
 	if (listen(sock1, -1) < 0)
-		err(-1, "%s: listen", test);
+		err(1, "%s: listen", test);
 
 	/*
 	 * Now connect to it, non-blocking so that we don't deadlock against
@@ -143,25 +143,25 @@ setup_tcp(const char *test, int *fdp)
 	 */
 	sock2 = socket(PF_INET, SOCK_STREAM, 0);
 	if (sock2 < 0)
-		err(-1, "%s: setup_tcp: socket", test);
+		err(1, "%s: setup_tcp: socket", test);
 	if (fcntl(sock2, F_SETFL, O_NONBLOCK) < 0)
-		err(-1, "%s: setup_tcp: fcntl(O_NONBLOCK)", test);
+		err(1, "%s: setup_tcp: fcntl(O_NONBLOCK)", test);
 	if (connect(sock2, (struct sockaddr *)&sin, sizeof(sin)) < 0 &&
 	    errno != EINPROGRESS)
-		err(-1, "%s: setup_tcp: connect(%s, %d)", test,
+		err(1, "%s: setup_tcp: connect(%s, %d)", test,
 		    inet_ntoa(sin.sin_addr), PORT1);
 
 	/*
 	 * Now pick up the connection after sleeping a moment to make sure
 	 * there's been time for some packets to go back and forth.
 	 */
-	if (sleep(1) < 0)
-		err(-1, "%s: sleep(1)", test);
+	if (sleep(1) != 0)
+		err(1, "%s: sleep(1)", test);
 	sock3 = accept(sock1, NULL, NULL);
 	if (sock3 < 0)
-		err(-1, "%s: accept", test);
-	if (sleep(1) < 0)
-		err(-1, "%s: sleep(1)", test);
+		err(1, "%s: accept", test);
+	if (sleep(1) != 0)
+		err(1, "%s: sleep(1)", test);
 
 	FD_ZERO(&writefds);
 	FD_SET(sock2, &writefds);
@@ -171,11 +171,11 @@ setup_tcp(const char *test, int *fdp)
 	tv.tv_usec = 0;
 	ret = select(sock2 + 1, NULL, &writefds, &exceptfds, &tv);
 	if (ret < 0)
-		err(-1, "%s: setup_tcp: select", test);
+		err(1, "%s: setup_tcp: select", test);
 	if (FD_ISSET(sock2, &exceptfds))
-		errx(-1, "%s: setup_tcp: select: exception", test);
+		errx(1, "%s: setup_tcp: select: exception", test);
 	if (!FD_ISSET(sock2, &writefds))
-		errx(-1, "%s: setup_tcp: select: not writable", test);
+		errx(1, "%s: setup_tcp: select: not writable", test);
 
 	close(sock1);
 	fdp[0] = sock2;
@@ -187,7 +187,7 @@ setup_udsstream(const char *test, int *fdp)
 {
 
 	if (socketpair(PF_LOCAL, SOCK_STREAM, 0, fdp) < 0)
-		err(-1, "%s: setup_udsstream: socketpair", test);
+		err(1, "%s: setup_udsstream: socketpair", test);
 }
 
 static void
@@ -195,7 +195,7 @@ setup_udsdgram(const char *test, int *fdp)
 {
 
 	if (socketpair(PF_LOCAL, SOCK_DGRAM, 0, fdp) < 0)
-		err(-1, "%s: setup_udsdgram: socketpair", test);
+		err(1, "%s: setup_udsdgram: socketpair", test);
 }
 
 static void
@@ -203,7 +203,7 @@ setup_pipe(const char *test, int *fdp)
 {
 
 	if (pipe(fdp) < 0)
-		err(-1, "%s: setup_pipe: pipe", test);
+		err(1, "%s: setup_pipe: pipe", test);
 }
 
 static void
@@ -213,19 +213,19 @@ setup_fifo(const char *test, int *fdp)
 	int fd1, fd2;
 
 	if (mkstemp(path) == -1)
-		err(-1, "%s: setup_fifo: mktemp", test);
+		err(1, "%s: setup_fifo: mktemp", test);
 	unlink(path);
 
 	if (mkfifo(path, 0600) < 0)
-		err(-1, "%s: setup_fifo: mkfifo(%s)", test, path);
+		err(1, "%s: setup_fifo: mkfifo(%s)", test, path);
 
 	fd1 = open(path, O_RDONLY | O_NONBLOCK);
 	if (fd1 < 0)
-		err(-1, "%s: setup_fifo: open(%s, O_RDONLY)", test, path);
+		err(1, "%s: setup_fifo: open(%s, O_RDONLY)", test, path);
 
 	fd2 = open(path, O_WRONLY | O_NONBLOCK);
 	if (fd2 < 0)
-		err(-1, "%s: setup_fifo: open(%s, O_WRONLY)", test, path);
+		err(1, "%s: setup_fifo: open(%s, O_WRONLY)", test, path);
 
 	fdp[0] = fd2;
 	fdp[1] = fd1;
@@ -242,23 +242,23 @@ close_both(int *fdp)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	int fd[2];
 
-	setup_udp("udp_0send", fd);
+	setup_udp("udp_0send", fd, PORT1, PORT2);
 	try_0send("udp_0send", fd[0]);
 	close_both(fd);
 
-	setup_udp("udp_0write", fd);
+	setup_udp("udp_0write", fd, PORT1 + 10, PORT2 + 10);
 	try_0write("udp_0write", fd[0]);
 	close_both(fd);
 
-	setup_tcp("tcp_0send", fd);
+	setup_tcp("tcp_0send", fd, PORT1);
 	try_0send("tcp_0send", fd[0]);
 	close_both(fd);
 
-	setup_tcp("tcp_0write", fd);
+	setup_tcp("tcp_0write", fd, PORT1 + 10);
 	try_0write("tcp_0write", fd[0]);
 	close_both(fd);
 

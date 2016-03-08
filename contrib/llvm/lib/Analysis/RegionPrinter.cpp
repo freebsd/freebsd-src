@@ -20,6 +20,9 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#ifndef NDEBUG
+#include "llvm/IR/LegacyPassManager.h"
+#endif
 
 using namespace llvm;
 
@@ -55,25 +58,22 @@ struct DOTGraphTraits<RegionNode*> : public DefaultDOTGraphTraits {
   }
 };
 
-template<>
-struct DOTGraphTraits<RegionInfoPass*> : public DOTGraphTraits<RegionNode*> {
+template <>
+struct DOTGraphTraits<RegionInfo *> : public DOTGraphTraits<RegionNode *> {
 
   DOTGraphTraits (bool isSimple = false)
     : DOTGraphTraits<RegionNode*>(isSimple) {}
 
-  static std::string getGraphName(RegionInfoPass *DT) {
-    return "Region Graph";
-  }
+  static std::string getGraphName(const RegionInfo *) { return "Region Graph"; }
 
-  std::string getNodeLabel(RegionNode *Node, RegionInfoPass *G) {
-    RegionInfo &RI = G->getRegionInfo();
-    return DOTGraphTraits<RegionNode*>::getNodeLabel(Node,
-                                                     reinterpret_cast<RegionNode*>(RI.getTopLevelRegion()));
+  std::string getNodeLabel(RegionNode *Node, RegionInfo *G) {
+    return DOTGraphTraits<RegionNode *>::getNodeLabel(
+        Node, reinterpret_cast<RegionNode *>(G->getTopLevelRegion()));
   }
 
   std::string getEdgeAttributes(RegionNode *srcNode,
-    GraphTraits<RegionInfo*>::ChildIteratorType CI, RegionInfoPass *G) {
-    RegionInfo &RI = G->getRegionInfo();
+                                GraphTraits<RegionInfo *>::ChildIteratorType CI,
+                                RegionInfo *G) {
     RegionNode *destNode = *CI;
 
     if (srcNode->isSubRegion() || destNode->isSubRegion())
@@ -83,7 +83,7 @@ struct DOTGraphTraits<RegionInfoPass*> : public DOTGraphTraits<RegionNode*> {
     BasicBlock *srcBB = srcNode->getNodeAs<BasicBlock>();
     BasicBlock *destBB = destNode->getNodeAs<BasicBlock>();
 
-    Region *R = RI.getRegionFor(destBB);
+    Region *R = G->getRegionFor(destBB);
 
     while (R && R->getParent())
       if (R->getParent()->getEntry() == destBB)
@@ -91,7 +91,7 @@ struct DOTGraphTraits<RegionInfoPass*> : public DOTGraphTraits<RegionNode*> {
       else
         break;
 
-    if (R->getEntry() == destBB && R->contains(srcBB))
+    if (R && R->getEntry() == destBB && R->contains(srcBB))
       return "constraint=false";
 
     return "";
@@ -99,8 +99,7 @@ struct DOTGraphTraits<RegionInfoPass*> : public DOTGraphTraits<RegionNode*> {
 
   // Print the cluster of the subregions. This groups the single basic blocks
   // and adds a different background color for each group.
-  static void printRegionCluster(const Region &R,
-                                 GraphWriter<RegionInfoPass*> &GW,
+  static void printRegionCluster(const Region &R, GraphWriter<RegionInfo *> &GW,
                                  unsigned depth = 0) {
     raw_ostream &O = GW.getOStream();
     O.indent(2 * depth) << "subgraph cluster_" << static_cast<const void*>(&R)
@@ -132,49 +131,80 @@ struct DOTGraphTraits<RegionInfoPass*> : public DOTGraphTraits<RegionNode*> {
     O.indent(2 * depth) << "}\n";
   }
 
-  static void addCustomGraphFeatures(const RegionInfoPass* RIP,
-                                     GraphWriter<RegionInfoPass*> &GW) {
-    const RegionInfo &RI = RIP->getRegionInfo();
+  static void addCustomGraphFeatures(const RegionInfo *G,
+                                     GraphWriter<RegionInfo *> &GW) {
     raw_ostream &O = GW.getOStream();
     O << "\tcolorscheme = \"paired12\"\n";
-    printRegionCluster(*RI.getTopLevelRegion(), GW, 4);
+    printRegionCluster(*G->getTopLevelRegion(), GW, 4);
   }
 };
 } //end namespace llvm
 
 namespace {
 
-struct RegionViewer
-  : public DOTGraphTraitsViewer<RegionInfoPass, false> {
+struct RegionInfoPassGraphTraits {
+  static RegionInfo *getGraph(RegionInfoPass *RIP) {
+    return &RIP->getRegionInfo();
+  }
+};
+
+struct RegionPrinter
+    : public DOTGraphTraitsPrinter<RegionInfoPass, false, RegionInfo *,
+                                   RegionInfoPassGraphTraits> {
   static char ID;
-  RegionViewer() : DOTGraphTraitsViewer<RegionInfoPass, false>("reg", ID){
+  RegionPrinter()
+      : DOTGraphTraitsPrinter<RegionInfoPass, false, RegionInfo *,
+                              RegionInfoPassGraphTraits>("reg", ID) {
+    initializeRegionPrinterPass(*PassRegistry::getPassRegistry());
+  }
+};
+char RegionPrinter::ID = 0;
+
+struct RegionOnlyPrinter
+    : public DOTGraphTraitsPrinter<RegionInfoPass, true, RegionInfo *,
+                                   RegionInfoPassGraphTraits> {
+  static char ID;
+  RegionOnlyPrinter()
+      : DOTGraphTraitsPrinter<RegionInfoPass, true, RegionInfo *,
+                              RegionInfoPassGraphTraits>("reg", ID) {
+    initializeRegionOnlyPrinterPass(*PassRegistry::getPassRegistry());
+  }
+};
+char RegionOnlyPrinter::ID = 0;
+
+struct RegionViewer
+    : public DOTGraphTraitsViewer<RegionInfoPass, false, RegionInfo *,
+                                  RegionInfoPassGraphTraits> {
+  static char ID;
+  RegionViewer()
+      : DOTGraphTraitsViewer<RegionInfoPass, false, RegionInfo *,
+                             RegionInfoPassGraphTraits>("reg", ID) {
     initializeRegionViewerPass(*PassRegistry::getPassRegistry());
   }
 };
 char RegionViewer::ID = 0;
 
 struct RegionOnlyViewer
-  : public DOTGraphTraitsViewer<RegionInfoPass, true> {
+    : public DOTGraphTraitsViewer<RegionInfoPass, true, RegionInfo *,
+                                  RegionInfoPassGraphTraits> {
   static char ID;
-  RegionOnlyViewer() : DOTGraphTraitsViewer<RegionInfoPass, true>("regonly", ID) {
+  RegionOnlyViewer()
+      : DOTGraphTraitsViewer<RegionInfoPass, true, RegionInfo *,
+                             RegionInfoPassGraphTraits>("regonly", ID) {
     initializeRegionOnlyViewerPass(*PassRegistry::getPassRegistry());
   }
 };
 char RegionOnlyViewer::ID = 0;
 
-struct RegionPrinter
-  : public DOTGraphTraitsPrinter<RegionInfoPass, false> {
-  static char ID;
-  RegionPrinter() :
-    DOTGraphTraitsPrinter<RegionInfoPass, false>("reg", ID) {
-      initializeRegionPrinterPass(*PassRegistry::getPassRegistry());
-    }
-};
-char RegionPrinter::ID = 0;
 } //end anonymous namespace
 
 INITIALIZE_PASS(RegionPrinter, "dot-regions",
                 "Print regions of function to 'dot' file", true, true)
+
+INITIALIZE_PASS(
+    RegionOnlyPrinter, "dot-regions-only",
+    "Print regions of function to 'dot' file (with no function bodies)", true,
+    true)
 
 INITIALIZE_PASS(RegionViewer, "view-regions", "View regions of function",
                 true, true)
@@ -183,24 +213,11 @@ INITIALIZE_PASS(RegionOnlyViewer, "view-regions-only",
                 "View regions of function (with no function bodies)",
                 true, true)
 
-namespace {
+FunctionPass *llvm::createRegionPrinterPass() { return new RegionPrinter(); }
 
-struct RegionOnlyPrinter
-  : public DOTGraphTraitsPrinter<RegionInfoPass, true> {
-  static char ID;
-  RegionOnlyPrinter() :
-    DOTGraphTraitsPrinter<RegionInfoPass, true>("reg", ID) {
-      initializeRegionOnlyPrinterPass(*PassRegistry::getPassRegistry());
-    }
-};
-
+FunctionPass *llvm::createRegionOnlyPrinterPass() {
+  return new RegionOnlyPrinter();
 }
-
-char RegionOnlyPrinter::ID = 0;
-INITIALIZE_PASS(RegionOnlyPrinter, "dot-regions-only",
-                "Print regions of function to 'dot' file "
-                "(with no function bodies)",
-                true, true)
 
 FunctionPass* llvm::createRegionViewerPass() {
   return new RegionViewer();
@@ -210,11 +227,41 @@ FunctionPass* llvm::createRegionOnlyViewerPass() {
   return new RegionOnlyViewer();
 }
 
-FunctionPass* llvm::createRegionPrinterPass() {
-  return new RegionPrinter();
+#ifndef NDEBUG
+static void viewRegionInfo(RegionInfo *RI, bool ShortNames) {
+  assert(RI && "Argument must be non-null");
+
+  llvm::Function *F = RI->getTopLevelRegion()->getEntry()->getParent();
+  std::string GraphName = DOTGraphTraits<RegionInfo *>::getGraphName(RI);
+
+  llvm::ViewGraph(RI, "reg", ShortNames,
+                  Twine(GraphName) + " for '" + F->getName() + "' function");
 }
 
-FunctionPass* llvm::createRegionOnlyPrinterPass() {
-  return new RegionOnlyPrinter();
+static void invokeFunctionPass(const Function *F, FunctionPass *ViewerPass) {
+  assert(F && "Argument must be non-null");
+  assert(!F->isDeclaration() && "Function must have an implementation");
+
+  // The viewer and analysis passes do not modify anything, so we can safely
+  // remove the const qualifier
+  auto NonConstF = const_cast<Function *>(F);
+
+  llvm::legacy::FunctionPassManager FPM(NonConstF->getParent());
+  FPM.add(ViewerPass);
+  FPM.doInitialization();
+  FPM.run(*NonConstF);
+  FPM.doFinalization();
 }
 
+void llvm::viewRegion(RegionInfo *RI) { viewRegionInfo(RI, false); }
+
+void llvm::viewRegion(const Function *F) {
+  invokeFunctionPass(F, createRegionViewerPass());
+}
+
+void llvm::viewRegionOnly(RegionInfo *RI) { viewRegionInfo(RI, true); }
+
+void llvm::viewRegionOnly(const Function *F) {
+  invokeFunctionPass(F, createRegionOnlyViewerPass());
+}
+#endif

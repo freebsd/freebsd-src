@@ -1,4 +1,4 @@
-/*	$Id: test-getsubopt.c,v 1.3 2014/08/17 20:53:50 schwarze Exp $	*/
+/*	$Id: test-getsubopt.c,v 1.4 2015/10/06 18:32:20 schwarze Exp $	*/
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -29,6 +29,6 @@ main(void)
 	char token0[] = "k";
 	char *const tokens[] = { token0, NULL };
 	char *value = NULL;
-	return( ! (0 == getsubopt(&options, tokens, &value)
-	    && value == buf+2 && options == buf+3));
+	return ! (getsubopt(&options, tokens, &value) == 0
+	    && value == buf+2 && options == buf+3);
 }

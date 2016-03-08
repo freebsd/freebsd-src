@@ -104,7 +104,7 @@ cleanup(void)
 }
 
 int
-main()
+main(void)
 {
     int s_sock1, s_sock2, c_sock;
 
@@ -127,6 +127,7 @@ main()
     connect_uds_server(c_sock, uds_name1);
     close(s_sock1);
     connect_uds_server(c_sock, uds_name2);
+    close(s_sock2);
 
     exit (0);
 }

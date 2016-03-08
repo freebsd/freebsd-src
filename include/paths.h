@@ -36,7 +36,7 @@
 #include <sys/cdefs.h>
 
 /* Default search path. */
-#define	_PATH_DEFPATH	"/usr/bin:/bin"
+#define	_PATH_DEFPATH	"/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin"
 /* All standard utilities path. */
 #define	_PATH_STDPATH	"/usr/bin:/bin:/usr/sbin:/sbin"
 /* Locate system binaries. */
@@ -108,7 +108,7 @@ __END_DECLS
 
 #ifdef RESCUE
 #undef	_PATH_DEFPATH
-#define	_PATH_DEFPATH	"/rescue:/usr/bin:/bin"
+#define	_PATH_DEFPATH	"/rescue:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin"
 #undef	_PATH_STDPATH
 #define	_PATH_STDPATH	"/rescue:/usr/bin:/bin:/usr/sbin:/sbin"
 #undef	_PATH_SYSPATH

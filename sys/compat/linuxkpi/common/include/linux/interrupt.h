@@ -54,24 +54,17 @@ struct irq_ent {
 };
 
 static inline int
-_irq_rid(struct device *dev, int irq)
+linux_irq_rid(struct device *dev, int irq)
 {
 	if (irq == dev->irq)
 		return (0);
 	return irq - dev->msix + 1;
 }
 
-static inline void
-_irq_handler(void *ent)
-{
-	struct irq_ent *irqe;
-
-	irqe = ent;
-	irqe->handler(irqe->irq, irqe->arg);
-}
+extern void linux_irq_handler(void *);
 
 static inline struct irq_ent *
-_irq_ent(struct device *dev, int irq)
+linux_irq_ent(struct device *dev, int irq)
 {
 	struct irq_ent *irqe;
 
@@ -95,7 +88,7 @@ request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
 	dev = _pci_find_irq_dev(irq);
 	if (dev == NULL)
 		return -ENXIO;
-	rid = _irq_rid(dev, irq);
+	rid = linux_irq_rid(dev, irq);
 	res = bus_alloc_resource_any(dev->bsddev, SYS_RES_IRQ, &rid,
 	    flags | RF_ACTIVE);
 	if (res == NULL)
@@ -107,7 +100,7 @@ request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
 	irqe->handler = handler;
 	irqe->irq = irq;
 	error = bus_setup_intr(dev->bsddev, res, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, _irq_handler, irqe, &irqe->tag);
+	    NULL, linux_irq_handler, irqe, &irqe->tag);
 	if (error) {
 		bus_release_resource(dev->bsddev, SYS_RES_IRQ, rid, irqe->res);
 		kfree(irqe);
@@ -128,7 +121,7 @@ bind_irq_to_cpu(unsigned int irq, int cpu_id)
 	if (dev == NULL)
 		return (-ENOENT);
 
-	irqe = _irq_ent(dev, irq);
+	irqe = linux_irq_ent(dev, irq);
 	if (irqe == NULL)
 		return (-ENOENT);
 
@@ -145,8 +138,8 @@ free_irq(unsigned int irq, void *device)
 	dev = _pci_find_irq_dev(irq);
 	if (dev == NULL)
 		return;
-	rid = _irq_rid(dev, irq);
-	irqe = _irq_ent(dev, irq);
+	rid = linux_irq_rid(dev, irq);
+	irqe = linux_irq_ent(dev, irq);
 	if (irqe == NULL)
 		return;
 	bus_teardown_intr(dev->bsddev, irqe->res, irqe->tag);

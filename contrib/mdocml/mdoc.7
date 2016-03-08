@@ -1,4 +1,4 @@
-.\"	$Id: mdoc.7,v 1.252 2015/02/23 13:31:04 schwarze Exp $
+.\"	$Id: mdoc.7,v 1.257 2015/11/05 12:06:45 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010, 2011, 2013 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: February 23 2015 $
+.Dd $Mdocdate: November 5 2015 $
 .Dt MDOC 7
 .Os
 .Sh NAME
@@ -303,6 +303,11 @@ The arguments are as follows:
 Print verbose information.
 \&.El
 .Ed
+.Pp
+List the options in alphabetical order,
+uppercase before lowercase for each letter and
+with no regard to whether an option takes an argument.
+Put digits in ascending order before all letter options.
 .Pp
 Manuals not documenting a command won't include the above fragment.
 .Pp
@@ -1622,7 +1627,7 @@ See also
 A function name.
 Its syntax is as follows:
 .Bd -ragged -offset indent
-.Pf \. Ns Sx \&Fn
+.Pf . Sx \&Fn
 .Op Ar functype
 .Ar funcname
 .Op Oo Ar argtype Oc Ar argname
@@ -2093,7 +2098,7 @@ It is suggested to leave it unspecified, in which case
 .Xr mandoc 1
 uses its
 .Fl Ios
-argument, or, if that isn't specified either,
+argument or, if that isn't specified either,
 .Fa sysname
 and
 .Fa release
@@ -2155,19 +2160,23 @@ See also
 Close parenthesised context opened by
 .Sx \&Po .
 .Ss \&Pf
-Removes the space between its argument
-.Pq Dq prefix
-and the following macro.
+Removes the space between its argument and the following macro.
 Its syntax is as follows:
 .Pp
 .D1 .Pf Ar prefix macro arguments ...
 .Pp
 This is equivalent to:
 .Pp
-.D1 .No Ar prefix No \&Ns Ar macro arguments ...
+.D1 .No \e& Ns Ar prefix No \&Ns Ar macro arguments ...
+.Pp
+The
+.Ar prefix
+argument is not parsed for macro names or delimiters,
+but used verbatim as if it were escaped.
 .Pp
 Examples:
 .Dl ".Pf $ Ar variable_name"
+.Dl ".Pf . Ar macro_name"
 .Dl ".Pf 0x Ar hex_digits"
 .Pp
 See also
@@ -2267,7 +2276,7 @@ Examples:
 \&.%A J. D. Ullman
 \&.%B Introduction to Automata Theory, Languages, and Computation
 \&.%I Addison-Wesley
-\&.%C Reading, Massachusettes
+\&.%C Reading, Massachusetts
 \&.%D 1979
 \&.Re
 .Ed

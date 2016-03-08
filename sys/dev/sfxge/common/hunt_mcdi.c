@@ -31,64 +31,41 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
 #include "efx_impl.h"
 
 
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
 #if EFSYS_OPT_MCDI
 
 #ifndef WITH_MCDI_V2
-#error "WITH_MCDI_V2 required for Huntington MCDIv2 commands."
+#error "WITH_MCDI_V2 required for EF10 MCDIv2 commands."
 #endif
-
-typedef enum efx_mcdi_header_type_e {
-	EFX_MCDI_HEADER_TYPE_V1, /* MCDIv0 (BootROM), MCDIv1 commands */
-	EFX_MCDI_HEADER_TYPE_V2, /* MCDIv2 commands */
-} efx_mcdi_header_type_t;
-
-/*
- * Return the header format to use for sending an MCDI request.
- *
- * An MCDIv1 (Siena compatible) command should use MCDIv2 encapsulation if the
- * request input buffer or response output buffer are too large for the MCDIv1
- * format. An MCDIv2 command must always be sent using MCDIv2 encapsulation.
- */
-#define	EFX_MCDI_HEADER_TYPE(_cmd, _length)				\
-	((((_cmd) & ~EFX_MASK32(MCDI_HEADER_CODE)) ||			\
-	((_length) & ~EFX_MASK32(MCDI_HEADER_DATALEN)))	?		\
-	EFX_MCDI_HEADER_TYPE_V2	: EFX_MCDI_HEADER_TYPE_V1)
-
-
-/*
- * MCDI Header NOT_EPOCH flag
- * ==========================
- * A new epoch begins at initial startup or after an MC reboot, and defines when
- * the MC should reject stale MCDI requests.
- *
- * The first MCDI request sent by the host should contain NOT_EPOCH=0, and all
- * subsequent requests (until the next MC reboot) should contain NOT_EPOCH=1.
- *
- * After rebooting the MC will fail all requests with NOT_EPOCH=1 by writing a
- * response with ERROR=1 and DATALEN=0 until a request is seen with NOT_EPOCH=0.
- */
 
 
 	__checkReturn	efx_rc_t
-hunt_mcdi_init(
+ef10_mcdi_init(
 	__in		efx_nic_t *enp,
 	__in		const efx_mcdi_transport_t *emtp)
 {
+	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efsys_mem_t *esmp = emtp->emt_dma_mem;
 	efx_dword_t dword;
 	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 	EFSYS_ASSERT(enp->en_features & EFX_FEATURE_MCDI_DMA);
 
-	/* A host DMA buffer is required for Huntington MCDI */
+	/*
+	 * All EF10 firmware supports MCDIv2 and MCDIv1.
+	 * Medford BootROM supports MCDIv2 and MCDIv1.
+	 * Huntington BootROM supports MCDIv1 only.
+	 */
+	emip->emi_max_version = 2;
+
+	/* A host DMA buffer is required for EF10 MCDI */
 	if (esmp == NULL) {
 		rc = EINVAL;
 		goto fail1;
@@ -107,7 +84,7 @@ hunt_mcdi_init(
 	EFX_BAR_WRITED(enp, ER_DZ_MC_DB_HWRD_REG, &dword, B_FALSE);
 
 	/* Save initial MC reboot status */
-	(void) hunt_mcdi_poll_reboot(enp);
+	(void) ef10_mcdi_poll_reboot(enp);
 
 	/* Start a new epoch (allow fresh MCDI requests to succeed) */
 	efx_mcdi_new_epoch(enp);
@@ -123,7 +100,7 @@ fail1:
 }
 
 			void
-hunt_mcdi_fini(
+ef10_mcdi_fini(
 	__in		efx_nic_t *enp)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
@@ -132,144 +109,49 @@ hunt_mcdi_fini(
 }
 
 			void
-hunt_mcdi_request_copyin(
+ef10_mcdi_send_request(
 	__in		efx_nic_t *enp,
-	__in		efx_mcdi_req_t *emrp,
-	__in		unsigned int seq,
-	__in		boolean_t ev_cpl,
-	__in		boolean_t new_epoch)
+	__in		void *hdrp,
+	__in		size_t hdr_len,
+	__in		void *sdup,
+	__in		size_t sdu_len)
 {
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
 	efsys_mem_t *esmp = emtp->emt_dma_mem;
-	efx_mcdi_header_type_t hdr_type;
 	efx_dword_t dword;
-	efx_dword_t hdr[2];
-	unsigned int xflags;
 	unsigned int pos;
-	size_t offset;
 
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
-	xflags = 0;
-	if (ev_cpl)
-		xflags |= MCDI_HEADER_XFLAGS_EVREQ;
-
-	offset = 0;
-
-	hdr_type = EFX_MCDI_HEADER_TYPE(emrp->emr_cmd,
-	    MAX(emrp->emr_in_length, emrp->emr_out_length));
-
-	if (hdr_type == EFX_MCDI_HEADER_TYPE_V2) {
-		/* Construct MCDI v2 header */
-		EFX_POPULATE_DWORD_8(hdr[0],
-		    MCDI_HEADER_CODE, MC_CMD_V2_EXTN,
-		    MCDI_HEADER_RESYNC, 1,
-		    MCDI_HEADER_DATALEN, 0,
-		    MCDI_HEADER_SEQ, seq,
-		    MCDI_HEADER_NOT_EPOCH, new_epoch ? 0 : 1,
-		    MCDI_HEADER_ERROR, 0,
-		    MCDI_HEADER_RESPONSE, 0,
-		    MCDI_HEADER_XFLAGS, xflags);
-		EFSYS_MEM_WRITED(esmp, offset, &hdr[0]);
-		offset += sizeof (efx_dword_t);
-
-		EFX_POPULATE_DWORD_2(hdr[1],
-		    MC_CMD_V2_EXTN_IN_EXTENDED_CMD, emrp->emr_cmd,
-		    MC_CMD_V2_EXTN_IN_ACTUAL_LEN, emrp->emr_in_length);
-		EFSYS_MEM_WRITED(esmp, offset, &hdr[1]);
-		offset += sizeof (efx_dword_t);
-	} else {
-		/* Construct MCDI v1 header */
-		EFX_POPULATE_DWORD_8(hdr[0],
-		    MCDI_HEADER_CODE, emrp->emr_cmd,
-		    MCDI_HEADER_RESYNC, 1,
-		    MCDI_HEADER_DATALEN, emrp->emr_in_length,
-		    MCDI_HEADER_SEQ, seq,
-		    MCDI_HEADER_NOT_EPOCH, new_epoch ? 0 : 1,
-		    MCDI_HEADER_ERROR, 0,
-		    MCDI_HEADER_RESPONSE, 0,
-		    MCDI_HEADER_XFLAGS, xflags);
-		EFSYS_MEM_WRITED(esmp, 0, &hdr[0]);
-		offset += sizeof (efx_dword_t);
+	/* Write the header */
+	for (pos = 0; pos < hdr_len; pos += sizeof (efx_dword_t)) {
+		dword = *(efx_dword_t *)((uint8_t *)hdrp + pos);
+		EFSYS_MEM_WRITED(esmp, pos, &dword);
 	}
 
-#if EFSYS_OPT_MCDI_LOGGING
-	if (emtp->emt_logger != NULL) {
-		emtp->emt_logger(emtp->emt_context, EFX_LOG_MCDI_REQUEST,
-		    &hdr, offset,
-		    emrp->emr_in_buf, emrp->emr_in_length);
+	/* Write the payload */
+	for (pos = 0; pos < sdu_len; pos += sizeof (efx_dword_t)) {
+		dword = *(efx_dword_t *)((uint8_t *)sdup + pos);
+		EFSYS_MEM_WRITED(esmp, hdr_len + pos, &dword);
 	}
-#endif /* EFSYS_OPT_MCDI_LOGGING */
-
-	/* Construct the payload */
-	for (pos = 0; pos < emrp->emr_in_length; pos += sizeof (efx_dword_t)) {
-		memcpy(&dword, MCDI_IN(*emrp, efx_dword_t, pos),
-		    MIN(sizeof (dword), emrp->emr_in_length - pos));
-		EFSYS_MEM_WRITED(esmp, offset + pos, &dword);
-	}
-
-	/* Ring the doorbell to post the command DMA address to the MC */
-	EFSYS_ASSERT((EFSYS_MEM_ADDR(esmp) & 0xFF) == 0);
 
 	/* Guarantee ordering of memory (MCDI request) and PIO (MC doorbell) */
-	EFSYS_DMA_SYNC_FOR_DEVICE(esmp, 0, offset + emrp->emr_in_length);
+	EFSYS_DMA_SYNC_FOR_DEVICE(esmp, 0, hdr_len + sdu_len);
 	EFSYS_PIO_WRITE_BARRIER();
 
-	EFX_POPULATE_DWORD_1(dword,
-	    EFX_DWORD_0, EFSYS_MEM_ADDR(esmp) >> 32);
+	/* Ring the doorbell to post the command DMA address to the MC */
+	EFX_POPULATE_DWORD_1(dword, EFX_DWORD_0,
+	    EFSYS_MEM_ADDR(esmp) >> 32);
 	EFX_BAR_WRITED(enp, ER_DZ_MC_DB_LWRD_REG, &dword, B_FALSE);
 
-	EFX_POPULATE_DWORD_1(dword,
-	    EFX_DWORD_0, EFSYS_MEM_ADDR(esmp) & 0xffffffff);
+	EFX_POPULATE_DWORD_1(dword, EFX_DWORD_0,
+	    EFSYS_MEM_ADDR(esmp) & 0xffffffff);
 	EFX_BAR_WRITED(enp, ER_DZ_MC_DB_HWRD_REG, &dword, B_FALSE);
 }
 
-			void
-hunt_mcdi_request_copyout(
-	__in		efx_nic_t *enp,
-	__in		efx_mcdi_req_t *emrp)
-{
-#if EFSYS_OPT_MCDI_LOGGING
-	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
-#endif /* EFSYS_OPT_MCDI_LOGGING */
-	efx_dword_t hdr[2];
-	unsigned int hdr_len;
-	size_t bytes;
-
-	if (emrp->emr_out_buf == NULL)
-		return;
-
-	/* Read the command header to detect MCDI response format */
-	hdr_len = sizeof (hdr[0]);
-	hunt_mcdi_read_response(enp, &hdr[0], 0, hdr_len);
-	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE) == MC_CMD_V2_EXTN) {
-		/*
-		 * Read the actual payload length. The length given in the event
-		 * is only correct for responses with the V1 format.
-		 */
-		hunt_mcdi_read_response(enp, &hdr[1], hdr_len, sizeof (hdr[1]));
-		hdr_len += sizeof (hdr[1]);
-
-		emrp->emr_out_length_used = EFX_DWORD_FIELD(hdr[1],
-					    MC_CMD_V2_EXTN_IN_ACTUAL_LEN);
-	}
-
-	/* Copy payload out into caller supplied buffer */
-	bytes = MIN(emrp->emr_out_length_used, emrp->emr_out_length);
-	hunt_mcdi_read_response(enp, emrp->emr_out_buf, hdr_len, bytes);
-
-#if EFSYS_OPT_MCDI_LOGGING
-	if (emtp->emt_logger != NULL) {
-		emtp->emt_logger(emtp->emt_context,
-		    EFX_LOG_MCDI_RESPONSE,
-		    &hdr, hdr_len,
-		    emrp->emr_out_buf, bytes);
-	}
-#endif /* EFSYS_OPT_MCDI_LOGGING */
-}
-
 	__checkReturn	boolean_t
-hunt_mcdi_poll_response(
+ef10_mcdi_poll_response(
 	__in		efx_nic_t *enp)
 {
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
@@ -281,11 +163,11 @@ hunt_mcdi_poll_response(
 }
 
 			void
-hunt_mcdi_read_response(
-	__in		efx_nic_t *enp,
-	__out		void *bufferp,
-	__in		size_t offset,
-	__in		size_t length)
+ef10_mcdi_read_response(
+	__in			efx_nic_t *enp,
+	__out_bcount(length)	void *bufferp,
+	__in			size_t offset,
+	__in			size_t length)
 {
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
 	efsys_mem_t *esmp = emtp->emt_dma_mem;
@@ -300,7 +182,7 @@ hunt_mcdi_read_response(
 }
 
 			efx_rc_t
-hunt_mcdi_poll_reboot(
+ef10_mcdi_poll_reboot(
 	__in		efx_nic_t *enp)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
@@ -324,7 +206,7 @@ hunt_mcdi_poll_reboot(
 		 *
 		 * The Siena support for checking for MC reboot from status
 		 * flags is broken - see comments in siena_mcdi_poll_reboot().
-		 * As the generic MCDI code is shared the Huntington reboot
+		 * As the generic MCDI code is shared the EF10 reboot
 		 * detection suffers similar problems.
 		 *
 		 * Do not report an error when the boot status changes until
@@ -346,7 +228,7 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-hunt_mcdi_feature_supported(
+ef10_mcdi_feature_supported(
 	__in		efx_nic_t *enp,
 	__in		efx_mcdi_feature_id_t id,
 	__out		boolean_t *supportedp)
@@ -355,7 +237,8 @@ hunt_mcdi_feature_supported(
 	uint32_t privilege_mask = encp->enc_privilege_mask;
 	efx_rc_t rc;
 
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	/*
 	 * Use privilege mask state at MCDI attach.
@@ -417,4 +300,4 @@ fail1:
 
 #endif	/* EFSYS_OPT_MCDI */
 
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */

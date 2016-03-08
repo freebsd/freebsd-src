@@ -6,53 +6,10 @@ DIRDEPS = \
 	include/arpa \
 	include/xlocale \
 	lib/libbz2 \
-	lib/libstand \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-_bzlib.o: _bzlib.c
-_bzlib.o: libstand_bzlib_private.h
-_bzlib.po: _bzlib.c
-_bzlib.po: libstand_bzlib_private.h
-_crctable.o: _crctable.c
-_crctable.o: libstand_bzlib_private.h
-_crctable.po: _crctable.c
-_crctable.po: libstand_bzlib_private.h
-_decompress.o: _decompress.c
-_decompress.o: libstand_bzlib_private.h
-_decompress.po: _decompress.c
-_decompress.po: libstand_bzlib_private.h
-_huffman.o: _huffman.c
-_huffman.o: libstand_bzlib_private.h
-_huffman.po: _huffman.c
-_huffman.po: libstand_bzlib_private.h
-_infback.o: _infback.c
-_infback.o: libstand_zutil.h
-_infback.po: _infback.c
-_infback.po: libstand_zutil.h
-_inffast.o: _inffast.c
-_inffast.o: libstand_zutil.h
-_inffast.po: _inffast.c
-_inffast.po: libstand_zutil.h
-_inflate.o: _inflate.c
-_inflate.o: libstand_zutil.h
-_inflate.po: _inflate.c
-_inflate.po: libstand_zutil.h
-_inftrees.o: _inftrees.c
-_inftrees.o: libstand_zutil.h
-_inftrees.po: _inftrees.c
-_inftrees.po: libstand_zutil.h
-_randtable.o: _randtable.c
-_randtable.o: libstand_bzlib_private.h
-_randtable.po: _randtable.c
-_randtable.po: libstand_bzlib_private.h
-_zutil.o: _zutil.c
-_zutil.o: libstand_gzguts.h
-_zutil.o: libstand_zutil.h
-_zutil.po: _zutil.c
-_zutil.po: libstand_gzguts.h
-_zutil.po: libstand_zutil.h
 .endif

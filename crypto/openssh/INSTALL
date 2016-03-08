@@ -1,22 +1,26 @@
 1. Prerequisites
 ----------------
 
-You will need working installations of Zlib and OpenSSL.
+You will need working installations of Zlib and libcrypto (LibreSSL /
+OpenSSL)
 
 Zlib 1.1.4 or 1.2.1.2 or greater (ealier 1.2.x versions have problems):
 http://www.gzip.org/zlib/
 
-OpenSSL 0.9.6 or greater:
-http://www.openssl.org/
+libcrypto (LibreSSL or OpenSSL >= 0.9.8f)
+LibreSSL http://www.libressl.org/ ; or
+OpenSSL http://www.openssl.org/
 
-(OpenSSL 0.9.5a is partially supported, but some ciphers (SSH protocol 1
-Blowfish) do not work correctly.)
+LibreSSL/OpenSSL should be compiled as a position-independent library
+(i.e. with -fPIC) otherwise OpenSSH will not be able to link with it.
+If you must use a non-position-independent libcrypto, then you may need
+to configure OpenSSH --without-pie.
 
 The remaining items are optional.
 
 NB. If you operating system supports /dev/random, you should configure
-OpenSSL to use it. OpenSSH relies on OpenSSL's direct support of
-/dev/random, or failing that, either prngd or egd
+libcrypto (LibreSSL/OpenSSL) to use it. OpenSSH relies on libcrypto's
+direct support of /dev/random, or failing that, either prngd or egd
 
 PRNGD:
 
@@ -27,10 +31,10 @@ http://prngd.sourceforge.net/
 
 EGD:
 
-The Entropy Gathering Daemon (EGD) is supported if you have a system which
-lacks /dev/random and don't want to use OpenSSH's internal entropy collection.
+If the kernel lacks /dev/random the Entropy Gathering Daemon (EGD) is
+supported only if libcrypto supports it.
 
-http://www.lothar.com/tech/crypto/
+http://egd.sourceforge.net/
 
 PAM:
 
@@ -204,10 +208,11 @@ created.
 
 --with-xauth=PATH specifies the location of the xauth binary
 
---with-ssl-dir=DIR allows you to specify where your OpenSSL libraries
+--with-ssl-dir=DIR allows you to specify where your Libre/OpenSSL
+libraries
 are installed.
 
---with-ssl-engine enables OpenSSL's (hardware) ENGINE support
+--with-ssl-engine enables Libre/OpenSSL's (hardware) ENGINE support
 
 --with-4in6 Check for IPv4 in IPv6 mapped addresses and convert them to
 real (AF_INET) IPv4 addresses. Works around some quirks on Linux.
@@ -266,4 +271,4 @@ Please refer to the "reporting bugs" section of the webpage at
 http://www.openssh.com/
 
 
-$Id: INSTALL,v 1.88 2013/03/07 01:33:35 dtucker Exp $
+$Id: INSTALL,v 1.91 2014/09/09 02:23:11 dtucker Exp $

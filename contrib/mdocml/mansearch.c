@@ -1,4 +1,4 @@
-/*	$Id: mansearch.c,v 1.55 2015/03/11 13:11:22 schwarze Exp $ */
+/*	$Id: mansearch.c,v 1.64 2016/01/08 15:02:54 schwarze Exp $ */
 /*
  * Copyright (c) 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -7,9 +7,9 @@
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHORS DISCLAIM ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -21,6 +21,9 @@
 #include <sys/types.h>
 
 #include <assert.h>
+#if HAVE_ERR
+#include <err.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -34,11 +37,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#if HAVE_OHASH
-#include <ohash.h>
-#else
-#include "compat_ohash.h"
-#endif
 #include <sqlite3.h>
 #ifndef SQLITE_DETERMINISTIC
 #define SQLITE_DETERMINISTIC 0
@@ -46,7 +44,8 @@
 
 #include "mandoc.h"
 #include "mandoc_aux.h"
-#include "manpath.h"
+#include "mandoc_ohash.h"
+#include "manconf.h"
 #include "mansearch.h"
 
 extern int mansearch_keymax;
@@ -55,17 +54,17 @@ extern const char *const mansearch_keynames[];
 #define	SQL_BIND_TEXT(_db, _s, _i, _v) \
 	do { if (SQLITE_OK != sqlite3_bind_text \
 		((_s), (_i)++, (_v), -1, SQLITE_STATIC)) \
-		fprintf(stderr, "%s\n", sqlite3_errmsg((_db))); \
+		errx((int)MANDOCLEVEL_SYSERR, "%s", sqlite3_errmsg((_db))); \
 	} while (0)
 #define	SQL_BIND_INT64(_db, _s, _i, _v) \
 	do { if (SQLITE_OK != sqlite3_bind_int64 \
 		((_s), (_i)++, (_v))) \
-		fprintf(stderr, "%s\n", sqlite3_errmsg((_db))); \
+		errx((int)MANDOCLEVEL_SYSERR, "%s", sqlite3_errmsg((_db))); \
 	} while (0)
 #define	SQL_BIND_BLOB(_db, _s, _i, _v) \
 	do { if (SQLITE_OK != sqlite3_bind_blob \
 		((_s), (_i)++, (&_v), sizeof(_v), SQLITE_STATIC)) \
-		fprintf(stderr, "%s\n", sqlite3_errmsg((_db))); \
+		errx((int)MANDOCLEVEL_SYSERR, "%s", sqlite3_errmsg((_db))); \
 	} while (0)
 
 struct	expr {
@@ -92,9 +91,6 @@ static	void		 buildnames(const struct mansearch *,
 				const char *, int form);
 static	char		*buildoutput(sqlite3 *, sqlite3_stmt *,
 				 uint64_t, uint64_t);
-static	void		*hash_alloc(size_t, void *);
-static	void		 hash_free(void *, void *);
-static	void		*hash_calloc(size_t, size_t, void *);
 static	struct expr	*exprcomp(const struct mansearch *,
 				int, char *[]);
 static	void		 exprfree(struct expr *);
@@ -120,8 +116,8 @@ mansearch_setup(int start)
 
 	if (start) {
 		if (NULL != pagecache) {
-			fprintf(stderr, "pagecache already enabled\n");
-			return((int)MANDOCLEVEL_BADARG);
+			warnx("pagecache already enabled");
+			return (int)MANDOCLEVEL_BADARG;
 		}
 
 		pagecache = mmap(NULL, PC_PAGESIZE * PC_NUMPAGES,
@@ -129,32 +125,32 @@ mansearch_setup(int start)
 		    MAP_SHARED | MAP_ANON, -1, 0);
 
 		if (MAP_FAILED == pagecache) {
-			perror("mmap");
+			warn("mmap");
 			pagecache = NULL;
-			return((int)MANDOCLEVEL_SYSERR);
+			return (int)MANDOCLEVEL_SYSERR;
 		}
 
 		c = sqlite3_config(SQLITE_CONFIG_PAGECACHE,
 		    pagecache, PC_PAGESIZE, PC_NUMPAGES);
 
 		if (SQLITE_OK == c)
-			return((int)MANDOCLEVEL_OK);
+			return (int)MANDOCLEVEL_OK;
 
-		fprintf(stderr, "pagecache: %s\n", sqlite3_errstr(c));
+		warnx("pagecache: %s", sqlite3_errstr(c));
 
 	} else if (NULL == pagecache) {
-		fprintf(stderr, "pagecache missing\n");
-		return((int)MANDOCLEVEL_BADARG);
+		warnx("pagecache missing");
+		return (int)MANDOCLEVEL_BADARG;
 	}
 
 	if (-1 == munmap(pagecache, PC_PAGESIZE * PC_NUMPAGES)) {
-		perror("munmap");
+		warn("munmap");
 		pagecache = NULL;
-		return((int)MANDOCLEVEL_SYSERR);
+		return (int)MANDOCLEVEL_SYSERR;
 	}
 
 	pagecache = NULL;
-	return((int)MANDOCLEVEL_OK);
+	return (int)MANDOCLEVEL_OK;
 }
 
 int
@@ -163,7 +159,6 @@ mansearch(const struct mansearch *search,
 		int argc, char *argv[],
 		struct manpage **res, size_t *sz)
 {
-	int		 fd, rc, c, indexbit;
 	int64_t		 pageid;
 	uint64_t	 outbit, iterbit;
 	char		 buf[PATH_MAX];
@@ -173,27 +168,18 @@ mansearch(const struct mansearch *search,
 	sqlite3		*db;
 	sqlite3_stmt	*s, *s2;
 	struct match	*mp;
-	struct ohash_info info;
 	struct ohash	 htab;
 	unsigned int	 idx;
 	size_t		 i, j, cur, maxres;
+	int		 c, chdir_status, getcwd_status, indexbit;
 
-	info.calloc = hash_calloc;
-	info.alloc = hash_alloc;
-	info.free = hash_free;
-	info.key_offset = offsetof(struct match, pageid);
+	if (argc == 0 || (e = exprcomp(search, argc, argv)) == NULL) {
+		*sz = 0;
+		return 0;
+	}
 
-	*sz = cur = maxres = 0;
-	sql = NULL;
+	cur = maxres = 0;
 	*res = NULL;
-	fd = -1;
-	e = NULL;
-	rc = 0;
-
-	if (0 == argc)
-		goto out;
-	if (NULL == (e = exprcomp(search, argc, argv)))
-		goto out;
 
 	if (NULL != search->outkey) {
 		outbit = TYPE_Nd;
@@ -210,19 +196,18 @@ mansearch(const struct mansearch *search,
 		outbit = 0;
 
 	/*
-	 * Save a descriptor to the current working directory.
-	 * Since pathnames in the "paths" variable might be relative,
-	 * and we'll be chdir()ing into them, we need to keep a handle
-	 * on our current directory from which to start the chdir().
+	 * Remember the original working directory, if possible.
+	 * This will be needed if the second or a later directory
+	 * is given as a relative path.
+	 * Do not error out if the current directory is not
+	 * searchable: Maybe it won't be needed after all.
 	 */
 
-	if (NULL == getcwd(buf, PATH_MAX)) {
-		perror("getcwd");
-		goto out;
-	} else if (-1 == (fd = open(buf, O_RDONLY, 0))) {
-		perror(buf);
-		goto out;
-	}
+	if (getcwd(buf, PATH_MAX) == NULL) {
+		getcwd_status = 0;
+		(void)strlcpy(buf, strerror(errno), sizeof(buf));
+	} else
+		getcwd_status = 1;
 
 	sql = sql_statement(e);
 
@@ -234,22 +219,28 @@ mansearch(const struct mansearch *search,
 	 * scan it for our match expression.
 	 */
 
+	chdir_status = 0;
 	for (i = 0; i < paths->sz; i++) {
-		if (-1 == fchdir(fd)) {
-			perror(buf);
-			free(*res);
-			break;
-		} else if (-1 == chdir(paths->paths[i])) {
-			perror(paths->paths[i]);
+		if (chdir_status && paths->paths[i][0] != '/') {
+			if ( ! getcwd_status) {
+				warnx("%s: getcwd: %s", paths->paths[i], buf);
+				continue;
+			} else if (chdir(buf) == -1) {
+				warn("%s", buf);
+				continue;
+			}
+		}
+		if (chdir(paths->paths[i]) == -1) {
+			warn("%s", paths->paths[i]);
 			continue;
 		}
+		chdir_status = 1;
 
 		c = sqlite3_open_v2(MANDOC_DB, &db,
 		    SQLITE_OPEN_READONLY, NULL);
 
 		if (SQLITE_OK != c) {
-			fprintf(stderr, "%s/%s: %s\n",
-			    paths->paths[i], MANDOC_DB, strerror(errno));
+			warn("%s/%s", paths->paths[i], MANDOC_DB);
 			sqlite3_close(db);
 			continue;
 		}
@@ -271,7 +262,8 @@ mansearch(const struct mansearch *search,
 		j = 1;
 		c = sqlite3_prepare_v2(db, sql, -1, &s, NULL);
 		if (SQLITE_OK != c)
-			fprintf(stderr, "%s\n", sqlite3_errmsg(db));
+			errx((int)MANDOCLEVEL_SYSERR,
+			    "%s", sqlite3_errmsg(db));
 
 		for (ep = e; NULL != ep; ep = ep->next) {
 			if (NULL == ep->substr) {
@@ -282,8 +274,7 @@ mansearch(const struct mansearch *search,
 				SQL_BIND_INT64(db, s, j, ep->bits);
 		}
 
-		memset(&htab, 0, sizeof(struct ohash));
-		ohash_init(&htab, 4, &info);
+		mandoc_ohash_init(&htab, 4, offsetof(struct match, pageid));
 
 		/*
 		 * Hash each entry on its [unique] document identifier.
@@ -313,7 +304,7 @@ mansearch(const struct mansearch *search,
 		}
 
 		if (SQLITE_DONE != c)
-			fprintf(stderr, "%s\n", sqlite3_errmsg(db));
+			warnx("%s", sqlite3_errmsg(db));
 
 		sqlite3_finalize(s);
 
@@ -322,14 +313,16 @@ mansearch(const struct mansearch *search,
 		    "WHERE pageid=? ORDER BY sec, arch, name",
 		    -1, &s, NULL);
 		if (SQLITE_OK != c)
-			fprintf(stderr, "%s\n", sqlite3_errmsg(db));
+			errx((int)MANDOCLEVEL_SYSERR,
+			    "%s", sqlite3_errmsg(db));
 
 		c = sqlite3_prepare_v2(db,
 		    "SELECT bits, key, pageid FROM keys "
 		    "WHERE pageid=? AND bits & ?",
 		    -1, &s2, NULL);
 		if (SQLITE_OK != c)
-			fprintf(stderr, "%s\n", sqlite3_errmsg(db));
+			errx((int)MANDOCLEVEL_SYSERR,
+			    "%s", sqlite3_errmsg(db));
 
 		for (mp = ohash_first(&htab, &idx);
 				NULL != mp;
@@ -370,17 +363,12 @@ mansearch(const struct mansearch *search,
 			break;
 	}
 	qsort(*res, cur, sizeof(struct manpage), manpage_compare);
-	rc = 1;
-out:
-	if (-1 != fd) {
-		if (-1 == fchdir(fd))
-			perror(buf);
-		close(fd);
-	}
+	if (chdir_status && getcwd_status && chdir(buf) == -1)
+		warn("%s", buf);
 	exprfree(e);
 	free(sql);
 	*sz = cur;
-	return(rc);
+	return 1;
 }
 
 void
@@ -404,9 +392,9 @@ manpage_compare(const void *vp1, const void *vp2)
 
 	mp1 = vp1;
 	mp2 = vp2;
-	return(	(diff = mp2->bits - mp1->bits) ? diff :
-		(diff = mp1->sec - mp2->sec) ? diff :
-		strcasecmp(mp1->names, mp2->names));
+	return (diff = mp2->bits - mp1->bits) ? diff :
+	    (diff = mp1->sec - mp2->sec) ? diff :
+	    strcasecmp(mp1->names, mp2->names);
 }
 
 static void
@@ -515,7 +503,7 @@ buildnames(const struct mansearch *search, struct manpage *mpage,
 		globfree(&globinfo);
 	}
 	if (c != SQLITE_DONE)
-		fprintf(stderr, "%s\n", sqlite3_errmsg(db));
+		warnx("%s", sqlite3_errmsg(db));
 	sqlite3_reset(s);
 
 	/* If none of the files is usable, use the first name. */
@@ -565,9 +553,9 @@ buildoutput(sqlite3 *db, sqlite3_stmt *s, uint64_t pageid, uint64_t outbit)
 		output = newoutput;
 	}
 	if (SQLITE_DONE != c)
-		fprintf(stderr, "%s\n", sqlite3_errmsg(db));
+		warnx("%s", sqlite3_errmsg(db));
 	sqlite3_reset(s);
-	return(output);
+	return output;
 }
 
 /*
@@ -662,7 +650,7 @@ sql_statement(const struct expr *e)
 		needop = 1;
 	}
 
-	return(sql);
+	return sql;
 }
 
 /*
@@ -745,12 +733,12 @@ exprcomp(const struct mansearch *search, int argc, char *argv[])
 		toopen = logic = igncase = 0;
 	}
 	if ( ! (toopen || logic || igncase || toclose))
-		return(first);
+		return first;
 
 fail:
 	if (NULL != first)
 		exprfree(first);
-	return(NULL);
+	return NULL;
 }
 
 static struct expr *
@@ -763,7 +751,7 @@ exprterm(const struct mansearch *search, char *buf, int cs)
 	int		 i, irc;
 
 	if ('\0' == *buf)
-		return(NULL);
+		return NULL;
 
 	e = mandoc_calloc(1, sizeof(struct expr));
 
@@ -771,7 +759,7 @@ exprterm(const struct mansearch *search, char *buf, int cs)
 		e->bits = TYPE_Nm;
 		e->substr = buf;
 		e->equal = 1;
-		return(e);
+		return e;
 	}
 
 	/*
@@ -783,7 +771,14 @@ exprterm(const struct mansearch *search, char *buf, int cs)
 	if (search->argmode == ARG_WORD) {
 		e->bits = TYPE_Nm;
 		e->substr = NULL;
+#if HAVE_REWB_BSD
 		mandoc_asprintf(&val, "[[:<:]]%s[[:>:]]", buf);
+#elif HAVE_REWB_SYSV
+		mandoc_asprintf(&val, "\\<%s\\>", buf);
+#else
+		mandoc_asprintf(&val,
+		    "(^|[^a-zA-Z01-9_])%s([^a-zA-Z01-9_]|$)", buf);
+#endif
 		cs = 0;
 	} else if ((val = strpbrk(buf, "=~")) == NULL) {
 		e->bits = TYPE_Nm | TYPE_Nd;
@@ -807,14 +802,14 @@ exprterm(const struct mansearch *search, char *buf, int cs)
 			free(val);
 		if (irc) {
 			regerror(irc, &e->regexp, errbuf, sizeof(errbuf));
-			fprintf(stderr, "regcomp: %s\n", errbuf);
+			warnx("regcomp: %s", errbuf);
 			free(e);
-			return(NULL);
+			return NULL;
 		}
 	}
 
 	if (e->bits)
-		return(e);
+		return e;
 
 	/*
 	 * Parse out all possible fields.
@@ -836,13 +831,13 @@ exprterm(const struct mansearch *search, char *buf, int cs)
 		if (i == mansearch_keymax) {
 			if (strcasecmp(key, "any")) {
 				free(e);
-				return(NULL);
+				return NULL;
 			}
 			e->bits |= ~0ULL;
 		}
 	}
 
-	return(e);
+	return e;
 }
 
 static void
@@ -855,25 +850,4 @@ exprfree(struct expr *p)
 		free(p);
 		p = pp;
 	}
-}
-
-static void *
-hash_calloc(size_t nmemb, size_t sz, void *arg)
-{
-
-	return(mandoc_calloc(nmemb, sz));
-}
-
-static void *
-hash_alloc(size_t sz, void *arg)
-{
-
-	return(mandoc_malloc(sz));
-}
-
-static void
-hash_free(void *p, void *arg)
-{
-
-	free(p);
 }

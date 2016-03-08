@@ -1138,8 +1138,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 		return ret;
 	}
 
-	params = malloc(sizeof(struct put_image_params), DRM_I915_GEM,
-	    M_WAITOK | M_ZERO);
+	params = malloc(sizeof(struct put_image_params), DRM_I915_GEM, M_WAITOK | M_ZERO);
 
 	drmmode_obj = drm_mode_object_find(dev, put_image_rec->crtc_id,
 					   DRM_MODE_OBJECT_CRTC);
@@ -1403,8 +1402,7 @@ void intel_setup_overlay(struct drm_device *dev)
 	if (!HAS_OVERLAY(dev))
 		return;
 
-	overlay = malloc(sizeof(struct intel_overlay), DRM_I915_GEM,
-	    M_WAITOK | M_ZERO);
+	overlay = malloc(sizeof(struct intel_overlay), DRM_I915_GEM, M_WAITOK | M_ZERO);
 	DRM_LOCK(dev);
 	if (dev_priv->overlay != NULL)
 		goto out_free;
@@ -1523,16 +1521,15 @@ intel_overlay_capture_error_state(struct drm_device *dev)
 	memcpy(&error->regs, regs, sizeof(struct overlay_registers));
 	intel_overlay_unmap_regs(overlay, regs);
 
-	return (error);
+	return error;
 
 err:
 	free(error, DRM_I915_GEM);
-	return (NULL);
+	return NULL;
 }
 
 void
-intel_overlay_print_error_state(struct sbuf *m,
-    struct intel_overlay_error_state *error)
+intel_overlay_print_error_state(struct sbuf *m, struct intel_overlay_error_state *error)
 {
 	sbuf_printf(m, "Overlay, status: 0x%08x, interrupt: 0x%08x\n",
 	    error->dovsta, error->isr);

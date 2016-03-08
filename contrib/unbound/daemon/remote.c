@@ -389,7 +389,7 @@ add_open(const char* ip, int nr, struct listen_port** list, int noproto_is_err,
 
 		/* open fd */
 		fd = create_tcp_accept_sock(res, 1, &noproto, 0,
-			cfg->ip_transparent);
+			cfg->ip_transparent, 0);
 		freeaddrinfo(res);
 	}
 

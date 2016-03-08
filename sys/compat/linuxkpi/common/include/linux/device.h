@@ -73,8 +73,10 @@ struct device {
 	unsigned int	msix_max;
 };
 
-extern struct device linux_rootdev;
-extern struct kobject class_root;
+extern struct device linux_root_device;
+extern struct kobject linux_class_root;
+extern const struct kobj_type linux_dev_ktype;
+extern const struct kobj_type linux_class_ktype;
 
 struct class_attribute {
         struct attribute attr;
@@ -170,62 +172,14 @@ put_device(struct device *dev)
 		kobject_put(&dev->kobj);
 }
 
-static inline ssize_t
-class_show(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	struct class_attribute *dattr;
-	ssize_t error;
-
-	dattr = container_of(attr, struct class_attribute, attr);
-	error = -EIO;
-	if (dattr->show)
-		error = dattr->show(container_of(kobj, struct class, kobj),
-		    dattr, buf);
-	return (error);
-}
-
-static inline ssize_t
-class_store(struct kobject *kobj, struct attribute *attr, const char *buf,
-    size_t count)
-{
-	struct class_attribute *dattr;
-	ssize_t error;
-
-	dattr = container_of(attr, struct class_attribute, attr);
-	error = -EIO;
-	if (dattr->store)
-		error = dattr->store(container_of(kobj, struct class, kobj),
-		    dattr, buf, count);
-	return (error);
-}
-
-static inline void
-class_release(struct kobject *kobj)
-{
-	struct class *class;
-
-	class = container_of(kobj, struct class, kobj);
-	if (class->class_release)
-		class->class_release(class);
-}
-
-static struct sysfs_ops class_sysfs = {
-	.show  = class_show,
-	.store = class_store,
-};
-static struct kobj_type class_ktype = {
-	.release = class_release,
-	.sysfs_ops = &class_sysfs
-};
-
 static inline int
 class_register(struct class *class)
 {
 
 	class->bsdclass = devclass_create(class->name);
-	kobject_init(&class->kobj, &class_ktype);
+	kobject_init(&class->kobj, &linux_class_ktype);
 	kobject_set_name(&class->kobj, class->name);
-	kobject_add(&class->kobj, &class_root, class->name);
+	kobject_add(&class->kobj, &linux_class_root, class->name);
 
 	return (0);
 }
@@ -236,54 +190,6 @@ class_unregister(struct class *class)
 
 	kobject_put(&class->kobj);
 }
-
-static inline void
-device_release(struct kobject *kobj)
-{
-	struct device *dev;
-
-	dev = container_of(kobj, struct device, kobj);
-	/* This is the precedence defined by linux. */
-	if (dev->release)
-		dev->release(dev);
-	else if (dev->class && dev->class->dev_release)
-		dev->class->dev_release(dev);
-}
-
-static inline ssize_t
-dev_show(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	struct device_attribute *dattr;
-	ssize_t error;
-
-	dattr = container_of(attr, struct device_attribute, attr);
-	error = -EIO;
-	if (dattr->show)
-		error = dattr->show(container_of(kobj, struct device, kobj),
-		    dattr, buf);
-	return (error);
-}
-
-static inline ssize_t
-dev_store(struct kobject *kobj, struct attribute *attr, const char *buf,
-    size_t count)
-{
-	struct device_attribute *dattr;
-	ssize_t error;
-
-	dattr = container_of(attr, struct device_attribute, attr);
-	error = -EIO;
-	if (dattr->store)
-		error = dattr->store(container_of(kobj, struct device, kobj),
-		    dattr, buf, count);
-	return (error);
-}
-
-static struct sysfs_ops dev_sysfs = { .show  = dev_show, .store = dev_store, };
-static struct kobj_type dev_ktype = {
-	.release = device_release,
-	.sysfs_ops = &dev_sysfs
-};
 
 /*
  * Devices are registered and created for exporting to sysfs.  create
@@ -311,7 +217,7 @@ device_register(struct device *dev)
 		device_set_softc(bsddev, dev);
 	}
 	dev->bsddev = bsddev;
-	kobject_init(&dev->kobj, &dev_ktype);
+	kobject_init(&dev->kobj, &linux_dev_ktype);
 	kobject_add(&dev->kobj, &dev->class->kobj, dev_name(dev));
 
 	return (0);
@@ -346,7 +252,7 @@ device_destroy(struct class *class, dev_t devt)
 }
 
 static inline void
-class_kfree(struct class *class)
+linux_class_kfree(struct class *class)
 {
 
 	kfree(class);
@@ -361,7 +267,7 @@ class_create(struct module *owner, const char *name)
 	class = kzalloc(sizeof(*class), M_WAITOK);
 	class->owner = owner;
 	class->name= name;
-	class->class_release = class_kfree;
+	class->class_release = linux_class_kfree;
 	error = class_register(class);
 	if (error) {
 		kfree(class);
@@ -414,7 +320,8 @@ class_remove_file(struct class *class, const struct class_attribute *attr)
 		sysfs_remove_file(&class->kobj, &attr->attr);
 }
 
-static inline int dev_to_node(struct device *dev)
+static inline int
+dev_to_node(struct device *dev)
 {
                 return -1;
 }

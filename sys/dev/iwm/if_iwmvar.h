@@ -129,7 +129,6 @@ struct iwm_tx_radiotap_header {
 	uint8_t		wt_rate;
 	uint16_t	wt_chan_freq;
 	uint16_t	wt_chan_flags;
-	uint8_t		wt_hwqueue;
 } __packed;
 
 #define IWM_TX_RADIOTAP_PRESENT						\
@@ -152,9 +151,6 @@ struct iwm_tx_radiotap_header {
 #define IWM_FW_STATUS_INPROGRESS	1
 #define IWM_FW_STATUS_DONE		2
 
-#define	IWM_LOCK(_sc)	mtx_lock(&sc->sc_mtx)
-#define	IWM_UNLOCK(_sc)	mtx_unlock(&sc->sc_mtx)
-
 enum iwm_ucode_type {
 	IWM_UCODE_TYPE_INIT,
 	IWM_UCODE_TYPE_REGULAR,
@@ -163,8 +159,7 @@ enum iwm_ucode_type {
 };
 
 struct iwm_fw_info {
-	const void *fw_rawdata;
-	size_t fw_rawsize;
+	const struct firmware *fw_fp;
 	int fw_status;
 
 	struct iwm_fw_sects {
@@ -244,12 +239,12 @@ struct iwm_dma_info {
 #define IWM_TX_RING_HIMARK	224
 
 struct iwm_tx_data {
-	bus_dmamap_t	map;
-	bus_addr_t	cmd_paddr;
-	bus_addr_t	scratch_paddr;
-	struct mbuf	*m;
-	struct iwm_node *in;
-	int done;
+	bus_dmamap_t		map;
+	bus_addr_t		cmd_paddr;
+	bus_addr_t		scratch_paddr;
+	struct mbuf		*m;
+	struct iwm_node 	*in;
+	int			done;
 };
 
 struct iwm_tx_ring {
@@ -294,12 +289,6 @@ struct iwm_rx_ring {
 	bus_dma_tag_t           data_dmat;
 	int			cur;
 };
-
-#define IWM_FLAG_USE_ICT	0x01
-#define IWM_FLAG_HW_INITED	0x02
-#define IWM_FLAG_STOPPED	0x04
-#define IWM_FLAG_RFKILL		0x08
-#define IWM_FLAG_BUSY		0x10
 
 struct iwm_ucode_status {
 	uint32_t uc_error_event_table;
@@ -371,68 +360,97 @@ struct iwm_bf_data {
 };
 
 struct iwm_vap {
-	struct ieee80211vap iv_vap;
-	uint8_t macaddr[IEEE80211_ADDR_LEN];
-	int is_uploaded;
+	struct ieee80211vap	iv_vap;
+	int			is_uploaded;
 
-	int (*iv_newstate)(struct ieee80211vap *, enum ieee80211_state, int);
+	int			(*iv_newstate)(struct ieee80211vap *,
+				    enum ieee80211_state, int);
 };
+#define IWM_VAP(_vap)		((struct iwm_vap *)(_vap))
 
-#define IWM_VAP(_vap)   ((struct iwm_vap *)(_vap))
+struct iwm_node {
+	struct ieee80211_node	in_ni;
+	struct iwm_mvm_phy_ctxt	*in_phyctxt;
+
+	/* status "bits" */
+	int			in_assoc;
+
+	struct iwm_lq_cmd	in_lq;
+
+	uint8_t			in_ridx[IEEE80211_RATE_MAXSIZE];
+};
+#define IWM_NODE(_ni)		((struct iwm_node *)(_ni))
+
+#define IWM_STATION_ID 0
+
+#define	IWM_DEFAULT_MACID	0
+#define	IWM_DEFAULT_COLOR	0
+#define	IWM_DEFAULT_TSFID	0
+
+#define IWM_ICT_SIZE		4096
+#define IWM_ICT_COUNT		(IWM_ICT_SIZE / sizeof (uint32_t))
+#define IWM_ICT_PADDR_SHIFT	12
 
 struct iwm_softc {
+	device_t		sc_dev;
+	uint32_t		sc_debug;
+
 	struct mtx		sc_mtx;
 	struct mbufq		sc_snd;
 	struct ieee80211com	sc_ic;
-	device_t		sc_dev;
+
+	int			sc_flags;
+#define IWM_FLAG_USE_ICT	(1 << 0)
+#define IWM_FLAG_HW_INITED	(1 << 1)
+#define IWM_FLAG_STOPPED	(1 << 2)
+#define IWM_FLAG_RFKILL		(1 << 3)
+#define IWM_FLAG_BUSY		(1 << 4)
 
 	struct intr_config_hook sc_preinit_hook;
-	struct callout sc_watchdog_to;
+	struct callout		sc_watchdog_to;
 
 	struct task		init_task;
 
-	struct resource *sc_irq;
-	struct resource *sc_mem;
-	bus_space_tag_t sc_st;
-	bus_space_handle_t sc_sh;
-	bus_size_t sc_sz;
-	bus_dma_tag_t sc_dmat;
-	void *sc_ih;
+	struct resource		*sc_irq;
+	struct resource		*sc_mem;
+	bus_space_tag_t		sc_st;
+	bus_space_handle_t	sc_sh;
+	bus_size_t		sc_sz;
+	bus_dma_tag_t		sc_dmat;
+	void			*sc_ih;
 
 	/* TX scheduler rings. */
-	struct iwm_dma_info		sched_dma;
-	uint32_t			sched_base;
+	struct iwm_dma_info	sched_dma;
+	uint32_t		sched_base;
 
 	/* TX/RX rings. */
-	struct iwm_tx_ring txq[IWM_MVM_MAX_QUEUES];
-	struct iwm_rx_ring rxq;
-	int qfullmsk;
+	struct iwm_tx_ring	txq[IWM_MVM_MAX_QUEUES];
+	struct iwm_rx_ring	rxq;
+	int			qfullmsk;
 
-	int sc_sf_state;
+	int			sc_sf_state;
 
 	/* ICT table. */
 	struct iwm_dma_info	ict_dma;
 	int			ict_cur;
 
-	int sc_hw_rev;
-	int sc_hw_id;
+	int			sc_hw_rev;
+	int			sc_hw_id;
 
-	struct iwm_dma_info kw_dma;
-	struct iwm_dma_info fw_dma;
+	struct iwm_dma_info	kw_dma;
+	struct iwm_dma_info	fw_dma;
 
-	int sc_fw_chunk_done;
-	int sc_init_complete;
+	int			sc_fw_chunk_done;
+	int			sc_init_complete;
 
-	struct iwm_ucode_status sc_uc;
-	enum iwm_ucode_type sc_uc_current;
-	int sc_fwver;
+	struct iwm_ucode_status	sc_uc;
+	enum iwm_ucode_type	sc_uc_current;
+	int			sc_fwver;
 
-	int sc_capaflags;
-	int sc_capa_max_probe_len;
+	int			sc_capaflags;
+	int			sc_capa_max_probe_len;
 
-	int sc_intmask;
-	int sc_flags;
-	uint32_t sc_debug;
+	int			sc_intmask;
 
 	/*
 	 * So why do we need a separate stopped flag and a generation?
@@ -443,86 +461,63 @@ struct iwm_softc {
 	 * the device from interrupt context when it craps out, so we
 	 * don't have the luxury of waiting for quiescense.
 	 */
-	int sc_generation;
+	int			sc_generation;
 
-	const char *sc_fwname;
-	bus_size_t sc_fwdmasegsz;
-	struct iwm_fw_info sc_fw;
-	int sc_fw_phy_config;
+	const char		*sc_fwname;
+	bus_size_t		sc_fwdmasegsz;
+	struct iwm_fw_info	sc_fw;
+	int			sc_fw_phy_config;
 	struct iwm_tlv_calib_ctrl sc_default_calib[IWM_UCODE_TYPE_MAX];
 
-	struct iwm_nvm_data sc_nvm;
-	struct iwm_phy_db sc_phy_db;
+	struct iwm_nvm_data	sc_nvm;
+	struct iwm_phy_db	sc_phy_db;
 
-	struct iwm_bf_data sc_bf;
+	struct iwm_bf_data	sc_bf;
 
-	int sc_tx_timer;
+	int			sc_tx_timer;
 
-	struct iwm_scan_cmd *sc_scan_cmd;
-	size_t sc_scan_cmd_len;
-	int sc_scan_last_antenna;
-	int sc_scanband;
+	struct iwm_scan_cmd	*sc_scan_cmd;
+	size_t			sc_scan_cmd_len;
+	int			sc_scan_last_antenna;
+	int			sc_scanband;
 
-	int sc_auth_prot;
+	int			sc_auth_prot;
 
-	int sc_fixed_ridx;
+	int			sc_fixed_ridx;
 
-	int sc_staid;
-	int sc_nodecolor;
+	int			sc_staid;
+	int			sc_nodecolor;
 
-	uint8_t sc_cmd_resp[IWM_CMD_RESP_MAX];
-	int sc_wantresp;
+	uint8_t			sc_cmd_resp[IWM_CMD_RESP_MAX];
+	int			sc_wantresp;
 
-	struct taskqueue *sc_tq;
-	struct task sc_es_task;
+	struct taskqueue	*sc_tq;
+	struct task		sc_es_task;
 
-	struct iwm_rx_phy_info sc_last_phy_info;
-	int sc_ampdu_ref;
+	struct iwm_rx_phy_info	sc_last_phy_info;
+	int			sc_ampdu_ref;
 
-	struct iwm_int_sta sc_aux_sta;
+	struct iwm_int_sta	sc_aux_sta;
 
 	/* phy contexts.  we only use the first one */
-	struct iwm_mvm_phy_ctxt sc_phyctxt[IWM_NUM_PHY_CTX];
+	struct iwm_mvm_phy_ctxt	sc_phyctxt[IWM_NUM_PHY_CTX];
 
 	struct iwm_notif_statistics sc_stats;
-	int sc_noise;
+	int			sc_noise;
 
-	int host_interrupt_operation_mode;
+	int			host_interrupt_operation_mode;
 
 	caddr_t			sc_drvbpf;
 
-	union {
-		struct iwm_rx_radiotap_header th;
-		uint8_t	pad[IEEE80211_RADIOTAP_HDRLEN];
-	} sc_rxtapu;
-#define sc_rxtap	sc_rxtapu.th
+	struct iwm_rx_radiotap_header sc_rxtap;
+	struct iwm_tx_radiotap_header sc_txtap;
 
-	union {
-		struct iwm_tx_radiotap_header th;
-		uint8_t	pad[IEEE80211_RADIOTAP_HDRLEN];
-	} sc_txtapu;
-#define sc_txtap	sc_txtapu.th
-
-	int		sc_max_rssi;
+	int			sc_max_rssi;
 };
 
-#define	IWM_DEFAULT_MACID	0
-#define	IWM_DEFAULT_COLOR	0
-#define	IWM_DEFAULT_TSFID	0
-
-struct iwm_node {
-	struct ieee80211_node in_ni;
-	struct iwm_mvm_phy_ctxt *in_phyctxt;
-
-	/* status "bits" */
-	int in_assoc;
-
-	struct iwm_lq_cmd in_lq;
-
-	uint8_t in_ridx[IEEE80211_RATE_MAXSIZE];
-};
-#define IWM_STATION_ID 0
-
-#define IWM_ICT_SIZE		4096
-#define IWM_ICT_COUNT		(IWM_ICT_SIZE / sizeof (uint32_t))
-#define IWM_ICT_PADDR_SHIFT	12
+#define IWM_LOCK_INIT(_sc) \
+	mtx_init(&(_sc)->sc_mtx, device_get_nameunit((_sc)->sc_dev), \
+	    MTX_NETWORK_LOCK, MTX_DEF);
+#define	IWM_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	IWM_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define IWM_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)

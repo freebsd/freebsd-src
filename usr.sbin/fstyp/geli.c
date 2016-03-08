@@ -29,11 +29,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/disk.h>
 #include <sys/types.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include <geom/eli/g_eli.h>
 

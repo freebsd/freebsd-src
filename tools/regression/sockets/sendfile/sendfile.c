@@ -459,11 +459,8 @@ cleanup(void)
 int
 main(int argc, char *argv[])
 {
-	int pagesize;
 
 	path[0] = '\0';
-
-	pagesize = getpagesize();
 
 	if (argc == 1) {
 		snprintf(path, sizeof(path), "sendfile.XXXXXXXXXXXX");

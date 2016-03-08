@@ -605,7 +605,7 @@ parse_dynamic(elf_file_t ef)
 
 static int
 parse_dpcpu(elf_file_t ef)
-{ 
+{
 	int count;
 	int error;
 
@@ -636,7 +636,7 @@ parse_dpcpu(elf_file_t ef)
 #ifdef VIMAGE
 static int
 parse_vnet(elf_file_t ef)
-{ 
+{
 	int count;
 	int error;
 
@@ -916,7 +916,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	 */
 	base_offset = trunc_page(segs[0]->p_offset);
 	base_vaddr = trunc_page(segs[0]->p_vaddr);
-	base_vlimit = round_page(segs[nsegs - 1]->p_vaddr + 
+	base_vlimit = round_page(segs[nsegs - 1]->p_vaddr +
 	    segs[nsegs - 1]->p_memsz);
 	mapsize = base_vlimit - base_vaddr;
 
@@ -1090,12 +1090,9 @@ out:
 	vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
 	if (error != 0 && lf != NULL)
 		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
-	if (shdr != NULL)
-		free(shdr, M_LINKER);
-	if (firstpage != NULL)
-		free(firstpage, M_LINKER);
-	if (shstrs != NULL)
-		free(shstrs, M_LINKER);
+	free(shdr, M_LINKER);
+	free(firstpage, M_LINKER);
+	free(shstrs, M_LINKER);
 
 	return (error);
 }
@@ -1157,19 +1154,13 @@ link_elf_unload_file(linker_file_t file)
 		    + (ef->object->size << PAGE_SHIFT));
 	}
 #else
-	if (ef->address != NULL)
-		free(ef->address, M_LINKER);
+	free(ef->address, M_LINKER);
 #endif
-	if (ef->symbase != NULL)
-		free(ef->symbase, M_LINKER);
-	if (ef->strbase != NULL)
-		free(ef->strbase, M_LINKER);
-	if (ef->ctftab != NULL)
-		free(ef->ctftab, M_LINKER);
-	if (ef->ctfoff != NULL)
-		free(ef->ctfoff, M_LINKER);
-	if (ef->typoff != NULL)
-		free(ef->typoff, M_LINKER);
+	free(ef->symbase, M_LINKER);
+	free(ef->strbase, M_LINKER);
+	free(ef->ctftab, M_LINKER);
+	free(ef->ctfoff, M_LINKER);
+	free(ef->typoff, M_LINKER);
 }
 
 static void
@@ -1481,7 +1472,7 @@ link_elf_each_function_name(linker_file_t file,
 	elf_file_t ef = (elf_file_t)file;
 	const Elf_Sym *symp;
 	int i, error;
-	
+
 	/* Exhaustive search */
 	for (i = 0, symp = ef->ddbsymtab; i < ef->ddbsymcnt; i++, symp++) {
 		if (symp->st_value != 0 &&
@@ -1652,7 +1643,7 @@ link_elf_symtab_get(linker_file_t lf, const Elf_Sym **symtab)
 
 	return (ef->ddbsymcnt);
 }
-    
+
 static long
 link_elf_strtab_get(linker_file_t lf, caddr_t *strtab)
 {

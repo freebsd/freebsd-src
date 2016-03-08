@@ -546,7 +546,7 @@ rt305x_gpio_detach(device_t dev)
 #ifdef notyet
 static struct resource *
 rt305x_gpio_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct obio_softc		*sc = device_get_softc(bus);
 	struct resource			*rv;

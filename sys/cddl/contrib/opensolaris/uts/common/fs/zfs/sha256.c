@@ -28,7 +28,7 @@
 #include <sys/zfs_context.h>
 #include <sys/zio.h>
 #ifdef _KERNEL
-#include <crypto/sha2/sha2.h>
+#include <crypto/sha2/sha256.h>
 #else
 #include <sha256.h>
 #endif

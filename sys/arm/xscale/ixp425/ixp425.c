@@ -496,7 +496,7 @@ getvbase(uint32_t hwbase, uint32_t size, uint32_t *vbase)
 
 static struct resource *
 ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ixp425_softc *sc = device_get_softc(dev);
 	const struct hwvtrans *vtrans;

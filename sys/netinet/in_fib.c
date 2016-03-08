@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/route.h>
+#include <net/route_var.h>
 #include <net/vnet.h>
 
 #ifdef RADIX_MPATH
@@ -97,7 +98,10 @@ fib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
 	struct sockaddr_in *gw;
 	struct in_ifaddr *ia;
 
-	pnh4->nh_ifp = rte->rt_ifa->ifa_ifp;
+	if ((flags & NHR_IFAIF) != 0)
+		pnh4->nh_ifp = rte->rt_ifa->ifa_ifp;
+	else
+		pnh4->nh_ifp = rte->rt_ifp;
 	pnh4->nh_mtu = min(rte->rt_mtu, rte->rt_ifp->if_mtu);
 	if (rte->rt_flags & RTF_GATEWAY) {
 		gw = (struct sockaddr_in *)rte->rt_gateway;
@@ -130,7 +134,7 @@ int
 fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flags,
     uint32_t flowid, struct nhop4_basic *pnh4)
 {
-	struct radix_node_head *rh;
+	struct rib_head *rh;
 	struct radix_node *rn;
 	struct sockaddr_in sin;
 	struct rtentry *rte;
@@ -145,19 +149,19 @@ fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flags,
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_addr = dst;
 
-	RADIX_NODE_HEAD_RLOCK(rh);
-	rn = rh->rnh_matchaddr((void *)&sin, rh);
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
 			fib4_rte_to_nh_basic(rte, dst, flags, pnh4);
-			RADIX_NODE_HEAD_RUNLOCK(rh);
+			RIB_RUNLOCK(rh);
 
 			return (0);
 		}
 	}
-	RADIX_NODE_HEAD_RUNLOCK(rh);
+	RIB_RUNLOCK(rh);
 
 	return (ENOENT);
 }
@@ -175,10 +179,10 @@ fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flags,
  * - howewer mtu from "transmit" interface will be returned.
  */
 int
-fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
-    uint32_t flags, struct nhop4_extended *pnh4)
+fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flags,
+    uint32_t flowid, struct nhop4_extended *pnh4)
 {
-	struct radix_node_head *rh;
+	struct rib_head *rh;
 	struct radix_node *rn;
 	struct sockaddr_in sin;
 	struct rtentry *rte;
@@ -193,22 +197,29 @@ fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_addr = dst;
 
-	RADIX_NODE_HEAD_RLOCK(rh);
-	rn = rh->rnh_matchaddr((void *)&sin, rh);
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rte = RNTORT(rn);
+#ifdef RADIX_MPATH
+		rte = rt_mpath_select(rte, flowid);
+		if (rte == NULL) {
+			RIB_RUNLOCK(rh);
+			return (ENOENT);
+		}
+#endif
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
 			fib4_rte_to_nh_extended(rte, dst, flags, pnh4);
 			if ((flags & NHR_REF) != 0) {
 				/* TODO: lwref on egress ifp's ? */
 			}
-			RADIX_NODE_HEAD_RUNLOCK(rh);
+			RIB_RUNLOCK(rh);
 
 			return (0);
 		}
 	}
-	RADIX_NODE_HEAD_RUNLOCK(rh);
+	RIB_RUNLOCK(rh);
 
 	return (ENOENT);
 }

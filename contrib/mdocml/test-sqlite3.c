@@ -1,4 +1,4 @@
-/*	$Id: test-sqlite3.c,v 1.1 2014/08/16 19:00:01 schwarze Exp $	*/
+/*	$Id: test-sqlite3.c,v 1.2 2015/10/06 18:32:20 schwarze Exp $	*/
 /*
  * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -29,19 +29,19 @@ main(void)
 	    NULL) != SQLITE_OK) {
 		perror("test.db");
 		fprintf(stderr, "sqlite3_open_v2: %s", sqlite3_errmsg(db));
-		return(1);
+		return 1;
 	}
 	unlink("test.db");
 
 	if (sqlite3_exec(db, "PRAGMA foreign_keys = ON",
 	    NULL, NULL, NULL) != SQLITE_OK) {
 		fprintf(stderr, "sqlite3_exec: %s", sqlite3_errmsg(db));
-		return(1);
+		return 1;
 	}
 
 	if (sqlite3_close(db) != SQLITE_OK) {
 		fprintf(stderr, "sqlite3_close: %s", sqlite3_errmsg(db));
-		return(1);
+		return 1;
 	}
-	return(0);
+	return 0;
 }

@@ -26,6 +26,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_wlan.h"
+#include "opt_urtwn.h"
 
 #include <sys/param.h>
 #include <sys/sockio.h>
@@ -75,18 +76,35 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_device.h>
 #include "usbdevs.h"
 
-#define USB_DEBUG_VAR urtwn_debug
 #include <dev/usb/usb_debug.h>
 
 #include <dev/usb/wlan/if_urtwnreg.h>
 #include <dev/usb/wlan/if_urtwnvar.h>
 
 #ifdef USB_DEBUG
-static int urtwn_debug = 0;
+enum {
+	URTWN_DEBUG_XMIT	= 0x00000001,	/* basic xmit operation */
+	URTWN_DEBUG_RECV	= 0x00000002,	/* basic recv operation */
+	URTWN_DEBUG_STATE	= 0x00000004,	/* 802.11 state transitions */
+	URTWN_DEBUG_RA		= 0x00000008,	/* f/w rate adaptation setup */
+	URTWN_DEBUG_USB		= 0x00000010,	/* usb requests */
+	URTWN_DEBUG_FIRMWARE	= 0x00000020,	/* firmware(9) loading debug */
+	URTWN_DEBUG_BEACON	= 0x00000040,	/* beacon handling */
+	URTWN_DEBUG_INTR	= 0x00000080,	/* ISR */
+	URTWN_DEBUG_TEMP	= 0x00000100,	/* temperature calibration */
+	URTWN_DEBUG_ROM		= 0x00000200,	/* various ROM info */
+	URTWN_DEBUG_KEY		= 0x00000400,	/* crypto keys management */
+	URTWN_DEBUG_TXPWR	= 0x00000800,	/* dump Tx power values */
+	URTWN_DEBUG_ANY		= 0xffffffff
+};
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, urtwn, CTLFLAG_RW, 0, "USB urtwn");
-SYSCTL_INT(_hw_usb_urtwn, OID_AUTO, debug, CTLFLAG_RWTUN, &urtwn_debug, 0,
-    "Debug level");
+#define URTWN_DPRINTF(_sc, _m, ...) do {			\
+	if ((_sc)->sc_debug & (_m))				\
+		device_printf((_sc)->sc_dev, __VA_ARGS__);	\
+} while(0)
+
+#else
+#define URTWN_DPRINTF(_sc, _m, ...)	do { (void) sc; } while (0)
 #endif
 
 #define	IEEE80211_HAS_ADDR4(wh)	IEEE80211_IS_DSTODS(wh)
@@ -158,6 +176,7 @@ static const STRUCT_USB_HOST_ID urtwn_devs[] = {
 	URTWN_DEV(TRENDNET,	RTL8192CU),
 	URTWN_DEV(ZYXEL,	RTL8192CU),
 	/* URTWN_RTL8188E */
+	URTWN_RTL8188E_DEV(ABOCOM,	RTL8188EU),
 	URTWN_RTL8188E_DEV(DLINK,	DWA123D1),
 	URTWN_RTL8188E_DEV(DLINK,	DWA125D1),
 	URTWN_RTL8188E_DEV(ELECOM,	WDC150SU2M),
@@ -174,7 +193,8 @@ static device_detach_t	urtwn_detach;
 static usb_callback_t   urtwn_bulk_tx_callback;
 static usb_callback_t	urtwn_bulk_rx_callback;
 
-static void		urtwn_drain_mbufq(struct urtwn_softc *sc);
+static void		urtwn_sysctlattach(struct urtwn_softc *);
+static void		urtwn_drain_mbufq(struct urtwn_softc *);
 static usb_error_t	urtwn_do_request(struct urtwn_softc *,
 			    struct usb_device_request *, void *);
 static struct ieee80211vap *urtwn_vap_create(struct ieee80211com *,
@@ -228,7 +248,7 @@ static int		urtwn_llt_write(struct urtwn_softc *, uint32_t,
 static int		urtwn_efuse_read_next(struct urtwn_softc *, uint8_t *);
 static int		urtwn_efuse_read_data(struct urtwn_softc *, uint8_t *,
 			    uint8_t, uint8_t);
-#ifdef URTWN_DEBUG
+#ifdef USB_DEBUG
 static void		urtwn_dump_rom_contents(struct urtwn_softc *,
 			    uint8_t *, uint16_t);
 #endif
@@ -268,6 +288,9 @@ static void		urtwn_ibss_recv_mgmt(struct ieee80211_node *,
 			    const struct ieee80211_rx_stats *, int, int);
 static int		urtwn_newstate(struct ieee80211vap *,
 			    enum ieee80211_state, int);
+static void		urtwn_calib_to(void *);
+static void		urtwn_calib_cb(struct urtwn_softc *,
+			    union sec_param *);
 static void		urtwn_watchdog(void *);
 static void		urtwn_update_avgrssi(struct urtwn_softc *, int, int8_t);
 static int8_t		urtwn_get_rssi(struct urtwn_softc *, int, void *);
@@ -286,12 +309,16 @@ static void		urtwn_start(struct urtwn_softc *);
 static void		urtwn_parent(struct ieee80211com *);
 static int		urtwn_r92c_power_on(struct urtwn_softc *);
 static int		urtwn_r88e_power_on(struct urtwn_softc *);
+static void		urtwn_r92c_power_off(struct urtwn_softc *);
+static void		urtwn_r88e_power_off(struct urtwn_softc *);
 static int		urtwn_llt_init(struct urtwn_softc *);
+#ifndef URTWN_WITHOUT_UCODE
 static void		urtwn_fw_reset(struct urtwn_softc *);
 static void		urtwn_r88e_fw_reset(struct urtwn_softc *);
 static int		urtwn_fw_loadpage(struct urtwn_softc *, int,
 			    const uint8_t *, int);
 static int		urtwn_load_firmware(struct urtwn_softc *);
+#endif
 static int		urtwn_dma_init(struct urtwn_softc *);
 static int		urtwn_mac_init(struct urtwn_softc *);
 static void		urtwn_bb_init(struct urtwn_softc *);
@@ -319,6 +346,10 @@ static void		urtwn_scan_start(struct ieee80211com *);
 static void		urtwn_scan_end(struct ieee80211com *);
 static void		urtwn_set_channel(struct ieee80211com *);
 static int		urtwn_wme_update(struct ieee80211com *);
+static void		urtwn_update_slot(struct ieee80211com *);
+static void		urtwn_update_slot_cb(struct urtwn_softc *,
+			    union sec_param *);
+static void		urtwn_update_aifs(struct urtwn_softc *, uint8_t);
 static void		urtwn_set_promisc(struct urtwn_softc *);
 static void		urtwn_update_promisc(struct ieee80211com *);
 static void		urtwn_update_mcast(struct ieee80211com *);
@@ -331,6 +362,7 @@ static void		urtwn_set_chan(struct urtwn_softc *,
 			    struct ieee80211_channel *);
 static void		urtwn_iq_calib(struct urtwn_softc *);
 static void		urtwn_lc_calib(struct urtwn_softc *);
+static void		urtwn_temp_calib(struct urtwn_softc *);
 static int		urtwn_init(struct urtwn_softc *);
 static void		urtwn_stop(struct urtwn_softc *);
 static void		urtwn_abort_xfers(struct urtwn_softc *);
@@ -439,7 +471,7 @@ urtwn_attach(device_t self)
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct urtwn_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t bands;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
 	int error;
 
 	device_set_usb_desc(self);
@@ -448,10 +480,18 @@ urtwn_attach(device_t self)
 	if (USB_GET_DRIVER_INFO(uaa) == URTWN_RTL8188E)
 		sc->chip |= URTWN_CHIP_88E;
 
+#ifdef USB_DEBUG
+	int debug;
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev), "debug", &debug) == 0)
+		sc->sc_debug = debug;
+#endif
+
 	mtx_init(&sc->sc_mtx, device_get_nameunit(self),
 	    MTX_NETWORK_LOCK, MTX_DEF);
 	URTWN_CMDQ_LOCK_INIT(sc);
 	URTWN_NT_LOCK_INIT(sc);
+	callout_init(&sc->sc_calib_to, 0);
 	callout_init(&sc->sc_watchdog_ch, 0);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
 
@@ -525,10 +565,10 @@ urtwn_attach(device_t self)
 	    IEEE80211_CRYPTO_TKIP |
 	    IEEE80211_CRYPTO_AES_CCM;
 
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
-	ieee80211_init_channels(ic, NULL, &bands);
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
 	ic->ic_raw_xmit = urtwn_raw_xmit;
@@ -540,6 +580,7 @@ urtwn_attach(device_t self)
 	ic->ic_vap_create = urtwn_vap_create;
 	ic->ic_vap_delete = urtwn_vap_delete;
 	ic->ic_wme.wme_update = urtwn_wme_update;
+	ic->ic_updateslot = urtwn_update_slot;
 	ic->ic_update_promisc = urtwn_update_promisc;
 	ic->ic_update_mcast = urtwn_update_mcast;
 	if (sc->chip & URTWN_CHIP_88E) {
@@ -556,6 +597,8 @@ urtwn_attach(device_t self)
 
 	TASK_INIT(&sc->cmdq_task, 0, urtwn_cmdq_cb, sc);
 
+	urtwn_sysctlattach(sc);
+
 	if (bootverbose)
 		ieee80211_announce(ic);
 
@@ -564,6 +607,19 @@ urtwn_attach(device_t self)
 detach:
 	urtwn_detach(self);
 	return (ENXIO);			/* failure */
+}
+
+static void
+urtwn_sysctlattach(struct urtwn_softc *sc)
+{
+#ifdef USB_DEBUG
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
+
+	SYSCTL_ADD_U32(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "debug", CTLFLAG_RW, &sc->sc_debug, sc->sc_debug,
+	    "control debugging printfs");
+#endif
 }
 
 static int
@@ -581,6 +637,7 @@ urtwn_detach(device_t self)
 	urtwn_stop(sc);
 
 	callout_drain(&sc->sc_watchdog_ch);
+	callout_drain(&sc->sc_calib_to);
 
 	/* stop all USB transfers */
 	usbd_transfer_unsetup(sc->sc_xfer, URTWN_N_TRANSFER);
@@ -646,8 +703,9 @@ urtwn_do_request(struct urtwn_softc *sc, struct usb_device_request *req,
 		if (err == 0)
 			break;
 
-		DPRINTFN(1, "Control request failed, %s (retrying)\n",
-		    usbd_errstr(err));
+		URTWN_DPRINTF(sc, URTWN_DEBUG_USB,
+		    "%s: control request failed, %s (retries left: %d)\n",
+		    __func__, usbd_errstr(err), ntries);
 		usb_pause_mtx(&sc->sc_mtx, hz / 100);
 	}
 	return (err);
@@ -741,14 +799,16 @@ urtwn_rx_copy_to_mbuf(struct urtwn_softc *sc, struct r92c_rx_stat *stat,
 		 * This should not happen since we setup our Rx filter
 		 * to not receive these frames.
 		 */
-		DPRINTFN(6, "RX flags error (%s)\n",
+		URTWN_DPRINTF(sc, URTWN_DEBUG_RECV,
+		    "%s: RX flags error (%s)\n", __func__,
 		    rxdw0 & R92C_RXDW0_CRCERR ? "CRC" : "ICV");
 		goto fail;
 	}
 
 	pktlen = MS(rxdw0, R92C_RXDW0_PKTLEN);
 	if (pktlen < sizeof(struct ieee80211_frame_ack)) {
-		DPRINTFN(6, "frame too short: %d\n", pktlen);
+		URTWN_DPRINTF(sc, URTWN_DEBUG_RECV,
+		    "%s: frame is too short: %d\n", __func__, pktlen);
 		goto fail;
 	}
 
@@ -805,7 +865,9 @@ urtwn_report_intr(struct usb_xfer *xfer, struct urtwn_data *data)
 			urtwn_r88e_ratectl_tx_complete(sc, &stat[1]);
 			break;
 		default:
-			DPRINTFN(7, "case %d was not handled\n", report_sel);
+			URTWN_DPRINTF(sc, URTWN_DEBUG_INTR,
+			    "%s: case %d was not handled\n", __func__,
+			    report_sel);
 			break;
 		}
 	} else
@@ -825,7 +887,8 @@ urtwn_rxeof(struct urtwn_softc *sc, uint8_t *buf, int len)
 	/* Get the number of encapsulated frames. */
 	stat = (struct r92c_rx_stat *)buf;
 	npkts = MS(le32toh(stat->rxdw2), R92C_RXDW2_PKTCNT);
-	DPRINTFN(6, "Rx %d frames in one chunk\n", npkts);
+	URTWN_DPRINTF(sc, URTWN_DEBUG_RECV,
+	    "%s: Rx %d frames in one chunk\n", __func__, npkts);
 
 	/* Process all of them. */
 	while (npkts-- > 0) {
@@ -880,6 +943,10 @@ urtwn_r88e_ratectl_tx_complete(struct urtwn_softc *sc, void *arg)
 	ni = sc->node_list[macid];
 	if (ni != NULL) {
 		vap = ni->ni_vap;
+		URTWN_DPRINTF(sc, URTWN_DEBUG_INTR, "%s: frame for macid %d was"
+		    "%s sent (%d retries)\n", __func__, macid,
+		    (rpt->rptb1 & R88E_RPTB1_PKT_OK) ? "" : " not",
+		    ntries);
 
 		if (rpt->rptb1 & R88E_RPTB1_PKT_OK) {
 			ieee80211_ratectl_tx_complete(vap, ni,
@@ -888,8 +955,10 @@ urtwn_r88e_ratectl_tx_complete(struct urtwn_softc *sc, void *arg)
 			ieee80211_ratectl_tx_complete(vap, ni,
 			    IEEE80211_RATECTL_TX_FAILURE, &ntries, NULL);
 		}
-	} else
-		DPRINTFN(8, "macid %d, ni is NULL\n", macid);
+	} else {
+		URTWN_DPRINTF(sc, URTWN_DEBUG_INTR, "%s: macid %d, ni is NULL\n",
+		    __func__, macid);
+	}
 	URTWN_NT_UNLOCK(sc);
 }
 
@@ -1172,7 +1241,8 @@ urtwn_bulk_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 tr_setup:
 		data = STAILQ_FIRST(&sc->sc_tx_pending);
 		if (data == NULL) {
-			DPRINTF("%s: empty pending queue\n", __func__);
+			URTWN_DPRINTF(sc, URTWN_DEBUG_XMIT,
+			    "%s: empty pending queue\n", __func__);
 			goto finish;
 		}
 		STAILQ_REMOVE_HEAD(&sc->sc_tx_pending, next);
@@ -1205,8 +1275,10 @@ _urtwn_getbuf(struct urtwn_softc *sc)
 	bf = STAILQ_FIRST(&sc->sc_tx_inactive);
 	if (bf != NULL)
 		STAILQ_REMOVE_HEAD(&sc->sc_tx_inactive, next);
-	else
-		DPRINTF("%s: %s\n", __func__, "out of xmit buffers");
+	else {
+		URTWN_DPRINTF(sc, URTWN_DEBUG_XMIT,
+		    "%s: out of xmit buffers\n", __func__);
+	}
 	return (bf);
 }
 
@@ -1218,8 +1290,10 @@ urtwn_getbuf(struct urtwn_softc *sc)
 	URTWN_ASSERT_LOCKED(sc);
 
 	bf = _urtwn_getbuf(sc);
-	if (bf == NULL)
-		DPRINTF("%s: stop queue\n", __func__);
+	if (bf == NULL) {
+		URTWN_DPRINTF(sc, URTWN_DEBUG_XMIT, "%s: stop queue\n",
+		    __func__);
+	}
 	return (bf);
 }
 
@@ -1307,6 +1381,13 @@ urtwn_fw_cmd(struct urtwn_softc *sc, uint8_t id, const void *buf, int len)
 	struct r92c_fw_cmd cmd;
 	usb_error_t error;
 	int ntries;
+
+	if (!(sc->sc_flags & URTWN_FW_LOADED)) {
+		URTWN_DPRINTF(sc, URTWN_DEBUG_FIRMWARE, "%s: firmware "
+		    "was not loaded; command (id %d) will be discarded\n",
+		    __func__, id);
+		return (0);
+	}
 
 	/* Wait for current FW box to be empty. */
 	for (ntries = 0; ntries < 100; ntries++) {
@@ -1524,20 +1605,22 @@ urtwn_efuse_read_data(struct urtwn_softc *sc, uint8_t *rom, uint8_t off,
 		error = urtwn_efuse_read_next(sc, &reg);
 		if (error != 0)
 			return (error);
-		DPRINTF("rom[0x%03X] == 0x%02X\n", off * 8 + i * 2, reg);
+		URTWN_DPRINTF(sc, URTWN_DEBUG_ROM, "rom[0x%03X] == 0x%02X\n",
+		    off * 8 + i * 2, reg);
 		rom[off * 8 + i * 2 + 0] = reg;
 
 		error = urtwn_efuse_read_next(sc, &reg);
 		if (error != 0)
 			return (error);
-		DPRINTF("rom[0x%03X] == 0x%02X\n", off * 8 + i * 2 + 1, reg);
+		URTWN_DPRINTF(sc, URTWN_DEBUG_ROM, "rom[0x%03X] == 0x%02X\n",
+		    off * 8 + i * 2 + 1, reg);
 		rom[off * 8 + i * 2 + 1] = reg;
 	}
 
 	return (0);
 }
 
-#ifdef URTWN_DEBUG
+#ifdef USB_DEBUG
 static void
 urtwn_dump_rom_contents(struct urtwn_softc *sc, uint8_t *rom, uint16_t size)
 {
@@ -1594,8 +1677,8 @@ urtwn_efuse_read(struct urtwn_softc *sc, uint8_t *rom, uint16_t size)
 
 end:
 
-#ifdef URTWN_DEBUG
-	if (urtwn_debug >= 2)
+#ifdef USB_DEBUG
+	if (sc->sc_debug & URTWN_DEBUG_ROM)
 		urtwn_dump_rom_contents(sc, rom, size);
 #endif
 
@@ -1690,16 +1773,19 @@ urtwn_read_rom(struct urtwn_softc *sc)
 	error = urtwn_efuse_read_next(sc, &sc->pa_setting);
 	if (error != 0)
 		return (error);
-	DPRINTF("PA setting=0x%x\n", sc->pa_setting);
+	URTWN_DPRINTF(sc, URTWN_DEBUG_ROM, "%s: PA setting=0x%x\n", __func__,
+	    sc->pa_setting);
 
 	sc->board_type = MS(rom->rf_opt1, R92C_ROM_RF1_BOARD_TYPE);
 
 	sc->regulatory = MS(rom->rf_opt1, R92C_ROM_RF1_REGULATORY);
-	DPRINTF("regulatory type=%d\n", sc->regulatory);
+	URTWN_DPRINTF(sc, URTWN_DEBUG_ROM, "%s: regulatory type=%d\n",
+	    __func__, sc->regulatory);
 	IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, rom->macaddr);
 
 	sc->sc_rf_write = urtwn_r92c_rf_write;
 	sc->sc_power_on = urtwn_r92c_power_on;
+	sc->sc_power_off = urtwn_r92c_power_off;
 
 	return (0);
 }
@@ -1707,30 +1793,27 @@ urtwn_read_rom(struct urtwn_softc *sc)
 static int
 urtwn_r88e_read_rom(struct urtwn_softc *sc)
 {
-	uint8_t *rom = sc->rom.r88e_rom;
-	uint16_t addr;
-	int error, i;
+	struct r88e_rom *rom = &sc->rom.r88e_rom;
+	int error;
 
-	error = urtwn_efuse_read(sc, rom, sizeof(sc->rom.r88e_rom));
+	error = urtwn_efuse_read(sc, (uint8_t *)rom, sizeof(sc->rom.r88e_rom));
 	if (error != 0)
 		return (error);
 
-	addr = 0x10;
-	for (i = 0; i < 6; i++)
-		sc->cck_tx_pwr[i] = rom[addr++];
-	for (i = 0; i < 5; i++)
-		sc->ht40_tx_pwr[i] = rom[addr++];
-	sc->bw20_tx_pwr_diff = (rom[addr] & 0xf0) >> 4;
+	sc->bw20_tx_pwr_diff = (rom->tx_pwr_diff >> 4);
 	if (sc->bw20_tx_pwr_diff & 0x08)
 		sc->bw20_tx_pwr_diff |= 0xf0;
-	sc->ofdm_tx_pwr_diff = (rom[addr] & 0xf);
+	sc->ofdm_tx_pwr_diff = (rom->tx_pwr_diff & 0xf);
 	if (sc->ofdm_tx_pwr_diff & 0x08)
 		sc->ofdm_tx_pwr_diff |= 0xf0;
-	sc->regulatory = MS(rom[0xc1], R92C_ROM_RF1_REGULATORY);
-	IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, &rom[0xd7]);
+	sc->regulatory = MS(rom->rf_board_opt, R92C_ROM_RF1_REGULATORY);
+	URTWN_DPRINTF(sc, URTWN_DEBUG_ROM, "%s: regulatory type %d\n",
+	    __func__,sc->regulatory);
+	IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, rom->macaddr);
 
 	sc->sc_rf_write = urtwn_r88e_rf_write;
 	sc->sc_power_on = urtwn_r88e_power_on;
+	sc->sc_power_off = urtwn_r88e_power_off;
 
 	return (0);
 }
@@ -1777,7 +1860,8 @@ urtwn_ra_init(struct urtwn_softc *sc)
 		mode = R92C_RAID_11B;
 	else
 		mode = R92C_RAID_11BG;
-	DPRINTF("mode=0x%x rates=0x%08x, basicrates=0x%08x\n",
+	URTWN_DPRINTF(sc, URTWN_DEBUG_RA,
+	    "%s: mode 0x%x, rates 0x%08x, basicrates 0x%08x\n", __func__,
 	    mode, rates, basicrates);
 
 	/* Set rates mask for group addressed frames. */
@@ -1791,7 +1875,8 @@ urtwn_ra_init(struct urtwn_softc *sc)
 		return (error);
 	}
 	/* Set initial MRR rate. */
-	DPRINTF("maxbasicrate=%d\n", maxbasicrate);
+	URTWN_DPRINTF(sc, URTWN_DEBUG_RA, "%s: maxbasicrate %d\n", __func__,
+	    maxbasicrate);
 	urtwn_write_1(sc, R92C_INIDATA_RATE_SEL(URTWN_MACID_BC),
 	    maxbasicrate);
 
@@ -1805,7 +1890,8 @@ urtwn_ra_init(struct urtwn_softc *sc)
 		return (error);
 	}
 	/* Set initial MRR rate. */
-	DPRINTF("maxrate=%d\n", maxrate);
+	URTWN_DPRINTF(sc, URTWN_DEBUG_RA, "%s: maxrate %d\n", __func__,
+	    maxrate);
 	urtwn_write_1(sc, R92C_INIDATA_RATE_SEL(URTWN_MACID_BSS),
 	    maxrate);
 
@@ -1871,6 +1957,10 @@ urtwn_setup_beacon(struct urtwn_softc *sc, struct ieee80211_node *ni)
 	/* XXX bcnq stuck workaround */
 	if ((error = urtwn_tx_beacon(sc, uvp)) != 0)
 		return (error);
+
+	URTWN_DPRINTF(sc, URTWN_DEBUG_BEACON, "%s: beacon was %srecognized\n",
+	    __func__, urtwn_read_1(sc, R92C_TDECTRL + 2) &
+	    (R92C_TDECTRL_BCN_VALID >> 16) ? "" : "not ");
 
 	return (0);
 }
@@ -2004,9 +2094,11 @@ urtwn_key_set_cb(struct urtwn_softc *sc, union sec_param *data)
 		return;
 	}
 
-	DPRINTFN(9, "keyix %d, keyid %d, algo %d/%d, flags %04X, len %d, "
-	    "macaddr %s\n", k->wk_keyix, keyid, k->wk_cipher->ic_cipher, algo,
-	    k->wk_flags, k->wk_keylen, ether_sprintf(k->wk_macaddr));
+	URTWN_DPRINTF(sc, URTWN_DEBUG_KEY,
+	    "%s: keyix %d, keyid %d, algo %d/%d, flags %04X, len %d, "
+	    "macaddr %s\n", __func__, k->wk_keyix, keyid,
+	    k->wk_cipher->ic_cipher, algo, k->wk_flags, k->wk_keylen,
+	    ether_sprintf(k->wk_macaddr));
 
 	/* Write key. */
 	for (i = 0; i < 4; i++) {
@@ -2041,7 +2133,8 @@ urtwn_key_del_cb(struct urtwn_softc *sc, union sec_param *data)
 	struct ieee80211_key *k = &data->key;
 	int i;
 
-	DPRINTFN(9, "keyix %d, flags %04X, macaddr %s\n", 
+	URTWN_DPRINTF(sc, URTWN_DEBUG_KEY,
+	    "%s: keyix %d, flags %04X, macaddr %s\n", __func__,
 	    k->wk_keyix, k->wk_flags, ether_sprintf(k->wk_macaddr));
 
 	urtwn_cam_write(sc, R92C_CAM_CTL0(k->wk_keyix), 0);
@@ -2233,14 +2326,17 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	int error = 0;
 
 	ostate = vap->iv_state;
-	DPRINTF("%s -> %s\n", ieee80211_state_name[ostate],
-	    ieee80211_state_name[nstate]);
+	URTWN_DPRINTF(sc, URTWN_DEBUG_STATE, "%s -> %s\n",
+	    ieee80211_state_name[ostate], ieee80211_state_name[nstate]);
 
 	IEEE80211_UNLOCK(ic);
 	URTWN_LOCK(sc);
 	callout_stop(&sc->sc_watchdog_ch);
 
 	if (ostate == IEEE80211_S_RUN) {
+		/* Stop calibration. */
+		callout_stop(&sc->sc_calib_to);
+
 		/* Turn link LED off. */
 		urtwn_set_led(sc, URTWN_LED_LINK, 0);
 
@@ -2277,7 +2373,7 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	case IEEE80211_S_SCAN:
 		/* Pause AC Tx queues. */
 		urtwn_write_1(sc, R92C_TXPAUSE,
-		    urtwn_read_1(sc, R92C_TXPAUSE) | 0x0f);
+		    urtwn_read_1(sc, R92C_TXPAUSE) | R92C_TX_QUEUE_AC);
 		break;
 	case IEEE80211_S_AUTH:
 		urtwn_set_chan(sc, ic->ic_curchan, NULL);
@@ -2378,8 +2474,10 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		sc->avg_pwdb = -1;	/* Reset average RSSI. */
 		/* Reset temperature calibration state machine. */
-		sc->thcal_state = 0;
+		sc->sc_flags &= ~URTWN_TEMP_MEASURED;
 		sc->thcal_lctemp = 0;
+		/* Start periodic calibration. */
+		callout_reset(&sc->sc_calib_to, 2*hz, urtwn_calib_to, sc);
 
 end_run:
 		ieee80211_free_node(ni);
@@ -2391,6 +2489,25 @@ end_run:
 	URTWN_UNLOCK(sc);
 	IEEE80211_LOCK(ic);
 	return (error != 0 ? error : uvp->newstate(vap, nstate, arg));
+}
+
+static void
+urtwn_calib_to(void *arg)
+{
+	struct urtwn_softc *sc = arg;
+
+	/* Do it in a process context. */
+	urtwn_cmd_sleepable(sc, NULL, 0, urtwn_calib_cb);
+}
+
+static void
+urtwn_calib_cb(struct urtwn_softc *sc, union sec_param *data)
+{
+	/* Do temperature compensation. */
+	urtwn_temp_calib(sc);
+
+	if ((urtwn_read_1(sc, R92C_MSR) & R92C_MSR_MASK) != R92C_MSR_NOLINK)
+		callout_reset(&sc->sc_calib_to, 2*hz, urtwn_calib_to, sc);
 }
 
 static void
@@ -2442,7 +2559,8 @@ urtwn_update_avgrssi(struct urtwn_softc *sc, int rate, int8_t rssi)
 		sc->avg_pwdb = ((sc->avg_pwdb * 19 + pwdb) / 20) + 1;
 	else
 		sc->avg_pwdb = ((sc->avg_pwdb * 19 + pwdb) / 20);
-	DPRINTFN(4, "PWDB=%d EMA=%d\n", pwdb, sc->avg_pwdb);
+	URTWN_DPRINTF(sc, URTWN_DEBUG_RA, "%s: PWDB %d, EMA %d\n", __func__,
+	    pwdb, sc->avg_pwdb);
 }
 
 static int8_t
@@ -3122,7 +3240,7 @@ urtwn_r88e_power_on(struct urtwn_softc *sc)
 
 	/* Enable LDO normal mode. */
 	error = urtwn_write_1(sc, R92C_LPLDO_CTRL,
-	    urtwn_read_1(sc, R92C_LPLDO_CTRL) & ~0x10);
+	    urtwn_read_1(sc, R92C_LPLDO_CTRL) & ~R92C_LPLDO_CTRL_SLEEP);
 	if (error != USB_ERR_NORMAL_COMPLETION)
 		return (EIO);
 
@@ -3139,6 +3257,269 @@ urtwn_r88e_power_on(struct urtwn_softc *sc)
 		return (EIO);
 
 	return (0);
+}
+
+static __inline void
+urtwn_power_off(struct urtwn_softc *sc)
+{
+
+	return sc->sc_power_off(sc);
+}
+
+static void
+urtwn_r92c_power_off(struct urtwn_softc *sc)
+{
+	uint32_t reg;
+
+	/* Block all Tx queues. */
+	urtwn_write_1(sc, R92C_TXPAUSE, R92C_TX_QUEUE_ALL);
+
+	/* Disable RF */
+	urtwn_rf_write(sc, 0, 0, 0);
+
+	urtwn_write_1(sc, R92C_APSD_CTRL, R92C_APSD_CTRL_OFF);
+
+	/* Reset BB state machine */
+	urtwn_write_1(sc, R92C_SYS_FUNC_EN,
+	    R92C_SYS_FUNC_EN_USBD | R92C_SYS_FUNC_EN_USBA |
+	    R92C_SYS_FUNC_EN_BB_GLB_RST);
+	urtwn_write_1(sc, R92C_SYS_FUNC_EN,
+	    R92C_SYS_FUNC_EN_USBD | R92C_SYS_FUNC_EN_USBA);
+
+	/*
+	 * Reset digital sequence
+	 */
+#ifndef URTWN_WITHOUT_UCODE
+	if (urtwn_read_1(sc, R92C_MCUFWDL) & R92C_MCUFWDL_RDY) {
+		/* Reset MCU ready status */
+		urtwn_write_1(sc, R92C_MCUFWDL, 0);
+
+		/* If firmware in ram code, do reset */
+		urtwn_fw_reset(sc);
+	}
+#endif
+
+	/* Reset MAC and Enable 8051 */
+	urtwn_write_1(sc, R92C_SYS_FUNC_EN + 1,
+	    (R92C_SYS_FUNC_EN_CPUEN |
+	     R92C_SYS_FUNC_EN_ELDR |
+	     R92C_SYS_FUNC_EN_HWPDN) >> 8);
+
+	/* Reset MCU ready status */
+	urtwn_write_1(sc, R92C_MCUFWDL, 0);
+
+	/* Disable MAC clock */
+	urtwn_write_2(sc, R92C_SYS_CLKR,
+	    R92C_SYS_CLKR_ANAD16V_EN |
+	    R92C_SYS_CLKR_ANA8M |
+	    R92C_SYS_CLKR_LOADER_EN | 
+	    R92C_SYS_CLKR_80M_SSC_DIS |
+	    R92C_SYS_CLKR_SYS_EN |
+	    R92C_SYS_CLKR_RING_EN |
+	    0x4000);
+
+	/* Disable AFE PLL */
+	urtwn_write_1(sc, R92C_AFE_PLL_CTRL, 0x80);
+
+	/* Gated AFE DIG_CLOCK */
+	urtwn_write_2(sc, R92C_AFE_XTAL_CTRL, 0x880F);
+
+	/* Isolated digital to PON */
+	urtwn_write_1(sc, R92C_SYS_ISO_CTRL,
+	    R92C_SYS_ISO_CTRL_MD2PP |
+	    R92C_SYS_ISO_CTRL_PA2PCIE |
+	    R92C_SYS_ISO_CTRL_PD2CORE |
+	    R92C_SYS_ISO_CTRL_IP2MAC |
+	    R92C_SYS_ISO_CTRL_DIOP |
+	    R92C_SYS_ISO_CTRL_DIOE);
+
+	/*
+	 * Pull GPIO PIN to balance level and LED control
+	 */
+	/* 1. Disable GPIO[7:0] */
+	urtwn_write_2(sc, R92C_GPIO_IOSEL, 0x0000);
+
+	reg = urtwn_read_4(sc, R92C_GPIO_PIN_CTRL) & ~0x0000ff00;
+	reg |= ((reg << 8) & 0x0000ff00) | 0x00ff0000;
+	urtwn_write_4(sc, R92C_GPIO_PIN_CTRL, reg);
+
+	/* Disable GPIO[10:8] */
+	urtwn_write_1(sc, R92C_MAC_PINMUX_CFG, 0x00);
+
+	reg = urtwn_read_2(sc, R92C_GPIO_IO_SEL) & ~0x00f0;
+	reg |= (((reg & 0x000f) << 4) | 0x0780);
+	urtwn_write_2(sc, R92C_GPIO_IO_SEL, reg);
+
+	/* Disable LED0 & 1 */
+	urtwn_write_2(sc, R92C_LEDCFG0, 0x8080);
+
+	/*
+	 * Reset digital sequence
+	 */
+	/* Disable ELDR clock */
+	urtwn_write_2(sc, R92C_SYS_CLKR,
+	    R92C_SYS_CLKR_ANAD16V_EN |
+	    R92C_SYS_CLKR_ANA8M |
+	    R92C_SYS_CLKR_LOADER_EN |
+	    R92C_SYS_CLKR_80M_SSC_DIS |
+	    R92C_SYS_CLKR_SYS_EN |
+	    R92C_SYS_CLKR_RING_EN |
+	    0x4000);
+
+	/* Isolated ELDR to PON */
+	urtwn_write_1(sc, R92C_SYS_ISO_CTRL + 1,
+	    (R92C_SYS_ISO_CTRL_DIOR |
+	     R92C_SYS_ISO_CTRL_PWC_EV12V) >> 8);
+
+	/*
+	 * Disable analog sequence
+	 */
+	/* Disable A15 power */
+	urtwn_write_1(sc, R92C_LDOA15_CTRL, R92C_LDOA15_CTRL_OBUF);
+	/* Disable digital core power */
+	urtwn_write_1(sc, R92C_LDOV12D_CTRL,
+	    urtwn_read_1(sc, R92C_LDOV12D_CTRL) &
+	      ~R92C_LDOV12D_CTRL_LDV12_EN);
+
+	/* Enter PFM mode */
+	urtwn_write_1(sc, R92C_SPS0_CTRL, 0x23);
+
+	/* Set USB suspend */
+	urtwn_write_2(sc, R92C_APS_FSMCO,
+	    R92C_APS_FSMCO_APDM_HOST |
+	    R92C_APS_FSMCO_AFSM_HSUS |
+	    R92C_APS_FSMCO_PFM_ALDN);
+
+	/* Lock ISO/CLK/Power control register. */
+	urtwn_write_1(sc, R92C_RSV_CTRL, 0x0E);
+}
+
+static void
+urtwn_r88e_power_off(struct urtwn_softc *sc)
+{
+	uint8_t reg;
+	int ntries;
+
+	/* Disable any kind of TX reports. */
+	urtwn_write_1(sc, R88E_TX_RPT_CTRL,
+	    urtwn_read_1(sc, R88E_TX_RPT_CTRL) &
+	      ~(R88E_TX_RPT1_ENA | R88E_TX_RPT2_ENA));
+
+	/* Stop Rx. */
+	urtwn_write_1(sc, R92C_CR, 0);
+
+	/* Move card to Low Power State. */
+	/* Block all Tx queues. */
+	urtwn_write_1(sc, R92C_TXPAUSE, R92C_TX_QUEUE_ALL);
+
+	for (ntries = 0; ntries < 20; ntries++) {
+		/* Should be zero if no packet is transmitting. */
+		if (urtwn_read_4(sc, R88E_SCH_TXCMD) == 0)
+			break;
+
+		urtwn_ms_delay(sc);
+	}
+	if (ntries == 20) {
+		device_printf(sc->sc_dev, "%s: failed to block Tx queues\n",
+		    __func__);
+		return;
+	}
+
+	/* CCK and OFDM are disabled, and clock are gated. */
+	urtwn_write_1(sc, R92C_SYS_FUNC_EN,
+	    urtwn_read_1(sc, R92C_SYS_FUNC_EN) & ~R92C_SYS_FUNC_EN_BBRSTB);
+
+	urtwn_ms_delay(sc);
+
+	/* Reset MAC TRX */
+	urtwn_write_1(sc, R92C_CR,
+	    R92C_CR_HCI_TXDMA_EN | R92C_CR_HCI_RXDMA_EN |
+	    R92C_CR_TXDMA_EN | R92C_CR_RXDMA_EN |
+	    R92C_CR_PROTOCOL_EN | R92C_CR_SCHEDULE_EN);
+
+	/* check if removed later */
+	urtwn_write_1(sc, R92C_CR + 1,
+	    urtwn_read_1(sc, R92C_CR + 1) & ~(R92C_CR_ENSEC >> 8));
+
+	/* Respond TxOK to scheduler */
+	urtwn_write_1(sc, R92C_DUAL_TSF_RST,
+	    urtwn_read_1(sc, R92C_DUAL_TSF_RST) | 0x20);
+
+	/* If firmware in ram code, do reset. */
+#ifndef URTWN_WITHOUT_UCODE
+	if (urtwn_read_1(sc, R92C_MCUFWDL) & R92C_MCUFWDL_RDY)
+		urtwn_r88e_fw_reset(sc);
+#endif
+
+	/* Reset MCU ready status. */
+	urtwn_write_1(sc, R92C_MCUFWDL, 0x00);
+
+	/* Disable 32k. */
+	urtwn_write_1(sc, R88E_32K_CTRL,
+	    urtwn_read_1(sc, R88E_32K_CTRL) & ~0x01);
+
+	/* Move card to Disabled state. */
+	/* Turn off RF. */
+	urtwn_write_1(sc, R92C_RF_CTRL, 0);
+
+	/* LDO Sleep mode. */
+	urtwn_write_1(sc, R92C_LPLDO_CTRL, 
+	    urtwn_read_1(sc, R92C_LPLDO_CTRL) | R92C_LPLDO_CTRL_SLEEP);
+
+	/* Turn off MAC by HW state machine */
+	urtwn_write_1(sc, R92C_APS_FSMCO + 1,
+	    urtwn_read_1(sc, R92C_APS_FSMCO + 1) |
+	    (R92C_APS_FSMCO_APFM_OFF >> 8));
+
+	for (ntries = 0; ntries < 20; ntries++) {
+		/* Wait until it will be disabled. */
+		if ((urtwn_read_1(sc, R92C_APS_FSMCO + 1) &
+		    (R92C_APS_FSMCO_APFM_OFF >> 8)) == 0)
+			break;
+
+		urtwn_ms_delay(sc);
+	}
+	if (ntries == 20) {
+		device_printf(sc->sc_dev, "%s: could not turn off MAC\n",
+		    __func__);
+		return;
+	}
+
+	/* schmit trigger */
+	urtwn_write_1(sc, R92C_AFE_XTAL_CTRL + 2,
+	    urtwn_read_1(sc, R92C_AFE_XTAL_CTRL + 2) | 0x80);
+
+	/* Enable WL suspend. */
+	urtwn_write_1(sc, R92C_APS_FSMCO + 1,
+	    (urtwn_read_1(sc, R92C_APS_FSMCO + 1) & ~0x10) | 0x08);
+
+	/* Enable bandgap mbias in suspend. */
+	urtwn_write_1(sc, R92C_APS_FSMCO + 3, 0);
+
+	/* Clear SIC_EN register. */
+	urtwn_write_1(sc, R92C_GPIO_MUXCFG + 1,
+	    urtwn_read_1(sc, R92C_GPIO_MUXCFG + 1) & ~0x10);
+
+	/* Set USB suspend enable local register */
+	urtwn_write_1(sc, R92C_USB_SUSPEND,
+	    urtwn_read_1(sc, R92C_USB_SUSPEND) | 0x10);
+
+	/* Reset MCU IO Wrapper. */
+	reg = urtwn_read_1(sc, R92C_RSV_CTRL + 1);
+	urtwn_write_1(sc, R92C_RSV_CTRL + 1, reg & ~0x08);
+	urtwn_write_1(sc, R92C_RSV_CTRL + 1, reg | 0x08);
+
+	/* marked as 'For Power Consumption' code. */
+	urtwn_write_1(sc, R92C_GPIO_OUT, urtwn_read_1(sc, R92C_GPIO_IN));
+	urtwn_write_1(sc, R92C_GPIO_IOSEL, 0xff);
+
+	urtwn_write_1(sc, R92C_GPIO_IO_SEL,
+	    urtwn_read_1(sc, R92C_GPIO_IO_SEL) << 4);
+	urtwn_write_1(sc, R92C_GPIO_MOD,
+	    urtwn_read_1(sc, R92C_GPIO_MOD) | 0x0f);
+
+	/* Set LNA, TRSW, EX_PA Pin to output mode. */
+	urtwn_write_4(sc, R88E_BB_PAD_CTRL, 0x00080808);
 }
 
 static int
@@ -3172,6 +3553,7 @@ urtwn_llt_init(struct urtwn_softc *sc)
 	return (error);
 }
 
+#ifndef URTWN_WITHOUT_UCODE
 static void
 urtwn_fw_reset(struct urtwn_softc *sc)
 {
@@ -3275,7 +3657,8 @@ urtwn_load_firmware(struct urtwn_softc *sc)
 	if ((le16toh(hdr->signature) >> 4) == 0x88c ||
 	    (le16toh(hdr->signature) >> 4) == 0x88e ||
 	    (le16toh(hdr->signature) >> 4) == 0x92c) {
-		DPRINTF("FW V%d.%d %02d-%02d %02d:%02d\n",
+		URTWN_DPRINTF(sc, URTWN_DEBUG_FIRMWARE,
+		    "FW V%d.%d %02d-%02d %02d:%02d\n",
 		    le16toh(hdr->version), le16toh(hdr->subversion),
 		    hdr->month, hdr->date, hdr->hour, hdr->minute);
 		ptr += sizeof(*hdr);
@@ -3353,6 +3736,7 @@ fail:
 	firmware_put(fw, FIRMWARE_UNLOAD);
 	return (error);
 }
+#endif
 
 static int
 urtwn_dma_init(struct urtwn_softc *sc)
@@ -3620,7 +4004,7 @@ urtwn_bb_init(struct urtwn_softc *sc)
 		urtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(0), 0x69553420);
 		urtwn_ms_delay(sc);
 
-		crystalcap = sc->rom.r88e_rom[0xb9];
+		crystalcap = sc->rom.r88e_rom.crystalcap;
 		if (crystalcap == 0xff)
 			crystalcap = 0x20;
 		crystalcap &= 0x3f;
@@ -3786,8 +4170,7 @@ urtwn_rxfilter_init(struct urtwn_softc *sc)
 	case IEEE80211_M_HOSTAP:
 		filter &= ~(
 		    R92C_RXFLTMAP_SUBTYPE(IEEE80211_FC0_SUBTYPE_ASSOC_RESP) |
-		    R92C_RXFLTMAP_SUBTYPE(IEEE80211_FC0_SUBTYPE_REASSOC_RESP) |
-		    R92C_RXFLTMAP_SUBTYPE(IEEE80211_FC0_SUBTYPE_BEACON));
+		    R92C_RXFLTMAP_SUBTYPE(IEEE80211_FC0_SUBTYPE_REASSOC_RESP));
 		break;
 	case IEEE80211_M_MONITOR:
 	case IEEE80211_M_IBSS:
@@ -3986,8 +4369,8 @@ urtwn_get_txpower(struct urtwn_softc *sc, int chain,
 		if (power[ridx] > R92C_MAX_TX_PWR)
 			power[ridx] = R92C_MAX_TX_PWR;
 	}
-#ifdef URTWN_DEBUG
-	if (urtwn_debug >= 4) {
+#ifdef USB_DEBUG
+	if (sc->sc_debug & URTWN_DEBUG_TXPWR) {
 		/* Dump per-rate Tx power values. */
 		printf("Tx power for chain %d:\n", chain);
 		for (ridx = URTWN_RIDX_CCK1; ridx < URTWN_RIDX_COUNT; ridx++)
@@ -4002,6 +4385,7 @@ urtwn_r88e_get_txpower(struct urtwn_softc *sc, int chain,
     uint16_t power[URTWN_RIDX_COUNT])
 {
 	struct ieee80211com *ic = &sc->sc_ic;
+	struct r88e_rom *rom = &sc->rom.r88e_rom;
 	uint16_t cckpow, ofdmpow, bw20pow, htpow;
 	const struct urtwn_r88e_txpwr *base;
 	int ridx, chan, group;
@@ -4040,14 +4424,14 @@ urtwn_r88e_get_txpower(struct urtwn_softc *sc, int chain,
 	}
 
 	/* Compute per-CCK rate Tx power. */
-	cckpow = sc->cck_tx_pwr[group];
+	cckpow = rom->cck_tx_pwr[group];
 	for (ridx = URTWN_RIDX_CCK1; ridx <= URTWN_RIDX_CCK11; ridx++) {
 		power[ridx] += cckpow;
 		if (power[ridx] > R92C_MAX_TX_PWR)
 			power[ridx] = R92C_MAX_TX_PWR;
 	}
 
-	htpow = sc->ht40_tx_pwr[group];
+	htpow = rom->ht40_tx_pwr[group];
 
 	/* Compute per-OFDM rate Tx power. */
 	ofdmpow = htpow + sc->ofdm_tx_pwr_diff;
@@ -4196,6 +4580,41 @@ urtwn_wme_update(struct ieee80211com *ic)
 	URTWN_UNLOCK(sc);
 
 	return 0;
+}
+
+static void
+urtwn_update_slot(struct ieee80211com *ic)
+{
+	urtwn_cmd_sleepable(ic->ic_softc, NULL, 0, urtwn_update_slot_cb);
+}
+
+static void
+urtwn_update_slot_cb(struct urtwn_softc *sc, union sec_param *data)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	uint8_t slottime;
+
+	slottime = IEEE80211_GET_SLOTTIME(ic);
+
+	URTWN_DPRINTF(sc, URTWN_DEBUG_ANY, "%s: setting slot time to %uus\n",
+	    __func__, slottime);
+
+	urtwn_write_1(sc, R92C_SLOT, slottime);
+	urtwn_update_aifs(sc, slottime);
+}
+
+static void
+urtwn_update_aifs(struct urtwn_softc *sc, uint8_t slottime)
+{
+	const struct wmeParams *wmep =
+	    sc->sc_ic.ic_wme.wme_chanParams.cap_wmeParams;
+	uint8_t aifs, ac;
+
+	for (ac = WME_AC_BE; ac < WME_NUM_AC; ac++) {
+		/* AIFS[AC] = AIFSN[AC] * aSlotTime + aSIFSTime. */
+		aifs = wmep[ac].wmep_aifsn * slottime + IEEE80211_DUR_SIFS;
+		urtwn_write_1(sc, wme2queue[ac].reg, aifs);
+        }
 }
 
 static void
@@ -4425,7 +4844,7 @@ urtwn_lc_calib(struct urtwn_softc *sc)
 		}
 	} else {
 		/* Block all Tx queues. */
-		urtwn_write_1(sc, R92C_TXPAUSE, 0xff);
+		urtwn_write_1(sc, R92C_TXPAUSE, R92C_TX_QUEUE_ALL);
 	}
 	/* Start calibration. */
 	urtwn_rf_write(sc, 0, R92C_RF_CHNLBW,
@@ -4444,6 +4863,64 @@ urtwn_lc_calib(struct urtwn_softc *sc)
 	} else {
 		/* Unblock all Tx queues. */
 		urtwn_write_1(sc, R92C_TXPAUSE, 0x00);
+	}
+}
+
+static void
+urtwn_temp_calib(struct urtwn_softc *sc)
+{
+	uint8_t temp;
+
+	URTWN_ASSERT_LOCKED(sc);
+
+	if (!(sc->sc_flags & URTWN_TEMP_MEASURED)) {
+		/* Start measuring temperature. */
+		URTWN_DPRINTF(sc, URTWN_DEBUG_TEMP,
+		    "%s: start measuring temperature\n", __func__);
+		if (sc->chip & URTWN_CHIP_88E) {
+			urtwn_rf_write(sc, 0, R88E_RF_T_METER,
+			    R88E_RF_T_METER_START);
+		} else {
+			urtwn_rf_write(sc, 0, R92C_RF_T_METER,
+			    R92C_RF_T_METER_START);
+		}
+		sc->sc_flags |= URTWN_TEMP_MEASURED;
+		return;
+	}
+	sc->sc_flags &= ~URTWN_TEMP_MEASURED;
+
+	/* Read measured temperature. */
+	if (sc->chip & URTWN_CHIP_88E) {
+		temp = MS(urtwn_rf_read(sc, 0, R88E_RF_T_METER),
+		    R88E_RF_T_METER_VAL);
+	} else {
+		temp = MS(urtwn_rf_read(sc, 0, R92C_RF_T_METER),
+		    R92C_RF_T_METER_VAL);
+	}
+	if (temp == 0) {	/* Read failed, skip. */
+		URTWN_DPRINTF(sc, URTWN_DEBUG_TEMP,
+		    "%s: temperature read failed, skipping\n", __func__);
+		return;
+	}
+
+	URTWN_DPRINTF(sc, URTWN_DEBUG_TEMP,
+	    "%s: temperature: previous %u, current %u\n",
+	    __func__, sc->thcal_lctemp, temp);
+
+	/*
+	 * Redo LC calibration if temperature changed significantly since
+	 * last calibration.
+	 */
+	if (sc->thcal_lctemp == 0) {
+		/* First LC calibration is performed in urtwn_init(). */
+		sc->thcal_lctemp = temp;
+	} else if (abs(temp - sc->thcal_lctemp) > 1) {
+		URTWN_DPRINTF(sc, URTWN_DEBUG_TEMP,
+		    "%s: LC calib triggered by temp: %u -> %u\n",
+		    __func__, sc->thcal_lctemp, temp);
+		urtwn_lc_calib(sc);
+		/* Record temperature of last LC calibration. */
+		sc->thcal_lctemp = temp;
 	}
 }
 
@@ -4588,10 +5065,12 @@ urtwn_init(struct urtwn_softc *sc)
 		urtwn_write_1(sc, R92C_BCN_MAX_ERR, 0xff);
 	}
 
+#ifndef URTWN_WITHOUT_UCODE
 	/* Load 8051 microcode. */
 	error = urtwn_load_firmware(sc);
-	if (error != 0)
-		goto fail;
+	if (error == 0)
+		sc->sc_flags |= URTWN_FW_LOADED;
+#endif
 
 	/* Initialize MAC/BB/RF blocks. */
 	error = urtwn_mac_init(sc);
@@ -4640,7 +5119,7 @@ urtwn_init(struct urtwn_softc *sc)
 	ieee80211_runtask(ic, &sc->cmdq_task);
 
 	/* Enable hardware sequence numbering. */
-	urtwn_write_1(sc, R92C_HWSEQ_CTRL, 0xff);
+	urtwn_write_1(sc, R92C_HWSEQ_CTRL, R92C_TX_QUEUE_ALL);
 
 	/* Enable per-packet TX report. */
 	if (sc->chip & URTWN_CHIP_88E) {
@@ -4694,11 +5173,14 @@ urtwn_stop(struct urtwn_softc *sc)
 		return;
 	}
 
-	sc->sc_flags &= ~URTWN_RUNNING;
+	sc->sc_flags &= ~(URTWN_RUNNING | URTWN_FW_LOADED |
+	    URTWN_TEMP_MEASURED);
+	sc->thcal_lctemp = 0;
 	callout_stop(&sc->sc_watchdog_ch);
-	urtwn_abort_xfers(sc);
 
+	urtwn_abort_xfers(sc);
 	urtwn_drain_mbufq(sc);
+	urtwn_power_off(sc);
 	URTWN_UNLOCK(sc);
 }
 
@@ -4792,6 +5274,8 @@ static devclass_t urtwn_devclass;
 DRIVER_MODULE(urtwn, uhub, urtwn_driver, urtwn_devclass, NULL, NULL);
 MODULE_DEPEND(urtwn, usb, 1, 1, 1);
 MODULE_DEPEND(urtwn, wlan, 1, 1, 1);
+#ifndef URTWN_WITHOUT_UCODE
 MODULE_DEPEND(urtwn, firmware, 1, 1, 1);
+#endif
 MODULE_VERSION(urtwn, 1);
 USB_PNP_HOST_INFO(urtwn_devs);

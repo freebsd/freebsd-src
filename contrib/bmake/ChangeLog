@@ -1,3 +1,9 @@
+2015-12-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20151220
+	  Merge with NetBSD make, pick up
+	  o suff.c: re-initialize suffNull when clearing suffixes.
+
 2015-12-01  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (MAKE_VERSION): 20151201

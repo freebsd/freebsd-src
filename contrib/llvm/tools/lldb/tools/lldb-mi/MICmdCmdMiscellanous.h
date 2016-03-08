@@ -34,28 +34,25 @@
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "gdb-exit".
-// Gotchas: None.
-// Authors: Illya Rudkin 04/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdGdbExit : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdGdbExit(void);
+    /* ctor */ CMICmdCmdGdbExit();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdGdbExit(void) override;
+    /* dtor */ ~CMICmdCmdGdbExit() override;
 };
 
 //++ ============================================================================
@@ -63,29 +60,26 @@ class CMICmdCmdGdbExit : public CMICmdBase
 //          *this class implements MI command "list-thread-groups".
 //          This command does not follow the MI documentation exactly.
 //          http://sourceware.org/gdb/onlinedocs/gdb/GDB_002fMI-Miscellaneous-Commands.html#GDB_002fMI-Miscellaneous-Commands
-// Gotchas: None.
-// Authors: Illya Rudkin 06/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdListThreadGroups : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdListThreadGroups(void);
+    /* ctor */ CMICmdCmdListThreadGroups();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdListThreadGroups(void) override;
+    /* dtor */ ~CMICmdCmdListThreadGroups() override;
 
     // Typedefs:
   private:
@@ -106,29 +100,26 @@ class CMICmdCmdListThreadGroups : public CMICmdBase
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "interpreter-exec".
-// Gotchas: None.
-// Authors: Illya Rudkin 16/05/2014.
-// Changes: None.
 //--
 class CMICmdCmdInterpreterExec : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdInterpreterExec(void);
+    /* ctor */ CMICmdCmdInterpreterExec();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdInterpreterExec(void) override;
+    /* dtor */ ~CMICmdCmdInterpreterExec() override;
 
     // Attributes:
   private:
@@ -140,26 +131,23 @@ class CMICmdCmdInterpreterExec : public CMICmdBase
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "inferior-tty-set".
-// Gotchas: None.
-// Authors: Illya Rudkin 22/07/2014.
-// Changes: None.
 //--
 class CMICmdCmdInferiorTtySet : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdInferiorTtySet(void);
+    /* ctor */ CMICmdCmdInferiorTtySet();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdInferiorTtySet(void) override;
+    /* dtor */ ~CMICmdCmdInferiorTtySet() override;
 };

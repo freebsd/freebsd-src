@@ -5,7 +5,18 @@
 
 #include "unity.h"
 
+void setUp(void);
 void test_LoopbackNetNonResolve(void);
+
+
+void
+setUp(void)
+{
+	init_lib();
+
+	return;
+}
+
 
 void
 test_LoopbackNetNonResolve(void) {
@@ -15,6 +26,6 @@ test_LoopbackNetNonResolve(void) {
 	 */
 
 	const u_int32 input = 127*256*256*256 + 1*256 + 1; // 127.0.1.1
-	
+
 	TEST_ASSERT_EQUAL_STRING("127.0.1.1", numtohost(htonl(input)));
 }

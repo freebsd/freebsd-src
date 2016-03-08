@@ -9,11 +9,17 @@
 
 #ifndef liblldb_Timer_h_
 #define liblldb_Timer_h_
-#if defined(__cplusplus)
 
+// C Includes
 #include <stdarg.h>
 #include <stdio.h>
-#include <string>
+
+// C++ Includes
+#include <atomic>
+#include <mutex>
+
+// Other libraries and framework includes
+// Project includes
 #include "lldb/lldb-private.h"
 #include "lldb/Host/TimeValue.h"
 
@@ -34,18 +40,18 @@ namespace lldb_private {
 class Timer
 {
 public:
-    static void
-    Initialize ();
-
     //--------------------------------------------------------------
     /// Default constructor.
     //--------------------------------------------------------------
     Timer(const char *category, const char *format, ...)  __attribute__ ((format (printf, 3, 4)));
 
     //--------------------------------------------------------------
-    /// Desstructor
+    /// Destructor
     //--------------------------------------------------------------
     ~Timer();
+
+    static void
+    Initialize ();
 
     void
     Dump ();
@@ -63,7 +69,6 @@ public:
     ResetCategoryTimes ();
 
 protected:
-
     void
     ChildStarted (const TimeValue& time);
 
@@ -76,17 +81,17 @@ protected:
     uint64_t
     GetTimerElapsedNanoSeconds();
 
-    //--------------------------------------------------------------
-    /// Member variables
-    //--------------------------------------------------------------
     const char *m_category;
     TimeValue m_total_start;
     TimeValue m_timer_start;
     uint64_t m_total_ticks; // Total running time for this timer including when other timers below this are running
     uint64_t m_timer_ticks; // Ticks for this timer that do not include when other timers below this one are running
-    static uint32_t g_depth;
-    static uint32_t g_display_depth;
-    static FILE * g_file;
+
+    static std::atomic<bool> g_quiet;
+    static std::atomic<unsigned> g_display_depth;
+    static std::mutex g_file_mutex;
+    static FILE* g_file;
+
 private:
     Timer();
     DISALLOW_COPY_AND_ASSIGN (Timer);
@@ -99,10 +104,8 @@ public:
         m_start (TimeValue::Now())
     {
     }
-    
-    ~IntervalTimer()
-    {
-    }
+
+    ~IntervalTimer() = default;
 
     uint64_t
     GetElapsedNanoSeconds() const
@@ -121,7 +124,7 @@ public:
     {
         TimeValue now (TimeValue::Now());
         const uint64_t elapsed_nsec = now - m_start;
-        const char *unit = NULL;
+        const char *unit = nullptr;
         float elapsed_value;
         if (elapsed_nsec < 1000)
         {
@@ -150,11 +153,11 @@ public:
         va_end (args);
         return result;
     }
+
 protected:
     TimeValue m_start;
 };
 
 } // namespace lldb_private
 
-#endif  // #if defined(__cplusplus)
-#endif // #ifndef liblldb_Timer_h_
+#endif // liblldb_Timer_h_

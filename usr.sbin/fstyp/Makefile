@@ -19,6 +19,8 @@ WARNS?=	2
 SUBDIR+=	tests
 .endif
 
+CFLAGS+=-I${.CURDIR}/../../sys
+
 .if ${MK_ZFS} != "no"
 IGNORE_PRAGMA=  YES
 
@@ -33,8 +35,6 @@ CFLAGS+= -I${.CURDIR}/../../sys/cddl/contrib/opensolaris/uts/common
 CFLAGS+= -I${.CURDIR}/../../sys/cddl/contrib/opensolaris/uts/common/sys
 CFLAGS+= -I${.CURDIR}/../../cddl/contrib/opensolaris/head
 .endif
-
-CFLAGS+=-I${.CURDIR}/../../sys
 
 LIBADD=	geom md
 

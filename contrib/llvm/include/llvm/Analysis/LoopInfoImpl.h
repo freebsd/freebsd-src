@@ -269,7 +269,7 @@ void LoopBase<BlockT, LoopT>::verifyLoop() const {
       // A non-header loop shouldn't be reachable from outside the loop,
       // though it is permitted if the predecessor is not itself actually
       // reachable.
-      BlockT *EntryBB = BB->getParent()->begin();
+      BlockT *EntryBB = &BB->getParent()->front();
       for (BlockT *CB : depth_first(EntryBB))
         for (unsigned i = 0, e = OutsideLoopPreds.size(); i != e; ++i)
           assert(CB != OutsideLoopPreds[i] &&
@@ -345,7 +345,7 @@ void LoopBase<BlockT, LoopT>::print(raw_ostream &OS, unsigned Depth) const {
 template<class BlockT, class LoopT>
 static void discoverAndMapSubloop(LoopT *L, ArrayRef<BlockT*> Backedges,
                                   LoopInfoBase<BlockT, LoopT> *LI,
-                                  DominatorTreeBase<BlockT> &DomTree) {
+                                  const DominatorTreeBase<BlockT> &DomTree) {
   typedef GraphTraits<Inverse<BlockT*> > InvBlockTraits;
 
   unsigned NumBlocks = 0;
@@ -468,10 +468,10 @@ void PopulateLoopsDFS<BlockT, LoopT>::insertIntoLoop(BlockT *Block) {
 /// insertions per block.
 template<class BlockT, class LoopT>
 void LoopInfoBase<BlockT, LoopT>::
-Analyze(DominatorTreeBase<BlockT> &DomTree) {
+analyze(const DominatorTreeBase<BlockT> &DomTree) {
 
   // Postorder traversal of the dominator tree.
-  DomTreeNodeBase<BlockT>* DomRoot = DomTree.getRootNode();
+  const DomTreeNodeBase<BlockT> *DomRoot = DomTree.getRootNode();
   for (auto DomNode : post_order(DomRoot)) {
 
     BlockT *Header = DomNode->getBlock();

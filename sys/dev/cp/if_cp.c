@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/cp/cpddk.h>
 #include <machine/cserial.h>
 #include <machine/resource.h>
-#include <machine/pmap.h>
 
 /* If we don't have Cronyx's sppp version, we don't have fr support via sppp */
 #ifndef PP_FR

@@ -11,6 +11,7 @@ ATF_TESTS_C+=		ftw_test
 ATF_TESTS_C+=		popen_test
 ATF_TESTS_C+=		posix_spawn_test
 ATF_TESTS_C+=		wordexp_test
+ATF_TESTS_C+=		dlopen_empty_test
 
 # TODO: t_closefrom, t_cpuset, t_fmtcheck, t_randomid, t_sleep
 # TODO: t_siginfo (fixes require further inspection)
