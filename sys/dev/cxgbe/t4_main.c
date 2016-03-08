@@ -688,7 +688,7 @@ t4_attach(device_t dev)
 	TAILQ_INIT(&sc->sfl);
 	callout_init_mtx(&sc->sfl_callout, &sc->sfl_lock, 0);
 
-	mtx_init(&sc->regwin_lock, "register and memory window", 0, MTX_DEF);
+	mtx_init(&sc->reg_lock, "indirect register access", 0, MTX_DEF);
 
 	rc = map_bars_0_and_4(sc);
 	if (rc != 0)
@@ -1161,8 +1161,8 @@ t4_detach(device_t dev)
 		mtx_destroy(&sc->sfl_lock);
 	if (mtx_initialized(&sc->ifp_lock))
 		mtx_destroy(&sc->ifp_lock);
-	if (mtx_initialized(&sc->regwin_lock))
-		mtx_destroy(&sc->regwin_lock);
+	if (mtx_initialized(&sc->reg_lock))
+		mtx_destroy(&sc->reg_lock);
 
 	bzero(sc, sizeof(*sc));
 
@@ -4197,7 +4197,7 @@ read_vf_stat(struct adapter *sc, unsigned int viid, int reg)
 {
 	u32 stats[2];
 
-	mtx_assert(&sc->regwin_lock, MA_OWNED);
+	mtx_assert(&sc->reg_lock, MA_OWNED);
 	t4_write_reg(sc, A_PL_INDIR_CMD, V_PL_AUTOINC(1) |
 	    V_PL_VFID(G_FW_VIID_VIN(viid)) | V_PL_ADDR(VF_MPS_REG(reg)));
 	stats[0] = t4_read_reg(sc, A_PL_INDIR_DATA);
@@ -4260,10 +4260,10 @@ vi_refresh_stats(struct adapter *sc, struct vi_info *vi)
 	if (timevalcmp(&tv, &vi->last_refreshed, <))
 		return;
 
-	mtx_lock(&sc->regwin_lock);
+	mtx_lock(&sc->reg_lock);
 	t4_get_vi_stats(sc, vi->viid, &vi->stats);
 	getmicrotime(&vi->last_refreshed);
-	mtx_unlock(&sc->regwin_lock);
+	mtx_unlock(&sc->reg_lock);
 }
 
 static void
@@ -4283,10 +4283,10 @@ cxgbe_refresh_stats(struct adapter *sc, struct port_info *pi)
 	t4_get_port_stats(sc, pi->tx_chan, &pi->stats);
 	for (i = 0; i < sc->chip_params->nchan; i++) {
 		if (pi->rx_chan_map & (1 << i)) {
-			mtx_lock(&sc->regwin_lock);
+			mtx_lock(&sc->reg_lock);
 			t4_read_indirect(sc, A_TP_MIB_INDEX, A_TP_MIB_DATA, &v,
 			    1, A_TP_MIB_TNL_CNG_DROP_0 + i);
-			mtx_unlock(&sc->regwin_lock);
+			mtx_unlock(&sc->reg_lock);
 			tnl_cong_drops += v;
 		}
 	}
@@ -5693,9 +5693,9 @@ sysctl_cpl_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	mtx_lock(&sc->regwin_lock);
+	mtx_lock(&sc->reg_lock);
 	t4_tp_get_cpl_stats(sc, &stats);
-	mtx_unlock(&sc->regwin_lock);
+	mtx_unlock(&sc->reg_lock);
 
 	if (sc->chip_params->nchan > 2) {
 		sbuf_printf(sb, "                 channel 0  channel 1"
@@ -6673,9 +6673,9 @@ sysctl_rdma_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	mtx_lock(&sc->regwin_lock);
+	mtx_lock(&sc->reg_lock);
 	t4_tp_get_rdma_stats(sc, &stats);
-	mtx_unlock(&sc->regwin_lock);
+	mtx_unlock(&sc->reg_lock);
 
 	sbuf_printf(sb, "NoRQEModDefferals: %u\n", stats.rqe_dfr_mod);
 	sbuf_printf(sb, "NoRQEPktDefferals: %u", stats.rqe_dfr_pkt);
@@ -6702,9 +6702,9 @@ sysctl_tcp_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	mtx_lock(&sc->regwin_lock);
+	mtx_lock(&sc->reg_lock);
 	t4_tp_get_tcp_stats(sc, &v4, &v6);
-	mtx_unlock(&sc->regwin_lock);
+	mtx_unlock(&sc->reg_lock);
 
 	sbuf_printf(sb,
 	    "                                IP                 IPv6\n");
@@ -6804,9 +6804,9 @@ sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	mtx_lock(&sc->regwin_lock);
+	mtx_lock(&sc->reg_lock);
 	t4_tp_get_err_stats(sc, &stats);
-	mtx_unlock(&sc->regwin_lock);
+	mtx_unlock(&sc->reg_lock);
 
 	if (sc->chip_params->nchan > 2) {
 		sbuf_printf(sb, "                 channel 0  channel 1"
@@ -8408,12 +8408,12 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		/* MAC stats */
 		t4_clr_port_stats(sc, pi->tx_chan);
 		pi->tx_parse_error = 0;
-		mtx_lock(&sc->regwin_lock);
+		mtx_lock(&sc->reg_lock);
 		for_each_vi(pi, v, vi) {
 			if (vi->flags & VI_INIT_DONE)
 				t4_clr_vi_stats(sc, vi->viid);
 		}
-		mtx_unlock(&sc->regwin_lock);
+		mtx_unlock(&sc->reg_lock);
 
 		/*
 		 * Since this command accepts a port, clear stats for
