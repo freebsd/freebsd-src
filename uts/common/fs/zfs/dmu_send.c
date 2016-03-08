@@ -25,6 +25,7 @@
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  * Copyright 2014 HybridCluster. All rights reserved.
  * Copyright 2016 RackTop Systems.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 #include <sys/dmu.h>
