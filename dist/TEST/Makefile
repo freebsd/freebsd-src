@@ -1,16 +1,10 @@
-# $NetBSD: Makefile,v 1.6 2016/02/15 21:38:07 christos Exp $
-
-WIDECHAR ?= yes
+# $NetBSD: Makefile,v 1.5 2010/02/03 15:34:43 roy Exp $
 
 NOMAN=1
 PROG=wtc1
 CPPFLAGS=-I${.CURDIR}/..
 LDADD+=-ledit -ltermlib
 DPADD+=${LIBEDIT} ${LIBTERMLIB}
-
-.if "${WIDECHAR}" == "yes"
-CPPFLAGS+=-DWIDECHAR
-.endif
 
 .ifdef DEBUG
 CPPFLAGS+=-DDEBUG

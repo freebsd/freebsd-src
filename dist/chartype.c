@@ -1,4 +1,4 @@
-/*	$NetBSD: chartype.c,v 1.23 2016/02/28 23:02:24 christos Exp $	*/
+/*	$NetBSD: chartype.c,v 1.12 2015/02/22 02:16:19 christos Exp $	*/
 
 /*-
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -12,6 +12,13 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *        This product includes software developed by the NetBSD
+ *        Foundation, Inc. and its contributors.
+ * 4. Neither the name of The NetBSD Foundation nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -31,14 +38,10 @@
  */
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: chartype.c,v 1.23 2016/02/28 23:02:24 christos Exp $");
+__RCSID("$NetBSD: chartype.c,v 1.12 2015/02/22 02:16:19 christos Exp $");
 #endif /* not lint && not SCCSID */
-
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "el.h"
+#include <stdlib.h>
 
 #define CT_BUFSIZ ((size_t)1024)
 
@@ -69,7 +72,7 @@ ct_conv_wbuff_resize(ct_buffer_t *conv, size_t wsize)
 {
 	void *p;
 
-	if (wsize <= conv->wsize)
+	if (wsize <= conv->wsize) 
 		return 0;
 
 	conv->wsize = wsize;
@@ -207,28 +210,6 @@ ct_encode_char(char *dst, size_t len, Char c)
 	}
 	return l;
 }
-
-size_t
-ct_mbrtowc(wchar_t *wc, const char *s, size_t n)
-{
-	mbstate_t mbs;
-	/* This only works because UTF-8 is stateless */
-	memset(&mbs, 0, sizeof(mbs));
-	return mbrtowc(wc, s, n, &mbs);
-}
-
-#else
-
-size_t
-ct_mbrtowc(wchar_t *wc, const char *s, size_t n)
-	if (s == NULL)
-		return 0;
-	if (n == 0)
-		return (size_t)-2;
-	if (wc != NULL)
-		*wc = *s;
-	return *s != '\0';
-}
 #endif
 
 protected const Char *
@@ -352,7 +333,7 @@ ct_visual_char(Char *dst, size_t len, Char c)
 		return c > 0xffff ? 8 : 7;
 #else
 		*dst++ = '\\';
-#define tooctaldigit(v) (Char)((v) + '0')
+#define tooctaldigit(v) ((v) + '0')
 		*dst++ = tooctaldigit(((unsigned int) c >> 6) & 0x7);
 		*dst++ = tooctaldigit(((unsigned int) c >> 3) & 0x7);
 		*dst++ = tooctaldigit(((unsigned int) c     ) & 0x7);
