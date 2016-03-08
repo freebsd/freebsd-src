@@ -8491,6 +8491,20 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	return (rc);
 }
 
+void
+t4_db_full(struct adapter *sc)
+{
+
+	CXGBE_UNIMPLEMENTED(__func__);
+}
+
+void
+t4_db_dropped(struct adapter *sc)
+{
+
+	CXGBE_UNIMPLEMENTED(__func__);
+}
+
 #ifdef TCP_OFFLOAD
 void
 t4_iscsi_init(struct adapter *sc, u_int tag_mask, const u_int *pgsz_order)
