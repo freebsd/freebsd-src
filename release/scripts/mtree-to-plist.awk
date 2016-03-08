@@ -39,7 +39,7 @@
 				gsub(/package=/, "", pkgname)
 			} else if (a[i] == "config") {
 				type="config"
-			} else if (a[i] == "development" || a[i] == "profile" || a[i] == "debug") {
+			} else if (a[i] == "development" || a[i] == "profile" || a[i] == "debug" || a[i] == "docs") {
 				pkgend=a[i]
 			} else {
 				if (ext != "")
@@ -49,14 +49,10 @@
 			}
 		}
 		if (ext != "") {
-			if (pkgname == "runtime") {
-				pkgname=ext
-			} else {
-				pkgname=pkgname"-"ext
-			}
+			pkgname=pkgname"-"ext
 		}
 		if (pkgend != "") {
-			if (pkgname == "runtime") {
+			if (pkgend == "docs") {
 				pkgname=pkgend
 			} else {
 				pkgname=pkgname"-"pkgend
