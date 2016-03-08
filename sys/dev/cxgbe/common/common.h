@@ -499,20 +499,24 @@ int t4_eeprom_ptov(unsigned int phys_addr, unsigned int fn, unsigned int sz);
 int t4_seeprom_wp(struct adapter *adapter, int enable);
 int t4_read_flash(struct adapter *adapter, unsigned int addr, unsigned int nwords,
 		  u32 *data, int byte_oriented);
+int t4_write_flash(struct adapter *adapter, unsigned int addr,
+		   unsigned int n, const u8 *data, int byte_oriented);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
+int t4_load_bootcfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
 int t4_load_boot(struct adapter *adap, u8 *boot_data,
                  unsigned int boot_addr, unsigned int size);
+int t4_flash_erase_sectors(struct adapter *adapter, int start, int end);
 int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_load_cfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
 int t4_get_fw_version(struct adapter *adapter, u32 *vers);
 int t4_get_tp_version(struct adapter *adapter, u32 *vers);
 int t4_check_fw_version(struct adapter *adapter);
 int t4_init_hw(struct adapter *adapter, u32 fw_params);
-int t4_prep_adapter(struct adapter *adapter);
+int t4_prep_adapter(struct adapter *adapter, u8 *buf);
 int t4_init_sge_params(struct adapter *adapter);
 int t4_init_tp_params(struct adapter *adap);
 int t4_filter_field_shift(const struct adapter *adap, int filter_sel);
-int t4_port_init(struct port_info *p, int mbox, int pf, int vf);
+int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id);
 void t4_fatal_err(struct adapter *adapter);
 void t4_db_full(struct adapter *adapter);
 void t4_db_dropped(struct adapter *adapter);
@@ -557,6 +561,7 @@ int t4_cim_read_la(struct adapter *adap, u32 *la_buf, unsigned int *wrptr);
 void t4_cim_read_pif_la(struct adapter *adap, u32 *pif_req, u32 *pif_rsp,
 		unsigned int *pif_req_wrptr, unsigned int *pif_rsp_wrptr);
 void t4_cim_read_ma_la(struct adapter *adap, u32 *ma_req, u32 *ma_rsp);
+int t4_get_flash_params(struct adapter *adapter);
 int t4_mc_read(struct adapter *adap, int idx, u32 addr,
 	       __be32 *data, u64 *parity);
 int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *parity);

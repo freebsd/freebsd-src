@@ -645,6 +645,7 @@ t4_attach(device_t dev)
 	int rc = 0, i, j, n10g, n1g, rqidx, tqidx;
 	struct intrs_and_queues iaq;
 	struct sge *s;
+	uint8_t *buf;
 #ifdef TCP_OFFLOAD
 	int ofld_rqidx, ofld_tqidx;
 #endif
@@ -713,8 +714,10 @@ t4_attach(device_t dev)
 	t4_register_cpl_handler(sc, CPL_T5_TRACE_PKT, t5_trace_pkt);
 	t4_init_sge_cpl_handlers(sc);
 
-	/* Prepare the adapter for operation */
-	rc = -t4_prep_adapter(sc);
+	/* Prepare the adapter for operation. */
+	buf = malloc(PAGE_SIZE, M_CXGBE, M_ZERO | M_WAITOK);
+	rc = -t4_prep_adapter(sc, buf);
+	free(buf, M_CXGBE);
 	if (rc != 0) {
 		device_printf(dev, "failed to prepare adapter: %d.\n", rc);
 		goto done;
@@ -815,7 +818,7 @@ t4_attach(device_t dev)
 		 * Allocate the "main" VI and initialize parameters
 		 * like mac addr.
 		 */
-		rc = -t4_port_init(pi, sc->mbox, sc->pf, 0);
+		rc = -t4_port_init(sc, sc->mbox, sc->pf, 0, i);
 		if (rc != 0) {
 			device_printf(dev, "unable to initialize port %d: %d\n",
 			    i, rc);
