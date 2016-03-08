@@ -803,9 +803,12 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 			error1 = getsock_cap(td, s, &rights, &fp, NULL);
 			if (error1 != 0)
 				return (error1);
-			so = (struct socket *)fp->f_data;
-			if (so->so_type == SOCK_DGRAM)
+			so = fp->f_data;
+			if (so->so_type == SOCK_DGRAM) {
+				fdrop(fp, td);
 				return (EOPNOTSUPP);
+			}
+			fdrop(fp, td);
 		}
 		return (error);
 	}
