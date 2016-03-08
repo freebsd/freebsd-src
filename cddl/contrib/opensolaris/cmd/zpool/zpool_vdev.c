@@ -1449,8 +1449,7 @@ split_mirror_vdev(zpool_handle_t *zhp, char *newname, nvlist_t *props,
 	}
 
 	if (zpool_vdev_split(zhp, newname, &newroot, props, flags) != 0) {
-		if (newroot != NULL)
-			nvlist_free(newroot);
+		nvlist_free(newroot);
 		return (NULL);
 	}
 

@@ -544,8 +544,7 @@ nvpair_free(nvpair_t *nvp)
 		int i;
 
 		for (i = 0; i < NVP_NELEM(nvp); i++)
-			if (nvlp[i] != NULL)
-				nvlist_free(nvlp[i]);
+			nvlist_free(nvlp[i]);
 		break;
 	}
 	default:
