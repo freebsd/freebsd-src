@@ -1352,6 +1352,58 @@ zio_interrupt(zio_t *zio)
 	zio_taskq_dispatch(zio, ZIO_TASKQ_INTERRUPT, B_FALSE);
 }
 
+void
+zio_delay_interrupt(zio_t *zio)
+{
+	/*
+	 * The timeout_generic() function isn't defined in userspace, so
+	 * rather than trying to implement the function, the zio delay
+	 * functionality has been disabled for userspace builds.
+	 */
+
+#ifdef _KERNEL
+	/*
+	 * If io_target_timestamp is zero, then no delay has been registered
+	 * for this IO, thus jump to the end of this function and "skip" the
+	 * delay; issuing it directly to the zio layer.
+	 */
+	if (zio->io_target_timestamp != 0) {
+		hrtime_t now = gethrtime();
+
+		if (now >= zio->io_target_timestamp) {
+			/*
+			 * This IO has already taken longer than the target
+			 * delay to complete, so we don't want to delay it
+			 * any longer; we "miss" the delay and issue it
+			 * directly to the zio layer. This is likely due to
+			 * the target latency being set to a value less than
+			 * the underlying hardware can satisfy (e.g. delay
+			 * set to 1ms, but the disks take 10ms to complete an
+			 * IO request).
+			 */
+
+			DTRACE_PROBE2(zio__delay__miss, zio_t *, zio,
+			    hrtime_t, now);
+
+			zio_interrupt(zio);
+		} else {
+			hrtime_t diff = zio->io_target_timestamp - now;
+
+			DTRACE_PROBE3(zio__delay__hit, zio_t *, zio,
+			    hrtime_t, now, hrtime_t, diff);
+
+			(void) timeout_generic(CALLOUT_NORMAL,
+			    (void (*)(void *))zio_interrupt, zio, diff, 1, 0);
+		}
+
+		return;
+	}
+#endif
+
+	DTRACE_PROBE1(zio__delay__skip, zio_t *, zio);
+	zio_interrupt(zio);
+}
+
 /*
  * Execute the I/O pipeline until one of the following occurs:
  *

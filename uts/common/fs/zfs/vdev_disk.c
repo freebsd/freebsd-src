@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2013 Joyent, Inc.  All rights reserved.
  */
@@ -691,7 +691,7 @@ vdev_disk_io_intr(buf_t *bp)
 
 	kmem_free(vb, sizeof (vdev_buf_t));
 
-	zio_interrupt(zio);
+	zio_delay_interrupt(zio);
 }
 
 static void
@@ -797,6 +797,7 @@ vdev_disk_io_start(zio_t *zio)
 	}
 
 	ASSERT(zio->io_type == ZIO_TYPE_READ || zio->io_type == ZIO_TYPE_WRITE);
+	zio->io_target_timestamp = zio_handle_io_delay(zio);
 
 	vb = kmem_alloc(sizeof (vdev_buf_t), KM_SLEEP);
 
