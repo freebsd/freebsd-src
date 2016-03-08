@@ -211,7 +211,7 @@ static void t4_report_fw_error(struct adapter *adap)
 	pcie_fw = t4_read_reg(adap, A_PCIE_FW);
 	if (pcie_fw & F_PCIE_FW_ERR)
 		CH_ERR(adap, "Firmware reports adapter error: %s\n",
-		       reason[G_PCIE_FW_EVAL(pcie_fw)]);
+			reason[G_PCIE_FW_EVAL(pcie_fw)]);
 }
 
 /*
@@ -227,25 +227,27 @@ static void get_mbox_rpl(struct adapter *adap, __be64 *rpl, int nflit,
 /*
  * Handle a FW assertion reported in a mailbox.
  */
-static void fw_asrt(struct adapter *adap, u32 mbox_addr)
+static void fw_asrt(struct adapter *adap, struct fw_debug_cmd *asrt)
 {
-	struct fw_debug_cmd asrt;
-
-	get_mbox_rpl(adap, (__be64 *)&asrt, sizeof(asrt) / 8, mbox_addr);
-	CH_ALERT(adap, "FW assertion at %.16s:%u, val0 %#x, val1 %#x\n",
-		 asrt.u.assert.filename_0_7, ntohl(asrt.u.assert.line),
-		 ntohl(asrt.u.assert.x), ntohl(asrt.u.assert.y));
+	CH_ALERT(adap,
+		  "FW assertion at %.16s:%u, val0 %#x, val1 %#x\n",
+		  asrt->u.assert.filename_0_7,
+		  be32_to_cpu(asrt->u.assert.line),
+		  be32_to_cpu(asrt->u.assert.x),
+		  be32_to_cpu(asrt->u.assert.y));
 }
 
 #define X_CIM_PF_NOACCESS 0xeeeeeeee
 /**
- *	t4_wr_mbox_meat - send a command to FW through the given mailbox
+ *	t4_wr_mbox_meat_timeout - send a command to FW through the given mailbox
  *	@adap: the adapter
  *	@mbox: index of the mailbox to use
  *	@cmd: the command to write
  *	@size: command length in bytes
  *	@rpl: where to optionally store the reply
  *	@sleep_ok: if true we may sleep while awaiting command completion
+ *	@timeout: time to wait for command to finish before timing out
+ *		(negative implies @sleep_ok=false)
  *
  *	Sends the given command to FW through the selected mailbox and waits
  *	for the FW to execute the command.  If @rpl is not %NULL it is used to
@@ -254,14 +256,17 @@ static void fw_asrt(struct adapter *adap, u32 mbox_addr)
  *	INITIALIZE can take a considerable amount of time to execute.
  *	@sleep_ok determines whether we may sleep while awaiting the response.
  *	If sleeping is allowed we use progressive backoff otherwise we spin.
+ *	Note that passing in a negative @timeout is an alternate mechanism
+ *	for specifying @sleep_ok=false.  This is useful when a higher level
+ *	interface allows for specification of @timeout but not @sleep_ok ...
  *
  *	The return value is 0 on success or a negative errno on failure.  A
  *	failure can happen either because we are not able to execute the
  *	command or FW executes it but signals an error.  In the latter case
  *	the return value is the error code indicated by FW (negated).
  */
-int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
-		    void *rpl, bool sleep_ok)
+int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
+			    int size, void *rpl, bool sleep_ok, int timeout)
 {
 	/*
 	 * We delay in small increments at first in an effort to maintain
@@ -271,43 +276,97 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 	static const int delay[] = {
 		1, 1, 3, 5, 10, 10, 20, 50, 100
 	};
-
 	u32 v;
 	u64 res;
-	int i, ms, delay_idx;
+	int i, ms, delay_idx, ret;
 	const __be64 *p = cmd;
 	u32 data_reg = PF_REG(mbox, A_CIM_PF_MAILBOX_DATA);
 	u32 ctl_reg = PF_REG(mbox, A_CIM_PF_MAILBOX_CTRL);
+	u32 ctl;
+	__be64 cmd_rpl[MBOX_LEN/8];
+	u32 pcie_fw;
 
 	if ((size & 15) || size > MBOX_LEN)
 		return -EINVAL;
 
-	v = G_MBOWNER(t4_read_reg(adap, ctl_reg));
-	for (i = 0; v == X_MBOWNER_NONE && i < 3; i++)
-		v = G_MBOWNER(t4_read_reg(adap, ctl_reg));
+	/*
+	 * If we have a negative timeout, that implies that we can't sleep.
+	 */
+	if (timeout < 0) {
+		sleep_ok = false;
+		timeout = -timeout;
+	}
 
-	if (v != X_MBOWNER_PL)
-		return v ? -EBUSY : -ETIMEDOUT;
+	/*
+	 * Attempt to gain access to the mailbox.
+	 */
+	for (i = 0; i < 4; i++) {
+		ctl = t4_read_reg(adap, ctl_reg);
+		v = G_MBOWNER(ctl);
+		if (v != X_MBOWNER_NONE)
+			break;
+	}
 
+	/*
+	 * If we were unable to gain access, dequeue ourselves from the
+	 * mailbox atomic access list and report the error to our caller.
+	 */
+	if (v != X_MBOWNER_PL) {
+		t4_report_fw_error(adap);
+		ret = (v == X_MBOWNER_FW) ? -EBUSY : -ETIMEDOUT;
+		return ret;
+	}
+
+	/*
+	 * If we gain ownership of the mailbox and there's a "valid" message
+	 * in it, this is likely an asynchronous error message from the
+	 * firmware.  So we'll report that and then proceed on with attempting
+	 * to issue our own command ... which may well fail if the error
+	 * presaged the firmware crashing ...
+	 */
+	if (ctl & F_MBMSGVALID) {
+		CH_ERR(adap, "found VALID command in mbox %u: "
+		       "%llx %llx %llx %llx %llx %llx %llx %llx\n", mbox,
+		       (unsigned long long)t4_read_reg64(adap, data_reg),
+		       (unsigned long long)t4_read_reg64(adap, data_reg + 8),
+		       (unsigned long long)t4_read_reg64(adap, data_reg + 16),
+		       (unsigned long long)t4_read_reg64(adap, data_reg + 24),
+		       (unsigned long long)t4_read_reg64(adap, data_reg + 32),
+		       (unsigned long long)t4_read_reg64(adap, data_reg + 40),
+		       (unsigned long long)t4_read_reg64(adap, data_reg + 48),
+		       (unsigned long long)t4_read_reg64(adap, data_reg + 56));
+	}
+
+	/*
+	 * Copy in the new mailbox command and send it on its way ...
+	 */
 	for (i = 0; i < size; i += 8, p++)
 		t4_write_reg64(adap, data_reg + i, be64_to_cpu(*p));
 
 	CH_DUMP_MBOX(adap, mbox, data_reg);
 
 	t4_write_reg(adap, ctl_reg, F_MBMSGVALID | V_MBOWNER(X_MBOWNER_FW));
-	t4_read_reg(adap, ctl_reg);          /* flush write */
+	t4_read_reg(adap, ctl_reg);	/* flush write */
 
 	delay_idx = 0;
 	ms = delay[0];
 
-	for (i = 0; i < FW_CMD_MAX_TIMEOUT; i += ms) {
+	/*
+	 * Loop waiting for the reply; bail out if we time out or the firmware
+	 * reports an error.
+	 */
+	for (i = 0;
+	     !((pcie_fw = t4_read_reg(adap, A_PCIE_FW)) & F_PCIE_FW_ERR) &&
+	     i < timeout;
+	     i += ms) {
 		if (sleep_ok) {
 			ms = delay[delay_idx];  /* last element may repeat */
 			if (delay_idx < ARRAY_SIZE(delay) - 1)
 				delay_idx++;
 			msleep(ms);
-		} else
+		} else {
 			mdelay(ms);
+		}
 
 		v = t4_read_reg(adap, ctl_reg);
 		if (v == X_CIM_PF_NOACCESS)
@@ -319,15 +378,20 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 				continue;
 			}
 
+			/*
+			 * Retrieve the command reply and release the mailbox.
+			 */
+			get_mbox_rpl(adap, cmd_rpl, size/8, data_reg);
+			t4_write_reg(adap, ctl_reg, V_MBOWNER(X_MBOWNER_NONE));
+
 			CH_DUMP_MBOX(adap, mbox, data_reg);
 
-			res = t4_read_reg64(adap, data_reg);
+			res = be64_to_cpu(cmd_rpl[0]);
 			if (G_FW_CMD_OP(res >> 32) == FW_DEBUG_CMD) {
-				fw_asrt(adap, data_reg);
+				fw_asrt(adap, (struct fw_debug_cmd *)cmd_rpl);
 				res = V_FW_CMD_RETVAL(EIO);
 			} else if (rpl)
-				get_mbox_rpl(adap, rpl, size / 8, data_reg);
-			t4_write_reg(adap, ctl_reg, V_MBOWNER(X_MBOWNER_NONE));
+				memcpy(rpl, cmd_rpl, size);
 			return -G_FW_CMD_RETVAL((int)res);
 		}
 	}
@@ -337,11 +401,21 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 	 * the error and also check to see if the firmware reported any
 	 * errors ...
 	 */
+	ret = (pcie_fw & F_PCIE_FW_ERR) ? -ENXIO : -ETIMEDOUT;
 	CH_ERR(adap, "command %#x in mailbox %d timed out\n",
 	       *(const u8 *)cmd, mbox);
-	if (t4_read_reg(adap, A_PCIE_FW) & F_PCIE_FW_ERR)
-		t4_report_fw_error(adap);
-	return -ETIMEDOUT;
+
+	t4_report_fw_error(adap);
+	t4_fatal_err(adap);
+	return ret;
+}
+
+int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
+		    void *rpl, bool sleep_ok)
+{
+		return t4_wr_mbox_meat_timeout(adap, mbox, cmd, size, rpl,
+					       sleep_ok, FW_CMD_MAX_TIMEOUT);
+
 }
 
 static int t4_edc_err_read(struct adapter *adap, int idx)
