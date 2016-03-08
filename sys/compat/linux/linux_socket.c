@@ -781,7 +781,10 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 		socklen_t * __restrict anamelen;
 		int	flags;
 	} */ bsd_args;
-	int error;
+	cap_rights_t rights;
+	struct socket *so;
+	struct file *fp;
+	int error, error1;
 
 	bsd_args.s = s;
 	/* XXX: */
@@ -796,6 +799,14 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 	if (error) {
 		if (error == EFAULT && namelen != sizeof(struct sockaddr_in))
 			return (EINVAL);
+		if (error == EINVAL) {
+			error1 = getsock_cap(td, s, &rights, &fp, NULL);
+			if (error1 != 0)
+				return (error1);
+			so = (struct socket *)fp->f_data;
+			if (so->so_type == SOCK_DGRAM)
+				return (EOPNOTSUPP);
+		}
 		return (error);
 	}
 	if (addr)
