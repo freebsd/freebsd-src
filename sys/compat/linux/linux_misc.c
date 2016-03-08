@@ -209,7 +209,7 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 	/*
 	 * According to POSIX and Linux implementation
 	 * the alarm() system call is always successfull.
-	 * Ignore errors and return 0 as a Linux do.
+	 * Ignore errors and return 0 as a Linux does.
 	 */
 	kern_setitimer(td, ITIMER_REAL, &it, &old_it);
 	if (timevalisset(&old_it.it_value)) {
