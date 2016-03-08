@@ -6020,10 +6020,6 @@ sysctl_linkdnrc(SYSCTL_HANDLER_ARGS)
 	int rc = 0;
 	struct port_info *pi = arg1;
 	struct sbuf *sb;
-	static const char *linkdnreasons[] = {
-		"non-specific", "remote fault", "autoneg failed", "reserved3",
-		"PHY overheated", "unknown", "rx los", "reserved7"
-	};
 
 	rc = sysctl_wire_old_buffer(req, 0);
 	if (rc != 0)
@@ -6034,10 +6030,8 @@ sysctl_linkdnrc(SYSCTL_HANDLER_ARGS)
 
 	if (pi->linkdnrc < 0)
 		sbuf_printf(sb, "n/a");
-	else if (pi->linkdnrc < nitems(linkdnreasons))
-		sbuf_printf(sb, "%s", linkdnreasons[pi->linkdnrc]);
 	else
-		sbuf_printf(sb, "%d", pi->linkdnrc);
+		sbuf_printf(sb, "%s", t4_link_down_rc_str(pi->linkdnrc));
 
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
