@@ -214,7 +214,7 @@ VECTOR(_locore, unknown)
 
 	PTR_LA	t9, _C_LABEL(mi_startup)
 	jalr	t9				# mi_startup(frame)
-	sw	zero, CALLFRAME_SIZ - 8(sp)	# Zero out old fp for debugger
+	sw	zero, (CALLFRAME_SIZ - 8)(sp)	# Zero out old fp for debugger
 
 	PANIC("Startup failed!")
 

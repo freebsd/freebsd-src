@@ -77,8 +77,8 @@ GLOBAL(mpentry)
 	addu	sp, sp, t0
 
 	/* Zero out old ra and old fp for debugger */
-	sw      zero, CALLFRAME_SIZ - 4(sp)
-	sw      zero, CALLFRAME_SIZ - 8(sp)
+	sw      zero, (CALLFRAME_SIZ - 4)(sp)
+	sw      zero, (CALLFRAME_SIZ - 8)(sp)
 
 	PTR_LA	gp, _C_LABEL(_gp)
 

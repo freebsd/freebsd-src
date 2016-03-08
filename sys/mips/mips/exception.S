@@ -360,7 +360,7 @@ SlowFault:
  */
 
 #define	SAVE_REG(reg, offs, base) \
-	REG_S	reg, CALLFRAME_SIZ + (SZREG * offs) (base)
+	REG_S	reg, (CALLFRAME_SIZ + (SZREG * offs)) (base)
 
 #ifdef CPU_CHERI
 /*
@@ -443,7 +443,7 @@ SlowFault:
 	ITLBNOPFIX
 
 #define	RESTORE_REG(reg, offs, base) \
-	REG_L	reg, CALLFRAME_SIZ + (SZREG * offs) (base)
+	REG_L	reg, (CALLFRAME_SIZ + (SZREG * offs)) (base)
 
 #ifdef CPU_CHERI
 /*
@@ -543,7 +543,7 @@ NESTED_NOPROFILE(MipsKernGenException, KERN_EXC_FRAME_SIZE, ra)
 	PTR_LA	gp, _C_LABEL(_gp)
 	PTR_LA	t9, _C_LABEL(trap)
 	jalr	t9
-	REG_S	a3, CALLFRAME_RA + KERN_REG_SIZE(sp)		# for debugging
+	REG_S	a3, (CALLFRAME_RA + KERN_REG_SIZE)(sp)		# for debugging
 
 	/*
 	 * Update interrupt and CPU mask in saved status register
@@ -740,7 +740,7 @@ NESTED_NOPROFILE(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
 	PTR_LA	gp, _C_LABEL(_gp)
 	PTR_LA	t9, _C_LABEL(cpu_intr)
 	jalr	t9
-	REG_S	a3, CALLFRAME_RA + KERN_REG_SIZE(sp)		# for debugging
+	REG_S	a3, (CALLFRAME_RA + KERN_REG_SIZE)(sp)		# for debugging
 
 	/*
 	 * Update interrupt and CPU mask in saved status register
@@ -754,7 +754,7 @@ NESTED_NOPROFILE(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
 	and	a1, a1, ~(MIPS_SR_INT_MASK|MIPS_SR_COP_USABILITY)
 	or	a1, a1, a0
 	SAVE_REG(a1, SR, sp)
-	REG_L	v0, CALLFRAME_RA + KERN_REG_SIZE(sp)
+	REG_L	v0, (CALLFRAME_RA + KERN_REG_SIZE)(sp)
 	RESTORE_CPU			# v0 contains the return address.
 	sync
 #ifdef CPU_CHERI
@@ -1357,7 +1357,7 @@ NESTED(MipsFPTrap, CALLFRAME_SIZ, ra)
  * The instruction is in the branch delay slot so the branch will have to
  * be emulated to get the resulting PC.
  */
-	PTR_S	a2, CALLFRAME_SIZ + 8(sp)
+	PTR_S	a2, (CALLFRAME_SIZ + 8)(sp)
 	GET_CPU_PCPU(a0)
 #mips64 unsafe?
 	PTR_L	a0, PC_CURPCB(a0)
@@ -1371,7 +1371,7 @@ NESTED(MipsFPTrap, CALLFRAME_SIZ, ra)
  * Now load the floating-point instruction in the branch delay slot
  * to be emulated.
  */
-	PTR_L	a2, CALLFRAME_SIZ + 8(sp)	# restore EXC pc
+	PTR_L	a2, (CALLFRAME_SIZ + 8)(sp)	# restore EXC pc
 	b	2f
 	lw	a0, 4(a2)			# a0 = coproc instruction
 /*
