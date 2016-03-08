@@ -30,6 +30,7 @@
  * Copyright (c) 2013 Steven Hartland.  All rights reserved.
  * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>.
  */
 
 #include <assert.h>
@@ -752,7 +753,7 @@ zfs_do_create(int argc, char **argv)
 {
 	zfs_type_t type = ZFS_TYPE_FILESYSTEM;
 	zfs_handle_t *zhp = NULL;
-	uint64_t volsize;
+	uint64_t volsize = 0;
 	int c;
 	boolean_t noreserve = B_FALSE;
 	boolean_t bflag = B_FALSE;
@@ -847,14 +848,14 @@ zfs_do_create(int argc, char **argv)
 
 	if (type == ZFS_TYPE_VOLUME && !noreserve) {
 		zpool_handle_t *zpool_handle;
-		nvlist_t *real_props;
+		nvlist_t *real_props = NULL;
 		uint64_t spa_version;
 		char *p;
 		zfs_prop_t resv_prop;
 		char *strval;
 		char msg[1024];
 
-		if (p = strchr(argv[0], '/'))
+		if ((p = strchr(argv[0], '/')) != NULL)
 			*p = '\0';
 		zpool_handle = zpool_open(g_zfs, argv[0]);
 		if (p != NULL)
@@ -2361,6 +2362,9 @@ us_compare(const void *larg, const void *rarg, void *unused)
 			if (rv64 != lv64)
 				rc = (rv64 < lv64) ? 1 : -1;
 			break;
+
+		default:
+			break;
 		}
 
 		if (rc != 0) {
@@ -2416,7 +2420,7 @@ userspace_cb(void *arg, const char *domain, uid_t rid, uint64_t space)
 	nvlist_t *props;
 	us_node_t *n;
 	zfs_sort_column_t *sortcol = cb->cb_sortcol;
-	unsigned type;
+	unsigned type = 0;
 	const char *typestr;
 	size_t namelen;
 	size_t typelen;
@@ -3974,7 +3978,7 @@ zfs_do_send(int argc, char **argv)
 static int
 zfs_do_receive(int argc, char **argv)
 {
-	int c, err;
+	int c, err = 0;
 	recvflags_t flags = { 0 };
 	boolean_t abort_resumable = B_FALSE;
 
@@ -4234,7 +4238,7 @@ deleg_perm_type(zfs_deleg_note_t note)
 	}
 }
 
-static int inline
+static int
 who_type2weight(zfs_deleg_who_type_t who_type)
 {
 	int res;
@@ -4454,7 +4458,7 @@ fs_perm_fini(fs_perm_t *fsperm)
 	uu_avl_destroy(fsperm->fsp_uge_avl);
 }
 
-static void inline
+static void
 set_deleg_perm_node(uu_avl_t *avl, deleg_perm_node_t *node,
     zfs_deleg_who_type_t who_type, const char *name, char locality)
 {
@@ -4522,7 +4526,7 @@ parse_fs_perm(fs_perm_t *fsperm, nvlist_t *nvl)
 		nvlist_t *nvl2 = NULL;
 		const char *name = nvpair_name(nvp);
 		uu_avl_t *avl = NULL;
-		uu_avl_pool_t *avl_pool;
+		uu_avl_pool_t *avl_pool = NULL;
 		zfs_deleg_who_type_t perm_type = name[0];
 		char perm_locality = name[1];
 		const char *perm_name = name + 3;
@@ -4551,6 +4555,9 @@ parse_fs_perm(fs_perm_t *fsperm, nvlist_t *nvl)
 			avl_pool = fspset->fsps_who_perm_avl_pool;
 			avl = fsperm->fsp_uge_avl;
 			break;
+
+		default:
+			assert(!"unhandled zfs_deleg_who_type_t");
 		}
 
 		if (is_set) {
@@ -4585,6 +4592,9 @@ parse_fs_perm(fs_perm_t *fsperm, nvlist_t *nvl)
 						g = getgrgid(rid);
 						if (g)
 							nice_name = g->gr_name;
+						break;
+
+					default:
 						break;
 					}
 
@@ -4854,11 +4864,12 @@ parse_allow_args(int argc, char **argv, boolean_t un, struct allow_opts *opts)
 		allow_usage(un, B_FALSE,
 		    gettext("-u, -g, and -e are mutually exclusive\n"));
 
-	if (opts->prt_usage)
+	if (opts->prt_usage) {
 		if (argc == 0 && all_sum == 0)
 			allow_usage(un, B_TRUE, NULL);
 		else
 			usage(B_FALSE);
+	}
 
 	if (opts->set) {
 		if (csuge_sum > 1)
@@ -4907,8 +4918,8 @@ store_allow_perm(zfs_deleg_who_type_t type, boolean_t local, boolean_t descend,
 	int i;
 	char ld[2] = { '\0', '\0' };
 	char who_buf[ZFS_MAXNAMELEN+32];
-	char base_type;
-	char set_type;
+	char base_type = '\0';
+	char set_type = '\0';
 	nvlist_t *base_nvl = NULL;
 	nvlist_t *set_nvl = NULL;
 	nvlist_t *nvl;
@@ -4957,6 +4968,10 @@ store_allow_perm(zfs_deleg_who_type_t type, boolean_t local, boolean_t descend,
 			ld[0] = ZFS_DELEG_LOCAL;
 		if (descend)
 			ld[1] = ZFS_DELEG_DESCENDENT;
+		break;
+
+	default:
+		assert(set_type != '\0' && base_type != '\0');
 	}
 
 	if (perms != NULL) {
@@ -5061,7 +5076,7 @@ construct_fsacl_list(boolean_t un, struct allow_opts *opts, nvlist_t **nvlp)
 
 		while (curr < end) {
 			const char *who;
-			zfs_deleg_who_type_t who_type;
+			zfs_deleg_who_type_t who_type = ZFS_DELEG_WHO_UNKNOWN;
 			char *endch;
 			char *delim = strchr(curr, ',');
 			char errbuf[256];
@@ -5111,12 +5126,13 @@ construct_fsacl_list(boolean_t un, struct allow_opts *opts, nvlist_t **nvlp)
 					p = getpwuid(rid);
 				}
 
-				if (p == NULL)
+				if (p == NULL) {
 					if (*endch != '\0') {
 						g = getgrnam(curr);
 					} else {
 						g = getgrgid(rid);
 					}
+				}
 
 				if (p != NULL) {
 					who_type = ZFS_DELEG_USER;
@@ -5189,7 +5205,7 @@ print_set_creat_perms(uu_avl_t *who_avl)
 	}
 }
 
-static void inline
+static void
 print_uge_deleg_perms(uu_avl_t *who_avl, boolean_t local, boolean_t descend,
     const char *title)
 {
@@ -5240,6 +5256,10 @@ print_uge_deleg_perms(uu_avl_t *who_avl, boolean_t local, boolean_t descend,
 				case ZFS_DELEG_EVERYONE:
 					who = gettext("everyone");
 					who_name = NULL;
+					break;
+
+				default:
+					assert(who != NULL);
 				}
 
 				prt_who = B_FALSE;
@@ -5956,7 +5976,7 @@ share_mount_one(zfs_handle_t *zhp, int op, int flags, char *protocol,
 		shared_nfs = zfs_is_shared_nfs(zhp, NULL);
 		shared_smb = zfs_is_shared_smb(zhp, NULL);
 
-		if (shared_nfs && shared_smb ||
+		if ((shared_nfs && shared_smb) ||
 		    (shared_nfs && strcmp(shareopts, "on") == 0 &&
 		    strcmp(smbshareopts, "off") == 0) ||
 		    (shared_smb && strcmp(smbshareopts, "on") == 0 &&
@@ -6430,7 +6450,7 @@ unshare_unmount(int op, int argc, char **argv)
 		 */
 		struct mnttab entry;
 		uu_avl_pool_t *pool;
-		uu_avl_t *tree;
+		uu_avl_t *tree = NULL;
 		unshare_unmount_node_t *node;
 		uu_avl_index_t idx;
 		uu_avl_walk_t *walk;
@@ -6924,7 +6944,7 @@ zfs_do_diff(int argc, char **argv)
 	if (copy == NULL)
 		usage(B_FALSE);
 
-	if (atp = strchr(copy, '@'))
+	if ((atp = strchr(copy, '@')) != NULL)
 		*atp = '\0';
 
 	if ((zhp = zfs_open(g_zfs, copy, ZFS_TYPE_FILESYSTEM)) == NULL)
