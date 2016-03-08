@@ -255,7 +255,7 @@ _C_LABEL(x):
 	MSG(msg)
 
 #define	MSG(msg)			\
-	.rdata;				\
+	.section rdata;	       		\
 9:	.asciiz	msg;			\
 	.text
 
