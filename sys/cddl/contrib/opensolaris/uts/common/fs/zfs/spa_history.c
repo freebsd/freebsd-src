@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 #include <sys/spa.h>
