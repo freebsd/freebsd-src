@@ -15,6 +15,7 @@ DIRDEPS = \
 	lib/clang/libllvmmcparser \
 	lib/clang/libllvmobject \
 	lib/clang/libllvmsupport \
+	lib/clang/libllvmsymbolize \
 	lib/libc \
 	lib/libc++ \
 	lib/libcompiler_rt \

@@ -17,6 +17,7 @@ DIRDEPS = \
 	lib/libthr \
 	lib/msun \
 	lib/ncurses/ncursesw \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
