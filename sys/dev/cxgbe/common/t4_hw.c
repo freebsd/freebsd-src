@@ -3146,8 +3146,8 @@ unlock:
  */
 int t4_get_fw_version(struct adapter *adapter, u32 *vers)
 {
-	return t4_read_flash(adapter,
-			     FLASH_FW_START + offsetof(struct fw_hdr, fw_ver), 1,
+	return t4_read_flash(adapter, FLASH_FW_START +
+			     offsetof(struct fw_hdr, fw_ver), 1,
 			     vers, 0);
 }
 
@@ -3160,8 +3160,8 @@ int t4_get_fw_version(struct adapter *adapter, u32 *vers)
  */
 int t4_get_tp_version(struct adapter *adapter, u32 *vers)
 {
-	return t4_read_flash(adapter, FLASH_FW_START + offsetof(struct fw_hdr,
-							      tp_microcode_ver),
+	return t4_read_flash(adapter, FLASH_FW_START +
+			     offsetof(struct fw_hdr, tp_microcode_ver),
 			     1, vers, 0);
 }
 
@@ -3200,60 +3200,6 @@ int t4_get_exprom_version(struct adapter *adap, u32 *vers)
 		 V_FW_HDR_FW_VER_MICRO(hdr->hdr_ver[2]) |
 		 V_FW_HDR_FW_VER_BUILD(hdr->hdr_ver[3]));
 	return 0;
-}
-
-/**
- *	t4_check_fw_version - check if the FW is compatible with this driver
- *	@adapter: the adapter
- *
- *	Checks if an adapter's FW is compatible with the driver.  Returns 0
- *	if there's exact match, a negative error if the version could not be
- *	read or there's a major version mismatch, and a positive value if the
- *	expected major version is found but there's a minor version mismatch.
- */
-int t4_check_fw_version(struct adapter *adapter)
-{
-	int ret, major, minor, micro;
-	int exp_major, exp_minor, exp_micro;
-
-	ret = t4_get_fw_version(adapter, &adapter->params.fw_vers);
-	if (!ret)
-		ret = t4_get_tp_version(adapter, &adapter->params.tp_vers);
-	if (ret)
-		return ret;
-
-	major = G_FW_HDR_FW_VER_MAJOR(adapter->params.fw_vers);
-	minor = G_FW_HDR_FW_VER_MINOR(adapter->params.fw_vers);
-	micro = G_FW_HDR_FW_VER_MICRO(adapter->params.fw_vers);
-
-	switch (chip_id(adapter)) {
-	case CHELSIO_T4:
-		exp_major = T4FW_VERSION_MAJOR;
-		exp_minor = T4FW_VERSION_MINOR;
-		exp_micro = T4FW_VERSION_MICRO;
-		break;
-	case CHELSIO_T5:
-		exp_major = T5FW_VERSION_MAJOR;
-		exp_minor = T5FW_VERSION_MINOR;
-		exp_micro = T5FW_VERSION_MICRO;
-		break;
-	default:
-		CH_ERR(adapter, "Unsupported chip type, %x\n",
-		    chip_id(adapter));
-		return -EINVAL;
-	}
-
-	if (major != exp_major) {            /* major mismatch - fail */
-		CH_ERR(adapter, "card FW has major version %u, driver wants "
-		       "%u\n", major, exp_major);
-		return -EINVAL;
-	}
-
-	if (minor == exp_minor && micro == exp_micro)
-		return 0;                                   /* perfect match */
-
-	/* Minor/micro version mismatch.  Report it but often it's OK. */
-	return 1;
 }
 
 /**
@@ -3307,6 +3253,29 @@ int t4_flash_cfg_addr(struct adapter *adapter)
 	return FLASH_CFG_START;
 }
 
+/*
+ * Return TRUE if the specified firmware matches the adapter.  I.e. T4
+ * firmware for T4 adapters, T5 firmware for T5 adapters, etc.  We go ahead
+ * and emit an error message for mismatched firmware to save our caller the
+ * effort ...
+ */
+static int t4_fw_matches_chip(struct adapter *adap,
+			      const struct fw_hdr *hdr)
+{
+	/*
+	 * The expression below will return FALSE for any unsupported adapter
+	 * which will keep us "honest" in the future ...
+	 */
+	if ((is_t4(adap) && hdr->chip == FW_HDR_CHIP_T4) ||
+	    (is_t5(adap) && hdr->chip == FW_HDR_CHIP_T5) ||
+	    (is_t6(adap) && hdr->chip == FW_HDR_CHIP_T6))
+		return 1;
+
+	CH_ERR(adap,
+		"FW image (%d) is not suitable for this adapter (%d)\n",
+		hdr->chip, chip_id(adap));
+	return 0;
+}
 
 /**
  *	t4_load_fw - download firmware
@@ -3338,40 +3307,39 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
  		fw_start = FLASH_FW_START;
 		fw_size = FLASH_FW_MAX_SIZE;
 	}
+
 	if (!size) {
 		CH_ERR(adap, "FW image has no data\n");
 		return -EINVAL;
 	}
 	if (size & 511) {
-		CH_ERR(adap, "FW image size not multiple of 512 bytes\n");
+		CH_ERR(adap,
+			"FW image size not multiple of 512 bytes\n");
 		return -EINVAL;
 	}
-	if (ntohs(hdr->len512) * 512 != size) {
-		CH_ERR(adap, "FW image size differs from size in FW header\n");
+	if ((unsigned int) be16_to_cpu(hdr->len512) * 512 != size) {
+		CH_ERR(adap,
+			"FW image size differs from size in FW header\n");
 		return -EINVAL;
 	}
 	if (size > fw_size) {
-		CH_ERR(adap, "FW image too large, max is %u bytes\n", fw_size);
+		CH_ERR(adap, "FW image too large, max is %u bytes\n",
+			fw_size);
 		return -EFBIG;
 	}
-	if ((is_t4(adap) && hdr->chip != FW_HDR_CHIP_T4) ||
-	    (is_t5(adap) && hdr->chip != FW_HDR_CHIP_T5)) {
-		CH_ERR(adap,
-		    "FW image (%d) is not suitable for this adapter (%d)\n",
-		    hdr->chip, chip_id(adap));
+	if (!t4_fw_matches_chip(adap, hdr))
 		return -EINVAL;
-	}
 
 	for (csum = 0, i = 0; i < size / sizeof(csum); i++)
-		csum += ntohl(p[i]);
+		csum += be32_to_cpu(p[i]);
 
 	if (csum != 0xffffffff) {
-		CH_ERR(adap, "corrupted firmware image, checksum %#x\n",
-		       csum);
+		CH_ERR(adap,
+			"corrupted firmware image, checksum %#x\n", csum);
 		return -EINVAL;
 	}
 
-	i = DIV_ROUND_UP(size, sf_sec_size);        /* # of sectors spanned */
+	i = DIV_ROUND_UP(size, sf_sec_size);	/* # of sectors spanned */
 	ret = t4_flash_erase_sectors(adap, fw_start_sec, fw_start_sec + i - 1);
 	if (ret)
 		goto out;
@@ -3382,7 +3350,7 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	 * first page with a bad version.
 	 */
 	memcpy(first_page, fw_data, SF_PAGE_SIZE);
-	((struct fw_hdr *)first_page)->fw_ver = htonl(0xffffffff);
+	((struct fw_hdr *)first_page)->fw_ver = cpu_to_be32(0xffffffff);
 	ret = t4_write_flash(adap, fw_start, SF_PAGE_SIZE, first_page, 1);
 	if (ret)
 		goto out;
@@ -3401,7 +3369,8 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 			     sizeof(hdr->fw_ver), (const u8 *)&hdr->fw_ver, 1);
 out:
 	if (ret)
-		CH_ERR(adap, "firmware download failed, error %d\n", ret);
+		CH_ERR(adap, "firmware download failed, error %d\n",
+			ret);
 	return ret;
 }
 
@@ -6712,11 +6681,11 @@ int t4_fw_hello(struct adapter *adap, unsigned int mbox, unsigned int evt_mbox,
 retry:
 	memset(&c, 0, sizeof(c));
 	INIT_CMD(c, HELLO, WRITE);
-	c.err_to_clearinit = htonl(
+	c.err_to_clearinit = cpu_to_be32(
 		V_FW_HELLO_CMD_MASTERDIS(master == MASTER_CANT) |
 		V_FW_HELLO_CMD_MASTERFORCE(master == MASTER_MUST) |
-		V_FW_HELLO_CMD_MBMASTER(master == MASTER_MUST ? mbox :
-			M_FW_HELLO_CMD_MBMASTER) |
+		V_FW_HELLO_CMD_MBMASTER(master == MASTER_MUST ?
+					mbox : M_FW_HELLO_CMD_MBMASTER) |
 		V_FW_HELLO_CMD_MBASYNCNOT(evt_mbox) |
 		V_FW_HELLO_CMD_STAGE(FW_HELLO_CMD_STAGE_OS) |
 		F_FW_HELLO_CMD_CLEARINIT);
@@ -6737,7 +6706,7 @@ retry:
 		return ret;
 	}
 
-	v = ntohl(c.err_to_clearinit);
+	v = be32_to_cpu(c.err_to_clearinit);
 	master_mbox = G_FW_HELLO_CMD_MBMASTER(v);
 	if (state) {
 		if (v & F_FW_HELLO_CMD_ERR)
@@ -6849,7 +6818,7 @@ int t4_fw_reset(struct adapter *adap, unsigned int mbox, int reset)
 
 	memset(&c, 0, sizeof(c));
 	INIT_CMD(c, RESET, WRITE);
-	c.val = htonl(reset);
+	c.val = cpu_to_be32(reset);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
@@ -6882,8 +6851,8 @@ int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force)
 
 		memset(&c, 0, sizeof(c));
 		INIT_CMD(c, RESET, WRITE);
-		c.val = htonl(F_PIORST | F_PIORSTMODE);
-		c.halt_pkd = htonl(F_FW_RESET_CMD_HALT);
+		c.val = cpu_to_be32(F_PIORST | F_PIORSTMODE);
+		c.halt_pkd = cpu_to_be32(F_FW_RESET_CMD_HALT);
 		ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 	}
 
@@ -6902,7 +6871,8 @@ int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force)
 	 */
 	if (ret == 0 || force) {
 		t4_set_reg_field(adap, A_CIM_BOOT_CFG, F_UPCRST, F_UPCRST);
-		t4_set_reg_field(adap, A_PCIE_FW, F_PCIE_FW_HALT, F_PCIE_FW_HALT);
+		t4_set_reg_field(adap, A_PCIE_FW, F_PCIE_FW_HALT,
+				 F_PCIE_FW_HALT);
 	}
 
 	/*
@@ -7000,8 +6970,12 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 		  const u8 *fw_data, unsigned int size, int force)
 {
 	const struct fw_hdr *fw_hdr = (const struct fw_hdr *)fw_data;
-	unsigned int bootstrap = ntohl(fw_hdr->magic) == FW_HDR_MAGIC_BOOTSTRAP;
+	unsigned int bootstrap =
+	    be32_to_cpu(fw_hdr->magic) == FW_HDR_MAGIC_BOOTSTRAP;
 	int reset, ret;
+
+	if (!t4_fw_matches_chip(adap, fw_hdr))
+		return -EINVAL;
 
 	if (!bootstrap) {
 		ret = t4_fw_halt(adap, mbox, force);
@@ -7021,7 +6995,7 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 	 * the newly loaded firmware will handle this right by checking
 	 * its header flags to see if it advertises the capability.
 	 */
-	reset = ((ntohl(fw_hdr->flags) & FW_HDR_FLAGS_RESET_HALT) == 0);
+	reset = ((be32_to_cpu(fw_hdr->flags) & FW_HDR_FLAGS_RESET_HALT) == 0);
 	return t4_fw_restart(adap, mbox, reset);
 }
 
