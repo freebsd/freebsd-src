@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -188,6 +188,7 @@ vdev_file_io_start(zio_t *zio)
 	}
 
 	ASSERT(zio->io_type == ZIO_TYPE_READ || zio->io_type == ZIO_TYPE_WRITE);
+	zio->io_target_timestamp = zio_handle_io_delay(zio);
 
 	zio->io_error = vn_rdwr(zio->io_type == ZIO_TYPE_READ ?
 	    UIO_READ : UIO_WRITE, vp, zio->io_data, zio->io_size,
@@ -196,7 +197,7 @@ vdev_file_io_start(zio_t *zio)
 	if (resid != 0 && zio->io_error == 0)
 		zio->io_error = ENOSPC;
 
-	zio_interrupt(zio);
+	zio_delay_interrupt(zio);
 
 #ifdef illumos
 	VERIFY3U(taskq_dispatch(system_taskq, vdev_file_io_strategy, bp,
