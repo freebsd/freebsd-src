@@ -525,7 +525,6 @@ int t4_load_cfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
 int t4_get_fw_version(struct adapter *adapter, u32 *vers);
 int t4_get_tp_version(struct adapter *adapter, u32 *vers);
 int t4_get_exprom_version(struct adapter *adapter, u32 *vers);
-int t4_check_fw_version(struct adapter *adapter);
 int t4_init_hw(struct adapter *adapter, u32 fw_params);
 int t4_prep_adapter(struct adapter *adapter, u8 *buf);
 int t4_shutdown_adapter(struct adapter *adapter);
