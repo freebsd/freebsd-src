@@ -885,7 +885,7 @@ vdev_geom_io_intr(struct bio *bp)
 		break;
 	}
 	g_destroy_bio(bp);
-	zio_interrupt(zio);
+	zio_delay_interrupt(zio);
 }
 
 static void
@@ -948,6 +948,7 @@ sendreq:
 	switch (zio->io_type) {
 	case ZIO_TYPE_READ:
 	case ZIO_TYPE_WRITE:
+		zio->io_target_timestamp = zio_handle_io_delay(zio);
 		bp->bio_cmd = zio->io_type == ZIO_TYPE_READ ? BIO_READ : BIO_WRITE;
 		bp->bio_data = zio->io_data;
 		bp->bio_offset = zio->io_offset;
