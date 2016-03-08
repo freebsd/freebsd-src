@@ -80,6 +80,8 @@ typedef boolean_t bool;
 #define true TRUE
 #endif
 
+#define __force
+
 #define mdelay(x) DELAY((x) * 1000)
 #define udelay(x) DELAY(x)
 
