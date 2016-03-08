@@ -23,10 +23,12 @@
  * Authors:
  *    Eric Anholt <eric@anholt.net>
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <dev/drm2/drmP.h>
-#include <dev/drm2/drm.h>
 #include <dev/drm2/drm_dp_helper.h>
 #include <dev/drm2/i915/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
@@ -169,8 +171,7 @@ get_lvds_dvo_timing(const struct bdb_lvds_lfp_data *lvds_lfp_data,
 	int dvo_timing_offset =
 		lvds_lfp_data_ptrs->ptr[0].dvo_timing_offset -
 		lvds_lfp_data_ptrs->ptr[0].fp_timing_offset;
-	const char *entry = (const char *)lvds_lfp_data->data +
-	    lfp_data_size * index;
+	const char *entry = (const char *)lvds_lfp_data->data + lfp_data_size * index;
 
 	return (const struct lvds_dvo_timing *)(entry + dvo_timing_offset);
 }
@@ -188,7 +189,7 @@ get_lvds_fp_timing(const struct bdb_header *bdb,
 	u16 data_size = ((const u16 *)data)[-1]; /* stored in header */
 	size_t ofs;
 
-	if (index >= DRM_ARRAY_SIZE(ptrs->ptr))
+	if (index >= ARRAY_SIZE(ptrs->ptr))
 		return NULL;
 	ofs = ptrs->ptr[index].fp_timing_offset;
 	if (ofs < data_ofs ||
@@ -234,8 +235,9 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 					       lvds_lfp_data_ptrs,
 					       lvds_options->panel_type);
 
-	panel_fixed_mode = malloc(sizeof(*panel_fixed_mode), DRM_MEM_KMS,
-	    M_WAITOK | M_ZERO);
+	panel_fixed_mode = malloc(sizeof(*panel_fixed_mode), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	if (!panel_fixed_mode)
+		return;
 
 	fill_detail_timing_data(panel_fixed_mode, panel_dvo_timing);
 
@@ -263,9 +265,9 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	if (downclock < panel_dvo_timing->clock && i915_lvds_downclock) {
 		dev_priv->lvds_downclock_avail = 1;
 		dev_priv->lvds_downclock = downclock * 10;
-		DRM_DEBUG("LVDS downclock is found in VBT. "
+		DRM_DEBUG_KMS("LVDS downclock is found in VBT. "
 			      "Normal Clock %dKHz, downclock %dKHz\n",
-			  panel_fixed_mode->clock, 10 * downclock);
+			      panel_fixed_mode->clock, 10*downclock);
 	}
 
 	fp_timing = get_lvds_fp_timing(bdb, lvds_lfp_data,
@@ -311,8 +313,9 @@ parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
 	if (!dvo_timing)
 		return;
 
-	panel_fixed_mode = malloc(sizeof(*panel_fixed_mode), DRM_MEM_KMS,
-	    M_WAITOK | M_ZERO);
+	panel_fixed_mode = malloc(sizeof(*panel_fixed_mode), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	if (!panel_fixed_mode)
+		return;
 
 	fill_detail_timing_data(panel_fixed_mode, dvo_timing + index);
 
@@ -351,12 +354,14 @@ parse_general_features(struct drm_i915_private *dev_priv,
 		dev_priv->lvds_ssc_freq =
 			intel_bios_ssc_frequency(dev, general->ssc_freq);
 		dev_priv->display_clock_mode = general->display_clock_mode;
-		DRM_DEBUG_KMS("BDB_GENERAL_FEATURES int_tv_support %d int_crt_support %d lvds_use_ssc %d lvds_ssc_freq %d display_clock_mode %d\n",
+		dev_priv->fdi_rx_polarity_inverted = general->fdi_rx_polarity_inverted;
+		DRM_DEBUG_KMS("BDB_GENERAL_FEATURES int_tv_support %d int_crt_support %d lvds_use_ssc %d lvds_ssc_freq %d display_clock_mode %d fdi_rx_polarity_inverted %d\n",
 			      dev_priv->int_tv_support,
 			      dev_priv->int_crt_support,
 			      dev_priv->lvds_use_ssc,
 			      dev_priv->lvds_ssc_freq,
-			      dev_priv->display_clock_mode);
+			      dev_priv->display_clock_mode,
+			      dev_priv->fdi_rx_polarity_inverted);
 	}
 }
 
@@ -499,12 +504,8 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 
 	edp = find_section(bdb, BDB_EDP);
 	if (!edp) {
-		if (SUPPORTS_EDP(dev_priv->dev) && dev_priv->edp.support) {
-			DRM_DEBUG_KMS("No eDP BDB found but eDP panel "
-				      "supported, assume %dbpp panel color "
-				      "depth.\n",
-				      dev_priv->edp.bpp);
-		}
+		if (SUPPORTS_EDP(dev_priv->dev) && dev_priv->edp.support)
+			DRM_DEBUG_KMS("No eDP BDB found but eDP panel supported.\n");
 		return;
 	}
 
@@ -613,8 +614,11 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_KMS("no child dev is parsed from VBT\n");
 		return;
 	}
-	dev_priv->child_dev = malloc(sizeof(*p_child) * count, DRM_MEM_KMS,
-	    M_WAITOK | M_ZERO);
+	dev_priv->child_dev = malloc(count * sizeof(*p_child), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	if (!dev_priv->child_dev) {
+		DRM_DEBUG_KMS("No memory space for child device\n");
+		return;
+	}
 
 	dev_priv->child_dev_num = count;
 	count = 0;
@@ -654,12 +658,9 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 	dev_priv->lvds_use_ssc = 1;
 	dev_priv->lvds_ssc_freq = intel_bios_ssc_frequency(dev, 1);
 	DRM_DEBUG_KMS("Set default to SSC at %dMHz\n", dev_priv->lvds_ssc_freq);
-
-	/* eDP data */
-	dev_priv->edp.bpp = 18;
 }
 
-static int intel_no_opregion_vbt_callback(const struct dmi_system_id *id)
+static int __init intel_no_opregion_vbt_callback(const struct dmi_system_id *id)
 {
 	DRM_DEBUG_KMS("Falling back to manually reading VBT from "
 		      "VBIOS ROM for %s\n",
@@ -688,12 +689,13 @@ static const struct dmi_system_id intel_no_opregion_vbt[] = {
  *
  * Returns 0 on success, nonzero on failure.
  */
-bool
+int
 intel_parse_bios(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	device_t vga_dev = device_get_parent(dev->dev);;
 	struct bdb_header *bdb = NULL;
-	u8 *bios;
+	u8 __iomem *bios = NULL;
 
 	init_vbt_defaults(dev_priv);
 
@@ -707,20 +709,13 @@ intel_parse_bios(struct drm_device *dev)
 		} else
 			dev_priv->opregion.vbt = NULL;
 	}
-	bios = NULL;
 
-#if 1
-	if (bdb == NULL) {
-		KIB_NOTYET();
-		return (-1);
-	}
-#else
 	if (bdb == NULL) {
 		struct vbt_header *vbt = NULL;
 		size_t size;
 		int i;
 
-		bios = pci_map_rom(pdev, &size);
+		bios = vga_pci_map_bios(vga_dev, &size);
 		if (!bios)
 			return -1;
 
@@ -734,13 +729,12 @@ intel_parse_bios(struct drm_device *dev)
 
 		if (!vbt) {
 			DRM_DEBUG_DRIVER("VBT signature missing\n");
-			pci_unmap_rom(pdev, bios);
+			vga_pci_unmap_bios(vga_dev, bios);
 			return -1;
 		}
 
 		bdb = (struct bdb_header *)(bios + i + vbt->bdb_offset);
 	}
-#endif
 
 	/* Grab useful general definitions */
 	parse_general_features(dev_priv, bdb);
@@ -752,12 +746,29 @@ intel_parse_bios(struct drm_device *dev)
 	parse_driver_features(dev_priv, bdb);
 	parse_edp(dev_priv, bdb);
 
-#if 0
 	if (bios)
-		pci_unmap_rom(pdev, bios);
-#endif
+		vga_pci_unmap_bios(vga_dev, bios);
 
 	return 0;
+}
+
+/*
+ * NOTE Linux<->FreeBSD:
+ * Apparently, Linux doesn't free those pointers.
+ * TODO: Report that upstream.
+ */
+void
+intel_free_parsed_bios_data(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	free(dev_priv->lfp_lvds_vbt_mode, DRM_MEM_KMS);
+	free(dev_priv->sdvo_lvds_vbt_mode, DRM_MEM_KMS);
+	free(dev_priv->child_dev, DRM_MEM_KMS);
+
+	dev_priv->lfp_lvds_vbt_mode = NULL;
+	dev_priv->sdvo_lvds_vbt_mode = NULL;
+	dev_priv->child_dev = NULL;
 }
 
 /* Ensure that vital registers have been initialised, even if the BIOS
@@ -768,7 +779,8 @@ void intel_setup_bios(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	 /* Set the Panel Power On/Off timings if uninitialized. */
-	if ((I915_READ(PP_ON_DELAYS) == 0) && (I915_READ(PP_OFF_DELAYS) == 0)) {
+	if (!HAS_PCH_SPLIT(dev) &&
+	    I915_READ(PP_ON_DELAYS) == 0 && I915_READ(PP_OFF_DELAYS) == 0) {
 		/* Set T2 to 40ms and T5 to 200ms */
 		I915_WRITE(PP_ON_DELAYS, 0x019007d0);
 
