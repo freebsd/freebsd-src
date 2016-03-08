@@ -32,6 +32,9 @@
 
 #include "t4_hw.h"
 
+#define GLBL_INTR_MASK (F_CIM | F_MPS | F_PL | F_PCIE | F_MC0 | F_EDC0 | \
+		F_EDC1 | F_LE | F_TP | F_MA | F_PM_TX | F_PM_RX | F_ULP_RX | \
+		F_CPL_SWITCH | F_SGE | F_ULP_TX)
 
 enum {
 	MAX_NPORTS     = 4,     /* max # of ports */
@@ -501,6 +504,8 @@ int t4_init_tp_params(struct adapter *adap);
 int t4_filter_field_shift(const struct adapter *adap, int filter_sel);
 int t4_port_init(struct port_info *p, int mbox, int pf, int vf);
 void t4_fatal_err(struct adapter *adapter);
+void t4_db_full(struct adapter *adapter);
+void t4_db_dropped(struct adapter *adapter);
 int t4_set_trace_filter(struct adapter *adapter, const struct trace_params *tp,
 			int filter_index, int enable);
 void t4_get_trace_filter(struct adapter *adapter, struct trace_params *tp,
