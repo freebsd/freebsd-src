@@ -636,6 +636,56 @@ int t4_mem_read(struct adapter *adap, int mtype, u32 addr, u32 len,
 	return 0;
 }
 
+/*
+ * Return the specified PCI-E Configuration Space register from our Physical
+ * Function.  We try first via a Firmware LDST Command (if fw_attach != 0)
+ * since we prefer to let the firmware own all of these registers, but if that
+ * fails we go for it directly ourselves.
+ */
+u32 t4_read_pcie_cfg4(struct adapter *adap, int reg, int drv_fw_attach)
+{
+
+	/*
+	 * If fw_attach != 0, construct and send the Firmware LDST Command to
+	 * retrieve the specified PCI-E Configuration Space register.
+	 */
+	if (drv_fw_attach != 0) {
+		struct fw_ldst_cmd ldst_cmd;
+		int ret;
+
+		memset(&ldst_cmd, 0, sizeof(ldst_cmd));
+		ldst_cmd.op_to_addrspace =
+			cpu_to_be32(V_FW_CMD_OP(FW_LDST_CMD) |
+				    F_FW_CMD_REQUEST |
+				    F_FW_CMD_READ |
+				    V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_FUNC_PCIE));
+		ldst_cmd.cycles_to_len16 = cpu_to_be32(FW_LEN16(ldst_cmd));
+		ldst_cmd.u.pcie.select_naccess = V_FW_LDST_CMD_NACCESS(1);
+		ldst_cmd.u.pcie.ctrl_to_fn =
+			(F_FW_LDST_CMD_LC | V_FW_LDST_CMD_FN(adap->pf));
+		ldst_cmd.u.pcie.r = reg;
+
+		/*
+		 * If the LDST Command succeeds, return the result, otherwise
+		 * fall through to reading it directly ourselves ...
+		 */
+		ret = t4_wr_mbox(adap, adap->mbox, &ldst_cmd, sizeof(ldst_cmd),
+				 &ldst_cmd);
+		if (ret == 0)
+			return be32_to_cpu(ldst_cmd.u.pcie.data[0]);
+
+		CH_WARN(adap, "Firmware failed to return "
+			"Configuration Space register %d, err = %d\n",
+			reg, -ret);
+	}
+
+	/*
+	 * Read the desired Configuration Space register via the PCI-E
+	 * Backdoor mechanism.
+	 */
+	return t4_hw_pci_read_cfg4(adap, reg);
+}
+
 /**
  *	t4_get_regs_len - return the size of the chips register set
  *	@adapter: the adapter
@@ -3116,6 +3166,43 @@ int t4_get_tp_version(struct adapter *adapter, u32 *vers)
 }
 
 /**
+ *	t4_get_exprom_version - return the Expansion ROM version (if any)
+ *	@adapter: the adapter
+ *	@vers: where to place the version
+ *
+ *	Reads the Expansion ROM header from FLASH and returns the version
+ *	number (if present) through the @vers return value pointer.  We return
+ *	this in the Firmware Version Format since it's convenient.  Return
+ *	0 on success, -ENOENT if no Expansion ROM is present.
+ */
+int t4_get_exprom_version(struct adapter *adap, u32 *vers)
+{
+	struct exprom_header {
+		unsigned char hdr_arr[16];	/* must start with 0x55aa */
+		unsigned char hdr_ver[4];	/* Expansion ROM version */
+	} *hdr;
+	u32 exprom_header_buf[DIV_ROUND_UP(sizeof(struct exprom_header),
+					   sizeof(u32))];
+	int ret;
+
+	ret = t4_read_flash(adap, FLASH_EXP_ROM_START,
+			    ARRAY_SIZE(exprom_header_buf), exprom_header_buf,
+			    0);
+	if (ret)
+		return ret;
+
+	hdr = (struct exprom_header *)exprom_header_buf;
+	if (hdr->hdr_arr[0] != 0x55 || hdr->hdr_arr[1] != 0xaa)
+		return -ENOENT;
+
+	*vers = (V_FW_HDR_FW_VER_MAJOR(hdr->hdr_ver[0]) |
+		 V_FW_HDR_FW_VER_MINOR(hdr->hdr_ver[1]) |
+		 V_FW_HDR_FW_VER_MICRO(hdr->hdr_ver[2]) |
+		 V_FW_HDR_FW_VER_BUILD(hdr->hdr_ver[3]));
+	return 0;
+}
+
+/**
  *	t4_check_fw_version - check if the FW is compatible with this driver
  *	@adapter: the adapter
  *
@@ -3316,6 +3403,30 @@ out:
 	if (ret)
 		CH_ERR(adap, "firmware download failed, error %d\n", ret);
 	return ret;
+}
+
+/**
+ *	t4_fwcache - firmware cache operation
+ *	@adap: the adapter
+ *	@op  : the operation (flush or flush and invalidate)
+ */
+int t4_fwcache(struct adapter *adap, enum fw_params_param_dev_fwcache op)
+{
+	struct fw_params_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_vfn =
+	    cpu_to_be32(V_FW_CMD_OP(FW_PARAMS_CMD) |
+			    F_FW_CMD_REQUEST | F_FW_CMD_WRITE |
+				V_FW_PARAMS_CMD_PFN(adap->pf) |
+				V_FW_PARAMS_CMD_VFN(0));
+	c.retval_len16 = cpu_to_be32(FW_LEN16(c));
+	c.param[0].mnem =
+	    cpu_to_be32(V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+			    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_FWCACHE));
+	c.param[0].val = (__force __be32)op;
+
+	return t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), NULL);
 }
 
 /**
@@ -6251,6 +6362,163 @@ int t4_mdio_wr(struct adapter *adap, unsigned int mbox, unsigned int phy_addr,
 }
 
 /**
+ *
+ *	t4_sge_decode_idma_state - decode the idma state
+ *	@adap: the adapter
+ *	@state: the state idma is stuck in
+ */
+void t4_sge_decode_idma_state(struct adapter *adapter, int state)
+{
+	static const char * const t4_decode[] = {
+		"IDMA_IDLE",
+		"IDMA_PUSH_MORE_CPL_FIFO",
+		"IDMA_PUSH_CPL_MSG_HEADER_TO_FIFO",
+		"Not used",
+		"IDMA_PHYSADDR_SEND_PCIEHDR",
+		"IDMA_PHYSADDR_SEND_PAYLOAD_FIRST",
+		"IDMA_PHYSADDR_SEND_PAYLOAD",
+		"IDMA_SEND_FIFO_TO_IMSG",
+		"IDMA_FL_REQ_DATA_FL_PREP",
+		"IDMA_FL_REQ_DATA_FL",
+		"IDMA_FL_DROP",
+		"IDMA_FL_H_REQ_HEADER_FL",
+		"IDMA_FL_H_SEND_PCIEHDR",
+		"IDMA_FL_H_PUSH_CPL_FIFO",
+		"IDMA_FL_H_SEND_CPL",
+		"IDMA_FL_H_SEND_IP_HDR_FIRST",
+		"IDMA_FL_H_SEND_IP_HDR",
+		"IDMA_FL_H_REQ_NEXT_HEADER_FL",
+		"IDMA_FL_H_SEND_NEXT_PCIEHDR",
+		"IDMA_FL_H_SEND_IP_HDR_PADDING",
+		"IDMA_FL_D_SEND_PCIEHDR",
+		"IDMA_FL_D_SEND_CPL_AND_IP_HDR",
+		"IDMA_FL_D_REQ_NEXT_DATA_FL",
+		"IDMA_FL_SEND_PCIEHDR",
+		"IDMA_FL_PUSH_CPL_FIFO",
+		"IDMA_FL_SEND_CPL",
+		"IDMA_FL_SEND_PAYLOAD_FIRST",
+		"IDMA_FL_SEND_PAYLOAD",
+		"IDMA_FL_REQ_NEXT_DATA_FL",
+		"IDMA_FL_SEND_NEXT_PCIEHDR",
+		"IDMA_FL_SEND_PADDING",
+		"IDMA_FL_SEND_COMPLETION_TO_IMSG",
+		"IDMA_FL_SEND_FIFO_TO_IMSG",
+		"IDMA_FL_REQ_DATAFL_DONE",
+		"IDMA_FL_REQ_HEADERFL_DONE",
+	};
+	static const char * const t5_decode[] = {
+		"IDMA_IDLE",
+		"IDMA_ALMOST_IDLE",
+		"IDMA_PUSH_MORE_CPL_FIFO",
+		"IDMA_PUSH_CPL_MSG_HEADER_TO_FIFO",
+		"IDMA_SGEFLRFLUSH_SEND_PCIEHDR",
+		"IDMA_PHYSADDR_SEND_PCIEHDR",
+		"IDMA_PHYSADDR_SEND_PAYLOAD_FIRST",
+		"IDMA_PHYSADDR_SEND_PAYLOAD",
+		"IDMA_SEND_FIFO_TO_IMSG",
+		"IDMA_FL_REQ_DATA_FL",
+		"IDMA_FL_DROP",
+		"IDMA_FL_DROP_SEND_INC",
+		"IDMA_FL_H_REQ_HEADER_FL",
+		"IDMA_FL_H_SEND_PCIEHDR",
+		"IDMA_FL_H_PUSH_CPL_FIFO",
+		"IDMA_FL_H_SEND_CPL",
+		"IDMA_FL_H_SEND_IP_HDR_FIRST",
+		"IDMA_FL_H_SEND_IP_HDR",
+		"IDMA_FL_H_REQ_NEXT_HEADER_FL",
+		"IDMA_FL_H_SEND_NEXT_PCIEHDR",
+		"IDMA_FL_H_SEND_IP_HDR_PADDING",
+		"IDMA_FL_D_SEND_PCIEHDR",
+		"IDMA_FL_D_SEND_CPL_AND_IP_HDR",
+		"IDMA_FL_D_REQ_NEXT_DATA_FL",
+		"IDMA_FL_SEND_PCIEHDR",
+		"IDMA_FL_PUSH_CPL_FIFO",
+		"IDMA_FL_SEND_CPL",
+		"IDMA_FL_SEND_PAYLOAD_FIRST",
+		"IDMA_FL_SEND_PAYLOAD",
+		"IDMA_FL_REQ_NEXT_DATA_FL",
+		"IDMA_FL_SEND_NEXT_PCIEHDR",
+		"IDMA_FL_SEND_PADDING",
+		"IDMA_FL_SEND_COMPLETION_TO_IMSG",
+	};
+	static const char * const t6_decode[] = {
+		"IDMA_IDLE",
+		"IDMA_PUSH_MORE_CPL_FIFO",
+		"IDMA_PUSH_CPL_MSG_HEADER_TO_FIFO",
+		"IDMA_SGEFLRFLUSH_SEND_PCIEHDR",
+		"IDMA_PHYSADDR_SEND_PCIEHDR",
+		"IDMA_PHYSADDR_SEND_PAYLOAD_FIRST",
+		"IDMA_PHYSADDR_SEND_PAYLOAD",
+		"IDMA_FL_REQ_DATA_FL",
+		"IDMA_FL_DROP",
+		"IDMA_FL_DROP_SEND_INC",
+		"IDMA_FL_H_REQ_HEADER_FL",
+		"IDMA_FL_H_SEND_PCIEHDR",
+		"IDMA_FL_H_PUSH_CPL_FIFO",
+		"IDMA_FL_H_SEND_CPL",
+		"IDMA_FL_H_SEND_IP_HDR_FIRST",
+		"IDMA_FL_H_SEND_IP_HDR",
+		"IDMA_FL_H_REQ_NEXT_HEADER_FL",
+		"IDMA_FL_H_SEND_NEXT_PCIEHDR",
+		"IDMA_FL_H_SEND_IP_HDR_PADDING",
+		"IDMA_FL_D_SEND_PCIEHDR",
+		"IDMA_FL_D_SEND_CPL_AND_IP_HDR",
+		"IDMA_FL_D_REQ_NEXT_DATA_FL",
+		"IDMA_FL_SEND_PCIEHDR",
+		"IDMA_FL_PUSH_CPL_FIFO",
+		"IDMA_FL_SEND_CPL",
+		"IDMA_FL_SEND_PAYLOAD_FIRST",
+		"IDMA_FL_SEND_PAYLOAD",
+		"IDMA_FL_REQ_NEXT_DATA_FL",
+		"IDMA_FL_SEND_NEXT_PCIEHDR",
+		"IDMA_FL_SEND_PADDING",
+		"IDMA_FL_SEND_COMPLETION_TO_IMSG",
+	};
+	static const u32 sge_regs[] = {
+		A_SGE_DEBUG_DATA_LOW_INDEX_2,
+		A_SGE_DEBUG_DATA_LOW_INDEX_3,
+		A_SGE_DEBUG_DATA_HIGH_INDEX_10,
+	};
+	const char * const *sge_idma_decode;
+	int sge_idma_decode_nstates;
+	int i;
+	unsigned int chip_version = chip_id(adapter);
+
+	/* Select the right set of decode strings to dump depending on the
+	 * adapter chip type.
+	 */
+	switch (chip_version) {
+	case CHELSIO_T4:
+		sge_idma_decode = (const char * const *)t4_decode;
+		sge_idma_decode_nstates = ARRAY_SIZE(t4_decode);
+		break;
+
+	case CHELSIO_T5:
+		sge_idma_decode = (const char * const *)t5_decode;
+		sge_idma_decode_nstates = ARRAY_SIZE(t5_decode);
+		break;
+
+	case CHELSIO_T6:
+		sge_idma_decode = (const char * const *)t6_decode;
+		sge_idma_decode_nstates = ARRAY_SIZE(t6_decode);
+		break;
+
+	default:
+		CH_ERR(adapter,	"Unsupported chip version %d\n", chip_version);
+		return;
+	}
+
+	if (state < sge_idma_decode_nstates)
+		CH_WARN(adapter, "idma state %s\n", sge_idma_decode[state]);
+	else
+		CH_WARN(adapter, "idma state %d unknown\n", state);
+
+	for (i = 0; i < ARRAY_SIZE(sge_regs); i++)
+		CH_WARN(adapter, "SGE register %#x value %#x\n",
+			sge_regs[i], t4_read_reg(adapter, sge_regs[i]));
+}
+
+/**
  *	t4_i2c_rd - read I2C data from adapter
  *	@adap: the adapter
  *	@port: Port number if per-port device; <0 if not
@@ -7327,6 +7595,39 @@ int t4_identify_port(struct adapter *adap, unsigned int mbox, unsigned int viid,
 }
 
 /**
+ *	t4_iq_stop - stop an ingress queue and its FLs
+ *	@adap: the adapter
+ *	@mbox: mailbox to use for the FW command
+ *	@pf: the PF owning the queues
+ *	@vf: the VF owning the queues
+ *	@iqtype: the ingress queue type (FW_IQ_TYPE_FL_INT_CAP, etc.)
+ *	@iqid: ingress queue id
+ *	@fl0id: FL0 queue id or 0xffff if no attached FL0
+ *	@fl1id: FL1 queue id or 0xffff if no attached FL1
+ *
+ *	Stops an ingress queue and its associated FLs, if any.  This causes
+ *	any current or future data/messages destined for these queues to be
+ *	tossed.
+ */
+int t4_iq_stop(struct adapter *adap, unsigned int mbox, unsigned int pf,
+	       unsigned int vf, unsigned int iqtype, unsigned int iqid,
+	       unsigned int fl0id, unsigned int fl1id)
+{
+	struct fw_iq_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_vfn = cpu_to_be32(V_FW_CMD_OP(FW_IQ_CMD) | F_FW_CMD_REQUEST |
+				  F_FW_CMD_EXEC | V_FW_IQ_CMD_PFN(pf) |
+				  V_FW_IQ_CMD_VFN(vf));
+	c.alloc_to_len16 = cpu_to_be32(F_FW_IQ_CMD_IQSTOP | FW_LEN16(c));
+	c.type_to_iqandstindex = cpu_to_be32(V_FW_IQ_CMD_TYPE(iqtype));
+	c.iqid = cpu_to_be16(iqid);
+	c.fl0id = cpu_to_be16(fl0id);
+	c.fl1id = cpu_to_be16(fl1id);
+	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+}
+
+/**
  *	t4_iq_free - free an ingress queue and its FLs
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
@@ -7761,6 +8062,106 @@ int t4_prep_adapter(struct adapter *adapter, u8 *buf)
 }
 
 /**
+ *	t4_shutdown_adapter - shut down adapter, host & wire
+ *	@adapter: the adapter
+ *
+ *	Perform an emergency shutdown of the adapter and stop it from
+ *	continuing any further communication on the ports or DMA to the
+ *	host.  This is typically used when the adapter and/or firmware
+ *	have crashed and we want to prevent any further accidental
+ *	communication with the rest of the world.  This will also force
+ *	the port Link Status to go down -- if register writes work --
+ *	which should help our peers figure out that we're down.
+ */
+int t4_shutdown_adapter(struct adapter *adapter)
+{
+	int port;
+
+	t4_intr_disable(adapter);
+	t4_write_reg(adapter, A_DBG_GPIO_EN, 0);
+	for_each_port(adapter, port) {
+		u32 a_port_cfg = PORT_REG(port,
+					  is_t4(adapter)
+					  ? A_XGMAC_PORT_CFG
+					  : A_MAC_PORT_CFG);
+
+		t4_write_reg(adapter, a_port_cfg,
+			     t4_read_reg(adapter, a_port_cfg)
+			     & ~V_SIGNAL_DET(1));
+	}
+	t4_set_reg_field(adapter, A_SGE_CONTROL, F_GLOBALENABLE, 0);
+
+	return 0;
+}
+
+/**
+ *	t4_init_devlog_params - initialize adapter->params.devlog
+ *	@adap: the adapter
+ *	@fw_attach: whether we can talk to the firmware
+ *
+ *	Initialize various fields of the adapter's Firmware Device Log
+ *	Parameters structure.
+ */
+int t4_init_devlog_params(struct adapter *adap, int fw_attach)
+{
+	struct devlog_params *dparams = &adap->params.devlog;
+	u32 pf_dparams;
+	unsigned int devlog_meminfo;
+	struct fw_devlog_cmd devlog_cmd;
+	int ret;
+
+	/* If we're dealing with newer firmware, the Device Log Paramerters
+	 * are stored in a designated register which allows us to access the
+	 * Device Log even if we can't talk to the firmware.
+	 */
+	pf_dparams =
+		t4_read_reg(adap, PCIE_FW_REG(A_PCIE_FW_PF, PCIE_FW_PF_DEVLOG));
+	if (pf_dparams) {
+		unsigned int nentries, nentries128;
+
+		dparams->memtype = G_PCIE_FW_PF_DEVLOG_MEMTYPE(pf_dparams);
+		dparams->start = G_PCIE_FW_PF_DEVLOG_ADDR16(pf_dparams) << 4;
+
+		nentries128 = G_PCIE_FW_PF_DEVLOG_NENTRIES128(pf_dparams);
+		nentries = (nentries128 + 1) * 128;
+		dparams->size = nentries * sizeof(struct fw_devlog_e);
+
+		return 0;
+	}
+
+	/*
+	 * For any failing returns ...
+	 */
+	memset(dparams, 0, sizeof *dparams);
+
+	/*
+	 * If we can't talk to the firmware, there's really nothing we can do
+	 * at this point.
+	 */
+	if (!fw_attach)
+		return -ENXIO;
+
+	/* Otherwise, ask the firmware for it's Device Log Parameters.
+	 */
+	memset(&devlog_cmd, 0, sizeof devlog_cmd);
+	devlog_cmd.op_to_write = cpu_to_be32(V_FW_CMD_OP(FW_DEVLOG_CMD) |
+					     F_FW_CMD_REQUEST | F_FW_CMD_READ);
+	devlog_cmd.retval_len16 = cpu_to_be32(FW_LEN16(devlog_cmd));
+	ret = t4_wr_mbox(adap, adap->mbox, &devlog_cmd, sizeof(devlog_cmd),
+			 &devlog_cmd);
+	if (ret)
+		return ret;
+
+	devlog_meminfo =
+		be32_to_cpu(devlog_cmd.memtype_devlog_memaddr16_devlog);
+	dparams->memtype = G_FW_DEVLOG_CMD_MEMTYPE_DEVLOG(devlog_meminfo);
+	dparams->start = G_FW_DEVLOG_CMD_MEMADDR16_DEVLOG(devlog_meminfo) << 4;
+	dparams->size = be32_to_cpu(devlog_cmd.memsize_devlog);
+
+	return 0;
+}
+
+/**
  *	t4_init_sge_params - initialize adap->params.sge
  *	@adapter: the adapter
  *
@@ -8018,6 +8419,156 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 	}
 
 	return 0;
+}
+
+/*
+ * SGE Hung Ingress DMA Warning Threshold time and Warning Repeat Rate (in
+ * seconds).  If we find one of the SGE Ingress DMA State Machines in the same
+ * state for more than the Warning Threshold then we'll issue a warning about
+ * a potential hang.  We'll repeat the warning as the SGE Ingress DMA Channel
+ * appears to be hung every Warning Repeat second till the situation clears.
+ * If the situation clears, we'll note that as well.
+ */
+#define SGE_IDMA_WARN_THRESH 1
+#define SGE_IDMA_WARN_REPEAT 300
+
+/**
+ *	t4_idma_monitor_init - initialize SGE Ingress DMA Monitor
+ *	@adapter: the adapter
+ *	@idma: the adapter IDMA Monitor state
+ *
+ *	Initialize the state of an SGE Ingress DMA Monitor.
+ */
+void t4_idma_monitor_init(struct adapter *adapter,
+			  struct sge_idma_monitor_state *idma)
+{
+	/* Initialize the state variables for detecting an SGE Ingress DMA
+	 * hang.  The SGE has internal counters which count up on each clock
+	 * tick whenever the SGE finds its Ingress DMA State Engines in the
+	 * same state they were on the previous clock tick.  The clock used is
+	 * the Core Clock so we have a limit on the maximum "time" they can
+	 * record; typically a very small number of seconds.  For instance,
+	 * with a 600MHz Core Clock, we can only count up to a bit more than
+	 * 7s.  So we'll synthesize a larger counter in order to not run the
+	 * risk of having the "timers" overflow and give us the flexibility to
+	 * maintain a Hung SGE State Machine of our own which operates across
+	 * a longer time frame.
+	 */
+	idma->idma_1s_thresh = core_ticks_per_usec(adapter) * 1000000; /* 1s */
+	idma->idma_stalled[0] = idma->idma_stalled[1] = 0;
+}
+
+/**
+ *	t4_idma_monitor - monitor SGE Ingress DMA state
+ *	@adapter: the adapter
+ *	@idma: the adapter IDMA Monitor state
+ *	@hz: number of ticks/second
+ *	@ticks: number of ticks since the last IDMA Monitor call
+ */
+void t4_idma_monitor(struct adapter *adapter,
+		     struct sge_idma_monitor_state *idma,
+		     int hz, int ticks)
+{
+	int i, idma_same_state_cnt[2];
+
+	 /* Read the SGE Debug Ingress DMA Same State Count registers.  These
+	  * are counters inside the SGE which count up on each clock when the
+	  * SGE finds its Ingress DMA State Engines in the same states they
+	  * were in the previous clock.  The counters will peg out at
+	  * 0xffffffff without wrapping around so once they pass the 1s
+	  * threshold they'll stay above that till the IDMA state changes.
+	  */
+	t4_write_reg(adapter, A_SGE_DEBUG_INDEX, 13);
+	idma_same_state_cnt[0] = t4_read_reg(adapter, A_SGE_DEBUG_DATA_HIGH);
+	idma_same_state_cnt[1] = t4_read_reg(adapter, A_SGE_DEBUG_DATA_LOW);
+
+	for (i = 0; i < 2; i++) {
+		u32 debug0, debug11;
+
+		/* If the Ingress DMA Same State Counter ("timer") is less
+		 * than 1s, then we can reset our synthesized Stall Timer and
+		 * continue.  If we have previously emitted warnings about a
+		 * potential stalled Ingress Queue, issue a note indicating
+		 * that the Ingress Queue has resumed forward progress.
+		 */
+		if (idma_same_state_cnt[i] < idma->idma_1s_thresh) {
+			if (idma->idma_stalled[i] >= SGE_IDMA_WARN_THRESH*hz)
+				CH_WARN(adapter, "SGE idma%d, queue %u, "
+					"resumed after %d seconds\n",
+					i, idma->idma_qid[i],
+					idma->idma_stalled[i]/hz);
+			idma->idma_stalled[i] = 0;
+			continue;
+		}
+
+		/* Synthesize an SGE Ingress DMA Same State Timer in the Hz
+		 * domain.  The first time we get here it'll be because we
+		 * passed the 1s Threshold; each additional time it'll be
+		 * because the RX Timer Callback is being fired on its regular
+		 * schedule.
+		 *
+		 * If the stall is below our Potential Hung Ingress Queue
+		 * Warning Threshold, continue.
+		 */
+		if (idma->idma_stalled[i] == 0) {
+			idma->idma_stalled[i] = hz;
+			idma->idma_warn[i] = 0;
+		} else {
+			idma->idma_stalled[i] += ticks;
+			idma->idma_warn[i] -= ticks;
+		}
+
+		if (idma->idma_stalled[i] < SGE_IDMA_WARN_THRESH*hz)
+			continue;
+
+		/* We'll issue a warning every SGE_IDMA_WARN_REPEAT seconds.
+		 */
+		if (idma->idma_warn[i] > 0)
+			continue;
+		idma->idma_warn[i] = SGE_IDMA_WARN_REPEAT*hz;
+
+		/* Read and save the SGE IDMA State and Queue ID information.
+		 * We do this every time in case it changes across time ...
+		 * can't be too careful ...
+		 */
+		t4_write_reg(adapter, A_SGE_DEBUG_INDEX, 0);
+		debug0 = t4_read_reg(adapter, A_SGE_DEBUG_DATA_LOW);
+		idma->idma_state[i] = (debug0 >> (i * 9)) & 0x3f;
+
+		t4_write_reg(adapter, A_SGE_DEBUG_INDEX, 11);
+		debug11 = t4_read_reg(adapter, A_SGE_DEBUG_DATA_LOW);
+		idma->idma_qid[i] = (debug11 >> (i * 16)) & 0xffff;
+
+		CH_WARN(adapter, "SGE idma%u, queue %u, potentially stuck in "
+			" state %u for %d seconds (debug0=%#x, debug11=%#x)\n",
+			i, idma->idma_qid[i], idma->idma_state[i],
+			idma->idma_stalled[i]/hz,
+			debug0, debug11);
+		t4_sge_decode_idma_state(adapter, idma->idma_state[i]);
+	}
+}
+
+/**
+ *	t5_fw_init_extern_mem - initialize the external memory
+ *	@adap: the adapter
+ *
+ *	Initializes the external memory on T5.
+ */
+int t5_fw_init_extern_mem(struct adapter *adap)
+{
+	u32 params[1], val[1];
+	int ret;
+
+	if (!is_t5(adap))
+		return 0;
+
+	val[0] = 0xff; /* Initialize all MCs */
+	params[0] = (V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+			V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_MCINIT));
+	ret = t4_set_params_timeout(adap, adap->mbox, adap->pf, 0, 1, params, val,
+			FW_CMD_MAX_TIMEOUT);
+
+	return ret;
 }
 
 /* BIOS boot headers */
@@ -8453,4 +9004,79 @@ int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
 
 	return t4_wr_mbox_meat(adapter,adapter->mbox, &cmd, sizeof(cmd),
 			       NULL, sleep_ok);
+}
+
+/*
+ *	t4_config_watchdog - configure (enable/disable) a watchdog timer
+ *	@adapter: the adapter
+ * 	@mbox: mailbox to use for the FW command
+ * 	@pf: the PF owning the queue
+ * 	@vf: the VF owning the queue
+ *	@timeout: watchdog timeout in ms
+ *	@action: watchdog timer / action
+ *
+ *	There are separate watchdog timers for each possible watchdog
+ *	action.  Configure one of the watchdog timers by setting a non-zero
+ *	timeout.  Disable a watchdog timer by using a timeout of zero.
+ */
+int t4_config_watchdog(struct adapter *adapter, unsigned int mbox,
+		       unsigned int pf, unsigned int vf,
+		       unsigned int timeout, unsigned int action)
+{
+	struct fw_watchdog_cmd wdog;
+	unsigned int ticks;
+
+	/*
+	 * The watchdog command expects a timeout in units of 10ms so we need
+	 * to convert it here (via rounding) and force a minimum of one 10ms
+	 * "tick" if the timeout is non-zero but the convertion results in 0
+	 * ticks.
+	 */
+	ticks = (timeout + 5)/10;
+	if (timeout && !ticks)
+		ticks = 1;
+
+	memset(&wdog, 0, sizeof wdog);
+	wdog.op_to_vfn = cpu_to_be32(V_FW_CMD_OP(FW_WATCHDOG_CMD) |
+				     F_FW_CMD_REQUEST |
+				     F_FW_CMD_WRITE |
+				     V_FW_PARAMS_CMD_PFN(pf) |
+				     V_FW_PARAMS_CMD_VFN(vf));
+	wdog.retval_len16 = cpu_to_be32(FW_LEN16(wdog));
+	wdog.timeout = cpu_to_be32(ticks);
+	wdog.action = cpu_to_be32(action);
+
+	return t4_wr_mbox(adapter, mbox, &wdog, sizeof wdog, NULL);
+}
+
+int t4_get_devlog_level(struct adapter *adapter, unsigned int *level)
+{
+	struct fw_devlog_cmd devlog_cmd;
+	int ret;
+
+	memset(&devlog_cmd, 0, sizeof(devlog_cmd));
+	devlog_cmd.op_to_write = cpu_to_be32(V_FW_CMD_OP(FW_DEVLOG_CMD) |
+					     F_FW_CMD_REQUEST | F_FW_CMD_READ);
+	devlog_cmd.retval_len16 = cpu_to_be32(FW_LEN16(devlog_cmd));
+	ret = t4_wr_mbox(adapter, adapter->mbox, &devlog_cmd,
+			 sizeof(devlog_cmd), &devlog_cmd);
+	if (ret)
+		return ret;
+
+	*level = devlog_cmd.level;
+	return 0;
+}
+
+int t4_set_devlog_level(struct adapter *adapter, unsigned int level)
+{
+	struct fw_devlog_cmd devlog_cmd;
+
+	memset(&devlog_cmd, 0, sizeof(devlog_cmd));
+	devlog_cmd.op_to_write = cpu_to_be32(V_FW_CMD_OP(FW_DEVLOG_CMD) |
+					     F_FW_CMD_REQUEST |
+					     F_FW_CMD_WRITE);
+	devlog_cmd.level = level;
+	devlog_cmd.retval_len16 = cpu_to_be32(FW_LEN16(devlog_cmd));
+	return t4_wr_mbox(adapter, adapter->mbox, &devlog_cmd,
+			  sizeof(devlog_cmd), &devlog_cmd);
 }

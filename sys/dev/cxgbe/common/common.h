@@ -338,6 +338,18 @@ struct adapter_params {
 #define CHELSIO_T5		0x5
 #define CHELSIO_T6		0x6
 
+/*
+ * State needed to monitor the forward progress of SGE Ingress DMA activities
+ * and possible hangs.
+ */
+struct sge_idma_monitor_state {
+	unsigned int idma_1s_thresh;	/* 1s threshold in Core Clock ticks */
+	unsigned int idma_stalled[2];	/* synthesized stalled timers in HZ */
+	unsigned int idma_state[2];	/* IDMA Hang detect state */
+	unsigned int idma_qid[2];	/* IDMA Hung Ingress Queue ID */
+	unsigned int idma_warn[2];	/* time to warning in HZ */
+};
+
 struct trace_params {
 	u32 data[TRACE_LEN / 4];
 	u32 mask[TRACE_LEN / 4];
@@ -502,6 +514,8 @@ int t4_read_flash(struct adapter *adapter, unsigned int addr, unsigned int nword
 int t4_write_flash(struct adapter *adapter, unsigned int addr,
 		   unsigned int n, const u8 *data, int byte_oriented);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
+int t4_fwcache(struct adapter *adap, enum fw_params_param_dev_fwcache op);
+int t5_fw_init_extern_mem(struct adapter *adap);
 int t4_load_bootcfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
 int t4_load_boot(struct adapter *adap, u8 *boot_data,
                  unsigned int boot_addr, unsigned int size);
@@ -510,9 +524,12 @@ int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_load_cfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
 int t4_get_fw_version(struct adapter *adapter, u32 *vers);
 int t4_get_tp_version(struct adapter *adapter, u32 *vers);
+int t4_get_exprom_version(struct adapter *adapter, u32 *vers);
 int t4_check_fw_version(struct adapter *adapter);
 int t4_init_hw(struct adapter *adapter, u32 fw_params);
 int t4_prep_adapter(struct adapter *adapter, u8 *buf);
+int t4_shutdown_adapter(struct adapter *adapter);
+int t4_init_devlog_params(struct adapter *adapter, int fw_attach);
 int t4_init_sge_params(struct adapter *adapter);
 int t4_init_tp_params(struct adapter *adap);
 int t4_filter_field_shift(const struct adapter *adap, int filter_sel);
@@ -562,11 +579,18 @@ void t4_cim_read_pif_la(struct adapter *adap, u32 *pif_req, u32 *pif_rsp,
 		unsigned int *pif_req_wrptr, unsigned int *pif_rsp_wrptr);
 void t4_cim_read_ma_la(struct adapter *adap, u32 *ma_req, u32 *ma_rsp);
 int t4_get_flash_params(struct adapter *adapter);
+
+u32 t4_read_pcie_cfg4(struct adapter *adap, int reg, int drv_fw_attach);
 int t4_mc_read(struct adapter *adap, int idx, u32 addr,
 	       __be32 *data, u64 *parity);
 int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *parity);
 int t4_mem_read(struct adapter *adap, int mtype, u32 addr, u32 size,
 		__be32 *data);
+void t4_idma_monitor_init(struct adapter *adapter,
+			  struct sge_idma_monitor_state *idma);
+void t4_idma_monitor(struct adapter *adapter,
+		     struct sge_idma_monitor_state *idma,
+		     int hz, int ticks);
 
 unsigned int t4_get_regs_len(struct adapter *adapter);
 void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size);
@@ -678,6 +702,9 @@ int t4_i2c_wr(struct adapter *adap, unsigned int mbox,
 	      int port, unsigned int devid,
 	      unsigned int offset, unsigned int len,
 	      u8 *buf);
+int t4_iq_stop(struct adapter *adap, unsigned int mbox, unsigned int pf,
+	       unsigned int vf, unsigned int iqtype, unsigned int iqid,
+	       unsigned int fl0id, unsigned int fl1id);
 int t4_iq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 	       unsigned int vf, unsigned int iqtype, unsigned int iqid,
 	       unsigned int fl0id, unsigned int fl1id);
@@ -701,4 +728,10 @@ int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
 		    int rateunit, int ratemode, int channel, int cl,
 		    int minrate, int maxrate, int weight, int pktsize,
 		    int sleep_ok);
+int t4_config_watchdog(struct adapter *adapter, unsigned int mbox,
+		       unsigned int pf, unsigned int vf,
+		       unsigned int timeout, unsigned int action);
+int t4_get_devlog_level(struct adapter *adapter, unsigned int *level);
+int t4_set_devlog_level(struct adapter *adapter, unsigned int level);
+void t4_sge_decode_idma_state(struct adapter *adapter, int state);
 #endif /* __CHELSIO_COMMON_H */
