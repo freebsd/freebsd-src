@@ -465,19 +465,19 @@ OBJS_DEPEND_GUESS.${_S:R}.So=	${_S}
 
 .include <bsd.dep.mk>
 
-.if defined(LIB) && !empty(LIB)
 .if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
+.if defined(LIB) && !empty(LIB)
 ${OBJS} ${STATICOBJS} ${POBJS}: ${OBJS_DEPEND_GUESS}
 .for _S in ${SRCS:N*.[hly]}
 ${_S:R}.po: ${OBJS_DEPEND_GUESS.${_S:R}.po}
 .endfor
+.endif
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 ${SOBJS}: ${OBJS_DEPEND_GUESS}
 .for _S in ${SRCS:N*.[hly]}
 ${_S:R}.So: ${OBJS_DEPEND_GUESS.${_S:R}.So}
 .endfor
-.endif
 .endif
 .endif
 
