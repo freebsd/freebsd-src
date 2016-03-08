@@ -448,8 +448,18 @@ static inline unsigned int dack_ticks_to_usec(const struct adapter *adap,
 
 void t4_set_reg_field(struct adapter *adap, unsigned int addr, u32 mask, u32 val);
 
+int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
+			    int size, void *rpl, bool sleep_ok, int timeout);
 int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 		    void *rpl, bool sleep_ok);
+
+static inline int t4_wr_mbox_timeout(struct adapter *adap, int mbox,
+				     const void *cmd, int size, void *rpl,
+				     int timeout)
+{
+	return t4_wr_mbox_meat_timeout(adap, mbox, cmd, size, rpl, true,
+				       timeout);
+}
 
 static inline int t4_wr_mbox(struct adapter *adap, int mbox, const void *cmd,
 			     int size, void *rpl)
