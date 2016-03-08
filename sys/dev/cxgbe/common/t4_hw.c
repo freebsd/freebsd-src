@@ -117,8 +117,8 @@ void t4_set_reg_field(struct adapter *adapter, unsigned int addr, u32 mask,
  *	register pair.
  */
 void t4_read_indirect(struct adapter *adap, unsigned int addr_reg,
-		      unsigned int data_reg, u32 *vals, unsigned int nregs,
-		      unsigned int start_idx)
+			     unsigned int data_reg, u32 *vals,
+			     unsigned int nregs, unsigned int start_idx)
 {
 	while (nregs--) {
 		t4_write_reg(adap, addr_reg, start_idx);
@@ -3398,268 +3398,6 @@ int t4_fwcache(struct adapter *adap, enum fw_params_param_dev_fwcache op)
 	return t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), NULL);
 }
 
-/**
- *	t4_read_cimq_cfg - read CIM queue configuration
- *	@adap: the adapter
- *	@base: holds the queue base addresses in bytes
- *	@size: holds the queue sizes in bytes
- *	@thres: holds the queue full thresholds in bytes
- *
- *	Returns the current configuration of the CIM queues, starting with
- *	the IBQs, then the OBQs.
- */
-void t4_read_cimq_cfg(struct adapter *adap, u16 *base, u16 *size, u16 *thres)
-{
-	unsigned int i, v;
-
-	for (i = 0; i < CIM_NUM_IBQ; i++) {
-		t4_write_reg(adap, A_CIM_QUEUE_CONFIG_REF, F_IBQSELECT |
-			     V_QUENUMSELECT(i));
-		v = t4_read_reg(adap, A_CIM_QUEUE_CONFIG_CTRL);
-		*base++ = G_CIMQBASE(v) * 256; /* value is in 256-byte units */
-		*size++ = G_CIMQSIZE(v) * 256; /* value is in 256-byte units */
-		*thres++ = G_QUEFULLTHRSH(v) * 8;   /* 8-byte unit */
-	}
-	for (i = 0; i < adap->chip_params->cim_num_obq; i++) {
-		t4_write_reg(adap, A_CIM_QUEUE_CONFIG_REF, F_OBQSELECT |
-			     V_QUENUMSELECT(i));
-		v = t4_read_reg(adap, A_CIM_QUEUE_CONFIG_CTRL);
-		*base++ = G_CIMQBASE(v) * 256; /* value is in 256-byte units */
-		*size++ = G_CIMQSIZE(v) * 256; /* value is in 256-byte units */
-	}
-}
-
-/**
- *	t4_read_cim_ibq - read the contents of a CIM inbound queue
- *	@adap: the adapter
- *	@qid: the queue index
- *	@data: where to store the queue contents
- *	@n: capacity of @data in 32-bit words
- *
- *	Reads the contents of the selected CIM queue starting at address 0 up
- *	to the capacity of @data.  @n must be a multiple of 4.  Returns < 0 on
- *	error and the number of 32-bit words actually read on success.
- */
-int t4_read_cim_ibq(struct adapter *adap, unsigned int qid, u32 *data, size_t n)
-{
-	int i, err;
-	unsigned int addr;
-	const unsigned int nwords = CIM_IBQ_SIZE * 4;
-
-	if (qid > 5 || (n & 3))
-		return -EINVAL;
-
-	addr = qid * nwords;
-	if (n > nwords)
-		n = nwords;
-
-	for (i = 0; i < n; i++, addr++) {
-		t4_write_reg(adap, A_CIM_IBQ_DBG_CFG, V_IBQDBGADDR(addr) |
-			     F_IBQDBGEN);
-		/*
-		 * It might take 3-10ms before the IBQ debug read access is
-		 * allowed.  Wait for 1 Sec with a delay of 1 usec.
-		 */
-		err = t4_wait_op_done(adap, A_CIM_IBQ_DBG_CFG, F_IBQDBGBUSY, 0,
-				      1000000, 1);
-		if (err)
-			return err;
-		*data++ = t4_read_reg(adap, A_CIM_IBQ_DBG_DATA);
-	}
-	t4_write_reg(adap, A_CIM_IBQ_DBG_CFG, 0);
-	return i;
-}
-
-/**
- *	t4_read_cim_obq - read the contents of a CIM outbound queue
- *	@adap: the adapter
- *	@qid: the queue index
- *	@data: where to store the queue contents
- *	@n: capacity of @data in 32-bit words
- *
- *	Reads the contents of the selected CIM queue starting at address 0 up
- *	to the capacity of @data.  @n must be a multiple of 4.  Returns < 0 on
- *	error and the number of 32-bit words actually read on success.
- */
-int t4_read_cim_obq(struct adapter *adap, unsigned int qid, u32 *data, size_t n)
-{
-	int i, err;
-	unsigned int addr, v, nwords;
-
-	if (qid >= adap->chip_params->cim_num_obq || (n & 3))
-		return -EINVAL;
-
-	t4_write_reg(adap, A_CIM_QUEUE_CONFIG_REF, F_OBQSELECT |
-		     V_QUENUMSELECT(qid));
-	v = t4_read_reg(adap, A_CIM_QUEUE_CONFIG_CTRL);
-
-	addr = G_CIMQBASE(v) * 64;    /* muliple of 256 -> muliple of 4 */
-	nwords = G_CIMQSIZE(v) * 64;  /* same */
-	if (n > nwords)
-		n = nwords;
-
-	for (i = 0; i < n; i++, addr++) {
-		t4_write_reg(adap, A_CIM_OBQ_DBG_CFG, V_OBQDBGADDR(addr) |
-			     F_OBQDBGEN);
-		err = t4_wait_op_done(adap, A_CIM_OBQ_DBG_CFG, F_OBQDBGBUSY, 0,
-				      2, 1);
-		if (err)
-			return err;
-		*data++ = t4_read_reg(adap, A_CIM_OBQ_DBG_DATA);
-	}
-	t4_write_reg(adap, A_CIM_OBQ_DBG_CFG, 0);
-	return i;
-}
-
-enum {
-	CIM_QCTL_BASE     = 0,
-	CIM_CTL_BASE      = 0x2000,
-	CIM_PBT_ADDR_BASE = 0x2800,
-	CIM_PBT_LRF_BASE  = 0x3000,
-	CIM_PBT_DATA_BASE = 0x3800
-};
-
-/**
- *	t4_cim_read - read a block from CIM internal address space
- *	@adap: the adapter
- *	@addr: the start address within the CIM address space
- *	@n: number of words to read
- *	@valp: where to store the result
- *
- *	Reads a block of 4-byte words from the CIM intenal address space.
- */
-int t4_cim_read(struct adapter *adap, unsigned int addr, unsigned int n,
-		unsigned int *valp)
-{
-	int ret = 0;
-
-	if (t4_read_reg(adap, A_CIM_HOST_ACC_CTRL) & F_HOSTBUSY)
-		return -EBUSY;
-
-	for ( ; !ret && n--; addr += 4) {
-		t4_write_reg(adap, A_CIM_HOST_ACC_CTRL, addr);
-		ret = t4_wait_op_done(adap, A_CIM_HOST_ACC_CTRL, F_HOSTBUSY,
-				      0, 5, 2);
-		if (!ret)
-			*valp++ = t4_read_reg(adap, A_CIM_HOST_ACC_DATA);
-	}
-	return ret;
-}
-
-/**
- *	t4_cim_write - write a block into CIM internal address space
- *	@adap: the adapter
- *	@addr: the start address within the CIM address space
- *	@n: number of words to write
- *	@valp: set of values to write
- *
- *	Writes a block of 4-byte words into the CIM intenal address space.
- */
-int t4_cim_write(struct adapter *adap, unsigned int addr, unsigned int n,
-		 const unsigned int *valp)
-{
-	int ret = 0;
-
-	if (t4_read_reg(adap, A_CIM_HOST_ACC_CTRL) & F_HOSTBUSY)
-		return -EBUSY;
-
-	for ( ; !ret && n--; addr += 4) {
-		t4_write_reg(adap, A_CIM_HOST_ACC_DATA, *valp++);
-		t4_write_reg(adap, A_CIM_HOST_ACC_CTRL, addr | F_HOSTWRITE);
-		ret = t4_wait_op_done(adap, A_CIM_HOST_ACC_CTRL, F_HOSTBUSY,
-				      0, 5, 2);
-	}
-	return ret;
-}
-
-static int t4_cim_write1(struct adapter *adap, unsigned int addr, unsigned int val)
-{
-	return t4_cim_write(adap, addr, 1, &val);
-}
-
-/**
- *	t4_cim_ctl_read - read a block from CIM control region
- *	@adap: the adapter
- *	@addr: the start address within the CIM control region
- *	@n: number of words to read
- *	@valp: where to store the result
- *
- *	Reads a block of 4-byte words from the CIM control region.
- */
-int t4_cim_ctl_read(struct adapter *adap, unsigned int addr, unsigned int n,
-		    unsigned int *valp)
-{
-	return t4_cim_read(adap, addr + CIM_CTL_BASE, n, valp);
-}
-
-/**
- *	t4_cim_read_la - read CIM LA capture buffer
- *	@adap: the adapter
- *	@la_buf: where to store the LA data
- *	@wrptr: the HW write pointer within the capture buffer
- *
- *	Reads the contents of the CIM LA buffer with the most recent entry at
- *	the end	of the returned data and with the entry at @wrptr first.
- *	We try to leave the LA in the running state we find it in.
- */
-int t4_cim_read_la(struct adapter *adap, u32 *la_buf, unsigned int *wrptr)
-{
-	int i, ret;
-	unsigned int cfg, val, idx;
-
-	ret = t4_cim_read(adap, A_UP_UP_DBG_LA_CFG, 1, &cfg);
-	if (ret)
-		return ret;
-
-	if (cfg & F_UPDBGLAEN) {                /* LA is running, freeze it */
-		ret = t4_cim_write1(adap, A_UP_UP_DBG_LA_CFG, 0);
-		if (ret)
-			return ret;
-	}
-
-	ret = t4_cim_read(adap, A_UP_UP_DBG_LA_CFG, 1, &val);
-	if (ret)
-		goto restart;
-
-	idx = G_UPDBGLAWRPTR(val);
-	if (wrptr)
-		*wrptr = idx;
-
-	for (i = 0; i < adap->params.cim_la_size; i++) {
-		ret = t4_cim_write1(adap, A_UP_UP_DBG_LA_CFG,
-				    V_UPDBGLARDPTR(idx) | F_UPDBGLARDEN);
-		if (ret)
-			break;
-		ret = t4_cim_read(adap, A_UP_UP_DBG_LA_CFG, 1, &val);
-		if (ret)
-			break;
-		if (val & F_UPDBGLARDEN) {
-			ret = -ETIMEDOUT;
-			break;
-		}
-		ret = t4_cim_read(adap, A_UP_UP_DBG_LA_DATA, 1, &la_buf[i]);
-		if (ret)
-			break;
-		/* address can't exceed 0xfff (UpDbgLaRdPtr is of 12-bits) */
-		idx = (idx + 1) & M_UPDBGLARDPTR;
-		/*
-		 * Bits 0-3 of UpDbgLaRdPtr can be between 0000 to 1001 to
-		 * identify the 32-bit portion of the full 312-bit data
-		 */
-		if (is_t6(adap))
-			while ((idx & 0xf) > 9)
-				idx = (idx + 1) % M_UPDBGLARDPTR;
-	}
-restart:
-	if (cfg & F_UPDBGLAEN) {
-		int r = t4_cim_write1(adap, A_UP_UP_DBG_LA_CFG,
-				      cfg & ~F_UPDBGLARDEN);
-		if (!ret)
-			ret = r;
-	}
-	return ret;
-}
-
 void t4_cim_read_pif_la(struct adapter *adap, u32 *pif_req, u32 *pif_rsp,
 			unsigned int *pif_req_wrptr,
 			unsigned int *pif_rsp_wrptr)
@@ -3715,53 +3453,6 @@ void t4_cim_read_ma_la(struct adapter *adap, u32 *ma_req, u32 *ma_rsp)
 	t4_write_reg(adap, A_CIM_DEBUGCFG, cfg);
 }
 
-/**
- *	t4_tp_read_la - read TP LA capture buffer
- *	@adap: the adapter
- *	@la_buf: where to store the LA data
- *	@wrptr: the HW write pointer within the capture buffer
- *
- *	Reads the contents of the TP LA buffer with the most recent entry at
- *	the end	of the returned data and with the entry at @wrptr first.
- *	We leave the LA in the running state we find it in.
- */
-void t4_tp_read_la(struct adapter *adap, u64 *la_buf, unsigned int *wrptr)
-{
-	bool last_incomplete;
-	unsigned int i, cfg, val, idx;
-
-	cfg = t4_read_reg(adap, A_TP_DBG_LA_CONFIG) & 0xffff;
-	if (cfg & F_DBGLAENABLE)                    /* freeze LA */
-		t4_write_reg(adap, A_TP_DBG_LA_CONFIG,
-			     adap->params.tp.la_mask | (cfg ^ F_DBGLAENABLE));
-
-	val = t4_read_reg(adap, A_TP_DBG_LA_CONFIG);
-	idx = G_DBGLAWPTR(val);
-	last_incomplete = G_DBGLAMODE(val) >= 2 && (val & F_DBGLAWHLF) == 0;
-	if (last_incomplete)
-		idx = (idx + 1) & M_DBGLARPTR;
-	if (wrptr)
-		*wrptr = idx;
-
-	val &= 0xffff;
-	val &= ~V_DBGLARPTR(M_DBGLARPTR);
-	val |= adap->params.tp.la_mask;
-
-	for (i = 0; i < TPLA_SIZE; i++) {
-		t4_write_reg(adap, A_TP_DBG_LA_CONFIG, V_DBGLARPTR(idx) | val);
-		la_buf[i] = t4_read_reg64(adap, A_TP_DBG_LA_DATAL);
-		idx = (idx + 1) & M_DBGLARPTR;
-	}
-
-	/* Wipe out last entry if it isn't valid */
-	if (last_incomplete)
-		la_buf[TPLA_SIZE - 1] = ~0ULL;
-
-	if (cfg & F_DBGLAENABLE)                    /* restore running state */
-		t4_write_reg(adap, A_TP_DBG_LA_CONFIG,
-			     cfg | adap->params.tp.la_mask);
-}
-
 void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
 {
 	unsigned int i, j;
@@ -3807,19 +3498,22 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		fc |= FW_PORT_CAP_FC_TX;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_portid = htonl(V_FW_CMD_OP(FW_PORT_CMD) | F_FW_CMD_REQUEST |
-			       F_FW_CMD_EXEC | V_FW_PORT_CMD_PORTID(port));
-	c.action_to_len16 = htonl(V_FW_PORT_CMD_ACTION(FW_PORT_ACTION_L1_CFG) |
-				  FW_LEN16(c));
+	c.op_to_portid = cpu_to_be32(V_FW_CMD_OP(FW_PORT_CMD) |
+				     F_FW_CMD_REQUEST | F_FW_CMD_EXEC |
+				     V_FW_PORT_CMD_PORTID(port));
+	c.action_to_len16 =
+		cpu_to_be32(V_FW_PORT_CMD_ACTION(FW_PORT_ACTION_L1_CFG) |
+			    FW_LEN16(c));
 
 	if (!(lc->supported & FW_PORT_CAP_ANEG)) {
-		c.u.l1cfg.rcap = htonl((lc->supported & ADVERT_MASK) | fc);
+		c.u.l1cfg.rcap = cpu_to_be32((lc->supported & ADVERT_MASK) |
+					     fc);
 		lc->fc = lc->requested_fc & (PAUSE_RX | PAUSE_TX);
 	} else if (lc->autoneg == AUTONEG_DISABLE) {
-		c.u.l1cfg.rcap = htonl(lc->requested_speed | fc | mdi);
+		c.u.l1cfg.rcap = cpu_to_be32(lc->requested_speed | fc | mdi);
 		lc->fc = lc->requested_fc & (PAUSE_RX | PAUSE_TX);
 	} else
-		c.u.l1cfg.rcap = htonl(lc->advertising | fc | mdi);
+		c.u.l1cfg.rcap = cpu_to_be32(lc->advertising | fc | mdi);
 
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
@@ -3837,11 +3531,13 @@ int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port)
 	struct fw_port_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_portid = htonl(V_FW_CMD_OP(FW_PORT_CMD) | F_FW_CMD_REQUEST |
-			       F_FW_CMD_EXEC | V_FW_PORT_CMD_PORTID(port));
-	c.action_to_len16 = htonl(V_FW_PORT_CMD_ACTION(FW_PORT_ACTION_L1_CFG) |
-				  FW_LEN16(c));
-	c.u.l1cfg.rcap = htonl(FW_PORT_CAP_ANEG);
+	c.op_to_portid = cpu_to_be32(V_FW_CMD_OP(FW_PORT_CMD) |
+				     F_FW_CMD_REQUEST | F_FW_CMD_EXEC |
+				     V_FW_PORT_CMD_PORTID(port));
+	c.action_to_len16 =
+		cpu_to_be32(V_FW_PORT_CMD_ACTION(FW_PORT_ACTION_L1_CFG) |
+			    FW_LEN16(c));
+	c.u.l1cfg.rcap = cpu_to_be32(FW_PORT_CAP_ANEG);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
@@ -4750,11 +4446,10 @@ int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,
 	struct fw_rss_ind_tbl_cmd cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_viid = htonl(V_FW_CMD_OP(FW_RSS_IND_TBL_CMD) |
-			       F_FW_CMD_REQUEST | F_FW_CMD_WRITE |
-			       V_FW_RSS_IND_TBL_CMD_VIID(viid));
-	cmd.retval_len16 = htonl(FW_LEN16(cmd));
-
+	cmd.op_to_viid = cpu_to_be32(V_FW_CMD_OP(FW_RSS_IND_TBL_CMD) |
+				     F_FW_CMD_REQUEST | F_FW_CMD_WRITE |
+				     V_FW_RSS_IND_TBL_CMD_VIID(viid));
+	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
 
 	/*
 	 * Each firmware RSS command can accommodate up to 32 RSS Ingress
@@ -4771,8 +4466,8 @@ int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,
 		 * Set up the firmware RSS command header to send the next
 		 * "nq" Ingress Queue IDs to the firmware.
 		 */
-		cmd.niqid = htons(nq);
-		cmd.startidx = htons(start);
+		cmd.niqid = cpu_to_be16(nq);
+		cmd.startidx = cpu_to_be16(start);
 
 		/*
 		 * "nq" more done for the start of the next loop.
@@ -4818,7 +4513,6 @@ int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,
 		if (ret)
 			return ret;
 	}
-
 	return 0;
 }
 
@@ -4837,15 +4531,16 @@ int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
 	struct fw_rss_glb_config_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_write = htonl(V_FW_CMD_OP(FW_RSS_GLB_CONFIG_CMD) |
-			      F_FW_CMD_REQUEST | F_FW_CMD_WRITE);
-	c.retval_len16 = htonl(FW_LEN16(c));
+	c.op_to_write = cpu_to_be32(V_FW_CMD_OP(FW_RSS_GLB_CONFIG_CMD) |
+				    F_FW_CMD_REQUEST | F_FW_CMD_WRITE);
+	c.retval_len16 = cpu_to_be32(FW_LEN16(c));
 	if (mode == FW_RSS_GLB_CONFIG_CMD_MODE_MANUAL) {
-		c.u.manual.mode_pkd = htonl(V_FW_RSS_GLB_CONFIG_CMD_MODE(mode));
+		c.u.manual.mode_pkd =
+			cpu_to_be32(V_FW_RSS_GLB_CONFIG_CMD_MODE(mode));
 	} else if (mode == FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL) {
 		c.u.basicvirtual.mode_pkd =
-			htonl(V_FW_RSS_GLB_CONFIG_CMD_MODE(mode));
-		c.u.basicvirtual.synmapen_to_hashtoeplitz = htonl(flags);
+			cpu_to_be32(V_FW_RSS_GLB_CONFIG_CMD_MODE(mode));
+		c.u.basicvirtual.synmapen_to_hashtoeplitz = cpu_to_be32(flags);
 	} else
 		return -EINVAL;
 	return t4_wr_mbox(adapter, mbox, &c, sizeof(c), NULL);
@@ -4867,11 +4562,11 @@ int t4_config_vi_rss(struct adapter *adapter, int mbox, unsigned int viid,
 	struct fw_rss_vi_config_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_viid = htonl(V_FW_CMD_OP(FW_RSS_VI_CONFIG_CMD) |
-			     F_FW_CMD_REQUEST | F_FW_CMD_WRITE |
-			     V_FW_RSS_VI_CONFIG_CMD_VIID(viid));
-	c.retval_len16 = htonl(FW_LEN16(c));
-	c.u.basicvirtual.defaultq_to_udpen = htonl(flags |
+	c.op_to_viid = cpu_to_be32(V_FW_CMD_OP(FW_RSS_VI_CONFIG_CMD) |
+				   F_FW_CMD_REQUEST | F_FW_CMD_WRITE |
+				   V_FW_RSS_VI_CONFIG_CMD_VIID(viid));
+	c.retval_len16 = cpu_to_be32(FW_LEN16(c));
+	c.u.basicvirtual.defaultq_to_udpen = cpu_to_be32(flags |
 					V_FW_RSS_VI_CONFIG_CMD_DEFAULTQ(defq));
 	return t4_wr_mbox(adapter, mbox, &c, sizeof(c), NULL);
 }
@@ -5398,24 +5093,6 @@ void t4_read_cong_tbl(struct adapter *adap, u16 incr[NMTUS][NCCTRL_WIN])
 }
 
 /**
- *	t4_read_pace_tbl - read the pace table
- *	@adap: the adapter
- *	@pace_vals: holds the returned values
- *
- *	Returns the values of TP's pace table in microseconds.
- */
-void t4_read_pace_tbl(struct adapter *adap, unsigned int pace_vals[NTX_SCHED])
-{
-	unsigned int i, v;
-
-	for (i = 0; i < NTX_SCHED; i++) {
-		t4_write_reg(adap, A_TP_PACE_TABLE, 0xffff0000 + i);
-		v = t4_read_reg(adap, A_TP_PACE_TABLE);
-		pace_vals[i] = dack_ticks_to_usec(adap, v);
-	}
-}
-
-/**
  *	t4_tp_wr_bits_indirect - set/clear bits in an indirect TP register
  *	@adap: the adapter
  *	@addr: the indirect TP register address
@@ -5540,7 +5217,7 @@ int t4_set_pace_tbl(struct adapter *adap, const unsigned int *pace_vals,
 
 	if (n > NTX_SCHED)
 	    return -ERANGE;
-    
+
 	/* convert values from us to dack ticks, rounding to closest value */
 	for (i = 0; i < n; i++, pace_vals++) {
 		vals[i] = (1000 * *pace_vals + tick_ns / 2) / tick_ns;
@@ -5627,46 +5304,6 @@ int t4_set_sched_ipg(struct adapter *adap, int sched, unsigned int ipg)
 	return 0;
 }
 
-/**
- *	t4_get_tx_sched - get the configuration of a Tx HW traffic scheduler
- *	@adap: the adapter
- *	@sched: the scheduler index
- *	@kbps: the byte rate in Kbps
- *	@ipg: the interpacket delay in tenths of nanoseconds
- *
- *	Return the current configuration of a HW Tx scheduler.
- */
-void t4_get_tx_sched(struct adapter *adap, unsigned int sched, unsigned int *kbps,
-		     unsigned int *ipg)
-{
-	unsigned int v, addr, bpt, cpt;
-
-	if (kbps) {
-		addr = A_TP_TX_MOD_Q1_Q0_RATE_LIMIT - sched / 2;
-		t4_write_reg(adap, A_TP_TM_PIO_ADDR, addr);
-		v = t4_read_reg(adap, A_TP_TM_PIO_DATA);
-		if (sched & 1)
-			v >>= 16;
-		bpt = (v >> 8) & 0xff;
-		cpt = v & 0xff;
-		if (!cpt)
-			*kbps = 0;        /* scheduler disabled */
-		else {
-			v = (adap->params.vpd.cclk * 1000) / cpt; /* ticks/s */
-			*kbps = (v * bpt) / 125;
-		}
-	}
-	if (ipg) {
-		addr = A_TP_TX_MOD_Q1_Q0_TIMER_SEPARATOR - sched / 2;
-		t4_write_reg(adap, A_TP_TM_PIO_ADDR, addr);
-		v = t4_read_reg(adap, A_TP_TM_PIO_DATA);
-		if (sched & 1)
-			v >>= 16;
-		v &= 0xffff;
-		*ipg = (10000 * v) / core_ticks_per_usec(adap);
-	}
-}
-
 /*
  * Calculates a rate in bytes/s given the number of 256-byte units per 4K core
  * clocks.  The formula is
@@ -5746,10 +5383,10 @@ int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp,
 	 * TODO - After T4 data book is updated, specify the exact
 	 * section below.
 	 *
-	 * See T4 data book - MPS section for a complete description 
-	 * of the below if..else handling of A_MPS_TRC_CFG register 
+	 * See T4 data book - MPS section for a complete description
+	 * of the below if..else handling of A_MPS_TRC_CFG register
 	 * value.
-	 */ 
+	 */
 	cfg = t4_read_reg(adap, A_MPS_TRC_CFG);
 	if (cfg & F_TRCMULTIFILTER) {
 		/*
@@ -5758,10 +5395,10 @@ int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp,
 		 * minus 2 flits for CPL_TRACE_PKT header.
 		 */
 		if (tp->snap_len > ((10 * 1024 / 4) - (2 * 8)))
-			return -EINVAL;		
+			return -EINVAL;
 	} else {
 		/*
-		 * If multiple tracers are disabled, to avoid deadlocks 
+		 * If multiple tracers are disabled, to avoid deadlocks
 		 * maximum packet capture size of 9600 bytes is recommended.
 		 * Also in this mode, only trace0 can be enabled and running.
 		 */
@@ -5884,9 +5521,9 @@ void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
 	for (i = 0; i < adap->chip_params->pm_stats_cnt; i++) {
 		t4_write_reg(adap, A_PM_RX_STAT_CONFIG, i + 1);
 		cnt[i] = t4_read_reg(adap, A_PM_RX_STAT_COUNT);
-		if (is_t4(adap))
+		if (is_t4(adap)) {
 			cycles[i] = t4_read_reg64(adap, A_PM_RX_STAT_LSB);
-		else {
+		} else {
 			t4_read_indirect(adap, A_PM_RX_DBG_CTRL,
 					 A_PM_RX_DBG_DATA, data, 2,
 					 A_PM_RX_DBG_STAT_MSB);
@@ -5916,12 +5553,12 @@ static unsigned int t4_get_mps_bg_map(struct adapter *adap, int idx)
 }
 
 /**
- *	t4_get_port_type_description - return Port Type string description
- *	@port_type: firmware Port Type enumeration
+ *      t4_get_port_type_description - return Port Type string description
+ *      @port_type: firmware Port Type enumeration
  */
 const char *t4_get_port_type_description(enum fw_port_type port_type)
 {
-	static const char *port_type_description[] = {
+	static const char *const port_type_description[] = {
 		"Fiber_XFI",
 		"Fiber_XAUI",
 		"BT_SGMII",
@@ -5935,7 +5572,7 @@ const char *t4_get_port_type_description(enum fw_port_type port_type)
 		"BP_AP",
 		"BP4_AP",
 		"QSFP_10G",
-		"",
+		"QSA",
 		"QSFP",
 		"BP40_BA",
 	};
@@ -5947,7 +5584,7 @@ const char *t4_get_port_type_description(enum fw_port_type port_type)
 
 /**
  *      t4_get_port_stats_offset - collect port stats relative to a previous
- *                                 snapshot
+ *				   snapshot
  *      @adap: The adapter
  *      @idx: The port
  *      @stats: Current stats to fill
@@ -5985,57 +5622,57 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	T5_PORT_REG(idx, A_MPS_PORT_STAT_##name##_L)))
 #define GET_STAT_COM(name) t4_read_reg64(adap, A_MPS_STAT_##name##_L)
 
-	p->tx_pause            = GET_STAT(TX_PORT_PAUSE);
-	p->tx_octets           = GET_STAT(TX_PORT_BYTES);
-	p->tx_frames           = GET_STAT(TX_PORT_FRAMES);
-	p->tx_bcast_frames     = GET_STAT(TX_PORT_BCAST);
-	p->tx_mcast_frames     = GET_STAT(TX_PORT_MCAST);
-	p->tx_ucast_frames     = GET_STAT(TX_PORT_UCAST);
-	p->tx_error_frames     = GET_STAT(TX_PORT_ERROR);
-	p->tx_frames_64        = GET_STAT(TX_PORT_64B);
-	p->tx_frames_65_127    = GET_STAT(TX_PORT_65B_127B);
-	p->tx_frames_128_255   = GET_STAT(TX_PORT_128B_255B);
-	p->tx_frames_256_511   = GET_STAT(TX_PORT_256B_511B);
-	p->tx_frames_512_1023  = GET_STAT(TX_PORT_512B_1023B);
-	p->tx_frames_1024_1518 = GET_STAT(TX_PORT_1024B_1518B);
-	p->tx_frames_1519_max  = GET_STAT(TX_PORT_1519B_MAX);
-	p->tx_drop             = GET_STAT(TX_PORT_DROP);
-	p->tx_ppp0             = GET_STAT(TX_PORT_PPP0);
-	p->tx_ppp1             = GET_STAT(TX_PORT_PPP1);
-	p->tx_ppp2             = GET_STAT(TX_PORT_PPP2);
-	p->tx_ppp3             = GET_STAT(TX_PORT_PPP3);
-	p->tx_ppp4             = GET_STAT(TX_PORT_PPP4);
-	p->tx_ppp5             = GET_STAT(TX_PORT_PPP5);
-	p->tx_ppp6             = GET_STAT(TX_PORT_PPP6);
-	p->tx_ppp7             = GET_STAT(TX_PORT_PPP7);
+	p->tx_pause		= GET_STAT(TX_PORT_PAUSE);
+	p->tx_octets		= GET_STAT(TX_PORT_BYTES);
+	p->tx_frames		= GET_STAT(TX_PORT_FRAMES);
+	p->tx_bcast_frames	= GET_STAT(TX_PORT_BCAST);
+	p->tx_mcast_frames	= GET_STAT(TX_PORT_MCAST);
+	p->tx_ucast_frames	= GET_STAT(TX_PORT_UCAST);
+	p->tx_error_frames	= GET_STAT(TX_PORT_ERROR);
+	p->tx_frames_64		= GET_STAT(TX_PORT_64B);
+	p->tx_frames_65_127	= GET_STAT(TX_PORT_65B_127B);
+	p->tx_frames_128_255	= GET_STAT(TX_PORT_128B_255B);
+	p->tx_frames_256_511	= GET_STAT(TX_PORT_256B_511B);
+	p->tx_frames_512_1023	= GET_STAT(TX_PORT_512B_1023B);
+	p->tx_frames_1024_1518	= GET_STAT(TX_PORT_1024B_1518B);
+	p->tx_frames_1519_max	= GET_STAT(TX_PORT_1519B_MAX);
+	p->tx_drop		= GET_STAT(TX_PORT_DROP);
+	p->tx_ppp0		= GET_STAT(TX_PORT_PPP0);
+	p->tx_ppp1		= GET_STAT(TX_PORT_PPP1);
+	p->tx_ppp2		= GET_STAT(TX_PORT_PPP2);
+	p->tx_ppp3		= GET_STAT(TX_PORT_PPP3);
+	p->tx_ppp4		= GET_STAT(TX_PORT_PPP4);
+	p->tx_ppp5		= GET_STAT(TX_PORT_PPP5);
+	p->tx_ppp6		= GET_STAT(TX_PORT_PPP6);
+	p->tx_ppp7		= GET_STAT(TX_PORT_PPP7);
 
-	p->rx_pause            = GET_STAT(RX_PORT_PAUSE);
-	p->rx_octets           = GET_STAT(RX_PORT_BYTES);
-	p->rx_frames           = GET_STAT(RX_PORT_FRAMES);
-	p->rx_bcast_frames     = GET_STAT(RX_PORT_BCAST);
-	p->rx_mcast_frames     = GET_STAT(RX_PORT_MCAST);
-	p->rx_ucast_frames     = GET_STAT(RX_PORT_UCAST);
-	p->rx_too_long         = GET_STAT(RX_PORT_MTU_ERROR);
-	p->rx_jabber           = GET_STAT(RX_PORT_MTU_CRC_ERROR);
-	p->rx_fcs_err          = GET_STAT(RX_PORT_CRC_ERROR);
-	p->rx_len_err          = GET_STAT(RX_PORT_LEN_ERROR);
-	p->rx_symbol_err       = GET_STAT(RX_PORT_SYM_ERROR);
-	p->rx_runt             = GET_STAT(RX_PORT_LESS_64B);
-	p->rx_frames_64        = GET_STAT(RX_PORT_64B);
-	p->rx_frames_65_127    = GET_STAT(RX_PORT_65B_127B);
-	p->rx_frames_128_255   = GET_STAT(RX_PORT_128B_255B);
-	p->rx_frames_256_511   = GET_STAT(RX_PORT_256B_511B);
-	p->rx_frames_512_1023  = GET_STAT(RX_PORT_512B_1023B);
-	p->rx_frames_1024_1518 = GET_STAT(RX_PORT_1024B_1518B);
-	p->rx_frames_1519_max  = GET_STAT(RX_PORT_1519B_MAX);
-	p->rx_ppp0             = GET_STAT(RX_PORT_PPP0);
-	p->rx_ppp1             = GET_STAT(RX_PORT_PPP1);
-	p->rx_ppp2             = GET_STAT(RX_PORT_PPP2);
-	p->rx_ppp3             = GET_STAT(RX_PORT_PPP3);
-	p->rx_ppp4             = GET_STAT(RX_PORT_PPP4);
-	p->rx_ppp5             = GET_STAT(RX_PORT_PPP5);
-	p->rx_ppp6             = GET_STAT(RX_PORT_PPP6);
-	p->rx_ppp7             = GET_STAT(RX_PORT_PPP7);
+	p->rx_pause		= GET_STAT(RX_PORT_PAUSE);
+	p->rx_octets		= GET_STAT(RX_PORT_BYTES);
+	p->rx_frames		= GET_STAT(RX_PORT_FRAMES);
+	p->rx_bcast_frames	= GET_STAT(RX_PORT_BCAST);
+	p->rx_mcast_frames	= GET_STAT(RX_PORT_MCAST);
+	p->rx_ucast_frames	= GET_STAT(RX_PORT_UCAST);
+	p->rx_too_long		= GET_STAT(RX_PORT_MTU_ERROR);
+	p->rx_jabber		= GET_STAT(RX_PORT_MTU_CRC_ERROR);
+	p->rx_fcs_err		= GET_STAT(RX_PORT_CRC_ERROR);
+	p->rx_len_err		= GET_STAT(RX_PORT_LEN_ERROR);
+	p->rx_symbol_err	= GET_STAT(RX_PORT_SYM_ERROR);
+	p->rx_runt		= GET_STAT(RX_PORT_LESS_64B);
+	p->rx_frames_64		= GET_STAT(RX_PORT_64B);
+	p->rx_frames_65_127	= GET_STAT(RX_PORT_65B_127B);
+	p->rx_frames_128_255	= GET_STAT(RX_PORT_128B_255B);
+	p->rx_frames_256_511	= GET_STAT(RX_PORT_256B_511B);
+	p->rx_frames_512_1023	= GET_STAT(RX_PORT_512B_1023B);
+	p->rx_frames_1024_1518	= GET_STAT(RX_PORT_1024B_1518B);
+	p->rx_frames_1519_max	= GET_STAT(RX_PORT_1519B_MAX);
+	p->rx_ppp0		= GET_STAT(RX_PORT_PPP0);
+	p->rx_ppp1		= GET_STAT(RX_PORT_PPP1);
+	p->rx_ppp2		= GET_STAT(RX_PORT_PPP2);
+	p->rx_ppp3		= GET_STAT(RX_PORT_PPP3);
+	p->rx_ppp4		= GET_STAT(RX_PORT_PPP4);
+	p->rx_ppp5		= GET_STAT(RX_PORT_PPP5);
+	p->rx_ppp6		= GET_STAT(RX_PORT_PPP6);
+	p->rx_ppp7		= GET_STAT(RX_PORT_PPP7);
 
 	p->rx_ovflow0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_MAC_DROP_FRAME) : 0;
 	p->rx_ovflow1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_MAC_DROP_FRAME) : 0;
@@ -6048,39 +5685,6 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 
 #undef GET_STAT
 #undef GET_STAT_COM
-}
-
-/**
- *	t4_clr_port_stats - clear port statistics
- *	@adap: the adapter
- *	@idx: the port index
- *
- *	Clear HW statistics for the given port.
- */
-void t4_clr_port_stats(struct adapter *adap, int idx)
-{
-	unsigned int i;
-	u32 bgmap = t4_get_mps_bg_map(adap, idx);
-	u32 port_base_addr;
-
-	if (is_t4(adap))
-		port_base_addr = PORT_BASE(idx);
-	else
-		port_base_addr = T5_PORT_BASE(idx);
-
-	for (i = A_MPS_PORT_STAT_TX_PORT_BYTES_L;
-			i <= A_MPS_PORT_STAT_TX_PORT_PPP7_H; i += 8)
-		t4_write_reg(adap, port_base_addr + i, 0);
-	for (i = A_MPS_PORT_STAT_RX_PORT_BYTES_L;
-			i <= A_MPS_PORT_STAT_RX_PORT_LESS_64B_H; i += 8)
-		t4_write_reg(adap, port_base_addr + i, 0);
-	for (i = 0; i < 4; i++)
-		if (bgmap & (1 << i)) {
-			t4_write_reg(adap,
-				A_MPS_STAT_RX_BG_0_MAC_DROP_FRAME_L + i * 8, 0);
-			t4_write_reg(adap,
-				A_MPS_STAT_RX_BG_0_MAC_TRUNC_FRAME_L + i * 8, 0);
-		}
 }
 
 /**
@@ -6102,21 +5706,21 @@ void t4_get_lb_stats(struct adapter *adap, int idx, struct lb_port_stats *p)
 	T5_PORT_REG(idx, A_MPS_PORT_STAT_LB_PORT_##name##_L)))
 #define GET_STAT_COM(name) t4_read_reg64(adap, A_MPS_STAT_##name##_L)
 
-	p->octets           = GET_STAT(BYTES);
-	p->frames           = GET_STAT(FRAMES);
-	p->bcast_frames     = GET_STAT(BCAST);
-	p->mcast_frames     = GET_STAT(MCAST);
-	p->ucast_frames     = GET_STAT(UCAST);
-	p->error_frames     = GET_STAT(ERROR);
+	p->octets	= GET_STAT(BYTES);
+	p->frames	= GET_STAT(FRAMES);
+	p->bcast_frames	= GET_STAT(BCAST);
+	p->mcast_frames	= GET_STAT(MCAST);
+	p->ucast_frames	= GET_STAT(UCAST);
+	p->error_frames	= GET_STAT(ERROR);
 
-	p->frames_64        = GET_STAT(64B);
-	p->frames_65_127    = GET_STAT(65B_127B);
-	p->frames_128_255   = GET_STAT(128B_255B);
-	p->frames_256_511   = GET_STAT(256B_511B);
-	p->frames_512_1023  = GET_STAT(512B_1023B);
-	p->frames_1024_1518 = GET_STAT(1024B_1518B);
-	p->frames_1519_max  = GET_STAT(1519B_MAX);
-	p->drop             = GET_STAT(DROP_FRAMES);
+	p->frames_64		= GET_STAT(64B);
+	p->frames_65_127	= GET_STAT(65B_127B);
+	p->frames_128_255	= GET_STAT(128B_255B);
+	p->frames_256_511	= GET_STAT(256B_511B);
+	p->frames_512_1023	= GET_STAT(512B_1023B);
+	p->frames_1024_1518	= GET_STAT(1024B_1518B);
+	p->frames_1519_max	= GET_STAT(1519B_MAX);
+	p->drop			= GET_STAT(DROP_FRAMES);
 
 	p->ovflow0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_LB_DROP_FRAME) : 0;
 	p->ovflow1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_LB_DROP_FRAME) : 0;
@@ -6230,43 +5834,49 @@ int t4_wol_pat_enable(struct adapter *adap, unsigned int port, unsigned int map,
 	return 0;
 }
 
-/**
- *	t4_mk_filtdelwr - create a delete filter WR
- *	@ftid: the filter ID
- *	@wr: the filter work request to populate
- *	@qid: ingress queue to receive the delete notification
+/*     t4_mk_filtdelwr - create a delete filter WR
+ *     @ftid: the filter ID
+ *     @wr: the filter work request to populate
+ *     @qid: ingress queue to receive the delete notification
  *
- *	Creates a filter work request to delete the supplied filter.  If @qid is
- *	negative the delete notification is suppressed.
+ *     Creates a filter work request to delete the supplied filter.  If @qid is
+ *     negative the delete notification is suppressed.
  */
 void t4_mk_filtdelwr(unsigned int ftid, struct fw_filter_wr *wr, int qid)
 {
 	memset(wr, 0, sizeof(*wr));
-	wr->op_pkd = htonl(V_FW_WR_OP(FW_FILTER_WR));
-	wr->len16_pkd = htonl(V_FW_WR_LEN16(sizeof(*wr) / 16));
-	wr->tid_to_iq = htonl(V_FW_FILTER_WR_TID(ftid) |
-			      V_FW_FILTER_WR_NOREPLY(qid < 0));
-	wr->del_filter_to_l2tix = htonl(F_FW_FILTER_WR_DEL_FILTER);
+	wr->op_pkd = cpu_to_be32(V_FW_WR_OP(FW_FILTER_WR));
+	wr->len16_pkd = cpu_to_be32(V_FW_WR_LEN16(sizeof(*wr) / 16));
+	wr->tid_to_iq = cpu_to_be32(V_FW_FILTER_WR_TID(ftid) |
+				    V_FW_FILTER_WR_NOREPLY(qid < 0));
+	wr->del_filter_to_l2tix = cpu_to_be32(F_FW_FILTER_WR_DEL_FILTER);
 	if (qid >= 0)
-		wr->rx_chan_rx_rpl_iq = htons(V_FW_FILTER_WR_RX_RPL_IQ(qid));
+		wr->rx_chan_rx_rpl_iq =
+				cpu_to_be16(V_FW_FILTER_WR_RX_RPL_IQ(qid));
 }
 
 #define INIT_CMD(var, cmd, rd_wr) do { \
-	(var).op_to_write = htonl(V_FW_CMD_OP(FW_##cmd##_CMD) | \
-				  F_FW_CMD_REQUEST | F_FW_CMD_##rd_wr); \
-	(var).retval_len16 = htonl(FW_LEN16(var)); \
+	(var).op_to_write = cpu_to_be32(V_FW_CMD_OP(FW_##cmd##_CMD) | \
+					F_FW_CMD_REQUEST | \
+					F_FW_CMD_##rd_wr); \
+	(var).retval_len16 = cpu_to_be32(FW_LEN16(var)); \
 } while (0)
 
-int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox, u32 addr, u32 val)
+int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
+			  u32 addr, u32 val)
 {
+	u32 ldst_addrspace;
 	struct fw_ldst_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_addrspace = htonl(V_FW_CMD_OP(FW_LDST_CMD) | F_FW_CMD_REQUEST |
-		F_FW_CMD_WRITE | V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_FIRMWARE));
-	c.cycles_to_len16 = htonl(FW_LEN16(c));
-	c.u.addrval.addr = htonl(addr);
-	c.u.addrval.val = htonl(val);
+	ldst_addrspace = V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_FIRMWARE);
+	c.op_to_addrspace = cpu_to_be32(V_FW_CMD_OP(FW_LDST_CMD) |
+					F_FW_CMD_REQUEST |
+					F_FW_CMD_WRITE |
+					ldst_addrspace);
+	c.cycles_to_len16 = cpu_to_be32(FW_LEN16(c));
+	c.u.addrval.addr = cpu_to_be32(addr);
+	c.u.addrval.val = cpu_to_be32(val);
 
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
@@ -6286,19 +5896,22 @@ int t4_mdio_rd(struct adapter *adap, unsigned int mbox, unsigned int phy_addr,
 	       unsigned int mmd, unsigned int reg, unsigned int *valp)
 {
 	int ret;
+	u32 ldst_addrspace;
 	struct fw_ldst_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_addrspace = htonl(V_FW_CMD_OP(FW_LDST_CMD) | F_FW_CMD_REQUEST |
-		F_FW_CMD_READ | V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_MDIO));
-	c.cycles_to_len16 = htonl(FW_LEN16(c));
-	c.u.mdio.paddr_mmd = htons(V_FW_LDST_CMD_PADDR(phy_addr) |
-				   V_FW_LDST_CMD_MMD(mmd));
-	c.u.mdio.raddr = htons(reg);
+	ldst_addrspace = V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_MDIO);
+	c.op_to_addrspace = cpu_to_be32(V_FW_CMD_OP(FW_LDST_CMD) |
+					F_FW_CMD_REQUEST | F_FW_CMD_READ |
+					ldst_addrspace);
+	c.cycles_to_len16 = cpu_to_be32(FW_LEN16(c));
+	c.u.mdio.paddr_mmd = cpu_to_be16(V_FW_LDST_CMD_PADDR(phy_addr) |
+					 V_FW_LDST_CMD_MMD(mmd));
+	c.u.mdio.raddr = cpu_to_be16(reg);
 
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 	if (ret == 0)
-		*valp = ntohs(c.u.mdio.rval);
+		*valp = be16_to_cpu(c.u.mdio.rval);
 	return ret;
 }
 
@@ -6316,16 +5929,19 @@ int t4_mdio_rd(struct adapter *adap, unsigned int mbox, unsigned int phy_addr,
 int t4_mdio_wr(struct adapter *adap, unsigned int mbox, unsigned int phy_addr,
 	       unsigned int mmd, unsigned int reg, unsigned int val)
 {
+	u32 ldst_addrspace;
 	struct fw_ldst_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_addrspace = htonl(V_FW_CMD_OP(FW_LDST_CMD) | F_FW_CMD_REQUEST |
-		F_FW_CMD_WRITE | V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_MDIO));
-	c.cycles_to_len16 = htonl(FW_LEN16(c));
-	c.u.mdio.paddr_mmd = htons(V_FW_LDST_CMD_PADDR(phy_addr) |
-				   V_FW_LDST_CMD_MMD(mmd));
-	c.u.mdio.raddr = htons(reg);
-	c.u.mdio.rval = htons(val);
+	ldst_addrspace = V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_MDIO);
+	c.op_to_addrspace = cpu_to_be32(V_FW_CMD_OP(FW_LDST_CMD) |
+					F_FW_CMD_REQUEST | F_FW_CMD_WRITE |
+					ldst_addrspace);
+	c.cycles_to_len16 = cpu_to_be32(FW_LEN16(c));
+	c.u.mdio.paddr_mmd = cpu_to_be16(V_FW_LDST_CMD_PADDR(phy_addr) |
+					 V_FW_LDST_CMD_MMD(mmd));
+	c.u.mdio.raddr = cpu_to_be16(reg);
+	c.u.mdio.rval = cpu_to_be16(val);
 
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
@@ -6488,182 +6104,37 @@ void t4_sge_decode_idma_state(struct adapter *adapter, int state)
 }
 
 /**
- *	t4_i2c_rd - read I2C data from adapter
- *	@adap: the adapter
- *	@port: Port number if per-port device; <0 if not
- *	@devid: per-port device ID or absolute device ID
- *	@offset: byte offset into device I2C space
- *	@len: byte length of I2C space data
- *	@buf: buffer in which to return I2C data
+ *      t4_sge_ctxt_flush - flush the SGE context cache
+ *      @adap: the adapter
+ *      @mbox: mailbox to use for the FW command
  *
- *	Reads the I2C data from the indicated device and location.
- */
-int t4_i2c_rd(struct adapter *adap, unsigned int mbox,
-	      int port, unsigned int devid,
-	      unsigned int offset, unsigned int len,
-	      u8 *buf)
-{
-	struct fw_ldst_cmd ldst;
-	int ret;
-
-	if (port >= 4 ||
-	    devid >= 256 ||
-	    offset >= 256 ||
-	    len > sizeof ldst.u.i2c.data)
-		return -EINVAL;
-
-	memset(&ldst, 0, sizeof ldst);
-	ldst.op_to_addrspace =
-		cpu_to_be32(V_FW_CMD_OP(FW_LDST_CMD) |
-			    F_FW_CMD_REQUEST |
-			    F_FW_CMD_READ |
-			    V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_I2C));
-	ldst.cycles_to_len16 = cpu_to_be32(FW_LEN16(ldst));
-	ldst.u.i2c.pid = (port < 0 ? 0xff : port);
-	ldst.u.i2c.did = devid;
-	ldst.u.i2c.boffset = offset;
-	ldst.u.i2c.blen = len;
-	ret = t4_wr_mbox(adap, mbox, &ldst, sizeof ldst, &ldst);
-	if (!ret)
-		memcpy(buf, ldst.u.i2c.data, len);
-	return ret;
-}
-
-/**
- *	t4_i2c_wr - write I2C data to adapter
- *	@adap: the adapter
- *	@port: Port number if per-port device; <0 if not
- *	@devid: per-port device ID or absolute device ID
- *	@offset: byte offset into device I2C space
- *	@len: byte length of I2C space data
- *	@buf: buffer containing new I2C data
- *
- *	Write the I2C data to the indicated device and location.
- */
-int t4_i2c_wr(struct adapter *adap, unsigned int mbox,
-	      int port, unsigned int devid,
-	      unsigned int offset, unsigned int len,
-	      u8 *buf)
-{
-	struct fw_ldst_cmd ldst;
-
-	if (port >= 4 ||
-	    devid >= 256 ||
-	    offset >= 256 ||
-	    len > sizeof ldst.u.i2c.data)
-		return -EINVAL;
-
-	memset(&ldst, 0, sizeof ldst);
-	ldst.op_to_addrspace =
-		cpu_to_be32(V_FW_CMD_OP(FW_LDST_CMD) |
-			    F_FW_CMD_REQUEST |
-			    F_FW_CMD_WRITE |
-			    V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_I2C));
-	ldst.cycles_to_len16 = cpu_to_be32(FW_LEN16(ldst));
-	ldst.u.i2c.pid = (port < 0 ? 0xff : port);
-	ldst.u.i2c.did = devid;
-	ldst.u.i2c.boffset = offset;
-	ldst.u.i2c.blen = len;
-	memcpy(ldst.u.i2c.data, buf, len);
-	return t4_wr_mbox(adap, mbox, &ldst, sizeof ldst, &ldst);
-}
-
-/**
- *	t4_sge_ctxt_flush - flush the SGE context cache
- *	@adap: the adapter
- *	@mbox: mailbox to use for the FW command
- *
- *	Issues a FW command through the given mailbox to flush the
- *	SGE context cache.
+ *      Issues a FW command through the given mailbox to flush the
+ *      SGE context cache.
  */
 int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox)
 {
 	int ret;
+	u32 ldst_addrspace;
 	struct fw_ldst_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_addrspace = htonl(V_FW_CMD_OP(FW_LDST_CMD) | F_FW_CMD_REQUEST |
-			F_FW_CMD_READ |
-			V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_SGE_EGRC));
-	c.cycles_to_len16 = htonl(FW_LEN16(c));
-	c.u.idctxt.msg_ctxtflush = htonl(F_FW_LDST_CMD_CTXTFLUSH);
+	ldst_addrspace = V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_SGE_EGRC);
+	c.op_to_addrspace = cpu_to_be32(V_FW_CMD_OP(FW_LDST_CMD) |
+					F_FW_CMD_REQUEST | F_FW_CMD_READ |
+					ldst_addrspace);
+	c.cycles_to_len16 = cpu_to_be32(FW_LEN16(c));
+	c.u.idctxt.msg_ctxtflush = cpu_to_be32(F_FW_LDST_CMD_CTXTFLUSH);
 
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 	return ret;
 }
 
 /**
- *	t4_sge_ctxt_rd - read an SGE context through FW
- *	@adap: the adapter
- *	@mbox: mailbox to use for the FW command
- *	@cid: the context id
- *	@ctype: the context type
- *	@data: where to store the context data
- *
- *	Issues a FW command through the given mailbox to read an SGE context.
- */
-int t4_sge_ctxt_rd(struct adapter *adap, unsigned int mbox, unsigned int cid,
-		   enum ctxt_type ctype, u32 *data)
-{
-	int ret;
-	struct fw_ldst_cmd c;
-
-	if (ctype == CTXT_EGRESS)
-		ret = FW_LDST_ADDRSPC_SGE_EGRC;
-	else if (ctype == CTXT_INGRESS)
-		ret = FW_LDST_ADDRSPC_SGE_INGC;
-	else if (ctype == CTXT_FLM)
-		ret = FW_LDST_ADDRSPC_SGE_FLMC;
-	else
-		ret = FW_LDST_ADDRSPC_SGE_CONMC;
-
-	memset(&c, 0, sizeof(c));
-	c.op_to_addrspace = htonl(V_FW_CMD_OP(FW_LDST_CMD) | F_FW_CMD_REQUEST |
-				  F_FW_CMD_READ | V_FW_LDST_CMD_ADDRSPACE(ret));
-	c.cycles_to_len16 = htonl(FW_LEN16(c));
-	c.u.idctxt.physid = htonl(cid);
-
-	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
-	if (ret == 0) {
-		data[0] = ntohl(c.u.idctxt.ctxt_data0);
-		data[1] = ntohl(c.u.idctxt.ctxt_data1);
-		data[2] = ntohl(c.u.idctxt.ctxt_data2);
-		data[3] = ntohl(c.u.idctxt.ctxt_data3);
-		data[4] = ntohl(c.u.idctxt.ctxt_data4);
-		data[5] = ntohl(c.u.idctxt.ctxt_data5);
-	}
-	return ret;
-}
-
-/**
- *	t4_sge_ctxt_rd_bd - read an SGE context bypassing FW
- *	@adap: the adapter
- *	@cid: the context id
- *	@ctype: the context type
- *	@data: where to store the context data
- *
- *	Reads an SGE context directly, bypassing FW.  This is only for
- *	debugging when FW is unavailable.
- */
-int t4_sge_ctxt_rd_bd(struct adapter *adap, unsigned int cid, enum ctxt_type ctype,
-		      u32 *data)
-{
-	int i, ret;
-
-	t4_write_reg(adap, A_SGE_CTXT_CMD, V_CTXTQID(cid) | V_CTXTTYPE(ctype));
-	ret = t4_wait_op_done(adap, A_SGE_CTXT_CMD, F_BUSY, 0, 3, 1);
-	if (!ret)
-		for (i = A_SGE_CTXT_DATA0; i <= A_SGE_CTXT_DATA5; i += 4)
-			*data++ = t4_read_reg(adap, i);
-	return ret;
-}
-
-/**
- *	t4_fw_hello - establish communication with FW
- *	@adap: the adapter
- *	@mbox: mailbox to use for the FW command
- *	@evt_mbox: mailbox to receive async FW events
- *	@master: specifies the caller's willingness to be the device master
+ *      t4_fw_hello - establish communication with FW
+ *      @adap: the adapter
+ *      @mbox: mailbox to use for the FW command
+ *      @evt_mbox: mailbox to receive async FW events
+ *      @master: specifies the caller's willingness to be the device master
  *	@state: returns the current device state (if non-NULL)
  *
  *	Issues a command to establish communication with FW.  Returns either
@@ -7160,18 +6631,19 @@ int t4_cfg_pfvf(struct adapter *adap, unsigned int mbox, unsigned int pf,
 	struct fw_pfvf_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(V_FW_CMD_OP(FW_PFVF_CMD) | F_FW_CMD_REQUEST |
-			    F_FW_CMD_WRITE | V_FW_PFVF_CMD_PFN(pf) |
-			    V_FW_PFVF_CMD_VFN(vf));
-	c.retval_len16 = htonl(FW_LEN16(c));
-	c.niqflint_niq = htonl(V_FW_PFVF_CMD_NIQFLINT(rxqi) |
-			       V_FW_PFVF_CMD_NIQ(rxq));
-	c.type_to_neq = htonl(V_FW_PFVF_CMD_CMASK(cmask) |
-			      V_FW_PFVF_CMD_PMASK(pmask) |
-			      V_FW_PFVF_CMD_NEQ(txq));
-	c.tc_to_nexactf = htonl(V_FW_PFVF_CMD_TC(tc) | V_FW_PFVF_CMD_NVI(vi) |
-				V_FW_PFVF_CMD_NEXACTF(nexact));
-	c.r_caps_to_nethctrl = htonl(V_FW_PFVF_CMD_R_CAPS(rcaps) |
+	c.op_to_vfn = cpu_to_be32(V_FW_CMD_OP(FW_PFVF_CMD) | F_FW_CMD_REQUEST |
+				  F_FW_CMD_WRITE | V_FW_PFVF_CMD_PFN(pf) |
+				  V_FW_PFVF_CMD_VFN(vf));
+	c.retval_len16 = cpu_to_be32(FW_LEN16(c));
+	c.niqflint_niq = cpu_to_be32(V_FW_PFVF_CMD_NIQFLINT(rxqi) |
+				     V_FW_PFVF_CMD_NIQ(rxq));
+	c.type_to_neq = cpu_to_be32(V_FW_PFVF_CMD_CMASK(cmask) |
+				    V_FW_PFVF_CMD_PMASK(pmask) |
+				    V_FW_PFVF_CMD_NEQ(txq));
+	c.tc_to_nexactf = cpu_to_be32(V_FW_PFVF_CMD_TC(tc) |
+				      V_FW_PFVF_CMD_NVI(vi) |
+				      V_FW_PFVF_CMD_NEXACTF(nexact));
+	c.r_caps_to_nethctrl = cpu_to_be32(V_FW_PFVF_CMD_R_CAPS(rcaps) |
 				     V_FW_PFVF_CMD_WX_CAPS(wxcaps) |
 				     V_FW_PFVF_CMD_NETHCTRL(txq_eth_ctrl));
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
@@ -7192,6 +6664,7 @@ int t4_cfg_pfvf(struct adapter *adap, unsigned int mbox, unsigned int pf,
  *
  *	Allocates a virtual interface for the given physical port.  If @mac is
  *	not %NULL it contains the MAC addresses of the VI as assigned by FW.
+ *	If @rss_size is %NULL the VI is not assigned any RSS slice by FW.
  *	@mac should be large enough to hold @nmac Ethernet addresses, they are
  *	stored consecutively so the space needed is @nmac * 6 bytes.
  *	Returns a negative error number or the non-negative VI id.
@@ -7205,14 +6678,16 @@ int t4_alloc_vi_func(struct adapter *adap, unsigned int mbox,
 	struct fw_vi_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(V_FW_CMD_OP(FW_VI_CMD) | F_FW_CMD_REQUEST |
-			    F_FW_CMD_WRITE | F_FW_CMD_EXEC |
-			    V_FW_VI_CMD_PFN(pf) | V_FW_VI_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(F_FW_VI_CMD_ALLOC | FW_LEN16(c));
-	c.type_to_viid = htons(V_FW_VI_CMD_TYPE(idstype) |
-			       V_FW_VI_CMD_FUNC(portfunc));
+	c.op_to_vfn = cpu_to_be32(V_FW_CMD_OP(FW_VI_CMD) | F_FW_CMD_REQUEST |
+				  F_FW_CMD_WRITE | F_FW_CMD_EXEC |
+				  V_FW_VI_CMD_PFN(pf) | V_FW_VI_CMD_VFN(vf));
+	c.alloc_to_len16 = cpu_to_be32(F_FW_VI_CMD_ALLOC | FW_LEN16(c));
+	c.type_to_viid = cpu_to_be16(V_FW_VI_CMD_TYPE(idstype) |
+				     V_FW_VI_CMD_FUNC(portfunc));
 	c.portid_pkd = V_FW_VI_CMD_PORTID(port);
 	c.nmac = nmac - 1;
+	if(!rss_size)
+		c.norss_rsssize = F_FW_VI_CMD_NORSS;
 
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 	if (ret)
@@ -7232,20 +6707,20 @@ int t4_alloc_vi_func(struct adapter *adap, unsigned int mbox,
 		}
 	}
 	if (rss_size)
-		*rss_size = G_FW_VI_CMD_RSSSIZE(ntohs(c.norss_rsssize));
-	return G_FW_VI_CMD_VIID(htons(c.type_to_viid));
+		*rss_size = G_FW_VI_CMD_RSSSIZE(be16_to_cpu(c.norss_rsssize));
+	return G_FW_VI_CMD_VIID(be16_to_cpu(c.type_to_viid));
 }
 
 /**
- *	t4_alloc_vi - allocate an [Ethernet Function] virtual interface
- *	@adap: the adapter
- *	@mbox: mailbox to use for the FW command
- *	@port: physical port associated with the VI
- *	@pf: the PF owning the VI
- *	@vf: the VF owning the VI
- *	@nmac: number of MAC addresses needed (1 to 5)
- *	@mac: the MAC addresses of the VI
- *	@rss_size: size of RSS table slice associated with this VI
+ *      t4_alloc_vi - allocate an [Ethernet Function] virtual interface
+ *      @adap: the adapter
+ *      @mbox: mailbox to use for the FW command
+ *      @port: physical port associated with the VI
+ *      @pf: the PF owning the VI
+ *      @vf: the VF owning the VI
+ *      @nmac: number of MAC addresses needed (1 to 5)
+ *      @mac: the MAC addresses of the VI
+ *      @rss_size: size of RSS table slice associated with this VI
  *
  *	backwards compatible and convieniance routine to allocate a Virtual
  *	Interface with a Ethernet Port Application Function and Intrustion
@@ -7260,14 +6735,14 @@ int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 }
 
 /**
- *	t4_free_vi - free a virtual interface
- *	@adap: the adapter
- *	@mbox: mailbox to use for the FW command
- *	@pf: the PF owning the VI
- *	@vf: the VF owning the VI
- *	@viid: virtual interface identifiler
+ * 	t4_free_vi - free a virtual interface
+ * 	@adap: the adapter
+ * 	@mbox: mailbox to use for the FW command
+ * 	@pf: the PF owning the VI
+ * 	@vf: the VF owning the VI
+ * 	@viid: virtual interface identifiler
  *
- *	Free a previously allocated virtual interface.
+ * 	Free a previously allocated virtual interface.
  */
 int t4_free_vi(struct adapter *adap, unsigned int mbox, unsigned int pf,
 	       unsigned int vf, unsigned int viid)
@@ -7275,13 +6750,13 @@ int t4_free_vi(struct adapter *adap, unsigned int mbox, unsigned int pf,
 	struct fw_vi_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(V_FW_CMD_OP(FW_VI_CMD) |
-			    F_FW_CMD_REQUEST |
-			    F_FW_CMD_EXEC |
-			    V_FW_VI_CMD_PFN(pf) |
-			    V_FW_VI_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(F_FW_VI_CMD_FREE | FW_LEN16(c));
-	c.type_to_viid = htons(V_FW_VI_CMD_VIID(viid));
+	c.op_to_vfn = cpu_to_be32(V_FW_CMD_OP(FW_VI_CMD) |
+				  F_FW_CMD_REQUEST |
+				  F_FW_CMD_EXEC |
+				  V_FW_VI_CMD_PFN(pf) |
+				  V_FW_VI_CMD_VFN(vf));
+	c.alloc_to_len16 = cpu_to_be32(F_FW_VI_CMD_FREE | FW_LEN16(c));
+	c.type_to_viid = cpu_to_be16(V_FW_VI_CMD_VIID(viid));
 
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 }
@@ -7295,7 +6770,7 @@ int t4_free_vi(struct adapter *adap, unsigned int mbox, unsigned int pf,
  *	@promisc: 1 to enable promiscuous mode, 0 to disable it, -1 no change
  *	@all_multi: 1 to enable all-multi mode, 0 to disable it, -1 no change
  *	@bcast: 1 to enable broadcast Rx, 0 to disable it, -1 no change
- *	@vlanex: 1 to enable HVLAN extraction, 0 to disable it, -1 no change
+ *	@vlanex: 1 to enable HW VLAN extraction, 0 to disable it, -1 no change
  *	@sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Sets Rx properties of a virtual interface.
@@ -7319,14 +6794,16 @@ int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		vlanex = M_FW_VI_RXMODE_CMD_VLANEXEN;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_viid = htonl(V_FW_CMD_OP(FW_VI_RXMODE_CMD) | F_FW_CMD_REQUEST |
-			     F_FW_CMD_WRITE | V_FW_VI_RXMODE_CMD_VIID(viid));
-	c.retval_len16 = htonl(FW_LEN16(c));
-	c.mtu_to_vlanexen = htonl(V_FW_VI_RXMODE_CMD_MTU(mtu) |
-				  V_FW_VI_RXMODE_CMD_PROMISCEN(promisc) |
-				  V_FW_VI_RXMODE_CMD_ALLMULTIEN(all_multi) |
-				  V_FW_VI_RXMODE_CMD_BROADCASTEN(bcast) |
-				  V_FW_VI_RXMODE_CMD_VLANEXEN(vlanex));
+	c.op_to_viid = cpu_to_be32(V_FW_CMD_OP(FW_VI_RXMODE_CMD) |
+				   F_FW_CMD_REQUEST | F_FW_CMD_WRITE |
+				   V_FW_VI_RXMODE_CMD_VIID(viid));
+	c.retval_len16 = cpu_to_be32(FW_LEN16(c));
+	c.mtu_to_vlanexen =
+		cpu_to_be32(V_FW_VI_RXMODE_CMD_MTU(mtu) |
+			    V_FW_VI_RXMODE_CMD_PROMISCEN(promisc) |
+			    V_FW_VI_RXMODE_CMD_ALLMULTIEN(all_multi) |
+			    V_FW_VI_RXMODE_CMD_BROADCASTEN(bcast) |
+			    V_FW_VI_RXMODE_CMD_VLANEXEN(vlanex));
 	return t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), NULL, sleep_ok);
 }
 
@@ -7375,18 +6852,18 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
 		int i;
 
 		memset(&c, 0, sizeof(c));
-		c.op_to_viid = htonl(V_FW_CMD_OP(FW_VI_MAC_CMD) |
-				     F_FW_CMD_REQUEST |
-				     F_FW_CMD_WRITE |
-				     V_FW_CMD_EXEC(free) |
-				     V_FW_VI_MAC_CMD_VIID(viid));
-		c.freemacs_to_len16 = htonl(V_FW_VI_MAC_CMD_FREEMACS(free) |
-					    V_FW_CMD_LEN16(len16));
+		c.op_to_viid = cpu_to_be32(V_FW_CMD_OP(FW_VI_MAC_CMD) |
+					   F_FW_CMD_REQUEST |
+					   F_FW_CMD_WRITE |
+					   V_FW_CMD_EXEC(free) |
+					   V_FW_VI_MAC_CMD_VIID(viid));
+		c.freemacs_to_len16 = cpu_to_be32(V_FW_VI_MAC_CMD_FREEMACS(free) |
+						  V_FW_CMD_LEN16(len16));
 
 		for (i = 0, p = c.u.exact; i < fw_naddr; i++, p++) {
-			p->valid_to_idx = htons(
-				F_FW_VI_MAC_CMD_VALID |
-				V_FW_VI_MAC_CMD_IDX(FW_VI_MAC_ADD_MAC));
+			p->valid_to_idx =
+				cpu_to_be16(F_FW_VI_MAC_CMD_VALID |
+					    V_FW_VI_MAC_CMD_IDX(FW_VI_MAC_ADD_MAC));
 			memcpy(p->macaddr, addr[offset+i], sizeof(p->macaddr));
 		}
 
@@ -7400,7 +6877,8 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
 			break;
 
 		for (i = 0, p = c.u.exact; i < fw_naddr; i++, p++) {
-			u16 index = G_FW_VI_MAC_CMD_IDX(ntohs(p->valid_to_idx));
+			u16 index = G_FW_VI_MAC_CMD_IDX(
+						be16_to_cpu(p->valid_to_idx));
 
 			if (idx)
 				idx[offset+i] = (index >=  max_naddr
@@ -7418,7 +6896,7 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
 	}
 
 	if (ret == 0 || ret == -FW_ENOMEM)
-		ret = nfilters; 
+		ret = nfilters;
 	return ret;
 }
 
@@ -7452,22 +6930,23 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 	struct fw_vi_mac_exact *p = c.u.exact;
 	unsigned int max_mac_addr = adap->chip_params->mps_tcam_size;
 
-	if (idx < 0)                             /* new allocation */
+	if (idx < 0)		/* new allocation */
 		idx = persist ? FW_VI_MAC_ADD_PERSIST_MAC : FW_VI_MAC_ADD_MAC;
 	mode = add_smt ? FW_VI_MAC_SMT_AND_MPSTCAM : FW_VI_MAC_MPS_TCAM_ENTRY;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_viid = htonl(V_FW_CMD_OP(FW_VI_MAC_CMD) | F_FW_CMD_REQUEST |
-			     F_FW_CMD_WRITE | V_FW_VI_MAC_CMD_VIID(viid));
-	c.freemacs_to_len16 = htonl(V_FW_CMD_LEN16(1));
-	p->valid_to_idx = htons(F_FW_VI_MAC_CMD_VALID |
-				V_FW_VI_MAC_CMD_SMAC_RESULT(mode) |
-				V_FW_VI_MAC_CMD_IDX(idx));
+	c.op_to_viid = cpu_to_be32(V_FW_CMD_OP(FW_VI_MAC_CMD) |
+				   F_FW_CMD_REQUEST | F_FW_CMD_WRITE |
+				   V_FW_VI_MAC_CMD_VIID(viid));
+	c.freemacs_to_len16 = cpu_to_be32(V_FW_CMD_LEN16(1));
+	p->valid_to_idx = cpu_to_be16(F_FW_VI_MAC_CMD_VALID |
+				      V_FW_VI_MAC_CMD_SMAC_RESULT(mode) |
+				      V_FW_VI_MAC_CMD_IDX(idx));
 	memcpy(p->macaddr, addr, sizeof(p->macaddr));
 
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 	if (ret == 0) {
-		ret = G_FW_VI_MAC_CMD_IDX(ntohs(p->valid_to_idx));
+		ret = G_FW_VI_MAC_CMD_IDX(be16_to_cpu(p->valid_to_idx));
 		if (ret >= max_mac_addr)
 			ret = -ENOMEM;
 	}
@@ -7492,8 +6971,9 @@ int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,
 	u32 val;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_viid = htonl(V_FW_CMD_OP(FW_VI_MAC_CMD) | F_FW_CMD_REQUEST |
-			     F_FW_CMD_WRITE | V_FW_VI_ENABLE_CMD_VIID(viid));
+	c.op_to_viid = cpu_to_be32(V_FW_CMD_OP(FW_VI_MAC_CMD) |
+				   F_FW_CMD_REQUEST | F_FW_CMD_WRITE |
+				   V_FW_VI_ENABLE_CMD_VIID(viid));
 	val = V_FW_VI_MAC_CMD_ENTRY_TYPE(FW_VI_MAC_TYPE_HASHVEC) |
 	      V_FW_VI_MAC_CMD_HASHUNIEN(ucast) | V_FW_CMD_LEN16(1);
 	c.freemacs_to_len16 = cpu_to_be32(val);
@@ -7561,10 +7041,11 @@ int t4_identify_port(struct adapter *adap, unsigned int mbox, unsigned int viid,
 	struct fw_vi_enable_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_viid = htonl(V_FW_CMD_OP(FW_VI_ENABLE_CMD) | F_FW_CMD_REQUEST |
-			     F_FW_CMD_EXEC | V_FW_VI_ENABLE_CMD_VIID(viid));
-	c.ien_to_len16 = htonl(F_FW_VI_ENABLE_CMD_LED | FW_LEN16(c));
-	c.blinkdur = htons(nblinks);
+	c.op_to_viid = cpu_to_be32(V_FW_CMD_OP(FW_VI_ENABLE_CMD) |
+				   F_FW_CMD_REQUEST | F_FW_CMD_EXEC |
+				   V_FW_VI_ENABLE_CMD_VIID(viid));
+	c.ien_to_len16 = cpu_to_be32(F_FW_VI_ENABLE_CMD_LED | FW_LEN16(c));
+	c.blinkdur = cpu_to_be16(nblinks);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
@@ -7621,14 +7102,14 @@ int t4_iq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 	struct fw_iq_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(V_FW_CMD_OP(FW_IQ_CMD) | F_FW_CMD_REQUEST |
-			    F_FW_CMD_EXEC | V_FW_IQ_CMD_PFN(pf) |
-			    V_FW_IQ_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(F_FW_IQ_CMD_FREE | FW_LEN16(c));
-	c.type_to_iqandstindex = htonl(V_FW_IQ_CMD_TYPE(iqtype));
-	c.iqid = htons(iqid);
-	c.fl0id = htons(fl0id);
-	c.fl1id = htons(fl1id);
+	c.op_to_vfn = cpu_to_be32(V_FW_CMD_OP(FW_IQ_CMD) | F_FW_CMD_REQUEST |
+				  F_FW_CMD_EXEC | V_FW_IQ_CMD_PFN(pf) |
+				  V_FW_IQ_CMD_VFN(vf));
+	c.alloc_to_len16 = cpu_to_be32(F_FW_IQ_CMD_FREE | FW_LEN16(c));
+	c.type_to_iqandstindex = cpu_to_be32(V_FW_IQ_CMD_TYPE(iqtype));
+	c.iqid = cpu_to_be16(iqid);
+	c.fl0id = cpu_to_be16(fl0id);
+	c.fl1id = cpu_to_be16(fl1id);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
@@ -7648,11 +7129,12 @@ int t4_eth_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 	struct fw_eq_eth_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(V_FW_CMD_OP(FW_EQ_ETH_CMD) | F_FW_CMD_REQUEST |
-			    F_FW_CMD_EXEC | V_FW_EQ_ETH_CMD_PFN(pf) |
-			    V_FW_EQ_ETH_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(F_FW_EQ_ETH_CMD_FREE | FW_LEN16(c));
-	c.eqid_pkd = htonl(V_FW_EQ_ETH_CMD_EQID(eqid));
+	c.op_to_vfn = cpu_to_be32(V_FW_CMD_OP(FW_EQ_ETH_CMD) |
+				  F_FW_CMD_REQUEST | F_FW_CMD_EXEC |
+				  V_FW_EQ_ETH_CMD_PFN(pf) |
+				  V_FW_EQ_ETH_CMD_VFN(vf));
+	c.alloc_to_len16 = cpu_to_be32(F_FW_EQ_ETH_CMD_FREE | FW_LEN16(c));
+	c.eqid_pkd = cpu_to_be32(V_FW_EQ_ETH_CMD_EQID(eqid));
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
@@ -7672,11 +7154,12 @@ int t4_ctrl_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 	struct fw_eq_ctrl_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(V_FW_CMD_OP(FW_EQ_CTRL_CMD) | F_FW_CMD_REQUEST |
-			    F_FW_CMD_EXEC | V_FW_EQ_CTRL_CMD_PFN(pf) |
-			    V_FW_EQ_CTRL_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(F_FW_EQ_CTRL_CMD_FREE | FW_LEN16(c));
-	c.cmpliqid_eqid = htonl(V_FW_EQ_CTRL_CMD_EQID(eqid));
+	c.op_to_vfn = cpu_to_be32(V_FW_CMD_OP(FW_EQ_CTRL_CMD) |
+				  F_FW_CMD_REQUEST | F_FW_CMD_EXEC |
+				  V_FW_EQ_CTRL_CMD_PFN(pf) |
+				  V_FW_EQ_CTRL_CMD_VFN(vf));
+	c.alloc_to_len16 = cpu_to_be32(F_FW_EQ_CTRL_CMD_FREE | FW_LEN16(c));
+	c.cmpliqid_eqid = cpu_to_be32(V_FW_EQ_CTRL_CMD_EQID(eqid));
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
@@ -7696,11 +7179,12 @@ int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 	struct fw_eq_ofld_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(V_FW_CMD_OP(FW_EQ_OFLD_CMD) | F_FW_CMD_REQUEST |
-			    F_FW_CMD_EXEC | V_FW_EQ_OFLD_CMD_PFN(pf) |
-			    V_FW_EQ_OFLD_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(F_FW_EQ_OFLD_CMD_FREE | FW_LEN16(c));
-	c.eqid_pkd = htonl(V_FW_EQ_OFLD_CMD_EQID(eqid));
+	c.op_to_vfn = cpu_to_be32(V_FW_CMD_OP(FW_EQ_OFLD_CMD) |
+				  F_FW_CMD_REQUEST | F_FW_CMD_EXEC |
+				  V_FW_EQ_OFLD_CMD_PFN(pf) |
+				  V_FW_EQ_OFLD_CMD_VFN(vf));
+	c.alloc_to_len16 = cpu_to_be32(F_FW_EQ_OFLD_CMD_FREE | FW_LEN16(c));
+	c.eqid_pkd = cpu_to_be32(V_FW_EQ_OFLD_CMD_EQID(eqid));
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
@@ -7740,15 +7224,16 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 {
 	u8 opcode = *(const u8 *)rpl;
 	const struct fw_port_cmd *p = (const void *)rpl;
-	unsigned int action = G_FW_PORT_CMD_ACTION(ntohl(p->action_to_len16));
+	unsigned int action =
+			G_FW_PORT_CMD_ACTION(be32_to_cpu(p->action_to_len16));
 
 	if (opcode == FW_PORT_CMD && action == FW_PORT_ACTION_GET_PORT_INFO) {
 		/* link/module state change message */
 		int speed = 0, fc = 0, i;
-		int chan = G_FW_PORT_CMD_PORTID(ntohl(p->op_to_portid));
+		int chan = G_FW_PORT_CMD_PORTID(be32_to_cpu(p->op_to_portid));
 		struct port_info *pi = NULL;
 		struct link_config *lc;
-		u32 stat = ntohl(p->u.info.lstatus_to_modtype);
+		u32 stat = be32_to_cpu(p->u.info.lstatus_to_modtype);
 		int link_ok = (stat & F_FW_PORT_CMD_LSTATUS) != 0;
 		u32 mod = G_FW_PORT_CMD_MODTYPE(stat);
 
@@ -7788,12 +7273,11 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 			lc->link_ok = link_ok;
 			lc->speed = speed;
 			lc->fc = fc;
-			lc->supported = ntohs(p->u.info.pcap);
+			lc->supported = be16_to_cpu(p->u.info.pcap);
 			t4_os_link_changed(adap, i, link_ok, reason);
 		}
 	} else {
-		CH_WARN_RATELIMIT(adap,
-		    "Unknown firmware reply 0x%x (0x%x)\n", opcode, action);
+		CH_WARN_RATELIMIT(adap, "Unknown firmware reply %d\n", opcode);
 		return -EINVAL;
 	}
 	return 0;
@@ -8395,6 +7879,322 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 	return 0;
 }
 
+/**
+ *	t4_read_cimq_cfg - read CIM queue configuration
+ *	@adap: the adapter
+ *	@base: holds the queue base addresses in bytes
+ *	@size: holds the queue sizes in bytes
+ *	@thres: holds the queue full thresholds in bytes
+ *
+ *	Returns the current configuration of the CIM queues, starting with
+ *	the IBQs, then the OBQs.
+ */
+void t4_read_cimq_cfg(struct adapter *adap, u16 *base, u16 *size, u16 *thres)
+{
+	unsigned int i, v;
+	int cim_num_obq = adap->chip_params->cim_num_obq;
+
+	for (i = 0; i < CIM_NUM_IBQ; i++) {
+		t4_write_reg(adap, A_CIM_QUEUE_CONFIG_REF, F_IBQSELECT |
+			     V_QUENUMSELECT(i));
+		v = t4_read_reg(adap, A_CIM_QUEUE_CONFIG_CTRL);
+		/* value is in 256-byte units */
+		*base++ = G_CIMQBASE(v) * 256;
+		*size++ = G_CIMQSIZE(v) * 256;
+		*thres++ = G_QUEFULLTHRSH(v) * 8; /* 8-byte unit */
+	}
+	for (i = 0; i < cim_num_obq; i++) {
+		t4_write_reg(adap, A_CIM_QUEUE_CONFIG_REF, F_OBQSELECT |
+			     V_QUENUMSELECT(i));
+		v = t4_read_reg(adap, A_CIM_QUEUE_CONFIG_CTRL);
+		/* value is in 256-byte units */
+		*base++ = G_CIMQBASE(v) * 256;
+		*size++ = G_CIMQSIZE(v) * 256;
+	}
+}
+
+/**
+ *	t4_read_cim_ibq - read the contents of a CIM inbound queue
+ *	@adap: the adapter
+ *	@qid: the queue index
+ *	@data: where to store the queue contents
+ *	@n: capacity of @data in 32-bit words
+ *
+ *	Reads the contents of the selected CIM queue starting at address 0 up
+ *	to the capacity of @data.  @n must be a multiple of 4.  Returns < 0 on
+ *	error and the number of 32-bit words actually read on success.
+ */
+int t4_read_cim_ibq(struct adapter *adap, unsigned int qid, u32 *data, size_t n)
+{
+	int i, err, attempts;
+	unsigned int addr;
+	const unsigned int nwords = CIM_IBQ_SIZE * 4;
+
+	if (qid > 5 || (n & 3))
+		return -EINVAL;
+
+	addr = qid * nwords;
+	if (n > nwords)
+		n = nwords;
+
+	/* It might take 3-10ms before the IBQ debug read access is allowed.
+	 * Wait for 1 Sec with a delay of 1 usec.
+	 */
+	attempts = 1000000;
+
+	for (i = 0; i < n; i++, addr++) {
+		t4_write_reg(adap, A_CIM_IBQ_DBG_CFG, V_IBQDBGADDR(addr) |
+			     F_IBQDBGEN);
+		err = t4_wait_op_done(adap, A_CIM_IBQ_DBG_CFG, F_IBQDBGBUSY, 0,
+				      attempts, 1);
+		if (err)
+			return err;
+		*data++ = t4_read_reg(adap, A_CIM_IBQ_DBG_DATA);
+	}
+	t4_write_reg(adap, A_CIM_IBQ_DBG_CFG, 0);
+	return i;
+}
+
+/**
+ *	t4_read_cim_obq - read the contents of a CIM outbound queue
+ *	@adap: the adapter
+ *	@qid: the queue index
+ *	@data: where to store the queue contents
+ *	@n: capacity of @data in 32-bit words
+ *
+ *	Reads the contents of the selected CIM queue starting at address 0 up
+ *	to the capacity of @data.  @n must be a multiple of 4.  Returns < 0 on
+ *	error and the number of 32-bit words actually read on success.
+ */
+int t4_read_cim_obq(struct adapter *adap, unsigned int qid, u32 *data, size_t n)
+{
+	int i, err;
+	unsigned int addr, v, nwords;
+	int cim_num_obq = adap->chip_params->cim_num_obq;
+
+	if ((qid > (cim_num_obq - 1)) || (n & 3))
+		return -EINVAL;
+
+	t4_write_reg(adap, A_CIM_QUEUE_CONFIG_REF, F_OBQSELECT |
+		     V_QUENUMSELECT(qid));
+	v = t4_read_reg(adap, A_CIM_QUEUE_CONFIG_CTRL);
+
+	addr = G_CIMQBASE(v) * 64;    /* muliple of 256 -> muliple of 4 */
+	nwords = G_CIMQSIZE(v) * 64;  /* same */
+	if (n > nwords)
+		n = nwords;
+
+	for (i = 0; i < n; i++, addr++) {
+		t4_write_reg(adap, A_CIM_OBQ_DBG_CFG, V_OBQDBGADDR(addr) |
+			     F_OBQDBGEN);
+		err = t4_wait_op_done(adap, A_CIM_OBQ_DBG_CFG, F_OBQDBGBUSY, 0,
+				      2, 1);
+		if (err)
+			return err;
+		*data++ = t4_read_reg(adap, A_CIM_OBQ_DBG_DATA);
+	}
+	t4_write_reg(adap, A_CIM_OBQ_DBG_CFG, 0);
+	return i;
+}
+
+enum {
+	CIM_QCTL_BASE     = 0,
+	CIM_CTL_BASE      = 0x2000,
+	CIM_PBT_ADDR_BASE = 0x2800,
+	CIM_PBT_LRF_BASE  = 0x3000,
+	CIM_PBT_DATA_BASE = 0x3800
+};
+
+/**
+ *	t4_cim_read - read a block from CIM internal address space
+ *	@adap: the adapter
+ *	@addr: the start address within the CIM address space
+ *	@n: number of words to read
+ *	@valp: where to store the result
+ *
+ *	Reads a block of 4-byte words from the CIM intenal address space.
+ */
+int t4_cim_read(struct adapter *adap, unsigned int addr, unsigned int n,
+		unsigned int *valp)
+{
+	int ret = 0;
+
+	if (t4_read_reg(adap, A_CIM_HOST_ACC_CTRL) & F_HOSTBUSY)
+		return -EBUSY;
+
+	for ( ; !ret && n--; addr += 4) {
+		t4_write_reg(adap, A_CIM_HOST_ACC_CTRL, addr);
+		ret = t4_wait_op_done(adap, A_CIM_HOST_ACC_CTRL, F_HOSTBUSY,
+				      0, 5, 2);
+		if (!ret)
+			*valp++ = t4_read_reg(adap, A_CIM_HOST_ACC_DATA);
+	}
+	return ret;
+}
+
+/**
+ *	t4_cim_write - write a block into CIM internal address space
+ *	@adap: the adapter
+ *	@addr: the start address within the CIM address space
+ *	@n: number of words to write
+ *	@valp: set of values to write
+ *
+ *	Writes a block of 4-byte words into the CIM intenal address space.
+ */
+int t4_cim_write(struct adapter *adap, unsigned int addr, unsigned int n,
+		 const unsigned int *valp)
+{
+	int ret = 0;
+
+	if (t4_read_reg(adap, A_CIM_HOST_ACC_CTRL) & F_HOSTBUSY)
+		return -EBUSY;
+
+	for ( ; !ret && n--; addr += 4) {
+		t4_write_reg(adap, A_CIM_HOST_ACC_DATA, *valp++);
+		t4_write_reg(adap, A_CIM_HOST_ACC_CTRL, addr | F_HOSTWRITE);
+		ret = t4_wait_op_done(adap, A_CIM_HOST_ACC_CTRL, F_HOSTBUSY,
+				      0, 5, 2);
+	}
+	return ret;
+}
+
+static int t4_cim_write1(struct adapter *adap, unsigned int addr,
+			 unsigned int val)
+{
+	return t4_cim_write(adap, addr, 1, &val);
+}
+
+/**
+ *	t4_cim_ctl_read - read a block from CIM control region
+ *	@adap: the adapter
+ *	@addr: the start address within the CIM control region
+ *	@n: number of words to read
+ *	@valp: where to store the result
+ *
+ *	Reads a block of 4-byte words from the CIM control region.
+ */
+int t4_cim_ctl_read(struct adapter *adap, unsigned int addr, unsigned int n,
+		    unsigned int *valp)
+{
+	return t4_cim_read(adap, addr + CIM_CTL_BASE, n, valp);
+}
+
+/**
+ *	t4_cim_read_la - read CIM LA capture buffer
+ *	@adap: the adapter
+ *	@la_buf: where to store the LA data
+ *	@wrptr: the HW write pointer within the capture buffer
+ *
+ *	Reads the contents of the CIM LA buffer with the most recent entry at
+ *	the end	of the returned data and with the entry at @wrptr first.
+ *	We try to leave the LA in the running state we find it in.
+ */
+int t4_cim_read_la(struct adapter *adap, u32 *la_buf, unsigned int *wrptr)
+{
+	int i, ret;
+	unsigned int cfg, val, idx;
+
+	ret = t4_cim_read(adap, A_UP_UP_DBG_LA_CFG, 1, &cfg);
+	if (ret)
+		return ret;
+
+	if (cfg & F_UPDBGLAEN) {	/* LA is running, freeze it */
+		ret = t4_cim_write1(adap, A_UP_UP_DBG_LA_CFG, 0);
+		if (ret)
+			return ret;
+	}
+
+	ret = t4_cim_read(adap, A_UP_UP_DBG_LA_CFG, 1, &val);
+	if (ret)
+		goto restart;
+
+	idx = G_UPDBGLAWRPTR(val);
+	if (wrptr)
+		*wrptr = idx;
+
+	for (i = 0; i < adap->params.cim_la_size; i++) {
+		ret = t4_cim_write1(adap, A_UP_UP_DBG_LA_CFG,
+				    V_UPDBGLARDPTR(idx) | F_UPDBGLARDEN);
+		if (ret)
+			break;
+		ret = t4_cim_read(adap, A_UP_UP_DBG_LA_CFG, 1, &val);
+		if (ret)
+			break;
+		if (val & F_UPDBGLARDEN) {
+			ret = -ETIMEDOUT;
+			break;
+		}
+		ret = t4_cim_read(adap, A_UP_UP_DBG_LA_DATA, 1, &la_buf[i]);
+		if (ret)
+			break;
+
+		/* address can't exceed 0xfff (UpDbgLaRdPtr is of 12-bits) */
+		idx = (idx + 1) & M_UPDBGLARDPTR;
+		/*
+		 * Bits 0-3 of UpDbgLaRdPtr can be between 0000 to 1001 to
+		 * identify the 32-bit portion of the full 312-bit data
+		 */
+		if (is_t6(adap))
+			while ((idx & 0xf) > 9)
+				idx = (idx + 1) % M_UPDBGLARDPTR;
+	}
+restart:
+	if (cfg & F_UPDBGLAEN) {
+		int r = t4_cim_write1(adap, A_UP_UP_DBG_LA_CFG,
+				      cfg & ~F_UPDBGLARDEN);
+		if (!ret)
+			ret = r;
+	}
+	return ret;
+}
+
+/**
+ *	t4_tp_read_la - read TP LA capture buffer
+ *	@adap: the adapter
+ *	@la_buf: where to store the LA data
+ *	@wrptr: the HW write pointer within the capture buffer
+ *
+ *	Reads the contents of the TP LA buffer with the most recent entry at
+ *	the end	of the returned data and with the entry at @wrptr first.
+ *	We leave the LA in the running state we find it in.
+ */
+void t4_tp_read_la(struct adapter *adap, u64 *la_buf, unsigned int *wrptr)
+{
+	bool last_incomplete;
+	unsigned int i, cfg, val, idx;
+
+	cfg = t4_read_reg(adap, A_TP_DBG_LA_CONFIG) & 0xffff;
+	if (cfg & F_DBGLAENABLE)			/* freeze LA */
+		t4_write_reg(adap, A_TP_DBG_LA_CONFIG,
+			     adap->params.tp.la_mask | (cfg ^ F_DBGLAENABLE));
+
+	val = t4_read_reg(adap, A_TP_DBG_LA_CONFIG);
+	idx = G_DBGLAWPTR(val);
+	last_incomplete = G_DBGLAMODE(val) >= 2 && (val & F_DBGLAWHLF) == 0;
+	if (last_incomplete)
+		idx = (idx + 1) & M_DBGLARPTR;
+	if (wrptr)
+		*wrptr = idx;
+
+	val &= 0xffff;
+	val &= ~V_DBGLARPTR(M_DBGLARPTR);
+	val |= adap->params.tp.la_mask;
+
+	for (i = 0; i < TPLA_SIZE; i++) {
+		t4_write_reg(adap, A_TP_DBG_LA_CONFIG, V_DBGLARPTR(idx) | val);
+		la_buf[i] = t4_read_reg64(adap, A_TP_DBG_LA_DATAL);
+		idx = (idx + 1) & M_DBGLARPTR;
+	}
+
+	/* Wipe out last entry if it isn't valid */
+	if (last_incomplete)
+		la_buf[TPLA_SIZE - 1] = ~0ULL;
+
+	if (cfg & F_DBGLAENABLE)		/* restore running state */
+		t4_write_reg(adap, A_TP_DBG_LA_CONFIG,
+			     cfg | adap->params.tp.la_mask);
+}
+
 /*
  * SGE Hung Ingress DMA Warning Threshold time and Warning Repeat Rate (in
  * seconds).  If we find one of the SGE Ingress DMA State Machines in the same
@@ -8520,6 +8320,124 @@ void t4_idma_monitor(struct adapter *adapter,
 			debug0, debug11);
 		t4_sge_decode_idma_state(adapter, idma->idma_state[i]);
 	}
+}
+
+/**
+ *	t4_read_pace_tbl - read the pace table
+ *	@adap: the adapter
+ *	@pace_vals: holds the returned values
+ *
+ *	Returns the values of TP's pace table in microseconds.
+ */
+void t4_read_pace_tbl(struct adapter *adap, unsigned int pace_vals[NTX_SCHED])
+{
+	unsigned int i, v;
+
+	for (i = 0; i < NTX_SCHED; i++) {
+		t4_write_reg(adap, A_TP_PACE_TABLE, 0xffff0000 + i);
+		v = t4_read_reg(adap, A_TP_PACE_TABLE);
+		pace_vals[i] = dack_ticks_to_usec(adap, v);
+	}
+}
+
+/**
+ *	t4_get_tx_sched - get the configuration of a Tx HW traffic scheduler
+ *	@adap: the adapter
+ *	@sched: the scheduler index
+ *	@kbps: the byte rate in Kbps
+ *	@ipg: the interpacket delay in tenths of nanoseconds
+ *
+ *	Return the current configuration of a HW Tx scheduler.
+ */
+void t4_get_tx_sched(struct adapter *adap, unsigned int sched, unsigned int *kbps,
+		     unsigned int *ipg)
+{
+	unsigned int v, addr, bpt, cpt;
+
+	if (kbps) {
+		addr = A_TP_TX_MOD_Q1_Q0_RATE_LIMIT - sched / 2;
+		t4_write_reg(adap, A_TP_TM_PIO_ADDR, addr);
+		v = t4_read_reg(adap, A_TP_TM_PIO_DATA);
+		if (sched & 1)
+			v >>= 16;
+		bpt = (v >> 8) & 0xff;
+		cpt = v & 0xff;
+		if (!cpt)
+			*kbps = 0;	/* scheduler disabled */
+		else {
+			v = (adap->params.vpd.cclk * 1000) / cpt; /* ticks/s */
+			*kbps = (v * bpt) / 125;
+		}
+	}
+	if (ipg) {
+		addr = A_TP_TX_MOD_Q1_Q0_TIMER_SEPARATOR - sched / 2;
+		t4_write_reg(adap, A_TP_TM_PIO_ADDR, addr);
+		v = t4_read_reg(adap, A_TP_TM_PIO_DATA);
+		if (sched & 1)
+			v >>= 16;
+		v &= 0xffff;
+		*ipg = (10000 * v) / core_ticks_per_usec(adap);
+	}
+}
+
+/**
+ *	t4_load_cfg - download config file
+ *	@adap: the adapter
+ *	@cfg_data: the cfg text file to write
+ *	@size: text file size
+ *
+ *	Write the supplied config text file to the card's serial flash.
+ */
+int t4_load_cfg(struct adapter *adap, const u8 *cfg_data, unsigned int size)
+{
+	int ret, i, n, cfg_addr;
+	unsigned int addr;
+	unsigned int flash_cfg_start_sec;
+	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
+
+	cfg_addr = t4_flash_cfg_addr(adap);
+	if (cfg_addr < 0)
+		return cfg_addr;
+
+	addr = cfg_addr;
+	flash_cfg_start_sec = addr / SF_SEC_SIZE;
+
+	if (size > FLASH_CFG_MAX_SIZE) {
+		CH_ERR(adap, "cfg file too large, max is %u bytes\n",
+		       FLASH_CFG_MAX_SIZE);
+		return -EFBIG;
+	}
+
+	i = DIV_ROUND_UP(FLASH_CFG_MAX_SIZE,	/* # of sectors spanned */
+			 sf_sec_size);
+	ret = t4_flash_erase_sectors(adap, flash_cfg_start_sec,
+				     flash_cfg_start_sec + i - 1);
+	/*
+	 * If size == 0 then we're simply erasing the FLASH sectors associated
+	 * with the on-adapter Firmware Configuration File.
+	 */
+	if (ret || size == 0)
+		goto out;
+
+	/* this will write to the flash up to SF_PAGE_SIZE at a time */
+	for (i = 0; i< size; i+= SF_PAGE_SIZE) {
+		if ( (size - i) <  SF_PAGE_SIZE)
+			n = size - i;
+		else
+			n = SF_PAGE_SIZE;
+		ret = t4_write_flash(adap, addr, n, cfg_data, 1);
+		if (ret)
+			goto out;
+
+		addr += SF_PAGE_SIZE;
+		cfg_data += SF_PAGE_SIZE;
+	}
+
+out:
+	if (ret)
+		CH_ERR(adap, "config file %s failed %d\n",
+		       (size == 0 ? "clear" : "download"), ret);
+	return ret;
 }
 
 /**
@@ -8929,6 +8847,191 @@ int t4_set_filter_mode(struct adapter *adap, unsigned int mode_map)
 	read_filter_mode_and_ingress_config(adap);
 
 	return 0;
+}
+
+/**
+ *	t4_clr_port_stats - clear port statistics
+ *	@adap: the adapter
+ *	@idx: the port index
+ *
+ *	Clear HW statistics for the given port.
+ */
+void t4_clr_port_stats(struct adapter *adap, int idx)
+{
+	unsigned int i;
+	u32 bgmap = t4_get_mps_bg_map(adap, idx);
+	u32 port_base_addr;
+
+	if (is_t4(adap))
+		port_base_addr = PORT_BASE(idx);
+	else
+		port_base_addr = T5_PORT_BASE(idx);
+
+	for (i = A_MPS_PORT_STAT_TX_PORT_BYTES_L;
+			i <= A_MPS_PORT_STAT_TX_PORT_PPP7_H; i += 8)
+		t4_write_reg(adap, port_base_addr + i, 0);
+	for (i = A_MPS_PORT_STAT_RX_PORT_BYTES_L;
+			i <= A_MPS_PORT_STAT_RX_PORT_LESS_64B_H; i += 8)
+		t4_write_reg(adap, port_base_addr + i, 0);
+	for (i = 0; i < 4; i++)
+		if (bgmap & (1 << i)) {
+			t4_write_reg(adap,
+			A_MPS_STAT_RX_BG_0_MAC_DROP_FRAME_L + i * 8, 0);
+			t4_write_reg(adap,
+			A_MPS_STAT_RX_BG_0_MAC_TRUNC_FRAME_L + i * 8, 0);
+		}
+}
+
+/**
+ *	t4_i2c_rd - read I2C data from adapter
+ *	@adap: the adapter
+ *	@port: Port number if per-port device; <0 if not
+ *	@devid: per-port device ID or absolute device ID
+ *	@offset: byte offset into device I2C space
+ *	@len: byte length of I2C space data
+ *	@buf: buffer in which to return I2C data
+ *
+ *	Reads the I2C data from the indicated device and location.
+ */
+int t4_i2c_rd(struct adapter *adap, unsigned int mbox,
+	      int port, unsigned int devid,
+	      unsigned int offset, unsigned int len,
+	      u8 *buf)
+{
+	u32 ldst_addrspace;
+	struct fw_ldst_cmd ldst;
+	int ret;
+
+	if (port >= 4 ||
+	    devid >= 256 ||
+	    offset >= 256 ||
+	    len > sizeof ldst.u.i2c.data)
+		return -EINVAL;
+
+	memset(&ldst, 0, sizeof ldst);
+	ldst_addrspace = V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_I2C);
+	ldst.op_to_addrspace =
+		cpu_to_be32(V_FW_CMD_OP(FW_LDST_CMD) |
+			    F_FW_CMD_REQUEST |
+			    F_FW_CMD_READ |
+			    ldst_addrspace);
+	ldst.cycles_to_len16 = cpu_to_be32(FW_LEN16(ldst));
+	ldst.u.i2c.pid = (port < 0 ? 0xff : port);
+	ldst.u.i2c.did = devid;
+	ldst.u.i2c.boffset = offset;
+	ldst.u.i2c.blen = len;
+	ret = t4_wr_mbox(adap, mbox, &ldst, sizeof ldst, &ldst);
+	if (!ret)
+		memcpy(buf, ldst.u.i2c.data, len);
+	return ret;
+}
+
+/**
+ *	t4_i2c_wr - write I2C data to adapter
+ *	@adap: the adapter
+ *	@port: Port number if per-port device; <0 if not
+ *	@devid: per-port device ID or absolute device ID
+ *	@offset: byte offset into device I2C space
+ *	@len: byte length of I2C space data
+ *	@buf: buffer containing new I2C data
+ *
+ *	Write the I2C data to the indicated device and location.
+ */
+int t4_i2c_wr(struct adapter *adap, unsigned int mbox,
+	      int port, unsigned int devid,
+	      unsigned int offset, unsigned int len,
+	      u8 *buf)
+{
+	u32 ldst_addrspace;
+	struct fw_ldst_cmd ldst;
+
+	if (port >= 4 ||
+	    devid >= 256 ||
+	    offset >= 256 ||
+	    len > sizeof ldst.u.i2c.data)
+		return -EINVAL;
+
+	memset(&ldst, 0, sizeof ldst);
+	ldst_addrspace = V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_I2C);
+	ldst.op_to_addrspace =
+		cpu_to_be32(V_FW_CMD_OP(FW_LDST_CMD) |
+			    F_FW_CMD_REQUEST |
+			    F_FW_CMD_WRITE |
+			    ldst_addrspace);
+	ldst.cycles_to_len16 = cpu_to_be32(FW_LEN16(ldst));
+	ldst.u.i2c.pid = (port < 0 ? 0xff : port);
+	ldst.u.i2c.did = devid;
+	ldst.u.i2c.boffset = offset;
+	ldst.u.i2c.blen = len;
+	memcpy(ldst.u.i2c.data, buf, len);
+	return t4_wr_mbox(adap, mbox, &ldst, sizeof ldst, &ldst);
+}
+
+/**
+ * 	t4_sge_ctxt_rd - read an SGE context through FW
+ * 	@adap: the adapter
+ * 	@mbox: mailbox to use for the FW command
+ * 	@cid: the context id
+ * 	@ctype: the context type
+ * 	@data: where to store the context data
+ *
+ * 	Issues a FW command through the given mailbox to read an SGE context.
+ */
+int t4_sge_ctxt_rd(struct adapter *adap, unsigned int mbox, unsigned int cid,
+		   enum ctxt_type ctype, u32 *data)
+{
+	int ret;
+	struct fw_ldst_cmd c;
+
+	if (ctype == CTXT_EGRESS)
+		ret = FW_LDST_ADDRSPC_SGE_EGRC;
+	else if (ctype == CTXT_INGRESS)
+		ret = FW_LDST_ADDRSPC_SGE_INGC;
+	else if (ctype == CTXT_FLM)
+		ret = FW_LDST_ADDRSPC_SGE_FLMC;
+	else
+		ret = FW_LDST_ADDRSPC_SGE_CONMC;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_addrspace = cpu_to_be32(V_FW_CMD_OP(FW_LDST_CMD) |
+					F_FW_CMD_REQUEST | F_FW_CMD_READ |
+					V_FW_LDST_CMD_ADDRSPACE(ret));
+	c.cycles_to_len16 = cpu_to_be32(FW_LEN16(c));
+	c.u.idctxt.physid = cpu_to_be32(cid);
+
+	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
+	if (ret == 0) {
+		data[0] = be32_to_cpu(c.u.idctxt.ctxt_data0);
+		data[1] = be32_to_cpu(c.u.idctxt.ctxt_data1);
+		data[2] = be32_to_cpu(c.u.idctxt.ctxt_data2);
+		data[3] = be32_to_cpu(c.u.idctxt.ctxt_data3);
+		data[4] = be32_to_cpu(c.u.idctxt.ctxt_data4);
+		data[5] = be32_to_cpu(c.u.idctxt.ctxt_data5);
+	}
+	return ret;
+}
+
+/**
+ * 	t4_sge_ctxt_rd_bd - read an SGE context bypassing FW
+ * 	@adap: the adapter
+ * 	@cid: the context id
+ * 	@ctype: the context type
+ * 	@data: where to store the context data
+ *
+ * 	Reads an SGE context directly, bypassing FW.  This is only for
+ * 	debugging when FW is unavailable.
+ */
+int t4_sge_ctxt_rd_bd(struct adapter *adap, unsigned int cid, enum ctxt_type ctype,
+		      u32 *data)
+{
+	int i, ret;
+
+	t4_write_reg(adap, A_SGE_CTXT_CMD, V_CTXTQID(cid) | V_CTXTTYPE(ctype));
+	ret = t4_wait_op_done(adap, A_SGE_CTXT_CMD, F_BUSY, 0, 3, 1);
+	if (!ret)
+		for (i = A_SGE_CTXT_DATA0; i <= A_SGE_CTXT_DATA5; i += 4)
+			*data++ = t4_read_reg(adap, i);
+	return ret;
 }
 
 int t4_sched_config(struct adapter *adapter, int type, int minmaxen,
