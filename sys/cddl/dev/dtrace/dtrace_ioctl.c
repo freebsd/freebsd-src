@@ -47,14 +47,14 @@ dtrace_ioctl_helper(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		/* FALLTHROUGH */
 	case DTRACEHIOC_ADD:
 		p = curproc;
-		if (p->p_pid == dhp->dofhp_pid) {
+		if (dhp == NULL || p->p_pid == dhp->dofhp_pid) {
 			dof = dtrace_dof_copyin((uintptr_t)addr, &rval);
 		} else {
 			p = pfind(dhp->dofhp_pid);
 			if (p == NULL)
 				return (EINVAL);
 			if (!P_SHOULDSTOP(p) ||
-			    (p->p_flag & P_TRACED|P_WEXIT) == 0 ||
+			    (p->p_flag & (P_TRACED | P_WEXIT)) != P_TRACED ||
 			    p->p_pptr != curproc) {
 				PROC_UNLOCK(p);
 				return (EINVAL);
