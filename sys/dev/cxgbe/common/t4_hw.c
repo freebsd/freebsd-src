@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Chelsio Communications, Inc.
+ * Copyright (c) 2012, 2016 Chelsio Communications, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -7629,6 +7629,74 @@ int __devinit t4_prep_adapter(struct adapter *adapter)
 
 	/* Set pci completion timeout value to 4 seconds. */
 	set_pcie_completion_timeout(adapter, 0xd);
+	return 0;
+}
+
+/**
+ *	t4_init_sge_params - initialize adap->params.sge
+ *	@adapter: the adapter
+ *
+ *	Initialize various fields of the adapter's SGE Parameters structure.
+ */
+int t4_init_sge_params(struct adapter *adapter)
+{
+	u32 r;
+	struct sge_params *sp = &adapter->params.sge;
+
+	r = t4_read_reg(adapter, A_SGE_INGRESS_RX_THRESHOLD);
+	sp->counter_val[0] = G_THRESHOLD_0(r);
+	sp->counter_val[1] = G_THRESHOLD_1(r);
+	sp->counter_val[2] = G_THRESHOLD_2(r);
+	sp->counter_val[3] = G_THRESHOLD_3(r);
+
+	r = t4_read_reg(adapter, A_SGE_TIMER_VALUE_0_AND_1);
+	sp->timer_val[0] = core_ticks_to_us(adapter, G_TIMERVALUE0(r));
+	sp->timer_val[1] = core_ticks_to_us(adapter, G_TIMERVALUE1(r));
+	r = t4_read_reg(adapter, A_SGE_TIMER_VALUE_2_AND_3);
+	sp->timer_val[2] = core_ticks_to_us(adapter, G_TIMERVALUE2(r));
+	sp->timer_val[3] = core_ticks_to_us(adapter, G_TIMERVALUE3(r));
+	r = t4_read_reg(adapter, A_SGE_TIMER_VALUE_4_AND_5);
+	sp->timer_val[4] = core_ticks_to_us(adapter, G_TIMERVALUE4(r));
+	sp->timer_val[5] = core_ticks_to_us(adapter, G_TIMERVALUE5(r));
+
+	r = t4_read_reg(adapter, A_SGE_CONM_CTRL);
+	sp->fl_starve_threshold = G_EGRTHRESHOLD(r) * 2 + 1;
+	if (is_t4(adapter))
+		sp->fl_starve_threshold2 = sp->fl_starve_threshold;
+	else
+		sp->fl_starve_threshold2 = G_EGRTHRESHOLDPACKING(r) * 2 + 1;
+
+	/* egress queues: log2 of # of doorbells per BAR2 page */
+	r = t4_read_reg(adapter, A_SGE_EGRESS_QUEUES_PER_PAGE_PF);
+	r >>= S_QUEUESPERPAGEPF0 +
+	    (S_QUEUESPERPAGEPF1 - S_QUEUESPERPAGEPF0) * adapter->pf;
+	sp->eq_s_qpp = r & M_QUEUESPERPAGEPF0;
+
+	/* ingress queues: log2 of # of doorbells per BAR2 page */
+	r = t4_read_reg(adapter, A_SGE_INGRESS_QUEUES_PER_PAGE_PF);
+	r >>= S_QUEUESPERPAGEPF0 +
+	    (S_QUEUESPERPAGEPF1 - S_QUEUESPERPAGEPF0) * adapter->pf;
+	sp->iq_s_qpp = r & M_QUEUESPERPAGEPF0;
+
+	r = t4_read_reg(adapter, A_SGE_HOST_PAGE_SIZE);
+	r >>= S_HOSTPAGESIZEPF0 +
+	    (S_HOSTPAGESIZEPF1 - S_HOSTPAGESIZEPF0) * adapter->pf;
+	sp->page_shift = (r & M_HOSTPAGESIZEPF0) + 10;
+
+	r = t4_read_reg(adapter, A_SGE_CONTROL);
+	sp->spg_len = r & F_EGRSTATUSPAGESIZE ? 128 : 64;
+	sp->fl_pktshift = G_PKTSHIFT(r);
+	sp->pad_boundary = 1 << (G_INGPADBOUNDARY(r) + 5);
+	if (is_t4(adapter))
+		sp->pack_boundary = sp->pad_boundary;
+	else {
+		r = t4_read_reg(adapter, A_SGE_CONTROL2);
+		if (G_INGPACKBOUNDARY(r) == 0)
+			sp->pack_boundary = 16;
+		else
+			sp->pack_boundary = 1 << (G_INGPACKBOUNDARY(r) + 5);
+	}
+
 	return 0;
 }
 

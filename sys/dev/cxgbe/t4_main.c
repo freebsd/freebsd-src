@@ -4495,13 +4495,13 @@ t4_sysctls(struct adapter *sc)
 	    sc->params.vpd.cclk, "core clock frequency (in KHz)");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_timers",
-	    CTLTYPE_STRING | CTLFLAG_RD, sc->sge.timer_val,
-	    sizeof(sc->sge.timer_val), sysctl_int_array, "A",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc->params.sge.timer_val,
+	    sizeof(sc->params.sge.timer_val), sysctl_int_array, "A",
 	    "interrupt holdoff timer values (us)");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_pkt_counts",
-	    CTLTYPE_STRING | CTLFLAG_RD, sc->sge.counter_val,
-	    sizeof(sc->sge.counter_val), sysctl_int_array, "A",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc->params.sge.counter_val,
+	    sizeof(sc->params.sge.counter_val), sysctl_int_array, "A",
 	    "interrupt holdoff packet counter values");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nfilters", CTLFLAG_RD,
