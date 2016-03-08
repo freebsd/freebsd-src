@@ -42,12 +42,16 @@ DIRDEPS = \
 	lib/clang/liblldbPluginDisassemblerLLVM \
 	lib/clang/liblldbPluginDynamicLoaderPosixDYLD \
 	lib/clang/liblldbPluginDynamicLoaderStatic \
+	lib/clang/liblldbPluginExpressionParserClang \
+	lib/clang/liblldbPluginExpressionParserGo \
 	lib/clang/liblldbPluginInstructionARM \
 	lib/clang/liblldbPluginInstructionARM64 \
 	lib/clang/liblldbPluginInstructionMIPS \
 	lib/clang/liblldbPluginInstructionMIPS64 \
 	lib/clang/liblldbPluginInstrumentationRuntimeAddressSanitizer \
 	lib/clang/liblldbPluginJITLoaderGDB \
+	lib/clang/liblldbPluginLanguageCPlusPlus \
+	lib/clang/liblldbPluginLanguageObjC \
 	lib/clang/liblldbPluginMemoryHistoryASan \
 	lib/clang/liblldbPluginObjectContainerBSDArchive \
 	lib/clang/liblldbPluginObjectFileELF \
@@ -59,6 +63,7 @@ DIRDEPS = \
 	lib/clang/liblldbPluginProcessGDBRemote \
 	lib/clang/liblldbPluginProcessPOSIX \
 	lib/clang/liblldbPluginProcessUtility \
+	lib/clang/liblldbPluginScriptInterpreterNone \
 	lib/clang/liblldbPluginSymbolFileDWARF \
 	lib/clang/liblldbPluginSymbolFileSymtab \
 	lib/clang/liblldbPluginSymbolVendorELF \
@@ -68,19 +73,19 @@ DIRDEPS = \
 	lib/clang/liblldbTarget \
 	lib/clang/liblldbUtility \
 	lib/clang/libllvmaarch64asmparser \
+	lib/clang/libllvmaarch64asmprinter \
 	lib/clang/libllvmaarch64codegen \
 	lib/clang/libllvmaarch64desc \
 	lib/clang/libllvmaarch64disassembler \
 	lib/clang/libllvmaarch64info \
-	lib/clang/libllvmaarch64instprinter \
 	lib/clang/libllvmaarch64utils \
 	lib/clang/libllvmanalysis \
 	lib/clang/libllvmarmasmparser \
+	lib/clang/libllvmarmasmprinter \
 	lib/clang/libllvmarmcodegen \
 	lib/clang/libllvmarmdesc \
 	lib/clang/libllvmarmdisassembler \
 	lib/clang/libllvmarminfo \
-	lib/clang/libllvmarminstprinter \
 	lib/clang/libllvmasmparser \
 	lib/clang/libllvmasmprinter \
 	lib/clang/libllvmbitreader \
@@ -90,7 +95,6 @@ DIRDEPS = \
 	lib/clang/libllvmexecutionengine \
 	lib/clang/libllvminstcombine \
 	lib/clang/libllvminstrumentation \
-	lib/clang/libllvmipa \
 	lib/clang/libllvmipo \
 	lib/clang/libllvmirreader \
 	lib/clang/libllvmlinker \
@@ -99,40 +103,40 @@ DIRDEPS = \
 	lib/clang/libllvmmcjit \
 	lib/clang/libllvmmcparser \
 	lib/clang/libllvmmipsasmparser \
+	lib/clang/libllvmmipsasmprinter \
 	lib/clang/libllvmmipscodegen \
 	lib/clang/libllvmmipsdesc \
 	lib/clang/libllvmmipsdisassembler \
 	lib/clang/libllvmmipsinfo \
-	lib/clang/libllvmmipsinstprinter \
 	lib/clang/libllvmobjcarcopts \
 	lib/clang/libllvmobject \
 	lib/clang/libllvmoption \
 	lib/clang/libllvmpowerpcasmparser \
+	lib/clang/libllvmpowerpcasmprinter \
 	lib/clang/libllvmpowerpccodegen \
 	lib/clang/libllvmpowerpcdesc \
 	lib/clang/libllvmpowerpcdisassembler \
 	lib/clang/libllvmpowerpcinfo \
-	lib/clang/libllvmpowerpcinstprinter \
 	lib/clang/libllvmprofiledata \
 	lib/clang/libllvmruntimedyld \
 	lib/clang/libllvmscalaropts \
 	lib/clang/libllvmselectiondag \
 	lib/clang/libllvmsparcasmparser \
+	lib/clang/libllvmsparcasmprinter \
 	lib/clang/libllvmsparccodegen \
 	lib/clang/libllvmsparcdesc \
 	lib/clang/libllvmsparcdisassembler \
 	lib/clang/libllvmsparcinfo \
-	lib/clang/libllvmsparcinstprinter \
 	lib/clang/libllvmsupport \
 	lib/clang/libllvmtarget \
 	lib/clang/libllvmtransformutils \
 	lib/clang/libllvmvectorize \
 	lib/clang/libllvmx86asmparser \
+	lib/clang/libllvmx86asmprinter \
 	lib/clang/libllvmx86codegen \
 	lib/clang/libllvmx86desc \
 	lib/clang/libllvmx86disassembler \
 	lib/clang/libllvmx86info \
-	lib/clang/libllvmx86instprinter \
 	lib/clang/libllvmx86utils \
 	lib/libc \
 	lib/libc++ \
