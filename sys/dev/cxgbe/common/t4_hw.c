@@ -5340,7 +5340,7 @@ void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st)
  */
 void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st)
 {
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, &st->rqe_dfr_mod,
+	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, &st->rqe_dfr_pkt,
 			 2, A_TP_MIB_RQE_DFR_PKT);
 }
 
