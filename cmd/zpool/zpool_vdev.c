@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>.
  */
 
 /*
@@ -549,7 +550,9 @@ get_replication(nvlist_t *nvroot, boolean_t fatal)
 	uint_t c, children;
 	nvlist_t *nv;
 	char *type;
-	replication_level_t lastrep, rep, *ret;
+	replication_level_t lastrep = {0};
+	replication_level_t rep;
+	replication_level_t *ret;
 	boolean_t dontreport;
 
 	ret = safe_malloc(sizeof (replication_level_t));
@@ -1035,7 +1038,7 @@ is_device_in_use(nvlist_t *config, nvlist_t *nv, boolean_t force,
 	nvlist_t **child;
 	uint_t c, children;
 	char *type, *path;
-	int ret;
+	int ret = 0;
 	char buf[MAXPATHLEN];
 	uint64_t wholedisk;
 	boolean_t anyinuse = B_FALSE;
