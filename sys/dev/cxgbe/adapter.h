@@ -804,7 +804,7 @@ struct adapter {
 	TAILQ_HEAD(, sge_fl) sfl;
 	struct callout sfl_callout;
 
-	struct mtx regwin_lock;	/* for indirect reads and memory windows */
+	struct mtx reg_lock;	/* for indirect register access */
 
 	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
 	fw_msg_handler_t fw_msg_handler[7];	/* NUM_FW6_TYPES */
