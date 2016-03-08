@@ -5359,7 +5359,7 @@ void t4_tp_wr_bits_indirect(struct adapter *adap, unsigned int addr,
  *
  *	Initialize the congestion control parameters.
  */
-static void __devinit init_cong_ctrl(unsigned short *a, unsigned short *b)
+static void init_cong_ctrl(unsigned short *a, unsigned short *b)
 {
 	a[0] = a[1] = a[2] = a[3] = a[4] = a[5] = a[6] = a[7] = a[8] = 1;
 	a[9] = 2;
@@ -7400,13 +7400,13 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 		if (stat & F_FW_PORT_CMD_TXPAUSE)
 			fc |= PAUSE_TX;
 		if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_100M))
-			speed = SPEED_100;
+			speed = 100;
 		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_1G))
-			speed = SPEED_1000;
+			speed = 1000;
 		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_10G))
-			speed = SPEED_10000;
+			speed = 10000;
 		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_40G))
-			speed = SPEED_40000;
+			speed = 40000;
 
 		for_each_port(adap, i) {
 			pi = adap2pinfo(adap, i);
@@ -7450,7 +7450,7 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
  *	Determines a card's PCI mode and associated parameters, such as speed
  *	and width.
  */
-static void __devinit get_pci_mode(struct adapter *adapter,
+static void get_pci_mode(struct adapter *adapter,
 				   struct pci_params *p)
 {
 	u16 val;
@@ -7472,8 +7472,7 @@ static void __devinit get_pci_mode(struct adapter *adapter,
  *	Initializes the SW state maintained for each link, including the link's
  *	capabilities and default speed/flow-control/autonegotiation settings.
  */
-static void __devinit init_link_config(struct link_config *lc,
-				       unsigned int caps)
+static void init_link_config(struct link_config *lc, unsigned int caps)
 {
 	lc->supported = caps;
 	lc->requested_speed = 0;
@@ -7546,7 +7545,7 @@ int t4_get_flash_params(struct adapter *adapter)
 	return 0;
 }
 
-static void __devinit set_pcie_completion_timeout(struct adapter *adapter,
+static void set_pcie_completion_timeout(struct adapter *adapter,
 						  u8 range)
 {
 	u16 val;
