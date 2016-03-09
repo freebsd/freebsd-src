@@ -294,7 +294,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	heaplen = roundup2(sbop->sbo_heaplen, PAGE_SIZE);
 #if CHERICAP_SIZE == 16
 	heaplen_adj = length + heaplen;		/* Requested length. */
-	heaplen_adj = roundup2(heaplen_adj, 2*(1024*1024)); /* Aligned len. */
+	heaplen_adj = roundup2(heaplen_adj, (1024*1024)); /* Aligned len. */
 	heaplen_adj -= (length + heaplen);	/* Calculate adjustment. */
 	heaplen += heaplen_adj;			/* Apply adjustment. */
 #endif
