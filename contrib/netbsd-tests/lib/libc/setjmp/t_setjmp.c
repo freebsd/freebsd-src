@@ -87,7 +87,7 @@ __RCSID("$NetBSD: t_setjmp.c,v 1.1 2010/12/27 19:35:31 pgoyette Exp $");
 static int expectsignal;
 
 static void
-aborthandler(int signo)
+aborthandler(int signo __unused)
 {
 	ATF_REQUIRE_MSG(expectsignal, "kill(SIGABRT) succeeded");
 	atf_tc_pass();
