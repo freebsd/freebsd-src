@@ -7245,8 +7245,7 @@ key_parse(struct mbuf *m, struct socket *so)
 	orglen = PFKEY_UNUNIT64(msg->sadb_msg_len);
 	target = KEY_SENDUP_ONE;
 
-	if ((m->m_flags & M_PKTHDR) == 0 ||
-	    m->m_pkthdr.len != m->m_pkthdr.len) {
+	if ((m->m_flags & M_PKTHDR) == 0 || m->m_pkthdr.len != orglen) {
 		ipseclog((LOG_DEBUG, "%s: invalid message length.\n",__func__));
 		PFKEYSTAT_INC(out_invlen);
 		error = EINVAL;
