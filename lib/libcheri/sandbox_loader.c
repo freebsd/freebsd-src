@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Robert N. M. Watson
+ * Copyright (c) 2012-2016 Robert N. M. Watson
  * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
@@ -101,6 +101,7 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	}
 
 	sbcp->sbc_codelen = sandbox_map_maxoffset(sbcp->sbc_codemap);
+	sbcp->sbc_codelen = roundup2(sbcp->sbc_codelen, PAGE_SIZE);
 	base = sbcp->sbc_codemem = mmap(NULL, sbcp->sbc_codelen, PROT_NONE,
 	    MAP_ANON, -1, 0);
 	if (sbcp->sbc_codemem == MAP_FAILED) {
