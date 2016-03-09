@@ -9,9 +9,10 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/atf/libatf-c \
 	lib/libc \
+	lib/libc/tests/tls_dso \
 	lib/libcompiler_rt \
-	lib/libcrypt \
 	lib/libnetbsd \
+	lib/libthr \
 
 
 .include <dirdeps.mk>

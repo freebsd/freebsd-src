@@ -10,8 +10,9 @@ DIRDEPS = \
 	lib/atf/libatf-c \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libcrypt \
 	lib/libnetbsd \
+	lib/librt \
+	lib/libthr \
 
 
 .include <dirdeps.mk>
