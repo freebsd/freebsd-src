@@ -20,13 +20,6 @@
 # we really only use PROGS below...
 PROGS += ${PROGS_CXX}
 
-# In meta mode, we can capture dependenices for _one_ of the progs.
-# if makefile doesn't nominate one, we use the first.
-.ifndef UPDATE_DEPENDFILE_PROG
-UPDATE_DEPENDFILE_PROG = ${PROGS:[1]}
-.export UPDATE_DEPENDFILE_PROG
-.endif
-
 .if defined(PROG)
 # just one of many
 PROG_OVERRIDE_VARS +=	BINDIR BINGRP BINOWN BINMODE DPSRCS MAN NO_WERROR \
@@ -45,11 +38,20 @@ $v ?=
 .endif
 .endfor
 
-# for meta mode, there can be only one!
-.if ${PROG} == ${UPDATE_DEPENDFILE_PROG}
-UPDATE_DEPENDFILE ?= yes
+.if ${MK_DIRDEPS_BUILD} == "yes"
+# Leave updating the Makefile.depend to the parent.
+UPDATE_DEPENDFILE = NO
+
+# Record our meta files for the parent to use.
+CLEANFILES+= ${PROG}.meta_files
+${PROG}.meta_files: .NOMETA $${.MAKE.META.CREATED} ${_this}
+	@echo "Updating ${.TARGET}: ${.OODATE:T:[1..8]}"
+	@echo ${.MAKE.META.FILES} > ${.TARGET}
+
+.if !defined(_SKIP_BUILD)
+.END: ${PROG}.meta_files
 .endif
-UPDATE_DEPENDFILE ?= NO
+.endif	# ${MK_DIRDEPS_BUILD} == "yes"
 
 # prog.mk will do the rest
 .else # !defined(PROG)
@@ -57,8 +59,7 @@ UPDATE_DEPENDFILE ?= NO
 all: ${PROGS}
 .endif
 
-# We cannot capture dependencies for meta mode here
-UPDATE_DEPENDFILE = NO
+META_XTRAS+=	${cat ${PROGS:S/$/*.meta_files/} 2>/dev/null || true:L:sh}
 
 .if ${MK_STAGING} != "no"
 .if !empty(PROGS)
