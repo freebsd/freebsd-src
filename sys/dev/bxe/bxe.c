@@ -27,7 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define BXE_DRIVER_VERSION "1.78.79"
+#define BXE_DRIVER_VERSION "1.78.81"
 
 #include "bxe.h"
 #include "ecore_sp.h"
@@ -1469,14 +1469,14 @@ bxe_nvram_write(struct bxe_softc *sc,
 /* copy command into DMAE command memory and set DMAE command Go */
 void
 bxe_post_dmae(struct bxe_softc    *sc,
-              struct dmae_command *dmae,
+              struct dmae_cmd *dmae,
               int                 idx)
 {
     uint32_t cmd_offset;
     int i;
 
-    cmd_offset = (DMAE_REG_CMD_MEM + (sizeof(struct dmae_command) * idx));
-    for (i = 0; i < ((sizeof(struct dmae_command) / 4)); i++) {
+    cmd_offset = (DMAE_REG_CMD_MEM + (sizeof(struct dmae_cmd) * idx));
+    for (i = 0; i < ((sizeof(struct dmae_cmd) / 4)); i++) {
         REG_WR(sc, (cmd_offset + (i * 4)), *(((uint32_t *)dmae) + i));
     }
 
@@ -1487,14 +1487,14 @@ uint32_t
 bxe_dmae_opcode_add_comp(uint32_t opcode,
                          uint8_t  comp_type)
 {
-    return (opcode | ((comp_type << DMAE_COMMAND_C_DST_SHIFT) |
-                      DMAE_COMMAND_C_TYPE_ENABLE));
+    return (opcode | ((comp_type << DMAE_CMD_C_DST_SHIFT) |
+                      DMAE_CMD_C_TYPE_ENABLE));
 }
 
 uint32_t
 bxe_dmae_opcode_clr_src_reset(uint32_t opcode)
 {
-    return (opcode & ~DMAE_COMMAND_SRC_RESET);
+    return (opcode & ~DMAE_CMD_SRC_RESET);
 }
 
 uint32_t
@@ -1506,17 +1506,17 @@ bxe_dmae_opcode(struct bxe_softc *sc,
 {
     uint32_t opcode = 0;
 
-    opcode |= ((src_type << DMAE_COMMAND_SRC_SHIFT) |
-               (dst_type << DMAE_COMMAND_DST_SHIFT));
+    opcode |= ((src_type << DMAE_CMD_SRC_SHIFT) |
+               (dst_type << DMAE_CMD_DST_SHIFT));
 
-    opcode |= (DMAE_COMMAND_SRC_RESET | DMAE_COMMAND_DST_RESET);
+    opcode |= (DMAE_CMD_SRC_RESET | DMAE_CMD_DST_RESET);
 
     opcode |= (SC_PORT(sc) ? DMAE_CMD_PORT_1 : DMAE_CMD_PORT_0);
 
-    opcode |= ((SC_VN(sc) << DMAE_COMMAND_E1HVN_SHIFT) |
-               (SC_VN(sc) << DMAE_COMMAND_DST_VN_SHIFT));
+    opcode |= ((SC_VN(sc) << DMAE_CMD_E1HVN_SHIFT) |
+               (SC_VN(sc) << DMAE_CMD_DST_VN_SHIFT));
 
-    opcode |= (DMAE_COM_SET_ERR << DMAE_COMMAND_ERR_POLICY_SHIFT);
+    opcode |= (DMAE_COM_SET_ERR << DMAE_CMD_ERR_POLICY_SHIFT);
 
 #ifdef __BIG_ENDIAN
     opcode |= DMAE_CMD_ENDIANITY_B_DW_SWAP;
@@ -1533,11 +1533,11 @@ bxe_dmae_opcode(struct bxe_softc *sc,
 
 static void
 bxe_prep_dmae_with_comp(struct bxe_softc    *sc,
-                        struct dmae_command *dmae,
+                        struct dmae_cmd *dmae,
                         uint8_t             src_type,
                         uint8_t             dst_type)
 {
-    memset(dmae, 0, sizeof(struct dmae_command));
+    memset(dmae, 0, sizeof(struct dmae_cmd));
 
     /* set the opcode */
     dmae->opcode = bxe_dmae_opcode(sc, src_type, dst_type,
@@ -1552,7 +1552,7 @@ bxe_prep_dmae_with_comp(struct bxe_softc    *sc,
 /* issue a DMAE command over the init channel and wait for completion */
 static int
 bxe_issue_dmae_with_comp(struct bxe_softc    *sc,
-                         struct dmae_command *dmae)
+                         struct dmae_cmd *dmae)
 {
     uint32_t *wb_comp = BXE_SP(sc, wb_comp);
     int timeout = CHIP_REV_IS_SLOW(sc) ? 400000 : 4000;
@@ -1598,7 +1598,7 @@ bxe_read_dmae(struct bxe_softc *sc,
               uint32_t         src_addr,
               uint32_t         len32)
 {
-    struct dmae_command dmae;
+    struct dmae_cmd dmae;
     uint32_t *data;
     int i, rc;
 
@@ -1638,7 +1638,7 @@ bxe_write_dmae(struct bxe_softc *sc,
                uint32_t         dst_addr,
                uint32_t         len32)
 {
-    struct dmae_command dmae;
+    struct dmae_cmd dmae;
     int rc;
 
     if (!sc->dmae_ready) {
@@ -2393,13 +2393,13 @@ bxe_sp_post(struct bxe_softc *sc,
 
     /* CID needs port number to be encoded int it */
     spe->hdr.conn_and_cmd_data =
-        htole32((command << SPE_HDR_CMD_ID_SHIFT) | HW_CID(sc, cid));
+        htole32((command << SPE_HDR_T_CMD_ID_SHIFT) | HW_CID(sc, cid));
 
-    type = (cmd_type << SPE_HDR_CONN_TYPE_SHIFT) & SPE_HDR_CONN_TYPE;
+    type = (cmd_type << SPE_HDR_T_CONN_TYPE_SHIFT) & SPE_HDR_T_CONN_TYPE;
 
     /* TBD: Check if it works for VFs */
-    type |= ((SC_FUNC(sc) << SPE_HDR_FUNCTION_ID_SHIFT) &
-             SPE_HDR_FUNCTION_ID);
+    type |= ((SC_FUNC(sc) << SPE_HDR_T_FUNCTION_ID_SHIFT) &
+             SPE_HDR_T_FUNCTION_ID);
 
     spe->hdr.type = htole16(type);
 
@@ -3061,7 +3061,7 @@ bxe_tpa_stop(struct bxe_softc          *sc,
         fp->eth_q_stats.rx_soft_errors++;
         m_freem(m);
     } else {
-        if (tpa_info->parsing_flags & PARSING_FLAGS_VLAN) {
+        if (tpa_info->parsing_flags & PARSING_FLAGS_INNER_VLAN_EXIST) {
             m->m_pkthdr.ether_vtag = tpa_info->vlan_tag;
             m->m_flags |= M_VLANTAG;
         }
@@ -3353,7 +3353,7 @@ bxe_rxeof(struct bxe_softc    *sc,
         }
 
         /* if there is a VLAN tag then flag that info */
-        if (cqe->fast_path_cqe.pars_flags.flags & PARSING_FLAGS_VLAN) {
+        if (cqe->fast_path_cqe.pars_flags.flags & PARSING_FLAGS_INNER_VLAN_EXIST) {
             m->m_pkthdr.ether_vtag = cqe->fast_path_cqe.vlan_tag;
             m->m_flags |= M_VLANTAG;
         }
@@ -9781,7 +9781,7 @@ bxe_init_rx_rings(struct bxe_softc *sc)
 static void
 bxe_init_tx_ring_one(struct bxe_fastpath *fp)
 {
-    SET_FLAG(fp->tx_db.data.header.header, DOORBELL_HDR_DB_TYPE, 1);
+    SET_FLAG(fp->tx_db.data.header.data, DOORBELL_HDR_T_DB_TYPE, 1);
     fp->tx_db.data.zero_fill1 = 0;
     fp->tx_db.data.prod = 0;
 
@@ -10606,8 +10606,8 @@ bxe_func_start(struct bxe_softc *sc)
         start_params->network_cos_mode = FW_WRR;
     }
 
-    start_params->gre_tunnel_mode = 0;
-    start_params->gre_tunnel_rss  = 0;
+    //start_params->gre_tunnel_mode = 0;
+    //start_params->gre_tunnel_rss  = 0;
 
     return (ecore_func_state_change(sc, &func_params));
 }
