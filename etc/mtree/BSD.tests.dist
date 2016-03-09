@@ -283,6 +283,8 @@
             ..
             ssp
             ..
+            setjmp
+            ..
             stdio
             ..
             stdlib
