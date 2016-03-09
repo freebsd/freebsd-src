@@ -9,7 +9,9 @@ __<bsd.files.mk>__:
 
 FILESGROUPS?=	FILES
 
-.for group in ${FILESGROUPS}
+_FILESGROUPS=	${FILESGROUPS:C,[/*],_,g}
+
+.for group in ${_FILESGROUPS}
 # Add in foo.yes and remove duplicates from all the groups
 ${${group}}:= ${${group}} ${${group}.yes}
 ${${group}}:= ${${group}:O:u}
@@ -20,7 +22,7 @@ buildfiles: ${${group}}
 all: buildfiles
 .endif
 
-.for group in ${FILESGROUPS}
+.for group in ${_FILESGROUPS}
 .if defined(${group}) && !empty(${group})
 installfiles: installfiles-${group}
 

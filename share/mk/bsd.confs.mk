@@ -6,8 +6,10 @@
 
 CONFGROUPS?=	CONFS
 
+_CONFGROUPS=	${CONFGROUPS:C,[/*],_,g}
+
 .if !target(buildconfig)
-.for group in ${CONFGROUPS}
+.for group in ${_CONFGROUPS}
 buildconfig: ${${group}}
 .endfor
 .endif
@@ -17,7 +19,7 @@ all: buildconfig
 .endif
 
 .if !target(installconfig)
-.for group in ${CONFGROUPS}
+.for group in ${_CONFGROUPS}
 .if defined(${group}) && !empty(${group})
 
 ${group}OWN?=	${SHAREOWN}
