@@ -111,6 +111,9 @@ __FBSDID("$FreeBSD$");
 
 #include "bxe_elink.h"
 
+#define VF_MAC_CREDIT_CNT 0
+#define VF_VLAN_CREDIT_CNT (0)
+
 #if __FreeBSD_version < 800054
 #if defined(__i386__) || defined(__amd64__)
 #define mb()  __asm volatile("mfence;" : : : "memory")
@@ -933,7 +936,7 @@ struct bxe_fw_stats_data {
 struct bxe_slowpath {
 
     /* used by the DMAE command executer */
-    struct dmae_command dmae[MAX_DMAE_C];
+    struct dmae_cmd dmae[MAX_DMAE_C];
 
     /* statistics completion */
     uint32_t stats_comp;
@@ -1745,7 +1748,7 @@ struct bxe_softc {
     struct bxe_net_stats_old     net_stats_old;
     struct bxe_fw_port_stats_old fw_stats_old;
 
-    struct dmae_command stats_dmae; /* used by dmae command loader */
+    struct dmae_cmd stats_dmae; /* used by dmae command loader */
     int                 executer_idx;
 
     int mtu;
@@ -1984,21 +1987,21 @@ void bxe_reg_write32(struct bxe_softc *sc, bus_size_t offset, uint32_t val);
 #define DMAE_COMP_REGULAR 0
 #define DMAE_COM_SET_ERR  1
 
-#define DMAE_CMD_SRC_PCI (DMAE_SRC_PCI << DMAE_COMMAND_SRC_SHIFT)
-#define DMAE_CMD_SRC_GRC (DMAE_SRC_GRC << DMAE_COMMAND_SRC_SHIFT)
-#define DMAE_CMD_DST_PCI (DMAE_DST_PCI << DMAE_COMMAND_DST_SHIFT)
-#define DMAE_CMD_DST_GRC (DMAE_DST_GRC << DMAE_COMMAND_DST_SHIFT)
+#define DMAE_CMD_SRC_PCI (DMAE_SRC_PCI << DMAE_CMD_SRC_SHIFT)
+#define DMAE_CMD_SRC_GRC (DMAE_SRC_GRC << DMAE_CMD_SRC_SHIFT)
+#define DMAE_CMD_DST_PCI (DMAE_DST_PCI << DMAE_CMD_DST_SHIFT)
+#define DMAE_CMD_DST_GRC (DMAE_DST_GRC << DMAE_CMD_DST_SHIFT)
 
-#define DMAE_CMD_C_DST_PCI (DMAE_COMP_PCI << DMAE_COMMAND_C_DST_SHIFT)
-#define DMAE_CMD_C_DST_GRC (DMAE_COMP_GRC << DMAE_COMMAND_C_DST_SHIFT)
+#define DMAE_CMD_C_DST_PCI (DMAE_COMP_PCI << DMAE_CMD_C_DST_SHIFT)
+#define DMAE_CMD_C_DST_GRC (DMAE_COMP_GRC << DMAE_CMD_C_DST_SHIFT)
 
-#define DMAE_CMD_ENDIANITY_NO_SWAP   (0 << DMAE_COMMAND_ENDIANITY_SHIFT)
-#define DMAE_CMD_ENDIANITY_B_SWAP    (1 << DMAE_COMMAND_ENDIANITY_SHIFT)
-#define DMAE_CMD_ENDIANITY_DW_SWAP   (2 << DMAE_COMMAND_ENDIANITY_SHIFT)
-#define DMAE_CMD_ENDIANITY_B_DW_SWAP (3 << DMAE_COMMAND_ENDIANITY_SHIFT)
+#define DMAE_CMD_ENDIANITY_NO_SWAP   (0 << DMAE_CMD_ENDIANITY_SHIFT)
+#define DMAE_CMD_ENDIANITY_B_SWAP    (1 << DMAE_CMD_ENDIANITY_SHIFT)
+#define DMAE_CMD_ENDIANITY_DW_SWAP   (2 << DMAE_CMD_ENDIANITY_SHIFT)
+#define DMAE_CMD_ENDIANITY_B_DW_SWAP (3 << DMAE_CMD_ENDIANITY_SHIFT)
 
 #define DMAE_CMD_PORT_0 0
-#define DMAE_CMD_PORT_1 DMAE_COMMAND_PORT
+#define DMAE_CMD_PORT_1 DMAE_CMD_PORT
 
 #define DMAE_SRC_PF 0
 #define DMAE_SRC_VF 1
@@ -2127,7 +2130,7 @@ uint32_t bxe_dmae_opcode_clr_src_reset(uint32_t opcode);
 uint32_t bxe_dmae_opcode(struct bxe_softc *sc, uint8_t src_type,
                          uint8_t dst_type, uint8_t with_comp,
                          uint8_t comp_type);
-void bxe_post_dmae(struct bxe_softc *sc, struct dmae_command *dmae, int idx);
+void bxe_post_dmae(struct bxe_softc *sc, struct dmae_cmd *dmae, int idx);
 void bxe_read_dmae(struct bxe_softc *sc, uint32_t src_addr, uint32_t len32);
 void bxe_write_dmae(struct bxe_softc *sc, bus_addr_t dma_addr,
                     uint32_t dst_addr, uint32_t len32);
