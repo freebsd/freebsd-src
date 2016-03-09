@@ -152,6 +152,7 @@ END(bcopy)
  */
 ENTRY(memcpy)
 	PUSH_FRAME_POINTER
+	movq	%rdi,%rax
 	movq	%rdx,%rcx
 	shrq	$3,%rcx				/* copy by 64-bit words */
 	cld					/* copy forwards */
