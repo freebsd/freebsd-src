@@ -68,6 +68,41 @@ valid_sig(struct api_signature *sig)
 }
 
 /*
+ * Checks to see if API signature's address was given to us as a command line
+ * argument by U-Boot.
+ *
+ * returns 1/0 depending on found/not found result
+ */
+int
+api_parse_cmdline_sig(int argc, char **argv, struct api_signature **sig)
+{
+	unsigned long api_address;
+	int c;
+
+	api_address = 0;
+	opterr = 0;
+	optreset = 1;
+	optind = 1;
+
+	while ((c = getopt (argc, argv, "a:")) != -1)
+		switch (c) {
+		case 'a':
+			api_address = strtoul(optarg, NULL, 16);
+			break;
+		default:
+			break;
+		}
+
+	if (api_address != 0) {
+		*sig = (struct api_signature *)api_address;
+		if (valid_sig(*sig))
+			return (1);
+	}
+
+	return (0);
+}
+
+/*
  * Searches for the U-Boot API signature
  *
  * returns 1/0 depending on found/not found result
