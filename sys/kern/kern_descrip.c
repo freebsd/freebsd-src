@@ -1395,9 +1395,8 @@ sys_fpathconf(struct thread *td, struct fpathconf_args *uap)
 	if (error != 0)
 		return (error);
 
-	/* If asynchronous I/O is available, it works for all descriptors. */
 	if (uap->name == _PC_ASYNC_IO) {
-		td->td_retval[0] = async_io_version;
+		td->td_retval[0] = _POSIX_ASYNCHRONOUS_IO;
 		goto out;
 	}
 	vp = fp->f_vnode;
