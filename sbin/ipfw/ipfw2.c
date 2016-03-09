@@ -424,6 +424,7 @@ bp_flush(struct buf_pr *b)
 
 	b->ptr = b->buf;
 	b->avail = b->size;
+	b->buf[0] = '\0';
 }
 
 /*
