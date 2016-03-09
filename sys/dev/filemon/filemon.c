@@ -163,8 +163,10 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 	switch (cmd) {
 	/* Set the output file descriptor. */
 	case FILEMON_SET_FD:
-		if (filemon->fp != NULL)
-			fdrop(filemon->fp, td);
+		if (filemon->fp != NULL) {
+			error = EEXIST;
+			break;
+		}
 
 		error = fget_write(td, *(int *)data,
 		    cap_rights_init(&rights, CAP_PWRITE),
