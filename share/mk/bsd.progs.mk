@@ -61,11 +61,15 @@ all: ${PROGS}
 
 META_XTRAS+=	${cat ${PROGS:S/$/*.meta_files/} 2>/dev/null || true:L:sh}
 
-.if ${MK_STAGING} != "no"
-.if !empty(PROGS)
-stage_files.prog: ${PROGS}
-.endif
-.endif	# ${MK_STAGING} != "no"
+.if ${MK_STAGING} != "no" && !empty(PROGS)
+# Stage from parent while respecting PROGNAME and BINDIR overrides.
+.for _prog in ${PROGS}
+STAGE_DIR.prog.${_prog}= ${STAGE_OBJTOP}${BINDIR.${_prog}:UBINDIR_${_prog}:U${BINDIR}}
+STAGE_AS_SETS+=	prog.${_prog}
+STAGE_AS_prog.${_prog}=	${PROGNAME.${_prog}:UPROGNAME_${_prog}:U${_prog}}
+stage_as.prog.${_prog}: ${_prog}
+.endfor
+.endif	# ${MK_STAGING} != "no" && !empty(PROGS)
 .endif
 .endif	# PROGS || PROGS_CXX
 
