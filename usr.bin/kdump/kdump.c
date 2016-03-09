@@ -529,12 +529,11 @@ abidump(struct ktr_header *kth)
 		break;
 	}
 
-	if (flags != 0) {
-		if (flags & SV_LP64)
-			arch = "64";
-		else
-			arch = "32";
-	} else
+	if (flags & SV_LP64)
+		arch = "64";
+	else if (flags & SV_ILP32)
+		arch = "32";
+	else
 		arch = "00";
 
 	printf("%s%s  ", abi, arch);
