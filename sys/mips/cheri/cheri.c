@@ -64,6 +64,10 @@
 SYSCTL_NODE(_security, OID_AUTO, cheri, CTLFLAG_RD, 0,
     "CHERI settings and statistics");
 
+static u_int cheri_capability_size = CHERICAP_SIZE;
+SYSCTL_UINT(_security_cheri, OID_AUTO, capability_size, CTLFLAG_RD,
+    &cheri_capability_size, 0, "Size of a CHERI capability");
+
 SYSCTL_NODE(_security_cheri, OID_AUTO, stats, CTLFLAG_RD, 0,
     "CHERI statistics");
 
