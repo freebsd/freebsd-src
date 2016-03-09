@@ -6221,6 +6221,14 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 				goto out;
 			}
 			break;
+		case ZFS_IOCVER_RESUME:
+			if (zc_iocparm->zfs_cmd_size != sizeof(zfs_cmd_resume_t)) {
+				error = SET_ERROR(EFAULT);
+				goto out;
+			}
+			compat = B_TRUE;
+			cflag = ZFS_CMD_COMPAT_RESUME;
+			break;
 		case ZFS_IOCVER_EDBP:
 			if (zc_iocparm->zfs_cmd_size != sizeof(zfs_cmd_edbp_t)) {
 				error = SET_ERROR(EFAULT);
