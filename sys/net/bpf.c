@@ -2616,26 +2616,44 @@ bpf_ifdetach(void *arg __unused, struct ifnet *ifp)
 static int
 bpf_getdltlist(struct bpf_d *d, struct bpf_dltlist *bfl)
 {
-	int n, error;
 	struct ifnet *ifp;
 	struct bpf_if *bp;
+	u_int *lst;
+	int error, n, n1;
 
 	BPF_LOCK_ASSERT();
 
 	ifp = d->bd_bif->bif_ifp;
+again:
+	n1 = 0;
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+		if (bp->bif_ifp == ifp)
+			n1++;
+	}
+	if (bfl->bfl_list == NULL) {
+		bfl->bfl_len = n1;
+		return (0);
+	}
+	if (n1 > bfl->bfl_len)
+		return (ENOMEM);
+	BPF_UNLOCK();
+	lst = malloc(n1 * sizeof(u_int), M_TEMP, M_WAITOK);
 	n = 0;
-	error = 0;
+	BPF_LOCK();
 	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		if (bp->bif_ifp != ifp)
 			continue;
-		if (bfl->bfl_list != NULL) {
-			if (n >= bfl->bfl_len)
-				return (ENOMEM);
-			error = copyout(&bp->bif_dlt,
-			    bfl->bfl_list + n, sizeof(u_int));
+		if (n > n1) {
+			free(lst, M_TEMP);
+			goto again;
 		}
+		lst[n] = bp->bif_dlt;
 		n++;
 	}
+	BPF_UNLOCK();
+	error = copyout(lst, bfl->bfl_list, sizeof(u_int) * n);
+	free(lst, M_TEMP);
+	BPF_LOCK();
 	bfl->bfl_len = n;
 	return (error);
 }
