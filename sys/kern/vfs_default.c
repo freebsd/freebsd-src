@@ -472,6 +472,9 @@ vop_stdpathconf(ap)
 {
 
 	switch (ap->a_name) {
+		case _PC_ASYNC_IO:
+			*ap->a_retval = _POSIX_ASYNCHRONOUS_IO;
+			return (0);
 		case _PC_NAME_MAX:
 			*ap->a_retval = NAME_MAX;
 			return (0);
