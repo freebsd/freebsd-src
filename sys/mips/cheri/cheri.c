@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2015 Robert N. M. Watson
+ * Copyright (c) 2011-2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -170,6 +170,8 @@ cheri_capability_set(struct chericap *cp, uint32_t perms, void *otypep,
 	 * '+= off' above.
 	 */
 #ifdef INVARIANTS
+	CHERI_CGETTAG(r, CHERI_CR_CTEMP0);
+	KASSERT(r != 0, ("%s: capability untagged", __func__));
 	CHERI_CGETPERM(r, CHERI_CR_CTEMP0);
 	KASSERT(r == (register_t)perms,
 	    ("%s: permissions 0x%x rather than 0x%x", __func__,
