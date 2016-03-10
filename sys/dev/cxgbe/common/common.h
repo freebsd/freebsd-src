@@ -262,6 +262,7 @@ struct devlog_params {
 	u32 memtype;			/* which memory (FW_MEMTYPE_* ) */
 	u32 start;			/* start of log in firmware memory */
 	u32 size;			/* size of log */
+	u32 addr;			/* start address in flat addr space */
 };
 
 /* Stores chip specific parameters */
