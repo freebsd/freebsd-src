@@ -300,7 +300,11 @@ typedef unsigned szind_t;
 #define	LONG_CEILING(a)							\
 	(((a) + LONG_MASK) & ~LONG_MASK)
 
+#ifndef __CHERI_PURE_CAPABILITY__
 #define	SIZEOF_PTR		(1U << LG_SIZEOF_PTR)
+#else
+#define	SIZEOF_PTR		sizeof(void *)
+#endif
 #define	PTR_MASK		(SIZEOF_PTR - 1)
 
 /* Return the smallest (void *) multiple that is >= a. */
