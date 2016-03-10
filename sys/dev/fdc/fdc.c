@@ -155,6 +155,7 @@ static struct fd_type fd_searchlist_12m[] = {
 	{ FDF_5_1230 | FL_AUTO },
 #else
 	{ FDF_5_1200 | FL_AUTO },
+	{ FDF_5_400 | FL_AUTO },
 	{ FDF_5_360 | FL_2STEP | FL_AUTO},
 #endif
 	{ 0 }
