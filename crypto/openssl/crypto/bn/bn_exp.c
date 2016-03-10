@@ -758,7 +758,7 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
          * Fetch the appropriate pre-computed value from the pre-buf
          */
         if (!MOD_EXP_CTIME_COPY_FROM_PREBUF
-            (computeTemp, top, powerbuf, wvalue, numPowers))
+            (computeTemp, top, powerbuf, wvalue, window))
             goto err;
 
         /* Multiply the result into the intermediate result */
