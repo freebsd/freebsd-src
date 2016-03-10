@@ -286,7 +286,7 @@ release_tid(struct toedev *tod, unsigned int tid, int qset)
 	struct tid_info *t = &td->tid_maps;
 #endif
 
-	KASSERT(tid >= 0 && tid < t->ntids,
+	KASSERT(tid < t->ntids,
 	    ("%s: tid=%d, ntids=%d", __func__, tid, t->ntids));
 
 	m = M_GETHDR_OFLD(qset, CPL_PRIORITY_CONTROL, cpl);
