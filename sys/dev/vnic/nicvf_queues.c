@@ -722,10 +722,10 @@ nicvf_snd_pkt_handler(struct nicvf *nic, struct cmp_queue *cq,
 	if (mbuf != NULL) {
 		m_freem(mbuf);
 		sq->snd_buff[cqe_tx->sqe_ptr].mbuf = NULL;
+		nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
 	}
 
 	nicvf_check_cqe_tx_errs(nic, cq, cqe_tx);
-	nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
 
 	NICVF_TX_UNLOCK(sq);
 	return (0);
