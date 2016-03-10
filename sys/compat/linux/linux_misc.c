@@ -191,7 +191,6 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 {
 	struct itimerval it, old_it;
 	u_int secs;
-	int error;
 
 #ifdef DEBUG
 	if (ldebug(alarm))
@@ -207,9 +206,12 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 	it.it_value.tv_usec = 0;
 	it.it_interval.tv_sec = 0;
 	it.it_interval.tv_usec = 0;
-	error = kern_setitimer(td, ITIMER_REAL, &it, &old_it);
-	if (error)
-		return (error);
+	/*
+	 * According to POSIX and Linux implementation
+	 * the alarm() system call is always successfull.
+	 * Ignore errors and return 0 as a Linux does.
+	 */
+	kern_setitimer(td, ITIMER_REAL, &it, &old_it);
 	if (timevalisset(&old_it.it_value)) {
 		if (old_it.it_value.tv_usec != 0)
 			old_it.it_value.tv_sec++;

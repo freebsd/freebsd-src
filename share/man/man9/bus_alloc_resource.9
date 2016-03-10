@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2000
+.Dd March 10, 2016
 .Dt BUS_ALLOC_RESOURCE 9
 .Os
 .Sh NAME
@@ -50,10 +50,8 @@
 .Fc
 .Ft struct resource *
 .Fn bus_alloc_resource_any "device_t dev" "int type" "int *rid" "u_int flags"
-.Fc
 .Ft struct resource *
-.Fn bus_alloc_resource_anywhere
-.Fa "device_t dev" "int type" "int *rid" "rman_res_t count" "u_int flags"
+.Fn bus_alloc_resource_anywhere "device_t dev" "int type" "int *rid" "rman_res_t count" "u_int flags"
 .Sh DESCRIPTION
 This is an easy interface to the resource-management functions.
 It hides the indirection through the parent's method table.

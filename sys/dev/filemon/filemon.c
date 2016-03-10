@@ -68,8 +68,6 @@ extern struct sysentvec elf64_freebsd_sysvec;
 static d_close_t	filemon_close;
 static d_ioctl_t	filemon_ioctl;
 static d_open_t		filemon_open;
-static int		filemon_unload(void);
-static void		filemon_load(void *);
 
 static struct cdevsw filemon_cdevsw = {
 	.d_version	= D_VERSION,
@@ -165,8 +163,10 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 	switch (cmd) {
 	/* Set the output file descriptor. */
 	case FILEMON_SET_FD:
-		if (filemon->fp != NULL)
-			fdrop(filemon->fp, td);
+		if (filemon->fp != NULL) {
+			error = EEXIST;
+			break;
+		}
 
 		error = fget_write(td, *(int *)data,
 		    cap_rights_init(&rights, CAP_PWRITE),
@@ -299,6 +299,14 @@ filemon_modevent(module_t mod __unused, int type, void *data)
 
 	case MOD_UNLOAD:
 		error = filemon_unload();
+		break;
+
+	case MOD_QUIESCE:
+		/*
+		 * The wrapper implementation is unsafe for reliable unload.
+		 * Require forcing an unload.
+		 */
+		error = EBUSY;
 		break;
 
 	case MOD_SHUTDOWN:

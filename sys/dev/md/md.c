@@ -58,6 +58,7 @@
  * From: src/sys/dev/vn/vn.c,v 1.122 2000/12/16 16:06:03
  */
 
+#include "opt_rootdevname.h"
 #include "opt_geom.h"
 #include "opt_md.h"
 
@@ -1732,7 +1733,7 @@ md_preloaded(u_char *image, size_t length, const char *name)
 	sc->pl_ptr = image;
 	sc->pl_len = length;
 	sc->start = mdstart_preload;
-#ifdef MD_ROOT
+#if defined(MD_ROOT) && !defined(ROOTDEVNAME)
 	if (sc->unit == 0)
 		rootdevnames[0] = MD_ROOT_FSTYPE ":/dev/md0";
 #endif

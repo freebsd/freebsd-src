@@ -59,7 +59,8 @@ filemon_output(struct filemon *filemon, char *msg, size_t len)
 	auio.uio_td = curthread;
 	auio.uio_offset = (off_t) -1;
 
-	bwillwrite();
+	if (filemon->fp->f_type == DTYPE_VNODE)
+		bwillwrite();
 
 	fo_write(filemon->fp, &auio, curthread->td_ucred, 0, curthread);
 }

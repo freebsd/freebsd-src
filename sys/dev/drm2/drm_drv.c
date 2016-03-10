@@ -470,6 +470,14 @@ int drm_ioctl(struct cdev *kdev, u_long cmd, caddr_t data, int flags,
 
       err_i1:
 	atomic_dec(&dev->ioctl_count);
+	if (retcode == -ERESTARTSYS) {
+		/*
+		 * FIXME: Find where in i915 ERESTARTSYS should be
+		 * converted to EINTR.
+		 */
+		DRM_DEBUG("ret = %d -> %d\n", retcode, -EINTR);
+		retcode = -EINTR;
+	}
 	if (retcode)
 		DRM_DEBUG("ret = %d\n", retcode);
 	if (retcode != 0 &&

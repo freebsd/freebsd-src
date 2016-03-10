@@ -25,6 +25,7 @@
 
 /*
  * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 #include <sys/zfs_context.h>
@@ -870,9 +871,6 @@ vdev_queue_io_done(zio_t *zio)
 {
 	vdev_queue_t *vq = &zio->io_vd->vdev_queue;
 	zio_t *nio;
-
-	if (zio_injection_enabled)
-		delay(SEC_TO_TICK(zio_handle_io_delay(zio)));
 
 	mutex_enter(&vq->vq_lock);
 

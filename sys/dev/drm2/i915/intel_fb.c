@@ -29,20 +29,33 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_syscons.h"
 #include <dev/drm2/drmP.h>
-#include <dev/drm2/drm.h>
 #include <dev/drm2/drm_crtc.h>
 #include <dev/drm2/drm_fb_helper.h>
 #include <dev/drm2/i915/intel_drv.h>
 #include <dev/drm2/i915/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
 
+#if defined(__linux__)
+static struct fb_ops intelfb_ops = {
+	.owner = THIS_MODULE,
+	.fb_check_var = drm_fb_helper_check_var,
+	.fb_set_par = drm_fb_helper_set_par,
+	.fb_fillrect = cfb_fillrect,
+	.fb_copyarea = cfb_copyarea,
+	.fb_imageblit = cfb_imageblit,
+	.fb_pan_display = drm_fb_helper_pan_display,
+	.fb_blank = drm_fb_helper_blank,
+	.fb_setcmap = drm_fb_helper_setcmap,
+	.fb_debug_enter = drm_fb_helper_debug_enter,
+	.fb_debug_leave = drm_fb_helper_debug_leave,
+};
+#endif
+
 static int intelfb_create(struct intel_fbdev *ifbdev,
 			  struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_device *dev = ifbdev->helper.dev;
-#if 0
 	struct drm_i915_private *dev_priv = dev->dev_private;
-#endif
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd2 mode_cmd = {};
@@ -85,16 +98,11 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 		goto out_unpin;
 	}
 
-#if 0
-	info->par = ifbdev;
-#else
 	info->fb_size = size;
 	info->fb_bpp = sizes->surface_bpp;
-	info->fb_pbase = dev->agp->base + obj->gtt_offset;
+	info->fb_pbase = dev_priv->mm.gtt_base_addr + obj->gtt_offset;
 	info->fb_vbase = (vm_offset_t)pmap_mapdev_attr(info->fb_pbase, size,
 	    PAT_WRITE_COMBINING);
-
-#endif
 
 	ret = intel_framebuffer_init(dev, &ifbdev->ifb, &mode_cmd, obj);
 	if (ret)
@@ -104,40 +112,6 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	ifbdev->helper.fb = fb;
 	ifbdev->helper.fbdev = info;
-#if 0
-
-	strcpy(info->fix.id, "inteldrmfb");
-
-	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
-	info->fbops = &intelfb_ops;
-
-	ret = fb_alloc_cmap(&info->cmap, 256, 0);
-	if (ret) {
-		ret = -ENOMEM;
-		goto out_unpin;
-	}
-	/* setup aperture base/size for vesafb takeover */
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures) {
-		ret = -ENOMEM;
-		goto out_unpin;
-	}
-	info->apertures->ranges[0].base = dev->mode_config.fb_base;
-	info->apertures->ranges[0].size =
-		dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
-
-	info->fix.smem_start = dev->mode_config.fb_base + obj->gtt_offset;
-	info->fix.smem_len = size;
-
-	info->screen_base = ioremap_wc(dev->agp->base + obj->gtt_offset, size);
-	if (!info->screen_base) {
-		ret = -ENOSPC;
-		goto out_unpin;
-	}
-	info->screen_size = size;
-
-//	memset(info->screen_base, 0, size);
-#endif
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(info, &ifbdev->helper, sizes->fb_width, sizes->fb_height);
@@ -148,10 +122,9 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 		      fb->width, fb->height, fb->depth,
 		      obj->gtt_offset, obj);
 
+
 	DRM_UNLOCK(dev);
-#if 1
-	KIB_NOTYET();
-#else
+#ifdef __linux__
 	vga_switcheroo_client_fb_set(dev->pdev, info);
 #endif
 	return 0;
@@ -195,12 +168,8 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 
 	if (ifbdev->helper.fbdev) {
 		info = ifbdev->helper.fbdev;
-#if 0
-		unregister_framebuffer(info);
-		iounmap(info->screen_base);
-		if (info->cmap.len)
-			fb_dealloc_cmap(&info->cmap);
-#endif
+		if (info->fb_fbd_dev != NULL)
+			device_delete_child(dev->dev, info->fb_fbd_dev);
 		framebuffer_release(info);
 	}
 
@@ -224,6 +193,8 @@ int intel_fbdev_init(struct drm_device *dev)
 	int ret;
 
 	ifbdev = malloc(sizeof(struct intel_fbdev), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	if (!ifbdev)
+		return -ENOMEM;
 
 	dev_priv->fbdev = ifbdev;
 	ifbdev->helper.funcs = &intel_fb_helper_funcs;
@@ -254,6 +225,19 @@ void intel_fbdev_fini(struct drm_device *dev)
 	free(dev_priv->fbdev, DRM_MEM_KMS);
 	dev_priv->fbdev = NULL;
 }
+
+void intel_fbdev_set_suspend(struct drm_device *dev, int state)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	if (!dev_priv->fbdev)
+		return;
+
+#ifdef FREEBSD_WIP
+	fb_set_suspend(dev_priv->fbdev->helper.fbdev, state);
+#endif /* FREEBSD_WIP */
+}
+
+MODULE_LICENSE("GPL and additional rights");
 
 void intel_fb_output_poll_changed(struct drm_device *dev)
 {
