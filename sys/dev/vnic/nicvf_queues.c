@@ -889,7 +889,6 @@ nicvf_qs_err_task(void *arg, int pending)
 static void
 nicvf_cmp_task(void *arg, int pending)
 {
-	uint64_t cq_head;
 	struct cmp_queue *cq;
 	struct nicvf *nic;
 	int cmp_err;
@@ -899,11 +898,6 @@ nicvf_cmp_task(void *arg, int pending)
 
 	/* Handle CQ descriptors */
 	cmp_err = nicvf_cq_intr_handler(nic, cq->idx);
-	/* Re-enable interrupts */
-	cq_head = nicvf_queue_reg_read(nic, NIC_QSET_CQ_0_7_HEAD, cq->idx);
-	nicvf_clear_intr(nic, NICVF_INTR_CQ, cq->idx);
-	nicvf_queue_reg_write(nic, NIC_QSET_CQ_0_7_HEAD, cq->idx, cq_head);
-
 	if (__predict_false(cmp_err != 0)) {
 		/*
 		 * Schedule another thread here since we did not
@@ -913,6 +907,7 @@ nicvf_cmp_task(void *arg, int pending)
 
 	}
 
+	nicvf_clear_intr(nic, NICVF_INTR_CQ, cq->idx);
 	/* Reenable interrupt (previously disabled in nicvf_intr_handler() */
 	nicvf_enable_intr(nic, NICVF_INTR_CQ, cq->idx);
 
