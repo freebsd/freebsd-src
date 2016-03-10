@@ -1,3 +1,17 @@
+commit 5c35450a0c901d9375fb23343a8dc82397da5f75
+Author: Damien Miller <djm@mindrot.org>
+Date:   Thu Mar 10 05:04:48 2016 +1100
+
+    update versions for release
+
+commit 9d47b8d3f50c3a6282896df8274147e3b9a38c56
+Author: Damien Miller <djm@mindrot.org>
+Date:   Thu Mar 10 05:03:39 2016 +1100
+
+    sanitise characters destined for xauth(1)
+    
+    reported by github.com/tintinweb
+
 commit 72b061d4ba0f909501c595d709ea76e06b01e5c9
 Author: Darren Tucker <dtucker@zip.com.au>
 Date:   Fri Feb 26 14:40:04 2016 +1100
@@ -8889,19 +8903,3 @@ Author: Damien Miller <djm@mindrot.org>
 Date:   Thu Mar 13 13:14:21 2014 +1100
 
      - (djm) Release OpenSSH 6.6
-
-commit 8569eba5d7f7348ce3955eeeb399f66f25c52ece
-Author: Damien Miller <djm@mindrot.org>
-Date:   Tue Mar 4 09:35:17 2014 +1100
-
-       - djm@cvs.openbsd.org 2014/03/03 22:22:30
-         [session.c]
-         ignore enviornment variables with embedded '=' or '\0' characters;
-         spotted by Jann Horn; ok deraadt@
-
-commit 2476c31b96e89aec7d4e73cb6fbfb9a4290de3a7
-Author: Damien Miller <djm@mindrot.org>
-Date:   Sun Mar 2 04:01:00 2014 +1100
-
-     - (djm) [regress/Makefile] Disable dhgex regress test; it breaks when
-       no moduli file exists at the expected location.
