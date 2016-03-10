@@ -438,6 +438,29 @@ struct hw_buf_info {
 };
 
 enum {
+	NUM_MEMWIN = 3,
+
+	MEMWIN0_APERTURE = 2048,
+	MEMWIN0_BASE     = 0x1b800,
+
+	MEMWIN1_APERTURE = 32768,
+	MEMWIN1_BASE     = 0x28000,
+
+	MEMWIN2_APERTURE_T4 = 65536,
+	MEMWIN2_BASE_T4     = 0x30000,
+
+	MEMWIN2_APERTURE_T5 = 128 * 1024,
+	MEMWIN2_BASE_T5     = 0x60000,
+};
+
+struct memwin {
+	struct rwlock mw_lock __aligned(CACHE_LINE_SIZE);
+	uint32_t mw_base;	/* constant after setup_memwin */
+	uint32_t mw_aperture;	/* ditto */
+	uint32_t mw_curpos;	/* protected by mw_lock */
+};
+
+enum {
 	FL_STARVING	= (1 << 0), /* on the adapter's list of starving fl's */
 	FL_DOOMED	= (1 << 1), /* about to be destroyed */
 	FL_BUF_PACKING	= (1 << 2), /* buffer packing enabled */
@@ -671,13 +694,6 @@ struct sge_nm_txq {
 #endif
 
 struct sge {
-	int timer_val[SGE_NTIMERS];
-	int counter_val[SGE_NCOUNTERS];
-	int fl_starve_threshold;
-	int fl_starve_threshold2;
-	int eq_s_qpp;
-	int iq_s_qpp;
-
 	int nrxq;	/* total # of Ethernet rx queues */
 	int ntxq;	/* total # of Ethernet tx tx queues */
 #ifdef TCP_OFFLOAD
@@ -710,8 +726,6 @@ struct sge {
 	struct sge_iq **iqmap;	/* iq->cntxt_id to iq mapping */
 	struct sge_eq **eqmap;	/* eq->cntxt_id to eq mapping */
 
-	int pad_boundary;
-	int pack_boundary;
 	int8_t safe_hwidx1;	/* may not have room for metadata */
 	int8_t safe_hwidx2;	/* with room for metadata and maybe more */
 	struct sw_zone_info sw_zone_info[SW_ZONE_SIZES];
@@ -743,6 +757,8 @@ struct adapter {
 
 	unsigned int pf;
 	unsigned int mbox;
+	unsigned int vpd_busy;
+	unsigned int vpd_flag;
 
 	/* Interrupt information */
 	int intr_type;
@@ -811,7 +827,9 @@ struct adapter {
 	TAILQ_HEAD(, sge_fl) sfl;
 	struct callout sfl_callout;
 
-	struct mtx regwin_lock;	/* for indirect reads and memory windows */
+	struct mtx reg_lock;	/* for indirect register access */
+
+	struct memwin memwin[NUM_MEMWIN];	/* memory windows */
 
 	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
 	fw_msg_handler_t fw_msg_handler[7];	/* NUM_FW6_TYPES */
@@ -1033,6 +1051,17 @@ tx_resume_threshold(struct sge_eq *eq)
 
 	/* not quite the same as qsize / 4, but this will do. */
 	return (eq->sidx / 4);
+}
+
+static inline int
+t4_use_ldst(struct adapter *sc)
+{
+
+#ifdef notyet
+	return (sc->flags & FW_OK || !sc->use_bd);
+#else
+	return (0);
+#endif
 }
 
 /* t4_main.c */

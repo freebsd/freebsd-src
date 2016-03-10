@@ -26,6 +26,7 @@
  * Copyright (c) 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  * Copyright 2013 Saso Kiselkov. All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 /*
@@ -6343,8 +6344,7 @@ spa_sync_config_object(spa_t *spa, dmu_tx_t *tx)
 
 	spa_config_exit(spa, SCL_STATE, FTAG);
 
-	if (spa->spa_config_syncing)
-		nvlist_free(spa->spa_config_syncing);
+	nvlist_free(spa->spa_config_syncing);
 	spa->spa_config_syncing = config;
 
 	spa_sync_nvlist(spa, spa->spa_config_object, config, tx);

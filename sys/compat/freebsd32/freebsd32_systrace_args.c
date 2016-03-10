@@ -1556,11 +1556,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* freebsd32_aio_cancel */
+	/* aio_cancel */
 	case 316: {
-		struct freebsd32_aio_cancel_args *p = params;
+		struct aio_cancel_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->aiocbp; /* struct aiocb32 * */
+		uarg[1] = (intptr_t) p->aiocbp; /* struct aiocb * */
 		*n_args = 2;
 		break;
 	}
@@ -1569,30 +1569,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct freebsd32_aio_error_args *p = params;
 		uarg[0] = (intptr_t) p->aiocbp; /* struct aiocb32 * */
 		*n_args = 1;
-		break;
-	}
-	/* freebsd32_oaio_read */
-	case 318: {
-		struct freebsd32_oaio_read_args *p = params;
-		uarg[0] = (intptr_t) p->aiocbp; /* struct oaiocb32 * */
-		*n_args = 1;
-		break;
-	}
-	/* freebsd32_oaio_write */
-	case 319: {
-		struct freebsd32_oaio_write_args *p = params;
-		uarg[0] = (intptr_t) p->aiocbp; /* struct oaiocb32 * */
-		*n_args = 1;
-		break;
-	}
-	/* freebsd32_olio_listio */
-	case 320: {
-		struct freebsd32_olio_listio_args *p = params;
-		iarg[0] = p->mode; /* int */
-		uarg[1] = (intptr_t) p->acb_list; /* struct oaiocb32 *const * */
-		iarg[2] = p->nent; /* int */
-		uarg[3] = (intptr_t) p->sig; /* struct osigevent32 * */
-		*n_args = 4;
 		break;
 	}
 	/* yield */
@@ -5813,14 +5789,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* freebsd32_aio_cancel */
+	/* aio_cancel */
 	case 316:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "struct aiocb32 *";
+			p = "struct aiocb *";
 			break;
 		default:
 			break;
@@ -5831,45 +5807,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		switch(ndx) {
 		case 0:
 			p = "struct aiocb32 *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* freebsd32_oaio_read */
-	case 318:
-		switch(ndx) {
-		case 0:
-			p = "struct oaiocb32 *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* freebsd32_oaio_write */
-	case 319:
-		switch(ndx) {
-		case 0:
-			p = "struct oaiocb32 *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* freebsd32_olio_listio */
-	case 320:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "struct oaiocb32 *const *";
-			break;
-		case 2:
-			p = "int";
-			break;
-		case 3:
-			p = "struct osigevent32 *";
 			break;
 		default:
 			break;
@@ -9884,28 +9821,13 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* freebsd32_aio_cancel */
+	/* aio_cancel */
 	case 316:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
 	/* freebsd32_aio_error */
 	case 317:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* freebsd32_oaio_read */
-	case 318:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* freebsd32_oaio_write */
-	case 319:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* freebsd32_olio_listio */
-	case 320:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

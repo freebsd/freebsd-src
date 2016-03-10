@@ -11,6 +11,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libcrypt \
+	lib/libnetbsd \
 
 
 .include <dirdeps.mk>

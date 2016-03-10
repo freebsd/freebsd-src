@@ -58,6 +58,7 @@
 int syscall(int, int *, ...);
 void *syscall_ptr;
 
+int api_parse_cmdline_sig(int argc, char **argv, struct api_signature **sig);
 int api_search_sig(struct api_signature **sig);
 
 #define	UB_MAX_MR	16		/* max mem regions number */

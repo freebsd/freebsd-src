@@ -26,6 +26,7 @@
  * Copyright (c) 2012 by Frederik Wessels. All rights reserved.
  * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright (c) 2013 by Prasad Joshi (sTec). All rights reserved.
+ * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>.
  */
 
 #include <solaris.h>
@@ -3171,33 +3172,6 @@ zpool_do_list(int argc, char **argv)
 	return (ret);
 }
 
-static nvlist_t *
-zpool_get_vdev_by_name(nvlist_t *nv, char *name)
-{
-	nvlist_t **child;
-	uint_t c, children;
-	nvlist_t *match;
-	char *path;
-
-	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
-	    &child, &children) != 0) {
-		verify(nvlist_lookup_string(nv, ZPOOL_CONFIG_PATH, &path) == 0);
-		if (strncmp(name, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
-			name += sizeof(_PATH_DEV) - 1;
-		if (strncmp(path, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
-			path += sizeof(_PATH_DEV) - 1;
-		if (strcmp(name, path) == 0)
-			return (nv);
-		return (NULL);
-	}
-
-	for (c = 0; c < children; c++)
-		if ((match = zpool_get_vdev_by_name(child[c], name)) != NULL)
-			return (match);
-
-	return (NULL);
-}
-
 static int
 zpool_do_attach_or_replace(int argc, char **argv, int replacing)
 {
@@ -3413,8 +3387,7 @@ zpool_do_split(int argc, char **argv)
 			if (add_prop_list(
 			    zpool_prop_to_name(ZPOOL_PROP_ALTROOT), optarg,
 			    &props, B_TRUE) != 0) {
-				if (props)
-					nvlist_free(props);
+				nvlist_free(props);
 				usage(B_FALSE);
 			}
 			break;
@@ -3427,8 +3400,7 @@ zpool_do_split(int argc, char **argv)
 				propval++;
 				if (add_prop_list(optarg, propval,
 				    &props, B_TRUE) != 0) {
-					if (props)
-						nvlist_free(props);
+					nvlist_free(props);
 					usage(B_FALSE);
 				}
 			} else {
@@ -3928,7 +3900,7 @@ print_scan_status(pool_scan_stat_t *ps)
 	 */
 	if (ps->pss_state == DSS_FINISHED) {
 		uint64_t minutes_taken = (end - start) / 60;
-		char *fmt;
+		char *fmt = NULL;
 
 		if (ps->pss_func == POOL_SCAN_SCRUB) {
 			fmt = gettext("scrub repaired %s in %lluh%um with "
@@ -5562,7 +5534,7 @@ find_command_idx(char *command, int *idx)
 int
 main(int argc, char **argv)
 {
-	int ret;
+	int ret = 0;
 	int i;
 	char *cmdname;
 

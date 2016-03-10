@@ -364,7 +364,7 @@ fwmem_strategy(struct bio *bp)
 	}
 
 	iolen = MIN(bp->bio_bcount, MAXLEN);
-	if ((bp->bio_cmd & BIO_READ) == BIO_READ) {
+	if (bp->bio_cmd == BIO_READ) {
 		if (iolen == 4 && (bp->bio_offset & 3) == 0)
 			xfer = fwmem_read_quad(fwdev,
 			    (void *)bp, fwmem_speed,
