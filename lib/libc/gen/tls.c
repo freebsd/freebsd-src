@@ -33,6 +33,11 @@
  */
 
 #include <sys/cdefs.h>
+
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <machine/cheric.h>
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <elf.h>
@@ -124,7 +129,7 @@ __libc_free_tls(void *tcb, size_t tcbsize, size_t tcbalign __unused)
 	Elf_Addr *dtv;
 	Elf_Addr **tls;
 
-	tls = (Elf_Addr **)((Elf_Addr)tcb + tcbsize - TLS_TCB_SIZE);
+	tls = (Elf_Addr **)((char *)tcb + tcbsize - TLS_TCB_SIZE);
 	dtv = tls[0];
 	__je_bootstrap_free(dtv);
 	__je_bootstrap_free(tcb);
@@ -160,11 +165,21 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign __unused)
 		dtv[1] = 1;
 		dtv[2] = (Elf_Addr)tls + TLS_TCB_SIZE;
 
+#ifndef __CHERI_PURE_CAPABILITY__
 		if (tls_init_size > 0)
 			memcpy((void*)dtv[2], tls_init, tls_init_size);
 		if (tls_static_space > tls_init_size)
 			memset((void*)(dtv[2] + tls_init_size), 0,
 			    tls_static_space - tls_init_size);
+#else
+		if (tls_init_size > 0)
+			memcpy(cheri_setoffset(cheri_getdefault(),
+			    dtv[2]), tls_init, tls_init_size);
+		if (tls_static_space > tls_init_size)
+			memset(cheri_setoffset(cheri_getdefault(),
+			    dtv[2] + tls_init_size), 0,
+			    tls_static_space - tls_init_size);
+#endif
 	}
 
 	return(tcb); 
@@ -320,7 +335,13 @@ _init_tls(void)
 			tls_static_space = round(phdr[i].p_memsz,
 			    phdr[i].p_align);
 			tls_init_size = phdr[i].p_filesz;
+#ifndef __CHERI_PURE_CAPABILITY__
 			tls_init = (void*) phdr[i].p_vaddr;
+#else
+			tls_init = cheri_csetbounds(cheri_setoffset(
+			    cheri_getdefault(), phdr[i].p_vaddr),
+			    tls_init_size);
+#endif
 		}
 	}
 
