@@ -7,12 +7,13 @@
 .include <src.opts.mk>
 MK_SSP=		no
 
+.PATH: ${.CURDIR}/../../lib/libmalloc_simple
 .PATH: ${.CURDIR}/../rtld-elf
 
 PROG?=		ld-cheri-elf.so.1
 SRCS=		rtld_start.S \
 		reloc.c rtld.c rtld_lock.c rtld_printf.c map_object.c \
-		malloc.c xmalloc.c debug.c libmap.c
+		heap.c malloc.c xmalloc.c debug.c libmap.c
 MAN=
 NEED_CHERI=	pure
 MK_CHERI_SHARED=yes

@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <inttypes.h>
 
+#include <machine/cheric.h>
 #include <machine/sysarch.h>
 #include <machine/tls.h>
 
@@ -152,16 +153,19 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 	for (; dynp->d_tag != DT_NULL; dynp++) {
 		switch (dynp->d_tag) {
 		case DT_REL:
-			rel = (const Elf_Rel *)(relocbase + dynp->d_un.d_ptr);
+			rel = (const Elf_Rel *)cheri_setoffset(cheri_getdefault(),
+			relocbase + dynp->d_un.d_ptr);
 			break;
 		case DT_RELSZ:
 			relsz = dynp->d_un.d_val;
 			break;
 		case DT_SYMTAB:
-			symtab = (const Elf_Sym *)(relocbase + dynp->d_un.d_ptr);
+			symtab = (const Elf_Sym *)cheri_setoffset(cheri_getdefault(),
+			relocbase + dynp->d_un.d_ptr);
 			break;
 		case DT_PLTGOT:
-			got = (Elf_Addr *)(relocbase + dynp->d_un.d_ptr);
+			got = (Elf_Addr *)cheri_setoffset(cheri_getdefault(),
+			relocbase + dynp->d_un.d_ptr);
 			break;
 		case DT_MIPS_LOCAL_GOTNO:
 			local_gotno = dynp->d_un.d_val;
@@ -190,11 +194,12 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 		++got;
 	}
 
-	rellim = (const Elf_Rel *)((caddr_t)rel + relsz);
+	rellim = (const Elf_Rel *)((char *)rel + relsz);
 	for (; rel < rellim; rel++) {
 		Elf_Word r_symndx, r_type;
 
-		where = (void *)(relocbase + rel->r_offset);
+		where = (void *)cheri_setoffset(cheri_getdefault(),
+		    relocbase + rel->r_offset);
 
 		r_symndx = ELF_R_SYM(rel->r_info);
 		r_type = ELF_R_TYPE(rel->r_info);
@@ -655,7 +660,7 @@ _mips_get_tls(void)
 	 */
 	_rv = _rv - TLS_TP_OFFSET - TLS_TCB_SIZE;
 
-	return (void *)_rv;
+	return cheri_setoffset(cheri_getdefault(), _rv);
 }
 
 #else /* mips 32 */
@@ -687,7 +692,7 @@ _mips_get_tls(void)
 void *
 __tls_get_addr(tls_index* ti)
 {
-	Elf_Addr** tls;
+	intptr_t** tls;
 	char *p;
 
 #ifdef TLS_USE_SYSARCH
