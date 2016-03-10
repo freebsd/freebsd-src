@@ -1557,6 +1557,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		break;
 	case XPT_SET_SIM_KNOB:
 	case XPT_GET_SIM_KNOB:
+	case XPT_GET_SIM_KNOB_OLD:
 		break;
 	default:
 		panic("%s: unexpected CCB type %#x", __func__,
