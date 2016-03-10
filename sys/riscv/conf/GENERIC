@@ -79,10 +79,10 @@ options 	SMP
 # options 	ROOTDEVNAME=\"ufs:/dev/md0\"
 
 # Debugging support.  Always need this:
-# options 	KDB			# Enable kernel debugger support.
-# options 	KDB_TRACE		# Print a stack trace for a panic.
+options 	KDB			# Enable kernel debugger support.
+options 	KDB_TRACE		# Print a stack trace for a panic.
 # For full debugger support use (turn off in stable branch):
-# options 	DDB			# Support DDB.
+options 	DDB			# Support DDB.
 # options 	GDB			# Support remote GDB.
 options 	DEADLKRES		# Enable the deadlock resolver
 options 	INVARIANTS		# Enable calls of extra sanity checking
