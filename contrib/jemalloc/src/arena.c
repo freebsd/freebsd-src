@@ -312,7 +312,7 @@ JEMALLOC_INLINE_C void
 arena_run_reg_dalloc(arena_run_t *run, void *ptr)
 {
 	arena_chunk_t *chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(run);
-	size_t pageind = ((uintptr_t)ptr - (uintptr_t)chunk) >> LG_PAGE;
+	size_t pageind = ((vaddr_t)ptr - (vaddr_t)chunk) >> LG_PAGE;
 	size_t mapbits = arena_mapbits_get(chunk, pageind);
 	szind_t binind = arena_ptr_small_binind_get(ptr, mapbits);
 	arena_bin_info_t *bin_info = &arena_bin_info[binind];
@@ -2401,7 +2401,7 @@ arena_prof_promoted(const void *ptr, size_t size)
 	assert(size <= SMALL_MAXCLASS);
 
 	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
-	pageind = ((uintptr_t)ptr - (uintptr_t)chunk) >> LG_PAGE;
+	pageind = ((vaddr_t)ptr - (vaddr_t)chunk) >> LG_PAGE;
 	binind = size2index(size);
 	assert(binind < NBINS);
 	arena_mapbits_large_binind_set(chunk, pageind, binind);
@@ -2485,7 +2485,7 @@ arena_dalloc_bin_locked_impl(arena_t *arena, arena_chunk_t *chunk, void *ptr,
 	arena_bin_info_t *bin_info;
 	szind_t binind;
 
-	pageind = ((uintptr_t)ptr - (uintptr_t)chunk) >> LG_PAGE;
+	pageind = ((vaddr_t)ptr - (vaddr_t)chunk) >> LG_PAGE;
 	rpages_ind = pageind - arena_mapbits_small_runind_get(chunk, pageind);
 	run = &arena_miscelm_get(chunk, rpages_ind)->run;
 	binind = run->binind;
@@ -2569,7 +2569,7 @@ static void
 arena_dalloc_large_locked_impl(arena_t *arena, arena_chunk_t *chunk,
     void *ptr, bool junked)
 {
-	size_t pageind = ((uintptr_t)ptr - (uintptr_t)chunk) >> LG_PAGE;
+	size_t pageind = ((vaddr_t)ptr - (vaddr_t)chunk) >> LG_PAGE;
 	arena_chunk_map_misc_t *miscelm = arena_miscelm_get(chunk, pageind);
 	arena_run_t *run = &miscelm->run;
 
@@ -2613,7 +2613,7 @@ static void
 arena_ralloc_large_shrink(arena_t *arena, arena_chunk_t *chunk, void *ptr,
     size_t oldsize, size_t size)
 {
-	size_t pageind = ((uintptr_t)ptr - (uintptr_t)chunk) >> LG_PAGE;
+	size_t pageind = ((vaddr_t)ptr - (vaddr_t)chunk) >> LG_PAGE;
 	arena_chunk_map_misc_t *miscelm = arena_miscelm_get(chunk, pageind);
 	arena_run_t *run = &miscelm->run;
 
@@ -2649,7 +2649,7 @@ static bool
 arena_ralloc_large_grow(arena_t *arena, arena_chunk_t *chunk, void *ptr,
     size_t oldsize, size_t usize_min, size_t usize_max, bool zero)
 {
-	size_t pageind = ((uintptr_t)ptr - (uintptr_t)chunk) >> LG_PAGE;
+	size_t pageind = ((vaddr_t)ptr - (vaddr_t)chunk) >> LG_PAGE;
 	size_t npages = (oldsize + large_pad) >> LG_PAGE;
 	size_t followsize;
 
@@ -2695,7 +2695,7 @@ arena_ralloc_large_grow(arena_t *arena, arena_chunk_t *chunk, void *ptr,
 			void *zbase = (void *)((uintptr_t)ptr + oldsize);
 			void *zpast = PAGE_ADDR2BASE((void *)((uintptr_t)zbase +
 			    PAGE));
-			size_t nzero = (uintptr_t)zpast - (uintptr_t)zbase;
+			size_t nzero = (vaddr_t)zpast - (vaddr_t)zbase;
 			assert(nzero > 0);
 			memset(zbase, 0, nzero);
 		}
