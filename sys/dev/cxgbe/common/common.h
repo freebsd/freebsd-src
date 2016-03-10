@@ -52,20 +52,6 @@ enum {
 
 enum { MEM_EDC0, MEM_EDC1, MEM_MC, MEM_MC0 = MEM_MC, MEM_MC1 };
 
-enum {
-	MEMWIN0_APERTURE = 2048,
-	MEMWIN0_BASE     = 0x1b800,
-
-	MEMWIN1_APERTURE = 32768,
-	MEMWIN1_BASE     = 0x28000,
-
-	MEMWIN2_APERTURE_T4 = 65536,
-	MEMWIN2_BASE_T4     = 0x30000,
-
-	MEMWIN2_APERTURE_T5 = 128 * 1024,
-	MEMWIN2_BASE_T5     = 0x60000,
-};
-
 enum dev_master { MASTER_CANT, MASTER_MAY, MASTER_MUST };
 
 enum dev_state { DEV_STATE_UNINIT, DEV_STATE_INIT, DEV_STATE_ERR };
@@ -74,11 +60,6 @@ enum {
 	PAUSE_RX      = 1 << 0,
 	PAUSE_TX      = 1 << 1,
 	PAUSE_AUTONEG = 1 << 2
-};
-
-struct memwin {
-	uint32_t base;
-	uint32_t aperture;
 };
 
 struct port_stats {
