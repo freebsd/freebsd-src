@@ -1319,7 +1319,7 @@ amr_bio_command(struct amr_softc *sc, struct amr_command **acp)
     blkcount = (bio->bio_bcount + AMR_BLKSIZE - 1) / AMR_BLKSIZE;
 
     ac->ac_mailbox.mb_command = cmd;
-    if (bio->bio_cmd & (BIO_READ|BIO_WRITE)) {
+    if (bio->bio_cmd == BIO_READ || bio->bio_cmd == BIO_WRITE) {
 	ac->ac_mailbox.mb_blkcount = blkcount;
 	ac->ac_mailbox.mb_lba = bio->bio_pblkno;
 	if ((bio->bio_pblkno + blkcount) > sc->amr_drive[driveno].al_size) {
