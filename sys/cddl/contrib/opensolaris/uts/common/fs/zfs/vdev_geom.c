@@ -812,7 +812,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	*logical_ashift = highbit(MAX(pp->sectorsize, SPA_MINBLOCKSIZE)) - 1;
 	*physical_ashift = 0;
 	if (pp->stripesize > (1 << *logical_ashift) && ISP2(pp->stripesize) &&
-	    pp->stripeoffset == 0)
+	    pp->stripesize <= (1 << SPA_MAXASHIFT) && pp->stripeoffset == 0)
 		*physical_ashift = highbit(pp->stripesize) - 1;
 
 	/*
