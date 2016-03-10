@@ -323,6 +323,7 @@ static int hn_encap(struct hn_tx_ring *, struct hn_txdesc *, struct mbuf **);
 static void hn_create_rx_data(struct hn_softc *sc, int);
 static void hn_destroy_rx_data(struct hn_softc *sc);
 static void hn_set_tx_chimney_size(struct hn_softc *, int);
+static void hn_channel_attach(struct hn_softc *, struct hv_vmbus_channel *);
 
 static int hn_transmit(struct ifnet *, struct mbuf *);
 static void hn_xmit_qflush(struct ifnet *);
@@ -462,10 +463,11 @@ netvsc_attach(device_t dev)
 	 * Associate the first TX/RX ring w/ the primary channel.
 	 */
 	chan = device_ctx->channel;
-	chan->hv_chan_rxr = &sc->hn_rx_ring[0];
-	chan->hv_chan_txr = &sc->hn_tx_ring[0];
-	sc->hn_tx_ring[0].hn_chan = chan;
-	vmbus_channel_cpu_set(chan, sc->hn_cpu);
+	KASSERT(HV_VMBUS_CHAN_ISPRIMARY(chan), ("not primary channel"));
+	KASSERT(chan->offer_msg.offer.sub_channel_index == 0,
+	    ("primary channel subidx %u",
+	     chan->offer_msg.offer.sub_channel_index));
+	hn_channel_attach(sc, chan);
 
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = hn_ioctl;
@@ -2766,30 +2768,53 @@ hn_xmit_txeof_taskfunc(void *xtxr, int pending __unused)
 	mtx_unlock(&txr->hn_tx_lock);
 }
 
-void
-netvsc_subchan_callback(struct hn_softc *sc, struct hv_vmbus_channel *chan)
+static void
+hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 {
+	struct hn_rx_ring *rxr;
 	int idx;
 
-	KASSERT(!HV_VMBUS_CHAN_ISPRIMARY(chan),
-	    ("subchannel callback on primary channel"));
-
 	idx = chan->offer_msg.offer.sub_channel_index;
-	KASSERT(idx > 0 && idx < sc->hn_rx_ring_inuse,
+
+	KASSERT(idx >= 0 && idx < sc->hn_rx_ring_inuse,
 	    ("invalid channel index %d, should > 0 && < %d",
 	     idx, sc->hn_rx_ring_inuse));
-	vmbus_channel_cpu_set(chan, (sc->hn_cpu + idx) % mp_ncpus);
+	rxr = &sc->hn_rx_ring[idx];
+	KASSERT((rxr->hn_rx_flags & HN_RX_FLAG_ATTACHED) == 0,
+	    ("RX ring %d already attached", idx));
+	rxr->hn_rx_flags |= HN_RX_FLAG_ATTACHED;
 
-	chan->hv_chan_rxr = &sc->hn_rx_ring[idx];
+	chan->hv_chan_rxr = rxr;
 	if_printf(sc->hn_ifp, "link RX ring %d to channel%u\n",
 	    idx, chan->offer_msg.child_rel_id);
 
 	if (idx < sc->hn_tx_ring_inuse) {
-		chan->hv_chan_txr = &sc->hn_tx_ring[idx];
-		sc->hn_tx_ring[idx].hn_chan = chan;
+		struct hn_tx_ring *txr = &sc->hn_tx_ring[idx];
+
+		KASSERT((txr->hn_tx_flags & HN_TX_FLAG_ATTACHED) == 0,
+		    ("TX ring %d already attached", idx));
+		txr->hn_tx_flags |= HN_TX_FLAG_ATTACHED;
+
+		chan->hv_chan_txr = txr;
+		txr->hn_chan = chan;
 		if_printf(sc->hn_ifp, "link TX ring %d to channel%u\n",
 		    idx, chan->offer_msg.child_rel_id);
 	}
+
+	/* Bind channel to a proper CPU */
+	vmbus_channel_cpu_set(chan, (sc->hn_cpu + idx) % mp_ncpus);
+}
+
+void
+netvsc_subchan_callback(struct hn_softc *sc, struct hv_vmbus_channel *chan)
+{
+
+	KASSERT(!HV_VMBUS_CHAN_ISPRIMARY(chan),
+	    ("subchannel callback on primary channel"));
+	KASSERT(chan->offer_msg.offer.sub_channel_index > 0,
+	    ("invalid channel subidx %u",
+	     chan->offer_msg.offer.sub_channel_index));
+	hn_channel_attach(sc, chan);
 }
 
 static void
