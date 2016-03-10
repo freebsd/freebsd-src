@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
- - Copyright (C) 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2014-2016  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -21,6 +21,10 @@
     <title>Introduction</title>
     <para>
       This document summarizes changes since BIND 9.9.8:
+    </para>
+    <para>
+      BIND 9.9.8-P4 addresses the security issues described in
+      CVE-2016-1285 and CVE-2016-1286.
     </para>
     <para>
       BIND 9.9.8-P3 addresses the security issue described in CVE-2015-8704.
@@ -51,15 +55,35 @@
     <itemizedlist>
       <listitem>
 	<para>
-	  Specific APL data could trigger an INSIST.  This flaw
-	  was discovered by Brian Mitchell and is disclosed in
-	  CVE-2015-8704. [RT #41396]
+	  The resolver could abort with an assertion failure due to
+	  improper DNAME handling when parsing fetch reply
+	  messages. This flaw is disclosed in CVE-2016-1286. [RT #41753]
 	</para>
       </listitem>
       <listitem>
 	<para>
-	  Named is potentially vulnerable to the OpenSSL vulnerabilty
+	  Malformed control messages can trigger assertions in named
+	  and rndc. This flaw is disclosed in CVE-2016-1285. [RT
+	  #41666]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Specific APL data could trigger an INSIST.  This flaw
+	  is disclosed in CVE-2015-8704. [RT #41396]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Named is potentially vulnerable to the OpenSSL vulnerability
 	  described in CVE-2015-3193.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Incorrect reference counting could result in an INSIST
+	  failure if a socket error occurred while performing a
+	  lookup.  This flaw is disclosed in CVE-2015-8461. [RT#40945]
 	</para>
       </listitem>
       <listitem>
@@ -69,13 +93,6 @@
 	  triggering a REQUIRE failure when those records
 	  were subsequently cached.  This flaw is disclosed
 	  in CVE-2015-8000. [RT #40987]
-	</para>
-      </listitem>
-      <listitem>
-	<para>
-	  Incorrect reference counting could result in an INSIST
-	  failure if a socket error occurred while performing a
-	  lookup.  This flaw is disclosed in CVE-2015-8461. [RT#40945]
 	</para>
       </listitem>
     </itemizedlist>
@@ -113,7 +130,8 @@
   <sect2 id="end_of_life">
     <title>End of Life</title>
     <para>
-      The BIND 9.9 (Extended Support Version) will be supported until June, 2017.
+      The BIND 9.9 (Extended Support Version) will be supported until
+      December, 2017.
       <ulink url="https://www.isc.org/downloads/software-support-policy/"
 	>https://www.isc.org/downloads/software-support-policy/</ulink>
     </para>

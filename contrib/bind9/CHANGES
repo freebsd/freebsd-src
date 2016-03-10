@@ -1,3 +1,12 @@
+	--- 9.9.8-P4 released ---
+
+4319.	[security]	Fix resolver assertion failure due to improper
+			DNAME handling when parsing fetch reply messages.
+			(CVE-2016-1286) [RT #41753]
+
+4318.	[security]	Malformed control messages can trigger assertions
+			in named and rndc. (CVE-2016-1285) [RT #41666]
+
 	--- 9.9.8-P3 released ---
 
 4288.	[bug]		Fixed a regression in resolver.c:possibly_mark()

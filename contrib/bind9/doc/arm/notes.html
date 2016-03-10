@@ -21,12 +21,16 @@
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="article" lang="en"><div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2542126"></a>Release Notes for BIND Version 9.9.8-P3</h2></div></div></div>
+<a name="id2542126"></a>Release Notes for BIND Version 9.9.8-P4</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_intro"></a>Introduction</h3></div></div></div>
 <p>
       This document summarizes changes since BIND 9.9.8:
+    </p>
+<p>
+      BIND 9.9.8-P4 addresses the security issues described in
+      CVE-2016-1285 and CVE-2016-1286.
     </p>
 <p>
       BIND 9.9.8-P3 addresses the security issue described in CVE-2015-8704.
@@ -57,13 +61,27 @@
 <a name="relnotes_security"></a>Security Fixes</h3></div></div></div>
 <div class="itemizedlist"><ul type="disc">
 <li><p>
-	  Specific APL data could trigger an INSIST.  This flaw
-	  was discovered by Brian Mitchell and is disclosed in
-	  CVE-2015-8704. [RT #41396]
+	  The resolver could abort with an assertion failure due to
+	  improper DNAME handling when parsing fetch reply
+	  messages. This flaw is disclosed in CVE-2016-1286. [RT #41753]
 	</p></li>
 <li><p>
-	  Named is potentially vulnerable to the OpenSSL vulnerabilty
+	  Malformed control messages can trigger assertions in named
+	  and rndc. This flaw is disclosed in CVE-2016-1285. [RT
+	  #41666]
+	</p></li>
+<li><p>
+	  Specific APL data could trigger an INSIST.  This flaw
+	  is disclosed in CVE-2015-8704. [RT #41396]
+	</p></li>
+<li><p>
+	  Named is potentially vulnerable to the OpenSSL vulnerability
 	  described in CVE-2015-3193.
+	</p></li>
+<li><p>
+	  Incorrect reference counting could result in an INSIST
+	  failure if a socket error occurred while performing a
+	  lookup.  This flaw is disclosed in CVE-2015-8461. [RT#40945]
 	</p></li>
 <li><p>
 	  Insufficient testing when parsing a message allowed
@@ -71,11 +89,6 @@
 	  triggering a REQUIRE failure when those records
 	  were subsequently cached.  This flaw is disclosed
 	  in CVE-2015-8000. [RT #40987]
-	</p></li>
-<li><p>
-	  Incorrect reference counting could result in an INSIST
-	  failure if a socket error occurred while performing a
-	  lookup.  This flaw is disclosed in CVE-2015-8461. [RT#40945]
 	</p></li>
 </ul></div>
 </div>
@@ -104,7 +117,8 @@
 <div class="titlepage"><div><div><h3 class="title">
 <a name="end_of_life"></a>End of Life</h3></div></div></div>
 <p>
-      The BIND 9.9 (Extended Support Version) will be supported until June, 2017.
+      The BIND 9.9 (Extended Support Version) will be supported until
+      December, 2017.
       <a href="https://www.isc.org/downloads/software-support-policy/" target="_top">https://www.isc.org/downloads/software-support-policy/</a>
     </p>
 </div>
