@@ -26,7 +26,7 @@
 #include <string.h>
 #include <errno.h>
 
-void
+static void
 usage(void)
 {
 	fprintf(stderr, "check-setuid [path]\n");

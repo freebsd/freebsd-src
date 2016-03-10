@@ -18,10 +18,10 @@ DESCRIPTION
      using ssh(1).
 
      The agent initially does not have any private keys.  Keys are added using
-     ssh-add(1).  Multiple identities may be stored in ssh-agent concurrently
-     and ssh(1) will automatically use them if present.  ssh-add(1) is also
-     used to remove keys from ssh-agent and to query the keys that are held in
-     one.
+     ssh(1) (see AddKeysToAgent in ssh_config(5) for details) or ssh-add(1).
+     Multiple identities may be stored in ssh-agent concurrently and ssh(1)
+     will automatically use them if present.  ssh-add(1) is also used to
+     remove keys from ssh-agent and to query the keys that are held in one.
 
      The options are as follows:
 
@@ -56,8 +56,8 @@ DESCRIPTION
              for an identity with ssh-add(1) overrides this value.  Without
              this option the default maximum lifetime is forever.
 
-     If a commandline is given, this is executed as a subprocess of the agent.
-     When the command dies, so does the agent.
+     If a command line is given, this is executed as a subprocess of the
+     agent.  When the command dies, so does the agent.
 
      The idea is that the agent is run in the user's local PC, laptop, or
      terminal.  Authentication data need not be stored on any other machine,
@@ -109,4 +109,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.8                     April 24, 2015                     OpenBSD 5.8
+OpenBSD 5.9                    November 15, 2015                   OpenBSD 5.9

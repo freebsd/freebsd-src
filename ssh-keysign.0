@@ -8,8 +8,7 @@ SYNOPSIS
 
 DESCRIPTION
      ssh-keysign is used by ssh(1) to access the local host keys and generate
-     the digital signature required during host-based authentication with SSH
-     protocol version 2.
+     the digital signature required during host-based authentication.
 
      ssh-keysign is disabled by default and can only be enabled in the global
      client configuration file /etc/ssh/ssh_config by setting EnableSSHKeysign
@@ -50,4 +49,4 @@ HISTORY
 AUTHORS
      Markus Friedl <markus@openbsd.org>
 
-OpenBSD 5.8                    December 7, 2013                    OpenBSD 5.8
+OpenBSD 5.9                    February 17, 2016                   OpenBSD 5.9

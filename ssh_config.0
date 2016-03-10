@@ -59,7 +59,7 @@ DESCRIPTION
      Match   Restricts the following declarations (up to the next Host or
              Match keyword) to be used only when the conditions following the
              Match keyword are satisfied.  Match conditions are specified
-             using one or more critera or the single token all which always
+             using one or more criteria or the single token all which always
              matches.  The available criteria keywords are: canonical, exec,
              host, originalhost, user, and localuser.  The all criteria must
              appear alone or immediately after canonical.  Other criteria may
@@ -94,10 +94,23 @@ DESCRIPTION
              matches against the name of the local user running ssh(1) (this
              keyword may be useful in system-wide ssh_config files).
 
+     AddKeysToAgent
+             Specifies whether keys should be automatically added to a running
+             ssh-agent(1).  If this option is set to M-bM-^@M-^\yesM-bM-^@M-^] and a key is loaded
+             from a file, the key and its passphrase are added to the agent
+             with the default lifetime, as if by ssh-add(1).  If this option
+             is set to M-bM-^@M-^\askM-bM-^@M-^], ssh will require confirmation using the
+             SSH_ASKPASS program before adding a key (see ssh-add(1) for
+             details).  If this option is set to M-bM-^@M-^\confirmM-bM-^@M-^], each use of the
+             key must be confirmed, as if the -c option was specified to
+             ssh-add(1).  If this option is set to M-bM-^@M-^\noM-bM-^@M-^], no keys are added to
+             the agent.  The argument must be M-bM-^@M-^\yesM-bM-^@M-^], M-bM-^@M-^\confirmM-bM-^@M-^], M-bM-^@M-^\askM-bM-^@M-^], or
+             M-bM-^@M-^\noM-bM-^@M-^].  The default is M-bM-^@M-^\noM-bM-^@M-^].
+
      AddressFamily
              Specifies which address family to use when connecting.  Valid
              arguments are M-bM-^@M-^\anyM-bM-^@M-^], M-bM-^@M-^\inetM-bM-^@M-^] (use IPv4 only), or M-bM-^@M-^\inet6M-bM-^@M-^] (use IPv6
-             only).
+             only).  The default is M-bM-^@M-^\anyM-bM-^@M-^].
 
      BatchMode
              If set to M-bM-^@M-^\yesM-bM-^@M-^], passphrase/password querying will be disabled.
@@ -157,6 +170,22 @@ DESCRIPTION
              canonicalized to names in the M-bM-^@M-^\*.b.example.comM-bM-^@M-^] or
              M-bM-^@M-^\*.c.example.comM-bM-^@M-^] domains.
 
+     CertificateFile
+             Specifies a file from which the user's certificate is read.  A
+             corresponding private key must be provided separately in order to
+             use this certificate either from an IdentityFile directive or -i
+             flag to ssh(1), via ssh-agent(1), or via a PKCS11Provider.
+
+             The file name may use the tilde syntax to refer to a user's home
+             directory or one of the following escape characters: M-bM-^@M-^X%dM-bM-^@M-^Y (local
+             user's home directory), M-bM-^@M-^X%uM-bM-^@M-^Y (local user name), M-bM-^@M-^X%lM-bM-^@M-^Y (local host
+             name), M-bM-^@M-^X%hM-bM-^@M-^Y (remote host name) or M-bM-^@M-^X%rM-bM-^@M-^Y (remote user name).
+
+             It is possible to have multiple certificate files specified in
+             configuration files; these certificates will be tried in
+             sequence.  Multiple CertificateFile directives will add to the
+             list of certificates used for authentication.
+
      ChallengeResponseAuthentication
              Specifies whether to use challenge-response authentication.  The
              argument to this keyword must be M-bM-^@M-^\yesM-bM-^@M-^] or M-bM-^@M-^\noM-bM-^@M-^].  The default is
@@ -208,9 +237,7 @@ DESCRIPTION
                    chacha20-poly1305@openssh.com,
                    aes128-ctr,aes192-ctr,aes256-ctr,
                    aes128-gcm@openssh.com,aes256-gcm@openssh.com,
-                   arcfour256,arcfour128,
-                   aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,
-                   aes192-cbc,aes256-cbc,arcfour
+                   aes128-cbc,aes192-cbc,aes256-cbc,3des-cbc
 
              The list of available ciphers may also be obtained using the -Q
              option of ssh(1) with an argument of M-bM-^@M-^\cipherM-bM-^@M-^].
@@ -282,13 +309,13 @@ DESCRIPTION
              any domain name), M-bM-^@M-^X%hM-bM-^@M-^Y will be substituted by the target host
              name, M-bM-^@M-^X%nM-bM-^@M-^Y will be substituted by the original target host name
              specified on the command line, M-bM-^@M-^X%pM-bM-^@M-^Y the destination port, M-bM-^@M-^X%rM-bM-^@M-^Y by
-             the remote login username, M-bM-^@M-^X%uM-bM-^@M-^Y by the username of the user
-             running ssh(1), and M-bM-^@M-^X%CM-bM-^@M-^Y by a hash of the concatenation:
-             %l%h%p%r.  It is recommended that any ControlPath used for
-             opportunistic connection sharing include at least %h, %p, and %r
-             (or alternatively %C) and be placed in a directory that is not
-             writable by other users.  This ensures that shared connections
-             are uniquely identified.
+             the remote login username, M-bM-^@M-^X%uM-bM-^@M-^Y by the username and M-bM-^@M-^X%iM-bM-^@M-^Y by the
+             numeric user ID (uid) of the user running ssh(1), and M-bM-^@M-^X%CM-bM-^@M-^Y by a
+             hash of the concatenation: %l%h%p%r.  It is recommended that any
+             ControlPath used for opportunistic connection sharing include at
+             least %h, %p, and %r (or alternatively %C) and be placed in a
+             directory that is not writable by other users.  This ensures that
+             shared connections are uniquely identified.
 
      ControlPersist
              When used in conjunction with ControlMaster, specifies that the
@@ -342,8 +369,12 @@ DESCRIPTION
      ExitOnForwardFailure
              Specifies whether ssh(1) should terminate the connection if it
              cannot set up all requested dynamic, tunnel, local, and remote
-             port forwardings.  The argument must be M-bM-^@M-^\yesM-bM-^@M-^] or M-bM-^@M-^\noM-bM-^@M-^].  The
-             default is M-bM-^@M-^\noM-bM-^@M-^].
+             port forwardings, (e.g. if either end is unable to bind and
+             listen on a specified port).  Note that ExitOnForwardFailure does
+             not apply to connections made over port forwardings and will not,
+             for example, cause ssh(1) to exit if TCP connections to the
+             ultimate forwarding destination fail.  The argument must be M-bM-^@M-^\yesM-bM-^@M-^]
+             or M-bM-^@M-^\noM-bM-^@M-^].  The default is M-bM-^@M-^\noM-bM-^@M-^].
 
      FingerprintHash
              Specifies the hash algorithm used when displaying key
@@ -415,12 +446,11 @@ DESCRIPTION
 
      GSSAPIAuthentication
              Specifies whether user authentication based on GSSAPI is allowed.
-             The default is M-bM-^@M-^\noM-bM-^@M-^].  Note that this option applies to protocol
-             version 2 only.
+             The default is M-bM-^@M-^\noM-bM-^@M-^].
 
      GSSAPIDelegateCredentials
              Forward (delegate) credentials to the server.  The default is
-             M-bM-^@M-^\noM-bM-^@M-^].  Note that this option applies to protocol version 2 only.
+             M-bM-^@M-^\noM-bM-^@M-^].
 
      HashKnownHosts
              Indicates that ssh(1) should hash host names and addresses when
@@ -434,8 +464,7 @@ DESCRIPTION
      HostbasedAuthentication
              Specifies whether to try rhosts based authentication with public
              key authentication.  The argument must be M-bM-^@M-^\yesM-bM-^@M-^] or M-bM-^@M-^\noM-bM-^@M-^].  The
-             default is M-bM-^@M-^\noM-bM-^@M-^].  This option applies to protocol version 2 only
-             and is similar to RhostsRSAAuthentication.
+             default is M-bM-^@M-^\noM-bM-^@M-^].
 
      HostbasedKeyTypes
              Specifies the key types that will be used for hostbased
@@ -455,11 +484,11 @@ DESCRIPTION
              The -Q option of ssh(1) may be used to list supported key types.
 
      HostKeyAlgorithms
-             Specifies the protocol version 2 host key algorithms that the
-             client wants to use in order of preference.  Alternately if the
-             specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified
-             key types will be appended to the default set instead of
-             replacing them.  The default for this option is:
+             Specifies the host key algorithms that the client wants to use in
+             order of preference.  Alternately if the specified value begins
+             with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified key types will be
+             appended to the default set instead of replacing them.  The
+             default for this option is:
 
                 ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
@@ -496,8 +525,9 @@ DESCRIPTION
 
      IdentitiesOnly
              Specifies that ssh(1) should only use the authentication identity
-             files configured in the ssh_config files, even if ssh-agent(1) or
-             a PKCS11Provider offers more identities.  The argument to this
+             and certificate files explicitly configured in the ssh_config
+             files or passed on the ssh(1) command-line, even if ssh-agent(1)
+             or a PKCS11Provider offers more identities.  The argument to this
              keyword must be M-bM-^@M-^\yesM-bM-^@M-^] or M-bM-^@M-^\noM-bM-^@M-^].  This option is intended for
              situations where ssh-agent offers many different identities.  The
              default is M-bM-^@M-^\noM-bM-^@M-^].
@@ -509,9 +539,10 @@ DESCRIPTION
              ~/.ssh/id_ed25519 and ~/.ssh/id_rsa for protocol version 2.
              Additionally, any identities represented by the authentication
              agent will be used for authentication unless IdentitiesOnly is
-             set.  ssh(1) will try to load certificate information from the
-             filename obtained by appending -cert.pub to the path of a
-             specified IdentityFile.
+             set.  If no certificates have been explicitly specified by
+             CertificateFile, ssh(1) will try to load certificate information
+             from the filename obtained by appending -cert.pub to the path of
+             a specified IdentityFile.
 
              The file name may use the tilde syntax to refer to a user's home
              directory or one of the following escape characters: M-bM-^@M-^X%dM-bM-^@M-^Y (local
@@ -526,7 +557,9 @@ DESCRIPTION
 
              IdentityFile may be used in conjunction with IdentitiesOnly to
              select which identities in an agent are offered during
-             authentication.
+             authentication.  IdentityFile may also be used in conjunction
+             with CertificateFile in order to provide any certificate also
+             needed for authentication with the identity.
 
      IgnoreUnknown
              Specifies a pattern-list of unknown options to be ignored if they
@@ -620,11 +653,11 @@ DESCRIPTION
              higher levels of verbose output.
 
      MACs    Specifies the MAC (message authentication code) algorithms in
-             order of preference.  The MAC algorithm is used in protocol
-             version 2 for data integrity protection.  Multiple algorithms
-             must be comma-separated.  If the specified value begins with a
-             M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified algorithms will be appended to
-             the default set instead of replacing them.
+             order of preference.  The MAC algorithm is used for data
+             integrity protection.  Multiple algorithms must be comma-
+             separated.  If the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
+             then the specified algorithms will be appended to the default set
+             instead of replacing them.
 
              The algorithms that contain M-bM-^@M-^\-etmM-bM-^@M-^] calculate the MAC after
              encryption (encrypt-then-mac).  These are considered safer and
@@ -634,13 +667,9 @@ DESCRIPTION
 
                    umac-64-etm@openssh.com,umac-128-etm@openssh.com,
                    hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,
+                   hmac-sha1-etm@openssh.com,
                    umac-64@openssh.com,umac-128@openssh.com,
-                   hmac-sha2-256,hmac-sha2-512,
-                   hmac-md5-etm@openssh.com,hmac-sha1-etm@openssh.com,
-                   hmac-ripemd160-etm@openssh.com,
-                   hmac-sha1-96-etm@openssh.com,hmac-md5-96-etm@openssh.com,
-                   hmac-md5,hmac-sha1,hmac-ripemd160,
-                   hmac-sha1-96,hmac-md5-96
+                   hmac-sha2-256,hmac-sha2-512,hmac-sha1
 
              The list of available MAC algorithms may also be obtained using
              the -Q option of ssh(1) with an argument of M-bM-^@M-^\macM-bM-^@M-^].
@@ -677,10 +706,10 @@ DESCRIPTION
              default is 22.
 
      PreferredAuthentications
-             Specifies the order in which the client should try protocol 2
-             authentication methods.  This allows a client to prefer one
-             method (e.g. keyboard-interactive) over another method (e.g.
-             password).  The default is:
+             Specifies the order in which the client should try authentication
+             methods.  This allows a client to prefer one method (e.g.
+             keyboard-interactive) over another method (e.g. password).  The
+             default is:
 
                    gssapi-with-mic,hostbased,publickey,
                    keyboard-interactive,password
@@ -690,7 +719,9 @@ DESCRIPTION
              preference.  The possible values are M-bM-^@M-^X1M-bM-^@M-^Y and M-bM-^@M-^X2M-bM-^@M-^Y.  Multiple
              versions must be comma-separated.  When this option is set to
              M-bM-^@M-^\2,1M-bM-^@M-^] ssh will try version 2 and fall back to version 1 if
-             version 2 is not available.  The default is M-bM-^@M-^X2M-bM-^@M-^Y.
+             version 2 is not available.  The default is M-bM-^@M-^X2M-bM-^@M-^Y.  Protocol 1
+             suffers from a number of cryptographic weaknesses and should not
+             be used.  It is only offered to support legacy devices.
 
      ProxyCommand
              Specifies the command to use to connect to the server.  The
@@ -740,7 +771,6 @@ DESCRIPTION
      PubkeyAuthentication
              Specifies whether to try public key authentication.  The argument
              to this keyword must be M-bM-^@M-^\yesM-bM-^@M-^] or M-bM-^@M-^\noM-bM-^@M-^].  The default is M-bM-^@M-^\yesM-bM-^@M-^].
-             This option applies to protocol version 2 only.
 
      RekeyLimit
              Specifies the maximum amount of data that may be transmitted
@@ -755,7 +785,6 @@ DESCRIPTION
              default value for RekeyLimit is M-bM-^@M-^\default noneM-bM-^@M-^], which means that
              rekeying is performed after the cipher's default amount of data
              has been sent or received and no time based rekeying is done.
-             This option applies to protocol version 2 only.
 
      RemoteForward
              Specifies that a TCP port on the remote machine be forwarded over
@@ -808,8 +837,7 @@ DESCRIPTION
 
      SendEnv
              Specifies what variables from the local environ(7) should be sent
-             to the server.  Note that environment passing is only supported
-             for protocol 2.  The server must also support it, and the server
+             to the server.  The server must also support it, and the server
              must be configured to accept these environment variables.  Note
              that the TERM environment variable is always sent whenever a
              pseudo-terminal is requested as it is required by the protocol.
@@ -838,15 +866,14 @@ DESCRIPTION
              The default value is 3.  If, for example, ServerAliveInterval
              (see below) is set to 15 and ServerAliveCountMax is left at the
              default, if the server becomes unresponsive, ssh will disconnect
-             after approximately 45 seconds.  This option applies to protocol
-             version 2 only.
+             after approximately 45 seconds.
 
      ServerAliveInterval
              Sets a timeout interval in seconds after which if no data has
              been received from the server, ssh(1) will send a message through
              the encrypted channel to request a response from the server.  The
              default is 0, indicating that these messages will not be sent to
-             the server.  This option applies to protocol version 2 only.
+             the server.
 
      StreamLocalBindMask
              Sets the octal file creation mode mask (umask) used when creating
@@ -924,7 +951,7 @@ DESCRIPTION
              graceful key rotation by allowing a server to send replacement
              public keys before old ones are removed.  Additional hostkeys are
              only accepted if the key used to authenticate the host was
-             already trusted or explicity accepted by the user.  If
+             already trusted or explicitly accepted by the user.  If
              UpdateHostKeys is set to M-bM-^@M-^\askM-bM-^@M-^], then the user is asked to confirm
              the modifications to the known_hosts file.  Confirmation is
              currently incompatible with ControlPersist, and will be disabled
@@ -960,8 +987,7 @@ DESCRIPTION
              fingerprint match will be displayed, but the user will still need
              to confirm new host keys according to the StrictHostKeyChecking
              option.  The argument must be M-bM-^@M-^\yesM-bM-^@M-^], M-bM-^@M-^\noM-bM-^@M-^], or M-bM-^@M-^\askM-bM-^@M-^].  The default
-             is M-bM-^@M-^\noM-bM-^@M-^].  Note that this option applies to protocol version 2
-             only.
+             is M-bM-^@M-^\noM-bM-^@M-^].
 
              See also VERIFYING HOST KEYS in ssh(1).
 
@@ -1023,4 +1049,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.8                     August 14, 2015                    OpenBSD 5.8
+OpenBSD 5.9                    February 20, 2016                   OpenBSD 5.9

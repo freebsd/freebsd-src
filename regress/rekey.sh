@@ -1,4 +1,4 @@
-#	$OpenBSD: rekey.sh,v 1.16 2015/02/14 12:43:16 markus Exp $
+#	$OpenBSD: rekey.sh,v 1.17 2016/01/29 05:18:15 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="rekey"
@@ -137,13 +137,15 @@ for s in 5 10; do
 done
 
 verbose "rekeylimit parsing"
-for size in 16 1k 1K 1m 1M 1g 1G; do
+for size in 16 1k 1K 1m 1M 1g 1G 4G 8G; do
     for time in 1 1m 1M 1h 1H 1d 1D 1w 1W; do
 	case $size in
 		16)	bytes=16 ;;
 		1k|1K)	bytes=1024 ;;
 		1m|1M)	bytes=1048576 ;;
 		1g|1G)	bytes=1073741824 ;;
+		4g|4G)	bytes=4294967296 ;;
+		8g|8G)	bytes=8589934592 ;;
 	esac
 	case $time in
 		1)	seconds=1 ;;
