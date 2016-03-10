@@ -479,6 +479,7 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	struct g_provider *pp;
 	struct mtx *mtxp;
 	int direct, error, first;
+	uint8_t cmd;
 
 	KASSERT(cp != NULL, ("NULL cp in g_io_request"));
 	KASSERT(bp != NULL, ("NULL bp in g_io_request"));
@@ -500,16 +501,17 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	bp->_bio_cflags = bp->bio_cflags;
 #endif
 
-	if (bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_GETATTR)) {
+	cmd = bp->bio_cmd;
+	if (cmd == BIO_READ || cmd == BIO_WRITE || cmd == BIO_GETATTR) {
 		KASSERT(bp->bio_data != NULL,
 		    ("NULL bp->data in g_io_request(cmd=%hhu)", bp->bio_cmd));
 	}
-	if (bp->bio_cmd & (BIO_DELETE|BIO_FLUSH)) {
+	if (cmd == BIO_DELETE || cmd == BIO_FLUSH) {
 		KASSERT(bp->bio_data == NULL,
 		    ("non-NULL bp->data in g_io_request(cmd=%hhu)",
 		    bp->bio_cmd));
 	}
-	if (bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE)) {
+	if (cmd == BIO_READ || cmd == BIO_WRITE || cmd == BIO_DELETE) {
 		KASSERT(bp->bio_offset % cp->provider->sectorsize == 0,
 		    ("wrong offset %jd for sectorsize %u",
 		    bp->bio_offset, cp->provider->sectorsize));
