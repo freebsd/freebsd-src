@@ -19,17 +19,16 @@ DESCRIPTION
      AcceptEnv
              Specifies what environment variables sent by the client will be
              copied into the session's environ(7).  See SendEnv in
-             ssh_config(5) for how to configure the client.  Note that
-             environment passing is only supported for protocol 2, and that
-             the TERM environment variable is always sent whenever the client
-             requests a pseudo-terminal as it is required by the protocol.
-             Variables are specified by name, which may contain the wildcard
-             characters M-bM-^@M-^X*M-bM-^@M-^Y and M-bM-^@M-^X?M-bM-^@M-^Y.  Multiple environment variables may be
-             separated by whitespace or spread across multiple AcceptEnv
-             directives.  Be warned that some environment variables could be
-             used to bypass restricted user environments.  For this reason,
-             care should be taken in the use of this directive.  The default
-             is not to accept any environment variables.
+             ssh_config(5) for how to configure the client.  The TERM
+             environment variable is always sent whenever the client requests
+             a pseudo-terminal as it is required by the protocol.  Variables
+             are specified by name, which may contain the wildcard characters
+             M-bM-^@M-^X*M-bM-^@M-^Y and M-bM-^@M-^X?M-bM-^@M-^Y.  Multiple environment variables may be separated by
+             whitespace or spread across multiple AcceptEnv directives.  Be
+             warned that some environment variables could be used to bypass
+             restricted user environments.  For this reason, care should be
+             taken in the use of this directive.  The default is not to accept
+             any environment variables.
 
      AddressFamily
              Specifies which address family should be used by sshd(8).  Valid
@@ -115,12 +114,11 @@ DESCRIPTION
              AuthenticationMethods of M-bM-^@M-^\publickey,publickeyM-bM-^@M-^] will require
              successful authentication using two different public keys.
 
-             This option is only available for SSH protocol 2 and will yield a
-             fatal error if enabled if protocol 1 is also enabled.  Note that
-             each authentication method listed should also be explicitly
-             enabled in the configuration.  The default is not to require
-             multiple authentication; successful completion of a single
-             authentication method is sufficient.
+             This option will yield a fatal error if enabled if protocol 1 is
+             also enabled.  Note that each authentication method listed should
+             also be explicitly enabled in the configuration.  The default is
+             not to require multiple authentication; successful completion of
+             a single authentication method is sufficient.
 
      AuthorizedKeysCommand
              Specifies a program to be used to look up the user's public keys.
@@ -162,8 +160,9 @@ DESCRIPTION
              replaced by the username of that user.  After expansion,
              AuthorizedKeysFile is taken to be an absolute path or one
              relative to the user's home directory.  Multiple files may be
-             listed, separated by whitespace.  The default is
-             M-bM-^@M-^\.ssh/authorized_keys .ssh/authorized_keys2M-bM-^@M-^].
+             listed, separated by whitespace.  Alternately this option may be
+             set to M-bM-^@M-^\noneM-bM-^@M-^] to skip checking for user keys in files.  The
+             default is M-bM-^@M-^\.ssh/authorized_keys .ssh/authorized_keys2M-bM-^@M-^].
 
      AuthorizedPrincipalsCommand
              Specifies a program to be used to generate the list of allowed
@@ -220,8 +219,7 @@ DESCRIPTION
 
      Banner  The contents of the specified file are sent to the remote user
              before authentication is allowed.  If the argument is M-bM-^@M-^\noneM-bM-^@M-^] then
-             no banner is displayed.  This option is only available for
-             protocol version 2.  By default, no banner is displayed.
+             no banner is displayed.  By default, no banner is displayed.
 
      ChallengeResponseAuthentication
              Specifies whether challenge-response authentication is allowed
@@ -258,13 +256,13 @@ DESCRIPTION
              (especially those outside the jail).  Misconfiguration can lead
              to unsafe environments which sshd(8) cannot detect.
 
-             The default is not to chroot(2).
+             The default is M-bM-^@M-^\noneM-bM-^@M-^], indicating not to chroot(2).
 
      Ciphers
-             Specifies the ciphers allowed for protocol version 2.  Multiple
-             ciphers must be comma-separated.  If the specified value begins
-             with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified ciphers will be appended
-             to the default set instead of replacing them.
+             Specifies the ciphers allowed.  Multiple ciphers must be comma-
+             separated.  If the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
+             then the specified ciphers will be appended to the default set
+             instead of replacing them.
 
              The supported ciphers are:
 
@@ -309,15 +307,14 @@ DESCRIPTION
              The default value is 3.  If ClientAliveInterval (see below) is
              set to 15, and ClientAliveCountMax is left at the default,
              unresponsive SSH clients will be disconnected after approximately
-             45 seconds.  This option applies to protocol version 2 only.
+             45 seconds.
 
      ClientAliveInterval
              Sets a timeout interval in seconds after which if no data has
              been received from the client, sshd(8) will send a message
              through the encrypted channel to request a response from the
              client.  The default is 0, indicating that these messages will
-             not be sent to the client.  This option applies to protocol
-             version 2 only.
+             not be sent to the client.
 
      Compression
              Specifies whether compression is allowed, or delayed until the
@@ -362,7 +359,7 @@ DESCRIPTION
              SSH_ORIGINAL_COMMAND environment variable.  Specifying a command
              of M-bM-^@M-^\internal-sftpM-bM-^@M-^] will force the use of an in-process sftp
              server that requires no support files when used with
-             ChrootDirectory.
+             ChrootDirectory.  The default is M-bM-^@M-^\noneM-bM-^@M-^].
 
      GatewayPorts
              Specifies whether remote hosts are allowed to connect to ports
@@ -379,13 +376,11 @@ DESCRIPTION
 
      GSSAPIAuthentication
              Specifies whether user authentication based on GSSAPI is allowed.
-             The default is M-bM-^@M-^\noM-bM-^@M-^].  Note that this option applies to protocol
-             version 2 only.
+             The default is M-bM-^@M-^\noM-bM-^@M-^].
 
      GSSAPICleanupCredentials
              Specifies whether to automatically destroy the user's credentials
-             cache on logout.  The default is M-bM-^@M-^\yesM-bM-^@M-^].  Note that this option
-             applies to protocol version 2 only.
+             cache on logout.  The default is M-bM-^@M-^\yesM-bM-^@M-^].
 
      GSSAPIStrictAcceptorCheck
              Determines whether to be strict about the identity of the GSSAPI
@@ -416,9 +411,7 @@ DESCRIPTION
      HostbasedAuthentication
              Specifies whether rhosts or /etc/hosts.equiv authentication
              together with successful public key client host authentication is
-             allowed (host-based authentication).  This option is similar to
-             RhostsRSAAuthentication and applies to protocol version 2 only.
-             The default is M-bM-^@M-^\noM-bM-^@M-^].
+             allowed (host-based authentication).  The default is M-bM-^@M-^\noM-bM-^@M-^].
 
      HostbasedUsesNameFromPacketOnly
              Specifies whether or not the server will attempt to perform a
@@ -459,8 +452,8 @@ DESCRIPTION
              read from the SSH_AUTH_SOCK environment variable.
 
      HostKeyAlgorithms
-             Specifies the protocol version 2 host key algorithms that the
-             server offers.  The default for this option is:
+             Specifies the host key algorithms that the server offers.  The
+             default for this option is:
 
                 ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
@@ -585,11 +578,11 @@ DESCRIPTION
              violates the privacy of users and is not recommended.
 
      MACs    Specifies the available MAC (message authentication code)
-             algorithms.  The MAC algorithm is used in protocol version 2 for
-             data integrity protection.  Multiple algorithms must be comma-
-             separated.  If the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
-             then the specified algorithms will be appended to the default set
-             instead of replacing them.
+             algorithms.  The MAC algorithm is used for data integrity
+             protection.  Multiple algorithms must be comma-separated.  If the
+             specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified
+             algorithms will be appended to the default set instead of
+             replacing them.
 
              The algorithms that contain M-bM-^@M-^\-etmM-bM-^@M-^] calculate the MAC after
              encryption (encrypt-then-mac).  These are considered safer and
@@ -618,8 +611,9 @@ DESCRIPTION
 
                    umac-64-etm@openssh.com,umac-128-etm@openssh.com,
                    hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,
+                   hmac-sha1-etm@openssh.com,
                    umac-64@openssh.com,umac-128@openssh.com,
-                   hmac-sha2-256,hmac-sha2-512
+                   hmac-sha2-256,hmac-sha2-512,hmac-sha1
 
              The list of available MAC algorithms may also be obtained using
              the -Q option of ssh(1) with an argument of M-bM-^@M-^\macM-bM-^@M-^].
@@ -651,8 +645,9 @@ DESCRIPTION
              AllowAgentForwarding, AllowGroups, AllowStreamLocalForwarding,
              AllowTcpForwarding, AllowUsers, AuthenticationMethods,
              AuthorizedKeysCommand, AuthorizedKeysCommandUser,
-             AuthorizedKeysFile, AuthorizedPrincipalsFile, Banner,
-             ChrootDirectory, DenyGroups, DenyUsers, ForceCommand,
+             AuthorizedKeysFile, AuthorizedPrincipalsCommand,
+             AuthorizedPrincipalsCommandUser, AuthorizedPrincipalsFile,
+             Banner, ChrootDirectory, DenyGroups, DenyUsers, ForceCommand,
              GatewayPorts, GSSAPIAuthentication, HostbasedAcceptedKeyTypes,
              HostbasedAuthentication, HostbasedUsesNameFromPacketOnly, IPQoS,
              KbdInteractiveAuthentication, KerberosAuthentication,
@@ -670,8 +665,13 @@ DESCRIPTION
              value, additional failures are logged.  The default is 6.
 
      MaxSessions
-             Specifies the maximum number of open sessions permitted per
-             network connection.  The default is 10.
+             Specifies the maximum number of open shell, login or subsystem
+             (e.g. sftp) sessions permitted per network connection.  Multiple
+             sessions may be established by clients that support connection
+             multiplexing.  Setting MaxSessions to 1 will effectively disable
+             session multiplexing, whereas setting it to 0 will prevent all
+             shell, login and subsystem sessions while still permitting
+             forwarding.  The default is 10.
 
      MaxStartups
              Specifies the maximum number of concurrent unauthenticated
@@ -775,10 +775,14 @@ DESCRIPTION
      Protocol
              Specifies the protocol versions sshd(8) supports.  The possible
              values are M-bM-^@M-^X1M-bM-^@M-^Y and M-bM-^@M-^X2M-bM-^@M-^Y.  Multiple versions must be comma-
-             separated.  The default is M-bM-^@M-^X2M-bM-^@M-^Y.  Note that the order of the
-             protocol list does not indicate preference, because the client
-             selects among multiple protocol versions offered by the server.
-             Specifying M-bM-^@M-^\2,1M-bM-^@M-^] is identical to M-bM-^@M-^\1,2M-bM-^@M-^].
+             separated.  The default is M-bM-^@M-^X2M-bM-^@M-^Y.  Protocol 1 suffers from a number
+             of cryptographic weaknesses and should not be used.  It is only
+             offered to support legacy devices.
+
+             Note that the order of the protocol list does not indicate
+             preference, because the client selects among multiple protocol
+             versions offered by the server.  Specifying M-bM-^@M-^\2,1M-bM-^@M-^] is identical to
+             M-bM-^@M-^\1,2M-bM-^@M-^].
 
      PubkeyAcceptedKeyTypes
              Specifies the key types that will be accepted for public key
@@ -799,8 +803,7 @@ DESCRIPTION
 
      PubkeyAuthentication
              Specifies whether public key authentication is allowed.  The
-             default is M-bM-^@M-^\yesM-bM-^@M-^].  Note that this option applies to protocol
-             version 2 only.
+             default is M-bM-^@M-^\yesM-bM-^@M-^].
 
      RekeyLimit
              Specifies the maximum amount of data that may be transmitted
@@ -814,8 +817,7 @@ DESCRIPTION
              documented in the TIME FORMATS section.  The default value for
              RekeyLimit is M-bM-^@M-^\default noneM-bM-^@M-^], which means that rekeying is
              performed after the cipher's default amount of data has been sent
-             or received and no time based rekeying is done.  This option
-             applies to protocol version 2 only.
+             or received and no time based rekeying is done.
 
      RevokedKeys
              Specifies revoked public keys file, or M-bM-^@M-^\noneM-bM-^@M-^] to not use one.
@@ -882,8 +884,7 @@ DESCRIPTION
              M-bM-^@M-^\sftpM-bM-^@M-^] server.  This may simplify configurations using
              ChrootDirectory to force a different filesystem root on clients.
 
-             By default no subsystems are defined.  Note that this option
-             applies to protocol version 2 only.
+             By default no subsystems are defined.
 
      SyslogFacility
              Gives the facility code that is used when logging messages from
@@ -957,9 +958,10 @@ DESCRIPTION
              that has the privilege of the authenticated user.  The goal of
              privilege separation is to prevent privilege escalation by
              containing any corruption within the unprivileged processes.  The
-             default is M-bM-^@M-^\yesM-bM-^@M-^].  If UsePrivilegeSeparation is set to M-bM-^@M-^\sandboxM-bM-^@M-^]
-             then the pre-authentication unprivileged process is subject to
-             additional restrictions.
+             argument must be M-bM-^@M-^\yesM-bM-^@M-^], M-bM-^@M-^\noM-bM-^@M-^], or M-bM-^@M-^\sandboxM-bM-^@M-^].  If
+             UsePrivilegeSeparation is set to M-bM-^@M-^\sandboxM-bM-^@M-^] then the pre-
+             authentication unprivileged process is subject to additional
+             restrictions.  The default is M-bM-^@M-^\sandboxM-bM-^@M-^].
 
      VersionAddendum
              Optionally specifies additional text to append to the SSH
@@ -1049,4 +1051,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 5.8                     August 14, 2015                    OpenBSD 5.8
+OpenBSD 5.9                    February 17, 2016                   OpenBSD 5.9

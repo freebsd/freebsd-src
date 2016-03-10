@@ -850,4 +850,11 @@ struct winsize {
 # endif /* gcc version */
 #endif /* __predict_true */
 
+#if defined(HAVE_GLOB_H) && defined(GLOB_HAS_ALTDIRFUNC) && \
+    defined(GLOB_HAS_GL_MATCHC) && defined(GLOB_HAS_GL_STATV) && \
+    defined(HAVE_DECL_GLOB_NOMATCH) &&  HAVE_DECL_GLOB_NOMATCH != 0 && \
+    !defined(BROKEN_GLOB)
+# define USE_SYSTEM_GLOB
+#endif
+
 #endif /* _DEFINES_H */

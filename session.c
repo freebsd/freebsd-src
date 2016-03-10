@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.278 2015/04/24 01:36:00 deraadt Exp $ */
+/* $OpenBSD: session.c,v 1.280 2016/02/16 03:37:48 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -160,6 +160,7 @@ login_cap_t *lc;
 #endif
 
 static int is_child = 0;
+static int in_chroot = 0;
 
 /* Name and directory of socket for authentication agent forwarding. */
 static char *auth_sock_name = NULL;
@@ -778,8 +779,8 @@ int
 do_exec(Session *s, const char *command)
 {
 	int ret;
-	const char *forced = NULL;
-	char session_type[1024], *tty = NULL;
+	const char *forced = NULL, *tty = NULL;
+	char session_type[1024];
 
 	if (options.adm_forced_command) {
 		original_command = command;
@@ -814,13 +815,14 @@ do_exec(Session *s, const char *command)
 			tty += 5;
 	}
 
-	verbose("Starting session: %s%s%s for %s from %.200s port %d",
+	verbose("Starting session: %s%s%s for %s from %.200s port %d id %d",
 	    session_type,
 	    tty == NULL ? "" : " on ",
 	    tty == NULL ? "" : tty,
 	    s->pw->pw_name,
 	    get_remote_ipaddr(),
-	    get_remote_port());
+	    get_remote_port(),
+	    s->self);
 
 #ifdef SSH_AUDIT_EVENTS
 	if (command != NULL)
@@ -1490,9 +1492,6 @@ void
 do_setusercontext(struct passwd *pw)
 {
 	char *chroot_path, *tmp;
-#ifdef USE_LIBIAF
-	int doing_chroot = 0;
-#endif
 
 	platform_setusercontext(pw);
 
@@ -1520,7 +1519,7 @@ do_setusercontext(struct passwd *pw)
 
 		platform_setusercontext_post_groups(pw);
 
-		if (options.chroot_directory != NULL &&
+		if (!in_chroot && options.chroot_directory != NULL &&
 		    strcasecmp(options.chroot_directory, "none") != 0) {
                         tmp = tilde_expand_filename(options.chroot_directory,
 			    pw->pw_uid);
@@ -1532,9 +1531,7 @@ do_setusercontext(struct passwd *pw)
 			/* Make sure we don't attempt to chroot again */
 			free(options.chroot_directory);
 			options.chroot_directory = NULL;
-#ifdef USE_LIBIAF
-			doing_chroot = 1;
-#endif
+			in_chroot = 1;
 		}
 
 #ifdef HAVE_LOGIN_CAP
@@ -1549,16 +1546,16 @@ do_setusercontext(struct passwd *pw)
 		(void) setusercontext(lc, pw, pw->pw_uid, LOGIN_SETUMASK);
 #else
 # ifdef USE_LIBIAF
-/* In a chroot environment, the set_id() will always fail; typically 
- * because of the lack of necessary authentication services and runtime
- * such as ./usr/lib/libiaf.so, ./usr/lib/libpam.so.1, and ./etc/passwd
- * We skip it in the internal sftp chroot case.
- * We'll lose auditing and ACLs but permanently_set_uid will
- * take care of the rest.
- */
-	if ((doing_chroot == 0) && set_id(pw->pw_name) != 0) {
-		fatal("set_id(%s) Failed", pw->pw_name);
-	}
+		/*
+		 * In a chroot environment, the set_id() will always fail;
+		 * typically because of the lack of necessary authentication
+		 * services and runtime such as ./usr/lib/libiaf.so,
+		 * ./usr/lib/libpam.so.1, and ./etc/passwd We skip it in the
+		 * internal sftp chroot case.  We'll lose auditing and ACLs but
+		 * permanently_set_uid will take care of the rest.
+		 */
+		if (!in_chroot && set_id(pw->pw_name) != 0)
+			fatal("set_id(%s) Failed", pw->pw_name);
 # endif /* USE_LIBIAF */
 		/* Permanently switch to the desired uid. */
 		permanently_set_uid(pw);
@@ -1790,11 +1787,11 @@ do_child(Session *s, const char *command)
 #ifdef HAVE_LOGIN_CAP
 		r = login_getcapbool(lc, "requirehome", 0);
 #endif
-		if (r || options.chroot_directory == NULL ||
-		    strcasecmp(options.chroot_directory, "none") == 0)
+		if (r || !in_chroot) {
 			fprintf(stderr, "Could not chdir to home "
 			    "directory %s: %s\n", pw->pw_dir,
 			    strerror(errno));
+		}
 		if (r)
 			exit(1);
 	}
@@ -2503,7 +2500,12 @@ session_close(Session *s)
 {
 	u_int i;
 
-	debug("session_close: session %d pid %ld", s->self, (long)s->pid);
+	verbose("Close session: user %s from %.200s port %d id %d",
+	    s->pw->pw_name,
+	    get_remote_ipaddr(),
+	    get_remote_port(),
+	    s->self);
+
 	if (s->ttyfd != -1)
 		session_pty_cleanup(s);
 	free(s->term);

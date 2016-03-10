@@ -1320,7 +1320,7 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --without-openssl       Disable use of OpenSSL; use only limited internal crypto **EXPERIMENTAL**
-  --without-ssh1          Enable support for SSH protocol 1
+  --with-ssh1             Enable support for SSH protocol 1
   --without-stackprotect  Don't use compiler's stack protection
   --without-hardening     Don't use toolchain hardening flags
   --without-rpath         Disable auto-added -R linker paths
@@ -1331,6 +1331,7 @@ Optional Packages:
   --with-Werror           Build main code with -Werror
   --with-solaris-contracts Enable Solaris process contracts (experimental)
   --with-solaris-projects Enable Solaris projects (experimental)
+  --with-solaris-privs    Enable Solaris/Illumos privileges (experimental)
   --with-osfsia           Enable Digital Unix SIA
   --with-zlib=PATH        Use zlib in PATH
   --without-zlib-version-check Disable zlib version check
@@ -1346,7 +1347,7 @@ Optional Packages:
   --with-prngd-socket=FILE read entropy from PRNGD/EGD socket FILE (default=/var/run/egd-pool)
   --with-pam              Enable PAM support
   --with-privsep-user=user Specify non-privileged user for privilege separation
-  --with-sandbox=style    Specify privilege separation sandbox (no, darwin, rlimit, systrace, seccomp_filter, capsicum)
+  --with-sandbox=style    Specify privilege separation sandbox (no, capsicum, darwin, rlimit, seccomp_filter, systrace, pledge)
   --with-selinux          Enable SELinux support
   --with-kerberos5=PATH   Enable Kerberos 5 support
   --with-privsep-path=xxx Path for privilege separation chroot (default=/var/empty)
@@ -7972,6 +7973,11 @@ done
 SIA_MSG="no"
 SPC_MSG="no"
 SP_MSG="no"
+SPP_MSG="no"
+
+# Support for Solaris/Illumos privileges (this test is used by both
+# the --with-solaris-privs option and --with-sandbox=solaris).
+SOLARIS_PRIVS="no"
 
 # Check for some target-specific stuff
 case "$host" in
@@ -8960,6 +8966,11 @@ _ACEOF
 
 
 cat >>confdefs.h <<\_ACEOF
+#define NO_UID_RESTORATION_TEST 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
 #define DISABLE_SHADOW 1
 _ACEOF
 
@@ -9490,6 +9501,73 @@ _ACEOF
 fi
 
 done
+
+	{ echo "$as_me:$LINENO: checking for sandbox_apply in -lsandbox" >&5
+echo $ECHO_N "checking for sandbox_apply in -lsandbox... $ECHO_C" >&6; }
+if test "${ac_cv_lib_sandbox_sandbox_apply+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lsandbox  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char sandbox_apply ();
+int
+main ()
+{
+return sandbox_apply ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  ac_cv_lib_sandbox_sandbox_apply=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_lib_sandbox_sandbox_apply=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_sandbox_sandbox_apply" >&5
+echo "${ECHO_T}$ac_cv_lib_sandbox_sandbox_apply" >&6; }
+if test $ac_cv_lib_sandbox_sandbox_apply = yes; then
+
+	    SSHDLIBS="$SSHDLIBS -lsandbox"
+
+fi
 
 	;;
 *-*-dragonfly*)
@@ -10789,6 +10867,339 @@ _ACEOF
 echo "${ECHO_T}no" >&6; }
 	fi
 
+for ac_func in setppriv
+do
+as_ac_var=`echo "ac_cv_func_$ac_func" | $as_tr_sh`
+{ echo "$as_me:$LINENO: checking for $ac_func" >&5
+echo $ECHO_N "checking for $ac_func... $ECHO_C" >&6; }
+if { as_var=$as_ac_var; eval "test \"\${$as_var+set}\" = set"; }; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+/* Define $ac_func to an innocuous variant, in case <limits.h> declares $ac_func.
+   For example, HP-UX 11i <limits.h> declares gettimeofday.  */
+#define $ac_func innocuous_$ac_func
+
+/* System header to define __stub macros and hopefully few prototypes,
+    which can conflict with char $ac_func (); below.
+    Prefer <limits.h> to <assert.h> if __STDC__ is defined, since
+    <limits.h> exists even on freestanding compilers.  */
+
+#ifdef __STDC__
+# include <limits.h>
+#else
+# include <assert.h>
+#endif
+
+#undef $ac_func
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char $ac_func ();
+/* The GNU C library defines this for functions which it implements
+    to always fail with ENOSYS.  Some functions are actually named
+    something starting with __ and the normal name is an alias.  */
+#if defined __stub_$ac_func || defined __stub___$ac_func
+choke me
+#endif
+
+int
+main ()
+{
+return $ac_func ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  eval "$as_ac_var=yes"
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	eval "$as_ac_var=no"
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+fi
+ac_res=`eval echo '${'$as_ac_var'}'`
+	       { echo "$as_me:$LINENO: result: $ac_res" >&5
+echo "${ECHO_T}$ac_res" >&6; }
+if test `eval echo '${'$as_ac_var'}'` = yes; then
+  cat >>confdefs.h <<_ACEOF
+#define `echo "HAVE_$ac_func" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+done
+
+
+for ac_func in priv_basicset
+do
+as_ac_var=`echo "ac_cv_func_$ac_func" | $as_tr_sh`
+{ echo "$as_me:$LINENO: checking for $ac_func" >&5
+echo $ECHO_N "checking for $ac_func... $ECHO_C" >&6; }
+if { as_var=$as_ac_var; eval "test \"\${$as_var+set}\" = set"; }; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+/* Define $ac_func to an innocuous variant, in case <limits.h> declares $ac_func.
+   For example, HP-UX 11i <limits.h> declares gettimeofday.  */
+#define $ac_func innocuous_$ac_func
+
+/* System header to define __stub macros and hopefully few prototypes,
+    which can conflict with char $ac_func (); below.
+    Prefer <limits.h> to <assert.h> if __STDC__ is defined, since
+    <limits.h> exists even on freestanding compilers.  */
+
+#ifdef __STDC__
+# include <limits.h>
+#else
+# include <assert.h>
+#endif
+
+#undef $ac_func
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char $ac_func ();
+/* The GNU C library defines this for functions which it implements
+    to always fail with ENOSYS.  Some functions are actually named
+    something starting with __ and the normal name is an alias.  */
+#if defined __stub_$ac_func || defined __stub___$ac_func
+choke me
+#endif
+
+int
+main ()
+{
+return $ac_func ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  eval "$as_ac_var=yes"
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	eval "$as_ac_var=no"
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+fi
+ac_res=`eval echo '${'$as_ac_var'}'`
+	       { echo "$as_me:$LINENO: result: $ac_res" >&5
+echo "${ECHO_T}$ac_res" >&6; }
+if test `eval echo '${'$as_ac_var'}'` = yes; then
+  cat >>confdefs.h <<_ACEOF
+#define `echo "HAVE_$ac_func" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+done
+
+
+for ac_header in priv.h
+do
+as_ac_Header=`echo "ac_cv_header_$ac_header" | $as_tr_sh`
+if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
+  { echo "$as_me:$LINENO: checking for $ac_header" >&5
+echo $ECHO_N "checking for $ac_header... $ECHO_C" >&6; }
+if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+ac_res=`eval echo '${'$as_ac_Header'}'`
+	       { echo "$as_me:$LINENO: result: $ac_res" >&5
+echo "${ECHO_T}$ac_res" >&6; }
+else
+  # Is the header compilable?
+{ echo "$as_me:$LINENO: checking $ac_header usability" >&5
+echo $ECHO_N "checking $ac_header usability... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+#include <$ac_header>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  ac_header_compiler=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_header_compiler=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+echo "${ECHO_T}$ac_header_compiler" >&6; }
+
+# Is the header present?
+{ echo "$as_me:$LINENO: checking $ac_header presence" >&5
+echo $ECHO_N "checking $ac_header presence... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+#include <$ac_header>
+_ACEOF
+if { (ac_try="$ac_cpp conftest.$ac_ext"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_cpp conftest.$ac_ext") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } >/dev/null && {
+	 test -z "$ac_c_preproc_warn_flag$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       }; then
+  ac_header_preproc=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+  ac_header_preproc=no
+fi
+
+rm -f conftest.err conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+echo "${ECHO_T}$ac_header_preproc" >&6; }
+
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { echo "$as_me:$LINENO: WARNING: $ac_header: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: $ac_header: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: $ac_header: proceeding with the compiler's result" >&5
+echo "$as_me: WARNING: $ac_header: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { echo "$as_me:$LINENO: WARNING: $ac_header: present but cannot be compiled" >&5
+echo "$as_me: WARNING: $ac_header: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: $ac_header:     check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: $ac_header:     check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: $ac_header: see the Autoconf documentation" >&5
+echo "$as_me: WARNING: $ac_header: see the Autoconf documentation" >&2;}
+    { echo "$as_me:$LINENO: WARNING: $ac_header:     section \"Present But Cannot Be Compiled\"" >&5
+echo "$as_me: WARNING: $ac_header:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { echo "$as_me:$LINENO: WARNING: $ac_header: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: $ac_header: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: $ac_header: in the future, the compiler will take precedence" >&5
+echo "$as_me: WARNING: $ac_header: in the future, the compiler will take precedence" >&2;}
+    ( cat <<\_ASBOX
+## ------------------------------------------- ##
+## Report this to openssh-unix-dev@mindrot.org ##
+## ------------------------------------------- ##
+_ASBOX
+     ) | sed "s/^/$as_me: WARNING:     /" >&2
+    ;;
+esac
+{ echo "$as_me:$LINENO: checking for $ac_header" >&5
+echo $ECHO_N "checking for $ac_header... $ECHO_C" >&6; }
+if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  eval "$as_ac_Header=\$ac_header_preproc"
+fi
+ac_res=`eval echo '${'$as_ac_Header'}'`
+	       { echo "$as_me:$LINENO: result: $ac_res" >&5
+echo "${ECHO_T}$ac_res" >&6; }
+
+fi
+if test `eval echo '${'$as_ac_Header'}'` = yes; then
+  cat >>confdefs.h <<_ACEOF
+#define `echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+
+done
+
+
 # Check whether --with-solaris-contracts was given.
 if test "${with_solaris_contracts+set}" = set; then
   withval=$with_solaris_contracts;
@@ -10859,7 +11270,7 @@ cat >>confdefs.h <<\_ACEOF
 #define USE_SOLARIS_PROCESS_CONTRACTS 1
 _ACEOF
 
-			  SSHDLIBS="$SSHDLIBS -lcontract"
+			  LIBS="$LIBS -lcontract"
 			  SPC_MSG="yes"
 fi
 
@@ -10937,10 +11348,42 @@ cat >>confdefs.h <<\_ACEOF
 #define USE_SOLARIS_PROJECTS 1
 _ACEOF
 
-			SSHDLIBS="$SSHDLIBS -lproject"
+			LIBS="$LIBS -lproject"
 			SP_MSG="yes"
 fi
 
+
+fi
+
+
+# Check whether --with-solaris-privs was given.
+if test "${with_solaris_privs+set}" = set; then
+  withval=$with_solaris_privs;
+		{ echo "$as_me:$LINENO: checking for Solaris/Illumos privilege support" >&5
+echo $ECHO_N "checking for Solaris/Illumos privilege support... $ECHO_C" >&6; }
+		if test "x$ac_cv_func_setppriv" = "xyes" -a \
+			"x$ac_cv_header_priv_h" = "xyes" ; then
+			SOLARIS_PRIVS=yes
+			{ echo "$as_me:$LINENO: result: found" >&5
+echo "${ECHO_T}found" >&6; }
+
+cat >>confdefs.h <<\_ACEOF
+#define NO_UID_RESTORATION_TEST 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define USE_SOLARIS_PRIVS 1
+_ACEOF
+
+			SPP_MSG="yes"
+		else
+			{ echo "$as_me:$LINENO: result: not found" >&5
+echo "${ECHO_T}not found" >&6; }
+			{ { echo "$as_me:$LINENO: error: *** must have support for Solaris privileges to use --with-solaris-privs" >&5
+echo "$as_me: error: *** must have support for Solaris privileges to use --with-solaris-privs" >&2;}
+   { (exit 1); exit 1; }; }
+		fi
 
 fi
 
@@ -11942,163 +12385,6 @@ fi
 
 
 # Checks for libraries.
-{ echo "$as_me:$LINENO: checking for yp_match" >&5
-echo $ECHO_N "checking for yp_match... $ECHO_C" >&6; }
-if test "${ac_cv_func_yp_match+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-/* Define yp_match to an innocuous variant, in case <limits.h> declares yp_match.
-   For example, HP-UX 11i <limits.h> declares gettimeofday.  */
-#define yp_match innocuous_yp_match
-
-/* System header to define __stub macros and hopefully few prototypes,
-    which can conflict with char yp_match (); below.
-    Prefer <limits.h> to <assert.h> if __STDC__ is defined, since
-    <limits.h> exists even on freestanding compilers.  */
-
-#ifdef __STDC__
-# include <limits.h>
-#else
-# include <assert.h>
-#endif
-
-#undef yp_match
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char yp_match ();
-/* The GNU C library defines this for functions which it implements
-    to always fail with ENOSYS.  Some functions are actually named
-    something starting with __ and the normal name is an alias.  */
-#if defined __stub_yp_match || defined __stub___yp_match
-choke me
-#endif
-
-int
-main ()
-{
-return yp_match ();
-  ;
-  return 0;
-}
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (ac_try="$ac_link"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
-  (eval "$ac_link") 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } && {
-	 test -z "$ac_c_werror_flag" ||
-	 test ! -s conftest.err
-       } && test -s conftest$ac_exeext &&
-       $as_test_x conftest$ac_exeext; then
-  ac_cv_func_yp_match=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-	ac_cv_func_yp_match=no
-fi
-
-rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
-      conftest$ac_exeext conftest.$ac_ext
-fi
-{ echo "$as_me:$LINENO: result: $ac_cv_func_yp_match" >&5
-echo "${ECHO_T}$ac_cv_func_yp_match" >&6; }
-if test $ac_cv_func_yp_match = yes; then
-  :
-else
-
-{ echo "$as_me:$LINENO: checking for yp_match in -lnsl" >&5
-echo $ECHO_N "checking for yp_match in -lnsl... $ECHO_C" >&6; }
-if test "${ac_cv_lib_nsl_yp_match+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lnsl  $LIBS"
-cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char yp_match ();
-int
-main ()
-{
-return yp_match ();
-  ;
-  return 0;
-}
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (ac_try="$ac_link"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
-  (eval "$ac_link") 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } && {
-	 test -z "$ac_c_werror_flag" ||
-	 test ! -s conftest.err
-       } && test -s conftest$ac_exeext &&
-       $as_test_x conftest$ac_exeext; then
-  ac_cv_lib_nsl_yp_match=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-	ac_cv_lib_nsl_yp_match=no
-fi
-
-rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
-      conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ echo "$as_me:$LINENO: result: $ac_cv_lib_nsl_yp_match" >&5
-echo "${ECHO_T}$ac_cv_lib_nsl_yp_match" >&6; }
-if test $ac_cv_lib_nsl_yp_match = yes; then
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBNSL 1
-_ACEOF
-
-  LIBS="-lnsl $LIBS"
-
-fi
-
-fi
-
 { echo "$as_me:$LINENO: checking for setsockopt" >&5
 echo $ECHO_N "checking for setsockopt... $ECHO_C" >&6; }
 if test "${ac_cv_func_setsockopt+set}" = set; then
@@ -14599,7 +14885,8 @@ fi
 done
 
 
-# On some platforms, inet_ntop may be found in libresolv or libnsl.
+# On some platforms, inet_ntop and gethostbyname may be found in libresolv
+# or libnsl.
 { echo "$as_me:$LINENO: checking for library containing inet_ntop" >&5
 echo $ECHO_N "checking for library containing inet_ntop... $ECHO_C" >&6; }
 if test "${ac_cv_search_inet_ntop+set}" = set; then
@@ -14678,6 +14965,89 @@ fi
 { echo "$as_me:$LINENO: result: $ac_cv_search_inet_ntop" >&5
 echo "${ECHO_T}$ac_cv_search_inet_ntop" >&6; }
 ac_res=$ac_cv_search_inet_ntop
+if test "$ac_res" != no; then
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
+{ echo "$as_me:$LINENO: checking for library containing gethostbyname" >&5
+echo $ECHO_N "checking for library containing gethostbyname... $ECHO_C" >&6; }
+if test "${ac_cv_search_gethostbyname+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char gethostbyname ();
+int
+main ()
+{
+return gethostbyname ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' resolv nsl; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  ac_cv_search_gethostbyname=$ac_res
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext
+  if test "${ac_cv_search_gethostbyname+set}" = set; then
+  break
+fi
+done
+if test "${ac_cv_search_gethostbyname+set}" = set; then
+  :
+else
+  ac_cv_search_gethostbyname=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_search_gethostbyname" >&5
+echo "${ECHO_T}$ac_cv_search_gethostbyname" >&6; }
+ac_res=$ac_cv_search_gethostbyname
 if test "$ac_res" != no; then
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
 
@@ -16524,6 +16894,7 @@ fi
 
 
 
+
 for ac_func in  \
 	Blowfish_initstate \
 	Blowfish_expandstate \
@@ -16579,6 +16950,7 @@ for ac_func in  \
 	nsleep \
 	ogetaddrinfo \
 	openlog_r \
+	pledge \
 	poll \
 	prctl \
 	pstat \
@@ -20707,12 +21079,12 @@ openssl_engine=no
 # Check whether --with-ssl-engine was given.
 if test "${with_ssl_engine+set}" = set; then
   withval=$with_ssl_engine;
-		if test "x$openssl" = "xno" ; then
-			{ { echo "$as_me:$LINENO: error: cannot use --with-ssl-engine when OpenSSL disabled" >&5
+		if test "x$withval" != "xno" ; then
+			if test "x$openssl" = "xno" ; then
+				{ { echo "$as_me:$LINENO: error: cannot use --with-ssl-engine when OpenSSL disabled" >&5
 echo "$as_me: error: cannot use --with-ssl-engine when OpenSSL disabled" >&2;}
    { (exit 1); exit 1; }; }
-		fi
-		if test "x$withval" != "xno" ; then
+			fi
 			openssl_engine=yes
 		fi
 
@@ -20999,6 +21371,7 @@ cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
 
+	#include <stdlib.h>
 	#include <stdio.h>
 	#include <string.h>
 	#include <openssl/opensslv.h>
@@ -21015,7 +21388,8 @@ main ()
 		if(fd == NULL)
 			exit(1);
 
-		if ((rc = fprintf(fd ,"%08x (%s)\n", OPENSSL_VERSION_NUMBER, OPENSSL_VERSION_TEXT)) <0)
+		if ((rc = fprintf(fd ,"%08lx (%s)\n",
+		    (unsigned long)OPENSSL_VERSION_NUMBER, OPENSSL_VERSION_TEXT)) <0)
 			exit(1);
 
 		exit(0);
@@ -21184,6 +21558,7 @@ cat >>conftest.$ac_ext <<_ACEOF
 
 	#include <string.h>
 	#include <openssl/opensslv.h>
+	#include <openssl/crypto.h>
 
 int
 main ()
@@ -24145,7 +24520,19 @@ fi
 
 
 
-if test "x$sandbox_arg" = "xsystrace" || \
+if test "x$sandbox_arg" = "xpledge" || \
+   ( test -z "$sandbox_arg" && test "x$ac_cv_func_pledge" = "xyes" ) ; then
+	test "x$ac_cv_func_pledge" != "xyes" && \
+		{ { echo "$as_me:$LINENO: error: pledge sandbox requires pledge(2) support" >&5
+echo "$as_me: error: pledge sandbox requires pledge(2) support" >&2;}
+   { (exit 1); exit 1; }; }
+	SANDBOX_STYLE="pledge"
+
+cat >>confdefs.h <<\_ACEOF
+#define SANDBOX_PLEDGE 1
+_ACEOF
+
+elif test "x$sandbox_arg" = "xsystrace" || \
    ( test -z "$sandbox_arg" && test "x$have_systr_policy_kill" = "x1" ) ; then
 	test "x$have_systr_policy_kill" != "x1" && \
 		{ { echo "$as_me:$LINENO: error: systrace sandbox requires systrace headers and SYSTR_POLICY_KILL support" >&5
@@ -24236,6 +24623,14 @@ echo "$as_me: error: rlimit sandbox requires select to work with rlimit" >&2;}
 
 cat >>confdefs.h <<\_ACEOF
 #define SANDBOX_RLIMIT 1
+_ACEOF
+
+elif test "x$sandbox_arg" = "xsolaris" || \
+   ( test -z "$sandbox_arg" && test "x$SOLARIS_PRIVS" = "xyes" ) ; then
+	SANDBOX_STYLE="solaris"
+
+cat >>confdefs.h <<\_ACEOF
+#define SANDBOX_SOLARIS 1
 _ACEOF
 
 elif test -z "$sandbox_arg" || test "x$sandbox_arg" = "xno" || \
@@ -31719,6 +32114,9 @@ int
 main ()
 {
 
+struct __res_state *volatile p = &_res;  /* force resolution of _res */
+return 0;
+
   ;
   return 0;
 }
@@ -36811,6 +37209,7 @@ echo "              MD5 password support: $MD5_MSG"
 echo "                   libedit support: $LIBEDIT_MSG"
 echo "  Solaris process contract support: $SPC_MSG"
 echo "           Solaris project support: $SP_MSG"
+echo "         Solaris privilege support: $SPP_MSG"
 echo "       IP address in \$DISPLAY hack: $DISPLAY_HACK_MSG"
 echo "           Translate v4 in v6 hack: $IPV4_IN6_HACK_MSG"
 echo "                  BSD Auth support: $BSD_AUTH_MSG"

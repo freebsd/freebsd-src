@@ -146,11 +146,11 @@ DESCRIPTION
 AUTHENTICATION
      The OpenSSH SSH daemon supports SSH protocols 1 and 2.  The default is to
      use protocol 2 only, though this can be changed via the Protocol option
-     in sshd_config(5).  Protocol 2 supports DSA, ECDSA, Ed25519 and RSA keys;
-     protocol 1 only supports RSA keys.  For both protocols, each host has a
-     host-specific key, normally 2048 bits, used to identify the host.
+     in sshd_config(5).  Protocol 1 should not be used and is only offered to
+     support legacy devices.
 
-     Forward security for protocol 1 is provided through an additional server
+     Each host has a host-specific key, used to identify the host.  Partial
+     forward security for protocol 1 is provided through an additional server
      key, normally 1024 bits, generated when the server starts.  This key is
      normally regenerated every hour if it has been used, and is never stored
      on disk.  Whenever a client connects, the daemon responds with its public
@@ -268,7 +268,7 @@ SSHRC
 
 AUTHORIZED_KEYS FILE FORMAT
      AuthorizedKeysFile specifies the files containing public keys for public
-     key authentication; if none is specified, the default is
+     key authentication; if this option is not specified, the default is
      ~/.ssh/authorized_keys and ~/.ssh/authorized_keys2.  Each line of the
      file contains one key (empty lines and lines starting with a M-bM-^@M-^X#M-bM-^@M-^Y are
      ignored as comments).  Protocol 1 public keys consist of the following
@@ -297,6 +297,10 @@ AUTHORIZED_KEYS FILE FORMAT
      specifications.  No spaces are permitted, except within double quotes.
      The following option specifications are supported (note that option
      keywords are case-insensitive):
+
+     agent-forwarding
+             Enable authentication agent forwarding previously disabled by the
+             restrict option.
 
      cert-authority
              Specifies that the listed key is a certification authority (CA)
@@ -378,6 +382,9 @@ AUTHORIZED_KEYS FILE FORMAT
              must be literal domains or addresses.  A port specification of *
              matches any port.
 
+     port-forwarding
+             Enable port forwarding previously disabled by the restrict
+
      principals="principals"
              On a cert-authority line, specifies allowed principals for
              certificate authentication as a comma-separated list.  At least
@@ -386,10 +393,27 @@ AUTHORIZED_KEYS FILE FORMAT
              ignored for keys that are not marked as trusted certificate
              signers using the cert-authority option.
 
+     pty     Permits tty allocation previously disabled by the restrict
+             option.
+
+     restrict
+             Enable all restrictions, i.e. disable port, agent and X11
+             forwarding, as well as disabling PTY allocation and execution of
+             ~/.ssh/rc.  If any future restriction capabilities are added to
+             authorized_keys files they will be included in this set.
+
      tunnel="n"
              Force a tun(4) device on the server.  Without this option, the
              next available device will be used if the client requests a
              tunnel.
+
+     user-rc
+             Enables execution of ~/.ssh/rc previously disabled by the
+             restrict option.
+
+     X11-forwarding
+             Permits X11 forwarding previously disabled by the restrict
+             option.
 
      An example authorized_keys file:
 
@@ -403,6 +427,10 @@ AUTHORIZED_KEYS FILE FORMAT
         AAAAB5...21S==
         tunnel="0",command="sh /etc/netstart tun0" ssh-rsa AAAA...==
         jane@example.net
+        restrict,command="uptime" ssh-rsa AAAA1C8...32Tv==
+        user@example.net
+        restrict,pty,command="nethack" ssh-rsa AAAA1f8...IrrC5==
+        user@example.net
 
 SSH_KNOWN_HOSTS FILE FORMAT
      The /etc/ssh/ssh_known_hosts and ~/.ssh/known_hosts files contain host
@@ -552,7 +580,9 @@ FILES
 
      /etc/moduli
              Contains Diffie-Hellman groups used for the "Diffie-Hellman Group
-             Exchange".  The file format is described in moduli(5).
+             Exchange" key exchange method.  The file format is described in
+             moduli(5).  If no usable groups are found in this file then fixed
+             internal groups will be used.
 
      /etc/motd
              See motd(5).
@@ -632,4 +662,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 5.8                      July 3, 2015                      OpenBSD 5.8
+OpenBSD 5.9                    February 17, 2016                   OpenBSD 5.9

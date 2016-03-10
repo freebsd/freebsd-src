@@ -31,8 +31,11 @@ SYNOPSIS
 
 DESCRIPTION
      ssh-keygen generates, manages and converts authentication keys for
-     ssh(1).  ssh-keygen can create RSA keys for use by SSH protocol version 1
-     and DSA, ECDSA, Ed25519 or RSA keys for use by SSH protocol version 2.
+     ssh(1).  ssh-keygen can create keys for use by SSH protocol versions 1
+     and 2.  Protocol 1 should not be used and is only offered to support
+     legacy devices.  It suffers from a number of cryptographic weaknesses and
+     doesn't support many of the advanced features available for protocol 2.
+
      The type of key to be generated is specified with the -t option.  If
      invoked without any arguments, ssh-keygen will generate an RSA key for
      use in SSH protocol 2 connections.
@@ -194,7 +197,7 @@ DESCRIPTION
              file or using the format described in the KEY REVOCATION LISTS
              section.
 
-     -L      Prints the contents of a certificate.
+     -L      Prints the contents of one or more certificates.
 
      -l      Show fingerprint of specified public key file.  Private RSA1 keys
              are also supported.  For RSA and DSA keys ssh-keygen tries to
@@ -275,11 +278,11 @@ DESCRIPTION
 
              At present, no options are valid for host keys.
 
-     -o      Causes ssh-keygen to save SSH protocol 2 private keys using the
-             new OpenSSH format rather than the more compatible PEM format.
-             The new format has increased resistance to brute-force password
-             cracking but is not supported by versions of OpenSSH prior to
-             6.5.  Ed25519 keys always use the new private key format.
+     -o      Causes ssh-keygen to save private keys using the new OpenSSH
+             format rather than the more compatible PEM format.  The new
+             format has increased resistance to brute-force password cracking
+             but is not supported by versions of OpenSSH prior to 6.5.
+             Ed25519 keys always use the new private key format.
 
      -P passphrase
              Provides the (old) passphrase.
@@ -502,7 +505,7 @@ KEY REVOCATION LISTS
 
      It is also possible, given a KRL, to test whether it revokes a particular
      key (or keys).  The -Q flag will query an existing KRL, testing each key
-     specified on the commandline.  If any key listed on the command line has
+     specified on the command line.  If any key listed on the command line has
      been revoked (or an error encountered) then ssh-keygen will exit with a
      non-zero exit status.  A zero exit status will only be returned if no key
      was revoked.
@@ -563,4 +566,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.8                     August 20, 2015                    OpenBSD 5.8
+OpenBSD 5.9                    February 17, 2016                   OpenBSD 5.9
