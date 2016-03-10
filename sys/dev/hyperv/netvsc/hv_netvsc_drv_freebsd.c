@@ -279,13 +279,14 @@ static int hn_use_if_start = 0;
 SYSCTL_INT(_hw_hn, OID_AUTO, use_if_start, CTLFLAG_RDTUN,
     &hn_use_if_start, 0, "Use if_start TX method");
 
-static int hn_ring_cnt = 1;
-SYSCTL_INT(_hw_hn, OID_AUTO, ring_cnt, CTLFLAG_RDTUN,
-    &hn_ring_cnt, 0, "# of TX/RX rings to used");
+static int hn_chan_cnt = 1;
+SYSCTL_INT(_hw_hn, OID_AUTO, chan_cnt, CTLFLAG_RDTUN,
+    &hn_chan_cnt, 0,
+    "# of channels to use; each channel has one RX ring and one TX ring");
 
-static int hn_single_tx_ring = 1;
-SYSCTL_INT(_hw_hn, OID_AUTO, single_tx_ring, CTLFLAG_RDTUN,
-    &hn_single_tx_ring, 0, "Use one TX ring");
+static int hn_tx_ring_cnt = 1;
+SYSCTL_INT(_hw_hn, OID_AUTO, tx_ring_cnt, CTLFLAG_RDTUN,
+    &hn_tx_ring_cnt, 0, "# of TX rings to use");
 
 static u_int hn_cpu_index;
 
@@ -439,24 +440,33 @@ netvsc_attach(device_t dev)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
-	ring_cnt = hn_ring_cnt;
-	if (ring_cnt <= 0 || ring_cnt >= mp_ncpus)
+	/*
+	 * Figure out the # of RX rings (ring_cnt) and the # of TX rings
+	 * to use (tx_ring_cnt).
+	 *
+	 * NOTE:
+	 * The # of RX rings to use is same as the # of channels to use.
+	 */
+	ring_cnt = hn_chan_cnt;
+	if (ring_cnt <= 0 || ring_cnt > mp_ncpus)
 		ring_cnt = mp_ncpus;
-	sc->hn_cpu = atomic_fetchadd_int(&hn_cpu_index, ring_cnt) % mp_ncpus;
 
-	tx_ring_cnt = ring_cnt;
-	if (hn_single_tx_ring || hn_use_if_start) {
-		/*
-		 * - Explicitly asked to use single TX ring.
-		 * - ifnet.if_start is used; ifnet.if_start only needs
-		 *   one TX ring.
-		 */
+	tx_ring_cnt = hn_tx_ring_cnt;
+	if (tx_ring_cnt <= 0 || tx_ring_cnt > ring_cnt)
+		tx_ring_cnt = ring_cnt;
+	if (hn_use_if_start) {
+		/* ifnet.if_start only needs one TX ring. */
 		tx_ring_cnt = 1;
 	}
+
+	/*
+	 * Set the leader CPU for channels.
+	 */
+	sc->hn_cpu = atomic_fetchadd_int(&hn_cpu_index, ring_cnt) % mp_ncpus;
+
 	error = hn_create_tx_data(sc, tx_ring_cnt);
 	if (error)
 		goto failed;
-
 	hn_create_rx_data(sc, ring_cnt);
 
 	/*
@@ -505,12 +515,13 @@ netvsc_attach(device_t dev)
 	error = hv_rf_on_device_add(device_ctx, &device_info, ring_cnt);
 	if (error)
 		goto failed;
-	KASSERT(sc->net_dev->num_channel <= ring_cnt,
+	KASSERT(sc->net_dev->num_channel > 0 &&
+	    sc->net_dev->num_channel <= sc->hn_rx_ring_inuse,
 	    ("invalid channel count %u, should be less than %d",
-	     sc->net_dev->num_channel, ring_cnt));
+	     sc->net_dev->num_channel, sc->hn_rx_ring_inuse));
 
 	/*
-	 * Set # of TX/RX rings that could be used according to
+	 * Set the # of TX/RX rings that could be used according to
 	 * the # of channels that host offered.
 	 */
 	if (sc->hn_tx_ring_inuse > sc->net_dev->num_channel)
