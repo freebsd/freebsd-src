@@ -2084,7 +2084,7 @@ rw_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
 	while (len > 0) {
 		rw_rlock(&mw->mw_lock);
 		mw_end = mw->mw_curpos + mw->mw_aperture;
-		if (addr >= mw_end || addr + len <= mw->mw_curpos) {
+		if (addr >= mw_end || addr < mw->mw_curpos) {
 			/* Will need to reposition the window */
 			if (!rw_try_upgrade(&mw->mw_lock)) {
 				rw_runlock(&mw->mw_lock);
