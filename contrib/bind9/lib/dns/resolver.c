@@ -5385,14 +5385,11 @@ cname_target(dns_rdataset_t *rdataset, dns_name_t *tname) {
 }
 
 static inline isc_result_t
-dname_target(fetchctx_t *fctx, dns_rdataset_t *rdataset, dns_name_t *qname,
-	     dns_name_t *oname, dns_fixedname_t *fixeddname)
+dname_target(dns_rdataset_t *rdataset, dns_name_t *qname,
+	     unsigned int nlabels, dns_fixedname_t *fixeddname)
 {
 	isc_result_t result;
 	dns_rdata_t rdata = DNS_RDATA_INIT;
-	unsigned int nlabels;
-	int order;
-	dns_namereln_t namereln;
 	dns_rdata_dname_t dname;
 	dns_fixedname_t prefix;
 
@@ -5407,21 +5404,6 @@ dname_target(fetchctx_t *fctx, dns_rdataset_t *rdataset, dns_name_t *qname,
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
-	/*
-	 * Get the prefix of qname.
-	 */
-	namereln = dns_name_fullcompare(qname, oname, &order, &nlabels);
-	if (namereln != dns_namereln_subdomain) {
-		char qbuf[DNS_NAME_FORMATSIZE];
-		char obuf[DNS_NAME_FORMATSIZE];
-
-		dns_rdata_freestruct(&dname);
-		dns_name_format(qname, qbuf, sizeof(qbuf));
-		dns_name_format(oname, obuf, sizeof(obuf));
-		log_formerr(fctx, "unrelated DNAME in answer: "
-				   "%s is not in %s", qbuf, obuf);
-		return (DNS_R_FORMERR);
-	}
 	dns_fixedname_init(&prefix);
 	dns_name_split(qname, nlabels, dns_fixedname_name(&prefix), NULL);
 	dns_fixedname_init(fixeddname);
@@ -6034,13 +6016,13 @@ static isc_result_t
 answer_response(fetchctx_t *fctx) {
 	isc_result_t result;
 	dns_message_t *message;
-	dns_name_t *name, *qname, tname, *ns_name;
+	dns_name_t *name, *dname = NULL, *qname, tname, *ns_name;
 	dns_rdataset_t *rdataset, *ns_rdataset;
 	isc_boolean_t done, external, chaining, aa, found, want_chaining;
 	isc_boolean_t have_answer, found_cname, found_type, wanted_chaining;
 	unsigned int aflag;
 	dns_rdatatype_t type;
-	dns_fixedname_t dname, fqname;
+	dns_fixedname_t fdname, fqname;
 	dns_view_t *view;
 
 	FCTXTRACE("answer_response");
@@ -6068,10 +6050,15 @@ answer_response(fetchctx_t *fctx) {
 	view = fctx->res->view;
 	result = dns_message_firstname(message, DNS_SECTION_ANSWER);
 	while (!done && result == ISC_R_SUCCESS) {
+		dns_namereln_t namereln;
+		int order;
+		unsigned int nlabels;
+
 		name = NULL;
 		dns_message_currentname(message, DNS_SECTION_ANSWER, &name);
 		external = ISC_TF(!dns_name_issubdomain(name, &fctx->domain));
-		if (dns_name_equal(name, qname)) {
+		namereln = dns_name_fullcompare(qname, name, &order, &nlabels);
+		if (namereln == dns_namereln_equal) {
 			wanted_chaining = ISC_FALSE;
 			for (rdataset = ISC_LIST_HEAD(name->list);
 			     rdataset != NULL;
@@ -6196,10 +6183,11 @@ answer_response(fetchctx_t *fctx) {
 						 */
 						INSIST(!external);
 						if (aflag ==
-						    DNS_RDATASETATTR_ANSWER)
+						    DNS_RDATASETATTR_ANSWER) {
 							have_answer = ISC_TRUE;
-						name->attributes |=
-							DNS_NAMEATTR_ANSWER;
+							name->attributes |=
+								DNS_NAMEATTR_ANSWER;
+						}
 						rdataset->attributes |= aflag;
 						if (aa)
 							rdataset->trust =
@@ -6254,6 +6242,8 @@ answer_response(fetchctx_t *fctx) {
 			if (wanted_chaining)
 				chaining = ISC_TRUE;
 		} else {
+			dns_rdataset_t *dnameset = NULL;
+
 			/*
 			 * Look for a DNAME (or its SIG).  Anything else is
 			 * ignored.
@@ -6261,32 +6251,56 @@ answer_response(fetchctx_t *fctx) {
 			wanted_chaining = ISC_FALSE;
 			for (rdataset = ISC_LIST_HEAD(name->list);
 			     rdataset != NULL;
-			     rdataset = ISC_LIST_NEXT(rdataset, link)) {
-				isc_boolean_t found_dname = ISC_FALSE;
-				dns_name_t *dname_name;
+			     rdataset = ISC_LIST_NEXT(rdataset, link))
+			{
+				/*
+				 * Only pass DNAME or RRSIG(DNAME).
+				 */
+				if (rdataset->type != dns_rdatatype_dname &&
+				    (rdataset->type != dns_rdatatype_rrsig ||
+				     rdataset->covers != dns_rdatatype_dname))
+					continue;
 
-				found = ISC_FALSE;
+				/*
+				 * If we're not chaining, then the DNAME and
+				 * its signature should not be external.
+				 */
+				if (!chaining && external) {
+					char qbuf[DNS_NAME_FORMATSIZE];
+					char obuf[DNS_NAME_FORMATSIZE];
+
+					dns_name_format(name, qbuf,
+							sizeof(qbuf));
+					dns_name_format(&fctx->domain, obuf,
+							sizeof(obuf));
+					log_formerr(fctx, "external DNAME or "
+						    "RRSIG covering DNAME "
+						    "in answer: %s is "
+						    "not in %s", qbuf, obuf);
+					return (DNS_R_FORMERR);
+				}
+
+				if (namereln != dns_namereln_subdomain) {
+					char qbuf[DNS_NAME_FORMATSIZE];
+					char obuf[DNS_NAME_FORMATSIZE];
+
+					dns_name_format(qname, qbuf,
+							sizeof(qbuf));
+					dns_name_format(name, obuf,
+							sizeof(obuf));
+					log_formerr(fctx, "unrelated DNAME "
+						    "in answer: %s is "
+						    "not in %s", qbuf, obuf);
+					return (DNS_R_FORMERR);
+				}
+
 				aflag = 0;
 				if (rdataset->type == dns_rdatatype_dname) {
-					/*
-					 * We're looking for something else,
-					 * but we found a DNAME.
-					 *
-					 * If we're not chaining, then the
-					 * DNAME should not be external.
-					 */
-					if (!chaining && external) {
-						log_formerr(fctx,
-							    "external DNAME");
-						return (DNS_R_FORMERR);
-					}
-					found = ISC_TRUE;
 					want_chaining = ISC_TRUE;
 					POST(want_chaining);
 					aflag = DNS_RDATASETATTR_ANSWER;
-					result = dname_target(fctx, rdataset,
-							      qname, name,
-							      &dname);
+					result = dname_target(rdataset, qname,
+							      nlabels, &fdname);
 					if (result == ISC_R_NOSPACE) {
 						/*
 						 * We can't construct the
@@ -6298,89 +6312,72 @@ answer_response(fetchctx_t *fctx) {
 					} else if (result != ISC_R_SUCCESS)
 						return (result);
 					else
-						found_dname = ISC_TRUE;
+						dnameset = rdataset;
 
-					dname_name = dns_fixedname_name(&dname);
+					dname = dns_fixedname_name(&fdname);
 					if (!is_answertarget_allowed(view,
-							qname,
-							rdataset->type,
-							dname_name,
-							&fctx->domain)) {
+							qname, rdataset->type,
+							dname, &fctx->domain)) {
 						return (DNS_R_SERVFAIL);
 					}
-				} else if (rdataset->type == dns_rdatatype_rrsig
-					   && rdataset->covers ==
-					   dns_rdatatype_dname) {
+				} else {
 					/*
 					 * We've found a signature that
 					 * covers the DNAME.
 					 */
-					found = ISC_TRUE;
 					aflag = DNS_RDATASETATTR_ANSWERSIG;
 				}
 
-				if (found) {
+				/*
+				 * We've found an answer to our
+				 * question.
+				 */
+				name->attributes |= DNS_NAMEATTR_CACHE;
+				rdataset->attributes |= DNS_RDATASETATTR_CACHE;
+				rdataset->trust = dns_trust_answer;
+				if (!chaining) {
 					/*
-					 * We've found an answer to our
-					 * question.
+					 * This data is "the" answer to
+					 * our question only if we're
+					 * not chaining.
 					 */
-					name->attributes |=
-						DNS_NAMEATTR_CACHE;
-					rdataset->attributes |=
-						DNS_RDATASETATTR_CACHE;
-					rdataset->trust = dns_trust_answer;
-					if (!chaining) {
-						/*
-						 * This data is "the" answer
-						 * to our question only if
-						 * we're not chaining.
-						 */
-						INSIST(!external);
-						if (aflag ==
-						    DNS_RDATASETATTR_ANSWER)
-							have_answer = ISC_TRUE;
+					INSIST(!external);
+					if (aflag == DNS_RDATASETATTR_ANSWER) {
+						have_answer = ISC_TRUE;
 						name->attributes |=
 							DNS_NAMEATTR_ANSWER;
-						rdataset->attributes |= aflag;
-						if (aa)
-							rdataset->trust =
-							  dns_trust_authanswer;
-					} else if (external) {
-						rdataset->attributes |=
-						    DNS_RDATASETATTR_EXTERNAL;
 					}
-
-					/*
-					 * DNAME chaining.
-					 */
-					if (found_dname) {
-						/*
-						 * Copy the dname into the
-						 * qname fixed name.
-						 *
-						 * Although we check for
-						 * failure of the copy
-						 * operation, in practice it
-						 * should never fail since
-						 * we already know that the
-						 * result fits in a fixedname.
-						 */
-						dns_fixedname_init(&fqname);
-						result = dns_name_copy(
-						  dns_fixedname_name(&dname),
-						  dns_fixedname_name(&fqname),
-						  NULL);
-						if (result != ISC_R_SUCCESS)
-							return (result);
-						wanted_chaining = ISC_TRUE;
-						name->attributes |=
-							DNS_NAMEATTR_CHAINING;
-						rdataset->attributes |=
-						    DNS_RDATASETATTR_CHAINING;
-						qname = dns_fixedname_name(
-								   &fqname);
-					}
+					rdataset->attributes |= aflag;
+					if (aa)
+						rdataset->trust =
+						  dns_trust_authanswer;
+				} else if (external) {
+					rdataset->attributes |=
+					    DNS_RDATASETATTR_EXTERNAL;
 				}
+			}
+
+			/*
+			 * DNAME chaining.
+			 */
+			if (dnameset != NULL) {
+				/*
+				 * Copy the dname into the qname fixed name.
+				 *
+				 * Although we check for failure of the copy
+				 * operation, in practice it should never fail
+				 * since we already know that the  result fits
+				 * in a fixedname.
+				 */
+				dns_fixedname_init(&fqname);
+				qname = dns_fixedname_name(&fqname);
+				result = dns_name_copy(dname, qname, NULL);
+				if (result != ISC_R_SUCCESS)
+					return (result);
+				wanted_chaining = ISC_TRUE;
+				name->attributes |= DNS_NAMEATTR_CHAINING;
+				dnameset->attributes |=
+					    DNS_RDATASETATTR_CHAINING;
 			}
 			if (wanted_chaining)
 				chaining = ISC_TRUE;

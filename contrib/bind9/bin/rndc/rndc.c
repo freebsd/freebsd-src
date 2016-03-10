@@ -252,8 +252,8 @@ rndc_recvdone(isc_task_t *task, isc_event_t *event) {
 	DO("parse message", isccc_cc_fromwire(&source, &response, &secret));
 
 	data = isccc_alist_lookup(response, "_data");
-	if (data == NULL)
-		fatal("no data section in response");
+	if (!isccc_alist_alistp(data))
+		fatal("bad or missing data section in response");
 	result = isccc_cc_lookupstring(data, "err", &errormsg);
 	if (result == ISC_R_SUCCESS) {
 		failed = ISC_TRUE;
@@ -316,8 +316,8 @@ rndc_recvnonce(isc_task_t *task, isc_event_t *event) {
 	DO("parse message", isccc_cc_fromwire(&source, &response, &secret));
 
 	_ctrl = isccc_alist_lookup(response, "_ctrl");
-	if (_ctrl == NULL)
-		fatal("_ctrl section missing");
+	if (!isccc_alist_alistp(_ctrl))
+		fatal("bad or missing ctrl section in response");
 	nonce = 0;
 	if (isccc_cc_lookupuint32(_ctrl, "_nonce", &nonce) != ISC_R_SUCCESS)
 		nonce = 0;
