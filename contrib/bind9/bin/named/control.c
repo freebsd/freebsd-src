@@ -69,7 +69,7 @@ ns_control_docommand(isccc_sexpr_t *message, isc_buffer_t *text) {
 #endif
 
 	data = isccc_alist_lookup(message, "_data");
-	if (data == NULL) {
+	if (!isccc_alist_alistp(data)) {
 		/*
 		 * No data section.
 		 */
