@@ -30,71 +30,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _MACHINE_STACK_H_
+#define	_MACHINE_STACK_H_
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/stack.h>
+#define	INKERNEL(va)	((va) >= VM_MIN_KERNEL_ADDRESS && \
+			 (va) <= VM_MAX_KERNEL_ADDRESS)
 
-#include <machine/vmparam.h>
-#include <machine/pcb.h>
-#include <machine/stack.h>
-
-static void
-stack_capture(struct stack *st, struct unwind_state *frame)
-{
-
-	stack_zero(st);
-
-	while (1) {
-		unwind_frame(frame);
-		if (!INKERNEL((vm_offset_t)frame->fp) ||
-		     !INKERNEL((vm_offset_t)frame->pc))
-			break;
-		if (stack_put(st, frame->pc) == -1)
-			break;
-	}
-}
-
-void
-stack_save_td(struct stack *st, struct thread *td)
-{
-	struct unwind_state frame;
-
-	if (TD_IS_SWAPPED(td))
-		panic("stack_save_td: swapped");
-	if (TD_IS_RUNNING(td))
-		panic("stack_save_td: running");
-
-	frame.sp = td->td_pcb->pcb_sp;
-	frame.fp = td->td_pcb->pcb_s[0];
-	frame.pc = td->td_pcb->pcb_ra;
-
-	stack_capture(st, &frame);
-}
-
-int
-stack_save_td_running(struct stack *st, struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-void
-stack_save(struct stack *st)
-{
-	struct unwind_state frame;
+struct unwind_state {
+	uint64_t fp;
 	uint64_t sp;
+	uint64_t pc;
+};
 
-	__asm __volatile("mv %0, sp" : "=&r" (sp));
+int unwind_frame(struct unwind_state *);
 
-	frame.sp = sp;
-	frame.fp = (uint64_t)__builtin_frame_address(0);
-	frame.pc = (uint64_t)stack_save;
-
-	stack_capture(st, &frame);
-}
+#endif /* !_MACHINE_STACK_H_ */

@@ -267,10 +267,37 @@ riscv_cnungrab(struct consdev *cp)
 static int
 riscv_cngetc(struct consdev *cp)
 {
+#if defined(KDB)
+	uint64_t devcmd;
+	uint64_t entry;
+	uint64_t devid;
+#endif
 	uint8_t data;
 	int ch;
 
-	ch = htif_getc();
+	htif_getc();
+
+#if defined(KDB)
+	if (kdb_active) {
+		entry = machine_command(ECALL_HTIF_GET_ENTRY, 0);
+		while (entry) {
+			devid = HTIF_DEV_ID(entry);
+			devcmd = HTIF_DEV_CMD(entry);
+			data = HTIF_DEV_DATA(entry);
+
+			if (devid == CONSOLE_DEFAULT_ID && devcmd == 0) {
+				entry_last->data = data;
+				entry_last->used = 1;
+				entry_last = entry_last->next;
+			} else {
+				printf("Lost interrupt: devid %d\n",
+				    devid);
+			}
+
+			entry = machine_command(ECALL_HTIF_GET_ENTRY, 0);
+		}
+	}
+#endif
 
 	if (entry_served->used == 1) {
 		data = entry_served->data;

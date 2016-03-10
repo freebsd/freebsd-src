@@ -30,71 +30,87 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _MACHINE_RISCV_OPCODE_H_
+#define	_MACHINE_RISCV_OPCODE_H_
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/stack.h>
+/*
+ * Define the instruction formats and opcode values for the
+ * RISC-V instruction set.
+ */
+#include <machine/endian.h>
 
-#include <machine/vmparam.h>
-#include <machine/pcb.h>
-#include <machine/stack.h>
+/*
+ * Define the instruction formats.
+ */
+typedef union {
+	unsigned word;
 
-static void
-stack_capture(struct stack *st, struct unwind_state *frame)
-{
+	struct {
+		unsigned opcode: 7;
+		unsigned rd: 5;
+		unsigned funct3: 3;
+		unsigned rs1: 5;
+		unsigned rs2: 5;
+		unsigned funct7: 7;
+	} RType;
 
-	stack_zero(st);
+	struct {
+		unsigned opcode: 7;
+		unsigned rd: 5;
+		unsigned funct3: 3;
+		unsigned rs1: 5;
+		unsigned rs2: 6;
+		unsigned funct7: 6;
+	} R2Type;
 
-	while (1) {
-		unwind_frame(frame);
-		if (!INKERNEL((vm_offset_t)frame->fp) ||
-		     !INKERNEL((vm_offset_t)frame->pc))
-			break;
-		if (stack_put(st, frame->pc) == -1)
-			break;
-	}
-}
+	struct {
+		unsigned opcode: 7;
+		unsigned rd: 5;
+		unsigned funct3: 3;
+		unsigned rs1: 5;
+		unsigned imm: 12;
+	} IType;
 
-void
-stack_save_td(struct stack *st, struct thread *td)
-{
-	struct unwind_state frame;
+	struct {
+		unsigned opcode: 7;
+		unsigned imm0_4: 5;
+		unsigned funct3: 3;
+		unsigned rs1: 5;
+		unsigned rs2: 5;
+		unsigned imm5_11: 7;
+	} SType;
 
-	if (TD_IS_SWAPPED(td))
-		panic("stack_save_td: swapped");
-	if (TD_IS_RUNNING(td))
-		panic("stack_save_td: running");
+	struct {
+		unsigned opcode: 7;
+		unsigned imm11: 1;
+		unsigned imm1_4: 4;
+		unsigned funct3: 3;
+		unsigned rs1: 5;
+		unsigned rs2: 5;
+		unsigned imm5_10: 6;
+		unsigned imm12: 1;
+	} SBType;
 
-	frame.sp = td->td_pcb->pcb_sp;
-	frame.fp = td->td_pcb->pcb_s[0];
-	frame.pc = td->td_pcb->pcb_ra;
+	struct {
+		unsigned opcode: 7;
+		unsigned rd: 5;
+		unsigned imm12_31: 20;
+	} UType;
 
-	stack_capture(st, &frame);
-}
+	struct {
+		unsigned opcode: 7;
+		unsigned rd: 5;
+		unsigned imm12_19: 8;
+		unsigned imm11: 1;
+		unsigned imm1_10: 10;
+		unsigned imm20: 1;
+	} UJType;
+} InstFmt;
 
-int
-stack_save_td_running(struct stack *st, struct thread *td)
-{
+#define	RISCV_OPCODE(r)		(r & 0x7f)
 
-	return (EOPNOTSUPP);
-}
-
-void
-stack_save(struct stack *st)
-{
-	struct unwind_state frame;
-	uint64_t sp;
-
-	__asm __volatile("mv %0, sp" : "=&r" (sp));
-
-	frame.sp = sp;
-	frame.fp = (uint64_t)__builtin_frame_address(0);
-	frame.pc = (uint64_t)stack_save;
-
-	stack_capture(st, &frame);
-}
+#endif /* !_MACHINE_RISCV_OPCODE_H_ */

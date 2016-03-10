@@ -34,67 +34,24 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/stack.h>
 
-#include <machine/vmparam.h>
-#include <machine/pcb.h>
 #include <machine/stack.h>
-
-static void
-stack_capture(struct stack *st, struct unwind_state *frame)
-{
-
-	stack_zero(st);
-
-	while (1) {
-		unwind_frame(frame);
-		if (!INKERNEL((vm_offset_t)frame->fp) ||
-		     !INKERNEL((vm_offset_t)frame->pc))
-			break;
-		if (stack_put(st, frame->pc) == -1)
-			break;
-	}
-}
-
-void
-stack_save_td(struct stack *st, struct thread *td)
-{
-	struct unwind_state frame;
-
-	if (TD_IS_SWAPPED(td))
-		panic("stack_save_td: swapped");
-	if (TD_IS_RUNNING(td))
-		panic("stack_save_td: running");
-
-	frame.sp = td->td_pcb->pcb_sp;
-	frame.fp = td->td_pcb->pcb_s[0];
-	frame.pc = td->td_pcb->pcb_ra;
-
-	stack_capture(st, &frame);
-}
+#include <machine/vmparam.h>
 
 int
-stack_save_td_running(struct stack *st, struct thread *td)
+unwind_frame(struct unwind_state *frame)
 {
+	uint64_t fp;
 
-	return (EOPNOTSUPP);
-}
+	fp = frame->fp;
 
-void
-stack_save(struct stack *st)
-{
-	struct unwind_state frame;
-	uint64_t sp;
+	if (!INKERNEL(fp))
+		return (-1);
 
-	__asm __volatile("mv %0, sp" : "=&r" (sp));
+	frame->sp = fp;
+	frame->fp = *(uint64_t *)(fp - 16);
+	frame->pc = *(uint64_t *)(fp - 8) - 4;
 
-	frame.sp = sp;
-	frame.fp = (uint64_t)__builtin_frame_address(0);
-	frame.pc = (uint64_t)stack_save;
-
-	stack_capture(st, &frame);
+	return (0);
 }
