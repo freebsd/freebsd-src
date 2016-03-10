@@ -90,7 +90,10 @@ int main(int argc, char **argv)
 	char *iname, *oname, *obuf, *ibuf;
 	uint64_t *toc;
 	int fdr, fdw, i, opt, verbose, no_zcomp, tmp, en_dedup;
-	int summary;
+	struct {
+		int en;
+		FILE *f;
+	} summary;
 	struct iovec iov[2];
 	struct stat sb;
 	uint32_t destlen;
@@ -105,7 +108,8 @@ int main(int argc, char **argv)
 	verbose = 0;
 	no_zcomp = 0;
 	en_dedup = 0;
-	summary = 0;
+	summary.en = 0;
+	summary.f = stderr;
 	handler = &uzip_fmt;
 
 	while((opt = getopt(argc, argv, "o:s:vZdLS")) != -1) {
@@ -141,7 +145,8 @@ int main(int argc, char **argv)
 			break;
 
 		case 'S':
-			summary = 1;
+			summary.en = 1;
+			summary.f = stdout;
 			break;
 
 		default:
@@ -300,8 +305,8 @@ int main(int argc, char **argv)
 	}
 	close(fdr);
 
-	if (verbose != 0 || summary != 0)
-		fprintf(stderr, "compressed data to %ju bytes, saved %lld "
+	if (verbose != 0 || summary.en != 0)
+		fprintf(summary.f, "compressed data to %ju bytes, saved %lld "
 		    "bytes, %.2f%% decrease.\n", offset,
 		    (long long)(sb.st_size - offset),
 		    100.0 * (long long)(sb.st_size - offset) /
