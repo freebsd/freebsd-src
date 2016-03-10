@@ -5862,6 +5862,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;
 				}
+				sctp_chunk_output(inp, stcb,  SCTP_OUTPUT_FROM_SOCKOPT, SCTP_SO_LOCKED);
 		out_of_it:
 				SCTP_TCB_UNLOCK(stcb);
 			} else {
