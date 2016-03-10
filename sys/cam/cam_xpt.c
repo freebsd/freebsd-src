@@ -2610,6 +2610,7 @@ xpt_action_default(union ccb *start_ccb)
 	case XPT_RESET_BUS:
 	case XPT_IMMEDIATE_NOTIFY:
 	case XPT_NOTIFY_ACKNOWLEDGE:
+	case XPT_GET_SIM_KNOB_OLD:
 	case XPT_GET_SIM_KNOB:
 	case XPT_SET_SIM_KNOB:
 	case XPT_GET_TRAN_SETTINGS:

@@ -3944,6 +3944,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		xpt_done(ccb);
 		break;
 	}
+	case XPT_GET_SIM_KNOB_OLD:	/* Get SIM knobs -- compat value */
 	case XPT_GET_SIM_KNOB:		/* Get SIM knobs */
 	{
 		struct ccb_sim_knob *kp = &ccb->knob;
