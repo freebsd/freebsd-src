@@ -2016,52 +2016,135 @@ setup_memwin(struct adapter *sc)
 	t4_read_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, 2));
 }
 
+static int
+t4_range_cmp(const void *a, const void *b)
+{
+	return ((const struct t4_range *)a)->start -
+	       ((const struct t4_range *)b)->start;
+}
+
 /*
- * Verify that the memory range specified by the addr/len pair is valid and lies
- * entirely within a single region (EDCx or MCx).
+ * Verify that the memory range specified by the addr/len pair is valid within
+ * the card's address space.
  */
 static int
 validate_mem_range(struct adapter *sc, uint32_t addr, int len)
 {
-	uint32_t em, addr_len, maddr, mlen;
+	struct t4_range mem_ranges[4], *r, *next;
+	uint32_t em, addr_len;
+	int i, n, remaining;
 
 	/* Memory can only be accessed in naturally aligned 4 byte units */
-	if (addr & 3 || len & 3 || len == 0)
+	if (addr & 3 || len & 3 || len <= 0)
 		return (EINVAL);
 
 	/* Enabled memories */
 	em = t4_read_reg(sc, A_MA_TARGET_MEM_ENABLE);
+
+	r = &mem_ranges[0];
+	n = 0;
+	bzero(r, sizeof(mem_ranges));
 	if (em & F_EDRAM0_ENABLE) {
 		addr_len = t4_read_reg(sc, A_MA_EDRAM0_BAR);
-		maddr = G_EDRAM0_BASE(addr_len) << 20;
-		mlen = G_EDRAM0_SIZE(addr_len) << 20;
-		if (mlen > 0 && addr >= maddr && addr < maddr + mlen &&
-		    addr + len <= maddr + mlen)
-			return (0);
+		r->size = G_EDRAM0_SIZE(addr_len) << 20;
+		if (r->size > 0) {
+			r->start = G_EDRAM0_BASE(addr_len) << 20;
+			if (addr >= r->start &&
+			    addr + len <= r->start + r->size)
+				return (0);
+			r++;
+			n++;
+		}
 	}
 	if (em & F_EDRAM1_ENABLE) {
 		addr_len = t4_read_reg(sc, A_MA_EDRAM1_BAR);
-		maddr = G_EDRAM1_BASE(addr_len) << 20;
-		mlen = G_EDRAM1_SIZE(addr_len) << 20;
-		if (mlen > 0 && addr >= maddr && addr < maddr + mlen &&
-		    addr + len <= maddr + mlen)
-			return (0);
+		r->size = G_EDRAM1_SIZE(addr_len) << 20;
+		if (r->size > 0) {
+			r->start = G_EDRAM1_BASE(addr_len) << 20;
+			if (addr >= r->start &&
+			    addr + len <= r->start + r->size)
+				return (0);
+			r++;
+			n++;
+		}
 	}
 	if (em & F_EXT_MEM_ENABLE) {
 		addr_len = t4_read_reg(sc, A_MA_EXT_MEMORY_BAR);
-		maddr = G_EXT_MEM_BASE(addr_len) << 20;
-		mlen = G_EXT_MEM_SIZE(addr_len) << 20;
-		if (mlen > 0 && addr >= maddr && addr < maddr + mlen &&
-		    addr + len <= maddr + mlen)
-			return (0);
+		r->size = G_EXT_MEM_SIZE(addr_len) << 20;
+		if (r->size > 0) {
+			r->start = G_EXT_MEM_BASE(addr_len) << 20;
+			if (addr >= r->start &&
+			    addr + len <= r->start + r->size)
+				return (0);
+			r++;
+			n++;
+		}
 	}
-	if (!is_t4(sc) && em & F_EXT_MEM1_ENABLE) {
+	if (is_t5(sc) && em & F_EXT_MEM1_ENABLE) {
 		addr_len = t4_read_reg(sc, A_MA_EXT_MEMORY1_BAR);
-		maddr = G_EXT_MEM1_BASE(addr_len) << 20;
-		mlen = G_EXT_MEM1_SIZE(addr_len) << 20;
-		if (mlen > 0 && addr >= maddr && addr < maddr + mlen &&
-		    addr + len <= maddr + mlen)
-			return (0);
+		r->size = G_EXT_MEM1_SIZE(addr_len) << 20;
+		if (r->size > 0) {
+			r->start = G_EXT_MEM1_BASE(addr_len) << 20;
+			if (addr >= r->start &&
+			    addr + len <= r->start + r->size)
+				return (0);
+			r++;
+			n++;
+		}
+	}
+	MPASS(n <= nitems(mem_ranges));
+
+	if (n > 1) {
+		/* Sort and merge the ranges. */
+		qsort(mem_ranges, n, sizeof(struct t4_range), t4_range_cmp);
+
+		/* Start from index 0 and examine the next n - 1 entries. */
+		r = &mem_ranges[0];
+		for (remaining = n - 1; remaining > 0; remaining--, r++) {
+
+			MPASS(r->size > 0);	/* r is a valid entry. */
+			next = r + 1;
+			MPASS(next->size > 0);	/* and so is the next one. */
+
+			while (r->start + r->size >= next->start) {
+				/* Merge the next one into the current entry. */
+				r->size = max(r->start + r->size,
+				    next->start + next->size) - r->start;
+				n--;	/* One fewer entry in total. */
+				if (--remaining == 0)
+					goto done;	/* short circuit */
+				next++;
+			}
+			if (next != r + 1) {
+				/*
+				 * Some entries were merged into r and next
+				 * points to the first valid entry that couldn't
+				 * be merged.
+				 */
+				MPASS(next->size > 0);	/* must be valid */
+				memcpy(r + 1, next, remaining * sizeof(*r));
+#ifdef INVARIANTS
+				/*
+				 * This so that the foo->size assertion in the
+				 * next iteration of the loop do the right
+				 * thing for entries that were pulled up and are
+				 * no longer valid.
+				 */
+				MPASS(n < nitems(mem_ranges));
+				bzero(&mem_ranges[n], (nitems(mem_ranges) - n) *
+				    sizeof(struct t4_range));
+#endif
+			}
+		}
+done:
+		/* Done merging the ranges. */
+		MPASS(n > 0);
+		r = &mem_ranges[0];
+		for (i = 0; i < n; i++, r++) {
+			if (addr >= r->start &&
+			    addr + len <= r->start + r->size)
+				return (0);
+		}
 	}
 
 	return (EFAULT);
@@ -2094,7 +2177,7 @@ static int
 validate_mt_off_len(struct adapter *sc, int mtype, uint32_t off, int len,
     uint32_t *addr)
 {
-	uint32_t em, addr_len, maddr, mlen;
+	uint32_t em, addr_len, maddr;
 
 	/* Memory can only be accessed in naturally aligned 4 byte units */
 	if (off & 3 || len & 3 || len == 0)
@@ -2107,39 +2190,31 @@ validate_mt_off_len(struct adapter *sc, int mtype, uint32_t off, int len,
 			return (EINVAL);
 		addr_len = t4_read_reg(sc, A_MA_EDRAM0_BAR);
 		maddr = G_EDRAM0_BASE(addr_len) << 20;
-		mlen = G_EDRAM0_SIZE(addr_len) << 20;
 		break;
 	case MEM_EDC1:
 		if (!(em & F_EDRAM1_ENABLE))
 			return (EINVAL);
 		addr_len = t4_read_reg(sc, A_MA_EDRAM1_BAR);
 		maddr = G_EDRAM1_BASE(addr_len) << 20;
-		mlen = G_EDRAM1_SIZE(addr_len) << 20;
 		break;
 	case MEM_MC:
 		if (!(em & F_EXT_MEM_ENABLE))
 			return (EINVAL);
 		addr_len = t4_read_reg(sc, A_MA_EXT_MEMORY_BAR);
 		maddr = G_EXT_MEM_BASE(addr_len) << 20;
-		mlen = G_EXT_MEM_SIZE(addr_len) << 20;
 		break;
 	case MEM_MC1:
-		if (is_t4(sc) || !(em & F_EXT_MEM1_ENABLE))
+		if (!is_t5(sc) || !(em & F_EXT_MEM1_ENABLE))
 			return (EINVAL);
 		addr_len = t4_read_reg(sc, A_MA_EXT_MEMORY1_BAR);
 		maddr = G_EXT_MEM1_BASE(addr_len) << 20;
-		mlen = G_EXT_MEM1_SIZE(addr_len) << 20;
 		break;
 	default:
 		return (EINVAL);
 	}
 
-	if (mlen > 0 && off < mlen && off + len <= mlen) {
-		*addr = maddr + off;	/* global address */
-		return (0);
-	}
-
-	return (EFAULT);
+	*addr = maddr + off;	/* global address */
+	return (validate_mem_range(sc, *addr, len));
 }
 
 static void
