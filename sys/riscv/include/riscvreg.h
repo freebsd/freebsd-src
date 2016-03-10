@@ -117,9 +117,10 @@
 #define	SIP_SSIP	(1 << 1)
 #define	SIP_STIP	(1 << 5)
 
-#define	NCSRS	4096
-#define	CSR_IPI	0x783
-#define	XLEN	8
+#define	NCSRS		4096
+#define	CSR_IPI		0x783
+#define	XLEN		8
+#define	INSN_SIZE	4
 
 #define	CSR_ZIMM(val)							\
 	(__builtin_constant_p(val) && ((u_long)(val) < 32))

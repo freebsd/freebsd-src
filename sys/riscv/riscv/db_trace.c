@@ -1,6 +1,10 @@
 /*-
+ * Copyright (c) 2015 The FreeBSD Foundation
  * Copyright (c) 2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
+ *
+ * Portions of this software were developed by Semihalf under
+ * the sponsorship of the FreeBSD Foundation.
  *
  * Portions of this software were developed by SRI International and the
  * University of Cambridge Computer Laboratory under DARPA/AFRL contract
@@ -34,58 +38,90 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/stack.h>
-
-#include <machine/vmparam.h>
+#include <sys/kdb.h>
 #include <machine/pcb.h>
+#include <ddb/ddb.h>
+#include <ddb/db_sym.h>
+
+#include <machine/riscvreg.h>
 #include <machine/stack.h>
 
-static void
-stack_capture(struct stack *st, struct unwind_state *frame)
-{
-
-	stack_zero(st);
-
-	while (1) {
-		unwind_frame(frame);
-		if (!INKERNEL((vm_offset_t)frame->fp) ||
-		     !INKERNEL((vm_offset_t)frame->pc))
-			break;
-		if (stack_put(st, frame->pc) == -1)
-			break;
-	}
-}
-
 void
-stack_save_td(struct stack *st, struct thread *td)
+db_md_list_watchpoints()
 {
-	struct unwind_state frame;
 
-	if (TD_IS_SWAPPED(td))
-		panic("stack_save_td: swapped");
-	if (TD_IS_RUNNING(td))
-		panic("stack_save_td: running");
-
-	frame.sp = td->td_pcb->pcb_sp;
-	frame.fp = td->td_pcb->pcb_s[0];
-	frame.pc = td->td_pcb->pcb_ra;
-
-	stack_capture(st, &frame);
 }
 
 int
-stack_save_td_running(struct stack *st, struct thread *td)
+db_md_clr_watchpoint(db_expr_t addr, db_expr_t size)
 {
 
-	return (EOPNOTSUPP);
+	return (0);
+}
+
+int
+db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
+{
+
+	return (0);
+}
+
+static void
+db_stack_trace_cmd(struct unwind_state *frame)
+{
+	const char *name;
+	db_expr_t offset;
+	db_expr_t value;
+	c_db_sym_t sym;
+	uint64_t pc;
+
+	while (1) {
+		pc = frame->pc;
+
+		if (unwind_frame(frame) < 0)
+			break;
+
+		sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
+		if (sym == C_DB_SYM_NULL) {
+			value = 0;
+			name = "(null)";
+		} else
+			db_symbol_values(sym, &name, &value);
+
+		db_printf("%s() at ", name);
+		db_printsym(frame->pc, DB_STGY_PROC);
+		db_printf("\n");
+
+		db_printf("\t pc = 0x%016lx ra = 0x%016lx\n",
+		    pc, frame->pc);
+		db_printf("\t sp = 0x%016lx fp = 0x%016lx\n",
+		    frame->sp, frame->fp);
+		db_printf("\n");
+	}
+}
+
+int
+db_trace_thread(struct thread *thr, int count)
+{
+	struct unwind_state frame;
+	struct pcb *ctx;
+
+	if (thr != curthread) {
+		ctx = kdb_thr_ctx(thr);
+
+		frame.sp = (uint64_t)ctx->pcb_sp;
+		frame.fp = (uint64_t)ctx->pcb_s[0];
+		frame.pc = (uint64_t)ctx->pcb_ra;
+		db_stack_trace_cmd(&frame);
+	} else
+		db_trace_self();
+	return (0);
 }
 
 void
-stack_save(struct stack *st)
+db_trace_self(void)
 {
 	struct unwind_state frame;
 	uint64_t sp;
@@ -94,7 +130,6 @@ stack_save(struct stack *st)
 
 	frame.sp = sp;
 	frame.fp = (uint64_t)__builtin_frame_address(0);
-	frame.pc = (uint64_t)stack_save;
-
-	stack_capture(st, &frame);
+	frame.pc = (uint64_t)db_trace_self;
+	db_stack_trace_cmd(&frame);
 }
