@@ -1443,7 +1443,11 @@ je_malloc(size_t size)
 	}
 	UTRACE(0, size, ret);
 	JEMALLOC_VALGRIND_MALLOC(ret != NULL, ret, usize, false);
+#ifndef __CHERI_PURE_CAPABILITY__
 	return (ret);
+#else
+	return (cheri_csetbounds(ret, isalloc(ret, false)));
+#endif
 }
 
 static void *
@@ -1536,7 +1540,11 @@ imemalign(void **memptr, size_t alignment, size_t size, size_t min_alignment)
 	assert(((size_t)result & (alignment - 1)) == ZU(0));
 #endif
 
+#ifndef __CHERI_PURE_CAPABILITY__
 	*memptr = result;
+#else
+	*memptr = cheri_csetbounds(result, usize);
+#endif
 	ret = 0;
 label_return:
 	if (config_stats && likely(result != NULL)) {
@@ -1580,7 +1588,11 @@ je_aligned_alloc(size_t alignment, size_t size)
 	}
 	JEMALLOC_VALGRIND_MALLOC(err == 0, ret, isalloc(ret, config_prof),
 	    false);
+#ifndef __CHERI_PURE_CAPABILITY__
 	return (ret);
+#else
+	return (cheri_csetbounds(ret, isalloc(ret, false)));
+#endif
 }
 
 static void *
@@ -1686,7 +1698,11 @@ label_return:
 	}
 	UTRACE(0, num_size, ret);
 	JEMALLOC_VALGRIND_MALLOC(ret != NULL, ret, usize, true);
+#ifndef __CHERI_PURE_CAPABILITY__
 	return (ret);
+#else
+	return (cheri_csetbounds(ret, isalloc(ret, false)));
+#endif
 }
 
 static void *
@@ -1834,7 +1850,11 @@ je_realloc(void *ptr, size_t size)
 	UTRACE(ptr, size, ret);
 	JEMALLOC_VALGRIND_REALLOC(true, ret, usize, true, ptr, old_usize,
 	    old_rzsize, true, false);
+#ifndef __CHERI_PURE_CAPABILITY__
 	return (ret);
+#else
+	return (cheri_csetbounds(ret, isalloc(ret, false)));
+#endif
 }
 
 JEMALLOC_EXPORT void JEMALLOC_NOTHROW
@@ -2534,7 +2554,11 @@ je_allocm(void **ptr, size_t *rsize, size_t size, int flags)
 		return (ALLOCM_ERR_OOM);
 	if (rsize != NULL)
 		*rsize = isalloc(p, config_prof);
+#ifndef __CHERI_PURE_CAPABILITY__
 	*ptr = p;
+#else
+	*ptr =  cheri_csetbounds(p, isalloc(p, false));
+#endif
 	return (ALLOCM_SUCCESS);
 }
 
@@ -2558,6 +2582,11 @@ je_rallocm(void **ptr, size_t *rsize, size_t size, size_t extra, int flags)
 		void *p = je_rallocx(*ptr, size+extra, flags);
 		if (p != NULL) {
 			*ptr = p;
+#ifndef __CHERI_PURE_CAPABILITY__
+			*ptr = p;
+#else
+			*ptr =  cheri_csetbounds(p, isalloc(p, false));
+#endif
 			ret = ALLOCM_SUCCESS;
 		} else
 			ret = ALLOCM_ERR_OOM;
