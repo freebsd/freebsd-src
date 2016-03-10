@@ -399,12 +399,16 @@ struct filter_entry {
 static int map_bars_0_and_4(struct adapter *);
 static int map_bar_2(struct adapter *);
 static void setup_memwin(struct adapter *);
+static void position_memwin(struct adapter *, int, uint32_t);
+static int rw_via_memwin(struct adapter *, int, uint32_t, uint32_t *, int, int);
+static inline int read_via_memwin(struct adapter *, int, uint32_t, uint32_t *,
+    int);
+static inline int write_via_memwin(struct adapter *, int, uint32_t,
+    const uint32_t *, int);
 static int validate_mem_range(struct adapter *, uint32_t, int);
 static int fwmtype_to_hwmtype(int);
 static int validate_mt_off_len(struct adapter *, int, uint32_t, int,
     uint32_t *);
-static void memwin_info(struct adapter *, int, uint32_t *, uint32_t *);
-static uint32_t position_memwin(struct adapter *, int, uint32_t);
 static int cfg_itype_and_nqueues(struct adapter *, int, int, int,
     struct intrs_and_queues *);
 static int prep_firmware(struct adapter *);
@@ -1163,6 +1167,13 @@ t4_detach(device_t dev)
 		mtx_destroy(&sc->ifp_lock);
 	if (mtx_initialized(&sc->reg_lock))
 		mtx_destroy(&sc->reg_lock);
+
+	for (i = 0; i < NUM_MEMWIN; i++) {
+		struct memwin *mw = &sc->memwin[i];
+
+		if (rw_initialized(&mw->mw_lock))
+			rw_destroy(&mw->mw_lock);
+	}
 
 	bzero(sc, sizeof(*sc));
 
@@ -1965,13 +1976,18 @@ map_bar_2(struct adapter *sc)
 	return (0);
 }
 
-static const struct memwin t4_memwin[] = {
+struct memwin_init {
+	uint32_t base;
+	uint32_t aperture;
+};
+
+static const struct memwin_init t4_memwin[NUM_MEMWIN] = {
 	{ MEMWIN0_BASE, MEMWIN0_APERTURE },
 	{ MEMWIN1_BASE, MEMWIN1_APERTURE },
 	{ MEMWIN2_BASE_T4, MEMWIN2_APERTURE_T4 }
 };
 
-static const struct memwin t5_memwin[] = {
+static const struct memwin_init t5_memwin[NUM_MEMWIN] = {
 	{ MEMWIN0_BASE, MEMWIN0_APERTURE },
 	{ MEMWIN1_BASE, MEMWIN1_APERTURE },
 	{ MEMWIN2_BASE_T5, MEMWIN2_APERTURE_T5 },
@@ -1980,8 +1996,9 @@ static const struct memwin t5_memwin[] = {
 static void
 setup_memwin(struct adapter *sc)
 {
-	const struct memwin *mw;
-	int i, n;
+	const struct memwin_init *mw_init;
+	struct memwin *mw;
+	int i;
 	uint32_t bar0;
 
 	if (is_t4(sc)) {
@@ -1995,25 +2012,123 @@ setup_memwin(struct adapter *sc)
 		bar0 = t4_hw_pci_read_cfg4(sc, PCIR_BAR(0));
 		bar0 &= (uint32_t) PCIM_BAR_MEM_BASE;
 
-		mw = &t4_memwin[0];
-		n = nitems(t4_memwin);
+		mw_init = &t4_memwin[0];
 	} else {
-		/* T5 uses the relative offset inside the PCIe BAR */
+		/* T5+ use the relative offset inside the PCIe BAR */
 		bar0 = 0;
 
-		mw = &t5_memwin[0];
-		n = nitems(t5_memwin);
+		mw_init = &t5_memwin[0];
 	}
 
-	for (i = 0; i < n; i++, mw++) {
+	for (i = 0, mw = &sc->memwin[0]; i < NUM_MEMWIN; i++, mw_init++, mw++) {
+		rw_init(&mw->mw_lock, "memory window access");
+		mw->mw_base = mw_init->base;
+		mw->mw_aperture = mw_init->aperture;
+		mw->mw_curpos = 0;
 		t4_write_reg(sc,
 		    PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, i),
-		    (mw->base + bar0) | V_BIR(0) |
-		    V_WINDOW(ilog2(mw->aperture) - 10));
+		    (mw->mw_base + bar0) | V_BIR(0) |
+		    V_WINDOW(ilog2(mw->mw_aperture) - 10));
+		rw_wlock(&mw->mw_lock);
+		position_memwin(sc, i, 0);
+		rw_wunlock(&mw->mw_lock);
 	}
 
 	/* flush */
 	t4_read_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, 2));
+}
+
+/*
+ * Positions the memory window at the given address in the card's address space.
+ * There are some alignment requirements and the actual position may be at an
+ * address prior to the requested address.  mw->mw_curpos always has the actual
+ * position of the window.
+ */
+static void
+position_memwin(struct adapter *sc, int idx, uint32_t addr)
+{
+	struct memwin *mw;
+	uint32_t pf;
+	uint32_t reg;
+
+	MPASS(idx >= 0 && idx < NUM_MEMWIN);
+	mw = &sc->memwin[idx];
+	rw_assert(&mw->mw_lock, RA_WLOCKED);
+
+	if (is_t4(sc)) {
+		pf = 0;
+		mw->mw_curpos = addr & ~0xf;	/* start must be 16B aligned */
+	} else {
+		pf = V_PFNUM(sc->pf);
+		mw->mw_curpos = addr & ~0x7f;	/* start must be 128B aligned */
+	}
+	reg = PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, idx);
+	t4_write_reg(sc, reg, mw->mw_curpos | pf);
+	t4_read_reg(sc, reg);	/* flush */
+}
+
+static int
+rw_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
+    int len, int rw)
+{
+	struct memwin *mw;
+	uint32_t mw_end, v;
+
+	MPASS(idx >= 0 && idx < NUM_MEMWIN);
+
+	/* Memory can only be accessed in naturally aligned 4 byte units */
+	if (addr & 3 || len & 3 || len <= 0)
+		return (EINVAL);
+
+	mw = &sc->memwin[idx];
+	while (len > 0) {
+		rw_rlock(&mw->mw_lock);
+		mw_end = mw->mw_curpos + mw->mw_aperture;
+		if (addr >= mw_end || addr + len <= mw->mw_curpos) {
+			/* Will need to reposition the window */
+			if (!rw_try_upgrade(&mw->mw_lock)) {
+				rw_runlock(&mw->mw_lock);
+				rw_wlock(&mw->mw_lock);
+			}
+			rw_assert(&mw->mw_lock, RA_WLOCKED);
+			position_memwin(sc, idx, addr);
+			rw_downgrade(&mw->mw_lock);
+			mw_end = mw->mw_curpos + mw->mw_aperture;
+		}
+		rw_assert(&mw->mw_lock, RA_RLOCKED);
+		while (addr < mw_end && len > 0) {
+			if (rw == 0) {
+				v = t4_read_reg(sc, mw->mw_base + addr -
+				    mw->mw_curpos);
+				*val++ = le32toh(v);
+			} else {
+				v = *val++;
+				t4_write_reg(sc, mw->mw_base + addr -
+				    mw->mw_curpos, htole32(v));;
+			}
+			addr += 4;
+			len -= 4;
+		}
+		rw_runlock(&mw->mw_lock);
+	}
+
+	return (0);
+}
+
+static inline int
+read_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
+    int len)
+{
+
+	return (rw_via_memwin(sc, idx, addr, val, len, 0));
+}
+
+static inline int
+write_via_memwin(struct adapter *sc, int idx, uint32_t addr,
+    const uint32_t *val, int len)
+{
+
+	return (rw_via_memwin(sc, idx, addr, (void *)(uintptr_t)val, len, 1));
 }
 
 static int
@@ -2215,58 +2330,6 @@ validate_mt_off_len(struct adapter *sc, int mtype, uint32_t off, int len,
 
 	*addr = maddr + off;	/* global address */
 	return (validate_mem_range(sc, *addr, len));
-}
-
-static void
-memwin_info(struct adapter *sc, int win, uint32_t *base, uint32_t *aperture)
-{
-	const struct memwin *mw;
-
-	if (is_t4(sc)) {
-		KASSERT(win >= 0 && win < nitems(t4_memwin),
-		    ("%s: incorrect memwin# (%d)", __func__, win));
-		mw = &t4_memwin[win];
-	} else {
-		KASSERT(win >= 0 && win < nitems(t5_memwin),
-		    ("%s: incorrect memwin# (%d)", __func__, win));
-		mw = &t5_memwin[win];
-	}
-
-	if (base != NULL)
-		*base = mw->base;
-	if (aperture != NULL)
-		*aperture = mw->aperture;
-}
-
-/*
- * Positions the memory window such that it can be used to access the specified
- * address in the chip's address space.  The return value is the offset of addr
- * from the start of the window.
- */
-static uint32_t
-position_memwin(struct adapter *sc, int n, uint32_t addr)
-{
-	uint32_t start, pf;
-	uint32_t reg;
-
-	KASSERT(n >= 0 && n <= 3,
-	    ("%s: invalid window %d.", __func__, n));
-	KASSERT((addr & 3) == 0,
-	    ("%s: addr (0x%x) is not at a 4B boundary.", __func__, addr));
-
-	if (is_t4(sc)) {
-		pf = 0;
-		start = addr & ~0xf;	/* start must be 16B aligned */
-	} else {
-		pf = V_PFNUM(sc->pf);
-		start = addr & ~0x7f;	/* start must be 128B aligned */
-	}
-	reg = PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, n);
-
-	t4_write_reg(sc, reg, start | pf);
-	t4_read_reg(sc, reg);
-
-	return (addr - start);
 }
 
 static int
@@ -2869,9 +2932,9 @@ partition_resources(struct adapter *sc, const struct firmware *default_cfg,
 	}
 
 	if (strncmp(sc->cfg_file, FLASH_CF, sizeof(sc->cfg_file)) != 0) {
-		u_int cflen, i, n;
+		u_int cflen;
 		const uint32_t *cfdata;
-		uint32_t param, val, addr, off, mw_base, mw_aperture;
+		uint32_t param, val, addr;
 
 		KASSERT(cfg != NULL || default_cfg != NULL,
 		    ("%s: no config to upload", __func__));
@@ -2921,16 +2984,7 @@ partition_resources(struct adapter *sc, const struct firmware *default_cfg,
 			    __func__, mtype, moff, cflen, rc);
 			goto use_config_on_flash;
 		}
-
-		memwin_info(sc, 2, &mw_base, &mw_aperture);
-		while (cflen) {
-			off = position_memwin(sc, 2, addr);
-			n = min(cflen, mw_aperture - off);
-			for (i = 0; i < n; i += 4)
-				t4_write_reg(sc, mw_base + off + i, *cfdata++);
-			cflen -= n;
-			addr += n;
-		}
+		write_via_memwin(sc, 2, addr, cfdata, cflen);
 	} else {
 use_config_on_flash:
 		mtype = FW_MEMTYPE_FLASH;
@@ -7486,22 +7540,22 @@ done:
 static inline uint64_t
 get_filter_hits(struct adapter *sc, uint32_t fid)
 {
-	uint32_t mw_base, off, tcb_base = t4_read_reg(sc, A_TP_CMM_TCB_BASE);
-	uint64_t hits;
+	uint32_t tcb_addr;
 
-	memwin_info(sc, 0, &mw_base, NULL);
+	tcb_addr = t4_read_reg(sc, A_TP_CMM_TCB_BASE) +
+	    (fid + sc->tids.ftid_base) * TCB_SIZE;
 
-	off = position_memwin(sc, 0,
-	    tcb_base + (fid + sc->tids.ftid_base) * TCB_SIZE);
 	if (is_t4(sc)) {
-		hits = t4_read_reg64(sc, mw_base + off + 16);
-		hits = be64toh(hits);
-	} else {
-		hits = t4_read_reg(sc, mw_base + off + 24);
-		hits = be32toh(hits);
-	}
+		uint64_t hits;
 
-	return (hits);
+		read_via_memwin(sc, 0, tcb_addr + 16, (uint32_t *)&hits, 8);
+		return (be64toh(hits));
+	} else {
+		uint32_t hits;
+
+		read_via_memwin(sc, 0, tcb_addr + 24, &hits, 4);
+		return (be32toh(hits));
+	}
 }
 
 static int
@@ -7975,12 +8029,12 @@ done:
 	return (rc);
 }
 
+#define MAX_READ_BUF_SIZE (128 * 1024)
 static int
 read_card_mem(struct adapter *sc, int win, struct t4_mem_range *mr)
 {
-	uint32_t addr, off, remaining, i, n;
-	uint32_t *buf, *b;
-	uint32_t mw_base, mw_aperture;
+	uint32_t addr, remaining, n;
+	uint32_t *buf;
 	int rc;
 	uint8_t *dst;
 
@@ -7988,25 +8042,19 @@ read_card_mem(struct adapter *sc, int win, struct t4_mem_range *mr)
 	if (rc != 0)
 		return (rc);
 
-	memwin_info(sc, win, &mw_base, &mw_aperture);
-	buf = b = malloc(min(mr->len, mw_aperture), M_CXGBE, M_WAITOK);
+	buf = malloc(min(mr->len, MAX_READ_BUF_SIZE), M_CXGBE, M_WAITOK);
 	addr = mr->addr;
 	remaining = mr->len;
 	dst = (void *)mr->data;
 
 	while (remaining) {
-		off = position_memwin(sc, win, addr);
-
-		/* number of bytes that we'll copy in the inner loop */
-		n = min(remaining, mw_aperture - off);
-		for (i = 0; i < n; i += 4)
-			*b++ = t4_read_reg(sc, mw_base + off + i);
+		n = min(remaining, MAX_READ_BUF_SIZE);
+		read_via_memwin(sc, 2, addr, buf, n);
 
 		rc = copyout(buf, dst, n);
 		if (rc != 0)
 			break;
 
-		b = buf;
 		dst += n;
 		remaining -= n;
 		addr += n;
@@ -8015,6 +8063,7 @@ read_card_mem(struct adapter *sc, int win, struct t4_mem_range *mr)
 	free(buf, M_CXGBE);
 	return (rc);
 }
+#undef MAX_READ_BUF_SIZE
 
 static int
 read_i2c(struct adapter *sc, struct t4_i2c_data *i2cd)
