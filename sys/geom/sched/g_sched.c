@@ -269,7 +269,7 @@ g_sched_update_stats(struct bio *bio)
 	me.gs_done++;
 	me.gs_in_flight--;
 	me.gs_bytes_in_flight -= bio->bio_length;
-	if (bio->bio_cmd & BIO_WRITE) {
+	if (bio->bio_cmd == BIO_WRITE) {
 		me.gs_writes_in_flight--;
 		me.gs_write_bytes_in_flight -= bio->bio_length;
 	}
@@ -754,9 +754,9 @@ static inline char
 g_sched_type(struct bio *bp)
 {
 
-	if (0 != (bp->bio_cmd & BIO_READ))
+	if (bp->bio_cmd == BIO_READ)
 		return ('R');
-	else if (0 != (bp->bio_cmd & BIO_WRITE))
+	else if (bp->bio_cmd == BIO_WRITE)
 		return ('W');
 	return ('U');
 }
@@ -829,7 +829,7 @@ g_sched_start(struct bio *bp)
 	KASSERT(cbp->bio_to != NULL, ("NULL provider"));
 
 	/* We only schedule reads and writes. */
-	if (0 == (bp->bio_cmd & (BIO_READ | BIO_WRITE)))
+	if (bp->bio_cmd != BIO_READ && bp->bio_cmd != BIO_WRITE)
 		goto bypass;
 
 	G_SCHED_LOGREQ(cbp, "Sending request.");
@@ -860,7 +860,7 @@ g_sched_start(struct bio *bp)
 	me.gs_in_flight++;
 	me.gs_requests++;
 	me.gs_bytes_in_flight += bp->bio_length;
-	if (bp->bio_cmd & BIO_WRITE) {
+	if (bp->bio_cmd == BIO_WRITE) {
 		me.gs_writes_in_flight++;
 		me.gs_write_bytes_in_flight += bp->bio_length;
 	}
