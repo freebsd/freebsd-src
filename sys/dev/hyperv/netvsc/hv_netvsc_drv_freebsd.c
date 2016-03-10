@@ -436,6 +436,7 @@ netvsc_attach(device_t dev)
 
 	ifp = sc->hn_ifp = if_alloc(IFT_ETHER);
 	ifp->if_softc = sc;
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
 	ring_cnt = hn_ring_cnt;
 	if (ring_cnt <= 0 || ring_cnt >= mp_ncpus)
@@ -465,10 +466,6 @@ netvsc_attach(device_t dev)
 	chan->hv_chan_txr = &sc->hn_tx_ring[0];
 	sc->hn_tx_ring[0].hn_chan = chan;
 	vmbus_channel_cpu_set(chan, sc->hn_cpu);
-
-	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_dunit = unit;
-	ifp->if_dname = NETVSC_DEVNAME;
 
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = hn_ioctl;
