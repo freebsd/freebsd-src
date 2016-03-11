@@ -487,7 +487,7 @@ resize_dynamic_table(struct ip_fw_chain *chain, int nbuckets)
 	    V_curr_dyn_buckets, nbuckets);
 
 	/* Allocate and initialize new hash */
-	dyn_v = malloc(nbuckets * sizeof(ipfw_dyn_rule), M_IPFW,
+	dyn_v = malloc(nbuckets * sizeof(*dyn_v), M_IPFW,
 	    M_WAITOK | M_ZERO);
 
 	for (i = 0 ; i < nbuckets; i++)
