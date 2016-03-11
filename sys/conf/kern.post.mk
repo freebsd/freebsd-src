@@ -231,7 +231,10 @@ _meta_filemon=	1
 .if ${MK_FAST_DEPEND} == "yes"
 DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o
 DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
-DEPEND_CFLAGS+=	-MD -MP -MF.depend.${.TARGET}
+.if ${MAKE_VERSION} < 20160220
+DEPEND_MP?=	-MP
+.endif
+DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF.depend.${.TARGET}
 DEPEND_CFLAGS+=	-MT${.TARGET}
 .if !defined(_meta_filemon)
 .if defined(.PARSEDIR)
@@ -244,7 +247,11 @@ CFLAGS+=	${DEPEND_CFLAGS}
 .endif
 .if !defined(_SKIP_READ_DEPEND)
 .for __depend_obj in ${DEPENDFILES_OBJS}
+.if ${MAKE_VERSION} < 20160220
 .sinclude "${.OBJDIR}/${__depend_obj}"
+.else
+.dinclude "${.OBJDIR}/${__depend_obj}"
+.endif
 .endfor
 .endif	# !defined(_SKIP_READ_DEPEND)
 .endif	# !defined(_meta_filemon)
