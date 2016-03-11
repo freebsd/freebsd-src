@@ -132,30 +132,10 @@ _MARCHS=	${MACHINE_CPUARCH}
 _MARCHS+=	x86
 .endif
 
-.if ${MK_STAGING} == "yes"
-# tell bsd.incs.mk that we have it covered
-NO_STAGE_INCLUDES=
-META_COOKIES+=	stage_prep stage_include compat copies symlinks
-.endif
+META_COOKIES+=	compat copies symlinks
+stage_includes: ${SHARED}
 
 .include <bsd.prog.mk>
-
-.if ${MK_STAGING} != "no" && !defined(_SKIP_BUILD)
-.if make(all)
-DESTDIR= ${STAGE_OBJTOP}
-
-all:	stage_include
-installincludes: buildincludes
-buildincludes: stage_prep
-
-stage_prep:
-	@mkdir -p ${DESTDIR}${INCLUDEDIR}
-	@touch $@
-
-stage_include: .dirdep installincludes
-	@touch $@
-.endif
-.endif
 
 installincludes: ${SHARED}
 ${SHARED}: compat
