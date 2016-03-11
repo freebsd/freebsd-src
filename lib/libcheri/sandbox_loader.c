@@ -217,6 +217,8 @@ cheri_system_object_for_instance(struct sandbox_object *sbop)
 	datacap = cheri_ptrperm(sbop, sizeof(*sbop), CHERI_PERM_GLOBAL |
 	    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE |
 	    CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP);
+	assert(cheri_getoffset(datacap) == 0);
+	assert(cheri_getlen(datacap) == sizeof(*sbop));
 	system_object.co_datacap = cheri_seal(datacap, cheri_system_type);
 
 	/*
@@ -309,6 +311,23 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	}
 
 	/*
+	 * Assertions to make sure that we ended up with a well-aligned
+	 * memory allocation as required for a precise set of bounds in the
+	 * presence of compressed capabilities.  Note that the alignment
+	 * requirements here are based on an assumption that MAP_ALIGNED_SUPER
+	 * above will imply at least 1MB alignment.  We don't check the
+	 * pointer, but instead its base + offset, so as to be tolerant of
+	 * both the MIPS ABI (where we are working from a $c0-based capability
+	 * derived from a kernel-returned pointer) and CheriABI (where we are
+	 * working from a capability directly returned by the kernel). All
+	 * that matters here is the underlying virtual address.
+	 */
+#if CHERICAP_SIZE == 16
+	assert(((cheri_getbase(base) + cheri_getoffset(base)) &
+	    (1024 * 1024 -1 )) == 0);
+#endif
+
+	/*
 	 * Map and (eventually) link the program.
 	 */
 	if (sandbox_map_load(base, sbcp->sbc_datamap) == -1) {
@@ -393,6 +412,8 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	datacap = cheri_ptrperm(sbop->sbo_datamem, sbop->sbo_datalen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |
 	    CHERI_PERM_STORE | CHERI_PERM_STORE_CAP);
+	assert(cheri_getoffset(datacap) == 0);
+	assert(cheri_getlen(datacap) == sbop->sbo_datalen);
 	sbop->sbo_cheri_object_rtld.co_codecap = sbcp->sbc_classcap_rtld;
 	sbop->sbo_cheri_object_rtld.co_datacap = cheri_seal(datacap,
 	    sbcp->sbc_typecap);
@@ -403,6 +424,8 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	datacap = cheri_ptrperm(sbop->sbo_datamem, sbop->sbo_datalen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |
 	    CHERI_PERM_STORE | CHERI_PERM_STORE_CAP);
+	assert(cheri_getoffset(datacap) == 0);
+	assert(cheri_getlen(datacap) == sbop->sbo_datalen);
 	if (sandbox_set_required_method_variables(datacap,
 	    sbcp->sbc_required_methods)
 	    == -1) {
