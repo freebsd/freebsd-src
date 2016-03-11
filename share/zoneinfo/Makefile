@@ -70,22 +70,27 @@ TZBUILDSUBDIRS=	\
 .if !defined(_SKIP_BUILD)
 all: zoneinfo
 .endif
+META_COOKIES+=	zoneinfo install-zoneinfo
 
-.PHONY: zoneinfo
-zoneinfo: yearistype ${TDATA}
+zoneinfo: yearistype ${TDATA} ${META_NOPHONY}
+	${META_COOKIE_RM}
 	mkdir -p ${TZBUILDDIR}
 	cd ${TZBUILDDIR}; mkdir -p ${TZBUILDSUBDIRS}
 	umask 022; cd ${.CURDIR}; \
 	zic -D -d ${TZBUILDDIR} -p ${POSIXRULES} -m ${NOBINMODE} \
 	    ${LEAPFILE} -y ${.OBJDIR}/yearistype ${TZFILES}
+	${META_COOKIE_TOUCH}
 
-beforeinstall:
+beforeinstall: install-zoneinfo
+install-zoneinfo: ${META_NOPHONY}
+	${META_COOKIE_RM}
 	cd ${TZBUILDDIR} && \
 	    find -s * -type f -print -exec ${INSTALL} \
 	    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    \{} ${DESTDIR}/usr/share/zoneinfo/\{} \;
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${CONTRIBDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
+	${META_COOKIE_TOUCH}
 
 afterinstall:
 #
