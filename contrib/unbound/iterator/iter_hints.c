@@ -152,7 +152,7 @@ compile_time_root_prime(int do_ip4, int do_ip6)
 	if(!ah(dp, "I.ROOT-SERVERS.NET.", "2001:7fe::53")) goto failed;
 	if(!ah(dp, "J.ROOT-SERVERS.NET.", "2001:503:c27::2:30")) goto failed;
 	if(!ah(dp, "K.ROOT-SERVERS.NET.", "2001:7fd::1")) goto failed;
-	if(!ah(dp, "L.ROOT-SERVERS.NET.", "2001:500:3::42")) goto failed;
+	if(!ah(dp, "L.ROOT-SERVERS.NET.", "2001:500:9f::42")) goto failed;
 	if(!ah(dp, "M.ROOT-SERVERS.NET.", "2001:dc3::35")) goto failed;
       }
 	return dp;
