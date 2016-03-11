@@ -10,7 +10,7 @@ UNBOUNDDIR= ${.CURDIR}/../../contrib/unbound
 LIB=	unbound
 PRIVATELIB=
 
-CFLAGS= -I${UNBOUNDDIR} -I${LDNSDIR} -I${.OBJDIR}
+CFLAGS+= -I${UNBOUNDDIR} -I${LDNSDIR} -I${.OBJDIR}
 
 SRCS=	alloc.c as112.c autotrust.c config_file.c configlexer.l configparser.y \
 	context.c dname.c dns.c dns64.c dnstree.c fptr_wlist.c infra.c \
