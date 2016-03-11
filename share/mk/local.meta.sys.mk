@@ -132,6 +132,16 @@ PYTHON ?= /usr/local/bin/python
 .export PYTHON
 # this works best if share/mk is ready for it.
 BUILD_AT_LEVEL0= no
+# _SKIP_BUILD is not 100% as it requires wrapping all 'all:' targets to avoid
+# building in MAKELEVEL0.  Just prohibit 'all' entirely in this case to avoid
+# problems.
+.if ${MK_DIRDEPS_BUILD} == "yes" && \
+    ${.MAKE.LEVEL} == 0 && ${BUILD_AT_LEVEL0:Uyes:tl} == "no"
+.MAIN: dirdeps
+.if make(all)
+.error DIRDEPS_BUILD: Please run '${MAKE}' instead of '${MAKE} all'.
+.endif
+.endif
 
 # we want to end up with a singe stage tree for all machines
 .if ${MK_STAGING} == "yes"
