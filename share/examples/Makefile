@@ -219,11 +219,10 @@ XFILES+=	bhyve/vmrun.sh
 SHARED?=	copies
 
 beforeinstall: ${SHARED} etc-examples
-META_COOKIES+=	copies symlinks
+META_TARGETS+=	copies symlinks
 .ORDER: ${SHARED} etc-examples
 
-copies:
-	${META_COOKIE_RM}
+copies: ${META_DEPS}
 .for i in ${LDIRS}
 	if [ -L ${DESTDIR}${BINDIR}/$i ]; then \
 		rm -f ${DESTDIR}${BINDIR}/$i; \
@@ -235,15 +234,12 @@ copies:
 	${INSTALL} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
 		${.CURDIR}/${file} ${DESTDIR}${BINDIR}/${file}
 .endfor
-	${META_COOKIE_TOUCH}
 
-symlinks:
-	${META_COOKIE_RM}
+symlinks: ${META_DEPS}
 .for i in ${LDIRS}
 	rm -rf ${DESTDIR}${BINDIR}/$i
 	ln -s ${.CURDIR}/$i ${DESTDIR}${BINDIR}/$i
 .endfor
-	${META_COOKIE_TOUCH}
 
 etc-examples:
 .if ${SHARED} != "symlinks"

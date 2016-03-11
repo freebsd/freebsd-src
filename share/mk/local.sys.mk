@@ -33,10 +33,18 @@ META_COOKIE_RM=		@rm -f ${META_COOKIE}
 META_COOKIE_TOUCH=	@touch ${META_COOKIE}
 # some targets need to be .PHONY - but not in meta mode
 META_NOPHONY=
-CLEANFILES+=		${META_COOKIES}
+CLEANFILES+=		${META_TARGETS}
+_meta_dep_before:	.USEBEFORE
+	${META_COOKIE_RM}
+_meta_dep_after:	.USE
+	${META_COOKIE_TOUCH}
+# Attach this to a target to allow it to benefit from meta mode's
+# not rerunning a command if it doesn't need to be considering its
+# metafile/filemon-tracked dependencies.
+META_DEPS=	_meta_dep_before _meta_dep_after .META
 .else
 META_COOKIE_RM=
 META_COOKIE_TOUCH=
-META_NOPHONY= .PHONY
+META_NOPHONY=	.PHONY
 .endif
-
+META_DEPS+=	${META_NOPHONY}
