@@ -131,13 +131,13 @@ beforedepend ${OBJS}: machine
 
 CLEANFILES+=   machine
 
-machine:
+machine: .NOMETA
 	ln -sf ${.CURDIR}/../../../${MACHINE}/include machine
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 beforedepend ${OBJS}: x86
 CLEANFILES+=   x86
 
-x86:
+x86: .NOMETA
 	ln -sf ${.CURDIR}/../../../x86/include x86
 .endif
