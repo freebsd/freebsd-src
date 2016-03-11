@@ -1,3 +1,41 @@
+2016-03-07  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20160307
+	  Merge with NetBSD make, pick up
+	  o var.c: fix :ts\nnn to be octal by default.
+	  o meta.c: meta_finish() to cleanup memory.
+
+2016-02-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20160226
+	  Merge with NetBSD make, pick up
+	  o meta.c: allow meta file for makeDepend if makefiles want it.
+
+2016-02-19  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* var.c: default .MAKE.SAVE_DOLLARS to FALSE
+	  for backwards compatability.
+
+	* Makefile (MAKE_VERSION): 20160220
+	  Merge with NetBSD make, pick up
+	  o var.c: add knob to control handling of '$$' in :=
+
+2016-02-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20160218
+	  Merge with NetBSD make, pick up
+	  o var.c: add .export-literal allows us to fix sys.clean-env.mk
+	    post the changes to Var_Subst.
+	    Var_Subst now takes flags, and does not consume '$$' in :=
+
+2016-02-17  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20160217
+	  Merge with NetBSD make, pick up
+	  o var.c: preserve '$$' in :=
+	  o parse.c: add .dinclude for handling included 
+	    makefile like .depend
+
 2015-12-20  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (MAKE_VERSION): 20151220

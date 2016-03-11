@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.41 2015/11/13 17:34:04 sjg Exp $
+# $Id: meta.stage.mk,v 1.43 2016/02/24 18:46:32 sjg Exp $
 #
 #	@(#) Copyright (c) 2011, Simon J. Gerraty
 #
@@ -26,7 +26,7 @@ _dirdep = ${RELDIR}
 CLEANFILES+= .dirdep
 
 # this allows us to trace dependencies back to their src dir
-.dirdep:
+.dirdep:	.NOPATH
 	@echo '${_dirdep}' > $@
 
 .if defined(NO_POSIX_SHELL) || ${type printf:L:sh:Mbuiltin} == ""
@@ -241,7 +241,7 @@ CLEANFILES += ${STAGE_TARGETS} stage_incs stage_includes
 # for non-jobs mode the order here matters
 staging: ${STAGE_TARGETS:N*_links} ${STAGE_TARGETS:M*_links}
 
-.if ${.MAKE.JOBS:U0} > 0 && ${STAGE_TARGETS:M*_links} != ""
+.if ${.MAKE.JOBS:U0} > 0 && ${STAGE_TARGETS:U:M*_links} != ""
 # the above isn't sufficient
 .for t in ${STAGE_TARGETS:N*links:O:u}
 .ORDER: $t stage_links
