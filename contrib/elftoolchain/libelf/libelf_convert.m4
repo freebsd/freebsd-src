@@ -1019,6 +1019,7 @@ _libelf_cvt_NOTE_tof(unsigned char *dst, size_t dsz, unsigned char *src,
 		WRITE_WORD(dst, type);
 
 		src += sizeof(Elf_Note);
+		count -= sizeof(Elf_Note);
 
 		if (count < sz)
 			sz = count;
