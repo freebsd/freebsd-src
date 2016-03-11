@@ -131,7 +131,8 @@ ${SUBDIR:N.WAIT}: .PHONY .MAKE
 # such as 'install' becoming {before,real,after}install, just recurse
 # 'install'.  Despite that, 'realinstall' is special due to ordering issues
 # with 'afterinstall'.
-.if make(${__target}) || (${__target} == realinstall && make(install))
+.if !defined(NO_SUBDIR) && (make(${__target}) || \
+    (${__target} == realinstall && make(install)))
 # Can ordering be skipped for this and SUBDIR_PARALLEL forced?
 .if ${STANDALONE_SUBDIR_TARGETS:M${__target}}
 _is_standalone_target=	1
@@ -153,11 +154,9 @@ __deps+= ${__target}_subdir_${DIRPRFX}${__dep}
 .endfor
 .endif
 ${__target}_subdir_${DIRPRFX}${__dir}: .PHONY .MAKE .SILENT ${__deps}
-.if !defined(NO_SUBDIR)
 	@${_+_}target=${__target:realinstall=install}; \
 	    dir=${__dir}; \
 	    ${_SUBDIR_SH};
-.endif
 .endif
 .endfor	# __dir in ${SUBDIR}
 ${__target}: ${__subdir_targets}
