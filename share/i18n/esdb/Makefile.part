@@ -60,7 +60,9 @@ esdb.alias.${ESUBDIR}: ${PARTFILE} ${ALIASFILE}
 .endfor
 	echo >>${.TARGET}
 
+.if !defined(_SKIP_BUILD)
 all: esdb.dir.${ESUBDIR} esdb.alias.${ESUBDIR} codesets
+.endif
 codesets: ${ESDB}
 
 .if !defined(NO_PREPROC)
