@@ -790,4 +790,4 @@ static moduledata_t ibcore_mod = {
 
 MODULE_VERSION(ibcore, 1);
 MODULE_DEPEND(ibcore, linuxkpi, 1, 1, 1);
-DECLARE_MODULE(ibcore, ibcore_mod, SI_SUB_SMP, SI_ORDER_ANY);
+DECLARE_MODULE(ibcore, ibcore_mod, SI_SUB_LAST, SI_ORDER_ANY);
