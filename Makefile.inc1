@@ -458,8 +458,10 @@ XCXXFLAGS+=	${BFLAGS}
 .endif
 .endif # ${XCC:M/*}
 
-.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
-.include "Makefile.lib32"
+.if ${MK_LIB32} != "no" && (${TARGET_ARCH} == "amd64" || \
+    ${TARGET_ARCH} == "powerpc64")
+LIBCOMPAT= 32
+.include "Makefile.libcompat"
 .endif
 
 WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}
@@ -552,8 +554,8 @@ _worldtmp: .PHONY
 	@echo "--------------------------------------------------------------"
 .if !defined(NO_CLEAN)
 	rm -rf ${WORLDTMP}
-.if defined(LIB32TMP)
-	rm -rf ${LIB32TMP}
+.if defined(LIBCOMPAT)
+	rm -rf ${LIBCOMPATTMP}
 .endif
 .else
 	rm -rf ${WORLDTMP}/legacy/usr/include
@@ -603,13 +605,13 @@ _worldtmp: .PHONY
 .endif
 .endif
 .endif
-.if ${MK_LIB32} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+.if defined(LIBCOMPAT)
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${WORLDTMP}/usr >/dev/null
 .if ${MK_DEBUG_FILES} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${WORLDTMP}/legacy/usr/lib/debug/usr >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${WORLDTMP}/usr/lib/debug/usr >/dev/null
 .endif
 .endif
@@ -645,8 +647,8 @@ _cleanobj:
 	@echo ">>> stage 2.1: cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${WMAKE} ${CLEANDIR}
-.if defined(LIB32TMP)
-	${_+_}cd ${.CURDIR}; ${LIB32WMAKE} -f Makefile.inc1 ${CLEANDIR}
+.if defined(LIBCOMPAT)
+	${_+_}cd ${.CURDIR}; ${LIBCOMPATWMAKE} -f Makefile.inc1 ${CLEANDIR}
 .endif
 .if defined (CHERI)
 	${_+_}cd ${.CURDIR}; ${LIBCHERIWMAKE} -f Makefile.inc1 ${CLEANDIR}
@@ -754,8 +756,8 @@ WMAKE_TGTS+=	_depend
 WMAKE_TGTS+=	buildcheri
 .endif
 WMAKE_TGTS+=	everything
-.if defined(LIB32TMP) && ${MK_LIB32} != "no" && empty(SUBDIR_OVERRIDE)
-WMAKE_TGTS+=	build32
+.if defined(LIBCOMPAT) && empty(SUBDIR_OVERRIDE)
+WMAKE_TGTS+=	build${libcompat}
 .endif
 
 buildworld: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue
@@ -809,7 +811,7 @@ libcheribuildenv:
 	@cd ${.CURDIR} && env ${LIBCHERIWMAKEENV} ${BUILDENV_SHELL} || true
 .endif
 
-TOOLCHAIN_TGTS=	${WMAKE_TGTS:N_depend:Neverything:Nbuild32:Nbuildcheri}
+TOOLCHAIN_TGTS=	${WMAKE_TGTS:N_depend:Neverything:Nbuild${libcompat}:Nbuildcheri}
 toolchain: ${TOOLCHAIN_TGTS}
 kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
 
@@ -903,8 +905,8 @@ ITOOLS+=makewhatis
 
 # Non-base distributions produced by the base system
 EXTRA_DISTRIBUTIONS=	doc
-.if defined(LIB32TMP) && ${MK_LIB32} != "no"
-EXTRA_DISTRIBUTIONS+=	lib32
+.if defined(LIBCOMPAT)
+EXTRA_DISTRIBUTIONS+=	lib${libcompat}
 .endif
 .if ${MK_TESTS} != "no"
 EXTRA_DISTRIBUTIONS+=	tests
@@ -956,11 +958,11 @@ distributeworld installworld: _installcheck_world
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib >/dev/null
 .endif
-.if ${MK_LIB32} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+.if defined(LIBCOMPAT)
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
 .if ${MK_DEBUG_FILES} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib/debug/usr >/dev/null
 .endif
 .endif
@@ -980,8 +982,8 @@ distributeworld installworld: _installcheck_world
 	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
 	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.include.dist | \
 	    sed -e 's#^\./#./${dist}/usr/include/#' >> ${METALOG}
-.if ${MK_LIB32} != "no"
-	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.lib32.dist | \
+.if defined(LIBCOMPAT)
+	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist | \
 	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
 .endif
 .endif
@@ -1066,8 +1068,8 @@ reinstall: .MAKE .PHONY
 	@echo ">>> Installing everything"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
-.if defined(LIB32TMP) && ${MK_LIB32} != "no"
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install32
+.if defined(LIBCOMPAT)
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install${libcompat}
 .endif
 .if ${MK_CHERI} != "no"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 installcheri
@@ -1078,9 +1080,9 @@ redistribute: .MAKE .PHONY
 	@echo ">>> Distributing everything"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute
-.if defined(LIB32TMP) && ${MK_LIB32} != "no"
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute32 \
-	    DISTRIBUTION=lib32
+.if defined(LIBCOMPAT)
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute${libcompat} \
+	    DISTRIBUTION=lib${libcompat}
 .endif
 .if ${MK_CHERI} != "no"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distributecheri \
@@ -1147,7 +1149,7 @@ INSTALLKERNEL= ${_kernel}
 .endif
 .endfor
 
-${WMAKE_TGTS:N_worldtmp:Nbuild32} ${.ALLTARGETS:M_*:N_worldtmp}: .MAKE .PHONY
+${WMAKE_TGTS:N_worldtmp:Nbuild${libcompat}} ${.ALLTARGETS:M_*:N_worldtmp}: .MAKE .PHONY
 
 #
 # buildkernel
@@ -2410,8 +2412,8 @@ _xi-mtree: .PHONY
 	    -p ${XDDESTDIR}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${XDDESTDIR}/usr/include >/dev/null
-.if ${MK_LIB32} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+.if defined(LIBCOMPAT)
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${XDDESTDIR}/usr >/dev/null
 .endif
 .if ${MK_TESTS} != "no"
