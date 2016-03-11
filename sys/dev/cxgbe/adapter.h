@@ -803,7 +803,9 @@ struct adapter {
 	int tracer_valid;	/* bitmap of valid tracers */
 	int tracer_enabled;	/* bitmap of enabled tracers */
 
-	char fw_version[32];
+	char fw_version[16];
+	char tp_version[16];
+	char exprom_version[16];
 	char cfg_file[32];
 	u_int cfcsum;
 	struct adapter_params params;
