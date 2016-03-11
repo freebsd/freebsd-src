@@ -149,6 +149,10 @@ CFLAGS.gcc+=	-msoft-float
 INLINE_LIMIT?=	15000
 .endif
 
+.if ${MACHINE_ARCH} == "powerpcspe"
+CFLAGS+=	-mno-spe
+.endif
+
 #
 # Use dot symbols on powerpc64 to make ddb happy
 #
