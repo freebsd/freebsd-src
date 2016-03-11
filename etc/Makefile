@@ -464,12 +464,10 @@ distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 	done
 .endif
 
-etc-examples-install:
-	${META_COOKIE_RM}
+etc-examples-install: ${META_DEPS}
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${BIN1} ${BIN2} nsmb.conf opieaccess \
 	    ${DESTDIR}${SHAREDIR}/examples/etc
-	${META_COOKIE_TOUCH}
 
 etc-examples: etc-examples-install
 	${_+_}cd ${.CURDIR}/defaults; \
