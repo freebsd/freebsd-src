@@ -37,6 +37,4 @@ SUBDIR+=	libatf-c++
 SUBDIR+= 	tests
 .endif
 
-.ORDER: ${SUBDIR}
-
 .include <bsd.subdir.mk>
