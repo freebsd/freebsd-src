@@ -1,4 +1,4 @@
-/* $OpenBSD: authfd.h,v 1.38 2015/01/14 20:05:27 djm Exp $ */
+/* $OpenBSD: authfd.h,v 1.39 2015/12/04 16:41:28 markus Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -41,7 +41,7 @@ int	ssh_decrypt_challenge(int sock, struct sshkey* key, BIGNUM *challenge,
 	    u_char session_id[16], u_char response[16]);
 int	ssh_agent_sign(int sock, struct sshkey *key,
 	    u_char **sigp, size_t *lenp,
-	    const u_char *data, size_t datalen, u_int compat);
+	    const u_char *data, size_t datalen, const char *alg, u_int compat);
 
 /* Messages for the authentication agent connection. */
 #define SSH_AGENTC_REQUEST_RSA_IDENTITIES	1
@@ -86,5 +86,7 @@ int	ssh_agent_sign(int sock, struct sshkey *key,
 #define SSH_COM_AGENT2_FAILURE			102
 
 #define	SSH_AGENT_OLD_SIGNATURE			0x01
+#define	SSH_AGENT_RSA_SHA2_256			0x02
+#define	SSH_AGENT_RSA_SHA2_512			0x04
 
 #endif				/* AUTHFD_H */

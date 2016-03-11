@@ -698,9 +698,6 @@
 /* Define to 1 if you have the `network' library (-lnetwork). */
 /* #undef HAVE_LIBNETWORK */
 
-/* Define to 1 if you have the `nsl' library (-lnsl). */
-/* #undef HAVE_LIBNSL */
-
 /* Define to 1 if you have the `pam' library (-lpam). */
 #define HAVE_LIBPAM 1
 
@@ -849,6 +846,9 @@
 /* define if you have pid_t data type */
 #define HAVE_PID_T 1
 
+/* Define to 1 if you have the `pledge' function. */
+/* #undef HAVE_PLEDGE */
+
 /* Define to 1 if you have the `poll' function. */
 #define HAVE_POLL 1
 
@@ -857,6 +857,12 @@
 
 /* Define to 1 if you have the `prctl' function. */
 /* #undef HAVE_PRCTL */
+
+/* Define to 1 if you have the `priv_basicset' function. */
+/* #undef HAVE_PRIV_BASICSET */
+
+/* Define to 1 if you have the <priv.h> header file. */
+/* #undef HAVE_PRIV_H */
 
 /* Define if you have /proc/$pid/fd */
 /* #undef HAVE_PROC_PID */
@@ -959,6 +965,9 @@
 
 /* Define to 1 if you have the `setpcred' function. */
 /* #undef HAVE_SETPCRED */
+
+/* Define to 1 if you have the `setppriv' function. */
+/* #undef HAVE_SETPPRIV */
 
 /* Define to 1 if you have the `setproctitle' function. */
 #define HAVE_SETPROCTITLE 1
@@ -1451,6 +1460,9 @@
 /* Define if you don't want to use lastlog in session.c */
 /* #undef NO_SSH_LASTLOG */
 
+/* Define to disable UID restoration test */
+/* #undef NO_UID_RESTORATION_TEST */
+
 /* Define if X11 doesn't support AF_UNIX sockets on that system */
 /* #undef NO_X11_UNIX_SOCKETS */
 
@@ -1530,6 +1542,9 @@
 /* no privsep sandboxing */
 /* #undef SANDBOX_NULL */
 
+/* Sandbox using pledge(2) */
+/* #undef SANDBOX_PLEDGE */
+
 /* Sandbox using setrlimit(2) */
 /* #undef SANDBOX_RLIMIT */
 
@@ -1541,6 +1556,9 @@
 
 /* define if setrlimit RLIMIT_NOFILE breaks things */
 #define SANDBOX_SKIP_RLIMIT_NOFILE 1
+
+/* Sandbox using Solaris/Illumos privileges */
+/* #undef SANDBOX_SOLARIS */
 
 /* Sandbox using systrace(4) */
 /* #undef SANDBOX_SYSTRACE */
@@ -1647,6 +1665,9 @@
 
 /* Use PIPES instead of a socketpair() */
 /* #undef USE_PIPES */
+
+/* Define if you have Solaris privileges */
+/* #undef USE_SOLARIS_PRIVS */
 
 /* Define if you have Solaris process contracts */
 /* #undef USE_SOLARIS_PROCESS_CONTRACTS */

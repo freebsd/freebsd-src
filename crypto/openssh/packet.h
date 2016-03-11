@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.h,v 1.66 2015/01/30 01:13:33 djm Exp $ */
+/* $OpenBSD: packet.h,v 1.70 2016/02/08 10:57:07 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -86,6 +86,7 @@ int      ssh_packet_get_connection_in(struct ssh *);
 int      ssh_packet_get_connection_out(struct ssh *);
 void     ssh_packet_close(struct ssh *);
 void	 ssh_packet_set_encryption_key(struct ssh *, const u_char *, u_int, int);
+int	 ssh_packet_is_rekeying(struct ssh *);
 void     ssh_packet_set_protocol_flags(struct ssh *, u_int);
 u_int	 ssh_packet_get_protocol_flags(struct ssh *);
 int      ssh_packet_start_compression(struct ssh *, int);
@@ -143,14 +144,10 @@ int	 ssh_packet_get_state(struct ssh *, struct sshbuf *);
 int	 ssh_packet_set_state(struct ssh *, struct sshbuf *);
 
 const char *ssh_remote_ipaddr(struct ssh *);
+int	 ssh_remote_port(struct ssh *);
 
-int	 ssh_packet_need_rekeying(struct ssh *);
-void	 ssh_packet_set_rekey_limits(struct ssh *, u_int32_t, time_t);
+void	 ssh_packet_set_rekey_limits(struct ssh *, u_int64_t, time_t);
 time_t	 ssh_packet_get_rekey_timeout(struct ssh *);
-
-/* XXX FIXME */
-void	 ssh_packet_backup_state(struct ssh *, struct ssh *);
-void	 ssh_packet_restore_state(struct ssh *, struct ssh *);
 
 void	*ssh_packet_get_input(struct ssh *);
 void	*ssh_packet_get_output(struct ssh *);

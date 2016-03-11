@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.361 2015/07/20 18:44:12 millert Exp $
+.\" $OpenBSD: ssh.1,v 1.369 2016/02/17 07:38:19 jmc Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: July 20 2015 $
+.Dd $Mdocdate: February 17 2016 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -59,7 +59,7 @@
 .Op Fl O Ar ctl_cmd
 .Op Fl o Ar option
 .Op Fl p Ar port
-.Op Fl Q Cm cipher | cipher-auth | mac | kex | key | protocol-version
+.Op Fl Q Ar query_option
 .Op Fl R Ar address
 .Op Fl S Ar ctl_path
 .Op Fl W Ar host : Ns Ar port
@@ -71,8 +71,7 @@
 .Nm
 (SSH client) is a program for logging into a remote machine and for
 executing commands on a remote machine.
-It is intended to replace rlogin and rsh,
-and provide secure encrypted communications between
+It is intended to provide secure encrypted communications between
 two untrusted hosts over an insecure network.
 X11 connections, arbitrary TCP ports and
 .Ux Ns -domain
@@ -86,7 +85,7 @@ connects and logs into the specified
 name).
 The user must prove
 his/her identity to the remote machine using one of several methods
-depending on the protocol version used (see below).
+(see below).
 .Pp
 If
 .Ar command
@@ -305,6 +304,9 @@ It is possible to have multiple
 .Fl i
 options (and multiple identities specified in
 configuration files).
+If no certificates have been explicitly specified by the
+.Cm CertificateFile
+directive,
 .Nm
 will also try to load certificate information from the filename obtained
 by appending
@@ -401,17 +403,15 @@ in
 for details.
 .Pp
 .It Fl m Ar mac_spec
-Additionally, for protocol version 2 a comma-separated list of MAC
-(message authentication code) algorithms can
-be specified in order of preference.
+A comma-separated list of MAC (message authentication code) algorithms,
+specified in order of preference.
 See the
 .Cm MACs
 keyword for more information.
 .Pp
 .It Fl N
 Do not execute a remote command.
-This is useful for just forwarding ports
-(protocol version 2 only).
+This is useful for just forwarding ports.
 .Pp
 .It Fl n
 Redirects stdin from
@@ -461,6 +461,7 @@ For full details of the options listed below, and their possible values, see
 .Xr ssh_config 5 .
 .Pp
 .Bl -tag -width Ds -offset indent -compact
+.It AddKeysToAgent
 .It AddressFamily
 .It BatchMode
 .It BindAddress
@@ -469,6 +470,7 @@ For full details of the options listed below, and their possible values, see
 .It CanonicalizeHostname
 .It CanonicalizeMaxDots
 .It CanonicalizePermittedCNAMEs
+.It CertificateFile
 .It ChallengeResponseAuthentication
 .It CheckHostIP
 .It Cipher
@@ -552,7 +554,7 @@ Port to connect to on the remote host.
 This can be specified on a
 per-host basis in the configuration file.
 .Pp
-.It Fl Q Cm cipher | cipher-auth | mac | kex | key | protocol-version
+.It Fl Q Ar query_option
 Queries
 .Nm
 for the algorithms supported for the specified version 2.
@@ -566,7 +568,11 @@ The available features are:
 .Ar kex
 (key exchange algorithms),
 .Ar key
-(key types) and
+(key types),
+.Ar key-cert
+(certificate key types),
+.Ar key-plain
+(non-certificate key types), and
 .Ar protocol-version
 (supported SSH protocol versions).
 .Pp
@@ -658,8 +664,8 @@ for details.
 .Pp
 .It Fl s
 May be used to request invocation of a subsystem on the remote system.
-Subsystems are a feature of the SSH2 protocol which facilitate the use
-of SSH as a secure transport for other applications (eg.\&
+Subsystems facilitate the use of SSH
+as a secure transport for other applications (e.g.\&
 .Xr sftp 1 ) .
 The subsystem is specified as the remote command.
 .Pp
@@ -704,7 +710,6 @@ Implies
 .Cm ExitOnForwardFailure
 and
 .Cm ClearAllForwardings .
-Works with Protocol version 2 only.
 .Pp
 .It Fl w Xo
 .Ar local_tun Ns Op : Ns Ar remote_tun
@@ -789,15 +794,10 @@ or the
 and
 .Fl 2
 options (see above).
-Both protocols support similar authentication methods,
-but protocol 2 is the default since
-it provides additional mechanisms for confidentiality
-(the traffic is encrypted using AES, 3DES, Blowfish, CAST128, or Arcfour)
-and integrity (hmac-md5, hmac-sha1,
-hmac-sha2-256, hmac-sha2-512,
-umac-64, umac-128, hmac-ripemd160).
-Protocol 1 lacks a strong mechanism for ensuring the
-integrity of the connection.
+Protocol 1 should not be used
+and is only offered to support legacy devices.
+It suffers from a number of cryptographic weaknesses
+and doesn't support many of the advanced features available for protocol 2.
 .Pp
 The methods available for authentication are:
 GSSAPI-based authentication,
@@ -806,8 +806,9 @@ public key authentication,
 challenge-response authentication,
 and password authentication.
 Authentication methods are tried in the order specified above,
-though protocol 2 has a configuration option to change the default order:
-.Cm PreferredAuthentications .
+though
+.Cm PreferredAuthentications
+can be used to change the default order.
 .Pp
 Host-based authentication works as follows:
 If the machine the user logs in from is listed in
@@ -851,8 +852,6 @@ The server knows the public key, and only the user knows the private key.
 .Nm
 implements public key authentication protocol automatically,
 using one of the DSA, ECDSA, Ed25519 or RSA algorithms.
-Protocol 1 is restricted to using only RSA keys,
-but protocol 2 may use any.
 The HISTORY section of
 .Xr ssl 8
 contains a brief discussion of the DSA and RSA algorithms.
@@ -874,26 +873,26 @@ This stores the private key in
 .Pa ~/.ssh/identity
 (protocol 1),
 .Pa ~/.ssh/id_dsa
-(protocol 2 DSA),
+(DSA),
 .Pa ~/.ssh/id_ecdsa
-(protocol 2 ECDSA),
+(ECDSA),
 .Pa ~/.ssh/id_ed25519
-(protocol 2 Ed25519),
+(Ed25519),
 or
 .Pa ~/.ssh/id_rsa
-(protocol 2 RSA)
+(RSA)
 and stores the public key in
 .Pa ~/.ssh/identity.pub
 (protocol 1),
 .Pa ~/.ssh/id_dsa.pub
-(protocol 2 DSA),
+(DSA),
 .Pa ~/.ssh/id_ecdsa.pub
-(protocol 2 ECDSA),
+(ECDSA),
 .Pa ~/.ssh/id_ed25519.pub
-(protocol 2 Ed25519),
+(Ed25519),
 or
 .Pa ~/.ssh/id_rsa.pub
-(protocol 2 RSA)
+(RSA)
 in the user's home directory.
 The user should then copy the public key
 to
@@ -921,14 +920,16 @@ The most convenient way to use public key or certificate authentication
 may be with an authentication agent.
 See
 .Xr ssh-agent 1
+and (optionally) the
+.Cm AddKeysToAgent
+directive in
+.Xr ssh_config 5
 for more information.
 .Pp
 Challenge-response authentication works as follows:
 The server sends an arbitrary
 .Qq challenge
 text, and prompts for a response.
-Protocol 2 allows multiple challenges and responses;
-protocol 1 is restricted to just one challenge/response.
 Examples of challenge-response authentication include
 .Bx
 Authentication (see
@@ -1027,7 +1028,7 @@ at logout when waiting for forwarded connection / X11 sessions to terminate.
 Display a list of escape characters.
 .It Cm ~B
 Send a BREAK to the remote system
-(only useful for SSH protocol version 2 and if the peer supports it).
+(only useful if the peer supports it).
 .It Cm ~C
 Open command line.
 Currently this allows the addition of port forwardings using the
@@ -1060,7 +1061,7 @@ Basic help is available, using the
 option.
 .It Cm ~R
 Request rekeying of the connection
-(only useful for SSH protocol version 2 and if the peer supports it).
+(only useful if the peer supports it).
 .It Cm ~V
 Decrease the verbosity
 .Pq Ic LogLevel
@@ -1528,20 +1529,6 @@ The file format and configuration options are described in
 .It Pa /etc/ssh/ssh_host_rsa_key
 These files contain the private parts of the host keys
 and are used for host-based authentication.
-If protocol version 1 is used,
-.Nm
-must be setuid root, since the host key is readable only by root.
-For protocol version 2,
-.Nm
-uses
-.Xr ssh-keysign 8
-to access the host keys,
-eliminating the requirement that
-.Nm
-be setuid root when host-based authentication is used.
-By default
-.Nm
-is not setuid root.
 .Pp
 .It Pa /etc/ssh/ssh_known_hosts
 Systemwide list of known host keys.

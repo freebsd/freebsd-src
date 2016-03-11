@@ -141,7 +141,7 @@ else
 fi
 
 AC_ARG_WITH([ssh1],
-	[  --without-ssh1          Enable support for SSH protocol 1],
+	[  --with-ssh1             Enable support for SSH protocol 1],
 	[
 		if test "x$withval" = "xyes" ; then
 			if test "x$openssl" = "xno" ; then
@@ -476,6 +476,11 @@ AC_CHECK_HEADERS([sys/un.h], [], [], [
 SIA_MSG="no"
 SPC_MSG="no"
 SP_MSG="no"
+SPP_MSG="no"
+
+# Support for Solaris/Illumos privileges (this test is used by both
+# the --with-solaris-privs option and --with-sandbox=solaris).
+SOLARIS_PRIVS="no"
 
 # Check for some target-specific stuff
 case "$host" in
@@ -582,6 +587,8 @@ case "$host" in
 	LIBS="$LIBS /usr/lib/textreadmode.o"
 	AC_DEFINE([HAVE_CYGWIN], [1], [Define if you are on Cygwin])
 	AC_DEFINE([USE_PIPES], [1], [Use PIPES instead of a socketpair()])
+	AC_DEFINE([NO_UID_RESTORATION_TEST], [1],
+		[Define to disable UID restoration test])
 	AC_DEFINE([DISABLE_SHADOW], [1],
 		[Define if you want to disable shadow passwords])
 	AC_DEFINE([NO_X11_UNIX_SOCKETS], [1],
@@ -644,6 +651,9 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 		supported by bsd-setproctitle.c])
 	AC_CHECK_FUNCS([sandbox_init])
 	AC_CHECK_HEADERS([sandbox.h])
+	AC_CHECK_LIB([sandbox], [sandbox_apply], [
+	    SSHDLIBS="$SSHDLIBS -lsandbox"
+	])
 	;;
 *-*-dragonfly*)
 	SSHDLIBS="$SSHDLIBS -lcrypt"
@@ -896,13 +906,16 @@ mips-sony-bsd|mips-sony-newsos4)
 	else
 		AC_MSG_RESULT([no])
 	fi
+	AC_CHECK_FUNCS([setppriv])
+	AC_CHECK_FUNCS([priv_basicset])
+	AC_CHECK_HEADERS([priv.h])
 	AC_ARG_WITH([solaris-contracts],
 		[  --with-solaris-contracts Enable Solaris process contracts (experimental)],
 		[
 		AC_CHECK_LIB([contract], [ct_tmpl_activate],
 			[ AC_DEFINE([USE_SOLARIS_PROCESS_CONTRACTS], [1],
 				[Define if you have Solaris process contracts])
-			  SSHDLIBS="$SSHDLIBS -lcontract"
+			  LIBS="$LIBS -lcontract"
 			  SPC_MSG="yes" ], )
 		],
 	)
@@ -912,8 +925,27 @@ mips-sony-bsd|mips-sony-newsos4)
 		AC_CHECK_LIB([project], [setproject],
 			[ AC_DEFINE([USE_SOLARIS_PROJECTS], [1],
 				[Define if you have Solaris projects])
-			SSHDLIBS="$SSHDLIBS -lproject"
+			LIBS="$LIBS -lproject"
 			SP_MSG="yes" ], )
+		],
+	)
+	AC_ARG_WITH([solaris-privs],
+		[  --with-solaris-privs    Enable Solaris/Illumos privileges (experimental)],
+		[
+		AC_MSG_CHECKING([for Solaris/Illumos privilege support])
+		if test "x$ac_cv_func_setppriv" = "xyes" -a \
+			"x$ac_cv_header_priv_h" = "xyes" ; then
+			SOLARIS_PRIVS=yes
+			AC_MSG_RESULT([found])
+			AC_DEFINE([NO_UID_RESTORATION_TEST], [1],
+				[Define to disable UID restoration test])
+			AC_DEFINE([USE_SOLARIS_PRIVS], [1],
+				[Define if you have Solaris privileges])
+			SPP_MSG="yes"
+		else
+			AC_MSG_RESULT([not found])
+			AC_MSG_ERROR([*** must have support for Solaris privileges to use --with-solaris-privs])
+		fi
 		],
 	)
 	TEST_SHELL=$SHELL	# let configure find us a capable shell
@@ -1129,7 +1161,6 @@ AC_RUN_IFELSE([AC_LANG_PROGRAM([[ #include <stdio.h> ]], [[ exit(0); ]])],
 
 dnl Checks for header files.
 # Checks for libraries.
-AC_CHECK_FUNC([yp_match], , [AC_CHECK_LIB([nsl], [yp_match])])
 AC_CHECK_FUNC([setsockopt], , [AC_CHECK_LIB([socket], [setsockopt])])
 
 dnl IRIX and Solaris 2.5.1 have dirname() in libgen
@@ -1293,8 +1324,10 @@ AC_SEARCH_LIBS([openpty], [util bsd])
 AC_SEARCH_LIBS([updwtmp], [util bsd])
 AC_CHECK_FUNCS([fmt_scaled scan_scaled login logout openpty updwtmp logwtmp])
 
-# On some platforms, inet_ntop may be found in libresolv or libnsl.
+# On some platforms, inet_ntop and gethostbyname may be found in libresolv
+# or libnsl.
 AC_SEARCH_LIBS([inet_ntop], [resolv nsl])
+AC_SEARCH_LIBS([gethostbyname], [resolv nsl])
 
 AC_FUNC_STRFTIME
 
@@ -1732,6 +1765,7 @@ AC_CHECK_FUNCS([ \
 	nsleep \
 	ogetaddrinfo \
 	openlog_r \
+	pledge \
 	poll \
 	prctl \
 	pstat \
@@ -2372,10 +2406,10 @@ openssl_engine=no
 AC_ARG_WITH([ssl-engine],
 	[  --with-ssl-engine       Enable OpenSSL (hardware) ENGINE support ],
 	[
-		if test "x$openssl" = "xno" ; then
-			AC_MSG_ERROR([cannot use --with-ssl-engine when OpenSSL disabled])
-		fi
 		if test "x$withval" != "xno" ; then
+			if test "x$openssl" = "xno" ; then
+				AC_MSG_ERROR([cannot use --with-ssl-engine when OpenSSL disabled])
+			fi
 			openssl_engine=yes
 		fi
 	]
@@ -2408,6 +2442,7 @@ if test "x$openssl" = "xyes" ; then
 	AC_MSG_CHECKING([OpenSSL header version])
 	AC_RUN_IFELSE(
 		[AC_LANG_PROGRAM([[
+	#include <stdlib.h>
 	#include <stdio.h>
 	#include <string.h>
 	#include <openssl/opensslv.h>
@@ -2420,7 +2455,8 @@ if test "x$openssl" = "xyes" ; then
 		if(fd == NULL)
 			exit(1);
 
-		if ((rc = fprintf(fd ,"%08x (%s)\n", OPENSSL_VERSION_NUMBER, OPENSSL_VERSION_TEXT)) <0)
+		if ((rc = fprintf(fd ,"%08lx (%s)\n",
+		    (unsigned long)OPENSSL_VERSION_NUMBER, OPENSSL_VERSION_TEXT)) <0)
 			exit(1);
 
 		exit(0);
@@ -2487,6 +2523,7 @@ if test "x$openssl" = "xyes" ; then
 		[AC_LANG_PROGRAM([[
 	#include <string.h>
 	#include <openssl/opensslv.h>
+	#include <openssl/crypto.h>
 		]], [[
 		exit(SSLeay() == OPENSSL_VERSION_NUMBER ? 0 : 1);
 		]])],
@@ -3061,7 +3098,7 @@ fi
 # Decide which sandbox style to use
 sandbox_arg=""
 AC_ARG_WITH([sandbox],
-	[  --with-sandbox=style    Specify privilege separation sandbox (no, darwin, rlimit, systrace, seccomp_filter, capsicum)],
+	[  --with-sandbox=style    Specify privilege separation sandbox (no, capsicum, darwin, rlimit, seccomp_filter, systrace, pledge)],
 	[
 		if test "x$withval" = "xyes" ; then
 			sandbox_arg=""
@@ -3157,7 +3194,13 @@ AC_RUN_IFELSE(
 	[AC_MSG_WARN([cross compiling: assuming yes])]
 )
 
-if test "x$sandbox_arg" = "xsystrace" || \
+if test "x$sandbox_arg" = "xpledge" || \
+   ( test -z "$sandbox_arg" && test "x$ac_cv_func_pledge" = "xyes" ) ; then
+	test "x$ac_cv_func_pledge" != "xyes" && \
+		AC_MSG_ERROR([pledge sandbox requires pledge(2) support])
+	SANDBOX_STYLE="pledge"
+	AC_DEFINE([SANDBOX_PLEDGE], [1], [Sandbox using pledge(2)])
+elif test "x$sandbox_arg" = "xsystrace" || \
    ( test -z "$sandbox_arg" && test "x$have_systr_policy_kill" = "x1" ) ; then
 	test "x$have_systr_policy_kill" != "x1" && \
 		AC_MSG_ERROR([systrace sandbox requires systrace headers and SYSTR_POLICY_KILL support])
@@ -3210,6 +3253,10 @@ elif test "x$sandbox_arg" = "xrlimit" || \
 		AC_MSG_ERROR([rlimit sandbox requires select to work with rlimit])
 	SANDBOX_STYLE="rlimit"
 	AC_DEFINE([SANDBOX_RLIMIT], [1], [Sandbox using setrlimit(2)])
+elif test "x$sandbox_arg" = "xsolaris" || \
+   ( test -z "$sandbox_arg" && test "x$SOLARIS_PRIVS" = "xyes" ) ; then
+	SANDBOX_STYLE="solaris"
+	AC_DEFINE([SANDBOX_SOLARIS], [1], [Sandbox using Solaris/Illumos privileges])
 elif test -z "$sandbox_arg" || test "x$sandbox_arg" = "xno" || \
      test "x$sandbox_arg" = "xnone" || test "x$sandbox_arg" = "xnull" ; then
 	SANDBOX_STYLE="none"
@@ -4033,7 +4080,10 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 #include <arpa/nameser.h>
 #include <resolv.h>
 extern struct __res_state _res;
-		]], [[ ]])],
+		]], [[
+struct __res_state *volatile p = &_res;  /* force resolution of _res */
+return 0;
+		]],)],
 		[AC_MSG_RESULT([yes])
 		 AC_DEFINE([HAVE__RES_EXTERN], [1],
 		    [Define if you have struct __res_state _res as an extern])
@@ -4997,6 +5047,7 @@ echo "              MD5 password support: $MD5_MSG"
 echo "                   libedit support: $LIBEDIT_MSG"
 echo "  Solaris process contract support: $SPC_MSG"
 echo "           Solaris project support: $SP_MSG"
+echo "         Solaris privilege support: $SPP_MSG"
 echo "       IP address in \$DISPLAY hack: $DISPLAY_HACK_MSG"
 echo "           Translate v4 in v6 hack: $IPV4_IN6_HACK_MSG"
 echo "                  BSD Auth support: $BSD_AUTH_MSG"
