@@ -807,7 +807,7 @@ main(int argc, char *const *argv)
 		datalen = sweepmin;
 		send_len = icmp_len + sweepmin;
 	}
-	if (options & F_SWEEP && !sweepmax) 
+	if (options & F_SWEEP && !sweepmax)
 		errx(EX_USAGE, "Maximum sweep size must be specified");
 
 	/*
@@ -845,9 +845,9 @@ main(int argc, char *const *argv)
 		if (sweepmax)
 			(void)printf(": (%d ... %d) data bytes\n",
 			    sweepmin, sweepmax);
-		else 
+		else
 			(void)printf(": %d data bytes\n", datalen);
-		
+
 	} else {
 		if (sweepmax)
 			(void)printf("PING %s: (%d ... %d) data bytes\n",
@@ -969,14 +969,14 @@ main(int argc, char *const *argv)
 		}
 		if (n == 0 || options & F_FLOOD) {
 			if (sweepmax && sntransmitted == snpackets) {
-				for (i = 0; i < sweepincr ; ++i) 
+				for (i = 0; i < sweepincr ; ++i)
 					*datap++ = i;
 				datalen += sweepincr;
 				if (datalen > sweepmax)
 					break;
 				send_len = icmp_len + datalen;
 				sntransmitted = 0;
-			} 
+			}
 			if (!npackets || ntransmitted < npackets)
 				pinger();
 			else {
@@ -1179,7 +1179,7 @@ pr_pack(char *buf, int cc, struct sockaddr_in *from, struct timeval *tv)
 
 		if (options & F_QUIET)
 			return;
-	
+
 		if (options & F_WAITTIME && triptime > waittime) {
 			++nrcvtimeout;
 			return;
