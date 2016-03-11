@@ -1,4 +1,4 @@
-# $Id: sys.clean-env.mk,v 1.20 2012/11/12 06:56:04 sjg Exp $
+# $Id: sys.clean-env.mk,v 1.21 2016/02/18 21:16:40 sjg Exp $
 #
 #	@(#) Copyright (c) 2009, Simon J. Gerraty
 #
@@ -94,6 +94,7 @@ _tricky_env_vars = MAKEOBJDIR OBJTOP
 # MAKEOBJDIR='${.CURDIR:S,${SRCTOP},${OBJTOP},}'
 _srctop := ${SRCTOP:U${SB_SRC:U${SB}/src}}
 _objroot := ${OBJROOT:U${SB_OBJROOT:U${SB}/${SB_OBJPREFIX}}}
+.if ${MAKE_VERSION} < 20160218
 _objtop := ${OBJTOP:U${_objroot}${MACHINE}}
 # Take care of ${MACHINE}
 .if ${MACHINE} == "host" || ${OBJTOP} == ${HOST_OBJTOP:Uno}
@@ -113,7 +114,17 @@ MAKEOBJDIR = $${.CURDIR:S,${_srctop},$${OBJTOP},}
 .for v in ${_tricky_env_vars}
 $v := ${$v}
 .endfor
+.else
+# we cannot use the '$$' trick, anymore
+# but we can export a literal (unexpanded) value
+SRCTOP := ${_srctop}
+OBJROOT := ${_objroot}
+OBJTOP = ${OBJROOT}${MACHINE}
+MAKEOBJDIR = ${.CURDIR:S,${SRCTOP},${OBJTOP},}
+.export-literal SRCTOP OBJROOT ${_tricky_env_vars}
+.endif
 #.info ${_tricky_env_vars:@v@${.newline}$v=${$v}@}
-
+#showenv:
+#	@env | egrep 'OBJ|SRC'
 .endif				# MAKEOBJDIR
 .endif				# level 0

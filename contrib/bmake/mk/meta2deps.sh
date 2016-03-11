@@ -77,7 +77,7 @@
 
 
 # RCSid:
-#	$Id: meta2deps.sh,v 1.9 2015/04/03 18:23:25 sjg Exp $
+#	$Id: meta2deps.sh,v 1.10 2016/03/02 18:53:36 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -309,7 +309,7 @@ meta2deps() {
 	*)  seen=$dir;;
 	esac
 	case "$dir" in
-	${CURDIR:-.}|${CURDIR:-.}/*|"") continue;;
+	${CURDIR:-.}|"") continue;;
 	$src_re)
 	    # avoid repeating ourselves...
 	    case "$DPDEPS,$seensrc," in

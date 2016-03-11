@@ -1,3 +1,42 @@
+2016-03-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* meta2deps.sh: don't ignore subdirs.
+	  patch from Bryan Drewery
+
+2016-02-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20160226
+
+	* gendirdeps.mk: mark _DEPENDFILE .NOMETA
+
+2016-02-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* dirdeps.mk: we shouldn't normally include .depend but if we do
+	  use .dinclude if we can.
+
+2016-02-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20160218
+	* sys.clean-env.mk: with recent change to Var_Subst()
+	  we cannot use the '$$' trick, but .export-literal does the job
+	  we need.
+	* auto.dep.mk: make use .dinclude if we can.
+	
+
+2016-02-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* dirdeps.mk: 
+	  Add _build_all_dirs such that local.dirdeps.mk can
+	  add fully qualified dirs to it.
+	  These will be built normally but the current 
+	  DEP_RELDIR will not depend on then (to avoid cycles).
+	  This makes it easy to hook things like unit-tests into build.
+	
+
+2016-01-21  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* dirdeps.mk: add bootstrap-empty
+
 2015-12-12  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20151212

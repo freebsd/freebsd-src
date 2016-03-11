@@ -1,5 +1,5 @@
 # RCSid:
-#	$Id: warnings.mk,v 1.8 2014/04/02 19:20:23 sjg Exp $
+#	$Id: warnings.mk,v 1.9 2016/02/20 02:00:58 sjg Exp $
 #
 #	@(#) Copyright (c) 2002, Simon J. Gerraty
 #
@@ -15,6 +15,8 @@
 #
 
 .ifndef _w_cflags
+# make sure we get the behavior we expect
+.MAKE.SAVE_DOLLARS = no
 
 # Any number of warnings sets can be added.
 .-include "warnings-sets.mk"

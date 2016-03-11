@@ -1,5 +1,5 @@
 # $FreeBSD$
-# $Id: meta.autodep.mk,v 1.36 2014/08/02 23:10:29 sjg Exp $
+# $Id: meta.autodep.mk,v 1.40 2016/02/22 22:44:58 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -87,7 +87,7 @@ WANT_UPDATE_DEPENDFILE ?= yes
 .endif
 
 .if ${WANT_UPDATE_DEPENDFILE:Uno:tl} != "no"
-.if ${.MAKE.MODE:Mmeta*} == "" || ${.MAKE.MODE:M*read*} != ""
+.if ${.MAKE.MODE:Uno:Mmeta*} == "" || ${.MAKE.MODE:Uno:M*read*} != ""
 UPDATE_DEPENDFILE = no
 .endif
 

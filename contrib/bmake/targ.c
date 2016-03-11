@@ -1,4 +1,4 @@
-/*	$NetBSD: targ.c,v 1.60 2015/05/25 09:01:06 manu Exp $	*/
+/*	$NetBSD: targ.c,v 1.61 2016/01/17 17:45:21 christos Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: targ.c,v 1.60 2015/05/25 09:01:06 manu Exp $";
+static char rcsid[] = "$NetBSD: targ.c,v 1.61 2016/01/17 17:45:21 christos Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)targ.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: targ.c,v 1.60 2015/05/25 09:01:06 manu Exp $");
+__RCSID("$NetBSD: targ.c,v 1.61 2016/01/17 17:45:21 christos Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -292,10 +292,8 @@ TargFreeGN(void *gnp)
 
 
     free(gn->name);
-    if (gn->uname)
-	free(gn->uname);
-    if (gn->path)
-	free(gn->path);
+    free(gn->uname);
+    free(gn->path);
     /* gn->fname points to name allocated when file was opened, don't free */
 
     Lst_Destroy(gn->iParents, NULL);

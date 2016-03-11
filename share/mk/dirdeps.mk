@@ -1,5 +1,5 @@
 # $FreeBSD$
-# $Id: dirdeps.mk,v 1.55 2015/10/20 22:04:53 sjg Exp $
+# $Id: dirdeps.mk,v 1.59 2016/02/26 23:32:29 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -122,6 +122,9 @@ _DIRDEP_USE_LEVEL?= 0
 # and non-specific Makefile.depend*
 
 .if !target(_DIRDEP_USE)
+# make sure we get the behavior we expect
+.MAKE.SAVE_DOLLARS = no
+
 # do some setup we only need once
 _CURDIR ?= ${.CURDIR}
 _OBJDIR ?= ${.OBJDIR}
@@ -257,11 +260,8 @@ DEP_RELDIR := ${DIRDEPS:R:[1]}
 MK_DIRDEPS_CACHE = no
 .endif
 
-
-# pickup customizations
-# as below you can use !target(_DIRDEP_USE) to protect things
-# which should only be done once.
-.-include "local.dirdeps.mk"
+# reset each time through
+_build_all_dirs =
 
 # the first time we are included the _DIRDEP_USE target will not be defined
 # we can use this as a clue to do initialization and other one time things.
@@ -281,6 +281,14 @@ DEBUG_DIRDEPS ?= no
 # remember the initial value of DEP_RELDIR - we test for it below.
 _DEP_RELDIR := ${DEP_RELDIR}
 
+.endif
+
+# pickup customizations
+# as below you can use !target(_DIRDEP_USE) to protect things
+# which should only be done once.
+.-include "local.dirdeps.mk"
+
+.if !target(_DIRDEP_USE)
 # things we skip for host tools
 SKIP_HOSTDIR ?=
 
@@ -400,6 +408,7 @@ ${DIRDEPS_CACHE}:	.META .NOMETA_CMP
 	MAKEFLAGS= ${.MAKE} -C ${_CURDIR} -f ${BUILD_DIRDEPS_MAKEFILE} \
 	${BUILD_DIRDEPS_TARGETS} BUILD_DIRDEPS_CACHE=yes \
 	.MAKE.DEPENDFILE=.none \
+	${.MAKEFLAGS:tW:S,-D ,-D,g:tw:M*WITH*} \
 	3>&1 1>&2 | sed 's,${SRCTOP},$${SRCTOP},g' >> ${.TARGET}.new && \
 	mv ${.TARGET}.new ${.TARGET}
 
@@ -480,7 +489,11 @@ _build_dirs += ${_machines:@m@${_CURDIR}.$m@}
 _build_dirs += ${_machines:N${DEP_TARGET_SPEC}:@m@${_CURDIR}.$m@}
 .if ${DEP_TARGET_SPEC} == ${TARGET_SPEC}
 # pickup local dependencies now
+.if ${MAKE_VERSION} < 20160220
 .-include <.depend>
+.else
+.dinclude <.depend>
+.endif
 .endif
 .endif
 .endif
@@ -532,22 +545,25 @@ _build_dirs += \
 # qualify everything now
 _build_dirs := ${_build_dirs:${M_dep_qual_fixes:ts:}:O:u}
 
+_build_all_dirs += ${_build_dirs}
+_build_all_dirs := ${_build_all_dirs:O:u}
+
 .endif				# empty DIRDEPS
 
 # Normally if doing make -V something,
 # we do not want to waste time chasing DIRDEPS
 # but if we want to count the number of Makefile.depend* read, we do.
 .if ${.MAKEFLAGS:M-V${_V_READ_DIRDEPS}} == ""
-.if !empty(_build_dirs)
+.if !empty(_build_all_dirs)
 .if ${BUILD_DIRDEPS_CACHE} == "yes"
 x!= { echo; echo '\# ${DEP_RELDIR}.${DEP_TARGET_SPEC}'; \
-	echo 'dirdeps: ${_build_dirs:${M_oneperline}}'; echo; } >&3; echo
-x!= { ${_build_dirs:@x@${target($x):?:echo '$x: _DIRDEP_USE';}@} echo; } >&3; echo
+	echo 'dirdeps: ${_build_all_dirs:${M_oneperline}}'; echo; } >&3; echo
+x!= { ${_build_all_dirs:@x@${target($x):?:echo '$x: _DIRDEP_USE';}@} echo; } >&3; echo
 .else
 # this makes it all happen
-dirdeps: ${_build_dirs}
+dirdeps: ${_build_all_dirs}
 .endif
-${_build_dirs}:	_DIRDEP_USE
+${_build_all_dirs}:	_DIRDEP_USE
 
 .if ${_debug_reldir}
 .info ${DEP_RELDIR}.${DEP_TARGET_SPEC}: needs: ${_build_dirs}
@@ -581,14 +597,14 @@ ${_this_dir}.$m: ${_build_dirs:M*.$m:N${_this_dir}.$m}
 .endif
 
 # Now find more dependencies - and recurse.
-.for d in ${_build_dirs}
+.for d in ${_build_all_dirs}
 .if ${_DIRDEP_CHECKED:M$d} == ""
 # once only
 _DIRDEP_CHECKED += $d
 .if ${_debug_search}
 .info checking $d
 .endif
-# Note: _build_dirs is fully qualifed so d:R is always the directory
+# Note: _build_all_dirs is fully qualifed so d:R is always the directory
 .if exists(${d:R})
 # Warning: there is an assumption here that MACHINE is always 
 # the first entry in TARGET_SPEC_VARS.
@@ -628,28 +644,37 @@ DIRDEPS =
 DEP_RELDIR := ${RELDIR}
 _DEP_RELDIR := ${RELDIR}
 # pickup local dependencies
+.if ${MAKE_VERSION} < 20160220
 .-include <.depend>
+.else
+.dinclude <.depend>
+.endif
 .endif
 
 # bootstrapping new dependencies made easy?
-.if (make(bootstrap) || make(bootstrap-recurse)) && !target(bootstrap)
+.if !target(bootstrap) && (make(bootstrap) || \
+	make(bootstrap-this) || \
+	make(bootstrap-recurse) || \
+	make(bootstrap-empty))
 
 .if exists(${.CURDIR}/${.MAKE.DEPENDFILE:T})
 # stop here
 ${.TARGETS:Mboot*}:
-.else
+.elif !make(bootstrap-empty)
 # find a Makefile.depend to use as _src
 _src != cd ${.CURDIR} && for m in ${.MAKE.DEPENDFILE_PREFERENCE:T:S,${MACHINE},*,}; do test -s $$m || continue; echo $$m; break; done; echo
 .if empty(_src)
-.error cannot find any of ${.MAKE.DEPENDFILE_PREFERENCE:T}
+.error cannot find any of ${.MAKE.DEPENDFILE_PREFERENCE:T}${.newline}Use: bootstrap-empty
 .endif
 
 _src?= ${.MAKE.DEPENDFILE:T}
 
+# just create Makefile.depend* for this dir
 bootstrap-this:	.NOTMAIN
 	@echo Bootstrapping ${RELDIR}/${.MAKE.DEPENDFILE:T} from ${_src:T}
 	(cd ${.CURDIR} && sed 's,${_src:E},${MACHINE},g' ${_src} > ${.MAKE.DEPENDFILE:T})
 
+# create Makefile.depend* for this dir and its dependencies
 bootstrap: bootstrap-recurse
 bootstrap-recurse: bootstrap-this
 
@@ -664,4 +689,11 @@ bootstrap-recurse:	.NOTMAIN .MAKE
 	done
 
 .endif
+
+# create an empty Makefile.depend* to get the ball rolling.
+bootstrap-empty: .NOTMAIN .NOMETA
+	@echo Creating empty ${RELDIR}/${.MAKE.DEPENDFILE:T}; \
+	echo You need to build ${RELDIR} to correctly populate it.
+	@{ echo DIRDEPS=; echo ".include <dirdeps.mk>"; } > ${.CURDIR}/${.MAKE.DEPENDFILE:T}
+
 .endif
