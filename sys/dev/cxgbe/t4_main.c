@@ -476,6 +476,7 @@ static int sysctl_rdma_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tcp_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tids(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS);
+static int sysctl_tp_la_mask(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_tx_rate(SYSCTL_HANDLER_ARGS);
 static int sysctl_ulprx_la(SYSCTL_HANDLER_ARGS);
@@ -4808,6 +4809,10 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_tp_err_stats, "A", "TP error statistics");
 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tp_la_mask",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, sysctl_tp_la_mask, "I",
+	    "TP logic analyzer event capture mask");
+
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tp_la",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_tp_la, "A", "TP logic analyzer");
@@ -6992,6 +6997,26 @@ sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(sb);
 
 	return (rc);
+}
+
+static int
+sysctl_tp_la_mask(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct tp_params *tpp = &sc->params.tp;
+	u_int mask;
+	int rc;
+
+	mask = tpp->la_mask >> 16;
+	rc = sysctl_handle_int(oidp, &mask, 0, req);
+	if (rc != 0 || req->newptr == NULL)
+		return (rc);
+	if (mask > 0xffff)
+		return (EINVAL);
+	tpp->la_mask = mask << 16;
+	t4_set_reg_field(sc, A_TP_DBG_LA_CONFIG, 0xffff0000U, tpp->la_mask);
+
+	return (0);
 }
 
 struct field_desc {
