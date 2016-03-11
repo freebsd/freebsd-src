@@ -236,8 +236,7 @@ PATH:= ${TOOLSDIR}${dir}:${PATH}
 _toolchain_bin.${var}=	${TOOLSDIR}${_toolchain_bin_${var}:U/usr/bin/${var:tl}}
 .if exists(${_toolchain_bin.${var}})
 HOST_${var}?=	${_toolchain_bin.${var}}
-${var}?=	${HOST_${var}}
-.export		HOST_${var} ${var}
+.export		HOST_${var}
 .endif
 .endfor
 .endif
