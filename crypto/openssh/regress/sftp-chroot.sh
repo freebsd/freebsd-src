@@ -12,6 +12,11 @@ if [ -z "$SUDO" ]; then
   exit 0
 fi
 
+if ! $OBJ/check-perm -m chroot "$CHROOT" ; then
+  echo "skipped: $CHROOT is unsuitable as ChrootDirectory"
+  exit 0
+fi
+
 $SUDO sh -c "echo mekmitastdigoat > $PRIVDATA" || \
 	fatal "create $PRIVDATA failed"
 

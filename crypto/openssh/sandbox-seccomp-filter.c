@@ -147,6 +147,9 @@ static const struct sock_filter preauth_insns[] = {
 #ifdef __NR_getpid
 	SC_ALLOW(getpid),
 #endif
+#ifdef __NR_getrandom
+	SC_ALLOW(getrandom),
+#endif
 #ifdef __NR_gettimeofday
 	SC_ALLOW(gettimeofday),
 #endif

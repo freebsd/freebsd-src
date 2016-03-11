@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-agent.1,v 1.59 2015/04/24 06:26:49 jmc Exp $
+.\" $OpenBSD: ssh-agent.1,v 1.62 2015/11/15 23:54:15 jmc Exp $
 .\" $FreeBSD$
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: April 24 2015 $
+.Dd $Mdocdate: November 15 2015 $
 .Dt SSH-AGENT 1
 .Os
 .Sh NAME
@@ -44,7 +44,7 @@
 .Sh SYNOPSIS
 .Nm ssh-agent
 .Op Fl c | s
-.Op Fl Ddx
+.Op Fl \&Ddx
 .Op Fl a Ar bind_address
 .Op Fl E Ar fingerprint_hash
 .Op Fl t Ar life
@@ -67,6 +67,13 @@ machines using
 .Pp
 The agent initially does not have any private keys.
 Keys are added using
+.Xr ssh 1
+(see
+.Cm AddKeysToAgent
+in
+.Xr ssh_config 5
+for details)
+or
 .Xr ssh-add 1 .
 Multiple identities may be stored in
 .Nm
@@ -133,7 +140,7 @@ Without this option the default maximum lifetime is forever.
 Exit after the last client has disconnected.
 .El
 .Pp
-If a commandline is given, this is executed as a subprocess of the agent.
+If a command line is given, this is executed as a subprocess of the agent.
 When the command dies, so does the agent.
 .Pp
 The idea is that the agent is run in the user's local PC, laptop, or

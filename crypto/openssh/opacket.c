@@ -235,18 +235,6 @@ packet_set_connection(int fd_in, int fd_out)
 		fatal("%s: ssh_packet_set_connection failed", __func__);
 }
 
-void
-packet_backup_state(void)
-{
-	ssh_packet_backup_state(active_state, backup_state);
-}
-
-void
-packet_restore_state(void)
-{
-	ssh_packet_restore_state(active_state, backup_state);
-}
-
 u_int
 packet_get_char(void)
 {

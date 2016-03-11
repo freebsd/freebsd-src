@@ -1,4 +1,4 @@
-/* $OpenBSD: authfd.c,v 1.98 2015/07/03 03:43:18 djm Exp $ */
+/* $OpenBSD: authfd.c,v 1.100 2015/12/04 16:41:28 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -426,11 +426,24 @@ ssh_decrypt_challenge(int sock, struct sshkey* key, BIGNUM *challenge,
 }
 #endif
 
+/* encode signature algoritm in flag bits, so we can keep the msg format */
+static u_int
+agent_encode_alg(struct sshkey *key, const char *alg)
+{
+	if (alg != NULL && key->type == KEY_RSA) {
+		if (strcmp(alg, "rsa-sha2-256") == 0)
+			return SSH_AGENT_RSA_SHA2_256;
+		else if (strcmp(alg, "rsa-sha2-512") == 0)
+			return SSH_AGENT_RSA_SHA2_512;
+	}
+	return 0;
+}
+
 /* ask agent to sign data, returns err.h code on error, 0 on success */
 int
 ssh_agent_sign(int sock, struct sshkey *key,
     u_char **sigp, size_t *lenp,
-    const u_char *data, size_t datalen, u_int compat)
+    const u_char *data, size_t datalen, const char *alg, u_int compat)
 {
 	struct sshbuf *msg;
 	u_char *blob = NULL, type;
@@ -449,12 +462,13 @@ ssh_agent_sign(int sock, struct sshkey *key,
 		return SSH_ERR_ALLOC_FAIL;
 	if ((r = sshkey_to_blob(key, &blob, &blen)) != 0)
 		goto out;
+	flags |= agent_encode_alg(key, alg);
 	if ((r = sshbuf_put_u8(msg, SSH2_AGENTC_SIGN_REQUEST)) != 0 ||
 	    (r = sshbuf_put_string(msg, blob, blen)) != 0 ||
 	    (r = sshbuf_put_string(msg, data, datalen)) != 0 ||
 	    (r = sshbuf_put_u32(msg, flags)) != 0)
 		goto out;
-	if ((r = ssh_request_reply(sock, msg, msg) != 0))
+	if ((r = ssh_request_reply(sock, msg, msg)) != 0)
 		goto out;
 	if ((r = sshbuf_get_u8(msg, &type)) != 0)
 		goto out;
