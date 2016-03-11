@@ -161,6 +161,8 @@ _MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} MK_AUTO_OBJ=no ${MAKE} \
 # We cannot blindly use a make which may not be the one we want
 # so be exlicit - until all choice is removed.
 WANT_MAKE=	bmake
+# 20160220 - support .dinclude for FAST_DEPEND.
+WANT_MAKE_VERSION= 20160220
 MYMAKE=		${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE}/${WANT_MAKE}
 .if defined(.PARSEDIR)
 HAVE_MAKE=	bmake

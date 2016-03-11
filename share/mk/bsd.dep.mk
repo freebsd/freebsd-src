@@ -177,7 +177,9 @@ ${_D}.po: ${_DSRC} ${POBJS:S/^${_D}.po$//}
 _meta_filemon=	1
 .endif
 .if ${MK_FAST_DEPEND} == "yes"
+.if ${MAKE_VERSION} < 20160220
 DEPEND_MP?=	-MP
+.endif
 # Handle OBJS=../somefile.o hacks.  Just replace '/' rather than use :T to
 # avoid collisions.
 DEPEND_FILTER=	C,/,_,g
@@ -201,7 +203,11 @@ CFLAGS+=	${DEPEND_CFLAGS}
 .endif
 .if !defined(_SKIP_READ_DEPEND)
 .for __depend_obj in ${DEPENDFILES_OBJS}
+.if ${MAKE_VERSION} < 20160220
 .sinclude "${.OBJDIR}/${__depend_obj}"
+.else
+.dinclude "${.OBJDIR}/${__depend_obj}"
+.endif
 .endfor
 .endif	# !defined(_SKIP_READ_DEPEND)
 .endif	# !defined(_meta_filemon)
