@@ -482,6 +482,9 @@ static int sysctl_tx_rate(SYSCTL_HANDLER_ARGS);
 static int sysctl_ulprx_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS);
 #endif
+static int sysctl_tp_tick(SYSCTL_HANDLER_ARGS);
+static int sysctl_tp_dack_timer(SYSCTL_HANDLER_ARGS);
+static int sysctl_tp_timer(SYSCTL_HANDLER_ARGS);
 static uint32_t fconf_iconf_to_mode(uint32_t, uint32_t);
 static uint32_t mode_to_fconf(uint32_t);
 static uint32_t mode_to_iconf(uint32_t);
@@ -4890,6 +4893,54 @@ t4_sysctls(struct adapter *sc)
 		sc->tt.tx_align = 1;
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "tx_align",
 		    CTLFLAG_RW, &sc->tt.tx_align, 0, "chop and align payload");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "timer_tick",
+		    CTLTYPE_STRING | CTLFLAG_RD, sc, 0, sysctl_tp_tick, "A",
+		    "TP timer tick (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "timestamp_tick",
+		    CTLTYPE_STRING | CTLFLAG_RD, sc, 1, sysctl_tp_tick, "A",
+		    "TCP timestamp tick (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "dack_tick",
+		    CTLTYPE_STRING | CTLFLAG_RD, sc, 2, sysctl_tp_tick, "A",
+		    "DACK tick (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "dack_timer",
+		    CTLTYPE_UINT | CTLFLAG_RD, sc, 0, sysctl_tp_dack_timer,
+		    "IU", "DACK timer (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rexmt_min",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_RXT_MIN,
+		    sysctl_tp_timer, "LU", "Retransmit min (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rexmt_max",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_RXT_MAX,
+		    sysctl_tp_timer, "LU", "Retransmit max (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "persist_min",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_PERS_MIN,
+		    sysctl_tp_timer, "LU", "Persist timer min (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "persist_max",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_PERS_MAX,
+		    sysctl_tp_timer, "LU", "Persist timer max (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "keepalive_idle",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_KEEP_IDLE,
+		    sysctl_tp_timer, "LU", "Keepidle idle timer (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "keepalive_intvl",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_KEEP_INTVL,
+		    sysctl_tp_timer, "LU", "Keepidle interval (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "initial_srtt",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_INIT_SRTT,
+		    sysctl_tp_timer, "LU", "Initial SRTT (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "finwait2_timer",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_FINWAIT2_TIMER,
+		    sysctl_tp_timer, "LU", "FINWAIT2 timer (us)");
 	}
 #endif
 }
@@ -7387,6 +7438,90 @@ sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS)
 	return (rc);
 }
 #endif
+
+static void
+unit_conv(char *buf, size_t len, u_int val, u_int factor)
+{
+	u_int rem = val % factor;
+
+	if (rem == 0)
+		snprintf(buf, len, "%u", val / factor);
+	else {
+		while (rem % 10 == 0)
+			rem /= 10;
+		snprintf(buf, len, "%u.%u", val / factor, rem);
+	}
+}
+
+static int
+sysctl_tp_tick(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	char buf[16];
+	u_int res, re;
+	u_int cclk_ps = 1000000000 / sc->params.vpd.cclk;
+
+	res = t4_read_reg(sc, A_TP_TIMER_RESOLUTION);
+	switch (arg2) {
+	case 0:
+		/* timer_tick */
+		re = G_TIMERRESOLUTION(res);
+		break;
+	case 1:
+		/* TCP timestamp tick */
+		re = G_TIMESTAMPRESOLUTION(res);
+		break;
+	case 2:
+		/* DACK tick */
+		re = G_DELAYEDACKRESOLUTION(res);
+		break;
+	default:
+		return (EDOOFUS);
+	}
+
+	unit_conv(buf, sizeof(buf), (cclk_ps << re), 1000000);
+
+	return (sysctl_handle_string(oidp, buf, sizeof(buf), req));
+}
+
+static int
+sysctl_tp_dack_timer(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	u_int res, dack_re, v;
+	u_int cclk_ps = 1000000000 / sc->params.vpd.cclk;
+
+	res = t4_read_reg(sc, A_TP_TIMER_RESOLUTION);
+	dack_re = G_DELAYEDACKRESOLUTION(res);
+	v = ((cclk_ps << dack_re) / 1000000) * t4_read_reg(sc, A_TP_DACK_TIMER);
+
+	return (sysctl_handle_int(oidp, &v, 0, req));
+}
+
+static int
+sysctl_tp_timer(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	int reg = arg2;
+	u_int tre;
+	u_long tp_tick_us, v;
+	u_int cclk_ps = 1000000000 / sc->params.vpd.cclk;
+
+	MPASS(reg == A_TP_RXT_MIN || reg == A_TP_RXT_MAX ||
+	    reg == A_TP_PERS_MIN || reg == A_TP_PERS_MAX ||
+	    reg == A_TP_KEEP_IDLE || A_TP_KEEP_INTVL || reg == A_TP_INIT_SRTT ||
+	    reg == A_TP_FINWAIT2_TIMER);
+
+	tre = G_TIMERRESOLUTION(t4_read_reg(sc, A_TP_TIMER_RESOLUTION));
+	tp_tick_us = (cclk_ps << tre) / 1000000;
+
+	if (reg == A_TP_INIT_SRTT)
+		v = tp_tick_us * G_INITSRTT(t4_read_reg(sc, reg));
+	else
+		v = tp_tick_us * t4_read_reg(sc, reg);
+
+	return (sysctl_handle_long(oidp, &v, 0, req));
+}
 
 static uint32_t
 fconf_iconf_to_mode(uint32_t fconf, uint32_t iconf)
