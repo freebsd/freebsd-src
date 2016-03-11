@@ -16,8 +16,10 @@ SHARED?=	copies
 all clean cleandir depend lint tags:
 
 beforeinstall: ${SHARED}
+META_COOKIES+=	copies symlinks
 
-copies::
+copies:
+	${META_COOKIE_RM}
 	if [ -L ${DDIR}/${CFDIR} ]; then rm -f ${DDIR}/${CFDIR}; fi
 .for dir in ${CFDIRS}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 755 -d ${DDIR}/${dir}
@@ -25,8 +27,11 @@ copies::
 .for file in ${CFFILES}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 ${SENDMAIL_DIR}/${file} ${DDIR}/${file}
 .endfor
+	${META_COOKIE_TOUCH}
 
-symlinks::
+symlinks:
+	${META_COOKIE_RM}
 	rm -rf ${DDIR}/${CFDIR}; ln -s ${SENDMAIL_DIR}/${CFDIR} ${DDIR}/${CFDIR}
+	${META_COOKIE_TOUCH}
 
 .include <bsd.prog.mk>

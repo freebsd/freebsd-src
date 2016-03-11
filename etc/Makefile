@@ -3,6 +3,9 @@
 
 .include <src.opts.mk>
 
+# No need as it is empty and just causes rebuilds since this file does so much.
+UPDATE_DEPENDFILE=	no
+
 SUBDIR=	\
 	newsyslog.conf.d
 
@@ -461,11 +464,16 @@ distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 	done
 .endif
 
-etc-examples:
+etc-examples-install:
+	${META_COOKIE_RM}
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${BIN1} ${BIN2} nsmb.conf opieaccess \
 	    ${DESTDIR}${SHAREDIR}/examples/etc
-	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install \
+	${META_COOKIE_TOUCH}
+
+etc-examples: etc-examples-install
+	${_+_}cd ${.CURDIR}/defaults; \
+	    ${MAKE} ${${MK_STAGING} == "yes":?all:install} \
 	    DESTDIR=${DESTDIR}${SHAREDIR}/examples
 
 .include <bsd.prog.mk>
