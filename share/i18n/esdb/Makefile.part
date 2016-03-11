@@ -67,11 +67,9 @@ codesets: ${ESDB}
 
 .if !defined(NO_PREPROC)
 .for i in ${PART}
-.if !exists(${EPREFIX}${i:S/:/@/}.src)
 ${EPREFIX}${i:S/:/@/}.src: ${CODE}.src
-	sed ${SED_EXP:S@%%PART%%@${i}@} ${.CURDIR}/${CODE}.src > ${EPREFIX}${i:S/:/@/}.src
-	@echo ${EPREFIX}${i:S/:/@/}.src >>.tmpfiles
-.endif
+	sed ${SED_EXP:S@%%PART%%@${i}@} ${.ALLSRC} > ${.TARGET}
+	@echo ${.TARGET} >>.tmpfiles
 .endfor
 .endif
 
