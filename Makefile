@@ -333,10 +333,9 @@ upgrade_checks:
 #
 MMAKEENV=	MAKEOBJDIRPREFIX=${MYMAKE:H} \
 		DESTDIR= \
-		MK_MAN=no \
 		INSTALL="sh ${.CURDIR}/tools/install.sh"
 MMAKE=		${MMAKEENV} ${MAKE} \
-		-DNO_SHARED \
+		-DNO_MAN -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WERROR \
 		MK_TESTS=no \
 		DESTDIR= PROGNAME=${MYMAKE:T}
