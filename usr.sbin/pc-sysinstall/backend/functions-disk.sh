@@ -263,6 +263,9 @@ delete_all_gpart()
 # Function to export all zpools before starting an install
 stop_all_zfs()
 {
+  if [ ! -c /dev/zfs ]; then
+    return;
+  fi
   local DISK="`echo ${1} | sed 's|/dev/||g'`"
 
   # Export any zpools using this device so we can overwrite
@@ -278,6 +281,9 @@ stop_all_zfs()
 # Function which stops all gmirrors before doing any disk manipulation
 stop_all_gmirror()
 {
+  if [ ! -d /dev/mirror ]; then
+    return;
+  fi
   local DISK="`echo ${1} | sed 's|/dev/||g'`"
   GPROV="`gmirror list | grep ". Name: mirror/" | cut -d '/' -f 2`"
   for gprov in $GPROV 
