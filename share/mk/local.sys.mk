@@ -28,10 +28,14 @@ MAKE_PRINT_VAR_ON_ERROR += .MAKE.MAKEFILES .PATH
 .if ${.MAKE.MODE:Mmeta*} != ""
 # we can afford to use cookies to prevent some targets
 # re-running needlessly
-META_COOKIE_TOUCH= touch ${COOKIE.${.TARGET}:U${.OBJDIR}/${.TARGET}}
+META_COOKIE=		${COOKIE.${.TARGET}:U${.OBJDIR}/${.TARGET}}
+META_COOKIE_RM=		@rm -f ${META_COOKIE}
+META_COOKIE_TOUCH=	@touch ${META_COOKIE}
 # some targets need to be .PHONY - but not in meta mode
 META_NOPHONY=
+CLEANFILES+=		${META_COOKIES}
 .else
+META_COOKIE_RM=
 META_COOKIE_TOUCH=
 META_NOPHONY= .PHONY
 .endif
