@@ -122,4 +122,8 @@ pid_t getpgid(pid_t);
 # define krb5_free_error_message(a,b) do { } while(0)
 #endif
 
+#ifndef HAVE_PLEDGE
+int pledge(const char *promises, const char *paths[]);
+#endif
+
 #endif /* _BSD_MISC_H */
