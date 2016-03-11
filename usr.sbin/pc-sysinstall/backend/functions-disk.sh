@@ -1,4 +1,4 @@
-#!/bin/sh -x
+#!/bin/sh
 #-
 # Copyright (c) 2010 iXsystems, Inc.  All rights reserved.
 #
