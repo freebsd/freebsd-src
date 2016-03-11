@@ -67,7 +67,9 @@ TZBUILDSUBDIRS=	\
 		Pacific \
 		SystemV
 
+.if !defined(_SKIP_BUILD)
 all: zoneinfo
+.endif
 
 .PHONY: zoneinfo
 zoneinfo: yearistype ${TDATA}
