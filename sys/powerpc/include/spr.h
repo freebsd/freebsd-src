@@ -192,6 +192,7 @@
 #define	  FSL_E5500		  0x8024
 #define	  FSL_E6500		  0x8040
 
+#define	SPR_SPEFSCR		0x200	/* ..8 Signal Processing Engine FSCR. */
 #define	SPR_IBAT0U		0x210	/* .68 Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0U		0x210	/* .6. Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0L		0x211	/* .6. Instruction BAT Reg 0 Lower */
