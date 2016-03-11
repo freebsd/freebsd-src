@@ -2826,7 +2826,24 @@ prep_firmware(struct adapter *sc)
 	    G_FW_HDR_FW_VER_MINOR(sc->params.fw_vers),
 	    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
 	    G_FW_HDR_FW_VER_BUILD(sc->params.fw_vers));
+
 	t4_get_tp_version(sc, &sc->params.tp_vers);
+	snprintf(sc->tp_version, sizeof(sc->tp_version), "%u.%u.%u.%u",
+	    G_FW_HDR_FW_VER_MAJOR(sc->params.tp_vers),
+	    G_FW_HDR_FW_VER_MINOR(sc->params.tp_vers),
+	    G_FW_HDR_FW_VER_MICRO(sc->params.tp_vers),
+	    G_FW_HDR_FW_VER_BUILD(sc->params.tp_vers));
+
+	if (t4_get_exprom_version(sc, &sc->params.exprom_vers) != 0)
+		sc->params.exprom_vers = 0;
+	else {
+		snprintf(sc->exprom_version, sizeof(sc->exprom_version),
+		    "%u.%u.%u.%u",
+		    G_FW_HDR_FW_VER_MAJOR(sc->params.exprom_vers),
+		    G_FW_HDR_FW_VER_MINOR(sc->params.exprom_vers),
+		    G_FW_HDR_FW_VER_MICRO(sc->params.exprom_vers),
+		    G_FW_HDR_FW_VER_BUILD(sc->params.exprom_vers));
+	}
 
 	/* Reset device */
 	if (need_fw_reset &&
@@ -4593,6 +4610,14 @@ t4_sysctls(struct adapter *sc)
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "hw_revision", CTLFLAG_RD,
 	    NULL, chip_rev(sc), "chip hardware revision");
+
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "tp_version",
+	    CTLFLAG_RD, sc->tp_version, 0, "TP microcode version");
+
+	if (sc->params.exprom_vers != 0) {
+		SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "exprom_version",
+		    CTLFLAG_RD, sc->exprom_version, 0, "expansion ROM version");
+	}
 
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "firmware_version",
 	    CTLFLAG_RD, sc->fw_version, 0, "firmware version");

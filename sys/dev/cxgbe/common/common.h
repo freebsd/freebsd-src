@@ -290,6 +290,7 @@ struct adapter_params {
 
 	unsigned int fw_vers;
 	unsigned int tp_vers;
+	unsigned int exprom_vers;
 
 	unsigned short mtus[NMTUS];
 	unsigned short a_wnd[NCCTRL_WIN];
