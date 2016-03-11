@@ -54,6 +54,7 @@ CXXRT_SRCS+=	libelftc_dem_gnu3.c\
 		guard.cc
 
 .for _S in ${CXXRT_SRCS}
+CLEANFILES+=	cxxrt_${_S}
 STATICOBJS+=	cxxrt_${_S:R}.o
 cxxrt_${_S}: ${_LIBCXXRTDIR}/${_S} .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
