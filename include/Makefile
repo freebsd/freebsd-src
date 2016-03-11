@@ -131,6 +131,7 @@ _MARCHS+=	x86
 .if ${MK_STAGING} == "yes"
 # tell bsd.incs.mk that we have it covered
 NO_STAGE_INCLUDES=
+META_COOKIES+=	stage_prep stage_include compat copies symlinks
 .endif
 
 .include <bsd.prog.mk>
@@ -157,6 +158,7 @@ ${SHARED}: compat
 
 # Take care of stale directory-level symlinks.
 compat:
+	${META_COOKIE_RM}
 .for i in ${LDIRS} ${LSUBDIRS} machine ${_MARCHS} crypto
 	if [ -L ${DESTDIR}${INCLUDEDIR}/$i ]; then \
 		rm -f ${DESTDIR}${INCLUDEDIR}/$i; \
@@ -165,11 +167,10 @@ compat:
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}${INCLUDEDIR} > /dev/null
-.if ${MK_DIRDEPS_BUILD} == "yes"
-	@touch ${.TARGET}
-.endif
+	${META_COOKIE_TOUCH}
 
 copies:
+	${META_COOKIE_RM}
 .for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} crypto machine machine/pc \
 	${_MARCHS}
 	if [ -d ${DESTDIR}${INCLUDEDIR}/$i ]; then \
@@ -254,11 +255,10 @@ copies:
 	cd ${.CURDIR}/../sys/teken; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
 	    ${DESTDIR}${INCLUDEDIR}/teken
-.if ${MK_DIRDEPS_BUILD} == "yes"
-	@touch ${.OBJDIR}/${.TARGET}
-.endif
+	${META_COOKIE_TOUCH}
 
 symlinks:
+	${META_COOKIE_RM}
 	@${ECHO} "Setting up symlinks to kernel source tree..."
 .for i in ${LDIRS}
 	cd ${.CURDIR}/../sys/$i; \
@@ -371,9 +371,7 @@ symlinks:
 		${INSTALL_SYMLINK} ../../../sys/rpc/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/rpc; \
 	done
-.if ${MK_DIRDEPS_BUILD} == "yes"
-	@touch ${.OBJDIR}/${.TARGET}
-.endif
+	${META_COOKIE_TOUCH}
 
 .if ${MACHINE} == "host" && !defined(_SKIP_BUILD)
 # we're here because we are building a sysroot...
