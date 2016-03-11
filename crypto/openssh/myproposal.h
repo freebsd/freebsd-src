@@ -113,10 +113,11 @@
 #define KEX_SERVER_ENCRYPT \
 	"chacha20-poly1305@openssh.com," \
 	"aes128-ctr,aes192-ctr,aes256-ctr" \
-	AESGCM_CIPHER_MODES
+	AESGCM_CIPHER_MODES \
+	",aes128-cbc,aes192-cbc,aes256-cbc"
 
 #define KEX_CLIENT_ENCRYPT KEX_SERVER_ENCRYPT "," \
-	"aes128-cbc,aes192-cbc,aes256-cbc,3des-cbc"
+	"3des-cbc"
 
 #define KEX_SERVER_MAC \
 	"umac-64-etm@openssh.com," \
