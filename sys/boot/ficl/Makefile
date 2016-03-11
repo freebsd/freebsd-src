@@ -75,7 +75,7 @@ ${SRCS:M*.c:R:S/$/.o/g}: machine
 beforedepend ${OBJS}: machine
 .endif
 
-machine:
+machine: .NOMETA
 	ln -sf ${.CURDIR}/../../i386/include machine
 
 CLEANFILES+=	machine

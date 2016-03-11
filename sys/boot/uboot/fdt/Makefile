@@ -23,7 +23,7 @@ CFLAGS+=	-I${.CURDIR}/../../fdt
 # Pick up the bootstrap header for some interface items
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
 
-machine:
+machine: .NOMETA
 	ln -sf ${.CURDIR}/../../../${MACHINE_CPUARCH}/include machine
 
 CLEANFILES+=	machine

@@ -74,7 +74,7 @@ gptboot.o: ${.CURDIR}/../../common/ufsread.c
 .if ${MACHINE_CPUARCH} == "amd64"
 beforedepend gptboot.o: machine
 CLEANFILES+=	machine
-machine:
+machine: .NOMETA
 	ln -sf ${.CURDIR}/../../../i386/include machine
 .endif
 

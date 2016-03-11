@@ -85,7 +85,7 @@ SRCS=	zfsboot.c
 .if ${MACHINE_CPUARCH} == "amd64"
 beforedepend zfsboot.o: machine
 CLEANFILES+=	machine
-machine:
+machine: .NOMETA
 	ln -sf ${.CURDIR}/../../../i386/include machine
 .endif
 
