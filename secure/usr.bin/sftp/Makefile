@@ -7,11 +7,6 @@ SRCS=   sftp.c sftp-client.c sftp-common.c sftp-glob.c progressmeter.c
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 SRCS+=	ssh_namespace.h
 
-.if !defined(NO_SHARED)
-# required when linking with a dynamic libssh
-SRCS+=	roaming_dummy.c
-.endif
-
 LIBADD=	ssh edit
 
 .if ${MK_LDNS} != "no"

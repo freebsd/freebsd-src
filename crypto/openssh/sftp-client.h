@@ -21,6 +21,12 @@
 #ifndef _SFTP_CLIENT_H
 #define _SFTP_CLIENT_H
 
+#ifdef USE_SYSTEM_GLOB
+# include <glob.h>
+#else
+# include "openbsd-compat/glob.h"
+#endif
+
 typedef struct SFTP_DIRENT SFTP_DIRENT;
 
 struct SFTP_DIRENT {
