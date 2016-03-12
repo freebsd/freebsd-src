@@ -125,7 +125,8 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	obj objlink rerelease showconfig tags toolchain update \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _cross-tools _includes _libraries _depend \
-	build32 builddtb distribute32 install32 xdev xdev-build xdev-install \
+	build32 distribute32 install32 build32 distribute32 install32 \
+	builddtb xdev xdev-build xdev-install \
 	xdev-links native-xtools installconfig \
 
 TGTS+=	${SUBDIR_TARGETS}
