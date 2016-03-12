@@ -71,8 +71,6 @@ extern struct sysentvec elf64_freebsd_sysvec;
 static d_close_t	filemon_close;
 static d_ioctl_t	filemon_ioctl;
 static d_open_t		filemon_open;
-static int		filemon_unload(void);
-static void		filemon_load(void *);
 
 static struct cdevsw filemon_cdevsw = {
 	.d_version	= D_VERSION,
@@ -130,7 +128,7 @@ filemon_dtr(void *data)
 
 		/* Follow same locking order as filemon_pid_check. */
 		filemon_lock_write();
-		filemon_filemon_lock(filemon);
+		sx_xlock(&filemon->lock);
 
 		/* Remove from the in-use list. */
 		TAILQ_REMOVE(&filemons_inuse, filemon, link);
@@ -143,7 +141,7 @@ filemon_dtr(void *data)
 		TAILQ_INSERT_TAIL(&filemons_free, filemon, link);
 
 		/* Give up write access. */
-		filemon_filemon_unlock(filemon);
+		sx_xunlock(&filemon->lock);
 		filemon_unlock_write();
 
 		if (fp != NULL)
@@ -162,13 +160,15 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 	if ((error = devfs_get_cdevpriv((void **) &filemon)) != 0)
 		return (error);
 
-	filemon_filemon_lock(filemon);
+	sx_xlock(&filemon->lock);
 
 	switch (cmd) {
 	/* Set the output file descriptor. */
 	case FILEMON_SET_FD:
-		if (filemon->fp != NULL)
-			fdrop(filemon->fp, td);
+		if (filemon->fp != NULL) {
+			error = EEXIST;
+			break;
+		}
 
 #if __FreeBSD_version < 900041
 #define FGET_WRITE(a1, a2, a3) fget_write((a1), (a2), (a3))
@@ -195,7 +195,7 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 		break;
 	}
 
-	filemon_filemon_unlock(filemon);
+	sx_xunlock(&filemon->lock);
 	return (error);
 }
 
@@ -303,6 +303,14 @@ filemon_modevent(module_t mod __unused, int type, void *data)
 
 	case MOD_UNLOAD:
 		error = filemon_unload();
+		break;
+
+	case MOD_QUIESCE:
+		/*
+		 * The wrapper implementation is unsafe for reliable unload.
+		 * Require forcing an unload.
+		 */
+		error = EBUSY;
 		break;
 
 	case MOD_SHUTDOWN:
