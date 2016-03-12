@@ -462,6 +462,9 @@ XCXXFLAGS+=	${BFLAGS}
     ${TARGET_ARCH} == "powerpc64")
 LIBCOMPAT= 32
 .include "Makefile.libcompat"
+.elif ${MK_LIBSOFT} != "no" && ${TARGET_ARCH} == "armv6"
+LIBCOMPAT= SOFT
+.include "Makefile.libcompat"
 .endif
 
 WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}

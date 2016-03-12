@@ -200,7 +200,7 @@ _netsurf=	netsurf
 _libpng_sb=	libpng_sb
 .endif
 
-.if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)
+.if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT) && !defined(COMPAT_SOFTFP)
 _clang=		clang
 .endif
 
