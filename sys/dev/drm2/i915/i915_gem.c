@@ -1619,6 +1619,13 @@ out:
 	KASSERT(ret != 0, ("i915_gem_pager_fault: wrong return"));
 	CTR4(KTR_DRM, "fault_fail %p %jx %x err %d", gem_obj, offset, prot,
 	    -ret);
+	if (ret == -ERESTARTSYS) {
+		/*
+		 * NOTE Linux<->FreeBSD: Convert Linux' -ERESTARTSYS to
+		 * the more common -EINTR, so the page fault is retried.
+		 */
+		ret = -EINTR;
+	}
 	if (ret == -EAGAIN || ret == -EIO || ret == -EINTR) {
 		kern_yield(PRI_USER);
 		goto retry;
