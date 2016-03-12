@@ -495,6 +495,7 @@ lookup(struct nameidata *ndp)
 	int rdonly;			/* lookup read-only flag bit */
 	int error = 0;
 	int dpunlocked = 0;		/* dp has already been unlocked */
+	int relookup = 0;		/* do not consume the path component */
 	struct componentname *cnp = &ndp->ni_cnd;
 	int lkflags_save;
 	int ni_dvp_unlocked;
@@ -745,6 +746,14 @@ unionlookup:
 			goto unionlookup;
 		}
 
+		if (error == ERELOOKUP) {
+			vref(dp);
+			ndp->ni_vp = dp;
+			error = 0;
+			relookup = 1;
+			goto good;
+		}
+
 		if (error != EJUSTRETURN)
 			goto bad;
 		/*
@@ -777,6 +786,8 @@ unionlookup:
 		goto success;
 	} else
 		cnp->cn_lkflags = lkflags_save;
+
+good:
 #ifdef NAMEI_DIAGNOSTIC
 	printf("found\n");
 #endif
@@ -856,6 +867,14 @@ nextname:
 	 */
 	KASSERT((cnp->cn_flags & ISLASTCN) || *ndp->ni_next == '/',
 	    ("lookup: invalid path state."));
+	if (relookup) {
+		relookup = 0;
+		if (ndp->ni_dvp != dp)
+			vput(ndp->ni_dvp);
+		else
+			vrele(ndp->ni_dvp);
+		goto dirloop;
+	}
 	if (*ndp->ni_next == '/') {
 		cnp->cn_nameptr = ndp->ni_next;
 		while (*cnp->cn_nameptr == '/') {
