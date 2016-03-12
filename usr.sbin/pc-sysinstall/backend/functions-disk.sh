@@ -619,9 +619,9 @@ wipe_metadata()
   local SIZE="`diskinfo ${1} | awk '{print int($3/(1024*1024)) }'`"
   if [ "$SIZE" -gt "5" ]  ; then
     rc_halt "dd if=/dev/zero of=${1} bs=1m count=1"
-    rc_halt "dd if=/dev/zero of=${1} bs=1m oseek=$((SIZE-4))"
+    rc_nohalt "dd if=/dev/zero of=${1} bs=1m oseek=$((SIZE-4))"
   else
-    rc_halt "dd if=/dev/zero of=${1} bs=128k"
+    rc_nohalt "dd if=/dev/zero of=${1} bs=128k"
   fi
 } ;
 
