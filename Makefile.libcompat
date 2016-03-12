@@ -85,9 +85,9 @@ LIBCOMPATCFLAGS+=	--sysroot=${WORLDTMP}
 .endif
 
 _LC_LIBDIRS.yes=		lib gnu/lib
-_LC_LIBDIRS.${MK_CDDL:tl}=	cddl/lib
-_LC_LIBDIRS.${MK_CRYPT:tl}=	secure/lib
-_LC_LIBDIRS.${MK_KERBEROS:tl}=	kerberos5/lib
+_LC_LIBDIRS.${MK_CDDL:tl}+=	cddl/lib
+_LC_LIBDIRS.${MK_CRYPT:tl}+=	secure/lib
+_LC_LIBDIRS.${MK_KERBEROS:tl}+=	kerberos5/lib
 
 # Shared logic
 build${libcompat}: .PHONY
