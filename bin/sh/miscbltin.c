@@ -452,7 +452,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 	struct rlimit	limit;
 
 	what = 'f';
-	while ((optc = nextopt("HSatfdsmcnuvlbpwk")) != '\0')
+	while ((optc = nextopt("HSatfdsmcnuvlbpwko")) != '\0')
 		switch (optc) {
 		case 'H':
 			how = HARD;
