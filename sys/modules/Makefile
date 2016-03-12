@@ -789,12 +789,6 @@ afterinstall:
 
 .include "${SYSDIR}/conf/config.mk"
 
-# Use sys/conf/kmod.mk's MPATH to avoid redundantly running in every subdir.
-.if !defined(__MPATH)
-__MPATH!=find ${SYSDIR:tA}/ -name \*_if.m
-.export __MPATH
-.endif
-
 SUBDIR:= ${SUBDIR:u:O}
 
 .include <bsd.subdir.mk>
