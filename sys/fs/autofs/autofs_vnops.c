@@ -214,7 +214,7 @@ autofs_lookup(struct vop_lookup_args *ap)
 	struct autofs_mount *amp;
 	struct autofs_node *anp, *child;
 	struct componentname *cnp;
-	int error, lock_flags;
+	int error;
 
 	dvp = ap->a_dvp;
 	vpp = ap->a_vpp;
@@ -257,23 +257,13 @@ autofs_lookup(struct vop_lookup_args *ap)
 			return (error);
 
 		if (newvp != NULL) {
-			error = VOP_LOOKUP(newvp, ap->a_vpp, ap->a_cnp);
-
 			/*
-			 * Instead of figuring out whether our vnode should
-			 * be locked or not given the error and cnp flags,
-			 * just "copy" the lock status from vnode returned
-			 * by mounted filesystem's VOP_LOOKUP().  Get rid
-			 * of that new vnode afterwards.
+			 * The target filesystem got automounted.
+			 * Let the lookup(9) go around with the same
+			 * path component.
 			 */
-			lock_flags = VOP_ISLOCKED(newvp);
-			if (lock_flags == 0) {
-				VOP_UNLOCK(dvp, 0);
-				vrele(newvp);
-			} else {
-				vput(newvp);
-			}
-			return (error);
+			vput(newvp);
+			return (ERELOOKUP);
 		}
 	}
 
