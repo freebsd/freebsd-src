@@ -538,7 +538,6 @@ dirloop:
 	 * the name set the SAVENAME flag. When done, they assume
 	 * responsibility for freeing the pathname buffer.
 	 */
-	cnp->cn_consume = 0;
 	for (cp = cnp->cn_nameptr; *cp != 0 && *cp != '/'; cp++)
 		continue;
 	cnp->cn_namelen = cp - cnp->cn_nameptr;
@@ -791,17 +790,6 @@ good:
 #ifdef NAMEI_DIAGNOSTIC
 	printf("found\n");
 #endif
-	/*
-	 * Take into account any additional components consumed by
-	 * the underlying filesystem.
-	 */
-	if (cnp->cn_consume > 0) {
-		cnp->cn_nameptr += cnp->cn_consume;
-		ndp->ni_next += cnp->cn_consume;
-		ndp->ni_pathlen -= cnp->cn_consume;
-		cnp->cn_consume = 0;
-	}
-
 	dp = ndp->ni_vp;
 
 	/*
