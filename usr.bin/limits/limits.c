@@ -254,7 +254,7 @@ static struct {
  * to be modified accordingly!
  */
 
-#define RCS_STRING  "tfdscmlunbvpwk"
+#define RCS_STRING  "tfdscmlunbvpwko"
 
 static rlim_t resource_num(int which, int ch, const char *str);
 static void usage(void);
@@ -551,7 +551,7 @@ usage(void)
 {
     (void)fprintf(stderr,
 	"usage: limits [-C class|-P pid|-U user] [-eaSHBE] "
-	"[-bcdflmnstuvpwk [val]] [[name=val ...] cmd]\n");
+	"[-bcdfklmnostuvpw [val]] [[name=val ...] cmd]\n");
     exit(EXIT_FAILURE);
 }
 
@@ -660,6 +660,7 @@ resource_num(int which, int ch, const char *str)
 	case RLIMIT_NOFILE:
 	case RLIMIT_NPTS:
 	case RLIMIT_KQUEUES:
+	case RLIMIT_UMTXP:
 	    res = strtoq(s, &e, 0);
 	    s = e;
 	    break;
