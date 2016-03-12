@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 
 #include <libgpio.h>
 
-#define PIN_TYPE_UNKNOWN	0
 #define PIN_TYPE_NUMBER		1
 #define PIN_TYPE_NAME		2
 
@@ -271,7 +270,7 @@ main(int argc, char **argv)
 
 	/* Find the pin number by the name */
 	switch (pin_type) {
-	case PIN_TYPE_UNKNOWN:
+	default:
 		/* First test if it is a pin number */
 		pinn = str2int(argv[0], &ok);
 		if (ok) {
