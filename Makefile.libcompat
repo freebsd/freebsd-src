@@ -40,10 +40,19 @@ LIB32DTRACE=	${DTRACE} -32
 LIB32WMAKEFLAGS+=	-DCOMPAT_32BIT
 
 # -------------------------------------------------------------------
+# soft-fp world
+.if ${TARGET_ARCH} == "armv6"
+LIBSOFTCFLAGS=        -DCOMPAT_SOFTFP
+LIBSOFTCPUFLAGS= -mfloat-abi=softfp
+LIBSOFTWMAKEENV= CPUTYPE=soft MACHINE=arm MACHINE_ARCH=armv6
+LIBSOFTWMAKEFLAGS=        -DCOMPAT_SOFTFP
+.endif
+
+# -------------------------------------------------------------------
 # Generic code for each type.
 # Set defaults based on type.
 libcompat=	${LIBCOMPAT:tl}
-_LIBCOMPAT_MAKEVARS=	_OBJTREE TMP CFLAGS WMAKEENV WMAKEFLAGS WMAKE
+_LIBCOMPAT_MAKEVARS=	_OBJTREE TMP CPUFLAGS CFLAGS WMAKEENV WMAKEFLAGS WMAKE
 .for _var in ${_LIBCOMPAT_MAKEVARS}
 .if !empty(LIB${LIBCOMPAT}${_var})
 LIBCOMPAT${_var}?=	${LIB${LIBCOMPAT}${_var}}
