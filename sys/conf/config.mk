@@ -53,3 +53,8 @@ KERN_OPTS+= DEV_EISA
 KERN_OPTS!=cat ${KERNBUILDDIR}/opt*.h | awk '{print $$2;}' | sort -u
 .export KERN_OPTS
 .endif
+
+.if !defined(__MPATH)
+__MPATH!=find ${SYSDIR:tA}/ -name \*_if.m
+.export __MPATH
+.endif
