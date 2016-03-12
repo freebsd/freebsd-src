@@ -7,7 +7,7 @@
  *
  * A list of symbols which need munging is obtained as follows:
  *
- # nm libprivatessh.a | LC_ALL=C awk '
+ # nm libssh.a | LC_ALL=C awk '
      /^[0-9a-z]+ [Tt] [A-Za-z_][0-9A-Za-z_]*$/ && $3 !~ /^Fssh_/ {
          printf("#define %-39s Fssh_%s\n", $3, $3)
      }' | unexpand -a | LC_ALL=C sort -u
@@ -21,6 +21,8 @@
 #define Blowfish_expandstate			Fssh_Blowfish_expandstate
 #define Blowfish_initstate			Fssh_Blowfish_initstate
 #define Blowfish_stream2word			Fssh_Blowfish_stream2word
+#define _ssh__compat_glob			Fssh__ssh__compat_glob
+#define _ssh__compat_globfree			Fssh__ssh__compat_globfree
 #define _ssh_compat_realpath			Fssh__ssh_compat_realpath
 #define _ssh_exchange_banner			Fssh__ssh_exchange_banner
 #define _ssh_host_key_sign			Fssh__ssh_host_key_sign
@@ -356,12 +358,10 @@
 #define get_u32_le				Fssh_get_u32_le
 #define get_u64					Fssh_get_u64
 #define getrrsetbyname				Fssh_getrrsetbyname
-#define glob					Fssh_glob
 #define glob0					Fssh_glob0
 #define glob2					Fssh_glob2
 #define globexp1				Fssh_globexp1
 #define globextend				Fssh_globextend
-#define globfree				Fssh_globfree
 #define host_delete				Fssh_host_delete
 #define host_hash				Fssh_host_hash
 #define hostfile_read_key			Fssh_hostfile_read_key
@@ -392,6 +392,7 @@
 #define kex_ecdh_hash				Fssh_kex_ecdh_hash
 #define kex_free				Fssh_kex_free
 #define kex_free_newkeys			Fssh_kex_free_newkeys
+#define kex_input_ext_info			Fssh_kex_input_ext_info
 #define kex_input_kexinit			Fssh_kex_input_kexinit
 #define kex_input_newkeys			Fssh_kex_input_newkeys
 #define kex_names_cat				Fssh_kex_names_cat
@@ -403,6 +404,7 @@
 #define kex_send_kexinit			Fssh_kex_send_kexinit
 #define kex_send_newkeys			Fssh_kex_send_newkeys
 #define kex_setup				Fssh_kex_setup
+#define kex_start_rekex				Fssh_kex_start_rekex
 #define kexc25519_client			Fssh_kexc25519_client
 #define kexc25519_keygen			Fssh_kexc25519_keygen
 #define kexc25519_server			Fssh_kexc25519_server
@@ -484,7 +486,6 @@
 #define nh_aux					Fssh_nh_aux
 #define nh_final				Fssh_nh_final
 #define nh_update				Fssh_nh_update
-#define packet_backup_state			Fssh_packet_backup_state
 #define packet_close				Fssh_packet_close
 #define packet_disconnect			Fssh_packet_disconnect
 #define packet_get_char				Fssh_packet_get_char
@@ -493,7 +494,6 @@
 #define packet_read_expect			Fssh_packet_read_expect
 #define packet_read_poll_seqnr			Fssh_packet_read_poll_seqnr
 #define packet_read_seqnr			Fssh_packet_read_seqnr
-#define packet_restore_state			Fssh_packet_restore_state
 #define packet_send_debug			Fssh_packet_send_debug
 #define packet_set_connection			Fssh_packet_set_connection
 #define packet_write_poll			Fssh_packet_write_poll
@@ -516,6 +516,10 @@
 #define pkcs11_rsa_private_encrypt		Fssh_pkcs11_rsa_private_encrypt
 #define pkcs11_terminate			Fssh_pkcs11_terminate
 #define plain_key_blob				Fssh_plain_key_blob
+#define platform_pledge_agent			Fssh_platform_pledge_agent
+#define platform_pledge_mux			Fssh_platform_pledge_mux
+#define platform_pledge_sftp_server		Fssh_platform_pledge_sftp_server
+#define pledge					Fssh_pledge
 #define poly1305_auth				Fssh_poly1305_auth
 #define poly64					Fssh_poly64
 #define poly_hash				Fssh_poly_hash
@@ -629,12 +633,12 @@
 #define ssh_krl_set_version			Fssh_ssh_krl_set_version
 #define ssh_krl_to_blob				Fssh_ssh_krl_to_blob
 #define ssh_lock_agent				Fssh_ssh_lock_agent
+#define ssh_malloc_init				Fssh_ssh_malloc_init
 #define ssh_msg_recv				Fssh_ssh_msg_recv
 #define ssh_msg_send				Fssh_ssh_msg_send
 #define ssh_output_consume			Fssh_ssh_output_consume
 #define ssh_output_ptr				Fssh_ssh_output_ptr
 #define ssh_output_space			Fssh_ssh_output_space
-#define ssh_packet_backup_state			Fssh_ssh_packet_backup_state
 #define ssh_packet_close			Fssh_ssh_packet_close
 #define ssh_packet_connection_af		Fssh_ssh_packet_connection_af
 #define ssh_packet_connection_is_on_socket	Fssh_ssh_packet_connection_is_on_socket
@@ -661,6 +665,7 @@
 #define ssh_packet_have_data_to_write		Fssh_ssh_packet_have_data_to_write
 #define ssh_packet_inc_alive_timeouts		Fssh_ssh_packet_inc_alive_timeouts
 #define ssh_packet_is_interactive		Fssh_ssh_packet_is_interactive
+#define ssh_packet_is_rekeying			Fssh_ssh_packet_is_rekeying
 #define ssh_packet_need_rekeying		Fssh_ssh_packet_need_rekeying
 #define ssh_packet_next				Fssh_ssh_packet_next
 #define ssh_packet_not_very_much_data_to_write	Fssh_ssh_packet_not_very_much_data_to_write
@@ -683,7 +688,6 @@
 #define ssh_packet_read_poll_seqnr		Fssh_ssh_packet_read_poll_seqnr
 #define ssh_packet_read_seqnr			Fssh_ssh_packet_read_seqnr
 #define ssh_packet_remaining			Fssh_ssh_packet_remaining
-#define ssh_packet_restore_state		Fssh_ssh_packet_restore_state
 #define ssh_packet_send				Fssh_ssh_packet_send
 #define ssh_packet_send1			Fssh_ssh_packet_send1
 #define ssh_packet_send2			Fssh_ssh_packet_send2
@@ -711,6 +715,7 @@
 #define ssh_packet_write_poll			Fssh_ssh_packet_write_poll
 #define ssh_packet_write_wait			Fssh_ssh_packet_write_wait
 #define ssh_remote_ipaddr			Fssh_ssh_remote_ipaddr
+#define ssh_remote_port				Fssh_ssh_remote_port
 #define ssh_remove_all_identities		Fssh_ssh_remove_all_identities
 #define ssh_remove_identity			Fssh_ssh_remove_identity
 #define ssh_request_reply			Fssh_ssh_request_reply
@@ -800,6 +805,7 @@
 #define sshkey_equal_public			Fssh_sshkey_equal_public
 #define sshkey_fingerprint			Fssh_sshkey_fingerprint
 #define sshkey_fingerprint_raw			Fssh_sshkey_fingerprint_raw
+#define sshkey_format_cert_validity		Fssh_sshkey_format_cert_validity
 #define sshkey_free				Fssh_sshkey_free
 #define sshkey_from_blob			Fssh_sshkey_from_blob
 #define sshkey_from_blob_internal		Fssh_sshkey_from_blob_internal

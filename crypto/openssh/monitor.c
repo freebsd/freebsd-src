@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.150 2015/06/22 23:42:16 djm Exp $ */
+/* $OpenBSD: monitor.c,v 1.157 2016/02/15 23:32:37 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -100,7 +100,6 @@
 #include "monitor_fdpass.h"
 #include "compat.h"
 #include "ssh2.h"
-#include "roaming.h"
 #include "authfd.h"
 #include "match.h"
 #include "ssherr.h"
@@ -487,15 +486,10 @@ monitor_sync(struct monitor *pmonitor)
 static void *
 mm_zalloc(struct mm_master *mm, u_int ncount, u_int size)
 {
-	size_t len = (size_t) size * ncount;
-	void *address;
-
-	if (len == 0 || ncount > SIZE_MAX / size)
+	if (size == 0 || ncount == 0 || ncount > SIZE_MAX / size)
 		fatal("%s: mm_zalloc(%u, %u)", __func__, ncount, size);
 
-	address = mm_malloc(mm, len);
-
-	return (address);
+	return mm_malloc(mm, size * ncount);
 }
 
 static void
@@ -690,17 +684,18 @@ mm_answer_sign(int sock, Buffer *m)
 	struct ssh *ssh = active_state; 	/* XXX */
 	extern int auth_sock;			/* XXX move to state struct? */
 	struct sshkey *key;
-	struct sshbuf *sigbuf;
-	u_char *p;
-	u_char *signature;
-	size_t datlen, siglen;
+	struct sshbuf *sigbuf = NULL;
+	u_char *p = NULL, *signature = NULL;
+	char *alg = NULL;
+	size_t datlen, siglen, alglen;
 	int r, keyid, is_proof = 0;
 	const char proof_req[] = "hostkeys-prove-00@openssh.com";
 
 	debug3("%s", __func__);
 
 	if ((r = sshbuf_get_u32(m, &keyid)) != 0 ||
-	    (r = sshbuf_get_string(m, &p, &datlen)) != 0)
+	    (r = sshbuf_get_string(m, &p, &datlen)) != 0 ||
+	    (r = sshbuf_get_cstring(m, &alg, &alglen)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 
 	/*
@@ -727,7 +722,7 @@ mm_answer_sign(int sock, Buffer *m)
 			fatal("%s: sshbuf_new", __func__);
 		if ((r = sshbuf_put_cstring(sigbuf, proof_req)) != 0 ||
 		    (r = sshbuf_put_string(sigbuf, session_id2,
-		    session_id2_len) != 0) ||
+		    session_id2_len)) != 0 ||
 		    (r = sshkey_puts(key, sigbuf)) != 0)
 			fatal("%s: couldn't prepare private key "
 			    "proof buffer: %s", __func__, ssh_err(r));
@@ -747,14 +742,14 @@ mm_answer_sign(int sock, Buffer *m)
 	}
 
 	if ((key = get_hostkey_by_index(keyid)) != NULL) {
-		if ((r = sshkey_sign(key, &signature, &siglen, p, datlen,
+		if ((r = sshkey_sign(key, &signature, &siglen, p, datlen, alg,
 		    datafellows)) != 0)
 			fatal("%s: sshkey_sign failed: %s",
 			    __func__, ssh_err(r));
 	} else if ((key = get_hostkey_public_by_index(keyid, ssh)) != NULL &&
 	    auth_sock > 0) {
 		if ((r = ssh_agent_sign(auth_sock, key, &signature, &siglen,
-		    p, datlen, datafellows)) != 0) {
+		    p, datlen, alg, datafellows)) != 0) {
 			fatal("%s: ssh_agent_sign failed: %s",
 			    __func__, ssh_err(r));
 		}
@@ -768,6 +763,7 @@ mm_answer_sign(int sock, Buffer *m)
 	if ((r = sshbuf_put_string(m, signature, siglen)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 
+	free(alg);
 	free(p);
 	free(signature);
 
@@ -971,7 +967,7 @@ mm_answer_bsdauthrespond(int sock, Buffer *m)
 	char *response;
 	int authok;
 
-	if (authctxt->as == 0)
+	if (authctxt->as == NULL)
 		fatal("%s: no bsd auth session", __func__);
 
 	response = buffer_get_string(m, NULL);
@@ -1040,7 +1036,8 @@ mm_answer_skeyrespond(int sock, Buffer *m)
 	debug3("%s: sending authenticated: %d", __func__, authok);
 	mm_request_send(sock, MONITOR_ANS_SKEYRESPOND, m);
 
-	auth_method = "skey";
+	auth_method = "keyboard-interactive";
+	auth_submethod = "skey";
 
 	return (authok != 0);
 }
@@ -1449,7 +1446,7 @@ mm_answer_keyverify(int sock, Buffer *m)
 	    __func__, key, (verified == 1) ? "verified" : "unverified");
 
 	/* If auth was successful then record key to ensure it isn't reused */
-	if (verified == 1)
+	if (verified == 1 && key_blobtype == MM_USERKEY)
 		auth2_record_userkey(authctxt, key);
 	else
 		key_free(key);
@@ -1852,7 +1849,7 @@ monitor_apply_keystate(struct monitor *pmonitor)
 	sshbuf_free(child_state);
 	child_state = NULL;
 
-	if ((kex = ssh->kex) != 0) {
+	if ((kex = ssh->kex) != NULL) {
 		/* XXX set callbacks */
 #ifdef WITH_OPENSSL
 		kex->kex[KEX_DH_GRP1_SHA1] = kexdh_server;

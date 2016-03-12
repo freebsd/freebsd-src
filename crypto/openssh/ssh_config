@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh_config,v 1.28 2013/09/16 11:35:43 sthen Exp $
+#	$OpenBSD: ssh_config,v 1.30 2016/02/20 23:06:23 sobrado Exp $
 #	$FreeBSD$
 
 # This is the ssh client system-wide configuration file.  See
@@ -35,8 +35,10 @@
 #   IdentityFile ~/.ssh/identity
 #   IdentityFile ~/.ssh/id_rsa
 #   IdentityFile ~/.ssh/id_dsa
+#   IdentityFile ~/.ssh/id_ecdsa
+#   IdentityFile ~/.ssh/id_ed25519
 #   Port 22
-#   Protocol 2,1
+#   Protocol 2
 #   Cipher 3des
 #   Ciphers aes128-ctr,aes192-ctr,aes256-ctr,arcfour256,arcfour128,aes128-cbc,3des-cbc
 #   MACs hmac-md5,hmac-sha1,umac-64@openssh.com,hmac-ripemd160
@@ -48,4 +50,4 @@
 #   ProxyCommand ssh -q -W %h:%p gateway.example.com
 #   RekeyLimit 1G 1h
 #   VerifyHostKeyDNS yes
-#   VersionAddendum FreeBSD-20160125
+#   VersionAddendum FreeBSD-20160310
