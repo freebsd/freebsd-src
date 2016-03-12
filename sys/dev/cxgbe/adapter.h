@@ -812,10 +812,13 @@ struct adapter {
 	const struct chip_params *chip_params;
 	struct t4_virt_res vres;
 
+	uint16_t nbmcaps;
 	uint16_t linkcaps;
+	uint16_t switchcaps;
 	uint16_t niccaps;
 	uint16_t toecaps;
 	uint16_t rdmacaps;
+	uint16_t tlscaps;
 	uint16_t iscsicaps;
 	uint16_t fcoecaps;
 
