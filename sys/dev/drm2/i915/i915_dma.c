@@ -1810,6 +1810,12 @@ int i915_driver_unload(struct drm_device *dev)
 	if (dev_priv->mmio_map != NULL)
 		drm_rmmap(dev, dev_priv->mmio_map);
 
+	/*
+	 * NOTE Linux<->FreeBSD: Linux forgots to call
+	 * i915_gem_gtt_fini(), causing memory leaks.
+	 */
+	i915_gem_gtt_fini(dev);
+
 	if (dev_priv->wq != NULL)
 		taskqueue_free(dev_priv->wq);
 
