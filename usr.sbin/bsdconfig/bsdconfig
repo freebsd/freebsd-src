@@ -131,7 +131,7 @@ usage()
 	# determine if we can use more than one column to display commands.
 	#
 	local x=$longest_cmd ncols=1
-	x=$(( $x + 8 )) # Accomodate leading tab character
+	x=$(( $x + 8 )) # Accommodate leading tab character
 	x=$(( $x + 3 + $longest_cmd )) # Preload end of next column
 	while [ $x -lt $max_width ]; do
 		ncols=$(( $ncols + 1 ))
@@ -212,7 +212,7 @@ dialog_menu_main()
 		 *) menu_program="$menuitem/$menu_program"
 		esac
 
-		tag=$( f_substr "$DIALOG_MENU_TAGS" $index 1 )
+		f_substr -v tag "$DIALOG_MENU_TAGS" $index 1
 		setvar "menu_program$tag" "$menu_program"
 
 		f_shell_escape "$menu_title" menu_title
@@ -256,7 +256,7 @@ dialog_menu_main()
 		 *) menu_program="$BSDCFG_LOCAL_LIBE/$menuitem/$menu_program"
 		esac
 
-		tag=$( f_substr "$DIALOG_MENU_TAGS" $index 1 )
+		f_substr -v tag "$DIALOG_MENU_TAGS" $index 1
 		setvar "menu_program$tag" "$menu_program"
 
 		f_shell_escape "$menu_title" menu_title

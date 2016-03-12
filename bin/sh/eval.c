@@ -496,10 +496,12 @@ exphere(union node *redir, struct arglist *fn)
 	struct jmploc *savehandler;
 	struct localvar *savelocalvars;
 	int need_longjmp = 0;
+	unsigned char saveoptreset;
 
 	redir->nhere.expdoc = "";
 	savelocalvars = localvars;
 	localvars = NULL;
+	saveoptreset = shellparam.reset;
 	forcelocal++;
 	savehandler = handler;
 	if (setjmp(jmploc.loc))
@@ -514,6 +516,7 @@ exphere(union node *redir, struct arglist *fn)
 	forcelocal--;
 	poplocalvars();
 	localvars = savelocalvars;
+	shellparam.reset = saveoptreset;
 	if (need_longjmp)
 		longjmp(handler->loc, 1);
 	INTON;
@@ -647,6 +650,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 	struct jmploc jmploc;
 	struct jmploc *savehandler;
 	struct localvar *savelocalvars;
+	unsigned char saveoptreset;
 
 	result->fd = -1;
 	result->buf = NULL;
@@ -661,6 +665,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 	if (is_valid_fast_cmdsubst(n)) {
 		savelocalvars = localvars;
 		localvars = NULL;
+		saveoptreset = shellparam.reset;
 		forcelocal++;
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
@@ -671,6 +676,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 				forcelocal--;
 				poplocalvars();
 				localvars = savelocalvars;
+				shellparam.reset = saveoptreset;
 				longjmp(handler->loc, 1);
 			}
 		} else {
@@ -681,6 +687,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 		forcelocal--;
 		poplocalvars();
 		localvars = savelocalvars;
+		shellparam.reset = saveoptreset;
 	} else {
 		if (pipe(pip) < 0)
 			error("Pipe call failed: %s", strerror(errno));
@@ -750,7 +757,7 @@ isdeclarationcmd(struct narg *arg)
 }
 
 static void
-xtracecommand(struct arglist *varlist, struct arglist *arglist)
+xtracecommand(struct arglist *varlist, int argc, char **argv)
 {
 	char sep = 0;
 	const char *text, *p, *ps4;
@@ -771,8 +778,8 @@ xtracecommand(struct arglist *varlist, struct arglist *arglist)
 			out2qstr(text);
 		sep = ' ';
 	}
-	for (i = 0; i < arglist->count; i++) {
-		text = arglist->args[i];
+	for (i = 0; i < argc; i++) {
+		text = argv[i];
 		if (sep != 0)
 			out2c(' ');
 		out2qstr(text);
@@ -849,6 +856,8 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	do_clearcmdentry = 0;
 	oexitstatus = exitstatus;
 	exitstatus = 0;
+	/* Add one slot at the beginning for tryexec(). */
+	appendarglist(&arglist, nullstr);
 	for (argp = cmd->ncmd.args ; argp ; argp = argp->narg.next) {
 		if (varflag && isassignment(argp->narg.text)) {
 			expandarg(argp, varflag == 1 ? &varlist : &arglist,
@@ -858,13 +867,11 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			varflag = isdeclarationcmd(&argp->narg) ? 2 : 0;
 		expandarg(argp, &arglist, EXP_FULL | EXP_TILDE);
 	}
+	appendarglist(&arglist, nullstr);
 	expredir(cmd->ncmd.redirect);
-	argc = arglist.count;
-	/* Add one slot at the beginning for tryexec(). */
-	argv = stalloc(sizeof (char *) * (argc + 2));
-	argv++;
+	argc = arglist.count - 2;
+	argv = &arglist.args[1];
 
-	memcpy(argv, arglist.args, sizeof(*argv) * argc);
 	argv[argc] = NULL;
 	lastarg = NULL;
 	if (iflag && funcnest == 0 && argc > 0)
@@ -872,7 +879,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 
 	/* Print the command if xflag is set. */
 	if (xflag)
-		xtracecommand(&varlist, &arglist);
+		xtracecommand(&varlist, argc, argv);
 
 	/* Now locate the command. */
 	if (argc == 0) {
@@ -1032,12 +1039,12 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		reffunc(cmdentry.u.func);
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
-			freeparam(&shellparam);
-			shellparam = saveparam;
 			popredir();
 			unreffunc(cmdentry.u.func);
 			poplocalvars();
 			localvars = savelocalvars;
+			freeparam(&shellparam);
+			shellparam = saveparam;
 			funcnest--;
 			handler = savehandler;
 			longjmp(handler->loc, 1);

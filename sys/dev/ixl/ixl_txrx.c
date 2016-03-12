@@ -286,7 +286,7 @@ ixl_xmit(struct ixl_queue *que, struct mbuf **m_headp)
 	if (error == EFBIG) {
 		struct mbuf *m;
 
-		m = m_collapse(*m_headp, M_NOWAIT, maxsegs);
+		m = m_defrag(*m_headp, M_NOWAIT);
 		if (m == NULL) {
 			que->mbuf_defrag_failed++;
 			m_freem(*m_headp);
@@ -390,7 +390,6 @@ ixl_xmit(struct ixl_queue *que, struct mbuf **m_headp)
 	++txr->total_packets;
 	wr32(hw, txr->tail, i);
 
-	ixl_flush(hw);
 	/* Mark outstanding work */
 	if (que->busy == 0)
 		que->busy = 1;

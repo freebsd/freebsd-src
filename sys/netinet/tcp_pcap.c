@@ -341,7 +341,7 @@ tcp_pcap_add(struct tcphdr *th, struct mbuf *m, struct mbufq *queue)
 
 			n = mhead;
 			tcp_pcap_m_freem(n->m_next);
-			m_init(n, NULL, 0, M_NOWAIT, MT_DATA, 0);
+			m_init(n, M_NOWAIT, MT_DATA, 0);
 		}
 	}
 

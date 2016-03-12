@@ -20,12 +20,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-compile_et.o: parse.h
-compile_et.po: parse.h
-lex.o: lex.c
-lex.o: parse.h
-lex.po: lex.c
-lex.po: parse.h
-parse.o: parse.c
-parse.po: parse.c
 .endif

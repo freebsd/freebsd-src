@@ -31,10 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
 
 #if EFSYS_OPT_NVRAM
@@ -45,14 +42,15 @@ static efx_nvram_ops_t	__efx_nvram_falcon_ops = {
 #if EFSYS_OPT_DIAG
 	falcon_nvram_test,		/* envo_test */
 #endif	/* EFSYS_OPT_DIAG */
-	falcon_nvram_size,		/* envo_size */
-	falcon_nvram_get_version,	/* envo_get_version */
-	falcon_nvram_rw_start,		/* envo_rw_start */
-	falcon_nvram_read_chunk,	/* envo_read_chunk */
-	falcon_nvram_erase,		/* envo_erase */
-	falcon_nvram_write_chunk,	/* envo_write_chunk */
-	falcon_nvram_rw_finish,		/* envo_rw_finish */
-	falcon_nvram_set_version,	/* envo_set_version */
+	falcon_nvram_type_to_partn,	/* envo_type_to_partn */
+	falcon_nvram_partn_size,	/* envo_partn_size */
+	falcon_nvram_partn_rw_start,	/* envo_partn_rw_start */
+	falcon_nvram_partn_read,	/* envo_partn_read */
+	falcon_nvram_partn_erase,	/* envo_partn_erase */
+	falcon_nvram_partn_write,	/* envo_partn_write */
+	falcon_nvram_partn_rw_finish,	/* envo_partn_rw_finish */
+	falcon_nvram_partn_get_version,	/* envo_partn_get_version */
+	falcon_nvram_partn_set_version,	/* envo_partn_set_version */
 };
 
 #endif	/* EFSYS_OPT_FALCON */
@@ -63,42 +61,44 @@ static efx_nvram_ops_t	__efx_nvram_siena_ops = {
 #if EFSYS_OPT_DIAG
 	siena_nvram_test,		/* envo_test */
 #endif	/* EFSYS_OPT_DIAG */
-	siena_nvram_size,		/* envo_size */
-	siena_nvram_get_version,	/* envo_get_version */
-	siena_nvram_rw_start,		/* envo_rw_start */
-	siena_nvram_read_chunk,		/* envo_read_chunk */
-	siena_nvram_erase,		/* envo_erase */
-	siena_nvram_write_chunk,	/* envo_write_chunk */
-	siena_nvram_rw_finish,		/* envo_rw_finish */
-	siena_nvram_set_version,	/* envo_set_version */
+	siena_nvram_type_to_partn,	/* envo_type_to_partn */
+	siena_nvram_partn_size,		/* envo_partn_size */
+	siena_nvram_partn_rw_start,	/* envo_partn_rw_start */
+	siena_nvram_partn_read,		/* envo_partn_read */
+	siena_nvram_partn_erase,	/* envo_partn_erase */
+	siena_nvram_partn_write,	/* envo_partn_write */
+	siena_nvram_partn_rw_finish,	/* envo_partn_rw_finish */
+	siena_nvram_partn_get_version,	/* envo_partn_get_version */
+	siena_nvram_partn_set_version,	/* envo_partn_set_version */
 };
 
 #endif	/* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
-static efx_nvram_ops_t	__efx_nvram_hunt_ops = {
+static efx_nvram_ops_t	__efx_nvram_ef10_ops = {
 #if EFSYS_OPT_DIAG
-	hunt_nvram_test,		/* envo_test */
+	ef10_nvram_test,		/* envo_test */
 #endif	/* EFSYS_OPT_DIAG */
-	hunt_nvram_size,		/* envo_size */
-	hunt_nvram_get_version,		/* envo_get_version */
-	hunt_nvram_rw_start,		/* envo_rw_start */
-	hunt_nvram_read_chunk,		/* envo_read_chunk */
-	hunt_nvram_erase,		/* envo_erase */
-	hunt_nvram_write_chunk,		/* envo_write_chunk */
-	hunt_nvram_rw_finish,		/* envo_rw_finish */
-	hunt_nvram_set_version,		/* envo_set_version */
+	ef10_nvram_type_to_partn,	/* envo_type_to_partn */
+	ef10_nvram_partn_size,		/* envo_partn_size */
+	ef10_nvram_partn_rw_start,	/* envo_partn_rw_start */
+	ef10_nvram_partn_read,		/* envo_partn_read */
+	ef10_nvram_partn_erase,		/* envo_partn_erase */
+	ef10_nvram_partn_write,		/* envo_partn_write */
+	ef10_nvram_partn_rw_finish,	/* envo_partn_rw_finish */
+	ef10_nvram_partn_get_version,	/* envo_partn_get_version */
+	ef10_nvram_partn_set_version,	/* envo_partn_set_version */
 };
 
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_nvram_init(
 	__in		efx_nic_t *enp)
 {
 	efx_nvram_ops_t *envop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
@@ -119,9 +119,15 @@ efx_nvram_init(
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		envop = (efx_nvram_ops_t *)&__efx_nvram_hunt_ops;
+		envop = (efx_nvram_ops_t *)&__efx_nvram_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_HUNTINGTON */
+
+#if EFSYS_OPT_MEDFORD
+	case EFX_FAMILY_MEDFORD:
+		envop = (efx_nvram_ops_t *)&__efx_nvram_ef10_ops;
+		break;
+#endif	/* EFSYS_OPT_MEDFORD */
 
 	default:
 		EFSYS_ASSERT(0);
@@ -135,19 +141,19 @@ efx_nvram_init(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 #if EFSYS_OPT_DIAG
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_nvram_test(
 	__in			efx_nic_t *enp)
 {
 	efx_nvram_ops_t *envop = enp->en_envop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NVRAM);
@@ -158,39 +164,46 @@ efx_nvram_test(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 #endif	/* EFSYS_OPT_DIAG */
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_nvram_size(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__out			size_t *sizep)
 {
 	efx_nvram_ops_t *envop = enp->en_envop;
-	int rc;
+	uint32_t partn;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NVRAM);
 
 	EFSYS_ASSERT3U(type, <, EFX_NVRAM_NTYPES);
 
-	if ((rc = envop->envo_size(enp, type, sizep)) != 0)
+	if ((rc = envop->envo_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
+
+	if ((rc = envop->envo_partn_size(enp, partn, sizep)) != 0)
+		goto fail2;
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+	*sizep = 0;
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_nvram_get_version(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
@@ -198,7 +211,8 @@ efx_nvram_get_version(
 	__out_ecount(4)		uint16_t version[4])
 {
 	efx_nvram_ops_t *envop = enp->en_envop;
-	int rc;
+	uint32_t partn;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
@@ -206,25 +220,32 @@ efx_nvram_get_version(
 
 	EFSYS_ASSERT3U(type, <, EFX_NVRAM_NTYPES);
 
-	if ((rc = envop->envo_get_version(enp, type, subtypep, version)) != 0)
+	if ((rc = envop->envo_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
+
+	if ((rc = envop->envo_partn_get_version(enp, partn,
+		    subtypep, version)) != 0)
+		goto fail2;
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_nvram_rw_start(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__out_opt		size_t *chunk_sizep)
 {
 	efx_nvram_ops_t *envop = enp->en_envop;
-	int rc;
+	uint32_t partn;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NVRAM);
@@ -234,20 +255,25 @@ efx_nvram_rw_start(
 
 	EFSYS_ASSERT3U(enp->en_nvram_locked, ==, EFX_NVRAM_INVALID);
 
-	if ((rc = envop->envo_rw_start(enp, type, chunk_sizep)) != 0)
+	if ((rc = envop->envo_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
+
+	if ((rc = envop->envo_partn_rw_start(enp, partn, chunk_sizep)) != 0)
+		goto fail2;
 
 	enp->en_nvram_locked = type;
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_nvram_read_chunk(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
@@ -256,7 +282,8 @@ efx_nvram_read_chunk(
 	__in			size_t size)
 {
 	efx_nvram_ops_t *envop = enp->en_envop;
-	int rc;
+	uint32_t partn;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NVRAM);
@@ -266,24 +293,32 @@ efx_nvram_read_chunk(
 
 	EFSYS_ASSERT3U(enp->en_nvram_locked, ==, type);
 
-	if ((rc = envop->envo_read_chunk(enp, type, offset, data, size)) != 0)
+	if ((rc = envop->envo_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
+
+	if ((rc = envop->envo_partn_read(enp, partn, offset, data, size)) != 0)
+		goto fail2;
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_nvram_erase(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type)
 {
 	efx_nvram_ops_t *envop = enp->en_envop;
-	int rc;
+	unsigned int offset = 0;
+	size_t size = 0;
+	uint32_t partn;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NVRAM);
@@ -293,18 +328,28 @@ efx_nvram_erase(
 
 	EFSYS_ASSERT3U(enp->en_nvram_locked, ==, type);
 
-	if ((rc = envop->envo_erase(enp, type)) != 0)
+	if ((rc = envop->envo_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
+
+	if ((rc = envop->envo_partn_size(enp, partn, &size)) != 0)
+		goto fail2;
+
+	if ((rc = envop->envo_partn_erase(enp, partn, offset, size)) != 0)
+		goto fail3;
 
 	return (0);
 
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_nvram_write_chunk(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
@@ -313,7 +358,8 @@ efx_nvram_write_chunk(
 	__in			size_t size)
 {
 	efx_nvram_ops_t *envop = enp->en_envop;
-	int rc;
+	uint32_t partn;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NVRAM);
@@ -323,13 +369,18 @@ efx_nvram_write_chunk(
 
 	EFSYS_ASSERT3U(enp->en_nvram_locked, ==, type);
 
-	if ((rc = envop->envo_write_chunk(enp, type, offset, data, size)) != 0)
+	if ((rc = envop->envo_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
+
+	if ((rc = envop->envo_partn_write(enp, partn, offset, data, size)) != 0)
+		goto fail2;
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -340,6 +391,7 @@ efx_nvram_rw_finish(
 	__in			efx_nvram_type_t type)
 {
 	efx_nvram_ops_t *envop = enp->en_envop;
+	uint32_t partn;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NVRAM);
@@ -349,19 +401,21 @@ efx_nvram_rw_finish(
 
 	EFSYS_ASSERT3U(enp->en_nvram_locked, ==, type);
 
-	envop->envo_rw_finish(enp, type);
+	if (envop->envo_type_to_partn(enp, type, &partn) == 0)
+		envop->envo_partn_rw_finish(enp, partn);
 
 	enp->en_nvram_locked = EFX_NVRAM_INVALID;
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_nvram_set_version(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__in_ecount(4)		uint16_t version[4])
 {
 	efx_nvram_ops_t *envop = enp->en_envop;
-	int rc;
+	uint32_t partn;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
@@ -376,13 +430,18 @@ efx_nvram_set_version(
 	 */
 	EFSYS_ASSERT3U(enp->en_nvram_locked, ==, EFX_NVRAM_INVALID);
 
-	if ((rc = envop->envo_set_version(enp, type, version)) != 0)
+	if ((rc = envop->envo_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
+
+	if ((rc = envop->envo_partn_set_version(enp, partn, version)) != 0)
+		goto fail2;
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -409,7 +468,7 @@ efx_nvram_fini(
  * Internal MCDI request handling
  */
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_mcdi_nvram_partitions(
 	__in			efx_nic_t *enp,
 	__out_bcount(size)	caddr_t data,
@@ -420,7 +479,7 @@ efx_mcdi_nvram_partitions(
 	uint8_t payload[MAX(MC_CMD_NVRAM_PARTITIONS_IN_LEN,
 			    MC_CMD_NVRAM_PARTITIONS_OUT_LENMAX)];
 	unsigned int npartn;
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_PARTITIONS;
@@ -465,12 +524,12 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_mcdi_nvram_metadata(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
@@ -482,7 +541,7 @@ efx_mcdi_nvram_metadata(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_NVRAM_METADATA_IN_LEN,
 			    MC_CMD_NVRAM_METADATA_OUT_LENMAX)];
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_METADATA;
@@ -556,30 +615,31 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_mcdi_nvram_info(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
 	__out_opt		size_t *sizep,
 	__out_opt		uint32_t *addressp,
-	__out_opt		uint32_t *erase_sizep)
+	__out_opt		uint32_t *erase_sizep,
+	__out_opt		uint32_t *write_sizep)
 {
 	uint8_t payload[MAX(MC_CMD_NVRAM_INFO_IN_LEN,
-			    MC_CMD_NVRAM_INFO_OUT_LEN)];
+			    MC_CMD_NVRAM_INFO_V2_OUT_LEN)];
 	efx_mcdi_req_t req;
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_INFO;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_NVRAM_INFO_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_NVRAM_INFO_OUT_LEN;
+	req.emr_out_length = MC_CMD_NVRAM_INFO_V2_OUT_LEN;
 
 	MCDI_IN_SET_DWORD(req, NVRAM_INFO_IN_TYPE, partn);
 
@@ -604,17 +664,24 @@ efx_mcdi_nvram_info(
 	if (erase_sizep)
 		*erase_sizep = MCDI_OUT_DWORD(req, NVRAM_INFO_OUT_ERASESIZE);
 
+	if (write_sizep) {
+		*write_sizep =
+			(req.emr_out_length_used <
+			    MC_CMD_NVRAM_INFO_V2_OUT_LEN) ?
+			0 : MCDI_OUT_DWORD(req, NVRAM_INFO_V2_OUT_WRITESIZE);
+	}
+
 	return (0);
 
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_mcdi_nvram_update_start(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn)
@@ -622,7 +689,7 @@ efx_mcdi_nvram_update_start(
 	uint8_t payload[MAX(MC_CMD_NVRAM_UPDATE_START_IN_LEN,
 			    MC_CMD_NVRAM_UPDATE_START_OUT_LEN)];
 	efx_mcdi_req_t req;
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_UPDATE_START;
@@ -643,23 +710,24 @@ efx_mcdi_nvram_update_start(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_mcdi_nvram_read(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
 	__in			uint32_t offset,
 	__out_bcount(size)	caddr_t data,
-	__in			size_t size)
+	__in			size_t size,
+	__in			uint32_t mode)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_NVRAM_READ_IN_LEN,
+	uint8_t payload[MAX(MC_CMD_NVRAM_READ_IN_V2_LEN,
 			    MC_CMD_NVRAM_READ_OUT_LENMAX)];
-	int rc;
+	efx_rc_t rc;
 
 	if (size > MC_CMD_NVRAM_READ_OUT_LENMAX) {
 		rc = EINVAL;
@@ -669,13 +737,14 @@ efx_mcdi_nvram_read(
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_READ;
 	req.emr_in_buf = payload;
-	req.emr_in_length = MC_CMD_NVRAM_READ_IN_LEN;
+	req.emr_in_length = MC_CMD_NVRAM_READ_IN_V2_LEN;
 	req.emr_out_buf = payload;
 	req.emr_out_length = MC_CMD_NVRAM_READ_OUT_LENMAX;
 
-	MCDI_IN_SET_DWORD(req, NVRAM_READ_IN_TYPE, partn);
-	MCDI_IN_SET_DWORD(req, NVRAM_READ_IN_OFFSET, offset);
-	MCDI_IN_SET_DWORD(req, NVRAM_READ_IN_LENGTH, size);
+	MCDI_IN_SET_DWORD(req, NVRAM_READ_IN_V2_TYPE, partn);
+	MCDI_IN_SET_DWORD(req, NVRAM_READ_IN_V2_OFFSET, offset);
+	MCDI_IN_SET_DWORD(req, NVRAM_READ_IN_V2_LENGTH, size);
+	MCDI_IN_SET_DWORD(req, NVRAM_READ_IN_V2_MODE, mode);
 
 	efx_mcdi_execute(enp, &req);
 
@@ -698,12 +767,12 @@ efx_mcdi_nvram_read(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_mcdi_nvram_erase(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
@@ -713,7 +782,7 @@ efx_mcdi_nvram_erase(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_NVRAM_ERASE_IN_LEN,
 			    MC_CMD_NVRAM_ERASE_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_ERASE;
@@ -736,12 +805,17 @@ efx_mcdi_nvram_erase(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+/*
+ * The NVRAM_WRITE MCDI command is a V1 command and so is supported by both
+ * Sienna and EF10 based boards.  However EF10 based boards support the use
+ * of this command with payloads up to the maximum MCDI V2 payload length.
+ */
+	__checkReturn		efx_rc_t
 efx_mcdi_nvram_write(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
@@ -750,11 +824,18 @@ efx_mcdi_nvram_write(
 	__in			size_t size)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_NVRAM_WRITE_IN_LENMAX,
-			    MC_CMD_NVRAM_WRITE_OUT_LEN)];
-	int rc;
+	uint8_t payload[MAX(MCDI_CTL_SDU_LEN_MAX_V1,
+			    MCDI_CTL_SDU_LEN_MAX_V2)];
+	efx_rc_t rc;
+	size_t max_data_size;
 
-	if (size > MC_CMD_NVRAM_WRITE_IN_LENMAX) {
+	max_data_size = enp->en_nic_cfg.enc_mcdi_max_payload_length
+	    - MC_CMD_NVRAM_WRITE_IN_LEN(0);
+	EFSYS_ASSERT3U(enp->en_nic_cfg.enc_mcdi_max_payload_length, >, 0);
+	EFSYS_ASSERT3U(max_data_size, <,
+		    enp->en_nic_cfg.enc_mcdi_max_payload_length);
+
+	if (size > max_data_size) {
 		rc = EINVAL;
 		goto fail1;
 	}
@@ -785,12 +866,12 @@ efx_mcdi_nvram_write(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_mcdi_nvram_update_finish(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
@@ -799,7 +880,7 @@ efx_mcdi_nvram_update_finish(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_NVRAM_UPDATE_FINISH_IN_LEN,
 			    MC_CMD_NVRAM_UPDATE_FINISH_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_UPDATE_FINISH;
@@ -821,14 +902,14 @@ efx_mcdi_nvram_update_finish(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 #if EFSYS_OPT_DIAG
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_mcdi_nvram_test(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn)
@@ -837,7 +918,7 @@ efx_mcdi_nvram_test(
 	uint8_t payload[MAX(MC_CMD_NVRAM_TEST_IN_LEN,
 			    MC_CMD_NVRAM_TEST_OUT_LEN)];
 	int result;
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_TEST;
@@ -876,7 +957,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }

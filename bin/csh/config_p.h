@@ -9,7 +9,7 @@
 
 #ifndef _h_config
 #define _h_config
-/****************** System dependant compilation flags ****************/
+/****************** System dependent compilation flags ****************/
 /*
  * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
  */
@@ -80,6 +80,7 @@
 /****************** local defines *********************/
 
 #if defined(__FreeBSD__)
+#define	SAVESIGVEC
 #define NLS_BUGS
 #define BSD_STYLE_COLORLS
 /* Use LC_MESSAGES locale category to open the message catalog */

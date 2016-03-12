@@ -1280,7 +1280,7 @@ bufshutdown(int show_busybufs)
 		/*
 		 * Unmount filesystems
 		 */
-		if (panicstr == 0)
+		if (panicstr == NULL)
 			vfs_unmountall();
 	}
 	swapoff_all();
@@ -1809,6 +1809,8 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
  * must clear BIO_ERROR and B_INVAL prior to initiating I/O.  If B_CACHE
  * is set, the buffer is valid and we do not have to do anything, see
  * getblk(). Also starts asynchronous I/O on read-ahead blocks.
+ *
+ * Always return a NULL buffer pointer (in bpp) when returning an error.
  */
 int
 breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
@@ -1844,6 +1846,10 @@ breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
 
 	if (readwait) {
 		rv = bufwait(bp);
+		if (rv != 0) {
+			brelse(bp);
+			*bpp = NULL;
+		}
 	}
 	return (rv);
 }
@@ -2238,6 +2244,12 @@ brelse(struct buf *bp)
 {
 	int qindex;
 
+	/*
+	 * Many functions erroneously call brelse with a NULL bp under rare
+	 * error conditions. Simply return when called with a NULL bp.
+	 */
+	if (bp == NULL)
+		return;
 	CTR3(KTR_BUF, "brelse(%p) vp %p flags %X",
 	    bp, bp->b_vp, bp->b_flags);
 	KASSERT(!(bp->b_flags & (B_CLUSTER|B_PAGING)),
@@ -2266,19 +2278,17 @@ brelse(struct buf *bp)
 		bdirty(bp);
 	}
 	if (bp->b_iocmd == BIO_WRITE && (bp->b_ioflags & BIO_ERROR) &&
-	    bp->b_error == EIO && !(bp->b_flags & B_INVAL)) {
+	    !(bp->b_flags & B_INVAL)) {
 		/*
 		 * Failed write, redirty.  Must clear BIO_ERROR to prevent
-		 * pages from being scrapped.  If the error is anything
-		 * other than an I/O error (EIO), assume that retrying
-		 * is futile.
+		 * pages from being scrapped.
 		 */
 		bp->b_ioflags &= ~BIO_ERROR;
 		bdirty(bp);
 	} else if ((bp->b_flags & (B_NOCACHE | B_INVAL)) ||
 	    (bp->b_ioflags & BIO_ERROR) || (bp->b_bufsize <= 0)) {
 		/*
-		 * Either a failed I/O or we were asked to free or not
+		 * Either a failed read I/O or we were asked to free or not
 		 * cache the buffer.
 		 */
 		bp->b_flags |= B_INVAL;
@@ -2885,6 +2895,7 @@ getnewbuf(struct vnode *vp, int slpflag, int slptimeo, int maxsize, int gbflags)
 	struct buf *bp;
 	bool metadata, reserved;
 
+	bp = NULL;
 	KASSERT((gbflags & (GB_UNMAPPED | GB_KVAALLOC)) != GB_KVAALLOC,
 	    ("GB_KVAALLOC only makes sense with GB_UNMAPPED"));
 	if (!unmapped_buf_allowed)
@@ -2910,7 +2921,7 @@ getnewbuf(struct vnode *vp, int slpflag, int slptimeo, int maxsize, int gbflags)
 	} while(buf_scan(false) == 0);
 
 	if (reserved)
-		bufspace_release(maxsize);
+		atomic_subtract_long(&bufspace, maxsize);
 	if (bp != NULL) {
 		bp->b_flags |= B_INVAL;
 		brelse(bp);
@@ -3623,6 +3634,23 @@ loop:
 		if (bp == NULL) {
 			if (slpflag || slptimeo)
 				return NULL;
+			/*
+			 * XXX This is here until the sleep path is diagnosed
+			 * enough to work under very low memory conditions.
+			 *
+			 * There's an issue on low memory, 4BSD+non-preempt
+			 * systems (eg MIPS routers with 32MB RAM) where buffer
+			 * exhaustion occurs without sleeping for buffer
+			 * reclaimation.  This just sticks in a loop and
+			 * constantly attempts to allocate a buffer, which
+			 * hits exhaustion and tries to wakeup bufdaemon.
+			 * This never happens because we never yield.
+			 *
+			 * The real solution is to identify and fix these cases
+			 * so we aren't effectively busy-waiting in a loop
+			 * until the reclaimation path has cycles to run.
+			 */
+			kern_yield(PRI_USER);
 			goto loop;
 		}
 

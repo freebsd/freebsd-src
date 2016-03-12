@@ -18,8 +18,7 @@ NETBSD_ATF_TESTS_C+=	main_pthread_create_test
 #NETBSD_ATF_TESTS_C+=	dso_pthread_create_test
 
 .for t in dlopen_test main_pthread_create_test
-DPADD.$t+=	${LIBPTHREAD}
-LDADD.$t+=	-lpthread
+LIBADD.${t}+=	pthread
 .endfor
 .endif
 

@@ -39,10 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/ucontext.h>
 
 #include <stdio.h>
+#include <sysdecode.h>
 
 #include "truss.h"
-
-#include "freebsd_syscalls.h"
 
 static int
 aarch64_fetch_args(struct trussinfo *trussinfo, u_int narg)
@@ -100,8 +99,7 @@ aarch64_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
 
 static struct procabi aarch64_freebsd = {
 	"FreeBSD ELF64",
-	syscallnames,
-	nitems(syscallnames),
+	SYSDECODE_ABI_FREEBSD,
 	aarch64_fetch_args,
 	aarch64_fetch_retval
 };

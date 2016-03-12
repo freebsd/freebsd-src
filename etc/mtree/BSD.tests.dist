@@ -12,6 +12,8 @@
         ..
         date
         ..
+        dd
+        ..
         expr
         ..
         ls
@@ -269,11 +271,19 @@
                     ..
                 ..
             ..
+            nss
+            ..
             regex
                 data
                 ..
             ..
+            resolv
+            ..
+            rpc
+            ..
             ssp
+            ..
+            setjmp
             ..
             stdio
             ..
@@ -360,17 +370,55 @@
         ..
     ..
     sys
+        acl
+        ..
         aio
         ..
         fifo
         ..
         file
         ..
+        geom
+            class
+                concat
+                ..
+                eli
+                ..
+                gate
+                ..
+                gpt
+                ..
+                mirror
+                ..
+                nop
+                ..
+                raid3
+                ..
+                shsec
+                ..
+                stripe
+                ..
+                uzip
+                    etalon
+                    ..
+                ..
+            ..
+        ..
         kern
+            acct
+            ..
             execve
+            ..
+            pipe
             ..
         ..
         kqueue
+        ..
+        mac
+            bsdextended
+            ..
+            portacl
+            ..
         ..
         mqueue
         ..
@@ -409,6 +457,8 @@
             ..
             unlink
             ..
+        ..
+        posixshm
         ..
         vfs
         ..
@@ -546,6 +596,8 @@
         ..
         lastcomm
         ..
+        limits
+        ..
         m4
         ..
         mkimg
@@ -590,11 +642,15 @@
         ..
         fstyp
         ..
+        makefs
+        ..
         newsyslog
         ..
         nmtree
         ..
         pw
+        ..
+        rpcbind
         ..
         sa
         ..

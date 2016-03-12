@@ -9,19 +9,18 @@
 DIRDEPS = \
 	cddl/lib/drti \
 	cddl/lib/libavl \
+	cddl/lib/libctf \
+	cddl/lib/libdtrace \
 	cddl/lib/libnvpair \
 	cddl/lib/libumem \
 	cddl/lib/libuutil \
-
-
-DIRDEPS.CTF = \
-	cddl/lib/libctf \
 	cddl/usr.bin/ctfconvert \
 	cddl/usr.bin/ctfdump \
 	cddl/usr.bin/ctfmerge \
-	cddl/lib/libdtrace \
 	cddl/usr.sbin/dtrace \
 	cddl/usr.sbin/dtruss \
+	cddl/usr.sbin/lockstat \
+	cddl/usr.sbin/plockstat \
 
 
 DIRDEPS.ZFS = \
@@ -33,12 +32,11 @@ DIRDEPS.ZFS = \
 	cddl/usr.bin/zinject \
 	cddl/usr.bin/zstreamdump \
 	cddl/usr.bin/ztest \
-	cddl/usr.sbin/lockstat \
 	cddl/usr.sbin/zdb \
 	cddl/usr.sbin/zhack \
 
 
-.for O in CTF ZFS
+.for O in ZFS
 .if ${MK_$O} == "yes"
 DIRDEPS+= ${DIRDEPS.$O}
 .endif

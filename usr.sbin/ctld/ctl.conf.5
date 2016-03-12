@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2015
+.Dd November 9, 2015
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -226,6 +226,8 @@ An IPv4 or IPv6 address and port to listen on for incoming connections.
 .It Ic offload Ar driver
 Define iSCSI hardware offload driver to use for this
 .Sy portal-group .
+.It Ic option Ar name Ar value
+The CTL-specific port options passed to the kernel.
 .It Ic redirect Ar address
 IPv4 or IPv6 address to redirect initiators to.
 When configured, all initiators attempting to connect to portal

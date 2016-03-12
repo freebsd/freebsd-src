@@ -33,6 +33,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -43,12 +45,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/cpuset.h>
 #include <sys/rwlock.h>
+
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_pci.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
+#include <dev/pci/pci_host_generic.h>
+
 #include <machine/cpu.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
@@ -71,12 +77,7 @@ __FBSDID("$FreeBSD$");
 	(((func) & PCIE_FUNC_MASK) << PCIE_FUNC_SHIFT)	|	\
 	((reg) & PCIE_REG_MASK))
 
-#define	MAX_RANGES_TUPLES	5
-#define	MIN_RANGES_TUPLES	2
-
 #define	PCI_IO_WINDOW_OFFSET	0x1000
-#define	PCI_IRQ_START		32
-#define	PCI_IRQ_END		(PCI_IRQ_START + 4)
 
 #define	SPACE_CODE_SHIFT	24
 #define	SPACE_CODE_MASK		0x3
@@ -84,34 +85,15 @@ __FBSDID("$FreeBSD$");
 #define	PROPS_CELL_SIZE		1
 #define	PCI_ADDR_CELL_SIZE	2
 
-struct pcie_range {
-	uint64_t	pci_base;
-	uint64_t	phys_base;
-	uint64_t	size;
-	uint64_t	flags;
-#define	FLAG_IO		(1 << 0)
-#define	FLAG_MEM	(1 << 1)
-};
-
-struct generic_pcie_softc {
-	struct pcie_range	ranges[MAX_RANGES_TUPLES];
-	int			nranges;
-	struct rman		mem_rman;
-	struct rman		io_rman;
-	struct rman		irq_rman;
-	struct resource		*res;
-	struct resource		*res1;
-	int			ecam;
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	device_t		dev;
-	bus_space_handle_t	ioh;
+/* OFW bus interface */
+struct generic_pcie_ofw_devinfo {
+	struct ofw_bus_devinfo	di_dinfo;
+	struct resource_list	di_rl;
 };
 
 /* Forward prototypes */
 
 static int generic_pcie_probe(device_t dev);
-static int generic_pcie_attach(device_t dev);
 static int parse_pci_mem_ranges(struct generic_pcie_softc *sc);
 static uint32_t generic_pcie_read_config(device_t dev, u_int bus, u_int slot,
     u_int func, u_int reg, int bytes);
@@ -122,11 +104,33 @@ static int generic_pcie_read_ivar(device_t dev, device_t child, int index,
     uintptr_t *result);
 static int generic_pcie_write_ivar(device_t dev, device_t child, int index,
     uintptr_t value);
-static struct resource *generic_pcie_alloc_resource(device_t dev,
-    device_t child, int type, int *rid, u_long start, u_long end,
-    u_long count, u_int flags);
+static struct resource *generic_pcie_alloc_resource_ofw(device_t, device_t,
+    int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
+static struct resource *generic_pcie_alloc_resource_pcie(device_t dev,
+    device_t child, int type, int *rid, rman_res_t start, rman_res_t end,
+    rman_res_t count, u_int flags);
 static int generic_pcie_release_resource(device_t dev, device_t child,
     int type, int rid, struct resource *res);
+static int generic_pcie_release_resource_ofw(device_t, device_t, int, int,
+    struct resource *);
+static int generic_pcie_release_resource_pcie(device_t, device_t, int, int,
+    struct resource *);
+static int generic_pcie_ofw_bus_attach(device_t);
+static const struct ofw_bus_devinfo *generic_pcie_ofw_get_devinfo(device_t,
+    device_t);
+
+static __inline void
+get_addr_size_cells(phandle_t node, pcell_t *addr_cells, pcell_t *size_cells)
+{
+
+	*addr_cells = 2;
+	/* Find address cells if present */
+	OF_getencprop(node, "#address-cells", addr_cells, sizeof(*addr_cells));
+
+	*size_cells = 2;
+	/* Find size cells if present */
+	OF_getencprop(node, "#size-cells", size_cells, sizeof(*size_cells));
+}
 
 static int
 generic_pcie_probe(device_t dev)
@@ -137,14 +141,18 @@ generic_pcie_probe(device_t dev)
 
 	if (ofw_bus_is_compatible(dev, "pci-host-ecam-generic")) {
 		device_set_desc(dev, "Generic PCI host controller");
+		return (BUS_PROBE_GENERIC);
+	}
+	if (ofw_bus_is_compatible(dev, "arm,gem5_pcie")) {
+		device_set_desc(dev, "GEM5 PCIe host controller");
 		return (BUS_PROBE_DEFAULT);
 	}
 
 	return (ENXIO);
 }
 
-static int
-generic_pcie_attach(device_t dev)
+int
+pci_host_generic_attach(device_t dev)
 {
 	struct generic_pcie_softc *sc;
 	uint64_t phys_base;
@@ -156,6 +164,17 @@ generic_pcie_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+
+	/* Retrieve 'ranges' property from FDT */
+	if (bootverbose)
+		device_printf(dev, "parsing FDT for ECAM%d:\n",
+		    sc->ecam);
+	if (parse_pci_mem_ranges(sc))
+		return (ENXIO);
+
+	/* Attach OFW bus */
+	if (generic_pcie_ofw_bus_attach(dev) != 0)
+		return (ENXIO);
 
 	rid = 0;
 	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
@@ -171,13 +190,6 @@ generic_pcie_attach(device_t dev)
 	sc->mem_rman.rm_descr = "PCIe Memory";
 	sc->io_rman.rm_type = RMAN_ARRAY;
 	sc->io_rman.rm_descr = "PCIe IO window";
-
-	/* Retrieve 'ranges' property from FDT */
-	if (bootverbose)
-		device_printf(dev, "parsing FDT for ECAM%d:\n",
-		    sc->ecam);
-	if (parse_pci_mem_ranges(sc))
-		return (ENXIO);
 
 	/* Initialize rman and allocate memory regions */
 	error = rman_init(&sc->mem_rman);
@@ -200,12 +212,11 @@ generic_pcie_attach(device_t dev)
 			continue; /* empty range element */
 		if (sc->ranges[tuple].flags & FLAG_MEM) {
 			error = rman_manage_region(&sc->mem_rman,
-						phys_base,
-						phys_base + size);
+			   phys_base, phys_base + size - 1);
 		} else if (sc->ranges[tuple].flags & FLAG_IO) {
 			error = rman_manage_region(&sc->io_rman,
-					pci_base + PCI_IO_WINDOW_OFFSET,
-					pci_base + PCI_IO_WINDOW_OFFSET + size);
+			   pci_base + PCI_IO_WINDOW_OFFSET,
+			   pci_base + PCI_IO_WINDOW_OFFSET + size - 1);
 		} else
 			continue;
 		if (error) {
@@ -216,14 +227,8 @@ generic_pcie_attach(device_t dev)
 		}
 	}
 
-	/* TODO: get IRQ numbers from FDT */
-	sc->irq_rman.rm_type = RMAN_ARRAY;
-	sc->irq_rman.rm_descr = "Generic PCIe IRQs";
-	if (rman_init(&sc->irq_rman) != 0 ||
-	    rman_manage_region(&sc->irq_rman, PCI_IRQ_START,
-		PCI_IRQ_END) != 0) {
-		panic("Generic PCI: failed to set up IRQ rman");
-	}
+	ofw_bus_setup_iinfo(ofw_bus_get_node(dev), &sc->pci_iinfo,
+	    sizeof(cell_t));
 
 	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
@@ -318,7 +323,8 @@ generic_pcie_read_config(device_t dev, u_int bus, u_int slot,
 	uint64_t offset;
 	uint32_t data;
 
-	if (bus > 255 || slot > 31 || func > 7 || reg > 4095)
+	if ((bus > PCI_BUSMAX) || (slot > PCI_SLOTMAX) ||
+	    (func > PCI_FUNCMAX) || (reg > PCIE_REGMAX))
 		return (~0U);
 
 	sc = device_get_softc(dev);
@@ -341,10 +347,6 @@ generic_pcie_read_config(device_t dev, u_int bus, u_int slot,
 		return (~0U);
 	}
 
-	if (reg == PCIR_INTLINE) {
-		data += PCI_IRQ_START;
-	}
-
 	return (data);
 }
 
@@ -357,7 +359,8 @@ generic_pcie_write_config(device_t dev, u_int bus, u_int slot,
 	bus_space_tag_t t;
 	uint64_t offset;
 
-	if (bus > 255 || slot > 31 || func > 7 || reg > 4095)
+	if ((bus > PCI_BUSMAX) || (slot > PCI_SLOTMAX) ||
+	    (func > PCI_FUNCMAX) || (reg > PCIE_REGMAX))
 		return;
 
 	sc = device_get_softc(dev);
@@ -390,6 +393,37 @@ generic_pcie_maxslots(device_t dev)
 }
 
 static int
+generic_pcie_route_interrupt(device_t bus, device_t dev, int pin)
+{
+	struct generic_pcie_softc *sc;
+	struct ofw_pci_register reg;
+	uint32_t pintr, mintr[2];
+	phandle_t iparent;
+	int intrcells;
+
+	sc = device_get_softc(bus);
+	pintr = pin;
+
+	bzero(&reg, sizeof(reg));
+	reg.phys_hi = (pci_get_bus(dev) << OFW_PCI_PHYS_HI_BUSSHIFT) |
+	    (pci_get_slot(dev) << OFW_PCI_PHYS_HI_DEVICESHIFT) |
+	    (pci_get_function(dev) << OFW_PCI_PHYS_HI_FUNCTIONSHIFT);
+
+	intrcells = ofw_bus_lookup_imap(ofw_bus_get_node(dev),
+	    &sc->pci_iinfo, &reg, sizeof(reg), &pintr, sizeof(pintr),
+	    mintr, sizeof(mintr), &iparent);
+	if (intrcells) {
+		pintr = ofw_bus_map_intr(dev, iparent, intrcells, mintr);
+		return (pintr);
+	}
+
+	device_printf(bus, "could not route pin %d for device %d.%d\n",
+	    pin, pci_get_slot(dev), pci_get_function(dev));
+	return (PCI_INVALID_IRQ);
+}
+
+
+static int
 generic_pcie_read_ivar(device_t dev, device_t child, int index,
     uintptr_t *result)
 {
@@ -411,7 +445,8 @@ generic_pcie_read_ivar(device_t dev, device_t child, int index,
 		return (0);
 	}
 
-	device_printf(dev, "ERROR: Unknown index.\n");
+	if (bootverbose)
+		device_printf(dev, "ERROR: Unknown index %d.\n", index);
 	return (ENOENT);
 }
 
@@ -432,8 +467,6 @@ generic_pcie_rman(struct generic_pcie_softc *sc, int type)
 		return (&sc->io_rman);
 	case SYS_RES_MEMORY:
 		return (&sc->mem_rman);
-	case SYS_RES_IRQ:
-		return (&sc->irq_rman);
 	default:
 		break;
 	}
@@ -442,7 +475,7 @@ generic_pcie_rman(struct generic_pcie_softc *sc, int type)
 }
 
 static int
-generic_pcie_release_resource(device_t dev, device_t child, int type,
+generic_pcie_release_resource_pcie(device_t dev, device_t child, int type,
     int rid, struct resource *res)
 {
 	struct generic_pcie_softc *sc;
@@ -459,9 +492,40 @@ generic_pcie_release_resource(device_t dev, device_t child, int type,
 	return (bus_generic_release_resource(dev, child, type, rid, res));
 }
 
+static int
+generic_pcie_release_resource(device_t dev, device_t child, int type,
+    int rid, struct resource *res)
+{
+
+	/* For PCIe devices that do not have FDT nodes, use PCIB method */
+	if ((int)ofw_bus_get_node(child) <= 0) {
+		return (generic_pcie_release_resource_pcie(dev,
+		    child, type, rid, res));
+	}
+
+	/* For other devices use OFW method */
+	return (generic_pcie_release_resource_ofw(dev,
+	    child, type, rid, res));
+}
+
+struct resource *
+pci_host_generic_alloc_resource(device_t dev, device_t child, int type, int *rid,
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+{
+
+	/* For PCIe devices that do not have FDT nodes, use PCIB method */
+	if ((int)ofw_bus_get_node(child) <= 0)
+		return (generic_pcie_alloc_resource_pcie(dev, child, type, rid,
+		    start, end, count, flags));
+
+	/* For other devices use OFW method */
+	return (generic_pcie_alloc_resource_ofw(dev, child, type, rid,
+	    start, end, count, flags));
+}
+
 static struct resource *
-generic_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+generic_pcie_alloc_resource_pcie(device_t dev, device_t child, int type, int *rid,
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct generic_pcie_softc *sc;
 	struct resource *res;
@@ -495,18 +559,16 @@ generic_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	return (res);
 
 fail:
-	if (bootverbose) {
-		device_printf(dev, "%s FAIL: type=%d, rid=%d, "
-		    "start=%016lx, end=%016lx, count=%016lx, flags=%x\n",
-		    __func__, type, *rid, start, end, count, flags);
-	}
+	device_printf(dev, "%s FAIL: type=%d, rid=%d, "
+	    "start=%016lx, end=%016lx, count=%016lx, flags=%x\n",
+	    __func__, type, *rid, start, end, count, flags);
 
 	return (NULL);
 }
 
 static int
 generic_pcie_adjust_resource(device_t dev, device_t child, int type,
-    struct resource *res, u_long start, u_long end)
+    struct resource *res, rman_res_t start, rman_res_t end)
 {
 	struct generic_pcie_softc *sc;
 	struct rman *rm;
@@ -596,31 +658,161 @@ generic_pcie_deactivate_resource(device_t dev, device_t child, int type, int rid
 
 static device_method_t generic_pcie_methods[] = {
 	DEVMETHOD(device_probe,			generic_pcie_probe),
-	DEVMETHOD(device_attach,		generic_pcie_attach),
+	DEVMETHOD(device_attach,		pci_host_generic_attach),
 	DEVMETHOD(bus_read_ivar,		generic_pcie_read_ivar),
 	DEVMETHOD(bus_write_ivar,		generic_pcie_write_ivar),
-	DEVMETHOD(bus_alloc_resource,		generic_pcie_alloc_resource),
+	DEVMETHOD(bus_alloc_resource,		pci_host_generic_alloc_resource),
 	DEVMETHOD(bus_adjust_resource,		generic_pcie_adjust_resource),
 	DEVMETHOD(bus_release_resource,		generic_pcie_release_resource),
 	DEVMETHOD(bus_activate_resource,	generic_pcie_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	generic_pcie_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
+
+	/* pcib interface */
 	DEVMETHOD(pcib_maxslots,		generic_pcie_maxslots),
+	DEVMETHOD(pcib_route_interrupt,		generic_pcie_route_interrupt),
 	DEVMETHOD(pcib_read_config,		generic_pcie_read_config),
 	DEVMETHOD(pcib_write_config,		generic_pcie_write_config),
+#if defined(__aarch64__)
+	DEVMETHOD(pcib_alloc_msi,		arm_alloc_msi),
+	DEVMETHOD(pcib_release_msi,		arm_release_msi),
+	DEVMETHOD(pcib_alloc_msix,		arm_alloc_msix),
+	DEVMETHOD(pcib_release_msix,		arm_release_msix),
+	DEVMETHOD(pcib_map_msi,			arm_map_msi),
+#endif
+
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_devinfo,		generic_pcie_ofw_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat,		ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model,		ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name,		ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node,		ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type,		ofw_bus_gen_get_type),
+
 	DEVMETHOD_END
 };
 
-static driver_t generic_pcie_driver = {
-	"pcib",
-	generic_pcie_methods,
-	sizeof(struct generic_pcie_softc),
-};
+static const struct ofw_bus_devinfo *
+generic_pcie_ofw_get_devinfo(device_t bus __unused, device_t child)
+{
+	struct generic_pcie_ofw_devinfo *di;
 
-static devclass_t generic_pcie_devclass;
+	di = device_get_ivars(child);
+	return (&di->di_dinfo);
+}
+
+static struct resource *
+generic_pcie_alloc_resource_ofw(device_t bus, device_t child, int type, int *rid,
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+{
+	struct generic_pcie_softc *sc;
+	struct generic_pcie_ofw_devinfo *di;
+	struct resource_list_entry *rle;
+	int i;
+
+	sc = device_get_softc(bus);
+
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
+		if ((di = device_get_ivars(child)) == NULL)
+			return (NULL);
+		if (type == SYS_RES_IOPORT)
+		    type = SYS_RES_MEMORY;
+
+		/* Find defaults for this rid */
+		rle = resource_list_find(&di->di_rl, type, *rid);
+		if (rle == NULL)
+			return (NULL);
+
+		start = rle->start;
+		end = rle->end;
+		count = rle->count;
+	}
+
+	if (type == SYS_RES_MEMORY) {
+		/* Remap through ranges property */
+		for (i = 0; i < MAX_RANGES_TUPLES; i++) {
+			if (start >= sc->ranges[i].phys_base && end <
+			    sc->ranges[i].pci_base + sc->ranges[i].size) {
+				start -= sc->ranges[i].phys_base;
+				start += sc->ranges[i].pci_base;
+				end -= sc->ranges[i].phys_base;
+				end += sc->ranges[i].pci_base;
+				break;
+			}
+		}
+
+		if (i == MAX_RANGES_TUPLES) {
+			device_printf(bus, "Could not map resource "
+			    "%#lx-%#lx\n", start, end);
+			return (NULL);
+		}
+	}
+
+	return (bus_generic_alloc_resource(bus, child, type, rid, start, end,
+	    count, flags));
+}
+
+static int
+generic_pcie_release_resource_ofw(device_t bus, device_t child, int type, int rid,
+    struct resource *res)
+{
+
+	return (bus_generic_release_resource(bus, child, type, rid, res));
+}
+
+/* Helper functions */
+
+static int
+generic_pcie_ofw_bus_attach(device_t dev)
+{
+	struct generic_pcie_ofw_devinfo *di;
+	device_t child;
+	phandle_t parent, node;
+	pcell_t addr_cells, size_cells;
+
+	parent = ofw_bus_get_node(dev);
+	if (parent > 0) {
+		get_addr_size_cells(parent, &addr_cells, &size_cells);
+		/* Iterate through all bus subordinates */
+		for (node = OF_child(parent); node > 0; node = OF_peer(node)) {
+
+			/* Allocate and populate devinfo. */
+			di = malloc(sizeof(*di), M_DEVBUF, M_WAITOK | M_ZERO);
+			if (ofw_bus_gen_setup_devinfo(&di->di_dinfo, node) != 0) {
+				free(di, M_DEVBUF);
+				continue;
+			}
+
+			/* Initialize and populate resource list. */
+			resource_list_init(&di->di_rl);
+			ofw_bus_reg_to_rl(dev, node, addr_cells, size_cells,
+			    &di->di_rl);
+			ofw_bus_intr_to_rl(dev, node, &di->di_rl, NULL);
+
+			/* Add newbus device for this FDT node */
+			child = device_add_child(dev, NULL, -1);
+			if (child == NULL) {
+				resource_list_free(&di->di_rl);
+				ofw_bus_gen_destroy_devinfo(&di->di_dinfo);
+				free(di, M_DEVBUF);
+				continue;
+			}
+
+			device_set_ivars(child, di);
+		}
+	}
+
+	return (0);
+}
+
+DEFINE_CLASS_0(pcib, generic_pcie_driver,
+    generic_pcie_methods, sizeof(struct generic_pcie_softc));
+
+devclass_t generic_pcie_devclass;
 
 DRIVER_MODULE(pcib, simplebus, generic_pcie_driver,
-generic_pcie_devclass, 0, 0);
+    generic_pcie_devclass, 0, 0);
 DRIVER_MODULE(pcib, ofwbus, generic_pcie_driver,
-generic_pcie_devclass, 0, 0);
+    generic_pcie_devclass, 0, 0);
+

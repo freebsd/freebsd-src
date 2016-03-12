@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/gpio.h>
 
 #include <machine/bus.h>
 #include <dev/ofw/ofw_bus.h> 
@@ -49,7 +48,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ahci/ahci.h>
 #include <arm/allwinner/a10_clk.h>
-#include "gpio_if.h"
 
 /*
  * Allwinner a1x/a2x/a8x SATA attachment.  This is just the AHCI register
@@ -118,9 +116,6 @@ __FBSDID("$FreeBSD$");
 #define	AHCI_P0DMACR	0x0070
 #define	AHCI_P0PHYCR	0x0078
 #define	AHCI_P0PHYSR	0x007C
-
-/* Kludge for CUBIEBOARD (and Banana PI too) */
-#define	GPIO_AHCI_PWR           40
 
 static void inline
 ahci_set(struct resource *m, bus_size_t off, uint32_t set)
@@ -298,7 +293,6 @@ ahci_a10_probe(device_t dev)
 static int
 ahci_a10_attach(device_t dev)
 {
-	device_t gpio;
 	int error;
 	struct ahci_controller *ctlr;
 
@@ -315,19 +309,6 @@ ahci_a10_attach(device_t dev)
 
 	/* Turn on the PLL for SATA */
 	a10_clk_ahci_activate();
-
-	/* Apply power to the drive, if any */
-	gpio = devclass_get_device(devclass_find("gpio"), 0);
-	if (gpio == NULL) {
-		device_printf(dev,
-		    "GPIO device not yet present (SATA won't work).\n");
-		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid,
-		    ctlr->r_mem);
-		return (ENXIO);
-	}
-	GPIO_PIN_SETFLAGS(gpio, GPIO_AHCI_PWR, GPIO_PIN_OUTPUT);
-	GPIO_PIN_SET(gpio, GPIO_AHCI_PWR, GPIO_PIN_HIGH);
-	DELAY(10000);
 
 	/* Reset controller */
 	if ((error = ahci_a10_ctlr_reset(dev)) != 0) {

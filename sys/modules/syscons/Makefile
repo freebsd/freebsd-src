@@ -9,6 +9,7 @@ SUBDIR=	${_apm} \
 	${_fire} \
 	green \
 	${_logo} \
+	${_plasma} \
 	${_rain} \
 	${_snake} \
 	${_star} \
@@ -25,6 +26,7 @@ _daemon=	daemon
 _dragon=	dragon
 _fire=		fire
 _logo=		logo
+_plasma=	plasma
 _rain=		rain
 _snake=		snake
 _star=		star

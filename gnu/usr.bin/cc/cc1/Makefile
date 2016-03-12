@@ -9,7 +9,7 @@ MAN=
 
 PROG=	cc1
 SRCS=	main.c c-parser.c c-lang.c
-BINDIR=	/usr/libexec
+BINDIR=	${LIBEXECDIR}
 .if ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?=yes
 .endif

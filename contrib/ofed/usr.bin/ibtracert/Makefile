@@ -5,8 +5,8 @@
 
 PROG=   ibtracert
 SRCS=   ibtracert.c ibdiag_common.c
-LDADD=	-libumad -libcommon -libmad -losmcomp
-CFLAGS+= -pthread -I${DIAGPATH}/include
+LIBADD= ibumad ibcommon ibmad osmcomp
+CFLAGS+= -I${DIAGPATH}/include
 MAN=	ibtracert.8
 
 WARNS?= 1

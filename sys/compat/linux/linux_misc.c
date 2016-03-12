@@ -191,7 +191,6 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 {
 	struct itimerval it, old_it;
 	u_int secs;
-	int error;
 
 #ifdef DEBUG
 	if (ldebug(alarm))
@@ -207,9 +206,12 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 	it.it_value.tv_usec = 0;
 	it.it_interval.tv_sec = 0;
 	it.it_interval.tv_usec = 0;
-	error = kern_setitimer(td, ITIMER_REAL, &it, &old_it);
-	if (error)
-		return (error);
+	/*
+	 * According to POSIX and Linux implementation
+	 * the alarm() system call is always successfull.
+	 * Ignore errors and return 0 as a Linux does.
+	 */
+	kern_setitimer(td, ITIMER_REAL, &it, &old_it);
 	if (timevalisset(&old_it.it_value)) {
 		if (old_it.it_value.tv_usec != 0)
 			old_it.it_value.tv_sec++;
@@ -1304,9 +1306,11 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	if (error)
 		goto out;
 	newcred = crget();
+	crextend(newcred, ngrp + 1);
 	p = td->td_proc;
 	PROC_LOCK(p);
-	oldcred = crcopysafe(p, newcred);
+	oldcred = p->p_ucred;
+	crcopy(newcred, oldcred);
 
 	/*
 	 * cr_groups[0] holds egid. Setting the whole set from
@@ -2356,7 +2360,13 @@ linux_ppoll(struct thread *td, struct linux_ppoll_args *args)
 #if defined(DEBUG) || defined(KTR)
 /* XXX: can be removed when every ldebug(...) and KTR stuff are removed. */
 
-u_char linux_debug_map[howmany(LINUX_SYS_MAXSYSCALL, sizeof(u_char))];
+#ifdef COMPAT_LINUX32
+#define	L_MAXSYSCALL	LINUX32_SYS_MAXSYSCALL
+#else
+#define	L_MAXSYSCALL	LINUX_SYS_MAXSYSCALL
+#endif
+
+u_char linux_debug_map[howmany(L_MAXSYSCALL, sizeof(u_char))];
 
 static int
 linux_debug(int syscall, int toggle, int global)
@@ -2368,7 +2378,7 @@ linux_debug(int syscall, int toggle, int global)
 		memset(linux_debug_map, c, sizeof(linux_debug_map));
 		return (0);
 	}
-	if (syscall < 0 || syscall >= LINUX_SYS_MAXSYSCALL)
+	if (syscall < 0 || syscall >= L_MAXSYSCALL)
 		return (EINVAL);
 	if (toggle)
 		clrbit(linux_debug_map, syscall);
@@ -2376,6 +2386,7 @@ linux_debug(int syscall, int toggle, int global)
 		setbit(linux_debug_map, syscall);
 	return (0);
 }
+#undef L_MAXSYSCALL
 
 /*
  * Usage: sysctl linux.debug=<syscall_nr>.<0/1>

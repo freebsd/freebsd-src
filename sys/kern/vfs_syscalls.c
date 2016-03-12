@@ -106,14 +106,6 @@ static int vn_access(struct vnode *vp, int user_flags, struct ucred *cred,
     struct thread *td);
 
 /*
- * The module initialization routine for POSIX asynchronous I/O will
- * set this to the version of AIO that it implements.  (Zero means
- * that it is not implemented.)  This value is used here by pathconf()
- * and in kern_descrip.c by fpathconf().
- */
-int async_io_version;
-
-/*
  * Sync each mounted filesystem.
  */
 #ifndef _SYS_SYSPROTO_H_
@@ -435,6 +427,8 @@ sys_getfsstat(td, uap)
 	size_t count;
 	int error;
 
+	if (uap->bufsize < 0 || uap->bufsize > SIZE_MAX)
+		return (EINVAL);
 	error = kern_getfsstat(td, &uap->buf, uap->bufsize, &count,
 	    UIO_USERSPACE, uap->flags);
 	if (error == 0)
@@ -625,13 +619,18 @@ freebsd4_getfsstat(td, uap)
 	size_t count, size;
 	int error;
 
+	if (uap->bufsize < 0)
+		return (EINVAL);
 	count = uap->bufsize / sizeof(struct ostatfs);
+	if (count > SIZE_MAX / sizeof(struct statfs))
+		return (EINVAL);
 	size = count * sizeof(struct statfs);
 	error = kern_getfsstat(td, &buf, size, &count, UIO_SYSSPACE,
 	    uap->flags);
-	if (size > 0) {
+	td->td_retval[0] = count;
+	if (size != 0) {
 		sp = buf;
-		while (count > 0 && error == 0) {
+		while (count != 0 && error == 0) {
 			cvtstatfs(sp, &osb);
 			error = copyout(&osb, uap->buf, sizeof(osb));
 			sp++;
@@ -640,8 +639,6 @@ freebsd4_getfsstat(td, uap)
 		}
 		free(buf, M_TEMP);
 	}
-	if (error == 0)
-		td->td_retval[0] = count;
 	return (error);
 }
 
@@ -982,7 +979,8 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	}
 
 	/*
-	 * Allocate the file descriptor, but don't install a descriptor yet.
+	 * Allocate a file structure. The descriptor to reference it
+	 * is allocated and set by finstall() below.
 	 */
 	error = falloc_noinstall(td, &fp);
 	if (error != 0)
@@ -2341,11 +2339,7 @@ kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg, int name,
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	/* If asynchronous I/O is available, it works for all files. */
-	if (name == _PC_ASYNC_IO)
-		td->td_retval[0] = async_io_version;
-	else
-		error = VOP_PATHCONF(nd.ni_vp, name, td->td_retval);
+	error = VOP_PATHCONF(nd.ni_vp, name, td->td_retval);
 	vput(nd.ni_vp);
 	return (error);
 }
@@ -4527,10 +4521,10 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 int
 sys_posix_fallocate(struct thread *td, struct posix_fallocate_args *uap)
 {
+	int error;
 
-	td->td_retval[0] = kern_posix_fallocate(td, uap->fd, uap->offset,
-	    uap->len);
-	return (0);
+	error = kern_posix_fallocate(td, uap->fd, uap->offset, uap->len);
+	return (kern_posix_error(td, error));
 }
 
 /*
@@ -4662,8 +4656,9 @@ out:
 int
 sys_posix_fadvise(struct thread *td, struct posix_fadvise_args *uap)
 {
+	int error;
 
-	td->td_retval[0] = kern_posix_fadvise(td, uap->fd, uap->offset,
-	    uap->len, uap->advice);
-	return (0);
+	error = kern_posix_fadvise(td, uap->fd, uap->offset, uap->len,
+	    uap->advice);
+	return (kern_posix_error(td, error));
 }

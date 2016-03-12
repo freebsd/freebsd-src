@@ -5,7 +5,7 @@
 .\" This file has been put into the public domain.
 .\" You can do whatever you want with this file.
 .\"
-.TH XZ 1 "2014-12-16" "Tukaani" "XZ Utils"
+.TH XZ 1 "2015-05-11" "Tukaani" "XZ Utils"
 .
 .SH NAME
 xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
@@ -1055,6 +1055,14 @@ The default block size depends on the compression level and
 can be overriden with the
 .BI \-\-block\-size= size
 option.
+.IP ""
+Threaded decompression hasn't been implemented yet.
+It will only work on files that contain multiple blocks
+with size information in block headers.
+All files compressed in multi-threaded mode meet this condition,
+but files compressed in single-threaded mode don't even if
+.BI \-\-block\-size= size
+is used.
 .
 .SS "Custom compressor filter chains"
 A custom filter chain allows specifying

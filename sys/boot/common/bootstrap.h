@@ -56,7 +56,10 @@ typedef int	(bootblk_cmd_t)(int argc, char *argv[]);
 extern char	*command_errmsg;	
 extern char	command_errbuf[];	/* XXX blah, length */
 #define CMD_OK		0
-#define CMD_ERROR	1
+#define CMD_WARN	1
+#define CMD_ERROR	2
+#define CMD_CRIT	3
+#define CMD_FATAL	4
 
 /* interp.c */
 void	interact(const char *rc);
@@ -234,7 +237,7 @@ void			unload(void);
 struct preloaded_file *file_alloc(void);
 struct preloaded_file *file_findfile(const char *name, const char *type);
 struct file_metadata *file_findmetadata(struct preloaded_file *fp, int type);
-struct preloaded_file *file_loadraw(char *name, char *type, int insert);
+struct preloaded_file *file_loadraw(const char *name, char *type, int insert);
 void file_discard(struct preloaded_file *fp);
 void file_addmetadata(struct preloaded_file *fp, int type, size_t size, void *p);
 int  file_addmodule(struct preloaded_file *fp, char *modname, int version,

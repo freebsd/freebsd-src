@@ -528,8 +528,8 @@
 ; linux 2.6.17:
 311	AUE_NULL	STD	{ int linux_set_robust_list(struct linux_robust_list_head *head, \
 					l_size_t len); }
-312	AUE_NULL	STD	{ int linux_get_robust_list(l_int pid, struct linux_robust_list_head **head, \
-					l_size_t *len); }
+312	AUE_NULL	STD	{ int linux_get_robust_list(l_int pid, \
+				    struct linux_robust_list_head **head, l_size_t *len); }
 313	AUE_NULL	STD	{ int linux_splice(void); }
 314	AUE_NULL	STD	{ int linux_sync_file_range(void); }
 315	AUE_NULL	STD	{ int linux_tee(void); }

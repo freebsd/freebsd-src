@@ -119,7 +119,8 @@ typedef struct ng_l2cap_con {
 
 	u_int8_t			 ident;      /* last allocated ident */
 	uint8_t				 linktype;
-
+	uint8_t				 encryption;
+	
 	TAILQ_HEAD(, ng_l2cap_cmd)	 cmd_list;   /* pending L2CAP cmds */
 
 	struct mbuf			*tx_pkt;     /* xmitted L2CAP packet */

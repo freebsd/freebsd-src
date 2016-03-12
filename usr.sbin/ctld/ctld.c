@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -615,6 +616,7 @@ portal_group_new(struct conf *conf, const char *name)
 	if (pg == NULL)
 		log_err(1, "calloc");
 	pg->pg_name = checked_strdup(name);
+	TAILQ_INIT(&pg->pg_options);
 	TAILQ_INIT(&pg->pg_portals);
 	TAILQ_INIT(&pg->pg_ports);
 	pg->pg_conf = conf;
@@ -629,6 +631,7 @@ portal_group_delete(struct portal_group *pg)
 {
 	struct portal *portal, *tmp;
 	struct port *port, *tport;
+	struct option *o, *otmp;
 
 	TAILQ_FOREACH_SAFE(port, &pg->pg_ports, p_pgs, tport)
 		port_delete(port);
@@ -636,6 +639,8 @@ portal_group_delete(struct portal_group *pg)
 
 	TAILQ_FOREACH_SAFE(portal, &pg->pg_portals, p_next, tmp)
 		portal_delete(portal);
+	TAILQ_FOREACH_SAFE(o, &pg->pg_options, o_next, otmp)
+		option_delete(&pg->pg_options, o);
 	free(pg->pg_name);
 	free(pg->pg_offload);
 	free(pg->pg_redirection);
@@ -1406,7 +1411,7 @@ void
 lun_delete(struct lun *lun)
 {
 	struct target *targ;
-	struct lun_option *lo, *tmp;
+	struct option *o, *tmp;
 	int i;
 
 	TAILQ_FOREACH(targ, &lun->l_conf->conf_targets, t_next) {
@@ -1417,8 +1422,8 @@ lun_delete(struct lun *lun)
 	}
 	TAILQ_REMOVE(&lun->l_conf->conf_luns, lun, l_next);
 
-	TAILQ_FOREACH_SAFE(lo, &lun->l_options, lo_next, tmp)
-		lun_option_delete(lo);
+	TAILQ_FOREACH_SAFE(o, &lun->l_options, o_next, tmp)
+		option_delete(&lun->l_options, o);
 	free(lun->l_name);
 	free(lun->l_backend);
 	free(lun->l_device_id);
@@ -1504,59 +1509,56 @@ lun_set_ctl_lun(struct lun *lun, uint32_t value)
 	lun->l_ctl_lun = value;
 }
 
-struct lun_option *
-lun_option_new(struct lun *lun, const char *name, const char *value)
+struct option *
+option_new(struct options *options, const char *name, const char *value)
 {
-	struct lun_option *lo;
+	struct option *o;
 
-	lo = lun_option_find(lun, name);
-	if (lo != NULL) {
-		log_warnx("duplicated lun option \"%s\" for lun \"%s\"",
-		    name, lun->l_name);
+	o = option_find(options, name);
+	if (o != NULL) {
+		log_warnx("duplicated option \"%s\"", name);
 		return (NULL);
 	}
 
-	lo = calloc(1, sizeof(*lo));
-	if (lo == NULL)
+	o = calloc(1, sizeof(*o));
+	if (o == NULL)
 		log_err(1, "calloc");
-	lo->lo_name = checked_strdup(name);
-	lo->lo_value = checked_strdup(value);
-	lo->lo_lun = lun;
-	TAILQ_INSERT_TAIL(&lun->l_options, lo, lo_next);
+	o->o_name = checked_strdup(name);
+	o->o_value = checked_strdup(value);
+	TAILQ_INSERT_TAIL(options, o, o_next);
 
-	return (lo);
+	return (o);
 }
 
 void
-lun_option_delete(struct lun_option *lo)
+option_delete(struct options *options, struct option *o)
 {
 
-	TAILQ_REMOVE(&lo->lo_lun->l_options, lo, lo_next);
-
-	free(lo->lo_name);
-	free(lo->lo_value);
-	free(lo);
+	TAILQ_REMOVE(options, o, o_next);
+	free(o->o_name);
+	free(o->o_value);
+	free(o);
 }
 
-struct lun_option *
-lun_option_find(const struct lun *lun, const char *name)
+struct option *
+option_find(const struct options *options, const char *name)
 {
-	struct lun_option *lo;
+	struct option *o;
 
-	TAILQ_FOREACH(lo, &lun->l_options, lo_next) {
-		if (strcmp(lo->lo_name, name) == 0)
-			return (lo);
+	TAILQ_FOREACH(o, options, o_next) {
+		if (strcmp(o->o_name, name) == 0)
+			return (o);
 	}
 
 	return (NULL);
 }
 
 void
-lun_option_set(struct lun_option *lo, const char *value)
+option_set(struct option *o, const char *value)
 {
 
-	free(lo->lo_value);
-	lo->lo_value = checked_strdup(value);
+	free(o->o_value);
+	o->o_value = checked_strdup(value);
 }
 
 static struct connection *
@@ -1595,7 +1597,7 @@ conf_print(struct conf *conf)
 	struct portal *portal;
 	struct target *targ;
 	struct lun *lun;
-	struct lun_option *lo;
+	struct option *o;
 
 	TAILQ_FOREACH(ag, &conf->conf_auth_groups, ag_next) {
 		fprintf(stderr, "auth-group %s {\n", ag->ag_name);
@@ -1620,9 +1622,9 @@ conf_print(struct conf *conf)
 	TAILQ_FOREACH(lun, &conf->conf_luns, l_next) {
 		fprintf(stderr, "\tlun %s {\n", lun->l_name);
 		fprintf(stderr, "\t\tpath %s\n", lun->l_path);
-		TAILQ_FOREACH(lo, &lun->l_options, lo_next)
+		TAILQ_FOREACH(o, &lun->l_options, o_next)
 			fprintf(stderr, "\t\toption %s %s\n",
-			    lo->lo_name, lo->lo_value);
+			    lo->o_name, lo->o_value);
 		fprintf(stderr, "\t}\n");
 	}
 	TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
@@ -2028,7 +2030,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	}
 
 	/*
-	 * Go through the new portals, opening the sockets as neccessary.
+	 * Go through the new portals, opening the sockets as necessary.
 	 */
 	TAILQ_FOREACH(newpg, &newconf->conf_portal_groups, pg_next) {
 		if (newpg->pg_foreign)
@@ -2490,6 +2492,104 @@ register_signals(void)
 		log_err(1, "sigaction");
 }
 
+static void
+check_perms(const char *path)
+{
+	struct stat sb;
+	int error;
+
+	error = stat(path, &sb);
+	if (error != 0) {
+		log_warn("stat");
+		return;
+	}
+	if (sb.st_mode & S_IWOTH) {
+		log_warnx("%s is world-writable", path);
+	} else if (sb.st_mode & S_IROTH) {
+		log_warnx("%s is world-readable", path);
+	} else if (sb.st_mode & S_IXOTH) {
+		/*
+		 * Ok, this one doesn't matter, but still do it,
+		 * just for consistency.
+		 */
+		log_warnx("%s is world-executable", path);
+	}
+
+	/*
+	 * XXX: Should we also check for owner != 0?
+	 */
+}
+
+static struct conf *
+conf_new_from_file(const char *path, struct conf *oldconf, bool ucl)
+{
+	struct conf *conf;
+	struct auth_group *ag;
+	struct portal_group *pg;
+	struct pport *pp;
+	int error;
+
+	log_debugx("obtaining configuration from %s", path);
+
+	conf = conf_new();
+
+	TAILQ_FOREACH(pp, &oldconf->conf_pports, pp_next)
+		pport_copy(pp, conf);
+
+	ag = auth_group_new(conf, "default");
+	assert(ag != NULL);
+
+	ag = auth_group_new(conf, "no-authentication");
+	assert(ag != NULL);
+	ag->ag_type = AG_TYPE_NO_AUTHENTICATION;
+
+	ag = auth_group_new(conf, "no-access");
+	assert(ag != NULL);
+	ag->ag_type = AG_TYPE_DENY;
+
+	pg = portal_group_new(conf, "default");
+	assert(pg != NULL);
+
+	if (ucl)
+		error = uclparse_conf(conf, path);
+	else
+		error = parse_conf(conf, path);
+
+	if (error != 0) {
+		conf_delete(conf);
+		return (NULL);
+	}
+
+	check_perms(path);
+
+	if (conf->conf_default_ag_defined == false) {
+		log_debugx("auth-group \"default\" not defined; "
+		    "going with defaults");
+		ag = auth_group_find(conf, "default");
+		assert(ag != NULL);
+		ag->ag_type = AG_TYPE_DENY;
+	}
+
+	if (conf->conf_default_pg_defined == false) {
+		log_debugx("portal-group \"default\" not defined; "
+		    "going with defaults");
+		pg = portal_group_find(conf, "default");
+		assert(pg != NULL);
+		portal_group_add_listen(pg, "0.0.0.0:3260", false);
+		portal_group_add_listen(pg, "[::]:3260", false);
+	}
+
+	conf->conf_kernel_port_on = true;
+
+	error = conf_verify(conf);
+	if (error != 0) {
+		conf_delete(conf);
+		return (NULL);
+	}
+
+	return (conf);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -2498,12 +2598,16 @@ main(int argc, char **argv)
 	const char *config_path = DEFAULT_CONFIG_PATH;
 	int debug = 0, ch, error;
 	bool dont_daemonize = false;
+	bool use_ucl = false;
 
-	while ((ch = getopt(argc, argv, "df:R")) != -1) {
+	while ((ch = getopt(argc, argv, "duf:R")) != -1) {
 		switch (ch) {
 		case 'd':
 			dont_daemonize = true;
 			debug++;
+			break;
+		case 'u':
+			use_ucl = true;
 			break;
 		case 'f':
 			config_path = optarg;
@@ -2528,7 +2632,8 @@ main(int argc, char **argv)
 	kernel_init();
 
 	oldconf = conf_new_from_kernel();
-	newconf = conf_new_from_file(config_path, oldconf);
+	newconf = conf_new_from_file(config_path, oldconf, use_ucl);
+
 	if (newconf == NULL)
 		log_errx(1, "configuration error; exiting");
 	if (debug > 0) {
@@ -2563,7 +2668,9 @@ main(int argc, char **argv)
 		if (sighup_received) {
 			sighup_received = false;
 			log_debugx("received SIGHUP, reloading configuration");
-			tmpconf = conf_new_from_file(config_path, newconf);
+			tmpconf = conf_new_from_file(config_path, newconf,
+			    use_ucl);
+
 			if (tmpconf == NULL) {
 				log_warnx("configuration error, "
 				    "continuing with old configuration");

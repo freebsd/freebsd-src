@@ -54,7 +54,7 @@ digittoint(int c)
 int
 isalnum(int c)
 {
-	return (__sbistype(c, _CTYPE_A|_CTYPE_D));
+	return (__sbistype(c, _CTYPE_A|_CTYPE_N));
 }
 
 #undef isalpha
@@ -124,7 +124,7 @@ islower(int c)
 int
 isnumber(int c)
 {
-	return (__sbistype(c, _CTYPE_D));
+	return (__sbistype(c, _CTYPE_N));
 }
 
 #undef isphonogram	

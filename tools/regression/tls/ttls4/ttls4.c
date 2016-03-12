@@ -9,11 +9,13 @@
 
 #include <stdio.h>
 #include <pthread.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 int __thread n;
 
-void *f1(void *arg)
+void
+*f1(void *arg)
 {
 	if (n != 0) {
 		printf("bug, n == %d \n", n);
@@ -23,7 +25,8 @@ void *f1(void *arg)
 	return (0);
 }
 
-int main()
+int
+main(void)
 {
 	pthread_t td;
 	int i;

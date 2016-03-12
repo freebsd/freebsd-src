@@ -57,6 +57,7 @@ struct ofwfb_softc {
 	int		iso_palette;
 };
 
+static void ofwfb_initialize(struct vt_device *vd);
 static vd_probe_t	ofwfb_probe;
 static vd_init_t	ofwfb_init;
 static vd_bitblt_text_t	ofwfb_bitblt_text;
@@ -123,6 +124,18 @@ ofwfb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 		uint32_t l;
 		uint8_t	 c[4];
 	} ch1, ch2;
+
+#ifdef __powerpc__
+	/* Deal with unmapped framebuffers */
+	if (sc->fb_flags & FB_FLAG_NOWRITE) {
+		if (pmap_bootstrapped) {
+			sc->fb_flags &= ~FB_FLAG_NOWRITE;
+			ofwfb_initialize(vd);
+		} else {
+			return;
+		}
+	}
+#endif
 
 	fgc = sc->fb_cmap[fg];
 	bgc = sc->fb_cmap[bg];
@@ -271,6 +284,11 @@ ofwfb_initialize(struct vt_device *vd)
 	cell_t retval;
 	uint32_t oldpix;
 
+	sc->fb.fb_cmsize = 16;
+
+	if (sc->fb.fb_flags & FB_FLAG_NOWRITE)
+		return;
+
 	/*
 	 * Set up the color map
 	 */
@@ -318,8 +336,6 @@ ofwfb_initialize(struct vt_device *vd)
 		panic("Unknown color space depth %d", sc->fb.fb_bpp);
 		break;
         }
-
-	sc->fb.fb_cmsize = 16;
 }
 
 static int
@@ -464,8 +480,14 @@ ofwfb_init(struct vt_device *vd)
 			return (CN_DEAD);
 
 	#if defined(__powerpc__)
-		OF_decode_addr(node, fb_phys, &sc->sc_memt, &sc->fb.fb_vbase);
+		OF_decode_addr(node, fb_phys, &sc->sc_memt, &sc->fb.fb_vbase,
+		    NULL);
 		sc->fb.fb_pbase = sc->fb.fb_vbase; /* 1:1 mapped */
+		#ifdef __powerpc64__
+		/* Real mode under a hypervisor probably doesn't cover FB */
+		if (!(mfmsr() & (PSL_HV | PSL_DR)))
+			sc->fb.fb_flags |= FB_FLAG_NOWRITE;
+		#endif
 	#else
 		/* No ability to interpret assigned-addresses otherwise */
 		return (CN_DEAD);

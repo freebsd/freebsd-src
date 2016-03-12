@@ -38,9 +38,8 @@ const CMICmdCmdGdbShow::MapGdbOptionNameToFnGdbOptionPtr_t CMICmdCmdGdbShow::ms_
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdGdbShow::CMICmdCmdGdbShow(void)
-    : m_constStrArgNamedThreadGrp("thread-group")
-    , m_constStrArgNamedGdbOption("option")
+CMICmdCmdGdbShow::CMICmdCmdGdbShow()
+    : m_constStrArgNamedGdbOption("option")
     , m_bGdbOptionRecognised(true)
     , m_bGdbOptionFnSuccessful(false)
     , m_bGbbOptionFnHasError(false)
@@ -60,7 +59,7 @@ CMICmdCmdGdbShow::CMICmdCmdGdbShow(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdCmdGdbShow::~CMICmdCmdGdbShow(void)
+CMICmdCmdGdbShow::~CMICmdCmdGdbShow()
 {
 }
 
@@ -74,14 +73,11 @@ CMICmdCmdGdbShow::~CMICmdCmdGdbShow(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdGdbShow::ParseArgs(void)
+CMICmdCmdGdbShow::ParseArgs()
 {
-    bool bOk = m_setCmdArgs.Add(
-        *(new CMICmdArgValOptionLong(m_constStrArgNamedThreadGrp, false, false, CMICmdArgValListBase::eArgValType_ThreadGrp, 1)));
-    bOk = bOk &&
-          m_setCmdArgs.Add(
-              *(new CMICmdArgValListOfN(m_constStrArgNamedGdbOption, true, true, CMICmdArgValListBase::eArgValType_StringAnything)));
-    return (bOk && ParseValidateCmdOptions());
+    m_setCmdArgs.Add(
+        new CMICmdArgValListOfN(m_constStrArgNamedGdbOption, true, true, CMICmdArgValListBase::eArgValType_StringAnything));
+    return ParseValidateCmdOptions();
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -93,7 +89,7 @@ CMICmdCmdGdbShow::ParseArgs(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdGdbShow::Execute(void)
+CMICmdCmdGdbShow::Execute()
 {
     CMICMDBASE_GETOPTION(pArgGdbOption, ListOfN, m_constStrArgNamedGdbOption);
     const CMICmdArgValListBase::VecArgObjPtr_t &rVecWords(pArgGdbOption->GetExpectedOptions());
@@ -146,7 +142,7 @@ CMICmdCmdGdbShow::Execute(void)
 // Throws:  None.
 //--
 bool
-CMICmdCmdGdbShow::Acknowledge(void)
+CMICmdCmdGdbShow::Acknowledge()
 {
     // Print error if option isn't recognized:
     // ^error,msg="The request '%s' was not recognized, not implemented"
@@ -196,7 +192,7 @@ CMICmdCmdGdbShow::Acknowledge(void)
 // Throws:  None.
 //--
 CMICmdBase *
-CMICmdCmdGdbShow::CreateSelf(void)
+CMICmdCmdGdbShow::CreateSelf()
 {
     return new CMICmdCmdGdbShow();
 }

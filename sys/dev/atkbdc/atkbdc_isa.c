@@ -50,8 +50,8 @@ static int	atkbdc_isa_attach(device_t dev);
 static device_t	atkbdc_isa_add_child(device_t bus, u_int order, const char *name,
 		    int unit);
 static struct resource *atkbdc_isa_alloc_resource(device_t dev, device_t child,
-		    int type, int *rid, u_long start, u_long end,
-		    u_long count, u_int flags);
+		    int type, int *rid, rman_res_t start, rman_res_t end,
+		    rman_res_t count, u_int flags);
 static int	atkbdc_isa_release_resource(device_t dev, device_t child,
 		    int type, int rid, struct resource *r);
 
@@ -97,8 +97,8 @@ atkbdc_isa_probe(device_t dev)
 {
 	struct resource	*port0;
 	struct resource	*port1;
-	u_long		start;
-	u_long		count;
+	rman_res_t	start;
+	rman_res_t	count;
 	int		error;
 	int		rid;
 #if defined(__i386__) || defined(__amd64__)
@@ -295,7 +295,7 @@ atkbdc_isa_add_child(device_t bus, u_int order, const char *name, int unit)
 
 struct resource *
 atkbdc_isa_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	atkbdc_softc_t	*sc;
 	

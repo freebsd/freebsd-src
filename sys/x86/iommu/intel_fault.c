@@ -179,7 +179,7 @@ done:
 	}
 
 	if (enqueue) {
-		taskqueue_enqueue_fast(unit->fault_taskqueue,
+		taskqueue_enqueue(unit->fault_taskqueue,
 		    &unit->fault_task);
 	}
 	return (FILTER_HANDLED);

@@ -1,116 +1,66 @@
-/*	$Id: man.h,v 1.69 2015/01/24 02:41:49 schwarze Exp $ */
+/*	$Id: man.h,v 1.77 2015/11/07 14:01:16 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHORS DISCLAIM ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-enum	mant {
-	MAN_br = 0,
-	MAN_TH,
-	MAN_SH,
-	MAN_SS,
-	MAN_TP,
-	MAN_LP,
-	MAN_PP,
-	MAN_P,
-	MAN_IP,
-	MAN_HP,
-	MAN_SM,
-	MAN_SB,
-	MAN_BI,
-	MAN_IB,
-	MAN_BR,
-	MAN_RB,
-	MAN_R,
-	MAN_B,
-	MAN_I,
-	MAN_IR,
-	MAN_RI,
-	MAN_sp,
-	MAN_nf,
-	MAN_fi,
-	MAN_RE,
-	MAN_RS,
-	MAN_DT,
-	MAN_UC,
-	MAN_PD,
-	MAN_AT,
-	MAN_in,
-	MAN_ft,
-	MAN_OP,
-	MAN_EX,
-	MAN_EE,
-	MAN_UR,
-	MAN_UE,
-	MAN_ll,
-	MAN_MAX
-};
+#define	MAN_br   0
+#define	MAN_TH   1
+#define	MAN_SH   2
+#define	MAN_SS   3
+#define	MAN_TP   4
+#define	MAN_LP   5
+#define	MAN_PP   6
+#define	MAN_P    7
+#define	MAN_IP   8
+#define	MAN_HP   9
+#define	MAN_SM  10
+#define	MAN_SB  11
+#define	MAN_BI  12
+#define	MAN_IB  13
+#define	MAN_BR  14
+#define	MAN_RB  15
+#define	MAN_R   16
+#define	MAN_B   17
+#define	MAN_I   18
+#define	MAN_IR  19
+#define	MAN_RI  20
+#define	MAN_sp  21
+#define	MAN_nf  22
+#define	MAN_fi  23
+#define	MAN_RE  24
+#define	MAN_RS  25
+#define	MAN_DT  26
+#define	MAN_UC  27
+#define	MAN_PD  28
+#define	MAN_AT  29
+#define	MAN_in  30
+#define	MAN_ft  31
+#define	MAN_OP  32
+#define	MAN_EX  33
+#define	MAN_EE  34
+#define	MAN_UR  35
+#define	MAN_UE  36
+#define	MAN_ll  37
+#define	MAN_MAX 38
 
-enum	man_type {
-	MAN_TEXT,
-	MAN_ELEM,
-	MAN_ROOT,
-	MAN_BLOCK,
-	MAN_HEAD,
-	MAN_BODY,
-	MAN_TBL,
-	MAN_EQN
-};
-
-struct	man_meta {
-	char		*msec; /* `TH' section (1, 3p, etc.) */
-	char		*date; /* `TH' normalised date */
-	char		*vol; /* `TH' volume */
-	char		*title; /* `TH' title (e.g., FOO) */
-	char		*source; /* `TH' source (e.g., GNU) */
-	int		 hasbody; /* document is not empty */
-};
-
-struct	man_node {
-	struct man_node	*parent; /* parent AST node */
-	struct man_node	*child; /* first child AST node */
-	struct man_node	*next; /* sibling AST node */
-	struct man_node	*prev; /* prior sibling AST node */
-	int		 nchild; /* number children */
-	int		 line;
-	int		 pos;
-	enum mant	 tok; /* tok or MAN__MAX if none */
-	int		 flags;
-#define	MAN_VALID	(1 << 0) /* has been validated */
-#define	MAN_EOS		(1 << 2) /* at sentence boundary */
-#define	MAN_LINE	(1 << 3) /* first macro/text on line */
-	enum man_type	 type; /* AST node type */
-	char		*string; /* TEXT node argument */
-	struct man_node	*head; /* BLOCK node HEAD ptr */
-	struct man_node *tail; /* BLOCK node TAIL ptr */
-	struct man_node	*body; /* BLOCK node BODY ptr */
-	const struct tbl_span *span; /* TBL */
-	const struct eqn *eqn; /* EQN */
-	int		 aux; /* decoded node data, type-dependent */
-};
-
-/* Names of macros.  Index is enum mant. */
+/* Names of macros. */
 extern	const char *const *man_macronames;
 
-__BEGIN_DECLS
 
-struct	man;
+struct	roff_man;
 
-const struct man_node *man_node(const struct man *);
-const struct man_meta *man_meta(const struct man *);
-const struct mparse   *man_mparse(const struct man *);
-void man_deroff(char **, const struct man_node *);
-
-__END_DECLS
+const struct mparse	*man_mparse(const struct roff_man *);
+void			 man_validate(struct roff_man *);

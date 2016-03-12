@@ -208,12 +208,14 @@ daemon_remote_create(struct config_file* cfg)
 		return NULL;
 	}
 	/* no SSLv2, SSLv3 because has defects */
-	if(!(SSL_CTX_set_options(rc->ctx, SSL_OP_NO_SSLv2) & SSL_OP_NO_SSLv2)){
+	if((SSL_CTX_set_options(rc->ctx, SSL_OP_NO_SSLv2) & SSL_OP_NO_SSLv2)
+		!= SSL_OP_NO_SSLv2){
 		log_crypto_err("could not set SSL_OP_NO_SSLv2");
 		daemon_remote_delete(rc);
 		return NULL;
 	}
-	if(!(SSL_CTX_set_options(rc->ctx, SSL_OP_NO_SSLv3) & SSL_OP_NO_SSLv3)){
+	if((SSL_CTX_set_options(rc->ctx, SSL_OP_NO_SSLv3) & SSL_OP_NO_SSLv3)
+		!= SSL_OP_NO_SSLv3){
 		log_crypto_err("could not set SSL_OP_NO_SSLv3");
 		daemon_remote_delete(rc);
 		return NULL;
@@ -387,7 +389,7 @@ add_open(const char* ip, int nr, struct listen_port** list, int noproto_is_err,
 
 		/* open fd */
 		fd = create_tcp_accept_sock(res, 1, &noproto, 0,
-			cfg->ip_transparent);
+			cfg->ip_transparent, 0);
 		freeaddrinfo(res);
 	}
 

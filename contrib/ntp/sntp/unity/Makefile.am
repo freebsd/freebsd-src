@@ -6,18 +6,20 @@ CLEANFILES =
 noinst_LIBRARIES = libunity.a
 
 libunity_a_CFLAGS =                  	\
-	-DUNITY_INCLUDE_DOUBLE		\
+	-DUNITY_INCLUDE_CONFIG_H	\
 	$(NULL)
 
 libunity_a_SOURCES =				\
 	../libpkgver/colcomp.c			\
 	unity.c					\
 	unity.h					\
+	unity_config.h				\
 	unity_internals.h			\
 	unity_fixture.c				\
 	unity_fixture.h				\
 	unity_fixture_internals.h		\
 	unity_fixture_malloc_overrides.h	\
+	unity_config.h				\
 	$(NULL)
 
 include $(top_srcdir)/depsver.mf

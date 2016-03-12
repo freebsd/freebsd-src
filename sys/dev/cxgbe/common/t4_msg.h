@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Chelsio Communications, Inc.
+ * Copyright (c) 2011, 2016 Chelsio Communications, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,8 +55,9 @@ enum {
 	CPL_BARRIER           = 0x18,
 	CPL_TID_RELEASE       = 0x1A,
 	CPL_TAG_READ_REQ      = 0x1B,
+	CPL_SRQ_TABLE_REQ     = 0x1C,
 	CPL_TX_PKT_FSO        = 0x1E,
-	CPL_TX_PKT_ISO        = 0x1F,
+	CPL_TX_DATA_ISO       = 0x1F,
 
 	CPL_CLOSE_LISTSRV_RPL = 0x20,
 	CPL_ERROR             = 0x21,
@@ -97,7 +98,7 @@ enum {
 	CPL_RX_DATA_DDP       = 0x42,
 	CPL_SMT_READ_RPL      = 0x43,
 	CPL_PASS_ACCEPT_REQ   = 0x44,
-	CPL_RX2TX_PKT         = 0x45,
+	CPL_RX_ISCSI_CMP      = 0x45,
 	CPL_RX_FCOE_DDP       = 0x46,
 	CPL_FCOE_HDR          = 0x47,
 	CPL_T5_TRACE_PKT      = 0x48,
@@ -124,9 +125,9 @@ enum {
 	CPL_RDMA_ATOMIC_RPL   = 0xAB,
 	CPL_RDMA_IMM_DATA     = 0xAC,
 	CPL_RDMA_IMM_DATA_SE  = 0xAD,
+	CPL_RX_MPS_PKT        = 0xAF,
 
 	CPL_TRACE_PKT         = 0xB0,
-	CPL_TRACE_PKT_T5      = 0x48,
 	CPL_RX2TX_DATA        = 0xB1,
 	CPL_ISCSI_DATA        = 0xB2,
 	CPL_FCOE_DATA         = 0xB3,
@@ -134,9 +135,11 @@ enum {
 	CPL_FW4_MSG           = 0xC0,
 	CPL_FW4_PLD           = 0xC1,
 	CPL_FW4_ACK           = 0xC3,
+	CPL_SRQ_TABLE_RPL     = 0xCC,
 
 	CPL_FW6_MSG           = 0xE0,
 	CPL_FW6_PLD           = 0xE1,
+	CPL_TX_TNL_LSO        = 0xEC,
 	CPL_TX_PKT_LSO        = 0xED,
 	CPL_TX_PKT_XT         = 0xEE,
 
@@ -146,6 +149,7 @@ enum {
 enum CPL_error {
 	CPL_ERR_NONE               = 0,
 	CPL_ERR_TCAM_PARITY        = 1,
+	CPL_ERR_TCAM_MISS          = 2,
 	CPL_ERR_TCAM_FULL          = 3,
 	CPL_ERR_BAD_LENGTH         = 15,
 	CPL_ERR_BAD_ROUTE          = 18,
@@ -165,7 +169,23 @@ enum CPL_error {
 	CPL_ERR_WAIT_ARP_RPL       = 41,
 	CPL_ERR_ABORT_FAILED       = 42,
 	CPL_ERR_IWARP_FLM          = 50,
+	CPL_CONTAINS_READ_RPL      = 60,
+	CPL_CONTAINS_WRITE_RPL     = 61,
 };
+
+/*
+ * Some of the error codes above implicitly indicate that there is no TID
+ * allocated with the result of an ACT_OPEN.  We use this predicate to make
+ * that explicit.
+ */
+static inline int act_open_has_tid(int status)
+{
+	return (status != CPL_ERR_TCAM_PARITY &&
+		status != CPL_ERR_TCAM_MISS &&
+		status != CPL_ERR_TCAM_FULL &&
+		status != CPL_ERR_CONN_EXIST_SYNRECV &&
+		status != CPL_ERR_CONN_EXIST);
+}
 
 enum {
 	CPL_CONN_POLICY_AUTO = 0,
@@ -338,6 +358,12 @@ struct rss_header {
 #define M_QNUM 0xFFFF
 #define G_QNUM(x) (((x) >> S_QNUM) & M_QNUM)
 
+#if defined(RSS_HDR_VLD) || defined(CHELSIO_FW)
+# define RSS_HDR struct rss_header rss_hdr;
+#else
+# define RSS_HDR
+#endif
+
 #ifndef CHELSIO_FW
 struct work_request_hdr {
 	__be32 wr_hi;
@@ -359,11 +385,9 @@ struct work_request_hdr {
 
 # define WR_HDR struct work_request_hdr wr
 # define WR_HDR_SIZE sizeof(struct work_request_hdr)
-# define RSS_HDR
 #else
 # define WR_HDR
 # define WR_HDR_SIZE 0
-# define RSS_HDR struct rss_header rss_hdr;
 #endif
 
 /* option 0 fields */
@@ -481,6 +505,11 @@ struct work_request_hdr {
 #define V_CONN_POLICY(x) ((x) << S_CONN_POLICY)
 #define G_CONN_POLICY(x) (((x) >> S_CONN_POLICY) & M_CONN_POLICY)
 
+#define S_T5_FILT_INFO    24
+#define M_T5_FILT_INFO    0xffffffffffULL
+#define V_T5_FILT_INFO(x) ((x) << S_T5_FILT_INFO)
+#define G_T5_FILT_INFO(x) (((x) >> S_T5_FILT_INFO) & M_T5_FILT_INFO)
+
 #define S_FILT_INFO    28
 #define M_FILT_INFO    0xfffffffffULL
 #define V_FILT_INFO(x) ((x) << S_FILT_INFO)
@@ -518,6 +547,10 @@ struct work_request_hdr {
 #define S_CONG_CNTRL_VALID    18
 #define V_CONG_CNTRL_VALID(x) ((x) << S_CONG_CNTRL_VALID)
 #define F_CONG_CNTRL_VALID    V_CONG_CNTRL_VALID(1U)
+
+#define S_T5_ISS    18
+#define V_T5_ISS(x) ((x) << S_T5_ISS)
+#define F_T5_ISS    V_T5_ISS(1U)
 
 #define S_PACE_VALID    19
 #define V_PACE_VALID(x) ((x) << S_PACE_VALID)
@@ -618,11 +651,30 @@ struct cpl_pass_establish {
 #define G_PASS_OPEN_TOS(x) (((x) >> S_PASS_OPEN_TOS) & M_PASS_OPEN_TOS)
 
 /* cpl_pass_establish.tcp_opt fields (also applies to act_open_establish) */
-#define G_TCPOPT_WSCALE_OK(x)  (((x) >> 5) & 1)
-#define G_TCPOPT_SACK(x)       (((x) >> 6) & 1)
-#define G_TCPOPT_TSTAMP(x)     (((x) >> 7) & 1)
-#define G_TCPOPT_SND_WSCALE(x) (((x) >> 8) & 0xf)
-#define G_TCPOPT_MSS(x)        (((x) >> 12) & 0xf)
+#define S_TCPOPT_WSCALE_OK	5
+#define M_TCPOPT_WSCALE_OK  	0x1
+#define V_TCPOPT_WSCALE_OK(x)	((x) << S_TCPOPT_WSCALE_OK)
+#define G_TCPOPT_WSCALE_OK(x)	(((x) >> S_TCPOPT_WSCALE_OK) & M_TCPOPT_WSCALE_OK)
+
+#define S_TCPOPT_SACK		6
+#define M_TCPOPT_SACK		0x1
+#define V_TCPOPT_SACK(x)	((x) << S_TCPOPT_SACK)
+#define G_TCPOPT_SACK(x)	(((x) >> S_TCPOPT_SACK) & M_TCPOPT_SACK)
+
+#define S_TCPOPT_TSTAMP		7
+#define M_TCPOPT_TSTAMP		0x1
+#define V_TCPOPT_TSTAMP(x)	((x) << S_TCPOPT_TSTAMP)
+#define G_TCPOPT_TSTAMP(x)	(((x) >> S_TCPOPT_TSTAMP) & M_TCPOPT_TSTAMP)
+
+#define S_TCPOPT_SND_WSCALE	8
+#define M_TCPOPT_SND_WSCALE	0xF
+#define V_TCPOPT_SND_WSCALE(x)	((x) << S_TCPOPT_SND_WSCALE)
+#define G_TCPOPT_SND_WSCALE(x)	(((x) >> S_TCPOPT_SND_WSCALE) & M_TCPOPT_SND_WSCALE)
+
+#define S_TCPOPT_MSS	12
+#define M_TCPOPT_MSS	0xF
+#define V_TCPOPT_MSS(x)	((x) << S_TCPOPT_MSS)
+#define G_TCPOPT_MSS(x)	(((x) >> S_TCPOPT_MSS) & M_TCPOPT_MSS)
 
 struct cpl_pass_accept_req {
 	RSS_HDR
@@ -647,15 +699,28 @@ struct cpl_pass_accept_req {
 #define V_TCP_HDR_LEN(x) ((x) << S_TCP_HDR_LEN)
 #define G_TCP_HDR_LEN(x) (((x) >> S_TCP_HDR_LEN) & M_TCP_HDR_LEN)
 
+#define S_T6_TCP_HDR_LEN   8
+#define V_T6_TCP_HDR_LEN(x) ((x) << S_T6_TCP_HDR_LEN)
+#define G_T6_TCP_HDR_LEN(x) (((x) >> S_T6_TCP_HDR_LEN) & M_TCP_HDR_LEN)
+
 #define S_IP_HDR_LEN    16
 #define M_IP_HDR_LEN    0x3FF
 #define V_IP_HDR_LEN(x) ((x) << S_IP_HDR_LEN)
 #define G_IP_HDR_LEN(x) (((x) >> S_IP_HDR_LEN) & M_IP_HDR_LEN)
 
+#define S_T6_IP_HDR_LEN    14
+#define V_T6_IP_HDR_LEN(x) ((x) << S_T6_IP_HDR_LEN)
+#define G_T6_IP_HDR_LEN(x) (((x) >> S_T6_IP_HDR_LEN) & M_IP_HDR_LEN)
+
 #define S_ETH_HDR_LEN    26
 #define M_ETH_HDR_LEN    0x3F
 #define V_ETH_HDR_LEN(x) ((x) << S_ETH_HDR_LEN)
 #define G_ETH_HDR_LEN(x) (((x) >> S_ETH_HDR_LEN) & M_ETH_HDR_LEN)
+
+#define S_T6_ETH_HDR_LEN    24
+#define M_T6_ETH_HDR_LEN    0xFF
+#define V_T6_ETH_HDR_LEN(x) ((x) << S_T6_ETH_HDR_LEN)
+#define G_T6_ETH_HDR_LEN(x) (((x) >> S_T6_ETH_HDR_LEN) & M_T6_ETH_HDR_LEN)
 
 /* cpl_pass_accept_req.l2info fields */
 #define S_SYN_MAC_IDX    0
@@ -685,7 +750,10 @@ struct cpl_t5_pass_accept_rpl {
 	__be32 opt2;
 	__be64 opt0;
 	__be32 iss;
-	__be32 rsvd;
+	union {
+		__be32 rsvd; /* T5 */
+		__be32 opt3; /* T6 */
+	} u;
 };
 
 struct cpl_act_open_req {
@@ -717,6 +785,26 @@ struct cpl_t5_act_open_req {
 	__be64 params;
 };
 
+struct cpl_t6_act_open_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be16 local_port;
+	__be16 peer_port;
+	__be32 local_ip;
+	__be32 peer_ip;
+	__be64 opt0;
+	__be32 iss;
+	__be32 opt2;
+	__be64 params;
+	__be32 rsvd2;
+	__be32 opt3;
+};
+
+/* cpl_{t5,t6}_act_open_req.params field */
+#define S_AOPEN_FCOEMASK	0
+#define V_AOPEN_FCOEMASK(x)	((x) << S_AOPEN_FCOEMASK)
+#define F_AOPEN_FCOEMASK	V_AOPEN_FCOEMASK(1U)
+
 struct cpl_act_open_req6 {
 	WR_HDR;
 	union opcode_tid ot;
@@ -744,6 +832,23 @@ struct cpl_t5_act_open_req6 {
 	__be32 iss;
 	__be32 opt2;
 	__be64 params;
+};
+
+struct cpl_t6_act_open_req6 {
+	WR_HDR;
+	union opcode_tid ot;
+	__be16 local_port;
+	__be16 peer_port;
+	__be64 local_ip_hi;
+	__be64 local_ip_lo;
+	__be64 peer_ip_hi;
+	__be64 peer_ip_lo;
+	__be64 opt0;
+	__be32 iss;
+	__be32 opt2;
+	__be64 params;
+	__be32 rsvd2;
+	__be32 opt3;
 };
 
 struct cpl_act_open_rpl {
@@ -888,6 +993,11 @@ struct cpl_abort_req_rss {
 	__u8  status;
 };
 
+/* cpl_abort_req status command code in case of T6,
+ * bit[0] specifies whether to send RST (0) to remote peer or suppress it (1)
+ * bit[1] indicates ABORT_REQ was sent after a CLOSE_CON_REQ
+ * bit[2] specifies whether to disable the mmgr (1) or not (0)
+ */
 struct cpl_abort_req {
 	WR_HDR;
 	union opcode_tid ot;
@@ -979,9 +1089,13 @@ struct cpl_tx_data {
 #define G_TX_ULP_SUBMODE(x) (((x) >> S_TX_ULP_SUBMODE) & M_TX_ULP_SUBMODE)
 
 #define S_TX_ULP_MODE    10
-#define M_TX_ULP_MODE    0xF
+#define M_TX_ULP_MODE    0x7
 #define V_TX_ULP_MODE(x) ((x) << S_TX_ULP_MODE)
 #define G_TX_ULP_MODE(x) (((x) >> S_TX_ULP_MODE) & M_TX_ULP_MODE)
+
+#define S_TX_FORCE    13
+#define V_TX_FORCE(x) ((x) << S_TX_FORCE)
+#define F_TX_FORCE    V_TX_FORCE(1U)
 
 #define S_TX_SHOVE    14
 #define V_TX_SHOVE(x) ((x) << S_TX_SHOVE)
@@ -1006,6 +1120,10 @@ struct cpl_tx_data {
 #define S_TX_TNL    19
 #define V_TX_TNL(x) ((x) << S_TX_TNL)
 #define F_TX_TNL    V_TX_TNL(1U)
+
+#define S_T6_TX_FORCE    20
+#define V_T6_TX_FORCE(x) ((x) << S_T6_TX_FORCE)
+#define F_T6_TX_FORCE    V_T6_TX_FORCE(1U)
 
 /* additional tx_data_wr.flags fields */
 #define S_TX_CPU_IDX    0
@@ -1143,6 +1261,10 @@ struct cpl_tx_pkt {
 #define V_TXPKT_IPHDR_LEN(x) ((__u64)(x) << S_TXPKT_IPHDR_LEN)
 #define G_TXPKT_IPHDR_LEN(x) (((x) >> S_TXPKT_IPHDR_LEN) & M_TXPKT_IPHDR_LEN)
 
+#define M_T6_TXPKT_IPHDR_LEN    0xFFF
+#define G_T6_TXPKT_IPHDR_LEN(x) \
+	(((x) >> S_TXPKT_IPHDR_LEN) & M_T6_TXPKT_IPHDR_LEN)
+
 #define S_TXPKT_CSUM_LOC    30
 #define M_TXPKT_CSUM_LOC    0x3FF
 #define V_TXPKT_CSUM_LOC(x) ((__u64)(x) << S_TXPKT_CSUM_LOC)
@@ -1152,6 +1274,12 @@ struct cpl_tx_pkt {
 #define M_TXPKT_ETHHDR_LEN    0x3F
 #define V_TXPKT_ETHHDR_LEN(x) ((__u64)(x) << S_TXPKT_ETHHDR_LEN)
 #define G_TXPKT_ETHHDR_LEN(x) (((x) >> S_TXPKT_ETHHDR_LEN) & M_TXPKT_ETHHDR_LEN)
+
+#define S_T6_TXPKT_ETHHDR_LEN    32
+#define M_T6_TXPKT_ETHHDR_LEN    0xFF
+#define V_T6_TXPKT_ETHHDR_LEN(x) ((__u64)(x) << S_T6_TXPKT_ETHHDR_LEN)
+#define G_T6_TXPKT_ETHHDR_LEN(x) \
+	(((x) >> S_T6_TXPKT_ETHHDR_LEN) & M_T6_TXPKT_ETHHDR_LEN)
 
 #define S_TXPKT_CSUM_TYPE    40
 #define M_TXPKT_CSUM_TYPE    0xF
@@ -1297,38 +1425,83 @@ struct cpl_iscsi_hdr_no_rss {
 };
 
 struct cpl_tx_data_iso {
-	WR_HDR;
-	__be32 iso_ctrl;
-	__u8   rsvd;
+	__be32 op_to_scsi;
+	__u8   reserved1;
 	__u8   ahs_len;
-	__be16 mss;
+	__be16 mpdu;
 	__be32 burst_size;
 	__be32 len;
+	__be32 reserved2_seglen_offset;
+	__be32 datasn_offset;
+	__be32 buffer_offset;
+	__be32 reserved3;
+
 	/* encapsulated CPL_TX_DATA follows here */
 };
 
-/* cpl_tx_data_iso.iso_ctrl fields different from cpl_tx_pkt_lso.lso_ctrl */
-#define S_ISO_CPLHDR_LEN    18
-#define M_ISO_CPLHDR_LEN    0xF
-#define V_ISO_CPLHDR_LEN(x) ((x) << S_ISO_CPLHDR_LEN)
-#define G_ISO_CPLHDR_LEN(x) (((x) >> S_ISO_CPLHDR_LEN) & M_ISO_CPLHDR_LEN)
+/* cpl_tx_data_iso.op_to_scsi fields */
+#define S_CPL_TX_DATA_ISO_OP	24
+#define M_CPL_TX_DATA_ISO_OP	0xff
+#define V_CPL_TX_DATA_ISO_OP(x)	((x) << S_CPL_TX_DATA_ISO_OP)
+#define G_CPL_TX_DATA_ISO_OP(x)	\
+    (((x) >> S_CPL_TX_DATA_ISO_OP) & M_CPL_TX_DATA_ISO_OP)
 
-#define S_ISO_HDR_CRC    17
-#define V_ISO_HDR_CRC(x) ((x) << S_ISO_HDR_CRC)
-#define F_ISO_HDR_CRC    V_ISO_HDR_CRC(1U)
+#define S_CPL_TX_DATA_ISO_FIRST		23
+#define M_CPL_TX_DATA_ISO_FIRST		0x1
+#define V_CPL_TX_DATA_ISO_FIRST(x)	((x) << S_CPL_TX_DATA_ISO_FIRST)
+#define G_CPL_TX_DATA_ISO_FIRST(x)	\
+    (((x) >> S_CPL_TX_DATA_ISO_FIRST) & M_CPL_TX_DATA_ISO_FIRST)
+#define F_CPL_TX_DATA_ISO_FIRST	V_CPL_TX_DATA_ISO_FIRST(1U)
 
-#define S_ISO_DATA_CRC    16
-#define V_ISO_DATA_CRC(x) ((x) << S_ISO_DATA_CRC)
-#define F_ISO_DATA_CRC    V_ISO_DATA_CRC(1U)
+#define S_CPL_TX_DATA_ISO_LAST		22
+#define M_CPL_TX_DATA_ISO_LAST		0x1
+#define V_CPL_TX_DATA_ISO_LAST(x)	((x) << S_CPL_TX_DATA_ISO_LAST)
+#define G_CPL_TX_DATA_ISO_LAST(x)	\
+    (((x) >> S_CPL_TX_DATA_ISO_LAST) & M_CPL_TX_DATA_ISO_LAST)
+#define F_CPL_TX_DATA_ISO_LAST	V_CPL_TX_DATA_ISO_LAST(1U)
 
-#define S_ISO_IMD_DATA_EN    15
-#define V_ISO_IMD_DATA_EN(x) ((x) << S_ISO_IMD_DATA_EN)
-#define F_ISO_IMD_DATA_EN    V_ISO_IMD_DATA_EN(1U)
+#define S_CPL_TX_DATA_ISO_CPLHDRLEN	21
+#define M_CPL_TX_DATA_ISO_CPLHDRLEN	0x1
+#define V_CPL_TX_DATA_ISO_CPLHDRLEN(x)	((x) << S_CPL_TX_DATA_ISO_CPLHDRLEN)
+#define G_CPL_TX_DATA_ISO_CPLHDRLEN(x)	\
+    (((x) >> S_CPL_TX_DATA_ISO_CPLHDRLEN) & M_CPL_TX_DATA_ISO_CPLHDRLEN)
+#define F_CPL_TX_DATA_ISO_CPLHDRLEN	V_CPL_TX_DATA_ISO_CPLHDRLEN(1U)
 
-#define S_ISO_PDU_TYPE    13
-#define M_ISO_PDU_TYPE    0x3
-#define V_ISO_PDU_TYPE(x) ((x) << S_ISO_PDU_TYPE)
-#define G_ISO_PDU_TYPE(x) (((x) >> S_ISO_PDU_TYPE) & M_ISO_PDU_TYPE)
+#define S_CPL_TX_DATA_ISO_HDRCRC	20
+#define M_CPL_TX_DATA_ISO_HDRCRC	0x1
+#define V_CPL_TX_DATA_ISO_HDRCRC(x)	((x) << S_CPL_TX_DATA_ISO_HDRCRC)
+#define G_CPL_TX_DATA_ISO_HDRCRC(x)	\
+    (((x) >> S_CPL_TX_DATA_ISO_HDRCRC) & M_CPL_TX_DATA_ISO_HDRCRC)
+#define F_CPL_TX_DATA_ISO_HDRCRC	V_CPL_TX_DATA_ISO_HDRCRC(1U)
+
+#define S_CPL_TX_DATA_ISO_PLDCRC	19
+#define M_CPL_TX_DATA_ISO_PLDCRC	0x1
+#define V_CPL_TX_DATA_ISO_PLDCRC(x)	((x) << S_CPL_TX_DATA_ISO_PLDCRC)
+#define G_CPL_TX_DATA_ISO_PLDCRC(x)	\
+    (((x) >> S_CPL_TX_DATA_ISO_PLDCRC) & M_CPL_TX_DATA_ISO_PLDCRC)
+#define F_CPL_TX_DATA_ISO_PLDCRC	V_CPL_TX_DATA_ISO_PLDCRC(1U)
+
+#define S_CPL_TX_DATA_ISO_IMMEDIATE	18
+#define M_CPL_TX_DATA_ISO_IMMEDIATE	0x1
+#define V_CPL_TX_DATA_ISO_IMMEDIATE(x)	((x) << S_CPL_TX_DATA_ISO_IMMEDIATE)
+#define G_CPL_TX_DATA_ISO_IMMEDIATE(x)	\
+    (((x) >> S_CPL_TX_DATA_ISO_IMMEDIATE) & M_CPL_TX_DATA_ISO_IMMEDIATE)
+#define F_CPL_TX_DATA_ISO_IMMEDIATE	V_CPL_TX_DATA_ISO_IMMEDIATE(1U)
+
+#define S_CPL_TX_DATA_ISO_SCSI		16
+#define M_CPL_TX_DATA_ISO_SCSI		0x3
+#define V_CPL_TX_DATA_ISO_SCSI(x)	((x) << S_CPL_TX_DATA_ISO_SCSI)
+#define G_CPL_TX_DATA_ISO_SCSI(x)	\
+    (((x) >> S_CPL_TX_DATA_ISO_SCSI) & M_CPL_TX_DATA_ISO_SCSI)
+
+/* cpl_tx_data_iso.reserved2_seglen_offset fields */
+#define S_CPL_TX_DATA_ISO_SEGLEN_OFFSET		0
+#define M_CPL_TX_DATA_ISO_SEGLEN_OFFSET		0xffffff
+#define V_CPL_TX_DATA_ISO_SEGLEN_OFFSET(x)	\
+    ((x) << S_CPL_TX_DATA_ISO_SEGLEN_OFFSET)
+#define G_CPL_TX_DATA_ISO_SEGLEN_OFFSET(x)	\
+    (((x) >> S_CPL_TX_DATA_ISO_SEGLEN_OFFSET) & \
+     M_CPL_TX_DATA_ISO_SEGLEN_OFFSET)
 
 struct cpl_iscsi_hdr {
 	RSS_HDR
@@ -1400,6 +1573,19 @@ struct cpl_fcoe_hdr {
 	__u8 type;
 	__be32 param;
 };
+
+/* cpl_fcoe_hdr.rctl_fctl fields */
+#define S_FCOE_FCHDR_RCTL	24
+#define M_FCOE_FCHDR_RCTL	0xff
+#define V_FCOE_FCHDR_RCTL(x)	((x) << S_FCOE_FCHDR_RCTL)
+#define G_FCOE_FCHDR_RCTL(x)	\
+	(((x) >> S_FCOE_FCHDR_RCTL) & M_FCOE_FCHDR_RCTL)
+
+#define S_FCOE_FCHDR_FCTL	0
+#define M_FCOE_FCHDR_FCTL	0xffffff
+#define V_FCOE_FCHDR_FCTL(x)	((x) << S_FCOE_FCHDR_FCTL)
+#define G_FCOE_FCHDR_FCTL(x)	\
+	(((x) >> S_FCOE_FCHDR_FCTL) & M_FCOE_FCHDR_FCTL)
 
 struct cpl_fcoe_data {
 	RSS_HDR
@@ -1526,6 +1712,19 @@ struct cpl_rx_iscsi_dif {
 	__u8 rsvd0[8];
 	__be32 err_vec;
 	__u8 rsvd1[4];
+};
+
+struct cpl_rx_iscsi_cmp {
+	RSS_HDR
+	union opcode_tid ot;
+	__be16 pdu_len_ddp;
+	__be16 len;
+	__be32 seq;
+	__be16 urg;
+	__u8 rsvd;
+	__u8 status;
+	__be32 ulp_crc;
+	__be32 ddpvld;
 };
 
 struct cpl_rx_fcoe_dif {
@@ -1672,6 +1871,9 @@ struct cpl_rx_pkt {
 #define V_RX_T5_ETHHDR_LEN(x) ((x) << S_RX_T5_ETHHDR_LEN)
 #define G_RX_T5_ETHHDR_LEN(x) (((x) >> S_RX_T5_ETHHDR_LEN) & M_RX_T5_ETHHDR_LEN)
 
+#define M_RX_T6_ETHHDR_LEN    0xFF
+#define G_RX_T6_ETHHDR_LEN(x) (((x) >> S_RX_ETHHDR_LEN) & M_RX_T6_ETHHDR_LEN)
+
 #define S_RX_PKTYPE    5
 #define M_RX_PKTYPE    0x7
 #define V_RX_PKTYPE(x) ((x) << S_RX_PKTYPE)
@@ -1801,6 +2003,65 @@ struct cpl_rx_pkt {
 #define S_RXERR_PING    14
 #define V_RXERR_PING(x) ((x) << S_RXERR_PING)
 #define F_RXERR_PING    V_RXERR_PING(1U)
+
+/* In T6, rx_pkt.err_vec indicates
+ * RxError Error vector (16b) or
+ * Encapsulating header length (8b),
+ * Outer encapsulation type (2b) and
+ * compressed error vector (6b) if CRxPktEnc is
+ * enabled in TP_OUT_CONFIG
+ */
+
+#define S_T6_COMPR_RXERR_VEC    0
+#define M_T6_COMPR_RXERR_VEC    0x3F
+#define V_T6_COMPR_RXERR_VEC(x) ((x) << S_T6_COMPR_RXERR_LEN)
+#define G_T6_COMPR_RXERR_VEC(x) \
+		(((x) >> S_T6_COMPR_RXERR_VEC) & M_T6_COMPR_RXERR_VEC)
+
+#define S_T6_COMPR_RXERR_MAC    0
+#define V_T6_COMPR_RXERR_MAC(x) ((x) << S_T6_COMPR_RXERR_MAC)
+#define F_T6_COMPR_RXERR_MAC    V_T6_COMPR_RXERR_MAC(1U)
+
+/* Logical OR of RX_ERROR_PKT_LEN, RX_ERROR_TCP_HDR_LEN
+ * RX_ERROR_IP_HDR_LEN, RX_ERROR_ETH_HDR_LEN
+ */
+#define S_T6_COMPR_RXERR_LEN    1
+#define V_T6_COMPR_RXERR_LEN(x) ((x) << S_COMPR_T6_RXERR_LEN)
+#define F_T6_COMPR_RXERR_LEN    V_COMPR_T6_RXERR_LEN(1U)
+
+#define S_T6_COMPR_RXERR_TCP_OPT    2
+#define V_T6_COMPR_RXERR_TCP_OPT(x) ((x) << S_T6_COMPR_RXERR_TCP_OPT)
+#define F_T6_COMPR_RXERR_TCP_OPT    V_T6_COMPR_RXERR_TCP_OPT(1U)
+
+#define S_T6_COMPR_RXERR_IPV6_EXT    3
+#define V_T6_COMPR_RXERR_IPV6_EXT(x) ((x) << S_T6_COMPR_RXERR_IPV6_EXT)
+#define F_T6_COMPR_RXERR_IPV6_EXT    V_T6_COMPR_RXERR_IPV6_EXT(1U)
+
+/* Logical OR of RX_ERROR_CSUM, RX_ERROR_CSIP */
+#define S_T6_COMPR_RXERR_SUM   4
+#define V_T6_COMPR_RXERR_SUM(x) ((x) << S_T6_COMPR_RXERR_SUM)
+#define F_T6_COMPR_RXERR_SUM    V_T6_COMPR_RXERR_SUM(1U)
+
+/* Logical OR of RX_ERROR_FPMA, RX_ERROR_PING_DROP,
+ * RX_ERROR_ATTACK, RX_ERROR_FRAG,RX_ERROR_IPVERSION
+ */
+#define S_T6_COMPR_RXERR_MISC   5
+#define V_T6_COMPR_RXERR_MISC(x) ((x) << S_T6_COMPR_RXERR_MISC)
+#define F_T6_COMPR_RXERR_MISC    V_T6_COMPR_RXERR_MISC(1U)
+
+#define S_T6_RX_TNL_TYPE    6
+#define M_T6_RX_TNL_TYPE    0x3
+#define V_T6_RX_TNL_TYPE(x) ((x) << S_T6_RX_TNL_TYPE)
+#define G_T6_RX_TNL_TYPE(x) (((x) >> S_T6_RX_TNL_TYPE) & M_T6_RX_TNL_TYPE)
+
+#define RX_PKT_TNL_TYPE_NVGRE	1
+#define RX_PKT_TNL_TYPE_VXLAN	2
+#define RX_PKT_TNL_TYPE_GENEVE	3
+
+#define S_T6_RX_TNLHDR_LEN    8
+#define M_T6_RX_TNLHDR_LEN    0xFF
+#define V_T6_RX_TNLHDR_LEN(x) ((x) << S_T6_RX_TNLHDR_LEN)
+#define G_T6_RX_TNLHDR_LEN(x) (((x) >> S_T6_RX_TNLHDR_LEN) & M_T6_RX_TNLHDR_LEN)
 
 struct cpl_trace_pkt {
 	RSS_HDR
@@ -1997,6 +2258,51 @@ struct cpl_l2t_read_rpl {
 	__u8 dst_mac[6];
 };
 
+struct cpl_srq_table_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__u8 status;
+	__u8 rsvd[2];
+	__u8 idx;
+	__be64 rsvd_pdid;
+	__be32 qlen_qbase;
+	__be16 cur_msn;
+	__be16 max_msn;
+};
+
+struct cpl_srq_table_rpl {
+	RSS_HDR
+	union opcode_tid ot;
+	__u8 status;
+	__u8 rsvd[2];
+	__u8 idx;
+	__be64 rsvd_pdid;
+	__be32 qlen_qbase;
+	__be16 cur_msn;
+	__be16 max_msn;
+};
+
+/* cpl_srq_table_{req,rpl}.params fields */
+#define S_SRQT_QLEN   28
+#define M_SRQT_QLEN   0xF
+#define V_SRQT_QLEN(x) ((x) << S_SRQT_QLEN)
+#define G_SRQT_QLEN(x) (((x) >> S_SRQT_QLEN) & M_SRQT_QLEN)
+
+#define S_SRQT_QBASE    0
+#define M_SRQT_QBASE   0x3FFFFFF
+#define V_SRQT_QBASE(x) ((x) << S_SRQT_QBASE)
+#define G_SRQT_QBASE(x) (((x) >> S_SRQT_QBASE) & M_SRQT_QBASE)
+
+#define S_SRQT_PDID    0
+#define M_SRQT_PDID   0xFF
+#define V_SRQT_PDID(x) ((x) << S_SRQT_PDID)
+#define G_SRQT_PDID(x) (((x) >> S_SRQT_PDID) & M_SRQT_PDID)
+
+#define S_SRQT_IDX    0
+#define M_SRQT_IDX    0xF
+#define V_SRQT_IDX(x) ((x) << S_SRQT_IDX)
+#define G_SRQT_IDX(x) (((x) >> S_SRQT_IDX) & M_SRQT_IDX)
+
 struct cpl_smt_write_req {
 	WR_HDR;
 	union opcode_tid ot;
@@ -2005,6 +2311,17 @@ struct cpl_smt_write_req {
 	__u8   src_mac1[6];
 	__be16 pfvf0;
 	__u8   src_mac0[6];
+};
+
+struct cpl_t6_smt_write_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 params;
+	__be64 tag;
+	__be16 pfvf0;
+	__u8   src_mac0[6];
+	__be32 local_ip;
+	__be32 rsvd;
 };
 
 struct cpl_smt_write_rpl {
@@ -2042,6 +2359,9 @@ struct cpl_smt_read_rpl {
 #define M_SMTW_IDX    0x7F
 #define V_SMTW_IDX(x) ((x) << S_SMTW_IDX)
 #define G_SMTW_IDX(x) (((x) >> S_SMTW_IDX) & M_SMTW_IDX)
+
+#define M_T6_SMTW_IDX    0xFF
+#define G_T6_SMTW_IDX(x) (((x) >> S_SMTW_IDX) & M_T6_SMTW_IDX)
 
 #define S_SMTW_NORPL    31
 #define V_SMTW_NORPL(x) ((x) << S_SMTW_NORPL)
@@ -2273,6 +2593,11 @@ struct cpl_sge_egr_update {
 };
 
 /* cpl_sge_egr_update.ot fields */
+#define S_AUTOEQU	22
+#define M_AUTOEQU	0x1
+#define V_AUTOEQU(x)	((x) << S_AUTOEQU)
+#define G_AUTOEQU(x)	(((x) >> S_AUTOEQU) & M_AUTOEQU)
+
 #define S_EGR_QID    0
 #define M_EGR_QID    0x1FFFF
 #define V_EGR_QID(x) ((x) << S_EGR_QID)
@@ -2285,6 +2610,8 @@ enum {
 	FW_TYPE_CQE = 2,
 	FW_TYPE_OFLD_CONNECTION_WR_RPL = 3,
 	FW_TYPE_RSSCPL = 4,
+	FW_TYPE_WRERR_RPL = 5,
+	FW_TYPE_PI_ERR = 6,
 };
 
 struct cpl_fw2_pld {
@@ -2360,7 +2687,8 @@ enum {
 	FW6_TYPE_CQE		= FW_TYPE_CQE,
 	FW6_TYPE_OFLD_CONNECTION_WR_RPL = FW_TYPE_OFLD_CONNECTION_WR_RPL,
 	FW6_TYPE_RSSCPL		= FW_TYPE_RSSCPL,
-
+	FW6_TYPE_WRERR_RPL	= FW_TYPE_WRERR_RPL,
+	FW6_TYPE_PI_ERR		= FW_TYPE_PI_ERR,
 	NUM_FW6_TYPES
 };
 
@@ -2383,7 +2711,8 @@ enum {
 	ULP_TX_SC_NOOP = 0x80,
 	ULP_TX_SC_IMM  = 0x81,
 	ULP_TX_SC_DSGL = 0x82,
-	ULP_TX_SC_ISGL = 0x83
+	ULP_TX_SC_ISGL = 0x83,
+	ULP_TX_SC_PICTRL = 0x84
 };
 
 #define S_ULPTX_CMD    24
@@ -2456,6 +2785,10 @@ struct ulp_mem_io {
 #define V_T5_ULP_MEMIO_ORDER(x) ((x) << S_T5_ULP_MEMIO_ORDER)
 #define F_T5_ULP_MEMIO_ORDER    V_T5_ULP_MEMIO_ORDER(1U)
 
+#define S_T5_ULP_MEMIO_FID	4
+#define M_T5_ULP_MEMIO_FID	0x7ff
+#define V_T5_ULP_MEMIO_FID(x)	((x) << S_T5_ULP_MEMIO_FID)
+
 /* ulp_mem_io.lock_addr fields */
 #define S_ULP_MEMIO_ADDR    0
 #define M_ULP_MEMIO_ADDR    0x7FFFFFF
@@ -2495,5 +2828,220 @@ struct ulp_txpkt {
 #define S_ULP_TXPKT_RO      3
 #define V_ULP_TXPKT_RO(x) ((x) << S_ULP_TXPKT_RO)
 #define F_ULP_TXPKT_RO V_ULP_TXPKT_RO(1U)
+
+enum cpl_tx_tnl_lso_type {
+	TX_TNL_TYPE_OPAQUE,
+	TX_TNL_TYPE_NVGRE,
+	TX_TNL_TYPE_VXLAN,
+	TX_TNL_TYPE_GENEVE,
+};
+
+struct cpl_tx_tnl_lso {
+	__be32 op_to_IpIdSplitOut;
+	__be16 IpIdOffsetOut;
+	__be16 UdpLenSetOut_to_TnlHdrLen;
+	__be64 r1;
+	__be32 Flow_to_TcpHdrLen;
+	__be16 IpIdOffset;
+	__be16 IpIdSplit_to_Mss;
+	__be32 TCPSeqOffset;
+	__be32 EthLenOffset_Size;
+	/* encapsulated CPL (TX_PKT_XT) follows here */
+};
+
+#define S_CPL_TX_TNL_LSO_OPCODE		24
+#define M_CPL_TX_TNL_LSO_OPCODE		0xff
+#define V_CPL_TX_TNL_LSO_OPCODE(x)	((x) << S_CPL_TX_TNL_LSO_OPCODE)
+#define G_CPL_TX_TNL_LSO_OPCODE(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_OPCODE) & M_CPL_TX_TNL_LSO_OPCODE)
+
+#define S_CPL_TX_TNL_LSO_FIRST		23
+#define M_CPL_TX_TNL_LSO_FIRST		0x1
+#define V_CPL_TX_TNL_LSO_FIRST(x)	((x) << S_CPL_TX_TNL_LSO_FIRST)
+#define G_CPL_TX_TNL_LSO_FIRST(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_FIRST) & M_CPL_TX_TNL_LSO_FIRST)
+#define F_CPL_TX_TNL_LSO_FIRST		V_CPL_TX_TNL_LSO_FIRST(1U)
+
+#define S_CPL_TX_TNL_LSO_LAST		22
+#define M_CPL_TX_TNL_LSO_LAST		0x1
+#define V_CPL_TX_TNL_LSO_LAST(x)	((x) << S_CPL_TX_TNL_LSO_LAST)
+#define G_CPL_TX_TNL_LSO_LAST(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_LAST) & M_CPL_TX_TNL_LSO_LAST)
+#define F_CPL_TX_TNL_LSO_LAST		V_CPL_TX_TNL_LSO_LAST(1U)
+
+#define S_CPL_TX_TNL_LSO_ETHHDRLENXOUT	21
+#define M_CPL_TX_TNL_LSO_ETHHDRLENXOUT	0x1
+#define V_CPL_TX_TNL_LSO_ETHHDRLENXOUT(x) \
+    ((x) << S_CPL_TX_TNL_LSO_ETHHDRLENXOUT)
+#define G_CPL_TX_TNL_LSO_ETHHDRLENXOUT(x) \
+    (((x) >> S_CPL_TX_TNL_LSO_ETHHDRLENXOUT) & M_CPL_TX_TNL_LSO_ETHHDRLENXOUT)
+#define F_CPL_TX_TNL_LSO_ETHHDRLENXOUT	V_CPL_TX_TNL_LSO_ETHHDRLENXOUT(1U)
+
+#define S_CPL_TX_TNL_LSO_IPV6OUT	20
+#define M_CPL_TX_TNL_LSO_IPV6OUT	0x1
+#define V_CPL_TX_TNL_LSO_IPV6OUT(x)	((x) << S_CPL_TX_TNL_LSO_IPV6OUT)
+#define G_CPL_TX_TNL_LSO_IPV6OUT(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_IPV6OUT) & M_CPL_TX_TNL_LSO_IPV6OUT)
+#define F_CPL_TX_TNL_LSO_IPV6OUT	V_CPL_TX_TNL_LSO_IPV6OUT(1U)
+
+#define S_CPL_TX_TNL_LSO_ETHHDRLENOUT	16
+#define M_CPL_TX_TNL_LSO_ETHHDRLENOUT	0xf
+#define V_CPL_TX_TNL_LSO_ETHHDRLENOUT(x) \
+    ((x) << S_CPL_TX_TNL_LSO_ETHHDRLENOUT)
+#define G_CPL_TX_TNL_LSO_ETHHDRLENOUT(x) \
+    (((x) >> S_CPL_TX_TNL_LSO_ETHHDRLENOUT) & M_CPL_TX_TNL_LSO_ETHHDRLENOUT)
+
+#define S_CPL_TX_TNL_LSO_IPHDRLENOUT	4
+#define M_CPL_TX_TNL_LSO_IPHDRLENOUT	0xfff
+#define V_CPL_TX_TNL_LSO_IPHDRLENOUT(x)	((x) << S_CPL_TX_TNL_LSO_IPHDRLENOUT)
+#define G_CPL_TX_TNL_LSO_IPHDRLENOUT(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_IPHDRLENOUT) & M_CPL_TX_TNL_LSO_IPHDRLENOUT)
+
+#define S_CPL_TX_TNL_LSO_IPHDRCHKOUT	3
+#define M_CPL_TX_TNL_LSO_IPHDRCHKOUT	0x1
+#define V_CPL_TX_TNL_LSO_IPHDRCHKOUT(x)	((x) << S_CPL_TX_TNL_LSO_IPHDRCHKOUT)
+#define G_CPL_TX_TNL_LSO_IPHDRCHKOUT(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_IPHDRCHKOUT) & M_CPL_TX_TNL_LSO_IPHDRCHKOUT)
+#define F_CPL_TX_TNL_LSO_IPHDRCHKOUT	V_CPL_TX_TNL_LSO_IPHDRCHKOUT(1U)
+
+#define S_CPL_TX_TNL_LSO_IPLENSETOUT	2
+#define M_CPL_TX_TNL_LSO_IPLENSETOUT	0x1
+#define V_CPL_TX_TNL_LSO_IPLENSETOUT(x)	((x) << S_CPL_TX_TNL_LSO_IPLENSETOUT)
+#define G_CPL_TX_TNL_LSO_IPLENSETOUT(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_IPLENSETOUT) & M_CPL_TX_TNL_LSO_IPLENSETOUT)
+#define F_CPL_TX_TNL_LSO_IPLENSETOUT	V_CPL_TX_TNL_LSO_IPLENSETOUT(1U)
+
+#define S_CPL_TX_TNL_LSO_IPIDINCOUT	1
+#define M_CPL_TX_TNL_LSO_IPIDINCOUT	0x1
+#define V_CPL_TX_TNL_LSO_IPIDINCOUT(x)	((x) << S_CPL_TX_TNL_LSO_IPIDINCOUT)
+#define G_CPL_TX_TNL_LSO_IPIDINCOUT(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_IPIDINCOUT) & M_CPL_TX_TNL_LSO_IPIDINCOUT)
+#define F_CPL_TX_TNL_LSO_IPIDINCOUT	V_CPL_TX_TNL_LSO_IPIDINCOUT(1U)
+
+#define S_CPL_TX_TNL_LSO_IPIDSPLITOUT	0
+#define M_CPL_TX_TNL_LSO_IPIDSPLITOUT	0x1
+#define V_CPL_TX_TNL_LSO_IPIDSPLITOUT(x) \
+    ((x) << S_CPL_TX_TNL_LSO_IPIDSPLITOUT)
+#define G_CPL_TX_TNL_LSO_IPIDSPLITOUT(x) \
+    (((x) >> S_CPL_TX_TNL_LSO_IPIDSPLITOUT) & M_CPL_TX_TNL_LSO_IPIDSPLITOUT)
+#define F_CPL_TX_TNL_LSO_IPIDSPLITOUT	V_CPL_TX_TNL_LSO_IPIDSPLITOUT(1U)
+
+#define S_CPL_TX_TNL_LSO_UDPLENSETOUT	15
+#define M_CPL_TX_TNL_LSO_UDPLENSETOUT	0x1
+#define V_CPL_TX_TNL_LSO_UDPLENSETOUT(x) \
+    ((x) << S_CPL_TX_TNL_LSO_UDPLENSETOUT)
+#define G_CPL_TX_TNL_LSO_UDPLENSETOUT(x) \
+    (((x) >> S_CPL_TX_TNL_LSO_UDPLENSETOUT) & M_CPL_TX_TNL_LSO_UDPLENSETOUT)
+#define F_CPL_TX_TNL_LSO_UDPLENSETOUT	V_CPL_TX_TNL_LSO_UDPLENSETOUT(1U)
+
+#define S_CPL_TX_TNL_LSO_UDPCHKCLROUT	14
+#define M_CPL_TX_TNL_LSO_UDPCHKCLROUT	0x1
+#define V_CPL_TX_TNL_LSO_UDPCHKCLROUT(x) \
+    ((x) << S_CPL_TX_TNL_LSO_UDPCHKCLROUT)
+#define G_CPL_TX_TNL_LSO_UDPCHKCLROUT(x) \
+    (((x) >> S_CPL_TX_TNL_LSO_UDPCHKCLROUT) & M_CPL_TX_TNL_LSO_UDPCHKCLROUT)
+#define F_CPL_TX_TNL_LSO_UDPCHKCLROUT	V_CPL_TX_TNL_LSO_UDPCHKCLROUT(1U)
+
+#define S_CPL_TX_TNL_LSO_TNLTYPE	12
+#define M_CPL_TX_TNL_LSO_TNLTYPE	0x3
+#define V_CPL_TX_TNL_LSO_TNLTYPE(x)	((x) << S_CPL_TX_TNL_LSO_TNLTYPE)
+#define G_CPL_TX_TNL_LSO_TNLTYPE(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_TNLTYPE) & M_CPL_TX_TNL_LSO_TNLTYPE)
+
+#define S_CPL_TX_TNL_LSO_TNLHDRLEN	0
+#define M_CPL_TX_TNL_LSO_TNLHDRLEN	0xfff
+#define V_CPL_TX_TNL_LSO_TNLHDRLEN(x)	((x) << S_CPL_TX_TNL_LSO_TNLHDRLEN)
+#define G_CPL_TX_TNL_LSO_TNLHDRLEN(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_TNLHDRLEN) & M_CPL_TX_TNL_LSO_TNLHDRLEN)
+
+#define S_CPL_TX_TNL_LSO_FLOW		21
+#define M_CPL_TX_TNL_LSO_FLOW		0x1
+#define V_CPL_TX_TNL_LSO_FLOW(x)	((x) << S_CPL_TX_TNL_LSO_FLOW)
+#define G_CPL_TX_TNL_LSO_FLOW(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_FLOW) & M_CPL_TX_TNL_LSO_FLOW)
+#define F_CPL_TX_TNL_LSO_FLOW		V_CPL_TX_TNL_LSO_FLOW(1U)
+
+#define S_CPL_TX_TNL_LSO_IPV6		20
+#define M_CPL_TX_TNL_LSO_IPV6		0x1
+#define V_CPL_TX_TNL_LSO_IPV6(x)	((x) << S_CPL_TX_TNL_LSO_IPV6)
+#define G_CPL_TX_TNL_LSO_IPV6(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_IPV6) & M_CPL_TX_TNL_LSO_IPV6)
+#define F_CPL_TX_TNL_LSO_IPV6		V_CPL_TX_TNL_LSO_IPV6(1U)
+
+#define S_CPL_TX_TNL_LSO_ETHHDRLEN	16
+#define M_CPL_TX_TNL_LSO_ETHHDRLEN	0xf
+#define V_CPL_TX_TNL_LSO_ETHHDRLEN(x)	((x) << S_CPL_TX_TNL_LSO_ETHHDRLEN)
+#define G_CPL_TX_TNL_LSO_ETHHDRLEN(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_ETHHDRLEN) & M_CPL_TX_TNL_LSO_ETHHDRLEN)
+
+#define S_CPL_TX_TNL_LSO_IPHDRLEN	4
+#define M_CPL_TX_TNL_LSO_IPHDRLEN	0xfff
+#define V_CPL_TX_TNL_LSO_IPHDRLEN(x)	((x) << S_CPL_TX_TNL_LSO_IPHDRLEN)
+#define G_CPL_TX_TNL_LSO_IPHDRLEN(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_IPHDRLEN) & M_CPL_TX_TNL_LSO_IPHDRLEN)
+
+#define S_CPL_TX_TNL_LSO_TCPHDRLEN	0
+#define M_CPL_TX_TNL_LSO_TCPHDRLEN	0xf
+#define V_CPL_TX_TNL_LSO_TCPHDRLEN(x)	((x) << S_CPL_TX_TNL_LSO_TCPHDRLEN)
+#define G_CPL_TX_TNL_LSO_TCPHDRLEN(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_TCPHDRLEN) & M_CPL_TX_TNL_LSO_TCPHDRLEN)
+
+#define S_CPL_TX_TNL_LSO_IPIDSPLIT	15
+#define M_CPL_TX_TNL_LSO_IPIDSPLIT	0x1
+#define V_CPL_TX_TNL_LSO_IPIDSPLIT(x)	((x) << S_CPL_TX_TNL_LSO_IPIDSPLIT)
+#define G_CPL_TX_TNL_LSO_IPIDSPLIT(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_IPIDSPLIT) & M_CPL_TX_TNL_LSO_IPIDSPLIT)
+#define F_CPL_TX_TNL_LSO_IPIDSPLIT	V_CPL_TX_TNL_LSO_IPIDSPLIT(1U)
+
+#define S_CPL_TX_TNL_LSO_ETHHDRLENX	14
+#define M_CPL_TX_TNL_LSO_ETHHDRLENX	0x1
+#define V_CPL_TX_TNL_LSO_ETHHDRLENX(x)	((x) << S_CPL_TX_TNL_LSO_ETHHDRLENX)
+#define G_CPL_TX_TNL_LSO_ETHHDRLENX(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_ETHHDRLENX) & M_CPL_TX_TNL_LSO_ETHHDRLENX)
+#define F_CPL_TX_TNL_LSO_ETHHDRLENX	V_CPL_TX_TNL_LSO_ETHHDRLENX(1U)
+
+#define S_CPL_TX_TNL_LSO_MSS		0
+#define M_CPL_TX_TNL_LSO_MSS		0x3fff
+#define V_CPL_TX_TNL_LSO_MSS(x)		((x) << S_CPL_TX_TNL_LSO_MSS)
+#define G_CPL_TX_TNL_LSO_MSS(x)		\
+    (((x) >> S_CPL_TX_TNL_LSO_MSS) & M_CPL_TX_TNL_LSO_MSS)
+
+#define S_CPL_TX_TNL_LSO_ETHLENOFFSET	28
+#define M_CPL_TX_TNL_LSO_ETHLENOFFSET	0xf
+#define V_CPL_TX_TNL_LSO_ETHLENOFFSET(x) \
+    ((x) << S_CPL_TX_TNL_LSO_ETHLENOFFSET)
+#define G_CPL_TX_TNL_LSO_ETHLENOFFSET(x) \
+    (((x) >> S_CPL_TX_TNL_LSO_ETHLENOFFSET) & M_CPL_TX_TNL_LSO_ETHLENOFFSET)
+
+#define S_CPL_TX_TNL_LSO_SIZE		0
+#define M_CPL_TX_TNL_LSO_SIZE		0xfffffff
+#define V_CPL_TX_TNL_LSO_SIZE(x)	((x) << S_CPL_TX_TNL_LSO_SIZE)
+#define G_CPL_TX_TNL_LSO_SIZE(x)	\
+    (((x) >> S_CPL_TX_TNL_LSO_SIZE) & M_CPL_TX_TNL_LSO_SIZE)
+
+struct cpl_rx_mps_pkt {
+	__be32 op_to_r1_hi;
+	__be32 r1_lo_length;
+};
+
+#define S_CPL_RX_MPS_PKT_OP     24
+#define M_CPL_RX_MPS_PKT_OP     0xff
+#define V_CPL_RX_MPS_PKT_OP(x)  ((x) << S_CPL_RX_MPS_PKT_OP)
+#define G_CPL_RX_MPS_PKT_OP(x)  \
+	(((x) >> S_CPL_RX_MPS_PKT_OP) & M_CPL_RX_MPS_PKT_OP)
+
+#define S_CPL_RX_MPS_PKT_TYPE           20
+#define M_CPL_RX_MPS_PKT_TYPE           0xf
+#define V_CPL_RX_MPS_PKT_TYPE(x)        ((x) << S_CPL_RX_MPS_PKT_TYPE)
+#define G_CPL_RX_MPS_PKT_TYPE(x)        \
+	(((x) >> S_CPL_RX_MPS_PKT_TYPE) & M_CPL_RX_MPS_PKT_TYPE)
+
+/*
+ * Values for CPL_RX_MPS_PKT_TYPE, a bit-wise orthogonal field.
+ */
+#define X_CPL_RX_MPS_PKT_TYPE_PAUSE	(1 << 0)
+#define X_CPL_RX_MPS_PKT_TYPE_PPP	(1 << 1)
+#define X_CPL_RX_MPS_PKT_TYPE_QFC	(1 << 2)
+#define X_CPL_RX_MPS_PKT_TYPE_PTP	(1 << 3)
 
 #endif  /* T4_MSG_H */

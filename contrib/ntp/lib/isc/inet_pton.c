@@ -92,7 +92,7 @@ inet_pton4(const char *src, unsigned char *dst) {
 		const char *pch;
 
 		if ((pch = strchr(digits, ch)) != NULL) {
-			unsigned int newv = *tp * 10 + (pch - digits);
+			size_t newv = *tp * 10 + (pch - digits);
 
 			if (saw_digit && *tp == 0)
 				return (0);
@@ -197,12 +197,12 @@ inet_pton6(const char *src, unsigned char *dst) {
 		 * Since some memmove()'s erroneously fail to handle
 		 * overlapping regions, we'll do the shift by hand.
 		 */
-		const int n = tp - colonp;
+		const size_t n = tp - colonp;
 		int i;
 
 		if (tp == endp)
 			return (0);
-		for (i = 1; i <= n; i++) {
+		for (i = 1; (size_t)i <= n; i++) {
 			endp[- i] = colonp[n - i];
 			colonp[n - i] = 0;
 		}

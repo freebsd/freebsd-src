@@ -45,7 +45,7 @@ export HOME PATH
 
 . /etc/rc.subr
 
-load_rc_config 'XXX'
+load_rc_config
 
 # reverse_list list
 #	print the list in reverse order

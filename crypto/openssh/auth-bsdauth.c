@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-bsdauth.c,v 1.11 2007/09/21 08:15:29 djm Exp $ */
+/* $OpenBSD: auth-bsdauth.c,v 1.14 2015/10/20 23:24:25 mmcc Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -26,6 +26,8 @@
 #include "includes.h"
 
 #include <sys/types.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 #include <stdarg.h>
 
@@ -53,6 +55,11 @@ bsdauth_query(void *ctx, char **name, char **infotxt,
 {
 	Authctxt *authctxt = ctx;
 	char *challenge = NULL;
+
+	*infotxt = NULL;
+	*numprompts = 0;
+	*prompts = NULL;
+	*echo_on = NULL;
 
 	if (authctxt->as != NULL) {
 		debug2("bsdauth_query: try reuse session");
@@ -96,7 +103,7 @@ bsdauth_respond(void *ctx, u_int numresponses, char **responses)
 	if (!authctxt->valid)
 		return -1;
 
-	if (authctxt->as == 0)
+	if (authctxt->as == NULL)
 		error("bsdauth_respond: no bsd auth session");
 
 	if (numresponses != 1)

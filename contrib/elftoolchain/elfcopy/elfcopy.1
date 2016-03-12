@@ -21,13 +21,14 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elfcopy.1 3195 2015-05-12 17:22:19Z emaste $
+.\" $Id: elfcopy.1 3381 2016-01-30 19:39:47Z jkoshy $
 .\"
-.Dd March 27, 2015
+.Dd January 29, 2016
 .Os
 .Dt ELFCOPY 1
 .Sh NAME
-.Nm elfcopy
+.Nm elfcopy ,
+.Nm objcopy
 .Nd copy and translate object files
 .Sh SYNOPSIS
 .Nm
@@ -47,6 +48,7 @@
 .Op Fl p | Fl -preserve-dates
 .Op Fl w | Fl -wildcard
 .Op Fl x | Fl -discard-all
+.Op Fl -add-gnu-debuglink Ns = Ns Ar filename
 .Op Fl -add-section Ar sectionname Ns = Ns Ar filename
 .Oo
 .Fl -adjust-section-vma Ar section Ns {+|-|=} Ns Ar val |
@@ -84,7 +86,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility copies the content of the ELF object named by argument
+utility copies the content of the binary object named by argument
 .Ar infile
 to that named by argument
 .Ar outfile ,
@@ -120,6 +122,10 @@ to the output.
 .It Fl O Ar objformat | Fl -output-target= Ns Ar objformat
 Write the output file using the object format specified in argument
 .Ar objformat .
+The argument
+.Ar objformat
+should be one of the target names recognized by
+.Xr elftc_bfd_find_target 3 .
 .It Fl R Ar sectionname | Fl -remove-section= Ns Ar sectionname
 Remove any section with name
 .Ar sectionname
@@ -165,6 +171,10 @@ Mark the end of a character class.
 .El
 .It Fl x | Fl -discard-all
 Do not copy non-global symbols to the output.
+.It Fl -add-gnu-debuglink Ns = Ns Ar filename
+Create a .gnu_debuglink section in the output file that references the
+debug data in
+.Ar filename .
 .It Fl -add-section Ar sectionname Ns = Ns Ar filename
 Add a new section to the output file with name
 .Ar sectionname .
@@ -325,8 +335,14 @@ Do not copy symbols that are not needed for relocation processing.
 .Xr mcs 1 ,
 .Xr strip 1 ,
 .Xr elf 3 ,
+.Xr elftc_bfd_find_target 3 ,
 .Xr ar 5 ,
 .Xr elf 5
+.Sh COMPATIBILITY
+The
+.Nm
+utility is expected to be option compatible with GNU
+.Nm objcopy .
 .Sh HISTORY
 .Nm
 has been implemented by

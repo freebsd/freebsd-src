@@ -41,9 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <kvm.h>
 #include <limits.h>
 #include <paths.h>
-#ifdef CROSS_DEBUGGER
-#include <proc_service.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -80,24 +77,6 @@ static char *vmcore;
 static struct ui_file *parse_gdberr;
 
 static void (*kgdb_new_objfile_chain)(struct objfile * objfile);
-
-#ifdef CROSS_DEBUGGER
-ps_err_e
-ps_pglobal_lookup(struct ps_prochandle *ph, const char *obj, const char *name,
-    psaddr_t *sym_addr)
-{
-	struct minimal_symbol *ms;
-	CORE_ADDR addr;
-
-	ms = lookup_minimal_symbol (name, NULL, NULL);
-	if (ms == NULL)
-		return PS_NOSYM;
-
-	addr = SYMBOL_VALUE_ADDRESS (ms);
-	store_typed_address(sym_addr, builtin_type_void_data_ptr, addr);
-	return PS_OK;
-}
-#endif
 
 static void
 usage(void)

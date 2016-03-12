@@ -5,7 +5,7 @@
 
 PROG=   sminfo
 SRCS=   sminfo.c ibdiag_common.c
-LDADD=	-libumad -libcommon -libmad
+LIBADD= ibumad ibmad
 CFLAGS+= -I${DIAGPATH}/include
 MAN=	sminfo.8
 

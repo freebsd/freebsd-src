@@ -31,7 +31,10 @@ __FBSDID("$FreeBSD$");
 
 #include <bzlib.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -230,8 +233,17 @@ int main(int argc,char *argv[])
 	/* Allocate oldsize+1 bytes instead of oldsize bytes to ensure
 		that we never try to malloc(0) and get a NULL pointer */
 	if(((fd=open(argv[1],O_RDONLY|O_BINARY,0))<0) ||
-		((oldsize=lseek(fd,0,SEEK_END))==-1) ||
-		((old=malloc(oldsize+1))==NULL) ||
+	    ((oldsize=lseek(fd,0,SEEK_END))==-1))
+		err(1, "%s", argv[1]);
+
+	if (oldsize > SSIZE_MAX ||
+	    (uintmax_t)oldsize >= SIZE_T_MAX / sizeof(off_t) ||
+	    oldsize == OFF_MAX) {
+		errno = EFBIG;
+		err(1, "%s", argv[1]);
+	}
+
+	if (((old=malloc(oldsize+1))==NULL) ||
 		(lseek(fd,0,SEEK_SET)!=0) ||
 		(read(fd,old,oldsize)!=oldsize) ||
 		(close(fd)==-1)) err(1,"%s",argv[1]);
@@ -246,8 +258,16 @@ int main(int argc,char *argv[])
 	/* Allocate newsize+1 bytes instead of newsize bytes to ensure
 		that we never try to malloc(0) and get a NULL pointer */
 	if(((fd=open(argv[2],O_RDONLY|O_BINARY,0))<0) ||
-		((newsize=lseek(fd,0,SEEK_END))==-1) ||
-		((new=malloc(newsize+1))==NULL) ||
+	    ((newsize=lseek(fd,0,SEEK_END))==-1))
+		err(1, "%s", argv[2]);
+
+	if (newsize > SSIZE_MAX || (uintmax_t)newsize >= SIZE_T_MAX ||
+	    newsize == OFF_MAX) {
+		errno = EFBIG;
+		err(1, "%s", argv[2]);
+	}
+
+	if (((new=malloc(newsize+1))==NULL) ||
 		(lseek(fd,0,SEEK_SET)!=0) ||
 		(read(fd,new,newsize)!=newsize) ||
 		(close(fd)==-1)) err(1,"%s",argv[2]);

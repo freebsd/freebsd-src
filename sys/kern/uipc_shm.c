@@ -109,15 +109,10 @@ static dev_t shm_dev_ino;
 
 #define	SHM_HASH(fnv)	(&shm_dictionary[(fnv) & shm_hash])
 
-static int	shm_access(struct shmfd *shmfd, struct ucred *ucred, int flags);
-static struct shmfd *shm_alloc(struct ucred *ucred, mode_t mode);
 static void	shm_init(void *arg);
-static void	shm_drop(struct shmfd *shmfd);
-static struct shmfd *shm_hold(struct shmfd *shmfd);
 static void	shm_insert(char *path, Fnv32_t fnv, struct shmfd *shmfd);
 static struct shmfd *shm_lookup(char *path, Fnv32_t fnv);
 static int	shm_remove(char *path, Fnv32_t fnv, struct ucred *ucred);
-static int	shm_dotruncate(struct shmfd *shmfd, off_t length);
 
 static fo_rdwr_t	shm_read;
 static fo_rdwr_t	shm_write;
@@ -131,7 +126,7 @@ static fo_fill_kinfo_t	shm_fill_kinfo;
 static fo_mmap_t	shm_mmap;
 
 /* File descriptor operations. */
-static struct fileops shm_ops = {
+struct fileops shm_ops = {
 	.fo_read = shm_read,
 	.fo_write = shm_write,
 	.fo_truncate = shm_truncate,
@@ -189,7 +184,7 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 	m = vm_page_grab(obj, idx, VM_ALLOC_NORMAL);
 	if (m->valid != VM_PAGE_BITS_ALL) {
 		if (vm_pager_has_page(obj, idx, NULL, NULL)) {
-			rv = vm_pager_get_pages(obj, &m, 1, 0);
+			rv = vm_pager_get_pages(obj, &m, 1, NULL, NULL);
 			if (rv != VM_PAGER_OK) {
 				printf(
 	    "uiomove_object: vm_obj %p idx %jd valid %x pager error %d\n",
@@ -412,7 +407,7 @@ shm_close(struct file *fp, struct thread *td)
 	return (0);
 }
 
-static int
+int
 shm_dotruncate(struct shmfd *shmfd, off_t length)
 {
 	vm_object_t object;
@@ -460,7 +455,7 @@ retry:
 					goto retry;
 				} else if (m->valid != VM_PAGE_BITS_ALL)
 					rv = vm_pager_get_pages(object, &m, 1,
-					    0);
+					    NULL, NULL);
 				else
 					/* A cached page was reactivated. */
 					rv = VM_PAGER_OK;
@@ -521,7 +516,7 @@ retry:
  * shmfd object management including creation and reference counting
  * routines.
  */
-static struct shmfd *
+struct shmfd *
 shm_alloc(struct ucred *ucred, mode_t mode)
 {
 	struct shmfd *shmfd;
@@ -559,7 +554,7 @@ shm_alloc(struct ucred *ucred, mode_t mode)
 	return (shmfd);
 }
 
-static struct shmfd *
+struct shmfd *
 shm_hold(struct shmfd *shmfd)
 {
 
@@ -567,7 +562,7 @@ shm_hold(struct shmfd *shmfd)
 	return (shmfd);
 }
 
-static void
+void
 shm_drop(struct shmfd *shmfd)
 {
 
@@ -588,7 +583,7 @@ shm_drop(struct shmfd *shmfd)
  * Determine if the credentials have sufficient permissions for a
  * specified combination of FREAD and FWRITE.
  */
-static int
+int
 shm_access(struct shmfd *shmfd, struct ucred *ucred, int flags)
 {
 	accmode_t accmode;

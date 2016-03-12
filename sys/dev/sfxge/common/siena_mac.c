@@ -31,20 +31,19 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
 #include "efx_impl.h"
 
 #if EFSYS_OPT_SIENA
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 siena_mac_poll(
 	__in		efx_nic_t *enp,
 	__out		efx_link_mode_t *link_modep)
 {
 	efx_port_t *epp = &(enp->en_port);
 	siena_link_state_t sls;
-	int rc;
+	efx_rc_t rc;
 
 	if ((rc = siena_phy_get_link(enp, &sls)) != 0)
 		goto fail1;
@@ -57,20 +56,20 @@ siena_mac_poll(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	*link_modep = EFX_LINK_UNKNOWN;
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 siena_mac_up(
 	__in		efx_nic_t *enp,
 	__out		boolean_t *mac_upp)
 {
 	siena_link_state_t sls;
-	int rc;
+	efx_rc_t rc;
 
 	/*
 	 * Because Siena doesn't *require* polling, we can't rely on
@@ -84,12 +83,12 @@ siena_mac_up(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 siena_mac_reconfigure(
 	__in		efx_nic_t *enp)
 {
@@ -101,7 +100,7 @@ siena_mac_reconfigure(
 			    MAX(MC_CMD_SET_MCAST_HASH_IN_LEN,
 				MC_CMD_SET_MCAST_HASH_OUT_LEN))];
 	unsigned int fcntl;
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_SET_MAC;
@@ -184,14 +183,14 @@ siena_mac_reconfigure(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 #if EFSYS_OPT_LOOPBACK
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 siena_mac_loopback_set(
 	__in		efx_nic_t *enp,
 	__in		efx_link_mode_t link_mode,
@@ -201,7 +200,7 @@ siena_mac_loopback_set(
 	efx_phy_ops_t *epop = epp->ep_epop;
 	efx_loopback_type_t old_loopback_type;
 	efx_link_mode_t old_loopback_link_mode;
-	int rc;
+	efx_rc_t rc;
 
 	/* The PHY object handles this on Siena */
 	old_loopback_type = epp->ep_loopback_type;
@@ -230,12 +229,12 @@ fail1:
 #define	SIENA_MAC_STAT_READ(_esmp, _field, _eqp)			\
 	EFSYS_MEM_READQ((_esmp), (_field) * sizeof (efx_qword_t), _eqp)
 
-	__checkReturn			int
+	__checkReturn			efx_rc_t
 siena_mac_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_MAC_NSTATS)	efsys_stat_t *stat,
-	__out_opt			uint32_t *generationp)
+	__inout_ecount(EFX_MAC_NSTATS)	efsys_stat_t *stat,
+	__inout_opt			uint32_t *generationp)
 {
 	efx_qword_t value;
 	efx_qword_t generation_start;

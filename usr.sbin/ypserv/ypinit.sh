@@ -235,7 +235,7 @@ then
 
 	for MAP in ${YPMAPLIST}
 	do
-		echo "Transfering ${MAP}..."
+		echo "Transferring ${MAP}..."
 		if ! ${YPXFR} -p ${YP_DIR} -h ${MASTER} -c -d ${DOMAIN} ${MAP}; then
 			echo "Can't transfer map ${MAP}." 1>&2
 			ERROR_EXISTS="YES"

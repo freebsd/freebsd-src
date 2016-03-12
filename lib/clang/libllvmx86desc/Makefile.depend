@@ -6,65 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-X86AsmBackend.o: X86GenInstrInfo.inc.h
-X86AsmBackend.o: X86GenRegisterInfo.inc.h
-X86AsmBackend.o: X86GenSubtargetInfo.inc.h
-X86AsmBackend.po: X86GenInstrInfo.inc.h
-X86AsmBackend.po: X86GenRegisterInfo.inc.h
-X86AsmBackend.po: X86GenSubtargetInfo.inc.h
-X86ELFObjectWriter.o: X86GenInstrInfo.inc.h
-X86ELFObjectWriter.o: X86GenRegisterInfo.inc.h
-X86ELFObjectWriter.o: X86GenSubtargetInfo.inc.h
-X86ELFObjectWriter.po: X86GenInstrInfo.inc.h
-X86ELFObjectWriter.po: X86GenRegisterInfo.inc.h
-X86ELFObjectWriter.po: X86GenSubtargetInfo.inc.h
-X86ELFRelocationInfo.o: X86GenInstrInfo.inc.h
-X86ELFRelocationInfo.o: X86GenRegisterInfo.inc.h
-X86ELFRelocationInfo.o: X86GenSubtargetInfo.inc.h
-X86ELFRelocationInfo.po: X86GenInstrInfo.inc.h
-X86ELFRelocationInfo.po: X86GenRegisterInfo.inc.h
-X86ELFRelocationInfo.po: X86GenSubtargetInfo.inc.h
-X86MCCodeEmitter.o: X86GenInstrInfo.inc.h
-X86MCCodeEmitter.o: X86GenRegisterInfo.inc.h
-X86MCCodeEmitter.o: X86GenSubtargetInfo.inc.h
-X86MCCodeEmitter.po: X86GenInstrInfo.inc.h
-X86MCCodeEmitter.po: X86GenRegisterInfo.inc.h
-X86MCCodeEmitter.po: X86GenSubtargetInfo.inc.h
-X86MCTargetDesc.o: X86GenInstrInfo.inc.h
-X86MCTargetDesc.o: X86GenRegisterInfo.inc.h
-X86MCTargetDesc.o: X86GenSubtargetInfo.inc.h
-X86MCTargetDesc.po: X86GenInstrInfo.inc.h
-X86MCTargetDesc.po: X86GenRegisterInfo.inc.h
-X86MCTargetDesc.po: X86GenSubtargetInfo.inc.h
-X86MachORelocationInfo.o: X86GenInstrInfo.inc.h
-X86MachORelocationInfo.o: X86GenRegisterInfo.inc.h
-X86MachORelocationInfo.o: X86GenSubtargetInfo.inc.h
-X86MachORelocationInfo.po: X86GenInstrInfo.inc.h
-X86MachORelocationInfo.po: X86GenRegisterInfo.inc.h
-X86MachORelocationInfo.po: X86GenSubtargetInfo.inc.h
-X86MachObjectWriter.o: X86GenInstrInfo.inc.h
-X86MachObjectWriter.o: X86GenRegisterInfo.inc.h
-X86MachObjectWriter.o: X86GenSubtargetInfo.inc.h
-X86MachObjectWriter.po: X86GenInstrInfo.inc.h
-X86MachObjectWriter.po: X86GenRegisterInfo.inc.h
-X86MachObjectWriter.po: X86GenSubtargetInfo.inc.h
-X86WinCOFFObjectWriter.o: X86GenInstrInfo.inc.h
-X86WinCOFFObjectWriter.o: X86GenRegisterInfo.inc.h
-X86WinCOFFObjectWriter.o: X86GenSubtargetInfo.inc.h
-X86WinCOFFObjectWriter.po: X86GenInstrInfo.inc.h
-X86WinCOFFObjectWriter.po: X86GenRegisterInfo.inc.h
-X86WinCOFFObjectWriter.po: X86GenSubtargetInfo.inc.h
-X86WinCOFFStreamer.o: X86GenInstrInfo.inc.h
-X86WinCOFFStreamer.o: X86GenRegisterInfo.inc.h
-X86WinCOFFStreamer.o: X86GenSubtargetInfo.inc.h
-X86WinCOFFStreamer.po: X86GenInstrInfo.inc.h
-X86WinCOFFStreamer.po: X86GenRegisterInfo.inc.h
-X86WinCOFFStreamer.po: X86GenSubtargetInfo.inc.h
 .endif

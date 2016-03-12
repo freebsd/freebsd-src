@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysdecode.h>
 #include <time.h>
 #include <unistd.h>
 #include <vis.h>
@@ -74,9 +75,6 @@ __FBSDID("$FreeBSD$");
 #include "truss.h"
 #include "extern.h"
 #include "syscall.h"
-
-/* usr.bin/kdump/utrace.c */
-int kdump_print_utrace(FILE *, void *, size_t, int);
 
 /* 64-bit alignment on 32-bit platforms. */
 #if !defined(__LP64__) && defined(__powerpc__)
@@ -1108,7 +1106,7 @@ print_utrace(FILE *fp, void *utrace_addr, size_t len)
 	unsigned char *utrace_buffer;
 
 	fprintf(fp, "{ ");
-	if (kdump_print_utrace(fp, utrace_addr, len, 0)) {
+	if (sysdecode_utrace(fp, utrace_addr, len)) {
 		fprintf(fp, " }");
 		return;
 	}
@@ -1317,7 +1315,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		unsigned long cmd;
 
 		cmd = args[sc->offset];
-		temp = ioctlname(cmd);
+		temp = sysdecode_ioctlname(cmd);
 		if (temp)
 			fputs(temp, fp);
 		else {
@@ -2002,45 +2000,27 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 }
 
 /*
- * Print (to outfile) the system call and its arguments.  Note that
- * nargs is the number of arguments (not the number of words; this is
- * potentially confusing, I know).
+ * Print (to outfile) the system call and its arguments.
  */
 void
-print_syscall(struct trussinfo *trussinfo, const char *name, int nargs,
-    char **s_args)
+print_syscall(struct trussinfo *trussinfo)
 {
-	struct timespec timediff;
-	int i, len;
+	struct threadinfo *t;
+	const char *name;
+	char **s_args;
+	int i, len, nargs;
 
-	len = 0;
-	if (trussinfo->flags & FOLLOWFORKS)
-		len += fprintf(trussinfo->outfile, "%5d: ",
-		    trussinfo->curthread->proc->pid);
+	t = trussinfo->curthread;
 
-	if (name != NULL && (strcmp(name, "execve") == 0 ||
-	    strcmp(name, "exit") == 0)) {
-		clock_gettime(CLOCK_REALTIME, &trussinfo->curthread->after);
-	}
+	name = t->cs.name;
+	nargs = t->cs.nargs;
+	s_args = t->cs.s_args;
 
-	if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
-		timespecsubt(&trussinfo->curthread->after,
-		    &trussinfo->start_time, &timediff);
-		len += fprintf(trussinfo->outfile, "%jd.%09ld ",
-		    (intmax_t)timediff.tv_sec, timediff.tv_nsec);
-	}
-
-	if (trussinfo->flags & RELATIVETIMESTAMPS) {
-		timespecsubt(&trussinfo->curthread->after,
-		    &trussinfo->curthread->before, &timediff);
-		len += fprintf(trussinfo->outfile, "%jd.%09ld ",
-		    (intmax_t)timediff.tv_sec, timediff.tv_nsec);
-	}
-
+	len = print_line_prefix(trussinfo);
 	len += fprintf(trussinfo->outfile, "%s(", name);
 
 	for (i = 0; i < nargs; i++) {
-		if (s_args[i])
+		if (s_args[i] != NULL)
 			len += fprintf(trussinfo->outfile, "%s", s_args[i]);
 		else
 			len += fprintf(trussinfo->outfile,
@@ -2054,15 +2034,17 @@ print_syscall(struct trussinfo *trussinfo, const char *name, int nargs,
 }
 
 void
-print_syscall_ret(struct trussinfo *trussinfo, const char *name, int nargs,
-    char **s_args, int errorp, long *retval, struct syscall *sc)
+print_syscall_ret(struct trussinfo *trussinfo, int errorp, long *retval)
 {
 	struct timespec timediff;
+	struct threadinfo *t;
+	struct syscall *sc;
+	int error;
 
+	t = trussinfo->curthread;
+	sc = t->cs.sc;
 	if (trussinfo->flags & COUNTONLY) {
-		clock_gettime(CLOCK_REALTIME, &trussinfo->curthread->after);
-		timespecsubt(&trussinfo->curthread->after,
-		    &trussinfo->curthread->before, &timediff);
+		timespecsubt(&t->after, &t->before, &timediff);
 		timespecadd(&sc->time, &timediff, &sc->time);
 		sc->ncalls++;
 		if (errorp)
@@ -2070,11 +2052,24 @@ print_syscall_ret(struct trussinfo *trussinfo, const char *name, int nargs,
 		return;
 	}
 
-	print_syscall(trussinfo, name, nargs, s_args);
+	print_syscall(trussinfo);
 	fflush(trussinfo->outfile);
-	if (errorp)
+
+	if (retval == NULL) {
+		/*
+		 * This system call resulted in the current thread's exit,
+		 * so there is no return value or error to display.
+		 */
+		fprintf(trussinfo->outfile, "\n");
+		return;
+	}
+
+	if (errorp) {
+		error = sysdecode_abi_to_freebsd_errno(t->proc->abi->abi,
+		    retval[0]);
 		fprintf(trussinfo->outfile, " ERR#%ld '%s'\n", retval[0],
-		    strerror(retval[0]));
+		    error == INT_MAX ? "Unknown error" : strerror(error));
+	}
 #ifndef __LP64__
 	else if (sc->ret_type == 2) {
 		off_t off;

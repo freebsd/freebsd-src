@@ -279,6 +279,7 @@ MODULE_DEPEND(aue, usb, 1, 1, 1);
 MODULE_DEPEND(aue, ether, 1, 1, 1);
 MODULE_DEPEND(aue, miibus, 1, 1, 1);
 MODULE_VERSION(aue, 1);
+USB_PNP_HOST_INFO(aue_devs);
 
 static const struct usb_ether_methods aue_ue_methods = {
 	.ue_attach_post = aue_attach_post,

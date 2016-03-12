@@ -754,10 +754,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		devnull = 1;
 	}
 
-	if (!dolink)
-		target = (stat(to_name, &to_sb) == 0);
-	else
-		target = (lstat(to_name, &to_sb) == 0);
+	target = (lstat(to_name, &to_sb) == 0);
 
 	if (dolink) {
 		if (target && !safecopy) {
@@ -772,8 +769,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		return;
 	}
 
-	/* Only install to regular files. */
-	if (target && !S_ISREG(to_sb.st_mode)) {
+	if (target && !S_ISREG(to_sb.st_mode) && !S_ISLNK(to_sb.st_mode)) {
 		errno = EFTYPE;
 		warn("%s", to_name);
 		return;
@@ -786,7 +782,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		err(EX_OSERR, "%s", from_name);
 
 	/* If we don't strip, we can compare first. */
-	if (docompare && !dostrip && target) {
+	if (docompare && !dostrip && target && S_ISREG(to_sb.st_mode)) {
 		if ((to_fd = open(to_name, O_RDONLY, 0)) < 0)
 			err(EX_OSERR, "%s", to_name);
 		if (devnull)
@@ -838,7 +834,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	/*
 	 * Compare the stripped temp file with the target.
 	 */
-	if (docompare && dostrip && target) {
+	if (docompare && dostrip && target && S_ISREG(to_sb.st_mode)) {
 		temp_fd = to_fd;
 
 		/* Re-open to_fd using the real target name. */
@@ -872,9 +868,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			}
 			(void) close(temp_fd);
 		}
-	}
-
-	if (dostrip && (!docompare || !target))
+	} else if (dostrip)
 		digestresult = digest_file(tempfile);
 
 	/*

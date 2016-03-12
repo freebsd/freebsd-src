@@ -22,6 +22,9 @@
 #include "unity.h"
 #include <setjmp.h>
 #include <stdio.h>
+#include "config.h"
+#include "ntp_stdlib.h"
+#include "ntp_fp.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
@@ -30,20 +33,20 @@ extern void test_LoopbackNetNonResolve(void);
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
-char *progname;
+char const *progname;
 
 
 //=======MAIN=====
 int main(int argc, char *argv[])
 {
   progname = argv[0];
-  Unity.TestFile = "numtohost.c";
   UnityBegin("numtohost.c");
   RUN_TEST(test_LoopbackNetNonResolve, 9);
 

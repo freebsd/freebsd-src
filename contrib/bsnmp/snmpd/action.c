@@ -60,29 +60,6 @@ static const struct asn_oid
 #endif
 
 /*
- * Get a string value from the KERN sysctl subtree.
- */
-static char *
-act_getkernstring(int id)
-{
-	int mib[2];
-	size_t len;
-	char *string;
-
-	mib[0] = CTL_KERN;
-	mib[1] = id;
-	if (sysctl(mib, 2, NULL, &len, NULL, 0) != 0)
-		return (NULL);
-	if ((string = malloc(len)) == NULL)
-		return (NULL);
-	if (sysctl(mib, 2, string, &len, NULL, 0) != 0) {
-		free(string);
-		return (NULL);
-	}
-	return (string);
-}
-
-/*
  * Get an integer value from the KERN sysctl subtree.
  */
 static char *

@@ -31,9 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
 #include "efx_impl.h"
 
 /*
@@ -41,7 +39,7 @@ __FBSDID("$FreeBSD$");
  * with polynomial 0x04c11db7 (bit-reversed 0xedb88320)
  */
 
-static const uint32_t crc32_table[256] = {
+static const uint32_t efx_crc32_table[256] = {
     0x00000000, 0x77073096, 0xee0e612c, 0x990951ba,
     0x076dc419, 0x706af48f, 0xe963a535, 0x9e6495a3,
     0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988,
@@ -120,7 +118,7 @@ efx_crc32_calculate(
 
 	for (index = 0; index < length; index++) {
 		uint32_t data = *(input++);
-		crc = (crc >> 8) ^ crc32_table[(crc ^ data) & 0xff];
+		crc = (crc >> 8) ^ efx_crc32_table[(crc ^ data) & 0xff];
 	}
 
 	return (crc);

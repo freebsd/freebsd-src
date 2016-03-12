@@ -7,6 +7,7 @@ DIRDEPS = \
 	secure/lib/libcrypto/engines/lib4758cca \
 	secure/lib/libcrypto/engines/libaep \
 	secure/lib/libcrypto/engines/libatalla \
+	secure/lib/libcrypto/engines/libcapi \
 	secure/lib/libcrypto/engines/libchil \
 	secure/lib/libcrypto/engines/libcswift \
 	secure/lib/libcrypto/engines/libgost \

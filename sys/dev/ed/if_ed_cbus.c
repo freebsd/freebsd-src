@@ -607,7 +607,7 @@ ed98_alloc_memory(dev, rid)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
-	u_long conf_maddr, conf_msize;
+	rman_res_t conf_maddr, conf_msize;
 
 	error = bus_get_resource(dev, SYS_RES_MEMORY, 0, &conf_maddr,
 	    &conf_msize);
@@ -1001,7 +1001,7 @@ ed_probe_CNET98(device_t dev, int port_rid, int flags)
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
 	u_char tmp;
-	u_long conf_irq, junk;
+	rman_res_t conf_irq, junk;
 #ifdef DIAGNOSTIC
 	u_char tmp_s;
 #endif
@@ -1157,7 +1157,7 @@ ed_probe_CNET98EL(device_t dev, int port_rid, int flags)
 	int error;
 	int i;
 	u_char romdata[ETHER_ADDR_LEN * 2], tmp;
-	u_long conf_irq, junk;
+	rman_res_t conf_irq, junk;
 
 	error = ed98_alloc_port(dev, port_rid);
 	if (error)
@@ -1251,7 +1251,7 @@ ed_probe_NEC77(device_t dev, int port_rid, int flags)
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
 	u_char tmp;
-	u_long conf_irq, junk;
+	rman_res_t conf_irq, junk;
 
 	error = ed98_probe_Novell(dev, port_rid, flags);
 	if (error)
@@ -1303,7 +1303,7 @@ ed_probe_NW98X(device_t dev, int port_rid, int flags)
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
 	u_char tmp;
-	u_long conf_irq, junk;
+	rman_res_t conf_irq, junk;
 
 	error = ed98_probe_Novell(dev, port_rid, flags);
 	if (error)
@@ -1427,7 +1427,7 @@ ed_probe_SB98(device_t dev, int port_rid, int flags)
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
 	u_char tmp;
-	u_long conf_irq, junk;
+	rman_res_t conf_irq, junk;
 
 	error = ed98_alloc_port(dev, port_rid);
 	if (error)

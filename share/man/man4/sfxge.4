@@ -121,8 +121,10 @@ If a packet is dropped, the
 counter is incremented and the local sender receives ENOBUFS.
 The value must be greater than or equal to 0.
 .It Va hw.sfxge.tso_fw_assisted
-Enable/disable usage of FW-assisted TSO if supported by NIC firmware.
-Enabled by default.
+Bitmask to enable/disable usage of FW-assisted TSO version if supported
+by NIC firmware.
+FATSOv1 (bit 0) and FATSOv2 (bit 1) are supported.
+All enabled by default.
 .It Va hw.sfxge.N.max_rss_channels
 The maximum number of allocated RSS channels for the Nth adapter.
 If set to 0 or unset, the number of channels is determined by the number
@@ -148,6 +150,14 @@ Number of packets with payload that must arrive in-order following loss
 before a connection is eligible for LRO.
 The idea is we should avoid coalescing segments when the sender is recovering
 from loss, because reducing the ACK rate can damage performance.
+.It Va hw.sfxge.mcdi_logging
+Enable logging of MCDI protocol messages  (only available if enabled at compile-time).
+.It Va hw.sfxge.N.mcdi_logging
+Enable or disable logging of MCDI protocol messages on a per-port basis. The default for each
+port will be the value of
+.Va hw.sfxge.mcdi_logging.
+The logging may also be enabled or disabled after the driver is loaded using the sysctl
+.Va dev.sfxge.%d.mcdi_logging.
 .El
 .Sh SUPPORT
 For general information and support,

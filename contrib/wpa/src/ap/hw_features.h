@@ -36,6 +36,11 @@ static inline int hostapd_get_hw_features(struct hostapd_iface *iface)
 	return -1;
 }
 
+static inline int hostapd_acs_completed(struct hostapd_iface *iface, int err)
+{
+	return -1;
+}
+
 static inline int hostapd_select_hw_mode(struct hostapd_iface *iface)
 {
 	return -100;

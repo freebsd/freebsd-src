@@ -536,7 +536,7 @@ extern int fix_lint;
 	    (_oword).eo_u32[3]) == ~((uint32_t)0))
 
 #define	EFX_QWORD_IS_SET64(_qword)					\
-	(((_qword).eq_u64[0]) == ~((uint32_t)0))
+	(((_qword).eq_u64[0]) == ~((uint64_t)0))
 
 #define	EFX_QWORD_IS_SET32(_qword)					\
 	(((_qword).eq_u32[0] &						\
@@ -1584,7 +1584,7 @@ extern int fix_lint;
 
 #define	EFX_OR_BYTE(_byte1, _byte2)					\
 	do {								\
-		(_byte1).eb_u8[0] &= (_byte2).eb_u8[0];			\
+		(_byte1).eb_u8[0] |= (_byte2).eb_u8[0];			\
 	_NOTE(CONSTANTCONDITION) 					\
 	} while (B_FALSE)
 

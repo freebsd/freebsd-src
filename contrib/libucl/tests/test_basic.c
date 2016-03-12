@@ -27,13 +27,14 @@
 int
 main (int argc, char **argv)
 {
-	char inbuf[8192], *test_in = NULL;
+	char *inbuf;
 	struct ucl_parser *parser = NULL, *parser2 = NULL;
 	ucl_object_t *obj;
+	ssize_t bufsize, r;
 	FILE *in, *out;
 	unsigned char *emitted = NULL;
 	const char *fname_in = NULL, *fname_out = NULL;
-	int ret = 0, inlen, opt, json = 0, compact = 0, yaml = 0;
+	int ret = 0, opt, json = 0, compact = 0, yaml = 0;
 
 	while ((opt = getopt(argc, argv, "jcy")) != -1) {
 		switch (opt) {
@@ -82,16 +83,28 @@ main (int argc, char **argv)
 		ucl_parser_set_filevars (parser, fname_in, true);
 	}
 
-	while (!feof (in)) {
-		memset (inbuf, 0, sizeof (inbuf));
-		if (fread (inbuf, 1, sizeof (inbuf) - 1, in) == 0) {
-			break;
+	inbuf = malloc (BUFSIZ);
+	bufsize = BUFSIZ;
+	r = 0;
+
+	while (!feof (in) && !ferror (in)) {
+		if (r == bufsize) {
+			inbuf = realloc (inbuf, bufsize * 2);
+			bufsize *= 2;
+			if (inbuf == NULL) {
+				perror ("realloc");
+				exit (EXIT_FAILURE);
+			}
 		}
-		inlen = strlen (inbuf);
-		test_in = malloc (inlen);
-		memcpy (test_in, inbuf, inlen);
-		ucl_parser_add_chunk (parser, (const unsigned char *)test_in, inlen);
+		r += fread (inbuf + r, 1, bufsize - r, in);
 	}
+
+	if (ferror (in)) {
+		fprintf (stderr, "Failed to read the input file.\n");
+		exit (EXIT_FAILURE);
+	}
+
+	ucl_parser_add_chunk (parser, (const unsigned char *)inbuf, r);
 	fclose (in);
 
 	if (fname_out != NULL) {
@@ -103,12 +116,15 @@ main (int argc, char **argv)
 	else {
 		out = stdout;
 	}
+
 	if (ucl_parser_get_error (parser) != NULL) {
 		fprintf (out, "Error occurred: %s\n", ucl_parser_get_error(parser));
 		ret = 1;
 		goto end;
 	}
+
 	obj = ucl_parser_get_object (parser);
+
 	if (json) {
 		if (compact) {
 			emitted = ucl_object_emit (obj, UCL_EMIT_JSON_COMPACT);
@@ -123,6 +139,7 @@ main (int argc, char **argv)
 	else {
 		emitted = ucl_object_emit (obj, UCL_EMIT_CONFIG);
 	}
+
 	ucl_parser_free (parser);
 	ucl_object_unref (obj);
 	parser2 = ucl_parser_new (UCL_PARSER_KEY_LOWERCASE);
@@ -134,9 +151,11 @@ main (int argc, char **argv)
 		ret = 1;
 		goto end;
 	}
+
 	if (emitted != NULL) {
 		free (emitted);
 	}
+
 	obj = ucl_parser_get_object (parser2);
 	if (json) {
 		if (compact) {
@@ -163,8 +182,8 @@ end:
 	if (parser2 != NULL) {
 		ucl_parser_free (parser2);
 	}
-	if (test_in != NULL) {
-		free (test_in);
+	if (inbuf != NULL) {
+		free (inbuf);
 	}
 
 	fclose (out);

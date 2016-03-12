@@ -1124,7 +1124,7 @@ xs_probe(device_t dev)
 	 * Unconditionally return success.
 	 */
 	device_set_desc(dev, "XenStore");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static void

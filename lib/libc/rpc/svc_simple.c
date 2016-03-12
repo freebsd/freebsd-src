@@ -166,10 +166,8 @@ rpc_reg(rpcprog_t prognum, rpcvers_t versnum, rpcproc_t procnum,
 			if (((xdrbuf = malloc((unsigned)recvsz)) == NULL) ||
 				((netid = strdup(nconf->nc_netid)) == NULL)) {
 				warnx(rpc_reg_err, rpc_reg_msg, __no_mem_str);
-				if (xdrbuf != NULL)
-					free(xdrbuf);
-				if (netid != NULL)
-					free(netid);
+				free(xdrbuf);
+				free(netid);
 				SVC_DESTROY(svcxprt);
 				break;
 			}
@@ -274,7 +272,7 @@ universal(struct svc_req *rqstp, SVCXPRT *transp)
 			/* decode arguments into a CLEAN buffer */
 			xdrbuf = pl->p_xdrbuf;
 			/* Zero the arguments: reqd ! */
-			(void) memset(xdrbuf, 0, sizeof (pl->p_recvsz));
+			(void) memset(xdrbuf, 0, (size_t)pl->p_recvsz);
 			/*
 			 * Assuming that sizeof (xdrbuf) would be enough
 			 * for the arguments; if not then the program

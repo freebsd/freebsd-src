@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2012  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -75,8 +75,8 @@ cvt_text(odst, osrc, chpos, lenp, ops)
 
 	for (src = osrc, dst = odst;  src < src_end;  )
 	{
-		int src_pos = src - osrc;
-		int dst_pos = dst - odst;
+		int src_pos = (int) (src - osrc);
+		int dst_pos = (int) (dst - odst);
 		ch = step_char(&src, +1, src_end);
 		if ((ops & CVT_BS) && ch == '\b' && dst > odst)
 		{
@@ -109,6 +109,6 @@ cvt_text(odst, osrc, chpos, lenp, ops)
 		edst--;
 	*edst = '\0';
 	if (lenp != NULL)
-		*lenp = edst - odst;
+		*lenp = (int) (edst - odst);
 	/* FIXME: why was this here?  if (chpos != NULL) chpos[dst - odst] = src - osrc; */
 }

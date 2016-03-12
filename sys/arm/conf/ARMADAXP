@@ -90,11 +90,13 @@ device		uart
 # I2C (TWSI)
 device		iic
 device		iicbus
+device		twsi
 
 #Network
 device		ether
 device		mge			# Marvell Gigabit Ethernet controller
 device		mii
+device		mdio
 device		e1000phy
 device		bpf
 options 	DEVICE_POLLING

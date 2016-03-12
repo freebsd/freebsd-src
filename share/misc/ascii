@@ -1,5 +1,5 @@
 |000 nul|001 soh|002 stx|003 etx|004 eot|005 enq|006 ack|007 bel|
-|010 bs |011 ht |012 nl |013 vt |014 np |015 cr |016 so |017 si |
+|010 bs |011 ht |012 lf |013 vt |014 ff |015 cr |016 so |017 si |
 |020 dle|021 dc1|022 dc2|023 dc3|024 dc4|025 nak|026 syn|027 etb|
 |030 can|031 em |032 sub|033 esc|034 fs |035 gs |036 rs |037 us |
 |040 sp |041  ! |042  " |043  # |044  $ |045  % |046  & |047  ' |
@@ -16,7 +16,7 @@
 |170  x |171  y |172  z |173  { |174  | |175  } |176  ~ |177 del|
 
 | 00 nul| 01 soh| 02 stx| 03 etx| 04 eot| 05 enq| 06 ack| 07 bel|
-| 08 bs | 09 ht | 0a nl | 0b vt | 0c np | 0d cr | 0e so | 0f si |
+| 08 bs | 09 ht | 0a lf | 0b vt | 0c ff | 0d cr | 0e so | 0f si |
 | 10 dle| 11 dc1| 12 dc2| 13 dc3| 14 dc4| 15 nak| 16 syn| 17 etb|
 | 18 can| 19 em | 1a sub| 1b esc| 1c fs | 1d gs | 1e rs | 1f us |
 | 20 sp | 21  ! | 22  " | 23  # | 24  $ | 25  % | 26  & | 27  ' |
@@ -33,7 +33,7 @@
 | 78  x | 79  y | 7a  z | 7b  { | 7c  | | 7d  } | 7e  ~ | 7f del|
 
 |  0 nul|  1 soh|  2 stx|  3 etx|  4 eot|  5 enq|  6 ack|  7 bel|
-|  8 bs |  9 ht | 10 nl | 11 vt | 12 np | 13 cr | 14 so | 15 si |
+|  8 bs |  9 ht | 10 lf | 11 vt | 12 ff | 13 cr | 14 so | 15 si |
 | 16 dle| 17 dc1| 18 dc2| 19 dc3| 20 dc4| 21 nak| 22 syn| 23 etb|
 | 24 can| 25 em | 26 sub| 27 esc| 28 fs | 29 gs | 30 rs | 31 us |
 | 32 sp | 33  ! | 34  " | 35  # | 36  $ | 37  % | 38  & | 39  ' |

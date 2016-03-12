@@ -38,7 +38,7 @@
  *
  * This file contains helper functions for the validator module.
  * The functions help with aggressive negative caching.
- * This creates new denials of existance, and proofs for absence of types
+ * This creates new denials of existence, and proofs for absence of types
  * from cached NSEC records.
  */
 #include "config.h"
@@ -823,13 +823,22 @@ void neg_insert_data(struct val_neg_cache* neg,
 			(h != zone->nsec3_hash || it != zone->nsec3_iter ||
 			slen != zone->nsec3_saltlen || 
 			memcmp(zone->nsec3_salt, s, slen) != 0)) {
-			uint8_t* sa = memdup(s, slen);
-			if(sa) {
+
+			if(slen > 0) {
+				uint8_t* sa = memdup(s, slen);
+				if(sa) {
+					free(zone->nsec3_salt);
+					zone->nsec3_salt = sa;
+					zone->nsec3_saltlen = slen;
+					zone->nsec3_iter = it;
+					zone->nsec3_hash = h;
+				}
+			} else {
 				free(zone->nsec3_salt);
-				zone->nsec3_salt = sa;
-				zone->nsec3_saltlen = slen;
-				zone->nsec3_hash = h;
+				zone->nsec3_salt = NULL;
+				zone->nsec3_saltlen = 0;
 				zone->nsec3_iter = it;
+				zone->nsec3_hash = h;
 			}
 		}
 	}

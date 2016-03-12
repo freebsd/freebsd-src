@@ -67,7 +67,7 @@ void ffs_csumtotal_swap(struct csum_total *o, struct csum_total *n);
 void
 ffs_sb_swap(struct fs *o, struct fs *n)
 {
-	int i;
+	size_t i;
 	u_int32_t *o32, *n32;
 
 	/*
@@ -97,7 +97,7 @@ ffs_sb_swap(struct fs *o, struct fs *n)
 	n->fs_csaddr = bswap64(o->fs_csaddr);
 	n->fs_pendingblocks = bswap64(o->fs_pendingblocks);
 	n->fs_pendinginodes = bswap32(o->fs_pendinginodes);
-	
+
 	/* These fields overlap with the second half of the
 	 * historic FS_42POSTBLFMT postbl table
 	 */
@@ -171,9 +171,9 @@ ffs_dinode2_swap(struct ufs2_dinode *o, struct ufs2_dinode *n)
 void
 ffs_csum_swap(struct csum *o, struct csum *n, int size)
 {
-	int i;
+	size_t i;
 	u_int32_t *oint, *nint;
-	
+
 	oint = (u_int32_t*)o;
 	nint = (u_int32_t*)n;
 

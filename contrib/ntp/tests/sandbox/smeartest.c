@@ -2,6 +2,7 @@
 
 #include <ntp.h>
 #include <ntp_fp.h>
+#include <ntp_assert.h>
 
 /*
  * we want to test a refid format of:
@@ -125,8 +126,13 @@ ltor(l_fp l)
 }
 
 
+int
 main()
 {
+	l_fp l;
+	int rc;
+
+	init_lib();
 
 	rtol(0xfe800000);
 	rtol(0xfe800001);
@@ -163,6 +169,18 @@ main()
 	rtoltor(0xfe700001);
 	rtoltor(0xfe7ffffe);
 	rtoltor(0xfe7fffff);
+
+	rc = atolfp("-.932087", &l);
+	INSIST(1 == rc);
+
+	ltor(l);
+	rtol(0xfec458b0);
+	printf("%x -> %d.%d.%d.%d\n",
+		0xfec458b0,
+		0xfe,
+		  0xc4,
+		    0x58,
+		      0xb0);
 
 	return 0;
 }

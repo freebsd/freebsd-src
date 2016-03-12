@@ -72,8 +72,12 @@ bcm283x_dwc_otg_probe(device_t dev)
 static int
 bcm283x_dwc_otg_attach(device_t dev)
 {
+	int err;
 
-	bcm2835_mbox_set_power_state(dev, BCM2835_MBOX_POWER_ID_USB_HCD, TRUE);
+	err = bcm2835_mbox_set_power_state(BCM2835_MBOX_POWER_ID_USB_HCD, TRUE);
+	if (err)
+		device_printf(dev, "failed to set power state, err=%d\n", err);
+
 	return (dwc_otg_attach(dev));
 }
 

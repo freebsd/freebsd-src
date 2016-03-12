@@ -166,37 +166,30 @@ madt_setup_local(void)
 		} else if (vm_guest == VM_GUEST_XEN) {
 			x2apic_mode = 0;
 			reason = "due to running under XEN";
-		} else if (vm_guest == VM_GUEST_NO) {
+		} else if (vm_guest == VM_GUEST_NO &&
+		    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+		    CPUID_TO_MODEL(cpu_id) == 0x2a) {
 			hw_vendor = kern_getenv("smbios.planar.maker");
 			/*
-			 * It seems that some Lenovo SandyBridge-based
-			 * notebook BIOSes have a bug which prevents
-			 * booting AP in x2APIC mode.  Since the only
-			 * way to detect mobile CPU is to check
-			 * northbridge pci id, which cannot be done
-			 * that early, disable x2APIC for all Lenovo
-			 * SandyBridge machines.
+			 * It seems that some Lenovo and ASUS
+			 * SandyBridge-based notebook BIOSes have a
+			 * bug which prevents booting AP in x2APIC
+			 * mode.  Since the only way to detect mobile
+			 * CPU is to check northbridge pci id, which
+			 * cannot be done that early, disable x2APIC
+			 * for all Lenovo and ASUS SandyBridge
+			 * machines.
 			 */
-			if (hw_vendor != NULL &&
-			    !strcmp(hw_vendor, "LENOVO") &&
-			    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
-			    CPUID_TO_MODEL(cpu_id) == 0x2a) {
-				x2apic_mode = 0;
-				reason =
-				    "for a suspected Lenovo SandyBridge BIOS bug";
+			if (hw_vendor != NULL) {
+				if (!strcmp(hw_vendor, "LENOVO") ||
+				    !strcmp(hw_vendor,
+				    "ASUSTeK Computer Inc.")) {
+					x2apic_mode = 0;
+					reason =
+				    "for a suspected SandyBridge BIOS bug";
+				}
+				freeenv(hw_vendor);
 			}
-			/*
-			 * Same reason, ASUS SandyBridge.
-			 */
-			if (hw_vendor != NULL &&
-			    !strcmp(hw_vendor, "ASUSTeK Computer Inc.") &&
-			    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
-			    CPUID_TO_MODEL(cpu_id) == 0x2a) {
-				x2apic_mode = 0;
-				reason =
-				    "for a suspected ASUS SandyBridge BIOS bug";
-			}
-			freeenv(hw_vendor);
 		}
 		TUNABLE_INT_FETCH("hw.x2apic_enable", &x2apic_mode);
 		if (!x2apic_mode && reason != NULL && bootverbose)

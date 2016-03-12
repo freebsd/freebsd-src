@@ -1,5 +1,5 @@
 PKG=		openresolv
-VERSION=	3.7.0
+VERSION=	3.7.3
 
 # Nasty hack so that make clean works without configure being run
 _CONFIG_MK!=	test -e config.mk && echo config.mk || echo config-null.mk
@@ -37,7 +37,7 @@ SED_RESTARTCMD=		-e 's:@RESTARTCMD \(.*\)@:${RESTARTCMD}:g'
 
 DISTPREFIX?=	${PKG}-${VERSION}
 DISTFILEGZ?=	${DISTPREFIX}.tar.gz
-DISTFILE?=	${DISTPREFIX}.tar.bz2
+DISTFILE?=	${DISTPREFIX}.tar.xz
 FOSSILID?=	current
 
 .SUFFIXES: .in
@@ -77,9 +77,9 @@ install: proginstall maninstall
 import:
 	rm -rf /tmp/${DISTPREFIX}
 	${INSTALL} -d /tmp/${DISTPREFIX}
-	cp README ${SRCS} /tmp/${DISPREFIX}
+	cp README ${SRCS} /tmp/${DISTPREFIX}
 
 dist:
 	fossil tarball --name ${DISTPREFIX} ${FOSSILID} ${DISTFILEGZ}
-	gunzip -c ${DISTFILEGZ} |  bzip2 >${DISTFILE}
+	gunzip -c ${DISTFILEGZ} | xz >${DISTFILE}
 	rm ${DISTFILEGZ}

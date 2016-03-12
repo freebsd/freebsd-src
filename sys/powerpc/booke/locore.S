@@ -301,7 +301,7 @@ bp_ntlb1s:
 
 	.globl	bp_tlb1
 bp_tlb1:
-	.space	4 * 3 * 16
+	.space	4 * 3 * 64
 
 	.globl	bp_tlb1_end
 bp_tlb1_end:
@@ -658,77 +658,6 @@ __boot_page_padding:
 /************************************************************************/
 
 /*
- * void tid_flush(tlbtid_t tid);
- *
- * Invalidate all TLB0 entries which match the given TID. Note this is
- * dedicated for cases when invalidation(s) should NOT be propagated to other
- * CPUs.
- *
- * void tid_flush(tlbtid_t tid, int tlb0_ways, int tlb0_entries_per_way);
- *
- * XXX: why isn't this in C?
- */
-ENTRY(tid_flush)
-	cmpwi	%r3, TID_KERNEL
-	beq	tid_flush_end	/* don't evict kernel translations */
-
-	/* Disable interrupts */
-	mfmsr	%r10
-	wrteei	0
-
-	li	%r6, 0		/* ways counter */
-loop_ways:
-	li	%r7, 0		/* entries [per way] counter */
-loop_entries:
-	/* Select TLB0 and ESEL (way) */
-	lis	%r8, MAS0_TLBSEL0@h
-	rlwimi	%r8, %r6, 16, 14, 15
-	mtspr	SPR_MAS0, %r8
-	isync
-
-	/* Select EPN (entry within the way) */
-	rlwinm	%r8, %r7, 12, 13, 19
-	mtspr	SPR_MAS2, %r8
-	isync
-	tlbre
-
-	/* Check if valid entry */
-	mfspr	%r8, SPR_MAS1
-	andis.	%r9, %r8, MAS1_VALID@h
-	beq	next_entry	/* invalid entry */
-
-	/* Check if this is our TID */
-	rlwinm	%r9, %r8, 16, 24, 31
-
-	cmplw	%r9, %r3
-	bne	next_entry	/* not our TID */
-
-	/* Clear VALID bit */
-	rlwinm	%r8, %r8, 0, 1, 31
-	mtspr	SPR_MAS1, %r8
-	isync
-	tlbwe
-	isync
-	msync
-
-next_entry:
-	addi	%r7, %r7, 1
-	cmpw	%r7, %r5
-	bne	loop_entries
-
-	/* Next way */
-	addi	%r6, %r6, 1
-	cmpw	%r6, %r4
-	bne	loop_ways
-
-	/* Restore MSR (possibly re-enable interrupts) */
-	mtmsr	%r10
-	isync
-
-tid_flush_end:
-	blr
-
-/*
  * Cache disable/enable/inval sequences according
  * to section 2.16 of E500CORE RM.
  */
@@ -802,26 +731,110 @@ ENTRY(icache_enable)
 	blr
 
 /*
- * int setfault()
- *
- * Similar to setjmp to setup for handling faults on accesses to user memory.
- * Any routine using this may only call bcopy, either the form below,
- * or the (currently used) C code optimized, so it doesn't use any non-volatile
- * registers.
+ * L2 cache disable/enable/inval sequences for E500mc.
  */
-	.globl	setfault
-setfault:
-	mflr	%r0
-	mfsprg0	%r4
-	lwz	%r4, TD_PCB(%r2)
-	stw	%r3, PCB_ONFAULT(%r4)
-	mfcr	%r4
-	stw	%r0, 0(%r3)
-	stw	%r1, 4(%r3)
-	stw	%r2, 8(%r3)
-	stw	%r4, 12(%r3)
-	stmw	%r13, 16(%r3)		/* store CR, CTR, XER, [r13 .. r31] */
-	li	%r3, 0			/* return FALSE */
+
+ENTRY(l2cache_inval)
+	mfspr	%r3, SPR_L2CSR0
+	oris	%r3, %r3, (L2CSR0_L2FI | L2CSR0_L2LFC)@h
+	ori	%r3, %r3, (L2CSR0_L2FI | L2CSR0_L2LFC)@l
+	isync
+	mtspr	SPR_L2CSR0, %r3
+	isync
+1:	mfspr   %r3, SPR_L2CSR0
+	andis.	%r3, %r3, L2CSR0_L2FI@h
+	bne	1b
+	blr
+
+ENTRY(l2cache_enable)
+	mfspr	%r3, SPR_L2CSR0
+	oris	%r3, %r3, (L2CSR0_L2E | L2CSR0_L2PE)@h
+	isync
+	mtspr	SPR_L2CSR0, %r3
+	isync
+	blr
+
+/*
+ * Branch predictor setup.
+ */
+ENTRY(bpred_enable)
+	mfspr	%r3, SPR_BUCSR
+	ori	%r3, %r3, BUCSR_BBFI
+	isync
+	mtspr	SPR_BUCSR, %r3
+	isync
+	ori	%r3, %r3, BUCSR_BPEN
+	isync
+	mtspr	SPR_BUCSR, %r3
+	isync
+	blr
+
+ENTRY(dataloss_erratum_access)
+	/* Lock two cache lines into I-Cache */
+	sync
+	mfspr	%r11, SPR_L1CSR1
+	rlwinm	%r11, %r11, 0, ~L1CSR1_ICUL
+	sync
+	isync
+	mtspr	SPR_L1CSR1, %r11
+	isync
+
+	mflr	%r9
+	bl	1f
+	.long 2f-.
+1:
+	mflr	%r5
+	lwz	%r8, 0(%r5)
+	mtlr	%r9
+	add	%r8, %r8, %r5
+	icbtls	0, 0, %r8
+	addi	%r9, %r8, 64
+
+	sync
+	mfspr	%r11, SPR_L1CSR1
+3:	andi.	%r11, %r11, L1CSR1_ICUL
+	bne	3b
+
+	icbtls	0, 0, %r9
+
+	sync
+	mfspr	%r11, SPR_L1CSR1
+3:	andi.	%r11, %r11, L1CSR1_ICUL
+	bne	3b
+
+	b	2f
+	.align	6
+	/* Inside a locked cacheline, wait a while, write, then wait a while */
+2:	sync
+
+	mfspr	%r5, TBR_TBL
+4:	addis	%r11, %r5, 0x100000@h	/* wait around one million timebase ticks */
+	mfspr	%r5, TBR_TBL
+	subf.	%r5, %r5, %r11
+	bgt	4b
+
+	stw	%r4, 0(%r3)
+
+	mfspr	%r5, TBR_TBL
+4:	addis	%r11, %r5, 0x100000@h	/* wait around one million timebase ticks */
+	mfspr	%r5, TBR_TBL
+	subf.	%r5, %r5, %r11
+	bgt	4b
+
+	sync
+
+	/*
+	 * Fill out the rest of this cache line and the next with nops,
+	 * to ensure that nothing outside the locked area will be
+	 * fetched due to a branch.
+	 */
+	.rept 19
+	nop
+	.endr
+
+	icblc	0, 0, %r8
+	icblc	0, 0, %r9
+
 	blr
 
 /************************************************************************/

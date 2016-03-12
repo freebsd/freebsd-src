@@ -136,7 +136,7 @@ struct ng_btsocket_l2cap_pcb {
 
 	u_int16_t			 psm;	     /* PSM */
 	u_int16_t			 cid;	     /* Local channel ID */
-
+	uint8_t				 idtype;
 	u_int16_t			 flags;      /* socket flags */
 #define NG_BTSOCKET_L2CAP_CLIENT	(1 << 0)     /* socket is client */
 #define NG_BTSOCKET_L2CAP_TIMO		(1 << 1)     /* timeout pending */
@@ -147,6 +147,7 @@ struct ng_btsocket_l2cap_pcb {
 #define NG_BTSOCKET_L2CAP_CONFIGURING	2            /* wait for config */
 #define NG_BTSOCKET_L2CAP_OPEN		3            /* socket open */
 #define NG_BTSOCKET_L2CAP_DISCONNECTING	4            /* wait for disconnect */
+#define NG_BTSOCKET_L2CAP_W4_ENC_CHANGE 5  
 
 	u_int8_t			 cfg_state;  /* config state */
 #define	NG_BTSOCKET_L2CAP_CFG_IN	(1 << 0)     /* incoming path done */
@@ -156,7 +157,7 @@ struct ng_btsocket_l2cap_pcb {
 
 #define	NG_BTSOCKET_L2CAP_CFG_IN_SENT	(1 << 2)     /* L2CAP ConfigReq sent */
 #define	NG_BTSOCKET_L2CAP_CFG_OUT_SENT	(1 << 3)     /* ---/--- */
-
+	uint8_t 			 encryption;
 	u_int16_t			 imtu;       /* Incoming MTU */
 	ng_l2cap_flow_t			 iflow;      /* Input flow spec */
 
@@ -172,7 +173,8 @@ struct ng_btsocket_l2cap_pcb {
 	ng_btsocket_l2cap_rtentry_p	 rt;         /* routing info */
 
 	struct mtx			 pcb_mtx;    /* pcb mutex */
-
+	uint16_t			 need_encrypt; /*encryption needed*/
+	
 	LIST_ENTRY(ng_btsocket_l2cap_pcb) next;      /* link to next PCB */
 };
 typedef struct ng_btsocket_l2cap_pcb	ng_btsocket_l2cap_pcb_t;

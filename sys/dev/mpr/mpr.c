@@ -1471,11 +1471,9 @@ mpr_setup_sysctl(struct mpr_softc *sc)
 	    OID_AUTO, "enable_ssu", CTLFLAG_RW, &sc->enable_ssu, 0,
 	    "enable SSU to SATA SSD/HDD at shutdown");
 
-#if __FreeBSD_version >= 900030
 	SYSCTL_ADD_UQUAD(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "chain_alloc_fail", CTLFLAG_RD,
 	    &sc->chain_alloc_fail, "chain allocation failures");
-#endif //FreeBSD_version >= 900030
 
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "spinup_wait_time", CTLFLAG_RD,

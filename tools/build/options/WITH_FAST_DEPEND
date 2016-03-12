@@ -1,0 +1,7 @@
+.\" $FreeBSD$
+Set to generate
+.Sy .depend
+files in the build during compilation instead of the
+historial
+.Xr mkdep 1
+call during the "make depend" phase.

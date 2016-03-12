@@ -139,7 +139,14 @@ sub ntp_sntp_line {
         my @output = split / /;
 
         $offset = $output[3];
-        ($stratum = $output[7]) =~ s/s(\d{1,2})/$1/;
+	if (0) {
+	} elsif ($output[7] =~ /s(\d{1,2})/) {
+		$stratum = $1;
+		# warn "Found stratum at #7\n";
+	} elsif ($output[8] =~ /s(\d{1,2})/) {
+		$stratum = $1;
+		# warn "Found stratum at #8\n";
+	}
     }
     close $fh or croak "running sntp failed: $! (exit status $?)";
     return ($offset, $stratum);

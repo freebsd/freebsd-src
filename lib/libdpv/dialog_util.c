@@ -261,6 +261,13 @@ dialog_spawn_gauge(char *init_prompt, pid_t *pid)
 			errx(EXIT_FAILURE, "Out of memory?!");
 		sprintf(dargv[n++], "--title");
 		dargv[n++] = title;
+	} else {
+		if ((dargv[n] = malloc(8)) == NULL)
+			errx(EXIT_FAILURE, "Out of memory?!");
+		sprintf(dargv[n++], "--title");
+		if ((dargv[n] = malloc(1)) == NULL)
+			errx(EXIT_FAILURE, "Out of memory?!");
+		*dargv[n++] = '\0';
 	}
 	if (backtitle != NULL) {
 		if ((dargv[n] = malloc(12)) == NULL)

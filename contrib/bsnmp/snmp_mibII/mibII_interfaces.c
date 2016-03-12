@@ -528,7 +528,7 @@ op_ifxtable(struct snmp_context *ctx, struct snmp_value *value,
 		break;
 
 	  case LEAF_ifAlias:
-		ret = string_get(value, "", -1);
+		ret = string_get(value, MIBIF_PRIV(ifp)->alias, -1);
 		break;
 
 	  case LEAF_ifCounterDiscontinuityTime:

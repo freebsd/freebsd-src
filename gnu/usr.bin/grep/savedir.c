@@ -71,6 +71,7 @@ char *stpcpy ();
 
 #include <fnmatch.h>
 #include "savedir.h"
+#include "system.h"
 
 char *path;
 size_t pathlen;

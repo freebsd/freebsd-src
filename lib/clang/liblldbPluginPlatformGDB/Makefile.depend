@@ -13,16 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-PlatformRemoteGDBServer.o: AttrList.inc.h
-PlatformRemoteGDBServer.o: Attrs.inc.h
-PlatformRemoteGDBServer.o: CommentCommandList.inc.h
-PlatformRemoteGDBServer.o: DeclNodes.inc.h
-PlatformRemoteGDBServer.o: DiagnosticCommonKinds.inc.h
-PlatformRemoteGDBServer.o: StmtNodes.inc.h
-PlatformRemoteGDBServer.po: AttrList.inc.h
-PlatformRemoteGDBServer.po: Attrs.inc.h
-PlatformRemoteGDBServer.po: CommentCommandList.inc.h
-PlatformRemoteGDBServer.po: DeclNodes.inc.h
-PlatformRemoteGDBServer.po: DiagnosticCommonKinds.inc.h
-PlatformRemoteGDBServer.po: StmtNodes.inc.h
 .endif

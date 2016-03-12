@@ -16,99 +16,99 @@
 
 
 static int eap_sake_parse_add_attr(struct eap_sake_parse_attr *attr,
-				   const u8 *pos)
+				   u8 attr_id, u8 len, const u8 *data)
 {
 	size_t i;
 
-	switch (pos[0]) {
+	switch (attr_id) {
 	case EAP_SAKE_AT_RAND_S:
 		wpa_printf(MSG_DEBUG, "EAP-SAKE: Parse: AT_RAND_S");
-		if (pos[1] != 2 + EAP_SAKE_RAND_LEN) {
+		if (len != EAP_SAKE_RAND_LEN) {
 			wpa_printf(MSG_DEBUG, "EAP-SAKE: AT_RAND_S with "
-				   "invalid length %d", pos[1]);
+				   "invalid payload length %d", len);
 			return -1;
 		}
-		attr->rand_s = pos + 2;
+		attr->rand_s = data;
 		break;
 	case EAP_SAKE_AT_RAND_P:
 		wpa_printf(MSG_DEBUG, "EAP-SAKE: Parse: AT_RAND_P");
-		if (pos[1] != 2 + EAP_SAKE_RAND_LEN) {
+		if (len != EAP_SAKE_RAND_LEN) {
 			wpa_printf(MSG_DEBUG, "EAP-SAKE: AT_RAND_P with "
-				   "invalid length %d", pos[1]);
+				   "invalid payload length %d", len);
 			return -1;
 		}
-		attr->rand_p = pos + 2;
+		attr->rand_p = data;
 		break;
 	case EAP_SAKE_AT_MIC_S:
 		wpa_printf(MSG_DEBUG, "EAP-SAKE: Parse: AT_MIC_S");
-		if (pos[1] != 2 + EAP_SAKE_MIC_LEN) {
+		if (len != EAP_SAKE_MIC_LEN) {
 			wpa_printf(MSG_DEBUG, "EAP-SAKE: AT_MIC_S with "
-				   "invalid length %d", pos[1]);
+				   "invalid payload length %d", len);
 			return -1;
 		}
-		attr->mic_s = pos + 2;
+		attr->mic_s = data;
 		break;
 	case EAP_SAKE_AT_MIC_P:
 		wpa_printf(MSG_DEBUG, "EAP-SAKE: Parse: AT_MIC_P");
-		if (pos[1] != 2 + EAP_SAKE_MIC_LEN) {
+		if (len != EAP_SAKE_MIC_LEN) {
 			wpa_printf(MSG_DEBUG, "EAP-SAKE: AT_MIC_P with "
-				   "invalid length %d", pos[1]);
+				   "invalid payload length %d", len);
 			return -1;
 		}
-		attr->mic_p = pos + 2;
+		attr->mic_p = data;
 		break;
 	case EAP_SAKE_AT_SERVERID:
 		wpa_printf(MSG_DEBUG, "EAP-SAKE: Parse: AT_SERVERID");
-		attr->serverid = pos + 2;
-		attr->serverid_len = pos[1] - 2;
+		attr->serverid = data;
+		attr->serverid_len = len;
 		break;
 	case EAP_SAKE_AT_PEERID:
 		wpa_printf(MSG_DEBUG, "EAP-SAKE: Parse: AT_PEERID");
-		attr->peerid = pos + 2;
-		attr->peerid_len = pos[1] - 2;
+		attr->peerid = data;
+		attr->peerid_len = len;
 		break;
 	case EAP_SAKE_AT_SPI_S:
 		wpa_printf(MSG_DEBUG, "EAP-SAKE: Parse: AT_SPI_S");
-		attr->spi_s = pos + 2;
-		attr->spi_s_len = pos[1] - 2;
+		attr->spi_s = data;
+		attr->spi_s_len = len;
 		break;
 	case EAP_SAKE_AT_SPI_P:
 		wpa_printf(MSG_DEBUG, "EAP-SAKE: Parse: AT_SPI_P");
-		attr->spi_p = pos + 2;
-		attr->spi_p_len = pos[1] - 2;
+		attr->spi_p = data;
+		attr->spi_p_len = len;
 		break;
 	case EAP_SAKE_AT_ANY_ID_REQ:
 		wpa_printf(MSG_DEBUG, "EAP-SAKE: Parse: AT_ANY_ID_REQ");
-		if (pos[1] != 4) {
+		if (len != 2) {
 			wpa_printf(MSG_DEBUG, "EAP-SAKE: Invalid AT_ANY_ID_REQ"
-				   " length %d", pos[1]);
+				   " payload length %d", len);
 			return -1;
 		}
-		attr->any_id_req = pos + 2;
+		attr->any_id_req = data;
 		break;
 	case EAP_SAKE_AT_PERM_ID_REQ:
 		wpa_printf(MSG_DEBUG, "EAP-SAKE: Parse: AT_PERM_ID_REQ");
-		if (pos[1] != 4) {
+		if (len != 2) {
 			wpa_printf(MSG_DEBUG, "EAP-SAKE: Invalid "
-				   "AT_PERM_ID_REQ length %d", pos[1]);
+				   "AT_PERM_ID_REQ payload length %d", len);
 			return -1;
 		}
-		attr->perm_id_req = pos + 2;
+		attr->perm_id_req = data;
 		break;
 	case EAP_SAKE_AT_ENCR_DATA:
 		wpa_printf(MSG_DEBUG, "EAP-SAKE: Parse: AT_ENCR_DATA");
-		attr->encr_data = pos + 2;
-		attr->encr_data_len = pos[1] - 2;
+		attr->encr_data = data;
+		attr->encr_data_len = len;
 		break;
 	case EAP_SAKE_AT_IV:
 		wpa_printf(MSG_DEBUG, "EAP-SAKE: Parse: AT_IV");
-		attr->iv = pos + 2;
-		attr->iv_len = pos[1] - 2;
+		attr->iv = data;
+		attr->iv_len = len;
 		break;
 	case EAP_SAKE_AT_PADDING:
 		wpa_printf(MSG_DEBUG, "EAP-SAKE: Parse: AT_PADDING");
-		for (i = 2; i < pos[1]; i++) {
-			if (pos[i]) {
+		for (i = 0; i < len; i++) {
+			if (data[i]) {
 				wpa_printf(MSG_DEBUG, "EAP-SAKE: AT_PADDING "
 					   "with non-zero pad byte");
 				return -1;
@@ -117,26 +117,26 @@ static int eap_sake_parse_add_attr(struct eap_sake_parse_attr *attr,
 		break;
 	case EAP_SAKE_AT_NEXT_TMPID:
 		wpa_printf(MSG_DEBUG, "EAP-SAKE: Parse: AT_NEXT_TMPID");
-		attr->next_tmpid = pos + 2;
-		attr->next_tmpid_len = pos[1] - 2;
+		attr->next_tmpid = data;
+		attr->next_tmpid_len = len;
 		break;
 	case EAP_SAKE_AT_MSK_LIFE:
 		wpa_printf(MSG_DEBUG, "EAP-SAKE: Parse: AT_IV");
-		if (pos[1] != 6) {
+		if (len != 4) {
 			wpa_printf(MSG_DEBUG, "EAP-SAKE: Invalid "
-				   "AT_MSK_LIFE length %d", pos[1]);
+				   "AT_MSK_LIFE payload length %d", len);
 			return -1;
 		}
-		attr->msk_life = pos + 2;
+		attr->msk_life = data;
 		break;
 	default:
-		if (pos[0] < 128) {
+		if (attr_id < 128) {
 			wpa_printf(MSG_DEBUG, "EAP-SAKE: Unknown non-skippable"
-				   " attribute %d", pos[0]);
+				   " attribute %d", attr_id);
 			return -1;
 		}
 		wpa_printf(MSG_DEBUG, "EAP-SAKE: Ignoring unknown skippable "
-			   "attribute %d", pos[0]);
+			   "attribute %d", attr_id);
 		break;
 	}
 
@@ -180,7 +180,7 @@ int eap_sake_parse_attributes(const u8 *buf, size_t len,
 			return -1;
 		}
 
-		if (eap_sake_parse_add_attr(attr, pos))
+		if (eap_sake_parse_add_attr(attr, pos[0], pos[1] - 2, pos + 2))
 			return -1;
 
 		pos += pos[1];

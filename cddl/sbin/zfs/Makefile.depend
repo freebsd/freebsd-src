@@ -22,6 +22,7 @@ DIRDEPS = \
 	lib/libsbuf \
 	lib/libthr \
 	lib/libutil \
+	lib/libz \
 	lib/msun \
 
 

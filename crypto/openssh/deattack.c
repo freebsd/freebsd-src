@@ -1,4 +1,4 @@
-/* $OpenBSD: deattack.c,v 1.30 2006/09/16 19:53:37 djm Exp $ */
+/* $OpenBSD: deattack.c,v 1.32 2015/01/20 23:14:00 deraadt Exp $ */
 /*
  * Cryptographic attack detector for ssh - source code
  *
@@ -20,16 +20,13 @@
 
 #include "includes.h"
 
-#include <sys/types.h>
-
 #include <string.h>
 #include <stdio.h>
-#include <stdarg.h>
+#include <stdlib.h>
 
-#include "xmalloc.h"
 #include "deattack.h"
-#include "log.h"
 #include "crc32.h"
+#include "sshbuf.h"
 #include "misc.h"
 
 /*
@@ -66,7 +63,7 @@
 
 
 /* Hash function (Input keys are cipher results) */
-#define HASH(x)		get_u32(x)
+#define HASH(x)		PEEK_U32(x)
 
 #define CMP(a, b)	(memcmp(a, b, SSH_BLOCKSIZE))
 
@@ -79,10 +76,10 @@ crc_update(u_int32_t *a, u_int32_t b)
 
 /* detect if a block is used in a particular pattern */
 static int
-check_crc(u_char *S, u_char *buf, u_int32_t len)
+check_crc(const u_char *S, const u_char *buf, u_int32_t len)
 {
 	u_int32_t crc;
-	u_char *c;
+	const u_char *c;
 
 	crc = 0;
 	for (c = buf; c < buf + len; c += SSH_BLOCKSIZE) {
@@ -94,36 +91,44 @@ check_crc(u_char *S, u_char *buf, u_int32_t len)
 			crc_update(&crc, 0);
 		}
 	}
-	return (crc == 0);
+	return crc == 0;
 }
 
+void
+deattack_init(struct deattack_ctx *dctx)
+{
+	bzero(dctx, sizeof(*dctx));
+	dctx->n = HASH_MINSIZE / HASH_ENTRYSIZE;
+}
 
 /* Detect a crc32 compensation attack on a packet */
 int
-detect_attack(u_char *buf, u_int32_t len)
+detect_attack(struct deattack_ctx *dctx, const u_char *buf, u_int32_t len)
 {
-	static u_int16_t *h = (u_int16_t *) NULL;
-	static u_int32_t n = HASH_MINSIZE / HASH_ENTRYSIZE;
-	u_int32_t i, j;
-	u_int32_t l, same;
-	u_char *c;
-	u_char *d;
+	u_int32_t i, j, l, same;
+	u_int16_t *tmp;
+	const u_char *c, *d;
 
 	if (len > (SSH_MAXBLOCKS * SSH_BLOCKSIZE) ||
-	    len % SSH_BLOCKSIZE != 0) {
-		fatal("detect_attack: bad length %d", len);
-	}
-	for (l = n; l < HASH_FACTOR(len / SSH_BLOCKSIZE); l = l << 2)
+	    len % SSH_BLOCKSIZE != 0)
+		return DEATTACK_ERROR;
+	for (l = dctx->n; l < HASH_FACTOR(len / SSH_BLOCKSIZE); l = l << 2)
 		;
 
-	if (h == NULL) {
-		debug("Installing crc compensation attack detector.");
-		h = (u_int16_t *) xcalloc(l, HASH_ENTRYSIZE);
-		n = l;
+	if (dctx->h == NULL) {
+		if ((dctx->h = calloc(l, HASH_ENTRYSIZE)) == NULL)
+			return DEATTACK_ERROR;
+		dctx->n = l;
 	} else {
-		if (l > n) {
-			h = (u_int16_t *)xrealloc(h, l, HASH_ENTRYSIZE);
-			n = l;
+		if (l > dctx->n) {
+			if ((tmp = reallocarray(dctx->h, l, HASH_ENTRYSIZE))
+			    == NULL) {
+				free(dctx->h);
+				dctx->h = NULL;
+				return DEATTACK_ERROR;
+			}
+			dctx->h = tmp;
+			dctx->n = l;
 		}
 	}
 
@@ -132,29 +137,29 @@ detect_attack(u_char *buf, u_int32_t len)
 			for (d = buf; d < c; d += SSH_BLOCKSIZE) {
 				if (!CMP(c, d)) {
 					if ((check_crc(c, buf, len)))
-						return (DEATTACK_DETECTED);
+						return DEATTACK_DETECTED;
 					else
 						break;
 				}
 			}
 		}
-		return (DEATTACK_OK);
+		return DEATTACK_OK;
 	}
-	memset(h, HASH_UNUSEDCHAR, n * HASH_ENTRYSIZE);
+	memset(dctx->h, HASH_UNUSEDCHAR, dctx->n * HASH_ENTRYSIZE);
 
 	for (c = buf, same = j = 0; c < (buf + len); c += SSH_BLOCKSIZE, j++) {
-		for (i = HASH(c) & (n - 1); h[i] != HASH_UNUSED;
-		    i = (i + 1) & (n - 1)) {
-			if (!CMP(c, buf + h[i] * SSH_BLOCKSIZE)) {
+		for (i = HASH(c) & (dctx->n - 1); dctx->h[i] != HASH_UNUSED;
+		    i = (i + 1) & (dctx->n - 1)) {
+			if (!CMP(c, buf + dctx->h[i] * SSH_BLOCKSIZE)) {
 				if (++same > MAX_IDENTICAL)
-					return (DEATTACK_DOS_DETECTED);
+					return DEATTACK_DOS_DETECTED;
 				if (check_crc(c, buf, len))
-					return (DEATTACK_DETECTED);
+					return DEATTACK_DETECTED;
 				else
 					break;
 			}
 		}
-		h[i] = j;
+		dctx->h[i] = j;
 	}
-	return (DEATTACK_OK);
+	return DEATTACK_OK;
 }

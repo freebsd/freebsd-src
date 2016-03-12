@@ -99,9 +99,10 @@ int
 main(int argc, char **argv)
 {
 	const char *fn = NULL;
-	unsigned char inbuf[8192];
+	unsigned char *inbuf;
 	struct ucl_parser *parser;
 	int k, ret = 0, r = 0;
+	ssize_t bufsize;
 	ucl_object_t *obj = NULL;
 	const ucl_object_t *par;
 	FILE *in;
@@ -121,9 +122,27 @@ main(int argc, char **argv)
 	}
 
 	parser = ucl_parser_new (0);
-	while (!feof (in) && r < (int)sizeof (inbuf)) {
-		r += fread (inbuf + r, 1, sizeof (inbuf) - r, in);
+	inbuf = malloc (BUFSIZ);
+	bufsize = BUFSIZ;
+	r = 0;
+
+	while (!feof (in) && !ferror (in)) {
+		if (r == bufsize) {
+			inbuf = realloc (inbuf, bufsize * 2);
+			bufsize *= 2;
+			if (inbuf == NULL) {
+				perror ("realloc");
+				exit (EXIT_FAILURE);
+			}
+		}
+		r += fread (inbuf + r, 1, bufsize - r, in);
 	}
+
+	if (ferror (in)) {
+		fprintf (stderr, "Failed to read the input file.\n");
+		exit (EXIT_FAILURE);
+	}
+
 	ucl_parser_add_chunk (parser, inbuf, r);
 	fclose (in);
 	if (ucl_parser_get_error(parser)) {

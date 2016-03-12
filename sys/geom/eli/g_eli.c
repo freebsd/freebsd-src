@@ -195,7 +195,7 @@ g_eli_read_done(struct bio *bp)
 
 	G_ELI_LOGREQ(2, bp, "Request done.");
 	pbp = bp->bio_parent;
-	if (pbp->bio_error == 0)
+	if (pbp->bio_error == 0 && bp->bio_error != 0)
 		pbp->bio_error = bp->bio_error;
 	g_destroy_bio(bp);
 	/*
@@ -206,7 +206,8 @@ g_eli_read_done(struct bio *bp)
 		return;
 	sc = pbp->bio_to->geom->softc;
 	if (pbp->bio_error != 0) {
-		G_ELI_LOGREQ(0, pbp, "%s() failed", __func__);
+		G_ELI_LOGREQ(0, pbp, "%s() failed (error=%d)", __func__,
+		    pbp->bio_error);
 		pbp->bio_completed = 0;
 		if (pbp->bio_driver2 != NULL) {
 			free(pbp->bio_driver2, M_ELI);
@@ -235,10 +236,8 @@ g_eli_write_done(struct bio *bp)
 
 	G_ELI_LOGREQ(2, bp, "Request done.");
 	pbp = bp->bio_parent;
-	if (pbp->bio_error == 0) {
-		if (bp->bio_error != 0)
-			pbp->bio_error = bp->bio_error;
-	}
+	if (pbp->bio_error == 0 && bp->bio_error != 0)
+		pbp->bio_error = bp->bio_error;
 	g_destroy_bio(bp);
 	/*
 	 * Do we have all sectors already?
@@ -249,14 +248,15 @@ g_eli_write_done(struct bio *bp)
 	free(pbp->bio_driver2, M_ELI);
 	pbp->bio_driver2 = NULL;
 	if (pbp->bio_error != 0) {
-		G_ELI_LOGREQ(0, pbp, "Crypto WRITE request failed (error=%d).",
+		G_ELI_LOGREQ(0, pbp, "%s() failed (error=%d)", __func__,
 		    pbp->bio_error);
 		pbp->bio_completed = 0;
-	}
+	} else
+		pbp->bio_completed = pbp->bio_length;
+
 	/*
 	 * Write is finished, send it up.
 	 */
-	pbp->bio_completed = pbp->bio_length;
 	sc = pbp->bio_to->geom->softc;
 	g_io_deliver(pbp, pbp->bio_error);
 	atomic_subtract_int(&sc->sc_inflight, 1);
@@ -571,40 +571,6 @@ again:
 	}
 }
 
-/*
- * Here we generate IV. It is unique for every sector.
- */
-void
-g_eli_crypto_ivgen(struct g_eli_softc *sc, off_t offset, u_char *iv,
-    size_t size)
-{
-	uint8_t off[8];
-
-	if ((sc->sc_flags & G_ELI_FLAG_NATIVE_BYTE_ORDER) != 0)
-		bcopy(&offset, off, sizeof(off));
-	else
-		le64enc(off, (uint64_t)offset);
-
-	switch (sc->sc_ealgo) {
-	case CRYPTO_AES_XTS:
-		bcopy(off, iv, sizeof(off));
-		bzero(iv + sizeof(off), size - sizeof(off));
-		break;
-	default:
-	    {
-		u_char hash[SHA256_DIGEST_LENGTH];
-		SHA256_CTX ctx;
-
-		/* Copy precalculated SHA256 context for IV-Key. */
-		bcopy(&sc->sc_ivctx, &ctx, sizeof(ctx));
-		SHA256_Update(&ctx, off, sizeof(off));
-		SHA256_Final(hash, &ctx);
-		bcopy(hash, iv, MIN(sizeof(hash), size));
-		break;
-	    }
-	}
-}
-
 int
 g_eli_read_metadata(struct g_class *mp, struct g_provider *pp,
     struct g_eli_metadata *md)
@@ -751,43 +717,8 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	else
 		gp->access = g_std_access;
 
-	sc->sc_version = md->md_version;
-	sc->sc_inflight = 0;
-	sc->sc_crypto = G_ELI_CRYPTO_UNKNOWN;
-	sc->sc_flags = md->md_flags;
-	/* Backward compatibility. */
-	if (md->md_version < G_ELI_VERSION_04)
-		sc->sc_flags |= G_ELI_FLAG_NATIVE_BYTE_ORDER;
-	if (md->md_version < G_ELI_VERSION_05)
-		sc->sc_flags |= G_ELI_FLAG_SINGLE_KEY;
-	if (md->md_version < G_ELI_VERSION_06 &&
-	    (sc->sc_flags & G_ELI_FLAG_AUTH) != 0) {
-		sc->sc_flags |= G_ELI_FLAG_FIRST_KEY;
-	}
-	if (md->md_version < G_ELI_VERSION_07)
-		sc->sc_flags |= G_ELI_FLAG_ENC_IVKEY;
-	sc->sc_ealgo = md->md_ealgo;
+	eli_metadata_softc(sc, md, bpp->sectorsize, bpp->mediasize);
 	sc->sc_nkey = nkey;
-
-	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
-		sc->sc_akeylen = sizeof(sc->sc_akey) * 8;
-		sc->sc_aalgo = md->md_aalgo;
-		sc->sc_alen = g_eli_hashlen(sc->sc_aalgo);
-
-		sc->sc_data_per_sector = bpp->sectorsize - sc->sc_alen;
-		/*
-		 * Some hash functions (like SHA1 and RIPEMD160) generates hash
-		 * which length is not multiple of 128 bits, but we want data
-		 * length to be multiple of 128, so we can encrypt without
-		 * padding. The line below rounds down data length to multiple
-		 * of 128 bits.
-		 */
-		sc->sc_data_per_sector -= sc->sc_data_per_sector % 16;
-
-		sc->sc_bytes_per_sector =
-		    (md->md_sectorsize - 1) / sc->sc_data_per_sector + 1;
-		sc->sc_bytes_per_sector *= bpp->sectorsize;
-	}
 
 	gp->softc = sc;
 	sc->sc_geom = gp;
@@ -831,22 +762,10 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		goto failed;
 	}
 
-	sc->sc_sectorsize = md->md_sectorsize;
-	sc->sc_mediasize = bpp->mediasize;
-	if (!(sc->sc_flags & G_ELI_FLAG_ONETIME))
-		sc->sc_mediasize -= bpp->sectorsize;
-	if (!(sc->sc_flags & G_ELI_FLAG_AUTH))
-		sc->sc_mediasize -= (sc->sc_mediasize % sc->sc_sectorsize);
-	else {
-		sc->sc_mediasize /= sc->sc_bytes_per_sector;
-		sc->sc_mediasize *= sc->sc_sectorsize;
-	}
-
 	/*
 	 * Remember the keys in our softc structure.
 	 */
 	g_eli_mkey_propagate(sc, mkey);
-	sc->sc_ekeylen = md->md_keylen;
 
 	LIST_INIT(&sc->sc_workers);
 

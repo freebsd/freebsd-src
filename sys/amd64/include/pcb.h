@@ -44,15 +44,19 @@
 #include <machine/segments.h>
 
 #ifdef __amd64__
+/*
+ * NB: The fields marked with (*) are used by kernel debuggers.  Their
+ * ABI should be preserved.
+ */
 struct pcb {
-	register_t	pcb_r15;
-	register_t	pcb_r14;
-	register_t	pcb_r13;
-	register_t	pcb_r12;
-	register_t	pcb_rbp;
-	register_t	pcb_rsp;
-	register_t	pcb_rbx;
-	register_t	pcb_rip;
+	register_t	pcb_r15;	/* (*) */
+	register_t	pcb_r14;	/* (*) */
+	register_t	pcb_r13;	/* (*) */
+	register_t	pcb_r12;	/* (*) */
+	register_t	pcb_rbp;	/* (*) */
+	register_t	pcb_rsp;	/* (*) */
+	register_t	pcb_rbx;	/* (*) */
+	register_t	pcb_rip;	/* (*) */
 	register_t	pcb_fsbase;
 	register_t	pcb_gsbase;
 	register_t	pcb_kgsbase;

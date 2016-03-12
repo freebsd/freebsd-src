@@ -205,11 +205,12 @@ g_clone_bio(struct bio *bp)
 		/*
 		 *  BIO_ORDERED flag may be used by disk drivers to enforce
 		 *  ordering restrictions, so this flag needs to be cloned.
-		 *  BIO_UNMAPPED should be inherited, to properly indicate
-		 *  which way the buffer is passed.
+		 *  BIO_UNMAPPED and BIO_VLIST should be inherited, to properly
+		 *  indicate which way the buffer is passed.
 		 *  Other bio flags are not suitable for cloning.
 		 */
-		bp2->bio_flags = bp->bio_flags & (BIO_ORDERED | BIO_UNMAPPED);
+		bp2->bio_flags = bp->bio_flags &
+		    (BIO_ORDERED | BIO_UNMAPPED | BIO_VLIST);
 		bp2->bio_length = bp->bio_length;
 		bp2->bio_offset = bp->bio_offset;
 		bp2->bio_data = bp->bio_data;
@@ -240,7 +241,7 @@ g_duplicate_bio(struct bio *bp)
 	struct bio *bp2;
 
 	bp2 = uma_zalloc(biozone, M_WAITOK | M_ZERO);
-	bp2->bio_flags = bp->bio_flags & BIO_UNMAPPED;
+	bp2->bio_flags = bp->bio_flags & (BIO_UNMAPPED | BIO_VLIST);
 	bp2->bio_parent = bp;
 	bp2->bio_cmd = bp->bio_cmd;
 	bp2->bio_length = bp->bio_length;
@@ -261,6 +262,13 @@ g_duplicate_bio(struct bio *bp)
 	}
 #endif
 	return(bp2);
+}
+
+void
+g_reset_bio(struct bio *bp)
+{
+
+	bzero(bp, sizeof(*bp));
 }
 
 void
@@ -471,6 +479,7 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	struct g_provider *pp;
 	struct mtx *mtxp;
 	int direct, error, first;
+	uint8_t cmd;
 
 	KASSERT(cp != NULL, ("NULL cp in g_io_request"));
 	KASSERT(bp != NULL, ("NULL bp in g_io_request"));
@@ -492,16 +501,17 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	bp->_bio_cflags = bp->bio_cflags;
 #endif
 
-	if (bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_GETATTR)) {
+	cmd = bp->bio_cmd;
+	if (cmd == BIO_READ || cmd == BIO_WRITE || cmd == BIO_GETATTR) {
 		KASSERT(bp->bio_data != NULL,
 		    ("NULL bp->data in g_io_request(cmd=%hhu)", bp->bio_cmd));
 	}
-	if (bp->bio_cmd & (BIO_DELETE|BIO_FLUSH)) {
+	if (cmd == BIO_DELETE || cmd == BIO_FLUSH) {
 		KASSERT(bp->bio_data == NULL,
 		    ("non-NULL bp->data in g_io_request(cmd=%hhu)",
 		    bp->bio_cmd));
 	}
-	if (bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE)) {
+	if (cmd == BIO_READ || cmd == BIO_WRITE || cmd == BIO_DELETE) {
 		KASSERT(bp->bio_offset % cp->provider->sectorsize == 0,
 		    ("wrong offset %jd for sectorsize %u",
 		    bp->bio_offset, cp->provider->sectorsize));

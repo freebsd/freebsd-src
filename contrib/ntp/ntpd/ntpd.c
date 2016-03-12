@@ -27,6 +27,18 @@
 #include "ntp_libopts.h"
 #include "ntpd-opts.h"
 
+/* there's a short treatise below what the thread stuff is for.
+ * [Bug 2954] enable the threading warm-up only for Linux.
+ */
+#if defined(HAVE_PTHREADS) && HAVE_PTHREADS && !defined(NO_THREADS)
+# ifdef HAVE_PTHREAD_H
+#  include <pthread.h>
+# endif
+# if defined(linux)
+#  define NEED_PTHREAD_WARMUP
+# endif
+#endif
+
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
@@ -180,12 +192,6 @@ int	waitsync_fd_to_close = -1;	/* -w/--wait-sync */
 #endif
 
 /*
- * Initializing flag.  All async routines watch this and only do their
- * thing when it is clear.
- */
-int initializing;
-
-/*
  * Version declaration
  */
 extern const char *Version;
@@ -203,6 +209,11 @@ extern int syscall	(int, ...);
 
 
 #if !defined(SIM) && defined(SIGDIE1)
+static volatile int signalled	= 0;
+static volatile int signo	= 0;
+
+/* In an ideal world, 'finish_safe()' would declared as noreturn... */
+static	void		finish_safe	(int);
 static	RETSIGTYPE	finish		(int);
 #endif
 
@@ -238,6 +249,88 @@ static void	library_unexpected_error(const char *, int,
 #endif	/* !SIM */
 
 
+/* Bug2332 unearthed a problem in the interaction of reduced user
+ * privileges, the limits on memory usage and some versions of the
+ * pthread library on Linux systems. The 'pthread_cancel()' function and
+ * likely some others need to track the stack of the thread involved,
+ * and uses a function that comes from GCC (--> libgcc_s.so) to do
+ * this. Unfortunately the developers of glibc decided to load the
+ * library on demand, which speeds up program start but can cause
+ * trouble here: Due to all the things NTPD does to limit its resource
+ * usage, this deferred load of libgcc_s does not always work once the
+ * restrictions are in effect.
+ *
+ * One way out of this was attempting a forced link against libgcc_s
+ * when possible because it makes the library available immediately
+ * without deferred load. (The symbol resolution would still be dynamic
+ * and on demand, but the code would already be in the process image.)
+ *
+ * This is a tricky thing to do, since it's not necessary everywhere,
+ * not possible everywhere, has shown to break the build of other
+ * programs in the NTP suite and is now generally frowned upon.
+ *
+ * So we take a different approach here: We creat a worker thread that does
+ * actually nothing except waiting for cancellation and cancel it. If
+ * this is done before all the limitations are put in place, the
+ * machinery is pre-heated and all the runtime stuff should be in place
+ * and useable when needed.
+ *
+ * This uses only the standard pthread API and should work with all
+ * implementations of pthreads. It is not necessary everywhere, but it's
+ * cheap enough to go on nearly unnoticed.
+ *
+ * Addendum: Bug 2954 showed that the assumption that this should work
+ * with all OS is wrong -- at least FreeBSD bombs heavily.
+ */
+#ifdef NEED_PTHREAD_WARMUP
+
+/* simple thread function: sleep until cancelled, just to exercise
+ * thread cancellation.
+ */
+static void*
+my_pthread_warmup_worker(
+	void *thread_args)
+{
+	(void)thread_args;
+	for (;;)
+		sleep(10);
+	return NULL;
+}
+	
+/* pre-heat threading: create a thread and cancel it, just to exercise
+ * thread cancellation.
+ */
+static void
+my_pthread_warmup(void)
+{
+	pthread_t 	thread;
+	pthread_attr_t	thr_attr;
+	int       	rc;
+	
+	pthread_attr_init(&thr_attr);
+#if defined(HAVE_PTHREAD_ATTR_GETSTACKSIZE) && \
+    defined(HAVE_PTHREAD_ATTR_SETSTACKSIZE) && \
+    defined(PTHREAD_STACK_MIN)
+	rc = pthread_attr_setstacksize(&thr_attr, PTHREAD_STACK_MIN);
+	if (0 != rc)
+		msyslog(LOG_ERR,
+			"my_pthread_warmup: pthread_attr_setstacksize() -> %s",
+			strerror(rc));
+#endif
+	rc = pthread_create(
+		&thread, &thr_attr, my_pthread_warmup_worker, NULL);
+	pthread_attr_destroy(&thr_attr);
+	if (0 != rc) {
+		msyslog(LOG_ERR,
+			"my_pthread_warmup: pthread_create() -> %s",
+			strerror(rc));
+	} else {
+		pthread_cancel(thread);
+		pthread_join(thread, NULL);
+	}
+}
+
+#endif /*defined(NEED_PTHREAD_WARMUP)*/
 
 
 void
@@ -451,6 +544,10 @@ ntpdmain(
 	int		zero;
 # endif
 
+# ifdef NEED_PTHREAD_WARMUP
+	my_pthread_warmup();
+# endif
+	
 # ifdef HAVE_UMASK
 	uv = umask(0);
 	if (uv)
@@ -578,6 +675,9 @@ ntpdmain(
 # endif
 
 # ifdef HAVE_WORKING_FORK
+	/* make sure the FDs are initialised */
+	pipe_fds[0] = -1;
+	pipe_fds[1] = -1;
 	do {					/* 'loop' once */
 		if (!HAVE_OPT( WAIT_SYNC ))
 			break;
@@ -791,13 +891,16 @@ ntpdmain(
 	 */
 	getconfig(argc, argv);
 
-	if (do_memlock) {
+	if (-1 == cur_memlock) {
 # if defined(HAVE_MLOCKALL)
 		/*
 		 * lock the process into memory
 		 */
-		if (!HAVE_OPT(SAVECONFIGQUIT) &&
-		    0 != mlockall(MCL_CURRENT|MCL_FUTURE))
+		if (   !HAVE_OPT(SAVECONFIGQUIT)
+#  ifdef RLIMIT_MEMLOCK
+		    && -1 != DFLT_RLIMIT_MEMLOCK
+#  endif
+		    && 0 != mlockall(MCL_CURRENT|MCL_FUTURE))
 			msyslog(LOG_ERR, "mlockall(): %m");
 # else	/* !HAVE_MLOCKALL follows */
 #  ifdef HAVE_PLOCK
@@ -937,10 +1040,17 @@ getgroup:
 			msyslog(LOG_ERR, "Cannot setegid() to group `%s': %m", group);
 			exit (-1);
 		}
-		if (group)
-			setgroups(1, &sw_gid);
-		else
-			initgroups(pw->pw_name, pw->pw_gid);
+		if (group) {
+			if (0 != setgroups(1, &sw_gid)) {
+				msyslog(LOG_ERR, "setgroups(1, %d) failed: %m", sw_gid);
+				exit (-1);
+			}
+		}
+		else if (pw)
+			if (0 != initgroups(pw->pw_name, pw->pw_gid)) {
+				msyslog(LOG_ERR, "initgroups(<%s>, %d) filed: %m", pw->pw_name, pw->pw_gid);
+				exit (-1);
+			}
 		if (user && setuid(sw_uid)) {
 			msyslog(LOG_ERR, "Cannot setuid() to user `%s': %m", user);
 			exit (-1);
@@ -1116,6 +1226,10 @@ int scmp_sc[] = {
 # ifdef HAVE_IO_COMPLETION_PORT
 
 	for (;;) {
+#if !defined(SIM) && defined(SIGDIE1)
+		if (signalled)
+			finish_safe(signo);
+#endif
 		GetReceivedBuffers();
 # else /* normal I/O */
 
@@ -1123,11 +1237,19 @@ int scmp_sc[] = {
 	was_alarmed = FALSE;
 
 	for (;;) {
+#if !defined(SIM) && defined(SIGDIE1)
+		if (signalled)
+			finish_safe(signo);
+#endif		
 		if (alarm_flag) {	/* alarmed? */
 			was_alarmed = TRUE;
 			alarm_flag = FALSE;
 		}
 
+		/* collect async name/addr results */
+		if (!was_alarmed)
+		    harvest_blocking_responses();
+		
 		if (!was_alarmed && !has_full_recv_buffer()) {
 			/*
 			 * Nothing to do.  Wait for something.
@@ -1242,9 +1364,9 @@ int scmp_sc[] = {
 /*
  * finish - exit gracefully
  */
-static RETSIGTYPE
-finish(
-	int sig
+static void
+finish_safe(
+	int	sig
 	)
 {
 	const char *sig_desc;
@@ -1265,6 +1387,16 @@ finish(
 	peer_cleanup();
 	exit(0);
 }
+
+static RETSIGTYPE
+finish(
+	int	sig
+	)
+{
+	signalled = 1;
+	signo = sig;
+}
+
 #endif	/* !SIM && SIGDIE1 */
 
 

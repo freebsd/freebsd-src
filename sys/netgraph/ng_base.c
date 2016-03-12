@@ -63,6 +63,7 @@
 #include <sys/syslog.h>
 #include <sys/unistd.h>
 #include <machine/cpu.h>
+#include <vm/uma.h>
 
 #include <net/netisr.h>
 #include <net/vnet.h>

@@ -42,6 +42,7 @@
 #include "key.h"
 #include "auth-options.h"
 #include "log.h"
+#include "misc.h"	/* servconf.h needs misc.h for struct ForwardOptions */
 #include "servconf.h"
 #include "hostfile.h"
 #include "auth.h"

@@ -199,7 +199,7 @@ rejecting.", *argp);
 			res.ypbind_resp_u.ypbind_error = YPBIND_ERR_RESC;
 			return (&res);
 		}
-		ypdb = (struct _dom_binding *)malloc(sizeof *ypdb);
+		ypdb = malloc(sizeof *ypdb);
 		if (ypdb == NULL) {
 			syslog(LOG_WARNING, "malloc: %m");
 			res.ypbind_resp_u.ypbind_error = YPBIND_ERR_RESC;
@@ -396,7 +396,7 @@ main(int argc, char *argv[])
 	if (flock(yplockfd, LOCK_EX|LOCK_NB) == -1 && errno == EWOULDBLOCK)
 		errx(1, "another ypbind is already running. Aborting");
 
-	/* XXX domainname will be overriden if we use restricted mode */
+	/* XXX domainname will be overridden if we use restricted mode */
 	yp_get_default_domain(&domain_name);
 	if (domain_name[0] == '\0')
 		errx(1, "domainname not set. Aborting");
@@ -452,7 +452,7 @@ main(int argc, char *argv[])
 		errx(1, "unable to register (YPBINDPROG, YPBINDVERS, tcp)");
 
 	/* build initial domain binding, make it "unsuccessful" */
-	ypbindlist = (struct _dom_binding *)malloc(sizeof *ypbindlist);
+	ypbindlist = malloc(sizeof *ypbindlist);
 	if (ypbindlist == NULL)
 		errx(1, "malloc");
 	bzero(ypbindlist, sizeof *ypbindlist);
@@ -886,7 +886,7 @@ rpc_received(char *dom, struct sockaddr_in *raddrp, int force)
 	if (ypdb == NULL) {
 		if (force == 0)
 			return;
-		ypdb = (struct _dom_binding *)malloc(sizeof *ypdb);
+		ypdb = malloc(sizeof *ypdb);
 		if (ypdb == NULL) {
 			syslog(LOG_WARNING, "malloc: %m");
 			return;

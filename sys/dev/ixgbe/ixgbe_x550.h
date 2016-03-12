@@ -69,7 +69,7 @@ void ixgbe_set_ethertype_anti_spoofing_X550(struct ixgbe_hw *hw,
 s32 ixgbe_write_iosf_sb_reg_x550(struct ixgbe_hw *hw, u32 reg_addr,
 				 u32 device_type, u32 data);
 s32 ixgbe_read_iosf_sb_reg_x550(struct ixgbe_hw *hw, u32 reg_addr,
-				u32 device_type, u32 *data);
+	u32 device_type, u32 *data);
 void ixgbe_disable_mdd_X550(struct ixgbe_hw *hw);
 void ixgbe_enable_mdd_X550(struct ixgbe_hw *hw);
 void ixgbe_mdd_event_X550(struct ixgbe_hw *hw, u32 *vf_bitmap);
@@ -82,7 +82,6 @@ void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw);
 s32 ixgbe_reset_hw_X550em(struct ixgbe_hw *hw);
 s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw);
 s32 ixgbe_setup_kr_x550em(struct ixgbe_hw *hw);
-s32 ixgbe_setup_kx4_x550em(struct ixgbe_hw *hw);
 s32 ixgbe_init_ext_t_x550em(struct ixgbe_hw *hw);
 s32 ixgbe_setup_internal_phy_t_x550em(struct ixgbe_hw *hw);
 s32 ixgbe_setup_phy_loopback_x550em(struct ixgbe_hw *hw);

@@ -82,9 +82,13 @@ _ENTRY(_rtld_start)
 
 	bl      _rtld		/* &_start = _rtld(sp, &exit_proc, &obj_main)*/
 	nop
+#if !defined(_CALL_ELF) || _CALL_ELF == 1
 	ld	%r2,8(%r3)
 	ld	%r11,16(%r3)
 	ld	%r3,0(%r3)
+#else
+	mr	%r12,%r3
+#endif
 	mtlr    %r3
 
 	/*
@@ -106,7 +110,8 @@ _ENTRY(_rtld_start)
  * _rtld_bind_start()
  *
  * Call into the MI binder. This routine is reached via the PLT call cell
- * On entry, %r11 contains a pointer to the (object, relocation) tuple.
+ *
+ * On entry, %r11 contains an object pointer and %r0 contains the PLT index.
  *
  * Save all registers, call into the binder to resolve and fixup the external
  * routine, and then transfer to the external routine on return.
@@ -114,6 +119,7 @@ _ENTRY(_rtld_start)
 	.globl  _rtld_bind
 
 _ENTRY(_rtld_bind_start)
+	mr	%r12,%r0		# save r0 (index) immediately to r12
 	mflr    %r0
 	std     %r0,16(%r1)		# save lr
 	mfcr    %r0
@@ -121,7 +127,7 @@ _ENTRY(_rtld_bind_start)
 
 	stdu    %r1,-48-12*8(%r1)	# stack space for 8 regs + header
 					#   + 2 save regs
-	std	%r3,64+0*8(%r1)		# save r3-r31
+	std	%r3,64+0*8(%r1)		# save r3-r10 (arguments)
 	std	%r4,64+1*8(%r1)
 	std	%r5,64+2*8(%r1)
 	std	%r6,64+3*8(%r1)
@@ -129,19 +135,23 @@ _ENTRY(_rtld_bind_start)
 	std	%r8,64+5*8(%r1)
 	std	%r9,64+6*8(%r1)
 	std	%r10,64+7*8(%r1)
-	std	%r12,64+8*8(%r1)
 
-	ld	%r3,0(%r11)
-	ld	%r4,8(%r11)
+	mr	%r3,%r11
+	mulli	%r4,%r12,24		# Multiply index by sizeof(Elf_Rela)
+
 	bl      _rtld_bind		# target addr = _rtld_bind(obj, reloff)
 	nop
 
+#if !defined(_CALL_ELF) || _CALL_ELF == 1
 	ld	%r2,8(%r3)
 	ld	%r11,16(%r3)
 	ld	%r3,0(%r3)
+#else 
+	mr	%r12,%r3
+#endif
 	mtctr   %r3			# move absolute target addr into ctr
 
-	ld	%r3,64+0*8(%r1)		# restore r3-r31
+	ld	%r3,64+0*8(%r1)		# restore r3-r10
 	ld	%r4,64+1*8(%r1)
 	ld	%r5,64+2*8(%r1)
 	ld	%r6,64+3*8(%r1)
@@ -149,7 +159,6 @@ _ENTRY(_rtld_bind_start)
 	ld	%r8,64+5*8(%r1)
 	ld	%r9,64+6*8(%r1)
 	ld	%r10,64+7*8(%r1)
-	ld	%r12,64+8*8(%r1)
 
 	ld	%r1,0(%r1)		# restore stack
 	ld	%r0,8(%r1)		# restore cr

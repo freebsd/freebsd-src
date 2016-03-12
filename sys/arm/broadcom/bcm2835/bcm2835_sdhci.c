@@ -145,7 +145,7 @@ bcm_sdhci_attach(device_t dev)
 	sc->sc_dev = dev;
 	sc->sc_req = NULL;
 
-	err = bcm2835_mbox_set_power_state(dev, BCM2835_MBOX_POWER_ID_EMMC,
+	err = bcm2835_mbox_set_power_state(BCM2835_MBOX_POWER_ID_EMMC,
 	    TRUE);
 	if (err != 0) {
 		if (bootverbose)
@@ -154,7 +154,7 @@ bcm_sdhci_attach(device_t dev)
 	}
 
 	default_freq = 0;
-	err = bcm2835_mbox_get_clock_rate(dev, BCM2835_MBOX_CLOCK_ID_EMMC,
+	err = bcm2835_mbox_get_clock_rate(BCM2835_MBOX_CLOCK_ID_EMMC,
 	    &default_freq);
 	if (err == 0) {
 		/* Convert to MHz */
@@ -214,11 +214,7 @@ bcm_sdhci_attach(device_t dev)
  
 	sdhci_init_slot(dev, &sc->sc_slot, 0);
 
-	sc->sc_dma_ch = bcm_dma_allocate(BCM_DMA_CH_FAST1);
-	if (sc->sc_dma_ch == BCM_DMA_CH_INVALID)
-		sc->sc_dma_ch = bcm_dma_allocate(BCM_DMA_CH_FAST2);
-	if (sc->sc_dma_ch == BCM_DMA_CH_INVALID)
-		sc->sc_dma_ch = bcm_dma_allocate(BCM_DMA_CH_ANY);
+	sc->sc_dma_ch = bcm_dma_allocate(BCM_DMA_CH_ANY);
 	if (sc->sc_dma_ch == BCM_DMA_CH_INVALID)
 		goto fail;
 
@@ -675,3 +671,4 @@ static driver_t bcm_sdhci_driver = {
 
 DRIVER_MODULE(sdhci_bcm, simplebus, bcm_sdhci_driver, bcm_sdhci_devclass, 0, 0);
 MODULE_DEPEND(sdhci_bcm, sdhci, 1, 1, 1);
+DRIVER_MODULE(mmc, sdhci_bcm, mmc_driver, mmc_devclass, NULL, NULL);

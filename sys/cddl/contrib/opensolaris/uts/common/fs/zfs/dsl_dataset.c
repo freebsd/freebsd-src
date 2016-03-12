@@ -25,6 +25,8 @@
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 RackTop Systems.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
+ * Copyright 2016, OmniTI Computer Consulting, Inc. All rights reserved.
  */
 
 #include <sys/dmu_objset.h>
@@ -52,6 +54,8 @@
 #include <sys/dsl_destroy.h>
 #include <sys/dsl_userhold.h>
 #include <sys/dsl_bookmark.h>
+#include <sys/dmu_send.h>
+#include <sys/zio_checksum.h>
 #include <sys/zio_compress.h>
 #include <zfs_fletcher.h>
 
@@ -81,6 +85,8 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, max_recordsize, CTLFLAG_RWTUN,
 #define	DS_REF_MAX	(1ULL << 62)
 
 extern inline dsl_dataset_phys_t *dsl_dataset_phys(dsl_dataset_t *ds);
+
+extern int spa_asize_inflation;
 
 /*
  * Figure out how much of this delta should be propogated to the dsl_dir
@@ -133,10 +139,16 @@ dsl_dataset_block_born(dsl_dataset_t *ds, const blkptr_t *bp, dmu_tx_t *tx)
 	dsl_dataset_phys(ds)->ds_compressed_bytes += compressed;
 	dsl_dataset_phys(ds)->ds_uncompressed_bytes += uncompressed;
 	dsl_dataset_phys(ds)->ds_unique_bytes += used;
+
 	if (BP_GET_LSIZE(bp) > SPA_OLD_MAXBLOCKSIZE) {
 		ds->ds_feature_activation_needed[SPA_FEATURE_LARGE_BLOCKS] =
 		    B_TRUE;
 	}
+
+	spa_feature_t f = zio_checksum_to_feature(BP_GET_CHECKSUM(bp));
+	if (f != SPA_FEATURE_NONE)
+		ds->ds_feature_activation_needed[f] = B_TRUE;
+
 	mutex_exit(&ds->ds_lock);
 	dsl_dir_diduse_space(ds->ds_dir, DD_USED_HEAD, delta,
 	    compressed, uncompressed, tx);
@@ -1791,7 +1803,7 @@ get_receive_resume_stats(dsl_dataset_t *ds, nvlist_t *nv)
 		    packed_size, packed_size, 6);
 
 		zio_cksum_t cksum;
-		fletcher_4_native(compressed, compressed_size, &cksum);
+		fletcher_4_native(compressed, compressed_size, NULL, &cksum);
 
 		str = kmem_alloc(compressed_size * 2 + 1, KM_SLEEP);
 		for (int i = 0; i < compressed_size; i++) {
@@ -2888,6 +2900,11 @@ int
 dsl_dataset_clone_swap_check_impl(dsl_dataset_t *clone,
     dsl_dataset_t *origin_head, boolean_t force, void *owner, dmu_tx_t *tx)
 {
+	/*
+	 * "slack" factor for received datasets with refquota set on them.
+	 * See the bottom of this function for details on its use.
+	 */
+	uint64_t refquota_slack = DMU_MAX_ACCESS * spa_asize_inflation;
 	int64_t unused_refres_delta;
 
 	/* they should both be heads */
@@ -2930,10 +2947,22 @@ dsl_dataset_clone_swap_check_impl(dsl_dataset_t *clone,
 	    dsl_dir_space_available(origin_head->ds_dir, NULL, 0, TRUE))
 		return (SET_ERROR(ENOSPC));
 
-	/* clone can't be over the head's refquota */
+	/*
+	 * The clone can't be too much over the head's refquota.
+	 *
+	 * To ensure that the entire refquota can be used, we allow one
+	 * transaction to exceed the the refquota.  Therefore, this check
+	 * needs to also allow for the space referenced to be more than the
+	 * refquota.  The maximum amount of space that one transaction can use
+	 * on disk is DMU_MAX_ACCESS * spa_asize_inflation.  Allowing this
+	 * overage ensures that we are able to receive a filesystem that
+	 * exceeds the refquota on the source system.
+	 *
+	 * So that overage is the refquota_slack we use below.
+	 */
 	if (origin_head->ds_quota != 0 &&
 	    dsl_dataset_phys(clone)->ds_referenced_bytes >
-	    origin_head->ds_quota)
+	    origin_head->ds_quota + refquota_slack)
 		return (SET_ERROR(EDQUOT));
 
 	return (0);
@@ -2947,8 +2976,13 @@ dsl_dataset_clone_swap_sync_impl(dsl_dataset_t *clone,
 	int64_t unused_refres_delta;
 
 	ASSERT(clone->ds_reserved == 0);
+	/*
+	 * NOTE: On DEBUG kernels there could be a race between this and
+	 * the check function if spa_asize_inflation is adjusted...
+	 */
 	ASSERT(origin_head->ds_quota == 0 ||
-	    dsl_dataset_phys(clone)->ds_unique_bytes <= origin_head->ds_quota);
+	    dsl_dataset_phys(clone)->ds_unique_bytes <= origin_head->ds_quota +
+	    DMU_MAX_ACCESS * spa_asize_inflation);
 	ASSERT3P(clone->ds_prev, ==, origin_head->ds_prev);
 
 	/*
@@ -3550,7 +3584,7 @@ dsl_dataset_space_wouldfree(dsl_dataset_t *firstsnap,
  */
 boolean_t
 dsl_dataset_is_before(dsl_dataset_t *later, dsl_dataset_t *earlier,
-	uint64_t earlier_txg)
+    uint64_t earlier_txg)
 {
 	dsl_pool_t *dp = later->ds_dir->dd_pool;
 	int error;

@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
@@ -515,8 +516,8 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 	 */
 	inm = malloc(sizeof(*inm), M_IPMADDR, M_NOWAIT | M_ZERO);
 	if (inm == NULL) {
-		if_delmulti_ifma(ifma);
 		IF_ADDR_WUNLOCK(ifp);
+		if_delmulti_ifma(ifma);
 		return (ENOMEM);
 	}
 	inm->inm_addr = *group;
@@ -1883,6 +1884,8 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 {
 	struct rm_priotracker in_ifa_tracker;
 	struct ifnet *ifp;
+	struct nhop4_basic nh4;
+	uint32_t fibnum;
 
 	KASSERT(gsin->sin_family == AF_INET, ("%s: not AF_INET", __func__));
 	KASSERT(IN_MULTICAST(ntohl(gsin->sin_addr.s_addr)),
@@ -1892,16 +1895,10 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 	if (!in_nullhost(ina)) {
 		INADDR_TO_IFP(ina, ifp);
 	} else {
-		struct route ro;
-
-		ro.ro_rt = NULL;
-		memcpy(&ro.ro_dst, gsin, sizeof(struct sockaddr_in));
-		in_rtalloc_ign(&ro, 0, inp ? inp->inp_inc.inc_fibnum : 0);
-		if (ro.ro_rt != NULL) {
-			ifp = ro.ro_rt->rt_ifp;
-			KASSERT(ifp != NULL, ("%s: null ifp", __func__));
-			RTFREE(ro.ro_rt);
-		} else {
+		fibnum = inp ? inp->inp_inc.inc_fibnum : 0;
+		if (fib4_lookup_nh_basic(fibnum, gsin->sin_addr, 0, 0, &nh4)==0)
+			ifp = nh4.nh_ifp;
+		else {
 			struct in_ifaddr *ia;
 			struct ifnet *mifp;
 

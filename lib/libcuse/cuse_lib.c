@@ -711,8 +711,8 @@ cuse_copy_out(const void *src, void *user_dst, int len)
 	if (pe->is_local) {
 		memcpy(user_dst, src, len);
 	} else {
-		info.local_ptr = (unsigned long)src;
-		info.peer_ptr = (unsigned long)user_dst;
+		info.local_ptr = (uintptr_t)src;
+		info.peer_ptr = (uintptr_t)user_dst;
 		info.length = len;
 
 		error = ioctl(f_cuse, CUSE_IOCTL_WRITE_DATA, &info);
@@ -744,8 +744,8 @@ cuse_copy_in(const void *user_src, void *dst, int len)
 	if (pe->is_local) {
 		memcpy(dst, user_src, len);
 	} else {
-		info.local_ptr = (unsigned long)dst;
-		info.peer_ptr = (unsigned long)user_src;
+		info.local_ptr = (uintptr_t)dst;
+		info.peer_ptr = (uintptr_t)user_src;
 		info.length = len;
 
 		error = ioctl(f_cuse, CUSE_IOCTL_READ_DATA, &info);

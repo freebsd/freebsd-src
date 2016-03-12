@@ -66,10 +66,10 @@ static size_t fragsz;
 
 struct dump_pa dump_map[DUMPSYS_MD_PA_NPAIRS];
 
+#if !defined(__powerpc__) && !defined(__sparc__)
 void
 dumpsys_gen_pa_init(void)
 {
-#if !defined(__sparc__) && !defined(__powerpc__)
 	int n, idx;
 
 	bzero(dump_map, sizeof(dump_map));
@@ -80,8 +80,8 @@ dumpsys_gen_pa_init(void)
 		dump_map[n].pa_start = dump_avail[idx];
 		dump_map[n].pa_size = dump_avail[idx + 1] - dump_avail[idx];
 	}
-#endif
 }
+#endif
 
 struct dump_pa *
 dumpsys_gen_pa_next(struct dump_pa *mdp)
@@ -99,20 +99,24 @@ dumpsys_gen_pa_next(struct dump_pa *mdp)
 void
 dumpsys_gen_wbinv_all(void)
 {
+
 }
 
 void
 dumpsys_gen_unmap_chunk(vm_paddr_t pa __unused, size_t chunk __unused,
     void *va __unused)
 {
+
 }
 
+#if !defined(__sparc__)
 int
 dumpsys_gen_write_aux_headers(struct dumperinfo *di)
 {
 
 	return (0);
 }
+#endif
 
 int
 dumpsys_buf_write(struct dumperinfo *di, char *ptr, size_t sz)
@@ -233,6 +237,7 @@ dumpsys_foreach_chunk(dumpsys_callback_t cb, void *arg)
 	return (seqnr);
 }
 
+#if !defined(__sparc__)
 static off_t fileofs;
 
 static int
@@ -391,3 +396,4 @@ dumpsys_generic(struct dumperinfo *di)
 		printf("\n** DUMP FAILED (ERROR %d) **\n", error);
 	return (error);
 }
+#endif

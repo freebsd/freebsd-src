@@ -78,6 +78,19 @@ static char kvm_err[_POSIX2_LINE_MAX];
 #define	KERNOFF		(kgdb_kernbase ())
 #define	PINKERNEL(x)	((x) >= KERNOFF)
 
+static int
+kgdb_resolve_symbol(const char *name, kvaddr_t *kva)
+{
+	struct minimal_symbol *ms;
+
+	ms = lookup_minimal_symbol (name, NULL, NULL);
+	if (ms == NULL)
+		return (1);
+
+	*kva = SYMBOL_VALUE_ADDRESS (ms);
+	return (0);
+}
+
 static CORE_ADDR
 kgdb_kernbase (void)
 {
@@ -120,8 +133,8 @@ kgdb_trgt_open(char *filename, int from_tty)
 
 	old_chain = make_cleanup (xfree, filename);
 
-	nkvm = kvm_openfiles(bfd_get_filename(exec_bfd), filename, NULL,
-	    write_files ? O_RDWR : O_RDONLY, kvm_err);
+	nkvm = kvm_open2(bfd_get_filename(exec_bfd), filename,
+	    write_files ? O_RDWR : O_RDONLY, kvm_err, kgdb_resolve_symbol);
 	if (nkvm == NULL)
 		error ("Failed to open vmcore: %s", kvm_err);
 
@@ -254,7 +267,7 @@ kgdb_trgt_xfer_memory(CORE_ADDR memaddr, char *myaddr, int len, int write,
 		if (len == 0)
 			return (0);
 		if (!write)
-			return (kvm_read(kvm, memaddr, myaddr, len));
+			return (kvm_read2(kvm, memaddr, myaddr, len));
 		else
 			return (kvm_write(kvm, memaddr, myaddr, len));
 	}

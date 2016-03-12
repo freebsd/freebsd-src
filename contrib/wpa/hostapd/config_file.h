@@ -11,7 +11,7 @@
 
 struct hostapd_config * hostapd_config_read(const char *fname);
 int hostapd_set_iface(struct hostapd_config *conf,
-		      struct hostapd_bss_config *bss, char *field,
+		      struct hostapd_bss_config *bss, const char *field,
 		      char *value);
 
 #endif /* CONFIG_FILE_H */

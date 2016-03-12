@@ -222,7 +222,7 @@ if test ! -z "$with_sandbox-capsicum" && test "$with_sandbox-capsicum" != "no" ;
 fi
 AC_MSG_CHECKING([whether to sandbox using capsicum])
 if test "x$ac_lbl_capsicum_function_seen" = "xyes" -a "x$ac_lbl_capsicum_function_not_seen" != "xyes"; then
-	AC_DEFINE(HAVE_CAPSICUM, 1, [capsicum support available])
+	AC_DEFINE(HAVE_CASPER, 1, [casper support available])
 	AC_MSG_RESULT(yes)
 else
 	AC_MSG_RESULT(no)

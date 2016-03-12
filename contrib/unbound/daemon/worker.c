@@ -866,11 +866,16 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		goto send_reply;
 	}
 	if((ret=parse_edns_from_pkt(c->buffer, &edns)) != 0) {
+		struct edns_data reply_edns;
 		verbose(VERB_ALGO, "worker parse edns: formerror.");
 		log_addr(VERB_CLIENT,"from",&repinfo->addr, repinfo->addrlen);
-		sldns_buffer_rewind(c->buffer);
-		LDNS_QR_SET(sldns_buffer_begin(c->buffer));
+		memset(&reply_edns, 0, sizeof(reply_edns));
+		reply_edns.edns_present = 1;
+		reply_edns.udp_size = EDNS_ADVERTISED_SIZE;
 		LDNS_RCODE_SET(sldns_buffer_begin(c->buffer), ret);
+		error_encode(c->buffer, ret, &qinfo,
+			*(uint16_t*)(void *)sldns_buffer_begin(c->buffer),
+			sldns_buffer_read_u16_at(c->buffer, 2), &reply_edns);
 		server_stats_insrcode(&worker->stats, c->buffer);
 		goto send_reply;
 	}
@@ -1212,7 +1217,8 @@ worker_init(struct worker* worker, struct config_file *cfg,
 		cfg->do_tcp?cfg->outgoing_num_tcp:0, 
 		worker->daemon->env->infra_cache, worker->rndstate,
 		cfg->use_caps_bits_for_id, worker->ports, worker->numports,
-		cfg->unwanted_threshold, &worker_alloc_cleanup, worker,
+		cfg->unwanted_threshold, cfg->outgoing_tcp_mss,
+		&worker_alloc_cleanup, worker,
 		cfg->do_udp, worker->daemon->connect_sslctx, cfg->delay_close,
 		dtenv);
 	if(!worker->back) {

@@ -142,7 +142,7 @@ ncv_alloc_resource(device_t dev)
 {
 	struct ncv_softc	*sc = device_get_softc(dev);
 	u_int32_t		flags = device_get_flags(dev);
-	u_long			ioaddr, iosize, maddr, msize;
+	rman_res_t		ioaddr, iosize, maddr, msize;
 	int			error;
 	bus_addr_t		offset = 0;
 
@@ -293,6 +293,7 @@ static devclass_t ncv_devclass;
 
 MODULE_DEPEND(ncv, scsi_low, 1, 1, 1);
 DRIVER_MODULE(ncv, pccard, ncv_pccard_driver, ncv_devclass, 0, 0);
+PCCARD_PNP_INFO(ncv_products);
 
 static void
 ncv_card_unload(device_t devi)

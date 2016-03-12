@@ -77,7 +77,7 @@ am335x_gpio_probe(device_t dev)
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "Ti AM335x General Purpose I/O (GPIO)");
+	device_set_desc(dev, "TI AM335x General Purpose I/O (GPIO)");
 
 	return (0);
 }

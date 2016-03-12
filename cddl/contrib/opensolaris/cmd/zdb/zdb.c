@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 #include <stdio.h>
@@ -3657,7 +3658,8 @@ main(int argc, char **argv)
 
 	kernel_init(FREAD);
 	g_zfs = libzfs_init();
-	ASSERT(g_zfs != NULL);
+	if (g_zfs == NULL)
+		fatal("Fail to initialize zfs");
 
 	if (dump_all)
 		verbose = MAX(verbose, 1);

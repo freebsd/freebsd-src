@@ -175,6 +175,7 @@ static const STRUCT_USB_HOST_ID axe_devs[] = {
 	AXE_DEV(PLANEX3, GU1000T, AXE_FLAG_178),
 	AXE_DEV(SITECOM, LN029, 0),
 	AXE_DEV(SITECOMEU, LN028, AXE_FLAG_178),
+	AXE_DEV(SITECOMEU, LN031, AXE_FLAG_178),
 	AXE_DEV(SYSTEMTALKS, SGCX2UL, 0),
 #undef AXE_DEV
 };
@@ -278,6 +279,7 @@ MODULE_DEPEND(axe, usb, 1, 1, 1);
 MODULE_DEPEND(axe, ether, 1, 1, 1);
 MODULE_DEPEND(axe, miibus, 1, 1, 1);
 MODULE_VERSION(axe, 1);
+USB_PNP_HOST_INFO(axe_devs);
 
 static const struct usb_ether_methods axe_ue_methods = {
 	.ue_attach_post = axe_attach_post,

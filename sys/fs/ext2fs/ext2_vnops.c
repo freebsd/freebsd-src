@@ -464,16 +464,14 @@ ext2_setattr(struct vop_setattr_args *ap)
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
 		    (error = VOP_ACCESS(vp, VWRITE, cred, td))))
 			return (error);
-		if (vap->va_atime.tv_sec != VNOVAL)
-			ip->i_flag |= IN_ACCESS;
-		if (vap->va_mtime.tv_sec != VNOVAL)
-			ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		ext2_itimes(vp);
+		ip->i_flag |= IN_CHANGE | IN_MODIFIED;
 		if (vap->va_atime.tv_sec != VNOVAL) {
+			ip->i_flag &= ~IN_ACCESS;
 			ip->i_atime = vap->va_atime.tv_sec;
 			ip->i_atimensec = vap->va_atime.tv_nsec;
 		}
 		if (vap->va_mtime.tv_sec != VNOVAL) {
+			ip->i_flag &= ~IN_UPDATE;
 			ip->i_mtime = vap->va_mtime.tv_sec;
 			ip->i_mtimensec = vap->va_mtime.tv_nsec;
 		}
@@ -985,10 +983,10 @@ abortit:
 		dp = VTOI(fdvp);
 	} else {
 		/*
-		 * From name has disappeared.
+		 * From name has disappeared.  IN_RENAME is not sufficient
+		 * to protect against directory races due to timing windows,
+		 * so we can't panic here.
 		 */
-		if (doingdirectory)
-			panic("ext2_rename: lost dir entry");
 		vrele(ap->a_fvp);
 		return (0);
 	}
@@ -1003,8 +1001,11 @@ abortit:
 	 * rename.
 	 */
 	if (xp != ip) {
-		if (doingdirectory)
-			panic("ext2_rename: lost dir entry");
+		/*
+		 * From name resolves to a different inode.  IN_RENAME is
+		 * not sufficient protection against timing window races
+		 * so we can't panic here.
+		 */
 	} else {
 		/*
 		 * If the source is a directory with a
@@ -1787,6 +1788,7 @@ ext2_ioctl(struct vop_ioctl_args *ap)
 static int
 ext4_ext_read(struct vop_read_args *ap)
 {
+	static unsigned char zeroes[EXT2_MAX_BLOCK_SIZE];
 	struct vnode *vp;
 	struct inode *ip;
 	struct uio *uio;
@@ -1831,11 +1833,15 @@ ext4_ext_read(struct vop_read_args *ap)
 		switch (cache_type) {
 		case EXT4_EXT_CACHE_NO:
 			ext4_ext_find_extent(fs, ip, lbn, &path);
-			ep = path.ep_ext;
+			if (path.ep_is_sparse)
+				ep = &path.ep_sparse_ext;
+			else
+				ep = path.ep_ext;
 			if (ep == NULL)
 				return (EIO);
 
-			ext4_ext_put_cache(ip, ep, EXT4_EXT_CACHE_IN);
+			ext4_ext_put_cache(ip, ep,
+			    path.ep_is_sparse ? EXT4_EXT_CACHE_GAP : EXT4_EXT_CACHE_IN);
 
 			newblk = lbn - ep->e_blk + (ep->e_start_lo |
 			    (daddr_t)ep->e_start_hi << 32);
@@ -1848,7 +1854,7 @@ ext4_ext_read(struct vop_read_args *ap)
 
 		case EXT4_EXT_CACHE_GAP:
 			/* block has not been allocated yet */
-			return (0);
+			break;
 
 		case EXT4_EXT_CACHE_IN:
 			newblk = lbn - nex.e_blk + (nex.e_start_lo |
@@ -1859,24 +1865,34 @@ ext4_ext_read(struct vop_read_args *ap)
 			panic("%s: invalid cache type", __func__);
 		}
 
-		error = bread(ip->i_devvp, fsbtodb(fs, newblk), size, NOCRED, &bp);
-		if (error) {
-			brelse(bp);
-			return (error);
-		}
-
-		size -= bp->b_resid;
-		if (size < xfersize) {
-			if (size == 0) {
-				bqrelse(bp);
-				break;
+		if (cache_type == EXT4_EXT_CACHE_GAP ||
+		    (cache_type == EXT4_EXT_CACHE_NO && path.ep_is_sparse)) {
+			if (xfersize > sizeof(zeroes))
+				xfersize = sizeof(zeroes);
+			error = uiomove(zeroes, xfersize, uio);
+			if (error)
+				return (error);
+		} else {
+			error = bread(ip->i_devvp, fsbtodb(fs, newblk), size,
+			    NOCRED, &bp);
+			if (error) {
+				brelse(bp);
+				return (error);
 			}
-			xfersize = size;
+
+			size -= bp->b_resid;
+			if (size < xfersize) {
+				if (size == 0) {
+					bqrelse(bp);
+					break;
+				}
+				xfersize = size;
+			}
+			error = uiomove(bp->b_data + blkoffset, xfersize, uio);
+			bqrelse(bp);
+			if (error)
+				return (error);
 		}
-		error = uiomove(bp->b_data + blkoffset, (int)xfersize, uio);
-		bqrelse(bp);
-		if (error)
-			return (error);
 	}
 
 	return (0);

@@ -31,8 +31,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <machine/cpu.h>
 #include <machine/cpuinfo.h>
-#include <machine/cpu-v6.h>
 
 struct cpuinfo cpuinfo =
 {
@@ -83,14 +83,16 @@ cpuinfo_init(void)
 	/* CP15 c0,c0 regs 0-7 exist on all CPUs (although aliased with MIDR) */
 	cpuinfo.ctr = cp15_ctr_get();
 	cpuinfo.tcmtr = cp15_tcmtr_get();
+#if __ARM_ARCH >= 6
 	cpuinfo.tlbtr = cp15_tlbtr_get();
 	cpuinfo.mpidr = cp15_mpidr_get();
 	cpuinfo.revidr = cp15_revidr_get();
+#endif
 
 	/* if CPU is not v7 cpu id scheme */
 	if (cpuinfo.architecture != 0xF)
 		return;
-
+#if __ARM_ARCH >= 6
 	cpuinfo.id_pfr0 = cp15_id_pfr0_get();
 	cpuinfo.id_pfr1 = cp15_id_pfr1_get();
 	cpuinfo.id_dfr0 = cp15_id_dfr0_get();
@@ -144,4 +146,84 @@ cpuinfo_init(void)
 	}
 	cpuinfo.dcache_line_mask = cpuinfo.dcache_line_size - 1;
 	cpuinfo.icache_line_mask = cpuinfo.icache_line_size - 1;
+#endif
+}
+
+/*
+ * Get bits that must be set or cleared in ACLR register.
+ * Note: Bits in ACLR register are IMPLEMENTATION DEFINED.
+ * Its expected that SCU is in operational state before this
+ * function is called.
+ */
+void
+cpuinfo_get_actlr_modifier(uint32_t *actlr_mask, uint32_t *actlr_set)
+{
+	*actlr_mask = 0;
+	*actlr_set = 0;
+
+	if (cpuinfo.implementer == CPU_IMPLEMENTER_ARM) {
+		switch (cpuinfo.part_number) {
+
+		case CPU_ARCH_CORTEX_A17:
+		case CPU_ARCH_CORTEX_A12: /* A12 is merged to A17 */
+			/*
+			 * Enable SMP mode
+			 */
+			*actlr_mask = (1 << 6);
+			*actlr_set = (1 << 6);
+			break;
+		case CPU_ARCH_CORTEX_A15:
+			/*
+			 * Enable snoop-delayed exclusive handling
+			 * Enable SMP mode
+			 */
+			*actlr_mask = (1U << 31) |(1 << 6);
+			*actlr_set = (1U << 31) |(1 << 6);
+			break;
+		case CPU_ARCH_CORTEX_A9:
+			/*
+			 * Disable exclusive L1/L2 cache control
+			 * Enable SMP mode
+			 * Enable Cache and TLB maintenance broadcast
+			 */
+			*actlr_mask = (1 << 7) | (1 << 6) | (1 << 0);
+			*actlr_set = (1 << 6) | (1 << 0);
+			break;
+		case CPU_ARCH_CORTEX_A8:
+			/*
+			 * Enable L2 cache
+			 * Enable L1 data cache hardware alias checks
+			 */
+			*actlr_mask = (1 << 1) | (1 << 0);
+			*actlr_set = (1 << 1);
+			break;
+		case CPU_ARCH_CORTEX_A7:
+			/*
+			 * Enable SMP mode
+			 */
+			*actlr_mask = (1 << 6);
+			*actlr_set = (1 << 6);
+			break;
+		case CPU_ARCH_CORTEX_A5:
+			/*
+			 * Disable exclusive L1/L2 cache control
+			 * Enable SMP mode
+			 * Enable Cache and TLB maintenance broadcast
+			 */
+			*actlr_mask = (1 << 7) | (1 << 6) | (1 << 0);
+			*actlr_set = (1 << 6) | (1 << 0);
+			break;
+		case CPU_ARCH_ARM1176:
+			/*
+			 * Restrict cache size to 16KB
+			 * Enable the return stack
+			 * Enable dynamic branch prediction
+			 * Enable static branch prediction
+			 */
+			*actlr_mask = (1 << 6) | (1 << 2) | (1 << 1) | (1 << 0);
+			*actlr_set = (1 << 6) | (1 << 2) | (1 << 1) | (1 << 0);
+			break;
+		}
+		return;
+	}
 }

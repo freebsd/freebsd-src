@@ -721,3 +721,4 @@ static driver_t ti_sdhci_driver = {
 
 DRIVER_MODULE(sdhci_ti, simplebus, ti_sdhci_driver, ti_sdhci_devclass, 0, 0);
 MODULE_DEPEND(sdhci_ti, sdhci, 1, 1, 1);
+DRIVER_MODULE(mmc, sdhci_ti, mmc_driver, mmc_devclass, NULL, NULL);

@@ -13,7 +13,7 @@
 .\"     @(#)vidcontrol.1
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2006
+.Dd January 19, 2016
 .Dt VIDCONTROL 1
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Oc
 .Op Fl g Ar geometry
 .Op Fl h Ar size
-.Op Fl i Cm adapter | mode
+.Op Fl i Cm active | adapter | mode
 .Op Fl l Ar screen_map
 .Op Fl M Ar char
 .Op Fl m Cm on | off
@@ -198,6 +198,8 @@ below.
 Set the size of the history (scrollback) buffer to
 .Ar size
 lines.
+.It Fl i Cm active
+Shows the active vty number.
 .It Fl i Cm adapter
 Shows info about the current video adapter.
 .It Fl i Cm mode
@@ -266,7 +268,7 @@ option.
 However, you probably should not compile the kernel debugger on a box which
 is supposed to be physically secure.
 .It Fl s Ar number
-Set the current vty to
+Set the active vty to
 .Ar number .
 .It Fl T Cm xterm | cons25
 Switch between xterm and cons25 style terminal emulation.

@@ -286,11 +286,13 @@ static inline int wpa_drv_set_country(struct wpa_supplicant *wpa_s,
 }
 
 static inline int wpa_drv_send_mlme(struct wpa_supplicant *wpa_s,
-				    const u8 *data, size_t data_len, int noack)
+				    const u8 *data, size_t data_len, int noack,
+				    unsigned int freq)
 {
 	if (wpa_s->driver->send_mlme)
 		return wpa_s->driver->send_mlme(wpa_s->drv_priv,
-						data, data_len, noack);
+						data, data_len, noack,
+						freq);
 	return -1;
 }
 
@@ -501,13 +503,6 @@ static inline int wpa_drv_set_ap_wps_ie(struct wpa_supplicant *wpa_s,
 		return -1;
 	return wpa_s->driver->set_ap_wps_ie(wpa_s->drv_priv, beacon,
 					    proberesp, assocresp);
-}
-
-static inline int wpa_drv_shared_freq(struct wpa_supplicant *wpa_s)
-{
-	if (!wpa_s->driver->shared_freq)
-		return -1;
-	return wpa_s->driver->shared_freq(wpa_s->drv_priv);
 }
 
 static inline int wpa_drv_get_noa(struct wpa_supplicant *wpa_s,
@@ -889,5 +884,32 @@ static inline int wpa_drv_disable_transmit_sa(struct wpa_supplicant *wpa_s,
 	return wpa_s->driver->disable_transmit_sa(wpa_s->drv_priv, channel, an);
 }
 #endif /* CONFIG_MACSEC */
+
+static inline int wpa_drv_setband(struct wpa_supplicant *wpa_s,
+				  enum set_band band)
+{
+	if (!wpa_s->driver->set_band)
+		return -1;
+	return wpa_s->driver->set_band(wpa_s->drv_priv, band);
+}
+
+static inline int wpa_drv_get_pref_freq_list(struct wpa_supplicant *wpa_s,
+					     enum wpa_driver_if_type if_type,
+					     unsigned int *num,
+					     unsigned int *freq_list)
+{
+	if (!wpa_s->driver->get_pref_freq_list)
+		return -1;
+	return wpa_s->driver->get_pref_freq_list(wpa_s->drv_priv, if_type,
+						 num, freq_list);
+}
+
+static inline int wpa_drv_set_prob_oper_freq(struct wpa_supplicant *wpa_s,
+					     unsigned int freq)
+{
+	if (!wpa_s->driver->set_prob_oper_freq)
+		return 0;
+	return wpa_s->driver->set_prob_oper_freq(wpa_s->drv_priv, freq);
+}
 
 #endif /* DRIVER_I_H */

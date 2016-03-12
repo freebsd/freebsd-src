@@ -99,6 +99,7 @@ main(int argc, char **argv)
 
 	for (i = 0; i < NEVENT; i++) {
 		ev[i] = malloc(sizeof(struct event));
+		assert(ev[i] != NULL);
 
 		/* Initalize one event */
 		evtimer_set(ev[i], time_cb, ev[i]);

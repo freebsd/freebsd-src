@@ -534,10 +534,8 @@ static u8 * wpa_ft_process_rdie(struct wpa_state_machine *sm,
 		return pos;
 	}
 
-#ifdef NEED_AP_MLME
-	if (parse.wmm_tspec && sm->wpa_auth->conf.ap_mlme) {
+	if (parse.wmm_tspec) {
 		struct wmm_tspec_element *tspec;
-		int res;
 
 		if (parse.wmm_tspec_len + 2 < (int) sizeof(*tspec)) {
 			wpa_printf(MSG_DEBUG, "FT: Too short WMM TSPEC IE "
@@ -555,7 +553,13 @@ static u8 * wpa_ft_process_rdie(struct wpa_state_machine *sm,
 		}
 		tspec = (struct wmm_tspec_element *) pos;
 		os_memcpy(tspec, parse.wmm_tspec - 2, sizeof(*tspec));
-		res = wmm_process_tspec(tspec);
+	}
+
+#ifdef NEED_AP_MLME
+	if (parse.wmm_tspec && sm->wpa_auth->conf.ap_mlme) {
+		int res;
+
+		res = wmm_process_tspec((struct wmm_tspec_element *) pos);
 		wpa_printf(MSG_DEBUG, "FT: ADDTS processing result: %d", res);
 		if (res == WMM_ADDTS_STATUS_INVALID_PARAMETERS)
 			rdie->status_code =
@@ -566,20 +570,17 @@ static u8 * wpa_ft_process_rdie(struct wpa_state_machine *sm,
 		else {
 			/* TSPEC accepted; include updated TSPEC in response */
 			rdie->descr_count = 1;
-			pos += sizeof(*tspec);
+			pos += sizeof(struct wmm_tspec_element);
 		}
 		return pos;
 	}
 #endif /* NEED_AP_MLME */
 
 	if (parse.wmm_tspec && !sm->wpa_auth->conf.ap_mlme) {
-		struct wmm_tspec_element *tspec;
 		int res;
 
-		tspec = (struct wmm_tspec_element *) pos;
-		os_memcpy(tspec, parse.wmm_tspec - 2, sizeof(*tspec));
 		res = wpa_ft_add_tspec(sm->wpa_auth, sm->addr, pos,
-				       sizeof(*tspec));
+				       sizeof(struct wmm_tspec_element));
 		if (res >= 0) {
 			if (res)
 				rdie->status_code = host_to_le16(res);
@@ -587,7 +588,7 @@ static u8 * wpa_ft_process_rdie(struct wpa_state_machine *sm,
 				/* TSPEC accepted; include updated TSPEC in
 				 * response */
 				rdie->descr_count = 1;
-				pos += sizeof(*tspec);
+				pos += sizeof(struct wmm_tspec_element);
 			}
 			return pos;
 		}

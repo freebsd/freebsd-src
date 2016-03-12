@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntp.conf 5man "29 Jun 2015" "4.2.8p3" "File Formats"
+.TH ntp.conf 5man "20 Jan 2016" "4.2.8p6" "File Formats"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-R0aO7B/ag-30aG6B)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-gsaOxR/ag-XsaGwR)
 .\"
-.\" It has been AutoGen-ed June 29, 2015 at 04:30:16 PM by AutoGen 5.18.5
+.\" It has been AutoGen-ed January 20, 2016 at 04:17:45 AM by AutoGen 5.18.5
 .\" From the definitions ntp.conf.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -2080,7 +2080,7 @@ re-associate accordingly.
 Some administrators prefer to avoid running
 \fCntpd\f[]\fR(1ntpdmdoc)\f[]
 continuously and run either
-\fCntpdate\f[]\fR(8)\f[]
+\fCsntp\f[]\fR(1sntpmdoc)\f[]
 or
 \fCntpd\f[]\fR(1ntpdmdoc)\f[]
 \f\*[B-Font]\-q\f[]
@@ -2170,7 +2170,7 @@ This value defaults to 1, but can be changed
 to any number from 1 to 15.
 .TP 7
 .NOP \f\*[B-Font]minclock\f[] \f\*[I-Font]minclock\f[]
-The clustering algorithm repeatedly casts out outlyer
+The clustering algorithm repeatedly casts out outlier
 associations until no more than
 \f\*[B-Font]minclock\f[]
 associations remain.
@@ -2573,9 +2573,9 @@ otherwise, should be avoided.
 This option specifies the Differentiated Services Control Point (DSCP) value,
 a 6-bit code.  The default value is 46, signifying Expedited Forwarding.
 .TP 7
-.NOP \f\*[B-Font]enable\f[] [\f\*[B-Font]auth\f[] | \f\*[B-Font]bclient\f[] | \f\*[B-Font]calibrate\f[] | \f\*[B-Font]kernel\f[] | \f\*[B-Font]mode7\f[] | \f\*[B-Font]monitor\f[] | \f\*[B-Font]ntp\f[] | \f\*[B-Font]stats\f[]]
+.NOP \f\*[B-Font]enable\f[] [\f\*[B-Font]auth\f[] | \f\*[B-Font]bclient\f[] | \f\*[B-Font]calibrate\f[] | \f\*[B-Font]kernel\f[] | \f\*[B-Font]mode7\f[] | \f\*[B-Font]monitor\f[] | \f\*[B-Font]ntp\f[] | \f\*[B-Font]stats\f[] | \f\*[B-Font]unpeer_crypto_early\f[] | \f\*[B-Font]unpeer_crypto_nak_early\f[] | \f\*[B-Font]unpeer_digest_early\f[]]
 .TP 7
-.NOP \f\*[B-Font]disable\f[] [\f\*[B-Font]auth\f[] | \f\*[B-Font]bclient\f[] | \f\*[B-Font]calibrate\f[] | \f\*[B-Font]kernel\f[] | \f\*[B-Font]mode7\f[] | \f\*[B-Font]monitor\f[] | \f\*[B-Font]ntp\f[] | \f\*[B-Font]stats\f[]]
+.NOP \f\*[B-Font]disable\f[] [\f\*[B-Font]auth\f[] | \f\*[B-Font]bclient\f[] | \f\*[B-Font]calibrate\f[] | \f\*[B-Font]kernel\f[] | \f\*[B-Font]mode7\f[] | \f\*[B-Font]monitor\f[] | \f\*[B-Font]ntp\f[] | \f\*[B-Font]stats\f[] | \f\*[B-Font]unpeer_crypto_early\f[] | \f\*[B-Font]unpeer_crypto_nak_early\f[] | \f\*[B-Font]unpeer_digest_early\f[]]
 Provides a way to enable or disable various server options.
 Flags not mentioned are unaffected.
 Note that all of these flags
@@ -2655,6 +2655,70 @@ See the
 section for further information.
 The default for this flag is
 \f\*[B-Font]disable\f[].
+.TP 7
+.NOP \f\*[B-Font]unpeer_crypto_early\f[]
+By default, if
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
+receives an autokey packet that fails TEST9,
+a crypto failure,
+the association is immediately cleared.
+This is almost certainly a feature,
+but if, in spite of the current recommendation of not using autokey,
+you are
+.B still
+using autokey
+.B and
+you are seeing this sort of DoS attack
+disabling this flag will delay
+tearing down the association until the reachability counter
+becomes zero.
+You can check your
+\f\*[B-Font]peerstats\f[]
+file for evidence of any of these attacks.
+The
+default for this flag is
+\f\*[B-Font]enable\f[].
+.TP 7
+.NOP \f\*[B-Font]unpeer_crypto_nak_early\f[]
+By default, if
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
+receives a crypto-NAK packet that
+passes the duplicate packet and origin timestamp checks
+the association is immediately cleared.
+While this is generally a feature
+as it allows for quick recovery if a server key has changed,
+a properly forged and appropriately delivered crypto-NAK packet
+can be used in a DoS attack.
+If you have active noticable problems with this type of DoS attack
+then you should consider
+disabling this option.
+You can check your
+\f\*[B-Font]peerstats\f[]
+file for evidence of any of these attacks.
+The
+default for this flag is
+\f\*[B-Font]enable\f[].
+.TP 7
+.NOP \f\*[B-Font]unpeer_digest_early\f[]
+By default, if
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
+receives what should be an authenticated packet
+that passes other packet sanity checks but
+contains an invalid digest
+the association is immediately cleared.
+While this is generally a feature
+as it allows for quick recovery,
+if this type of packet is carefully forged and sent
+during an appropriate window it can be used for a DoS attack.
+If you have active noticable problems with this type of DoS attack
+then you should consider
+disabling this option.
+You can check your
+\f\*[B-Font]peerstats\f[]
+file for evidence of any of these attacks.
+The
+default for this flag is
+\f\*[B-Font]enable\f[].
 .RE
 .TP 7
 .NOP \f\*[B-Font]includefile\f[] \f\*[I-Font]includefile\f[]
@@ -2897,12 +2961,15 @@ pulses will not be suppressed.
 .RS
 .TP 7
 .NOP \f\*[B-Font]memlock\f[] \f\*[I-Font]Nmegabytes\f[]
-Specify the number of megabytes of memory that can be allocated.
-Probably only available under Linux, this option is useful
+Specify the number of megabytes of memory that should be
+allocated and locked.
+Probably only available under Linux, this option may be useful
 when dropping root (the
 \f\*[B-Font]\-i\f[]
 option).
-The default is 32 megabytes. Setting this to zero will prevent any attemp to lock memory.
+The default is 32 megabytes on non-Linux machines, and \-1 under Linux.
+-1 means "do not lock the process into memory".
+0 means "lock whatever memory the process wants into memory".
 .TP 7
 .NOP \f\*[B-Font]stacksize\f[] \f\*[I-Font]N4kPages\f[]
 Specifies the maximum size of the process stack on systems with the
@@ -3024,7 +3091,7 @@ RFC5905
 .SH "AUTHORS"
 The University of Delaware and Network Time Foundation
 .SH "COPYRIGHT"
-Copyright (C) 1992-2015 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992-2016 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .SH BUGS
 The syntax checking is not picky; some combinations of

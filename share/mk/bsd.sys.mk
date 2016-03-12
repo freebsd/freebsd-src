@@ -109,6 +109,11 @@ CWARNFLAGS+=	-Werror
 CWARNFLAGS+=	-Wno-format
 .endif # NO_WFORMAT || NO_WFORMAT.${COMPILER_TYPE}
 
+# GCC 5.2.0
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 50200
+CWARNFLAGS+=	-Wno-error=unused-function -Wno-error=enum-compare -Wno-error=logical-not-parentheses -Wno-error=bool-compare -Wno-error=uninitialized -Wno-error=array-bounds -Wno-error=clobbered -Wno-error=cast-align -Wno-error=extra -Wno-error=attributes -Wno-error=inline -Wno-error=unused-but-set-variable -Wno-error=unused-value -Wno-error=strict-aliasing -Wno-error=address
+.endif
+
 # How to handle FreeBSD custom printf format specifiers.
 .if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30600
 FORMAT_EXTENSIONS=	-D__printf__=__freebsd_kprintf__
@@ -148,15 +153,22 @@ CXXFLAGS.clang+=	 -Wno-c++11-extensions
 
 .if ${MK_SSP} != "no" && \
     ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
+.if (${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30500) || \
+    (${COMPILER_TYPE} == "gcc" && \
+     (${COMPILER_VERSION} == 40201 || ${COMPILER_VERSION} >= 40900))
 # Don't use -Wstack-protector as it breaks world with -Werror.
 SSP_CFLAGS?=	-fstack-protector-strong
+.else
+SSP_CFLAGS?=	-fstack-protector
+.endif
 CFLAGS+=	${SSP_CFLAGS}
 .endif # SSP && !ARM && !MIPS
 
-# Allow user-specified additional warning flags, plus compiler specific flag overrides.
-# Unless we've overriden this...
+# Allow user-specified additional warning flags, plus compiler and file
+# specific flag overrides, unless we've overriden this...
 .if ${MK_WARNS} != "no"
 CFLAGS+=	${CWARNFLAGS} ${CWARNFLAGS.${COMPILER_TYPE}}
+CFLAGS+=	${CWARNFLAGS.${.IMPSRC:T}}
 .endif
 
 CFLAGS+=	 ${CFLAGS.${COMPILER_TYPE}}
@@ -164,14 +176,13 @@ CXXFLAGS+=	 ${CXXFLAGS.${COMPILER_TYPE}}
 
 # Tell bmake not to mistake standard targets for things to be searched for
 # or expect to ever be up-to-date.
-PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
+PHONY_NOTMAIN = analyze afterdepend afterinstall all beforedepend beforeinstall \
 		beforelinking build build-tools buildconfig buildfiles \
-		buildincludes checkdpadd clean cleandepend cleandir cleanobj \
-		configure depend dependall distclean distribute exe \
+		buildincludes check checkdpadd clean cleandepend cleandir \
+		cleanobj configure depend distclean distribute exe \
 		files html includes install installconfig installfiles \
-		installincludes lint obj objlink objs objwarn realall \
-		realdepend realinstall regress subdir-all subdir-depend \
-		subdir-install tags whereobj
+		installincludes lint obj objlink objs objwarn \
+		realinstall tags whereobj
 
 # we don't want ${PROG} to be PHONY
 .PHONY: ${PHONY_NOTMAIN:N${PROG:U}}
@@ -188,16 +199,16 @@ staging stage_libs stage_files stage_as stage_links stage_symlinks:
 DESTDIR= ${STAGE_OBJTOP}
 
 .if commands(beforeinstall)
-.if !empty(_LIBS) || ${MK_STAGING_PROG} != "no"
+.if !empty(_LIBS) || (${MK_STAGING_PROG} != "no" && !defined(INTERNALPROG))
 staging: beforeinstall
 .endif
 .endif
 
 # normally only libs and includes are staged
-.if ${MK_STAGING_PROG} != "no"
+.if ${MK_STAGING_PROG} != "no" && !defined(INTERNALPROG)
 STAGE_DIR.prog= ${STAGE_OBJTOP}${BINDIR}
 
-.if !empty(PROG) || !empty(PROGS)
+.if !empty(PROG)
 .if defined(PROGNAME)
 STAGE_AS_SETS+= prog
 STAGE_AS_${PROG}= ${PROGNAME}
@@ -259,7 +270,7 @@ STAGE_TARGETS+= $t
 STAGE_TARGETS+= stage_as
 .endif
 
-.if !empty(_LIBS) || ${MK_STAGING_PROG} != "no"
+.if !empty(_LIBS) || (${MK_STAGING_PROG} != "no" && !defined(INTERNALPROG))
 
 .if !empty(LINKS)
 STAGE_TARGETS+= stage_links

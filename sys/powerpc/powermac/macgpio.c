@@ -42,7 +42,6 @@
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
-#include <machine/pmap.h>
 #include <machine/resource.h>
 #include <machine/vmparam.h>
 
@@ -71,7 +70,7 @@ static int	macgpio_attach(device_t);
 static int	macgpio_print_child(device_t dev, device_t child);
 static void	macgpio_probe_nomatch(device_t, device_t);
 static struct resource *macgpio_alloc_resource(device_t, device_t, int, int *,
-		    u_long, u_long, u_long, u_int);
+		    rman_res_t, rman_res_t, rman_res_t, u_int);
 static int	macgpio_activate_resource(device_t, device_t, int, int,
 		    struct resource *);
 static int	macgpio_deactivate_resource(device_t, device_t, int, int,
@@ -177,7 +176,7 @@ macgpio_attach(device_t dev)
 			continue;
 		}
 
-		if (OF_getprop(child,"reg",&dinfo->gpio_num,
+		if (OF_getencprop(child, "reg", &dinfo->gpio_num,
 		    sizeof(dinfo->gpio_num)) != sizeof(dinfo->gpio_num)) {
 			/*
 			 * Some early GPIO controllers don't provide GPIO
@@ -191,9 +190,9 @@ macgpio_attach(device_t dev)
 
 		resource_list_init(&dinfo->mdi_resources);
 
-		if (OF_getprop(child, "interrupts", &irq, sizeof(irq)) == 
+		if (OF_getencprop(child, "interrupts", &irq, sizeof(irq)) == 
 		    sizeof(irq)) {
-			OF_searchprop(child, "interrupt-parent", &iparent,
+			OF_searchencprop(child, "interrupt-parent", &iparent,
 			    sizeof(iparent));
 			resource_list_add(&dinfo->mdi_resources, SYS_RES_IRQ,
 			    0, MAP_IRQ(iparent, irq), MAP_IRQ(iparent, irq),
@@ -267,7 +266,8 @@ macgpio_probe_nomatch(device_t dev, device_t child)
 
 static struct resource *
 macgpio_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		     u_long start, u_long end, u_long count, u_int flags)
+		     rman_res_t start, rman_res_t end, rman_res_t count,
+		     u_int flags)
 {
 	struct macgpio_devinfo *dinfo;
 

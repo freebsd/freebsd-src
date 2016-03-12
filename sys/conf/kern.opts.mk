@@ -45,8 +45,15 @@ __DEFAULT_YES_OPTIONS = \
 
 __DEFAULT_NO_OPTIONS = \
     EISA \
+    FAST_DEPEND \
     NAND \
     OFED
+
+# Enable FAST_DEPEND by default for the meta build.
+.if !empty(.MAKE.MODE:Unormal:Mmeta)
+__DEFAULT_YES_OPTIONS+=	FAST_DEPEND
+__DEFAULT_NO_OPTIONS:=	${__DEFAULT_NO_OPTIONS:NFAST_DEPEND}
+.endif
 
 # Some options are totally broken on some architectures. We disable
 # them. If you need to enable them on an experimental basis, you
@@ -58,7 +65,10 @@ __DEFAULT_NO_OPTIONS = \
 
 # Things that don't work based on the CPU
 .if ${MACHINE_CPUARCH} == "arm"
-BROKEN_OPTIONS+= CDDL ZFS
+BROKEN_OPTIONS+= ZFS
+. if ${MACHINE_ARCH:Marmv6*} == ""
+BROKEN_OPTIONS+= CDDL
+. endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"

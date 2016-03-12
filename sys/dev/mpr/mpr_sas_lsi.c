@@ -885,7 +885,13 @@ mprsas_get_sas_address_for_sata_disk(struct mpr_softc *sc,
 		ioc_status = le16toh(mpi_reply.IOCStatus)
 		    & MPI2_IOCSTATUS_MASK;
 		sas_status = mpi_reply.SASStatus;
-		if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+		switch (ioc_status) {
+		case MPI2_IOCSTATUS_SUCCESS:
+			break;
+		case MPI2_IOCSTATUS_SCSI_PROTOCOL_ERROR:
+			/* No sense sleeping.  this error won't get better */
+			break;
+		default:
 			if (sc->spinup_wait_time > 0) {
 				mpr_dprint(sc, MPR_INFO, "Sleeping %d seconds "
 				    "after SATA ID error to wait for spinup\n",
@@ -894,8 +900,10 @@ mprsas_get_sas_address_for_sata_disk(struct mpr_softc *sc,
 				    "mprid", sc->spinup_wait_time * hz);
 			}
 		}
-	} while (((rc && (rc != EWOULDBLOCK)) || ioc_status || sas_status) &&
-	    (try_count < 5));
+	} while (((rc && (rc != EWOULDBLOCK)) ||
+	         (ioc_status &&
+		  (ioc_status != MPI2_IOCSTATUS_SCSI_PROTOCOL_ERROR))
+	       || sas_status) && (try_count < 5));
 
 	if (rc == 0 && !ioc_status && !sas_status) {
 		mpr_dprint(sc, MPR_MAPPING, "%s: got SATA identify "

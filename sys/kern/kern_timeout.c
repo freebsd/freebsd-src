@@ -69,10 +69,8 @@ DPCPU_DECLARE(sbintime_t, hardclocktime);
 #endif
 
 SDT_PROVIDER_DEFINE(callout_execute);
-SDT_PROBE_DEFINE1(callout_execute, kernel, , callout__start,
-    "struct callout *");
-SDT_PROBE_DEFINE1(callout_execute, kernel, , callout__end,
-    "struct callout *");
+SDT_PROBE_DEFINE1(callout_execute, , , callout__start, "struct callout *");
+SDT_PROBE_DEFINE1(callout_execute, , , callout__end, "struct callout *");
 
 #ifdef CALLOUT_PROFILING
 static int avg_depth;
@@ -136,6 +134,7 @@ u_int callwheelsize, callwheelmask;
  */
 struct cc_exec {
 	struct callout		*cc_curr;
+	void			(*cc_drain)(void *);
 #ifdef SMP
 	void			(*ce_migration_func)(void *);
 	void			*ce_migration_arg;
@@ -170,6 +169,7 @@ struct callout_cpu {
 #define	callout_migrating(c)	((c)->c_iflags & CALLOUT_DFRMIGRATION)
 
 #define	cc_exec_curr(cc, dir)		cc->cc_exec_entity[dir].cc_curr
+#define	cc_exec_drain(cc, dir)		cc->cc_exec_entity[dir].cc_drain
 #define	cc_exec_next(cc)		cc->cc_next
 #define	cc_exec_cancel(cc, dir)		cc->cc_exec_entity[dir].cc_cancel
 #define	cc_exec_waiting(cc, dir)	cc->cc_exec_entity[dir].cc_waiting
@@ -679,6 +679,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	
 	cc_exec_curr(cc, direct) = c;
 	cc_exec_cancel(cc, direct) = false;
+	cc_exec_drain(cc, direct) = NULL;
 	CC_UNLOCK(cc);
 	if (c_lock != NULL) {
 		class->lc_lock(c_lock, lock_status);
@@ -718,9 +719,9 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	sbt1 = sbinuptime();
 #endif
 	THREAD_NO_SLEEPING();
-	SDT_PROBE1(callout_execute, kernel, , callout__start, c);
+	SDT_PROBE1(callout_execute, , , callout__start, c);
 	c_func(c_arg);
-	SDT_PROBE1(callout_execute, kernel, , callout__end, c);
+	SDT_PROBE1(callout_execute, , , callout__end, c);
 	THREAD_SLEEPING_OK();
 #if defined(DIAGNOSTIC) || defined(CALLOUT_PROFILING)
 	sbt2 = sbinuptime();
@@ -744,6 +745,15 @@ skip:
 	CC_LOCK(cc);
 	KASSERT(cc_exec_curr(cc, direct) == c, ("mishandled cc_curr"));
 	cc_exec_curr(cc, direct) = NULL;
+	if (cc_exec_drain(cc, direct)) {
+		void (*drain)(void *);
+		
+		drain = cc_exec_drain(cc, direct);
+		cc_exec_drain(cc, direct) = NULL;
+		CC_UNLOCK(cc);
+		drain(c_arg);
+		CC_LOCK(cc);
+	}
 	if (cc_exec_waiting(cc, direct)) {
 		/*
 		 * There is someone waiting for the
@@ -1145,14 +1155,14 @@ callout_schedule(struct callout *c, int to_ticks)
 }
 
 int
-_callout_stop_safe(struct callout *c, int safe)
+_callout_stop_safe(struct callout *c, int flags, void (*drain)(void *))
 {
 	struct callout_cpu *cc, *old_cc;
 	struct lock_class *class;
 	int direct, sq_locked, use_lock;
 	int not_on_a_list;
 
-	if (safe)
+	if ((flags & CS_DRAIN) != 0)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, c->c_lock,
 		    "calling %s", __func__);
 
@@ -1160,7 +1170,7 @@ _callout_stop_safe(struct callout *c, int safe)
 	 * Some old subsystems don't hold Giant while running a callout_stop(),
 	 * so just discard this check for the moment.
 	 */
-	if (!safe && c->c_lock != NULL) {
+	if ((flags & CS_DRAIN) == 0 && c->c_lock != NULL) {
 		if (c->c_lock == &Giant.lock_object)
 			use_lock = mtx_owned(&Giant);
 		else {
@@ -1225,22 +1235,25 @@ again:
 	 * stop it by other means however.
 	 */
 	if (!(c->c_iflags & CALLOUT_PENDING)) {
-		c->c_flags &= ~CALLOUT_ACTIVE;
-
 		/*
 		 * If it wasn't on the queue and it isn't the current
 		 * callout, then we can't stop it, so just bail.
+		 * It probably has already been run (if locking
+		 * is properly done). You could get here if the caller
+		 * calls stop twice in a row for example. The second
+		 * call would fall here without CALLOUT_ACTIVE set.
 		 */
+		c->c_flags &= ~CALLOUT_ACTIVE;
 		if (cc_exec_curr(cc, direct) != c) {
 			CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
 			    c, c->c_func, c->c_arg);
 			CC_UNLOCK(cc);
 			if (sq_locked)
 				sleepq_release(&cc_exec_waiting(cc, direct));
-			return (0);
+			return (-1);
 		}
 
-		if (safe) {
+		if ((flags & CS_DRAIN) != 0) {
 			/*
 			 * The current callout is running (or just
 			 * about to run) and blocking is allowed, so
@@ -1298,14 +1311,16 @@ again:
 				CC_LOCK(cc);
 			}
 		} else if (use_lock &&
-			   !cc_exec_cancel(cc, direct)) {
+			   !cc_exec_cancel(cc, direct) && (drain == NULL)) {
 			
 			/*
 			 * The current callout is waiting for its
 			 * lock which we hold.  Cancel the callout
 			 * and return.  After our caller drops the
 			 * lock, the callout will be skipped in
-			 * softclock().
+			 * softclock(). This *only* works with a
+			 * callout_stop() *not* callout_drain() or
+			 * callout_async_drain().
 			 */
 			cc_exec_cancel(cc, direct) = true;
 			CTR3(KTR_CALLOUT, "cancelled %p func %p arg %p",
@@ -1351,11 +1366,17 @@ again:
 #endif
 			CTR3(KTR_CALLOUT, "postponing stop %p func %p arg %p",
 			    c, c->c_func, c->c_arg);
+ 			if (drain) {
+				cc_exec_drain(cc, direct) = drain;
+			}
 			CC_UNLOCK(cc);
-			return (0);
+			return ((flags & CS_MIGRBLOCK) != 0);
 		}
 		CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
 		    c, c->c_func, c->c_arg);
+		if (drain) {
+			cc_exec_drain(cc, direct) = drain;
+		}
 		CC_UNLOCK(cc);
 		KASSERT(!sq_locked, ("sleepqueue chain still locked"));
 		return (0);

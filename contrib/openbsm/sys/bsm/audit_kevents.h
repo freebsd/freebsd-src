@@ -25,18 +25,16 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_kevents.h#10 $
  */
 
 #ifndef _BSM_AUDIT_KEVENTS_H_
 #define	_BSM_AUDIT_KEVENTS_H_
 
 /*
- * The reserved event numbers for kernel events are 1...2047 and 43001..44900.
+ * The reserved event numbers for kernel events are 1...2047 and 43001..44999.
  */
-#define	AUE_IS_A_KEVENT(e)	(((e) > 0 && (e) < 2048) || 	\
-    				 ((e) > 43000 && (e) < 45000))
+#define	AUE_IS_A_KEVENT(e)	(((e) > 0 && (e) < 2048) ||	\
+				 ((e) > 43000 && (e) < 45000))
 
 /*
  * Values marked as AUE_NULL are not required to be audited as per CAPP.
@@ -587,7 +585,8 @@
 #define	AUE_OPENAT		43184	/* FreeBSD. */
 #define	AUE_POSIX_OPENPT	43185	/* FreeBSD. */
 #define	AUE_CAP_NEW		43186	/* TrustedBSD. */
-#define	AUE_CAP_GETRIGHTS	43187	/* TrustedBSD. */
+#define	AUE_CAP_RIGHTS_GET	43187	/* TrustedBSD. */
+#define	AUE_CAP_GETRIGHTS	AUE_CAP_RIGHTS_GET
 #define	AUE_CAP_ENTER		43188	/* TrustedBSD. */
 #define	AUE_CAP_GETMODE		43189	/* TrustedBSD. */
 #define	AUE_POSIX_SPAWN		43190	/* Darwin. */
@@ -602,6 +601,14 @@
 #define	AUE_PDGETPID		43199	/* FreeBSD. */
 #define	AUE_PDWAIT		43200	/* FreeBSD. */
 #define	AUE_WAIT6		43201	/* FreeBSD. */
+#define	AUE_CAP_RIGHTS_LIMIT	43202	/* TrustedBSD. */
+#define	AUE_CAP_IOCTLS_LIMIT	43203	/* TrustedBSD. */
+#define	AUE_CAP_IOCTLS_GET	43204	/* TrustedBSD. */
+#define	AUE_CAP_FCNTLS_LIMIT	43205	/* TrustedBSD. */
+#define	AUE_CAP_FCNTLS_GET	43206	/* TrustedBSD. */
+#define	AUE_BINDAT		43207	/* TrustedBSD. */
+#define	AUE_CONNECTAT		43208	/* TrustedBSD. */
+#define	AUE_CHFLAGSAT		43209	/* FreeBSD-specific. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the

@@ -50,7 +50,9 @@ __<bsd.opts.mk>__:
 
 __DEFAULT_YES_OPTIONS = \
     ASSERT_DEBUG \
+    DEBUG_FILES \
     DOCCOMPRESS \
+    FAST_DEPEND \
     INCLUDES \
     INSTALLLIB \
     KERBEROS \
@@ -66,8 +68,8 @@ __DEFAULT_YES_OPTIONS = \
     WARNS
 
 __DEFAULT_NO_OPTIONS = \
+    CCACHE_BUILD \
     CTF \
-    DEBUG_FILES \
     INSTALL_AS_USER \
     STALE_STAGED
 
@@ -75,7 +77,14 @@ __DEFAULT_NO_OPTIONS = \
 __DEFAULT_DEPENDENT_OPTIONS = \
     STAGING_MAN/STAGING \
     STAGING_PROG/STAGING \
-    
+
+
+# Enable FAST_DEPEND by default for the meta build.
+.if !empty(.MAKE.MODE:Mmeta)
+__DEFAULT_YES_OPTIONS+=	FAST_DEPEND
+__DEFAULT_NO_OPTIONS:=	${__DEFAULT_NO_OPTIONS:NFAST_DEPEND}
+.endif
+
 .include <bsd.mkopt.mk>
 
 #
@@ -92,8 +101,7 @@ __DEFAULT_DEPENDENT_OPTIONS = \
     PROFILE \
     WARNS
 .if defined(NO_${var})
-# This warning may be premature...
-#.warning "NO_${var} is defined, but deprecated. Please use MK_${var}=no instead."
+.warning "NO_${var} is defined, but deprecated. Please use MK_${var}=no instead."
 MK_${var}:=no
 .endif
 .endfor
@@ -101,6 +109,8 @@ MK_${var}:=no
 .if ${MK_STAGING} == "no"
 MK_STALE_STAGED= no
 .endif
+
+.include <bsd.cpu.mk>
 
 .endif # !_WITHOUT_SRCCONF
 

@@ -30,11 +30,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 #include <machine/bus.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -51,6 +53,7 @@ static int 	vmbus_channel_create_gpadl_header(
 			uint32_t*			message_count);
 
 static void 	vmbus_channel_set_event(hv_vmbus_channel* channel);
+static void	VmbusProcessChannelEvent(void* channel, int pending);
 
 /**
  *  @brief Trigger an event notification on the specified channel
@@ -67,9 +70,7 @@ vmbus_channel_set_event(hv_vmbus_channel *channel)
 				+ ((channel->offer_msg.child_rel_id >> 5))));
 
 		monitor_page = (hv_vmbus_monitor_page *)
-			hv_vmbus_g_connection.monitor_pages;
-
-		monitor_page++; /* Get the child to parent monitor page */
+			hv_vmbus_g_connection.monitor_page_2;
 
 		synch_set_bit(channel->monitor_bit,
 			(uint32_t *)&monitor_page->
@@ -78,6 +79,90 @@ vmbus_channel_set_event(hv_vmbus_channel *channel)
 		hv_vmbus_set_event(channel);
 	}
 
+}
+
+static int
+vmbus_channel_sysctl_monalloc(SYSCTL_HANDLER_ARGS)
+{
+	struct hv_vmbus_channel *chan = arg1;
+	int alloc = 0;
+
+	if (chan->offer_msg.monitor_allocated)
+		alloc = 1;
+	return sysctl_handle_int(oidp, &alloc, 0, req);
+}
+
+static void
+vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
+{
+	device_t dev;
+	struct sysctl_oid *devch_sysctl;
+	struct sysctl_oid *devch_id_sysctl, *devch_sub_sysctl;
+	struct sysctl_oid *devch_id_in_sysctl, *devch_id_out_sysctl;
+	struct sysctl_ctx_list *ctx;
+	uint32_t ch_id;
+	uint16_t sub_ch_id;
+	char name[16];
+	
+	hv_vmbus_channel* primary_ch = channel->primary_channel;
+
+	if (primary_ch == NULL) {
+		dev = channel->device->device;
+		ch_id = channel->offer_msg.child_rel_id;
+	} else {
+		dev = primary_ch->device->device;
+		ch_id = primary_ch->offer_msg.child_rel_id;
+		sub_ch_id = channel->offer_msg.offer.sub_channel_index;
+	}
+	ctx = device_get_sysctl_ctx(dev);
+	/* This creates dev.DEVNAME.DEVUNIT.channel tree */
+	devch_sysctl = SYSCTL_ADD_NODE(ctx,
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    OID_AUTO, "channel", CTLFLAG_RD, 0, "");
+	/* This creates dev.DEVNAME.DEVUNIT.channel.CHANID tree */
+	snprintf(name, sizeof(name), "%d", ch_id);
+	devch_id_sysctl = SYSCTL_ADD_NODE(ctx,
+	    	    SYSCTL_CHILDREN(devch_sysctl),
+	    	    OID_AUTO, name, CTLFLAG_RD, 0, "");
+
+	if (primary_ch != NULL) {
+		devch_sub_sysctl = SYSCTL_ADD_NODE(ctx,
+			SYSCTL_CHILDREN(devch_id_sysctl),
+			OID_AUTO, "sub", CTLFLAG_RD, 0, "");
+		snprintf(name, sizeof(name), "%d", sub_ch_id);
+		devch_id_sysctl = SYSCTL_ADD_NODE(ctx,
+			SYSCTL_CHILDREN(devch_sub_sysctl),
+			OID_AUTO, name, CTLFLAG_RD, 0, "");
+
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl),
+		    OID_AUTO, "chanid", CTLFLAG_RD,
+		    &channel->offer_msg.child_rel_id, 0, "channel id");
+	}
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
+	    "cpu", CTLFLAG_RD, &channel->target_cpu, 0, "owner CPU id");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
+	    "monitor_allocated", CTLTYPE_INT | CTLFLAG_RD, channel, 0,
+	    vmbus_channel_sysctl_monalloc, "I",
+	    "is monitor allocated to this channel");
+
+	devch_id_in_sysctl = SYSCTL_ADD_NODE(ctx,
+                    SYSCTL_CHILDREN(devch_id_sysctl),
+                    OID_AUTO,
+		    "in",
+		    CTLFLAG_RD, 0, "");
+	devch_id_out_sysctl = SYSCTL_ADD_NODE(ctx,
+                    SYSCTL_CHILDREN(devch_id_sysctl),
+                    OID_AUTO,
+		    "out",
+		    CTLFLAG_RD, 0, "");
+	hv_ring_buffer_stat(ctx,
+		SYSCTL_CHILDREN(devch_id_in_sysctl),
+		&(channel->inbound),
+		"inbound ring buffer stats");
+	hv_ring_buffer_stat(ctx,
+		SYSCTL_CHILDREN(devch_id_out_sysctl),
+		&(channel->outbound),
+		"outbound ring buffer stats");
 }
 
 /**
@@ -114,6 +199,9 @@ hv_vmbus_channel_open(
 	new_channel->on_channel_callback = pfn_on_channel_callback;
 	new_channel->channel_callback_context = context;
 
+	new_channel->rxq = hv_vmbus_g_context.hv_event_queue[new_channel->target_cpu];
+	TASK_INIT(&new_channel->channel_task, 0, VmbusProcessChannelEvent, new_channel);
+
 	/* Allocate the ring buffer */
 	out = contigmalloc((send_ring_buffer_size + recv_ring_buffer_size),
 	    M_DEVBUF, M_ZERO, 0UL, BUS_SPACE_MAXADDR, PAGE_SIZE, 0);
@@ -139,6 +227,9 @@ hv_vmbus_channel_open(
 		&new_channel->inbound,
 		in,
 		recv_ring_buffer_size);
+
+	/* Create sysctl tree for this channel */
+	vmbus_channel_sysctl_create(new_channel);
 
 	/**
 	 * Establish the gpadl for the ring buffer
@@ -192,7 +283,7 @@ hv_vmbus_channel_open(
 	if (ret != 0)
 	    goto cleanup;
 
-	ret = sema_timedwait(&open_info->wait_sema, 500); /* KYS 5 seconds */
+	ret = sema_timedwait(&open_info->wait_sema, 5 * hz); /* KYS 5 seconds */
 
 	if (ret) {
 	    if(bootverbose)
@@ -381,17 +472,22 @@ hv_vmbus_channel_establish_gpadl(
 	hv_vmbus_channel_msg_info*	curr;
 	uint32_t			next_gpadl_handle;
 
-	next_gpadl_handle = hv_vmbus_g_connection.next_gpadl_handle;
-	atomic_add_int((int*) &hv_vmbus_g_connection.next_gpadl_handle, 1);
+	next_gpadl_handle = atomic_fetchadd_int(
+	    &hv_vmbus_g_connection.next_gpadl_handle, 1);
 
 	ret = vmbus_channel_create_gpadl_header(
 		contig_buffer, size, &msg_info, &msg_count);
 
-	if(ret != 0) { /* if(allocation failed) return immediately */
-	    /* reverse atomic_add_int above */
-	    atomic_subtract_int((int*)
-		    &hv_vmbus_g_connection.next_gpadl_handle, 1);
-	    return ret;
+	if(ret != 0) {
+		/*
+		 * XXX
+		 * We can _not_ even revert the above incremental,
+		 * if multiple GPADL establishments are running
+		 * parallelly, decrement the global next_gpadl_handle
+		 * is calling for _big_ trouble.  A better solution
+		 * is to have a 0-based GPADL id bitmap ...
+		 */
+		return ret;
 	}
 
 	sema_init(&msg_info->wait_sema, 0, "Open Info Sema");
@@ -437,7 +533,7 @@ hv_vmbus_channel_establish_gpadl(
 	    }
 	}
 
-	ret = sema_timedwait(&msg_info->wait_sema, 500); /* KYS 5 seconds*/
+	ret = sema_timedwait(&msg_info->wait_sema, 5 * hz); /* KYS 5 seconds*/
 	if (ret != 0)
 	    goto cleanup;
 
@@ -497,7 +593,7 @@ hv_vmbus_channel_teardown_gpdal(
 	if (ret != 0) 
 	    goto cleanup;
 	
-	ret = sema_timedwait(&info->wait_sema, 500); /* KYS 5 seconds */
+	ret = sema_timedwait(&info->wait_sema, 5 * hz); /* KYS 5 seconds */
 
 cleanup:
 	/*
@@ -517,6 +613,7 @@ static void
 hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 {
 	int ret = 0;
+	struct taskqueue *rxq = channel->rxq;
 	hv_vmbus_channel_close_channel* msg;
 	hv_vmbus_channel_msg_info* info;
 
@@ -524,12 +621,11 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	channel->sc_creation_callback = NULL;
 
 	/*
-	 * Grab the lock to prevent race condition when a packet received
-	 * and unloading driver is in the process.
+	 * set rxq to NULL to avoid more requests be scheduled
 	 */
-	mtx_lock(&channel->inbound_lock);
+	channel->rxq = NULL;
+	taskqueue_drain(rxq, &channel->channel_task);
 	channel->on_channel_callback = NULL;
-	mtx_unlock(&channel->inbound_lock);
 
 	/**
 	 * Send a closing message
@@ -665,11 +761,11 @@ hv_vmbus_channel_send_packet_pagebuffer(
 {
 
 	int					ret = 0;
-	int					i = 0;
 	boolean_t				need_sig;
 	uint32_t				packet_len;
+	uint32_t				page_buflen;
 	uint32_t				packetLen_aligned;
-	hv_vmbus_sg_buffer_list			buffer_list[3];
+	hv_vmbus_sg_buffer_list			buffer_list[4];
 	hv_vmbus_channel_packet_page_buffer	desc;
 	uint32_t				descSize;
 	uint64_t				alignedData = 0;
@@ -681,36 +777,33 @@ hv_vmbus_channel_send_packet_pagebuffer(
 	 * Adjust the size down since hv_vmbus_channel_packet_page_buffer
 	 *  is the largest size we support
 	 */
-	descSize = sizeof(hv_vmbus_channel_packet_page_buffer) -
-			((HV_MAX_PAGE_BUFFER_COUNT - page_count) *
-			sizeof(hv_vmbus_page_buffer));
-	packet_len = descSize + buffer_len;
+	descSize = __offsetof(hv_vmbus_channel_packet_page_buffer, range);
+	page_buflen = sizeof(hv_vmbus_page_buffer) * page_count;
+	packet_len = descSize + page_buflen + buffer_len;
 	packetLen_aligned = HV_ALIGN_UP(packet_len, sizeof(uint64_t));
 
 	/* Setup the descriptor */
 	desc.type = HV_VMBUS_PACKET_TYPE_DATA_USING_GPA_DIRECT;
 	desc.flags = HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
-	desc.data_offset8 = descSize >> 3; /* in 8-bytes granularity */
+	/* in 8-bytes granularity */
+	desc.data_offset8 = (descSize + page_buflen) >> 3;
 	desc.length8 = (uint16_t) (packetLen_aligned >> 3);
 	desc.transaction_id = request_id;
 	desc.range_count = page_count;
 
-	for (i = 0; i < page_count; i++) {
-		desc.range[i].length = page_buffers[i].length;
-		desc.range[i].offset = page_buffers[i].offset;
-		desc.range[i].pfn = page_buffers[i].pfn;
-	}
-
 	buffer_list[0].data = &desc;
 	buffer_list[0].length = descSize;
 
-	buffer_list[1].data = buffer;
-	buffer_list[1].length = buffer_len;
+	buffer_list[1].data = page_buffers;
+	buffer_list[1].length = page_buflen;
 
-	buffer_list[2].data = &alignedData;
-	buffer_list[2].length = packetLen_aligned - packet_len;
+	buffer_list[2].data = buffer;
+	buffer_list[2].length = buffer_len;
 
-	ret = hv_ring_buffer_write(&channel->outbound, buffer_list, 3,
+	buffer_list[3].data = &alignedData;
+	buffer_list[3].length = packetLen_aligned - packet_len;
+
+	ret = hv_ring_buffer_write(&channel->outbound, buffer_list, 4,
 	    &need_sig);
 
 	/* TODO: We should determine if this is optional */
@@ -851,7 +944,6 @@ hv_vmbus_channel_recv_packet_raw(
 {
 	int		ret;
 	uint32_t	packetLen;
-	uint32_t	userLen;
 	hv_vm_packet_descriptor	desc;
 
 	*buffer_actual_len = 0;
@@ -865,8 +957,6 @@ hv_vmbus_channel_recv_packet_raw(
 	    return (0);
 
 	packetLen = desc.length8 << 3;
-	userLen = packetLen - (desc.data_offset8 << 3);
-
 	*buffer_actual_len = packetLen;
 
 	if (packetLen > buffer_len)
@@ -878,4 +968,61 @@ hv_vmbus_channel_recv_packet_raw(
 	ret = hv_ring_buffer_read(&channel->inbound, buffer, packetLen, 0);
 
 	return (0);
+}
+
+
+/**
+ * Process a channel event notification
+ */
+static void
+VmbusProcessChannelEvent(void* context, int pending)
+{
+	void* arg;
+	uint32_t bytes_to_read;
+	hv_vmbus_channel* channel = (hv_vmbus_channel*)context;
+	boolean_t is_batched_reading;
+
+	/**
+	 * Find the channel based on this relid and invokes
+	 * the channel callback to process the event
+	 */
+
+	if (channel == NULL) {
+		return;
+	}
+	/**
+	 * To deal with the race condition where we might
+	 * receive a packet while the relevant driver is
+	 * being unloaded, dispatch the callback while
+	 * holding the channel lock. The unloading driver
+	 * will acquire the same channel lock to set the
+	 * callback to NULL. This closes the window.
+	 */
+
+	if (channel->on_channel_callback != NULL) {
+		arg = channel->channel_callback_context;
+		is_batched_reading = channel->batched_reading;
+		/*
+		 * Optimize host to guest signaling by ensuring:
+		 * 1. While reading the channel, we disable interrupts from
+		 *    host.
+		 * 2. Ensure that we process all posted messages from the host
+		 *    before returning from this callback.
+		 * 3. Once we return, enable signaling from the host. Once this
+		 *    state is set we check to see if additional packets are
+		 *    available to read. In this case we repeat the process.
+		 */
+		do {
+			if (is_batched_reading)
+				hv_ring_buffer_read_begin(&channel->inbound);
+
+			channel->on_channel_callback(arg);
+
+			if (is_batched_reading)
+				bytes_to_read =
+				    hv_ring_buffer_read_end(&channel->inbound);
+			else
+				bytes_to_read = 0;
+		} while (is_batched_reading && (bytes_to_read != 0));
+	}
 }

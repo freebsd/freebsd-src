@@ -53,6 +53,7 @@
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 
 #include <net80211/ieee80211_var.h>
@@ -591,32 +592,32 @@ printtest(const struct ciphertest *t)
 }
 
 static int
-runtest(struct ieee80211com *ic, struct ciphertest *t)
+runtest(struct ieee80211vap *vap, struct ciphertest *t)
 {
-	struct ieee80211_key key;
+	struct ieee80211_key *key = &vap->iv_nw_keys[t->keyix];
 	struct mbuf *m = NULL;
 	const struct ieee80211_cipher *cip;
-	u_int8_t mac[IEEE80211_ADDR_LEN];
+	int hdrlen;
 
 	printf("%s: ", t->name);
 
 	/*
 	 * Setup key.
 	 */
-	memset(&key, 0, sizeof(key));
-	key.wk_flags = IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV;
-	key.wk_cipher = &ieee80211_cipher_none;
-	if (!ieee80211_crypto_newkey(ic, t->cipher,
-	    IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV, &key)) {
+	memset(key, 0, sizeof(*key));
+	key->wk_flags = IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV;
+	key->wk_cipher = &ieee80211_cipher_none;
+	if (!ieee80211_crypto_newkey(vap, t->cipher,
+	    IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV, key)) {
 		printf("FAIL: ieee80211_crypto_newkey failed\n");
 		goto bad;
 	}
 
-	memcpy(key.wk_key, t->key, t->key_len);
-	key.wk_keylen = t->key_len;
-	key.wk_keyrsc = 0;
-	key.wk_keytsc = t->pn-1;	/* PN-1 since we do encap */
-	if (!ieee80211_crypto_setkey(ic, &key, mac)) {
+	memcpy(key->wk_key, t->key, t->key_len);
+	key->wk_keylen = t->key_len;
+	memset(key->wk_keyrsc, 0, sizeof(key->wk_keyrsc));
+	key->wk_keytsc = t->pn-1;	/* PN-1 since we do encap */
+	if (!ieee80211_crypto_setkey(vap, key)) {
 		printf("FAIL: ieee80211_crypto_setkey failed\n");
 		goto bad;
 	}
@@ -624,17 +625,18 @@ runtest(struct ieee80211com *ic, struct ciphertest *t)
 	/*
 	 * Craft frame from plaintext data.
 	 */
-	cip = key.wk_cipher;
+	cip = key->wk_cipher;
 	m = m_getcl(M_NOWAIT, MT_HEADER, M_PKTHDR);
 	m->m_data += cip->ic_header;
 	memcpy(mtod(m, void *), t->plaintext, t->plaintext_len);
 	m->m_len = t->plaintext_len;
 	m->m_pkthdr.len = m->m_len;
+	hdrlen = ieee80211_anyhdrsize(mtod(m, void *));
 
 	/*
 	 * Encrypt frame w/ MIC.
 	 */
-	if (!cip->ic_encap(&key, m, t->keyix<<6)) {
+	if (!cip->ic_encap(key, m)) {
 		printtest(t);
 		printf("FAIL: ccmp encap failed\n");
 		goto bad;
@@ -660,7 +662,7 @@ runtest(struct ieee80211com *ic, struct ciphertest *t)
 	/*
 	 * Decrypt frame; strip MIC.
 	 */
-	if (!cip->ic_decap(&key, m)) {
+	if (!cip->ic_decap(key, m, hdrlen)) {
 		printf("FAIL: ccmp decap failed\n");
 		printtest(t);
 		cmpfail(mtod(m, const void *), m->m_len,
@@ -680,17 +682,17 @@ runtest(struct ieee80211com *ic, struct ciphertest *t)
 		printf("FAIL: decap botch; data does not compare\n");
 		printtest(t);
 		cmpfail(mtod(m, const void *), m->m_pkthdr.len,
-			t->plaintext, t_plaintext_len);
+			t->plaintext, t->plaintext_len);
 		goto bad;
 	}
 	m_freem(m);
-	ieee80211_crypto_delkey(ic, &key);
+	ieee80211_crypto_delkey(vap, key);
 	printf("PASS\n");
 	return 1;
 bad:
 	if (m != NULL)
 		m_freem(m);
-	ieee80211_crypto_delkey(ic, &key);
+	ieee80211_crypto_delkey(vap, key);
 	return 0;
 }
 
@@ -704,26 +706,38 @@ static	int debug = 0;
 static int
 init_crypto_ccmp_test(void)
 {
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
 	struct ieee80211com ic;
+	struct ieee80211vap vap;
+	struct ifnet ifp;
 	int i, pass, total;
 
 	memset(&ic, 0, sizeof(ic));
-	if (debug)
-		ic.ic_debug = IEEE80211_MSG_CRYPTO;
+	memset(&vap, 0, sizeof(vap));
+	memset(&ifp, 0, sizeof(ifp));
+
 	ieee80211_crypto_attach(&ic);
+
+	/* some minimal initialization */
+	strncpy(ifp.if_xname, "test_ccmp", sizeof(ifp.if_xname));
+	vap.iv_ic = &ic;
+	vap.iv_ifp = &ifp;
+	if (debug)
+		vap.iv_debug = IEEE80211_MSG_CRYPTO;
+	ieee80211_crypto_vattach(&vap);
 
 	pass = 0;
 	total = 0;
-	for (i = 0; i < N(ccmptests); i++)
+	for (i = 0; i < nitems(ccmptests); i++)
 		if (tests & (1<<i)) {
 			total++;
-			pass += runtest(&ic, &ccmptests[i]);
+			pass += runtest(&vap, &ccmptests[i]);
 		}
 	printf("%u of %u 802.11i AES-CCMP test vectors passed\n", pass, total);
+
+	ieee80211_crypto_vdetach(&vap);
 	ieee80211_crypto_detach(&ic);
+
 	return (pass == total ? 0 : -1);
-#undef N
 }
 
 static int

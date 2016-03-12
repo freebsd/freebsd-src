@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $FreeBSD: users/kaiwang27/elftc/libelftc.h 392 2009-05-31 19:17:46Z kaiwang27 $
- * $Id: libelftc.h 3174 2015-03-27 17:13:41Z emaste $
+ * $Id: libelftc.h 3309 2016-01-10 09:10:51Z kaiwang27 $
  */
 
 #ifndef	_LIBELFTC_H_
@@ -46,7 +46,9 @@ typedef enum {
 	ETF_ELF,
 	ETF_BINARY,
 	ETF_SREC,
-	ETF_IHEX
+	ETF_IHEX,
+	ETF_PE,
+	ETF_EFI,
 } Elftc_Bfd_Target_Flavor;
 
 /*

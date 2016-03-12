@@ -1395,9 +1395,8 @@ sys_fpathconf(struct thread *td, struct fpathconf_args *uap)
 	if (error != 0)
 		return (error);
 
-	/* If asynchronous I/O is available, it works for all descriptors. */
 	if (uap->name == _PC_ASYNC_IO) {
-		td->td_retval[0] = async_io_version;
+		td->td_retval[0] = _POSIX_ASYNCHRONOUS_IO;
 		goto out;
 	}
 	vp = fp->f_vnode;
@@ -3156,6 +3155,30 @@ filedesc_to_leader_alloc(struct filedesc_to_leader *old, struct filedesc *fdp, s
 	}
 	return (fdtol);
 }
+
+static int
+sysctl_kern_proc_nfds(SYSCTL_HANDLER_ARGS)
+{
+	struct filedesc *fdp;
+	int i, count, slots;
+
+	if (*(int *)arg1 != 0)
+		return (EINVAL);
+
+	fdp = curproc->p_fd;
+	count = 0;
+	FILEDESC_SLOCK(fdp);
+	slots = NDSLOTS(fdp->fd_lastfile + 1);
+	for (i = 0; i < slots; i++)
+		count += bitcountl(fdp->fd_map[i]);
+	FILEDESC_SUNLOCK(fdp);
+
+	return (SYSCTL_OUT(req, &count, sizeof(count)));
+}
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_NFDS, nfds,
+    CTLFLAG_RD|CTLFLAG_MPSAFE, sysctl_kern_proc_nfds,
+    "Number of open file descriptors");
 
 /*
  * Get file structures globally.

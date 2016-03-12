@@ -241,7 +241,7 @@ static int
 atrtc_attach(device_t dev)
 {
 	struct atrtc_softc *sc;
-	u_long s;
+	rman_res_t s;
 	int i;
 
 	sc = device_get_softc(dev);

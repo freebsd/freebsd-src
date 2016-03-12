@@ -4,8 +4,10 @@
 #ifndef _MACHDEP_BOOT_MACHDEP_H_
 #define _MACHDEP_BOOT_MACHDEP_H_
 
+#include <machine/acle-compat.h>
+
 /* Structs that need to be initialised by initarm */
-#ifdef ARM_NEW_PMAP
+#if __ARM_ARCH >= 6
 extern vm_offset_t irqstack;
 extern vm_offset_t undstack;
 extern vm_offset_t abtstack;
@@ -42,5 +44,8 @@ void arm_generic_initclocks(void);
 /* Board-specific attributes */
 void board_set_serial(uint64_t);
 void board_set_revision(uint32_t);
+
+int arm_predict_branch(void *, u_int, register_t, register_t *,
+    u_int (*)(void*, int), u_int (*)(void*, vm_offset_t, u_int*));
 
 #endif /* !_MACHINE_MACHDEP_H_ */

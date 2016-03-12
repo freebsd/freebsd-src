@@ -89,6 +89,11 @@ struct disk_devdesc
 	off_t		d_offset;
 };
 
+enum disk_ioctl {
+	IOCTL_GET_BLOCKS,
+	IOCTL_GET_BLOCK_SIZE
+};
+
 /*
  * Parse disk metadata and initialise dev->d_offset.
  */
@@ -97,6 +102,11 @@ extern int disk_open(struct disk_devdesc *dev, off_t mediasize,
 #define	DISK_F_NOCACHE	0x0001		/* Do not use metadata caching */
 extern int disk_close(struct disk_devdesc *dev);
 extern void disk_cleanup(const struct devsw *d_dev);
+extern int disk_ioctl(struct disk_devdesc *dev, u_long cmd, void *buf);
+extern int disk_read(struct disk_devdesc *dev, void *buf, off_t offset,
+    u_int blocks);
+extern int disk_write(struct disk_devdesc *dev, void *buf, off_t offset,
+    u_int blocks);
 
 /*
  * Print information about slices on a disk.

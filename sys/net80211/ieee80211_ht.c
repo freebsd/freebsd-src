@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/systm.h> 
 #include <sys/endian.h>
  
@@ -2174,9 +2175,9 @@ ieee80211_ampdu_enable(struct ieee80211_node *ni,
 		return 0;
 	}
 	IEEE80211_NOTE(vap, IEEE80211_MSG_11N, ni,
-	    "enable AMPDU on tid %d (%s), avgpps %d pkts %d",
+	    "enable AMPDU on tid %d (%s), avgpps %d pkts %d attempt %d",
 	    tap->txa_tid, ieee80211_wme_acnames[TID_TO_WME_AC(tap->txa_tid)],
-	    tap->txa_avgpps, tap->txa_pkts);
+	    tap->txa_avgpps, tap->txa_pkts, tap->txa_attempts);
 	return 1;
 }
 

@@ -659,16 +659,12 @@ igmp_ifdetach(struct ifnet *ifp)
 void
 igmp_domifdetach(struct ifnet *ifp)
 {
-	struct igmp_ifsoftc *igi;
 
 	CTR3(KTR_IGMPV3, "%s: called for ifp %p(%s)",
 	    __func__, ifp, ifp->if_xname);
 
 	IGMP_LOCK();
-
-	igi = ((struct in_ifinfo *)ifp->if_afdata[AF_INET])->ii_igmp;
 	igi_delete_locked(ifp);
-
 	IGMP_UNLOCK();
 }
 
@@ -3334,6 +3330,15 @@ igmp_v3_dispatch_general_query(struct igmp_ifsoftc *igi)
 	KASSERT(igi->igi_version == IGMP_VERSION_3,
 	    ("%s: called when version %d", __func__, igi->igi_version));
 
+	/*
+	 * Check that there are some packets queued. If so, send them first.
+	 * For large number of groups the reply to general query can take
+	 * many packets, we should finish sending them before starting of
+	 * queuing the new reply.
+	 */
+	if (mbufq_len(&igi->igi_gq) != 0)
+		goto send;
+
 	ifp = igi->igi_ifp;
 
 	IF_ADDR_RLOCK(ifp);
@@ -3369,6 +3374,7 @@ igmp_v3_dispatch_general_query(struct igmp_ifsoftc *igi)
 	}
 	IF_ADDR_RUNLOCK(ifp);
 
+send:
 	loop = (igi->igi_flags & IGIF_LOOPBACK) ? 1 : 0;
 	igmp_dispatch_queue(&igi->igi_gq, IGMP_MAX_RESPONSE_BURST, loop);
 

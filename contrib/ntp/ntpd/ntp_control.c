@@ -3,10 +3,6 @@
  *		   traps.  Provides service to ntpq and others.
  */
 
-/*
- * $FreeBSD: head/contrib/ntp/ntpd/ntp_control.c 276071 2014-12-22 18:54:55Z delphij $
- */
-
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
@@ -32,15 +28,11 @@
 #include "ntp_leapsec.h"
 #include "ntp_md5.h"	/* provides OpenSSL digest API */
 #include "lib_strbuf.h"
+#include <rc_cmdlength.h>
 #ifdef KERNEL_PLL
 # include "ntp_syscall.h"
 #endif
 
-extern size_t remoteconfig_cmdlength( const char *src_buf, const char *src_end );
-
-#ifndef MIN
-#define MIN(a, b) (((a) <= (b)) ? (a) : (b))
-#endif
 
 /*
  * Structure to hold request procedure information
@@ -83,6 +75,7 @@ static	void	ctl_putarray	(const char *, double *, int);
 static	void	ctl_putsys	(int);
 static	void	ctl_putpeer	(int, struct peer *);
 static	void	ctl_putfs	(const char *, tstamp_t);
+static	void	ctl_printf	(const char *, ...) NTP_PRINTF(1, 2);
 #ifdef REFCLOCK
 static	void	ctl_putclock	(int, struct refclockstat *, int);
 #endif	/* REFCLOCK */
@@ -118,6 +111,8 @@ static	void	req_nonce	(struct recvbuf *, int);
 static	void	unset_trap	(struct recvbuf *, int);
 static	struct ctl_trap *ctlfindtrap(sockaddr_u *,
 				     struct interface *);
+
+int/*BOOL*/ is_safe_filename(const char * name);
 
 static const struct ctl_proc control_codes[] = {
 	{ CTL_OP_UNSPEC,		NOAUTH,	control_unspec },
@@ -428,10 +423,10 @@ static const struct ctl_var sys_var[] = {
 	{ CS_TIMER_XMTS,	RO, "timer_xmts" },	/* 87 */
 	{ CS_FUZZ,		RO, "fuzz" },		/* 88 */
 	{ CS_WANDER_THRESH,	RO, "clk_wander_threshold" }, /* 89 */
-#ifdef LEAP_SMEAR
+
 	{ CS_LEAPSMEARINTV,	RO, "leapsmearinterval" },    /* 90 */
 	{ CS_LEAPSMEAROFFS,	RO, "leapsmearoffset" },      /* 91 */
-#endif	 /* LEAP_SMEAR */
+
 #ifdef AUTOKEY
 	{ CS_FLAGS,	RO, "flags" },		/* 1 + CS_MAX_NOAUTOKEY */
 	{ CS_HOST,	RO, "host" },		/* 2 + CS_MAX_NOAUTOKEY */
@@ -854,7 +849,7 @@ ctl_error(
 	u_char errcode
 	)
 {
-	int		maclen;
+	size_t		maclen;
 
 	numctlerrors++;
 	DPRINTF(3, ("sending control error %u\n", errcode));
@@ -881,10 +876,66 @@ ctl_error(
 			CTL_HEADER_LEN);
 }
 
+int/*BOOL*/
+is_safe_filename(const char * name)
+{
+	/* We need a strict validation of filenames we should write: The
+	 * daemon might run with special permissions and is remote
+	 * controllable, so we better take care what we allow as file
+	 * name!
+	 *
+	 * The first character must be digit or a letter from the ASCII
+	 * base plane or a '_' ([_A-Za-z0-9]), the following characters
+	 * must be from [-._+A-Za-z0-9].
+	 *
+	 * We do not trust the character classification much here: Since
+	 * the NTP protocol makes no provisions for UTF-8 or local code
+	 * pages, we strictly require the 7bit ASCII code page.
+	 *
+	 * The following table is a packed bit field of 128 two-bit
+	 * groups. The LSB in each group tells us if a character is
+	 * acceptable at the first position, the MSB if the character is
+	 * accepted at any other position.
+	 *
+	 * This does not ensure that the file name is syntactically
+	 * correct (multiple dots will not work with VMS...) but it will
+	 * exclude potential globbing bombs and directory traversal. It
+	 * also rules out drive selection. (For systems that have this
+	 * notion, like Windows or VMS.)
+	 */
+	static const uint32_t chclass[8] = {
+		0x00000000, 0x00000000,
+		0x28800000, 0x000FFFFF,
+		0xFFFFFFFC, 0xC03FFFFF,
+		0xFFFFFFFC, 0x003FFFFF
+	};
+
+	u_int widx, bidx, mask;
+	if (!*name)
+		return FALSE;
+	
+	mask = 1u;
+	while (0 != (widx = (u_char)*name++)) {
+		bidx = (widx & 15) << 1;
+		widx = widx >> 4;
+		if (widx >= sizeof(chclass))
+			return FALSE;
+		if (0 == ((chclass[widx] >> bidx) & mask))
+			return FALSE;
+		mask |= 2u;
+	}
+	return TRUE;
+}
+
+
 /*
  * save_config - Implements ntpq -c "saveconfig <filename>"
  *		 Writes current configuration including any runtime
  *		 changes by ntpq's :config or config-from-file
+ *
+ * Note: There should be no buffer overflow or truncation in the
+ * processing of file names -- both cause security problems. This is bit
+ * painful to code but essential here.
  */
 void
 save_config(
@@ -892,22 +943,58 @@ save_config(
 	int restrict_mask
 	)
 {
+	/* block directory traversal by searching for characters that
+	 * indicate directory components in a file path.
+	 *
+	 * Conceptually we should be searching for DIRSEP in filename,
+	 * however Windows actually recognizes both forward and
+	 * backslashes as equivalent directory separators at the API
+	 * level.  On POSIX systems we could allow '\\' but such
+	 * filenames are tricky to manipulate from a shell, so just
+	 * reject both types of slashes on all platforms.
+	 */	
+	/* TALOS-CAN-0062: block directory traversal for VMS, too */
+	static const char * illegal_in_filename =
+#if defined(VMS)
+	    ":[]"	/* do not allow drive and path components here */
+#elif defined(SYS_WINNT)
+	    ":\\/"	/* path and drive separators */
+#else
+	    "\\/"	/* separator and critical char for POSIX */
+#endif
+	    ;
 	char reply[128];
 #ifdef SAVECONFIG
+	static const char savedconfig_eq[] = "savedconfig=";
+
+	/* Build a safe open mode from the available mode flags. We want
+	 * to create a new file and write it in text mode (when
+	 * applicable -- only Windows does this...)
+	 */
+	static const int openmode = O_CREAT | O_TRUNC | O_WRONLY
+#  if defined(O_EXCL)		/* posix, vms */
+	    | O_EXCL
+#  elif defined(_O_EXCL)	/* windows is alway very special... */
+	    | _O_EXCL
+#  endif
+#  if defined(_O_TEXT)		/* windows, again */
+	    | _O_TEXT
+#endif
+	    ; 
+	
 	char filespec[128];
 	char filename[128];
 	char fullpath[512];
-	const char savedconfig_eq[] = "savedconfig=";
 	char savedconfig[sizeof(savedconfig_eq) + sizeof(filename)];
 	time_t now;
 	int fd;
 	FILE *fptr;
+	int prc;
+	size_t reqlen;
 #endif
 
 	if (RES_NOMODIFY & restrict_mask) {
-		snprintf(reply, sizeof(reply),
-			 "saveconfig prohibited by restrict ... nomodify");
-		ctl_putdata(reply, strlen(reply), 0);
+		ctl_printf("%s", "saveconfig prohibited by restrict ... nomodify");
 		ctl_flushpkt(0);
 		NLOG(NLOG_SYSINFO)
 			msyslog(LOG_NOTICE,
@@ -919,9 +1006,7 @@ save_config(
 
 #ifdef SAVECONFIG
 	if (NULL == saveconfigdir) {
-		snprintf(reply, sizeof(reply),
-			 "saveconfig prohibited, no saveconfigdir configured");
-		ctl_putdata(reply, strlen(reply), 0);
+		ctl_printf("%s", "saveconfig prohibited, no saveconfigdir configured");
 		ctl_flushpkt(0);
 		NLOG(NLOG_SYSINFO)
 			msyslog(LOG_NOTICE,
@@ -930,68 +1015,131 @@ save_config(
 		return;
 	}
 
-	if (0 == reqend - reqpt)
+	/* The length checking stuff gets serious. Do not assume a NUL
+	 * byte can be found, but if so, use it to calculate the needed
+	 * buffer size. If the available buffer is too short, bail out;
+	 * likewise if there is no file spec. (The latter will not
+	 * happen when using NTPQ, but there are other ways to craft a
+	 * network packet!)
+	 */
+	reqlen = (size_t)(reqend - reqpt);
+	if (0 != reqlen) {
+		char * nulpos = (char*)memchr(reqpt, 0, reqlen);
+		if (NULL != nulpos)
+			reqlen = (size_t)(nulpos - reqpt);
+	}
+	if (0 == reqlen)
 		return;
+	if (reqlen >= sizeof(filespec)) {
+		ctl_printf("saveconfig exceeded maximum raw name length (%u)",
+			   (u_int)sizeof(filespec));
+		ctl_flushpkt(0);
+		msyslog(LOG_NOTICE,
+			"saveconfig exceeded maximum raw name length from %s",
+			stoa(&rbufp->recv_srcadr));
+		return;
+	}
 
-	strlcpy(filespec, reqpt, sizeof(filespec));
-	time(&now);
-
+	/* copy data directly as we exactly know the size */
+	memcpy(filespec, reqpt, reqlen);
+	filespec[reqlen] = '\0';
+	
 	/*
 	 * allow timestamping of the saved config filename with
 	 * strftime() format such as:
 	 *   ntpq -c "saveconfig ntp-%Y%m%d-%H%M%S.conf"
 	 * XXX: Nice feature, but not too safe.
+	 * YYY: The check for permitted characters in file names should
+	 *      weed out the worst. Let's hope 'strftime()' does not
+	 *      develop pathological problems.
 	 */
+	time(&now);
 	if (0 == strftime(filename, sizeof(filename), filespec,
-			       localtime(&now)))
+			  localtime(&now)))
+	{
+		/*
+		 * If we arrive here, 'strftime()' balked; most likely
+		 * the buffer was too short. (Or it encounterd an empty
+		 * format, or just a format that expands to an empty
+		 * string.) We try to use the original name, though this
+		 * is very likely to fail later if there are format
+		 * specs in the string. Note that truncation cannot
+		 * happen here as long as both buffers have the same
+		 * size!
+		 */
 		strlcpy(filename, filespec, sizeof(filename));
+	}
 
 	/*
-	 * Conceptually we should be searching for DIRSEP in filename,
-	 * however Windows actually recognizes both forward and
-	 * backslashes as equivalent directory separators at the API
-	 * level.  On POSIX systems we could allow '\\' but such
-	 * filenames are tricky to manipulate from a shell, so just
-	 * reject both types of slashes on all platforms.
+	 * Check the file name for sanity. This might/will rule out file
+	 * names that would be legal but problematic, and it blocks
+	 * directory traversal.
 	 */
-	if (strchr(filename, '\\') || strchr(filename, '/')) {
+	if (!is_safe_filename(filename)) {
+		ctl_printf("saveconfig rejects unsafe file name '%s'",
+			   filename);
+		ctl_flushpkt(0);
+		msyslog(LOG_NOTICE,
+			"saveconfig rejects unsafe file name from %s",
+			stoa(&rbufp->recv_srcadr));
+		return;
+	}
+
+	/*
+	 * XXX: This next test may not be needed with is_safe_filename()
+	 */
+
+	/* block directory/drive traversal */
+	/* TALOS-CAN-0062: block directory traversal for VMS, too */
+	if (NULL != strpbrk(filename, illegal_in_filename)) {
 		snprintf(reply, sizeof(reply),
 			 "saveconfig does not allow directory in filename");
 		ctl_putdata(reply, strlen(reply), 0);
 		ctl_flushpkt(0);
 		msyslog(LOG_NOTICE,
-			"saveconfig with path from %s rejected",
+			"saveconfig rejects unsafe file name from %s",
 			stoa(&rbufp->recv_srcadr));
 		return;
 	}
 
-	snprintf(fullpath, sizeof(fullpath), "%s%s",
-		 saveconfigdir, filename);
+	/* concatenation of directory and path can cause another
+	 * truncation...
+	 */
+	prc = snprintf(fullpath, sizeof(fullpath), "%s%s",
+		       saveconfigdir, filename);
+	if (prc < 0 || prc >= sizeof(fullpath)) {
+		ctl_printf("saveconfig exceeded maximum path length (%u)",
+			   (u_int)sizeof(fullpath));
+		ctl_flushpkt(0);
+		msyslog(LOG_NOTICE,
+			"saveconfig exceeded maximum path length from %s",
+			stoa(&rbufp->recv_srcadr));
+		return;
+	}
 
-	fd = open(fullpath, O_CREAT | O_TRUNC | O_WRONLY,
-		  S_IRUSR | S_IWUSR);
+	fd = open(fullpath, openmode, S_IRUSR | S_IWUSR);
 	if (-1 == fd)
 		fptr = NULL;
 	else
 		fptr = fdopen(fd, "w");
 
 	if (NULL == fptr || -1 == dump_all_config_trees(fptr, 1)) {
-		snprintf(reply, sizeof(reply),
-			 "Unable to save configuration to file %s",
-			 filename);
+		ctl_printf("Unable to save configuration to file '%s': %m",
+			   filename);
 		msyslog(LOG_ERR,
 			"saveconfig %s from %s failed", filename,
 			stoa(&rbufp->recv_srcadr));
 	} else {
-		snprintf(reply, sizeof(reply),
-			 "Configuration saved to %s", filename);
+		ctl_printf("Configuration saved to '%s'", filename);
 		msyslog(LOG_NOTICE,
-			"Configuration saved to %s (requested by %s)",
+			"Configuration saved to '%s' (requested by %s)",
 			fullpath, stoa(&rbufp->recv_srcadr));
 		/*
 		 * save the output filename in system variable
 		 * savedconfig, retrieved with:
 		 *   ntpq -c "rv 0 savedconfig"
+		 * Note: the way 'savedconfig' is defined makes overflow
+		 * checks unnecessary here.
 		 */
 		snprintf(savedconfig, sizeof(savedconfig), "%s%s",
 			 savedconfig_eq, filename);
@@ -1001,11 +1149,9 @@ save_config(
 	if (NULL != fptr)
 		fclose(fptr);
 #else	/* !SAVECONFIG follows */
-	snprintf(reply, sizeof(reply),
-		 "saveconfig unavailable, configured with --disable-saveconfig");
-#endif
-
-	ctl_putdata(reply, strlen(reply), 0);
+	ctl_printf("%s",
+		   "saveconfig unavailable, configured with --disable-saveconfig");
+#endif	
 	ctl_flushpkt(0);
 }
 
@@ -1240,10 +1386,10 @@ ctl_flushpkt(
 	)
 {
 	size_t i;
-	int dlen;
-	int sendlen;
-	int maclen;
-	int totlen;
+	size_t dlen;
+	size_t sendlen;
+	size_t maclen;
+	size_t totlen;
 	keyid_t keyid;
 
 	dlen = datapt - rpkt.u.data;
@@ -1409,7 +1555,7 @@ ctl_putstr(
 	memcpy(buffer, tag, tl);
 	cp = buffer + tl;
 	if (len > 0) {
-		NTP_INSIST(tl + 3 + len <= sizeof(buffer));
+		INSIST(tl + 3 + len <= sizeof(buffer));
 		*cp++ = '=';
 		*cp++ = '"';
 		memcpy(cp, data, len);
@@ -1444,7 +1590,7 @@ ctl_putunqstr(
 	memcpy(buffer, tag, tl);
 	cp = buffer + tl;
 	if (len > 0) {
-		NTP_INSIST(tl + 1 + len <= sizeof(buffer));
+		INSIST(tl + 1 + len <= sizeof(buffer));
 		*cp++ = '=';
 		memcpy(cp, data, len);
 		cp += len;
@@ -1473,7 +1619,7 @@ ctl_putdblf(
 	while (*cq != '\0')
 		*cp++ = *cq++;
 	*cp++ = '=';
-	NTP_INSIST((size_t)(cp - buffer) < sizeof(buffer));
+	INSIST((size_t)(cp - buffer) < sizeof(buffer));
 	snprintf(cp, sizeof(buffer) - (cp - buffer), use_f ? "%.*f" : "%.*g",
 	    precision, d);
 	cp += strlen(cp);
@@ -1499,7 +1645,7 @@ ctl_putuint(
 		*cp++ = *cq++;
 
 	*cp++ = '=';
-	NTP_INSIST((cp - buffer) < (int)sizeof(buffer));
+	INSIST((cp - buffer) < (int)sizeof(buffer));
 	snprintf(cp, sizeof(buffer) - (cp - buffer), "%lu", uval);
 	cp += strlen(cp);
 	ctl_putdata(buffer, (unsigned)( cp - buffer ), 0);
@@ -1526,7 +1672,7 @@ ctl_putcal(
 			pcal->hour,
 			pcal->minute
 			);
-	NTP_INSIST(numch < sizeof(buffer));
+	INSIST(numch < sizeof(buffer));
 	ctl_putdata(buffer, numch, 0);
 
 	return;
@@ -1557,7 +1703,7 @@ ctl_putfs(
 	tm = gmtime(&fstamp);
 	if (NULL ==  tm)
 		return;
-	NTP_INSIST((cp - buffer) < (int)sizeof(buffer));
+	INSIST((cp - buffer) < (int)sizeof(buffer));
 	snprintf(cp, sizeof(buffer) - (cp - buffer),
 		 "%04d%02d%02d%02d%02d", tm->tm_year + 1900,
 		 tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min);
@@ -1586,7 +1732,7 @@ ctl_puthex(
 		*cp++ = *cq++;
 
 	*cp++ = '=';
-	NTP_INSIST((cp - buffer) < (int)sizeof(buffer));
+	INSIST((cp - buffer) < (int)sizeof(buffer));
 	snprintf(cp, sizeof(buffer) - (cp - buffer), "0x%lx", uval);
 	cp += strlen(cp);
 	ctl_putdata(buffer,(unsigned)( cp - buffer ), 0);
@@ -1612,7 +1758,7 @@ ctl_putint(
 		*cp++ = *cq++;
 
 	*cp++ = '=';
-	NTP_INSIST((cp - buffer) < (int)sizeof(buffer));
+	INSIST((cp - buffer) < (int)sizeof(buffer));
 	snprintf(cp, sizeof(buffer) - (cp - buffer), "%ld", ival);
 	cp += strlen(cp);
 	ctl_putdata(buffer, (unsigned)( cp - buffer ), 0);
@@ -1638,7 +1784,7 @@ ctl_putts(
 		*cp++ = *cq++;
 
 	*cp++ = '=';
-	NTP_INSIST((size_t)(cp - buffer) < sizeof(buffer));
+	INSIST((size_t)(cp - buffer) < sizeof(buffer));
 	snprintf(cp, sizeof(buffer) - (cp - buffer), "0x%08x.%08x",
 		 (u_int)ts->l_ui, (u_int)ts->l_uf);
 	cp += strlen(cp);
@@ -1670,7 +1816,7 @@ ctl_putadr(
 		cq = numtoa(addr32);
 	else
 		cq = stoa(addr);
-	NTP_INSIST((cp - buffer) < (int)sizeof(buffer));
+	INSIST((cp - buffer) < (int)sizeof(buffer));
 	snprintf(cp, sizeof(buffer) - (cp - buffer), "%s", cq);
 	cp += strlen(cp);
 	ctl_putdata(buffer, (unsigned)(cp - buffer), 0);
@@ -1741,12 +1887,35 @@ ctl_putarray(
 		if (i == 0)
 			i = NTP_SHIFT;
 		i--;
-		NTP_INSIST((cp - buffer) < (int)sizeof(buffer));
+		INSIST((cp - buffer) < (int)sizeof(buffer));
 		snprintf(cp, sizeof(buffer) - (cp - buffer),
 			 " %.2f", arr[i] * 1e3);
 		cp += strlen(cp);
 	} while (i != start);
 	ctl_putdata(buffer, (unsigned)(cp - buffer), 0);
+}
+
+/*
+ * ctl_printf - put a formatted string into the data buffer
+ */
+static void
+ctl_printf(
+	const char * fmt,
+	...
+	)
+{
+	static const char * ellipsis = "[...]";
+	va_list va;
+	char    fmtbuf[128];
+	int     rc;
+	
+	va_start(va, fmt);
+	rc = vsnprintf(fmtbuf, sizeof(fmtbuf), fmt, va);
+	va_end(va);
+	if (rc < 0 || rc >= sizeof(fmtbuf))
+		strcpy(fmtbuf + sizeof(fmtbuf) - strlen(ellipsis) - 1,
+		       ellipsis);
+	ctl_putdata(fmtbuf, strlen(fmtbuf), 0);
 }
 
 
@@ -2410,6 +2579,9 @@ ctl_putsys(
 			    ntohl(hostval.tstamp));
 		break;
 #endif	/* AUTOKEY */
+
+	default:
+		break;
 	}
 }
 
@@ -2933,7 +3105,6 @@ ctl_getitem(
 	 * Look for a first character match on the tag.  If we find
 	 * one, see if it is a full match.
 	 */
-	v = var_list;
 	cp = reqpt;
 	for (v = var_list; !(EOV & v->flags); v++) {
 		if (!(PADDING & v->flags) && *cp == *(v->text)) {
@@ -3115,7 +3286,7 @@ read_peervars(void)
 			ctl_error(CERR_UNKNOWNVAR);
 			return;
 		}
-		NTP_INSIST(v->code < COUNTOF(wants));
+		INSIST(v->code < COUNTOF(wants));
 		wants[v->code] = 1;
 		gotvar = 1;
 	}
@@ -3158,19 +3329,19 @@ read_sysvars(void)
 	gotvar = 0;
 	while (NULL != (v = ctl_getitem(sys_var, &valuep))) {
 		if (!(EOV & v->flags)) {
-			NTP_INSIST(v->code < wants_count);
+			INSIST(v->code < wants_count);
 			wants[v->code] = 1;
 			gotvar = 1;
 		} else {
 			v = ctl_getitem(ext_sys_var, &valuep);
-			NTP_INSIST(v != NULL);
+			INSIST(v != NULL);
 			if (EOV & v->flags) {
 				ctl_error(CERR_UNKNOWNVAR);
 				free(wants);
 				return;
 			}
 			n = v->code + CS_MAXCODE + 1;
-			NTP_INSIST(n < wants_count);
+			INSIST(n < wants_count);
 			wants[n] = 1;
 			gotvar = 1;
 		}
@@ -4404,7 +4575,7 @@ read_clockstatus(
 			gotvar = TRUE;
 		} else {
 			v = ctl_getitem(kv, &valuep);
-			NTP_INSIST(NULL != v);
+			INSIST(NULL != v);
 			if (EOV & v->flags) {
 				ctl_error(CERR_UNKNOWNVAR);
 				free(wants);
@@ -4800,7 +4971,7 @@ report_event(
 		for (i = 1; i <= CS_VARLIST; i++)
 			ctl_putsys(i);
 	} else {
-		NTP_INSIST(peer != NULL);
+		INSIST(peer != NULL);
 		rpkt.associd = htons(peer->associd);
 		rpkt.status = htons(ctlpeerstatus(peer));
 
@@ -4905,7 +5076,7 @@ count_var(
 	while (!(EOV & (k++)->flags))
 		c++;
 
-	NTP_ENSURE(c <= USHRT_MAX);
+	ENSURE(c <= USHRT_MAX);
 	return (u_short)c;
 }
 

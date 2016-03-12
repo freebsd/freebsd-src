@@ -13,10 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-FreeBSDThread.o: DiagnosticCommonKinds.inc.h
-FreeBSDThread.po: DiagnosticCommonKinds.inc.h
-ProcessFreeBSD.o: DiagnosticCommonKinds.inc.h
-ProcessFreeBSD.po: DiagnosticCommonKinds.inc.h
-ProcessMonitor.o: DiagnosticCommonKinds.inc.h
-ProcessMonitor.po: DiagnosticCommonKinds.inc.h
 .endif

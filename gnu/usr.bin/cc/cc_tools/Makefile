@@ -350,7 +350,7 @@ gstdint.h:
 GENSRCS+=	gstdint.h
 
 # Linked headers
-gthr-default.h: ${GCCDIR}/gthr-posix.h
+gthr-default.h: ${GCCDIR}/gthr-posix.h .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 
 GENSRCS+=	gthr-default.h
@@ -361,7 +361,7 @@ unwind.h: ${GCCDIR}/config/arm/unwind-arm.h
 unwind.h: ${GCCDIR}/unwind-generic.h
 .endif
 
-unwind.h:
+unwind.h: .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 
 GENSRCS+=	unwind.h

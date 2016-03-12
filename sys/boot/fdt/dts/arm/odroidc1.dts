@@ -323,7 +323,7 @@
 
 		eth@c9410000 {
 			/* ethernet */
-			compatible = "snps,dwmac";
+			compatible = "amlogic,meson6-dwmac";
 			reg = <0xc9410000 0x2000>;	/* ahbbus 0x410000 */
 			interrupts = <0 8 1>;
 			#address-cells = <1>;

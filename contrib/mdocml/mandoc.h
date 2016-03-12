@@ -1,15 +1,15 @@
-/*	$Id: mandoc.h,v 1.201 2015/02/23 13:31:04 schwarze Exp $ */
+/*	$Id: mandoc.h,v 1.209 2016/01/08 02:53:13 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010-2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010-2016 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHORS DISCLAIM ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -86,7 +86,6 @@ enum	mandocerr {
 	MANDOCERR_BLK_NEST, /* blocks badly nested: macro ... */
 	MANDOCERR_BD_NEST, /* nested displays are not portable: macro ... */
 	MANDOCERR_BL_MOVE, /* moving content out of list: macro */
-	MANDOCERR_VT_CHILD, /* .Vt block has child macro: macro */
 	MANDOCERR_FI_SKIP, /* fill mode already enabled, skipping: fi */
 	MANDOCERR_NF_SKIP, /* fill mode already disabled, skipping: nf */
 	MANDOCERR_BLK_LINE, /* line scope broken: macro breaks macro */
@@ -173,6 +172,7 @@ enum	mandocerr {
 	/* related to request and macro arguments */
 	MANDOCERR_NAMESC, /* escaped character not allowed in a name: name */
 	MANDOCERR_BD_FILE, /* NOT IMPLEMENTED: Bd -file */
+	MANDOCERR_BD_NOARG, /* skipping display without arguments: Bd */
 	MANDOCERR_BL_NOTYPE, /* missing list type, using -item: Bl */
 	MANDOCERR_NM_NONAME, /* missing manual name, using "": Nm */
 	MANDOCERR_OS_UNAME, /* uname(3) system call failed, using UNKNOWN */
@@ -408,37 +408,28 @@ enum	mandoc_esc {
 typedef	void	(*mandocmsg)(enum mandocerr, enum mandoclevel,
 			const char *, int, int, const char *);
 
-__BEGIN_DECLS
 
 struct	mparse;
-struct	mchars;
-struct	mdoc;
-struct	man;
+struct	roff_man;
 
 enum mandoc_esc	  mandoc_escape(const char **, const char **, int *);
-struct mchars	 *mchars_alloc(void);
-void		  mchars_free(struct mchars *);
+void		  mchars_alloc(void);
+void		  mchars_free(void);
 int		  mchars_num2char(const char *, size_t);
 const char	 *mchars_uc2str(int);
 int		  mchars_num2uc(const char *, size_t);
-int		  mchars_spec2cp(const struct mchars *,
-			const char *, size_t);
-const char	 *mchars_spec2str(const struct mchars *,
-			const char *, size_t, size_t *);
-struct mparse	 *mparse_alloc(int, enum mandoclevel, mandocmsg,
-			const struct mchars *, const char *);
+int		  mchars_spec2cp(const char *, size_t);
+const char	 *mchars_spec2str(const char *, size_t, size_t *);
+struct mparse	 *mparse_alloc(int, enum mandoclevel, mandocmsg, const char *);
 void		  mparse_free(struct mparse *);
 void		  mparse_keep(struct mparse *);
-enum mandoclevel  mparse_open(struct mparse *, int *, const char *);
+int		  mparse_open(struct mparse *, const char *);
 enum mandoclevel  mparse_readfd(struct mparse *, int, const char *);
 enum mandoclevel  mparse_readmem(struct mparse *, void *, size_t,
 			const char *);
 void		  mparse_reset(struct mparse *);
 void		  mparse_result(struct mparse *,
-			struct mdoc **, struct man **, char **);
+			struct roff_man **, char **);
 const char	 *mparse_getkeep(const struct mparse *);
 const char	 *mparse_strerror(enum mandocerr);
 const char	 *mparse_strlevel(enum mandoclevel);
-enum mandoclevel  mparse_wait(struct mparse *);
-
-__END_DECLS

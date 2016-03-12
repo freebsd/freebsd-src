@@ -13,12 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-DisassemblerLLVMC.o: CommentCommandList.inc.h
-DisassemblerLLVMC.o: DeclNodes.inc.h
-DisassemblerLLVMC.o: DiagnosticCommonKinds.inc.h
-DisassemblerLLVMC.o: StmtNodes.inc.h
-DisassemblerLLVMC.po: CommentCommandList.inc.h
-DisassemblerLLVMC.po: DeclNodes.inc.h
-DisassemblerLLVMC.po: DiagnosticCommonKinds.inc.h
-DisassemblerLLVMC.po: StmtNodes.inc.h
 .endif

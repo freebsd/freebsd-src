@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_platform.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>

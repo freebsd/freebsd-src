@@ -13,7 +13,7 @@
 
 machine         mips mips
 ident		QCA955X_BASE
-cpu		CPU_MIPS74KC
+cpu		CPU_MIPS74K
 makeoptions	KERNLOADADDR=0x80050000
 options 	HZ=1000
 

@@ -81,8 +81,8 @@ static struct ib_udata_ops uverbs_copy_ex = {
 #define INIT_UDATA_EX(udata, ibuf, obuf, ilen, olen)		\
 	do {							\
 		(udata)->ops    = &uverbs_copy_ex;		\
-		(udata)->inbuf  = (void __user *)(ibuf);	\
-		(udata)->outbuf = (void __user *)(obuf);	\
+		(udata)->inbuf  = (void __user *)(unsigned long)(ibuf);	\
+		(udata)->outbuf = (void __user *)(unsigned long)(obuf);	\
 		(udata)->inlen  = (ilen);			\
 		(udata)->outlen = (olen);			\
 	} while (0)
@@ -1168,7 +1168,7 @@ static ssize_t show_dev_ref_cnt(struct device *device,
 	if (!dev)
 		return -ENODEV;
 
-	return sprintf(buf, "%d\n",  dev->ref.count);
+	return sprintf(buf, "%d\n",  atomic_read(&dev->ref.refcount));
 }
 static DEVICE_ATTR(ref_cnt, S_IRUGO, show_dev_ref_cnt, NULL);
 

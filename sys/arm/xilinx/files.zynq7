@@ -5,13 +5,6 @@
 
 kern/kern_clocksource.c				standard
 
-arm/arm/bus_space_base.c			standard
-arm/arm/bus_space_generic.c			standard
-arm/arm/bus_space_asm_generic.S			standard
-
-arm/arm/mpcore_timer.c				standard
-arm/arm/pl310.c					standard
-
 arm/xilinx/zy7_machdep.c			standard
 arm/xilinx/zy7_l2cache.c			standard
 arm/xilinx/zy7_slcr.c				standard

@@ -65,16 +65,28 @@ int		db_inst_count;
 int		db_load_count;
 int		db_store_count;
 
+#ifdef SOFTWARE_SSTEP
+db_breakpoint_t	db_not_taken_bkpt = 0;
+db_breakpoint_t	db_taken_bkpt = 0;
+#endif
+
 #ifndef db_set_single_step
 void db_set_single_step(void);
 #endif
 #ifndef db_clear_single_step
 void db_clear_single_step(void);
 #endif
-
+#ifndef db_pc_is_singlestep
+static bool
+db_pc_is_singlestep(db_addr_t pc)
+{
 #ifdef SOFTWARE_SSTEP
-db_breakpoint_t	db_not_taken_bkpt = 0;
-db_breakpoint_t	db_taken_bkpt = 0;
+	if ((db_not_taken_bkpt != 0 && pc == db_not_taken_bkpt->address)
+	    || (db_taken_bkpt != 0 && pc == db_taken_bkpt->address))
+		return (true);
+#endif
+	return (false);
+}
 #endif
 
 bool
@@ -84,11 +96,9 @@ db_stop_at_pc(bool *is_breakpoint)
 	db_breakpoint_t bkpt;
 
 	pc = PC_REGS();
-#ifdef SOFTWARE_SSTEP
-	if ((db_not_taken_bkpt != 0 && pc == db_not_taken_bkpt->address)
-	    || (db_taken_bkpt != 0 && pc == db_taken_bkpt->address))
+
+	if (db_pc_is_singlestep(pc))
 		*is_breakpoint = false;
-#endif
 
 	db_clear_single_step();
 	db_clear_breakpoints();

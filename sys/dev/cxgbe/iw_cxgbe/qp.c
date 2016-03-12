@@ -215,7 +215,8 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	res->u.sqrq.op = FW_RI_RES_OP_WRITE;
 
 	/* eqsize is the number of 64B entries plus the status page size. */
-	eqsize = wq->sq.size * T4_SQ_NUM_SLOTS + spg_creds;
+	eqsize = wq->sq.size * T4_SQ_NUM_SLOTS +
+	    (sc->params.sge.spg_len / EQ_ESIZE);
 
 	res->u.sqrq.fetchszm_to_iqid = cpu_to_be32(
 		V_FW_RI_RES_WR_HOSTFCMODE(0) |	/* no host cidx updates */
@@ -237,7 +238,8 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	res->u.sqrq.op = FW_RI_RES_OP_WRITE;
 
 	/* eqsize is the number of 64B entries plus the status page size. */
-	eqsize = wq->rq.size * T4_RQ_NUM_SLOTS + spg_creds ;
+	eqsize = wq->rq.size * T4_RQ_NUM_SLOTS +
+	    (sc->params.sge.spg_len / EQ_ESIZE);
 	res->u.sqrq.fetchszm_to_iqid = cpu_to_be32(
 		V_FW_RI_RES_WR_HOSTFCMODE(0) |	/* no host cidx updates */
 		V_FW_RI_RES_WR_CPRIO(0) |	/* don't keep in chip cache */
@@ -1257,8 +1259,7 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 	case C4IW_QP_STATE_RTS:
 		switch (attrs->next_state) {
 		case C4IW_QP_STATE_CLOSING:
-			//Fixme: Use atomic_read as same as Linux
-			BUG_ON(qhp->ep->com.kref.count < 2);
+			BUG_ON(atomic_read(&qhp->ep->com.kref.refcount) < 2);
 			set_state(qhp, C4IW_QP_STATE_CLOSING);
 			ep = qhp->ep;
 			if (!internal) {

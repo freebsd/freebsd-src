@@ -28,6 +28,8 @@ extern "C" {
 #define WPA_EVENT_DISCONNECTED "CTRL-EVENT-DISCONNECTED "
 /** Association rejected during connection attempt */
 #define WPA_EVENT_ASSOC_REJECT "CTRL-EVENT-ASSOC-REJECT "
+/** Authentication rejected during connection attempt */
+#define WPA_EVENT_AUTH_REJECT "CTRL-EVENT-AUTH-REJECT "
 /** wpa_supplicant is exiting */
 #define WPA_EVENT_TERMINATING "CTRL-EVENT-TERMINATING "
 /** Password change was completed successfully */
@@ -68,6 +70,8 @@ extern "C" {
 #define WPA_EVENT_BSS_ADDED "CTRL-EVENT-BSS-ADDED "
 /** A BSS entry was removed (followed by BSS entry id and BSSID) */
 #define WPA_EVENT_BSS_REMOVED "CTRL-EVENT-BSS-REMOVED "
+/** No suitable network was found */
+#define WPA_EVENT_NETWORK_NOT_FOUND "CTRL-EVENT-NETWORK-NOT-FOUND "
 /** Change in the signal level was reported by the driver */
 #define WPA_EVENT_SIGNAL_CHANGE "CTRL-EVENT-SIGNAL-CHANGE "
 /** Regulatory domain channel */
@@ -227,6 +231,7 @@ extern "C" {
 #define WPS_EVENT_AP_PIN_DISABLED "WPS-AP-PIN-DISABLED "
 #define AP_STA_CONNECTED "AP-STA-CONNECTED "
 #define AP_STA_DISCONNECTED "AP-STA-DISCONNECTED "
+#define AP_STA_POSSIBLE_PSK_MISMATCH "AP-STA-POSSIBLE-PSK-MISMATCH "
 
 #define AP_REJECTED_MAX_STA "AP-REJECTED-MAX-STA "
 #define AP_REJECTED_BLOCKED_STA "AP-REJECTED-BLOCKED-STA "
@@ -276,6 +281,7 @@ extern "C" {
 #define WPA_BSS_MASK_MESH_SCAN		BIT(18)
 #define WPA_BSS_MASK_SNR		BIT(19)
 #define WPA_BSS_MASK_EST_THROUGHPUT	BIT(20)
+#define WPA_BSS_MASK_FST		BIT(21)
 
 
 /* VENDOR_ELEM_* frame id values */
@@ -311,6 +317,20 @@ enum wpa_vendor_elem_frame {
  * interface need to use matching path configuration.
  */
 struct wpa_ctrl * wpa_ctrl_open(const char *ctrl_path);
+
+/**
+ * wpa_ctrl_open2 - Open a control interface to wpa_supplicant/hostapd
+ * @ctrl_path: Path for UNIX domain sockets; ignored if UDP sockets are used.
+ * @cli_path: Path for client UNIX domain sockets; ignored if UDP socket
+ *            is used.
+ * Returns: Pointer to abstract control interface data or %NULL on failure
+ *
+ * This function is used to open a control interface to wpa_supplicant/hostapd
+ * when the socket path for client need to be specified explicitly. Default
+ * ctrl_path is usually /var/run/wpa_supplicant or /var/run/hostapd and client
+ * socket path is /tmp.
+ */
+struct wpa_ctrl * wpa_ctrl_open2(const char *ctrl_path, const char *cli_path);
 
 
 /**

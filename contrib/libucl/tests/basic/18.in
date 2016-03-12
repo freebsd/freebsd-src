@@ -1,0 +1,10 @@
+defaults {
+	key = "val"
+	foo = "bar"
+	many = "values here"
+}
+
+mything {
+	.inherit "defaults"
+	key = "newval"
+}

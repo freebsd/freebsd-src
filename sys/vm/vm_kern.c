@@ -94,6 +94,9 @@ vm_map_t pipe_map;
 const void *zero_region;
 CTASSERT((ZERO_REGION_SIZE & PAGE_MASK) == 0);
 
+/* NB: Used by kernel debuggers. */
+const u_long vm_maxuser_address = VM_MAXUSER_ADDRESS;
+
 SYSCTL_ULONG(_vm, OID_AUTO, min_kernel_address, CTLFLAG_RD,
     SYSCTL_NULL_ULONG_PTR, VM_MIN_KERNEL_ADDRESS, "Min kernel address");
 
@@ -178,7 +181,10 @@ retry:
 		if (m == NULL) {
 			VM_OBJECT_WUNLOCK(object);
 			if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-				vm_pageout_grow_cache(tries, low, high);
+				if (!vm_page_reclaim_contig(pflags, 1,
+				    low, high, PAGE_SIZE, 0) &&
+				    (flags & M_WAITOK) != 0)
+					VM_WAIT;
 				VM_OBJECT_WLOCK(object);
 				tries++;
 				goto retry;
@@ -214,6 +220,7 @@ kmem_alloc_contig(struct vmem *vmem, vm_size_t size, int flags, vm_paddr_t low,
 	vm_offset_t addr, tmp;
 	vm_ooffset_t offset;
 	vm_page_t end_m, m;
+	u_long npages;
 	int pflags, tries;
  
 	size = round_page(size);
@@ -221,15 +228,18 @@ kmem_alloc_contig(struct vmem *vmem, vm_size_t size, int flags, vm_paddr_t low,
 		return (0);
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	pflags = malloc2vm_flags(flags) | VM_ALLOC_NOBUSY | VM_ALLOC_WIRED;
+	npages = atop(size);
 	VM_OBJECT_WLOCK(object);
 	tries = 0;
 retry:
 	m = vm_page_alloc_contig(object, OFF_TO_IDX(offset), pflags,
-	    atop(size), low, high, alignment, boundary, memattr);
+	    npages, low, high, alignment, boundary, memattr);
 	if (m == NULL) {
 		VM_OBJECT_WUNLOCK(object);
 		if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-			vm_pageout_grow_cache(tries, low, high);
+			if (!vm_page_reclaim_contig(pflags, npages, low, high,
+			    alignment, boundary) && (flags & M_WAITOK) != 0)
+				VM_WAIT;
 			VM_OBJECT_WLOCK(object);
 			tries++;
 			goto retry;
@@ -237,7 +247,7 @@ retry:
 		vmem_free(vmem, addr, size);
 		return (0);
 	}
-	end_m = m + atop(size);
+	end_m = m + npages;
 	tmp = addr;
 	for (; m < end_m; m++) {
 		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)

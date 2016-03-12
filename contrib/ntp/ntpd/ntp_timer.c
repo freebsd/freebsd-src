@@ -57,6 +57,12 @@ static void check_leapsec(u_int32, const time_t*, int/*BOOL*/);
 volatile int interface_interval;     /* init_io() sets def. 300s */
 
 /*
+ * Initializing flag.  All async routines watch this and only do their
+ * thing when it is clear.
+ */
+int initializing;
+
+/*
  * Alarm flag. The mainline code imports this.
  */
 volatile int alarm_flag;
@@ -543,14 +549,16 @@ check_leapsec(
 #ifdef LEAP_SMEAR
 	leap_smear.enabled = leap_smear_intv != 0;
 #endif
-	if (reset)	{
+	if (reset) {
 		lsprox = LSPROX_NOWARN;
 		leapsec_reset_frame();
 		memset(&lsdata, 0, sizeof(lsdata));
 	} else {
-	  int fired = leapsec_query(&lsdata, now, tpiv);
+	  int fired;
 
-	  DPRINTF(1, ("*** leapsec_query: fired %i, now %u (0x%08X), tai_diff %i, ddist %u\n",
+	  fired = leapsec_query(&lsdata, now, tpiv);
+
+	  DPRINTF(3, ("*** leapsec_query: fired %i, now %u (0x%08X), tai_diff %i, ddist %u\n",
 		  fired, now, now, lsdata.tai_diff, lsdata.ddist));
 
 #ifdef LEAP_SMEAR
@@ -566,8 +574,7 @@ check_leapsec(
 				DPRINTF(1, ("*** leapsec_query: setting leap_smear interval %li, begin %.0f, end %.0f\n",
 					leap_smear.interval, leap_smear.intv_start, leap_smear.intv_end));
 			}
-		}
-		else {
+		} else {
 			if (leap_smear.interval)
 				DPRINTF(1, ("*** leapsec_query: clearing leap_smear interval\n"));
 			leap_smear.interval = 0;
@@ -620,18 +627,19 @@ check_leapsec(
 		 * announce the leap event has happened.
 		 */
 		const char *leapmsg = NULL;
-		if (lsdata.warped < 0) {
+		double      lswarp  = lsdata.warped;
+		if (lswarp < 0.0) {
 			if (clock_max_back > 0.0 &&
-			    clock_max_back < fabs(lsdata.warped)) {
-				step_systime(lsdata.warped);
+			    clock_max_back < -lswarp) {
+				step_systime(lswarp);
 				leapmsg = leapmsg_p_step;
 			} else {
 				leapmsg = leapmsg_p_slew;
 			}
-		} else 	if (lsdata.warped > 0) {
+		} else 	if (lswarp > 0.0) {
 			if (clock_max_fwd > 0.0 &&
-			    clock_max_fwd < fabs(lsdata.warped)) {
-				step_systime(lsdata.warped);
+			    clock_max_fwd < lswarp) {
+				step_systime(lswarp);
 				leapmsg = leapmsg_n_step;
 			} else {
 				leapmsg = leapmsg_n_slew;
@@ -648,10 +656,10 @@ check_leapsec(
 		sys_tai = lsdata.tai_offs;
 	  } else {
 #ifdef AUTOKEY
-		update_autokey = (sys_tai != lsdata.tai_offs);
+		  update_autokey = (sys_tai != (u_int)lsdata.tai_offs);
 #endif
-		lsprox  = lsdata.proximity;
-		sys_tai = lsdata.tai_offs;
+		  lsprox  = lsdata.proximity;
+		  sys_tai = lsdata.tai_offs;
 	  }
 	}
 

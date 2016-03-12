@@ -13,8 +13,6 @@
 #include "utils/list.h"
 #include "eap_peer/eap_config.h"
 
-#define MAX_SSID_LEN 32
-
 
 #define DEFAULT_EAP_WORKAROUND ((unsigned int) -1)
 #define DEFAULT_EAPOL_FLAGS (EAPOL_FLAG_REQUIRE_KEY_UNICAST | \
@@ -22,8 +20,7 @@
 #define DEFAULT_PROTO (WPA_PROTO_WPA | WPA_PROTO_RSN)
 #define DEFAULT_KEY_MGMT (WPA_KEY_MGMT_PSK | WPA_KEY_MGMT_IEEE8021X)
 #define DEFAULT_PAIRWISE (WPA_CIPHER_CCMP | WPA_CIPHER_TKIP)
-#define DEFAULT_GROUP (WPA_CIPHER_CCMP | WPA_CIPHER_TKIP | \
-		       WPA_CIPHER_WEP104 | WPA_CIPHER_WEP40)
+#define DEFAULT_GROUP (WPA_CIPHER_CCMP | WPA_CIPHER_TKIP)
 #define DEFAULT_FRAGMENT_SIZE 1398
 
 #define DEFAULT_BG_SCAN_PERIOD -1
@@ -181,6 +178,14 @@ struct wpa_ssid {
 	char *ext_psk;
 
 	/**
+	 * mem_only_psk - Whether to keep PSK/passphrase only in memory
+	 *
+	 * 0 = allow psk/passphrase to be stored to the configuration file
+	 * 1 = do not store psk/passphrase to the configuration file
+	 */
+	int mem_only_psk;
+
+	/**
 	 * pairwise_cipher - Bitfield of allowed pairwise ciphers, WPA_CIPHER_*
 	 */
 	int pairwise_cipher;
@@ -220,7 +225,9 @@ struct wpa_ssid {
 	 *
 	 * scan_ssid can be used to scan for APs using hidden SSIDs.
 	 * Note: Many drivers do not support this. ap_mode=2 can be used with
-	 * such drivers to use hidden SSIDs.
+	 * such drivers to use hidden SSIDs. Note2: Most nl80211-based drivers
+	 * do support scan_ssid=1 and that should be used with them instead of
+	 * ap_scan=2.
 	 */
 	int scan_ssid;
 

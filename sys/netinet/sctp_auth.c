@@ -558,7 +558,7 @@ sctp_auth_key_acquire(struct sctp_tcb *stcb, uint16_t key_id)
 		atomic_add_int(&skey->refcount, 1);
 		SCTPDBG(SCTP_DEBUG_AUTH2,
 		    "%s: stcb %p key %u refcount acquire to %d\n",
-		    __FUNCTION__, (void *)stcb, key_id, skey->refcount);
+		    __func__, (void *)stcb, key_id, skey->refcount);
 	}
 }
 
@@ -578,7 +578,7 @@ sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t key_id, int so_locked
 	if (skey) {
 		SCTPDBG(SCTP_DEBUG_AUTH2,
 		    "%s: stcb %p key %u refcount release to %d\n",
-		    __FUNCTION__, (void *)stcb, key_id, skey->refcount);
+		    __func__, (void *)stcb, key_id, skey->refcount);
 
 		/* see if a notification should be generated */
 		if ((skey->refcount <= 2) && (skey->deactivated)) {
@@ -587,7 +587,7 @@ sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t key_id, int so_locked
 			    key_id, 0, so_locked);
 			SCTPDBG(SCTP_DEBUG_AUTH2,
 			    "%s: stcb %p key %u no longer used, %d\n",
-			    __FUNCTION__, (void *)stcb, key_id, skey->refcount);
+			    __func__, (void *)stcb, key_id, skey->refcount);
 		}
 		sctp_free_sharedkey(skey);
 	}

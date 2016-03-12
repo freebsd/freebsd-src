@@ -69,6 +69,12 @@ namespace CallingConv {
     // (almost) all registers.
     PreserveAll = 15,
 
+    // Swift - Calling convention for Swift.
+    Swift = 16,
+
+    // CXX_FAST_TLS - Calling convention for access functions.
+    CXX_FAST_TLS = 17,
+
     // Target - This is the start of the target-specific calling conventions,
     // e.g. fastcall and thiscall on X86.
     FirstTargetCC = 64,
@@ -144,7 +150,26 @@ namespace CallingConv {
 
     /// \brief MSVC calling convention that passes vectors and vector aggregates
     /// in SSE registers.
-    X86_VectorCall = 80
+    X86_VectorCall = 80,
+
+    /// \brief Calling convention used by HipHop Virtual Machine (HHVM) to
+    /// perform calls to and from translation cache, and for calling PHP
+    /// functions.
+    /// HHVM calling convention supports tail/sibling call elimination.
+    HHVM = 81,
+
+    /// \brief HHVM calling convention for invoking C/C++ helpers.
+    HHVM_C = 82,
+
+    /// X86_INTR - x86 hardware interrupt context. Callee may take one or two
+    /// parameters, where the 1st represents a pointer to hardware context frame
+    /// and the 2nd represents hardware error code, the presence of the later
+    /// depends on the interrupt vector taken. Valid for both 32- and 64-bit
+    /// subtargets.
+    X86_INTR = 83,
+
+    /// The highest possible calling convention ID. Must be some 2^k - 1.
+    MaxID = 1023
   };
 } // End CallingConv namespace
 

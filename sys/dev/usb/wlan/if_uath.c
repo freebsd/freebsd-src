@@ -328,7 +328,8 @@ uath_attach(device_t dev)
 	struct uath_softc *sc = device_get_softc(dev);
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t bands, iface_index = UATH_IFACE_INDEX;		/* XXX */
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t iface_index = UATH_IFACE_INDEX;		/* XXX */
 	usb_error_t error;
 
 	sc->sc_dev = dev;
@@ -431,13 +432,13 @@ uath_attach(device_t dev)
 	/* put a regulatory domain to reveal informations.  */
 	uath_regdomain = sc->sc_devcap.regDomain;
 
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
 	if ((sc->sc_devcap.analog5GhzRevision & 0xf0) == 0x30)
-		setbit(&bands, IEEE80211_MODE_11A);
+		setbit(bands, IEEE80211_MODE_11A);
 	/* XXX turbo */
-	ieee80211_init_channels(ic, NULL, &bands);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
 	ic->ic_raw_xmit = uath_raw_xmit;
@@ -2794,3 +2795,4 @@ DRIVER_MODULE(uath, uhub, uath_driver, uath_devclass, NULL, 0);
 MODULE_DEPEND(uath, wlan, 1, 1, 1);
 MODULE_DEPEND(uath, usb, 1, 1, 1);
 MODULE_VERSION(uath, 1);
+USB_PNP_HOST_INFO(uath_devs);

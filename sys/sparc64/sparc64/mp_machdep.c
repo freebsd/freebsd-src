@@ -119,9 +119,11 @@ struct	mtx ipi_mtx;
 cpu_ipi_selected_t *cpu_ipi_selected;
 cpu_ipi_single_t *cpu_ipi_single;
 
-static vm_offset_t mp_tramp;
 static u_int cpuid_to_mid[MAXCPU];
+static u_int cpuids = 1;
 static volatile cpuset_t shutdown_cpus;
+static char ipi_pbuf[CPUSETBUFSIZ];
+static vm_offset_t mp_tramp;
 
 static void ap_count(phandle_t node, u_int mid, u_int cpu_impl);
 static void ap_start(phandle_t node, u_int mid, u_int cpu_impl);
@@ -165,13 +167,12 @@ static void
 foreach_ap(phandle_t node, void (*func)(phandle_t node, u_int mid,
     u_int cpu_impl))
 {
-	char type[sizeof("cpu")];
+	static char type[sizeof("cpu")];
 	phandle_t child;
-	u_int cpuid;
-	uint32_t cpu_impl;
+	uint32_t cpu_impl, portid;
 
 	/* There's no need to traverse the whole OFW tree twice. */
-	if (mp_maxid > 0 && mp_ncpus >= mp_maxid + 1)
+	if (mp_maxid > 0 && cpuids > mp_maxid)
 		return;
 
 	for (; node != 0; node = OF_peer(node)) {
@@ -188,13 +189,13 @@ foreach_ap(phandle_t node, void (*func)(phandle_t node, u_int mid,
 			    sizeof(cpu_impl)) <= 0)
 				panic("%s: couldn't determine CPU "
 				    "implementation", __func__);
-			if (OF_getprop(node, cpu_cpuid_prop(cpu_impl), &cpuid,
-			    sizeof(cpuid)) <= 0)
-				panic("%s: couldn't determine CPU module ID",
+			if (OF_getprop(node, cpu_portid_prop(cpu_impl),
+			    &portid, sizeof(portid)) <= 0)
+				panic("%s: couldn't determine CPU port ID",
 				    __func__);
-			if (cpuid == PCPU_GET(mid))
+			if (portid == PCPU_GET(mid))
 				continue;
-			(*func)(node, cpuid, cpu_impl);
+			(*func)(node, portid, cpu_impl);
 		}
 	}
 }
@@ -208,16 +209,17 @@ cpu_mp_setmaxid(void)
 
 	CPU_SETOF(curcpu, &all_cpus);
 	mp_ncpus = 1;
-	mp_maxid = 0;
 
 	foreach_ap(OF_child(OF_peer(0)), ap_count);
+	mp_ncpus = MIN(mp_ncpus, MAXCPU);
+	mp_maxid = mp_ncpus - 1;
 }
 
 static void
 ap_count(phandle_t node __unused, u_int mid __unused, u_int cpu_impl __unused)
 {
 
-	mp_maxid++;
+	mp_ncpus++;
 }
 
 int
@@ -306,7 +308,7 @@ ap_start(phandle_t node, u_int mid, u_int cpu_impl)
 	u_int cpuid;
 	uint32_t clock;
 
-	if (mp_ncpus > MAXCPU)
+	if (cpuids > mp_maxid)
 		return;
 
 	if (OF_getprop(node, "clock-frequency", &clock, sizeof(clock)) <= 0)
@@ -334,7 +336,7 @@ ap_start(phandle_t node, u_int mid, u_int cpu_impl)
 	csa->csa_tick = csa->csa_stick = 0;
 	intr_restore(s);
 
-	cpuid = mp_ncpus++;
+	cpuid = cpuids++;
 	cpuid_to_mid[cpuid] = mid;
 	cpu_identify(csa->csa_ver, clock, cpuid);
 
@@ -659,7 +661,6 @@ cheetah_ipi_single(u_int cpu, u_long d0, u_long d1, u_long d2)
 static void
 cheetah_ipi_selected(cpuset_t cpus, u_long d0, u_long d1, u_long d2)
 {
-	char pbuf[CPUSETBUFSIZ];
 	register_t s;
 	u_long ids;
 	u_int bnp;
@@ -675,14 +676,14 @@ cheetah_ipi_selected(cpuset_t cpus, u_long d0, u_long d1, u_long d2)
 	    ("%s: outstanding dispatch", __func__));
 
 	ids = 0;
-	for (i = 0; i < IPI_RETRIES * mp_ncpus; i++) {
+	for (i = 0; i < IPI_RETRIES * smp_cpus; i++) {
 		s = intr_disable();
 		stxa(AA_SDB_INTR_D0, ASI_SDB_INTR_W, d0);
 		stxa(AA_SDB_INTR_D1, ASI_SDB_INTR_W, d1);
 		stxa(AA_SDB_INTR_D2, ASI_SDB_INTR_W, d2);
 		membar(Sync);
 		bnp = 0;
-		for (cpu = 0; cpu < mp_ncpus; cpu++) {
+		for (cpu = 0; cpu < smp_cpus; cpu++) {
 			if (CPU_ISSET(cpu, &cpus)) {
 				stxa(AA_INTR_SEND | (cpuid_to_mid[cpu] <<
 				    IDC_ITID_SHIFT) | bnp << IDC_BN_SHIFT,
@@ -698,7 +699,7 @@ cheetah_ipi_selected(cpuset_t cpus, u_long d0, u_long d1, u_long d2)
 			;
 		intr_restore(s);
 		bnp = 0;
-		for (cpu = 0; cpu < mp_ncpus; cpu++) {
+		for (cpu = 0; cpu < smp_cpus; cpu++) {
 			if (CPU_ISSET(cpu, &cpus)) {
 				if ((ids & (IDR_NACK << (2 * bnp))) == 0)
 					CPU_CLR(cpu, &cpus);
@@ -710,10 +711,10 @@ cheetah_ipi_selected(cpuset_t cpus, u_long d0, u_long d1, u_long d2)
 	}
 	if (kdb_active != 0 || panicstr != NULL)
 		printf("%s: couldn't send IPI (cpus=%s ids=0x%lu)\n",
-		    __func__, cpusetobj_strprint(pbuf, &cpus), ids);
+		    __func__, cpusetobj_strprint(ipi_pbuf, &cpus), ids);
 	else
 		panic("%s: couldn't send IPI (cpus=%s ids=0x%lu)",
-		    __func__, cpusetobj_strprint(pbuf, &cpus), ids);
+		    __func__, cpusetobj_strprint(ipi_pbuf, &cpus), ids);
 }
 
 static void
@@ -760,7 +761,6 @@ jalapeno_ipi_single(u_int cpu, u_long d0, u_long d1, u_long d2)
 static void
 jalapeno_ipi_selected(cpuset_t cpus, u_long d0, u_long d1, u_long d2)
 {
-	char pbuf[CPUSETBUFSIZ];
 	register_t s;
 	u_long ids;
 	u_int cpu;
@@ -775,13 +775,13 @@ jalapeno_ipi_selected(cpuset_t cpus, u_long d0, u_long d1, u_long d2)
 	    ("%s: outstanding dispatch", __func__));
 
 	ids = 0;
-	for (i = 0; i < IPI_RETRIES * mp_ncpus; i++) {
+	for (i = 0; i < IPI_RETRIES * smp_cpus; i++) {
 		s = intr_disable();
 		stxa(AA_SDB_INTR_D0, ASI_SDB_INTR_W, d0);
 		stxa(AA_SDB_INTR_D1, ASI_SDB_INTR_W, d1);
 		stxa(AA_SDB_INTR_D2, ASI_SDB_INTR_W, d2);
 		membar(Sync);
-		for (cpu = 0; cpu < mp_ncpus; cpu++) {
+		for (cpu = 0; cpu < smp_cpus; cpu++) {
 			if (CPU_ISSET(cpu, &cpus)) {
 				stxa(AA_INTR_SEND | (cpuid_to_mid[cpu] <<
 				    IDC_ITID_SHIFT), ASI_SDB_INTR_W, 0);
@@ -795,7 +795,7 @@ jalapeno_ipi_selected(cpuset_t cpus, u_long d0, u_long d1, u_long d2)
 		if ((ids &
 		    (IDR_CHEETAH_ALL_BUSY | IDR_CHEETAH_ALL_NACK)) == 0)
 			return;
-		for (cpu = 0; cpu < mp_ncpus; cpu++)
+		for (cpu = 0; cpu < smp_cpus; cpu++)
 			if (CPU_ISSET(cpu, &cpus))
 				if ((ids & (IDR_NACK <<
 				    (2 * cpuid_to_mid[cpu]))) == 0)
@@ -803,8 +803,8 @@ jalapeno_ipi_selected(cpuset_t cpus, u_long d0, u_long d1, u_long d2)
 	}
 	if (kdb_active != 0 || panicstr != NULL)
 		printf("%s: couldn't send IPI (cpus=%s ids=0x%lu)\n",
-		    __func__, cpusetobj_strprint(pbuf, &cpus), ids);
+		    __func__, cpusetobj_strprint(ipi_pbuf, &cpus), ids);
 	else
 		panic("%s: couldn't send IPI (cpus=%s ids=0x%lu)",
-		    __func__, cpusetobj_strprint(pbuf, &cpus), ids);
+		    __func__, cpusetobj_strprint(ipi_pbuf, &cpus), ids);
 }

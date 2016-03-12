@@ -11,4 +11,6 @@ SRCS=	ExecutionEngine.cpp \
 	SectionMemoryManager.cpp \
 	TargetSelect.cpp
 
+TGHDRS=	Attributes
+
 .include "../clang.lib.mk"

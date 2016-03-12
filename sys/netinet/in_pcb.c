@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/callout.h>
+#include <sys/eventhandler.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/rmlock.h>
@@ -1220,8 +1221,17 @@ in_pcbrele_wlocked(struct inpcb *inp)
 
 	INP_WLOCK_ASSERT(inp);
 
-	if (refcount_release(&inp->inp_refcount) == 0)
+	if (refcount_release(&inp->inp_refcount) == 0) {
+		/*
+		 * If the inpcb has been freed, let the caller know, even if
+		 * this isn't the last reference.
+		 */
+		if (inp->inp_flags2 & INP_FREED) {
+			INP_WUNLOCK(inp);
+			return (1);
+		}
 		return (0);
+	}
 
 	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
 

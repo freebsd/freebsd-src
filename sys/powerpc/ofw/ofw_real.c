@@ -71,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/md_var.h>
 #include <machine/ofw_machdep.h>
-#include <machine/pmap.h>
 #include <machine/stdarg.h>
 
 #include <dev/ofw/openfirm.h>

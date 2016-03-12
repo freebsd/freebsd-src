@@ -1468,16 +1468,22 @@ mps_setup_sysctl(struct mps_softc *sc)
 	    OID_AUTO, "enable_ssu", CTLFLAG_RW, &sc->enable_ssu, 0,
 	    "enable SSU to SATA SSD/HDD at shutdown");
 
-#if __FreeBSD_version >= 900030
 	SYSCTL_ADD_UQUAD(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "chain_alloc_fail", CTLFLAG_RD,
 	    &sc->chain_alloc_fail, "chain allocation failures");
-#endif //FreeBSD_version >= 900030
 
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "spinup_wait_time", CTLFLAG_RD,
 	    &sc->spinup_wait_time, DEFAULT_SPINUP_WAIT, "seconds to wait for "
 	    "spinup after SATA ID error");
+
+	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "mapping_table_dump", CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+	    mps_mapping_dump, "A", "Mapping Table Dump");
+
+	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "encl_table_dump", CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+	    mps_mapping_encl_dump, "A", "Enclosure Table Dump");
 }
 
 int

@@ -265,11 +265,6 @@ static driver_t uftdi_driver = {
 	.size = sizeof(struct uftdi_softc),
 };
 
-DRIVER_MODULE(uftdi, uhub, uftdi_driver, uftdi_devclass, NULL, NULL);
-MODULE_DEPEND(uftdi, ucom, 1, 1, 1);
-MODULE_DEPEND(uftdi, usb, 1, 1, 1);
-MODULE_VERSION(uftdi, 1);
-
 static const STRUCT_USB_HOST_ID uftdi_devs[] = {
 #define	UFTDI_DEV(v, p, i) \
   { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
@@ -568,7 +563,7 @@ static const STRUCT_USB_HOST_ID uftdi_devs[] = {
 	UFTDI_DEV(KOBIL, CONV_B1, 0),
 	UFTDI_DEV(KOBIL, CONV_KAAN, 0),
 	UFTDI_DEV(LARSENBRUSGAARD, ALTITRACK, 0),
-	UFTDI_DEV(MARVELL, SHEEVAPLUG, 0),
+	UFTDI_DEV(MARVELL, SHEEVAPLUG, UFTDI_JTAG_IFACE(0)),
 	UFTDI_DEV(MATRIXORBITAL, FTDI_RANGE_0100, 0),
 	UFTDI_DEV(MATRIXORBITAL, FTDI_RANGE_0101, 0),
 	UFTDI_DEV(MATRIXORBITAL, FTDI_RANGE_0102, 0),
@@ -913,6 +908,12 @@ static const STRUCT_USB_HOST_ID uftdi_devs[] = {
 	UFTDI_DEV(UNKNOWN4, NF_RIC, 0),
 #undef UFTDI_DEV
 };
+
+DRIVER_MODULE(uftdi, uhub, uftdi_driver, uftdi_devclass, NULL, NULL);
+MODULE_DEPEND(uftdi, ucom, 1, 1, 1);
+MODULE_DEPEND(uftdi, usb, 1, 1, 1);
+MODULE_VERSION(uftdi, 1);
+USB_PNP_HOST_INFO(uftdi_devs);
 
 /*
  * Jtag product name strings table.  Some products have one or more interfaces

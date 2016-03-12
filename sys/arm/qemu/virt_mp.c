@@ -38,29 +38,16 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/intr.h>
+#include <machine/platformvar.h>
 #include <machine/smp.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_cpu.h>
 #include <dev/psci/psci.h>
 
+#include <arm/qemu/virt_mp.h>
+
 static int running_cpus;
-
-int
-platform_mp_probe(void)
-{
-	int ncpus;
-
-	ncpus = ofw_cpu_early_foreach(NULL, true);
-	if (ncpus <= 1) {
-		mp_ncpus = 1;
-		return (0);
-	}
-
-	mp_ncpus = MIN(ncpus, MAXCPU);
-
-	return (1);
-}
 
 static boolean_t
 virt_maxid(u_int id, phandle_t node, u_int addr_cells, pcell_t *reg)
@@ -73,11 +60,14 @@ virt_maxid(u_int id, phandle_t node, u_int addr_cells, pcell_t *reg)
 }
 
 void
-platform_mp_setmaxid(void)
+virt_mp_setmaxid(platform_t plat)
 {
 
 	mp_maxid = PCPU_GET(cpuid);
-	ofw_cpu_early_foreach(virt_maxid, true);
+	mp_ncpus = ofw_cpu_early_foreach(virt_maxid, true);
+	if (mp_ncpus < 1)
+		mp_ncpus = 1;
+	mp_ncpus = MIN(mp_ncpus, MAXCPU);
 }
 
 static boolean_t
@@ -98,22 +88,8 @@ virt_start_ap(u_int id, phandle_t node, u_int addr_cells, pcell_t *reg)
 }
 
 void
-platform_mp_start_ap(void)
+virt_mp_start_ap(platform_t plat)
 {
 
 	ofw_cpu_early_foreach(virt_start_ap, true);
-}
-
-void
-platform_mp_init_secondary(void)
-{
-
-	arm_init_secondary_ic();
-}
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
 }

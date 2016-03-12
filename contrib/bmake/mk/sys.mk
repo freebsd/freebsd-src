@@ -1,4 +1,4 @@
-# $Id: sys.mk,v 1.36 2014/05/11 00:30:19 sjg Exp $
+# $Id: sys.mk,v 1.41 2015/11/14 20:20:34 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2009, Simon J. Gerraty
 #
@@ -75,8 +75,12 @@ M_L_TARGETS = ${M_ListToMatch:S,V,_TARGETS,}
 M_ListToSkip= O:u:ts::S,:,:N,g:S,^,N,
 
 # type should be a builtin in any sh since about 1980,
+# but sadly there are exceptions!
+.if ${.MAKE.OS:Unknown:NBSD/OS} == ""
+_type_sh = which
+.endif
 # AUTOCONF := ${autoconf:L:${M_whence}}
-M_type = @x@(type $$x 2> /dev/null); echo;@:sh:[0]:N* found*:[@]:C,[()],,g
+M_type = @x@(${_type_sh:Utype} $$x) 2> /dev/null; echo;@:sh:[0]:N* found*:[@]:C,[()],,g
 M_whence = ${M_type}:M/*:[1]
 
 # convert a path to a valid shell variable
@@ -102,6 +106,9 @@ _TARGETS := ${.TARGETS}
 # we need HOST_TARGET etc below.
 .include <host-target.mk>
 
+# early customizations
+.-include <local.sys.env.mk>
+
 # find the OS specifics
 .if defined(SYS_OS_MK)
 .include <${SYS_OS_MK}>
@@ -126,11 +133,30 @@ SYS_OS_MK := ${_sys_mk}
 .export SYS_OS_MK
 .endif
 
-# allow customization without editing.
-.-include <local.sys.mk>
+# some options we need to know early
+OPTIONS_DEFAULT_NO += \
+	DIRDEPS_BUILD \
+	DIRDEPS_CACHE \
+	META_MODE
+
+OPTIONS_DEFAULT_DEPENDENT += \
+	AUTO_OBJ/DIRDEPS_BUILD \
+	STAGING/DIRDEPS_BUILD \
+
+.-include "options.mk"
+
+.if ${MK_DIRDEPS_BUILD:Uno} == "yes"
+MK_META_MODE = yes
+.-include <meta.sys.mk>
+.elif ${MK_META_MODE:Uno} == "yes"
+.MAKE.MODE = meta verbose
+.endif
+# make sure we have a harmless value
+.MAKE.MODE ?= normal
 
 # if you want objdirs make them automatic
-.if ${MKOBJDIRS:Uno} == "auto"
+# and do it early before we compute .PATH
+.if ${MK_AUTO_OBJ:Uno} == "yes" || ${MKOBJDIRS:Uno} == "auto"
 .include <auto.obj.mk>
 .endif
 
@@ -178,17 +204,8 @@ Mkdirs= Mkdirs() { \
 .cc.cpp-out:
 	@${COMPILE.cc:N-c} -E ${.IMPSRC} | grep -v '^[ 	]*$$'
 
-# we don't include own.mk but user can expect -DWITH_META_MODE to work
-.if defined(WITHOUT_META_MODE)
-USE_META= no
-.elif defined(WITH_META_MODE)
-USE_META= yes
-.endif
-.if ${USE_META:Uno} == "yes"
-.-include <meta.sys.mk>
-.endif
-# make sure we have a harmless value
-.MAKE.MODE ?= normal
+# late customizations
+.-include <local.sys.mk>
 
 # if .CURDIR is matched by any entry in DEBUG_MAKE_DIRS we
 # will apply DEBUG_MAKE_FLAGS, now.

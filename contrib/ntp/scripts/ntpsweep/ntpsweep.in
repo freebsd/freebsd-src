@@ -138,7 +138,8 @@ sub scan_host {
         # got answers ? If so, go on.
         if ($daemonversion) {
             if ($showpeers) {
-                my @peers_tmp = ntp_peers($host);
+                my $peers_ref = ntp_peers($host);
+                my @peers_tmp = @$peers_ref;
                 for (@peers_tmp) {
                     $_->{remote} =~ s/^(?: |x|\.|-|\+|#|\*|o)([^ ]+)/$1/;
                     push @peers, $_->{remote};

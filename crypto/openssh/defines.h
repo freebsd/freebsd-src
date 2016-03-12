@@ -25,7 +25,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.176 2014/01/17 13:12:38 dtucker Exp $ */
+/* $Id: defines.h,v 1.183 2014/09/02 19:33:26 djm Exp $ */
 
 
 /* Constants */
@@ -104,6 +104,17 @@ enum
 #  endif /* BROKEN_REALPATH */
 # endif /* PATH_MAX */
 #endif /* MAXPATHLEN */
+
+#ifndef HOST_NAME_MAX
+# include "netdb.h" /* for MAXHOSTNAMELEN */
+# if defined(_POSIX_HOST_NAME_MAX)
+#  define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
+# elif defined(MAXHOSTNAMELEN)
+#  define HOST_NAME_MAX MAXHOSTNAMELEN
+# else
+#  define HOST_NAME_MAX	255
+# endif
+#endif /* HOST_NAME_MAX */
 
 #if defined(HAVE_DECL_MAXSYMLINKS) && HAVE_DECL_MAXSYMLINKS == 0
 # define MAXSYMLINKS 5
@@ -405,7 +416,7 @@ struct winsize {
 
 /* user may have set a different path */
 #if defined(_PATH_MAILDIR) && defined(MAIL_DIRECTORY)
-# undef _PATH_MAILDIR MAILDIR
+# undef _PATH_MAILDIR
 #endif /* defined(_PATH_MAILDIR) && defined(MAIL_DIRECTORY) */
 
 #ifdef MAIL_DIRECTORY
@@ -586,6 +597,12 @@ struct winsize {
 # undef HAVE_GAI_STRERROR
 #endif
 
+#if defined(HAVE_GETADDRINFO)
+# if defined(HAVE_DECL_AI_NUMERICSERV) && HAVE_DECL_AI_NUMERICSERV == 0
+#   define AI_NUMERICSERV	0
+# endif
+#endif
+
 #if defined(BROKEN_UPDWTMPX) && defined(HAVE_UPDWTMPX)
 # undef HAVE_UPDWTMPX
 #endif
@@ -602,10 +619,6 @@ struct winsize {
 #if !defined(HAVE_MEMMOVE) && defined(HAVE_BCOPY)
 # define memmove(s1, s2, n) bcopy((s2), (s1), (n))
 #endif /* !defined(HAVE_MEMMOVE) && defined(HAVE_BCOPY) */
-
-#if defined(HAVE_VHANGUP) && !defined(HAVE_DEV_PTMX)
-#  define USE_VHANGUP
-#endif /* defined(HAVE_VHANGUP) && !defined(HAVE_DEV_PTMX) */
 
 #ifndef GETPGRP_VOID
 # include <unistd.h>
@@ -809,14 +822,6 @@ struct winsize {
 # define SSH_IOBUFSZ 8192
 #endif
 
-#ifndef _NSIG
-# ifdef NSIG
-#  define _NSIG NSIG
-# else
-#  define _NSIG 128
-# endif
-#endif
-
 /*
  * Platforms that have arc4random_uniform() and not arc4random_stir()
  * shouldn't need the latter.
@@ -824,6 +829,32 @@ struct winsize {
 #if defined(HAVE_ARC4RANDOM) && defined(HAVE_ARC4RANDOM_UNIFORM) && \
     !defined(HAVE_ARC4RANDOM_STIR)
 # define arc4random_stir()
+#endif
+
+#ifndef HAVE_VA_COPY
+# ifdef HAVE___VA_COPY
+#  define va_copy(dest, src) __va_copy(dest, src)
+# else
+#  define va_copy(dest, src) (dest) = (src)
+# endif
+#endif
+
+#ifndef __predict_true
+# if defined(__GNUC__) && \
+     ((__GNUC__ > (2)) || (__GNUC__ == (2) && __GNUC_MINOR__ >= (96)))
+#  define __predict_true(exp)     __builtin_expect(((exp) != 0), 1)
+#  define __predict_false(exp)    __builtin_expect(((exp) != 0), 0)
+# else
+#  define __predict_true(exp)     ((exp) != 0)
+#  define __predict_false(exp)    ((exp) != 0)
+# endif /* gcc version */
+#endif /* __predict_true */
+
+#if defined(HAVE_GLOB_H) && defined(GLOB_HAS_ALTDIRFUNC) && \
+    defined(GLOB_HAS_GL_MATCHC) && defined(GLOB_HAS_GL_STATV) && \
+    defined(HAVE_DECL_GLOB_NOMATCH) &&  HAVE_DECL_GLOB_NOMATCH != 0 && \
+    !defined(BROKEN_GLOB)
+# define USE_SYSTEM_GLOB
 #endif
 
 #endif /* _DEFINES_H */

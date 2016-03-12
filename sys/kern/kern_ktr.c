@@ -55,9 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 
 #include <machine/cpu.h>
-#ifdef __sparc64__
-#include <machine/ktr.h>
-#endif
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -422,7 +419,7 @@ DB_SHOW_COMMAND(ktr, db_ktr_all)
 	db_ktr_verbose |= (strchr(modif, 'V') != NULL) ? 1 : 0; /* just timestap please */
 	if (strchr(modif, 'a') != NULL) {
 		db_disable_pager();
-		while (cncheckc() != -1)
+		while (cncheckc() == -1)
 			if (db_mach_vtrace() == 0)
 				break;
 	} else {

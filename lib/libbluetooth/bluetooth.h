@@ -178,7 +178,7 @@ int		bt_devfilter_evt_tst(struct bt_devfilter const *filter, uint8_t event);
 int		bt_devinquiry(char const *devname, time_t length, int num_rsp,
 			      struct bt_devinquiry **ii);
 int		bt_devinfo (struct bt_devinfo *di);
-int		bt_devenum (bt_devenum_cb_t *cb, void *arg);
+int		bt_devenum (bt_devenum_cb_t cb, void *arg);
 
 /*
  * bdaddr utility functions (from NetBSD)

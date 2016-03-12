@@ -7,7 +7,44 @@
       http://www.greenwoodsoftware.com/less
   You can also download the latest version of less from there.
 
-  To report bugs, suggestions or comments, send email to bug-less@gnu.org.
+  To report bugs, suggestions or comments, send email to bug-less@gnu.org
+
+======================================================================
+
+	Major changes between "less" versions 458 and 481
+
+* Don't overwrite history file; just append to it.
+
+* New command ESC-G goes to end of currently buffered data in a pipe.
+
+* Disable history feature when compiled with LESSHISTFILE set to "-".
+
+* In more-compatible mode, make the -p option apply to every file opened,
+  not just the first one.
+
+* In more-compatible mode, change the -e option to work like -E, not -EF.
+
+* Treat multiple CRs before LF are like one CR (all the CRs are hidden).
+
+* Allow "extra" string in lesskey file to append to a multi-char command
+  (like a search pattern), without executing the command.
+
+* Ignore -u/-U setting while viewing help file, so that 
+  underline and bold chars are displayed correctly.
+
+* Improve detection of "binary" files in UTF-8 mode.
+
+* Fix bug with ++ commands.
+
+* Fix bug where prompt was sometimes not displayed with +G.
+
+* Fix possible memory corruption 
+
+* Fix bugs and improve performance in ampersand filtering.
+
+* Automate construction of Unicode tables from Unicode database.
+
+* Allow %% escape sequence in LESSOPEN variable.
 
 ======================================================================
 

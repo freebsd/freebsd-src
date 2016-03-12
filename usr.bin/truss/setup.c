@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysdecode.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -60,7 +61,9 @@ SET_DECLARE(procabi, struct procabi);
 
 static sig_atomic_t detaching;
 
-static void	new_proc(struct trussinfo *, pid_t);
+static void	enter_syscall(struct trussinfo *, struct threadinfo *,
+		    struct ptrace_lwpinfo *);
+static void	new_proc(struct trussinfo *, pid_t, lwpid_t);
 
 /*
  * setup_and_wait() is called to start a process.  All it really does
@@ -86,7 +89,7 @@ setup_and_wait(struct trussinfo *info, char *command[])
 	if (waitpid(pid, NULL, 0) < 0)
 		err(1, "unexpect stop in waitpid");
 
-	new_proc(info, pid);
+	new_proc(info, pid, 0);
 }
 
 /*
@@ -108,7 +111,7 @@ start_tracing(struct trussinfo *info, pid_t pid)
 	if (waitpid(pid, NULL, 0) < 0)
 		err(1, "Unexpect stop in waitpid");
 
-	new_proc(info, pid);
+	new_proc(info, pid, 0);
 }
 
 /*
@@ -169,14 +172,71 @@ find_abi(pid_t pid)
 	return (NULL);
 }
 
+static struct threadinfo *
+new_thread(struct procinfo *p, lwpid_t lwpid)
+{
+	struct threadinfo *nt;
+
+	/*
+	 * If this happens it means there is a bug in truss.  Unfortunately
+	 * this will kill any processes truss is attached to.
+	 */
+	LIST_FOREACH(nt, &p->threadlist, entries) {
+		if (nt->tid == lwpid)
+			errx(1, "Duplicate thread for LWP %ld", (long)lwpid);
+	}
+
+	nt = calloc(1, sizeof(struct threadinfo));
+	if (nt == NULL)
+		err(1, "calloc() failed");
+	nt->proc = p;
+	nt->tid = lwpid;
+	LIST_INSERT_HEAD(&p->threadlist, nt, entries);
+	return (nt);
+}
+
 static void
-new_proc(struct trussinfo *info, pid_t pid)
+free_thread(struct threadinfo *t)
+{
+
+	LIST_REMOVE(t, entries);
+	free(t);
+}
+
+static void
+add_threads(struct trussinfo *info, struct procinfo *p)
+{
+	struct ptrace_lwpinfo pl;
+	struct threadinfo *t;
+	lwpid_t *lwps;
+	int i, nlwps;
+
+	nlwps = ptrace(PT_GETNUMLWPS, p->pid, NULL, 0);
+	if (nlwps == -1)
+		err(1, "Unable to fetch number of LWPs");
+	assert(nlwps > 0);
+	lwps = calloc(nlwps, sizeof(*lwps));
+	nlwps = ptrace(PT_GETLWPLIST, p->pid, (caddr_t)lwps, nlwps);
+	if (nlwps == -1)
+		err(1, "Unable to fetch LWP list");
+	for (i = 0; i < nlwps; i++) {
+		t = new_thread(p, lwps[i]);
+		if (ptrace(PT_LWPINFO, lwps[i], (caddr_t)&pl, sizeof(pl)) == -1)
+			err(1, "ptrace(PT_LWPINFO)");
+		if (pl.pl_flags & PL_FLAG_SCE)
+			enter_syscall(info, t, &pl);
+	}
+	free(lwps);
+}
+
+static void
+new_proc(struct trussinfo *info, pid_t pid, lwpid_t lwpid)
 {
 	struct procinfo *np;
 
 	/*
 	 * If this happens it means there is a bug in truss.  Unfortunately
-	 * this will kill any processes are attached to.
+	 * this will kill any processes truss is attached to.
 	 */
 	LIST_FOREACH(np, &info->proclist, entries) {
 		if (np->pid == pid)
@@ -186,11 +246,18 @@ new_proc(struct trussinfo *info, pid_t pid)
 	if (info->flags & FOLLOWFORKS)
 		if (ptrace(PT_FOLLOW_FORK, pid, NULL, 1) == -1)
 			err(1, "Unable to follow forks for pid %ld", (long)pid);
+	if (ptrace(PT_LWP_EVENTS, pid, NULL, 1) == -1)
+		err(1, "Unable to enable LWP events for pid %ld", (long)pid);
 	np = calloc(1, sizeof(struct procinfo));
 	np->pid = pid;
 	np->abi = find_abi(pid);
-	SLIST_INIT(&np->threadlist);
+	LIST_INIT(&np->threadlist);
 	LIST_INSERT_HEAD(&info->proclist, np, entries);
+
+	if (lwpid != 0)
+		new_thread(np, lwpid);
+	else
+		add_threads(info, np);
 }
 
 static void
@@ -198,7 +265,7 @@ free_proc(struct procinfo *p)
 {
 	struct threadinfo *t, *t2;
 
-	SLIST_FOREACH_SAFE(t, &p->threadlist, entries, t2) {
+	LIST_FOREACH_SAFE(t, &p->threadlist, entries, t2) {
 		free(t);
 	}
 	LIST_REMOVE(p, entries);
@@ -231,7 +298,6 @@ find_proc(struct trussinfo *info, pid_t pid)
 
 /*
  * Change curthread member based on (pid, lwpid).
- * If it is a new thread, create a threadinfo structure.
  */
 static void
 find_thread(struct trussinfo *info, pid_t pid, lwpid_t lwpid)
@@ -242,55 +308,30 @@ find_thread(struct trussinfo *info, pid_t pid, lwpid_t lwpid)
 	np = find_proc(info, pid);
 	assert(np != NULL);
 
-	SLIST_FOREACH(nt, &np->threadlist, entries) {
+	LIST_FOREACH(nt, &np->threadlist, entries) {
 		if (nt->tid == lwpid) {
 			info->curthread = nt;
 			return;
 		}
 	}
-
-	nt = calloc(1, sizeof(struct threadinfo));
-	if (nt == NULL)
-		err(1, "calloc() failed");
-	nt->proc = np;
-	nt->tid = lwpid;
-	SLIST_INSERT_HEAD(&np->threadlist, nt, entries);
-	info->curthread = nt;
+	errx(1, "could not find thread");
 }
 
 /*
- * When a process exits, it no longer has any threads left.  However,
- * the main loop expects a valid curthread.  In cases when a thread
- * triggers the termination (e.g. calling exit or triggering a fault)
- * we would ideally use that thread.  However, if a process is killed
- * by a signal sent from another process then there is no "correct"
- * thread.  We just punt and use the first thread.
+ * When a process exits, it should have exactly one thread left.
+ * All of the other threads should have reported thread exit events.
  */
 static void
 find_exit_thread(struct trussinfo *info, pid_t pid)
 {
-	struct procinfo *np;
-	struct threadinfo *nt;
+	struct procinfo *p;
 
-	np = find_proc(info, pid);
-	assert(np != NULL);
+	p = find_proc(info, pid);
+	assert(p != NULL);
 
-	if (SLIST_EMPTY(&np->threadlist)) {
-		/*
-		 * If an existing process exits right after we attach
-		 * to it but before it posts any events, there won't
-		 * be any threads.  Create a dummy thread and set its
-		 * "before" time to the global start time.
-		 */
-		nt = calloc(1, sizeof(struct threadinfo));
-		if (nt == NULL)
-			err(1, "calloc() failed");
-		nt->proc = np;
-		nt->tid = 0;
-		SLIST_INSERT_HEAD(&np->threadlist, nt, entries);
-		nt->before = info->start_time;
-	}
-	info->curthread = SLIST_FIRST(&np->threadlist);
+	info->curthread = LIST_FIRST(&p->threadlist);
+	assert(info->curthread != NULL);
+	assert(LIST_NEXT(info->curthread, entries) == NULL);
 }
 
 static void
@@ -321,13 +362,12 @@ free_syscall(struct threadinfo *t)
 }
 
 static void
-enter_syscall(struct trussinfo *info, struct ptrace_lwpinfo *pl)
+enter_syscall(struct trussinfo *info, struct threadinfo *t,
+    struct ptrace_lwpinfo *pl)
 {
-	struct threadinfo *t;
 	struct syscall *sc;
 	u_int i, narg;
 
-	t = info->curthread;
 	alloc_syscall(t, pl);
 	narg = MIN(pl->pl_syscall_narg, nitems(t->cs.args));
 	if (narg != 0 && t->proc->abi->fetch_args(info, narg) != 0) {
@@ -335,8 +375,7 @@ enter_syscall(struct trussinfo *info, struct ptrace_lwpinfo *pl)
 		return;
 	}
 
-	if (t->cs.number >= 0 && t->cs.number < t->proc->abi->nsyscalls)
-		t->cs.name = t->proc->abi->syscallnames[t->cs.number];
+	t->cs.name = sysdecode_syscallname(t->proc->abi->abi, t->cs.number);
 	if (t->cs.name == NULL)
 		fprintf(info->outfile, "-- UNKNOWN %s SYSCALL %d --\n",
 		    t->proc->abi->type, t->cs.number);
@@ -375,6 +414,28 @@ enter_syscall(struct trussinfo *info, struct ptrace_lwpinfo *pl)
 	}
 
 	clock_gettime(CLOCK_REALTIME, &t->before);
+}
+
+/*
+ * When a thread exits voluntarily (including when a thread calls
+ * exit() to trigger a process exit), the thread's internal state
+ * holds the arguments passed to the exit system call.  When the
+ * thread's exit is reported, log that system call without a return
+ * value.
+ */
+static void
+thread_exit_syscall(struct trussinfo *info)
+{
+	struct threadinfo *t;
+
+	t = info->curthread;
+	if (!t->in_syscall)
+		return;
+
+	clock_gettime(CLOCK_REALTIME, &t->after);
+
+	print_syscall_ret(info, 0, NULL);
+	free_syscall(t);
 }
 
 static void
@@ -422,8 +483,7 @@ exit_syscall(struct trussinfo *info, struct ptrace_lwpinfo *pl)
 		}
 	}
 
-	print_syscall_ret(info, t->cs.name, t->cs.nargs, t->cs.s_args,
-	    errorp, retval, sc);
+	print_syscall_ret(info, errorp, retval);
 	free_syscall(t);
 
 	/*
@@ -431,6 +491,7 @@ exit_syscall(struct trussinfo *info, struct ptrace_lwpinfo *pl)
 	 * new ABI isn't supported, stop tracing this process.
 	 */
 	if (pl->pl_flags & PL_FLAG_EXEC) {
+		assert(LIST_NEXT(LIST_FIRST(&p->threadlist), entries) == NULL);
 		p->abi = find_abi(p->pid);
 		if (p->abi == NULL) {
 			if (ptrace(PT_DETACH, p->pid, (caddr_t)1, 0) < 0)
@@ -440,26 +501,69 @@ exit_syscall(struct trussinfo *info, struct ptrace_lwpinfo *pl)
 	}
 }
 
+int
+print_line_prefix(struct trussinfo *info)
+{
+	struct timespec timediff;
+	struct threadinfo *t;
+	int len;
+
+	len = 0;
+	t = info->curthread;
+	if (info->flags & (FOLLOWFORKS | DISPLAYTIDS)) {
+		if (info->flags & FOLLOWFORKS)
+			len += fprintf(info->outfile, "%5d", t->proc->pid);
+		if ((info->flags & (FOLLOWFORKS | DISPLAYTIDS)) ==
+		    (FOLLOWFORKS | DISPLAYTIDS))
+			len += fprintf(info->outfile, " ");
+		if (info->flags & DISPLAYTIDS)
+			len += fprintf(info->outfile, "%6d", t->tid);
+		len += fprintf(info->outfile, ": ");
+	}
+	if (info->flags & ABSOLUTETIMESTAMPS) {
+		timespecsubt(&t->after, &info->start_time, &timediff);
+		len += fprintf(info->outfile, "%jd.%09ld ",
+		    (intmax_t)timediff.tv_sec, timediff.tv_nsec);
+	}
+	if (info->flags & RELATIVETIMESTAMPS) {
+		timespecsubt(&t->after, &t->before, &timediff);
+		len += fprintf(info->outfile, "%jd.%09ld ",
+		    (intmax_t)timediff.tv_sec, timediff.tv_nsec);
+	}
+	return (len);
+}
+
+static void
+report_thread_death(struct trussinfo *info)
+{
+	struct threadinfo *t;
+
+	t = info->curthread;
+	clock_gettime(CLOCK_REALTIME, &t->after);
+	print_line_prefix(info);
+	fprintf(info->outfile, "<thread %ld exited>\n", (long)t->tid);
+}
+
+static void
+report_thread_birth(struct trussinfo *info)
+{
+	struct threadinfo *t;
+
+	t = info->curthread;
+	clock_gettime(CLOCK_REALTIME, &t->after);
+	t->before = t->after;
+	print_line_prefix(info);
+	fprintf(info->outfile, "<new thread %ld>\n", (long)t->tid);
+}
+
 static void
 report_exit(struct trussinfo *info, siginfo_t *si)
 {
-	struct timespec timediff;
+	struct threadinfo *t;
 
-	if (info->flags & FOLLOWFORKS)
-		fprintf(info->outfile, "%5d: ", si->si_pid);
-	clock_gettime(CLOCK_REALTIME, &info->curthread->after);
-	if (info->flags & ABSOLUTETIMESTAMPS) {
-		timespecsubt(&info->curthread->after, &info->start_time,
-		    &timediff);
-		fprintf(info->outfile, "%jd.%09ld ", (intmax_t)timediff.tv_sec,
-		    timediff.tv_nsec);
-	}
-	if (info->flags & RELATIVETIMESTAMPS) {
-		timespecsubt(&info->curthread->after, &info->curthread->before,
-		    &timediff);
-		fprintf(info->outfile, "%jd.%09ld ", (intmax_t)timediff.tv_sec,
-		    timediff.tv_nsec);
-	}
+	t = info->curthread;
+	clock_gettime(CLOCK_REALTIME, &t->after);
+	print_line_prefix(info);
 	if (si->si_code == CLD_EXITED)
 		fprintf(info->outfile, "process exit, rval = %u\n",
 		    si->si_status);
@@ -470,48 +574,26 @@ report_exit(struct trussinfo *info, siginfo_t *si)
 }
 
 static void
-report_new_child(struct trussinfo *info, pid_t pid)
+report_new_child(struct trussinfo *info)
 {
-	struct timespec timediff;
+	struct threadinfo *t;
 
-	clock_gettime(CLOCK_REALTIME, &info->curthread->after);
-	assert(info->flags & FOLLOWFORKS);
-	fprintf(info->outfile, "%5d: ", pid);
-	if (info->flags & ABSOLUTETIMESTAMPS) {
-		timespecsubt(&info->curthread->after, &info->start_time,
-		    &timediff);
-		fprintf(info->outfile, "%jd.%09ld ", (intmax_t)timediff.tv_sec,
-		    timediff.tv_nsec);
-	}
-	if (info->flags & RELATIVETIMESTAMPS) {
-		timediff.tv_sec = 0;
-		timediff.tv_nsec = 0;
-		fprintf(info->outfile, "%jd.%09ld ", (intmax_t)timediff.tv_sec,
-		    timediff.tv_nsec);
-	}
+	t = info->curthread;
+	clock_gettime(CLOCK_REALTIME, &t->after);
+	t->before = t->after;
+	print_line_prefix(info);
 	fprintf(info->outfile, "<new process>\n");
 }
 
 static void
 report_signal(struct trussinfo *info, siginfo_t *si)
 {
-	struct timespec timediff;
+	struct threadinfo *t;
 	char *signame;
 
-	if (info->flags & FOLLOWFORKS)
-		fprintf(info->outfile, "%5d: ", si->si_pid);
-	if (info->flags & ABSOLUTETIMESTAMPS) {
-		timespecsubt(&info->curthread->after, &info->start_time,
-		    &timediff);
-		fprintf(info->outfile, "%jd.%09ld ", (intmax_t)timediff.tv_sec,
-		    timediff.tv_nsec);
-	}
-	if (info->flags & RELATIVETIMESTAMPS) {
-		timespecsubt(&info->curthread->after, &info->curthread->before,
-		    &timediff);
-		fprintf(info->outfile, "%jd.%09ld ", (intmax_t)timediff.tv_sec,
-		    timediff.tv_nsec);
-	}
+	t = info->curthread;
+	clock_gettime(CLOCK_REALTIME, &t->after);
+	print_line_prefix(info);
 	signame = strsig(si->si_status);
 	fprintf(info->outfile, "SIGNAL %u (%s)\n", si->si_status,
 	    signame == NULL ? "?" : signame);
@@ -547,8 +629,11 @@ eventloop(struct trussinfo *info)
 		case CLD_KILLED:
 		case CLD_DUMPED:
 			find_exit_thread(info, si.si_pid);
-			if ((info->flags & COUNTONLY) == 0)
+			if ((info->flags & COUNTONLY) == 0) {
+				if (si.si_code == CLD_EXITED)
+					thread_exit_syscall(info);
 				report_exit(info, &si);
+			}
 			free_proc(info->curthread->proc);
 			info->curthread = NULL;
 			break;
@@ -558,22 +643,33 @@ eventloop(struct trussinfo *info)
 				err(1, "ptrace(PT_LWPINFO)");
 
 			if (pl.pl_flags & PL_FLAG_CHILD) {
-				new_proc(info, si.si_pid);
+				new_proc(info, si.si_pid, pl.pl_lwpid);
 				assert(LIST_FIRST(&info->proclist)->abi !=
 				    NULL);
-			}
+			} else if (pl.pl_flags & PL_FLAG_BORN)
+				new_thread(find_proc(info, si.si_pid),
+				    pl.pl_lwpid);
 			find_thread(info, si.si_pid, pl.pl_lwpid);
 
 			if (si.si_status == SIGTRAP &&
-			    (pl.pl_flags & (PL_FLAG_SCE|PL_FLAG_SCX)) != 0) {
-				if (pl.pl_flags & PL_FLAG_SCE)
-					enter_syscall(info, &pl);
+			    (pl.pl_flags & (PL_FLAG_BORN|PL_FLAG_EXITED|
+			    PL_FLAG_SCE|PL_FLAG_SCX)) != 0) {
+				if (pl.pl_flags & PL_FLAG_BORN) {
+					if ((info->flags & COUNTONLY) == 0)
+						report_thread_birth(info);
+				} else if (pl.pl_flags & PL_FLAG_EXITED) {
+					if ((info->flags & COUNTONLY) == 0)
+						report_thread_death(info);
+					free_thread(info->curthread);
+					info->curthread = NULL;
+				} else if (pl.pl_flags & PL_FLAG_SCE)
+					enter_syscall(info, info->curthread, &pl);
 				else if (pl.pl_flags & PL_FLAG_SCX)
 					exit_syscall(info, &pl);
 				pending_signal = 0;
 			} else if (pl.pl_flags & PL_FLAG_CHILD) {
 				if ((info->flags & COUNTONLY) == 0)
-					report_new_child(info, si.si_pid);
+					report_new_child(info);
 				pending_signal = 0;
 			} else {
 				if ((info->flags & NOSIGS) == 0)

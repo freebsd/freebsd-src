@@ -56,13 +56,13 @@ main(int argc, char *argv[])
 	struct pidfh  *ppfh, *pfh;
 	sigset_t mask, oldmask;
 	int ch, nochdir, noclose, restart, serrno;
-	const char *pidfile, *ppidfile,  *user;
+	const char *pidfile, *ppidfile, *title, *user;
 	pid_t otherpid, pid;
 
 	nochdir = noclose = 1;
 	restart = 0;
-	ppidfile = pidfile = user = NULL;
-	while ((ch = getopt(argc, argv, "cfp:P:ru:")) != -1) {
+	ppidfile = pidfile = title = user = NULL;
+	while ((ch = getopt(argc, argv, "cfp:P:rt:u:")) != -1) {
 		switch (ch) {
 		case 'c':
 			nochdir = 0;
@@ -78,6 +78,9 @@ main(int argc, char *argv[])
 			break;
 		case 'r':
 			restart = 1;
+			break;
+		case 't':
+			title = optarg;
 			break;
 		case 'u':
 			user = optarg;
@@ -204,7 +207,10 @@ restart:
 		err(1, "%s", argv[0]);
 	}
 
-	setproctitle("%s[%d]", argv[0], pid);
+	if (title != NULL)
+		setproctitle("%s[%d]", title, pid);
+	else
+		setproctitle("%s[%d]", argv[0], pid);
 	if (wait_child(pid, &mask) == 0 && restart) {
 		sleep(1);
 		goto restart;
@@ -269,8 +275,8 @@ wait_child(pid_t pid, sigset_t *mask)
 static void
 usage(void)
 {
-	(void)fprintf(stderr,
-	    "usage: daemon [-cfr] [-p child_pidfile] [-P supervisor_pidfile] "
-	    "[-u user]\n              command arguments ...\n");
+	(void)fprintf(stderr, "%s\n\t%s\n",
+	    "usage: daemon [-cfr] [-p child_pidfile] [-P supervisor_pidfile]",
+	    "[-t title] [-u user] command arguments ...");
 	exit(1);
 }

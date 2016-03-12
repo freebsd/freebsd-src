@@ -56,7 +56,7 @@ struct chucode {
 
 #define	STREQ(a, b)	(*(a) == *(b) && strcmp((a), (b)) == 0)
 
-char *progname;
+char const *progname;
 
 int dofilter = 0;	/* set to 1 when we should run filter algorithm */
 int showtimes = 0;	/* set to 1 when we should show char arrival times */

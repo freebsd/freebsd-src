@@ -1731,6 +1731,7 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 	if (iface && iface->idesc) {
 		snprintf(buf, buflen, "vendor=0x%04x product=0x%04x "
 		    "devclass=0x%02x devsubclass=0x%02x "
+		    "devproto=0x%02x "
 		    "sernum=\"%s\" "
 		    "release=0x%04x "
 		    "mode=%s "
@@ -1740,6 +1741,7 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 		    UGETW(res.udev->ddesc.idProduct),
 		    res.udev->ddesc.bDeviceClass,
 		    res.udev->ddesc.bDeviceSubClass,
+		    res.udev->ddesc.bDeviceProtocol,
 		    usb_get_serial(res.udev),
 		    UGETW(res.udev->ddesc.bcdDevice),
 		    (res.udev->flags.usb_mode == USB_MODE_HOST) ? "host" : "device",

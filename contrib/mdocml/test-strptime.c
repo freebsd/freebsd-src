@@ -9,6 +9,6 @@ main(void)
 {
 	struct tm tm;
 	const char input[] = "2014-01-04";
-	return( ! (input+10 == strptime(input, "%Y-%m-%d", &tm) &&
-	    114 == tm.tm_year && 0 == tm.tm_mon && 4 == tm.tm_mday));
+	return ! (strptime(input, "%Y-%m-%d", &tm) == input + 10 &&
+	    tm.tm_year == 114 && tm.tm_mon == 0 && tm.tm_mday == 4);
 }

@@ -13,12 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-DynamicLoaderStatic.o: CommentCommandList.inc.h
-DynamicLoaderStatic.o: DeclNodes.inc.h
-DynamicLoaderStatic.o: DiagnosticCommonKinds.inc.h
-DynamicLoaderStatic.o: StmtNodes.inc.h
-DynamicLoaderStatic.po: CommentCommandList.inc.h
-DynamicLoaderStatic.po: DeclNodes.inc.h
-DynamicLoaderStatic.po: DiagnosticCommonKinds.inc.h
-DynamicLoaderStatic.po: StmtNodes.inc.h
 .endif

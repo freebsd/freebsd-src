@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
+#include <sys/vdso.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -95,6 +96,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/atags.h>
 #include <machine/cpu.h>
 #include <machine/cpuinfo.h>
+#include <machine/debug_monitor.h>
+#include <machine/db_machdep.h>
 #include <machine/devmap.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
@@ -120,7 +123,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 
 #if __ARM_ARCH >= 6
-#include <machine/cpu-v6.h>
 
 DB_SHOW_COMMAND(cp15, db_show_cp15)
 {
@@ -192,9 +194,11 @@ int _min_bzero_size = 0;
 extern int *end;
 
 #ifdef FDT
+static char *loader_envp;
+
 vm_paddr_t pmap_pa;
 
-#ifdef ARM_NEW_PMAP
+#if __ARM_ARCH >= 6
 vm_offset_t systempage;
 vm_offset_t irqstack;
 vm_offset_t undstack;
@@ -270,6 +274,7 @@ sendsig(catcher, ksi, mask)
 	struct trapframe *tf;
 	struct sigframe *fp, frame;
 	struct sigacts *psp;
+	struct sysentvec *sysent;
 	int onstack;
 	int sig;
 	int code;
@@ -290,7 +295,7 @@ sendsig(catcher, ksi, mask)
 	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !(onstack) &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct sigframe *)(td->td_sigstk.ss_sp +
+		fp = (struct sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size);
 #if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
@@ -336,7 +341,12 @@ sendsig(catcher, ksi, mask)
 	tf->tf_r5 = (register_t)&fp->sf_uc;
 	tf->tf_pc = (register_t)catcher;
 	tf->tf_usr_sp = (register_t)fp;
-	tf->tf_usr_lr = (register_t)(PS_STRINGS - *(p->p_sysent->sv_szsigcode));
+	sysent = p->p_sysent;
+	if (sysent->sv_sigcode_base != 0)
+		tf->tf_usr_lr = (register_t)sysent->sv_sigcode_base;
+	else
+		tf->tf_usr_lr = (register_t)(sysent->sv_psstrings -
+		    *(sysent->sv_szsigcode));
 	/* Set the mode to enter in the signal handler */
 #if __ARM_ARCH >= 7
 	if ((register_t)catcher & 1)
@@ -386,7 +396,7 @@ arm_vector_init(vm_offset_t va, int which)
 	}
 
 	/* Now sync the vectors. */
-	cpu_icache_sync_range(va, (ARM_NVEC * 2) * sizeof(u_int));
+	icache_sync(va, (ARM_NVEC * 2) * sizeof(u_int));
 
 	vector_page = va;
 
@@ -416,10 +426,8 @@ cpu_startup(void *dummy)
 {
 	struct pcb *pcb = thread0.td_pcb;
 	const unsigned int mbyte = 1024 * 1024;
-#ifdef ARM_TP_ADDRESS
-#ifndef ARM_CACHE_LOCK_ENABLE
+#if __ARM_ARCH < 6 && !defined(ARM_CACHE_LOCK_ENABLE)
 	vm_page_t m;
-#endif
 #endif
 
 	identify_arm_cpu();
@@ -444,12 +452,10 @@ cpu_startup(void *dummy)
 	vm_pager_bufferinit();
 	pcb->pcb_regs.sf_sp = (u_int)thread0.td_kstack +
 	    USPACE_SVC_STACK_TOP;
-	pmap_set_pcb_pagedir(pmap_kernel(), pcb);
-#ifndef ARM_NEW_PMAP
+	pmap_set_pcb_pagedir(kernel_pmap, pcb);
+#if __ARM_ARCH < 6
 	vector_page_setprot(VM_PROT_READ);
 	pmap_postinit();
-#endif
-#ifdef ARM_TP_ADDRESS
 #ifdef ARM_CACHE_LOCK_ENABLE
 	pmap_kenter_user(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
 	arm_lock_cache_line(ARM_TP_ADDRESS);
@@ -472,12 +478,7 @@ void
 cpu_flush_dcache(void *ptr, size_t len)
 {
 
-	cpu_dcache_wb_range((uintptr_t)ptr, len);
-#ifdef ARM_L2_PIPT
-	cpu_l2cache_wb_range((uintptr_t)vtophys(ptr), len);
-#else
-	cpu_l2cache_wb_range((uintptr_t)ptr, len);
-#endif
+	dcache_wb_poc((vm_offset_t)ptr, (vm_paddr_t)vtophys(ptr), len);
 }
 
 /* Get current clock frequency for the given cpu id. */
@@ -590,48 +591,98 @@ set_dbregs(struct thread *td, struct dbreg *regs)
 
 
 static int
-ptrace_read_int(struct thread *td, vm_offset_t addr, u_int32_t *v)
+ptrace_read_int(struct thread *td, vm_offset_t addr, uint32_t *v)
 {
-	struct iovec iov;
-	struct uio uio;
 
-	PROC_LOCK_ASSERT(td->td_proc, MA_NOTOWNED);
-	iov.iov_base = (caddr_t) v;
-	iov.iov_len = sizeof(u_int32_t);
-	uio.uio_iov = &iov;
-	uio.uio_iovcnt = 1;
-	uio.uio_offset = (off_t)addr;
-	uio.uio_resid = sizeof(u_int32_t);
-	uio.uio_segflg = UIO_SYSSPACE;
-	uio.uio_rw = UIO_READ;
-	uio.uio_td = td;
-	return proc_rwmem(td->td_proc, &uio);
+	if (proc_readmem(td, td->td_proc, addr, v, sizeof(*v)) != sizeof(*v))
+		return (ENOMEM);
+	return (0);
 }
 
 static int
-ptrace_write_int(struct thread *td, vm_offset_t addr, u_int32_t v)
+ptrace_write_int(struct thread *td, vm_offset_t addr, uint32_t v)
 {
-	struct iovec iov;
-	struct uio uio;
 
-	PROC_LOCK_ASSERT(td->td_proc, MA_NOTOWNED);
-	iov.iov_base = (caddr_t) &v;
-	iov.iov_len = sizeof(u_int32_t);
-	uio.uio_iov = &iov;
-	uio.uio_iovcnt = 1;
-	uio.uio_offset = (off_t)addr;
-	uio.uio_resid = sizeof(u_int32_t);
-	uio.uio_segflg = UIO_SYSSPACE;
-	uio.uio_rw = UIO_WRITE;
-	uio.uio_td = td;
-	return proc_rwmem(td->td_proc, &uio);
+	if (proc_writemem(td, td->td_proc, addr, &v, sizeof(v)) != sizeof(v))
+		return (ENOMEM);
+	return (0);
+}
+
+static u_int
+ptrace_get_usr_reg(void *cookie, int reg)
+{
+	int ret;
+	struct thread *td = cookie;
+
+	KASSERT(((reg >= 0) && (reg <= ARM_REG_NUM_PC)),
+	 ("reg is outside range"));
+
+	switch(reg) {
+	case ARM_REG_NUM_PC:
+		ret = td->td_frame->tf_pc;
+		break;
+	case ARM_REG_NUM_LR:
+		ret = td->td_frame->tf_usr_lr;
+		break;
+	case ARM_REG_NUM_SP:
+		ret = td->td_frame->tf_usr_sp;
+		break;
+	default:
+		ret = *((register_t*)&td->td_frame->tf_r0 + reg);
+		break;
+	}
+
+	return (ret);
+}
+
+static u_int
+ptrace_get_usr_int(void* cookie, vm_offset_t offset, u_int* val)
+{
+	struct thread *td = cookie;
+	u_int error;
+
+	error = ptrace_read_int(td, offset, val);
+
+	return (error);
+}
+
+/**
+ * This function parses current instruction opcode and decodes
+ * any possible jump (change in PC) which might occur after
+ * the instruction is executed.
+ *
+ * @param     td                Thread structure of analysed task
+ * @param     cur_instr         Currently executed instruction
+ * @param     alt_next_address  Pointer to the variable where
+ *                              the destination address of the
+ *                              jump instruction shall be stored.
+ *
+ * @return    <0>               when jump is possible
+ *            <EINVAL>          otherwise
+ */
+static int
+ptrace_get_alternative_next(struct thread *td, uint32_t cur_instr,
+    uint32_t *alt_next_address)
+{
+	int error;
+
+	if (inst_branch(cur_instr) || inst_call(cur_instr) ||
+	    inst_return(cur_instr)) {
+		error = arm_predict_branch(td, cur_instr, td->td_frame->tf_pc,
+		    alt_next_address, ptrace_get_usr_reg, ptrace_get_usr_int);
+
+		return (error);
+	}
+
+	return (EINVAL);
 }
 
 int
 ptrace_single_step(struct thread *td)
 {
 	struct proc *p;
-	int error;
+	int error, error_alt;
+	uint32_t cur_instr, alt_next = 0;
 
 	/* TODO: This needs to be updated for Thumb-2 */
 	if ((td->td_frame->tf_spsr & PSR_T) != 0)
@@ -639,20 +690,48 @@ ptrace_single_step(struct thread *td)
 
 	KASSERT(td->td_md.md_ptrace_instr == 0,
 	 ("Didn't clear single step"));
+	KASSERT(td->td_md.md_ptrace_instr_alt == 0,
+	 ("Didn't clear alternative single step"));
 	p = td->td_proc;
 	PROC_UNLOCK(p);
-	error = ptrace_read_int(td, td->td_frame->tf_pc + 4,
-	    &td->td_md.md_ptrace_instr);
+
+	error = ptrace_read_int(td, td->td_frame->tf_pc,
+	    &cur_instr);
 	if (error)
 		goto out;
-	error = ptrace_write_int(td, td->td_frame->tf_pc + 4,
-	    PTRACE_BREAKPOINT);
-	if (error)
-		td->td_md.md_ptrace_instr = 0;
-	td->td_md.md_ptrace_addr = td->td_frame->tf_pc + 4;
+
+	error = ptrace_read_int(td, td->td_frame->tf_pc + INSN_SIZE,
+	    &td->td_md.md_ptrace_instr);
+	if (error == 0) {
+		error = ptrace_write_int(td, td->td_frame->tf_pc + INSN_SIZE,
+		    PTRACE_BREAKPOINT);
+		if (error) {
+			td->td_md.md_ptrace_instr = 0;
+		} else {
+			td->td_md.md_ptrace_addr = td->td_frame->tf_pc +
+			    INSN_SIZE;
+		}
+	}
+
+	error_alt = ptrace_get_alternative_next(td, cur_instr, &alt_next);
+	if (error_alt == 0) {
+		error_alt = ptrace_read_int(td, alt_next,
+		    &td->td_md.md_ptrace_instr_alt);
+		if (error_alt) {
+			td->td_md.md_ptrace_instr_alt = 0;
+		} else {
+			error_alt = ptrace_write_int(td, alt_next,
+			    PTRACE_BREAKPOINT);
+			if (error_alt)
+				td->td_md.md_ptrace_instr_alt = 0;
+			else
+				td->td_md.md_ptrace_addr_alt = alt_next;
+		}
+	}
+
 out:
 	PROC_LOCK(p);
-	return (error);
+	return ((error != 0) && (error_alt != 0));
 }
 
 int
@@ -664,7 +743,7 @@ ptrace_clear_single_step(struct thread *td)
 	if ((td->td_frame->tf_spsr & PSR_T) != 0)
 		return (EINVAL);
 
-	if (td->td_md.md_ptrace_instr) {
+	if (td->td_md.md_ptrace_instr != 0) {
 		p = td->td_proc;
 		PROC_UNLOCK(p);
 		ptrace_write_int(td, td->td_md.md_ptrace_addr,
@@ -672,6 +751,16 @@ ptrace_clear_single_step(struct thread *td)
 		PROC_LOCK(p);
 		td->td_md.md_ptrace_instr = 0;
 	}
+
+	if (td->td_md.md_ptrace_instr_alt != 0) {
+		p = td->td_proc;
+		PROC_UNLOCK(p);
+		ptrace_write_int(td, td->td_md.md_ptrace_addr_alt,
+		    td->td_md.md_ptrace_instr_alt);
+		PROC_LOCK(p);
+		td->td_md.md_ptrace_instr_alt = 0;
+	}
+
 	return (0);
 }
 
@@ -906,6 +995,8 @@ fake_preload_metadata(struct arm_boot_params *abp __unused)
 	fake_preload[i] = 0;
 	preload_metadata = (void *)fake_preload;
 
+	init_static_kenv(NULL, 0);
+
 	return (lastaddr);
 }
 
@@ -978,6 +1069,8 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 	bcopy(atag_list, atags,
 	    (char *)walker - (char *)atag_list + ATAG_SIZE(walker));
 
+	init_static_kenv(NULL, 0);
+
 	return fake_preload_metadata(abp);
 }
 #endif
@@ -1010,7 +1103,8 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 		return 0;
 
 	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	loader_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	init_static_kenv(loader_envp, 0);
 	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
 #ifdef DDB
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
@@ -1074,7 +1168,112 @@ init_proc0(vm_offset_t kstack)
 	pcpup->pc_curpcb = thread0.td_pcb;
 }
 
-#ifdef ARM_NEW_PMAP
+int
+arm_predict_branch(void *cookie, u_int insn, register_t pc, register_t *new_pc,
+    u_int (*fetch_reg)(void*, int), u_int (*read_int)(void*, vm_offset_t, u_int*))
+{
+	u_int addr, nregs, offset = 0;
+	int error = 0;
+
+	switch ((insn >> 24) & 0xf) {
+	case 0x2:	/* add pc, reg1, #value */
+	case 0x0:	/* add pc, reg1, reg2, lsl #offset */
+		addr = fetch_reg(cookie, (insn >> 16) & 0xf);
+		if (((insn >> 16) & 0xf) == 15)
+			addr += 8;
+		if (insn & 0x0200000) {
+			offset = (insn >> 7) & 0x1e;
+			offset = (insn & 0xff) << (32 - offset) |
+			    (insn & 0xff) >> offset;
+		} else {
+
+			offset = fetch_reg(cookie, insn & 0x0f);
+			if ((insn & 0x0000ff0) != 0x00000000) {
+				if (insn & 0x10)
+					nregs = fetch_reg(cookie,
+					    (insn >> 8) & 0xf);
+				else
+					nregs = (insn >> 7) & 0x1f;
+				switch ((insn >> 5) & 3) {
+				case 0:
+					/* lsl */
+					offset = offset << nregs;
+					break;
+				case 1:
+					/* lsr */
+					offset = offset >> nregs;
+					break;
+				default:
+					break; /* XXX */
+				}
+
+			}
+			*new_pc = addr + offset;
+			return (0);
+
+		}
+
+	case 0xa:	/* b ... */
+	case 0xb:	/* bl ... */
+		addr = ((insn << 2) & 0x03ffffff);
+		if (addr & 0x02000000)
+			addr |= 0xfc000000;
+		*new_pc = (pc + 8 + addr);
+		return (0);
+	case 0x7:	/* ldr pc, [pc, reg, lsl #2] */
+		addr = fetch_reg(cookie, insn & 0xf);
+		addr = pc + 8 + (addr << 2);
+		error = read_int(cookie, addr, &addr);
+		*new_pc = addr;
+		return (error);
+	case 0x1:	/* mov pc, reg */
+		*new_pc = fetch_reg(cookie, insn & 0xf);
+		return (0);
+	case 0x4:
+	case 0x5:	/* ldr pc, [reg] */
+		addr = fetch_reg(cookie, (insn >> 16) & 0xf);
+		/* ldr pc, [reg, #offset] */
+		if (insn & (1 << 24))
+			offset = insn & 0xfff;
+		if (insn & 0x00800000)
+			addr += offset;
+		else
+			addr -= offset;
+		error = read_int(cookie, addr, &addr);
+		*new_pc = addr;
+
+		return (error);
+	case 0x8:	/* ldmxx reg, {..., pc} */
+	case 0x9:
+		addr = fetch_reg(cookie, (insn >> 16) & 0xf);
+		nregs = (insn  & 0x5555) + ((insn  >> 1) & 0x5555);
+		nregs = (nregs & 0x3333) + ((nregs >> 2) & 0x3333);
+		nregs = (nregs + (nregs >> 4)) & 0x0f0f;
+		nregs = (nregs + (nregs >> 8)) & 0x001f;
+		switch ((insn >> 23) & 0x3) {
+		case 0x0:	/* ldmda */
+			addr = addr - 0;
+			break;
+		case 0x1:	/* ldmia */
+			addr = addr + 0 + ((nregs - 1) << 2);
+			break;
+		case 0x2:	/* ldmdb */
+			addr = addr - 4;
+			break;
+		case 0x3:	/* ldmib */
+			addr = addr + 4 + ((nregs - 1) << 2);
+			break;
+		}
+		error = read_int(cookie, addr, &addr);
+		*new_pc = addr;
+
+		return (error);
+	default:
+		return (EINVAL);
+	}
+}
+
+#if __ARM_ARCH >= 6
 void
 set_stackptrs(int cpu)
 {
@@ -1106,7 +1305,7 @@ set_stackptrs(int cpu)
 
 static void
 add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
-    int *mrcnt, uint32_t *memsize)
+    int *mrcnt)
 {
 	struct efi_md *map, *p;
 	const char *type;
@@ -1131,7 +1330,6 @@ add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
 	};
 
 	*mrcnt = 0;
-	*memsize = 0;
 
 	/*
 	 * Memory map data provided by UEFI via the GetMemoryMap
@@ -1203,7 +1401,6 @@ add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
 	}
 
 	*mrcnt = j;
-	*memsize = memory_size;
 }
 #endif /* EFI */
 
@@ -1228,17 +1425,17 @@ print_kenv(void)
 	char *cp;
 
 	debugf("loader passed (static) kenv:\n");
-	if (kern_envp == NULL) {
+	if (loader_envp == NULL) {
 		debugf(" no env, null ptr\n");
 		return;
 	}
-	debugf(" kern_envp = 0x%08x\n", (uint32_t)kern_envp);
+	debugf(" loader_envp = 0x%08x\n", (uint32_t)loader_envp);
 
-	for (cp = kern_envp; cp != NULL; cp = kenv_next(cp))
+	for (cp = loader_envp; cp != NULL; cp = kenv_next(cp))
 		debugf(" %x %s\n", (uint32_t)cp, cp);
 }
 
-#ifndef ARM_NEW_PMAP
+#if __ARM_ARCH < 6
 void *
 initarm(struct arm_boot_params *abp)
 {
@@ -1246,7 +1443,8 @@ initarm(struct arm_boot_params *abp)
 	struct pv_addr kernel_l1pt;
 	struct pv_addr dpcpu;
 	vm_offset_t dtbp, freemempos, l2_start, lastaddr;
-	uint32_t memsize, l2size;
+	uint64_t memsize;
+	uint32_t l2size;
 	char *env;
 	void *kmdp;
 	u_int l1pagetable;
@@ -1417,7 +1615,7 @@ initarm(struct arm_boot_params *abp)
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	pmap_pa = kernel_l1pt.pv_pa;
-	setttb(kernel_l1pt.pv_pa);
+	cpu_setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2));
 
@@ -1470,7 +1668,7 @@ initarm(struct arm_boot_params *abp)
 	/*
 	 * We must now clean the cache again....
 	 * Cleaning may be done by reading new data to displace any
-	 * dirty data in the cache. This will have happened in setttb()
+	 * dirty data in the cache. This will have happened in cpu_setttb()
 	 * but since we are boot strapping the addresses used for the read
 	 * may have just been remapped and thus the cache could be out
 	 * of sync. A re-clean after the switch will cure this.
@@ -1502,19 +1700,19 @@ initarm(struct arm_boot_params *abp)
 	arm_physmem_init_kernel_globals();
 
 	init_param2(physmem);
+	dbg_monitor_init();
 	kdb_init();
 
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }
-#else /* !ARM_NEW_PMAP */
+#else /* __ARM_ARCH < 6 */
 void *
 initarm(struct arm_boot_params *abp)
 {
 	struct mem_region mem_regions[FDT_MEM_REGIONS];
 	vm_paddr_t lastaddr;
 	vm_offset_t dtbp, kernelstack, dpcpu;
-	uint32_t memsize;
 	char *env;
 	void *kmdp;
 	int err_devmap, mem_regions_sz;
@@ -1526,7 +1724,6 @@ initarm(struct arm_boot_params *abp)
 	arm_physmem_kernaddr = abp->abp_physaddr;
 	lastaddr = parse_boot_param(abp) - KERNVIRTADDR + arm_physmem_kernaddr;
 
-	memsize = 0;
 	set_cpufuncs();
 	cpuinfo_init();
 
@@ -1554,14 +1751,12 @@ initarm(struct arm_boot_params *abp)
 	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
 	if (efihdr != NULL) {
-		add_efi_map_entries(efihdr, mem_regions, &mem_regions_sz,
-		   &memsize);
+		add_efi_map_entries(efihdr, mem_regions, &mem_regions_sz);
 	} else
 #endif
 	{
 		/* Grab physical memory regions information from device tree. */
-		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,
-		    &memsize) != 0)
+		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,NULL) != 0)
 			panic("Cannot get physical memory regions");
 	}
 	arm_physmem_hardware_regions(mem_regions, mem_regions_sz);
@@ -1661,7 +1856,7 @@ initarm(struct arm_boot_params *abp)
 	/*
 	 * We must now clean the cache again....
 	 * Cleaning may be done by reading new data to displace any
-	 * dirty data in the cache. This will have happened in setttb()
+	 * dirty data in the cache. This will have happened in cpu_setttb()
 	 * but since we are boot strapping the addresses used for the read
 	 * may have just been remapped and thus the cache could be out
 	 * of sync. A re-clean after the switch will cure this.
@@ -1689,10 +1884,22 @@ initarm(struct arm_boot_params *abp)
 	init_param2(physmem);
 	/* Init message buffer. */
 	msgbufinit(msgbufp, msgbufsize);
+	dbg_monitor_init();
 	kdb_init();
 	return ((void *)STACKALIGN(thread0.td_pcb));
 
 }
 
-#endif /* !ARM_NEW_PMAP */
+#endif /* __ARM_ARCH < 6 */
 #endif /* FDT */
+
+uint32_t (*arm_cpu_fill_vdso_timehands)(struct vdso_timehands *,
+    struct timecounter *);
+
+uint32_t
+cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
+{
+
+	return (arm_cpu_fill_vdso_timehands != NULL ?
+	    arm_cpu_fill_vdso_timehands(vdso_th, tc) : 0);
+}

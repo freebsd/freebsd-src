@@ -27,6 +27,8 @@ blocking_child **	blocking_children;
 size_t			blocking_children_alloc;
 int			worker_per_query;	/* boolean */
 int			intres_req_pending;
+volatile u_int		blocking_child_ready_seen;
+volatile u_int		blocking_child_ready_done;
 
 
 #ifndef HAVE_IO_COMPLETION_PORT
@@ -150,7 +152,8 @@ available_blocking_child_slot(void)
 					  prev_octets);
 	blocking_children_alloc = new_alloc;
 
-	return prev_alloc;
+	/* assume we'll never have enough workers to overflow u_int */
+	return (u_int)prev_alloc;
 }
 
 
@@ -261,6 +264,31 @@ process_blocking_resp(
 		req_child_exit(c);
 }
 
+void
+harvest_blocking_responses(void)
+{
+	int		idx;
+	blocking_child*	cp;
+	u_int		scseen, scdone;
+
+	scseen = blocking_child_ready_seen;
+	scdone = blocking_child_ready_done;
+	if (scdone != scseen) {
+		blocking_child_ready_done = scseen;
+		for (idx = 0; idx < blocking_children_alloc; idx++) {
+			cp = blocking_children[idx];
+			if (NULL == cp)
+				continue;
+			scseen = cp->resp_ready_seen;
+			scdone = cp->resp_ready_done;
+			if (scdone != scseen) {
+				cp->resp_ready_done = scseen;
+				process_blocking_resp(cp);
+			}
+		}
+	}
+}
+
 
 /*
  * blocking_child_common runs as a forked child or a thread
@@ -278,7 +306,7 @@ blocking_child_common(
 		req = receive_blocking_req_internal(c);
 		if (NULL == req) {
 			say_bye = TRUE;
-			break;
+			continue;
 		}
 
 		DEBUG_REQUIRE(BLOCKING_REQ_MAGIC == req->magic_sig);

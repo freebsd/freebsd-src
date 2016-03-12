@@ -72,7 +72,8 @@ static int  unin_chip_attach(device_t);
 static int  unin_chip_print_child(device_t dev, device_t child);
 static void unin_chip_probe_nomatch(device_t, device_t);
 static struct resource *unin_chip_alloc_resource(device_t, device_t, int, int *,
-						 u_long, u_long, u_long, u_int);
+						 rman_res_t, rman_res_t,
+						 rman_res_t, u_int);
 static int  unin_chip_activate_resource(device_t, device_t, int, int,
 					struct resource *);
 static int  unin_chip_deactivate_resource(device_t, device_t, int, int,
@@ -455,7 +456,8 @@ unin_chip_probe_nomatch(device_t dev, device_t child)
 
 static struct resource *
 unin_chip_alloc_resource(device_t bus, device_t child, int type, int *rid,
-			 u_long start, u_long end, u_long count, u_int flags)
+			 rman_res_t start, rman_res_t end, rman_res_t count,
+			 u_int flags)
 {
 	struct		unin_chip_softc *sc;
 	int		needactivate;

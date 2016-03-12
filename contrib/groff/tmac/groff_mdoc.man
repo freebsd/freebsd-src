@@ -1732,8 +1732,6 @@ and their results are:
 .Lb libform
 .It Li libgeom
 .Lb libgeom
-.It Li libgpib
-.Lb libgpib
 .It Li libi386
 .Lb libi386
 .It Li libintl

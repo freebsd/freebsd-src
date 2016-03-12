@@ -55,7 +55,6 @@ extern int dheight, dwidth;
 
 __BEGIN_DECLS
 uint8_t		 dialog_prompt_nlstate(const char *_prompt);
-void		 dialog_gauge_free(void);
 void		 dialog_maxsize_free(void);
 char		*dialog_prompt_lastline(char *_prompt, uint8_t _nlstate);
 int		 dialog_maxcols(void);

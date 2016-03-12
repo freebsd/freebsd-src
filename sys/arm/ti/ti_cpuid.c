@@ -120,7 +120,7 @@ omap4_get_revision(void)
 	 * the ARM cpuid to get the correct revision.
 	 */
 	if (revision == 0) {
-		id_code = cpufunc_id();
+		id_code = cpu_ident();
 		revision = (id_code & 0xf) - 1;
 	}
 

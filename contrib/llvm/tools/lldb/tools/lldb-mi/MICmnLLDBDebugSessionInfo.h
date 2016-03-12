@@ -38,9 +38,6 @@ class CMICmnMIValueList;
 //          retrieved by the same or other subsequent commands.
 //          It primarily holds LLDB type objects.
 //          A singleton class.
-// Gotchas: None.
-// Authors: Illya Rudkin 04/03/2014.
-// Changes: None.
 //--
 class CMICmnLLDBDebugSessionInfo : public CMICmnBase, public MI::ISingleton<CMICmnLLDBDebugSessionInfo>
 {
@@ -55,7 +52,7 @@ class CMICmnLLDBDebugSessionInfo : public CMICmnBase, public MI::ISingleton<CMIC
     //--
     struct SBrkPtInfo
     {
-        SBrkPtInfo(void)
+        SBrkPtInfo()
             : m_id(0)
             , m_bDisp(false)
             , m_bEnabled(false)
@@ -140,13 +137,13 @@ class CMICmnLLDBDebugSessionInfo : public CMICmnBase, public MI::ISingleton<CMIC
 
     // Methods:
   public:
-    bool Initialize(void) override;
-    bool Shutdown(void) override;
+    bool Initialize() override;
+    bool Shutdown() override;
 
     // Variant type data which can be assigned and retrieved across all command instances
     template <typename T> bool SharedDataAdd(const CMIUtilString &vKey, const T &vData);
     template <typename T> bool SharedDataRetrieve(const CMIUtilString &vKey, T &vwData);
-    bool SharedDataDestroy(void);
+    void SharedDataDestroy();
 
     //  Common command required functionality
     bool AccessPath(const CMIUtilString &vPath, bool &vwbYesAccessible);
@@ -159,7 +156,7 @@ class CMICmnLLDBDebugSessionInfo : public CMICmnBase, public MI::ISingleton<CMIC
     bool MIResponseFormVariableInfo(const lldb::SBFrame &vrFrame, const MIuint vMaskVarTypes,
                                     const VariableInfoFormat_e veVarInfoFormat, CMICmnMIValueList &vwrMiValueList,
                                     const MIuint vnMaxDepth = 10, const bool vbMarkArgs = false);
-    bool MIResponseFormBrkPtFrameInfo(const SBrkPtInfo &vrBrkPtInfo, CMICmnMIValueTuple &vwrMiValueTuple);
+    void MIResponseFormBrkPtFrameInfo(const SBrkPtInfo &vrBrkPtInfo, CMICmnMIValueTuple &vwrMiValueTuple);
     bool MIResponseFormBrkPtInfo(const SBrkPtInfo &vrBrkPtInfo, CMICmnMIValueTuple &vwrMiValueTuple);
     bool GetBrkPtInfo(const lldb::SBBreakpoint &vBrkPt, SBrkPtInfo &vrwBrkPtInfo) const;
     bool RecordBrkPtInfo(const MIuint vnBrkPtId, const SBrkPtInfo &vrBrkPtInfo);
@@ -194,7 +191,7 @@ class CMICmnLLDBDebugSessionInfo : public CMICmnBase, public MI::ISingleton<CMIC
 
     // Methods:
   private:
-    /* ctor */ CMICmnLLDBDebugSessionInfo(void);
+    /* ctor */ CMICmnLLDBDebugSessionInfo();
     /* ctor */ CMICmnLLDBDebugSessionInfo(const CMICmnLLDBDebugSessionInfo &);
     void operator=(const CMICmnLLDBDebugSessionInfo &);
     //
@@ -209,7 +206,7 @@ class CMICmnLLDBDebugSessionInfo : public CMICmnBase, public MI::ISingleton<CMIC
     // Overridden:
   private:
     // From CMICmnBase
-    /* dtor */ ~CMICmnLLDBDebugSessionInfo(void) override;
+    /* dtor */ ~CMICmnLLDBDebugSessionInfo() override;
 
     // Attributes:
   private:

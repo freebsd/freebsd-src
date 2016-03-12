@@ -78,7 +78,7 @@ main(void)
 
 	if (chdir(getenv("BSDINSTALL_DISTDIR")) != 0) {
 		snprintf(error, sizeof(error),
-		    "Could could change to directory %s: %s\n",
+		    "Could not change to directory %s: %s\n",
 		    getenv("BSDINSTALL_DISTDIR"), strerror(errno));
 		dialog_msgbox("Error", error, 0, 0, TRUE);
 		end_dialog();

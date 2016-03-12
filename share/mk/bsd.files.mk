@@ -9,16 +9,20 @@ __<bsd.files.mk>__:
 
 FILESGROUPS?=	FILES
 
-.for group in ${FILESGROUPS}
+_FILESGROUPS=	${FILESGROUPS:C,[/*],_,g}
+
+.for group in ${_FILESGROUPS}
 # Add in foo.yes and remove duplicates from all the groups
 ${${group}}:= ${${group}} ${${group}.yes}
 ${${group}}:= ${${group}:O:u}
 buildfiles: ${${group}}
 .endfor
 
+.if !defined(_SKIP_BUILD)
 all: buildfiles
+.endif
 
-.for group in ${FILESGROUPS}
+.for group in ${_FILESGROUPS}
 .if defined(${group}) && !empty(${group})
 installfiles: installfiles-${group}
 
@@ -30,13 +34,12 @@ ${group}DIR?=	${BINDIR}
 STAGE_SETS+=	${group}
 .endif
 STAGE_DIR.${group}= ${STAGE_OBJTOP}${${group}DIR}
-STAGE_SYMLINKS_DIR.${group}= ${STAGE_OBJTOP}
 
 _${group}FILES=
 .for file in ${${group}}
 .if defined(${group}OWN_${file:T}) || defined(${group}GRP_${file:T}) || \
     defined(${group}MODE_${file:T}) || defined(${group}DIR_${file:T}) || \
-    defined(${group}NAME_${file:T})
+    defined(${group}NAME_${file:T}) || defined(${group}NAME)
 ${group}OWN_${file:T}?=	${${group}OWN}
 ${group}GRP_${file:T}?=	${${group}GRP}
 ${group}MODE_${file:T}?=	${${group}MODE}

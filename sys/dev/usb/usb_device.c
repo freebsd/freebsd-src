@@ -506,8 +506,8 @@ usb_unconfigure(struct usb_device *udev, uint8_t flag)
 
 #if USB_HAVE_COMPAT_LINUX
 	/* free Linux compat device, if any */
-	if (udev->linux_endpoint_start) {
-		usb_linux_free_device(udev);
+	if (udev->linux_endpoint_start != NULL) {
+		usb_linux_free_device_p(udev);
 		udev->linux_endpoint_start = NULL;
 	}
 #endif
@@ -1962,6 +1962,7 @@ usb_make_dev(struct usb_device *udev, const char *devname, int ep,
     int fi, int rwmode, uid_t uid, gid_t gid, int mode)
 {
 	struct usb_fs_privdata* pd;
+	struct make_dev_args args;
 	char buffer[32];
 
 	/* Store information to locate ourselves again later */
@@ -1980,17 +1981,19 @@ usb_make_dev(struct usb_device *udev, const char *devname, int ep,
 		    pd->bus_index, pd->dev_index, pd->ep_addr);
 	}
 
-	pd->cdev = make_dev(&usb_devsw, 0, uid, gid, mode, "%s", devname);
+	/* Setup arguments for make_dev_s() */
+	make_dev_args_init(&args);
+	args.mda_devsw = &usb_devsw;
+	args.mda_uid = uid;
+	args.mda_gid = gid;
+	args.mda_mode = mode;
+	args.mda_si_drv1 = pd;
 
-	if (pd->cdev == NULL) {
+	if (make_dev_s(&args, &pd->cdev, "%s", devname) != 0) {
 		DPRINTFN(0, "Failed to create device %s\n", devname);
 		free(pd, M_USBDEV);
 		return (NULL);
 	}
-
-	/* XXX setting si_drv1 and creating the device is not atomic! */
-	pd->cdev->si_drv1 = pd;
-
 	return (pd);
 }
 

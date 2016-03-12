@@ -38,6 +38,11 @@
 namespace dtc
 {
 
+namespace {
+struct expression;
+typedef std::unique_ptr<expression> expression_ptr;
+}
+
 /**
  * Class encapsulating the input file.  Can be used as a const char*, but has
  * range checking.  Attempting to access anything out of range will return a 0
@@ -62,6 +67,17 @@ class input_buffer
 	int size;
 	private:
 	/**
+	 * Parse an expression.  If `stopAtParen` is set, then only parse a number
+	 * or a parenthetical expression, otherwise assume that either is the
+	 * left-hand side of a binary expression and try to parse the right-hand
+	 * side.
+	 */
+	expression_ptr parse_expression(bool stopAtParen=false);
+	/**
+	 * Parse a binary expression, having already parsed the right-hand side.
+	 */
+	expression_ptr parse_binary_expression(expression_ptr lhs);
+	/**
 	 * The current place in the buffer where we are reading.  This class
 	 * keeps a separate size, pointer, and cursor so that we can move
 	 * forwards and backwards and still have checks that we haven't fallen
@@ -80,6 +96,10 @@ class input_buffer
 	 */
 	void skip_spaces();
 	public:
+	/**
+	 * Return whether all input has been consumed.
+	 */
+	bool finished() { return cursor >= size; }
 	/**
 	 * Virtual destructor.  Does nothing, but exists so that subclasses
 	 * that own the memory can run cleanup code for deallocating it.
@@ -181,7 +201,12 @@ class input_buffer
 	 *
 	 * The parsed value is returned via the argument.
 	 */
-	bool consume_integer(long long &outInt);
+	bool consume_integer(unsigned long long &outInt);
+	/**
+	 * Reads an arithmetic expression (containing any of the normal C
+	 * operators), evaluates it, and returns the result.
+	 */
+	bool consume_integer_expression(unsigned long long &outInt);
 	/**
 	 * Template function that consumes a binary value in big-endian format
 	 * from the input stream.  Returns true and advances the cursor if
@@ -229,12 +254,14 @@ class input_buffer
 	 * Prints a message indicating the location of a parse error.
 	 */
 	void parse_error(const char *msg);
+#ifndef NDEBUG
 	/**
 	 * Dumps the current cursor value and the unconsumed values in the
 	 * input buffer to the standard error.  This method is intended solely
 	 * for debugging.
 	 */
 	void dump();
+#endif
 };
 /**
  * Explicit specialisation for reading a single byte.

@@ -97,11 +97,6 @@ ${GEN}: hdb.asn1
 .hx.h:
 	${CP} ${.IMPSRC} ${.TARGET}
 
-# This makefile generates a lot of its headers
-# so tell bsd.sys.mk not to try and stage them before they are built.
-# Note: this is rare
-NO_BEFOREBUILD_INCLUDES=
-
 .include <bsd.lib.mk>
 
 .SUFFIXES: .h .c .x .hx

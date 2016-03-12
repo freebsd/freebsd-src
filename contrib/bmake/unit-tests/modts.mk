@@ -12,9 +12,9 @@ all:   mod-ts
 # Use print or printf iff they are builtin.
 # XXX note that this causes problems, when make decides 
 # there is no need to use a shell, so avoid where possible.
-.if ${type print 2> /dev/null || echo:L:sh:Mbuiltin} != ""
+.if ${(type print) 2> /dev/null || echo:L:sh:Mbuiltin} != ""
 PRINT= print -r --
-.elif ${type printf 2> /dev/null || echo:L:sh:Mbuiltin} != ""
+.elif ${(type printf) 2> /dev/null || echo:L:sh:Mbuiltin} != ""
 PRINT= printf '%s\n'
 .else
 PRINT= echo
@@ -36,8 +36,9 @@ mod-ts:
 	@${PRINT} 'LIST:ts/n="${LIST:ts\n}"'
 	@${PRINT} 'LIST:ts/t="${LIST:ts\t}"'
 	@${PRINT} 'LIST:ts/012:tu="${LIST:ts\012:tu}"'
+	@${PRINT} 'LIST:ts/xa:tu="${LIST:ts\xa:tu}"'
 	@${PRINT} 'LIST:tx="${LIST:tx}"'
-	@${PRINT} 'LIST:ts/x:tu="${LIST:ts\x:tu}"'
+	@${PRINT} 'LIST:ts/x:tu="${LIST:ts\X:tu}"'
 	@${PRINT} 'FU_$@="${FU_${@:ts}:ts}"'
 	@${PRINT} 'FU_$@:ts:T="${FU_${@:ts}:ts:T}" == cool?'
 	@${PRINT} 'B.$${AAA:ts}="${B.${AAA:ts}}" == Baaa?'

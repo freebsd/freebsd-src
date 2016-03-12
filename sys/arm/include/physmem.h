@@ -52,7 +52,7 @@ extern vm_paddr_t arm_physmem_kernaddr;
 #define	EXFLAG_NODUMP	0x01
 #define	EXFLAG_NOALLOC	0x02
 
-void arm_physmem_hardware_region(vm_paddr_t pa, vm_size_t sz);
+void arm_physmem_hardware_region(uint64_t pa, uint64_t sz);
 void arm_physmem_exclude_region(vm_paddr_t pa, vm_size_t sz, uint32_t flags);
 void arm_physmem_init_kernel_globals(void);
 void arm_physmem_print_tables(void);
@@ -65,7 +65,7 @@ void arm_physmem_print_tables(void);
 
 #include <machine/ofw_machdep.h>
 
-static inline void 
+static inline void
 arm_physmem_hardware_regions(struct mem_region * mrptr, int mrcount)
 {
 	while (mrcount--) {
@@ -75,11 +75,11 @@ arm_physmem_hardware_regions(struct mem_region * mrptr, int mrcount)
 }
 
 static inline void
-arm_physmem_exclude_regions(struct mem_region * mrptr, int mrcount, 
+arm_physmem_exclude_regions(struct mem_region * mrptr, int mrcount,
     uint32_t exflags)
 {
 	while (mrcount--) {
-		arm_physmem_exclude_region(mrptr->mr_start, mrptr->mr_size, 
+		arm_physmem_exclude_region(mrptr->mr_start, mrptr->mr_size,
 		    exflags);
 		++mrptr;
 	}

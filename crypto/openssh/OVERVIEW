@@ -65,8 +65,8 @@ these programs.
       packets.  CRC code comes from crc32.c.
 
     - The code in packet.c calls the buffer manipulation routines
-      (buffer.c, bufaux.c), compression routines (compress.c, zlib),
-      and the encryption routines.
+      (buffer.c, bufaux.c), compression routines (zlib), and the
+      encryption routines.
 
   X11, TCP/IP, and Agent forwarding
 
@@ -165,4 +165,4 @@ these programs.
 	uidswap.c    uid-swapping
 	xmalloc.c    "safe" malloc routines
 
-$OpenBSD: OVERVIEW,v 1.11 2006/08/03 03:34:41 deraadt Exp $
+$OpenBSD: OVERVIEW,v 1.12 2015/07/08 19:01:15 markus Exp $

@@ -29,6 +29,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <cddl/compat/opensolaris/sys/types.h>
+#include <sys/time.h>
+#include <cddl/compat/opensolaris/sys/time.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

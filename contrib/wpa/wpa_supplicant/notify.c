@@ -17,6 +17,7 @@
 #include "dbus/dbus_old.h"
 #include "dbus/dbus_new.h"
 #include "rsn_supp/wpa.h"
+#include "fst/fst.h"
 #include "driver_i.h"
 #include "scan.h"
 #include "p2p_supplicant.h"
@@ -87,6 +88,16 @@ void wpas_notify_state_changed(struct wpa_supplicant *wpa_s,
 
 	/* notify the new DBus API */
 	wpas_dbus_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_STATE);
+
+#ifdef CONFIG_FST
+	if (wpa_s->fst && !is_zero_ether_addr(wpa_s->bssid)) {
+		if (new_state == WPA_COMPLETED)
+			fst_notify_peer_connected(wpa_s->fst, wpa_s->bssid);
+		else if (old_state >= WPA_ASSOCIATED &&
+			 new_state < WPA_ASSOCIATED)
+			fst_notify_peer_disconnected(wpa_s->fst, wpa_s->bssid);
+	}
+#endif /* CONFIG_FST */
 
 	if (new_state == WPA_COMPLETED)
 		wpas_p2p_notif_connected(wpa_s);
@@ -268,6 +279,16 @@ void wpas_notify_wps_event_success(struct wpa_supplicant *wpa_s)
 #endif /* CONFIG_WPS */
 }
 
+void wpas_notify_wps_event_pbc_overlap(struct wpa_supplicant *wpa_s)
+{
+	if (wpa_s->p2p_mgmt)
+		return;
+
+#ifdef CONFIG_WPS
+	wpas_dbus_signal_wps_event_pbc_overlap(wpa_s);
+#endif /* CONFIG_WPS */
+}
+
 
 void wpas_notify_network_added(struct wpa_supplicant *wpa_s,
 			       struct wpa_ssid *ssid)
@@ -307,14 +328,12 @@ void wpas_notify_persistent_group_removed(struct wpa_supplicant *wpa_s,
 void wpas_notify_network_removed(struct wpa_supplicant *wpa_s,
 				 struct wpa_ssid *ssid)
 {
-	if (wpa_s->p2p_mgmt)
-		return;
-
 	if (wpa_s->next_ssid == ssid)
 		wpa_s->next_ssid = NULL;
 	if (wpa_s->wpa)
 		wpa_sm_pmksa_cache_flush(wpa_s->wpa, ssid);
-	if (!ssid->p2p_group && wpa_s->global->p2p_group_formation != wpa_s)
+	if (!ssid->p2p_group && wpa_s->global->p2p_group_formation != wpa_s &&
+	    !wpa_s->p2p_mgmt)
 		wpas_dbus_unregister_network(wpa_s, ssid->id);
 	if (network_is_persistent_group(ssid))
 		wpas_notify_persistent_group_removed(wpa_s, ssid);
@@ -522,6 +541,13 @@ void wpas_notify_resume(struct wpa_global *global)
 
 #ifdef CONFIG_P2P
 
+void wpas_notify_p2p_find_stopped(struct wpa_supplicant *wpa_s)
+{
+	/* Notify P2P find has stopped */
+	wpas_dbus_signal_p2p_find_stopped(wpa_s);
+}
+
+
 void wpas_notify_p2p_device_found(struct wpa_supplicant *wpa_s,
 				  const u8 *dev_addr, int new_device)
 {
@@ -556,9 +582,9 @@ void wpas_notify_p2p_group_removed(struct wpa_supplicant *wpa_s,
 
 
 void wpas_notify_p2p_go_neg_req(struct wpa_supplicant *wpa_s,
-				const u8 *src, u16 dev_passwd_id)
+				const u8 *src, u16 dev_passwd_id, u8 go_intent)
 {
-	wpas_dbus_signal_p2p_go_neg_req(wpa_s, src, dev_passwd_id);
+	wpas_dbus_signal_p2p_go_neg_req(wpa_s, src, dev_passwd_id, go_intent);
 }
 
 
@@ -631,10 +657,28 @@ void wpas_notify_p2p_group_started(struct wpa_supplicant *wpa_s,
 }
 
 
+void wpas_notify_p2p_group_formation_failure(struct wpa_supplicant *wpa_s,
+					     const char *reason)
+{
+	/* Notify a group formation failed */
+	wpas_dbus_signal_p2p_group_formation_failure(wpa_s, reason);
+}
+
+
 void wpas_notify_p2p_wps_failed(struct wpa_supplicant *wpa_s,
 				struct wps_event_fail *fail)
 {
 	wpas_dbus_signal_p2p_wps_failed(wpa_s, fail);
+}
+
+
+void wpas_notify_p2p_invitation_received(struct wpa_supplicant *wpa_s,
+					 const u8 *sa, const u8 *go_dev_addr,
+					 const u8 *bssid, int id, int op_freq)
+{
+	/* Notify a P2P Invitation Request */
+	wpas_dbus_signal_p2p_invitation_received(wpa_s, sa, go_dev_addr, bssid,
+						 id, op_freq);
 }
 
 #endif /* CONFIG_P2P */
@@ -775,10 +819,12 @@ void wpas_notify_network_type_changed(struct wpa_supplicant *wpa_s,
 		ssid->disabled = 0;
 		wpas_dbus_unregister_network(wpa_s, ssid->id);
 		ssid->disabled = 2;
+		ssid->p2p_persistent_group = 1;
 		wpas_dbus_register_persistent_group(wpa_s, ssid);
 	} else {
 		/* Changed from persistent group to normal network profile */
 		wpas_dbus_unregister_persistent_group(wpa_s, ssid->id);
+		ssid->p2p_persistent_group = 0;
 		wpas_dbus_register_network(wpa_s, ssid);
 	}
 #endif /* CONFIG_P2P */

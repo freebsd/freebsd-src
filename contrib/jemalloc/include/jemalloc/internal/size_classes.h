@@ -166,22 +166,17 @@
     SC(104,     30,       28,      1,  no, no) \
     SC(105,     30,       28,      2,  no, no) \
     SC(106,     30,       28,      3,  no, no) \
-    SC(107,     30,       28,      4,  no, no) \
-                                               \
-    SC(108,     31,       29,      1,  no, no) \
-    SC(109,     31,       29,      2,  no, no) \
-    SC(110,     31,       29,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			0
 #define	NLBINS			32
 #define	NBINS			39
-#define	NSIZES			111
+#define	NSIZES			107
 #define	LG_TINY_MAXCLASS	"NA"
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 13) + (((size_t)3) << 11))
 #define	LG_LARGE_MINCLASS	14
-#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
+#define	HUGE_MAXCLASS		((((size_t)1) << 30) + (((size_t)3) << 28))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 3 && LG_QUANTUM == 3 && LG_PAGE == 13)
@@ -320,22 +315,17 @@
     SC(104,     30,       28,      1,  no, no) \
     SC(105,     30,       28,      2,  no, no) \
     SC(106,     30,       28,      3,  no, no) \
-    SC(107,     30,       28,      4,  no, no) \
-                                               \
-    SC(108,     31,       29,      1,  no, no) \
-    SC(109,     31,       29,      2,  no, no) \
-    SC(110,     31,       29,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			0
 #define	NLBINS			32
 #define	NBINS			43
-#define	NSIZES			111
+#define	NSIZES			107
 #define	LG_TINY_MAXCLASS	"NA"
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 14) + (((size_t)3) << 12))
 #define	LG_LARGE_MINCLASS	15
-#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
+#define	HUGE_MAXCLASS		((((size_t)1) << 30) + (((size_t)3) << 28))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 3 && LG_QUANTUM == 3 && LG_PAGE == 14)
@@ -474,22 +464,17 @@
     SC(104,     30,       28,      1,  no, no) \
     SC(105,     30,       28,      2,  no, no) \
     SC(106,     30,       28,      3,  no, no) \
-    SC(107,     30,       28,      4,  no, no) \
-                                               \
-    SC(108,     31,       29,      1,  no, no) \
-    SC(109,     31,       29,      2,  no, no) \
-    SC(110,     31,       29,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			0
 #define	NLBINS			32
 #define	NBINS			47
-#define	NSIZES			111
+#define	NSIZES			107
 #define	LG_TINY_MAXCLASS	"NA"
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 15) + (((size_t)3) << 13))
 #define	LG_LARGE_MINCLASS	16
-#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
+#define	HUGE_MAXCLASS		((((size_t)1) << 30) + (((size_t)3) << 28))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 3 && LG_QUANTUM == 3 && LG_PAGE == 16)
@@ -628,22 +613,17 @@
     SC(104,     30,       28,      1,  no, no) \
     SC(105,     30,       28,      2,  no, no) \
     SC(106,     30,       28,      3,  no, no) \
-    SC(107,     30,       28,      4,  no, no) \
-                                               \
-    SC(108,     31,       29,      1,  no, no) \
-    SC(109,     31,       29,      2,  no, no) \
-    SC(110,     31,       29,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			0
 #define	NLBINS			32
 #define	NBINS			55
-#define	NSIZES			111
+#define	NSIZES			107
 #define	LG_TINY_MAXCLASS	"NA"
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 17) + (((size_t)3) << 15))
 #define	LG_LARGE_MINCLASS	18
-#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
+#define	HUGE_MAXCLASS		((((size_t)1) << 30) + (((size_t)3) << 28))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 3 && LG_QUANTUM == 4 && LG_PAGE == 12)
@@ -779,22 +759,17 @@
     SC(101,     30,       28,      1,  no, no) \
     SC(102,     30,       28,      2,  no, no) \
     SC(103,     30,       28,      3,  no, no) \
-    SC(104,     30,       28,      4,  no, no) \
-                                               \
-    SC(105,     31,       29,      1,  no, no) \
-    SC(106,     31,       29,      2,  no, no) \
-    SC(107,     31,       29,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			1
 #define	NLBINS			29
 #define	NBINS			36
-#define	NSIZES			108
+#define	NSIZES			104
 #define	LG_TINY_MAXCLASS	3
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 13) + (((size_t)3) << 11))
 #define	LG_LARGE_MINCLASS	14
-#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
+#define	HUGE_MAXCLASS		((((size_t)1) << 30) + (((size_t)3) << 28))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 3 && LG_QUANTUM == 4 && LG_PAGE == 13)
@@ -930,22 +905,17 @@
     SC(101,     30,       28,      1,  no, no) \
     SC(102,     30,       28,      2,  no, no) \
     SC(103,     30,       28,      3,  no, no) \
-    SC(104,     30,       28,      4,  no, no) \
-                                               \
-    SC(105,     31,       29,      1,  no, no) \
-    SC(106,     31,       29,      2,  no, no) \
-    SC(107,     31,       29,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			1
 #define	NLBINS			29
 #define	NBINS			40
-#define	NSIZES			108
+#define	NSIZES			104
 #define	LG_TINY_MAXCLASS	3
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 14) + (((size_t)3) << 12))
 #define	LG_LARGE_MINCLASS	15
-#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
+#define	HUGE_MAXCLASS		((((size_t)1) << 30) + (((size_t)3) << 28))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 3 && LG_QUANTUM == 4 && LG_PAGE == 14)
@@ -1081,22 +1051,17 @@
     SC(101,     30,       28,      1,  no, no) \
     SC(102,     30,       28,      2,  no, no) \
     SC(103,     30,       28,      3,  no, no) \
-    SC(104,     30,       28,      4,  no, no) \
-                                               \
-    SC(105,     31,       29,      1,  no, no) \
-    SC(106,     31,       29,      2,  no, no) \
-    SC(107,     31,       29,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			1
 #define	NLBINS			29
 #define	NBINS			44
-#define	NSIZES			108
+#define	NSIZES			104
 #define	LG_TINY_MAXCLASS	3
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 15) + (((size_t)3) << 13))
 #define	LG_LARGE_MINCLASS	16
-#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
+#define	HUGE_MAXCLASS		((((size_t)1) << 30) + (((size_t)3) << 28))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 3 && LG_QUANTUM == 4 && LG_PAGE == 16)
@@ -1232,22 +1197,17 @@
     SC(101,     30,       28,      1,  no, no) \
     SC(102,     30,       28,      2,  no, no) \
     SC(103,     30,       28,      3,  no, no) \
-    SC(104,     30,       28,      4,  no, no) \
-                                               \
-    SC(105,     31,       29,      1,  no, no) \
-    SC(106,     31,       29,      2,  no, no) \
-    SC(107,     31,       29,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			1
 #define	NLBINS			29
 #define	NBINS			52
-#define	NSIZES			108
+#define	NSIZES			104
 #define	LG_TINY_MAXCLASS	3
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 17) + (((size_t)3) << 15))
 #define	LG_LARGE_MINCLASS	18
-#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
+#define	HUGE_MAXCLASS		((((size_t)1) << 30) + (((size_t)3) << 28))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 4 && LG_QUANTUM == 4 && LG_PAGE == 12)
@@ -1381,22 +1341,17 @@
     SC(100,     30,       28,      1,  no, no) \
     SC(101,     30,       28,      2,  no, no) \
     SC(102,     30,       28,      3,  no, no) \
-    SC(103,     30,       28,      4,  no, no) \
-                                               \
-    SC(104,     31,       29,      1,  no, no) \
-    SC(105,     31,       29,      2,  no, no) \
-    SC(106,     31,       29,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			0
 #define	NLBINS			28
 #define	NBINS			35
-#define	NSIZES			107
+#define	NSIZES			103
 #define	LG_TINY_MAXCLASS	"NA"
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 13) + (((size_t)3) << 11))
 #define	LG_LARGE_MINCLASS	14
-#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
+#define	HUGE_MAXCLASS		((((size_t)1) << 30) + (((size_t)3) << 28))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 4 && LG_QUANTUM == 4 && LG_PAGE == 13)
@@ -1530,22 +1485,17 @@
     SC(100,     30,       28,      1,  no, no) \
     SC(101,     30,       28,      2,  no, no) \
     SC(102,     30,       28,      3,  no, no) \
-    SC(103,     30,       28,      4,  no, no) \
-                                               \
-    SC(104,     31,       29,      1,  no, no) \
-    SC(105,     31,       29,      2,  no, no) \
-    SC(106,     31,       29,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			0
 #define	NLBINS			28
 #define	NBINS			39
-#define	NSIZES			107
+#define	NSIZES			103
 #define	LG_TINY_MAXCLASS	"NA"
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 14) + (((size_t)3) << 12))
 #define	LG_LARGE_MINCLASS	15
-#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
+#define	HUGE_MAXCLASS		((((size_t)1) << 30) + (((size_t)3) << 28))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 4 && LG_QUANTUM == 4 && LG_PAGE == 14)
@@ -1679,22 +1629,17 @@
     SC(100,     30,       28,      1,  no, no) \
     SC(101,     30,       28,      2,  no, no) \
     SC(102,     30,       28,      3,  no, no) \
-    SC(103,     30,       28,      4,  no, no) \
-                                               \
-    SC(104,     31,       29,      1,  no, no) \
-    SC(105,     31,       29,      2,  no, no) \
-    SC(106,     31,       29,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			0
 #define	NLBINS			28
 #define	NBINS			43
-#define	NSIZES			107
+#define	NSIZES			103
 #define	LG_TINY_MAXCLASS	"NA"
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 15) + (((size_t)3) << 13))
 #define	LG_LARGE_MINCLASS	16
-#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
+#define	HUGE_MAXCLASS		((((size_t)1) << 30) + (((size_t)3) << 28))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 4 && LG_QUANTUM == 4 && LG_PAGE == 16)
@@ -1828,22 +1773,17 @@
     SC(100,     30,       28,      1,  no, no) \
     SC(101,     30,       28,      2,  no, no) \
     SC(102,     30,       28,      3,  no, no) \
-    SC(103,     30,       28,      4,  no, no) \
-                                               \
-    SC(104,     31,       29,      1,  no, no) \
-    SC(105,     31,       29,      2,  no, no) \
-    SC(106,     31,       29,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			0
 #define	NLBINS			28
 #define	NBINS			51
-#define	NSIZES			107
+#define	NSIZES			103
 #define	LG_TINY_MAXCLASS	"NA"
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 17) + (((size_t)3) << 15))
 #define	LG_LARGE_MINCLASS	18
-#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
+#define	HUGE_MAXCLASS		((((size_t)1) << 30) + (((size_t)3) << 28))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 3 && LG_QUANTUM == 3 && LG_PAGE == 12)
@@ -2142,22 +2082,17 @@
     SC(232,     62,       60,      1,  no, no) \
     SC(233,     62,       60,      2,  no, no) \
     SC(234,     62,       60,      3,  no, no) \
-    SC(235,     62,       60,      4,  no, no) \
-                                               \
-    SC(236,     63,       61,      1,  no, no) \
-    SC(237,     63,       61,      2,  no, no) \
-    SC(238,     63,       61,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			0
 #define	NLBINS			32
 #define	NBINS			39
-#define	NSIZES			239
+#define	NSIZES			235
 #define	LG_TINY_MAXCLASS	"NA"
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 13) + (((size_t)3) << 11))
 #define	LG_LARGE_MINCLASS	14
-#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
+#define	HUGE_MAXCLASS		((((size_t)1) << 62) + (((size_t)3) << 60))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 3 && LG_QUANTUM == 3 && LG_PAGE == 13)
@@ -2456,22 +2391,17 @@
     SC(232,     62,       60,      1,  no, no) \
     SC(233,     62,       60,      2,  no, no) \
     SC(234,     62,       60,      3,  no, no) \
-    SC(235,     62,       60,      4,  no, no) \
-                                               \
-    SC(236,     63,       61,      1,  no, no) \
-    SC(237,     63,       61,      2,  no, no) \
-    SC(238,     63,       61,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			0
 #define	NLBINS			32
 #define	NBINS			43
-#define	NSIZES			239
+#define	NSIZES			235
 #define	LG_TINY_MAXCLASS	"NA"
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 14) + (((size_t)3) << 12))
 #define	LG_LARGE_MINCLASS	15
-#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
+#define	HUGE_MAXCLASS		((((size_t)1) << 62) + (((size_t)3) << 60))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 3 && LG_QUANTUM == 3 && LG_PAGE == 14)
@@ -2770,22 +2700,17 @@
     SC(232,     62,       60,      1,  no, no) \
     SC(233,     62,       60,      2,  no, no) \
     SC(234,     62,       60,      3,  no, no) \
-    SC(235,     62,       60,      4,  no, no) \
-                                               \
-    SC(236,     63,       61,      1,  no, no) \
-    SC(237,     63,       61,      2,  no, no) \
-    SC(238,     63,       61,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			0
 #define	NLBINS			32
 #define	NBINS			47
-#define	NSIZES			239
+#define	NSIZES			235
 #define	LG_TINY_MAXCLASS	"NA"
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 15) + (((size_t)3) << 13))
 #define	LG_LARGE_MINCLASS	16
-#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
+#define	HUGE_MAXCLASS		((((size_t)1) << 62) + (((size_t)3) << 60))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 3 && LG_QUANTUM == 3 && LG_PAGE == 16)
@@ -3084,22 +3009,17 @@
     SC(232,     62,       60,      1,  no, no) \
     SC(233,     62,       60,      2,  no, no) \
     SC(234,     62,       60,      3,  no, no) \
-    SC(235,     62,       60,      4,  no, no) \
-                                               \
-    SC(236,     63,       61,      1,  no, no) \
-    SC(237,     63,       61,      2,  no, no) \
-    SC(238,     63,       61,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			0
 #define	NLBINS			32
 #define	NBINS			55
-#define	NSIZES			239
+#define	NSIZES			235
 #define	LG_TINY_MAXCLASS	"NA"
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 17) + (((size_t)3) << 15))
 #define	LG_LARGE_MINCLASS	18
-#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
+#define	HUGE_MAXCLASS		((((size_t)1) << 62) + (((size_t)3) << 60))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 3 && LG_QUANTUM == 4 && LG_PAGE == 12)
@@ -3395,22 +3315,17 @@
     SC(229,     62,       60,      1,  no, no) \
     SC(230,     62,       60,      2,  no, no) \
     SC(231,     62,       60,      3,  no, no) \
-    SC(232,     62,       60,      4,  no, no) \
-                                               \
-    SC(233,     63,       61,      1,  no, no) \
-    SC(234,     63,       61,      2,  no, no) \
-    SC(235,     63,       61,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			1
 #define	NLBINS			29
 #define	NBINS			36
-#define	NSIZES			236
+#define	NSIZES			232
 #define	LG_TINY_MAXCLASS	3
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 13) + (((size_t)3) << 11))
 #define	LG_LARGE_MINCLASS	14
-#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
+#define	HUGE_MAXCLASS		((((size_t)1) << 62) + (((size_t)3) << 60))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 3 && LG_QUANTUM == 4 && LG_PAGE == 13)
@@ -3706,22 +3621,17 @@
     SC(229,     62,       60,      1,  no, no) \
     SC(230,     62,       60,      2,  no, no) \
     SC(231,     62,       60,      3,  no, no) \
-    SC(232,     62,       60,      4,  no, no) \
-                                               \
-    SC(233,     63,       61,      1,  no, no) \
-    SC(234,     63,       61,      2,  no, no) \
-    SC(235,     63,       61,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			1
 #define	NLBINS			29
 #define	NBINS			40
-#define	NSIZES			236
+#define	NSIZES			232
 #define	LG_TINY_MAXCLASS	3
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 14) + (((size_t)3) << 12))
 #define	LG_LARGE_MINCLASS	15
-#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
+#define	HUGE_MAXCLASS		((((size_t)1) << 62) + (((size_t)3) << 60))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 3 && LG_QUANTUM == 4 && LG_PAGE == 14)
@@ -4017,22 +3927,17 @@
     SC(229,     62,       60,      1,  no, no) \
     SC(230,     62,       60,      2,  no, no) \
     SC(231,     62,       60,      3,  no, no) \
-    SC(232,     62,       60,      4,  no, no) \
-                                               \
-    SC(233,     63,       61,      1,  no, no) \
-    SC(234,     63,       61,      2,  no, no) \
-    SC(235,     63,       61,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			1
 #define	NLBINS			29
 #define	NBINS			44
-#define	NSIZES			236
+#define	NSIZES			232
 #define	LG_TINY_MAXCLASS	3
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 15) + (((size_t)3) << 13))
 #define	LG_LARGE_MINCLASS	16
-#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
+#define	HUGE_MAXCLASS		((((size_t)1) << 62) + (((size_t)3) << 60))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 3 && LG_QUANTUM == 4 && LG_PAGE == 16)
@@ -4328,22 +4233,17 @@
     SC(229,     62,       60,      1,  no, no) \
     SC(230,     62,       60,      2,  no, no) \
     SC(231,     62,       60,      3,  no, no) \
-    SC(232,     62,       60,      4,  no, no) \
-                                               \
-    SC(233,     63,       61,      1,  no, no) \
-    SC(234,     63,       61,      2,  no, no) \
-    SC(235,     63,       61,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			1
 #define	NLBINS			29
 #define	NBINS			52
-#define	NSIZES			236
+#define	NSIZES			232
 #define	LG_TINY_MAXCLASS	3
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 17) + (((size_t)3) << 15))
 #define	LG_LARGE_MINCLASS	18
-#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
+#define	HUGE_MAXCLASS		((((size_t)1) << 62) + (((size_t)3) << 60))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 4 && LG_QUANTUM == 4 && LG_PAGE == 12)
@@ -4637,22 +4537,17 @@
     SC(228,     62,       60,      1,  no, no) \
     SC(229,     62,       60,      2,  no, no) \
     SC(230,     62,       60,      3,  no, no) \
-    SC(231,     62,       60,      4,  no, no) \
-                                               \
-    SC(232,     63,       61,      1,  no, no) \
-    SC(233,     63,       61,      2,  no, no) \
-    SC(234,     63,       61,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			0
 #define	NLBINS			28
 #define	NBINS			35
-#define	NSIZES			235
+#define	NSIZES			231
 #define	LG_TINY_MAXCLASS	"NA"
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 13) + (((size_t)3) << 11))
 #define	LG_LARGE_MINCLASS	14
-#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
+#define	HUGE_MAXCLASS		((((size_t)1) << 62) + (((size_t)3) << 60))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 4 && LG_QUANTUM == 4 && LG_PAGE == 13)
@@ -4946,22 +4841,17 @@
     SC(228,     62,       60,      1,  no, no) \
     SC(229,     62,       60,      2,  no, no) \
     SC(230,     62,       60,      3,  no, no) \
-    SC(231,     62,       60,      4,  no, no) \
-                                               \
-    SC(232,     63,       61,      1,  no, no) \
-    SC(233,     63,       61,      2,  no, no) \
-    SC(234,     63,       61,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			0
 #define	NLBINS			28
 #define	NBINS			39
-#define	NSIZES			235
+#define	NSIZES			231
 #define	LG_TINY_MAXCLASS	"NA"
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 14) + (((size_t)3) << 12))
 #define	LG_LARGE_MINCLASS	15
-#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
+#define	HUGE_MAXCLASS		((((size_t)1) << 62) + (((size_t)3) << 60))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 4 && LG_QUANTUM == 4 && LG_PAGE == 14)
@@ -5255,22 +5145,17 @@
     SC(228,     62,       60,      1,  no, no) \
     SC(229,     62,       60,      2,  no, no) \
     SC(230,     62,       60,      3,  no, no) \
-    SC(231,     62,       60,      4,  no, no) \
-                                               \
-    SC(232,     63,       61,      1,  no, no) \
-    SC(233,     63,       61,      2,  no, no) \
-    SC(234,     63,       61,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			0
 #define	NLBINS			28
 #define	NBINS			43
-#define	NSIZES			235
+#define	NSIZES			231
 #define	LG_TINY_MAXCLASS	"NA"
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 15) + (((size_t)3) << 13))
 #define	LG_LARGE_MINCLASS	16
-#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
+#define	HUGE_MAXCLASS		((((size_t)1) << 62) + (((size_t)3) << 60))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 4 && LG_QUANTUM == 4 && LG_PAGE == 16)
@@ -5564,22 +5449,17 @@
     SC(228,     62,       60,      1,  no, no) \
     SC(229,     62,       60,      2,  no, no) \
     SC(230,     62,       60,      3,  no, no) \
-    SC(231,     62,       60,      4,  no, no) \
-                                               \
-    SC(232,     63,       61,      1,  no, no) \
-    SC(233,     63,       61,      2,  no, no) \
-    SC(234,     63,       61,      3,  no, no) \
 
 #define	SIZE_CLASSES_DEFINED
 #define	NTBINS			0
 #define	NLBINS			28
 #define	NBINS			51
-#define	NSIZES			235
+#define	NSIZES			231
 #define	LG_TINY_MAXCLASS	"NA"
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 17) + (((size_t)3) << 15))
 #define	LG_LARGE_MINCLASS	18
-#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
+#define	HUGE_MAXCLASS		((((size_t)1) << 62) + (((size_t)3) << 60))
 #endif
 
 #ifndef SIZE_CLASSES_DEFINED

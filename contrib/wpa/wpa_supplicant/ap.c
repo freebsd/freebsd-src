@@ -142,6 +142,29 @@ void wpa_supplicant_conf_ap_ht(struct wpa_supplicant *wpa_s,
 			}
 		}
 	}
+
+	if (conf->secondary_channel) {
+		struct wpa_supplicant *iface;
+
+		for (iface = wpa_s->global->ifaces; iface; iface = iface->next)
+		{
+			if (iface == wpa_s ||
+			    iface->wpa_state < WPA_AUTHENTICATING ||
+			    (int) iface->assoc_freq != ssid->frequency)
+				continue;
+
+			/*
+			 * Do not allow 40 MHz co-ex PRI/SEC switch to force us
+			 * to change our PRI channel since we have an existing,
+			 * concurrent connection on that channel and doing
+			 * multi-channel concurrency is likely to cause more
+			 * harm than using different PRI/SEC selection in
+			 * environment with multiple BSSes on these two channels
+			 * with mixed 20 MHz or PRI channel selection.
+			 */
+			conf->no_pri_sec_switch = 1;
+		}
+	}
 #endif /* CONFIG_IEEE80211N */
 }
 
@@ -485,8 +508,13 @@ static int ap_probe_req_rx(void *ctx, const u8 *sa, const u8 *da,
 			   int ssi_signal)
 {
 	struct wpa_supplicant *wpa_s = ctx;
+	unsigned int freq = 0;
+
+	if (wpa_s->ap_iface)
+		freq = wpa_s->ap_iface->freq;
+
 	return wpas_p2p_probe_req_rx(wpa_s, sa, da, bssid, ie, ie_len,
-				     ssi_signal);
+				     freq, ssi_signal);
 }
 
 
@@ -1156,6 +1184,7 @@ int ap_switch_channel(struct wpa_supplicant *wpa_s,
 }
 
 
+#ifdef CONFIG_CTRL_IFACE
 int ap_ctrl_iface_chanswitch(struct wpa_supplicant *wpa_s, const char *pos)
 {
 	struct csa_settings settings;
@@ -1166,6 +1195,7 @@ int ap_ctrl_iface_chanswitch(struct wpa_supplicant *wpa_s, const char *pos)
 
 	return ap_switch_channel(wpa_s, &settings);
 }
+#endif /* CONFIG_CTRL_IFACE */
 
 
 void wpas_ap_ch_switch(struct wpa_supplicant *wpa_s, int freq, int ht,
@@ -1175,7 +1205,10 @@ void wpas_ap_ch_switch(struct wpa_supplicant *wpa_s, int freq, int ht,
 		return;
 
 	wpa_s->assoc_freq = freq;
-	hostapd_event_ch_switch(wpa_s->ap_iface->bss[0], freq, ht, offset, width, cf1, cf1);
+	if (wpa_s->current_ssid)
+		wpa_s->current_ssid->frequency = freq;
+	hostapd_event_ch_switch(wpa_s->ap_iface->bss[0], freq, ht,
+				offset, width, cf1, cf2);
 }
 
 
@@ -1265,6 +1298,7 @@ int wpas_ap_wps_add_nfc_pw(struct wpa_supplicant *wpa_s, u16 pw_id,
 #endif /* CONFIG_WPS_NFC */
 
 
+#ifdef CONFIG_CTRL_IFACE
 int wpas_ap_stop_ap(struct wpa_supplicant *wpa_s)
 {
 	struct hostapd_data *hapd;
@@ -1274,6 +1308,7 @@ int wpas_ap_stop_ap(struct wpa_supplicant *wpa_s)
 	hapd = wpa_s->ap_iface->bss[0];
 	return hostapd_ctrl_iface_stop_ap(hapd);
 }
+#endif /* CONFIG_CTRL_IFACE */
 
 
 #ifdef NEED_AP_MLME
@@ -1337,3 +1372,10 @@ void wpas_event_dfs_cac_nop_finished(struct wpa_supplicant *wpa_s,
 				 radar->chan_width, radar->cf1, radar->cf2);
 }
 #endif /* NEED_AP_MLME */
+
+
+void ap_periodic(struct wpa_supplicant *wpa_s)
+{
+	if (wpa_s->ap_iface)
+		hostapd_periodic_iface(wpa_s->ap_iface);
+}

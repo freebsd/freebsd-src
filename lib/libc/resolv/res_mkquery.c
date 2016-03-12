@@ -83,7 +83,9 @@ __FBSDID("$FreeBSD$");
 #include "port_after.h"
 
 /* Options.  Leave them on. */
-#define DEBUG
+#ifndef	DEBUG
+#define	DEBUG
+#endif
 
 extern const char *_res_opcodes[];
 

@@ -15,7 +15,8 @@
 #include <sys/types.h>
 #if defined(HAVE_INTTYPES_H)
 # include <inttypes.h>
-#elif defined(HAVE_STDINT_H)
+#endif
+#if defined(HAVE_STDINT_H)
 # include <stdint.h>
 #endif
 
@@ -217,6 +218,7 @@ typedef uint16_t	associd_t; /* association ID */
 #define ASSOCID_MAX	USHRT_MAX
 typedef u_int32 keyid_t;	/* cryptographic key ID */
 #define KEYID_T_MAX	(0xffffffff)
+
 typedef u_int32 tstamp_t;	/* NTP seconds timestamp */
 
 /*

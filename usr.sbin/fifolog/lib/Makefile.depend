@@ -12,6 +12,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-getdate.o: getdate.c
-getdate.po: getdate.c
 .endif

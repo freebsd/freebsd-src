@@ -35,15 +35,13 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+
 #include <atf-c.h>
 
 ATF_TC_WITHOUT_HEAD(test_preexisting);
 ATF_TC_BODY(test_preexisting, tc)
 {
-	/* 
-	 * Use a pre-existing buffer.
-	 */
-
+	/* Use a pre-existing buffer. */
 	char buf[512];
 	char buf2[512];
 	char str[]  = "Test writing some stuff";
@@ -74,7 +72,7 @@ ATF_TC_BODY(test_preexisting, tc)
 	nofr = fread(buf2, 1, sizeof(buf2), fp);
 	ATF_REQUIRE(nofr == sizeof(buf2));
 
-	/* 
+	/*
 	 * Since a write on a FILE * retrieved by fmemopen
 	 * will add a '\0' (if there's space), we can check
 	 * the strings for equality.
@@ -106,14 +104,10 @@ ATF_TC_BODY(test_preexisting, tc)
 ATF_TC_WITHOUT_HEAD(test_autoalloc);
 ATF_TC_BODY(test_autoalloc, tc)
 {
-	/* 
-	 * Let fmemopen allocate the buffer.
-	 */
-
-	char str[] = "A quick test";
+	/* Let fmemopen allocate the buffer. */
 	FILE *fp;
 	long pos;
-	size_t nofw, nofr, i;
+	size_t nofw, i;
 	int rc;
 
 	/* Open a FILE * using fmemopen. */
@@ -130,9 +124,7 @@ ATF_TC_BODY(test_autoalloc, tc)
 	pos = ftell(fp);
 	ATF_REQUIRE(pos == 512);
 
-	/* 
-	 * Try to write past the end, we should get a short object count (0)
-	 */
+	/* Try to write past the end, we should get a short object count (0) */
 	nofw = fwrite("a", 1, 1, fp);
 	ATF_REQUIRE(nofw == 0);
 
@@ -173,10 +165,7 @@ ATF_TC_BODY(test_data_length, tc)
 	nofw = fwrite(str, 1, sizeof(str), fp);
 	ATF_REQUIRE(nofw == sizeof(str));
 
-	/* 
-	 * Now seek to the end and check that ftell
-	 * gives us sizeof(str).
-	 */
+	/* Now seek to the end and check that ftell gives us sizeof(str). */
 	rc = fseek(fp, 0, SEEK_END);
 	ATF_REQUIRE(rc == 0);
 	pos = ftell(fp);
@@ -264,9 +253,7 @@ ATF_TC_BODY(test_append_binary_pos, tc)
 	ATF_REQUIRE(ftell(fp) == 0L);
 	fclose(fp);
 
-	/*
-	 * Make sure that a pre-allocated buffer behaves correctly.
-	 */
+	/* Make sure that a pre-allocated buffer behaves correctly. */
 	char buf[] = "Hello";
 	fp = fmemopen(buf, sizeof(buf), "ab+");
 	ATF_REQUIRE(ftell(fp) == strlen(buf));
@@ -276,9 +263,7 @@ ATF_TC_BODY(test_append_binary_pos, tc)
 ATF_TC_WITHOUT_HEAD(test_size_0);
 ATF_TC_BODY(test_size_0, tc)
 {
-	/*
-	 * POSIX mandates that we return EINVAL if size is 0.
-	 */
+	/* POSIX mandates that we return EINVAL if size is 0. */
 
 	FILE *fp;
 

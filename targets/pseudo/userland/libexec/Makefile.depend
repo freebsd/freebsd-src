@@ -6,6 +6,7 @@ DIRDEPS = \
 	libexec/atf/atf-check \
 	libexec/atf/atf-sh \
 	libexec/atrun \
+	libexec/bootpd \
 	libexec/bootpd/bootpgw \
 	libexec/bootpd/tools/bootpef \
 	libexec/bootpd/tools/bootptest \
@@ -13,6 +14,7 @@ DIRDEPS = \
 	libexec/fingerd \
 	libexec/ftpd \
 	libexec/getty \
+	libexec/hyperv \
 	libexec/mail.local \
 	libexec/mknetid \
 	libexec/pppoed \

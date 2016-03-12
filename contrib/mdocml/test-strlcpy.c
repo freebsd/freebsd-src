@@ -4,6 +4,6 @@ int
 main(void)
 {
 	char buf[2] = "";
-	return( ! (1 == strlcpy(buf, "a", sizeof(buf)) &&
-	    'a' == buf[0] && '\0' == buf[1]));
+	return ! (strlcpy(buf, "a", sizeof(buf)) == 1 &&
+	    buf[0] == 'a' && buf[1] == '\0');
 }

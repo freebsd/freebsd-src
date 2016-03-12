@@ -2,7 +2,7 @@ dnl ######################################################################
 dnl Specify additional compile options based on the OS and the compiler
 AC_DEFUN([NTP_OS_CFLAGS], [
     AC_MSG_CHECKING([additional compiler flags])
-    # allow ntp_os_flags to be preset to skip this stuff
+    # allow ntp_os_cflags to be preset to skip this stuff
     case "${ntp_os_cflags+set}" in
      set)
 	;;
@@ -90,7 +90,7 @@ AC_DEFUN([NTP_OS_CFLAGS], [
 	    ;;
 	esac
     esac
-    case "$ntp_os_flags" in
+    case "$ntp_os_cflags" in
      '')
 	ntp_os_cflags_msg="none needed"
 	;;
@@ -100,5 +100,35 @@ AC_DEFUN([NTP_OS_CFLAGS], [
     CFLAGS_NTP="$CFLAGS_NTP $ntp_os_cflags"
     AC_MSG_RESULT([$ntp_os_cflags_msg])
     AS_UNSET([ntp_os_cflags_msg])
+    ###
+    AC_MSG_CHECKING([additional linker flags])
+    # HMS: The following might still need tweaking
+    # allow ntp_os_ldflags to be preset to skip this stuff
+    case "${ntp_os_ldflags+set}" in
+     set)
+	;;
+     *)
+	ntp_os_ldflags=
+	case "$host_os" in
+	 hpux*)
+	    case "$GCC" in
+	     yes)
+		ntp_os_ldflags="-Wl,+allowdups"
+		;;
+	    esac
+	    ;;
+	esac
+	;;
+    esac
+    case "$ntp_os_ldflags" in
+     '')
+	ntp_os_ldflags_msg="none needed"
+	;;
+     *)
+	ntp_os_ldflags_msg="$ntp_os_ldflags"
+    esac
+    LDFLAGS_NTP="$LDFLAGS_NTP $ntp_os_ldflags"
+    AC_MSG_RESULT([$ntp_os_ldflags_msg])
+    AS_UNSET([ntp_os_ldflags_msg])
 ])
 dnl ======================================================================

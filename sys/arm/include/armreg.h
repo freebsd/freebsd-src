@@ -139,7 +139,9 @@
 #define CPU_ID_CORTEXA15R1	0x411fc0f0
 #define CPU_ID_CORTEXA15R2	0x412fc0f0
 #define CPU_ID_CORTEXA15R3	0x413fc0f0
-#define	CPU_ID_KRAIT		0x510f06f0 /* Snapdragon S4 Pro/APQ8064 */
+#define	CPU_ID_KRAIT300R0	0x510f06f0 /* Snapdragon S4 Pro/APQ8064 */
+#define	CPU_ID_KRAIT300R1	0x511f06f0
+
 #define	CPU_ID_TI925T		0x54029250
 #define CPU_ID_MV88FR131	0x56251310 /* Marvell Feroceon 88FR131 Core */
 #define CPU_ID_MV88FR331	0x56153310 /* Marvell Feroceon 88FR331 Core */
@@ -285,7 +287,7 @@
 					    * in r0 steppings. See errata
 					    * 364296.
 					    */
-/* ARM1176 Auxiliary Control Register (CP15 register 1, opcode2 1) */   
+/* ARM1176 Auxiliary Control Register (CP15 register 1, opcode2 1) */
 #define	ARM1176_AUXCTL_PHD	0x10000000 /* inst. prefetch halting disable */
 #define	ARM1176_AUXCTL_BFD	0x20000000 /* branch folding disable */
 #define	ARM1176_AUXCTL_FSD	0x40000000 /* force speculative ops disable */
@@ -403,7 +405,7 @@
 #define FAULT_PERM_L1		0x00D	/* Permission Fault (L1) */
 #define FAULT_EA_TRAN_L2	0x00E	/* External Translation Abort (L2) */
 #define FAULT_PERM_L2		0x00F	/* Permission Fault (L2) */
-#define FAULT_TLB_CONFLICT	0x010	/* Permission Fault (L2) */
+#define FAULT_TLB_CONFLICT	0x010	/* TLB Conflict Abort */
 #define FAULT_EA_IMPREC		0x016	/* Asynchronous External Abort */
 #define FAULT_PE_IMPREC		0x018	/* Asynchronous Parity Error */
 #define FAULT_PARITY		0x019	/* Parity Error */
@@ -443,6 +445,12 @@
 #define INSN_SIZE		4		/* Always 4 bytes */
 #define INSN_COND_MASK		0xf0000000	/* Condition mask */
 #define INSN_COND_AL		0xe0000000	/* Always condition */
+
+/* ARM register defines */
+#define	ARM_REG_SIZE		4
+#define	ARM_REG_NUM_PC		15
+#define	ARM_REG_NUM_LR		14
+#define	ARM_REG_NUM_SP		13
 
 #define THUMB_INSN_SIZE		2		/* Some are 4 bytes.  */
 

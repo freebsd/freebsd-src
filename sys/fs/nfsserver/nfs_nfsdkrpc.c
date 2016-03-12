@@ -544,6 +544,7 @@ nfsrvd_init(int terminating)
 	if (terminating) {
 		nfsd_master_proc = NULL;
 		NFSD_UNLOCK();
+		nfsrv_freeallbackchannel_xprts();
 		svcpool_destroy(nfsrvd_pool);
 		nfsrvd_pool = NULL;
 		NFSD_LOCK();

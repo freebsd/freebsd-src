@@ -124,6 +124,7 @@ struct mlx4_en_port_stats {
 	unsigned long queue_stopped;
 	unsigned long wake_queue;
 	unsigned long tx_timeout;
+	unsigned long oversized_packets;
 	unsigned long rx_alloc_failed;
 	unsigned long rx_chksum_good;
 	unsigned long rx_chksum_none;

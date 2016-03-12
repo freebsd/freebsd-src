@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-hostbased.c,v 1.17 2013/12/30 23:52:27 djm Exp $ */
+/* $OpenBSD: auth2-hostbased.c,v 1.25 2015/05/04 06:10:48 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -36,6 +36,7 @@
 #include "packet.h"
 #include "buffer.h"
 #include "log.h"
+#include "misc.h"
 #include "servconf.h"
 #include "compat.h"
 #include "key.h"
@@ -47,6 +48,7 @@
 #endif
 #include "monitor_wrap.h"
 #include "pathnames.h"
+#include "match.h"
 
 /* import */
 extern ServerOptions options;
@@ -106,6 +108,13 @@ userauth_hostbased(Authctxt *authctxt)
 		    "signature format");
 		goto done;
 	}
+	if (match_pattern_list(sshkey_ssh_name(key),
+	    options.hostbased_key_types, 0) != 1) {
+		logit("%s: key type %s not in HostbasedAcceptedKeyTypes",
+		    __func__, sshkey_type(key));
+		goto done;
+	}
+
 	service = datafellows & SSH_BUG_HBSERVICE ? "ssh-userauth" :
 	    authctxt->service;
 	buffer_init(&b);
@@ -162,7 +171,7 @@ hostbased_key_allowed(struct passwd *pw, const char *cuser, char *chost,
 	resolvedname = get_canonical_hostname(options.use_dns);
 	ipaddr = get_remote_ipaddr();
 
-	debug2("userauth_hostbased: chost %s resolvedname %s ipaddr %s",
+	debug2("%s: chost %s resolvedname %s ipaddr %s", __func__,
 	    chost, resolvedname, ipaddr);
 
 	if (((len = strlen(chost)) > 0) && chost[len - 1] == '.') {
@@ -171,19 +180,27 @@ hostbased_key_allowed(struct passwd *pw, const char *cuser, char *chost,
 	}
 
 	if (options.hostbased_uses_name_from_packet_only) {
-		if (auth_rhosts2(pw, cuser, chost, chost) == 0)
+		if (auth_rhosts2(pw, cuser, chost, chost) == 0) {
+			debug2("%s: auth_rhosts2 refused "
+			    "user \"%.100s\" host \"%.100s\" (from packet)",
+			    __func__, cuser, chost);
 			return 0;
+		}
 		lookup = chost;
 	} else {
 		if (strcasecmp(resolvedname, chost) != 0)
 			logit("userauth_hostbased mismatch: "
 			    "client sends %s, but we resolve %s to %s",
 			    chost, ipaddr, resolvedname);
-		if (auth_rhosts2(pw, cuser, resolvedname, ipaddr) == 0)
+		if (auth_rhosts2(pw, cuser, resolvedname, ipaddr) == 0) {
+			debug2("%s: auth_rhosts2 refused "
+			    "user \"%.100s\" host \"%.100s\" addr \"%.100s\"",
+			    __func__, cuser, resolvedname, ipaddr);
 			return 0;
+		}
 		lookup = resolvedname;
 	}
-	debug2("userauth_hostbased: access allowed by auth_rhosts2");
+	debug2("%s: access allowed by auth_rhosts2", __func__);
 
 	if (key_is_cert(key) && 
 	    key_cert_check_authority(key, 1, 0, lookup, &reason)) {
@@ -206,14 +223,17 @@ hostbased_key_allowed(struct passwd *pw, const char *cuser, char *chost,
 
 	if (host_status == HOST_OK) {
 		if (key_is_cert(key)) {
-			fp = key_fingerprint(key->cert->signature_key,
-			    SSH_FP_MD5, SSH_FP_HEX);
+			if ((fp = sshkey_fingerprint(key->cert->signature_key,
+			    options.fingerprint_hash, SSH_FP_DEFAULT)) == NULL)
+				fatal("%s: sshkey_fingerprint fail", __func__);
 			verbose("Accepted certificate ID \"%s\" signed by "
 			    "%s CA %s from %s@%s", key->cert->key_id,
 			    key_type(key->cert->signature_key), fp,
 			    cuser, lookup);
 		} else {
-			fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
+			if ((fp = sshkey_fingerprint(key,
+			    options.fingerprint_hash, SSH_FP_DEFAULT)) == NULL)
+				fatal("%s: sshkey_fingerprint fail", __func__);
 			verbose("Accepted %s public key %s from %s@%s",
 			    key_type(key), fp, cuser, lookup);
 		}

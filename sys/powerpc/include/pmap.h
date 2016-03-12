@@ -238,6 +238,7 @@ void		*pmap_mapdev(vm_paddr_t, vm_size_t);
 void		*pmap_mapdev_attr(vm_paddr_t, vm_size_t, vm_memattr_t);
 void		pmap_unmapdev(vm_offset_t, vm_size_t);
 void		pmap_page_set_memattr(vm_page_t, vm_memattr_t);
+int		pmap_change_attr(vm_offset_t, vm_size_t, vm_memattr_t);
 void		pmap_deactivate(struct thread *);
 vm_paddr_t	pmap_kextract(vm_offset_t);
 int		pmap_dev_direct_mapped(vm_paddr_t, vm_size_t);
@@ -250,7 +251,7 @@ boolean_t	pmap_mmu_install(char *name, int prio);
 				 * For more Ram increase the lmb or this value.
 				 */
 
-extern	vm_offset_t phys_avail[PHYS_AVAIL_SZ];
+extern	vm_paddr_t phys_avail[PHYS_AVAIL_SZ];
 extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;
 

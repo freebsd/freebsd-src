@@ -413,6 +413,13 @@ enum {
 #define MSTR_SM_CHANGE_MASK (MLX4_EQ_PORT_INFO_MSTR_SM_SL_CHANGE_MASK | \
 			     MLX4_EQ_PORT_INFO_MSTR_SM_LID_CHANGE_MASK)
 
+enum mlx4_module_id {
+	MLX4_MODULE_ID_SFP		= 0x3,
+	MLX4_MODULE_ID_QSFP		= 0xC,
+	MLX4_MODULE_ID_QSFP_PLUS	= 0xD,
+	MLX4_MODULE_ID_QSFP28		= 0x11,
+};
+
 static inline u64 mlx4_fw_ver(u64 major, u64 minor, u64 subminor)
 {
 	return (major << 32) | (minor << 16) | subminor;

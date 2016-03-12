@@ -65,7 +65,7 @@ class checker
 	 * Visits each node, calling the checker functions on properties and
 	 * nodes.
 	 */
-	bool visit_node(device_tree *tree, node *n);
+	bool visit_node(device_tree *tree, const node_ptr &n);
 	protected:
 	/**
 	 * Prints the error message, along with the path to the node that
@@ -86,7 +86,7 @@ class checker
 	 * Method for checking that a node is valid.  The root class version
 	 * does nothing, subclasses should override this.
 	 */
-	virtual bool check_node(device_tree *tree, node *n)
+	virtual bool check_node(device_tree *, const node_ptr &)
 	{
 		return true;
 	}
@@ -94,7 +94,7 @@ class checker
 	 * Method for checking that a property is valid.  The root class
 	 * version does nothing, subclasses should override this.
 	 */
-	virtual bool check_property(device_tree *tree, node *n, property *p)
+	virtual bool check_property(device_tree *, const node_ptr &, property_ptr )
 	{
 		return true;
 	}
@@ -124,7 +124,7 @@ class property_checker : public checker
 	 * Implementation of the generic property-checking method that checks
 	 * for a property with the name specified in the constructor 
 	 */
-	virtual bool check_property(device_tree *tree, node *n, property *p);
+	virtual bool check_property(device_tree *tree, const node_ptr &n, property_ptr p);
 	/**
 	 * Constructor.  Takes the name of the checker and the name of the
 	 * property to check.
@@ -134,7 +134,7 @@ class property_checker : public checker
 	/**
 	 * The check method, which subclasses should implement.
 	 */
-	virtual bool check(device_tree *tree, node *n, property *p) = 0;
+	virtual bool check(device_tree *tree, const node_ptr &n, property_ptr p) = 0;
 };
 
 /**
@@ -149,7 +149,7 @@ struct property_type_checker : public property_checker
 	 */
 	property_type_checker(const char* name, string property_name) : 
 		property_checker(name, property_name) {}
-	virtual bool check(device_tree *tree, node *n, property *p) = 0;
+	virtual bool check(device_tree *tree, const node_ptr &n, property_ptr p) = 0;
 };
 
 /**
@@ -160,7 +160,7 @@ struct property_type_checker <property_value::EMPTY> : public property_checker
 {
 	property_type_checker(const char* name, string property_name) : 
 		property_checker(name, property_name) {}
-	virtual bool check(device_tree *tree, node *n, property *p)
+	virtual bool check(device_tree *, const node_ptr &, property_ptr p)
 	{
 		return p->begin() == p->end();
 	}
@@ -175,7 +175,7 @@ struct property_type_checker <property_value::STRING> : public property_checker
 {
 	property_type_checker(const char* name, string property_name) : 
 		property_checker(name, property_name) {}
-	virtual bool check(device_tree *tree, node *n, property *p)
+	virtual bool check(device_tree *, const node_ptr &, property_ptr p)
 	{
 		return (p->begin() + 1 == p->end()) && p->begin()->is_string();
 	}
@@ -190,7 +190,7 @@ struct property_type_checker <property_value::STRING_LIST> :
 {
 	property_type_checker(const char* name, string property_name) : 
 		property_checker(name, property_name) {}
-	virtual bool check(device_tree *tree, node *n, property *p)
+	virtual bool check(device_tree *, const node_ptr &, property_ptr p)
 	{
 		for (property::value_iterator i=p->begin(),e=p->end() ; i!=e ;
 		     ++i)
@@ -213,7 +213,7 @@ struct property_type_checker <property_value::PHANDLE> : public property_checker
 {
 	property_type_checker(const char* name, string property_name) : 
 		property_checker(name, property_name) {}
-	virtual bool check(device_tree *tree, node *n, property *p)
+	virtual bool check(device_tree *tree, const node_ptr &, property_ptr p)
 	{
 		return (p->begin() + 1 == p->end()) && 
 			(tree->referenced_node(*p->begin()) != 0);
@@ -239,7 +239,7 @@ struct property_size_checker : public property_checker
 	/**
 	 * Check, validates that the property has the correct size.
 	 */
-	virtual bool check(device_tree *tree, node *n, property *p);
+	virtual bool check(device_tree *tree, const node_ptr &n, property_ptr p);
 };
 
 
@@ -254,12 +254,12 @@ class check_manager
 	 * disabling checkers from the command line.  When this manager runs,
 	 * it will only run the checkers from this map.
 	 */
-	std::map<string, checker*> checkers;
+	std::unordered_map<string, checker*> checkers;
 	/**
 	 * The disabled checkers.  Moving checkers to this list disables them,
 	 * but allows them to be easily moved back.
 	 */
-	std::map<string, checker*> disabled_checkers;
+	std::unordered_map<string, checker*> disabled_checkers;
 	/**
 	 * Helper function for adding a property value checker.
 	 */

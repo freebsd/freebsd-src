@@ -28,7 +28,7 @@
 .\"	@(#)netstat.1	8.8 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd August 27, 2015
+.Dd December 1, 2015
 .Dt NETSTAT 1
 .Os
 .Sh NAME
@@ -151,6 +151,13 @@ or
 addresses and ports appear as
 .Dq Li * .
 .Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
 .It Fl 4
 Show IPv4 only.
 See

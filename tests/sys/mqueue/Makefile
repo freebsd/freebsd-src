@@ -10,12 +10,11 @@ CFLAGS+=	-I${SRCTOP}/tests
 
 PROGS+=		mqtest1
 PROGS+=		mqtest2
-PROGS+=		mqtest3
-PROGS+=		mqtest4
+#PROGS+=		mqtest3
+#PROGS+=		mqtest4
 PROGS+=		mqtest5
 
-LDADD+=		-lrt
-DPADD+=		${LIBRT}
+LIBADD+=	rt
 
 WARNS?=		6
 

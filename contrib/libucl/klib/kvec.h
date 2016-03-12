@@ -89,7 +89,7 @@ int main() {
 
 #define kv_concat(type, v1, v0) do {										\
 	if ((v1).m < (v0).n + (v1).n) kv_resize(type, v1, (v0).n + (v1).n);		\
-		memcpy((v1).a + (v1).n, (v0).a, sizeof(type) * ((v0).n + (v1).n));	\
+		memcpy((v1).a + (v1).n, (v0).a, sizeof(type) * (v0).n);	\
 		(v1).n = (v0).n + (v1).n;											\
 	} while (0)
 

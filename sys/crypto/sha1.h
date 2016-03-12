@@ -53,6 +53,7 @@ struct sha1_ctxt {
 	} m;
 	u_int8_t	count;
 };
+typedef struct sha1_ctxt SHA1_CTX;
 
 #ifdef _KERNEL
 extern void sha1_init(struct sha1_ctxt *);
@@ -61,7 +62,6 @@ extern void sha1_loop(struct sha1_ctxt *, const u_int8_t *, size_t);
 extern void sha1_result(struct sha1_ctxt *, caddr_t);
 
 /* compatibilty with other SHA1 source codes */
-typedef struct sha1_ctxt SHA1_CTX;
 #define SHA1Init(x)		sha1_init((x))
 #define SHA1Update(x, y, z)	sha1_loop((x), (y), (z))
 #define SHA1Final(x, y)		sha1_result((y), (x))

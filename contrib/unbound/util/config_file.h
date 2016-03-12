@@ -78,6 +78,10 @@ struct config_file {
 	int do_tcp;
 	/** tcp upstream queries (no UDP upstream queries) */
 	int tcp_upstream;
+	/** maximum segment size of tcp socket which queries are answered */
+	int tcp_mss;
+	/** maximum segment size of tcp socket for outgoing queries */
+	int outgoing_tcp_mss;
 
 	/** private key file for dnstcp-ssl service (enabled if not NULL) */
 	char* ssl_service_key;
@@ -283,10 +287,12 @@ struct config_file {
 	struct config_str2list* local_zones;
 	/** local zones nodefault list */
 	struct config_strlist* local_zones_nodefault;
-	/** local data RRs configged */
+	/** local data RRs configured */
 	struct config_strlist* local_data;
-	/** unblock lan zones (reverse lookups for 10/8 and so on) */
+	/** unblock lan zones (reverse lookups for AS112 zones) */
 	int unblock_lan_zones;
+	/** insecure lan zones (don't validate AS112 zones) */
+	int insecure_lan_zones;
 
 	/** remote control section. enable toggle. */
 	int remote_control_enable;
@@ -364,6 +370,8 @@ struct config_file {
 	struct config_str2list* ratelimit_below_domain;
 	/** ratelimit factor, 0 blocks all, 10 allows 1/10 of traffic */
 	int ratelimit_factor;
+	/** minimise outgoing QNAME and hide original QTYPE if possible */
+	int qname_minimisation;
 };
 
 /** from cfg username, after daemonise setup performed */
@@ -552,6 +560,17 @@ int cfg_strlist_insert(struct config_strlist** head, char* item);
 int cfg_str2list_insert(struct config_str2list** head, char* item, char* i2);
 
 /**
+ * Find stub in config list, also returns prevptr (for deletion).
+ * @param pp: call routine with pointer to a pointer to the start of the list,
+ * 	if the stub is found, on exit, the value contains a pointer to the
+ * 	next pointer that points to the found element (or to the list start
+ * 	pointer if it is the first element).
+ * @param nm: name of stub to find.
+ * @return: pointer to config_stub if found, or NULL if not found.
+ */
+struct config_stub* cfg_stub_find(struct config_stub*** pp, const char* nm);
+
+/**
  * Delete items in config string list.
  * @param list: list.
  */
@@ -562,6 +581,12 @@ void config_delstrlist(struct config_strlist* list);
  * @param list: list.
  */
 void config_deldblstrlist(struct config_str2list* list);
+
+/**
+ * Delete a stub item
+ * @param p: stub item
+ */
+void config_delstub(struct config_stub* p);
 
 /**
  * Delete items in config stub list.
@@ -739,6 +764,9 @@ void ub_c_error_msg(const char* fmt, ...) ATTR_FORMAT(printf, 1, 2);
  * 	exist on an error (logged with log_err) was encountered.
  */
 char* w_lookup_reg_str(const char* key, const char* name);
+
+/** Modify directory in options for module file name */
+void w_config_adjust_directory(struct config_file* cfg);
 #endif /* UB_ON_WINDOWS */
 
 #endif /* UTIL_CONFIG_FILE_H */

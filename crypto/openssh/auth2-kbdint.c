@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-kbdint.c,v 1.6 2013/05/17 00:13:13 djm Exp $ */
+/* $OpenBSD: auth2-kbdint.c,v 1.7 2014/07/15 15:54:14 millert Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -36,6 +36,7 @@
 #include "auth.h"
 #include "log.h"
 #include "buffer.h"
+#include "misc.h"
 #include "servconf.h"
 
 /* import */

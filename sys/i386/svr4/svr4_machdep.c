@@ -441,7 +441,7 @@ svr4_sendsig(catcher, ksi, mask)
 	 */
 	if ((td->td_pflags & TDP_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct svr4_sigframe *)(td->td_sigstk.ss_sp +
+		fp = (struct svr4_sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size - sizeof(struct svr4_sigframe));
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	} else {

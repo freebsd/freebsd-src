@@ -99,25 +99,19 @@
 #undef PROG
 #define PROG ca_main
 
-#define BASE_SECTION    "ca"
-#define CONFIG_FILE "openssl.cnf"
+#define BASE_SECTION            "ca"
+#define CONFIG_FILE             "openssl.cnf"
 
 #define ENV_DEFAULT_CA          "default_ca"
 
-#define STRING_MASK     "string_mask"
+#define STRING_MASK             "string_mask"
 #define UTF8_IN                 "utf8"
 
-#define ENV_DIR                 "dir"
-#define ENV_CERTS               "certs"
-#define ENV_CRL_DIR             "crl_dir"
-#define ENV_CA_DB               "CA_DB"
 #define ENV_NEW_CERTS_DIR       "new_certs_dir"
 #define ENV_CERTIFICATE         "certificate"
 #define ENV_SERIAL              "serial"
 #define ENV_CRLNUMBER           "crlnumber"
-#define ENV_CRL                 "crl"
 #define ENV_PRIVATE_KEY         "private_key"
-#define ENV_RANDFILE            "RANDFILE"
 #define ENV_DEFAULT_DAYS        "default_days"
 #define ENV_DEFAULT_STARTDATE   "default_startdate"
 #define ENV_DEFAULT_ENDDATE     "default_enddate"
@@ -479,6 +473,11 @@ int MAIN(int argc, char **argv)
                 goto bad;
             infile = *(++argv);
             dorevoke = 1;
+        } else if (strcmp(*argv, "-valid") == 0) {
+            if (--argc < 1)
+                goto bad;
+            infile = *(++argv);
+            dorevoke = 2;
         } else if (strcmp(*argv, "-extensions") == 0) {
             if (--argc < 1)
                 goto bad;
@@ -1441,6 +1440,8 @@ int MAIN(int argc, char **argv)
             revcert = load_cert(bio_err, infile, FORMAT_PEM, NULL, e, infile);
             if (revcert == NULL)
                 goto err;
+            if (dorevoke == 2)
+                rev_type = -1;
             j = do_revoke(revcert, db, rev_type, rev_arg);
             if (j <= 0)
                 goto err;
@@ -1968,8 +1969,12 @@ static int do_body(X509 **xret, EVP_PKEY *pkey, X509 *x509,
 
     if (enddate == NULL)
         X509_time_adj_ex(X509_get_notAfter(ret), days, 0, NULL);
-    else
+    else {
+        int tdays;
         ASN1_TIME_set_string(X509_get_notAfter(ret), enddate);
+        ASN1_TIME_diff(&tdays, NULL, NULL, X509_get_notAfter(ret));
+        days = tdays;
+    }
 
     if (!X509_set_subject_name(ret, subject))
         goto err;
@@ -2409,12 +2414,19 @@ static int do_revoke(X509 *x509, CA_DB *db, int type, char *value)
         }
 
         /* Revoke Certificate */
-        ok = do_revoke(x509, db, type, value);
+        if (type == -1)
+            ok = 1;
+        else
+            ok = do_revoke(x509, db, type, value);
 
         goto err;
 
     } else if (index_name_cmp_noconst(row, rrow)) {
         BIO_printf(bio_err, "ERROR:name does not match %s\n", row[DB_name]);
+        goto err;
+    } else if (type == -1) {
+        BIO_printf(bio_err, "ERROR:Already present, serial number %s\n",
+                   row[DB_serial]);
         goto err;
     } else if (rrow[DB_type][0] == 'R') {
         BIO_printf(bio_err, "ERROR:Already revoked, serial number %s\n",
@@ -2520,6 +2532,8 @@ static int do_updatedb(CA_DB *db)
     char **rrow, *a_tm_s;
 
     a_tm = ASN1_UTCTIME_new();
+    if (a_tm == NULL)
+        return -1;
 
     /* get actual time and make a string */
     a_tm = X509_gmtime_adj(a_tm, 0);

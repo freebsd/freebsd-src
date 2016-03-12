@@ -122,14 +122,13 @@ struct buf {
 	struct	ucred *b_rcred;		/* Read credentials reference. */
 	struct	ucred *b_wcred;		/* Write credentials reference. */
 	union {
-		TAILQ_ENTRY(buf) bu_freelist; /* (Q) */
+		TAILQ_ENTRY(buf) b_freelist; /* (Q) */
 		struct {
-			void	(*pg_iodone)(void *, vm_page_t *, int, int);
-			int	pg_reqpage;
-		} bu_pager;
-	} b_union;
-#define	b_freelist	b_union.bu_freelist
-#define	b_pager         b_union.bu_pager
+			void	(*b_pgiodone)(void *, vm_page_t *, int, int);
+			int	b_pgbefore;
+			int	b_pgafter;
+		};
+	};
 	union	cluster_info {
 		TAILQ_HEAD(cluster_list_head, buf) cluster_head;
 		TAILQ_ENTRY(buf) cluster_entry;
@@ -211,9 +210,9 @@ struct buf {
 #define	B_NOCACHE	0x00008000	/* Do not cache block after use. */
 #define	B_MALLOC	0x00010000	/* malloced b_data */
 #define	B_CLUSTEROK	0x00020000	/* Pagein op, so swap() can count it. */
-#define	B_000400000	0x00040000	/* Available flag. */
-#define	B_000800000	0x00080000	/* Available flag. */
-#define	B_001000000	0x00100000	/* Available flag. */
+#define	B_00040000	0x00040000	/* Available flag. */
+#define	B_00080000	0x00080000	/* Available flag. */
+#define	B_00100000	0x00100000	/* Available flag. */
 #define	B_DIRTY		0x00200000	/* Needs writing later (in EXT2FS). */
 #define	B_RELBUF	0x00400000	/* Release VMIO buffer. */
 #define	B_FS_FLAG1	0x00800000	/* Available flag for FS use. */

@@ -13,7 +13,7 @@ MAN=	vgrind.1 vgrindefs.5
 
 WARNS?=	3
 
-BINDIR=	/usr/libexec
+BINDIR=	${LIBEXECDIR}
 SCRIPTSDIR=/usr/bin
 
 CLEANFILES= vgrindefs.src.db

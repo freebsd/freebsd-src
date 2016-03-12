@@ -60,6 +60,7 @@
 #include <atf-c.h>
 
 #include "freebsd_test_suite/macros.h"
+#include "local.h"
 
 #define	PATH_TEMPLATE	"aio.XXXXXXXXXX"
 
@@ -340,6 +341,7 @@ ATF_TC_BODY(aio_file_test, tc)
 	int fd;
 
 	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
 
 	strcpy(pathname, PATH_TEMPLATE);
 	fd = mkstemp(pathname);
@@ -386,6 +388,7 @@ ATF_TC_BODY(aio_fifo_test, tc)
 	struct aio_context ac;
 
 	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
 
 	/*
 	 * In theory, mkstemp() can return a name that is then collided with.
@@ -497,6 +500,7 @@ ATF_TC_BODY(aio_pty_test, tc)
 	int error;
 
 	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
 
 	ATF_REQUIRE_MSG(openpty(&read_fd, &write_fd, NULL, NULL, NULL) == 0,
 	    "openpty failed: %s", strerror(errno));
@@ -544,6 +548,7 @@ ATF_TC_BODY(aio_pipe_test, tc)
 	int pipes[2];
 
 	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
 
 	ATF_REQUIRE_MSG(pipe(pipes) != -1,
 	    "pipe failed: %s", strerror(errno));

@@ -40,19 +40,23 @@ read_stdin (char **buf)
 	p = *buf;
 	remain = size;
 
-	while ((ret = read (STDIN_FILENO, p, remain)) > 0) {
+	while ((ret = read (STDIN_FILENO, p, remain - 1)) > 0) {
 		remain -= ret;
 		p += ret;
-		if (remain == 0) {
+
+		if (remain <= 1) {
 			*buf = realloc (*buf, size * 2);
 			if (*buf == NULL) {
 				return -1;
 			}
-			p = *buf + size;
-			remain = size;
+
+			p = *buf + size - 1;
+			remain = size + 1;
 			size *= 2;
 		}
 	}
+
+	*p = '\0';
 
 	return ret;
 }

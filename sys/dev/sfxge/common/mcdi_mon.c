@@ -31,7 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
 #include "efx_impl.h"
 
@@ -149,6 +148,13 @@ static const struct mcdi_sensor_map_s {
 	STAT(Px, CONTROLLER_SLAVE_VPTAT_EXT_ADC), /* 0x46 SLAVE_VPTAT_EXT_ADC */
 	STAT(Px, CONTROLLER_SLAVE_INTERNAL_TEMP_EXT_ADC),
 					/* 0x47 SLAVE_INTERNAL_TEMP_EXT_ADC */
+	STAT_NO_SENSOR(),		/* 0x48 (no sensor) */
+	STAT(Px, SODIMM_VOUT),		/* 0x49 SODIMM_VOUT */
+	STAT(Px, SODIMM_0_TEMP),	/* 0x4a SODIMM_0_TEMP */
+	STAT(Px, SODIMM_1_TEMP),	/* 0x4b SODIMM_1_TEMP */
+	STAT(Px, PHY0_VCC),		/* 0x4c PHY0_VCC */
+	STAT(Px, PHY1_VCC),		/* 0x4d PHY1_VCC */
+	STAT(Px, CONTROLLER_TDIODE_TEMP), /* 0x4e CONTROLLER_TDIODE_TEMP */
 };
 
 #define	MCDI_STATIC_SENSOR_ASSERT(_field)				\
@@ -162,7 +168,7 @@ mcdi_mon_decode_stats(
 	__in					size_t sensor_mask_size,
 	__in_opt				efsys_mem_t *esmp,
 	__out_ecount_opt(sensor_mask_size)	uint32_t *stat_maskp,
-	__out_ecount_opt(EFX_MON_NSTATS)	efx_mon_stat_value_t *stat)
+	__inout_ecount_opt(EFX_MON_NSTATS)	efx_mon_stat_value_t *stat)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	uint16_t port_mask;
@@ -245,7 +251,7 @@ mcdi_mon_decode_stats(
 	}
 }
 
-	__checkReturn			int
+	__checkReturn			efx_rc_t
 mcdi_mon_ev(
 	__in				efx_nic_t *enp,
 	__in				efx_qword_t *eqp,
@@ -259,7 +265,7 @@ mcdi_mon_ev(
 	uint16_t state;
 	uint16_t value;
 	efx_mon_stat_t id;
-	int rc;
+	efx_rc_t rc;
 
 	port_mask = (emip->emi_port == 1)
 	    ? MCDI_MON_PORT_P1
@@ -293,13 +299,13 @@ mcdi_mon_ev(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_read_sensors(
 	__in		efx_nic_t *enp,
 	__in		efsys_mem_t *esmp,
@@ -328,7 +334,7 @@ efx_mcdi_read_sensors(
 	return (req.emr_rc);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_sensor_info_npages(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *npagesp)
@@ -337,7 +343,7 @@ efx_mcdi_sensor_info_npages(
 	uint8_t payload[MAX(MC_CMD_SENSOR_INFO_EXT_IN_LEN,
 			    MC_CMD_SENSOR_INFO_OUT_LENMAX)];
 	int page;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(npagesp != NULL);
 
@@ -366,12 +372,12 @@ efx_mcdi_sensor_info_npages(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn		int
+static	__checkReturn		efx_rc_t
 efx_mcdi_sensor_info(
 	__in			efx_nic_t *enp,
 	__out_ecount(npages)	uint32_t *sensor_maskp,
@@ -381,7 +387,7 @@ efx_mcdi_sensor_info(
 	uint8_t payload[MAX(MC_CMD_SENSOR_INFO_EXT_IN_LEN,
 			    MC_CMD_SENSOR_INFO_OUT_LENMAX)];
 	uint32_t page;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(sensor_maskp != NULL);
 
@@ -426,20 +432,20 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn			int
+	__checkReturn			efx_rc_t
 mcdi_mon_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values)
+	__inout_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint32_t size = encp->enc_mon_stat_dma_buf_size;
-	int rc;
+	efx_rc_t rc;
 
 	if ((rc = efx_mcdi_read_sensors(enp, esmp, size)) != 0)
 		goto fail1;
@@ -454,18 +460,18 @@ mcdi_mon_stats_update(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 mcdi_mon_cfg_build(
 	__in		efx_nic_t *enp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint32_t npages;
-	int rc;
+	efx_rc_t rc;
 
 	switch (enp->en_family) {
 #if EFSYS_OPT_SIENA
@@ -476,6 +482,11 @@ mcdi_mon_cfg_build(
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
 		encp->enc_mon_type = EFX_MON_SFC91X0;
+		break;
+#endif
+#if EFSYS_OPT_MEDFORD
+	case EFX_FAMILY_MEDFORD:
+		encp->enc_mon_type = EFX_MON_SFC92X0;
 		break;
 #endif
 	default:
@@ -528,7 +539,7 @@ fail2:
 	EFSYS_PROBE(fail2);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }

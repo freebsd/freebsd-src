@@ -1,0 +1,210 @@
+configure.local: no (fully automatic configuration)
+
+dirent-namlen: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-dirent-namlen test-dirent-namlen.c
+dirent-namlen: cc succeeded
+dirent-namlen: yes
+
+err: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-err test-err.c
+err: cc succeeded
+test-err: 1. warnx
+test-err: 2. warn: No error: 0
+test-err: 3. err: No error: 0
+err: yes
+
+fts: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-fts test-fts.c
+fts: cc succeeded
+fts: yes
+
+getline: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-getline test-getline.c
+test-getline.c:12:9: error: implicit declaration of function 'getline' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+        return getline(&line, &linesz, stdin) != -1;
+               ^
+1 error generated.
+getline: cc failed with 1
+
+getsubopt: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-getsubopt test-getsubopt.c
+getsubopt: cc succeeded
+getsubopt: yes
+
+isblank: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-isblank test-isblank.c
+isblank: cc succeeded
+isblank: yes
+
+mkdtemp: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-mkdtemp test-mkdtemp.c
+mkdtemp: cc succeeded
+mkdtemp: yes
+
+mmap: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-mmap test-mmap.c
+mmap: cc succeeded
+mmap: yes
+
+pledge: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-pledge test-pledge.c
+test-pledge.c:6:11: error: implicit declaration of function 'pledge' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+        return !!pledge("stdio", NULL);
+                 ^
+1 error generated.
+pledge: cc failed with 1
+
+progname: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-progname test-progname.c
+progname: cc succeeded
+progname: yes
+
+reallocarray: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-reallocarray test-reallocarray.c
+reallocarray: cc succeeded
+reallocarray: yes
+
+rewb-bsd: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-rewb-bsd test-rewb-bsd.c
+test-rewb-bsd.c:11:42: error: use of undeclared identifier 'NULL'
+        if (regexec(&re, "the word is here", 0, NULL, 0))
+                                                ^
+test-rewb-bsd.c:13:35: error: use of undeclared identifier 'NULL'
+        if (regexec(&re, "same word", 0, NULL, 0))
+                                         ^
+test-rewb-bsd.c:15:36: error: use of undeclared identifier 'NULL'
+        if (regexec(&re, "word again", 0, NULL, 0))
+                                          ^
+test-rewb-bsd.c:17:30: error: use of undeclared identifier 'NULL'
+        if (regexec(&re, "word", 0, NULL, 0))
+                                    ^
+test-rewb-bsd.c:19:31: error: use of undeclared identifier 'NULL'
+        if (regexec(&re, "wordy", 0, NULL, 0) != REG_NOMATCH)
+                                     ^
+test-rewb-bsd.c:21:31: error: use of undeclared identifier 'NULL'
+        if (regexec(&re, "sword", 0, NULL, 0) != REG_NOMATCH)
+                                     ^
+test-rewb-bsd.c:23:34: error: use of undeclared identifier 'NULL'
+        if (regexec(&re, "reworded", 0, NULL, 0) != REG_NOMATCH)
+                                        ^
+7 errors generated.
+rewb-bsd: cc failed with 1
+
+rewb-sysv: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-rewb-sysv test-rewb-sysv.c
+test-rewb-sysv.c:11:42: error: use of undeclared identifier 'NULL'
+        if (regexec(&re, "the word is here", 0, NULL, 0))
+                                                ^
+test-rewb-sysv.c:13:35: error: use of undeclared identifier 'NULL'
+        if (regexec(&re, "same word", 0, NULL, 0))
+                                         ^
+test-rewb-sysv.c:15:36: error: use of undeclared identifier 'NULL'
+        if (regexec(&re, "word again", 0, NULL, 0))
+                                          ^
+test-rewb-sysv.c:17:30: error: use of undeclared identifier 'NULL'
+        if (regexec(&re, "word", 0, NULL, 0))
+                                    ^
+test-rewb-sysv.c:19:31: error: use of undeclared identifier 'NULL'
+        if (regexec(&re, "wordy", 0, NULL, 0) != REG_NOMATCH)
+                                     ^
+test-rewb-sysv.c:21:31: error: use of undeclared identifier 'NULL'
+        if (regexec(&re, "sword", 0, NULL, 0) != REG_NOMATCH)
+                                     ^
+test-rewb-sysv.c:23:34: error: use of undeclared identifier 'NULL'
+        if (regexec(&re, "reworded", 0, NULL, 0) != REG_NOMATCH)
+                                        ^
+7 errors generated.
+rewb-sysv: cc failed with 1
+
+strcasestr: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-strcasestr test-strcasestr.c
+strcasestr: cc succeeded
+strcasestr: yes
+
+stringlist: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-stringlist test-stringlist.c
+test-stringlist.c:26:26: error: use of undeclared identifier 'NULL'
+        if ((sl = sl_init()) == NULL)
+                                ^
+1 error generated.
+stringlist: cc failed with 1
+
+strlcat: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-strlcat test-strlcat.c
+strlcat: cc succeeded
+strlcat: yes
+
+strlcpy: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-strlcpy test-strlcpy.c
+strlcpy: cc succeeded
+strlcpy: yes
+
+strptime: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-strptime test-strptime.c
+strptime: cc succeeded
+strptime: yes
+
+strsep: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-strsep test-strsep.c
+strsep: cc succeeded
+strsep: yes
+
+strtonum: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-strtonum test-strtonum.c
+strtonum: cc succeeded
+strtonum: yes
+
+vasprintf: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-vasprintf test-vasprintf.c
+vasprintf: cc succeeded
+vasprintf: yes
+
+wchar: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-wchar test-wchar.c
+wchar: cc succeeded
+*wchar: yes
+
+sqlite3: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror -lsqlite3 -o test-sqlite3 test-sqlite3.c
+test-sqlite3.c:20:10: fatal error: 'sqlite3.h' file not found
+#include <sqlite3.h>
+         ^
+1 error generated.
+sqlite3: cc failed with 1
+
+sqlite3: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror -I/usr/local/include -L/usr/local/lib -lsqlite3 -o test-sqlite3 test-sqlite3.c
+sqlite3: cc succeeded
+sqlite3: yes
+
+sqlite3_errstr: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror -L/usr/local/lib -lsqlite3 -o test-sqlite3_errstr test-sqlite3_errstr.c
+test-sqlite3_errstr.c:2:10: fatal error: 'sqlite3.h' file not found
+#include <sqlite3.h>
+         ^
+1 error generated.
+sqlite3_errstr: cc failed with 1
+
+ohash: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror  -o test-ohash test-ohash.c
+test-ohash.c:4:10: fatal error: 'ohash.h' file not found
+#include <ohash.h>
+         ^
+1 error generated.
+ohash: cc failed with 1
+
+ohash: testing...
+cc -g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings -Wno-unused -Werror -lutil -o test-ohash test-ohash.c
+test-ohash.c:4:10: fatal error: 'ohash.h' file not found
+#include <ohash.h>
+         ^
+1 error generated.
+ohash: cc failed with 1
+
+DBLIB="-L/usr/local/lib -lsqlite3 -lz"
+
+/usr/share/man:/usr/local/man:/usr/share/openssl/man:/usr/local/lib/perl5/site_perl/man:/usr/local/lib/perl5/5.20/perl/man:/usr/local/share/xpdf/man
+manpath: yes
+
+config.h: written
+Makefile.local: written

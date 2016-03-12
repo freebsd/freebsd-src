@@ -230,7 +230,7 @@ moea64_pte_synch_native(mmu_t mmu, struct pvo_entry *pvo)
 	moea64_pte_from_pvo(pvo, &properpt);
 
 	rw_rlock(&moea64_eviction_lock);
-	if ((pt->pte_hi & LPTE_AVPN_MASK) !=
+	if ((be64toh(pt->pte_hi) & LPTE_AVPN_MASK) !=
 	    (properpt.pte_hi & LPTE_AVPN_MASK)) {
 		/* Evicted */
 		rw_runlock(&moea64_eviction_lock);
@@ -257,7 +257,7 @@ moea64_pte_clear_native(mmu_t mmu, struct pvo_entry *pvo, uint64_t ptebit)
 	moea64_pte_from_pvo(pvo, &properpt);
 
 	rw_rlock(&moea64_eviction_lock);
-	if ((pt->pte_hi & LPTE_AVPN_MASK) !=
+	if ((be64toh(pt->pte_hi) & LPTE_AVPN_MASK) !=
 	    (properpt.pte_hi & LPTE_AVPN_MASK)) {
 		/* Evicted */
 		rw_runlock(&moea64_eviction_lock);
@@ -268,11 +268,15 @@ moea64_pte_clear_native(mmu_t mmu, struct pvo_entry *pvo, uint64_t ptebit)
 		/* See "Resetting the Reference Bit" in arch manual */
 		PTESYNC();
 		/* 2-step here safe: precision is not guaranteed */
-		ptelo = pt->pte_lo;
+		ptelo = be64toh(pt->pte_lo);
 
 		/* One-byte store to avoid touching the C bit */
 		((volatile uint8_t *)(&pt->pte_lo))[6] =
+#if BYTE_ORDER == BIG_ENDIAN
 		    ((uint8_t *)(&properpt.pte_lo))[6];
+#else
+		    ((uint8_t *)(&properpt.pte_lo))[1];
+#endif
 		rw_runlock(&moea64_eviction_lock);
 
 		critical_enter();
@@ -297,7 +301,7 @@ moea64_pte_unset_native(mmu_t mmu, struct pvo_entry *pvo)
 	moea64_pte_from_pvo(pvo, &properpt);
 
 	rw_rlock(&moea64_eviction_lock);
-	if ((pt->pte_hi & LPTE_AVPN_MASK) !=
+	if ((be64toh(pt->pte_hi & LPTE_AVPN_MASK)) !=
 	    (properpt.pte_hi & LPTE_AVPN_MASK)) {
 		/* Evicted */
 		moea64_pte_overflow--;
@@ -311,7 +315,7 @@ moea64_pte_unset_native(mmu_t mmu, struct pvo_entry *pvo)
 	 */
 	isync();
 	critical_enter();
-	pt->pte_hi = (pt->pte_hi & ~LPTE_VALID) | LPTE_LOCKED;
+	pt->pte_hi = be64toh((pt->pte_hi & ~LPTE_VALID) | LPTE_LOCKED);
 	PTESYNC();
 	TLBIE(pvo->pvo_vpn);
 	ptelo = be64toh(pt->pte_lo);
@@ -337,13 +341,13 @@ moea64_pte_replace_native(mmu_t mmu, struct pvo_entry *pvo, int flags)
 		moea64_pte_from_pvo(pvo, &properpt);
 
 		rw_rlock(&moea64_eviction_lock);
-		if ((pt->pte_hi & LPTE_AVPN_MASK) !=
+		if ((be64toh(pt->pte_hi) & LPTE_AVPN_MASK) !=
 		    (properpt.pte_hi & LPTE_AVPN_MASK)) {
 			rw_runlock(&moea64_eviction_lock);
 			return (-1);
 		}
-		pt->pte_hi = properpt.pte_hi;
-		ptelo = pt->pte_lo;
+		pt->pte_hi = htobe64(properpt.pte_hi);
+		ptelo = be64toh(pt->pte_lo);
 		rw_runlock(&moea64_eviction_lock);
 	} else {
 		/* Otherwise, need reinsertion and deletion */
@@ -571,9 +575,9 @@ moea64_insert_to_pteg_native(struct lpte *pvo_pt, uintptr_t slotbase,
 	 * Update the PTE as per "Adding a Page Table Entry". Lock is released
 	 * by setting the high doubleworld.
 	 */
-	pt->pte_lo = pvo_pt->pte_lo;
+	pt->pte_lo = htobe64(pvo_pt->pte_lo);
 	EIEIO();
-	pt->pte_hi = pvo_pt->pte_hi;
+	pt->pte_hi = htobe64(pvo_pt->pte_hi);
 	PTESYNC();
 
 	/* Keep statistics */

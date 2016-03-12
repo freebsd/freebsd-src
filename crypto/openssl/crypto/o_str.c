@@ -1,4 +1,4 @@
-/* crypto/o_str.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/o_str.c */
 /*
  * Written by Richard Levitte (richard@levitte.org) for the OpenSSL project
  * 2003.
@@ -62,7 +62,7 @@
 #include "o_str.h"
 
 #if !defined(OPENSSL_IMPLEMENTS_strncasecmp) && \
-    !defined(OPENSSL_SYSNAME_WIN32) && \
+    !defined(OPENSSL_SYSNAME_WIN32) && !defined(OPENSSL_SYSNAME_WINCE) && \
     !defined(NETWARE_CLIB)
 # include <strings.h>
 #endif

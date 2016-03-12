@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2012  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -105,6 +105,7 @@ static unsigned char cmdtable[] =
 	ESC,CONTROL('F'),0,		A_F_BRACKET,
 	ESC,CONTROL('B'),0,		A_B_BRACKET,
 	'G',0,				A_GOEND,
+	ESC,'G',0,			A_GOEND_BUF,
 	ESC,'>',0,			A_GOEND,
 	'>',0,				A_GOEND,
 	SK(SK_END),0,			A_GOEND,

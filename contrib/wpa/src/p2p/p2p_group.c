@@ -1071,3 +1071,43 @@ void p2p_loop_on_all_groups(struct p2p_data *p2p,
 			break;
 	}
 }
+
+
+int p2p_group_get_common_freqs(struct p2p_group *group, int *common_freqs,
+			       unsigned int *num)
+
+{
+	struct p2p_channels intersect, res;
+	struct p2p_group_member *m;
+
+	if (!group || !common_freqs || !num)
+		return -1;
+
+	os_memset(&intersect, 0, sizeof(intersect));
+	os_memset(&res, 0, sizeof(res));
+
+	p2p_channels_union(&intersect, &group->p2p->cfg->channels,
+			   &intersect);
+
+	p2p_channels_dump(group->p2p,
+			  "Group common freqs before iterating members",
+			  &intersect);
+
+	for (m = group->members; m; m = m->next) {
+		struct p2p_device *dev;
+
+		dev = p2p_get_device(group->p2p, m->dev_addr);
+		if (!dev)
+			continue;
+
+		p2p_channels_intersect(&intersect, &dev->channels, &res);
+		intersect = res;
+	}
+
+	p2p_channels_dump(group->p2p, "Group common channels", &intersect);
+
+	os_memset(common_freqs, 0, *num * sizeof(int));
+	*num = p2p_channels_to_freqs(&intersect, common_freqs, *num);
+
+	return 0;
+}

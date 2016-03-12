@@ -1,4 +1,6 @@
 /*-
+ * Copyright 2013 Garrett D'Amore <garrett@damore.org>
+ * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2002-2004 Tim J. Robbins. All rights reserved.
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -19,11 +21,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -56,76 +54,62 @@ __FBSDID("$FreeBSD$");
 
 extern int __mb_sb_limit;
 
-static size_t	_EUC_mbrtowc(wchar_t * __restrict, const char * __restrict,
+static size_t	_EUC_mbrtowc_impl(wchar_t * __restrict, const char * __restrict,
+    size_t, mbstate_t * __restrict, uint8_t, uint8_t, uint8_t, uint8_t);
+static size_t	_EUC_wcrtomb_impl(char * __restrict, wchar_t,
+    mbstate_t * __restrict, uint8_t, uint8_t, uint8_t, uint8_t);
+
+static size_t	_EUC_CN_mbrtowc(wchar_t * __restrict, const char * __restrict,
 		    size_t, mbstate_t * __restrict);
-static int	_EUC_mbsinit(const mbstate_t *);
-static size_t	_EUC_wcrtomb(char * __restrict, wchar_t,
+static size_t	_EUC_JP_mbrtowc(wchar_t * __restrict, const char * __restrict,
+		    size_t, mbstate_t * __restrict);
+static size_t	_EUC_KR_mbrtowc(wchar_t * __restrict, const char * __restrict,
+		    size_t, mbstate_t * __restrict);
+static size_t	_EUC_TW_mbrtowc(wchar_t * __restrict, const char * __restrict,
+		    size_t, mbstate_t * __restrict);
+
+static size_t	_EUC_CN_wcrtomb(char * __restrict, wchar_t,
+		    mbstate_t * __restrict);
+static size_t	_EUC_JP_wcrtomb(char * __restrict, wchar_t,
+		    mbstate_t * __restrict);
+static size_t	_EUC_KR_wcrtomb(char * __restrict, wchar_t,
+		    mbstate_t * __restrict);
+static size_t	_EUC_TW_wcrtomb(char * __restrict, wchar_t,
 		    mbstate_t * __restrict);
 
-typedef struct {
-	int	count[4];
-	wchar_t	bits[4];
-	wchar_t	mask;
-} _EucInfo;
+static size_t	_EUC_CN_mbsnrtowcs(wchar_t * __restrict,
+		    const char ** __restrict, size_t, size_t,
+		    mbstate_t * __restrict);
+static size_t	_EUC_JP_mbsnrtowcs(wchar_t * __restrict,
+		    const char ** __restrict, size_t, size_t,
+		    mbstate_t * __restrict);
+static size_t	_EUC_KR_mbsnrtowcs(wchar_t * __restrict,
+		    const char ** __restrict, size_t, size_t,
+		    mbstate_t * __restrict);
+static size_t	_EUC_TW_mbsnrtowcs(wchar_t * __restrict,
+		    const char ** __restrict, size_t, size_t,
+		    mbstate_t * __restrict);
+
+static size_t	_EUC_CN_wcsnrtombs(char * __restrict,
+		    const wchar_t ** __restrict, size_t, size_t,
+		    mbstate_t * __restrict);
+static size_t	_EUC_JP_wcsnrtombs(char * __restrict,
+		    const wchar_t ** __restrict, size_t, size_t,
+		    mbstate_t * __restrict);
+static size_t	_EUC_KR_wcsnrtombs(char * __restrict,
+		    const wchar_t ** __restrict, size_t, size_t,
+		    mbstate_t * __restrict);
+static size_t	_EUC_TW_wcsnrtombs(char * __restrict,
+		    const wchar_t ** __restrict, size_t, size_t,
+		    mbstate_t * __restrict);
+
+static int	_EUC_mbsinit(const mbstate_t *);
 
 typedef struct {
 	wchar_t	ch;
 	int	set;
 	int	want;
 } _EucState;
-
-int
-_EUC_init(struct xlocale_ctype *l, _RuneLocale *rl)
-{
-	_EucInfo *ei;
-	int x, new__mb_cur_max;
-	char *v, *e;
-
-	if (rl->__variable == NULL)
-		return (EFTYPE);
-
-	v = (char *)rl->__variable;
-
-	while (*v == ' ' || *v == '\t')
-		++v;
-
-	if ((ei = malloc(sizeof(_EucInfo))) == NULL)
-		return (errno == 0 ? ENOMEM : errno);
-
-	new__mb_cur_max = 0;
-	for (x = 0; x < 4; ++x) {
-		ei->count[x] = (int)strtol(v, &e, 0);
-		if (v == e || !(v = e)) {
-			free(ei);
-			return (EFTYPE);
-		}
-		if (new__mb_cur_max < ei->count[x])
-			new__mb_cur_max = ei->count[x];
-		while (*v == ' ' || *v == '\t')
-			++v;
-		ei->bits[x] = (int)strtol(v, &e, 0);
-		if (v == e || !(v = e)) {
-			free(ei);
-			return (EFTYPE);
-		}
-		while (*v == ' ' || *v == '\t')
-			++v;
-	}
-	ei->mask = (int)strtol(v, &e, 0);
-	if (v == e || !(v = e)) {
-		free(ei);
-		return (EFTYPE);
-	}
-	rl->__variable = ei;
-	rl->__variable_len = sizeof(_EucInfo);
-	l->runes = rl;
-	l->__mb_cur_max = new__mb_cur_max;
-	l->__mbrtowc = _EUC_mbrtowc;
-	l->__wcrtomb = _EUC_wcrtomb;
-	l->__mbsinit = _EUC_mbsinit;
-	l->__mb_sb_limit = 256;
-	return (0);
-}
 
 static int
 _EUC_mbsinit(const mbstate_t *ps)
@@ -134,34 +118,211 @@ _EUC_mbsinit(const mbstate_t *ps)
 	return (ps == NULL || ((const _EucState *)ps)->want == 0);
 }
 
-#define	CEI	((_EucInfo *)(_CurrentRuneLocale->__variable))
-
-#define	_SS2	0x008e
-#define	_SS3	0x008f
-
-#define	GR_BITS	0x80808080 /* XXX: to be fixed */
-
-static __inline int
-_euc_set(u_int c)
+/*
+ * EUC-CN uses CS0, CS1 and CS2 (4 bytes).
+ */
+int
+_EUC_CN_init(struct xlocale_ctype *l, _RuneLocale *rl)
 {
+	l->__mbrtowc = _EUC_CN_mbrtowc;
+	l->__wcrtomb = _EUC_CN_wcrtomb;
+	l->__mbsnrtowcs = _EUC_CN_mbsnrtowcs;
+	l->__wcsnrtombs = _EUC_CN_wcsnrtombs;
+	l->__mbsinit = _EUC_mbsinit;
 
-	c &= 0xff;
-	return ((c & 0x80) ? c == _SS3 ? 3 : c == _SS2 ? 2 : 1 : 0);
+	l->runes = rl;
+	l->__mb_cur_max = 4;
+	l->__mb_sb_limit = 256;
+	return (0);
 }
 
 static size_t
-_EUC_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
+_EUC_CN_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s,
+    size_t n, mbstate_t * __restrict ps)
+{
+	return (_EUC_mbrtowc_impl(pwc, s, n, ps, SS2, 4, 0, 0));
+}
+
+static size_t
+_EUC_CN_mbsnrtowcs(wchar_t * __restrict dst,
+    const char ** __restrict src,
+    size_t nms, size_t len, mbstate_t * __restrict ps)
+{
+	return (__mbsnrtowcs_std(dst, src, nms, len, ps, _EUC_CN_mbrtowc));
+}
+
+static size_t
+_EUC_CN_wcrtomb(char * __restrict s, wchar_t wc,
     mbstate_t * __restrict ps)
 {
+	return (_EUC_wcrtomb_impl(s, wc, ps, SS2, 4, 0, 0));
+}
+
+static size_t
+_EUC_CN_wcsnrtombs(char * __restrict dst, const wchar_t ** __restrict src,
+	size_t nwc, size_t len, mbstate_t * __restrict ps)
+{
+	return (__wcsnrtombs_std(dst, src, nwc, len, ps, _EUC_CN_wcrtomb));
+}
+
+/*
+ * EUC-KR uses only CS0 and CS1.
+ */
+int
+_EUC_KR_init(struct xlocale_ctype *l, _RuneLocale *rl)
+{
+	l->__mbrtowc = _EUC_KR_mbrtowc;
+	l->__wcrtomb = _EUC_KR_wcrtomb;
+	l->__mbsnrtowcs = _EUC_KR_mbsnrtowcs;
+	l->__wcsnrtombs = _EUC_KR_wcsnrtombs;
+	l->__mbsinit = _EUC_mbsinit;
+
+	l->runes = rl;
+	l->__mb_cur_max = 2;
+	l->__mb_sb_limit = 128;
+	return (0);
+}
+
+static size_t
+_EUC_KR_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s,
+    size_t n, mbstate_t * __restrict ps)
+{
+	return (_EUC_mbrtowc_impl(pwc, s, n, ps, 0, 0, 0, 0));
+}
+
+static size_t
+_EUC_KR_mbsnrtowcs(wchar_t * __restrict dst,
+    const char ** __restrict src,
+    size_t nms, size_t len, mbstate_t * __restrict ps)
+{
+	return (__mbsnrtowcs_std(dst, src, nms, len, ps, _EUC_KR_mbrtowc));
+}
+
+static size_t
+_EUC_KR_wcrtomb(char * __restrict s, wchar_t wc,
+	mbstate_t * __restrict ps)
+{
+	return (_EUC_wcrtomb_impl(s, wc, ps, 0, 0, 0, 0));
+}
+
+static size_t
+_EUC_KR_wcsnrtombs(char * __restrict dst, const wchar_t ** __restrict src,
+	size_t nwc, size_t len, mbstate_t * __restrict ps)
+{
+	return (__wcsnrtombs_std(dst, src, nwc, len, ps, _EUC_KR_wcrtomb));
+}
+
+/*
+ * EUC-JP uses CS0, CS1, CS2, and CS3.
+ */
+int
+_EUC_JP_init(struct xlocale_ctype *l, _RuneLocale *rl)
+{
+	l->__mbrtowc = _EUC_JP_mbrtowc;
+	l->__wcrtomb = _EUC_JP_wcrtomb;
+	l->__mbsnrtowcs = _EUC_JP_mbsnrtowcs;
+	l->__wcsnrtombs = _EUC_JP_wcsnrtombs;
+	l->__mbsinit = _EUC_mbsinit;
+
+	l->runes = rl;
+	l->__mb_cur_max = 3;
+	l->__mb_sb_limit = 196;
+	return (0);
+}
+
+static size_t
+_EUC_JP_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s,
+    size_t n, mbstate_t * __restrict ps)
+{
+	return (_EUC_mbrtowc_impl(pwc, s, n, ps, SS2, 2, SS3, 3));
+}
+
+static size_t
+_EUC_JP_mbsnrtowcs(wchar_t * __restrict dst,
+    const char ** __restrict src,
+    size_t nms, size_t len, mbstate_t * __restrict ps)
+{
+	return (__mbsnrtowcs_std(dst, src, nms, len, ps, _EUC_JP_mbrtowc));
+}
+
+static size_t
+_EUC_JP_wcrtomb(char * __restrict s, wchar_t wc,
+    mbstate_t * __restrict ps)
+{
+	return (_EUC_wcrtomb_impl(s, wc, ps, SS2, 2, SS3, 3));
+}
+
+static size_t
+_EUC_JP_wcsnrtombs(char * __restrict dst, const wchar_t ** __restrict src,
+	size_t nwc, size_t len, mbstate_t * __restrict ps)
+{
+	return (__wcsnrtombs_std(dst, src, nwc, len, ps, _EUC_JP_wcrtomb));
+}
+
+/*
+ * EUC-TW uses CS0, CS1, and CS2.
+ */
+int
+_EUC_TW_init(struct xlocale_ctype *l, _RuneLocale *rl)
+{
+	l->__mbrtowc = _EUC_TW_mbrtowc;
+	l->__wcrtomb = _EUC_TW_wcrtomb;
+	l->__mbsnrtowcs = _EUC_TW_mbsnrtowcs;
+	l->__wcsnrtombs = _EUC_TW_wcsnrtombs;
+	l->__mbsinit = _EUC_mbsinit;
+
+	l->runes = rl;
+	l->__mb_cur_max = 4;
+	l->__mb_sb_limit = 256;
+	return (0);
+}
+
+static size_t
+_EUC_TW_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s,
+	size_t n, mbstate_t * __restrict ps)
+{
+	return (_EUC_mbrtowc_impl(pwc, s, n, ps, SS2, 4, 0, 0));
+}
+
+static size_t
+_EUC_TW_mbsnrtowcs(wchar_t * __restrict dst,
+	const char ** __restrict src,
+	size_t nms, size_t len, mbstate_t * __restrict ps)
+{
+	return (__mbsnrtowcs_std(dst, src, nms, len, ps, _EUC_TW_mbrtowc));
+}
+
+static size_t
+_EUC_TW_wcrtomb(char * __restrict s, wchar_t wc,
+	mbstate_t * __restrict ps)
+{
+	return (_EUC_wcrtomb_impl(s, wc, ps, SS2, 4, 0, 0));
+}
+
+static size_t
+_EUC_TW_wcsnrtombs(char * __restrict dst, const wchar_t ** __restrict src,
+	size_t nwc, size_t len, mbstate_t * __restrict ps)
+{
+	return (__wcsnrtombs_std(dst, src, nwc, len, ps, _EUC_TW_wcrtomb));
+}
+
+/*
+ * Common EUC code.
+ */
+
+static size_t
+_EUC_mbrtowc_impl(wchar_t * __restrict pwc, const char * __restrict s,
+	size_t n, mbstate_t * __restrict ps,
+	uint8_t cs2, uint8_t cs2width, uint8_t cs3, uint8_t cs3width)
+{
 	_EucState *es;
-	int i, set, want;
-	wchar_t wc;
-	const char *os;
+	int i, want;
+	wchar_t wc = 0;
+	unsigned char ch, chs;
 
 	es = (_EucState *)ps;
 
-	if (es->want < 0 || es->want > MB_CUR_MAX || es->set < 0 ||
-	    es->set > 3) {
+	if (es->want < 0 || es->want > MB_CUR_MAX) {
 		errno = EINVAL;
 		return ((size_t)-1);
 	}
@@ -176,58 +337,61 @@ _EUC_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		/* Incomplete multibyte sequence */
 		return ((size_t)-2);
 
-	os = s;
-
 	if (es->want == 0) {
-		want = CEI->count[set = _euc_set(*s)];
-		if (set == 2 || set == 3) {
-			--want;
-			if (--n == 0) {
-				/* Incomplete multibyte sequence */
-				es->set = set;
-				es->want = want;
-				es->ch = 0;
-				return ((size_t)-2);
-			}
-			++s;
-			if (*s == '\0') {
-				errno = EILSEQ;
-				return ((size_t)-1);
-			}
+		/* Fast path for plain ASCII (CS0) */
+		if (((ch = (unsigned char)*s) & 0x80) == 0) {
+			if (pwc != NULL)
+				*pwc = ch;
+			return (ch != '\0' ? 1 : 0);
 		}
-		wc = (unsigned char)*s++;
-	} else {
-		set = es->set;
-		want = es->want;
-		wc = es->ch;
-	}
-	for (i = (es->want == 0) ? 1 : 0; i < MIN(want, n); i++) {
-		if (*s == '\0') {
+
+		if (ch >= 0xa1) {
+			/* CS1 */
+			want = 2;
+		} else if (ch == cs2) {
+			want = cs2width;
+		} else if (ch == cs3) {
+			want = cs3width;
+		} else {
 			errno = EILSEQ;
 			return ((size_t)-1);
 		}
-		wc = (wc << 8) | (unsigned char)*s++;
+
+
+		es->want = want;
+		es->ch = 0;
+	} else {
+		want = es->want;
+		wc = es->ch;
+	}
+
+	for (i = 0; i < MIN(want, n); i++) {
+		wc <<= 8;
+		chs = *s;
+		wc |= chs;
+		s++;
 	}
 	if (i < want) {
 		/* Incomplete multibyte sequence */
-		es->set = set;
 		es->want = want - i;
 		es->ch = wc;
+		errno = EILSEQ;
 		return ((size_t)-2);
 	}
-	wc = (wc & ~CEI->mask) | CEI->bits[set];
 	if (pwc != NULL)
 		*pwc = wc;
 	es->want = 0;
-	return (wc == L'\0' ? 0 : s - os);
+	return (wc == L'\0' ? 0 : want);
 }
 
 static size_t
-_EUC_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
+_EUC_wcrtomb_impl(char * __restrict s, wchar_t wc,
+    mbstate_t * __restrict ps,
+    uint8_t cs2, uint8_t cs2width, uint8_t cs3, uint8_t cs3width)
 {
 	_EucState *es;
-	wchar_t m, nm;
 	int i, len;
+	wchar_t nm;
 
 	es = (_EucState *)ps;
 
@@ -240,34 +404,52 @@ _EUC_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 		/* Reset to initial shift state (no-op) */
 		return (1);
 
-	m = wc & CEI->mask;
-	nm = wc & ~m;
+	if ((wc & ~0x7f) == 0) {
+		/* Fast path for plain ASCII (CS0) */
+		*s = (char)wc;
+		return (1);
+	}
 
-	if (m == CEI->bits[1]) {
-CodeSet1:
-		/* Codeset 1: The first byte must have 0x80 in it. */
-		i = len = CEI->count[1];
-		while (i-- > 0)
-			*s++ = (nm >> (i << 3)) | 0x80;
+	/* Determine the "length" */
+	if ((unsigned)wc > 0xffffff) {
+		len = 4;
+	} else if ((unsigned)wc > 0xffff) {
+		len = 3;
+	} else if ((unsigned)wc > 0xff) {
+		len = 2;
 	} else {
-		if (m == CEI->bits[0])
-			i = len = CEI->count[0];
-		else if (m == CEI->bits[2]) {
-			i = len = CEI->count[2];
-			*s++ = _SS2;
-			--i;
-			/* SS2 designates G2 into GR */
-			nm |= GR_BITS;
-		} else if (m == CEI->bits[3]) {
-			i = len = CEI->count[3];
-			*s++ = _SS3;
-			--i;
-			/* SS3 designates G3 into GR */
-			nm |= GR_BITS;
-		} else
-			goto CodeSet1;	/* Bletch */
-		while (i-- > 0)
-			*s++ = (nm >> (i << 3)) & 0xff;
+		len = 1;
+	}
+
+	if (len > MB_CUR_MAX) {
+		errno = EILSEQ;
+		return ((size_t)-1);
+	}
+
+	/* This first check excludes CS1, which is implicitly valid. */
+	if ((wc < 0xa100) || (wc > 0xffff)) {
+		/* Check for valid CS2 or CS3 */
+		nm = (wc >> ((len - 1) * 8));
+		if (nm == cs2) {
+			if (len != cs2width) {
+				errno = EILSEQ;
+				return ((size_t)-1);
+			}
+		} else if (nm == cs3) {
+			if (len != cs3width) {
+				errno = EILSEQ;
+				return ((size_t)-1);
+			}
+		} else {
+			errno = EILSEQ;
+			return ((size_t)-1);
+		}
+	}
+
+	/* Stash the bytes, least significant last */
+	for (i = len - 1; i >= 0; i--) {
+		s[i] = (wc & 0xff);
+		wc >>= 8;
 	}
 	return (len);
 }

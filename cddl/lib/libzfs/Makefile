@@ -6,13 +6,7 @@
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzfs/common
 
 LIB=	zfs
-DPADD=	${LIBMD} ${LIBPTHREAD} ${LIBUMEM} ${LIBUTIL} ${LIBM} ${LIBNVPAIR} \
-	${LIBAVL} ${LIBZFS_CORE} ${LIBUUTIL} ${LIBBSDXML} ${LIBGEOM} \
-	${LIBNVPAIR} ${LIBZ}
-
-LDADD=	-lmd -lpthread -lumem -lutil -luutil -lm -lnvpair -lavl \
-	-lbsdxml -lgeom -lnvpair -lz -lzfs_core
-
+LIBADD=	md pthread umem util uutil m avl bsdxml geom nvpair z zfs_core
 SRCS=	deviceid.c \
 	fsshare.c \
 	mkdirp.c \

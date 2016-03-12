@@ -727,6 +727,11 @@ typedef struct {
 #define	LL_DELAY_LOAD		0x10
 #define	LL_DELTA		0x20
 
+/* Values for n_type used in executables. */
+#define	NT_FREEBSD_ABI_TAG	1
+#define	NT_FREEBSD_NOINIT_TAG	2
+#define	NT_FREEBSD_ARCH_TAG	3
+
 /* Values for n_type.  Used in core files. */
 #define	NT_PRSTATUS	1	/* Process status. */
 #define	NT_FPREGSET	2	/* Floating point registers. */
@@ -748,8 +753,9 @@ typedef struct {
 #define	STB_LOCAL	0	/* Local symbol */
 #define	STB_GLOBAL	1	/* Global symbol */
 #define	STB_WEAK	2	/* like global - lower precedence */
-#define	STB_LOOS	10	/* Reserved range for operating system */
-#define	STB_HIOS	12	/*   specific semantics. */
+#define	STB_LOOS	10	/* Start of operating system reserved range. */
+#define	STB_GNU_UNIQUE	10	/* Unique symbol (GNU) */
+#define	STB_HIOS	12	/* End of operating system reserved range. */
 #define	STB_LOPROC	13	/* reserved range for processor */
 #define	STB_HIPROC	15	/*   specific semantics. */
 
@@ -765,8 +771,9 @@ typedef struct {
 #define	STT_LOOS	10	/* Reserved range for operating system */
 #define	STT_GNU_IFUNC	10
 #define	STT_HIOS	12	/*   specific semantics. */
-#define	STT_LOPROC	13	/* reserved range for processor */
-#define	STT_HIPROC	15	/*   specific semantics. */
+#define	STT_LOPROC	13	/* Start of processor reserved range. */
+#define	STT_SPARC_REGISTER 13	/* SPARC register information. */
+#define	STT_HIPROC	15	/* End of processor reserved range. */
 
 /* Symbol visibility - ELFNN_ST_VISIBILITY - st_other */
 #define	STV_DEFAULT	0x0	/* Default visibility (see binding). */
@@ -1139,6 +1146,56 @@ typedef struct {
 #define	R_PPC_EMB_RELST_HA	114
 #define	R_PPC_EMB_BIT_FLD	115
 #define	R_PPC_EMB_RELSDA	116
+
+/*
+ * RISC-V relocation types.
+ */
+
+/* Relocation types used by the dynamic linker. */
+#define	R_RISCV_NONE		0
+#define	R_RISCV_32		1
+#define	R_RISCV_64		2
+#define	R_RISCV_RELATIVE	3
+#define	R_RISCV_COPY		4
+#define	R_RISCV_JUMP_SLOT	5
+#define	R_RISCV_TLS_DTPMOD32	6
+#define	R_RISCV_TLS_DTPMOD64	7
+#define	R_RISCV_TLS_DTPREL32	8
+#define	R_RISCV_TLS_DTPREL64	9
+#define	R_RISCV_TLS_TPREL32	10
+#define	R_RISCV_TLS_TPREL64	11
+
+/* Relocation types not used by the dynamic linker. */
+#define	R_RISCV_BRANCH		16
+#define	R_RISCV_JAL		17
+#define	R_RISCV_CALL		18
+#define	R_RISCV_CALL_PLT	19
+#define	R_RISCV_GOT_HI20	20
+#define	R_RISCV_TLS_GOT_HI20	21
+#define	R_RISCV_TLS_GD_HI20	22
+#define	R_RISCV_PCREL_HI20	23
+#define	R_RISCV_PCREL_LO12_I	24
+#define	R_RISCV_PCREL_LO12_S	25
+#define	R_RISCV_HI20		26
+#define	R_RISCV_LO12_I		27
+#define	R_RISCV_LO12_S		28
+#define	R_RISCV_TPREL_HI20	29
+#define	R_RISCV_TPREL_LO12_I	30
+#define	R_RISCV_TPREL_LO12_S	31
+#define	R_RISCV_TPREL_ADD	32
+#define	R_RISCV_ADD8		33
+#define	R_RISCV_ADD16		34
+#define	R_RISCV_ADD32		35
+#define	R_RISCV_ADD64		36
+#define	R_RISCV_SUB8		37
+#define	R_RISCV_SUB16		38
+#define	R_RISCV_SUB32		39
+#define	R_RISCV_SUB64		40
+#define	R_RISCV_GNU_VTINHERIT	41
+#define	R_RISCV_GNU_VTENTRY	42
+#define	R_RISCV_ALIGN		43
+#define	R_RISCV_RVC_BRANCH	44
+#define	R_RISCV_RVC_JUMP	45
 
 #define	R_SPARC_NONE		0
 #define	R_SPARC_8		1

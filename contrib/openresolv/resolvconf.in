@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2007-2015 Roy Marples
+# Copyright (c) 2007-2016 Roy Marples
 # All rights reserved
 
 # Redistribution and use in source and binary forms, with or without
@@ -50,12 +50,12 @@ elif [ -d "$SYSCONFDIR/resolvconf" ]; then
 		interface_order="$(cat "$SYSCONFDIR"/interface-order)"
 	fi
 fi
-TMPDIR="$VARDIR/tmp"
 IFACEDIR="$VARDIR/interfaces"
 METRICDIR="$VARDIR/metrics"
 PRIVATEDIR="$VARDIR/private"
 EXCLUSIVEDIR="$VARDIR/exclusive"
 LOCKDIR="$VARDIR/lock"
+_PWD="$PWD"
 
 warn()
 {
@@ -120,6 +120,22 @@ echo_resolv()
 	IFS="$OIFS"
 }
 
+# Strip any trailing dot from each name as a FQDN does not belong
+# in resolv.conf(5)
+# If you think otherwise, capture a DNS trace and you'll see libc
+# will strip it regardless.
+# This also solves setting up duplicate zones in our subscribers.
+strip_trailing_dots()
+{
+	local n= d=
+
+	for n; do
+		printf "$d%s" "${n%.}"
+		d=" "
+	done
+	printf "\n"
+}
+
 # Parse resolv.conf's and make variables
 # for domain name servers, search name servers and global nameservers
 parse_resolv()
@@ -163,14 +179,14 @@ parse_resolv()
 			$islocal || ns="$ns${line#* } "
 			;;
 		"domain "*)
+			search="$(strip_trailing_dots ${line#* })"
 			if [ -z "$domain" ]; then
-				domain="${line#* }"
+				domain="$search"
 				echo "DOMAIN=\"$domain\""
 			fi
-			search="${line#* }"
 			;;
 		"search "*)
-			search="${line#* }"
+			search="$(strip_trailing_dots ${line#* })"
 			;;
 		*)
 			[ -n "$line" ] && continue
@@ -753,6 +769,10 @@ eval "$(make_vars)"
 export RESOLVCONF DOMAINS SEARCH NAMESERVERS LOCALNAMESERVERS
 : ${list_resolv:=list_resolv -l}
 retval=0
+
+# Run scripts in the same directory resolvconf is run from
+# in case any scripts accidently dump files in the wrong place.
+cd "$_PWD"
 for script in "$LIBEXECDIR"/*; do
 	if [ -f "$script" ]; then
 		eval script_enabled="\$${script##*/}"

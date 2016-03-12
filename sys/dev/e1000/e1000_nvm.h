@@ -35,12 +35,10 @@
 #ifndef _E1000_NVM_H_
 #define _E1000_NVM_H_
 
-#if !defined(NO_READ_PBA_RAW) || !defined(NO_WRITE_PBA_RAW)
 struct e1000_pba {
 	u16 word[2];
 	u16 *pba_block;
 };
-#endif
 
 
 void e1000_init_nvm_ops_generic(struct e1000_hw *hw);

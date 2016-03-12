@@ -221,6 +221,7 @@ DRIVER_MODULE(umct, uhub, umct_driver, umct_devclass, NULL, 0);
 MODULE_DEPEND(umct, ucom, 1, 1, 1);
 MODULE_DEPEND(umct, usb, 1, 1, 1);
 MODULE_VERSION(umct, 1);
+USB_PNP_HOST_INFO(umct_devs);
 
 static int
 umct_probe(device_t dev)

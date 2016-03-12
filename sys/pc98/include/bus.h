@@ -78,7 +78,9 @@
 #ifndef _PC98_BUS_H_
 #define _PC98_BUS_H_
 
+#ifdef _KERNEL
 #include <sys/systm.h>
+#endif /* _KERNEL */
 
 #include <machine/_bus.h>
 #include <machine/cpufunc.h>
@@ -91,6 +93,8 @@
 #define BUS_SPACE_MAXADDR	0xFFFFFFFF
 
 #define BUS_SPACE_UNRESTRICTED	(~0)
+
+#ifdef _KERNEL
 
 /*
  * address relocation table
@@ -638,5 +642,7 @@ bus_space_barrier(bus_space_tag_t tag, bus_space_handle_t bsh,
 	bus_space_copy_region_2((t), (h1), (o1), (h2), (o2), (c))
 #define	bus_space_copy_region_stream_4(t, h1, o1, h2, o2, c) \
 	bus_space_copy_region_4((t), (h1), (o1), (h2), (o2), (c))
+
+#endif /* _KERNEL */
 
 #endif /* _PC98_BUS_H_ */

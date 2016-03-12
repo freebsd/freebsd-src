@@ -52,8 +52,8 @@
    against it */
 /* #undef BROKEN_READ_COMPARISON */
 
-/* Define if you have a broken realpath. */
-/* #undef BROKEN_REALPATH */
+/* realpath does not work with nonexistent files */
+#define BROKEN_REALPATH 1
 
 /* Needed for NeXT */
 /* #undef BROKEN_SAVED_UIDS */
@@ -292,6 +292,10 @@
 /* Define if your libraries define daemon() */
 #define HAVE_DAEMON 1
 
+/* Define to 1 if you have the declaration of `AI_NUMERICSERV', and to 0 if
+   you don't. */
+#define HAVE_DECL_AI_NUMERICSERV 1
+
 /* Define to 1 if you have the declaration of `authenticate', and to 0 if you
    don't. */
 /* #undef HAVE_DECL_AUTHENTICATE */
@@ -421,6 +425,9 @@
 /* Define to 1 if you have the `EVP_MD_CTX_init' function. */
 #define HAVE_EVP_MD_CTX_INIT 1
 
+/* Define to 1 if you have the `EVP_ripemd160' function. */
+#define HAVE_EVP_RIPEMD160 1
+
 /* Define to 1 if you have the `EVP_sha256' function. */
 #define HAVE_EVP_SHA256 1
 
@@ -428,7 +435,7 @@
 /* #undef HAVE_EXIT_IN_UTMP */
 
 /* Define to 1 if you have the `explicit_bzero' function. */
-/* #undef HAVE_EXPLICIT_BZERO */
+#define HAVE_EXPLICIT_BZERO 1
 
 /* Define to 1 if you have the `fchmod' function. */
 #define HAVE_FCHMOD 1
@@ -691,9 +698,6 @@
 /* Define to 1 if you have the `network' library (-lnetwork). */
 /* #undef HAVE_LIBNETWORK */
 
-/* Define to 1 if you have the `nsl' library (-lnsl). */
-/* #undef HAVE_LIBNSL */
-
 /* Define to 1 if you have the `pam' library (-lpam). */
 #define HAVE_LIBPAM 1
 
@@ -769,6 +773,9 @@
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
 
+/* Define to 1 if you have the `memset_s' function. */
+/* #undef HAVE_MEMSET_S */
+
 /* Define to 1 if you have the `mkdtemp' function. */
 #define HAVE_MKDTEMP 1
 
@@ -839,6 +846,9 @@
 /* define if you have pid_t data type */
 #define HAVE_PID_T 1
 
+/* Define to 1 if you have the `pledge' function. */
+/* #undef HAVE_PLEDGE */
+
 /* Define to 1 if you have the `poll' function. */
 #define HAVE_POLL 1
 
@@ -847,6 +857,12 @@
 
 /* Define to 1 if you have the `prctl' function. */
 /* #undef HAVE_PRCTL */
+
+/* Define to 1 if you have the `priv_basicset' function. */
+/* #undef HAVE_PRIV_BASICSET */
+
+/* Define to 1 if you have the <priv.h> header file. */
+/* #undef HAVE_PRIV_H */
 
 /* Define if you have /proc/$pid/fd */
 /* #undef HAVE_PROC_PID */
@@ -868,6 +884,9 @@
 
 /* Define to 1 if you have the <readpassphrase.h> header file. */
 #define HAVE_READPASSPHRASE_H 1
+
+/* Define to 1 if you have the `reallocarray' function. */
+#define HAVE_REALLOCARRAY 1
 
 /* Define to 1 if you have the `realpath' function. */
 #define HAVE_REALPATH 1
@@ -946,6 +965,9 @@
 
 /* Define to 1 if you have the `setpcred' function. */
 /* #undef HAVE_SETPCRED */
+
+/* Define to 1 if you have the `setppriv' function. */
+/* #undef HAVE_SETPPRIV */
 
 /* Define to 1 if you have the `setproctitle' function. */
 #define HAVE_SETPROCTITLE 1
@@ -1139,8 +1161,8 @@
 /* Define to 1 if you have the <sys/bsdtty.h> header file. */
 /* #undef HAVE_SYS_BSDTTY_H */
 
-/* Define to 1 if you have the <sys/capability.h> header file. */
-#define HAVE_SYS_CAPABILITY_H 1
+/* Define to 1 if you have the <sys/capsicum.h> header file. */
+#define HAVE_SYS_CAPSICUM_H 1
 
 /* Define to 1 if you have the <sys/cdefs.h> header file. */
 #define HAVE_SYS_CDEFS_H 1
@@ -1325,9 +1347,6 @@
 /* Define if va_copy exists */
 #define HAVE_VA_COPY 1
 
-/* Define to 1 if you have the `vhangup' function. */
-/* #undef HAVE_VHANGUP */
-
 /* Define to 1 if you have the <vis.h> header file. */
 #define HAVE_VIS_H 1
 
@@ -1441,6 +1460,9 @@
 /* Define if you don't want to use lastlog in session.c */
 /* #undef NO_SSH_LASTLOG */
 
+/* Define to disable UID restoration test */
+/* #undef NO_UID_RESTORATION_TEST */
+
 /* Define if X11 doesn't support AF_UNIX sockets on that system */
 /* #undef NO_X11_UNIX_SOCKETS */
 
@@ -1468,7 +1490,7 @@
 /* libcrypto is missing AES 192 and 256 bit functions */
 /* #undef OPENSSL_LOBOTOMISED_AES */
 
-/* Define if you want OpenSSL's internally seeded PRNG only */
+/* Define if you want the OpenSSL internally seeded PRNG only */
 #define OPENSSL_PRNG_ONLY 1
 
 /* Define to the address where bug reports for this package should be sent. */
@@ -1520,6 +1542,9 @@
 /* no privsep sandboxing */
 /* #undef SANDBOX_NULL */
 
+/* Sandbox using pledge(2) */
+/* #undef SANDBOX_PLEDGE */
+
 /* Sandbox using setrlimit(2) */
 /* #undef SANDBOX_RLIMIT */
 
@@ -1531,6 +1556,9 @@
 
 /* define if setrlimit RLIMIT_NOFILE breaks things */
 #define SANDBOX_SKIP_RLIMIT_NOFILE 1
+
+/* Sandbox using Solaris/Illumos privileges */
+/* #undef SANDBOX_SOLARIS */
 
 /* Sandbox using systrace(4) */
 /* #undef SANDBOX_SYSTRACE */
@@ -1638,6 +1666,9 @@
 /* Use PIPES instead of a socketpair() */
 /* #undef USE_PIPES */
 
+/* Define if you have Solaris privileges */
+/* #undef USE_SOLARIS_PRIVS */
+
 /* Define if you have Solaris process contracts */
 /* #undef USE_SOLARIS_PROCESS_CONTRACTS */
 
@@ -1663,8 +1694,14 @@
 /* Define if you want IRIX project management */
 /* #undef WITH_IRIX_PROJECT */
 
+/* use libcrypto for cryptography */
+#define WITH_OPENSSL 1
+
 /* Define if you want SELinux support. */
 /* #undef WITH_SELINUX */
+
+/* include SSH protocol version 1 support */
+#define WITH_SSH1 1
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
@@ -1680,6 +1717,11 @@
 
 /* Define if xauth is found in your path */
 /* #undef XAUTH_PATH */
+
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 /* #undef _FILE_OFFSET_BITS */

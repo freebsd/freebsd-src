@@ -88,7 +88,7 @@ ATOMICITY_H=	${SRCDIR}/config/cpu/generic/atomicity_builtins/atomicity.h
 .endif
 .endif
 
-atomicity.cc:	${ATOMICITY_H}
+atomicity.cc:	${ATOMICITY_H} .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 CLEANFILES+=	atomicity.cc
 
@@ -599,7 +599,7 @@ unwind.h: ${GCCDIR}/config/arm/unwind-arm.h
 unwind.h: ${GCCDIR}/unwind-generic.h
 .endif
 
-unwind.h:
+unwind.h: .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 
 SRCS+=		unwind.h
@@ -624,7 +624,7 @@ CLEANFILES+=	c++config.h
 
 VERSION_MAP=  	libstdc++.map
 
-${VERSION_MAP}: ${SRCDIR}/config/abi/pre/gnu.ver
+${VERSION_MAP}: ${SRCDIR}/config/abi/pre/gnu.ver .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 
 CLEANFILES+=	${VERSION_MAP}

@@ -1019,7 +1019,9 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #   if __FreeBSD__ >= 2
 #    include <osreldate.h>
 #    if __FreeBSD_version >= 199512	/* 2.2-current when it appeared */
+#      if __FreeBSD_version < 500012
 #     include <libutil.h>
+#      endif
 #     define SPT_TYPE	SPT_BUILTIN
 #    endif /* __FreeBSD_version >= 199512 */
 #    if __FreeBSD_version >= 222000	/* 2.2.2-release and later */

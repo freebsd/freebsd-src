@@ -1,5 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.120 2014/02/05 20:13:25 naddy Exp $
-.\"	$FreeBSD$
+.\"	$OpenBSD: ssh-keygen.1,v 1.130 2016/02/17 07:38:19 jmc Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -36,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd February 5, 2014
+.Dd $Mdocdate: February 17 2016 $
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -47,7 +46,7 @@
 .Nm ssh-keygen
 .Op Fl q
 .Op Fl b Ar bits
-.Op Fl t Ar type
+.Op Fl t Cm dsa | ecdsa | ed25519 | rsa | rsa1
 .Op Fl N Ar new_passphrase
 .Op Fl C Ar comment
 .Op Fl f Ar output_keyfile
@@ -74,6 +73,8 @@
 .Op Fl f Ar keyfile
 .Nm ssh-keygen
 .Fl l
+.Op Fl v
+.Op Fl E Ar fingerprint_hash
 .Op Fl f Ar input_keyfile
 .Nm ssh-keygen
 .Fl B
@@ -140,8 +141,12 @@
 generates, manages and converts authentication keys for
 .Xr ssh 1 .
 .Nm
-can create RSA keys for use by SSH protocol version 1 and
-DSA, ECDSA, ED25519 or RSA keys for use by SSH protocol version 2.
+can create keys for use by SSH protocol versions 1 and 2.
+Protocol 1 should not be used
+and is only offered to support legacy devices.
+It suffers from a number of cryptographic weaknesses
+and doesn't support many of the advanced features available for protocol 2.
+.Pp
 The type of key to be generated is specified with the
 .Fl t
 option.
@@ -243,7 +248,7 @@ This option specifies the number of primality tests to perform.
 Show the bubblebabble digest of specified private or public key file.
 .It Fl b Ar bits
 Specifies the number of bits in the key to create.
-For RSA keys, the minimum size is 768 bits and the default is 2048 bits.
+For RSA keys, the minimum size is 1024 bits and the default is 2048 bits.
 Generally, 2048 bits is considered sufficient.
 DSA keys must be exactly 1024 bits as specified by FIPS 186-2.
 For ECDSA keys, the
@@ -252,7 +257,7 @@ flag determines the key length by selecting from one of three elliptic
 curve sizes: 256, 384 or 521 bits.
 Attempting to use bit lengths other than these three values for ECDSA keys
 will fail.
-ED25519 keys have a fixed length and the
+Ed25519 keys have a fixed length and the
 .Fl b
 flag will be ignored.
 .It Fl C Ar comment
@@ -270,6 +275,14 @@ When used in combination with
 this option indicates that a CA key resides in a PKCS#11 token (see the
 .Sx CERTIFICATES
 section for details).
+.It Fl E Ar fingerprint_hash
+Specifies the hash algorithm used when displaying key fingerprints.
+Valid options are:
+.Dq md5
+and
+.Dq sha256 .
+The default is
+.Dq sha256 .
 .It Fl e
 This option will read a private or public OpenSSH key file and
 print to stdout the key in one of the formats specified by the
@@ -333,6 +346,10 @@ in the format specified by the
 .Fl m
 option and print an OpenSSH compatible private
 (or public) key to stdout.
+This option allows importing keys from other software, including several
+commercial SSH implementations.
+The default import format is
+.Dq RFC4716 .
 .It Fl J Ar num_lines
 Exit after screening the specified number of lines
 while performing DH candidate screening using the
@@ -351,10 +368,6 @@ while performing DH candidate screening using the
 option.
 This will be used to skip lines in the input file that have already been
 processed if the job is restarted.
-This option allows importing keys from other software, including several
-commercial SSH implementations.
-The default import format is
-.Dq RFC4716 .
 .It Fl k
 Generate a KRL file.
 In this mode,
@@ -367,7 +380,7 @@ using the format described in the
 .Sx KEY REVOCATION LISTS
 section.
 .It Fl L
-Prints the contents of a certificate.
+Prints the contents of one or more certificates.
 .It Fl l
 Show fingerprint of specified public key file.
 Private RSA1 keys are also supported.
@@ -465,7 +478,7 @@ At present, no options are valid for host keys.
 .It Fl o
 Causes
 .Nm
-to save SSH protocol 2 private keys using the new OpenSSH format rather than
+to save private keys using the new OpenSSH format rather than
 the more compatible PEM format.
 The new format has increased resistance to brute-force password cracking
 but is not supported by versions of OpenSSH prior to 6.5.
@@ -515,7 +528,7 @@ section for details.
 Test DH group exchange candidate primes (generated using the
 .Fl G
 option) for safety.
-.It Fl t Ar type
+.It Fl t Cm dsa | ecdsa | ed25519 | rsa | rsa1
 Specifies the type of key to create.
 The possible values are
 .Dq rsa1
@@ -671,7 +684,7 @@ and identifying the CA key by providing its public half as an argument
 to
 .Fl s :
 .Pp
-.Dl $ ssh-keygen -s ca_key.pub -D libpkcs11.so -I key_id host_key.pub
+.Dl $ ssh-keygen -s ca_key.pub -D libpkcs11.so -I key_id user_key.pub
 .Pp
 In all cases,
 .Ar key_id
@@ -684,7 +697,7 @@ By default, generated certificates are valid for all users or hosts.
 To generate a certificate for a specified set of principals:
 .Pp
 .Dl $ ssh-keygen -s ca_key -I key_id -n user1,user2 user_key.pub
-.Dl "$ ssh-keygen -s ca_key -I key_id -h -n host.domain user_key.pub"
+.Dl "$ ssh-keygen -s ca_key -I key_id -h -n host.domain host_key.pub"
 .Pp
 Additional limitations on the validity and use of user certificates may
 be specified through certificate options.
@@ -772,7 +785,7 @@ It is also possible, given a KRL, to test whether it revokes a particular key
 (or keys).
 The
 .Fl Q
-flag will query an existing KRL, testing each key specified on the commandline.
+flag will query an existing KRL, testing each key specified on the command line.
 If any key listed on the command line has been revoked (or an error encountered)
 then
 .Nm
@@ -804,7 +817,7 @@ There is no need to keep the contents of this file secret.
 .It Pa ~/.ssh/id_ecdsa
 .It Pa ~/.ssh/id_ed25519
 .It Pa ~/.ssh/id_rsa
-Contains the protocol version 2 DSA, ECDSA, ED25519 or RSA
+Contains the protocol version 2 DSA, ECDSA, Ed25519 or RSA
 authentication identity of the user.
 This file should not be readable by anyone but the user.
 It is possible to
@@ -820,7 +833,7 @@ will read this file when a login attempt is made.
 .It Pa ~/.ssh/id_ecdsa.pub
 .It Pa ~/.ssh/id_ed25519.pub
 .It Pa ~/.ssh/id_rsa.pub
-Contains the protocol version 2 DSA, ECDSA, ED25519 or RSA
+Contains the protocol version 2 DSA, ECDSA, Ed25519 or RSA
 public key for authentication.
 The contents of this file should be added to
 .Pa ~/.ssh/authorized_keys

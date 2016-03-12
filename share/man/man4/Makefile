@@ -94,6 +94,7 @@ MAN=	aac.4 \
 	${_ccd.4} \
 	cd.4 \
 	cdce.4 \
+	cfi.4 \
 	ch.4 \
 	ciss.4 \
 	cloudabi.4 \
@@ -164,7 +165,6 @@ MAN=	aac.4 \
 	geom_fox.4 \
 	geom_linux_lvm.4 \
 	geom_map.4 \
-	geom_uncompress.4 \
 	geom_uzip.4 \
 	gif.4 \
 	gpio.4 \
@@ -266,6 +266,7 @@ MAN=	aac.4 \
 	malo.4 \
 	mcd.4 \
 	md.4 \
+	mdio.4 \
 	me.4 \
 	mem.4 \
 	meteor.4 \
@@ -274,6 +275,7 @@ MAN=	aac.4 \
 	mk48txx.4 \
 	mld.4 \
 	mlx.4 \
+	mlx5en.4 \
 	mly.4 \
 	mmc.4 \
 	mmcsd.4 \
@@ -311,7 +313,6 @@ MAN=	aac.4 \
 	ng_atm.4 \
 	ngatmbase.4 \
 	ng_atmllc.4 \
-	ng_bluetooth.4 \
 	ng_bpf.4 \
 	ng_bridge.4 \
 	ng_bt3c.4 \
@@ -379,8 +380,6 @@ MAN=	aac.4 \
 	oce.4 \
 	ohci.4 \
 	orm.4 \
-	otus.4 \
-	otusfw.4 \
 	ow.4 \
 	ow_temp.4 \
 	owc.4 \
@@ -425,8 +424,8 @@ MAN=	aac.4 \
 	rndtest.4 \
 	route.4 \
 	rp.4 \
-	rsu.4 \
-	rsufw.4 \
+	rtwn.4 \
+	rtwnfw.4 \
 	rue.4 \
 	rum.4 \
 	run.4 \
@@ -525,6 +524,7 @@ MAN=	aac.4 \
 	tws.4 \
 	tx.4 \
 	txp.4 \
+	ure.4 \
 	vale.4 \
 	vga.4 \
 	vge.4 \
@@ -592,6 +592,7 @@ MLINKS+=bwn.4 if_bwn.4
 MLINKS+=${_bxe.4} ${_if_bxe.4}
 MLINKS+=cas.4 if_cas.4
 MLINKS+=cdce.4 if_cdce.4
+MLINKS+=cfi.4 cfid.4
 MLINKS+=cloudabi.4 cloudabi64.4
 MLINKS+=crypto.4 cryptodev.4
 MLINKS+=cue.4 if_cue.4
@@ -657,6 +658,7 @@ MLINKS+=lp.4 plip.4
 MLINKS+=malo.4 if_malo.4
 MLINKS+=md.4 vn.4
 MLINKS+=mem.4 kmem.4
+MLINKS+=mlx5en.4 mce.4
 MLINKS+=mn.4 if_mn.4
 MLINKS+=mos.4 if_mos.4
 MLINKS+=msk.4 if_msk.4
@@ -713,6 +715,7 @@ MLINKS+=tl.4 if_tl.4
 MLINKS+=tun.4 if_tun.4
 MLINKS+=tx.4 if_tx.4
 MLINKS+=txp.4 if_txp.4
+MLINKS+=ure.4 if_ure.4
 MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
 MLINKS+=vxlan.4 if_vxlan.4
@@ -833,6 +836,10 @@ _nvram2env.4=	nvram2env.4
 SUBDIR=	man4.${MACHINE_CPUARCH}
 .endif
 
+.if ${MK_BLUETOOTH} != "no"
+MAN+=		ng_bluetooth.4
+.endif
+
 .if ${MK_CCD} != "no"
 _ccd.4=		ccd.4
 .endif
@@ -866,6 +873,10 @@ _pfsync.4=	pfsync.4
 
 .if ${MK_USB} != "no"
 MAN+=	\
+	otus.4 \
+	otusfw.4 \
+	rsu.4 \
+	rsufw.4 \
 	u3g.4 \
 	uark.4 \
 	uart.4 \
@@ -919,6 +930,8 @@ MAN+=	\
 	uvisor.4 \
 	uvscom.4 \
 
+MLINKS+=otus.4 if_otus.4
+MLINKS+=rsu.4 if_rsu.4
 MLINKS+=u3g.4 u3gstub.4
 MLINKS+=uath.4 if_uath.4
 MLINKS+=udav.4 if_udav.4
@@ -926,6 +939,7 @@ MLINKS+=upgt.4 if_upgt.4
 MLINKS+=ural.4 if_ural.4
 MLINKS+=urndis.4 if_urndis.4
 MLINKS+=${_urtw.4} ${_if_urtw.4}
+MLINKS+=urtwn.4 if_urtwn.4
 .endif
 
 .include <bsd.prog.mk>

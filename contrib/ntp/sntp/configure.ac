@@ -11,6 +11,7 @@ AC_INIT(
 )
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([libevent/build-aux])
+AC_LANG([C])
 
 # Bump sntp_configure_cache_version for each change to configure.ac or
 # .m4 files which invalidates cached values from previous configure 

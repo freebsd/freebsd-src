@@ -23,9 +23,15 @@ ident		A20
 include 	"std.armv6"
 include 	"../allwinner/a20/std.a20"
 
+options 	ARM_INTRNG
+
+options 	SOC_ALLWINNER_A20
+
 options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
+options 	PLATFORM
+options 	PLATFORM_SMP
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
@@ -49,11 +55,11 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 #options 	BOOTP_NFSV3
 #options 	BOOTP_WIRED_TO=dwc0
 
-# Boot device is 2nd slice on MMC/SD card
-options 	ROOTDEVNAME=\"ufs:/dev/da0s2\"
-
 # Interrupt controller
 device		gic
+
+# ARM Generic Timer
+device		generic_timer
 
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus
@@ -72,8 +78,10 @@ device		md
 device		random			# Entropy device
 
 # I2C support
-#device		iicbus
-#device		iic
+device		iicbus
+device		iic
+device		twsi
+device		axp209			# AXP209 Power Management Unit
 
 # GPIO
 device		gpio
@@ -106,6 +114,20 @@ device		dwc			# 10/100/1000 integrated GMAC controller
 
 # USB ethernet support, requires miibus
 device		miibus
+
+# Sound support
+device		sound
+
+# Pinmux
+device		fdt_pinctrl
+
+# Framebuffer support
+device		vt
+device		kbdmux
+device		ums
+device		ukbd
+device		videomode
+device		hdmi
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data

@@ -18,14 +18,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-cgram.o: cgram.c
-cgram.po: cgram.c
-func.o: cgram.h
-func.po: cgram.h
-scan.o: cgram.h
-scan.o: scan.c
-scan.po: cgram.h
-scan.po: scan.c
-tree.o: cgram.h
-tree.po: cgram.h
 .endif

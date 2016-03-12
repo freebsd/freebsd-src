@@ -453,7 +453,7 @@ prt_val_list(FILE * fp, char const * name, tArgList * al)
     if (al == NULL)
         return;
     opt_ct   = al->useCt;
-    opt_list = (void **)al->apzArgs;
+    opt_list = VOIDP(al->apzArgs);
 
     if (opt_ct <= 0) {
         fprintf(fp, OPEN_CLOSE_FMT, name);
@@ -488,7 +488,7 @@ prt_nested(FILE * fp, tOptDesc * p)
         return;
 
     opt_ct   = al->useCt;
-    opt_list = (void **)al->apzArgs;
+    opt_list = VOIDP(al->apzArgs);
 
     if (opt_ct <= 0)
         return;

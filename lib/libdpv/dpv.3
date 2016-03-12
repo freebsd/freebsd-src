@@ -1,4 +1,4 @@
-.\" Copyright (c) 2013-2014 Devin Teske
+.\" Copyright (c) 2013-2016 Devin Teske
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Oct 24, 2014
+.Dd Jan 26, 2016
 .Dt DPV 3
 .Os
 .Sh NAME
@@ -64,6 +64,7 @@ argument contains the following properties for configuring global display
 features:
 .Bd -literal -offset indent
 struct dpv_config {
+    uint8_t          keep_tite;     /* Cleaner exit for scripts */
     enum dpv_display display_type;  /* Def. DPV_DISPLAY_LIBDIALOG */
     enum dpv_output  output_type;   /* Default DPV_OUTPUT_NONE */
     int              debug;         /* Enable debug on stderr */
@@ -441,7 +442,7 @@ or desired values.
 The
 .Nm
 library first appeared in
-.Fx 11.0 .
+.Fx 10.2 .
 .Sh AUTHORS
 .An Devin Teske Aq dteske@FreeBSD.org
 .Sh BUGS

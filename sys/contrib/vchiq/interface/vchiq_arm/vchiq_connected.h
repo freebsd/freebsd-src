@@ -48,4 +48,3 @@ void vchiq_add_connected_callback(VCHIQ_CONNECTED_CALLBACK_T callback);
 void vchiq_call_connected_callbacks(void);
 
 #endif /* VCHIQ_CONNECTED_H */
-

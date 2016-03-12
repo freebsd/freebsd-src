@@ -3937,8 +3937,8 @@ tulip_txput(tulip_softc_t * const sc, struct mbuf *m)
 	    segcnt++;
 	    m0 = m0->m_next;
     }
-#endif
     CTR2(KTR_TULIP, "tulip_txput: sending packet %p (%d chunks)", m, segcnt);
+#endif
     d_status = 0;
     eop = nextout = ri->ri_nextout;
     segcnt = 0;

@@ -7,7 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
+#if !defined(LLDB_DISABLE_PYTHON)
+#include "Plugins/ScriptInterpreter/Python/lldb-python.h"
+#endif
+
 #include "lldb/Core/Log.h"
 #include "lldb/Host/posix/HostInfoPosix.h"
 
@@ -19,6 +22,7 @@
 #include <mutex>
 #include <netdb.h>
 #include <pwd.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -211,16 +215,29 @@ HostInfoPosix::ComputePythonDirectory(FileSpec &file_spec)
     char raw_path[PATH_MAX];
     lldb_file_spec.GetPath(raw_path, sizeof(raw_path));
 
+#if defined(LLDB_PYTHON_RELATIVE_LIBDIR)
+    // Build the path by backing out of the lib dir, then building
+    // with whatever the real python interpreter uses.  (e.g. lib
+    // for most, lib64 on RHEL x86_64).
+    char python_path[PATH_MAX];
+    ::snprintf(python_path, sizeof(python_path), "%s/../%s", raw_path, LLDB_PYTHON_RELATIVE_LIBDIR);
+
+    char final_path[PATH_MAX];
+    realpath(python_path, final_path);
+    file_spec.GetDirectory().SetCString(final_path);
+
+    return true;
+#else
     llvm::SmallString<256> python_version_dir;
     llvm::raw_svector_ostream os(python_version_dir);
     os << "/python" << PY_MAJOR_VERSION << '.' << PY_MINOR_VERSION << "/site-packages";
-    os.flush();
 
     // We may get our string truncated. Should we protect this with an assert?
     ::strncat(raw_path, python_version_dir.c_str(), sizeof(raw_path) - strlen(raw_path) - 1);
 
     file_spec.GetDirectory().SetCString(raw_path);
     return true;
+#endif
 #else
     return false;
 #endif

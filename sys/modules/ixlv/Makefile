@@ -3,7 +3,7 @@
 .PATH:  ${.CURDIR}/../../dev/ixl
 
 KMOD    = if_ixlv
-SRCS    = device_if.h bus_if.h pci_if.h opt_bdg.h
+SRCS    = device_if.h bus_if.h pci_if.h pci_iov_if.h opt_bdg.h
 SRCS    += opt_inet.h opt_inet6.h opt_rss.h
 SRCS    += if_ixlv.c ixlvc.c ixl_txrx.c i40e_osdep.c
 

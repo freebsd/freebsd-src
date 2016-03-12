@@ -87,7 +87,7 @@ static int hmac_pkey_ctrl(EVP_PKEY *pkey, int op, long arg1, void *arg2)
 {
     switch (op) {
     case ASN1_PKEY_CTRL_DEFAULT_MD_NID:
-        *(int *)arg2 = NID_sha1;
+        *(int *)arg2 = NID_sha256;
         return 1;
 
     default:
@@ -108,9 +108,14 @@ static int old_hmac_decode(EVP_PKEY *pkey,
     ASN1_OCTET_STRING *os;
     os = ASN1_OCTET_STRING_new();
     if (!os || !ASN1_OCTET_STRING_set(os, *pder, derlen))
-        return 0;
-    EVP_PKEY_assign(pkey, EVP_PKEY_HMAC, os);
+        goto err;
+    if (!EVP_PKEY_assign(pkey, EVP_PKEY_HMAC, os))
+        goto err;
     return 1;
+
+ err:
+    ASN1_OCTET_STRING_free(os);
+    return 0;
 }
 
 static int old_hmac_encode(const EVP_PKEY *pkey, unsigned char **pder)

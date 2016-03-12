@@ -60,6 +60,8 @@ noinst_DATA = 				\
 	$(manpage_HACK)			\
 	$(NULL)
 
+BUILT_SOURCES = $(noinst_DATA)
+
 calc_tickadj: $(srcdir)/calc_tickadj-opts
 
 $(srcdir)/calc_tickadj-opts: $(srcdir)/calc_tickadj-opts.def

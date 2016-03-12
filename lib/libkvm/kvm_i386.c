@@ -46,68 +46,28 @@ static char sccsid[] = "@(#)kvm_hp300.c	8.1 (Berkeley) 6/4/93";
  */
 
 #include <sys/param.h>
-#include <sys/user.h>
-#include <sys/proc.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
+#include <sys/endian.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <nlist.h>
 #include <kvm.h>
 
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-
-#include <machine/elf.h>
+#ifdef __i386__
+#include <machine/vmparam.h>		/* For KERNBASE. */
+#endif
 
 #include <limits.h>
 
 #include "kvm_private.h"
+#include "kvm_i386.h"
 
-#ifndef btop
-#define	btop(x)		(i386_btop(x))
-#define	ptob(x)		(i386_ptob(x))
-#endif
-
-#define	PG_FRAME_PAE	(~((uint64_t)PAGE_MASK))
-#define	PDRSHIFT_PAE	21
-#define	NPTEPG_PAE	(PAGE_SIZE/sizeof(uint64_t))
-#define	NBPDR_PAE	(1<<PDRSHIFT_PAE)
-
-/* minidump must be the first item! */
 struct vmstate {
-	int		minidump;	/* 1 = minidump mode */
-	void		*mmapbase;
-	size_t		mmapsize;
 	void		*PTD;
 	int		pae;
+	size_t		phnum;
+	GElf_Phdr	*phdr;
 };
-
-/*
- * Map the ELF headers into the process' address space. We do this in two
- * steps: first the ELF header itself and using that information the whole
- * set of headers.
- */
-static int
-_kvm_maphdrs(kvm_t *kd, size_t sz)
-{
-	struct vmstate *vm = kd->vmst;
-
-	/* munmap() previous mmap(). */
-	if (vm->mmapbase != NULL) {
-		munmap(vm->mmapbase, vm->mmapsize);
-		vm->mmapbase = NULL;
-	}
-
-	vm->mmapsize = sz;
-	vm->mmapbase = mmap(NULL, sz, PROT_READ, MAP_PRIVATE, kd->pmfd, 0);
-	if (vm->mmapbase == MAP_FAILED) {
-		_kvm_err(kd, kd->program, "cannot mmap corefile");
-		return (-1);
-	}
-	return (0);
-}
 
 /*
  * Translate a physical memory address to a file-offset in the crash-dump.
@@ -115,102 +75,104 @@ _kvm_maphdrs(kvm_t *kd, size_t sz)
 static size_t
 _kvm_pa2off(kvm_t *kd, uint64_t pa, off_t *ofs)
 {
-	Elf_Ehdr *e = kd->vmst->mmapbase;
-	Elf_Phdr *p;
-	int n;
+	struct vmstate *vm = kd->vmst;
+	GElf_Phdr *p;
+	size_t n;
 
 	if (kd->rawdump) {
 		*ofs = pa;
-		return (PAGE_SIZE - ((size_t)pa & PAGE_MASK));
+		return (I386_PAGE_SIZE - (pa & I386_PAGE_MASK));
 	}
 
-	p = (Elf_Phdr*)((char*)e + e->e_phoff);
-	n = e->e_phnum;
+	p = vm->phdr;
+	n = vm->phnum;
 	while (n && (pa < p->p_paddr || pa >= p->p_paddr + p->p_memsz))
 		p++, n--;
 	if (n == 0)
 		return (0);
 	*ofs = (pa - p->p_paddr) + p->p_offset;
-	return (PAGE_SIZE - ((size_t)pa & PAGE_MASK));
+	return (I386_PAGE_SIZE - (pa & I386_PAGE_MASK));
 }
 
-void
-_kvm_freevtop(kvm_t *kd)
+static void
+_i386_freevtop(kvm_t *kd)
 {
 	struct vmstate *vm = kd->vmst;
 
-	if (kd->vmst->minidump)
-		return (_kvm_minidump_freevtop(kd));
-	if (vm->mmapbase != NULL)
-		munmap(vm->mmapbase, vm->mmapsize);
 	if (vm->PTD)
 		free(vm->PTD);
+	free(vm->phdr);
 	free(vm);
 	kd->vmst = NULL;
 }
 
-int
-_kvm_initvtop(kvm_t *kd)
+static int
+_i386_probe(kvm_t *kd)
 {
-	struct nlist nl[2];
-	u_long pa;
-	u_long kernbase;
+
+	return (_kvm_probe_elf_kernel(kd, ELFCLASS32, EM_386) &&
+	    !_kvm_is_minidump(kd));
+}
+
+static int
+_i386_initvtop(kvm_t *kd)
+{
+	struct kvm_nlist nl[2];
+	i386_physaddr_t pa;
+	kvaddr_t kernbase;
 	char		*PTD;
-	Elf_Ehdr	*ehdr;
-	size_t		hdrsz;
 	int		i;
-	char		minihdr[8];
 
-	if (!kd->rawdump && pread(kd->pmfd, &minihdr, 8, 0) == 8)
-		if (memcmp(&minihdr, "minidump", 8) == 0)
-			return (_kvm_minidump_initvtop(kd));
-
-	kd->vmst = (struct vmstate *)_kvm_malloc(kd, sizeof(*kd->vmst));
-	if (kd->vmst == 0) {
+	kd->vmst = (struct vmstate *)_kvm_malloc(kd, sizeof(struct vmstate));
+	if (kd->vmst == NULL) {
 		_kvm_err(kd, kd->program, "cannot allocate vm");
 		return (-1);
 	}
 	kd->vmst->PTD = 0;
 
 	if (kd->rawdump == 0) {
-		if (_kvm_maphdrs(kd, sizeof(Elf_Ehdr)) == -1)
-			return (-1);
-
-		ehdr = kd->vmst->mmapbase;
-		hdrsz = ehdr->e_phoff + ehdr->e_phentsize * ehdr->e_phnum;
-		if (_kvm_maphdrs(kd, hdrsz) == -1)
+		if (_kvm_read_core_phdrs(kd, &kd->vmst->phnum,
+		    &kd->vmst->phdr) == -1)
 			return (-1);
 	}
 
 	nl[0].n_name = "kernbase";
 	nl[1].n_name = 0;
 
-	if (kvm_nlist(kd, nl) != 0)
+	if (kvm_nlist2(kd, nl) != 0) {
+#ifdef __i386__
 		kernbase = KERNBASE;	/* for old kernels */
-	else
+#else
+		_kvm_err(kd, kd->program, "cannot resolve kernbase");
+		return (-1);
+#endif
+	} else
 		kernbase = nl[0].n_value;
 
 	nl[0].n_name = "IdlePDPT";
 	nl[1].n_name = 0;
 
-	if (kvm_nlist(kd, nl) == 0) {
-		uint64_t pa64;
+	if (kvm_nlist2(kd, nl) == 0) {
+		i386_physaddr_pae_t pa64;
 
-		if (kvm_read(kd, (nl[0].n_value - kernbase), &pa,
+		if (kvm_read2(kd, (nl[0].n_value - kernbase), &pa,
 		    sizeof(pa)) != sizeof(pa)) {
 			_kvm_err(kd, kd->program, "cannot read IdlePDPT");
 			return (-1);
 		}
-		PTD = _kvm_malloc(kd, 4 * PAGE_SIZE);
+		pa = le32toh(pa);
+		PTD = _kvm_malloc(kd, 4 * I386_PAGE_SIZE);
 		for (i = 0; i < 4; i++) {
-			if (kvm_read(kd, pa + (i * sizeof(pa64)), &pa64,
+			if (kvm_read2(kd, pa + (i * sizeof(pa64)), &pa64,
 			    sizeof(pa64)) != sizeof(pa64)) {
 				_kvm_err(kd, kd->program, "Cannot read PDPT");
 				free(PTD);
 				return (-1);
 			}
-			if (kvm_read(kd, pa64 & PG_FRAME_PAE,
-			    PTD + (i * PAGE_SIZE), PAGE_SIZE) != (PAGE_SIZE)) {
+			pa64 = le64toh(pa64);
+			if (kvm_read2(kd, pa64 & I386_PG_FRAME_PAE,
+			    PTD + (i * I386_PAGE_SIZE), I386_PAGE_SIZE) !=
+			    I386_PAGE_SIZE) {
 				_kvm_err(kd, kd->program, "cannot read PDPT");
 				free(PTD);
 				return (-1);
@@ -222,17 +184,18 @@ _kvm_initvtop(kvm_t *kd)
 		nl[0].n_name = "IdlePTD";
 		nl[1].n_name = 0;
 
-		if (kvm_nlist(kd, nl) != 0) {
+		if (kvm_nlist2(kd, nl) != 0) {
 			_kvm_err(kd, kd->program, "bad namelist");
 			return (-1);
 		}
-		if (kvm_read(kd, (nl[0].n_value - kernbase), &pa,
+		if (kvm_read2(kd, (nl[0].n_value - kernbase), &pa,
 		    sizeof(pa)) != sizeof(pa)) {
 			_kvm_err(kd, kd->program, "cannot read IdlePTD");
 			return (-1);
 		}
-		PTD = _kvm_malloc(kd, PAGE_SIZE);
-		if (kvm_read(kd, pa, PTD, PAGE_SIZE) != PAGE_SIZE) {
+		pa = le32toh(pa);
+		PTD = _kvm_malloc(kd, I386_PAGE_SIZE);
+		if (kvm_read2(kd, pa, PTD, I386_PAGE_SIZE) != I386_PAGE_SIZE) {
 			_kvm_err(kd, kd->program, "cannot read PTD");
 			return (-1);
 		}
@@ -243,24 +206,23 @@ _kvm_initvtop(kvm_t *kd)
 }
 
 static int
-_kvm_vatop(kvm_t *kd, u_long va, off_t *pa)
+_i386_vatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 {
 	struct vmstate *vm;
-	u_long offset;
-	u_long pte_pa;
-	u_long pde_pa;
-	pd_entry_t pde;
-	pt_entry_t pte;
-	u_long pdeindex;
-	u_long pteindex;
+	i386_physaddr_t offset;
+	i386_physaddr_t pte_pa;
+	i386_pde_t pde;
+	i386_pte_t pte;
+	kvaddr_t pdeindex;
+	kvaddr_t pteindex;
 	size_t s;
-	u_long a;
+	i386_physaddr_t a;
 	off_t ofs;
-	uint32_t *PTD;
+	i386_pde_t *PTD;
 
 	vm = kd->vmst;
-	PTD = (uint32_t *)vm->PTD;
-	offset = va & (PAGE_SIZE - 1);
+	PTD = (i386_pde_t *)vm->PTD;
+	offset = va & I386_PAGE_MASK;
 
 	/*
 	 * If we are initializing (kernel page table descriptor pointer
@@ -269,94 +231,88 @@ _kvm_vatop(kvm_t *kd, u_long va, off_t *pa)
 	if (PTD == 0) {
 		s = _kvm_pa2off(kd, va, pa);
 		if (s == 0) {
-			_kvm_err(kd, kd->program, 
-			    "_kvm_vatop: bootstrap data not in dump");
+			_kvm_err(kd, kd->program,
+			    "_i386_vatop: bootstrap data not in dump");
 			goto invalid;
 		} else
-			return (PAGE_SIZE - offset);
+			return (I386_PAGE_SIZE - offset);
 	}
 
-	pdeindex = va >> PDRSHIFT;
-	pde = PTD[pdeindex];
-	if (((u_long)pde & PG_V) == 0) {
-		_kvm_err(kd, kd->program, "_kvm_vatop: pde not valid");
+	pdeindex = va >> I386_PDRSHIFT;
+	pde = le32toh(PTD[pdeindex]);
+	if ((pde & I386_PG_V) == 0) {
+		_kvm_err(kd, kd->program, "_i386_vatop: pde not valid");
 		goto invalid;
 	}
 
-	if ((u_long)pde & PG_PS) {
-	      /*
-	       * No second-level page table; ptd describes one 4MB page.
-	       * (We assume that the kernel wouldn't set PG_PS without enabling
-	       * it cr0).
-	       */
-#define	PAGE4M_MASK	(NBPDR - 1)
-#define	PG_FRAME4M	(~PAGE4M_MASK)
-		pde_pa = ((u_long)pde & PG_FRAME4M) + (va & PAGE4M_MASK);
-		s = _kvm_pa2off(kd, pde_pa, &ofs);
+	if (pde & I386_PG_PS) {
+		/*
+		 * No second-level page table; ptd describes one 4MB
+		 * page.  (We assume that the kernel wouldn't set
+		 * PG_PS without enabling it cr0).
+		 */
+		offset = va & I386_PAGE_PS_MASK;
+		a = (pde & I386_PG_PS_FRAME) + offset;
+		s = _kvm_pa2off(kd, a, pa);
 		if (s == 0) {
 			_kvm_err(kd, kd->program,
-			    "_kvm_vatop: 4MB page address not in dump");
+			    "_i386_vatop: 4MB page address not in dump");
 			goto invalid;
 		}
-		*pa = ofs;
-		return (NBPDR - (va & PAGE4M_MASK));
+		return (I386_NBPDR - offset);
 	}
 
-	pteindex = (va >> PAGE_SHIFT) & (NPTEPG-1);
-	pte_pa = ((u_long)pde & PG_FRAME) + (pteindex * sizeof(pde));
+	pteindex = (va >> I386_PAGE_SHIFT) & (I386_NPTEPG - 1);
+	pte_pa = (pde & I386_PG_FRAME) + (pteindex * sizeof(pte));
 
 	s = _kvm_pa2off(kd, pte_pa, &ofs);
-	if (s < sizeof pte) {
-		_kvm_err(kd, kd->program, "_kvm_vatop: pdpe_pa not found");
+	if (s < sizeof(pte)) {
+		_kvm_err(kd, kd->program, "_i386_vatop: pte_pa not found");
 		goto invalid;
 	}
 
 	/* XXX This has to be a physical address read, kvm_read is virtual */
-	if (lseek(kd->pmfd, ofs, 0) == -1) {
-		_kvm_syserr(kd, kd->program, "_kvm_vatop: lseek");
+	if (pread(kd->pmfd, &pte, sizeof(pte), ofs) != sizeof(pte)) {
+		_kvm_syserr(kd, kd->program, "_i386_vatop: pread");
 		goto invalid;
 	}
-	if (read(kd->pmfd, &pte, sizeof pte) != sizeof pte) {
-		_kvm_syserr(kd, kd->program, "_kvm_vatop: read");
-		goto invalid;
-	}
-	if (((u_long)pte & PG_V) == 0) {
+	pte = le32toh(pte);
+	if ((pte & I386_PG_V) == 0) {
 		_kvm_err(kd, kd->program, "_kvm_kvatop: pte not valid");
 		goto invalid;
 	}
 
-	a = ((u_long)pte & PG_FRAME) + offset;
-	s =_kvm_pa2off(kd, a, pa);
+	a = (pte & I386_PG_FRAME) + offset;
+	s = _kvm_pa2off(kd, a, pa);
 	if (s == 0) {
-		_kvm_err(kd, kd->program, "_kvm_vatop: address not in dump");
+		_kvm_err(kd, kd->program, "_i386_vatop: address not in dump");
 		goto invalid;
 	} else
-		return (PAGE_SIZE - offset);
+		return (I386_PAGE_SIZE - offset);
 
 invalid:
-	_kvm_err(kd, 0, "invalid address (0x%lx)", va);
+	_kvm_err(kd, 0, "invalid address (0x%jx)", (uintmax_t)va);
 	return (0);
 }
 
 static int
-_kvm_vatop_pae(kvm_t *kd, u_long va, off_t *pa)
+_i386_vatop_pae(kvm_t *kd, kvaddr_t va, off_t *pa)
 {
 	struct vmstate *vm;
-	uint64_t offset;
-	uint64_t pte_pa;
-	uint64_t pde_pa;
-	uint64_t pde;
-	uint64_t pte;
-	u_long pdeindex;
-	u_long pteindex;
+	i386_physaddr_pae_t offset;
+	i386_physaddr_pae_t pte_pa;
+	i386_pde_pae_t pde;
+	i386_pte_pae_t pte;
+	kvaddr_t pdeindex;
+	kvaddr_t pteindex;
 	size_t s;
-	uint64_t a;
+	i386_physaddr_pae_t a;
 	off_t ofs;
-	uint64_t *PTD;
+	i386_pde_pae_t *PTD;
 
 	vm = kd->vmst;
-	PTD = (uint64_t *)vm->PTD;
-	offset = va & (PAGE_SIZE - 1);
+	PTD = (i386_pde_pae_t *)vm->PTD;
+	offset = va & I386_PAGE_MASK;
 
 	/*
 	 * If we are initializing (kernel page table descriptor pointer
@@ -365,88 +321,102 @@ _kvm_vatop_pae(kvm_t *kd, u_long va, off_t *pa)
 	if (PTD == 0) {
 		s = _kvm_pa2off(kd, va, pa);
 		if (s == 0) {
-			_kvm_err(kd, kd->program, 
-			    "_kvm_vatop_pae: bootstrap data not in dump");
+			_kvm_err(kd, kd->program,
+			    "_i386_vatop_pae: bootstrap data not in dump");
 			goto invalid;
 		} else
-			return (PAGE_SIZE - offset);
+			return (I386_PAGE_SIZE - offset);
 	}
 
-	pdeindex = va >> PDRSHIFT_PAE;
-	pde = PTD[pdeindex];
-	if (((u_long)pde & PG_V) == 0) {
+	pdeindex = va >> I386_PDRSHIFT_PAE;
+	pde = le64toh(PTD[pdeindex]);
+	if ((pde & I386_PG_V) == 0) {
 		_kvm_err(kd, kd->program, "_kvm_kvatop_pae: pde not valid");
 		goto invalid;
 	}
 
-	if ((u_long)pde & PG_PS) {
-	      /*
-	       * No second-level page table; ptd describes one 2MB page.
-	       * (We assume that the kernel wouldn't set PG_PS without enabling
-	       * it cr0).
-	       */
-#define	PAGE2M_MASK	(NBPDR_PAE - 1)
-#define	PG_FRAME2M	(~PAGE2M_MASK)
-		pde_pa = ((u_long)pde & PG_FRAME2M) + (va & PAGE2M_MASK);
-		s = _kvm_pa2off(kd, pde_pa, &ofs);
+	if (pde & I386_PG_PS) {
+		/*
+		 * No second-level page table; ptd describes one 2MB
+		 * page.  (We assume that the kernel wouldn't set
+		 * PG_PS without enabling it cr0).
+		 */
+		offset = va & I386_PAGE_PS_MASK_PAE;
+		a = (pde & I386_PG_PS_FRAME_PAE) + offset;
+		s = _kvm_pa2off(kd, a, pa);
 		if (s == 0) {
 			_kvm_err(kd, kd->program,
-			    "_kvm_vatop: 2MB page address not in dump");
+			    "_i386_vatop: 2MB page address not in dump");
 			goto invalid;
 		}
-		*pa = ofs;
-		return (NBPDR_PAE - (va & PAGE2M_MASK));
+		return (I386_NBPDR_PAE - offset);
 	}
 
-	pteindex = (va >> PAGE_SHIFT) & (NPTEPG_PAE-1);
-	pte_pa = ((uint64_t)pde & PG_FRAME_PAE) + (pteindex * sizeof(pde));
+	pteindex = (va >> I386_PAGE_SHIFT) & (I386_NPTEPG_PAE - 1);
+	pte_pa = (pde & I386_PG_FRAME_PAE) + (pteindex * sizeof(pde));
 
 	s = _kvm_pa2off(kd, pte_pa, &ofs);
-	if (s < sizeof pte) {
-		_kvm_err(kd, kd->program, "_kvm_vatop_pae: pdpe_pa not found");
+	if (s < sizeof(pte)) {
+		_kvm_err(kd, kd->program, "_i386_vatop_pae: pdpe_pa not found");
 		goto invalid;
 	}
 
 	/* XXX This has to be a physical address read, kvm_read is virtual */
-	if (lseek(kd->pmfd, ofs, 0) == -1) {
-		_kvm_syserr(kd, kd->program, "_kvm_vatop_pae: lseek");
+	if (pread(kd->pmfd, &pte, sizeof(pte), ofs) != sizeof(pte)) {
+		_kvm_syserr(kd, kd->program, "_i386_vatop_pae: read");
 		goto invalid;
 	}
-	if (read(kd->pmfd, &pte, sizeof pte) != sizeof pte) {
-		_kvm_syserr(kd, kd->program, "_kvm_vatop_pae: read");
-		goto invalid;
-	}
-	if (((uint64_t)pte & PG_V) == 0) {
-		_kvm_err(kd, kd->program, "_kvm_vatop_pae: pte not valid");
+	pte = le64toh(pte);
+	if ((pte & I386_PG_V) == 0) {
+		_kvm_err(kd, kd->program, "_i386_vatop_pae: pte not valid");
 		goto invalid;
 	}
 
-	a = ((uint64_t)pte & PG_FRAME_PAE) + offset;
-	s =_kvm_pa2off(kd, a, pa);
+	a = (pte & I386_PG_FRAME_PAE) + offset;
+	s = _kvm_pa2off(kd, a, pa);
 	if (s == 0) {
 		_kvm_err(kd, kd->program,
-		    "_kvm_vatop_pae: address not in dump");
+		    "_i386_vatop_pae: address not in dump");
 		goto invalid;
 	} else
-		return (PAGE_SIZE - offset);
+		return (I386_PAGE_SIZE - offset);
 
 invalid:
-	_kvm_err(kd, 0, "invalid address (0x%lx)", va);
+	_kvm_err(kd, 0, "invalid address (0x%jx)", (uintmax_t)va);
 	return (0);
 }
 
-int
-_kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
+static int
+_i386_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 {
 
-	if (kd->vmst->minidump)
-		return (_kvm_minidump_kvatop(kd, va, pa));
 	if (ISALIVE(kd)) {
 		_kvm_err(kd, 0, "vatop called in live kernel!");
 		return (0);
 	}
 	if (kd->vmst->pae)
-		return (_kvm_vatop_pae(kd, va, pa));
+		return (_i386_vatop_pae(kd, va, pa));
 	else
-		return (_kvm_vatop(kd, va, pa));
+		return (_i386_vatop(kd, va, pa));
 }
+
+int
+_i386_native(kvm_t *kd)
+{
+
+#ifdef __i386__
+	return (1);
+#else
+	return (0);
+#endif
+}
+
+struct kvm_arch kvm_i386 = {
+	.ka_probe = _i386_probe,
+	.ka_initvtop = _i386_initvtop,
+	.ka_freevtop = _i386_freevtop,
+	.ka_kvatop = _i386_kvatop,
+	.ka_native = _i386_native,
+};
+
+KVM_ARCH(kvm_i386);

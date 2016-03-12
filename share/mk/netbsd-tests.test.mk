@@ -3,8 +3,6 @@
 .if !target(__netbsd_tests.test.mk__)
 __netbsd_tests.test.mk__:
 
-OBJTOP?=	${.OBJDIR:S/${RELDIR}//}
-
 TESTSRC?=	${SRCTOP}/contrib/netbsd-tests/${RELDIR:H}
 
 .if !exists(${TESTSRC}/)
@@ -20,8 +18,7 @@ LIBNETBSD_OBJDIR=	${OBJTOP}/lib/libnetbsd
 CFLAGS.$t+=	-I${LIBNETBSD_SRCDIR} -I${SRCTOP}/contrib/netbsd-tests
 LDFLAGS.$t+=	-L${LIBNETBSD_OBJDIR}
 
-DPADD.$t+=	${LIBNETBSD}
-LDADD.$t+=	-lnetbsd
+LIBADD.${t}+=	netbsd
 
 SRCS.$t?=	${t:C/^/t_/:C/_test$//g}.c
 .endfor

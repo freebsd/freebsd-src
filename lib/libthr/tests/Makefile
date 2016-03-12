@@ -30,12 +30,9 @@ NETBSD_ATF_TESTS_SH+=	cancel_test
 NETBSD_ATF_TESTS_SH+=	exit_test
 NETBSD_ATF_TESTS_SH+=	resolv_test
 
-DPADD+=		${LIBPTHREAD}
-LDADD+=		-lpthread
-DPADD.fpu_test+=	${LIBM}
-LDADD.fpu_test+=	-lm
-DPADD.sem_test+=	${LIBRT}
-LDADD.sem_test+=	-lrt
+LIBADD+=		pthread
+LIBADD.fpu_test+=	m
+LIBADD.sem_test+=	rt
 
 BINDIR=		${TESTSDIR}
 

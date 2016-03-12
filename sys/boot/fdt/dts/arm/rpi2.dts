@@ -400,4 +400,7 @@
 		stdout = "uart0";
 	};
 
+	__overrides__ {
+		cache_line_size  = <&vchiq>, "cache-line-size:0";
+	};
 };

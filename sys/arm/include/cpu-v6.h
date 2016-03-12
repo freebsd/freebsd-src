@@ -32,17 +32,31 @@
 /* There are no user serviceable parts here, they may change without notice */
 #ifndef _KERNEL
 #error Only include this file in the kernel
-#else
+#endif
 
-#include "machine/atomic.h"
-#include "machine/cpufunc.h"
-#include "machine/cpuinfo.h"
-#include "machine/sysreg.h"
+#include <machine/acle-compat.h>
+#include <machine/atomic.h>
+#include <machine/cpufunc.h>
+#include <machine/cpuinfo.h>
+#include <machine/sysreg.h>
+
+#if __ARM_ARCH < 6
+#error Only include this file for ARMv6
+#else
 
 #define CPU_ASID_KERNEL 0
 
+void dcache_wbinv_poc_all(void); /* !!! NOT SMP coherent function !!! */
 vm_offset_t dcache_wb_pou_checked(vm_offset_t, vm_size_t);
 vm_offset_t icache_inv_pou_checked(vm_offset_t, vm_size_t);
+
+#ifdef DEV_PMU
+#include <sys/pcpu.h>
+#define	PMU_OVSR_C		0x80000000	/* Cycle Counter */
+extern uint32_t	ccnt_hi[MAXCPU];
+extern int pmu_attched;
+#endif /* DEV_PMU */
+
 
 /*
  * Macros to generate CP15 (system control processor) read/write functions.
@@ -137,6 +151,18 @@ _WF1(_CP15_ICIMVAU, CP15_ICIMVAU(%0))		/* Instruction cache invalidate */
  * Publicly accessible functions
  */
 
+/* CP14 Debug Registers */
+_RF0(cp14_dbgdidr_get, CP14_DBGDIDR(%0))
+_RF0(cp14_dbgprsr_get, CP14_DBGPRSR(%0))
+_RF0(cp14_dbgoslsr_get, CP14_DBGOSLSR(%0))
+_RF0(cp14_dbgosdlr_get, CP14_DBGOSDLR(%0))
+_RF0(cp14_dbgdscrint_get, CP14_DBGDSCRint(%0))
+
+_WF1(cp14_dbgdscr_v6_set, CP14_DBGDSCRext_V6(%0))
+_WF1(cp14_dbgdscr_v7_set, CP14_DBGDSCRext_V7(%0))
+_WF1(cp14_dbgvcr_set, CP14_DBGVCR(%0))
+_WF1(cp14_dbgoslar_set, CP14_DBGOSLAR(%0))
+
 /* Various control registers */
 
 _RF0(cp15_cpacr_get, CP15_CPACR(%0))
@@ -151,14 +177,12 @@ _RF0(cp15_dfar_get, CP15_DFAR(%0))
 _RF0(cp15_ifar_get, CP15_IFAR(%0))
 _RF0(cp15_l2ctlr_get, CP15_L2CTLR(%0))
 #endif
-/* ARMv6+ and XScale */
 _RF0(cp15_actlr_get, CP15_ACTLR(%0))
 _WF1(cp15_actlr_set, CP15_ACTLR(%0))
-#if __ARM_ARCH >= 6
-_WF1(cp15_ats1cpr_set, CP15_ATS1CPR(%0));
-_RF0(cp15_par_get, CP15_PAR);
+_WF1(cp15_ats1cpr_set, CP15_ATS1CPR(%0))
+_WF1(cp15_ats1cpw_set, CP15_ATS1CPW(%0))
+_RF0(cp15_par_get, CP15_PAR(%0))
 _RF0(cp15_sctlr_get, CP15_SCTLR(%0))
-#endif
 
 /*CPU id registers */
 _RF0(cp15_midr_get, CP15_MIDR(%0))
@@ -471,6 +495,33 @@ dcache_inv_poc(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 }
 
 /*
+ * Discard D-cache lines to PoC, prior to overwrite by DMA engine.
+ *
+ * Normal invalidation does L2 then L1 to ensure that stale data from L2 doesn't
+ * flow into L1 while invalidating.  This routine is intended to be used only
+ * when invalidating a buffer before a DMA operation loads new data into memory.
+ * The concern in this case is that dirty lines are not evicted to main memory,
+ * overwriting the DMA data.  For that reason, the L1 is done first to ensure
+ * that an evicted L1 line doesn't flow to L2 after the L2 has been cleaned.
+ */
+static __inline void
+dcache_inv_poc_dma(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
+{
+	vm_offset_t eva = va + size;
+
+	/* invalidate L1 first */
+	dsb();
+	va &= ~cpuinfo.dcache_line_mask;
+	for ( ; va < eva; va += cpuinfo.dcache_line_size) {
+		_CP15_DCIMVAC(va);
+	}
+	dsb();
+
+	/* then L2 */
+	cpu_l2cache_inv_range(pa, size);
+}
+
+/*
  * Write back D-cache to PoC
  *
  * Caches are written back from innermost to outermost as dirty cachelines
@@ -530,7 +581,6 @@ cp15_ttbr_set(uint32_t reg)
 	isb();
 	tlb_flush_all_ng_local();
 }
-
 #endif /* _KERNEL */
 
 #endif /* !MACHINE_CPU_V6_H */

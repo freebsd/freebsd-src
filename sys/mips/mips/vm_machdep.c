@@ -432,7 +432,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	 * in ``See MIPS Run'' by D. Sweetman, p. 269
 	 * align stack
 	 */
-	sp = ((register_t)(intptr_t)(stack->ss_sp + stack->ss_size) & ~0x7) -
+	sp = (((intptr_t)stack->ss_sp + stack->ss_size) & ~0x7) -
 	    CALLFRAME_SIZ;
 
 	/*

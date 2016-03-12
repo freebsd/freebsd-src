@@ -93,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <nsswitch.h>
 #include "un-namespace.h"
+#include "netdb_private.h"
 #include "libc_private.h"
 #ifdef NS_CACHING
 #include "nscache.h"
@@ -470,6 +471,24 @@ getaddrinfo(const char *hostname, const char *servname,
 	}
 
 	/*
+	 * RFC 3493: AI_ALL and AI_V4MAPPED are effective only against
+	 * AF_INET6 query.  They need to be ignored if specified in other
+	 * occassions.
+	 */
+	switch (pai->ai_flags & (AI_ALL | AI_V4MAPPED)) {
+	case AI_V4MAPPED:
+	case AI_ALL | AI_V4MAPPED:
+#ifdef INET6
+		if (pai->ai_family != AF_INET6)
+			pai->ai_flags &= ~(AI_ALL | AI_V4MAPPED);
+		break;
+#endif
+	case AI_ALL:
+		pai->ai_flags &= ~(AI_ALL | AI_V4MAPPED);
+		break;
+	}
+
+	/*
 	 * check for special cases.  (1) numeric servname is disallowed if
 	 * socktype/protocol are left unspecified. (2) servname is disallowed
 	 * for raw and other inet{,6} sockets.
@@ -778,10 +797,9 @@ match_addrselectpolicy(struct sockaddr *addr, struct policyhead *head)
 		memset(&key, 0, sizeof(key));
 		key.sin6_family = AF_INET6;
 		key.sin6_len = sizeof(key);
-		key.sin6_addr.s6_addr[10] = 0xff;
-		key.sin6_addr.s6_addr[11] = 0xff;
-		memcpy(&key.sin6_addr.s6_addr[12],
-		       &((struct sockaddr_in *)addr)->sin_addr, 4);
+		_map_v4v6_address(
+		    (char *)&((struct sockaddr_in *)addr)->sin_addr,
+		    (char *)&key.sin6_addr);
 		break;
 	default:
 		return(NULL);
@@ -861,6 +879,16 @@ set_source(struct ai_order *aio, struct policyhead *ph)
 	if ((s = _socket(ai.ai_family, ai.ai_socktype | SOCK_CLOEXEC,
 	    ai.ai_protocol)) < 0)
 		return;		/* give up */
+#ifdef INET6
+	if (ai.ai_family == AF_INET6) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)ai.ai_addr;
+		int off = 0;
+
+		if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr))
+			(void)_setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
+			    (char *)&off, sizeof(off));
+	}
+#endif
 	if (_connect(s, ai.ai_addr, ai.ai_addrlen) < 0)
 		goto cleanup;
 	srclen = ai.ai_addrlen;
@@ -1199,7 +1227,7 @@ explore_numeric(const struct addrinfo *pai, const char *hostname,
     const char *servname, struct addrinfo **res, const char *canonname)
 {
 	const struct afd *afd;
-	struct addrinfo *ai;
+	struct addrinfo *ai, ai0;
 	int error;
 	char pton[PTON_MAX], path[PATH_MAX], *p;
 
@@ -1236,8 +1264,17 @@ explore_numeric(const struct addrinfo *pai, const char *hostname,
 		p = pton;
 		break;
 	default:
-		if (inet_pton(afd->a_af, hostname, pton) != 1)
-			return 0;
+		if (inet_pton(afd->a_af, hostname, pton) != 1) {
+			if (pai->ai_family != AF_INET6 ||
+			    (pai->ai_flags & AI_V4MAPPED) != AI_V4MAPPED)
+				return 0;
+			if (inet_aton(hostname, (struct in_addr *)pton) != 1)
+				return 0;
+			afd = &afdl[N_INET];
+			ai0 = *pai;
+			ai0.ai_family = AF_INET;
+			pai = &ai0;
+		}
 		p = pton;
 		break;
 	}
@@ -1354,6 +1391,15 @@ get_ai(const struct addrinfo *pai, const struct afd *afd, const char *addr)
 {
 	char *p;
 	struct addrinfo *ai;
+#ifdef INET6
+	struct in6_addr mapaddr;
+
+	if (afd->a_af == AF_INET && (pai->ai_flags & AI_V4MAPPED) != 0) {
+		afd = &afdl[N_INET6];
+		_map_v4v6_address(addr, (char *)&mapaddr);
+		addr = (char *)&mapaddr;
+	}
+#endif
 
 	ai = (struct addrinfo *)malloc(sizeof(struct addrinfo)
 		+ (afd->a_socklen));
@@ -1563,7 +1609,7 @@ addrconfig(struct addrinfo *pai)
 			if (seen_inet)
 				continue;
 			sin = (struct sockaddr_in *)(ifa->ifa_addr);
-			if (IN_LOOPBACK(htonl(sin->sin_addr.s_addr)))
+			if (htonl(sin->sin_addr.s_addr) == INADDR_LOOPBACK)
 				continue;
 			seen_inet = 1;
 			break;
@@ -2118,7 +2164,11 @@ getanswer(const querybuf *answer, int anslen, const char *qname, int qtype,
 		return sentinel.ai_next;
 	}
 
-	RES_SET_H_ERRNO(res, NO_RECOVERY);
+	/*
+	 * We could have walked a CNAME chain, but the ultimate target
+	 * may not have what we looked for.
+	 */
+	RES_SET_H_ERRNO(res, ntohs(hp->ancount) > 0 ? NO_DATA : NO_RECOVERY);
 	return NULL;
 }
 
@@ -2192,7 +2242,7 @@ addr4sort(struct addrinfo *sentinel, res_state res)
 static int
 _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 {
-	struct addrinfo *ai;
+	struct addrinfo *ai, ai0;
 	querybuf *buf, *buf2;
 	const char *hostname;
 	const struct addrinfo *pai;
@@ -2208,6 +2258,8 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 	memset(&sentinel, 0, sizeof(sentinel));
 	cur = &sentinel;
 
+	res = __res_state();
+
 	buf = malloc(sizeof(*buf));
 	if (!buf) {
 		RES_SET_H_ERRNO(res, NETDB_INTERNAL);
@@ -2218,6 +2270,13 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 		free(buf);
 		RES_SET_H_ERRNO(res, NETDB_INTERNAL);
 		return NS_NOTFOUND;
+	}
+
+	if (pai->ai_family == AF_INET6 &&
+	    (pai->ai_flags & AI_V4MAPPED) == AI_V4MAPPED) {
+		ai0 = *pai;
+		ai0.ai_family = AF_UNSPEC;
+		pai = &ai0;
 	}
 
 	switch (pai->ai_family) {
@@ -2254,7 +2313,6 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 		return NS_UNAVAIL;
 	}
 
-	res = __res_state();
 	if ((res->options & RES_INIT) == 0 && res_ninit(res) == -1) {
 		RES_SET_H_ERRNO(res, NETDB_INTERNAL);
 		free(buf);
@@ -2276,14 +2334,18 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 				cur = cur->ai_next;
 		}
 	}
-	ai = getanswer(buf, q.n, q.name, q.qtype, pai, res);
-	if (ai)
-		cur->ai_next = ai;
+	if (!ai || pai->ai_family != AF_UNSPEC ||
+	    (pai->ai_flags & (AI_ALL | AI_V4MAPPED)) != AI_V4MAPPED) {
+		ai = getanswer(buf, q.n, q.name, q.qtype, pai, res);
+		if (ai)
+			cur->ai_next = ai;
+	}
 	free(buf);
 	free(buf2);
 	if (sentinel.ai_next == NULL)
 		switch (res->res_h_errno) {
 		case HOST_NOT_FOUND:
+		case NO_DATA:
 			return NS_NOTFOUND;
 		case TRY_AGAIN:
 			return NS_TRYAGAIN;
@@ -2360,6 +2422,9 @@ found:
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_protocol = 0;
 	hints.ai_flags = AI_NUMERICHOST;
+	if (pai->ai_family == AF_INET6 &&
+	    (pai->ai_flags & AI_V4MAPPED) == AI_V4MAPPED)
+		hints.ai_flags |= AI_V4MAPPED;
 	error = getaddrinfo(addr, "0", &hints, &res0);
 	if (error)
 		goto again;
@@ -2387,6 +2452,20 @@ found:
 	return res0;
 }
 
+static struct addrinfo *
+_getht(FILE **hostf, const char *name, const struct addrinfo *pai,
+     struct addrinfo *cur)
+{
+	struct addrinfo *p;
+
+	while ((p = _gethtent(hostf, name, pai)) != NULL) {
+		cur->ai_next = p;
+		while (cur && cur->ai_next)
+			cur = cur->ai_next;
+	}
+	return (cur);
+}
+
 /*ARGSUSED*/
 static int
 _files_getaddrinfo(void *rv, void *cb_data, va_list ap)
@@ -2394,7 +2473,6 @@ _files_getaddrinfo(void *rv, void *cb_data, va_list ap)
 	const char *name;
 	const struct addrinfo *pai;
 	struct addrinfo sentinel, *cur;
-	struct addrinfo *p;
 	FILE *hostf = NULL;
 
 	name = va_arg(ap, char *);
@@ -2404,11 +2482,19 @@ _files_getaddrinfo(void *rv, void *cb_data, va_list ap)
 	cur = &sentinel;
 
 	_sethtent(&hostf);
-	while ((p = _gethtent(&hostf, name, pai)) != NULL) {
-		cur->ai_next = p;
-		while (cur && cur->ai_next)
-			cur = cur->ai_next;
-	}
+	if (pai->ai_family == AF_INET6 &&
+	    (pai->ai_flags & (AI_ALL | AI_V4MAPPED)) == AI_V4MAPPED) {
+		struct addrinfo ai0 = *pai;
+
+		ai0.ai_flags &= ~AI_V4MAPPED;
+		cur = _getht(&hostf, name, &ai0, cur);
+		if (sentinel.ai_next == NULL) {
+			_sethtent(&hostf);
+			ai0.ai_flags |= AI_V4MAPPED;
+			cur = _getht(&hostf, name, &ai0, cur);
+		}
+	} else
+		cur = _getht(&hostf, name, pai, cur);
 	_endhtent(&hostf);
 
 	*((struct addrinfo **)rv) = sentinel.ai_next;
@@ -2468,6 +2554,9 @@ nextline:
 
 	hints = *pai;
 	hints.ai_flags = AI_NUMERICHOST;
+	if (pai->ai_family == AF_INET6 &&
+	    (pai->ai_flags & AI_V4MAPPED) == AI_V4MAPPED)
+		hints.ai_flags |= AI_V4MAPPED;
 	error = getaddrinfo(addr, NULL, &hints, &res0);
 	if (error == 0) {
 		for (res = res0; res; res = res->ai_next) {
@@ -2515,15 +2604,46 @@ _yp_getaddrinfo(void *rv, void *cb_data, va_list ap)
 	memset(&sentinel, 0, sizeof(sentinel));
 	cur = &sentinel;
 
+	/* ipnodes.byname can hold both IPv4/v6 */
+	r = yp_match(ypdomain, "ipnodes.byname", name,
+		(int)strlen(name), &ypbuf, &ypbuflen);
+	if (r == 0) {
+		ai = _yphostent(ypbuf, pai);
+		if (ai) {
+			cur->ai_next = ai;
+			while (cur && cur->ai_next)
+				cur = cur->ai_next;
+		}
+		free(ypbuf);
+	}
+
+	if (ai != NULL) {
+		struct sockaddr_in6 *sin6;
+
+		switch (ai->ai_family) {
+		case AF_INET:
+			goto done;
+		case AF_INET6:
+			sin6 = (struct sockaddr_in6 *)ai->ai_addr;
+			if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr))
+				goto done;
+			break;
+		}
+	}
+
 	/* hosts.byname is only for IPv4 (Solaris8) */
-	if (pai->ai_family == PF_UNSPEC || pai->ai_family == PF_INET) {
+	if (pai->ai_family == AF_UNSPEC || pai->ai_family == AF_INET ||
+	    ((pai->ai_family == AF_INET6 &&
+	     (pai->ai_flags & AI_V4MAPPED) == AI_V4MAPPED) &&
+	      (ai == NULL || (pai->ai_flags & AI_ALL) == AI_ALL))) {
 		r = yp_match(ypdomain, "hosts.byname", name,
 			(int)strlen(name), &ypbuf, &ypbuflen);
 		if (r == 0) {
 			struct addrinfo ai4;
 
 			ai4 = *pai;
-			ai4.ai_family = AF_INET;
+			if (pai->ai_family == AF_UNSPEC)
+				ai4.ai_family = AF_INET;
 			ai = _yphostent(ypbuf, &ai4);
 			if (ai) {
 				cur->ai_next = ai;
@@ -2534,16 +2654,7 @@ _yp_getaddrinfo(void *rv, void *cb_data, va_list ap)
 		}
 	}
 
-	/* ipnodes.byname can hold both IPv4/v6 */
-	r = yp_match(ypdomain, "ipnodes.byname", name,
-		(int)strlen(name), &ypbuf, &ypbuflen);
-	if (r == 0) {
-		ai = _yphostent(ypbuf, pai);
-		if (ai)
-			cur->ai_next = ai;
-		free(ypbuf);
-	}
-
+done:
 	if (sentinel.ai_next == NULL) {
 		RES_SET_H_ERRNO(__res_state(), HOST_NOT_FOUND);
 		return NS_NOTFOUND;

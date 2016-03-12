@@ -20,29 +20,10 @@
 # we really only use PROGS below...
 PROGS += ${PROGS_CXX}
 
-# In meta mode, we can capture dependenices for _one_ of the progs.
-# if makefile doesn't nominate one, we use the first.
-.ifndef UPDATE_DEPENDFILE_PROG
-UPDATE_DEPENDFILE_PROG = ${PROGS:[1]}
-.export UPDATE_DEPENDFILE_PROG
-.endif
-
-.ifndef PROG
-# They may have asked us to build just one
-.for t in ${PROGS}
-.if make($t)
-.if ${PROGS_CXX:M${t}}
-PROG_CXX ?= $t
-.endif
-PROG ?= $t
-.endif
-.endfor
-.endif
-
 .if defined(PROG)
 # just one of many
-PROG_OVERRIDE_VARS +=	BINDIR BINGRP BINOWN BINMODE DPSRCS MAN PROGNAME \
-			SRCS
+PROG_OVERRIDE_VARS +=	BINDIR BINGRP BINOWN BINMODE DPSRCS MAN NO_WERROR \
+			PROGNAME SRCS WARNS
 PROG_VARS +=	CFLAGS CPPFLAGS CXXFLAGS DPADD DPLIBS LDADD LIBADD LINKS \
 		LDFLAGS MLINKS ${PROG_OVERRIDE_VARS}
 .for v in ${PROG_VARS:O:u}
@@ -57,24 +38,47 @@ $v ?=
 .endif
 .endfor
 
-# for meta mode, there can be only one!
-.if ${PROG} == ${UPDATE_DEPENDFILE_PROG}
-UPDATE_DEPENDFILE ?= yes
+.if ${MK_DIRDEPS_BUILD} == "yes"
+# Leave updating the Makefile.depend to the parent.
+UPDATE_DEPENDFILE = NO
+
+# Record our meta files for the parent to use.
+CLEANFILES+= ${PROG}.meta_files
+${PROG}.meta_files: .NOMETA $${.MAKE.META.CREATED} ${_this}
+	@echo "Updating ${.TARGET}: ${.OODATE:T:[1..8]}"
+	@echo ${.MAKE.META.FILES} > ${.TARGET}
+
+.if !defined(_SKIP_BUILD)
+.END: ${PROG}.meta_files
 .endif
-UPDATE_DEPENDFILE ?= NO
+.endif	# ${MK_DIRDEPS_BUILD} == "yes"
 
 # prog.mk will do the rest
 .else # !defined(PROG)
+.if !defined(_SKIP_BUILD)
 all: ${PROGS}
+.endif
 
-# We cannot capture dependencies for meta mode here
-UPDATE_DEPENDFILE = NO
+META_XTRAS+=	${cat ${PROGS:S/$/*.meta_files/} 2>/dev/null || true:L:sh}
+
+.if ${MK_STAGING} != "no" && !empty(PROGS)
+# Stage from parent while respecting PROGNAME and BINDIR overrides.
+.for _prog in ${PROGS}
+STAGE_DIR.prog.${_prog}= ${STAGE_OBJTOP}${BINDIR.${_prog}:UBINDIR_${_prog}:U${BINDIR}}
+STAGE_AS_SETS+=	prog.${_prog}
+STAGE_AS_prog.${_prog}=	${PROGNAME.${_prog}:UPROGNAME_${_prog}:U${_prog}}
+stage_as.prog.${_prog}: ${_prog}
+.endfor
+.endif	# ${MK_STAGING} != "no" && !empty(PROGS)
 .endif
 .endif	# PROGS || PROGS_CXX
 
 # These are handled by the main make process.
 .ifdef _RECURSING_PROGS
-_PROGS_GLOBAL_VARS= CLEANFILES CLEANDIRS FILESGROUPS SCRIPTS CONFGROUPS
+MK_STAGING= no
+
+_PROGS_GLOBAL_VARS= CLEANFILES CLEANDIRS CONFGROUPS FILESGROUPS INCSGROUPS \
+		    SCRIPTS
 .for v in ${_PROGS_GLOBAL_VARS}
 $v =
 .endfor
@@ -102,7 +106,10 @@ _PROGS_ALL_SRCS+=	${s}
 .endfor
 .endfor
 .if !empty(_PROGS_COMMON_SRCS)
-_PROGS_COMMON_OBJS=	${_PROGS_COMMON_SRCS:N*.h:R:S/$/.o/g}
+_PROGS_COMMON_OBJS=	${_PROGS_COMMON_SRCS:M*.[dhly]}
+.if !empty(_PROGS_COMMON_SRCS:N*.[dhly])
+_PROGS_COMMON_OBJS+=	${_PROGS_COMMON_SRCS:N*.[dhly]:R:S/$/.o/g}
+.endif
 ${PROGS}: ${_PROGS_COMMON_OBJS}
 .endif
 
@@ -116,21 +123,23 @@ x.$p= PROG_CXX=$p
 $p ${p}_p: .PHONY .MAKE
 	(cd ${.CURDIR} && \
 	    DEPENDFILE=.depend.$p \
-	    ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
-	    SUBDIR= PROG=$p ${x.$p})
+	    NO_SUBDIR=1 ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS=t \
+	    PROG=$p ${x.$p})
 
 # Pseudo targets for PROG, such as 'install'.
 .for t in ${PROGS_TARGETS:O:u}
 $p.$t: .PHONY .MAKE
 	(cd ${.CURDIR} && \
 	    DEPENDFILE=.depend.$p \
-	    ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
-	    SUBDIR= PROG=$p ${x.$p} ${@:E})
+	    NO_SUBDIR=1 ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS=t \
+	    PROG=$p ${x.$p} ${@:E})
 .endfor
 .endfor
 
 # Depend main pseudo targets on all PROG.pseudo targets too.
 .for t in ${PROGS_TARGETS:O:u}
+.if make(${t})
 $t: ${PROGS:%=%.$t}
+.endif
 .endfor
 .endif	# !empty(PROGS) && !defined(_RECURSING_PROGS) && !defined(PROG)

@@ -109,27 +109,24 @@ PO_FLAG=-pg
 	${CTFCONVERT_CMD}
 
 .asm.po:
-	${CC} -x assembler-with-cpp -DPROF ${PO_CFLAGS} ${ACFLAGS} \
-		-c ${.IMPSRC} -o ${.TARGET}
+	${CC:N${CCACHE_BIN}} -x assembler-with-cpp -DPROF ${PO_CFLAGS} \
+	    ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .asm.So:
-	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} \
-	    -c ${.IMPSRC} -o ${.TARGET}
+	${CC:N${CCACHE_BIN}} -x assembler-with-cpp ${PICFLAG} -DPIC \
+	    ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .S.po:
-	${CC} -DPROF ${PO_CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC:N${CCACHE_BIN}} -DPROF ${PO_CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
+	    -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .S.So:
-	${CC} ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC:N${CCACHE_BIN}} ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} \
+	    -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
-
-.if !defined(_SKIP_BUILD)
-all: beforebuild .WAIT
-beforebuild: objwarn
-.endif
 
 _LIBDIR:=${LIBDIR}
 _SHLIBDIR:=${SHLIBDIR}
@@ -140,10 +137,12 @@ SHLIB_NAME_FULL=${SHLIB_NAME}.full
 # Use ${DEBUGDIR} for base system debug files, else .debug subdirectory
 .if ${_SHLIBDIR} == "/boot" ||\
     ${SHLIBDIR:C%/lib(/.*)?$%/lib%} == "/lib" ||\
-    ${SHLIBDIR:C%/usr/lib(32)?(/.*)?%/usr/lib%} == "/usr/lib"
+    ${SHLIBDIR:C%/usr/(tests/)?lib(32|exec)?(/.*)?%/usr/lib%} == "/usr/lib"
 DEBUGFILEDIR=${DEBUGDIR}${_SHLIBDIR}
 .else
 DEBUGFILEDIR=${_SHLIBDIR}/.debug
+.endif
+.if !exists(${DESTDIR}${DEBUGFILEDIR})
 DEBUGMKDIR=
 .endif
 .else
@@ -180,6 +179,7 @@ lib${LIB_PRIVATE}${LIB}.a: ${OBJS} ${STATICOBJS}
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
 _LIBS+=		lib${LIB_PRIVATE}${LIB}_p.a
 POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
+DEPENDOBJS+=	${POBJS}
 CLEANFILES+=	${POBJS}
 
 lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
@@ -192,13 +192,14 @@ lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 SOBJS+=		${OBJS:.o=.So}
+DEPENDOBJS+=	${SOBJS}
 CLEANFILES+=	${SOBJS}
 .endif
 
 .if defined(SHLIB_NAME)
 _LIBS+=		${SHLIB_NAME}
 
-SOLINKOPTS=	-shared -Wl,-x
+SOLINKOPTS+=	-shared -Wl,-x
 .if !defined(ALLOW_SHARED_TEXTREL)
 .if defined(LD_FATAL_WARNINGS) && ${LD_FATAL_WARNINGS} == "no"
 SOLINKOPTS+=	-Wl,--no-fatal-warnings
@@ -249,7 +250,7 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 .if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld)
 	@${INSTALL_SYMLINK} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
-	${_LD} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
+	${_LD:N${CCACHE_BIN}} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `NM='${NM}' NMFLAGS='${NMFLAGS}' lorder ${SOBJS} | tsort -q` ${LDADD}
 .if ${MK_CTF} != "no"
@@ -300,15 +301,17 @@ CLEANFILES+=	${_LIBS}
 .endif
 
 .if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
-all: _manpages
+all: all-man
 .endif
 .endif
 
 _EXTRADEPEND:
+.if ${MK_FAST_DEPEND} == "no"
 	@TMP=_depend$$$$; \
 	sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.So:/' < ${DEPENDFILE} \
 	    > $$TMP; \
 	mv $$TMP ${DEPENDFILE}
+.endif
 .if !defined(NO_EXTRADEPEND) && defined(SHLIB_NAME)
 .if defined(DPADD) && !empty(DPADD)
 	echo ${SHLIB_NAME_FULL}: ${DPADD} >> ${DEPENDFILE}
@@ -362,6 +365,9 @@ _libinstall:
 	${INSTALL} -S -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${SHLIB_LINK:R}.ld \
 	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
+.for _SHLIB_LINK_LINK in ${SHLIB_LDSCRIPT_LINKS}
+	${INSTALL_SYMLINK} ${SHLIB_LINK} ${DESTDIR}${_LIBDIR}/${_SHLIB_LINK_LINK}
+.endfor
 .else
 .if ${_SHLIBDIR} == ${_LIBDIR}
 	${INSTALL_SYMLINK} ${SHLIB_NAME} ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
@@ -396,8 +402,8 @@ _libinstall:
 .include <bsd.links.mk>
 
 .if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
-realinstall: _maninstall
-.ORDER: beforeinstall _maninstall
+realinstall: maninstall
+.ORDER: beforeinstall maninstall
 .endif
 
 .endif
@@ -411,24 +417,37 @@ lint: ${SRCS:M*.c}
 .include <bsd.man.mk>
 .endif
 
-.include <bsd.dep.mk>
-
-.if !exists(${.OBJDIR}/${DEPENDFILE})
 .if defined(LIB) && !empty(LIB)
-${OBJS} ${STATICOBJS} ${POBJS}: ${SRCS:M*.h}
+OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
 .for _S in ${SRCS:N*.[hly]}
-${_S:R}.po: ${_S}
+OBJS_DEPEND_GUESS.${_S:R}.po=	${_S}
 .endfor
 .endif
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
-${SOBJS}: ${SRCS:M*.h}
 .for _S in ${SRCS:N*.[hly]}
-${_S:R}.So: ${_S}
+OBJS_DEPEND_GUESS.${_S:R}.So=	${_S}
+.endfor
+.endif
+
+.include <bsd.dep.mk>
+
+.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
+.if defined(LIB) && !empty(LIB)
+${OBJS} ${STATICOBJS} ${POBJS}: ${OBJS_DEPEND_GUESS}
+.for _S in ${SRCS:N*.[hly]}
+${_S:R}.po: ${OBJS_DEPEND_GUESS.${_S:R}.po}
+.endfor
+.endif
+.if defined(SHLIB_NAME) || \
+    defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
+${SOBJS}: ${OBJS_DEPEND_GUESS}
+.for _S in ${SRCS:N*.[hly]}
+${_S:R}.So: ${OBJS_DEPEND_GUESS.${_S:R}.So}
 .endfor
 .endif
 .endif
 
+.include <bsd.clang-analyze.mk>
 .include <bsd.obj.mk>
-
 .include <bsd.sys.mk>

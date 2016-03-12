@@ -142,12 +142,13 @@ ata_jmicron_ch_attach(device_t dev)
 static int
 ata_jmicron_setmode(device_t dev, int target, int mode)
 {
-	struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+	device_t parent = device_get_parent(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(parent);
 
 	mode = min(mode, ctlr->chip->max_dma);
 	/* check for 80pin cable present */
 	if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
-	    pci_read_config(dev, 0x40, 1) & 0x08) {
+	    pci_read_config(parent, 0x40, 1) & 0x08) {
 		ata_print_cable(dev, "controller");
 		mode = ATA_UDMA2;
 	}

@@ -48,11 +48,6 @@ ENTRY(armv4_tlb_flushID)
 	RET
 END(armv4_tlb_flushID)
 
-ENTRY(armv4_tlb_flushI)
-	mcr	p15, 0, r0, c8, c5, 0	/* flush I tlb */
-	RET
-END(armv4_tlb_flushI)
-
 ENTRY(armv4_tlb_flushD)
 	mcr	p15, 0, r0, c8, c6, 0	/* flush D tlb */
 	RET

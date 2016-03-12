@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-agent.1,v 1.54 2013/12/07 11:58:46 naddy Exp $
+.\" $OpenBSD: ssh-agent.1,v 1.62 2015/11/15 23:54:15 jmc Exp $
 .\" $FreeBSD$
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 7, 2013
+.Dd $Mdocdate: November 15 2015 $
 .Dt SSH-AGENT 1
 .Os
 .Sh NAME
@@ -44,8 +44,9 @@
 .Sh SYNOPSIS
 .Nm ssh-agent
 .Op Fl c | s
-.Op Fl dx
+.Op Fl \&Ddx
 .Op Fl a Ar bind_address
+.Op Fl E Ar fingerprint_hash
 .Op Fl t Ar life
 .Op Ar command Op Ar arg ...
 .Nm ssh-agent
@@ -54,16 +55,35 @@
 .Sh DESCRIPTION
 .Nm
 is a program to hold private keys used for public key authentication
-(RSA, DSA, ECDSA, ED25519).
-The idea is that
+(RSA, DSA, ECDSA, Ed25519).
 .Nm
-is started in the beginning of an X-session or a login session, and
+is usually started in the beginning of an X-session or a login session, and
 all other windows or programs are started as clients to the ssh-agent
 program.
 Through use of environment variables the agent can be located
 and automatically used for authentication when logging in to other
 machines using
 .Xr ssh 1 .
+.Pp
+The agent initially does not have any private keys.
+Keys are added using
+.Xr ssh 1
+(see
+.Cm AddKeysToAgent
+in
+.Xr ssh_config 5
+for details)
+or
+.Xr ssh-add 1 .
+Multiple identities may be stored in
+.Nm
+concurrently and
+.Xr ssh 1
+will automatically use them if present.
+.Xr ssh-add 1
+is also used to remove keys from
+.Nm
+and to query the keys that are held in one.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -80,11 +100,24 @@ Generate C-shell commands on
 This is the default if
 .Ev SHELL
 looks like it's a csh style of shell.
+.It Fl D
+Foreground mode.
+When this option is specified
+.Nm
+will not fork.
 .It Fl d
 Debug mode.
 When this option is specified
 .Nm
-will not fork.
+will not fork and will write debug information to standard error.
+.It Fl E Ar fingerprint_hash
+Specifies the hash algorithm used when displaying key fingerprints.
+Valid options are:
+.Dq md5
+and
+.Dq sha256 .
+The default is
+.Dq sha256 .
 .It Fl k
 Kill the current agent (given by the
 .Ev SSH_AGENT_PID
@@ -107,31 +140,8 @@ Without this option the default maximum lifetime is forever.
 Exit after the last client has disconnected.
 .El
 .Pp
-If a commandline is given, this is executed as a subprocess of the agent.
+If a command line is given, this is executed as a subprocess of the agent.
 When the command dies, so does the agent.
-.Pp
-The agent initially does not have any private keys.
-Keys are added using
-.Xr ssh-add 1 .
-When executed without arguments,
-.Xr ssh-add 1
-adds the files
-.Pa ~/.ssh/id_rsa ,
-.Pa ~/.ssh/id_dsa ,
-.Pa ~/.ssh/id_ecdsa ,
-.Pa ~/.ssh/id_ed25519
-and
-.Pa ~/.ssh/identity .
-If the identity has a passphrase,
-.Xr ssh-add 1
-asks for the passphrase on the terminal if it has one or from a small X11
-program if running under X11.
-If neither of these is the case then the authentication will fail.
-It then sends the identity to the agent.
-Several identities can be stored in the
-agent; the agent can automatically use any of these identities.
-.Ic ssh-add -l
-displays the identities currently held by the agent.
 .Pp
 The idea is that the agent is run in the user's local PC, laptop, or
 terminal.
@@ -188,16 +198,6 @@ The agent exits automatically when the command given on the command
 line terminates.
 .Sh FILES
 .Bl -tag -width Ds
-.It Pa ~/.ssh/identity
-Contains the protocol version 1 RSA authentication identity of the user.
-.It Pa ~/.ssh/id_dsa
-Contains the protocol version 2 DSA authentication identity of the user.
-.It Pa ~/.ssh/id_ecdsa
-Contains the protocol version 2 ECDSA authentication identity of the user.
-.It Pa ~/.ssh/id_ed25519
-Contains the protocol version 2 ED25519 authentication identity of the user.
-.It Pa ~/.ssh/id_rsa
-Contains the protocol version 2 RSA authentication identity of the user.
 .It Pa $TMPDIR/ssh-XXXXXXXXXX/agent.\*(Ltppid\*(Gt
 .Ux Ns -domain
 sockets used to contain the connection to the authentication agent.

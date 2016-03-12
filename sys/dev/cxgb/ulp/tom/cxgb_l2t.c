@@ -215,7 +215,7 @@ resolve_entry(struct adapter *sc, struct l2t_entry *e)
 	struct tom_data *td = sc->tom_softc;
 	struct toedev *tod = &td->tod;
 	struct sockaddr_in sin = {0};
-	uint8_t dmac[ETHER_ADDR_LEN];
+	uint8_t dmac[ETHER_HDR_LEN];
 	uint16_t vtag = EVL_VLID_MASK;
 	int rc;
 

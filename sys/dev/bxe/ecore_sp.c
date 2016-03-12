@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2014 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2007-2017 QLogic Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -11,7 +11,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
@@ -29,6 +29,9 @@ __FBSDID("$FreeBSD$");
 
 #include "bxe.h"
 #include "ecore_init.h"
+
+
+
 
 /**** Exe Queue interfaces ****/
 
@@ -736,6 +739,26 @@ static int ecore_check_vlan_mac_add(struct bxe_softc *sc,
 	return ECORE_SUCCESS;
 }
 
+static int ecore_check_vxlan_fltr_add(struct bxe_softc *sc,
+				struct ecore_vlan_mac_obj *o,
+				union ecore_classification_ramrod_data *data)
+{
+	struct ecore_vlan_mac_registry_elem *pos;
+
+	ECORE_MSG(sc, "Checking VXLAN_FLTR (Inner:%pM, %d) for ADD command\n",
+		  data->vxlan_fltr.innermac, data->vxlan_fltr.vni);
+
+	ECORE_LIST_FOR_EACH_ENTRY(pos, &o->head, link,
+				  struct ecore_vlan_mac_registry_elem)
+		if ((!ECORE_MEMCMP(data->vxlan_fltr.innermac,
+			       pos->u.vxlan_fltr.innermac,
+			       ETH_ALEN)) &&
+			     (data->vxlan_fltr.vni == pos->u.vxlan_fltr.vni))
+			return ECORE_EXISTS;
+
+	return ECORE_SUCCESS;
+}
+
 /* check_del() callbacks */
 static struct ecore_vlan_mac_registry_elem *
 	ecore_check_mac_del(struct bxe_softc *sc,
@@ -789,6 +812,28 @@ static struct ecore_vlan_mac_registry_elem *
 			     ETH_ALEN)) &&
 		    (data->vlan_mac.is_inner_mac ==
 		     pos->u.vlan_mac.is_inner_mac))
+			return pos;
+
+	return NULL;
+}
+
+static struct ecore_vlan_mac_registry_elem *
+	ecore_check_vxlan_fltr_del
+			(struct bxe_softc *sc,
+			struct ecore_vlan_mac_obj *o,
+			union ecore_classification_ramrod_data *data)
+{
+	struct ecore_vlan_mac_registry_elem *pos;
+
+	ECORE_MSG(sc, "Checking VXLAN_FLTR (Inner:%pM, %d) for DEL command\n",
+		  data->vxlan_fltr.innermac, data->vxlan_fltr.vni);
+
+	ECORE_LIST_FOR_EACH_ENTRY(pos, &o->head, link,
+				  struct ecore_vlan_mac_registry_elem)
+		if ((!ECORE_MEMCMP(data->vxlan_fltr.innermac,
+			       pos->u.vxlan_fltr.innermac,
+			       ETH_ALEN)) &&
+			       (data->vxlan_fltr.vni == pos->u.vxlan_fltr.vni))
 			return pos;
 
 	return NULL;
@@ -982,7 +1027,7 @@ static void ecore_set_one_mac_e2(struct bxe_softc *sc,
 			      &rule_entry->mac.mac_mid,
 			      &rule_entry->mac.mac_lsb, mac);
 	rule_entry->mac.inner_mac =
-		elem->cmd_data.vlan_mac.u.mac.is_inner_mac;
+		ECORE_CPU_TO_LE16(elem->cmd_data.vlan_mac.u.mac.is_inner_mac);
 
 	/* MOVE: Add a rule that will add this MAC to the target Queue */
 	if (cmd == ECORE_VLAN_MAC_MOVE) {
@@ -1000,7 +1045,8 @@ static void ecore_set_one_mac_e2(struct bxe_softc *sc,
 				      &rule_entry->mac.mac_mid,
 				      &rule_entry->mac.mac_lsb, mac);
 		rule_entry->mac.inner_mac =
-			elem->cmd_data.vlan_mac.u.mac.is_inner_mac;
+			ECORE_CPU_TO_LE16(elem->cmd_data.vlan_mac.
+				       u.mac.is_inner_mac);
 	}
 
 	/* Set the ramrod data header */
@@ -1219,6 +1265,62 @@ static void ecore_set_one_vlan_mac_e2(struct bxe_softc *sc,
 					rule_cnt);
 }
 
+static void ecore_set_one_vxlan_fltr_e2(struct bxe_softc *sc,
+						struct ecore_vlan_mac_obj *o,
+						struct ecore_exeq_elem *elem,
+						int rule_idx, int cam_offset)
+{
+	struct ecore_raw_obj *raw = &o->raw;
+	struct eth_classify_rules_ramrod_data *data =
+		(struct eth_classify_rules_ramrod_data *)(raw->rdata);
+	int rule_cnt = rule_idx + 1;
+	union eth_classify_rule_cmd *rule_entry = &data->rules[rule_idx];
+	enum ecore_vlan_mac_cmd cmd = elem->cmd_data.vlan_mac.cmd;
+	bool add = (cmd == ECORE_VLAN_MAC_ADD) ? TRUE : FALSE;
+	uint32_t vni = elem->cmd_data.vlan_mac.u.vxlan_fltr.vni;
+	uint8_t *mac = elem->cmd_data.vlan_mac.u.vxlan_fltr.innermac;
+
+	/* Reset the ramrod data buffer for the first rule */
+	if (rule_idx == 0)
+		ECORE_MEMSET(data, 0, sizeof(*data));
+
+	/* Set a rule header */
+	ecore_vlan_mac_set_cmd_hdr_e2(sc, o, add,
+				      CLASSIFY_RULE_OPCODE_IMAC_VNI,
+				      &rule_entry->imac_vni.header);
+
+	/* Set VLAN and MAC themselves */
+	rule_entry->imac_vni.vni = vni;
+	ecore_set_fw_mac_addr(&rule_entry->imac_vni.imac_msb,
+			      &rule_entry->imac_vni.imac_mid,
+			      &rule_entry->imac_vni.imac_lsb, mac);
+
+	/* MOVE: Add a rule that will add this MAC to the target Queue */
+	if (cmd == ECORE_VLAN_MAC_MOVE) {
+		rule_entry++;
+		rule_cnt++;
+
+		/* Setup ramrod data */
+		ecore_vlan_mac_set_cmd_hdr_e2(sc,
+					      elem->cmd_data.vlan_mac.target_obj,
+					      TRUE, CLASSIFY_RULE_OPCODE_IMAC_VNI,
+					      &rule_entry->imac_vni.header);
+
+		/* Set a VLAN itself */
+		rule_entry->imac_vni.vni = vni;
+		ecore_set_fw_mac_addr(&rule_entry->imac_vni.imac_msb,
+				      &rule_entry->imac_vni.imac_mid,
+				      &rule_entry->imac_vni.imac_lsb, mac);
+	}
+
+	/* Set the ramrod data header */
+	/* TODO: take this to the higher level in order to prevent multiple
+	   * writing
+	*/
+	ecore_vlan_mac_set_rdata_hdr_e2(raw->cid, raw->state,
+					&data->header, rule_cnt);
+}
+
 /**
  * ecore_set_one_vlan_mac_e1h -
  *
@@ -1371,6 +1473,26 @@ static struct ecore_exeq_elem *ecore_exeq_get_vlan_mac(
 		if (!ECORE_MEMCMP(&pos->cmd_data.vlan_mac.u.vlan_mac, data,
 			      sizeof(*data)) &&
 		    (pos->cmd_data.vlan_mac.cmd == elem->cmd_data.vlan_mac.cmd))
+			return pos;
+
+	return NULL;
+}
+
+static struct ecore_exeq_elem *ecore_exeq_get_vxlan_fltr
+			(struct ecore_exe_queue_obj *o,
+			struct ecore_exeq_elem *elem)
+{
+	struct ecore_exeq_elem *pos;
+	struct ecore_vxlan_fltr_ramrod_data *data =
+		&elem->cmd_data.vlan_mac.u.vxlan_fltr;
+
+	/* Check pending for execution commands */
+	ECORE_LIST_FOR_EACH_ENTRY(pos, &o->exe_queue, link,
+				  struct ecore_exeq_elem)
+		if (!ECORE_MEMCMP(&pos->cmd_data.vlan_mac.u.vxlan_fltr, data,
+			      sizeof(*data)) &&
+			      (pos->cmd_data.vlan_mac.cmd ==
+			      elem->cmd_data.vlan_mac.cmd))
 			return pos;
 
 	return NULL;
@@ -1890,14 +2012,12 @@ static int ecore_execute_vlan_mac(struct bxe_softc *sc,
 				idx++;
 		}
 
-		/*
-		 *  No need for an explicit memory barrier here as long we would
-		 *  need to ensure the ordering of writing to the SPQ element
+		/* No need for an explicit memory barrier here as long as we
+		 * ensure the ordering of writing to the SPQ element
 		 *  and updating of the SPQ producer which involves a memory
-		 *  read and we will have to put a full memory barrier there
-		 *  (inside ecore_sp_post()).
+		 * read. If the memory read is removed we will have to put a
+		 * full memory barrier there (inside ecore_sp_post()).
 		 */
-
 		rc = ecore_sp_post(sc, o->ramrod_cmd, r->cid,
 				   r->rdata_mapping,
 				   ETH_CONNECTION_TYPE);
@@ -2084,6 +2204,7 @@ static int ecore_vlan_mac_del_all(struct bxe_softc *sc,
 	struct ecore_vlan_mac_ramrod_params p;
 	struct ecore_exe_queue_obj *exeq = &o->exe_queue;
 	struct ecore_exeq_elem *exeq_pos, *exeq_pos_n;
+	unsigned long flags;
 	int read_lock;
 	int rc = 0;
 
@@ -2094,8 +2215,9 @@ static int ecore_vlan_mac_del_all(struct bxe_softc *sc,
 	ECORE_LIST_FOR_EACH_ENTRY_SAFE(exeq_pos, exeq_pos_n,
 				       &exeq->exe_queue, link,
 				       struct ecore_exeq_elem) {
-		if (exeq_pos->cmd_data.vlan_mac.vlan_mac_flags ==
-		    *vlan_mac_flags) {
+		flags = exeq_pos->cmd_data.vlan_mac.vlan_mac_flags;
+		if (ECORE_VLAN_MAC_CMP_FLAGS(flags) ==
+		    ECORE_VLAN_MAC_CMP_FLAGS(*vlan_mac_flags)) {
 			rc = exeq->remove(sc, exeq->owner, exeq_pos);
 			if (rc) {
 				ECORE_ERR("Failed to remove command\n");
@@ -2130,7 +2252,9 @@ static int ecore_vlan_mac_del_all(struct bxe_softc *sc,
 
 	ECORE_LIST_FOR_EACH_ENTRY(pos, &o->head, link,
 				  struct ecore_vlan_mac_registry_elem) {
-		if (pos->vlan_mac_flags == *vlan_mac_flags) {
+		flags = pos->vlan_mac_flags;
+		if (ECORE_VLAN_MAC_CMP_FLAGS(flags) ==
+		    ECORE_VLAN_MAC_CMP_FLAGS(*vlan_mac_flags)) {
 			p.user_req.vlan_mac_flags = pos->vlan_mac_flags;
 			ECORE_MEMCPY(&p.user_req.u, &pos->u, sizeof(pos->u));
 			rc = ecore_config_vlan_mac(sc, &p);
@@ -2347,6 +2471,54 @@ void ecore_init_vlan_mac_obj(struct bxe_softc *sc,
 				     ecore_optimize_vlan_mac,
 				     ecore_execute_vlan_mac,
 				     ecore_exeq_get_vlan_mac);
+	}
+}
+
+void ecore_init_vxlan_fltr_obj(struct bxe_softc *sc,
+				struct ecore_vlan_mac_obj *vlan_mac_obj,
+				uint8_t cl_id, uint32_t cid, uint8_t func_id, void *rdata,
+				ecore_dma_addr_t rdata_mapping, int state,
+				unsigned long *pstate, ecore_obj_type type,
+				struct ecore_credit_pool_obj *macs_pool,
+				struct ecore_credit_pool_obj *vlans_pool)
+{
+	union ecore_qable_obj *qable_obj =
+		(union ecore_qable_obj *)vlan_mac_obj;
+
+	ecore_init_vlan_mac_common(vlan_mac_obj, cl_id, cid, func_id,
+				   rdata, rdata_mapping, state, pstate,
+				   type, macs_pool, vlans_pool);
+
+	/* CAM pool handling */
+	vlan_mac_obj->get_credit = ecore_get_credit_vlan_mac;
+	vlan_mac_obj->put_credit = ecore_put_credit_vlan_mac;
+	/* CAM offset is relevant for 57710 and 57711 chips only which have a
+	 * single CAM for both MACs and VLAN-MAC pairs. So the offset
+	 * will be taken from MACs' pool object only.
+	 */
+	vlan_mac_obj->get_cam_offset = ecore_get_cam_offset_mac;
+	vlan_mac_obj->put_cam_offset = ecore_put_cam_offset_mac;
+
+	if (CHIP_IS_E1x(sc)) {
+		ECORE_ERR("Do not support chips others than E2/E3\n");
+		ECORE_BUG();
+	} else {
+		vlan_mac_obj->set_one_rule      = ecore_set_one_vxlan_fltr_e2;
+		vlan_mac_obj->check_del         = ecore_check_vxlan_fltr_del;
+		vlan_mac_obj->check_add         = ecore_check_vxlan_fltr_add;
+		vlan_mac_obj->check_move        = ecore_check_move;
+		vlan_mac_obj->ramrod_cmd        =
+			RAMROD_CMD_ID_ETH_CLASSIFICATION_RULES;
+
+		/* Exe Queue */
+		ecore_exe_queue_init(sc,
+				     &vlan_mac_obj->exe_queue,
+				     CLASSIFY_RULES_COUNT,
+				     qable_obj, ecore_validate_vlan_mac,
+				     ecore_remove_vlan_mac,
+				     ecore_optimize_vlan_mac,
+				     ecore_execute_vlan_mac,
+				     ecore_exeq_get_vxlan_fltr);
 	}
 }
 
@@ -2583,11 +2755,11 @@ static int ecore_set_rx_mode_e2(struct bxe_softc *sc,
 		  data->header.rule_cnt, p->rx_accept_flags,
 		  p->tx_accept_flags);
 
-	/* No need for an explicit memory barrier here as long we would
-	 * need to ensure the ordering of writing to the SPQ element
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
 	 * and updating of the SPQ producer which involves a memory
-	 * read and we will have to put a full memory barrier there
-	 * (inside ecore_sp_post()).
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside ecore_sp_post()).
 	 */
 
 	/* Send a ramrod */
@@ -3294,11 +3466,11 @@ static int ecore_mcast_setup_e2(struct bxe_softc *sc,
 		raw->clear_pending(raw);
 		return ECORE_SUCCESS;
 	} else {
-		/* No need for an explicit memory barrier here as long we would
-		 * need to ensure the ordering of writing to the SPQ element
+		/* No need for an explicit memory barrier here as long as we
+		 * ensure the ordering of writing to the SPQ element
 		 * and updating of the SPQ producer which involves a memory
-		 * read and we will have to put a full memory barrier there
-		 * (inside ecore_sp_post()).
+		 * read. If the memory read is removed we will have to put a
+		 * full memory barrier there (inside ecore_sp_post()).
 		 */
 
 		/* Send a ramrod */
@@ -3783,11 +3955,11 @@ static int ecore_mcast_setup_e1(struct bxe_softc *sc,
 		raw->clear_pending(raw);
 		return ECORE_SUCCESS;
 	} else {
-		/* No need for an explicit memory barrier here as long we would
-		 * need to ensure the ordering of writing to the SPQ element
+		/* No need for an explicit memory barrier here as long as we
+		 * ensure the ordering of writing to the SPQ element
 		 * and updating of the SPQ producer which involves a memory
-		 * read and we will have to put a full memory barrier there
-		 * (inside ecore_sp_post()).
+		 * read. If the memory read is removed we will have to put a
+		 * full memory barrier there (inside ecore_sp_post()).
 		 */
 
 		/* Send a ramrod */
@@ -4172,7 +4344,7 @@ static bool ecore_credit_pool_get_entry_always_TRUE(
  * If credit is negative pool operations will always succeed (unlimited pool).
  *
  */
-static inline void ecore_init_credit_pool(struct ecore_credit_pool_obj *p,
+void ecore_init_credit_pool(struct ecore_credit_pool_obj *p,
 					  int base, int credit)
 {
 	/* Zero the object first */
@@ -4246,29 +4418,14 @@ void ecore_init_mac_credit_pool(struct bxe_softc *sc,
 			/* this should never happen! Block MAC operations. */
 			ecore_init_credit_pool(p, 0, 0);
 		}
-
 	} else {
-
 		/*
 		 * CAM credit is equaly divided between all active functions
 		 * on the PATH.
 		 */
-		if ((func_num > 1)) {
+		if (func_num > 0) {
 			if (!CHIP_REV_IS_SLOW(sc))
-				cam_sz = (MAX_MAC_CREDIT_E2
-				- GET_NUM_VFS_PER_PATH(sc))
-				/ func_num
-				+ GET_NUM_VFS_PER_PF(sc);
-			else
-				cam_sz = ECORE_CAM_SIZE_EMUL;
-
-			/* No need for CAM entries handling for 57712 and
-			 * newer.
-			 */
-			ecore_init_credit_pool(p, -1, cam_sz);
-		} else if (func_num == 1) {
-			if (!CHIP_REV_IS_SLOW(sc))
-				cam_sz = MAX_MAC_CREDIT_E2;
+				cam_sz = PF_MAC_CREDIT_E2(sc, func_num);
 			else
 				cam_sz = ECORE_CAM_SIZE_EMUL;
 
@@ -4298,8 +4455,9 @@ void ecore_init_vlan_credit_pool(struct bxe_softc *sc,
 		 * on the PATH.
 		 */
 		if (func_num > 0) {
-			int credit = MAX_VLAN_CREDIT_E2 / func_num;
-			ecore_init_credit_pool(p, func_id * credit, credit);
+			int credit = PF_VLAN_CREDIT_E2(sc, func_num);
+
+			ecore_init_credit_pool(p, -1/*unused for E2*/, credit);
 		} else
 			/* this should never happen! Block VLAN operations. */
 			ecore_init_credit_pool(p, 0, 0);
@@ -4323,6 +4481,7 @@ static int ecore_setup_rss(struct bxe_softc *sc,
 	struct ecore_raw_obj *r = &o->raw;
 	struct eth_rss_update_ramrod_data *data =
 		(struct eth_rss_update_ramrod_data *)(r->rdata);
+	uint16_t caps = 0;
 	uint8_t rss_mode = 0;
 	int rc;
 
@@ -4339,10 +4498,6 @@ static int ecore_setup_rss(struct bxe_softc *sc,
 		rss_mode = ETH_RSS_MODE_DISABLED;
 	else if (ECORE_TEST_BIT(ECORE_RSS_MODE_REGULAR, &p->rss_flags))
 		rss_mode = ETH_RSS_MODE_REGULAR;
-#if defined(__VMKLNX__) && (VMWARE_ESX_DDK_VERSION < 55000) /* ! BNX2X_UPSTREAM */
-	else if (ECORE_TEST_BIT(ECORE_RSS_MODE_ESX51, &p->rss_flags))
-		rss_mode = ETH_RSS_MODE_ESX51;
-#endif
 
 	data->rss_mode = rss_mode;
 
@@ -4350,34 +4505,40 @@ static int ecore_setup_rss(struct bxe_softc *sc,
 
 	/* RSS capabilities */
 	if (ECORE_TEST_BIT(ECORE_RSS_IPV4, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV4_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV4_CAPABILITY;
 
 	if (ECORE_TEST_BIT(ECORE_RSS_IPV4_TCP, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV4_TCP_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV4_TCP_CAPABILITY;
 
 	if (ECORE_TEST_BIT(ECORE_RSS_IPV4_UDP, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV4_UDP_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV4_UDP_CAPABILITY;
 
 	if (ECORE_TEST_BIT(ECORE_RSS_IPV6, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV6_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV6_CAPABILITY;
 
 	if (ECORE_TEST_BIT(ECORE_RSS_IPV6_TCP, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV6_TCP_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV6_TCP_CAPABILITY;
 
 	if (ECORE_TEST_BIT(ECORE_RSS_IPV6_UDP, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV6_UDP_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV6_UDP_CAPABILITY;
 
-	if (ECORE_TEST_BIT(ECORE_RSS_TUNNELING, &p->rss_flags)) {
-		data->udp_4tuple_dst_port_mask = ECORE_CPU_TO_LE16(p->tunnel_mask);
-		data->udp_4tuple_dst_port_value =
-			ECORE_CPU_TO_LE16(p->tunnel_value);
+	if (ECORE_TEST_BIT(ECORE_RSS_IPV4_VXLAN, &p->rss_flags))
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV4_VXLAN_CAPABILITY;
+
+	if (ECORE_TEST_BIT(ECORE_RSS_IPV6_VXLAN, &p->rss_flags))
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV6_VXLAN_CAPABILITY;
+
+	if (ECORE_TEST_BIT(ECORE_RSS_TUNN_INNER_HDRS, &p->rss_flags))
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_TUNN_INNER_HDRS_CAPABILITY;
+
+	/* RSS keys */
+	if (ECORE_TEST_BIT(ECORE_RSS_SET_SRCH, &p->rss_flags)) {
+		ECORE_MEMCPY(&data->rss_key[0], &p->rss_key[0],
+		       sizeof(data->rss_key));
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY;
 	}
+
+	data->capabilities = ECORE_CPU_TO_LE16(caps);
 
 	/* Hashing mask */
 	data->rss_result_mask = p->rss_result_mask;
@@ -4395,18 +4556,11 @@ static int ecore_setup_rss(struct bxe_softc *sc,
 	ECORE_MEMCPY(o->ind_table, p->ind_table, T_ETH_INDIRECTION_TABLE_SIZE);
 
 
-	/* RSS keys */
-	if (ECORE_TEST_BIT(ECORE_RSS_SET_SRCH, &p->rss_flags)) {
-		ECORE_MEMCPY(&data->rss_key[0], &p->rss_key[0],
-		       sizeof(data->rss_key));
-		data->capabilities |= ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY;
-	}
-
-	/* No need for an explicit memory barrier here as long we would
-	 * need to ensure the ordering of writing to the SPQ element
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
 	 * and updating of the SPQ producer which involves a memory
-	 * read and we will have to put a full memory barrier there
-	 * (inside ecore_sp_post()).
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside ecore_sp_post()).
 	 */
 
 	/* Send a ramrod */
@@ -4470,15 +4624,6 @@ void ecore_init_rss_config_obj(struct bxe_softc *sc,
 	rss_obj->config_rss = ecore_setup_rss;
 }
 
-int validate_vlan_mac(struct bxe_softc *sc,
-		      struct ecore_vlan_mac_obj *vlan_mac)
-{
-	if (!vlan_mac->get_n_elements) {
-		ECORE_ERR("vlan mac object was not intialized\n");
-		return ECORE_INVAL;
-	}
-	return 0;
-}
 
 /********************** Queue state object ***********************************/
 
@@ -4660,6 +4805,8 @@ static void ecore_q_fill_init_general_data(struct bxe_softc *sc,
 	gen_data->traffic_type =
 		ECORE_TEST_BIT(ECORE_Q_FLG_FCOE, flags) ?
 		LLFC_TRAFFIC_TYPE_FCOE : LLFC_TRAFFIC_TYPE_NW;
+
+	gen_data->fp_hsi_ver = params->fp_hsi;
 
 	ECORE_MSG(sc, "flags: active %d, cos %d, stats en %d\n",
 		  gen_data->activate_flg, gen_data->cos, gen_data->statistics_en_flg);
@@ -4906,13 +5053,12 @@ static inline int ecore_q_send_setup_e1x(struct bxe_softc *sc,
 	/* Fill the ramrod data */
 	ecore_q_fill_setup_data_cmn(sc, params, rdata);
 
-	/* No need for an explicit memory barrier here as long we would
-	 * need to ensure the ordering of writing to the SPQ element
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
 	 * and updating of the SPQ producer which involves a memory
-	 * read and we will have to put a full memory barrier there
-	 * (inside ecore_sp_post()).
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside ecore_sp_post()).
 	 */
-
 	return ecore_sp_post(sc,
 			     ramrod,
 			     o->cids[ECORE_PRIMARY_CID_INDEX],
@@ -4936,13 +5082,12 @@ static inline int ecore_q_send_setup_e2(struct bxe_softc *sc,
 	ecore_q_fill_setup_data_cmn(sc, params, rdata);
 	ecore_q_fill_setup_data_e2(sc, params, rdata);
 
-	/* No need for an explicit memory barrier here as long we would
-	 * need to ensure the ordering of writing to the SPQ element
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
 	 * and updating of the SPQ producer which involves a memory
-	 * read and we will have to put a full memory barrier there
-	 * (inside ecore_sp_post()).
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside ecore_sp_post()).
 	 */
-
 	return ecore_sp_post(sc,
 			     ramrod,
 			     o->cids[ECORE_PRIMARY_CID_INDEX],
@@ -4986,13 +5131,12 @@ static inline int ecore_q_send_setup_tx_only(struct bxe_softc *sc,
 		  o->cids[cid_index], rdata->general.client_id,
 		  rdata->general.sp_client_id, rdata->general.cos);
 
-	/* No need for an explicit memory barrier here as long we would
-	 * need to ensure the ordering of writing to the SPQ element
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
 	 * and updating of the SPQ producer which involves a memory
-	 * read and we will have to put a full memory barrier there
-	 * (inside ecore_sp_post()).
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside ecore_sp_post()).
 	 */
-
 	return ecore_sp_post(sc, ramrod, o->cids[cid_index],
 			     data_mapping, ETH_CONNECTION_TYPE);
 }
@@ -5069,6 +5213,14 @@ static void ecore_q_fill_update_data(struct bxe_softc *sc,
 	data->tx_switching_change_flg =
 		ECORE_TEST_BIT(ECORE_Q_UPDATE_TX_SWITCHING_CHNG,
 			       &params->update_flags);
+
+	/* PTP */
+	data->handle_ptp_pkts_flg =
+		ECORE_TEST_BIT(ECORE_Q_UPDATE_PTP_PKTS,
+			       &params->update_flags);
+	data->handle_ptp_pkts_change_flg =
+		ECORE_TEST_BIT(ECORE_Q_UPDATE_PTP_PKTS_CHNG,
+			       &params->update_flags);
 }
 
 static inline int ecore_q_send_update(struct bxe_softc *sc,
@@ -5094,13 +5246,12 @@ static inline int ecore_q_send_update(struct bxe_softc *sc,
 	/* Fill the ramrod data */
 	ecore_q_fill_update_data(sc, o, update_params, rdata);
 
-	/* No need for an explicit memory barrier here as long we would
-	 * need to ensure the ordering of writing to the SPQ element
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
 	 * and updating of the SPQ producer which involves a memory
-	 * read and we will have to put a full memory barrier there
-	 * (inside ecore_sp_post()).
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside ecore_sp_post()).
 	 */
-
 	return ecore_sp_post(sc, RAMROD_CMD_ID_ETH_CLIENT_UPDATE,
 			     o->cids[cid_index], data_mapping,
 			     ETH_CONNECTION_TYPE);
@@ -5147,11 +5298,61 @@ static inline int ecore_q_send_activate(struct bxe_softc *sc,
 	return ecore_q_send_update(sc, params);
 }
 
+static void ecore_q_fill_update_tpa_data(struct bxe_softc *sc,
+				struct ecore_queue_sp_obj *obj,
+				struct ecore_queue_update_tpa_params *params,
+				struct tpa_update_ramrod_data *data)
+{
+	data->client_id = obj->cl_id;
+	data->complete_on_both_clients = params->complete_on_both_clients;
+	data->dont_verify_rings_pause_thr_flg =
+		params->dont_verify_thr;
+	data->max_agg_size = ECORE_CPU_TO_LE16(params->max_agg_sz);
+	data->max_sges_for_packet = params->max_sges_pkt;
+	data->max_tpa_queues = params->max_tpa_queues;
+	data->sge_buff_size = ECORE_CPU_TO_LE16(params->sge_buff_sz);
+	data->sge_page_base_hi = ECORE_CPU_TO_LE32(U64_HI(params->sge_map));
+	data->sge_page_base_lo = ECORE_CPU_TO_LE32(U64_LO(params->sge_map));
+	data->sge_pause_thr_high = ECORE_CPU_TO_LE16(params->sge_pause_thr_high);
+	data->sge_pause_thr_low = ECORE_CPU_TO_LE16(params->sge_pause_thr_low);
+	data->tpa_mode = params->tpa_mode;
+	data->update_ipv4 = params->update_ipv4;
+	data->update_ipv6 = params->update_ipv6;
+}
+
 static inline int ecore_q_send_update_tpa(struct bxe_softc *sc,
 					struct ecore_queue_state_params *params)
 {
-	/* TODO: Not implemented yet. */
-	return -1;
+	struct ecore_queue_sp_obj *o = params->q_obj;
+	struct tpa_update_ramrod_data *rdata =
+		(struct tpa_update_ramrod_data *)o->rdata;
+	ecore_dma_addr_t data_mapping = o->rdata_mapping;
+	struct ecore_queue_update_tpa_params *update_tpa_params =
+		&params->params.update_tpa;
+	uint16_t type;
+
+	/* Clear the ramrod data */
+	ECORE_MEMSET(rdata, 0, sizeof(*rdata));
+
+	/* Fill the ramrod data */
+	ecore_q_fill_update_tpa_data(sc, o, update_tpa_params, rdata);
+
+	/* Add the function id inside the type, so that sp post function
+	 * doesn't automatically add the PF func-id, this is required
+	 * for operations done by PFs on behalf of their VFs
+	 */
+	type = ETH_CONNECTION_TYPE |
+		((o->func_id) << SPE_HDR_T_FUNCTION_ID_SHIFT);
+
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
+	 * and updating of the SPQ producer which involves a memory
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside ecore_sp_post()).
+	 */
+	return ecore_sp_post(sc, RAMROD_CMD_ID_ETH_TPA_UPDATE,
+			     o->cids[ECORE_PRIMARY_CID_INDEX],
+			     data_mapping, type);
 }
 
 static inline int ecore_q_send_halt(struct bxe_softc *sc,
@@ -5163,6 +5364,12 @@ static inline int ecore_q_send_halt(struct bxe_softc *sc,
 	ecore_dma_addr_t data_mapping = 0;
 	data_mapping = (ecore_dma_addr_t)o->cl_id;
 
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
+	 * and updating of the SPQ producer which involves a memory
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside ecore_sp_post()).
+	 */
 	return ecore_sp_post(sc,
 			     RAMROD_CMD_ID_ETH_HALT,
 			     o->cids[ECORE_PRIMARY_CID_INDEX],
@@ -5744,12 +5951,20 @@ static int ecore_func_chk_transition(struct bxe_softc *sc,
 			 (!ECORE_TEST_BIT(ECORE_F_CMD_STOP, &o->pending)))
 			next_state = ECORE_F_STATE_STARTED;
 
+		else if ((cmd == ECORE_F_CMD_SET_TIMESYNC) &&
+			 (!ECORE_TEST_BIT(ECORE_F_CMD_STOP, &o->pending)))
+			next_state = ECORE_F_STATE_STARTED;
+
 		else if (cmd == ECORE_F_CMD_TX_STOP)
 			next_state = ECORE_F_STATE_TX_STOPPED;
 
 		break;
 	case ECORE_F_STATE_TX_STOPPED:
 		if ((cmd == ECORE_F_CMD_SWITCH_UPDATE) &&
+		    (!ECORE_TEST_BIT(ECORE_F_CMD_STOP, &o->pending)))
+			next_state = ECORE_F_STATE_TX_STOPPED;
+
+		else if ((cmd == ECORE_F_CMD_SET_TIMESYNC) &&
 		    (!ECORE_TEST_BIT(ECORE_F_CMD_STOP, &o->pending)))
 			next_state = ECORE_F_STATE_TX_STOPPED;
 
@@ -6020,17 +6235,51 @@ static inline int ecore_func_send_start(struct bxe_softc *sc,
 	rdata->sd_vlan_tag	= ECORE_CPU_TO_LE16(start_params->sd_vlan_tag);
 	rdata->path_id		= ECORE_PATH_ID(sc);
 	rdata->network_cos_mode	= start_params->network_cos_mode;
-	rdata->gre_tunnel_mode	= start_params->gre_tunnel_mode;
-	rdata->gre_tunnel_rss	= start_params->gre_tunnel_rss;
 
-	/*
-	 *  No need for an explicit memory barrier here as long we would
-	 *  need to ensure the ordering of writing to the SPQ element
-	 *  and updating of the SPQ producer which involves a memory
-	 *  read and we will have to put a full memory barrier there
-	 *  (inside ecore_sp_post()).
+	rdata->vxlan_dst_port	= start_params->vxlan_dst_port;
+	rdata->geneve_dst_port	= start_params->geneve_dst_port;
+	rdata->inner_clss_l2gre	= start_params->inner_clss_l2gre;
+	rdata->inner_clss_l2geneve = start_params->inner_clss_l2geneve;
+	rdata->inner_clss_vxlan	= start_params->inner_clss_vxlan;
+	rdata->inner_rss	= start_params->inner_rss;
+
+	rdata->sd_accept_mf_clss_fail = start_params->class_fail;
+	if (start_params->class_fail_ethtype) {
+		rdata->sd_accept_mf_clss_fail_match_ethtype = 1;
+		rdata->sd_accept_mf_clss_fail_ethtype =
+			ECORE_CPU_TO_LE16(start_params->class_fail_ethtype);
+	}
+	rdata->sd_vlan_force_pri_flg = start_params->sd_vlan_force_pri;
+	rdata->sd_vlan_force_pri_val = start_params->sd_vlan_force_pri_val;
+
+	/** @@@TMP - until FW 7.10.7 (which will introduce an HSI change)
+	 * `sd_vlan_eth_type' will replace ethertype in SD mode even if
+	 * it's set to 0; This will probably break SD, so we're setting it
+	 * to ethertype 0x8100 for now.
 	 */
+	if (start_params->sd_vlan_eth_type)
+		rdata->sd_vlan_eth_type =
+			ECORE_CPU_TO_LE16(start_params->sd_vlan_eth_type);
+	else
+		rdata->sd_vlan_eth_type =
+			ECORE_CPU_TO_LE16((uint16_t) 0x8100);
 
+	rdata->no_added_tags = start_params->no_added_tags;
+
+	rdata->c2s_pri_tt_valid = start_params->c2s_pri_valid;
+	if (rdata->c2s_pri_tt_valid) {
+		memcpy(rdata->c2s_pri_trans_table.val,
+		       start_params->c2s_pri,
+		       MAX_VLAN_PRIORITIES);
+		rdata->c2s_pri_default = start_params->c2s_pri_default;
+	}
+
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
+	 *  and updating of the SPQ producer which involves a memory
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside ecore_sp_post()).
+	 */
 	return ecore_sp_post(sc, RAMROD_CMD_ID_COMMON_FUNCTION_START, 0,
 			     data_mapping, NONE_CONNECTION_TYPE);
 }
@@ -6048,10 +6297,68 @@ static inline int ecore_func_send_switch_update(struct bxe_softc *sc,
 	ECORE_MEMSET(rdata, 0, sizeof(*rdata));
 
 	/* Fill the ramrod data with provided parameters */
+	if (ECORE_TEST_BIT(ECORE_F_UPDATE_TX_SWITCH_SUSPEND_CHNG,
+			   &switch_update_params->changes)) {
 	rdata->tx_switch_suspend_change_flg = 1;
-	rdata->tx_switch_suspend = switch_update_params->suspend;
+		rdata->tx_switch_suspend =
+			ECORE_TEST_BIT(ECORE_F_UPDATE_TX_SWITCH_SUSPEND,
+				       &switch_update_params->changes);
+	}
+
+	if (ECORE_TEST_BIT(ECORE_F_UPDATE_SD_VLAN_TAG_CHNG,
+			   &switch_update_params->changes)) {
+		rdata->sd_vlan_tag_change_flg = 1;
+		rdata->sd_vlan_tag =
+			ECORE_CPU_TO_LE16(switch_update_params->vlan);
+	}
+
+	if (ECORE_TEST_BIT(ECORE_F_UPDATE_SD_VLAN_ETH_TYPE_CHNG,
+			   &switch_update_params->changes)) {
+		rdata->sd_vlan_eth_type_change_flg = 1;
+		rdata->sd_vlan_eth_type =
+			ECORE_CPU_TO_LE16(switch_update_params->vlan_eth_type);
+	}
+
+	if (ECORE_TEST_BIT(ECORE_F_UPDATE_VLAN_FORCE_PRIO_CHNG,
+			   &switch_update_params->changes)) {
+		rdata->sd_vlan_force_pri_change_flg = 1;
+		if (ECORE_TEST_BIT(ECORE_F_UPDATE_VLAN_FORCE_PRIO_FLAG,
+				   &switch_update_params->changes))
+			rdata->sd_vlan_force_pri_flg = 1;
+		rdata->sd_vlan_force_pri_flg =
+			switch_update_params->vlan_force_prio;
+	}
+
+	if (ECORE_TEST_BIT(ECORE_F_UPDATE_TUNNEL_CFG_CHNG,
+			   &switch_update_params->changes)) {
+		rdata->update_tunn_cfg_flg = 1;
+		if (ECORE_TEST_BIT(ECORE_F_UPDATE_TUNNEL_INNER_CLSS_L2GRE,
+				   &switch_update_params->changes))
+			rdata->inner_clss_l2gre = 1;
+		if (ECORE_TEST_BIT(ECORE_F_UPDATE_TUNNEL_INNER_CLSS_VXLAN,
+				   &switch_update_params->changes))
+			rdata->inner_clss_vxlan = 1;
+		if (ECORE_TEST_BIT(ECORE_F_UPDATE_TUNNEL_INNER_CLSS_L2GENEVE,
+				   &switch_update_params->changes))
+			rdata->inner_clss_l2geneve = 1;
+		if (ECORE_TEST_BIT(ECORE_F_UPDATE_TUNNEL_INNER_RSS,
+				   &switch_update_params->changes))
+			rdata->inner_rss = 1;
+
+		rdata->vxlan_dst_port =
+			ECORE_CPU_TO_LE16(switch_update_params->vxlan_dst_port);
+		rdata->geneve_dst_port =
+			ECORE_CPU_TO_LE16(switch_update_params->geneve_dst_port);
+	}
+
 	rdata->echo = SWITCH_UPDATE;
 
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
+	 * and updating of the SPQ producer which involves a memory
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside ecore_sp_post()).
+	 */
 	return ecore_sp_post(sc, RAMROD_CMD_ID_COMMON_FUNCTION_UPDATE, 0,
 			     data_mapping, NONE_CONNECTION_TYPE);
 }
@@ -6078,11 +6385,11 @@ static inline int ecore_func_send_afex_update(struct bxe_softc *sc,
 	rdata->allowed_priorities = afex_update_params->allowed_priorities;
 	rdata->echo = AFEX_UPDATE;
 
-	/*  No need for an explicit memory barrier here as long we would
-	 *  need to ensure the ordering of writing to the SPQ element
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
 	 *  and updating of the SPQ producer which involves a memory
-	 *  read and we will have to put a full memory barrier there
-	 *  (inside ecore_sp_post()).
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside ecore_sp_post()).
 	 */
 	ECORE_MSG(sc,
 		  "afex: sending func_update vif_id 0x%x dvlan 0x%x prio 0x%x\n",
@@ -6115,16 +6422,16 @@ inline int ecore_func_send_afex_viflists(struct bxe_softc *sc,
 	/* send in echo type of sub command */
 	rdata->echo = afex_vif_params->afex_vif_list_command;
 
-	/*  No need for an explicit memory barrier here as long we would
-	 *  need to ensure the ordering of writing to the SPQ element
-	 *  and updating of the SPQ producer which involves a memory
-	 *  read and we will have to put a full memory barrier there
-	 *  (inside ecore_sp_post()).
-	 */
-
 	ECORE_MSG(sc, "afex: ramrod lists, cmd 0x%x index 0x%x func_bit_map 0x%x func_to_clr 0x%x\n",
 		  rdata->afex_vif_list_command, rdata->vif_list_index,
 		  rdata->func_bit_map, rdata->func_to_clear);
+
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
+	 * and updating of the SPQ producer which involves a memory
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside ecore_sp_post()).
+	 */
 
 	/* this ramrod sends data directly and not through DMA mapping */
 	return ecore_sp_post(sc, RAMROD_CMD_ID_COMMON_AFEX_VIF_LISTS, 0,
@@ -6165,7 +6472,50 @@ static inline int ecore_func_send_tx_start(struct bxe_softc *sc,
 		rdata->traffic_type_to_priority_cos[i] =
 			tx_start_params->traffic_type_to_priority_cos[i];
 
+	for (i = 0; i < MAX_TRAFFIC_TYPES; i++)
+		rdata->dcb_outer_pri[i] = tx_start_params->dcb_outer_pri[i];
+
+	/* No need for an explicit memory barrier here as long as we
+	 * ensure the ordering of writing to the SPQ element
+	 * and updating of the SPQ producer which involves a memory
+	 * read. If the memory read is removed we will have to put a
+	 * full memory barrier there (inside ecore_sp_post()).
+	 */
 	return ecore_sp_post(sc, RAMROD_CMD_ID_COMMON_START_TRAFFIC, 0,
+			     data_mapping, NONE_CONNECTION_TYPE);
+}
+
+static inline int ecore_func_send_set_timesync(struct bxe_softc *sc,
+					struct ecore_func_state_params *params)
+{
+	struct ecore_func_sp_obj *o = params->f_obj;
+	struct set_timesync_ramrod_data *rdata =
+		(struct set_timesync_ramrod_data *)o->rdata;
+	ecore_dma_addr_t data_mapping = o->rdata_mapping;
+	struct ecore_func_set_timesync_params *set_timesync_params =
+		&params->params.set_timesync;
+
+	ECORE_MEMSET(rdata, 0, sizeof(*rdata));
+
+	/* Fill the ramrod data with provided parameters */
+	rdata->drift_adjust_cmd = set_timesync_params->drift_adjust_cmd;
+	rdata->offset_cmd = set_timesync_params->offset_cmd;
+	rdata->add_sub_drift_adjust_value =
+		set_timesync_params->add_sub_drift_adjust_value;
+	rdata->drift_adjust_value = set_timesync_params->drift_adjust_value;
+	rdata->drift_adjust_period = set_timesync_params->drift_adjust_period;
+	rdata->offset_delta.lo =
+		ECORE_CPU_TO_LE32(U64_LO(set_timesync_params->offset_delta));
+	rdata->offset_delta.hi =
+		ECORE_CPU_TO_LE32(U64_HI(set_timesync_params->offset_delta));
+
+	ECORE_MSG(sc, "Set timesync command params: drift_cmd = %d, offset_cmd = %d, add_sub_drift = %d, drift_val = %d, drift_period = %d, offset_lo = %d, offset_hi = %d\n",
+	   rdata->drift_adjust_cmd, rdata->offset_cmd,
+	   rdata->add_sub_drift_adjust_value, rdata->drift_adjust_value,
+	   rdata->drift_adjust_period, rdata->offset_delta.lo,
+	   rdata->offset_delta.hi);
+
+	return ecore_sp_post(sc, RAMROD_CMD_ID_COMMON_SET_TIMESYNC, 0,
 			     data_mapping, NONE_CONNECTION_TYPE);
 }
 
@@ -6191,6 +6541,8 @@ static int ecore_func_send_cmd(struct bxe_softc *sc,
 		return ecore_func_send_tx_start(sc, params);
 	case ECORE_F_CMD_SWITCH_UPDATE:
 		return ecore_func_send_switch_update(sc, params);
+	case ECORE_F_CMD_SET_TIMESYNC:
+		return ecore_func_send_set_timesync(sc, params);
 	default:
 		ECORE_ERR("Unknown command: %d\n", params->cmd);
 		return ECORE_INVAL;

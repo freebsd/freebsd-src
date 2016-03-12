@@ -34,6 +34,12 @@
 USBCOREDIR:=	${.PARSEDIR}
 S=${USBCOREDIR}/../..
 
+MACHDEP_DIRS=
+
+.if defined(HAVE_EXYNOS_EHCI)
+MACHDEP_DIRS+=	${S}/arm/samsung/exynos
+.endif
+
 .PATH: \
 	${USBCOREDIR} \
 	${USBCOREDIR}/storage \
@@ -41,11 +47,15 @@ S=${USBCOREDIR}/../..
 	${S}/dev/usb/controller \
 	${S}/dev/usb/serial \
 	${S}/dev/usb/storage \
-	${S}/dev/usb/template
+	${S}/dev/usb/template \
+	${MACHDEP_DIRS}
 .undef S
 
+USB_POOL_SIZE?=	131072
+
 CFLAGS+=	-DUSB_MSCTEST_BULK_SIZE=65536
-CFLAGS+=	-DUSB_POOL_SIZE=131072
+CFLAGS+=	-DUSB_POOL_SIZE=${USB_POOL_SIZE}
+
 
 #
 # BUSDMA implementation
@@ -86,6 +96,14 @@ KSRCS+=	musbotg.c
 .if defined(HAVE_EHCI)
 CFLAGS += -DUSB_PCI_PROBE_LIST="\"ehci\""
 KSRCS+=	ehci.c
+.endif
+
+.if defined(HAVE_EXYNOS_EHCI)
+CFLAGS += -DUSB_PCI_PROBE_LIST="\"combiner\", \"pad\", \"ehci\""
+KSRCS+=	ehci.c
+KSRCS+=	exynos5_combiner.c
+KSRCS+=	exynos5_pad.c
+KSRCS+=	exynos5_ehci.c
 .endif
 
 .if defined(HAVE_OHCI)

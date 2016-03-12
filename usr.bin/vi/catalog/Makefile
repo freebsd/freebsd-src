@@ -115,7 +115,7 @@ SVLINKS= sv_SE
 PLLINKS= pl_PL
 
 FILES=	${CATALOGS}
-FILESDIR= /usr/share/vi/catalog
+FILESDIR= ${SHAREDIR}/vi/catalog
 SYMLINKS=
 .for l in ${NLLINKS}
 SYMLINKS+= dutch ${FILESDIR}/$l.ISO8859-1

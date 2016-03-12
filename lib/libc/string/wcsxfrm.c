@@ -1,4 +1,5 @@
 /*-
+ * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 1995 Alex Tatmanjants <alex@elvisti.kiev.ua>
  *		at Electronni Visti IA, Kiev, Ukraine.
  *			All rights reserved.
@@ -31,9 +32,6 @@
  */
 
 #include <sys/cdefs.h>
-#if 0
-__FBSDID("FreeBSD: src/lib/libc/string/strxfrm.c,v 1.15 2002/09/06 11:24:06 tjr Exp ");
-#endif
 __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
@@ -41,18 +39,10 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include "collate.h"
 
-static char *__mbsdup(const wchar_t *);
-
-/*
- * Placeholder wcsxfrm() implementation. See wcscoll.c for a description of
- * the logic used.
- */
 size_t
 wcsxfrm_l(wchar_t * __restrict dest, const wchar_t * __restrict src, size_t len, locale_t locale)
 {
-	int prim, sec, l;
 	size_t slen;
-	char *mbsrc, *s, *ss;
 	FIX_LOCALE(locale);
 	struct xlocale_collate *table =
 		(struct xlocale_collate*)locale->components[XLC_COLLATE];
@@ -63,67 +53,33 @@ wcsxfrm_l(wchar_t * __restrict dest, const wchar_t * __restrict src, size_t len,
 		return (0);
 	}
 
-	if (table->__collate_load_error || MB_CUR_MAX > 1) {
-		slen = wcslen(src);
-		if (len > 0) {
-			if (slen < len)
-				wcscpy(dest, src);
-			else {
-				wcsncpy(dest, src, len - 1);
-				dest[len - 1] = L'\0';
-			}
-		}
-		return (slen);
+	if ((table->__collate_load_error) ||
+	    ((slen = _collate_wxfrm(table, src, dest, len)) == (size_t)-1)) {
+		goto error;
 	}
 
-	mbsrc = __mbsdup(src);
-	slen = 0;
-	prim = sec = 0;
-	ss = s = __collate_substitute(table, mbsrc);
-	while (*s != '\0') {
-		while (*s != '\0' && prim == 0) {
-			__collate_lookup(table, s, &l, &prim, &sec);
-			s += l;
-		}
-		if (prim != 0) {
-			if (len > 1) {
-				*dest++ = (wchar_t)prim;
-				len--;
-			}
-			slen++;
-			prim = 0;
-		}
+	/* Add null termination at the correct location. */
+	if (len > slen) {
+		dest[slen] = 0;
+	} else if (len) {
+		dest[len-1] = 0;
 	}
-	free(ss);
-	free(mbsrc);
-	if (len != 0)
-		*dest = L'\0';
 
 	return (slen);
+
+error:
+	slen = wcslen(src);
+	if (slen < len)
+		(void) wcscpy(dest, src);
+	else {
+		(void) wcsncpy(dest, src, len - 1);
+		dest[len - 1] = L'\0';
+	}
+	return (slen);
 }
+
 size_t
 wcsxfrm(wchar_t * __restrict dest, const wchar_t * __restrict src, size_t len)
 {
 	return wcsxfrm_l(dest, src, len, __get_locale());
-}
-
-static char *
-__mbsdup(const wchar_t *ws)
-{
-	static const mbstate_t initial;
-	mbstate_t st;
-	const wchar_t *wcp;
-	size_t len;
-	char *mbs;
-
-	wcp = ws;
-	st = initial;
-	if ((len = wcsrtombs(NULL, &wcp, 0, &st)) == (size_t)-1)
-		return (NULL);
-	if ((mbs = malloc(len + 1)) == NULL)
-		return (NULL);
-	st = initial;
-	wcsrtombs(mbs, &ws, len + 1, &st);
-
-	return (mbs);
 }

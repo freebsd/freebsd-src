@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+#include "opt_at91.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -71,6 +74,12 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/intr.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
 
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
@@ -1196,6 +1205,11 @@ macbioctl(struct ifnet * ifp, u_long cmd, caddr_t data)
 static int
 macb_probe(device_t dev)
 {
+#ifdef FDT
+        if (!ofw_bus_is_compatible(dev, "cdns,at32ap7000-macb"))
+                return (ENXIO);
+#endif
+
 	device_set_desc(dev, "macb");
 	return (0);
 }
@@ -1280,6 +1294,52 @@ macb_get_mac(struct macb_softc *sc, u_char *eaddr)
 }
 
 
+#ifdef FDT
+/*
+ * We have to know if we're using MII or RMII attachment
+ * for the MACB to talk to the PHY correctly. With FDT,
+ * we must use rmii if there's a proprety phy-mode
+ * equal to "rmii". Otherwise we MII mode is used.
+ */
+static void
+macb_set_rmii(struct macb_softc *sc)
+{
+	phandle_t node;
+	char prop[10];
+	ssize_t len;
+
+	node = ofw_bus_get_node(sc->dev);
+	memset(prop, 0 ,sizeof(prop));
+	len = OF_getproplen(node, "phy-mode");
+	if (len != 4)
+		return;
+	if (OF_getprop(node, "phy-mode", prop, len) != len)
+		return;
+	if (strncmp(prop, "rmii", 4) == 0)
+		sc->use_rmii = USRIO_RMII;
+}
+#else
+/*
+ * We have to know if we're using MII or RMII attachment
+ * for the MACB to talk to the PHY correctly. Without FDT,
+ * there's no good way to do this. So, if the config file
+ * has 'option AT91_MACB_USE_RMII', then we'll force RMII.
+ * Otherwise, we'll use what the bootloader setup. Either
+ * it setup RMII or MII, in which case we'll get it right,
+ * or it did nothing, and we'll fall back to MII and the
+ * option would override if present.
+ */
+static void
+macb_set_rmii(struct macb_softc *sc)
+{
+#ifdef AT91_MACB_USE_RMII
+	sc->use_rmii = USRIO_RMII;
+#else
+	sc->use_rmii = read_4(sc, EMAC_USRIO) & USRIO_RMII;
+#endif
+}
+#endif
+
 static int
 macb_attach(device_t dev)
 {
@@ -1346,8 +1406,9 @@ macb_attach(device_t dev)
 
 	sc->clock = sc->clock << 10;
 
+	macb_set_rmii(sc);
 	write_4(sc, EMAC_NCFGR, sc->clock);
-	write_4(sc, EMAC_USRIO, USRIO_CLOCK);       //enable clock
+	write_4(sc, EMAC_USRIO, USRIO_CLOCK | sc->use_rmii);       //enable clock
 
 	write_4(sc, EMAC_NCR, MPE_ENABLE); //enable MPE
 
@@ -1546,7 +1607,11 @@ static driver_t macb_driver = {
 };
 
 
+#ifdef FDT
+DRIVER_MODULE(macb, simplebus, macb_driver, macb_devclass, NULL, NULL);
+#else
 DRIVER_MODULE(macb, atmelarm, macb_driver, macb_devclass, 0, 0);
+#endif
 DRIVER_MODULE(miibus, macb, miibus_driver, miibus_devclass, 0, 0);
 MODULE_DEPEND(macb, miibus, 1, 1, 1);
 MODULE_DEPEND(macb, ether, 1, 1, 1);

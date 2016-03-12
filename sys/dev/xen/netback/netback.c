@@ -164,7 +164,7 @@ static void	xnb_txpkt2rsp(const struct xnb_pkt *pkt,
 			      netif_tx_back_ring_t *ring, int error);
 static struct mbuf *xnb_pkt2mbufc(const struct xnb_pkt *pkt, struct ifnet *ifp);
 static int	xnb_txpkt2gnttab(const struct xnb_pkt *pkt,
-				 const struct mbuf *mbufc,
+				 struct mbuf *mbufc,
 				 gnttab_copy_table gnttab,
 				 const netif_tx_back_ring_t *txb,
 				 domid_t otherend_id);
@@ -524,13 +524,15 @@ xnb_dump_gnttab_copy(const struct gnttab_copy *entry)
 	if (entry->flags & GNTCOPY_dest_gref)
 		printf("gnttab dest ref=\t%u\n", entry->dest.u.ref);
 	else
-		printf("gnttab dest gmfn=\t%lu\n", entry->dest.u.gmfn);
+		printf("gnttab dest gmfn=\t%"PRI_xen_pfn"\n",
+		       entry->dest.u.gmfn);
 	printf("gnttab dest offset=\t%hu\n", entry->dest.offset);
 	printf("gnttab dest domid=\t%hu\n", entry->dest.domid);
 	if (entry->flags & GNTCOPY_source_gref)
 		printf("gnttab source ref=\t%u\n", entry->source.u.ref);
 	else
-		printf("gnttab source gmfn=\t%lu\n", entry->source.u.gmfn);
+		printf("gnttab source gmfn=\t%"PRI_xen_pfn"\n",
+		       entry->source.u.gmfn);
 	printf("gnttab source offset=\t%hu\n", entry->source.offset);
 	printf("gnttab source domid=\t%hu\n", entry->source.domid);
 	printf("gnttab len=\t%hu\n", entry->len);
@@ -1707,12 +1709,12 @@ xnb_pkt2mbufc(const struct xnb_pkt *pkt, struct ifnet *ifp)
  * \return 		The number of gnttab entries filled
  */
 static int
-xnb_txpkt2gnttab(const struct xnb_pkt *pkt, const struct mbuf *mbufc,
+xnb_txpkt2gnttab(const struct xnb_pkt *pkt, struct mbuf *mbufc,
 		 gnttab_copy_table gnttab, const netif_tx_back_ring_t *txb,
 		 domid_t otherend_id)
 {
 
-	const struct mbuf *mbuf = mbufc;/* current mbuf within the chain */
+	struct mbuf *mbuf = mbufc;/* current mbuf within the chain */
 	int gnt_idx = 0;		/* index into grant table */
 	RING_IDX r_idx = pkt->car;	/* index into tx ring buffer */
 	int r_ofs = 0;	/* offset of next data within tx request's data area */

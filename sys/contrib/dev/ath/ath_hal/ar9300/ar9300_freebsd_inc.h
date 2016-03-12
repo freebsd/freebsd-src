@@ -17,7 +17,7 @@
 #define ATH_ANT_DIV_COMB        1       /* Antenna combining */
 #define ATH_SUPPORT_RAW_ADC_CAPTURE     0       /* Raw ADC capture support */
 #define ATH_TRAFFIC_FAST_RECOVER        0       /* XXX not sure yet */
-#define ATH_SUPPORT_SPECTRAL    0       /* Spectral scan support */
+#define ATH_SUPPORT_SPECTRAL    1       /* Spectral scan support */
 #define ATH_BT_COEX             1       /* Enable BT Coex code */
 #define ATH_PCIE_ERROR_MONITOR  0       /* ??? */
 #define ATH_SUPPORT_CRDC        0       /* ??? */
@@ -51,7 +51,7 @@
 #define	AH_SUPPORT_POSEIDON		1
 #define	AH_SUPPORT_AR9300		1
 
-/* These are the embedded boards; we don't currently support these */
+/* These are the embedded boards */
 #ifdef	AH_SUPPORT_AR9330
 #define AH_SUPPORT_HORNET		1
 #endif	/* AH_SUPPORT_AR9330 */
@@ -61,6 +61,9 @@
 #ifdef	AH_SUPPORT_QCA9550
 #define AH_SUPPORT_SCORPION             1
 #endif	/* AH_SUPPORT_QCA9550 */
+#ifdef	AH_SUPPORT_QCA9530
+#define	AH_SUPPORT_HONEYBEE		1
+#endif	/* AH_SUPPORT_QCA9530 */
 #define FIX_NOISE_FLOOR                 1
 
 /* XXX this needs to be removed! No atomics in the HAL! */

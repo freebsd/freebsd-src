@@ -2,8 +2,7 @@
 
 PROG=	atsectl
 
-DPADD=	${LIBMD}
-LDADD=	-lmd
+LIBADD=	md
 
 BINDIR?=	/usr/sbin
 

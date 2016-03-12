@@ -72,7 +72,7 @@ snc_isapnp_reconfig(device_t dev)
 {
 	struct isa_device *idev = DEVTOISA(dev);
         struct isa_config config;
-	u_long start, count;
+	rman_res_t start, count;
 	int rid;
 
 	bzero(&config, sizeof(config));
@@ -147,9 +147,9 @@ snc_isa_probe(device_t dev)
 		for (port = 0x0888; port <= 0x3888; port += 0x1000) {
 			bus_set_resource(dev, SYS_RES_IOPORT, rid,
 					 port, SNEC_NREGS);
-			res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-						 0ul, ~0ul, SNEC_NREGS,
-						 0 /* !RF_ACTIVE */);
+			res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+							  &rid, SNEC_NREGS,
+							  0 /* !RF_ACTIVE */);
 			if (res) break;
 		}
 

@@ -37,9 +37,10 @@
 #define	_RACCT_H_
 
 #include <sys/cdefs.h>
-#include <sys/stdint.h>
-#include <sys/queue.h>
 #include <sys/types.h>
+#include <sys/queue.h>
+#include <sys/stdint.h>
+#include <sys/sysctl.h>
 
 struct proc;
 struct rctl_rule_link;
@@ -145,6 +146,8 @@ struct racct {
 	int64_t				r_resources[RACCT_MAX + 1];
 	LIST_HEAD(, rctl_rule_link)	r_rule_links;
 };
+
+SYSCTL_DECL(_kern_racct);
 
 #ifdef RACCT
 

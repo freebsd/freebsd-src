@@ -244,7 +244,8 @@ SM_STATE(SUPP_PAE, DISCONNECTED)
 
 SM_STATE(SUPP_PAE, CONNECTING)
 {
-	int send_start = sm->SUPP_PAE_state == SUPP_PAE_CONNECTING;
+	int send_start = sm->SUPP_PAE_state == SUPP_PAE_CONNECTING ||
+		sm->SUPP_PAE_state == SUPP_PAE_HELD;
 	SM_ENTRY(SUPP_PAE, CONNECTING);
 
 	if (sm->eapTriggerStart)
@@ -653,7 +654,9 @@ static void eapol_sm_processKey(struct eapol_sm *sm)
 	struct ieee802_1x_eapol_key *key;
 	struct eap_key_data keydata;
 	u8 orig_key_sign[IEEE8021X_KEY_SIGN_LEN], datakey[32];
+#ifndef CONFIG_NO_RC4
 	u8 ekey[IEEE8021X_KEY_IV_LEN + IEEE8021X_ENCR_KEY_LEN];
+#endif /* CONFIG_NO_RC4 */
 	int key_len, res, sign_key_len, encr_key_len;
 	u16 rx_key_length;
 	size_t plen;
@@ -747,6 +750,13 @@ static void eapol_sm_processKey(struct eapol_sm *sm)
 		return;
 	}
 	if (key_len == rx_key_length) {
+#ifdef CONFIG_NO_RC4
+		if (encr_key_len) {
+			/* otherwise unused */
+		}
+		wpa_printf(MSG_ERROR, "EAPOL: RC4 not supported in the build");
+		return;
+#else /* CONFIG_NO_RC4 */
 		os_memcpy(ekey, key->key_iv, IEEE8021X_KEY_IV_LEN);
 		os_memcpy(ekey + IEEE8021X_KEY_IV_LEN, keydata.encr_key,
 			  encr_key_len);
@@ -755,6 +765,7 @@ static void eapol_sm_processKey(struct eapol_sm *sm)
 			 datakey, key_len);
 		wpa_hexdump_key(MSG_DEBUG, "EAPOL: Decrypted(RC4) key",
 				datakey, key_len);
+#endif /* CONFIG_NO_RC4 */
 	} else if (key_len == 0) {
 		/*
 		 * IEEE 802.1X-2004 specifies that least significant Key Length
@@ -1997,7 +2008,7 @@ static void eapol_sm_set_anon_id(void *ctx, const u8 *id, size_t len)
 }
 
 
-static struct eapol_callbacks eapol_cb =
+static const struct eapol_callbacks eapol_cb =
 {
 	eapol_sm_get_config,
 	eapol_sm_get_bool,

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2015
+.Dd December 10, 2015
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -1107,15 +1107,6 @@ and
 .Cm recover
 are the only operations allowed on corrupt tables.
 .Pp
-If the first sector of a provider is corrupt, the kernel can not detect GPT
-even if the partition table itself is not corrupt.
-The protective MBR can be rewritten using the
-.Xr dd 1
-command, to restore the ability to detect the GPT.
-The copy of the protective MBR is usually located in the
-.Pa /boot/pmbr
-file.
-.Pp
 If one GPT header appears to be corrupt but the other copy remains intact,
 the kernel will log the following:
 .Bd -literal -offset indent
@@ -1330,7 +1321,6 @@ and
 /sbin/gpart backup ada0 | /sbin/gpart restore -F ada1 ada2
 .Ed
 .Sh SEE ALSO
-.Xr dd 1 ,
 .Xr geom 4 ,
 .Xr boot0cfg 8 ,
 .Xr geom 8 ,

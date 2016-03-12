@@ -177,11 +177,15 @@ static void	iwn4965_print_power_group(struct iwn_softc *, int);
 #endif
 static void	iwn5000_read_eeprom(struct iwn_softc *);
 static uint32_t	iwn_eeprom_channel_flags(struct iwn_eeprom_chan *);
-static void	iwn_read_eeprom_band(struct iwn_softc *, int);
-static void	iwn_read_eeprom_ht40(struct iwn_softc *, int);
+static void	iwn_read_eeprom_band(struct iwn_softc *, int, int, int *,
+		    struct ieee80211_channel[]);
+static void	iwn_read_eeprom_ht40(struct iwn_softc *, int, int, int *,
+		    struct ieee80211_channel[]);
 static void	iwn_read_eeprom_channels(struct iwn_softc *, int, uint32_t);
 static struct iwn_eeprom_chan *iwn_find_eeprom_channel(struct iwn_softc *,
 		    struct ieee80211_channel *);
+static void	iwn_getradiocaps(struct ieee80211com *, int, int *,
+		    struct ieee80211_channel[]);
 static int	iwn_setregdomain(struct ieee80211com *,
 		    struct ieee80211_regdomain *, int,
 		    struct ieee80211_channel[]);
@@ -318,6 +322,7 @@ static int	iwn_read_firmware_leg(struct iwn_softc *,
 static int	iwn_read_firmware_tlv(struct iwn_softc *,
 		    struct iwn_fw_info *, uint16_t);
 static int	iwn_read_firmware(struct iwn_softc *);
+static void	iwn_unload_firmware(struct iwn_softc *);
 static int	iwn_clock_wait(struct iwn_softc *);
 static int	iwn_apm_init(struct iwn_softc *);
 static void	iwn_apm_stop_master(struct iwn_softc *);
@@ -412,7 +417,7 @@ iwn_is_3stream_device(struct iwn_softc *sc)
 static int
 iwn_attach(device_t dev)
 {
-	struct iwn_softc *sc = (struct iwn_softc *)device_get_softc(dev);
+	struct iwn_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic;
 	int i, error, rid;
 
@@ -665,6 +670,7 @@ iwn_attach(device_t dev)
 	ic->ic_set_channel = iwn_set_channel;
 	ic->ic_scan_curchan = iwn_scan_curchan;
 	ic->ic_scan_mindwell = iwn_scan_mindwell;
+	ic->ic_getradiocaps = iwn_getradiocaps;
 	ic->ic_setregdomain = iwn_setregdomain;
 
 	iwn_radiotap_attach(sc);
@@ -1732,7 +1738,7 @@ iwn_dma_contig_alloc(struct iwn_softc *sc, struct iwn_dma_info *dma,
 
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), alignment,
 	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
-	    1, size, BUS_DMA_NOWAIT, NULL, NULL, &dma->tag);
+	    1, size, 0, NULL, NULL, &dma->tag);
 	if (error != 0)
 		goto fail;
 
@@ -1861,8 +1867,7 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 	/* Create RX buffer DMA tag. */
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    IWN_RBUF_SIZE, 1, IWN_RBUF_SIZE, BUS_DMA_NOWAIT, NULL, NULL,
-	    &ring->data_dmat);
+	    IWN_RBUF_SIZE, 1, IWN_RBUF_SIZE, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not create RX buf DMA tag, error %d\n",
@@ -2008,8 +2013,7 @@ iwn_alloc_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring, int qid)
 
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
-	    IWN_MAX_SCATTER - 1, MCLBYTES, BUS_DMA_NOWAIT, NULL, NULL,
-	    &ring->data_dmat);
+	    IWN_MAX_SCATTER - 1, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not create TX buf DMA tag, error %d\n",
@@ -2372,9 +2376,9 @@ iwn_eeprom_channel_flags(struct iwn_eeprom_chan *channel)
 }
 
 static void
-iwn_read_eeprom_band(struct iwn_softc *sc, int n)
+iwn_read_eeprom_band(struct iwn_softc *sc, int n, int maxchans, int *nchans,
+    struct ieee80211_channel chans[])
 {
-	struct ieee80211com *ic = &sc->sc_ic;
 	struct iwn_eeprom_chan *channels = sc->eeprom_channels[n];
 	const struct iwn_chan_band *band = &iwn_bands[n];
 	struct ieee80211_channel *c;
@@ -2391,10 +2395,14 @@ iwn_read_eeprom_band(struct iwn_softc *sc, int n)
 			    channels[i].maxpwr);
 			continue;
 		}
+
+		if (*nchans >= maxchans)
+			break;
+
 		chan = band->chan[i];
 		nflags = iwn_eeprom_channel_flags(&channels[i]);
 
-		c = &ic->ic_channels[ic->ic_nchans++];
+		c = &chans[(*nchans)++];
 		c->ic_ieee = chan;
 		c->ic_maxregpower = channels[i].maxpwr;
 		c->ic_maxpower = 2*c->ic_maxregpower;
@@ -2403,7 +2411,11 @@ iwn_read_eeprom_band(struct iwn_softc *sc, int n)
 			c->ic_freq = ieee80211_ieee2mhz(chan, IEEE80211_CHAN_G);
 			/* G =>'s B is supported */
 			c->ic_flags = IEEE80211_CHAN_B | nflags;
-			c = &ic->ic_channels[ic->ic_nchans++];
+
+			if (*nchans >= maxchans)
+				break;
+
+			c = &chans[(*nchans)++];
 			c[0] = c[-1];
 			c->ic_flags = IEEE80211_CHAN_G | nflags;
 		} else {	/* 5GHz band */
@@ -2419,8 +2431,11 @@ iwn_read_eeprom_band(struct iwn_softc *sc, int n)
 		    channels[i].flags, channels[i].maxpwr);
 
 		if (sc->sc_flags & IWN_FLAG_HAS_11N) {
+			if (*nchans >= maxchans)
+				break;
+
 			/* add HT20, HT40 added separately */
-			c = &ic->ic_channels[ic->ic_nchans++];
+			c = &chans[(*nchans)++];
 			c[0] = c[-1];
 			c->ic_flags |= IEEE80211_CHAN_HT20;
 		}
@@ -2431,7 +2446,8 @@ iwn_read_eeprom_band(struct iwn_softc *sc, int n)
 }
 
 static void
-iwn_read_eeprom_ht40(struct iwn_softc *sc, int n)
+iwn_read_eeprom_ht40(struct iwn_softc *sc, int n, int maxchans, int *nchans,
+    struct ieee80211_channel chans[])
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct iwn_eeprom_chan *channels = sc->eeprom_channels[n];
@@ -2455,6 +2471,10 @@ iwn_read_eeprom_ht40(struct iwn_softc *sc, int n)
 			    channels[i].maxpwr);
 			continue;
 		}
+
+		if (*nchans + 1 >= maxchans)
+			break;
+
 		chan = band->chan[i];
 		nflags = iwn_eeprom_channel_flags(&channels[i]);
 
@@ -2482,12 +2502,12 @@ iwn_read_eeprom_ht40(struct iwn_softc *sc, int n)
 		    "add ht40 chan %d flags 0x%x maxpwr %d\n",
 		    chan, channels[i].flags, channels[i].maxpwr);
 
-		c = &ic->ic_channels[ic->ic_nchans++];
+		c = &chans[(*nchans)++];
 		c[0] = cent[0];
 		c->ic_extieee = extc->ic_ieee;
 		c->ic_flags &= ~IEEE80211_CHAN_HT;
 		c->ic_flags |= IEEE80211_CHAN_HT40U | nflags;
-		c = &ic->ic_channels[ic->ic_nchans++];
+		c = &chans[(*nchans)++];
 		c[0] = extc[0];
 		c->ic_extieee = cent->ic_ieee;
 		c->ic_flags &= ~IEEE80211_CHAN_HT;
@@ -2506,10 +2526,13 @@ iwn_read_eeprom_channels(struct iwn_softc *sc, int n, uint32_t addr)
 	iwn_read_prom_data(sc, addr, &sc->eeprom_channels[n],
 	    iwn_bands[n].nchan * sizeof (struct iwn_eeprom_chan));
 
-	if (n < 5)
-		iwn_read_eeprom_band(sc, n);
-	else
-		iwn_read_eeprom_ht40(sc, n);
+	if (n < 5) {
+		iwn_read_eeprom_band(sc, n, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+		    ic->ic_channels);
+	} else {
+		iwn_read_eeprom_ht40(sc, n, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+		    ic->ic_channels);
+	}
 	ieee80211_sort_channels(ic->ic_channels, ic->ic_nchans);
 }
 
@@ -2537,6 +2560,20 @@ iwn_find_eeprom_channel(struct iwn_softc *sc, struct ieee80211_channel *c)
 		}
 	}
 	return NULL;
+}
+
+static void
+iwn_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	struct iwn_softc *sc = ic->ic_softc;
+	int i;
+
+	/* Parse the list of authorized channels. */
+	for (i = 0; i < 5 && *nchans < maxchans; i++)
+		iwn_read_eeprom_band(sc, i, maxchans, nchans, chans);
+	for (i = 5; i < IWN_NBANDS - 1 && *nchans < maxchans; i++)
+		iwn_read_eeprom_ht40(sc, i, maxchans, nchans, chans);
 }
 
 /*
@@ -4854,6 +4891,7 @@ iwn_xmit_task(void *arg0, int pending)
 			if_inc_counter(ni->ni_vap->iv_ifp,
 			    IFCOUNTER_OERRORS, 1);
 			ieee80211_free_node(ni);
+			m_freem(m);
 		}
 	}
 
@@ -4874,15 +4912,12 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	DPRINTF(sc, IWN_DEBUG_XMIT | IWN_DEBUG_TRACE, "->%s begin\n", __func__);
 
+	IWN_LOCK(sc);
 	if ((sc->sc_flags & IWN_FLAG_RUNNING) == 0) {
 		m_freem(m);
-		return ENETDOWN;
+		IWN_UNLOCK(sc);
+		return (ENETDOWN);
 	}
-
-	/* XXX? net80211 doesn't set this on xmit'ed raw frames? */
-	m->m_pkthdr.rcvif = (void *) ni;
-
-	IWN_LOCK(sc);
 
 	/* queue frame if we have to */
 	if (sc->sc_beacon_wait) {
@@ -4911,12 +4946,14 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	}
 	if (error == 0)
 		sc->sc_tx_timer = 5;
+	else
+		m_freem(m);
 
 	IWN_UNLOCK(sc);
 
 	DPRINTF(sc, IWN_DEBUG_TRACE | IWN_DEBUG_XMIT, "->%s: end\n",__func__);
 
-	return error;
+	return (error);
 }
 
 /*
@@ -6280,8 +6317,8 @@ iwn_set_pslevel(struct iwn_softc *sc, int dtim, int level, int async)
 	if (level == 5)
 		cmd.flags |= htole16(IWN_PS_FAST_PD);
 	/* Retrieve PCIe Active State Power Management (ASPM). */
-	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
-	if (!(reg & 0x1))	/* L0s Entry disabled. */
+	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + PCIER_LINK_CTL, 4);
+	if (!(reg & PCIEM_LINK_CTL_ASPMC_L0S))	/* L0s Entry disabled. */
 		cmd.flags |= htole16(IWN_PS_PCI_PMGT);
 	cmd.rxtimeout = htole32(pmgt->rxtimeout * 1024);
 	cmd.txtimeout = htole32(pmgt->txtimeout * 1024);
@@ -8202,9 +8239,8 @@ iwn_read_firmware(struct iwn_softc *sc)
 	if (fw->size < sizeof (uint32_t)) {
 		device_printf(sc->sc_dev, "%s: firmware too short: %zu bytes\n",
 		    __func__, fw->size);
-		firmware_put(sc->fw_fp, FIRMWARE_UNLOAD);
-		sc->fw_fp = NULL;
-		return EINVAL;
+		error = EINVAL;
+		goto fail;
 	}
 
 	/* Retrieve text and data sections. */
@@ -8216,9 +8252,7 @@ iwn_read_firmware(struct iwn_softc *sc)
 		device_printf(sc->sc_dev,
 		    "%s: could not read firmware sections, error %d\n",
 		    __func__, error);
-		firmware_put(sc->fw_fp, FIRMWARE_UNLOAD);
-		sc->fw_fp = NULL;
-		return error;
+		goto fail;
 	}
 
 	device_printf(sc->sc_dev, "%s: ucode rev=0x%08x\n", __func__, sc->ucode_rev);
@@ -8232,13 +8266,22 @@ iwn_read_firmware(struct iwn_softc *sc)
 	    (fw->boot.textsz & 3) != 0) {
 		device_printf(sc->sc_dev, "%s: firmware sections too large\n",
 		    __func__);
-		firmware_put(sc->fw_fp, FIRMWARE_UNLOAD);
-		sc->fw_fp = NULL;
-		return EINVAL;
+		error = EINVAL;
+		goto fail;
 	}
 
 	/* We can proceed with loading the firmware. */
 	return 0;
+
+fail:	iwn_unload_firmware(sc);
+	return error;
+}
+
+static void
+iwn_unload_firmware(struct iwn_softc *sc)
+{
+	firmware_put(sc->fw_fp, FIRMWARE_UNLOAD);
+	sc->fw_fp = NULL;
 }
 
 static int
@@ -8280,9 +8323,9 @@ iwn_apm_init(struct iwn_softc *sc)
 	IWN_SETBITS(sc, IWN_HW_IF_CONFIG, IWN_HW_IF_CONFIG_HAP_WAKE_L1A);
 
 	/* Retrieve PCIe Active State Power Management (ASPM). */
-	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
+	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + PCIER_LINK_CTL, 4);
 	/* Workaround for HW instability in PCIe L0->L0s->L1 transition. */
-	if (reg & 0x02)	/* L1 Entry enabled. */
+	if (reg & PCIEM_LINK_CTL_ASPMC_L1)	/* L1 Entry enabled. */
 		IWN_SETBITS(sc, IWN_GIO, IWN_GIO_L0S_ENA);
 	else
 		IWN_CLRBITS(sc, IWN_GIO, IWN_GIO_L0S_ENA);
@@ -8726,8 +8769,7 @@ iwn_init_locked(struct iwn_softc *sc)
 
 	/* Initialize hardware and upload firmware. */
 	error = iwn_hw_init(sc);
-	firmware_put(sc->fw_fp, FIRMWARE_UNLOAD);
-	sc->fw_fp = NULL;
+	iwn_unload_firmware(sc);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not initialize hardware, error %d\n", __func__,

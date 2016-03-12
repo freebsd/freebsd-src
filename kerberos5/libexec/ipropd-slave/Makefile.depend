@@ -25,14 +25,11 @@ DIRDEPS = \
 	lib/libsqlite3 \
 	lib/libthr \
 	secure/lib/libcrypto \
+	usr.bin/compile_et.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ipropd_common.o: kadm5_err.h
-ipropd_common.po: kadm5_err.h
-ipropd_slave.o: kadm5_err.h
-ipropd_slave.po: kadm5_err.h
 .endif

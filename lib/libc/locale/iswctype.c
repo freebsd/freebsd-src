@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 int
 iswalnum(wint_t wc)
 {
-	return (__istype(wc, _CTYPE_A|_CTYPE_D));
+	return (__istype(wc, _CTYPE_A|_CTYPE_N));
 }
 
 #undef iswalpha
@@ -79,7 +79,7 @@ iswcntrl(wint_t wc)
 int
 iswdigit(wint_t wc)
 {
-	return (__isctype(wc, _CTYPE_D));
+	return (__istype(wc, _CTYPE_D));
 }
 
 #undef iswgraph
@@ -114,7 +114,7 @@ iswlower(wint_t wc)
 int
 iswnumber(wint_t wc)
 {
-	return (__istype(wc, _CTYPE_D));
+	return (__istype(wc, _CTYPE_N));
 }
 
 #undef iswphonogram	
@@ -170,7 +170,7 @@ iswupper(wint_t wc)
 int
 iswxdigit(wint_t wc)
 {
-	return (__isctype(wc, _CTYPE_X));
+	return (__istype(wc, _CTYPE_X));
 }
 
 #undef towlower

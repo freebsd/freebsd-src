@@ -16,7 +16,7 @@ if not res then
 else
 	local obj = parser:get_object()
 	local got = ucl.to_format(obj, 'json')
-endif
+end
 
 local table = {
   str = 'value',
@@ -25,6 +25,7 @@ local table = {
   func = function ()
     return 'huh'
   end
+}
 
 
 print(ucl.to_format(table, 'ucl'))
@@ -115,6 +116,7 @@ local table = {
   func = function ()
     return 'huh'
   end
+}
 
 
 print(ucl.to_format(table, 'ucl'))

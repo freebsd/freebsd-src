@@ -150,7 +150,7 @@ kvm_deadfiles(kvm_t *kd, int op __unused, int arg __unused, long allproc_o,
 fail:
 	free(ofiles);
 	return (0);
-	
+
 }
 
 char *

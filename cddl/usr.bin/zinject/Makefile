@@ -21,8 +21,6 @@ CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/zfs/
 CFLAGS+= -I${.CURDIR}/../../contrib/opensolaris/head
 CFLAGS+= -I${.CURDIR}/../../lib/libumem
 
-DPADD=	${LIBGEOM} ${LIBM} ${LIBNVPAIR} ${LIBUMEM} ${LIBUUTIL} \
-	${LIBZFS_CORE} ${LIBZFS} ${LIBZPOOL}
-LDADD=	-lgeom -lm -lnvpair -lumem -luutil -lzfs_core -lzfs -lzpool
+LIBADD=	geom m nvpair umem uutil zfs_core zfs zpool
 
 .include <bsd.prog.mk>

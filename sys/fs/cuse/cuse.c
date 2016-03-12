@@ -108,6 +108,7 @@ struct cuse_server {
 	TAILQ_HEAD(, cuse_client) hcli;
 	struct cv cv;
 	struct selinfo selinfo;
+	pid_t	pid;
 	int	is_closing;
 	int	refs;
 };
@@ -510,7 +511,7 @@ cuse_client_is_closing(struct cuse_client *pcc)
 
 static void
 cuse_client_send_command_locked(struct cuse_client_command *pccmd,
-    unsigned long data_ptr, unsigned long arg, int fflags, int ioflag)
+    uintptr_t data_ptr, unsigned long arg, int fflags, int ioflag)
 {
 	unsigned long cuse_fflags = 0;
 	struct cuse_server *pcs;
@@ -691,6 +692,10 @@ cuse_server_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 		free(pcs, M_CUSE);
 		return (ENOMEM);
 	}
+
+	/* store current process ID */
+	pcs->pid = curproc->p_pid;
+
 	TAILQ_INIT(&pcs->head);
 	TAILQ_INIT(&pcs->hdev);
 	TAILQ_INIT(&pcs->hcli);
@@ -1132,7 +1137,7 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 		if (pccmd != NULL) {
 			pcc = pccmd->client;
 			for (n = 0; n != CUSE_CMD_MAX; n++) {
-				pcc->cmds[n].sub.per_file_handle = *(unsigned long *)data;
+				pcc->cmds[n].sub.per_file_handle = *(uintptr_t *)data;
 			}
 		} else {
 			error = ENXIO;
@@ -1357,9 +1362,15 @@ cuse_client_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 	if (pcsd != NULL) {
 		pcs = pcsd->server;
 		pcd = pcsd->user_dev;
+		/*
+		 * Check that the refcount didn't wrap and that the
+		 * same process is not both client and server. This
+		 * can easily lead to deadlocks when destroying the
+		 * CUSE character device nodes:
+		 */
 		pcs->refs++;
-		if (pcs->refs < 0) {
-			/* overflow */
+		if (pcs->refs < 0 || pcs->pid == curproc->p_pid) {
+			/* overflow or wrong PID */
 			pcs->refs--;
 			pcsd = NULL;
 		}
@@ -1536,7 +1547,7 @@ cuse_client_read(struct cdev *dev, struct uio *uio, int ioflag)
 
 		cuse_lock();
 		cuse_client_send_command_locked(pccmd,
-		    (unsigned long)uio->uio_iov->iov_base,
+		    (uintptr_t)uio->uio_iov->iov_base,
 		    (unsigned long)(unsigned int)len, pcc->fflags, ioflag);
 
 		error = cuse_client_receive_command_locked(pccmd, 0, 0);
@@ -1596,7 +1607,7 @@ cuse_client_write(struct cdev *dev, struct uio *uio, int ioflag)
 
 		cuse_lock();
 		cuse_client_send_command_locked(pccmd,
-		    (unsigned long)uio->uio_iov->iov_base,
+		    (uintptr_t)uio->uio_iov->iov_base,
 		    (unsigned long)(unsigned int)len, pcc->fflags, ioflag);
 
 		error = cuse_client_receive_command_locked(pccmd, 0, 0);

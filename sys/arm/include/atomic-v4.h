@@ -116,7 +116,7 @@ static __inline u_int32_t
 atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_int32_t newval)
 {
 	int ret;
-	
+
 	__with_interrupts_disabled(
 	 {
 	    	if (*p == cmpval) {
@@ -133,7 +133,7 @@ static __inline u_int64_t
 atomic_cmpset_64(volatile u_int64_t *p, volatile u_int64_t cmpval, volatile u_int64_t newval)
 {
 	int ret;
-	
+
 	__with_interrupts_disabled(
 	 {
 	    	if (*p == cmpval) {
@@ -361,6 +361,13 @@ atomic_readandclear_32(volatile u_int32_t *p)
 {
 
 	return (__swp(0, p));
+}
+
+static __inline uint32_t
+atomic_swap_32(volatile u_int32_t *p, u_int32_t v)
+{
+
+	return (__swp(v, p));
 }
 
 #define atomic_cmpset_rel_32	atomic_cmpset_32

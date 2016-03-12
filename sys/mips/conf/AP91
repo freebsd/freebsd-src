@@ -12,6 +12,8 @@
 
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 include		"AR724X_BASE"
 ident		"AP91"
 hints		"AP91.hints"
@@ -36,9 +38,9 @@ options 	NO_SWAPPING
 # options 	MSDOSFS
 
 # uncompress - to boot read-only lzma natively from flash
-device		geom_uncompress
-options 	GEOM_UNCOMPRESS
-options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uncompress\"
+device		geom_uzip
+options 	GEOM_UZIP
+options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uzip\"
 
 # Not enough space for these..
 nooptions 	INVARIANTS

@@ -63,6 +63,7 @@ int nfs_numnfscbd = 0;
 int nfscl_debuglevel = 0;
 char nfsv4_callbackaddr[INET6_ADDRSTRLEN];
 struct callout newnfsd_callout;
+int nfsrv_lughashsize = 100;
 void (*nfsd_call_servertimer)(void) = NULL;
 void (*ncl_call_invalcaches)(struct vnode *) = NULL;
 
@@ -79,6 +80,8 @@ SYSCTL_STRING(_vfs_nfs, OID_AUTO, callback_addr, CTLFLAG_RW,
     "NFSv4 callback addr for server to use");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, debuglevel, CTLFLAG_RW, &nfscl_debuglevel,
     0, "Debug level for NFS client");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, userhashsize, CTLFLAG_RDTUN, &nfsrv_lughashsize,
+    0, "Size of hash tables for uid/name mapping");
 
 /*
  * Defines for malloc
@@ -445,9 +448,25 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 {
 	int error = EINVAL;
 	struct nfsd_idargs nid;
+	struct nfsd_oidargs onid;
 
 	if (uap->flag & NFSSVC_IDNAME) {
-		error = copyin(uap->argp, (caddr_t)&nid, sizeof (nid));
+		if ((uap->flag & NFSSVC_NEWSTRUCT) != 0)
+			error = copyin(uap->argp, &nid, sizeof(nid));
+		else {
+			error = copyin(uap->argp, &onid, sizeof(onid));
+			if (error == 0) {
+				nid.nid_flag = onid.nid_flag;
+				nid.nid_uid = onid.nid_uid;
+				nid.nid_gid = onid.nid_gid;
+				nid.nid_usermax = onid.nid_usermax;
+				nid.nid_usertimeout = onid.nid_usertimeout;
+				nid.nid_name = onid.nid_name;
+				nid.nid_namelen = onid.nid_namelen;
+				nid.nid_ngroup = 0;
+				nid.nid_grps = NULL;
+			}
+		}
 		if (error)
 			goto out;
 		error = nfssvc_idname(&nid);
@@ -604,6 +623,8 @@ nfscommon_modevent(module_t mod, int type, void *data)
 
 		nfsd_call_nfscommon = NULL;
 		callout_drain(&newnfsd_callout);
+		/* Clean out the name<-->id cache. */
+		nfsrv_cleanusergroup();
 		/* and get rid of the mutexes */
 		mtx_destroy(&nfs_nameid_mutex);
 		mtx_destroy(&newnfsd_mtx);

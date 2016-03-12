@@ -163,7 +163,7 @@ static cd9660node *cd9660_create_special_directory(u_char, cd9660node *);
 
 
 /*
- * Allocate and initalize a cd9660node
+ * Allocate and initialize a cd9660node
  * @returns struct cd9660node * Pointer to new node, or NULL on error
  */
 static cd9660node *
@@ -296,8 +296,8 @@ cd9660_parse_opts(const char *option, fsinfo_t *fsopts)
 	int	rv;
 	/* Set up allowed options - integer options ONLY */
 	option_t cd9660_options[] = {
-		{ "l", &diskStructure.isoLevel, 1, 3, "ISO Level" },
-		{ "isolevel", &diskStructure.isoLevel, 1, 3, "ISO Level" },
+		{ "l", &diskStructure.isoLevel, 1, 2, "ISO Level" },
+		{ "isolevel", &diskStructure.isoLevel, 1, 2, "ISO Level" },
 		{ "verbose",  &diskStructure.verbose_level, 0, 2,
 		  "Turns on verbose output" },
 		{ "v", &diskStructure.verbose_level, 0 , 2,
@@ -428,8 +428,7 @@ cd9660_parse_opts(const char *option, fsinfo_t *fsopts)
 			rv = set_option(cd9660_options, var, val);
 	}
 
-	if (var)
-		free(var);
+	free(var);
 	return (rv);
 }
 
@@ -1056,6 +1055,7 @@ cd9660_rename_filename(cd9660node *iter, int num, int delete_chars)
 	if (diskStructure.verbose_level > 0)
 		printf("Rename_filename called\n");
 
+	assert(1 <= diskStructure.isoLevel && diskStructure.isoLevel <= 2);
 	/* TODO : A LOT of chanes regarding 8.3 filenames */
 	if (diskStructure.isoLevel == 1)
 		maxlength = 8;
@@ -1731,6 +1731,7 @@ cd9660_joliet_convert_filename(const char *oldname, char *newname, int is_file)
 static int
 cd9660_convert_filename(const char *oldname, char *newname, int is_file)
 {
+	assert(1 <= diskStructure.isoLevel && diskStructure.isoLevel <= 2);
 	/* NEW */
 	cd9660_filename_conversion_functor conversion_function = 0;
 	if (diskStructure.isoLevel == 1)

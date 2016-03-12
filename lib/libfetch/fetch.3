@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 25, 2015
+.Dd November 29, 2015
 .Dt FETCH 3
 .Os
 .Sh NAME
@@ -631,11 +631,11 @@ If defined but empty, no User-Agent header is sent.
 .It Ev NETRC
 Specifies a file to use instead of
 .Pa ~/.netrc
-to look up login names and passwords for FTP sites.
+to look up login names and passwords for FTP and HTTP sites as well as
+HTTP proxies.
 See
 .Xr ftp 1
 for a description of the file format.
-This feature is experimental.
 .It Ev NO_PROXY
 Either a single asterisk, which disables the use of proxies
 altogether, or a comma- or whitespace-separated list of hosts for

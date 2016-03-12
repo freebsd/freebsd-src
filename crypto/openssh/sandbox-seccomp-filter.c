@@ -25,6 +25,8 @@
  */
 /* #define SANDBOX_SECCOMP_FILTER_DEBUG 1 */
 
+/* XXX it should be possible to do logging via the log socket safely */
+
 #ifdef SANDBOX_SECCOMP_FILTER_DEBUG
 /* Use the kernel headers in case of an older toolchain. */
 # include <asm/siginfo.h>
@@ -41,6 +43,7 @@
 #include <sys/resource.h>
 #include <sys/prctl.h>
 
+#include <linux/net.h>
 #include <linux/audit.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
@@ -77,6 +80,16 @@
 #define SC_ALLOW(_nr) \
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_ ## _nr, 0, 1), \
 	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW)
+#define SC_ALLOW_ARG(_nr, _arg_nr, _arg_val) \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_ ## _nr, 0, 4), \
+	/* load first syscall argument */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+	    offsetof(struct seccomp_data, args[(_arg_nr)])), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (_arg_val), 0, 1), \
+	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW), \
+	/* reload syscall number; all rules expect it in accumulator */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+		offsetof(struct seccomp_data, nr))
 
 /* Syscall filtering set for preauth. */
 static const struct sock_filter preauth_insns[] = {
@@ -88,40 +101,108 @@ static const struct sock_filter preauth_insns[] = {
 	/* Load the syscall number for checking. */
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS,
 		offsetof(struct seccomp_data, nr)),
+
+	/* Syscalls to non-fatally deny */
+#ifdef __NR_fstat
+	SC_DENY(fstat, EACCES),
+#endif
+#ifdef __NR_fstat64
+	SC_DENY(fstat64, EACCES),
+#endif
+#ifdef __NR_open
 	SC_DENY(open, EACCES),
-	SC_ALLOW(getpid),
-	SC_ALLOW(gettimeofday),
-	SC_ALLOW(clock_gettime),
-#ifdef __NR_time /* not defined on EABI ARM */
-	SC_ALLOW(time),
 #endif
-	SC_ALLOW(read),
-	SC_ALLOW(write),
-	SC_ALLOW(close),
-#ifdef __NR_shutdown /* not defined on archs that go via socketcall(2) */
-	SC_ALLOW(shutdown),
+#ifdef __NR_openat
+	SC_DENY(openat, EACCES),
 #endif
+#ifdef __NR_newfstatat
+	SC_DENY(newfstatat, EACCES),
+#endif
+#ifdef __NR_stat
+	SC_DENY(stat, EACCES),
+#endif
+#ifdef __NR_stat64
+	SC_DENY(stat64, EACCES),
+#endif
+
+	/* Syscalls to permit */
+#ifdef __NR_brk
 	SC_ALLOW(brk),
-	SC_ALLOW(poll),
-#ifdef __NR__newselect
-	SC_ALLOW(_newselect),
-#else
-	SC_ALLOW(select),
 #endif
+#ifdef __NR_clock_gettime
+	SC_ALLOW(clock_gettime),
+#endif
+#ifdef __NR_close
+	SC_ALLOW(close),
+#endif
+#ifdef __NR_exit
+	SC_ALLOW(exit),
+#endif
+#ifdef __NR_exit_group
+	SC_ALLOW(exit_group),
+#endif
+#ifdef __NR_getpgid
+	SC_ALLOW(getpgid),
+#endif
+#ifdef __NR_getpid
+	SC_ALLOW(getpid),
+#endif
+#ifdef __NR_getrandom
+	SC_ALLOW(getrandom),
+#endif
+#ifdef __NR_gettimeofday
+	SC_ALLOW(gettimeofday),
+#endif
+#ifdef __NR_madvise
 	SC_ALLOW(madvise),
-#ifdef __NR_mmap2 /* EABI ARM only has mmap2() */
-	SC_ALLOW(mmap2),
 #endif
 #ifdef __NR_mmap
 	SC_ALLOW(mmap),
 #endif
+#ifdef __NR_mmap2
+	SC_ALLOW(mmap2),
+#endif
+#ifdef __NR_mremap
+	SC_ALLOW(mremap),
+#endif
+#ifdef __NR_munmap
 	SC_ALLOW(munmap),
-	SC_ALLOW(exit_group),
+#endif
+#ifdef __NR__newselect
+	SC_ALLOW(_newselect),
+#endif
+#ifdef __NR_poll
+	SC_ALLOW(poll),
+#endif
+#ifdef __NR_pselect6
+	SC_ALLOW(pselect6),
+#endif
+#ifdef __NR_read
+	SC_ALLOW(read),
+#endif
 #ifdef __NR_rt_sigprocmask
 	SC_ALLOW(rt_sigprocmask),
-#else
+#endif
+#ifdef __NR_select
+	SC_ALLOW(select),
+#endif
+#ifdef __NR_shutdown
+	SC_ALLOW(shutdown),
+#endif
+#ifdef __NR_sigprocmask
 	SC_ALLOW(sigprocmask),
 #endif
+#ifdef __NR_time
+	SC_ALLOW(time),
+#endif
+#ifdef __NR_write
+	SC_ALLOW(write),
+#endif
+#ifdef __NR_socketcall
+	SC_ALLOW_ARG(socketcall, 0, SYS_SHUTDOWN),
+#endif
+
+	/* Default deny */
 	BPF_STMT(BPF_RET+BPF_K, SECCOMP_FILTER_FAIL),
 };
 

@@ -15,7 +15,7 @@ SRCS+=	main.c cp-lang.c c-opts.c call.c class.c cvt.c cxx-pretty-print.c \
 	search.c semantics.c tree.c typeck.c typeck2.c optimize.c \
 	cp-objcp-common.c cp-gimplify.c tree-mudflap.c
 
-BINDIR=	/usr/libexec
+BINDIR=	${LIBEXECDIR}
 .if ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?=yes
 .endif

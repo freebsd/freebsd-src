@@ -382,6 +382,7 @@ DRIVER_MODULE(uslcom, uhub, uslcom_driver, uslcom_devclass, NULL, 0);
 MODULE_DEPEND(uslcom, ucom, 1, 1, 1);
 MODULE_DEPEND(uslcom, usb, 1, 1, 1);
 MODULE_VERSION(uslcom, 1);
+USB_PNP_HOST_INFO(uslcom_devs);
 
 static void
 uslcom_watchdog(void *arg)

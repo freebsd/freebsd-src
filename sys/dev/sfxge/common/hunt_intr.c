@@ -31,15 +31,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
 #include "efx_impl.h"
 
 
 #if EFSYS_OPT_HUNTINGTON
 
-	__checkReturn	int
-hunt_intr_init(
+	__checkReturn	efx_rc_t
+ef10_intr_init(
 	__in		efx_nic_t *enp,
 	__in		efx_intr_type_t type,
 	__in		efsys_mem_t *esmp)
@@ -50,7 +49,7 @@ hunt_intr_init(
 
 
 			void
-hunt_intr_enable(
+ef10_intr_enable(
 	__in		efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
@@ -58,7 +57,7 @@ hunt_intr_enable(
 
 
 			void
-hunt_intr_disable(
+ef10_intr_disable(
 	__in		efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
@@ -66,14 +65,14 @@ hunt_intr_disable(
 
 
 			void
-hunt_intr_disable_unlocked(
+ef10_intr_disable_unlocked(
 	__in		efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
 }
 
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_trigger_interrupt(
 	__in		efx_nic_t *enp,
 	__in		unsigned int level)
@@ -81,9 +80,10 @@ efx_mcdi_trigger_interrupt(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_TRIGGER_INTERRUPT_IN_LEN,
 			    MC_CMD_TRIGGER_INTERRUPT_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	if (level >= enp->en_nic_cfg.enc_intr_limit) {
 		rc = EINVAL;
@@ -112,21 +112,24 @@ fail2:
 	EFSYS_PROBE(fail2);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
-hunt_intr_trigger(
+	__checkReturn	efx_rc_t
+ef10_intr_trigger(
 	__in		efx_nic_t *enp,
 	__in		unsigned int level)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	int rc;
+	efx_rc_t rc;
 
 	if (encp->enc_bug41750_workaround) {
-		/* bug 41750: Test interrupts don't work on Greenport */
+		/*
+		 * bug 41750: Test interrupts don't work on Greenport
+		 * bug 50084: Test interrupts don't work on VFs
+		 */
 		rc = ENOTSUP;
 		goto fail1;
 	}
@@ -139,14 +142,56 @@ hunt_intr_trigger(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
+			void
+ef10_intr_status_line(
+	__in		efx_nic_t *enp,
+	__out		boolean_t *fatalp,
+	__out		uint32_t *qmaskp)
+{
+	efx_dword_t dword;
+
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
+
+	/* Read the queue mask and implicitly acknowledge the interrupt. */
+	EFX_BAR_READD(enp, ER_DZ_BIU_INT_ISR_REG, &dword, B_FALSE);
+	*qmaskp = EFX_DWORD_FIELD(dword, EFX_DWORD_0);
+
+	EFSYS_PROBE1(qmask, uint32_t, *qmaskp);
+
+	*fatalp = B_FALSE;
+}
 
 			void
-hunt_intr_fini(
+ef10_intr_status_message(
+	__in		efx_nic_t *enp,
+	__in		unsigned int message,
+	__out		boolean_t *fatalp)
+{
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
+
+	_NOTE(ARGUNUSED(enp, message))
+
+	/* EF10 fatal errors are reported via events */
+	*fatalp = B_FALSE;
+}
+
+			void
+ef10_intr_fatal(
+	__in		efx_nic_t *enp)
+{
+	/* EF10 fatal errors are reported via events */
+	_NOTE(ARGUNUSED(enp))
+}
+
+			void
+ef10_intr_fini(
 	__in		efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))

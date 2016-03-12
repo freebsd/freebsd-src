@@ -180,6 +180,8 @@ int ASN1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
     int otag;
     int ret = 0;
     ASN1_VALUE **pchptr, *ptmpval;
+    int combine = aclass & ASN1_TFLG_COMBINE;
+    aclass &= ~ASN1_TFLG_COMBINE;
     if (!pval)
         return 0;
     if (aux && aux->asn1_cb)
@@ -350,9 +352,9 @@ int ASN1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
         }
 
         asn1_set_choice_selector(pval, i, it);
-        *in = p;
         if (asn1_cb && !asn1_cb(ASN1_OP_D2I_POST, pval, it, NULL))
             goto auxerr;
+        *in = p;
         return 1;
 
     case ASN1_ITYPE_NDEF_SEQUENCE:
@@ -489,9 +491,9 @@ int ASN1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
         /* Save encoding */
         if (!asn1_enc_save(pval, *in, p - *in, it))
             goto auxerr;
-        *in = p;
         if (asn1_cb && !asn1_cb(ASN1_OP_D2I_POST, pval, it, NULL))
             goto auxerr;
+        *in = p;
         return 1;
 
     default:
@@ -500,7 +502,8 @@ int ASN1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
  auxerr:
     ASN1err(ASN1_F_ASN1_ITEM_EX_D2I, ASN1_R_AUX_ERROR);
  err:
-    ASN1_item_ex_free(pval, it);
+    if (combine == 0)
+        ASN1_item_ex_free(pval, it);
     if (errtt)
         ERR_add_error_data(4, "Field=", errtt->field_name,
                            ", Type=", it->sname);
@@ -689,7 +692,7 @@ static int asn1_template_noexp_d2i(ASN1_VALUE **val,
     } else {
         /* Nothing special */
         ret = ASN1_item_ex_d2i(val, &p, len, ASN1_ITEM_ptr(tt->item),
-                               -1, 0, opt, ctx);
+                               -1, tt->flags & ASN1_TFLG_COMBINE, opt, ctx);
         if (!ret) {
             ASN1err(ASN1_F_ASN1_TEMPLATE_NOEXP_D2I, ERR_R_NESTED_ASN1_ERROR);
             goto err;
@@ -714,7 +717,7 @@ static int asn1_d2i_ex_primitive(ASN1_VALUE **pval,
     long plen;
     char cst, inf, free_cont = 0;
     const unsigned char *p;
-    BUF_MEM buf;
+    BUF_MEM buf = { 0, NULL, 0 };
     const unsigned char *cont = NULL;
     long len;
     if (!pval) {
@@ -790,7 +793,6 @@ static int asn1_d2i_ex_primitive(ASN1_VALUE **pval,
         } else {
             len = p - cont + plen;
             p += plen;
-            buf.data = NULL;
         }
     } else if (cst) {
         if (utype == V_ASN1_NULL || utype == V_ASN1_BOOLEAN
@@ -799,9 +801,9 @@ static int asn1_d2i_ex_primitive(ASN1_VALUE **pval,
             ASN1err(ASN1_F_ASN1_D2I_EX_PRIMITIVE, ASN1_R_TYPE_NOT_PRIMITIVE);
             return 0;
         }
-        buf.length = 0;
-        buf.max = 0;
-        buf.data = NULL;
+
+        /* Free any returned 'buf' content */
+        free_cont = 1;
         /*
          * Should really check the internal tags are correct but some things
          * may get this wrong. The relevant specs say that constructed string
@@ -809,18 +811,16 @@ static int asn1_d2i_ex_primitive(ASN1_VALUE **pval,
          * So instead just check for UNIVERSAL class and ignore the tag.
          */
         if (!asn1_collect(&buf, &p, plen, inf, -1, V_ASN1_UNIVERSAL, 0)) {
-            free_cont = 1;
             goto err;
         }
         len = buf.length;
         /* Append a final null to string */
         if (!BUF_MEM_grow_clean(&buf, len + 1)) {
             ASN1err(ASN1_F_ASN1_D2I_EX_PRIMITIVE, ERR_R_MALLOC_FAILURE);
-            return 0;
+            goto err;
         }
         buf.data[len] = 0;
         cont = (const unsigned char *)buf.data;
-        free_cont = 1;
     } else {
         cont = p;
         len = plen;
@@ -828,6 +828,7 @@ static int asn1_d2i_ex_primitive(ASN1_VALUE **pval,
     }
 
     /* We now have content length and type: translate into a structure */
+    /* asn1_ex_c2i may reuse allocated buffer, and so sets free_cont to 0 */
     if (!asn1_ex_c2i(pval, cont, len, utype, &free_cont, it))
         goto err;
 

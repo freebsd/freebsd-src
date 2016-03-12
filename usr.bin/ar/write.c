@@ -664,6 +664,9 @@ write_objs(struct bsdar *bsdar)
 	if ((bsdar->s_cnt != 0 && !(bsdar->options & AR_SS)) ||
 	    bsdar->options & AR_S) {
 		entry = archive_entry_new();
+		if (entry == NULL)
+			bsdar_errc(bsdar, EX_SOFTWARE, 0,
+			    "archive_entry_new failed");
 		archive_entry_copy_pathname(entry, "/");
 		if ((bsdar->options & AR_D) == 0)
 			archive_entry_set_mtime(entry, time(NULL), 0);
@@ -681,6 +684,9 @@ write_objs(struct bsdar *bsdar)
 	/* write the archive string table, if any. */
 	if (bsdar->as != NULL) {
 		entry = archive_entry_new();
+		if (entry == NULL)
+			bsdar_errc(bsdar, EX_SOFTWARE, 0,
+			    "archive_entry_new failed");
 		archive_entry_copy_pathname(entry, "//");
 		archive_entry_set_size(entry, bsdar->as_sz);
 		AC(archive_write_header(a, entry));
@@ -691,6 +697,9 @@ write_objs(struct bsdar *bsdar)
 	/* write normal members. */
 	TAILQ_FOREACH(obj, &bsdar->v_obj, objs) {
 		entry = archive_entry_new();
+		if (entry == NULL)
+			bsdar_errc(bsdar, EX_SOFTWARE, 0,
+			    "archive_entry_new failed");
 		archive_entry_copy_pathname(entry, obj->name);
 		archive_entry_set_uid(entry, obj->uid);
 		archive_entry_set_gid(entry, obj->gid);

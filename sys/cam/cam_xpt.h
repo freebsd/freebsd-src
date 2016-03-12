@@ -70,6 +70,10 @@ void			xpt_action_default(union ccb *new_ccb);
 union ccb		*xpt_alloc_ccb(void);
 union ccb		*xpt_alloc_ccb_nowait(void);
 void			xpt_free_ccb(union ccb *free_ccb);
+void			xpt_setup_ccb_flags(struct ccb_hdr *ccb_h,
+					    struct cam_path *path,
+					    u_int32_t priority,
+					    u_int32_t flags);
 void			xpt_setup_ccb(struct ccb_hdr *ccb_h,
 				      struct cam_path *path,
 				      u_int32_t priority);

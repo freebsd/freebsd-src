@@ -128,7 +128,6 @@ SYSCTL_INT(_net_inet_udp, OID_AUTO, blackhole, CTLFLAG_VNET | CTLFLAG_RW,
     "Do not send port unreachables for refused connects");
 
 u_long	udp_sendspace = 9216;		/* really max datagram size */
-					/* 40 1K datagrams */
 SYSCTL_ULONG(_net_inet_udp, UDPCTL_MAXDGRAM, maxdgram, CTLFLAG_RW,
     &udp_sendspace, 0, "Maximum outgoing UDP datagram size");
 
@@ -138,7 +137,7 @@ u_long	udp_recvspace = 40 * (1024 +
 #else
 				      sizeof(struct sockaddr_in)
 #endif
-				      );
+				      );	/* 40 1K datagrams */
 
 SYSCTL_ULONG(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
     &udp_recvspace, 0, "Maximum space for incoming UDP datagrams");

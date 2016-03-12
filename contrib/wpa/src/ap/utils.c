@@ -10,6 +10,7 @@
 
 #include "common.h"
 #include "common/ieee802_11_defs.h"
+#include "fst/fst.h"
 #include "sta_info.h"
 #include "hostapd.h"
 
@@ -55,10 +56,20 @@ static int prune_associations(struct hostapd_iface *iface, void *ctx)
 		ohapd = iface->bss[j];
 		if (ohapd == data->hapd)
 			continue;
+#ifdef CONFIG_FST
+		/* Don't prune STAs belong to same FST */
+		if (ohapd->iface->fst &&
+		    data->hapd->iface->fst &&
+		    fst_are_ifaces_aggregated(ohapd->iface->fst,
+					      data->hapd->iface->fst))
+			continue;
+#endif /* CONFIG_FST */
 		osta = ap_get_sta(ohapd, data->addr);
 		if (!osta)
 			continue;
 
+		wpa_printf(MSG_INFO, "%s: Prune association for " MACSTR,
+			   ohapd->conf->iface, MAC2STR(osta->addr));
 		ap_sta_disassociate(ohapd, osta, WLAN_REASON_UNSPECIFIED);
 	}
 

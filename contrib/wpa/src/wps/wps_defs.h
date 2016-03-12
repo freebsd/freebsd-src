@@ -41,6 +41,11 @@ extern int wps_corrupt_pkhash;
 #define WPS_OOB_DEVICE_PASSWORD_MIN_LEN 16
 #define WPS_OOB_DEVICE_PASSWORD_LEN 32
 #define WPS_OOB_PUBKEY_HASH_LEN 20
+#define WPS_DEV_NAME_MAX_LEN 32
+#define WPS_MANUFACTURER_MAX_LEN 64
+#define WPS_MODEL_NAME_MAX_LEN 32
+#define WPS_MODEL_NUMBER_MAX_LEN 32
+#define WPS_SERIAL_NUMBER_MAX_LEN 32
 
 /* Attribute Types */
 enum wps_attribute {
@@ -232,6 +237,7 @@ enum wps_error_indication {
 /* RF Bands */
 #define WPS_RF_24GHZ 0x01
 #define WPS_RF_50GHZ 0x02
+#define WPS_RF_60GHZ 0x04
 
 /* Config Methods */
 #define WPS_CONFIG_USBA 0x0001

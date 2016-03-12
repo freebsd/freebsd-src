@@ -64,6 +64,7 @@ static const char rcsid[] =
 
 #define	_PATH_LD32_HINTS	"/var/run/ld32.so.hints"
 #define	_PATH_ELF32_HINTS	"/var/run/ld-elf32.so.hints"
+#define	_PATH_ELFSOFT_HINTS	"/var/run/ld-elf-soft.so.hints"
 
 #undef major
 #undef minor
@@ -111,6 +112,7 @@ main(int argc, char **argv)
 	int		rval = 0;
 	int		is_aout = 0;
 	int		is_32 = 0;
+	int		is_soft = 0;
 
 	while (argc > 1) {
 		if (strcmp(argv[1], "-aout") == 0) {
@@ -125,12 +127,18 @@ main(int argc, char **argv)
 			is_32 = 1;
 			argc--;
 			argv++;
+		} else if (strcmp(argv[1], "-soft") == 0) {
+			is_soft = 1;
+			argc--;
+			argv++;
 		} else {
 			break;
 		}
 	}
 
-	if (is_32)
+	if (is_soft)
+		hints_file = _PATH_ELFSOFT_HINTS;	/* Never will have a.out softfloat */
+	else if (is_32)
 		hints_file = is_aout ? _PATH_LD32_HINTS : _PATH_ELF32_HINTS;
 	else
 		hints_file = is_aout ? _PATH_LD_HINTS : _PATH_ELF_HINTS;

@@ -186,11 +186,11 @@ kiic_attach(device_t self)
 		return (ENOMEM);
 	}
 
-	if (OF_getprop(node, "AAPL,i2c-rate", &rate, 4) != 4) {
+	if (OF_getencprop(node, "AAPL,i2c-rate", &rate, 4) != 4) {
 		device_printf(self, "cannot get i2c-rate\n");
 		return (ENXIO);
 	}
-	if (OF_getprop(node, "AAPL,address-step", &sc->sc_regstep, 4) != 4) {
+	if (OF_getencprop(node, "AAPL,address-step", &sc->sc_regstep, 4) != 4) {
 		device_printf(self, "unable to find i2c address step\n");
 		return (ENXIO);
 	}

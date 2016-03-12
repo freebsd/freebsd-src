@@ -35,8 +35,8 @@ trap "rm -f $tmpfile" EXIT
 
 ${ECHO} creating osreldate.h from newvers.sh
 
-export PARAMFILE="${PARAM_H:=$CURDIR/../sys/sys/param.h}"
 set +e
+VARS_ONLY=1
 . "${NEWVERS_SH:=$CURDIR/../sys/conf/newvers.sh}" || exit 1
 set -e
 cat > $tmpfile <<EOF

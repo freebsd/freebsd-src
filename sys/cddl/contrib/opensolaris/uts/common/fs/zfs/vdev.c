@@ -24,6 +24,7 @@
  * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 #include <sys/zfs_context.h>
@@ -3412,8 +3413,6 @@ vdev_is_bootable(vdev_t *vd)
 		    strcmp(vdev_type, VDEV_TYPE_MISSING) == 0) {
 			return (B_FALSE);
 		}
-	} else if (vd->vdev_wholedisk == 1) {
-		return (B_FALSE);
 	}
 
 	for (int c = 0; c < vd->vdev_children; c++) {

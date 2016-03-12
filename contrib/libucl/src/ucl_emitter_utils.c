@@ -62,6 +62,12 @@ static const struct ucl_emitter_context ucl_standard_emitters[] = {
 		.id = UCL_EMIT_YAML,
 		.func = NULL,
 		.ops = &ucl_standartd_emitter_ops[UCL_EMIT_YAML]
+	},
+	[UCL_EMIT_MSGPACK] = {
+		.name = "msgpack",
+		.id = UCL_EMIT_MSGPACK,
+		.func = NULL,
+		.ops = &ucl_standartd_emitter_ops[UCL_EMIT_MSGPACK]
 	}
 };
 
@@ -73,7 +79,7 @@ static const struct ucl_emitter_context ucl_standard_emitters[] = {
 const struct ucl_emitter_context *
 ucl_emit_get_standard_context (enum ucl_emitter emit_type)
 {
-	if (emit_type >= UCL_EMIT_JSON && emit_type <= UCL_EMIT_YAML) {
+	if (emit_type >= UCL_EMIT_JSON && emit_type < UCL_EMIT_MAX) {
 		return &ucl_standard_emitters[emit_type];
 	}
 

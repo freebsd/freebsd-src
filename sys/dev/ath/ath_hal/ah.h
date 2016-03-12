@@ -753,6 +753,12 @@ typedef enum {
 	HAL_M_MONITOR	= 8			/* Monitor mode */
 } HAL_OPMODE;
 
+typedef enum {
+	HAL_RESET_NORMAL	= 0,		/* Do normal reset */
+	HAL_RESET_BBPANIC	= 1,		/* Reset because of BB panic */
+	HAL_RESET_FORCE_COLD	= 2,		/* Force full reset */
+} HAL_RESET_TYPE;
+
 typedef struct {
 	uint8_t		kv_type;		/* one of HAL_CIPHER */
 	uint8_t		kv_apsd;		/* Mask for APSD enabled ACs */
@@ -1088,11 +1094,6 @@ typedef enum {
 	HAL_GEN_TIMER_TSF_ANY
 } HAL_GEN_TIMER_DOMAIN;
 
-typedef enum {
-	HAL_RESET_NONE = 0x0,
-	HAL_RESET_BBPANIC = 0x1,
-} HAL_RESET_TYPE;
-
 /*
  * BT Co-existence definitions
  */
@@ -1354,7 +1355,9 @@ struct ath_hal {
 	/* Reset functions */
 	HAL_BOOL  __ahdecl(*ah_reset)(struct ath_hal *, HAL_OPMODE,
 				struct ieee80211_channel *,
-				HAL_BOOL bChannelChange, HAL_STATUS *status);
+				HAL_BOOL bChannelChange,
+				HAL_RESET_TYPE resetType,
+				HAL_STATUS *status);
 	HAL_BOOL  __ahdecl(*ah_phyDisable)(struct ath_hal *);
 	HAL_BOOL  __ahdecl(*ah_disable)(struct ath_hal *);
 	void	  __ahdecl(*ah_configPCIE)(struct ath_hal *, HAL_BOOL restore,

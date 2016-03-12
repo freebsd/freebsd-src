@@ -62,8 +62,8 @@ __FBSDID("$FreeBSD$");
 static int		ofw_pci_read_ivar(device_t, device_t, int,
 			    uintptr_t *);
 static struct		resource * ofw_pci_alloc_resource(device_t bus,
-			    device_t child, int type, int *rid, u_long start,
-			    u_long end, u_long count, u_int flags);
+			    device_t child, int type, int *rid, rman_res_t start,
+			    rman_res_t end, rman_res_t count, u_int flags);
 static int		ofw_pci_release_resource(device_t bus, device_t child,
     			    int type, int rid, struct resource *res);
 static int		ofw_pci_activate_resource(device_t bus, device_t child,
@@ -72,8 +72,8 @@ static int		ofw_pci_deactivate_resource(device_t bus,
     			    device_t child, int type, int rid,
     			    struct resource *res);
 static int		ofw_pci_adjust_resource(device_t bus, device_t child,
-			    int type, struct resource *res, u_long start,
-			    u_long end);
+			    int type, struct resource *res, rman_res_t start,
+			    rman_res_t end);
 
 /*
  * pcib interface.
@@ -136,10 +136,7 @@ ofw_pci_init(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_initialized = 1;
 
-	if (OF_getprop(node, "reg", &sc->sc_pcir, sizeof(sc->sc_pcir)) == -1)
-		return (ENXIO);
-
-	if (OF_getprop(node, "bus-range", busrange, sizeof(busrange)) != 8)
+	if (OF_getencprop(node, "bus-range", busrange, sizeof(busrange)) != 8)
 		busrange[0] = 0;
 
 	sc->sc_dev = dev;
@@ -307,7 +304,7 @@ ofw_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
 static struct resource *
 ofw_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct			ofw_pci_softc *sc;
 	struct			resource *rv;
@@ -453,7 +450,7 @@ ofw_pci_deactivate_resource(device_t bus, device_t child, int type, int rid,
 
 static int
 ofw_pci_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *res, u_long start, u_long end)
+    struct resource *res, rman_res_t start, rman_res_t end)
 {
 	struct rman *rm = NULL;
 	struct ofw_pci_softc *sc = device_get_softc(bus);
@@ -498,11 +495,11 @@ ofw_pci_nranges(phandle_t node)
 	int host_address_cells = 1, pci_address_cells = 3, size_cells = 2;
 	ssize_t nbase_ranges;
 
-	OF_getprop(OF_parent(node), "#address-cells", &host_address_cells,
+	OF_getencprop(OF_parent(node), "#address-cells", &host_address_cells,
 	    sizeof(host_address_cells));
-	OF_getprop(node, "#address-cells", &pci_address_cells,
+	OF_getencprop(node, "#address-cells", &pci_address_cells,
 	    sizeof(pci_address_cells));
-	OF_getprop(node, "#size-cells", &size_cells, sizeof(size_cells));
+	OF_getencprop(node, "#size-cells", &size_cells, sizeof(size_cells));
 
 	nbase_ranges = OF_getproplen(node, "ranges");
 	if (nbase_ranges <= 0)
@@ -521,11 +518,11 @@ ofw_pci_fill_ranges(phandle_t node, struct ofw_pci_range *ranges)
 	int nranges;
 	int i, j, k;
 
-	OF_getprop(OF_parent(node), "#address-cells", &host_address_cells,
+	OF_getencprop(OF_parent(node), "#address-cells", &host_address_cells,
 	    sizeof(host_address_cells));
-	OF_getprop(node, "#address-cells", &pci_address_cells,
+	OF_getencprop(node, "#address-cells", &pci_address_cells,
 	    sizeof(pci_address_cells));
-	OF_getprop(node, "#size-cells", &size_cells, sizeof(size_cells));
+	OF_getencprop(node, "#size-cells", &size_cells, sizeof(size_cells));
 
 	nbase_ranges = OF_getproplen(node, "ranges");
 	if (nbase_ranges <= 0)
@@ -534,7 +531,7 @@ ofw_pci_fill_ranges(phandle_t node, struct ofw_pci_range *ranges)
 	    (pci_address_cells + host_address_cells + size_cells);
 
 	base_ranges = malloc(nbase_ranges, M_DEVBUF, M_WAITOK);
-	OF_getprop(node, "ranges", base_ranges, nbase_ranges);
+	OF_getencprop(node, "ranges", base_ranges, nbase_ranges);
 
 	for (i = 0, j = 0; i < nranges; i++) {
 		ranges[i].pci_hi = base_ranges[j++];

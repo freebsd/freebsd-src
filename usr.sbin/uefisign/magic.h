@@ -50,7 +50,7 @@ static const char *magic_fmt =
 "a = FORMAT:HEX,BITSTRING:00\n"
 /*
  * Well, there should be some other struct here, "SPCLink", but it doesn't
- * appear to be neccessary for UEFI, and I have no idea how to synthesize it,
+ * appear to be necessary for UEFI, and I have no idea how to synthesize it,
  * as it uses the CHOICE type.
  */
 "\n"

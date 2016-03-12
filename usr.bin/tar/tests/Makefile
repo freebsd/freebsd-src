@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
+_LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 ATF_TESTS_SH+=	functional_test
 
@@ -9,7 +9,7 @@ BINDIR=		${TESTSDIR}
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"${SRCTOP}/lib/libarchive/config_freebsd.h\"
 CFLAGS+=	-static
 CFLAGS+=	-I${SRCTOP}/lib/libarchive -I${.OBJDIR}
-CFLAGS+=	-I${LIBARCHIVEDIR}/tar -I${LIBARCHIVEDIR}/test_utils
+CFLAGS+=	-I${_LIBARCHIVEDIR}/tar -I${_LIBARCHIVEDIR}/test_utils
 
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
@@ -17,7 +17,7 @@ CFLAGS+=	-I${LIBARCHIVEDIR}/tar -I${LIBARCHIVEDIR}/test_utils
 
 PROGS+=		bsdtar_test
 
-.PATH: ${LIBARCHIVEDIR}/tar/test
+.PATH: ${_LIBARCHIVEDIR}/tar/test
 TESTS_SRCS=	\
 	test_0.c				\
 	test_basic.c				\
@@ -75,15 +75,13 @@ SRCS.bsdtar_test=	\
 	list.h		\
 	main.c
 
-DPSRCS.bsdtar_test+=	list.h
-
-.PATH: ${LIBARCHIVEDIR}/test_utils
+.PATH: ${_LIBARCHIVEDIR}/test_utils
 SRCS.bsdtar_test+=	test_utils.c
 
 LIBADD.bsdtar_test=	archive
 
 list.h: ${TESTS_SRCS} Makefile
-	@(cd ${LIBARCHIVEDIR}/tar/test && \
+	@(cd ${_LIBARCHIVEDIR}/tar/test && \
 	grep -h DEFINE_TEST ${.ALLSRC:N*Makefile}) > ${.TARGET}.tmp
 	@mv ${.TARGET}.tmp ${.TARGET}
 

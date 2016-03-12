@@ -222,6 +222,21 @@ outnet_tcp_take_into_use(struct waiting_tcp* w, uint8_t* pkt, size_t pkt_len)
 #endif
 		return 0;
 	}
+
+	if (w->outnet->tcp_mss > 0) {
+#if defined(IPPROTO_TCP) && defined(TCP_MAXSEG)
+		if(setsockopt(s, IPPROTO_TCP, TCP_MAXSEG,
+			(void*)&w->outnet->tcp_mss,
+			(socklen_t)sizeof(w->outnet->tcp_mss)) < 0) {
+			verbose(VERB_ALGO, "outgoing tcp:"
+				" setsockopt(.. SO_REUSEADDR ..) failed");
+		}
+#else
+		verbose(VERB_ALGO, "outgoing tcp:"
+			" setsockopt(TCP_MAXSEG) unsupported");
+#endif /* defined(IPPROTO_TCP) && defined(TCP_MAXSEG) */
+	}
+
 	if(!pick_outgoing_tcp(w, s))
 		return 0;
 
@@ -590,7 +605,7 @@ outside_network_create(struct comm_base *base, size_t bufsize,
 	size_t num_ports, char** ifs, int num_ifs, int do_ip4, 
 	int do_ip6, size_t num_tcp, struct infra_cache* infra,
 	struct ub_randstate* rnd, int use_caps_for_id, int* availports, 
-	int numavailports, size_t unwanted_threshold,
+	int numavailports, size_t unwanted_threshold, int tcp_mss,
 	void (*unwanted_action)(void*), void* unwanted_param, int do_udp,
 	void* sslctx, int delayclose, struct dt_env* dtenv)
 {
@@ -620,6 +635,7 @@ outside_network_create(struct comm_base *base, size_t bufsize,
 	outnet->unwanted_param = unwanted_param;
 	outnet->use_caps_for_id = use_caps_for_id;
 	outnet->do_udp = do_udp;
+	outnet->tcp_mss = tcp_mss;
 #ifndef S_SPLINT_S
 	if(delayclose) {
 		outnet->delayclose = 1;

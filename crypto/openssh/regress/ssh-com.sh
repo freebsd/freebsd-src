@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh-com.sh,v 1.8 2013/05/17 00:37:40 dtucker Exp $
+#	$OpenBSD: ssh-com.sh,v 1.9 2015/05/08 07:29:00 djm Exp $
 #	Placed in the Public Domain.
 
 tid="connect to ssh.com server"
@@ -44,14 +44,14 @@ cat << EOF > $OBJ/sshd2_config
 	HostKeyFile			${SRC}/dsa_ssh2.prv
 	PublicHostKeyFile		${SRC}/dsa_ssh2.pub
 	RandomSeedFile			${OBJ}/random_seed
-	MaxConnections			0 
+	MaxConnections			0
 	PermitRootLogin			yes
 	VerboseMode			no
 	CheckMail			no
 	Ssh1Compatibility		no
 EOF
 
-# create client config 
+# create client config
 sed "s/HostKeyAlias.*/HostKeyAlias ssh2-localhost-with-alias/" \
 	< $OBJ/ssh_config > $OBJ/ssh_config_com
 

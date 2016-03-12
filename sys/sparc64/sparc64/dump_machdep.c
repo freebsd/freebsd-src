@@ -55,18 +55,6 @@ extern struct dump_pa dump_map[DUMPSYS_MD_PA_NPAIRS];
 int do_minidump = 0;
 
 void
-dumpsys_pa_init(void)
-{
-	int i;
-
-	memset(dump_map, 0, sizeof(dump_map));
-	for (i = 0; i < sparc64_nmemreg; i++) {
-		dump_map[i].pa_start = sparc64_memreg[i].mr_start;
-		dump_map[i].pa_size = sparc64_memreg[i].mr_size;
-	}
-}
-
-void
 dumpsys_map_chunk(vm_paddr_t pa, size_t chunk __unused, void **va)
 {
 
@@ -89,16 +77,18 @@ int
 dumpsys(struct dumperinfo *di)
 {
 	static struct kerneldumpheader kdh;
-
 	struct sparc64_dump_hdr hdr;
 	vm_size_t size, totsize, hdrsize;
 	int error, i, nreg;
 
-	/* Calculate dump size. */
+	/* Set up dump_map and calculate dump size. */
 	size = 0;
 	nreg = sparc64_nmemreg;
-	for (i = 0; i < sparc64_nmemreg; i++)
-		size += sparc64_memreg[i].mr_size;
+	memset(dump_map, 0, sizeof(dump_map));
+	for (i = 0; i < nreg; i++) {
+		dump_map[i].pa_start = sparc64_memreg[i].mr_start;
+		size += dump_map[i].pa_size = sparc64_memreg[i].mr_size;
+	}
 	/* Account for the header size. */
 	hdrsize = roundup2(sizeof(hdr) + sizeof(struct sparc64_dump_reg) * nreg,
 	    DEV_BSIZE);
@@ -139,7 +129,7 @@ dumpsys(struct dumperinfo *di)
 
 	fileofs = hdrsize;
 	/* Now, write out the region descriptors. */
-	for (i = 0; i < sparc64_nmemreg; i++) {
+	for (i = 0; i < nreg; i++) {
 		error = reg_write(di, sparc64_memreg[i].mr_start,
 		    sparc64_memreg[i].mr_size);
 		if (error != 0)

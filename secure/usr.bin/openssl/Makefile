@@ -9,7 +9,7 @@ LIBADD=	ssl crypto
 .endif
 .include "../../lib/libcrypto/Makefile.inc"
 
-CFLAGS+=-DMONOLITH -I${.CURDIR}
+CFLAGS+=	-DMONOLITH
 
 SRCS+=	app_rand.c apps.c asn1pars.c ca.c ciphers.c cms.c crl.c crl2p7.c \
 	dgst.c dh.c dhparam.c dsa.c dsaparam.c ec.c ecparam.c enc.c engine.c \

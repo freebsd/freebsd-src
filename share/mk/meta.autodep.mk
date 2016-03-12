@@ -1,5 +1,5 @@
 # $FreeBSD$
-# $Id: meta.autodep.mk,v 1.36 2014/08/02 23:10:29 sjg Exp $
+# $Id: meta.autodep.mk,v 1.40 2016/02/22 22:44:58 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -51,6 +51,9 @@ UPDATE_DEPENDFILE = NO
 .endif
 
 _CURDIR ?= ${.CURDIR}
+_OBJDIR ?= ${.OBJDIR}
+_OBJTOP ?= ${OBJTOP}
+_OBJROOT ?= ${OBJROOT:U${_OBJTOP}}
 _DEPENDFILE := ${_CURDIR}/${.MAKE.DEPENDFILE:T}
 
 .if ${.MAKE.LEVEL} == 0
@@ -84,7 +87,7 @@ WANT_UPDATE_DEPENDFILE ?= yes
 .endif
 
 .if ${WANT_UPDATE_DEPENDFILE:Uno:tl} != "no"
-.if ${.MAKE.MODE:Mmeta*} == "" || ${.MAKE.MODE:M*read*} != ""
+.if ${.MAKE.MODE:Uno:Mmeta*} == "" || ${.MAKE.MODE:Uno:M*read*} != ""
 UPDATE_DEPENDFILE = no
 .endif
 
@@ -191,9 +194,9 @@ gendirdeps:	${_DEPENDFILE}
 # anything which matches ${_OBJROOT}* but not ${_OBJTOP}*
 # needs to be qualified in DIRDEPS
 # The pseudo machine "host" is used for HOST_TARGET
-DIRDEPS = \
+DIRDEPS += \
 	${DPADD:M${_OBJTOP}*:H:C,${_OBJTOP}[^/]*/,,:N.:O:u} \
-	${DPADD:M${_OBJROOT}*:N${_OBJTOP}*:H:S,${_OBJROOT},,:C,^([^/]+)/(.*),\2.\1,:S,${HOST_TARGET}$,host,:N.*:O:u}
+	${DPADD:M${_OBJROOT}*:N${_OBJTOP}*:N${STAGE_ROOT:U${_OBJTOP}}/*:H:S,${_OBJROOT},,:C,^([^/]+)/(.*),\2.\1,:S,${HOST_TARGET}$,host,:N.*:O:u}
 
 .endif
 .endif

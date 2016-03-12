@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 /* Portions Copyright 2007 Jeremy Teo */
@@ -1175,13 +1176,13 @@ again:
 			*zpp = zp;
 			err = 0;
 		}
-		sa_buf_rele(db, NULL);
 
 		/* Don't let the vnode disappear after ZFS_OBJ_HOLD_EXIT. */
 		if (err == 0)
 			VN_HOLD(vp);
 
 		mutex_exit(&zp->z_lock);
+		sa_buf_rele(db, NULL);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
 
 		if (err == 0) {

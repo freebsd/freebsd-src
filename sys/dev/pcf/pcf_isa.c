@@ -100,7 +100,7 @@ pcf_isa_identify(driver_t *driver, device_t parent)
 static int
 pcf_isa_probe(device_t dev)
 {
-	u_long		start, count;
+	rman_res_t	start, count;
 	u_int		rid = 0, port, error;
 
 	/* skip PnP probes */

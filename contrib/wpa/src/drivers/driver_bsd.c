@@ -860,8 +860,7 @@ bad:
 	if (drv->sock >= 0)
 		close(drv->sock);
 	os_free(drv->event_buf);
-	if (drv != NULL)
-		os_free(drv);
+	os_free(drv);
 	return NULL;
 }
 
@@ -894,7 +893,8 @@ bsd_commit(void *priv)
 
 static int
 bsd_set_sta_authorized(void *priv, const u8 *addr,
-		       int total_flags, int flags_or, int flags_and)
+		       unsigned int total_flags, unsigned int flags_or,
+		       unsigned int flags_and)
 {
 	int authorized = -1;
 
@@ -1055,7 +1055,14 @@ wpa_driver_bsd_associate(void *priv, struct wpa_driver_associate_params *params)
 		mode = 0 /* STA */;
 		break;
 	case IEEE80211_MODE_IBSS:
+		/*
+		 * Ref bin/203086 - FreeBSD's net80211 currently uses
+		 * IFM_IEEE80211_ADHOC.
+		 */
+#if 0
 		mode = IFM_IEEE80211_IBSS;
+#endif
+		mode = IFM_IEEE80211_ADHOC;
 		break;
 	case IEEE80211_MODE_AP:
 		mode = IFM_IEEE80211_HOSTAP;
@@ -1100,6 +1107,13 @@ wpa_driver_bsd_associate(void *priv, struct wpa_driver_associate_params *params)
 	if (params->wpa_ie_len &&
 	    set80211param(drv, IEEE80211_IOC_WPA,
 			  params->wpa_ie[0] == WLAN_EID_RSN ? 2 : 1) < 0)
+		return -1;
+
+	/*
+	 * NB: interface must be marked UP for association
+	 * or scanning (ap_scan=2)
+	 */
+	if (bsd_ctrl_iface(drv, 1) < 0)
 		return -1;
 
 	os_memset(&mlme, 0, sizeof(mlme));
@@ -1497,6 +1511,8 @@ get80211opmode(struct bsd_driver_data *drv)
 		}
 		if (ifmr.ifm_current & IFM_IEEE80211_HOSTAP)
 			return IEEE80211_M_HOSTAP;
+		if (ifmr.ifm_current & IFM_IEEE80211_IBSS)
+			return IEEE80211_M_IBSS;
 		if (ifmr.ifm_current & IFM_IEEE80211_MONITOR)
 			return IEEE80211_M_MONITOR;
 #ifdef IEEE80211_M_MBSS

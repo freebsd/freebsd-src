@@ -180,6 +180,8 @@ static void usage()
 		SSLeay_version(SSLEAY_VERSION)
 #elif defined(HAVE_NSS)
 		NSS_GetVersion()
+#elif defined(HAVE_NETTLE)
+		"nettle"
 #endif
 		);
 	printf("linked modules:");
@@ -441,6 +443,9 @@ static void
 perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 	const char** cfgfile)
 {
+#ifdef HAVE_KILL
+	int pidinchroot;
+#endif
 #ifdef HAVE_GETPWNAM
 	struct passwd *pwd = NULL;
 
@@ -449,6 +454,9 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 			fatal_exit("user '%s' does not exist.", cfg->username);
 		/* endpwent below, in case we need pwd for setusercontext */
 	}
+#endif
+#ifdef UB_ON_WINDOWS
+	w_config_adjust_directory(cfg);
 #endif
 
 	/* init syslog (as root) if needed, before daemonize, otherwise
@@ -476,6 +484,12 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 #endif
 
 #ifdef HAVE_KILL
+	/* true if pidfile is inside chrootdir, or nochroot */
+	pidinchroot = !(cfg->chrootdir && cfg->chrootdir[0]) ||
+				(cfg->chrootdir && cfg->chrootdir[0] &&
+				strncmp(cfg->pidfile, cfg->chrootdir,
+				strlen(cfg->chrootdir))==0);
+
 	/* check old pid file before forking */
 	if(cfg->pidfile && cfg->pidfile[0]) {
 		/* calculate position of pidfile */
@@ -485,12 +499,7 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 				cfg, 1);
 		if(!daemon->pidfile)
 			fatal_exit("pidfile alloc: out of memory");
-		checkoldpid(daemon->pidfile,
-			/* true if pidfile is inside chrootdir, or nochroot */
-			!(cfg->chrootdir && cfg->chrootdir[0]) ||
-			(cfg->chrootdir && cfg->chrootdir[0] &&
-			strncmp(daemon->pidfile, cfg->chrootdir,
-				strlen(cfg->chrootdir))==0));
+		checkoldpid(daemon->pidfile, pidinchroot);
 	}
 #endif
 
@@ -503,10 +512,11 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 #ifdef HAVE_KILL
 	if(cfg->pidfile && cfg->pidfile[0]) {
 		writepid(daemon->pidfile, getpid());
-		if(cfg->username && cfg->username[0] && cfg_uid != (uid_t)-1) {
+		if(cfg->username && cfg->username[0] && cfg_uid != (uid_t)-1 &&
+			pidinchroot) {
 #  ifdef HAVE_CHOWN
 			if(chown(daemon->pidfile, cfg_uid, cfg_gid) == -1) {
-				log_err("cannot chown %u.%u %s: %s",
+				verbose(VERB_QUERY, "cannot chown %u.%u %s: %s",
 					(unsigned)cfg_uid, (unsigned)cfg_gid,
 					daemon->pidfile, strerror(errno));
 			}
@@ -730,7 +740,7 @@ main(int argc, char* argv[])
 #endif
 			break;
 		case 'v':
-			cmdline_verbose ++;
+			cmdline_verbose++;
 			verbosity++;
 			break;
 		case 'd':

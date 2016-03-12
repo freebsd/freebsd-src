@@ -4,3 +4,4 @@
 CFLAGS+= -DPC98
 .endif
 
+SUBDIR_PARALLEL=	yes

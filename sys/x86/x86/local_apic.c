@@ -467,10 +467,20 @@ native_lapic_init(vm_paddr_t addr)
 	 * we by default enable suppression even when system only has
 	 * one IO-APIC, since EOI is broadcasted to all APIC agents,
 	 * including CPUs, otherwise.
+	 *
+	 * It seems that at least some KVM versions report
+	 * EOI_SUPPRESSION bit, but auto-EOI does not work.
 	 */
 	ver = lapic_read32(LAPIC_VERSION);
 	if ((ver & APIC_VER_EOI_SUPPRESSION) != 0) {
 		lapic_eoi_suppression = 1;
+		if (vm_guest == VM_GUEST_VM &&
+		    !strcmp(hv_vendor, "KVMKVMKVM")) {
+			if (bootverbose)
+				printf(
+		       "KVM -- disabling lapic eoi suppression\n");
+			lapic_eoi_suppression = 0;
+		}
 		TUNABLE_INT_FETCH("hw.lapic_eoi_suppression",
 		    &lapic_eoi_suppression);
 	}

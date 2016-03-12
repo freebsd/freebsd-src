@@ -428,7 +428,7 @@ static void * eap_fast_init(struct eap_sm *sm)
 	}
 	data->state = START;
 
-	if (eap_server_tls_ssl_init(sm, &data->ssl, 0)) {
+	if (eap_server_tls_ssl_init(sm, &data->ssl, 0, EAP_TYPE_FAST)) {
 		wpa_printf(MSG_INFO, "EAP-FAST: Failed to initialize SSL.");
 		eap_fast_reset(sm, data);
 		return NULL;

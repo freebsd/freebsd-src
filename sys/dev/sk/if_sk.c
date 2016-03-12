@@ -1833,8 +1833,6 @@ sk_detach(dev)
 		ether_ifdetach(ifp);
 		SK_IF_LOCK(sc_if);
 	}
-	if (ifp)
-		if_free(ifp);
 	/*
 	 * We're generally called from skc_detach() which is using
 	 * device_delete_child() to get to here. It's already trashed
@@ -1848,6 +1846,8 @@ sk_detach(dev)
 	sk_dma_jumbo_free(sc_if);
 	sk_dma_free(sc_if);
 	SK_IF_UNLOCK(sc_if);
+	if (ifp)
+		if_free(ifp);
 
 	return(0);
 }

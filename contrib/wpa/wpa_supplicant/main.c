@@ -12,6 +12,7 @@
 #endif /* __linux__ */
 
 #include "common.h"
+#include "fst/fst.h"
 #include "wpa_supplicant_i.h"
 #include "driver_i.h"
 #include "p2p_supplicant.h"
@@ -237,7 +238,7 @@ int main(int argc, char *argv[])
 			goto out;
 #ifdef CONFIG_P2P
 		case 'm':
-			iface->conf_p2p_dev = optarg;
+			params.conf_p2p_dev = optarg;
 			break;
 #endif /* CONFIG_P2P */
 		case 'o':
@@ -288,7 +289,7 @@ int main(int argc, char *argv[])
 			if (iface == NULL)
 				goto out;
 			ifaces = iface;
-			iface = &ifaces[iface_count - 1]; 
+			iface = &ifaces[iface_count - 1];
 			os_memset(iface, 0, sizeof(*iface));
 			break;
 		default:
@@ -308,6 +309,17 @@ int main(int argc, char *argv[])
 		wpa_printf(MSG_INFO, "Successfully initialized "
 			   "wpa_supplicant");
 	}
+
+	if (fst_global_init()) {
+		wpa_printf(MSG_ERROR, "Failed to initialize FST");
+		exitcode = -1;
+		goto out;
+	}
+
+#if defined(CONFIG_FST) && defined(CONFIG_CTRL_IFACE)
+	if (!fst_global_add_ctrl(fst_ctrl_cli))
+		wpa_printf(MSG_WARNING, "Failed to add CLI FST ctrl");
+#endif
 
 	for (i = 0; exitcode == 0 && i < iface_count; i++) {
 		struct wpa_supplicant *wpa_s;
@@ -333,6 +345,8 @@ int main(int argc, char *argv[])
 		exitcode = wpa_supplicant_run(global);
 
 	wpa_supplicant_deinit(global);
+
+	fst_global_deinit();
 
 out:
 	wpa_supplicant_fd_workaround(0);

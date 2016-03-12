@@ -30,7 +30,7 @@
 
 #define	INTR_VECTORS	256
 
-#define	MAX_PICS		5
+#define	MAX_PICS		16
 #define	MAP_IRQ(node, pin)	powerpc_get_irq(node, pin)
 
 /*
@@ -57,5 +57,8 @@ int	powerpc_teardown_intr(void *);
 int	powerpc_bind_intr(u_int irq, u_char cpu);
 int	powerpc_config_intr(int, enum intr_trigger, enum intr_polarity);
 int	powerpc_fw_config_intr(int irq, int sense_code);
+
+void	powerpc_intr_mask(u_int irq);
+void	powerpc_intr_unmask(u_int irq);
 
 #endif /* _MACHINE_INTR_MACHDEP_H_ */

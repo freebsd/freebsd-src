@@ -47,12 +47,6 @@ ENTRY(arm11_tlb_flushID_SE)
 	RET
 END(arm11_tlb_flushID_SE)
 
-ENTRY(arm11_tlb_flushI_SE)
-	mcr	p15, 0, r0, c8, c5, 1	/* flush I tlb single entry */
-	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
-	RET
-END(arm11_tlb_flushI_SE)
-
 /*
  * Context switch.
  *
@@ -86,12 +80,6 @@ ENTRY(arm11_tlb_flushID)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 	mov	pc, lr
 END(arm11_tlb_flushID)
-
-ENTRY(arm11_tlb_flushI)
-	mcr	p15, 0, r0, c8, c5, 0	/* flush I tlb */
-	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
-	mov	pc, lr
-END(arm11_tlb_flushI)
 
 ENTRY(arm11_tlb_flushD)
 	mcr	p15, 0, r0, c8, c6, 0	/* flush D tlb */

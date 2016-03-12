@@ -17,7 +17,8 @@ SRCS+= aio.c mq.c sigev_thread.c timer.c
 
 PRECIOUSLIB=
 
-VERSION_MAP=	${.CURDIR}/Version.map
+VERSION_DEF=${.CURDIR}/../libc/Versions.def
+SYMBOL_MAPS=${.CURDIR}/Symbol.map
 
 .if ${MK_TESTS} != "no"
 SUBDIR+=	tests

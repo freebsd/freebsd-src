@@ -132,11 +132,10 @@ static int check_valid_vht_mcs(struct hostapd_hw_modes *mode,
 
 
 u16 copy_sta_vht_capab(struct hostapd_data *hapd, struct sta_info *sta,
-		       const u8 *vht_capab, size_t vht_capab_len)
+		       const u8 *vht_capab)
 {
 	/* Disable VHT caps for STAs associated to no-VHT BSSes. */
 	if (!vht_capab ||
-	    vht_capab_len < sizeof(struct ieee80211_vht_capabilities) ||
 	    hapd->conf->disable_11ac ||
 	    !check_valid_vht_mcs(hapd->iface->current_mode, vht_capab)) {
 		sta->flags &= ~WLAN_STA_VHT;

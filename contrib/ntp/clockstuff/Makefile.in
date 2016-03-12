@@ -117,6 +117,7 @@ am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
 	$(top_srcdir)/sntp/m4/ntp_locinfo.m4 \
 	$(top_srcdir)/sntp/m4/ntp_openssl.m4 \
 	$(top_srcdir)/sntp/m4/ntp_pkg_config.m4 \
+	$(top_srcdir)/sntp/m4/ntp_problemtests.m4 \
 	$(top_srcdir)/sntp/m4/ntp_prog_cc.m4 \
 	$(top_srcdir)/sntp/m4/ntp_rlimit.m4 \
 	$(top_srcdir)/sntp/m4/ntp_sntp.m4 \
@@ -224,6 +225,7 @@ AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
+BUILD_THREAD = @BUILD_THREAD@
 CALC_TICKADJ_DB = @CALC_TICKADJ_DB@
 CALC_TICKADJ_DL = @CALC_TICKADJ_DL@
 CALC_TICKADJ_DS = @CALC_TICKADJ_DS@
@@ -232,6 +234,7 @@ CALC_TICKADJ_NI = @CALC_TICKADJ_NI@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CFLAGS_LIBEVENT = @CFLAGS_LIBEVENT@
 CFLAGS_NTP = @CFLAGS_NTP@
 CHUTEST = @CHUTEST@
 CONFIG_SHELL = @CONFIG_SHELL@
@@ -293,6 +296,7 @@ LIBTOOL_DEPS = @LIBTOOL_DEPS@
 LIPO = @LIPO@
 LN_S = @LN_S@
 LSCF = @LSCF@
+LTHREAD_LIBS = @LTHREAD_LIBS@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MAKE_ADJTIMED = @MAKE_ADJTIMED@

@@ -280,6 +280,7 @@ static int age_old_log(const char *file);
 static void savelog(char *from, char *to);
 static void createdir(const struct conf_entry *ent, char *dirpart);
 static void createlog(const struct conf_entry *ent);
+static int parse_signal(const char *str);
 
 /*
  * All the following take a parameter of 'int', but expect values in the
@@ -1270,20 +1271,6 @@ no_trimat:
 				working->flags |= CE_BINARY;
 				break;
 			case 'c':
-				/*
-				 * XXX - 	Ick! Ugly! Remove ASAP!
-				 * We want `c' and `C' for "create".  But we
-				 * will temporarily treat `c' as `g', because
-				 * FreeBSD releases <= 4.8 have a typo of
-				 * checking  ('G' || 'c')  for CE_GLOB.
-				 */
-				if (*q == 'c') {
-					warnx("Assuming 'g' for 'c' in flags for line:\n%s",
-					    errline);
-					warnx("The 'c' flag will eventually mean 'CREATE'");
-					working->flags |= CE_GLOB;
-					break;
-				}
 				working->flags |= CE_CREATE;
 				break;
 			case 'd':
@@ -1338,12 +1325,13 @@ no_trimat:
 		if (q && *q) {
 			if (*q == '/')
 				working->pid_cmd_file = strdup(q);
-			else if (isdigit(*q))
+			else if (isalnum(*q))
 				goto got_sig;
-			else
+			else {
 				errx(1,
-			"illegal pid file or signal number in config file:\n%s",
+			"illegal pid file or signal in config file:\n%s",
 				    errline);
+			}
 		}
 		if (eol)
 			q = NULL;
@@ -1354,17 +1342,13 @@ no_trimat:
 
 		working->sig = SIGHUP;
 		if (q && *q) {
-			if (isdigit(*q)) {
-		got_sig:
-				working->sig = atoi(q);
-			} else {
-		err_sig:
+got_sig:
+			working->sig = parse_signal(q);
+			if (working->sig < 1 || working->sig >= sys_nsig) {
 				errx(1,
-				    "illegal signal number in config file:\n%s",
+				    "illegal signal in config file:\n%s",
 				    errline);
 			}
-			if (working->sig < 1 || working->sig >= NSIG)
-				goto err_sig;
 		}
 
 		/*
@@ -1915,7 +1899,7 @@ do_sigwork(struct sigwork_entry *swork)
 	/*
 	 * Compute the pause between consecutive signals.  Use a longer
 	 * sleep time if we will be sending two signals to the same
-	 * deamon or process-group.
+	 * daemon or process-group.
 	 */
 	secs = 0;
 	nextsig = SLIST_NEXT(swork, sw_nextp);
@@ -2661,4 +2645,29 @@ change_attrs(const char *fname, const struct conf_entry *ent)
 		if (failed)
 			warn("can't chflags %s NODUMP", fname);
 	}
+}
+
+/*
+ * Parse a signal number or signal name. Returns the signal number parsed or -1
+ * on failure.
+ */
+static int
+parse_signal(const char *str)
+{
+	int sig, i;
+	const char *errstr;
+
+	sig = strtonum(str, 1, sys_nsig - 1, &errstr);
+
+	if (errstr == NULL)
+		return (sig);
+	if (strncasecmp(str, "SIG", 3) == 0)
+		str += 3;
+
+	for (i = 1; i < sys_nsig; i++) {
+		if (strcasecmp(str, sys_signame[i]) == 0)
+			return (i);
+	}
+
+	return (-1);
 }

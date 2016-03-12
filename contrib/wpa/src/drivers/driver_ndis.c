@@ -710,11 +710,11 @@ static int wpa_driver_ndis_radio_off(struct wpa_driver_ndis_data *drv)
 /* Disconnect by setting SSID to random (i.e., likely not used). */
 static int wpa_driver_ndis_disconnect(struct wpa_driver_ndis_data *drv)
 {
-	char ssid[32];
+	char ssid[SSID_MAX_LEN];
 	int i;
-	for (i = 0; i < 32; i++)
+	for (i = 0; i < SSID_MAX_LEN; i++)
 		ssid[i] = rand() & 0xff;
-	return wpa_driver_ndis_set_ssid(drv, (u8 *) ssid, 32);
+	return wpa_driver_ndis_set_ssid(drv, (u8 *) ssid, SSID_MAX_LEN);
 }
 
 
@@ -807,7 +807,7 @@ static struct wpa_scan_res * wpa_driver_ndis_add_scan_ssid(
 	if (wpa_scan_get_ie(r, WLAN_EID_SSID))
 		return r; /* SSID IE already present */
 
-	if (ssid->SsidLength == 0 || ssid->SsidLength > 32)
+	if (ssid->SsidLength == 0 || ssid->SsidLength > SSID_MAX_LEN)
 		return r; /* No valid SSID inside scan data */
 
 	nr = os_realloc(r, sizeof(*r) + r->ie_len + 2 + ssid->SsidLength);

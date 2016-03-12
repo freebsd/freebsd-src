@@ -107,9 +107,11 @@ COMPAT?=	-C
 
 .PATH: ${.CURDIR} ${SRCDIR}
 
+.if !defined(_SKIP_BUILD)
 .for _dev in ${PRINTERDEVICE}
 all: ${DFILE.${_dev}}
 .endfor
+.endif
 
 .if !target(print)
 .for _dev in ${PRINTERDEVICE}
@@ -136,11 +138,11 @@ realinstall:
 .if ${PRINTERDEVICE:Mhtml}
 	cd ${SRCDIR}; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}
+	    ${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}/
 .endif
 .for _dev in ${PRINTERDEVICE:Nhtml}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${DFILE.${_dev}} ${DESTDIR}${BINDIR}/${VOLUME}
+	    ${DFILE.${_dev}} ${DESTDIR}${BINDIR}/${VOLUME}/
 .endfor
 
 spell: ${SRCS}

@@ -21,11 +21,17 @@ extern "C" {
 #ifndef OPENSSL_NO_KRB5
 # define OPENSSL_NO_KRB5
 #endif
+#ifndef OPENSSL_NO_LIBUNBOUND
+# define OPENSSL_NO_LIBUNBOUND
+#endif
 #ifndef OPENSSL_NO_MD2
 # define OPENSSL_NO_MD2
 #endif
 #ifndef OPENSSL_NO_SCTP
 # define OPENSSL_NO_SCTP
+#endif
+#ifndef OPENSSL_NO_SSL_TRACE
+# define OPENSSL_NO_SSL_TRACE
 #endif
 #ifndef OPENSSL_NO_SSL2
 # define OPENSSL_NO_SSL2
@@ -35,6 +41,9 @@ extern "C" {
 #endif
 #ifndef OPENSSL_NO_UNIT_TEST
 # define OPENSSL_NO_UNIT_TEST
+#endif
+#ifndef OPENSSL_NO_WEAK_SSL_CIPHERS
+# define OPENSSL_NO_WEAK_SSL_CIPHERS
 #endif
 
 #endif /* OPENSSL_DOING_MAKEDEPEND */
@@ -66,11 +75,17 @@ extern "C" {
 # if defined(OPENSSL_NO_KRB5) && !defined(NO_KRB5)
 #  define NO_KRB5
 # endif
+# if defined(OPENSSL_NO_LIBUNBOUND) && !defined(NO_LIBUNBOUND)
+#  define NO_LIBUNBOUND
+# endif
 # if defined(OPENSSL_NO_MD2) && !defined(NO_MD2)
 #  define NO_MD2
 # endif
 # if defined(OPENSSL_NO_SCTP) && !defined(NO_SCTP)
 #  define NO_SCTP
+# endif
+# if defined(OPENSSL_NO_SSL_TRACE) && !defined(NO_SSL_TRACE)
+#  define NO_SSL_TRACE
 # endif
 # if defined(OPENSSL_NO_SSL2) && !defined(NO_SSL2)
 #  define NO_SSL2
@@ -80,6 +95,9 @@ extern "C" {
 # endif
 # if defined(OPENSSL_NO_UNIT_TEST) && !defined(NO_UNIT_TEST)
 #  define NO_UNIT_TEST
+# endif
+# if defined(OPENSSL_NO_WEAK_SSL_CIPHERS) && !defined(NO_WEAK_SSL_CIPHERS)
+#  define NO_WEAK_SSL_CIPHERS
 # endif
 #endif
 
@@ -186,7 +204,7 @@ extern "C" {
 #endif
 
 #if defined(DES_RISC1) && defined(DES_RISC2)
-YOU SHOULD NOT HAVE BOTH DES_RISC1 AND DES_RISC2 DEFINED!!!!!
+#error YOU SHOULD NOT HAVE BOTH DES_RISC1 AND DES_RISC2 DEFINED!!!!!
 #endif
 
 /* Unroll the inner loop, this sometimes helps, sometimes hinders.
@@ -205,7 +223,7 @@ YOU SHOULD NOT HAVE BOTH DES_RISC1 AND DES_RISC2 DEFINED!!!!!
    optimization options.  Older Sparc's work better with only UNROLL, but
    there's no way to tell at compile time what it is you're running on */
  
-#if defined( sun )		/* Newer Sparc's */
+#if defined( __sun ) || defined ( sun )		/* Newer Sparc's */
 #  define DES_PTR
 #  define DES_RISC1
 #  define DES_UNROLL

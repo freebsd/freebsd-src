@@ -220,7 +220,7 @@ strnode_add(strnodelist **listp, char *s, filenode *fnode)
 
 /*
  * below are the functions that deal with creating the lists
- * from the filename's given and the dependancies and provisions
+ * from the filename's given dependencies and provisions
  * in each of these files.  no ordering or checking is done here.
  */
 
@@ -696,12 +696,12 @@ keep_ok(filenode *fnode)
  *
  * NOTE: do_file() is called recursively from several places and cannot
  * safely free() anything related to items that may be recursed on.
- * Circular dependancies will cause problems if we do.
+ * Circular dependencies will cause problems if we do.
  */
 static void
 do_file(filenode *fnode)
 {
-	f_reqnode *r, *r_tmp;
+	f_reqnode *r;
 	f_provnode *p, *p_tmp;
 	provnode *pnode;
 	int was_set;	
@@ -728,13 +728,8 @@ do_file(filenode *fnode)
 	 */
 	r = fnode->req_list;
 	while (r != NULL) {
-		r_tmp = r;
 		satisfy_req(r, fnode->filename);
 		r = r->next;
-#if 0
-		if (was_set == 0)
-			free(r_tmp);
-#endif
 	}
 	fnode->req_list = NULL;
 

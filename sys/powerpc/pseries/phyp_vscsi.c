@@ -290,7 +290,8 @@ vscsi_attach(device_t dev)
 	mtx_init(&sc->io_lock, "vscsi", NULL, MTX_DEF);
 
 	/* Get properties */
-	OF_getprop(ofw_bus_get_node(dev), "reg", &sc->unit, sizeof(sc->unit));
+	OF_getencprop(ofw_bus_get_node(dev), "reg", &sc->unit,
+	    sizeof(sc->unit));
 
 	/* Setup interrupt */
 	sc->irqid = 0;

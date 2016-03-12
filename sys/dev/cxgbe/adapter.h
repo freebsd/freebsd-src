@@ -198,34 +198,34 @@ enum {
 	CXGBE_BUSY	= (1 << 9),
 
 	/* port flags */
-	DOOMED		= (1 << 0),
-	PORT_INIT_DONE	= (1 << 1),
-	PORT_SYSCTL_CTX	= (1 << 2),
 	HAS_TRACEQ	= (1 << 3),
+
+	/* VI flags */
+	DOOMED		= (1 << 0),
+	VI_INIT_DONE	= (1 << 1),
+	VI_SYSCTL_CTX	= (1 << 2),
 	INTR_RXQ	= (1 << 4),	/* All NIC rxq's take interrupts */
 	INTR_OFLD_RXQ	= (1 << 5),	/* All TOE rxq's take interrupts */
-	INTR_NM_RXQ	= (1 << 6),	/* All netmap rxq's take interrupts */
-	INTR_ALL	= (INTR_RXQ | INTR_OFLD_RXQ | INTR_NM_RXQ),
+	INTR_ALL	= (INTR_RXQ | INTR_OFLD_RXQ),
+	VI_NETMAP	= (1 << 6),
 
 	/* adapter debug_flags */
 	DF_DUMP_MBOX	= (1 << 0),
 };
 
-#define IS_DOOMED(pi)	((pi)->flags & DOOMED)
-#define SET_DOOMED(pi)	do {(pi)->flags |= DOOMED;} while (0)
+#define IS_DOOMED(vi)	((vi)->flags & DOOMED)
+#define SET_DOOMED(vi)	do {(vi)->flags |= DOOMED;} while (0)
 #define IS_BUSY(sc)	((sc)->flags & CXGBE_BUSY)
 #define SET_BUSY(sc)	do {(sc)->flags |= CXGBE_BUSY;} while (0)
 #define CLR_BUSY(sc)	do {(sc)->flags &= ~CXGBE_BUSY;} while (0)
 
-struct port_info {
+struct vi_info {
 	device_t dev;
-	struct adapter *adapter;
+	struct port_info *pi;
 
 	struct ifnet *ifp;
 	struct ifmedia media;
 
-	struct mtx pi_lock;
-	char lockname[16];
 	unsigned long flags;
 	int if_flags;
 
@@ -234,13 +234,11 @@ struct port_info {
 	int16_t  xact_addr_filt;/* index of exact MAC address filter */
 	uint16_t rss_size;	/* size of VI's RSS table slice */
 	uint16_t rss_base;	/* start of VI's RSS table slice */
-	uint8_t  lport;		/* associated offload logical port */
-	int8_t   mdio_addr;
-	uint8_t  port_type;
-	uint8_t  mod_type;
-	uint8_t  port_id;
-	uint8_t  tx_chan;
-	uint8_t  rx_chan_map;	/* rx MPS channel bitmap */
+
+	eventhandler_tag vlan_c;
+
+	int nintr;
+	int first_intr;
 
 	/* These need to be int as they are used in sysctl */
 	int ntxq;	/* # of tx queues */
@@ -254,23 +252,40 @@ struct port_info {
 	int nofldrxq;		/* # of offload rx queues */
 	int first_ofld_rxq;	/* index of first offload rx queue */
 #endif
-#ifdef DEV_NETMAP
-	int nnmtxq;		/* # of netmap tx queues */
-	int first_nm_txq;	/* index of first netmap tx queue */
-	int nnmrxq;		/* # of netmap rx queues */
-	int first_nm_rxq;	/* index of first netmap rx queue */
-
-	struct ifnet *nm_ifp;
-	struct ifmedia nm_media;
-	int nmif_flags;
-	uint16_t nm_viid;
-	int16_t nm_xact_addr_filt;
-	uint16_t nm_rss_size;	/* size of netmap VI's RSS table slice */
-#endif
 	int tmr_idx;
 	int pktc_idx;
 	int qsize_rxq;
 	int qsize_txq;
+
+	struct timeval last_refreshed;
+	struct fw_vi_stats_vf stats;
+
+	struct callout tick;
+	struct sysctl_ctx_list ctx;	/* from ifconfig up to driver detach */
+
+	uint8_t hw_addr[ETHER_ADDR_LEN]; /* factory MAC address, won't change */
+};
+
+struct port_info {
+	device_t dev;
+	struct adapter *adapter;
+
+	struct vi_info *vi;
+	int nvi;
+	int up_vis;
+	int uld_vis;
+
+	struct mtx pi_lock;
+	char lockname[16];
+	unsigned long flags;
+
+	uint8_t  lport;		/* associated offload logical port */
+	int8_t   mdio_addr;
+	uint8_t  port_type;
+	uint8_t  mod_type;
+	uint8_t  port_id;
+	uint8_t  tx_chan;
+	uint8_t  rx_chan_map;	/* rx MPS channel bitmap */
 
 	int linkdnrc;
 	struct link_config link_cfg;
@@ -280,13 +295,10 @@ struct port_info {
 	u_int tnl_cong_drops;
 	u_int tx_parse_error;
 
-	eventhandler_tag vlan_c;
-
 	struct callout tick;
-	struct sysctl_ctx_list ctx;	/* from ifconfig up to driver detach */
-
-	uint8_t hw_addr[ETHER_ADDR_LEN]; /* factory MAC address, won't change */
 };
+
+#define	IS_MAIN_VI(vi)		((vi) == &((vi)->pi->vi[0]))
 
 /* Where the cluster came from, how it has been carved up. */
 struct cluster_layout {
@@ -423,6 +435,29 @@ struct hw_buf_info {
 	int8_t zidx;		/* backpointer to zone; -ve means unused */
 	int8_t next;		/* next hwidx for this zone; -1 means no more */
 	int size;
+};
+
+enum {
+	NUM_MEMWIN = 3,
+
+	MEMWIN0_APERTURE = 2048,
+	MEMWIN0_BASE     = 0x1b800,
+
+	MEMWIN1_APERTURE = 32768,
+	MEMWIN1_BASE     = 0x28000,
+
+	MEMWIN2_APERTURE_T4 = 65536,
+	MEMWIN2_BASE_T4     = 0x30000,
+
+	MEMWIN2_APERTURE_T5 = 128 * 1024,
+	MEMWIN2_BASE_T5     = 0x60000,
+};
+
+struct memwin {
+	struct rwlock mw_lock __aligned(CACHE_LINE_SIZE);
+	uint32_t mw_base;	/* constant after setup_memwin */
+	uint32_t mw_aperture;	/* ditto */
+	uint32_t mw_curpos;	/* protected by mw_lock */
 };
 
 enum {
@@ -603,7 +638,7 @@ struct sge_wrq {
 
 #ifdef DEV_NETMAP
 struct sge_nm_rxq {
-	struct port_info *pi;
+	struct vi_info *vi;
 
 	struct iq_desc *iq_desc;
 	uint16_t iq_abs_id;
@@ -659,13 +694,6 @@ struct sge_nm_txq {
 #endif
 
 struct sge {
-	int timer_val[SGE_NTIMERS];
-	int counter_val[SGE_NCOUNTERS];
-	int fl_starve_threshold;
-	int fl_starve_threshold2;
-	int eq_s_qpp;
-	int iq_s_qpp;
-
 	int nrxq;	/* total # of Ethernet rx queues */
 	int ntxq;	/* total # of Ethernet tx tx queues */
 #ifdef TCP_OFFLOAD
@@ -698,8 +726,6 @@ struct sge {
 	struct sge_iq **iqmap;	/* iq->cntxt_id to iq mapping */
 	struct sge_eq **eqmap;	/* eq->cntxt_id to eq mapping */
 
-	int pad_boundary;
-	int pack_boundary;
 	int8_t safe_hwidx1;	/* may not have room for metadata */
 	int8_t safe_hwidx2;	/* with room for metadata and maybe more */
 	struct sw_zone_info sw_zone_info[SW_ZONE_SIZES];
@@ -731,6 +757,8 @@ struct adapter {
 
 	unsigned int pf;
 	unsigned int mbox;
+	unsigned int vpd_busy;
+	unsigned int vpd_flag;
 
 	/* Interrupt information */
 	int intr_type;
@@ -746,21 +774,20 @@ struct adapter {
 	struct sge sge;
 	int lro_timeout;
 
-	struct taskqueue *tq[NCHAN];	/* General purpose taskqueues */
+	struct taskqueue *tq[MAX_NCHAN];	/* General purpose taskqueues */
 	struct port_info *port[MAX_NPORTS];
-	uint8_t chan_map[NCHAN];
+	uint8_t chan_map[MAX_NCHAN];
 
 #ifdef TCP_OFFLOAD
 	void *tom_softc;	/* (struct tom_data *) */
 	struct tom_tunables tt;
 	void *iwarp_softc;	/* (struct c4iw_dev *) */
-	void *iscsi_softc;
+	void *iscsi_ulp_softc;	/* (struct cxgbei_data *) */
 #endif
 	struct l2t_data *l2t;	/* L2 table */
 	struct tid_info tids;
 
 	uint16_t doorbells;
-	int open_device_map;
 #ifdef TCP_OFFLOAD
 	int offload_map;	/* ports with IFCAP_TOE enabled */
 	int active_ulds;	/* ULDs activated on this adapter */
@@ -776,10 +803,13 @@ struct adapter {
 	int tracer_valid;	/* bitmap of valid tracers */
 	int tracer_enabled;	/* bitmap of enabled tracers */
 
-	char fw_version[32];
+	char fw_version[16];
+	char tp_version[16];
+	char exprom_version[16];
 	char cfg_file[32];
 	u_int cfcsum;
 	struct adapter_params params;
+	const struct chip_params *chip_params;
 	struct t4_virt_res vres;
 
 	uint16_t linkcaps;
@@ -799,10 +829,12 @@ struct adapter {
 	TAILQ_HEAD(, sge_fl) sfl;
 	struct callout sfl_callout;
 
-	struct mtx regwin_lock;	/* for indirect reads and memory windows */
+	struct mtx reg_lock;	/* for indirect register access */
+
+	struct memwin memwin[NUM_MEMWIN];	/* memory windows */
 
 	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
-	fw_msg_handler_t fw_msg_handler[5];	/* NUM_FW6_TYPES */
+	fw_msg_handler_t fw_msg_handler[7];	/* NUM_FW6_TYPES */
 	cpl_handler_t cpl_handler[0xef];	/* NUM_CPL_CMDS */
 
 #ifdef INVARIANTS
@@ -870,24 +902,27 @@ struct adapter {
 		} \
 	} while (0)
 
-#define for_each_txq(pi, iter, q) \
-	for (q = &pi->adapter->sge.txq[pi->first_txq], iter = 0; \
-	    iter < pi->ntxq; ++iter, ++q)
-#define for_each_rxq(pi, iter, q) \
-	for (q = &pi->adapter->sge.rxq[pi->first_rxq], iter = 0; \
-	    iter < pi->nrxq; ++iter, ++q)
-#define for_each_ofld_txq(pi, iter, q) \
-	for (q = &pi->adapter->sge.ofld_txq[pi->first_ofld_txq], iter = 0; \
-	    iter < pi->nofldtxq; ++iter, ++q)
-#define for_each_ofld_rxq(pi, iter, q) \
-	for (q = &pi->adapter->sge.ofld_rxq[pi->first_ofld_rxq], iter = 0; \
-	    iter < pi->nofldrxq; ++iter, ++q)
-#define for_each_nm_txq(pi, iter, q) \
-	for (q = &pi->adapter->sge.nm_txq[pi->first_nm_txq], iter = 0; \
-	    iter < pi->nnmtxq; ++iter, ++q)
-#define for_each_nm_rxq(pi, iter, q) \
-	for (q = &pi->adapter->sge.nm_rxq[pi->first_nm_rxq], iter = 0; \
-	    iter < pi->nnmrxq; ++iter, ++q)
+#define for_each_txq(vi, iter, q) \
+	for (q = &vi->pi->adapter->sge.txq[vi->first_txq], iter = 0; \
+	    iter < vi->ntxq; ++iter, ++q)
+#define for_each_rxq(vi, iter, q) \
+	for (q = &vi->pi->adapter->sge.rxq[vi->first_rxq], iter = 0; \
+	    iter < vi->nrxq; ++iter, ++q)
+#define for_each_ofld_txq(vi, iter, q) \
+	for (q = &vi->pi->adapter->sge.ofld_txq[vi->first_ofld_txq], iter = 0; \
+	    iter < vi->nofldtxq; ++iter, ++q)
+#define for_each_ofld_rxq(vi, iter, q) \
+	for (q = &vi->pi->adapter->sge.ofld_rxq[vi->first_ofld_rxq], iter = 0; \
+	    iter < vi->nofldrxq; ++iter, ++q)
+#define for_each_nm_txq(vi, iter, q) \
+	for (q = &vi->pi->adapter->sge.nm_txq[vi->first_txq], iter = 0; \
+	    iter < vi->ntxq; ++iter, ++q)
+#define for_each_nm_rxq(vi, iter, q) \
+	for (q = &vi->pi->adapter->sge.nm_rxq[vi->first_rxq], iter = 0; \
+	    iter < vi->nrxq; ++iter, ++q)
+#define for_each_vi(_pi, _iter, _vi) \
+	for ((_vi) = (_pi)->vi, (_iter) = 0; (_iter) < (_pi)->nvi; \
+	     ++(_iter), ++(_vi))
 
 #define IDXINCR(idx, incr, wrap) do { \
 	idx = wrap - idx > incr ? idx + incr : incr - (wrap - idx); \
@@ -979,7 +1014,7 @@ static inline void
 t4_os_set_hw_addr(struct adapter *sc, int idx, uint8_t hw_addr[])
 {
 
-	bcopy(hw_addr, sc->port[idx]->hw_addr, ETHER_ADDR_LEN);
+	bcopy(hw_addr, sc->port[idx]->vi[0].hw_addr, ETHER_ADDR_LEN);
 }
 
 static inline bool
@@ -997,11 +1032,38 @@ is_40G_port(const struct port_info *pi)
 }
 
 static inline int
+port_top_speed(const struct port_info *pi)
+{
+
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100G)
+		return (100);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G)
+		return (40);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
+		return (10);
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_1G)
+		return (1);
+
+	return (0);
+}
+
+static inline int
 tx_resume_threshold(struct sge_eq *eq)
 {
 
 	/* not quite the same as qsize / 4, but this will do. */
 	return (eq->sidx / 4);
+}
+
+static inline int
+t4_use_ldst(struct adapter *sc)
+{
+
+#ifdef notyet
+	return (sc->flags & FW_OK || !sc->use_bd);
+#else
+	return (0);
+#endif
 }
 
 /* t4_main.c */
@@ -1015,13 +1077,17 @@ int t4_register_cpl_handler(struct adapter *, int, cpl_handler_t);
 int t4_register_an_handler(struct adapter *, an_handler_t);
 int t4_register_fw_msg_handler(struct adapter *, int, fw_msg_handler_t);
 int t4_filter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
-int begin_synchronized_op(struct adapter *, struct port_info *, int, char *);
+int begin_synchronized_op(struct adapter *, struct vi_info *, int, char *);
+void doom_vi(struct adapter *, struct vi_info *);
 void end_synchronized_op(struct adapter *, int);
 int update_mac_settings(struct ifnet *, int);
 int adapter_full_init(struct adapter *);
 int adapter_full_uninit(struct adapter *);
-int port_full_init(struct port_info *);
-int port_full_uninit(struct port_info *);
+uint64_t cxgbe_get_counter(struct ifnet *, ift_counter);
+int vi_full_init(struct vi_info *);
+int vi_full_uninit(struct vi_info *);
+void vi_sysctls(struct vi_info *);
+void vi_tick(void *);
 
 #ifdef DEV_NETMAP
 /* t4_netmap.c */
@@ -1043,8 +1109,8 @@ void t4_sge_sysctls(struct adapter *, struct sysctl_ctx_list *,
 int t4_destroy_dma_tag(struct adapter *);
 int t4_setup_adapter_queues(struct adapter *);
 int t4_teardown_adapter_queues(struct adapter *);
-int t4_setup_port_queues(struct port_info *);
-int t4_teardown_port_queues(struct port_info *);
+int t4_setup_vi_queues(struct vi_info *);
+int t4_teardown_vi_queues(struct vi_info *);
 void t4_intr_all(void *);
 void t4_intr(void *);
 void t4_intr_err(void *);

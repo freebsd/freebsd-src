@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
+#include <sys/capsicum.h>
 #include <sys/condvar.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
@@ -43,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
@@ -52,10 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
-
-#if __FreeBSD_version >= 900041
-#include <sys/capsicum.h>
-#endif
 
 #include "filemon.h"
 
@@ -72,8 +68,6 @@ extern struct sysentvec elf64_freebsd_sysvec;
 static d_close_t	filemon_close;
 static d_ioctl_t	filemon_ioctl;
 static d_open_t		filemon_open;
-static int		filemon_unload(void);
-static void		filemon_load(void *);
 
 static struct cdevsw filemon_cdevsw = {
 	.d_version	= D_VERSION,
@@ -90,7 +84,7 @@ struct filemon {
 	TAILQ_ENTRY(filemon) link;	/* Link into the in-use list. */
 	struct sx	lock;		/* Lock mutex for this filemon. */
 	struct file	*fp;		/* Output file pointer. */
-	pid_t		pid;		/* The process ID being monitored. */
+	struct proc     *p;		/* The process being monitored. */
 	char		fname1[MAXPATHLEN]; /* Temporary filename buffer. */
 	char		fname2[MAXPATHLEN]; /* Temporary filename buffer. */
 	char		msgbufr[1024];	/* Output message buffer. */
@@ -106,26 +100,45 @@ static struct cdev *filemon_dev;
 #include "filemon_wrapper.c"
 
 static void
+filemon_comment(struct filemon *filemon)
+{
+	int len;
+	struct timeval now;
+
+	getmicrotime(&now);
+
+	len = snprintf(filemon->msgbufr, sizeof(filemon->msgbufr),
+	    "# filemon version %d\n# Target pid %d\n# Start %ju.%06ju\nV %d\n",
+	    FILEMON_VERSION, curproc->p_pid, (uintmax_t)now.tv_sec,
+	    (uintmax_t)now.tv_usec, FILEMON_VERSION);
+
+	filemon_output(filemon, filemon->msgbufr, len);
+}
+
+static void
 filemon_dtr(void *data)
 {
 	struct filemon *filemon = data;
 
 	if (filemon != NULL) {
-		struct file *fp = filemon->fp;
+		struct file *fp;
 
-		/* Get exclusive write access. */
+		/* Follow same locking order as filemon_pid_check. */
 		filemon_lock_write();
+		sx_xlock(&filemon->lock);
 
 		/* Remove from the in-use list. */
 		TAILQ_REMOVE(&filemons_inuse, filemon, link);
 
+		fp = filemon->fp;
 		filemon->fp = NULL;
-		filemon->pid = -1;
+		filemon->p = NULL;
 
 		/* Add to the free list. */
 		TAILQ_INSERT_TAIL(&filemons_free, filemon, link);
 
 		/* Give up write access. */
+		sx_xunlock(&filemon->lock);
 		filemon_unlock_write();
 
 		if (fp != NULL)
@@ -140,19 +153,23 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 	int error = 0;
 	struct filemon *filemon;
 	struct proc *p;
-#if __FreeBSD_version >= 900041
 	cap_rights_t rights;
-#endif
 
-	devfs_get_cdevpriv((void **) &filemon);
+	if ((error = devfs_get_cdevpriv((void **) &filemon)) != 0)
+		return (error);
+
+	sx_xlock(&filemon->lock);
 
 	switch (cmd) {
 	/* Set the output file descriptor. */
 	case FILEMON_SET_FD:
+		if (filemon->fp != NULL) {
+			error = EEXIST;
+			break;
+		}
+
 		error = fget_write(td, *(int *)data,
-#if __FreeBSD_version >= 900041
 		    cap_rights_init(&rights, CAP_PWRITE),
-#endif
 		    &filemon->fp);
 		if (error == 0)
 			/* Write the file header. */
@@ -164,7 +181,7 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 		error = pget(*((pid_t *)data), PGET_CANDEBUG | PGET_NOTWEXIT,
 		    &p);
 		if (error == 0) {
-			filemon->pid = p->p_pid;
+			filemon->p = p;
 			PROC_UNLOCK(p);
 		}
 		break;
@@ -174,6 +191,7 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 		break;
 	}
 
+	sx_xunlock(&filemon->lock);
 	return (error);
 }
 
@@ -195,13 +213,8 @@ filemon_open(struct cdev *dev, int oflags __unused, int devtype __unused,
 	if (filemon == NULL) {
 		filemon = malloc(sizeof(struct filemon), M_FILEMON,
 		    M_WAITOK | M_ZERO);
-
-		filemon->fp = NULL;
-
 		sx_init(&filemon->lock, "filemon");
 	}
-
-	filemon->pid = curproc->p_pid;
 
 	devfs_set_cdevpriv(filemon, filemon_dtr);
 
@@ -286,6 +299,14 @@ filemon_modevent(module_t mod __unused, int type, void *data)
 
 	case MOD_UNLOAD:
 		error = filemon_unload();
+		break;
+
+	case MOD_QUIESCE:
+		/*
+		 * The wrapper implementation is unsafe for reliable unload.
+		 * Require forcing an unload.
+		 */
+		error = EBUSY;
 		break;
 
 	case MOD_SHUTDOWN:

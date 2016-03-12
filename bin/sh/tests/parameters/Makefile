@@ -20,6 +20,8 @@ FILES+=		positional4.0
 FILES+=		positional5.0
 FILES+=		positional6.0
 FILES+=		positional7.0
+FILES+=		positional8.0
+FILES+=		positional9.0
 FILES+=		pwd1.0
 FILES+=		pwd2.0
 

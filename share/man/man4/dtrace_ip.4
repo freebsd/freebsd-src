@@ -239,7 +239,7 @@ by the kernel:
 
 dtrace:::BEGIN
 {
-        printf(" %10s %30s    %-30s %8s %6s\n", "DELTA(us)", "SOURCE",
+        printf(" %10s %30s    %-30s %8s %6s\\n", "DELTA(us)", "SOURCE",
             "DEST", "INT", "BYTES");
         last = timestamp;
 }
@@ -247,7 +247,7 @@ dtrace:::BEGIN
 ip:::send
 {
         this->elapsed = (timestamp - last) / 1000;
-        printf(" %10d %30s -> %-30s %8s %6d\n", this->elapsed,
+        printf(" %10d %30s -> %-30s %8s %6d\\n", this->elapsed,
             args[2]->ip_saddr, args[2]->ip_daddr, args[3]->if_name,
             args[2]->ip_plength);
         last = timestamp;
@@ -256,7 +256,7 @@ ip:::send
 ip:::receive
 {
         this->elapsed = (timestamp - last) / 1000;
-        printf(" %10d %30s <- %-30s %8s %6d\n", this->elapsed,
+        printf(" %10d %30s <- %-30s %8s %6d\\n", this->elapsed,
             args[2]->ip_daddr, args[2]->ip_saddr, args[3]->if_name,
             args[2]->ip_plength);
         last = timestamp;

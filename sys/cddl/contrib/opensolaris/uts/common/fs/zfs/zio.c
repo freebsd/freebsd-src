@@ -22,6 +22,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2011 Nexenta Systems, Inc. All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 #include <sys/sysmacros.h>
@@ -328,7 +329,7 @@ zio_data_buf_free(void *buf, size_t size)
  */
 static void
 zio_push_transform(zio_t *zio, void *data, uint64_t size, uint64_t bufsize,
-	zio_transform_func_t *transform)
+    zio_transform_func_t *transform)
 {
 	zio_transform_t *zt = kmem_alloc(sizeof (zio_transform_t), KM_SLEEP);
 
@@ -997,7 +998,7 @@ zio_write_phys(zio_t *pio, vdev_t *vd, uint64_t offset, uint64_t size,
 
 	zio->io_prop.zp_checksum = checksum;
 
-	if (zio_checksum_table[checksum].ci_eck) {
+	if (zio_checksum_table[checksum].ci_flags & ZCHECKSUM_FLAG_EMBEDDED) {
 		/*
 		 * zec checksums are necessarily destructive -- they modify
 		 * the end of the write buffer to hold the verifier/checksum.
@@ -1066,8 +1067,8 @@ zio_vdev_child_io(zio_t *pio, blkptr_t *bp, vdev_t *vd, uint64_t offset,
 
 zio_t *
 zio_vdev_delegated_io(vdev_t *vd, uint64_t offset, void *data, uint64_t size,
-	int type, zio_priority_t priority, enum zio_flag flags,
-	zio_done_func_t *done, void *private)
+    int type, zio_priority_t priority, enum zio_flag flags,
+    zio_done_func_t *done, void *private)
 {
 	zio_t *zio;
 
@@ -1209,14 +1210,16 @@ zio_write_bp_init(zio_t *zio)
 		if (BP_IS_HOLE(bp) || !zp->zp_dedup)
 			return (ZIO_PIPELINE_CONTINUE);
 
-		ASSERT(zio_checksum_table[zp->zp_checksum].ci_dedup ||
-		    zp->zp_dedup_verify);
+		ASSERT((zio_checksum_table[zp->zp_checksum].ci_flags &
+		    ZCHECKSUM_FLAG_DEDUP) || zp->zp_dedup_verify);
 
 		if (BP_GET_CHECKSUM(bp) == zp->zp_checksum) {
 			BP_SET_DEDUP(bp, 1);
 			zio->io_pipeline |= ZIO_STAGE_DDT_WRITE;
 			return (ZIO_PIPELINE_CONTINUE);
 		}
+		zio->io_bp_override = NULL;
+		BP_ZERO(bp);
 	}
 
 	if (!BP_IS_HOLE(bp) && bp->blk_birth == zio->io_txg) {
@@ -1438,6 +1441,58 @@ void
 zio_interrupt(zio_t *zio)
 {
 	zio_taskq_dispatch(zio, ZIO_TASKQ_INTERRUPT, B_FALSE);
+}
+
+void
+zio_delay_interrupt(zio_t *zio)
+{
+	/*
+	 * The timeout_generic() function isn't defined in userspace, so
+	 * rather than trying to implement the function, the zio delay
+	 * functionality has been disabled for userspace builds.
+	 */
+
+#ifdef _KERNEL
+	/*
+	 * If io_target_timestamp is zero, then no delay has been registered
+	 * for this IO, thus jump to the end of this function and "skip" the
+	 * delay; issuing it directly to the zio layer.
+	 */
+	if (zio->io_target_timestamp != 0) {
+		hrtime_t now = gethrtime();
+
+		if (now >= zio->io_target_timestamp) {
+			/*
+			 * This IO has already taken longer than the target
+			 * delay to complete, so we don't want to delay it
+			 * any longer; we "miss" the delay and issue it
+			 * directly to the zio layer. This is likely due to
+			 * the target latency being set to a value less than
+			 * the underlying hardware can satisfy (e.g. delay
+			 * set to 1ms, but the disks take 10ms to complete an
+			 * IO request).
+			 */
+
+			DTRACE_PROBE2(zio__delay__miss, zio_t *, zio,
+			    hrtime_t, now);
+
+			zio_interrupt(zio);
+		} else {
+			hrtime_t diff = zio->io_target_timestamp - now;
+
+			DTRACE_PROBE3(zio__delay__hit, zio_t *, zio,
+			    hrtime_t, now, hrtime_t, diff);
+
+			(void) timeout_generic(CALLOUT_NORMAL,
+			    (void (*)(void *))zio_interrupt, zio, diff, 1, 0);
+		}
+
+		return;
+	}
+#endif
+
+	DTRACE_PROBE1(zio__delay__skip, zio_t *, zio);
+	zio_interrupt(zio);
 }
 
 /*
@@ -2072,12 +2127,22 @@ zio_write_gang_block(zio_t *pio)
 }
 
 /*
- * The zio_nop_write stage in the pipeline determines if allocating
- * a new bp is necessary.  By leveraging a cryptographically secure checksum,
- * such as SHA256, we can compare the checksums of the new data and the old
- * to determine if allocating a new block is required.  The nopwrite
- * feature can handle writes in either syncing or open context (i.e. zil
- * writes) and as a result is mutually exclusive with dedup.
+ * The zio_nop_write stage in the pipeline determines if allocating a
+ * new bp is necessary.  The nopwrite feature can handle writes in
+ * either syncing or open context (i.e. zil writes) and as a result is
+ * mutually exclusive with dedup.
+ *
+ * By leveraging a cryptographically secure checksum, such as SHA256, we
+ * can compare the checksums of the new data and the old to determine if
+ * allocating a new block is required.  Note that our requirements for
+ * cryptographic strength are fairly weak: there can't be any accidental
+ * hash collisions, but we don't need to be secure against intentional
+ * (malicious) collisions.  To trigger a nopwrite, you have to be able
+ * to write the file to begin with, and triggering an incorrect (hash
+ * collision) nopwrite is no worse than simply writing to the file.
+ * That said, there are no known attacks against the checksum algorithms
+ * used for nopwrite, assuming that the salt and the checksums
+ * themselves remain secret.
  */
 static int
 zio_nop_write(zio_t *zio)
@@ -2100,7 +2165,8 @@ zio_nop_write(zio_t *zio)
 	 * allocate a new bp.
 	 */
 	if (BP_IS_HOLE(bp_orig) ||
-	    !zio_checksum_table[BP_GET_CHECKSUM(bp)].ci_dedup ||
+	    !(zio_checksum_table[BP_GET_CHECKSUM(bp)].ci_flags &
+	    ZCHECKSUM_FLAG_NOPWRITE) ||
 	    BP_GET_CHECKSUM(bp) != BP_GET_CHECKSUM(bp_orig) ||
 	    BP_GET_COMPRESS(bp) != BP_GET_COMPRESS(bp_orig) ||
 	    BP_GET_DEDUP(bp) != BP_GET_DEDUP(bp_orig) ||
@@ -2112,7 +2178,8 @@ zio_nop_write(zio_t *zio)
 	 * avoid allocating a new bp and issuing any I/O.
 	 */
 	if (ZIO_CHECKSUM_EQUAL(bp->blk_cksum, bp_orig->blk_cksum)) {
-		ASSERT(zio_checksum_table[zp->zp_checksum].ci_dedup);
+		ASSERT(zio_checksum_table[zp->zp_checksum].ci_flags &
+		    ZCHECKSUM_FLAG_NOPWRITE);
 		ASSERT3U(BP_GET_PSIZE(bp), ==, BP_GET_PSIZE(bp_orig));
 		ASSERT3U(BP_GET_LSIZE(bp), ==, BP_GET_LSIZE(bp_orig));
 		ASSERT(zp->zp_compress != ZIO_COMPRESS_OFF);
@@ -2393,7 +2460,8 @@ zio_ddt_write(zio_t *zio)
 		 * we can't resolve it, so just convert to an ordinary write.
 		 * (And automatically e-mail a paper to Nature?)
 		 */
-		if (!zio_checksum_table[zp->zp_checksum].ci_dedup) {
+		if (!(zio_checksum_table[zp->zp_checksum].ci_flags &
+		    ZCHECKSUM_FLAG_DEDUP)) {
 			zp->zp_checksum = spa_dedup_checksum(spa);
 			zio_pop_transforms(zio);
 			zio->io_stage = ZIO_STAGE_OPEN;

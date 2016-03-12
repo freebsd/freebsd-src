@@ -1,6 +1,4 @@
 # $FreeBSD$
-arm/arm/bus_space_base.c		standard
-arm/arm/bus_space_generic.c		standard
 arm/lpc/lpc_machdep.c			standard
 arm/lpc/lpc_pwr.c			standard
 arm/lpc/lpc_intc.c			standard

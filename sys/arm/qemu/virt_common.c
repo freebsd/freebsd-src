@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 
@@ -39,7 +41,9 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
+#ifndef ARM_INTRNG
 fdt_pic_decode_t fdt_pic_table[] = {
 	&gic_decode_fdt,
 	NULL
 };
+#endif

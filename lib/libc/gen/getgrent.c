@@ -660,14 +660,13 @@ __getgroupmembership(const char *uname, gid_t agroup, gid_t *groups,
 		NS_FALLBACK_CB(getgroupmembership_fallback)
 		{ NULL, NULL, NULL }
 	};
-	int rv;
 
 	assert(uname != NULL);
 	/* groups may be NULL if just sizing when invoked with maxgrp = 0 */
 	assert(grpcnt != NULL);
 
 	*grpcnt = 0;
-	rv = _nsdispatch(NULL, dtab, NSDB_GROUP, "getgroupmembership",
+	(void)_nsdispatch(NULL, dtab, NSDB_GROUP, "getgroupmembership",
 	    defaultsrc, uname, agroup, groups, maxgrp, grpcnt);
 
 	/* too many groups found? */
@@ -1239,14 +1238,13 @@ compat_setgrent(void *retval, void *mdata, va_list ap)
 	int		 rv, stayopen;
 
 #define set_setent(x, y) do {	 				\
-	unsigned int i;						\
-								\
-	for (i = 0; i < (sizeof(x)/sizeof(x[0])) - 1; i++)	\
+	int i;							\
+	for (i = 0; i < (int)(nitems(x) - 1); i++)		\
 		x[i].mdata = (void *)y;				\
 } while (0)
 
 	rv = compat_getstate(&st);
-	if (rv != 0) 
+	if (rv != 0)
 		return (NS_UNAVAIL);
 	switch ((enum constants)mdata) {
 	case SETGRENT:
@@ -1309,9 +1307,8 @@ compat_group(void *retval, void *mdata, va_list ap)
 	int			 rv, stayopen, *errnop;
 
 #define set_lookup_type(x, y) do { 				\
-	unsigned int i;						\
-								\
-	for (i = 0; i < (sizeof(x)/sizeof(x[0])) - 1; i++)	\
+	int i;							\
+	for (i = 0; i < (int)(nitems(x) - 1); i++)		\
 		x[i].mdata = (void *)y;				\
 } while (0)
 

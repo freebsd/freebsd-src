@@ -3,9 +3,10 @@
 .include <src.opts.mk>
 
 PROG=	ssh-keysign
-SRCS=	ssh-keysign.c roaming_dummy.c readconf.c
+SRCS=	ssh-keysign.c readconf.c
 MAN=	ssh-keysign.8
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
+SRCS+=	ssh_namespace.h
 BINMODE=4555
 
 LIBADD=	ssh
@@ -21,5 +22,3 @@ LIBADD+=	crypto
 .include <bsd.prog.mk>
 
 .PATH:	${SSHDIR}
-
-${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h

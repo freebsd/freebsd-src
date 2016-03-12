@@ -328,7 +328,7 @@ i81342_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 
 static struct resource *
 i81342_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
-   u_long start, u_long end, u_long count, u_int flags)
+   rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct i81342_pci_softc *sc = device_get_softc(bus);	
 	struct resource *rv;
@@ -383,7 +383,7 @@ static int
 i81342_pci_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
-	u_long p;
+	bus_space_handle_t p;
 	int error;
 	
 	if (type == SYS_RES_MEMORY) {

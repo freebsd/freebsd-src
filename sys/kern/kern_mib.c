@@ -422,7 +422,7 @@ sysctl_hostid(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, KERN_HOSTID, hostid,
-    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
+    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE | CTLFLAG_CAPRD,
     NULL, 0, sysctl_hostid, "LU", "Host ID");
 
 /*
@@ -579,6 +579,11 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, buf, CTLFLAG_RD,
 #include <sys/user.h>
 SYSCTL_INT(_debug_sizeof, OID_AUTO, kinfo_proc, CTLFLAG_RD,
     SYSCTL_NULL_INT_PTR, sizeof(struct kinfo_proc), "sizeof(struct kinfo_proc)");
+
+/* Used by kernel debuggers. */
+const int pcb_size = sizeof(struct pcb);
+SYSCTL_INT(_debug_sizeof, OID_AUTO, pcb, CTLFLAG_RD,
+    SYSCTL_NULL_INT_PTR, sizeof(struct pcb), "sizeof(struct pcb)");
 
 /* XXX compatibility, remove for 6.0 */
 #include <sys/imgact.h>

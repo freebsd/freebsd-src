@@ -36,10 +36,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef __GNUC__
-#error "GCC is needed to compile this file"
-#endif
-
 #include <stdlib.h>
 #include "libc_private.h"
 #include "crtbrand.c"

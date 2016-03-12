@@ -27,6 +27,7 @@ LLVMContextImpl::LLVMContextImpl(LLVMContext &C)
     FloatTy(C, Type::FloatTyID),
     DoubleTy(C, Type::DoubleTyID),
     MetadataTy(C, Type::MetadataTyID),
+    TokenTy(C, Type::TokenTyID),
     X86_FP80Ty(C, Type::X86_FP80TyID),
     FP128Ty(C, Type::FP128TyID),
     PPC_FP128Ty(C, Type::PPC_FP128TyID),
@@ -78,7 +79,7 @@ LLVMContextImpl::~LLVMContextImpl() {
   // unnecessary RAUW when nodes are still unresolved.
   for (auto *I : DistinctMDNodes)
     I->dropAllReferences();
-#define HANDLE_MDNODE_LEAF(CLASS)                                              \
+#define HANDLE_MDNODE_LEAF_UNIQUABLE(CLASS)                                    \
   for (auto *I : CLASS##s)                                                     \
     I->dropAllReferences();
 #include "llvm/IR/Metadata.def"
@@ -92,8 +93,8 @@ LLVMContextImpl::~LLVMContextImpl() {
   // Destroy MDNodes.
   for (MDNode *I : DistinctMDNodes)
     I->deleteAsSubclass();
-#define HANDLE_MDNODE_LEAF(CLASS)                                              \
-  for (CLASS *I : CLASS##s)                                                    \
+#define HANDLE_MDNODE_LEAF_UNIQUABLE(CLASS)                                    \
+  for (CLASS * I : CLASS##s)                                                   \
     delete I;
 #include "llvm/IR/Metadata.def"
 
@@ -216,6 +217,23 @@ unsigned MDNodeOpsKey::calculateHash(MDNode *N, unsigned Offset) {
 
 unsigned MDNodeOpsKey::calculateHash(ArrayRef<Metadata *> Ops) {
   return hash_combine_range(Ops.begin(), Ops.end());
+}
+
+StringMapEntry<uint32_t> *LLVMContextImpl::getOrInsertBundleTag(StringRef Tag) {
+  uint32_t NewIdx = BundleTagCache.size();
+  return &*(BundleTagCache.insert(std::make_pair(Tag, NewIdx)).first);
+}
+
+void LLVMContextImpl::getOperandBundleTags(SmallVectorImpl<StringRef> &Tags) const {
+  Tags.resize(BundleTagCache.size());
+  for (const auto &T : BundleTagCache)
+    Tags[T.second] = T.first();
+}
+
+uint32_t LLVMContextImpl::getOperandBundleTagID(StringRef Tag) const {
+  auto I = BundleTagCache.find(Tag);
+  assert(I != BundleTagCache.end() && "Unknown tag!");
+  return I->second;
 }
 
 // ConstantsContext anchors

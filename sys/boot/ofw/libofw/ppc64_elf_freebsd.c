@@ -77,8 +77,11 @@ ppc64_ofw_elf_exec(struct preloaded_file *fp)
 	}
 	e = (Elf_Ehdr *)&fmp->md_data;
 	
-	/* Handle function descriptor */
-	entry = *(uint64_t *)e->e_entry;
+	/* Handle function descriptor for ELFv1 kernels */
+	if ((e->e_flags & 3) == 2)
+		entry = e->e_entry;
+	else
+		entry = *(uint64_t *)e->e_entry;
 
 	if ((error = md_load64(fp->f_args, &mdp, &dtbp)) != 0)
 		return (error);

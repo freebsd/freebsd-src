@@ -73,8 +73,14 @@ onehost(const char *host, const char *transp)
 
 	tv.tv_sec = 1;
 	tv.tv_usec = 0;
+#ifdef __FreeBSD__
+	if (clnt_call(clnt, RPCBPROC_NULL, (xdrproc_t)xdr_void, NULL,
+	    (xdrproc_t)xdr_void, NULL, tv)
+	    != RPC_SUCCESS)
+#else
 	if (clnt_call(clnt, RPCBPROC_NULL, xdr_void, NULL, xdr_void, NULL, tv)
 	    != RPC_SUCCESS)
+#endif
 		ERRX(EXIT_FAILURE, "clnt_call (%s)", clnt_sperror(clnt, ""));
 	clnt_control(clnt, CLGET_SVC_ADDR, (char *) &addr);
 	reply(NULL, &addr, NULL);

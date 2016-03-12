@@ -22,10 +22,8 @@ FILES+=		data/sha1test-in
 FILES+=		data/sha1test-out
 FILES+=		data/sha1test2-out
 
-DPADD+=		${LIBMD}
-LDADD+=		-lmd
-DPADD.sha2_test+=	${LIBCRYPTO}
-LDADD.sha2_test+=	-lcrypto
+LIBADD+=		md
+LIBADD.sha2_test+=	crypto
 
 CFLAGS.sha2_test+=	-I${SRCTOP}/crypto/openssh/openbsd-compat
 CFLAGS.sha2_test+=	-I${SRCTOP}/crypto/openssh

@@ -90,7 +90,7 @@ static struct ofw_compat_data compat_data[] = {
 	{NULL,			false}
 };
 
-void
+static void
 pl310_print_config(struct pl310_softc *sc)
 {
 	uint32_t aux, prefetch;

@@ -60,6 +60,7 @@ device		uart
 device		ether
 device		mge			# Marvell Gigabit Ethernet controller
 device		mii
+device		mdio
 device		e1000phy
 device		bpf
 options 	HZ=1000
@@ -74,6 +75,9 @@ device		da
 
 # SATA
 device		ata
+
+# GPIO
+device		gpio
 
 # Flattened Device Tree
 options 	FDT

@@ -37,10 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 
 #include <stdio.h>
+#include <sysdecode.h>
 
 #include "truss.h"
-
-#include "freebsd32_syscalls.h"
 
 static int
 powerpc64_freebsd32_fetch_args(struct trussinfo *trussinfo, u_int narg)
@@ -118,8 +117,7 @@ powerpc64_freebsd32_fetch_retval(struct trussinfo *trussinfo, long *retval, int 
 
 static struct procabi powerpc64_freebsd32 = {
 	"FreeBSD ELF32",
-	syscallnames,
-	nitems(syscallnames),
+	SYSDECODE_ABI_FREEBSD32,
 	powerpc64_freebsd32_fetch_args,
 	powerpc64_freebsd32_fetch_retval
 };

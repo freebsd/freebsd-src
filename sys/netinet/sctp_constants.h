@@ -978,10 +978,7 @@ __FBSDID("$FreeBSD$");
      (((uint8_t *)&(a)->s_addr)[1] == 168)))
 
 #define IN4_ISLOOPBACK_ADDRESS(a) \
-    ((((uint8_t *)&(a)->s_addr)[0] == 127) && \
-     (((uint8_t *)&(a)->s_addr)[1] == 0) && \
-     (((uint8_t *)&(a)->s_addr)[2] == 0) && \
-     (((uint8_t *)&(a)->s_addr)[3] == 1))
+    (((uint8_t *)&(a)->s_addr)[0] == 127)
 
 #define IN4_ISLINKLOCAL_ADDRESS(a) \
     ((((uint8_t *)&(a)->s_addr)[0] == 169) && \

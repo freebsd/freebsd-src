@@ -2,6 +2,7 @@
  * Copyright (c) 2006,2007
  *	Damien Bergamini <damien.bergamini@free.fr>
  *	Benjamin Close <Benjamin.Close@clearchain.com>
+ * Copyright (c) 2015 Andriy Voskoboinyk <avos@FreeBSD.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -165,10 +166,13 @@ static void	wpi_free_tx_ring(struct wpi_softc *, struct wpi_tx_ring *);
 static int	wpi_read_eeprom(struct wpi_softc *,
 		    uint8_t macaddr[IEEE80211_ADDR_LEN]);
 static uint32_t	wpi_eeprom_channel_flags(struct wpi_eeprom_chan *);
-static void	wpi_read_eeprom_band(struct wpi_softc *, uint8_t);
+static void	wpi_read_eeprom_band(struct wpi_softc *, uint8_t, int, int *,
+		    struct ieee80211_channel[]);
 static int	wpi_read_eeprom_channels(struct wpi_softc *, uint8_t);
 static struct wpi_eeprom_chan *wpi_find_eeprom_channel(struct wpi_softc *,
 		    struct ieee80211_channel *);
+static void	wpi_getradiocaps(struct ieee80211com *, int, int *,
+		    struct ieee80211_channel[]);
 static int	wpi_setregdomain(struct ieee80211com *,
 		    struct ieee80211_regdomain *, int,
 		    struct ieee80211_channel[]);
@@ -515,6 +519,7 @@ wpi_attach(device_t dev)
 	ic->ic_set_channel = wpi_set_channel;
 	ic->ic_scan_curchan = wpi_scan_curchan;
 	ic->ic_scan_mindwell = wpi_scan_mindwell;
+	ic->ic_getradiocaps = wpi_getradiocaps;
 	ic->ic_setregdomain = wpi_setregdomain;
 
 	sc->sc_update_rx_ring = wpi_update_rx_ring;
@@ -918,7 +923,7 @@ wpi_dma_contig_alloc(struct wpi_softc *sc, struct wpi_dma_info *dma,
 
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), alignment,
 	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
-	    1, size, BUS_DMA_NOWAIT, NULL, NULL, &dma->tag);
+	    1, size, 0, NULL, NULL, &dma->tag);
 	if (error != 0)
 		goto fail;
 
@@ -1019,8 +1024,7 @@ wpi_alloc_rx_ring(struct wpi_softc *sc)
 	/* Create RX buffer DMA tag. */
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0, 
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    MJUMPAGESIZE, 1, MJUMPAGESIZE, BUS_DMA_NOWAIT, NULL, NULL,
-	    &ring->data_dmat);
+	    MJUMPAGESIZE, 1, MJUMPAGESIZE, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not create RX buf DMA tag, error %d\n",
@@ -1203,8 +1207,7 @@ wpi_alloc_tx_ring(struct wpi_softc *sc, struct wpi_tx_ring *ring, uint8_t qid)
 
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
-	    WPI_MAX_SCATTER - 1, MCLBYTES, BUS_DMA_NOWAIT, NULL, NULL,
-	    &ring->data_dmat);
+	    WPI_MAX_SCATTER - 1, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not create TX buf DMA tag, error %d\n",
@@ -1418,9 +1421,9 @@ wpi_eeprom_channel_flags(struct wpi_eeprom_chan *channel)
 }
 
 static void
-wpi_read_eeprom_band(struct wpi_softc *sc, uint8_t n)
+wpi_read_eeprom_band(struct wpi_softc *sc, uint8_t n, int maxchans,
+    int *nchans, struct ieee80211_channel chans[])
 {
-	struct ieee80211com *ic = &sc->sc_ic;
 	struct wpi_eeprom_chan *channels = sc->eeprom_channels[n];
 	const struct wpi_chan_band *band = &wpi_bands[n];
 	struct ieee80211_channel *c;
@@ -1435,10 +1438,13 @@ wpi_read_eeprom_band(struct wpi_softc *sc, uint8_t n)
 			continue;
 		}
 
+		if (*nchans >= maxchans)
+			break;
+
 		chan = band->chan[i];
 		nflags = wpi_eeprom_channel_flags(&channels[i]);
 
-		c = &ic->ic_channels[ic->ic_nchans++];
+		c = &chans[(*nchans)++];
 		c->ic_ieee = chan;
 		c->ic_maxregpower = channels[i].maxpwr;
 		c->ic_maxpower = 2*c->ic_maxregpower;
@@ -1449,7 +1455,11 @@ wpi_read_eeprom_band(struct wpi_softc *sc, uint8_t n)
 
 			/* G =>'s B is supported */
 			c->ic_flags = IEEE80211_CHAN_B | nflags;
-			c = &ic->ic_channels[ic->ic_nchans++];
+
+			if (*nchans >= maxchans)
+				break;
+
+			c = &chans[(*nchans)++];
 			c[0] = c[-1];
 			c->ic_flags = IEEE80211_CHAN_G | nflags;
 		} else {	/* 5GHz band */
@@ -1466,7 +1476,7 @@ wpi_read_eeprom_band(struct wpi_softc *sc, uint8_t n)
 		    "adding chan %d (%dMHz) flags=0x%x maxpwr=%d passive=%d,"
 		    " offset %d\n", chan, c->ic_freq,
 		    channels[i].flags, sc->maxpwr[chan],
-		    IEEE80211_IS_CHAN_PASSIVE(c), ic->ic_nchans);
+		    IEEE80211_IS_CHAN_PASSIVE(c), *nchans);
 	}
 }
 
@@ -1490,7 +1500,8 @@ wpi_read_eeprom_channels(struct wpi_softc *sc, uint8_t n)
 		return error;
 	}
 
-	wpi_read_eeprom_band(sc, n);
+	wpi_read_eeprom_band(sc, n, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 
 	ieee80211_sort_channels(ic->ic_channels, ic->ic_nchans);
 
@@ -1510,6 +1521,18 @@ wpi_find_eeprom_channel(struct wpi_softc *sc, struct ieee80211_channel *c)
 				return &sc->eeprom_channels[j][i];
 
 	return NULL;
+}
+
+static void
+wpi_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	struct wpi_softc *sc = ic->ic_softc;
+	int i;
+
+	/* Parse the list of authorized channels. */
+	for (i = 0; i < WPI_CHAN_BANDS_COUNT && *nchans < maxchans; i++)
+		wpi_read_eeprom_band(sc, i, maxchans, nchans, chans);
 }
 
 /*
@@ -3558,6 +3581,13 @@ wpi_update_promisc(struct ieee80211com *ic)
 {
 	struct wpi_softc *sc = ic->ic_softc;
 
+	WPI_LOCK(sc);
+	if (sc->sc_running == 0) {
+		WPI_UNLOCK(sc);
+		return;
+	}
+	WPI_UNLOCK(sc);
+
 	WPI_RXON_LOCK(sc);
 	wpi_set_promisc(sc);
 
@@ -3793,8 +3823,8 @@ wpi_set_pslevel(struct wpi_softc *sc, uint8_t dtim, int level, int async)
 	if (level != 0)	/* not CAM */
 		cmd.flags |= htole16(WPI_PS_ALLOW_SLEEP);
 	/* Retrieve PCIe Active State Power Management (ASPM). */
-	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
-	if (!(reg & 0x1))	/* L0s Entry disabled. */
+	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + PCIER_LINK_CTL, 1);
+	if (!(reg & PCIEM_LINK_CTL_ASPMC_L0S))	/* L0s Entry disabled. */
 		cmd.flags |= htole16(WPI_PS_PCI_PMGT);
 
 	cmd.rxtimeout = htole32(pmgt->rxtimeout * IEEE80211_DUR_TU);
@@ -5128,9 +5158,9 @@ wpi_apm_init(struct wpi_softc *sc)
 	WPI_SETBITS(sc, WPI_DBG_HPET_MEM, 0xffff0000);
 
 	/* Retrieve PCIe Active State Power Management (ASPM). */
-	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
+	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + PCIER_LINK_CTL, 1);
 	/* Workaround for HW instability in PCIe L0->L0s->L1 transition. */
-	if (reg & 0x02)	/* L1 Entry enabled. */
+	if (reg & PCIEM_LINK_CTL_ASPMC_L1)	/* L1 Entry enabled. */
 		WPI_SETBITS(sc, WPI_GIO, WPI_GIO_L0S_ENA);
 	else
 		WPI_CLRBITS(sc, WPI_GIO, WPI_GIO_L0S_ENA);

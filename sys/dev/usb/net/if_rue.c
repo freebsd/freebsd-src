@@ -214,6 +214,7 @@ MODULE_DEPEND(rue, usb, 1, 1, 1);
 MODULE_DEPEND(rue, ether, 1, 1, 1);
 MODULE_DEPEND(rue, miibus, 1, 1, 1);
 MODULE_VERSION(rue, 1);
+USB_PNP_HOST_INFO(rue_devs);
 
 static const struct usb_ether_methods rue_ue_methods = {
 	.ue_attach_post = rue_attach_post,

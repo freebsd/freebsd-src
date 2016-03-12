@@ -256,6 +256,7 @@ typedef union {
 	u_int16_t		mtu;		/* NG_L2CAP_OPT_MTU */
 	u_int16_t		flush_timo;	/* NG_L2CAP_OPT_FLUSH_TIMO */
 	ng_l2cap_flow_t		flow;		/* NG_L2CAP_OPT_QOS */
+	uint16_t		encryption;
 } ng_l2cap_cfg_opt_val_t;
 typedef ng_l2cap_cfg_opt_val_t * ng_l2cap_cfg_opt_val_p;
 
@@ -357,6 +358,7 @@ typedef struct {
 #define NG_L2CAP_L2CA_IDTYPE_BREDR 0
 #define NG_L2CAP_L2CA_IDTYPE_ATT  1
 #define NG_L2CAP_L2CA_IDTYPE_LE  2
+#define NG_L2CAP_L2CA_IDTYPE_SMP  3
 /* L2CA_Connect */
 #define NGM_L2CAP_L2CA_CON		0x80
 /* Upper -> L2CAP */
@@ -373,6 +375,7 @@ typedef struct {
 	uint16_t	idtype; /*ID type*/
 	u_int16_t	result; /* 0x00 - success */
 	u_int16_t	status; /* if result != 0x00 */
+	uint8_t 	encryption;
 } ng_l2cap_l2ca_con_op;
 
 /* L2CA_ConnectInd */
@@ -598,6 +601,12 @@ typedef struct {
  * 	u_int16_t	result; /* 0x00 - success */
  * } ng_l2cap_l2ca_enable_clt_op;
 #endif
+#define NGM_L2CAP_L2CA_ENC_CHANGE 0x92
+typedef struct {
+	uint16_t 	lcid;
+	uint16_t	result;
+	uint8_t 	idtype;
+} ng_l2cap_l2ca_enc_chg_op;
 
 /**************************************************************************
  **************************************************************************

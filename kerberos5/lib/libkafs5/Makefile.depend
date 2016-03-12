@@ -13,9 +13,8 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libthr \
 	secure/lib/libcrypto \
-	usr.bin/xinstall.host \
+	usr.bin/compile_et.host \
 
 
 .include <dirdeps.mk>

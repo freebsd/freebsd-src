@@ -110,6 +110,7 @@
  *	C:	Cacheable, coherency unspecified.
  *	CNC:	Cacheable non-coherent.
  *	CC:	Cacheable coherent.
+ *	CCS:	Cacheable coherent, shared read.
  *	CCE:	Cacheable coherent, exclusive read.
  *	CCEW:	Cacheable coherent, exclusive write.
  *	CCUOW:	Cacheable coherent, update on write.
@@ -149,9 +150,25 @@
 #define	MIPS_CCA_CC	0x05	/* Cacheable Coherent. */
 #endif
 
-#if defined(CPU_MIPS74KC)
+#if defined(CPU_MIPS74K)
 #define	MIPS_CCA_UNCACHED	0x02
-#define	MIPS_CCA_CACHED		0x00
+#define	MIPS_CCA_CACHED		0x03
+#endif
+
+/*
+ * 1004K and 1074K cores, as well as interAptiv and proAptiv cores, support
+ * Cacheable Coherent CCAs 0x04 and 0x05, as well as Cacheable non-Coherent
+ * CCA 0x03 and Uncached Accelerated CCA 0x07
+ */
+#if defined(CPU_MIPS1004K) || defined(CPU_MIPS1074K) ||	\
+    defined(CPU_INTERAPTIV) || defined(CPU_PROAPTIV)
+#define	MIPS_CCA_CNC		0x03
+#define	MIPS_CCA_CCE		0x04
+#define	MIPS_CCA_CCS		0x05
+#define	MIPS_CCA_UA		0x07
+
+/* We use shared read CCA for CACHED CCA */
+#define	MIPS_CCA_CACHED		MIPS_CCA_CCS
 #endif
 
 #ifndef	MIPS_CCA_UNCACHED
@@ -209,8 +226,18 @@
 #define	COP0_SYNC	.word 0xc0	/* ehb */
 #elif defined(CPU_SB1)
 #define COP0_SYNC  ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop
-#elif defined(CPU_MIPS74KC)
-#define	COP0_SYNC	 .word 0xc0	/* ehb */
+#elif defined(CPU_MIPS24K) || defined(CPU_MIPS34K) ||		\
+      defined(CPU_MIPS74K) || defined(CPU_MIPS1004K)  ||	\
+      defined(CPU_MIPS1074K) || defined(CPU_INTERAPTIV) ||	\
+      defined(CPU_PROAPTIV)
+/*
+ * According to MIPS32tm Architecture for Programmers, Vol.II, rev. 2.00:
+ * "As EHB becomes standard in MIPS implementations, the previous SSNOPs can be
+ *  removed, leaving only the EHB".
+ * Also, all MIPS32 Release 2 implementations have the EHB instruction, which
+ * resolves all execution hazards. The same goes for MIPS32 Release 3.
+ */
+#define	COP0_SYNC	.word 0xc0	/* ehb */
 #else
 /*
  * Pick a reasonable default based on the "typical" spacing described in the
@@ -524,7 +551,7 @@
 #define MIPS_CONFIG0_MT_MASK		0x00000380	/* bits 9..7 MMU Type */
 #define MIPS_CONFIG0_MT_SHIFT		7
 #define MIPS_CONFIG0_BE			0x00008000	/* data is big-endian */
-#define MIPS_CONFIG0_VI			0x00000004	/* instruction cache is virtual */
+#define MIPS_CONFIG0_VI			0x00000008	/* instruction cache is virtual */
 
 #define MIPS_CONFIG1_TLBSZ_MASK		0x7E000000	/* bits 30..25 # tlb entries minus one */
 #define MIPS_CONFIG1_TLBSZ_SHIFT	25
@@ -556,6 +583,8 @@
 #define MIPS_CONFIG2_SL_MASK		0xf
 #define MIPS_CONFIG2_SS_SHIFT		8		/* Secondary cache sets per way */
 #define MIPS_CONFIG2_SS_MASK		0xf
+
+#define MIPS_CONFIG3_CMGCR_MASK		(1 << 29)	/* Coherence manager present */
 
 #define MIPS_CONFIG4_MMUSIZEEXT		0x000000FF	/* bits 7.. 0 MMU Size Extension */
 #define MIPS_CONFIG4_MMUEXTDEF		0x0000C000	/* bits 15.14 MMU Extension Definition */
@@ -633,5 +662,9 @@
  */
 #define	MIPS_OPCODE_SHIFT	26
 #define	MIPS_OPCODE_C1		0x11
+
+/* Coherence manager constants */
+#define	MIPS_CMGCRB_BASE	11
+#define	MIPS_CMGCRF_BASE	(~((1 << MIPS_CMGCRB_BASE) - 1))
 
 #endif /* _MIPS_CPUREGS_H_ */

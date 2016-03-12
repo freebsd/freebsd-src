@@ -1,7 +1,7 @@
 # $FreeBSD$
 .include <src.opts.mk>
 
-LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
+_LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
 
 LIB=	archive
 
@@ -37,7 +37,7 @@ CFLAGS+=	-DPPMD_32BIT
 .endif
 NO_WCAST_ALIGN.clang=
 
-.PATH: ${LIBARCHIVEDIR}/libarchive
+.PATH: ${_LIBARCHIVEDIR}/libarchive
 
 # Headers to be installed in /usr/include
 INCS=	archive.h archive_entry.h

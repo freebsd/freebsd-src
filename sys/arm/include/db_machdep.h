@@ -33,8 +33,10 @@
 #include <machine/frame.h>
 #include <machine/trap.h>
 #include <machine/armreg.h>
+#include <machine/acle-compat.h>
 
 #define T_BREAKPOINT	(1)
+#define T_WATCHPOINT	(2)
 typedef vm_offset_t	db_addr_t;
 typedef int		db_expr_t;
 
@@ -48,11 +50,16 @@ typedef int		db_expr_t;
 	kdb_frame->tf_pc += BKPT_SIZE; \
 } while (0)
 
-#define SOFTWARE_SSTEP	1
+#if __ARM_ARCH >= 6
+#define	db_clear_single_step	kdb_cpu_clear_singlestep
+#define	db_set_single_step	kdb_cpu_set_singlestep
+#define	db_pc_is_singlestep	kdb_cpu_pc_is_singlestep
+#else
+#define	SOFTWARE_SSTEP  1
+#endif
 
 #define	IS_BREAKPOINT_TRAP(type, code)	(type == T_BREAKPOINT)
-#define	IS_WATCHPOINT_TRAP(type, code)	(0)
-
+#define	IS_WATCHPOINT_TRAP(type, code)	(type == T_WATCHPOINT)
 
 #define	inst_trap_return(ins)	(0)
 /* ldmxx reg, {..., pc}
@@ -74,7 +81,7 @@ typedef int		db_expr_t;
 
 #define	inst_branch(ins)	(((ins) & 0x0f000000) == 0x0a000000 || \
 				 ((ins) & 0x0fdffff0) == 0x079ff100 || \
-				 ((ins) & 0x0cf0f000) == 0x0490f000 || \
+				 ((ins) & 0x0cd0f000) == 0x0490f000 || \
 				 ((ins) & 0x0ffffff0) == 0x012fff30 || /* blx */ \
 				 ((ins) & 0x0de0f000) == 0x0080f000)
 
@@ -90,7 +97,7 @@ typedef int		db_expr_t;
 
 int db_validate_address(vm_offset_t);
 
-u_int branch_taken (u_int insn, u_int pc);
+u_int branch_taken (u_int insn, db_addr_t pc);
 
 #ifdef __ARMEB__
 #define BYTE_MSF	(1)

@@ -30,7 +30,8 @@ Revision History
 
 
 #define EFIWARN(a)                            (a)
-#define EFI_ERROR(a)              (((INTN) a) < 0)
+#define EFI_ERROR(a)             (((INTN) a) < 0)
+#define EFI_ERROR_CODE(a)   (unsigned long)(a & ~EFI_ERROR_MASK)
 
 
 #define EFI_SUCCESS                             0

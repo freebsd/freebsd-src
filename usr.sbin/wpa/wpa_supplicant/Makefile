@@ -96,10 +96,6 @@ NEED_AES_ENCBLOCK=y
 NEED_AES_OMAC1=y
 .endif
 
-.if !empty(CFLAGS:M-DCONFIG_WPS)
-NEED_AES_CBC=y
-.endif
-
 .if !empty(CFLAGS:M*-DEAP_AKA)
 SRCS+=	eap_aka.c
 NEED_SIM_COMMON=y

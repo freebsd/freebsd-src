@@ -1194,7 +1194,7 @@ chu_a(
 	 * only if the maximum distance is at least MINSYNC.
 	 */
 	up->syndist = k = 0;
-	val = -16;
+	// val = -16;
 	for (i = -1; i < 2; i++) {
 		temp = up->cbuf[i + 4] & 0xf;
 		if (i >= 0)
@@ -1264,7 +1264,7 @@ chu_a(
 			offset = up->charstamp;
 		else if (k > 0)
 			i = 1;
-		for (; i < nchar && i < k + 10; i++) {
+		for (; i < nchar && (i - 10) < k; i++) {
 			up->tstamp[up->ntstamp] = up->cstamp[i];
 			L_SUB(&up->tstamp[up->ntstamp], &offset);
 			L_ADD(&offset, &up->charstamp);

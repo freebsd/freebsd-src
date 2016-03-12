@@ -207,43 +207,51 @@ __bsd_iconvlist(int (*do_one) (unsigned int, const char * const *,
 	const char * const *np;
 	char *curitem, *curkey, *slashpos;
 	size_t sz;
-	unsigned int i, j;
+	unsigned int i, j, n;
 
 	i = 0;
+	names = NULL;
 
-	if (__bsd___iconv_get_list(&list, &sz, true))
+	if (__bsd___iconv_get_list(&list, &sz, true)) {
 		list = NULL;
+		goto out;
+	}
 	qsort((void *)list, sz, sizeof(char *), qsort_helper);
 	while (i < sz) {
 		j = 0;
 		slashpos = strchr(list[i], '/');
-		curkey = (char *)malloc(slashpos - list[i] + 2);
-		names = (char **)malloc(sz * sizeof(char *));
-		if ((curkey == NULL) || (names == NULL)) {
-			__bsd___iconv_free_list(list, sz);
-			return;
-		}
-		strlcpy(curkey, list[i], slashpos - list[i] + 1);
+		names = malloc(sz * sizeof(char *));
+		if (names == NULL)
+			goto out;
+		curkey = strndup(list[i], slashpos - list[i]);
+		if (curkey == NULL)
+			goto out;
 		names[j++] = curkey;
 		for (; (i < sz) && (memcmp(curkey, list[i], strlen(curkey)) == 0); i++) {
 			slashpos = strchr(list[i], '/');
-			curitem = (char *)malloc(strlen(slashpos) + 1);
-			if (curitem == NULL) {
-				__bsd___iconv_free_list(list, sz);
-				return;
-			}
-			strlcpy(curitem, &slashpos[1], strlen(slashpos) + 1);
-			if (strcmp(curkey, curitem) == 0) {
+			if (strcmp(curkey, &slashpos[1]) == 0)
 				continue;
-			}
+			curitem = strdup(&slashpos[1]);
+			if (curitem == NULL)
+				goto out;
 			names[j++] = curitem;
 		}
 		np = (const char * const *)names;
 		do_one(j, np, data);
+		for (n = 0; n < j; n++)
+			free(names[n]);
 		free(names);
+		names = NULL;
 	}
 
-	__bsd___iconv_free_list(list, sz);
+out:
+	if (names != NULL) {
+		for (n = 0; n < j; n++)
+			free(names[n]);
+		free(names);
+	}
+	if (list != NULL)
+		__bsd___iconv_free_list(list, sz);
 }
 
 __inline const char *

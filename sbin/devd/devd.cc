@@ -108,15 +108,26 @@ __FBSDID("$FreeBSD$");
 /*
  * Since the client socket is nonblocking, we must increase its send buffer to
  * handle brief event storms.  On FreeBSD, AF_UNIX sockets don't have a receive
- * buffer, so the client can't increate the buffersize by itself.
+ * buffer, so the client can't increase the buffersize by itself.
  *
  * For example, when creating a ZFS pool, devd emits one 165 character
- * resource.fs.zfs.statechange message for each vdev in the pool.  A 64k
- * buffer has enough space for almost 400 drives, which would be very large but
- * not impossibly large pool.  A 128k buffer has enough space for 794 drives,
- * which is more than can fit in a rack with modern technology.
+ * resource.fs.zfs.statechange message for each vdev in the pool.  The kernel
+ * allocates a 4608B mbuf for each message.  Modern technology places a limit of
+ * roughly 450 drives/rack, and it's unlikely that a zpool will ever be larger
+ * than that.
+ *
+ * 450 drives * 165 bytes / drive = 74250B of data in the sockbuf
+ * 450 drives * 4608B / drive = 2073600B of mbufs in the sockbuf
+ *
+ * We can't directly set the sockbuf's mbuf limit, but we can do it indirectly.
+ * The kernel sets it to the minimum of a hard-coded maximum value and sbcc *
+ * kern.ipc.sockbuf_waste_factor, where sbcc is the socket buffer size set by
+ * the user.  The default value of kern.ipc.sockbuf_waste_factor is 8.  If we
+ * set the bufsize to 256k and use the kern.ipc.sockbuf_waste_factor, then the
+ * kernel will set the mbuf limit to 2MB, which is just large enough for 450
+ * drives.  It also happens to be the same as the hardcoded maximum value.
  */
-#define CLIENT_BUFSIZE 131072
+#define CLIENT_BUFSIZE 262144
 
 using namespace std;
 
@@ -850,7 +861,7 @@ create_socket(const char *name, int socktype)
 	return (fd);
 }
 
-unsigned int max_clients = 10;	/* Default, can be overriden on cmdline. */
+unsigned int max_clients = 10;	/* Default, can be overridden on cmdline. */
 unsigned int num_clients;
 
 list<client_t> clients;

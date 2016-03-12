@@ -375,7 +375,7 @@ g_rr_should_anticipate(struct g_rr_queue *qp, struct bio *bp)
 {
 	int wait = get_bounded(&me.wait_ms, 2);
 
-	if (!me.w_anticipate && (bp->bio_cmd & BIO_WRITE))
+	if (!me.w_anticipate && (bp->bio_cmd == BIO_WRITE))
 		return (0);
 
 	if (g_savg_valid(&qp->q_thinktime) &&

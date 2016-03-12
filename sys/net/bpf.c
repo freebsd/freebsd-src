@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_dl.h>
 #include <net/bpf.h>
 #include <net/bpf_buffer.h>
 #ifdef BPF_JITTER
@@ -76,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <net/bpf_zerocopy.h>
 #include <net/bpfdesc.h>
+#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -164,7 +166,7 @@ static void	bpf_detachd(struct bpf_d *);
 static void	bpf_detachd_locked(struct bpf_d *);
 static void	bpf_freed(struct bpf_d *);
 static int	bpf_movein(struct uio *, int, struct ifnet *, struct mbuf **,
-		    struct sockaddr *, int *, struct bpf_insn *);
+		    struct sockaddr *, int *, struct bpf_d *);
 static int	bpf_setif(struct bpf_d *, struct ifreq *);
 static void	bpf_timed_out(void *);
 static __inline void
@@ -454,7 +456,7 @@ bpf_ioctl_setzbuf(struct thread *td, struct bpf_d *d, struct bpf_zbuf *bz)
  */
 static int
 bpf_movein(struct uio *uio, int linktype, struct ifnet *ifp, struct mbuf **mp,
-    struct sockaddr *sockp, int *hdrlen, struct bpf_insn *wfilter)
+    struct sockaddr *sockp, int *hdrlen, struct bpf_d *d)
 {
 	const struct ieee80211_bpf_params *p;
 	struct ether_header *eh;
@@ -549,7 +551,7 @@ bpf_movein(struct uio *uio, int linktype, struct ifnet *ifp, struct mbuf **mp,
 	if (error)
 		goto bad;
 
-	slen = bpf_filter(wfilter, mtod(m, u_char *), len, len);
+	slen = bpf_filter(d->bd_wfilter, mtod(m, u_char *), len, len);
 	if (slen == 0) {
 		error = EPERM;
 		goto bad;
@@ -565,6 +567,10 @@ bpf_movein(struct uio *uio, int linktype, struct ifnet *ifp, struct mbuf **mp,
 				m->m_flags |= M_BCAST;
 			else
 				m->m_flags |= M_MCAST;
+		}
+		if (d->bd_hdrcmplt == 0) {
+			memcpy(eh->ether_shost, IF_LLADDR(ifp),
+			    sizeof(eh->ether_shost));
 		}
 		break;
 	}
@@ -1088,6 +1094,7 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	struct ifnet *ifp;
 	struct mbuf *m, *mc;
 	struct sockaddr dst;
+	struct route ro;
 	int error, hlen;
 
 	error = devfs_get_cdevpriv((void **)&d);
@@ -1119,7 +1126,7 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	hlen = 0;
 	/* XXX: bpf_movein() can sleep */
 	error = bpf_movein(uio, (int)d->bd_bif->bif_dlt, ifp,
-	    &m, &dst, &hlen, d->bd_wfilter);
+	    &m, &dst, &hlen, d);
 	if (error) {
 		d->bd_wdcount++;
 		return (error);
@@ -1151,7 +1158,14 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	BPFD_UNLOCK(d);
 #endif
 
-	error = (*ifp->if_output)(ifp, m, &dst, NULL);
+	bzero(&ro, sizeof(ro));
+	if (hlen != 0) {
+		ro.ro_prepend = (u_char *)&dst.sa_data;
+		ro.ro_plen = hlen;
+		ro.ro_flags = RT_HAS_HEADER;
+	}
+
+	error = (*ifp->if_output)(ifp, m, &dst, &ro);
 	if (error)
 		d->bd_wdcount++;
 
@@ -2551,7 +2565,7 @@ bpfattach2(struct ifnet *ifp, u_int dlt, u_int hdrlen, struct bpf_if **driverp)
 
 	bp->bif_hdrlen = hdrlen;
 
-	if (bootverbose)
+	if (bootverbose && IS_DEFAULT_VNET(curvnet))
 		if_printf(ifp, "bpf attached\n");
 }
 
@@ -2667,26 +2681,44 @@ bpf_ifdetach(void *arg __unused, struct ifnet *ifp)
 static int
 bpf_getdltlist(struct bpf_d *d, struct bpf_dltlist *bfl)
 {
-	int n, error;
 	struct ifnet *ifp;
 	struct bpf_if *bp;
+	u_int *lst;
+	int error, n, n1;
 
 	BPF_LOCK_ASSERT();
 
 	ifp = d->bd_bif->bif_ifp;
+again:
+	n1 = 0;
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+		if (bp->bif_ifp == ifp)
+			n1++;
+	}
+	if (bfl->bfl_list == NULL) {
+		bfl->bfl_len = n1;
+		return (0);
+	}
+	if (n1 > bfl->bfl_len)
+		return (ENOMEM);
+	BPF_UNLOCK();
+	lst = malloc(n1 * sizeof(u_int), M_TEMP, M_WAITOK);
 	n = 0;
-	error = 0;
+	BPF_LOCK();
 	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		if (bp->bif_ifp != ifp)
 			continue;
-		if (bfl->bfl_list != NULL) {
-			if (n >= bfl->bfl_len)
-				return (ENOMEM);
-			error = copyout(&bp->bif_dlt,
-			    bfl->bfl_list + n, sizeof(u_int));
+		if (n > n1) {
+			free(lst, M_TEMP);
+			goto again;
 		}
+		lst[n] = bp->bif_dlt;
 		n++;
 	}
+	BPF_UNLOCK();
+	error = copyout(lst, bfl->bfl_list, sizeof(u_int) * n);
+	free(lst, M_TEMP);
+	BPF_LOCK();
 	bfl->bfl_len = n;
 	return (error);
 }

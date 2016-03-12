@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
-#include <machine/vmparam.h>
 #include <machine/minidump.h>
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Devin Teske <dteske@FreeBSD.org>
+ * Copyright (c) 2013-2016 Devin Teske <dteske@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <dialog.h>
 #include <err.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,6 +69,7 @@ long long dpv_overall_read = 0;
 static char pathbuf[PATH_MAX];
 
 /* Extra display information */
+uint8_t keep_tite = FALSE;	/* dpv_config.keep_tite */
 uint8_t no_labels = FALSE;	/* dpv_config.options & DPV_NO_LABELS */
 uint8_t wide = FALSE;		/* dpv_config.options & DPV_WIDE_MODE */
 char *aprompt = NULL;		/* dpv_config.aprompt */
@@ -149,6 +151,7 @@ dpv(struct dpv_config *config, struct dpv_file_node *file_list)
 	dialog_updates_per_second = DIALOG_UPDATES_PER_SEC;
 	display_limit	= DISPLAY_LIMIT_DEFAULT;
 	display_type	= DPV_DISPLAY_LIBDIALOG;
+	keep_tite	= FALSE;
 	label_size	= LABEL_SIZE_DEFAULT;
 	msg_done	= NULL;
 	msg_fail	= NULL;
@@ -192,6 +195,7 @@ dpv(struct dpv_config *config, struct dpv_file_node *file_list)
 		dialog_updates_per_second = config->dialog_updates_per_second;
 		display_limit	= config->display_limit;
 		display_type	= config->display_type;
+		keep_tite	= config->keep_tite;
 		label_size	= config->label_size;
 		msg_done	= (char *)config->msg_done;
 		msg_fail	= (char *)config->msg_fail;
@@ -482,6 +486,11 @@ dpv(struct dpv_config *config, struct dpv_file_node *file_list)
 		/* Reads: label_size pbar_size pprompt aprompt dpv_nfiles */
 		/* Inits: dheight and dwidth */
 
+	/* Default localeconv(3) settings for dialog(3) status */
+	setlocale(LC_NUMERIC,
+		getenv("LC_ALL") == NULL && getenv("LC_NUMERIC") == NULL ?
+		LC_NUMERIC_DEFAULT : "");
+
 	if (!debug) {
 		/* Internally create the initial `--gauge' prompt text */
 		dprompt_recreate(file_list, (struct dpv_file_node *)NULL, 0);
@@ -689,7 +698,7 @@ dpv(struct dpv_config *config, struct dpv_file_node *file_list)
 			close(dialog_out);
 			waitpid(pid, (int *)NULL, 0);	
 		}
-		if (!dpv_interrupt)
+		if (!keep_tite && !dpv_interrupt)
 			printf("\n");
 	} else
 		warnx("%s: %lli overall read", __func__, dpv_overall_read);

@@ -5,7 +5,7 @@
 
 PROG=   ibaddr
 SRCS=   ibaddr.c ibdiag_common.c
-LDADD=	-libumad -libcommon -libmad
+LIBADD= ibmad
 CFLAGS+= -I${DIAGPATH}/include
 MAN=	ibaddr.8
 

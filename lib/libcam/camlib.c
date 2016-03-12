@@ -676,8 +676,10 @@ cam_close_spec_device(struct cam_device *dev)
 	if (dev == NULL)
 		return;
 
-	if (dev->fd >= 0)
+	if (dev->fd >= 0) {
 		close(dev->fd);
+		dev->fd = -1;
+	}
 }
 
 char *

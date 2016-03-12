@@ -13,13 +13,21 @@
 #include "crypto.h"
 
 
-static void sha1_transform(u8 *state, const u8 data[64])
+static void sha1_transform(u32 *state, const u8 data[64])
 {
 	SHA_CTX context;
 	os_memset(&context, 0, sizeof(context));
-	os_memcpy(&context.h0, state, 5 * 4);
+	context.h0 = state[0];
+	context.h1 = state[1];
+	context.h2 = state[2];
+	context.h3 = state[3];
+	context.h4 = state[4];
 	SHA1_Transform(&context, data);
-	os_memcpy(state, &context.h0, 5 * 4);
+	state[0] = context.h0;
+	state[1] = context.h1;
+	state[2] = context.h2;
+	state[3] = context.h3;
+	state[4] = context.h4;
 }
 
 
@@ -53,7 +61,7 @@ int fips186_2_prf(const u8 *seed, size_t seed_len, u8 *x, size_t xlen)
 
 			/* w_i = G(t, XVAL) */
 			os_memcpy(_t, t, 20);
-			sha1_transform((u8 *) _t, xkey);
+			sha1_transform(_t, xkey);
 			_t[0] = host_to_be32(_t[0]);
 			_t[1] = host_to_be32(_t[1]);
 			_t[2] = host_to_be32(_t[2]);

@@ -67,6 +67,6 @@
  * when address is returned by VC over mailbox interface. e.g.
  * framebuffer base
  */
-#define	VCBUS_TO_PHYS(vca)	((vca) - BCM2835_VCBUS_SDRAM_BASE)
+#define	VCBUS_TO_PHYS(vca)	((vca) & ~(BCM2835_VCBUS_SDRAM_BASE))
 
 #endif /* _BCM2835_VCBUS_H_ */

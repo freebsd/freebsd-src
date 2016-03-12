@@ -16,12 +16,12 @@ ${MOD}_tree.c ${MOD}_tree.h: ${MOD}_tree.def ${EXTRAMIBDEFS}
 
 .if defined(DEFS)
 FILESGROUPS+=	DEFS
-DEFSDIR=	${SHAREDIR}/snmp/defs
+DEFSDIR?=	${SHAREDIR}/snmp/defs
 .endif
 
 .if defined(BMIBS)
 FILESGROUPS+=	BMIBS
-BMIBSDIR=	${SHAREDIR}/snmp/mibs
+BMIBSDIR?=	${SHAREDIR}/snmp/mibs
 .endif
 
 .include <bsd.lib.mk>

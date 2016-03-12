@@ -1,8 +1,8 @@
-/* $OpenBSD: auth-krb5.c,v 1.20 2013/07/20 01:55:13 djm Exp $ */
+/* $OpenBSD: auth-krb5.c,v 1.21 2016/01/27 06:44:58 djm Exp $ */
 /*
  *    Kerberos v5 authentication and ticket-passing routines.
  *
- * $FreeBSD: src/crypto/openssh/auth-krb5.c,v 1.6 2001/02/13 16:58:04 assar Exp $
+ * From: FreeBSD: src/crypto/openssh/auth-krb5.c,v 1.6 2001/02/13 16:58:04 assar
  */
 /*
  * Copyright (c) 2002 Daniel Kouril.  All rights reserved.
@@ -40,6 +40,7 @@
 #include "packet.h"
 #include "log.h"
 #include "buffer.h"
+#include "misc.h"
 #include "servconf.h"
 #include "uidswap.h"
 #include "key.h"

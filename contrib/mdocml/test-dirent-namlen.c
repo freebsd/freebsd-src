@@ -6,5 +6,5 @@ main(void)
 {
 	struct dirent	 entry;
 
-	return (sizeof(entry.d_namlen) == 0);
+	return sizeof(entry.d_namlen) == 0;
 }
