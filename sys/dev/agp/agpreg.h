@@ -296,9 +296,19 @@
 #define	AGP_I915_IFPADDR		0x60
 
 /*
+ * G33 registers
+ */
+#define AGP_G33_MGGC_GGMS_MASK		(3 << 8)
+#define AGP_G33_MGGC_GGMS_SIZE_1M	(1 << 8)
+#define AGP_G33_MGGC_GGMS_SIZE_2M	(2 << 8)
+#define AGP_G33_GCC1_GMS_STOLEN_128M	0x80
+#define AGP_G33_GCC1_GMS_STOLEN_256M	0x90
+
+/*
  * G965 registers
  */
 #define AGP_I965_GTTMMADR		0x10
+#define AGP_I965_APBASE			0x18
 #define AGP_I965_MSAC			0x62
 #define AGP_I965_MSAC_GMASIZE_128	0x00
 #define AGP_I965_MSAC_GMASIZE_256	0x02
@@ -310,20 +320,8 @@
 #define	AGP_I965_IFPADDR		0x70
 
 /*
- * G33 registers
- */
-#define AGP_G33_MGGC_GGMS_MASK		(3 << 8)
-#define AGP_G33_MGGC_GGMS_SIZE_1M	(1 << 8)
-#define AGP_G33_MGGC_GGMS_SIZE_2M	(2 << 8)
-#define AGP_G33_GCC1_GMS_STOLEN_128M	0x80
-#define AGP_G33_GCC1_GMS_STOLEN_256M	0x90
-
-/*
  * G4X registers
  */
-#define AGP_G4X_GMADR			0x20
-#define AGP_G4X_MMADR			0x10
-#define AGP_G4X_GTTADR			0x18
 #define AGP_G4X_GCC1_GMS_STOLEN_96M	0xa0
 #define AGP_G4X_GCC1_GMS_STOLEN_160M	0xb0
 #define AGP_G4X_GCC1_GMS_STOLEN_224M	0xc0
