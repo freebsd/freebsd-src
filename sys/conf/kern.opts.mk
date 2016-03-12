@@ -30,6 +30,7 @@ __DEFAULT_YES_OPTIONS = \
     CDDL \
     CRYPT \
     CUSE \
+    FAST_DEPEND \
     FORMAT_EXTENSIONS \
     INET \
     INET6 \
@@ -45,7 +46,6 @@ __DEFAULT_YES_OPTIONS = \
 
 __DEFAULT_NO_OPTIONS = \
     EISA \
-    FAST_DEPEND \
     NAND \
     OFED
 
