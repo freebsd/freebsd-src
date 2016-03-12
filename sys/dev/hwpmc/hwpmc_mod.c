@@ -1014,14 +1014,14 @@ pmc_attach_one_process(struct proc *p, struct pmc *pm)
 
 	/* issue an attach event to a configured log file */
 	if (pm->pm_owner->po_flags & PMC_PO_OWNS_LOGFILE) {
-		pmc_getfilename(p->p_textvp, &fullpath, &freepath);
 		if (p->p_flag & P_KTHREAD) {
 			fullpath = kernelname;
 			freepath = NULL;
-		} else
+		} else {
+			pmc_getfilename(p->p_textvp, &fullpath, &freepath);
 			pmclog_process_pmcattach(pm, p->p_pid, fullpath);
-		if (freepath)
-			free(freepath, M_TEMP);
+		}
+		free(freepath, M_TEMP);
 		if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 			pmc_log_process_mappings(pm->pm_owner, p);
 	}
