@@ -1394,7 +1394,8 @@ update:
 #
 
 # ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
-.if ${BOOTSTRAPPING} < 1100006
+# r296685 fix cross-endian objcopy
+.if ${BOOTSTRAPPING} < 1100102
 _elftoolchain_libs= lib/libelf lib/libdwarf
 .endif
 
