@@ -24,6 +24,13 @@ _EOF
 test $? -eq 0 || fatal "couldn't prepare principals command"
 $SUDO chmod 0755 "$PRINCIPALS_CMD"
 
+if ! $OBJ/check-perm -m keys-command $PRINCIPALS_CMD ; then
+	echo "skipping: $PRINCIPALS_CMD is unsuitable as " \
+	    "AuthorizedPrincipalsCommand"
+	$SUDO rm -f $PRINCIPALS_CMD
+	exit 0
+fi
+
 # Create a CA key and a user certificate.
 ${SSHKEYGEN} -q -N '' -t ed25519  -f $OBJ/user_ca_key || \
 	fatal "ssh-keygen of user_ca_key failed"

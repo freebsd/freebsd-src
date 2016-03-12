@@ -3,7 +3,7 @@
 .include <bsd.own.mk>
 
 PROG=	ssh-keyscan
-SRCS=	ssh-keyscan.c roaming_dummy.c
+SRCS=	ssh-keyscan.c
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 SRCS+=	ssh_namespace.h
 

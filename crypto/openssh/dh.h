@@ -1,4 +1,4 @@
-/* $OpenBSD: dh.h,v 1.13 2015/05/27 23:39:18 dtucker Exp $ */
+/* $OpenBSD: dh.h,v 1.14 2015/10/16 22:32:22 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
@@ -44,8 +44,11 @@ int	 dh_pub_is_valid(DH *, BIGNUM *);
 
 u_int	 dh_estimate(int);
 
-/* Min and max values from RFC4419. */
-#define DH_GRP_MIN	1024
+/*
+ * Max value from RFC4419.
+ * Miniumum increased in light of DH precomputation attacks.
+ */
+#define DH_GRP_MIN	2048
 #define DH_GRP_MAX	8192
 
 /*

@@ -7,11 +7,6 @@ SRCS=	ssh-keygen.c
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 SRCS+=	ssh_namespace.h
 
-.if !defined(NO_SHARED)
-# required when linking with a dynamic libssh
-SRCS+=	roaming_dummy.c
-.endif
-
 DPADD=	${LIBSSH}
 LDADD=	-lssh
 USEPRIVATELIB= ssh
