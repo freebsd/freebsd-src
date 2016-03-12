@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 28, 2016
+.Dd March 9, 2016
 .Dt FILEMON 4
 .Os
 .Sh NAME
@@ -125,6 +125,19 @@ function returns the value 0 if successful;
 otherwise the value \-1 is returned and the global variable
 .Va errno
 is set to indicate the error.
+.Sh ERRORS
+The
+.Fn ioctl
+system call
+with
+.Dv FILEMON_SET_FD
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EEXIST
+The
+.Nm
+handle is already associated with a file descriptor.
+.El
 .Sh FILES
 .Bl -tag -width ".Pa /dev/filemon"
 .It Pa /dev/filemon
@@ -193,3 +206,6 @@ Only children of the set process are logged.
 Processes can escape being traced by double forking.
 This is not seen as a problem as the intended use is build monitoring, which
 does not make sense to have daemons for.
+.Pp
+Unloading the module may panic the system, thus requires using
+.Ic kldunload -f .
