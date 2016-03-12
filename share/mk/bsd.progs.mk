@@ -114,7 +114,7 @@ x.$p= PROG_CXX=$p
 # Main PROG target
 $p ${p}_p: .PHONY .MAKE
 	(cd ${.CURDIR} && \
-	    NO_SUBDIR=1 ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
+	    NO_SUBDIR=1 ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS=t \
 	    PROG=$p \
 	    DEPENDFILE=.depend.$p .MAKE.DEPENDFILE=.depend.$p \
 	    ${x.$p})
@@ -123,7 +123,7 @@ $p ${p}_p: .PHONY .MAKE
 .for t in ${PROGS_TARGETS:O:u}
 $p.$t: .PHONY .MAKE
 	(cd ${.CURDIR} && \
-	    NO_SUBDIR=1 ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
+	    NO_SUBDIR=1 ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS=t \
 	    PROG=$p \
 	    DEPENDFILE=.depend.$p .MAKE.DEPENDFILE=.depend.$p \
 	    ${x.$p} ${@:E})
