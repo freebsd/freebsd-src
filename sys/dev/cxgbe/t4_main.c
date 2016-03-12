@@ -491,9 +491,11 @@ static int sysctl_tx_rate(SYSCTL_HANDLER_ARGS);
 static int sysctl_ulprx_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS);
 #endif
+#ifdef TCP_OFFLOAD
 static int sysctl_tp_tick(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_dack_timer(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_timer(SYSCTL_HANDLER_ARGS);
+#endif
 static uint32_t fconf_iconf_to_mode(uint32_t, uint32_t);
 static uint32_t mode_to_fconf(uint32_t);
 static uint32_t mode_to_iconf(uint32_t);
@@ -7455,6 +7457,7 @@ sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS)
 }
 #endif
 
+#ifdef TCP_OFFLOAD
 static void
 unit_conv(char *buf, size_t len, u_int val, u_int factor)
 {
@@ -7538,6 +7541,7 @@ sysctl_tp_timer(SYSCTL_HANDLER_ARGS)
 
 	return (sysctl_handle_long(oidp, &v, 0, req));
 }
+#endif
 
 static uint32_t
 fconf_iconf_to_mode(uint32_t fconf, uint32_t iconf)
