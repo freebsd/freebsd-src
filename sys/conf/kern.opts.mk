@@ -144,7 +144,10 @@ MK_${var}:=	no
 MK_${var}_SUPPORT:= no
 .else
 .if defined(KERNBUILDDIR)	# See if there's an opt_foo.h
+.if !defined(OPT_${var})
 OPT_${var}!= cat ${KERNBUILDDIR}/opt_${var:tl}.h; echo
+.export OPT_${var}
+.endif
 .if ${OPT_${var}} == ""		# nothing -> no
 MK_${var}_SUPPORT:= no
 .else

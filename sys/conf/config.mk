@@ -49,6 +49,7 @@ KERN_OPTS+= INET6
 .if ${MK_EISA} != "no"
 KERN_OPTS+= DEV_EISA
 .endif
-.else
+.elif !defined(KERN_OPTS)
 KERN_OPTS!=cat ${KERNBUILDDIR}/opt*.h | awk '{print $$2;}' | sort -u
+.export KERN_OPTS
 .endif
