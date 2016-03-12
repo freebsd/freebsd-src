@@ -4595,7 +4595,7 @@ t4_register_fw_msg_handler(struct adapter *sc, int type, fw_msg_handler_t h)
  * Should match fw_caps_config_<foo> enums in t4fw_interface.h
  */
 static char *caps_decoder[] = {
-	"\20\0011IPMI\002NCSI",				/* 0: NBM */
+	"\20\001IPMI\002NCSI",				/* 0: NBM */
 	"\20\001PPP\002QFC\003DCBX",			/* 1: link */
 	"\20\001INGRESS\002EGRESS",			/* 2: switch */
 	"\20\001NIC\002VM\003IDS\004UM\005UM_ISGL"	/* 3: NIC */
