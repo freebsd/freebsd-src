@@ -726,8 +726,9 @@ unionlookup:
 	lkflags_save = cnp->cn_lkflags;
 	cnp->cn_lkflags = compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags,
 	    cnp->cn_flags);
-	if ((error = VOP_LOOKUP(dp, &ndp->ni_vp, cnp)) != 0) {
-		cnp->cn_lkflags = lkflags_save;
+	error = VOP_LOOKUP(dp, &ndp->ni_vp, cnp);
+	cnp->cn_lkflags = lkflags_save;
+	if (error != 0) {
 		KASSERT(ndp->ni_vp == NULL, ("leaf should be empty"));
 #ifdef NAMEI_DIAGNOSTIC
 		printf("not found\n");
@@ -783,8 +784,7 @@ unionlookup:
 			VREF(ndp->ni_startdir);
 		}
 		goto success;
-	} else
-		cnp->cn_lkflags = lkflags_save;
+	}
 
 good:
 #ifdef NAMEI_DIAGNOSTIC
