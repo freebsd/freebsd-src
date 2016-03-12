@@ -31,18 +31,6 @@ UPDATE_DEPENDFILE_PROG = ${PROGS:[1]}
 UPDATE_DEPENDFILE_PROG?= no
 .endif
 
-.ifndef PROG
-# They may have asked us to build just one
-.for t in ${PROGS}
-.if make($t)
-.if ${PROGS_CXX:U:M${t}}
-PROG_CXX ?= $t
-.endif
-PROG ?= $t
-.endif
-.endfor
-.endif
-
 .if defined(PROG)
 # just one of many
 PROG_OVERRIDE_VARS +=	BINDIR BINGRP BINOWN BINMODE DPSRCS MAN NO_WERROR \
@@ -82,7 +70,7 @@ UPDATE_DEPENDFILE = NO
 
 # These are handled by the main make process.
 .ifdef _RECURSING_PROGS
-_PROGS_GLOBAL_VARS= CLEANFILES CLEANDIRS FILESGROUPS SCRIPTS
+_PROGS_GLOBAL_VARS= CLEANFILES CLEANDIRS FILESGROUPS INCSGROUPS SCRIPTS
 .for v in ${_PROGS_GLOBAL_VARS}
 $v =
 .endfor
