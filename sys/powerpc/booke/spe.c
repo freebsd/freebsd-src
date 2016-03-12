@@ -61,8 +61,8 @@ save_vec_int(struct thread *td)
 	/*
 	 * Save the vector registers and SPEFSCR to the PCB
 	 */
-#define STVX(n)   __asm ("evstdd %1,0(%0)" \
-		:: "b"(pcb->pcb_vec.vr[n/2][n%2]), "n"(n));
+#define STVX(n)   __asm ("evstdw %1,0(%0)" \
+		:: "b"(pcb->pcb_vec.vr[n]), "n"(n));
 	STVX(0);	STVX(1);	STVX(2);	STVX(3);
 	STVX(4);	STVX(5);	STVX(6);	STVX(7);
 	STVX(8);	STVX(9);	STVX(10);	STVX(11);
@@ -132,7 +132,7 @@ enable_vec(struct thread *td)
 	 * The lower half of each register will be restored on trap return.  Use
 	 * %r0 as a scratch register, and restore it last.
 	 */
-#define	LVX(n)   __asm __volatile("evldd 0, 0(%0); evmergehilo "#n",0,"#n \
+#define	LVX(n)   __asm __volatile("evldw 0, 0(%0); evmergehilo "#n",0,"#n \
 	    :: "b"(&pcb->pcb_vec.vr[n]));
 	LVX(1);		LVX(2);		LVX(3);		LVX(4);
 	LVX(5);		LVX(6);		LVX(7);		LVX(8);
