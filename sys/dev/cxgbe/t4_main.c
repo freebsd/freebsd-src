@@ -328,8 +328,14 @@ TUNABLE_INT("hw.cxgbe.fw_install", &t4_fw_install);
  * ASIC features that will be used.  Disable the ones you don't want so that the
  * chip resources aren't wasted on features that will not be used.
  */
+static int t4_nbmcaps_allowed = 0;
+TUNABLE_INT("hw.cxgbe.nbmcaps_allowed", &t4_nbmcaps_allowed);
+
 static int t4_linkcaps_allowed = 0;	/* No DCBX, PPP, etc. by default */
 TUNABLE_INT("hw.cxgbe.linkcaps_allowed", &t4_linkcaps_allowed);
+
+static int t4_switchcaps_allowed = 0;
+TUNABLE_INT("hw.cxgbe.switchcaps_allowed", &t4_switchcaps_allowed);
 
 static int t4_niccaps_allowed = FW_CAPS_CONFIG_NIC;
 TUNABLE_INT("hw.cxgbe.niccaps_allowed", &t4_niccaps_allowed);
@@ -339,6 +345,9 @@ TUNABLE_INT("hw.cxgbe.toecaps_allowed", &t4_toecaps_allowed);
 
 static int t4_rdmacaps_allowed = 0;
 TUNABLE_INT("hw.cxgbe.rdmacaps_allowed", &t4_rdmacaps_allowed);
+
+static int t4_tlscaps_allowed = 0;
+TUNABLE_INT("hw.cxgbe.tlscaps_allowed", &t4_tlscaps_allowed);
 
 static int t4_iscsicaps_allowed = 0;
 TUNABLE_INT("hw.cxgbe.iscsicaps_allowed", &t4_iscsicaps_allowed);
@@ -3058,10 +3067,13 @@ use_config_on_flash:
 	 * Let the firmware know what features will (not) be used so it can tune
 	 * things accordingly.
 	 */
+	LIMIT_CAPS(nbmcaps);
 	LIMIT_CAPS(linkcaps);
+	LIMIT_CAPS(switchcaps);
 	LIMIT_CAPS(niccaps);
 	LIMIT_CAPS(toecaps);
 	LIMIT_CAPS(rdmacaps);
+	LIMIT_CAPS(tlscaps);
 	LIMIT_CAPS(iscsicaps);
 	LIMIT_CAPS(fcoecaps);
 #undef LIMIT_CAPS
@@ -3166,10 +3178,13 @@ get_params__post_init(struct adapter *sc)
 #define READ_CAPS(x) do { \
 	sc->x = htobe16(caps.x); \
 } while (0)
+	READ_CAPS(nbmcaps);
 	READ_CAPS(linkcaps);
+	READ_CAPS(switchcaps);
 	READ_CAPS(niccaps);
 	READ_CAPS(toecaps);
 	READ_CAPS(rdmacaps);
+	READ_CAPS(tlscaps);
 	READ_CAPS(iscsicaps);
 	READ_CAPS(fcoecaps);
 
@@ -4576,24 +4591,33 @@ t4_register_fw_msg_handler(struct adapter *sc, int type, fw_msg_handler_t h)
 	return (0);
 }
 
+/*
+ * Should match fw_caps_config_<foo> enums in t4fw_interface.h
+ */
+static char *caps_decoder[] = {
+	"\20\0011IPMI\002NCSI",				/* 0: NBM */
+	"\20\001PPP\002QFC\003DCBX",			/* 1: link */
+	"\20\001INGRESS\002EGRESS",			/* 2: switch */
+	"\20\001NIC\002VM\003IDS\004UM\005UM_ISGL"	/* 3: NIC */
+	    "\006HASHFILTER\007ETHOFLD",
+	"\20\001TOE",					/* 4: TOE */
+	"\20\001RDDP\002RDMAC",				/* 5: RDMA */
+	"\20\001INITIATOR_PDU\002TARGET_PDU"		/* 6: iSCSI */
+	    "\003INITIATOR_CNXOFLD\004TARGET_CNXOFLD"
+	    "\005INITIATOR_SSNOFLD\006TARGET_SSNOFLD"
+	    "\007T10DIF"
+	    "\010INITIATOR_CMDOFLD\011TARGET_CMDOFLD",
+	"\20\00KEYS",					/* 7: TLS */
+	"\20\001INITIATOR\002TARGET\003CTRL_OFLD"	/* 8: FCoE */
+		    "\004PO_INITIATOR\005PO_TARGET",
+};
+
 static void
 t4_sysctls(struct adapter *sc)
 {
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid *oid;
 	struct sysctl_oid_list *children, *c0;
-	static char *caps[] = {
-		"\20\1PPP\2QFC\3DCBX",			/* caps[0] linkcaps */
-		"\20\1NIC\2VM\3IDS\4UM\5UM_ISGL"	/* caps[1] niccaps */
-		    "\6HASHFILTER\7ETHOFLD",
-		"\20\1TOE",				/* caps[2] toecaps */
-		"\20\1RDDP\2RDMAC",			/* caps[3] rdmacaps */
-		"\20\1INITIATOR_PDU\2TARGET_PDU"	/* caps[4] iscsicaps */
-		    "\3INITIATOR_CNXOFLD\4TARGET_CNXOFLD"
-		    "\5INITIATOR_SSNOFLD\6TARGET_SSNOFLD",
-		"\20\1INITIATOR\2TARGET\3CTRL_OFLD"	/* caps[5] fcoecaps */
-		    "\4PO_INITIAOR\5PO_TARGET"
-	};
 	static char *doorbells = {"\20\1UDB\2WCWR\3UDBWC\4KDB"};
 
 	ctx = device_get_sysctl_ctx(sc->dev);
@@ -4635,29 +4659,21 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, doorbells, sc->doorbells,
 	    sysctl_bitfield, "A", "available doorbells");
 
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "linkcaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[0], sc->linkcaps,
-	    sysctl_bitfield, "A", "available link capabilities");
+#define SYSCTL_CAP(name, n, text) \
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, #name, \
+	    CTLTYPE_STRING | CTLFLAG_RD, caps_decoder[n], sc->name, \
+	    sysctl_bitfield, "A", "available " text "capabilities")
 
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "niccaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[1], sc->niccaps,
-	    sysctl_bitfield, "A", "available NIC capabilities");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "toecaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[2], sc->toecaps,
-	    sysctl_bitfield, "A", "available TCP offload capabilities");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rdmacaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[3], sc->rdmacaps,
-	    sysctl_bitfield, "A", "available RDMA capabilities");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "iscsicaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[4], sc->iscsicaps,
-	    sysctl_bitfield, "A", "available iSCSI capabilities");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "fcoecaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[5], sc->fcoecaps,
-	    sysctl_bitfield, "A", "available FCoE capabilities");
+	SYSCTL_CAP(nbmcaps, 0, "NBM");
+	SYSCTL_CAP(linkcaps, 1, "link");
+	SYSCTL_CAP(switchcaps, 2, "switch");
+	SYSCTL_CAP(niccaps, 3, "NIC");
+	SYSCTL_CAP(toecaps, 4, "TCP offload");
+	SYSCTL_CAP(rdmacaps, 5, "RDMA");
+	SYSCTL_CAP(iscsicaps, 6, "iSCSI");
+	SYSCTL_CAP(tlscaps, 7, "TLS");
+	SYSCTL_CAP(fcoecaps, 8, "FCoE");
+#undef SYSCTL_CAP
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "core_clock", CTLFLAG_RD, NULL,
 	    sc->params.vpd.cclk, "core clock frequency (in KHz)");
