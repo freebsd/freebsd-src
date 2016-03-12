@@ -56,8 +56,8 @@ do_copy_relocations(Obj_Entry *dstobj)
 			    ELF_R_SYM(rel->r_info));
 			req.flags = SYMLOOK_EARLY;
 
-			for (srcobj = dstobj->next;  srcobj != NULL; 
-			     srcobj = srcobj->next) {
+			for (srcobj = globallist_next(dstobj); srcobj != NULL;
+			    srcobj = globallist_next(srcobj)) {
 				res = symlook_obj(&req, srcobj);
 				if (res == 0) {
 					srcsym = req.sym_out;
