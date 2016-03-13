@@ -221,7 +221,7 @@ int main(int argc, char **argv)
 	}
 	toc = mkuz_safe_malloc((hdr.nblocks + 1) * sizeof(*toc));
 
-	fdw = open(oname, O_WRONLY | O_TRUNC | O_CREAT,
+	fdw = open(oname, (en_dedup ? O_RDWR : O_WRONLY) | O_TRUNC | O_CREAT,
 		   S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
 	if (fdw < 0) {
 		err(1, "open(%s)", oname);
