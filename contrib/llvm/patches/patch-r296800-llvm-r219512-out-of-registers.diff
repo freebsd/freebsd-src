@@ -1,0 +1,33 @@
+Pull in r219512 from upstream llvm trunk (by Hal Finkel):
+
+  [MiSched] Fix a logic error in tryPressure()
+
+  Fixes a logic error in the MachineScheduler found by Steve Montgomery
+  (and confirmed by Andy). This has gone unfixed for months because the
+  fix has been found to introduce some small performance regressions.
+  However, Andy has recommended that, at this point, we fix this to
+  avoid further dependence on the incorrect behavior (and then
+  follow-up separately on any regressions), and I agree.
+
+  Fixes PR18883.
+
+This fixes a possible "ran out of registers" error when compiling
+www/firefox 45.0 on i386.
+
+Introduced here: http://svnweb.freebsd.org/changeset/base/xxxxxx
+
+Index: lib/CodeGen/MachineScheduler.cpp
+===================================================================
+--- lib/CodeGen/MachineScheduler.cpp
++++ lib/CodeGen/MachineScheduler.cpp
+@@ -2365,8 +2365,8 @@ static bool tryPressure(const PressureChange &TryP
+   }
+   // If one candidate decreases and the other increases, go with it.
+   // Invalid candidates have UnitInc==0.
+-  if (tryLess(TryP.getUnitInc() < 0, CandP.getUnitInc() < 0, TryCand, Cand,
+-              Reason)) {
++  if (tryGreater(TryP.getUnitInc() < 0, CandP.getUnitInc() < 0, TryCand, Cand,
++                 Reason)) {
+     return true;
+   }
+   // If the candidates are decreasing pressure, reverse priority.
