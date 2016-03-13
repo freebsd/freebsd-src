@@ -2365,8 +2365,8 @@ static bool tryPressure(const PressureChange &TryP,
   }
   // If one candidate decreases and the other increases, go with it.
   // Invalid candidates have UnitInc==0.
-  if (tryLess(TryP.getUnitInc() < 0, CandP.getUnitInc() < 0, TryCand, Cand,
-              Reason)) {
+  if (tryGreater(TryP.getUnitInc() < 0, CandP.getUnitInc() < 0, TryCand, Cand,
+                 Reason)) {
     return true;
   }
   // If the candidates are decreasing pressure, reverse priority.
