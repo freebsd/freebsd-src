@@ -1,10 +1,11 @@
 #!/bin/sh
 # $FreeBSD$
 
+. $(dirname $0)/conf.sh
+
 base=`basename $0`
-no=45
 sectors=100
-keyfile=`mktemp /tmp/$base.XXXXXX` || exit 1
+keyfile=`mktemp $base.XXXXXX` || exit 1
 
 echo "1..460"
 
@@ -25,7 +26,7 @@ for cipher in aes:0 aes:128 aes:256 \
 	ealgo=${cipher%%:*}
 	keylen=${cipher##*:}
 	for secsize in 512 1024 2048 4096 8192; do
-		rnd=`mktemp /tmp/$base.XXXXXX` || exit 1
+		rnd=`mktemp $base.XXXXXX` || exit 1
 		mdconfig -a -t malloc -s `expr $secsize \* $sectors + 512`b -u $no || exit 1
 
 		dd if=/dev/random of=${keyfile} bs=512 count=16 >/dev/null 2>&1

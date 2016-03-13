@@ -1,11 +1,12 @@
 #!/bin/sh
 # $FreeBSD$
 
+. $(dirname $0)/conf.sh
+
 base=`basename $0`
-no=45
 sectors=100
-keyfile=`mktemp /tmp/$base.XXXXXX` || exit 1
-backupfile=`mktemp /tmp/$base.XXXXXX` || exit 1
+keyfile=`mktemp $base.XXXXXX` || exit 1
+backupfile=`mktemp $base.XXXXXX` || exit 1
 
 echo "1..13"
 
@@ -99,8 +100,5 @@ if [ -c /dev/md${no}.eli ]; then
 else
 	echo "not ok 13 - -B file"
 fi
-geli detach md${no}
-rm -f $backupfile
 
-mdconfig -d -u $no
-rm -f $keyfile
+rm -f $backupfile $keyfile

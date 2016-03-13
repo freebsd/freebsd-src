@@ -1,8 +1,9 @@
 #!/bin/sh
 # $FreeBSD$
 
+. $(dirname $0)/conf.sh
+
 base=`basename $0`
-no=45
 sectors=100
 mdconfig -a -t malloc -s $sectors -u $no || exit 1
 
