@@ -330,24 +330,50 @@ autofs_mkdir(struct vop_mkdir_args *ap)
 	return (error);
 }
 
+/*
+ * Write out a single 'struct dirent', based on 'name' and 'fileno' arguments.
+ */
 static int
-autofs_readdir_one(struct uio *uio, const char *name, int fileno)
+autofs_readdir_one(struct uio *uio, const char *name, int fileno,
+    size_t *reclenp)
 {
 	struct dirent dirent;
-	int error, i;
+	size_t namlen, padded_namlen, reclen;
+	int error;
 
-	memset(&dirent, 0, sizeof(dirent));
-	dirent.d_type = DT_DIR;
-	dirent.d_reclen = AUTOFS_DELEN;
+	namlen = strlen(name);
+	padded_namlen = roundup2(namlen + 1, __alignof(struct dirent));
+	KASSERT(padded_namlen <= MAXNAMLEN, ("%zd > MAXNAMLEN", padded_namlen));
+	reclen = offsetof(struct dirent, d_name) + padded_namlen;
+
+	if (reclenp != NULL)
+		*reclenp = reclen;
+
+	if (uio == NULL)
+		return (0);
+
+	if (uio->uio_resid < reclen)
+		return (EINVAL);
+
 	dirent.d_fileno = fileno;
-	/* PFS_DELEN was picked to fit PFS_NAMLEN */
-	for (i = 0; i < AUTOFS_NAMELEN - 1 && name[i] != '\0'; ++i)
-		dirent.d_name[i] = name[i];
-	dirent.d_name[i] = 0;
-	dirent.d_namlen = i;
+	dirent.d_reclen = reclen;
+	dirent.d_type = DT_DIR;
+	dirent.d_namlen = namlen;
+	memcpy(dirent.d_name, name, namlen);
+	memset(dirent.d_name + namlen, 0, padded_namlen - namlen);
+	error = uiomove(&dirent, reclen, uio);
 
-	error = uiomove(&dirent, AUTOFS_DELEN, uio);
 	return (error);
+}
+
+static size_t
+autofs_dirent_reclen(const char *name)
+{
+	size_t reclen;
+
+	autofs_readdir_one(NULL, name, -1, &reclen);
+
+	return (reclen);
 }
 
 static int
@@ -357,13 +383,15 @@ autofs_readdir(struct vop_readdir_args *ap)
 	struct autofs_mount *amp;
 	struct autofs_node *anp, *child;
 	struct uio *uio;
-	off_t offset;
-	int error, i, resid;
+	size_t reclen, reclens;
+	ssize_t initial_resid;
+	int error;
 
 	vp = ap->a_vp;
 	amp = VFSTOAUTOFS(vp->v_mount);
 	anp = vp->v_data;
 	uio = ap->a_uio;
+	initial_resid = ap->a_uio->uio_resid;
 
 	KASSERT(vp->v_type == VDIR, ("!VDIR"));
 
@@ -381,70 +409,94 @@ autofs_readdir(struct vop_readdir_args *ap)
 		}
 	}
 
-	/* only allow reading entire entries */
-	offset = uio->uio_offset;
-	resid = uio->uio_resid;
-	if (offset < 0 || offset % AUTOFS_DELEN != 0 ||
-	    (resid && resid < AUTOFS_DELEN))
+	if (uio->uio_offset < 0)
 		return (EINVAL);
-	if (resid == 0)
-		return (0);
+
+	if (ap->a_eofflag != NULL)
+		*ap->a_eofflag = FALSE;
+
+	/*
+	 * Write out the directory entry for ".".  This is conditional
+	 * on the current offset into the directory; same applies to the
+	 * other two cases below.
+	 */
+	if (uio->uio_offset == 0) {
+		error = autofs_readdir_one(uio, ".", anp->an_fileno, &reclen);
+		if (error != 0)
+			goto out;
+	}
+	reclens = autofs_dirent_reclen(".");
+
+	/*
+	 * Write out the directory entry for "..".
+	 */
+	if (uio->uio_offset <= reclens) {
+		if (uio->uio_offset != reclens)
+			return (EINVAL);
+		if (anp->an_parent == NULL) {
+			error = autofs_readdir_one(uio, "..",
+			    anp->an_fileno, &reclen);
+		} else {
+			error = autofs_readdir_one(uio, "..",
+			    anp->an_parent->an_fileno, &reclen);
+		}
+		if (error != 0)
+			goto out;
+	}
+
+	reclens += autofs_dirent_reclen("..");
+
+	/*
+	 * Write out the directory entries for subdirectories.
+	 */
+	AUTOFS_SLOCK(amp);
+	TAILQ_FOREACH(child, &anp->an_children, an_next) {
+		/*
+		 * Check the offset to skip entries returned by previous
+		 * calls to getdents().
+		 */
+		if (uio->uio_offset > reclens) {
+			reclens += autofs_dirent_reclen(child->an_name);
+			continue;
+		}
+
+		/*
+		 * Prevent seeking into the middle of dirent.
+		 */
+		if (uio->uio_offset != reclens) {
+			AUTOFS_SUNLOCK(amp);
+			return (EINVAL);
+		}
+
+		error = autofs_readdir_one(uio, child->an_name,
+		    child->an_fileno, &reclen);
+		reclens += reclen;
+		if (error != 0) {
+			AUTOFS_SUNLOCK(amp);
+			goto out;
+		}
+	}
+	AUTOFS_SUNLOCK(amp);
 
 	if (ap->a_eofflag != NULL)
 		*ap->a_eofflag = TRUE;
 
-	if (offset == 0 && resid >= AUTOFS_DELEN) {
-		error = autofs_readdir_one(uio, ".", anp->an_fileno);
-		if (error != 0)
-			return (error);
-		offset += AUTOFS_DELEN;
-		resid -= AUTOFS_DELEN;
-	}
-
-	if (offset == AUTOFS_DELEN && resid >= AUTOFS_DELEN) {
-		if (anp->an_parent == NULL) {
-			/*
-			 * XXX: Right?
-			 */
-			error = autofs_readdir_one(uio, "..", anp->an_fileno);
-		} else {
-			error = autofs_readdir_one(uio, "..",
-			    anp->an_parent->an_fileno);
-		}
-		if (error != 0)
-			return (error);
-		offset += AUTOFS_DELEN;
-		resid -= AUTOFS_DELEN;
-	}
-
-	i = 2; /* Account for "." and "..". */
-	AUTOFS_SLOCK(amp);
-	TAILQ_FOREACH(child, &anp->an_children, an_next) {
-		if (resid < AUTOFS_DELEN) {
-			if (ap->a_eofflag != NULL)
-				*ap->a_eofflag = 0;
-			break;
-		}
-
-		/*
-		 * Skip entries returned by previous call to getdents().
-		 */
-		i++;
-		if (i * AUTOFS_DELEN <= offset)
-			continue;
-
-		error = autofs_readdir_one(uio, child->an_name,
-		    child->an_fileno);
-		if (error != 0) {
-			AUTOFS_SUNLOCK(amp);
-			return (error);
-		}
-		offset += AUTOFS_DELEN;
-		resid -= AUTOFS_DELEN;
-	}
-
-	AUTOFS_SUNLOCK(amp);
 	return (0);
+
+out:
+	/*
+	 * Return error if the initial buffer was too small to do anything.
+	 */
+	if (uio->uio_resid == initial_resid)
+		return (error);
+
+	/*
+	 * Don't return an error if we managed to copy out some entries.
+	 */
+	if (uio->uio_resid < reclen)
+		return (0);
+
+	return (error);
 }
 
 static int
