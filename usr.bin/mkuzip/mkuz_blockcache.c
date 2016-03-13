@@ -29,7 +29,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <err.h>
 #include <md5.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -49,6 +51,35 @@ struct mkuz_blkcache {
 
 static struct mkuz_blkcache blkcache;
 
+static int
+verify_match(int fd, off_t data_offset, void *data, ssize_t len,
+  struct mkuz_blkcache *bcep)
+{
+    void *vbuf;
+    ssize_t rlen;
+    int rval;
+
+    rval = -1;
+    vbuf = malloc(len);
+    if (vbuf == NULL) {
+        goto e0;
+    }
+    if (lseek(fd, bcep->data_offset, SEEK_SET) < 0) {
+        goto e1;
+    }
+    rlen = read(fd, vbuf, len);
+    if (rlen != len) {
+        goto e2;
+    }
+    rval = (memcmp(data, vbuf, len) == 0) ? 1 : 0;
+e2:
+    lseek(fd, data_offset, SEEK_SET);
+e1:
+    free(vbuf);
+e0:
+    return (rval);
+}
+
 struct mkuz_blkcache_hit *
 mkuz_blkcache_regblock(int fd, uint32_t blkno, off_t offset, ssize_t len,
   void *data)
@@ -57,6 +88,7 @@ mkuz_blkcache_regblock(int fd, uint32_t blkno, off_t offset, ssize_t len,
     MD5_CTX mcontext;
     off_t data_offset;
     unsigned char mdigest[16];
+    int rval;
 
     data_offset = lseek(fd, 0, SEEK_CUR);
     if (data_offset < 0) {
@@ -76,10 +108,23 @@ mkuz_blkcache_regblock(int fd, uint32_t blkno, off_t offset, ssize_t len,
             }
         }
         if (bcep != NULL) {
+            rval = verify_match(fd, data_offset, data, len, bcep);
+            if (rval == 1) {
 #if defined(MKUZ_DEBUG)
-            printf("cache hit %d, %d, %d\n", (int)bcep->hit.offset, (int)data_offset, (int)len);
+                fprintf(stderr, "cache hit %d, %d, %d\n",
+                  (int)bcep->hit.offset, (int)data_offset, (int)len);
 #endif
-            return (&bcep->hit);
+                return (&bcep->hit);
+            }
+            if (rval == 0) {
+#if defined(MKUZ_DEBUG)
+                fprintf(stderr, "block MD5 collision, you should try lottery, "
+                  "man!\n");
+#endif
+                return (NULL);
+            }
+            warn("verify_match");
+            return (NULL);
         }
         bcep = malloc(sizeof(struct mkuz_blkcache));
         if (bcep == NULL)
