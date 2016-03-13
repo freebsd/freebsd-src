@@ -42,10 +42,9 @@ CLANG_NO_IAS34= -no-integrated-as
 .endif
 
 .if ${COMPILER_TYPE} == "gcc"
-.if ${COMPILER_VERSION} >= 40300
+.if ${COMPILER_VERSION} >= 40800
 # Catch-all for all the things that are in our tree, but for which we're
-# not yet ready for this compiler. Note: we likely only really "support"
-# building with gcc 4.8 and newer. Nothing older has been tested.
+# not yet ready for this compiler.
 CWARNEXTRA?=	-Wno-error=inline -Wno-error=enum-compare -Wno-error=unused-but-set-variable \
 		-Wno-error=aggressive-loop-optimizations -Wno-error=maybe-uninitialized \
 		-Wno-error=array-bounds -Wno-error=address \
