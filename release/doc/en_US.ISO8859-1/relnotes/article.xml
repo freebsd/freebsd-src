@@ -342,7 +342,9 @@
     <sect2 xml:id="hardware-support">
       <title>Hardware Support</title>
 
-      <para>&nbsp;</para>
+      <para revision="293675">The &man.ismt.4; driver has been added,
+	providing support for recent &intel; SMBus 2.0
+	controllers.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
