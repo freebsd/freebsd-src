@@ -708,6 +708,7 @@ enum {
 	IEEE80211_ELEMID_TIM		= 5,
 	IEEE80211_ELEMID_IBSSPARMS	= 6,
 	IEEE80211_ELEMID_COUNTRY	= 7,
+	IEEE80211_ELEMID_BSSLOAD	= 11,
 	IEEE80211_ELEMID_CHALLENGE	= 16,
 	/* 17-31 reserved for challenge text extension */
 	IEEE80211_ELEMID_PWRCNSTR	= 32,
@@ -725,6 +726,7 @@ enum {
 	IEEE80211_ELEMID_QOS		= 46,
 	IEEE80211_ELEMID_RSN		= 48,
 	IEEE80211_ELEMID_XRATES		= 50,
+	IEEE80211_ELEMID_APCHANREP	= 51,
 	IEEE80211_ELEMID_HTINFO		= 61,
 	IEEE80211_ELEMID_TPC		= 150,
 	IEEE80211_ELEMID_CCKM		= 156,
@@ -749,6 +751,7 @@ enum {
 	IEEE80211_ELEMID_MESHGANN	= 125,
 	IEEE80211_ELEMID_MESHRANN	= 126,
 	/* 127 Extended Capabilities */
+	IEEE80211_ELEMID_MESHEXTCAP	= 127,
 	/* 128-129 reserved */
 	IEEE80211_ELEMID_MESHPREQ	= 130,
 	IEEE80211_ELEMID_MESHPREP	= 131,
@@ -782,6 +785,78 @@ struct ieee80211_country_ie {
 #define	IEEE80211_COUNTRY_MAX_BANDS	84	/* max possible bands */
 #define	IEEE80211_COUNTRY_MAX_SIZE \
 	(sizeof(struct ieee80211_country_ie) + 3*(IEEE80211_COUNTRY_MAX_BANDS-1))
+
+struct ieee80211_bss_load_ie {
+	uint8_t		ie;
+	uint8_t		len;
+	uint16_t	sta_count;	/* station count */
+	uint8_t		chan_load;	/* channel utilization */
+	uint8_t		aac;		/* available admission capacity */
+} __packed;
+
+struct ieee80211_ap_chan_report_ie {
+	uint8_t		ie;
+	uint8_t		len;
+	uint8_t		class; /* operating class */
+	/* Annex E, E.1 Country information and operating classes */
+	uint8_t		chan_list[0];
+} __packed;
+
+#define IEEE80211_EXTCAP_CMS			(1ULL <<  0) /* 20/40 BSS coexistence management support */
+#define IEEE80211_EXTCAP_RSVD_1			(1ULL <<  1)
+#define IEEE80211_EXTCAP_ECS			(1ULL <<  2) /* extended channel switching */
+#define IEEE80211_EXTCAP_RSVD_3			(1ULL <<  3)
+#define IEEE80211_EXTCAP_PSMP_CAP		(1ULL <<  4) /* PSMP capability */
+#define IEEE80211_EXTCAP_RSVD_5			(1ULL <<  5)
+#define IEEE80211_EXTCAP_S_PSMP_SUPP		(1ULL <<  6)
+#define IEEE80211_EXTCAP_EVENT			(1ULL <<  7)
+#define IEEE80211_EXTCAP_DIAGNOSTICS		(1ULL <<  8)
+#define IEEE80211_EXTCAP_MCAST_DIAG		(1ULL <<  9)
+#define IEEE80211_EXTCAP_LOC_TRACKING		(1ULL << 10)
+#define IEEE80211_EXTCAP_FMS			(1ULL << 11)
+#define IEEE80211_EXTCAP_PROXY_ARP		(1ULL << 12)
+#define IEEE80211_EXTCAP_CIR			(1ULL << 13) /* collocated interference reporting */
+#define IEEE80211_EXTCAP_CIVIC_LOC		(1ULL << 14)
+#define IEEE80211_EXTCAP_GEOSPATIAL_LOC		(1ULL << 15)
+#define IEEE80211_EXTCAP_TFS			(1ULL << 16)
+#define IEEE80211_EXTCAP_WNM_SLEEPMODE		(1ULL << 17)
+#define IEEE80211_EXTCAP_TIM_BROADCAST		(1ULL << 18)
+#define IEEE80211_EXTCAP_BSS_TRANSITION		(1ULL << 19)
+#define IEEE80211_EXTCAP_QOS_TRAF_CAP		(1ULL << 20)
+#define IEEE80211_EXTCAP_AC_STA_COUNT		(1ULL << 21)
+#define IEEE80211_EXTCAP_M_BSSID		(1ULL << 22) /* multiple BSSID field */
+#define IEEE80211_EXTCAP_TIMING_MEAS		(1ULL << 23)
+#define IEEE80211_EXTCAP_CHAN_USAGE		(1ULL << 24)
+#define IEEE80211_EXTCAP_SSID_LIST		(1ULL << 25)
+#define IEEE80211_EXTCAP_DMS			(1ULL << 26)
+#define IEEE80211_EXTCAP_UTC_TSF_OFFSET		(1ULL << 27)
+#define IEEE80211_EXTCAP_TLDS_BUF_STA_SUPP	(1ULL << 28) /* TDLS peer U-APSP buffer STA support */
+#define IEEE80211_EXTCAP_TLDS_PPSM_SUPP		(1ULL << 29) /* TDLS peer PSM support */
+#define IEEE80211_EXTCAP_TLDS_CH_SW		(1ULL << 30) /* TDLS channel switching */
+#define IEEE80211_EXTCAP_INTERWORKING		(1ULL << 31)
+#define IEEE80211_EXTCAP_QOSMAP			(1ULL << 32)
+#define IEEE80211_EXTCAP_EBR			(1ULL << 33)
+#define IEEE80211_EXTCAP_SSPN_IF		(1ULL << 34)
+#define IEEE80211_EXTCAP_RSVD_35		(1ULL << 35)
+#define IEEE80211_EXTCAP_MSGCF_CAP		(1ULL << 36)
+#define IEEE80211_EXTCAP_TLDS_SUPP		(1ULL << 37)
+#define IEEE80211_EXTCAP_TLDS_PROHIB		(1ULL << 38)
+#define IEEE80211_EXTCAP_TLDS_CH_SW_PROHIB	(1ULL << 39) /* TDLS channel switching prohibited */
+#define IEEE80211_EXTCAP_RUF			(1ULL << 40) /* reject unadmitted frame */
+/* service interval granularity */
+#define IEEE80211_EXTCAP_SIG \
+				((1ULL << 41) | (1ULL << 42) | (1ULL << 43))
+#define IEEE80211_EXTCAP_ID_LOC			(1ULL << 44)
+#define IEEE80211_EXTCAP_U_APSD_COEX		(1ULL << 45)
+#define IEEE80211_EXTCAP_WNM_NOTIFICATION	(1ULL << 46)
+#define IEEE80211_EXTCAP_RSVD_47		(1ULL << 47)
+#define IEEE80211_EXTCAP_SSID			(1ULL << 48) /* UTF-8 SSID */
+/* bits 49-n are reserved */
+
+struct ieee80211_extcap_ie {
+	uint8_t		ie;
+	uint8_t		len;
+} __packed;
 
 /*
  * 802.11h Quiet Time Element.
