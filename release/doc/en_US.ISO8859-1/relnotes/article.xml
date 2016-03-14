@@ -232,7 +232,10 @@
       <title><filename class="directory">/etc/rc.d</filename>
 	Scripts</title>
 
-      <para>&nbsp;</para>
+      <para revision="294680">The <literal>netwait</literal>
+	&man.rc.8; script has been updated to wait for network
+	interfaces that attach late in the boot process, such as some
+	<acronym>USB</acronym> network cards.</para>
     </sect2>
 
     <sect2 xml:id="userland-periodic">
