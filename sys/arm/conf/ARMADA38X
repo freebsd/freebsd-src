@@ -71,6 +71,7 @@ device		mpcore_timer
 # USB
 device		usb
 device		ehci
+device		xhci
 device		umass
 device		scbus
 device		pass
