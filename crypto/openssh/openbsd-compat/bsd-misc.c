@@ -276,3 +276,11 @@ getpgid(pid_t pid)
 	return -1;
 }
 #endif
+
+#ifndef HAVE_PLEDGE
+int
+pledge(const char *promises, const char *paths[])
+{
+	return 0;
+}
+#endif

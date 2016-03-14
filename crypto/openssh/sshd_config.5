@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.211 2015/08/14 15:32:41 jmc Exp $
+.\" $OpenBSD: sshd_config.5,v 1.220 2016/02/17 08:57:34 djm Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: August 14 2015 $
+.Dd $Mdocdate: February 17 2016 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -71,8 +71,7 @@ See
 in
 .Xr ssh_config 5
 for how to configure the client.
-Note that environment passing is only supported for protocol 2, and
-that the
+The
 .Ev TERM
 environment variable is always sent whenever the client
 requests a pseudo-terminal as it is required by the protocol.
@@ -227,7 +226,7 @@ of
 .Dq publickey,publickey
 will require successful authentication using two different public keys.
 .Pp
-This option is only available for SSH protocol 2 and will yield a fatal
+This option will yield a fatal
 error if enabled if protocol 1 is also enabled.
 Note that each authentication method listed should also be explicitly enabled
 in the configuration.
@@ -286,6 +285,9 @@ After expansion,
 is taken to be an absolute path or one relative to the user's home
 directory.
 Multiple files may be listed, separated by whitespace.
+Alternately this option may be set to
+.Dq none
+to skip checking for user keys in files.
 The default is
 .Dq .ssh/authorized_keys .ssh/authorized_keys2 .
 .It Cm AuthorizedPrincipalsCommand
@@ -371,7 +373,6 @@ authentication is allowed.
 If the argument is
 .Dq none
 then no banner is displayed.
-This option is only available for protocol version 2.
 By default, no banner is displayed.
 .It Cm ChallengeResponseAuthentication
 Specifies whether challenge-response authentication is allowed (e.g. via
@@ -430,10 +431,12 @@ Misconfiguration can lead to unsafe environments which
 .Xr sshd 8
 cannot detect.
 .Pp
-The default is not to
+The default is
+.Dq none ,
+indicating not to
 .Xr chroot 2 .
 .It Cm Ciphers
-Specifies the ciphers allowed for protocol version 2.
+Specifies the ciphers allowed.
 Multiple ciphers must be comma-separated.
 If the specified value begins with a
 .Sq +
@@ -479,7 +482,8 @@ The default is:
 .Bd -literal -offset indent
 chacha20-poly1305@openssh.com,
 aes128-ctr,aes192-ctr,aes256-ctr,
-aes128-gcm@openssh.com,aes256-gcm@openssh.com
+aes128-gcm@openssh.com,aes256-gcm@openssh.com,
+aes128-cbc,aes192-cbc,aes256-cbc
 .Ed
 .Pp
 The list of available ciphers may also be obtained using the
@@ -514,7 +518,6 @@ If
 .Cm ClientAliveCountMax
 is left at the default, unresponsive SSH clients
 will be disconnected after approximately 45 seconds.
-This option applies to protocol version 2 only.
 .It Cm ClientAliveInterval
 Sets a timeout interval in seconds after which if no data has been received
 from the client,
@@ -523,7 +526,6 @@ will send a message through the encrypted
 channel to request a response from the client.
 The default
 is 0, indicating that these messages will not be sent to the client.
-This option applies to protocol version 2 only.
 .It Cm Compression
 Specifies whether compression is allowed, or delayed until
 the user has authenticated successfully.
@@ -597,6 +599,8 @@ Specifying a command of
 will force the use of an in-process sftp server that requires no support
 files when used with
 .Cm ChrootDirectory .
+The default is
+.Dq none .
 .It Cm GatewayPorts
 Specifies whether remote hosts are allowed to connect to ports
 forwarded for the client.
@@ -621,13 +625,11 @@ The default is
 Specifies whether user authentication based on GSSAPI is allowed.
 The default is
 .Dq no .
-Note that this option applies to protocol version 2 only.
 .It Cm GSSAPICleanupCredentials
 Specifies whether to automatically destroy the user's credentials cache
 on logout.
 The default is
 .Dq yes .
-Note that this option applies to protocol version 2 only.
 .It Cm GSSAPIStrictAcceptorCheck
 Determines whether to be strict about the identity of the GSSAPI acceptor
 a client authenticates against.
@@ -672,9 +674,6 @@ may be used to list supported key types.
 Specifies whether rhosts or /etc/hosts.equiv authentication together
 with successful public key client host authentication is allowed
 (host-based authentication).
-This option is similar to
-.Cm RhostsRSAAuthentication
-and applies to protocol version 2 only.
 The default is
 .Dq no .
 .It Cm HostbasedUsesNameFromPacketOnly
@@ -745,7 +744,7 @@ is specified, the location of the socket will be read from the
 .Ev SSH_AUTH_SOCK
 environment variable.
 .It Cm HostKeyAlgorithms
-Specifies the protocol version 2 host key algorithms
+Specifies the host key algorithms
 that the server offers.
 The default for this option is:
 .Bd -literal -offset 3n
@@ -968,8 +967,7 @@ DEBUG2 and DEBUG3 each specify higher levels of debugging output.
 Logging with a DEBUG level violates the privacy of users and is not recommended.
 .It Cm MACs
 Specifies the available MAC (message authentication code) algorithms.
-The MAC algorithm is used in protocol version 2
-for data integrity protection.
+The MAC algorithm is used for data integrity protection.
 Multiple algorithms must be comma-separated.
 If the specified value begins with a
 .Sq +
@@ -1025,8 +1023,9 @@ The default is:
 .Bd -literal -offset indent
 umac-64-etm@openssh.com,umac-128-etm@openssh.com,
 hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,
+hmac-sha1-etm@openssh.com,
 umac-64@openssh.com,umac-128@openssh.com,
-hmac-sha2-256,hmac-sha2-512
+hmac-sha2-256,hmac-sha2-512,hmac-sha1
 .Ed
 .Pp
 The list of available MAC algorithms may also be obtained using the
@@ -1096,6 +1095,8 @@ Available keywords are
 .Cm AuthorizedKeysCommand ,
 .Cm AuthorizedKeysCommandUser ,
 .Cm AuthorizedKeysFile ,
+.Cm AuthorizedPrincipalsCommand ,
+.Cm AuthorizedPrincipalsCommandUser ,
 .Cm AuthorizedPrincipalsFile ,
 .Cm Banner ,
 .Cm ChrootDirectory ,
@@ -1139,7 +1140,15 @@ Once the number of failures reaches half this value,
 additional failures are logged.
 The default is 6.
 .It Cm MaxSessions
-Specifies the maximum number of open sessions permitted per network connection.
+Specifies the maximum number of open shell, login or subsystem (e.g. sftp)
+sessions permitted per network connection.
+Multiple sessions may be established by clients that support connection
+multiplexing.
+Setting
+.Cm MaxSessions
+to 1 will effectively disable session multiplexing, whereas setting it to 0
+will prevent all shell, login and subsystem sessions while still permitting
+forwarding.
 The default is 10.
 .It Cm MaxStartups
 Specifies the maximum number of concurrent unauthenticated connections to the
@@ -1338,6 +1347,10 @@ and
 Multiple versions must be comma-separated.
 The default is
 .Sq 2 .
+Protocol 1 suffers from a number of cryptographic weaknesses and should
+not be used.
+It is only offered to support legacy devices.
+.Pp
 Note that the order of the protocol list does not indicate preference,
 because the client selects among multiple protocol versions offered
 by the server.
@@ -1374,7 +1387,6 @@ may be used to list supported key types.
 Specifies whether public key authentication is allowed.
 The default is
 .Dq yes .
-Note that this option applies to protocol version 2 only.
 .It Cm RekeyLimit
 Specifies the maximum amount of data that may be transmitted before the
 session key is renegotiated, optionally followed a maximum amount of
@@ -1400,7 +1412,6 @@ is
 .Dq default none ,
 which means that rekeying is performed after the cipher's default amount
 of data has been sent or received and no time based rekeying is done.
-This option applies to protocol version 2 only.
 .It Cm RevokedKeys
 Specifies revoked public keys file, or
 .Dq none
@@ -1489,7 +1500,6 @@ This may simplify configurations using
 to force a different filesystem root on clients.
 .Pp
 By default no subsystems are defined.
-Note that this option applies to protocol version 2 only.
 .It Cm SyslogFacility
 Gives the facility code that is used when logging messages from
 .Xr sshd 8 .
@@ -1604,7 +1614,10 @@ After successful authentication, another process will be created that has
 the privilege of the authenticated user.
 The goal of privilege separation is to prevent privilege
 escalation by containing any corruption within the unprivileged processes.
-The default is
+The argument must be
+.Dq yes ,
+.Dq no ,
+or
 .Dq sandbox .
 If
 .Cm UsePrivilegeSeparation
@@ -1612,11 +1625,13 @@ is set to
 .Dq sandbox
 then the pre-authentication unprivileged process is subject to additional
 restrictions.
+The default is
+.Dq sandbox .
 .It Cm VersionAddendum
 Optionally specifies additional text to append to the SSH protocol banner
 sent by the server upon connection.
 The default is
-.Dq FreeBSD-20160125 .
+.Dq FreeBSD-20160310 .
 The value
 .Dq none
 may be used to disable this.
