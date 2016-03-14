@@ -640,11 +640,12 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 
 #define	SYSCTL_ADD_COUNTER_U64(ctx, parent, nbr, name, access, ptr, descr) \
 ({									\
+	counter_u64_t *__ptr = (ptr);					\
 	CTASSERT(((access) & CTLTYPE) == 0 ||				\
 	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_U64);		\
 	sysctl_add_oid(ctx, parent, nbr, name,				\
 	    CTLTYPE_U64 | CTLFLAG_MPSAFE | (access),			\
-	    ptr, 0, sysctl_handle_counter_u64, "QU", __DESCR(descr));	\
+	    __ptr, 0, sysctl_handle_counter_u64, "QU", __DESCR(descr));	\
 })
 
 /* Oid for an opaque object.  Specified by a pointer and a length. */
