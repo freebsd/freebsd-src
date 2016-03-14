@@ -19,6 +19,9 @@ print_available() {
 		_fstype="${_fstype_and_label%% *}"
 		if [ "${_fstype}" != "${_fstype_and_label}" ]; then
 			_label="${_fstype_and_label#* }"
+			# Replace plus signs and slashes with minuses;
+			# leading plus signs have special meaning in maps,
+			_label="$(echo ${_label} | sed 's,[+/],-,g')"
 			echo "${_label}"
 			continue
 		fi
@@ -54,6 +57,10 @@ print_one() {
 		fi
 
 		_label="${_fstype_and_label#* }"
+		# Replace plus signs and slashes with minuses;
+		# leading plus signs have special meaning in maps,
+		# and multi-component keys are just not supported.
+		_label="$(echo ${_label} | sed 's,[+/],-,g')"
 		if [ "${_label}" != "${_key}" ]; then
 			# Labels don't match, try another device.
 			continue
