@@ -198,16 +198,16 @@
 	adding <literal>nfs_server_managegids="YES"</literal> to
 	&man.rc.conf.5;.</para>
 
+      <para revision="292462" contrib="sponsor"
+	sponsor="&dellinc;">The resolver library has been updated to
+	reload <filename>/etc/resolv.conf</filename> if the
+	modification time has changed.</para>
+
       <para revision="293744" contrib="sponsor" sponsor="&ff;">The
 	initial implementation of <quote>reroot</quote> support has
 	been added to the &man.shutdown.8; utility, allowing the root
 	filesystem to be mounted from a temporary source filesystem
 	without requiring a full system reboot.</para>
-
-      <para revision="292462" contrib="sponsor"
-	sponsor="&dellinc;">The resolver library has been updated to
-	reload <filename>/etc/resolv.conf</filename> if the
-	modification time has changed.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
