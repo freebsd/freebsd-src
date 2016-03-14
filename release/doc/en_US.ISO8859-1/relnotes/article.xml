@@ -202,6 +202,9 @@
 
       <para revision="286751">Timezone data files have been updated to
 	version 2015f.</para>
+
+      <para revision="296317">The <application>OpenSSL</application>
+	suite has been updated to version 1.0.1s.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
