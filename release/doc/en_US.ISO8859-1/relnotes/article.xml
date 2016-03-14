@@ -209,6 +209,9 @@
       <para revision="286751">Timezone data files have been updated to
 	version 2015f.</para>
 
+      <para revision="293650">The &man.ntpd.8; utility has been
+	updated to version 4.2.8p5.</para>
+
       <para revision="294286">The &man.less.1; utility has been
 	updated to version v481.</para>
 
