@@ -192,6 +192,10 @@
 	new utility, &man.sesutil.8;, has been added, which is used
 	to manage &man.ses.4; devices.</para>
 
+      <para revision="291774">The &man.cp.1; utility has been updated
+	to include a new flag, <literal>-s</literal>, which creates
+	a symbolic link to the specified source.</para>
+
       <para revision="292231">Support for the
 	<literal>-manage-gids</literal> has been added to
 	&man.nfsd.8;.  This option can be enabled at boot time by
