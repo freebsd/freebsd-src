@@ -570,6 +570,8 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 		case IEEE80211_ELEMID_IBSSPARMS:
 		case IEEE80211_ELEMID_CFPARMS:
 		case IEEE80211_ELEMID_PWRCNSTR:
+		case IEEE80211_ELEMID_BSSLOAD:
+		case IEEE80211_ELEMID_APCHANREP:
 			/* NB: avoid debugging complaints */
 			break;
 		case IEEE80211_ELEMID_XRATES:
@@ -600,6 +602,8 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 			break;
 		case IEEE80211_ELEMID_MESHCONF:
 			scan->meshconf = frm;
+			break;
+		case IEEE80211_ELEMID_MESHEXTCAP:
 			break;
 #endif
 		case IEEE80211_ELEMID_VENDOR:

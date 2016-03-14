@@ -328,8 +328,14 @@ TUNABLE_INT("hw.cxgbe.fw_install", &t4_fw_install);
  * ASIC features that will be used.  Disable the ones you don't want so that the
  * chip resources aren't wasted on features that will not be used.
  */
+static int t4_nbmcaps_allowed = 0;
+TUNABLE_INT("hw.cxgbe.nbmcaps_allowed", &t4_nbmcaps_allowed);
+
 static int t4_linkcaps_allowed = 0;	/* No DCBX, PPP, etc. by default */
 TUNABLE_INT("hw.cxgbe.linkcaps_allowed", &t4_linkcaps_allowed);
+
+static int t4_switchcaps_allowed = 0;
+TUNABLE_INT("hw.cxgbe.switchcaps_allowed", &t4_switchcaps_allowed);
 
 static int t4_niccaps_allowed = FW_CAPS_CONFIG_NIC;
 TUNABLE_INT("hw.cxgbe.niccaps_allowed", &t4_niccaps_allowed);
@@ -339,6 +345,9 @@ TUNABLE_INT("hw.cxgbe.toecaps_allowed", &t4_toecaps_allowed);
 
 static int t4_rdmacaps_allowed = 0;
 TUNABLE_INT("hw.cxgbe.rdmacaps_allowed", &t4_rdmacaps_allowed);
+
+static int t4_tlscaps_allowed = 0;
+TUNABLE_INT("hw.cxgbe.tlscaps_allowed", &t4_tlscaps_allowed);
 
 static int t4_iscsicaps_allowed = 0;
 TUNABLE_INT("hw.cxgbe.iscsicaps_allowed", &t4_iscsicaps_allowed);
@@ -409,6 +418,7 @@ static int validate_mem_range(struct adapter *, uint32_t, int);
 static int fwmtype_to_hwmtype(int);
 static int validate_mt_off_len(struct adapter *, int, uint32_t, int,
     uint32_t *);
+static int fixup_devlog_params(struct adapter *);
 static int cfg_itype_and_nqueues(struct adapter *, int, int, int,
     struct intrs_and_queues *);
 static int prep_firmware(struct adapter *);
@@ -475,10 +485,16 @@ static int sysctl_rdma_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tcp_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tids(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS);
+static int sysctl_tp_la_mask(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_tx_rate(SYSCTL_HANDLER_ARGS);
 static int sysctl_ulprx_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS);
+#endif
+#ifdef TCP_OFFLOAD
+static int sysctl_tp_tick(SYSCTL_HANDLER_ARGS);
+static int sysctl_tp_dack_timer(SYSCTL_HANDLER_ARGS);
+static int sysctl_tp_timer(SYSCTL_HANDLER_ARGS);
 #endif
 static uint32_t fconf_iconf_to_mode(uint32_t, uint32_t);
 static uint32_t mode_to_fconf(uint32_t);
@@ -733,6 +749,8 @@ t4_attach(device_t dev)
 	 * will work even in "recovery mode".
 	 */
 	setup_memwin(sc);
+	if (t4_init_devlog_params(sc, 0) == 0)
+		fixup_devlog_params(sc);
 	sc->cdev = make_dev(is_t4(sc) ? &t4_cdevsw : &t5_cdevsw,
 	    device_get_unit(dev), UID_ROOT, GID_WHEEL, 0600, "%s",
 	    device_get_nameunit(dev));
@@ -2333,6 +2351,18 @@ validate_mt_off_len(struct adapter *sc, int mtype, uint32_t off, int len,
 }
 
 static int
+fixup_devlog_params(struct adapter *sc)
+{
+	struct devlog_params *dparams = &sc->params.devlog;
+	int rc;
+
+	rc = validate_mt_off_len(sc, dparams->memtype, dparams->start,
+	    dparams->size, &dparams->addr);
+
+	return (rc);
+}
+
+static int
 cfg_itype_and_nqueues(struct adapter *sc, int n10g, int n1g, int num_vis,
     struct intrs_and_queues *iaq)
 {
@@ -2810,7 +2840,24 @@ prep_firmware(struct adapter *sc)
 	    G_FW_HDR_FW_VER_MINOR(sc->params.fw_vers),
 	    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
 	    G_FW_HDR_FW_VER_BUILD(sc->params.fw_vers));
+
 	t4_get_tp_version(sc, &sc->params.tp_vers);
+	snprintf(sc->tp_version, sizeof(sc->tp_version), "%u.%u.%u.%u",
+	    G_FW_HDR_FW_VER_MAJOR(sc->params.tp_vers),
+	    G_FW_HDR_FW_VER_MINOR(sc->params.tp_vers),
+	    G_FW_HDR_FW_VER_MICRO(sc->params.tp_vers),
+	    G_FW_HDR_FW_VER_BUILD(sc->params.tp_vers));
+
+	if (t4_get_exprom_version(sc, &sc->params.exprom_vers) != 0)
+		sc->params.exprom_vers = 0;
+	else {
+		snprintf(sc->exprom_version, sizeof(sc->exprom_version),
+		    "%u.%u.%u.%u",
+		    G_FW_HDR_FW_VER_MAJOR(sc->params.exprom_vers),
+		    G_FW_HDR_FW_VER_MINOR(sc->params.exprom_vers),
+		    G_FW_HDR_FW_VER_MICRO(sc->params.exprom_vers),
+		    G_FW_HDR_FW_VER_BUILD(sc->params.exprom_vers));
+	}
 
 	/* Reset device */
 	if (need_fw_reset &&
@@ -3022,10 +3069,13 @@ use_config_on_flash:
 	 * Let the firmware know what features will (not) be used so it can tune
 	 * things accordingly.
 	 */
+	LIMIT_CAPS(nbmcaps);
 	LIMIT_CAPS(linkcaps);
+	LIMIT_CAPS(switchcaps);
 	LIMIT_CAPS(niccaps);
 	LIMIT_CAPS(toecaps);
 	LIMIT_CAPS(rdmacaps);
+	LIMIT_CAPS(tlscaps);
 	LIMIT_CAPS(iscsicaps);
 	LIMIT_CAPS(fcoecaps);
 #undef LIMIT_CAPS
@@ -3052,8 +3102,6 @@ get_params__pre_init(struct adapter *sc)
 {
 	int rc;
 	uint32_t param[2], val[2];
-	struct fw_devlog_cmd cmd;
-	struct devlog_params *dlog = &sc->params.devlog;
 
 	param[0] = FW_PARAM_DEV(PORTVEC);
 	param[1] = FW_PARAM_DEV(CCLK);
@@ -3069,21 +3117,13 @@ get_params__pre_init(struct adapter *sc)
 	sc->params.vpd.cclk = val[1];
 
 	/* Read device log parameters. */
-	bzero(&cmd, sizeof(cmd));
-	cmd.op_to_write = htobe32(V_FW_CMD_OP(FW_DEVLOG_CMD) |
-	    F_FW_CMD_REQUEST | F_FW_CMD_READ);
-	cmd.retval_len16 = htobe32(FW_LEN16(cmd));
-	rc = -t4_wr_mbox(sc, sc->mbox, &cmd, sizeof(cmd), &cmd);
-	if (rc != 0) {
+	rc = -t4_init_devlog_params(sc, 1);
+	if (rc == 0)
+		fixup_devlog_params(sc);
+	else {
 		device_printf(sc->dev,
 		    "failed to get devlog parameters: %d.\n", rc);
-		bzero(dlog, sizeof (*dlog));
 		rc = 0;	/* devlog isn't critical for device operation */
-	} else {
-		val[0] = be32toh(cmd.memtype_devlog_memaddr16_devlog);
-		dlog->memtype = G_FW_DEVLOG_CMD_MEMTYPE_DEVLOG(val[0]);
-		dlog->start = G_FW_DEVLOG_CMD_MEMADDR16_DEVLOG(val[0]) << 4;
-		dlog->size = be32toh(cmd.memsize_devlog);
 	}
 
 	return (rc);
@@ -3140,10 +3180,13 @@ get_params__post_init(struct adapter *sc)
 #define READ_CAPS(x) do { \
 	sc->x = htobe16(caps.x); \
 } while (0)
+	READ_CAPS(nbmcaps);
 	READ_CAPS(linkcaps);
+	READ_CAPS(switchcaps);
 	READ_CAPS(niccaps);
 	READ_CAPS(toecaps);
 	READ_CAPS(rdmacaps);
+	READ_CAPS(tlscaps);
 	READ_CAPS(iscsicaps);
 	READ_CAPS(fcoecaps);
 
@@ -4550,24 +4593,33 @@ t4_register_fw_msg_handler(struct adapter *sc, int type, fw_msg_handler_t h)
 	return (0);
 }
 
+/*
+ * Should match fw_caps_config_<foo> enums in t4fw_interface.h
+ */
+static char *caps_decoder[] = {
+	"\20\001IPMI\002NCSI",				/* 0: NBM */
+	"\20\001PPP\002QFC\003DCBX",			/* 1: link */
+	"\20\001INGRESS\002EGRESS",			/* 2: switch */
+	"\20\001NIC\002VM\003IDS\004UM\005UM_ISGL"	/* 3: NIC */
+	    "\006HASHFILTER\007ETHOFLD",
+	"\20\001TOE",					/* 4: TOE */
+	"\20\001RDDP\002RDMAC",				/* 5: RDMA */
+	"\20\001INITIATOR_PDU\002TARGET_PDU"		/* 6: iSCSI */
+	    "\003INITIATOR_CNXOFLD\004TARGET_CNXOFLD"
+	    "\005INITIATOR_SSNOFLD\006TARGET_SSNOFLD"
+	    "\007T10DIF"
+	    "\010INITIATOR_CMDOFLD\011TARGET_CMDOFLD",
+	"\20\00KEYS",					/* 7: TLS */
+	"\20\001INITIATOR\002TARGET\003CTRL_OFLD"	/* 8: FCoE */
+		    "\004PO_INITIATOR\005PO_TARGET",
+};
+
 static void
 t4_sysctls(struct adapter *sc)
 {
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid *oid;
 	struct sysctl_oid_list *children, *c0;
-	static char *caps[] = {
-		"\20\1PPP\2QFC\3DCBX",			/* caps[0] linkcaps */
-		"\20\1NIC\2VM\3IDS\4UM\5UM_ISGL"	/* caps[1] niccaps */
-		    "\6HASHFILTER\7ETHOFLD",
-		"\20\1TOE",				/* caps[2] toecaps */
-		"\20\1RDDP\2RDMAC",			/* caps[3] rdmacaps */
-		"\20\1INITIATOR_PDU\2TARGET_PDU"	/* caps[4] iscsicaps */
-		    "\3INITIATOR_CNXOFLD\4TARGET_CNXOFLD"
-		    "\5INITIATOR_SSNOFLD\6TARGET_SSNOFLD",
-		"\20\1INITIATOR\2TARGET\3CTRL_OFLD"	/* caps[5] fcoecaps */
-		    "\4PO_INITIAOR\5PO_TARGET"
-	};
 	static char *doorbells = {"\20\1UDB\2WCWR\3UDBWC\4KDB"};
 
 	ctx = device_get_sysctl_ctx(sc->dev);
@@ -4588,6 +4640,14 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "hw_revision", CTLFLAG_RD,
 	    NULL, chip_rev(sc), "chip hardware revision");
 
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "tp_version",
+	    CTLFLAG_RD, sc->tp_version, 0, "TP microcode version");
+
+	if (sc->params.exprom_vers != 0) {
+		SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "exprom_version",
+		    CTLFLAG_RD, sc->exprom_version, 0, "expansion ROM version");
+	}
+
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "firmware_version",
 	    CTLFLAG_RD, sc->fw_version, 0, "firmware version");
 
@@ -4601,29 +4661,21 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, doorbells, sc->doorbells,
 	    sysctl_bitfield, "A", "available doorbells");
 
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "linkcaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[0], sc->linkcaps,
-	    sysctl_bitfield, "A", "available link capabilities");
+#define SYSCTL_CAP(name, n, text) \
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, #name, \
+	    CTLTYPE_STRING | CTLFLAG_RD, caps_decoder[n], sc->name, \
+	    sysctl_bitfield, "A", "available " text "capabilities")
 
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "niccaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[1], sc->niccaps,
-	    sysctl_bitfield, "A", "available NIC capabilities");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "toecaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[2], sc->toecaps,
-	    sysctl_bitfield, "A", "available TCP offload capabilities");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rdmacaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[3], sc->rdmacaps,
-	    sysctl_bitfield, "A", "available RDMA capabilities");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "iscsicaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[4], sc->iscsicaps,
-	    sysctl_bitfield, "A", "available iSCSI capabilities");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "fcoecaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[5], sc->fcoecaps,
-	    sysctl_bitfield, "A", "available FCoE capabilities");
+	SYSCTL_CAP(nbmcaps, 0, "NBM");
+	SYSCTL_CAP(linkcaps, 1, "link");
+	SYSCTL_CAP(switchcaps, 2, "switch");
+	SYSCTL_CAP(niccaps, 3, "NIC");
+	SYSCTL_CAP(toecaps, 4, "TCP offload");
+	SYSCTL_CAP(rdmacaps, 5, "RDMA");
+	SYSCTL_CAP(iscsicaps, 6, "iSCSI");
+	SYSCTL_CAP(tlscaps, 7, "TLS");
+	SYSCTL_CAP(fcoecaps, 8, "FCoE");
+#undef SYSCTL_CAP
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "core_clock", CTLFLAG_RD, NULL,
 	    sc->params.vpd.cclk, "core clock frequency (in KHz)");
@@ -4803,6 +4855,10 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_tp_err_stats, "A", "TP error statistics");
 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tp_la_mask",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, sysctl_tp_la_mask, "I",
+	    "TP logic analyzer event capture mask");
+
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tp_la",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_tp_la, "A", "TP logic analyzer");
@@ -4855,6 +4911,54 @@ t4_sysctls(struct adapter *sc)
 		sc->tt.tx_align = 1;
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "tx_align",
 		    CTLFLAG_RW, &sc->tt.tx_align, 0, "chop and align payload");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "timer_tick",
+		    CTLTYPE_STRING | CTLFLAG_RD, sc, 0, sysctl_tp_tick, "A",
+		    "TP timer tick (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "timestamp_tick",
+		    CTLTYPE_STRING | CTLFLAG_RD, sc, 1, sysctl_tp_tick, "A",
+		    "TCP timestamp tick (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "dack_tick",
+		    CTLTYPE_STRING | CTLFLAG_RD, sc, 2, sysctl_tp_tick, "A",
+		    "DACK tick (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "dack_timer",
+		    CTLTYPE_UINT | CTLFLAG_RD, sc, 0, sysctl_tp_dack_timer,
+		    "IU", "DACK timer (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rexmt_min",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_RXT_MIN,
+		    sysctl_tp_timer, "LU", "Retransmit min (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rexmt_max",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_RXT_MAX,
+		    sysctl_tp_timer, "LU", "Retransmit max (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "persist_min",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_PERS_MIN,
+		    sysctl_tp_timer, "LU", "Persist timer min (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "persist_max",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_PERS_MAX,
+		    sysctl_tp_timer, "LU", "Persist timer max (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "keepalive_idle",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_KEEP_IDLE,
+		    sysctl_tp_timer, "LU", "Keepidle idle timer (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "keepalive_intvl",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_KEEP_INTVL,
+		    sysctl_tp_timer, "LU", "Keepidle interval (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "initial_srtt",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_INIT_SRTT,
+		    sysctl_tp_timer, "LU", "Initial SRTT (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "finwait2_timer",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_FINWAIT2_TIMER,
+		    sysctl_tp_timer, "LU", "FINWAIT2 timer (us)");
 	}
 #endif
 }
@@ -5875,7 +5979,7 @@ sysctl_ddp_stats(SYSCTL_HANDLER_ARGS)
 	return (rc);
 }
 
-const char *devlog_level_strings[] = {
+static const char * const devlog_level_strings[] = {
 	[FW_DEVLOG_LEVEL_EMERG]		= "EMERG",
 	[FW_DEVLOG_LEVEL_CRIT]		= "CRIT",
 	[FW_DEVLOG_LEVEL_ERR]		= "ERR",
@@ -5884,7 +5988,7 @@ const char *devlog_level_strings[] = {
 	[FW_DEVLOG_LEVEL_DEBUG]		= "DEBUG"
 };
 
-const char *devlog_facility_strings[] = {
+static const char * const devlog_facility_strings[] = {
 	[FW_DEVLOG_FACILITY_CORE]	= "CORE",
 	[FW_DEVLOG_FACILITY_CF]		= "CF",
 	[FW_DEVLOG_FACILITY_SCHED]	= "SCHED",
@@ -5908,7 +6012,8 @@ const char *devlog_facility_strings[] = {
 	[FW_DEVLOG_FACILITY_ISCSI]	= "ISCSI",
 	[FW_DEVLOG_FACILITY_FCOE]	= "FCOE",
 	[FW_DEVLOG_FACILITY_FOISCSI]	= "FOISCSI",
-	[FW_DEVLOG_FACILITY_FOFCOE]	= "FOFCOE"
+	[FW_DEVLOG_FACILITY_FOFCOE]	= "FOFCOE",
+	[FW_DEVLOG_FACILITY_CHNET]	= "CHNET",
 };
 
 static int
@@ -5917,27 +6022,22 @@ sysctl_devlog(SYSCTL_HANDLER_ARGS)
 	struct adapter *sc = arg1;
 	struct devlog_params *dparams = &sc->params.devlog;
 	struct fw_devlog_e *buf, *e;
-	int i, j, rc, nentries, first = 0, m;
+	int i, j, rc, nentries, first = 0;
 	struct sbuf *sb;
 	uint64_t ftstamp = UINT64_MAX;
 
-	if (dparams->start == 0) {
-		dparams->memtype = FW_MEMTYPE_EDC0;
-		dparams->start = 0x84000;
-		dparams->size = 32768;
-	}
-
-	nentries = dparams->size / sizeof(struct fw_devlog_e);
+	if (dparams->addr == 0)
+		return (ENXIO);
 
 	buf = malloc(dparams->size, M_CXGBE, M_NOWAIT);
 	if (buf == NULL)
 		return (ENOMEM);
 
-	m = fwmtype_to_hwmtype(dparams->memtype);
-	rc = -t4_mem_read(sc, m, dparams->start, dparams->size, (void *)buf);
+	rc = read_via_memwin(sc, 1, dparams->addr, (void *)buf, dparams->size);
 	if (rc != 0)
 		goto done;
 
+	nentries = dparams->size / sizeof(struct fw_devlog_e);
 	for (i = 0; i < nentries; i++) {
 		e = &buf[i];
 
@@ -6993,6 +7093,26 @@ sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS)
 	return (rc);
 }
 
+static int
+sysctl_tp_la_mask(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct tp_params *tpp = &sc->params.tp;
+	u_int mask;
+	int rc;
+
+	mask = tpp->la_mask >> 16;
+	rc = sysctl_handle_int(oidp, &mask, 0, req);
+	if (rc != 0 || req->newptr == NULL)
+		return (rc);
+	if (mask > 0xffff)
+		return (EINVAL);
+	tpp->la_mask = mask << 16;
+	t4_set_reg_field(sc, A_TP_DBG_LA_CONFIG, 0xffff0000U, tpp->la_mask);
+
+	return (0);
+}
+
 struct field_desc {
 	const char *name;
 	u_int start;
@@ -7334,6 +7454,92 @@ sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(sb);
 
 	return (rc);
+}
+#endif
+
+#ifdef TCP_OFFLOAD
+static void
+unit_conv(char *buf, size_t len, u_int val, u_int factor)
+{
+	u_int rem = val % factor;
+
+	if (rem == 0)
+		snprintf(buf, len, "%u", val / factor);
+	else {
+		while (rem % 10 == 0)
+			rem /= 10;
+		snprintf(buf, len, "%u.%u", val / factor, rem);
+	}
+}
+
+static int
+sysctl_tp_tick(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	char buf[16];
+	u_int res, re;
+	u_int cclk_ps = 1000000000 / sc->params.vpd.cclk;
+
+	res = t4_read_reg(sc, A_TP_TIMER_RESOLUTION);
+	switch (arg2) {
+	case 0:
+		/* timer_tick */
+		re = G_TIMERRESOLUTION(res);
+		break;
+	case 1:
+		/* TCP timestamp tick */
+		re = G_TIMESTAMPRESOLUTION(res);
+		break;
+	case 2:
+		/* DACK tick */
+		re = G_DELAYEDACKRESOLUTION(res);
+		break;
+	default:
+		return (EDOOFUS);
+	}
+
+	unit_conv(buf, sizeof(buf), (cclk_ps << re), 1000000);
+
+	return (sysctl_handle_string(oidp, buf, sizeof(buf), req));
+}
+
+static int
+sysctl_tp_dack_timer(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	u_int res, dack_re, v;
+	u_int cclk_ps = 1000000000 / sc->params.vpd.cclk;
+
+	res = t4_read_reg(sc, A_TP_TIMER_RESOLUTION);
+	dack_re = G_DELAYEDACKRESOLUTION(res);
+	v = ((cclk_ps << dack_re) / 1000000) * t4_read_reg(sc, A_TP_DACK_TIMER);
+
+	return (sysctl_handle_int(oidp, &v, 0, req));
+}
+
+static int
+sysctl_tp_timer(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	int reg = arg2;
+	u_int tre;
+	u_long tp_tick_us, v;
+	u_int cclk_ps = 1000000000 / sc->params.vpd.cclk;
+
+	MPASS(reg == A_TP_RXT_MIN || reg == A_TP_RXT_MAX ||
+	    reg == A_TP_PERS_MIN || reg == A_TP_PERS_MAX ||
+	    reg == A_TP_KEEP_IDLE || A_TP_KEEP_INTVL || reg == A_TP_INIT_SRTT ||
+	    reg == A_TP_FINWAIT2_TIMER);
+
+	tre = G_TIMERRESOLUTION(t4_read_reg(sc, A_TP_TIMER_RESOLUTION));
+	tp_tick_us = (cclk_ps << tre) / 1000000;
+
+	if (reg == A_TP_INIT_SRTT)
+		v = tp_tick_us * G_INITSRTT(t4_read_reg(sc, reg));
+	else
+		v = tp_tick_us * t4_read_reg(sc, reg);
+
+	return (sysctl_handle_long(oidp, &v, 0, req));
 }
 #endif
 

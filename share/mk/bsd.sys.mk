@@ -197,8 +197,9 @@ staging stage_libs stage_files stage_as stage_links stage_symlinks:
 .else
 # allow targets like beforeinstall to be leveraged
 DESTDIR= ${STAGE_OBJTOP}
+.export DESTDIR
 
-.if commands(beforeinstall)
+.if target(beforeinstall)
 .if !empty(_LIBS) || (${MK_STAGING_PROG} != "no" && !defined(INTERNALPROG))
 staging: beforeinstall
 .endif

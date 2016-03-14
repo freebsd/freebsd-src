@@ -120,13 +120,6 @@ struct autofs_softc {
 	int				sc_last_request_id;
 };
 
-/*
- * Limits and constants
- */
-#define AUTOFS_NAMELEN		24
-#define AUTOFS_FSNAMELEN	16	/* equal to MFSNAMELEN */
-#define AUTOFS_DELEN		(8 + AUTOFS_NAMELEN)
-
 int	autofs_init(struct vfsconf *vfsp);
 int	autofs_uninit(struct vfsconf *vfsp);
 int	autofs_trigger(struct autofs_node *anp, const char *component,

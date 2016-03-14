@@ -755,7 +755,7 @@ gic_map_fdt(struct arm_gic_softc *sc, struct intr_irqsrc *isrc, u_int *irqp)
 		 * The hardware only supports active-high-level or rising-edge.
 		 */
 		tripol = isrc->isrc_cells[2];
-		if (tripol & 0x0a) {
+		if (tripol & 0x0a && irq >= GIC_FIRST_SPI) {
 			device_printf(sc->gic_dev,
 			   "unsupported trigger/polarity configuration "
 			   "0x%02x\n",  tripol & 0x0f);

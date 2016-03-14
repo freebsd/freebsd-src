@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.280 2015/07/03 03:49:45 djm Exp $
+.\" $OpenBSD: sshd.8,v 1.284 2016/02/17 07:38:19 jmc Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: July 3 2015 $
+.Dd $Mdocdate: February 17 2016 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -276,14 +276,12 @@ though this can be changed via the
 .Cm Protocol
 option in
 .Xr sshd_config 5 .
-Protocol 2 supports DSA, ECDSA, Ed25519 and RSA keys;
-protocol 1 only supports RSA keys.
-For both protocols,
-each host has a host-specific key,
-normally 2048 bits,
-used to identify the host.
+Protocol 1 should not be used
+and is only offered to support legacy devices.
 .Pp
-Forward security for protocol 1 is provided through
+Each host has a host-specific key,
+used to identify the host.
+Partial forward security for protocol 1 is provided through
 an additional server key,
 normally 1024 bits,
 generated when the server starts.
@@ -473,7 +471,7 @@ does not exist either, xauth is used to add the cookie.
 .Cm AuthorizedKeysFile
 specifies the files containing public keys for
 public key authentication;
-if none is specified, the default is
+if this option is not specified, the default is
 .Pa ~/.ssh/authorized_keys
 and
 .Pa ~/.ssh/authorized_keys2 .
@@ -525,6 +523,10 @@ No spaces are permitted, except within double quotes.
 The following option specifications are supported (note
 that option keywords are case-insensitive):
 .Bl -tag -width Ds
+.It Cm agent-forwarding
+Enable authentication agent forwarding previously disabled by the
+.Cm restrict
+option.
 .It Cm cert-authority
 Specifies that the listed key is a certification authority (CA) that is
 trusted to validate signed certificates for user authentication.
@@ -619,6 +621,9 @@ they must be literal domains or addresses.
 A port specification of
 .Cm *
 matches any port.
+.It Cm port-forwarding
+Enable port forwarding previously disabled by the
+.Cm restrict
 .It Cm principals="principals"
 On a
 .Cm cert-authority
@@ -630,12 +635,33 @@ This option is ignored for keys that are not marked as trusted certificate
 signers using the
 .Cm cert-authority
 option.
+.It Cm pty
+Permits tty allocation previously disabled by the
+.Cm restrict
+option.
+.It Cm restrict
+Enable all restrictions, i.e. disable port, agent and X11 forwarding,
+as well as disabling PTY allocation
+and execution of
+.Pa ~/.ssh/rc .
+If any future restriction capabilities are added to authorized_keys files
+they will be included in this set.
 .It Cm tunnel="n"
 Force a
 .Xr tun 4
 device on the server.
 Without this option, the next available device will be used if
 the client requests a tunnel.
+.It Cm user-rc
+Enables execution of
+.Pa ~/.ssh/rc
+previously disabled by the
+.Cm restrict
+option.
+.It Cm X11-forwarding
+Permits X11 forwarding previously disabled by the
+.Cm restrict
+option.
 .El
 .Pp
 An example authorized_keys file:
@@ -650,6 +676,10 @@ permitopen="192.0.2.1:80",permitopen="192.0.2.2:25" ssh-dss
 AAAAB5...21S==
 tunnel="0",command="sh /etc/netstart tun0" ssh-rsa AAAA...==
 jane@example.net
+restrict,command="uptime" ssh-rsa AAAA1C8...32Tv==
+user@example.net
+restrict,pty,command="nethack" ssh-rsa AAAA1f8...IrrC5==
+user@example.net
 .Ed
 .Sh SSH_KNOWN_HOSTS FILE FORMAT
 The
@@ -865,9 +895,12 @@ This file is for host-based authentication (see
 It should only be writable by root.
 .Pp
 .It Pa /etc/moduli
-Contains Diffie-Hellman groups used for the "Diffie-Hellman Group Exchange".
+Contains Diffie-Hellman groups used for the "Diffie-Hellman Group Exchange"
+key exchange method.
 The file format is described in
 .Xr moduli 5 .
+If no usable groups are found in this file then fixed internal groups will
+be used.
 .Pp
 .It Pa /etc/motd
 See

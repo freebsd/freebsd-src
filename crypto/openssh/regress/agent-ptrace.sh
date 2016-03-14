@@ -12,6 +12,11 @@ if have_prog uname ; then
 	esac
 fi
 
+if [ "x$USER" = "xroot" ]; then
+	echo "Skipped: running as root"
+	exit 0
+fi
+
 if have_prog gdb ; then
 	: ok
 else

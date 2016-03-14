@@ -124,8 +124,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-extern const int tcprexmtthresh;
-
 VNET_DECLARE(int, tcp_autorcvbuf_inc);
 #define	V_tcp_autorcvbuf_inc	VNET(tcp_autorcvbuf_inc)
 VNET_DECLARE(int, tcp_autorcvbuf_max);
