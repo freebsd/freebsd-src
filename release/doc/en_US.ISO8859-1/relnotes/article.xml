@@ -191,6 +191,12 @@
       <para revision="288710" contrib="sponsor" sponsor="&gandi;">A
 	new utility, &man.sesutil.8;, has been added, which is used
 	to manage &man.ses.4; devices.</para>
+
+      <para revision="293744" contrib="sponsor" sponsor="&ff;">The
+	initial implementation of <quote>reroot</quote> support has
+	been added to the &man.shutdown.8; utility, allowing the root
+	filesystem to be mounted from a temporary source filesystem
+	without requiring a full system reboot.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
