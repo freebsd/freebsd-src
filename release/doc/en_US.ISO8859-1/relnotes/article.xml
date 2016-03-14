@@ -386,7 +386,11 @@
     <sect2 xml:id="boot-loader">
       <title>Boot Loader Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="295475" contrib="sponsor"
+	sponsor="&scaleengine;">The <acronym>UEFI</acronym> loader has
+	been updated to support multiple <acronym>ZFS</acronym> boot
+	environments, such as those provided by <filename
+	  role="package">sysutils/beadm</filename>.</para>
     </sect2>
 
     <sect2 xml:id="boot-menu">
