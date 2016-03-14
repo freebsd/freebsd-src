@@ -224,6 +224,9 @@
       <para revision="286751">Timezone data files have been updated to
 	version 2015f.</para>
 
+      <para revision="290152">The &man.file.1; utility has been
+	updated to version 5.25.</para>
+
       <para revision="292588">The &man.xz.1; utility has been updated
 	to version 5.2.2, which provides support for multi-threaded
 	compression.</para>
