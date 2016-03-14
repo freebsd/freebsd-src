@@ -27,6 +27,7 @@ if ! ggatel create -u $us /dev/$work; then
 	exit 1
 fi
 
+sleep 1
 dd if=/dev/${src} of=/dev/ggate${us} bs=1m count=1 conv=sync
 sleep 1
 
