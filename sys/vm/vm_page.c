@@ -2217,7 +2217,7 @@ retry:
 			}
 			KASSERT((m->flags & PG_UNHOLDFREE) == 0,
 			    ("page %p is PG_UNHOLDFREE", m));
-			/* Don't care: PG_NODUMP, PG_WINATCFLS, PG_ZERO. */
+			/* Don't care: PG_NODUMP, PG_ZERO. */
 			if (object->type != OBJT_DEFAULT &&
 			    object->type != OBJT_SWAP &&
 			    object->type != OBJT_VNODE)
@@ -2413,7 +2413,7 @@ retry:
 			}
 			KASSERT((m->flags & PG_UNHOLDFREE) == 0,
 			    ("page %p is PG_UNHOLDFREE", m));
-			/* Don't care: PG_NODUMP, PG_WINATCFLS, PG_ZERO. */
+			/* Don't care: PG_NODUMP, PG_ZERO. */
 			if (object->type != OBJT_DEFAULT &&
 			    object->type != OBJT_SWAP &&
 			    object->type != OBJT_VNODE)
