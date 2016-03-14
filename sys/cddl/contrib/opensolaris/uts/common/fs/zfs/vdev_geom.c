@@ -811,7 +811,8 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	 */
 	*logical_ashift = highbit(MAX(pp->sectorsize, SPA_MINBLOCKSIZE)) - 1;
 	*physical_ashift = 0;
-	if (pp->stripesize)
+	if (pp->stripesize > (1 << *logical_ashift) && ISP2(pp->stripesize) &&
+	    pp->stripesize <= (1 << SPA_MAXASHIFT) && pp->stripeoffset == 0)
 		*physical_ashift = highbit(pp->stripesize) - 1;
 
 	/*
@@ -885,7 +886,7 @@ vdev_geom_io_intr(struct bio *bp)
 		break;
 	}
 	g_destroy_bio(bp);
-	zio_interrupt(zio);
+	zio_delay_interrupt(zio);
 }
 
 static void
@@ -948,6 +949,7 @@ sendreq:
 	switch (zio->io_type) {
 	case ZIO_TYPE_READ:
 	case ZIO_TYPE_WRITE:
+		zio->io_target_timestamp = zio_handle_io_delay(zio);
 		bp->bio_cmd = zio->io_type == ZIO_TYPE_READ ? BIO_READ : BIO_WRITE;
 		bp->bio_data = zio->io_data;
 		bp->bio_offset = zio->io_offset;

@@ -140,6 +140,7 @@ FILES+=		return7.4
 FILES+=		return8.0
 FILES+=		set1.0
 FILES+=		set2.0
+FILES+=		set3.0
 FILES+=		trap1.0
 FILES+=		trap10.0
 FILES+=		trap11.0

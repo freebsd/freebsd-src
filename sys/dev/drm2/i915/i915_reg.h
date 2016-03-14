@@ -117,21 +117,6 @@ __FBSDID("$FreeBSD$");
 #define  GEN6_GRDOM_MEDIA		(1 << 2)
 #define  GEN6_GRDOM_BLT			(1 << 3)
 
-#define GEN6_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0xff0))
-
-#define GEN6_PDE_VALID			(1 << 0)
-#define GEN6_PDE_LARGE_PAGE		(2 << 0) /* use 32kb pages */
-/* gen6+ has bit 11-4 for physical addr bit 39-32 */
-#define GEN6_PDE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
-
-#define GEN6_PTE_VALID			(1 << 0)
-#define GEN6_PTE_UNCACHED		(1 << 1)
-#define GEN6_PTE_CACHE_LLC		(2 << 1)
-#define GEN6_PTE_CACHE_LLC_MLC		(3 << 1)
-#define GEN6_PTE_CACHE_BITS		(3 << 1)
-#define GEN6_PTE_GFDT			(1 << 3)
-#define GEN6_PTE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
-
 #define RING_PP_DIR_BASE(ring)		((ring)->mmio_base+0x228)
 #define RING_PP_DIR_BASE_READ(ring)	((ring)->mmio_base+0x518)
 #define RING_PP_DIR_DCLV(ring)		((ring)->mmio_base+0x220)
@@ -740,10 +725,6 @@ __FBSDID("$FreeBSD$");
 #define   GEN6_BSD_SLEEP_FLUSH_DISABLE	(1 << 2)
 #define   GEN6_BSD_SLEEP_INDICATOR	(1 << 3)
 #define   GEN6_BSD_GO_INDICATOR		(1 << 4)
-#define   GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_MODIFY_MASK	(1 << 16)
-#define   GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_DISABLE		(1 << 0)
-#define   GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_ENABLE		0
-#define   GEN6_BSD_SLEEP_PSMI_CONTROL_IDLE_INDICATOR			(1 << 3)
 
 #define GEN6_BSD_HWSTAM			0x12098
 #define GEN6_BSD_IMR			0x120a8
@@ -1682,21 +1663,19 @@ __FBSDID("$FreeBSD$");
 
 #define PORT_HOTPLUG_STAT	0x61114
 /* HDMI/DP bits are gen4+ */
-#define   HDMIB_HOTPLUG_INT_STATUS		(1 << 29)
-#define   DPB_HOTPLUG_INT_STATUS		(1 << 29)
-#define   HDMIC_HOTPLUG_INT_STATUS		(1 << 28)
-#define   DPC_HOTPLUG_INT_STATUS		(1 << 28)
-#define   HDMID_HOTPLUG_INT_STATUS		(1 << 27)
-#define   DPD_HOTPLUG_INT_STATUS		(1 << 27)
+#define   DPB_HOTPLUG_LIVE_STATUS               (1 << 29)
+#define   DPC_HOTPLUG_LIVE_STATUS               (1 << 28)
+#define   DPD_HOTPLUG_LIVE_STATUS               (1 << 27)
+#define   DPD_HOTPLUG_INT_STATUS		(3 << 21)
+#define   DPC_HOTPLUG_INT_STATUS		(3 << 19)
+#define   DPB_HOTPLUG_INT_STATUS		(3 << 17)
 /* HDMI bits are shared with the DP bits */
-/*
 #define   HDMIB_HOTPLUG_LIVE_STATUS             (1 << 29)
 #define   HDMIC_HOTPLUG_LIVE_STATUS             (1 << 28)
 #define   HDMID_HOTPLUG_LIVE_STATUS             (1 << 27)
 #define   HDMID_HOTPLUG_INT_STATUS		(3 << 21)
 #define   HDMIC_HOTPLUG_INT_STATUS		(3 << 19)
 #define   HDMIB_HOTPLUG_INT_STATUS		(3 << 17)
-*/
 /* CRT/TV common between gen3+ */
 #define   CRT_HOTPLUG_INT_STATUS		(1 << 11)
 #define   TV_HOTPLUG_INT_STATUS			(1 << 10)
@@ -1704,8 +1683,6 @@ __FBSDID("$FreeBSD$");
 #define   CRT_HOTPLUG_MONITOR_COLOR		(3 << 8)
 #define   CRT_HOTPLUG_MONITOR_MONO		(2 << 8)
 #define   CRT_HOTPLUG_MONITOR_NONE		(0 << 8)
-#define   SDVOC_HOTPLUG_INT_STATUS		(1 << 7)
-#define   SDVOB_HOTPLUG_INT_STATUS		(1 << 6)
 /* SDVO is different across gen3/4 */
 #define   SDVOC_HOTPLUG_INT_STATUS_G4X		(1 << 3)
 #define   SDVOB_HOTPLUG_INT_STATUS_G4X		(1 << 2)
@@ -3307,12 +3284,6 @@ __FBSDID("$FreeBSD$");
 #define DISPLAY_PORT_PLL_BIOS_1         0x46010
 #define DISPLAY_PORT_PLL_BIOS_2         0x46014
 
-#define PCH_DSPCLK_GATE_D	0x42020
-# define DPFCUNIT_CLOCK_GATE_DISABLE		(1 << 9)
-# define DPFCRUNIT_CLOCK_GATE_DISABLE		(1 << 8)
-# define DPFDUNIT_CLOCK_GATE_DISABLE		(1 << 7)
-# define DPARBUNIT_CLOCK_GATE_DISABLE		(1 << 5)
-
 #define PCH_3DCGDIS0		0x46020
 # define MARIUNIT_CLOCK_GATE_DISABLE		(1 << 18)
 # define SVSMUNIT_CLOCK_GATE_DISABLE		(1 << 1)
@@ -3486,15 +3457,6 @@ __FBSDID("$FreeBSD$");
 #define  ILK_HDCP_DISABLE		(1<<25)
 #define  ILK_eDP_A_DISABLE		(1<<24)
 #define  ILK_DESKTOP			(1<<23)
-#define ILK_DSPCLK_GATE		0x42020
-#define  IVB_VRHUNIT_CLK_GATE	(1<<28)
-#define  ILK_DPARB_CLK_GATE	(1<<5)
-#define  ILK_DPFD_CLK_GATE	(1<<7)
-
-/* According to spec this bit 7/8/9 of 0x42020 should be set to enable FBC */
-#define   ILK_CLK_FBC		(1<<7)
-#define   ILK_DPFC_DIS1		(1<<8)
-#define   ILK_DPFC_DIS2		(1<<9)
 
 #define ILK_DSPCLK_GATE_D			0x42020
 #define   ILK_VRHUNIT_CLOCK_GATE_DISABLE	(1 << 28)
@@ -3763,7 +3725,7 @@ __FBSDID("$FreeBSD$");
 #define TVIDEO_DIP_DATA(pipe) _PIPE(pipe, _VIDEO_DIP_DATA_A, _VIDEO_DIP_DATA_B)
 #define TVIDEO_DIP_GCP(pipe) _PIPE(pipe, _VIDEO_DIP_GCP_A, _VIDEO_DIP_GCP_B)
 
-#define VLV_VIDEO_DIP_CTL_A		0x60220
+#define VLV_VIDEO_DIP_CTL_A		0x60200
 #define VLV_VIDEO_DIP_DATA_A		0x60208
 #define VLV_VIDEO_DIP_GDCP_PAYLOAD_A	0x60210
 
@@ -3879,7 +3841,6 @@ __FBSDID("$FreeBSD$");
 #define _TRANSA_CHICKEN2	 0xf0064
 #define _TRANSB_CHICKEN2	 0xf1064
 #define TRANS_CHICKEN2(pipe) _PIPE(pipe, _TRANSA_CHICKEN2, _TRANSB_CHICKEN2)
-#define   TRANS_AUTOTRAIN_GEN_STALL_DIS  (1<<31)
 #define  TRANS_CHICKEN2_TIMING_OVERRIDE		(1<<31)
 #define  TRANS_CHICKEN2_FDI_POLARITY_REVERSED	(1<<29)
 
@@ -4030,33 +3991,7 @@ __FBSDID("$FreeBSD$");
 #define FDI_PLL_CTL_1           0xfe000
 #define FDI_PLL_CTL_2           0xfe004
 
-/* CRT */
-#define PCH_ADPA                0xe1100
-#define  ADPA_TRANS_SELECT_MASK (1<<30)
-#define  ADPA_TRANS_A_SELECT    0
-#define  ADPA_TRANS_B_SELECT    (1<<30)
-#define  ADPA_CRT_HOTPLUG_MASK  0x03ff0000 /* bit 25-16 */
-#define  ADPA_CRT_HOTPLUG_MONITOR_NONE  (0<<24)
-#define  ADPA_CRT_HOTPLUG_MONITOR_MASK  (3<<24)
-#define  ADPA_CRT_HOTPLUG_MONITOR_COLOR (3<<24)
-#define  ADPA_CRT_HOTPLUG_MONITOR_MONO  (2<<24)
-#define  ADPA_CRT_HOTPLUG_ENABLE        (1<<23)
-#define  ADPA_CRT_HOTPLUG_PERIOD_64     (0<<22)
-#define  ADPA_CRT_HOTPLUG_PERIOD_128    (1<<22)
-#define  ADPA_CRT_HOTPLUG_WARMUP_5MS    (0<<21)
-#define  ADPA_CRT_HOTPLUG_WARMUP_10MS   (1<<21)
-#define  ADPA_CRT_HOTPLUG_SAMPLE_2S     (0<<20)
-#define  ADPA_CRT_HOTPLUG_SAMPLE_4S     (1<<20)
-#define  ADPA_CRT_HOTPLUG_VOLTAGE_40    (0<<18)
-#define  ADPA_CRT_HOTPLUG_VOLTAGE_50    (1<<18)
-#define  ADPA_CRT_HOTPLUG_VOLTAGE_60    (2<<18)
-#define  ADPA_CRT_HOTPLUG_VOLTAGE_70    (3<<18)
-#define  ADPA_CRT_HOTPLUG_VOLREF_325MV  (0<<17)
-#define  ADPA_CRT_HOTPLUG_VOLREF_475MV  (1<<17)
-#define  ADPA_CRT_HOTPLUG_FORCE_TRIGGER (1<<16)
-
 /* or SDVOB */
-#define VLV_HDMIB 0x61140
 #define HDMIB   0xe1140
 #define  PORT_ENABLE    (1 << 31)
 #define  TRANSCODER(pipe)       ((pipe) << 30)
@@ -4099,21 +4034,6 @@ __FBSDID("$FreeBSD$");
 #define PIPEB_PP_ON_DELAYS      0x61308
 #define PIPEB_PP_OFF_DELAYS     0x6130c
 #define PIPEB_PP_DIVISOR        0x61310
-
-#define BLC_PWM_CPU_CTL2	0x48250
-#define  PWM_ENABLE		(1 << 31)
-#define  PWM_PIPE_A		(0 << 29)
-#define  PWM_PIPE_B		(1 << 29)
-#define BLC_PWM_CPU_CTL		0x48254
-
-#define BLC_PWM_PCH_CTL1	0xc8250
-#define  PWM_PCH_ENABLE		(1 << 31)
-#define  PWM_POLARITY_ACTIVE_LOW	(1 << 29)
-#define  PWM_POLARITY_ACTIVE_HIGH	(0 << 29)
-#define  PWM_POLARITY_ACTIVE_LOW2	(1 << 28)
-#define  PWM_POLARITY_ACTIVE_HIGH2	(0 << 28)
-
-#define BLC_PWM_PCH_CTL2	0xc8254
 
 #define PCH_PP_STATUS		0xc7200
 #define PCH_PP_CONTROL		0xc7204
@@ -4701,15 +4621,6 @@ __FBSDID("$FreeBSD$");
 #define  TRANS_CLK_SEL_DISABLED		(0x0<<29)
 #define  TRANS_CLK_SEL_PORT(x)		((x+1)<<29)
 
-/* Pipe clock selection */
-#define PIPE_CLK_SEL_A			0x46140
-#define PIPE_CLK_SEL_B			0x46144
-#define PIPE_CLK_SEL(pipe) _PIPE(pipe, \
-					PIPE_CLK_SEL_A, \
-					PIPE_CLK_SEL_B)
-/* For each pipe, we need to select the corresponding port clock */
-#define  PIPE_CLK_SEL_DISABLED	(0x0<<29)
-#define  PIPE_CLK_SEL_PORT(x)	((x+1)<<29)
 #define _TRANSA_MSA_MISC		0x60410
 #define _TRANSB_MSA_MISC		0x61410
 #define TRANS_MSA_MISC(tran) _TRANSCODER(tran, _TRANSA_MSA_MISC, \

@@ -23,6 +23,7 @@ options 	SCHED_ULE		# ULE scheduler
 #options 	SCHED_4BSD		# 4BSD scheduler
 
 options 	SMP
+options 	ARM_INTRNG
 
 # Debugging
 #options 	DEBUG
@@ -70,6 +71,7 @@ device		mpcore_timer
 # USB
 device		usb
 device		ehci
+device		xhci
 device		umass
 device		scbus
 device		pass

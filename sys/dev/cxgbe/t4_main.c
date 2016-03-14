@@ -328,8 +328,14 @@ TUNABLE_INT("hw.cxgbe.fw_install", &t4_fw_install);
  * ASIC features that will be used.  Disable the ones you don't want so that the
  * chip resources aren't wasted on features that will not be used.
  */
+static int t4_nbmcaps_allowed = 0;
+TUNABLE_INT("hw.cxgbe.nbmcaps_allowed", &t4_nbmcaps_allowed);
+
 static int t4_linkcaps_allowed = 0;	/* No DCBX, PPP, etc. by default */
 TUNABLE_INT("hw.cxgbe.linkcaps_allowed", &t4_linkcaps_allowed);
+
+static int t4_switchcaps_allowed = 0;
+TUNABLE_INT("hw.cxgbe.switchcaps_allowed", &t4_switchcaps_allowed);
 
 static int t4_niccaps_allowed = FW_CAPS_CONFIG_NIC;
 TUNABLE_INT("hw.cxgbe.niccaps_allowed", &t4_niccaps_allowed);
@@ -339,6 +345,9 @@ TUNABLE_INT("hw.cxgbe.toecaps_allowed", &t4_toecaps_allowed);
 
 static int t4_rdmacaps_allowed = 0;
 TUNABLE_INT("hw.cxgbe.rdmacaps_allowed", &t4_rdmacaps_allowed);
+
+static int t4_tlscaps_allowed = 0;
+TUNABLE_INT("hw.cxgbe.tlscaps_allowed", &t4_tlscaps_allowed);
 
 static int t4_iscsicaps_allowed = 0;
 TUNABLE_INT("hw.cxgbe.iscsicaps_allowed", &t4_iscsicaps_allowed);
@@ -399,12 +408,17 @@ struct filter_entry {
 static int map_bars_0_and_4(struct adapter *);
 static int map_bar_2(struct adapter *);
 static void setup_memwin(struct adapter *);
+static void position_memwin(struct adapter *, int, uint32_t);
+static int rw_via_memwin(struct adapter *, int, uint32_t, uint32_t *, int, int);
+static inline int read_via_memwin(struct adapter *, int, uint32_t, uint32_t *,
+    int);
+static inline int write_via_memwin(struct adapter *, int, uint32_t,
+    const uint32_t *, int);
 static int validate_mem_range(struct adapter *, uint32_t, int);
 static int fwmtype_to_hwmtype(int);
 static int validate_mt_off_len(struct adapter *, int, uint32_t, int,
     uint32_t *);
-static void memwin_info(struct adapter *, int, uint32_t *, uint32_t *);
-static uint32_t position_memwin(struct adapter *, int, uint32_t);
+static int fixup_devlog_params(struct adapter *);
 static int cfg_itype_and_nqueues(struct adapter *, int, int, int,
     struct intrs_and_queues *);
 static int prep_firmware(struct adapter *);
@@ -471,14 +485,22 @@ static int sysctl_rdma_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tcp_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tids(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS);
+static int sysctl_tp_la_mask(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_tx_rate(SYSCTL_HANDLER_ARGS);
 static int sysctl_ulprx_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS);
 #endif
-static uint32_t fconf_to_mode(uint32_t);
+#ifdef TCP_OFFLOAD
+static int sysctl_tp_tick(SYSCTL_HANDLER_ARGS);
+static int sysctl_tp_dack_timer(SYSCTL_HANDLER_ARGS);
+static int sysctl_tp_timer(SYSCTL_HANDLER_ARGS);
+#endif
+static uint32_t fconf_iconf_to_mode(uint32_t, uint32_t);
 static uint32_t mode_to_fconf(uint32_t);
-static uint32_t fspec_to_fconf(struct t4_filter_specification *);
+static uint32_t mode_to_iconf(uint32_t);
+static int check_fspec_against_fconf_iconf(struct adapter *,
+    struct t4_filter_specification *);
 static int get_filter_mode(struct adapter *, uint32_t *);
 static int set_filter_mode(struct adapter *, uint32_t);
 static inline uint64_t get_filter_hits(struct adapter *, uint32_t);
@@ -643,6 +665,7 @@ t4_attach(device_t dev)
 	int rc = 0, i, j, n10g, n1g, rqidx, tqidx;
 	struct intrs_and_queues iaq;
 	struct sge *s;
+	uint8_t *buf;
 #ifdef TCP_OFFLOAD
 	int ofld_rqidx, ofld_tqidx;
 #endif
@@ -685,7 +708,7 @@ t4_attach(device_t dev)
 	TAILQ_INIT(&sc->sfl);
 	callout_init_mtx(&sc->sfl_callout, &sc->sfl_lock, 0);
 
-	mtx_init(&sc->regwin_lock, "register and memory window", 0, MTX_DEF);
+	mtx_init(&sc->reg_lock, "indirect register access", 0, MTX_DEF);
 
 	rc = map_bars_0_and_4(sc);
 	if (rc != 0)
@@ -711,8 +734,10 @@ t4_attach(device_t dev)
 	t4_register_cpl_handler(sc, CPL_T5_TRACE_PKT, t5_trace_pkt);
 	t4_init_sge_cpl_handlers(sc);
 
-	/* Prepare the adapter for operation */
-	rc = -t4_prep_adapter(sc);
+	/* Prepare the adapter for operation. */
+	buf = malloc(PAGE_SIZE, M_CXGBE, M_ZERO | M_WAITOK);
+	rc = -t4_prep_adapter(sc, buf);
+	free(buf, M_CXGBE);
 	if (rc != 0) {
 		device_printf(dev, "failed to prepare adapter: %d.\n", rc);
 		goto done;
@@ -724,6 +749,8 @@ t4_attach(device_t dev)
 	 * will work even in "recovery mode".
 	 */
 	setup_memwin(sc);
+	if (t4_init_devlog_params(sc, 0) == 0)
+		fixup_devlog_params(sc);
 	sc->cdev = make_dev(is_t4(sc) ? &t4_cdevsw : &t5_cdevsw,
 	    device_get_unit(dev), UID_ROOT, GID_WHEEL, 0600, "%s",
 	    device_get_nameunit(dev));
@@ -813,7 +840,7 @@ t4_attach(device_t dev)
 		 * Allocate the "main" VI and initialize parameters
 		 * like mac addr.
 		 */
-		rc = -t4_port_init(pi, sc->mbox, sc->pf, 0);
+		rc = -t4_port_init(sc, sc->mbox, sc->pf, 0, i);
 		if (rc != 0) {
 			device_printf(dev, "unable to initialize port %d: %d\n",
 			    i, rc);
@@ -1156,8 +1183,15 @@ t4_detach(device_t dev)
 		mtx_destroy(&sc->sfl_lock);
 	if (mtx_initialized(&sc->ifp_lock))
 		mtx_destroy(&sc->ifp_lock);
-	if (mtx_initialized(&sc->regwin_lock))
-		mtx_destroy(&sc->regwin_lock);
+	if (mtx_initialized(&sc->reg_lock))
+		mtx_destroy(&sc->reg_lock);
+
+	for (i = 0; i < NUM_MEMWIN; i++) {
+		struct memwin *mw = &sc->memwin[i];
+
+		if (rw_initialized(&mw->mw_lock))
+			rw_destroy(&mw->mw_lock);
+	}
 
 	bzero(sc, sizeof(*sc));
 
@@ -1778,13 +1812,13 @@ cxgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 		return;
 
 	ifmr->ifm_active = IFM_ETHER | IFM_FDX;
-	if (speed == SPEED_10000)
+	if (speed == 10000)
 		ifmr->ifm_active |= IFM_10G_T;
-	else if (speed == SPEED_1000)
+	else if (speed == 1000)
 		ifmr->ifm_active |= IFM_1000_T;
-	else if (speed == SPEED_100)
+	else if (speed == 100)
 		ifmr->ifm_active |= IFM_100_TX;
-	else if (speed == SPEED_10)
+	else if (speed == 10)
 		ifmr->ifm_active |= IFM_10_T;
 	else
 		KASSERT(0, ("%s: link up but speed unknown (%u)", __func__,
@@ -1960,13 +1994,18 @@ map_bar_2(struct adapter *sc)
 	return (0);
 }
 
-static const struct memwin t4_memwin[] = {
+struct memwin_init {
+	uint32_t base;
+	uint32_t aperture;
+};
+
+static const struct memwin_init t4_memwin[NUM_MEMWIN] = {
 	{ MEMWIN0_BASE, MEMWIN0_APERTURE },
 	{ MEMWIN1_BASE, MEMWIN1_APERTURE },
 	{ MEMWIN2_BASE_T4, MEMWIN2_APERTURE_T4 }
 };
 
-static const struct memwin t5_memwin[] = {
+static const struct memwin_init t5_memwin[NUM_MEMWIN] = {
 	{ MEMWIN0_BASE, MEMWIN0_APERTURE },
 	{ MEMWIN1_BASE, MEMWIN1_APERTURE },
 	{ MEMWIN2_BASE_T5, MEMWIN2_APERTURE_T5 },
@@ -1975,8 +2014,9 @@ static const struct memwin t5_memwin[] = {
 static void
 setup_memwin(struct adapter *sc)
 {
-	const struct memwin *mw;
-	int i, n;
+	const struct memwin_init *mw_init;
+	struct memwin *mw;
+	int i;
 	uint32_t bar0;
 
 	if (is_t4(sc)) {
@@ -1990,21 +2030,26 @@ setup_memwin(struct adapter *sc)
 		bar0 = t4_hw_pci_read_cfg4(sc, PCIR_BAR(0));
 		bar0 &= (uint32_t) PCIM_BAR_MEM_BASE;
 
-		mw = &t4_memwin[0];
-		n = nitems(t4_memwin);
+		mw_init = &t4_memwin[0];
 	} else {
-		/* T5 uses the relative offset inside the PCIe BAR */
+		/* T5+ use the relative offset inside the PCIe BAR */
 		bar0 = 0;
 
-		mw = &t5_memwin[0];
-		n = nitems(t5_memwin);
+		mw_init = &t5_memwin[0];
 	}
 
-	for (i = 0; i < n; i++, mw++) {
+	for (i = 0, mw = &sc->memwin[0]; i < NUM_MEMWIN; i++, mw_init++, mw++) {
+		rw_init(&mw->mw_lock, "memory window access");
+		mw->mw_base = mw_init->base;
+		mw->mw_aperture = mw_init->aperture;
+		mw->mw_curpos = 0;
 		t4_write_reg(sc,
 		    PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, i),
-		    (mw->base + bar0) | V_BIR(0) |
-		    V_WINDOW(ilog2(mw->aperture) - 10));
+		    (mw->mw_base + bar0) | V_BIR(0) |
+		    V_WINDOW(ilog2(mw->mw_aperture) - 10));
+		rw_wlock(&mw->mw_lock);
+		position_memwin(sc, i, 0);
+		rw_wunlock(&mw->mw_lock);
 	}
 
 	/* flush */
@@ -2012,51 +2057,227 @@ setup_memwin(struct adapter *sc)
 }
 
 /*
- * Verify that the memory range specified by the addr/len pair is valid and lies
- * entirely within a single region (EDCx or MCx).
+ * Positions the memory window at the given address in the card's address space.
+ * There are some alignment requirements and the actual position may be at an
+ * address prior to the requested address.  mw->mw_curpos always has the actual
+ * position of the window.
+ */
+static void
+position_memwin(struct adapter *sc, int idx, uint32_t addr)
+{
+	struct memwin *mw;
+	uint32_t pf;
+	uint32_t reg;
+
+	MPASS(idx >= 0 && idx < NUM_MEMWIN);
+	mw = &sc->memwin[idx];
+	rw_assert(&mw->mw_lock, RA_WLOCKED);
+
+	if (is_t4(sc)) {
+		pf = 0;
+		mw->mw_curpos = addr & ~0xf;	/* start must be 16B aligned */
+	} else {
+		pf = V_PFNUM(sc->pf);
+		mw->mw_curpos = addr & ~0x7f;	/* start must be 128B aligned */
+	}
+	reg = PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, idx);
+	t4_write_reg(sc, reg, mw->mw_curpos | pf);
+	t4_read_reg(sc, reg);	/* flush */
+}
+
+static int
+rw_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
+    int len, int rw)
+{
+	struct memwin *mw;
+	uint32_t mw_end, v;
+
+	MPASS(idx >= 0 && idx < NUM_MEMWIN);
+
+	/* Memory can only be accessed in naturally aligned 4 byte units */
+	if (addr & 3 || len & 3 || len <= 0)
+		return (EINVAL);
+
+	mw = &sc->memwin[idx];
+	while (len > 0) {
+		rw_rlock(&mw->mw_lock);
+		mw_end = mw->mw_curpos + mw->mw_aperture;
+		if (addr >= mw_end || addr < mw->mw_curpos) {
+			/* Will need to reposition the window */
+			if (!rw_try_upgrade(&mw->mw_lock)) {
+				rw_runlock(&mw->mw_lock);
+				rw_wlock(&mw->mw_lock);
+			}
+			rw_assert(&mw->mw_lock, RA_WLOCKED);
+			position_memwin(sc, idx, addr);
+			rw_downgrade(&mw->mw_lock);
+			mw_end = mw->mw_curpos + mw->mw_aperture;
+		}
+		rw_assert(&mw->mw_lock, RA_RLOCKED);
+		while (addr < mw_end && len > 0) {
+			if (rw == 0) {
+				v = t4_read_reg(sc, mw->mw_base + addr -
+				    mw->mw_curpos);
+				*val++ = le32toh(v);
+			} else {
+				v = *val++;
+				t4_write_reg(sc, mw->mw_base + addr -
+				    mw->mw_curpos, htole32(v));;
+			}
+			addr += 4;
+			len -= 4;
+		}
+		rw_runlock(&mw->mw_lock);
+	}
+
+	return (0);
+}
+
+static inline int
+read_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
+    int len)
+{
+
+	return (rw_via_memwin(sc, idx, addr, val, len, 0));
+}
+
+static inline int
+write_via_memwin(struct adapter *sc, int idx, uint32_t addr,
+    const uint32_t *val, int len)
+{
+
+	return (rw_via_memwin(sc, idx, addr, (void *)(uintptr_t)val, len, 1));
+}
+
+static int
+t4_range_cmp(const void *a, const void *b)
+{
+	return ((const struct t4_range *)a)->start -
+	       ((const struct t4_range *)b)->start;
+}
+
+/*
+ * Verify that the memory range specified by the addr/len pair is valid within
+ * the card's address space.
  */
 static int
 validate_mem_range(struct adapter *sc, uint32_t addr, int len)
 {
-	uint32_t em, addr_len, maddr, mlen;
+	struct t4_range mem_ranges[4], *r, *next;
+	uint32_t em, addr_len;
+	int i, n, remaining;
 
 	/* Memory can only be accessed in naturally aligned 4 byte units */
-	if (addr & 3 || len & 3 || len == 0)
+	if (addr & 3 || len & 3 || len <= 0)
 		return (EINVAL);
 
 	/* Enabled memories */
 	em = t4_read_reg(sc, A_MA_TARGET_MEM_ENABLE);
+
+	r = &mem_ranges[0];
+	n = 0;
+	bzero(r, sizeof(mem_ranges));
 	if (em & F_EDRAM0_ENABLE) {
 		addr_len = t4_read_reg(sc, A_MA_EDRAM0_BAR);
-		maddr = G_EDRAM0_BASE(addr_len) << 20;
-		mlen = G_EDRAM0_SIZE(addr_len) << 20;
-		if (mlen > 0 && addr >= maddr && addr < maddr + mlen &&
-		    addr + len <= maddr + mlen)
-			return (0);
+		r->size = G_EDRAM0_SIZE(addr_len) << 20;
+		if (r->size > 0) {
+			r->start = G_EDRAM0_BASE(addr_len) << 20;
+			if (addr >= r->start &&
+			    addr + len <= r->start + r->size)
+				return (0);
+			r++;
+			n++;
+		}
 	}
 	if (em & F_EDRAM1_ENABLE) {
 		addr_len = t4_read_reg(sc, A_MA_EDRAM1_BAR);
-		maddr = G_EDRAM1_BASE(addr_len) << 20;
-		mlen = G_EDRAM1_SIZE(addr_len) << 20;
-		if (mlen > 0 && addr >= maddr && addr < maddr + mlen &&
-		    addr + len <= maddr + mlen)
-			return (0);
+		r->size = G_EDRAM1_SIZE(addr_len) << 20;
+		if (r->size > 0) {
+			r->start = G_EDRAM1_BASE(addr_len) << 20;
+			if (addr >= r->start &&
+			    addr + len <= r->start + r->size)
+				return (0);
+			r++;
+			n++;
+		}
 	}
 	if (em & F_EXT_MEM_ENABLE) {
 		addr_len = t4_read_reg(sc, A_MA_EXT_MEMORY_BAR);
-		maddr = G_EXT_MEM_BASE(addr_len) << 20;
-		mlen = G_EXT_MEM_SIZE(addr_len) << 20;
-		if (mlen > 0 && addr >= maddr && addr < maddr + mlen &&
-		    addr + len <= maddr + mlen)
-			return (0);
+		r->size = G_EXT_MEM_SIZE(addr_len) << 20;
+		if (r->size > 0) {
+			r->start = G_EXT_MEM_BASE(addr_len) << 20;
+			if (addr >= r->start &&
+			    addr + len <= r->start + r->size)
+				return (0);
+			r++;
+			n++;
+		}
 	}
-	if (!is_t4(sc) && em & F_EXT_MEM1_ENABLE) {
+	if (is_t5(sc) && em & F_EXT_MEM1_ENABLE) {
 		addr_len = t4_read_reg(sc, A_MA_EXT_MEMORY1_BAR);
-		maddr = G_EXT_MEM1_BASE(addr_len) << 20;
-		mlen = G_EXT_MEM1_SIZE(addr_len) << 20;
-		if (mlen > 0 && addr >= maddr && addr < maddr + mlen &&
-		    addr + len <= maddr + mlen)
-			return (0);
+		r->size = G_EXT_MEM1_SIZE(addr_len) << 20;
+		if (r->size > 0) {
+			r->start = G_EXT_MEM1_BASE(addr_len) << 20;
+			if (addr >= r->start &&
+			    addr + len <= r->start + r->size)
+				return (0);
+			r++;
+			n++;
+		}
+	}
+	MPASS(n <= nitems(mem_ranges));
+
+	if (n > 1) {
+		/* Sort and merge the ranges. */
+		qsort(mem_ranges, n, sizeof(struct t4_range), t4_range_cmp);
+
+		/* Start from index 0 and examine the next n - 1 entries. */
+		r = &mem_ranges[0];
+		for (remaining = n - 1; remaining > 0; remaining--, r++) {
+
+			MPASS(r->size > 0);	/* r is a valid entry. */
+			next = r + 1;
+			MPASS(next->size > 0);	/* and so is the next one. */
+
+			while (r->start + r->size >= next->start) {
+				/* Merge the next one into the current entry. */
+				r->size = max(r->start + r->size,
+				    next->start + next->size) - r->start;
+				n--;	/* One fewer entry in total. */
+				if (--remaining == 0)
+					goto done;	/* short circuit */
+				next++;
+			}
+			if (next != r + 1) {
+				/*
+				 * Some entries were merged into r and next
+				 * points to the first valid entry that couldn't
+				 * be merged.
+				 */
+				MPASS(next->size > 0);	/* must be valid */
+				memcpy(r + 1, next, remaining * sizeof(*r));
+#ifdef INVARIANTS
+				/*
+				 * This so that the foo->size assertion in the
+				 * next iteration of the loop do the right
+				 * thing for entries that were pulled up and are
+				 * no longer valid.
+				 */
+				MPASS(n < nitems(mem_ranges));
+				bzero(&mem_ranges[n], (nitems(mem_ranges) - n) *
+				    sizeof(struct t4_range));
+#endif
+			}
+		}
+done:
+		/* Done merging the ranges. */
+		MPASS(n > 0);
+		r = &mem_ranges[0];
+		for (i = 0; i < n; i++, r++) {
+			if (addr >= r->start &&
+			    addr + len <= r->start + r->size)
+				return (0);
+		}
 	}
 
 	return (EFAULT);
@@ -2089,7 +2310,7 @@ static int
 validate_mt_off_len(struct adapter *sc, int mtype, uint32_t off, int len,
     uint32_t *addr)
 {
-	uint32_t em, addr_len, maddr, mlen;
+	uint32_t em, addr_len, maddr;
 
 	/* Memory can only be accessed in naturally aligned 4 byte units */
 	if (off & 3 || len & 3 || len == 0)
@@ -2102,91 +2323,43 @@ validate_mt_off_len(struct adapter *sc, int mtype, uint32_t off, int len,
 			return (EINVAL);
 		addr_len = t4_read_reg(sc, A_MA_EDRAM0_BAR);
 		maddr = G_EDRAM0_BASE(addr_len) << 20;
-		mlen = G_EDRAM0_SIZE(addr_len) << 20;
 		break;
 	case MEM_EDC1:
 		if (!(em & F_EDRAM1_ENABLE))
 			return (EINVAL);
 		addr_len = t4_read_reg(sc, A_MA_EDRAM1_BAR);
 		maddr = G_EDRAM1_BASE(addr_len) << 20;
-		mlen = G_EDRAM1_SIZE(addr_len) << 20;
 		break;
 	case MEM_MC:
 		if (!(em & F_EXT_MEM_ENABLE))
 			return (EINVAL);
 		addr_len = t4_read_reg(sc, A_MA_EXT_MEMORY_BAR);
 		maddr = G_EXT_MEM_BASE(addr_len) << 20;
-		mlen = G_EXT_MEM_SIZE(addr_len) << 20;
 		break;
 	case MEM_MC1:
-		if (is_t4(sc) || !(em & F_EXT_MEM1_ENABLE))
+		if (!is_t5(sc) || !(em & F_EXT_MEM1_ENABLE))
 			return (EINVAL);
 		addr_len = t4_read_reg(sc, A_MA_EXT_MEMORY1_BAR);
 		maddr = G_EXT_MEM1_BASE(addr_len) << 20;
-		mlen = G_EXT_MEM1_SIZE(addr_len) << 20;
 		break;
 	default:
 		return (EINVAL);
 	}
 
-	if (mlen > 0 && off < mlen && off + len <= mlen) {
-		*addr = maddr + off;	/* global address */
-		return (0);
-	}
-
-	return (EFAULT);
+	*addr = maddr + off;	/* global address */
+	return (validate_mem_range(sc, *addr, len));
 }
 
-static void
-memwin_info(struct adapter *sc, int win, uint32_t *base, uint32_t *aperture)
+static int
+fixup_devlog_params(struct adapter *sc)
 {
-	const struct memwin *mw;
+	struct devlog_params *dparams = &sc->params.devlog;
+	int rc;
 
-	if (is_t4(sc)) {
-		KASSERT(win >= 0 && win < nitems(t4_memwin),
-		    ("%s: incorrect memwin# (%d)", __func__, win));
-		mw = &t4_memwin[win];
-	} else {
-		KASSERT(win >= 0 && win < nitems(t5_memwin),
-		    ("%s: incorrect memwin# (%d)", __func__, win));
-		mw = &t5_memwin[win];
-	}
+	rc = validate_mt_off_len(sc, dparams->memtype, dparams->start,
+	    dparams->size, &dparams->addr);
 
-	if (base != NULL)
-		*base = mw->base;
-	if (aperture != NULL)
-		*aperture = mw->aperture;
-}
-
-/*
- * Positions the memory window such that it can be used to access the specified
- * address in the chip's address space.  The return value is the offset of addr
- * from the start of the window.
- */
-static uint32_t
-position_memwin(struct adapter *sc, int n, uint32_t addr)
-{
-	uint32_t start, pf;
-	uint32_t reg;
-
-	KASSERT(n >= 0 && n <= 3,
-	    ("%s: invalid window %d.", __func__, n));
-	KASSERT((addr & 3) == 0,
-	    ("%s: addr (0x%x) is not at a 4B boundary.", __func__, addr));
-
-	if (is_t4(sc)) {
-		pf = 0;
-		start = addr & ~0xf;	/* start must be 16B aligned */
-	} else {
-		pf = V_PFNUM(sc->pf);
-		start = addr & ~0x7f;	/* start must be 128B aligned */
-	}
-	reg = PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, n);
-
-	t4_write_reg(sc, reg, start | pf);
-	t4_read_reg(sc, reg);
-
-	return (addr - start);
+	return (rc);
 }
 
 static int
@@ -2667,7 +2840,24 @@ prep_firmware(struct adapter *sc)
 	    G_FW_HDR_FW_VER_MINOR(sc->params.fw_vers),
 	    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
 	    G_FW_HDR_FW_VER_BUILD(sc->params.fw_vers));
+
 	t4_get_tp_version(sc, &sc->params.tp_vers);
+	snprintf(sc->tp_version, sizeof(sc->tp_version), "%u.%u.%u.%u",
+	    G_FW_HDR_FW_VER_MAJOR(sc->params.tp_vers),
+	    G_FW_HDR_FW_VER_MINOR(sc->params.tp_vers),
+	    G_FW_HDR_FW_VER_MICRO(sc->params.tp_vers),
+	    G_FW_HDR_FW_VER_BUILD(sc->params.tp_vers));
+
+	if (t4_get_exprom_version(sc, &sc->params.exprom_vers) != 0)
+		sc->params.exprom_vers = 0;
+	else {
+		snprintf(sc->exprom_version, sizeof(sc->exprom_version),
+		    "%u.%u.%u.%u",
+		    G_FW_HDR_FW_VER_MAJOR(sc->params.exprom_vers),
+		    G_FW_HDR_FW_VER_MINOR(sc->params.exprom_vers),
+		    G_FW_HDR_FW_VER_MICRO(sc->params.exprom_vers),
+		    G_FW_HDR_FW_VER_BUILD(sc->params.exprom_vers));
+	}
 
 	/* Reset device */
 	if (need_fw_reset &&
@@ -2789,9 +2979,9 @@ partition_resources(struct adapter *sc, const struct firmware *default_cfg,
 	}
 
 	if (strncmp(sc->cfg_file, FLASH_CF, sizeof(sc->cfg_file)) != 0) {
-		u_int cflen, i, n;
+		u_int cflen;
 		const uint32_t *cfdata;
-		uint32_t param, val, addr, off, mw_base, mw_aperture;
+		uint32_t param, val, addr;
 
 		KASSERT(cfg != NULL || default_cfg != NULL,
 		    ("%s: no config to upload", __func__));
@@ -2841,16 +3031,7 @@ partition_resources(struct adapter *sc, const struct firmware *default_cfg,
 			    __func__, mtype, moff, cflen, rc);
 			goto use_config_on_flash;
 		}
-
-		memwin_info(sc, 2, &mw_base, &mw_aperture);
-		while (cflen) {
-			off = position_memwin(sc, 2, addr);
-			n = min(cflen, mw_aperture - off);
-			for (i = 0; i < n; i += 4)
-				t4_write_reg(sc, mw_base + off + i, *cfdata++);
-			cflen -= n;
-			addr += n;
-		}
+		write_via_memwin(sc, 2, addr, cfdata, cflen);
 	} else {
 use_config_on_flash:
 		mtype = FW_MEMTYPE_FLASH;
@@ -2888,10 +3069,13 @@ use_config_on_flash:
 	 * Let the firmware know what features will (not) be used so it can tune
 	 * things accordingly.
 	 */
+	LIMIT_CAPS(nbmcaps);
 	LIMIT_CAPS(linkcaps);
+	LIMIT_CAPS(switchcaps);
 	LIMIT_CAPS(niccaps);
 	LIMIT_CAPS(toecaps);
 	LIMIT_CAPS(rdmacaps);
+	LIMIT_CAPS(tlscaps);
 	LIMIT_CAPS(iscsicaps);
 	LIMIT_CAPS(fcoecaps);
 #undef LIMIT_CAPS
@@ -2918,8 +3102,6 @@ get_params__pre_init(struct adapter *sc)
 {
 	int rc;
 	uint32_t param[2], val[2];
-	struct fw_devlog_cmd cmd;
-	struct devlog_params *dlog = &sc->params.devlog;
 
 	param[0] = FW_PARAM_DEV(PORTVEC);
 	param[1] = FW_PARAM_DEV(CCLK);
@@ -2935,21 +3117,13 @@ get_params__pre_init(struct adapter *sc)
 	sc->params.vpd.cclk = val[1];
 
 	/* Read device log parameters. */
-	bzero(&cmd, sizeof(cmd));
-	cmd.op_to_write = htobe32(V_FW_CMD_OP(FW_DEVLOG_CMD) |
-	    F_FW_CMD_REQUEST | F_FW_CMD_READ);
-	cmd.retval_len16 = htobe32(FW_LEN16(cmd));
-	rc = -t4_wr_mbox(sc, sc->mbox, &cmd, sizeof(cmd), &cmd);
-	if (rc != 0) {
+	rc = -t4_init_devlog_params(sc, 1);
+	if (rc == 0)
+		fixup_devlog_params(sc);
+	else {
 		device_printf(sc->dev,
 		    "failed to get devlog parameters: %d.\n", rc);
-		bzero(dlog, sizeof (*dlog));
 		rc = 0;	/* devlog isn't critical for device operation */
-	} else {
-		val[0] = be32toh(cmd.memtype_devlog_memaddr16_devlog);
-		dlog->memtype = G_FW_DEVLOG_CMD_MEMTYPE_DEVLOG(val[0]);
-		dlog->start = G_FW_DEVLOG_CMD_MEMADDR16_DEVLOG(val[0]) << 4;
-		dlog->size = be32toh(cmd.memsize_devlog);
 	}
 
 	return (rc);
@@ -3006,10 +3180,13 @@ get_params__post_init(struct adapter *sc)
 #define READ_CAPS(x) do { \
 	sc->x = htobe16(caps.x); \
 } while (0)
+	READ_CAPS(nbmcaps);
 	READ_CAPS(linkcaps);
+	READ_CAPS(switchcaps);
 	READ_CAPS(niccaps);
 	READ_CAPS(toecaps);
 	READ_CAPS(rdmacaps);
+	READ_CAPS(tlscaps);
 	READ_CAPS(iscsicaps);
 	READ_CAPS(fcoecaps);
 
@@ -3917,7 +4094,7 @@ vi_full_init(struct vi_info *vi)
 	for (i = 0; i < nitems(rss_key); i++) {
 		rss_key[i] = htobe32(raw_rss_key[nitems(rss_key) - 1 - i]);
 	}
-	t4_write_rss_key(sc, (void *)&rss_key[0], -1);
+	t4_write_rss_key(sc, &rss_key[0], -1);
 #endif
 	rss = malloc(vi->rss_size * sizeof (*rss), M_CXGBE, M_ZERO | M_WAITOK);
 	for (i = 0; i < vi->rss_size;) {
@@ -4192,7 +4369,7 @@ read_vf_stat(struct adapter *sc, unsigned int viid, int reg)
 {
 	u32 stats[2];
 
-	mtx_assert(&sc->regwin_lock, MA_OWNED);
+	mtx_assert(&sc->reg_lock, MA_OWNED);
 	t4_write_reg(sc, A_PL_INDIR_CMD, V_PL_AUTOINC(1) |
 	    V_PL_VFID(G_FW_VIID_VIN(viid)) | V_PL_ADDR(VF_MPS_REG(reg)));
 	stats[0] = t4_read_reg(sc, A_PL_INDIR_DATA);
@@ -4255,10 +4432,10 @@ vi_refresh_stats(struct adapter *sc, struct vi_info *vi)
 	if (timevalcmp(&tv, &vi->last_refreshed, <))
 		return;
 
-	mtx_lock(&sc->regwin_lock);
+	mtx_lock(&sc->reg_lock);
 	t4_get_vi_stats(sc, vi->viid, &vi->stats);
 	getmicrotime(&vi->last_refreshed);
-	mtx_unlock(&sc->regwin_lock);
+	mtx_unlock(&sc->reg_lock);
 }
 
 static void
@@ -4278,10 +4455,10 @@ cxgbe_refresh_stats(struct adapter *sc, struct port_info *pi)
 	t4_get_port_stats(sc, pi->tx_chan, &pi->stats);
 	for (i = 0; i < sc->chip_params->nchan; i++) {
 		if (pi->rx_chan_map & (1 << i)) {
-			mtx_lock(&sc->regwin_lock);
+			mtx_lock(&sc->reg_lock);
 			t4_read_indirect(sc, A_TP_MIB_INDEX, A_TP_MIB_DATA, &v,
 			    1, A_TP_MIB_TNL_CNG_DROP_0 + i);
-			mtx_unlock(&sc->regwin_lock);
+			mtx_unlock(&sc->reg_lock);
 			tnl_cong_drops += v;
 		}
 	}
@@ -4416,24 +4593,33 @@ t4_register_fw_msg_handler(struct adapter *sc, int type, fw_msg_handler_t h)
 	return (0);
 }
 
+/*
+ * Should match fw_caps_config_<foo> enums in t4fw_interface.h
+ */
+static char *caps_decoder[] = {
+	"\20\001IPMI\002NCSI",				/* 0: NBM */
+	"\20\001PPP\002QFC\003DCBX",			/* 1: link */
+	"\20\001INGRESS\002EGRESS",			/* 2: switch */
+	"\20\001NIC\002VM\003IDS\004UM\005UM_ISGL"	/* 3: NIC */
+	    "\006HASHFILTER\007ETHOFLD",
+	"\20\001TOE",					/* 4: TOE */
+	"\20\001RDDP\002RDMAC",				/* 5: RDMA */
+	"\20\001INITIATOR_PDU\002TARGET_PDU"		/* 6: iSCSI */
+	    "\003INITIATOR_CNXOFLD\004TARGET_CNXOFLD"
+	    "\005INITIATOR_SSNOFLD\006TARGET_SSNOFLD"
+	    "\007T10DIF"
+	    "\010INITIATOR_CMDOFLD\011TARGET_CMDOFLD",
+	"\20\00KEYS",					/* 7: TLS */
+	"\20\001INITIATOR\002TARGET\003CTRL_OFLD"	/* 8: FCoE */
+		    "\004PO_INITIATOR\005PO_TARGET",
+};
+
 static void
 t4_sysctls(struct adapter *sc)
 {
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid *oid;
 	struct sysctl_oid_list *children, *c0;
-	static char *caps[] = {
-		"\20\1PPP\2QFC\3DCBX",			/* caps[0] linkcaps */
-		"\20\1NIC\2VM\3IDS\4UM\5UM_ISGL"	/* caps[1] niccaps */
-		    "\6HASHFILTER\7ETHOFLD",
-		"\20\1TOE",				/* caps[2] toecaps */
-		"\20\1RDDP\2RDMAC",			/* caps[3] rdmacaps */
-		"\20\1INITIATOR_PDU\2TARGET_PDU"	/* caps[4] iscsicaps */
-		    "\3INITIATOR_CNXOFLD\4TARGET_CNXOFLD"
-		    "\5INITIATOR_SSNOFLD\6TARGET_SSNOFLD",
-		"\20\1INITIATOR\2TARGET\3CTRL_OFLD"	/* caps[5] fcoecaps */
-		    "\4PO_INITIAOR\5PO_TARGET"
-	};
 	static char *doorbells = {"\20\1UDB\2WCWR\3UDBWC\4KDB"};
 
 	ctx = device_get_sysctl_ctx(sc->dev);
@@ -4454,6 +4640,14 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "hw_revision", CTLFLAG_RD,
 	    NULL, chip_rev(sc), "chip hardware revision");
 
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "tp_version",
+	    CTLFLAG_RD, sc->tp_version, 0, "TP microcode version");
+
+	if (sc->params.exprom_vers != 0) {
+		SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "exprom_version",
+		    CTLFLAG_RD, sc->exprom_version, 0, "expansion ROM version");
+	}
+
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "firmware_version",
 	    CTLFLAG_RD, sc->fw_version, 0, "firmware version");
 
@@ -4467,29 +4661,21 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, doorbells, sc->doorbells,
 	    sysctl_bitfield, "A", "available doorbells");
 
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "linkcaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[0], sc->linkcaps,
-	    sysctl_bitfield, "A", "available link capabilities");
+#define SYSCTL_CAP(name, n, text) \
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, #name, \
+	    CTLTYPE_STRING | CTLFLAG_RD, caps_decoder[n], sc->name, \
+	    sysctl_bitfield, "A", "available " text "capabilities")
 
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "niccaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[1], sc->niccaps,
-	    sysctl_bitfield, "A", "available NIC capabilities");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "toecaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[2], sc->toecaps,
-	    sysctl_bitfield, "A", "available TCP offload capabilities");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rdmacaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[3], sc->rdmacaps,
-	    sysctl_bitfield, "A", "available RDMA capabilities");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "iscsicaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[4], sc->iscsicaps,
-	    sysctl_bitfield, "A", "available iSCSI capabilities");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "fcoecaps",
-	    CTLTYPE_STRING | CTLFLAG_RD, caps[5], sc->fcoecaps,
-	    sysctl_bitfield, "A", "available FCoE capabilities");
+	SYSCTL_CAP(nbmcaps, 0, "NBM");
+	SYSCTL_CAP(linkcaps, 1, "link");
+	SYSCTL_CAP(switchcaps, 2, "switch");
+	SYSCTL_CAP(niccaps, 3, "NIC");
+	SYSCTL_CAP(toecaps, 4, "TCP offload");
+	SYSCTL_CAP(rdmacaps, 5, "RDMA");
+	SYSCTL_CAP(iscsicaps, 6, "iSCSI");
+	SYSCTL_CAP(tlscaps, 7, "TLS");
+	SYSCTL_CAP(fcoecaps, 8, "FCoE");
+#undef SYSCTL_CAP
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "core_clock", CTLFLAG_RD, NULL,
 	    sc->params.vpd.cclk, "core clock frequency (in KHz)");
@@ -4669,6 +4855,10 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_tp_err_stats, "A", "TP error statistics");
 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tp_la_mask",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, sysctl_tp_la_mask, "I",
+	    "TP logic analyzer event capture mask");
+
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tp_la",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_tp_la, "A", "TP logic analyzer");
@@ -4721,6 +4911,54 @@ t4_sysctls(struct adapter *sc)
 		sc->tt.tx_align = 1;
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "tx_align",
 		    CTLFLAG_RW, &sc->tt.tx_align, 0, "chop and align payload");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "timer_tick",
+		    CTLTYPE_STRING | CTLFLAG_RD, sc, 0, sysctl_tp_tick, "A",
+		    "TP timer tick (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "timestamp_tick",
+		    CTLTYPE_STRING | CTLFLAG_RD, sc, 1, sysctl_tp_tick, "A",
+		    "TCP timestamp tick (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "dack_tick",
+		    CTLTYPE_STRING | CTLFLAG_RD, sc, 2, sysctl_tp_tick, "A",
+		    "DACK tick (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "dack_timer",
+		    CTLTYPE_UINT | CTLFLAG_RD, sc, 0, sysctl_tp_dack_timer,
+		    "IU", "DACK timer (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rexmt_min",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_RXT_MIN,
+		    sysctl_tp_timer, "LU", "Retransmit min (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rexmt_max",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_RXT_MAX,
+		    sysctl_tp_timer, "LU", "Retransmit max (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "persist_min",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_PERS_MIN,
+		    sysctl_tp_timer, "LU", "Persist timer min (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "persist_max",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_PERS_MAX,
+		    sysctl_tp_timer, "LU", "Persist timer max (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "keepalive_idle",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_KEEP_IDLE,
+		    sysctl_tp_timer, "LU", "Keepidle idle timer (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "keepalive_intvl",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_KEEP_INTVL,
+		    sysctl_tp_timer, "LU", "Keepidle interval (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "initial_srtt",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_INIT_SRTT,
+		    sysctl_tp_timer, "LU", "Initial SRTT (us)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "finwait2_timer",
+		    CTLTYPE_ULONG | CTLFLAG_RD, sc, A_TP_FINWAIT2_TIMER,
+		    sysctl_tp_timer, "LU", "FINWAIT2 timer (us)");
 	}
 #endif
 }
@@ -5688,9 +5926,9 @@ sysctl_cpl_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	mtx_lock(&sc->regwin_lock);
+	mtx_lock(&sc->reg_lock);
 	t4_tp_get_cpl_stats(sc, &stats);
-	mtx_unlock(&sc->regwin_lock);
+	mtx_unlock(&sc->reg_lock);
 
 	if (sc->chip_params->nchan > 2) {
 		sbuf_printf(sb, "                 channel 0  channel 1"
@@ -5741,7 +5979,7 @@ sysctl_ddp_stats(SYSCTL_HANDLER_ARGS)
 	return (rc);
 }
 
-const char *devlog_level_strings[] = {
+static const char * const devlog_level_strings[] = {
 	[FW_DEVLOG_LEVEL_EMERG]		= "EMERG",
 	[FW_DEVLOG_LEVEL_CRIT]		= "CRIT",
 	[FW_DEVLOG_LEVEL_ERR]		= "ERR",
@@ -5750,7 +5988,7 @@ const char *devlog_level_strings[] = {
 	[FW_DEVLOG_LEVEL_DEBUG]		= "DEBUG"
 };
 
-const char *devlog_facility_strings[] = {
+static const char * const devlog_facility_strings[] = {
 	[FW_DEVLOG_FACILITY_CORE]	= "CORE",
 	[FW_DEVLOG_FACILITY_CF]		= "CF",
 	[FW_DEVLOG_FACILITY_SCHED]	= "SCHED",
@@ -5774,7 +6012,8 @@ const char *devlog_facility_strings[] = {
 	[FW_DEVLOG_FACILITY_ISCSI]	= "ISCSI",
 	[FW_DEVLOG_FACILITY_FCOE]	= "FCOE",
 	[FW_DEVLOG_FACILITY_FOISCSI]	= "FOISCSI",
-	[FW_DEVLOG_FACILITY_FOFCOE]	= "FOFCOE"
+	[FW_DEVLOG_FACILITY_FOFCOE]	= "FOFCOE",
+	[FW_DEVLOG_FACILITY_CHNET]	= "CHNET",
 };
 
 static int
@@ -5783,27 +6022,22 @@ sysctl_devlog(SYSCTL_HANDLER_ARGS)
 	struct adapter *sc = arg1;
 	struct devlog_params *dparams = &sc->params.devlog;
 	struct fw_devlog_e *buf, *e;
-	int i, j, rc, nentries, first = 0, m;
+	int i, j, rc, nentries, first = 0;
 	struct sbuf *sb;
 	uint64_t ftstamp = UINT64_MAX;
 
-	if (dparams->start == 0) {
-		dparams->memtype = FW_MEMTYPE_EDC0;
-		dparams->start = 0x84000;
-		dparams->size = 32768;
-	}
-
-	nentries = dparams->size / sizeof(struct fw_devlog_e);
+	if (dparams->addr == 0)
+		return (ENXIO);
 
 	buf = malloc(dparams->size, M_CXGBE, M_NOWAIT);
 	if (buf == NULL)
 		return (ENOMEM);
 
-	m = fwmtype_to_hwmtype(dparams->memtype);
-	rc = -t4_mem_read(sc, m, dparams->start, dparams->size, (void *)buf);
+	rc = read_via_memwin(sc, 1, dparams->addr, (void *)buf, dparams->size);
 	if (rc != 0)
 		goto done;
 
+	nentries = dparams->size / sizeof(struct fw_devlog_e);
 	for (i = 0; i < nentries; i++) {
 		e = &buf[i];
 
@@ -6015,10 +6249,6 @@ sysctl_linkdnrc(SYSCTL_HANDLER_ARGS)
 	int rc = 0;
 	struct port_info *pi = arg1;
 	struct sbuf *sb;
-	static const char *linkdnreasons[] = {
-		"non-specific", "remote fault", "autoneg failed", "reserved3",
-		"PHY overheated", "unknown", "rx los", "reserved7"
-	};
 
 	rc = sysctl_wire_old_buffer(req, 0);
 	if (rc != 0)
@@ -6029,10 +6259,8 @@ sysctl_linkdnrc(SYSCTL_HANDLER_ARGS)
 
 	if (pi->linkdnrc < 0)
 		sbuf_printf(sb, "n/a");
-	else if (pi->linkdnrc < nitems(linkdnreasons))
-		sbuf_printf(sb, "%s", linkdnreasons[pi->linkdnrc]);
 	else
-		sbuf_printf(sb, "%d", pi->linkdnrc);
+		sbuf_printf(sb, "%s", t4_link_down_rc_str(pi->linkdnrc));
 
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
@@ -6674,9 +6902,9 @@ sysctl_rdma_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	mtx_lock(&sc->regwin_lock);
+	mtx_lock(&sc->reg_lock);
 	t4_tp_get_rdma_stats(sc, &stats);
-	mtx_unlock(&sc->regwin_lock);
+	mtx_unlock(&sc->reg_lock);
 
 	sbuf_printf(sb, "NoRQEModDefferals: %u\n", stats.rqe_dfr_mod);
 	sbuf_printf(sb, "NoRQEPktDefferals: %u", stats.rqe_dfr_pkt);
@@ -6703,9 +6931,9 @@ sysctl_tcp_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	mtx_lock(&sc->regwin_lock);
+	mtx_lock(&sc->reg_lock);
 	t4_tp_get_tcp_stats(sc, &v4, &v6);
-	mtx_unlock(&sc->regwin_lock);
+	mtx_unlock(&sc->reg_lock);
 
 	sbuf_printf(sb,
 	    "                                IP                 IPv6\n");
@@ -6805,9 +7033,9 @@ sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	mtx_lock(&sc->regwin_lock);
+	mtx_lock(&sc->reg_lock);
 	t4_tp_get_err_stats(sc, &stats);
-	mtx_unlock(&sc->regwin_lock);
+	mtx_unlock(&sc->reg_lock);
 
 	if (sc->chip_params->nchan > 2) {
 		sbuf_printf(sb, "                 channel 0  channel 1"
@@ -6863,6 +7091,26 @@ sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(sb);
 
 	return (rc);
+}
+
+static int
+sysctl_tp_la_mask(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct tp_params *tpp = &sc->params.tp;
+	u_int mask;
+	int rc;
+
+	mask = tpp->la_mask >> 16;
+	rc = sysctl_handle_int(oidp, &mask, 0, req);
+	if (rc != 0 || req->newptr == NULL)
+		return (rc);
+	if (mask > 0xffff)
+		return (EINVAL);
+	tpp->la_mask = mask << 16;
+	t4_set_reg_field(sc, A_TP_DBG_LA_CONFIG, 0xffff0000U, tpp->la_mask);
+
+	return (0);
 }
 
 struct field_desc {
@@ -7209,8 +7457,94 @@ sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS)
 }
 #endif
 
+#ifdef TCP_OFFLOAD
+static void
+unit_conv(char *buf, size_t len, u_int val, u_int factor)
+{
+	u_int rem = val % factor;
+
+	if (rem == 0)
+		snprintf(buf, len, "%u", val / factor);
+	else {
+		while (rem % 10 == 0)
+			rem /= 10;
+		snprintf(buf, len, "%u.%u", val / factor, rem);
+	}
+}
+
+static int
+sysctl_tp_tick(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	char buf[16];
+	u_int res, re;
+	u_int cclk_ps = 1000000000 / sc->params.vpd.cclk;
+
+	res = t4_read_reg(sc, A_TP_TIMER_RESOLUTION);
+	switch (arg2) {
+	case 0:
+		/* timer_tick */
+		re = G_TIMERRESOLUTION(res);
+		break;
+	case 1:
+		/* TCP timestamp tick */
+		re = G_TIMESTAMPRESOLUTION(res);
+		break;
+	case 2:
+		/* DACK tick */
+		re = G_DELAYEDACKRESOLUTION(res);
+		break;
+	default:
+		return (EDOOFUS);
+	}
+
+	unit_conv(buf, sizeof(buf), (cclk_ps << re), 1000000);
+
+	return (sysctl_handle_string(oidp, buf, sizeof(buf), req));
+}
+
+static int
+sysctl_tp_dack_timer(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	u_int res, dack_re, v;
+	u_int cclk_ps = 1000000000 / sc->params.vpd.cclk;
+
+	res = t4_read_reg(sc, A_TP_TIMER_RESOLUTION);
+	dack_re = G_DELAYEDACKRESOLUTION(res);
+	v = ((cclk_ps << dack_re) / 1000000) * t4_read_reg(sc, A_TP_DACK_TIMER);
+
+	return (sysctl_handle_int(oidp, &v, 0, req));
+}
+
+static int
+sysctl_tp_timer(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	int reg = arg2;
+	u_int tre;
+	u_long tp_tick_us, v;
+	u_int cclk_ps = 1000000000 / sc->params.vpd.cclk;
+
+	MPASS(reg == A_TP_RXT_MIN || reg == A_TP_RXT_MAX ||
+	    reg == A_TP_PERS_MIN || reg == A_TP_PERS_MAX ||
+	    reg == A_TP_KEEP_IDLE || A_TP_KEEP_INTVL || reg == A_TP_INIT_SRTT ||
+	    reg == A_TP_FINWAIT2_TIMER);
+
+	tre = G_TIMERRESOLUTION(t4_read_reg(sc, A_TP_TIMER_RESOLUTION));
+	tp_tick_us = (cclk_ps << tre) / 1000000;
+
+	if (reg == A_TP_INIT_SRTT)
+		v = tp_tick_us * G_INITSRTT(t4_read_reg(sc, reg));
+	else
+		v = tp_tick_us * t4_read_reg(sc, reg);
+
+	return (sysctl_handle_long(oidp, &v, 0, req));
+}
+#endif
+
 static uint32_t
-fconf_to_mode(uint32_t fconf)
+fconf_iconf_to_mode(uint32_t fconf, uint32_t iconf)
 {
 	uint32_t mode;
 
@@ -7238,8 +7572,11 @@ fconf_to_mode(uint32_t fconf)
 	if (fconf & F_VLAN)
 		mode |= T4_FILTER_VLAN;
 
-	if (fconf & F_VNIC_ID)
+	if (fconf & F_VNIC_ID) {
 		mode |= T4_FILTER_VNIC;
+		if (iconf & F_VNIC)
+			mode |= T4_FILTER_IC_VNIC;
+	}
 
 	if (fconf & F_PORT)
 		mode |= T4_FILTER_PORT;
@@ -7289,8 +7626,18 @@ mode_to_fconf(uint32_t mode)
 }
 
 static uint32_t
-fspec_to_fconf(struct t4_filter_specification *fs)
+mode_to_iconf(uint32_t mode)
 {
+
+	if (mode & T4_FILTER_IC_VNIC)
+		return (F_VNIC);
+	return (0);
+}
+
+static int check_fspec_against_fconf_iconf(struct adapter *sc,
+    struct t4_filter_specification *fs)
+{
+	struct tp_params *tpp = &sc->params.tp;
 	uint32_t fconf = 0;
 
 	if (fs->val.frag || fs->mask.frag)
@@ -7314,8 +7661,17 @@ fspec_to_fconf(struct t4_filter_specification *fs)
 	if (fs->val.vlan_vld || fs->mask.vlan_vld)
 		fconf |= F_VLAN;
 
-	if (fs->val.vnic_vld || fs->mask.vnic_vld)
+	if (fs->val.ovlan_vld || fs->mask.ovlan_vld) {
 		fconf |= F_VNIC_ID;
+		if (tpp->ingress_config & F_VNIC)
+			return (EINVAL);
+	}
+
+	if (fs->val.pfvf_vld || fs->mask.pfvf_vld) {
+		fconf |= F_VNIC_ID;
+		if ((tpp->ingress_config & F_VNIC) == 0)
+			return (EINVAL);
+	}
 
 	if (fs->val.iport || fs->mask.iport)
 		fconf |= F_PORT;
@@ -7323,40 +7679,44 @@ fspec_to_fconf(struct t4_filter_specification *fs)
 	if (fs->val.fcoe || fs->mask.fcoe)
 		fconf |= F_FCOE;
 
-	return (fconf);
+	if ((tpp->vlan_pri_map | fconf) != tpp->vlan_pri_map)
+		return (E2BIG);
+
+	return (0);
 }
 
 static int
 get_filter_mode(struct adapter *sc, uint32_t *mode)
 {
-	int rc;
-	uint32_t fconf;
+	struct tp_params *tpp = &sc->params.tp;
 
-	rc = begin_synchronized_op(sc, NULL, HOLD_LOCK | SLEEP_OK | INTR_OK,
-	    "t4getfm");
-	if (rc)
-		return (rc);
+	/*
+	 * We trust the cached values of the relevant TP registers.  This means
+	 * things work reliably only if writes to those registers are always via
+	 * t4_set_filter_mode.
+	 */
+	*mode = fconf_iconf_to_mode(tpp->vlan_pri_map, tpp->ingress_config);
 
-	t4_read_indirect(sc, A_TP_PIO_ADDR, A_TP_PIO_DATA, &fconf, 1,
-	    A_TP_VLAN_PRI_MAP);
-
-	if (sc->params.tp.vlan_pri_map != fconf) {
-		log(LOG_WARNING, "%s: cached filter mode out of sync %x %x.\n",
-		    device_get_nameunit(sc->dev), sc->params.tp.vlan_pri_map,
-		    fconf);
-	}
-
-	*mode = fconf_to_mode(fconf);
-
-	end_synchronized_op(sc, LOCK_HELD);
 	return (0);
 }
 
 static int
 set_filter_mode(struct adapter *sc, uint32_t mode)
 {
-	uint32_t fconf;
+	struct tp_params *tpp = &sc->params.tp;
+	uint32_t fconf, iconf;
 	int rc;
+
+	iconf = mode_to_iconf(mode);
+	if ((iconf ^ tpp->ingress_config) & F_VNIC) {
+		/*
+		 * For now we just complain if A_TP_INGRESS_CONFIG is not
+		 * already set to the correct value for the requested filter
+		 * mode.  It's not clear if it's safe to write to this register
+		 * on the fly.  (And we trust the cached value of the register).
+		 */
+		return (EBUSY);
+	}
 
 	fconf = mode_to_fconf(mode);
 
@@ -7386,21 +7746,22 @@ done:
 static inline uint64_t
 get_filter_hits(struct adapter *sc, uint32_t fid)
 {
-	uint32_t mw_base, off, tcb_base = t4_read_reg(sc, A_TP_CMM_TCB_BASE);
-	uint64_t hits;
+	uint32_t tcb_addr;
 
-	memwin_info(sc, 0, &mw_base, NULL);
-	off = position_memwin(sc, 0,
-	    tcb_base + (fid + sc->tids.ftid_base) * TCB_SIZE);
+	tcb_addr = t4_read_reg(sc, A_TP_CMM_TCB_BASE) +
+	    (fid + sc->tids.ftid_base) * TCB_SIZE;
+
 	if (is_t4(sc)) {
-		hits = t4_read_reg64(sc, mw_base + off + 16);
-		hits = be64toh(hits);
-	} else {
-		hits = t4_read_reg(sc, mw_base + off + 24);
-		hits = be32toh(hits);
-	}
+		uint64_t hits;
 
-	return (hits);
+		read_via_memwin(sc, 0, tcb_addr + 16, (uint32_t *)&hits, 8);
+		return (be64toh(hits));
+	} else {
+		uint32_t hits;
+
+		read_via_memwin(sc, 0, tcb_addr + 24, &hits, 4);
+		return (be32toh(hits));
+	}
 }
 
 static int
@@ -7471,12 +7832,10 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 		goto done;
 	}
 
-	/* Validate against the global filter mode */
-	if ((sc->params.tp.vlan_pri_map | fspec_to_fconf(&t->fs)) !=
-	    sc->params.tp.vlan_pri_map) {
-		rc = E2BIG;
+	/* Validate against the global filter mode and ingress config */
+	rc = check_fspec_against_fconf_iconf(sc, &t->fs);
+	if (rc != 0)
 		goto done;
-	}
 
 	if (t->fs.action == FILTER_SWITCH && t->fs.eport >= nports) {
 		rc = EINVAL;
@@ -7639,7 +7998,7 @@ set_filter_wr(struct adapter *sc, int fidx)
 {
 	struct filter_entry *f = &sc->tids.ftid_tab[fidx];
 	struct fw_filter_wr *fwr;
-	unsigned int ftid;
+	unsigned int ftid, vnic_vld, vnic_vld_mask;
 	struct wrq_cookie cookie;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
@@ -7656,6 +8015,18 @@ set_filter_wr(struct adapter *sc, int fidx)
 			return (ENOMEM);
 		}
 	}
+
+	/* Already validated against fconf, iconf */
+	MPASS((f->fs.val.pfvf_vld & f->fs.val.ovlan_vld) == 0);
+	MPASS((f->fs.mask.pfvf_vld & f->fs.mask.ovlan_vld) == 0);
+	if (f->fs.val.pfvf_vld || f->fs.val.ovlan_vld)
+		vnic_vld = 1;
+	else
+		vnic_vld = 0;
+	if (f->fs.mask.pfvf_vld || f->fs.mask.ovlan_vld)
+		vnic_vld_mask = 1;
+	else
+		vnic_vld_mask = 0;
 
 	ftid = sc->tids.ftid_base + fidx;
 
@@ -7694,9 +8065,9 @@ set_filter_wr(struct adapter *sc, int fidx)
 	    (V_FW_FILTER_WR_FRAG(f->fs.val.frag) |
 		V_FW_FILTER_WR_FRAGM(f->fs.mask.frag) |
 		V_FW_FILTER_WR_IVLAN_VLD(f->fs.val.vlan_vld) |
-		V_FW_FILTER_WR_OVLAN_VLD(f->fs.val.vnic_vld) |
+		V_FW_FILTER_WR_OVLAN_VLD(vnic_vld) |
 		V_FW_FILTER_WR_IVLAN_VLDM(f->fs.mask.vlan_vld) |
-		V_FW_FILTER_WR_OVLAN_VLDM(f->fs.mask.vnic_vld));
+		V_FW_FILTER_WR_OVLAN_VLDM(vnic_vld_mask));
 	fwr->smac_sel = 0;
 	fwr->rx_chan_rx_rpl_iq = htobe16(V_FW_FILTER_WR_RX_CHAN(0) |
 	    V_FW_FILTER_WR_RX_RPL_IQ(sc->sge.fwq.abs_id));
@@ -7864,12 +8235,12 @@ done:
 	return (rc);
 }
 
+#define MAX_READ_BUF_SIZE (128 * 1024)
 static int
 read_card_mem(struct adapter *sc, int win, struct t4_mem_range *mr)
 {
-	uint32_t addr, off, remaining, i, n;
-	uint32_t *buf, *b;
-	uint32_t mw_base, mw_aperture;
+	uint32_t addr, remaining, n;
+	uint32_t *buf;
 	int rc;
 	uint8_t *dst;
 
@@ -7877,25 +8248,19 @@ read_card_mem(struct adapter *sc, int win, struct t4_mem_range *mr)
 	if (rc != 0)
 		return (rc);
 
-	memwin_info(sc, win, &mw_base, &mw_aperture);
-	buf = b = malloc(min(mr->len, mw_aperture), M_CXGBE, M_WAITOK);
+	buf = malloc(min(mr->len, MAX_READ_BUF_SIZE), M_CXGBE, M_WAITOK);
 	addr = mr->addr;
 	remaining = mr->len;
 	dst = (void *)mr->data;
 
 	while (remaining) {
-		off = position_memwin(sc, win, addr);
-
-		/* number of bytes that we'll copy in the inner loop */
-		n = min(remaining, mw_aperture - off);
-		for (i = 0; i < n; i += 4)
-			*b++ = t4_read_reg(sc, mw_base + off + i);
+		n = min(remaining, MAX_READ_BUF_SIZE);
+		read_via_memwin(sc, 2, addr, buf, n);
 
 		rc = copyout(buf, dst, n);
 		if (rc != 0)
 			break;
 
-		b = buf;
 		dst += n;
 		remaining -= n;
 		addr += n;
@@ -7904,6 +8269,7 @@ read_card_mem(struct adapter *sc, int win, struct t4_mem_range *mr)
 	free(buf, M_CXGBE);
 	return (rc);
 }
+#undef MAX_READ_BUF_SIZE
 
 static int
 read_i2c(struct adapter *sc, struct t4_i2c_data *i2cd)
@@ -8372,12 +8738,12 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		/* MAC stats */
 		t4_clr_port_stats(sc, pi->tx_chan);
 		pi->tx_parse_error = 0;
-		mtx_lock(&sc->regwin_lock);
+		mtx_lock(&sc->reg_lock);
 		for_each_vi(pi, v, vi) {
 			if (vi->flags & VI_INIT_DONE)
 				t4_clr_vi_stats(sc, vi->viid);
 		}
-		mtx_unlock(&sc->regwin_lock);
+		mtx_unlock(&sc->reg_lock);
 
 		/*
 		 * Since this command accepts a port, clear stats for
@@ -8450,6 +8816,20 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	}
 
 	return (rc);
+}
+
+void
+t4_db_full(struct adapter *sc)
+{
+
+	CXGBE_UNIMPLEMENTED(__func__);
+}
+
+void
+t4_db_dropped(struct adapter *sc)
+{
+
+	CXGBE_UNIMPLEMENTED(__func__);
 }
 
 #ifdef TCP_OFFLOAD

@@ -225,8 +225,16 @@ g_disk_done(struct bio *bp)
 	if (bp2->bio_error == 0)
 		bp2->bio_error = bp->bio_error;
 	bp2->bio_completed += bp->bio_completed;
-	if ((bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE|BIO_FLUSH)) != 0)
+	switch (bp->bio_cmd) {
+	case BIO_READ:
+	case BIO_WRITE:
+	case BIO_DELETE:
+	case BIO_FLUSH:
 		devstat_end_transaction_bio_bt(sc->dp->d_devstat, bp, &now);
+		break;
+	default:
+		break;
+	}
 	bp2->bio_inbed++;
 	if (bp2->bio_children == bp2->bio_inbed) {
 		mtx_unlock(&sc->done_mtx);

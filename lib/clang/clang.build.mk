@@ -240,11 +240,15 @@ Checkers.inc.h: ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td
 	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td
 
-.if !make(depend)
-. for dep in ${TGHDRS:C/$/.inc.d/}
-.  sinclude "${dep}"
-. endfor
-.endif
+.for dep in ${TGHDRS:C/$/.inc.d/}
+. if ${MAKE_VERSION} < 20160220
+.  if !make(depend)
+.   sinclude "${dep}"
+.  endif
+. else
+.   dinclude "${dep}"
+. endif
+.endfor
 
 SRCS+=		${TGHDRS:C/$/.inc.h/}
 CLEANFILES+=	${TGHDRS:C/$/.inc.h/} ${TGHDRS:C/$/.inc.d/}

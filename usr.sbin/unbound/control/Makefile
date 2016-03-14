@@ -8,7 +8,7 @@ UNBOUNDDIR= ${.CURDIR}/../../../contrib/unbound
 
 PROG=	unbound-control
 SRCS=	unbound-control.c worker_cb.c
-CFLAGS=	-I${UNBOUNDDIR} -I${LDNSDIR}
+CFLAGS+=	-I${UNBOUNDDIR} -I${LDNSDIR}
 LIBADD=	unbound crypto ssl pthread
 MAN=	unbound-control.8
 

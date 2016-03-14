@@ -1054,12 +1054,9 @@ zpool_open(libzfs_handle_t *hdl, const char *pool)
 void
 zpool_close(zpool_handle_t *zhp)
 {
-	if (zhp->zpool_config)
-		nvlist_free(zhp->zpool_config);
-	if (zhp->zpool_old_config)
-		nvlist_free(zhp->zpool_old_config);
-	if (zhp->zpool_props)
-		nvlist_free(zhp->zpool_props);
+	nvlist_free(zhp->zpool_config);
+	nvlist_free(zhp->zpool_old_config);
+	nvlist_free(zhp->zpool_props);
 	free(zhp);
 }
 
@@ -1577,8 +1574,7 @@ zpool_import(libzfs_handle_t *hdl, nvlist_t *config, const char *newname,
 
 	ret = zpool_import_props(hdl, config, newname, props,
 	    ZFS_IMPORT_NORMAL);
-	if (props)
-		nvlist_free(props);
+	nvlist_free(props);
 	return (ret);
 }
 
@@ -2901,8 +2897,7 @@ zpool_vdev_split(zpool_handle_t *zhp, char *newname, nvlist_t **newroot,
 	    &children) != 0) {
 		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 		    "Source pool is missing vdev tree"));
-		if (zc_props)
-			nvlist_free(zc_props);
+		nvlist_free(zc_props);
 		return (-1);
 	}
 
@@ -3050,10 +3045,8 @@ out:
 		free(varray);
 	}
 	zcmd_free_nvlists(&zc);
-	if (zc_props)
-		nvlist_free(zc_props);
-	if (newconfig)
-		nvlist_free(newconfig);
+	nvlist_free(zc_props);
+	nvlist_free(newconfig);
 	if (freelist) {
 		nvlist_free(*newroot);
 		*newroot = NULL;

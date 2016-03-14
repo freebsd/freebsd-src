@@ -46,6 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
+#ifdef KDB
+#include <sys/kdb.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -167,6 +170,13 @@ data_abort(struct trapframe *frame, int lower)
 	int error;
 	int sig;
 
+#ifdef KDB
+	if (kdb_active) {
+		kdb_reenter();
+		return;
+	}
+#endif
+
 	td = curthread;
 	pcb = td->td_pcb;
 
@@ -277,6 +287,7 @@ do_trap_supervisor(struct trapframe *frame)
 		dump_regs(frame);
 		panic("No debugger in kernel.\n");
 #endif
+		break;
 	case EXCP_INSTR_ILLEGAL:
 		dump_regs(frame);
 		panic("Illegal instruction at %x\n", frame->tf_sepc);

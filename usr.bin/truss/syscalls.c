@@ -2054,6 +2054,16 @@ print_syscall_ret(struct trussinfo *trussinfo, int errorp, long *retval)
 
 	print_syscall(trussinfo);
 	fflush(trussinfo->outfile);
+
+	if (retval == NULL) {
+		/*
+		 * This system call resulted in the current thread's exit,
+		 * so there is no return value or error to display.
+		 */
+		fprintf(trussinfo->outfile, "\n");
+		return;
+	}
+
 	if (errorp) {
 		error = sysdecode_abi_to_freebsd_errno(t->proc->abi->abi,
 		    retval[0]);

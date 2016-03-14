@@ -128,35 +128,16 @@ _MARCHS=	${MACHINE_CPUARCH}
 _MARCHS+=	x86
 .endif
 
-.if ${MK_STAGING} == "yes"
-# tell bsd.incs.mk that we have it covered
-NO_STAGE_INCLUDES=
-.endif
+META_TARGETS+=	compat copies symlinks
+stage_includes: ${SHARED}
 
 .include <bsd.prog.mk>
-
-.if ${MK_STAGING} != "no" && !defined(_SKIP_BUILD)
-.if make(all)
-DESTDIR= ${STAGE_OBJTOP}
-
-all:	stage_include
-installincludes: buildincludes
-buildincludes: stage_prep
-
-stage_prep:
-	@mkdir -p ${DESTDIR}${INCLUDEDIR}
-	@touch $@
-
-stage_include: .dirdep installincludes
-	@touch $@
-.endif
-.endif
 
 installincludes: ${SHARED}
 ${SHARED}: compat
 
 # Take care of stale directory-level symlinks.
-compat:
+compat: ${META_DEPS}
 .for i in ${LDIRS} ${LSUBDIRS} machine ${_MARCHS} crypto
 	if [ -L ${DESTDIR}${INCLUDEDIR}/$i ]; then \
 		rm -f ${DESTDIR}${INCLUDEDIR}/$i; \
@@ -165,11 +146,8 @@ compat:
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}${INCLUDEDIR} > /dev/null
-.if ${MK_DIRDEPS_BUILD} == "yes"
-	@touch ${.TARGET}
-.endif
 
-copies:
+copies: ${META_DEPS}
 .for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} crypto machine machine/pc \
 	${_MARCHS}
 	if [ -d ${DESTDIR}${INCLUDEDIR}/$i ]; then \
@@ -254,11 +232,8 @@ copies:
 	cd ${.CURDIR}/../sys/teken; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
 	    ${DESTDIR}${INCLUDEDIR}/teken
-.if ${MK_DIRDEPS_BUILD} == "yes"
-	@touch ${.OBJDIR}/${.TARGET}
-.endif
 
-symlinks:
+symlinks: ${META_DEPS}
 	@${ECHO} "Setting up symlinks to kernel source tree..."
 .for i in ${LDIRS}
 	cd ${.CURDIR}/../sys/$i; \
@@ -371,9 +346,6 @@ symlinks:
 		${INSTALL_SYMLINK} ../../../sys/rpc/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/rpc; \
 	done
-.if ${MK_DIRDEPS_BUILD} == "yes"
-	@touch ${.OBJDIR}/${.TARGET}
-.endif
 
 .if ${MACHINE} == "host" && !defined(_SKIP_BUILD)
 # we're here because we are building a sysroot...

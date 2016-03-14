@@ -125,6 +125,6 @@ LDADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBSTAND}
 beforedepend ${OBJS}: machine
 CLEANFILES+=	machine
 CFLAGS+=	-DLOADER_PREFER_AMD64
-machine: .NOPATH
+machine: .NOMETA
 	ln -sf ${.CURDIR}/../../../i386/include machine
 .endif

@@ -22,7 +22,8 @@ SRCS+=	authfd.c authfile.c bufaux.c bufbn.c bufec.c buffer.c \
 	sc25519.c ge25519.c fe25519.c ed25519.c verify.c hash.c blocks.c \
 	kex.c kexdh.c kexgex.c kexecdh.c kexc25519.c \
 	kexdhc.c kexgexc.c kexecdhc.c kexc25519c.c \
-	kexdhs.c kexgexs.c kexecdhs.c kexc25519s.c
+	kexdhs.c kexgexs.c kexecdhs.c kexc25519s.c \
+	platform-pledge.c
 
 # gss-genr.c should be in $SRCS but causes linking problems, so it is
 # compiled directly into sshd instead.

@@ -132,6 +132,16 @@ PYTHON ?= /usr/local/bin/python
 .export PYTHON
 # this works best if share/mk is ready for it.
 BUILD_AT_LEVEL0= no
+# _SKIP_BUILD is not 100% as it requires wrapping all 'all:' targets to avoid
+# building in MAKELEVEL0.  Just prohibit 'all' entirely in this case to avoid
+# problems.
+.if ${MK_DIRDEPS_BUILD} == "yes" && \
+    ${.MAKE.LEVEL} == 0 && ${BUILD_AT_LEVEL0:Uyes:tl} == "no"
+.MAIN: dirdeps
+.if make(all)
+.error DIRDEPS_BUILD: Please run '${MAKE}' instead of '${MAKE} all'.
+.endif
+.endif
 
 # we want to end up with a singe stage tree for all machines
 .if ${MK_STAGING} == "yes"
@@ -205,7 +215,9 @@ CSU_DIR := ${CSU_DIR.${MACHINE_ARCH}}
 .if !empty(TIME_STAMP)
 TRACER= ${TIME_STAMP} ${:U}
 .endif
+.if !defined(_RECURSING_PROGS)
 WITH_META_STATS= t
+.endif
 
 # toolchains can be a pain - especially bootstrappping them
 .if ${MACHINE} == "host"
@@ -234,8 +246,7 @@ PATH:= ${TOOLSDIR}${dir}:${PATH}
 _toolchain_bin.${var}=	${TOOLSDIR}${_toolchain_bin_${var}:U/usr/bin/${var:tl}}
 .if exists(${_toolchain_bin.${var}})
 HOST_${var}?=	${_toolchain_bin.${var}}
-${var}?=	${HOST_${var}}
-.export		HOST_${var} ${var}
+.export		HOST_${var}
 .endif
 .endfor
 .endif

@@ -90,6 +90,10 @@ int main(int argc, char **argv)
 	char *iname, *oname, *obuf, *ibuf;
 	uint64_t *toc;
 	int fdr, fdw, i, opt, verbose, no_zcomp, tmp, en_dedup;
+	struct {
+		int en;
+		FILE *f;
+	} summary;
 	struct iovec iov[2];
 	struct stat sb;
 	uint32_t destlen;
@@ -104,9 +108,11 @@ int main(int argc, char **argv)
 	verbose = 0;
 	no_zcomp = 0;
 	en_dedup = 0;
+	summary.en = 0;
+	summary.f = stderr;
 	handler = &uzip_fmt;
 
-	while((opt = getopt(argc, argv, "o:s:vZdL")) != -1) {
+	while((opt = getopt(argc, argv, "o:s:vZdLS")) != -1) {
 		switch(opt) {
 		case 'o':
 			oname = optarg;
@@ -136,6 +142,11 @@ int main(int argc, char **argv)
 
 		case 'L':
 			handler = &ulzma_fmt;
+			break;
+
+		case 'S':
+			summary.en = 1;
+			summary.f = stdout;
 			break;
 
 		default:
@@ -210,7 +221,7 @@ int main(int argc, char **argv)
 	}
 	toc = mkuz_safe_malloc((hdr.nblocks + 1) * sizeof(*toc));
 
-	fdw = open(oname, O_WRONLY | O_TRUNC | O_CREAT,
+	fdw = open(oname, (en_dedup ? O_RDWR : O_WRONLY) | O_TRUNC | O_CREAT,
 		   S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
 	if (fdw < 0) {
 		err(1, "open(%s)", oname);
@@ -294,8 +305,8 @@ int main(int argc, char **argv)
 	}
 	close(fdr);
 
-	if (verbose != 0)
-		fprintf(stderr, "compressed data to %ju bytes, saved %lld "
+	if (verbose != 0 || summary.en != 0)
+		fprintf(summary.f, "compressed data to %ju bytes, saved %lld "
 		    "bytes, %.2f%% decrease.\n", offset,
 		    (long long)(sb.st_size - offset),
 		    100.0 * (long long)(sb.st_size - offset) /
@@ -337,7 +348,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: mkuzip [-vZdL] [-o outfile] [-s cluster_size] "
+	fprintf(stderr, "usage: mkuzip [-vZdLS] [-o outfile] [-s cluster_size] "
 	    "infile\n");
 	exit(1);
 }

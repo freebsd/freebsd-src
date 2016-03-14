@@ -1167,11 +1167,14 @@ struct hn_rx_ring {
 
 	/* Rarely used stuffs */
 	struct sysctl_oid *hn_rx_sysctl_tree;
+	int		hn_rx_flags;
 } __aligned(CACHE_LINE_SIZE);
 
 #define HN_TRUST_HCSUM_IP	0x0001
 #define HN_TRUST_HCSUM_TCP	0x0002
 #define HN_TRUST_HCSUM_UDP	0x0004
+
+#define HN_RX_FLAG_ATTACHED	0x1
 
 struct hn_tx_ring {
 #ifndef HN_USE_TXDESC_BUFRING
@@ -1214,7 +1217,10 @@ struct hn_tx_ring {
 	struct hn_txdesc *hn_txdesc;
 	bus_dma_tag_t	hn_tx_rndis_dtag;
 	struct sysctl_oid *hn_tx_sysctl_tree;
+	int		hn_tx_flags;
 } __aligned(CACHE_LINE_SIZE);
+
+#define HN_TX_FLAG_ATTACHED	0x1
 
 /*
  * Device-specific softc structure

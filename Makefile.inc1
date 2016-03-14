@@ -179,9 +179,9 @@ OSRELDATE=	0
 .endif
 
 # Set VERSION for CTFMERGE to use via the default CTFFLAGS=-L VERSION.
-.if !defined(VERSION) && !make(showconfig)
-REVISION!=	${MAKE} -C ${SRCDIR}/release -V REVISION
-BRANCH!=	${MAKE} -C ${SRCDIR}/release -V BRANCH
+.if !defined(VERSION)
+REVISION!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V REVISION
+BRANCH!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V BRANCH
 SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 		${SRCDIR}/sys/sys/param.h
 VERSION=	FreeBSD ${REVISION}-${BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE}
@@ -229,13 +229,10 @@ _TARGET_CPUTYPE=${TARGET_CPUTYPE}
 .else
 _TARGET_CPUTYPE=dummy
 .endif
-# Skip for showconfig as it is just wasted time and may invoke auto.obj.mk.
-.if !make(showconfig)
-_CPUTYPE!=	MAKEFLAGS= CPUTYPE=${_TARGET_CPUTYPE} ${MAKE} \
+_CPUTYPE!=	MK_AUTO_OBJ=no MAKEFLAGS= CPUTYPE=${_TARGET_CPUTYPE} ${MAKE} \
 		-f /dev/null -m ${.CURDIR}/share/mk -V CPUTYPE
 .if ${_CPUTYPE} != ${_TARGET_CPUTYPE}
 .error CPUTYPE global should be set with ?=.
-.endif
 .endif
 .if make(buildworld)
 BUILD_ARCH!=	uname -p
@@ -457,70 +454,16 @@ XCXXFLAGS+=	${BFLAGS}
 .endif
 .endif # ${XCC:M/*}
 
+.if ${MK_LIB32} != "no" && (${TARGET_ARCH} == "amd64" || \
+    ${TARGET_ARCH} == "powerpc64")
+LIBCOMPAT= 32
+.include "Makefile.libcompat"
+.elif ${MK_LIBSOFT} != "no" && ${TARGET_ARCH} == "armv6"
+LIBCOMPAT= SOFT
+.include "Makefile.libcompat"
+.endif
+
 WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}
-
-.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
-# 32 bit world
-LIB32_OBJTREE=	${OBJTREE}${.CURDIR}/world32
-LIB32TMP=	${OBJTREE}${.CURDIR}/lib32
-
-.if ${TARGET_ARCH} == "amd64"
-.if empty(TARGET_CPUTYPE)
-LIB32CPUFLAGS=	-march=i686 -mmmx -msse -msse2
-.else
-LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
-.endif
-LIB32WMAKEENV=	MACHINE=i386 MACHINE_ARCH=i386 \
-		MACHINE_CPU="i686 mmx sse sse2"
-LIB32WMAKEFLAGS=	\
-		AS="${XAS} --32" \
-		LD="${XLD} -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
-		OBJCOPY="${XOBJCOPY}"
-
-.elif ${TARGET_ARCH} == "powerpc64"
-.if empty(TARGET_CPUTYPE)
-LIB32CPUFLAGS=	-mcpu=powerpc
-.else
-LIB32CPUFLAGS=	-mcpu=${TARGET_CPUTYPE}
-.endif
-LIB32WMAKEENV=	MACHINE=powerpc MACHINE_ARCH=powerpc
-LIB32WMAKEFLAGS=	\
-		LD="${XLD} -m elf32ppc_fbsd" \
-		OBJCOPY="${XOBJCOPY}"
-.endif
-
-
-LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -DCOMPAT_32BIT \
-		-isystem ${LIB32TMP}/usr/include/ \
-		-L${LIB32TMP}/usr/lib32 \
-		-B${LIB32TMP}/usr/lib32
-.if ${XCC:N${CCACHE_BIN}:M/*}
-LIB32FLAGS+=		--sysroot=${WORLDTMP}
-.endif
-
-# Yes, the flags are redundant.
-LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${LIB32_OBJTREE} \
-		_LDSCRIPTROOT=${LIB32TMP} \
-		INSTALL="sh ${.CURDIR}/tools/install.sh" \
-		PATH=${TMPPATH} \
-		LIBDIR=/usr/lib32 \
-		SHLIBDIR=/usr/lib32 \
-		DTRACE="${DTRACE} -32"
-LIB32WMAKEFLAGS+= CC="${XCC} ${LIB32FLAGS}" \
-		CXX="${XCXX} ${LIB32FLAGS}" \
-		DESTDIR=${LIB32TMP} \
-		-DCOMPAT_32BIT \
-		-DLIBRARIES_ONLY \
-		-DNO_CPU_CFLAGS \
-		MK_CTF=no \
-		-DNO_LINT \
-		MK_TESTS=no
-
-LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} ${LIB32WMAKEFLAGS} \
-		MK_MAN=no MK_HTML=no
-LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} \
-		MK_TOOLCHAIN=no ${IMAKE_INSTALL}
-.endif
 
 IMAKEENV=	${CROSSENV:N_LDSCRIPTROOT=*}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1 \
@@ -575,8 +518,8 @@ _worldtmp: .PHONY
 	@echo "--------------------------------------------------------------"
 .if !defined(NO_CLEAN)
 	rm -rf ${WORLDTMP}
-.if defined(LIB32TMP)
-	rm -rf ${LIB32TMP}
+.if defined(LIBCOMPAT)
+	rm -rf ${LIBCOMPATTMP}
 .endif
 .else
 	rm -rf ${WORLDTMP}/legacy/usr/include
@@ -606,13 +549,13 @@ _worldtmp: .PHONY
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${WORLDTMP}/usr/lib >/dev/null
 .endif
-.if ${MK_LIB32} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+.if defined(LIBCOMPAT)
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${WORLDTMP}/usr >/dev/null
 .if ${MK_DEBUG_FILES} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${WORLDTMP}/legacy/usr/lib/debug/usr >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${WORLDTMP}/usr/lib/debug/usr >/dev/null
 .endif
 .endif
@@ -648,8 +591,8 @@ _cleanobj:
 	@echo ">>> stage 2.1: cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${WMAKE} ${CLEANDIR}
-.if defined(LIB32TMP)
-	${_+_}cd ${.CURDIR}; ${LIB32WMAKE} -f Makefile.inc1 ${CLEANDIR}
+.if defined(LIBCOMPAT)
+	${_+_}cd ${.CURDIR}; ${LIBCOMPATWMAKE} -f Makefile.inc1 ${CLEANDIR}
 .endif
 .endif
 _obj:
@@ -703,78 +646,6 @@ everything:
 	@echo ">>> stage 4.4: building everything"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; _PARALLEL_SUBDIR_OK=1 ${WMAKE} all
-.if defined(LIB32TMP)
-build32: .PHONY
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 5.1: building 32 bit shim libraries"
-	@echo "--------------------------------------------------------------"
-	mkdir -p ${LIB32TMP}/usr/include
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
-	    -p ${LIB32TMP}/usr >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
-	    -p ${LIB32TMP}/usr/include >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
-	    -p ${LIB32TMP}/usr >/dev/null
-.if ${MK_DEBUG_FILES} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
-	    -p ${LIB32TMP}/usr/lib >/dev/null
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
-	    -p ${LIB32TMP}/usr/lib/debug/usr >/dev/null
-.endif
-	mkdir -p ${WORLDTMP}
-	ln -sf ${.CURDIR}/sys ${WORLDTMP}
-.for _t in obj includes
-	${_+_}cd ${.CURDIR}/include; ${LIB32WMAKE} DIRPRFX=include/ ${_t}
-	${_+_}cd ${.CURDIR}/lib; ${LIB32WMAKE} DIRPRFX=lib/ ${_t}
-.if ${MK_CDDL} != "no"
-	${_+_}cd ${.CURDIR}/cddl/lib; ${LIB32WMAKE} DIRPRFX=cddl/lib/ ${_t}
-.endif
-	${_+_}cd ${.CURDIR}/gnu/lib; ${LIB32WMAKE} DIRPRFX=gnu/lib/ ${_t}
-.if ${MK_CRYPT} != "no"
-	${_+_}cd ${.CURDIR}/secure/lib; ${LIB32WMAKE} DIRPRFX=secure/lib/ ${_t}
-.endif
-.if ${MK_KERBEROS} != "no"
-	${_+_}cd ${.CURDIR}/kerberos5/lib; ${LIB32WMAKE} DIRPRFX=kerberos5/lib ${_t}
-.endif
-.endfor
-.for _dir in usr.bin/lex/lib
-	${_+_}cd ${.CURDIR}/${_dir}; ${LIB32WMAKE} DIRPRFX=${_dir}/ obj
-.endfor
-.for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic
-	${_+_}cd ${.CURDIR}/${_dir}; \
-	    WORLDTMP=${WORLDTMP} \
-	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
-	    MAKEOBJDIRPREFIX=${LIB32_OBJTREE} ${MAKE} SSP_CFLAGS= DESTDIR= \
-	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
-	    build-tools
-.endfor
-	${_+_}cd ${.CURDIR}; \
-	    ${LIB32WMAKE} -f Makefile.inc1 -DNO_FSCHG libraries
-.for _t in obj depend all
-	${_+_}cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32WMAKE} \
-	    -DNO_FSCHG DIRPRFX=libexec/rtld-elf/ ${_t}
-	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32WMAKE} \
-	    DIRPRFX=usr.bin/ldd ${_t}
-.endfor
-
-distribute32 install32: .MAKE .PHONY
-	${_+_}cd ${.CURDIR}/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
-.if ${MK_CDDL} != "no"
-	${_+_}cd ${.CURDIR}/cddl/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
-.endif
-	${_+_}cd ${.CURDIR}/gnu/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
-.if ${MK_CRYPT} != "no"
-	${_+_}cd ${.CURDIR}/secure/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
-.endif
-.if ${MK_KERBEROS} != "no"
-	${_+_}cd ${.CURDIR}/kerberos5/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
-.endif
-	${_+_}cd ${.CURDIR}/libexec/rtld-elf; \
-	    PROG=ld-elf32.so.1 ${LIB32IMAKE} ${.TARGET:S/32$//}
-	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32IMAKE} \
-	    ${.TARGET:S/32$//}
-.endif
 
 WMAKE_TGTS=
 WMAKE_TGTS+=	_worldtmp _legacy
@@ -787,8 +658,8 @@ WMAKE_TGTS+=	_includes _libraries
 WMAKE_TGTS+=	_depend
 .endif
 WMAKE_TGTS+=	everything
-.if defined(LIB32TMP) && ${MK_LIB32} != "no" && empty(SUBDIR_OVERRIDE)
-WMAKE_TGTS+=	build32
+.if defined(LIBCOMPAT) && empty(SUBDIR_OVERRIDE)
+WMAKE_TGTS+=	build${libcompat}
 .endif
 
 buildworld: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue
@@ -828,7 +699,7 @@ buildenv: .PHONY
 	@cd ${BUILDENV_DIR} && env ${WMAKEENV} BUILDENV=1 ${BUILDENV_SHELL} \
 	    || true
 
-TOOLCHAIN_TGTS=	${WMAKE_TGTS:N_depend:Neverything:Nbuild32}
+TOOLCHAIN_TGTS=	${WMAKE_TGTS:N_depend:Neverything:Nbuild${libcompat}}
 toolchain: ${TOOLCHAIN_TGTS}
 kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
 
@@ -922,8 +793,8 @@ ITOOLS+=makewhatis
 
 # Non-base distributions produced by the base system
 EXTRA_DISTRIBUTIONS=	doc
-.if defined(LIB32TMP) && ${MK_LIB32} != "no"
-EXTRA_DISTRIBUTIONS+=	lib32
+.if defined(LIBCOMPAT)
+EXTRA_DISTRIBUTIONS+=	lib${libcompat}
 .endif
 .if ${MK_TESTS} != "no"
 EXTRA_DISTRIBUTIONS+=	tests
@@ -975,11 +846,11 @@ distributeworld installworld: _installcheck_world
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib >/dev/null
 .endif
-.if ${MK_LIB32} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+.if defined(LIBCOMPAT)
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
 .if ${MK_DEBUG_FILES} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib/debug/usr >/dev/null
 .endif
 .endif
@@ -999,8 +870,8 @@ distributeworld installworld: _installcheck_world
 	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
 	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.include.dist | \
 	    sed -e 's#^\./#./${dist}/usr/include/#' >> ${METALOG}
-.if ${MK_LIB32} != "no"
-	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.lib32.dist | \
+.if defined(LIBCOMPAT)
+	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist | \
 	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
 .endif
 .endif
@@ -1085,8 +956,8 @@ reinstall: .MAKE .PHONY
 	@echo ">>> Installing everything"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
-.if defined(LIB32TMP) && ${MK_LIB32} != "no"
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install32
+.if defined(LIBCOMPAT)
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install${libcompat}
 .endif
 
 redistribute: .MAKE .PHONY
@@ -1094,9 +965,9 @@ redistribute: .MAKE .PHONY
 	@echo ">>> Distributing everything"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute
-.if defined(LIB32TMP) && ${MK_LIB32} != "no"
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute32 \
-	    DISTRIBUTION=lib32
+.if defined(LIBCOMPAT)
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute${libcompat} \
+	    DISTRIBUTION=lib${libcompat}
 .endif
 
 distrib-dirs distribution: .MAKE .PHONY
@@ -1159,7 +1030,7 @@ INSTALLKERNEL= ${_kernel}
 .endif
 .endfor
 
-${WMAKE_TGTS:N_worldtmp:Nbuild32} ${.ALLTARGETS:M_*:N_worldtmp}: .MAKE .PHONY
+${WMAKE_TGTS:N_worldtmp:Nbuild${libcompat}} ${.ALLTARGETS:M_*:N_worldtmp}: .MAKE .PHONY
 
 #
 # buildkernel
@@ -1404,7 +1275,8 @@ update:
 #
 
 # ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
-.if ${BOOTSTRAPPING} < 1100006
+# r296685 fix cross-endian objcopy
+.if ${BOOTSTRAPPING} < 1100102
 _elftoolchain_libs= lib/libelf lib/libdwarf
 .endif
 
@@ -2408,8 +2280,8 @@ _xi-mtree: .PHONY
 	    -p ${XDDESTDIR}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${XDDESTDIR}/usr/include >/dev/null
-.if ${MK_LIB32} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+.if defined(LIBCOMPAT)
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist \
 	    -p ${XDDESTDIR}/usr >/dev/null
 .endif
 .if ${MK_TESTS} != "no"

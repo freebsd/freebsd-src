@@ -35,6 +35,4 @@ SUBDIR=		libatf-c \
 _tests= 	tests
 .endif
 
-.ORDER: ${SUBDIR}
-
 .include <bsd.subdir.mk>
