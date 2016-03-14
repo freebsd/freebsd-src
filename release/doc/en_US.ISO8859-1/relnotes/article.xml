@@ -307,7 +307,9 @@
     <sect2 xml:id="drivers-network">
       <title>Network Drivers</title>
 
-      <para>&nbsp;</para>
+      <para revision="295524" contrib="sponsor"
+	sponsor="&limelight;, &intelcorp;">The &man.ixgbe.4; driver
+	has been updated to version 3.1.13-k.</para>
     </sect2>
   </sect1>
 
