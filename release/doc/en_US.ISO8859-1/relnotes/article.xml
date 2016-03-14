@@ -234,6 +234,9 @@
       <para revision="293650">The &man.ntpd.8; utility has been
 	updated to version 4.2.8p5.</para>
 
+      <para revision="294190">The &man.unbound.8; utility has been
+	updated to version 1.5.7.</para>
+
       <para revision="294286">The &man.less.1; utility has been
 	updated to version v481.</para>
 
