@@ -219,7 +219,10 @@
     <sect2 xml:id="userland-installer">
       <title>Installation and Configuration Tools</title>
 
-      <para>&nbsp;</para>
+      <para revision="295264" contrib="sponsor"
+	sponsor="&scaleengine;">The &man.bsdinstall.8; utility has
+	been updated to support <acronym>ZFS</acronym> installation
+	on <acronym>EFI</acronym>-based systems.</para>
     </sect2>
 
     <sect2 xml:id="userland-rc">
