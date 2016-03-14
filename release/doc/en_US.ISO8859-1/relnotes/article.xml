@@ -207,6 +207,11 @@
 	<literal>unbound-control-setup</literal> script has been
 	removed from the base system.</para>
 
+      <para revision="295691">The &man.unbound.8; utility has been
+	updated to enable the <literal>insecure-lan-zones</literal>
+	option in preference of listing each <acronym>AS112</acronym>
+	zone individually.</para>
+
       <para revision="296317">The <application>OpenSSL</application>
 	suite has been updated to version 1.0.1s.</para>
     </sect2>
