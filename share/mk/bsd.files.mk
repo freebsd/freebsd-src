@@ -30,9 +30,7 @@ ${group}OWN?=	${SHAREOWN}
 ${group}GRP?=	${SHAREGRP}
 ${group}MODE?=	${SHAREMODE}
 ${group}DIR?=	${BINDIR}
-.if !make(buildincludes)
 STAGE_SETS+=	${group}
-.endif
 STAGE_DIR.${group}= ${STAGE_OBJTOP}${${group}DIR}
 
 .if defined(NO_ROOT)
@@ -57,9 +55,7 @@ ${group}NAME_${file:T}?=	${${group}NAME}
 .else
 ${group}NAME_${file:T}?=	${file:T}
 .endif
-.if !make(buildincludes)
 STAGE_AS_SETS+=	${file:T}
-.endif
 STAGE_AS_${file:T}= ${${group}NAME_${file:T}}
 # XXX {group}OWN,GRP,MODE
 STAGE_DIR.${file:T}= ${STAGE_OBJTOP}${${group}DIR_${file:T}}

@@ -31,6 +31,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160311:
+	WITH_FAST_DEPEND is now enabled by default for in-tree and out-of-tree
+	builds.  It no longer runs mkdep(1) during 'make depend', and the
+	'make depend' stage can safely be skipped now as it is auto ran
+	when building 'make all' and will generate all SRCS and DPSRCS before
+	building anything else.  Dependencies are gathered at compile time with
+	-MF flags kept in separate .depend files per object file.  Users should
+	run 'make cleandepend' once if using -DNO_CLEAN to clean out older
+	stale .depend files.
+
 20160306:
 	On amd64, clang 3.8.0 can now insert sections of type AMD64_UNWIND into
 	kernel modules.  Therefore, if you load any kernel modules at boot time,

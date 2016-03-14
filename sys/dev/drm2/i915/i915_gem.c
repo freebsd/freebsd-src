@@ -1619,6 +1619,13 @@ out:
 	KASSERT(ret != 0, ("i915_gem_pager_fault: wrong return"));
 	CTR4(KTR_DRM, "fault_fail %p %jx %x err %d", gem_obj, offset, prot,
 	    -ret);
+	if (ret == -ERESTARTSYS) {
+		/*
+		 * NOTE Linux<->FreeBSD: Convert Linux' -ERESTARTSYS to
+		 * the more common -EINTR, so the page fault is retried.
+		 */
+		ret = -EINTR;
+	}
 	if (ret == -EAGAIN || ret == -EIO || ret == -EINTR) {
 		kern_yield(PRI_USER);
 		goto retry;
@@ -3263,7 +3270,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 
 	i915_gem_object_pin_pages(obj);
 
-	node = malloc(sizeof(*node), DRM_I915_GEM, M_NOWAIT | M_ZERO);
+	node = malloc(sizeof(*node), DRM_MEM_MM, M_NOWAIT | M_ZERO);
 	if (node == NULL) {
 		i915_gem_object_unpin_pages(obj);
 		return -ENOMEM;
@@ -3286,7 +3293,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 			goto search_free;
 
 		i915_gem_object_unpin_pages(obj);
-		free(node, DRM_I915_GEM);
+		free(node, DRM_MEM_MM);
 		return ret;
 	}
 	if (WARN_ON(!i915_gem_valid_gtt_space(dev, node, obj->cache_level))) {

@@ -772,12 +772,10 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	vm_offset_t addr;
 
 	sched_pin();
-	sva >>= PAGE_SHIFT;
-	eva >>= PAGE_SHIFT;
 	__asm __volatile("dsb	sy");
-	for (addr = sva; addr < eva; addr++) {
+	for (addr = sva; addr < eva; addr += PAGE_SIZE) {
 		__asm __volatile(
-		    "tlbi vaae1is, %0" : : "r"(addr));
+		    "tlbi vaae1is, %0" : : "r"(addr >> PAGE_SHIFT));
 	}
 	__asm __volatile(
 	    "dsb  sy	\n"

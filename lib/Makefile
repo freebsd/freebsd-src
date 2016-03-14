@@ -173,7 +173,7 @@ _libbsnmp=	libbsnmp
 _libcasper=	libcasper
 .endif
 
-.if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)
+.if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT) && !defined(COMPAT_SOFTFP)
 _clang=		clang
 .endif
 

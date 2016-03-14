@@ -6,11 +6,10 @@ all:
 
 # mtree makes a lot of noise if we are not root, 
 # we don't need to see it.
-stage-distrib-dirs: .META
+stage-distrib-dirs: .META ${META_DEPS}
 	mkdir -p ${STAGE_OBJTOP}
 	INSTALL="sh ${SRCTOP}/tools/install.sh" ${.MAKE} -C ${SRCTOP}/etc \
 	    distrib-dirs -DNO_FSCHG -DWITH_TESTS DESTDIR=${STAGE_OBJTOP}
-	touch $@
 
 .include <bsd.prog.mk>
 

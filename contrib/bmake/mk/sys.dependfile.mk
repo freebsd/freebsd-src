@@ -1,4 +1,4 @@
-# $Id: sys.dependfile.mk,v 1.6 2014/08/02 18:02:06 sjg Exp $
+# $Id: sys.dependfile.mk,v 1.7 2016/02/20 01:57:39 sjg Exp $
 #
 #	@(#) Copyright (c) 2012, Simon J. Gerraty
 #
@@ -49,7 +49,9 @@ _e := ${.MAKE.DEPENDFILE_PREFERENCE:@m@${exists($m):?$m:}@}
 # If any already exist, we should follow suit.
 _aml = ${ALL_MACHINE_LIST:Uarm amd64 i386 powerpc:N${MACHINE}} ${MACHINE}
 # MACHINE must be the last entry in _aml ;-)
+_m := ${MACHINE}
 _e := ${_aml:@MACHINE@${.MAKE.DEPENDFILE_PREFERENCE:@m@${exists($m):?$m:}@}@}
+MACHINE := ${_m}
 .if !empty(_e)
 .MAKE.DEPENDFILE ?= ${.MAKE.DEPENDFILE_PREFERENCE:M*${MACHINE}:[1]}
 .endif

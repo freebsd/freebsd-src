@@ -803,17 +803,22 @@ struct adapter {
 	int tracer_valid;	/* bitmap of valid tracers */
 	int tracer_enabled;	/* bitmap of enabled tracers */
 
-	char fw_version[32];
+	char fw_version[16];
+	char tp_version[16];
+	char exprom_version[16];
 	char cfg_file[32];
 	u_int cfcsum;
 	struct adapter_params params;
 	const struct chip_params *chip_params;
 	struct t4_virt_res vres;
 
+	uint16_t nbmcaps;
 	uint16_t linkcaps;
+	uint16_t switchcaps;
 	uint16_t niccaps;
 	uint16_t toecaps;
 	uint16_t rdmacaps;
+	uint16_t tlscaps;
 	uint16_t iscsicaps;
 	uint16_t fcoecaps;
 

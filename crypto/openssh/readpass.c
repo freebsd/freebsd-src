@@ -1,4 +1,4 @@
-/* $OpenBSD: readpass.c,v 1.50 2014/02/02 03:44:31 djm Exp $ */
+/* $OpenBSD: readpass.c,v 1.51 2015/12/11 00:20:04 mmcc Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -76,7 +76,7 @@ ssh_askpass(char *askpass, const char *msg)
 		close(p[0]);
 		if (dup2(p[1], STDOUT_FILENO) < 0)
 			fatal("ssh_askpass: dup2: %s", strerror(errno));
-		execlp(askpass, askpass, msg, (char *) 0);
+		execlp(askpass, askpass, msg, (char *)NULL);
 		fatal("ssh_askpass: exec(%s): %s", askpass, strerror(errno));
 	}
 	close(p[1]);

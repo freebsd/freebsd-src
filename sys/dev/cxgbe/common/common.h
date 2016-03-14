@@ -262,6 +262,7 @@ struct devlog_params {
 	u32 memtype;			/* which memory (FW_MEMTYPE_* ) */
 	u32 start;			/* start of log in firmware memory */
 	u32 size;			/* size of log */
+	u32 addr;			/* start address in flat addr space */
 };
 
 /* Stores chip specific parameters */
@@ -289,6 +290,7 @@ struct adapter_params {
 
 	unsigned int fw_vers;
 	unsigned int tp_vers;
+	unsigned int exprom_vers;
 
 	unsigned short mtus[NMTUS];
 	unsigned short a_wnd[NCCTRL_WIN];

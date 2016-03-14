@@ -203,6 +203,7 @@ struct a10hdmi_softc {
 
 	uint8_t			edid[EDID_LENGTH];
 
+	int			has_hdmi;
 	int			has_audio;
 };
 
@@ -371,27 +372,29 @@ a10hdmi_ddc_read(struct a10hdmi_softc *sc, int block, uint8_t *edid)
 	return (0);
 }
 
-static int
-a10hdmi_detect_audio(struct a10hdmi_softc *sc)
+static void
+a10hdmi_detect_hdmi(struct a10hdmi_softc *sc, int *phdmi, int *paudio)
 {
 	struct edid_info ei;
 	uint8_t edid[EDID_LENGTH];
 	int block;
 
+	*phdmi = *paudio = 0;
+
 	if (edid_parse(sc->edid, &ei) != 0)
-		return (0);
+		return;
 
 	/* Scan through extension blocks, looking for a CEA-861 block. */
 	for (block = 1; block <= ei.edid_ext_block_count; block++) {
 		if (a10hdmi_ddc_read(sc, block, edid) != 0)
-			break;
+			return;
 
-		if (edid[EXT_TAG] == CEA_TAG_ID)
-			return ((edid[CEA_DTD] & DTD_BASIC_AUDIO) != 0);
+		if (edid[EXT_TAG] == CEA_TAG_ID) {
+			*phdmi = 1;
+			*paudio = ((edid[CEA_DTD] & DTD_BASIC_AUDIO) != 0);
+			return;
+		}
 	}
-
-	/* No CEA-861 block found */
-	return (0);
 }
 
 static int
@@ -426,9 +429,9 @@ a10hdmi_get_edid(device_t dev, uint8_t **edid, uint32_t *edid_len)
 	}
 
 	if (error == 0)
-		sc->has_audio = a10hdmi_detect_audio(sc);
+		a10hdmi_detect_hdmi(sc, &sc->has_hdmi, &sc->has_audio);
 	else
-		sc->has_audio = 0;
+		sc->has_hdmi = sc->has_audio = 0;
 
 	return (error);
 }
@@ -515,7 +518,9 @@ a10hdmi_set_videomode(device_t dev, const struct videomode *mode)
 	    PLLCTRL0_VCO_S);
 
 	/* Setup display settings */
-	val = VID_CTRL_HDMI_MODE;
+	val = 0;
+	if (sc->has_hdmi)
+		val |= VID_CTRL_HDMI_MODE;
 	if (mode->flags & VID_INTERLACE)
 		val |= VID_CTRL_INTERLACE;
 	if (mode->flags & VID_DBLSCAN)
