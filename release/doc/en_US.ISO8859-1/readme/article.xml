@@ -13,7 +13,8 @@
      End:
 -->
 <article xmlns="http://docbook.org/ns/docbook"
-  xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+  xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0"
+  xml:id="top">
   <info>
     <title>&os; &release.current; README</title>
 
@@ -51,7 +52,7 @@
       &release.current;, the latest point along the &release.branch;
       branch.</para>
 
-    <sect2>
+    <sect2 xml:id="about">
       <title>About &os;</title>
 
       <para>&os; is an operating system based on 4.4 BSD Lite for
@@ -89,7 +90,7 @@
 	be quickly installed from the installation program.</para>
     </sect2>
 
-    <sect2>
+    <sect2 xml:id="audience">
       <title>Target Audience</title>
 
       <para releasetype="current">This &release.type; is aimed
@@ -145,7 +146,7 @@
       complete &os; distribution, rather than updating an existing
       installation.</para>
 
-    <sect2>
+    <sect2 xml:id="obtain-cd-dvd">
       <title>CDROM and DVD</title>
 
       <para>&os; -RELEASE distributions may be ordered on CDROM or DVD
@@ -162,7 +163,7 @@
 	    &os;</quote></link> appendix to the Handbook.</para>
     </sect2>
 
-    <sect2>
+    <sect2 xml:id="obtain-ftp">
       <title>FTP</title>
 
       <para>You can use FTP to retrieve &os; and any or all of its
@@ -196,7 +197,7 @@
   <sect1 xml:id="contacting">
     <title>Contacting the &os; Project</title>
 
-    <sect2>
+    <sect2 xml:id="contacting-mailing-list">
       <title>Email and Mailing Lists</title>
 
       <para>For any questions or general technical support issues,
@@ -238,7 +239,7 @@
       </important>
     </sect2>
 
-    <sect2>
+    <sect2 xml:id="contacting-problem-reports">
       <title>Submitting Problem Reports</title>
 
       <para>Suggestions, bug reports and contributions of code are
@@ -342,7 +343,7 @@
       </note>
     </sect2>
 
-    <sect2>
+    <sect2 xml:id="manual-pages">
       <title>Manual Pages</title>
 
       <para>As with almost all &unix; like operating systems, &os;
@@ -360,7 +361,7 @@
 	and &man.style.9; (a style guide to kernel coding).</para>
     </sect2>
 
-    <sect2>
+    <sect2 xml:id="books-articles">
       <title>Books and Articles</title>
 
       <para>Two highly-useful collections of &os;-related information,

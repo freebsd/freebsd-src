@@ -6,7 +6,8 @@
 <!ENTITY local.rel "10.3">
 ]>
 
-<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0"
+  xml:id="top">
   <info><title>&os; &release.current; Installation Instructions</title>
 
     <author><orgname>The &os; Project</orgname></author>
@@ -54,7 +55,7 @@
       section in the Release Notes</uri> for notable
       incompatibilities carefully.</para>
 
-    <sect2>
+    <sect2 xml:id="upgrade-source">
       <title>Upgrading from Source</title>
 
       <para>The procedure for doing a source code based update is
@@ -67,7 +68,7 @@
 	Notices will be applied.</para>
     </sect2>
 
-    <sect2>
+    <sect2 xml:id="upgrade-binary">
       <title>Upgrading Using <quote>&os; Update</quote></title>
 
       <para>The &man.freebsd-update.8; utility supports binary

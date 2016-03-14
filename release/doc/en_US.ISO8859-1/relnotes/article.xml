@@ -11,7 +11,8 @@
 <!ENTITY errata SYSTEM "../../share/xml/errata.xml">
 ]>
 <article xmlns="http://docbook.org/ns/docbook"
-  xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+  xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0"
+  xml:id="top">
 
   <info>
     <title>&os; &release.current; Release Notes</title>
