@@ -797,7 +797,7 @@ struct ieee80211_bss_load_ie {
 struct ieee80211_ap_chan_report_ie {
 	uint8_t		ie;
 	uint8_t		len;
-	uint8_t		class; /* operating class */
+	uint8_t		i_class; /* operating class */
 	/* Annex E, E.1 Country information and operating classes */
 	uint8_t		chan_list[0];
 } __packed;
