@@ -395,6 +395,10 @@
     <sect2 xml:id="boot-loader">
       <title>Boot Loader Changes</title>
 
+      <para revision="294445">Initial terminal emulation support has
+	been added to <filename>loader.efi</filename> for
+	<acronym>UEFI</acronym>-based systems.</para>
+
       <para revision="294999" contrib="sponsor"
 	sponsor="&multiplay;">Initial <acronym>ZFS</acronym> boot
 	support has been added to the <acronym>EFI</acronym>
