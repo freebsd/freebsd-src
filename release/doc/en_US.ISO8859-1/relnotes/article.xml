@@ -410,7 +410,9 @@
     <sect2 xml:id="boot-menu">
       <title>Boot Menu Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="294446">The <acronym>UEFI</acronym> boot menu
+	has been updated to enable the <quote>Beastie</quote> menu,
+	similiar to the traditional &man.sc.4; boot menu.</para>
     </sect2>
   </sect1>
 
