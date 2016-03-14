@@ -680,6 +680,8 @@ static void bxe_handle_fp_tq(void *context, int pending);
 static int bxe_add_cdev(struct bxe_softc *sc);
 static void bxe_del_cdev(struct bxe_softc *sc);
 static int bxe_grc_dump(struct bxe_softc *sc);
+static int bxe_alloc_buf_rings(struct bxe_softc *sc);
+static void bxe_free_buf_rings(struct bxe_softc *sc);
 
 /* calculate crc32 on a buffer (NOTE: crc32_length MUST be aligned to 8) */
 uint32_t
@@ -4204,8 +4206,19 @@ bxe_nic_unload(struct bxe_softc *sc,
 {
     uint8_t global = FALSE;
     uint32_t val;
+    int i;
 
     BXE_CORE_LOCK_ASSERT(sc);
+
+    sc->ifnet->if_drv_flags &= ~IFF_DRV_RUNNING;
+
+    for (i = 0; i < sc->num_queues; i++) {
+        struct bxe_fastpath *fp;
+
+        fp = &sc->fp[i];
+        BXE_FP_TX_LOCK(fp);
+        BXE_FP_TX_UNLOCK(fp);
+    }
 
     BLOGD(sc, DBG_LOAD, "Starting NIC unload...\n");
 
@@ -6245,8 +6258,6 @@ bxe_free_fp_buffers(struct bxe_softc *sc)
                     m_freem(m);
                 BXE_FP_TX_UNLOCK(fp);
             }
-            buf_ring_free(fp->tx_br, M_DEVBUF);
-            fp->tx_br = NULL;
         }
 #endif
 
@@ -6276,14 +6287,6 @@ bxe_free_fp_buffers(struct bxe_softc *sc)
         }
 
         /* XXX verify all mbufs were reclaimed */
-
-        if (mtx_initialized(&fp->tx_mtx)) {
-            mtx_destroy(&fp->tx_mtx);
-        }
-
-        if (mtx_initialized(&fp->rx_mtx)) {
-            mtx_destroy(&fp->rx_mtx);
-        }
     }
 }
 
@@ -6504,15 +6507,6 @@ bxe_alloc_fp_buffers(struct bxe_softc *sc)
 
     for (i = 0; i < sc->num_queues; i++) {
         fp = &sc->fp[i];
-
-#if __FreeBSD_version >= 800000
-        fp->tx_br = buf_ring_alloc(BXE_BR_SIZE, M_DEVBUF,
-                                   M_DONTWAIT, &fp->tx_mtx);
-        if (fp->tx_br == NULL) {
-            BLOGE(sc, "buf_ring alloc fail for fp[%02d]\n", i);
-            goto bxe_alloc_fp_buffers_error;
-        }
-#endif
 
         ring_prod = cqe_ring_prod = 0;
         fp->rx_bd_cons = 0;
@@ -9620,14 +9614,6 @@ bxe_init_eth_fp(struct bxe_softc *sc,
 
     fp->sc    = sc;
     fp->index = idx;
-
-    snprintf(fp->tx_mtx_name, sizeof(fp->tx_mtx_name),
-             "bxe%d_fp%d_tx_lock", sc->unit, idx);
-    mtx_init(&fp->tx_mtx, fp->tx_mtx_name, NULL, MTX_DEF);
-
-    snprintf(fp->rx_mtx_name, sizeof(fp->rx_mtx_name),
-             "bxe%d_fp%d_rx_lock", sc->unit, idx);
-    mtx_init(&fp->rx_mtx, fp->rx_mtx_name, NULL, MTX_DEF);
 
     fp->igu_sb_id = (sc->igu_base_sb + idx + CNIC_SUPPORT(sc));
     fp->fw_sb_id = (sc->base_fw_ndsb + idx + CNIC_SUPPORT(sc));
@@ -15820,6 +15806,89 @@ bxe_add_sysctls(struct bxe_softc *sc)
     }
 }
 
+static int
+bxe_alloc_buf_rings(struct bxe_softc *sc)
+{
+#if __FreeBSD_version >= 800000
+
+    int i;
+    struct bxe_fastpath *fp;
+
+    for (i = 0; i < sc->num_queues; i++) {
+
+        fp = &sc->fp[i];
+
+        fp->tx_br = buf_ring_alloc(BXE_BR_SIZE, M_DEVBUF,
+                                   M_NOWAIT, &fp->tx_mtx);
+        if (fp->tx_br == NULL)
+            return (-1);
+    }
+#endif
+    return (0);
+}
+
+static void
+bxe_free_buf_rings(struct bxe_softc *sc)
+{
+#if __FreeBSD_version >= 800000
+
+    int i;
+    struct bxe_fastpath *fp;
+
+    for (i = 0; i < sc->num_queues; i++) {
+
+        fp = &sc->fp[i];
+
+        if (fp->tx_br) {
+            buf_ring_free(fp->tx_br, M_DEVBUF);
+            fp->tx_br = NULL;
+        }
+    }
+
+#endif
+}
+
+static void
+bxe_init_fp_mutexs(struct bxe_softc *sc)
+{
+    int i;
+    struct bxe_fastpath *fp;
+
+    for (i = 0; i < sc->num_queues; i++) {
+
+        fp = &sc->fp[i];
+
+        snprintf(fp->tx_mtx_name, sizeof(fp->tx_mtx_name),
+            "bxe%d_fp%d_tx_lock", sc->unit, i);
+        mtx_init(&fp->tx_mtx, fp->tx_mtx_name, NULL, MTX_DEF);
+
+        snprintf(fp->rx_mtx_name, sizeof(fp->rx_mtx_name),
+            "bxe%d_fp%d_rx_lock", sc->unit, i);
+        mtx_init(&fp->rx_mtx, fp->rx_mtx_name, NULL, MTX_DEF);
+    }
+}
+
+static void
+bxe_destroy_fp_mutexs(struct bxe_softc *sc)
+{
+    int i;
+    struct bxe_fastpath *fp;
+
+    for (i = 0; i < sc->num_queues; i++) {
+
+        fp = &sc->fp[i];
+
+        if (mtx_initialized(&fp->tx_mtx)) {
+            mtx_destroy(&fp->tx_mtx);
+        }
+
+        if (mtx_initialized(&fp->rx_mtx)) {
+            mtx_destroy(&fp->rx_mtx);
+        }
+    }
+}
+
+
 /*
  * Device attach function.
  *
@@ -15931,8 +16000,25 @@ bxe_attach(device_t dev)
         return (ENXIO);
     }
 
+    bxe_init_fp_mutexs(sc);
+
+    if (bxe_alloc_buf_rings(sc) != 0) {
+	bxe_free_buf_rings(sc);
+        bxe_interrupt_free(sc);
+        bxe_del_cdev(sc);
+        if (sc->ifnet != NULL) {
+            ether_ifdetach(sc->ifnet);
+        }
+        ifmedia_removeall(&sc->ifmedia);
+        bxe_release_mutexes(sc);
+        bxe_deallocate_bars(sc);
+        pci_disable_busmaster(dev);
+        return (ENXIO);
+    }
+
     /* allocate ilt */
     if (bxe_alloc_ilt_mem(sc) != 0) {
+	bxe_free_buf_rings(sc);
         bxe_interrupt_free(sc);
         bxe_del_cdev(sc);
         if (sc->ifnet != NULL) {
@@ -15948,6 +16034,7 @@ bxe_attach(device_t dev)
     /* allocate the host hardware/software hsi structures */
     if (bxe_alloc_hsi_mem(sc) != 0) {
         bxe_free_ilt_mem(sc);
+	bxe_free_buf_rings(sc);
         bxe_interrupt_free(sc);
         bxe_del_cdev(sc);
         if (sc->ifnet != NULL) {
@@ -16055,11 +16142,15 @@ bxe_detach(device_t dev)
     /* free ilt */
     bxe_free_ilt_mem(sc);
 
+    bxe_free_buf_rings(sc);
+
     /* release the interrupts */
     bxe_interrupt_free(sc);
 
     /* Release the mutexes*/
+    bxe_destroy_fp_mutexs(sc);
     bxe_release_mutexes(sc);
+
 
     /* Release the PCIe BAR mapped memory */
     bxe_deallocate_bars(sc);
