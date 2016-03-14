@@ -386,6 +386,11 @@
     <sect2 xml:id="boot-loader">
       <title>Boot Loader Changes</title>
 
+      <para revision="294999" contrib="sponsor"
+	sponsor="&multiplay;">Initial <acronym>ZFS</acronym> boot
+	support has been added to the <acronym>EFI</acronym>
+	implementation.</para>
+
       <para revision="295475" contrib="sponsor"
 	sponsor="&scaleengine;">The <acronym>UEFI</acronym> loader has
 	been updated to support multiple <acronym>ZFS</acronym> boot
