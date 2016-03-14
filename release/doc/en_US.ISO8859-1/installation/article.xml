@@ -88,7 +88,7 @@
 
       <para>Due to changes in the way that &os; is packaged on the
 	release media, two complications may arise in this process if
-	upgrading from FreeBSD 8.x or 9.x:</para>
+	upgrading from FreeBSD 9.3:</para>
 
       <orderedlist>
 	<listitem>
@@ -129,7 +129,7 @@
       <screen>&prompt.root; freebsd-update install</screen>
 
       <para>At this point, users of systems being upgraded from &os;
-	9.2-RELEASE or earlier will be prompted by
+	9.3-RELEASE or earlier will be prompted by
 	&man.freebsd-update.8; to rebuild all third-party applications
 	(e.g., ports installed from the ports tree) due to updates in
 	system libraries.</para>
