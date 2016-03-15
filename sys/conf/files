@@ -1431,6 +1431,11 @@ dev/extres/clk/clk_gate.c	optional ext_resources clk
 dev/extres/clk/clk_mux.c	optional ext_resources clk
 dev/extres/hwreset/hwreset.c	optional ext_resources hwreset
 dev/extres/hwreset/hwreset_if.m	optional ext_resources hwreset
+dev/extres/regulator/regdev_if.m	optional ext_resources regulator
+dev/extres/regulator/regnode_if.m	optional ext_resources regulator
+dev/extres/regulator/regulator.c	optional ext_resources regulator
+dev/extres/regulator/regulator_bus.c	optional ext_resources regulator fdt
+dev/extres/regulator/regulator_fixed.c	optional ext_resources regulator
 dev/fatm/if_fatm.c		optional fatm pci
 dev/fb/fbd.c			optional fbd | vt
 dev/fb/fb_if.m			standard
@@ -1572,10 +1577,10 @@ ipw_monitor.fw			optional ipwmonitorfw | ipwfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"ipw_monitor.fw"
-dev/iscsi/icl.c			optional iscsi | ctl 
-dev/iscsi/icl_conn_if.m		optional iscsi | ctl 
+dev/iscsi/icl.c			optional iscsi | ctl
+dev/iscsi/icl_conn_if.m		optional iscsi | ctl
 dev/iscsi/icl_proxy.c		optional iscsi | ctl
-dev/iscsi/icl_soft.c		optional iscsi | ctl 
+dev/iscsi/icl_soft.c		optional iscsi | ctl
 dev/iscsi/iscsi.c		optional iscsi scbus
 dev/iscsi_initiator/iscsi.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/iscsi_subr.c	optional iscsi_initiator scbus
