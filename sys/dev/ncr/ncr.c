@@ -3860,6 +3860,16 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 		csio = &ccb->csio;
 
 		/*
+		 * Make sure we support this request. We can't do
+		 * PHYS pointers.
+		 */
+		if (ccb->ccb_h.flags & CAM_CDB_PHYS) {
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			xpt_done(ccb);
+			return;
+		}
+
+		/*
 		 * Last time we need to check if this CCB needs to
 		 * be aborted.
 		 */
@@ -4070,8 +4080,7 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 		/*
 		**	command
 		*/
-		/* XXX JGibbs - Support other command types */
-		cp->phys.cmd.addr		= vtophys (csio->cdb_io.cdb_bytes);
+		cp->phys.cmd.addr		= vtophys (scsiio_cdb_ptr(csio));
 		cp->phys.cmd.size		= csio->cdb_len;
 		/*
 		**	sense command
@@ -4083,7 +4092,6 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 		*/
 		cp->sensecmd[0]			= 0x03;
 		cp->sensecmd[1]			= ccb->ccb_h.target_lun << 5;
-		cp->sensecmd[4]			= sizeof(struct scsi_sense_data);
 		cp->sensecmd[4]			= csio->sense_len;
 		/*
 		**	sense data

@@ -725,6 +725,13 @@ struct ccb_scsiio {
 	u_int	   init_id;		/* initiator id of who selected */
 };
 
+static __inline uint8_t *
+scsiio_cdb_ptr(struct ccb_scsiio *ccb)
+{
+	return ((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
+	    ccb->cdb_io.cdb_ptr : ccb->cdb_io.cdb_bytes);
+}
+
 /*
  * ATA I/O Request CCB used for the XPT_ATA_IO function code.
  */
