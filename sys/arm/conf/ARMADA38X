@@ -23,7 +23,6 @@ options 	SCHED_ULE		# ULE scheduler
 #options 	SCHED_4BSD		# 4BSD scheduler
 
 options 	SMP
-options 	ARM_INTRNG
 
 # Debugging
 #options 	DEBUG
