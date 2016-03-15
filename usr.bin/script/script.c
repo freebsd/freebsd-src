@@ -221,12 +221,18 @@ main(int argc, char *argv[])
 		warn("fork");
 		done(1);
 	}
-	if (child == 0)
-		doshell(argv);
-	close(slave);
+	if (child == 0) {
+		if (fflg) {
+			int pid;
 
-	if (fflg && ioctl(fm_fd, FILEMON_SET_PID, &child) < 0)
-		err(1, "Cannot set filemon PID");
+			pid = getpid();
+			if (ioctl(fm_fd, FILEMON_SET_PID, &pid) < 0)
+				err(1, "Cannot set filemon PID");
+		}
+
+		doshell(argv);
+	}
+	close(slave);
 
 	start = tvec = time(0);
 	readstdin = 1;
