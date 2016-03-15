@@ -8024,6 +8024,7 @@ OLD_FILES+=usr/share/examples/libusb20/control.c
 OLD_FILES+=usr/share/examples/libusb20/util.c
 OLD_FILES+=usr/share/examples/libusb20/util.h
 OLD_DIRS+=usr/share/examples/libusb20
+OLD_FILES+=usr/share/firmware/ar5523.bin
 OLD_FILES+=usr/share/man/man1/uhsoctl.1.gz
 OLD_FILES+=usr/share/man/man1/usbhidaction.1.gz
 OLD_FILES+=usr/share/man/man1/usbhidctl.1.gz

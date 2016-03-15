@@ -430,6 +430,8 @@
             uefisign
             ..
         ..
+        firmware
+        ..
         games
             fortune
             ..
