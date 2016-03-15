@@ -575,6 +575,7 @@ static devclass_t ofwgpiobus_devclass;
 
 DEFINE_CLASS_1(gpiobus, ofw_gpiobus_driver, ofw_gpiobus_methods,
     sizeof(struct gpiobus_softc), gpiobus_driver);
-DRIVER_MODULE(ofw_gpiobus, gpio, ofw_gpiobus_driver, ofwgpiobus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(ofw_gpiobus, gpio, ofw_gpiobus_driver, ofwgpiobus_devclass,
+    0, 0, BUS_PASS_BUS);
 MODULE_VERSION(ofw_gpiobus, 1);
 MODULE_DEPEND(ofw_gpiobus, gpiobus, 1, 1, 1);

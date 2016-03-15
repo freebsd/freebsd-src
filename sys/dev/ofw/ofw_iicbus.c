@@ -80,8 +80,10 @@ static devclass_t ofwiicbus_devclass;
 
 DEFINE_CLASS_1(iicbus, ofw_iicbus_driver, ofw_iicbus_methods,
     sizeof(struct iicbus_softc), iicbus_driver);
-DRIVER_MODULE(ofw_iicbus, iicbb, ofw_iicbus_driver, ofwiicbus_devclass, 0, 0);
-DRIVER_MODULE(ofw_iicbus, iichb, ofw_iicbus_driver, ofwiicbus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(ofw_iicbus, iicbb, ofw_iicbus_driver, ofwiicbus_devclass,
+    0, 0, BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(ofw_iicbus, iichb, ofw_iicbus_driver, ofwiicbus_devclass,
+    0, 0, BUS_PASS_BUS);
 MODULE_VERSION(ofw_iicbus, 1);
 MODULE_DEPEND(ofw_iicbus, iicbus, 1, 1, 1);
 
