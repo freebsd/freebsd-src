@@ -86,6 +86,7 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 	struct ISCI_REMOTE_DEVICE *isci_remote_device;
 	union ccb *ccb;
 	BOOL complete_ccb;
+	struct ccb_scsiio *csio;
 
 	complete_ccb = TRUE;
 	isci_controller = (struct ISCI_CONTROLLER *) sci_object_get_association(scif_controller);
@@ -93,7 +94,7 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 		(struct ISCI_REMOTE_DEVICE *) sci_object_get_association(remote_device);
 
 	ccb = isci_request->ccb;
-
+	csio = &ccb->csio;
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 
 	switch (completion_status) {
@@ -124,7 +125,6 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 		SCI_SSP_RESPONSE_IU_T * response_buffer;
 		uint32_t sense_length;
 		int error_code, sense_key, asc, ascq;
-		struct ccb_scsiio *csio = &ccb->csio;
 
 		response_buffer = (SCI_SSP_RESPONSE_IU_T *)
 		    scif_io_request_get_response_iu_address(
@@ -146,7 +146,7 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 		isci_log_message(1, "ISCI",
 		    "isci: bus=%x target=%x lun=%x cdb[0]=%x status=%x key=%x asc=%x ascq=%x\n",
 		    ccb->ccb_h.path_id, ccb->ccb_h.target_id,
-		    ccb->ccb_h.target_lun, csio->cdb_io.cdb_bytes[0],
+		    ccb->ccb_h.target_lun, scsiio_cdb_ptr(csio),
 		    csio->scsi_status, sense_key, asc, ascq);
 		break;
 	}
@@ -157,7 +157,7 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 		isci_log_message(0, "ISCI",
 		    "isci: bus=%x target=%x lun=%x cdb[0]=%x remote device reset required\n",
 		    ccb->ccb_h.path_id, ccb->ccb_h.target_id,
-		    ccb->ccb_h.target_lun, ccb->csio.cdb_io.cdb_bytes[0]);
+		    ccb->ccb_h.target_lun, scsiio_cdb_ptr(csio));
 		break;
 
 	case SCI_IO_FAILURE_TERMINATED:
@@ -165,7 +165,7 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 		isci_log_message(0, "ISCI",
 		    "isci: bus=%x target=%x lun=%x cdb[0]=%x terminated\n",
 		    ccb->ccb_h.path_id, ccb->ccb_h.target_id,
-		    ccb->ccb_h.target_lun, ccb->csio.cdb_io.cdb_bytes[0]);
+		    ccb->ccb_h.target_lun, scsiio_cdb_ptr(csio));
 		break;
 
 	case SCI_IO_FAILURE_INVALID_STATE:
@@ -208,7 +208,7 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 		isci_log_message(1, "ISCI",
 		    "isci: bus=%x target=%x lun=%x cdb[0]=%x completion status=%x\n",
 		    ccb->ccb_h.path_id, ccb->ccb_h.target_id,
-		    ccb->ccb_h.target_lun, ccb->csio.cdb_io.cdb_bytes[0],
+		    ccb->ccb_h.target_lun, scsiio_cdb_ptr(csio),
 		    completion_status);
 		ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
 		break;
@@ -285,13 +285,13 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 			 *   get a ready notification for this device.
 			 */
 			isci_log_message(1, "ISCI", "already queued %p %x\n",
-			    ccb, ccb->csio.cdb_io.cdb_bytes[0]);
+			    ccb, scsiio_cdb_ptr(csio));
 
 			isci_remote_device->queued_ccb_in_progress = NULL;
 
 		} else {
 			isci_log_message(1, "ISCI", "queue %p %x\n", ccb,
-			    ccb->csio.cdb_io.cdb_bytes[0]);
+			    scsiio_cdb_ptr(csio));
 			ccb->ccb_h.status |= CAM_SIM_QUEUED;
 
 			TAILQ_INSERT_TAIL(&isci_remote_device->queued_ccbs,
@@ -373,7 +373,7 @@ scif_cb_io_request_get_cdb_address(void * scif_user_io_request)
 	struct ISCI_IO_REQUEST *isci_request =
 	    (struct ISCI_IO_REQUEST *)scif_user_io_request;
 
-	return (isci_request->ccb->csio.cdb_io.cdb_bytes);
+	return (scsiio_cdb_ptr(&isci_request->ccb->csio));
 }
 
 /**
