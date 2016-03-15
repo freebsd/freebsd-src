@@ -1424,6 +1424,7 @@ dev/exca/exca.c			optional cbb
 dev/extres/clk/clk.c		optional ext_resources clk
 dev/extres/clk/clkdev_if.m	optional ext_resources clk
 dev/extres/clk/clknode_if.m	optional ext_resources clk
+dev/extres/clk/clk_bus.c	optional ext_resources clk fdt
 dev/extres/clk/clk_div.c	optional ext_resources clk
 dev/extres/clk/clk_fixed.c	optional ext_resources clk
 dev/extres/clk/clk_gate.c	optional ext_resources clk
