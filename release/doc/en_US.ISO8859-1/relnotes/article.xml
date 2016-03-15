@@ -210,7 +210,7 @@
 
       <para revision="293744" contrib="sponsor" sponsor="&ff;">The
 	initial implementation of <quote>reroot</quote> support has
-	been added to the &man.shutdown.8; utility, allowing the root
+	been added to the &man.reboot.8; utility, allowing the root
 	filesystem to be mounted from a temporary source filesystem
 	without requiring a full system reboot.</para>
     </sect2>
