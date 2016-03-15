@@ -1114,9 +1114,9 @@ callout_schedule(struct callout *c, int to_ticks)
 }
 
 int
-_callout_stop_safe(c, safe)
+_callout_stop_safe(c, flags)
 	struct	callout *c;
-	int	safe;
+	int	flags;
 {
 	struct callout_cpu *cc, *old_cc;
 	struct lock_class *class;
@@ -1127,7 +1127,7 @@ _callout_stop_safe(c, safe)
 	 * Some old subsystems don't hold Giant while running a callout_stop(),
 	 * so just discard this check for the moment.
 	 */
-	if (!safe && c->c_lock != NULL) {
+	if ((flags & CS_DRAIN) == 0 && c->c_lock != NULL) {
 		if (c->c_lock == &Giant.lock_object)
 			use_lock = mtx_owned(&Giant);
 		else {
@@ -1207,7 +1207,7 @@ again:
 			return (0);
 		}
 
-		if (safe) {
+		if ((flags & CS_DRAIN) != 0) {
 			/*
 			 * The current callout is running (or just
 			 * about to run) and blocking is allowed, so
@@ -1319,7 +1319,7 @@ again:
 			CTR3(KTR_CALLOUT, "postponing stop %p func %p arg %p",
 			    c, c->c_func, c->c_arg);
 			CC_UNLOCK(cc);
-			return (0);
+			return ((flags & CS_MIGRBLOCK) != 0);
 		}
 		CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
 		    c, c->c_func, c->c_arg);

@@ -572,7 +572,8 @@ sleepq_check_timeout(void)
 	 * another CPU, so synchronize with it to avoid having it
 	 * accidentally wake up a subsequent sleep.
 	 */
-	else if (callout_stop(&td->td_slpcallout) == 0) {
+	else if (_callout_stop_safe(&td->td_slpcallout, CS_MIGRBLOCK)
+	    == 0) {
 		td->td_flags |= TDF_TIMEOUT;
 		TD_SET_SLEEPING(td);
 		mi_switch(SW_INVOL | SWT_SLEEPQTIMO, NULL);
