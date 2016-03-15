@@ -1883,7 +1883,7 @@ tcp_attach(struct socket *so)
 	tp->t_state = TCPS_CLOSED;
 	INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
-	TCPSTAT_INC(tcps_states[TCPS_CLOSED]);
+	TCPSTATES_INC(TCPS_CLOSED);
 	return (0);
 }
 
