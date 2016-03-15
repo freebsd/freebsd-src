@@ -2141,7 +2141,7 @@ mfi_build_syspdio(struct mfi_softc *sc, struct bio *bio)
 	pass = &cm->cm_frame->pass;
 	bzero(pass->cdb, 16);
 	pass->header.cmd = MFI_CMD_PD_SCSI_IO;
-	switch (bio->bio_cmd & 0x03) {
+	switch (bio->bio_cmd) {
 	case BIO_READ:
 		flags = MFI_CMD_DATAIN | MFI_CMD_BIO;
 		readop = 1;
@@ -2200,7 +2200,7 @@ mfi_build_ldio(struct mfi_softc *sc, struct bio *bio)
 	bzero(cm->cm_frame, sizeof(union mfi_frame));
 	cm->cm_frame->header.context = context;
 	io = &cm->cm_frame->io;
-	switch (bio->bio_cmd & 0x03) {
+	switch (bio->bio_cmd) {
 	case BIO_READ:
 		io->header.cmd = MFI_CMD_LD_READ;
 		flags = MFI_CMD_DATAIN | MFI_CMD_BIO;
