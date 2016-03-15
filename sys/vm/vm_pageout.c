@@ -1039,8 +1039,7 @@ requeue_page:
 			if (error == 0) {
 				launder -= numpagedout;
 				maxscan -= numpagedout - 1;
-			}
-			else if (error == EDEADLK) {
+			} else if (error == EDEADLK) {
 				pageout_lock_miss++;
 				vnodes_skipped++;
 			}
