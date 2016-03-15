@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #define	MPIC_INT_ERR			4
 #define	MPIC_INT_MSI			96
 
-#define	IRQ_MASK		0x3ff
+#define	MPIC_IRQ_MASK		0x3ff
 
 #define	MPIC_CTRL		0x0
 #define	MPIC_SOFT_INT		0x4
@@ -409,10 +409,10 @@ arm_get_next_irq(int last)
 {
 	u_int irq, next = -1;
 
-	irq = mv_mpic_get_cause() & IRQ_MASK;
+	irq = mv_mpic_get_cause() & MPIC_IRQ_MASK;
 	CTR2(KTR_INTR, "%s: irq:%#x", __func__, irq);
 
-	if (irq != IRQ_MASK) {
+	if (irq != MPIC_IRQ_MASK) {
 		if (irq == MPIC_INT_ERR)
 			irq = mv_mpic_get_cause_err();
 		if (irq == MPIC_INT_MSI)
