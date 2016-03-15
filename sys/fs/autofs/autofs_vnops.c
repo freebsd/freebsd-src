@@ -370,8 +370,10 @@ static size_t
 autofs_dirent_reclen(const char *name)
 {
 	size_t reclen;
+	int error;
 
-	autofs_readdir_one(NULL, name, -1, &reclen);
+	error = autofs_readdir_one(NULL, name, -1, &reclen);
+	KASSERT(error == 0, ("autofs_readdir_one() failed"));
 
 	return (reclen);
 }
