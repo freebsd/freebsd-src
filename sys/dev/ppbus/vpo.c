@@ -187,17 +187,19 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 #ifdef VP0_DEBUG
 	int i;
 #endif
+	uint8_t *ptr;
 
+	ptr = scsiio_cdb_ptr(csio);
 	if (vpo->vpo_isplus) {
 		errno = imm_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
 			csio->ccb_h.target_id,
-			(char *)&csio->cdb_io.cdb_bytes, csio->cdb_len,
+			ptr, csio->cdb_len,
 			(char *)csio->data_ptr, csio->dxfer_len,
 			&vpo->vpo_stat, &vpo->vpo_count, &vpo->vpo_error);
 	} else {
 		errno = vpoio_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
 			csio->ccb_h.target_id,
-			(char *)&csio->cdb_io.cdb_bytes, csio->cdb_len,
+			ptr, csio->cdb_len,
 			(char *)csio->data_ptr, csio->dxfer_len,
 			&vpo->vpo_stat, &vpo->vpo_count, &vpo->vpo_error);
 	}
@@ -208,7 +210,7 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 
 	/* dump of command */
 	for (i=0; i<csio->cdb_len; i++)
-		printf("%x ", ((char *)&csio->cdb_io.cdb_bytes)[i]);
+		printf("%x ", ((char *)ptr)[i]);
 
 	printf("\n");
 #endif
@@ -307,11 +309,15 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 
 		csio = &ccb->csio;
 
+		if (ccb->ccb_h.flags & CAM_CDB_PHYS) {
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			xpt_done(ccb);
+			break;
+		}
 #ifdef VP0_DEBUG
 		device_printf(vpo->vpo_dev, "XPT_SCSI_IO (0x%x) request\n",
-			csio->cdb_io.cdb_bytes[0]);
+		    scsiio_cdb_ptr(csio));
 #endif
-
 		vpo_intr(vpo, csio);
 
 		xpt_done(ccb);
