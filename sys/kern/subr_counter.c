@@ -106,6 +106,7 @@ sysctl_handle_counter_u64_array(SYSCTL_HANDLER_ARGS)
 		out[i] = counter_u64_fetch(((counter_u64_t *)arg1)[i]);
 
 	error = SYSCTL_OUT(req, out, arg2 * sizeof(uint64_t));
+	free(out, M_TEMP);
 
 	if (error || !req->newptr)
 		return (error);
