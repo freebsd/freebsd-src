@@ -196,6 +196,7 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 		VI_UNLOCK(vp);
 		vrele(vp);
 		vfs_unbusy(mp);
+		vfs_freeopts(mp->mnt_optnew);
 		vfs_mount_destroy(mp);
 		*vpp = NULL;
 		return (error);
