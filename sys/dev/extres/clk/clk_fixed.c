@@ -42,13 +42,9 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/extres/clk/clk_fixed.h>
 
-#define	DEVICE_LOCK(_sc)      mtx_lock((_sc)->mtx)
-#define	DEVICE_UNLOCK(_sc)    mtx_unlock((_sc)->mtx)
-
 static int clknode_fixed_init(struct clknode *clk, device_t dev);
 static int clknode_fixed_recalc(struct clknode *clk, uint64_t *freq);
 struct clknode_fixed_sc {
-	struct mtx	*mtx;
 	int		fixed_flags;
 	uint64_t	freq;
 	uint32_t	mult;
@@ -74,6 +70,7 @@ clknode_fixed_init(struct clknode *clk, device_t dev)
 		clknode_init_parent_idx(clk, 0);
 	return(0);
 }
+
 static int
 clknode_fixed_recalc(struct clknode *clk, uint64_t *freq)
 {
@@ -90,8 +87,7 @@ clknode_fixed_recalc(struct clknode *clk, uint64_t *freq)
 }
 
 int
-clknode_fixed_register(struct clkdom *clkdom, struct clk_fixed_def *clkdef,
-    struct mtx *dev_mtx)
+clknode_fixed_register(struct clkdom *clkdom, struct clk_fixed_def *clkdef)
 {
 	struct clknode *clk;
 	struct clknode_fixed_sc *sc;
@@ -103,7 +99,6 @@ clknode_fixed_register(struct clkdom *clkdom, struct clk_fixed_def *clkdef,
 		return (1);
 
 	sc = clknode_get_softc(clk);
-	sc->mtx = dev_mtx;
 	sc->fixed_flags = clkdef->fixed_flags;
 	sc->freq = clkdef->freq;
 	sc->mult = clkdef->mult;
