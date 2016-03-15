@@ -49,7 +49,6 @@ extern void __start(char **, void (*)(void), struct Struct_Obj_Entry *,
                     struct ps_strings *);
 void _start1(char **, void (*)(void), struct Struct_Obj_Entry *,
              struct ps_strings *);
-extern void crt_sb_constructors(void);
 
 #ifdef GCRT
 /* Profiling support. */

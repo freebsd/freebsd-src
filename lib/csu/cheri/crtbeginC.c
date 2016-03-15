@@ -34,7 +34,7 @@
 #include <stdlib.h>
 
 void	crt_init_globals(void);
-void	crt_sb_constructors(void);
+void	crt_call_constructors(void);
 
 /*
  * In version 3 of the CHERI sandbox ABI, function pointers are capabilities.
@@ -90,7 +90,7 @@ extern mips_function_ptr __DTOR_END__;
  * that changes, this might need to become more capability-appropriate.
  */
 void
-crt_sb_constructors(void)
+crt_call_constructors(void)
 {
 	mips_function_ptr *func;
 

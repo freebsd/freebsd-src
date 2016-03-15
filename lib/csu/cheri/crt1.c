@@ -61,7 +61,7 @@ struct ps_strings;
 
 void __start(struct cheriabi_execdata *, void (*)(void),
     struct Struct_Obj_Entry *);
-extern void crt_sb_constructors(void);
+extern void crt_call_constructors(void);
 
 #ifdef GCRT
 /* Profiling support. */
@@ -153,7 +153,7 @@ __start(struct cheriabi_execdata *ce,
 	else
 		_init_tls();
 
-	crt_sb_constructors();
+	crt_call_constructors();
 
 #ifdef GCRT
 	/* Set up profiling support for the program, if we're being compiled

@@ -152,7 +152,7 @@ constructors:
 	# above, set $v0 to indicate success, and scrub $v1/$c3 before
 	# returning.
 	#
-	dla	$t9, crt_sb_constructors
+	dla	$t9, crt_call_constructors
 	abicall	$t9
 
 	#
