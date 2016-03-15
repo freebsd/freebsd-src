@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <libxo/xo.h>
 #include "netstat.h"
+#include "nl_defs.h"
 
 char	*inetname(struct in_addr *);
 void	inetprint(const char *, struct in_addr *, int, const char *, int,
@@ -638,6 +639,7 @@ void
 tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct tcpstat tcpstat;
+	uint64_t tcps_states[TCP_NSTATES];
 
 #ifdef INET6
 	if (tcp_done != 0)
@@ -648,6 +650,10 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 
 	if (fetch_stats("net.inet.tcp.stats", off, &tcpstat,
 	    sizeof(tcpstat), kread_counters) != 0)
+		return;
+
+	if (fetch_stats_ro("net.inet.tcp.states", nl[N_TCPS_STATES].n_value,
+	    &tcps_states, sizeof(tcps_states), kread_counters) != 0)
 		return;
 
 	xo_open_container("tcp");
@@ -853,6 +859,28 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
  #undef p2a
  #undef p3
 	xo_close_container("ecn");
+
+	xo_open_container("TCP connection count by state");
+	xo_emit("{T:/TCP connection count by state}:\n");
+	for (int i = 0; i < TCP_NSTATES; i++) {
+		/*
+		 * XXXGL: is there a way in libxo to use %s
+		 * in the "content string" of a format
+		 * string? I failed to do that, that's why
+		 * a temporary buffer is used to construct
+		 * format string for xo_emit().
+		 */
+		char fmtbuf[80];
+
+		if (sflag > 1 && tcps_states[i] == 0)
+			continue;
+		snprintf(fmtbuf, sizeof(fmtbuf), "\t{:%s/%%ju} "
+                    "{Np:/connection ,connections} in %s state\n",
+		    tcpstates[i], tcpstates[i]);
+		xo_emit(fmtbuf, (uintmax_t )tcps_states[i]);
+	}
+	xo_close_container("TCP connection count by state");
+
 	xo_close_container("tcp");
 }
 
