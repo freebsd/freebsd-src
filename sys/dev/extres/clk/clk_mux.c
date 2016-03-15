@@ -46,6 +46,10 @@ __FBSDID("$FreeBSD$");
 	CLKDEV_READ_4(clknode_get_device(_clk), off, val)
 #define	MD4(_clk, off, clr, set )					\
 	CLKDEV_MODIFY_4(clknode_get_device(_clk), off, clr, set)
+#define	DEVICE_LOCK(_clk)							\
+	CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
+#define	DEVICE_UNLOCK(_clk)						\
+	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
 static int clknode_mux_init(struct clknode *clk, device_t dev);
 static int clknode_mux_set_mux(struct clknode *clk, int idx);
@@ -76,9 +80,12 @@ clknode_mux_init(struct clknode *clk, device_t dev)
 
 	sc = clknode_get_softc(clk);
 
+	DEVICE_LOCK(clk);
 	rv = RD4(clk, sc->offset, &reg);
-	if (rv != 0)
+	DEVICE_UNLOCK(clk);
+	if (rv != 0) {
 		return (rv);
+	}
 	reg = (reg >> sc->shift) & sc->mask;
 	clknode_init_parent_idx(clk, reg);
 	return(0);
@@ -93,11 +100,16 @@ clknode_mux_set_mux(struct clknode *clk, int idx)
 
 	sc = clknode_get_softc(clk);
 
+	DEVICE_LOCK(clk);
 	rv = MD4(clk, sc->offset, sc->mask << sc->shift,
 	    (idx & sc->mask) << sc->shift);
-	if (rv != 0)
+	if (rv != 0) {
+		DEVICE_UNLOCK(clk);
 		return (rv);
+	}
 	RD4(clk, sc->offset, &reg);
+	DEVICE_UNLOCK(clk);
+
 	return(0);
 }
 

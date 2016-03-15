@@ -30,6 +30,23 @@
 
 INTERFACE clkdev;
 
+CODE {
+	#include <sys/systm.h>
+	static void
+	clkdev_default_device_lock(device_t dev)
+	{
+
+		panic("clkdev_device_lock() is not implemented");
+	}
+
+	static void
+	clkdev_default_device_unlock(device_t dev)
+	{
+
+		panic("clkdev_device_unlock() is not implemented");
+	}
+}
+
 #
 # Write single register
 #
@@ -57,3 +74,17 @@ METHOD int modify_4 {
 	uint32_t	clear_mask;
 	uint32_t	set_mask;
 };
+
+#
+# Get exclusive access to underlying device
+#
+METHOD void device_lock {
+	device_t	dev;
+} DEFAULT clkdev_default_device_lock;
+
+#
+# Release exclusive access to underlying device
+#
+METHOD void device_unlock {
+	device_t	dev;
+} DEFAULT clkdev_default_device_unlock;
