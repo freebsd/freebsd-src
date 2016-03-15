@@ -231,7 +231,7 @@ stage_files.shlib: ${_LIBS:M*.so.*}
 .endif
 
 .if defined(SHLIB_LINK) && commands(${SHLIB_LINK:R}.ld)
-_LDSCRIPTROOT?= ${STAGE_OBJTOP}
+#_LDSCRIPTROOT?= ${STAGE_OBJTOP}
 STAGE_AS_SETS+= ldscript
 STAGE_AS.ldscript+= ${SHLIB_LINK:R}.ld
 stage_as.ldscript: ${SHLIB_LINK:R}.ld
