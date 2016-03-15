@@ -46,7 +46,7 @@ svr4_assym.h			optional	compat_svr4		\
 	clean		"svr4_assym.h"
 #
 ukbdmap.h			optional	ukbd_dflt_keymap	\
-	compile-with	"unset KEYMAP_PATH; for kmpath in ${S:S/sys$/share/}/vt/keymaps ${S:S/sys$/share/}/syscons/keymaps; do kmapfile=$${kmpath}/${ATKBD_DFLT_KEYMAP:C/\.kbd$$//}.kbd; if [ -r $${kmapfile} ]; then KEYMAP_PATH=$${kmpath}; fi; done; if [ X$${KEYMAP_PATH} != X ]; then env KEYMAP_PATH=$${KEYMAP_PATH} /usr/sbin/kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h; else echo Error:	ukbd_dflt_keymap not found; exit 1; fi"			\
+	compile-with	"unset KEYMAP_PATH; for kmpath in ${S:S/sys$/share/}/vt/keymaps ${S:S/sys$/share/}/syscons/keymaps; do kmapfile=$${kmpath}/${UKBD_DFLT_KEYMAP:C/\.kbd$$//}.kbd; if [ -r $${kmapfile} ]; then KEYMAP_PATH=$${kmpath}; fi; done; if [ X$${KEYMAP_PATH} != X ]; then env KEYMAP_PATH=$${KEYMAP_PATH} /usr/sbin/kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h; else echo Error:	ukbd_dflt_keymap not found; exit 1; fi"			\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
