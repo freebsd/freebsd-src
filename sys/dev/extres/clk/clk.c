@@ -1258,4 +1258,75 @@ clk_get_by_ofw_name(device_t dev, const char *name, clk_t *clk)
 		return (rv);
 	return (clk_get_by_ofw_index(dev, idx, clk));
 }
+
+/* --------------------------------------------------------------------------
+ *
+ * Support functions for parsing various clock related OFW things.
+ */
+
+/*
+ * Get "clock-output-names" and  (optional) "clock-indices" lists.
+ * Both lists are alocated using M_OFWPROP specifier.
+ *
+ * Returns number of items or 0.
+ */
+int
+clk_parse_ofw_out_names(device_t dev, phandle_t node, const char ***out_names,
+	uint32_t *indices)
+{
+	int name_items, rv;
+
+	*out_names = NULL;
+	indices = NULL;
+	if (!OF_hasprop(node, "clock-output-names"))
+		return (0);
+	rv = ofw_bus_string_list_to_array(node, "clock-output-names",
+	    out_names);
+	if (rv <= 0)
+		return (0);
+	name_items = rv;
+
+	if (!OF_hasprop(node, "clock-indices"))
+		return (name_items);
+	rv = OF_getencprop_alloc(node, "clock-indices", sizeof (uint32_t),
+	    (void **)indices);
+	if (rv != name_items) {
+		device_printf(dev, " Size of 'clock-output-names' and "
+		    "'clock-indices' differs\n");
+		free(*out_names, M_OFWPROP);
+		free(indices, M_OFWPROP);
+		return (0);
+	}
+	return (name_items);
+}
+
+/*
+ * Get output clock name for single output clock node.
+ */
+int
+clk_parse_ofw_clk_name(device_t dev, phandle_t node, const char **name)
+{
+	const char **out_names;
+	const char  *tmp_name;
+	int rv;
+
+	*name = NULL;
+	if (!OF_hasprop(node, "clock-output-names")) {
+		tmp_name  = ofw_bus_get_name(dev);
+		if (tmp_name == NULL)
+			return (ENXIO);
+		*name = strdup(tmp_name, M_OFWPROP);
+		return (0);
+	}
+	rv = ofw_bus_string_list_to_array(node, "clock-output-names",
+	    &out_names);
+	if (rv != 1) {
+		free(out_names, M_OFWPROP);
+		device_printf(dev, "Malformed 'clock-output-names' property\n");
+		return (ENXIO);
+	}
+	*name = strdup(out_names[0], M_OFWPROP);
+	free(out_names, M_OFWPROP);
+	return (0);
+}
 #endif
