@@ -88,6 +88,7 @@ log_common(int priority, int log_errno, const char *fmt, va_list ap)
 {
 	static char msgbuf[MSGBUF_LEN];
 	static char msgbuf_strvised[MSGBUF_LEN * 4 + 1];
+	char *errstr;
 	int ret;
 
 	ret = vsnprintf(msgbuf, sizeof(msgbuf), fmt, ap);
@@ -121,21 +122,23 @@ log_common(int priority, int log_errno, const char *fmt, va_list ap)
 		}
 
 	} else {
+		errstr = strerror(log_errno);
+
 		if (peer_name != NULL) {
 			fprintf(stderr, "%s: %s (%s): %s: %s\n", getprogname(),
-			    peer_addr, peer_name, msgbuf_strvised, strerror(errno));
+			    peer_addr, peer_name, msgbuf_strvised, errstr);
 			syslog(priority, "%s (%s): %s: %s",
-			    peer_addr, peer_name, msgbuf_strvised, strerror(errno));
+			    peer_addr, peer_name, msgbuf_strvised, errstr);
 		} else if (peer_addr != NULL) {
 			fprintf(stderr, "%s: %s: %s: %s\n", getprogname(),
-			    peer_addr, msgbuf_strvised, strerror(errno));
+			    peer_addr, msgbuf_strvised, errstr);
 			syslog(priority, "%s: %s: %s",
-			    peer_addr, msgbuf_strvised, strerror(errno));
+			    peer_addr, msgbuf_strvised, errstr);
 		} else {
 			fprintf(stderr, "%s: %s: %s\n", getprogname(),
-			    msgbuf_strvised, strerror(errno));
+			    msgbuf_strvised, errstr);
 			syslog(priority, "%s: %s",
-			    msgbuf_strvised, strerror(errno));
+			    msgbuf_strvised, errstr);
 		}
 	}
 }
