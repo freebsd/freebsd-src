@@ -30,6 +30,12 @@ CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
 CFLAGS+= -DDISK_DEBUG
 .endif
 
+.if !defined(LOADER_NO_GELI_SUPPORT)
+# Decrypt encrypted drives
+CFLAGS+= -DLOADER_GELI_SUPPORT
+CFLAGS+= -I${.CURDIR}/../../geli
+.endif
+
 .if !defined(BOOT_HIDE_SERIAL_NUMBERS)
 # Export serial numbers, UUID, and asset tag from loader.
 CFLAGS+= -DSMBIOS_SERIAL_NUMBERS
