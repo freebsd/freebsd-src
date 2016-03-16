@@ -3087,6 +3087,9 @@ iename(int elemid)
 	case IEEE80211_ELEMID_APCHANREP:return " APCHANREP";
 	case IEEE80211_ELEMID_TPC:	return " TPC";
 	case IEEE80211_ELEMID_CCKM:	return " CCKM";
+	case IEEE80211_ELEMID_VHT_CAP:	return " VHTCAP";
+	case IEEE80211_ELEMID_VHT_OPMODE:	return " VHTOPMODE";
+	case IEEE80211_ELEMID_VHT_PWR_ENV:	return " VHTPWRENV";
 	}
 	return " ???";
 }
