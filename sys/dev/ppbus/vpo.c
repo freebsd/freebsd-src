@@ -316,7 +316,7 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 		}
 #ifdef VP0_DEBUG
 		device_printf(vpo->vpo_dev, "XPT_SCSI_IO (0x%x) request\n",
-		    scsiio_cdb_ptr(csio));
+		    *scsiio_cdb_ptr(csio));
 #endif
 		vpo_intr(vpo, csio);
 
