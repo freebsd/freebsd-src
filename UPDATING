@@ -11,6 +11,12 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20160316	p39	FreeBSD-SA-16:14.openssh-xauth
+			FreeBSD-SA-16:15.sysarch
+
+	Fix OpenSSH xauth(1) command injection. [SA-16:14]
+	Fix incorrect argument validation in sysarch(2). [SA-16:15]
+
 20160310	p38	FreeBSD-SA-16:13.bind
 			FreeBSD-SA-16:12.openssl [revised]
 
