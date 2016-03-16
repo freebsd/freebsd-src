@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/sbuf.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/malloc.h>
@@ -68,12 +69,52 @@ ieee80211_ratectl_unregister(int type)
 	ratectls[type] = NULL;
 }
 
+static void
+ieee80211_ratectl_sysctl_stats_node_iter(void *arg, struct ieee80211_node *ni)
+{
+
+	struct sbuf *sb = (struct sbuf *) arg;
+	sbuf_printf(sb, "MAC: %6D\n", ni->ni_macaddr, ":");
+	ieee80211_ratectl_node_stats(ni, sb);
+	sbuf_printf(sb, "\n");
+}
+
+static int
+ieee80211_ratectl_sysctl_stats(SYSCTL_HANDLER_ARGS)
+{
+	struct ieee80211vap *vap = arg1;
+	struct ieee80211com *ic = vap->iv_ic;
+	struct sbuf sb;
+	int error;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error)
+		return (error);
+	sbuf_new_for_sysctl(&sb, NULL, 8, req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
+
+	IEEE80211_LOCK(ic);
+	ieee80211_iterate_nodes(&ic->ic_sta,
+	    ieee80211_ratectl_sysctl_stats_node_iter,
+	    &sb);
+	IEEE80211_UNLOCK(ic);
+
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	return (error);
+}
+
 void
 ieee80211_ratectl_init(struct ieee80211vap *vap)
 {
 	if (vap->iv_rate == ratectls[IEEE80211_RATECTL_NONE])
 		ieee80211_ratectl_set(vap, IEEE80211_RATECTL_AMRR);
 	vap->iv_rate->ir_init(vap);
+
+	/* Attach generic stats sysctl */
+	SYSCTL_ADD_PROC(vap->iv_sysctl, SYSCTL_CHILDREN(vap->iv_oid), OID_AUTO,
+	    "rate_stats", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, vap,
+	    0, ieee80211_ratectl_sysctl_stats, "A", "ratectl node stats");
 }
 
 void
