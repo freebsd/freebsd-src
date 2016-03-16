@@ -25,13 +25,13 @@
 	filterMode = fragmentation, mpshittype, protocol, vlan, port, fcoe
 	filterMask = protocol, fcoe
 
-	tp_pmrx = 38, 512
+	tp_pmrx = 36, 512
 	tp_pmrx_pagesize = 64K
 
 	# TP number of RX channels (0 = auto)
 	tp_nrxch = 0
 
-	tp_pmtx = 60, 512
+	tp_pmtx = 46, 512
 	tp_pmtx_pagesize = 64K
 
 	# TP number of TX channels (0 = auto)
@@ -92,10 +92,14 @@
 	pmask = all
 
 	# driver will mask off features it won't use
-	protocol = ofld
+	protocol = ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu
 
 	tp_l2t = 4096
 	tp_ddp = 2
+	tp_ddp_iscsi = 2
+	tp_stag = 2
+	tp_pbl = 5
+	tp_rq = 7
 
 	# TCAM has 8K cells; each region must start at a multiple of 128 cell.
 	# Each entry in these categories takes 4 cells each.  nhash will use the
@@ -167,7 +171,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0x5a34a3ce
+	checksum = 0x76b034e0
 #
 # $FreeBSD$
 #
