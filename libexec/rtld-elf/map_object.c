@@ -39,7 +39,6 @@
 #include "rtld.h"
 
 static Elf_Ehdr *get_elf_header(int, const char *);
-static int convert_prot(int);	/* Elf flags -> mmap protection */
 static int convert_flags(int); /* Elf flags -> mmap flags */
 
 /*
@@ -439,7 +438,7 @@ obj_new(void)
  * Given a set of ELF protection flags, return the corresponding protection
  * flags for MMAP.
  */
-static int
+int
 convert_prot(int elfflags)
 {
     int prot = 0;
