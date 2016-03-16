@@ -346,6 +346,7 @@ struct ieee80211_action {
 #define	IEEE80211_ACTION_CAT_MESH	13	/* Mesh */
 #define	IEEE80211_ACTION_CAT_SELF_PROT	15	/* Self-protected */
 /* 16 - 125 reserved */
+#define	IEEE80211_ACTION_VHT		21
 #define	IEEE80211_ACTION_CAT_VENDOR	127	/* Vendor Specific */
 
 #define	IEEE80211_ACTION_HT_TXCHWIDTH	0	/* recommended xmit chan width*/
@@ -760,6 +761,11 @@ enum {
 	IEEE80211_ELEMID_MESHPXU	= 137,
 	IEEE80211_ELEMID_MESHPXUC	= 138,
 	IEEE80211_ELEMID_MESHAH		= 60, /* XXX: remove */
+
+	/* 802.11ac */
+	IEEE80211_ELEMID_VHT_CAP	= 191,
+	IEEE80211_ELEMID_VHT_OPMODE	= 192,
+	IEEE80211_ELEMID_VHT_PWR_ENV	= 195,
 };
 
 struct ieee80211_tim_ie {
