@@ -107,5 +107,9 @@ int	sleepq_type(void *wchan);
 void	sleepq_wait(void *wchan, int pri);
 int	sleepq_wait_sig(void *wchan, int pri);
 
+#include <sys/sbuf.h>
+int sleepq_sbuf_print_stacks(struct sbuf *sb, void *wchan, int queue,
+    int *count_stacks_printed);
+
 #endif	/* _KERNEL */
 #endif	/* !_SYS_SLEEPQUEUE_H_ */
