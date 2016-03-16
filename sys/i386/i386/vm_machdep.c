@@ -159,8 +159,8 @@ get_pcb_user_save_td(struct thread *td)
 {
 	vm_offset_t p;
 	p = td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
-	    cpu_max_ext_state_size;
-	KASSERT((p % 64) == 0, ("Unaligned pcb_user_save area"));
+	    roundup2(cpu_max_ext_state_size, XSAVE_AREA_ALIGN);
+	KASSERT((p % XSAVE_AREA_ALIGN) == 0, ("Unaligned pcb_user_save area"));
 	return ((union savefpu *)p);
 }
 
@@ -179,7 +179,8 @@ get_pcb_td(struct thread *td)
 	vm_offset_t p;
 
 	p = td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
-	    cpu_max_ext_state_size - sizeof(struct pcb);
+	    roundup2(cpu_max_ext_state_size, XSAVE_AREA_ALIGN) -
+	    sizeof(struct pcb);
 	return ((struct pcb *)p);
 }
 
