@@ -39,6 +39,8 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
 options 	VFP			# Enable floating point hardware support
 
+options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
+
 # DTrace support
 options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	DDB_CTF			# all architectures - kernel ELF linker loads CTF data

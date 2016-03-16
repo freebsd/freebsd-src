@@ -2,4 +2,5 @@
 #
 # $FreeBSD$
 
+options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
 
