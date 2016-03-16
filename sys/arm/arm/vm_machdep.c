@@ -191,11 +191,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		register_t code = ap[_QUAD_LOWWORD];
 		if (td->td_proc->p_sysent->sv_mask)
 			code &= td->td_proc->p_sysent->sv_mask;
-		fixup = (
-#if defined(COMPAT_FREEBSD6) && defined(SYS_freebsd6_lseek)
-		    code != SYS_freebsd6_lseek &&
-#endif
-		    code != SYS_lseek) ? 1 : 0;
+		fixup = (code != SYS_lseek);
 	}
 #endif
 
