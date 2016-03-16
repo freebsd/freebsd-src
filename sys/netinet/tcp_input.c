@@ -243,7 +243,7 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_tcp, TCPCTL_STATS, stats, struct tcpstat,
     tcpstat, "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
 VNET_DEFINE(counter_u64_t, tcps_states[TCP_NSTATES]);
 SYSCTL_COUNTER_U64_ARRAY(_net_inet_tcp, TCPCTL_STATES, states, CTLFLAG_RD |
-    CTLFLAG_VNET, &VNET_NAME(tcps_states), TCP_NSTATES,
+    CTLFLAG_VNET, &VNET_NAME(tcps_states)[0], TCP_NSTATES,
     "TCP connection counts by TCP state");
 
 static void
