@@ -654,8 +654,10 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	SYSCTL_OID(parent, nbr, name,					\
 	    CTLTYPE_OPAQUE | CTLFLAG_MPSAFE | (access),			\
 	    (ptr), (len), sysctl_handle_counter_u64_array, "S", descr);	\
-	CTASSERT(((access) & CTLTYPE) == 0 ||				\
-	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_OPAQUE)
+	CTASSERT((((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_OPAQUE) &&	\
+	    sizeof(counter_u64_t) == sizeof(*(ptr)) &&			\
+	    sizeof(uint64_t) == sizeof(**(ptr)))
 
 #define	SYSCTL_ADD_COUNTER_U64_ARRAY(ctx, parent, nbr, name, access,	\
     ptr, len, descr)							\

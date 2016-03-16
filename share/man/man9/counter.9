@@ -215,6 +215,16 @@ amd64 single-instruction implementation.
 On some architectures updating a counter require a
 .Xr critical 9
 section.
+.Sh EXAMPLES
+The following example creates a static counter array exported to
+userspace through a sysctl:
+.Bd -literal -offset indent
+#define MY_SIZE 8
+static counter_u64_t array[MY_SIZE];
+SYSCTL_COUNTER_U64_ARRAY(_debug, OID_AUTO, counter_array, CTLFLAG_RW,
+    &array[0], MY_SIZE, "Test counter array");
+.Ed
+.Pp
 .Sh SEE ALSO
 .Xr atomic 9 ,
 .Xr critical 9 ,
