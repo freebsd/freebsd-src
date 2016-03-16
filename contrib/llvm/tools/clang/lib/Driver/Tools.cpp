@@ -5777,7 +5777,7 @@ void freebsd::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
     }
   } else if (getToolChain().getArch() == llvm::Triple::arm ||
              getToolChain().getArch() == llvm::Triple::thumb) {
-    CmdArgs.push_back("-mfpu=softvfp");
+    CmdArgs.push_back("-mfpu=vfpv3");
     switch(getToolChain().getTriple().getEnvironment()) {
     case llvm::Triple::GNUEABI:
     case llvm::Triple::EABI:
