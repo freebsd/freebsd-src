@@ -591,8 +591,8 @@ amd64_set_ldt(td, uap, descs)
 	struct i386_ldt_args *uap;
 	struct user_segment_descriptor *descs;
 {
-	int error = 0, i;
-	int largest_ld;
+	int error = 0;
+	unsigned int largest_ld, i;
 	struct mdproc *mdp = &td->td_proc->p_md;
 	struct proc_ldt *pldt;
 	struct user_segment_descriptor *dp;
