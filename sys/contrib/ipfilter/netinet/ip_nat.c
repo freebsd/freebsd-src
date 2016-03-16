@@ -3956,7 +3956,7 @@ u_32_t nflags;
 			fix_outcksum(fin, &fin->fin_ip->ip_sum, sumd);
 		}
 #if !defined(_KERNEL) || defined(MENTAT) || defined(__sgi) || \
-    defined(linux) || defined(BRIDGE_IPF)
+    defined(linux) || defined(BRIDGE_IPF) || defined(__FreeBSD__)
 		else {
 			/*
 			 * Strictly speaking, this isn't necessary on BSD
