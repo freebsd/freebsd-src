@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 13, 2016
+.Dd March 16, 2016
 .Dt SX 9
 .Os
 .Sh NAME
@@ -320,11 +320,6 @@ end up sleeping while holding a mutex, which is not allowed.
 .Xr rwlock 9 ,
 .Xr sema 9
 .Sh BUGS
-Currently there is no way to assert that a lock is not held.
-This is not possible in the
-.No non- Ns Dv WITNESS
-case for asserting that this thread
-does not hold a shared lock.
 In the
 .No non- Ns Dv WITNESS
 case, the
