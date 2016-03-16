@@ -10,12 +10,33 @@
 
 [global]
 	rss_glb_config_mode = basicvirtual
-	rss_glb_config_options = tnlmapen, hashtoeplitz, tnlalllkp
+	rss_glb_config_options = tnlmapen,hashtoeplitz,tnlalllkp
 
 	# PL_TIMEOUT register
-	pl_timeout_value = 200		# the timeout value in units of us
+	pl_timeout_value = 10000	# the timeout value in units of us
 
-	sge_timer_value = 1, 5, 10, 50, 100, 200	# usecs
+	# SGE_THROTTLE_CONTROL
+	bar2throttlecount = 500		# bar2throttlecount in us
+
+	sge_timer_value = 1, 5, 10, 50, 100, 200	# SGE_TIMER_VALUE* in usecs
+
+	reg[0x1124] = 0x00000400/0x00000400 # SGE_CONTROL2, enable VFIFO; if
+					# SGE_VFIFO_SIZE is not set, then
+					# firmware will set it up in function
+					# of number of egress queues used
+
+	reg[0x1130] = 0x00d5ffeb	# SGE_DBP_FETCH_THRESHOLD, fetch
+					# threshold set to queue depth
+					# minus 128-entries for FL and HP
+					# queues, and 0xfff for LP which
+					# prompts the firmware to set it up
+					# in function of egress queues
+					# used
+
+	reg[0x113c] = 0x0002ffc0	# SGE_VFIFO_SIZE, set to 0x2ffc0 which
+					# prompts the firmware to set it up in
+					# function of number of egress queues
+					# used 
 
 	# enable TP_OUT_CONFIG.IPIDSPLITMODE
 	reg[0x7d04] = 0x00010000/0x00010000
@@ -26,33 +47,37 @@
 	# enable TP_PARA_REG6.EnableCSnd
 	reg[0x7d78] = 0x00000400/0x00000000
 
-	# TP_SHIFT_CNT
-	reg[0x7dc0] = 0x62f8849
-
-	# TP_GLOBAL_CONFIG
-	reg[0x7d08] = 0x00000800/0x00000800 # set IssFromCplEnable
-
-	# TP_PARA_REG0
-	reg[0x7d60] = 0x06000000/0x07000000 # set InitCWND to 6
+	reg[0x7dc0] = 0x0e2f8849	# TP_SHIFT_CNT
 
 	filterMode = fragmentation, mpshittype, protocol, vlan, port, fcoe
 	filterMask = protocol, fcoe
 
-	# TP rx and tx channels (0 = auto).
-	tp_nrxch = 0
-	tp_ntxch = 0
-
-	# TP rx and tx payload memory (% of the total EDRAM + DDR3).
 	tp_pmrx = 38, 512
-	tp_pmtx = 60, 512
 	tp_pmrx_pagesize = 64K
+
+	# TP number of RX channels (0 = auto)
+	tp_nrxch = 0
+
+	tp_pmtx = 60, 512
 	tp_pmtx_pagesize = 64K
 
-	# cluster, lan, or wan.
-	tp_tcptuning = lan
+	# TP number of TX channels (0 = auto)
+	tp_ntxch = 0
 
 	# TP OFLD MTUs
 	tp_mtus = 88, 256, 512, 576, 808, 1024, 1280, 1488, 1500, 2002, 2048, 4096, 4352, 8192, 9000, 9600
+
+	# TP_GLOBAL_CONFIG
+	reg[0x7d08] = 0x00000800/0x00000800 # set IssFromCplEnable
+
+	# TP_PC_CONFIG
+	reg[0x7d48] = 0x00000000/0x00000400 # clear EnableFLMError
+
+	# TP_PARA_REG0
+	reg[0x7d60] = 0x06000000/0x07000000 # set InitCWND to 6
+
+	# cluster, lan, or wan.
+	tp_tcptuning = lan
 
 	# MC configuration
 	mc_mode_brc[0] = 1		# mc0 - 1: enable BRC, 0: enable RBC
@@ -186,7 +211,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0x7044b7fd
+	checksum = 0xdd685b
 #
 # $FreeBSD$
 #
