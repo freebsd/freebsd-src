@@ -170,7 +170,7 @@ display_size(uint64_t size, u_int sectorsize)
 	return (buf);
 }
 
-static int
+int
 ptblread(void *d, void *buf, size_t blocks, off_t offset)
 {
 	struct disk_devdesc *dev;

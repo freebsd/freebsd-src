@@ -107,6 +107,7 @@ extern int disk_read(struct disk_devdesc *dev, void *buf, off_t offset,
     u_int blocks);
 extern int disk_write(struct disk_devdesc *dev, void *buf, off_t offset,
     u_int blocks);
+extern int ptblread(void *d, void *buf, size_t blocks, off_t offset);
 
 /*
  * Print information about slices on a disk.

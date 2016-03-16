@@ -68,7 +68,11 @@ static void		extract_currdev(void);
 static int		isa_inb(int port);
 static void		isa_outb(int port, int value);
 void			exit(int code);
+#ifdef LOADER_GELI_SUPPORT
+struct geli_boot_args	*gargs;
+#endif
 #ifdef LOADER_ZFS_SUPPORT
+struct zfs_boot_args	*zargs;
 static void		i386_zfs_probe(void);
 #endif
 
@@ -164,7 +168,31 @@ main(void)
     archsw.arch_isaoutb = isa_outb;
 #ifdef LOADER_ZFS_SUPPORT
     archsw.arch_zfs_probe = i386_zfs_probe;
-#endif
+
+#ifdef LOADER_GELI_SUPPORT
+    if ((kargs->bootflags & KARGS_FLAGS_EXTARG) != 0) {
+	zargs = (struct zfs_boot_args *)(kargs + 1);
+	if (zargs != NULL && zargs->size >= offsetof(struct zfs_boot_args, gelipw)) {
+	    if (zargs->gelipw[0] != '\0') {
+		setenv("kern.geom.eli.passphrase", zargs->gelipw, 1);
+		bzero(zargs->gelipw, sizeof(zargs->gelipw));
+	    }
+	}
+    }
+#endif /* LOADER_GELI_SUPPORT */
+#else /* !LOADER_ZFS_SUPPORT */
+#ifdef LOADER_GELI_SUPPORT
+    if ((kargs->bootflags & KARGS_FLAGS_EXTARG) != 0) {
+	gargs = (struct geli_boot_args *)(kargs + 1);
+	if (gargs != NULL && gargs->size >= offsetof(struct geli_boot_args, gelipw)) {
+	    if (gargs->gelipw[0] != '\0') {
+		setenv("kern.geom.eli.passphrase", gargs->gelipw, 1);
+		bzero(gargs->gelipw, sizeof(gargs->gelipw));
+	    }
+	}
+    }
+#endif /* LOADER_GELI_SUPPORT */
+#endif /* LOADER_ZFS_SUPPORT */
 
     /*
      * March through the device switch probing for things.
@@ -214,7 +242,6 @@ extract_currdev(void)
     struct i386_devdesc		new_currdev;
 #ifdef LOADER_ZFS_SUPPORT
     char			buf[20];
-    struct zfs_boot_args	*zargs;
 #endif
     int				biosdev = -1;
 

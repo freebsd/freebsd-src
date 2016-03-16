@@ -55,6 +55,7 @@ struct zfs_boot_args
     uint64_t		root;
     uint64_t		primary_pool;
     uint64_t		primary_vdev;
+    char		gelipw[256];
 };
 
 int	zfs_parsedev(struct zfs_devdesc *dev, const char *devspec,

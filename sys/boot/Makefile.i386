@@ -3,3 +3,4 @@
 SUBDIR+=		efi
 SUBDIR+=		libstand32
 SUBDIR+=		zfs
+SUBDIR+=		geli
