@@ -473,21 +473,21 @@ dumpsymtable(char *filename, long checkpt)
 	for (i = WINO; i <= maxino; i++) {
 		for (ep = lookupino(i); ep != NULL; ep = ep->e_links) {
 			memmove(tep, ep, (long)sizeof(struct entry));
-			tep->e_name = (char *)stroff;
+			tep->e_name = (char *)(intptr_t)stroff;
 			stroff += allocsize(ep->e_namlen);
-			tep->e_parent = (struct entry *)ep->e_parent->e_index;
+			tep->e_parent = (struct entry *)(intptr_t)ep->e_parent->e_index;
 			if (ep->e_links != NULL)
 				tep->e_links =
-					(struct entry *)ep->e_links->e_index;
+					(struct entry *)(intptr_t)ep->e_links->e_index;
 			if (ep->e_sibling != NULL)
 				tep->e_sibling =
-					(struct entry *)ep->e_sibling->e_index;
+					(struct entry *)(intptr_t)ep->e_sibling->e_index;
 			if (ep->e_entries != NULL)
 				tep->e_entries =
-					(struct entry *)ep->e_entries->e_index;
+					(struct entry *)(intptr_t)ep->e_entries->e_index;
 			if (ep->e_next != NULL)
 				tep->e_next =
-					(struct entry *)ep->e_next->e_index;
+					(struct entry *)(intptr_t)ep->e_next->e_index;
 			(void) fwrite((char *)tep, sizeof(struct entry), 1, fd);
 		}
 	}
@@ -498,7 +498,7 @@ dumpsymtable(char *filename, long checkpt)
 		if (entry[i] == NULL)
 			tentry = NULL;
 		else
-			tentry = (struct entry *)entry[i]->e_index;
+			tentry = (struct entry *)(intptr_t)entry[i]->e_index;
 		(void) fwrite((char *)&tentry, sizeof(struct entry *), 1, fd);
 	}
 	hdr.volno = checkpt;

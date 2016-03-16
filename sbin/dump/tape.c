@@ -144,7 +144,7 @@ alloctape(void)
 		if (buf == NULL)
 			return(0);
 		slaves[i].tblock = (char (*)[TP_BSIZE])
-		    (((long)&buf[ntrec + 1] + pgoff) &~ pgoff);
+		    (((intptr_t)&buf[ntrec + 1] + pgoff) &~ (intptr_t)pgoff);
 		slaves[i].req = (struct req *)slaves[i].tblock - ntrec - 1;
 	}
 	slp = &slaves[0];

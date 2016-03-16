@@ -690,8 +690,8 @@ static void ipfstate_dead(kernel, fiopp, ipsstpp, ifrstpp, frauthstpp, frfp)
 	kmemcpy((char *)ipstcptab, (u_long)deadlist[40].n_value,
 		sizeof(ipstcptab));
 	ipsstp->iss_active = temp;
-	ipsstp->iss_table = (void *)deadlist[18].n_value;
-	ipsstp->iss_list = (void *)deadlist[17].n_value;
+	ipsstp->iss_table = (void *)(uintptr_t)deadlist[18].n_value;
+	ipsstp->iss_list = (void *)(uintptr_t)deadlist[17].n_value;
 	ipsstp->iss_tcptab = ipstcptab;
 
 	/*
@@ -699,15 +699,15 @@ static void ipfstate_dead(kernel, fiopp, ipsstpp, ifrstpp, frauthstpp, frfp)
 	 */
 	kmemcpy((char *)frauthstp, (u_long)deadlist[0].n_value,
 		sizeof(*frauthstp));
-	frauthstp->fas_faelist = (void *)deadlist[1].n_value;
+	frauthstp->fas_faelist = (void *)(uintptr_t)deadlist[1].n_value;
 
 	/*
 	 * Build up the fragment information stats structure.
 	 */
 	kmemcpy((char *)ifrstp, (u_long)deadlist[25].n_value,
 		sizeof(*ifrstp));
-	ifrstp->ifs_table = (void *)deadlist[23].n_value;
-	ifrstp->ifs_nattab = (void *)deadlist[24].n_value;
+	ifrstp->ifs_table = (void *)(uintptr_t)deadlist[23].n_value;
+	ifrstp->ifs_nattab = (void *)(uintptr_t)deadlist[24].n_value;
 	kmemcpy((char *)&ifrstp->ifs_inuse, (u_long)deadlist[26].n_value,
 		sizeof(ifrstp->ifs_inuse));
 

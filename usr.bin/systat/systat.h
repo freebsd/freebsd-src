@@ -64,5 +64,5 @@ extern int use_kvm;
 #define GETSYSCTL(name, var) getsysctl(name, &(var), sizeof(var))
 #define KREAD(addr, buf, len)  kvm_ckread((addr), (buf), (len))
 #define NVAL(indx)  namelist[(indx)].n_value
-#define NPTR(indx)  (void *)NVAL((indx))
+#define NPTR(indx)  (void *)(uintptr_t)NVAL((indx))
 #define NREAD(indx, buf, len) kvm_ckread(NPTR((indx)), (buf), (len))
