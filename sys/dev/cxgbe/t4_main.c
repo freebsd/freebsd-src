@@ -6287,6 +6287,9 @@ mem_region_show(struct sbuf *sb, const char *name, unsigned int from,
 {
 	unsigned int size;
 
+	if (from == to)
+		return;
+
 	size = to - from + 1;
 	if (size == 0)
 		return;
@@ -6390,13 +6393,10 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	md++;
 
 	if (t4_read_reg(sc, A_LE_DB_CONFIG) & F_HASHEN) {
-		if (chip_id(sc) <= CHELSIO_T5) {
-			hi = t4_read_reg(sc, A_LE_DB_TID_HASHBASE) / 4;
+		if (chip_id(sc) <= CHELSIO_T5)
 			md->base = t4_read_reg(sc, A_LE_DB_HASH_TID_BASE);
-		} else {
-			hi = t4_read_reg(sc, A_LE_DB_HASH_TID_BASE);
+		else
 			md->base = t4_read_reg(sc, A_LE_DB_HASH_TBL_BASE_ADDR);
-		}
 		md->limit = 0;
 	} else {
 		md->base = 0;
