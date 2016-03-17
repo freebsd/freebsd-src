@@ -29,15 +29,15 @@
 #ifndef	_IF_CPSWVAR_H
 #define	_IF_CPSWVAR_H
 
-#define CPSW_INTR_COUNT		4
+#define	CPSW_INTR_COUNT		4
 
 /* MII BUS  */
-#define CPSW_MIIBUS_RETRIES	5
-#define CPSW_MIIBUS_DELAY	1000
+#define	CPSW_MIIBUS_RETRIES	5
+#define	CPSW_MIIBUS_DELAY	1000
 
-#define CPSW_MAX_ALE_ENTRIES	1024
+#define	CPSW_MAX_ALE_ENTRIES	1024
 
-#define CPSW_SYSCTL_COUNT 34
+#define	CPSW_SYSCTL_COUNT	34
 
 struct cpsw_slot {
 	uint32_t bd_offset;  /* Offset of corresponding BD within CPPI RAM. */
