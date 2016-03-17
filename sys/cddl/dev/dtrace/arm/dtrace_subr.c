@@ -51,8 +51,6 @@ __FBSDID("$FreeBSD$");
 #define	BIT_LR		14
 #define	BIT_SP		13
 
-extern uintptr_t 	dtrace_in_probe_addr;
-extern int		dtrace_in_probe;
 extern dtrace_id_t	dtrace_probeid_error;
 extern int (*dtrace_invop_jump_addr)(struct trapframe *);
 extern void dtrace_getnanotime(struct timespec *tsp);

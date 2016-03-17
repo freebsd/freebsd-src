@@ -246,10 +246,6 @@ static int		dtrace_dynvar_failclean; /* dynvars failed to clean */
 #ifndef illumos
 static struct mtx	dtrace_unr_mtx;
 MTX_SYSINIT(dtrace_unr_mtx, &dtrace_unr_mtx, "Unique resource identifier", MTX_DEF);
-int		dtrace_in_probe;	/* non-zero if executing a probe */
-#if defined(__i386__) || defined(__amd64__) || defined(__mips__) || defined(__powerpc__)
-uintptr_t	dtrace_in_probe_addr;	/* Address of invop when already in probe */
-#endif
 static eventhandler_tag	dtrace_kld_load_tag;
 static eventhandler_tag	dtrace_kld_unload_try_tag;
 #endif
