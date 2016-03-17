@@ -44,9 +44,6 @@
 #include <machine/frame.h>
 #include <vm/pmap.h>
 
-extern uintptr_t 	dtrace_in_probe_addr;
-extern int		dtrace_in_probe;
-
 extern void dtrace_getnanotime(struct timespec *tsp);
 
 int dtrace_invop(uintptr_t, uintptr_t *, uintptr_t);
