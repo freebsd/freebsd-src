@@ -1732,29 +1732,29 @@ cxgbe_get_counter(struct ifnet *ifp, ift_counter c)
 
 	switch (c) {
 	case IFCOUNTER_IPACKETS:
-		return (s->rx_frames - s->rx_pause);
+		return (s->rx_frames);
 
 	case IFCOUNTER_IERRORS:
 		return (s->rx_jabber + s->rx_runt + s->rx_too_long +
 		    s->rx_fcs_err + s->rx_len_err);
 
 	case IFCOUNTER_OPACKETS:
-		return (s->tx_frames - s->tx_pause);
+		return (s->tx_frames);
 
 	case IFCOUNTER_OERRORS:
 		return (s->tx_error_frames);
 
 	case IFCOUNTER_IBYTES:
-		return (s->rx_octets - s->rx_pause * 64);
+		return (s->rx_octets);
 
 	case IFCOUNTER_OBYTES:
-		return (s->tx_octets - s->tx_pause * 64);
+		return (s->tx_octets);
 
 	case IFCOUNTER_IMCASTS:
-		return (s->rx_mcast_frames - s->rx_pause);
+		return (s->rx_mcast_frames);
 
 	case IFCOUNTER_OMCASTS:
-		return (s->tx_mcast_frames - s->tx_pause);
+		return (s->tx_mcast_frames);
 
 	case IFCOUNTER_IQDROPS:
 		return (s->rx_ovflow0 + s->rx_ovflow1 + s->rx_ovflow2 +
