@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_sleepqueue_profiling.h"
 #include "opt_ddb.h"
 #include "opt_sched.h"
+#include "opt_stack.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1042,6 +1043,7 @@ sleepq_abort(struct thread *td, int intrval)
  * printed.  Typically, this will equal the number of threads sleeping on the
  * queue, but may be less if sb overflowed before all stacks were printed.
  */
+#ifdef STACK
 int
 sleepq_sbuf_print_stacks(struct sbuf *sb, void *wchan, int queue,
     int *count_stacks_printed)
@@ -1149,6 +1151,7 @@ loop_end:
 
 	return (error);
 }
+#endif
 
 #ifdef SLEEPQUEUE_PROFILING
 #define	SLEEPQ_PROF_LOCATIONS	1024

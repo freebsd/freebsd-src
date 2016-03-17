@@ -52,6 +52,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_stack.h"
+
 #include <sys/ctype.h>
 #include <sys/errno.h>
 #include <sys/fail.h>
@@ -708,6 +710,7 @@ fail_point_get(struct fail_point *fp, struct sbuf *sb,
 
 	fp_free(fp_entry_cpy);
 	if (verbose) {
+#ifdef STACK
 		/* Print number of sleeping threads. queue=0 is the argument
 		 * used by msleep when sending our threads to sleep. */
 		sbuf_printf(sb, "\nsleeping_thread_stacks = {\n");
@@ -715,14 +718,17 @@ fail_point_get(struct fail_point *fp, struct sbuf *sb,
 		        &cnt_sleeping);
 
 		sbuf_printf(sb, "},\n");
+#endif
 		sbuf_printf(sb, "sleeping_thread_count = %d,\n",
 		        cnt_sleeping);
 
+#ifdef STACK
 		sbuf_printf(sb, "paused_thread_stacks = {\n");
 		sleepq_sbuf_print_stacks(sb, FP_PAUSE_CHANNEL(fp), 0,
 		        &cnt_sleeping);
 
 		sbuf_printf(sb, "},\n");
+#endif
 		sbuf_printf(sb, "paused_thread_count = %d\n",
 		        cnt_sleeping);
 	}
