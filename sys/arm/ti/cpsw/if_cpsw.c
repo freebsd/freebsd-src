@@ -148,8 +148,7 @@ static int cpsw_stats_sysctl(SYSCTL_HANDLER_ARGS);
  * Packets with more segments than this will be defragmented before
  * they are queued.
  */
-#define CPSW_TXFRAGS 8
-
+#define	CPSW_TXFRAGS		8
 
 /*
  * TODO: The CPSW subsystem (CPSW_SS) can drive two independent PHYs
@@ -251,7 +250,7 @@ static struct cpsw_stat {
  * Basic debug support.
  */
 
-#define IF_DEBUG(sc)  if (sc->cpsw_if_flags & IFF_DEBUG)
+#define	IF_DEBUG(sc)		if (sc->cpsw_if_flags & IFF_DEBUG)
 
 static void
 cpsw_debugf_head(const char *funcname)
@@ -274,35 +273,34 @@ cpsw_debugf(const char *fmt, ...)
 
 }
 
-#define CPSW_DEBUGF(a) do {					\
-	IF_DEBUG(sc) {						\
-		cpsw_debugf_head(__func__);			\
-		cpsw_debugf a;					\
-	}							\
+#define	CPSW_DEBUGF(a) do {						\
+	IF_DEBUG(sc) {							\
+		cpsw_debugf_head(__func__);				\
+		cpsw_debugf a;						\
+	}								\
 } while (0)
-
 
 /*
  * Locking macros
  */
-#define CPSW_TX_LOCK(sc) do {					\
+#define	CPSW_TX_LOCK(sc) do {						\
 		mtx_assert(&(sc)->rx.lock, MA_NOTOWNED);		\
 		mtx_lock(&(sc)->tx.lock);				\
 } while (0)
 
-#define CPSW_TX_UNLOCK(sc)	mtx_unlock(&(sc)->tx.lock)
-#define CPSW_TX_LOCK_ASSERT(sc)	mtx_assert(&(sc)->tx.lock, MA_OWNED)
+#define	CPSW_TX_UNLOCK(sc)	mtx_unlock(&(sc)->tx.lock)
+#define	CPSW_TX_LOCK_ASSERT(sc)	mtx_assert(&(sc)->tx.lock, MA_OWNED)
 
-#define CPSW_RX_LOCK(sc) do {					\
+#define	CPSW_RX_LOCK(sc) do {						\
 		mtx_assert(&(sc)->tx.lock, MA_NOTOWNED);		\
 		mtx_lock(&(sc)->rx.lock);				\
 } while (0)
 
-#define CPSW_RX_UNLOCK(sc)		mtx_unlock(&(sc)->rx.lock)
-#define CPSW_RX_LOCK_ASSERT(sc)	mtx_assert(&(sc)->rx.lock, MA_OWNED)
+#define	CPSW_RX_UNLOCK(sc)		mtx_unlock(&(sc)->rx.lock)
+#define	CPSW_RX_LOCK_ASSERT(sc)	mtx_assert(&(sc)->rx.lock, MA_OWNED)
 
-#define CPSW_GLOBAL_LOCK(sc) do {					\
-		if ((mtx_owned(&(sc)->tx.lock) ? 1 : 0) !=	\
+#define	CPSW_GLOBAL_LOCK(sc) do {					\
+		if ((mtx_owned(&(sc)->tx.lock) ? 1 : 0) !=		\
 		    (mtx_owned(&(sc)->rx.lock) ? 1 : 0)) {		\
 			panic("cpsw deadlock possibility detection!");	\
 		}							\
@@ -310,12 +308,12 @@ cpsw_debugf(const char *fmt, ...)
 		mtx_lock(&(sc)->rx.lock);				\
 } while (0)
 
-#define CPSW_GLOBAL_UNLOCK(sc) do {					\
-		CPSW_RX_UNLOCK(sc);				\
-		CPSW_TX_UNLOCK(sc);				\
+#define	CPSW_GLOBAL_UNLOCK(sc) do {					\
+		CPSW_RX_UNLOCK(sc);					\
+		CPSW_TX_UNLOCK(sc);					\
 } while (0)
 
-#define CPSW_GLOBAL_LOCK_ASSERT(sc) do {				\
+#define	CPSW_GLOBAL_LOCK_ASSERT(sc) do {				\
 		CPSW_TX_LOCK_ASSERT(sc);				\
 		CPSW_RX_LOCK_ASSERT(sc);				\
 } while (0)
@@ -328,7 +326,7 @@ cpsw_debugf(const char *fmt, ...)
 
 #define	cpsw_cpdma_bd_offset(i)	(CPSW_CPPI_RAM_OFFSET + ((i)*16))
 
-#define	cpsw_cpdma_bd_paddr(sc, slot)				\
+#define	cpsw_cpdma_bd_paddr(sc, slot)					\
 	BUS_SPACE_PHYSADDR(sc->mem_res, slot->bd_offset)
 #define	cpsw_cpdma_read_bd(sc, slot, val)				\
 	bus_read_region_4(sc->mem_res, slot->bd_offset, (uint32_t *) val, 4)
@@ -336,16 +334,16 @@ cpsw_debugf(const char *fmt, ...)
 	bus_write_region_4(sc->mem_res, slot->bd_offset, (uint32_t *) val, 4)
 #define	cpsw_cpdma_write_bd_next(sc, slot, next_slot)			\
 	cpsw_write_4(sc, slot->bd_offset, cpsw_cpdma_bd_paddr(sc, next_slot))
-#define	cpsw_cpdma_read_bd_flags(sc, slot)		\
+#define	cpsw_cpdma_read_bd_flags(sc, slot)				\
 	bus_read_2(sc->mem_res, slot->bd_offset + 14)
 #define	cpsw_write_hdp_slot(sc, queue, slot)				\
 	cpsw_write_4(sc, (queue)->hdp_offset, cpsw_cpdma_bd_paddr(sc, slot))
 #define	CP_OFFSET (CPSW_CPDMA_TX_CP(0) - CPSW_CPDMA_TX_HDP(0))
-#define	cpsw_read_cp(sc, queue)				\
+#define	cpsw_read_cp(sc, queue)						\
 	cpsw_read_4(sc, (queue)->hdp_offset + CP_OFFSET) 
-#define	cpsw_write_cp(sc, queue, val)				\
+#define	cpsw_write_cp(sc, queue, val)					\
 	cpsw_write_4(sc, (queue)->hdp_offset + CP_OFFSET, (val))
-#define	cpsw_write_cp_slot(sc, queue, slot)		\
+#define	cpsw_write_cp_slot(sc, queue, slot)				\
 	cpsw_write_cp(sc, queue, cpsw_cpdma_bd_paddr(sc, slot))
 
 #if 0
@@ -403,12 +401,11 @@ cpsw_dump_slot(struct cpsw_softc *sc, struct cpsw_slot *slot)
 	}
 }
 
-#define CPSW_DUMP_SLOT(cs, slot) do {				\
+#define	CPSW_DUMP_SLOT(cs, slot) do {				\
 	IF_DEBUG(sc) {						\
 		cpsw_dump_slot(sc, slot);			\
 	}							\
 } while (0)
-
 
 static void
 cpsw_dump_queue(struct cpsw_softc *sc, struct cpsw_slots *q)
@@ -429,12 +426,11 @@ cpsw_dump_queue(struct cpsw_softc *sc, struct cpsw_slots *q)
 	printf("\n");
 }
 
-#define CPSW_DUMP_QUEUE(sc, q) do {				\
+#define	CPSW_DUMP_QUEUE(sc, q) do {				\
 	IF_DEBUG(sc) {						\
 		cpsw_dump_queue(sc, q);				\
 	}							\
 } while (0)
-
 
 /*
  *
@@ -455,7 +451,6 @@ cpsw_probe(device_t dev)
 	device_set_desc(dev, "3-port Switch Ethernet Subsystem");
 	return (BUS_PROBE_DEFAULT);
 }
-
 
 static void
 cpsw_init_slots(struct cpsw_softc *sc)
@@ -1302,7 +1297,6 @@ cpsw_miibus_statchg(device_t dev)
  * Transmit/Receive Packets.
  *
  */
-
 
 static void
 cpsw_intr_rx(void *arg)
@@ -2266,4 +2260,3 @@ cpsw_add_sysctls(struct cpsw_softc *sc)
 	    CTLFLAG_RD, NULL, "Watchdog Statistics");
 	cpsw_add_watchdog_sysctls(ctx, node, sc);
 }
-
