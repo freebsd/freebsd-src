@@ -117,30 +117,34 @@
 #include <termios.h>
 #include <unistd.h>
 
-struct nlist namelist[] = {
+static struct nlist namelist[] = {
 #define X_TK_NIN	0
-	{ "_tk_nin" },
+	{ .n_name = "_tk_nin",
+	  .n_type = 0, .n_other = 0, .n_desc = 0, .n_value = 0 },
 #define X_TK_NOUT	1
-	{ "_tk_nout" },
+	{ .n_name = "_tk_nout",
+	  .n_type = 0, .n_other = 0, .n_desc = 0, .n_value = 0 },
 #define X_BOOTTIME	2
-	{ "_boottime" },
+	{ .n_name = "_boottime",
+	  .n_type = 0, .n_other = 0, .n_desc = 0, .n_value = 0 },
 #define X_END		2
-	{ NULL },
+	{ .n_name = NULL,
+	  .n_type = 0, .n_other = 0, .n_desc = 0, .n_value = 0 },
 };
 
 #define	IOSTAT_DEFAULT_ROWS	20	/* Traditional default `wrows' */
 
-struct statinfo cur, last;
-int num_devices;
-struct device_selection *dev_select;
-int maxshowdevs;
-volatile sig_atomic_t headercount;
-volatile sig_atomic_t wresized;		/* Tty resized, when non-zero. */
-volatile sig_atomic_t alarm_rang;
-volatile sig_atomic_t return_requested;
-unsigned short wrows;			/* Current number of tty rows. */
-int dflag = 0, Iflag = 0, Cflag = 0, Tflag = 0, oflag = 0, Kflag = 0;
-int xflag = 0, zflag = 0;
+static struct statinfo cur, last;
+static int num_devices;
+static struct device_selection *dev_select;
+static int maxshowdevs;
+static volatile sig_atomic_t headercount;
+static volatile sig_atomic_t wresized;	/* Tty resized, when non-zero. */
+static volatile sig_atomic_t alarm_rang;
+static volatile sig_atomic_t return_requested;
+static unsigned short wrows;		/* Current number of tty rows. */
+static int dflag = 0, Iflag = 0, Cflag = 0, Tflag = 0, oflag = 0, Kflag = 0;
+static int xflag = 0, zflag = 0;
 
 /* local function declarations */
 static void usage(void);
@@ -650,7 +654,7 @@ main(int argc, char **argv)
  * Force a header to be prepended to the next output.
  */
 void
-needhdr(int signo)
+needhdr(int signo __unused)
 {
 
 	headercount = 1;
@@ -662,7 +666,7 @@ needhdr(int signo)
  * prepended to the next output.
  */
 void
-needresize(int signo)
+needresize(int signo __unused)
 {
 
 	wresized = 1;
@@ -673,7 +677,7 @@ needresize(int signo)
  * Record the alarm so the main loop can break its sleep
  */
 void
-alarm_clock(int signo)
+alarm_clock(int signo __unused)
 {
 	alarm_rang = 1;
 }
@@ -682,7 +686,7 @@ alarm_clock(int signo)
  * Request that the main loop exit soon
  */
 void
-needreturn(int signo)
+needreturn(int signo __unused)
 {
 	return_requested = 1;
 }
@@ -791,7 +795,7 @@ devstats(int perf_select, long double etime, int havelast)
 	long double total_mb;
 	long double blocks_per_second, ms_per_transaction, total_duration;
 	int firstline = 1;
-	char *devname;
+	char *devicename;
 
 	if (xflag > 0) {
 		printf("                        extended device statistics  ");
@@ -862,7 +866,7 @@ devstats(int perf_select, long double etime, int havelast)
 		}
 
 		if (xflag > 0) {
-			if (asprintf(&devname, "%s%d",
+			if (asprintf(&devicename, "%s%d",
 			    cur.dinfo->devices[di].device_name,
 			    cur.dinfo->devices[di].unit_number) == -1)
 				err(1, "asprintf");
@@ -876,7 +880,8 @@ devstats(int perf_select, long double etime, int havelast)
 			    busy_pct > 0.5) {
 				if (Iflag == 0)
 					printf("%-8.8s %5.1Lf %5.1Lf %7.1Lf %7.1Lf %4" PRIu64 " %5.1Lf %3.0Lf ",
-					    devname, transfers_per_second_read,
+					    devicename,
+					    transfers_per_second_read,
 					    transfers_per_second_write,
 					    mb_per_second_read * 1024,
 					    mb_per_second_write * 1024,
@@ -886,7 +891,7 @@ devstats(int perf_select, long double etime, int havelast)
 					printf("%-8.8s %11.1Lf %11.1Lf "
 					    "%12.1Lf %12.1Lf %4" PRIu64
 					    " %10.1Lf %9.1Lf ",
-					    devname,
+					    devicename,
 					    (long double)total_transfers_read,
 					    (long double)total_transfers_write,
 					    (long double)
@@ -911,7 +916,7 @@ devstats(int perf_select, long double etime, int havelast)
 				}
 				printf("\n");
 			}
-			free(devname);
+			free(devicename);
 		} else if (oflag > 0) {
 			int msdig = (ms_per_transaction < 100.0) ? 1 : 0;
 
@@ -965,15 +970,15 @@ static void
 cpustats(void)
 {
 	int state;
-	double time;
+	double cptime;
 
-	time = 0.0;
+	cptime = 0.0;
 
 	for (state = 0; state < CPUSTATES; ++state)
-		time += cur.cp_time[state];
+		cptime += cur.cp_time[state];
 	for (state = 0; state < CPUSTATES; ++state)
 		printf(" %2.0f",
-		       rint(100. * cur.cp_time[state] / (time ? time : 1)));
+		       rint(100. * cur.cp_time[state] / (cptime ? cptime : 1)));
 }
 
 static int
@@ -988,8 +993,7 @@ readvar(kvm_t *kd, const char *name, int nlid, void *ptr, size_t len)
 			warnx("kvm_read(%s): %s", namelist[nlid].n_name,
 			    kvm_geterr(kd));
 			return (1);
-		}
-		if (nbytes != len) {
+		} else if ((size_t)nbytes != len) {
 			warnx("kvm_read(%s): expected %zu bytes, got %zd bytes",
 			      namelist[nlid].n_name, len, nbytes);
 			return (1);
