@@ -7,6 +7,4 @@ MAN=	iostat.8
 DPADD=	${LIBDEVSTAT} ${LIBKVM} ${LIBM}
 LDADD=	-ldevstat -lkvm -lm
 
-WARNS?=	1
-
 .include <bsd.prog.mk>
