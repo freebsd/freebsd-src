@@ -51,6 +51,7 @@ static	char sccsid[] = "@(#)check_bound.c 1.11 89/04/21 Copyr 1989 Sun Micro";
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <rpc/rpc.h>
+#include <rpc/svc_dg.h>
 #include <stdio.h>
 #include <netconfig.h>
 #include <syslog.h>
@@ -160,6 +161,7 @@ char *
 mergeaddr(SVCXPRT *xprt, char *netid, char *uaddr, char *saddr)
 {
 	struct fdlist *fdl;
+	struct svc_dg_data *dg_data;
 	char *c_uaddr, *s_uaddr, *m_uaddr, *allocated_uaddr = NULL;
 
 	for (fdl = fdhead; fdl; fdl = fdl->next)
@@ -171,20 +173,30 @@ mergeaddr(SVCXPRT *xprt, char *netid, char *uaddr, char *saddr)
 		/* that server died */
 		return (nullstring);
 	/*
+	 * Try to determine the local address on which the client contacted us,
+	 * so we can send a reply from the same address.  If it's unknown, then
+	 * try to determine which address the client used, and pick a nearby
+	 * local address.
+	 *
 	 * If saddr is not NULL, the remote client may have included the
 	 * address by which it contacted us.  Use that for the "client" uaddr,
 	 * otherwise use the info from the SVCXPRT.
 	 */
-	if (saddr != NULL) {
+	dg_data = (struct svc_dg_data*)xprt->xp_p2;
+	if (dg_data != NULL && dg_data->su_srcaddr.buf != NULL) {
+		c_uaddr = taddr2uaddr(fdl->nconf, &dg_data->su_srcaddr);
+		allocated_uaddr = c_uaddr;
+	}
+	else if (saddr != NULL) {
 		c_uaddr = saddr;
 	} else {
 		c_uaddr = taddr2uaddr(fdl->nconf, svc_getrpccaller(xprt));
-		if (c_uaddr == NULL) {
-			syslog(LOG_ERR, "taddr2uaddr failed for %s",
-				fdl->nconf->nc_netid);
-			return (NULL);
-		}
 		allocated_uaddr = c_uaddr;
+	}
+	if (c_uaddr == NULL) {
+		syslog(LOG_ERR, "taddr2uaddr failed for %s",
+			fdl->nconf->nc_netid);
+		return (NULL);
 	}
 
 #ifdef ND_DEBUG
@@ -218,7 +230,7 @@ mergeaddr(SVCXPRT *xprt, char *netid, char *uaddr, char *saddr)
  * structure should not be freed.
  */
 struct netconfig *
-rpcbind_get_conf(char *netid)
+rpcbind_get_conf(const char *netid)
 {
 	struct fdlist *fdl;
 
