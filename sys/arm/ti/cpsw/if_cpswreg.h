@@ -39,6 +39,7 @@
 #define	CPSW_PORT_OFFSET		0x0100
 #define	CPSW_PORT_P_MAX_BLKS(p)		(CPSW_PORT_OFFSET + 0x08 + ((p) * 0x100))
 #define	CPSW_PORT_P_BLK_CNT(p)		(CPSW_PORT_OFFSET + 0x0C + ((p) * 0x100))
+#define	CPSW_PORT_P_VLAN(p)		(CPSW_PORT_OFFSET + 0x14 + ((p) * 0x100))
 #define	CPSW_PORT_P_TX_PRI_MAP(p)	(CPSW_PORT_OFFSET + 0x118 + ((p-1) * 0x100))
 #define	CPSW_PORT_P0_CPDMA_TX_PRI_MAP	(CPSW_PORT_OFFSET + 0x01C)
 #define	CPSW_PORT_P0_CPDMA_RX_CH_MAP	(CPSW_PORT_OFFSET + 0x020)
@@ -81,15 +82,36 @@
 
 #define	CPSW_ALE_OFFSET			0x0D00
 #define	CPSW_ALE_CONTROL		(CPSW_ALE_OFFSET + 0x08)
+#define	 CPSW_ALE_CTL_ENABLE		(1U << 31)
+#define	 CPSW_ALE_CTL_CLEAR_TBL		(1 << 30)
+#define	 CPSW_ALE_CTL_BYPASS		(1 << 4)
+#define	 CPSW_ALE_CTL_VLAN_AWARE	(1 << 2)
 #define	CPSW_ALE_TBLCTL			(CPSW_ALE_OFFSET + 0x20)
 #define	CPSW_ALE_TBLW2			(CPSW_ALE_OFFSET + 0x34)
 #define	CPSW_ALE_TBLW1			(CPSW_ALE_OFFSET + 0x38)
 #define	CPSW_ALE_TBLW0			(CPSW_ALE_OFFSET + 0x3C)
+#define	 ALE_MCAST(_a)			((_a[1] >> 8) & 1)
+#define	 ALE_MCAST_FWD			(3 << 30)
+#define	 ALE_PORTS(_a)			((_a[2] >> 2) & 7)
+#define	 ALE_TYPE(_a)			((_a[1] >> 28) & 3)
+#define	 ALE_TYPE_ADDR			1
+#define	 ALE_TYPE_VLAN			2
+#define	 ALE_TYPE_VLAN_ADDR		3
+#define	 ALE_VLAN(_a)			((_a[1] >> 16) & 0xfff)
+#define	 ALE_VLAN_REGFLOOD(_a)		((_a[0] >> 8) & 7)
+#define	 ALE_VLAN_UNREGFLOOD(_a)	((_a[0] >> 16) & 7)
+#define	 ALE_VLAN_UNTAG(_a)		((_a[0] >> 24) & 7)
+#define	 ALE_VLAN_MEMBERS(_a)		(_a[0] & 7)
 #define	CPSW_ALE_PORTCTL(p)		(CPSW_ALE_OFFSET + 0x40 + ((p) * 0x04))
 
 /* SL1 is at 0x0D80, SL2 is at 0x0DC0 */
 #define	CPSW_SL_OFFSET			0x0D80
 #define	CPSW_SL_MACCONTROL(p)		(CPSW_SL_OFFSET + (0x40 * (p)) + 0x04)
+#define	 CPSW_SL_MACTL_IFCTL_B		(1 << 16)
+#define	 CPSW_SL_MACTL_IFCTL_A		(1 << 15)
+#define	 CPSW_SL_MACTL_GIG		(1 << 7)
+#define	 CPSW_SL_MACTL_GMII_ENABLE	(1 << 5)
+#define	 CPSW_SL_MACTL_FULLDUPLEX	(1 << 0)
 #define	CPSW_SL_MACSTATUS(p)		(CPSW_SL_OFFSET + (0x40 * (p)) + 0x08)
 #define	CPSW_SL_SOFT_RESET(p)		(CPSW_SL_OFFSET + (0x40 * (p)) + 0x0C)
 #define	CPSW_SL_RX_MAXLEN(p)		(CPSW_SL_OFFSET + (0x40 * (p)) + 0x10)
@@ -99,8 +121,18 @@
 
 #define	MDIO_OFFSET			0x1000
 #define	MDIOCONTROL			(MDIO_OFFSET + 0x04)
+#define	 MDIOCTL_ENABLE			(1 << 30)
+#define	 MDIOCTL_FAULTENB		(1 << 18)
+#define	MDIOLINKINTRAW			(MDIO_OFFSET + 0x10)
+#define	MDIOLINKINTMASKED		(MDIO_OFFSET + 0x14)
 #define	MDIOUSERACCESS0			(MDIO_OFFSET + 0x80)
 #define	MDIOUSERPHYSEL0			(MDIO_OFFSET + 0x84)
+#define	MDIOUSERACCESS1			(MDIO_OFFSET + 0x88)
+#define	MDIOUSERPHYSEL1			(MDIO_OFFSET + 0x8C)
+#define	 MDIO_PHYSEL_LINKINTENB		(1 << 6)
+#define	 MDIO_PHYACCESS_GO		(1U << 31)
+#define	 MDIO_PHYACCESS_WRITE		(1 << 30)
+#define	 MDIO_PHYACCESS_ACK		(1 << 29)
 
 #define	CPSW_WR_OFFSET			0x1200
 #define	CPSW_WR_SOFT_RESET		(CPSW_WR_OFFSET + 0x04)
@@ -114,18 +146,25 @@
 #define	CPSW_WR_C_RX_STAT(p)		(CPSW_WR_OFFSET + (0x10 * (p)) + 0x44)
 #define	CPSW_WR_C_TX_STAT(p)		(CPSW_WR_OFFSET + (0x10 * (p)) + 0x48)
 #define	CPSW_WR_C_MISC_STAT(p)		(CPSW_WR_OFFSET + (0x10 * (p)) + 0x4C)
+#define	 CPSW_WR_C_MISC_EVNT_PEND	(1 << 4)
+#define	 CPSW_WR_C_MISC_STAT_PEND	(1 << 3)
+#define	 CPSW_WR_C_MISC_HOST_PEND	(1 << 2)
+#define	 CPSW_WR_C_MISC_MDIOLINK	(1 << 1)
+#define	 CPSW_WR_C_MISC_MDIOUSER	(1 << 0)
 
 #define	CPSW_CPPI_RAM_OFFSET		0x2000
 #define	CPSW_CPPI_RAM_SIZE		0x2000
 
 #define	CPSW_MEMWINDOW_SIZE		0x4000
 
-#define	CPDMA_BD_SOP		(1<<15)
-#define	CPDMA_BD_EOP		(1<<14)
-#define	CPDMA_BD_OWNER		(1<<13)
-#define	CPDMA_BD_EOQ		(1<<12)
-#define	CPDMA_BD_TDOWNCMPLT	(1<<11)
-#define	CPDMA_BD_PKT_ERR_MASK	(3<< 4)
+#define	 CPDMA_BD_SOP			(1 << 15)
+#define	 CPDMA_BD_EOP			(1 << 14)
+#define	 CPDMA_BD_OWNER			(1 << 13)
+#define	 CPDMA_BD_EOQ			(1 << 12)
+#define	 CPDMA_BD_TDOWNCMPLT		(1 << 11)
+#define	 CPDMA_BD_PKT_ERR_MASK		(3 << 4)
+#define	 CPDMA_BD_TO_PORT		(1 << 4)
+#define	 CPDMA_BD_PORT_MASK		3
 
 struct cpsw_cpdma_bd {
 	volatile uint32_t next;
