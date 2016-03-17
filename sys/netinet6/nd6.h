@@ -459,7 +459,7 @@ void defrouter_reset(void);
 void defrouter_select(void);
 void defrouter_ref(struct nd_defrouter *);
 void defrouter_rele(struct nd_defrouter *);
-void defrouter_remove(struct nd_defrouter *);
+bool defrouter_remove(struct in6_addr *, struct ifnet *);
 void defrouter_unlink(struct nd_defrouter *, struct nd_drhead *);
 void defrouter_del(struct nd_defrouter *);
 void prelist_remove(struct nd_prefix *);
