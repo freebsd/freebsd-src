@@ -136,8 +136,6 @@ extern const struct allwinner_padconf a31s_padconf;
 #define	A10_GPIO_GP_INT_STA		0x214
 #define	A10_GPIO_GP_INT_DEB		0x218
 
-static struct a10_gpio_softc *a10_gpio_sc;
-
 #define	A10_GPIO_WRITE(_sc, _off, _val)		\
     bus_space_write_4(_sc->sc_bst, _sc->sc_bsh, _off, _val)
 #define	A10_GPIO_READ(_sc, _off)		\
@@ -562,12 +560,6 @@ a10_gpio_attach(device_t dev)
 		/* Node is not a GPIO controller. */
 		goto fail;
 
-	a10_gpio_sc = sc;
-	sc->sc_busdev = gpiobus_attach_bus(dev);
-	if (sc->sc_busdev == NULL)
-		goto fail;
-
-
 	/* Use the right pin data for the current SoC */
 	switch (allwinner_soc_type()) {
 #ifdef SOC_ALLWINNER_A10
@@ -593,6 +585,10 @@ a10_gpio_attach(device_t dev)
 	default:
 		return (ENOENT);
 	}
+
+	sc->sc_busdev = gpiobus_attach_bus(dev);
+	if (sc->sc_busdev == NULL)
+		goto fail;
 
 	/*
 	 * Register as a pinctrl device
