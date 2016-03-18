@@ -179,7 +179,7 @@ release_aps(void *dummy __unused)
 	int cpu, i;
 
 	/* Setup the IPI handler */
-	for (i = 0; i < COUNT_IPI; i++)
+	for (i = 0; i < INTR_IPI_COUNT; i++)
 		arm_setup_ipihandler(ipi_handler, i);
 
 	atomic_store_rel_int(&aps_ready, 1);
@@ -238,7 +238,7 @@ init_secondary(uint64_t cpu)
 	/* Configure the interrupt controller */
 	arm_init_secondary();
 
-	for (i = 0; i < COUNT_IPI; i++)
+	for (i = 0; i < INTR_IPI_COUNT; i++)
 		arm_unmask_ipi(i);
 
 	/* Start per-CPU event timers. */
@@ -277,7 +277,7 @@ ipi_handler(void *arg)
 	u_int cpu, ipi;
 
 	arg = (void *)((uintptr_t)arg & ~(1 << 16));
-	KASSERT((uintptr_t)arg < COUNT_IPI,
+	KASSERT((uintptr_t)arg < INTR_IPI_COUNT,
 	    ("Invalid IPI %ju", (uintptr_t)arg));
 
 	cpu = PCPU_GET(cpuid);
