@@ -1226,7 +1226,8 @@ aio_qphysio(struct proc *p, struct kaiocb *job)
 	if (!unmap) {
 		job->pbuf = pbuf = (struct buf *)getpbuf(NULL);
 		BUF_KERNPROC(pbuf);
-	}
+	} else
+		pbuf = NULL;
 
 	AIO_LOCK(ki);
 	if (!unmap)
