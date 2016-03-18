@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.206 2016/03/07 20:20:35 sjg Exp $	*/
+/*	$NetBSD: var.c,v 1.207 2016/03/11 15:12:39 matthias Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: var.c,v 1.206 2016/03/07 20:20:35 sjg Exp $";
+static char rcsid[] = "$NetBSD: var.c,v 1.207 2016/03/11 15:12:39 matthias Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: var.c,v 1.206 2016/03/07 20:20:35 sjg Exp $");
+__RCSID("$NetBSD: var.c,v 1.207 2016/03/11 15:12:39 matthias Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -3699,11 +3699,11 @@ Var_Parse(const char *str, GNode *ctxt, int flags,
 		    case '@':
 			return UNCONST("$(.TARGET)");
 		    case '%':
-			return UNCONST("$(.ARCHIVE)");
+			return UNCONST("$(.MEMBER)");
 		    case '*':
 			return UNCONST("$(.PREFIX)");
 		    case '!':
-			return UNCONST("$(.MEMBER)");
+			return UNCONST("$(.ARCHIVE)");
 		}
 	    }
 	    /*

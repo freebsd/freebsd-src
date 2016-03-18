@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.53 2016/03/07 21:45:43 christos Exp $ */
+/*      $NetBSD: meta.c,v 1.54 2016/03/11 07:01:21 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -1190,7 +1190,8 @@ meta_oodate(GNode *gn, Boolean oodate)
 
 		    if ((link_src != NULL && lstat(p, &fs) < 0) ||
 			(link_src == NULL && stat(p, &fs) < 0)) {
-			Lst_AtEnd(missingFiles, bmake_strdup(p));
+			if (Lst_Find(missingFiles, p, string_match) == NULL)
+				Lst_AtEnd(missingFiles, bmake_strdup(p));
 		    }
 		    break;
 		check_link_src:
@@ -1281,9 +1282,8 @@ meta_oodate(GNode *gn, Boolean oodate)
 			     * A referenced file outside of CWD is missing.
 			     * We cannot catch every eventuality here...
 			     */
-			    if (DEBUG(META))
-				fprintf(debug_file, "%s: %d: file '%s' may have moved?...\n", fname, lineno, p);
-			    oodate = TRUE;
+			    if (Lst_Find(missingFiles, p, string_match) == NULL)
+				    Lst_AtEnd(missingFiles, bmake_strdup(p));
 			}
 		    }
 		    if (buf[0] == 'E') {

@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.55 2016/03/07 22:02:47 sjg Exp $
+#	$Id: Makefile,v 1.58 2016/03/15 23:39:12 sjg Exp $
 
 # Base version on src date
-MAKE_VERSION= 20160307
+_MAKE_VERSION= 20160315
 
 PROG=	bmake
 
@@ -76,7 +76,7 @@ CFLAGS+= ${CPPFLAGS}
 CFLAGS+= -D_PATH_DEFSYSPATH=\"${DEFAULT_SYS_PATH}\"
 CFLAGS+= -I. -I${srcdir} ${XDEFS} -DMAKE_NATIVE
 CFLAGS+= ${COPTS.${.ALLSRC:M*.c:T:u}}
-COPTS.main.c+= "-DMAKE_VERSION=\"${MAKE_VERSION}\""
+COPTS.main.c+= "-DMAKE_VERSION=\"${_MAKE_VERSION}\""
 
 # meta mode can be useful even without filemon 
 FILEMON_H ?= /usr/include/dev/filemon/filemon.h

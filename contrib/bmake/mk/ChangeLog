@@ -1,3 +1,26 @@
+2016-03-15  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20160315
+
+	* meta.stage.mk (LN_CP_SCRIPT): do not ln(1) if we have to chmod(1)
+	  normally only applies to scripts.
+	
+	* dirdeps.mk: NO_DIRDEPS_BELOW to supress DIRDEPS below RELDIR as
+	  well as outside it. 
+
+2016-03-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20160310
+
+	* dirdeps.mk: use targets rather than a list to track DIRDEPS that
+	  we have processed; the list gets very inefficient as number of
+	  DIRDEPS gets large.
+
+	* sys.dependfile.mk: fix comment wrt MACHINE
+
+	* meta.autodep.mk: ignore staged DPADDs when bootstrapping.
+	  patch from Bryan Drewery
+
 2016-03-02  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* meta2deps.sh: don't ignore subdirs.
