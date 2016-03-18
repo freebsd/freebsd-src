@@ -1,5 +1,5 @@
 # $FreeBSD$
-# $Id: dirdeps.mk,v 1.59 2016/02/26 23:32:29 sjg Exp $
+# $Id: dirdeps.mk,v 1.62 2016/03/16 00:11:53 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -136,7 +136,6 @@ start_utc := ${now_utc}
 
 # make sure these are empty to start with
 _DEP_TARGET_SPEC =
-_DIRDEP_CHECKED =
 
 # If TARGET_SPEC_VARS is other than just MACHINE
 # it should be set by sys.mk or similar by now.
@@ -226,7 +225,7 @@ _DEP_TARGET_SPEC = ${_last_dependfile:${M_dep_qual_fixes:ts:}:E}
 .endif
 .if !empty(_last_dependfile)
 # record that we've read dependfile for this
-_DIRDEP_CHECKED += ${_CURDIR}.${TARGET_SPEC}
+_dirdeps_checked.${_CURDIR}.${TARGET_SPEC}:
 .endif
 .endif
 
@@ -307,8 +306,10 @@ DEP_SKIP_DIR = ${SKIP_DIR} \
 NSkipDir = ${DEP_SKIP_DIR:${M_ListToSkip}}
 
 .if defined(NO_DIRDEPS) || defined(NODIRDEPS) || defined(WITHOUT_DIRDEPS)
-# confine ourselves to the original dir
+# confine ourselves to the original dir and below.
 DIRDEPS_FILTER += M${_DEP_RELDIR}*
+.elif defined(NO_DIRDEPS_BELOW)
+DIRDEPS_FILTER += M${_DEP_RELDIR}
 .endif
 
 # this is what we run below
@@ -598,9 +599,9 @@ ${_this_dir}.$m: ${_build_dirs:M*.$m:N${_this_dir}.$m}
 
 # Now find more dependencies - and recurse.
 .for d in ${_build_all_dirs}
-.if ${_DIRDEP_CHECKED:M$d} == ""
+.if !target(_dirdeps_checked.$d)
 # once only
-_DIRDEP_CHECKED += $d
+_dirdeps_checked.$d:
 .if ${_debug_search}
 .info checking $d
 .endif
