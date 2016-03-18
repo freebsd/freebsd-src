@@ -19,7 +19,7 @@
 
 #NO_UNIVERSE
 
-include  	"TEGRA124.common"
+include  	"TEGRA124"
 ident		JETSON-TK1
 
 # Flattened Device Tree
