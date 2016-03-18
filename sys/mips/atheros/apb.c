@@ -178,7 +178,7 @@ apb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	passthrough = (device_get_parent(child) != bus);
 	rle = NULL;
 
-	dprintf("%s: entry (%p, %p, %d, %d, %p, %p, %ld, %d)\n",
+	dprintf("%s: entry (%p, %p, %d, %d, %p, %p, %jd, %d)\n",
 	    __func__, bus, child, type, *rid, (void *)(intptr_t)start,
 	    (void *)(intptr_t)end, count, flags);
 

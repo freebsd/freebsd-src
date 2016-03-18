@@ -533,7 +533,7 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 				    (start - vtrans->hwbase);
 				if (bootverbose)
 					device_printf(child,
-					    "%s: assign 0x%lx:0x%lx%s\n",
+					    "%s: assign 0x%jx:0x%jx%s\n",
 					    __func__, start, end - start,
 					    vtrans->isa4x ? " A4X" :
 					    vtrans->isslow ? " SLOW" : "");
@@ -542,14 +542,14 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			vtrans = gethwvtrans(start, end - start);
 		if (vtrans == NULL) {
 			/* likely means above table needs to be updated */
-			device_printf(child, "%s: no mapping for 0x%lx:0x%lx\n",
+			device_printf(child, "%s: no mapping for 0x%jx:0x%jx\n",
 			    __func__, start, end - start);
 			return NULL;
 		}
 		rv = rman_reserve_resource(&sc->sc_mem_rman, start, end,
 		    end - start, flags, child);
 		if (rv == NULL) {
-			device_printf(child, "%s: cannot reserve 0x%lx:0x%lx\n",
+			device_printf(child, "%s: cannot reserve 0x%jx:0x%jx\n",
 			    __func__, start, end - start);
 			return NULL;
 		}
@@ -586,7 +586,7 @@ ixp425_activate_resource(device_t dev, device_t child, int type, int rid,
 	if (type == SYS_RES_MEMORY) {
 		vtrans = gethwvtrans(rman_get_start(r), rman_get_size(r));
 		if (vtrans == NULL) {		/* NB: should not happen */
-			device_printf(child, "%s: no mapping for 0x%lx:0x%lx\n",
+			device_printf(child, "%s: no mapping for 0x%jx:0x%jx\n",
 			    __func__, rman_get_start(r), rman_get_size(r));
 			return (ENOENT);
 		}

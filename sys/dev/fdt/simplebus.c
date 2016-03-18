@@ -369,7 +369,7 @@ simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		if (j == sc->nranges && sc->nranges != 0) {
 			if (bootverbose)
 				device_printf(bus, "Could not map resource "
-				    "%#lx-%#lx\n", start, end);
+				    "%#jx-%#jx\n", start, end);
 
 			return (NULL);
 		}
@@ -387,8 +387,8 @@ simplebus_print_res(struct simplebus_devinfo *di)
 	if (di == NULL)
 		return (0);
 	rv = 0;
-	rv += resource_list_print_type(&di->rl, "mem", SYS_RES_MEMORY, "%#lx");
-	rv += resource_list_print_type(&di->rl, "irq", SYS_RES_IRQ, "%ld");
+	rv += resource_list_print_type(&di->rl, "mem", SYS_RES_MEMORY, "%#jx");
+	rv += resource_list_print_type(&di->rl, "irq", SYS_RES_IRQ, "%jd");
 	return (rv);
 }
 

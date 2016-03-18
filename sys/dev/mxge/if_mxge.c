@@ -4612,7 +4612,7 @@ mxge_add_msix_irqs(mxge_softc_t *sc)
 		device_printf(sc->dev, "using %d msix IRQs:",
 			      sc->num_slices);
 		for (i = 0; i < sc->num_slices; i++)
-			printf(" %ld",  rman_get_start(sc->msix_irq_res[i]));
+			printf(" %jd", rman_get_start(sc->msix_irq_res[i]));
 		printf("\n");
 	}
 	return (0);
@@ -4668,7 +4668,7 @@ mxge_add_single_irq(mxge_softc_t *sc)
 		return ENXIO;
 	}
 	if (mxge_verbose)
-		device_printf(sc->dev, "using %s irq %ld\n",
+		device_printf(sc->dev, "using %s irq %jd\n",
 			      sc->legacy_irq ? "INTx" : "MSI",
 			      rman_get_start(sc->irq_res));
 	err = bus_setup_intr(sc->dev, sc->irq_res,
@@ -4823,7 +4823,7 @@ mxge_attach(device_t dev)
 	sc->sram = rman_get_virtual(sc->mem_res);
 	sc->sram_size = 2*1024*1024 - (2*(48*1024)+(32*1024)) - 0x100;
 	if (sc->sram_size > rman_get_size(sc->mem_res)) {
-		device_printf(dev, "impossible memory region size %ld\n",
+		device_printf(dev, "impossible memory region size %jd\n",
 			      rman_get_size(sc->mem_res));
 		err = ENXIO;
 		goto abort_with_mem_res;
