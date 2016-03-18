@@ -386,17 +386,21 @@ int drm_ioctl(struct cdev *kdev, u_long cmd, caddr_t data, int flags,
 	switch (cmd) {
 	case FIONBIO:
 	case FIOASYNC:
+		atomic_dec(&dev->ioctl_count);
 		return 0;
 
 	case FIOSETOWN:
+		atomic_dec(&dev->ioctl_count);
 		return fsetown(*(int *)data, &file_priv->minor->buf_sigio);
 
 	case FIOGETOWN:
+		atomic_dec(&dev->ioctl_count);
 		*(int *) data = fgetown(&file_priv->minor->buf_sigio);
 		return 0;
 	}
 
 	if (IOCGROUP(cmd) != DRM_IOCTL_BASE) {
+		atomic_dec(&dev->ioctl_count);
 		DRM_DEBUG("Bad ioctl group 0x%x\n", (int)IOCGROUP(cmd));
 		return EINVAL;
 	}
