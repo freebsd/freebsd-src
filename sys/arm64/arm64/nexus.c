@@ -39,6 +39,9 @@
  * and I/O memory address space.
  */
 
+#include "opt_acpi.h"
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -59,9 +62,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/resource.h>
 #include <machine/intr.h>
-
-#include "opt_acpi.h"
-#include "opt_platform.h"
 
 #ifdef FDT
 #include <dev/ofw/openfirm.h>
