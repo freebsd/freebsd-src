@@ -698,6 +698,25 @@ LdNamespace1Begin (
                  */
                 Status = AE_OK;
             }
+            else if ((Node->Flags & ANOBJ_IS_EXTERNAL) &&
+                     (Op->Asl.ParseOpcode == PARSEOP_EXTERNAL) &&
+                     (ObjectType == ACPI_TYPE_ANY))
+            {
+                /* Allow update of externals of unknown type. */
+
+                if (AcpiNsOpensScope (ActualObjectType))
+                {
+                    Node->Type = (UINT8) ActualObjectType;
+                    Status = AE_OK;
+                }
+                else
+                {
+                    sprintf (MsgBuffer, "%s [%s]", Op->Asl.ExternalName,
+                        AcpiUtGetTypeName (Node->Type));
+                    AslError (ASL_ERROR, ASL_MSG_SCOPE_TYPE, Op, MsgBuffer);
+                    return_ACPI_STATUS (AE_OK);
+                }
+            }
             else
             {
                 /* Valid error, object already exists */

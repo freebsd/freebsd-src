@@ -56,7 +56,7 @@
 #define O_BINARY 0
 #endif
 
-#if defined(_DragonFly) || defined(_FreeBSD)
+#if defined(_DragonFly) || defined(_FreeBSD) || defined(_QNX)
 #define MMAP_FLAGS          MAP_SHARED
 #else
 #define MMAP_FLAGS          MAP_PRIVATE

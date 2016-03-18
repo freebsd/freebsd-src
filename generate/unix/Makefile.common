@@ -9,7 +9,11 @@
 ifeq ($(HOST), _FreeBSD)
 HARDWARE_NAME := $(shell uname -p)
 else
+ifeq ($(HOST), _QNX)
+HARDWARE_NAME := x86pc
+else
 HARDWARE_NAME := $(shell uname -m)
+endif
 endif
 
 #

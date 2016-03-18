@@ -99,6 +99,8 @@ AcpiNsInitializeObjects (
     ACPI_FUNCTION_TRACE (NsInitializeObjects);
 
 
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+        "[Init] Completing Initialization of ACPI Objects\n"));
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
         "**** Starting initialization of namespace objects ****\n"));
     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
@@ -156,6 +158,7 @@ AcpiNsInitializeDevices (
 {
     ACPI_STATUS             Status = AE_OK;
     ACPI_DEVICE_WALK_INFO   Info;
+    ACPI_HANDLE             Handle;
 
 
     ACPI_FUNCTION_TRACE (NsInitializeDevices);
@@ -209,6 +212,27 @@ AcpiNsInitializeDevices (
         {
             Info.Num_INI++;
         }
+
+        /*
+         * Execute \_SB._INI.
+	 * There appears to be a strict order requirement for \_SB._INI,
+         * which should be evaluated before any _REG evaluations.
+         */
+        Status = AcpiGetHandle (NULL, "\\_SB", &Handle);
+        if (ACPI_SUCCESS (Status))
+        {
+            memset (Info.EvaluateInfo, 0, sizeof (ACPI_EVALUATE_INFO));
+            Info.EvaluateInfo->PrefixNode = Handle;
+            Info.EvaluateInfo->RelativePathname = METHOD_NAME__INI;
+            Info.EvaluateInfo->Parameters = NULL;
+            Info.EvaluateInfo->Flags = ACPI_IGNORE_RETURN_VALUE;
+
+            Status = AcpiNsEvaluate (Info.EvaluateInfo);
+            if (ACPI_SUCCESS (Status))
+            {
+                Info.Num_INI++;
+            }
+        }
     }
 
     /*
@@ -217,6 +241,12 @@ AcpiNsInitializeDevices (
      * Note: Any objects accessed by the _REG methods will be automatically
      * initialized, even if they contain executable AML (see the call to
      * AcpiNsInitializeObjects below).
+     *
+     * Note: According to the ACPI specification, we actually needn't execute
+     * _REG for SystemMemory/SystemIo operation regions, but for PCI_Config
+     * operation regions, it is required to evaluate _REG for those on a PCI
+     * root bus that doesn't contain _BBN object. So this code is kept here
+     * in order not to break things.
      */
     if (!(Flags & ACPI_NO_ADDRESS_SPACE_INIT))
     {
@@ -640,33 +670,37 @@ AcpiNsInitOneDevice (
      * Note: We know there is an _INI within this subtree, but it may not be
      * under this particular device, it may be lower in the branch.
      */
-    ACPI_DEBUG_EXEC (AcpiUtDisplayInitPathname (
-        ACPI_TYPE_METHOD, DeviceNode, METHOD_NAME__INI));
-
-    memset (Info, 0, sizeof (ACPI_EVALUATE_INFO));
-    Info->PrefixNode = DeviceNode;
-    Info->RelativePathname = METHOD_NAME__INI;
-    Info->Parameters = NULL;
-    Info->Flags = ACPI_IGNORE_RETURN_VALUE;
-
-    Status = AcpiNsEvaluate (Info);
-    if (ACPI_SUCCESS (Status))
+    if (!ACPI_COMPARE_NAME (DeviceNode->Name.Ascii, "_SB_") ||
+        DeviceNode->Parent != AcpiGbl_RootNode)
     {
-        WalkInfo->Num_INI++;
-    }
+        ACPI_DEBUG_EXEC (AcpiUtDisplayInitPathname (
+            ACPI_TYPE_METHOD, DeviceNode, METHOD_NAME__INI));
+
+        memset (Info, 0, sizeof (ACPI_EVALUATE_INFO));
+        Info->PrefixNode = DeviceNode;
+        Info->RelativePathname = METHOD_NAME__INI;
+        Info->Parameters = NULL;
+        Info->Flags = ACPI_IGNORE_RETURN_VALUE;
+
+        Status = AcpiNsEvaluate (Info);
+        if (ACPI_SUCCESS (Status))
+        {
+            WalkInfo->Num_INI++;
+        }
 
 #ifdef ACPI_DEBUG_OUTPUT
-    else if (Status != AE_NOT_FOUND)
-    {
-        /* Ignore error and move on to next device */
+        else if (Status != AE_NOT_FOUND)
+        {
+            /* Ignore error and move on to next device */
 
-        char *ScopeName = AcpiNsGetNormalizedPathname (DeviceNode, TRUE);
+            char *ScopeName = AcpiNsGetNormalizedPathname (DeviceNode, TRUE);
 
-        ACPI_EXCEPTION ((AE_INFO, Status, "during %s._INI execution",
-            ScopeName));
-        ACPI_FREE (ScopeName);
-    }
+            ACPI_EXCEPTION ((AE_INFO, Status, "during %s._INI execution",
+                ScopeName));
+            ACPI_FREE (ScopeName);
+        }
 #endif
+    }
 
     /* Ignore errors from above */
 

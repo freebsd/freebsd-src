@@ -906,7 +906,9 @@ UtDoConstant (
     char                    ErrBuf[64];
 
 
-    Status = AcpiUtStrtoul64 (String, 0, &Converted);
+    Status = AcpiUtStrtoul64 (String, ACPI_ANY_BASE,
+        ACPI_MAX64_BYTE_WIDTH, &Converted);
+
     if (ACPI_FAILURE (Status))
     {
         sprintf (ErrBuf, "%s %s\n", "Conversion error:",

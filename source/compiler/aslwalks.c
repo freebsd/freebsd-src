@@ -104,9 +104,12 @@ AnMethodTypingWalkEnd (
                  * The called method is untyped at this time (typically a
                  * forward reference).
                  *
-                 * Check for a recursive method call first.
+                 * Check for a recursive method call first. Note: the
+                 * Child->Node will be null if the method has not been
+                 * resolved.
                  */
-                if (Op->Asl.ParentMethod != Op->Asl.Child->Asl.Node->Op)
+                if (Op->Asl.Child->Asl.Node &&
+                    (Op->Asl.ParentMethod != Op->Asl.Child->Asl.Node->Op))
                 {
                     /* We must type the method here */
 

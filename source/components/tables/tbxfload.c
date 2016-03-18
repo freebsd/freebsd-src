@@ -87,14 +87,11 @@ AcpiLoadTables (
      * between AcpiInitializeSubsystem() and AcpiLoadTables() to use
      * their customized default region handlers.
      */
-    if (AcpiGbl_GroupModuleLevelCode)
+    Status = AcpiEvInstallRegionHandlers ();
+    if (ACPI_FAILURE (Status))
     {
-        Status = AcpiEvInstallRegionHandlers ();
-        if (ACPI_FAILURE (Status) && Status != AE_ALREADY_EXISTS)
-        {
-            ACPI_EXCEPTION ((AE_INFO, Status, "During Region initialization"));
-            return_ACPI_STATUS (Status);
-        }
+        ACPI_EXCEPTION ((AE_INFO, Status, "During Region initialization"));
+        return_ACPI_STATUS (Status);
     }
 
     /* Load the namespace from the tables */
@@ -114,6 +111,22 @@ AcpiLoadTables (
             "While loading namespace from ACPI tables"));
     }
 
+    if (!AcpiGbl_GroupModuleLevelCode)
+    {
+        /*
+         * Initialize the objects that remain uninitialized. This
+         * runs the executable AML that may be part of the
+         * declaration of these objects:
+         * OperationRegions, BufferFields, Buffers, and Packages.
+         */
+        Status = AcpiNsInitializeObjects ();
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
+    }
+
+    AcpiGbl_NamespaceInitialized = TRUE;
     return_ACPI_STATUS (Status);
 }
 

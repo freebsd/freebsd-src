@@ -386,7 +386,9 @@ OslTableInitialize (
     ACPI_SIZE               RsdpSize;
     ACPI_STATUS             Status;
     u_long                  Address = 0;
+#if defined(SYSTEM_SYSCTL)
     size_t                  Length = sizeof (Address);
+#endif
 
 
     /* Get main ACPI tables from memory on first invocation of this function */
@@ -408,6 +410,7 @@ OslTableInitialize (
         Address = strtoul (Buffer, NULL, 0);
     }
 #endif
+#if defined(SYSTEM_SYSCTL)
     if (!Address)
     {
         if (sysctlbyname (SYSTEM_SYSCTL, &Address, &Length, NULL, 0) != 0)
@@ -415,6 +418,7 @@ OslTableInitialize (
             Address = 0;
         }
     }
+#endif
     if (Address)
     {
         RsdpBase = Address;
