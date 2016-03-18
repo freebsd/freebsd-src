@@ -153,7 +153,7 @@ static int cpsw_stats_sysctl(SYSCTL_HANDLER_ARGS);
  * Packets with more segments than this will be defragmented before
  * they are queued.
  */
-#define	CPSW_TXFRAGS		8
+#define	CPSW_TXFRAGS		16
 
 /* Shared resources. */
 static device_method_t cpsw_methods[] = {
