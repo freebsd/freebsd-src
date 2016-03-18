@@ -43,6 +43,7 @@
 struct cpsw_slot {
 	uint32_t bd_offset;  /* Offset of corresponding BD within CPPI RAM. */
 	bus_dmamap_t dmamap;
+	struct ifnet *ifp;
 	struct mbuf *mbuf;
 	STAILQ_ENTRY(cpsw_slot) next;
 };
