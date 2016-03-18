@@ -64,7 +64,7 @@ rm -rf $thing
 tar zxf $TARBALL
 
 # steps unique to bmake
-VERSION=`grep '^MAKE_VERSION' bmake/Makefile | sed 's,.*=[[:space:]]*,,'`
+VERSION=`grep '^_MAKE_VERSION' bmake/Makefile | sed 's,.*=[[:space:]]*,,'`
 rm -rf bmake/missing
 
 # the rest should be common
@@ -81,6 +81,6 @@ test -s $TF.addlist && xargs $SVN --parents add < $TF.addlist
 )
 
 url=`$SVN info | sed -n '/^URL:/s,URL: ,,p'`
-echo After committing dist... run tag.sh
-echo "$SVN cp $url/dist $url/$VERSION" > tag.sh
+echo "After committing dist... run; sh ./tag.sh"
+echo "$SVN cp -m 'tag $thing-$VERSION' $url/dist $url/$VERSION" > tag.sh
 
