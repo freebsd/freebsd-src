@@ -919,6 +919,17 @@ PrGetNextLine (
         c = getc (Handle);
         if (c == EOF)
         {
+            /*
+             * On EOF: If there is anything in the line buffer, terminate
+             * it with a newline, and catch the EOF on the next call
+             * to this function.
+             */
+            if (i > 0)
+            {
+                Gbl_CurrentLineBuffer[i] = '\n';
+                return (AE_OK);
+            }
+
             return (ASL_EOF);
         }
 

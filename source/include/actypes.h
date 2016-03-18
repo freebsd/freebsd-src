@@ -1034,7 +1034,7 @@ typedef struct acpi_buffer
  */
 typedef struct acpi_predefined_names
 {
-    char                            *Name;
+    const char                      *Name;
     UINT8                           Type;
     char                            *Val;
 
@@ -1325,7 +1325,7 @@ typedef struct acpi_mem_space_context
  */
 typedef struct acpi_memory_list
 {
-    char                            *ListName;
+    const char                      *ListName;
     void                            *ListHead;
     UINT16                          ObjectSize;
     UINT16                          MaxDepth;

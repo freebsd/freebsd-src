@@ -64,6 +64,10 @@ ifeq ($(HOST), _NetBSD)
 HOST_FAMILY = BSD
 endif
 
+ifeq ($(HOST), _QNX)
+HOST_FAMILY = BSD
+endif
+
 ifeq ($(HOST_FAMILY), BSD)
 OBJECTS += \
 	$(OBJDIR)/osbsdtbl.o

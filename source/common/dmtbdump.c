@@ -1773,6 +1773,12 @@ AcpiDmDumpIort (
             IortSmmu = ACPI_ADD_PTR (ACPI_IORT_SMMU, IortNode, NodeOffset);
             break;
 
+        case ACPI_IORT_NODE_SMMU_V3:
+
+            InfoTable = AcpiDmTableInfoIort4;
+            Length = IortNode->Length - NodeOffset;
+            break;
+
         default:
 
             AcpiOsPrintf ("\n**** Unknown IORT node type 0x%X\n",
@@ -3139,7 +3145,7 @@ AcpiDmDumpS3pt (
 {
     ACPI_STATUS             Status;
     UINT32                  Offset = sizeof (ACPI_TABLE_S3PT);
-    ACPI_S3PT_HEADER        *SubTable;
+    ACPI_FPDT_HEADER        *SubTable;
     ACPI_DMTABLE_INFO       *InfoTable;
     ACPI_TABLE_S3PT         *S3ptTable = ACPI_CAST_PTR (ACPI_TABLE_S3PT, Tables);
 
@@ -3152,7 +3158,7 @@ AcpiDmDumpS3pt (
         return 0;
     }
 
-    SubTable = ACPI_ADD_PTR (ACPI_S3PT_HEADER, S3ptTable, Offset);
+    SubTable = ACPI_ADD_PTR (ACPI_FPDT_HEADER, S3ptTable, Offset);
     while (Offset < S3ptTable->Length)
     {
         /* Common subtable header */
@@ -3204,7 +3210,7 @@ NextSubTable:
         /* Point to next subtable */
 
         Offset += SubTable->Length;
-        SubTable = ACPI_ADD_PTR (ACPI_S3PT_HEADER, SubTable, SubTable->Length);
+        SubTable = ACPI_ADD_PTR (ACPI_FPDT_HEADER, SubTable, SubTable->Length);
     }
 
     return (S3ptTable->Length);

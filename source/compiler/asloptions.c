@@ -539,6 +539,13 @@ AslDoOptions (
             Gbl_CompileTimesFlag = TRUE;
             break;
 
+        case 'e':
+
+            /* Disable External opcode generation */
+
+            Gbl_DoExternals = FALSE;
+            break;
+
         case 'f':
 
             /* Disable folding on "normal" expressions */

@@ -143,7 +143,7 @@ RsDoExtendedIoDescriptor (
             RsCreateQwordField (InitializerOp, ACPI_RESTAG_GRANULARITY,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (ExtAddress64.Granularity));
             GranOp = InitializerOp;
-           break;
+            break;
 
         case 6: /* Address Min */
 

@@ -1243,8 +1243,8 @@ DtCompileIort (
     DtInsertSubtable (ParentTable, Subtable);
 
     /*
-     * Using ACPI_SUB_PTR, We needn't define a seperate structure. Care
-     * should be taken to avoid accessing ACPI_TABLE_HADER fields.
+     * Using ACPI_SUB_PTR, We needn't define a separate structure. Care
+     * should be taken to avoid accessing ACPI_TABLE_HEADER fields.
      */
     Iort = ACPI_SUB_PTR (ACPI_TABLE_IORT,
         Subtable->Buffer, sizeof (ACPI_TABLE_HEADER));
@@ -1473,6 +1473,19 @@ DtCompileIort (
             }
 
             IortSmmu->PmuInterruptCount = PmuIrptNumber;
+            break;
+
+        case ACPI_IORT_NODE_SMMU_V3:
+
+            Status = DtCompileTable (PFieldList, AcpiDmTableInfoIort4,
+                &Subtable, TRUE);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
+            DtInsertSubtable (ParentTable, Subtable);
+            NodeLength += Subtable->Length;
             break;
 
         default:
