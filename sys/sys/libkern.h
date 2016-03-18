@@ -65,6 +65,16 @@ static __inline u_quad_t uqmax(u_quad_t a, u_quad_t b) { return (a > b ? a : b);
 static __inline u_quad_t uqmin(u_quad_t a, u_quad_t b) { return (a < b ? a : b); }
 static __inline u_long ulmax(u_long a, u_long b) { return (a > b ? a : b); }
 static __inline u_long ulmin(u_long a, u_long b) { return (a < b ? a : b); }
+static __inline __uintmax_t ummax(__uintmax_t a, __uintmax_t b)
+{
+
+	return (a > b ? a : b);
+}
+static __inline __uintmax_t ummin(__uintmax_t a, __uintmax_t b)
+{
+
+	return (a < b ? a : b);
+}
 static __inline off_t omax(off_t a, off_t b) { return (a > b ? a : b); }
 static __inline off_t omin(off_t a, off_t b) { return (a < b ? a : b); }
 
