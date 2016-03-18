@@ -1,4 +1,4 @@
-# $Id: meta.autodep.mk,v 1.40 2016/02/22 22:44:58 sjg Exp $
+# $Id: meta.autodep.mk,v 1.41 2016/03/11 01:29:38 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -195,7 +195,7 @@ gendirdeps:	${_DEPENDFILE}
 # The pseudo machine "host" is used for HOST_TARGET
 DIRDEPS += \
 	${DPADD:M${_OBJTOP}*:H:C,${_OBJTOP}[^/]*/,,:N.:O:u} \
-	${DPADD:M${_OBJROOT}*:N${_OBJTOP}*:H:S,${_OBJROOT},,:C,^([^/]+)/(.*),\2.\1,:S,${HOST_TARGET}$,host,:N.*:O:u}
+	${DPADD:M${_OBJROOT}*:N${_OBJTOP}*:N${STAGE_ROOT:U${_OBJTOP}}/*:H:S,${_OBJROOT},,:C,^([^/]+)/(.*),\2.\1,:S,${HOST_TARGET}$,host,:N.*:O:u}
 
 .endif
 .endif
