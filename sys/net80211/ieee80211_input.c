@@ -603,9 +603,10 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 		case IEEE80211_ELEMID_MESHCONF:
 			scan->meshconf = frm;
 			break;
-		case IEEE80211_ELEMID_MESHEXTCAP:
-			break;
 #endif
+		/* Extended capabilities; nothing handles it for now */
+		case IEEE80211_ELEMID_EXTCAP:
+			break;
 		case IEEE80211_ELEMID_VENDOR:
 			if (iswpaoui(frm))
 				scan->wpa = frm;
