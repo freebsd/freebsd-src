@@ -348,13 +348,13 @@ ndis_create_sysctls(arg)
 	ndis_add_sysctl(sc, "BusType", "Bus Type", buf, NDIS_FLAG_RDONLY);
 
 	if (sc->ndis_res_io != NULL) {
-		sprintf(buf, "0x%lx", rman_get_start(sc->ndis_res_io));
+		sprintf(buf, "0x%jx", rman_get_start(sc->ndis_res_io));
 		ndis_add_sysctl(sc, "IOBaseAddress",
 		    "Base I/O Address", buf, NDIS_FLAG_RDONLY);
 	}
 
 	if (sc->ndis_irq != NULL) {
-		sprintf(buf, "%lu", rman_get_start(sc->ndis_irq));
+		sprintf(buf, "%ju", rman_get_start(sc->ndis_irq));
 		ndis_add_sysctl(sc, "InterruptNumber",
 		    "Interrupt Number", buf, NDIS_FLAG_RDONLY);
 	}

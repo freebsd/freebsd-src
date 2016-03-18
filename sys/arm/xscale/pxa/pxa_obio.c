@@ -390,7 +390,7 @@ pxa_alloc_gpio_irq(device_t dev, device_t child, int type, int *rid,
 	}
 
 	if (bootverbose)
-		device_printf(dev, "lazy allocation of irq %ld for %s\n",
+		device_printf(dev, "lazy allocation of irq %jd for %s\n",
 		    start, device_get_nameunit(child));
 
 	return (rv);

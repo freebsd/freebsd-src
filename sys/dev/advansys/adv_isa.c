@@ -136,7 +136,7 @@ adv_isa_probe(device_t dev)
 		 || (iobase != adv_isa_ioports[port_index])) {
 			if (bootverbose)
 				device_printf(dev,
-				    "Invalid baseport of 0x%lx specified. "
+				    "Invalid baseport of 0x%jx specified. "
 				    "Nearest valid baseport is 0x%x.  Failing "
 				    "probe.\n", iobase,
 				    (port_index <= max_port_index) ?
