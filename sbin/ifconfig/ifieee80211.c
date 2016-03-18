@@ -3071,14 +3071,6 @@ printcountry(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 	printf(">");
 }
 
-/* unaligned little endian access */     
-#define LE_READ_4(p)					\
-	((u_int32_t)					\
-	 ((((const u_int8_t *)(p))[0]      ) |		\
-	  (((const u_int8_t *)(p))[1] <<  8) |		\
-	  (((const u_int8_t *)(p))[2] << 16) |		\
-	  (((const u_int8_t *)(p))[3] << 24)))
-
 static __inline int
 iswpaoui(const u_int8_t *frm)
 {
