@@ -433,7 +433,7 @@ mips_platform_pcib_setup_intr(device_t dev, device_t child,
 	if (error)
 		return error;
 	if (rman_get_start(irq) != rman_get_end(irq)) {
-		device_printf(dev, "Interrupt allocation %lu != %lu\n",
+		device_printf(dev, "Interrupt allocation %ju != %ju\n",
 		    rman_get_start(irq), rman_get_end(irq));
 		return (EINVAL);
 	}

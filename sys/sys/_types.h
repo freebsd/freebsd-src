@@ -112,6 +112,6 @@ typedef union {
 	__int64_t	_mbstateL;	/* for alignment */
 } __mbstate_t;
 
-typedef unsigned long	__rman_res_t;
+typedef __uintmax_t     __rman_res_t;
 
 #endif /* !_SYS__TYPES_H_ */

@@ -591,7 +591,7 @@ unin_chip_activate_resource(device_t bus, device_t child, int type, int rid,
 		start = (vm_offset_t) rman_get_start(res);
 
 		if (bootverbose)
-			printf("unin mapdev: start %zx, len %ld\n", start,
+			printf("unin mapdev: start %zx, len %jd\n", start,
 			       rman_get_size(res));
 
 		p = pmap_mapdev(start, (vm_size_t) rman_get_size(res));

@@ -645,7 +645,7 @@ au_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	snprintf(status, SND_STATUSLEN, "at %s 0x%lx irq %ld %s",
+	snprintf(status, SND_STATUSLEN, "at %s 0x%jx irq %jd %s",
 		 (type[0] == SYS_RES_IOPORT)? "io" : "memory",
 		 rman_get_start(reg[0]), rman_get_start(irq),PCM_KLDSTRING(snd_aureal));
 

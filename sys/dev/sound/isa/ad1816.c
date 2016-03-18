@@ -624,11 +624,11 @@ ad1816_attach(device_t dev)
 		goto no;
     	}
     	if (ad1816->drq2)
-		snprintf(status2, SND_STATUSLEN, ":%ld", rman_get_start(ad1816->drq2));
+		snprintf(status2, SND_STATUSLEN, ":%jd", rman_get_start(ad1816->drq2));
 	else
 		status2[0] = '\0';
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld%s bufsz %u %s",
+    	snprintf(status, SND_STATUSLEN, "at io 0x%jx irq %jd drq %jd%s bufsz %u %s",
     	     	rman_get_start(ad1816->io_base),
 		rman_get_start(ad1816->irq),
 		rman_get_start(ad1816->drq1),

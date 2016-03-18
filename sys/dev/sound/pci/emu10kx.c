@@ -3225,7 +3225,7 @@ emu_pci_attach(device_t dev)
 		device_printf(dev, "unable to create control device\n");
 		goto bad;
 	}
-	snprintf(status, 255, "rev %d at io 0x%lx irq %ld", sc->rev, rman_get_start(sc->reg), rman_get_start(sc->irq));
+	snprintf(status, 255, "rev %d at io 0x%jx irq %jd", sc->rev, rman_get_start(sc->reg), rman_get_start(sc->irq));
 
 	/* Voices */
 	for (i = 0; i < NUM_G; i++) {

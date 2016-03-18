@@ -854,11 +854,11 @@ sb16_attach(device_t dev)
     	}
 
     	if (!(pcm_getflags(dev) & SD_F_SIMPLEX))
-		snprintf(status2, SND_STATUSLEN, ":%ld", rman_get_start(sb->drq2));
+		snprintf(status2, SND_STATUSLEN, ":%jd", rman_get_start(sb->drq2));
 	else
 		status2[0] = '\0';
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld%s bufsz %u %s",
+    	snprintf(status, SND_STATUSLEN, "at io 0x%jx irq %jd drq %jd%s bufsz %u %s",
     	     	rman_get_start(sb->io_base), rman_get_start(sb->irq),
 		rman_get_start(sb->drq1), status2, sb->bufsize,
 		PCM_KLDSTRING(snd_sb16));

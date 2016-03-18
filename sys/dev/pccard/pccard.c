@@ -507,7 +507,7 @@ pccard_function_init(struct pccard_function *pf, int entry)
 				end = start + ios->length - 1;
 			else
 				end = ~0;
-			DEVPRINTF((bus, "I/O rid %d start %#lx end %#lx\n",
+			DEVPRINTF((bus, "I/O rid %d start %#jx end %#jx\n",
 			    i, start, end));
 			rid = i;
 			len = ios->length;
@@ -531,7 +531,7 @@ pccard_function_init(struct pccard_function *pf, int entry)
 				end = start + mems->length - 1;
 			else
 				end = ~0;
-			DEVPRINTF((bus, "Memory rid %d start %#lx end %#lx\ncardaddr %#lx hostaddr %#lx length %#lx\n",
+			DEVPRINTF((bus, "Memory rid %d start %#jx end %#jx\ncardaddr %#jx hostaddr %#jx length %#jx\n",
 			    i, start, end, mems->cardaddr, mems->hostaddr,
 			    mems->length));
 			rid = i;
@@ -602,7 +602,7 @@ pccard_function_free(struct pccard_function *pf)
 				device_printf(pf->sc->dev,
 				    "function_free: Resource still owned by "
 				    "child, oops. "
-				    "(type=%d, rid=%d, addr=%#lx)\n",
+				    "(type=%d, rid=%d, addr=%#jx)\n",
 				    rle->type, rle->rid,
 				    rman_get_start(rle->res));
 			BUS_RELEASE_RESOURCE(device_get_parent(pf->sc->dev),
@@ -697,7 +697,7 @@ pccard_function_enable(struct pccard_function *pf)
 		    &pf->ccr_rid, PCCARD_MEM_PAGE_SIZE, RF_ACTIVE);
 		if (!pf->ccr_res)
 			goto bad;
-		DEVPRINTF((dev, "ccr_res == %#lx-%#lx, base=%#x\n",
+		DEVPRINTF((dev, "ccr_res == %#jx-%#jx, base=%#x\n",
 		    rman_get_start(pf->ccr_res), rman_get_end(pf->ccr_res),
 		    pf->ccr_base));
 		CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY,
@@ -1197,7 +1197,7 @@ pccard_release_resource(device_t dev, device_t child, int type, int rid,
 
 	if (!rle) {
 		device_printf(dev, "Allocated resource not found, "
-		    "%d %#x %#lx %#lx\n",
+		    "%d %#x %#jx %#jx\n",
 		    type, rid, rman_get_start(r), rman_get_size(r));
 		return ENOENT;
 	}

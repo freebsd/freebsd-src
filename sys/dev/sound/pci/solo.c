@@ -1051,7 +1051,7 @@ ess_attach(device_t dev)
     	if (mixer_init(dev, &solomixer_class, sc))
 		goto no;
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx,0x%lx,0x%lx irq %ld %s",
+    	snprintf(status, SND_STATUSLEN, "at io 0x%jx,0x%jx,0x%jx irq %jd %s",
     	     	rman_get_start(sc->io), rman_get_start(sc->sb), rman_get_start(sc->vc),
 		rman_get_start(sc->irq),PCM_KLDSTRING(snd_solo));
 

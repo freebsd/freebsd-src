@@ -247,7 +247,7 @@ pcib_is_isa_range(struct pcib_softc *sc, rman_res_t start, rman_res_t end,
 alias:
 	if (bootverbose)
 		device_printf(sc->dev,
-		    "I/O range %#lx-%#lx overlaps with an ISA alias\n", start,
+		    "I/O range %#jx-%#jx overlaps with an ISA alias\n", start,
 		    end);
 	return (1);
 }
@@ -339,7 +339,7 @@ alloc_ranges(rman_res_t start, rman_res_t end, void *arg)
 	rid = w->reg;
 	if (bootverbose)
 		device_printf(as->sc->dev,
-		    "allocating non-ISA range %#lx-%#lx\n", start, end);
+		    "allocating non-ISA range %#jx-%#jx\n", start, end);
 	as->res[as->count] = bus_alloc_resource(as->sc->dev, SYS_RES_IOPORT,
 	    &rid, start, end, end - start + 1, 0);
 	if (as->res[as->count] == NULL)
@@ -621,7 +621,7 @@ pcib_suballoc_bus(struct pcib_secbus *bus, device_t child, int *rid,
 
 	if (bootverbose)
 		device_printf(bus->dev,
-		    "allocated bus range (%lu-%lu) for rid %d of %s\n",
+		    "allocated bus range (%ju-%ju) for rid %d of %s\n",
 		    rman_get_start(res), rman_get_end(res), *rid,
 		    pcib_child_name(child));
 	rman_set_rid(res, *rid);
@@ -646,7 +646,7 @@ pcib_grow_subbus(struct pcib_secbus *bus, rman_res_t new_end)
 	if (error)
 		return (error);
 	if (bootverbose)
-		device_printf(bus->dev, "grew bus range to %lu-%lu\n",
+		device_printf(bus->dev, "grew bus range to %ju-%ju\n",
 		    rman_get_start(bus->res), rman_get_end(bus->res));
 	error = rman_manage_region(&bus->rman, old_end + 1,
 	    rman_get_end(bus->res));
@@ -694,8 +694,8 @@ pcib_alloc_subbus(struct pcib_secbus *bus, device_t child, int *rid,
 	/* Finally, attempt to grow the existing resource. */
 	if (bootverbose) {
 		device_printf(bus->dev,
-		    "attempting to grow bus range for %lu buses\n", count);
-		printf("\tback candidate range: %lu-%lu\n", start_free,
+		    "attempting to grow bus range for %ju buses\n", count);
+		printf("\tback candidate range: %ju-%ju\n", start_free,
 		    new_end);
 	}
 	if (pcib_grow_subbus(bus, new_end) == 0)
@@ -1174,7 +1174,7 @@ pcib_suballoc_resource(struct pcib_softc *sc, struct pcib_window *w,
 
 	if (bootverbose)
 		device_printf(sc->dev,
-		    "allocated %s range (%#lx-%#lx) for rid %x of %s\n",
+		    "allocated %s range (%#jx-%#jx) for rid %x of %s\n",
 		    w->name, rman_get_start(res), rman_get_end(res), *rid,
 		    pcib_child_name(child));
 	rman_set_rid(res, *rid);
@@ -1401,7 +1401,7 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 		if (error) {
 			if (bootverbose)
 				device_printf(sc->dev,
-		    "failed to allocate initial %s window (%#lx-%#lx,%#lx)\n",
+		    "failed to allocate initial %s window (%#jx-%#jx,%#jx)\n",
 				    w->name, start, end, count);
 			return (error);
 		}
@@ -1433,7 +1433,7 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 	 */
 	if (bootverbose)
 		device_printf(sc->dev,
-		    "attempting to grow %s window for (%#lx-%#lx,%#lx)\n",
+		    "attempting to grow %s window for (%#jx-%#jx,%#jx)\n",
 		    w->name, start, end, count);
 	align = (rman_res_t)1 << RF_ALIGNMENT(flags);
 	if (start < w->base) {
@@ -1457,7 +1457,7 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 		 */
 		if (front >= start && front <= end_free) {
 			if (bootverbose)
-				printf("\tfront candidate range: %#lx-%#lx\n",
+				printf("\tfront candidate range: %#jx-%#jx\n",
 				    front, end_free);
 			front &= ~wmask;
 			front = w->base - front;
@@ -1485,7 +1485,7 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 		 */
 		if (back <= end && start_free <= back) {
 			if (bootverbose)
-				printf("\tback candidate range: %#lx-%#lx\n",
+				printf("\tback candidate range: %#jx-%#jx\n",
 				    start_free, back);
 			back |= wmask;
 			back -= w->limit;
@@ -1709,7 +1709,7 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 #endif
 		}
 		if (end < start) {
-			device_printf(dev, "ioport: end (%lx) < start (%lx)\n",
+			device_printf(dev, "ioport: end (%jx) < start (%jx)\n",
 			    end, start);
 			start = 0;
 			end = 0;
@@ -1717,13 +1717,13 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		}
 		if (!ok) {
 			device_printf(dev, "%s%srequested unsupported I/O "
-			    "range 0x%lx-0x%lx (decoding 0x%x-0x%x)\n",
+			    "range 0x%jx-0x%jx (decoding 0x%x-0x%x)\n",
 			    name, suffix, start, end, sc->iobase, sc->iolimit);
 			return (NULL);
 		}
 		if (bootverbose)
 			device_printf(dev,
-			    "%s%srequested I/O range 0x%lx-0x%lx: in range\n",
+			    "%s%srequested I/O range 0x%jx-0x%jx: in range\n",
 			    name, suffix, start, end);
 		break;
 
@@ -1778,7 +1778,7 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 #endif
 		}
 		if (end < start) {
-			device_printf(dev, "memory: end (%lx) < start (%lx)\n",
+			device_printf(dev, "memory: end (%jx) < start (%jx)\n",
 			    end, start);
 			start = 0;
 			end = 0;
@@ -1786,7 +1786,7 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		}
 		if (!ok && bootverbose)
 			device_printf(dev,
-			    "%s%srequested unsupported memory range %#lx-%#lx "
+			    "%s%srequested unsupported memory range %#jx-%#jx "
 			    "(decoding %#jx-%#jx, %#jx-%#jx)\n",
 			    name, suffix, start, end,
 			    (uintmax_t)sc->membase, (uintmax_t)sc->memlimit,
@@ -1795,7 +1795,7 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			return (NULL);
 		if (bootverbose)
 			device_printf(dev,"%s%srequested memory range "
-			    "0x%lx-0x%lx: good\n",
+			    "0x%jx-0x%jx: good\n",
 			    name, suffix, start, end);
 		break;
 

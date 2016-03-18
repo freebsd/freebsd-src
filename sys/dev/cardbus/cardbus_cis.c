@@ -485,7 +485,8 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 		    "to read CIS.\n");
 		return (NULL);
 	}
-	DEVPRINTF((cbdev, "CIS Mapped to %#lx\n", rman_get_start(res)));
+	DEVPRINTF((cbdev, "CIS Mapped to %#jx\n",
+	    rman_get_start(res)));
 
 	/* Flip to the right ROM image if CIS is in ROM */
 	if (space == PCIM_CIS_ASI_ROM) {

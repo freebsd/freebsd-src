@@ -31,6 +31,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160317:
+	Resource range types have grown from unsigned long to uintmax_t.  All
+	drivers, and anything using libdevinfo, need to be recompiled.
+
 20160311:
 	WITH_FAST_DEPEND is now enabled by default for in-tree and out-of-tree
 	builds.  It no longer runs mkdep(1) during 'make depend', and the

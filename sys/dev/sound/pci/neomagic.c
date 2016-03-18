@@ -702,7 +702,7 @@ nm_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	snprintf(status, SND_STATUSLEN, "at memory 0x%lx, 0x%lx irq %ld %s",
+	snprintf(status, SND_STATUSLEN, "at memory 0x%jx, 0x%jx irq %jd %s",
 		 rman_get_start(sc->buf), rman_get_start(sc->reg),
 		 rman_get_start(sc->irq),PCM_KLDSTRING(snd_neomagic));
 

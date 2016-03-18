@@ -495,7 +495,7 @@ wlattach(device_t device)
     }
 
 #ifdef WLDEBUG
-    printf("wlattach: base %lx, unit %d\n", rman_get_start(sc->res_ioport),
+    printf("wlattach: base %jx, unit %d\n", rman_get_start(sc->res_ioport),
 	device_get_unit(device));
 #endif
 

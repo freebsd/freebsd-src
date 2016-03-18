@@ -313,7 +313,7 @@ cbb_pci_attach(device_t brdev)
 		mtx_destroy(&sc->mtx);
 		return (ENOMEM);
 	} else {
-		DEVPRINTF((brdev, "Found memory at %08lx\n",
+		DEVPRINTF((brdev, "Found memory at %jx\n",
 		    rman_get_start(sc->base_res)));
 	}
 

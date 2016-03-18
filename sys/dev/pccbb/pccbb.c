@@ -229,7 +229,7 @@ cbb_destroy_res(struct cbb_softc *sc)
 	while ((rle = SLIST_FIRST(&sc->rl)) != NULL) {
 		device_printf(sc->dev, "Danger Will Robinson: Resource "
 		    "left allocated!  This is a bug... "
-		    "(rid=%x, type=%d, addr=%lx)\n", rle->rid, rle->type,
+		    "(rid=%x, type=%d, addr=%jx)\n", rle->rid, rle->type,
 		    rman_get_start(rle->res));
 		SLIST_REMOVE_HEAD(&sc->rl, link);
 		free(rle, M_DEVBUF);
@@ -1241,8 +1241,8 @@ cbb_cardbus_alloc_resource(device_t brdev, device_t child, int type,
 	case SYS_RES_IRQ:
 		tmp = rman_get_start(sc->irq_res);
 		if (start > tmp || end < tmp || count != 1) {
-			device_printf(child, "requested interrupt %ld-%ld,"
-			    "count = %ld not supported by cbb\n",
+			device_printf(child, "requested interrupt %jd-%jd,"
+			    "count = %jd not supported by cbb\n",
 			    start, end, count);
 			return (NULL);
 		}
@@ -1425,8 +1425,8 @@ cbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 	case SYS_RES_IRQ:
 		tmp = rman_get_start(sc->irq_res);
 		if (start > tmp || end < tmp || count != 1) {
-			device_printf(child, "requested interrupt %ld-%ld,"
-			    "count = %ld not supported by cbb\n",
+			device_printf(child, "requested interrupt %jd-%jd,"
+			    "count = %jd not supported by cbb\n",
 			    start, end, count);
 			return (NULL);
 		}

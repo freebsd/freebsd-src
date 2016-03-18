@@ -185,7 +185,7 @@ pcib_host_res_decodes(struct pcib_host_resources *hr, int type, rman_res_t start
 	int rid;
 
 	if (bootverbose)
-		device_printf(hr->hr_pcib, "decoding %d %srange %#lx-%#lx\n",
+		device_printf(hr->hr_pcib, "decoding %d %srange %#jx-%#jx\n",
 		    type, flags & RF_PREFETCHABLE ? "prefetchable ": "", start,
 		    end);
 	rid = resource_list_add_next(&hr->hr_rl, type, start, end,
@@ -229,8 +229,8 @@ restart:
 		if (((flags & RF_PREFETCHABLE) != 0) !=
 		    ((rle->flags & RLE_PREFETCH) != 0))
 			continue;
-		new_start = ulmax(start, rle->start);
-		new_end = ulmin(end, rle->end);
+		new_start = ummax(start, rle->start);
+		new_end = ummin(end, rle->end);
 		if (new_start > new_end ||
 		    new_start + count - 1 > new_end ||
 		    new_start + count < new_start)
@@ -240,7 +240,7 @@ restart:
 		if (r != NULL) {
 			if (bootverbose)
 				device_printf(hr->hr_pcib,
-			    "allocated type %d (%#lx-%#lx) for rid %x of %s\n",
+			    "allocated type %d (%#jx-%#jx) for rid %x of %s\n",
 				    type, rman_get_start(r), rman_get_end(r),
 				    *rid, pcib_child_name(dev));
 			return (r);
