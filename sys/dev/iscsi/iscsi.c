@@ -288,6 +288,8 @@ iscsi_session_terminate_task(struct iscsi_session *is,
     struct iscsi_outstanding *io, bool requeue)
 {
 
+	ISCSI_SESSION_LOCK_ASSERT(is);
+
 	if (io->io_ccb != NULL) {
 		io->io_ccb->ccb_h.status &= ~(CAM_SIM_QUEUED | CAM_STATUS_MASK);
 		if (requeue)
