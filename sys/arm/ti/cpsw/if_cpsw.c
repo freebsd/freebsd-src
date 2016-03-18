@@ -1196,6 +1196,7 @@ cpsw_rx_teardown_locked(struct cpsw_softc *sc)
 			received->m_nextpkt = NULL;
 			ifp = received->m_pkthdr.rcvif;
 			(*ifp->if_input)(ifp, received);
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 			received = next;
 		}
 		CPSW_GLOBAL_LOCK(sc);
@@ -1536,6 +1537,7 @@ cpsw_intr_rx(void *arg)
 		received->m_nextpkt = NULL;
 		ifp = received->m_pkthdr.rcvif;
 		(*ifp->if_input)(ifp, received);
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		received = next;
 	}
 }
@@ -1789,6 +1791,7 @@ cpswp_tx_enqueue(struct cpswp_softc *sc)
 		    ("Queueing TX packet: %d segments + %d pad bytes",
 		    nsegs, padlen));
 
+		slot->ifp = sc->ifp;
 		/* If there is only one segment, the for() loop
 		 * gets skipped and the single buffer gets set up
 		 * as both SOP and EOP. */
@@ -1913,6 +1916,8 @@ cpsw_tx_dequeue(struct cpsw_softc *sc)
 		bus_dmamap_unload(sc->mbuf_dtag, slot->dmamap);
 		m_freem(slot->mbuf);
 		slot->mbuf = NULL;
+		if (slot->ifp)
+			if_inc_counter(slot->ifp, IFCOUNTER_OPACKETS, 1);
 
 		/* Dequeue any additional buffers used by this packet. */
 		while (slot != NULL && slot->mbuf == NULL) {
