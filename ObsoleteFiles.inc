@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160317: rman_res_t size bump to uintmax_t
+OLD_LIBS+=usr/lib/libdevinfo.so.5
 # 20160305: new clang import which bumps version from 3.7.1 to 3.8.0.
 OLD_FILES+=usr/bin/macho-dump
 OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/allocator_interface.h
