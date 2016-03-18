@@ -794,7 +794,7 @@ main(int argc, char *const *argv)
 #endif
 	if (sweepmax) {
 		if (sweepmin > sweepmax)
-			errx(EX_USAGE,"Maximum packet size must be no less than the minimum packet size");
+			errx(EX_USAGE, "Maximum packet size must be no less than the minimum packet size");
 
 		if (datalen != DEFDATALEN)
 			errx(EX_USAGE, "Packet size and ping sweep are mutually exclusive");
