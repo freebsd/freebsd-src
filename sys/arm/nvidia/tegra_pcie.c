@@ -491,7 +491,7 @@ tegra_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct rman *rm;
 	struct resource *res;
 
-	debugf("%s: enter %d start %lx end %lx count %lx\n", __func__,
+	debugf("%s: enter %d start %#jx end %#jx count %#jx\n", __func__,
 	    type, start, end, count);
 	sc = device_get_softc(dev);
 
@@ -513,7 +513,7 @@ tegra_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 	if (bootverbose) {
 		device_printf(dev,
-		    "rman_reserve_resource: start=%#lx, end=%#lx, count=%#lx\n",
+		    "rman_reserve_resource: start=%#jx, end=%#jx, count=%#jx\n",
 		    start, end, count);
 	}
 
@@ -532,7 +532,7 @@ tegra_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 fail:
 	if (bootverbose) {
 		device_printf(dev, "%s FAIL: type=%d, rid=%d, "
-		    "start=%016lx, end=%016lx, count=%016lx, flags=%x\n",
+		    "start=%016jx, end=%016jx, count=%016jx, flags=%x\n",
 		    __func__, type, *rid, start, end, count, flags);
 	}
 
@@ -565,14 +565,13 @@ tegra_pcib_release_resource(device_t dev, device_t child, int type, int rid,
 
 static int
 tegra_pcib_adjust_resource(device_t dev, device_t child, int type,
-			    struct resource *res, u_long start, u_long end)
+			    struct resource *res, rman_res_t start, rman_res_t end)
 {
 	struct tegra_pcib_softc *sc;
 	struct rman *rm;
 
 	sc = device_get_softc(dev);
-	debugf("%s: %d start %lx end %lx \n", __func__,
-	    type, start, end);
+	debugf("%s: %d start %jx end %jx \n", __func__, type, start, end);
 
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	if (type == PCI_RES_BUS)
@@ -609,7 +608,7 @@ tegra_pcib_pcie_activate_resource(device_t dev, device_t child, int type,
 	}
 
 	if (bootverbose)
-		printf("%s: start %zx, len %ld\n", __func__, start,
+		printf("%s: start %zx, len %jd\n", __func__, start,
 			rman_get_size(r));
 
 	p = pmap_mapdev(start, (vm_size_t)rman_get_size(r));
@@ -667,7 +666,7 @@ tegra_pcib_route_interrupt(device_t bus, device_t dev, int pin)
 	struct tegra_pcib_softc *sc;
 
 	sc = device_get_softc(bus);
-	device_printf(bus, "route pin %d for device %d.%d to %lu\n",
+	device_printf(bus, "route pin %d for device %d.%d to %ju\n",
 		      pin, pci_get_slot(dev), pci_get_function(dev),
 		      rman_get_start(sc->irq_res));
 
