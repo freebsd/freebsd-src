@@ -408,7 +408,7 @@ arm_setup_intr(const char *name, driver_filter_t *filt, driver_intr_t handler,
 }
 
 int
-arm_teardown_intr(void *cookie)
+intr_irq_remove_handler(device_t dev, u_int irq, void *cookie)
 {
 	struct arm64_intr_entry *intr;
 	int error;
@@ -426,7 +426,7 @@ arm_teardown_intr(void *cookie)
 }
 
 int
-arm_config_intr(u_int hw_irq, enum intr_trigger trig, enum intr_polarity pol)
+intr_irq_config(u_int hw_irq, enum intr_trigger trig, enum intr_polarity pol)
 {
 	struct arm64_intr_entry *intr;
 
@@ -476,7 +476,7 @@ stray:
 }
 
 void
-arm_cpu_intr(struct trapframe *tf)
+intr_irq_handler(struct trapframe *tf)
 {
 
 	critical_enter();
@@ -512,7 +512,7 @@ SYSINIT(arm_intr_smp_init, SI_SUB_SMP, SI_ORDER_ANY, arm_intr_smp_init, NULL);
 
 /* Attempt to bind the specified IRQ to the specified CPU. */
 int
-arm_intr_bind(u_int hw_irq, int cpu)
+intr_irq_bind(u_int hw_irq, int cpu)
 {
 	struct arm64_intr_entry *intr;
 
