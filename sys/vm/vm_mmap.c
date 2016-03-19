@@ -186,24 +186,23 @@ struct mmap_args {
  * MPSAFE
  */
 int
-sys_mmap(td, uap)
-	struct thread *td;
-	struct mmap_args *uap;
+sys_mmap(struct thread *td, struct mmap_args *uap)
+{
+
+	return (kern_mmap(td, (vm_offset_t)uap->addr, uap->len, uap->prot,
+	    uap->flags, uap->fd, uap->pos));
+}
+
+int
+kern_mmap(struct thread *td, vm_offset_t addr, vm_size_t size, int prot,
+    int flags, int fd, off_t pos)
 {
 	struct file *fp;
-	vm_offset_t addr;
-	vm_size_t size, pageoff;
+	vm_size_t pageoff;
 	vm_prot_t cap_maxprot;
-	int align, error, flags, prot;
-	off_t pos;
+	int align, error;
 	struct vmspace *vms = td->td_proc->p_vmspace;
 	cap_rights_t rights;
-
-	addr = (vm_offset_t) uap->addr;
-	size = uap->len;
-	prot = uap->prot;
-	flags = uap->flags;
-	pos = uap->pos;
 
 	fp = NULL;
 
@@ -222,8 +221,8 @@ sys_mmap(td, uap)
 	 * pos.
 	 */
 	if (!SV_CURPROC_FLAG(SV_AOUT)) {
-		if ((uap->len == 0 && curproc->p_osrel >= P_OSREL_MAP_ANON) ||
-		    ((flags & MAP_ANON) != 0 && (uap->fd != -1 || pos != 0)))
+		if ((size == 0 && curproc->p_osrel >= P_OSREL_MAP_ANON) ||
+		    ((flags & MAP_ANON) != 0 && (fd != -1 || pos != 0)))
 			return (EINVAL);
 	} else {
 		if ((flags & MAP_ANON) != 0)
@@ -231,7 +230,7 @@ sys_mmap(td, uap)
 	}
 
 	if (flags & MAP_STACK) {
-		if ((uap->fd != -1) ||
+		if ((fd != -1) ||
 		    ((prot & (PROT_READ | PROT_WRITE)) != (PROT_READ | PROT_WRITE)))
 			return (EINVAL);
 		flags |= MAP_ANON;
@@ -351,7 +350,7 @@ sys_mmap(td, uap)
 		}
 		if (prot & PROT_EXEC)
 			cap_rights_set(&rights, CAP_MMAP_X);
-		error = fget_mmap(td, uap->fd, &rights, &cap_maxprot, &fp);
+		error = fget_mmap(td, fd, &rights, &cap_maxprot, &fp);
 		if (error != 0)
 			goto done;
 		if ((flags & (MAP_SHARED | MAP_PRIVATE)) == 0 &&
@@ -378,15 +377,9 @@ done:
 int
 freebsd6_mmap(struct thread *td, struct freebsd6_mmap_args *uap)
 {
-	struct mmap_args oargs;
 
-	oargs.addr = uap->addr;
-	oargs.len = uap->len;
-	oargs.prot = uap->prot;
-	oargs.flags = uap->flags;
-	oargs.fd = uap->fd;
-	oargs.pos = uap->pos;
-	return (sys_mmap(td, &oargs));
+	return (kern_mmap(td, (vm_offset_t)uap->addr, uap->len, uap->prot,
+	    uap->flags, uap->fd, uap->pos));
 }
 #endif
 
@@ -402,11 +395,9 @@ struct ommap_args {
 };
 #endif
 int
-ommap(td, uap)
-	struct thread *td;
-	struct ommap_args *uap;
+ommap(struct thread *td, struct ommap_args *uap)
 {
-	struct mmap_args nargs;
+	int prot, flags;
 	static const char cvtbsdprot[8] = {
 		0,
 		PROT_EXEC,
@@ -423,30 +414,27 @@ ommap(td, uap)
 #define	OMAP_SHARED	0x0010
 #define	OMAP_FIXED	0x0100
 
-	nargs.addr = uap->addr;
-	nargs.len = uap->len;
-	nargs.prot = cvtbsdprot[uap->prot & 0x7];
+	prot = cvtbsdprot[uap->prot & 0x7];
 #ifdef COMPAT_FREEBSD32
 #if defined(__amd64__)
 	if (i386_read_exec && SV_PROC_FLAG(td->td_proc, SV_ILP32) &&
-	    nargs.prot != 0)
-		nargs.prot |= PROT_EXEC;
+	    prot != 0)
+		prot |= PROT_EXEC;
 #endif
 #endif
-	nargs.flags = 0;
+	flags = 0;
 	if (uap->flags & OMAP_ANON)
-		nargs.flags |= MAP_ANON;
+		flags |= MAP_ANON;
 	if (uap->flags & OMAP_COPY)
-		nargs.flags |= MAP_COPY;
+		flags |= MAP_COPY;
 	if (uap->flags & OMAP_SHARED)
-		nargs.flags |= MAP_SHARED;
+		flags |= MAP_SHARED;
 	else
-		nargs.flags |= MAP_PRIVATE;
+		flags |= MAP_PRIVATE;
 	if (uap->flags & OMAP_FIXED)
-		nargs.flags |= MAP_FIXED;
-	nargs.fd = uap->fd;
-	nargs.pos = uap->pos;
-	return (sys_mmap(td, &nargs));
+		flags |= MAP_FIXED;
+	return (kern_mmap(td, (vm_offset_t)uap->addr, uap->len, prot,
+	    flags, uap->fd, uap->pos));
 }
 #endif				/* COMPAT_43 */
 
