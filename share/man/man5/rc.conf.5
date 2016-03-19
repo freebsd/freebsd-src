@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 9, 2015
+.Dd February 28, 2016
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2120,25 +2120,25 @@ If set to
 run the
 .Xr unbound 8
 daemon as a local caching resolver.
-.It Va kerberos5_server_enable
+.It Va kdc_enable
 .Pq Vt bool
 Set to
 .Dq Li YES
 to start a Kerberos 5 authentication server
 at boot time.
-.It Va kerberos5_server
+.It Va kdc_program
 .Pq Vt str
 If
-.Va kerberos5_server_enable
+.Va kdc_enable
 is set to
 .Dq Li YES
 this is the path to Kerberos 5 Authentication Server.
-.It Va kerberos5_server_flags
+.It Va kdc_flags
 .Pq Vt str
 Empty by default.
 This variable contains additional flags to be passed to the Kerberos 5
 authentication server.
-.It Va kadmind5_server_enable
+.It Va kadmind_enable
 .Pq Vt bool
 Set to
 .Dq Li YES
@@ -2147,14 +2147,14 @@ to start
 the Kerberos 5 Administration Daemon; set to
 .Dq Li NO
 on a slave server.
-.It Va kadmind5_server
+.It Va kadmind_program
 .Pq Vt str
 If
-.Va kadmind5_server_enable
+.Va kadmind_enable
 is set to
 .Dq Li YES
 this is the path to Kerberos 5 Administration Daemon.
-.It Va kpasswdd_server_enable
+.It Va kpasswdd_enable
 .Pq Vt bool
 Set to
 .Dq Li YES
@@ -2163,10 +2163,10 @@ to start
 the Kerberos 5 Password-Changing Daemon; set to
 .Dq Li NO
 on a slave server.
-.It Va kpasswdd_server
+.It Va kpasswdd_program
 .Pq Vt str
 If
-.Va kpasswdd_server_enable
+.Va kpasswdd_enable
 is set to
 .Dq Li YES
 this is the path to Kerberos 5 Password-Changing Daemon.
