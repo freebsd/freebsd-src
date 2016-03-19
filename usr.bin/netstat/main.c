@@ -551,15 +551,15 @@ main(int argc, char *argv[])
 	exit(0);
 }
 
-int
-fetch_stats(const char *sysctlname, u_long off, void *stats, size_t len,
-    int (*kreadfn)(u_long, void *, size_t))
+static int
+fetch_stats_internal(const char *sysctlname, u_long off, void *stats,
+    size_t len, kreadfn_t kreadfn, int zero)
 {
 	int error;
 
 	if (live) {
 		memset(stats, 0, len);
-		if (zflag)
+		if (zero)
 			error = sysctlbyname(sysctlname, NULL, NULL, stats,
 			    len);
 		else
@@ -572,6 +572,23 @@ fetch_stats(const char *sysctlname, u_long off, void *stats, size_t len,
 		error = kreadfn(off, stats, len);
 	}
 	return (error);
+}
+
+int
+fetch_stats(const char *sysctlname, u_long off, void *stats,
+    size_t len, kreadfn_t kreadfn)
+{
+
+	return (fetch_stats_internal(sysctlname, off, stats, len, kreadfn,
+    zflag));
+}
+
+int
+fetch_stats_ro(const char *sysctlname, u_long off, void *stats,
+    size_t len, kreadfn_t kreadfn)
+{
+
+	return (fetch_stats_internal(sysctlname, off, stats, len, kreadfn, 0));
 }
 
 /*

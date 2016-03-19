@@ -1641,11 +1641,11 @@ native_lapic_ipi_wait(int delay)
 		return (1);
 	}
 
-	for (x = 0; x < delay; x += 5) {
+	for (x = 0; x < delay; x++) {
 		if ((lapic_read_icr_lo() & APIC_DELSTAT_MASK) ==
 		    APIC_DELSTAT_IDLE)
 			return (1);
-		DELAY(5);
+		DELAY(1);
 	}
 	return (0);
 }

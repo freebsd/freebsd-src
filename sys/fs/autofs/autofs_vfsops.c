@@ -39,6 +39,7 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/mount.h>
+#include <sys/stat.h>
 #include <sys/sx.h>
 #include <sys/taskqueue.h>
 #include <sys/vnode.h>
@@ -192,7 +193,7 @@ static int
 autofs_statfs(struct mount *mp, struct statfs *sbp)
 {
 
-	sbp->f_bsize = 512;
+	sbp->f_bsize = S_BLKSIZE;
 	sbp->f_iosize = 0;
 	sbp->f_blocks = 0;
 	sbp->f_bfree = 0;

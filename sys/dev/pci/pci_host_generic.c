@@ -540,7 +540,7 @@ generic_pcie_alloc_resource_pcie(device_t dev, device_t child, int type, int *ri
 
 	if (bootverbose) {
 		device_printf(dev,
-		    "rman_reserve_resource: start=%#lx, end=%#lx, count=%#lx\n",
+		    "rman_reserve_resource: start=%#jx, end=%#jx, count=%#jx\n",
 		    start, end, count);
 	}
 
@@ -560,7 +560,7 @@ generic_pcie_alloc_resource_pcie(device_t dev, device_t child, int type, int *ri
 
 fail:
 	device_printf(dev, "%s FAIL: type=%d, rid=%d, "
-	    "start=%016lx, end=%016lx, count=%016lx, flags=%x\n",
+	    "start=%016jx, end=%016jx, count=%016jx, flags=%x\n",
 	    __func__, type, *rid, start, end, count, flags);
 
 	return (NULL);
@@ -744,7 +744,7 @@ generic_pcie_alloc_resource_ofw(device_t bus, device_t child, int type, int *rid
 
 		if (i == MAX_RANGES_TUPLES) {
 			device_printf(bus, "Could not map resource "
-			    "%#lx-%#lx\n", start, end);
+			    "%#jx-%#jx\n", start, end);
 			return (NULL);
 		}
 	}

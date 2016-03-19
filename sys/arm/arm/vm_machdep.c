@@ -40,6 +40,8 @@
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
  */
 
+#include "opt_compat.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -180,7 +182,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 	/*
 	 * __syscall returns an off_t while most other syscalls return an
 	 * int. As an off_t is 64-bits and an int is 32-bits we need to
-	 * place the returned data into r1. As the lseek and frerebsd6_lseek
+	 * place the returned data into r1. As the lseek and freebsd6_lseek
 	 * syscalls also return an off_t they do not need this fixup.
 	 */
 	call = frame->tf_r7;
@@ -189,8 +191,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		register_t code = ap[_QUAD_LOWWORD];
 		if (td->td_proc->p_sysent->sv_mask)
 			code &= td->td_proc->p_sysent->sv_mask;
-		fixup = (code != SYS_freebsd6_lseek && code != SYS_lseek)
-		    ? 1 : 0;
+		fixup = (code != SYS_lseek);
 	}
 #endif
 

@@ -226,9 +226,6 @@ in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 	 */
 	if (opts && (pi = opts->ip6po_pktinfo) &&
 	    !IN6_IS_ADDR_UNSPECIFIED(&pi->ipi6_addr)) {
-		struct sockaddr_in6 srcsock;
-		struct in6_ifaddr *ia6;
-
 		/* get the outgoing interface */
 		if ((error = in6_selectif(dstsock, opts, mopts, &ifp, oifp,
 		    fibnum))
@@ -242,33 +239,36 @@ in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 		 * the interface must be specified; otherwise, ifa_ifwithaddr()
 		 * will fail matching the address.
 		 */
-		bzero(&srcsock, sizeof(srcsock));
-		srcsock.sin6_family = AF_INET6;
-		srcsock.sin6_len = sizeof(srcsock);
-		srcsock.sin6_addr = pi->ipi6_addr;
+		tmp = pi->ipi6_addr;
 		if (ifp) {
-			error = in6_setscope(&srcsock.sin6_addr, ifp, NULL);
+			error = in6_setscope(&tmp, ifp, &odstzone);
 			if (error)
 				return (error);
 		}
 		if (cred != NULL && (error = prison_local_ip6(cred,
-		    &srcsock.sin6_addr, (inp != NULL &&
-		    (inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
+		    &tmp, (inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0)
 			return (error);
 
-		ia6 = (struct in6_ifaddr *)ifa_ifwithaddr(
-		    (struct sockaddr *)&srcsock);
-		if (ia6 == NULL ||
-		    (ia6->ia6_flags & (IN6_IFF_ANYCAST | IN6_IFF_NOTREADY))) {
-			if (ia6 != NULL)
-				ifa_free(&ia6->ia_ifa);
-			return (EADDRNOTAVAIL);
-		}
-		pi->ipi6_addr = srcsock.sin6_addr; /* XXX: this overrides pi */
+		/*
+		 * If IPV6_BINDANY socket option is set, we allow to specify
+		 * non local addresses as source address in IPV6_PKTINFO
+		 * ancillary data.
+		 */
+		if ((inp->inp_flags & INP_BINDANY) == 0) {
+			ia = in6ifa_ifwithaddr(&tmp, odstzone);
+			if (ia == NULL || (ia->ia6_flags & (IN6_IFF_ANYCAST |
+			    IN6_IFF_NOTREADY))) {
+				if (ia != NULL)
+					ifa_free(&ia->ia_ifa);
+				return (EADDRNOTAVAIL);
+			}
+			bcopy(&ia->ia_addr.sin6_addr, srcp, sizeof(*srcp));
+			ifa_free(&ia->ia_ifa);
+		} else
+			bcopy(&tmp, srcp, sizeof(*srcp));
+		pi->ipi6_addr = tmp; /* XXX: this overrides pi */
 		if (ifpp)
 			*ifpp = ifp;
-		bcopy(&ia6->ia_addr.sin6_addr, srcp, sizeof(*srcp));
-		ifa_free(&ia6->ia_ifa);
 		return (0);
 	}
 

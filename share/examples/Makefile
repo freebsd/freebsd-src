@@ -219,9 +219,10 @@ XFILES+=	bhyve/vmrun.sh
 SHARED?=	copies
 
 beforeinstall: ${SHARED} etc-examples
+META_TARGETS+=	copies symlinks
 .ORDER: ${SHARED} etc-examples
 
-copies:
+copies: ${META_DEPS}
 .for i in ${LDIRS}
 	if [ -L ${DESTDIR}${BINDIR}/$i ]; then \
 		rm -f ${DESTDIR}${BINDIR}/$i; \
@@ -234,7 +235,7 @@ copies:
 		${.CURDIR}/${file} ${DESTDIR}${BINDIR}/${file}
 .endfor
 
-symlinks:
+symlinks: ${META_DEPS}
 .for i in ${LDIRS}
 	rm -rf ${DESTDIR}${BINDIR}/$i
 	ln -s ${.CURDIR}/$i ${DESTDIR}${BINDIR}/$i
@@ -242,7 +243,7 @@ symlinks:
 
 etc-examples:
 .if ${SHARED} != "symlinks"
-	(cd ${.CURDIR}/../../etc; ${MAKE} etc-examples)
+	${_+_}(cd ${.CURDIR}/../../etc; ${MAKE} etc-examples)
 .endif
 
 .if ${SHARED} != "symlinks"
@@ -261,4 +262,4 @@ SUBDIR+=tests
 
 SUBDIR_PARALLEL=
 
-.include <bsd.subdir.mk>
+.include <bsd.prog.mk>

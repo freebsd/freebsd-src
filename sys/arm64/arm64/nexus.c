@@ -39,6 +39,9 @@
  * and I/O memory address space.
  */
 
+#include "opt_acpi.h"
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -59,9 +62,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/resource.h>
 #include <machine/intr.h>
-
-#include "opt_acpi.h"
-#include "opt_platform.h"
 
 #ifdef FDT
 #include <dev/ofw/openfirm.h>
@@ -271,7 +271,7 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 
-	return (arm_config_intr(irq, trig, pol));
+	return (intr_irq_config(irq, trig, pol));
 }
 
 static int
@@ -298,7 +298,7 @@ static int
 nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 
-	return (arm_teardown_intr(ih));
+	return (intr_irq_remove_handler(child, rman_get_start(r), ih));
 }
 
 #ifdef SMP
@@ -306,7 +306,7 @@ static int
 nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
 {
 
-	return (arm_intr_bind(rman_get_start(irq), cpu));
+	return (intr_irq_bind(rman_get_start(irq), cpu));
 }
 #endif
 

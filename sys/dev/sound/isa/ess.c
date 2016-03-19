@@ -867,12 +867,12 @@ ess_attach(device_t dev)
     	}
 
     	if (sc->drq2)
-		snprintf(buf, SND_STATUSLEN, ":%ld", rman_get_start(sc->drq2));
+		snprintf(buf, SND_STATUSLEN, ":%jd", rman_get_start(sc->drq2));
 	else
 		buf[0] = '\0';
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld%s bufsz %u %s",
-    	     	rman_get_start(sc->io_base), rman_get_start(sc->irq),
+    	snprintf(status, SND_STATUSLEN, "at io 0x%jx irq %jd drq %jd%s bufsz %u %s",
+		rman_get_start(sc->io_base), rman_get_start(sc->irq),
 		rman_get_start(sc->drq1), buf, sc->bufsize,
 		PCM_KLDSTRING(snd_ess));
 

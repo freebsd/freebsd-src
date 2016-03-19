@@ -30,6 +30,7 @@ __DEFAULT_YES_OPTIONS = \
     CDDL \
     CRYPT \
     CUSE \
+    FAST_DEPEND \
     FORMAT_EXTENSIONS \
     INET \
     INET6 \
@@ -45,7 +46,6 @@ __DEFAULT_YES_OPTIONS = \
 
 __DEFAULT_NO_OPTIONS = \
     EISA \
-    FAST_DEPEND \
     NAND \
     OFED
 
@@ -144,7 +144,10 @@ MK_${var}:=	no
 MK_${var}_SUPPORT:= no
 .else
 .if defined(KERNBUILDDIR)	# See if there's an opt_foo.h
+.if !defined(OPT_${var})
 OPT_${var}!= cat ${KERNBUILDDIR}/opt_${var:tl}.h; echo
+.export OPT_${var}
+.endif
 .if ${OPT_${var}} == ""		# nothing -> no
 MK_${var}_SUPPORT:= no
 .else
