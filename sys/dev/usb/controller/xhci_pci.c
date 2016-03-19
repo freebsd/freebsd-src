@@ -115,6 +115,8 @@ xhci_pci_match(device_t self)
 		return ("Intel Lynx Point USB 3.0 controller");
 	case 0x8cb18086:
 		return ("Intel Wildcat Point USB 3.0 controller");
+	case 0x8d318086:
+		return ("Intel Wellsburg USB 3.0 controller");
 	case 0x9cb18086:
 		return ("Broadwell Integrated PCH-LP chipset USB 3.0 controller");
 
