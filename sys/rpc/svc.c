@@ -560,7 +560,7 @@ svc_loss_reg(SVCXPRT *xprt, void (*dispatch)(SVCXPRT *))
 		mtx_unlock(&pool->sp_lock);
 		return (TRUE);
 	}
-	s = malloc(sizeof (struct svc_callout), M_RPC, M_NOWAIT);
+	s = malloc(sizeof(struct svc_loss_callout), M_RPC, M_NOWAIT);
 	if (s == NULL) {
 		mtx_unlock(&pool->sp_lock);
 		return (FALSE);
