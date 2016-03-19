@@ -168,6 +168,10 @@ ehci_pci_match(device_t self)
 		return ("Intel Wildcat Point USB 2.0 controller USB-A");
 	case 0x8cad8086:
 		return ("Intel Wildcat Point USB 2.0 controller USB-B");
+	case 0x8d268086:
+		return ("Intel Wellsburg USB 2.0 controller");
+	case 0x8d2d8086:
+		return ("Intel Wellsburg USB 2.0 controller");
 	case 0x9c268086:
 		return ("Intel Lynx Point LP USB 2.0 controller USB");
 
