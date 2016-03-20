@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../dev/usb/wlan
+.PATH: ${.CURDIR}/../../dev/urtwn
 
 .include <src.opts.mk>
 
