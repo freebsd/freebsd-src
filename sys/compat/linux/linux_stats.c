@@ -257,7 +257,7 @@ static int
 stat_copyout(struct stat *buf, void *ubuf)
 {
 	struct l_stat lbuf;
-	
+
 	bzero(&lbuf, sizeof(lbuf));
 	lbuf.st_dev = buf->st_dev;
 	lbuf.st_ino = buf->st_ino;
@@ -303,7 +303,7 @@ linux_stat(struct thread *td, struct linux_stat_args *args)
 		return (error);
 	}
 	LFREEPATH(path);
-	return(stat_copyout(&buf, args->up));
+	return (stat_copyout(&buf, args->up));
 }
 
 int
@@ -325,7 +325,7 @@ linux_lstat(struct thread *td, struct linux_lstat_args *args)
 		return (error);
 	}
 	LFREEPATH(path);
-	return(stat_copyout(&buf, args->up));
+	return (stat_copyout(&buf, args->up));
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
@@ -416,7 +416,7 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 	if (error)
 		return (error);
 	bsd_to_linux_statfs(&bsd_statfs, &linux_statfs);
-	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
+	return (copyout(&linux_statfs, args->buf, sizeof(linux_statfs)));
 }
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
@@ -458,7 +458,7 @@ linux_statfs64(struct thread *td, struct linux_statfs64_args *args)
 	if (error)
 		return (error);
 	bsd_to_linux_statfs64(&bsd_statfs, &linux_statfs);
-	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
+	return (copyout(&linux_statfs, args->buf, sizeof(linux_statfs)));
 }
 
 int
@@ -498,7 +498,7 @@ linux_fstatfs(struct thread *td, struct linux_fstatfs_args *args)
 	if (error)
 		return error;
 	bsd_to_linux_statfs(&bsd_statfs, &linux_statfs);
-	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
+	return (copyout(&linux_statfs, args->buf, sizeof(linux_statfs)));
 }
 
 struct l_ustat
