@@ -460,6 +460,27 @@ linux_statfs64(struct thread *td, struct linux_statfs64_args *args)
 	bsd_to_linux_statfs64(&bsd_statfs, &linux_statfs);
 	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
 }
+
+int
+linux_fstatfs64(struct thread *td, struct linux_fstatfs64_args *args)
+{
+	struct l_statfs64 linux_statfs;
+	struct statfs bsd_statfs;
+	int error;
+
+#ifdef DEBUG
+	if (ldebug(fstatfs64))
+		printf(ARGS(fstatfs64, "%d, *"), args->fd);
+#endif
+	if (args->bufsize != sizeof(struct l_statfs64))
+		return (EINVAL);
+
+	error = kern_fstatfs(td, args->fd, &bsd_statfs);
+	if (error)
+		return error;
+	bsd_to_linux_statfs64(&bsd_statfs, &linux_statfs);
+	return (copyout(&linux_statfs, args->buf, sizeof(linux_statfs)));
+}
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 int
