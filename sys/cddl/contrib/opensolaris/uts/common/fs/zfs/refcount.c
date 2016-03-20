@@ -30,6 +30,11 @@
 
 #ifdef _KERNEL
 int reference_tracking_enable = FALSE; /* runs out of memory too easily */
+SYSCTL_DECL(_vfs_zfs);
+TUNABLE_INT("vfs.zfs.reference_tracking_enable", &reference_tracking_enable);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, reference_tracking_enable, CTLFLAG_RDTUN,
+    &reference_tracking_enable, 0,
+    "Track reference holders to refcount_t objects, used mostly by ZFS");
 #else
 int reference_tracking_enable = TRUE;
 #endif
