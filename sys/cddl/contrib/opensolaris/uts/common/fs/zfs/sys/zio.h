@@ -150,9 +150,6 @@ enum zio_compress {
 #define	ZIO_FAILURE_MODE_CONTINUE	1
 #define	ZIO_FAILURE_MODE_PANIC		2
 
-#define	ZIO_PIPELINE_CONTINUE		0x100
-#define	ZIO_PIPELINE_STOP		0x101
-
 enum zio_flag {
 	/*
 	 * Flags inherited by gang, ddt, and vdev children,
