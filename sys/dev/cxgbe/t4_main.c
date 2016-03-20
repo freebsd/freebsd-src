@@ -3250,6 +3250,12 @@ cxgbe_uninit_synchronized(struct port_info *pi)
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
+	if (!(pi->flags & PORT_INIT_DONE)) {
+		KASSERT(!(ifp->if_drv_flags & IFF_DRV_RUNNING),
+		    ("uninited port is running"));
+		return (0);
+	}
+
 	/*
 	 * Disable the VI so that all its data in either direction is discarded
 	 * by the MPS.  Leave everything else (the queues, interrupts, and 1Hz
