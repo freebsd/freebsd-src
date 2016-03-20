@@ -191,32 +191,33 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 {
 	struct itimerval it, old_it;
 	u_int secs;
+	int error;
 
 #ifdef DEBUG
 	if (ldebug(alarm))
 		printf(ARGS(alarm, "%u"), args->secs);
 #endif
-	
 	secs = args->secs;
-
-	if (secs > INT_MAX)
-		secs = INT_MAX;
-
-	it.it_value.tv_sec = (long) secs;
-	it.it_value.tv_usec = 0;
-	it.it_interval.tv_sec = 0;
-	it.it_interval.tv_usec = 0;
 	/*
-	 * According to POSIX and Linux implementation
-	 * the alarm() system call is always successfull.
-	 * Ignore errors and return 0 as a Linux does.
+	 * Linux alarm() is always successfull. Limit secs to INT32_MAX / 2
+	 * to match kern_setitimer()'s limit to avoid error from it.
+	 *
+	 * XXX. Linux limit secs to INT_MAX on 32 and does not limit on 64-bit
+	 * platforms.
 	 */
-	kern_setitimer(td, ITIMER_REAL, &it, &old_it);
-	if (timevalisset(&old_it.it_value)) {
-		if (old_it.it_value.tv_usec != 0)
-			old_it.it_value.tv_sec++;
-		td->td_retval[0] = old_it.it_value.tv_sec;
-	}
+	if (secs > INT32_MAX / 2)
+		secs = INT32_MAX / 2;
+
+	it.it_value.tv_sec = secs;
+	it.it_value.tv_usec = 0;
+	timevalclear(&it.it_interval);
+	error = kern_setitimer(td, ITIMER_REAL, &it, &old_it);
+	KASSERT(error == 0, ("kern_setitimer returns %d", error));
+
+	if ((old_it.it_value.tv_sec == 0 && old_it.it_value.tv_usec > 0) ||
+	    old_it.it_value.tv_usec >= 500000)
+		old_it.it_value.tv_sec++;
+	td->td_retval[0] = old_it.it_value.tv_sec;
 	return (0);
 }
 
