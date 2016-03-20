@@ -429,7 +429,9 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 	LFREEPATH(path);
 	if (error)
 		return (error);
-	bsd_to_linux_statfs(&bsd_statfs, &linux_statfs);
+	error = bsd_to_linux_statfs(&bsd_statfs, &linux_statfs);
+	if (error)
+		return (error);
 	return (copyout(&linux_statfs, args->buf, sizeof(linux_statfs)));
 }
 
@@ -510,8 +512,10 @@ linux_fstatfs(struct thread *td, struct linux_fstatfs_args *args)
 #endif
 	error = kern_fstatfs(td, args->fd, &bsd_statfs);
 	if (error)
-		return error;
-	bsd_to_linux_statfs(&bsd_statfs, &linux_statfs);
+		return (error);
+	error = bsd_to_linux_statfs(&bsd_statfs, &linux_statfs);
+	if (error)
+		return (error);
 	return (copyout(&linux_statfs, args->buf, sizeof(linux_statfs)));
 }
 
