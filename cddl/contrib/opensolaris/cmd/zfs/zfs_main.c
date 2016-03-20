@@ -65,7 +65,7 @@
 #include <zfs_prop.h>
 #include <zfs_deleg.h>
 #include <libuutil.h>
-#ifdef sun
+#ifdef illumos
 #include <aclutils.h>
 #include <directory.h>
 #include <idmap.h>
@@ -2433,7 +2433,7 @@ userspace_cb(void *arg, const char *domain, uid_t rid, uint64_t space)
 		/* SMB */
 		char sid[ZFS_MAXNAMELEN + 32];
 		uid_t id;
-#ifdef sun
+#ifdef illumos
 		int err;
 		int flag = IDMAP_REQ_FLG_USE_CACHE;
 #endif
@@ -2444,17 +2444,17 @@ userspace_cb(void *arg, const char *domain, uid_t rid, uint64_t space)
 
 		if (prop == ZFS_PROP_GROUPUSED || prop == ZFS_PROP_GROUPQUOTA) {
 			type = USTYPE_SMB_GRP;
-#ifdef sun
+#ifdef illumos
 			err = sid_to_id(sid, B_FALSE, &id);
 #endif
 		} else {
 			type = USTYPE_SMB_USR;
-#ifdef sun
+#ifdef illumos
 			err = sid_to_id(sid, B_TRUE, &id);
 #endif
 		}
 
-#ifdef sun
+#ifdef illumos
 		if (err == 0) {
 			rid = id;
 			if (!cb->cb_sid2posix) {
@@ -6264,7 +6264,7 @@ unshare_unmount_path(int op, char *path, int flags, boolean_t is_manual)
 	/*
 	 * Search for the given (major,minor) pair in the mount table.
 	 */
-#ifdef sun
+#ifdef illumos
 	rewind(mnttab_file);
 	while ((ret = getextmntent(mnttab_file, &entry, 0)) == 0) {
 		if (entry.mnt_major == major(statbuf.st_dev) &&

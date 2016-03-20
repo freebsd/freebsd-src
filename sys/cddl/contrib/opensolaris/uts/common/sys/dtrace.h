@@ -54,7 +54,7 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/modctl.h>
 #include <sys/processor.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/systm.h>
 #else
 #include <sys/cpuvar.h>
@@ -65,7 +65,7 @@ extern "C" {
 typedef int model_t;
 #endif
 #include <sys/ctf_api.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/cyclic.h>
 #include <sys/int_limits.h>
 #else
@@ -257,7 +257,7 @@ typedef enum dtrace_probespec {
 #define	DIF_VAR_ERRNO		0x0120	/* thread errno */
 #define	DIF_VAR_EXECARGS	0x0121	/* process arguments */
 
-#if !defined(sun)
+#ifndef illumos
 #define	DIF_VAR_CPU		0x0200
 #endif
 
@@ -1277,7 +1277,7 @@ typedef struct dtrace_providerdesc {
  * pseudodevice driver.  These ioctls comprise the user-kernel interface to
  * DTrace.
  */
-#if defined(sun)
+#ifdef illumos
 #define	DTRACEIOC		(('d' << 24) | ('t' << 16) | ('r' << 8))
 #define	DTRACEIOC_PROVIDER	(DTRACEIOC | 1)		/* provider query */
 #define	DTRACEIOC_PROBES	(DTRACEIOC | 2)		/* probe query */
@@ -1408,7 +1408,7 @@ typedef struct {
  * helpers and should no longer be used.  No other ioctls are valid on the
  * helper minor node.
  */
-#if defined(sun)
+#ifdef illumos
 #define	DTRACEHIOC		(('d' << 24) | ('t' << 16) | ('h' << 8))
 #define	DTRACEHIOC_ADD		(DTRACEHIOC | 1)	/* add helper */
 #define	DTRACEHIOC_REMOVE	(DTRACEHIOC | 2)	/* remove helper */
@@ -1423,7 +1423,7 @@ typedef struct dof_helper {
 	char dofhp_mod[DTRACE_MODNAMELEN];	/* executable or library name */
 	uint64_t dofhp_addr;			/* base address of object */
 	uint64_t dofhp_dof;			/* address of helper DOF */
-#if !defined(sun)
+#ifndef illumos
 	int gen;
 #endif
 } dof_helper_t;
@@ -2325,7 +2325,7 @@ typedef enum dtrace_vtime_state {
 	DTRACE_VTIME_ACTIVE_TNF		/* DTrace virtual time _and_ TNF */
 } dtrace_vtime_state_t;
 
-#if defined(sun)
+#ifdef illumos
 extern dtrace_vtime_state_t dtrace_vtime_active;
 #endif
 extern void dtrace_vtime_switch(kthread_t *next);
@@ -2337,7 +2337,7 @@ extern void dtrace_vtime_disable(void);
 struct regs;
 struct reg;
 
-#if defined(sun)
+#ifdef illumos
 extern int (*dtrace_pid_probe_ptr)(struct reg *);
 extern int (*dtrace_return_probe_ptr)(struct reg *);
 extern void (*dtrace_fasttrap_fork_ptr)(proc_t *, proc_t *);
@@ -2356,7 +2356,7 @@ extern void dtrace_membar_producer(void);
 extern void dtrace_membar_consumer(void);
 
 extern void (*dtrace_cpu_init)(processorid_t);
-#if defined(sun)
+#ifdef illumos
 extern void (*dtrace_modload)(modctl_t *);
 extern void (*dtrace_modunload)(modctl_t *);
 #endif
@@ -2370,7 +2370,7 @@ extern void (*dtrace_debugger_init)(void);
 extern void (*dtrace_debugger_fini)(void);
 extern dtrace_cacheid_t dtrace_predcache_id;
 
-#if defined(sun)
+#ifdef illumos
 extern hrtime_t dtrace_gethrtime(void);
 #else
 void dtrace_debug_printf(const char *, ...) __printflike(1, 2);
@@ -2399,7 +2399,7 @@ extern int dtrace_blksuword32(uintptr_t, uint32_t *, int);
 extern void dtrace_getfsr(uint64_t *);
 #endif
 
-#if !defined(sun)
+#ifndef illumos
 extern void dtrace_helpers_duplicate(proc_t *, proc_t *);
 extern void dtrace_helpers_destroy(proc_t *);
 #endif

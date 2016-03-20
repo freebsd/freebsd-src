@@ -30,7 +30,7 @@
 #include <elf.h>
 
 #include <sys/types.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/sysmacros.h>
 #else
 #define	P2ROUNDUP(x, align)		(-(-(x) & -(align)))
@@ -38,7 +38,7 @@
 
 #include <unistd.h>
 #include <strings.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <limits.h>
@@ -47,7 +47,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
-#if defined(sun)
+#ifdef illumos
 #include <wait.h>
 #else
 #include <sys/wait.h>
@@ -1609,7 +1609,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 				return (dt_link_error(dtp, elf, fd, bufs,
 				    "failed to allocate space for probe"));
 			}
-#if !defined(sun)
+#ifndef illumos
 			/*
 			 * Our linker doesn't understand the SUNW_IGNORE ndx and
 			 * will try to use this relocation when we build the
@@ -1643,7 +1643,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			 * already been processed by an earlier link
 			 * invocation.
 			 */
-#if !defined(sun)
+#ifndef illumos
 #define SHN_SUNW_IGNORE	SHN_ABS
 #endif
 			if (rsym.st_shndx != SHN_SUNW_IGNORE) {
@@ -1659,7 +1659,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 	(void) elf_end(elf);
 	(void) close(fd);
 
-#if !defined(sun)
+#ifndef illumos
 	if (nsym > 0)
 #endif
 	while ((pair = bufs) != NULL) {
@@ -1680,7 +1680,7 @@ int
 dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
     const char *file, int objc, char *const objv[])
 {
-#if !defined(sun)
+#ifndef illumos
 	char tfile[PATH_MAX];
 	Elf *e;
 	Elf_Scn *scn;
@@ -1703,7 +1703,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 	size_t len;
 	int eprobes = 0, ret = 0;
 
-#if !defined(sun)
+#ifndef illumos
 	if (access(file, R_OK) == 0) {
 		fprintf(stderr, "dtrace: target object (%s) already exists. "
 		    "Please remove the target\ndtrace: object and rebuild all "
@@ -1781,7 +1781,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 	if ((dof = dtrace_dof_create(dtp, pgp, dflags)) == NULL)
 		return (-1); /* errno is set for us */
 
-#if defined(sun)
+#ifdef illumos
 	/*
 	 * Create a temporary file and then unlink it if we're going to
 	 * combine it with drti.o later.  We can still refer to it in child
@@ -1825,12 +1825,12 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 	}
 
 
-#if defined(sun)
+#ifdef illumos
 	if (!dtp->dt_lazyload)
 		(void) unlink(file);
 #endif
 
-#if defined(sun)
+#ifdef illumos
 	if (dtp->dt_oflags & DTRACE_O_LP64)
 		status = dump_elf64(dtp, dof, fd);
 	else
@@ -1846,7 +1846,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 	}
 
 	if (!dtp->dt_lazyload) {
-#if defined(sun)
+#ifdef illumos
 		const char *fmt = "%s -o %s -r -Blocal -Breduce /dev/fd/%d %s";
 
 		if (dtp->dt_oflags & DTRACE_O_LP64) {
@@ -1912,7 +1912,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 			    file, dtp->dt_ld_path, WEXITSTATUS(status));
 			goto done;
 		}
-#if !defined(sun)
+#ifndef illumos
 		/*
 		 * FreeBSD's ld(1) is not instructed to interpret and add
 		 * correctly the SUNW_dof section present in tfile.
@@ -1999,7 +1999,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 done:
 	dtrace_dof_destroy(dtp, dof);
 
-#if !defined(sun)
+#ifndef illumos
 	unlink(tfile);
 #endif
 	return (ret);

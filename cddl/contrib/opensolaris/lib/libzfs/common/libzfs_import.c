@@ -958,7 +958,7 @@ slice_cache_compare(const void *arg1, const void *arg2)
 	return (rv > 0 ? 1 : -1);
 }
 
-#ifdef sun
+#ifdef illumos
 static void
 check_one_slice(avl_tree_t *r, char *diskname, uint_t partno,
     diskaddr_t size, uint_t blksz)
@@ -981,12 +981,12 @@ check_one_slice(avl_tree_t *r, char *diskname, uint_t partno,
 	    (node = avl_find(r, &tmpnode, NULL)))
 		node->rn_nozpool = B_TRUE;
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 static void
 nozpool_all_slices(avl_tree_t *r, const char *sname)
 {
-#ifdef sun
+#ifdef illumos
 	char diskname[MAXNAMELEN];
 	char *ptr;
 	int i;
@@ -1002,10 +1002,10 @@ nozpool_all_slices(avl_tree_t *r, const char *sname)
 	ptr[0] = 'p';
 	for (i = 0; i <= FD_NUMPART; i++)
 		check_one_slice(r, diskname, i, 0, 1);
-#endif	/* sun */
+#endif	/* illumos */
 }
 
-#ifdef sun
+#ifdef illumos
 static void
 check_slices(avl_tree_t *r, int fd, const char *sname)
 {
@@ -1039,7 +1039,7 @@ check_slices(avl_tree_t *r, int fd, const char *sname)
 		efi_free(gpt);
 	}
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 static void
 zpool_open_func(void *arg)
@@ -1069,7 +1069,7 @@ zpool_open_func(void *arg)
 		return;
 	}
 	/* this file is too small to hold a zpool */
-#ifdef sun
+#ifdef illumos
 	if (S_ISREG(statbuf.st_mode) &&
 	    statbuf.st_size < SPA_MINDEVSIZE) {
 		(void) close(fd);
@@ -1081,12 +1081,12 @@ zpool_open_func(void *arg)
 		 */
 		check_slices(rn->rn_avl, fd, rn->rn_name);
 	}
-#else	/* !sun */
+#else	/* !illumos */
 	if (statbuf.st_size < SPA_MINDEVSIZE) {
 		(void) close(fd);
 		return;
 	}
-#endif	/* sun */
+#endif	/* illumos */
 
 	if ((zpool_read_label(fd, &config)) != 0) {
 		(void) close(fd);

@@ -38,7 +38,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <limits.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <errno.h>
@@ -871,7 +871,7 @@ dt_options_load(dtrace_hdl_t *dtp)
 	bzero(&hdr, sizeof (dof_hdr_t));
 	hdr.dofh_loadsz = sizeof (dof_hdr_t);
 
-#if defined(sun)
+#ifdef illumos
 	if (dt_ioctl(dtp, DTRACEIOC_DOFGET, &hdr) == -1)
 #else
 	dof = &hdr;
@@ -889,7 +889,7 @@ dt_options_load(dtrace_hdl_t *dtp)
 	for (i = 0; i < DTRACEOPT_MAX; i++)
 		dtp->dt_options[i] = DTRACEOPT_UNSET;
 
-#if defined(sun)
+#ifdef illumos
 	if (dt_ioctl(dtp, DTRACEIOC_DOFGET, dof) == -1)
 #else
 	if (dt_ioctl(dtp, DTRACEIOC_DOFGET, &dof) == -1)

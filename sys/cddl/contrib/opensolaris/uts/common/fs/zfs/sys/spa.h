@@ -625,7 +625,7 @@ extern int spa_get_stats(const char *pool, nvlist_t **config, char *altroot,
     size_t buflen);
 extern int spa_create(const char *pool, nvlist_t *config, nvlist_t *props,
     nvlist_t *zplprops);
-#if defined(sun)
+#ifdef illumos
 extern int spa_import_rootpool(char *devpath, char *devid);
 #else
 extern int spa_import_rootpool(const char *name);

@@ -2339,7 +2339,7 @@ zpool_get_physpath(zpool_handle_t *zhp, char *physpath, size_t phypath_size)
 static int
 zpool_relabel_disk(libzfs_handle_t *hdl, const char *name)
 {
-#ifdef sun
+#ifdef illumos
 	char path[MAXPATHLEN];
 	char errbuf[1024];
 	int fd, error;
@@ -2369,7 +2369,7 @@ zpool_relabel_disk(libzfs_handle_t *hdl, const char *name)
 		    "relabel '%s': unable to read disk capacity"), name);
 		return (zfs_error(hdl, EZFS_NOCAP, errbuf));
 	}
-#endif	/* sun */
+#endif	/* illumos */
 	return (0);
 }
 
@@ -3417,7 +3417,7 @@ zpool_vdev_name(libzfs_handle_t *hdl, zpool_handle_t *zhp, nvlist_t *nv,
 				devid_str_free(newdevid);
 		}
 
-#ifdef sun
+#ifdef illumos
 		if (strncmp(path, "/dev/dsk/", 9) == 0)
 			path += 9;
 
@@ -3442,10 +3442,10 @@ zpool_vdev_name(libzfs_handle_t *hdl, zpool_handle_t *zhp, nvlist_t *nv,
 			}
 			return (tmp);
 		}
-#else	/* !sun */
+#else	/* !illumos */
 		if (strncmp(path, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
 			path += sizeof(_PATH_DEV) - 1;
-#endif	/* !sun */
+#endif	/* illumos */
 	} else {
 		verify(nvlist_lookup_string(nv, ZPOOL_CONFIG_TYPE, &path) == 0);
 
@@ -3835,7 +3835,7 @@ zpool_obj_to_path(zpool_handle_t *zhp, uint64_t dsobj, uint64_t obj,
 	free(mntpnt);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * Read the EFI label from the config, if a label does not exist then
  * pass back the error to the caller. If the caller has passed a non-NULL
@@ -3900,7 +3900,7 @@ find_start_block(nvlist_t *config)
 	}
 	return (MAXOFFSET_T);
 }
-#endif /* sun */
+#endif /* illumos */
 
 /*
  * Label an individual disk.  The name provided is the short name,
@@ -3909,7 +3909,7 @@ find_start_block(nvlist_t *config)
 int
 zpool_label_disk(libzfs_handle_t *hdl, zpool_handle_t *zhp, const char *name)
 {
-#ifdef sun
+#ifdef illumos
 	char path[MAXPATHLEN];
 	struct dk_gpt *vtoc;
 	int fd;
@@ -4007,7 +4007,7 @@ zpool_label_disk(libzfs_handle_t *hdl, zpool_handle_t *zhp, const char *name)
 
 	(void) close(fd);
 	efi_free(vtoc);
-#endif /* sun */
+#endif /* illumos */
 	return (0);
 }
 

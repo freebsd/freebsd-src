@@ -115,7 +115,7 @@ extern unsigned char bcd_to_byte[256];
 #define	L_MAXMIN	L_MAXMIN32
 #endif
 
-#ifdef sun
+#ifdef illumos
 #ifdef _KERNEL
 
 /* major part of a device internal to the kernel */
@@ -175,7 +175,7 @@ extern unsigned char bcd_to_byte[256];
 #define	getemajor(x)	(major_t)((((dev_t)(x) >> L_BITSMINOR) > L_MAXMAJ) ? \
 			    NODEV : (((dev_t)(x) >> L_BITSMINOR) & L_MAXMAJ))
 #define	geteminor(x)	(minor_t)((x) & L_MAXMIN)
-#endif /* sun */
+#endif /* illumos */
 
 /*
  * These are versions of the kernel routines for compressing and

@@ -1610,7 +1610,7 @@ arc_cksum_compute(arc_buf_t *buf, boolean_t force)
 	mutex_exit(&buf->b_hdr->b_l1hdr.b_freeze_lock);
 #ifdef illumos
 	arc_buf_watch(buf);
-#endif /* illumos */
+#endif
 }
 
 #ifdef illumos
@@ -1713,7 +1713,7 @@ arc_buf_thaw(arc_buf_t *buf)
 
 #ifdef illumos
 	arc_buf_unwatch(buf);
-#endif /* illumos */
+#endif
 }
 
 void
@@ -2287,7 +2287,7 @@ arc_buf_destroy(arc_buf_t *buf, boolean_t remove)
 		arc_cksum_verify(buf);
 #ifdef illumos
 		arc_buf_unwatch(buf);
-#endif /* illumos */
+#endif
 
 		if (type == ARC_BUFC_METADATA) {
 			arc_buf_data_free(buf, zio_buf_free);
@@ -3412,7 +3412,7 @@ arc_available_memory(void)
 		r = FMR_LOTSFREE;
 	}
 
-#ifdef sun
+#ifdef illumos
 	/*
 	 * check that we're out of range of the pageout scanner.  It starts to
 	 * schedule paging if freemem is less than lotsfree and needfree.
@@ -3455,7 +3455,7 @@ arc_available_memory(void)
 		r = FMR_PAGES_PP_MAXIMUM;
 	}
 
-#endif	/* sun */
+#endif	/* illumos */
 #if defined(__i386) || !defined(UMA_MD_SMALL_ALLOC)
 	/*
 	 * If we're on an i386 platform, it's possible that we'll exhaust the
@@ -3578,7 +3578,7 @@ arc_kmem_reap_now(void)
 	kmem_cache_reap_now(hdr_l2only_cache);
 	kmem_cache_reap_now(range_seg_cache);
 
-#ifdef sun
+#ifdef illumos
 	if (zio_arena != NULL) {
 		/*
 		 * Ask the vmem arena to reclaim unused memory from its
@@ -4140,7 +4140,7 @@ arc_read_done(zio_t *zio)
 	arc_cksum_compute(buf, B_FALSE);
 #ifdef illumos
 	arc_buf_watch(buf);
-#endif /* illumos */
+#endif
 
 	if (hash_lock && zio->io_error == 0 &&
 	    hdr->b_l1hdr.b_state == arc_anon) {
@@ -4849,7 +4849,7 @@ arc_release(arc_buf_t *buf, void *tag)
 		arc_cksum_verify(buf);
 #ifdef illumos
 		arc_buf_unwatch(buf);
-#endif /* illumos */
+#endif
 
 		mutex_exit(hash_lock);
 
@@ -5291,7 +5291,7 @@ arc_init(void)
 	/* Start out with 1/8 of all memory */
 	arc_c = kmem_size() / 8;
 
-#ifdef sun
+#ifdef illumos
 #ifdef _KERNEL
 	/*
 	 * On architectures where the physical memory can be larger
@@ -5300,7 +5300,7 @@ arc_init(void)
 	 */
 	arc_c = MIN(arc_c, vmem_size(heap_arena, VMEM_ALLOC | VMEM_FREE) / 8);
 #endif
-#endif	/* sun */
+#endif	/* illumos */
 	/* set min cache to 1/32 of all memory, or 16MB, whichever is more */
 	arc_c_min = MAX(arc_c / 4, 16 << 20);
 	/* set max to 1/2 of all memory, or all but 1GB, whichever is more */

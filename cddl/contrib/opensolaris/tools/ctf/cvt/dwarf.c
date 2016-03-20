@@ -1380,7 +1380,7 @@ die_base_type2enc(dwarf_t *dw, Dwarf_Off off, Dwarf_Signed enc, size_t sz)
 		mult = 2;
 		col = 1;
 	} else if (enc == DW_ATE_imaginary_float
-#if defined(sun)
+#ifdef illumos
 	    || enc == DW_ATE_SUN_imaginary_float
 #endif
 	    )
@@ -1431,7 +1431,7 @@ die_base_from_dwarf(dwarf_t *dw, Dwarf_Die base, Dwarf_Off off, size_t sz)
 	case DW_ATE_float:
 	case DW_ATE_complex_float:
 	case DW_ATE_imaginary_float:
-#if defined(sun)
+#ifdef illumos
 	case DW_ATE_SUN_imaginary_float:
 	case DW_ATE_SUN_interval_float:
 #endif
