@@ -2689,50 +2689,6 @@ dev/usb/wlan/if_uath.c		optional uath
 dev/usb/wlan/if_upgt.c		optional upgt
 dev/usb/wlan/if_ural.c		optional ural
 dev/usb/wlan/if_urtw.c		optional urtw
-dev/usb/wlan/if_urtwn.c		optional urtwn
-urtwn-rtl8188eufw.c		optional urtwn-rtl8188eufw | urtwnfw	\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk urtwn-rtl8188eufw.fw:urtwn-rtl8188eufw:111 -murtwn-rtl8188eufw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
-	clean		"urtwn-rtl8188eufw.c"
-urtwn-rtl8188eufw.fwo		optional urtwn-rtl8188eufw | urtwnfw	\
-	dependency	"urtwn-rtl8188eufw.fw"				\
-	compile-with	"${NORMAL_FWO}"					\
-	no-implicit-rule						\
-	clean		"urtwn-rtl8188eufw.fwo"
-urtwn-rtl8188eufw.fw		optional urtwn-rtl8188eufw | urtwnfw	\
-	dependency	"$S/contrib/dev/urtwn/urtwn-rtl8188eufw.fw.uu"	\
-	compile-with	"${NORMAL_FW}"					\
-	no-obj no-implicit-rule						\
-	clean		"urtwn-rtl8188eufw.fw"
-urtwn-rtl8192cfwT.c		optional urtwn-rtl8192cfwT | urtwnfw	\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk urtwn-rtl8192cfwT.fw:urtwn-rtl8192cfwT:111 -murtwn-rtl8192cfwT -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
-	clean		"urtwn-rtl8192cfwT.c"
-urtwn-rtl8192cfwT.fwo		optional urtwn-rtl8192cfwT | urtwnfw	\
-	dependency	"urtwn-rtl8192cfwT.fw"				\
-	compile-with	"${NORMAL_FWO}"					\
-	no-implicit-rule						\
-	clean		"urtwn-rtl8192cfwT.fwo"
-urtwn-rtl8192cfwT.fw		optional urtwn-rtl8192cfwT | urtwnfw	\
-	dependency	"$S/contrib/dev/urtwn/urtwn-rtl8192cfwT.fw.uu"	\
-	compile-with	"${NORMAL_FW}"					\
-	no-obj no-implicit-rule						\
-	clean		"urtwn-rtl8192cfwT.fw"
-urtwn-rtl8192cfwU.c		optional urtwn-rtl8192cfwU | urtwnfw	\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk urtwn-rtl8192cfwU.fw:urtwn-rtl8192cfwU:111 -murtwn-rtl8192cfwU -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
-	clean		"urtwn-rtl8192cfwU.c"
-urtwn-rtl8192cfwU.fwo		optional urtwn-rtl8192cfwU | urtwnfw	\
-	dependency	"urtwn-rtl8192cfwU.fw"				\
-	compile-with	"${NORMAL_FWO}"					\
-	no-implicit-rule						\
-	clean		"urtwn-rtl8192cfwU.fwo"
-urtwn-rtl8192cfwU.fw		optional urtwn-rtl8192cfwU | urtwnfw	\
-	dependency	"$S/contrib/dev/urtwn/urtwn-rtl8192cfwU.fw.uu"	\
-	compile-with	"${NORMAL_FW}"					\
-	no-obj no-implicit-rule						\
-	clean		"urtwn-rtl8192cfwU.fw"
-
 dev/usb/wlan/if_zyd.c		optional zyd
 #
 # USB serial and parallel port drivers
