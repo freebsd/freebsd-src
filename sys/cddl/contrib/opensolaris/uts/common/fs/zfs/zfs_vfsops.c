@@ -133,6 +133,13 @@ zfs_sync(vfs_t *vfsp, int waitfor)
 	if (panicstr)
 		return (0);
 
+	/*
+	 * Ignore the system syncher.  ZFS already commits async data
+	 * at zfs_txg_timeout intervals.
+	 */
+	if (waitfor == MNT_LAZY)
+		return (0);
+
 	if (vfsp != NULL) {
 		/*
 		 * Sync a specific filesystem.
