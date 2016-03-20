@@ -381,10 +381,22 @@ bsd_to_linux_ftype(const char *fstypename)
 	return (0L);
 }
 
-static void
+static int
 bsd_to_linux_statfs(struct statfs *bsd_statfs, struct l_statfs *linux_statfs)
 {
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+	uint64_t tmp;
 
+#define	LINUX_HIBITS	0xffffffff00000000ULL
+
+	tmp = bsd_statfs->f_blocks | bsd_statfs->f_bfree | bsd_statfs->f_files |
+	    bsd_statfs->f_bsize;
+	if ((bsd_statfs->f_bavail != -1 && (bsd_statfs->f_bavail & LINUX_HIBITS)) ||
+	    (bsd_statfs->f_ffree != -1 && (bsd_statfs->f_ffree & LINUX_HIBITS)) ||
+	    (tmp & LINUX_HIBITS))
+		return (EOVERFLOW);
+#undef	LINUX_HIBITS
+#endif
 	linux_statfs->f_type = bsd_to_linux_ftype(bsd_statfs->f_fstypename);
 	linux_statfs->f_bsize = bsd_statfs->f_bsize;
 	linux_statfs->f_blocks = bsd_statfs->f_blocks;
@@ -395,6 +407,8 @@ bsd_to_linux_statfs(struct statfs *bsd_statfs, struct l_statfs *linux_statfs)
 	linux_statfs->f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
 	linux_statfs->f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
 	linux_statfs->f_namelen = MAXNAMLEN;
+
+	return (0);
 }
 
 int
