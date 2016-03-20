@@ -39,7 +39,7 @@
 
 #include <dis_tables.h>
 
-#if !defined(sun)
+#ifndef illumos
 #define PR_MODEL_ILP32	1
 #define PR_MODEL_LP64	2
 #include <libproc_compat.h>
@@ -88,7 +88,7 @@ dt_pid_has_jump_table(struct ps_prochandle *P, dtrace_hdl_t *dtp,
 {
 	ulong_t i;
 	int size;
-#if defined(sun)
+#ifdef illumos
 	pid_t pid = Pstatus(P)->pr_pid;
 	char dmodel = Pstatus(P)->pr_dmodel;
 #else
@@ -144,7 +144,7 @@ dt_pid_create_return_probe(struct ps_prochandle *P, dtrace_hdl_t *dtp,
 	uint8_t *text;
 	ulong_t i, end;
 	int size;
-#if defined(sun)
+#ifdef illumos
 	pid_t pid = Pstatus(P)->pr_pid;
 	char dmodel = Pstatus(P)->pr_dmodel;
 #else
@@ -305,7 +305,7 @@ dt_pid_create_offset_probe(struct ps_prochandle *P, dtrace_hdl_t *dtp,
 		uint8_t *text;
 		ulong_t i;
 		int size;
-#if defined(sun)
+#ifdef illumos
 		pid_t pid = Pstatus(P)->pr_pid;
 		char dmodel = Pstatus(P)->pr_dmodel;
 #else
@@ -388,7 +388,7 @@ dt_pid_create_glob_offset_probes(struct ps_prochandle *P, dtrace_hdl_t *dtp,
 	uint8_t *text;
 	int size;
 	ulong_t i, end = symp->st_size;
-#if defined(sun)
+#ifdef illumos
 	pid_t pid = Pstatus(P)->pr_pid;
 	char dmodel = Pstatus(P)->pr_dmodel;
 #else

@@ -77,7 +77,7 @@
  */
 
 #include <sys/wait.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/lwp.h>
 #endif
 #include <strings.h>
@@ -89,7 +89,7 @@
 #include <dt_pid.h>
 #include <dt_impl.h>
 
-#if !defined(sun)
+#ifndef illumos
 #include <sys/syscall.h>
 #include <libproc_compat.h>
 #define	SYS_forksys SYS_fork
@@ -143,7 +143,7 @@ dt_proc_bpdestroy(dt_proc_t *dpr, int delbkpts)
 static void
 dt_proc_bpmatch(dtrace_hdl_t *dtp, dt_proc_t *dpr)
 {
-#if defined(sun)
+#ifdef illumos
 	const lwpstatus_t *psp = &Pstatus(dpr->dpr_proc)->pr_lwp;
 #else
 	unsigned long pc;
@@ -152,14 +152,14 @@ dt_proc_bpmatch(dtrace_hdl_t *dtp, dt_proc_t *dpr)
 
 	assert(DT_MUTEX_HELD(&dpr->dpr_lock));
 
-#if !defined(sun)
+#ifndef illumos
 	proc_regget(dpr->dpr_proc, REG_PC, &pc);
 	proc_bkptregadj(&pc);
 #endif
 
 	for (dbp = dt_list_next(&dpr->dpr_bps);
 	    dbp != NULL; dbp = dt_list_next(dbp)) {
-#if defined(sun)
+#ifdef illumos
 		if (psp->pr_reg[R_PC] == dbp->dbp_addr)
 			break;
 #else
@@ -170,7 +170,7 @@ dt_proc_bpmatch(dtrace_hdl_t *dtp, dt_proc_t *dpr)
 
 	if (dbp == NULL) {
 		dt_dprintf("pid %d: spurious breakpoint wakeup for %lx\n",
-#if defined(sun)
+#ifdef illumos
 		    (int)dpr->dpr_pid, (ulong_t)psp->pr_reg[R_PC]);
 #else
 		    (int)dpr->dpr_pid, pc);
@@ -342,7 +342,7 @@ dt_proc_rdwatch(dt_proc_t *dpr, rd_event_e event, const char *evname)
 	}
 
 	(void) dt_proc_bpcreate(dpr, rdn.u.bptaddr,
-#if defined(sun)
+#ifdef illumos
 	    (dt_bkpt_f *)dt_proc_rdevent, (void *)evname);
 #else
 	    /* XXX ugly */
@@ -357,7 +357,7 @@ dt_proc_rdwatch(dt_proc_t *dpr, rd_event_e event, const char *evname)
 static void
 dt_proc_attach(dt_proc_t *dpr, int exec)
 {
-#if defined(sun)
+#ifdef illumos
 	const pstatus_t *psp = Pstatus(dpr->dpr_proc);
 #endif
 	rd_err_e err;
@@ -366,23 +366,23 @@ dt_proc_attach(dt_proc_t *dpr, int exec)
 	assert(DT_MUTEX_HELD(&dpr->dpr_lock));
 
 	if (exec) {
-#if defined(sun)
+#ifdef illumos
 		if (psp->pr_lwp.pr_errno != 0)
 			return; /* exec failed: nothing needs to be done */
 #endif
 
 		dt_proc_bpdestroy(dpr, B_FALSE);
-#if defined(sun)
+#ifdef illumos
 		Preset_maps(dpr->dpr_proc);
 #endif
 	}
 	if ((dpr->dpr_rtld = Prd_agent(dpr->dpr_proc)) != NULL &&
 	    (err = rd_event_enable(dpr->dpr_rtld, B_TRUE)) == RD_OK) {
-#if defined(sun)
+#ifdef illumos
 		dt_proc_rdwatch(dpr, RD_PREINIT, "RD_PREINIT");
 #endif
 		dt_proc_rdwatch(dpr, RD_POSTINIT, "RD_POSTINIT");
-#if defined(sun)
+#ifdef illumos
 		dt_proc_rdwatch(dpr, RD_DLACTIVITY, "RD_DLACTIVITY");
 #endif
 	} else {
@@ -507,7 +507,7 @@ dt_proc_control(void *arg)
 	struct ps_prochandle *P = dpr->dpr_proc;
 	int pid = dpr->dpr_pid;
 
-#if defined(sun)
+#ifdef illumos
 	int pfd = Pctlfd(P);
 
 	const long wstop = PCWSTOP;
@@ -529,7 +529,7 @@ dt_proc_control(void *arg)
 	 */
 	(void) pthread_mutex_lock(&dpr->dpr_lock);
 
-#if defined(sun)
+#ifdef illumos
 	(void) Punsetflags(P, PR_ASYNC);	/* require synchronous mode */
 	(void) Psetflags(P, PR_BPTADJ);		/* always adjust eip on x86 */
 	(void) Punsetflags(P, PR_FORK);		/* do not inherit on fork */
@@ -562,7 +562,7 @@ dt_proc_control(void *arg)
 	 * If PR_KLC is set, we created the process; otherwise we grabbed it.
 	 * Check for an appropriate stop request and wait for dt_proc_continue.
 	 */
-#if defined(sun)
+#ifdef illumos
 	if (Pstatus(P)->pr_flags & PR_KLC)
 #else
 	if (proc_getflags(P) & PR_KLC)
@@ -590,7 +590,7 @@ dt_proc_control(void *arg)
 	while (!dpr->dpr_quit) {
 		const lwpstatus_t *psp;
 
-#if defined(sun)
+#ifdef illumos
 		if (write(pfd, &wstop, sizeof (wstop)) == -1 && errno == EINTR)
 			continue; /* check dpr_quit and continue waiting */
 #else
@@ -602,7 +602,7 @@ dt_proc_control(void *arg)
 
 		(void) pthread_mutex_lock(&dpr->dpr_lock);
 
-#if defined(sun)
+#ifdef illumos
 pwait_locked:
 		if (Pstopstatus(P, PCNULL, 0) == -1 && errno == EINTR) {
 			(void) pthread_mutex_unlock(&dpr->dpr_lock);
@@ -612,7 +612,7 @@ pwait_locked:
 
 		switch (Pstate(P)) {
 		case PS_STOP:
-#if defined(sun)
+#ifdef illumos
 			psp = &Pstatus(P)->pr_lwp;
 #else
 			psp = proc_getlwpstatus(P);
@@ -661,7 +661,7 @@ pwait_locked:
 			break;
 
 		case PS_LOST:
-#if defined(sun)
+#ifdef illumos
 			if (Preopen(P) == 0)
 				goto pwait_locked;
 #endif
@@ -734,7 +734,7 @@ dt_proc_t *
 dt_proc_lookup(dtrace_hdl_t *dtp, struct ps_prochandle *P, int remove)
 {
 	dt_proc_hash_t *dph = dtp->dt_procs;
-#if defined(sun)
+#ifdef illumos
 	pid_t pid = Pstatus(P)->pr_pid;
 #else
 	pid_t pid = proc_getpid(P);
@@ -772,14 +772,14 @@ dt_proc_destroy(dtrace_hdl_t *dtp, struct ps_prochandle *P)
 	 * an external debugger and we were waiting in dt_proc_waitrun().
 	 * Leave the process in this condition using PRELEASE_HANG.
 	 */
-#if defined(sun)
+#ifdef illumos
 	if (!(Pstatus(dpr->dpr_proc)->pr_flags & (PR_KLC | PR_RLC))) {
 #else
 	if (!(proc_getflags(dpr->dpr_proc) & (PR_KLC | PR_RLC))) {
 #endif
 		dt_dprintf("abandoning pid %d\n", (int)dpr->dpr_pid);
 		rflag = PRELEASE_HANG;
-#if defined(sun)
+#ifdef illumos
 	} else if (Pstatus(dpr->dpr_proc)->pr_flags & PR_KLC) {
 #else
 	} else if (proc_getflags(dpr->dpr_proc) & PR_KLC) {
@@ -808,7 +808,7 @@ dt_proc_destroy(dtrace_hdl_t *dtp, struct ps_prochandle *P)
 		 */
 		(void) pthread_mutex_lock(&dpr->dpr_lock);
 		dpr->dpr_quit = B_TRUE;
-#if defined(sun)
+#ifdef illumos
 		(void) _lwp_kill(dpr->dpr_tid, SIGCANCEL);
 #else
 		pthread_kill(dpr->dpr_tid, SIGTHR);
@@ -880,7 +880,7 @@ dt_proc_create_thread(dtrace_hdl_t *dtp, dt_proc_t *dpr, uint_t stop)
 
 	(void) sigfillset(&nset);
 	(void) sigdelset(&nset, SIGABRT);	/* unblocked for assert() */
-#if defined(sun)
+#ifdef illumos
 	(void) sigdelset(&nset, SIGCANCEL);	/* see dt_proc_destroy() */
 #else
 	(void) sigdelset(&nset, SIGUSR1);	/* see dt_proc_destroy() */
@@ -912,7 +912,7 @@ dt_proc_create_thread(dtrace_hdl_t *dtp, dt_proc_t *dpr, uint_t stop)
 		 * small amount of useful information to help figure it out.
 		 */
 		if (dpr->dpr_done) {
-#if defined(sun)
+#ifdef illumos
 			const psinfo_t *prp = Ppsinfo(dpr->dpr_proc);
 			int stat = prp ? prp->pr_wstat : 0;
 			int pid = dpr->dpr_pid;
@@ -963,7 +963,7 @@ dt_proc_create(dtrace_hdl_t *dtp, const char *file, char *const *argv,
 	(void) pthread_mutex_init(&dpr->dpr_lock, NULL);
 	(void) pthread_cond_init(&dpr->dpr_cv, NULL);
 
-#if defined(sun)
+#ifdef illumos
 	if ((dpr->dpr_proc = Pcreate(file, argv, &err, NULL, 0)) == NULL) {
 #else
 	if ((err = proc_create(file, argv, pcf, child_arg,
@@ -974,7 +974,7 @@ dt_proc_create(dtrace_hdl_t *dtp, const char *file, char *const *argv,
 	}
 
 	dpr->dpr_hdl = dtp;
-#if defined(sun)
+#ifdef illumos
 	dpr->dpr_pid = Pstatus(dpr->dpr_proc)->pr_pid;
 #else
 	dpr->dpr_pid = proc_getpid(dpr->dpr_proc);
@@ -1039,7 +1039,7 @@ dt_proc_grab(dtrace_hdl_t *dtp, pid_t pid, int flags, int nomonitor)
 	(void) pthread_mutex_init(&dpr->dpr_lock, NULL);
 	(void) pthread_cond_init(&dpr->dpr_cv, NULL);
 
-#if defined(sun)
+#ifdef illumos
 	if ((dpr->dpr_proc = Pgrab(pid, flags, &err)) == NULL) {
 #else
 	if ((err = proc_attach(pid, flags, &dpr->dpr_proc)) != 0) {
@@ -1174,7 +1174,7 @@ dtrace_proc_create(dtrace_hdl_t *dtp, const char *file, char *const *argv,
 	struct ps_prochandle *P = dt_proc_create(dtp, file, argv, pcf, child_arg);
 
 	if (P != NULL && idp != NULL && idp->di_id == 0) {
-#if defined(sun)
+#ifdef illumos
 		idp->di_id = Pstatus(P)->pr_pid; /* $target = created pid */
 #else
 		idp->di_id = proc_getpid(P); /* $target = created pid */

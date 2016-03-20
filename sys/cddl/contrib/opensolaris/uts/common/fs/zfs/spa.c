@@ -3811,7 +3811,7 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 }
 
 #ifdef _KERNEL
-#if defined(sun)
+#ifdef illumos
 /*
  * Get the root pool information from the root disk, then import the root pool
  * during the system boot up time.
@@ -4012,7 +4012,7 @@ out:
 	return (error);
 }
 
-#else
+#else	/* !illumos */
 
 extern int vdev_geom_read_pool_label(const char *name, nvlist_t ***configs,
     uint64_t *count);
@@ -4208,8 +4208,8 @@ spa_import_rootpool(const char *name)
 	return (0);
 }
 
-#endif	/* sun */
-#endif
+#endif	/* illumos */
+#endif	/* _KERNEL */
 
 /*
  * Import a non-root pool into the system.
@@ -5385,13 +5385,13 @@ spa_vdev_split_mirror(spa_t *spa, char *newname, nvlist_t *config,
 	spa_activate(newspa, spa_mode_global);
 	spa_async_suspend(newspa);
 
-#ifndef sun
+#ifndef illumos
 	/* mark that we are creating new spa by splitting */
 	newspa->spa_splitting_newspa = B_TRUE;
 #endif
 	/* create the new pool from the disks of the original pool */
 	error = spa_load(newspa, SPA_LOAD_IMPORT, SPA_IMPORT_ASSEMBLE, B_TRUE);
-#ifndef sun
+#ifndef illumos
 	newspa->spa_splitting_newspa = B_FALSE;
 #endif
 	if (error)
@@ -6648,12 +6648,12 @@ spa_sync(spa_t *spa, uint64_t txg)
 #ifdef illumos
 	VERIFY(cyclic_reprogram(spa->spa_deadman_cycid,
 	    spa->spa_sync_starttime + spa->spa_deadman_synctime));
-#else	/* FreeBSD */
+#else	/* !illumos */
 #ifdef _KERNEL
 	callout_reset(&spa->spa_deadman_cycid,
 	    hz * spa->spa_deadman_synctime / NANOSEC, spa_deadman, spa);
 #endif
-#endif
+#endif	/* illumos */
 
 	/*
 	 * If we are upgrading to SPA_VERSION_RAIDZ_DEFLATE this txg,
@@ -6798,11 +6798,11 @@ spa_sync(spa_t *spa, uint64_t txg)
 
 #ifdef illumos
 	VERIFY(cyclic_reprogram(spa->spa_deadman_cycid, CY_INFINITY));
-#else	/* FreeBSD */
+#else	/* !illumos */
 #ifdef _KERNEL
 	callout_drain(&spa->spa_deadman_cycid);
 #endif
-#endif
+#endif	/* illumos */
 
 	/*
 	 * Clear the dirty config list.

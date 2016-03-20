@@ -724,7 +724,7 @@ int dmu_write_uio(objset_t *os, uint64_t object, struct uio *uio, uint64_t size,
 int dmu_write_uio_dbuf(dmu_buf_t *zdb, struct uio *uio, uint64_t size,
     dmu_tx_t *tx);
 #ifdef _KERNEL
-#ifdef sun
+#ifdef illumos
 int dmu_write_pages(objset_t *os, uint64_t object, uint64_t offset,
     uint64_t size, struct page *pp, dmu_tx_t *tx);
 #else

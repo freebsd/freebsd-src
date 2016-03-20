@@ -1888,7 +1888,7 @@ dt_preproc(dtrace_hdl_t *dtp, FILE *ifp)
 	char **argv = malloc(sizeof (char *) * (argc + 5));
 	FILE *ofp = tmpfile();
 
-#if defined(sun)
+#ifdef illumos
 	char ipath[20], opath[20]; /* big enough for /dev/fd/ + INT_MAX + \0 */
 #endif
 	char verdef[32]; /* big enough for -D__SUNW_D_VERSION=0x%08x + \0 */
@@ -1898,7 +1898,7 @@ dt_preproc(dtrace_hdl_t *dtp, FILE *ifp)
 
 	int wstat, estat;
 	pid_t pid;
-#if defined(sun)
+#ifdef illumos
 	off64_t off;
 #else
 	off_t off = 0;
@@ -1929,7 +1929,7 @@ dt_preproc(dtrace_hdl_t *dtp, FILE *ifp)
 		(void) fseeko64(ifp, off, SEEK_SET);
 	}
 
-#if defined(sun)
+#ifdef illumos
 	(void) snprintf(ipath, sizeof (ipath), "/dev/fd/%d", fileno(ifp));
 	(void) snprintf(opath, sizeof (opath), "/dev/fd/%d", fileno(ofp));
 #endif
@@ -1940,7 +1940,7 @@ dt_preproc(dtrace_hdl_t *dtp, FILE *ifp)
 	    "-D__SUNW_D_VERSION=0x%08x", dtp->dt_vmax);
 	argv[argc++] = verdef;
 
-#if defined(sun)
+#ifdef illumos
 	switch (dtp->dt_stdcmode) {
 	case DT_STDC_XA:
 	case DT_STDC_XT:
@@ -1982,7 +1982,7 @@ dt_preproc(dtrace_hdl_t *dtp, FILE *ifp)
 	}
 
 	if (pid == 0) {
-#if !defined(sun)
+#ifndef illumos
 		if (isatty(fileno(ifp)) == 0)
 			lseek(fileno(ifp), off, SEEK_SET);
 		dup2(fileno(ifp), 0);

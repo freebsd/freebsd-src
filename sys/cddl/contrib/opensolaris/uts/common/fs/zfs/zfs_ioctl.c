@@ -4860,7 +4860,7 @@ zfs_ioc_userspace_upgrade(zfs_cmd_t *zc)
 	return (error);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * We don't want to have a hard dependency
  * against some special symbols in sharefs
@@ -4878,10 +4878,10 @@ int zfs_smbshare_inited;
 ddi_modhandle_t nfs_mod;
 ddi_modhandle_t sharefs_mod;
 ddi_modhandle_t smbsrv_mod;
-#endif	/* sun */
+#endif	/* illumos */
 kmutex_t zfs_share_lock;
 
-#ifdef sun
+#ifdef illumos
 static int
 zfs_init_sharefs()
 {
@@ -4901,12 +4901,12 @@ zfs_init_sharefs()
 	}
 	return (0);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 static int
 zfs_ioc_share(zfs_cmd_t *zc)
 {
-#ifdef sun
+#ifdef illumos
 	int error;
 	int opcode;
 
@@ -4997,9 +4997,9 @@ zfs_ioc_share(zfs_cmd_t *zc)
 
 	return (error);
 
-#else	/* !sun */
+#else	/* !illumos */
 	return (ENOSYS);
-#endif	/* !sun */
+#endif	/* illumos */
 }
 
 ace_t full_access[] = {
@@ -5107,7 +5107,7 @@ zfs_ioc_diff(zfs_cmd_t *zc)
 	return (error);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * Remove all ACL files in shares dir
  */
@@ -5129,12 +5129,12 @@ zfs_smb_acl_purge(znode_t *dzp)
 	zap_cursor_fini(&zc);
 	return (error);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 static int
 zfs_ioc_smb_acl(zfs_cmd_t *zc)
 {
-#ifdef sun
+#ifdef illumos
 	vnode_t *vp;
 	znode_t *dzp;
 	vnode_t *resourcevp = NULL;
@@ -5258,9 +5258,9 @@ zfs_ioc_smb_acl(zfs_cmd_t *zc)
 	ZFS_EXIT(zfsvfs);
 
 	return (error);
-#else	/* !sun */
+#else	/* !illumos */
 	return (EOPNOTSUPP);
-#endif	/* !sun */
+#endif	/* illumos */
 }
 
 /*
@@ -6013,7 +6013,7 @@ zfsdev_open(struct cdev *devp, int flag, int mode, struct thread *td)
 {
 	int error = 0;
 
-#ifdef sun
+#ifdef illumos
 	if (getminor(*devp) != 0)
 		return (zvol_open(devp, flag, otyp, cr));
 #endif
@@ -6358,7 +6358,7 @@ out:
 	return (error);
 }
 
-#ifdef sun
+#ifdef illumos
 static int
 zfs_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 {
@@ -6409,7 +6409,7 @@ zfs_info(dev_info_t *dip, ddi_info_cmd_t infocmd, void *arg, void **result)
 
 	return (DDI_FAILURE);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 /*
  * OK, so this is a little weird.
@@ -6420,7 +6420,7 @@ zfs_info(dev_info_t *dip, ddi_info_cmd_t infocmd, void *arg, void **result)
  * /dev/zfs has basically nothing to do except serve up ioctls,
  * so most of the standard driver entry points are in zvol.c.
  */
-#ifdef sun
+#ifdef illumos
 static struct cb_ops zfs_cb_ops = {
 	zfsdev_open,	/* open */
 	zfsdev_close,	/* close */
@@ -6469,7 +6469,7 @@ static struct modlinkage modlinkage = {
 	(void *)&zfs_modldrv,
 	NULL
 };
-#endif	/* sun */
+#endif	/* illumos */
 
 static struct cdevsw zfs_cdevsw = {
 	.d_version =	D_VERSION,
@@ -6502,7 +6502,7 @@ zfsdev_fini(void)
 static struct root_hold_token *zfs_root_token;
 struct proc *zfsproc;
 
-#ifdef sun
+#ifdef illumos
 int
 _init(void)
 {
@@ -6565,7 +6565,7 @@ _info(struct modinfo *modinfop)
 {
 	return (mod_info(&modlinkage, modinfop));
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 static int zfs__init(void);
 static int zfs__fini(void);

@@ -214,7 +214,7 @@ typedef struct sysevent_value {
 #define	EVCH_SET_CHAN_LEN	 3	/* Set event queue length */
 #define	EVCH_CMD_LAST		 EVCH_SET_CHAN_LEN	/* Last command */
 
-#ifdef sun
+#ifdef illumos
 /*
  * Shared user/kernel event channel interface definitions
  */
@@ -228,11 +228,11 @@ extern int sysevent_evc_publish(evchan_t *, const char *, const char *,
 extern int sysevent_evc_control(evchan_t *, int, ...);
 extern int sysevent_evc_setpropnvl(evchan_t *, nvlist_t *);
 extern int sysevent_evc_getpropnvl(evchan_t *, nvlist_t **);
-#endif	/* sun */
+#endif	/* illumos */
 
 #ifndef	_KERNEL
 
-#ifdef sun
+#ifdef illumos
 /*
  * Userland-only event channel interfaces
  */
@@ -254,7 +254,7 @@ extern void sysevent_subattr_thrsetup(sysevent_subattr_t *,
 
 extern int sysevent_evc_xsubscribe(evchan_t *, const char *, const char *,
     int (*)(sysevent_t *, void *), void *, uint32_t, sysevent_subattr_t *);
-#endif	/* sun */
+#endif	/* illumos */
 
 #else
 
@@ -270,7 +270,7 @@ extern int sysevent_add_attr(sysevent_attr_list_t **, char *,
 extern void sysevent_free_attr(sysevent_attr_list_t *);
 extern int sysevent_attach_attributes(sysevent_t *, sysevent_attr_list_t *);
 extern void sysevent_detach_attributes(sysevent_t *);
-#ifdef sun
+#ifdef illumos
 extern char *sysevent_get_class_name(sysevent_t *);
 extern char *sysevent_get_subclass_name(sysevent_t *);
 extern uint64_t sysevent_get_seq(sysevent_t *);
@@ -278,7 +278,7 @@ extern void sysevent_get_time(sysevent_t *, hrtime_t *);
 extern size_t sysevent_get_size(sysevent_t *);
 extern char *sysevent_get_pub(sysevent_t *);
 extern int sysevent_get_attr_list(sysevent_t *, nvlist_t **);
-#endif	/* sun */
+#endif	/* illumos */
 
 #endif	/* _KERNEL */
 

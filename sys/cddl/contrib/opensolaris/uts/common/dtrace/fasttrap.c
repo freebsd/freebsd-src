@@ -38,13 +38,13 @@
 #include <sys/modctl.h>
 #include <sys/conf.h>
 #include <sys/systm.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/ddi.h>
 #endif
 #include <sys/sunddi.h>
 #include <sys/cpuvar.h>
 #include <sys/kmem.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/strsubr.h>
 #endif
 #include <sys/fasttrap.h>
@@ -55,12 +55,12 @@
 #include <sys/sysmacros.h>
 #include <sys/proc.h>
 #include <sys/policy.h>
-#if defined(sun)
+#ifdef illumos
 #include <util/qsort.h>
 #endif
 #include <sys/mutex.h>
 #include <sys/kernel.h>
-#if !defined(sun)
+#ifndef illumos
 #include <sys/dtrace_bsd.h>
 #include <sys/eventhandler.h>
 #include <sys/sysctl.h>
@@ -215,7 +215,7 @@ static void fasttrap_provider_free(fasttrap_provider_t *);
 static fasttrap_proc_t *fasttrap_proc_lookup(pid_t);
 static void fasttrap_proc_release(fasttrap_proc_t *);
 
-#if !defined(sun)
+#ifndef illumos
 static void fasttrap_thread_dtor(void *, struct thread *);
 #endif
 
@@ -224,7 +224,7 @@ static void fasttrap_thread_dtor(void *, struct thread *);
 
 #define	FASTTRAP_PROCS_INDEX(pid) ((pid) & fasttrap_procs.fth_mask)
 
-#if !defined(sun)
+#ifndef illumos
 static kmutex_t fasttrap_cpuc_pid_lock[MAXCPU];
 static eventhandler_tag fasttrap_thread_dtor_tag;
 #endif
@@ -288,7 +288,7 @@ fasttrap_hash_str(const char *p)
 void
 fasttrap_sigtrap(proc_t *p, kthread_t *t, uintptr_t pc)
 {
-#if defined(sun)
+#ifdef illumos
 	sigqueue_t *sqp = kmem_zalloc(sizeof (sigqueue_t), KM_SLEEP);
 
 	sqp->sq_info.si_signo = SIGTRAP;
@@ -314,7 +314,7 @@ fasttrap_sigtrap(proc_t *p, kthread_t *t, uintptr_t pc)
 #endif
 }
 
-#if !defined(sun)
+#ifndef illumos
 /*
  * Obtain a chunk of scratch space in the address space of the target process.
  */
@@ -586,20 +586,20 @@ fasttrap_pid_cleanup(void)
 static void
 fasttrap_fork(proc_t *p, proc_t *cp)
 {
-#if !defined(sun)
+#ifndef illumos
 	fasttrap_scrblock_t *scrblk;
 	fasttrap_proc_t *fprc = NULL;
 #endif
 	pid_t ppid = p->p_pid;
 	int i;
 
-#if defined(sun)
+#ifdef illumos
 	ASSERT(curproc == p);
 	ASSERT(p->p_proc_flag & P_PR_LOCK);
 #else
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 #endif
-#if defined(sun)
+#ifdef illumos
 	ASSERT(p->p_dtrace_count > 0);
 #else
 	if (p->p_dtrace_helpers) {
@@ -638,7 +638,7 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 	 * We don't have to worry about the child process disappearing
 	 * because we're in fork().
 	 */
-#if defined(sun)
+#ifdef illumos
 	mtx_lock_spin(&cp->p_slock);
 	sprlock_proc(cp);
 	mtx_unlock_spin(&cp->p_slock);
@@ -675,14 +675,14 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 				 * mid-fork.
 				 */
 				ASSERT(tp->ftt_proc->ftpc_acount != 0);
-#if !defined(sun)
+#ifndef illumos
 				fprc = tp->ftt_proc;
 #endif
 			}
 		}
 		mutex_exit(&bucket->ftb_mtx);
 
-#if !defined(sun)
+#ifndef illumos
 		/*
 		 * Unmap any scratch space inherited from the parent's address
 		 * space.
@@ -699,7 +699,7 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 #endif
 	}
 
-#if defined(sun)
+#ifdef illumos
 	mutex_enter(&cp->p_lock);
 	sprunlock(cp);
 #else
@@ -717,11 +717,11 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 static void
 fasttrap_exec_exit(proc_t *p)
 {
-#if !defined(sun)
+#ifndef illumos
 	struct thread *td;
 #endif
 
-#if defined(sun)
+#ifdef illumos
 	ASSERT(p == curproc);
 #else
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -741,7 +741,7 @@ fasttrap_exec_exit(proc_t *p)
 	 * static probes are handled by the meta-provider remove entry point.
 	 */
 	fasttrap_provider_retire(p->p_pid, FASTTRAP_PID_NAME, 0);
-#if !defined(sun)
+#ifndef illumos
 	if (p->p_dtrace_helpers)
 		dtrace_helpers_destroy(p);
 	PROC_LOCK(p);
@@ -776,7 +776,7 @@ fasttrap_tracepoint_enable(proc_t *p, fasttrap_probe_t *probe, uint_t index)
 
 	ASSERT(probe->ftp_tps[index].fit_tp->ftt_pid == pid);
 
-#if defined(sun)
+#ifdef illumos
 	ASSERT(!(p->p_flag & SVFORK));
 #endif
 
@@ -884,7 +884,7 @@ again:
 		 * Increment the count of the number of tracepoints active in
 		 * the victim process.
 		 */
-#if defined(sun)
+#ifdef illumos
 		ASSERT(p->p_proc_flag & P_PR_LOCK);
 #endif
 		p->p_dtrace_count++;
@@ -1076,7 +1076,7 @@ fasttrap_tracepoint_disable(proc_t *p, fasttrap_probe_t *probe, uint_t index)
 		 * Decrement the count of the number of tracepoints active
 		 * in the victim process.
 		 */
-#if defined(sun)
+#ifdef illumos
 		ASSERT(p->p_proc_flag & P_PR_LOCK);
 #endif
 		p->p_dtrace_count--;
@@ -1129,7 +1129,7 @@ fasttrap_enable_callbacks(void)
 static void
 fasttrap_disable_callbacks(void)
 {
-#if defined(sun)
+#ifdef illumos
 	ASSERT(MUTEX_HELD(&cpu_lock));
 #endif
 
@@ -1138,7 +1138,7 @@ fasttrap_disable_callbacks(void)
 	ASSERT(fasttrap_pid_count > 0);
 	fasttrap_pid_count--;
 	if (fasttrap_pid_count == 0) {
-#if defined(sun)
+#ifdef illumos
 		cpu_t *cur, *cpu = CPU;
 
 		for (cur = cpu->cpu_next_onln; cur != cpu;
@@ -1148,7 +1148,7 @@ fasttrap_disable_callbacks(void)
 #endif
 		dtrace_pid_probe_ptr = NULL;
 		dtrace_return_probe_ptr = NULL;
-#if defined(sun)
+#ifdef illumos
 		for (cur = cpu->cpu_next_onln; cur != cpu;
 		    cur = cur->cpu_next_onln) {
 			rw_exit(&cur->cpu_ft_lock);
@@ -1169,7 +1169,7 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 	ASSERT(probe != NULL);
 	ASSERT(!probe->ftp_enabled);
 	ASSERT(id == probe->ftp_id);
-#if defined(sun)
+#ifdef illumos
 	ASSERT(MUTEX_HELD(&cpu_lock));
 #endif
 
@@ -1196,7 +1196,7 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 	 * a fork in which the traced process is being born and we're copying
 	 * USDT probes. Otherwise, the process is gone so bail.
 	 */
-#if defined(sun)
+#ifdef illumos
 	if ((p = sprlock(probe->ftp_pid)) == NULL) {
 		if ((curproc->p_flag & SFORKING) == 0)
 			return;
@@ -1264,7 +1264,7 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 				i--;
 			}
 
-#if defined(sun)
+#ifdef illumos
 			mutex_enter(&p->p_lock);
 			sprunlock(p);
 #else
@@ -1279,7 +1279,7 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 			return;
 		}
 	}
-#if defined(sun)
+#ifdef illumos
 	mutex_enter(&p->p_lock);
 	sprunlock(p);
 #else
@@ -1363,7 +1363,7 @@ fasttrap_pid_disable(void *arg, dtrace_id_t id, void *parg)
 
 	probe->ftp_enabled = 0;
 
-#if defined(sun)
+#ifdef illumos
 	ASSERT(MUTEX_HELD(&cpu_lock));
 #endif
 	fasttrap_disable_callbacks();
@@ -1504,7 +1504,7 @@ fasttrap_proc_lookup(pid_t pid)
 	new_fprc->ftpc_pid = pid;
 	new_fprc->ftpc_rcount = 1;
 	new_fprc->ftpc_acount = 1;
-#if !defined(sun)
+#ifndef illumos
 	mutex_init(&new_fprc->ftpc_mtx, "fasttrap proc mtx", MUTEX_DEFAULT,
 	    NULL);
 #endif
@@ -1544,7 +1544,7 @@ fasttrap_proc_release(fasttrap_proc_t *proc)
 	fasttrap_bucket_t *bucket;
 	fasttrap_proc_t *fprc, **fprcp;
 	pid_t pid = proc->ftpc_pid;
-#if !defined(sun)
+#ifndef illumos
 	fasttrap_scrblock_t *scrblk, *scrblktmp;
 	fasttrap_scrspace_t *scrspc, *scrspctmp;
 	struct proc *p;
@@ -1561,7 +1561,7 @@ fasttrap_proc_release(fasttrap_proc_t *proc)
 		return;
 	}
 
-#if !defined(sun)
+#ifndef illumos
 	/*
 	 * Free all structures used to manage per-thread scratch space.
 	 */
@@ -1683,7 +1683,7 @@ fasttrap_provider_lookup(pid_t pid, const char *name,
 	new_fp = kmem_zalloc(sizeof (fasttrap_provider_t), KM_SLEEP);
 	new_fp->ftp_pid = pid;
 	new_fp->ftp_proc = fasttrap_proc_lookup(pid);
-#if !defined(sun)
+#ifndef illumos
 	mutex_init(&new_fp->ftp_mtx, "provider mtx", MUTEX_DEFAULT, NULL);
 	mutex_init(&new_fp->ftp_cmtx, "lock on creating", MUTEX_DEFAULT, NULL);
 #endif
@@ -1764,7 +1764,7 @@ fasttrap_provider_free(fasttrap_provider_t *provider)
 
 	fasttrap_proc_release(provider->ftp_proc);
 
-#if !defined(sun)
+#ifndef illumos
 	mutex_destroy(&provider->ftp_mtx);
 	mutex_destroy(&provider->ftp_cmtx);
 #endif
@@ -1782,7 +1782,7 @@ fasttrap_provider_free(fasttrap_provider_t *provider)
 	}
 
 	p->p_dtrace_probes--;
-#if !defined(sun)
+#ifndef illumos
 	PROC_UNLOCK(p);
 #endif
 }
@@ -2323,7 +2323,7 @@ fasttrap_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int fflag,
 			proc_t *p;
 			pid_t pid = probe->ftps_pid;
 
-#if defined(sun)
+#ifdef illumos
 			mutex_enter(&pidlock);
 #endif
 			/*
@@ -2334,12 +2334,12 @@ fasttrap_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int fflag,
 			if (p)
 				fill_kinfo_proc(p, &kp);
 			if (p == NULL || kp.ki_stat == SIDL) {
-#if defined(sun)
+#ifdef illumos
 				mutex_exit(&pidlock);
 #endif
 				return (ESRCH);
 			}
-#if defined(sun)
+#ifdef illumos
 			mutex_enter(&p->p_lock);
 			mutex_exit(&pidlock);
 #else
@@ -2349,7 +2349,7 @@ fasttrap_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int fflag,
 #ifdef notyet
 			if ((ret = priv_proc_cred_perm(cr, p, NULL,
 			    VREAD | VWRITE)) != 0) {
-#if defined(sun)
+#ifdef illumos
 				mutex_exit(&p->p_lock);
 #else
 				PROC_UNLOCK(p);
@@ -2357,7 +2357,7 @@ fasttrap_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int fflag,
 				return (ret);
 			}
 #endif /* notyet */
-#if defined(sun)
+#ifdef illumos
 			mutex_exit(&p->p_lock);
 #else
 			PROC_UNLOCK(p);
@@ -2375,11 +2375,11 @@ err:
 		fasttrap_instr_query_t instr;
 		fasttrap_tracepoint_t *tp;
 		uint_t index;
-#if defined(sun)
+#ifdef illumos
 		int ret;
 #endif
 
-#if defined(sun)
+#ifdef illumos
 		if (copyin((void *)arg, &instr, sizeof (instr)) != 0)
 			return (EFAULT);
 #endif
@@ -2389,7 +2389,7 @@ err:
 			proc_t *p;
 			pid_t pid = instr.ftiq_pid;
 
-#if defined(sun)
+#ifdef illumos
 			mutex_enter(&pidlock);
 #endif
 			/*
@@ -2400,12 +2400,12 @@ err:
 			if (p)
 				fill_kinfo_proc(p, &kp);
 			if (p == NULL || kp.ki_stat == SIDL) {
-#if defined(sun)
+#ifdef illumos
 				mutex_exit(&pidlock);
 #endif
 				return (ESRCH);
 			}
-#if defined(sun)
+#ifdef illumos
 			mutex_enter(&p->p_lock);
 			mutex_exit(&pidlock);
 #else
@@ -2415,7 +2415,7 @@ err:
 #ifdef notyet
 			if ((ret = priv_proc_cred_perm(cr, p, NULL,
 			    VREAD)) != 0) {
-#if defined(sun)
+#ifdef illumos
 				mutex_exit(&p->p_lock);
 #else
 				PROC_UNLOCK(p);
@@ -2424,7 +2424,7 @@ err:
 			}
 #endif /* notyet */
 
-#if defined(sun)
+#ifdef illumos
 			mutex_exit(&p->p_lock);
 #else
 			PROC_UNLOCK(p);
@@ -2477,7 +2477,7 @@ fasttrap_load(void)
 	mutex_init(&fasttrap_count_mtx, "fasttrap count mtx", MUTEX_DEFAULT,
 	    NULL);
 
-#if defined(sun)
+#ifdef illumos
 	fasttrap_max = ddi_getprop(DDI_DEV_T_ANY, devi, DDI_PROP_DONTPASS,
 	    "fasttrap-max-probes", FASTTRAP_MAX_DEFAULT);
 #endif
@@ -2486,7 +2486,7 @@ fasttrap_load(void)
 	/*
 	 * Conjure up the tracepoints hashtable...
 	 */
-#if defined(sun)
+#ifdef illumos
 	nent = ddi_getprop(DDI_DEV_T_ANY, devi, DDI_PROP_DONTPASS,
 	    "fasttrap-hash-size", FASTTRAP_TPOINTS_DEFAULT_SIZE);
 #else
@@ -2506,7 +2506,7 @@ fasttrap_load(void)
 	fasttrap_tpoints.fth_mask = fasttrap_tpoints.fth_nent - 1;
 	fasttrap_tpoints.fth_table = kmem_zalloc(fasttrap_tpoints.fth_nent *
 	    sizeof (fasttrap_bucket_t), KM_SLEEP);
-#if !defined(sun)
+#ifndef illumos
 	for (i = 0; i < fasttrap_tpoints.fth_nent; i++)
 		mutex_init(&fasttrap_tpoints.fth_table[i].ftb_mtx,
 		    "tracepoints bucket mtx", MUTEX_DEFAULT, NULL);
@@ -2524,7 +2524,7 @@ fasttrap_load(void)
 	fasttrap_provs.fth_mask = fasttrap_provs.fth_nent - 1;
 	fasttrap_provs.fth_table = kmem_zalloc(fasttrap_provs.fth_nent *
 	    sizeof (fasttrap_bucket_t), KM_SLEEP);
-#if !defined(sun)
+#ifndef illumos
 	for (i = 0; i < fasttrap_provs.fth_nent; i++)
 		mutex_init(&fasttrap_provs.fth_table[i].ftb_mtx, 
 		    "providers bucket mtx", MUTEX_DEFAULT, NULL);
@@ -2534,7 +2534,7 @@ fasttrap_load(void)
 	    &fasttrap_cleanup_proc, 0, 0, "ftcleanup");
 	if (ret != 0) {
 		destroy_dev(fasttrap_cdev);
-#if !defined(sun)
+#ifndef illumos
 		for (i = 0; i < fasttrap_provs.fth_nent; i++)
 			mutex_destroy(&fasttrap_provs.fth_table[i].ftb_mtx);
 		for (i = 0; i < fasttrap_tpoints.fth_nent; i++)
@@ -2560,7 +2560,7 @@ fasttrap_load(void)
 	fasttrap_procs.fth_mask = fasttrap_procs.fth_nent - 1;
 	fasttrap_procs.fth_table = kmem_zalloc(fasttrap_procs.fth_nent *
 	    sizeof (fasttrap_bucket_t), KM_SLEEP);
-#if !defined(sun)
+#ifndef illumos
 	for (i = 0; i < fasttrap_procs.fth_nent; i++)
 		mutex_init(&fasttrap_procs.fth_table[i].ftb_mtx,
 		    "processes bucket mtx", MUTEX_DEFAULT, NULL);
@@ -2676,7 +2676,7 @@ fasttrap_unload(void)
 	mutex_exit(&fasttrap_count_mtx);
 #endif
 
-#if !defined(sun)
+#ifndef illumos
 	EVENTHANDLER_DEREGISTER(thread_dtor, fasttrap_thread_dtor_tag);
 
 	for (i = 0; i < fasttrap_tpoints.fth_nent; i++)
@@ -2698,7 +2698,7 @@ fasttrap_unload(void)
 	    fasttrap_procs.fth_nent * sizeof (fasttrap_bucket_t));
 	fasttrap_procs.fth_nent = 0;
 
-#if !defined(sun)
+#ifndef illumos
 	destroy_dev(fasttrap_cdev);
 	mutex_destroy(&fasttrap_count_mtx);
 	CPU_FOREACH(i) {

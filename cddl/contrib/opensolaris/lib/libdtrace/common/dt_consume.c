@@ -35,12 +35,12 @@
 #include <limits.h>
 #include <assert.h>
 #include <ctype.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <dt_impl.h>
 #include <dt_pq.h>
-#if !defined(sun)
+#ifndef illumos
 #include <libproc_compat.h>
 #endif
 
@@ -2961,7 +2961,7 @@ dt_get_buf(dtrace_hdl_t *dtp, int cpu, dtrace_bufdesc_t **bufp)
 	buf->dtbd_size = size;
 	buf->dtbd_cpu = cpu;
 
-#if defined(sun)
+#ifdef illumos
 	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, buf) == -1) {
 #else
 	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &buf) == -1) {

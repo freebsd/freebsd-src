@@ -256,7 +256,7 @@ struct spa {
 	uint64_t	spa_feat_refcount_cache[SPA_FEATURES];
 #ifdef illumos
 	cyclic_id_t	spa_deadman_cycid;	/* cyclic id */
-#else	/* FreeBSD */
+#else	/* !illumos */
 #ifdef _KERNEL
 	struct callout	spa_deadman_cycid;	/* callout id */
 #endif
@@ -286,7 +286,7 @@ struct spa {
 	 */
 	spa_config_lock_t spa_config_lock[SCL_LOCKS]; /* config changes */
 	refcount_t	spa_refcount;		/* number of opens */
-#ifndef sun
+#ifndef illumos
 	boolean_t	spa_splitting_newspa;	/* creating new spa in split */
 #endif
 };
