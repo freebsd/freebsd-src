@@ -78,8 +78,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb_debug.h>
 
-#include <dev/usb/wlan/if_urtwnreg.h>
-#include <dev/usb/wlan/if_urtwnvar.h>
+#include <dev/urtwn/if_urtwnreg.h>
+#include <dev/urtwn/if_urtwnvar.h>
 
 #ifdef USB_DEBUG
 enum {
