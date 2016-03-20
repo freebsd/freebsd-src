@@ -1421,6 +1421,9 @@ dmu_assign_arcbuf(dmu_buf_t *handle, uint64_t offset, arc_buf_t *buf,
 	 */
 	if (offset == db->db.db_offset && blksz == db->db.db_size &&
 	    DBUF_GET_BUFC_TYPE(db) == ARC_BUFC_DATA) {
+#ifdef _KERNEL
+		curthread->td_ru.ru_oublock++;
+#endif
 		dbuf_assign_arcbuf(db, buf, tx);
 		dbuf_rele(db, FTAG);
 	} else {
