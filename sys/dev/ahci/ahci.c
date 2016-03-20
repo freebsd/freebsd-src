@@ -527,7 +527,7 @@ ahci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
 	struct resource *res;
-	long st;
+	rman_res_t st;
 	int offset, size, unit;
 
 	unit = (intptr_t)device_get_ivars(child);
