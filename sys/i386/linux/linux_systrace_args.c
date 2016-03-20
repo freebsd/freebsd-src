@@ -1870,7 +1870,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_fstatfs64 */
 	case 269: {
-		*n_args = 0;
+		struct linux_fstatfs64_args *p = params;
+		iarg[0] = p->fd; /* l_uint */
+		uarg[1] = p->bufsize; /* size_t */
+		uarg[2] = (intptr_t) p->buf; /* struct l_statfs64_buf * */
+		*n_args = 3;
 		break;
 	}
 	/* linux_tgkill */
@@ -5265,6 +5269,19 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fstatfs64 */
 	case 269:
+		switch(ndx) {
+		case 0:
+			p = "l_uint";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "struct l_statfs64_buf *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_tgkill */
 	case 270:
@@ -7138,6 +7155,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fstatfs64 */
 	case 269:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_tgkill */
 	case 270:
 		if (ndx == 0 || ndx == 1)
