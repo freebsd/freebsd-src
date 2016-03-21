@@ -124,8 +124,14 @@ mutex_assert_is_owned(struct pthread_mutex *m)
 {
 
 #if defined(_PTHREADS_INVARIANTS)
-	if (__predict_false(m->m_qe.tqe_prev == NULL))
-		PANIC("mutex is not on list");
+	if (__predict_false(m->m_qe.tqe_prev == NULL)) {
+		char msg[128];
+		snprintf(msg, sizeof(msg),
+		    "mutex %p own %#x %#x is not on list %p %p",
+		    m, m->m_lock.m_owner, m->m_owner, m->m_qe.tqe_prev,
+		    m->m_qe.tqe_next);
+		PANIC(msg);
+	}
 #endif
 }
 
@@ -135,8 +141,14 @@ mutex_assert_not_owned(struct pthread_mutex *m)
 
 #if defined(_PTHREADS_INVARIANTS)
 	if (__predict_false(m->m_qe.tqe_prev != NULL ||
-	    m->m_qe.tqe_next != NULL))
-		PANIC("mutex is on list");
+	    m->m_qe.tqe_next != NULL)) {
+		char msg[128];
+		snprintf(msg, sizeof(msg),
+		    "mutex %p own %#x %#x is on list %p %p",
+		    m, m->m_lock.m_owner, m->m_owner, m->m_qe.tqe_prev,
+		    m->m_qe.tqe_next);
+		PANIC(msg);
+	}
 #endif
 }
 
