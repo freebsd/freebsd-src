@@ -743,7 +743,7 @@ aio_process_rw(struct kaiocb *job)
 	struct file *fp;
 	struct uio auio;
 	struct iovec aiov;
-	int cnt;
+	ssize_t cnt;
 	int error;
 	int oublock_st, oublock_end;
 	int inblock_st, inblock_end;
@@ -1447,8 +1447,7 @@ aio_aqueue(struct thread *td, struct aiocb *ujob, struct aioliojob *lj,
 		return (error);
 	}
 
-	/* XXX: aio_nbytes is later casted to signed types. */
-	if (job->uaiocb.aio_nbytes > INT_MAX) {
+	if (job->uaiocb.aio_nbytes > IOSIZE_MAX) {
 		uma_zfree(aiocb_zone, job);
 		return (EINVAL);
 	}
@@ -1789,7 +1788,7 @@ kern_aio_return(struct thread *td, struct aiocb *ujob, struct aiocb_ops *ops)
 	struct proc *p = td->td_proc;
 	struct kaiocb *job;
 	struct kaioinfo *ki;
-	int status, error;
+	long status, error;
 
 	ki = p->p_aioinfo;
 	if (ki == NULL)
@@ -2345,7 +2344,8 @@ kern_aio_waitcomplete(struct thread *td, struct aiocb **ujobp,
 	struct kaioinfo *ki;
 	struct kaiocb *job;
 	struct aiocb *ujob;
-	int error, status, timo;
+	long error, status;
+	int timo;
 
 	ops->store_aiocb(ujobp, NULL);
 
