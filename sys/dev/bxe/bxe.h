@@ -2271,6 +2271,17 @@ void bxe_dump_mem(struct bxe_softc *sc, char *tag,
 void bxe_dump_mbuf_data(struct bxe_softc *sc, char *pTag,
                         struct mbuf *m, uint8_t contents);
 
+
+#if __FreeBSD_version >= 800000
+#if __FreeBSD_version >= 1000000
+#define BXE_SET_FLOWID(m) M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE)
+#define BXE_VALID_FLOWID(m) (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
+#else
+#define BXE_VALID_FLOWID(m) ((m->m_flags & M_FLOWID) != 0)
+#define BXE_SET_FLOWID(m) m->m_flags |= M_FLOWID
+#endif
+#endif /* #if __FreeBSD_version >= 800000 */
+
 /***********/
 /* INLINES */
 /***********/
