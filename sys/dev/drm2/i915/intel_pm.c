@@ -3672,9 +3672,39 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 		   ILK_DPARBUNIT_CLOCK_GATE_ENABLE  |
 		   ILK_DPFDUNIT_CLOCK_GATE_ENABLE);
 
+
+#ifdef FREEBSD_WIP
+	/* NOTE Linux<->FreeBSD: Disable GEN6_MBCTL write.
+	 *
+	 * This arrived in Linux 3.6 in commit
+	 * b4ae3f22d238617ca11610b29fde16cf8c0bc6e0 and causes significantly
+	 * increased power consumption after kldloading i915kms.ko on FreeBSD
+	 * on (some) Sandy Bridge laptops. A Thinkpad X220 reported about 11W
+	 * after booting while idle at the vt(4) console and about double that
+	 * after loading the driver.
+	 *
+	 * There were reports in Linux of increased consumption after a suspend
+	 * and resume cycle due to that change.
+	 *
+	 * Linux bug reports:
+	 * https://bugs.freedesktop.org/show_bug.cgi?id=54089
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=58971
+	 *
+	 * This suspend and resume issue is reportedly fixed in Linux with
+	 * commits 7dcd2677ea912573d9ed4bcd629b0023b2d11505 and
+	 * 7dcd2677ea912573d9ed4bcd629b0023b2d11505 (Linux 3.11). However, I
+	 * found that those changes did not help on FreeBSD, where increased
+	 * power consumption is observed after loading i915kms.ko without
+	 * suspending and resuming.
+	 *
+	 * This workaround should be removed after updating to a future Linux
+	 * i915 version and verifying normal power consumption on Sandy Bridge.
+	 */
+
 	/* WaMbcDriverBootEnable */
 	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
 		   GEN6_MBCTL_ENABLE_BOOT_FETCH);
+#endif /* FREEBSD_WIP */
 
 	for_each_pipe(pipe) {
 		I915_WRITE(DSPCNTR(pipe),
