@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2011, David E. O'Brien.
  * Copyright (c) 2009-2011, Juniper Networks, Inc.
- * Copyright (c) 2015, EMC Corp.
+ * Copyright (c) 2015-2016, EMC Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,33 +65,6 @@ filemon_output(struct filemon *filemon, char *msg, size_t len)
 	fo_write(filemon->fp, &auio, curthread->td_ucred, 0, curthread);
 }
 
-static struct filemon *
-filemon_pid_check(struct proc *p)
-{
-	struct filemon *filemon;
-
-	filemon_lock_read();
-	if (TAILQ_EMPTY(&filemons_inuse)) {
-		filemon_unlock_read();
-		return (NULL);
-	}
-	sx_slock(&proctree_lock);
-	while (p->p_pid != 0) {
-		TAILQ_FOREACH(filemon, &filemons_inuse, link) {
-			if (p == filemon->p) {
-				sx_sunlock(&proctree_lock);
-				sx_xlock(&filemon->lock);
-				filemon_unlock_read();
-				return (filemon);
-			}
-		}
-		p = proc_realparent(p);
-	}
-	sx_sunlock(&proctree_lock);
-	filemon_unlock_read();
-	return (NULL);
-}
-
 static int
 filemon_wrapper_chdir(struct thread *td, struct chdir_args *uap)
 {
@@ -101,7 +74,7 @@ filemon_wrapper_chdir(struct thread *td, struct chdir_args *uap)
 	struct filemon *filemon;
 
 	if ((ret = sys_chdir(td, uap)) == 0) {
-		if ((filemon = filemon_pid_check(curproc)) != NULL) {
+		if ((filemon = filemon_proc_get(curproc)) != NULL) {
 			copyinstr(uap->path, filemon->fname1,
 			    sizeof(filemon->fname1), &done);
 
@@ -111,7 +84,7 @@ filemon_wrapper_chdir(struct thread *td, struct chdir_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			sx_xunlock(&filemon->lock);
+			filemon_drop(filemon);
 		}
 	}
 
@@ -126,7 +99,7 @@ filemon_event_process_exec(void *arg __unused, struct proc *p,
 	char *fullpath, *freepath;
 	size_t len;
 
-	if ((filemon = filemon_pid_check(p)) != NULL) {
+	if ((filemon = filemon_proc_get(p)) != NULL) {
 		fullpath = "<unknown>";
 		freepath = NULL;
 
@@ -139,7 +112,7 @@ filemon_event_process_exec(void *arg __unused, struct proc *p,
 
 		filemon_output(filemon, filemon->msgbufr, len);
 
-		sx_xunlock(&filemon->lock);
+		filemon_drop(filemon);
 
 		free(freepath, M_TEMP);
 	}
@@ -154,7 +127,7 @@ filemon_wrapper_open(struct thread *td, struct open_args *uap)
 	struct filemon *filemon;
 
 	if ((ret = sys_open(td, uap)) == 0) {
-		if ((filemon = filemon_pid_check(curproc)) != NULL) {
+		if ((filemon = filemon_proc_get(curproc)) != NULL) {
 			copyinstr(uap->path, filemon->fname1,
 			    sizeof(filemon->fname1), &done);
 
@@ -177,7 +150,7 @@ filemon_wrapper_open(struct thread *td, struct open_args *uap)
 			    curproc->p_pid, filemon->fname1);
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			sx_xunlock(&filemon->lock);
+			filemon_drop(filemon);
 		}
 	}
 
@@ -193,7 +166,7 @@ filemon_wrapper_openat(struct thread *td, struct openat_args *uap)
 	struct filemon *filemon;
 
 	if ((ret = sys_openat(td, uap)) == 0) {
-		if ((filemon = filemon_pid_check(curproc)) != NULL) {
+		if ((filemon = filemon_proc_get(curproc)) != NULL) {
 			copyinstr(uap->path, filemon->fname1,
 			    sizeof(filemon->fname1), &done);
 
@@ -229,7 +202,7 @@ filemon_wrapper_openat(struct thread *td, struct openat_args *uap)
 			    curproc->p_pid, filemon->fname2, filemon->fname1);
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			sx_xunlock(&filemon->lock);
+			filemon_drop(filemon);
 		}
 	}
 
@@ -245,7 +218,7 @@ filemon_wrapper_rename(struct thread *td, struct rename_args *uap)
 	struct filemon *filemon;
 
 	if ((ret = sys_rename(td, uap)) == 0) {
-		if ((filemon = filemon_pid_check(curproc)) != NULL) {
+		if ((filemon = filemon_proc_get(curproc)) != NULL) {
 			copyinstr(uap->from, filemon->fname1,
 			    sizeof(filemon->fname1), &done);
 			copyinstr(uap->to, filemon->fname2,
@@ -257,7 +230,7 @@ filemon_wrapper_rename(struct thread *td, struct rename_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			sx_xunlock(&filemon->lock);
+			filemon_drop(filemon);
 		}
 	}
 
@@ -273,7 +246,7 @@ filemon_wrapper_link(struct thread *td, struct link_args *uap)
 	struct filemon *filemon;
 
 	if ((ret = sys_link(td, uap)) == 0) {
-		if ((filemon = filemon_pid_check(curproc)) != NULL) {
+		if ((filemon = filemon_proc_get(curproc)) != NULL) {
 			copyinstr(uap->path, filemon->fname1,
 			    sizeof(filemon->fname1), &done);
 			copyinstr(uap->to, filemon->fname2,
@@ -285,7 +258,7 @@ filemon_wrapper_link(struct thread *td, struct link_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			sx_xunlock(&filemon->lock);
+			filemon_drop(filemon);
 		}
 	}
 
@@ -301,7 +274,7 @@ filemon_wrapper_symlink(struct thread *td, struct symlink_args *uap)
 	struct filemon *filemon;
 
 	if ((ret = sys_symlink(td, uap)) == 0) {
-		if ((filemon = filemon_pid_check(curproc)) != NULL) {
+		if ((filemon = filemon_proc_get(curproc)) != NULL) {
 			copyinstr(uap->path, filemon->fname1,
 			    sizeof(filemon->fname1), &done);
 			copyinstr(uap->link, filemon->fname2,
@@ -313,7 +286,7 @@ filemon_wrapper_symlink(struct thread *td, struct symlink_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			sx_xunlock(&filemon->lock);
+			filemon_drop(filemon);
 		}
 	}
 
@@ -329,7 +302,7 @@ filemon_wrapper_linkat(struct thread *td, struct linkat_args *uap)
 	struct filemon *filemon;
 
 	if ((ret = sys_linkat(td, uap)) == 0) {
-		if ((filemon = filemon_pid_check(curproc)) != NULL) {
+		if ((filemon = filemon_proc_get(curproc)) != NULL) {
 			copyinstr(uap->path1, filemon->fname1,
 			    sizeof(filemon->fname1), &done);
 			copyinstr(uap->path2, filemon->fname2,
@@ -341,7 +314,7 @@ filemon_wrapper_linkat(struct thread *td, struct linkat_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			sx_xunlock(&filemon->lock);
+			filemon_drop(filemon);
 		}
 	}
 
@@ -357,7 +330,7 @@ filemon_wrapper_stat(struct thread *td, struct stat_args *uap)
 	struct filemon *filemon;
 
 	if ((ret = sys_stat(td, uap)) == 0) {
-		if ((filemon = filemon_pid_check(curproc)) != NULL) {
+		if ((filemon = filemon_proc_get(curproc)) != NULL) {
 			copyinstr(uap->path, filemon->fname1,
 			    sizeof(filemon->fname1), &done);
 
@@ -367,7 +340,7 @@ filemon_wrapper_stat(struct thread *td, struct stat_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			sx_xunlock(&filemon->lock);
+			filemon_drop(filemon);
 		}
 	}
 
@@ -385,7 +358,7 @@ filemon_wrapper_freebsd32_stat(struct thread *td,
 	struct filemon *filemon;
 
 	if ((ret = freebsd32_stat(td, uap)) == 0) {
-		if ((filemon = filemon_pid_check(curproc)) != NULL) {
+		if ((filemon = filemon_proc_get(curproc)) != NULL) {
 			copyinstr(uap->path, filemon->fname1,
 			    sizeof(filemon->fname1), &done);
 
@@ -395,7 +368,7 @@ filemon_wrapper_freebsd32_stat(struct thread *td,
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			sx_xunlock(&filemon->lock);
+			filemon_drop(filemon);
 		}
 	}
 
@@ -408,29 +381,25 @@ filemon_event_process_exit(void *arg __unused, struct proc *p)
 {
 	size_t len;
 	struct filemon *filemon;
-	struct timeval now;
 
-	/* Get timestamp before locking. */
-	getmicrotime(&now);
-
-	if ((filemon = filemon_pid_check(p)) != NULL) {
+	if ((filemon = filemon_proc_get(p)) != NULL) {
 		len = snprintf(filemon->msgbufr, sizeof(filemon->msgbufr),
 		    "X %d %d %d\n", p->p_pid, p->p_xexit, p->p_xsig);
 
 		filemon_output(filemon, filemon->msgbufr, len);
 
-		/* Check if the monitored process is about to exit. */
-		if (filemon->p == p) {
-			len = snprintf(filemon->msgbufr,
-			    sizeof(filemon->msgbufr),
-			    "# Stop %ju.%06ju\n# Bye bye\n",
-			    (uintmax_t)now.tv_sec, (uintmax_t)now.tv_usec);
+		/*
+		 * filemon_untrack_processes() may have dropped this p_filemon
+		 * already while in filemon_proc_get() before acquiring the
+		 * filemon lock.
+		 */
+		KASSERT(p->p_filemon == NULL || p->p_filemon == filemon,
+		    ("%s: p %p was attached while exiting, expected "
+		    "filemon %p or NULL", __func__, p, filemon));
+		if (p->p_filemon == filemon)
+			filemon_proc_drop(p);
 
-			filemon_output(filemon, filemon->msgbufr, len);
-			filemon->p = NULL;
-		}
-
-		sx_xunlock(&filemon->lock);
+		filemon_drop(filemon);
 	}
 }
 
@@ -443,7 +412,7 @@ filemon_wrapper_unlink(struct thread *td, struct unlink_args *uap)
 	struct filemon *filemon;
 
 	if ((ret = sys_unlink(td, uap)) == 0) {
-		if ((filemon = filemon_pid_check(curproc)) != NULL) {
+		if ((filemon = filemon_proc_get(curproc)) != NULL) {
 			copyinstr(uap->path, filemon->fname1,
 			    sizeof(filemon->fname1), &done);
 
@@ -453,7 +422,7 @@ filemon_wrapper_unlink(struct thread *td, struct unlink_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			sx_xunlock(&filemon->lock);
+			filemon_drop(filemon);
 		}
 	}
 
@@ -467,14 +436,34 @@ filemon_event_process_fork(void *arg __unused, struct proc *p1,
 	size_t len;
 	struct filemon *filemon;
 
-	if ((filemon = filemon_pid_check(p1)) != NULL) {
+	if ((filemon = filemon_proc_get(p1)) != NULL) {
 		len = snprintf(filemon->msgbufr,
 		    sizeof(filemon->msgbufr), "F %d %d\n",
 		    p1->p_pid, p2->p_pid);
 
 		filemon_output(filemon, filemon->msgbufr, len);
 
-		sx_xunlock(&filemon->lock);
+		/*
+		 * filemon_untrack_processes() or
+		 * filemon_ioctl(FILEMON_SET_PID) may have changed the parent's
+		 * p_filemon while in filemon_proc_get() before acquiring the
+		 * filemon lock.  Only inherit if the parent is still traced by
+		 * this filemon.
+		 */
+		if (p1->p_filemon == filemon) {
+			PROC_LOCK(p2);
+			/*
+			 * It may have been attached to already by a new
+			 * filemon.
+			 */
+			if (p2->p_filemon == NULL) {
+				p2->p_filemon = filemon_acquire(filemon);
+				++filemon->proccnt;
+			}
+			PROC_UNLOCK(p2);
+		}
+
+		filemon_drop(filemon);
 	}
 }
 

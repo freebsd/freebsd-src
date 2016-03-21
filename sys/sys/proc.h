@@ -162,6 +162,7 @@ struct pargs {
  */
 struct cpuset;
 struct filecaps;
+struct filemon;
 struct kaioinfo;
 struct kaudit_record;
 struct kdtrace_proc;
@@ -580,6 +581,7 @@ struct proc {
 	struct procdesc	*p_procdesc;	/* (e) Process descriptor, if any. */
 	u_int		p_treeflag;	/* (e) P_TREE flags */
 	int		p_pendingexits; /* (c) Count of pending thread exits. */
+	struct filemon	*p_filemon;	/* (c) filemon-specific data. */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
