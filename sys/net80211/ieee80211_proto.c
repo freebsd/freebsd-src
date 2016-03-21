@@ -1531,7 +1531,7 @@ beacon_miss(void *arg, int npending)
 	IEEE80211_LOCK(ic);
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
 		/*
-		 * We only pass events through for sta vap's in RUN state;
+		 * We only pass events through for sta vap's in RUN+ state;
 		 * may be too restrictive but for now this saves all the
 		 * handlers duplicating these checks.
 		 */
@@ -1550,7 +1550,7 @@ beacon_swmiss(void *arg, int npending)
 	struct ieee80211com *ic = vap->iv_ic;
 
 	IEEE80211_LOCK(ic);
-	if (vap->iv_state == IEEE80211_S_RUN) {
+	if (vap->iv_state >= IEEE80211_S_RUN) {
 		/* XXX Call multiple times if npending > zero? */
 		vap->iv_bmiss(vap);
 	}
@@ -1570,8 +1570,7 @@ ieee80211_swbmiss(void *arg)
 
 	IEEE80211_LOCK_ASSERT(ic);
 
-	/* XXX sleep state? */
-	KASSERT(vap->iv_state == IEEE80211_S_RUN,
+	KASSERT(vap->iv_state >= IEEE80211_S_RUN,
 	    ("wrong state %d", vap->iv_state));
 
 	if (ic->ic_flags & IEEE80211_F_SCAN) {
