@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 16, 2011
+.Dd March 13, 2016
 .Dt SX 9
 .Os
 .Sh NAME
@@ -124,12 +124,10 @@ specifies a set of optional flags to alter the behavior of
 It contains one or more of the following flags:
 .Bl -tag -width SX_NOADAPTIVE
 .It Dv SX_NOADAPTIVE
-If the kernel is not compiled with
-.Cd "options NO_ADAPTIVE_SX" ,
-then lock operations for
-.Fa sx
-will spin instead of sleeping while an exclusive lock holder is executing on
-another CPU.
+Disable adaptive spinning, rather than sleeping, for lock operations
+while an exclusive lock holder is executing on another CPU.
+Adaptive spinning is the default unless the kernel is compiled with
+.Cd "options NO_ADAPTIVE_SX" .
 .It Dv SX_DUPOK
 Witness should not log messages about duplicate locks being acquired.
 .It Dv SX_NOWITNESS
