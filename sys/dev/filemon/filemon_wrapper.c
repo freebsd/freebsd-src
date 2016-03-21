@@ -29,8 +29,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/imgact.h>
 #include <sys/eventhandler.h>
+#include <sys/filedesc.h>
+#include <sys/imgact.h>
 #include <sys/sx.h>
 #include <sys/vnode.h>
 
@@ -122,24 +123,42 @@ _filemon_wrapper_openat(struct thread *td, char *upath, int flags, int fd)
 {
 	size_t done;
 	size_t len;
+	struct file *fp;
 	struct filemon *filemon;
+	char *atpath, *freepath;
+	cap_rights_t rights;
 
 	if ((filemon = filemon_proc_get(curproc)) != NULL) {
+		atpath = "";
+		freepath = NULL;
+		fp = NULL;
+
 		copyinstr(upath, filemon->fname1,
 		    sizeof(filemon->fname1), &done);
 
-		filemon->fname2[0] = '\0';
 		if (filemon->fname1[0] != '/' && fd != AT_FDCWD) {
 			/*
 			 * rats - we cannot do too much about this.
 			 * the trace should show a dir we read
 			 * recently.. output an A record as a clue
 			 * until we can do better.
+			 * XXX: This may be able to come out with
+			 * the namecache lookup now.
 			 */
 			len = snprintf(filemon->msgbufr,
 			    sizeof(filemon->msgbufr), "A %d %s\n",
 			    curproc->p_pid, filemon->fname1);
 			filemon_output(filemon, filemon->msgbufr, len);
+			/*
+			 * Try to resolve the path from the vnode using the
+			 * namecache.  It may be inaccurate, but better
+			 * than nothing.
+			 */
+			if (getvnode(td, fd,
+			    cap_rights_init(&rights, CAP_LOOKUP), &fp) == 0) {
+				vn_fullpath(td, fp->f_vnode, &atpath,
+				    &freepath);
+			}
 		}
 		if (flags & O_RDWR) {
 			/*
@@ -148,18 +167,23 @@ _filemon_wrapper_openat(struct thread *td, char *upath, int flags, int fd)
 			 * O_WRONLY.
 			 */
 			len = snprintf(filemon->msgbufr,
-			    sizeof(filemon->msgbufr), "R %d %s%s\n",
-			    curproc->p_pid, filemon->fname2, filemon->fname1);
+			    sizeof(filemon->msgbufr), "R %d %s%s%s\n",
+			    curproc->p_pid, atpath,
+			    atpath[0] != '\0' ? "/" : "", filemon->fname1);
 			filemon_output(filemon, filemon->msgbufr, len);
 		}
 
 		len = snprintf(filemon->msgbufr,
-		    sizeof(filemon->msgbufr), "%c %d %s%s\n",
+		    sizeof(filemon->msgbufr), "%c %d %s%s%s\n",
 		    (flags & O_ACCMODE) ? 'W':'R',
-		    curproc->p_pid, filemon->fname2, filemon->fname1);
+		    curproc->p_pid, atpath,
+		    atpath[0] != '\0' ? "/" : "", filemon->fname1);
 		filemon_output(filemon, filemon->msgbufr, len);
 
 		filemon_drop(filemon);
+		if (fp != NULL)
+			fdrop(fp, td);
+		free(freepath, M_TEMP);
 	}
 }
 
