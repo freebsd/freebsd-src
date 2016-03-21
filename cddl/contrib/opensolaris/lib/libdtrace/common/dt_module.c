@@ -23,10 +23,6 @@
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
-/*
- * Portions Copyright 2016 Pedro Giffuni.  All rights reserved.
- */
-
 #include <sys/types.h>
 #if defined(sun)
 #include <sys/modctl.h>
@@ -614,13 +610,16 @@ dt_module_load(dtrace_hdl_t *dtp, dt_module_t *dmp)
 	dmp->dm_nsymbuckets = _dtrace_strbuckets;
 	dmp->dm_symfree = 1;		/* first free element is index 1 */
 
-	dmp->dm_symbuckets = calloc(dmp->dm_nsymbuckets, sizeof (uint_t));
-	dmp->dm_symchains = calloc(dmp->dm_nsymelems + 1, sizeof (dt_sym_t));
+	dmp->dm_symbuckets = malloc(sizeof (uint_t) * dmp->dm_nsymbuckets);
+	dmp->dm_symchains = malloc(sizeof (dt_sym_t) * dmp->dm_nsymelems + 1);
 
 	if (dmp->dm_symbuckets == NULL || dmp->dm_symchains == NULL) {
 		dt_module_unload(dtp, dmp);
 		return (dt_set_errno(dtp, EDT_NOMEM));
 	}
+
+	bzero(dmp->dm_symbuckets, sizeof (uint_t) * dmp->dm_nsymbuckets);
+	bzero(dmp->dm_symchains, sizeof (dt_sym_t) * dmp->dm_nsymelems + 1);
 
 	/*
 	 * Iterate over the symbol table data buffer and insert each symbol
