@@ -118,41 +118,59 @@ filemon_event_process_exec(void *arg __unused, struct proc *p,
 	}
 }
 
-static int
-filemon_wrapper_open(struct thread *td, struct open_args *uap)
+static void
+_filemon_wrapper_openat(struct thread *td, char *upath, int flags, int fd)
 {
-	int ret;
 	size_t done;
 	size_t len;
 	struct filemon *filemon;
 
-	if ((ret = sys_open(td, uap)) == 0) {
-		if ((filemon = filemon_proc_get(curproc)) != NULL) {
-			copyinstr(uap->path, filemon->fname1,
-			    sizeof(filemon->fname1), &done);
+	if ((filemon = filemon_proc_get(curproc)) != NULL) {
+		copyinstr(upath, filemon->fname1,
+		    sizeof(filemon->fname1), &done);
 
-			if (uap->flags & O_RDWR) {
-				/*
-				 * We'll get the W record below, but need
-				 * to also output an R to distingish from
-				 * O_WRONLY.
-				 */
-				len = snprintf(filemon->msgbufr,
-				    sizeof(filemon->msgbufr), "R %d %s\n",
-				    curproc->p_pid, filemon->fname1);
-				filemon_output(filemon, filemon->msgbufr, len);
-			}
-
-
+		filemon->fname2[0] = '\0';
+		if (filemon->fname1[0] != '/' && fd != AT_FDCWD) {
+			/*
+			 * rats - we cannot do too much about this.
+			 * the trace should show a dir we read
+			 * recently.. output an A record as a clue
+			 * until we can do better.
+			 */
 			len = snprintf(filemon->msgbufr,
-			    sizeof(filemon->msgbufr), "%c %d %s\n",
-			    (uap->flags & O_ACCMODE) ? 'W':'R',
+			    sizeof(filemon->msgbufr), "A %d %s\n",
 			    curproc->p_pid, filemon->fname1);
 			filemon_output(filemon, filemon->msgbufr, len);
-
-			filemon_drop(filemon);
 		}
+		if (flags & O_RDWR) {
+			/*
+			 * We'll get the W record below, but need
+			 * to also output an R to distinguish from
+			 * O_WRONLY.
+			 */
+			len = snprintf(filemon->msgbufr,
+			    sizeof(filemon->msgbufr), "R %d %s%s\n",
+			    curproc->p_pid, filemon->fname2, filemon->fname1);
+			filemon_output(filemon, filemon->msgbufr, len);
+		}
+
+		len = snprintf(filemon->msgbufr,
+		    sizeof(filemon->msgbufr), "%c %d %s%s\n",
+		    (flags & O_ACCMODE) ? 'W':'R',
+		    curproc->p_pid, filemon->fname2, filemon->fname1);
+		filemon_output(filemon, filemon->msgbufr, len);
+
+		filemon_drop(filemon);
 	}
+}
+
+static int
+filemon_wrapper_open(struct thread *td, struct open_args *uap)
+{
+	int ret;
+
+	if ((ret = sys_open(td, uap)) == 0)
+		_filemon_wrapper_openat(td, uap->path, uap->flags, AT_FDCWD);
 
 	return (ret);
 }
@@ -161,50 +179,9 @@ static int
 filemon_wrapper_openat(struct thread *td, struct openat_args *uap)
 {
 	int ret;
-	size_t done;
-	size_t len;
-	struct filemon *filemon;
 
-	if ((ret = sys_openat(td, uap)) == 0) {
-		if ((filemon = filemon_proc_get(curproc)) != NULL) {
-			copyinstr(uap->path, filemon->fname1,
-			    sizeof(filemon->fname1), &done);
-
-			filemon->fname2[0] = '\0';
-			if (filemon->fname1[0] != '/' && uap->fd != AT_FDCWD) {
-				/*
-				 * rats - we cannot do too much about this.
-				 * the trace should show a dir we read
-				 * recently.. output an A record as a clue
-				 * until we can do better.
-				 */
-				len = snprintf(filemon->msgbufr,
-				    sizeof(filemon->msgbufr), "A %d %s\n",
-				    curproc->p_pid, filemon->fname1);
-				filemon_output(filemon, filemon->msgbufr, len);
-			}
-			if (uap->flag & O_RDWR) {
-				/*
-				 * We'll get the W record below, but need
-				 * to also output an R to distingish from
-				 * O_WRONLY.
-				 */
-				len = snprintf(filemon->msgbufr,
-				    sizeof(filemon->msgbufr), "R %d %s%s\n",
-				    curproc->p_pid, filemon->fname2, filemon->fname1);
-				filemon_output(filemon, filemon->msgbufr, len);
-			}
-
-
-			len = snprintf(filemon->msgbufr,
-			    sizeof(filemon->msgbufr), "%c %d %s%s\n",
-			    (uap->flag & O_ACCMODE) ? 'W':'R',
-			    curproc->p_pid, filemon->fname2, filemon->fname1);
-			filemon_output(filemon, filemon->msgbufr, len);
-
-			filemon_drop(filemon);
-		}
-	}
+	if ((ret = sys_openat(td, uap)) == 0)
+		_filemon_wrapper_openat(td, uap->path, uap->flag, uap->fd);
 
 	return (ret);
 }
