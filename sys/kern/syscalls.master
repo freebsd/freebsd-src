@@ -554,7 +554,7 @@
 312	AUE_SETRESGID	STD	{ int setresgid(gid_t rgid, gid_t egid, \
 				    gid_t sgid); }
 313	AUE_NULL	OBSOL	signanosleep
-314	AUE_NULL	STD	{ int aio_return(struct aiocb *aiocbp); }
+314	AUE_NULL	STD	{ ssize_t aio_return(struct aiocb *aiocbp); }
 315	AUE_NULL	STD	{ int aio_suspend( \
 				    struct aiocb * const * aiocbp, int nent, \
 				    const struct timespec *timeout); }
@@ -643,7 +643,7 @@
 358	AUE_EXTATTR_DELETE_FILE	STD	{ int extattr_delete_file(const char *path, \
 				    int attrnamespace, \
 				    const char *attrname); }
-359	AUE_NULL	STD	{ int aio_waitcomplete( \
+359	AUE_NULL	STD	{ ssize_t aio_waitcomplete( \
 				    struct aiocb **aiocbp, \
 				    struct timespec *timeout); }
 360	AUE_GETRESUID	STD	{ int getresuid(uid_t *ruid, uid_t *euid, \
