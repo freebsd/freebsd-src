@@ -1178,3 +1178,4 @@ static devclass_t dwmmc_devclass;
 DRIVER_MODULE(dwmmc, simplebus, dwmmc_driver, dwmmc_devclass, 0, 0);
 DRIVER_MODULE(dwmmc, ofwbus, dwmmc_driver, dwmmc_devclass, 0, 0);
 DRIVER_MODULE(mmc, dwmmc, mmc_driver, mmc_devclass, NULL, NULL);
+MODULE_DEPEND(dwmmc, mmc, 1, 1, 1);

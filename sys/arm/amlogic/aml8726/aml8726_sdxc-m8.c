@@ -1378,3 +1378,4 @@ DRIVER_MODULE(aml8726_sdxc, simplebus, aml8726_sdxc_driver,
     aml8726_sdxc_devclass, 0, 0);
 MODULE_DEPEND(aml8726_sdxc, aml8726_gpio, 1, 1, 1);
 DRIVER_MODULE(mmc, aml8726_sdxc, mmc_driver, mmc_devclass, NULL, NULL);
+MODULE_DEPEND(aml8726_sdxc, mmc, 1, 1, 1);

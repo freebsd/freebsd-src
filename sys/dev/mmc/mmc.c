@@ -1811,3 +1811,5 @@ driver_t mmc_driver = {
 	sizeof(struct mmc_softc),
 };
 devclass_t mmc_devclass;
+
+MODULE_VERSION(mmc, 1);
