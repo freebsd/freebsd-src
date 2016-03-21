@@ -103,8 +103,7 @@ filemon_event_process_exec(void *arg __unused, struct proc *p,
 		fullpath = "<unknown>";
 		freepath = NULL;
 
-		vn_fullpath(FIRST_THREAD_IN_PROC(p), imgp->vp, &fullpath,
-		    &freepath);
+		vn_fullpath(curthread, imgp->vp, &fullpath, &freepath);
 
 		len = snprintf(filemon->msgbufr,
 		    sizeof(filemon->msgbufr), "E %d %s\n",
