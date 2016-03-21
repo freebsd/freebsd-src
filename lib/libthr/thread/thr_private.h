@@ -952,6 +952,8 @@ void	_tcb_dtor(struct tcb *);
 void __thr_pshared_init(void) __hidden;
 void *__thr_pshared_offpage(void *key, int doalloc) __hidden;
 void __thr_pshared_destroy(void *key) __hidden;
+void __thr_pshared_atfork_pre(void) __hidden;
+void __thr_pshared_atfork_post(void) __hidden;
 
 __END_DECLS
 
