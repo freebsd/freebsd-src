@@ -358,7 +358,7 @@ sysctl_maxsockets(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_kern_ipc, OID_AUTO, maxsockets, CTLTYPE_INT|CTLFLAG_RW,
     &maxsockets, 0, sysctl_maxsockets, "IU",
-    "Maximum number of sockets avaliable");
+    "Maximum number of sockets available");
 
 /*
  * Socket operation routines.  These routines are called by the routines in
