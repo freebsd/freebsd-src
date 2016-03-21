@@ -916,7 +916,7 @@ cust_pkgng ( ) (
 	mkdir -p ${NANO_WORLDDIR}/Pkg
 	(
 		cd "${NANO_PACKAGE_DIR}"
-		find "${NANO_PACKAGE_LIST}" -print |
+		find ${NANO_PACKAGE_LIST} -print |
 		cpio -Ldumpv ${NANO_WORLDDIR}/Pkg
 	)
 
