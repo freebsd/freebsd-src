@@ -161,11 +161,9 @@ ti_adc_input_setup(struct ti_adc_softc *sc, int32_t ain)
 
 	/* Set the negative voltage reference. */
 	val &= ~ADC_STEP_RFM_MSK;
-	val |= ADC_STEP_RFM_VREFN << ADC_STEP_RFM_SHIFT;
 
 	/* Set the positive voltage reference. */
 	val &= ~ADC_STEP_RFP_MSK;
-	val |= ADC_STEP_RFP_VREFP << ADC_STEP_RFP_SHIFT;
 
 	/* Set the samples average. */
 	val &= ~ADC_STEP_AVG_MSK;
@@ -450,11 +448,9 @@ ti_adc_idlestep_init(struct ti_adc_softc *sc)
 
 	/* Set the negative voltage reference. */
 	val &= ~ADC_STEP_RFM_MSK;
-	val |= ADC_STEP_RFM_VREFN << ADC_STEP_RFM_SHIFT;
 
 	/* Set the positive voltage reference. */
 	val &= ~ADC_STEP_RFP_MSK;
-	val |= ADC_STEP_RFP_VREFP << ADC_STEP_RFP_SHIFT;
 
 	/* Connect the input to VREFN. */
 	val &= ~ADC_STEP_INP_MSK;
@@ -484,6 +480,11 @@ ti_adc_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 
+	/* Activate the ADC_TSC module. */
+	err = ti_prcm_clk_enable(TSC_ADC_CLK);
+	if (err)
+		return (err);
+
 	rid = 0;
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
@@ -508,11 +509,6 @@ ti_adc_attach(device_t dev)
 		device_printf(dev, "Unable to setup the irq handler.\n");
 		return (ENXIO);
 	}
-
-	/* Activate the ADC_TSC module. */
-	err = ti_prcm_clk_enable(TSC_ADC_CLK);
-	if (err)
-		return (err);
 
 	/* Check the ADC revision. */
 	rev = ADC_READ4(sc, ADC_REVISION);
