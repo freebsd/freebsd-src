@@ -304,28 +304,11 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
 {
 	int err_ip, err_subnet, err_gway, err_dns, err_adap;
 	int UNUSED_FLAG = 1;
-	int guid_index;
 	struct hv_device *hv_dev;       /* GUID Data Structure */
 	hn_softc_t *sc;                 /* hn softc structure  */
 	char if_name[4];
-	unsigned char guid_instance[40];
-	char *guid_data = NULL;
 	char buf[39];
 
-	struct guid_extract {
-		char	a1[2];
-		char	a2[2];
-		char	a3[2];
-		char	a4[2];
-		char	b1[2];
-		char	b2[2];
-		char	c1[2];
-		char	c2[2];
-		char	d[4];
-		char	e[12];
-	};
-
-	struct guid_extract *id;
 	device_t *devs;
 	int devcnt;
 
@@ -352,17 +335,7 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
 			/* Trying to find GUID of Network Device */
 			hv_dev = sc->hn_dev_obj;
 
-			for (guid_index = 0; guid_index < 16; guid_index++) {
-				sprintf(&guid_instance[guid_index * 2], "%02x",
-				    hv_dev->device_id.data[guid_index]);
-			}
-
-			guid_data = (char *)guid_instance;
-			id = (struct guid_extract *)guid_data;
-			snprintf(buf, sizeof(buf), "{%.2s%.2s%.2s%.2s-%.2s%.2s-%.2s%.2s-%.4s-%s}",
-			    id->a4, id->a3, id->a2, id->a1,
-			    id->b2, id->b1, id->c2, id->c1, id->d, id->e);
-			guid_data = NULL;
+			snprintf_hv_guid(buf, sizeof(buf), &hv_dev->device_id);
 			sprintf(if_name, "%s%d", "hn", device_get_unit(devs[devcnt]));
 
 			if (strncmp(buf, (char *)umsg->body.kvp_ip_val.adapter_id, 39) == 0) {
