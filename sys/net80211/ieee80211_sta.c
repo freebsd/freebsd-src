@@ -206,6 +206,24 @@ sta_authretry(struct ieee80211vap *vap, struct ieee80211_node *ni, int reason)
 	}
 }
 
+static void
+sta_swbmiss_start(struct ieee80211vap *vap)
+{
+
+	if (vap->iv_flags_ext & IEEE80211_FEXT_SWBMISS) {
+		/*
+		 * Start s/w beacon miss timer for devices w/o
+		 * hardware support.  We fudge a bit here since
+		 * we're doing this in software.
+		 */
+		vap->iv_swbmiss_period = IEEE80211_TU_TO_TICKS(
+		    2 * vap->iv_bmissthreshold * vap->iv_bss->ni_intval);
+		vap->iv_swbmiss_count = 0;
+		callout_reset(&vap->iv_swbmiss, vap->iv_swbmiss_period,
+		    ieee80211_swbmiss, vap);
+	}
+}
+
 /*
  * IEEE80211_M_STA vap state machine handler.
  * This routine handles the main states in the 802.11 protocol.
@@ -419,19 +437,8 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			goto invalid;
 		}
 		ieee80211_sync_curchan(ic);
-		if (ostate != IEEE80211_S_RUN &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_SWBMISS)) {
-			/*
-			 * Start s/w beacon miss timer for devices w/o
-			 * hardware support.  We fudge a bit here since
-			 * we're doing this in software.
-			 */
-			vap->iv_swbmiss_period = IEEE80211_TU_TO_TICKS(
-				2 * vap->iv_bmissthreshold * ni->ni_intval);
-			vap->iv_swbmiss_count = 0;
-			callout_reset(&vap->iv_swbmiss, vap->iv_swbmiss_period,
-				ieee80211_swbmiss, vap);
-		}
+		if (ostate != IEEE80211_S_RUN)
+			sta_swbmiss_start(vap);
 		/*
 		 * When 802.1x is not in use mark the port authorized
 		 * at this point so traffic can flow.
@@ -451,6 +458,7 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			goto invalid;
 		break;
 	case IEEE80211_S_SLEEP:
+		sta_swbmiss_start(vap);
 		vap->iv_sta_ps(vap, 1);
 		break;
 	default:
