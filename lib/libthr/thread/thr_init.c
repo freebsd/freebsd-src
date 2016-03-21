@@ -471,7 +471,6 @@ init_private(void)
 	_thr_once_init();
 	_thr_spinlock_init();
 	_thr_list_init();
-	__thr_pshared_init();
 	_thr_wake_addr_init();
 	_sleepq_init();
 	_single_thread = NULL;
@@ -482,6 +481,7 @@ init_private(void)
 	 * e.g. after a fork().
 	 */
 	if (init_once == 0) {
+		__thr_pshared_init();
 		/* Find the stack top */
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_USRSTACK;

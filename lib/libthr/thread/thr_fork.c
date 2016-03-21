@@ -168,6 +168,7 @@ __thr_fork(void)
 	if (_thr_isthreaded() != 0) {
 		was_threaded = 1;
 		_malloc_prefork();
+		__thr_pshared_atfork_pre();
 		_rtld_atfork_pre(rtld_locks);
 	} else {
 		was_threaded = 0;
@@ -202,8 +203,10 @@ __thr_fork(void)
 
 		_thr_signal_postfork_child();
 
-		if (was_threaded)
+		if (was_threaded) {
 			_rtld_atfork_post(rtld_locks);
+			__thr_pshared_atfork_post();
+		}
 		_thr_setthreaded(0);
 
 		/* reinitalize library. */
@@ -236,6 +239,7 @@ __thr_fork(void)
 
 		if (was_threaded) {
 			_rtld_atfork_post(rtld_locks);
+			__thr_pshared_atfork_post();
 			_malloc_postfork();
 		}
 
