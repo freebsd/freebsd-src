@@ -83,6 +83,7 @@ extern	struct in_addr swapip;
 extern	struct in_addr gateip;
 extern	struct in_addr nameip;
 extern	n_long netmask;
+extern	u_int intf_mtu;
 
 extern	int debug;			/* defined in the machdep sources */
 
