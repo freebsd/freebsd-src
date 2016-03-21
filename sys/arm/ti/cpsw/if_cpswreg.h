@@ -98,8 +98,8 @@
 #define	 ALE_TYPE_VLAN			2
 #define	 ALE_TYPE_VLAN_ADDR		3
 #define	 ALE_VLAN(_a)			((_a[1] >> 16) & 0xfff)
-#define	 ALE_VLAN_REGFLOOD(_a)		((_a[0] >> 8) & 7)
-#define	 ALE_VLAN_UNREGFLOOD(_a)	((_a[0] >> 16) & 7)
+#define	 ALE_VLAN_UNREGFLOOD(_a)	((_a[0] >> 8) & 7)
+#define	 ALE_VLAN_REGFLOOD(_a)		((_a[0] >> 16) & 7)
 #define	 ALE_VLAN_UNTAG(_a)		((_a[0] >> 24) & 7)
 #define	 ALE_VLAN_MEMBERS(_a)		(_a[0] & 7)
 #define	CPSW_ALE_PORTCTL(p)		(CPSW_ALE_OFFSET + 0x40 + ((p) * 0x04))

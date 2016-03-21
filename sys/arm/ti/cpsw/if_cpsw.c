@@ -140,7 +140,8 @@ static void cpsw_ale_read_entry(struct cpsw_softc *, uint16_t, uint32_t *);
 static void cpsw_ale_write_entry(struct cpsw_softc *, uint16_t, uint32_t *);
 static int cpsw_ale_mc_entry_set(struct cpsw_softc *, uint8_t, int, uint8_t *);
 static void cpsw_ale_dump_table(struct cpsw_softc *);
-static int cpsw_ale_update_vlan_table(struct cpsw_softc *, int, int, int);
+static int cpsw_ale_update_vlan_table(struct cpsw_softc *, int, int, int, int,
+	int);
 static int cpswp_ale_update_addresses(struct cpswp_softc *, int);
 
 /* Statistics and sysctls. */
@@ -1148,8 +1149,9 @@ cpswp_init_locked(void *arg)
 		cpsw_write_4(sc->swsc, CPSW_PORT_P_VLAN(sc->unit + 1),
 		    sc->vlan & 0xfff);
 		cpsw_ale_update_vlan_table(sc->swsc, sc->vlan,
-		    (1 << (sc->unit + 1)) | (1 << 0),
-		    (1 << (sc->unit + 1)) | (1 << 0));
+		    (1 << (sc->unit + 1)) | (1 << 0), /* Member list */
+		    (1 << (sc->unit + 1)) | (1 << 0), /* Untagged egress */
+		    (1 << (sc->unit + 1)) | (1 << 0), 0); /* mcast reg flood */
 	}
 
 	mii_mediachg(sc->mii);
@@ -2368,7 +2370,8 @@ cpswp_ale_update_addresses(struct cpswp_softc *sc, int purge)
 }
 
 static int
-cpsw_ale_update_vlan_table(struct cpsw_softc *sc, int vlan, int ports, int untag)
+cpsw_ale_update_vlan_table(struct cpsw_softc *sc, int vlan, int ports,
+	int untag, int mcregflood, int mcunregflood)
 {
 	int free_index, i, matching_index;
 	uint32_t ale_entry[3];
@@ -2394,7 +2397,8 @@ cpsw_ale_update_vlan_table(struct cpsw_softc *sc, int vlan, int ports, int untag
 		i = free_index;
 	}
 
-	ale_entry[0] = (untag & 7) << 24 | (ports & 7);
+	ale_entry[0] = (untag & 7) << 24 | (mcregflood & 7) << 16 |
+	    (mcunregflood & 7) << 8 | (ports & 7);
 	ale_entry[1] = ALE_TYPE_VLAN << 28 | vlan << 16;
 	ale_entry[2] = 0;
 	cpsw_ale_write_entry(sc, i, ale_entry);
