@@ -38,8 +38,10 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 
 int	__semctl(int semid, int semnum, int cmd, union semun *arg);
+#ifndef __CHERI_PURE_CAPABILITY__
 int	freebsd7___semctl(int semid, int semnum, int cmd, union semun_old *arg);
 int	freebsd7_semctl(int semid, int semnum, int cmd, ...);
+#endif
 
 int
 semctl(int semid, int semnum, int cmd, ...)
@@ -61,6 +63,7 @@ semctl(int semid, int semnum, int cmd, ...)
 	return (__semctl(semid, semnum, cmd, semun_ptr));
 }
 
+#ifndef __CHERI_PURE_CAPABILITY__
 int
 freebsd7_semctl(int semid, int semnum, int cmd, ...)
 {
@@ -82,3 +85,4 @@ freebsd7_semctl(int semid, int semnum, int cmd, ...)
 }
 
 __sym_compat(semctl, freebsd7_semctl, FBSD_1.0);
+#endif
