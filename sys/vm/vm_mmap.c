@@ -209,7 +209,8 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_size_t size, int prot,
 	/*
 	 * Ignore old flags that used to be defined but did not do anything.
 	 */
-	flags &= ~(MAP_RESERVED0020 | MAP_RESERVED0040);
+	if (!SV_CURPROC_FLAG(SV_CHERI))
+		flags &= ~(MAP_RESERVED0020 | MAP_RESERVED0040);
 	
 	/*
 	 * Enforce the constraints.
