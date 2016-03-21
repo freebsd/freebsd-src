@@ -154,6 +154,7 @@ static usb_callback_t rum_bulk_write_callback;
 
 static usb_error_t	rum_do_request(struct rum_softc *sc,
 			    struct usb_device_request *req, void *data);
+static usb_error_t	rum_do_mcu_request(struct rum_softc *sc, int);
 static struct ieee80211vap *rum_vap_create(struct ieee80211com *,
 			    const char [IFNAMSIZ], int, enum ieee80211_opmode,
 			    int, const uint8_t [IEEE80211_ADDR_LEN],
@@ -627,6 +628,20 @@ rum_do_request(struct rum_softc *sc,
 			break;
 	}
 	return (err);
+}
+
+static usb_error_t
+rum_do_mcu_request(struct rum_softc *sc, int request)
+{
+	struct usb_device_request req;
+
+	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+	req.bRequest = RT2573_MCU_CNTL;
+	USETW(req.wValue, request);
+	USETW(req.wIndex, 0);
+	USETW(req.wLength, 0);
+
+	return (rum_do_request(sc, &req, NULL));
 }
 
 static struct ieee80211vap *
@@ -2460,7 +2475,6 @@ rum_stop(struct rum_softc *sc)
 static void
 rum_load_microcode(struct rum_softc *sc, const uint8_t *ucode, size_t size)
 {
-	struct usb_device_request req;
 	uint16_t reg = RT2573_MCU_CODE_BASE;
 	usb_error_t err;
 
@@ -2475,14 +2489,8 @@ rum_load_microcode(struct rum_softc *sc, const uint8_t *ucode, size_t size)
 		}
 	}
 
-	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
-	req.bRequest = RT2573_MCU_CNTL;
-	USETW(req.wValue, RT2573_MCU_RUN);
-	USETW(req.wIndex, 0);
-	USETW(req.wLength, 0);
-
-	err = rum_do_request(sc, &req, NULL);
-	if (err != 0) {
+	err = rum_do_mcu_request(sc, RT2573_MCU_RUN);
+	if (err != USB_ERR_NORMAL_COMPLETION) {
 		device_printf(sc->sc_dev, "could not run firmware: %s\n",
 		    usbd_errstr(err));
 	}
