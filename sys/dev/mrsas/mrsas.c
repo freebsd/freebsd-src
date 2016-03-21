@@ -1272,14 +1272,12 @@ mrsas_get_softc_instance(struct cdev *dev, u_long cmd, caddr_t arg)
 		 * Application
 		 */
 		sc = mrsas_mgmt_info.sc_ptr[user_ioc->host_no];
-		if ((user_ioc->host_no >= mrsas_mgmt_info.max_index) || (sc == NULL)) {
-			if (sc == NULL)
-				mrsas_dprint(sc, MRSAS_FAULT,
-				    "There is no Controller number %d .\n", user_ioc->host_no);
-			else
-				mrsas_dprint(sc, MRSAS_FAULT,
-				    "Invalid Controller number %d .\n", user_ioc->host_no);
-		}
+		if (sc == NULL)
+			printf("There is no Controller number %d\n",
+			    user_ioc->host_no);
+		else if (user_ioc->host_no >= mrsas_mgmt_info.max_index)
+			mrsas_dprint(sc, MRSAS_FAULT,
+			    "Invalid Controller number %d\n", user_ioc->host_no);
 	}
 
 	return sc;
@@ -4018,8 +4016,8 @@ mrsas_aen_handler(struct mrsas_softc *sc)
 	u_int32_t seq_num;
 	int error;
 
-	if (!sc) {
-		device_printf(sc->mrsas_dev, "invalid instance!\n");
+	if (sc == NULL) {
+		printf("invalid instance!\n");
 		return;
 	}
 	if (sc->evt_detail_mem) {
