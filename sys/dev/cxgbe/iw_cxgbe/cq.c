@@ -724,7 +724,7 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 		default:
 			printf("Unexpected cqe_status 0x%x for QPID = 0x%0x\n",
 			       CQE_STATUS(&cqe), CQE_QPID(&cqe));
-			ret = -EINVAL;
+			wc->status = IB_WC_FATAL_ERR;
 		}
 	}
 out:
@@ -861,6 +861,7 @@ c4iw_create_cq(struct ib_device *ibdev, struct ib_cq_init_attr *attr,
 		if (!mm2)
 			goto err4;
 
+		memset(&uresp, 0, sizeof(uresp));
 		uresp.qid_mask = rhp->rdev.cqmask;
 		uresp.cqid = chp->cq.cqid;
 		uresp.size = chp->cq.size;
@@ -871,7 +872,8 @@ c4iw_create_cq(struct ib_device *ibdev, struct ib_cq_init_attr *attr,
 		uresp.gts_key = ucontext->key;
 		ucontext->key += PAGE_SIZE;
 		spin_unlock(&ucontext->mmap_lock);
-		ret = ib_copy_to_udata(udata, &uresp, sizeof uresp);
+		ret = ib_copy_to_udata(udata, &uresp,
+					sizeof(uresp) - sizeof(uresp.reserved));
 		if (ret)
 			goto err5;
 
