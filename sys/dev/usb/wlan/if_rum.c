@@ -819,7 +819,7 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	const struct ieee80211_txparam *tp;
 	enum ieee80211_state ostate;
 	struct ieee80211_node *ni;
-	int ret;
+	int ret = 0;
 
 	ostate = vap->iv_state;
 	DPRINTF("%s -> %s\n",
@@ -872,6 +872,7 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 		if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
 			rum_ratectl_start(sc, ni);
+run_fail:
 		ieee80211_free_node(ni);
 		break;
 	default:
@@ -879,13 +880,7 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	}
 	RUM_UNLOCK(sc);
 	IEEE80211_LOCK(ic);
-	return (rvp->newstate(vap, nstate, arg));
-
-run_fail:
-	RUM_UNLOCK(sc);
-	IEEE80211_LOCK(ic);
-	ieee80211_free_node(ni);
-	return ret;
+	return (ret == 0 ? rvp->newstate(vap, nstate, arg) : ret);
 }
 
 static void
