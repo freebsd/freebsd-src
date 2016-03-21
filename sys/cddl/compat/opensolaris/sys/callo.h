@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2016 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,25 +26,12 @@
  * $FreeBSD$
  */
 
-#ifndef _OPENSOLARIS_SYS_SYSTM_H_
-#define	_OPENSOLARIS_SYS_SYSTM_H_
+#ifndef _OPENSOLARIS_SYS_CALLO_H_
+#define	_OPENSOLARIS_SYS_CALLO_H_
 
-#ifdef _KERNEL
+#include_next <sys/callout.h>
 
-#include <sys/param.h>
-#include_next <sys/systm.h>
+#define	CALLOUT_REALTIME	0		/* realtime callout type */
+#define	CALLOUT_NORMAL		1		/* normal callout type */
 
-#include <sys/string.h>
-
-#define	PAGESIZE	PAGE_SIZE
-#define	PAGEOFFSET	(PAGESIZE - 1)
-#define	PAGEMASK	(~PAGEOFFSET)
-
-#define	delay(x)	pause("soldelay", (x))
-
-#define	timeout_generic(type, fn, arg, t, r, f)			\
-    timeout(fn, arg, t / (NANOSEC/hz) + 1)
-
-#endif	/* _KERNEL */
-
-#endif	/* _OPENSOLARIS_SYS_SYSTM_H_ */
+#endif	/* !_OPENSOLARIS_SYS_CALLO_H_ */
