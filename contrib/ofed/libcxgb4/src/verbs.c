@@ -213,7 +213,7 @@ struct ibv_cq *c4iw_create_cq(struct ibv_context *context, int cqe,
 		goto err3;
 
 	if (dev_is_t5(chp->rhp))
-		chp->cq.ugts += 3;
+		chp->cq.ugts += 5;
 	else
 		chp->cq.ugts += 1;
 	chp->cq.sw_queue = calloc(chp->cq.size, sizeof *chp->cq.queue);
@@ -460,8 +460,14 @@ static struct ibv_qp *create_qp(struct ibv_pd *pd,
 		goto err3;
 	}
 	qhp->wq.sq.udb = dbva;
-	if (dev_is_t5(qhp->rhp)) {
-		qhp->wq.sq.udb += (128*(qhp->wq.sq.qid & qhp->wq.qid_mask))/4;
+	if (!dev_is_t4(qhp->rhp)) {
+		unsigned long segment_offset = 128 * (qhp->wq.sq.qid & qhp->wq.qid_mask);
+
+		if (segment_offset < c4iw_page_size) {
+			qhp->wq.sq.udb += segment_offset / 4;
+			qhp->wq.sq.wc_reg_available = 1;
+		} else
+			qhp->wq.sq.bar2_qid = qhp->wq.sq.qid & qhp->wq.qid_mask;
 		qhp->wq.sq.udb += 2;
 	}
 
@@ -479,8 +485,14 @@ static struct ibv_qp *create_qp(struct ibv_pd *pd,
 	if (dbva == MAP_FAILED)
 		goto err5;
 	qhp->wq.rq.udb = dbva;
-	if (dev_is_t5(qhp->rhp)) {
-		qhp->wq.rq.udb += (128*(qhp->wq.rq.qid & qhp->wq.qid_mask))/4;
+	if (!dev_is_t4(qhp->rhp)) {
+		unsigned long segment_offset = 128 * (qhp->wq.rq.qid & qhp->wq.qid_mask);
+
+		if (segment_offset < c4iw_page_size) {
+			qhp->wq.rq.udb += segment_offset / 4;
+			qhp->wq.rq.wc_reg_available = 1;
+		} else
+			qhp->wq.rq.bar2_qid = qhp->wq.rq.qid & qhp->wq.qid_mask;
 		qhp->wq.rq.udb += 2;
 	}
 	qhp->wq.rq.queue = mmap(NULL, qhp->wq.rq.memsize,
