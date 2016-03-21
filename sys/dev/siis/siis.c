@@ -320,7 +320,7 @@ siis_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	int unit = ((struct siis_channel *)device_get_softc(child))->unit;
 	struct resource *res = NULL;
 	int offset = unit << 13;
-	long st;
+	rman_res_t st;
 
 	switch (type) {
 	case SYS_RES_MEMORY:
