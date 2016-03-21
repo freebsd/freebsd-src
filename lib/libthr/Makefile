@@ -38,7 +38,7 @@ SYMBOL_MAPS=${.CURDIR}/pthread.map
 
 MAN=	libthr.3
 
-# enable extra internal consistancy checks
+# enable extra internal consistency checks
 CFLAGS+=-D_PTHREADS_INVARIANTS
 
 PRECIOUSLIB=
