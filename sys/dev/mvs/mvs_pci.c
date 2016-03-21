@@ -396,7 +396,7 @@ mvs_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	int unit = ((struct mvs_channel *)device_get_softc(child))->unit;
 	struct resource *res = NULL;
 	int offset = HC_BASE(unit >> 2) + PORT_BASE(unit & 0x03);
-	long st;
+	rman_res_t st;
 
 	switch (type) {
 	case SYS_RES_MEMORY:
