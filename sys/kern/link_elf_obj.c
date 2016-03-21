@@ -140,7 +140,7 @@ static int	link_elf_each_function_name(linker_file_t,
 static int	link_elf_each_function_nameval(linker_file_t,
 				linker_function_nameval_callback_t,
 				void *);
-static void	link_elf_reloc_local(linker_file_t);
+static int	link_elf_reloc_local(linker_file_t);
 static long	link_elf_symtab_get(linker_file_t, const Elf_Sym **);
 static long	link_elf_strtab_get(linker_file_t, caddr_t *);
 
@@ -401,15 +401,26 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 			break;
 		}
 	}
-	if (pb != ef->nprogtab)
-		panic("lost progbits");
-	if (rl != ef->nreltab)
-		panic("lost reltab");
-	if (ra != ef->nrelatab)
-		panic("lost relatab");
+	if (pb != ef->nprogtab) {
+		printf("%s: lost progbits\n", filename);
+		error = ENOEXEC;
+		goto out;
+	}
+	if (rl != ef->nreltab) {
+		printf("%s: lost reltab\n", filename);
+		error = ENOEXEC;
+		goto out;
+	}
+	if (ra != ef->nrelatab) {
+		printf("%s: lost relatab\n", filename);
+		error = ENOEXEC;
+		goto out;
+	}
 
 	/* Local intra-module relocations */
-	link_elf_reloc_local(lf);
+	error = link_elf_reloc_local(lf);
+	if (error != 0)
+		goto out;
 
 	*result = lf;
 	return (0);
@@ -612,8 +623,11 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		ef->relatab = malloc(ef->nrelatab * sizeof(*ef->relatab),
 		    M_LINKER, M_WAITOK | M_ZERO);
 
-	if (symtabindex == -1)
-		panic("lost symbol table index");
+	if (symtabindex == -1) {
+		link_elf_error(filename, "lost symbol table index");
+		error = ENOEXEC;
+		goto out;
+	}
 	/* Allocate space for and load the symbol table */
 	ef->ddbsymcnt = shdr[symtabindex].sh_size / sizeof(Elf_Sym);
 	ef->ddbsymtab = malloc(shdr[symtabindex].sh_size, M_LINKER, M_WAITOK);
@@ -628,8 +642,11 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		goto out;
 	}
 
-	if (symstrindex == -1)
-		panic("lost symbol string index");
+	if (symstrindex == -1) {
+		link_elf_error(filename, "lost symbol string index");
+		error = ENOEXEC;
+		goto out;
+	}
 	/* Allocate space for and load the symbol strings */
 	ef->ddbstrcnt = shdr[symstrindex].sh_size;
 	ef->ddbstrtab = malloc(shdr[symstrindex].sh_size, M_LINKER, M_WAITOK);
@@ -858,19 +875,35 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 			break;
 		}
 	}
-	if (pb != ef->nprogtab)
-		panic("lost progbits");
-	if (rl != ef->nreltab)
-		panic("lost reltab");
-	if (ra != ef->nrelatab)
-		panic("lost relatab");
-	if (mapbase != (vm_offset_t)ef->address + mapsize)
-		panic("mapbase 0x%lx != address %p + mapsize 0x%lx (0x%lx)\n",
+	if (pb != ef->nprogtab) {
+		link_elf_error(filename, "lost progbits");
+		error = ENOEXEC;
+		goto out;
+	}
+	if (rl != ef->nreltab) {
+		link_elf_error(filename, "lost reltab");
+		error = ENOEXEC;
+		goto out;
+	}
+	if (ra != ef->nrelatab) {
+		link_elf_error(filename, "lost relatab");
+		error = ENOEXEC;
+		goto out;
+	}
+	if (mapbase != (vm_offset_t)ef->address + mapsize) {
+		printf(
+		    "%s: mapbase 0x%lx != address %p + mapsize 0x%lx (0x%lx)\n",
+		    filename != NULL ? filename : "<none>",
 		    (u_long)mapbase, ef->address, (u_long)mapsize,
 		    (u_long)(vm_offset_t)ef->address + mapsize);
+		error = ENOMEM;
+		goto out;
+	}
 
 	/* Local intra-module relocations */
-	link_elf_reloc_local(lf);
+	error = link_elf_reloc_local(lf);
+	if (error != 0)
+		goto out;
 
 	/* Pull in dependencies */
 	VOP_UNLOCK(nd.ni_vp, 0);
@@ -1005,12 +1038,16 @@ relocate_file(elf_file_t ef)
 	/* Perform relocations without addend if there are any: */
 	for (i = 0; i < ef->nreltab; i++) {
 		rel = ef->reltab[i].rel;
-		if (rel == NULL)
-			panic("lost a reltab!");
+		if (rel == NULL) {
+			link_elf_error(ef->lf.filename, "lost a reltab!");
+			return (ENOEXEC);
+		}
 		rellim = rel + ef->reltab[i].nrel;
 		base = findbase(ef, ef->reltab[i].sec);
-		if (base == 0)
-			panic("lost base for reltab");
+		if (base == 0) {
+			link_elf_error(ef->lf.filename, "lost base for reltab");
+			return (ENOEXEC);
+		}
 		for ( ; rel < rellim; rel++) {
 			symidx = ELF_R_SYM(rel->r_info);
 			if (symidx >= ef->ddbsymcnt)
@@ -1024,7 +1061,7 @@ relocate_file(elf_file_t ef)
 				symname = symbol_name(ef, rel->r_info);
 				printf("link_elf_obj: symbol %s undefined\n",
 				    symname);
-				return ENOENT;
+				return (ENOENT);
 			}
 		}
 	}
@@ -1032,12 +1069,17 @@ relocate_file(elf_file_t ef)
 	/* Perform relocations with addend if there are any: */
 	for (i = 0; i < ef->nrelatab; i++) {
 		rela = ef->relatab[i].rela;
-		if (rela == NULL)
-			panic("lost a relatab!");
+		if (rela == NULL) {
+			link_elf_error(ef->lf.filename, "lost a relatab!");
+			return (ENOEXEC);
+		}
 		relalim = rela + ef->relatab[i].nrela;
 		base = findbase(ef, ef->relatab[i].sec);
-		if (base == 0)
-			panic("lost base for relatab");
+		if (base == 0) {
+			link_elf_error(ef->lf.filename,
+			    "lost base for relatab");
+			return (ENOEXEC);
+		}
 		for ( ; rela < relalim; rela++) {
 			symidx = ELF_R_SYM(rela->r_info);
 			if (symidx >= ef->ddbsymcnt)
@@ -1051,7 +1093,7 @@ relocate_file(elf_file_t ef)
 				symname = symbol_name(ef, rela->r_info);
 				printf("link_elf_obj: symbol %s undefined\n",
 				    symname);
-				return ENOENT;
+				return (ENOENT);
 			}
 		}
 	}
@@ -1063,7 +1105,7 @@ relocate_file(elf_file_t ef)
 	 */
 	elf_obj_cleanup_globals_cache(ef);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -1346,7 +1388,7 @@ link_elf_fix_link_set(elf_file_t ef)
 	}
 }
 
-static void
+static int
 link_elf_reloc_local(linker_file_t lf)
 {
 	elf_file_t ef = (elf_file_t)lf;
@@ -1364,12 +1406,16 @@ link_elf_reloc_local(linker_file_t lf)
 	/* Perform relocations without addend if there are any: */
 	for (i = 0; i < ef->nreltab; i++) {
 		rel = ef->reltab[i].rel;
-		if (rel == NULL)
-			panic("lost a reltab!");
+		if (rel == NULL) {
+			link_elf_error(ef->lf.filename, "lost a reltab");
+			return (ENOEXEC);
+		}
 		rellim = rel + ef->reltab[i].nrel;
 		base = findbase(ef, ef->reltab[i].sec);
-		if (base == 0)
-			panic("lost base for reltab");
+		if (base == 0) {
+			link_elf_error(ef->lf.filename, "lost base for reltab");
+			return (ENOEXEC);
+		}
 		for ( ; rel < rellim; rel++) {
 			symidx = ELF_R_SYM(rel->r_info);
 			if (symidx >= ef->ddbsymcnt)
@@ -1386,12 +1432,16 @@ link_elf_reloc_local(linker_file_t lf)
 	/* Perform relocations with addend if there are any: */
 	for (i = 0; i < ef->nrelatab; i++) {
 		rela = ef->relatab[i].rela;
-		if (rela == NULL)
-			panic("lost a relatab!");
+		if (rela == NULL) {
+			link_elf_error(ef->lf.filename, "lost a relatab!");
+			return (ENOEXEC);
+		}
 		relalim = rela + ef->relatab[i].nrela;
 		base = findbase(ef, ef->relatab[i].sec);
-		if (base == 0)
-			panic("lost base for relatab");
+		if (base == 0) {
+			link_elf_error(ef->lf.filename, "lost base for reltab");
+			return (ENOEXEC);
+		}
 		for ( ; rela < relalim; rela++) {
 			symidx = ELF_R_SYM(rela->r_info);
 			if (symidx >= ef->ddbsymcnt)
@@ -1404,6 +1454,7 @@ link_elf_reloc_local(linker_file_t lf)
 			    elf_obj_lookup);
 		}
 	}
+	return (0);
 }
 
 static long
