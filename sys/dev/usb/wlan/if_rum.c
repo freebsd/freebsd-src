@@ -2932,14 +2932,15 @@ rum_scan_end(struct ieee80211com *ic)
 {
 	struct rum_softc *sc = ic->ic_softc;
 
-	RUM_LOCK(sc);
-	if (ic->ic_opmode != IEEE80211_M_AHDEMO)
-		rum_enable_tsf_sync(sc);
-	else
-		rum_enable_tsf(sc);
-	rum_set_bssid(sc, sc->sc_bssid);
-	RUM_UNLOCK(sc);
-
+	if (ic->ic_flags_ext & IEEE80211_FEXT_BGSCAN) {
+		RUM_LOCK(sc);
+		if (ic->ic_opmode != IEEE80211_M_AHDEMO)
+			rum_enable_tsf_sync(sc);
+		else
+			rum_enable_tsf(sc);
+		rum_set_bssid(sc, sc->sc_bssid);
+		RUM_UNLOCK(sc);
+	}
 }
 
 static void
