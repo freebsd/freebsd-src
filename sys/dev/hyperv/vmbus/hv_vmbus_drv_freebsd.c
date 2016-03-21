@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <x86/apicvar.h>
 
+#include <dev/hyperv/include/hyperv.h>
 #include "hv_vmbus_priv.h"
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -300,15 +301,17 @@ hv_vmbus_child_device_create(
 	return (child_dev);
 }
 
-static void
-print_dev_guid(struct hv_device *dev)
+int
+snprintf_hv_guid(char *buf, size_t sz, const hv_guid *guid)
 {
-	int i;
-	unsigned char guid_name[100];
-	for (i = 0; i < 32; i += 2)
-		sprintf(&guid_name[i], "%02x", dev->class_id.data[i / 2]);
-	if(bootverbose)
-		printf("VMBUS: Class ID: %s\n", guid_name);
+	int cnt;
+	const unsigned char *d = guid->data;
+
+	cnt = snprintf(buf, sz,
+		"%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+		d[3], d[2], d[1], d[0], d[5], d[4], d[7], d[6],
+		d[8], d[9], d[10], d[11], d[12], d[13], d[14], d[15]);
+	return (cnt);
 }
 
 int
@@ -317,8 +320,11 @@ hv_vmbus_child_device_register(struct hv_device *child_dev)
 	device_t child;
 	int ret = 0;
 
-	print_dev_guid(child_dev);
-
+	if (bootverbose) {
+		char name[40];
+		snprintf_hv_guid(name, sizeof(name), &child_dev->class_id);
+		printf("VMBUS: Class ID: %s\n", name);
+	}
 
 	child = device_add_child(vmbus_devp, NULL, -1);
 	child_dev->device = child;
