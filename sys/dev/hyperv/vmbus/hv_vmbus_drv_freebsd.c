@@ -280,6 +280,23 @@ vmbus_write_ivar(
 	return (ENOENT);
 }
 
+static int
+vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
+{
+	char guidbuf[40];
+	struct hv_device *dev_ctx = device_get_ivars(child);
+
+	strlcat(buf, "classid=", buflen);
+	snprintf_hv_guid(guidbuf, sizeof(guidbuf), &dev_ctx->class_id);
+	strlcat(buf, guidbuf, buflen);
+
+	strlcat(buf, " deviceid=", buflen);
+	snprintf_hv_guid(guidbuf, sizeof(guidbuf), &dev_ctx->device_id);
+	strlcat(buf, guidbuf, buflen);
+
+	return (0);
+}
+
 struct hv_device*
 hv_vmbus_child_device_create(
 	hv_guid		type,
@@ -720,6 +737,7 @@ static device_method_t vmbus_methods[] = {
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar, vmbus_read_ivar),
 	DEVMETHOD(bus_write_ivar, vmbus_write_ivar),
+	DEVMETHOD(bus_child_pnpinfo_str, vmbus_child_pnpinfo_str),
 
 	{ 0, 0 } };
 
