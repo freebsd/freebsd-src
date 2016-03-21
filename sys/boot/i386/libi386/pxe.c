@@ -310,6 +310,11 @@ pxe_open(struct open_file *f, ...)
 		    sprintf(temp, "%6D", bootplayer.CAddr, ":");
 		    setenv("boot.netif.hwaddr", temp, 1);
 		}
+		if (intf_mtu != 0) {
+			char mtu[16];
+			sprintf(mtu, "%u", intf_mtu);
+			setenv("boot.netif.mtu", mtu, 1);
+		}
 #ifdef LOADER_NFS_SUPPORT
 		printf("pxe_open: server addr: %s\n", inet_ntoa(rootip));
 		printf("pxe_open: server path: %s\n", rootpath);
