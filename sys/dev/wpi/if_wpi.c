@@ -284,7 +284,6 @@ static void	wpi_scan_end(struct ieee80211com *);
 static void	wpi_set_channel(struct ieee80211com *);
 static void	wpi_scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static void	wpi_scan_mindwell(struct ieee80211_scan_state *);
-static void	wpi_hw_reset(void *, int);
 
 static device_method_t wpi_methods[] = {
 	/* Device interface */
@@ -531,17 +530,8 @@ wpi_attach(device_t dev)
 	callout_init_mtx(&sc->scan_timeout, &sc->rxon_mtx, 0);
 	callout_init_mtx(&sc->tx_timeout, &sc->txq_state_mtx, 0);
 	callout_init_mtx(&sc->watchdog_rfkill, &sc->sc_mtx, 0);
-	TASK_INIT(&sc->sc_reinittask, 0, wpi_hw_reset, sc);
 	TASK_INIT(&sc->sc_radiooff_task, 0, wpi_radio_off, sc);
 	TASK_INIT(&sc->sc_radioon_task, 0, wpi_radio_on, sc);
-
-	sc->sc_tq = taskqueue_create("wpi_taskq", M_WAITOK,
-	    taskqueue_thread_enqueue, &sc->sc_tq);
-	error = taskqueue_start_threads(&sc->sc_tq, 1, 0, "wpi_taskq");
-	if (error != 0) {
-		device_printf(dev, "can't start threads, error %d\n", error);
-		goto fail;
-	}
 
 	wpi_sysctlattach(sc);
 
@@ -695,13 +685,9 @@ wpi_detach(device_t dev)
 
 	if (ic->ic_vap_create == wpi_vap_create) {
 		ieee80211_draintask(ic, &sc->sc_radioon_task);
+		ieee80211_draintask(ic, &sc->sc_radiooff_task);
 
 		wpi_stop(sc);
-
-		if (sc->sc_tq != NULL) {
-			taskqueue_drain_all(sc->sc_tq);
-			taskqueue_free(sc->sc_tq);
-		}
 
 		callout_drain(&sc->watchdog_rfkill);
 		callout_drain(&sc->tx_timeout);
@@ -2332,7 +2318,7 @@ wpi_notif_intr(struct wpi_softc *sc)
 				WPI_NT_LOCK(sc);
 				wpi_clear_node_table(sc);
 				WPI_NT_UNLOCK(sc);
-				taskqueue_enqueue(sc->sc_tq,
+				ieee80211_runtask(ic,
 				    &sc->sc_radiooff_task);
 				return;
 			}
@@ -2569,6 +2555,8 @@ wpi_intr(void *arg)
 	WPI_WRITE(sc, WPI_FH_INT, r2);
 
 	if (__predict_false(r1 & (WPI_INT_SW_ERR | WPI_INT_HW_ERR))) {
+		struct ieee80211com *ic = &sc->sc_ic;
+
 		device_printf(sc->sc_dev, "fatal firmware error\n");
 #ifdef WPI_DEBUG
 		wpi_debug_registers(sc);
@@ -2577,7 +2565,7 @@ wpi_intr(void *arg)
 		DPRINTF(sc, WPI_DEBUG_HW,
 		    "(%s)\n", (r1 & WPI_INT_SW_ERR) ? "(Software Error)" :
 		    "(Hardware Error)");
-		taskqueue_enqueue(sc->sc_tq, &sc->sc_reinittask);
+		ieee80211_restart_all(ic);
 		goto end;
 	}
 
@@ -3200,7 +3188,7 @@ wpi_scan_timeout(void *arg)
 	struct ieee80211com *ic = &sc->sc_ic;
 
 	ic_printf(ic, "scan timeout\n");
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_reinittask);
+	ieee80211_restart_all(ic);
 }
 
 static void
@@ -3210,7 +3198,7 @@ wpi_tx_timeout(void *arg)
 	struct ieee80211com *ic = &sc->sc_ic;
 
 	ic_printf(ic, "device timeout\n");
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_reinittask);
+	ieee80211_restart_all(ic);
 }
 
 static void
@@ -3227,8 +3215,10 @@ wpi_parent(struct ieee80211com *ic)
 			ieee80211_notify_radio(ic, 0);
 			ieee80211_stop(vap);
 		}
-	} else
+	} else {
+		ieee80211_notify_radio(ic, 0);
 		wpi_stop(sc);
+	}
 }
 
 /*
@@ -5653,24 +5643,4 @@ static void
 wpi_scan_mindwell(struct ieee80211_scan_state *ss)
 {
 	/* NB: don't try to abort scan; wait for firmware to finish */
-}
-
-static void
-wpi_hw_reset(void *arg, int pending)
-{
-	struct wpi_softc *sc = arg;
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-
-	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
-
-	ieee80211_notify_radio(ic, 0);
-	if (vap != NULL && (ic->ic_flags & IEEE80211_F_SCAN))
-		ieee80211_cancel_scan(vap);
-
-	wpi_stop(sc);
-	if (vap != NULL) {
-		ieee80211_stop(vap);
-		ieee80211_init(vap);
-	}
 }
