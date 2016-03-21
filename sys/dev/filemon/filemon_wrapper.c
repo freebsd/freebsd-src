@@ -237,30 +237,35 @@ filemon_wrapper_rename(struct thread *td, struct rename_args *uap)
 	return (ret);
 }
 
+static void
+_filemon_wrapper_link(struct thread *td, char *upath1, char *upath2)
+{
+	struct filemon *filemon;
+	size_t len;
+
+	if ((filemon = filemon_proc_get(curproc)) != NULL) {
+		copyinstr(upath1, filemon->fname1,
+		    sizeof(filemon->fname1), NULL);
+		copyinstr(upath2, filemon->fname2,
+		    sizeof(filemon->fname2), NULL);
+
+		len = snprintf(filemon->msgbufr,
+		    sizeof(filemon->msgbufr), "L %d '%s' '%s'\n",
+		    curproc->p_pid, filemon->fname1, filemon->fname2);
+
+		filemon_output(filemon, filemon->msgbufr, len);
+
+		filemon_drop(filemon);
+	}
+}
+
 static int
 filemon_wrapper_link(struct thread *td, struct link_args *uap)
 {
 	int ret;
-	size_t done;
-	size_t len;
-	struct filemon *filemon;
 
-	if ((ret = sys_link(td, uap)) == 0) {
-		if ((filemon = filemon_proc_get(curproc)) != NULL) {
-			copyinstr(uap->path, filemon->fname1,
-			    sizeof(filemon->fname1), &done);
-			copyinstr(uap->to, filemon->fname2,
-			    sizeof(filemon->fname2), &done);
-
-			len = snprintf(filemon->msgbufr,
-			    sizeof(filemon->msgbufr), "L %d '%s' '%s'\n",
-			    curproc->p_pid, filemon->fname1, filemon->fname2);
-
-			filemon_output(filemon, filemon->msgbufr, len);
-
-			filemon_drop(filemon);
-		}
-	}
+	if ((ret = sys_link(td, uap)) == 0)
+		_filemon_wrapper_link(td, uap->path, uap->link);
 
 	return (ret);
 }
@@ -269,26 +274,9 @@ static int
 filemon_wrapper_symlink(struct thread *td, struct symlink_args *uap)
 {
 	int ret;
-	size_t done;
-	size_t len;
-	struct filemon *filemon;
 
-	if ((ret = sys_symlink(td, uap)) == 0) {
-		if ((filemon = filemon_proc_get(curproc)) != NULL) {
-			copyinstr(uap->path, filemon->fname1,
-			    sizeof(filemon->fname1), &done);
-			copyinstr(uap->link, filemon->fname2,
-			    sizeof(filemon->fname2), &done);
-
-			len = snprintf(filemon->msgbufr,
-			    sizeof(filemon->msgbufr), "L %d '%s' '%s'\n",
-			    curproc->p_pid, filemon->fname1, filemon->fname2);
-
-			filemon_output(filemon, filemon->msgbufr, len);
-
-			filemon_drop(filemon);
-		}
-	}
+	if ((ret = sys_symlink(td, uap)) == 0)
+		_filemon_wrapper_link(td, uap->path, uap->link);
 
 	return (ret);
 }
@@ -297,26 +285,9 @@ static int
 filemon_wrapper_linkat(struct thread *td, struct linkat_args *uap)
 {
 	int ret;
-	size_t done;
-	size_t len;
-	struct filemon *filemon;
 
-	if ((ret = sys_linkat(td, uap)) == 0) {
-		if ((filemon = filemon_proc_get(curproc)) != NULL) {
-			copyinstr(uap->path1, filemon->fname1,
-			    sizeof(filemon->fname1), &done);
-			copyinstr(uap->path2, filemon->fname2,
-			    sizeof(filemon->fname2), &done);
-
-			len = snprintf(filemon->msgbufr,
-			    sizeof(filemon->msgbufr), "L %d '%s' '%s'\n",
-			    curproc->p_pid, filemon->fname1, filemon->fname2);
-
-			filemon_output(filemon, filemon->msgbufr, len);
-
-			filemon_drop(filemon);
-		}
-	}
+	if ((ret = sys_linkat(td, uap)) == 0)
+		_filemon_wrapper_link(td, uap->path1, uap->path2);
 
 	return (ret);
 }
