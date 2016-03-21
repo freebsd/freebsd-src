@@ -341,12 +341,13 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				break;
 			}
 			break;
+		case IEEE80211_S_SLEEP:
 		case IEEE80211_S_RUN:
 			switch (arg & 0xff) {
 			case IEEE80211_FC0_SUBTYPE_AUTH:
 				IEEE80211_SEND_MGMT(ni,
 				    IEEE80211_FC0_SUBTYPE_AUTH, 2);
-				vap->iv_state = ostate;	/* stay RUN */
+				vap->iv_state = IEEE80211_S_RUN; /* stay RUN */
 				break;
 			case IEEE80211_FC0_SUBTYPE_DEAUTH:
 				ieee80211_sta_leave(ni);
