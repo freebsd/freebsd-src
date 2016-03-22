@@ -73,14 +73,13 @@ static int
 filemon_wrapper_chdir(struct thread *td, struct chdir_args *uap)
 {
 	int ret;
-	size_t done;
 	size_t len;
 	struct filemon *filemon;
 
 	if ((ret = sys_chdir(td, uap)) == 0) {
 		if ((filemon = filemon_proc_get(curproc)) != NULL) {
 			copyinstr(uap->path, filemon->fname1,
-			    sizeof(filemon->fname1), &done);
+			    sizeof(filemon->fname1), NULL);
 
 			len = snprintf(filemon->msgbufr,
 			    sizeof(filemon->msgbufr), "C %d %s\n",
@@ -124,7 +123,6 @@ filemon_event_process_exec(void *arg __unused, struct proc *p,
 static void
 _filemon_wrapper_openat(struct thread *td, char *upath, int flags, int fd)
 {
-	size_t done;
 	size_t len;
 	struct file *fp;
 	struct filemon *filemon;
@@ -137,7 +135,7 @@ _filemon_wrapper_openat(struct thread *td, char *upath, int flags, int fd)
 		fp = NULL;
 
 		copyinstr(upath, filemon->fname1,
-		    sizeof(filemon->fname1), &done);
+		    sizeof(filemon->fname1), NULL);
 
 		if (filemon->fname1[0] != '/' && fd != AT_FDCWD) {
 			/*
@@ -216,16 +214,15 @@ static int
 filemon_wrapper_rename(struct thread *td, struct rename_args *uap)
 {
 	int ret;
-	size_t done;
 	size_t len;
 	struct filemon *filemon;
 
 	if ((ret = sys_rename(td, uap)) == 0) {
 		if ((filemon = filemon_proc_get(curproc)) != NULL) {
 			copyinstr(uap->from, filemon->fname1,
-			    sizeof(filemon->fname1), &done);
+			    sizeof(filemon->fname1), NULL);
 			copyinstr(uap->to, filemon->fname2,
-			    sizeof(filemon->fname2), &done);
+			    sizeof(filemon->fname2), NULL);
 
 			len = snprintf(filemon->msgbufr,
 			    sizeof(filemon->msgbufr), "M %d '%s' '%s'\n",
@@ -326,14 +323,13 @@ static int
 filemon_wrapper_unlink(struct thread *td, struct unlink_args *uap)
 {
 	int ret;
-	size_t done;
 	size_t len;
 	struct filemon *filemon;
 
 	if ((ret = sys_unlink(td, uap)) == 0) {
 		if ((filemon = filemon_proc_get(curproc)) != NULL) {
 			copyinstr(uap->path, filemon->fname1,
-			    sizeof(filemon->fname1), &done);
+			    sizeof(filemon->fname1), NULL);
 
 			len = snprintf(filemon->msgbufr,
 			    sizeof(filemon->msgbufr), "D %d %s\n",
