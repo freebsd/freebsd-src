@@ -529,7 +529,7 @@ fhc_print_res(struct fhc_devinfo *fdi)
 
 	rv = 0;
 	rv += resource_list_print_type(&fdi->fdi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx");
-	rv += resource_list_print_type(&fdi->fdi_rl, "irq", SYS_RES_IRQ, "%ld");
+	    "%#jx");
+	rv += resource_list_print_type(&fdi->fdi_rl, "irq", SYS_RES_IRQ, "%jd");
 	return (rv);
 }

@@ -605,8 +605,8 @@ nexus_print_res(struct nexus_devinfo *ndi)
 
 	rv = 0;
 	rv += resource_list_print_type(&ndi->ndi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx");
+	    "%#jx");
 	rv += resource_list_print_type(&ndi->ndi_rl, "irq", SYS_RES_IRQ,
-	    "%ld");
+	    "%jd");
 	return (rv);
 }
