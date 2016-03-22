@@ -526,11 +526,6 @@ vmbus_bus_init(void)
 		 */
 		hv_vmbus_g_context.hv_event_queue[j] = taskqueue_create_fast("hyperv event", M_WAITOK,
 			taskqueue_thread_enqueue, &hv_vmbus_g_context.hv_event_queue[j]);
-		if (hv_vmbus_g_context.hv_event_queue[j] == NULL) {
-			if (bootverbose)
-				printf("VMBUS: failed to setup taskqueue\n");
-			goto cleanup1;
-		}
 		CPU_SETOF(j, &cpu_mask);
 		taskqueue_start_threads_cpuset(&hv_vmbus_g_context.hv_event_queue[j], 1, PI_NET, &cpu_mask,
 			"hvevent%d", j);
