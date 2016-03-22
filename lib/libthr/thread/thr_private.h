@@ -146,6 +146,13 @@ TAILQ_HEAD(mutex_queue, pthread_mutex);
 
 #define MAX_DEFER_WAITERS       50
 
+/*
+ * Values for pthread_mutex m_ps indicator.
+ */
+#define	PMUTEX_INITSTAGE_ALLOC	0
+#define	PMUTEX_INITSTAGE_BUSY	1
+#define	PMUTEX_INITSTAGE_DONE	2
+
 struct pthread_mutex {
 	/*
 	 * Lock for accesses to this structure.
@@ -156,6 +163,7 @@ struct pthread_mutex {
 	int				m_count;
 	int				m_spinloops;
 	int				m_yieldloops;
+	int				m_ps;	/* pshared init stage */
 	/*
 	 * Link for all mutexes a thread currently owns, of the same
 	 * prio type.
