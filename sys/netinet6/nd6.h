@@ -355,9 +355,6 @@ VNET_DECLARE(struct rwlock, nd6_lock);
 
 #define nd6log(x)	do { if (V_nd6_debug) log x; } while (/*CONSTCOND*/ 0)
 
-VNET_DECLARE(struct callout, nd6_timer_ch);
-#define	V_nd6_timer_ch			VNET(nd6_timer_ch)
-
 /* nd6_rtr.c */
 VNET_DECLARE(int, nd6_defifindex);
 VNET_DECLARE(int, ip6_desync_factor);	/* seconds */

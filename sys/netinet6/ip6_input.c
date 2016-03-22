@@ -156,9 +156,6 @@ static struct netisr_handler ip6_direct_nh = {
 };
 #endif
 
-VNET_DECLARE(struct callout, in6_tmpaddrtimer_ch);
-#define	V_in6_tmpaddrtimer_ch		VNET(in6_tmpaddrtimer_ch)
-
 VNET_DEFINE(struct pfil_head, inet6_pfil_hook);
 
 VNET_PCPUSTAT_DEFINE(struct ip6stat, ip6stat);
@@ -170,7 +167,6 @@ VNET_PCPUSTAT_SYSUNINIT(ip6stat);
 struct rmlock in6_ifaddr_lock;
 RM_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");
 
-static void ip6_init2(void *);
 static int ip6_hopopts_input(u_int32_t *, u_int32_t *, struct mbuf **, int *);
 #ifdef PULLDOWN_TEST
 static struct mbuf *ip6_pullexthdr(struct mbuf *, size_t, int);
@@ -331,38 +327,9 @@ ip6_destroy()
 	}
 	hashdestroy(V_in6_ifaddrhashtbl, M_IFADDR, V_in6_ifaddrhmask);
 	nd6_destroy();
-	callout_drain(&V_in6_tmpaddrtimer_ch);
+	in6_ifattach_destroy();
 }
 #endif
-
-static int
-ip6_init2_vnet(const void *unused __unused)
-{
-
-	/* nd6_timer_init */
-	callout_init(&V_nd6_timer_ch, 0);
-	callout_reset(&V_nd6_timer_ch, hz, nd6_timer, curvnet);
-
-	/* timer for regeneranation of temporary addresses randomize ID */
-	callout_init(&V_in6_tmpaddrtimer_ch, 0);
-	callout_reset(&V_in6_tmpaddrtimer_ch,
-		      (V_ip6_temp_preferred_lifetime - V_ip6_desync_factor -
-		       V_ip6_temp_regen_advance) * hz,
-		      in6_tmpaddrtimer, curvnet);
-
-	return (0);
-}
-
-static void
-ip6_init2(void *dummy)
-{
-
-	ip6_init2_vnet(NULL);
-}
-
-/* cheat */
-/* This must be after route_init(), which is now SI_ORDER_THIRD */
-SYSINIT(netinet6init2, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ip6_init2, NULL);
 
 static int
 ip6_input_hbh(struct mbuf *m, uint32_t *plen, uint32_t *rtalert, int *off,
