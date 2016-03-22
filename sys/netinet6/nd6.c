@@ -142,6 +142,7 @@ static VNET_DEFINE(struct callout, nd6_slowtimo_ch);
 #define	V_nd6_slowtimo_ch		VNET(nd6_slowtimo_ch)
 
 VNET_DEFINE(struct callout, nd6_timer_ch);
+#define	V_nd6_timer_ch			VNET(nd6_timer_ch)
 
 static void
 nd6_lle_event(void *arg __unused, struct llentry *lle, int evt)
@@ -213,10 +214,13 @@ nd6_init(void)
 	/* initialization of the default router list */
 	TAILQ_INIT(&V_nd_defrouter);
 
-	/* start timer */
+	/* Start timers. */
 	callout_init(&V_nd6_slowtimo_ch, 0);
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
 	    nd6_slowtimo, curvnet);
+
+	callout_init(&V_nd6_timer_ch, 0);
+	callout_reset(&V_nd6_timer_ch, hz, nd6_timer, curvnet);
 
 	nd6_dad_init();
 	if (IS_DEFAULT_VNET(curvnet)) {
