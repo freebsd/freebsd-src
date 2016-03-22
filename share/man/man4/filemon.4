@@ -167,6 +167,15 @@ The
 system call on the filemon file descriptor may fail with the errors from
 .Xr write 2
 if any error is encountered while writing the log.
+It may also fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+An invalid address was used for a traced system call argument, resulting in
+no log entry for the system call.
+.It Bq Er ENAMETOOLONG
+An argument for a traced system call was too long, resulting in
+no log entry for the system call.
+.El
 .Sh FILES
 .Bl -tag -width ".Pa /dev/filemon"
 .It Pa /dev/filemon
