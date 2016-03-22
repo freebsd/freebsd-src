@@ -60,7 +60,7 @@ hv_et_start(struct eventtimer *et, sbintime_t firsttime, sbintime_t periodtime)
 
 	timer_cfg.as_uint64 = 0;
 	timer_cfg.auto_enable = 1;
-	timer_cfg.sintx = HV_VMBUS_MESSAGE_SINT;
+	timer_cfg.sintx = HV_VMBUS_TIMER_SINT;
 
 	periodticks[curcpu] = sbintime2tick(periodtime);
 	if (firsttime == 0)
