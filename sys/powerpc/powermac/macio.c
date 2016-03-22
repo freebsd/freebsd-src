@@ -447,8 +447,8 @@ macio_print_child(device_t dev, device_t child)
 
         retval += bus_print_child_header(dev, child);
 
-        retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-        retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+        retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+        retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 
         retval += bus_print_child_footer(dev, child);
 
@@ -470,8 +470,8 @@ macio_probe_nomatch(device_t dev, device_t child)
 		if ((type = ofw_bus_get_type(child)) == NULL)
 			type = "(unknown)";
 		device_printf(dev, "<%s, %s>", type, ofw_bus_get_name(child));
-		resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-		resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+		resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+		resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 		printf(" (no driver attached)\n");
 	}
 }

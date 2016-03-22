@@ -330,8 +330,8 @@ pinctrl_print_res(struct pinctrl_devinfo *di)
 	int rv;
 
 	rv = 0;
-	rv += resource_list_print_type(&di->rl, "mem", SYS_RES_MEMORY, "%#lx");
-	rv += resource_list_print_type(&di->rl, "irq", SYS_RES_IRQ, "%ld");
+	rv += resource_list_print_type(&di->rl, "mem", SYS_RES_MEMORY, "%#jx");
+	rv += resource_list_print_type(&di->rl, "irq", SYS_RES_IRQ, "%jd");
 	return (rv);
 }
 

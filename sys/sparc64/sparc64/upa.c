@@ -588,8 +588,8 @@ upa_print_res(struct upa_devinfo *udi)
 
 	rv = 0;
 	rv += resource_list_print_type(&udi->udi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx");
+	    "%#jx");
 	rv += resource_list_print_type(&udi->udi_rl, "irq", SYS_RES_IRQ,
-	    "%ld");
+	    "%jd");
 	return (rv);
 }

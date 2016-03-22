@@ -451,7 +451,7 @@ bhnd_generic_print_child(device_t dev, device_t child)
 	rl = BUS_GET_RESOURCE_LIST(dev, child);
 	if (rl != NULL) {
 		retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY,
-		    "%#lx");
+		    "%#jx");
 	}
 
 	retval += printf(" at core %u", bhnd_get_core_index(child));
@@ -499,7 +499,7 @@ bhnd_generic_probe_nomatch(device_t dev, device_t child)
 
 	rl = BUS_GET_RESOURCE_LIST(dev, child);
 	if (rl != NULL)
-		resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
+		resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
 
 	printf(" at core %u (no driver attached)\n",
 	    bhnd_get_core_index(child));

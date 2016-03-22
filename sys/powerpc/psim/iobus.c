@@ -253,7 +253,7 @@ iobus_print_child(device_t dev, device_t child)
 	retval += bus_print_child_header(dev, child);
 	
         retval += printf(" offset 0x%x", dinfo->id_reg[1]);
-        retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+        retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 	
         retval += bus_print_child_footer(dev, child);
 
