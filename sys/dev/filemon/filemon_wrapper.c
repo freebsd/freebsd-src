@@ -72,21 +72,24 @@ filemon_output(struct filemon *filemon, char *msg, size_t len)
 static int
 filemon_wrapper_chdir(struct thread *td, struct chdir_args *uap)
 {
-	int ret;
+	int error, ret;
 	size_t len;
 	struct filemon *filemon;
 
 	if ((ret = sys_chdir(td, uap)) == 0) {
 		if ((filemon = filemon_proc_get(curproc)) != NULL) {
-			copyinstr(uap->path, filemon->fname1,
-			    sizeof(filemon->fname1), NULL);
+			if ((error = copyinstr(uap->path, filemon->fname1,
+			    sizeof(filemon->fname1), NULL)) != 0) {
+				filemon->error = error;
+				goto copyfail;
+			}
 
 			len = snprintf(filemon->msgbufr,
 			    sizeof(filemon->msgbufr), "C %d %s\n",
 			    curproc->p_pid, filemon->fname1);
 
 			filemon_output(filemon, filemon->msgbufr, len);
-
+copyfail:
 			filemon_drop(filemon);
 		}
 	}
@@ -123,6 +126,7 @@ filemon_event_process_exec(void *arg __unused, struct proc *p,
 static void
 _filemon_wrapper_openat(struct thread *td, char *upath, int flags, int fd)
 {
+	int error;
 	size_t len;
 	struct file *fp;
 	struct filemon *filemon;
@@ -134,8 +138,11 @@ _filemon_wrapper_openat(struct thread *td, char *upath, int flags, int fd)
 		freepath = NULL;
 		fp = NULL;
 
-		copyinstr(upath, filemon->fname1,
-		    sizeof(filemon->fname1), NULL);
+		if ((error = copyinstr(upath, filemon->fname1,
+		    sizeof(filemon->fname1), NULL)) != 0) {
+			filemon->error = error;
+			goto copyfail;
+		}
 
 		if (filemon->fname1[0] != '/' && fd != AT_FDCWD) {
 			/*
@@ -180,7 +187,7 @@ _filemon_wrapper_openat(struct thread *td, char *upath, int flags, int fd)
 		    curproc->p_pid, atpath,
 		    atpath[0] != '\0' ? "/" : "", filemon->fname1);
 		filemon_output(filemon, filemon->msgbufr, len);
-
+copyfail:
 		filemon_drop(filemon);
 		if (fp != NULL)
 			fdrop(fp, td);
@@ -213,23 +220,26 @@ filemon_wrapper_openat(struct thread *td, struct openat_args *uap)
 static int
 filemon_wrapper_rename(struct thread *td, struct rename_args *uap)
 {
-	int ret;
+	int error, ret;
 	size_t len;
 	struct filemon *filemon;
 
 	if ((ret = sys_rename(td, uap)) == 0) {
 		if ((filemon = filemon_proc_get(curproc)) != NULL) {
-			copyinstr(uap->from, filemon->fname1,
-			    sizeof(filemon->fname1), NULL);
-			copyinstr(uap->to, filemon->fname2,
-			    sizeof(filemon->fname2), NULL);
+			if (((error = copyinstr(uap->from, filemon->fname1,
+			     sizeof(filemon->fname1), NULL)) != 0) ||
+			    ((error = copyinstr(uap->to, filemon->fname2,
+			     sizeof(filemon->fname2), NULL)) != 0)) {
+				filemon->error = error;
+				goto copyfail;
+			}
 
 			len = snprintf(filemon->msgbufr,
 			    sizeof(filemon->msgbufr), "M %d '%s' '%s'\n",
 			    curproc->p_pid, filemon->fname1, filemon->fname2);
 
 			filemon_output(filemon, filemon->msgbufr, len);
-
+copyfail:
 			filemon_drop(filemon);
 		}
 	}
@@ -242,19 +252,23 @@ _filemon_wrapper_link(struct thread *td, char *upath1, char *upath2)
 {
 	struct filemon *filemon;
 	size_t len;
+	int error;
 
 	if ((filemon = filemon_proc_get(curproc)) != NULL) {
-		copyinstr(upath1, filemon->fname1,
-		    sizeof(filemon->fname1), NULL);
-		copyinstr(upath2, filemon->fname2,
-		    sizeof(filemon->fname2), NULL);
+		if (((error = copyinstr(upath1, filemon->fname1,
+		     sizeof(filemon->fname1), NULL)) != 0) ||
+		    ((error = copyinstr(upath2, filemon->fname2,
+		     sizeof(filemon->fname2), NULL)) != 0)) {
+			filemon->error = error;
+			goto copyfail;
+		}
 
 		len = snprintf(filemon->msgbufr,
 		    sizeof(filemon->msgbufr), "L %d '%s' '%s'\n",
 		    curproc->p_pid, filemon->fname1, filemon->fname2);
 
 		filemon_output(filemon, filemon->msgbufr, len);
-
+copyfail:
 		filemon_drop(filemon);
 	}
 }
@@ -322,21 +336,24 @@ filemon_event_process_exit(void *arg __unused, struct proc *p)
 static int
 filemon_wrapper_unlink(struct thread *td, struct unlink_args *uap)
 {
-	int ret;
+	int error, ret;
 	size_t len;
 	struct filemon *filemon;
 
 	if ((ret = sys_unlink(td, uap)) == 0) {
 		if ((filemon = filemon_proc_get(curproc)) != NULL) {
-			copyinstr(uap->path, filemon->fname1,
-			    sizeof(filemon->fname1), NULL);
+			if ((error = copyinstr(uap->path, filemon->fname1,
+			    sizeof(filemon->fname1), NULL)) != 0) {
+				filemon->error = error;
+				goto copyfail;
+			}
 
 			len = snprintf(filemon->msgbufr,
 			    sizeof(filemon->msgbufr), "D %d %s\n",
 			    curproc->p_pid, filemon->fname1);
 
 			filemon_output(filemon, filemon->msgbufr, len);
-
+copyfail:
 			filemon_drop(filemon);
 		}
 	}
