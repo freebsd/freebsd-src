@@ -30,4 +30,10 @@ SCRIPTS=	blocking \
 
 SCRIPTSDIR= ${SHAREDIR}/dtrace
 
+DSRCS=		mbuf.d
+
+FILES=		${DSRCS}
+FILESDIR=	/usr/lib/dtrace
+FILESMODE=	${NOBINMODE}
+
 .include <bsd.prog.mk>

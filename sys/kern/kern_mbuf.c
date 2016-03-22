@@ -731,6 +731,7 @@ m_clget(struct mbuf *m, int how)
 		zone_drain(zone_pack);
 		uma_zalloc_arg(zone_clust, m, how);
 	}
+	MBUF_PROBE2(m__clget, m, how);
 	return (m->m_flags & M_EXT);
 }
 
@@ -745,7 +746,8 @@ void *
 m_cljget(struct mbuf *m, int how, int size)
 {
 	uma_zone_t zone;
-
+	void *retval;
+	
 	if (m != NULL) {
 		KASSERT((m->m_flags & M_EXT) == 0, ("%s: mbuf %p has M_EXT",
 		    __func__, m));
@@ -753,7 +755,11 @@ m_cljget(struct mbuf *m, int how, int size)
 	}
 
 	zone = m_getzone(size);
-	return (uma_zalloc_arg(zone, m, how));
+	retval = uma_zalloc_arg(zone, m, how);
+
+	MBUF_PROBE4(m__cljget, m, how, size, retval);
+
+	return (retval);
 }
 
 /*
@@ -933,6 +939,7 @@ m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
 void
 m_freem(struct mbuf *mb)
 {
+	MBUF_PROBE1(m__freem, mb);
 
 	while (mb != NULL)
 		mb = m_free(mb);
