@@ -109,14 +109,11 @@ filemon_acquire(struct filemon *filemon)
 }
 
 /*
- * Release a reference and on the last one write the footer and free the
- * filemon.
+ * Release a reference and free on the last one.
  */
 static void
 filemon_release(struct filemon *filemon)
 {
-	size_t len;
-	struct timeval now;
 
 	if (refcount_release(&filemon->refcnt) == 0)
 		return;
@@ -126,18 +123,6 @@ filemon_release(struct filemon *filemon)
 	 * is not at least 1 reference remaining.
 	 */
 	sx_assert(&filemon->lock, SA_UNLOCKED);
-
-	if (filemon->fp != NULL) {
-		getmicrotime(&now);
-
-		len = snprintf(filemon->msgbufr,
-		    sizeof(filemon->msgbufr),
-		    "# Stop %ju.%06ju\n# Bye bye\n",
-		    (uintmax_t)now.tv_sec, (uintmax_t)now.tv_usec);
-
-		filemon_output(filemon, filemon->msgbufr, len);
-		fdrop(filemon->fp, curthread);
-	}
 
 	sx_destroy(&filemon->lock);
 	free(filemon, M_FILEMON);
@@ -260,6 +245,37 @@ filemon_untrack_processes(struct filemon *filemon)
 	    "attached procs still.", __func__, filemon));
 }
 
+/*
+ * Close out the log.
+ */
+static void
+filemon_close_log(struct filemon *filemon)
+{
+	struct file *fp;
+	struct timeval now;
+	size_t len;
+
+	sx_assert(&filemon->lock, SA_XLOCKED);
+	if (filemon->fp == NULL)
+		return;
+
+	getmicrotime(&now);
+
+	len = snprintf(filemon->msgbufr,
+	    sizeof(filemon->msgbufr),
+	    "# Stop %ju.%06ju\n# Bye bye\n",
+	    (uintmax_t)now.tv_sec, (uintmax_t)now.tv_usec);
+
+	filemon_output(filemon, filemon->msgbufr, len);
+	fp = filemon->fp;
+	filemon->fp = NULL;
+
+	sx_xunlock(&filemon->lock);
+	fdrop(fp, curthread);
+	sx_xlock(&filemon->lock);
+
+	return;
+}
 
 /* The devfs file is being closed.  Untrace all processes. */
 static void
@@ -272,11 +288,10 @@ filemon_dtr(void *data)
 
 	sx_xlock(&filemon->lock);
 	/*
-	 * Detach the filemon.  The actual closing of it may not
-	 * occur until syscalls in other threads with references complete.
-	 * The filemon cannot be inherited after this though.
+	 * Detach the filemon.  It cannot be inherited after this.
 	 */
 	filemon_untrack_processes(filemon);
+	filemon_close_log(filemon);
 	filemon_drop(filemon);
 }
 
