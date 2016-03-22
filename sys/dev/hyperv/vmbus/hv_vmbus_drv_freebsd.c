@@ -175,11 +175,14 @@ hv_vmbus_isr(struct trapframe *frame)
 
 	/* Check if there are actual msgs to be process */
 	page_addr = hv_vmbus_g_context.syn_ic_msg_page[cpu];
-	msg = (hv_vmbus_message*) page_addr + HV_VMBUS_MESSAGE_SINT;
+	msg = (hv_vmbus_message*) page_addr + HV_VMBUS_TIMER_SINT;
 
 	/* we call eventtimer process the message */
 	if (msg->header.message_type == HV_MESSAGE_TIMER_EXPIRED) {
 		msg->header.message_type = HV_MESSAGE_TYPE_NONE;
+
+		/* call intrrupt handler of event timer */
+		hv_et_intr(frame);
 
 		/*
 		 * Make sure the write to message_type (ie set to
@@ -197,10 +200,9 @@ hv_vmbus_isr(struct trapframe *frame)
 			 */
 			wrmsr(HV_X64_MSR_EOM, 0);
 		}
-		hv_et_intr(frame);
-		return (FILTER_HANDLED);
 	}
 
+	msg = (hv_vmbus_message*) page_addr + HV_VMBUS_MESSAGE_SINT;
 	if (msg->header.message_type != HV_MESSAGE_TYPE_NONE) {
 		swi_sched(hv_vmbus_g_context.msg_swintr[cpu], 0);
 	}
