@@ -1260,8 +1260,10 @@ netvsc_recv(struct hv_vmbus_channel *chan, netvsc_packet *packet,
 		return (0);
 	} else if (packet->tot_data_buf_len <= MHLEN) {
 		m_new = m_gethdr(M_NOWAIT, MT_DATA);
-		if (m_new == NULL)
+		if (m_new == NULL) {
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			return (0);
+		}
 		memcpy(mtod(m_new, void *), packet->data,
 		    packet->tot_data_buf_len);
 		m_new->m_pkthdr.len = m_new->m_len = packet->tot_data_buf_len;
@@ -1281,7 +1283,7 @@ netvsc_recv(struct hv_vmbus_channel *chan, netvsc_packet *packet,
 
 		m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, size);
 		if (m_new == NULL) {
-			if_printf(ifp, "alloc mbuf failed.\n");
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			return (0);
 		}
 
