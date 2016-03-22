@@ -260,7 +260,7 @@ ieee80211_hwmp_init(void)
 }
 SYSINIT(wlan_hwmp, SI_SUB_DRIVERS, SI_ORDER_SECOND, ieee80211_hwmp_init, NULL);
 
-void
+static void
 hwmp_vattach(struct ieee80211vap *vap)
 {
 	struct ieee80211_hwmp_state *hs;
@@ -279,7 +279,7 @@ hwmp_vattach(struct ieee80211vap *vap)
 	vap->iv_hwmp = hs;
 }
 
-void
+static void
 hwmp_vdetach(struct ieee80211vap *vap)
 {
 	struct ieee80211_hwmp_state *hs = vap->iv_hwmp;
@@ -289,7 +289,7 @@ hwmp_vdetach(struct ieee80211vap *vap)
 	vap->iv_hwmp = NULL;
 } 
 
-int
+static int
 hwmp_newstate(struct ieee80211vap *vap, enum ieee80211_state ostate, int arg)
 {
 	enum ieee80211_state nstate = vap->iv_state;
