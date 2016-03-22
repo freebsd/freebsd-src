@@ -95,6 +95,7 @@ enum {
 	URTWN_DEBUG_ROM		= 0x00000200,	/* various ROM info */
 	URTWN_DEBUG_KEY		= 0x00000400,	/* crypto keys management */
 	URTWN_DEBUG_TXPWR	= 0x00000800,	/* dump Tx power values */
+	URTWN_DEBUG_RSSI	= 0x00001000,	/* dump RSSI lookups */
 	URTWN_DEBUG_ANY		= 0xffffffff
 };
 
@@ -108,6 +109,9 @@ enum {
 #endif
 
 #define	IEEE80211_HAS_ADDR4(wh)	IEEE80211_IS_DSTODS(wh)
+
+static int urtwn_enable_11n = 1;
+TUNABLE_INT("hw.usb.urtwn.enable_11n", &urtwn_enable_11n);
 
 /* various supported device vendors/products */
 static const STRUCT_USB_HOST_ID urtwn_devs[] = {
@@ -465,6 +469,19 @@ urtwn_match(device_t self)
 	return (usbd_lookup_id_by_uaa(urtwn_devs, sizeof(urtwn_devs), uaa));
 }
 
+static void
+urtwn_update_chw(struct ieee80211com *ic)
+{
+}
+
+static int
+urtwn_ampdu_enable(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
+{
+
+	/* We're driving this ourselves (eventually); don't involve net80211 */
+	return (0);
+}
+
 static int
 urtwn_attach(device_t self)
 {
@@ -555,7 +572,9 @@ urtwn_attach(device_t self)
 		| IEEE80211_C_HOSTAP		/* hostap mode */
 		| IEEE80211_C_SHPREAMBLE	/* short preamble supported */
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
+#if 0
 		| IEEE80211_C_BGSCAN		/* capable of bg scanning */
+#endif
 		| IEEE80211_C_WPA		/* 802.11i */
 		| IEEE80211_C_WME		/* 802.11e */
 		;
@@ -565,9 +584,27 @@ urtwn_attach(device_t self)
 	    IEEE80211_CRYPTO_TKIP |
 	    IEEE80211_CRYPTO_AES_CCM;
 
+	/* Assume they're all 11n capable for now */
+	if (urtwn_enable_11n) {
+		device_printf(self, "enabling 11n\n");
+		ic->ic_htcaps = IEEE80211_HTC_HT |
+		    IEEE80211_HTC_AMPDU |
+		    IEEE80211_HTC_AMSDU |
+		    IEEE80211_HTCAP_MAXAMSDU_3839 |
+		    IEEE80211_HTCAP_SMPS_OFF;
+		/* no HT40 just yet */
+		// ic->ic_htcaps |= IEEE80211_HTCAP_CHWIDTH40;
+
+		/* XXX TODO: verify chains versus streams for urtwn */
+		ic->ic_txstream = sc->ntxchains;
+		ic->ic_rxstream = sc->nrxchains;
+	}
+
 	memset(bands, 0, sizeof(bands));
 	setbit(bands, IEEE80211_MODE_11B);
 	setbit(bands, IEEE80211_MODE_11G);
+	if (urtwn_enable_11n)
+		setbit(bands, IEEE80211_MODE_11NG);
 	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
@@ -589,6 +626,8 @@ urtwn_attach(device_t self)
 		sc->sc_node_free = ic->ic_node_free;
 		ic->ic_node_free = urtwn_r88e_node_free;
 	}
+	ic->ic_update_chw = urtwn_update_chw;
+	ic->ic_ampdu_enable = urtwn_ampdu_enable;
 
 	ieee80211_radiotap_attach(ic, &sc->sc_txtap.wt_ihdr,
 	    sizeof(sc->sc_txtap), URTWN_TX_RADIOTAP_PRESENT,
@@ -1005,6 +1044,9 @@ urtwn_rx_frame(struct urtwn_softc *sc, struct mbuf *m, int8_t *rssi_p)
 			tap->wr_tsft &= 0xffffffff00000000;
 		tap->wr_tsft += stat->rxdw5;
 
+		/* XXX 20/40? */
+		/* XXX shortgi? */
+
 		/* Map HW rate index to 802.11 rate. */
 		if (!(rxdw3 & R92C_RXDW3_HT)) {
 			tap->wr_rate = ridx2rate[rate];
@@ -1081,6 +1123,8 @@ tr_setup:
 
 			nf = URTWN_NOISE_FLOOR;
 			if (ni != NULL) {
+				if (ni->ni_flags & IEEE80211_NODE_HT)
+					m->m_flags |= M_AMPDU;
 				(void)ieee80211_input(ni, m, rssi - nf, nf);
 				ieee80211_free_node(ni);
 			} else {
@@ -1827,7 +1871,7 @@ urtwn_ra_init(struct urtwn_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_node *ni;
-	struct ieee80211_rateset *rs;
+	struct ieee80211_rateset *rs, *rs_ht;
 	struct r92c_fw_cmd_macid_cfg cmd;
 	uint32_t rates, basicrates;
 	uint8_t mode;
@@ -1835,10 +1879,13 @@ urtwn_ra_init(struct urtwn_softc *sc)
 
 	ni = ieee80211_ref_node(vap->iv_bss);
 	rs = &ni->ni_rates;
+	rs_ht = (struct ieee80211_rateset *) &ni->ni_htrates;
 
 	/* Get normal and basic rates mask. */
 	rates = basicrates = 0;
 	maxrate = maxbasicrate = 0;
+
+	/* This is for 11bg */
 	for (i = 0; i < rs->rs_nrates; i++) {
 		/* Convert 802.11 rate to HW rate index. */
 		for (j = 0; j < nitems(ridx2rate); j++)
@@ -1856,10 +1903,32 @@ urtwn_ra_init(struct urtwn_softc *sc)
 				maxbasicrate = j;
 		}
 	}
+
+	/* If we're doing 11n, enable 11n rates */
+	if (ni->ni_flags & IEEE80211_NODE_HT) {
+		for (i = 0; i < rs_ht->rs_nrates; i++) {
+			if ((rs_ht->rs_rates[i] & 0x7f) > 0xf)
+				continue;
+			/* 11n rates start at index 12 */
+			j = ((rs_ht->rs_rates[i]) & 0xf) + 12;
+			rates |= (1 << j);
+
+			/* Guard against the rate table being oddly ordered */
+			if (j > maxrate)
+				maxrate = j;
+		}
+	}
+
+#if 0
+	if (ic->ic_curmode == IEEE80211_MODE_11NG)
+		raid = R92C_RAID_11GN;
+#endif
+	/* NB: group addressed frames are done at 11bg rates for now */
 	if (ic->ic_curmode == IEEE80211_MODE_11B)
 		mode = R92C_RAID_11B;
 	else
 		mode = R92C_RAID_11BG;
+	/* XXX misleading 'mode' value here for unicast frames */
 	URTWN_DPRINTF(sc, URTWN_DEBUG_RA,
 	    "%s: mode 0x%x, rates 0x%08x, basicrates 0x%08x\n", __func__,
 	    mode, rates, basicrates);
@@ -1874,6 +1943,7 @@ urtwn_ra_init(struct urtwn_softc *sc)
 		    "could not add broadcast station\n");
 		return (error);
 	}
+
 	/* Set initial MRR rate. */
 	URTWN_DPRINTF(sc, URTWN_DEBUG_RA, "%s: maxbasicrate %d\n", __func__,
 	    maxbasicrate);
@@ -1881,6 +1951,12 @@ urtwn_ra_init(struct urtwn_softc *sc)
 	    maxbasicrate);
 
 	/* Set rates mask for unicast frames. */
+	if (ni->ni_flags & IEEE80211_NODE_HT)
+		mode = R92C_RAID_11GN;
+	else if (ic->ic_curmode == IEEE80211_MODE_11B)
+		mode = R92C_RAID_11B;
+	else
+		mode = R92C_RAID_11BG;
 	cmd.macid = URTWN_MACID_BSS | URTWN_MACID_VALID;
 	cmd.mask = htole32(mode << 28 | rates);
 	error = urtwn_fw_cmd(sc, R92C_CMD_MACID_CONFIG, &cmd, sizeof(cmd));
@@ -1896,7 +1972,11 @@ urtwn_ra_init(struct urtwn_softc *sc)
 	    maxrate);
 
 	/* Indicate highest supported rate. */
-	ni->ni_txrate = rs->rs_rates[rs->rs_nrates - 1];
+	if (ni->ni_flags & IEEE80211_NODE_HT)
+		ni->ni_txrate = rs_ht->rs_rates[rs_ht->rs_nrates - 1]
+		    | IEEE80211_RATE_MCS;
+	else
+		ni->ni_txrate = rs->rs_rates[rs->rs_nrates - 1];
 	ieee80211_free_node(ni);
 
 	return (0);
@@ -2559,7 +2639,7 @@ urtwn_update_avgrssi(struct urtwn_softc *sc, int rate, int8_t rssi)
 		sc->avg_pwdb = ((sc->avg_pwdb * 19 + pwdb) / 20) + 1;
 	else
 		sc->avg_pwdb = ((sc->avg_pwdb * 19 + pwdb) / 20);
-	URTWN_DPRINTF(sc, URTWN_DEBUG_RA, "%s: PWDB %d, EMA %d\n", __func__,
+	URTWN_DPRINTF(sc, URTWN_DEBUG_RSSI, "%s: PWDB %d, EMA %d\n", __func__,
 	    pwdb, sc->avg_pwdb);
 }
 
@@ -2643,7 +2723,12 @@ urtwn_r88e_get_rssi(struct urtwn_softc *sc, int rate, void *physt)
 static __inline uint8_t
 rate2ridx(uint8_t rate)
 {
+	if (rate & IEEE80211_RATE_MCS) {
+		/* 11n rates start at idx 12 */
+		return ((rate & 0xf) + 12);
+	}
 	switch (rate) {
+	/* 11g */
 	case 12:	return 4;
 	case 18:	return 5;
 	case 24:	return 6;
@@ -2652,6 +2737,7 @@ rate2ridx(uint8_t rate)
 	case 72:	return 9;
 	case 96:	return 10;
 	case 108:	return 11;
+	/* 11b */
 	case 2:		return 0;
 	case 4:		return 1;
 	case 11:	return 2;
@@ -2711,15 +2797,24 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 			(void) ieee80211_ratectl_rate(ni, NULL, 0);
 			rate = ni->ni_txrate;
 		} else {
-			if (ic->ic_curmode != IEEE80211_MODE_11B)
+			/* XXX TODO: drop the default rate for 11b/11g? */
+			if (ni->ni_flags & IEEE80211_NODE_HT)
+				rate = IEEE80211_RATE_MCS | 0x4; /* MCS4 */
+			else if (ic->ic_curmode != IEEE80211_MODE_11B)
 				rate = 108;
 			else
 				rate = 22;
 		}
 	}
 
+	/*
+	 * XXX TODO: this should be per-node, for 11b versus 11bg
+	 * nodes in hostap mode
+	 */
 	ridx = rate2ridx(rate);
-	if (ic->ic_curmode != IEEE80211_MODE_11B)
+	if (ni->ni_flags & IEEE80211_NODE_HT)
+		raid = R92C_RAID_11GN;
+	else if (ic->ic_curmode != IEEE80211_MODE_11B)
 		raid = R92C_RAID_11BG;
 	else
 		raid = R92C_RAID_11B;
@@ -2763,7 +2858,10 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 			} else
 				txd->txdw1 |= htole32(R92C_TXDW1_AGGBK);
 
-			if (ic->ic_flags & IEEE80211_F_USEPROT) {
+			/* protmode, non-HT */
+			/* XXX TODO: noack frames? */
+			if ((rate & 0x80) == 0 &&
+			    (ic->ic_flags & IEEE80211_F_USEPROT)) {
 				switch (ic->ic_protmode) {
 				case IEEE80211_PROT_CTSONLY:
 					txd->txdw4 |= htole32(
@@ -2779,8 +2877,21 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 					break;
 				}
 			}
+
+			/* protmode, HT */
+			/* XXX TODO: noack frames? */
+			if ((rate & 0x80) &&
+			    (ic->ic_htprotmode == IEEE80211_PROT_RTSCTS)) {
+				txd->txdw4 |= htole32(
+				    R92C_TXDW4_RTSEN |
+				    R92C_TXDW4_HWRTSEN);
+			}
+
+			/* XXX TODO: rtsrate is configurable? 24mbit may
+			 * be a bit high for RTS rate? */
 			txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE,
 			    URTWN_RIDX_OFDM24));
+
 			txd->txdw5 |= htole32(0x0001ff00);
 		} else	/* IEEE80211_FC0_TYPE_MGT */
 			qsel = R92C_TXDW1_QSEL_MGNT;
@@ -2793,14 +2904,21 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 	    SM(R92C_TXDW1_QSEL, qsel) |
 	    SM(R92C_TXDW1_RAID, raid));
 
+	/* XXX TODO: 40MHZ flag? */
+	/* XXX TODO: AMPDU flag? (AGG_ENABLE or AGG_BREAK?) Density shift? */
+	/* XXX Short preamble? */
+	/* XXX Short-GI? */
+
 	if (sc->chip & URTWN_CHIP_88E)
 		txd->txdw1 |= htole32(SM(R88E_TXDW1_MACID, macid));
 	else
 		txd->txdw1 |= htole32(SM(R92C_TXDW1_MACID, macid));
 
 	txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, ridx));
+
 	/* Force this rate if needed. */
 	if (URTWN_CHIP_HAS_RATECTL(sc) || ismcast ||
+	    (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) ||
 	    (m->m_flags & M_EAPOL) || type != IEEE80211_FC0_TYPE_DATA)
 		txd->txdw4 |= htole32(R92C_TXDW4_DRVRATE);
 
@@ -2888,6 +3006,8 @@ urtwn_tx_raw(struct urtwn_softc *sc, struct ieee80211_node *ni,
 		}
 	}
 
+	/* XXX TODO: 11n checks, matching urtwn_tx_data() */
+
 	wh = mtod(m, struct ieee80211_frame *);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 
@@ -2916,6 +3036,7 @@ urtwn_tx_raw(struct urtwn_softc *sc, struct ieee80211_node *ni,
 	else
 		txd->txdw1 |= htole32(SM(R92C_TXDW1_MACID, URTWN_MACID_BC));
 
+	/* XXX TODO: rate index/config (RAID) for 11n? */
 	txd->txdw1 |= htole32(SM(R92C_TXDW1_QSEL, R92C_TXDW1_QSEL_MGNT));
 	txd->txdw1 |= htole32(SM(R92C_TXDW1_CIPHER, cipher));
 
