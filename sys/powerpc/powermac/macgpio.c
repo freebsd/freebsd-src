@@ -236,7 +236,7 @@ macgpio_print_child(device_t dev, device_t child)
 		printf(" addr 0x%02x", dinfo->gpio_num); /* should not happen */
 
 	resource_list_print_type(&dinfo->mdi_resources, "irq", SYS_RES_IRQ, 
-	    "%ld");
+	    "%jd");
         retval += bus_print_child_footer(dev, child);
 
         return (retval);
@@ -258,7 +258,7 @@ macgpio_probe_nomatch(device_t dev, device_t child)
 		if (dinfo->gpio_num >= 0)
 			printf(" gpio %d",dinfo->gpio_num);
 		resource_list_print_type(&dinfo->mdi_resources, "irq", 
-		    SYS_RES_IRQ, "%ld");
+		    SYS_RES_IRQ, "%jd");
 		printf(" (no driver attached)\n");
 	}
 }
