@@ -161,6 +161,12 @@ No process having the specified process ID exists.
 The process ID specified is already being traced and was not the current
 process.
 .El
+.Pp
+The
+.Fn close
+system call on the filemon file descriptor may fail with the errors from
+.Xr write 2
+if any error is encountered while writing the log.
 .Sh FILES
 .Bl -tag -width ".Pa /dev/filemon"
 .It Pa /dev/filemon

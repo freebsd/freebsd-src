@@ -46,6 +46,7 @@ filemon_output(struct filemon *filemon, char *msg, size_t len)
 {
 	struct uio auio;
 	struct iovec aiov;
+	int error;
 
 	if (filemon->fp == NULL)
 		return;
@@ -63,7 +64,9 @@ filemon_output(struct filemon *filemon, char *msg, size_t len)
 	if (filemon->fp->f_type == DTYPE_VNODE)
 		bwillwrite();
 
-	fo_write(filemon->fp, &auio, curthread->td_ucred, 0, curthread);
+	error = fo_write(filemon->fp, &auio, curthread->td_ucred, 0, curthread);
+	if (error != 0)
+		filemon->error = error;
 }
 
 static int

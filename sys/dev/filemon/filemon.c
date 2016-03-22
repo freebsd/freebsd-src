@@ -92,6 +92,7 @@ struct filemon {
 	char		fname1[MAXPATHLEN]; /* Temporary filename buffer. */
 	char		fname2[MAXPATHLEN]; /* Temporary filename buffer. */
 	char		msgbufr[1024];	/* Output message buffer. */
+	int		error;		/* Log write error, returned on close(2). */
 	u_int		refcnt;		/* Pointer reference count. */
 	u_int		proccnt;	/* Process count. */
 };
@@ -277,7 +278,10 @@ filemon_close_log(struct filemon *filemon)
 	return;
 }
 
-/* The devfs file is being closed.  Untrace all processes. */
+/*
+ * The devfs file is being closed.  Untrace all processes.  It is possible
+ * filemon_close/close(2) was not called.
+ */
 static void
 filemon_dtr(void *data)
 {
@@ -422,12 +426,28 @@ filemon_open(struct cdev *dev, int oflags __unused, int devtype __unused,
 	return (error);
 }
 
+/* Called on close of last devfs file handle, before filemon_dtr(). */
 static int
 filemon_close(struct cdev *dev __unused, int flag __unused, int fmt __unused,
     struct thread *td __unused)
 {
+	struct filemon *filemon;
+	int error;
 
-	return (0);
+	if ((error = devfs_get_cdevpriv((void **) &filemon)) != 0)
+		return (error);
+
+	sx_xlock(&filemon->lock);
+	filemon_close_log(filemon);
+	error = filemon->error;
+	sx_xunlock(&filemon->lock);
+	/*
+	 * Processes are still being traced but won't log anything
+	 * now.  After this call returns filemon_dtr() is called which
+	 * will detach processes.
+	 */
+
+	return (error);
 }
 
 static void
