@@ -89,6 +89,7 @@ __FBSDID("$FreeBSD$");
 static int parse_mount(char **);
 static struct mntarg *parse_mountroot_options(struct mntarg *, const char *);
 static int sysctl_vfs_root_mount_hold(SYSCTL_HANDLER_ARGS);
+static void vfs_mountroot_wait(void);
 static int vfs_mountroot_wait_if_neccessary(const char *fs, const char *dev);
 
 /*
@@ -487,6 +488,8 @@ parse_dir_ask(char **conf)
 	char name[80];
 	char *mnt;
 	int error;
+
+	vfs_mountroot_wait();
 
 	printf("\nLoader variables:\n");
 	parse_dir_ask_printenv("vfs.root.mountfrom");
