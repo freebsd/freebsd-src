@@ -390,7 +390,7 @@ gpiobus_probe_nomatch(device_t dev, device_t child)
 		device_printf(dev, "<unknown device> at pins %s", pins);
 	else
 		device_printf(dev, "<unknown device> at pin %s", pins);
-	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%ld");
+	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%jd");
 	printf("\n");
 }
 
@@ -412,7 +412,7 @@ gpiobus_print_child(device_t dev, device_t child)
 		gpiobus_print_pins(devi, pins, sizeof(pins));
 		retval += printf("%s", pins);
 	}
-	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%ld");
+	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%jd");
 	retval += bus_print_child_footer(dev, child);
 
 	return (retval);
