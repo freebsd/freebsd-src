@@ -1937,9 +1937,9 @@ softdep_waitidle(struct mount *mp, int flags __unused)
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_FSYNC(devvp, MNT_WAIT, td);
 		VOP_UNLOCK(devvp, 0);
+		ACQUIRE_LOCK(ump);
 		if (error != 0)
 			break;
-		ACQUIRE_LOCK(ump);
 	}
 	ump->softdep_req = 0;
 	if (i == SU_WAITIDLE_RETRIES && error == 0 && ump->softdep_deps != 0) {
