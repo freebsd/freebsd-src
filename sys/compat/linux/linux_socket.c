@@ -289,6 +289,63 @@ linux_to_bsd_ip_sockopt(int opt)
 }
 
 static int
+linux_to_bsd_ip6_sockopt(int opt)
+{
+
+	switch (opt) {
+	case LINUX_IPV6_NEXTHOP:
+		return (IPV6_NEXTHOP);
+	case LINUX_IPV6_UNICAST_HOPS:
+		return (IPV6_UNICAST_HOPS);
+	case LINUX_IPV6_MULTICAST_IF:
+		return (IPV6_MULTICAST_IF);
+	case LINUX_IPV6_MULTICAST_HOPS:
+		return (IPV6_MULTICAST_HOPS);
+	case LINUX_IPV6_MULTICAST_LOOP:
+		return (IPV6_MULTICAST_LOOP);
+	case LINUX_IPV6_ADD_MEMBERSHIP:
+		return (IPV6_JOIN_GROUP);
+	case LINUX_IPV6_DROP_MEMBERSHIP:
+		return (IPV6_LEAVE_GROUP);
+	case LINUX_IPV6_V6ONLY:
+		return (IPV6_V6ONLY);
+	case LINUX_IPV6_DONTFRAG:
+		return (IPV6_DONTFRAG);
+#if 0
+	case LINUX_IPV6_CHECKSUM:
+		return (IPV6_CHECKSUM);
+	case LINUX_IPV6_RECVPKTINFO:
+		return (IPV6_RECVPKTINFO);
+	case LINUX_IPV6_PKTINFO:
+		return (IPV6_PKTINFO);
+	case LINUX_IPV6_RECVHOPLIMIT:
+		return (IPV6_RECVHOPLIMIT);
+	case LINUX_IPV6_HOPLIMIT:
+		return (IPV6_HOPLIMIT);
+	case LINUX_IPV6_RECVHOPOPTS:
+		return (IPV6_RECVHOPOPTS);
+	case LINUX_IPV6_HOPOPTS:
+		return (IPV6_HOPOPTS);
+	case LINUX_IPV6_RTHDRDSTOPTS:
+		return (IPV6_RTHDRDSTOPTS);
+	case LINUX_IPV6_RECVRTHDR:
+		return (IPV6_RECVRTHDR);
+	case LINUX_IPV6_RTHDR:
+		return (IPV6_RTHDR);
+	case LINUX_IPV6_RECVDSTOPTS:
+		return (IPV6_RECVDSTOPTS);
+	case LINUX_IPV6_DSTOPTS:
+		return (IPV6_DSTOPTS);
+	case LINUX_IPV6_RECVPATHMTU:
+		return (IPV6_RECVPATHMTU);
+	case LINUX_IPV6_PATHMTU:
+		return (IPV6_PATHMTU);
+#endif
+	}
+	return (-1);
+}
+
+static int
 linux_to_bsd_so_sockopt(int opt)
 {
 
@@ -1515,6 +1572,9 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 	case IPPROTO_IP:
 		name = linux_to_bsd_ip_sockopt(args->optname);
 		break;
+	case IPPROTO_IPV6:
+		name = linux_to_bsd_ip6_sockopt(args->optname);
+		break;
 	case IPPROTO_TCP:
 		name = linux_to_bsd_tcp_sockopt(args->optname);
 		break;
@@ -1600,6 +1660,9 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 		break;
 	case IPPROTO_IP:
 		name = linux_to_bsd_ip_sockopt(args->optname);
+		break;
+	case IPPROTO_IPV6:
+		name = linux_to_bsd_ip6_sockopt(args->optname);
 		break;
 	case IPPROTO_TCP:
 		name = linux_to_bsd_tcp_sockopt(args->optname);
