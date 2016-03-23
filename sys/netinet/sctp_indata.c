@@ -1948,7 +1948,7 @@ finish_express_del:
 	return (1);
 }
 
-int8_t sctp_map_lookup_tab[256] = {
+static const int8_t sctp_map_lookup_tab[256] = {
 	0, 1, 0, 2, 0, 1, 0, 3,
 	0, 1, 0, 2, 0, 1, 0, 4,
 	0, 1, 0, 2, 0, 1, 0, 3,
