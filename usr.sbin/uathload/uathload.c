@@ -143,7 +143,7 @@ main(int argc, char *argv[])
 	if (argc == 1)
 		fwname = argv[0];
 	else
-		fwname = "/usr/share/firmware/ar5523.bin";
+		fwname = _PATH_FIRMWARE "/ar5523.bin";
 	fw = open(fwname, O_RDONLY, 0);
 	if (fw < 0)
 		err(-1, "open(%s)", fwname);
