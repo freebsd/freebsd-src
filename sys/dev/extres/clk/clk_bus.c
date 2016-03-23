@@ -54,7 +54,7 @@ ofw_clkbus_probe(device_t dev)
 
 	device_set_desc(dev, "OFW clocks bus");
 
-	return (0);
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
