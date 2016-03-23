@@ -80,7 +80,6 @@
 /****************** local defines *********************/
 
 #if defined(__FreeBSD__)
-#define	SAVESIGVEC
 #define NLS_BUGS
 #define BSD_STYLE_COLORLS
 /* Use LC_MESSAGES locale category to open the message catalog */
