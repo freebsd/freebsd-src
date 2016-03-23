@@ -2905,7 +2905,7 @@ proc_get_sbmetadata_ptrlen(struct thread *td, struct proc *p,
 	if (SV_PROC_FLAG(p, SV_ILP32) != 0) {
 		if (proc_readmem(td, p,
 		    (vm_offset_t)p->p_sysent->sv_psstrings, &pss32,
-		    sizeof(pss32)) != sizeof(pss32);
+		    sizeof(pss32)) != sizeof(pss32));
 			return (ENOMEM);
 
 		/*
