@@ -1272,12 +1272,12 @@ clk_get_by_ofw_name(device_t dev, const char *name, clk_t *clk)
  */
 int
 clk_parse_ofw_out_names(device_t dev, phandle_t node, const char ***out_names,
-	uint32_t *indices)
+	uint32_t **indices)
 {
 	int name_items, rv;
 
 	*out_names = NULL;
-	indices = NULL;
+	*indices = NULL;
 	if (!OF_hasprop(node, "clock-output-names"))
 		return (0);
 	rv = ofw_bus_string_list_to_array(node, "clock-output-names",
@@ -1294,7 +1294,7 @@ clk_parse_ofw_out_names(device_t dev, phandle_t node, const char ***out_names,
 		device_printf(dev, " Size of 'clock-output-names' and "
 		    "'clock-indices' differs\n");
 		free(*out_names, M_OFWPROP);
-		free(indices, M_OFWPROP);
+		free(*indices, M_OFWPROP);
 		return (0);
 	}
 	return (name_items);
