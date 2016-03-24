@@ -289,21 +289,18 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * adjust up the effective heap size on 128-bit CHERI to shift the top
 	 * of the data segment closer to a suitable alignment boundary for a
 	 * sealed capability.
-	 *
-	 * XXXRW: For now, simply align the top to a 1MB boundary -- which is
-	 * not the right alignment algorithm.
 	 */
 	heaplen = roundup2(sbop->sbo_heaplen, PAGE_SIZE);
 #if CHERICAP_SIZE == 16
 	heaplen_adj = length + heaplen;		/* Requested length. */
-	heaplen_adj = roundup2(heaplen_adj, (1024*1024)); /* Aligned len. */
+	heaplen_adj = roundup2(heaplen_adj, (1ULL << CHERI_SEAL_ALIGN_SHIFT(heaplen_adj))); /* Aligned len. */
 	heaplen_adj -= (length + heaplen);	/* Calculate adjustment. */
 	heaplen += heaplen_adj;			/* Apply adjustment. */
 #endif
 	length += heaplen;
 	sbop->sbo_datalen = length;
 	base = sbop->sbo_datamem = mmap(NULL, length, PROT_NONE, MAP_ANON |
-	    MAP_ALIGNED_SUPER, -1, 0);
+	    MAP_ALIGNED_CHERI_SEAL, -1, 0);
 	if (sbop->sbo_datamem == MAP_FAILED) {
 		saved_errno = errno;
 		warn("%s: mmap region", __func__);
@@ -324,7 +321,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 */
 #if CHERICAP_SIZE == 16
 	assert(((cheri_getbase(base) + cheri_getoffset(base)) &
-	    (1024 * 1024 -1 )) == 0);
+	    CHERI_SEAL_ALIGN_MASK(length)) == 0);
 #endif
 
 	/*
