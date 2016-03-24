@@ -139,7 +139,8 @@ struct section {
 
 /* Internal data structure for segments. */
 struct segment {
-	uint64_t	addr;	/* load addr */
+	uint64_t	vaddr;	/* virtual addr (VMA) */
+	uint64_t	paddr;	/* physical addr (LMA) */
 	uint64_t	off;	/* file offset */
 	uint64_t	fsz;	/* file size */
 	uint64_t	msz;	/* memory size */
