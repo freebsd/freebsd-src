@@ -30,7 +30,7 @@
 
 #include <sys/socket.h>
 
-#include <compat/cloudabi/cloudabi_syscalldefs.h>
+#include <contrib/cloudabi/cloudabi_types_common.h>
 
 struct file;
 struct thread;
