@@ -172,10 +172,22 @@
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
 
-      <para revision="288202" contrib="sponsor" sponsor="&ff;">The
-	&man.ar.1; utility now enables deterministic mode
-	(<literal>-D</literal>) by default.  This behavior can be
-	disabled by specifying the <literal>-U</literal> flag.</para>
+      <para revision="287326,288202" contrib="sponsor" sponsor="&ff;">The
+	&man.ar.1; utility now supports a <option>-D</option> flag to
+	prevent real mtime, uid, gid, and file mode values from being
+	inserted.  This is called <quote>deterministic mode</quote>
+	and useful for making the resulting archives reproducible.
+	This behavior is enabled by default, and can be disabled by
+	specifying a <literal>-U</literal> flag.</para>
+
+      <para revision="286965">The &man.camcontrol.8;
+	<command>fwdownload</command> subcommand has been improved.
+	Changes include better support of SATA drives, downloading
+	firmaware to IBM LTO drives, <option>-q</option> flag to
+	suppress information output, and <command>opcodes</command>
+	subcommand to issue the <literal>REPORT SUPPORTED
+	  OPCODES</literal> service action of the <literal>SCSI
+	MAINTENANCE IN</literal> command.</para>
 
       <para revision="291774">The &man.cp.1; utility has been updated
 	to include a new flag, <literal>-s</literal>, which creates
@@ -232,6 +244,10 @@
 	<varname>nfs_server_managegids</varname> to
 	<literal>YES</literal>.</para>
 
+      <para revision="287269">The &man.pkill.1; utility now supports
+	&man.jail.2; name in a <option>-j</option> option in addition to
+	&man.jail.2; ID.</para>
+
       <para revision="287084"><command>userdel</command> and
 	<command>usermod</command> subcommand of the &man.pw.8; utility
 	now supports a <option>-y</option> flag.</para>
@@ -247,10 +263,17 @@
 	filesystem to be mounted from a temporary source filesystem
 	without requiring a full system reboot.</para>
 
+      <para revision="287392">The &man.timeout.1; utility has been
+	added.  This utility runs a command with a time limit and is
+	compatible with <application>GNU timeout</application>.</para>
+
       <para revision="287080">The &man.watchdogd.8; daemon now supports
 	a <option>-x <replaceable>exit_timeout</replaceable></option>
 	option to specify the timeout period in seconds to
 	leave in effect when the program exits.</para>
+
+      <para revision="287375">The &man.ypinit.8; script now supports
+	<filename>eui64</filename> NIS map file.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
@@ -377,6 +400,11 @@
 
     <sect2 xml:id="kernel-sysctl">
       <title>System Tuning and Controls</title>
+
+      <para revision="287438">A &man.sysctl.3; variable
+	<varname>kern.features.invariants</varname> has been added.
+	It shows if the kernel is compiled with <option>INVARIANTS</option>
+	or not.</para>
 
       <para revision="286322" contrib="sponsor"
 	sponsor="&ff;">A bug which could prevent a loader
