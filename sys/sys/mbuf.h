@@ -51,11 +51,11 @@
 	SDT_PROBE1(sdt, , , probe, arg0)
 #define	MBUF_PROBE2(probe, arg0, arg1)					\
 	SDT_PROBE2(sdt, , , probe, arg0, arg1)
-#define	MBUF_PROBE3(probe, arg0, arg1, arg2)			\
+#define	MBUF_PROBE3(probe, arg0, arg1, arg2)				\
 	SDT_PROBE3(sdt, , , probe, arg0, arg1, arg2)
-#define	MBUF_PROBE4(probe, arg0, arg1, arg2, arg3)				\
+#define	MBUF_PROBE4(probe, arg0, arg1, arg2, arg3)			\
 	SDT_PROBE4(sdt, , , probe, arg0, arg1, arg2, arg3)
-#define	MBUF_PROBE5(probe, arg0, arg1, arg2, arg3, arg4)			\
+#define	MBUF_PROBE5(probe, arg0, arg1, arg2, arg3, arg4)		\
 	SDT_PROBE5(sdt, , , probe, arg0, arg1, arg2, arg3, arg4)
 
 SDT_PROBE_DECLARE(sdt, , , m__init);
@@ -690,7 +690,7 @@ m_getzone(int size)
 static __inline int
 m_init(struct mbuf *m, int how, short type, int flags)
 {
-	int error = 0;
+	int error;
 
 	m->m_next = NULL;
 	m->m_nextpkt = NULL;
@@ -700,6 +700,8 @@ m_init(struct mbuf *m, int how, short type, int flags)
 	m->m_type = type;
 	if (flags & M_PKTHDR)
 		error = m_pkthdr_init(m, how);
+	else
+		error = 0;
 
 	MBUF_PROBE5(m__init, m, how, type, flags, error);
 	return (error);
