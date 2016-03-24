@@ -60,8 +60,6 @@ FBSDprivate_1.0 {
 	_vfork;
 	_brk;
 	_end;
-	curbrk;
-	minbrk;
 	_sbrk;
 
 	/* softfloat */

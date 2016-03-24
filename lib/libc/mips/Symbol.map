@@ -52,8 +52,6 @@ FBSDprivate_1.0 {
 	__sys_vfork;
 	_vfork;
 	_end;
-	__curbrk;
-	minbrk;
 	_brk;
 	_sbrk;
 
