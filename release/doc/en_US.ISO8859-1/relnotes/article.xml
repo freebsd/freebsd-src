@@ -1,14 +1,19 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
-	"../../../share/xml/freebsd50.dtd" [
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+	  "http://www.FreeBSD.org/XML/share/xml/freebsd50.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN"
+	 "http://www.FreeBSD.org/release/XML/share/xml/release.ent">
  %release;
-<!ENTITY % sponsor PUBLIC "-//FreeBSD//ENTITIES Sponsor Specification//EN" "sponsor.ent">
+<!ENTITY % sponsor PUBLIC "-//FreeBSD//ENTITIES Sponsor Specification//EN"
+	 "http://www.FreeBSD.org/release/XML/share/xml/sponsor.ent">
  %sponsor;
-<!ENTITY % vendor PUBLIC "-//FreeBSD//ENTITIES Vendor Specification//EN" "vendor.ent">
+<!ENTITY % vendor PUBLIC "-//FreeBSD//ENTITIES Vendor Specification//EN"
+	 "http://www.FreeBSD.org/release/XML/share/xml/vendor.ent">
  %vendor;
-<!ENTITY security SYSTEM "../../share/xml/security.xml">
-<!ENTITY errata SYSTEM "../../share/xml/errata.xml">
+<!ENTITY security PUBLIC "-//FreeBSD//ENTITIES Security Advisory List//EN"
+	 "http://www.FreeBSD.org/release/XML/share/xml/security.xml">
+<!ENTITY errata PUBLIC "-//FreeBSD//ENTITIES Errata List//EN"
+	 "http://www.FreeBSD.org/release/XML/share/xml/errata.xml">
 ]>
 <article xmlns="http://docbook.org/ns/docbook"
   xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0"
@@ -167,6 +172,23 @@
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
 
+      <para revision="288202" contrib="sponsor" sponsor="&ff;">The
+	&man.ar.1; utility now enables deterministic mode
+	(<literal>-D</literal>) by default.  This behavior can be
+	disabled by specifying the <literal>-U</literal> flag.</para>
+
+      <para revision="291774">The &man.cp.1; utility has been updated
+	to include a new flag, <literal>-s</literal>, which creates
+	a symbolic link to the specified source.</para>
+
+      <para revision="285929">A bug in &man.ctladm.8; utility which could
+	return a non-zero value even if it succeeds has been fixed.</para>
+
+      <para revision="286810" contrib="sponsor"
+	sponsor="&yandex;">The &man.ifconfig.8; utility now reports
+	SFP/SFP+ data when a <option>-v</option> flag is specified and
+	the NIC driver provides them.</para>
+
       <para revision="286064">The &man.jail.8; utility has been
 	updated to include a new flag, <literal>-l</literal>, which
 	ensures a clean environment in the target jail when used.
@@ -178,11 +200,6 @@
 	filesystems in both <acronym>MBR</acronym> and
 	<acronym>GPT</acronym> partitioning schemes.</para>
 
-      <para revision="288202" contrib="sponsor" sponsor="&ff;">The
-	&man.ar.1; utility now enables deterministic mode
-	(<literal>-D</literal>) by default.  This behavior can be
-	disabled by specifying the <literal>-U</literal> flag.</para>
-
       <para revision="287746">The &man.pciconf.8; utility has been
 	updated to use the PCI ID database from the <filename
 	  role="package">misc/pciids</filename> package, if present,
@@ -193,15 +210,12 @@
 	new utility, &man.sesutil.8;, has been added, which is used
 	to manage &man.ses.4; devices.</para>
 
-      <para revision="291774">The &man.cp.1; utility has been updated
-	to include a new flag, <literal>-s</literal>, which creates
-	a symbolic link to the specified source.</para>
-
-      <para revision="292231">Support for the
-	<literal>-manage-gids</literal> has been added to
-	&man.nfsd.8;.  This option can be enabled at boot time by
-	adding <literal>nfs_server_managegids="YES"</literal> to
-	&man.rc.conf.5;.</para>
+      <para revision="292231">Support for a
+	<option>-manage-gids</option> flag has been added to
+	&man.nfsuserd.8;.  This option can be enabled at boot time by
+	setting an &man.rc.conf.5; variable
+	<varname>nfs_server_managegids</varname> to
+	<literal>YES</literal>.</para>
 
       <para revision="292462" contrib="sponsor"
 	sponsor="&dellinc;">The resolver library has been updated to
@@ -218,12 +232,13 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
-      <para revision="286082">The &man.libarchive.3; library has been
-	updated to properly skip a sparse file entry in a &man.tar.1;
-	file, which would previously produce errors.</para>
+      <para revision="286082">A bug in &man.libarchive.3; library which
+	could report an error when handling a sparse file entry
+	in a tar file has been fixed
+	by importing changeset <literal>bf4f6ec64e</literal>.</para>
 
-      <para revision="286751">Timezone data files have been updated to
-	version 2015f.</para>
+      <para revision="286751">Time zone database has been updated to
+	version <literal>2015f</literal>.</para>
 
       <para revision="290152">The &man.file.1; utility has been
 	updated to version 5.25.</para>
@@ -303,6 +318,16 @@
       tuning, and system control parameters that are not otherwise
       categorized.</para>
 
+    <para revision="286742">The &man.vt.4; terminal console driver now
+      supports <option>ALT_BREAK_TO_DEBUGGER</option> and
+      <varname>debug.kdb.alt_break_to_debugger</varname> sysctl
+      variable when kernel debugger support (<option>options
+      KDB</option>) is enabled.</para>
+
+    <para revision="286843">A <function>thread_create()</function>
+      function has been added as an API to create userspace thread in
+      kernel space.</para>
+
     <sect2 xml:id="kernel-bugfix">
       <title>Kernel Bug Fixes</title>
 
@@ -315,11 +340,19 @@
     <sect2 xml:id="kernel-config">
       <title>Kernel Configuration</title>
 
-      <para>&nbsp;</para>
+      <para revision="286132" contrib="sponsor"
+	sponsor="&ff;" arch="amd64,i386">The &man.pms.4; driver
+	has been removed from
+	<filename>GENERIC</filename> kernel.</para>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
       <title>System Tuning and Controls</title>
+
+      <para revision="286322" contrib="sponsor"
+	sponsor="&ff;">A bug which could prevent a loader
+	tunable <varname>kern.racct.enable</varname> from working
+	has been fixed.</para>
 
       <para revision="287037">The &man.uart.4; driver has been
 	updated to allow tuning pulses per second captured in the
@@ -362,6 +395,10 @@
       <para revision="295524" contrib="sponsor"
 	sponsor="&limelight;, &intelcorp;">The &man.ixgbe.4; driver
 	has been updated to version 3.1.13-k.</para>
+
+      <para revision="286895">Firmwares for model T4 and T5 bundled
+	with the &man.cxgbe.4; driver have been updated to
+	version 1.14.4.0.</para>
     </sect2>
   </sect1>
 
@@ -471,6 +508,16 @@
     <para>This section describes changes that affect networking in
       &os;.</para>
 
+    <para revision="286125" contrib="sponsor"
+      sponsor="&netgate;">A bug in &man.pf.4; packet filter which
+      could cause a rule with no <literal>log</literal> parameter to
+      log the matched packet has been fixed.</para>
+
+    <para revision="286316">A bug in &os; IPv6 stack which did not
+      invoke an <literal>LLENTRY_DELETED</literal> event when an L2
+      address was deleted from the link-level address table for
+      IPv6.</para>
+
     <sect2 xml:id="network-protocols">
       <title>Network Protocols</title>
 
@@ -520,7 +567,7 @@
   <sect1 xml:id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para>This section convers changes that are specific to the
+    <para>This section covers changes that are specific to the
       &os;&nbsp;Release Engineering processes.</para>
 
     <sect2 xml:id="releng-changes">
