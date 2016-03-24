@@ -70,6 +70,7 @@ typedef uint16_t hv_vmbus_status;
  *    You did not supply enough message buffers to send a message.
  */
 
+#define HV_STATUS_SUCCESS                ((uint16_t)0)
 #define HV_STATUS_INSUFFICIENT_BUFFERS   ((uint16_t)0x0013)
 
 typedef void (*hv_vmbus_channel_callback)(void *context);
