@@ -80,8 +80,6 @@ FBSDprivate_1.0 {
 	signalcontext;
 	__signalcontext;
 	__siglongjmp;
-	.curbrk;
-	.minbrk;
 	__sys_brk;
 	_brk;
 	.cerror;

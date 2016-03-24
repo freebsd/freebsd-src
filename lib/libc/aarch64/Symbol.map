@@ -36,7 +36,5 @@ FBSD_1.0 {
 FBSDprivate_1.0 {
 	_set_tp;
 	_end;
-	curbrk;
-	minbrk;
 	__makecontext;
 };
