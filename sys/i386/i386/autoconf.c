@@ -101,13 +101,6 @@ configure(dummy)
 	void *dummy;
 {
 
-	/*
-	 * Enable interrupts on the processor.  The interrupts are still
-	 * disabled in the interrupt controllers until interrupt handlers
-	 * are registered.
-	 */
-	enable_intr();
-
 	/* initialize new bus architecture */
 	root_bus_configure();
 

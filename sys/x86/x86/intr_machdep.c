@@ -393,6 +393,21 @@ intr_init(void *dummy __unused)
 }
 SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
 
+static void
+intr_init_final(void *dummy __unused)
+{
+
+	/*
+	 * Enable interrupts on the BSP after all of the interrupt
+	 * controllers are initialized.  Device interrupts are still
+	 * disabled in the interrupt controllers until interrupt
+	 * handlers are registered.  Interrupts are enabled on each AP
+	 * after their first context switch.
+	 */
+	enable_intr();
+}
+SYSINIT(intr_init_final, SI_SUB_INTR, SI_ORDER_ANY, intr_init_final, NULL);
+
 #ifndef DEV_ATPIC
 /* Initialize the two 8259A's to a known-good shutdown state. */
 void
