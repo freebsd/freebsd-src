@@ -2854,7 +2854,8 @@ zvol_create_snapshots(objset_t *os, const char *name)
 			break;
 		}
 
-		if ((error = zvol_create_minor(sname)) != 0) {
+		error = zvol_create_minor(sname);
+		if (error != 0 && error != EEXIST) {
 			printf("ZFS WARNING: Unable to create ZVOL %s (error=%d).\n",
 			    sname, error);
 			break;
