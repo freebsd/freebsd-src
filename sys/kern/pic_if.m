@@ -60,6 +60,13 @@ CODE {
 	{
 		return;
 	}
+
+	static int
+	dflt_pic_ipi_setup(device_t dev, u_int ipi, struct intr_irqsrc *isrc)
+	{
+
+		return (EOPNOTSUPP);
+	}
 };
 
 METHOD int register {
@@ -122,3 +129,9 @@ METHOD void ipi_send {
 	struct intr_irqsrc	*isrc;
 	cpuset_t		cpus;
 } DEFAULT null_pic_ipi_send;
+
+METHOD int ipi_setup {
+	device_t		dev;
+	u_int			ipi;
+	struct intr_irqsrc	*isrc;
+} DEFAULT dflt_pic_ipi_setup;
