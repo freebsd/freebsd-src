@@ -546,7 +546,18 @@ again:
 	/* adjust pointer */
 	ip6 = mtod(m, struct ip6_hdr *);
 
-	if (ro->ro_rt && fwd_tag == NULL) {
+	/*
+	 * Validate route against routing table additions;
+	 * a better/more specific route might have been added.
+	 * Make sure address family is set in route.
+	 */
+	if (inp) {
+		ro->ro_dst.sin6_family = AF_INET6;
+		RT_VALIDATE((struct route *)ro, &inp->inp_rt_cookie, fibnum);
+	}
+	if (ro->ro_rt && fwd_tag == NULL && (ro->ro_rt->rt_flags & RTF_UP) &&
+	    ro->ro_dst.sin6_family == AF_INET6 &&
+	    IN6_ARE_ADDR_EQUAL(&ro->ro_dst.sin6_addr, &ip6->ip6_dst)) {
 		rt = ro->ro_rt;
 		ifp = ro->ro_rt->rt_ifp;
 	} else {
@@ -939,7 +950,8 @@ passout:
 			    m->m_pkthdr.len);
 			ifa_free(&ia6->ia_ifa);
 		}
-		error = nd6_output_ifp(ifp, origifp, m, dst, NULL);
+		error = nd6_output_ifp(ifp, origifp, m, dst,
+		    (struct route *)ro);
 		goto done;
 	}
 
@@ -1038,7 +1050,8 @@ sendorfree:
 				counter_u64_add(ia->ia_ifa.ifa_obytes,
 				    m->m_pkthdr.len);
 			}
-			error = nd6_output_ifp(ifp, origifp, m, dst, NULL);
+			error = nd6_output_ifp(ifp, origifp, m, dst,
+			    (struct route *)ro);
 		} else
 			m_freem(m);
 	}

@@ -1632,6 +1632,10 @@ tcp_notify(struct inpcb *inp, int error)
 	if (tp->t_state == TCPS_ESTABLISHED &&
 	    (error == EHOSTUNREACH || error == ENETUNREACH ||
 	     error == EHOSTDOWN)) {
+		if (inp->inp_route.ro_rt) {
+			RTFREE(inp->inp_route.ro_rt);
+			inp->inp_route.ro_rt = (struct rtentry *)NULL;
+		}
 		return (inp);
 	} else if (tp->t_state < TCPS_ESTABLISHED && tp->t_rxtshift > 3 &&
 	    tp->t_softerror) {
@@ -1926,11 +1930,11 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	else if (V_icmp_may_rst && (cmd == PRC_UNREACH_ADMIN_PROHIB ||
 		cmd == PRC_UNREACH_PORT || cmd == PRC_TIMXCEED_INTRANS) && ip)
 		notify = tcp_drop_syn_sent;
-	/*
-	 * Redirects don't need to be handled up here.
-	 */
-	else if (PRC_IS_REDIRECT(cmd))
+	else if (PRC_IS_REDIRECT(cmd)) {
+		/* signal EHOSTDOWN, as it flushes the cached route */
+		in_pcbnotifyall(&tcbinfo, faddr, EHOSTDOWN, notify);
 		return;
+	}
 	/*
 	 * Hostdead is ugly because it goes linearly through all PCBs.
 	 * XXX: We never get this from ICMP, otherwise it makes an
