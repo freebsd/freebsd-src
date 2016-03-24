@@ -193,13 +193,23 @@
 	to include a new flag, <literal>-s</literal>, which creates
 	a symbolic link to the specified source.</para>
 
-      <para revision="285929">A bug in &man.ctladm.8; utility which could
-	return a non-zero value even if it succeeds has been fixed.</para>
+      <para revision="285929">A bug in the &man.ctladm.8; utility
+	which could return a non-zero value even if it succeeds has
+	been fixed.</para>
+
+      <para revision="288185">A bug in the &man.grdc.6; program which
+	caused a wrong display in the 12-hour mode has been
+	fixed.</para>
 
       <para revision="286810" contrib="sponsor"
 	sponsor="&yandex;">The &man.ifconfig.8; utility now reports
 	SFP/SFP+ data when a <option>-v</option> flag is specified and
 	the NIC driver provides them.</para>
+
+      <para revision="288048">Bugs in the &man.inetd.8; daemon which
+	could cause a crash when an RPC entry is defined and an IPv6
+	address is specified in <varname>-a</varname> flag have been
+	fixed.</para>
 
       <para revision="286064">The &man.jail.8; utility has been
 	updated to include a new flag, <literal>-l</literal>, which
@@ -226,6 +236,10 @@
       <para revision="287122">A bug in the &man.mkimg.1; utility
 	which prevented dynamic VHD format from working with QEMU
 	has been fixed.</para>
+
+      <para revision="287593">A bug in the &man.netstat.1; utility
+	which showed the statistics in the number of packets divided
+	by 1024, not 1000 has been fixed.</para>
 
       <para revision="287746">The &man.pciconf.8; utility has been
 	updated to use the PCI ID database from the <filename
@@ -332,8 +346,8 @@
       <title><filename class="directory">/etc/rc.d</filename>
 	Scripts</title>
 
-      <para revision="294680">The <literal>netwait</literal>
-	&man.rc.8; script has been updated to wait for network
+      <para revision="294680">The <filename>rc.d/netwait</filename>
+	script has been updated to wait for network
 	interfaces that attach late in the boot process, such as some
 	<acronym>USB</acronym> network cards.</para>
 
@@ -341,6 +355,10 @@
 	<literal>firewall_type="SIMPLE"</literal> now uses
 	&man.ipfw.4; <command>tables</command> for addresses to be
 	blocked.</para>
+
+      <para revision="287737">The <filename>rc.d/netif</filename>
+	script now updates only static routes when an interface
+	is specified.</para>
     </sect2>
 
     <sect2 xml:id="userland-periodic">
@@ -375,6 +393,11 @@
       <varname>debug.kdb.alt_break_to_debugger</varname> sysctl
       variable when kernel debugger support (<option>options
       KDB</option>) is enabled.</para>
+
+    <para revision="287782">The &man.vt.4; terminal console driver now
+      supports <varname>kern.vt.bell_enable</varname> sysctl variable
+      to enable or disable terminal bell.  The default is
+      <literal>1</literal> (enabled).</para>
 
     <para revision="286843">A <function>thread_create()</function>
       function has been added as an API to create userspace thread in
@@ -425,6 +448,11 @@
       <para revision="287079" arch="arm">The <literal>imxwdt</literal>
 	driver, which supports Freescale i.MX watchdog, has been
 	fixed.</para>
+
+      <para revision="287926">The &man.puc.4; driver now supports MSI
+	interrupts and prefers it to the legacy interrupts.  This
+	behavior can be disabled by setting
+	<varname>hw.puc.msi_disable</varname> loader tunable.</para>
 
       <para revision="287037">A bug in the &man.uart.4; driver which
 	could cause a polarity reversal of PPS (Pulse Per Second)
@@ -591,6 +619,26 @@
     <para>This section describes changes that affect networking in
       &os;.</para>
 
+    <para revision="287594,287723">The &man.epair.4; virtual
+      Ethernet interface and the &man.lagg.4; pseudo interface now
+      support <filename>VIMAGE</filename> kernel.</para>
+
+    <para revision="287594">A bug in the &man.epair.4; virtual
+      Ethernet interface which could cause a panic when running
+      &man.ifconfig.8; <command>create</command> and
+      <command>destory</command> quickly has been fixed.</para>
+
+    <para revision="287723">&man.sysctl.3; variables in the
+      &man.lagg.4; pseudo interface
+      <varname>net.link.lagg.<replaceable>N</replaceable>.<replaceable>*</replaceable></varname>
+      have been removed in favor of per-interface &man.ifconfig.8;
+      flags and options.  <command>ifconfig -v</command>
+      command shows them.</para>
+
+    <para revision="287723">Bugs in the
+      &man.lagg.4; pseudo interface which could cause a system
+      panic have been fixed.</para>
+
     <para revision="286125" contrib="sponsor"
       sponsor="&netgate;">A bug in &man.pf.4; packet filter which
       could cause a rule with no <literal>log</literal> parameter to
@@ -600,6 +648,11 @@
       invoke an <literal>LLENTRY_DELETED</literal> event when an L2
       address was deleted from the link-level address table for
       IPv6.</para>
+
+    <para revision="287733">Obsolete APIs,
+      <literal>SIOCGDRLST_IN6</literal> and
+      <literal>SIOCGPRLST_IN6</literal> in &os; IPv6 stack have been
+      removed.</para>
 
     <sect2 xml:id="network-protocols">
       <title>Network Protocols</title>
