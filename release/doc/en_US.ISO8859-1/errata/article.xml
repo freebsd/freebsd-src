@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
-  "http://www.FreeBSD.org/XML/share/xml/freebsd50.dtd" [
+	"http://www.FreeBSD.org/XML/share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN"
-  "http://www.FreeBSD.org/release/XML/release.ent">
+	"http://www.FreeBSD.org/release/XML/share/xml/release.ent">
 %release;
-<!ENTITY security SYSTEM "../../share/xml/security.xml">
-<!ENTITY errata SYSTEM "../../share/xml/errata.xml">
+<!ENTITY security PUBLIC "-//FreeBSD//ENTITIES Security Advisory List//EN"
+	 "http://www.FreeBSD.org/release/XML/share/xml/security.xml">
+<!ENTITY errata PUBLIC "-//FreeBSD//ENTITIES Errata List//EN"
+	 "http://www.FreeBSD.org/release/XML/share/xml/errata.xml">
 ]>
 
 <article xmlns="http://docbook.org/ns/docbook"
@@ -13,7 +15,7 @@
   xml:id="top">
 
   <info>
-    <title>&os; &release.prev; Errata </title>
+    <title>&os; &release.prev; Errata</title>
 
     <author><orgname>The &os; Project</orgname></author>
 
