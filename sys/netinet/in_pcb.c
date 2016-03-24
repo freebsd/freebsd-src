@@ -1298,6 +1298,11 @@ in_pcbfree(struct inpcb *inp)
 	if (inp->inp_moptions != NULL)
 		inp_freemoptions(inp->inp_moptions);
 #endif
+	if (inp->inp_route.ro_rt) {
+		RTFREE(inp->inp_route.ro_rt);
+		inp->inp_route.ro_rt = (struct rtentry *)NULL;
+	}
+
 	inp->inp_vflag = 0;
 	inp->inp_flags2 |= INP_FREED;
 	crfree(inp->inp_cred);
@@ -2222,6 +2227,23 @@ in_pcbremlists(struct inpcb *inp)
 #ifdef PCBGROUP
 	in_pcbgroup_remove(inp);
 #endif
+}
+
+/*
+ * Check for alternatives when higher level complains
+ * about service problems.  For now, invalidate cached
+ * routing information.  If the route was created dynamically
+ * (by a redirect), time to try a default gateway again.
+ */
+void
+in_losing(struct inpcb *inp)
+{
+
+	if (inp->inp_route.ro_rt) {
+		RTFREE(inp->inp_route.ro_rt);
+		inp->inp_route.ro_rt = (struct rtentry *)NULL;
+	}
+	return;
 }
 
 /*
