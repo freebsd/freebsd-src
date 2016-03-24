@@ -13,8 +13,8 @@
 ;           on server           FTP.INTERNIC.NET
 ;       -OR-                    RS.INTERNIC.NET
 ;
-;       last update:    December 01, 2015
-;       related version of root zone:   2015120100
+;       last update:    March 23, 2016
+;       related version of root zone:   2016032301
 ;
 ; formerly NS.INTERNIC.NET
 ;
@@ -84,7 +84,7 @@ K.ROOT-SERVERS.NET.      3600000      AAAA  2001:7FD::1
 ;
 .                        3600000      NS    L.ROOT-SERVERS.NET.
 L.ROOT-SERVERS.NET.      3600000      A     199.7.83.42
-L.ROOT-SERVERS.NET.      3600000      AAAA  2001:500:3::42
+L.ROOT-SERVERS.NET.      3600000      AAAA  2001:500:9F::42
 ;
 ; OPERATED BY WIDE
 ;
