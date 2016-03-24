@@ -747,7 +747,7 @@ m_cljget(struct mbuf *m, int how, int size)
 {
 	uma_zone_t zone;
 	void *retval;
-	
+
 	if (m != NULL) {
 		KASSERT((m->m_flags & M_EXT) == 0, ("%s: mbuf %p has M_EXT",
 		    __func__, m));
@@ -939,8 +939,8 @@ m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
 void
 m_freem(struct mbuf *mb)
 {
-	MBUF_PROBE1(m__freem, mb);
 
+	MBUF_PROBE1(m__freem, mb);
 	while (mb != NULL)
 		mb = m_free(mb);
 }
