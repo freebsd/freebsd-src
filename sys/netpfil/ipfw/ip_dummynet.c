@@ -74,6 +74,7 @@ struct schk_new_arg {
 
 /*---- callout hooks. ----*/
 static struct callout dn_timeout;
+static int dn_gone;
 static struct task	dn_task;
 static struct taskqueue	*dn_tq = NULL;
 
@@ -89,6 +90,8 @@ void
 dn_reschedule(void)
 {
 
+	if (dn_gone != 0)
+		return;
 	callout_reset_sbt(&dn_timeout, tick_sbt, 0, dummynet, NULL,
 	    C_HARDCLOCK | C_DIRECT_EXEC);
 }
@@ -2175,9 +2178,11 @@ ip_dn_init(void)
 static void
 ip_dn_destroy(int last)
 {
-	callout_drain(&dn_timeout);
-
 	DN_BH_WLOCK();
+	/* ensure no more callouts are started */
+	dn_gone = 1;
+
+	/* check for last */
 	if (last) {
 		ND("removing last instance\n");
 		ip_dn_ctl_ptr = NULL;
@@ -2186,6 +2191,8 @@ ip_dn_destroy(int last)
 
 	dummynet_flush();
 	DN_BH_WUNLOCK();
+
+	callout_drain(&dn_timeout);
 	taskqueue_drain(dn_tq, &dn_task);
 	taskqueue_free(dn_tq);
 

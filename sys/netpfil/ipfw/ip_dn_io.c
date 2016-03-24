@@ -619,8 +619,8 @@ dummynet_task(void *context, int pending)
 		dn_drain_queue();
 	}
 
-	DN_BH_WUNLOCK();
 	dn_reschedule();
+	DN_BH_WUNLOCK();
 	if (q.head != NULL)
 		dummynet_send(q.head);
 	CURVNET_RESTORE();
