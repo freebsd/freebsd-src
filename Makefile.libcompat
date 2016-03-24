@@ -125,9 +125,6 @@ build${libcompat}: .PHONY
 	${_+_}cd ${.CURDIR}/${_dir}; ${LIBCOMPATWMAKE} DIRPRFX=${_dir}/ ${_t}
 .endfor
 .endfor
-.for _dir in usr.bin/lex/lib
-	${_+_}cd ${.CURDIR}/${_dir}; ${LIBCOMPATWMAKE} DIRPRFX=${_dir}/ obj
-.endfor
 .for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic
 	${_+_}cd ${.CURDIR}/${_dir}; \
 	    WORLDTMP=${WORLDTMP} \
