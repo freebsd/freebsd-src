@@ -1451,3 +1451,11 @@ cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp)
 
 	return (0);
 }
+
+int
+cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
+{
+
+	return (kern_mmap(td, (vm_offset_t)uap->addr, uap->len, uap->prot,
+	    uap->flags, uap->fd, uap->pos));
+}

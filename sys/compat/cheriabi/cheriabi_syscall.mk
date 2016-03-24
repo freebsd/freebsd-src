@@ -305,7 +305,7 @@ MIASM =  \
 	cheriabi_sctp_generic_recvmsg.o \
 	pread.o \
 	pwrite.o \
-	mmap.o \
+	cheriabi_mmap.o \
 	lseek.o \
 	truncate.o \
 	ftruncate.o \

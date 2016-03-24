@@ -805,7 +805,7 @@ struct {
 	[CHERIABI_SYS_pwrite] = {
 		.sam_ptrmask = 0x2
 	},
-	[CHERIABI_SYS_mmap] = {
+	[CHERIABI_SYS_cheriabi_mmap] = {
 		.sam_return_ptr = 1,
 		.sam_ptrmask = 0x1
 	},

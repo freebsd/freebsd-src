@@ -256,6 +256,14 @@ struct cheriabi_sctp_generic_recvmsg_args {
 	char sinfo_l_[PADL_(struct sctp_sndrcvinfo *)]; struct sctp_sndrcvinfo * sinfo; char sinfo_r_[PADR_(struct sctp_sndrcvinfo *)];
 	char msg_flags_l_[PADL_(int *)]; int * msg_flags; char msg_flags_r_[PADR_(int *)];
 };
+struct cheriabi_mmap_args {
+	char addr_l_[PADL_(caddr_t)]; caddr_t addr; char addr_r_[PADR_(caddr_t)];
+	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
+	char prot_l_[PADL_(int)]; int prot; char prot_r_[PADR_(int)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char pos_l_[PADL_(off_t)]; off_t pos; char pos_r_[PADR_(off_t)];
+};
 struct cheriabi_fexecve_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char argv_l_[PADL_(struct chericap *)]; struct chericap * argv; char argv_r_[PADR_(struct chericap *)];
@@ -343,6 +351,7 @@ int	cheriabi_kmq_notify(struct thread *, struct cheriabi_kmq_notify_args *);
 int	cheriabi_aio_fsync(struct thread *, struct cheriabi_aio_fsync_args *);
 int	cheriabi_sctp_generic_sendmsg_iov(struct thread *, struct cheriabi_sctp_generic_sendmsg_iov_args *);
 int	cheriabi_sctp_generic_recvmsg(struct thread *, struct cheriabi_sctp_generic_recvmsg_args *);
+int	cheriabi_mmap(struct thread *, struct cheriabi_mmap_args *);
 int	cheriabi_fexecve(struct thread *, struct cheriabi_fexecve_args *);
 int	cheriabi_jail_get(struct thread *, struct cheriabi_jail_get_args *);
 int	cheriabi_jail_set(struct thread *, struct cheriabi_jail_set_args *);
@@ -433,6 +442,7 @@ int	cheriabi_aio_mlock(struct thread *, struct cheriabi_aio_mlock_args *);
 #define	CHERIABI_SYS_AUE_cheriabi_aio_fsync	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_sctp_generic_sendmsg_iov	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_sctp_generic_recvmsg	AUE_NULL
+#define	CHERIABI_SYS_AUE_cheriabi_mmap	AUE_MMAP
 #define	CHERIABI_SYS_AUE_cheriabi_fexecve	AUE_FEXECVE
 #define	CHERIABI_SYS_AUE_cheriabi_jail_get	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_jail_set	AUE_NULL

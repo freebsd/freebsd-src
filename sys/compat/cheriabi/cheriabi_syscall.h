@@ -399,7 +399,7 @@
 #define	CHERIABI_SYS_cheriabi_sctp_generic_recvmsg	474
 #define	CHERIABI_SYS_pread	475
 #define	CHERIABI_SYS_pwrite	476
-#define	CHERIABI_SYS_mmap	477
+#define	CHERIABI_SYS_cheriabi_mmap	477
 #define	CHERIABI_SYS_lseek	478
 #define	CHERIABI_SYS_truncate	479
 #define	CHERIABI_SYS_ftruncate	480

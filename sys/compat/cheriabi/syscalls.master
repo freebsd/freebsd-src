@@ -816,9 +816,9 @@
 476	AUE_PWRITE	NOPROTO	{ ssize_t pwrite(int fd, \
 				    const void *buf, size_t nbyte, \
 				    off_t offset); }
-477	AUE_MMAP	NOPROTO { caddr_t mmap(caddr_t addr, \
+477	AUE_MMAP	STD { caddr_t cheriabi_mmap(caddr_t addr, \
 				    size_t len, int prot, int flags, int fd, \
-				    int pad, off_t pos); }
+				    off_t pos); }
 478	AUE_LSEEK	NOPROTO	{ off_t lseek(int fd, off_t offset, \
 				    int whence); }
 479	AUE_TRUNCATE	NOPROTO	{ int truncate(char *path, off_t length); }

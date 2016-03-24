@@ -2543,17 +2543,16 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
-	/* mmap */
+	/* cheriabi_mmap */
 	case 477: {
-		struct mmap_args *p = params;
+		struct cheriabi_mmap_args *p = params;
 		uarg[0] = (intptr_t) p->addr; /* caddr_t */
 		uarg[1] = p->len; /* size_t */
 		iarg[2] = p->prot; /* int */
 		iarg[3] = p->flags; /* int */
 		iarg[4] = p->fd; /* int */
-		iarg[5] = p->pad; /* int */
-		iarg[6] = p->pos; /* off_t */
-		*n_args = 7;
+		iarg[5] = p->pos; /* off_t */
+		*n_args = 6;
 		break;
 	}
 	/* lseek */
@@ -7326,7 +7325,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* mmap */
+	/* cheriabi_mmap */
 	case 477:
 		switch(ndx) {
 		case 0:
@@ -7345,9 +7344,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 5:
-			p = "int";
-			break;
-		case 6:
 			p = "off_t";
 			break;
 		default:
@@ -9963,7 +9959,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "ssize_t";
 		break;
-	/* mmap */
+	/* cheriabi_mmap */
 	case 477:
 		if (ndx == 0 || ndx == 1)
 			p = "caddr_t";

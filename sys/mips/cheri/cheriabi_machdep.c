@@ -339,7 +339,7 @@ cheriabi_set_syscall_retval(struct thread *td, int error)
 			break;
 
 		switch (code) {
-		case CHERIABI_SYS_mmap:
+		case CHERIABI_SYS_cheriabi_mmap:
 			/*
 			 * Assuming no one has stomped on it, a0 is the length
 			 * requested.
