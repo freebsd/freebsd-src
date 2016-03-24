@@ -121,6 +121,11 @@ __FBSDID("$FreeBSD$");
 static u_int gic_irq_cpu;
 static int arm_gic_intr(void *);
 static int arm_gic_bind(device_t dev, struct intr_irqsrc *isrc);
+
+#ifdef SMP
+u_int sgi_to_ipi[GIC_LAST_SGI - GIC_FIRST_SGI + 1];
+#define	ISRC_IPI(isrc)	sgi_to_ipi[isrc->isrc_data - GIC_FIRST_SGI]
+#endif
 #endif
 
 struct arm_gic_softc {
@@ -562,7 +567,7 @@ dispatch_irq:
 #ifdef SMP
 		/* Call EOI for all IPI before dispatch. */
 		gic_c_write_4(sc, GICC_EOIR, irq_active_reg);
-		intr_ipi_dispatch(isrc, tf);
+		intr_ipi_dispatch(ISRC_IPI(isrc), tf);
 		goto next_irq;
 #else
 		device_printf(sc->gic_dev, "SGI %u on UP system detected\n",
@@ -918,6 +923,20 @@ arm_gic_ipi_send(device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus)
 
 	gic_d_write_4(sc, GICD_SGIR(0), val | irq);
 }
+
+static int
+arm_gic_ipi_setup(device_t dev, u_int ipi, struct intr_irqsrc *isrc)
+{
+	struct arm_gic_softc *sc = device_get_softc(dev);
+	u_int irq;
+	int error;
+
+	error = gic_map_nspc(sc, isrc, &irq);
+	if (error != 0)
+		return (error);
+	sgi_to_ipi[irq - GIC_FIRST_SGI] = ipi;
+	return (0);
+}
 #endif
 #else
 static int
@@ -1146,6 +1165,7 @@ static device_method_t arm_gic_methods[] = {
 	DEVMETHOD(pic_bind,		arm_gic_bind),
 	DEVMETHOD(pic_init_secondary,	arm_gic_init_secondary),
 	DEVMETHOD(pic_ipi_send,		arm_gic_ipi_send),
+	DEVMETHOD(pic_ipi_setup,	arm_gic_ipi_setup),
 #endif
 #endif
 	{ 0, 0 }
