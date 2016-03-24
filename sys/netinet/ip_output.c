@@ -282,17 +282,36 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	gw = dst = (struct sockaddr_in *)&ro->ro_dst;
 	fibnum = (inp != NULL) ? inp->inp_inc.inc_fibnum : M_GETFIB(m);
 	rte = ro->ro_rt;
-	/*
-	 * The address family should also be checked in case of sharing
-	 * the cache with IPv6.
-	 */
-	if (rte == NULL || dst->sin_family != AF_INET) {
+	if (rte == NULL) {
 		bzero(dst, sizeof(*dst));
 		dst->sin_family = AF_INET;
 		dst->sin_len = sizeof(*dst);
 		dst->sin_addr = ip->ip_dst;
 	}
 again:
+	/*
+	 * Validate route against routing table additions;
+	 * a better/more specific route might have been added.
+	 */
+	if (inp)
+		RT_VALIDATE(ro, &inp->inp_rt_cookie, fibnum);
+	/*
+	 * If there is a cached route,
+	 * check that it is to the same destination
+	 * and is still up.  If not, free it and try again.
+	 * The address family should also be checked in case of sharing the
+	 * cache with IPv6.
+	 * Also check whether routing cache needs invalidation.
+	 */
+	rte = ro->ro_rt;
+	if (rte && ((rte->rt_flags & RTF_UP) == 0 ||
+		    rte->rt_ifp == NULL ||
+		    !RT_LINK_IS_UP(rte->rt_ifp) ||
+			  dst->sin_family != AF_INET ||
+			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
+		RTFREE(rte);
+		rte = ro->ro_rt = (struct rtentry *)NULL;
+	}
 	ia = NULL;
 	have_ia_ref = 0;
 	/*
