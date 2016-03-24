@@ -49,48 +49,46 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/sdt.h>
 
-SDT_PROVIDER_DEFINE(mbuf);
-
-SDT_PROBE_DEFINE5_XLATE(mbuf, , , m__init,
+SDT_PROBE_DEFINE5_XLATE(sdt, , , m__init,
     "struct mbuf *", "mbufinfo_t *",
     "uint32_t", "uint32_t",
     "uint16_t", "uint16_t",
     "uint32_t", "uint32_t",
     "uint32_t", "uint32_t");
 
-SDT_PROBE_DEFINE3_XLATE(mbuf, , , m__gethdr,
+SDT_PROBE_DEFINE3_XLATE(sdt, , , m__gethdr,
     "uint32_t", "uint32_t",
     "uint16_t", "uint16_t",
     "struct mbuf *", "mbufinfo_t *");
 
-SDT_PROBE_DEFINE3_XLATE(mbuf, , , m__get,
+SDT_PROBE_DEFINE3_XLATE(sdt, , , m__get,
     "uint32_t", "uint32_t",
     "uint16_t", "uint16_t",
     "struct mbuf *", "mbufinfo_t *");
 
-SDT_PROBE_DEFINE4_XLATE(mbuf, , , m__getcl,
+SDT_PROBE_DEFINE4_XLATE(sdt, , , m__getcl,
     "uint32_t", "uint32_t",
     "uint16_t", "uint16_t",
     "uint32_t", "uint32_t",
     "struct mbuf *", "mbufinfo_t *");
 
-SDT_PROBE_DEFINE3_XLATE(mbuf, , , m__clget,
+SDT_PROBE_DEFINE3_XLATE(sdt, , , m__clget,
     "struct mbuf *", "mbufinfo_t *",
     "uint32_t", "uint32_t",
     "uint32_t", "uint32_t");
 
-SDT_PROBE_DEFINE4_XLATE(mbuf, , , m__cljget,
+SDT_PROBE_DEFINE4_XLATE(sdt, , , m__cljget,
     "struct mbuf *", "mbufinfo_t *",
     "uint32_t", "uint32_t",
     "uint32_t", "uint32_t",
     "void*", "void*");
 
-SDT_PROBE_DEFINE(mbuf, , , m__cljset);
+SDT_PROBE_DEFINE(sdt, , , m__cljset);
 
-SDT_PROBE_DEFINE1_XLATE(mbuf, , , m__free,
+SDT_PROBE_DEFINE1_XLATE(sdt, , , m__free,
         "struct mbuf *", "mbufinfo_t *");
 
-SDT_PROBE_DEFINE1_XLATE(mbuf, , , m__freem,
+SDT_PROBE_DEFINE1_XLATE(sdt, , , m__freem,
     "struct mbuf *", "mbufinfo_t *");
 
 #include <security/mac/mac_framework.h>
