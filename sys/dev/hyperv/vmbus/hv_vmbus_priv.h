@@ -205,6 +205,7 @@ typedef struct {
 	 * event and msg handling.
 	 */
 	struct taskqueue		*hv_event_queue[MAXCPU];
+	struct taskqueue		*hv_msg_tq[MAXCPU];
 	struct task			hv_msg_task[MAXCPU];
 	/*
 	 * Host use this vector to intrrupt guest for vmbus channel
