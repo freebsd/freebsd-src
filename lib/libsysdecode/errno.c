@@ -56,7 +56,7 @@ static int bsd_to_linux_errno[ELAST + 1] = {
 #endif
 
 #if defined(__aarch64__) || defined(__amd64__)
-#include <compat/cloudabi/cloudabi_syscalldefs.h>
+#include <contrib/cloudabi/cloudabi_types_common.h>
 
 static const int cloudabi_errno_table[] = {
 	[CLOUDABI_E2BIG]		= E2BIG,

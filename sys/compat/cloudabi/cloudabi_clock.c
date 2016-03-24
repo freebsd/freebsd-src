@@ -31,8 +31,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/stdint.h>
 #include <sys/syscallsubr.h>
 
+#include <contrib/cloudabi/cloudabi_types_common.h>
+
 #include <compat/cloudabi/cloudabi_proto.h>
-#include <compat/cloudabi/cloudabi_syscalldefs.h>
 #include <compat/cloudabi/cloudabi_util.h>
 
 /* Converts a CloudABI clock ID to a FreeBSD clock ID. */
