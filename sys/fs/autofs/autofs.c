@@ -77,6 +77,7 @@
 #include <sys/sysctl.h>
 #include <sys/syscallsubr.h>
 #include <sys/taskqueue.h>
+#include <sys/tree.h>
 #include <sys/vnode.h>
 #include <machine/atomic.h>
 #include <vm/uma.h>
@@ -148,6 +149,15 @@ int autofs_interruptible = 1;
 TUNABLE_INT("vfs.autofs.interruptible", &autofs_interruptible);
 SYSCTL_INT(_vfs_autofs, OID_AUTO, interruptible, CTLFLAG_RWTUN,
     &autofs_interruptible, 1, "Allow requests to be interrupted by signal");
+
+static int
+autofs_node_cmp(const struct autofs_node *a, const struct autofs_node *b)
+{
+
+	return (strcmp(a->an_name, b->an_name));
+}
+
+RB_GENERATE(autofs_node_tree, autofs_node, an_link, autofs_node_cmp);
 
 int
 autofs_init(struct vfsconf *vfsp)
