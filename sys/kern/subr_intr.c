@@ -311,8 +311,8 @@ intr_irq_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 /*
  *  Allocate interrupt source.
  */
-static struct intr_irqsrc *
-isrc_alloc(u_int type, u_int extsize)
+struct intr_irqsrc *
+intr_isrc_alloc(u_int type, u_int extsize)
 {
 	struct intr_irqsrc *isrc;
 
@@ -329,8 +329,8 @@ isrc_alloc(u_int type, u_int extsize)
 /*
  *  Free interrupt source.
  */
-static void
-isrc_free(struct intr_irqsrc *isrc)
+void
+intr_isrc_free(struct intr_irqsrc *isrc)
 {
 
 	free(isrc, M_INTRNG);
@@ -462,20 +462,20 @@ intr_namespace_map_irq(device_t dev, uint16_t type, uint16_t num)
 	struct intr_irqsrc *isrc, *new_isrc;
 	int error;
 
-	new_isrc = isrc_alloc(INTR_ISRCT_NAMESPACE, 0);
+	new_isrc = intr_isrc_alloc(INTR_ISRCT_NAMESPACE, 0);
 
 	mtx_lock(&isrc_table_lock);
 	isrc = isrc_namespace_lookup(dev, type, num);
 	if (isrc != NULL) {
 		mtx_unlock(&isrc_table_lock);
-		isrc_free(new_isrc);
+		intr_isrc_free(new_isrc);
 		return (isrc->isrc_irq);	/* already mapped */
 	}
 
 	error = isrc_alloc_irq_locked(new_isrc);
 	if (error != 0) {
 		mtx_unlock(&isrc_table_lock);
-		isrc_free(new_isrc);
+		intr_isrc_free(new_isrc);
 		return (IRQ_INVALID);		/* no space left */
 	}
 
@@ -526,20 +526,20 @@ intr_fdt_map_irq(phandle_t node, pcell_t *cells, u_int ncells)
 	xref = (intptr_t)node;	/* It's so simple for now. */
 
 	cellsize = ncells * sizeof(*cells);
-	new_isrc = isrc_alloc(INTR_ISRCT_FDT, cellsize);
+	new_isrc = intr_isrc_alloc(INTR_ISRCT_FDT, cellsize);
 
 	mtx_lock(&isrc_table_lock);
 	isrc = isrc_fdt_lookup(xref, cells, ncells);
 	if (isrc != NULL) {
 		mtx_unlock(&isrc_table_lock);
-		isrc_free(new_isrc);
+		intr_isrc_free(new_isrc);
 		return (isrc->isrc_irq);	/* already mapped */
 	}
 
 	error = isrc_alloc_irq_locked(new_isrc);
 	if (error != 0) {
 		mtx_unlock(&isrc_table_lock);
-		isrc_free(new_isrc);
+		intr_isrc_free(new_isrc);
 		return (IRQ_INVALID);		/* no space left */
 	}
 

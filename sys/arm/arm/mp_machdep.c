@@ -429,12 +429,11 @@ release_aps(void *dummy __unused)
 		return;
 
 #ifdef ARM_INTRNG
-	intr_ipi_set_handler(IPI_RENDEZVOUS, "rendezvous", ipi_rendezvous, NULL, 0);
-	intr_ipi_set_handler(IPI_AST, "ast", ipi_ast, NULL, 0);
-	intr_ipi_set_handler(IPI_STOP, "stop", ipi_stop, NULL, 0);
-	intr_ipi_set_handler(IPI_PREEMPT, "preempt", ipi_preempt, NULL, 0);
-	intr_ipi_set_handler(IPI_HARDCLOCK, "hardclock", ipi_hardclock, NULL, 0);
-
+	intr_pic_ipi_setup(IPI_RENDEZVOUS, "rendezvous", ipi_rendezvous, NULL);
+	intr_pic_ipi_setup(IPI_AST, "ast", ipi_ast, NULL);
+	intr_pic_ipi_setup(IPI_STOP, "stop", ipi_stop, NULL);
+	intr_pic_ipi_setup(IPI_PREEMPT, "preempt", ipi_preempt, NULL);
+	intr_pic_ipi_setup(IPI_HARDCLOCK, "hardclock", ipi_hardclock, NULL);
 #else
 #ifdef IPI_IRQ_START
 	start = IPI_IRQ_START;
@@ -502,7 +501,11 @@ ipi_all_but_self(u_int ipi)
 	other_cpus = all_cpus;
 	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
+#ifdef ARM_INTRNG
+	intr_ipi_send(other_cpus, ipi);
+#else
 	pic_ipi_send(other_cpus, ipi);
+#endif
 }
 
 void
@@ -514,7 +517,11 @@ ipi_cpu(int cpu, u_int ipi)
 	CPU_SET(cpu, &cpus);
 
 	CTR3(KTR_SMP, "%s: cpu: %d, ipi: %x", __func__, cpu, ipi);
+#ifdef ARM_INTRNG
+	intr_ipi_send(cpus, ipi);
+#else
 	pic_ipi_send(cpus, ipi);
+#endif
 }
 
 void
@@ -522,6 +529,9 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 {
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
+#ifdef ARM_INTRNG
+	intr_ipi_send(cpus, ipi);
+#else
 	pic_ipi_send(cpus, ipi);
+#endif
 }
-

@@ -50,8 +50,6 @@ typedef int intr_irq_filter_t(void *arg);
 
 #define INTR_ISRC_NAMELEN	(MAXCOMLEN + 1)
 
-typedef void intr_ipi_filter_t(void *arg);
-
 enum intr_isrc_type {
 	INTR_ISRCT_NAMESPACE,
 	INTR_ISRCT_FDT
@@ -81,14 +79,16 @@ struct intr_irqsrc {
 	struct intr_event *	isrc_event;
 #ifdef INTR_SOLO
 	intr_irq_filter_t *	isrc_filter;
-#endif
-	intr_ipi_filter_t *	isrc_ipifilter;
 	void *			isrc_arg;
+#endif
 #ifdef FDT
 	u_int			isrc_ncells;
 	pcell_t			isrc_cells[];	/* leave it last */
 #endif
 };
+
+struct intr_irqsrc *intr_isrc_alloc(u_int type, u_int extsize);
+void intr_isrc_free(struct intr_irqsrc *isrc);
 
 void intr_irq_set_name(struct intr_irqsrc *isrc, const char *fmt, ...)
     __printflike(2, 3);

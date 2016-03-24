@@ -37,8 +37,8 @@ void	ipi_cpu(int cpu, u_int ipi);
 void	ipi_selected(cpuset_t cpus, u_int ipi);
 
 /* PIC interface */
-void	pic_ipi_send(cpuset_t cpus, u_int ipi);
 #ifndef ARM_INTRNG
+void	pic_ipi_send(cpuset_t cpus, u_int ipi);
 void	pic_ipi_clear(int ipi);
 int	pic_ipi_read(int arg);
 #endif
