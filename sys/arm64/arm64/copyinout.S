@@ -52,7 +52,8 @@ END(copyio_fault)
  */
 ENTRY(copyout)
 	cbz	x2, 1f
-	add	x3, x1, x2
+	adds	x3, x1, x2
+	b.cs 	copyio_fault_nopcb
 	ldr	x4, =VM_MAXUSER_ADDRESS
 	cmp	x3, x4
 	b.hi	copyio_fault_nopcb
@@ -71,7 +72,8 @@ END(copyout)
  */
 ENTRY(copyin)
 	cbz	x2, 1f
-	add	x3, x0, x2
+	adds	x3, x0, x2
+	b.cs    copyio_fault_nopcb
 	ldr	x4, =VM_MAXUSER_ADDRESS
 	cmp	x3, x4
 	b.hi	copyio_fault_nopcb
@@ -92,11 +94,11 @@ ENTRY(copyinstr)
 	mov	x5, xzr		/* count = 0 */
 	mov	w4, #1		/* If zero return faulure */
 	cbz	x2, 3f		/* If len == 0 then skip loop */
-	ldr	x7, =VM_MAXUSER_ADDRESS
 
 	adr	x6, copyio_fault /* Get the handler address */
 	SET_FAULT_HANDLER(x6, x7) /* Set the handler */
 
+	ldr	x7, =VM_MAXUSER_ADDRESS
 1:	cmp	x0, x7
 	b.cs	copyio_fault
 	ldrb	w4, [x0], #1	/* Load from uaddr */
