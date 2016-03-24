@@ -204,7 +204,8 @@ hv_vmbus_isr(struct trapframe *frame)
 
 	msg = (hv_vmbus_message*) page_addr + HV_VMBUS_MESSAGE_SINT;
 	if (msg->header.message_type != HV_MESSAGE_TYPE_NONE) {
-		taskqueue_enqueue(taskqueue_fast, &hv_vmbus_g_context.hv_msg_task[cpu]);
+		taskqueue_enqueue(hv_vmbus_g_context.hv_msg_tq[cpu],
+		    &hv_vmbus_g_context.hv_msg_task[cpu]);
 	}
 
 	return (FILTER_HANDLED);
@@ -531,9 +532,17 @@ vmbus_bus_init(void)
 			"hvevent%d", j);
 
 		/*
-		 * Setup tasks to handle msg
+		 * Setup per-cpu tasks and taskqueues to handle msg.
 		 */
-		TASK_INIT(&hv_vmbus_g_context.hv_msg_task[j], 0, vmbus_msg_swintr, (void *)(long)j);
+		hv_vmbus_g_context.hv_msg_tq[j] = taskqueue_create_fast(
+		    "hyperv msg", M_WAITOK, taskqueue_thread_enqueue,
+		    &hv_vmbus_g_context.hv_msg_tq[j]);
+		CPU_SETOF(j, &cpu_mask);
+		taskqueue_start_threads_cpuset(&hv_vmbus_g_context.hv_msg_tq[j],
+		    1, PI_NET, &cpu_mask, "hvmsg%d", j);
+		TASK_INIT(&hv_vmbus_g_context.hv_msg_task[j], 0,
+		    vmbus_msg_swintr, (void *)(long)j);
+
 		/*
 		 * Prepare the per cpu msg and event pages to be called on each cpu.
 		 */
