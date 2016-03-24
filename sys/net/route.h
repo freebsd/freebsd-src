@@ -437,7 +437,7 @@ int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
 void 	 rt_maskedcopy(struct sockaddr *, struct sockaddr *, struct sockaddr *);
 struct rib_head *rt_table_init(int);
 void	rt_table_destroy(struct rib_head *);
-rt_gen_t rt_tables_get_gen(int table, int fam);
+u_int	rt_tables_get_gen(int table, int fam);
 
 int	rtsock_addrmsg(int, struct ifaddr *, int);
 int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);

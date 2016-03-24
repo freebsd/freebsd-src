@@ -1932,7 +1932,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		notify = tcp_drop_syn_sent;
 	else if (PRC_IS_REDIRECT(cmd)) {
 		/* signal EHOSTDOWN, as it flushes the cached route */
-		in_pcbnotifyall(&tcbinfo, faddr, EHOSTDOWN, notify);
+		in_pcbnotifyall(&V_tcbinfo, faddr, EHOSTDOWN, notify);
 		return;
 	}
 	/*

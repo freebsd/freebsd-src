@@ -201,7 +201,7 @@ rt_tables_get_rnh(int table, int fam)
 	return (*rt_tables_get_rnh_ptr(table, fam));
 }
 
-rt_gen_t
+u_int
 rt_tables_get_gen(int table, int fam)
 {
 	struct rib_head *rnh;
