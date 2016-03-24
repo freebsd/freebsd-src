@@ -199,6 +199,7 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_size_t size, int prot,
 {
 	struct file *fp;
 	vm_size_t pageoff;
+	vm_offset_t addr_mask = PAGE_MASK;
 	vm_prot_t cap_maxprot;
 	int align, error;
 	struct vmspace *vms = td->td_proc->p_vmspace;
@@ -264,8 +265,46 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_size_t size, int prot,
 	size += pageoff;			/* low end... */
 	size = (vm_size_t) round_page(size);	/* hi end */
 
-	/* Ensure alignment is at least a page and fits in a pointer. */
 	align = flags & MAP_ALIGNMENT_MASK;
+#ifndef CPU_CHERI
+	/* In the non-CHERI case, remove the alignment request. */
+	if (align == MAP_ALIGNED_CHERI || align == MAP_ALIGNED_CHERI_SEAL) {
+		flags &= ~MAP_ALIGNMENT_MASK;
+		align = 0;
+	}
+#else /* CPU_CHERI */
+	/*
+	 * Convert MAP_ALIGNED_CHERI(_SEAL) into explicit alignment
+	 * requests and check lengths.
+	 */
+	if (align == MAP_ALIGNED_CHERI) {
+		flags &= ~MAP_ALIGNMENT_MASK;
+		if (CHERI_ALIGN_SHIFT(size) > PAGE_SHIFT) {
+			flags |= MAP_ALIGNED(CHERI_ALIGN_SHIFT(size));
+
+			if (size & CHERI_ALIGN_MASK(size))
+				return (EINVAL);
+
+			if (CHERI_ALIGN_MASK(size) != 0)
+				addr_mask = CHERI_ALIGN_MASK(size);
+		}
+		align = flags & MAP_ALIGNMENT_MASK;
+	} else if (align == MAP_ALIGNED_CHERI_SEAL) {
+		flags &= ~MAP_ALIGNMENT_MASK;
+		if (CHERI_SEAL_ALIGN_SHIFT(size) > PAGE_SHIFT) {
+			flags |= MAP_ALIGNED(CHERI_SEAL_ALIGN_SHIFT(size));
+
+			if (size & CHERI_SEAL_ALIGN_MASK(size))
+				return (EINVAL);
+
+			if (CHERI_ALIGN_MASK(size) != 0)
+				addr_mask = CHERI_SEAL_ALIGN_MASK(size);
+		}
+		align = flags & MAP_ALIGNMENT_MASK;
+	}
+#endif /* CPU_CHERI */
+
+	/* Ensure alignment is at least a page and fits in a pointer. */
 	if (align != 0 && align != MAP_ALIGNED_SUPER &&
 	    (align >> MAP_ALIGNMENT_SHIFT >= sizeof(void *) * NBBY ||
 	    align >> MAP_ALIGNMENT_SHIFT < PAGE_SHIFT))
@@ -282,7 +321,7 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_size_t size, int prot,
 		 * should be aligned after adjustment by pageoff.
 		 */
 		addr -= pageoff;
-		if (addr & PAGE_MASK)
+		if (addr & addr_mask)
 			return (EINVAL);
 
 		/* Address range must be all in user VM space. */
