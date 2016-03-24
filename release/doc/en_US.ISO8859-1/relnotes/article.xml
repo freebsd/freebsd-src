@@ -195,10 +195,25 @@
 	Additionally, &man.jail.8; will run a shell within the target
 	jail when run no commands are specified.</para>
 
+      <para revision="286952">The &man.last.1; utility now supports
+	<literal>reboot</literal> as a pseudo-user name which prints
+	all system reboot entries (<literal>SHUTDOWN_TIME</literal>
+	and <literal>BOOT_TIME</literal> records).  This was
+	accidentally removed as of &os; 9.0.</para>
+
+      <para revision="287027">The &man.mv.1; utility now returns
+	<literal>1</literal> instead of <literal>64</literal>
+	when more than two arguments are specified and
+	the target is not a valid directory.</para>
+
       <para revision="287122">The &man.mkimg.1; utility has been
 	updated to include support for <literal>NTFS</literal>
 	filesystems in both <acronym>MBR</acronym> and
 	<acronym>GPT</acronym> partitioning schemes.</para>
+
+      <para revision="287122">A bug in the &man.mkimg.1; utility
+	which prevented dynamic VHD format from working with QEMU
+	has been fixed.</para>
 
       <para revision="287746">The &man.pciconf.8; utility has been
 	updated to use the PCI ID database from the <filename
@@ -217,6 +232,10 @@
 	<varname>nfs_server_managegids</varname> to
 	<literal>YES</literal>.</para>
 
+      <para revision="287084"><command>userdel</command> and
+	<command>usermod</command> subcommand of the &man.pw.8; utility
+	now supports a <option>-y</option> flag.</para>
+
       <para revision="292462" contrib="sponsor"
 	sponsor="&dellinc;">The resolver library has been updated to
 	reload <filename>/etc/resolv.conf</filename> if the
@@ -227,6 +246,11 @@
 	been added to the &man.reboot.8; utility, allowing the root
 	filesystem to be mounted from a temporary source filesystem
 	without requiring a full system reboot.</para>
+
+      <para revision="287080">The &man.watchdogd.8; daemon now supports
+	a <option>-x <replaceable>exit_timeout</replaceable></option>
+	option to specify the timeout period in seconds to
+	leave in effect when the program exits.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
@@ -289,6 +313,11 @@
 	&man.rc.8; script has been updated to wait for network
 	interfaces that attach late in the boot process, such as some
 	<acronym>USB</acronym> network cards.</para>
+
+      <para revision="287091">Firewall rules set by
+	<literal>firewall_type="SIMPLE"</literal> now uses
+	&man.ipfw.4; <command>tables</command> for addresses to be
+	blocked.</para>
     </sect2>
 
     <sect2 xml:id="userland-periodic">
@@ -353,11 +382,6 @@
 	sponsor="&ff;">A bug which could prevent a loader
 	tunable <varname>kern.racct.enable</varname> from working
 	has been fixed.</para>
-
-      <para revision="287037">The &man.uart.4; driver has been
-	updated to allow tuning pulses per second captured in the
-	CTS line during runtime, whereas previously only the DCD line
-	could be used without rebuilding the kernel.</para>
     </sect2>
   </sect1>
 
@@ -370,11 +394,42 @@
     <sect2 xml:id="drivers-device">
       <title>Device Drivers</title>
 
-      <para>&nbsp;</para>
+      <para revision="287079" arch="arm">The <literal>imxwdt</literal>
+	driver, which supports Freescale i.MX watchdog, has been
+	fixed.</para>
+
+      <para revision="287037">A bug in the &man.uart.4; driver which
+	could cause a polarity reversal of PPS (Pulse Per Second)
+	capture events has been fixed.  The trailing edge of a
+	positive PPS pulse and the leading edge of the next pulse were
+	used as "assert" and "clear" event respectively.</para>
+
+      <para revision="287037">The &man.uart.4; driver now supports
+	runtime configuration of PPS signal source captured by the
+	driver via <varname>dev.uart.pps_mode</varname> and
+	<varname>dev.uart.<replaceable>0</replaceable>.pps_mode</varname>
+	sysctl variables.  The values <literal>0</literal>,
+	<literal>1</literal>, and <literal>2</literal> correspond to
+	disabled, capturing pulses on the CTS line,
+	and capturing pulses on the DCD line, respectively.
+	The default value is <literal>2</literal>.</para>
+
+      <para revision="287035">The &man.uftdi.4; driver now supports
+	<varname>UFTDIIOC_READ_EEPROM</varname>,
+	<varname>UFTDIIOC_WRITE_EEPROM</varname>,
+	and <varname>UFTDIIOC_ERASE_EEPROM</varname>
+	&man.ioctl.2; to
+	read/write serial EEPROM attached to the controller chip.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
       <title>Storage Drivers</title>
+
+      <para revision="280451">Legacy &man.ata.4; drivers such as
+	<literal>ataahci</literal>, <literal>ataadaptec</literal>,
+	and <literal>mv_sata</literal> have been removed in favor of
+	the new drivers such as &man.ahci.4;, &man.siis.4;, and
+	&man.mvs.4;.</para>
 
       <para revision="288732" contrib="sponsor" sponsor="&ix;">The
 	<acronym>CTL</acronym> High Availability implementation has
