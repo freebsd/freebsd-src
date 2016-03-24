@@ -768,7 +768,7 @@ udp_common_ctlinput(int cmd, struct sockaddr *sa, void *vip,
 
 	if (PRC_IS_REDIRECT(cmd)) {
 		/* signal EHOSTDOWN, as it flushes the cached route */
-		in_pcbnotifyall(&udbinfo, faddr, EHOSTDOWN, udp_notify);
+		in_pcbnotifyall(&V_udbinfo, faddr, EHOSTDOWN, udp_notify);
 		return;
 	}
 
