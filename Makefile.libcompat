@@ -52,7 +52,8 @@ LIBSOFTWMAKEFLAGS=        -DCOMPAT_SOFTFP
 # Generic code for each type.
 # Set defaults based on type.
 libcompat=	${LIBCOMPAT:tl}
-_LIBCOMPAT_MAKEVARS=	_OBJTREE TMP CPUFLAGS CFLAGS WMAKEENV WMAKEFLAGS WMAKE
+_LIBCOMPAT_MAKEVARS=	_OBJTREE TMP CPUFLAGS CFLAGS CXXFLAGS WMAKEENV \
+			WMAKEFLAGS WMAKE
 .for _var in ${_LIBCOMPAT_MAKEVARS}
 .if !empty(LIB${LIBCOMPAT}${_var})
 LIBCOMPAT${_var}?=	${LIB${LIBCOMPAT}${_var}}
@@ -65,13 +66,20 @@ LIBCOMPATTMP?=		${OBJTREE}${.CURDIR}/lib${libcompat}
 
 LIBCOMPATCFLAGS+=	${LIBCOMPATCPUFLAGS} \
 			-L${LIBCOMPATTMP}/usr/lib${libcompat} \
-			--sysroot=${LIBCOMPATTMP}
+			--sysroot=${LIBCOMPATTMP} \
+			${BFLAGS}
 
 # -B is needed to find /usr/lib32/crti.o for GCC and /usr/libsoft/crti.o for
 # Clang/GCC.
 LIBCOMPATCFLAGS+=	-B${LIBCOMPATTMP}/usr/lib${libcompat}
 # GCC requires -isystem when using a cross-compiler.
 LIBCOMPATCFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include
+
+.if defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc
+# Force using libc++ for external GCC.
+LIBCOMPATCXXFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include/c++/v1 -std=c++11 \
+			-nostdinc++ -L${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc++
+.endif
 
 # Yes, the flags are redundant.
 LIBCOMPATWMAKEENV+= MAKEOBJDIRPREFIX=${LIBCOMPAT_OBJTREE} \
@@ -81,7 +89,7 @@ LIBCOMPATWMAKEENV+= MAKEOBJDIRPREFIX=${LIBCOMPAT_OBJTREE} \
 		SHLIBDIR=/usr/lib${libcompat} \
 		DTRACE="${LIB$COMPATDTRACE:U${DTRACE}}"
 LIBCOMPATWMAKEFLAGS+= CC="${XCC} ${LIBCOMPATCFLAGS}" \
-		CXX="${XCXX} ${LIBCOMPATCFLAGS}" \
+		CXX="${XCXX} ${LIBCOMPATCFLAGS} ${LIBCOMPATCXXFLAGS}" \
 		DESTDIR=${LIBCOMPATTMP} \
 		-DNO_CPU_CFLAGS \
 		MK_CTF=no \
