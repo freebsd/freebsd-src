@@ -274,8 +274,6 @@ filemon_close_log(struct filemon *filemon)
 	sx_xunlock(&filemon->lock);
 	fdrop(fp, curthread);
 	sx_xlock(&filemon->lock);
-
-	return;
 }
 
 /*
