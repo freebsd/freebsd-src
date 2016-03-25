@@ -359,7 +359,7 @@ sandbox_parse_elf64(int fd, u_int flags)
 #ifdef DEBUG
 	printf("type %d\n", ehdr.e_type);
 	printf("version %d\n", ehdr.e_version);
-	printf("entry %p\n", (void *)ehdr.e_entry);
+	printf("entry %zx\n", (size_t)ehdr.e_entry);
 	printf("elf header size %jd (read %jd)\n", (intmax_t)ehdr.e_ehsize,
 	    rlen);
 	printf("program header offset %jd\n", (intmax_t)ehdr.e_phoff);
