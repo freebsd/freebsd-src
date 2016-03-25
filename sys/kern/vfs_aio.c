@@ -1355,7 +1355,8 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	if (!unmap) {
 		aiocbe->pbuf = pbuf = (struct buf *)getpbuf(NULL);
 		BUF_KERNPROC(pbuf);
-	}
+	} else
+		pbuf = NULL;
 
 	AIO_LOCK(ki);
 	ki->kaio_count++;
