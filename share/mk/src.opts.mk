@@ -358,6 +358,7 @@ MK_CLANG:=	no
 MK_GCC:=	no
 MK_GDB:=	no
 MK_INCLUDES:=	no
+MK_LLDB:=	no
 .endif
 
 .if ${MK_CLANG} == "no"
