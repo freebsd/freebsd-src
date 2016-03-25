@@ -109,7 +109,7 @@ sandbox_map_entry_mmap(void *base, struct sandbox_map_entry *sme)
 	}
 	assert((vaddr_t)addr == (vaddr_t)taddr);
 
-	memset(taddr + sme->sme_len - sme->sme_tailbytes, 0, sme->sme_tailbytes);
+	memset(addr + sme->sme_len - sme->sme_tailbytes, 0, sme->sme_tailbytes);
 
 	return (addr);
 }
