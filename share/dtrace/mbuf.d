@@ -30,7 +30,6 @@
  */
 
 #pragma D depends_on module kernel
-#pragma D depends_on provider mbuf
 
 /*
  * mbuf flags of global significance and layer crossing.
