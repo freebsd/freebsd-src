@@ -64,13 +64,17 @@ LIBCOMPAT_OBJTREE?=	${OBJTREE}${.CURDIR}/world${libcompat}
 LIBCOMPATTMP?=		${OBJTREE}${.CURDIR}/lib${libcompat}
 
 LIBCOMPATCFLAGS+=	${LIBCOMPATCPUFLAGS} \
-			-isystem ${LIBCOMPATTMP}/usr/include/ \
 			-L${LIBCOMPATTMP}/usr/lib${libcompat} \
-			-B${LIBCOMPATTMP}/usr/lib${libcompat}
+			--sysroot=${LIBCOMPATTMP}
+
+# -B is needed to find /usr/lib32/crti.o for GCC and /usr/libsoft/crti.o for
+# Clang/GCC.
+LIBCOMPATCFLAGS+=	-B${LIBCOMPATTMP}/usr/lib${libcompat}
+# GCC requires -isystem when using a cross-compiler.
+LIBCOMPATCFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include
 
 # Yes, the flags are redundant.
 LIBCOMPATWMAKEENV+= MAKEOBJDIRPREFIX=${LIBCOMPAT_OBJTREE} \
-		_LDSCRIPTROOT=${LIBCOMPATTMP} \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
 		LIBDIR=/usr/lib${libcompat} \
@@ -89,14 +93,15 @@ LIBCOMPATIMAKE+=	${LIBCOMPATWMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} \
 			MK_TOOLCHAIN=no ${IMAKE_INSTALL} \
 			-DLIBRARIES_ONLY
 
-.if ${XCC:N${CCACHE_BIN}:M/*}
-LIBCOMPATCFLAGS+=	--sysroot=${WORLDTMP}
-.endif
-
 _LC_LIBDIRS.yes=		lib gnu/lib
 _LC_LIBDIRS.${MK_CDDL:tl}+=	cddl/lib
 _LC_LIBDIRS.${MK_CRYPT:tl}+=	secure/lib
 _LC_LIBDIRS.${MK_KERBEROS:tl}+=	kerberos5/lib
+
+_LC_INCDIRS=	\
+		include \
+		lib/ncurses/ncursesw \
+		${_LC_LIBDIRS.yes}
 
 # Shared logic
 build${libcompat}: .PHONY
@@ -120,8 +125,7 @@ build${libcompat}: .PHONY
 	mkdir -p ${WORLDTMP}
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 .for _t in obj includes
-	${_+_}cd ${.CURDIR}/include; ${LIBCOMPATWMAKE} DIRPRFX=include/ ${_t}
-.for _dir in ${_LC_LIBDIRS.yes}
+.for _dir in ${_LC_INCDIRS}
 	${_+_}cd ${.CURDIR}/${_dir}; ${LIBCOMPATWMAKE} DIRPRFX=${_dir}/ ${_t}
 .endfor
 .endfor
