@@ -436,8 +436,11 @@ TARGET_ABI=	gnueabi
 .endif
 .endif
 .if defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc
-XCFLAGS+=	-isystem ${WORLDTMP}/usr/include -L${WORLDTMP}/usr/lib
-XCXXFLAGS+=	-I${WORLDTMP}/usr/include/c++/v1 -std=gnu++11 -L${WORLDTMP}/../lib/libc++
+# GCC requires -isystem when using a cross-compiler.
+XCFLAGS+=	-isystem ${WORLDTMP}/usr/include
+# Force using libc++ for external GCC.
+XCXXFLAGS+=	-isystem ${WORLDTMP}/usr/include/c++/v1 -std=c++11 \
+		-nostdinc++ -L${WORLDTMP}/../lib/libc++
 # XXX: DEPFLAGS is a workaround for not properly passing CXXFLAGS to sub-makes
 # due to CXX="${XCXX} ${XCXXFLAGS}".  bsd.dep.mk does use CXXFLAGS when
 # building C++ files so this can come out if passing CXXFLAGS down is fixed.
