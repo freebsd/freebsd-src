@@ -110,6 +110,7 @@ void tcp_lro_flush_all(struct lro_ctrl *);
 int tcp_lro_rx(struct lro_ctrl *, struct mbuf *, uint32_t);
 void tcp_lro_queue_mbuf(struct lro_ctrl *, struct mbuf *);
 
+#define	TCP_LRO_NO_ENTRIES	-2
 #define	TCP_LRO_CANNOT		-1
 #define	TCP_LRO_NOT_SUPPORTED	1
 
