@@ -452,12 +452,10 @@ TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.0
 XCFLAGS+=	-target ${TARGET_TRIPLE}
 .endif
 XCFLAGS+=	--sysroot=${WORLDTMP} ${BFLAGS}
-XCXXFLAGS+=	--sysroot=${WORLDTMP} ${BFLAGS}
 .else
 .if defined(CROSS_BINUTILS_PREFIX) && exists(${CROSS_BINUTILS_PREFIX})
 BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
 XCFLAGS+=	${BFLAGS}
-XCXXFLAGS+=	${BFLAGS}
 .endif
 .endif # ${XCC:M/*} || ${MK_CROSS_COMPILER} == "no"
 
