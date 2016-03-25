@@ -438,8 +438,10 @@ mi_switch(int flags, struct thread *newtd)
 	if (flags & SW_VOL) {
 		td->td_ru.ru_nvcsw++;
 		td->td_swvoltick = ticks;
-	} else
+	} else {
 		td->td_ru.ru_nivcsw++;
+		td->td_swinvoltick = ticks;
+	}
 #ifdef SCHED_STATS
 	SCHED_STAT_INC(sched_switch_stats[flags & SW_TYPE_MASK]);
 #endif
