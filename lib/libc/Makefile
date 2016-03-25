@@ -27,7 +27,11 @@ LIBC_ARCH=${MACHINE_CPUARCH}
 # to CFLAGS below.  -DSYSLIBC_SCCS affects just the system call stubs.
 LIB?=c
 SHLIB_MAJOR= 7
+.ifdef LIBCHERI
+SHLIB_LDSCRIPT?=libc-cheri.ldscript
+.else
 SHLIB_LDSCRIPT?=libc.ldscript
+.endif
 SHLIB_LDSCRIPT_LINKS?=libxnet.so
 WARNS?=	2
 CFLAGS+=-I${LIBC_SRCTOP}/include -I${LIBC_SRCTOP}/../../include
