@@ -163,12 +163,6 @@
     <para>This section covers changes and additions to userland
       applications, contributed software, and system utilities.</para>
 
-    <sect2 xml:id="userland-config">
-      <title>Userland Configuration Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
 
@@ -360,25 +354,6 @@
 	script now updates only static routes when an interface
 	is specified.</para>
     </sect2>
-
-    <sect2 xml:id="userland-periodic">
-      <title><filename class="directory">/etc/periodic</filename>
-	Scripts</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="userland-libraries">
-      <title>Runtime Libraries and API</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="userland-abi">
-      <title>ABI Compatibility</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="kernel">
@@ -536,12 +511,6 @@
 	to include support for <literal>blkif</literal> indirect
 	segment I/O.</para>
     </sect2>
-
-    <sect2 xml:id="hardware-arm">
-      <title>ARM Support</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="storage">
@@ -549,18 +518,6 @@
 
     <para>This section covers changes and additions to file systems
       and other storage subsystems, both local and networked.</para>
-
-    <sect2 xml:id="storage-general">
-      <title>General Storage</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="storage-net">
-      <title>Networked Storage</title>
-
-      <para>&nbsp;</para>
-    </sect2>
 
     <sect2 xml:id="storage-zfs">
       <title>ZFS</title>
@@ -570,12 +527,6 @@
 	code has been updated to take <literal>ashift</literal> into
 	account when gathering buffers to be written to the
 	<literal>l2arc</literal> device.</para>
-    </sect2>
-
-    <sect2 xml:id="storage-geom">
-      <title>&man.geom.4;</title>
-
-      <para>&nbsp;</para>
     </sect2>
   </sect1>
 
@@ -653,63 +604,5 @@
       <literal>SIOCGDRLST_IN6</literal> and
       <literal>SIOCGPRLST_IN6</literal> in &os; IPv6 stack have been
       removed.</para>
-
-    <sect2 xml:id="network-protocols">
-      <title>Network Protocols</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-  </sect1>
-
-  <sect1 xml:id="ports">
-    <title>Ports Collection and Package Infrastructure</title>
-
-    <para>This section covers changes to the &os;&nbsp;Ports
-      Collection, package infrastructure, and package maintenance and
-      installation tools.</para>
-
-    <sect2 xml:id="ports-infrastructure">
-      <title>Infrastructure Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="ports-packages ">
-      <title>Packaging Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-  </sect1>
-
-  <sect1 xml:id="doc">
-    <title>Documentation</title>
-
-    <para>This section covers changes to the &os;&nbsp;Documentation
-      Project sources and toolchain.</para>
-
-    <sect2 xml:id="doc-sources">
-      <title>Documentation Source Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="doc-toolchain">
-      <title>Documentation Toolchain Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-  </sect1>
-
-  <sect1 xml:id="releng">
-    <title>Release Engineering and Integration</title>
-
-    <para>This section covers changes that are specific to the
-      &os;&nbsp;Release Engineering processes.</para>
-
-    <sect2 xml:id="releng-changes">
-      <title>Integration Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 </article>
