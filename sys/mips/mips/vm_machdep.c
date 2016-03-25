@@ -140,9 +140,7 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	cheri_typecap_copy(pcb2, td1->td_pcb);
 #endif
 
-	/* Point mdproc and then copy over td1's contents
-	 * md_proc is empty for MIPS
-	 */
+	/* Point mdproc and then copy over td1's contents */
 	td2->td_md.md_flags = td1->td_md.md_flags & MDTD_FPUSED;
 
 	/*
@@ -185,6 +183,9 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 #endif
 	td2->td_md.md_saved_intr = MIPS_SR_INT_IE;
 	td2->td_md.md_spinlock_count = 1;
+#ifdef COMPAT_CHERIABI
+	p2->p_md.md_cheri_mmap_perms = p1->p_md.md_cheri_mmap_perms;
+#endif
 #ifdef CPU_CHERI
 	/*
 	 * XXXRW: Ensure capability coprocessor is enabled for both kernel and

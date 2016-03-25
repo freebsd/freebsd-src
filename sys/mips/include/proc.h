@@ -83,7 +83,11 @@ struct mdthread {
 #define	MDTD_COP2USED	0x0002		/* Process used the COP2 */
 
 struct mdproc {
+#ifndef COMPAT_CHERIABI
 	/* empty */
+#else
+	u_int		md_cheri_mmap_perms;
+#endif
 };
 
 #ifdef _KERNEL

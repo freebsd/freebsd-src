@@ -59,6 +59,12 @@
  */
 #define	CHERI_GET_TYPECAP	6	/* Get root 'type' capability. */
 
+/*
+ * Get or reduce the capabiltiy permissions allocated to new mmap() regions.
+ */
+#define	CHERI_MMAP_GETPERM	7	/* Get permissions */
+#define	CHERI_MMAP_ANDPERM	8	/* Reduce permissions */
+
 #ifndef _KERNEL
 #include <sys/cdefs.h>
 

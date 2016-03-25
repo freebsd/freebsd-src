@@ -1588,6 +1588,32 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 	    flags, uap->fd, uap->pos));
 }
 
+/*
+ * Given a starting set of CHERI permissions (operms), set (not AND) the load,
+ * store, and execute permissions based on the mmap permissions (prot).
+ *
+ * This function is intended to be used when creating a capability to a
+ * new region or rederiving a capability when upgrading a sub-region.
+ */
+static register_t
+cheriabi_mmap_new_perms(register_t operms, int prot)
+{
+
+	operms &= ~(CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE |
+	    CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP |
+	    CHERI_PERM_EXECUTE);
+
+	if (prot & PROT_READ)
+		operms |= CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP;
+	if (prot & PROT_WRITE)
+		operms |= CHERI_PERM_STORE | CHERI_PERM_STORE_CAP |
+		CHERI_PERM_STORE_LOCAL_CAP;
+	if (prot & PROT_EXEC)
+		operms |= CHERI_PERM_EXECUTE;
+
+	return (operms);
+}
+
 void
 cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
    struct chericap *addr, size_t len, int prot, int flags)
@@ -1621,12 +1647,11 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 
 	if (flags & MAP_FIXED) {
 		/*
-		 * Start with all data and code permissions.
-		 *
-		 * XXX-BD: something derived from addr would be better.
+		 * Use the passed capability's permissions as a base to avoid
+		 * upgrading permissions not related to the PROT_* flags.
 		 */
-		perms = CHERI_CAP_USER_DATA_PERMS |
-		    CHERI_CAP_USER_CODE_PERMS;
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, addr, 0);
+		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
 
 		/*
 		 * If addr was under aligned, we need to return a
@@ -1645,10 +1670,12 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 		 * regain discarded permissions (expecially user
 		 * permissions).
 		 */
-		perms = CHERI_CAP_USER_DATA_PERMS |
-		    CHERI_CAP_USER_CODE_PERMS;
+		PROC_LOCK(td->td_proc);
+		perms = td->td_proc->p_md.md_cheri_mmap_perms;
+		PROC_UNLOCK(td->td_proc);
 		off = 0;
 	}
+	perms = cheriabi_mmap_new_perms(perms, prot);
 	cheri_capability_set(retcap, perms, NULL,
 	    (void *)(ret - off), roundup2(len + off, PAGE_SIZE), off);
 }
