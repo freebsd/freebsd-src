@@ -417,7 +417,8 @@ CROSSENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCFLAGS} ${XCXXFLAGS}" \
 		RANLIB=${XRANLIB} STRINGS=${XSTRINGS} \
 		SIZE="${XSIZE}"
 
-.if ${XCC:N${CCACHE_BIN}:M/*}
+# External compiler needs sysroot and target flags.
+.if ${XCC:N${CCACHE_BIN}:M/*} || ${MK_CROSS_COMPILER} == "no"
 .if defined(CROSS_BINUTILS_PREFIX)
 # In the case of xdev-build tools, CROSS_BINUTILS_PREFIX won't be a
 # directory, but the compiler will look in the right place for it's
@@ -458,7 +459,7 @@ BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
 XCFLAGS+=	${BFLAGS}
 XCXXFLAGS+=	${BFLAGS}
 .endif
-.endif # ${XCC:M/*}
+.endif # ${XCC:M/*} || ${MK_CROSS_COMPILER} == "no"
 
 .if ${MK_LIB32} != "no" && (${TARGET_ARCH} == "amd64" || \
     ${TARGET_ARCH} == "powerpc64")
