@@ -1,4 +1,4 @@
-/* $Id: reader.c,v 1.59 2015/07/11 00:39:03 tom Exp $ */
+/* $Id: reader.c,v 1.60 2016/03/25 00:51:07 tom Exp $ */
 
 #include "defs.h"
 
@@ -894,7 +894,7 @@ copy_param(int k)
     }
 
     buf[i--] = '\0';
-    i = trim_blanks(buf);
+    (void)trim_blanks(buf);
 
     comma = buf - 1;
     do
