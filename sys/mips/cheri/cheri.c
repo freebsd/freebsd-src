@@ -133,9 +133,8 @@ SYSINIT(cheri_cpu_startup, SI_SUB_CPU, SI_ORDER_FIRST, cheri_cpu_startup,
     NULL);
 
 /*
- * Given an existing more privileged capability (fromcrn), build a new
- * capability in tocrn with the contents of the passed flattened
- * representation.
+ * Build a new capabilty derived from KDC with the contents of the passed
+ * flattened representation.
  *
  * XXXRW: It's not yet clear how important ordering is here -- try to do the
  * privilege downgrade in a way that will work when doing an "in place"
@@ -309,6 +308,15 @@ cheri_capability_set_null(struct chericap *cp)
 
 	/* XXXRW: Should be using CFromPtr(NULL) for this. */
 	cheri_capability_clear(cp);
+}
+
+void
+cheri_capability_setoffset(struct chericap *cp, register_t offset)
+{
+
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, cp, 0);
+	CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, offset);
+	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)cp, 0);
 }
 
 /*

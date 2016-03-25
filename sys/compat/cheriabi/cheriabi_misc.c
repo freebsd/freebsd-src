@@ -102,6 +102,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/cpu.h>
+#include <machine/cheri.h>
 #include <machine/elf.h>
 
 #include <security/audit/audit.h>
@@ -114,6 +115,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <compat/cheriabi/cheriabi_signal.h>
 #include <compat/cheriabi/cheriabi_proto.h>
+#include <compat/cheriabi/cheriabi_syscall.h>
 
 #include <sys/cheriabi.h>
 
@@ -1455,7 +1457,198 @@ cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp)
 int
 cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 {
+	int flags = uap->flags;
+	int tagged;
+	size_t cap_len, cap_offset;
+	struct chericap addr_cap;
+
+	/* MAP_CHERI_NOSETBOUNDS requires MAP_FIXED. */
+	if ((flags & (MAP_CHERI_NOSETBOUNDS | MAP_FIXED)) ==
+	    MAP_CHERI_NOSETBOUNDS)
+		return (EINVAL);
+	/* Forcing alignment makes no sense with MAP_CHERI_NOSETBOUNDS. */
+	if ((flags & (MAP_CHERI_NOSETBOUNDS | MAP_ALIGNMENT_MASK)) !=
+	    MAP_CHERI_NOSETBOUNDS)
+
+	if (!(flags & MAP_CHERI_NOSETBOUNDS)) {
+		/*
+		 * If alignment is specified, check that it is sufficent and
+		 * increase as required.  If not, assume data alignment.
+		 */
+		switch (flags & MAP_ALIGNMENT_MASK) {
+		case MAP_ALIGNED(0):
+			/*
+			 * Request CHERI data alignment when no other request
+			 * is made.
+			 */
+			flags &= ~MAP_ALIGNMENT_MASK;
+			flags |= MAP_ALIGNED_CHERI;
+			break;
+		case MAP_ALIGNED_CHERI:
+		case MAP_ALIGNED_CHERI_SEAL:
+			break;
+		case MAP_ALIGNED_SUPER:
+#ifdef __mips_n64
+			/*
+			 * pmap_align_superpage() is a no-op for allocations
+			 * less than a super page so request data alignment
+			 * in that case.
+			 *
+			 * In practice this is a no-op as super-pages are
+			 * precisely representable.
+			 */
+			if (uap->len < PDRSIZE &&
+			    CHERI_ALIGN_SHIFT(uap->len) > PAGE_SHIFT) {
+				flags &= ~MAP_ALIGNMENT_MASK;
+				flags |= MAP_ALIGNED_CHERI;
+			}
+#else
+#error	MAP_ALIGNED_SUPER handling unimplemented for this architecture
+#endif
+			break;
+		default:
+			/* Reject nonsensical sub-page alignment requests */
+			if ((flags >> MAP_ALIGNMENT_SHIFT) < PAGE_SHIFT)
+				return (EINVAL);
+
+			/*
+			 * Honor the caller's alignment request, if any unless
+			 * it is too small.  If is, promote the request to
+			 * MAP_ALIGNED_CHERI.
+			 *
+			 * XXX: It seems likely a user passing too small an
+			 * alignment will have also passed an invalid length,
+			 * but upgrading the alignment is always safe and
+			 * we'll catch the length later.
+			 */
+			if ((flags >> MAP_ALIGNMENT_SHIFT) <
+			    CHERI_ALIGN_SHIFT(uap->len)) {
+				flags &= ~MAP_ALIGNMENT_MASK;
+				flags |= MAP_ALIGNED_CHERI;
+			}
+			break;
+		}
+	}
+	/*
+	 * XXX: If this architecture requires an alignment constraint, it is
+	 * set at this point.  A simple assert is not easy to contruct...
+	 */
+
+	/*
+	 * MAP_FIXED && addr != NULL.
+	 */
+	if (flags & MAP_FIXED) {
+		cheriabi_fetch_syscall_arg(td, &addr_cap,
+		    CHERIABI_SYS_cheriabi_mmap, 0);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &addr_cap, 0);
+		CHERI_CGETTAG(tagged, CHERI_CR_CTEMP0);
+
+		if (tagged) {
+			CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &addr_cap, 0);
+			CHERI_CGETLEN(cap_len, CHERI_CR_CTEMP0);
+			CHERI_CGETOFFSET(cap_offset, CHERI_CR_CTEMP0);
+			if (cap_len - cap_offset < roundup2(uap->len, PAGE_SIZE))
+				return (EPROT);
+
+			/*
+			 * If our address is under aligned, make sure
+			 * we have room to shift it down to the page
+			 * boundary.
+			 */
+			if (((vm_offset_t)uap->addr & PAGE_MASK) > cap_offset)
+				return (EPROT);
+
+			/*
+			 * NB: We defer alignment checks to kern_mmap where we
+			 * can account for file mapping with oddly aligned
+			 * that match the offset alignment.
+			 */
+
+			/*
+			 * XXX-BD: What to do about permissions?
+			 *
+			 * Existing code expects to be able to reserve
+			 * address space with PROT_NONE and then map
+			 * sub-regions in with more permissions and we
+			 * don't want to break that.
+			 *
+			 * Maybe an "upgrade allowed" user permisson bit?
+			 */
+		} else {
+			/*
+			 * XXX-BD: One could make an argument for
+			 * supporting MAP_EXCL at an untagged virtual
+			 * address, but use cases seem limited.
+			 */
+			return (EPROT);
+		}
+	}
 
 	return (kern_mmap(td, (vm_offset_t)uap->addr, uap->len, uap->prot,
-	    uap->flags, uap->fd, uap->pos));
+	    flags, uap->fd, uap->pos));
+}
+
+void
+cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
+   struct chericap *addr, size_t len, int prot, int flags)
+{
+	register_t perms, ret;
+	size_t addr_base, addr_offset, off;
+
+	ret = td->td_retval[0];
+	/* On failure, return a NULL capability with an offset of -1. */
+	if ((void *)ret == MAP_FAILED) {
+		cheri_capability_set_null(retcap);
+		cheri_capability_setoffset(retcap, (register_t)-1);
+		return;
+	}
+
+	/*
+	 * Leave addr alone entierly in the MAP_CHERI_NOSETBOUNDS
+	 * case.  We don't need to modify the trap frame
+	 * because the first argument is already in the
+	 * return register.
+	 *
+	 * NB: This means no permission upgrades or downgrades!
+	 * The assumption is that the larger capability
+	 * has the right permissions and we're only intrested
+	 * in adjusting page mappings.
+	 */
+	if (flags & MAP_CHERI_NOSETBOUNDS) {
+		cheri_capability_copy(retcap, addr);
+		return;
+	}
+
+	if (flags & MAP_FIXED) {
+		/*
+		 * Start with all data and code permissions.
+		 *
+		 * XXX-BD: something derived from addr would be better.
+		 */
+		perms = CHERI_CAP_USER_DATA_PERMS |
+		    CHERI_CAP_USER_CODE_PERMS;
+
+		/*
+		 * If addr was under aligned, we need to return a
+		 * capability to the whole, propertly aligned region
+		 * with the offset pointing to addr.
+		 */
+		CHERI_CGETBASE(addr_base, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(addr_offset, CHERI_CR_CTEMP0);
+		off = (addr_base + addr_offset) - (size_t)ret;
+	} else {
+		/*
+		 * Start with all data and code permissions.
+		 *
+		 * XXX-BD: we may want a sysarch to downgrade this set
+		 * on a per-process basis to prevent abuse of mmap to
+		 * regain discarded permissions (expecially user
+		 * permissions).
+		 */
+		perms = CHERI_CAP_USER_DATA_PERMS |
+		    CHERI_CAP_USER_CODE_PERMS;
+		off = 0;
+	}
+	cheri_capability_set(retcap, perms, NULL,
+	    (void *)(ret - off), roundup2(len + off, PAGE_SIZE), off);
 }

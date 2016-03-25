@@ -172,6 +172,16 @@ argument must be 0.
 This flag is identical to
 .Dv MAP_ANON
 and is provided for compatibility.
+.It Dv MAP_CHERI_NOSETBOUNDS
+This flag can only be used in combination with
+.Dv MAP_FIXED .
+In CheriABI, do not constrain the alignment of the capability, only
+require that mapping be possible at
+.Fa addr
+and that there be sufficient space in the capability for the request.
+The
+.Dv MAP_CHERI_NOSETBOUNDS
+flag is ignored by non-CheriABI programs.
 .It Dv MAP_EXCL
 This flag can only be used in combination with
 .Dv MAP_FIXED .

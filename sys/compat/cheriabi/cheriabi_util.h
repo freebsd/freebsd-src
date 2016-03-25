@@ -124,4 +124,10 @@ void	cheriabi_get_signal_stack_capability(struct thread *td,
 void	cheriabi_set_signal_stack_capability(struct thread *td,
 	    struct chericap *csig);
 
+void	cheriabi_fetch_syscall_arg(struct thread *td, struct chericap *arg,
+	    int syscall_no, int argnum);
+
+void	cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
+	    struct chericap *addr, size_t len, int prot, int flags);
+
 #endif /* !_COMPAT_CHERIABI_CHERIABI_UTIL_H_ */

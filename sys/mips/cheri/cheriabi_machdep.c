@@ -137,6 +137,74 @@ SYSINIT(cheriabi, SI_SUB_EXEC, SI_ORDER_ANY,
     (sysinit_cfunc_t) elf64_insert_brand_entry,
     &freebsd_cheriabi_brand_info);
 
+void
+cheriabi_fetch_syscall_arg(struct thread *td, struct chericap *arg,
+    int syscall_no, int argnum)
+{
+	struct trapframe *locr0 = td->td_frame;	 /* aka td->td_pcb->pcv_regs */
+	struct cheri_frame *capreg = &td->td_pcb->pcb_cheriframe;
+	struct chericap *arg_capp;
+	struct sysentvec *se;
+	int i, intreg_offset, ptrreg_offset, ptrmask, is_ptr_arg;
+	register_t arg_reg;
+
+	se = td->td_proc->p_sysent;
+
+	KASSERT(syscall_no >= 0, ("Negative syscall number %d\n", syscall_no));
+	KASSERT(syscall_no < se->sv_size,
+	    ("Syscall number too large %d >= %d\n", syscall_no, se->sv_size));
+	KASSERT(argnum >= 0, ("Negative argument number %d\n", argnum));
+	KASSERT(argnum <= se->sv_table[syscall_no].sy_narg,
+	    ("Argument number out of range %d > %d\n", argnum,
+	    se->sv_table[syscall_no].sy_narg));
+
+	ptrmask = CHERIABI_SYS_argmap[syscall_no].sam_ptrmask;
+	/* XXX: O(1) possible with more bit twiddling. */
+	intreg_offset = ptrreg_offset = -1;
+	for (i = 0; i <= argnum; i++) {
+		if (ptrmask & (1 << i)) {
+			is_ptr_arg = 1;
+			ptrreg_offset++;
+		} else {
+			is_ptr_arg = 0;
+			intreg_offset++;
+		}
+	}
+
+	if (is_ptr_arg) {
+		switch (ptrreg_offset) {
+		case 0:	arg_capp = &capreg->cf_c3;	break;
+		case 1:	arg_capp = &capreg->cf_c4;	break;
+		case 2:	arg_capp = &capreg->cf_c5;	break;
+		case 3:	arg_capp = &capreg->cf_c6;	break;
+		case 4:	arg_capp = &capreg->cf_c7;	break;
+		case 5:	arg_capp = &capreg->cf_c8;	break;
+		case 6:	arg_capp = &capreg->cf_c9;	break;
+		case 7:	arg_capp = &capreg->cf_c10;	break;
+		default:
+			panic("%s: pointer argument %d out of range",
+			    __func__, ptrreg_offset);
+		}
+		cheri_capability_copy(arg, arg_capp);
+	} else {
+		switch (intreg_offset) {
+		case 0:	arg_reg = locr0->a0;	break;
+		case 1:	arg_reg = locr0->a1;	break;
+		case 2:	arg_reg = locr0->a2;	break;
+		case 3:	arg_reg = locr0->a3;	break;
+		case 4:	arg_reg = locr0->a4;	break;
+		case 5:	arg_reg = locr0->a5;	break;
+		case 6:	arg_reg = locr0->a6;	break;
+		case 7:	arg_reg = locr0->a7;	break;
+		default:
+			panic("%s: integer argument %d out of range",
+			    __func__, intreg_offset);
+		}
+		cheri_capability_set_null(arg);
+		cheri_capability_setoffset(arg, arg_reg);
+	}
+}
+
 static int
 cheriabi_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 {
@@ -340,37 +408,8 @@ cheriabi_set_syscall_retval(struct thread *td, int error)
 
 		switch (code) {
 		case CHERIABI_SYS_cheriabi_mmap:
-			/*
-			 * Assuming no one has stomped on it, a0 is the length
-			 * requested.
-			 *
-			 * XXX: In a compressed capability world, we will need
-			 * to round up out allocations to a representable size,
-			 * not just the end of the page and return that
-			 * capability instead.  Note well: this will violate
-			 * POSIX which assumes fixed page sizes and page
-			 * granularity allocations and probably will break
-			 * existing code.
-			 *
-			 * XXXRW: How should we decide what permissions are
-			 * appropriate here -- based on the MAP_ arguments?
-			 * Perhaps combined with any permissions found in the
-			 * optionally passed originating capability?  For now,
-			 * return permissions appropriate for either data or
-			 * code use, and userspace will need to mask them off
-			 * as desired.
-			 */
-			if ((void *)td->td_retval[0] == MAP_FAILED)
-				/* XXXBD: is this really what we want? */
-				cheri_capability_set(&capreg->cf_c3,
-				    CHERI_CAP_USER_DATA_PERMS, NULL,
-				    0, 0, -1);
-			else
-				cheri_capability_set(&capreg->cf_c3,
-				    CHERI_CAP_USER_DATA_PERMS |
-				    CHERI_CAP_USER_CODE_PERMS, NULL,
-				    (void *)td->td_retval[0],
-				    roundup2((size_t)a0, PAGE_SIZE), 0);
+			cheriabi_mmap_set_retcap(td, &capreg->cf_c3,
+			&capreg->cf_c3, locr0->a0, locr0->a1, locr0->a2);
 			break;
 
 		default:
