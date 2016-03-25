@@ -417,16 +417,16 @@ CROSSENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCFLAGS} ${XCXXFLAGS}" \
 		RANLIB=${XRANLIB} STRINGS=${XSTRINGS} \
 		SIZE="${XSIZE}"
 
-# External compiler needs sysroot and target flags.
-.if ${XCC:N${CCACHE_BIN}:M/*} || ${MK_CROSS_COMPILER} == "no"
-.if defined(CROSS_BINUTILS_PREFIX)
+.if defined(CROSS_BINUTILS_PREFIX) && exists(${CROSS_BINUTILS_PREFIX})
 # In the case of xdev-build tools, CROSS_BINUTILS_PREFIX won't be a
-# directory, but the compiler will look in the right place for it's
+# directory, but the compiler will look in the right place for its
 # tools so we don't need to tell it where to look.
-.if exists(${CROSS_BINUTILS_PREFIX})
 BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
 .endif
-.else
+
+# External compiler needs sysroot and target flags.
+.if ${XCC:N${CCACHE_BIN}:M/*} || ${MK_CROSS_COMPILER} == "no"
+.if !defined(CROSS_BINUTILS_PREFIX) || !exists(${CROSS_BINUTILS_PREFIX})
 BFLAGS+=	-B${WORLDTMP}/usr/bin
 .endif
 .if ${TARGET} == "arm"
@@ -451,13 +451,13 @@ TARGET_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.0
 XCFLAGS+=	-target ${TARGET_TRIPLE}
 .endif
-XCFLAGS+=	--sysroot=${WORLDTMP} ${BFLAGS}
+XCFLAGS+=	--sysroot=${WORLDTMP}
 .else
-.if defined(CROSS_BINUTILS_PREFIX) && exists(${CROSS_BINUTILS_PREFIX})
-BFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
+.endif # ${XCC:M/*} || ${MK_CROSS_COMPILER} == "no"
+
+.if !empty(BFLAGS)
 XCFLAGS+=	${BFLAGS}
 .endif
-.endif # ${XCC:M/*} || ${MK_CROSS_COMPILER} == "no"
 
 .if ${MK_LIB32} != "no" && (${TARGET_ARCH} == "amd64" || \
     ${TARGET_ARCH} == "powerpc64")
