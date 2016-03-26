@@ -75,7 +75,6 @@ machine: .NOMETA
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 CFLAGS.amd64_tramp.S=	${CLANG_NO_IAS}
 CFLAGS.multiboot_tramp.S=	${CLANG_NO_IAS}
-CFLAGS+=		${CFLAGS.${.IMPSRC:T}}
 
 .if ${MACHINE_CPUARCH} == "amd64"
 beforedepend ${OBJS}: machine
