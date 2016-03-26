@@ -93,4 +93,3 @@ machine: .NOMETA
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 CFLAGS.zfsldr.S=	${CLANG_NO_IAS}
-CFLAGS+=		${CFLAGS.${.IMPSRC:T}}

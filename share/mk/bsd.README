@@ -120,6 +120,10 @@ object.
 
 The following variables are common:
 
+ACFLAGS.${SRC}
+		Flags dependent on source file name.
+CFLAGS.${SRC}
+		Flags dependent on source file name.
 CFLAGS.${COMPILER_TYPE}
 		Flags dependent on compiler added to CXXFLAGS.
 CFLAGS.${MACHINE_ARCH}
@@ -131,6 +135,8 @@ CXXFLAGS.${COMPILER_TYPE}
 		Flags dependent on compiler added to CXXFLAGS.
 CXXFLAGS.${MACHINE_ARCH}
 		Architectural flags added to CXXFLAGS.
+CXXFLAGS.${SRC}
+		Flags dependent on source file name.
 COMPILER_FEATURES
 		A list of features that the compiler supports. Zero or
 		more of:
