@@ -129,8 +129,9 @@ static inline struct mbuf *
 netmap_get_mbuf(int len)
 {
 	struct mbuf *m;
-	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR | M_NOFREE);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m) {
+		m->m_flags |= M_NOFREE;	/* XXXNP: Almost certainly incorrect. */
 		m->m_ext.ext_arg1 = m->m_ext.ext_buf; // XXX save
 		m->m_ext.ext_free = (void *)netmap_default_mbuf_destructor;
 		m->m_ext.ext_type = EXT_EXTREF;
