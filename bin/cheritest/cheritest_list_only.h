@@ -151,6 +151,7 @@
 #define	test_fault_ccall_typemismatch			NULL
 #define	test_fault_ccall_code_noexecute			NULL
 #define	test_fault_ccall_data_execute			NULL
+#define	test_cheriabi_mmap_perms			NULL
 #define	test_sandbox_abort				NULL
 #define	test_sandbox_cs_calloc				NULL
 #define	test_sandbox_cs_clock_gettime			NULL

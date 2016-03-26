@@ -908,6 +908,15 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_string_memmove_c",
 	  .ct_desc = "Test explicit capability memmove",
 	  .ct_func = test_string_memmove_c },
+
+	/*
+	 * CheriABI specific tests.
+	 */
+#ifdef CHERIABI_TESTS
+	{ .ct_name = "test_cheriabi_mmap_perms",
+	  .ct_desc = "Test CheriABI mmap() permissions",
+	  .ct_func = test_cheriabi_mmap_perms },
+#endif
 #ifdef CHERI_C_TESTS
 #define	DECLARE_TEST(name, desc)			\
 	{ .ct_name = "cheri_c_test_" #name, 		\

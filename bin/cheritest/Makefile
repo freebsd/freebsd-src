@@ -24,6 +24,11 @@ SRCS+=	cheritest_bounds_stack.c					\
 
 CHERITEST_DIR:=	${.PARSEDIR}
 
+.ifdef CHERIABI_TESTS
+SRCS+= cheritest_cheriabi.c
+CFLAGS+=	-DCHERIABI_TESTS
+.endif
+
 .ifdef CHERI_C_TESTS
 CHERI_C_TESTS_DIR=	${SRCTOP}/contrib/cheri-c-tests
 .if exists(${CHERI_C_TESTS_DIR}/Makefile)
