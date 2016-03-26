@@ -60,8 +60,8 @@ __FBSDID("$FreeBSD$");
  * High-level UART interface.
  */
 struct tegra_softc {
-	struct ns8250_softc ns8250_base;
-	clk_t		clk;
+	struct ns8250_softc 	ns8250_base;
+	clk_t			clk;
 	hwreset_t		reset;
 };
 
@@ -82,7 +82,7 @@ tegra_uart_attach(struct uart_softc *sc)
 	ns8250->ier_rxbits = 0x1d;
 	ns8250->ier_mask = 0xc0;
 	ns8250->ier = uart_getreg(bas, REG_IER) & ns8250->ier_mask;
-	ns8250->ier = ns8250->ier_rxbits;
+	ns8250->ier |= ns8250->ier_rxbits;
 	uart_setreg(bas, REG_IER, ns8250->ier);
 	uart_barrier(bas);
 	return (0);
@@ -217,7 +217,6 @@ tegra_uart_probe(device_t dev)
 		device_printf(dev, "Cannot enable UART clock: %d\n", rv);
 		return (ENXIO);
 	}
-	device_printf(dev, "got UART clock: %lld\n", freq);
 	return (uart_bus_probe(dev, shift, (int)freq, 0, 0));
 }
 
