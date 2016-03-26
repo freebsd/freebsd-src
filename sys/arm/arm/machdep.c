@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/cpu.h>
+#include <sys/ctype.h>
 #include <sys/efi.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
@@ -74,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
+#include <sys/boot.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
@@ -232,6 +234,7 @@ static struct pv_addr kernelstack;
 #if defined(LINUX_BOOT_ABI)
 #define LBABI_MAX_BANKS	10
 
+#define CMDLINE_GUARD "FreeBSD:"
 uint32_t board_id;
 struct arm_lbabi_tag *atag_list;
 char linux_command_line[LBABI_MAX_COMMAND_LINE + 1];
@@ -1029,6 +1032,53 @@ pcpu0_init(void)
 }
 
 #if defined(LINUX_BOOT_ABI)
+
+/* Convert the U-Boot command line into FreeBSD kenv and boot options. */
+static void
+cmdline_set_env(char *cmdline, const char *guard)
+{
+	char *cmdline_next, *env;
+	size_t size, guard_len;
+	int i;
+
+	size = strlen(cmdline);
+	/* Skip leading spaces. */
+	for (; isspace(*cmdline) && (size > 0); cmdline++)
+		size--;
+
+	/* Test and remove guard. */
+	if (guard != NULL && guard[0] != '\0') {
+		guard_len  =  strlen(guard);
+		if (strncasecmp(cmdline, guard, guard_len) != 0){
+			init_static_kenv(cmdline, 0);
+			return;
+
+			cmdline += guard_len;
+			size -= guard_len;
+		}
+	}
+
+	/* Skip leading spaces. */
+	for (; isspace(*cmdline) && (size > 0); cmdline++)
+		size--;
+
+	/* Replace ',' with '\0'. */
+	/* TODO: implement escaping for ',' character. */
+	cmdline_next = cmdline;
+	while(strsep(&cmdline_next, ",") != NULL)
+		;
+	init_static_kenv(cmdline, 0);
+	/* Parse boothowto. */
+	for (i = 0; howto_names[i].ev != NULL; i++) {
+		env = kern_getenv(howto_names[i].ev);
+		if (env != NULL) {
+			if (strtoul(env, NULL, 10) != 0)
+				boothowto |= howto_names[i].mask;
+			freeenv(env);
+		}
+	}
+}
+
 vm_offset_t
 linux_parse_boot_param(struct arm_boot_params *abp)
 {
@@ -1036,6 +1086,7 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 	uint32_t revision;
 	uint64_t serial;
 	int size;
+	vm_offset_t lastaddr;
 #ifdef FDT
 	struct fdt_header *dtb_ptr;
 	uint32_t dtb_size;
@@ -1057,9 +1108,6 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 		return (fake_preload_metadata(abp, dtb_ptr, dtb_size));
 	}
 #endif
-	/* Old, ATAG based boot must have board type set. */
-	if (abp->abp_r1 == 0)
-		return (0);
 
 	board_id = abp->abp_r1;
 	walker = (struct arm_lbabi_tag *)abp->abp_r2;
@@ -1089,10 +1137,9 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 			board_set_revision(revision);
 			break;
 		case ATAG_CMDLINE:
-			/* XXX open question: Parse this for boothowto? */
 			size = ATAG_SIZE(walker) -
 			    sizeof(struct arm_lbabi_header);
-			size = min(size, sizeof(linux_command_line) - 1);
+			size = min(size, LBABI_MAX_COMMAND_LINE);
 			strncpy(linux_command_line, walker->u.tag_cmd.command,
 			    size);
 			linux_command_line[size] = '\0';
@@ -1107,9 +1154,9 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 	bcopy(atag_list, atags,
 	    (char *)walker - (char *)atag_list + ATAG_SIZE(walker));
 
-	init_static_kenv(NULL, 0);
-
-	return fake_preload_metadata(abp, NULL, 0);
+	lastaddr = fake_preload_metadata(abp, NULL, 0);
+	cmdline_set_env(linux_command_line, CMDLINE_GUARD);
+	return lastaddr;
 }
 #endif
 
@@ -1784,6 +1831,12 @@ initarm(struct arm_boot_params *abp)
 
 	if (OF_init((void *)dtbp) != 0)
 		panic("OF_init failed with the found device tree");
+
+#if defined(LINUX_BOOT_ABI)
+	if (fdt_get_chosen_bootargs(linux_command_line,
+	    LBABI_MAX_COMMAND_LINE) == 0)
+		cmdline_set_env(linux_command_line, CMDLINE_GUARD);
+#endif
 
 #ifdef EFI
 	efihdr = (struct efi_map_header *)preload_search_info(kmdp,

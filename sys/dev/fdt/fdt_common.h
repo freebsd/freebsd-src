@@ -100,5 +100,6 @@ int fdt_parent_addr_cells(phandle_t);
 int fdt_reg_to_rl(phandle_t, struct resource_list *);
 int fdt_pm(phandle_t);
 int fdt_get_unit(device_t);
+int fdt_get_chosen_bootargs(char *bootargs, size_t max_size);
 
 #endif /* _FDT_COMMON_H_ */
