@@ -1049,13 +1049,10 @@ cmdline_set_env(char *cmdline, const char *guard)
 	/* Test and remove guard. */
 	if (guard != NULL && guard[0] != '\0') {
 		guard_len  =  strlen(guard);
-		if (strncasecmp(cmdline, guard, guard_len) != 0){
-			init_static_kenv(cmdline, 0);
+		if (strncasecmp(cmdline, guard, guard_len) != 0)
 			return;
-
-			cmdline += guard_len;
-			size -= guard_len;
-		}
+		cmdline += guard_len;
+		size -= guard_len;
 	}
 
 	/* Skip leading spaces. */
@@ -1833,7 +1830,7 @@ initarm(struct arm_boot_params *abp)
 		panic("OF_init failed with the found device tree");
 
 #if defined(LINUX_BOOT_ABI)
-	if (fdt_get_chosen_bootargs(linux_command_line,
+	if (loader_envp == NULL && fdt_get_chosen_bootargs(linux_command_line,
 	    LBABI_MAX_COMMAND_LINE) == 0)
 		cmdline_set_env(linux_command_line, CMDLINE_GUARD);
 #endif
