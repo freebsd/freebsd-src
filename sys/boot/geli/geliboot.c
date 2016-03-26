@@ -94,6 +94,11 @@ geli_taste(int read_func(void *vdev, void *priv, off_t off, void *buf,
 		/* Disk is not GELI boot device, skip it */
 		return (1);
 	}
+	if (md.md_iterations < 0) {
+		/* XXX TODO: Support loading key files */
+		/* Disk does not have a passphrase, skip it */
+		return (1);
+	}
 	geli_e = malloc(sizeof(struct geli_entry));
 	if (geli_e == NULL)
 		return (2);
@@ -137,7 +142,10 @@ geli_attach(struct dsk *dskp, const char *passphrase)
 		/*
 		 * Prepare Derived-Key from the user passphrase.
 		 */
-		if (geli_e->md.md_iterations == 0) {
+		if (geli_e->md.md_iterations < 0) {
+			/* XXX TODO: Support loading key files */
+			return (1);
+		} else if (geli_e->md.md_iterations == 0) {
 			g_eli_crypto_hmac_update(&ctx, geli_e->md.md_salt,
 			    sizeof(geli_e->md.md_salt));
 			g_eli_crypto_hmac_update(&ctx, passphrase,
