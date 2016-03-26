@@ -1035,6 +1035,7 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 	struct arm_lbabi_tag *walker;
 	uint32_t revision;
 	uint64_t serial;
+	int size;
 #ifdef FDT
 	struct fdt_header *dtb_ptr;
 	uint32_t dtb_size;
@@ -1061,8 +1062,7 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 		return (0);
 
 	board_id = abp->abp_r1;
-	walker = (struct arm_lbabi_tag *)
-	    (abp->abp_r2 + KERNVIRTADDR - abp->abp_physaddr);
+	walker = (struct arm_lbabi_tag *)abp->abp_r2;
 
 	if (ATAG_TAG(walker) != ATAG_CORE)
 		return 0;
@@ -1079,8 +1079,9 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 		case ATAG_INITRD2:
 			break;
 		case ATAG_SERIAL:
-			serial = walker->u.tag_sn.low |
-			    ((uint64_t)walker->u.tag_sn.high << 32);
+			serial = walker->u.tag_sn.high;
+			serial <<= 32;
+			serial |= walker->u.tag_sn.low;
 			board_set_serial(serial);
 			break;
 		case ATAG_REVISION:
@@ -1089,8 +1090,12 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 			break;
 		case ATAG_CMDLINE:
 			/* XXX open question: Parse this for boothowto? */
-			bcopy(walker->u.tag_cmd.command, linux_command_line,
-			      ATAG_SIZE(walker));
+			size = ATAG_SIZE(walker) -
+			    sizeof(struct arm_lbabi_header);
+			size = min(size, sizeof(linux_command_line) - 1);
+			strncpy(linux_command_line, walker->u.tag_cmd.command,
+			    size);
+			linux_command_line[size] = '\0';
 			break;
 		default:
 			break;
