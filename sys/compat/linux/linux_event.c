@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/filio.h>
 #include <sys/errno.h>
 #include <sys/event.h>
 #include <sys/poll.h>
@@ -871,8 +872,24 @@ static int
 eventfd_ioctl(struct file *fp, u_long cmd, void *data,
 	struct ucred *active_cred, struct thread *td)
 {
+	struct eventfd *efd;
 
-	return (ENXIO);
+	efd = fp->f_data;
+	if (fp->f_type != DTYPE_LINUXEFD || efd == NULL)
+		return (EINVAL);
+
+	switch (cmd)
+	{
+	case FIONBIO:
+		if (*(int *)data)
+			efd->efd_flags |= LINUX_O_NONBLOCK;
+		else
+			efd->efd_flags &= ~LINUX_O_NONBLOCK;
+	case FIOASYNC:
+		return (0);
+	default:
+		return (ENXIO);
+	}
 }
 
 /*ARGSUSED*/
