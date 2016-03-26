@@ -31,8 +31,6 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/resource.h>
-#include <sys/time.h>
 #include <sys/types.h>
 
 #include <ctype.h>
