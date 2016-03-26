@@ -309,7 +309,7 @@ PROGS_CXX	PROG and PROGS_CXX in one Makefile.  To define
 		SRCS.bar=	bar_src.c
 
 		The supported variables are BINDIR BINGRP BINMODE BINOWN
-		CFLAGS CPPFLAGS CXXFLAGS DPADD DPLIBS DPSRCS LDADD
+		CFLAGS CXXFLAGS DPADD DPLIBS DPSRCS LDADD
 		LDFLAGS LIBADD MAN MLINKS PROGNAME SRCS.
 
 PROGNAME	The name that the above program will be installed as, if
