@@ -115,6 +115,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/sysarch.h>
 
 #ifdef FDT
+#include <contrib/libfdt/libfdt.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #endif
@@ -959,7 +960,8 @@ makectx(struct trapframe *tf, struct pcb *pcb)
  * Fake up a boot descriptor table
  */
 vm_offset_t
-fake_preload_metadata(struct arm_boot_params *abp __unused)
+fake_preload_metadata(struct arm_boot_params *abp __unused, void *dtb_ptr,
+    size_t dtb_size)
 {
 #ifdef DDB
 	vm_offset_t zstart = 0, zend = 0;
@@ -997,6 +999,16 @@ fake_preload_metadata(struct arm_boot_params *abp __unused)
 	} else
 #endif
 		lastaddr = (vm_offset_t)&end;
+	if (dtb_ptr != NULL) {
+		/* Copy DTB to KVA space and insert it into module chain. */
+		lastaddr = roundup(lastaddr, sizeof(int));
+		fake_preload[i++] = MODINFO_METADATA | MODINFOMD_DTBP;
+		fake_preload[i++] = sizeof(uint32_t);
+		fake_preload[i++] = (uint32_t)lastaddr;
+		memmove((void *)lastaddr, dtb_ptr, dtb_size);
+		lastaddr += dtb_size;
+		lastaddr = roundup(lastaddr, sizeof(int));
+	}
 	fake_preload[i++] = 0;
 	fake_preload[i] = 0;
 	preload_metadata = (void *)fake_preload;
@@ -1023,20 +1035,35 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 	struct arm_lbabi_tag *walker;
 	uint32_t revision;
 	uint64_t serial;
+#ifdef FDT
+	struct fdt_header *dtb_ptr;
+	uint32_t dtb_size;
+#endif
 
 	/*
 	 * Linux boot ABI: r0 = 0, r1 is the board type (!= 0) and r2
 	 * is atags or dtb pointer.  If all of these aren't satisfied,
-	 * then punt.
+	 * then punt. Unfortunately, it looks like DT enabled kernels
+	 * doesn't uses board type and U-Boot delivers 0 in r1 for them.
 	 */
-	if (!(abp->abp_r0 == 0 && abp->abp_r1 != 0 && abp->abp_r2 != 0))
-		return 0;
+	if (abp->abp_r0 != 0 || abp->abp_r2 == 0)
+		return (0);
+#ifdef FDT
+	/* Test if r2 point to valid DTB. */
+	dtb_ptr = (struct fdt_header *)abp->abp_r2;
+	if (fdt_check_header(dtb_ptr) == 0) {
+		dtb_size = fdt_totalsize(dtb_ptr);
+		return (fake_preload_metadata(abp, dtb_ptr, dtb_size));
+	}
+#endif
+	/* Old, ATAG based boot must have board type set. */
+	if (abp->abp_r1 == 0)
+		return (0);
 
 	board_id = abp->abp_r1;
 	walker = (struct arm_lbabi_tag *)
 	    (abp->abp_r2 + KERNVIRTADDR - abp->abp_physaddr);
 
-	/* xxx - Need to also look for binary device tree */
 	if (ATAG_TAG(walker) != ATAG_CORE)
 		return 0;
 
@@ -1077,7 +1104,7 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 
 	init_static_kenv(NULL, 0);
 
-	return fake_preload_metadata(abp);
+	return fake_preload_metadata(abp, NULL, 0);
 }
 #endif
 
@@ -1135,7 +1162,7 @@ default_parse_boot_param(struct arm_boot_params *abp)
 		return lastaddr;
 #endif
 	/* Fall back to hardcoded metadata. */
-	lastaddr = fake_preload_metadata(abp);
+	lastaddr = fake_preload_metadata(abp, NULL, 0);
 
 	return lastaddr;
 }
