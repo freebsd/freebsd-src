@@ -28,6 +28,7 @@ options 	SCHED_ULE		# ULE scheduler
 options 	PLATFORM		# Platform based SoC
 options 	PLATFORM_SMP
 options 	SMP			# Enable multiple cores
+options 	LINUX_BOOT_ABI
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
