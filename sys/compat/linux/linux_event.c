@@ -751,6 +751,8 @@ retry:
 	if (UINT64_MAX - efd->efd_count <= count) {
 		if ((efd->efd_flags & LINUX_O_NONBLOCK) != 0) {
 			mtx_unlock(&efd->efd_lock);
+			/* Do not not return the number of bytes written */
+			uio->uio_resid += sizeof(eventfd_t);
 			return (EAGAIN);
 		}
 		error = mtx_sleep(&efd->efd_count, &efd->efd_lock,
