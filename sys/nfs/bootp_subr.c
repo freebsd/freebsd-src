@@ -1018,20 +1018,16 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
     struct bootpc_globalcontext *gctx, struct thread *td)
 {
 	int error;
-	struct sockaddr_in defdst;
-	struct sockaddr_in defmask;
 	struct sockaddr_in *sin;
 	struct ifreq *ifr;
 	struct in_aliasreq *ifra;
 	struct sockaddr_in *myaddr;
 	struct sockaddr_in *netmask;
-	struct sockaddr_in *gw;
 
 	ifr = &ifctx->ireq;
 	ifra = &ifctx->iareq;
 	myaddr = &ifctx->myaddr;
 	netmask = &ifctx->netmask;
-	gw = &ifctx->gw;
 
 	if (bootpc_ifctx_isresolved(ifctx) == 0) {
 		/* Shutdown interfaces where BOOTP failed */
@@ -1071,21 +1067,47 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 	error = ifioctl(bootp_so, SIOCAIFADDR, (caddr_t)ifra, td);
 	if (error != 0)
 		panic("%s: SIOCAIFADDR, error=%d", __func__, error);
+}
 
-	/* Add new default route */
+static void
+bootpc_add_default_route(struct bootpc_ifcontext *ifctx)
+{
+	int error;
+	struct sockaddr_in defdst;
+	struct sockaddr_in defmask;
 
-	if (ifctx->gw.sin_addr.s_addr != htonl(INADDR_ANY))
-		clear_sinaddr(&defdst);
-		clear_sinaddr(&defmask);
-		/* XXX MRT just table 0 */
-		error = rtrequest_fib(RTM_ADD,
-		    (struct sockaddr *) &defdst, (struct sockaddr *) gw,
-		    (struct sockaddr *) &defmask,
-		    (RTF_UP | RTF_GATEWAY | RTF_STATIC), NULL, RT_DEFAULT_FIB);
-		if (error != 0) {
-			printf("%s: RTM_ADD, error=%d\n", __func__, error);
-			return;
-		}
+	if (ifctx->gw.sin_addr.s_addr == htonl(INADDR_ANY))
+		return;
+
+	clear_sinaddr(&defdst);
+	clear_sinaddr(&defmask);
+
+	error = rtrequest_fib(RTM_ADD, (struct sockaddr *)&defdst,
+	    (struct sockaddr *) &ifctx->gw, (struct sockaddr *)&defmask,
+	    (RTF_UP | RTF_GATEWAY | RTF_STATIC), NULL, RT_DEFAULT_FIB);
+	if (error != 0) {
+		printf("%s: RTM_ADD, error=%d\n", __func__, error);
+	}
+}
+
+static void
+bootpc_remove_default_route(struct bootpc_ifcontext *ifctx)
+{
+	int error;
+	struct sockaddr_in defdst;
+	struct sockaddr_in defmask;
+
+	if (ifctx->gw.sin_addr.s_addr == htonl(INADDR_ANY))
+		return;
+
+	clear_sinaddr(&defdst);
+	clear_sinaddr(&defmask);
+
+	error = rtrequest_fib(RTM_DELETE, (struct sockaddr *)&defdst,
+	    (struct sockaddr *) &ifctx->gw, (struct sockaddr *)&defmask,
+	    (RTF_UP | RTF_GATEWAY | RTF_STATIC), NULL, RT_DEFAULT_FIB);
+	if (error != 0) {
+		printf("%s: RTM_DELETE, error=%d\n", __func__, error);
 	}
 }
 
@@ -1749,9 +1771,11 @@ retry:
 
 		kern_setenv("boot.netif.name", ifctx->ifp->if_xname);
 
+		bootpc_add_default_route(ifctx);
 		error = md_mount(&nd->root_saddr, nd->root_hostnam,
 				 nd->root_fh, &nd->root_fhsize,
 				 &nd->root_args, td);
+		bootpc_remove_default_route(ifctx);
 		if (error != 0) {
 			if (gctx->any_root_overrides == 0)
 				panic("nfs_boot: mount root, error=%d", error);
@@ -1769,6 +1793,7 @@ retry:
 		ifctx->myaddr.sin_addr.s_addr |
 		~ ifctx->netmask.sin_addr.s_addr;
 	bcopy(&ifctx->netmask, &nd->myif.ifra_mask, sizeof(ifctx->netmask));
+	bcopy(&ifctx->gw, &nd->mygateway, sizeof(ifctx->gw));
 
 out:
 	while((ifctx = STAILQ_FIRST(&gctx->interfaces)) != NULL) {
