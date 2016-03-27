@@ -1478,6 +1478,8 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 	if (p == NULL) {
 		p = bootpc_tag(&gctx->tag, &ifctx->reply, ifctx->replylen,
 		       TAG_ROOT);
+		if (p != NULL)
+			ifctx->gotrootpath = 1;
 	}
 #ifdef ROOTDEVNAME
 	if ((p == NULL || (boothowto & RB_DFLTROOT) != 0) && 
@@ -1497,7 +1499,6 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 			}
 			printf("rootfs %s ", p);
 			gctx->gotrootpath = 1;
-			ifctx->gotrootpath = 1;
 			gctx->setrootfs = ifctx;
 
 			p = bootpc_tag(&gctx->tag, &ifctx->reply,
