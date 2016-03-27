@@ -818,6 +818,10 @@ clknode_set_freq(struct clknode *clknode, uint64_t freq, int flags,
 	/* We have exclusive topology lock, node lock is not needed. */
 	CLK_TOPO_XASSERT();
 
+	/* Check for no change */
+	if (clknode->freq == freq)
+		return (0);
+
 	parent_freq = 0;
 
 	/*
