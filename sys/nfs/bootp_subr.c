@@ -278,7 +278,7 @@ static int	bootpc_call(struct bootpc_globalcontext *gctx,
 static void	bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
 		    struct thread *td);
 
-static int	bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
+static void	bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 		    struct bootpc_globalcontext *gctx, struct thread *td);
 
 static void	bootpc_decode_reply(struct nfsv3_diskless *nd,
@@ -1013,7 +1013,7 @@ bootpc_shutdown_interface(struct bootpc_ifcontext *ifctx, struct thread *td)
 		panic("%s: SIOCDIFADDR, error=%d", __func__, error);
 }
 
-static int
+static void
 bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
     struct bootpc_globalcontext *gctx, struct thread *td)
 {
@@ -1036,7 +1036,7 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 	if (bootpc_ifctx_isresolved(ifctx) == 0) {
 		/* Shutdown interfaces where BOOTP failed */
 		bootpc_shutdown_interface(ifctx, td);
-		return (0);
+		return;
 	}
 
 	printf("Adjusted interface %s", ifctx->ireq.ifr_name);
@@ -1084,11 +1084,9 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 		    (RTF_UP | RTF_GATEWAY | RTF_STATIC), NULL, RT_DEFAULT_FIB);
 		if (error != 0) {
 			printf("%s: RTM_ADD, error=%d\n", __func__, error);
-			return (error);
+			return;
 		}
 	}
-
-	return (0);
 }
 
 static int
