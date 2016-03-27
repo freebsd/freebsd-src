@@ -272,7 +272,7 @@ universal(rqstp, transp)
 			/* decode arguments into a CLEAN buffer */
 			xdrbuf = pl->p_xdrbuf;
 			/* Zero the arguments: reqd ! */
-			(void) memset(xdrbuf, 0, sizeof (pl->p_recvsz));
+			(void) memset(xdrbuf, 0, (size_t)pl->p_recvsz);
 			/*
 			 * Assuming that sizeof (xdrbuf) would be enough
 			 * for the arguments; if not then the program
