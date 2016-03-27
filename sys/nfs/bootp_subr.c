@@ -1074,7 +1074,7 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 
 	/* Add new default route */
 
-	if (ifctx->gotgw != 0 || gctx->gotgw == 0) {
+	if (ifctx->gw.sin_addr.s_addr != htonl(INADDR_ANY))
 		clear_sinaddr(&defdst);
 		clear_sinaddr(&defmask);
 		/* XXX MRT just table 0 */
@@ -1557,10 +1557,6 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 			ifctx->netmask.sin_addr.s_addr = htonl(IN_CLASSB_NET);
 		else
 			ifctx->netmask.sin_addr.s_addr = htonl(IN_CLASSC_NET);
-	}
-	if (ifctx->gotgw == 0) {
-		/* Use proxyarp */
-		ifctx->gw.sin_addr.s_addr = ifctx->myaddr.sin_addr.s_addr;
 	}
 }
 
