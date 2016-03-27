@@ -101,7 +101,7 @@ typedef struct {
 	uint32_t init_half;
 	uint32_t lock_half;
 } guard_t;
-_Static_assert(sizeof(guard_t) == sizeof(uint64_t), "");
+static_assert(sizeof(guard_t) == sizeof(uint64_t), "");
 static const uint32_t LOCKED = 1;
 static const uint32_t INITIALISED = static_cast<guard_lock_t>(1) << 24;
 #	endif
