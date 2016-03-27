@@ -2270,8 +2270,6 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 	bdwrite(bp);
 }
 
-TASKQUEUE_DEFINE_THREAD(ffs_trim);
-
 struct ffs_blkfree_trim_params {
 	struct task task;
 	struct ufsmount *ump;
@@ -2294,6 +2292,7 @@ ffs_blkfree_trim_task(ctx, pending)
 	ffs_blkfree_cg(tp->ump, tp->ump->um_fs, tp->devvp, tp->bno, tp->size,
 	    tp->inum, tp->pdephd);
 	vn_finished_secondary_write(UFSTOVFS(tp->ump));
+	atomic_add_int(&tp->ump->um_trim_inflight, -1);
 	free(tp, M_TEMP);
 }
 
@@ -2306,7 +2305,7 @@ ffs_blkfree_trim_completed(bip)
 	tp = bip->bio_caller2;
 	g_destroy_bio(bip);
 	TASK_INIT(&tp->task, 0, ffs_blkfree_trim_task, tp);
-	taskqueue_enqueue(taskqueue_ffs_trim, &tp->task);
+	taskqueue_enqueue(tp->ump->um_trim_tq, &tp->task);
 }
 
 void
@@ -2350,6 +2349,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd)
 	 * reordering, TRIM might be issued after we reuse the block
 	 * and write some new data into it.
 	 */
+	atomic_add_int(&ump->um_trim_inflight, 1);
 	tp = malloc(sizeof(struct ffs_blkfree_trim_params), M_TEMP, M_WAITOK);
 	tp->ump = ump;
 	tp->devvp = devvp;
