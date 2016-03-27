@@ -68,6 +68,8 @@ __FBSDID("$FreeBSD$");
 
 /* Largest length of a chunk */
 #define SCTP_MAX_CHUNK_LENGTH 0xffff
+/* Largest length of an error cause */
+#define SCTP_MAX_CAUSE_LENGTH 0xffff
 /* Number of addresses where we just skip the counting */
 #define SCTP_COUNT_LIMIT 40
 
