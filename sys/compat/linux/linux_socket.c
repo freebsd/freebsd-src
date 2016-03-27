@@ -246,8 +246,6 @@ linux_to_bsd_sockopt_level(int level)
 	switch (level) {
 	case LINUX_SOL_SOCKET:
 		return (SOL_SOCKET);
-	case LINUX_SOL_IPV6:
-		return (IPPROTO_IPV6);
 	}
 	return (level);
 }
