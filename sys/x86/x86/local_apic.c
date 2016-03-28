@@ -636,12 +636,13 @@ native_lapic_setup(int boot)
 	if (la->la_timer_mode != LAT_MODE_UNDEF) {
 		KASSERT(la->la_timer_period != 0, ("lapic%u: zero divisor",
 		    lapic_id()));
-		lapic_timer_set_divisor(lapic_timer_divisor);
 		switch (la->la_timer_mode) {
 		case LAT_MODE_PERIODIC:
+			lapic_timer_set_divisor(lapic_timer_divisor);
 			lapic_timer_periodic(la);
 			break;
 		case LAT_MODE_ONESHOT:
+			lapic_timer_set_divisor(lapic_timer_divisor);
 			lapic_timer_oneshot(la);
 			break;
 		case LAT_MODE_DEADLINE:
@@ -803,9 +804,9 @@ lapic_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		et->et_min_period = (0x00000002LLU << 32) / et->et_frequency;
 		et->et_max_period = (0xfffffffeLLU << 32) / et->et_frequency;
 	}
-	if (la->la_timer_mode == LAT_MODE_UNDEF)
-		lapic_timer_set_divisor(lapic_timer_divisor);
 	if (period != 0) {
+		if (la->la_timer_mode == LAT_MODE_UNDEF)
+			lapic_timer_set_divisor(lapic_timer_divisor);
 		la->la_timer_mode = LAT_MODE_PERIODIC;
 		la->la_timer_period = ((uint32_t)et->et_frequency * period) >>
 		    32;
@@ -815,6 +816,8 @@ lapic_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		la->la_timer_period = (et->et_frequency * first) >> 32;
 		lapic_timer_deadline(la);
 	} else {
+		if (la->la_timer_mode == LAT_MODE_UNDEF)
+			lapic_timer_set_divisor(lapic_timer_divisor);
 		la->la_timer_mode = LAT_MODE_ONESHOT;
 		la->la_timer_period = ((uint32_t)et->et_frequency * first) >>
 		    32;
