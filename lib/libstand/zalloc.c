@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
  */
 typedef char assert_align[(sizeof(struct MemNode) <= MALLOCALIGN) ? 1 : -1];
 
-#define	MEMNODE_SIZE_MASK	(intptr_t)MALLOCALIGN_MASK
+#define	MEMNODE_SIZE_MASK	MALLOCALIGN_MASK
 
 /*
  * znalloc() -	allocate memory (without zeroing) from pool.  Call reclaim
