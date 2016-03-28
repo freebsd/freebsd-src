@@ -25,7 +25,9 @@ SRCS+=	cheritest_bounds_stack.c					\
 CHERITEST_DIR:=	${.PARSEDIR}
 
 .ifdef CHERIABI_TESTS
+.ifndef BOOTSTRAPPING
 SRCS+= cheritest_cheriabi.c
+.endif
 CFLAGS+=	-DCHERIABI_TESTS
 .endif
 
