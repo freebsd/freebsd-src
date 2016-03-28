@@ -688,13 +688,14 @@ zvol_create_minor(const char *name)
 		bioq_init(&zv->zv_queue);
 		mtx_init(&zv->zv_queue_mtx, "zvol", NULL, MTX_DEF);
 	} else if (zv->zv_volmode == ZFS_VOLMODE_DEV) {
-		if (make_dev_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK,
+		error = make_dev_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK,
 		    &dev, &zvol_cdevsw, NULL, UID_ROOT, GID_OPERATOR,
-		    0640, "%s/%s", ZVOL_DRIVER, name) != 0) {
+		    0640, "%s/%s", ZVOL_DRIVER, name);
+		if (error != 0) {
 			kmem_free(zv, sizeof(*zv));
 			dmu_objset_disown(os, FTAG);
 			mutex_exit(&zfsdev_state_lock);
-			return (SET_ERROR(ENXIO));
+			return (error);
 		}
 		zv->zv_dev = dev;
 		dev->si_iosize_max = MAXPHYS;
