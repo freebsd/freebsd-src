@@ -10,7 +10,7 @@ const char *cheriabi_syscallnames[] = {
 #if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
 #define PAD64_REQUIRED
 #endif
-	"syscall",			/* 0 = syscall */
+	"obs_syscall",			/* 0 = obsolete syscall */
 	"exit",			/* 1 = exit */
 	"fork",			/* 2 = fork */
 	"read",			/* 3 = read */
@@ -208,7 +208,7 @@ const char *cheriabi_syscallnames[] = {
 	"setrlimit",			/* 195 = setrlimit */
 	"getdirentries",			/* 196 = getdirentries */
 	"obs_mmap",			/* 197 = obsolete mmap */
-	"__syscall",			/* 198 = __syscall */
+	"obs___syscall",			/* 198 = obsolete __syscall */
 	"obs_lseek",			/* 199 = obsolete lseek */
 	"obs_truncate",			/* 200 = obsolete truncate */
 	"obs_ftruncate",			/* 201 = obsolete ftruncate */

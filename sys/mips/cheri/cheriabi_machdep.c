@@ -228,38 +228,15 @@ cheriabi_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		locr0->pc += sizeof(int);
 	sa->code = locr0->v0;
 
-	switch (sa->code) {
-	case CHERIABI_SYS___syscall:
-	case CHERIABI_SYS_syscall:
-		/*
-		 * This is an indirect syscall, in which the code is the first
-		 * argument.
-		 */
-		sa->code = locr0->a0;
-		intargs[0] = locr0->a1;
-		intargs[1] = locr0->a2;
-		intargs[2] = locr0->a3;
-		intargs[3] = locr0->a4;
-		intargs[4] = locr0->a5;
-		intargs[5] = locr0->a6;
-		intargs[6] = locr0->a7;
-		isaved = 7;
-		break;
-	default:
-		/*
-		 * A direct syscall, arguments are just parameters to the syscall.
-		 */
-		intargs[0] = locr0->a0;
-		intargs[1] = locr0->a1;
-		intargs[2] = locr0->a2;
-		intargs[3] = locr0->a3;
-		intargs[4] = locr0->a4;
-		intargs[5] = locr0->a5;
-		intargs[6] = locr0->a6;
-		intargs[7] = locr0->a7;
-		isaved = 8;
-		break;
-	}
+	intargs[0] = locr0->a0;
+	intargs[1] = locr0->a1;
+	intargs[2] = locr0->a2;
+	intargs[3] = locr0->a3;
+	intargs[4] = locr0->a4;
+	intargs[5] = locr0->a5;
+	intargs[6] = locr0->a6;
+	intargs[7] = locr0->a7;
+	isaved = 8;
 
 #if defined(CPU_CHERI_CHERI0) || defined (CPU_CHERI_CHERI8) || defined(CPU_CHERI_CHERI16)
 #error	CHERIABI does not support fewer than 8 argument registers
@@ -383,10 +360,6 @@ cheriabi_set_syscall_retval(struct thread *td, int error)
 
 	code = locr0->v0;
 	a0 = locr0->a0;
-	if (code == CHERIABI_SYS_syscall || code == CHERIABI_SYS___syscall) {
-		code = locr0->a0;
-		a0 = locr0->a1;
-	}
 
 	se = td->td_proc->p_sysent;
 	/*

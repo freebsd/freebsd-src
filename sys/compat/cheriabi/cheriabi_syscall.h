@@ -6,7 +6,7 @@
  * created from FreeBSD
  */
 
-#define	CHERIABI_SYS_syscall	0
+				/* 0 is obsolete syscall */
 #define	CHERIABI_SYS_exit	1
 #define	CHERIABI_SYS_fork	2
 #define	CHERIABI_SYS_read	3
@@ -185,7 +185,7 @@
 #define	CHERIABI_SYS_setrlimit	195
 #define	CHERIABI_SYS_getdirentries	196
 				/* 197 is obsolete mmap */
-#define	CHERIABI_SYS___syscall	198
+				/* 198 is obsolete __syscall */
 				/* 199 is obsolete lseek */
 				/* 200 is obsolete truncate */
 				/* 201 is obsolete ftruncate */

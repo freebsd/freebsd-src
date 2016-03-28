@@ -14,11 +14,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 #if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
 #define PAD64_REQUIRED
 #endif
-	/* nosys */
-	case 0: {
-		*n_args = 0;
-		break;
-	}
 	/* sys_exit */
 	case 1: {
 		struct sys_exit_args *p = params;
@@ -962,11 +957,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[2] = p->count; /* u_int */
 		uarg[3] = (intptr_t) p->basep; /* long * */
 		*n_args = 4;
-		break;
-	}
-	/* nosys */
-	case 198: {
-		*n_args = 0;
 		break;
 	}
 	/* __sysctl */
@@ -3200,9 +3190,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
 #define PAD64_REQUIRED
 #endif
-	/* nosys */
-	case 0:
-		break;
 	/* sys_exit */
 	case 1:
 		switch(ndx) {
@@ -4726,9 +4713,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		default:
 			break;
 		};
-		break;
-	/* nosys */
-	case 198:
 		break;
 	/* __sysctl */
 	case 202:
@@ -8489,8 +8473,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 #if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
 #define PAD64_REQUIRED
 #endif
-	/* nosys */
-	case 0:
 	/* sys_exit */
 	case 1:
 		if (ndx == 0 || ndx == 1)
@@ -9042,8 +9024,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* nosys */
-	case 198:
 	/* __sysctl */
 	case 202:
 		if (ndx == 0 || ndx == 1)

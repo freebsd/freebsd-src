@@ -62,7 +62,7 @@
 ; redistributions should be placed in the reserved range at the end
 ; of the current calls.
 
-0	AUE_NULL	NOPROTO	{ int nosys(void); } syscall nosys_args int
+0	AUE_NULL	OBSOL	syscall
 1	AUE_EXIT	NOPROTO	{ void sys_exit(int rval); } exit \
 				    sys_exit_args void
 2	AUE_FORK	NOPROTO	{ int fork(void); }
@@ -336,8 +336,7 @@
 196	AUE_GETDIRENTRIES	NOPROTO	{ int getdirentries(int fd, \
 				    char *buf, u_int count, long *basep); }
 197	AUE_MMAP	OBSOL	mmap
-198	AUE_NULL	NOPROTO	{ int nosys(void); } __syscall \
-				    __syscall_args int
+198	AUE_NULL	OBSOL	__syscall
 199	AUE_LSEEK	OBSOL	lseek
 200	AUE_TRUNCATE	OBSOL	truncate
 201	AUE_FTRUNCATE	OBSOL	ftruncate

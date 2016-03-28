@@ -21,7 +21,7 @@ struct sysent cheriabi_sysent[] = {
 #if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
 #define PAD64_REQUIRED
 #endif
-	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },		/* 0 = syscall */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 0 = obsolete syscall */
 	{ AS(sys_exit_args), (sy_call_t *)sys_sys_exit, AUE_EXIT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 1 = exit */
 	{ 0, (sy_call_t *)sys_fork, AUE_FORK, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 2 = fork */
 	{ AS(read_args), (sy_call_t *)sys_read, AUE_READ, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 3 = read */
@@ -219,7 +219,7 @@ struct sysent cheriabi_sysent[] = {
 	{ AS(__setrlimit_args), (sy_call_t *)sys_setrlimit, AUE_SETRLIMIT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 195 = setrlimit */
 	{ AS(getdirentries_args), (sy_call_t *)sys_getdirentries, AUE_GETDIRENTRIES, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 196 = getdirentries */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 197 = obsolete mmap */
-	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },		/* 198 = __syscall */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 198 = obsolete __syscall */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 199 = obsolete lseek */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 200 = obsolete truncate */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 201 = obsolete ftruncate */

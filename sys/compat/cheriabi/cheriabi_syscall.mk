@@ -3,7 +3,6 @@
 # $FreeBSD$
 # created from FreeBSD
 MIASM =  \
-	syscall.o \
 	exit.o \
 	fork.o \
 	read.o \
@@ -122,7 +121,6 @@ MIASM =  \
 	getrlimit.o \
 	setrlimit.o \
 	getdirentries.o \
-	__syscall.o \
 	__sysctl.o \
 	mlock.o \
 	munlock.o \
