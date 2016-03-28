@@ -227,7 +227,7 @@ _amd64_vatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 		/*
 		 * No next-level page table; pdpe describes one 1GB page.
 		 */
-		a = (pde & AMD64_PG_1GB_FRAME) + (va & AMD64_PDPMASK);
+		a = (pdpe & AMD64_PG_1GB_FRAME) + (va & AMD64_PDPMASK);
 		s = _kvm_pa2off(kd, a, pa);
 		if (s == 0) {
 			_kvm_err(kd, kd->program,
