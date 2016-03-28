@@ -32,18 +32,66 @@ INTERFACE clkdev;
 
 CODE {
 	#include <sys/systm.h>
+	#include <sys/bus.h>
+	static int
+	clkdev_default_write_4(device_t dev, bus_addr_t addr, uint32_t val)
+	{
+		device_t pdev;
+
+		pdev = device_get_parent(dev);
+		if (pdev == NULL)
+			return (ENXIO);
+
+		return (CLKDEV_WRITE_4(pdev, addr, val));
+	}
+
+	static int
+	clkdev_default_read_4(device_t dev, bus_addr_t addr, uint32_t *val)
+	{
+		device_t pdev;
+
+		pdev = device_get_parent(dev);
+		if (pdev == NULL)
+			return (ENXIO);
+
+		return (CLKDEV_READ_4(pdev, addr, val));
+	}
+
+	static int
+	clkdev_default_modify_4(device_t dev, bus_addr_t addr,
+	    uint32_t clear_mask, uint32_t set_mask)
+	{
+		device_t pdev;
+
+		pdev = device_get_parent(dev);
+		if (pdev == NULL)
+			return (ENXIO);
+
+		return (CLKDEV_MODIFY_4(pdev, addr, clear_mask, set_mask));
+	}
+
 	static void
 	clkdev_default_device_lock(device_t dev)
 	{
+		device_t pdev;
 
-		panic("clkdev_device_lock() is not implemented");
+		pdev = device_get_parent(dev);
+		if (pdev == NULL)
+			panic("clkdev_device_lock not implemented");
+
+		CLKDEV_DEVICE_LOCK(pdev);
 	}
 
 	static void
 	clkdev_default_device_unlock(device_t dev)
 	{
+		device_t pdev;
 
-		panic("clkdev_device_unlock() is not implemented");
+		pdev = device_get_parent(dev);
+		if (pdev == NULL)
+			panic("clkdev_device_unlock not implemented");
+
+		CLKDEV_DEVICE_UNLOCK(pdev);
 	}
 }
 
@@ -54,7 +102,7 @@ METHOD int write_4 {
 	device_t	dev;
 	bus_addr_t	addr;
 	uint32_t	val;
-};
+} DEFAULT clkdev_default_write_4;
 
 #
 # Read single register
@@ -63,7 +111,7 @@ METHOD int read_4 {
 	device_t	dev;
 	bus_addr_t	addr;
 	uint32_t	*val;
-};
+} DEFAULT clkdev_default_read_4;
 
 #
 # Modify single register
@@ -73,7 +121,7 @@ METHOD int modify_4 {
 	bus_addr_t	addr;
 	uint32_t	clear_mask;
 	uint32_t	set_mask;
-};
+} DEFAULT clkdev_default_modify_4;
 
 #
 # Get exclusive access to underlying device
