@@ -9,13 +9,15 @@ __<bsd.files.mk>__:
 
 FILESGROUPS?=	FILES
 
-.for group in ${FILESGROUPS}
+_FILESGROUPS=	${FILESGROUPS:C,[/*],_,g}
+
+.for group in ${_FILESGROUPS}
 buildfiles: ${${group}}
 .endfor
 
 all: buildfiles
 
-.for group in ${FILESGROUPS}
+.for group in ${_FILESGROUPS}
 .if defined(${group}) && !empty(${group})
 installfiles: installfiles-${group}
 
