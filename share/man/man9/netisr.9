@@ -120,7 +120,7 @@ whose fields are defined as follows:
 .Bl -tag -width "netisr_handler_t nh_handler"
 .It Vt "const char *" Va nh_name
 Unique character string name of the protocol, which may be included in
-.Xr sysctl 2
+.Xr sysctl 3
 MIB names, so should not contain whitespace.
 .It Vt netisr_handler_t Va nh_handler
 Protocol handler function that will be invoked on each packet received for
