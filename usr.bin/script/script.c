@@ -74,7 +74,7 @@ static int child;
 static const char *fname;
 static char *fmfname;
 static int fflg, qflg, ttyflg;
-static int usesleep, rawout;
+static int usesleep, rawout, showexit;
 
 static struct termios tt;
 
@@ -107,6 +107,7 @@ main(int argc, char *argv[])
 	flushtime = 30;
 	fm_fd = -1;	/* Shut up stupid "may be used uninitialized" GCC
 			   warning. (not needed w/clang) */
+	showexit = 0;
 
 	while ((ch = getopt(argc, argv, "adfkpqrt:")) != -1)
 		switch(ch) {
@@ -195,7 +196,8 @@ main(int argc, char *argv[])
 			(void)fprintf(fscript, "Script started on %s",
 			    ctime(&tvec));
 			if (argv[0]) {
-				fprintf(fscript, "command: ");
+				showexit = 1;
+				fprintf(fscript, "Command: ");
 				for (k = 0 ; argv[k] ; ++k)
 					fprintf(fscript, "%s%s", k ? " " : "",
 						argv[k]);
@@ -355,9 +357,13 @@ done(int eno)
 	if (rawout)
 		record(fscript, NULL, 0, 'e');
 	if (!qflg) {
-		if (!rawout)
+		if (!rawout) {
+			if (showexit)
+				(void)fprintf(fscript, "\nCommand exit status:"
+				    " %d", eno);
 			(void)fprintf(fscript,"\nScript done on %s",
 			    ctime(&tvec));
+		}
 		(void)printf("\nScript done, output file is %s\n", fname);
 		if (fflg) {
 			(void)printf("Filemon done, output file is %s\n",
