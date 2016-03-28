@@ -648,8 +648,8 @@ config::expand_one(const char *&src, string &dst)
 		return;
 	}
 
-	// $[^A-Za-z] -> $\1
-	if (!isalpha(*src)) {
+	// $[^-A-Za-z_*] -> $\1
+	if (!isalpha(*src) && *src != '_' && *src != '-' && *src != '*') {
 		dst += '$';
 		dst += *src++;
 		return;
@@ -793,10 +793,15 @@ process_event(char *buffer)
 	devdlog(LOG_INFO, "Processing event '%s'\n", buffer);
 	type = *buffer++;
 	cfg.push_var_table();
+	// $* is the entire line
+	cfg.set_variable("*", buffer - 1);
+	// $_ is the entire line without the initial character
+	cfg.set_variable("_", buffer - 1);
 	// No match doesn't have a device, and the format is a little
 	// different, so handle it separately.
 	switch (type) {
 	case notify:
+		//! (k=v)*
 		sp = cfg.set_vars(sp);
 		break;
 	case nomatch:
