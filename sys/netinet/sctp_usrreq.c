@@ -5816,6 +5816,10 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 							    __func__);
 							continue;
 						}
+						if ((sctp_is_addr_restricted(stcb, laddr->ifa)) &&
+						    (!sctp_is_addr_pending(stcb, laddr->ifa))) {
+							continue;
+						}
 						if (laddr->ifa == ifa) {
 							found = 1;
 							break;
