@@ -1483,6 +1483,11 @@ _crunch=	usr.sbin/crunch
 _awk=		usr.bin/awk
 .endif
 
+# r296926 -P keymap search path
+.if ${BOOTSTRAPPING} < 1100103
+_kbdcontrol=	usr.sbin/kbdcontrol
+.endif
+
 _yacc=		lib/liby \
 		usr.bin/yacc
 
@@ -1548,6 +1553,7 @@ bootstrap-tools: .PHONY
     usr.bin/brandelf \
     ${_cat} \
     ${_dd} \
+    ${_kbdcontrol} \
     usr.bin/lorder \
     ${_libopenbsd} \
     ${_makewhatis} \
