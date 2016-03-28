@@ -142,5 +142,21 @@ test_cheriabi_mmap_perms(const struct cheri_test *ctp __unused)
 		    "failed to upgrade permissions (0x%lx)",
 		    cheri_getperm(cap));
 
+	if (munmap(cap, PAGE_SIZE) != 0)
+		cheritest_failure_err("munmap() failed");
+
+	/* Disallow executable pages */
+	perms = ~PERM_EXEC;
+	if (sysarch(CHERI_MMAP_ANDPERM, &perms) != 0)
+		cheritest_failure_err("sysarch(CHERI_MMAP_ANDPERM) failed");
+	if ((cap = mmap(0, PAGE_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC,
+	    MAP_ANON, -1, 0)) == MAP_FAILED)
+		cheritest_failure_err("mmap(MAP_FIXED) failed");
+	if (cheri_getperm(cap) & PERM_EXEC)
+		cheritest_failure_errx("mmap(PROT_READ|PROT_WRITE|PROT_EXEC) "
+		    "produced execute perm after sysarch(CHERI_MMAP_ANDPERM, "
+		    "~PERM_EXEC)");
+
+
 	cheritest_success();
 }

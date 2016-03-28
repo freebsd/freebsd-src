@@ -1588,6 +1588,11 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 	    flags, uap->fd, uap->pos));
 }
 
+#define	PERM_READ	(CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP)
+#define	PERM_WRITE	(CHERI_PERM_STORE | CHERI_PERM_STORE_CAP | \
+			    CHERI_PERM_STORE_LOCAL_CAP)
+#define	PERM_EXEC	CHERI_PERM_EXECUTE
+#define	PERM_RWX	(PERM_READ | PERM_WRITE | PERM_EXEC)
 /*
  * Given a starting set of CHERI permissions (operms), set (not AND) the load,
  * store, and execute permissions based on the mmap permissions (prot).
@@ -1596,22 +1601,19 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
  * new region or rederiving a capability when upgrading a sub-region.
  */
 static register_t
-cheriabi_mmap_new_perms(register_t operms, int prot)
+cheriabi_mmap_prot2perms(int prot)
 {
-
-	operms &= ~(CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE |
-	    CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP |
-	    CHERI_PERM_EXECUTE);
+	register_t perms = 0;
 
 	if (prot & PROT_READ)
-		operms |= CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP;
+		perms |= CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP;
 	if (prot & PROT_WRITE)
-		operms |= CHERI_PERM_STORE | CHERI_PERM_STORE_CAP |
+		perms |= CHERI_PERM_STORE | CHERI_PERM_STORE_CAP |
 		CHERI_PERM_STORE_LOCAL_CAP;
 	if (prot & PROT_EXEC)
-		operms |= CHERI_PERM_EXECUTE;
+		perms |= CHERI_PERM_EXECUTE;
 
-	return (operms);
+	return (perms);
 }
 
 void
@@ -1664,18 +1666,21 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 	} else {
 		/*
 		 * Start with all data and code permissions.
-		 *
-		 * XXX-BD: we may want a sysarch to downgrade this set
-		 * on a per-process basis to prevent abuse of mmap to
-		 * regain discarded permissions (expecially user
-		 * permissions).
 		 */
-		PROC_LOCK(td->td_proc);
-		perms = td->td_proc->p_md.md_cheri_mmap_perms;
-		PROC_UNLOCK(td->td_proc);
+		perms = CHERI_CAP_USER_DATA_PERMS |
+		    CHERI_CAP_USER_CODE_PERMS;
 		off = 0;
 	}
-	perms = cheriabi_mmap_new_perms(perms, prot);
+
+	/* Remove RMX permissions and add back requested ones. */
+	perms &= ~PERM_RWX;
+	perms |= cheriabi_mmap_prot2perms(prot);
+
+	/* Restrict permissions to process max. */
+	PROC_LOCK(td->td_proc);
+	perms &= td->td_proc->p_md.md_cheri_mmap_perms;
+	PROC_UNLOCK(td->td_proc);
+
 	cheri_capability_set(retcap, perms, NULL,
 	    (void *)(ret - off), roundup2(len + off, PAGE_SIZE), off);
 }
