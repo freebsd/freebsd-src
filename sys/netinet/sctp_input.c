@@ -6033,7 +6033,9 @@ trigger_send:
 	if (!TAILQ_EMPTY(&stcb->asoc.control_send_queue)) {
 		cnt_ctrl_ready = stcb->asoc.ctrl_queue_cnt - stcb->asoc.ecn_echo_cnt_onq;
 	}
-	if (cnt_ctrl_ready || stcb->asoc.trigger_reset ||
+	if (!TAILQ_EMPTY(&stcb->asoc.asconf_send_queue) ||
+	    cnt_ctrl_ready ||
+	    stcb->asoc.trigger_reset ||
 	    ((un_sent) &&
 	    (stcb->asoc.peers_rwnd > 0 ||
 	    (stcb->asoc.peers_rwnd <= 0 && stcb->asoc.total_flight == 0)))) {
