@@ -839,6 +839,38 @@ sysctl_devctl_queue(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+/**
+ * @brief safely quotes strings that might have double quotes in them.
+ *
+ * The devctl protocol relies on quoted strings having matching quotes.
+ * This routine quotes any internal quotes so the resulting string
+ * is safe to pass to snprintf to construct, for example pnp info strings.
+ * Strings are always terminated with a NUL, but may be truncated if longer
+ * than @p len bytes after quotes.
+ *
+ * @param dst	Buffer to hold the string. Must be at least @p len bytes long
+ * @param src	Original buffer.
+ * @param len	Length of buffer pointed to by @dst, including trailing NUL
+ */
+void
+devctl_safe_quote(char *dst, const char *src, size_t len)
+{
+	char *walker = dst, *ep = dst + len - 1;
+
+	if (len == 0)
+		return;
+	while (src != NULL && walker < ep)
+	{
+		if (*src == '"') {
+			if (ep - walker < 2)
+				break;
+			*walker++ = '\\';
+		}
+		*walker++ = *src++;
+	}
+	*walker = '\0';
+}
+
 /* End of /dev/devctl code */
 
 static TAILQ_HEAD(,device)	bus_data_devices;
