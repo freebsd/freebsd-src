@@ -457,6 +457,7 @@
 #define	MSR_DRAM_ENERGY_STATUS	0x619
 #define	MSR_PP0_ENERGY_STATUS	0x639
 #define	MSR_PP1_ENERGY_STATUS	0x641
+#define	MSR_TSC_DEADLINE	0x6e0	/* Writes are not serializing */
 
 /*
  * VMX MSRs
@@ -478,7 +479,8 @@
 #define	MSR_VMX_TRUE_ENTRY_CTLS	0x490
 
 /*
- * X2APIC MSRs
+ * X2APIC MSRs.
+ * Writes are not serializing.
  */
 #define	MSR_APIC_000		0x800
 #define	MSR_APIC_ID		0x802
