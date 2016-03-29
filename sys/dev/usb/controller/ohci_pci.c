@@ -124,9 +124,10 @@ ohci_pci_match(device_t self)
 
 	case 0x740c1022:
 		return ("AMD-756 USB Controller");
-
 	case 0x74141022:
 		return ("AMD-766 USB Controller");
+	case 0x78071022:
+		return ("AMD FCH USB Controller");
 
 	case 0x43741002:
 		return "ATI SB400 USB Controller";
