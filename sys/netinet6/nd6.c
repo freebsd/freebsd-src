@@ -127,7 +127,7 @@ static int nd6_is_new_addr_neighbor(const struct sockaddr_in6 *,
 static void nd6_setmtu0(struct ifnet *, struct nd_ifinfo *);
 static void nd6_slowtimo(void *);
 static int regen_tmpaddr(struct in6_ifaddr *);
-static void nd6_free(struct llentry *, int);
+static void nd6_free(struct llentry **, int);
 static void nd6_free_redirect(const struct llentry *);
 static void nd6_llinfo_timer(void *);
 static void nd6_llinfo_settimer_locked(struct llentry *, long);
@@ -727,12 +727,16 @@ nd6_llinfo_timer(void *arg)
 	struct llentry *ln;
 	struct in6_addr *dst, *pdst, *psrc, src;
 	struct ifnet *ifp;
-	struct nd_ifinfo *ndi = NULL;
+	struct nd_ifinfo *ndi;
 	int do_switch, send_ns;
 	long delay;
 
 	KASSERT(arg != NULL, ("%s: arg NULL", __func__));
 	ln = (struct llentry *)arg;
+	ifp = lltable_get_ifp(ln->lle_tbl);
+	CURVNET_SET(ifp->if_vnet);
+
+	ND6_RLOCK();
 	LLE_WLOCK(ln);
 	if (callout_pending(&ln->lle_timer)) {
 		/*
@@ -752,10 +756,10 @@ nd6_llinfo_timer(void *arg)
 		 * would have been 1.
 		 */
 		LLE_WUNLOCK(ln);
+		ND6_RUNLOCK();
+		CURVNET_RESTORE();
 		return;
 	}
-	ifp = ln->lle_tbl->llt_ifp;
-	CURVNET_SET(ifp->if_vnet);
 	ndi = ND_IFINFO(ifp);
 	send_ns = 0;
 	dst = &ln->r_l3addr.addr6;
@@ -777,8 +781,7 @@ nd6_llinfo_timer(void *arg)
 	}
 
 	if (ln->la_flags & LLE_DELETED) {
-		nd6_free(ln, 0);
-		ln = NULL;
+		nd6_free(&ln, 0);
 		goto done;
 	}
 
@@ -803,9 +806,7 @@ nd6_llinfo_timer(void *arg)
 				ln->la_hold = m0;
 				clear_llinfo_pqueue(ln);
 			}
-			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_TIMEDOUT);
-			nd6_free(ln, 0);
-			ln = NULL;
+			nd6_free(&ln, 0);
 			if (m != NULL)
 				icmp6_error2(m, ICMP6_DST_UNREACH,
 				    ICMP6_DST_UNREACH_ADDR, 0, ifp);
@@ -834,12 +835,8 @@ nd6_llinfo_timer(void *arg)
 			 * GC timer has ended and entry hasn't been used.
 			 * Run Garbage collector (RFC 4861, 5.3)
 			 */
-			if (!ND6_LLINFO_PERMANENT(ln)) {
-				EVENTHANDLER_INVOKE(lle_event, ln,
-				    LLENTRY_EXPIRED);
-				nd6_free(ln, 1);
-				ln = NULL;
-			}
+			if (!ND6_LLINFO_PERMANENT(ln))
+				nd6_free(&ln, 1);
 			break;
 		}
 
@@ -861,9 +858,7 @@ nd6_llinfo_timer(void *arg)
 			ln->la_asked++;
 			send_ns = 1;
 		} else {
-			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_EXPIRED);
-			nd6_free(ln, 0);
-			ln = NULL;
+			nd6_free(&ln, 0);
 		}
 		break;
 	default:
@@ -871,6 +866,8 @@ nd6_llinfo_timer(void *arg)
 		    __func__, ln->ln_state);
 	}
 done:
+	if (ln != NULL)
+		ND6_RUNLOCK();
 	if (send_ns != 0) {
 		nd6_llinfo_settimer_locked(ln, (long)ndi->retrans * hz / 1000);
 		psrc = nd6_llinfo_get_holdsrc(ln, &src);
@@ -1367,12 +1364,27 @@ nd6_is_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
  * Set noinline to be dtrace-friendly
  */
 static __noinline void
-nd6_free(struct llentry *ln, int gc)
+nd6_free(struct llentry **lnp, int gc)
 {
-	struct nd_defrouter *dr;
 	struct ifnet *ifp;
+	struct llentry *ln;
+	struct nd_defrouter *dr;
+
+	ln = *lnp;
+	*lnp = NULL;
 
 	LLE_WLOCK_ASSERT(ln);
+	ND6_RLOCK_ASSERT();
+
+	ifp = lltable_get_ifp(ln->lle_tbl);
+	if ((ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV) != 0)
+		dr = defrouter_lookup_locked(&ln->r_l3addr.addr6, ifp);
+	else
+		dr = NULL;
+	ND6_RUNLOCK();
+
+	if ((ln->la_flags & LLE_DELETED) == 0)
+		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_EXPIRED);
 
 	/*
 	 * we used to have pfctlinput(PRC_HOSTDEAD) here.
@@ -1382,11 +1394,7 @@ nd6_free(struct llentry *ln, int gc)
 	/* cancel timer */
 	nd6_llinfo_settimer_locked(ln, -1);
 
-	dr = NULL;
-	ifp = ln->lle_tbl->llt_ifp;
 	if (ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV) {
-		dr = defrouter_lookup(&ln->r_l3addr.addr6, ifp);
-
 		if (dr != NULL && dr->expire &&
 		    ln->ln_state == ND6_LLINFO_STALE && gc) {
 			/*
