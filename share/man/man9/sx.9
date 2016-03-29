@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 16, 2016
+.Dd March 28, 2016
 .Dt SX 9
 .Os
 .Sh NAME
@@ -320,11 +320,16 @@ end up sleeping while holding a mutex, which is not allowed.
 .Xr rwlock 9 ,
 .Xr sema 9
 .Sh BUGS
-In the
-.No non- Ns Dv WITNESS
-case, the
+A kernel without
+.Dv WITNESS
+cannot assert whether the current thread does or does not hold a shared lock.
 .Dv SA_LOCKED
 and
 .Dv SA_SLOCKED
-assertions merely check that some thread holds a shared lock.
-They do not ensure that the current thread holds a shared lock.
+can only assert that
+.Em any
+thread holds a shared lock.
+They cannot ensure that the current thread holds a shared lock.
+Further,
+.Dv SA_UNLOCKED
+can only assert that the current thread does not hold an exclusive lock.
