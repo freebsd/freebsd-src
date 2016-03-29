@@ -64,8 +64,8 @@ typedef struct {
 	uint16_t e_machine; /* Machine architecture. */
 	uint16_t e_phentsize; /* Size of program header entry. */
 
-	uint32_t r_offset;
-	uint32_t r_size;
+	uint64_t r_offset;
+	uint64_t r_size;
 } FatElf_record;
 
 #endif /* !_SYS_ELF_FAT_H_ */
