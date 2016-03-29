@@ -1855,6 +1855,7 @@ process_mpa_request(struct c4iw_ep *ep)
 	    ep->mpa_attr.xmit_marker_enabled, ep->mpa_attr.version);
 
 	state_set(&ep->com, MPA_REQ_RCVD);
+	STOP_EP_TIMER(ep);
 
 	/* drive upcall */
 	mutex_lock(&ep->parent_ep->com.mutex);
