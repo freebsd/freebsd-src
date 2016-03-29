@@ -112,7 +112,7 @@ typedef	int fo_chown_t(struct file *fp, uid_t uid, gid_t gid,
 		    struct ucred *active_cred, struct thread *td);
 typedef int fo_sendfile_t(struct file *fp, int sockfd, struct uio *hdr_uio,
 		    struct uio *trl_uio, off_t offset, size_t nbytes,
-		    off_t *sent, int flags, int kflags, struct thread *td);
+		    off_t *sent, int flags, struct thread *td);
 typedef int fo_seek_t(struct file *fp, off_t offset, int whence,
 		    struct thread *td);
 typedef int fo_fill_kinfo_t(struct file *fp, struct kinfo_file *kif,
@@ -377,11 +377,11 @@ fo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 static __inline int
 fo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct thread *td)
+    struct thread *td)
 {
 
 	return ((*fp->f_ops->fo_sendfile)(fp, sockfd, hdr_uio, trl_uio, offset,
-	    nbytes, sent, flags, kflags, td));
+	    nbytes, sent, flags, td));
 }
 
 static __inline int
