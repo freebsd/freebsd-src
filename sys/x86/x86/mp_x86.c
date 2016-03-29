@@ -910,7 +910,7 @@ ipi_all_but_self(u_int ipi)
 }
 
 int
-ipi_nmi_handler()
+ipi_nmi_handler(void)
 {
 	u_int cpuid;
 
