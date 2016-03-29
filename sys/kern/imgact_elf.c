@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/fcntl.h>
 #include <sys/gzio.h>
+#include <sys/elf_fat.h>
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
 #include <sys/jail.h>
@@ -95,6 +96,10 @@ static int __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 static int __elfN(load_section)(struct image_params *imgp, vm_offset_t offset,
     caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot,
     size_t pagesize);
+static int __CONCAT(fat, __elfN(extract_record))(struct vnode *vp,
+		const FatElf_FEhdr *fhdr, FatElf_record *record);
+static int __CONCAT(fat, __elfN(elfpart_extract))(struct image_params *imgp,
+		Elf_Ehdr *elf_part);
 static int __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp);
 static boolean_t __elfN(freebsd_trans_osrel)(const Elf_Note *note,
     int32_t *osrel);
@@ -748,10 +753,64 @@ fail:
 }
 
 static int
+__CONCAT(fat, __elfN(extract_record))(struct vnode *vp,
+		const FatElf_FEhdr *fhdr, FatElf_record *record)
+{
+	int i = 0;
+	struct thread *td = curthread;
+
+	for (i = 0; i < le32toh(fhdr->fe_nrecords); ++i) {
+		int error = vn_rdwr(UIO_READ, vp, record, sizeof(*record), sizeof(*fhdr)
+		        + sizeof(*record) * i, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred,
+		        NOCRED, NULL, td);
+		if (error != 0) {
+			printf("vn_rdwr error: %d\n", error);
+			return error;
+		}
+
+		Elf_Ehdr hdr = { .e_ident[EI_CLASS] = record->ei_class,
+				.e_ident[EI_DATA] = record->ei_data,
+				.e_ident[EI_VERSION] = record->ei_version,
+				.e_version = record->e_version, .e_machine = record->e_machine,
+				.e_phentsize = record->e_phentsize };
+
+		if (__elfN(check_header)(hdr) == 0 && (hdr->e_type == ET_EXEC
+				|| hdr->e_type == ET_DYN))
+			break;
+	}
+
+	return (i >= le32toh(fhdr->fe_nrecords)) ? ENOEXEC : 0;
+}
+
+static int
+__CONCAT(fat, __elfN(elfpart_extract))(struct image_params *imgp,
+		Elf_Ehdr *elf_part)
+{
+	struct vnode *vp = imgp->vp;
+	struct thread *td = curthread;
+	const FatElf_FEhdr *header = imgp->image_header;
+	FatElf_record record;
+	int error = 0;
+
+	error = fatelf_extract_record(vp, header, &record);
+	if (error != 0) {
+		printf("fatelf_extract_record error: %d\n", error);
+		return error;
+	}
+
+	error = vn_rdwr(UIO_READ, vp, elf_part, sizeof(*elf_part),
+			record->r_offset, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
+			NULL, td);
+
+	return error;
+}
+
+static int
 __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 {
 	struct thread *td;
 	const Elf_Ehdr *hdr;
+	Elf_Ehdr elf_part;
 	const Elf_Phdr *phdr;
 	Elf_Auxargs *elf_auxargs;
 	struct vmspace *vmspace;
@@ -764,6 +823,17 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	u_long seg_size, seg_addr, addr, baddr, et_dyn_addr, entry, proghdr;
 	int32_t osrel;
 	int error, i, n, interp_name_len, have_interp;
+	
+	if (IS_FATELF((const FatElf_FEhdr *)imgp->image_header)) {
+		error = fatelf_elfpart_extract(imgp, &elf_part);
+		if (error != 0) {
+			printf("Bad FatElf format, error = %d", error);
+			return ENOEXEC;
+		}
+		hdr = &elf_part;
+	} else {
+		hdr = (const Elf_Ehdr *)imgp->image_header;
+	}
 
 	hdr = (const Elf_Ehdr *)imgp->image_header;
 
