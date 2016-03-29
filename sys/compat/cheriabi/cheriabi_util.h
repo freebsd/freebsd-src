@@ -56,6 +56,16 @@ struct cheriabi_ps_strings {
 #define	CHERIABI_PS_STRINGS	\
 	(USRSTACK - sizeof(struct cheriabi_ps_strings))
 
+typedef struct {	/* Auxiliary vector entry on initial stack */
+	long	a_type;		/* Entry type. */
+	/* long    pad[(CHERICAP_SIZE / 8) - 1]; */
+	union {
+		long	a_val;		/* Integer value. */
+		struct chericap	a_ptr;	/* Address. */
+		/* void	(*a_fcn)(void); */ /* Function pointer (not used). */
+       } a_un;
+} ElfCheriABI_Auxinfo;
+
 extern struct sysent cheriabi_sysent[];
 
 #if 0

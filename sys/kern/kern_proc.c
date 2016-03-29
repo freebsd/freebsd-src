@@ -91,6 +91,11 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_util.h>
 #endif
 
+#ifdef COMPAT_CHERIABI
+#include <compat/cheriabi/cheriabi.h>
+#include <compat/cheriabi/cheriabi_util.h>
+#endif
+
 SDT_PROVIDER_DEFINE(proc);
 SDT_PROBE_DEFINE4(proc, , ctor, entry, "struct proc *", "int", "void *",
     "int");
@@ -1690,6 +1695,102 @@ done:
 }
 #endif
 
+#ifdef COMPAT_CHERIABI
+/* Get the cursor from a capability stored in memory. */
+static inline uintptr_t
+cap_ctoint(struct chericap *cap)
+{
+	register_t _cursor;
+
+	cheri_capability_load(CHERI_CR_CTEMP0, cap);
+	CHERI_CTOINT(_cursor, CHERI_CR_CTEMP0);
+	return (_cursor);
+}
+
+static int
+get_proc_vector_cheriabi(struct thread *td, struct proc *p,
+    char ***proc_vectorp, size_t *vsizep, enum proc_vector_type type)
+{
+	struct cheriabi_ps_strings pss;
+	ElfCheriABI_Auxinfo aux;
+	vm_offset_t vptr, ptr;
+	char **proc_vector;
+	size_t vsize, size;
+	int i;
+
+	if (proc_readmem(td, p, (vm_offset_t)p->p_sysent->sv_psstrings, &pss,
+	    sizeof(pss)) != sizeof(pss))
+		return (ENOMEM);
+	switch (type) {
+	case PROC_ARG:
+		vptr = (vm_offset_t)cap_ctoint(&pss.ps_argvstr);
+		vsize = pss.ps_nargvstr;
+		if (vsize > ARG_MAX)
+			return (ENOEXEC);
+		size = vsize * sizeof(struct chericap);
+		break;
+	case PROC_ENV:
+		vptr = (vm_offset_t)cap_ctoint(&pss.ps_envstr);
+		vsize = pss.ps_nenvstr;
+		if (vsize > ARG_MAX)
+			return (ENOEXEC);
+		size = vsize * sizeof(struct chericap);
+		break;
+	case PROC_AUX:
+		/*
+		 * The aux array is just above env array on the stack. Check
+		 * that the address is naturally aligned.
+		 */
+		vptr = (vm_offset_t)cap_ctoint(&pss.ps_envstr) +
+			(pss.ps_nenvstr + 1) * sizeof(struct chericap);
+#if __ELF_WORD_SIZE == 64
+		if (vptr % sizeof(uint64_t) != 0)
+#else
+		if (vptr % sizeof(uint32_t) != 0)
+#endif
+			return (ENOEXEC);
+		/*
+		 * We count the array size reading the aux vectors from the
+		 * stack until AT_NULL vector is returned.  So (to keep the code
+		 * simple) we read the process stack twice: the first time here
+		 * to find the size and the second time when copying the vectors
+		 * to the allocated proc_vector.
+		 */
+		for (ptr = vptr, i = 0; i < PROC_AUXV_MAX; i++) {
+			if (proc_readmem(td, p, ptr, &aux, sizeof(aux)) !=
+			    sizeof(aux))
+				return (ENOMEM);
+			if (aux.a_type == AT_NULL)
+				break;
+			ptr += sizeof(aux);
+		}
+		/*
+		 * If the PROC_AUXV_MAX entries are iterated over, and we have
+		 * not reached AT_NULL, it is most likely we are reading wrong
+		 * data: either the process doesn't have auxv array or data has
+		 * been modified. Return the error in this case.
+		 */
+		if (aux.a_type != AT_NULL)
+			return (ENOEXEC);
+		vsize = i + 1;
+		size = vsize * sizeof(aux);
+		break;
+	default:
+		KASSERT(0, ("Wrong proc vector type: %d", type));
+		return (EINVAL); /* In case we are built without INVARIANTS. */
+	}
+	proc_vector = malloc(size, M_TEMP, M_WAITOK);
+	if (proc_readmem(td, p, vptr, proc_vector, size) != size) {
+		free(proc_vector, M_TEMP);
+		return (ENOMEM);
+	}
+	*proc_vectorp = proc_vector;
+	*vsizep = vsize;
+
+	return (0);
+}
+#endif /* COMPACT_CHERIABI */
+
 static int
 get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
     size_t *vsizep, enum proc_vector_type type)
@@ -1704,6 +1805,11 @@ get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
 #ifdef COMPAT_FREEBSD32
 	if (SV_PROC_FLAG(p, SV_ILP32) != 0)
 		return (get_proc_vector32(td, p, proc_vectorp, vsizep, type));
+#endif
+#ifdef COMPAT_CHERIABI
+	if (SV_PROC_FLAG(p, SV_CHERI) != 0)
+		return (get_proc_vector_cheriabi(td, p, proc_vectorp, vsizep,
+			type));
 #endif
 	if (proc_readmem(td, p, (vm_offset_t)p->p_sysent->sv_psstrings, &pss,
 	    sizeof(pss)) != sizeof(pss))
@@ -1853,6 +1959,11 @@ proc_getauxv(struct thread *td, struct proc *p, struct sbuf *sb)
 #ifdef COMPAT_FREEBSD32
 		if (SV_PROC_FLAG(p, SV_ILP32) != 0)
 			size = vsize * sizeof(Elf32_Auxinfo);
+		else
+#endif
+#ifdef COMPAT_CHERIABI
+		if (SV_PROC_FLAG(p, SV_CHERI) != 0)
+			size = vsize * sizeof(ElfCheriABI_Auxinfo);
 		else
 #endif
 			size = vsize * sizeof(Elf_Auxinfo);
