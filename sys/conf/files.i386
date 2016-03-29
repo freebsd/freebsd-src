@@ -285,6 +285,7 @@ dev/nvme/nvme_sysctl.c		optional nvme
 dev/nvme/nvme_test.c		optional nvme
 dev/nvme/nvme_util.c		optional nvme
 dev/nvram/nvram.c		optional nvram isa
+dev/ofw/ofwpci.c		optional fdt pci
 dev/pcf/pcf_isa.c		optional pcf
 dev/random/ivy.c		optional rdrand_rng
 dev/random/nehemiah.c		optional padlock_rng
