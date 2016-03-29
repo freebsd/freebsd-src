@@ -2775,10 +2775,19 @@ zio_vdev_io_start(zio_t *zio)
 			(void) atomic_cas_64(&spa->spa_last_io, old, new);
 	}
 
+#ifdef illumos
 	align = 1ULL << vd->vdev_top->vdev_ashift;
 
 	if (!(zio->io_flags & ZIO_FLAG_PHYSICAL) &&
 	    P2PHASE(zio->io_size, align) != 0) {
+#else
+	if (zio->io_flags & ZIO_FLAG_PHYSICAL)
+		align = 1ULL << vd->vdev_top->vdev_logical_ashift;
+	else
+		align = 1ULL << vd->vdev_top->vdev_ashift;
+
+	if (P2PHASE(zio->io_size, align) != 0) {
+#endif
 		/* Transform logical writes to be a full physical block size. */
 		uint64_t asize = P2ROUNDUP(zio->io_size, align);
 		char *abuf = NULL;
@@ -2794,6 +2803,7 @@ zio_vdev_io_start(zio_t *zio)
 		    zio_subblock);
 	}
 
+#ifdef illumos
 	/*
 	 * If this is not a physical io, make sure that it is properly aligned
 	 * before proceeding.
@@ -2809,6 +2819,10 @@ zio_vdev_io_start(zio_t *zio)
 		ASSERT0(P2PHASE(zio->io_offset, SPA_MINBLOCKSIZE));
 		ASSERT0(P2PHASE(zio->io_size, SPA_MINBLOCKSIZE));
 	}
+#else
+	ASSERT0(P2PHASE(zio->io_offset, align));
+	ASSERT0(P2PHASE(zio->io_size, align));
+#endif
 
 	VERIFY(zio->io_type == ZIO_TYPE_READ || spa_writeable(spa));
 
