@@ -312,9 +312,12 @@ struct mips_opcode
    "+H" 5 bit "dextu" size, which becomes MSBD (OP_*_EXTMSBD).
 	Requires that "+A" or "+E" occur first to set position.
 	Enforces: 32 < (pos+size) <= 64.
-   "+O" 8 bit signed offset (OP_*_CDELTA2)
+   "+O" 8-bit signed offset (OP_*_CDELTA2): <<0 bits
+   "+P" 8-bit signed offset (OP_*_CDELTA2): <<1 bits
+   "+Q" 8-bit signed offset (OP_*_CDELTA2): <<2 bits
+   "+R" 8-bit signed offset (OP_*_CDELTA2): <<3 bits
    "+b" 5 bit source or target capability register (OP_*_RD)
-   "+o" 11 bit signed offset (OP_*_CDELTA)
+   "+s" 11-bit signed offset (OP_*_CDELTA): <<4 bits
    "+v" 5 bit target capability register (OP_*_FD)
    "+w" 5 bit source or destination capability register (OP_*_RT)
    "+x" 5 bit source or destination capability register (OP_*_RS)

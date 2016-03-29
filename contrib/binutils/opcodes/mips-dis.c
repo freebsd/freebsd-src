@@ -919,18 +919,39 @@ print_insn_args (const char *d,
                                      OP_MASK_RS);
               break;
 
-	    case 'o':
+	    case 's':
 	      delta = ((l >> OP_SH_CDELTA) & OP_MASK_CDELTA);
               if (delta > (OP_MASK_CDELTA >> 1))
                 delta -= (OP_MASK_CDELTA + 1);
-	      (*info->fprintf_func) (info->stream, "%d", delta);
+	      (*info->fprintf_func) (info->stream, "%d", delta << 4);
 	      break;
 
 	    case 'O':
               delta = ((l >> OP_SH_CDELTA2) & OP_MASK_CDELTA2);
               if (delta > (OP_MASK_CDELTA2 >> 1))
                 delta -= (OP_MASK_CDELTA2 + 1);
-              (*info->fprintf_func) (info->stream, "%d", delta);
+              (*info->fprintf_func) (info->stream, "%d", delta << 0);
+	      break;
+
+	    case 'P':
+              delta = ((l >> OP_SH_CDELTA2) & OP_MASK_CDELTA2);
+              if (delta > (OP_MASK_CDELTA2 >> 1))
+                delta -= (OP_MASK_CDELTA2 + 1);
+              (*info->fprintf_func) (info->stream, "%d", delta << 1);
+	      break;
+
+	    case 'Q':
+              delta = ((l >> OP_SH_CDELTA2) & OP_MASK_CDELTA2);
+              if (delta > (OP_MASK_CDELTA2 >> 1))
+                delta -= (OP_MASK_CDELTA2 + 1);
+              (*info->fprintf_func) (info->stream, "%d", delta << 2);
+	      break;
+
+	    case 'R':
+              delta = ((l >> OP_SH_CDELTA2) & OP_MASK_CDELTA2);
+              if (delta > (OP_MASK_CDELTA2 >> 1))
+                delta -= (OP_MASK_CDELTA2 + 1);
+              (*info->fprintf_func) (info->stream, "%d", delta << 3);
 	      break;
 
 	    default:
