@@ -76,6 +76,9 @@ struct hwmod ti_hwmods[] = {
 	{"epwmss1",	PWMSS1_CLK},
 	{"epwmss2",	PWMSS2_CLK},
 
+	{"spi0",	SPI0_CLK},
+	{"spi1",	SPI1_CLK},
+
 	{"timer1",	TIMER1_CLK},
 	{"timer2",	TIMER2_CLK},
 	{"timer3",	TIMER3_CLK},
