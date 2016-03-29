@@ -266,8 +266,13 @@ static int krping_cma_event_handler(struct rdma_cm_id *cma_id,
 		break;
 
 	case RDMA_CM_EVENT_CONNECT_REQUEST:
-		cb->state = CONNECT_REQUEST;
-		cb->child_cm_id = cma_id;
+		if (cb->state == IDLE) {
+			cb->state = CONNECT_REQUEST;
+			cb->child_cm_id = cma_id;
+		} else {
+			PRINTF(cb, "Received connection request in wrong state"
+			    " (%d)\n", cb->state);
+		}
 		DEBUG_LOG(cb, "child cma %p\n", cb->child_cm_id);
 		wake_up_interruptible(&cb->sem);
 		break;
