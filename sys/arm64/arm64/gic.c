@@ -162,7 +162,7 @@ arm_gic_attach(device_t dev)
 {
 	struct		arm_gic_softc *sc;
 	int		i;
-	uint32_t	icciidr;
+	uint32_t	icciidr, mask;
 
 	if (arm_gic_sc)
 		return (ENXIO);
@@ -212,10 +212,28 @@ arm_gic_attach(device_t dev)
 		gic_d_write_4(sc, GICD_ICENABLER(i >> 5), 0xFFFFFFFF);
 	}
 
+	/* Read the current cpuid mask by reading ITARGETSR{0..7} */
+	for (i = 0; i < 8; i++) {
+		mask = gic_d_read_4(sc, GICD_ITARGETSR(i));
+		if (mask != 0)
+			break;
+	}
+	/* No mask found, assume we are on CPU interface 0 */
+	if (mask == 0)
+		mask = 1;
+
+	/* Collect the mask in the lower byte */
+	mask |= mask >> 16;
+	mask |= mask >> 8;
+	/* Distribute this back to the upper bytes */
+	mask |= mask << 8;
+	mask |= mask << 16;
+
 	for (i = 0; i < sc->nirqs; i += 4) {
 		gic_d_write_4(sc, GICD_IPRIORITYR(i >> 2), 0);
-		gic_d_write_4(sc, GICD_ITARGETSR(i >> 2),
-		    1 << 0 | 1 << 8 | 1 << 16 | 1 << 24);
+		if (i > 32) {
+			gic_d_write_4(sc, GICD_ITARGETSR(i >> 2), mask);
+		}
 	}
 
 	/* Set all the interrupts to be in Group 0 (secure) */
