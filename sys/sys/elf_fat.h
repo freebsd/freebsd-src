@@ -49,7 +49,8 @@
 
 typedef struct {
 	unsigned char fe_magic[4]; /* always SHOULD BE FATELF_MAGIC */
-	uint32_t fe_nrecords;
+	uint16_t fe_version; /* currently is 0 for FreeBSD */
+	uint16_t fe_nrecords;
 } FatElf_FEhdr;
 
 typedef struct {
