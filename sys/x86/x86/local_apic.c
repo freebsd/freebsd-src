@@ -172,6 +172,7 @@ int lapic_eoi_suppression;
 static int lapic_timer_tsc_deadline;
 static u_long lapic_timer_divisor;
 static struct eventtimer lapic_et;
+static uint64_t lapic_ipi_wait_mult;
 
 SYSCTL_NODE(_hw, OID_AUTO, apic, CTLFLAG_RD, 0, "APIC options");
 SYSCTL_INT(_hw_apic, OID_AUTO, x2apic_mode, CTLFLAG_RD, &x2apic_mode, 0, "");
@@ -403,6 +404,7 @@ lvt_mode(struct lapic *la, u_int pin, uint32_t value)
 static void
 native_lapic_init(vm_paddr_t addr)
 {
+	uint64_t r;
 	uint32_t ver;
 	u_int regs[4];
 	int i, arat;
@@ -503,6 +505,34 @@ native_lapic_init(vm_paddr_t addr)
 		TUNABLE_INT_FETCH("hw.lapic_eoi_suppression",
 		    &lapic_eoi_suppression);
 	}
+
+#define LOOPS 1000000
+	/*
+	 * Calibrate the busy loop waiting for IPI ack in xAPIC mode.
+	 * lapic_ipi_wait_mult contains the number of iterations which
+	 * approximately delay execution for 1 microsecond (the
+	 * argument to native_lapic_ipi_wait() is in microseconds).
+	 *
+	 * We assume that TSC is present and already measured.
+	 * Possible TSC frequency jumps are irrelevant to the
+	 * calibration loop below, the CPU clock management code is
+	 * not yet started, and we do not enter sleep states.
+	 */
+	KASSERT((cpu_feature & CPUID_TSC) != 0 && tsc_freq != 0,
+	    ("TSC not initialized"));
+	r = rdtsc();
+	for (r = 0; r < LOOPS; r++) {
+		(void)lapic_read_icr_lo();
+		ia32_pause();
+	}
+	r = rdtsc() - r;
+	lapic_ipi_wait_mult = (r * 1000000) / tsc_freq / LOOPS;
+	if (bootverbose) {
+		printf("LAPIC: ipi_wait() us multiplier %jd (r %jd tsc %jd)\n",
+		    (uintmax_t)lapic_ipi_wait_mult, (uintmax_t)r,
+		    (uintmax_t)tsc_freq);
+	}
+#undef LOOPS
 }
 
 /*
@@ -1716,31 +1746,26 @@ SYSINIT(apic_setup_io, SI_SUB_INTR, SI_ORDER_THIRD, apic_setup_io, NULL);
  * private to the MD code.  The public interface for the rest of the
  * kernel is defined in mp_machdep.c.
  */
+
+/*
+ * Wait delay microseconds for IPI to be sent.  If delay is -1, we
+ * wait forever.
+ */
 static int
 native_lapic_ipi_wait(int delay)
 {
-	int x;
+	uint64_t i, counter;
 
 	/* LAPIC_ICR.APIC_DELSTAT_MASK is undefined in x2APIC mode */
-	if (x2apic_mode)
+	if (x2apic_mode || delay == -1)
 		return (1);
 
-	/*
-	 * Wait delay microseconds for IPI to be sent.  If delay is
-	 * -1, we wait forever.
-	 */
-	if (delay == -1) {
-		while ((lapic_read_icr_lo() & APIC_DELSTAT_MASK) !=
-		    APIC_DELSTAT_IDLE)
-			ia32_pause();
-		return (1);
-	}
-
-	for (x = 0; x < delay; x++) {
+	counter = lapic_ipi_wait_mult * delay;
+	for (i = 0; i < counter; i++) {
 		if ((lapic_read_icr_lo() & APIC_DELSTAT_MASK) ==
 		    APIC_DELSTAT_IDLE)
 			return (1);
-		DELAY(1);
+		ia32_pause();
 	}
 	return (0);
 }
