@@ -766,7 +766,7 @@ ath_lna_rx_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs,
 
 	/* Short scan check */
 	if (antcomb->scan && antcomb->alt_good) {
-		if (time_after(ticks, antcomb->scan_start_time +
+		if (ieee80211_time_after(ticks, antcomb->scan_start_time +
 		    msecs_to_jiffies(ATH_ANT_DIV_COMB_SHORT_SCAN_INTR)))
 			short_scan = AH_TRUE;
 		else

@@ -2638,7 +2638,7 @@ ieee80211_erp_timeout(struct ieee80211com *ic)
 	IEEE80211_LOCK_ASSERT(ic);
 
 	if ((ic->ic_flags_ext & IEEE80211_FEXT_NONERP_PR) &&
-	    time_after(ticks, ic->ic_lastnonerp + IEEE80211_NONERP_PRESENT_AGE)) {
+	    ieee80211_time_after(ticks, ic->ic_lastnonerp + IEEE80211_NONERP_PRESENT_AGE)) {
 #if 0
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ASSOC, ni,
 		    "%s", "age out non-ERP sta present on channel");

@@ -1323,7 +1323,7 @@ sta_roam_check(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 	 * XXX deauth current ap
 	 */
 	if (curRate < roamRate || curRssi < roamRssi) {
-		if (time_after(ticks, ic->ic_lastscan + vap->iv_scanvalid)) {
+		if (ieee80211_time_after(ticks, ic->ic_lastscan + vap->iv_scanvalid)) {
 			/*
 			 * Scan cache contents are too old; force a scan now
 			 * if possible so we have current state to make a
@@ -1333,7 +1333,7 @@ sta_roam_check(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 			 * XXX force immediate switch on scan complete
 			 */
 			if (!IEEE80211_IS_CHAN_DTURBO(ic->ic_curchan) &&
-			    time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle))
+			    ieee80211_time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle))
 				ieee80211_bg_scan(vap, 0);
 			return;
 		}
