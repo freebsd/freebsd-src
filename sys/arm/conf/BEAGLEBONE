@@ -87,6 +87,10 @@ device		gpio
 device		gpioled
 device		gpiobacklight
 
+# SPI
+device		ti_spi
+device		spibus
+
 # ADC support
 device		ti_adc
 
