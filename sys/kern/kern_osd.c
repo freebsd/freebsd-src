@@ -54,7 +54,7 @@ struct osd_master {
 	struct sx		 osd_module_lock;
 	struct rmlock		 osd_object_lock;
 	struct mtx		 osd_list_lock;
-	LIST_HEAD(, osd)	 osd_list;		/* (m) */
+	LIST_HEAD(, osd)	 osd_list;		/* (l) */
 	osd_destructor_t	*osd_destructors;	/* (o) */
 	osd_method_t		*osd_methods;		/* (m) */
 	u_int			 osd_ntslots;		/* (m) */
@@ -198,6 +198,24 @@ osd_deregister(u_int type, u_int slot)
 int
 osd_set(u_int type, struct osd *osd, u_int slot, void *value)
 {
+
+	return (osd_set_reserved(type, osd, slot, NULL, value));
+}
+
+void *
+osd_reserve(u_int slot)
+{
+
+	KASSERT(slot > 0, ("Invalid slot."));
+
+	OSD_DEBUG("Reserving slot array (slot=%u).", slot);
+	return (malloc(sizeof(void *) * slot, M_OSD, M_WAITOK | M_ZERO));
+}
+
+int
+osd_set_reserved(u_int type, struct osd *osd, u_int slot, void *rsv,
+    void *value)
+{
 	struct rm_priotracker tracker;
 
 	KASSERT(type >= OSD_FIRST && type <= OSD_LAST, ("Invalid type."));
@@ -206,36 +224,34 @@ osd_set(u_int type, struct osd *osd, u_int slot, void *value)
 
 	rm_rlock(&osdm[type].osd_object_lock, &tracker);
 	if (slot > osd->osd_nslots) {
+		void *newptr;
+
 		if (value == NULL) {
 			OSD_DEBUG(
 			    "Not allocating null slot (type=%u, slot=%u).",
 			    type, slot);
 			rm_runlock(&osdm[type].osd_object_lock, &tracker);
+			if (rsv)
+				osd_free_reserved(rsv);
 			return (0);
-		} else if (osd->osd_nslots == 0) {
-			/*
-			 * First OSD for this object, so we need to allocate
-			 * space and put it onto the list.
-			 */
-			osd->osd_slots = malloc(sizeof(void *) * slot, M_OSD,
-			    M_NOWAIT | M_ZERO);
-			if (osd->osd_slots == NULL) {
-				rm_runlock(&osdm[type].osd_object_lock,
-				    &tracker);
-				return (ENOMEM);
-			}
-			osd->osd_nslots = slot;
-			mtx_lock(&osdm[type].osd_list_lock);
-			LIST_INSERT_HEAD(&osdm[type].osd_list, osd, osd_next);
-			mtx_unlock(&osdm[type].osd_list_lock);
-			OSD_DEBUG("Setting first slot (type=%u).", type);
-		} else {
-			void *newptr;
+		}
 
+		/*
+		 * Too few slots allocated here, so we need to extend or create
+		 * the array.
+		 */
+		if (rsv) {
 			/*
-			 * Too few slots allocated here, needs to extend
-			 * the array.
+			 * Use the reserve passed in (assumed to be
+			 * the right size).
 			 */
+			newptr = rsv;
+			if (osd->osd_nslots != 0) {
+				memcpy(newptr, osd->osd_slots,
+				    sizeof(void *) * osd->osd_nslots);
+				free(osd->osd_slots, M_OSD);
+			}
+		} else {
 			newptr = realloc(osd->osd_slots, sizeof(void *) * slot,
 			    M_OSD, M_NOWAIT | M_ZERO);
 			if (newptr == NULL) {
@@ -243,16 +259,35 @@ osd_set(u_int type, struct osd *osd, u_int slot, void *value)
 				    &tracker);
 				return (ENOMEM);
 			}
-			osd->osd_slots = newptr;
-			osd->osd_nslots = slot;
-			OSD_DEBUG("Growing slots array (type=%u).", type);
 		}
-	}
+		if (osd->osd_nslots == 0) {
+			/*
+			 * First OSD for this object, so we need to put it
+			 * onto the list.
+			 */
+			mtx_lock(&osdm[type].osd_list_lock);
+			LIST_INSERT_HEAD(&osdm[type].osd_list, osd, osd_next);
+			mtx_unlock(&osdm[type].osd_list_lock);
+			OSD_DEBUG("Setting first slot (type=%u).", type);
+		} else
+			OSD_DEBUG("Growing slots array (type=%u).", type);
+		osd->osd_slots = newptr;
+		osd->osd_nslots = slot;
+	} else if (rsv)
+		osd_free_reserved(rsv);
 	OSD_DEBUG("Setting slot value (type=%u, slot=%u, value=%p).", type,
 	    slot, value);
 	osd->osd_slots[slot - 1] = value;
 	rm_runlock(&osdm[type].osd_object_lock, &tracker);
 	return (0);
+}
+
+void
+osd_free_reserved(void *rsv)
+{
+
+	OSD_DEBUG("Discarding reserved slot array.");
+	free(rsv, M_OSD);
 }
 
 void *
