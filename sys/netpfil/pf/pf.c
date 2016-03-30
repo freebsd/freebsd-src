@@ -6145,11 +6145,13 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 	 * We do need to be careful about bridges. If the
 	 * net.link.bridge.pfil_bridge sysctl is set we can be filtering on a
 	 * bridge, so if the input interface is a bridge member and the output
-	 * interface is its bridge we're not actually forwarding but bridging.
+	 * interface is its bridge or a member of the same bridge we're not
+	 * actually forwarding but bridging.
 	 */
-	if (dir == PF_OUT && m->m_pkthdr.rcvif && ifp != m->m_pkthdr.rcvif
-	    && (m->m_pkthdr.rcvif->if_bridge == NULL
-	        || m->m_pkthdr.rcvif->if_bridge != ifp->if_softc))
+	if (dir == PF_OUT && m->m_pkthdr.rcvif && ifp != m->m_pkthdr.rcvif &&
+	    (m->m_pkthdr.rcvif->if_bridge == NULL ||
+	    (m->m_pkthdr.rcvif->if_bridge != ifp->if_softc &&
+	    m->m_pkthdr.rcvif->if_bridge != ifp->if_bridge)))
 		fwdir = PF_FWD;
 
 	if (!V_pf_status.running)
