@@ -251,10 +251,10 @@ void	ieee80211_vap_destroy(struct ieee80211vap *);
 #define	ticks_to_msecs(t)	(1000*(t) / hz)
 #define	ticks_to_secs(t)	((t) / hz)
 
-#define time_after(a,b) 	((long)(b) - (long)(a) < 0)
-#define time_before(a,b)	time_after(b,a)
-#define time_after_eq(a,b)	((long)(a) - (long)(b) >= 0)
-#define time_before_eq(a,b)	time_after_eq(b,a)
+#define ieee80211_time_after(a,b) 	((long)(b) - (long)(a) < 0)
+#define ieee80211_time_before(a,b)	ieee80211_time_after(b,a)
+#define ieee80211_time_after_eq(a,b)	((long)(a) - (long)(b) >= 0)
+#define ieee80211_time_before_eq(a,b)	ieee80211_time_after_eq(b,a)
 
 struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 

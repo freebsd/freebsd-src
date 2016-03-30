@@ -1406,7 +1406,7 @@ ieee80211_ht_timeout(struct ieee80211com *ic)
 	IEEE80211_LOCK_ASSERT(ic);
 
 	if ((ic->ic_flags_ht & IEEE80211_FHT_NONHT_PR) &&
-	    time_after(ticks, ic->ic_lastnonht + IEEE80211_NONHT_PRESENT_AGE)) {
+	    ieee80211_time_after(ticks, ic->ic_lastnonht + IEEE80211_NONHT_PRESENT_AGE)) {
 #if 0
 		IEEE80211_NOTE(vap, IEEE80211_MSG_11N, ni,
 		    "%s", "time out non-HT STA present on channel");

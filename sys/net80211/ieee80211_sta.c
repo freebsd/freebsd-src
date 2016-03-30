@@ -1253,7 +1253,7 @@ contbgscan(struct ieee80211vap *vap)
 	return ((ic->ic_flags_ext & IEEE80211_FEXT_BGSCAN) &&
 	    (ic->ic_flags & IEEE80211_F_CSAPENDING) == 0 &&
 	    vap->iv_state == IEEE80211_S_RUN &&		/* XXX? */
-	    time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle));
+	    ieee80211_time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle));
 }
 
 /*
@@ -1274,8 +1274,8 @@ startbgscan(struct ieee80211vap *vap)
 #ifdef IEEE80211_SUPPORT_SUPERG
 	    !IEEE80211_IS_CHAN_DTURBO(ic->ic_curchan) &&
 #endif
-	    time_after(ticks, ic->ic_lastscan + vap->iv_bgscanintvl) &&
-	    time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle));
+	    ieee80211_time_after(ticks, ic->ic_lastscan + vap->iv_bgscanintvl) &&
+	    ieee80211_time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle));
 }
 
 static void
