@@ -2977,6 +2977,11 @@ zvol_rename_minor(zvol_state_t *zv, const char *newname)
 		ASSERT(dev != NULL);
 		zv->zv_dev = NULL;
 		destroy_dev(dev);
+		if (zv->zv_total_opens > 0) {
+			zv->zv_flags &= ~ZVOL_EXCL;
+			zv->zv_total_opens = 0;
+			zvol_last_close(zv);
+		}
 
 		make_dev_args_init(&args);
 		args.mda_flags = MAKEDEV_CHECKNAME | MAKEDEV_WAITOK;
