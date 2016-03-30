@@ -124,7 +124,7 @@ size_t	 wcstombs(char * __restrict, const wchar_t * __restrict, size_t);
  *
  * (The only other extension made by C99 in thie header is _Exit().)
  */
-#if __ISO_C_VISIBLE >= 1999
+#if __ISO_C_VISIBLE >= 1999 || defined(__cplusplus)
 #ifdef __LONG_LONG_SUPPORTED
 /* LONGLONG */
 typedef struct {
