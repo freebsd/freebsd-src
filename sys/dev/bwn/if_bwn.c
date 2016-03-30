@@ -2612,7 +2612,7 @@ bwn_phy_g_task_15s(struct bwn_mac *mac)
 	BWN_GETTIME(now);
 	if (bwn_has_hwpctl(mac)) {
 		expire = now - BWN_LO_PWRVEC_EXPIRE;
-		if (time_before(lo->pwr_vec_read_time, expire)) {
+		if (ieee80211_time_before(lo->pwr_vec_read_time, expire)) {
 			bwn_lo_get_powervector(mac);
 			bwn_phy_g_dc_lookup_init(mac, 0);
 		}
@@ -2621,7 +2621,7 @@ bwn_phy_g_task_15s(struct bwn_mac *mac)
 
 	expire = now - BWN_LO_CALIB_EXPIRE;
 	TAILQ_FOREACH_SAFE(cal, &lo->calib_list, list, tmp) {
-		if (!time_before(cal->calib_time, expire))
+		if (!ieee80211_time_before(cal->calib_time, expire))
 			continue;
 		if (BWN_BBATTCMP(&cal->bbatt, &pg->pg_bbatt) &&
 		    BWN_RFATTCMP(&cal->rfatt, &pg->pg_rfatt)) {
@@ -6149,7 +6149,7 @@ bwn_lo_save(struct bwn_mac *mac, struct bwn_lo_g_value *sav)
 		BWN_PHY_WRITE(mac, BWN_PHY_CCK(0x2f), 0);
 
 	nanouptime(&ts);
-	if (time_before(lo->txctl_measured_time,
+	if (ieee80211_time_before(lo->txctl_measured_time,
 	    (ts.tv_nsec / 1000000 + ts.tv_sec * 1000) - BWN_LO_TXCTL_EXPIRE))
 		bwn_lo_measure_txctl_values(mac);
 
@@ -9365,7 +9365,7 @@ bwn_phy_txpower_check(struct bwn_mac *mac, uint32_t flags)
 
 	BWN_GETTIME(now);
 
-	if (!(flags & BWN_TXPWR_IGNORE_TIME) && time_before(now, phy->nexttime))
+	if (!(flags & BWN_TXPWR_IGNORE_TIME) && ieee80211_time_before(now, phy->nexttime))
 		return;
 	phy->nexttime = now + 2 * 1000;
 
