@@ -78,7 +78,6 @@ freopen(const char * __restrict file, const char * __restrict mode,
 	 * re-open the same file with a different mode. We allow this only
 	 * if the modes are compatible.
 	 */
-	sverrno = 0;
 	if (file == NULL) {
 		/* See comment below regarding freopen() of closed files. */
 		if (fp->_flags == 0) {
