@@ -333,7 +333,7 @@ ti_spi_fill_fifo(struct ti_spi_softc *sc)
 			timeout = 1000;
 			while (--timeout > 0 && (TI_SPI_READ(sc,
 			    MCSPI_STAT_CH(sc->sc_cs)) & MCSPI_STAT_TXS) == 0) {
-				DELAY(1);
+				DELAY(100);
 			}
 			if (timeout == 0)
 				return (-1);
@@ -366,7 +366,7 @@ ti_spi_drain_fifo(struct ti_spi_softc *sc)
 			timeout = 1000;
 			while (--timeout > 0 && (TI_SPI_READ(sc,
 			    MCSPI_STAT_CH(sc->sc_cs)) & MCSPI_STAT_RXS) == 0) {
-				DELAY(1);
+				DELAY(100);
 			}
 			if (timeout == 0)
 				return (-1);
