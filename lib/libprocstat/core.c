@@ -56,6 +56,55 @@ struct procstat_core
 	GElf_Phdr	pc_phdr;
 };
 
+/*
+ * XXXss The following is dependent on how capabilities are stored
+ * in the core image (and memory) and in the ELF Notes by the
+ * kernel. This is subject to changes in the CHERI architecture spec.
+ * The procstat code, however, needs to know the offset to the cursor
+ * value.
+ */
+struct _cap128 {
+	uint64_t cursor;
+	uint64_t base;
+} __packed;
+typedef struct _cap128 cap128_t;
+
+struct _cap256 {
+	uint64_t tps;		/* type, permission, and sealed bits */
+	uint64_t cursor;
+	uint64_t base;
+	uint64_t length;
+} __packed;
+typedef struct _cap256 cap256_t;
+
+struct _cap128_ps_strings {
+	cap128_t	ps_argvstr __aligned(16);
+	int		ps_nargvstr;
+	cap128_t	ps_envstr __aligned(16);
+	int		ps_nenvstr;
+	cap128_t	ps_sbclasses __aligned(16);
+	size_t		ps_sbclasseslen;
+	cap128_t	ps_sbmethods __aligned(16);
+	size_t		ps_sbmethodslen;
+	cap128_t	ps_sbobjects __aligned(16);
+	size_t		ps_sbobjectslen;
+};
+typedef struct _cap128_ps_strings cap128_ps_strings_t;
+
+struct _cap256_ps_strings {
+	cap256_t	ps_argvstr __aligned(32);
+	int		ps_nargvstr;
+	cap256_t	ps_envstr __aligned(32);
+	int		ps_nenvstr;
+	cap256_t	ps_sbclasses __aligned(32);
+	size_t		ps_sbclasseslen;
+	cap256_t	ps_sbmethods __aligned(32);
+	size_t		ps_sbmethodslen;
+	cap256_t	ps_sbobjects __aligned(32);
+	size_t		ps_sbobjectslen;
+};
+typedef struct _cap256_ps_strings cap256_ps_strings_t;
+
 static bool	core_offset(struct procstat_core *core, off_t offset);
 static bool	core_read(struct procstat_core *core, void *buf, size_t len);
 static ssize_t	core_read_mem(struct procstat_core *core, void *buf,
@@ -345,38 +394,117 @@ core_read_mem(struct procstat_core *core, void *buf, size_t len,
 	return (-1);
 }
 
+static inline vm_offset_t
+core_read_ps_strings(struct procstat_core *core, vm_offset_t psstrings,
+    enum psc_type type, u_int *nstr, size_t *size)
+{
+	vm_offset_t argaddr, envaddr;
+	u_int nargstr, nenvstr;
+
+	assert(type == PSC_TYPE_ARGV || type == PSC_TYPE_ENVV);
+
+	switch(core->pc_ehdr.e_machine) {
+	case 0xc128:	/* XXXss Shouldn't this machine type be defined in elf.h? */
+		{
+			cap128_ps_strings_t pss;
+
+			if (core_read_mem(core, &pss, sizeof(pss), psstrings,
+			    true) == -1)
+				return ((vm_offset_t)0);
+			nargstr = pss.ps_nargvstr;
+			nenvstr = pss.ps_nenvstr;
+			argaddr = (vm_offset_t)pss.ps_argvstr.cursor;
+			envaddr = (vm_offset_t)pss.ps_envstr.cursor;
+			*size = sizeof(cap128_t);
+		}
+		break;
+
+	case 0xc256:	/* XXXss Shouldn't this machine type be defined in elf.h? */
+		{
+			cap256_ps_strings_t pss;
+
+			if (core_read_mem(core, &pss, sizeof(pss), psstrings,
+			    true) == -1)
+				return ((vm_offset_t)0);
+			nargstr = pss.ps_nargvstr;
+			nenvstr = pss.ps_nenvstr;
+			argaddr = (vm_offset_t)pss.ps_argvstr.cursor;
+			envaddr = (vm_offset_t)pss.ps_envstr.cursor;
+			*size = sizeof(cap256_t);
+		}
+		break;
+
+	default:
+		{
+			struct ps_strings pss;
+
+			if (core_read_mem(core, &pss, sizeof(pss), psstrings,
+			    true) == -1)
+				return ((vm_offset_t)0);
+			nargstr = pss.ps_nargvstr;
+			nenvstr = pss.ps_nenvstr;
+			argaddr = (vm_offset_t)pss.ps_argvstr;
+			envaddr = (vm_offset_t)pss.ps_envstr;
+			*size = sizeof(char *);
+		}
+		break;
+	}
+
+	if (type == PSC_TYPE_ARGV) {
+		*nstr = nargstr;
+		return (argaddr);
+	} else /* type == PSC_TYPE_ENVV */ {
+		*nstr = nenvstr;
+		return (envaddr);
+	}
+}
+
+static inline vm_offset_t
+core_image_off(struct procstat_core *core, char **ptr, int i)
+{
+
+	switch(core->pc_ehdr.e_machine) {
+	case 0xc128:	/* XXXss Shouldn't this machine type be defined in elf.h? */
+		{
+			cap128_t *cap = (cap128_t *)(ptr + (i * sizeof(cap128_t) / 8));
+
+			return (cap->cursor);
+		}
+
+	case 0xc256:	/* XXXss Shouldn't this machine type be defined in elf.h? */
+		{
+			cap256_t *cap = (cap256_t *)(ptr + (i * sizeof(cap256_t) / 8));
+
+			return (cap->cursor);
+		}
+
+	default:
+		return ((vm_offset_t)ptr[i]);
+	}
+}
+
 #define ARGS_CHUNK_SZ	256	/* Chunk size (bytes) for get_args operations. */
 
 static void *
 get_args(struct procstat_core *core, vm_offset_t psstrings, enum psc_type type,
      void *args, size_t *lenp)
 {
-	struct ps_strings pss;
 	void *freeargs;
 	vm_offset_t addr;
 	char **argv, *p;
-	size_t chunksz, done, len, nchr, size;
+	size_t chunksz, done, len, nchr, size, psz;
 	ssize_t n;
 	u_int i, nstr;
 
-	assert(type == PSC_TYPE_ARGV || type == PSC_TYPE_ENVV);
-
-	if (core_read_mem(core, &pss, sizeof(pss), psstrings, true) == -1)
+	if (!(addr = core_read_ps_strings(core, psstrings, type, &nstr, &psz)))
 		return (NULL);
-	if (type == PSC_TYPE_ARGV) {
-		addr = (vm_offset_t)pss.ps_argvstr;
-		nstr = pss.ps_nargvstr;
-	} else /* type == PSC_TYPE_ENVV */ {
-		addr = (vm_offset_t)pss.ps_envstr;
-		nstr = pss.ps_nenvstr;
-	}
 	if (addr == 0 || nstr == 0)
 		return (NULL);
 	if (nstr > ARG_MAX) {
 		warnx("format error");
 		return (NULL);
 	}
-	size = nstr * sizeof(char *);
+	size = nstr * psz;
 	argv = malloc(size);
 	if (argv == NULL) {
 		warn("malloc(%zu)", size);
@@ -405,9 +533,9 @@ get_args(struct procstat_core *core, vm_offset_t psstrings, enum psc_type type,
 		 * remove some arguments.  If that has happened, break out
 		 * before trying to read from NULL.
 		 */
-		if (argv[i] == NULL)
+		if (core_image_off(core, argv, i) == 0UL)
 			goto done;
-		for (addr = (vm_offset_t)argv[i]; ; addr += chunksz) {
+		for (addr = core_image_off(core, argv, i); ; addr += chunksz) {
 			chunksz = MIN(ARGS_CHUNK_SZ, nchr - 1 - done);
 			if (chunksz <= 0)
 				goto done;
