@@ -24,7 +24,6 @@ secure: .MAKE .PHONY
 	cd ${.CURDIR}/../${entry}; \
 	${MAKE} cleandir; \
 	${MAKE} obj; \
-	${MAKE} depend; \
 	${MAKE} all; \
 	${MAKE} install
 .endfor
@@ -35,7 +34,6 @@ insecure: .MAKE .PHONY
 	cd ${.CURDIR}/../${entry}; \
 	${MAKE} MK_CRYPT=no cleandir; \
 	${MAKE} MK_CRYPT=no obj; \
-	${MAKE} MK_CRYPT=no depend; \
 	${MAKE} MK_CRYPT=no all; \
 	${MAKE} MK_CRYPT=no install
 .endfor
