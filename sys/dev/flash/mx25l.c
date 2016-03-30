@@ -26,6 +26,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
@@ -39,6 +41,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <geom/geom_disk.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+#endif
 
 #include <dev/spibus/spi.h>
 #include "spibus_if.h"
@@ -360,7 +368,15 @@ mx25l_read(device_t dev, off_t offset, caddr_t data, off_t count)
 static int
 mx25l_probe(device_t dev)
 {
+
+#ifdef FDT
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+	if (!ofw_bus_is_compatible(dev, "st,m25p"))
+		return (ENXIO);
+#endif
 	device_set_desc(dev, "M25Pxx Flash Family");
+
 	return (0);
 }
 
