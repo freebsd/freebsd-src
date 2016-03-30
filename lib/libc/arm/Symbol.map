@@ -29,7 +29,6 @@ FBSD_1.0 {
 	ntohs;
 	vfork;
 	brk;
-	cerror;		/* XXX - Should this be .cerror (see sys/cerror.S)? */
 	sbrk;
 };
 

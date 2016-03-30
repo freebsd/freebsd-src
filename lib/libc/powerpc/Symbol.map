@@ -56,5 +56,4 @@ FBSDprivate_1.0 {
 	__signalcontext;
 	__syncicache;
 	_end;
-	.cerror;
 };
