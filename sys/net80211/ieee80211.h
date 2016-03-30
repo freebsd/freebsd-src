@@ -317,6 +317,27 @@ struct ieee80211_wme_param {
 } __packed;
 
 /*
+ * WME U-APSD qos info field defines
+ */
+#define	WME_CAPINFO_UAPSD_EN                    0x00000080
+#define	WME_CAPINFO_UAPSD_VO                    0x00000001
+#define	WME_CAPINFO_UAPSD_VI                    0x00000002
+#define	WME_CAPINFO_UAPSD_BK                    0x00000004
+#define	WME_CAPINFO_UAPSD_BE                    0x00000008
+#define	WME_CAPINFO_UAPSD_ACFLAGS_SHIFT         0
+#define	WME_CAPINFO_UAPSD_ACFLAGS_MASK          0xF
+#define	WME_CAPINFO_UAPSD_MAXSP_SHIFT           5
+#define	WME_CAPINFO_UAPSD_MAXSP_MASK            0x3
+#define	WME_CAPINFO_IE_OFFSET                   8
+#define	WME_UAPSD_MAXSP(_qosinfo)				\
+	    (((_qosinfo) >> WME_CAPINFO_UAPSD_MAXSP_SHIFT) &	\
+	    WME_CAPINFO_UAPSD_MAXSP_MASK)
+#define	WME_UAPSD_AC_ENABLED(_ac, _qosinfo)			\
+	    ((1 << (3 - (_ac))) & (				\
+	    ((_qosinfo) >> WME_CAPINFO_UAPSD_ACFLAGS_SHIFT) &	\
+	    WME_CAPINFO_UAPSD_ACFLAGS_MASK))
+
+/*
  * Management Notification Frame
  */
 struct ieee80211_mnf {
