@@ -49,11 +49,11 @@ show-valid-targets:
 .for _machine in ${all_machine_list:O}
 .if !empty(BUILD_TARGETS_${_machine:tu})
 	@echo "Build targets for ${_machine} (leave out the ${target_dirs:S,${_here:T},,:S,^/,,:S,$,/,}):"
-	@echo "${BUILD_TARGETS_${_machine:tu}:O:ts\n}"
+	@echo -e "${BUILD_TARGETS_${_machine:tu}:O:ts\n}" | sed -e 's,^,  ,'
 	@echo
 .endif
 .endfor
-	@echo "Other targets:"; echo "${OTHER_TARGETS:O:ts\n}"
+	@echo "Other targets:"; echo "${OTHER_TARGETS:O:ts\n}" | sed -e 's,^,  ,'
 .endif
 
 help: show-help
