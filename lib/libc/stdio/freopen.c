@@ -66,7 +66,8 @@ freopen(const char * __restrict file, const char * __restrict mode,
 		(void) fclose(fp);
 		errno = sverrno;
 		return (NULL);
-	}
+	} else
+		sverrno = 0;
 
 	FLOCKFILE(fp);
 
