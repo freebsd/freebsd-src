@@ -82,7 +82,6 @@ FBSDprivate_1.0 {
 	__siglongjmp;
 	__sys_brk;
 	_brk;
-	.cerror;
 	__sys_exect;
 	_exect;
 	_end;
