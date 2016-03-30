@@ -30,7 +30,6 @@ __DEFAULT_YES_OPTIONS = \
     CDDL \
     CRYPT \
     CUSE \
-    FAST_DEPEND \
     FORMAT_EXTENSIONS \
     INET \
     INET6 \
@@ -48,12 +47,6 @@ __DEFAULT_NO_OPTIONS = \
     EISA \
     NAND \
     OFED
-
-# Enable FAST_DEPEND by default for the meta build.
-.if !empty(.MAKE.MODE:Unormal:Mmeta)
-__DEFAULT_YES_OPTIONS+=	FAST_DEPEND
-__DEFAULT_NO_OPTIONS:=	${__DEFAULT_NO_OPTIONS:NFAST_DEPEND}
-.endif
 
 # Some options are totally broken on some architectures. We disable
 # them. If you need to enable them on an experimental basis, you

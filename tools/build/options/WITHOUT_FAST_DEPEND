@@ -1,5 +1,0 @@
-.\" $FreeBSD$
-Set to use the historical
-.Xr mkdep 1
-for the "make depend" phase of the build.
-This option is deprecated and will be removed soon.

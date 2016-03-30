@@ -83,10 +83,7 @@ ${__obj}: ${OBJS_DEPEND_GUESS}
 ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 .endfor
 
-.if ${MK_FAST_DEPEND} == "yes"
-beforeanalyze: depend
-.endif
-beforeanalyze: .PHONY
+beforeanalyze: depend .PHONY
 .if !defined(_RECURSING_PROGS) && !empty(CLANG_ANALYZE_SRCS) && \
     ${CLANG_ANALYZE_OUTPUT} != "text"
 	mkdir -p ${CLANG_ANALYZE_OUTPUT_DIR}

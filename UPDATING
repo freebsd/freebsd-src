@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160330:
+	The FAST_DEPEND build option has been removed and its functionality is
+	now the one true way.  The old mkdep(1) style of 'make depend' has
+	been removed.  See 20160311 for further details.
+
 20160317:
 	Resource range types have grown from unsigned long to uintmax_t.  All
 	drivers, and anything using libdevinfo, need to be recompiled.

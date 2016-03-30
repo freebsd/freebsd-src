@@ -315,12 +315,6 @@ all: all-man
 .endif
 
 _EXTRADEPEND:
-.if ${MK_FAST_DEPEND} == "no"
-	@TMP=_depend$$$$; \
-	sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.So:/' < ${DEPENDFILE} \
-	    > $$TMP; \
-	mv $$TMP ${DEPENDFILE}
-.endif
 .if !defined(NO_EXTRADEPEND) && defined(SHLIB_NAME)
 .if defined(DPADD) && !empty(DPADD)
 	echo ${SHLIB_NAME_FULL}: ${DPADD} >> ${DEPENDFILE}
@@ -447,23 +441,6 @@ OBJS_DEPEND_GUESS.${_S:R}.So=	${_S}
 .endif
 
 .include <bsd.dep.mk>
-
-.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
-.if defined(LIB) && !empty(LIB)
-${OBJS} ${STATICOBJS} ${POBJS}: ${OBJS_DEPEND_GUESS}
-.for _S in ${SRCS:N*.[hly]}
-${_S:R}.po: ${OBJS_DEPEND_GUESS.${_S:R}.po}
-.endfor
-.endif
-.if defined(SHLIB_NAME) || \
-    defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
-${SOBJS}: ${OBJS_DEPEND_GUESS}
-.for _S in ${SRCS:N*.[hly]}
-${_S:R}.So: ${OBJS_DEPEND_GUESS.${_S:R}.So}
-.endfor
-.endif
-.endif
-
 .include <bsd.clang-analyze.mk>
 .include <bsd.obj.mk>
 .include <bsd.sys.mk>

@@ -58,4 +58,4 @@ for i in "$@"; do
 		;;
 	esac
 done
-make tinderbox UNIVERSE_TARGET="_cleanobj _obj _depend everything" $MAKE_ARGS SUBDIR_OVERRIDE="$SUBDIR"
+make tinderbox UNIVERSE_TARGET="_cleanobj _obj everything" $MAKE_ARGS SUBDIR_OVERRIDE="$SUBDIR"
