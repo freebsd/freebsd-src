@@ -148,7 +148,7 @@ build${libcompat}: .PHONY
 	${_+_}cd ${.CURDIR}; \
 	    ${LIBCOMPATWMAKE} -f Makefile.inc1 -DNO_FSCHG libraries
 .if ${libcompat} == "32"
-.for _t in obj depend all
+.for _t in obj all
 	${_+_}cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIBCOMPATWMAKE} \
 	    -DNO_FSCHG DIRPRFX=libexec/rtld-elf/ ${_t}
 	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIBCOMPATWMAKE} \

@@ -14,7 +14,6 @@ kerberize:
 	cd ${.CURDIR}/../${entry}; \
 	${MAKE} cleandir; \
 	${MAKE} obj; \
-	${MAKE} depend; \
 	${MAKE} all; \
 	${MAKE} install
 .endfor
@@ -25,7 +24,6 @@ dekerberize:
 	cd ${.CURDIR}/../${entry}; \
 	${MAKE} MK_KERBEROS=no cleandir; \
 	${MAKE} MK_KERBEROS=no obj; \
-	${MAKE} MK_KERBEROS=no depend; \
 	${MAKE} MK_KERBEROS=no all; \
 	${MAKE} MK_KERBEROS=no install
 .endfor
