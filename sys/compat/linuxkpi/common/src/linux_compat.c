@@ -894,16 +894,6 @@ kasprintf(gfp_t gfp, const char *fmt, ...)
 	return (p);
 }
 
-static int
-linux_timer_jiffies_until(unsigned long expires)
-{
-	int delta = expires - jiffies;
-	/* guard against already expired values */
-	if (delta < 1)
-		delta = 1;
-	return (delta);
-}
-
 static void
 linux_timer_callback_wrapper(void *context)
 {

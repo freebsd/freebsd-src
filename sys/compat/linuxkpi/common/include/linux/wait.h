@@ -34,6 +34,7 @@
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/list.h>
+#include <linux/jiffies.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -112,6 +113,52 @@ do {									\
 	}								\
 	-_error;							\
 })
+
+#define	wait_event_interruptible_timeout(q, cond, timeout)		\
+({									\
+	void *c = &(q).wchan;						\
+	long end = jiffies + timeout;					\
+	int __ret = 0;	 						\
+	int __rc = 0;							\
+									\
+	if (!(cond)) {							\
+		for (; __rc == 0;) {					\
+			sleepq_lock(c);					\
+			if (cond) {					\
+				sleepq_release(c);			\
+				__ret = 1;				\
+				break;					\
+			}						\
+			sleepq_add(c, NULL, "completion",		\
+			SLEEPQ_SLEEP | SLEEPQ_INTERRUPTIBLE, 0);	\
+			sleepq_set_timeout(c, linux_timer_jiffies_until(end));\
+			__rc = sleepq_timedwait_sig (c, 0);		\
+			if (__rc != 0) {				\
+				/* check for timeout or signal. 	\
+				 * 0 if the condition evaluated to false\
+				 * after the timeout elapsed,  1 if the \
+				 * condition evaluated to true after the\
+				 * timeout elapsed.			\
+				 */					\
+				if (__rc == EWOULDBLOCK)		\
+					__ret = (cond);			\
+				 else					\
+					__ret = -ERESTARTSYS;		\
+			}						\
+									\
+		}							\
+	} else {							\
+		/* return remaining jiffies (at least 1) if the 	\
+		 * condition evaluated to true before the timeout	\
+		 * elapsed.						\
+		 */							\
+		__ret = (end - jiffies);				\
+		if( __ret < 1 )						\
+			__ret = 1;					\
+	}								\
+	__ret;								\
+})
+
 
 static inline int
 waitqueue_active(wait_queue_head_t *q)
