@@ -96,6 +96,11 @@ generate much output).
 .It KTRFAC_CAPFAIL Ta "Trace capability failures."
 .It KTRFAC_FAULT Ta "Trace page faults."
 .It KTRFAC_FAULTEND Ta "Trace the end of page faults."
+.It KTRFAC_CCALL Ta "Trace CHERI CCall exceptions."
+.It KTRFAC_CRETURN Ta "Trace CHERI CReturn exceptions."
+.It KTRFAC_CEXCEPTION Ta "Trace CHERI capability exceptions."
+.It KTRFAC_SYSERRCAUSE Ta "Trace the cause of syscall errors"
+(not implemented for most syscalls)
 .It KTRFAC_INHERIT Ta "Inherit tracing to future children."
 .El
 .Pp
