@@ -67,13 +67,13 @@ int cloudabi_convert_timespec(const struct timespec *, cloudabi_timestamp_t *);
  * sleep on a lock or condition variable.
  */
 int cloudabi_futex_condvar_wait(struct thread *, cloudabi_condvar_t *,
-    cloudabi_mflags_t, cloudabi_lock_t *, cloudabi_mflags_t, cloudabi_clockid_t,
+    cloudabi_scope_t, cloudabi_lock_t *, cloudabi_scope_t, cloudabi_clockid_t,
     cloudabi_timestamp_t, cloudabi_timestamp_t);
 int cloudabi_futex_lock_rdlock(struct thread *, cloudabi_lock_t *,
-    cloudabi_mflags_t, cloudabi_clockid_t, cloudabi_timestamp_t,
+    cloudabi_scope_t, cloudabi_clockid_t, cloudabi_timestamp_t,
     cloudabi_timestamp_t);
 int cloudabi_futex_lock_wrlock(struct thread *, cloudabi_lock_t *,
-    cloudabi_mflags_t, cloudabi_clockid_t, cloudabi_timestamp_t,
+    cloudabi_scope_t, cloudabi_clockid_t, cloudabi_timestamp_t,
     cloudabi_timestamp_t);
 
 #endif
