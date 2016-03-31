@@ -77,6 +77,24 @@ struct _cap256 {
 } __packed;
 typedef struct _cap256 cap256_t;
 
+/* XXXss Should be moved to elf.h? */
+typedef struct {
+	long	a_type;
+	union {
+		long		a_val;			/* Integer value */
+		cap128_t	a_ptr __aligned(16);	/* Address. */
+	} a_un;
+} ElfCheriABI128_Auxinfo;
+
+/* XXXss Should be moved to elf.h? */
+typedef struct {
+	long	a_type;
+	union {
+		long		a_val;			/* Integer value */
+		cap256_t	a_ptr __aligned(32);	/* Address. */
+	} a_un;
+} ElfCheriABI256_Auxinfo;
+
 struct _cap128_ps_strings {
 	cap128_t	ps_argvstr __aligned(16);
 	int		ps_nargvstr;
@@ -111,6 +129,7 @@ static ssize_t	core_read_mem(struct procstat_core *core, void *buf,
     size_t len, vm_offset_t addr, bool readall);
 static void	*get_args(struct procstat_core *core, vm_offset_t psstrings,
     enum psc_type type, void *buf, size_t *lenp);
+static void	*get_auxv(struct procstat_core *core, void *buf, size_t *lenp);
 
 struct procstat_core *
 procstat_core_open(const char *filename)
@@ -247,7 +266,17 @@ procstat_core_get(struct procstat_core *core, enum psc_type type, void *buf,
 		break;
 	case PSC_TYPE_AUXV:
 		n_type = NT_PROCSTAT_AUXV;
-		structsize = sizeof(Elf_Auxinfo);
+		switch(core->pc_ehdr.e_machine) {
+		case 0xc128: /* XXXss */
+			structsize = sizeof(ElfCheriABI128_Auxinfo);
+			break;
+		case 0xc256: /* XXXss */
+			structsize = sizeof(ElfCheriABI256_Auxinfo);
+			break;
+		default:
+			structsize = sizeof(Elf_Auxinfo);
+			break;
+		}
 		break;
 	default:
 		warnx("unknown core stat type: %d", type);
@@ -303,6 +332,10 @@ procstat_core_get(struct procstat_core *core, enum psc_type type, void *buf,
 		if (!core_read(core, buf, len)) {
 			free(freebuf);
 			return (NULL);
+		}
+		if (type == PSC_TYPE_AUXV) {
+			if ((buf = get_auxv(core, buf, &len)) == NULL)
+				return (NULL);
 		}
 		if (type == PSC_TYPE_ARGV || type == PSC_TYPE_ENVV) {
 			if (len < sizeof(psstrings)) {
@@ -404,7 +437,7 @@ core_read_ps_strings(struct procstat_core *core, vm_offset_t psstrings,
 	assert(type == PSC_TYPE_ARGV || type == PSC_TYPE_ENVV);
 
 	switch(core->pc_ehdr.e_machine) {
-	case 0xc128:	/* XXXss Shouldn't this machine type be defined in elf.h? */
+	case 0xc128: /* XXXss Shouldn't this mach type be defined in elf.h? */
 		{
 			cap128_ps_strings_t pss;
 
@@ -419,7 +452,7 @@ core_read_ps_strings(struct procstat_core *core, vm_offset_t psstrings,
 		}
 		break;
 
-	case 0xc256:	/* XXXss Shouldn't this machine type be defined in elf.h? */
+	case 0xc256: /* XXXss Shouldn't this mach type be defined in elf.h? */
 		{
 			cap256_ps_strings_t pss;
 
@@ -464,14 +497,14 @@ core_image_off(struct procstat_core *core, char **ptr, int i)
 {
 
 	switch(core->pc_ehdr.e_machine) {
-	case 0xc128:	/* XXXss Shouldn't this machine type be defined in elf.h? */
+	case 0xc128: /* XXXss Shouldn't this mach type be defined in elf.h? */
 		{
 			cap128_t *cap = (cap128_t *)(ptr + (i * sizeof(cap128_t) / 8));
 
 			return (cap->cursor);
 		}
 
-	case 0xc256:	/* XXXss Shouldn't this machine type be defined in elf.h? */
+	case 0xc256: /* XXXss Shouldn't this mach type be defined in elf.h? */
 		{
 			cap256_t *cap = (cap256_t *)(ptr + (i * sizeof(cap256_t) / 8));
 
@@ -558,4 +591,86 @@ done:
 	*lenp = done;
 	free(argv);
 	return (args);
+}
+
+static bool
+is_auxv_ptr(long type)
+{
+	switch(type) {
+	case AT_PHDR:
+	case AT_BASE:
+	case AT_ENTRY:
+	case AT_EXECPATH:
+	case AT_CANARY:
+	case AT_PAGESIZES:
+	case AT_TIMEKEEP:
+		return (true);
+	default:
+		return (false);
+	}
+}
+
+static void *
+get_auxv(struct procstat_core *core, void *auxv, size_t *lenp)
+{
+	Elf_Auxinfo *buf;
+	unsigned count, i;
+
+	switch(core->pc_ehdr.e_machine) {
+	case 0xc128: /* XXXss Shouldn't this mach type be defined in elf.h? */
+		{
+			ElfCheriABI128_Auxinfo *auxv_cheri =
+			    (ElfCheriABI128_Auxinfo *)auxv;
+
+			count = *lenp / sizeof(ElfCheriABI128_Auxinfo);
+			*lenp = count * sizeof(Elf_Auxinfo);
+			buf = (Elf_Auxinfo *)malloc(*lenp);
+			if (buf == NULL) {
+				free(auxv);
+				*lenp = 0;
+				return (NULL);
+			}
+			for (i = 0; i < count; i++) {
+				buf[i].a_type = auxv_cheri[i].a_type;
+				if (is_auxv_ptr(auxv_cheri[i].a_type))
+					buf[i].a_un.a_ptr = (void *)(uintptr_t)
+					    auxv_cheri[i].a_un.a_ptr.cursor;
+				else
+					buf[i].a_un.a_val =
+					    auxv_cheri[i].a_un.a_val;
+			}
+			free(auxv);
+			return ((void *)buf);
+		}
+
+	case 0xc256: /* XXXss Shouldn't this mach type be defined in elf.h? */
+		{
+			ElfCheriABI256_Auxinfo *auxv_cheri =
+			    (ElfCheriABI256_Auxinfo *)auxv;
+
+			count = *lenp / sizeof(ElfCheriABI256_Auxinfo);
+			*lenp = count * sizeof(Elf_Auxinfo);
+			buf = (Elf_Auxinfo *)malloc(*lenp);
+			if (buf == NULL) {
+				free(auxv);
+				*lenp = 0;
+				return (NULL);
+			}
+			for (i = 0; i < count; i++) {
+				buf[i].a_type = auxv_cheri[i].a_type;
+				if (is_auxv_ptr(auxv_cheri[i].a_type))
+					buf[i].a_un.a_ptr = (void *)(uintptr_t)
+					    auxv_cheri[i].a_un.a_ptr.cursor;
+				else
+					buf[i].a_un.a_val =
+					    auxv_cheri[i].a_un.a_val;
+			}
+			free(auxv);
+			return ((void *)buf);
+		}
+
+	default:
+		/* Nothing needs to be done so just pass the buffer back. */
+		return (auxv);
+	}
 }
