@@ -73,6 +73,8 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 
 /* Level 0 table, 512GiB per entry */
 #define	L0_SHIFT	39
+#define	L0_SIZE		(1ul << L0_SHIFT)
+#define	L0_OFFSET	(L0_SIZE - 1ul)
 #define	L0_INVAL	0x0 /* An invalid address */
 	/* 0x1 Level 0 doesn't support block translation */
 	/* 0x2 also marks an invalid address */
@@ -106,7 +108,12 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 	/* 0x2 also marks an invalid address */
 #define	L3_PAGE		0x3
 
-#define	Ln_ENTRIES	(1 << 9)
+#define	L0_ENTRIES_SHIFT 9
+#define	L0_ENTRIES	(1 << L0_ENTRIES_SHIFT)
+#define	L0_ADDR_MASK	(L0_ENTRIES - 1)
+
+#define	Ln_ENTRIES_SHIFT 9
+#define	Ln_ENTRIES	(1 << Ln_ENTRIES_SHIFT)
 #define	Ln_ADDR_MASK	(Ln_ENTRIES - 1)
 #define	Ln_TABLE_MASK	((1 << 12) - 1)
 

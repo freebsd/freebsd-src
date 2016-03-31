@@ -896,8 +896,8 @@ initarm(struct arm64_bootparams *abp)
 	cache_setup();
 
 	/* Bootstrap enough of pmap  to enter the kernel proper */
-	pmap_bootstrap(abp->kern_l1pt, KERNBASE - abp->kern_delta,
-	    lastaddr - KERNBASE);
+	pmap_bootstrap(abp->kern_l0pt, abp->kern_l1pt,
+	    KERNBASE - abp->kern_delta, lastaddr - KERNBASE);
 
 	arm_devmap_bootstrap(0, NULL);
 
