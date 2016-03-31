@@ -98,7 +98,7 @@ extern int racct_enable;
 
 /*
  * Resource usage can drop, as opposed to only grow.  When the process
- * terminates, its resource usage is freed from the respective
+ * terminates, its resource usage is subtracted from the respective
  * per-credential racct containers.
  */
 #define	RACCT_IS_RECLAIMABLE(X)	(racct_types[X] & RACCT_RECLAIMABLE)
@@ -126,8 +126,7 @@ extern int racct_enable;
  * When a process terminates, its resource usage is not automatically
  * subtracted from per-credential racct containers.  Instead, the resource
  * usage of per-credential racct containers decays in time.
- * Resource usage can olso drop for such resource.
- * So far, the only such resource is RACCT_PCTCPU.
+ * Resource usage can also drop for such resource.
  */
 #define RACCT_IS_DECAYING(X)		(racct_types[X] & RACCT_DECAYING)
 
