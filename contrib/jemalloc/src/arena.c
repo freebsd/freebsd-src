@@ -3237,6 +3237,7 @@ small_run_size_init(void)
 bool
 arena_boot(void)
 {
+	size_t bits_size;
 	unsigned i;
 
 	arena_lg_dirty_mult_default_set(opt_lg_dirty_mult);
@@ -3255,15 +3256,22 @@ arena_boot(void)
 	 */
 	map_bias = 0;
 	for (i = 0; i < 3; i++) {
+		bits_size = sizeof(arena_chunk_map_bits_t) *
+		    (chunk_npages-map_bias);
+		bits_size += sizeof(void *) - 1;
+		bits_size &= ~(sizeof(void *) - 1);
 		size_t header_size = offsetof(arena_chunk_t, map_bits) +
-		    ((sizeof(arena_chunk_map_bits_t) +
-		    sizeof(arena_chunk_map_misc_t)) * (chunk_npages-map_bias));
+		    bits_size +
+		    (sizeof(arena_chunk_map_misc_t) * (chunk_npages-map_bias));
 		map_bias = (header_size + PAGE_MASK) >> LG_PAGE;
 	}
 	assert(map_bias > 0);
 
-	map_misc_offset = offsetof(arena_chunk_t, map_bits) +
-	    sizeof(arena_chunk_map_bits_t) * (chunk_npages-map_bias);
+	bits_size = sizeof(arena_chunk_map_bits_t) *
+	    (chunk_npages-map_bias);
+	bits_size += sizeof(void *) - 1;
+	bits_size &= ~(sizeof(void *) - 1);
+	map_misc_offset = offsetof(arena_chunk_t, map_bits) + bits_size;
 
 	arena_maxrun = chunksize - (map_bias << LG_PAGE);
 	assert(arena_maxrun > 0);
