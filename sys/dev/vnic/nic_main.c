@@ -119,7 +119,7 @@ static int nicpf_detach(device_t);
 #ifdef PCI_IOV
 static int nicpf_iov_init(device_t, uint16_t, const nvlist_t *);
 static void nicpf_iov_uninit(device_t);
-static int nicpf_iov_addr_vf(device_t, uint16_t, const nvlist_t *);
+static int nicpf_iov_add_vf(device_t, uint16_t, const nvlist_t *);
 #endif
 
 static device_method_t nicpf_methods[] = {
@@ -131,7 +131,7 @@ static device_method_t nicpf_methods[] = {
 #ifdef PCI_IOV
 	DEVMETHOD(pci_iov_init,		nicpf_iov_init),
 	DEVMETHOD(pci_iov_uninit,	nicpf_iov_uninit),
-	DEVMETHOD(pci_iov_add_vf,	nicpf_iov_addr_vf),
+	DEVMETHOD(pci_iov_add_vf,	nicpf_iov_add_vf),
 #endif
 	DEVMETHOD_END,
 };
@@ -294,7 +294,7 @@ nicpf_iov_uninit(device_t dev)
 }
 
 static int
-nicpf_iov_addr_vf(device_t dev, uint16_t vfnum, const nvlist_t *params)
+nicpf_iov_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *params)
 {
 	const void *mac;
 	struct nicpf *nic;
