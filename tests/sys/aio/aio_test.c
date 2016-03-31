@@ -696,7 +696,7 @@ ATF_TC_BODY(aio_large_read_test, tc)
 	if (nread == -1)
 		atf_tc_fail("aio_waitcomplete() failed: %s", strerror(errno));
 	if (nread != 0)
-		atf_tc_fail("aio_read() from /dev/null returned data: %zd",
+		atf_tc_fail("aio_read() from empty file returned data: %zd",
 		    nread);
 
 	memset(&cb, 0, sizeof(cb));
@@ -716,9 +716,7 @@ ATF_TC_BODY(aio_large_read_test, tc)
 			goto finished;
 		atf_tc_fail("aio_waitcomplete() failed: %s", strerror(errno));
 	}
-	atf_tc_fail(
-	    "aio_read() of too large read size from /dev/null returned: %zd",
-	     nread);
+	atf_tc_fail("aio_read() of too large read size returned: %zd", nread);
 
 finished:
 	close(fd);
