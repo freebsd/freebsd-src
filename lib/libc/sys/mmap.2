@@ -1,5 +1,10 @@
 .\" Copyright (c) 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2016 SRI International
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
+.\" ("CTSRD"), as part of the DARPA CRASH research programme.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -28,7 +33,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd February 18, 2015
+.Dd March 31, 2016
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -465,6 +470,26 @@ were specified, but the requested region is already used by a mapping.
 was specified, but
 .Dv MAP_FIXED
 was not.
+.It Bq Er EINVAL
+.Dv MAP_ALIGNED_CHERI
+(implied on CheriABI)
+or
+.Dv MAP_ALIGNED_CHERI_SEAL
+was specified and
+.Fa addr
+or
+.Fa size
+was not sufficently aligned for the current architecture.
+.It Bq Er EINVAL
+.Dv MAP_CHERI_NOSETBOUNDS
+was specified, but
+.Dv MAP_FIXED
+was not.
+CheriABI only.
+.It Bq Er EINVAL
+.Dv MAP_CHERI_NOSETBOUNDS
+was specified with an alignment request.
+CheriABI only.
 .It Bq Er ENODEV
 .Dv MAP_ANON
 has not been specified and
@@ -477,6 +502,12 @@ was specified and the
 argument was not available.
 .Dv MAP_ANON
 was specified and insufficient memory was available.
+.It Bq Er EPROT
+.Dv MAP_FIXED
+was passed and there was insufficient space in the
+.Fa addr
+capability.
+CheriABI only.
 .El
 .Sh SEE ALSO
 .Xr madvise 2 ,
@@ -489,3 +520,13 @@ was specified and insufficient memory was available.
 .Xr munmap 2 ,
 .Xr getpagesize 3 ,
 .Xr getpagesizes 3
+.Sh BUGS
+There are too many ways to call the
+.Nm
+interface incorrectly with too few error codes making debugging difficult.
+On systems with the
+.Xr ktrace 1
+facility enabled, the system call error cause tracepoint may prove helpful
+in explaining which constraint been violated.
+.Nm
+calls.
