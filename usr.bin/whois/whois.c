@@ -431,9 +431,13 @@ done:
 	else if ((flags & WHOIS_SPAM_ME) ||
 		 strchr(query, ' ') != NULL)
 		fprintf(fp, "%s\r\n", query);
-	else if (strcasecmp(hostname, ANICHOST) == 0)
-		fprintf(fp, "+ %s\r\n", query);
-	else if (strcasecmp(hostres->ai_canonname, VNICHOST) == 0)
+	else if (strcasecmp(hostname, ANICHOST) == 0) {
+		if (strncasecmp(query, "AS", 2) == 0 &&
+		    strspn(query+2, "0123456789") == strlen(query+2))
+			fprintf(fp, "+ a %s\r\n", query+2);
+		else
+			fprintf(fp, "+ %s\r\n", query);
+	} else if (strcasecmp(hostres->ai_canonname, VNICHOST) == 0)
 		fprintf(fp, "domain %s\r\n", query);
 	else
 		fprintf(fp, "%s\r\n", query);
