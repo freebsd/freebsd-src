@@ -5773,7 +5773,7 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int *rbehind,
 	off_t startoff, endoff;
 	int i, error;
 	vm_pindex_t reqstart, reqend;
-	int lsize, reqsize, size;
+	int lsize, size;
 
 	object = m[0]->object;
 	error = 0;
@@ -5797,7 +5797,7 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int *rbehind,
 	}
 
 	PCPU_INC(cnt.v_vnodein);
-	PCPU_ADD(cnt.v_vnodepgsin, reqsize);
+	PCPU_ADD(cnt.v_vnodepgsin, count);
 
 	lsize = PAGE_SIZE;
 	if (IDX_TO_OFF(mlast->pindex) + lsize > object->un_pager.vnp.vnp_size)
