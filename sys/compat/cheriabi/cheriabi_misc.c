@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -68,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventvar.h>	/* Must come after sys/selinfo.h */
 #include <sys/pipe.h>		/* Must come after sys/selinfo.h */
 #include <sys/signal.h>
+#include <sys/ktrace.h>		/* Must come after sys/signal.h */
 #include <sys/signalvar.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
@@ -1464,11 +1466,25 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 
 	/* MAP_CHERI_NOSETBOUNDS requires MAP_FIXED. */
 	if ((flags & (MAP_CHERI_NOSETBOUNDS | MAP_FIXED)) ==
-	    MAP_CHERI_NOSETBOUNDS)
+	    MAP_CHERI_NOSETBOUNDS) {
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_SYSERRCAUSE))
+			ktrsyserrcause(
+			    "%s: MAP_CHERI_NOSETBOUNDS without MAP_FIXED",
+			    __func__);
+#endif
 		return (EINVAL);
+	}
 	/* Forcing alignment makes no sense with MAP_CHERI_NOSETBOUNDS. */
-	if ((flags & MAP_CHERI_NOSETBOUNDS) && (flags & MAP_ALIGNMENT_MASK))
+	if ((flags & MAP_CHERI_NOSETBOUNDS) && (flags & MAP_ALIGNMENT_MASK)) {
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_SYSERRCAUSE))
+			ktrsyserrcause(
+			    "%s: MAP_CHERI_NOSETBOUNDS with alignment",
+			    __func__);
+#endif
 		return (EINVAL);
+	}
 
 	if (!(flags & MAP_CHERI_NOSETBOUNDS)) {
 		/*
@@ -1508,8 +1524,15 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 			break;
 		default:
 			/* Reject nonsensical sub-page alignment requests */
-			if ((flags >> MAP_ALIGNMENT_SHIFT) < PAGE_SHIFT)
+			if ((flags >> MAP_ALIGNMENT_SHIFT) < PAGE_SHIFT) {
+#ifdef KTRACE
+				if (KTRPOINT(td, KTR_SYSERRCAUSE))
+					ktrsyserrcause(
+					    "%s: subpage alignment request",
+					    __func__);
+#endif
 				return (EINVAL);
+			}
 
 			/*
 			 * Honor the caller's alignment request, if any unless
@@ -1547,16 +1570,35 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 			CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &addr_cap, 0);
 			CHERI_CGETLEN(cap_len, CHERI_CR_CTEMP0);
 			CHERI_CGETOFFSET(cap_offset, CHERI_CR_CTEMP0);
-			if (cap_len - cap_offset < roundup2(uap->len, PAGE_SIZE))
+			if (cap_len - cap_offset <
+			    roundup2(uap->len, PAGE_SIZE)) {
+#ifdef KTRACE
+				if (KTRPOINT(td, KTR_SYSERRCAUSE))
+					ktrsyserrcause( "%s: MAP_FIXED and "
+					    "too little space in capablity "
+					    "(0x%zx < 0x%zx)",
+					    __func__, cap_len - cap_offset,
+					    roundup2(uap->len, PAGE_SIZE));
+#endif
 				return (EPROT);
+			}
 
 			/*
 			 * If our address is under aligned, make sure
 			 * we have room to shift it down to the page
 			 * boundary.
 			 */
-			if (((vm_offset_t)uap->addr & PAGE_MASK) > cap_offset)
+			if (((vm_offset_t)uap->addr & PAGE_MASK) > cap_offset) {
+#ifdef KTRACE
+				if (KTRPOINT(td, KTR_SYSERRCAUSE))
+					ktrsyserrcause(
+					    "%s: insufficent space to shift "
+					    "addr (%p) down in capability "
+					    "(offset 0x%zx)", __func__,
+					    uap->addr, cap_offset);
+#endif
 				return (EPROT);
+			}
 
 			/*
 			 * NB: We defer alignment checks to kern_mmap where we
@@ -1580,6 +1622,12 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 			 * supporting MAP_EXCL at an untagged virtual
 			 * address, but use cases seem limited.
 			 */
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_SYSERRCAUSE))
+				ktrsyserrcause(
+				    "%s: MAP_FIXED and untagged addr",
+				    __func__);
+#endif
 			return (EPROT);
 		}
 	}

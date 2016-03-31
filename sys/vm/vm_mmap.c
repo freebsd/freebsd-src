@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 #include "opt_hwpmc_hooks.h"
+#include "opt_ktrace.h"
 #include "opt_vm.h"
 
 #include <sys/param.h>
@@ -62,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
+#include <sys/signal.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/fcntl.h>
@@ -72,6 +74,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
+#include <sys/uio.h>
+#include <sys/ktrace.h>		/* Requires sys/signal.h, sys/uio.h */
 #include <sys/vmmeter.h>
 
 #include <security/mac/mac_framework.h>
@@ -224,35 +228,83 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_size_t size, int prot,
 	 */
 	if (!SV_CURPROC_FLAG(SV_AOUT)) {
 		if ((size == 0 && curproc->p_osrel >= P_OSREL_MAP_ANON) ||
-		    ((flags & MAP_ANON) != 0 && (fd != -1 || pos != 0)))
+		    ((flags & MAP_ANON) != 0 && (fd != -1 || pos != 0))) {
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_SYSERRCAUSE))
+				ktrsyserrcause("%s: size == 0", __func__);
+#endif
 			return (EINVAL);
+		}
 	} else {
 		if ((flags & MAP_ANON) != 0)
 			pos = 0;
 	}
 
 	if (flags & MAP_STACK) {
-		if ((fd != -1) ||
-		    ((prot & (PROT_READ | PROT_WRITE)) != (PROT_READ | PROT_WRITE)))
+		if (fd != -1) {
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_SYSERRCAUSE))
+				ktrsyserrcause("%s: MAP_STACK with fd",
+				    __func__);
+#endif
 			return (EINVAL);
+		}
+
+		if ((prot & (PROT_READ | PROT_WRITE)) !=
+		    (PROT_READ | PROT_WRITE)) {
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_SYSERRCAUSE))
+				ktrsyserrcause("%s: MAP_STACK without both "
+				    "PROT_READ and PROT_WRITE", __func__);
+#endif
+			return (EINVAL);
+		}
 		flags |= MAP_ANON;
 		pos = 0;
 	}
-	if ((flags & ~(MAP_SHARED | MAP_PRIVATE | MAP_FIXED | MAP_HASSEMAPHORE |
+	unsigned int extra_flags =
+	    (flags & ~(MAP_SHARED | MAP_PRIVATE | MAP_FIXED | MAP_HASSEMAPHORE |
 	    MAP_STACK | MAP_NOSYNC | MAP_ANON | MAP_EXCL | MAP_NOCORE |
 	    MAP_PREFAULT_READ | MAP_CHERI_NOSETBOUNDS |
 #ifdef MAP_32BIT
 	    MAP_32BIT |
 #endif
-	    MAP_ALIGNMENT_MASK)) != 0)
+	    MAP_ALIGNMENT_MASK));
+	if (extra_flags != 0) {
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_SYSERRCAUSE))
+			ktrsyserrcause("%s: Unhandled flag(s) 0x%x",
+			    __func__, extra_flags);
+#endif
+
 		return (EINVAL);
-	if ((flags & (MAP_EXCL | MAP_FIXED)) == MAP_EXCL)
+	}
+	if ((flags & (MAP_EXCL | MAP_FIXED)) == MAP_EXCL) {
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_SYSERRCAUSE))
+			ktrsyserrcause("%s: MAP_EXCL without MAP_FIXED",
+			    __func__);
+#endif
 		return (EINVAL);
-	if ((flags & (MAP_SHARED | MAP_PRIVATE)) == (MAP_SHARED | MAP_PRIVATE))
+	}
+	if ((flags & (MAP_SHARED | MAP_PRIVATE)) == (MAP_SHARED | MAP_PRIVATE)) {
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_SYSERRCAUSE))
+			ktrsyserrcause("%s: both MAP_SHARED and MAP_PRIVATE",
+			    __func__);
+#endif
 		return (EINVAL);
+	}
 	if (prot != PROT_NONE &&
-	    (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC)) != 0)
+	    (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC)) != 0) {
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_SYSERRCAUSE))
+			ktrsyserrcause("%s: Unexpected protections 0x%x",
+			    __func__,
+			    (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC)));
+#endif
 		return (EINVAL);
+	}
 
 	/*
 	 * Align the file position to a page boundary,
@@ -282,8 +334,18 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_size_t size, int prot,
 		if (CHERI_ALIGN_SHIFT(size) > PAGE_SHIFT) {
 			flags |= MAP_ALIGNED(CHERI_ALIGN_SHIFT(size));
 
-			if (size & CHERI_ALIGN_MASK(size))
+			if (size & CHERI_ALIGN_MASK(size)) {
+#ifdef KTRACE
+				if (KTRPOINT(td, KTR_SYSERRCAUSE))
+					ktrsyserrcause("%s: MAP_ALIGNED_CHERI "
+					    "and size (0x%zx) is "
+					    "insufficently rounded (mask "
+					    "0x%zx)",
+					    __func__, size,
+					    CHERI_ALIGN_MASK(size));
+#endif
 				return (EINVAL);
+			}
 
 			if (CHERI_ALIGN_MASK(size) != 0)
 				addr_mask = CHERI_ALIGN_MASK(size);
@@ -294,8 +356,18 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_size_t size, int prot,
 		if (CHERI_SEAL_ALIGN_SHIFT(size) > PAGE_SHIFT) {
 			flags |= MAP_ALIGNED(CHERI_SEAL_ALIGN_SHIFT(size));
 
-			if (size & CHERI_SEAL_ALIGN_MASK(size))
+			if (size & CHERI_SEAL_ALIGN_MASK(size)) {
+#ifdef KTRACE
+				if (KTRPOINT(td, KTR_SYSERRCAUSE))
+					ktrsyserrcause("%s: "
+					    "MAP_ALIGNED_CHERI_SEAL and size "
+					    "(0x%zx) is insufficently "
+					    "rounded (mask 0x%zx)",
+					    __func__, size,
+					    CHERI_SEAL_ALIGN_MASK(size));
+#endif
 				return (EINVAL);
+			}
 
 			if (CHERI_ALIGN_MASK(size) != 0)
 				addr_mask = CHERI_SEAL_ALIGN_MASK(size);
@@ -307,8 +379,14 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_size_t size, int prot,
 	/* Ensure alignment is at least a page and fits in a pointer. */
 	if (align != 0 && align != MAP_ALIGNED_SUPER &&
 	    (align >> MAP_ALIGNMENT_SHIFT >= sizeof(void *) * NBBY ||
-	    align >> MAP_ALIGNMENT_SHIFT < PAGE_SHIFT))
+	    align >> MAP_ALIGNMENT_SHIFT < PAGE_SHIFT)) {
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_SYSERRCAUSE))
+			ktrsyserrcause("%s: nonsensical alignment (2^%d)",
+			    __func__, align >> MAP_ALIGNMENT_SHIFT);
+#endif
 		return (EINVAL);
+	}
 
 	/*
 	 * Check for illegal addresses.  Watch out for address wrap... Note
@@ -321,18 +399,49 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_size_t size, int prot,
 		 * should be aligned after adjustment by pageoff.
 		 */
 		addr -= pageoff;
-		if (addr & addr_mask)
+		if (addr & addr_mask) {
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_SYSERRCAUSE))
+				ktrsyserrcause("%s: addr (%p) is "
+				    "underaligned (mask 0x%zx)",
+				    __func__, (void *)addr, addr_mask);
+#endif
 			return (EINVAL);
+		}
 
 		/* Address range must be all in user VM space. */
 		if (addr < vm_map_min(&vms->vm_map) ||
-		    addr + size > vm_map_max(&vms->vm_map))
+		    addr + size > vm_map_max(&vms->vm_map)) {
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_SYSERRCAUSE))
+				ktrsyserrcause("%s: range (%p-%p) is "
+				    "outside user address range (%p-%p)",
+				    __func__, (void *)addr,
+				    (void *)(addr + size),
+				    (void *)vm_map_min(&vms->vm_map),
+				    (void *)vm_map_max(&vms->vm_map));
+#endif
 			return (EINVAL);
-		if (addr + size < addr)
+		}
+		if (addr + size < addr) {
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_SYSERRCAUSE))
+				ktrsyserrcause("%s: addr (%p) + size "
+				    "(0x%zx) overflows", __func__,
+				    (void *)addr, size);
+#endif
 			return (EINVAL);
+		}
 #ifdef MAP_32BIT
-		if (flags & MAP_32BIT && addr + size > MAP_32BIT_MAX_ADDR)
+		if (flags & MAP_32BIT && addr + size > MAP_32BIT_MAX_ADDR) {
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_SYSERRCAUSE))
+				ktrsyserrcause("%s: addr (%p) + size "
+				    "(0x%zx) is > 0x%zx", __func__,
+				    (void *)addr, size, MAP_32BIT_MAX_ADDR);
+#endif
 			return (EINVAL);
+		}
 	} else if (flags & MAP_32BIT) {
 		/*
 		 * For MAP_32BIT, override the hint if it is too high and
