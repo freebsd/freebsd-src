@@ -642,6 +642,9 @@ str2int64(const char *str, int64_t *value)
 	if ((size_t)(end - str) != strlen(str))
 		return (EINVAL);
 
+	if (*value < 0)
+		return (ERANGE);
+
 	return (0);
 }
 
@@ -1008,8 +1011,13 @@ rctl_string_to_rule(char *rulestr, struct rctl_rule **rulep)
 		error = str2int64(amountstr, &rule->rr_amount);
 		if (error != 0)
 			goto out;
-		if (RACCT_IS_IN_MILLIONS(rule->rr_resource))
+		if (RACCT_IS_IN_MILLIONS(rule->rr_resource)) {
+			if (rule->rr_amount > INT64_MAX / 1000000) {
+				error = ERANGE;
+				goto out;
+			}
 			rule->rr_amount *= 1000000;
+		}
 	}
 
 	if (perstr == NULL || perstr[0] == '\0')
