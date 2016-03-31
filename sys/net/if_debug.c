@@ -67,6 +67,8 @@ if_show_ifnet(struct ifnet *ifp)
 	IF_DB_PRINTF("%p", if_l2com);
 	IF_DB_PRINTF("%p", if_vnet);
 	IF_DB_PRINTF("%p", if_home_vnet);
+	IF_DB_PRINTF("%p", if_vlantrunk);
+	IF_DB_PRINTF("%p", if_bpf);
 	IF_DB_PRINTF("%p", if_addr);
 	IF_DB_PRINTF("%p", if_llsoftc);
 	IF_DB_PRINTF("%p", if_label);
