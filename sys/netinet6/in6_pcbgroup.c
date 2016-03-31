@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/mbuf.h>
+#include <sys/socket.h>
 
 #include <net/rss_config.h>
 
