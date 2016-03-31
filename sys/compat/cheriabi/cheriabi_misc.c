@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002 Doug Rabson
- * Copyright (c) 2015 SRI International
+ * Copyright (c) 2015-2016 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
