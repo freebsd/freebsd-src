@@ -385,6 +385,8 @@ sleepq_set_timeout_sbt(void *wchan, sbintime_t sbt, sbintime_t pr,
 	MPASS(TD_ON_SLEEPQ(td));
 	MPASS(td->td_sleepqueue == NULL);
 	MPASS(wchan != NULL);
+	if (cold)
+		panic("timed sleep before timers are working");
 	callout_reset_sbt_on(&td->td_slpcallout, sbt, pr,
 	    sleepq_timeout, td, PCPU_GET(cpuid), flags | C_DIRECT_EXEC);
 }
