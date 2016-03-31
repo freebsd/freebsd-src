@@ -22,14 +22,8 @@
 #endif
 
 /* Return the chunk offset of address a. */
-#ifndef __CHERI_PURE_CAPABILITY__
 #define	CHUNK_ADDR2OFFSET(a)						\
-	((size_t)((uintptr_t)(a) & chunksize_mask))
-#else
-#define	CHUNK_ADDR2OFFSET(a)						\
-	((size_t)((uintptr_t)cheri_setoffset(cheri_getdefault(),	\
-	(vaddr_t)(a)) & (uintptr_t)chunksize_mask))
-#endif
+	((size_t)((vaddr_t)(a) & chunksize_mask))
 
 /* Return the smallest chunk multiple that is >= s. */
 #define	CHUNK_CEILING(s)						\

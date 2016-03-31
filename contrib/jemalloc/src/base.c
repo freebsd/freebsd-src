@@ -118,13 +118,8 @@ base_alloc(size_t size)
 		 * Add one PAGE to base_resident for every page boundary that is
 		 * crossed by the new allocation.
 		 */
-#ifndef __CHERI_PURE_CAPABILITY__
-		base_resident += PAGE_CEILING((uintptr_t)ret + csize) -
-		    PAGE_CEILING((uintptr_t)ret);
-#else
-		base_resident += PAGE_CEILING((size_t)ret + csize) -
-		    PAGE_CEILING((size_t)ret);
-#endif
+		base_resident += PAGE_CEILING((vaddr_t)ret + csize) -
+		    PAGE_CEILING((vaddr_t)ret);
 	}
 	JEMALLOC_VALGRIND_MAKE_MEM_DEFINED(ret, csize);
 label_return:

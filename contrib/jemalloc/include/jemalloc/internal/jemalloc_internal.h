@@ -359,13 +359,8 @@ typedef unsigned szind_t;
 #endif
 
 /* Return the offset between a and the nearest aligned address at or below a. */
-#ifndef __CHERI_PURE_CAPABILITY__
 #define	ALIGNMENT_ADDR2OFFSET(a, alignment)				\
-	((size_t)((uintptr_t)(a) & (alignment - 1)))
-#else
-#define	ALIGNMENT_ADDR2OFFSET(a, alignment)				\
-	((size_t)((size_t)(a) & (alignment - 1)))
-#endif
+	((size_t)((vaddr_t)(a) & (alignment - 1)))
 
 /* Return the smallest alignment multiple that is >= s. */
 #define	ALIGNMENT_CEILING(s, alignment)					\

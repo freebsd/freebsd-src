@@ -1225,11 +1225,7 @@ arena_salloc(const void *ptr, bool demote)
 			 * small allocation.
 			 */
 			assert(config_cache_oblivious ||
-#ifndef __CHERI_PURE_CAPABILITY__
-			    ((uintptr_t)ptr & PAGE_MASK) == 0);
-#else
-			    ((size_t)ptr & PAGE_MASK) == 0);
-#endif
+			    ((vaddr_t)ptr & PAGE_MASK) == 0);
 			ret = arena_mapbits_large_size_get(chunk, pageind) -
 			    large_pad;
 			assert(ret != 0);
@@ -1282,11 +1278,7 @@ arena_dalloc(tsd_t *tsd, void *ptr, tcache_t *tcache)
 			    pageind);
 
 			assert(config_cache_oblivious ||
-#ifndef __CHERI_PURE_CAPABILITY__
-			    ((uintptr_t)ptr & PAGE_MASK) == 0);
-#else
-			    ((size_t)ptr & PAGE_MASK) == 0);
-#endif
+			    ((vaddr_t)ptr & PAGE_MASK) == 0);
 
 			if (likely(tcache != NULL) && size - large_pad <=
 			    tcache_maxclass) {
@@ -1336,11 +1328,7 @@ arena_sdalloc(tsd_t *tsd, void *ptr, size_t size, tcache_t *tcache)
 			}
 		} else {
 			assert(config_cache_oblivious ||
-#ifndef __CHERI_PURE_CAPABILITY__
-			    ((uintptr_t)ptr & PAGE_MASK) == 0);
-#else
-			    ((size_t)ptr & PAGE_MASK) == 0);
-#endif
+			    ((vaddr_t)ptr & PAGE_MASK) == 0);
 
 			if (likely(tcache != NULL) && size <= tcache_maxclass)
 				tcache_dalloc_large(tsd, tcache, ptr, size);

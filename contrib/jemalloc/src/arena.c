@@ -47,7 +47,7 @@ JEMALLOC_INLINE_C bool
 arena_miscelm_is_key(const arena_chunk_map_misc_t *miscelm)
 {
 
-	return (((size_t)miscelm & CHUNK_MAP_KEY) != 0);
+	return (((vaddr_t)miscelm & CHUNK_MAP_KEY) != 0);
 }
 
 #undef CHUNK_MAP_KEY
@@ -2292,13 +2292,8 @@ arena_palloc_large(tsd_t *tsd, arena_t *arena, size_t usize, size_t alignment,
 	miscelm = arena_run_to_miscelm(run);
 	rpages = arena_miscelm_to_rpages(miscelm);
 
-#ifndef __CHERI_PURE_CAPABILITY__
-	leadsize = ALIGNMENT_CEILING((uintptr_t)rpages, alignment) -
-	    (uintptr_t)rpages;
-#else
-	leadsize = ALIGNMENT_CEILING((size_t)rpages, alignment) -
-	    (size_t)rpages;
-#endif
+	leadsize = ALIGNMENT_CEILING((vaddr_t)rpages, alignment) -
+	    (vaddr_t)rpages;
 	assert(alloc_size >= leadsize + usize);
 	trailsize = alloc_size - leadsize - usize - large_pad;
 	if (leadsize != 0) {

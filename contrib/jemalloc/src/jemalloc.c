@@ -1534,11 +1534,7 @@ imemalign(void **memptr, size_t alignment, size_t size, size_t min_alignment)
 		result = ipalloc(tsd, usize, alignment, false);
 	if (unlikely(result == NULL))
 		goto label_oom;
-#ifndef __CHERI_PURE_CAPABILITY__
-	assert(((uintptr_t)result & (alignment - 1)) == ZU(0));
-#else
-	assert(((size_t)result & (alignment - 1)) == ZU(0));
-#endif
+	assert(((vaddr_t)result & (alignment - 1)) == ZU(0));
 
 #ifndef __CHERI_PURE_CAPABILITY__
 	*memptr = result;
@@ -2048,11 +2044,7 @@ imallocx_prof(tsd_t *tsd, size_t size, int flags, size_t *usize)
 	}
 	prof_malloc(p, *usize, tctx);
 
-#ifndef __CHERI_PURE_CAPABILITY__
-	assert(alignment == 0 || ((uintptr_t)p & (alignment - 1)) == ZU(0));
-#else
-	assert(alignment == 0 || ((size_t)p & (alignment - 1)) == ZU(0));
-#endif
+	assert(alignment == 0 || ((vaddr_t)p & (alignment - 1)) == ZU(0));
 	return (p);
 }
 
@@ -2075,11 +2067,7 @@ imallocx_no_prof(tsd_t *tsd, size_t size, int flags, size_t *usize)
 	    &alignment, &zero, &tcache, &arena)))
 		return (NULL);
 	p = imallocx_flags(tsd, *usize, alignment, zero, tcache, arena);
-#ifndef __CHERI_PURE_CAPABILITY__
-	assert(alignment == 0 || ((uintptr_t)p & (alignment - 1)) == ZU(0));
-#else
-	assert(alignment == 0 || ((size_t)p & (alignment - 1)) == ZU(0));
-#endif
+	assert(alignment == 0 || ((vaddr_t)p & (alignment - 1)) == ZU(0));
 	return (p);
 }
 
@@ -2241,11 +2229,7 @@ je_rallocx(void *ptr, size_t size, int flags)
 		if (config_stats || (config_valgrind && unlikely(in_valgrind)))
 			usize = isalloc(p, config_prof);
 	}
-#ifndef __CHERI_PURE_CAPABILITY__
-	assert(alignment == 0 || ((uintptr_t)p & (alignment - 1)) == ZU(0));
-#else
-	assert(alignment == 0 || ((size_t)p & (alignment - 1)) == ZU(0));
-#endif
+	assert(alignment == 0 || ((vaddr_t)p & (alignment - 1)) == ZU(0));
 
 	if (config_stats) {
 		*tsd_thread_allocatedp_get(tsd) += usize;

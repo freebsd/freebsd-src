@@ -115,16 +115,12 @@ chunk_alloc_dss(arena_t *arena, void *new_addr, size_t size, size_t alignment,
 			 * recycled for later use.
 			 */
 			cpad = (void *)((uintptr_t)dss_max + gap_size);
-#ifndef __CHERI_PURE_CAPABILITY__
-			ret = (void *)ALIGNMENT_CEILING((uintptr_t)dss_max,
-			    alignment);
-#else
 			/*
 			 * XXX-CHERI: this is wrong, but we don't use this
-			 * code as we don't implement sbrk. */
-			ret = (void *)ALIGNMENT_CEILING((uintptr_t)dss_max,
-			    (uintptr_t)alignment);
-#endif
+			 * code as we don't implement sbrk.
+			 */
+			ret = (void *)ALIGNMENT_CEILING((vaddr_t)dss_max,
+			    alignment);
 			cpad_size = (uintptr_t)ret - (uintptr_t)cpad;
 			dss_next = (void *)((uintptr_t)ret + size);
 			if ((uintptr_t)ret < (uintptr_t)dss_max ||
