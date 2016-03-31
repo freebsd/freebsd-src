@@ -141,7 +141,9 @@
  * JEMALLOC_DSS enables use of sbrk(2) to allocate chunks from the data storage
  * segment (DSS).
  */
+#ifndef __CHERI_PURE_CAPABILITY__
 #define JEMALLOC_DSS 
+#endif
 
 /* Support memory filling (junk/zero/quarantine/redzone). */
 #define JEMALLOC_FILL 

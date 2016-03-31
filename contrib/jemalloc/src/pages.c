@@ -1,5 +1,8 @@
 #define	JEMALLOC_PAGES_C_
 #include "jemalloc/internal/jemalloc_internal.h"
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <machine/cheric.h>
+#endif
 
 /******************************************************************************/
 
@@ -38,6 +41,10 @@ pages_map(void *addr, size_t size)
 #endif
 	assert(ret == NULL || (addr == NULL && ret != addr)
 	    || (addr != NULL && ret == addr));
+#ifdef __CHERI_PURE_CAPABILITY__
+	/* Discard the bounds on the allocation */
+	ret = cheri_setoffset(cheri_getdefault(), (vaddr_t)(ret));
+#endif
 	return (ret);
 }
 

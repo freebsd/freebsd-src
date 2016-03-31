@@ -1,5 +1,8 @@
 /******************************************************************************/
 #ifdef JEMALLOC_H_TYPES
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <machine/cheric.h>
+#endif
 
 /*
  * Size and alignment of memory chunks that are allocated by the OS's virtual
@@ -8,12 +11,18 @@
 #define	LG_CHUNK_DEFAULT	21
 
 /* Return the chunk address for allocation address a. */
+#ifndef __CHERI_PURE_CAPABILITY__
 #define	CHUNK_ADDR2BASE(a)						\
 	((void *)((uintptr_t)(a) & ~chunksize_mask))
+#else
+/* XXX-CHERI: Rederive the chunk from from $ddc */
+#define	CHUNK_ADDR2BASE(a)						\
+	cheri_setoffset(cheri_getdefault(), (vaddr_t)(a) & ~chunksize_mask)
+#endif
 
 /* Return the chunk offset of address a. */
 #define	CHUNK_ADDR2OFFSET(a)						\
-	((size_t)((uintptr_t)(a) & chunksize_mask))
+	((size_t)((vaddr_t)(a) & chunksize_mask))
 
 /* Return the smallest chunk multiple that is >= s. */
 #define	CHUNK_CEILING(s)						\
