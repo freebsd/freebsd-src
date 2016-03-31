@@ -99,6 +99,7 @@ cloudabi64_fixup(register_t **stack_base, struct image_params *imgp)
 #define	PTR(type, ptr)	{ .a_type = (type), .a_ptr = (uintptr_t)(ptr) }
 		PTR(CLOUDABI_AT_ARGDATA, argdata),
 		VAL(CLOUDABI_AT_ARGDATALEN, argdatalen),
+		VAL(CLOUDABI_AT_BASE, args->base),
 		PTR(CLOUDABI_AT_CANARY, canary),
 		VAL(CLOUDABI_AT_CANARYLEN, sizeof(canarybuf)),
 		VAL(CLOUDABI_AT_NCPUS, mp_ncpus),
