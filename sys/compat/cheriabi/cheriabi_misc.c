@@ -1467,8 +1467,8 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 	    MAP_CHERI_NOSETBOUNDS)
 		return (EINVAL);
 	/* Forcing alignment makes no sense with MAP_CHERI_NOSETBOUNDS. */
-	if ((flags & (MAP_CHERI_NOSETBOUNDS | MAP_ALIGNMENT_MASK)) !=
-	    MAP_CHERI_NOSETBOUNDS)
+	if ((flags & MAP_CHERI_NOSETBOUNDS) && (flags & MAP_ALIGNMENT_MASK))
+		return (EINVAL);
 
 	if (!(flags & MAP_CHERI_NOSETBOUNDS)) {
 		/*
