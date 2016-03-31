@@ -2,7 +2,7 @@
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.
  * Copyright (c) 2005 Robert N. M. Watson
- # Copyright (c) 2015 SRI International
+ * Copyright (c) 2015-2016 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/syslog.h>
 #include <sys/sysproto.h>
+
+#include <machine/stdarg.h>
 
 #ifdef CPU_CHERI
 #include <machine/pcb.h>
@@ -142,6 +144,7 @@ static int data_lengths[] = {
 	[KTR_CRETURN] = sizeof(struct ktr_creturn),
 	[KTR_CEXCEPTION] = sizeof(struct ktr_cexception),
 #endif
+	[KTR_SYSERRCAUSE] = 0,
 };
 
 static STAILQ_HEAD(, ktr_request) ktr_free;
@@ -953,6 +956,37 @@ ktrcexception(struct trapframe *frame)
 	ktrace_exit(td);
 }
 #endif /* CPU_CHERI */
+
+void
+ktrsyserrcause(const char *format, ...)
+{
+	struct ktr_request *req;
+	int namelen;
+	char *buf = NULL;
+	va_list va;
+
+	va_start(va, format);
+	namelen = vasprintf(&buf, M_KTRACE, format, va);
+	va_end(va);
+	if (buf != NULL && namelen == 0) {
+		free(buf, M_KTRACE);
+		buf = NULL;
+	}
+	if (buf == NULL)
+		return;
+
+	req = ktr_getrequest(KTR_SYSERRCAUSE);
+	if (req == NULL) {
+		if (buf != NULL)
+			free(buf, M_KTRACE);
+		return;
+	}
+	if (namelen > 0) {
+		req->ktr_header.ktr_len = namelen;
+		req->ktr_buffer = buf;
+	}
+	ktr_submitrequest(curthread, req);
+}
 #endif /* KTRACE */
 
 /* Interface and common routines */

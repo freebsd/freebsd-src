@@ -251,6 +251,12 @@ struct ktr_cexception {
 };
 
 /*
+ * KTR_SYSERRCAUSE - String detailing cause of next syscall error
+ */
+#define	KTR_SYSERRCAUSE	18
+	/* record contains error message */
+
+/*
  * KTR_DROP - If this bit is set in ktr_type, then at least one event
  * between the previous record and this record was dropped.
  */
@@ -277,6 +283,7 @@ struct ktr_cexception {
 #define KTRFAC_CCALL	(1<<KTR_CCALL)
 #define KTRFAC_CRETURN	(1<<KTR_CRETURN)
 #define KTRFAC_CEXCEPTION	(1<<KTR_CEXCEPTION)
+#define	KTRFAC_SYSERRCAUSE	(1<<KTR_SYSERRCAUSE)
 
 /*
  * trace flags (also in p_traceflags)
@@ -312,6 +319,7 @@ void	ktrcapfail(enum ktr_cap_fail_type, const cap_rights_t *,
 void	ktrccall(struct pcb *);
 void	ktrcreturn(struct pcb *);
 void	ktrcexception(struct trapframe *);
+void	ktrsyserrcause(const char *format, ...);
 
 #else
 

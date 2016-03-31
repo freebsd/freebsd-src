@@ -411,6 +411,7 @@ main(int argc, char *argv[])
 			break;
 		case KTR_NAMEI:
 		case KTR_SYSCTL:
+		case KTR_SYSERRCAUSE:
 			ktrnamei(m, ktrlen);
 			break;
 		case KTR_GENIO:
