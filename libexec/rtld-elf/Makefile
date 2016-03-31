@@ -48,6 +48,9 @@ CFLAGS+=	-fvisibility=hidden
 .endif
 LDFLAGS+=	-shared -Wl,-Bsymbolic
 LIBADD=		c_pic
+.if ${MK_TOOLCHAIN} == "no"
+LDFLAGS+=	-L${LIBCDIR}
+.endif
 
 .if ${MACHINE_CPUARCH} == "arm"
 # Some of the required math functions (div & mod) are implemented in

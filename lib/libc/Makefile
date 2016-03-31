@@ -7,6 +7,9 @@ WANT_CHERI=	variables
 
 .include <src.opts.mk>
 
+# Force building of libc_pic.a
+MK_TOOLCHAIN=	yes
+
 LIBC_SRCTOP?= ${.CURDIR}
 
 # Pick the current architecture directory for libc. In general, this is
