@@ -340,6 +340,7 @@ getvol(long nextvol)
 		}
 		if (volno == 1)
 			return;
+		newvol = 0;
 		goto gethdr;
 	}
 again:
