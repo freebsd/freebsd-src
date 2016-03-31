@@ -269,18 +269,9 @@ nicpf_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *params)
 
 	nic = device_get_softc(dev);
 
-	nic->num_vf_en = 0;
 	if (num_vfs == 0)
 		return (ENXIO);
-	if (num_vfs > MAX_NUM_VFS_SUPPORTED)
-		return (EINVAL);
 
-	/*
-	 * Just set variables here.
-	 * The number of VFs will be written to configuration
-	 * space later in PCI_ADD_VF().
-	 */
-	nic->num_vf_en = num_vfs;
 	nic->flags |= NIC_SRIOV_ENABLED;
 
 	return (0);
@@ -305,6 +296,9 @@ nicpf_iov_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *params)
 
 	if ((nic->flags & NIC_SRIOV_ENABLED) == 0)
 		return (ENXIO);
+
+	if (vfnum > (nic->num_vf_en - 1))
+		return (EINVAL);
 
 	if (nvlist_exists_binary(params, "mac-addr") != 0) {
 		mac = nvlist_get_binary(params, "mac-addr", &size);
@@ -1094,11 +1088,8 @@ static int nic_sriov_init(device_t dev, struct nicpf *nic)
 	}
 	/* Fix-up the number of enabled VFs */
 	total_vf_cnt = pci_read_config(dev, iov_pos + PCIR_SRIOV_TOTAL_VFS, 2);
-	if (total_vf_cnt < nic->num_vf_en)
-		nic->num_vf_en = total_vf_cnt;
-
 	if (total_vf_cnt == 0)
-		return (0);
+		return (ENXIO);
 
 	/* Attach SR-IOV */
 	pf_schema = pci_iov_schema_alloc_node();
@@ -1116,7 +1107,6 @@ static int nic_sriov_init(device_t dev, struct nicpf *nic)
 		device_printf(dev,
 		    "Failed to initialize SR-IOV (error=%d)\n",
 		    err);
-		nic->num_vf_en = 0;
 		return (err);
 	}
 #endif
