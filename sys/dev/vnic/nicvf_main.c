@@ -661,8 +661,8 @@ nicvf_if_transmit(struct ifnet *ifp, struct mbuf *mbuf)
 
 	sq = &qs->sq[qidx];
 
-	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING) {
+	if (((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING) || !nic->link_up) {
 		err = drbr_enqueue(ifp, sq->br, mbuf);
 		return (err);
 	}
@@ -679,17 +679,16 @@ nicvf_if_transmit(struct ifnet *ifp, struct mbuf *mbuf)
 		}
 	}
 
+	err = drbr_enqueue(ifp, sq->br, mbuf);
+	if (err != 0)
+		return (err);
+
 	if (NICVF_TX_TRYLOCK(sq) != 0) {
-		err = nicvf_tx_mbuf_locked(sq, mbuf);
+		err = nicvf_xmit_locked(sq);
 		NICVF_TX_UNLOCK(sq);
 		return (err);
-	} else {
-		err = drbr_enqueue(ifp, sq->br, mbuf);
-		if (err != 0)
-			return (err);
-
+	} else
 		taskqueue_enqueue(sq->snd_taskq, &sq->snd_task);
-	}
 
 	return (0);
 }
