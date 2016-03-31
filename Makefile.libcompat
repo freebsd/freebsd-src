@@ -134,7 +134,8 @@ build${libcompat}: .PHONY
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 .for _t in obj includes
 .for _dir in ${_LC_INCDIRS}
-	${_+_}cd ${.CURDIR}/${_dir}; ${LIBCOMPATWMAKE} DIRPRFX=${_dir}/ ${_t}
+	${_+_}cd ${.CURDIR}/${_dir}; ${LIBCOMPATWMAKE} MK_INCLUDES=yes \
+	    DIRPRFX=${_dir}/ ${_t}
 .endfor
 .endfor
 .for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic
