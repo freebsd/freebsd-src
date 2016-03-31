@@ -285,18 +285,9 @@ bgx_fdt_init_phy(struct bgx *bgx)
 			continue;
 		}
 
-		if (OF_getencprop(child, "phy-handle", &phy,
-		    sizeof(phy)) <= 0) {
-			if (bootverbose) {
-				device_printf(bgx->dev,
-				    "No phy-handle in PHY node. Skipping...\n");
-			}
-			continue;
-		}
 
 		/* Acquire PHY address */
-		phy = OF_node_from_xref(phy);
-		if (OF_getencprop(phy, "reg", &bgx->lmac[lmac].phyaddr,
+		if (OF_getencprop(child, "reg", &bgx->lmac[lmac].phyaddr,
 		    sizeof(bgx->lmac[lmac].phyaddr)) <= 0) {
 			if (bootverbose) {
 				device_printf(bgx->dev,
@@ -305,6 +296,15 @@ bgx_fdt_init_phy(struct bgx *bgx)
 			bgx->lmac[lmac].phyaddr = MII_PHY_ANY;
 		}
 
+		if (OF_getencprop(child, "phy-handle", &phy,
+		    sizeof(phy)) <= 0) {
+			if (bootverbose) {
+				device_printf(bgx->dev,
+				    "No phy-handle in PHY node. Skipping...\n");
+			}
+			continue;
+		}
+		phy = OF_instance_to_package(phy);
 		/*
 		 * Get PHY interface (MDIO bus) device.
 		 * Driver must be already attached.
@@ -321,7 +321,7 @@ bgx_fdt_init_phy(struct bgx *bgx)
 		}
 
 		/* Get mac address from FDT */
-		bgx_fdt_get_macaddr(phy, bgx->lmac[lmac].mac);
+		bgx_fdt_get_macaddr(child, bgx->lmac[lmac].mac);
 
 		bgx->lmac[lmac].lmacid = lmac;
 		lmac++;
