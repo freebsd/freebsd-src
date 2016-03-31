@@ -219,6 +219,28 @@ rctl_resource_name(int resource)
 	panic("rctl_resource_name: unknown resource %d", resource);
 }
 
+static struct racct *
+rctl_proc_rule_to_racct(const struct proc *p, const struct rctl_rule *rule)
+{
+	struct ucred *cred = p->p_ucred;
+
+	ASSERT_RACCT_ENABLED();
+	rw_assert(&rctl_lock, RA_LOCKED);
+
+	switch (rule->rr_per) {
+	case RCTL_SUBJECT_TYPE_PROCESS:
+		return (p->p_racct);
+	case RCTL_SUBJECT_TYPE_USER:
+		return (cred->cr_ruidinfo->ui_racct);
+	case RCTL_SUBJECT_TYPE_LOGINCLASS:
+		return (cred->cr_loginclass->lc_racct);
+	case RCTL_SUBJECT_TYPE_JAIL:
+		return (cred->cr_prison->pr_prison_racct->prr_racct);
+	default:
+		panic("%s: unknown per %d", __func__, rule->rr_per);
+	}
+}
+
 /*
  * Return the amount of resource that can be allocated by 'p' before
  * hitting 'rule'.
@@ -226,36 +248,14 @@ rctl_resource_name(int resource)
 static int64_t
 rctl_available_resource(const struct proc *p, const struct rctl_rule *rule)
 {
-	int resource;
-	int64_t available = INT64_MAX;
-	struct ucred *cred = p->p_ucred;
+	int64_t available;
+	const struct racct *racct;
 
 	ASSERT_RACCT_ENABLED();
 	rw_assert(&rctl_lock, RA_LOCKED);
 
-	resource = rule->rr_resource;
-	switch (rule->rr_per) {
-	case RCTL_SUBJECT_TYPE_PROCESS:
-		available = rule->rr_amount -
-		    p->p_racct->r_resources[resource];
-		break;
-	case RCTL_SUBJECT_TYPE_USER:
-		available = rule->rr_amount -
-		    cred->cr_ruidinfo->ui_racct->r_resources[resource];
-		break;
-	case RCTL_SUBJECT_TYPE_LOGINCLASS:
-		available = rule->rr_amount -
-		    cred->cr_loginclass->lc_racct->r_resources[resource];
-		break;
-	case RCTL_SUBJECT_TYPE_JAIL:
-		available = rule->rr_amount -
-		    cred->cr_prison->pr_prison_racct->prr_racct->
-		        r_resources[resource];
-		break;
-	default:
-		panic("rctl_compute_available: unknown per %d",
-		    rule->rr_per);
-	}
+	racct = rctl_proc_rule_to_racct(p, rule);
+	available = rule->rr_amount - racct->r_resources[rule->rr_resource];
 
 	return (available);
 }
