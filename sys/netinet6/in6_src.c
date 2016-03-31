@@ -249,19 +249,27 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		    (inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
 			return (error);
 
-		ia6 = (struct in6_ifaddr *)ifa_ifwithaddr(
-		    (struct sockaddr *)&srcsock);
-		if (ia6 == NULL ||
-		    (ia6->ia6_flags & (IN6_IFF_ANYCAST | IN6_IFF_NOTREADY))) {
-			if (ia6 != NULL)
-				ifa_free(&ia6->ia_ifa);
-			return (EADDRNOTAVAIL);
-		}
+		/*
+		 * If IPV6_BINDANY socket option is set, we allow to specify
+		 * non local addresses as source address in IPV6_PKTINFO
+		 * ancillary data.
+		 */
+		if ((inp->inp_flags & INP_BINDANY) == 0) {
+			ia6 = (struct in6_ifaddr *)ifa_ifwithaddr(
+			    (struct sockaddr *)&srcsock);
+			if (ia6 == NULL || (ia6->ia6_flags & (IN6_IFF_ANYCAST |
+			    IN6_IFF_NOTREADY))) {
+				if (ia6 != NULL)
+					ifa_free(&ia6->ia_ifa);
+				return (EADDRNOTAVAIL);
+			}
+			bcopy(&ia6->ia_addr.sin6_addr, srcp, sizeof(*srcp));
+			ifa_free(&ia6->ia_ifa);
+		} else
+			bcopy(&srcsock.sin6_addr, srcp, sizeof(*srcp));
 		pi->ipi6_addr = srcsock.sin6_addr; /* XXX: this overrides pi */
 		if (ifpp)
 			*ifpp = ifp;
-		bcopy(&ia6->ia_addr.sin6_addr, srcp, sizeof(*srcp));
-		ifa_free(&ia6->ia_ifa);
 		return (0);
 	}
 
