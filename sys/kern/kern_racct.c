@@ -1139,7 +1139,7 @@ racct_decay_post(void)
 }
 
 static void
-racct_decay()
+racct_decay(void)
 {
 
 	ASSERT_RACCT_ENABLED();
