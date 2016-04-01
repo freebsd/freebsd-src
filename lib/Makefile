@@ -71,6 +71,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	liblzma \
 	${_libmagic} \
 	libmemstat \
+	libstatcounters \
 	libmd \
 	${_libmilter} \
 	${_libmp} \
