@@ -1107,23 +1107,21 @@ racct_proc_wakeup(struct proc *p)
 }
 
 static void
-racct_decay_resource(struct racct *racct, void * res, void* dummy)
+racct_decay_callback(struct racct *racct, void *dummy1, void *dummy2)
 {
-	int resource;
 	int64_t r_old, r_new;
 
 	ASSERT_RACCT_ENABLED();
 	mtx_assert(&racct_lock, MA_OWNED);
 
-	resource = *(int *)res;
-	r_old = racct->r_resources[resource];
+	r_old = racct->r_resources[RACCT_PCTCPU];
 
 	/* If there is nothing to decay, just exit. */
 	if (r_old <= 0)
 		return;
 
 	r_new = r_old * RACCT_DECAY_FACTOR / FSCALE;
-	racct->r_resources[resource] = r_new;
+	racct->r_resources[RACCT_PCTCPU] = r_new;
 }
 
 static void
@@ -1141,17 +1139,17 @@ racct_decay_post(void)
 }
 
 static void
-racct_decay(int resource)
+racct_decay()
 {
 
 	ASSERT_RACCT_ENABLED();
 
-	ui_racct_foreach(racct_decay_resource, racct_decay_pre,
-	    racct_decay_post, &resource, NULL);
-	loginclass_racct_foreach(racct_decay_resource, racct_decay_pre,
-	    racct_decay_post, &resource, NULL);
-	prison_racct_foreach(racct_decay_resource, racct_decay_pre,
-	    racct_decay_post, &resource, NULL);
+	ui_racct_foreach(racct_decay_callback, racct_decay_pre,
+	    racct_decay_post, NULL, NULL);
+	loginclass_racct_foreach(racct_decay_callback, racct_decay_pre,
+	    racct_decay_post, NULL, NULL);
+	prison_racct_foreach(racct_decay_callback, racct_decay_pre,
+	    racct_decay_post, NULL, NULL);
 }
 
 static void
@@ -1166,7 +1164,7 @@ racctd(void)
 	ASSERT_RACCT_ENABLED();
 
 	for (;;) {
-		racct_decay(RACCT_PCTCPU);
+		racct_decay();
 
 		sx_slock(&allproc_lock);
 
