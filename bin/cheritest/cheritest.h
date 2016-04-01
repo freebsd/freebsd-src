@@ -128,8 +128,8 @@ struct cheri_test {
  *
  * XXXRW: It would be nice to also offer a cheritest_failure_err().
  */
-void	cheritest_failure_err(const char *msg, ...) __dead2;
-void	cheritest_failure_errx(const char *msg, ...) __dead2;
+void	cheritest_failure_err(const char *msg, ...) __dead2  __printflike(1, 2);
+void	cheritest_failure_errx(const char *msg, ...) __dead2  __printflike(1, 2);
 void	cheritest_success(void) __dead2;
 void	signal_handler_clear(int sig);
 
