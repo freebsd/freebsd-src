@@ -778,13 +778,8 @@ netvsc_channel_rollup(struct hv_vmbus_channel *chan)
 	struct hn_tx_ring *txr = chan->hv_chan_txr;
 #if defined(INET) || defined(INET6)
 	struct hn_rx_ring *rxr = chan->hv_chan_rxr;
-	struct lro_ctrl *lro = &rxr->hn_lro;
-	struct lro_entry *queued;
 
-	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
-		SLIST_REMOVE_HEAD(&lro->lro_active, next);
-		tcp_lro_flush(lro, queued);
-	}
+	tcp_lro_flush_all(&rxr->hn_lro);
 #endif
 
 	/*
