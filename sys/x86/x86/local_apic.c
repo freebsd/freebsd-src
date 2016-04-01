@@ -511,7 +511,7 @@ native_lapic_init(vm_paddr_t addr)
 	}
 
 #ifdef SMP
-#define LOOPS 1000000
+#define	LOOPS	1000000
 	/*
 	 * Calibrate the busy loop waiting for IPI ack in xAPIC mode.
 	 * lapic_ipi_wait_mult contains the number of iterations which
@@ -535,7 +535,7 @@ native_lapic_init(vm_paddr_t addr)
 	r2 = r * 1000000;
 	lapic_ipi_wait_mult = r1 >= r2 ? r1 / r2 : 1;
 	if (bootverbose) {
-		printf("LAPIC: ipi_wait() us multiplier %jd (r %jd tsc %jd)\n",
+		printf("LAPIC: ipi_wait() us multiplier %ju (r %ju tsc %ju)\n",
 		    (uintmax_t)lapic_ipi_wait_mult, (uintmax_t)r,
 		    (uintmax_t)tsc_freq);
 	}
@@ -1762,14 +1762,13 @@ SYSINIT(apic_setup_io, SI_SUB_INTR, SI_ORDER_THIRD, apic_setup_io, NULL);
 static int
 native_lapic_ipi_wait(int delay)
 {
-	uint64_t i, counter;
+	uint64_t rx;
 
 	/* LAPIC_ICR.APIC_DELSTAT_MASK is undefined in x2APIC mode */
 	if (x2apic_mode)
 		return (1);
 
-	counter = lapic_ipi_wait_mult * delay;
-	for (i = 0; delay == -1 || i < counter; i++) {
+	for (rx = 0; delay == -1 || rx < lapic_ipi_wait_mult * delay; rx++) {
 		if ((lapic_read_icr_lo() & APIC_DELSTAT_MASK) ==
 		    APIC_DELSTAT_IDLE)
 			return (1);
