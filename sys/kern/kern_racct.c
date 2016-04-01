@@ -548,12 +548,10 @@ racct_add_locked(struct proc *p, int resource, uint64_t amount, int force)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 #ifdef RCTL
-	if (!force) {
-		error = rctl_enforce(p, resource, amount);
-		if (error && RACCT_IS_DENIABLE(resource)) {
-			SDT_PROBE3(racct, , rusage, add__failure, p, resource, amount);
-			return (error);
-		}
+	error = rctl_enforce(p, resource, amount);
+	if (error && !force && RACCT_IS_DENIABLE(resource)) {
+		SDT_PROBE3(racct, , rusage, add__failure, p, resource, amount);
+		return (error);
 	}
 #endif
 	racct_adjust_resource(p->p_racct, resource, amount);
@@ -670,9 +668,9 @@ racct_set_locked(struct proc *p, int resource, uint64_t amount, int force)
 	     resource));
 #endif
 #ifdef RCTL
-	if (!force && diff_proc > 0) {
+	if (diff_proc > 0) {
 		error = rctl_enforce(p, resource, diff_proc);
-		if (error && RACCT_IS_DENIABLE(resource)) {
+		if (error && !force && RACCT_IS_DENIABLE(resource)) {
 			SDT_PROBE3(racct, , rusage, set__failure, p, resource,
 			    amount);
 			return (error);
