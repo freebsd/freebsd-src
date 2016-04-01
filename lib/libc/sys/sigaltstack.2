@@ -55,7 +55,7 @@ allows defining an alternate stack on which signals
 are to be processed for the current thread.
 If
 .Fa ss
-is non-zero,
+is non-null,
 it specifies a pointer to and the size of a
 .Em "signal stack"
 on which to deliver signals.
@@ -85,7 +85,7 @@ to be processed on an alternate stack will resume doing so.
 .Pp
 If
 .Fa oss
-is non-zero, the current signal stack state is returned.
+is non-null, the current signal stack state is returned.
 The
 .Fa ss_flags
 field will contain the value
