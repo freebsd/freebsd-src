@@ -1989,7 +1989,7 @@ m_unshare(struct mbuf *m0, int how)
 		 * don't know how to break up the non-contiguous memory when
 		 * doing DMA.
 		 */
-		n = m_getcl(how, m->m_type, m->m_flags);
+		n = m_getcl(how, m->m_type, m->m_flags & M_COPYFLAGS);
 		if (n == NULL) {
 			m_freem(m0);
 			return (NULL);
@@ -2014,7 +2014,7 @@ m_unshare(struct mbuf *m0, int how)
 				break;
 			off += cc;
 
-			n = m_getcl(how, m->m_type, m->m_flags);
+			n = m_getcl(how, m->m_type, m->m_flags & M_COPYFLAGS);
 			if (n == NULL) {
 				m_freem(mfirst);
 				m_freem(m0);
