@@ -746,7 +746,6 @@ nicvf_cq_intr_handler(struct nicvf *nic, uint8_t cq_idx)
 	struct rcv_queue *rq;
 	struct cqe_rx_t *cq_desc;
 	struct lro_ctrl	*lro;
-	struct lro_entry *queued;
 	int rq_idx;
 	int cmp_err;
 
@@ -831,10 +830,7 @@ out:
 	rq_idx = cq_idx;
 	rq = &nic->qs->rq[rq_idx];
 	lro = &rq->lro;
-	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
-		SLIST_REMOVE_HEAD(&lro->lro_active, next);
-		tcp_lro_flush(lro, queued);
-	}
+	tcp_lro_flush_all(lro);
 
 	NICVF_CMP_UNLOCK(cq);
 

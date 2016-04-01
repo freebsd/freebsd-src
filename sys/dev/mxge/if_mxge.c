@@ -2819,11 +2819,7 @@ mxge_clean_rx_done(struct mxge_slice_state *ss)
 			break;
 	}
 #if defined(INET)  || defined (INET6)
-	while (!SLIST_EMPTY(&ss->lc.lro_active)) {
-		struct lro_entry *lro = SLIST_FIRST(&ss->lc.lro_active);
-		SLIST_REMOVE_HEAD(&ss->lc.lro_active, next);
-		tcp_lro_flush(&ss->lc, lro);
-	}
+	tcp_lro_flush_all(&ss->lc);
 #endif
 }
 

@@ -1397,13 +1397,8 @@ process_iql:
 #if defined(INET) || defined(INET6)
 	if (iq->flags & IQ_LRO_ENABLED) {
 		struct lro_ctrl *lro = &rxq->lro;
-		struct lro_entry *l;
 
-		while (!SLIST_EMPTY(&lro->lro_active)) {
-			l = SLIST_FIRST(&lro->lro_active);
-			SLIST_REMOVE_HEAD(&lro->lro_active, next);
-			tcp_lro_flush(lro, l);
-		}
+		tcp_lro_flush_all(lro);
 	}
 #endif
 

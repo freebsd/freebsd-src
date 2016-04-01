@@ -67,6 +67,8 @@ static MALLOC_DEFINE(M_LRO, "LRO", "LRO control structures");
 #define	TCP_LRO_INVALID_CSUM	0x0000
 #endif
 
+static void	tcp_lro_rx_done(struct lro_ctrl *lc);
+
 int
 tcp_lro_init(struct lro_ctrl *lc)
 {
@@ -226,6 +228,17 @@ tcp_lro_rx_csum_fixup(struct lro_entry *le, void *l3hdr, struct tcphdr *th,
 }
 #endif
 
+static void
+tcp_lro_rx_done(struct lro_ctrl *lc)
+{
+	struct lro_entry *le;
+
+	while ((le = SLIST_FIRST(&lc->lro_active)) != NULL) {
+		SLIST_REMOVE_HEAD(&lc->lro_active, next);
+		tcp_lro_flush(lc, le);
+	}
+}
+
 void
 tcp_lro_flush_inactive(struct lro_ctrl *lc, const struct timeval *timeout)
 {
@@ -362,13 +375,12 @@ done:
 void
 tcp_lro_flush_all(struct lro_ctrl *lc)
 {
-	struct lro_entry *le;
 	uint32_t hashtype;
 	uint32_t flowid;
 	unsigned x;
 
 	/* check if no mbufs to flush */
-	if (__predict_false(lc->lro_mbuf_count == 0))
+	if (lc->lro_mbuf_count == 0)
 		goto done;
 
 	/* sort all mbufs according to stream */
@@ -390,10 +402,7 @@ tcp_lro_flush_all(struct lro_ctrl *lc)
 			hashtype = M_HASHTYPE_GET(mb);
 
 			/* flush active streams */
-			while ((le = SLIST_FIRST(&lc->lro_active)) != NULL) {
-				SLIST_REMOVE_HEAD(&lc->lro_active, next);
-				tcp_lro_flush(lc, le);
-			}
+			tcp_lro_rx_done(lc);
 		}
 #ifdef TCP_LRO_RESET_SEQUENCE
 		/* reset sequence number */
@@ -409,10 +418,8 @@ tcp_lro_flush_all(struct lro_ctrl *lc)
 	}
 done:
 	/* flush active streams */
-	while ((le = SLIST_FIRST(&lc->lro_active)) != NULL) {
-		SLIST_REMOVE_HEAD(&lc->lro_active, next);
-		tcp_lro_flush(lc, le);
-	}
+	tcp_lro_rx_done(lc);
+
 	lc->lro_mbuf_count = 0;
 }
 
