@@ -26,6 +26,7 @@ dev/mge/if_mge.c		optional	mge
 dev/nand/nfc_mv.c		optional	nand
 dev/mvs/mvs_soc.c		optional	mvs
 dev/uart/uart_dev_ns8250.c	optional	uart
+dev/uart/uart_dev_snps.c	optional	uart
 dev/usb/controller/ehci_mv.c	optional	ehci
 dev/usb/controller/xhci_mv.c	optional	xhci
 
