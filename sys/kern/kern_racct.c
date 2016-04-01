@@ -534,7 +534,7 @@ racct_adjust_resource(struct racct *racct, int resource,
 }
 
 static int
-racct_add_locked(struct proc *p, int resource, uint64_t amount)
+racct_add_locked(struct proc *p, int resource, uint64_t amount, int force)
 {
 #ifdef RCTL
 	int error;
@@ -542,18 +542,18 @@ racct_add_locked(struct proc *p, int resource, uint64_t amount)
 
 	ASSERT_RACCT_ENABLED();
 
-	SDT_PROBE3(racct, , rusage, add, p, resource, amount);
-
 	/*
 	 * We need proc lock to dereference p->p_ucred.
 	 */
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 #ifdef RCTL
-	error = rctl_enforce(p, resource, amount);
-	if (error && RACCT_IS_DENIABLE(resource)) {
-		SDT_PROBE3(racct, , rusage, add__failure, p, resource, amount);
-		return (error);
+	if (!force) {
+		error = rctl_enforce(p, resource, amount);
+		if (error && RACCT_IS_DENIABLE(resource)) {
+			SDT_PROBE3(racct, , rusage, add__failure, p, resource, amount);
+			return (error);
+		}
 	}
 #endif
 	racct_adjust_resource(p->p_racct, resource, amount);
@@ -574,8 +574,10 @@ racct_add(struct proc *p, int resource, uint64_t amount)
 	if (!racct_enable)
 		return (0);
 
+	SDT_PROBE3(racct, , rusage, add, p, resource, amount);
+
 	mtx_lock(&racct_lock);
-	error = racct_add_locked(p, resource, amount);
+	error = racct_add_locked(p, resource, amount, 0);
 	mtx_unlock(&racct_lock);
 	return (error);
 }
@@ -625,14 +627,8 @@ racct_add_force(struct proc *p, int resource, uint64_t amount)
 
 	SDT_PROBE3(racct, , rusage, add__force, p, resource, amount);
 
-	/*
-	 * We need proc lock to dereference p->p_ucred.
-	 */
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-
 	mtx_lock(&racct_lock);
-	racct_adjust_resource(p->p_racct, resource, amount);
-	racct_add_cred_locked(p->p_ucred, resource, amount);
+	racct_add_locked(p, resource, amount, 1);
 	mtx_unlock(&racct_lock);
 }
 
@@ -898,8 +894,8 @@ racct_proc_fork(struct proc *parent, struct proc *child)
 			goto out;
 	}
 
-	error = racct_add_locked(child, RACCT_NPROC, 1);
-	error += racct_add_locked(child, RACCT_NTHR, 1);
+	error = racct_add_locked(child, RACCT_NPROC, 1, 0);
+	error += racct_add_locked(child, RACCT_NTHR, 1, 0);
 
 out:
 	mtx_unlock(&racct_lock);
