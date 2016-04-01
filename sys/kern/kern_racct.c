@@ -582,6 +582,24 @@ racct_add(struct proc *p, int resource, uint64_t amount)
 	return (error);
 }
 
+/*
+ * Increase allocation of 'resource' by 'amount' for process 'p'.
+ * Doesn't check for limits and never fails.
+ */
+void
+racct_add_force(struct proc *p, int resource, uint64_t amount)
+{
+
+	if (!racct_enable)
+		return;
+
+	SDT_PROBE3(racct, , rusage, add__force, p, resource, amount);
+
+	mtx_lock(&racct_lock);
+	racct_add_locked(p, resource, amount, 1);
+	mtx_unlock(&racct_lock);
+}
+
 static void
 racct_add_cred_locked(struct ucred *cred, int resource, uint64_t amount)
 {
@@ -611,24 +629,6 @@ racct_add_cred(struct ucred *cred, int resource, uint64_t amount)
 
 	mtx_lock(&racct_lock);
 	racct_add_cred_locked(cred, resource, amount);
-	mtx_unlock(&racct_lock);
-}
-
-/*
- * Increase allocation of 'resource' by 'amount' for process 'p'.
- * Doesn't check for limits and never fails.
- */
-void
-racct_add_force(struct proc *p, int resource, uint64_t amount)
-{
-
-	if (!racct_enable)
-		return;
-
-	SDT_PROBE3(racct, , rusage, add__force, p, resource, amount);
-
-	mtx_lock(&racct_lock);
-	racct_add_locked(p, resource, amount, 1);
 	mtx_unlock(&racct_lock);
 }
 
@@ -688,20 +688,6 @@ racct_set_locked(struct proc *p, int resource, uint64_t amount, int force)
 	return (0);
 }
 
-void
-racct_set_force(struct proc *p, int resource, uint64_t amount)
-{
-
-	if (!racct_enable)
-		return;
-
-	SDT_PROBE3(racct, , rusage, set, p, resource, amount);
-
-	mtx_lock(&racct_lock);
-	racct_set_locked(p, resource, amount, 1);
-	mtx_unlock(&racct_lock);
-}
-
 /*
  * Set allocation of 'resource' to 'amount' for process 'p'.
  * Return 0 if it's below limits, or errno, if it's not.
@@ -723,6 +709,20 @@ racct_set(struct proc *p, int resource, uint64_t amount)
 	error = racct_set_locked(p, resource, amount, 0);
 	mtx_unlock(&racct_lock);
 	return (error);
+}
+
+void
+racct_set_force(struct proc *p, int resource, uint64_t amount)
+{
+
+	if (!racct_enable)
+		return;
+
+	SDT_PROBE3(racct, , rusage, set, p, resource, amount);
+
+	mtx_lock(&racct_lock);
+	racct_set_locked(p, resource, amount, 1);
+	mtx_unlock(&racct_lock);
 }
 
 /*
