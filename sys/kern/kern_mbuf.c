@@ -429,6 +429,7 @@ mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 
 	m = (struct mbuf *)mem;
 	flags = args->flags;
+	MPASS((flags & M_NOFREE) == 0);
 
 	error = m_init(m, NULL, size, how, type, flags);
 
@@ -626,6 +627,7 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 	args = (struct mb_args *)arg;
 	flags = args->flags;
 	type = args->type;
+	MPASS((flags & M_NOFREE) == 0);
 
 #ifdef INVARIANTS
 	trash_ctor(m->m_ext.ext_buf, MCLBYTES, arg, how);
