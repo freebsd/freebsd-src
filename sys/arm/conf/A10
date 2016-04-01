@@ -61,7 +61,7 @@ device		ahci			# AHCI-compatible SATA controllers
 
 # Console and misc
 device		uart
-device		uart_ns8250
+device		uart_snps
 device		pty
 device		snp
 device		md

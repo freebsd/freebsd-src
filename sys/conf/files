@@ -2566,11 +2566,12 @@ dev/uart/uart_bus_puc.c		optional uart puc
 dev/uart/uart_bus_scc.c		optional uart scc
 dev/uart/uart_core.c		optional uart
 dev/uart/uart_dbg.c		optional uart gdb
-dev/uart/uart_dev_ns8250.c	optional uart uart_ns8250
+dev/uart/uart_dev_ns8250.c	optional uart uart_ns8250 | uart uart_snps
 dev/uart/uart_dev_pl011.c	optional uart pl011
 dev/uart/uart_dev_quicc.c	optional uart quicc
 dev/uart/uart_dev_sab82532.c	optional uart uart_sab82532
 dev/uart/uart_dev_sab82532.c	optional uart scc
+dev/uart/uart_dev_snps.c	optional uart uart_snps
 dev/uart/uart_dev_z8530.c	optional uart uart_z8530
 dev/uart/uart_dev_z8530.c	optional uart scc
 dev/uart/uart_if.m		optional uart
