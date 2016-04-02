@@ -871,20 +871,9 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_cp2_exccode = CHERI_EXCCODE_SW_LOCALARG },
 
 	/*
-	 * libcheri + inflate/deflate tests.
+	 * Tests relating to initialisation of, and permissions on, global
+	 * variables in sandboxes.
 	 */
-	{ .ct_name = "test_deflate_zeroes",
-	  .ct_desc = "Deflate a compressed buffer of zeroes",
-	  .ct_func = test_deflate_zeroes },
-
-	{ .ct_name = "test_inflate_zeroes",
-	  .ct_desc = "Inflate a compressed buffer of zeroes",
-	  .ct_func = test_inflate_zeroes },
-
-	{ .ct_name = "test_sandbox_inflate_zeroes",
-	  .ct_desc = "Inflate a compressed buffer of zeroes -- in a sandbox",
-	  .ct_func = test_sandbox_inflate_zeroes },
-
 	{ .ct_name = "test_sandbox_var_bss",
 	  .ct_desc = "Check initial value of .bss variable",
 	  .ct_func = test_sandbox_var_bss },
@@ -916,6 +905,21 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_string_memmove_c",
 	  .ct_desc = "Test explicit capability memmove",
 	  .ct_func = test_string_memmove_c },
+
+	/*
+	 * zlib tests.
+	 */
+	{ .ct_name = "test_deflate_zeroes",
+	  .ct_desc = "Deflate a compressed buffer of zeroes",
+	  .ct_func = test_deflate_zeroes },
+
+	{ .ct_name = "test_inflate_zeroes",
+	  .ct_desc = "Inflate a compressed buffer of zeroes",
+	  .ct_func = test_inflate_zeroes },
+
+	{ .ct_name = "test_sandbox_inflate_zeroes",
+	  .ct_desc = "Inflate a compressed buffer of zeroes -- in a sandbox",
+	  .ct_func = test_sandbox_inflate_zeroes },
 
 	/*
 	 * CheriABI specific tests.

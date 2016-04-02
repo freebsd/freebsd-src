@@ -248,11 +248,6 @@ void	test_sandbox_fd_read_revoke(const struct cheri_test *ctp);
 void	test_sandbox_fd_write(const struct cheri_test *ctp);
 void	test_sandbox_fd_write_revoke(const struct cheri_test *ctp);
 
-/* cheritest_inflate.c */
-void	test_deflate_zeroes(const struct cheri_test *ctp);
-void	test_inflate_zeroes(const struct cheri_test *ctp);
-void 	test_sandbox_inflate_zeroes(const struct cheri_test *ctp);
-
 /* cheritest_libcheri.c */
 extern struct sandbox_class	*cheritest_classp;
 extern struct sandbox_object	*cheritest_objectp;
@@ -345,6 +340,11 @@ const char	*xfail_need_writable_tmp(const char *name);
 /* cheritest_vm_swap.c */
 void	cheritest_vm_swap(const struct cheri_test *ctp __unused);
 const char	*xfail_swap_required(const char *name);
+
+/* cheritest_zlib.c */
+void	test_deflate_zeroes(const struct cheri_test *ctp);
+void	test_inflate_zeroes(const struct cheri_test *ctp);
+void 	test_sandbox_inflate_zeroes(const struct cheri_test *ctp);
 
 #ifdef CHERI_C_TESTS
 #define DECLARE_TEST(name, desc) \

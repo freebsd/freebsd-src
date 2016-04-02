@@ -8,7 +8,6 @@ SRCS+=	cheritest_bounds_stack.c					\
 	cheritest_ccall.c						\
 	cheritest_fault.c						\
 	cheritest_fd.c							\
-	cheritest_inflate.c						\
 	cheritest_libcheri.c						\
 	cheritest_local.c						\
 	cheritest_registers.c						\
@@ -19,7 +18,8 @@ SRCS+=	cheritest_bounds_stack.c					\
 	cheritest_util.c						\
 	cheritest_var.c							\
 	cheritest_vm.c							\
-	cheritest_vm_swap.c
+	cheritest_vm_swap.c						\
+	cheritest_zlib.c
 .endif
 
 CHERITEST_DIR:=	${.PARSEDIR}
