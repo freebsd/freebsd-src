@@ -162,6 +162,7 @@ struct pargs {
  */
 struct cpuset;
 struct filecaps;
+struct filemon;
 struct kaioinfo;
 struct kaudit_record;
 struct kdtrace_proc;
@@ -253,6 +254,7 @@ struct thread {
 	int		td_slptick;	/* (t) Time at sleep. */
 	int		td_blktick;	/* (t) Time spent blocked. */
 	int		td_swvoltick;	/* (t) Time at last SW_VOL switch. */
+	int		td_swinvoltick;	/* (t) Time at last SW_INVOL switch. */
 	u_int		td_cow;		/* (*) Number of copy-on-write faults */
 	struct rusage	td_ru;		/* (t) rusage information. */
 	struct rusage_ext td_rux;	/* (t) Internal rusage information. */
@@ -580,6 +582,7 @@ struct proc {
 	struct procdesc	*p_procdesc;	/* (e) Process descriptor, if any. */
 	u_int		p_treeflag;	/* (e) P_TREE flags */
 	int		p_pendingexits; /* (c) Count of pending thread exits. */
+	struct filemon	*p_filemon;	/* (c) filemon-specific data. */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 

@@ -200,8 +200,8 @@ ofwbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			return (NULL);
 		}
 		start = rle->start;
-		count = ulmax(count, rle->count);
-		end = ulmax(rle->end, start + count - 1);
+		count = ummax(count, rle->count);
+		end = ummax(rle->end, start + count - 1);
 	}
 
 	switch (type) {

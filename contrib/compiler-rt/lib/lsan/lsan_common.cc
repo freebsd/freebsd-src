@@ -119,6 +119,10 @@ static inline bool CanBeAHeapPointer(uptr p) {
   return ((p >> 47) == 0);
 #elif defined(__mips64)
   return ((p >> 40) == 0);
+#elif defined(__aarch64__)
+  unsigned runtimeVMA =
+    (MostSignificantSetBitIndex(GET_CURRENT_FRAME()) + 1);
+  return ((p >> runtimeVMA) == 0);
 #else
   return true;
 #endif
@@ -243,8 +247,8 @@ static void ProcessRootRegion(Frontier *frontier, uptr root_begin,
   MemoryMappingLayout proc_maps(/*cache_enabled*/true);
   uptr begin, end, prot;
   while (proc_maps.Next(&begin, &end,
-                        /*offset*/ 0, /*filename*/ 0, /*filename_size*/ 0,
-                        &prot)) {
+                        /*offset*/ nullptr, /*filename*/ nullptr,
+                        /*filename_size*/ 0, &prot)) {
     uptr intersection_begin = Max(root_begin, begin);
     uptr intersection_end = Min(end, root_end);
     if (intersection_begin >= intersection_end) continue;
@@ -375,8 +379,8 @@ static void PrintMatchedSuppressions() {
   Printf("Suppressions used:\n");
   Printf("  count      bytes template\n");
   for (uptr i = 0; i < matched.size(); i++)
-    Printf("%7zu %10zu %s\n", static_cast<uptr>(matched[i]->hit_count),
-           matched[i]->weight, matched[i]->templ);
+    Printf("%7zu %10zu %s\n", static_cast<uptr>(atomic_load_relaxed(
+        &matched[i]->hit_count)), matched[i]->weight, matched[i]->templ);
   Printf("%s\n\n", line);
 }
 
@@ -444,10 +448,8 @@ void DoLeakCheck() {
   if (!have_leaks) {
     return;
   }
-  if (flags()->exitcode) {
-    if (common_flags()->coverage)
-      __sanitizer_cov_dump();
-    internal__exit(flags()->exitcode);
+  if (common_flags()->exitcode) {
+    Die();
   }
 }
 
@@ -486,7 +488,7 @@ static Suppression *GetSuppressionForStack(u32 stack_trace_id) {
         StackTrace::GetPreviousInstructionPc(stack.trace[i]));
     if (s) return s;
   }
-  return 0;
+  return nullptr;
 }
 
 ///// LeakReport implementation. /////
@@ -600,7 +602,8 @@ void LeakReport::ApplySuppressions() {
     Suppression *s = GetSuppressionForStack(leaks_[i].stack_trace_id);
     if (s) {
       s->weight += leaks_[i].total_size;
-      s->hit_count += leaks_[i].hit_count;
+      atomic_store_relaxed(&s->hit_count, atomic_load_relaxed(&s->hit_count) +
+          leaks_[i].hit_count);
       leaks_[i].is_suppressed = true;
     }
   }
@@ -613,8 +616,8 @@ uptr LeakReport::UnsuppressedLeakCount() {
   return result;
 }
 
-}  // namespace __lsan
-#endif  // CAN_SANITIZE_LEAKS
+} // namespace __lsan
+#endif // CAN_SANITIZE_LEAKS
 
 using namespace __lsan;  // NOLINT
 
@@ -635,7 +638,7 @@ void __lsan_ignore_object(const void *p) {
            "heap object at %p is already being ignored\n", p);
   if (res == kIgnoreObjectSuccess)
     VReport(1, "__lsan_ignore_object(): ignoring heap object at %p\n", p);
-#endif  // CAN_SANITIZE_LEAKS
+#endif // CAN_SANITIZE_LEAKS
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
@@ -646,7 +649,7 @@ void __lsan_register_root_region(const void *begin, uptr size) {
   RootRegion region = {begin, size};
   root_regions->push_back(region);
   VReport(1, "Registered root region at %p of size %llu\n", begin, size);
-#endif  // CAN_SANITIZE_LEAKS
+#endif // CAN_SANITIZE_LEAKS
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
@@ -673,7 +676,7 @@ void __lsan_unregister_root_region(const void *begin, uptr size) {
         begin, size);
     Die();
   }
-#endif  // CAN_SANITIZE_LEAKS
+#endif // CAN_SANITIZE_LEAKS
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
@@ -699,7 +702,7 @@ void __lsan_do_leak_check() {
 #if CAN_SANITIZE_LEAKS
   if (common_flags()->detect_leaks)
     __lsan::DoLeakCheck();
-#endif  // CAN_SANITIZE_LEAKS
+#endif // CAN_SANITIZE_LEAKS
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
@@ -707,7 +710,7 @@ int __lsan_do_recoverable_leak_check() {
 #if CAN_SANITIZE_LEAKS
   if (common_flags()->detect_leaks)
     return __lsan::DoRecoverableLeakCheck();
-#endif  // CAN_SANITIZE_LEAKS
+#endif // CAN_SANITIZE_LEAKS
   return 0;
 }
 
@@ -717,4 +720,4 @@ int __lsan_is_turned_off() {
   return 0;
 }
 #endif
-}  // extern "C"
+} // extern "C"

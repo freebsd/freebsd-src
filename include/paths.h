@@ -56,6 +56,7 @@
 #define	_PATH_DRUM	"/dev/drum"
 #define	_PATH_ESDB	"/usr/share/i18n/esdb"
 #define	_PATH_ETC	"/etc"
+#define	_PATH_FIRMWARE	"/usr/share/firmware"
 #define	_PATH_FTPUSERS	"/etc/ftpusers"
 #define	_PATH_FWMEM	"/dev/fwmem"
 #define	_PATH_GBDE	"/sbin/gbde"

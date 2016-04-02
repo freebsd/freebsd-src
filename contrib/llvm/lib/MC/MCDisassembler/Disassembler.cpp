@@ -125,7 +125,6 @@ void LLVMDisasmDispose(LLVMDisasmContextRef DCR){
 static void emitComments(LLVMDisasmContext *DC,
                          formatted_raw_ostream &FormattedOS) {
   // Flush the stream before taking its content.
-  DC->CommentStream.flush();
   StringRef Comments = DC->CommentsToEmit.str();
   // Get the default information for printing a comment.
   const MCAsmInfo *MAI = DC->getAsmInfo();
@@ -147,7 +146,6 @@ static void emitComments(LLVMDisasmContext *DC,
 
   // Tell the comment stream that the vector changed underneath it.
   DC->CommentsToEmit.clear();
-  DC->CommentStream.resync();
 }
 
 /// \brief Gets latency information for \p Inst from the itinerary
@@ -261,7 +259,6 @@ size_t LLVMDisasmInstruction(LLVMDisasmContextRef DCR, uint8_t *Bytes,
     return 0;
 
   case MCDisassembler::Success: {
-    Annotations.flush();
     StringRef AnnotationsStr = Annotations.str();
 
     SmallVector<char, 64> InsnStr;
@@ -273,7 +270,6 @@ size_t LLVMDisasmInstruction(LLVMDisasmContextRef DCR, uint8_t *Bytes,
       emitLatency(DC, Inst);
 
     emitComments(DC, FormattedOS);
-    OS.flush();
 
     assert(OutStringSize != 0 && "Output buffer cannot be zero size");
     size_t OutputSize = std::min(OutStringSize-1, InsnStr.size());

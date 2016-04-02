@@ -48,7 +48,7 @@ device		md
 
 # Serial ports
 device		uart
-device		uart_ns8250
+device		uart_snps
 
 # Network
 device		ether
@@ -70,6 +70,7 @@ device		mpcore_timer
 # USB
 device		usb
 device		ehci
+device		xhci
 device		umass
 device		scbus
 device		pass

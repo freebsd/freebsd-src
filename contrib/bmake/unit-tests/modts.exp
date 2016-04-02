@@ -23,10 +23,16 @@ THREE
 FOUR
 FIVE
 SIX"
+LIST:ts/xa:tu="ONE
+TWO
+THREE
+FOUR
+FIVE
+SIX"
 make: Bad modifier `:tx' for LIST
 LIST:tx="}"
-make: Bad modifier `:ts\x' for LIST
-LIST:ts/x:tu="\x:tu}"
+make: Bad modifier `:ts\X' for LIST
+LIST:ts/x:tu="\X:tu}"
 FU_mod-ts="a/b/cool"
 FU_mod-ts:ts:T="cool" == cool?
 B.${AAA:ts}="Baaa" == Baaa?

@@ -78,17 +78,22 @@ extern int __isthreaded;
 /* Mangle. */
 #undef je_malloc
 #undef je_calloc
-#undef je_realloc
-#undef je_free
 #undef je_posix_memalign
 #undef je_aligned_alloc
+#undef je_realloc
+#undef je_free
 #undef je_malloc_usable_size
 #undef je_mallocx
 #undef je_rallocx
 #undef je_xallocx
 #undef je_sallocx
 #undef je_dallocx
+#undef je_sdallocx
 #undef je_nallocx
+#undef je_mallctl
+#undef je_mallctlnametomib
+#undef je_mallctlbymib
+#undef je_malloc_stats_print
 #undef je_allocm
 #undef je_rallocm
 #undef je_sallocm
@@ -96,17 +101,22 @@ extern int __isthreaded;
 #undef je_nallocm
 #define	je_malloc		__malloc
 #define	je_calloc		__calloc
-#define	je_realloc		__realloc
-#define	je_free			__free
 #define	je_posix_memalign	__posix_memalign
 #define	je_aligned_alloc	__aligned_alloc
+#define	je_realloc		__realloc
+#define	je_free			__free
 #define	je_malloc_usable_size	__malloc_usable_size
 #define	je_mallocx		__mallocx
 #define	je_rallocx		__rallocx
 #define	je_xallocx		__xallocx
 #define	je_sallocx		__sallocx
 #define	je_dallocx		__dallocx
+#define	je_sdallocx		__sdallocx
 #define	je_nallocx		__nallocx
+#define	je_mallctl		__mallctl
+#define	je_mallctlnametomib	__mallctlnametomib
+#define	je_mallctlbymib		__mallctlbymib
+#define	je_malloc_stats_print	__malloc_stats_print
 #define	je_allocm		__allocm
 #define	je_rallocm		__rallocm
 #define	je_sallocm		__sallocm
@@ -126,17 +136,22 @@ extern int __isthreaded;
  */
 __weak_reference(__malloc, malloc);
 __weak_reference(__calloc, calloc);
-__weak_reference(__realloc, realloc);
-__weak_reference(__free, free);
 __weak_reference(__posix_memalign, posix_memalign);
 __weak_reference(__aligned_alloc, aligned_alloc);
+__weak_reference(__realloc, realloc);
+__weak_reference(__free, free);
 __weak_reference(__malloc_usable_size, malloc_usable_size);
 __weak_reference(__mallocx, mallocx);
 __weak_reference(__rallocx, rallocx);
 __weak_reference(__xallocx, xallocx);
 __weak_reference(__sallocx, sallocx);
 __weak_reference(__dallocx, dallocx);
+__weak_reference(__sdallocx, sdallocx);
 __weak_reference(__nallocx, nallocx);
+__weak_reference(__mallctl, mallctl);
+__weak_reference(__mallctlnametomib, mallctlnametomib);
+__weak_reference(__mallctlbymib, mallctlbymib);
+__weak_reference(__malloc_stats_print, malloc_stats_print);
 __weak_reference(__allocm, allocm);
 __weak_reference(__rallocm, rallocm);
 __weak_reference(__sallocm, sallocm);

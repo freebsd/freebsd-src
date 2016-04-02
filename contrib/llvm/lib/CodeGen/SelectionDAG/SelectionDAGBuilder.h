@@ -17,6 +17,7 @@
 #include "StatepointLowering.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
@@ -30,7 +31,6 @@
 namespace llvm {
 
 class AddrSpaceCastInst;
-class AliasAnalysis;
 class AllocaInst;
 class BasicBlock;
 class BitCastInst;
@@ -154,39 +154,39 @@ private:
       unsigned JTCasesIndex;
       unsigned BTCasesIndex;
     };
-    uint32_t Weight;
+    BranchProbability Prob;
 
     static CaseCluster range(const ConstantInt *Low, const ConstantInt *High,
-                             MachineBasicBlock *MBB, uint32_t Weight) {
+                             MachineBasicBlock *MBB, BranchProbability Prob) {
       CaseCluster C;
       C.Kind = CC_Range;
       C.Low = Low;
       C.High = High;
       C.MBB = MBB;
-      C.Weight = Weight;
+      C.Prob = Prob;
       return C;
     }
 
     static CaseCluster jumpTable(const ConstantInt *Low,
                                  const ConstantInt *High, unsigned JTCasesIndex,
-                                 uint32_t Weight) {
+                                 BranchProbability Prob) {
       CaseCluster C;
       C.Kind = CC_JumpTable;
       C.Low = Low;
       C.High = High;
       C.JTCasesIndex = JTCasesIndex;
-      C.Weight = Weight;
+      C.Prob = Prob;
       return C;
     }
 
     static CaseCluster bitTests(const ConstantInt *Low, const ConstantInt *High,
-                                unsigned BTCasesIndex, uint32_t Weight) {
+                                unsigned BTCasesIndex, BranchProbability Prob) {
       CaseCluster C;
       C.Kind = CC_BitTests;
       C.Low = Low;
       C.High = High;
       C.BTCasesIndex = BTCasesIndex;
-      C.Weight = Weight;
+      C.Prob = Prob;
       return C;
     }
   };
@@ -198,13 +198,13 @@ private:
     uint64_t Mask;
     MachineBasicBlock* BB;
     unsigned Bits;
-    uint32_t ExtraWeight;
+    BranchProbability ExtraProb;
 
     CaseBits(uint64_t mask, MachineBasicBlock* bb, unsigned bits,
-             uint32_t Weight):
-      Mask(mask), BB(bb), Bits(bits), ExtraWeight(Weight) { }
+             BranchProbability Prob):
+      Mask(mask), BB(bb), Bits(bits), ExtraProb(Prob) { }
 
-    CaseBits() : Mask(0), BB(nullptr), Bits(0), ExtraWeight(0) {}
+    CaseBits() : Mask(0), BB(nullptr), Bits(0) {}
   };
 
   typedef std::vector<CaseBits> CaseBitsVector;
@@ -217,13 +217,13 @@ private:
   /// blocks needed by multi-case switch statements.
   struct CaseBlock {
     CaseBlock(ISD::CondCode cc, const Value *cmplhs, const Value *cmprhs,
-              const Value *cmpmiddle,
-              MachineBasicBlock *truebb, MachineBasicBlock *falsebb,
-              MachineBasicBlock *me,
-              uint32_t trueweight = 0, uint32_t falseweight = 0)
-      : CC(cc), CmpLHS(cmplhs), CmpMHS(cmpmiddle), CmpRHS(cmprhs),
-        TrueBB(truebb), FalseBB(falsebb), ThisBB(me),
-        TrueWeight(trueweight), FalseWeight(falseweight) { }
+              const Value *cmpmiddle, MachineBasicBlock *truebb,
+              MachineBasicBlock *falsebb, MachineBasicBlock *me,
+              BranchProbability trueprob = BranchProbability::getUnknown(),
+              BranchProbability falseprob = BranchProbability::getUnknown())
+        : CC(cc), CmpLHS(cmplhs), CmpMHS(cmpmiddle), CmpRHS(cmprhs),
+          TrueBB(truebb), FalseBB(falsebb), ThisBB(me), TrueProb(trueprob),
+          FalseProb(falseprob) {}
 
     // CC - the condition code to use for the case block's setcc node
     ISD::CondCode CC;
@@ -239,8 +239,8 @@ private:
     // ThisBB - the block into which to emit the code for the setcc and branches
     MachineBasicBlock *ThisBB;
 
-    // TrueWeight/FalseWeight - branch weights.
-    uint32_t TrueWeight, FalseWeight;
+    // TrueProb/FalseProb - branch weights.
+    BranchProbability TrueProb, FalseProb;
   };
 
   struct JumpTable {
@@ -272,32 +272,35 @@ private:
 
   struct BitTestCase {
     BitTestCase(uint64_t M, MachineBasicBlock* T, MachineBasicBlock* Tr,
-                uint32_t Weight):
-      Mask(M), ThisBB(T), TargetBB(Tr), ExtraWeight(Weight) { }
+                BranchProbability Prob):
+      Mask(M), ThisBB(T), TargetBB(Tr), ExtraProb(Prob) { }
     uint64_t Mask;
     MachineBasicBlock *ThisBB;
     MachineBasicBlock *TargetBB;
-    uint32_t ExtraWeight;
+    BranchProbability ExtraProb;
   };
 
   typedef SmallVector<BitTestCase, 3> BitTestInfo;
 
   struct BitTestBlock {
-    BitTestBlock(APInt F, APInt R, const Value* SV,
-                 unsigned Rg, MVT RgVT, bool E,
-                 MachineBasicBlock* P, MachineBasicBlock* D,
-                 BitTestInfo C):
-      First(F), Range(R), SValue(SV), Reg(Rg), RegVT(RgVT), Emitted(E),
-      Parent(P), Default(D), Cases(std::move(C)) { }
+    BitTestBlock(APInt F, APInt R, const Value *SV, unsigned Rg, MVT RgVT,
+                 bool E, bool CR, MachineBasicBlock *P, MachineBasicBlock *D,
+                 BitTestInfo C, BranchProbability Pr)
+        : First(F), Range(R), SValue(SV), Reg(Rg), RegVT(RgVT), Emitted(E),
+          ContiguousRange(CR), Parent(P), Default(D), Cases(std::move(C)),
+          Prob(Pr) {}
     APInt First;
     APInt Range;
     const Value *SValue;
     unsigned Reg;
     MVT RegVT;
     bool Emitted;
+    bool ContiguousRange;
     MachineBasicBlock *Parent;
     MachineBasicBlock *Default;
     BitTestInfo Cases;
+    BranchProbability Prob;
+    BranchProbability DefaultProb;
   };
 
   /// Minimum jump table density, in percent.
@@ -339,6 +342,7 @@ private:
     CaseClusterIt LastCluster;
     const ConstantInt *GE;
     const ConstantInt *LT;
+    BranchProbability DefaultProb;
   };
   typedef SmallVector<SwitchWorkListItem, 4> SwitchWorkList;
 
@@ -515,6 +519,7 @@ private:
     void resetPerFunctionState() {
       FailureMBB = nullptr;
       Guard = nullptr;
+      GuardReg = 0;
     }
 
     MachineBasicBlock *getParentMBB() { return ParentMBB; }
@@ -592,10 +597,6 @@ public:
   ///
   FunctionLoweringInfo &FuncInfo;
 
-  /// OptLevel - What optimization level we're generating code for.
-  ///
-  CodeGenOpt::Level OptLevel;
-
   /// GFI - Garbage collection metadata for the function.
   GCFunctionInfo *GFI;
 
@@ -613,7 +614,7 @@ public:
   SelectionDAGBuilder(SelectionDAG &dag, FunctionLoweringInfo &funcinfo,
                       CodeGenOpt::Level ol)
     : CurInst(nullptr), SDNodeOrder(LowestSDNodeOrder), TM(dag.getTarget()),
-      DAG(dag), FuncInfo(funcinfo), OptLevel(ol),
+      DAG(dag), FuncInfo(funcinfo),
       HasTailCall(false) {
   }
 
@@ -692,19 +693,20 @@ public:
 
   void FindMergedConditions(const Value *Cond, MachineBasicBlock *TBB,
                             MachineBasicBlock *FBB, MachineBasicBlock *CurBB,
-                            MachineBasicBlock *SwitchBB, unsigned Opc,
-                            uint32_t TW, uint32_t FW);
+                            MachineBasicBlock *SwitchBB,
+                            Instruction::BinaryOps Opc, BranchProbability TW,
+                            BranchProbability FW);
   void EmitBranchForMergedCondition(const Value *Cond, MachineBasicBlock *TBB,
                                     MachineBasicBlock *FBB,
                                     MachineBasicBlock *CurBB,
                                     MachineBasicBlock *SwitchBB,
-                                    uint32_t TW, uint32_t FW);
+                                    BranchProbability TW, BranchProbability FW);
   bool ShouldEmitAsBranches(const std::vector<CaseBlock> &Cases);
   bool isExportableFromCurrentBlock(const Value *V, const BasicBlock *FromBB);
   void CopyToExportRegsIfNeeded(const Value *V);
   void ExportFromCurrentBlock(const Value *V);
   void LowerCallTo(ImmutableCallSite CS, SDValue Callee, bool IsTailCall,
-                   MachineBasicBlock *LandingPad = nullptr);
+                   const BasicBlock *EHPadBB = nullptr);
 
   std::pair<SDValue, SDValue> lowerCallOperands(
           ImmutableCallSite CS,
@@ -712,7 +714,7 @@ public:
           unsigned NumArgs,
           SDValue Callee,
           Type *ReturnTy,
-          MachineBasicBlock *LandingPad = nullptr,
+          const BasicBlock *EHPadBB = nullptr,
           bool IsPatchPoint = false);
 
   /// UpdateSplitBlock - When an MBB was split during scheduling, update the
@@ -722,11 +724,11 @@ public:
   // This function is responsible for the whole statepoint lowering process.
   // It uniformly handles invoke and call statepoints.
   void LowerStatepoint(ImmutableStatepoint Statepoint,
-                       MachineBasicBlock *LandingPad = nullptr);
+                       const BasicBlock *EHPadBB = nullptr);
 private:
-  std::pair<SDValue, SDValue> lowerInvokable(
-          TargetLowering::CallLoweringInfo &CLI,
-          MachineBasicBlock *LandingPad);
+  std::pair<SDValue, SDValue>
+  lowerInvokable(TargetLowering::CallLoweringInfo &CLI,
+                 const BasicBlock *EHPadBB = nullptr);
 
   // Terminator instructions.
   void visitRet(const ReturnInst &I);
@@ -734,11 +736,18 @@ private:
   void visitSwitch(const SwitchInst &I);
   void visitIndirectBr(const IndirectBrInst &I);
   void visitUnreachable(const UnreachableInst &I);
+  void visitCleanupRet(const CleanupReturnInst &I);
+  void visitCatchSwitch(const CatchSwitchInst &I);
+  void visitCatchRet(const CatchReturnInst &I);
+  void visitCatchPad(const CatchPadInst &I);
+  void visitCleanupPad(const CleanupPadInst &CPI);
 
-  uint32_t getEdgeWeight(const MachineBasicBlock *Src,
-                         const MachineBasicBlock *Dst) const;
-  void addSuccessorWithWeight(MachineBasicBlock *Src, MachineBasicBlock *Dst,
-                              uint32_t Weight = 0);
+  BranchProbability getEdgeProbability(const MachineBasicBlock *Src,
+                                       const MachineBasicBlock *Dst) const;
+  void addSuccessorWithProb(
+      MachineBasicBlock *Src, MachineBasicBlock *Dst,
+      BranchProbability Prob = BranchProbability::getUnknown());
+
 public:
   void visitSwitchCase(CaseBlock &CB,
                        MachineBasicBlock *SwitchBB);
@@ -748,7 +757,7 @@ public:
   void visitBitTestHeader(BitTestBlock &B, MachineBasicBlock *SwitchBB);
   void visitBitTestCase(BitTestBlock &BB,
                         MachineBasicBlock* NextMBB,
-                        uint32_t BranchWeightToNext,
+                        BranchProbability BranchProbToNext,
                         unsigned Reg,
                         BitTestCase &B,
                         MachineBasicBlock *SwitchBB);
@@ -842,11 +851,11 @@ private:
   void visitVACopy(const CallInst &I);
   void visitStackmap(const CallInst &I);
   void visitPatchpoint(ImmutableCallSite CS,
-                       MachineBasicBlock *LandingPad = nullptr);
+                       const BasicBlock *EHPadBB = nullptr);
 
   // These three are implemented in StatepointLowering.cpp
   void visitStatepoint(const CallInst &I);
-  void visitGCRelocate(const CallInst &I);
+  void visitGCRelocate(const GCRelocateInst &I);
   void visitGCResult(const CallInst &I);
 
   void visitUserOp1(const Instruction &I) {

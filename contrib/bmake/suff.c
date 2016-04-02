@@ -1,4 +1,4 @@
-/*	$NetBSD: suff.c,v 1.75 2015/12/20 22:44:10 sjg Exp $	*/
+/*	$NetBSD: suff.c,v 1.81 2016/03/15 18:30:14 matthias Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: suff.c,v 1.75 2015/12/20 22:44:10 sjg Exp $";
+static char rcsid[] = "$NetBSD: suff.c,v 1.81 2016/03/15 18:30:14 matthias Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)suff.c	8.4 (Berkeley) 3/21/94";
 #else
-__RCSID("$NetBSD: suff.c,v 1.75 2015/12/20 22:44:10 sjg Exp $");
+__RCSID("$NetBSD: suff.c,v 1.81 2016/03/15 18:30:14 matthias Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -1556,7 +1556,7 @@ SuffExpandChildren(LstNode cln, GNode *pgn)
     if (DEBUG(SUFF)) {
 	fprintf(debug_file, "Expanding \"%s\"...", cgn->name);
     }
-    cp = Var_Subst(NULL, cgn->name, pgn, TRUE, TRUE);
+    cp = Var_Subst(NULL, cgn->name, pgn, VARF_UNDEFERR|VARF_WANTRES);
 
     if (cp != NULL) {
 	Lst	    members = Lst_Init(FALSE);
@@ -1609,13 +1609,13 @@ SuffExpandChildren(LstNode cln, GNode *pgn)
 		    int 	len;
 		    void	*freeIt;
 
-		    junk = Var_Parse(cp, pgn, TRUE, TRUE, &len, &freeIt);
+		    junk = Var_Parse(cp, pgn, VARF_UNDEFERR|VARF_WANTRES,
+			&len, &freeIt);
 		    if (junk != var_Error) {
 			cp += len - 1;
 		    }
 
-		    if (freeIt)
-			free(freeIt);
+		    free(freeIt);
 		} else if (*cp == '\\' && *cp != '\0') {
 		    /*
 		     * Escaped something -- skip over it
@@ -1894,6 +1894,7 @@ SuffFindArchiveDeps(GNode *gn, Lst slst)
 	TARGET,	    	    /* Must be first */
 	PREFIX,	    	    /* Must be second */
     };
+    LstNode 	ln, nln;    /* Next suffix node to check */
     int	    	i;  	    /* Index into copy and vals */
     Suff    	*ms;	    /* Suffix descriptor for member */
     char    	*name;	    /* Start of member's name */
@@ -1933,8 +1934,7 @@ SuffFindArchiveDeps(GNode *gn, Lst slst)
     for (i = (sizeof(copy)/sizeof(copy[0]))-1; i >= 0; i--) {
 	char *p1;
 	Var_Set(copy[i], Var_Value(copy[i], mem, &p1), gn, 0);
-	if (p1)
-	    free(p1);
+	free(p1);
 
     }
 
@@ -1956,6 +1956,20 @@ SuffFindArchiveDeps(GNode *gn, Lst slst)
     Var_Set(MEMBER, name, gn, 0);
     Var_Set(ARCHIVE, gn->name, gn, 0);
 
+    /*
+     * Set $@ for compatibility with other makes
+     */
+    Var_Set(TARGET, gn->name, gn, 0);
+
+    /*
+     * Now we've got the important local variables set, expand any sources
+     * that still contain variables or wildcards in their names.
+     */
+    for (ln = Lst_First(gn->children); ln != NULL; ln = nln) {
+	nln = Lst_Succ(ln);
+	SuffExpandChildren(ln, gn);
+    }
+
     if (ms != NULL) {
 	/*
 	 * Member has a known suffix, so look for a transformation rule from
@@ -1963,7 +1977,6 @@ SuffFindArchiveDeps(GNode *gn, Lst slst)
 	 * through the entire list, we just look at suffixes to which the
 	 * member's suffix may be transformed...
 	 */
-	LstNode		ln;
 	SuffixCmpData	sd;		/* Search string data */
 
 	/*
@@ -2003,9 +2016,10 @@ SuffFindArchiveDeps(GNode *gn, Lst slst)
 
     /*
      * Flag the member as such so we remember to look in the archive for
-     * its modification time.
+     * its modification time. The OP_JOIN | OP_MADE is needed because this
+     * target should never get made.
      */
-    mem->type |= OP_MEMBER;
+    mem->type |= OP_MEMBER | OP_JOIN | OP_MADE;
 }
 
 /*-

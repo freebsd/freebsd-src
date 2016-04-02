@@ -122,6 +122,7 @@ device		dwmmc
 
 # Serial (COM) ports
 device		uart		# Generic UART driver
+device		uart_ns8250	# ns8250-type UART driver
 device		pl011
 
 # USB support

@@ -127,7 +127,11 @@ CFLAGS+=	-fPIC
 # Temporary workaround for PR 196407, which contains the fascinating details.
 # Don't allow clang to use fpu instructions or registers in kernel modules.
 .if ${MACHINE_CPUARCH} == arm
+.if ${COMPILER_VERSION} < 30800
 CFLAGS.clang+=	-mllvm -arm-use-movt=0
+.else
+CFLAGS.clang+=	-mno-movt
+.endif
 CFLAGS.clang+=	-mfpu=none
 CFLAGS+=	-funwind-tables
 .endif
@@ -382,11 +386,7 @@ vnode_if_typedef.h:
 .endif
 
 # Build _if.[ch] from _if.m, and clean them when we're done.
-# This is duplicated in sys/modules/Makefile.
-.if !defined(__MPATH)
-__MPATH!=find ${SYSDIR:tA}/ -name \*_if.m
-.export __MPATH
-.endif
+# __MPATH defined in config.mk
 _MFILES=${__MPATH:T:O}
 _MPATH=${__MPATH:H:O:u}
 .PATH.m: ${_MPATH}
@@ -456,9 +456,6 @@ cleanilinks:
 	rm -f ${_ILINKS}
 
 OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
-.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
-${OBJS}: ${OBJS_DEPEND_GUESS}
-.endif
 
 .include <bsd.dep.mk>
 .include <bsd.clang-analyze.mk>

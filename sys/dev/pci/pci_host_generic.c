@@ -143,6 +143,10 @@ generic_pcie_probe(device_t dev)
 		device_set_desc(dev, "Generic PCI host controller");
 		return (BUS_PROBE_GENERIC);
 	}
+	if (ofw_bus_is_compatible(dev, "arm,gem5_pcie")) {
+		device_set_desc(dev, "GEM5 PCIe host controller");
+		return (BUS_PROBE_DEFAULT);
+	}
 
 	return (ENXIO);
 }
@@ -208,12 +212,11 @@ pci_host_generic_attach(device_t dev)
 			continue; /* empty range element */
 		if (sc->ranges[tuple].flags & FLAG_MEM) {
 			error = rman_manage_region(&sc->mem_rman,
-						phys_base,
-						phys_base + size);
+			   phys_base, phys_base + size - 1);
 		} else if (sc->ranges[tuple].flags & FLAG_IO) {
 			error = rman_manage_region(&sc->io_rman,
-					pci_base + PCI_IO_WINDOW_OFFSET,
-					pci_base + PCI_IO_WINDOW_OFFSET + size);
+			   pci_base + PCI_IO_WINDOW_OFFSET,
+			   pci_base + PCI_IO_WINDOW_OFFSET + size - 1);
 		} else
 			continue;
 		if (error) {
@@ -537,7 +540,7 @@ generic_pcie_alloc_resource_pcie(device_t dev, device_t child, int type, int *ri
 
 	if (bootverbose) {
 		device_printf(dev,
-		    "rman_reserve_resource: start=%#lx, end=%#lx, count=%#lx\n",
+		    "rman_reserve_resource: start=%#jx, end=%#jx, count=%#jx\n",
 		    start, end, count);
 	}
 
@@ -557,7 +560,7 @@ generic_pcie_alloc_resource_pcie(device_t dev, device_t child, int type, int *ri
 
 fail:
 	device_printf(dev, "%s FAIL: type=%d, rid=%d, "
-	    "start=%016lx, end=%016lx, count=%016lx, flags=%x\n",
+	    "start=%016jx, end=%016jx, count=%016jx, flags=%x\n",
 	    __func__, type, *rid, start, end, count, flags);
 
 	return (NULL);
@@ -710,7 +713,7 @@ generic_pcie_alloc_resource_ofw(device_t bus, device_t child, int type, int *rid
 
 	sc = device_get_softc(bus);
 
-	if ((start == 0UL) && (end == ~0UL)) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
 		if ((di = device_get_ivars(child)) == NULL)
 			return (NULL);
 		if (type == SYS_RES_IOPORT)
@@ -741,7 +744,7 @@ generic_pcie_alloc_resource_ofw(device_t bus, device_t child, int type, int *rid
 
 		if (i == MAX_RANGES_TUPLES) {
 			device_printf(bus, "Could not map resource "
-			    "%#lx-%#lx\n", start, end);
+			    "%#jx-%#jx\n", start, end);
 			return (NULL);
 		}
 	}

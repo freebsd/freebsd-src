@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_enc.h>
 
 #include "eltsub.h"

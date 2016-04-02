@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CONF_cmd 3"
-.TH SSL_CONF_cmd 3 "2016-01-28" "1.0.2f" "OpenSSL"
+.TH SSL_CONF_cmd 3 "2016-03-01" "1.0.2g" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -204,7 +204,7 @@ either the \fB\s-1NIST\s0\fR name (e.g. \fBP\-256\fR) or an OpenSSL \s-1OID\s0 n
 \&\fBprime256v1\fR). Curve names are case sensitive.
 .IP "\fB\-named_curve\fR" 4
 .IX Item "-named_curve"
-This sets the temporary curve used for ephemeral \s-1ECDH\s0 modes. Only used by 
+This sets the temporary curve used for ephemeral \s-1ECDH\s0 modes. Only used by
 servers
 .Sp
 The \fBvalue\fR argument is a curve name or the special value \fBauto\fR which
@@ -214,7 +214,7 @@ can be either the \fB\s-1NIST\s0\fR name (e.g. \fBP\-256\fR) or an OpenSSL \s-1O
 .IP "\fB\-cipher\fR" 4
 .IX Item "-cipher"
 Sets the cipher suite list to \fBvalue\fR. Note: syntax checking of \fBvalue\fR is
-currently not performed unless a \fB\s-1SSL\s0\fR or \fB\s-1SSL_CTX\s0\fR structure is 
+currently not performed unless a \fB\s-1SSL\s0\fR or \fB\s-1SSL_CTX\s0\fR structure is
 associated with \fBcctx\fR.
 .IP "\fB\-cert\fR" 4
 .IX Item "-cert"
@@ -236,9 +236,9 @@ the appropriate context. This option is only supported if certificate
 operations are permitted.
 .IP "\fB\-no_ssl2\fR, \fB\-no_ssl3\fR, \fB\-no_tls1\fR, \fB\-no_tls1_1\fR, \fB\-no_tls1_2\fR" 4
 .IX Item "-no_ssl2, -no_ssl3, -no_tls1, -no_tls1_1, -no_tls1_2"
-Disables protocol support for SSLv2, SSLv3, \s-1TLS 1.0, TLS 1.1\s0 or \s-1TLS 1.2 \s0
-by setting the corresponding options \fB\s-1SSL_OP_NO_SSL2\s0\fR, \fB\s-1SSL_OP_NO_SSL3\s0\fR,
-\&\fB\s-1SSL_OP_NO_TLS1\s0\fR, \fB\s-1SSL_OP_NO_TLS1_1\s0\fR and \fB\s-1SSL_OP_NO_TLS1_2\s0\fR respectively.
+Disables protocol support for SSLv2, SSLv3, TLSv1.0, TLSv1.1 or TLSv1.2
+by setting the corresponding options \fBSSL_OP_NO_SSLv2\fR, \fBSSL_OP_NO_SSLv3\fR,
+\&\fBSSL_OP_NO_TLSv1\fR, \fBSSL_OP_NO_TLSv1_1\fR and \fBSSL_OP_NO_TLSv1_2\fR respectively.
 .IP "\fB\-bugs\fR" 4
 .IX Item "-bugs"
 Various bug workarounds are set, same as setting \fB\s-1SSL_OP_ALL\s0\fR.
@@ -287,7 +287,7 @@ Note: the command prefix (if set) alters the recognised \fBcmd\fR values.
 .IP "\fBCipherString\fR" 4
 .IX Item "CipherString"
 Sets the cipher suite list to \fBvalue\fR. Note: syntax checking of \fBvalue\fR is
-currently not performed unless an \fB\s-1SSL\s0\fR or \fB\s-1SSL_CTX\s0\fR structure is 
+currently not performed unless an \fB\s-1SSL\s0\fR or \fB\s-1SSL_CTX\s0\fR structure is
 associated with \fBcctx\fR.
 .IP "\fBCertificate\fR" 4
 .IX Item "Certificate"
@@ -346,7 +346,7 @@ either the \fB\s-1NIST\s0\fR name (e.g. \fBP\-256\fR) or an OpenSSL \s-1OID\s0 n
 \&\fBprime256v1\fR). Curve names are case sensitive.
 .IP "\fBECDHParameters\fR" 4
 .IX Item "ECDHParameters"
-This sets the temporary curve used for ephemeral \s-1ECDH\s0 modes. Only used by 
+This sets the temporary curve used for ephemeral \s-1ECDH\s0 modes. Only used by
 servers
 .Sp
 The \fBvalue\fR argument is a curve name or the special value \fBAutomatic\fR which
@@ -359,10 +359,11 @@ The supported versions of the \s-1SSL\s0 or \s-1TLS\s0 protocol.
 .Sp
 The \fBvalue\fR argument is a comma separated list of supported protocols to
 enable or disable. If an protocol is preceded by \fB\-\fR that version is disabled.
-All versions are enabled by default, though applications may choose to
-explicitly disable some. Currently supported protocol values are \fBSSLv2\fR,
-\&\fBSSLv3\fR, \fBTLSv1\fR, \fBTLSv1.1\fR and \fBTLSv1.2\fR. The special value \fB\s-1ALL\s0\fR refers
-to all supported versions.
+Currently supported protocol values are \fBSSLv2\fR, \fBSSLv3\fR, \fBTLSv1\fR,
+\&\fBTLSv1.1\fR and \fBTLSv1.2\fR.
+All protocol versions other than \fBSSLv2\fR are enabled by default.
+To avoid inadvertent enabling of \fBSSLv2\fR, when SSLv2 is disabled, it is not
+possible to enable it via the \fBProtocol\fR command.
 .IP "\fBOptions\fR" 4
 .IX Item "Options"
 The \fBvalue\fR argument is a comma separated list of various flags to set.
@@ -428,19 +429,19 @@ The order of operations is significant. This can be used to set either defaults
 or values which cannot be overridden. For example if an application calls:
 .PP
 .Vb 2
-\& SSL_CONF_cmd(ctx, "Protocol", "\-SSLv2");
+\& SSL_CONF_cmd(ctx, "Protocol", "\-SSLv3");
 \& SSL_CONF_cmd(ctx, userparam, uservalue);
 .Ve
 .PP
-it will disable SSLv2 support by default but the user can override it. If 
+it will disable SSLv3 support by default but the user can override it. If
 however the call sequence is:
 .PP
 .Vb 2
 \& SSL_CONF_cmd(ctx, userparam, uservalue);
-\& SSL_CONF_cmd(ctx, "Protocol", "\-SSLv2");
+\& SSL_CONF_cmd(ctx, "Protocol", "\-SSLv3");
 .Ve
 .PP
-SSLv2 is \fBalways\fR disabled and attempt to override this by the user are
+then SSLv3 is \fBalways\fR disabled and attempt to override this by the user are
 ignored.
 .PP
 By checking the return code of \fISSL_CTX_cmd()\fR it is possible to query if a
@@ -464,7 +465,7 @@ can be checked instead. If \-3 is returned a required argument is missing
 and an error is indicated. If 0 is returned some other error occurred and
 this can be reported back to the user.
 .PP
-The function \fISSL_CONF_cmd_value_type()\fR can be used by applications to 
+The function \fISSL_CONF_cmd_value_type()\fR can be used by applications to
 check for the existence of a command or to perform additional syntax
 checking or translation of the command value. For example if the return
 value is \fB\s-1SSL_CONF_TYPE_FILE\s0\fR an application could translate a relative

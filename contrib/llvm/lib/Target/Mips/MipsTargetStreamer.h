@@ -12,6 +12,7 @@
 
 #include "MCTargetDesc/MipsABIFlagsSection.h"
 #include "MCTargetDesc/MipsABIInfo.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/MC/MCELFStreamer.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
@@ -77,8 +78,12 @@ public:
 
   // PIC support
   virtual void emitDirectiveCpLoad(unsigned RegNo);
+  virtual void emitDirectiveCpRestore(SmallVector<MCInst, 3> &StoreInsts,
+                                      int Offset);
   virtual void emitDirectiveCpsetup(unsigned RegNo, int RegOrOffset,
                                     const MCSymbol &Sym, bool IsReg);
+  virtual void emitDirectiveCpreturn(unsigned SaveLocation,
+                                     bool SaveLocationIsRegister);
 
   // FP abiflags directives
   virtual void emitDirectiveModuleFP();
@@ -97,18 +102,18 @@ public:
   // structure values.
   template <class PredicateLibrary>
   void updateABIInfo(const PredicateLibrary &P) {
-    ABI = &P.getABI();
+    ABI = P.getABI();
     ABIFlagsSection.setAllFromPredicates(P);
   }
 
   MipsABIFlagsSection &getABIFlagsSection() { return ABIFlagsSection; }
   const MipsABIInfo &getABI() const {
-    assert(ABI && "ABI hasn't been set!");
+    assert(ABI.hasValue() && "ABI hasn't been set!");
     return *ABI;
   }
 
 protected:
-  const MipsABIInfo *ABI;
+  llvm::Optional<MipsABIInfo> ABI;
   MipsABIFlagsSection ABIFlagsSection;
 
   bool GPRInfoSet;
@@ -188,8 +193,12 @@ public:
 
   // PIC support
   void emitDirectiveCpLoad(unsigned RegNo) override;
+  void emitDirectiveCpRestore(SmallVector<MCInst, 3> &StoreInsts,
+                              int Offset) override;
   void emitDirectiveCpsetup(unsigned RegNo, int RegOrOffset,
                             const MCSymbol &Sym, bool IsReg) override;
+  void emitDirectiveCpreturn(unsigned SaveLocation,
+                             bool SaveLocationIsRegister) override;
 
   // FP abiflags directives
   void emitDirectiveModuleFP() override;
@@ -237,8 +246,12 @@ public:
 
   // PIC support
   void emitDirectiveCpLoad(unsigned RegNo) override;
+  void emitDirectiveCpRestore(SmallVector<MCInst, 3> &StoreInsts,
+                              int Offset) override;
   void emitDirectiveCpsetup(unsigned RegNo, int RegOrOffset,
                             const MCSymbol &Sym, bool IsReg) override;
+  void emitDirectiveCpreturn(unsigned SaveLocation,
+                             bool SaveLocationIsRegister) override;
 
   void emitMipsAbiFlags();
 };

@@ -24,18 +24,18 @@ namespace llvm {
 /// This is an important base class in LLVM. It provides the common facilities
 /// of all constant values in an LLVM program. A constant is a value that is
 /// immutable at runtime. Functions are constants because their address is
-/// immutable. Same with global variables. 
-/// 
+/// immutable. Same with global variables.
+///
 /// All constants share the capabilities provided in this class. All constants
 /// can have a null value. They can have an operand list. Constants can be
 /// simple (integer and floating point values), complex (arrays and structures),
-/// or expression based (computations yielding a constant value composed of 
+/// or expression based (computations yielding a constant value composed of
 /// only certain operators and other constant values).
-/// 
-/// Note that Constants are immutable (once created they never change) 
-/// and are fully shared by structural equivalence.  This means that two 
-/// structurally equivalent constants will always have the same address.  
-/// Constants are created on demand as needed and never deleted: thus clients 
+///
+/// Note that Constants are immutable (once created they never change)
+/// and are fully shared by structural equivalence.  This means that two
+/// structurally equivalent constants will always have the same address.
+/// Constants are created on demand as needed and never deleted: thus clients
 /// don't have to worry about the lifetime of the objects.
 /// @brief LLVM Constant Representation
 class Constant : public User {
@@ -59,7 +59,7 @@ public:
   /// getAllOnesValue.
   bool isAllOnesValue() const;
 
-  /// isNegativeZeroValue - Return true if the value is what would be returned 
+  /// isNegativeZeroValue - Return true if the value is what would be returned
   /// by getZeroValueForNegation.
   bool isNegativeZeroValue() const;
 
@@ -85,29 +85,14 @@ public:
   /// isConstantUsed - Return true if the constant has users other than constant
   /// exprs and other dangling things.
   bool isConstantUsed() const;
-  
-  enum PossibleRelocationsTy {
-    NoRelocation = 0,
-    LocalRelocation = 1,
-    GlobalRelocations = 2
-  };
-  
-  /// getRelocationInfo - This method classifies the entry according to
-  /// whether or not it may generate a relocation entry.  This must be
-  /// conservative, so if it might codegen to a relocatable entry, it should say
-  /// so.  The return values are:
-  /// 
-  ///  NoRelocation: This constant pool entry is guaranteed to never have a
-  ///     relocation applied to it (because it holds a simple constant like
-  ///     '4').
-  ///  LocalRelocation: This entry has relocations, but the entries are
-  ///     guaranteed to be resolvable by the static linker, so the dynamic
-  ///     linker will never see them.
-  ///  GlobalRelocations: This entry may have arbitrary relocations.
+
+  /// This method classifies the entry according to whether or not it may
+  /// generate a relocation entry.  This must be conservative, so if it might
+  /// codegen to a relocatable entry, it should say so.
   ///
-  /// FIXME: This really should not be in VMCore.
-  PossibleRelocationsTy getRelocationInfo() const;
-  
+  /// FIXME: This really should not be in IR.
+  bool needsRelocation() const;
+
   /// getAggregateElement - For aggregates (struct/array/vector) return the
   /// constant that corresponds to the specified element if possible, or null if
   /// not.  This can return null if the element index is a ConstantExpr, or if
@@ -159,8 +144,8 @@ public:
 
   /// getIntegerValue - Return the value for an integer or pointer constant,
   /// or a vector thereof, with the given scalar value.
-  static Constant *getIntegerValue(Type* Ty, const APInt &V);
-  
+  static Constant *getIntegerValue(Type *Ty, const APInt &V);
+
   /// removeDeadConstantUsers - If there are any dead constant users dangling
   /// off of this constant, remove them.  This method is useful for clients
   /// that want to check to see if a global is unused, but don't want to deal

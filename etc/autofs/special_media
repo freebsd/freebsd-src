@@ -19,6 +19,10 @@ print_available() {
 		_fstype="${_fstype_and_label%% *}"
 		if [ "${_fstype}" != "${_fstype_and_label}" ]; then
 			_label="${_fstype_and_label#* }"
+			# Replace plus signs and slashes with minuses;
+			# leading plus signs have special meaning in maps,
+			# and multi-component keys are just not supported.
+			_label="$(echo ${_label} | sed 's,[+/],-,g')"
 			echo "${_label}"
 			continue
 		fi
@@ -28,6 +32,26 @@ print_available() {
 }
 
 # Print a single map entry.
+print_map_entry() {
+	local _fstype _p
+
+	_fstype="$1"
+	_p="$2"
+
+	if [ "${_fstype}" = "ntfs" ]; then
+		if [ -f "/usr/local/bin/ntfs-3g" ]; then
+			echo "-mountprog=/usr/local/bin/ntfs-3g,fstype=${_fstype},nosuid	:/dev/${_p}" 
+		else
+			/usr/bin/logger -p info -t "special_media[$$]" \
+			    "Cannot mount ${_fstype} formatted device /dev/${_p}: Install sysutils/fusefs-ntfs first"
+			exit 1
+		fi
+	else
+		echo "-fstype=${_fstype},nosuid	:/dev/${_p}" 
+	fi
+}
+
+# Determine map entry contents for the given key and print out the entry.
 print_one() {
 	local _fstype _fstype_and_label _label _key _p
 
@@ -35,7 +59,7 @@ print_one() {
 
 	_fstype="$(fstyp "/dev/${_key}" 2> /dev/null)"
 	if [ $? -eq 0 ]; then
-		echo "-fstype=${_fstype},nosuid	:/dev/${_key}" 
+		print_map_entry "${_fstype}" "${_key}"
 		return
 	fi
 
@@ -54,12 +78,16 @@ print_one() {
 		fi
 
 		_label="${_fstype_and_label#* }"
+		# Replace plus signs and slashes with minuses;
+		# leading plus signs have special meaning in maps,
+		# and multi-component keys are just not supported.
+		_label="$(echo ${_label} | sed 's,[+/],-,g')"
 		if [ "${_label}" != "${_key}" ]; then
 			# Labels don't match, try another device.
 			continue
 		fi
 
-		echo "-fstype=${_fstype},nosuid	:/dev/${_p}" 
+		print_map_entry "${_fstype}" "${_p}"
 	done
 
 	# No matching device - don't print anything, autofs will handle it.

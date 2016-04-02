@@ -821,7 +821,7 @@ pcmcsa_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	snprintf(status, SND_STATUSLEN, "at irq %ld %s",
+	snprintf(status, SND_STATUSLEN, "at irq %jd %s",
 			rman_get_start(resp->irq),PCM_KLDSTRING(snd_csa));
 
 	/* Enable interrupt. */

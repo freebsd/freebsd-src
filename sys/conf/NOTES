@@ -1130,11 +1130,6 @@ options 	EXT2FS
 #
 options 	REISERFS
 
-# Use real implementations of the aio_* system calls.  There are numerous
-# stability and security issues in the current aio code that make it
-# unsuitable for inclusion on machines with untrusted local users.
-options 	VFS_AIO
-
 # Cryptographically secure random number generator; /dev/random
 device		random
 
@@ -2796,9 +2791,6 @@ device		ural
 device		urndis
 # Realtek RTL8187B/L wireless driver
 device		urtw
-#
-# Realtek RTL8188CU/RTL8192CU wireless driver
-device		urtwn
 #
 # ZyDas ZD1211/ZD1211B wireless driver
 device		zyd

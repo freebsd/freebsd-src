@@ -31,7 +31,6 @@ SUBDIR=	\
 	ahci \
 	${_aic} \
 	aic7xxx \
-	aio \
 	alc \
 	ale \
 	alq \
@@ -251,6 +250,7 @@ SUBDIR=	\
 	${_nandfs} \
 	${_nandsim} \
 	${_ncr} \
+	${_nctgpio} \
 	${_ncv} \
 	${_ndis} \
 	netfpga10g \
@@ -368,6 +368,8 @@ SUBDIR=	\
 	udf_iconv \
 	ufs \
 	unionfs \
+	urtwn \
+	${_urtwnfw} \
 	usb \
 	utopia \
 	${_vesa} \
@@ -485,6 +487,7 @@ _ispfw=		ispfw
 _mwlfw=		mwlfw
 _ralfw=		ralfw
 _rtwnfw=	rtwnfw
+_urtwnfw=	urtwnfw
 _sf=		sf
 _ti=		ti
 _txp=		txp
@@ -556,6 +559,7 @@ _ixv=		ixv
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
+_nctgpio=	nctgpio
 _ndis=		ndis
 _pccard=	pccard
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
@@ -775,12 +779,6 @@ afterinstall:
 .endif
 
 .include "${SYSDIR}/conf/config.mk"
-
-# Use sys/conf/kmod.mk's MPATH to avoid redundantly running in every subdir.
-.if !defined(__MPATH)
-__MPATH!=find ${SYSDIR:tA}/ -name \*_if.m
-.export __MPATH
-.endif
 
 SUBDIR:= ${SUBDIR:u:O}
 

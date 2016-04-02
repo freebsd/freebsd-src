@@ -39,6 +39,8 @@
 #ifndef _SYS_INTR_H_
 #define _SYS_INTR_H_
 
+#include <sys/systm.h>
+
 #ifdef notyet
 #define	INTR_SOLO	INTR_MD1
 typedef int intr_irq_filter_t(void *arg, struct trapframe *tf);
@@ -47,8 +49,6 @@ typedef int intr_irq_filter_t(void *arg);
 #endif
 
 #define INTR_ISRC_NAMELEN	(MAXCOMLEN + 1)
-
-typedef void intr_ipi_filter_t(void *arg);
 
 enum intr_isrc_type {
 	INTR_ISRCT_NAMESPACE,
@@ -77,14 +77,18 @@ struct intr_irqsrc {
 	u_long *		isrc_count;
 	u_int			isrc_handlers;
 	struct intr_event *	isrc_event;
+#ifdef INTR_SOLO
 	intr_irq_filter_t *	isrc_filter;
-	intr_ipi_filter_t *	isrc_ipifilter;
 	void *			isrc_arg;
+#endif
 #ifdef FDT
 	u_int			isrc_ncells;
 	pcell_t			isrc_cells[];	/* leave it last */
 #endif
 };
+
+struct intr_irqsrc *intr_isrc_alloc(u_int type, u_int extsize);
+void intr_isrc_free(struct intr_irqsrc *isrc);
 
 void intr_irq_set_name(struct intr_irqsrc *isrc, const char *fmt, ...)
     __printflike(2, 3);
@@ -100,6 +104,8 @@ u_int intr_namespace_map_irq(device_t dev, uint16_t type, uint16_t num);
 #ifdef FDT
 u_int intr_fdt_map_irq(phandle_t, pcell_t *, u_int);
 #endif
+
+extern device_t intr_irq_root_dev;
 
 int intr_pic_register(device_t dev, intptr_t xref);
 int intr_pic_unregister(device_t dev, intptr_t xref);
@@ -117,14 +123,19 @@ u_int intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask);
 #ifdef SMP
 int intr_irq_bind(u_int, int);
 
-void intr_ipi_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf);
-
-#define AISHF_NOALLOC	0x0001
-
-int intr_ipi_set_handler(u_int ipi, const char *name, intr_ipi_filter_t *filter,
-    void *arg, u_int flags);
-
 void intr_pic_init_secondary(void);
+
+/* Virtualization for interrupt source IPI counter increment. */
+static inline void
+intr_ipi_increment_count(u_long *counter, u_int cpu)
+{
+
+	KASSERT(cpu < MAXCPU, ("%s: too big cpu %u", __func__, cpu));
+	counter[cpu]++;
+}
+
+/* Virtualization for interrupt source IPI counters setup. */
+u_long * intr_ipi_setup_counters(const char *name);
 
 #endif
 #endif	/* _SYS_INTR_H */

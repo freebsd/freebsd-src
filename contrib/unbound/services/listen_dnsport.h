@@ -204,10 +204,11 @@ int create_udp_sock(int family, int socktype, struct sockaddr* addr,
  * @param reuseport: if nonNULL and true, try to set SO_REUSEPORT on
  * 	listening UDP port.  Set to false on return if it failed to do so.
  * @param transparent: set IP_TRANSPARENT socket option.
+ * @param mss: maximum segment size of the socket. if zero, leaves the default. 
  * @return: the socket. -1 on error.
  */
 int create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
-	int* reuseport, int transparent);
+	int* reuseport, int transparent, int mss);
 
 /**
  * Create and bind local listening socket

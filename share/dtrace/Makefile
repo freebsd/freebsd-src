@@ -20,6 +20,7 @@ SCRIPTS=	blocking \
 		nfsclienttime \
 		siftr \
 		tcpconn \
+		tcpdebug \
 		tcpstate \
 		tcptrack \
 		udptrack \
@@ -28,5 +29,11 @@ SCRIPTS=	blocking \
 		watch_vop_remove
 
 SCRIPTSDIR= ${SHAREDIR}/dtrace
+
+DSRCS=		mbuf.d
+
+FILES=		${DSRCS}
+FILESDIR=	/usr/lib/dtrace
+FILESMODE=	${NOBINMODE}
 
 .include <bsd.prog.mk>

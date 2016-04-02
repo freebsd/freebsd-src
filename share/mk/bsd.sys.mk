@@ -174,6 +174,10 @@ CFLAGS+=	${CWARNFLAGS.${.IMPSRC:T}}
 CFLAGS+=	 ${CFLAGS.${COMPILER_TYPE}}
 CXXFLAGS+=	 ${CXXFLAGS.${COMPILER_TYPE}}
 
+ACFLAGS+=	${ACFLAGS.${.IMPSRC:T}}
+CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
+CXXFLAGS+=	${CXXFLAGS.${.IMPSRC:T}}
+
 # Tell bmake not to mistake standard targets for things to be searched for
 # or expect to ever be up-to-date.
 PHONY_NOTMAIN = analyze afterdepend afterinstall all beforedepend beforeinstall \
@@ -197,8 +201,9 @@ staging stage_libs stage_files stage_as stage_links stage_symlinks:
 .else
 # allow targets like beforeinstall to be leveraged
 DESTDIR= ${STAGE_OBJTOP}
+.export DESTDIR
 
-.if commands(beforeinstall)
+.if target(beforeinstall)
 .if !empty(_LIBS) || (${MK_STAGING_PROG} != "no" && !defined(INTERNALPROG))
 staging: beforeinstall
 .endif
@@ -208,7 +213,7 @@ staging: beforeinstall
 .if ${MK_STAGING_PROG} != "no" && !defined(INTERNALPROG)
 STAGE_DIR.prog= ${STAGE_OBJTOP}${BINDIR}
 
-.if !empty(PROG) || !empty(PROGS)
+.if !empty(PROG)
 .if defined(PROGNAME)
 STAGE_AS_SETS+= prog
 STAGE_AS_${PROG}= ${PROGNAME}
@@ -230,7 +235,6 @@ stage_files.shlib: ${_LIBS:M*.so.*}
 .endif
 
 .if defined(SHLIB_LINK) && commands(${SHLIB_LINK:R}.ld)
-_LDSCRIPTROOT?= ${STAGE_OBJTOP}
 STAGE_AS_SETS+= ldscript
 STAGE_AS.ldscript+= ${SHLIB_LINK:R}.ld
 stage_as.ldscript: ${SHLIB_LINK:R}.ld

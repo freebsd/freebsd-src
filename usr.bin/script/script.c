@@ -74,13 +74,12 @@ static int child;
 static const char *fname;
 static char *fmfname;
 static int fflg, qflg, ttyflg;
-static int usesleep, rawout;
+static int usesleep, rawout, showexit;
 
 static struct termios tt;
 
 static void done(int) __dead2;
 static void doshell(char **);
-static void fail(void);
 static void finish(void);
 static void record(FILE *, char *, size_t, int);
 static void consume(FILE *, off_t, char *, int);
@@ -108,6 +107,7 @@ main(int argc, char *argv[])
 	flushtime = 30;
 	fm_fd = -1;	/* Shut up stupid "may be used uninitialized" GCC
 			   warning. (not needed w/clang) */
+	showexit = 0;
 
 	while ((ch = getopt(argc, argv, "adFfkpqrt:")) != -1)
 		switch(ch) {
@@ -199,7 +199,8 @@ main(int argc, char *argv[])
 			(void)fprintf(fscript, "Script started on %s",
 			    ctime(&tvec));
 			if (argv[0]) {
-				fprintf(fscript, "command: ");
+				showexit = 1;
+				fprintf(fscript, "Command: ");
 				for (k = 0 ; argv[k] ; ++k)
 					fprintf(fscript, "%s%s", k ? " " : "",
 						argv[k]);
@@ -224,12 +225,18 @@ main(int argc, char *argv[])
 		warn("fork");
 		done(1);
 	}
-	if (child == 0)
-		doshell(argv);
-	close(slave);
+	if (child == 0) {
+		if (fflg) {
+			int pid;
 
-	if (fflg && ioctl(fm_fd, FILEMON_SET_PID, &child) < 0)
-		err(1, "Cannot set filemon PID");
+			pid = getpid();
+			if (ioctl(fm_fd, FILEMON_SET_PID, &pid) < 0)
+				err(1, "Cannot set filemon PID");
+		}
+
+		doshell(argv);
+	}
+	close(slave);
 
 	start = tvec = time(0);
 	readstdin = 1;
@@ -341,14 +348,7 @@ doshell(char **av)
 		execl(shell, shell, "-i", (char *)NULL);
 		warn("%s", shell);
 	}
-	fail();
-}
-
-static void
-fail(void)
-{
-	(void)kill(0, SIGTERM);
-	done(1);
+	exit(1);
 }
 
 static void
@@ -362,9 +362,13 @@ done(int eno)
 	if (rawout)
 		record(fscript, NULL, 0, 'e');
 	if (!qflg) {
-		if (!rawout)
+		if (!rawout) {
+			if (showexit)
+				(void)fprintf(fscript, "\nCommand exit status:"
+				    " %d", eno);
 			(void)fprintf(fscript,"\nScript done on %s",
 			    ctime(&tvec));
+		}
 		(void)printf("\nScript done, output file is %s\n", fname);
 		if (fflg) {
 			(void)printf("Filemon done, output file is %s\n",

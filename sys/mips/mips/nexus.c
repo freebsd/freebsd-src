@@ -185,11 +185,11 @@ nexus_probe(device_t dev)
 	}
 
 	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0ul;
+	mem_rman.rm_end = BUS_SPACE_MAXADDR;
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "Memory addresses";
 	if (rman_init(&mem_rman) != 0 ||
-	    rman_manage_region(&mem_rman, 0, ~0) != 0) {
+	    rman_manage_region(&mem_rman, 0, BUS_SPACE_MAXADDR) != 0) {
 		panic("%s: mem_rman", __func__);
 	}
 
@@ -231,8 +231,8 @@ nexus_print_all_resources(device_t dev)
 	if (STAILQ_FIRST(rl))
 		retval += printf(" at");
 
-	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 
 	return (retval);
 }
@@ -275,7 +275,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct rman			*rm;
 	int				 isdefault, needactivate, passthrough;
 
-	dprintf("%s: entry (%p, %p, %d, %p, %p, %p, %ld, %d)\n",
+	dprintf("%s: entry (%p, %p, %d, %p, %p, %p, %jd, %d)\n",
 	    __func__, bus, child, type, rid, (void *)(intptr_t)start,
 	    (void *)(intptr_t)end, count, flags);
 	dprintf("%s: requested rid is %d\n", __func__, *rid);
@@ -350,7 +350,7 @@ nexus_set_resource(device_t dev, device_t child, int type, int rid,
 	struct resource_list		*rl = &ndev->nx_resources;
 	struct resource_list_entry	*rle;
 
-	dprintf("%s: entry (%p, %p, %d, %d, %p, %ld)\n",
+	dprintf("%s: entry (%p, %p, %d, %d, %p, %jd)\n",
 	    __func__, dev, child, type, rid, (void *)(intptr_t)start, count);
 
 	rle = resource_list_add(rl, type, rid, start, start + count - 1,

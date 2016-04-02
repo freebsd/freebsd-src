@@ -627,22 +627,26 @@ defrouter_reset(void)
 }
 
 /*
- * Remove a router from the global list and free it.
- *
- * The ND lock must be held and is released before returning. The caller must
- * hold a reference on the router object.
+ * Look up a matching default router list entry and remove it. Returns true if a
+ * matching entry was found, false otherwise.
  */
-void
-defrouter_remove(struct nd_defrouter *dr)
+bool
+defrouter_remove(struct in6_addr *addr, struct ifnet *ifp)
 {
+	struct nd_defrouter *dr;
 
-	ND6_WLOCK_ASSERT();
-	KASSERT(dr->refcnt >= 2, ("unexpected refcount 0x%x", dr->refcnt));
+	ND6_WLOCK();
+	dr = defrouter_lookup_locked(addr, ifp);
+	if (dr == NULL) {
+		ND6_WUNLOCK();
+		return (false);
+	}
 
 	defrouter_unlink(dr, NULL);
 	ND6_WUNLOCK();
 	defrouter_del(dr);
 	defrouter_rele(dr);
+	return (true);
 }
 
 /*
@@ -850,14 +854,14 @@ defrtrlist_update(struct nd_defrouter *new)
 	struct nd_defrouter *dr, *n;
 	int oldpref;
 
-	ND6_WLOCK();
-	if ((dr = defrouter_lookup_locked(&new->rtaddr, new->ifp)) != NULL) {
-		if (new->rtlifetime == 0) {
-			/* releases the ND lock */
-			defrouter_remove(dr);
-			return (NULL);
-		}
+	if (new->rtlifetime == 0) {
+		defrouter_remove(&new->rtaddr, new->ifp);
+		return (NULL);
+	}
 
+	ND6_WLOCK();
+	dr = defrouter_lookup_locked(&new->rtaddr, new->ifp);
+	if (dr != NULL) {
 		oldpref = rtpref(dr);
 
 		/* override */
@@ -881,25 +885,17 @@ defrtrlist_update(struct nd_defrouter *new)
 		 */
 		TAILQ_REMOVE(&V_nd_defrouter, dr, dr_entry);
 		n = dr;
-		goto insert;
+	} else {
+		n = malloc(sizeof(*n), M_IP6NDP, M_NOWAIT | M_ZERO);
+		if (n == NULL) {
+			ND6_WUNLOCK();
+			return (NULL);
+		}
+		memcpy(n, new, sizeof(*n));
+		/* Initialize with an extra reference for the caller. */
+		refcount_init(&n->refcnt, 2);
 	}
 
-	/* entry does not exist */
-	if (new->rtlifetime == 0) {
-		ND6_WUNLOCK();
-		return (NULL);
-	}
-
-	n = malloc(sizeof(*n), M_IP6NDP, M_NOWAIT | M_ZERO);
-	if (n == NULL) {
-		ND6_WUNLOCK();
-		return (NULL);
-	}
-	memcpy(n, new, sizeof(*n));
-	/* Initialize with an extra reference for the caller. */
-	refcount_init(&n->refcnt, 2);
-
-insert:
 	/*
 	 * Insert the new router in the Default Router List;
 	 * The Default Router List should be in the descending order

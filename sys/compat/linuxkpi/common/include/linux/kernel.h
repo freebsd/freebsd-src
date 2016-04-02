@@ -163,6 +163,7 @@
 #define	simple_strtol(...) strtol(__VA_ARGS__)
 #define	kstrtol(a,b,c) ({*(c) = strtol(a,0,b); 0;})
 #define	kstrtoint(a,b,c) ({*(c) = strtol(a,0,b); 0;})
+#define	kstrtouint(a,b,c) ({*(c) = strtol(a,0,b); 0;})
 
 #define min(x, y)	((x) < (y) ? (x) : (y))
 #define max(x, y)	((x) > (y) ? (x) : (y))

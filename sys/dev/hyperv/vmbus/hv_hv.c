@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/timetc.h>
+#include <sys/kernel.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
 #include <vm/vm.h>
@@ -207,8 +208,6 @@ hv_vmbus_init(void)
 
 	hv_vmbus_g_context.hypercall_page = virt_addr;
 
-	tc_init(&hv_timecounter); /* register virtual timecount */
-
 	hv_et_init();
 	
 	return (0);
@@ -368,6 +367,9 @@ hv_vmbus_synic_init(void *arg)
 	wrmsr(HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT,
 	    shared_sint.as_uint64_t);
 
+	wrmsr(HV_X64_MSR_SINT0 + HV_VMBUS_TIMER_SINT,
+	    shared_sint.as_uint64_t);
+
 	/* Enable the global synic bit */
 	sctrl.as_uint64_t = rdmsr(HV_X64_MSR_SCONTROL);
 	sctrl.u.enable = 1;
@@ -404,12 +406,23 @@ void hv_vmbus_synic_cleanup(void *arg)
 	shared_sint.u.masked = 1;
 
 	/*
-	 * Disable the interrupt
+	 * Disable the interrupt 0
 	 */
 	wrmsr(
 	    HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT,
 	    shared_sint.as_uint64_t);
 
+	shared_sint.as_uint64_t = rdmsr(
+	    HV_X64_MSR_SINT0 + HV_VMBUS_TIMER_SINT);
+
+	shared_sint.u.masked = 1;
+
+	/*
+	 * Disable the interrupt 1
+	 */
+	wrmsr(
+	    HV_X64_MSR_SINT0 + HV_VMBUS_TIMER_SINT,
+	    shared_sint.as_uint64_t);
 	simp.as_uint64_t = rdmsr(HV_X64_MSR_SIMP);
 	simp.u.simp_enabled = 0;
 	simp.u.base_simp_gpa = 0;
@@ -423,3 +436,14 @@ void hv_vmbus_synic_cleanup(void *arg)
 	wrmsr(HV_X64_MSR_SIEFP, siefp.as_uint64_t);
 }
 
+static void
+hv_tc_init(void)
+{
+	if (vm_guest != VM_GUEST_HV)
+		return;
+
+	/* register virtual timecounter */
+	tc_init(&hv_timecounter);
+}
+
+SYSINIT(hv_tc_init, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, hv_tc_init, NULL);

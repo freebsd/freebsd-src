@@ -52,11 +52,33 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
+#include <sys/smp.h>
 
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/cpu.h>
+#include <machine/smp.h>
+
+#ifdef ARM_INTRNG
+#include "pic_if.h"
+
+#ifdef SMP
+#define INTR_IPI_NAMELEN	(MAXCOMLEN + 1)
+
+struct intr_ipi {
+	intr_ipi_handler_t *	ii_handler;
+	void *			ii_handler_arg;
+	intr_ipi_send_t *	ii_send;
+	void *			ii_send_arg;
+	char			ii_name[INTR_IPI_NAMELEN];
+	u_long *		ii_count;
+};
+
+static struct intr_ipi ipi_sources[INTR_IPI_COUNT];
+u_int ipi_next_num;
+#endif
+#endif
 
 /*
  * arm_irq_memory_barrier()
@@ -121,3 +143,109 @@ arm_irq_memory_barrier(uintptr_t irq)
 	cpu_l2cache_drain_writebuf();
 }
 
+#ifdef ARM_INTRNG
+#ifdef SMP
+static inline struct intr_ipi *
+intr_ipi_lookup(u_int ipi)
+{
+
+	if (ipi >= INTR_IPI_COUNT)
+		panic("%s: no such IPI %u", __func__, ipi);
+
+	return (&ipi_sources[ipi]);
+}
+
+void
+intr_ipi_dispatch(u_int ipi, struct trapframe *tf)
+{
+	void *arg;
+	struct intr_ipi *ii;
+
+	ii = intr_ipi_lookup(ipi);
+	if (ii->ii_count == NULL)
+		panic("%s: not setup IPI %u", __func__, ipi);
+
+	intr_ipi_increment_count(ii->ii_count, PCPU_GET(cpuid));
+
+	/*
+	 * Supply ipi filter with trapframe argument
+	 * if none is registered.
+	 */
+	arg = ii->ii_handler_arg != NULL ? ii->ii_handler_arg : tf;
+	ii->ii_handler(arg);
+}
+
+void
+intr_ipi_send(cpuset_t cpus, u_int ipi)
+{
+	struct intr_ipi *ii;
+
+	ii = intr_ipi_lookup(ipi);
+	if (ii->ii_count == NULL)
+		panic("%s: not setup IPI %u", __func__, ipi);
+
+	ii->ii_send(ii->ii_send_arg, cpus);
+}
+
+void
+intr_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
+    void *h_arg, intr_ipi_send_t *send, void *s_arg)
+{
+	struct intr_ipi *ii;
+
+	ii = intr_ipi_lookup(ipi);
+
+	KASSERT(hand != NULL, ("%s: ipi %u no handler", __func__, ipi));
+	KASSERT(send != NULL, ("%s: ipi %u no sender", __func__, ipi));
+	KASSERT(ii->ii_count == NULL, ("%s: ipi %u reused", __func__, ipi));
+
+	ii->ii_handler = hand;
+	ii->ii_handler_arg = h_arg;
+	ii->ii_send = send;
+	ii->ii_send_arg = s_arg;
+	strlcpy(ii->ii_name, name, INTR_IPI_NAMELEN);
+	ii->ii_count = intr_ipi_setup_counters(name);
+}
+
+/*
+ *  Send IPI thru interrupt controller.
+ */
+static void
+pic_ipi_send(void *arg, cpuset_t cpus)
+{
+
+	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
+	PIC_IPI_SEND(intr_irq_root_dev, arg, cpus);
+}
+
+/*
+ *  Setup IPI handler on interrupt controller.
+ *
+ *  Not SMP coherent.
+ */
+int
+intr_pic_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
+    void *arg)
+{
+	int error;
+	struct intr_irqsrc *isrc;
+
+	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
+
+	isrc = intr_isrc_alloc(INTR_ISRCT_NAMESPACE, 0);
+	isrc->isrc_nspc_type = INTR_IRQ_NSPC_IPI;
+	isrc->isrc_nspc_num = ipi_next_num;
+
+	error = PIC_IPI_SETUP(intr_irq_root_dev, ipi, isrc);
+	if (error != 0)
+		return (error);
+
+	ipi_next_num++;
+
+	isrc->isrc_dev = intr_irq_root_dev;
+	isrc->isrc_handlers = 1;
+	intr_ipi_setup(ipi, name, hand, arg, pic_ipi_send, isrc);
+	return (0);
+}
+#endif
+#endif

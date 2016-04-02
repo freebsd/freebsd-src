@@ -243,6 +243,7 @@ public:
   ///
   /// \param FilePath The path at which the content will be mapped.
   /// \param Content A null terminated buffer of the file's content.
+  // FIXME: remove this when all users have migrated!
   void mapVirtualFile(StringRef FilePath, StringRef Content);
 
   /// \brief Run the clang invocation.
@@ -331,9 +332,12 @@ class ClangTool {
   std::vector<std::string> SourcePaths;
   std::shared_ptr<PCHContainerOperations> PCHContainerOps;
 
+  llvm::IntrusiveRefCntPtr<vfs::OverlayFileSystem> OverlayFileSystem;
+  llvm::IntrusiveRefCntPtr<vfs::InMemoryFileSystem> InMemoryFileSystem;
   llvm::IntrusiveRefCntPtr<FileManager> Files;
   // Contains a list of pairs (<file name>, <file content>).
   std::vector< std::pair<StringRef, StringRef> > MappedFileContents;
+  llvm::StringSet<> SeenWorkingDirectories;
 
   ArgumentsAdjuster ArgsAdjuster;
 
@@ -416,6 +420,29 @@ inline std::unique_ptr<FrontendActionFactory> newFrontendActionFactory(
 ///
 /// \param File Either an absolute or relative path.
 std::string getAbsolutePath(StringRef File);
+
+/// \brief Changes CommandLine to contain implicit flags that would have been
+/// defined had the compiler driver been invoked through the path InvokedAs.
+///
+/// For example, when called with \c InvokedAs set to `i686-linux-android-g++`,
+/// the arguments '-target', 'i686-linux-android`, `--driver-mode=g++` will
+/// be inserted after the first argument in \c CommandLine.
+///
+/// This function will not add new `-target` or `--driver-mode` flags if they
+/// are already present in `CommandLine` (even if they have different settings
+/// than would have been inserted).
+///
+/// \pre `llvm::InitializeAllTargets()` has been called.
+///
+/// \param CommandLine the command line used to invoke the compiler driver or
+/// Clang tool, including the path to the executable as \c CommandLine[0].
+/// \param InvokedAs the path to the driver used to infer implicit flags.
+///
+/// \note This will not set \c CommandLine[0] to \c InvokedAs. The tooling
+/// infrastructure expects that CommandLine[0] is a tool path relative to which
+/// the builtin headers can be found.
+void addTargetAndModeForProgramName(std::vector<std::string> &CommandLine,
+                                    StringRef InvokedAs);
 
 /// \brief Creates a \c CompilerInvocation.
 clang::CompilerInvocation *newInvocation(

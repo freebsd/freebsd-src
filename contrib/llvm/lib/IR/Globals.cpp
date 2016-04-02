@@ -12,11 +12,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/IR/GlobalValue.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/Triple.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/GlobalAlias.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
@@ -32,14 +33,8 @@ bool GlobalValue::isMaterializable() const {
     return F->isMaterializable();
   return false;
 }
-bool GlobalValue::isDematerializable() const {
-  return getParent() && getParent()->isDematerializable(this);
-}
 std::error_code GlobalValue::materialize() {
   return getParent()->materialize(this);
-}
-void GlobalValue::dematerialize() {
-  getParent()->dematerialize(this);
 }
 
 /// Override destroyConstantImpl to make sure it doesn't get called on
@@ -97,10 +92,11 @@ void GlobalObject::setGlobalObjectSubClassData(unsigned Val) {
 }
 
 void GlobalObject::copyAttributesFrom(const GlobalValue *Src) {
-  const auto *GV = cast<GlobalObject>(Src);
-  GlobalValue::copyAttributesFrom(GV);
-  setAlignment(GV->getAlignment());
-  setSection(GV->getSection());
+  GlobalValue::copyAttributesFrom(Src);
+  if (const auto *GV = dyn_cast<GlobalObject>(Src)) {
+    setAlignment(GV->getAlignment());
+    setSection(GV->getSection());
+  }
 }
 
 const char *GlobalValue::getSection() const {
@@ -139,6 +135,47 @@ bool GlobalValue::isDeclaration() const {
   return false;
 }
 
+bool GlobalValue::canIncreaseAlignment() const {
+  // Firstly, can only increase the alignment of a global if it
+  // is a strong definition.
+  if (!isStrongDefinitionForLinker())
+    return false;
+
+  // It also has to either not have a section defined, or, not have
+  // alignment specified. (If it is assigned a section, the global
+  // could be densely packed with other objects in the section, and
+  // increasing the alignment could cause padding issues.)
+  if (hasSection() && getAlignment() > 0)
+    return false;
+
+  // On ELF platforms, we're further restricted in that we can't
+  // increase the alignment of any variable which might be emitted
+  // into a shared library, and which is exported. If the main
+  // executable accesses a variable found in a shared-lib, the main
+  // exe actually allocates memory for and exports the symbol ITSELF,
+  // overriding the symbol found in the library. That is, at link
+  // time, the observed alignment of the variable is copied into the
+  // executable binary. (A COPY relocation is also generated, to copy
+  // the initial data from the shadowed variable in the shared-lib
+  // into the location in the main binary, before running code.)
+  //
+  // And thus, even though you might think you are defining the
+  // global, and allocating the memory for the global in your object
+  // file, and thus should be able to set the alignment arbitrarily,
+  // that's not actually true. Doing so can cause an ABI breakage; an
+  // executable might have already been built with the previous
+  // alignment of the variable, and then assuming an increased
+  // alignment will be incorrect.
+
+  // Conservatively assume ELF if there's no parent pointer.
+  bool isELF =
+      (!Parent || Triple(Parent->getTargetTriple()).isOSBinFormatELF());
+  if (isELF && hasDefaultVisibility() && !hasLocalLinkage())
+    return false;
+
+  return true;
+}
+
 //===----------------------------------------------------------------------===//
 // GlobalVariable Implementation
 //===----------------------------------------------------------------------===//
@@ -147,9 +184,9 @@ GlobalVariable::GlobalVariable(Type *Ty, bool constant, LinkageTypes Link,
                                Constant *InitVal, const Twine &Name,
                                ThreadLocalMode TLMode, unsigned AddressSpace,
                                bool isExternallyInitialized)
-    : GlobalObject(PointerType::get(Ty, AddressSpace), Value::GlobalVariableVal,
+    : GlobalObject(Ty, Value::GlobalVariableVal,
                    OperandTraits<GlobalVariable>::op_begin(this),
-                   InitVal != nullptr, Link, Name),
+                   InitVal != nullptr, Link, Name, AddressSpace),
       isConstantGlobal(constant),
       isExternallyInitializedConstant(isExternallyInitialized) {
   setThreadLocalMode(TLMode);
@@ -165,9 +202,9 @@ GlobalVariable::GlobalVariable(Module &M, Type *Ty, bool constant,
                                const Twine &Name, GlobalVariable *Before,
                                ThreadLocalMode TLMode, unsigned AddressSpace,
                                bool isExternallyInitialized)
-    : GlobalObject(PointerType::get(Ty, AddressSpace), Value::GlobalVariableVal,
+    : GlobalObject(Ty, Value::GlobalVariableVal,
                    OperandTraits<GlobalVariable>::op_begin(this),
-                   InitVal != nullptr, Link, Name),
+                   InitVal != nullptr, Link, Name, AddressSpace),
       isConstantGlobal(constant),
       isExternallyInitializedConstant(isExternallyInitialized) {
   setThreadLocalMode(TLMode);
@@ -178,7 +215,7 @@ GlobalVariable::GlobalVariable(Module &M, Type *Ty, bool constant,
   }
 
   if (Before)
-    Before->getParent()->getGlobalList().insert(Before, this);
+    Before->getParent()->getGlobalList().insert(Before->getIterator(), this);
   else
     M.getGlobalList().push_back(this);
 }
@@ -188,11 +225,11 @@ void GlobalVariable::setParent(Module *parent) {
 }
 
 void GlobalVariable::removeFromParent() {
-  getParent()->getGlobalList().remove(this);
+  getParent()->getGlobalList().remove(getIterator());
 }
 
 void GlobalVariable::eraseFromParent() {
-  getParent()->getGlobalList().erase(this);
+  getParent()->getGlobalList().erase(getIterator());
 }
 
 void GlobalVariable::setInitializer(Constant *InitVal) {
@@ -216,14 +253,14 @@ void GlobalVariable::setInitializer(Constant *InitVal) {
   }
 }
 
-/// copyAttributesFrom - copy all additional attributes (those not needed to
-/// create a GlobalVariable) from the GlobalVariable Src to this one.
+/// Copy all additional attributes (those not needed to create a GlobalVariable)
+/// from the GlobalVariable Src to this one.
 void GlobalVariable::copyAttributesFrom(const GlobalValue *Src) {
-  assert(isa<GlobalVariable>(Src) && "Expected a GlobalVariable!");
   GlobalObject::copyAttributesFrom(Src);
-  const GlobalVariable *SrcVar = cast<GlobalVariable>(Src);
-  setThreadLocalMode(SrcVar->getThreadLocalMode());
-  setExternallyInitialized(SrcVar->isExternallyInitialized());
+  if (const GlobalVariable *SrcVar = dyn_cast<GlobalVariable>(Src)) {
+    setThreadLocalMode(SrcVar->getThreadLocalMode());
+    setExternallyInitialized(SrcVar->isExternallyInitialized());
+  }
 }
 
 
@@ -231,35 +268,40 @@ void GlobalVariable::copyAttributesFrom(const GlobalValue *Src) {
 // GlobalAlias Implementation
 //===----------------------------------------------------------------------===//
 
-GlobalAlias::GlobalAlias(PointerType *Ty, LinkageTypes Link, const Twine &Name,
-                         Constant *Aliasee, Module *ParentModule)
-    : GlobalValue(Ty, Value::GlobalAliasVal, &Op<0>(), 1, Link, Name) {
+GlobalAlias::GlobalAlias(Type *Ty, unsigned AddressSpace, LinkageTypes Link,
+                         const Twine &Name, Constant *Aliasee,
+                         Module *ParentModule)
+    : GlobalValue(Ty, Value::GlobalAliasVal, &Op<0>(), 1, Link, Name,
+                  AddressSpace) {
   Op<0>() = Aliasee;
 
   if (ParentModule)
     ParentModule->getAliasList().push_back(this);
 }
 
-GlobalAlias *GlobalAlias::create(PointerType *Ty, LinkageTypes Link,
-                                 const Twine &Name, Constant *Aliasee,
-                                 Module *ParentModule) {
-  return new GlobalAlias(Ty, Link, Name, Aliasee, ParentModule);
+GlobalAlias *GlobalAlias::create(Type *Ty, unsigned AddressSpace,
+                                 LinkageTypes Link, const Twine &Name,
+                                 Constant *Aliasee, Module *ParentModule) {
+  return new GlobalAlias(Ty, AddressSpace, Link, Name, Aliasee, ParentModule);
 }
 
-GlobalAlias *GlobalAlias::create(PointerType *Ty, LinkageTypes Linkage,
-                                 const Twine &Name, Module *Parent) {
-  return create(Ty, Linkage, Name, nullptr, Parent);
+GlobalAlias *GlobalAlias::create(Type *Ty, unsigned AddressSpace,
+                                 LinkageTypes Linkage, const Twine &Name,
+                                 Module *Parent) {
+  return create(Ty, AddressSpace, Linkage, Name, nullptr, Parent);
 }
 
-GlobalAlias *GlobalAlias::create(PointerType *Ty, LinkageTypes Linkage,
-                                 const Twine &Name, GlobalValue *Aliasee) {
-  return create(Ty, Linkage, Name, Aliasee, Aliasee->getParent());
+GlobalAlias *GlobalAlias::create(Type *Ty, unsigned AddressSpace,
+                                 LinkageTypes Linkage, const Twine &Name,
+                                 GlobalValue *Aliasee) {
+  return create(Ty, AddressSpace, Linkage, Name, Aliasee, Aliasee->getParent());
 }
 
 GlobalAlias *GlobalAlias::create(LinkageTypes Link, const Twine &Name,
                                  GlobalValue *Aliasee) {
   PointerType *PTy = Aliasee->getType();
-  return create(PTy, Link, Name, Aliasee);
+  return create(PTy->getElementType(), PTy->getAddressSpace(), Link, Name,
+                Aliasee);
 }
 
 GlobalAlias *GlobalAlias::create(const Twine &Name, GlobalValue *Aliasee) {
@@ -271,11 +313,11 @@ void GlobalAlias::setParent(Module *parent) {
 }
 
 void GlobalAlias::removeFromParent() {
-  getParent()->getAliasList().remove(this);
+  getParent()->getAliasList().remove(getIterator());
 }
 
 void GlobalAlias::eraseFromParent() {
-  getParent()->getAliasList().erase(this);
+  getParent()->getAliasList().erase(getIterator());
 }
 
 void GlobalAlias::setAliasee(Constant *Aliasee) {

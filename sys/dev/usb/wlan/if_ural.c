@@ -706,8 +706,8 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			ural_update_slot(sc);
 			ural_set_txpreamble(sc);
 			ural_set_basicrates(sc, ic->ic_bsschan);
-			IEEE80211_ADDR_COPY(ic->ic_macaddr, ni->ni_bssid);
-			ural_set_bssid(sc, ic->ic_macaddr);
+			IEEE80211_ADDR_COPY(sc->sc_bssid, ni->ni_bssid);
+			ural_set_bssid(sc, sc->sc_bssid);
 		}
 
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
@@ -1582,7 +1582,7 @@ ural_scan_end(struct ieee80211com *ic)
 
 	RAL_LOCK(sc);
 	ural_enable_tsf_sync(sc);
-	ural_set_bssid(sc, ic->ic_macaddr);
+	ural_set_bssid(sc, sc->sc_bssid);
 	RAL_UNLOCK(sc);
 
 }

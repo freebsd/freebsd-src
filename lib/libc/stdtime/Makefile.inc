@@ -12,7 +12,6 @@ SYM_MAPS+= ${LIBC_SRCTOP}/stdtime/Symbol.map
 CFLAGS+= -I${LIBC_SRCTOP}/../../contrib/tzcode/stdtime -I${LIBC_SRCTOP}/stdtime
 
 CFLAGS.localtime.c= -fwrapv
-CFLAGS+= ${CFLAGS.${.IMPSRC:T}}
 
 MAN+=	ctime.3 strftime.3 strptime.3 time2posix.3
 MAN+=	tzfile.5

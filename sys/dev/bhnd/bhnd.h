@@ -334,7 +334,7 @@ bhnd_is_hw_disabled(device_t dev) {
  * values supported by the standard bus APIs.
  * 
  * To request the resource's default addresses, pass @p start and
- * @p end values of @c 0UL and @c ~0UL, respectively, and
+ * @p end values of @c 0 and @c ~0, respectively, and
  * a @p count of @c 1.
  * 
  * @retval NULL The resource could not be allocated.
@@ -366,7 +366,7 @@ bhnd_alloc_resource(device_t dev, int type, int *rid, rman_res_t start,
 static inline struct bhnd_resource *
 bhnd_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
 {
-	return bhnd_alloc_resource(dev, type, rid, 0UL, ~0UL, 1, flags);
+	return bhnd_alloc_resource(dev, type, rid, 0, ~0, 1, flags);
 }
 
 /**

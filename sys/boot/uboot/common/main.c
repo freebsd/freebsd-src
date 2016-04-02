@@ -132,8 +132,8 @@ meminfo(void)
 	for (i = 0; i < 3; i++) {
 		size = memsize(si, t[i]);
 		if (size > 0)
-			printf("%s: %lldMB\n", ub_mem_type(t[i]),
-			    size / 1024 / 1024);
+			printf("%s: %juMB\n", ub_mem_type(t[i]),
+			    (uintmax_t)(size / 1024 / 1024));
 	}
 }
 
@@ -387,7 +387,7 @@ probe_disks(int devidx, int load_type, int load_unit, int load_slice,
 }
 
 int
-main(void)
+main(int argc, char **argv)
 {
 	struct api_signature *sig = NULL;
 	int load_type, load_unit, load_slice, load_partition;
@@ -395,12 +395,15 @@ main(void)
 	const char *ldev;
 
 	/*
+	 * We first check if a command line argument was passed to us containing
+	 * API's signature address. If it wasn't then we try to search for the
+	 * API signature via the usual hinted address.
 	 * If we can't find the magic signature and related info, exit with a
 	 * unique error code that U-Boot reports as "## Application terminated,
 	 * rc = 0xnnbadab1". Hopefully 'badab1' looks enough like "bad api" to
 	 * provide a clue. It's better than 0xffffffff anyway.
 	 */
-	if (!api_search_sig(&sig))
+	if (!api_parse_cmdline_sig(argc, argv, &sig) && !api_search_sig(&sig))
 		return (0x01badab1);
 
 	syscall_ptr = sig->syscall;
@@ -426,7 +429,7 @@ main(void)
 	 * Set up console.
 	 */
 	cons_probe();
-	printf("Compatible U-Boot API signature found @%x\n", (uint32_t)sig);
+	printf("Compatible U-Boot API signature found @%p\n", sig);
 
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
@@ -511,7 +514,7 @@ static int
 command_heap(int argc, char *argv[])
 {
 
-	printf("heap base at %p, top at %p, used %d\n", end, sbrk(0),
+	printf("heap base at %p, top at %p, used %td\n", end, sbrk(0),
 	    sbrk(0) - end);
 
 	return (CMD_OK);

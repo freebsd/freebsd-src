@@ -216,12 +216,16 @@ yp_dispatch(struct svc_req *req, SVCXPRT *trans)
 		return;
 	case YPPROC_ALL:
 		log_debug("ypproc_all");
+		xdr_argument = (xdrproc_t) xdr_ypreq_nokey;
+		xdr_result = (xdrproc_t) xdr_ypresp_all;
 		if (yp_check(req) == -1)
 			return;
 		cb = (void *)ypproc_all_2_svc;
 		break;
 	case YPPROC_MASTER:
 		log_debug("ypproc_master");
+		xdr_argument = (xdrproc_t) xdr_ypreq_nokey;
+		xdr_result = (xdrproc_t) xdr_ypresp_master;
 		if (yp_check(req) == -1)
 			return;
 		cb = (void *)ypproc_master_2_svc;
@@ -234,6 +238,8 @@ yp_dispatch(struct svc_req *req, SVCXPRT *trans)
 		return;
 	case YPPROC_MAPLIST:
 		log_debug("ypproc_maplist");
+		xdr_argument = (xdrproc_t) xdr_domainname;
+		xdr_result = (xdrproc_t) xdr_ypresp_maplist;
 		if (yp_check(req) == -1)
 			return;
 		cb = (void *)ypproc_maplist_2_svc;
@@ -559,11 +565,18 @@ ypresp_master *
 ypproc_master_2_svc(ypreq_nokey *arg, struct svc_req *req)
 {
 	static struct ypresp_master	 res;
+	static char master[YPMAXPEER + 1];
 
+	bzero(&res, sizeof(res));
 	if (yp_valid_domain(arg->domain, (struct ypresp_val *)&res) == -1)
 		return (&res);
+	
+	if (gethostname(master, sizeof(master)) == 0) {
+		res.peer = (peername)master;
+		res.stat = YP_TRUE;
+	} else
+		res.stat = YP_NOKEY;
 
-	res.stat = YP_YPERR;
 	return (&res);
 }
 

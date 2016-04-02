@@ -60,6 +60,7 @@
 #include <atf-c.h>
 
 #include "freebsd_test_suite/macros.h"
+#include "local.h"
 
 #define	PATH_TEMPLATE	"aio.XXXXXXXXXX"
 
@@ -340,6 +341,7 @@ ATF_TC_BODY(aio_file_test, tc)
 	int fd;
 
 	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
 
 	strcpy(pathname, PATH_TEMPLATE);
 	fd = mkstemp(pathname);
@@ -386,6 +388,7 @@ ATF_TC_BODY(aio_fifo_test, tc)
 	struct aio_context ac;
 
 	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
 
 	/*
 	 * In theory, mkstemp() can return a name that is then collided with.
@@ -497,6 +500,7 @@ ATF_TC_BODY(aio_pty_test, tc)
 	int error;
 
 	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
 
 	ATF_REQUIRE_MSG(openpty(&read_fd, &write_fd, NULL, NULL, NULL) == 0,
 	    "openpty failed: %s", strerror(errno));
@@ -544,6 +548,7 @@ ATF_TC_BODY(aio_pipe_test, tc)
 	int pipes[2];
 
 	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
 
 	ATF_REQUIRE_MSG(pipe(pipes) != -1,
 	    "pipe failed: %s", strerror(errno));
@@ -644,6 +649,79 @@ ATF_TC_BODY(aio_md_test, tc)
 	aio_md_cleanup(&arg);
 }
 
+ATF_TC_WITHOUT_HEAD(aio_large_read_test);
+ATF_TC_BODY(aio_large_read_test, tc)
+{
+	char pathname[PATH_MAX];
+	struct aiocb cb, *cbp;
+	ssize_t nread;
+	size_t len;
+	int fd;
+#ifdef __LP64__
+	int clamped;
+#endif
+
+	ATF_REQUIRE_KERNEL_MODULE("aio");
+	ATF_REQUIRE_UNSAFE_AIO();
+
+#ifdef __LP64__
+	len = sizeof(clamped);
+	if (sysctlbyname("debug.iosize_max_clamp", &clamped, &len, NULL, 0) ==
+	    -1)
+		atf_libc_error(errno, "Failed to read debug.iosize_max_clamp");
+#endif
+
+	/* Determine the maximum supported read(2) size. */
+	len = SSIZE_MAX;
+#ifdef __LP64__
+	if (clamped)
+		len = INT_MAX;
+#endif
+
+	strcpy(pathname, PATH_TEMPLATE);
+	fd = mkstemp(pathname);
+	ATF_REQUIRE_MSG(fd != -1, "mkstemp failed: %s", strerror(errno));
+
+	unlink(pathname);
+
+	memset(&cb, 0, sizeof(cb));
+	cb.aio_nbytes = len;
+	cb.aio_fildes = fd;
+	cb.aio_buf = NULL;
+	if (aio_read(&cb) == -1)
+		atf_tc_fail("aio_read() of maximum read size failed: %s",
+		    strerror(errno));
+
+	nread = aio_waitcomplete(&cbp, NULL);
+	if (nread == -1)
+		atf_tc_fail("aio_waitcomplete() failed: %s", strerror(errno));
+	if (nread != 0)
+		atf_tc_fail("aio_read() from empty file returned data: %zd",
+		    nread);
+
+	memset(&cb, 0, sizeof(cb));
+	cb.aio_nbytes = len + 1;
+	cb.aio_fildes = fd;
+	cb.aio_buf = NULL;
+	if (aio_read(&cb) == -1) {
+		if (errno == EINVAL)
+			goto finished;
+		atf_tc_fail("aio_read() of too large read size failed: %s",
+		    strerror(errno));
+	}
+
+	nread = aio_waitcomplete(&cbp, NULL);
+	if (nread == -1) {
+		if (errno == EINVAL)
+			goto finished;
+		atf_tc_fail("aio_waitcomplete() failed: %s", strerror(errno));
+	}
+	atf_tc_fail("aio_read() of too large read size returned: %zd", nread);
+
+finished:
+	close(fd);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -653,6 +731,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, aio_pty_test);
 	ATF_TP_ADD_TC(tp, aio_pipe_test);
 	ATF_TP_ADD_TC(tp, aio_md_test);
+	ATF_TP_ADD_TC(tp, aio_large_read_test);
 
 	return (atf_no_error());
 }

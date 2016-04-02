@@ -11,6 +11,7 @@
 #define liblldb_CompUnit_h_
 
 #include "lldb/lldb-enumerations.h"
+#include "lldb/Symbol/DebugMacros.h"
 #include "lldb/Symbol/Function.h"
 #include "lldb/Core/FileSpecList.h"
 #include "lldb/Core/ModuleChild.h"
@@ -66,9 +67,12 @@ public:
     ///     A language enumeration type that describes the main language
     ///     of this compile unit.
     ///
+    /// @param[in] is_optimized
+    ///     true if this compile unit was compiled with optimization.
+    ///
     /// @see lldb::LanguageType
     //------------------------------------------------------------------
-    CompileUnit(const lldb::ModuleSP &module_sp, void *user_data, const char *pathname, lldb::user_id_t uid, lldb::LanguageType language);
+    CompileUnit(const lldb::ModuleSP &module_sp, void *user_data, const char *pathname, lldb::user_id_t uid, lldb::LanguageType language, bool is_optimized);
 
     //------------------------------------------------------------------
     /// Construct with a module, file spec, UID and language.
@@ -98,15 +102,17 @@ public:
     ///     A language enumeration type that describes the main language
     ///     of this compile unit.
     ///
+    /// @param[in] is_optimized
+    ///     true if this compile unit was compiled with optimization.
+    ///
     /// @see lldb::LanguageType
     //------------------------------------------------------------------
-    CompileUnit(const lldb::ModuleSP &module_sp, void *user_data, const FileSpec &file_spec, lldb::user_id_t uid, lldb::LanguageType language);
+    CompileUnit(const lldb::ModuleSP &module_sp, void *user_data, const FileSpec &file_spec, lldb::user_id_t uid, lldb::LanguageType language, bool is_optimized);
 
     //------------------------------------------------------------------
     /// Destructor
     //------------------------------------------------------------------
-    virtual
-    ~CompileUnit();
+    ~CompileUnit() override;
 
     //------------------------------------------------------------------
     /// Add a function to this compile unit.
@@ -125,22 +131,22 @@ public:
     ///
     /// @see SymbolContextScope
     //------------------------------------------------------------------
-    virtual void
-    CalculateSymbolContext(SymbolContext* sc);
+    void
+    CalculateSymbolContext(SymbolContext* sc) override;
 
-    virtual lldb::ModuleSP
-    CalculateSymbolContextModule ();
+    lldb::ModuleSP
+    CalculateSymbolContextModule() override;
     
-    virtual CompileUnit *
-    CalculateSymbolContextCompileUnit ();
+    CompileUnit *
+    CalculateSymbolContextCompileUnit() override;
 
     //------------------------------------------------------------------
     /// @copydoc SymbolContextScope::DumpSymbolContext(Stream*)
     ///
     /// @see SymbolContextScope
     //------------------------------------------------------------------
-    virtual void
-    DumpSymbolContext(Stream *s);
+    void
+    DumpSymbolContext(Stream *s) override;
 
     lldb::LanguageType
     GetLanguage();
@@ -245,6 +251,9 @@ public:
     LineTable*
     GetLineTable ();
 
+    DebugMacros*
+    GetDebugMacros ();
+
     //------------------------------------------------------------------
     /// Get the compile unit's support file list.
     ///
@@ -339,6 +348,9 @@ public:
     void
     SetLineTable(LineTable* line_table);
 
+    void
+    SetDebugMacros(const DebugMacrosSP &debug_macros);
+
     //------------------------------------------------------------------
     /// Set accessor for the variable list.
     ///
@@ -406,6 +418,22 @@ public:
                           SymbolContextList &sc_list);
 
 
+    //------------------------------------------------------------------
+    /// Get whether compiler optimizations were enabled for this compile unit
+    ///
+    /// "optimized" means that the debug experience may be difficult
+    /// for the user to understand.  Variables may not be available when
+    /// the developer would expect them, stepping through the source lines
+    /// in the function may appear strange, etc.
+    /// 
+    /// @return
+    ///     Returns 'true' if this compile unit was compiled with 
+    ///     optimization.  'false' indicates that either the optimization
+    ///     is unknown, or this compile unit was built without optimization.
+    //------------------------------------------------------------------
+    bool
+    GetIsOptimized ();
+
 protected:
     void *m_user_data; ///< User data for the SymbolFile parser to store information into.
     lldb::LanguageType m_language; ///< The programming language enumeration value.
@@ -416,7 +444,9 @@ protected:
                                                  ///< compile unit.
     FileSpecList m_support_files; ///< Files associated with this compile unit's line table and declarations.
     std::unique_ptr<LineTable> m_line_table_ap; ///< Line table that will get parsed on demand.
+    DebugMacrosSP m_debug_macros_sp; ///< Debug macros that will get parsed on demand.
     lldb::VariableListSP m_variables; ///< Global and static variable list that will get parsed on demand.
+    bool       m_is_optimized; /// eLazyBoolYes if this compile unit was compiled with optimization.
 
 private:
     enum
@@ -425,8 +455,9 @@ private:
         flagsParsedVariables        = (1u << 1), ///< Have we already parsed globals and statics?
         flagsParsedSupportFiles     = (1u << 2), ///< Have we already parsed the support files for this compile unit?
         flagsParsedLineTable        = (1u << 3), ///< Have we parsed the line table already?
-        flagsParsedLanguage         = (1u << 4), ///< Have we parsed the line table already?
-        flagsParsedImportedModules  = (1u << 5)  ///< Have we parsed the imported modules already?
+        flagsParsedLanguage         = (1u << 4), ///< Have we parsed the language already?
+        flagsParsedImportedModules  = (1u << 5), ///< Have we parsed the imported modules already?
+        flagsParsedDebugMacros      = (1u << 6)  ///< Have we parsed the debug macros already?
     };
 
     DISALLOW_COPY_AND_ASSIGN (CompileUnit);
@@ -434,4 +465,4 @@ private:
 
 } // namespace lldb_private
 
-#endif  // liblldb_CompUnit_h_
+#endif // liblldb_CompUnit_h_

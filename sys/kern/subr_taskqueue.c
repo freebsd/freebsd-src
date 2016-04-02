@@ -737,13 +737,6 @@ taskqueue_create_fast(const char *name, int mflags,
 			MTX_SPIN, "fast_taskqueue");
 }
 
-/* NB: for backwards compatibility */
-int
-taskqueue_enqueue_fast(struct taskqueue *queue, struct task *task)
-{
-	return taskqueue_enqueue(queue, task);
-}
-
 static void	*taskqueue_fast_ih;
 
 static void

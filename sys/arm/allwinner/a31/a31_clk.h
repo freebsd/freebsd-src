@@ -134,8 +134,14 @@
 #define	A31_CCM_PLL6_CFG_REG_LOCK	(1 << 28)
 
 /* AHB_GATING_REG0 */
-#define	A31_CCM_AHB_GATING_SDMMC0	(1 << 8)
+#define	A31_CCM_AHB_GATING_OHCI2	(1 << 31)
+#define	A31_CCM_AHB_GATING_OHCI1	(1 << 30)
+#define	A31_CCM_AHB_GATING_OHCI0	(1 << 29)
+#define	A31_CCM_AHB_GATING_EHCI1	(1 << 27)
+#define	A31_CCM_AHB_GATING_EHCI0	(1 << 26)
+#define	A31_CCM_AHB_GATING_USBDRD	(1 << 24)
 #define	A31_CCM_AHB_GATING_GMAC		(1 << 17)
+#define	A31_CCM_AHB_GATING_SDMMC0	(1 << 8)
 
 #define	A31_CCM_PLL_CFG_ENABLE		(1U << 31)
 #define	A31_CCM_PLL_CFG_BYPASS		(1U << 30)
@@ -151,6 +157,11 @@
 #define	A31_CCM_APB2_GATING_TWI	(1 << 0)
 
 /* AHB1_RST_REG0 */
+#define	A31_CCM_AHB1_RST_REG0_OHCI2	(1 << 31)
+#define	A31_CCM_AHB1_RST_REG0_OHCI1	(1 << 30)
+#define	A31_CCM_AHB1_RST_REG0_OHCI0	(1 << 29)
+#define	A31_CCM_AHB1_RST_REG0_EHCI1	(1 << 27)
+#define	A31_CCM_AHB1_RST_REG0_EHCI0	(1 << 26)
 #define	A31_CCM_AHB1_RST_REG0_GMAC	(1 << 17)
 #define	A31_CCM_AHB1_RST_REG0_SDMMC	(1 << 8)
 
@@ -179,11 +190,24 @@
 #define	A31_CCM_SD_CLK_OPHASE_CTR_SHIFT	8
 #define	A31_CCM_SD_CLK_DIV_RATIO_M	0xf
 
+/* USB */
+#define	A31_CCM_USBPHY_CLK_GATING_OHCI2		(1 << 18)
+#define	A31_CCM_USBPHY_CLK_GATING_OHCI1		(1 << 17)
+#define	A31_CCM_USBPHY_CLK_GATING_OHCI0		(1 << 16)
+#define	A31_CCM_USBPHY_CLK_GATING_USBPHY2	(1 << 10)
+#define	A31_CCM_USBPHY_CLK_GATING_USBPHY1	(1 << 9)
+#define	A31_CCM_USBPHY_CLK_GATING_USBPHY0	(1 << 8)
+#define	A31_CCM_USBPHY_CLK_USBPHY2_RST		(1 << 2)
+#define	A31_CCM_USBPHY_CLK_USBPHY1_RST		(1 << 1)
+#define	A31_CCM_USBPHY_CLK_USBPHY0_RST		(1 << 0)
+
 #define	A31_CCM_CLK_REF_FREQ		24000000U
 
 int a31_clk_gmac_activate(phandle_t);
 int a31_clk_mmc_activate(int);
 int a31_clk_mmc_cfg(int, int);
 int a31_clk_i2c_activate(int);
+int a31_clk_ehci_activate(void);
+int a31_clk_ehci_deactivate(void);
 
 #endif /* _A31_CLK_H_ */

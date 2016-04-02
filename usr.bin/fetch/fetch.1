@@ -1,6 +1,6 @@
 .\"-
 .\" Copyright (c) 2000-2014 Dag-Erling Smørgrav
-.\" Copyright (c) 2013 Michael Gmelin <freebsd@grem.de>
+.\" Copyright (c) 2013-2016 Michael Gmelin <freebsd@grem.de>
 .\" All rights reserved.
 .\" Portions Copyright (c) 1999 Massachusetts Institute of Technology; used
 .\" by permission.
@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 25, 2015
+.Dd March 18, 2016
 .Dt FETCH 1
 .Os
 .Sh NAME
@@ -134,11 +134,17 @@ only.
 [SSL]
 Path to certificate bundle containing trusted CA certificates.
 If not specified,
-.Pa /etc/ssl/cert.pem
+.Pa /usr/local/etc/ssl/cert.pem
 is used.
-The file may contain multiple CA certificates. The port
+If this file does not exist,
+.Pa /etc/ssl/cert.pem
+is used instead.
+If neither file exists and no CA path has been configured,
+OpenSSL's default CA cert and path settings apply.
+The certificate bundle can contain multiple CA certificates.
+The
 .Pa security/ca_root_nss
-is a common source of a current CA bundle.
+port is a common source of a current CA bundle.
 .It Fl -ca-path= Ns Ar dir
 [SSL]
 The directory
@@ -218,10 +224,16 @@ altogether, or a comma- or whitespace-separated list of hosts for
 which proxies should not be used.
 .It Fl -no-sslv3
 [SSL]
-Don't allow SSL version 3 when negotiating the connection.
+Do not allow SSL version 3 when negotiating the connection.
+This option is deprecated and is provided for backward compatibility
+only.
+SSLv3 is disabled by default.
+Set
+.Ev SSL_ALLOW_SSL3
+to change this behavior.
 .It Fl -no-tlsv1
 [SSL]
-Don't allow TLS version 1 when negotiating the connection.
+Do not allow TLS version 1 when negotiating the connection.
 .It Fl -no-verify-hostname
 [SSL]
 Do not verify that the hostname matches the subject of the
@@ -351,8 +363,10 @@ for a description of additional environment variables, including
 .Ev SSL_CLIENT_CERT_FILE ,
 .Ev SSL_CLIENT_KEY_FILE ,
 .Ev SSL_CRL_FILE ,
-.Ev SSL_NO_SSL3 ,
+.Ev SSL_ALLOW_SSL3 ,
 .Ev SSL_NO_TLS1 ,
+.Ev SSL_NO_TLS1_1 ,
+.Ev SSL_NO_TLS1_2 ,
 .Ev SSL_NO_VERIFY_HOSTNAME
 and
 .Ev SSL_NO_VERIFY_PEER .
@@ -371,7 +385,8 @@ argument is used and the remote file is not newer than the
 specified file then the command will still return success,
 although no file is transferred.
 .Sh SEE ALSO
-.Xr fetch 3
+.Xr fetch 3 ,
+.Xr phttpget 8
 .Sh HISTORY
 The
 .Nm

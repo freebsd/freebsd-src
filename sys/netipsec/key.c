@@ -3490,6 +3490,7 @@ key_setdumpsa(struct secasvar *sav, u_int8_t type, u_int8_t satype,
 	}
 
 	m_cat(result, tres);
+	tres = NULL;
 	if (result->m_len < sizeof(struct sadb_msg)) {
 		result = m_pullup(result, sizeof(struct sadb_msg));
 		if (result == NULL)
@@ -7639,7 +7640,8 @@ key_init(void)
 	/* initialize key statistics */
 	keystat.getspi_count = 1;
 
-	printf("IPsec: Initialized Security Association Processing.\n");
+	if (bootverbose)
+		printf("IPsec: Initialized Security Association Processing.\n");
 }
 
 #ifdef VIMAGE

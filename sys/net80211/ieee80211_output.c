@@ -849,6 +849,15 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 	return (ret);
 }
 
+static void
+ieee80211_nulldata_transmitted(struct ieee80211_node *ni, void *arg,
+    int status)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+
+	wakeup(vap);
+}
+
 /*
  * Send a null data frame to the specified node.  If the station
  * is setup for QoS then a QoS Null Data frame is constructed.
@@ -936,6 +945,11 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 		if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 		    vap->iv_opmode != IEEE80211_M_HOSTAP)
 			wh->i_fc[1] |= IEEE80211_FC1_PWR_MGT;
+	}
+	if ((ic->ic_flags & IEEE80211_F_SCAN) &&
+	    (ni->ni_flags & IEEE80211_NODE_PWR_MGT)) {
+		ieee80211_add_callback(m, ieee80211_nulldata_transmitted,
+		    NULL);
 	}
 	m->m_len = m->m_pkthdr.len = hdrlen;
 	m->m_flags |= M_ENCAP;		/* mark encapsulated */

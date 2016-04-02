@@ -203,5 +203,5 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 
 
 	mips_init();
-	mips_timer_init_params(platform_counter_freq, 2);
+	mips_timer_init_params(platform_counter_freq, 1);
 }

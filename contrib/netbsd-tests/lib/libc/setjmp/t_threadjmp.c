@@ -91,7 +91,7 @@ static pthread_t myself = NULL;
 static int expectsignal;
 
 static void
-aborthandler(int signo)
+aborthandler(int signo __unused)
 {
 	ATF_REQUIRE(myself == pthread_self());
 	ATF_REQUIRE_MSG(expectsignal, "kill(SIGABRT) succeeded");

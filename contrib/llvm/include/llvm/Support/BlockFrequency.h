@@ -14,12 +14,12 @@
 #ifndef LLVM_SUPPORT_BLOCKFREQUENCY_H
 #define LLVM_SUPPORT_BLOCKFREQUENCY_H
 
+#include "llvm/Support/BranchProbability.h"
 #include "llvm/Support/DataTypes.h"
 
 namespace llvm {
 
 class raw_ostream;
-class BranchProbability;
 
 // This class represents Block Frequency as a 64-bit value.
 class BlockFrequency {
@@ -37,34 +37,38 @@ public:
 
   /// \brief Multiplies with a branch probability. The computation will never
   /// overflow.
-  BlockFrequency &operator*=(const BranchProbability &Prob);
-  const BlockFrequency operator*(const BranchProbability &Prob) const;
+  BlockFrequency &operator*=(BranchProbability Prob);
+  BlockFrequency operator*(BranchProbability Prob) const;
 
   /// \brief Divide by a non-zero branch probability using saturating
   /// arithmetic.
-  BlockFrequency &operator/=(const BranchProbability &Prob);
-  BlockFrequency operator/(const BranchProbability &Prob) const;
+  BlockFrequency &operator/=(BranchProbability Prob);
+  BlockFrequency operator/(BranchProbability Prob) const;
 
   /// \brief Adds another block frequency using saturating arithmetic.
-  BlockFrequency &operator+=(const BlockFrequency &Freq);
-  const BlockFrequency operator+(const BlockFrequency &Freq) const;
+  BlockFrequency &operator+=(BlockFrequency Freq);
+  BlockFrequency operator+(BlockFrequency Freq) const;
+
+  /// \brief Subtracts another block frequency using saturating arithmetic.
+  BlockFrequency &operator-=(BlockFrequency Freq);
+  BlockFrequency operator-(BlockFrequency Freq) const;
 
   /// \brief Shift block frequency to the right by count digits saturating to 1.
   BlockFrequency &operator>>=(const unsigned count);
 
-  bool operator<(const BlockFrequency &RHS) const {
+  bool operator<(BlockFrequency RHS) const {
     return Frequency < RHS.Frequency;
   }
 
-  bool operator<=(const BlockFrequency &RHS) const {
+  bool operator<=(BlockFrequency RHS) const {
     return Frequency <= RHS.Frequency;
   }
 
-  bool operator>(const BlockFrequency &RHS) const {
+  bool operator>(BlockFrequency RHS) const {
     return Frequency > RHS.Frequency;
   }
 
-  bool operator>=(const BlockFrequency &RHS) const {
+  bool operator>=(BlockFrequency RHS) const {
     return Frequency >= RHS.Frequency;
   }
 };

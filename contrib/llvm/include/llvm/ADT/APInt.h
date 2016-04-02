@@ -294,11 +294,12 @@ public:
       delete[] pVal;
   }
 
-  /// \brief Default constructor that creates an uninitialized APInt.
+  /// \brief Default constructor that creates an uninteresting APInt
+  /// representing a 1-bit zero value.
   ///
   /// This is useful for object deserialization (pair this with the static
   ///  method Read).
-  explicit APInt() : BitWidth(1) {}
+  explicit APInt() : BitWidth(1), VAL(0) {}
 
   /// \brief Returns whether this instance allocated memory.
   bool needsCleanup() const { return !isSingleWord(); }
@@ -1528,7 +1529,7 @@ public:
   /// \returns the nearest log base 2 of this APInt. Ties round up.
   ///
   /// NOTE: When we have a BitWidth of 1, we define:
-  /// 
+  ///
   ///   log2(0) = UINT32_MAX
   ///   log2(1) = 0
   ///

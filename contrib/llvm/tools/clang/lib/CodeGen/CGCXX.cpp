@@ -28,6 +28,7 @@
 using namespace clang;
 using namespace CodeGen;
 
+
 /// Try to emit a base destructor as an alias to its primary
 /// base-class destructor.
 bool CodeGenModule::TryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
@@ -37,6 +38,12 @@ bool CodeGenModule::TryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
   // Producing an alias to a base class ctor/dtor can degrade debug quality
   // as the debugger cannot tell them apart.
   if (getCodeGenOpts().OptimizationLevel == 0)
+    return true;
+
+  // If sanitizing memory to check for use-after-dtor, do not emit as
+  //  an alias, unless this class owns no members.
+  if (getCodeGenOpts().SanitizeMemoryUseAfterDtor &&
+      !D->getParent()->field_empty())
     return true;
 
   // If the destructor doesn't have a trivial body, we have to emit it
@@ -124,11 +131,6 @@ bool CodeGenModule::TryEmitDefinitionAsAlias(GlobalDecl AliasDecl,
   if (!llvm::GlobalAlias::isValidLinkage(Linkage))
     return true;
 
-  // Don't create a weak alias for a dllexport'd symbol.
-  if (AliasDecl.getDecl()->hasAttr<DLLExportAttr>() &&
-      llvm::GlobalValue::isWeakForLinker(Linkage))
-    return true;
-
   llvm::GlobalValue::LinkageTypes TargetLinkage =
       getFunctionLinkage(TargetDecl);
 
@@ -141,8 +143,8 @@ bool CodeGenModule::TryEmitDefinitionAsAlias(GlobalDecl AliasDecl,
     return false;
 
   // Derive the type for the alias.
-  llvm::PointerType *AliasType
-    = getTypes().GetFunctionType(AliasDecl)->getPointerTo();
+  llvm::Type *AliasValueType = getTypes().GetFunctionType(AliasDecl);
+  llvm::PointerType *AliasType = AliasValueType->getPointerTo();
 
   // Find the referent.  Some aliases might require a bitcast, in
   // which case the caller is responsible for ensuring the soundness
@@ -166,6 +168,16 @@ bool CodeGenModule::TryEmitDefinitionAsAlias(GlobalDecl AliasDecl,
     return false;
   }
 
+  // If we have a weak, non-discardable alias (weak, weak_odr), like an extern
+  // template instantiation or a dllexported class, avoid forming it on COFF.
+  // A COFF weak external alias cannot satisfy a normal undefined symbol
+  // reference from another TU. The other TU must also mark the referenced
+  // symbol as weak, which we cannot rely on.
+  if (llvm::GlobalValue::isWeakForLinker(Linkage) &&
+      getTriple().isOSBinFormatCOFF()) {
+    return true;
+  }
+
   if (!InEveryTU) {
     // If we don't have a definition for the destructor yet, don't
     // emit.  We can't emit aliases to declarations; that's just not
@@ -182,8 +194,8 @@ bool CodeGenModule::TryEmitDefinitionAsAlias(GlobalDecl AliasDecl,
     return true;
 
   // Create the alias with no name.
-  auto *Alias =
-      llvm::GlobalAlias::create(AliasType, Linkage, "", Aliasee, &getModule());
+  auto *Alias = llvm::GlobalAlias::create(AliasValueType, 0, Linkage, "",
+                                          Aliasee, &getModule());
 
   // Switch any previous uses to the alias.
   if (Entry) {
@@ -207,7 +219,8 @@ llvm::Function *CodeGenModule::codegenCXXStructor(const CXXMethodDecl *MD,
   const CGFunctionInfo &FnInfo =
       getTypes().arrangeCXXStructorDeclaration(MD, Type);
   auto *Fn = cast<llvm::Function>(
-      getAddrOfCXXStructor(MD, Type, &FnInfo, nullptr, true));
+      getAddrOfCXXStructor(MD, Type, &FnInfo, /*FnType=*/nullptr,
+                           /*DontDefer=*/true, /*IsForDefinition=*/true));
 
   GlobalDecl GD;
   if (const auto *DD = dyn_cast<CXXDestructorDecl>(MD)) {
@@ -226,9 +239,9 @@ llvm::Function *CodeGenModule::codegenCXXStructor(const CXXMethodDecl *MD,
   return Fn;
 }
 
-llvm::GlobalValue *CodeGenModule::getAddrOfCXXStructor(
+llvm::Constant *CodeGenModule::getAddrOfCXXStructor(
     const CXXMethodDecl *MD, StructorType Type, const CGFunctionInfo *FnInfo,
-    llvm::FunctionType *FnType, bool DontDefer) {
+    llvm::FunctionType *FnType, bool DontDefer, bool IsForDefinition) {
   GlobalDecl GD;
   if (auto *CD = dyn_cast<CXXConstructorDecl>(MD)) {
     GD = GlobalDecl(CD, toCXXCtorType(Type));
@@ -236,19 +249,15 @@ llvm::GlobalValue *CodeGenModule::getAddrOfCXXStructor(
     GD = GlobalDecl(cast<CXXDestructorDecl>(MD), toCXXDtorType(Type));
   }
 
-  StringRef Name = getMangledName(GD);
-  if (llvm::GlobalValue *Existing = GetGlobalValue(Name))
-    return Existing;
-
   if (!FnType) {
     if (!FnInfo)
       FnInfo = &getTypes().arrangeCXXStructorDeclaration(MD, Type);
     FnType = getTypes().GetFunctionType(*FnInfo);
   }
 
-  return cast<llvm::Function>(GetOrCreateLLVMFunction(Name, FnType, GD,
-                                                      /*ForVTable=*/false,
-                                                      DontDefer));
+  return GetOrCreateLLVMFunction(
+      getMangledName(GD), FnType, GD, /*ForVTable=*/false, DontDefer,
+      /*isThunk=*/false, /*ExtraAttrs=*/llvm::AttributeSet(), IsForDefinition);
 }
 
 static llvm::Value *BuildAppleKextVirtualCall(CodeGenFunction &CGF,
@@ -270,7 +279,7 @@ static llvm::Value *BuildAppleKextVirtualCall(CodeGenFunction &CGF,
   VTableIndex += AddressPoint;
   llvm::Value *VFuncPtr =
     CGF.Builder.CreateConstInBoundsGEP1_64(VTable, VTableIndex, "vfnkxt");
-  return CGF.Builder.CreateLoad(VFuncPtr);
+  return CGF.Builder.CreateAlignedLoad(VFuncPtr, CGF.PointerAlignInBytes);
 }
 
 /// BuildAppleKextVirtualCall - This routine is to support gcc's kext ABI making

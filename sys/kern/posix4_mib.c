@@ -77,8 +77,7 @@ SYSCTL_NODE(_kern, OID_AUTO, p1003_1b, CTLFLAG_RW, 0, "P1003.1B");
 
 #endif
 
-SYSCTL_INT(_p1003_1b, CTL_P1003_1B_ASYNCHRONOUS_IO, \
-	asynchronous_io, CTLFLAG_RD, &async_io_version, 0, "");
+P1B_SYSCTL(CTL_P1003_1B_ASYNCHRONOUS_IO, asynchronous_io);
 P1B_SYSCTL(CTL_P1003_1B_MAPPED_FILES, mapped_files);
 P1B_SYSCTL(CTL_P1003_1B_MEMLOCK, memlock);
 P1B_SYSCTL(CTL_P1003_1B_MEMLOCK_RANGE, memlock_range);
@@ -170,12 +169,6 @@ p31b_set_standard(void *dummy)
 	p31b_setcfg(CTL_P1003_1B_MAPPED_FILES, 200112L);
 	p31b_setcfg(CTL_P1003_1B_SHARED_MEMORY_OBJECTS, 200112L);
 	p31b_setcfg(CTL_P1003_1B_PAGESIZE, PAGE_SIZE);
-	if (!p31b_iscfg(CTL_P1003_1B_AIO_LISTIO_MAX))
-		p31b_setcfg(CTL_P1003_1B_AIO_LISTIO_MAX, -1);
-	if (!p31b_iscfg(CTL_P1003_1B_AIO_MAX))
-		p31b_setcfg(CTL_P1003_1B_AIO_MAX, -1);
-	if (!p31b_iscfg(CTL_P1003_1B_AIO_PRIO_DELTA_MAX))
-		p31b_setcfg(CTL_P1003_1B_AIO_PRIO_DELTA_MAX, -1);
 }
 
 SYSINIT(p31b_set_standard, SI_SUB_P1003_1B, SI_ORDER_ANY, p31b_set_standard, 

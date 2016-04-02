@@ -30,8 +30,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/sysproto.h>
 
+#include <contrib/cloudabi/cloudabi_types_common.h>
+
 #include <compat/cloudabi/cloudabi_proto.h>
-#include <compat/cloudabi/cloudabi_syscalldefs.h>
 
 /* Converts CloudABI's memory protection flags to FreeBSD's. */
 static int

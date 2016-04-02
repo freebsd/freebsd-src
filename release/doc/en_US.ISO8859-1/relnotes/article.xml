@@ -1168,6 +1168,11 @@
 
       <para revision="288310">The &man.ctl.4; driver has been updated
 	to support CD-ROM and removable devices.</para>
+
+      <para contrib="sponsor" sponsor="&ix;">The &man.isp.4; driver has
+	been updated and improved: added support for 16Gbps FC cards,
+	improved target mode support, completed Multi-ID (NPIV)
+	functionality.</para>
     </sect2>
 
     <sect2 xml:id="drivers-network">

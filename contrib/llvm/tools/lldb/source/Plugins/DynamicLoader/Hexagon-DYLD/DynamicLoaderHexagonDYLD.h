@@ -7,12 +7,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_DynamicLoaderHexagon_H_
-#define liblldb_DynamicLoaderHexagon_H_
+#ifndef liblldb_DynamicLoaderHexagonDYLD_h_
+#define liblldb_DynamicLoaderHexagonDYLD_h_
 
 // C Includes
 // C++ Includes
 // Other libraries and framework includes
+// Project includes
 #include "lldb/Breakpoint/StoppointCallbackContext.h"
 #include "lldb/Target/DynamicLoader.h"
 
@@ -21,6 +22,9 @@
 class DynamicLoaderHexagonDYLD : public lldb_private::DynamicLoader
 {
 public:
+    DynamicLoaderHexagonDYLD(lldb_private::Process *process);
+
+    ~DynamicLoaderHexagonDYLD() override;
 
     static void
     Initialize();
@@ -37,48 +41,34 @@ public:
     static lldb_private::DynamicLoader *
     CreateInstance(lldb_private::Process *process, bool force);
 
-    DynamicLoaderHexagonDYLD(lldb_private::Process *process);
-
-    virtual
-    ~DynamicLoaderHexagonDYLD();
-
     //------------------------------------------------------------------
     // DynamicLoader protocol
     //------------------------------------------------------------------
 
-    virtual void
-    DidAttach();
+    void
+    DidAttach() override;
 
-    virtual void
-    DidLaunch();
+    void
+    DidLaunch() override;
 
-    virtual lldb::ThreadPlanSP
+    lldb::ThreadPlanSP
     GetStepThroughTrampolinePlan(lldb_private::Thread &thread,
-                                 bool stop_others);
+                                 bool stop_others) override;
 
-    virtual lldb_private::Error
-    CanLoadImage();
+    lldb_private::Error
+    CanLoadImage() override;
 
-    virtual lldb::addr_t
-    GetThreadLocalData (const lldb::ModuleSP module, const lldb::ThreadSP thread);
+    lldb::addr_t
+    GetThreadLocalData(const lldb::ModuleSP module, const lldb::ThreadSP thread) override;
 
     //------------------------------------------------------------------
     // PluginInterface protocol
     //------------------------------------------------------------------
-    virtual lldb_private::ConstString
-    GetPluginName();
+    lldb_private::ConstString
+    GetPluginName() override;
 
-    virtual uint32_t
-    GetPluginVersion();
-
-    virtual void
-    GetPluginCommandHelp(const char *command, lldb_private::Stream *strm);
-
-    virtual lldb_private::Error
-    ExecutePluginCommand(lldb_private::Args &command, lldb_private::Stream *strm);
-
-    virtual lldb_private::Log *
-    EnablePluginLogging(lldb_private::Stream *strm, lldb_private::Args &command);
+    uint32_t
+    GetPluginVersion() override;
 
 protected:
     /// Runtime linker rendezvous structure.
@@ -124,18 +114,22 @@ protected:
     void
     UpdateLoadedSections(lldb::ModuleSP module,
                          lldb::addr_t link_map_addr,
-                         lldb::addr_t base_addr);
+                         lldb::addr_t base_addr,
+                         bool base_addr_is_offset) override;
 
     /// Removes the loaded sections from the target in @p module.
     ///
     /// @param module The module to traverse.
     void
-    UnloadSections(const lldb::ModuleSP module);
+    UnloadSections(const lldb::ModuleSP module) override;
 
     /// Locates or creates a module given by @p file and updates/loads the
     /// resulting module at the virtual base address @p base_addr.
     lldb::ModuleSP
-    LoadModuleAtAddress(const lldb_private::FileSpec &file, lldb::addr_t link_map_addr, lldb::addr_t base_addr);
+    LoadModuleAtAddress(const lldb_private::FileSpec &file,
+                        lldb::addr_t link_map_addr,
+                        lldb::addr_t base_addr,
+                        bool base_addr_is_offset) override;
 
     /// Callback routine invoked when we hit the breakpoint on process entry.
     ///
@@ -173,10 +167,10 @@ protected:
     FindRendezvousBreakpointAddress( );
 
 private:
-    DISALLOW_COPY_AND_ASSIGN(DynamicLoaderHexagonDYLD);
-
     const lldb_private::SectionList *
     GetSectionListFromModule(const lldb::ModuleSP module) const;
+
+    DISALLOW_COPY_AND_ASSIGN(DynamicLoaderHexagonDYLD);
 };
 
-#endif  // liblldb_DynamicLoaderHexagonDYLD_H_
+#endif // liblldb_DynamicLoaderHexagonDYLD_h_

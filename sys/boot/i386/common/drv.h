@@ -42,7 +42,7 @@ struct dsk {
 int drvread(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk);
 #ifdef GPT
 int drvwrite(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk);
-uint64_t drvsize(struct dsk *dskp);
 #endif	/* GPT */
+uint64_t drvsize(struct dsk *dskp);
 
 #endif	/* !_DRV_H_ */

@@ -8,6 +8,7 @@
 
 # XXX The use of COPTS in modern makefiles is discouraged.
 .if defined(COPTS)
+.warning ${.CURDIR}: COPTS should be CFLAGS.
 CFLAGS+=${COPTS}
 .endif
 
@@ -63,6 +64,8 @@ PROG_FULL=${PROG}.full
 DEBUGFILEDIR=	${DEBUGDIR}${BINDIR}
 .else
 DEBUGFILEDIR?=	${BINDIR}/.debug
+.endif
+.if !exists(${DESTDIR}${DEBUGFILEDIR})
 DEBUGMKDIR=
 .endif
 .else
@@ -277,9 +280,6 @@ lint: ${SRCS:M*.c}
 
 .if defined(PROG)
 OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
-.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
-${OBJS}: ${OBJS_DEPEND_GUESS}
-.endif
 .endif
 
 .include <bsd.dep.mk>

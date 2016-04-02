@@ -22,15 +22,12 @@ class CMICmdArgContext;
 //          interpret the options (context) string to find and validate a matching
 //          argument and so extract a value from it .
 //          Based on the Interpreter pattern.
-// Gotchas: None.
-// Authors: Illya Rudkin 15/04/2014.
-// Changes: None.
 //--
 class CMICmdArgValFile : public CMICmdArgValBaseTemplate<CMIUtilString>
 {
     // Methods:
   public:
-    /* ctor */ CMICmdArgValFile(void);
+    /* ctor */ CMICmdArgValFile();
     /* ctor */ CMICmdArgValFile(const CMIUtilString &vrArgName, const bool vbMandatory, const bool vbHandleByCmd);
     //
     bool IsFilePath(const CMIUtilString &vrFileNamePath) const;
@@ -39,7 +36,7 @@ class CMICmdArgValFile : public CMICmdArgValBaseTemplate<CMIUtilString>
     // Overridden:
   public:
     // From CMICmdArgValBase
-    /* dtor */ ~CMICmdArgValFile(void) override;
+    /* dtor */ ~CMICmdArgValFile() override;
     // From CMICmdArgSet::IArg
     bool Validate(CMICmdArgContext &vwArgContext) override;
 

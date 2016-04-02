@@ -434,6 +434,8 @@ moea64_calc_wimg(vm_paddr_t pa, vm_memattr_t ma)
 		switch (ma) {
 		case VM_MEMATTR_UNCACHEABLE:
 			return (LPTE_I | LPTE_G);
+		case VM_MEMATTR_CACHEABLE:
+			return (LPTE_M);
 		case VM_MEMATTR_WRITE_COMBINING:
 		case VM_MEMATTR_WRITE_BACK:
 		case VM_MEMATTR_PREFETCHABLE:

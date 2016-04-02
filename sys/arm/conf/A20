@@ -31,6 +31,7 @@ options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
 options 	PLATFORM
+options 	PLATFORM_SMP
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
@@ -70,7 +71,7 @@ device		ahci			# AHCI-compatible SATA controllers
 
 # Console and misc
 device		uart
-device		uart_ns8250
+device		uart_snps
 device		pty
 device		snp
 device		md

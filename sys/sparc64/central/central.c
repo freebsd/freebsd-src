@@ -295,5 +295,5 @@ central_print_res(struct central_devinfo *cdi)
 {
 
 	return (resource_list_print_type(&cdi->cdi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx"));
+	    "%#jx"));
 }

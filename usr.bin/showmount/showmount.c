@@ -61,13 +61,15 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <vis.h>
 
 /* Constant defs */
 #define	ALL	1
 #define	DIRS	2
 
-#define	DODUMP		0x1
-#define	DOEXPORTS	0x2
+#define	DODUMP			0x1
+#define	DOEXPORTS		0x2
+#define	DOPARSABLEEXPORTS	0x4
 
 struct mountlist {
 	struct mountlist *ml_left;
@@ -108,13 +110,14 @@ int tcp_callrpc(const char *host, int prognum, int versnum, int procnum,
 int
 main(int argc, char **argv)
 {
+	char strvised[MNTPATHLEN * 4 + 1];
 	register struct exportslist *exp;
 	register struct grouplist *grp;
 	register int rpcs = 0, mntvers = 3;
 	const char *host;
-	int ch, estat;
+	int ch, estat, nbytes;
 
-	while ((ch = getopt(argc, argv, "ade13")) != -1)
+	while ((ch = getopt(argc, argv, "adEe13")) != -1)
 		switch (ch) {
 		case 'a':
 			if (type == 0) {
@@ -129,6 +132,9 @@ main(int argc, char **argv)
 				rpcs |= DODUMP;
 			} else
 				usage();
+			break;
+		case 'E':
+			rpcs |= DOPARSABLEEXPORTS;
 			break;
 		case 'e':
 			rpcs |= DOEXPORTS;
@@ -146,6 +152,13 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	if ((rpcs & DOPARSABLEEXPORTS) != 0) {
+		if ((rpcs & DOEXPORTS) != 0)
+			errx(1, "-E cannot be used with -e");
+		if ((rpcs & DODUMP) != 0)
+			errx(1, "-E cannot be used with -a or -d");
+	}
+
 	if (argc > 0)
 		host = *argv;
 	else
@@ -161,7 +174,7 @@ main(int argc, char **argv)
 			clnt_perrno(estat);
 			errx(1, "can't do mountdump rpc");
 		}
-	if (rpcs & DOEXPORTS)
+	if (rpcs & (DOEXPORTS | DOPARSABLEEXPORTS))
 		if ((estat = tcp_callrpc(host, MOUNTPROG, mntvers,
 			MOUNTPROC_EXPORT, (xdrproc_t)xdr_void, (char *)0,
 			(xdrproc_t)xdr_exportslist, (char *)&exportslist)) != 0) {
@@ -199,6 +212,17 @@ main(int argc, char **argv)
 				}
 				printf("\n");
 			}
+			exp = exp->ex_next;
+		}
+	}
+	if (rpcs & DOPARSABLEEXPORTS) {
+		exp = exportslist;
+		while (exp) {
+			nbytes = strsnvis(strvised, sizeof(strvised),
+			    exp->ex_dirp, VIS_GLOB | VIS_NL, "\"'$");
+			if (nbytes == -1)
+				err(1, "strsnvis");
+			printf("%s\n", strvised);
 			exp = exp->ex_next;
 		}
 	}

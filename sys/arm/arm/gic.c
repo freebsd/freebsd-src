@@ -121,6 +121,11 @@ __FBSDID("$FreeBSD$");
 static u_int gic_irq_cpu;
 static int arm_gic_intr(void *);
 static int arm_gic_bind(device_t dev, struct intr_irqsrc *isrc);
+
+#ifdef SMP
+u_int sgi_to_ipi[GIC_LAST_SGI - GIC_FIRST_SGI + 1];
+#define	ISRC_IPI(isrc)	sgi_to_ipi[isrc->isrc_data - GIC_FIRST_SGI]
+#endif
 #endif
 
 struct arm_gic_softc {
@@ -371,7 +376,7 @@ arm_gic_attach(device_t dev)
 {
 	struct		arm_gic_softc *sc;
 	int		i;
-	uint32_t	icciidr;
+	uint32_t	icciidr, mask;
 #ifdef ARM_INTRNG
 	phandle_t	pxref;
 	intptr_t	xref = gic_xref(dev);
@@ -432,10 +437,28 @@ arm_gic_attach(device_t dev)
 		gic_d_write_4(sc, GICD_ICENABLER(i >> 5), 0xFFFFFFFF);
 	}
 
+	/* Read the current cpuid mask by reading ITARGETSR{0..7} */
+	for (i = 0; i < 8; i++) {
+		mask = gic_d_read_4(sc, GICD_ITARGETSR(i));
+		if (mask != 0)
+			break;
+	}
+	/* No mask found, assume we are on CPU interface 0 */
+	if (mask == 0)
+		mask = 1;
+
+	/* Collect the mask in the lower byte */
+	mask |= mask >> 16;
+	mask |= mask >> 8;
+	/* Distribute this back to the upper bytes */
+	mask |= mask << 8;
+	mask |= mask << 16;
+
 	for (i = 0; i < sc->nirqs; i += 4) {
 		gic_d_write_4(sc, GICD_IPRIORITYR(i >> 2), 0);
-		gic_d_write_4(sc, GICD_ITARGETSR(i >> 2),
-		    1 << 0 | 1 << 8 | 1 << 16 | 1 << 24);
+		if (i > 32) {
+			gic_d_write_4(sc, GICD_ITARGETSR(i >> 2), mask);
+		}
 	}
 
 	/* Set all the interrupts to be in Group 0 (secure) */
@@ -562,7 +585,7 @@ dispatch_irq:
 #ifdef SMP
 		/* Call EOI for all IPI before dispatch. */
 		gic_c_write_4(sc, GICC_EOIR, irq_active_reg);
-		intr_ipi_dispatch(isrc, tf);
+		intr_ipi_dispatch(ISRC_IPI(isrc), tf);
 		goto next_irq;
 #else
 		device_printf(sc->gic_dev, "SGI %u on UP system detected\n",
@@ -755,7 +778,7 @@ gic_map_fdt(struct arm_gic_softc *sc, struct intr_irqsrc *isrc, u_int *irqp)
 		 * The hardware only supports active-high-level or rising-edge.
 		 */
 		tripol = isrc->isrc_cells[2];
-		if (tripol & 0x0a) {
+		if (tripol & 0x0a && irq >= GIC_FIRST_SPI) {
 			device_printf(sc->gic_dev,
 			   "unsupported trigger/polarity configuration "
 			   "0x%02x\n",  tripol & 0x0f);
@@ -917,6 +940,20 @@ arm_gic_ipi_send(device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus)
 			val |= 1 << (16 + i);
 
 	gic_d_write_4(sc, GICD_SGIR(0), val | irq);
+}
+
+static int
+arm_gic_ipi_setup(device_t dev, u_int ipi, struct intr_irqsrc *isrc)
+{
+	struct arm_gic_softc *sc = device_get_softc(dev);
+	u_int irq;
+	int error;
+
+	error = gic_map_nspc(sc, isrc, &irq);
+	if (error != 0)
+		return (error);
+	sgi_to_ipi[irq - GIC_FIRST_SGI] = ipi;
+	return (0);
 }
 #endif
 #else
@@ -1146,6 +1183,7 @@ static device_method_t arm_gic_methods[] = {
 	DEVMETHOD(pic_bind,		arm_gic_bind),
 	DEVMETHOD(pic_init_secondary,	arm_gic_init_secondary),
 	DEVMETHOD(pic_ipi_send,		arm_gic_ipi_send),
+	DEVMETHOD(pic_ipi_setup,	arm_gic_ipi_setup),
 #endif
 #endif
 	{ 0, 0 }

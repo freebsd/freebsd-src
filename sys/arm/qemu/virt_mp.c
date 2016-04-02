@@ -38,11 +38,14 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/intr.h>
+#include <machine/platformvar.h>
 #include <machine/smp.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_cpu.h>
 #include <dev/psci/psci.h>
+
+#include <arm/qemu/virt_mp.h>
 
 static int running_cpus;
 
@@ -57,7 +60,7 @@ virt_maxid(u_int id, phandle_t node, u_int addr_cells, pcell_t *reg)
 }
 
 void
-platform_mp_setmaxid(void)
+virt_mp_setmaxid(platform_t plat)
 {
 
 	mp_maxid = PCPU_GET(cpuid);
@@ -85,7 +88,7 @@ virt_start_ap(u_int id, phandle_t node, u_int addr_cells, pcell_t *reg)
 }
 
 void
-platform_mp_start_ap(void)
+virt_mp_start_ap(platform_t plat)
 {
 
 	ofw_cpu_early_foreach(virt_start_ap, true);

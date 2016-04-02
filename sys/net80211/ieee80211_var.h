@@ -85,7 +85,7 @@
 #define	IEEE80211_MS_TO_TU(x)	(((x) * 1000) / 1024)
 #define	IEEE80211_TU_TO_MS(x)	(((x) * 1024) / 1000)
 /* XXX TODO: cap this at 1, in case hz is not 1000 */
-#define	IEEE80211_TU_TO_TICKS(x)(((x) * 1024 * hz) / (1000 * 1000))
+#define	IEEE80211_TU_TO_TICKS(x)(((uint64_t)(x) * 1024 * hz) / (1000 * 1000))
 
 /*
  * 802.11 control state is split into a common portion that maps

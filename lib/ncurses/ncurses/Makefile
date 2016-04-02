@@ -331,7 +331,7 @@ codes.c: MKcodes.awk
 	${AWK} -f ${NCURSES_DIR}/ncurses/tinfo/MKcodes.awk bigstrings=${USE_BIG_STRINGS} ${NCURSES_DIR}/include/Caps > codes.c
 
 lib_gen.c: MKlib_gen.sh curses.h
-	LC_ALL=C sh ${NCURSES_DIR}/ncurses/base/MKlib_gen.sh "${CC} -E ${CFLAGS}" \
+	LC_ALL=C sh ${NCURSES_DIR}/ncurses/base/MKlib_gen.sh "${CC:N${CCACHE_BIN}} -E ${CFLAGS}" \
 	    "${AWK}" generated < curses.h >$@
 
 lib_keyname.c: keys.list MKkeyname.awk
@@ -346,14 +346,14 @@ comp_captab.c: MKcaptab.sh MKcaptab.awk Caps make_hash
 	    ${NCURSES_DIR}/include/Caps > comp_captab.c
 
 expanded.c: MKexpanded.sh
-	sh ${NCURSES_DIR}/ncurses/tty/MKexpanded.sh "${CC} -E" ${CFLAGS} >expanded.c
+	sh ${NCURSES_DIR}/ncurses/tty/MKexpanded.sh "${CC:N${CCACHE_BIN}} -E" ${CFLAGS} >expanded.c
 
 fallback.c: MKfallback.sh
 	sh ${NCURSES_DIR}/ncurses/tinfo/MKfallback.sh > fallback.c
 
 # Generated headers
 nomacros.h: MKlib_gen.sh curses.h
-	LC_ALL=C sh ${NCURSES_DIR}/ncurses/base/MKlib_gen.sh "${CC} -E ${CFLAGS}" \
+	LC_ALL=C sh ${NCURSES_DIR}/ncurses/base/MKlib_gen.sh "${CC:N${CCACHE_BIN}} -E ${CFLAGS}" \
 	    "${AWK}" generated < curses.h | fgrep undef > $@
 
 init_keytry.h: keys.list make_keys

@@ -30,12 +30,11 @@ class GCOVBlock;
 class FileInfo;
 
 namespace GCOV {
-enum GCOVVersion { V402, V404 };
-} // end GCOV namespace
+enum GCOVVersion { V402, V404, V704 };
 
-/// GCOVOptions - A struct for passing gcov options between functions.
-struct GCOVOptions {
-  GCOVOptions(bool A, bool B, bool C, bool F, bool P, bool U, bool L, bool N)
+/// \brief A struct for passing gcov options between functions.
+struct Options {
+  Options(bool A, bool B, bool C, bool F, bool P, bool U, bool L, bool N)
       : AllBlocks(A), BranchInfo(B), BranchCount(C), FuncCoverage(F),
         PreservePaths(P), UncondBranch(U), LongFileNames(L), NoOutput(N) {}
 
@@ -48,6 +47,7 @@ struct GCOVOptions {
   bool LongFileNames;
   bool NoOutput;
 };
+} // end GCOV namespace
 
 /// GCOVBuffer - A wrapper around MemoryBuffer to provide GCOV specific
 /// read operations.
@@ -88,6 +88,11 @@ public:
     if (VersionStr == "*404") {
       Cursor += 4;
       Version = GCOV::V404;
+      return true;
+    }
+    if (VersionStr == "*704") {
+      Cursor += 4;
+      Version = GCOV::V704;
       return true;
     }
     errs() << "Unexpected version: " << VersionStr << ".\n";
@@ -390,7 +395,7 @@ class FileInfo {
   };
 
 public:
-  FileInfo(const GCOVOptions &Options)
+  FileInfo(const GCOV::Options &Options)
       : Options(Options), LineInfo(), RunCount(0), ProgramCount(0) {}
 
   void addBlockLine(StringRef Filename, uint32_t Line, const GCOVBlock *Block) {
@@ -424,7 +429,7 @@ private:
   void printFuncCoverage(raw_ostream &OS) const;
   void printFileCoverage(raw_ostream &OS) const;
 
-  const GCOVOptions &Options;
+  const GCOV::Options &Options;
   StringMap<LineData> LineInfo;
   uint32_t RunCount;
   uint32_t ProgramCount;

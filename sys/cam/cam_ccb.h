@@ -189,14 +189,16 @@ typedef enum {
 	XPT_ATA_IO		= 0x18 | XPT_FC_DEV_QUEUED,
 				/* Execute the requested ATA I/O operation */
 
-	XPT_GET_SIM_KNOB	= 0x18,
-				/*
-				 * Get SIM specific knob values.
-				 */
+	XPT_GET_SIM_KNOB_OLD	= 0x18, /* Compat only */
 
 	XPT_SET_SIM_KNOB	= 0x19,
 				/*
 				 * Set SIM specific knob values.
+				 */
+
+	XPT_GET_SIM_KNOB	= 0x1a,
+				/*
+				 * Get SIM specific knob values.
 				 */
 
 	XPT_SMP_IO		= 0x1b | XPT_FC_DEV_QUEUED,
@@ -722,6 +724,13 @@ struct ccb_scsiio {
 	u_int	   tag_id;		/* tag id from initator (target mode) */
 	u_int	   init_id;		/* initiator id of who selected */
 };
+
+static __inline uint8_t *
+scsiio_cdb_ptr(struct ccb_scsiio *ccb)
+{
+	return ((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
+	    ccb->cdb_io.cdb_ptr : ccb->cdb_io.cdb_bytes);
+}
 
 /*
  * ATA I/O Request CCB used for the XPT_ATA_IO function code.

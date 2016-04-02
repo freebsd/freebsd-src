@@ -38,7 +38,11 @@ NETBSD_ATF_TESTS_C+=	tanh_test
 
 TAP_TESTS_C+=	cexp_test
 TAP_TESTS_C+=	conj_test
+.if ${MACHINE_CPUARCH} != "aarch64"
+# Hits an assert in llvm when building for arm64:
+# https://llvm.org/bugs/show_bug.cgi?id=26081
 TAP_TESTS_C+=	csqrt_test
+.endif
 TAP_TESTS_C+=	ctrig_test
 TAP_TESTS_C+=	exponential_test
 TAP_TESTS_C+=	fenv_test

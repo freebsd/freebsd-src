@@ -132,7 +132,7 @@ class PseudoSE<dag outs, dag ins, list<dag> pattern,
 // These are aliases that require C++ handling to convert to the target
 // instruction, while InstAliases can be handled directly by tblgen.
 class MipsAsmPseudoInst<dag outs, dag ins, string asmstr>:
-  MipsInst<outs, ins, asmstr, [], IIPseudo, Pseudo> {
+  MipsInst<outs, ins, asmstr, [], IIPseudo, Pseudo>, PredicateControl {
   let isPseudo = 1;
   let Pattern = [];
 }
@@ -644,15 +644,15 @@ class BRK_FM<bits<6> funct> : StdArch
 //  Exception return format <Cop0|1|0|funct>
 //===----------------------------------------------------------------------===//
 
-class ER_FM<bits<6> funct> : StdArch
+class ER_FM<bits<6> funct, bit LLBit> : StdArch
 {
   bits<32> Inst;
   let Inst{31-26} = 0x10;
   let Inst{25}    = 1;
-  let Inst{24-6}  = 0;
+  let Inst{24-7}  = 0;
+  let Inst{6} = LLBit;
   let Inst{5-0}   = funct;
 }
-
 
 //===----------------------------------------------------------------------===//
 //  Enable/disable interrupt instruction format <Cop0|MFMC0|rt|12|0|sc|0|0>

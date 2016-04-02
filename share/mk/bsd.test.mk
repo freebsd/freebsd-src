@@ -76,10 +76,6 @@ SUBDIR_PARALLEL= t
 MAN=
 .endif
 
-# tell progs.mk we might want to install things
-PROG_VARS+= BINDIR
-PROGS_TARGETS+= install
-
 .if !defined(NOT_FOR_TEST_SUITE)
 .include <suite.test.mk>
 .endif

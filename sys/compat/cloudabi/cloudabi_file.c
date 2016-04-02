@@ -39,8 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/vnode.h>
 
+#include <contrib/cloudabi/cloudabi_types_common.h>
+
 #include <compat/cloudabi/cloudabi_proto.h>
-#include <compat/cloudabi/cloudabi_syscalldefs.h>
 #include <compat/cloudabi/cloudabi_util.h>
 
 #include <security/mac/mac_framework.h>
@@ -185,8 +186,8 @@ cloudabi_sys_file_link(struct thread *td,
 		return (error);
 	}
 
-	error = kern_linkat(td, uap->fd1, uap->fd2, path1, path2,
-	    UIO_SYSSPACE, (uap->fd1 & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) != 0 ?
+	error = kern_linkat(td, uap->fd1.fd, uap->fd2, path1, path2,
+	    UIO_SYSSPACE, (uap->fd1.flags & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) ?
 	    FOLLOW : NOFOLLOW);
 	cloudabi_freestr(path1);
 	cloudabi_freestr(path2);
@@ -248,7 +249,7 @@ cloudabi_sys_file_open(struct thread *td,
 		fflags |= O_SYNC;
 		cap_rights_set(&rights, CAP_FSYNC);
 	}
-	if ((uap->fd & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) == 0)
+	if ((uap->dirfd.flags & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) == 0)
 		fflags |= O_NOFOLLOW;
 	if (write && (fflags & (O_APPEND | O_TRUNC)) == 0)
 		cap_rights_set(&rights, CAP_SEEK);
@@ -265,7 +266,7 @@ cloudabi_sys_file_open(struct thread *td,
 		fdrop(fp, td);
 		return (error);
 	}
-	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, path, uap->fd,
+	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, path, uap->dirfd.fd,
 	    &rights, td);
 	error = vn_open(&nd, &fflags, 0777 & ~td->td_proc->p_fd->fd_cmask, fp);
 	cloudabi_freestr(path);
@@ -657,8 +658,8 @@ cloudabi_sys_file_stat_get(struct thread *td,
 		return (error);
 
 	error = kern_statat(td,
-	    (uap->fd & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) != 0 ? 0 :
-	    AT_SYMLINK_NOFOLLOW, uap->fd, path, UIO_SYSSPACE, &sb, NULL);
+	    (uap->fd.flags & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) != 0 ? 0 :
+	    AT_SYMLINK_NOFOLLOW, uap->fd.fd, path, UIO_SYSSPACE, &sb, NULL);
 	cloudabi_freestr(path);
 	if (error != 0)
 		return (error);
@@ -711,8 +712,8 @@ cloudabi_sys_file_stat_put(struct thread *td,
 		return (error);
 
 	convert_utimens_arguments(&fs, uap->flags, ts);
-	error = kern_utimensat(td, uap->fd, path, UIO_SYSSPACE, ts,
-	    UIO_SYSSPACE, (uap->fd & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) != 0 ?
+	error = kern_utimensat(td, uap->fd.fd, path, UIO_SYSSPACE, ts,
+	    UIO_SYSSPACE, (uap->fd.flags & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) ?
 	    0 : AT_SYMLINK_NOFOLLOW);
 	cloudabi_freestr(path);
 	return (error);
@@ -751,7 +752,7 @@ cloudabi_sys_file_unlink(struct thread *td,
 	if (error != 0)
 		return (error);
 
-	if (uap->flag & CLOUDABI_UNLINK_REMOVEDIR)
+	if (uap->flags & CLOUDABI_UNLINK_REMOVEDIR)
 		error = kern_rmdirat(td, uap->fd, path, UIO_SYSSPACE);
 	else
 		error = kern_unlinkat(td, uap->fd, path, UIO_SYSSPACE, 0);

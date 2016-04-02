@@ -92,7 +92,7 @@ public:
 REGISTER_MAP_WITH_PROGRAMSTATE(StreamMap, SymbolRef, StreamState)
 
 namespace {
-class StopTrackingCallback : public SymbolVisitor {
+class StopTrackingCallback final : public SymbolVisitor {
   ProgramStateRef state;
 public:
   StopTrackingCallback(ProgramStateRef st) : state(st) {}
@@ -200,7 +200,9 @@ void SimpleStreamChecker::checkDeadSymbols(SymbolReaper &SymReaper,
       State = State->remove<StreamMap>(Sym);
   }
 
-  ExplodedNode *N = C.addTransition(State);
+  ExplodedNode *N = C.generateNonFatalErrorNode(State);
+  if (!N)
+    return;
   reportLeaks(LeakedStreams, C, N);
 }
 
@@ -208,7 +210,7 @@ void SimpleStreamChecker::reportDoubleClose(SymbolRef FileDescSym,
                                             const CallEvent &Call,
                                             CheckerContext &C) const {
   // We reached a bug, stop exploring the path here by generating a sink.
-  ExplodedNode *ErrNode = C.generateSink();
+  ExplodedNode *ErrNode = C.generateErrorNode();
   // If we've already reached this node on another path, return.
   if (!ErrNode)
     return;
