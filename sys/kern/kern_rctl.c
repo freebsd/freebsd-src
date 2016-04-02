@@ -78,10 +78,16 @@ FEATURE(rctl, "Resource Limits");
 #define	RCTL_PCPU_SHIFT		(10 * 1000000)
 
 unsigned int rctl_maxbufsize = RCTL_MAX_OUTBUFSIZE;
+static int rctl_log_rate_limit = 10;
+static int rctl_devctl_rate_limit = 10;
 
 SYSCTL_NODE(_kern_racct, OID_AUTO, rctl, CTLFLAG_RW, 0, "Resource Limits");
 SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, maxbufsize, CTLFLAG_RWTUN,
     &rctl_maxbufsize, 0, "Maximum output buffer size");
+SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, log_rate_limit, CTLFLAG_RW,
+    &rctl_log_rate_limit, 0, "Maximum number of log messages per second");
+SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, devctl_rate_limit, CTLFLAG_RW,
+    &rctl_devctl_rate_limit, 0, "Maximum number of devctl messages per second");
 
 /*
  * 'rctl_rule_link' connects a rule with every racct it's related to.
@@ -336,13 +342,13 @@ rctl_pcpu_available(const struct proc *p) {
 int
 rctl_enforce(struct proc *p, int resource, uint64_t amount)
 {
+	static struct timeval log_lasttime, devctl_lasttime;
+	static int log_curtime = 0, devctl_curtime = 0;
 	struct rctl_rule *rule;
 	struct rctl_rule_link *link;
 	struct sbuf sb;
 	int should_deny = 0;
 	char *buf;
-	static int curtime = 0;
-	static struct timeval lasttime;
 
 	ASSERT_RACCT_ENABLED();
 
@@ -383,7 +389,8 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 			if (p->p_state != PRS_NORMAL)
 				continue;
 
-			if (!ppsratecheck(&lasttime, &curtime, 10))
+			if (!ppsratecheck(&log_lasttime, &log_curtime,
+			    rctl_log_rate_limit))
 				continue;
 
 			buf = malloc(RCTL_LOG_BUFSIZE, M_RCTL, M_NOWAIT);
@@ -409,6 +416,10 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 			if (p->p_state != PRS_NORMAL)
 				continue;
 	
+			if (!ppsratecheck(&devctl_lasttime, &devctl_curtime,
+			    rctl_devctl_rate_limit))
+				continue;
+
 			buf = malloc(RCTL_LOG_BUFSIZE, M_RCTL, M_NOWAIT);
 			if (buf == NULL) {
 				printf("rctl_enforce: out of memory\n");
