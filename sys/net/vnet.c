@@ -233,7 +233,7 @@ vnet_alloc(void)
 	SDT_PROBE1(vnet, functions, vnet_alloc, entry, __LINE__);
 	vnet = malloc(sizeof(struct vnet), M_VNET, M_WAITOK | M_ZERO);
 	vnet->vnet_magic_n = VNET_MAGIC_N;
-	vnet->vnet_state = VNET_STATE_STARTING;
+	vnet->vnet_state = 0;
 	SDT_PROBE2(vnet, functions, vnet_alloc, alloc, __LINE__, vnet);
 
 	/*
@@ -256,7 +256,6 @@ vnet_alloc(void)
 	CURVNET_RESTORE();
 
 	VNET_LIST_WLOCK();
-	vnet->vnet_state = VNET_STATE_ACTIVE;
 	LIST_INSERT_HEAD(&vnet_head, vnet, vnet_le);
 	VNET_LIST_WUNLOCK();
 
@@ -276,7 +275,6 @@ vnet_destroy(struct vnet *vnet)
 	    ("%s: vnet still has sockets", __func__));
 
 	VNET_LIST_WLOCK();
-	vnet->vnet_state = VNET_STATE_DYING;
 	LIST_REMOVE(vnet, vnet_le);
 	VNET_LIST_WUNLOCK();
 
@@ -294,23 +292,6 @@ vnet_destroy(struct vnet *vnet)
 	free(vnet, M_VNET);
 	SDT_PROBE1(vnet, functions, vnet_destroy, return, __LINE__);
 }
-
-/*
- * Cloned interfaces have become such a layer violation that they need
- * special treatmeant.   They need to go very first and they need to be able
- * to clean themselves up entirely and not wait for the stack to shutdown as
- * we if_free() them.  We would like to split the cleanup of them up as well
- * but in a non-VNET context a ifconfig foo0 destroy still has t work as well.
- * This MUST be the only SYSUNINIT on SI_SUB_PSEUDO_DONE/SI_ORDER_FIRST!
- */
-static void
-vnet_uninit_after_pseudo(const void *unused __unused)
-{
-
-	curvnet->vnet_state = VNET_STATE_DYING_AFTER_PSEUDO;
-}
-VNET_SYSUNINIT(vnet_if_uninit_after_pseudo, SI_SUB_PSEUDO_DONE, SI_ORDER_FIRST,
-    vnet_uninit_after_pseudo, NULL);
 
 /*
  * Boot time initialization and allocation of virtual network stacks.
@@ -350,7 +331,6 @@ vnet_init_done(void *unused)
 
 	curvnet = NULL;
 }
-
 SYSINIT(vnet_init_done, SI_SUB_VNET_DONE, SI_ORDER_FIRST, vnet_init_done,
     NULL);
 
@@ -583,6 +563,7 @@ vnet_sysinit(void)
 
 	VNET_SYSINIT_RLOCK();
 	TAILQ_FOREACH(vs, &vnet_constructors, link) {
+		curvnet->vnet_state = vs->subsystem;
 		vs->func(vs->arg);
 	}
 	VNET_SYSINIT_RUNLOCK();
@@ -602,6 +583,7 @@ vnet_sysuninit(void)
 	TAILQ_FOREACH_REVERSE(vs, &vnet_destructors, vnet_sysuninit_head,
 	    link) {
 		vs->func(vs->arg);
+		curvnet->vnet_state = vs->subsystem;
 	}
 	VNET_SYSINIT_RUNLOCK();
 }
@@ -702,29 +684,44 @@ vnet_log_recursion(struct vnet *old_vnet, const char *old_fn, int line)
  * DDB(4).
  */
 #ifdef DDB
-DB_SHOW_COMMAND(vnets, db_show_vnets)
+static void
+db_vnet_print(struct vnet *vnet)
+{
+
+	db_printf("vnet            = %p\n", vnet);
+	db_printf(" vnet_magic_n   = 0x%x (%s, orig 0x%x)\n",
+	    vnet->vnet_magic_n,
+	    (vnet->vnet_magic_n == VNET_MAGIC_N) ?
+		"ok" : "mismatch", VNET_MAGIC_N);
+	db_printf(" vnet_ifcnt     = %u\n", vnet->vnet_ifcnt);
+	db_printf(" vnet_sockcnt   = %u\n", vnet->vnet_sockcnt);
+	db_printf(" vnet_data_mem  = %p\n", vnet->vnet_data_mem);
+	db_printf(" vnet_data_base = 0x%jx\n",
+	    (uintmax_t)vnet->vnet_data_base);
+	db_printf(" vnet_state     = %#x\n", vnet->vnet_state);
+	db_printf("\n");
+}
+
+DB_SHOW_ALL_COMMAND(vnets, db_show_all_vnets)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 
 	VNET_FOREACH(vnet_iter) {
-		if (have_addr && addr != 0 &&
-		    (struct vnet *)addr != vnet_iter)
-			continue;
-		db_printf("vnet            = %p\n", vnet_iter);
-		db_printf(" vnet_magic_n   = 0x%x (%s, orig 0x%x)\n",
-		    vnet_iter->vnet_magic_n,
-		    (vnet_iter->vnet_magic_n == VNET_MAGIC_N) ?
-			"ok" : "mismatch", VNET_MAGIC_N);
-		db_printf(" vnet_ifcnt     = %u\n", vnet_iter->vnet_ifcnt);
-		db_printf(" vnet_sockcnt   = %u\n", vnet_iter->vnet_sockcnt);
-		db_printf(" vnet_data_mem  = %p\n", vnet_iter->vnet_data_mem);
-		db_printf(" vnet_data_base = 0x%jx\n",
-		    (uintmax_t)vnet_iter->vnet_data_base);
-		db_printf(" vnet_state     = %#x\n", vnet_iter->vnet_state);
-		db_printf("\n");
+		db_vnet_print(vnet_iter);
 		if (db_pager_quit)
 			break;
 	}
+}
+
+DB_SHOW_COMMAND(vnet, db_show_vnet)
+{
+
+	if (!have_addr) {
+		db_printf("usage: show vnet <struct vnet *>\n");
+		return;
+	}
+
+	db_vnet_print((struct vnet *)addr);
 }
 
 static void

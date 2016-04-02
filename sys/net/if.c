@@ -959,7 +959,8 @@ if_detach_internal(struct ifnet *ifp, int vmove, int shutdown,
 	/* The one thing we have to do. */
 	if_delgroups(ifp);
 
-	if (!vmove && !shutdown && ifp->if_vnet->vnet_state == VNET_STATE_DYING_AFTER_PSEUDO)
+	if (!vmove && !shutdown &&
+	    ifp->if_vnet->vnet_state <= SI_SUB_PSEUDO_DONE)
 		return (ENOENT);
 
 	/* Check if this is a cloned interface or not. */
