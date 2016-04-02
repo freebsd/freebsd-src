@@ -152,7 +152,9 @@
 #define	test_fault_ccall_code_noexecute			NULL
 #define	test_fault_ccall_data_execute			NULL
 #define	test_cheriabi_mmap_perms			NULL
+#define	test_deflate_zeroes				NULL
 #define	test_inflate_zeroes				NULL
+#define	test_sandbox_inflate_zeroes			NULL
 #define	test_sandbox_abort				NULL
 #define	test_sandbox_cs_calloc				NULL
 #define	test_sandbox_cs_clock_gettime			NULL
@@ -205,7 +207,6 @@
 #define	test_sandbox_getstack				NULL
 #define	test_sandbox_setstack_nop			NULL
 #define	test_sandbox_setstack				NULL
-#define	test_sandbox_inflate_zeroes			NULL
 #define	test_sandbox_var_bss				NULL
 #define	test_sandbox_var_data				NULL
 #define	test_sandbox_var_data_getset			NULL

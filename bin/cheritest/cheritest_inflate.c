@@ -69,88 +69,120 @@
 
 #include "cheritest.h"
 
+/*
+ * These tests compress (and decompress) 10K buffers of zeroes in order to
+ * validate compiler behaviour, passing data to/from domain crossing, etc.
+ * The below constant is the fixed *expected* compressed version of the data,
+ * used to evaluate the results of compression.
+ */
 #define INFLATE_BUFSIZE	(size_t)10*1024
 
-void
-local_inflate(z_stream *zsp)
-{
+static char uncompressed_zeroes[INFLATE_BUFSIZE];
+static const size_t uncompressed_zeroes_len =
+	    sizeof(uncompressed_zeroes) / sizeof(uncompressed_zeroes[0]);
 
-	if (inflateInit(zsp) != Z_OK)
-		cheritest_failure_errx("inflateInit");
-	if (inflate(zsp, Z_FINISH) != Z_STREAM_END)
-		cheritest_failure_errx("inflate");
-	if (inflateEnd(zsp) != Z_OK)
-		cheritest_failure_errx("inflateEnd");
+static char compressed_zeroes[] = {
+	0x78, 0x9c, 0xed, 0xc1, 0x01, 0x0d, 0x00, 0x00,
+	0x00, 0xc2, 0xa0, 0xf7, 0x4f, 0x6d, 0x0e, 0x37,
+	0xa0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x80, 0x37, 0x03, 0x28, 0x00, 0x00,
+	0x01,
+};
+static const size_t compressed_zeroes_len =
+	    sizeof(compressed_zeroes) / sizeof(compressed_zeroes[0]);
+
+static void
+check_compressed_data(const char *data, size_t datalen)
+{
+	size_t i;
+
+	if (datalen != compressed_zeroes_len)
+		cheritest_failure_errx("compressed data length wrong ("
+		    "expected %u, got %u)", compressed_zeroes_len, datalen);
+	for (i = 0; i < compressed_zeroes_len; i++) {
+		if (data[i] != compressed_zeroes[i])
+			cheritest_failure_errx("compressed data wrong at "
+			    "byte %u", i);
+	}
+}
+
+static void
+check_uncompressed_data(const char *data, size_t datalen)
+{
+	size_t i;
+
+	if (datalen != uncompressed_zeroes_len)
+		cheritest_failure_errx("uncompressed data length wrong ("
+		    "expected %u, got %u)", uncompressed_zeroes_len, datalen);
+	for (i = 0; i < uncompressed_zeroes_len; i++) {
+		if (data[i] != uncompressed_zeroes[i])
+			cheritest_failure_errx("uncompressed data wrong at "
+			    "byte %u", i);
+	}
+}
+
+void
+test_deflate_zeroes(const struct cheri_test *ctp __unused)
+{
+	int ret;
+	size_t compsize;
+	uint8_t *compbuf;
+	z_stream zs;
+
+	/*
+	 * Be conservative, random inputs may blow up signficantly.
+	 * Should really do multiple passes with realloc...
+	 */
+	compsize = uncompressed_zeroes_len * 2;
+	if ((compbuf = malloc(compsize)) == NULL)
+		cheritest_failure_err("malloc compbuf");
+
+	memset(&zs, 0, sizeof(zs));
+	zs.zalloc = Z_NULL;
+	zs.zfree = Z_NULL;
+	if ((ret = deflateInit(&zs, Z_DEFAULT_COMPRESSION)) != Z_OK)
+		cheritest_failure_errx("deflateInit returned %d", ret);
+
+	zs.next_in = uncompressed_zeroes;
+	zs.avail_in = uncompressed_zeroes_len;
+	zs.next_out = compbuf;
+	zs.avail_out = compsize;
+	if ((ret = deflate(&zs, Z_FINISH)) != Z_STREAM_END)
+		cheritest_failure_errx("deflate returned %d", ret);
+	if ((ret = deflateEnd(&zs)) != Z_OK)
+		cheritest_failure_errx("deflateEnd returned %d", ret);
+	check_compressed_data(compbuf, zs.total_out);
+	free(compbuf);
+	cheritest_success();
 }
 
 void
 test_inflate_zeroes(const struct cheri_test *ctp __unused)
 {
 	int ret;
-	size_t compsize, uncompsize;
-	uint8_t *compbuf, *inbuf, *outbuf;
+	uint8_t *outbuf;
 	z_stream zs;
 
-	uncompsize = INFLATE_BUFSIZE;
-	/*
-	 * Be conservative, random inputs may blow up signficantly.
-	 * Should really do multiple passes with realloc...
-	 */
-	compsize = uncompsize * 2;
-	if ((inbuf = calloc(1, uncompsize)) == NULL)
-		cheritest_failure_err("calloc inbuf");
-	if ((compbuf = malloc(compsize)) == NULL)
-		cheritest_failure_err("malloc compbuf");
-	if ((outbuf = malloc(uncompsize)) == NULL)
+	if ((outbuf = malloc(uncompressed_zeroes_len)) == NULL)
 		cheritest_failure_err("malloc outbuf");
-
 	memset(&zs, 0, sizeof(zs));
 	zs.zalloc = Z_NULL;
 	zs.zfree = Z_NULL;
-	if (deflateInit(&zs, Z_DEFAULT_COMPRESSION) != Z_OK)
-		cheritest_failure_errx("deflateInit");
-
-	zs.next_in = inbuf;
-	zs.avail_in = uncompsize;
-	zs.next_out = compbuf;
-	zs.avail_out = compsize;
-	if ((ret = deflate(&zs, Z_FINISH)) != Z_STREAM_END)
-		cheritest_failure_errx("deflate returned %d", ret);
-	if ((ret = deflateEnd(&zs)) != Z_OK)
-		cheritest_failure_errx("deflateEnd returned %d ret", ret);
-
-	/* BD: could realloc, but why bother */
-	compsize = zs.total_out;
-
-	memset(&zs, 0, sizeof(zs));
-	zs.zalloc = Z_NULL;
-	zs.zfree = Z_NULL;
-	zs.next_in = compbuf;
-	zs.avail_in = compsize;
+	zs.next_in = compressed_zeroes;
+	zs.avail_in = compressed_zeroes_len;
 	zs.next_out = outbuf;
-	zs.avail_out = uncompsize;
-	local_inflate(&zs);
-	if (zs.total_in != compsize)
+	zs.avail_out = uncompressed_zeroes_len;
+	if ((ret = inflateInit(&zs)) != Z_OK)
+		cheritest_failure_errx("inflateInit returned %d", ret);
+	if ((ret = inflate(&zs, Z_FINISH)) != Z_STREAM_END)
+		cheritest_failure_errx("inflate returned %d", ret);
+	if ((ret = inflateEnd(&zs)) != Z_OK)
+		cheritest_failure_errx("inflateEnd returned %d", ret);
+	if (zs.total_in != compressed_zeroes_len)
 		cheritest_failure_errx("expected to consume %zu bytes, got %zu",
-		    compsize, zs.total_in);
-	if (zs.total_out != uncompsize)
-		cheritest_failure_errx("expected %zu bytes out, got %zu",
-		    uncompsize, zs.total_out);
-	if (memcmp(inbuf, outbuf, uncompsize) != 0)
-		cheritest_failure_errx("output does not equal input");
-#if 0
-	int diff = 0;
-	for (int i = 0; i < uncompsize; i++) {
-		if (inbuf[i] != outbuf[i]) {
-			printf("inbuf and outbuf differ at %d 0x%02u vs 0x%02u\n", i, inbuf[i], outbuf[i]);
-			diff++;
-		}
-	}
-	if (diff)
-		cheritest_failure_errx("inbuf and outbuf differ at %d locations",
-		    diff);
-#endif
-
+		    compressed_zeroes_len, zs.total_in);
+	check_uncompressed_data(outbuf, zs.total_out);
+	free(outbuf);
 	cheritest_success();
 }
 
@@ -158,52 +190,22 @@ test_inflate_zeroes(const struct cheri_test *ctp __unused)
 void
 test_sandbox_inflate_zeroes(const struct cheri_test *ctp __unused)
 {
-#ifndef NO_SANDBOX
 	register_t v;
 	struct zstream_proxy zsp;
-#endif
-	int ret;
-	size_t compsize, uncompsize;
-	uint8_t *compbuf, *inbuf, *outbuf;
+	uint8_t *outbuf;
 	z_stream zs;
 
-	uncompsize = INFLATE_BUFSIZE;
-	/*
-	 * Be conservative, random inputs may blow up signficantly.
-	 * Should really do multiple passes with realloc...
-	 */
-	compsize = uncompsize * 2;
-	if ((inbuf = calloc(1, uncompsize)) == NULL)
-		cheritest_failure_err("calloc inbuf");
-	if ((compbuf = malloc(compsize)) == NULL)
-		cheritest_failure_err("malloc compbuf");
-	if ((outbuf = malloc(uncompsize)) == NULL)
+	if ((outbuf = malloc(uncompressed_zeroes_len)) == NULL)
 		cheritest_failure_err("malloc outbuf");
-
 	memset(&zs, 0, sizeof(zs));
 	zs.zalloc = Z_NULL;
 	zs.zfree = Z_NULL;
-	if (deflateInit(&zs, Z_DEFAULT_COMPRESSION) != Z_OK)
-		cheritest_failure_errx("deflateInit");
-
-	zs.next_in = inbuf;
-	zs.avail_in = uncompsize;
-	zs.next_out = compbuf;
-	zs.avail_out = compsize;
-	if ((ret = deflate(&zs, Z_FINISH)) != Z_STREAM_END)
-		cheritest_failure_errx("deflate returned %d", ret);
-	if ((ret = deflateEnd(&zs)) != Z_OK)
-		cheritest_failure_errx("deflateEnd returned %d ret", ret);
-
-	/* BD: could realloc, but why bother */
-	compsize = zs.total_out;
-
-	memset(&zs, 0, sizeof(zs));
-	zs.next_in = compbuf;
-	zs.avail_in = compsize;
+	zs.next_in = compressed_zeroes;
+	zs.avail_in = compressed_zeroes_len;
 	zs.next_out = outbuf;
-	zs.avail_out = uncompsize;
-#ifndef NO_SANDBOX
+	zs.avail_out = uncompressed_zeroes_len;
+
+	/* Forward arguments into sandbox. */
 	memset(&zsp, 0, sizeof(zsp));
 	zsp.next_in = cheri_ptr(zs.next_in, zs.avail_in); /* XXX perm */
 	zsp.avail_in = zs.avail_in;
@@ -212,38 +214,14 @@ test_sandbox_inflate_zeroes(const struct cheri_test *ctp __unused)
 	v = invoke_inflate(cheri_ptr(&zsp, sizeof(struct zstream_proxy)));
 	if (v == -1)
 		cheritest_failure_errx("sandbox error");
+
+	/* Forward return values out. */
 	zs.total_in = zsp.total_in;
 	zs.total_out = zsp.total_out;
-#else
-	zs.zalloc = Z_NULL;
-	zs.zfree = Z_NULL;
-	if (inflateInit(&zs) != Z_OK)
-		cheritest_failure_errx("inflateInit");
-	if (inflate(&zs, Z_FINISH) != Z_STREAM_END)
-		cheritest_failure_errx("inflate");
-	if (inflateEnd(&zs) != Z_OK)
-		cheritest_failure_errx("inflateEnd");
-#endif
-	if (zs.total_in != compsize)
+	if (zs.total_in != compressed_zeroes_len)
 		cheritest_failure_errx("expected to consume %zu bytes, got %zu",
-		    compsize, zs.total_in);
-	if (zs.total_out != uncompsize)
-		cheritest_failure_errx("expected %zu bytes out, got %zu",
-		    uncompsize, zs.total_out);
-	if (memcmp(inbuf, outbuf, uncompsize) != 0)
-		cheritest_failure_errx("output does not equal input");
-#if 0
-	int diff = 0;
-	for (int i = 0; i < uncompsize; i++) {
-		if (inbuf[i] != outbuf[i]) {
-			printf("inbuf and outbuf differ at %d 0x%02u vs 0x%02u\n", i, inbuf[i], outbuf[i]);
-			diff++;
-		}
-	}
-	if (diff)
-		cheritest_failure_errx("inbuf and outbuf differ at %d locations",
-		    diff);
-#endif
-
+		    compressed_zeroes_len, zs.total_in);
+	check_uncompressed_data(outbuf, zs.total_out);
+	free(outbuf);
 	cheritest_success();
 }
