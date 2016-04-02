@@ -123,7 +123,6 @@ DEFINE_GET_STAT_COUNTER(mem_dword_write,11,7);
 DEFINE_GET_STAT_COUNTER(mem_cap_read,11,8);
 DEFINE_GET_STAT_COUNTER(mem_cap_write,11,9);
 
-static void start_sample (void);
 static void end_sample (void);
 
 __attribute__((constructor))

@@ -61,18 +61,18 @@
 
 #define eval(X) X
 
-static inline void resetStatCounters ()
+static inline void resetStatCounters (void)
 {
   __asm __volatile(".word (0x1F << 26) | (0x0 << 21) | (0x0 << 16) | (0x7 << 11) | (0x0 << 6) | (0x3B)");
 }
 
 #include <inttypes.h>
-#define DEFINE_GET_STAT_COUNTER(name,X,Y)   \
-static inline int64_t get_##name##_count () \
-{                                           \
-  int64_t ret;                              \
+#define DEFINE_GET_STAT_COUNTER(name,X,Y)       \
+static inline int64_t get_##name##_count (void) \
+{                                               \
+  int64_t ret;                                  \
   __asm __volatile(".word (0x1f << 26) | (0x0 << 21) | (12 << 16) | ("#X" << 11) | ( "#Y"  << 6) | 0x3b\n\tmove %0,$12" : "=r" (ret) :: "$12"); \
-  return ret;                               \
+  return ret;                                   \
 }
 
 #endif
