@@ -910,7 +910,7 @@ static const struct cheri_test cheri_tests[] = {
 	 * zlib tests.
 	 */
 	{ .ct_name = "test_deflate_zeroes",
-	  .ct_desc = "Deflate a compressed buffer of zeroes",
+	  .ct_desc = "Deflate a buffer of zeroes",
 	  .ct_func = test_deflate_zeroes },
 
 	{ .ct_name = "test_inflate_zeroes",
