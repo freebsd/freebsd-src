@@ -249,7 +249,8 @@ void	test_sandbox_fd_write(const struct cheri_test *ctp);
 void	test_sandbox_fd_write_revoke(const struct cheri_test *ctp);
 
 /* cheritest_inflate.c */
-void 	test_sandbox_inflate_zeros(const struct cheri_test *ctp);
+void	test_inflate_zeroes(const struct cheri_test *ctp);
+void 	test_sandbox_inflate_zeroes(const struct cheri_test *ctp);
 
 /* cheritest_libcheri.c */
 extern struct sandbox_class	*cheritest_classp;

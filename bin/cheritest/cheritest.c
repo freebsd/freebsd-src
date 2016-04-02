@@ -873,9 +873,13 @@ static const struct cheri_test cheri_tests[] = {
 	/*
 	 * libcheri + inflate/deflate tests.
 	 */
-	{ .ct_name = "test_sandbox_inflate_zeros",
-	  .ct_desc = "Inflate a compressed buffer of zeros",
-	  .ct_func = test_sandbox_inflate_zeros },
+	{ .ct_name = "test_inflate_zeroes",
+	  .ct_desc = "Inflate a compressed buffer of zeroes",
+	  .ct_func = test_inflate_zeroes },
+
+	{ .ct_name = "test_sandbox_inflate_zeroes",
+	  .ct_desc = "Inflate a compressed buffer of zeroes -- in a sandbox",
+	  .ct_func = test_sandbox_inflate_zeroes },
 
 	{ .ct_name = "test_sandbox_var_bss",
 	  .ct_desc = "Check initial value of .bss variable",

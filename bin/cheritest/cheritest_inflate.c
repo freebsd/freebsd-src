@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2014 SRI International
+ * Copyright (c) 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -71,7 +72,91 @@
 #define INFLATE_BUFSIZE	(size_t)10*1024
 
 void
-test_sandbox_inflate_zeros(const struct cheri_test *ctp __unused)
+local_inflate(z_stream *zsp)
+{
+
+	if (inflateInit(zsp) != Z_OK)
+		cheritest_failure_errx("inflateInit");
+	if (inflate(zsp, Z_FINISH) != Z_STREAM_END)
+		cheritest_failure_errx("inflate");
+	if (inflateEnd(zsp) != Z_OK)
+		cheritest_failure_errx("inflateEnd");
+}
+
+void
+test_inflate_zeroes(const struct cheri_test *ctp __unused)
+{
+	int ret;
+	size_t compsize, uncompsize;
+	uint8_t *compbuf, *inbuf, *outbuf;
+	z_stream zs;
+
+	uncompsize = INFLATE_BUFSIZE;
+	/*
+	 * Be conservative, random inputs may blow up signficantly.
+	 * Should really do multiple passes with realloc...
+	 */
+	compsize = uncompsize * 2;
+	if ((inbuf = calloc(1, uncompsize)) == NULL)
+		cheritest_failure_err("calloc inbuf");
+	if ((compbuf = malloc(compsize)) == NULL)
+		cheritest_failure_err("malloc compbuf");
+	if ((outbuf = malloc(uncompsize)) == NULL)
+		cheritest_failure_err("malloc outbuf");
+
+	memset(&zs, 0, sizeof(zs));
+	zs.zalloc = Z_NULL;
+	zs.zfree = Z_NULL;
+	if (deflateInit(&zs, Z_DEFAULT_COMPRESSION) != Z_OK)
+		cheritest_failure_errx("deflateInit");
+
+	zs.next_in = inbuf;
+	zs.avail_in = uncompsize;
+	zs.next_out = compbuf;
+	zs.avail_out = compsize;
+	if ((ret = deflate(&zs, Z_FINISH)) != Z_STREAM_END)
+		cheritest_failure_errx("deflate returned %d", ret);
+	if ((ret = deflateEnd(&zs)) != Z_OK)
+		cheritest_failure_errx("deflateEnd returned %d ret", ret);
+
+	/* BD: could realloc, but why bother */
+	compsize = zs.total_out;
+
+	memset(&zs, 0, sizeof(zs));
+	zs.zalloc = Z_NULL;
+	zs.zfree = Z_NULL;
+	zs.next_in = compbuf;
+	zs.avail_in = compsize;
+	zs.next_out = outbuf;
+	zs.avail_out = uncompsize;
+	local_inflate(&zs);
+	if (zs.total_in != compsize)
+		cheritest_failure_errx("expected to consume %zu bytes, got %zu",
+		    compsize, zs.total_in);
+	if (zs.total_out != uncompsize)
+		cheritest_failure_errx("expected %zu bytes out, got %zu",
+		    uncompsize, zs.total_out);
+	if (memcmp(inbuf, outbuf, uncompsize) != 0)
+		cheritest_failure_errx("output does not equal input");
+#if 0
+	int diff = 0;
+	for (int i = 0; i < uncompsize; i++) {
+		if (inbuf[i] != outbuf[i]) {
+			printf("inbuf and outbuf differ at %d 0x%02u vs 0x%02u\n", i, inbuf[i], outbuf[i]);
+			diff++;
+		}
+	}
+	if (diff)
+		cheritest_failure_errx("inbuf and outbuf differ at %d locations",
+		    diff);
+#endif
+
+	cheritest_success();
+}
+
+
+void
+test_sandbox_inflate_zeroes(const struct cheri_test *ctp __unused)
 {
 #ifndef NO_SANDBOX
 	register_t v;
