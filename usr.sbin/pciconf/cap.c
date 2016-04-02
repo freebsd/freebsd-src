@@ -413,11 +413,13 @@ aspm_string(uint8_t aspm)
 static void
 cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 {
-	uint32_t cap, cap2;
+	uint32_t cap;
 	uint16_t ctl, flags, sta;
+	unsigned int version;
 
 	flags = read_config(fd, &p->pc_sel, ptr + PCIER_FLAGS, 2);
-	printf("PCI-Express %d ", flags & PCIEM_FLAGS_VERSION);
+	version = flags & PCIEM_FLAGS_VERSION;
+	printf("PCI-Express %u ", version);
 	switch (flags & PCIEM_FLAGS_TYPE) {
 	case PCIEM_TYPE_ENDPOINT:
 		printf("endpoint");
@@ -453,9 +455,8 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 	if (flags & PCIEM_FLAGS_SLOT)
 		printf(" slot");
 	if (flags & PCIEM_FLAGS_IRQ)
-		printf(" IRQ %d", (flags & PCIEM_FLAGS_IRQ) >> 9);
+		printf(" MSI %d", (flags & PCIEM_FLAGS_IRQ) >> 9);
 	cap = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CAP, 4);
-	cap2 = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CAP2, 4);
 	ctl = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CTL, 2);
 	printf(" max data %d(%d)",
 	    MAX_PAYLOAD((ctl & PCIEM_CTL_MAX_PAYLOAD) >> 5),
@@ -466,12 +467,22 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 		printf(" RO");
 	if (ctl & PCIEM_CTL_NOSNOOP_ENABLE)
 		printf(" NS");
+	if (version >= 2) {
+		cap = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CAP2, 4);
+		if ((cap & PCIEM_CAP2_ARI) != 0) {
+			ctl = read_config(fd, &p->pc_sel,
+			    ptr + PCIER_DEVICE_CTL2, 4);
+			printf(" ARI %s",
+			    (ctl & PCIEM_CTL2_ARI) ? "enabled" : "disabled");
+		}
+	}
 	cap = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_CAP, 4);
 	sta = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_STA, 2);
+	if (cap == 0 && sta == 0)
+		return;
+	printf("\n                ");
 	printf(" link x%d(x%d)", (sta & PCIEM_LINK_STA_WIDTH) >> 4,
 	    (cap & PCIEM_LINK_CAP_MAX_WIDTH) >> 4);
-	if ((cap & (PCIEM_LINK_CAP_MAX_WIDTH | PCIEM_LINK_CAP_ASPM)) != 0)
-		printf("\n                ");
 	if ((cap & PCIEM_LINK_CAP_MAX_WIDTH) != 0) {
 		printf(" speed %s(%s)", (sta & PCIEM_LINK_STA_WIDTH) == 0 ?
 		    "0.0" : link_speed_string(sta & PCIEM_LINK_STA_SPEED),
@@ -481,11 +492,6 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 		ctl = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_CTL, 2);
 		printf(" ASPM %s(%s)", aspm_string(ctl & PCIEM_LINK_CTL_ASPMC),
 		    aspm_string((cap & PCIEM_LINK_CAP_ASPM) >> 10));
-	}
-	if ((cap2 & PCIEM_CAP2_ARI) != 0) {
-		ctl = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CTL2, 4);
-		printf(" ARI %s",
-		    (ctl & PCIEM_CTL2_ARI) ? "enabled" : "disabled");
 	}
 }
 
