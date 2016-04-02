@@ -1132,7 +1132,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
  			if (in6ifa_llaonifp(bif->bif_ifp)) {
 				BRIDGE_UNLOCK(sc);
-				in6_ifdetach(bif->bif_ifp);
+				in6_ifdetach(bif->bif_ifp, 1);
 				BRIDGE_LOCK(sc);
 				if_printf(sc->sc_ifp,
 				    "IPv6 addresses on %s have been removed "
@@ -1144,7 +1144,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		BRIDGE_XDROP(sc);
 		if (in6ifa_llaonifp(ifs)) {
 			BRIDGE_UNLOCK(sc);
-			in6_ifdetach(ifs);
+			in6_ifdetach(ifs, 1);
 			BRIDGE_LOCK(sc);
 			if_printf(sc->sc_ifp,
 			    "IPv6 addresses on %s have been removed "

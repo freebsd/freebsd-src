@@ -174,9 +174,9 @@ static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
 static int	if_getgroupmembers(struct ifgroupreq *);
 static void	if_delgroups(struct ifnet *);
 static void	if_attach_internal(struct ifnet *, int, struct if_clone *);
-static int	if_detach_internal(struct ifnet *, int, struct if_clone **);
+static int	if_detach_internal(struct ifnet *, int, int, struct if_clone **);
 #ifdef VIMAGE
-static void	if_vmove(struct ifnet *, struct vnet *);
+static void	if_vmove(struct ifnet *, struct vnet *, int);
 #endif
 
 #ifdef INET6
@@ -389,12 +389,6 @@ vnet_if_uninit(const void *unused __unused)
 VNET_SYSUNINIT(vnet_if_uninit, SI_SUB_INIT_IF, SI_ORDER_FIRST,
     vnet_if_uninit, NULL);
 
-/*
- * XXX-BZ VNET; probably along with dom stuff.
- * This is very wrong but MC currently implies that interfaces are
- * gone before we can free it.  This needs to be fied differently
- * and this needs to be moved back to SI_SUB_INIT_IF.
- */
 static void
 vnet_if_return(const void *unused __unused)
 {
@@ -403,10 +397,10 @@ vnet_if_return(const void *unused __unused)
 	/* Return all inherited interfaces to their parent vnets. */
 	TAILQ_FOREACH_SAFE(ifp, &V_ifnet, if_link, nifp) {
 		if (ifp->if_home_vnet != ifp->if_vnet)
-			if_vmove(ifp, ifp->if_home_vnet);
+			if_vmove(ifp, ifp->if_home_vnet, 1);
 	}
 }
-VNET_SYSUNINIT(vnet_if_return, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_if_return, SI_SUB_INIT_IF, SI_ORDER_ANY,
     vnet_if_return, NULL);
 #endif
 
@@ -910,12 +904,23 @@ if_detach(struct ifnet *ifp)
 {
 
 	CURVNET_SET_QUIET(ifp->if_vnet);
-	if_detach_internal(ifp, 0, NULL);
+	if_detach_internal(ifp, 0, 0, NULL);
 	CURVNET_RESTORE();
 }
 
+/*
+ * The vmove, if set, flag indicates that we are called from a callpath
+ * that is moving an interface to a different vnet instance.
+ *
+ * The shutdown flag, if set, indicates that we are called in the
+ * progress of shutting down a vnet instance.  Currently only the
+ * vnet_if_return SYSUNINIT function sets it.  Note: we can be called
+ * on a vnet instance shutdown without this flag being set, e.g., when
+ * the cloned interfaces are destoyed as first thing of teardown.
+ */
 static int
-if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
+if_detach_internal(struct ifnet *ifp, int vmove, int shutdown,
+    struct if_clone **ifcp)
 {
 	struct ifaddr *ifa;
 	int i;
@@ -951,6 +956,12 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 #endif
 	}
 
+	/* The one thing we have to do. */
+	if_delgroups(ifp);
+
+	if (!vmove && !shutdown && ifp->if_vnet->vnet_state == VNET_STATE_DYING_AFTER_PSEUDO)
+		return (ENOENT);
+
 	/* Check if this is a cloned interface or not. */
 	if (vmove && ifcp != NULL)
 		*ifcp = if_clone_findifc(ifp);
@@ -974,7 +985,7 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 	if_purgeaddrs(ifp);
 
 #ifdef INET
-	in_ifdetach(ifp);
+	in_ifdetach(ifp, !shutdown);
 #endif
 
 #ifdef INET6
@@ -984,9 +995,10 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 	 * routes are expected to be removed by the IPv6-specific kernel API.
 	 * Otherwise, the kernel will detect some inconsistency and bark it.
 	 */
-	in6_ifdetach(ifp);
+	in6_ifdetach(ifp, !shutdown);
 #endif
-	if_purgemaddrs(ifp);
+	if (!shutdown)
+		if_purgemaddrs(ifp);
 
 	/* Announce that the interface is gone. */
 	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
@@ -1016,8 +1028,8 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 		}
 	}
 
-	rt_flushifroutes(ifp);
-	if_delgroups(ifp);
+	if (!shutdown)
+		rt_flushifroutes(ifp);
 
 	/*
 	 * We cannot hold the lock over dom_ifdetach calls as they might
@@ -1046,17 +1058,25 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
  * and finally find an unused if_xname for the target vnet.
  */
 static void
-if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
+if_vmove(struct ifnet *ifp, struct vnet *new_vnet, int shutdown)
 {
 	struct if_clone *ifc;
 	int rc;
+	u_int bif_dlt, bif_hdrlen;
+
+	/*
+	 * if_detach_internal() will call the eventhandler to notify
+	 * interface departure.  That will detach if_bpf.  We need to
+	 * safe the dlt and hdrlen so we can re-attach it later.
+	 */
+	bpf_get_bp_params(ifp->if_bpf, &bif_dlt, &bif_hdrlen);
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
 	 * mark as dead etc. so that the ifnet can be reattached later.
 	 * If we cannot find it, we lost the race to someone else.
 	 */
-	rc = if_detach_internal(ifp, 1, &ifc);
+	rc = if_detach_internal(ifp, 1, shutdown, &ifc);
 	if (rc != 0)
 		return;
 
@@ -1089,6 +1109,9 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	IFNET_WUNLOCK();
 
 	if_attach_internal(ifp, 1, ifc);
+
+	if (ifp->if_bpf == NULL)
+		bpfattach(ifp, bif_dlt, bif_hdrlen);
 
 	CURVNET_RESTORE();
 }
@@ -1128,7 +1151,7 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	}
 
 	/* Move the interface into the child jail/vnet. */
-	if_vmove(ifp, pr->pr_vnet);
+	if_vmove(ifp, pr->pr_vnet, 0);
 
 	/* Report the new if_xname back to the userland. */
 	sprintf(ifname, "%s", ifp->if_xname);
@@ -1171,7 +1194,7 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	}
 
 	/* Get interface back from child jail/vnet. */
-	if_vmove(ifp, vnet_dst);
+	if_vmove(ifp, vnet_dst, 0);
 	CURVNET_RESTORE();
 
 	/* Report the new if_xname back to the userland. */

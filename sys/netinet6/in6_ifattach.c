@@ -765,7 +765,7 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
  * from the ifnet list in bsdi.
  */
 void
-in6_ifdetach(struct ifnet *ifp)
+in6_ifdetach(struct ifnet *ifp, int purgeulp)
 {
 	struct ifaddr *ifa, *next;
 
@@ -773,7 +773,13 @@ in6_ifdetach(struct ifnet *ifp)
 		return;
 
 	/* remove neighbor management table */
-	nd6_purge(ifp);
+	/*
+	 * Enabling the nd6_purge will panic on vmove for interfaces on VNET
+	 * teardown as the IPv6 layer is cleaned up already and the locks
+	 * are destroyed.
+	 */
+	if (purgeulp)
+		nd6_purge(ifp);
 
 	/*
 	 * nuke any of IPv6 addresses we have
@@ -784,9 +790,11 @@ in6_ifdetach(struct ifnet *ifp)
 			continue;
 		in6_purgeaddr(ifa);
 	}
-	in6_pcbpurgeif0(&V_udbinfo, ifp);
-	in6_pcbpurgeif0(&V_ulitecbinfo, ifp);
-	in6_pcbpurgeif0(&V_ripcbinfo, ifp);
+	if (purgeulp) {
+		in6_pcbpurgeif0(&V_udbinfo, ifp);
+		in6_pcbpurgeif0(&V_ulitecbinfo, ifp);
+		in6_pcbpurgeif0(&V_ripcbinfo, ifp);
+	}
 	/* leave from all multicast groups joined */
 	in6_purgemaddrs(ifp);
 
@@ -798,7 +806,8 @@ in6_ifdetach(struct ifnet *ifp)
 	 * prefixes after removing all addresses above.
 	 * (Or can we just delay calling nd6_purge until at this point?)
 	 */
-	nd6_purge(ifp);
+	if (purgeulp)
+		nd6_purge(ifp);
 }
 
 int

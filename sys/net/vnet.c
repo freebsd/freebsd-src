@@ -233,6 +233,7 @@ vnet_alloc(void)
 	SDT_PROBE1(vnet, functions, vnet_alloc, entry, __LINE__);
 	vnet = malloc(sizeof(struct vnet), M_VNET, M_WAITOK | M_ZERO);
 	vnet->vnet_magic_n = VNET_MAGIC_N;
+	vnet->vnet_state = VNET_STATE_STARTING;
 	SDT_PROBE2(vnet, functions, vnet_alloc, alloc, __LINE__, vnet);
 
 	/*
@@ -255,6 +256,7 @@ vnet_alloc(void)
 	CURVNET_RESTORE();
 
 	VNET_LIST_WLOCK();
+	vnet->vnet_state = VNET_STATE_ACTIVE;
 	LIST_INSERT_HEAD(&vnet_head, vnet, vnet_le);
 	VNET_LIST_WUNLOCK();
 
@@ -274,6 +276,7 @@ vnet_destroy(struct vnet *vnet)
 	    ("%s: vnet still has sockets", __func__));
 
 	VNET_LIST_WLOCK();
+	vnet->vnet_state = VNET_STATE_DYING;
 	LIST_REMOVE(vnet, vnet_le);
 	VNET_LIST_WUNLOCK();
 
@@ -291,6 +294,23 @@ vnet_destroy(struct vnet *vnet)
 	free(vnet, M_VNET);
 	SDT_PROBE1(vnet, functions, vnet_destroy, return, __LINE__);
 }
+
+/*
+ * Cloned interfaces have become such a layer violation that they need
+ * special treatmeant.   They need to go very first and they need to be able
+ * to clean themselves up entirely and not wait for the stack to shutdown as
+ * we if_free() them.  We would like to split the cleanup of them up as well
+ * but in a non-VNET context a ifconfig foo0 destroy still has t work as well.
+ * This MUST be the only SYSUNINIT on SI_SUB_PSEUDO_DONE/SI_ORDER_FIRST!
+ */
+static void
+vnet_uninit_after_pseudo(const void *unused __unused)
+{
+
+	curvnet->vnet_state = VNET_STATE_DYING_AFTER_PSEUDO;
+}
+VNET_SYSUNINIT(vnet_if_uninit_after_pseudo, SI_SUB_PSEUDO_DONE, SI_ORDER_FIRST,
+    vnet_uninit_after_pseudo, NULL);
 
 /*
  * Boot time initialization and allocation of virtual network stacks.
@@ -687,6 +707,9 @@ DB_SHOW_COMMAND(vnets, db_show_vnets)
 	VNET_ITERATOR_DECL(vnet_iter);
 
 	VNET_FOREACH(vnet_iter) {
+		if (have_addr && addr != 0 &&
+		    (struct vnet *)addr != vnet_iter)
+			continue;
 		db_printf("vnet            = %p\n", vnet_iter);
 		db_printf(" vnet_magic_n   = 0x%x (%s, orig 0x%x)\n",
 		    vnet_iter->vnet_magic_n,
@@ -697,6 +720,7 @@ DB_SHOW_COMMAND(vnets, db_show_vnets)
 		db_printf(" vnet_data_mem  = %p\n", vnet_iter->vnet_data_mem);
 		db_printf(" vnet_data_base = 0x%jx\n",
 		    (uintmax_t)vnet_iter->vnet_data_base);
+		db_printf(" vnet_state     = %#x\n", vnet_iter->vnet_state);
 		db_printf("\n");
 		if (db_pager_quit)
 			break;

@@ -300,7 +300,8 @@ mld_restore_context(struct mbuf *m)
 
 #if defined(VIMAGE) && defined(INVARIANTS)
 	KASSERT(curvnet == m->m_pkthdr.PH_loc.ptr,
-	    ("%s: called when curvnet was not restored", __func__));
+	    ("%s: called when curvnet was not restored: cuvnet %p m ptr %p",
+	    __func__, curvnet, m->m_pkthdr.PH_loc.ptr));
 #endif
 	return (m->m_pkthdr.flowid);
 }
@@ -611,9 +612,6 @@ mli_delete_locked(const struct ifnet *ifp)
 			return;
 		}
 	}
-#ifdef INVARIANTS
-	panic("%s: mld_ifsoftc not found for ifp %p\n", __func__,  ifp);
-#endif
 }
 
 /*
@@ -3290,10 +3288,8 @@ static void
 vnet_mld_uninit(const void *unused __unused)
 {
 
+	/* This can happen if we shutdown the network stack. */
 	CTR1(KTR_MLD, "%s: tearing down", __func__);
-
-	KASSERT(LIST_EMPTY(&V_mli_head),
-	    ("%s: mli list not empty; ifnets not detached?", __func__));
 }
 VNET_SYSUNINIT(vnet_mld_uninit, SI_SUB_PROTO_MC, SI_ORDER_ANY, vnet_mld_uninit,
     NULL);

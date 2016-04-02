@@ -70,6 +70,11 @@ struct vnet {
 	u_int			 vnet_magic_n;
 	u_int			 vnet_ifcnt;
 	u_int			 vnet_sockcnt;
+	u_int			 vnet_state;
+#define	VNET_STATE_STARTING		0x01
+#define	VNET_STATE_ACTIVE		0x02
+#define	VNET_STATE_DYING		0x04
+#define	VNET_STATE_DYING_AFTER_PSEUDO	0x08
 	void			*vnet_data_mem;
 	uintptr_t		 vnet_data_base;
 };

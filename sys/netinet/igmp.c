@@ -702,10 +702,6 @@ igi_delete_locked(const struct ifnet *ifp)
 			return;
 		}
 	}
-
-#ifdef INVARIANTS
-	panic("%s: igmp_ifsoftc not found for ifp %p\n", __func__,  ifp);
-#endif
 }
 
 /*
@@ -3601,11 +3597,8 @@ static void
 vnet_igmp_uninit(const void *unused __unused)
 {
 
+	/* This can happen when we shutdown the entire network stack. */
 	CTR1(KTR_IGMPV3, "%s: tearing down", __func__);
-
-	VNET_ASSERT(LIST_EMPTY(&V_igi_head),
-	    ("%s: igi list %p not empty; ifnets not detached?", __func__,
-	    &V_igi_head));
 }
 VNET_SYSUNINIT(vnet_igmp_uninit, SI_SUB_PROTO_MC, SI_ORDER_ANY,
     vnet_igmp_uninit, NULL);

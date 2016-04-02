@@ -381,21 +381,13 @@ VNET_SYSINIT(vnet_enc_init_proto, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
 static void
 vnet_enc_uninit(const void *unused __unused)
 {
-
-	if_clone_detach(V_enc_cloner);
-}
-VNET_SYSUNINIT(vnet_enc_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
-    vnet_enc_uninit, NULL);
-
-static void
-vnet_enc_uninit_proto(void *unused __unused)
-{
 	KASSERT(V_enc_sc != NULL, ("%s: V_enc_sc is %p\n", __func__, V_enc_sc));
 
 	enc_remove_hhooks(V_enc_sc);
+	if_clone_detach(V_enc_cloner);
 }
-VNET_SYSUNINIT(vnet_enc_uninit_proto, SI_SUB_PROTO_IFATTACHDOMAIN,
-    SI_ORDER_ANY, vnet_enc_uninit_proto, NULL);
+VNET_SYSUNINIT(vnet_enc_uninit, SI_SUB_PSEUDO_DONE, SI_ORDER_ANY,
+    vnet_enc_uninit, NULL);
 
 static int
 enc_modevent(module_t mod, int type, void *data)

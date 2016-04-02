@@ -1466,7 +1466,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * interface.
 		 */
 		if (in6ifa_llaonifp(tpif)) {
-			in6_ifdetach(tpif);
+			in6_ifdetach(tpif, 1);
 				if_printf(sc->sc_ifp,
 				    "IPv6 addresses on %s have been removed "
 				    "before adding it as a member to prevent "
