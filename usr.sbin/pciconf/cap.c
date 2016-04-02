@@ -410,6 +410,28 @@ aspm_string(uint8_t aspm)
 	}
 }
 
+static int
+slot_power(uint32_t cap)
+{
+	int mwatts;
+
+	mwatts = (cap & PCIEM_SLOT_CAP_SPLV) >> 7;
+	switch (cap & PCIEM_SLOT_CAP_SPLS) {
+	case 0x0:
+		mwatts *= 1000;
+		break;
+	case 0x1:
+		mwatts *= 100;
+		break;
+	case 0x2:
+		mwatts *= 10;
+		break;
+	default:
+		break;
+	}
+	return (mwatts);
+}
+
 static void
 cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 {
@@ -452,8 +474,6 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 		printf("type %d", (flags & PCIEM_FLAGS_TYPE) >> 4);
 		break;
 	}
-	if (flags & PCIEM_FLAGS_SLOT)
-		printf(" slot");
 	if (flags & PCIEM_FLAGS_IRQ)
 		printf(" MSI %d", (flags & PCIEM_FLAGS_IRQ) >> 9);
 	cap = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CAP, 4);
@@ -493,6 +513,26 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 		printf(" ASPM %s(%s)", aspm_string(ctl & PCIEM_LINK_CTL_ASPMC),
 		    aspm_string((cap & PCIEM_LINK_CAP_ASPM) >> 10));
 	}
+	if (!(flags & PCIEM_FLAGS_SLOT))
+		return;
+	cap = read_config(fd, &p->pc_sel, ptr + PCIER_SLOT_CAP, 4);
+	sta = read_config(fd, &p->pc_sel, ptr + PCIER_SLOT_STA, 2);
+	ctl = read_config(fd, &p->pc_sel, ptr + PCIER_SLOT_CTL, 2);
+	printf("\n                ");
+	printf(" slot %d", (cap & PCIEM_SLOT_CAP_PSN) >> 19);
+	printf(" power limit %d mW", slot_power(cap));
+	if (cap & PCIEM_SLOT_CAP_HPC)
+		printf(" HotPlug(%s)", sta & PCIEM_SLOT_STA_PDS ? "present" :
+		    "empty");
+	if (cap & PCIEM_SLOT_CAP_HPS)
+		printf(" surprise");
+	if (cap & PCIEM_SLOT_CAP_APB)
+		printf(" Attn Button");
+	if (cap & PCIEM_SLOT_CAP_PCP)
+		printf(" PC(%s)", ctl & PCIEM_SLOT_CTL_PCC ? "on" : "off");
+	if (cap & PCIEM_SLOT_CAP_MRLSP)
+		printf(" MRL(%s)", sta & PCIEM_SLOT_STA_MRLSS ? "open" :
+		    "closed");
 }
 
 static void
