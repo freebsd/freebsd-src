@@ -65,7 +65,9 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <netinet/in.h>
 
+#ifdef PC98
 #include <machine/bootinfo.h>
+#endif
 #include <machine/md_var.h>
 
 #ifdef DEV_ISA
@@ -92,7 +94,7 @@ configure_first(dummy)
 	void *dummy;
 {
 
-	/* nexus0 is the top of the i386 device tree */
+	/* nexus0 is the top of the x86 device tree */
 	device_add_child(root_bus, "nexus", 0);
 }
 

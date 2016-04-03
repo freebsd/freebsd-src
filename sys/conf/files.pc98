@@ -147,7 +147,6 @@ i386/bios/apm.c			optional apm
 #i386/i386/apic_vector.s		optional apic
 i386/i386/atomic.c		standard		\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
-i386/i386/autoconf.c		standard
 i386/i386/bios.c		standard
 i386/i386/bioscall.s		standard
 i386/i386/bpf_jit_machdep.c	optional bpf_jitter
@@ -258,6 +257,7 @@ x86/isa/atpic.c			optional atpic
 x86/isa/clock.c			standard
 x86/isa/isa.c			optional isa
 x86/pci/pci_bus.c		optional pci
+x86/x86/autoconf.c		standard
 x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard
 x86/x86/cpu_machdep.c		standard
