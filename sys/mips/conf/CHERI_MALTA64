@@ -1,8 +1,8 @@
-# MALTA64 -- 64-bit kernel config for MALTA boards
+# CHERI_MALTA64 -- 64-bit kernel config for MALTA boards + 256-bit CHERI
 #
 # $FreeBSD$
  
-ident		MALTA64
+ident		CHERI_MALTA64
 
 include		"std.MALTA"
  
