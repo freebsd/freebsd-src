@@ -182,6 +182,8 @@ devfs_unmount(struct mount *mp, int mntflags)
 	fmp = VFSTODEVFS(mp);
 	KASSERT(fmp->dm_mount != NULL,
 		("devfs_unmount unmounted devfs_mount"));
+	if (mntflags & MNT_FORCE)
+		flags |= FORCECLOSE;
 	/* There is 1 extra root vnode reference from devfs_mount(). */
 	error = vflush(mp, 1, flags, curthread);
 	if (error)
