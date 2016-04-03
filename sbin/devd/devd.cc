@@ -796,7 +796,7 @@ process_event(char *buffer)
 	// $* is the entire line
 	cfg.set_variable("*", buffer - 1);
 	// $_ is the entire line without the initial character
-	cfg.set_variable("_", buffer - 1);
+	cfg.set_variable("_", buffer);
 	// No match doesn't have a device, and the format is a little
 	// different, so handle it separately.
 	switch (type) {
