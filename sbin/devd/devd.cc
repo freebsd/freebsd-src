@@ -788,6 +788,8 @@ process_event(char *buffer)
 {
 	char type;
 	char *sp;
+	struct timeval tv;
+	char *timestr;
 
 	sp = buffer + 1;
 	devdlog(LOG_INFO, "Processing event '%s'\n", buffer);
@@ -797,7 +799,15 @@ process_event(char *buffer)
 	cfg.set_variable("*", buffer - 1);
 	// $_ is the entire line without the initial character
 	cfg.set_variable("_", buffer);
-	// No match doesn't have a device, and the format is a little
+
+	// Save the time this happened (as approximated by when we got
+	// around to processing it).
+	gettimeofday(&tv, NULL);
+	asprintf(&timestr, "%jd.%06ld", (uintmax_t)tv.tv_sec, tv.tv_usec);
+	cfg.set_variable("timestamp", timestr);
+	free(timestr);
+
+	// Match doesn't have a device, and the format is a little
 	// different, so handle it separately.
 	switch (type) {
 	case notify:
