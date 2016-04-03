@@ -1503,7 +1503,8 @@ wpi_find_eeprom_channel(struct wpi_softc *sc, struct ieee80211_channel *c)
 
 	for (j = 0; j < WPI_CHAN_BANDS_COUNT; j++)
 		for (i = 0; i < wpi_bands[j].nchan; i++)
-			if (wpi_bands[j].chan[i] == c->ic_ieee)
+			if (wpi_bands[j].chan[i] == c->ic_ieee &&
+			    ((j == 0) ^ IEEE80211_IS_CHAN_A(c)) == 1)
 				return &sc->eeprom_channels[j][i];
 
 	return NULL;
