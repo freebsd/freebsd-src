@@ -92,7 +92,7 @@ static const size_t compressed_zeroes_len =
 	    sizeof(compressed_zeroes) / sizeof(compressed_zeroes[0]);
 
 static void
-check_compressed_data(const char *data, size_t datalen)
+check_compressed_data(const uint8_t *data, size_t datalen)
 {
 	size_t i;
 
