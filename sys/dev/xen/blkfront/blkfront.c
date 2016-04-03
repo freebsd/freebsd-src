@@ -855,6 +855,20 @@ xbd_feature_string(struct xbd_softc *sc, char *features, size_t len)
 		feature_cnt++;
 	}
 
+	if ((sc->xbd_flags & XBDF_DISCARD) != 0) {
+		if (feature_cnt != 0)
+			sbuf_printf(&sb, ", ");
+		sbuf_printf(&sb, "discard");
+		feature_cnt++;
+	}
+
+	if ((sc->xbd_flags & XBDF_PERSISTENT) != 0) {
+		if (feature_cnt != 0)
+			sbuf_printf(&sb, ", ");
+		sbuf_printf(&sb, "persistent_grants");
+		feature_cnt++;
+	}
+
 	(void) sbuf_finish(&sb);
 	return (sbuf_len(&sb));
 }
@@ -985,7 +999,8 @@ xbd_vdevice_to_unit(uint32_t vdevice, int *unit, const char **name)
 
 int
 xbd_instance_create(struct xbd_softc *sc, blkif_sector_t sectors,
-    int vdevice, uint16_t vdisk_info, unsigned long sector_size)
+    int vdevice, uint16_t vdisk_info, unsigned long sector_size,
+    unsigned long phys_sector_size)
 {
 	char features[80];
 	int unit, error = 0;
@@ -1013,6 +1028,8 @@ xbd_instance_create(struct xbd_softc *sc, blkif_sector_t sectors,
 	sc->xbd_disk->d_name = name;
 	sc->xbd_disk->d_drv1 = sc;
 	sc->xbd_disk->d_sectorsize = sector_size;
+	sc->xbd_disk->d_stripesize = phys_sector_size;
+	sc->xbd_disk->d_stripeoffset = 0;
 
 	sc->xbd_disk->d_mediasize = sectors * sector_size;
 	sc->xbd_disk->d_maxsize = sc->xbd_max_request_size;
@@ -1206,7 +1223,7 @@ static void
 xbd_connect(struct xbd_softc *sc)
 {
 	device_t dev = sc->xbd_dev;
-	unsigned long sectors, sector_size;
+	unsigned long sectors, sector_size, phys_sector_size;
 	unsigned int binfo;
 	int err, feature_barrier, feature_flush;
 	int i, j;
@@ -1228,6 +1245,11 @@ xbd_connect(struct xbd_softc *sc)
 		    xenbus_get_otherend_path(dev));
 		return;
 	}
+	err = xs_gather(XST_NIL, xenbus_get_otherend_path(dev),
+	     "physical-sector-size", "%lu", &phys_sector_size,
+	     NULL);
+	if (err || phys_sector_size <= sector_size)
+		phys_sector_size = 0;
 	err = xs_gather(XST_NIL, xenbus_get_otherend_path(dev),
 	     "feature-barrier", "%lu", &feature_barrier,
 	     NULL);
@@ -1330,7 +1352,7 @@ xbd_connect(struct xbd_softc *sc)
 		bus_print_child_footer(device_get_parent(dev), dev);
 
 		xbd_instance_create(sc, sectors, sc->xbd_vdevice, binfo,
-		    sector_size);
+		    sector_size, phys_sector_size);
 	}
 
 	(void)xenbus_set_state(dev, XenbusStateConnected); 
