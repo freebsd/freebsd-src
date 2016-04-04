@@ -56,14 +56,21 @@ fdt_intc_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
     int *pol)
 {
 
-	if (!fdt_is_compatible(node, "broadcom,bcm2835-armctrl-ic"))
-		return (ENXIO);
-
-	*interrupt = fdt32_to_cpu(intr[0]);
-	*trig = INTR_TRIGGER_CONFORM;
-	*pol = INTR_POLARITY_CONFORM;
-
-	return (0);
+	if (fdt_is_compatible(node, "broadcom,bcm2835-armctrl-ic")) {
+		*interrupt = fdt32_to_cpu(intr[0]);
+		*trig = INTR_TRIGGER_CONFORM;
+		*pol = INTR_POLARITY_CONFORM;
+		return (0);
+	}
+#ifdef SOC_BCM2836
+	if (fdt_is_compatible(node, "brcm,bcm2836-l1-intc")) {
+		*interrupt = fdt32_to_cpu(intr[0]) + 72;
+		*trig = INTR_TRIGGER_CONFORM;
+		*pol = INTR_POLARITY_CONFORM;
+		return (0);
+	}
+#endif
+	return (ENXIO);
 }
 
 
