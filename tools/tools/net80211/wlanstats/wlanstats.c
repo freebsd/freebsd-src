@@ -767,6 +767,7 @@ wlan_get_curstat(struct bsdstat *sf, int s, char b[], size_t bs)
 	case S_FF_SPLIT:	STAT(ff_split);
 	case S_FF_DECAP:	STAT(ff_decap);
 	case S_FF_ENCAP:	STAT(ff_encap);
+	case S_FF_ENCAPFAIL:	STAT(ff_encapfail);
 	case S_RX_BADBINTVAL:	STAT(rx_badbintval);
 	case S_RX_MGMT:		STAT(rx_mgmt);
 	case S_RX_DEMICFAIL:	STAT(rx_demicfail);
@@ -929,6 +930,7 @@ wlan_get_totstat(struct bsdstat *sf, int s, char b[], size_t bs)
 	case S_FF_SPLIT:	STAT(ff_split);
 	case S_FF_DECAP:	STAT(ff_decap);
 	case S_FF_ENCAP:	STAT(ff_encap);
+	case S_FF_ENCAPFAIL:	STAT(ff_encapfail);
 	case S_RX_BADBINTVAL:	STAT(rx_badbintval);
 	case S_RX_MGMT:		STAT(rx_mgmt);
 	case S_RX_DEMICFAIL:	STAT(rx_demicfail);
