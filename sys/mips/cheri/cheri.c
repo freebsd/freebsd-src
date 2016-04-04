@@ -112,6 +112,11 @@ static void	cheri_capability_set_user_entry(struct chericap *,
 static void	cheri_capability_set_user_sigcode(struct chericap *,
 		   struct sysentvec *);
 
+static union {
+	struct chericap	ct_cap;
+	uint8_t		ct_bytes[32];
+} cheri_testunion;
+
 /*
  * For now, all we do is declare what we support, as most initialisation took
  * place in the MIPS machine-dependent assembly.  CHERI doesn't need a lot of
@@ -121,13 +126,23 @@ static void
 cheri_cpu_startup(void)
 {
 
-	printf(
+	/*
+	 * The pragmatic way to test that the kernel we're booting has a
+	 * capability size matching the CPU we're booting on is to store a
+	 * capability in memory and then check what its footprint was.  Panic
+	 * early if our assumptions are wrong.
+	 */
+	memset(&cheri_testunion, 0xff, sizeof(cheri_testunion));
+	cheri_capability_set_null(&cheri_testunion.ct_cap);
 #ifdef CPU_CHERI128
-	    "CHERI: compiled for 128-bit capabilities\n"
+	printf("CHERI: compiled for 128-bit capabilities\n");
+	if (cheri_testunion.ct_bytes[16] == 0)
+		panic("CPU implements 256-bit capabilities");
 #else
-	    "CHERI: compiled for 256-bit capabilities\n"
+	printf("CHERI: compiled for 256-bit capabilities\n");
+	if (cheri_testunion.ct_bytes[16] != 0)
+		panic("CPU implements 128-bit capabilities");
 #endif
-	    );
 }
 SYSINIT(cheri_cpu_startup, SI_SUB_CPU, SI_ORDER_FIRST, cheri_cpu_startup,
     NULL);
@@ -197,18 +212,6 @@ cheri_capability_set(struct chericap *cp, uint32_t perms, void *otypep,
 #endif
 #endif
 	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)cp, 0);
-}
-
-static void
-cheri_capability_clear(struct chericap *cp)
-{
-
-	/*
-	 * While we could construct a non-capability and write it out, simply
-	 * bzero'ing memory is sufficient to clear the tag bit, and easier to
-	 * spell.
-	 */
-	bzero(cp, sizeof(*cp));
 }
 
 /*
@@ -306,8 +309,8 @@ void
 cheri_capability_set_null(struct chericap *cp)
 {
 
-	/* XXXRW: Should be using CFromPtr(NULL) for this. */
-	cheri_capability_clear(cp);
+	CHERI_CFROMPTR(CHERI_CR_CTEMP0, CHERI_CR_KDC, NULL);
+	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)cp, 0);
 }
 
 void
