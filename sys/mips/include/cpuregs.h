@@ -208,7 +208,7 @@
 #endif
 
 /* CPU dependent mtc0 hazard hook */
-#if defined(CPU_CNMIPS) || defined(CPU_RMI)
+#if defined(CPU_CNMIPS) || defined(CPU_RMI) || defined(CPU_BERI)
 #define	COP0_SYNC
 #elif defined(CPU_NLM)
 #define	COP0_SYNC	.word 0xc0	/* ehb */
