@@ -19,6 +19,8 @@
  * CDDL HEADER END
  */
 /*
+ * Copyright 2014 Garrett D'Amore <garrett@damore.org>
+ *
  * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
@@ -48,7 +50,6 @@ extern "C" {
  * ASSERT and is evaluated on both debug and non-debug kernels.
  */
 
-#if defined(__STDC__)
 extern int assfail(const char *, const char *, int);
 #define	VERIFY(EX) ((void)((EX) || assfail(#EX, __FILE__, __LINE__)))
 #ifdef DEBUG
@@ -56,15 +57,6 @@ extern int assfail(const char *, const char *, int);
 #else
 #define	ASSERT(x)  ((void)0)
 #endif
-#else	/* defined(__STDC__) */
-extern int assfail();
-#define	VERIFY(EX) ((void)((EX) || assfail("EX", __FILE__, __LINE__)))
-#ifdef DEBUG
-#define	ASSERT(EX) ((void)((EX) || assfail("EX", __FILE__, __LINE__)))
-#else
-#define	ASSERT(x)  ((void)0)
-#endif
-#endif	/* defined(__STDC__) */
 
 /*
  * Assertion variants sensitive to the compilation data model

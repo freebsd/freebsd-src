@@ -19,6 +19,8 @@
  * CDDL HEADER END
  */
 /*
+ * Copyright 2014 Garrett D'Amore <garrett@damore.org>
+ *
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
@@ -300,13 +302,8 @@ extern int cmp2acls(void *, void *);
 
 #endif	/* !defined(_KERNEL) */
 
-#if defined(__STDC__)
 extern int acl(const char *path, int cmd, int cnt, void *buf);
 extern int facl(int fd, int cmd, int cnt, void *buf);
-#else	/* !__STDC__ */
-extern int acl();
-extern int facl();
-#endif	/* defined(__STDC__) */
 
 #ifdef	__cplusplus
 }
