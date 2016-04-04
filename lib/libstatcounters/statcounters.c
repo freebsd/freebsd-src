@@ -198,35 +198,39 @@ static void end_sample (void)
     end_mem_cap_write       = get_mem_cap_write_count();
     if (getenv("GATHER_STATCOUNTERS"))
     {
-        fprintf(stderr, "cycles:\t%lu\n",end_cycle-start_cycle);
-        fprintf(stderr, "instructions:\t%lu\n",end_inst-start_inst);
-        fprintf(stderr, "itlb_miss:\t%lu\n",end_itlb_miss-start_itlb_miss);
-        fprintf(stderr, "dtlb_miss:\t%lu\n",end_dtlb_miss-start_dtlb_miss);
-        fprintf(stderr, "icache_write_hit:\t%lu\n",end_icache_write_hit-start_icache_write_hit);
-        fprintf(stderr, "icache_write_miss:\t%lu\n",end_icache_write_miss-start_icache_write_miss);
-        fprintf(stderr, "icache_read_hit:\t%lu\n",end_icache_read_hit-start_icache_read_hit);
-        fprintf(stderr, "icache_read_miss:\t%lu\n",end_icache_read_miss-start_icache_read_miss);
-        fprintf(stderr, "icache_evict:\t%lu\n",end_icache_evict-start_icache_evict);
-        fprintf(stderr, "dcache_write_hit:\t%lu\n",end_dcache_write_hit-start_dcache_write_hit);
-        fprintf(stderr, "dcache_write_miss:\t%lu\n",end_dcache_write_miss-start_dcache_write_miss);
-        fprintf(stderr, "dcache_read_hit:\t%lu\n",end_dcache_read_hit-start_dcache_read_hit);
-        fprintf(stderr, "dcache_read_miss:\t%lu\n",end_dcache_read_miss-start_dcache_read_miss);
-        fprintf(stderr, "dcache_evict:\t%lu\n",end_dcache_evict-start_dcache_evict);
-        fprintf(stderr, "l2cache_write_hit:\t%lu\n",end_l2cache_write_hit-start_l2cache_write_hit);
+        fprintf(stderr, "cycles:            \t%lu\n",end_cycle-start_cycle);
+        fprintf(stderr, "instructions:      \t%lu\n",end_inst-start_inst);
+        fprintf(stderr, "itlb_miss:         \t%lu\n",end_itlb_miss-start_itlb_miss);
+        fprintf(stderr, "dtlb_miss:         \t%lu\n",end_dtlb_miss-start_dtlb_miss);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "icache_write_hit:  \t%lu\n",end_icache_write_hit-start_icache_write_hit);
+        fprintf(stderr, "icache_write_miss: \t%lu\n",end_icache_write_miss-start_icache_write_miss);
+        fprintf(stderr, "icache_read_hit:   \t%lu\n",end_icache_read_hit-start_icache_read_hit);
+        fprintf(stderr, "icache_read_miss:  \t%lu\n",end_icache_read_miss-start_icache_read_miss);
+        fprintf(stderr, "icache_evict:      \t%lu\n",end_icache_evict-start_icache_evict);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "dcache_write_hit:  \t%lu\n",end_dcache_write_hit-start_dcache_write_hit);
+        fprintf(stderr, "dcache_write_miss: \t%lu\n",end_dcache_write_miss-start_dcache_write_miss);
+        fprintf(stderr, "dcache_read_hit:   \t%lu\n",end_dcache_read_hit-start_dcache_read_hit);
+        fprintf(stderr, "dcache_read_miss:  \t%lu\n",end_dcache_read_miss-start_dcache_read_miss);
+        fprintf(stderr, "dcache_evict:      \t%lu\n",end_dcache_evict-start_dcache_evict);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "l2cache_write_hit: \t%lu\n",end_l2cache_write_hit-start_l2cache_write_hit);
         fprintf(stderr, "l2cache_write_miss:\t%lu\n",end_l2cache_write_miss-start_l2cache_write_miss);
-        fprintf(stderr, "l2cache_read_hit:\t%lu\n",end_l2cache_read_hit-start_l2cache_read_hit);
-        fprintf(stderr, "l2cache_read_miss:\t%lu\n",end_l2cache_read_miss-start_l2cache_read_miss);
-        fprintf(stderr, "l2cache_evict:\t%lu\n",end_l2cache_evict-start_l2cache_evict);
-        fprintf(stderr, "mem_byte_read:\t%lu\n",end_mem_byte_read-start_mem_byte_read);
-        fprintf(stderr, "mem_byte_write:\t%lu\n",end_mem_byte_write-start_mem_byte_write);
-        fprintf(stderr, "mem_hword_read:\t%lu\n",end_mem_hword_read-start_mem_hword_read);
-        fprintf(stderr, "mem_hword_read:\t%lu\n",end_mem_hword_write-start_mem_hword_write);
-        fprintf(stderr, "mem_word_read:\t%lu\n",end_mem_word_read-start_mem_word_read);
-        fprintf(stderr, "mem_word_read:\t%lu\n",end_mem_word_write-start_mem_word_write);
-        fprintf(stderr, "mem_dword_read:\t%lu\n",end_mem_dword_read-start_mem_dword_read);
-        fprintf(stderr, "mem_dword_read:\t%lu\n",end_mem_dword_write-start_mem_dword_write);
-        fprintf(stderr, "mem_cap_read:\t%lu\n",end_mem_cap_read-start_mem_cap_read);
-        fprintf(stderr, "mem_cap_read:\t%lu\n",end_mem_cap_write-start_mem_cap_write);
+        fprintf(stderr, "l2cache_read_hit:  \t%lu\n",end_l2cache_read_hit-start_l2cache_read_hit);
+        fprintf(stderr, "l2cache_read_miss: \t%lu\n",end_l2cache_read_miss-start_l2cache_read_miss);
+        fprintf(stderr, "l2cache_evict:     \t%lu\n",end_l2cache_evict-start_l2cache_evict);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "mem_byte_read:     \t%lu\n",end_mem_byte_read-start_mem_byte_read);
+        fprintf(stderr, "mem_byte_write:    \t%lu\n",end_mem_byte_write-start_mem_byte_write);
+        fprintf(stderr, "mem_hword_read:    \t%lu\n",end_mem_hword_read-start_mem_hword_read);
+        fprintf(stderr, "mem_hword_write:   \t%lu\n",end_mem_hword_write-start_mem_hword_write);
+        fprintf(stderr, "mem_word_read:     \t%lu\n",end_mem_word_read-start_mem_word_read);
+        fprintf(stderr, "mem_word_write:    \t%lu\n",end_mem_word_write-start_mem_word_write);
+        fprintf(stderr, "mem_dword_read:    \t%lu\n",end_mem_dword_read-start_mem_dword_read);
+        fprintf(stderr, "mem_dword_write:   \t%lu\n",end_mem_dword_write-start_mem_dword_write);
+        fprintf(stderr, "mem_cap_read:      \t%lu\n",end_mem_cap_read-start_mem_cap_read);
+        fprintf(stderr, "mem_cap_write:     \t%lu\n",end_mem_cap_write-start_mem_cap_write);
     }
 }
 
