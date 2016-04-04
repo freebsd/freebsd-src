@@ -303,7 +303,7 @@ _thread_init_hack(void)
 void
 _libpthread_init(struct pthread *curthread)
 {
-	int fd, first, dlopened;
+	int first, dlopened;
 
 	/* Check if this function has already been called: */
 	if ((_thr_initial != NULL) && (curthread == NULL))
@@ -318,27 +318,6 @@ _libpthread_init(struct pthread *curthread)
 		PANIC("Thread jump table not properly initialized");
 	memcpy(__thr_jtable, jmp_table, sizeof(jmp_table));
 	__thr_interpose_libc();
-
-	/*
-	 * Check for the special case of this process running as
-	 * or in place of init as pid = 1:
-	 */
-	if ((_thr_pid = getpid()) == 1) {
-		/*
-		 * Setup a new session for this process which is
-		 * assumed to be running as root.
-		 */
-		if (setsid() == -1)
-			PANIC("Can't set session ID");
-		if (revoke(_PATH_CONSOLE) != 0)
-			PANIC("Can't revoke console");
-		if ((fd = __sys_open(_PATH_CONSOLE, O_RDWR)) < 0)
-			PANIC("Can't open console");
-		if (setlogin("root") == -1)
-			PANIC("Can't set login to root");
-		if (_ioctl(fd, TIOCSCTTY, (char *) NULL) == -1)
-			PANIC("Can't set controlling terminal");
-	}
 
 	/* Initialize pthread private data. */
 	init_private();
