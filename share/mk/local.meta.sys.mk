@@ -179,7 +179,7 @@ STAGE_INCSDIR= ${STAGE_OBJTOP}${INCSDIR:U/include}
 # the target is usually an absolute path
 STAGE_SYMLINKS_DIR= ${STAGE_OBJTOP}
 
-LDFLAGS_LAST+= -Wl,-rpath-link -Wl,${STAGE_LIBDIR}
+LDFLAGS_LAST+= -Wl,-rpath-link,${STAGE_LIBDIR}
 .if ${MK_SYSROOT} == "yes"
 SYSROOT?= ${STAGE_OBJTOP}
 .else
