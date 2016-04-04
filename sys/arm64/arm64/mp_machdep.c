@@ -80,6 +80,12 @@ static device_identify_t arm64_cpu_identify;
 static device_probe_t arm64_cpu_probe;
 static device_attach_t arm64_cpu_attach;
 
+static void ipi_ast(void *);
+static void ipi_hardclock(void *);
+static void ipi_preempt(void *);
+static void ipi_rendezvous(void *);
+static void ipi_stop(void *);
+
 static int ipi_handler(void *arg);
 
 struct mtx ap_boot_mtx;
@@ -271,6 +277,58 @@ init_secondary(uint64_t cpu)
 	/* NOTREACHED */
 }
 
+static void
+ipi_ast(void *dummy __unused)
+{
+
+	CTR0(KTR_SMP, "IPI_AST");
+}
+
+static void
+ipi_hardclock(void *dummy __unused)
+{
+
+	CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
+	hardclockintr();
+}
+
+static void
+ipi_preempt(void *dummy __unused)
+{
+	CTR1(KTR_SMP, "%s: IPI_PREEMPT", __func__);
+	sched_preempt(curthread);
+}
+
+static void
+ipi_rendezvous(void *dummy __unused)
+{
+
+	CTR0(KTR_SMP, "IPI_RENDEZVOUS");
+	smp_rendezvous_action();
+}
+
+static void
+ipi_stop(void *dummy __unused)
+{
+	u_int cpu;
+
+	CTR0(KTR_SMP, "IPI_STOP");
+
+	cpu = PCPU_GET(cpuid);
+	savectx(&stoppcbs[cpu]);
+
+	/* Indicate we are stopped */
+	CPU_SET_ATOMIC(cpu, &stopped_cpus);
+
+	/* Wait for restart */
+	while (!CPU_ISSET(cpu, &started_cpus))
+		cpu_spinwait();
+
+	CPU_CLR_ATOMIC(cpu, &started_cpus);
+	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
+	CTR0(KTR_SMP, "IPI_STOP (restart)");
+}
+
 static int
 ipi_handler(void *arg)
 {
@@ -285,35 +343,20 @@ ipi_handler(void *arg)
 
 	switch(ipi) {
 	case IPI_AST:
-		CTR0(KTR_SMP, "IPI_AST");
+		ipi_ast(NULL);
 		break;
 	case IPI_PREEMPT:
-		CTR1(KTR_SMP, "%s: IPI_PREEMPT", __func__);
-		sched_preempt(curthread);
+		ipi_preempt(NULL);
 		break;
 	case IPI_RENDEZVOUS:
-		CTR0(KTR_SMP, "IPI_RENDEZVOUS");
-		smp_rendezvous_action();
+		ipi_rendezvous(NULL);
 		break;
 	case IPI_STOP:
 	case IPI_STOP_HARD:
-		CTR0(KTR_SMP, (ipi == IPI_STOP) ? "IPI_STOP" : "IPI_STOP_HARD");
-		savectx(&stoppcbs[cpu]);
-
-		/* Indicate we are stopped */
-		CPU_SET_ATOMIC(cpu, &stopped_cpus);
-
-		/* Wait for restart */
-		while (!CPU_ISSET(cpu, &started_cpus))
-			cpu_spinwait();
-
-		CPU_CLR_ATOMIC(cpu, &started_cpus);
-		CPU_CLR_ATOMIC(cpu, &stopped_cpus);
-		CTR0(KTR_SMP, "IPI_STOP (restart)");
+		ipi_stop(NULL);
 		break;
 	case IPI_HARDCLOCK:
-		CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
-		hardclockintr();
+		ipi_hardclock(NULL);
 		break;
 	default:
 		panic("Unknown IPI %#0x on cpu %d", ipi, curcpu);
