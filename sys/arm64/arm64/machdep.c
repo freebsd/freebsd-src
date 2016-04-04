@@ -110,6 +110,13 @@ int64_t icache_line_size;	/* The minimum I cache line size */
 int64_t idcache_line_size;	/* The minimum cache line size */
 int64_t dczva_line_size;	/* The size of cache line the dc zva zeroes */
 
+/* pagezero_* implementations are provided in support.S */
+void pagezero_simple(void *);
+void pagezero_cache(void *);
+
+/* pagezero_simple is default pagezero */
+void (*pagezero)(void *p) = pagezero_simple;
+
 static void
 cpu_startup(void *dummy)
 {
@@ -817,6 +824,9 @@ cache_setup(void)
 		/* Same as with above calculations */
 		dczva_line_shift = DCZID_BS_SIZE(dczid_el0);
 		dczva_line_size = sizeof(int) << dczva_line_shift;
+
+		/* Change pagezero function */
+		pagezero = pagezero_cache;
 	}
 }
 
