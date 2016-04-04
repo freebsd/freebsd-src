@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #define GICD_ITARGETSR(n)	(0x0800 + ((n) * 4))	/* v1 ICDIPTR */
 #define GICD_ICFGR(n)		(0x0C00 + ((n) * 4))	/* v1 ICDICFR */
 #define GICD_SGIR(n)		(0x0F00 + ((n) * 4))	/* v1 ICDSGIR */
+#define  GICD_SGI_TARGET_SHIFT	16
 
 /* CPU Registers */
 #define GICC_CTLR		0x0000			/* v1 ICCICR */
@@ -108,6 +109,8 @@ static struct resource_spec arm_gic_spec[] = {
 	{ -1, 0 }
 };
 
+static u_int arm_gic_map[MAXCPU];
+
 static struct arm_gic_softc *arm_gic_sc = NULL;
 
 #define	gic_c_read_4(_sc, _reg)		\
@@ -124,12 +127,38 @@ static pic_eoi_t gic_eoi;
 static pic_mask_t gic_mask_irq;
 static pic_unmask_t gic_unmask_irq;
 
+static uint8_t
+gic_cpu_mask(struct arm_gic_softc *sc)
+{
+	uint32_t mask;
+	int i;
+
+	/* Read the current cpuid mask by reading ITARGETSR{0..7} */
+	for (i = 0; i < 8; i++) {
+		mask = gic_d_read_4(sc, GICD_ITARGETSR(i));
+		if (mask != 0)
+			break;
+	}
+	/* No mask found, assume we are on CPU interface 0 */
+	if (mask == 0)
+		return (1);
+
+	/* Collect the mask in the lower byte */
+	mask |= mask >> 16;
+	mask |= mask >> 8;
+
+	return (mask);
+}
+
 #ifdef SMP
 static void
 gic_init_secondary(device_t dev)
 {
 	struct arm_gic_softc *sc = device_get_softc(dev);
 	int i;
+
+	/* Set the mask so we can find this CPU to send it IPIs */
+	arm_gic_map[PCPU_GET(cpuid)] = gic_cpu_mask(sc);
 
 	for (i = 0; i < sc->nirqs; i += 4)
 		gic_d_write_4(sc, GICD_IPRIORITYR(i >> 2), 0);
@@ -212,20 +241,11 @@ arm_gic_attach(device_t dev)
 		gic_d_write_4(sc, GICD_ICENABLER(i >> 5), 0xFFFFFFFF);
 	}
 
-	/* Read the current cpuid mask by reading ITARGETSR{0..7} */
-	for (i = 0; i < 8; i++) {
-		mask = gic_d_read_4(sc, GICD_ITARGETSR(i));
-		if (mask != 0)
-			break;
-	}
-	/* No mask found, assume we are on CPU interface 0 */
-	if (mask == 0)
-		mask = 1;
-
-	/* Collect the mask in the lower byte */
-	mask |= mask >> 16;
-	mask |= mask >> 8;
-	/* Distribute this back to the upper bytes */
+	/* Find the current cpu mask */
+	mask = gic_cpu_mask(sc);
+	/* Set the mask so we can find this CPU to send it IPIs */
+	arm_gic_map[PCPU_GET(cpuid)] = mask;
+	/* Set all four targets to this cpu */
 	mask |= mask << 8;
 	mask |= mask << 16;
 
@@ -317,7 +337,7 @@ gic_ipi_send(device_t dev, cpuset_t cpus, u_int ipi)
 
 	for (i = 0; i < MAXCPU; i++)
 		if (CPU_ISSET(i, &cpus))
-			val |= 1 << (16 + i);
+			val |= arm_gic_map[i] << GICD_SGI_TARGET_SHIFT;
 
 	gic_d_write_4(sc, GICD_SGIR(0), val | ipi);
 }
