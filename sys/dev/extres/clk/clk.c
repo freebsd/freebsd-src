@@ -487,10 +487,10 @@ clkdom_dump(struct clkdom * clkdom)
 	CLK_TOPO_SLOCK();
 	TAILQ_FOREACH(clknode, &clkdom->clknode_list, clkdom_link) {
 		rv = clknode_get_freq(clknode, &freq);
-		printf("Clock: %s, parent: %s(%d), freq: %llu\n", clknode->name,
+		printf("Clock: %s, parent: %s(%d), freq: %ju\n", clknode->name,
 		    clknode->parent == NULL ? "(NULL)" : clknode->parent->name,
 		    clknode->parent_idx,
-		    ((rv == 0) ? freq: rv));
+		    (uintmax_t)((rv == 0) ? freq: rv));
 	}
 	CLK_TOPO_UNLOCK();
 }
