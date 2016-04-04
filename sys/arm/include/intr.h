@@ -52,7 +52,7 @@
 #include <sys/intr.h>
 
 #ifdef SMP
-typedef void intr_ipi_send_t(void *, cpuset_t);
+typedef void intr_ipi_send_t(void *, cpuset_t, u_int);
 typedef void intr_ipi_handler_t(void *);
 
 void intr_ipi_dispatch(u_int, struct trapframe *);
