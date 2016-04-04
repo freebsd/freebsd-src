@@ -180,7 +180,7 @@ efifb_uga_find_pixel(EFI_UGA_DRAW_PROTOCOL *uga, u_int line,
 	printf("No change detected in frame buffer");
 
  fail:
-	printf(" -- error %lu\n", status & ~EFI_ERROR_MASK);
+	printf(" -- error %lu\n", EFI_ERROR_CODE(status));
 	free(data1);
 	return (-1);
 }
@@ -305,7 +305,7 @@ efifb_from_uga(struct efi_fb *efifb, EFI_UGA_DRAW_PROTOCOL *uga)
 	 * offset within the frame buffer of the visible region, nor
 	 * the stride. Our only option is to look at the system and
 	 * fill in the blanks based on that. Luckily, UGA was mostly
-	 * only used on Apple hardware. 
+	 * only used on Apple hardware.
 	 */
 	offset = -1;
 	ev = getenv("smbios.system.maker");
@@ -475,7 +475,7 @@ command_gop(int argc, char *argv[])
 	status = BS->LocateProtocol(&gop_guid, NULL, (VOID **)&gop);
 	if (EFI_ERROR(status)) {
 		sprintf(command_errbuf, "%s: Graphics Output Protocol not "
-		    "present (error=%lu)", argv[0], status & ~EFI_ERROR_MASK);
+		    "present (error=%lu)", argv[0], EFI_ERROR_CODE(status));
 		return (CMD_ERROR);
 	}
 
@@ -496,7 +496,7 @@ command_gop(int argc, char *argv[])
 		if (EFI_ERROR(status)) {
 			sprintf(command_errbuf, "%s: Unable to set mode to "
 			    "%u (error=%lu)", argv[0], mode,
-			    status & ~EFI_ERROR_MASK);
+			    EFI_ERROR_CODE(status));
 			return (CMD_ERROR);
 		}
 	} else if (!strcmp(argv[1], "get")) {
@@ -543,7 +543,7 @@ command_uga(int argc, char *argv[])
 	status = BS->LocateProtocol(&uga_guid, NULL, (VOID **)&uga);
 	if (EFI_ERROR(status)) {
 		sprintf(command_errbuf, "%s: UGA Protocol not present "
-		    "(error=%lu)", argv[0], status & ~EFI_ERROR_MASK);
+		    "(error=%lu)", argv[0], EFI_ERROR_CODE(status));
 		return (CMD_ERROR);
 	}
 
