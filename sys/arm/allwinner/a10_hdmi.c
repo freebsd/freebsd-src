@@ -195,6 +195,15 @@ __FBSDID("$FreeBSD$");
 #define	CEA_TAG_ID		0x02
 #define	CEA_DTD			0x03
 #define	DTD_BASIC_AUDIO		(1 << 6)
+#define	CEA_REV			0x02
+#define	CEA_DATA_OFF		0x03
+#define	CEA_DATA_START		4
+#define	BLOCK_TAG(x)		(((x) >> 5) & 0x7)
+#define	BLOCK_TAG_VSDB		3
+#define	BLOCK_LEN(x)		((x) & 0x1f)
+#define	HDMI_VSDB_MINLEN	5
+#define	HDMI_OUI		"\x03\x0c\x00"
+#define	HDMI_OUI_LEN		3
 
 struct a10hdmi_softc {
 	struct resource		*res;
@@ -372,6 +381,41 @@ a10hdmi_ddc_read(struct a10hdmi_softc *sc, int block, uint8_t *edid)
 	return (0);
 }
 
+static int
+a10hdmi_detect_hdmi_vsdb(uint8_t *edid)
+{
+	int off, p, btag, blen;
+
+	if (edid[EXT_TAG] != CEA_TAG_ID)
+		return (0);
+
+	off = edid[CEA_DATA_OFF];
+
+	/* CEA data block collection starts at byte 4 */
+	if (off <= CEA_DATA_START)
+		return (0);
+
+	/* Parse the CEA data blocks */
+	for (p = CEA_DATA_START; p < off;) {
+		btag = BLOCK_TAG(edid[p]);
+		blen = BLOCK_LEN(edid[p]);
+
+		/* Make sure the length is sane */
+		if (p + blen + 1 > off)
+			break;
+
+		/* Look for a VSDB with the HDMI 24-bit IEEE registration ID */
+		if (btag == BLOCK_TAG_VSDB && blen >= HDMI_VSDB_MINLEN &&
+		    memcmp(&edid[p + 1], HDMI_OUI, HDMI_OUI_LEN) == 0)
+			return (1);
+
+		/* Next data block */
+		p += (1 + blen);
+	}
+
+	return (0);
+}
+
 static void
 a10hdmi_detect_hdmi(struct a10hdmi_softc *sc, int *phdmi, int *paudio)
 {
@@ -389,7 +433,7 @@ a10hdmi_detect_hdmi(struct a10hdmi_softc *sc, int *phdmi, int *paudio)
 		if (a10hdmi_ddc_read(sc, block, edid) != 0)
 			return;
 
-		if (edid[EXT_TAG] == CEA_TAG_ID) {
+		if (a10hdmi_detect_hdmi_vsdb(edid) != 0) {
 			*phdmi = 1;
 			*paudio = ((edid[CEA_DTD] & DTD_BASIC_AUDIO) != 0);
 			return;
@@ -518,6 +562,9 @@ a10hdmi_set_videomode(device_t dev, const struct videomode *mode)
 	    PLLCTRL0_VCO_S);
 
 	/* Setup display settings */
+	if (bootverbose)
+		device_printf(dev, "HDMI: %s, Audio: %s\n",
+		    sc->has_hdmi ? "yes" : "no", sc->has_audio ? "yes" : "no");
 	val = 0;
 	if (sc->has_hdmi)
 		val |= VID_CTRL_HDMI_MODE;

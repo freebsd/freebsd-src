@@ -297,7 +297,7 @@ lebuffer_print_res(struct lebuffer_devinfo *ldi)
 
 	rv = 0;
 	rv += resource_list_print_type(&ldi->ldi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx");
-	rv += resource_list_print_type(&ldi->ldi_rl, "irq", SYS_RES_IRQ, "%ld");
+	    "%#jx");
+	rv += resource_list_print_type(&ldi->ldi_rl, "irq", SYS_RES_IRQ, "%jd");
 	return (rv);
 }

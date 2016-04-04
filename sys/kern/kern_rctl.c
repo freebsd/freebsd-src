@@ -78,10 +78,16 @@ FEATURE(rctl, "Resource Limits");
 #define	RCTL_PCPU_SHIFT		(10 * 1000000)
 
 unsigned int rctl_maxbufsize = RCTL_MAX_OUTBUFSIZE;
+static int rctl_log_rate_limit = 10;
+static int rctl_devctl_rate_limit = 10;
 
 SYSCTL_NODE(_kern_racct, OID_AUTO, rctl, CTLFLAG_RW, 0, "Resource Limits");
 SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, maxbufsize, CTLFLAG_RWTUN,
     &rctl_maxbufsize, 0, "Maximum output buffer size");
+SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, log_rate_limit, CTLFLAG_RW,
+    &rctl_log_rate_limit, 0, "Maximum number of log messages per second");
+SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, devctl_rate_limit, CTLFLAG_RW,
+    &rctl_devctl_rate_limit, 0, "Maximum number of devctl messages per second");
 
 /*
  * 'rctl_rule_link' connects a rule with every racct it's related to.
@@ -219,6 +225,28 @@ rctl_resource_name(int resource)
 	panic("rctl_resource_name: unknown resource %d", resource);
 }
 
+static struct racct *
+rctl_proc_rule_to_racct(const struct proc *p, const struct rctl_rule *rule)
+{
+	struct ucred *cred = p->p_ucred;
+
+	ASSERT_RACCT_ENABLED();
+	rw_assert(&rctl_lock, RA_LOCKED);
+
+	switch (rule->rr_per) {
+	case RCTL_SUBJECT_TYPE_PROCESS:
+		return (p->p_racct);
+	case RCTL_SUBJECT_TYPE_USER:
+		return (cred->cr_ruidinfo->ui_racct);
+	case RCTL_SUBJECT_TYPE_LOGINCLASS:
+		return (cred->cr_loginclass->lc_racct);
+	case RCTL_SUBJECT_TYPE_JAIL:
+		return (cred->cr_prison->pr_prison_racct->prr_racct);
+	default:
+		panic("%s: unknown per %d", __func__, rule->rr_per);
+	}
+}
+
 /*
  * Return the amount of resource that can be allocated by 'p' before
  * hitting 'rule'.
@@ -226,36 +254,14 @@ rctl_resource_name(int resource)
 static int64_t
 rctl_available_resource(const struct proc *p, const struct rctl_rule *rule)
 {
-	int resource;
-	int64_t available = INT64_MAX;
-	struct ucred *cred = p->p_ucred;
+	int64_t available;
+	const struct racct *racct;
 
 	ASSERT_RACCT_ENABLED();
 	rw_assert(&rctl_lock, RA_LOCKED);
 
-	resource = rule->rr_resource;
-	switch (rule->rr_per) {
-	case RCTL_SUBJECT_TYPE_PROCESS:
-		available = rule->rr_amount -
-		    p->p_racct->r_resources[resource];
-		break;
-	case RCTL_SUBJECT_TYPE_USER:
-		available = rule->rr_amount -
-		    cred->cr_ruidinfo->ui_racct->r_resources[resource];
-		break;
-	case RCTL_SUBJECT_TYPE_LOGINCLASS:
-		available = rule->rr_amount -
-		    cred->cr_loginclass->lc_racct->r_resources[resource];
-		break;
-	case RCTL_SUBJECT_TYPE_JAIL:
-		available = rule->rr_amount -
-		    cred->cr_prison->pr_prison_racct->prr_racct->
-		        r_resources[resource];
-		break;
-	default:
-		panic("rctl_compute_available: unknown per %d",
-		    rule->rr_per);
-	}
+	racct = rctl_proc_rule_to_racct(p, rule);
+	available = rule->rr_amount - racct->r_resources[rule->rr_resource];
 
 	return (available);
 }
@@ -336,13 +342,13 @@ rctl_pcpu_available(const struct proc *p) {
 int
 rctl_enforce(struct proc *p, int resource, uint64_t amount)
 {
+	static struct timeval log_lasttime, devctl_lasttime;
+	static int log_curtime = 0, devctl_curtime = 0;
 	struct rctl_rule *rule;
 	struct rctl_rule_link *link;
 	struct sbuf sb;
 	int should_deny = 0;
 	char *buf;
-	static int curtime = 0;
-	static struct timeval lasttime;
 
 	ASSERT_RACCT_ENABLED();
 
@@ -383,7 +389,8 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 			if (p->p_state != PRS_NORMAL)
 				continue;
 
-			if (!ppsratecheck(&lasttime, &curtime, 10))
+			if (!ppsratecheck(&log_lasttime, &log_curtime,
+			    rctl_log_rate_limit))
 				continue;
 
 			buf = malloc(RCTL_LOG_BUFSIZE, M_RCTL, M_NOWAIT);
@@ -409,6 +416,10 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 			if (p->p_state != PRS_NORMAL)
 				continue;
 	
+			if (!ppsratecheck(&devctl_lasttime, &devctl_curtime,
+			    rctl_devctl_rate_limit))
+				continue;
+
 			buf = malloc(RCTL_LOG_BUFSIZE, M_RCTL, M_NOWAIT);
 			if (buf == NULL) {
 				printf("rctl_enforce: out of memory\n");
@@ -641,6 +652,9 @@ str2int64(const char *str, int64_t *value)
 	*value = strtoul(str, &end, 10);
 	if ((size_t)(end - str) != strlen(str))
 		return (EINVAL);
+
+	if (*value < 0)
+		return (ERANGE);
 
 	return (0);
 }
@@ -1008,8 +1022,13 @@ rctl_string_to_rule(char *rulestr, struct rctl_rule **rulep)
 		error = str2int64(amountstr, &rule->rr_amount);
 		if (error != 0)
 			goto out;
-		if (RACCT_IS_IN_MILLIONS(rule->rr_resource))
+		if (RACCT_IS_IN_MILLIONS(rule->rr_resource)) {
+			if (rule->rr_amount > INT64_MAX / 1000000) {
+				error = ERANGE;
+				goto out;
+			}
 			rule->rr_amount *= 1000000;
+		}
 	}
 
 	if (perstr == NULL || perstr[0] == '\0')

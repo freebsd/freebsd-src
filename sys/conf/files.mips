@@ -92,3 +92,6 @@ dev/nvram2env/nvram2env.c		optional	nvram2env
 dev/hwpmc/hwpmc_mips.c			optional	hwpmc
 dev/hwpmc/hwpmc_mips24k.c		optional	hwpmc_mips24k
 dev/hwpmc/hwpmc_mips74k.c		optional	hwpmc_mips74k
+
+# ofw support
+dev/ofw/ofwpci.c			optional	fdt pci

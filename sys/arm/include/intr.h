@@ -52,14 +52,17 @@
 #include <sys/intr.h>
 
 #ifdef SMP
-void intr_ipi_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf);
+typedef void intr_ipi_send_t(void *, cpuset_t, u_int);
+typedef void intr_ipi_handler_t(void *);
 
-#define AISHF_NOALLOC	0x0001
+void intr_ipi_dispatch(u_int, struct trapframe *);
+void intr_ipi_send(cpuset_t, u_int);
 
-int intr_ipi_set_handler(u_int ipi, const char *name, intr_ipi_filter_t *filter,
-    void *arg, u_int flags);
+void intr_ipi_setup(u_int, const char *, intr_ipi_handler_t *, void *,
+    intr_ipi_send_t *, void *);
+
+int intr_pic_ipi_setup(u_int, const char *, intr_ipi_handler_t *, void *);
 #endif
-
 #else /* ARM_INTRNG */
 
 /* XXX move to std.* files? */

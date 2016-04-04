@@ -66,6 +66,12 @@
 #define	CTR_ILINE_MASK		(0xf << CTR_ILINE_SHIFT)
 #define	CTR_ILINE_SIZE(reg)	(((reg) & CTR_ILINE_MASK) >> CTR_ILINE_SHIFT)
 
+/* DCZID_EL0 - Data Cache Zero ID register */
+#define DCZID_DZP		(1 << 4) /* DC ZVA prohibited if non-0 */
+#define DCZID_BS_SHIFT		0
+#define DCZID_BS_MASK		(0xf << DCZID_BS_SHIFT)
+#define	DCZID_BS_SIZE(reg)	(((reg) & DCZID_BS_MASK) >> DCZID_BS_SHIFT)
+
 /* ESR_ELx */
 #define	ESR_ELx_ISS_MASK	0x00ffffff
 #define	 ISS_INSN_FnV		(0x01 << 10)

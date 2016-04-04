@@ -1511,7 +1511,6 @@ ixl_rxeof(struct ixl_queue *que, int count)
 	struct ifnet		*ifp = vsi->ifp;
 #if defined(INET6) || defined(INET)
 	struct lro_ctrl		*lro = &rxr->lro;
-	struct lro_entry	*queued;
 #endif
 	int			i, nextp, processed = 0;
 	union i40e_rx_desc	*cur;
@@ -1735,10 +1734,7 @@ next_desc:
 	/*
 	 * Flush any outstanding LRO work
 	 */
-	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
-		SLIST_REMOVE_HEAD(&lro->lro_active, next);
-		tcp_lro_flush(lro, queued);
-	}
+	tcp_lro_flush_all(lro);
 #endif
 
 	IXL_RX_UNLOCK(rxr);

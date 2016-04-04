@@ -1542,7 +1542,7 @@ tcp_close(struct tcpcb *tp)
 #endif
 	in_pcbdrop(inp);
 	TCPSTAT_INC(tcps_closed);
-	TCPSTAT_DEC(tcps_states[tp->t_state]);
+	TCPSTATES_DEC(tp->t_state);
 	KASSERT(inp->inp_socket != NULL, ("tcp_close: inp_socket NULL"));
 	so = inp->inp_socket;
 	soisdisconnected(so);
@@ -1632,6 +1632,10 @@ tcp_notify(struct inpcb *inp, int error)
 	if (tp->t_state == TCPS_ESTABLISHED &&
 	    (error == EHOSTUNREACH || error == ENETUNREACH ||
 	     error == EHOSTDOWN)) {
+		if (inp->inp_route.ro_rt) {
+			RTFREE(inp->inp_route.ro_rt);
+			inp->inp_route.ro_rt = (struct rtentry *)NULL;
+		}
 		return (inp);
 	} else if (tp->t_state < TCPS_ESTABLISHED && tp->t_rxtshift > 3 &&
 	    tp->t_softerror) {
@@ -1665,7 +1669,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	 */
 	if (req->oldptr == NULL) {
 		n = V_tcbinfo.ipi_count +
-		    TCPSTAT_FETCH(tcps_states[TCPS_SYN_RECEIVED]);
+		    counter_u64_fetch(VNET(tcps_states)[TCPS_SYN_RECEIVED]);
 		n += imax(n / 8, 10);
 		req->oldidx = 2 * (sizeof xig) + n * sizeof(struct xtcpcb);
 		return (0);
@@ -1682,7 +1686,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	n = V_tcbinfo.ipi_count;
 	INP_LIST_RUNLOCK(&V_tcbinfo);
 
-	m = TCPSTAT_FETCH(tcps_states[TCPS_SYN_RECEIVED]);
+	m = counter_u64_fetch(VNET(tcps_states)[TCPS_SYN_RECEIVED]);
 
 	error = sysctl_wire_old_buffer(req, 2 * (sizeof xig)
 		+ (n + m) * sizeof(struct xtcpcb));
@@ -1702,8 +1706,6 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
-	if (inp_list == NULL)
-		return (ENOMEM);
 
 	INP_INFO_WLOCK(&V_tcbinfo);
 	for (inp = LIST_FIRST(V_tcbinfo.ipi_listhead), i = 0;
@@ -1926,11 +1928,11 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	else if (V_icmp_may_rst && (cmd == PRC_UNREACH_ADMIN_PROHIB ||
 		cmd == PRC_UNREACH_PORT || cmd == PRC_TIMXCEED_INTRANS) && ip)
 		notify = tcp_drop_syn_sent;
-	/*
-	 * Redirects don't need to be handled up here.
-	 */
-	else if (PRC_IS_REDIRECT(cmd))
+	else if (PRC_IS_REDIRECT(cmd)) {
+		/* signal EHOSTDOWN, as it flushes the cached route */
+		in_pcbnotifyall(&V_tcbinfo, faddr, EHOSTDOWN, notify);
 		return;
+	}
 	/*
 	 * Hostdead is ugly because it goes linearly through all PCBs.
 	 * XXX: We never get this from ICMP, otherwise it makes an
@@ -2986,8 +2988,8 @@ tcp_state_change(struct tcpcb *tp, int newstate)
 	int pstate = tp->t_state;
 #endif
 
-	TCPSTAT_DEC(tcps_states[tp->t_state]);
-	TCPSTAT_INC(tcps_states[newstate]);
+	TCPSTATES_DEC(tp->t_state);
+	TCPSTATES_INC(newstate);
 	tp->t_state = newstate;
 	TCP_PROBE6(state__change, NULL, tp, NULL, tp, NULL, pstate);
 }

@@ -174,6 +174,10 @@ CFLAGS+=	${CWARNFLAGS.${.IMPSRC:T}}
 CFLAGS+=	 ${CFLAGS.${COMPILER_TYPE}}
 CXXFLAGS+=	 ${CXXFLAGS.${COMPILER_TYPE}}
 
+ACFLAGS+=	${ACFLAGS.${.IMPSRC:T}}
+CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
+CXXFLAGS+=	${CXXFLAGS.${.IMPSRC:T}}
+
 # Tell bmake not to mistake standard targets for things to be searched for
 # or expect to ever be up-to-date.
 PHONY_NOTMAIN = analyze afterdepend afterinstall all beforedepend beforeinstall \
@@ -231,7 +235,6 @@ stage_files.shlib: ${_LIBS:M*.so.*}
 .endif
 
 .if defined(SHLIB_LINK) && commands(${SHLIB_LINK:R}.ld)
-_LDSCRIPTROOT?= ${STAGE_OBJTOP}
 STAGE_AS_SETS+= ldscript
 STAGE_AS.ldscript+= ${SHLIB_LINK:R}.ld
 stage_as.ldscript: ${SHLIB_LINK:R}.ld

@@ -2554,7 +2554,8 @@ iwn_find_eeprom_channel(struct iwn_softc *sc, struct ieee80211_channel *c)
 	} else {
 		for (j = 0; j < 5; j++) {
 			for (i = 0; i < iwn_bands[j].nchan; i++) {
-				if (iwn_bands[j].chan[i] == c->ic_ieee)
+				if (iwn_bands[j].chan[i] == c->ic_ieee &&
+				    ((j == 0) ^ IEEE80211_IS_CHAN_A(c)) == 1)
 					return &sc->eeprom_channels[j][i];
 			}
 		}
@@ -8700,7 +8701,9 @@ iwn_panicked(void *arg0, int pending)
 	struct iwn_softc *sc = arg0;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+#if 0
 	int error;
+#endif
 
 	if (vap == NULL) {
 		printf("%s: null vap\n", __func__);
@@ -8708,8 +8711,18 @@ iwn_panicked(void *arg0, int pending)
 	}
 
 	device_printf(sc->sc_dev, "%s: controller panicked, iv_state = %d; "
-	    "resetting...\n", __func__, vap->iv_state);
+	    "restarting\n", __func__, vap->iv_state);
 
+	/*
+	 * This is not enough work. We need to also reinitialise
+	 * the correct transmit state for aggregation enabled queues,
+	 * which has a very specific requirement of
+	 * ring index = 802.11 seqno % 256.  If we don't do this (which
+	 * we definitely don't!) then the firmware will just panic again.
+	 */
+#if 1
+	ieee80211_restart_all(ic);
+#else
 	IWN_LOCK(sc);
 
 	iwn_stop_locked(sc);
@@ -8726,6 +8739,7 @@ iwn_panicked(void *arg0, int pending)
 	}
 
 	IWN_UNLOCK(sc);
+#endif
 }
 
 static void

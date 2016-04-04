@@ -228,12 +228,8 @@ struct wpi_softc {
 	struct wpi_dma_info	fw_dma;
 
 	/* Tasks used by the driver. */
-	struct task		sc_reinittask;
 	struct task		sc_radiooff_task;
 	struct task		sc_radioon_task;
-
-	/* Taskqueue */
-	struct taskqueue	*sc_tq;
 
 	/* Eeprom info. */
 	uint8_t			cap;

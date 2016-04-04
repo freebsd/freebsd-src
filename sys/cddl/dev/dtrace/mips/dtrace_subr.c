@@ -46,8 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #define	DELAYBRANCH(x)	((int)(x) < 0)
 		
-extern uintptr_t 	dtrace_in_probe_addr;
-extern int		dtrace_in_probe;
 extern dtrace_id_t	dtrace_probeid_error;
 
 int dtrace_invop(uintptr_t, uintptr_t *, uintptr_t);

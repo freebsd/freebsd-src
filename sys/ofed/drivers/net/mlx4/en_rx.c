@@ -561,9 +561,6 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	struct mbuf *mb;
 	struct mlx4_cq *mcq = &cq->mcq;
 	struct mlx4_cqe *buf = cq->buf;
-#ifdef INET
-	struct lro_entry *queued;
-#endif
 	int index;
 	unsigned int length;
 	int polled = 0;
@@ -616,7 +613,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			goto next;
 		}
 
-		mb->m_pkthdr.flowid = cq->ring;
+		/* forward Toeplitz compatible hash value */
+		mb->m_pkthdr.flowid = be32_to_cpu(cqe->immed_rss_invalid);
 		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE);
 		mb->m_pkthdr.rcvif = dev;
 		if (be32_to_cpu(cqe->vlan_my_qpn) &
@@ -668,10 +666,7 @@ next:
 	/* Flush all pending IP reassembly sessions */
 out:
 #ifdef INET
-	while ((queued = SLIST_FIRST(&ring->lro.lro_active)) != NULL) {
-		SLIST_REMOVE_HEAD(&ring->lro.lro_active, next);
-		tcp_lro_flush(&ring->lro, queued);
-	}
+	tcp_lro_flush_all(&ring->lro);
 #endif
 	AVG_PERF_COUNTER(priv->pstats.rx_coal_avg, polled);
 	mcq->cons_index = cons_index;

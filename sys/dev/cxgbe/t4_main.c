@@ -334,7 +334,8 @@ TUNABLE_INT("hw.cxgbe.nbmcaps_allowed", &t4_nbmcaps_allowed);
 static int t4_linkcaps_allowed = 0;	/* No DCBX, PPP, etc. by default */
 TUNABLE_INT("hw.cxgbe.linkcaps_allowed", &t4_linkcaps_allowed);
 
-static int t4_switchcaps_allowed = 0;
+static int t4_switchcaps_allowed = FW_CAPS_CONFIG_SWITCH_INGRESS |
+    FW_CAPS_CONFIG_SWITCH_EGRESS;
 TUNABLE_INT("hw.cxgbe.switchcaps_allowed", &t4_switchcaps_allowed);
 
 static int t4_niccaps_allowed = FW_CAPS_CONFIG_NIC;
@@ -343,13 +344,13 @@ TUNABLE_INT("hw.cxgbe.niccaps_allowed", &t4_niccaps_allowed);
 static int t4_toecaps_allowed = -1;
 TUNABLE_INT("hw.cxgbe.toecaps_allowed", &t4_toecaps_allowed);
 
-static int t4_rdmacaps_allowed = 0;
+static int t4_rdmacaps_allowed = -1;
 TUNABLE_INT("hw.cxgbe.rdmacaps_allowed", &t4_rdmacaps_allowed);
 
 static int t4_tlscaps_allowed = 0;
 TUNABLE_INT("hw.cxgbe.tlscaps_allowed", &t4_tlscaps_allowed);
 
-static int t4_iscsicaps_allowed = 0;
+static int t4_iscsicaps_allowed = -1;
 TUNABLE_INT("hw.cxgbe.iscsicaps_allowed", &t4_iscsicaps_allowed);
 
 static int t4_fcoecaps_allowed = 0;
@@ -1731,29 +1732,29 @@ cxgbe_get_counter(struct ifnet *ifp, ift_counter c)
 
 	switch (c) {
 	case IFCOUNTER_IPACKETS:
-		return (s->rx_frames - s->rx_pause);
+		return (s->rx_frames);
 
 	case IFCOUNTER_IERRORS:
 		return (s->rx_jabber + s->rx_runt + s->rx_too_long +
 		    s->rx_fcs_err + s->rx_len_err);
 
 	case IFCOUNTER_OPACKETS:
-		return (s->tx_frames - s->tx_pause);
+		return (s->tx_frames);
 
 	case IFCOUNTER_OERRORS:
 		return (s->tx_error_frames);
 
 	case IFCOUNTER_IBYTES:
-		return (s->rx_octets - s->rx_pause * 64);
+		return (s->rx_octets);
 
 	case IFCOUNTER_OBYTES:
-		return (s->tx_octets - s->tx_pause * 64);
+		return (s->tx_octets);
 
 	case IFCOUNTER_IMCASTS:
-		return (s->rx_mcast_frames - s->rx_pause);
+		return (s->rx_mcast_frames);
 
 	case IFCOUNTER_OMCASTS:
-		return (s->tx_mcast_frames - s->tx_pause);
+		return (s->tx_mcast_frames);
 
 	case IFCOUNTER_IQDROPS:
 		return (s->rx_ovflow0 + s->rx_ovflow1 + s->rx_ovflow2 +
@@ -6287,6 +6288,9 @@ mem_region_show(struct sbuf *sb, const char *name, unsigned int from,
 {
 	unsigned int size;
 
+	if (from == to)
+		return;
+
 	size = to - from + 1;
 	if (size == 0)
 		return;
@@ -6390,13 +6394,10 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	md++;
 
 	if (t4_read_reg(sc, A_LE_DB_CONFIG) & F_HASHEN) {
-		if (chip_id(sc) <= CHELSIO_T5) {
-			hi = t4_read_reg(sc, A_LE_DB_TID_HASHBASE) / 4;
+		if (chip_id(sc) <= CHELSIO_T5)
 			md->base = t4_read_reg(sc, A_LE_DB_HASH_TID_BASE);
-		} else {
-			hi = t4_read_reg(sc, A_LE_DB_HASH_TID_BASE);
+		else
 			md->base = t4_read_reg(sc, A_LE_DB_HASH_TBL_BASE_ADDR);
-		}
 		md->limit = 0;
 	} else {
 		md->base = 0;
@@ -9103,9 +9104,26 @@ tweak_tunables(void)
 
 	if (t4_toecaps_allowed == -1)
 		t4_toecaps_allowed = FW_CAPS_CONFIG_TOE;
+
+	if (t4_rdmacaps_allowed == -1) {
+		t4_rdmacaps_allowed = FW_CAPS_CONFIG_RDMA_RDDP |
+		    FW_CAPS_CONFIG_RDMA_RDMAC;
+	}
+
+	if (t4_iscsicaps_allowed == -1) {
+		t4_iscsicaps_allowed = FW_CAPS_CONFIG_ISCSI_INITIATOR_PDU |
+		    FW_CAPS_CONFIG_ISCSI_TARGET_PDU |
+		    FW_CAPS_CONFIG_ISCSI_T10DIF;
+	}
 #else
 	if (t4_toecaps_allowed == -1)
 		t4_toecaps_allowed = 0;
+
+	if (t4_rdmacaps_allowed == -1)
+		t4_rdmacaps_allowed = 0;
+
+	if (t4_iscsicaps_allowed == -1)
+		t4_iscsicaps_allowed = 0;
 #endif
 
 #ifdef DEV_NETMAP

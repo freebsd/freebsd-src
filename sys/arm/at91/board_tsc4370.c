@@ -601,7 +601,7 @@ parse_boot_param(struct arm_boot_params *abp)
 		inkernel_bootinfo = *(struct tsc_bootinfo *)(abp->abp_r1);
 	}
 
-	return fake_preload_metadata(abp);
+	return fake_preload_metadata(abp, NULL, 0);
 }
 
 ARM_BOARD(NONE, "TSC4370 Controller Board");

@@ -52,7 +52,8 @@ LIBSOFTWMAKEFLAGS=        -DCOMPAT_SOFTFP
 # Generic code for each type.
 # Set defaults based on type.
 libcompat=	${LIBCOMPAT:tl}
-_LIBCOMPAT_MAKEVARS=	_OBJTREE TMP CPUFLAGS CFLAGS WMAKEENV WMAKEFLAGS WMAKE
+_LIBCOMPAT_MAKEVARS=	_OBJTREE TMP CPUFLAGS CFLAGS CXXFLAGS WMAKEENV \
+			WMAKEFLAGS WMAKE
 .for _var in ${_LIBCOMPAT_MAKEVARS}
 .if !empty(LIB${LIBCOMPAT}${_var})
 LIBCOMPAT${_var}?=	${LIB${LIBCOMPAT}${_var}}
@@ -64,22 +65,32 @@ LIBCOMPAT_OBJTREE?=	${OBJTREE}${.CURDIR}/world${libcompat}
 LIBCOMPATTMP?=		${OBJTREE}${.CURDIR}/lib${libcompat}
 
 LIBCOMPATCFLAGS+=	${LIBCOMPATCPUFLAGS} \
-			-isystem ${LIBCOMPATTMP}/usr/include/ \
 			-L${LIBCOMPATTMP}/usr/lib${libcompat} \
-			-B${LIBCOMPATTMP}/usr/lib${libcompat}
+			--sysroot=${LIBCOMPATTMP} \
+			${BFLAGS}
+
+# -B is needed to find /usr/lib32/crti.o for GCC and /usr/libsoft/crti.o for
+# Clang/GCC.
+LIBCOMPATCFLAGS+=	-B${LIBCOMPATTMP}/usr/lib${libcompat}
+# GCC requires -isystem when using a cross-compiler.
+LIBCOMPATCFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include
+
+.if defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc
+# Force using libc++ for external GCC.
+LIBCOMPATCXXFLAGS+=	-isystem ${LIBCOMPATTMP}/usr/include/c++/v1 -std=c++11 \
+			-nostdinc++ -L${LIBCOMPAT_OBJTREE}${.CURDIR}/lib/libc++
+.endif
 
 # Yes, the flags are redundant.
 LIBCOMPATWMAKEENV+= MAKEOBJDIRPREFIX=${LIBCOMPAT_OBJTREE} \
-		_LDSCRIPTROOT=${LIBCOMPATTMP} \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
 		LIBDIR=/usr/lib${libcompat} \
 		SHLIBDIR=/usr/lib${libcompat} \
 		DTRACE="${LIB$COMPATDTRACE:U${DTRACE}}"
 LIBCOMPATWMAKEFLAGS+= CC="${XCC} ${LIBCOMPATCFLAGS}" \
-		CXX="${XCXX} ${LIBCOMPATCFLAGS}" \
+		CXX="${XCXX} ${LIBCOMPATCFLAGS} ${LIBCOMPATCXXFLAGS}" \
 		DESTDIR=${LIBCOMPATTMP} \
-		-DLIBRARIES_ONLY \
 		-DNO_CPU_CFLAGS \
 		MK_CTF=no \
 		-DNO_LINT \
@@ -87,16 +98,18 @@ LIBCOMPATWMAKEFLAGS+= CC="${XCC} ${LIBCOMPATCFLAGS}" \
 LIBCOMPATWMAKE+=	${LIBCOMPATWMAKEENV} ${MAKE} ${LIBCOMPATWMAKEFLAGS} \
 			MK_MAN=no MK_HTML=no
 LIBCOMPATIMAKE+=	${LIBCOMPATWMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} \
-			MK_TOOLCHAIN=no ${IMAKE_INSTALL}
-
-.if ${XCC:N${CCACHE_BIN}:M/*}
-LIBCOMPATCFLAGS+=	--sysroot=${WORLDTMP}
-.endif
+			MK_TOOLCHAIN=no ${IMAKE_INSTALL} \
+			-DLIBRARIES_ONLY
 
 _LC_LIBDIRS.yes=		lib gnu/lib
 _LC_LIBDIRS.${MK_CDDL:tl}+=	cddl/lib
 _LC_LIBDIRS.${MK_CRYPT:tl}+=	secure/lib
 _LC_LIBDIRS.${MK_KERBEROS:tl}+=	kerberos5/lib
+
+_LC_INCDIRS=	\
+		include \
+		lib/ncurses/ncursesw \
+		${_LC_LIBDIRS.yes}
 
 # Shared logic
 build${libcompat}: .PHONY
@@ -120,13 +133,10 @@ build${libcompat}: .PHONY
 	mkdir -p ${WORLDTMP}
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 .for _t in obj includes
-	${_+_}cd ${.CURDIR}/include; ${LIBCOMPATWMAKE} DIRPRFX=include/ ${_t}
-.for _dir in ${_LC_LIBDIRS.yes}
-	${_+_}cd ${.CURDIR}/${_dir}; ${LIBCOMPATWMAKE} DIRPRFX=${_dir}/ ${_t}
+.for _dir in ${_LC_INCDIRS}
+	${_+_}cd ${.CURDIR}/${_dir}; ${LIBCOMPATWMAKE} MK_INCLUDES=yes \
+	    DIRPRFX=${_dir}/ ${_t}
 .endfor
-.endfor
-.for _dir in usr.bin/lex/lib
-	${_+_}cd ${.CURDIR}/${_dir}; ${LIBCOMPATWMAKE} DIRPRFX=${_dir}/ obj
 .endfor
 .for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic
 	${_+_}cd ${.CURDIR}/${_dir}; \
@@ -139,7 +149,7 @@ build${libcompat}: .PHONY
 	${_+_}cd ${.CURDIR}; \
 	    ${LIBCOMPATWMAKE} -f Makefile.inc1 -DNO_FSCHG libraries
 .if ${libcompat} == "32"
-.for _t in obj depend all
+.for _t in obj all
 	${_+_}cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIBCOMPATWMAKE} \
 	    -DNO_FSCHG DIRPRFX=libexec/rtld-elf/ ${_t}
 	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIBCOMPATWMAKE} \

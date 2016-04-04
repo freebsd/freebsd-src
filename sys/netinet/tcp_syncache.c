@@ -351,7 +351,7 @@ syncache_insert(struct syncache *sc, struct syncache_head *sch)
 
 	SCH_UNLOCK(sch);
 
-	TCPSTAT_INC(tcps_states[TCPS_SYN_RECEIVED]);
+	TCPSTATES_INC(TCPS_SYN_RECEIVED);
 	TCPSTAT_INC(tcps_sc_added);
 }
 
@@ -365,7 +365,7 @@ syncache_drop(struct syncache *sc, struct syncache_head *sch)
 
 	SCH_LOCK_ASSERT(sch);
 
-	TCPSTAT_DEC(tcps_states[TCPS_SYN_RECEIVED]);
+	TCPSTATES_DEC(TCPS_SYN_RECEIVED);
 	TAILQ_REMOVE(&sch->sch_bucket, sc, sc_hash);
 	sch->sch_length--;
 
@@ -1003,7 +1003,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 * sonewconn->tcp_usr_attach in TCPS_CLOSED state, then
 		 * syncache_socket() will change it to TCPS_SYN_RECEIVED.
 		 */
-		TCPSTAT_DEC(tcps_states[TCPS_SYN_RECEIVED]);
+		TCPSTATES_DEC(TCPS_SYN_RECEIVED);
 		TAILQ_REMOVE(&sch->sch_bucket, sc, sc_hash);
 		sch->sch_length--;
 #ifdef TCP_OFFLOAD

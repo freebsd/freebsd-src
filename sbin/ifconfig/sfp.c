@@ -625,14 +625,17 @@ get_sfp_voltage(struct i2c_info *ii, char *buf, size_t size)
 	convert_sff_voltage(buf, size, xbuf);
 }
 
-static void
+static int
 get_qsfp_temp(struct i2c_info *ii, char *buf, size_t size)
 {
 	uint8_t xbuf[2];
 
 	memset(xbuf, 0, sizeof(xbuf));
 	read_i2c(ii, SFF_8436_BASE, SFF_8436_TEMP, 2, xbuf);
+	if ((xbuf[0] == 0xFF && xbuf[1] == 0xFF) || (xbuf[0] == 0 && xbuf[1] == 0))
+		return (-1);
 	convert_sff_temp(buf, size, xbuf);
+	return (0);
 }
 
 static void
@@ -779,22 +782,9 @@ static void
 print_qsfp_status(struct i2c_info *ii, int verbose)
 {
 	char buf[80], buf2[40], buf3[40];
-	uint8_t diag_type;
 	uint32_t bitrate;
 	int i;
 
-	/* Read diagnostic monitoring type */
-	read_i2c(ii, SFF_8436_BASE, SFF_8436_DIAG_TYPE, 1, (caddr_t)&diag_type);
-	if (ii->error != 0)
-		return;
-
-	/*
-	 * Read monitoring data it is supplied.
-	 * XXX: It is not exactly clear from standard
-	 * how one can specify lack of measurements (passive cables case).
-	 */
-	if (diag_type != 0)
-		ii->do_diag = 1;
 	ii->qsfp = 1;
 
 	/* Transceiver type */
@@ -817,9 +807,13 @@ print_qsfp_status(struct i2c_info *ii, int verbose)
 			printf("\tnominal bitrate: %u Mbps\n", bitrate);
 	}
 
-	/* Request current measurements if they are provided: */
-	if (ii->do_diag != 0) {
-		get_qsfp_temp(ii, buf, sizeof(buf));
+	/*
+	 * The standards in this area are not clear when the
+	 * additional measurements are present or not. Use a valid
+	 * temperature reading as an indicator for the presence of
+	 * voltage and TX/RX power measurements.
+	 */
+	if (get_qsfp_temp(ii, buf, sizeof(buf)) == 0) {
 		get_qsfp_voltage(ii, buf2, sizeof(buf2));
 		printf("\tmodule temperature: %s voltage: %s\n", buf, buf2);
 		for (i = 1; i <= 4; i++) {

@@ -1316,7 +1316,8 @@ g_sched_destroy(struct g_geom *gp, boolean_t force)
 		gsp->gs_fini(sc->sc_data);
 		g_gsched_unref(gsp);
 		sc->sc_gsched = NULL;
-	}
+	} else
+		error = 0;
 
 	if ((sc->sc_flags & G_SCHED_PROXYING) && oldpp) {
 		error = g_destroy_proxy(gp, oldpp);

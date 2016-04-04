@@ -9,15 +9,6 @@
 # DEP_MACHINE is set before we get here, this may not be.
 DEP_RELDIR ?= ${RELDIR}
 
-.if ${.TARGETS:Uall:M*/*} && empty(DIRDEPS)
-# This little trick let's us do
-#
-# mk -f dirdeps.mk some/dir.i386,bsd
-#
-DIRDEPS := ${.TARGETS:M*/*}
-${.TARGETS:Nall}: all
-.endif
-
 # making universe is special
 .if defined(UNIVERSE_GUARD)
 # these should be done by now

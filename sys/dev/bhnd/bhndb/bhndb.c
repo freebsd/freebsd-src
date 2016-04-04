@@ -143,9 +143,9 @@ bhndb_print_child(device_t dev, device_t child)
 	rl = BUS_GET_RESOURCE_LIST(dev, child);
 	if (rl != NULL) {
 		retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY,
-		    "%#lx");
+		    "%#jx");
 		retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ,
-		    "%ld");
+		    "%jd");
 	}
 
 	retval += bus_print_child_domain(dev, child);

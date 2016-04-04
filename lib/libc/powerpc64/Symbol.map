@@ -52,7 +52,4 @@ FBSDprivate_1.0 {
 	__signalcontext;
 	__syncicache;
 	_end;
-	_curbrk;
-	_minbrk;
-	_cerror;
 };

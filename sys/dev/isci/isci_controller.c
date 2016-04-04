@@ -740,6 +740,11 @@ void isci_action(struct cam_sim *sim, union ccb *ccb)
 		}
 		break;
 	case XPT_SCSI_IO:
+		if (ccb->ccb_h.flags & CAM_CDB_PHYS) {
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			xpt_done(ccb);
+			break;
+		}
 		isci_io_request_execute_scsi_io(ccb, controller);
 		break;
 #if __FreeBSD_version >= 900026
@@ -802,6 +807,7 @@ isci_controller_release_queued_ccbs(struct ISCI_CONTROLLER *controller)
 {
 	struct ISCI_REMOTE_DEVICE *dev;
 	struct ccb_hdr *ccb_h;
+	uint8_t *ptr;
 	int dev_idx;
 
 	KASSERT(mtx_owned(&controller->lock), ("controller lock not owned"));
@@ -821,8 +827,8 @@ isci_controller_release_queued_ccbs(struct ISCI_CONTROLLER *controller)
 			if (ccb_h == NULL)
 				continue;
 
-			isci_log_message(1, "ISCI", "release %p %x\n", ccb_h,
-			    ((union ccb *)ccb_h)->csio.cdb_io.cdb_bytes[0]);
+			ptr = scsiio_cdb_ptr(&((union ccb *)ccb_h)->csio);
+			isci_log_message(1, "ISCI", "release %p %x\n", ccb_h, *ptr);
 
 			dev->queued_ccb_in_progress = (union ccb *)ccb_h;
 			isci_io_request_execute_scsi_io(

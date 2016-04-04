@@ -220,7 +220,8 @@ sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr,
 
 struct sctp_tcb *
 sctp_connectx_helper_find(struct sctp_inpcb *inp, struct sockaddr *addr,
-    int *totaddr, int *num_v4, int *num_v6, int *error, int limit, int *bad_addr);
+    unsigned int *totaddr, unsigned int *num_v4, unsigned int *num_v6,
+    int *error, unsigned int limit, int *bad_addr);
 
 int sctp_is_there_an_abort_here(struct mbuf *, int, uint32_t *);
 
@@ -376,7 +377,7 @@ void sctp_log_closing(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int16_t loc
 
 void sctp_log_lock(struct sctp_inpcb *inp, struct sctp_tcb *stcb, uint8_t from);
 void sctp_log_maxburst(struct sctp_tcb *stcb, struct sctp_nets *, int, int, uint8_t);
-void sctp_log_block(uint8_t, struct sctp_association *, int);
+void sctp_log_block(uint8_t, struct sctp_association *, size_t);
 void sctp_log_rwnd(uint8_t, uint32_t, uint32_t, uint32_t);
 void sctp_log_rwnd_set(uint8_t, uint32_t, uint32_t, uint32_t, uint32_t);
 int sctp_fill_stat_log(void *, size_t *);

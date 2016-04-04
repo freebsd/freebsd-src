@@ -12,6 +12,7 @@ arm64/arm64/bus_machdep.c	standard
 arm64/arm64/bus_space_asm.S	standard
 arm64/arm64/busdma_bounce.c	standard
 arm64/arm64/busdma_machdep.c	standard
+arm64/arm64/bzero.S		standard
 arm64/arm64/clock.c		standard
 arm64/arm64/copyinout.S		standard
 arm64/arm64/copystr.c		standard
@@ -66,6 +67,7 @@ dev/hwpmc/hwpmc_arm64_md.c	optional	hwpmc
 dev/mmc/host/dwmmc.c		optional	dwmmc
 dev/mmc/host/dwmmc_hisi.c	optional	dwmmc soc_hisi_hi6220
 dev/ofw/ofw_cpu.c		optional	fdt
+dev/ofw/ofwpci.c		optional 	fdt pci
 dev/pci/pci_host_generic.c	optional	pci fdt
 dev/psci/psci.c			optional	psci
 dev/psci/psci_arm64.S		optional	psci

@@ -157,7 +157,7 @@ static inline int c4iw_fatal_error(struct c4iw_rdev *rdev)
 
 static inline int c4iw_num_stags(struct c4iw_rdev *rdev)
 {
-	return min((int)T4_MAX_NUM_STAG, (int)(rdev->adap->vres.stag.size >> 5));
+	return (int)(rdev->adap->vres.stag.size >> 5);
 }
 
 #define C4IW_WR_TO (10*HZ)
@@ -435,6 +435,7 @@ struct c4iw_qp {
 	atomic_t refcnt;
 	wait_queue_head_t wait;
 	struct timer_list timer;
+	int sq_sig_all;
 };
 
 static inline struct c4iw_qp *to_c4iw_qp(struct ib_qp *ibqp)
@@ -712,7 +713,8 @@ enum c4iw_ep_flags {
 	ABORT_REQ_IN_PROGRESS	= 1,
 	RELEASE_RESOURCES	= 2,
 	CLOSE_SENT		= 3,
-	TIMEOUT                 = 4
+	TIMEOUT                 = 4,
+	QP_REFERENCED		= 5
 };
 
 enum c4iw_ep_history {
@@ -737,7 +739,13 @@ enum c4iw_ep_history {
         EP_DISC_ABORT           = 18,
         CONN_RPL_UPCALL         = 19,
         ACT_RETRY_NOMEM         = 20,
-        ACT_RETRY_INUSE         = 21
+        ACT_RETRY_INUSE         = 21,
+        CLOSE_CON_RPL           = 22,
+        EP_DISC_FAIL            = 24,
+        QP_REFED                = 25,
+        QP_DEREFED              = 26,
+        CM_ID_REFED             = 27,
+        CM_ID_DEREFED           = 28
 };
 
 struct c4iw_ep_common {

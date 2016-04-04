@@ -156,5 +156,6 @@ Elf64_Brandinfo cloudabi64_brand = {
 	.brand		= ELFOSABI_CLOUDABI,
 	.machine	= EM_X86_64,
 	.sysvec		= &cloudabi64_elf_sysvec,
+	.flags		= BI_CAN_EXEC_DYN,
 	.compat_3_brand	= "CloudABI",
 };

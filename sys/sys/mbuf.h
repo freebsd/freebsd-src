@@ -44,6 +44,32 @@
 #endif
 #endif
 
+#ifdef _KERNEL
+#include <sys/sdt.h>
+
+#define	MBUF_PROBE1(probe, arg0)					\
+	SDT_PROBE1(sdt, , , probe, arg0)
+#define	MBUF_PROBE2(probe, arg0, arg1)					\
+	SDT_PROBE2(sdt, , , probe, arg0, arg1)
+#define	MBUF_PROBE3(probe, arg0, arg1, arg2)				\
+	SDT_PROBE3(sdt, , , probe, arg0, arg1, arg2)
+#define	MBUF_PROBE4(probe, arg0, arg1, arg2, arg3)			\
+	SDT_PROBE4(sdt, , , probe, arg0, arg1, arg2, arg3)
+#define	MBUF_PROBE5(probe, arg0, arg1, arg2, arg3, arg4)		\
+	SDT_PROBE5(sdt, , , probe, arg0, arg1, arg2, arg3, arg4)
+
+SDT_PROBE_DECLARE(sdt, , , m__init);
+SDT_PROBE_DECLARE(sdt, , , m__gethdr);
+SDT_PROBE_DECLARE(sdt, , , m__get);
+SDT_PROBE_DECLARE(sdt, , , m__getcl);
+SDT_PROBE_DECLARE(sdt, , , m__clget);
+SDT_PROBE_DECLARE(sdt, , , m__cljget);
+SDT_PROBE_DECLARE(sdt, , , m__cljset);
+SDT_PROBE_DECLARE(sdt, , , m__free);
+SDT_PROBE_DECLARE(sdt, , , m__freem);
+
+#endif /* _KERNEL */
+
 /*
  * Mbufs are of a single size, MSIZE (sys/param.h), which includes overhead.
  * An mbuf may add a single "mbuf cluster" of size MCLBYTES (also in
@@ -672,42 +698,52 @@ m_init(struct mbuf *m, int how, short type, int flags)
 	m->m_len = 0;
 	m->m_flags = flags;
 	m->m_type = type;
-	if (flags & M_PKTHDR) {
-		if ((error = m_pkthdr_init(m, how)) != 0)
-			return (error);
-	}
+	if (flags & M_PKTHDR)
+		error = m_pkthdr_init(m, how);
+	else
+		error = 0;
 
-	return (0);
+	MBUF_PROBE5(m__init, m, how, type, flags, error);
+	return (error);
 }
 
 static __inline struct mbuf *
 m_get(int how, short type)
 {
+	struct mbuf *m;
 	struct mb_args args;
 
 	args.flags = 0;
 	args.type = type;
-	return (uma_zalloc_arg(zone_mbuf, &args, how));
+	m = uma_zalloc_arg(zone_mbuf, &args, how);
+	MBUF_PROBE3(m__get, how, type, m);
+	return (m);
 }
 
 static __inline struct mbuf *
 m_gethdr(int how, short type)
 {
+	struct mbuf *m;
 	struct mb_args args;
 
 	args.flags = M_PKTHDR;
 	args.type = type;
-	return (uma_zalloc_arg(zone_mbuf, &args, how));
+	m = uma_zalloc_arg(zone_mbuf, &args, how);
+	MBUF_PROBE3(m__gethdr, how, type, m);
+	return (m);
 }
 
 static __inline struct mbuf *
 m_getcl(int how, short type, int flags)
 {
+	struct mbuf *m;
 	struct mb_args args;
 
 	args.flags = flags;
 	args.type = type;
-	return (uma_zalloc_arg(zone_pack, &args, how));
+	m = uma_zalloc_arg(zone_pack, &args, how);
+	MBUF_PROBE4(m__getcl, how, type, flags, m);
+	return (m);
 }
 
 /*
@@ -747,6 +783,7 @@ m_cljset(struct mbuf *m, void *cl, int type)
 	m->m_ext.ext_flags = EXT_FLAG_EMBREF;
 	m->m_ext.ext_count = 1;
 	m->m_flags |= M_EXT;
+	MBUF_PROBE3(m__cljset, m, cl, type);
 }
 
 static __inline void
@@ -1122,6 +1159,7 @@ m_free(struct mbuf *m)
 {
 	struct mbuf *n = m->m_next;
 
+	MBUF_PROBE1(m__free, m);
 	if ((m->m_flags & (M_PKTHDR|M_NOFREE)) == (M_PKTHDR|M_NOFREE))
 		m_tag_delete_chain(m, NULL);
 	if (m->m_flags & M_EXT)

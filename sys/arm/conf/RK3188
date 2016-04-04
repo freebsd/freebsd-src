@@ -59,7 +59,7 @@ device		dwmmc
 
 # Console and misc
 device		uart
-device		uart_ns8250
+device		uart_snps
 device		pty
 device		snp
 device		md
@@ -101,8 +101,6 @@ device		wlan			# 802.11 support
 device		wlan_wep		# 802.11 WEP support
 device		wlan_ccmp		# 802.11 CCMP support
 device		wlan_tkip		# 802.11 TKIP support
-device		urtwn
-device		urtwnfw
 device		firmware		# Used by the above
 
 # USB Ethernet support, requires miibus

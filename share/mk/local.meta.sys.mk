@@ -6,12 +6,11 @@
 
 # we need this until there is an alternative
 MK_INSTALL_AS_USER= yes
-MK_FAST_DEPEND= yes
 
 _default_makeobjdir=$${.CURDIR:S,^$${SRCTOP},$${OBJTOP},}
 
 .if empty(OBJROOT) || ${.MAKE.LEVEL} == 0
-.if defined(MAKEOBJDIRPREFIX)
+.if defined(MAKEOBJDIRPREFIX) && !empty(MAKEOBJDIRPREFIX)
 # put things approximately where they want
 OBJROOT:=${MAKEOBJDIRPREFIX}${SRCTOP}/
 MAKEOBJDIRPREFIX=
@@ -180,7 +179,7 @@ STAGE_INCSDIR= ${STAGE_OBJTOP}${INCSDIR:U/include}
 # the target is usually an absolute path
 STAGE_SYMLINKS_DIR= ${STAGE_OBJTOP}
 
-LDFLAGS_LAST+= -Wl,-rpath-link -Wl,${STAGE_LIBDIR}
+LDFLAGS_LAST+= -Wl,-rpath-link,${STAGE_LIBDIR}
 .if ${MK_SYSROOT} == "yes"
 SYSROOT?= ${STAGE_OBJTOP}
 .else

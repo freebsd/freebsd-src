@@ -18,6 +18,7 @@ arm/ti/ti_gpio.c				optional	gpio
 arm/ti/ti_gpio_if.m				optional	gpio
 arm/ti/ti_i2c.c					optional	ti_i2c
 arm/ti/ti_sdhci.c	 			optional	sdhci
+arm/ti/ti_spi.c		 			optional	ti_spi
 
 dev/uart/uart_dev_ti8250.c			optional	uart
 dev/uart/uart_dev_ns8250.c			optional	uart
