@@ -489,7 +489,7 @@ gfs_file_create(size_t size, vnode_t *pvp, vfs_t *vfsp, vnodeops_t *ops)
 	 * Allocate vnode and internal data structure
 	 */
 	fp = kmem_zalloc(size, KM_SLEEP);
-	error = getnewvnode("zfs", vfsp, ops, &vp);
+	error = getnewvnode("zfs_gfs", vfsp, ops, &vp);
 	ASSERT(error == 0);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vp->v_data = (caddr_t)fp;
