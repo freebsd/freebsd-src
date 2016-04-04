@@ -19,6 +19,8 @@
  * CDDL HEADER END
  */
 /*
+ * Copyright 2014 Garrett D'Amore <garrett@damore.org>
+ *
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
@@ -26,8 +28,6 @@
 
 #ifndef	_LIBINTL_H
 #define	_LIBINTL_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/isa_defs.h>
 
@@ -64,7 +64,6 @@ typedef long	wchar_t;
 #define	__GNU_GETTEXT_SUPPORTED_REVISION(m)	\
 	((((m) == 0) || ((m) == 1)) ? 1 : -1)
 
-#ifdef __STDC__
 extern char *dcgettext(const char *, const char *, const int);
 extern char *dgettext(const char *, const char *);
 extern char *gettext(const char *);
@@ -90,33 +89,6 @@ extern int wdbindf(wchar_t, wchar_t, int);
 extern wchar_t *wddelim(wchar_t, wchar_t, int);
 extern wchar_t mcfiller(void);
 extern int mcwrap(void);
-
-#else
-extern char *dcgettext();
-extern char *dgettext();
-extern char *gettext();
-extern char *textdomain();
-extern char *bindtextdomain();
-
-/*
- * LI18NUX 2000 Globalization Specification Version 1.0
- * with Amendment 2
- */
-extern char *dcngettext();
-extern char *dngettext();
-extern char *ngettext();
-extern char *bind_textdomain_codeset();
-
-/* Word handling functions --- requires dynamic linking */
-/* Warning: these are experimental and subject to change. */
-extern int wdinit();
-extern int wdchkind();
-extern int wdbindf();
-extern wchar_t *wddelim();
-extern wchar_t mcfiller();
-extern int mcwrap();
-
-#endif
 
 #ifdef	__cplusplus
 }
