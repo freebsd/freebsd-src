@@ -756,7 +756,7 @@ static int
 __CONCAT(fat, __elfN(extract_record))(struct vnode *vp,
 		const FatElf_FEhdr *fhdr, FatElf_record *record)
 {
-	int i = 0;
+	int i;
 	struct thread *td = curthread;
 
 	for (i = 0; i < le32toh(fhdr->fe_nrecords); ++i) {
@@ -786,11 +786,15 @@ static int
 __CONCAT(fat, __elfN(elfpart_extract))(struct image_params *imgp,
 		Elf_Ehdr *elf_part)
 {
-	struct vnode *vp = imgp->vp;
-	struct thread *td = curthread;
-	const FatElf_FEhdr *header = imgp->image_header;
+	struct vnode *vp;
+	struct thread *td;
+	const FatElf_FEhdr *header;
 	FatElf_record record;
-	int error = 0;
+	int error = 0; /* default value, used to determine errors in conditions below */
+
+	vp = imgp->vp;
+	td = curthread;
+	header = (const FatElf_FEhdr *) imgp->image_header;
 
 	error = fatelf_extract_record(vp, header, &record);
 	if (error != 0) {
@@ -823,19 +827,17 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	u_long seg_size, seg_addr, addr, baddr, et_dyn_addr, entry, proghdr;
 	int32_t osrel;
 	int error, i, n, interp_name_len, have_interp;
-	
+
 	if (IS_FATELF((const FatElf_FEhdr *)imgp->image_header)) {
 		error = fatelf_elfpart_extract(imgp, &elf_part);
 		if (error != 0) {
 			printf("Bad FatElf format, error = %d", error);
 			return ENOEXEC;
 		}
-		hdr = &elf_part;
+		hdr = (const Elf_Ehdr *) &elf_part;
 	} else {
 		hdr = (const Elf_Ehdr *)imgp->image_header;
 	}
-
-	hdr = (const Elf_Ehdr *)imgp->image_header;
 
 	/*
 	 * Do we have a valid ELF header ?
