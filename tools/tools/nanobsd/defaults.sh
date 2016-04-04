@@ -83,6 +83,9 @@ NANO_KERNEL=GENERIC
 # Use "default" to install all built modules.
 NANO_MODULES=
 
+# Early customize commands.
+NANO_EARLY_CUSTOMIZE=""
+
 # Customize commands.
 NANO_CUSTOMIZE=""
 
@@ -448,6 +451,22 @@ native_xtools ( ) (
 
 	) > ${NANO_LOG}/_.native_xtools 2>&1
 )
+
+#
+# Run the requested set of early customization scripts, run before
+# buildworld.
+#
+run_early_customize() {
+
+	pprint 2 "run early customize scripts"
+	for c in $NANO_EARLY_CUSTOMIZE
+	do      
+		pprint 2 "early customize \"$c\""
+		pprint 3 "log: ${NANO_LOG}/_.early_cust.$c"
+		pprint 4 "`type $c`"
+		{ set -x ; $c ; set +x ; } >${NANO_LOG}/_.early_cust.$c 2>&1
+	done
+}
 
 #
 # Run the requested set of customization scripts, run after we've
@@ -958,6 +977,15 @@ cust_pkgng ( ) (
 	done
 	rm -rf ${NANO_WORLDDIR}/Pkg
 )
+
+#######################################################################
+# Convenience function:
+#	Register all args as early customize function to run just before
+#	build commences.
+
+early_customize_cmd () {
+	NANO_EARLY_CUSTOMIZE="$NANO_EARLY_CUSTOMIZE $*"
+}
 
 #######################################################################
 # Convenience function:
