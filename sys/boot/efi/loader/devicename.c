@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 
 static int efi_parsedev(struct devdesc **, const char *, const char **);
 
-/* 
+/*
  * Point (dev) at an allocated device specifier for the device matching the
  * path in (devspec). If it contains an explicit device specification,
  * use that.  If not, use the default device.
