@@ -66,16 +66,17 @@
 /*
  * 256-bit CHERI has multiple exception-handling permissions, whereas 128-bit
  * CHERI has a single exception-handling permission.
+ *
+ * XXXRW: It would be nice to reconcile these lists in the future, as it's not
+ * clear we need this level of granularity on 256-bit CHERI.
  */
-#if (CHERICAP_SIZE == 32)
-#define	CHERI_PERM_ACCESS_EPCC			(1 << 10)	/* 0x00000400 */
-#define	CHERI_PERM_ACCESS_KDC			(1 << 11)	/* 0x00000800 */
-#define	CHERI_PERM_ACCESS_KCC			(1 << 12)	/* 0x00001000 */
-#define	CHERI_PERM_ACCESS_KR1C			(1 << 13)	/* 0x00002000 */
-#define	CHERI_PERM_ACCESS_KR2C			(1 << 14)	/* 0x00004000 */
-#else /* (!(CHERICAP_SIZE == 32)) */
-#define	CHERI_PERM_ACCESS_SYSTEM_REGISTERS	(1 << 10)	/* 0x00000400 */
-#endif /* (!(CHERICAP_SIZE == 32)) */
+#define	CHERI256_PERM_ACCESS_EPCC		(1 << 10)	/* 0x00000400 */
+#define	CHERI256_PERM_ACCESS_KDC		(1 << 11)	/* 0x00000800 */
+#define	CHERI256_PERM_ACCESS_KCC		(1 << 12)	/* 0x00001000 */
+#define	CHERI256_PERM_ACCESS_KR1C		(1 << 13)	/* 0x00002000 */
+#define	CHERI256_PERM_ACCESS_KR2C		(1 << 14)	/* 0x00004000 */
+
+#define	CHERI128_PERM_ACCESS_SYSTEM_REGISTERS	(1 << 10)	/* 0x00000400 */
 
 /*
  * User-defined permission bits.
@@ -83,28 +84,50 @@
  * 256-bit CHERI has a substantially larger number of user-defined
  * permissions.
  */
+#define	CHERI256_PERM_USER0			(1 << 15)	/* 0x00008000 */
+#define	CHERI256_PERM_USER1			(1 << 16)	/* 0x00010000 */
+#define	CHERI256_PERM_USER2			(1 << 17)	/* 0x00020000 */
+#define	CHERI256_PERM_USER3			(1 << 18)	/* 0x00040000 */
+#define	CHERI256_PERM_USER4			(1 << 19)	/* 0x00080000 */
+#define	CHERI256_PERM_USER5			(1 << 20)	/* 0x00100000 */
+#define	CHERI256_PERM_USER6			(1 << 21)	/* 0x00200000 */
+#define	CHERI256_PERM_USER7			(1 << 22)	/* 0x00400000 */
+#define	CHERI256_PERM_USER8			(1 << 23)	/* 0x00800000 */
+#define	CHERI256_PERM_USER9			(1 << 24)	/* 0x01000000 */
+#define	CHERI256_PERM_USER10			(1 << 25)	/* 0x02000000 */
+#define	CHERI256_PERM_USER11			(1 << 26)	/* 0x04000000 */
+#define	CHERI256_PERM_USER12			(1 << 27)	/* 0x08000000 */
+#define	CHERI256_PERM_USER13			(1 << 28)	/* 0x10000000 */
+#define	CHERI256_PERM_USER14			(1 << 29)	/* 0x20000000 */
+#define	CHERI256_PERM_USER15			(1 << 30)	/* 0x40000000 */
+
+#define	CHERI128_PERM_USER0			(1 << 15)	/* 0x00008000 */
+#define	CHERI128_PERM_USER1			(1 << 16)	/* 0x00010000 */
+#define	CHERI128_PERM_USER2			(1 << 17)	/* 0x00020000 */
+#define	CHERI128_PERM_USER3			(1 << 18)	/* 0x00040000 */
+
 #if (CHERICAP_SIZE == 32)
-#define	CHERI_PERM_USER0			(1 << 15)	/* 0x00008000 */
-#define	CHERI_PERM_USER1			(1 << 16)	/* 0x00010000 */
-#define	CHERI_PERM_USER2			(1 << 17)	/* 0x00020000 */
-#define	CHERI_PERM_USER3			(1 << 18)	/* 0x00040000 */
-#define	CHERI_PERM_USER4			(1 << 19)	/* 0x00080000 */
-#define	CHERI_PERM_USER5			(1 << 20)	/* 0x00100000 */
-#define	CHERI_PERM_USER6			(1 << 21)	/* 0x00200000 */
-#define	CHERI_PERM_USER7			(1 << 22)	/* 0x00400000 */
-#define	CHERI_PERM_USER8			(1 << 23)	/* 0x00800000 */
-#define	CHERI_PERM_USER9			(1 << 24)	/* 0x01000000 */
-#define	CHERI_PERM_USER10			(1 << 25)	/* 0x02000000 */
-#define	CHERI_PERM_USER11			(1 << 26)	/* 0x04000000 */
-#define	CHERI_PERM_USER12			(1 << 27)	/* 0x08000000 */
-#define	CHERI_PERM_USER13			(1 << 28)	/* 0x10000000 */
-#define	CHERI_PERM_USER14			(1 << 29)	/* 0x20000000 */
-#define	CHERI_PERM_USER15			(1 << 30)	/* 0x40000000 */
+#define	CHERI_PERM_USER0	CHERI256_PERM_USER0
+#define	CHERI_PERM_USER1	CHERI256_PERM_USER1
+#define	CHERI_PERM_USER2	CHERI256_PERM_USER2
+#define	CHERI_PERM_USER3	CHERI256_PERM_USER3
+#define	CHERI_PERM_USER4	CHERI256_PERM_USER4
+#define	CHERI_PERM_USER5	CHERI256_PERM_USER5
+#define	CHERI_PERM_USER6	CHERI256_PERM_USER6
+#define	CHERI_PERM_USER7	CHERI256_PERM_USER7
+#define	CHERI_PERM_USER8	CHERI256_PERM_USER8
+#define	CHERI_PERM_USER9	CHERI256_PERM_USER9
+#define	CHERI_PERM_USER10	CHERI256_PERM_USER10
+#define	CHERI_PERM_USER11	CHERI256_PERM_USER11
+#define	CHERI_PERM_USER12	CHERI256_PERM_USER12
+#define	CHERI_PERM_USER13	CHERI256_PERM_USER13
+#define	CHERI_PERM_USER14	CHERI256_PERM_USER14
+#define	CHERI_PERM_USER15	CHERI256_PERM_USER15
 #else /* (!(CHERICAP_SIZE == 32)) */
-#define	CHERI_PERM_USER0			(1 << 15)	/* 0x00008000 */
-#define	CHERI_PERM_USER1			(1 << 16)	/* 0x00010000 */
-#define	CHERI_PERM_USER2			(1 << 17)	/* 0x00020000 */
-#define	CHERI_PERM_USER3			(1 << 18)	/* 0x00040000 */
+#define	CHERI_PERM_USER0	CHERI128_PERM_USER0
+#define	CHERI_PERM_USER1	CHERI128_PERM_USER1
+#define	CHERI_PERM_USER2	CHERI128_PERM_USER2
+#define	CHERI_PERM_USER3	CHERI128_PERM_USER3
 #endif /* (!(CHERICAP_SIZE == 32)) */
 
 /*
