@@ -381,7 +381,8 @@ ccall_maybe_ktrace:
 ccall_unseal_caps:
 	cgettype	k0, CHERI_REG_CCALLCODE
 	csetoffset	CHERI_REG_KDC, CHERI_REG_KDC, k0
-
+	cgetoffset	k0, CHERI_REG_CCALLCODE # moved from below to avoid delay on cheri128
+	
 	/* Unseal cs; install in PCC. */
 	cunseal		CHERI_REG_EPCC, CHERI_REG_CCALLCODE, CHERI_REG_KDC
 
@@ -393,7 +394,7 @@ ccall_unseal_caps:
 
 	/* Install cs.offset as PC. */
 ccall_set_pc:
-	cgetoffset	k0, CHERI_REG_CCALLCODE
+	#cgetoffset	k0, CHERI_REG_CCALLCODE # moved above to avoid delay on cheri128
 	MTC0		k0, MIPS_COP_0_EXC_PC
 	COP0_SYNC
 

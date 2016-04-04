@@ -96,7 +96,7 @@ __invoke_vector:
 	#
 	clc	$c11, $t0, 32 + 3*CHERICAP_SIZE($c26)
 	cgetlen	$sp, $c11
-	move	$fp, $sp
+	#move	$fp, $sp # moved below to avoid delay due to slow cgetlen 128-bit cheri
 
 	#
 	# Install $idc as $c0.  From here on out, we can do MIPS fetches and
@@ -115,6 +115,7 @@ __invoke_vector:
 	# Set up global pointer.
 	#
 	dla	$gp, _gp
+	move	$fp, $sp # moved from above to avoid delay caused by slow cgetlen on 128-bit cheri
 
 	#
 	# Skip vtable dispatch if $v0 is -1
