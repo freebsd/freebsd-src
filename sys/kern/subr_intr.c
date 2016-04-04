@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/interrupt.h>
 #include <sys/conf.h>
 #include <sys/cpuset.h>
+#include <sys/rman.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <machine/atomic.h>
