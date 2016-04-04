@@ -749,7 +749,7 @@ sb_attach(device_t dev)
 		goto no;
     	}
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld bufsz %u %s",
+    	snprintf(status, SND_STATUSLEN, "at io 0x%jx irq %jd drq %jd bufsz %u %s",
     	     	rman_get_start(sb->io_base), rman_get_start(sb->irq),
 		rman_get_start(sb->drq), sb->bufsize, PCM_KLDSTRING(snd_sb8));
 

@@ -98,6 +98,14 @@ struct rt_metrics {
 /* lle state is exported in rmx_state rt_metrics field */
 #define	rmx_state	rmx_weight
 
+/*
+ * Keep a generation count of routing table, incremented on route addition,
+ * so we can invalidate caches.  This is accessed without a lock, as precision
+ * is not required.
+ */
+typedef volatile u_int rt_gen_t;	/* tree generation (for adds) */
+#define RT_GEN(fibnum, af)	rt_tables_get_gen(fibnum, af)
+
 #define	RT_DEFAULT_FIB	0	/* Explicitly mark fib=0 restricted cases */
 #define	RT_ALL_FIBS	-1	/* Announce event for every fib */
 #ifdef _KERNEL
@@ -398,6 +406,20 @@ struct rt_addrinfo {
 	}							\
 } while (0)
 
+/*
+ * Validate a cached route based on a supplied cookie.  If there is an
+ * out-of-date cache, simply free it.  Update the generation number
+ * for the new allocation
+ */
+#define RT_VALIDATE(ro, cookiep, fibnum) do {				\
+	rt_gen_t cookie = RT_GEN(fibnum, (ro)->ro_dst.sa_family);	\
+	if (*(cookiep) != cookie && (ro)->ro_rt != NULL) {		\
+		RTFREE((ro)->ro_rt);					\
+		(ro)->ro_rt = NULL;					\
+		*(cookiep) = cookie;					\
+	}								\
+} while (0)
+
 struct ifmultiaddr;
 struct rib_head;
 
@@ -415,6 +437,7 @@ int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
 void 	 rt_maskedcopy(struct sockaddr *, struct sockaddr *, struct sockaddr *);
 struct rib_head *rt_table_init(int);
 void	rt_table_destroy(struct rib_head *);
+u_int	rt_tables_get_gen(int table, int fam);
 
 int	rtsock_addrmsg(int, struct ifaddr *, int);
 int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);

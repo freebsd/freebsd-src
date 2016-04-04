@@ -1643,7 +1643,7 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
 	if (bootverbose) {
 		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, 1);
 		if (actual == 1)
-			device_printf(child, "using IRQ %lu for MSI-X\n",
+			device_printf(child, "using IRQ %ju for MSI-X\n",
 			    rle->start);
 		else {
 			int run;
@@ -1653,7 +1653,7 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
 			 * IRQ values as ranges.  'irq' is the previous IRQ.
 			 * 'run' is true if we are in a range.
 			 */
-			device_printf(child, "using IRQs %lu", rle->start);
+			device_printf(child, "using IRQs %ju", rle->start);
 			irq = rle->start;
 			run = 0;
 			for (i = 1; i < actual; i++) {
@@ -1674,7 +1674,7 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
 				}
 
 				/* Start new range. */
-				printf(",%lu", rle->start);
+				printf(",%ju", rle->start);
 				irq = rle->start;
 			}
 
@@ -3572,13 +3572,13 @@ pci_alloc_secbus(device_t dev, device_t child, int *rid, rman_res_t start,
 		    start, end, count, flags & ~RF_ACTIVE);
 		if (res == NULL) {
 			resource_list_delete(rl, PCI_RES_BUS, *rid);
-			device_printf(child, "allocating %lu bus%s failed\n",
+			device_printf(child, "allocating %ju bus%s failed\n",
 			    count, count == 1 ? "" : "es");
 			return (NULL);
 		}
 		if (bootverbose)
 			device_printf(child,
-			    "Lazy allocation of %lu bus%s at %lu\n", count,
+			    "Lazy allocation of %ju bus%s at %ju\n", count,
 			    count == 1 ? "" : "es", rman_get_start(res));
 		PCI_WRITE_CONFIG(dev, child, sec_reg, rman_get_start(res), 1);
 		PCI_WRITE_CONFIG(dev, child, sub_reg, rman_get_end(res), 1);
@@ -4391,9 +4391,9 @@ pci_print_child(device_t dev, device_t child)
 
 	retval += bus_print_child_header(dev, child);
 
-	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#lx");
-	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#jx");
+	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 	if (device_get_flags(dev))
 		retval += printf(" flags %#x", device_get_flags(dev));
 
@@ -4971,13 +4971,13 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	if (res == NULL) {
 		resource_list_delete(rl, type, *rid);
 		device_printf(child,
-		    "%#lx bytes of rid %#x res %d failed (%#lx, %#lx).\n",
+		    "%#jx bytes of rid %#x res %d failed (%#jx, %#jx).\n",
 		    count, *rid, type, start, end);
 		goto out;
 	}
 	if (bootverbose)
 		device_printf(child,
-		    "Lazy allocation of %#lx bytes rid %#x type %d at %#lx\n",
+		    "Lazy allocation of %#jx bytes rid %#x type %d at %#jx\n",
 		    count, *rid, type, rman_get_start(res));
 	map = rman_get_start(res);
 	pci_write_bar(child, pm, map);
@@ -5254,7 +5254,7 @@ pci_delete_resource(device_t dev, device_t child, int type, int rid)
 		    resource_list_busy(rl, type, rid)) {
 			device_printf(dev, "delete_resource: "
 			    "Resource still owned by child, oops. "
-			    "(type=%d, rid=%d, addr=%lx)\n",
+			    "(type=%d, rid=%d, addr=%jx)\n",
 			    type, rid, rman_get_start(rle->res));
 			return;
 		}

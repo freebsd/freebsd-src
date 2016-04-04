@@ -31,7 +31,7 @@
 #include <sys/types.h>
 #include <sys/imgact_elf.h>
 
-#include <compat/cloudabi64/cloudabi64_syscalldefs.h>
+#include <contrib/cloudabi/cloudabi64_types.h>
 
 struct image_params;
 struct thread;

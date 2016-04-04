@@ -38,6 +38,7 @@
  * $FreeBSD$
  */
 
+#include <stdbool.h>
 #include "namespace.h"
 #include <stdlib.h>
 #include <errno.h>
@@ -124,8 +125,14 @@ mutex_assert_is_owned(struct pthread_mutex *m)
 {
 
 #if defined(_PTHREADS_INVARIANTS)
-	if (__predict_false(m->m_qe.tqe_prev == NULL))
-		PANIC("mutex is not on list");
+	if (__predict_false(m->m_qe.tqe_prev == NULL)) {
+		char msg[128];
+		snprintf(msg, sizeof(msg),
+		    "mutex %p own %#x %#x is not on list %p %p",
+		    m, m->m_lock.m_owner, m->m_owner, m->m_qe.tqe_prev,
+		    m->m_qe.tqe_next);
+		PANIC(msg);
+	}
 #endif
 }
 
@@ -135,8 +142,14 @@ mutex_assert_not_owned(struct pthread_mutex *m)
 
 #if defined(_PTHREADS_INVARIANTS)
 	if (__predict_false(m->m_qe.tqe_prev != NULL ||
-	    m->m_qe.tqe_next != NULL))
-		PANIC("mutex is on list");
+	    m->m_qe.tqe_next != NULL)) {
+		char msg[128];
+		snprintf(msg, sizeof(msg),
+		    "mutex %p own %#x %#x is on list %p %p",
+		    m, m->m_lock.m_owner, m->m_owner, m->m_qe.tqe_prev,
+		    m->m_qe.tqe_next);
+		PANIC(msg);
+	}
 #endif
 }
 
@@ -252,6 +265,51 @@ set_inherited_priority(struct pthread *curthread, struct pthread_mutex *m)
 		m->m_lock.m_ceilings[1] = -1;
 }
 
+static void
+shared_mutex_init(struct pthread_mutex *pmtx, const struct
+    pthread_mutex_attr *mutex_attr)
+{
+	static const struct pthread_mutex_attr foobar_mutex_attr = {
+		.m_type = PTHREAD_MUTEX_DEFAULT,
+		.m_protocol = PTHREAD_PRIO_NONE,
+		.m_ceiling = 0,
+		.m_pshared = PTHREAD_PROCESS_SHARED
+	};
+	bool done;
+
+	/*
+	 * Hack to allow multiple pthread_mutex_init() calls on the
+	 * same process-shared mutex.  We rely on kernel allocating
+	 * zeroed offpage for the mutex, i.e. the
+	 * PMUTEX_INITSTAGE_ALLOC value must be zero.
+	 */
+	for (done = false; !done;) {
+		switch (pmtx->m_ps) {
+		case PMUTEX_INITSTAGE_DONE:
+			atomic_thread_fence_acq();
+			done = true;
+			break;
+		case PMUTEX_INITSTAGE_ALLOC:
+			if (atomic_cmpset_int(&pmtx->m_ps,
+			    PMUTEX_INITSTAGE_ALLOC, PMUTEX_INITSTAGE_BUSY)) {
+				if (mutex_attr == NULL)
+					mutex_attr = &foobar_mutex_attr;
+				mutex_init_body(pmtx, mutex_attr);
+				atomic_store_rel_int(&pmtx->m_ps,
+				    PMUTEX_INITSTAGE_DONE);
+				done = true;
+			}
+			break;
+		case PMUTEX_INITSTAGE_BUSY:
+			_pthread_yield();
+			break;
+		default:
+			PANIC("corrupted offpage");
+			break;
+		}
+	}
+}
+
 int
 __pthread_mutex_init(pthread_mutex_t *mutex,
     const pthread_mutexattr_t *mutex_attr)
@@ -273,7 +331,7 @@ __pthread_mutex_init(pthread_mutex_t *mutex,
 	if (pmtx == NULL)
 		return (EFAULT);
 	*mutex = THR_PSHARED_PTR;
-	mutex_init_body(pmtx, *mutex_attr);
+	shared_mutex_init(pmtx, *mutex_attr);
 	return (0);
 }
 
@@ -414,6 +472,7 @@ check_and_init_mutex(pthread_mutex_t *mutex, struct pthread_mutex **m)
 		*m = __thr_pshared_offpage(mutex, 0);
 		if (*m == NULL)
 			ret = EINVAL;
+		shared_mutex_init(*m, NULL);
 	} else if (__predict_false(*m <= THR_MUTEX_DESTROYED)) {
 		if (*m == THR_MUTEX_DESTROYED) {
 			ret = EINVAL;
@@ -576,6 +635,7 @@ _pthread_mutex_unlock(pthread_mutex_t *mutex)
 		mp = __thr_pshared_offpage(mutex, 0);
 		if (mp == NULL)
 			return (EINVAL);
+		shared_mutex_init(mp, NULL);
 	} else {
 		mp = *mutex;
 	}
@@ -803,6 +863,7 @@ _pthread_mutex_getprioceiling(pthread_mutex_t *mutex,
 		m = __thr_pshared_offpage(mutex, 0);
 		if (m == NULL)
 			return (EINVAL);
+		shared_mutex_init(m, NULL);
 	} else {
 		m = *mutex;
 		if (m <= THR_MUTEX_DESTROYED)
@@ -827,6 +888,7 @@ _pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
 		m = __thr_pshared_offpage(mutex, 0);
 		if (m == NULL)
 			return (EINVAL);
+		shared_mutex_init(m, NULL);
 	} else {
 		m = *mutex;
 		if (m <= THR_MUTEX_DESTROYED)
@@ -930,12 +992,13 @@ __pthread_mutex_setyieldloops_np(pthread_mutex_t *mutex, int count)
 int
 _pthread_mutex_isowned_np(pthread_mutex_t *mutex)
 {
-	struct pthread_mutex	*m;
+	struct pthread_mutex *m;
 
 	if (*mutex == THR_PSHARED_PTR) {
 		m = __thr_pshared_offpage(mutex, 0);
 		if (m == NULL)
 			return (0);
+		shared_mutex_init(m, NULL);
 	} else {
 		m = *mutex;
 		if (m <= THR_MUTEX_DESTROYED)

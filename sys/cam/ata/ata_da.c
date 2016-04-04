@@ -466,14 +466,6 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
-		 * Samsung 843T Series SSDs
-		 * 4k optimised
-		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG MZ7WD*", "*" },
-		/*quirks*/ADA_Q_4K
-	},
- 	{
- 		/*
 		 * Samsung 850 SSDs
 		 * 4k optimised
 		 */
@@ -482,10 +474,13 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
-		 * Samsung PM853T Series SSDs
+		 * Samsung 843T Series SSDs (MZ7WD*)
+		 * Samsung PM851 Series SSDs (MZ7TE*)
+		 * Samsung PM853T Series SSDs (MZ7GE*)
+		 * Samsung SM863 Series SSDs (MZ7KM*)
 		 * 4k optimised
 		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG MZ7GE*", "*" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG MZ7*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{

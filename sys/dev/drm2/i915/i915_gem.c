@@ -1481,7 +1481,7 @@ i915_gem_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
 	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	vm_page_t page, oldpage;
+	vm_page_t page;
 	int ret = 0;
 #ifdef FREEBSD_WIP
 	bool write = (prot & VM_PROT_WRITE) != 0;
@@ -1504,13 +1504,10 @@ i915_gem_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
 	 * progress.
 	 */
 	if (*mres != NULL) {
-		oldpage = *mres;
-		vm_page_lock(oldpage);
-		vm_page_remove(oldpage);
-		vm_page_unlock(oldpage);
-		*mres = NULL;
-	} else
-		oldpage = NULL;
+		vm_page_lock(*mres);
+		vm_page_remove(*mres);
+		vm_page_unlock(*mres);
+	}
 	VM_OBJECT_WUNLOCK(vm_obj);
 retry:
 	ret = 0;
@@ -1590,7 +1587,6 @@ retry:
 	}
 	page->valid = VM_PAGE_BITS_ALL;
 have_page:
-	*mres = page;
 	vm_page_xbusy(page);
 
 	CTR4(KTR_DRM, "fault %p %jx %x phys %x", gem_obj, offset, prot,
@@ -1603,11 +1599,13 @@ have_page:
 		i915_gem_object_unpin(obj);
 	}
 	DRM_UNLOCK(dev);
-	if (oldpage != NULL) {
-		vm_page_lock(oldpage);
-		vm_page_free(oldpage);
-		vm_page_unlock(oldpage);
+	if (*mres != NULL) {
+		KASSERT(*mres != page, ("loosing %p %p", *mres, page));
+		vm_page_lock(*mres);
+		vm_page_free(*mres);
+		vm_page_unlock(*mres);
 	}
+	*mres = page;
 	vm_object_pip_wakeup(vm_obj);
 	return (VM_PAGER_OK);
 

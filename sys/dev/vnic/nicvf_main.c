@@ -661,12 +661,6 @@ nicvf_if_transmit(struct ifnet *ifp, struct mbuf *mbuf)
 
 	sq = &qs->sq[qidx];
 
-	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING) {
-		err = drbr_enqueue(ifp, sq->br, mbuf);
-		return (err);
-	}
-
 	if (mbuf->m_next != NULL &&
 	    (mbuf->m_pkthdr.csum_flags &
 	    (CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_SCTP)) != 0) {
@@ -679,17 +673,23 @@ nicvf_if_transmit(struct ifnet *ifp, struct mbuf *mbuf)
 		}
 	}
 
+	err = drbr_enqueue(ifp, sq->br, mbuf);
+	if (((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING) || !nic->link_up || (err != 0)) {
+		/*
+		 * Try to enqueue packet to the ring buffer.
+		 * If the driver is not active, link down or enqueue operation
+		 * failed, return with the appropriate error code.
+		 */
+		return (err);
+	}
+
 	if (NICVF_TX_TRYLOCK(sq) != 0) {
-		err = nicvf_tx_mbuf_locked(sq, mbuf);
+		err = nicvf_xmit_locked(sq);
 		NICVF_TX_UNLOCK(sq);
 		return (err);
-	} else {
-		err = drbr_enqueue(ifp, sq->br, mbuf);
-		if (err != 0)
-			return (err);
-
+	} else
 		taskqueue_enqueue(sq->snd_taskq, &sq->snd_task);
-	}
 
 	return (0);
 }

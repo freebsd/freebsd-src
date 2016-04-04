@@ -178,7 +178,7 @@ apb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	passthrough = (device_get_parent(child) != bus);
 	rle = NULL;
 
-	dprintf("%s: entry (%p, %p, %d, %d, %p, %p, %ld, %d)\n",
+	dprintf("%s: entry (%p, %p, %d, %d, %p, %p, %jd, %d)\n",
 	    __func__, bus, child, type, *rid, (void *)(intptr_t)start,
 	    (void *)(intptr_t)end, count, flags);
 
@@ -491,8 +491,8 @@ apb_print_all_resources(device_t dev)
 	if (STAILQ_FIRST(rl))
 		retval += printf(" at");
 
-	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 
 	return (retval);
 }

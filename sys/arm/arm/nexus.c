@@ -281,7 +281,8 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
 	int ret = ENODEV;
 
 #ifdef ARM_INTRNG
-	ret = intr_irq_config(irq, trig, pol);
+	device_printf(dev, "bus_config_intr is obsolete and not supported!\n");
+	ret = EOPNOTSUPP;
 #else
 	if (arm_config_irq)
 		ret = (*arm_config_irq)(irq, trig, pol);
@@ -293,22 +294,23 @@ static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
+#ifndef ARM_INTRNG
 	int irq;
+#endif
 
 	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
 
-	for (irq = rman_get_start(res); irq <= rman_get_end(res); irq++) {
 #ifdef ARM_INTRNG
-		intr_irq_add_handler(child, filt, intr, arg, irq, flags,
-		    cookiep);
+	return(intr_setup_irq(child, res, filt, intr, arg, flags, cookiep));
 #else
+	for (irq = rman_get_start(res); irq <= rman_get_end(res); irq++) {
 		arm_setup_irqhandler(device_get_nameunit(child),
 		    filt, intr, arg, irq, flags, cookiep);
 		arm_unmask_irq(irq);
-#endif
 	}
 	return (0);
+#endif
 }
 
 static int
@@ -316,7 +318,7 @@ nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 
 #ifdef ARM_INTRNG
-	return (intr_irq_remove_handler(child, rman_get_start(r), ih));
+	return (intr_teardown_irq(child, r, ih));
 #else
 	return (arm_remove_irqhandler(rman_get_start(r), ih));
 #endif
@@ -328,7 +330,7 @@ nexus_describe_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie, const char *descr)
 {
 
-	return (intr_irq_describe(rman_get_start(irq), cookie, descr));
+	return (intr_describe_irq(child, irq, cookie, descr));
 }
 
 #ifdef SMP
@@ -336,7 +338,7 @@ static int
 nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
 {
 
-	return (intr_irq_bind(rman_get_start(irq), cpu));
+	return (intr_bind_irq(child, irq, cpu));
 }
 #endif
 #endif

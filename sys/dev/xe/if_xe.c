@@ -1984,7 +1984,7 @@ xe_activate(device_t dev)
 			    sc->port_res);
 			start = (rman_get_start(sc->port_res) + 15) & ~0xf;
 		} while (1);
-		DEVPRINTF(1, (dev, "RealPort port 0x%0lx, size 0x%0lx\n",
+		DEVPRINTF(1, (dev, "RealPort port 0x%0jx, size 0x%0jx\n",
 		    bus_get_resource_start(dev, SYS_RES_IOPORT, sc->port_rid),
 		    bus_get_resource_count(dev, SYS_RES_IOPORT, sc->port_rid)));
 	} else if (sc->ce2) {
@@ -2024,7 +2024,7 @@ xe_activate(device_t dev)
 			    sc->port_res);
 			sc->port_res = NULL;
 		}
-		DEVPRINTF(1, (dev, "CEM2/CEM3 port 0x%0lx, size 0x%0lx\n",
+		DEVPRINTF(1, (dev, "CEM2/CEM3 port 0x%0jx, size 0x%0jx\n",
 		    bus_get_resource_start(dev, SYS_RES_IOPORT, sc->port_rid),
 		    bus_get_resource_count(dev, SYS_RES_IOPORT, sc->port_rid)));
 	}

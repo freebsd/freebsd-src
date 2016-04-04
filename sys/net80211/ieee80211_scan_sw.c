@@ -304,7 +304,7 @@ ieee80211_swscan_check_scan(const struct ieee80211_scanner *scan,
 		}
 		if ((ic->ic_flags & IEEE80211_F_SCAN) == 0 &&
 		    (flags & IEEE80211_SCAN_FLUSH) == 0 &&
-		    time_before(ticks, ic->ic_lastscan + vap->iv_scanvalid)) {
+		    ieee80211_time_before(ticks, ic->ic_lastscan + vap->iv_scanvalid)) {
 			/*
 			 * We're not currently scanning and the cache is
 			 * deemed hot enough to consult.  Lock out others
@@ -674,7 +674,7 @@ end:
 
 	if (scandone || (ss->ss_flags & IEEE80211_SCAN_GOTPICK) ||
 	    (ss_priv->ss_iflags & ISCAN_ABORT) ||
-	     time_after(ticks + ss->ss_mindwell, ss_priv->ss_scanend)) {
+	     ieee80211_time_after(ticks + ss->ss_mindwell, ss_priv->ss_scanend)) {
 		ss_priv->ss_iflags &= ~ISCAN_RUNNING;
 		scan_end(ss, scandone);
 		return;
@@ -686,7 +686,7 @@ end:
 	/*
 	 * Watch for truncation due to the scan end time.
 	 */
-	if (time_after(ticks + ss->ss_maxdwell, ss_priv->ss_scanend))
+	if (ieee80211_time_after(ticks + ss->ss_maxdwell, ss_priv->ss_scanend))
 		maxdwell = ss_priv->ss_scanend - ticks;
 	else
 		maxdwell = ss->ss_maxdwell;
@@ -807,7 +807,7 @@ scan_end(struct ieee80211_scan_state *ss, int scandone)
 	if ((ss_priv->ss_iflags & ISCAN_CANCEL) == 0 &&
 	    !ss->ss_ops->scan_end(ss, vap) &&
 	    (ss->ss_flags & IEEE80211_SCAN_ONCE) == 0 &&
-	    time_before(ticks + ss->ss_mindwell, ss_priv->ss_scanend)) {
+	    ieee80211_time_before(ticks + ss->ss_mindwell, ss_priv->ss_scanend)) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
 		    "%s: done, restart "
 		    "[ticks %u, dwell min %lu scanend %lu]\n",
@@ -923,7 +923,7 @@ ieee80211_swscan_add_scan(struct ieee80211vap *vap,
 		 * the timer so we'll switch to the next channel.
 		 */
 		if ((SCAN_PRIVATE(ss)->ss_iflags & ISCAN_MINDWELL) == 0 &&
-		    time_after_eq(ticks, SCAN_PRIVATE(ss)->ss_chanmindwell)) {
+		    ieee80211_time_after_eq(ticks, SCAN_PRIVATE(ss)->ss_chanmindwell)) {
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
 			    "%s: chan %3d%c min dwell met (%u > %lu)\n",
 			    __func__,

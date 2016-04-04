@@ -57,6 +57,10 @@ A pointer to an
 which saves the offset in
 .Vt "struct sysent"
 where the syscall is allocated.
+If the location pointed to by
+.Fa offset
+holds a non 0 number it will be used if possible.
+If it holds 0 then one will be assigned.
 .It Fa new_sysent
 is a pointer to a structure that specifies the function implementing
 the syscall and the number of arguments this function needs (see
@@ -72,6 +76,17 @@ The argument passed to the callback functions of the
 .Fa evh
 event handler when it is called.
 .El
+.Pp
+The syscall number assigned to the module can be retrieved using the
+.Xr modstat 3
+and
+.Xr modfind 3
+library functions in libc.
+The MACRO
+.Fn SYSCALL_MODULE_HELPER
+includes 
+.Fn SYSCALL_MODULE
+and much of its boilerplate code.
 .Sh EXAMPLES
 A minimal example for a syscall module can be found in
 .Pa /usr/share/examples/kld/syscall/module/syscall.c .

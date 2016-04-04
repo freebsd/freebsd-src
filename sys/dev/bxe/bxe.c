@@ -3063,7 +3063,7 @@ bxe_tpa_stop(struct bxe_softc          *sc,
 #if __FreeBSD_version >= 800000
         /* specify what RSS queue was used for this flow */
         m->m_pkthdr.flowid = fp->index;
-        M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
+        BXE_SET_FLOWID(m);
 #endif
 
         if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
@@ -3352,7 +3352,7 @@ bxe_rxeof(struct bxe_softc    *sc,
 #if __FreeBSD_version >= 800000
         /* specify what RSS queue was used for this flow */
         m->m_pkthdr.flowid = fp->index;
-        M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
+        BXE_SET_FLOWID(m);
 #endif
 
 next_rx:
@@ -4829,6 +4829,8 @@ bxe_dump_mbuf(struct bxe_softc *sc,
     }
 
     while (m) {
+
+#if __FreeBSD_version >= 1000000
         BLOGD(sc, DBG_MBUF,
               "%02d: mbuf=%p m_len=%d m_flags=0x%b m_data=%p\n",
               i, m, m->m_len, m->m_flags, M_FLAG_BITS, m->m_data);
@@ -4839,6 +4841,26 @@ bxe_dump_mbuf(struct bxe_softc *sc,
                    i, m->m_pkthdr.len, m->m_flags, M_FLAG_BITS,
                    (int)m->m_pkthdr.csum_flags, CSUM_BITS);
         }
+#else
+        BLOGD(sc, DBG_MBUF,
+              "%02d: mbuf=%p m_len=%d m_flags=0x%b m_data=%p\n",
+              i, m, m->m_len, m->m_flags,
+              "\20\1M_EXT\2M_PKTHDR\3M_EOR\4M_RDONLY", m->m_data);
+
+        if (m->m_flags & M_PKTHDR) {
+             BLOGD(sc, DBG_MBUF,
+                   "%02d: - m_pkthdr: tot_len=%d flags=0x%b csum_flags=%b\n",
+                   i, m->m_pkthdr.len, m->m_flags,
+                   "\20\12M_BCAST\13M_MCAST\14M_FRAG"
+                   "\15M_FIRSTFRAG\16M_LASTFRAG\21M_VLANTAG"
+                   "\22M_PROMISC\23M_NOFREE",
+                   (int)m->m_pkthdr.csum_flags,
+                   "\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP\4CSUM_IP_FRAGS"
+                   "\5CSUM_FRAGMENT\6CSUM_TSO\11CSUM_IP_CHECKED"
+                   "\12CSUM_IP_VALID\13CSUM_DATA_VALID"
+                   "\14CSUM_PSEUDO_HDR");
+        }
+#endif /* #if __FreeBSD_version >= 1000000 */
 
         if (m->m_flags & M_EXT) {
             switch (m->m_ext.ext_type) {
@@ -5222,7 +5244,9 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 
     sc = fp->sc;
 
+#if __FreeBSD_version >= 800000
     M_ASSERTPKTHDR(*m_head);
+#endif /* #if __FreeBSD_version >= 800000 */
 
     m0 = *m_head;
     rc = defragged = nbds = ovlan = vlan_off = total_pkt_size = 0;
@@ -5741,7 +5765,7 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
     if (!sc->link_vars.link_up ||
         (if_getdrvflags(ifp) &
         (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != IFF_DRV_RUNNING) {
-        rc = drbr_enqueue_drv(ifp, tx_br, m);
+        rc = drbr_enqueue(ifp, tx_br, m);
         goto bxe_tx_mq_start_locked_exit;
     }
 
@@ -5756,7 +5780,7 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
         next = drbr_dequeue_drv(ifp, tx_br);
     } else if (drbr_needs_enqueue_drv(ifp, tx_br)) {
         /* have both new and pending work, maintain packet order */
-        rc = drbr_enqueue_drv(ifp, tx_br, m);
+        rc = drbr_enqueue(ifp, tx_br, m);
         if (rc != 0) {
             fp->eth_q_stats.tx_soft_errors++;
             goto bxe_tx_mq_start_locked_exit;
@@ -5785,7 +5809,7 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
                 /* mark the TX queue as full and save the frame */
                 if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
                 /* XXX this may reorder the frame */
-                rc = drbr_enqueue_drv(ifp, tx_br, next);
+                rc = drbr_enqueue(ifp, tx_br, next);
                 fp->eth_q_stats.mbuf_alloc_tx--;
                 fp->eth_q_stats.tx_frames_deferred++;
             }
@@ -5837,7 +5861,8 @@ bxe_tx_mq_start(struct ifnet *ifp,
     fp_index = 0; /* default is the first queue */
 
     /* check if flowid is set */
-    if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
+
+    if (BXE_VALID_FLOWID(m))
         fp_index = (m->m_pkthdr.flowid % sc->num_queues);
 
     fp = &sc->fp[fp_index];
@@ -5846,7 +5871,7 @@ bxe_tx_mq_start(struct ifnet *ifp,
         rc = bxe_tx_mq_start_locked(sc, ifp, fp, m);
         BXE_FP_TX_UNLOCK(fp);
     } else
-        rc = drbr_enqueue_drv(ifp, fp->tx_br, m);
+        rc = drbr_enqueue(ifp, fp->tx_br, m);
 
     return (rc);
 }
@@ -12845,7 +12870,7 @@ bxe_allocate_bars(struct bxe_softc *sc)
         sc->bar[i].handle = rman_get_bushandle(sc->bar[i].resource);
         sc->bar[i].kva    = (vm_offset_t)rman_get_virtual(sc->bar[i].resource);
 
-        BLOGI(sc, "PCI BAR%d [%02x] memory allocated: %p-%p (%ld) -> %p\n",
+        BLOGI(sc, "PCI BAR%d [%02x] memory allocated: %p-%p (%jd) -> %p\n",
               i, PCIR_BAR(i),
               (void *)rman_get_start(sc->bar[i].resource),
               (void *)rman_get_end(sc->bar[i].resource),
@@ -15677,18 +15702,11 @@ bxe_add_sysctls(struct bxe_softc *sc)
                       CTLFLAG_RD, BXE_DRIVER_VERSION, 0,
                       "version");
 
-    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "bc_version",
-                      CTLFLAG_RD, sc->devinfo.bc_ver_str, 0,
-                      "bootcode version");
-
     snprintf(sc->fw_ver_str, sizeof(sc->fw_ver_str), "%d.%d.%d.%d",
              BCM_5710_FW_MAJOR_VERSION,
              BCM_5710_FW_MINOR_VERSION,
              BCM_5710_FW_REVISION_VERSION,
              BCM_5710_FW_ENGINEERING_VERSION);
-    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "fw_version",
-                      CTLFLAG_RD, sc->fw_ver_str, 0,
-                      "firmware version");
 
     snprintf(sc->mf_mode_str, sizeof(sc->mf_mode_str), "%s",
         ((sc->devinfo.mf_info.mf_mode == SINGLE_FUNCTION)     ? "Single"  :
@@ -15696,17 +15714,9 @@ bxe_add_sysctls(struct bxe_softc *sc)
          (sc->devinfo.mf_info.mf_mode == MULTI_FUNCTION_SI)   ? "MF-SI"   :
          (sc->devinfo.mf_info.mf_mode == MULTI_FUNCTION_AFEX) ? "MF-AFEX" :
                                                                 "Unknown"));
-    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "mf_mode",
-                      CTLFLAG_RD, sc->mf_mode_str, 0,
-                      "multifunction mode");
-
     SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "mf_vnics",
                     CTLFLAG_RD, &sc->devinfo.mf_info.vnics_per_port, 0,
                     "multifunction vnics per port");
-
-    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "mac_addr",
-                      CTLFLAG_RD, sc->mac_addr_str, 0,
-                      "mac address");
 
     snprintf(sc->pci_link_str, sizeof(sc->pci_link_str), "%s x%d",
         ((sc->devinfo.pcie_link_speed == 1) ? "2.5GT/s" :
@@ -15714,14 +15724,48 @@ bxe_add_sysctls(struct bxe_softc *sc)
          (sc->devinfo.pcie_link_speed == 4) ? "8.0GT/s" :
                                               "???GT/s"),
         sc->devinfo.pcie_link_width);
+
+    sc->debug = bxe_debug;
+
+#if __FreeBSD_version >= 900000
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "bc_version",
+                      CTLFLAG_RD, sc->devinfo.bc_ver_str, 0,
+                      "bootcode version");
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "fw_version",
+                      CTLFLAG_RD, sc->fw_ver_str, 0,
+                      "firmware version");
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "mf_mode",
+                      CTLFLAG_RD, sc->mf_mode_str, 0,
+                      "multifunction mode");
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "mac_addr",
+                      CTLFLAG_RD, sc->mac_addr_str, 0,
+                      "mac address");
     SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "pci_link",
                       CTLFLAG_RD, sc->pci_link_str, 0,
                       "pci link status");
-
-    sc->debug = bxe_debug;
     SYSCTL_ADD_ULONG(ctx, children, OID_AUTO, "debug",
                     CTLFLAG_RW, &sc->debug,
                     "debug logging mode");
+#else
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "bc_version",
+                      CTLFLAG_RD, &sc->devinfo.bc_ver_str, 0,
+                      "bootcode version");
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "fw_version",
+                      CTLFLAG_RD, &sc->fw_ver_str, 0,
+                      "firmware version");
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "mf_mode",
+                      CTLFLAG_RD, &sc->mf_mode_str, 0,
+                      "multifunction mode");
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "mac_addr",
+                      CTLFLAG_RD, &sc->mac_addr_str, 0,
+                      "mac address");
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "pci_link",
+                      CTLFLAG_RD, &sc->pci_link_str, 0,
+                      "pci link status");
+    SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "debug",
+                    CTLFLAG_RW, &sc->debug, 0,
+                    "debug logging mode");
+#endif /* #if __FreeBSD_version >= 900000 */
 
     SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "trigger_grcdump",
                     CTLTYPE_UINT | CTLFLAG_RW, sc, 0,

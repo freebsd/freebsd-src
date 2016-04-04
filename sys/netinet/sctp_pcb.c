@@ -5357,6 +5357,7 @@ void
 sctp_add_local_addr_ep(struct sctp_inpcb *inp, struct sctp_ifa *ifa, uint32_t action)
 {
 	struct sctp_laddr *laddr;
+	struct sctp_tcb *stcb;
 	int fnd, error = 0;
 
 	fnd = 0;
@@ -5401,6 +5402,9 @@ sctp_add_local_addr_ep(struct sctp_inpcb *inp, struct sctp_ifa *ifa, uint32_t ac
 #endif
 		default:
 			break;
+		}
+		LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
+			sctp_add_local_addr_restricted(stcb, ifa);
 		}
 	}
 	return;

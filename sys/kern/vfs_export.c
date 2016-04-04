@@ -256,10 +256,10 @@ vfs_free_addrlist_af(struct radix_node_head **prnh)
 
 	rnh = *prnh;
 	RADIX_NODE_HEAD_LOCK(rnh);
-	(*rnh->rnh_walktree)(&rnh->rh, vfs_free_netcred, &rnh->rh);
+	(*rnh->rnh_walktree)(&rnh->rh, vfs_free_netcred, rnh);
 	RADIX_NODE_HEAD_UNLOCK(rnh);
 	RADIX_NODE_HEAD_DESTROY(rnh);
-	free(rnh, M_RTABLE);
+	rn_detachhead((void **)prnh);
 	prnh = NULL;
 }
 

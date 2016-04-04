@@ -70,6 +70,7 @@ typedef uint16_t hv_vmbus_status;
  *    You did not supply enough message buffers to send a message.
  */
 
+#define HV_STATUS_SUCCESS                ((uint16_t)0)
 #define HV_STATUS_INSUFFICIENT_BUFFERS   ((uint16_t)0x0013)
 
 typedef void (*hv_vmbus_channel_callback)(void *context);
@@ -180,7 +181,8 @@ enum {
 	HV_VMBUS_EVENT_PORT_ID		= 2,
 	HV_VMBUS_MONITOR_CONNECTION_ID	= 3,
 	HV_VMBUS_MONITOR_PORT_ID	= 3,
-	HV_VMBUS_MESSAGE_SINT		= 2
+	HV_VMBUS_MESSAGE_SINT		= 2,
+	HV_VMBUS_TIMER_SINT		= 4,
 };
 
 #define HV_PRESENT_BIT		0x80000000
@@ -203,8 +205,8 @@ typedef struct {
 	 * event and msg handling.
 	 */
 	struct taskqueue		*hv_event_queue[MAXCPU];
-	struct intr_event		*hv_msg_intr_event[MAXCPU];
-	void				*msg_swintr[MAXCPU];
+	struct taskqueue		*hv_msg_tq[MAXCPU];
+	struct task			hv_msg_task[MAXCPU];
 	/*
 	 * Host use this vector to intrrupt guest for vmbus channel
 	 * event and msg.

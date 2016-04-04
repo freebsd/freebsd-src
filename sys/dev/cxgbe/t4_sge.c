@@ -1397,13 +1397,8 @@ process_iql:
 #if defined(INET) || defined(INET6)
 	if (iq->flags & IQ_LRO_ENABLED) {
 		struct lro_ctrl *lro = &rxq->lro;
-		struct lro_entry *l;
 
-		while (!SLIST_EMPTY(&lro->lro_active)) {
-			l = SLIST_FIRST(&lro->lro_active);
-			SLIST_REMOVE_HEAD(&lro->lro_active, next);
-			tcp_lro_flush(lro, l);
-		}
+		tcp_lro_flush_all(lro);
 	}
 #endif
 
@@ -2343,8 +2338,8 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx)
 		} else {
 			total++;
 			remaining--;
-			n = write_txpkt_wr(txq, (void *)wr, m0, available);
 			ETHER_BPF_MTAP(ifp, m0);
+			n = write_txpkt_wr(txq, (void *)wr, m0, available);
 		}
 		MPASS(n >= 1 && n <= available && n <= SGE_MAX_WR_NDESC);
 

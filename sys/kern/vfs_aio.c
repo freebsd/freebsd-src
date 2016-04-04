@@ -743,7 +743,7 @@ aio_process_rw(struct kaiocb *job)
 	struct file *fp;
 	struct uio auio;
 	struct iovec aiov;
-	int cnt;
+	ssize_t cnt;
 	int error;
 	int oublock_st, oublock_end;
 	int inblock_st, inblock_end;
@@ -1173,7 +1173,7 @@ aio_qphysio(struct proc *p, struct kaiocb *job)
 	struct cdevsw *csw;
 	struct cdev *dev;
 	struct kaioinfo *ki;
-	int error, ref, unmap, poff;
+	int error, ref, poff;
 	vm_prot_t prot;
 
 	cb = &job->uaiocb;
@@ -1206,12 +1206,13 @@ aio_qphysio(struct proc *p, struct kaiocb *job)
 
 	ki = p->p_aioinfo;
 	poff = (vm_offset_t)cb->aio_buf & PAGE_MASK;
-	unmap = ((dev->si_flags & SI_UNMAPPED) && unmapped_buf_allowed);
-	if (unmap) {
+	if ((dev->si_flags & SI_UNMAPPED) && unmapped_buf_allowed) {
 		if (cb->aio_nbytes > MAXPHYS) {
 			error = -1;
 			goto unref;
 		}
+
+		pbuf = NULL;
 	} else {
 		if (cb->aio_nbytes > MAXPHYS - poff) {
 			error = -1;
@@ -1221,17 +1222,14 @@ aio_qphysio(struct proc *p, struct kaiocb *job)
 			error = -1;
 			goto unref;
 		}
-	}
-	job->bp = bp = g_alloc_bio();
-	if (!unmap) {
+
 		job->pbuf = pbuf = (struct buf *)getpbuf(NULL);
 		BUF_KERNPROC(pbuf);
-	}
-
-	AIO_LOCK(ki);
-	if (!unmap)
+		AIO_LOCK(ki);
 		ki->kaio_buffer_count++;
-	AIO_UNLOCK(ki);
+		AIO_UNLOCK(ki);
+	}
+	job->bp = bp = g_alloc_bio();
 
 	bp->bio_length = cb->aio_nbytes;
 	bp->bio_bcount = cb->aio_nbytes;
@@ -1245,17 +1243,18 @@ aio_qphysio(struct proc *p, struct kaiocb *job)
 	prot = VM_PROT_READ;
 	if (cb->aio_lio_opcode == LIO_READ)
 		prot |= VM_PROT_WRITE;	/* Less backwards than it looks */
-	if ((job->npages = vm_fault_quick_hold_pages(
-	    &curproc->p_vmspace->vm_map,
+	job->npages = vm_fault_quick_hold_pages(&curproc->p_vmspace->vm_map,
 	    (vm_offset_t)bp->bio_data, bp->bio_length, prot, job->pages,
-	    sizeof(job->pages)/sizeof(job->pages[0]))) < 0) {
+	    nitems(job->pages));
+	if (job->npages < 0) {
 		error = EFAULT;
 		goto doerror;
 	}
-	if (!unmap) {
+	if (pbuf != NULL) {
 		pmap_qenter((vm_offset_t)pbuf->b_data,
 		    job->pages, job->npages);
 		bp->bio_data = pbuf->b_data + poff;
+		atomic_add_int(&num_buf_aio, 1);
 	} else {
 		bp->bio_ma = job->pages;
 		bp->bio_ma_n = job->npages;
@@ -1264,20 +1263,16 @@ aio_qphysio(struct proc *p, struct kaiocb *job)
 		bp->bio_flags |= BIO_UNMAPPED;
 	}
 
-	if (!unmap)
-		atomic_add_int(&num_buf_aio, 1);
-
 	/* Perform transfer. */
 	csw->d_strategy(bp);
 	dev_relthread(dev, ref);
 	return (0);
 
 doerror:
-	AIO_LOCK(ki);
-	if (!unmap)
+	if (pbuf != NULL) {
+		AIO_LOCK(ki);
 		ki->kaio_buffer_count--;
-	AIO_UNLOCK(ki);
-	if (pbuf) {
+		AIO_UNLOCK(ki);
 		relpbuf(pbuf, NULL);
 		job->pbuf = NULL;
 	}
@@ -1446,8 +1441,7 @@ aio_aqueue(struct thread *td, struct aiocb *ujob, struct aioliojob *lj,
 		return (error);
 	}
 
-	/* XXX: aio_nbytes is later casted to signed types. */
-	if (job->uaiocb.aio_nbytes > INT_MAX) {
+	if (job->uaiocb.aio_nbytes > IOSIZE_MAX) {
 		uma_zfree(aiocb_zone, job);
 		return (EINVAL);
 	}
@@ -1788,7 +1782,7 @@ kern_aio_return(struct thread *td, struct aiocb *ujob, struct aiocb_ops *ops)
 	struct proc *p = td->td_proc;
 	struct kaiocb *job;
 	struct kaioinfo *ki;
-	int status, error;
+	long status, error;
 
 	ki = p->p_aioinfo;
 	if (ki == NULL)
@@ -2344,7 +2338,8 @@ kern_aio_waitcomplete(struct thread *td, struct aiocb **ujobp,
 	struct kaioinfo *ki;
 	struct kaiocb *job;
 	struct aiocb *ujob;
-	int error, status, timo;
+	long error, status;
+	int timo;
 
 	ops->store_aiocb(ujobp, NULL);
 

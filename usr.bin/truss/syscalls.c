@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <vis.h>
 
-#include <compat/cloudabi/cloudabi_syscalldefs.h>
+#include <contrib/cloudabi/cloudabi_types_common.h>
 
 #include "truss.h"
 #include "extern.h"
@@ -818,7 +818,7 @@ static struct xlat cloudabi_ssflags[] = {
 };
 
 static struct xlat cloudabi_ssstate[] = {
-	X(SOCKSTAT_ACCEPTCONN)
+	X(SOCKSTATE_ACCEPTCONN)
 	XEND
 };
 

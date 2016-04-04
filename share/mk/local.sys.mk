@@ -23,6 +23,10 @@ MAKE_PRINT_VAR_ON_ERROR += .MAKE.MAKEFILES .PATH
 .endif
 .endif
 
+.if !empty(.OBJDIR)
+OBJTOP?= ${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
+.endif
+
 .include "src.sys.mk"
 
 .if ${.MAKE.MODE:Mmeta*} != ""

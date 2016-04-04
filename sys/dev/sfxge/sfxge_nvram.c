@@ -75,10 +75,6 @@ sfxge_nvram_rw(struct sfxge_softc *sc, sfxge_ioc_t *ip, efx_nvram_type_t type,
 		goto fail1;
 
 	buf = malloc(chunk_size, M_TEMP, M_WAITOK);
-	if (buf == NULL) {
-		rc = ENOMEM;
-		goto fail2;
-	}
 
 	off = 0;
 	while (total_size) {
@@ -108,7 +104,6 @@ sfxge_nvram_rw(struct sfxge_softc *sc, sfxge_ioc_t *ip, efx_nvram_type_t type,
 
 fail3:
 	free(buf, M_TEMP);
-fail2:
 	efx_nvram_rw_finish(enp, type);
 fail1:
 	return (rc);

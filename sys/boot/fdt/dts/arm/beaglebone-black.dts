@@ -33,15 +33,18 @@
 &am33xx_pinmux {
 	i2c1_pins: pinmux_i2c1_pins {
 		pinctrl-single,pins = <
-			0x158 (PIN_INPUT_PULLUP | MUX_MODE2)	/* spi0_d1.i2c1_sda */
-			0x15c (PIN_INPUT_PULLUP | MUX_MODE2)	/* spi0_cs0.i2c1_scl */
+			AM33XX_IOPAD(0x958, PIN_INPUT_PULLUP | MUX_MODE2)	/* spi0_d1.i2c1_sda */
+			AM33XX_IOPAD(0x95c, PIN_INPUT_PULLUP | MUX_MODE2)	/* spi0_cs0.i2c1_scl */
 		>;
 	};
 
-	i2c2_pins: pinmux_i2c2_pins {
+	spi1_pins: pinmux_spi1_pins {
 		pinctrl-single,pins = <
-			0x178 (PIN_INPUT_PULLUP | MUX_MODE3)	/* uart1_ctsn.i2c2_sda */
-			0x17c (PIN_INPUT_PULLUP | MUX_MODE3)	/* uart1_rtsn.i2c2_scl */
+			AM33XX_IOPAD(0x964, PIN_INPUT_PULLUP | MUX_MODE2)	/* eCAP0_in_PWM0_out.spi1_cs1 */
+			AM33XX_IOPAD(0x990, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* mcasp0_aclkx.spi1_sclk */
+			AM33XX_IOPAD(0x994, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* mcasp0_fsx.spi1_d0 - miso */
+			AM33XX_IOPAD(0x998, PIN_INPUT_PULLUP | MUX_MODE3)	/* mcasp0_axr0.spi1_d1  - mosi */
+			AM33XX_IOPAD(0x99c, PIN_INPUT_PULLUP | MUX_MODE3)	/* mcasp0_ahclkr.spi1_cs0 */
 		>;
 	};
 };
@@ -68,6 +71,13 @@
 &i2c2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pins>;
+
+	status = "okay";
+};
+
+&spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_pins>;
 
 	status = "okay";
 };

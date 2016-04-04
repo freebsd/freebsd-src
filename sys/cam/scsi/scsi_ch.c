@@ -651,6 +651,7 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 		} else {
 			int error;
 
+			announce_buf[0] = '\0';
 			error = cherror(done_ccb, CAM_RETRY_SELTO,
 					SF_RETRY_UA | SF_NO_PRINT);
 			/*
@@ -659,7 +660,7 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 			 */
 			if (error == ERESTART) {
 				/*
-				 * A retry was scheuled, so
+				 * A retry was scheduled, so
 				 * just return.
 				 */
 				return;

@@ -91,6 +91,7 @@ struct bootp {
 #define TAG_DOMAINNAME		((unsigned char)  15)
 #define TAG_SWAPSERVER		((unsigned char)  16)
 #define TAG_ROOTPATH		((unsigned char)  17)
+#define TAG_INTF_MTU		((unsigned char)  26)
 
 #ifdef SUPPORT_DHCP
 #define TAG_REQ_ADDR		((unsigned char)  50)

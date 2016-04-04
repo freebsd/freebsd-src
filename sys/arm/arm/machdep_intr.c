@@ -1,8 +1,6 @@
-/*	$NetBSD: intr.c,v 1.12 2003/07/15 00:24:41 lukem Exp $	*/
-
 /*-
- * Copyright (c) 2004 Olivier Houchard.
- * Copyright (c) 1994-1998 Mark Brinicombe.
+ * Copyright (c) 2015-2016 Svatopluk Kraus
+ * Copyright (c) 2015-2016 Michal Meloun
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -13,27 +11,18 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Mark Brinicombe
- *	for the NetBSD Project.
- * 4. The name of the company nor the name of the author may be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * Soft interrupt and other generic interrupt functions.
  */
 
 #include "opt_platform.h"
@@ -64,8 +53,18 @@ __FBSDID("$FreeBSD$");
 #include "pic_if.h"
 
 #ifdef SMP
-static struct intr_irqsrc ipi_sources[INTR_IPI_COUNT];
-static u_int ipi_next_num;
+#define INTR_IPI_NAMELEN	(MAXCOMLEN + 1)
+
+struct intr_ipi {
+	intr_ipi_handler_t *	ii_handler;
+	void *			ii_handler_arg;
+	intr_ipi_send_t *	ii_send;
+	void *			ii_send_arg;
+	char			ii_name[INTR_IPI_NAMELEN];
+	u_long *		ii_count;
+};
+
+static struct intr_ipi ipi_sources[INTR_IPI_COUNT];
 #endif
 #endif
 
@@ -134,10 +133,7 @@ arm_irq_memory_barrier(uintptr_t irq)
 
 #ifdef ARM_INTRNG
 #ifdef SMP
-/*
- *  Lookup IPI source.
- */
-static struct intr_irqsrc *
+static inline struct intr_ipi *
 intr_ipi_lookup(u_int ipi)
 {
 
@@ -147,112 +143,90 @@ intr_ipi_lookup(u_int ipi)
 	return (&ipi_sources[ipi]);
 }
 
-/*
- *  interrupt controller dispatch function for IPIs. It should
- *  be called straight from the interrupt controller, when associated
- *  interrupt source is learned. Or from anybody who has an interrupt
- *  source mapped.
- */
 void
-intr_ipi_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
+intr_ipi_dispatch(u_int ipi, struct trapframe *tf)
 {
 	void *arg;
+	struct intr_ipi *ii;
 
-	KASSERT(isrc != NULL, ("%s: no source", __func__));
+	ii = intr_ipi_lookup(ipi);
+	if (ii->ii_count == NULL)
+		panic("%s: not setup IPI %u", __func__, ipi);
 
-	intr_ipi_increment_count(isrc->isrc_count, PCPU_GET(cpuid));
+	intr_ipi_increment_count(ii->ii_count, PCPU_GET(cpuid));
 
 	/*
 	 * Supply ipi filter with trapframe argument
 	 * if none is registered.
 	 */
-	arg = isrc->isrc_arg != NULL ? isrc->isrc_arg : tf;
-	isrc->isrc_ipifilter(arg);
+	arg = ii->ii_handler_arg != NULL ? ii->ii_handler_arg : tf;
+	ii->ii_handler(arg);
 }
 
-/*
- *  Map IPI into interrupt controller.
- *
- *  Not SMP coherent.
- */
-static int
-ipi_map(struct intr_irqsrc *isrc, u_int ipi)
+void
+intr_ipi_send(cpuset_t cpus, u_int ipi)
 {
-	boolean_t is_percpu;
-	int error;
+	struct intr_ipi *ii;
 
-	if (ipi >= INTR_IPI_COUNT)
-		panic("%s: no such IPI %u", __func__, ipi);
+	ii = intr_ipi_lookup(ipi);
+	if (ii->ii_count == NULL)
+		panic("%s: not setup IPI %u", __func__, ipi);
 
-	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
-
-	isrc->isrc_type = INTR_ISRCT_NAMESPACE;
-	isrc->isrc_nspc_type = INTR_IRQ_NSPC_IPI;
-	isrc->isrc_nspc_num = ipi_next_num;
-
-	error = PIC_REGISTER(intr_irq_root_dev, isrc, &is_percpu);
-	if (error == 0) {
-		isrc->isrc_dev = intr_irq_root_dev;
-		ipi_next_num++;
-	}
-	return (error);
+	ii->ii_send(ii->ii_send_arg, cpus, ipi);
 }
 
-/*
- *  Setup IPI handler to interrupt source.
- *
- *  Note that there could be more ways how to send and receive IPIs
- *  on a platform like fast interrupts for example. In that case,
- *  one can call this function with ASIF_NOALLOC flag set and then
- *  call intr_ipi_dispatch() when appropriate.
- *
- *  Not SMP coherent.
- */
-int
-intr_ipi_set_handler(u_int ipi, const char *name, intr_ipi_filter_t *filter,
-    void *arg, u_int flags)
+void
+intr_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
+    void *h_arg, intr_ipi_send_t *send, void *s_arg)
 {
-	struct intr_irqsrc *isrc;
-	int error;
+	struct intr_ipi *ii;
 
-	if (filter == NULL)
-		return(EINVAL);
+	ii = intr_ipi_lookup(ipi);
 
-	isrc = intr_ipi_lookup(ipi);
-	if (isrc->isrc_ipifilter != NULL)
-		return (EEXIST);
+	KASSERT(hand != NULL, ("%s: ipi %u no handler", __func__, ipi));
+	KASSERT(send != NULL, ("%s: ipi %u no sender", __func__, ipi));
+	KASSERT(ii->ii_count == NULL, ("%s: ipi %u reused", __func__, ipi));
 
-	if ((flags & AISHF_NOALLOC) == 0) {
-		error = ipi_map(isrc, ipi);
-		if (error != 0)
-			return (error);
-	}
-
-	isrc->isrc_ipifilter = filter;
-	isrc->isrc_arg = arg;
-	isrc->isrc_handlers = 1;
-	isrc->isrc_count = intr_ipi_setup_counters(name);
-	isrc->isrc_index = 0; /* it should not be used in IPI case */
-
-	if (isrc->isrc_dev != NULL) {
-		PIC_ENABLE_INTR(isrc->isrc_dev, isrc);
-		PIC_ENABLE_SOURCE(isrc->isrc_dev, isrc);
-	}
-	return (0);
+	ii->ii_handler = hand;
+	ii->ii_handler_arg = h_arg;
+	ii->ii_send = send;
+	ii->ii_send_arg = s_arg;
+	strlcpy(ii->ii_name, name, INTR_IPI_NAMELEN);
+	ii->ii_count = intr_ipi_setup_counters(name);
 }
 
 /*
  *  Send IPI thru interrupt controller.
  */
-void
-pic_ipi_send(cpuset_t cpus, u_int ipi)
+static void
+pic_ipi_send(void *arg, cpuset_t cpus, u_int ipi)
 {
-	struct intr_irqsrc *isrc;
-
-	isrc = intr_ipi_lookup(ipi);
 
 	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
-	PIC_IPI_SEND(intr_irq_root_dev, isrc, cpus);
+	PIC_IPI_SEND(intr_irq_root_dev, arg, cpus, ipi);
+}
+
+/*
+ *  Setup IPI handler on interrupt controller.
+ *
+ *  Not SMP coherent.
+ */
+int
+intr_pic_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
+    void *arg)
+{
+	int error;
+	struct intr_irqsrc *isrc;
+
+	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
+
+	error = PIC_IPI_SETUP(intr_irq_root_dev, ipi, &isrc);
+	if (error != 0)
+		return (error);
+
+	isrc->isrc_handlers++;
+	intr_ipi_setup(ipi, name, hand, arg, pic_ipi_send, isrc);
+	return (0);
 }
 #endif
 #endif

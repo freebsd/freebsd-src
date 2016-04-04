@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
-#include <sys/stdatomic.h>
 #include <sys/cpuset.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -61,11 +60,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/vmparam.h>
 
-#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/ifq.h>
+#include <net/bpf.h>
+#include <net/ethernet.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -105,6 +105,8 @@ static void nicvf_put_sq_desc(struct snd_queue *, int);
 static void nicvf_cmp_queue_config(struct nicvf *, struct queue_set *, int,
     boolean_t);
 static void nicvf_sq_free_used_descs(struct nicvf *, struct snd_queue *, int);
+
+static int nicvf_tx_mbuf_locked(struct snd_queue *, struct mbuf **);
 
 static void nicvf_rbdr_task(void *, int);
 static void nicvf_rbdr_task_nowait(void *, int);
@@ -740,10 +742,10 @@ nicvf_cq_intr_handler(struct nicvf *nic, uint8_t cq_idx)
 	int cqe_count, cqe_head;
 	struct queue_set *qs = nic->qs;
 	struct cmp_queue *cq = &qs->cq[cq_idx];
+	struct snd_queue *sq = &qs->sq[cq_idx];
 	struct rcv_queue *rq;
 	struct cqe_rx_t *cq_desc;
 	struct lro_ctrl	*lro;
-	struct lro_entry *queued;
 	int rq_idx;
 	int cmp_err;
 
@@ -819,6 +821,7 @@ done:
 	    ((if_getdrvflags(nic->ifp) & IFF_DRV_RUNNING) != 0)) {
 		/* Reenable TXQ if its stopped earlier due to SQ full */
 		if_setdrvflagbits(nic->ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
+		taskqueue_enqueue(sq->snd_taskq, &sq->snd_task);
 	}
 out:
 	/*
@@ -827,10 +830,7 @@ out:
 	rq_idx = cq_idx;
 	rq = &nic->qs->rq[rq_idx];
 	lro = &rq->lro;
-	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
-		SLIST_REMOVE_HEAD(&lro->lro_active, next);
-		tcp_lro_flush(lro, queued);
-	}
+	tcp_lro_flush_all(lro);
 
 	NICVF_CMP_UNLOCK(cq);
 
@@ -992,25 +992,62 @@ nicvf_free_cmp_queue(struct nicvf *nic, struct cmp_queue *cq)
 	memset(cq->mtx_name, 0, sizeof(cq->mtx_name));
 }
 
+int
+nicvf_xmit_locked(struct snd_queue *sq)
+{
+	struct nicvf *nic;
+	struct ifnet *ifp;
+	struct mbuf *next;
+	int err;
+
+	NICVF_TX_LOCK_ASSERT(sq);
+
+	nic = sq->nic;
+	ifp = nic->ifp;
+	err = 0;
+
+	while ((next = drbr_peek(ifp, sq->br)) != NULL) {
+		err = nicvf_tx_mbuf_locked(sq, &next);
+		if (err != 0) {
+			if (next == NULL)
+				drbr_advance(ifp, sq->br);
+			else
+				drbr_putback(ifp, sq->br, next);
+
+			break;
+		}
+		drbr_advance(ifp, sq->br);
+		/* Send a copy of the frame to the BPF listener */
+		ETHER_BPF_MTAP(ifp, next);
+	}
+	return (err);
+}
+
 static void
 nicvf_snd_task(void *arg, int pending)
 {
 	struct snd_queue *sq = (struct snd_queue *)arg;
-	struct mbuf *mbuf;
+	struct nicvf *nic;
+	struct ifnet *ifp;
+	int err;
+
+	nic = sq->nic;
+	ifp = nic->ifp;
+
+	/*
+	 * Skip sending anything if the driver is not running,
+	 * SQ full or link is down.
+	 */
+	if (((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING) || !nic->link_up)
+		return;
 
 	NICVF_TX_LOCK(sq);
-	while (1) {
-		mbuf = drbr_dequeue(NULL, sq->br);
-		if (mbuf == NULL)
-			break;
-
-		if (nicvf_tx_mbuf_locked(sq, mbuf) != 0) {
-			/* XXX ARM64TODO: Increase Tx drop counter */
-			m_freem(mbuf);
-			break;
-		}
-	}
+	err = nicvf_xmit_locked(sq);
 	NICVF_TX_UNLOCK(sq);
+	/* Try again */
+	if (err != 0)
+		taskqueue_enqueue(sq->snd_taskq, &sq->snd_task);
 }
 
 /* Initialize transmit queue */
@@ -1048,7 +1085,7 @@ nicvf_init_snd_queue(struct nicvf *nic, struct snd_queue *sq, int q_len,
 
 	sq->desc = sq->dmem.base;
 	sq->head = sq->tail = 0;
-	atomic_store_rel_int(&sq->free_cnt, q_len - 1);
+	sq->free_cnt = q_len - 1;
 	sq->thresh = SND_QUEUE_THRESH;
 	sq->idx = qidx;
 	sq->nic = nic;
@@ -1640,7 +1677,7 @@ nicvf_get_sq_desc(struct snd_queue *sq, int desc_cnt)
 	int qentry;
 
 	qentry = sq->tail;
-	atomic_subtract_int(&sq->free_cnt, desc_cnt);
+	sq->free_cnt -= desc_cnt;
 	sq->tail += desc_cnt;
 	sq->tail &= (sq->dmem.q_len - 1);
 
@@ -1652,7 +1689,7 @@ static void
 nicvf_put_sq_desc(struct snd_queue *sq, int desc_cnt)
 {
 
-	atomic_add_int(&sq->free_cnt, desc_cnt);
+	sq->free_cnt += desc_cnt;
 	sq->head += desc_cnt;
 	sq->head &= (sq->dmem.q_len - 1);
 }
@@ -1772,7 +1809,6 @@ nicvf_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
 		}
 
 		ip = (struct ip *)(mbuf->m_data + ehdrlen);
-		ip->ip_sum = 0;
 		iphlen = ip->ip_hl << 2;
 		poff = ehdrlen + iphlen;
 
@@ -1864,8 +1900,8 @@ static inline void nicvf_sq_add_gather_subdesc(struct snd_queue *sq, int qentry,
 }
 
 /* Put an mbuf to a SQ for packet transfer. */
-int
-nicvf_tx_mbuf_locked(struct snd_queue *sq, struct mbuf *mbuf)
+static int
+nicvf_tx_mbuf_locked(struct snd_queue *sq, struct mbuf **mbufp)
 {
 	bus_dma_segment_t segs[256];
 	struct nicvf *nic;
@@ -1883,15 +1919,17 @@ nicvf_tx_mbuf_locked(struct snd_queue *sq, struct mbuf *mbuf)
 	snd_buff = &sq->snd_buff[sq->tail];
 
 	err = bus_dmamap_load_mbuf_sg(sq->snd_buff_dmat, snd_buff->dmap,
-	    mbuf, segs, &nsegs, BUS_DMA_NOWAIT);
-	if (err != 0) {
+	    *mbufp, segs, &nsegs, BUS_DMA_NOWAIT);
+	if (__predict_false(err != 0)) {
 		/* ARM64TODO: Add mbuf defragmenting if we lack maps */
+		m_freem(*mbufp);
+		*mbufp = NULL;
 		return (err);
 	}
 
 	/* Set how many subdescriptors is required */
 	nic = sq->nic;
-	if (mbuf->m_pkthdr.tso_segsz != 0 && nic->hw_tso)
+	if ((*mbufp)->m_pkthdr.tso_segsz != 0 && nic->hw_tso)
 		subdesc_cnt = MIN_SQ_DESC_PER_PKT_XMIT;
 	else
 		subdesc_cnt = MIN_SQ_DESC_PER_PKT_XMIT + nsegs - 1;
@@ -1905,10 +1943,15 @@ nicvf_tx_mbuf_locked(struct snd_queue *sq, struct mbuf *mbuf)
 	qentry = nicvf_get_sq_desc(sq, subdesc_cnt);
 
 	/* Add SQ header subdesc */
-	err = nicvf_sq_add_hdr_subdesc(sq, qentry, subdesc_cnt - 1, mbuf,
-	    mbuf->m_pkthdr.len);
+	err = nicvf_sq_add_hdr_subdesc(sq, qentry, subdesc_cnt - 1, *mbufp,
+	    (*mbufp)->m_pkthdr.len);
 	if (err != 0) {
+		nicvf_put_sq_desc(sq, subdesc_cnt);
 		bus_dmamap_unload(sq->snd_buff_dmat, snd_buff->dmap);
+		if (err == ENOBUFS) {
+			m_freem(*mbufp);
+			*mbufp = NULL;
+		}
 		return (err);
 	}
 
@@ -1985,19 +2028,23 @@ nicvf_get_rcv_mbuf(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 			/*
 			 * HW by default verifies IP & TCP/UDP/SCTP checksums
 			 */
-
-			/* XXX: Do we need to include IP with options too? */
-			if (__predict_true(cqe_rx->l3_type == L3TYPE_IPV4 ||
-			    cqe_rx->l3_type == L3TYPE_IPV6)) {
+			if (__predict_true(cqe_rx->l3_type == L3TYPE_IPV4)) {
 				mbuf->m_pkthdr.csum_flags =
 				    (CSUM_IP_CHECKED | CSUM_IP_VALID);
 			}
-			if (cqe_rx->l4_type == L4TYPE_TCP ||
-			    cqe_rx->l4_type == L4TYPE_UDP ||
-			    cqe_rx->l4_type == L4TYPE_SCTP) {
+
+			switch (cqe_rx->l4_type) {
+			case L4TYPE_UDP:
+			case L4TYPE_TCP: /* fall through */
 				mbuf->m_pkthdr.csum_flags |=
 				    (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
-				mbuf->m_pkthdr.csum_data = htons(0xffff);
+				mbuf->m_pkthdr.csum_data = 0xffff;
+				break;
+			case L4TYPE_SCTP:
+				mbuf->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
+				break;
+			default:
+				break;
 			}
 		}
 	}
