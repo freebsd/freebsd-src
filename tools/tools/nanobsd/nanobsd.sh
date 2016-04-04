@@ -139,6 +139,8 @@ fi
 
 pprint 1 "NanoBSD image ${NANO_NAME} build starting"
 
+run_early_customize
+
 if $do_world ; then
 	if $do_clean ; then
 		clean_build
