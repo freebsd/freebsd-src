@@ -61,6 +61,10 @@ static struct {
     "ampdu_drop,ampdu_bar,ampdu_baroow,ampdu_barmove,ampdu_bartx,"
     "ampdu_bartxfail,ampdu_bartxretry,rssi,rate"
   },
+  {
+    "amsdu",
+    "input,output,amsdu_tooshort,amsdu_split,amsdu_decap,amsdu_encap,rssi,rate"
+  },
 };
 
 static const char *
