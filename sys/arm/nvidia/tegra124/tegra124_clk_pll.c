@@ -823,12 +823,10 @@ pllx_set_freq(struct pll_sc *sc, uint64_t fin, uint64_t *fout, int flags)
 		return (0);
 	}
 
-	/* Set bypass. */
+	/* PLLX doesn't have bypass, disable it first. */
 	RD4(sc, sc->base_reg, &reg);
-	reg |= PLL_BASE_BYPASS;
+	reg &= ~PLL_BASE_ENABLE;
 	WR4(sc, sc->base_reg, reg);
-	RD4(sc, sc->base_reg, &reg);
-	DELAY(100);
 
 	/* Set PLL. */
 	RD4(sc, sc->base_reg, &reg);
@@ -840,15 +838,15 @@ pllx_set_freq(struct pll_sc *sc, uint64_t fin, uint64_t *fout, int flags)
 	RD4(sc, sc->base_reg, &reg);
 	DELAY(100);
 
+	/* Enable lock detection. */
+	RD4(sc, sc->misc_reg, &reg);
+	reg |= sc->lock_enable;
+	WR4(sc, sc->misc_reg, reg);
+
 	/* Enable PLL. */
 	RD4(sc, sc->base_reg, &reg);
 	reg |= PLL_BASE_ENABLE;
 	WR4(sc, sc->base_reg, reg);
-
-	/* Enable lock detection */
-	RD4(sc, sc->misc_reg, &reg);
-	reg |= sc->lock_enable;
-	WR4(sc, sc->misc_reg, reg);
 
 	rv = wait_for_lock(sc);
 	if (rv != 0) {
@@ -860,10 +858,6 @@ pllx_set_freq(struct pll_sc *sc, uint64_t fin, uint64_t *fout, int flags)
 	}
 	RD4(sc, sc->misc_reg, &reg);
 
-	/* Clear bypass. */
-	RD4(sc, sc->base_reg, &reg);
-	reg &= ~PLL_BASE_BYPASS;
-	WR4(sc, sc->base_reg, reg);
 	*fout = ((fin / m) * n) / p;
 	return (0);
 }

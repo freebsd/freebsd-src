@@ -205,8 +205,7 @@ super_mux_set_mux(struct clknode *clk, int idx)
 	    (state != SUPER_MUX_STATE_IDLE)) {
 		panic("Unexpected super mux state: %u", state);
 	}
-
-	shift = state * SUPER_MUX_MUX_WIDTH;
+	shift = (state - 1) * SUPER_MUX_MUX_WIDTH;
 	sc->mux = idx;
 	if (sc->flags & SMF_HAVE_DIVIDER_2) {
 		if (idx == sc->src_div2) {
@@ -222,6 +221,7 @@ super_mux_set_mux(struct clknode *clk, int idx)
 	}
 	reg &= ~(((1 << SUPER_MUX_MUX_WIDTH) - 1) << shift);
 	reg |= idx << shift;
+
 	WR4(sc, sc->base_reg, reg);
 	RD4(sc, sc->base_reg, &dummy);
 	DEVICE_UNLOCK(sc);
