@@ -115,7 +115,7 @@ static void	cheri_capability_set_user_sigcode(struct chericap *,
 static union {
 	struct chericap	ct_cap;
 	uint8_t		ct_bytes[32];
-} cheri_testunion;
+} cheri_testunion __aligned(32);
 
 /*
  * For now, all we do is declare what we support, as most initialisation took
