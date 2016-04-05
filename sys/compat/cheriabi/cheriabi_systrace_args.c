@@ -200,8 +200,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = (intptr_t) p->buf; /* caddr_t */
 		uarg[2] = p->len; /* size_t */
 		iarg[3] = p->flags; /* int */
-		uarg[4] = (intptr_t) p->from; /* struct sockaddr * */
-		uarg[5] = (intptr_t) p->fromlenaddr; /* __socklen_t * */
+		uarg[4] = (intptr_t) p->from; /* struct sockaddr *restrict */
+		uarg[5] = (intptr_t) p->fromlenaddr; /* socklen_t *restrict */
 		*n_args = 6;
 		break;
 	}
@@ -209,8 +209,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 30: {
 		struct accept_args *p = params;
 		iarg[0] = p->s; /* int */
-		uarg[1] = (intptr_t) p->name; /* caddr_t */
-		uarg[2] = (intptr_t) p->anamelen; /* int * */
+		uarg[1] = (intptr_t) p->name; /* struct sockaddr *restrict */
+		uarg[2] = (intptr_t) p->anamelen; /* socklen_t * */
 		*n_args = 3;
 		break;
 	}
@@ -218,8 +218,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 31: {
 		struct getpeername_args *p = params;
 		iarg[0] = p->fdes; /* int */
-		uarg[1] = (intptr_t) p->asa; /* caddr_t */
-		uarg[2] = (intptr_t) p->alen; /* int * */
+		uarg[1] = (intptr_t) p->asa; /* struct sockaddr *restrict */
+		uarg[2] = (intptr_t) p->alen; /* socklen_t * */
 		*n_args = 3;
 		break;
 	}
@@ -227,8 +227,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 32: {
 		struct getsockname_args *p = params;
 		iarg[0] = p->fdes; /* int */
-		uarg[1] = (intptr_t) p->asa; /* caddr_t */
-		uarg[2] = (intptr_t) p->alen; /* int * */
+		uarg[1] = (intptr_t) p->asa; /* struct sockaddr *restrict */
+		uarg[2] = (intptr_t) p->alen; /* socklen_t * */
 		*n_args = 3;
 		break;
 	}
@@ -365,22 +365,22 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* revoke */
 	case 56: {
 		struct revoke_args *p = params;
-		uarg[0] = (intptr_t) p->path; /* char * */
+		uarg[0] = (intptr_t) p->path; /* const char * */
 		*n_args = 1;
 		break;
 	}
 	/* symlink */
 	case 57: {
 		struct symlink_args *p = params;
-		uarg[0] = (intptr_t) p->path; /* char * */
-		uarg[1] = (intptr_t) p->link; /* char * */
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->link; /* const char * */
 		*n_args = 2;
 		break;
 	}
 	/* readlink */
 	case 58: {
 		struct readlink_args *p = params;
-		uarg[0] = (intptr_t) p->path; /* char * */
+		uarg[0] = (intptr_t) p->path; /* const char * */
 		uarg[1] = (intptr_t) p->buf; /* char * */
 		uarg[2] = p->count; /* size_t */
 		*n_args = 3;
@@ -965,7 +965,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[0] = (intptr_t) p->name; /* int * */
 		uarg[1] = p->namelen; /* u_int */
 		uarg[2] = (intptr_t) p->old; /* void * */
-		uarg[3] = (intptr_t) p->oldlenp; /* void * */
+		uarg[3] = (intptr_t) p->oldlenp; /* size_t * */
 		uarg[4] = (intptr_t) p->new; /* void * */
 		iarg[5] = p->newlen; /* void */
 		*n_args = 6;
@@ -1641,7 +1641,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct cheriabi_kldsym_args *p = params;
 		iarg[0] = p->fileid; /* int */
 		iarg[1] = p->cmd; /* int */
-		uarg[2] = (intptr_t) p->data; /* void * */
+		uarg[2] = (intptr_t) p->data; /* struct kld_sym_lookup_c * */
 		*n_args = 3;
 		break;
 	}
@@ -2765,7 +2765,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 501: {
 		struct renameat_args *p = params;
 		iarg[0] = p->oldfd; /* int */
-		uarg[1] = (intptr_t) p->old; /* char * */
+		uarg[1] = (intptr_t) p->old; /* const char * */
 		iarg[2] = p->newfd; /* int */
 		uarg[3] = (intptr_t) p->new; /* const char * */
 		*n_args = 4;
@@ -3486,10 +3486,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 4:
-			p = "struct sockaddr *";
+			p = "struct sockaddr *restrict";
 			break;
 		case 5:
-			p = "__socklen_t *";
+			p = "socklen_t *restrict";
 			break;
 		default:
 			break;
@@ -3502,10 +3502,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "caddr_t";
+			p = "struct sockaddr *restrict";
 			break;
 		case 2:
-			p = "int *";
+			p = "socklen_t *";
 			break;
 		default:
 			break;
@@ -3518,10 +3518,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "caddr_t";
+			p = "struct sockaddr *restrict";
 			break;
 		case 2:
-			p = "int *";
+			p = "socklen_t *";
 			break;
 		default:
 			break;
@@ -3534,10 +3534,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "caddr_t";
+			p = "struct sockaddr *restrict";
 			break;
 		case 2:
-			p = "int *";
+			p = "socklen_t *";
 			break;
 		default:
 			break;
@@ -3734,7 +3734,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 56:
 		switch(ndx) {
 		case 0:
-			p = "char *";
+			p = "const char *";
 			break;
 		default:
 			break;
@@ -3744,10 +3744,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 57:
 		switch(ndx) {
 		case 0:
-			p = "char *";
+			p = "const char *";
 			break;
 		case 1:
-			p = "char *";
+			p = "const char *";
 			break;
 		default:
 			break;
@@ -3757,7 +3757,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 58:
 		switch(ndx) {
 		case 0:
-			p = "char *";
+			p = "const char *";
 			break;
 		case 1:
 			p = "char *";
@@ -4727,7 +4727,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "void *";
 			break;
 		case 3:
-			p = "void *";
+			p = "size_t *";
 			break;
 		case 4:
 			p = "void *";
@@ -5762,7 +5762,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "void *";
+			p = "struct kld_sym_lookup_c *";
 			break;
 		default:
 			break;
@@ -7736,7 +7736,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "char *";
+			p = "const char *";
 			break;
 		case 2:
 			p = "int";
