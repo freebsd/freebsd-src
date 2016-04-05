@@ -60,9 +60,19 @@ struct ds1307_softc {
 	struct intr_config_hook	enum_hook;
 	uint16_t	sc_addr;	/* DS1307 slave address. */
 	uint8_t		sc_ctrl;
+	int		sc_mcp7941x;
 };
 
 static void ds1307_start(void *);
+
+#ifdef FDT
+static const struct ofw_compat_data ds1307_compat_data[] = {
+    {"dallas,ds1307", (uintptr_t)"Maxim DS1307 RTC"},
+    {"maxim,ds1307", (uintptr_t)"Maxim DS1307 RTC"},
+    {"microchip,mcp7941x", (uintptr_t)"Microchip MCP7941x RTC"},
+    { NULL, 0 }
+};
+#endif
 
 static int
 ds1307_read(device_t dev, uint16_t addr, uint8_t reg, uint8_t *data, size_t len)
@@ -167,21 +177,25 @@ ds1307_set_24hrs_mode(struct ds1307_softc *sc)
 static int
 ds1307_sqwe_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	int sqwe, error, newv;
+	int sqwe, error, newv, sqwe_bit;
 	struct ds1307_softc *sc;
 
 	sc = (struct ds1307_softc *)arg1;
 	error = ds1307_ctrl_read(sc);
 	if (error != 0)
 		return (error);
-	sqwe = newv = (sc->sc_ctrl & DS1307_CTRL_SQWE) ? 1 : 0;
+	if (sc->sc_mcp7941x)
+		sqwe_bit = MCP7941X_CTRL_SQWE;
+	else
+		sqwe_bit = DS1307_CTRL_SQWE;
+	sqwe = newv = (sc->sc_ctrl & sqwe_bit) ? 1 : 0;
 	error = sysctl_handle_int(oidp, &newv, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 	if (sqwe != newv) {
-		sc->sc_ctrl &= ~DS1307_CTRL_SQWE;
+		sc->sc_ctrl &= ~sqwe_bit;
 		if (newv)
-			sc->sc_ctrl |= DS1307_CTRL_SQWE;
+			sc->sc_ctrl |= sqwe_bit;
 		error = ds1307_ctrl_write(sc);
 		if (error != 0)
 			return (error);
@@ -252,17 +266,25 @@ ds1307_sqw_out_sysctl(SYSCTL_HANDLER_ARGS)
 static int
 ds1307_probe(device_t dev)
 {
-
 #ifdef FDT
+	const struct ofw_compat_data *compat;
+
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
-	if (!ofw_bus_is_compatible(dev, "dallas,ds1307") &&
-	    !ofw_bus_is_compatible(dev, "maxim,ds1307"))
+
+	compat = ofw_bus_search_compatible(dev, ds1307_compat_data);
+
+	if (compat == NULL)
 		return (ENXIO);
-#endif
+
+	device_set_desc(dev, (const char *)compat->ocd_data);
+
+	return (BUS_PROBE_DEFAULT);
+#else
 	device_set_desc(dev, "Maxim DS1307 RTC");
 
 	return (BUS_PROBE_DEFAULT);
+#endif
 }
 
 static int
@@ -276,6 +298,9 @@ ds1307_attach(device_t dev)
 	sc->sc_year0 = 1900;
 	sc->enum_hook.ich_func = ds1307_start;
 	sc->enum_hook.ich_arg = dev;
+
+	if (ofw_bus_is_compatible(dev, "microchip,mcp7941x"))
+		sc->sc_mcp7941x = 1;
 
 	/*
 	 * We have to wait until interrupts are enabled.  Usually I2C read
