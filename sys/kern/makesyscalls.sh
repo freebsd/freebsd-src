@@ -393,6 +393,13 @@ s/\$//g
 			}
 			if (argtype[argc] == "")
 				parserr($f, "argument definition")
+			# The parser adds space around parens.
+			# Remove it from annotations.
+			gsub(/ \( /, "(", argtype[argc]);
+			gsub(/ \)/, ")", argtype[argc]);
+			argsaltype[argc]=argtype[argc];
+			gsub(/_In[^ ]*[_)] /, "", argtype[argc]);
+			gsub(/_Out[^ ]*[_)] /, "", argtype[argc]);
 			argname[argc]=$f;
 			f += 2;			# skip name, and any comma
 		}
