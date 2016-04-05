@@ -992,3 +992,4 @@ static moduledata_t linux64_elf_mod = {
 
 DECLARE_MODULE_TIED(linux64elf, linux64_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);
 MODULE_DEPEND(linux64elf, linux_common, 1, 1, 1);
+FEATURE(linux64, "Linux 64bit support");
