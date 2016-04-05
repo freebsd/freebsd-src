@@ -491,10 +491,6 @@ s/\$//g
 							    or_space,
 							    2 ^ (i - 1)) > sysargmap
 							or_space = "| "
-							#printf(" %s(1<<%d)",
-							#    orspace,
-							#    i - 1) > sysargmap
-							or_space = "| "
 						}
 					printf "\n" > sysargmap
 				}
