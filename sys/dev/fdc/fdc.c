@@ -968,7 +968,7 @@ fdc_worker(struct fdc_data *fdc)
 			fdc->bp = bioq_takefirst(&fdc->head);
 			if (fdc->bp == NULL)
 				msleep(&fdc->head, &fdc->fdc_mtx,
-				    PRIBIO, "-", hz);
+				    PRIBIO, "-", 0);
 		} while (fdc->bp == NULL &&
 		    (fdc->flags & FDC_KTHREAD_EXIT) == 0);
 		mtx_unlock(&fdc->fdc_mtx);
