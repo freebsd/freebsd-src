@@ -1205,3 +1205,4 @@ static moduledata_t linux_elf_mod = {
 
 DECLARE_MODULE_TIED(linuxelf, linux_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);
 MODULE_DEPEND(linuxelf, linux_common, 1, 1, 1);
+FEATURE(linux, "Linux 32bit support");
