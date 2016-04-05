@@ -53,9 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef SMP
 MALLOC_DEFINE(M_TOPO, "toponodes", "SMP topology data");
-#endif
 
-#ifdef SMP
 volatile cpuset_t stopped_cpus;
 volatile cpuset_t started_cpus;
 volatile cpuset_t suspended_cpus;
@@ -895,6 +893,10 @@ topo_init_root(struct topo_node *root)
 	root->type = TOPO_TYPE_SYSTEM;
 }
 
+/*
+ * Add a child node with the given ID under the given parent.
+ * Do nothing if there is already a child with that ID.
+ */
 struct topo_node *
 topo_add_node_by_hwid(struct topo_node *parent, int hwid,
     topo_node_type type, uintptr_t subtype)
@@ -921,6 +923,9 @@ topo_add_node_by_hwid(struct topo_node *parent, int hwid,
 	return (node);
 }
 
+/*
+ * Find a child node with the given ID under the given parent.
+ */
 struct topo_node *
 topo_find_node_by_hwid(struct topo_node *parent, int hwid,
     topo_node_type type, uintptr_t subtype)
@@ -938,6 +943,12 @@ topo_find_node_by_hwid(struct topo_node *parent, int hwid,
 	return (NULL);
 }
 
+/*
+ * Given a node change the order of its parent's child nodes such
+ * that the node becomes the firt child while preserving the cyclic
+ * order of the children.  In other words, the given node is promoted
+ * by rotation.
+ */
 void
 topo_promote_child(struct topo_node *child)
 {
@@ -959,6 +970,10 @@ topo_promote_child(struct topo_node *child)
 	}
 }
 
+/*
+ * Iterate to the next node in the depth-first search (traversal) of
+ * the topology tree.
+ */
 struct topo_node *
 topo_next_node(struct topo_node *top, struct topo_node *node)
 {
@@ -977,6 +992,10 @@ topo_next_node(struct topo_node *top, struct topo_node *node)
 	return (NULL);
 }
 
+/*
+ * Iterate to the next node in the depth-first search of the topology tree,
+ * but without descending below the current node.
+ */
 struct topo_node *
 topo_next_nonchild_node(struct topo_node *top, struct topo_node *node)
 {
@@ -992,6 +1011,10 @@ topo_next_nonchild_node(struct topo_node *top, struct topo_node *node)
 	return (NULL);
 }
 
+/*
+ * Assign the given ID to the given topology node that represents a logical
+ * processor.
+ */
 void
 topo_set_pu_id(struct topo_node *node, cpuid_t id)
 {
@@ -1013,6 +1036,14 @@ topo_set_pu_id(struct topo_node *node, cpuid_t id)
 	}
 }
 
+/*
+ * Check if the topology is uniform, that is, each package has the same number
+ * of cores in it and each core has the same number of threads (logical
+ * processors) in it.  If so, calculate the number of package, the number of
+ * cores per package and the number of logical processors per core.
+ * 'all' parameter tells whether to include administratively disabled logical
+ * processors into the analysis.
+ */
 int
 topo_analyze(struct topo_node *topo_root, int all,
     int *pkg_count, int *cores_per_pkg, int *thrs_per_core)

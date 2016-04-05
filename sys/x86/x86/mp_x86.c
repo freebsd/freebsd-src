@@ -176,6 +176,9 @@ mask_width(u_int x)
 	return (fls(x << (1 - powerof2(x))) - 1);
 }
 
+/*
+ * Add a cache level to the cache topology description.
+ */
 static int
 add_deterministic_cache(int type, int level, int share_count)
 {
@@ -217,6 +220,16 @@ add_deterministic_cache(int type, int level, int share_count)
 	return (1);
 }
 
+/*
+ * Determine topology of processing units and caches for AMD CPUs.
+ * See:
+ *  - AMD CPUID Specification (Publication # 25481)
+ *  - BKDG For AMD Family 10h Processors (Publication # 31116), section 2.15
+ *  - BKDG for AMD NPT Family 0Fh Processors (Publication # 32559)
+ * XXX At the moment the code does not recognize grouping of AMD CMT threads,
+ * if supported, into cores, so each thread is treated as being in its own
+ * core.  In other words, each logical CPU is considered to be a core.
+ */
 static void
 topo_probe_amd(void)
 {
@@ -277,6 +290,15 @@ topo_probe_amd(void)
 	}
 }
 
+/*
+ * Determine topology of processing units for Intel CPUs
+ * using CPUID Leaf 1 and Leaf 4, if supported.
+ * See:
+ *  - Intel 64 Architecture Processor Topology Enumeration
+ *  - Intel 64 and IA-32 ArchitecturesSoftware Developer’s Manual,
+ *    Volume 3A: System Programming Guide, PROGRAMMING CONSIDERATIONS
+ *    FOR HARDWARE MULTI-THREADING CAPABLE PROCESSORS
+ */
 static void
 topo_probe_intel_0x4(void)
 {
@@ -302,6 +324,15 @@ topo_probe_intel_0x4(void)
 	pkg_id_shift = core_id_shift + mask_width(max_cores);
 }
 
+/*
+ * Determine topology of processing units for Intel CPUs
+ * using CPUID Leaf 11, if supported.
+ * See:
+ *  - Intel 64 Architecture Processor Topology Enumeration
+ *  - Intel 64 and IA-32 ArchitecturesSoftware Developer’s Manual,
+ *    Volume 3A: System Programming Guide, PROGRAMMING CONSIDERATIONS
+ *    FOR HARDWARE MULTI-THREADING CAPABLE PROCESSORS
+ */
 static void
 topo_probe_intel_0xb(void)
 {
@@ -342,6 +373,14 @@ topo_probe_intel_0xb(void)
 	}
 }
 
+/*
+ * Determine topology of caches for Intel CPUs.
+ * See:
+ *  - Intel 64 Architecture Processor Topology Enumeration
+ *  - Intel 64 and IA-32 Architectures Software Developer’s Manual
+ *    Volume 2A: Instruction Set Reference, A-M,
+ *    CPUID instruction
+ */
 static void
 topo_probe_intel_caches(void)
 {
@@ -376,14 +415,16 @@ topo_probe_intel_caches(void)
 	}
 }
 
+/*
+ * Determine topology of processing units and caches for Intel CPUs.
+ * See:
+ *  - Intel 64 Architecture Processor Topology Enumeration
+ */
 static void
 topo_probe_intel(void)
 {
 
 	/*
-	 * See Intel(R) 64 Architecture Processor
-	 * Topology Enumeration article for details.
-	 *
 	 * Note that 0x1 <= cpu_high < 4 case should be
 	 * compatible with topo_probe_intel_0x4() logic when
 	 * CPUID.1:EBX[23:16] > 0 (cpu_cores will be 1)
@@ -640,6 +681,12 @@ cpu_mp_announce(void)
 	}
 }
 
+/*
+ * Add a scheduling group, a group of logical processors sharing
+ * a particular cache (and, thus having an affinity), to the scheduling
+ * topology.
+ * This function recursively works on lower level caches.
+ */
 static void
 x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 {
@@ -657,6 +704,11 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 	else
 		cg_root->cg_level = root->subtype;
 
+	/*
+	 * Check how many core nodes we have under the given root node.
+	 * If we have multiple logical processors, but not multiple
+	 * cores, then those processors must be hardware threads.
+	 */
 	ncores = 0;
 	node = root;
 	while (node != NULL) {
@@ -673,6 +725,13 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 	    root->cpu_count > 1 && ncores < 2)
 		cg_root->cg_flags = CG_FLAG_SMT;
 
+	/*
+	 * Find out how many cache nodes we have under the given root node.
+	 * We ignore cache nodes that cover all the same processors as the
+	 * root node.  Also, we do not descend below found cache nodes.
+	 * That is, we count top-level "non-redundant" caches under the root
+	 * node.
+	 */
 	nchildren = 0;
 	node = root;
 	while (node != NULL) {
@@ -689,6 +748,10 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 	cg_root->cg_child = smp_topo_alloc(nchildren);
 	cg_root->cg_children = nchildren;
 
+	/*
+	 * Now find again the same cache nodes as above and recursively
+	 * build scheduling topologies for them.
+	 */
 	node = root;
 	i = 0;
 	while (node != NULL) {
@@ -705,6 +768,9 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 	}
 }
 
+/*
+ * Build the MI scheduling topology from the discovered hardware topology.
+ */
 struct cpu_group *
 cpu_topo(void)
 {
@@ -719,6 +785,9 @@ cpu_topo(void)
 }
 
 
+/*
+ * Add a logical CPU to the topology.
+ */
 void
 cpu_add(u_int apic_id, char boot_cpu)
 {
