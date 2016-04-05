@@ -253,8 +253,8 @@ tegra_ehci_attach(device_t dev)
 	}
 
 	/* Setup interrupt handler. */
-	rv = bus_setup_intr(dev, sc->ehci_irq_res, INTR_TYPE_BIO, NULL,
-	    (driver_intr_t *)ehci_interrupt, esc, &esc->sc_intr_hdl);
+	rv = bus_setup_intr(dev, sc->ehci_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
+	    NULL, (driver_intr_t *)ehci_interrupt, esc, &esc->sc_intr_hdl);
 	if (rv != 0) {
 		device_printf(dev, "Could not setup IRQ\n");
 		goto out;
