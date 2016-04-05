@@ -346,7 +346,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* cheriabi_sigaltstack */
 	case 53: {
 		struct cheriabi_sigaltstack_args *p = params;
-		uarg[0] = (intptr_t) p->ss; /* cheriabi_stack_t * */
+		uarg[0] = (intptr_t) p->ss; /* const cheriabi_stack_t * */
 		uarg[1] = (intptr_t) p->oss; /* cheriabi_stack_t * */
 		*n_args = 2;
 		break;
@@ -818,13 +818,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->debug_level; /* int */
 		iarg[1] = p->grace_period; /* int */
 		iarg[2] = p->addr_count; /* int */
-		uarg[3] = (intptr_t) p->addrs; /* char ** */
+		uarg[3] = (intptr_t) p->addrs; /* struct chericap * */
 		*n_args = 4;
 		break;
 	}
-	/* nfssvc */
+	/* cheriabi_nfssvc */
 	case 155: {
-		struct nfssvc_args *p = params;
+		struct cheriabi_nfssvc_args *p = params;
 		iarg[0] = p->flag; /* int */
 		uarg[1] = (intptr_t) p->argp; /* caddr_t */
 		*n_args = 2;
@@ -1646,9 +1646,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* kldsym */
+	/* cheriabi_kldsym */
 	case 337: {
-		struct kldsym_args *p = params;
+		struct cheriabi_kldsym_args *p = params;
 		iarg[0] = p->fileid; /* int */
 		iarg[1] = p->cmd; /* int */
 		uarg[2] = (intptr_t) p->data; /* void * */
@@ -1689,7 +1689,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 345: {
 		struct cheriabi_sigtimedwait_args *p = params;
 		uarg[0] = (intptr_t) p->set; /* const sigset_t * */
-		uarg[1] = (intptr_t) p->info; /* siginfo_t * */
+		uarg[1] = (intptr_t) p->info; /* struct siginfo_c * */
 		uarg[2] = (intptr_t) p->timeout; /* const struct timespec * */
 		*n_args = 3;
 		break;
@@ -1698,7 +1698,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 346: {
 		struct cheriabi_sigwaitinfo_args *p = params;
 		uarg[0] = (intptr_t) p->set; /* const sigset_t * */
-		uarg[1] = (intptr_t) p->info; /* siginfo_t * */
+		uarg[1] = (intptr_t) p->info; /* struct siginfo_c * */
 		*n_args = 2;
 		break;
 	}
@@ -2098,8 +2098,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 415: {
 		struct cheriabi___mac_execve_args *p = params;
 		uarg[0] = (intptr_t) p->fname; /* char * */
-		uarg[1] = (intptr_t) p->argv; /* char ** */
-		uarg[2] = (intptr_t) p->envv; /* char ** */
+		uarg[1] = (intptr_t) p->argv; /* struct chericap * */
+		uarg[2] = (intptr_t) p->envv; /* struct chericap * */
 		uarg[3] = (intptr_t) p->mac_p; /* struct mac_c * */
 		*n_args = 4;
 		break;
@@ -2431,7 +2431,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 461: {
 		struct cheriabi_kmq_notify_args *p = params;
 		iarg[0] = p->mqd; /* int */
-		uarg[1] = (intptr_t) p->sigev; /* const struct sigevent * */
+		uarg[1] = (intptr_t) p->sigev; /* const struct sigevent_c * */
 		*n_args = 2;
 		break;
 	}
@@ -2442,12 +2442,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* abort2 */
+	/* cheriabi_abort2 */
 	case 463: {
-		struct abort2_args *p = params;
+		struct cheriabi_abort2_args *p = params;
 		uarg[0] = (intptr_t) p->why; /* const char * */
 		iarg[1] = p->nargs; /* int */
-		uarg[2] = (intptr_t) p->args; /* void ** */
+		uarg[2] = (intptr_t) p->args; /* struct chericap * */
 		*n_args = 3;
 		break;
 	}
@@ -3708,7 +3708,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 53:
 		switch(ndx) {
 		case 0:
-			p = "cheriabi_stack_t *";
+			p = "const cheriabi_stack_t *";
 			break;
 		case 1:
 			p = "cheriabi_stack_t *";
@@ -4493,13 +4493,13 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 3:
-			p = "char **";
+			p = "struct chericap *";
 			break;
 		default:
 			break;
 		};
 		break;
-	/* nfssvc */
+	/* cheriabi_nfssvc */
 	case 155:
 		switch(ndx) {
 		case 0:
@@ -5768,7 +5768,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* kldsym */
+	/* cheriabi_kldsym */
 	case 337:
 		switch(ndx) {
 		case 0:
@@ -5837,7 +5837,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "const sigset_t *";
 			break;
 		case 1:
-			p = "siginfo_t *";
+			p = "struct siginfo_c *";
 			break;
 		case 2:
 			p = "const struct timespec *";
@@ -5853,7 +5853,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "const sigset_t *";
 			break;
 		case 1:
-			p = "siginfo_t *";
+			p = "struct siginfo_c *";
 			break;
 		default:
 			break;
@@ -6557,10 +6557,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "char *";
 			break;
 		case 1:
-			p = "char **";
+			p = "struct chericap *";
 			break;
 		case 2:
-			p = "char **";
+			p = "struct chericap *";
 			break;
 		case 3:
 			p = "struct mac_c *";
@@ -7116,7 +7116,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "const struct sigevent *";
+			p = "const struct sigevent_c *";
 			break;
 		default:
 			break;
@@ -7132,7 +7132,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* abort2 */
+	/* cheriabi_abort2 */
 	case 463:
 		switch(ndx) {
 		case 0:
@@ -7142,7 +7142,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "void **";
+			p = "struct chericap *";
 			break;
 		default:
 			break;
@@ -8952,7 +8952,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* nfssvc */
+	/* cheriabi_nfssvc */
 	case 155:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -9447,7 +9447,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* kldsym */
+	/* cheriabi_kldsym */
 	case 337:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -9909,7 +9909,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* abort2 */
+	/* cheriabi_abort2 */
 	case 463:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

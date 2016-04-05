@@ -155,7 +155,7 @@
 				/* 149 is obsolete oquota */
 				/* 150 is obsolete ogetsockname */
 #define	CHERIABI_SYS_cheriabi_nlm_syscall	154
-#define	CHERIABI_SYS_nfssvc	155
+#define	CHERIABI_SYS_cheriabi_nfssvc	155
 				/* 156 is obsolete getdirentries */
 				/* 157 is obsolete statfs */
 				/* 158 is obsolete fstatfs */
@@ -279,7 +279,7 @@
 #define	CHERIABI_SYS_sched_rr_get_interval	334
 #define	CHERIABI_SYS_utrace	335
 				/* 336 is obsolete sendfile */
-#define	CHERIABI_SYS_kldsym	337
+#define	CHERIABI_SYS_cheriabi_kldsym	337
 #define	CHERIABI_SYS_cheriabi_jail	338
 #define	CHERIABI_SYS_sigprocmask	340
 #define	CHERIABI_SYS_sigsuspend	341
@@ -389,7 +389,7 @@
 #define	CHERIABI_SYS_kmq_timedsend	460
 #define	CHERIABI_SYS_cheriabi_kmq_notify	461
 #define	CHERIABI_SYS_kmq_unlink	462
-#define	CHERIABI_SYS_abort2	463
+#define	CHERIABI_SYS_cheriabi_abort2	463
 #define	CHERIABI_SYS_thr_set_name	464
 #define	CHERIABI_SYS_cheriabi_aio_fsync	465
 #define	CHERIABI_SYS_rtprio_thread	466

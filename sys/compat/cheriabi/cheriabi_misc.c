@@ -1138,6 +1138,30 @@ cheriabi_nmount(struct thread *td,
 	return (error);
 }
 
+int
+cheriabi_kldsym(struct thread *td, struct cheriabi_kldsym_args *uap)
+{
+
+	/* XXX-BD: split sys_kldsym into kern_kldsym */
+	return (ENOSYS);
+}
+
+int
+cheriabi_abort2(struct thread *td, struct cheriabi_abort2_args *uap)
+{
+	struct abort2_args a2args;
+
+	a2args.why = uap->why;
+	/*
+	 * XXX-BD: need to duplication much of the abort2 logic or
+	 * refactor to support passing array of args in kernelspace.
+	 */
+	a2args.nargs = 0;
+	a2args.args = NULL;
+
+	return (sys_abort2(td, &a2args));
+}
+
 #if 0
 int
 syscallcheri_register(int *offset, struct sysent *new_sysent,

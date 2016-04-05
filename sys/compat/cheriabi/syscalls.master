@@ -134,7 +134,7 @@
 51	AUE_ACCT	NOPROTO	{ int acct(char *path); }
 52	AUE_SIGPENDING	OBSOL	sigpending
 53	AUE_SIGALTSTACK	STD	{ int cheriabi_sigaltstack( \
-				    cheriabi_stack_t *ss, \
+				    const cheriabi_stack_t *ss, \
 				    cheriabi_stack_t *oss); }
 54	AUE_NULL	STD	{ int cheriabi_ioctl(int fd, u_long com, \
 				    caddr_t data); }
@@ -281,9 +281,9 @@
 ; 154 is initialised by the NLM code, if present.
 154	AUE_NULL	NOSTD	{ int cheriabi_nlm_syscall(int debug_level, \
 				    int grace_period , int addr_count, \
-				    char **addrs); }
+				    struct chericap *addrs); }
 ; 155 is initialized by the NFS code, if present.
-155	AUE_NFS_SVC	NOSTD|NOPROTO	{ int nfssvc(int flag, caddr_t argp); }
+155	AUE_NFS_SVC	NOSTD	{ int cheriabi_nfssvc(int flag, caddr_t argp); }
 156	AUE_GETDIRENTRIES OBSOL getdirentries
 157	AUE_STATFS	OBSOL	statfs
 158	AUE_FSTATFS	OBSOL	fstatfs
@@ -551,7 +551,7 @@
 				    struct timespec *interval); }
 335	AUE_NULL	NOPROTO	{ int utrace(const void *addr, size_t len); }
 336	AUE_SENDFILE	OBSOL	sendfile
-337	AUE_NULL	NOPROTO	{ int kldsym(int fileid, int cmd, \
+337	AUE_NULL	STD	{ int cheriabi_kldsym(int fileid, int cmd, \
 				    void *data); }
 338	AUE_JAIL	STD	{ int cheriabi_jail(struct jail_c *jail); }
 339	AUE_NULL	UNIMPL	nnpfs_syscall
@@ -564,10 +564,10 @@
 ; XXXBD: siginfo_t contains a void*, but there is no 32-bit version.
 ; Do we need a cheri version?
 345	AUE_SIGWAIT	STD	{ int cheriabi_sigtimedwait(const sigset_t *set, \
-				    siginfo_t *info, \
+				    struct siginfo_c *info, \
 				    const struct timespec *timeout); }
 346	AUE_NULL	STD	{ int cheriabi_sigwaitinfo(const sigset_t *set, \
-				    siginfo_t *info); }
+				    struct siginfo_c *info); }
 347	AUE_NULL	NOPROTO	{ int __acl_get_file(const char *path, \
 				    acl_type_t type, struct acl *aclp); }
 348	AUE_NULL	NOPROTO	{ int __acl_set_file(const char *path, \
@@ -697,7 +697,8 @@
 				    const char *path, int attrnamespace, \
 				    const char *attrname); }
 415	AUE_NULL	STD	{ int cheriabi___mac_execve(char *fname, \
-				    char **argv, char **envv, \
+				    struct chericap *argv, \
+				    struct chericap *envv, \
 				    struct mac_c *mac_p); }
 416	AUE_SIGACTION	STD	{ int cheriabi_sigaction(int sig, \
 				    struct sigaction_c *act, \
@@ -788,9 +789,10 @@
 				    unsigned msg_prio,			\
 				    const struct timespec *abs_timeout);}
 461	AUE_NULL	NOSTD	{ int cheriabi_kmq_notify(int mqd,	\
-				    const struct sigevent *sigev); }
+				    const struct sigevent_c *sigev); }
 462	AUE_NULL	NOPROTO|NOSTD	{ int kmq_unlink(const char *path); }
-463	AUE_NULL	NOPROTO	{ int abort2(const char *why, int nargs, void **args); }
+463	AUE_NULL	STD	{ int cheriabi_abort2(const char *why, \
+				    int nargs, struct chericap *args); }
 464	AUE_NULL 	NOPROTO	{ int thr_set_name(long id, const char *name); }
 465	AUE_NULL	NOSTD	{ int cheriabi_aio_fsync(int op, \
 				    struct aiocb_c *aiocbp); }

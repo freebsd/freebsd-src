@@ -251,7 +251,7 @@ struct {
 	[CHERIABI_SYS_cheriabi_nlm_syscall] = {
 		.sam_ptrmask = 0x8
 	},
-	[CHERIABI_SYS_nfssvc] = {
+	[CHERIABI_SYS_cheriabi_nfssvc] = {
 		.sam_ptrmask = 0x2
 	},
 	[CHERIABI_SYS_lgetfh] = {
@@ -506,7 +506,7 @@ struct {
 	[CHERIABI_SYS_utrace] = {
 		.sam_ptrmask = 0x1
 	},
-	[CHERIABI_SYS_kldsym] = {
+	[CHERIABI_SYS_cheriabi_kldsym] = {
 		.sam_ptrmask = 0x4
 	},
 	[CHERIABI_SYS_cheriabi_jail] = {
@@ -776,7 +776,7 @@ struct {
 	[CHERIABI_SYS_kmq_unlink] = {
 		.sam_ptrmask = 0x1
 	},
-	[CHERIABI_SYS_abort2] = {
+	[CHERIABI_SYS_cheriabi_abort2] = {
 		.sam_ptrmask = 0x1 | 0x4
 	},
 	[CHERIABI_SYS_thr_set_name] = {

@@ -104,7 +104,7 @@ MIASM =  \
 	setsid.o \
 	quotactl.o \
 	cheriabi_nlm_syscall.o \
-	nfssvc.o \
+	cheriabi_nfssvc.o \
 	lgetfh.o \
 	getfh.o \
 	cheriabi_sysarch.o \
@@ -202,7 +202,7 @@ MIASM =  \
 	sched_get_priority_min.o \
 	sched_rr_get_interval.o \
 	utrace.o \
-	kldsym.o \
+	cheriabi_kldsym.o \
 	cheriabi_jail.o \
 	sigprocmask.o \
 	sigsuspend.o \
@@ -295,7 +295,7 @@ MIASM =  \
 	kmq_timedsend.o \
 	cheriabi_kmq_notify.o \
 	kmq_unlink.o \
-	abort2.o \
+	cheriabi_abort2.o \
 	thr_set_name.o \
 	cheriabi_aio_fsync.o \
 	rtprio_thread.o \
