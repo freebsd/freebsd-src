@@ -58,7 +58,6 @@ struct {
 	[CHERIABI_SYS_setuid] = {
 	},
 	[CHERIABI_SYS_ptrace] = {
-		.sam_ptrmask = 0x4
 	},
 	[CHERIABI_SYS_cheriabi_recvmsg] = {
 		.sam_ptrmask = 0x2
