@@ -769,8 +769,8 @@
 454	AUE_NULL	NOPROTO	{ int _umtx_op(void *obj, int op,\
 				    u_long val, void *uaddr, \
 				    void *uaddr2); }
-455	AUE_NULL	STD	{ int cheriabi_thr_new(	\
-				    struct thr_param_c *param,	\
+455	AUE_NULL	STD	{ int cheriabi_thr_new( \
+				    struct thr_param_c *param, \
 				    int param_size); }
 456	AUE_NULL	NOPROTO	{ int sigqueue(pid_t pid, int signum, \
 				    void *value); }
@@ -778,17 +778,17 @@
 				    const char *path, int flags, mode_t mode, \
 				    const struct mq_attr *attr); }
 458	AUE_NULL	NOSTD|NOPROTO	{ int kmq_setattr(int mqd, \
-				    const struct mq_attr *attr,	\
+				    const struct mq_attr *attr, \
 				    struct mq_attr *oattr); }
 459	AUE_NULL	NOSTD|NOPROTO	{ int kmq_timedreceive(int mqd, \
-				    char *msg_ptr, size_t msg_len,	\
-				    unsigned *msg_prio,			\
+				    char *msg_ptr, size_t msg_len, \
+				    unsigned *msg_prio, \
 				    const struct timespec *abs_timeout); }
-460	AUE_NULL	NOSTD|NOPROTO	{ int kmq_timedsend(int mqd,	\
+460	AUE_NULL	NOSTD|NOPROTO	{ int kmq_timedsend(int mqd, \
 				    const char *msg_ptr, size_t msg_len,\
-				    unsigned msg_prio,			\
+				    unsigned msg_prio, \
 				    const struct timespec *abs_timeout);}
-461	AUE_NULL	NOSTD	{ int cheriabi_kmq_notify(int mqd,	\
+461	AUE_NULL	NOSTD	{ int cheriabi_kmq_notify(int mqd, \
 				    const struct sigevent_c *sigev); }
 462	AUE_NULL	NOPROTO|NOSTD	{ int kmq_unlink(const char *path); }
 463	AUE_NULL	STD	{ int cheriabi_abort2(const char *why, \
@@ -802,16 +802,22 @@
 468	AUE_NULL	UNIMPL	nosys
 469	AUE_NULL	UNIMPL	__getpath_fromfd
 470	AUE_NULL	UNIMPL	__getpath_fromaddr
-471	AUE_NULL	NOPROTO|NOSTD	{ int sctp_peeloff(int sd, uint32_t name); }
-472	AUE_NULL	NOPROTO|NOSTD	{ int sctp_generic_sendmsg(int sd, caddr_t msg, int mlen, \
+471	AUE_NULL	NOPROTO|NOSTD	{ int sctp_peeloff(int sd, \
+				     uint32_t name); }
+472	AUE_NULL	NOPROTO|NOSTD	{ int sctp_generic_sendmsg(int sd, \
+				     caddr_t msg, int mlen, \
 				    caddr_t to, __socklen_t tolen, \
 				    struct sctp_sndrcvinfo *sinfo, int flags); }
-473	AUE_NULL	NOSTD	{ int cheriabi_sctp_generic_sendmsg_iov(int sd, struct iovec_c *iov, int iovlen, \
+473	AUE_NULL	NOSTD	{ int cheriabi_sctp_generic_sendmsg_iov( \
+				     int sd, struct iovec_c *iov, int iovlen, \
 				    caddr_t to, __socklen_t tolen, \
 				    struct sctp_sndrcvinfo *sinfo, int flags); }
-474	AUE_NULL	NOSTD	{ int cheriabi_sctp_generic_recvmsg(int sd, struct iovec_c *iov, int iovlen, \
-				    struct sockaddr * from, __socklen_t *fromlenaddr, \
-				    struct sctp_sndrcvinfo *sinfo, int *msg_flags); }
+474	AUE_NULL	NOSTD	{ int cheriabi_sctp_generic_recvmsg(int sd, \
+				    struct iovec_c *iov, int iovlen, \
+				    struct sockaddr * from, \
+				    __socklen_t *fromlenaddr, \
+				    struct sctp_sndrcvinfo *sinfo, \
+				    int *msg_flags); }
 475	AUE_PREAD	NOPROTO	{ ssize_t pread(int fd, \
 				    void *buf,size_t nbyte, \
 				    off_t offset); }
@@ -866,10 +872,10 @@
 				    mode_t mode, dev_t dev); }
 499	AUE_OPENAT_RWTC	NOPROTO	{ int openat(int fd, char *path, int flag, \
 				    mode_t mode); }
-500	AUE_READLINKAT	NOPROTO	{ int readlinkat(int fd, char *path, char *buf, \
-				    size_t bufsize); }
-501	AUE_RENAMEAT	NOPROTO	{ int renameat(int oldfd, char *old, int newfd, \
-				    const char *new); }
+500	AUE_READLINKAT	NOPROTO	{ int readlinkat(int fd, char *path, \
+				    char *buf, size_t bufsize); }
+501	AUE_RENAMEAT	NOPROTO	{ int renameat(int oldfd, char *old, \
+				    int newfd, const char *new); }
 502	AUE_SYMLINKAT	NOPROTO	{ int symlinkat(char *path1, int fd, \
 				    char *path2); }
 503	AUE_UNLINKAT	NOPROTO	{ int unlinkat(int fd, char *path, \
