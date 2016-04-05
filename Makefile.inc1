@@ -1243,15 +1243,15 @@ real-packages:	stage-packages create-packages sign-packages
 stage-packages:
 	@mkdir -p ${WSTAGEDIR} ${KSTAGEDIR}
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} DESTDIR=${DESTDIR:U${WSTAGEDIR}} -DNO_ROOT -B stageworld ; \
-		${MAKE} DESTDIR=${DESTDIR:U${KSTAGEDIR}} -DNO_ROOT -B stagekernel
+		${MAKE} DESTDIR=${WSTAGEDIR} -DNO_ROOT -B stageworld ; \
+		${MAKE} DESTDIR=${KSTAGEDIR} -DNO_ROOT -B stagekernel
 
 create-packages:	_pkgbootstrap
 	@mkdir -p ${REPODIR}
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} DESTDIR=${DESTDIR:U${WSTAGEDIR}} \
+		${MAKE} DESTDIR=${WSTAGEDIR} \
 			PKG_VERSION=${PKG_VERSION} create-world-packages ; \
-		${MAKE} DESTDIR=${DESTDIR:U${KSTAGEDIR}} \
+		${MAKE} DESTDIR=${KSTAGEDIR} \
 			PKG_VERSION=${PKG_VERSION} DISTDIR=kernel \
 			create-kernel-packages
 
