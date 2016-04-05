@@ -94,7 +94,7 @@ extern struct cheritest_child_state *ccsp;
 #define	CT_FLAG_MIPS_EXCCODE	0x00000002  /* Check MIPS exception code. */
 #define	CT_FLAG_CP2_EXCCODE	0x00000004  /* Check CP2 exception code. */
 #define	CT_FLAG_STDOUT_STRING	0x00000008  /* Check stdout for a string. */
-#define	CT_FLAG_STDIN_STRING	0x00000010  /* Provide strong on stdin. */
+#define	CT_FLAG_STDIN_STRING	0x00000010  /* Provide string on stdin. */
 #define	CT_FLAG_STDOUT_IGNORE	0x00000020  /* Standard output produced,
 					       but not checkable */
 #define CT_FLAG_SLOW		0x00000040  /* Test is expected to take a 
@@ -125,8 +125,6 @@ struct cheri_test {
  * Useful APIs for tests.  These terminate the process returning either
  * success or failure with a test-defined, human-readable string describing
  * the error.
- *
- * XXXRW: It would be nice to also offer a cheritest_failure_err().
  */
 void	cheritest_failure_err(const char *msg, ...) __dead2  __printflike(1, 2);
 void	cheritest_failure_errx(const char *msg, ...) __dead2  __printflike(1, 2);
