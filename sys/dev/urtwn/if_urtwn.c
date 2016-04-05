@@ -70,6 +70,9 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_ratectl.h>
+#ifdef	IEEE80211_SUPPORT_SUPERG
+#include <net80211/ieee80211_superg.h>
+#endif
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -577,6 +580,8 @@ urtwn_attach(device_t self)
 #endif
 		| IEEE80211_C_WPA		/* 802.11i */
 		| IEEE80211_C_WME		/* 802.11e */
+		| IEEE80211_C_SWAMSDUTX		/* Do software A-MSDU TX */
+		| IEEE80211_C_FF		/* Atheros fast-frames */
 		;
 
 	ic->ic_cryptocaps =
@@ -894,6 +899,15 @@ urtwn_report_intr(struct usb_xfer *xfer, struct urtwn_data *data)
 	buf = data->buf;
 	stat = (struct r92c_rx_stat *)buf;
 
+	/*
+	 * For 88E chips we can tie the FF flushing here;
+	 * this is where we do know exactly how deep the
+	 * transmit queue is.
+	 *
+	 * But it won't work for R92 chips, so we can't
+	 * take the easy way out.
+	 */
+
 	if (sc->chip & URTWN_CHIP_88E) {
 		int report_sel = MS(le32toh(stat->rxdw3), R88E_RXDW3_RPT);
 
@@ -1101,7 +1115,7 @@ tr_setup:
 		data = STAILQ_FIRST(&sc->sc_rx_inactive);
 		if (data == NULL) {
 			KASSERT(m == NULL, ("mbuf isn't NULL"));
-			return;
+			goto finish;
 		}
 		STAILQ_REMOVE_HEAD(&sc->sc_rx_inactive, next);
 		STAILQ_INSERT_TAIL(&sc->sc_rx_active, data, next);
@@ -1131,7 +1145,6 @@ tr_setup:
 				(void)ieee80211_input_all(ic, m, rssi - nf,
 				    nf);
 			}
-
 			URTWN_LOCK(sc);
 			m = next;
 		}
@@ -1150,6 +1163,20 @@ tr_setup:
 		}
 		break;
 	}
+finish:
+	/* Finished receive; age anything left on the FF queue by a little bump */
+	/*
+	 * XXX TODO: just make this a callout timer schedule so we can
+	 * flush the FF staging queue if we're approaching idle.
+	 */
+#ifdef	IEEE80211_SUPPORT_SUPERG
+	URTWN_UNLOCK(sc);
+	ieee80211_ff_age_all(ic, 1);
+	URTWN_LOCK(sc);
+#endif
+
+	/* Kick-start more transmit in case we stalled */
+	urtwn_start(sc);
 }
 
 static void
@@ -1160,6 +1187,9 @@ urtwn_txeof(struct urtwn_softc *sc, struct urtwn_data *data, int status)
 
 	if (data->ni != NULL)	/* not a beacon frame */
 		ieee80211_tx_complete(data->ni, data->m, status);
+
+	if (sc->sc_tx_n_active > 0)
+		sc->sc_tx_n_active--;
 
 	data->ni = NULL;
 	data->m = NULL;
@@ -1269,6 +1299,9 @@ static void
 urtwn_bulk_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct urtwn_softc *sc = usbd_xfer_softc(xfer);
+#ifdef	IEEE80211_SUPPORT_SUPERG
+	struct ieee80211com *ic = &sc->sc_ic;
+#endif
 	struct urtwn_data *data;
 
 	URTWN_ASSERT_LOCKED(sc);
@@ -1287,12 +1320,14 @@ tr_setup:
 		if (data == NULL) {
 			URTWN_DPRINTF(sc, URTWN_DEBUG_XMIT,
 			    "%s: empty pending queue\n", __func__);
+			sc->sc_tx_n_active = 0;
 			goto finish;
 		}
 		STAILQ_REMOVE_HEAD(&sc->sc_tx_pending, next);
 		STAILQ_INSERT_TAIL(&sc->sc_tx_active, data, next);
 		usbd_xfer_set_frame_data(xfer, 0, data->buf, data->buflen);
 		usbd_transfer_submit(xfer);
+		sc->sc_tx_n_active++;
 		break;
 	default:
 		data = STAILQ_FIRST(&sc->sc_tx_active);
@@ -1307,6 +1342,35 @@ tr_setup:
 		break;
 	}
 finish:
+#ifdef	IEEE80211_SUPPORT_SUPERG
+	/*
+	 * If the TX active queue drops below a certain
+	 * threshold, ensure we age fast-frames out so they're
+	 * transmitted.
+	 */
+	if (sc->sc_tx_n_active <= 1) {
+		/* XXX ew - net80211 should defer this for us! */
+
+		/*
+		 * Note: this sc_tx_n_active currently tracks
+		 * the number of pending transmit submissions
+		 * and not the actual depth of the TX frames
+		 * pending to the hardware.  That means that
+		 * we're going to end up with some sub-optimal
+		 * aggregation behaviour.
+		 */
+		/*
+		 * XXX TODO: just make this a callout timer schedule so we can
+		 * flush the FF staging queue if we're approaching idle.
+		 */
+		URTWN_UNLOCK(sc);
+		ieee80211_ff_flush(ic, WME_AC_VO);
+		ieee80211_ff_flush(ic, WME_AC_VI);
+		ieee80211_ff_flush(ic, WME_AC_BE);
+		ieee80211_ff_flush(ic, WME_AC_BK);
+		URTWN_LOCK(sc);
+	}
+#endif
 	/* Kick-start more transmit */
 	urtwn_start(sc);
 }
@@ -3153,6 +3217,11 @@ urtwn_start(struct urtwn_softc *sc)
 		}
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 		m->m_pkthdr.rcvif = NULL;
+
+		URTWN_DPRINTF(sc, URTWN_DEBUG_XMIT, "%s: called; m=%p\n",
+		    __func__,
+		    m);
+
 		if (urtwn_tx_data(sc, ni, m, bf) != 0) {
 			if_inc_counter(ni->ni_vap->iv_ifp,
 			    IFCOUNTER_OERRORS, 1);
@@ -5325,6 +5394,10 @@ urtwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct urtwn_softc *sc = ic->ic_softc;
 	struct urtwn_data *bf;
 	int error;
+
+	URTWN_DPRINTF(sc, URTWN_DEBUG_XMIT, "%s: called; m=%p\n",
+	    __func__,
+	    m);
 
 	/* prevent management frames from being sent if we're not ready */
 	URTWN_LOCK(sc);
