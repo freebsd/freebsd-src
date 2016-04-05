@@ -487,23 +487,21 @@ s/\$//g
 			     syscallprefix, funcalias) > sysargmap
 			if (isptrtype(syscallret))
 				printf "\t\t.sam_return_ptr = 1,\n" > sysargmap
-			if (argc > 0) {
-				pointers = 0
+			pointers = 0
+			for (i = 1; i <= argc; i++)
+				if (isptrtype(argtype[i]))
+					pointers++
+			if (pointers > 0) {
+				printf "\t\t.sam_ptrmask =" > sysargmap
+				or_space = ""
 				for (i = 1; i <= argc; i++)
-					if (isptrtype(argtype[i]))
-						pointers++
-				if (pointers > 0) {
-					printf "\t\t.sam_ptrmask =" > sysargmap
-					or_space = ""
-					for (i = 1; i <= argc; i++)
-						if (isptrtype(argtype[i])) {
-							printf(" %s0x%x",
-							    or_space,
-							    2 ^ (i - 1)) > sysargmap
-							or_space = "| "
-						}
-					printf "\n" > sysargmap
-				}
+					if (isptrtype(argtype[i])) {
+						printf(" %s0x%x",
+						    or_space,
+						    2 ^ (i - 1)) > sysargmap
+						or_space = "| "
+					}
+				printf "\n" > sysargmap
 			}
 			printf "\t},\n" > sysargmap
 		}
