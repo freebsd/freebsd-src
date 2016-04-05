@@ -46,6 +46,7 @@ SUBDIR=	adduser \
 	mlxcontrol \
 	mountd \
 	mount_smbfs \
+	mpsutil \
 	mptutil \
 	mtest \
 	${_mtree} \
