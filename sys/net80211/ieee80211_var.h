@@ -362,7 +362,8 @@ struct ieee80211vap {
 
 	TAILQ_ENTRY(ieee80211vap) iv_next;	/* list of vap instances */
 	struct ieee80211com	*iv_ic;		/* back ptr to common state */
-	const uint8_t		*iv_myaddr;	/* MAC address: ifp or ic */
+	/* MAC address: ifp or ic */
+	uint8_t			iv_myaddr[IEEE80211_ADDR_LEN];
 	uint32_t		iv_debug;	/* debug msg flags */
 	struct ieee80211_stats	iv_stats;	/* statistics */
 
