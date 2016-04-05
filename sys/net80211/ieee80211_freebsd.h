@@ -263,7 +263,7 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 #define	M_EAPOL		M_PROTO3		/* PAE/EAPOL frame */
 #define	M_PWR_SAV	M_PROTO4		/* bypass PS handling */
 #define	M_MORE_DATA	M_PROTO5		/* more data frames to follow */
-#define	M_FF		M_PROTO6		/* fast frame */
+#define	M_FF		M_PROTO6		/* fast frame / A-MSDU */
 #define	M_TXCB		M_PROTO7		/* do tx complete callback */
 #define	M_AMPDU_MPDU	M_PROTO8		/* ok for A-MPDU aggregation */
 #define	M_FRAG		M_PROTO9		/* frame fragmentation */
