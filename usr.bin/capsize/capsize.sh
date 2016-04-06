@@ -30,4 +30,4 @@
 
 PATH=/bin:/usr/bin:/sbin:/usr/sbin; export PATH
 
-exec sysctl -n security.cheri.capsize
+exec sysctl -n security.cheri.capability_size
