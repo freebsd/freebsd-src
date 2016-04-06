@@ -48,8 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/allwinner/a10_clk.h>
-#include <arm/allwinner/a31/a31_clk.h>
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/hwreset/hwreset.h>
 
 #include "iicbus_if.h"
 
@@ -63,21 +63,16 @@ __FBSDID("$FreeBSD$");
 #define	TWI_EFR		0x1C
 #define	TWI_LCR		0x20
 
-#define	A10_I2C	1
-#define	A31_I2C	2
-
 static struct ofw_compat_data compat_data[] = {
-	{"allwinner,sun4i-a10-i2c", A10_I2C},
-	{"allwinner,sun6i-a31-i2c", A31_I2C},
+	{"allwinner,sun4i-a10-i2c", 1},
+	{"allwinner,sun6i-a31-i2c", 1},
 	{NULL, 0},
 };
 
 static int
 a10_twsi_probe(device_t dev)
 {
-	struct twsi_softc *sc;
 
-	sc = device_get_softc(dev);
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
@@ -92,29 +87,31 @@ static int
 a10_twsi_attach(device_t dev)
 {
 	struct twsi_softc *sc;
-	int clk;
+	clk_t clk;
+	hwreset_t rst;
+	int error;
 
 	sc = device_get_softc(dev);
 
-	/* Activate clock */
-	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data) {
-#if defined(SOC_ALLWINNER_A10) || defined(SOC_ALLWINNER_A20)
-	case A10_I2C:
-		clk = a10_clk_i2c_activate(device_get_unit(dev));
-		break;
-#endif
-#if defined(SOC_ALLWINNER_A31) || defined(SOC_ALLWINNER_A31S)
-	case A31_I2C:
-		clk = a31_clk_i2c_activate(device_get_unit(dev));
-		break;
-#endif
-	default:
-		clk = -1;
+	/* De-assert reset */
+	if (hwreset_get_by_ofw_idx(dev, 0, &rst) == 0) {
+		error = hwreset_deassert(rst);
+		if (error != 0) {
+			device_printf(dev, "could not de-assert reset\n");
+			return (error);
+		}
 	}
 
-	if (clk != 0) {
-		device_printf(dev, "could not activate i2c clock\n");
-		return (ENXIO);
+	/* Activate clock */
+	error = clk_get_by_ofw_index(dev, 0, &clk);
+	if (error != 0) {
+		device_printf(dev, "could not find clock\n");
+		return (error);
+	}
+	error = clk_enable(clk);
+	if (error != 0) {
+		device_printf(dev, "could not enable clock\n");
+		return (error);
 	}
 
 	sc->reg_data = TWI_DATA;

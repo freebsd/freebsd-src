@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/videomode/videomode.h>
 #include <dev/videomode/edidvar.h>
 
-#include <arm/allwinner/a10_clk.h>
+#include <dev/extres/clk/clk.h>
 
 #include "hdmi_if.h"
 
@@ -204,6 +204,7 @@ __FBSDID("$FreeBSD$");
 #define	HDMI_VSDB_MINLEN	5
 #define	HDMI_OUI		"\x03\x0c\x00"
 #define	HDMI_OUI_LEN		3
+#define	HDMI_DEFAULT_FREQ	297000000
 
 struct a10hdmi_softc {
 	struct resource		*res;
@@ -214,6 +215,10 @@ struct a10hdmi_softc {
 
 	int			has_hdmi;
 	int			has_audio;
+
+	clk_t			clk_ahb;
+	clk_t			clk_hdmi;
+	clk_t			clk_lcd;
 };
 
 static struct resource_spec a10hdmi_spec[] = {
@@ -287,7 +292,33 @@ a10hdmi_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	a10_clk_hdmi_activate();
+	/* Setup clocks */
+	error = clk_get_by_ofw_name(dev, "ahb", &sc->clk_ahb);
+	if (error != 0) {
+		device_printf(dev, "cannot find ahb clock\n");
+		return (error);
+	}
+	error = clk_get_by_ofw_name(dev, "hdmi", &sc->clk_hdmi);
+	if (error != 0) {
+		device_printf(dev, "cannot find hdmi clock\n");
+		return (error);
+	}
+	error = clk_get_by_ofw_name(dev, "lcd", &sc->clk_lcd);
+	if (error != 0) {
+		device_printf(dev, "cannot find lcd clock\n");
+	}
+	/* Enable HDMI clock */
+	error = clk_enable(sc->clk_hdmi);
+	if (error != 0) {
+		device_printf(dev, "cannot enable hdmi clock\n");
+		return (error);
+	}
+	/* Gating AHB clock for HDMI */
+	error = clk_enable(sc->clk_ahb);
+	if (error != 0) {
+		device_printf(dev, "cannot enable ahb gate\n");
+		return (error);
+	}
 
 	a10hdmi_init(sc);
 
@@ -527,6 +558,38 @@ a10hdmi_set_audiomode(device_t dev, const struct videomode *mode)
 }
 
 static int
+a10hdmi_get_tcon_config(struct a10hdmi_softc *sc, int *div, int *dbl)
+{
+	uint64_t lcd_fin, lcd_fout;
+	clk_t clk_lcd_parent;
+	const char *pname;
+	int error;
+
+	error = clk_get_parent(sc->clk_lcd, &clk_lcd_parent);
+	if (error != 0)
+		return (error);
+
+	/* Get the LCD CH1 special clock 2 divider */
+	error = clk_get_freq(sc->clk_lcd, &lcd_fout);
+	if (error != 0)
+		return (error);
+	error = clk_get_freq(clk_lcd_parent, &lcd_fin);
+	if (error != 0)
+		return (error);
+	*div = lcd_fin / lcd_fout;
+
+	/* Detect LCD CH1 special clock using a 1X or 2X source */
+	/* XXX */
+	pname = clk_get_name(clk_lcd_parent);
+	if (strcmp(pname, "pll3-1x") == 0 || strcmp(pname, "pll7-1x") == 0)
+		*dbl = 0;
+	else
+		*dbl = 1;
+
+	return (0);
+}
+
+static int
 a10hdmi_set_videomode(device_t dev, const struct videomode *mode)
 {
 	struct a10hdmi_softc *sc;
@@ -543,9 +606,11 @@ a10hdmi_set_videomode(device_t dev, const struct videomode *mode)
 	vspw = mode->vsync_end - mode->vsync_start;
 	vbp = mode->vtotal - mode->vsync_start;
 
-	error = a10_clk_tcon_get_config(&clk_div, &clk_dbl);
-	if (error != 0)
+	error = a10hdmi_get_tcon_config(sc, &clk_div, &clk_dbl);
+	if (error != 0) {
+		device_printf(dev, "couldn't get tcon config: %d\n", error);
 		return (error);
+	}
 
 	/* Clear interrupt status */
 	HDMI_WRITE(sc, HDMI_INT_STATUS, HDMI_READ(sc, HDMI_INT_STATUS));
