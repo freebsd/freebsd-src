@@ -52,6 +52,11 @@ NANO_PACKAGE_LIST="*"
 # where package metadata gets placed
 NANO_PKG_META_BASE=/var/db
 
+# Path to mtree file to apply to anything copied by cust_install_files().
+# If you specify this, the mtree file *must* have an entry for every file and
+# directory located in Files.
+#NANO_CUST_FILES_MTREE=""
+
 # Object tree directory
 # default is subdir of /usr/obj
 #NANO_OBJ=""
@@ -909,6 +914,10 @@ cust_allow_ssh_root ( ) (
 cust_install_files ( ) (
 	cd "${NANO_TOOLS}/Files"
 	find . -print | grep -Ev '/(CVS|\.svn|\.hg|\.git)' | cpio -Ldumpv ${NANO_WORLDDIR}
+
+	if [ -f ${NANO_CUST_FILES_MTREE} ]; then
+		CR "mtree -eiU -p /" <${NANO_CUST_FILES_MTREE}
+	fi
 )
 
 #######################################################################
