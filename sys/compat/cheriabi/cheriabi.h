@@ -117,4 +117,18 @@ struct mac_c {
 	struct chericap	m_string;
 };
 
+struct kld_sym_lookup_c {
+	int		version; /* set to sizeof(struct kld_sym_lookup_c) */
+	struct chericap symname; /* Symbol name we are looking up */
+	u_long		symvalue;
+	size_t		symsize;
+};
+
+struct sf_hdtr_c {
+	struct chericap	headers;	/* array of iovec_c */
+	int		hdr_cnt;
+	struct chericap	trailers;	/* array of iovec_c */
+	int		trl_cnt;
+};
+
 #endif /* !_COMPAT_CHERIABI_CHERIABI_H_ */

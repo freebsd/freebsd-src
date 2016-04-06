@@ -715,13 +715,6 @@ out:
 	return (error);
 }
 
-struct sf_hdtr_c {
-	struct chericap headers;
-	int hdr_cnt;
-	struct chericap trailers;
-	int trl_cnt;
-};
-
 static int
 cheriabi_do_sendfile(struct thread *td,
     struct cheriabi_sendfile_args *uap, int compat)
