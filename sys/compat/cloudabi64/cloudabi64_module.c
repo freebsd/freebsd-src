@@ -112,7 +112,13 @@ cloudabi64_fixup(register_t **stack_base, struct image_params *imgp)
 		{ .a_type = CLOUDABI_AT_NULL },
 	};
 	*stack_base -= howmany(sizeof(auxv), sizeof(register_t));
-	return (copyout(auxv, *stack_base, sizeof(auxv)));
+	error = copyout(auxv, *stack_base, sizeof(auxv));
+	if (error != 0)
+		return (error);
+
+	/* Reserve space for storing the TCB. */
+	*stack_base -= howmany(sizeof(cloudabi64_tcb_t), sizeof(register_t));
+	return (0);
 }
 
 static int
