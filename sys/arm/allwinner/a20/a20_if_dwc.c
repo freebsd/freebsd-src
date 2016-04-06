@@ -41,8 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/allwinner/allwinner_machdep.h>
-#include <arm/allwinner/a10_clk.h>
-#include <arm/allwinner/a31/a31_clk.h>
+#include <dev/extres/clk/clk.h>
 
 #include "if_dwc_if.h"
 
@@ -62,29 +61,39 @@ a20_if_dwc_probe(device_t dev)
 static int
 a20_if_dwc_init(device_t dev)
 {
-	int clk;
+	const char *tx_parent_name;
+	char *phy_type;
+	clk_t clk_tx, clk_tx_parent;
+	phandle_t node;
+	int error;
 
-	/* Activate GMAC clock and set the pin mux to rgmii. */
-	switch (allwinner_soc_type()) {
-#if defined(SOC_ALLWINNER_A10) || defined(SOC_ALLWINNER_A20)
-	case ALLWINNERSOC_A10:
-	case ALLWINNERSOC_A10S:
-	case ALLWINNERSOC_A20:
-		clk = a10_clk_gmac_activate(ofw_bus_get_node(dev));
-		break;
-#endif
-#if defined(SOC_ALLWINNER_A31) || defined(SOC_ALLWINNER_A31S)
-	case ALLWINNERSOC_A31:
-	case ALLWINNERSOC_A31S:
-		clk = a31_clk_gmac_activate(ofw_bus_get_node(dev));
-		break;
-#endif
-	default:
-		clk = -1;
-	}
-	if (clk != 0) {
-		device_printf(dev, "could not activate gmac module\n");
-		return (ENXIO);
+	node = ofw_bus_get_node(dev);
+
+	/* Configure PHY for MII or RGMII mode */
+	if (OF_getprop_alloc(node, "phy-mode", 1, (void **)&phy_type)) {
+		error = clk_get_by_ofw_name(dev, "allwinner_gmac_tx", &clk_tx);
+		if (error != 0) {
+			device_printf(dev, "could not get tx clk\n");
+			return (error);
+		}
+
+		if (strcmp(phy_type, "rgmii") == 0)
+			tx_parent_name = "gmac_int_tx";
+		else
+			tx_parent_name = "mii_phy_tx";
+
+		error = clk_get_by_name(dev, tx_parent_name, &clk_tx_parent);
+		if (error != 0) {
+			device_printf(dev, "could not get clock '%s'\n",
+			    tx_parent_name);
+			return (error);
+		}
+
+		error = clk_set_parent_by_clk(clk_tx, clk_tx_parent);
+		if (error != 0) {
+			device_printf(dev, "could not set tx clk parent\n");
+			return (error);
+		}
 	}
 
 	return (0);

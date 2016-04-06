@@ -26,83 +26,21 @@
  * $FreeBSD$
  */
 
-/dts-v1/;
-
-#include "sun7i-a20.dtsi"
-
-#include <dt-bindings/gpio/gpio.h>
+#include "sun7i-a20-bananapi.dts"
+#include "sun7i-a20-hdmi.dtsi"
 
 / {
-	model = "LeMaker Banana Pi";
-	compatible = "lemaker,bananapi", "allwinner,sun7i-a20";
-
-	memory {
-		device_type = "memory";
-		reg = < 0x40000000 0x40000000 >;	/* 1GB RAM */
-	};
-
-	aliases {
-		soc = &SOC;
-		UART0 = &UART0;
-	};
-
-	SOC: a20 {
-
-		usb1: usb@01c14000 {
+	soc@01c00000 {
+		hdmi@01c16000 {
 			status = "okay";
-		};
-
-		usb2: usb@01c1c000 {
-			status = "okay";
-		};
-
-		UART0: serial@01c28000 {
-			status = "okay";
-		};
-
-		mmc0: mmc@01c0f000 {
-			status = "okay";
-		};
-
-		gmac@01c50000 {
-			phy-mode = "rgmii-bpi";
-			status = "okay";
-			pinctrl-names = "default";
-			pinctrl-0 = <&gmac_pins_rgmii>;
-		};
-
-		ahci: sata@01c18000 {
-			status = "okay";
-		};
-
-		hdmi: hdmi@01c16000 {
-			compatible = "allwinner,sun7i-a20-hdmi";
-			reg = <0x01c16000 0x1000>;
 		};
 
 		hdmiaudio {
-			compatible = "allwinner,sun7i-a20-hdmiaudio";
-		};
-
-		fb: fb@01e60000 {
-			compatible = "allwinner,sun7i-a20-fb";
-			reg = <0x01e60000 0x10000>,     /* DEBE0 */
-			      <0x01c0c000 0x1000>;      /* LCD0 */
+			status = "okay";
 		};
 	};
+};
 
-	leds {
-		compatible = "gpio-leds";
-
-		green {
-			label = "bananapi:green:usr";
-			gpios = <&pio 7 24 GPIO_ACTIVE_HIGH>;
-		};
-	};
-
-	chosen {
-		bootargs = "-v";
-		stdin = "UART0";
-		stdout = "UART0";
-	};
+&mmc0_pins_a {
+	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 };
