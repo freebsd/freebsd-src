@@ -3534,7 +3534,7 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 	needs_mapping = FALSE;
 	for (i = 0; i < count; i++) {
 		paddr = VM_PAGE_TO_PHYS(page[i]);
-		if (__predict_false(paddr >= DMAP_MAX_PHYSADDR)) {
+		if (__predict_false(!PHYS_IN_DMAP(paddr))) {
 			error = vmem_alloc(kernel_arena, PAGE_SIZE,
 			    M_BESTFIT | M_WAITOK, &vaddr[i]);
 			KASSERT(error == 0, ("vmem_alloc failed: %d", error));
@@ -3552,7 +3552,7 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 		sched_pin();
 	for (i = 0; i < count; i++) {
 		paddr = VM_PAGE_TO_PHYS(page[i]);
-		if (paddr >= DMAP_MAX_PHYSADDR) {
+		if (!PHYS_IN_DMAP(paddr)) {
 			panic(
 			   "pmap_map_io_transient: TODO: Map out of DMAP data");
 		}
@@ -3572,7 +3572,7 @@ pmap_unmap_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 		sched_unpin();
 	for (i = 0; i < count; i++) {
 		paddr = VM_PAGE_TO_PHYS(page[i]);
-		if (paddr >= DMAP_MAX_PHYSADDR) {
+		if (!PHYS_IN_DMAP(paddr)) {
 			panic("ARM64TODO: pmap_unmap_io_transient: Unmap data");
 		}
 	}
