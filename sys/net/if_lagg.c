@@ -101,11 +101,7 @@ static const char laggname[] = "lagg";
 static void	lagg_lladdr(struct lagg_softc *, uint8_t *);
 static void	lagg_capabilities(struct lagg_softc *);
 static void	lagg_port_lladdr(struct lagg_port *, uint8_t *, lagg_llqtype);
-static void	lagg_port_ops(void *, int);
-static void	lagg_llq_action_mtu(struct lagg_softc *,
-		    struct lagg_llq_slist_entry *);
-static void	lagg_llq_action_lladdr(struct lagg_softc *,
-		    struct lagg_llq_slist_entry *);
+static void	lagg_port_setlladdr(void *, int);
 static int	lagg_port_create(struct lagg_softc *, struct ifnet *);
 static int	lagg_port_destroy(struct lagg_port *, int);
 static struct mbuf *lagg_input(struct ifnet *, struct mbuf *);
@@ -134,9 +130,6 @@ static int	lagg_media_change(struct ifnet *);
 static void	lagg_media_status(struct ifnet *, struct ifmediareq *);
 static struct lagg_port *lagg_link_active(struct lagg_softc *,
 	    struct lagg_port *);
-static int	lagg_change_mtu(struct ifnet *, struct ifreq *);
-static void	_lagg_free_llq_entries(struct lagg_llq_slist_entry *);
-static void	lagg_free_llq_entries(struct lagg_softc *, lagg_llq_idx);
 
 /* Simple round robin */
 static void	lagg_rr_attach(struct lagg_softc *);
@@ -171,24 +164,6 @@ static int	lagg_lacp_start(struct lagg_softc *, struct mbuf *);
 static struct mbuf *lagg_lacp_input(struct lagg_softc *, struct lagg_port *,
 		    struct mbuf *);
 static void	lagg_lacp_lladdr(struct lagg_softc *);
-
-/*
- * This action handler shall be called from taskqueue handler for each
- * submitted operation
- */
-typedef void (*lagg_llq_action)(struct lagg_softc *,
-    struct lagg_llq_slist_entry *);
-
-/*
- * lagg llq action Table: Called at the taskqueue context for each
- * submitted operations.
- * Contents SHOULD be in sync with lagg_llq_idx index.
- * New entries shall be appended.
- */
-static const lagg_llq_action llq_action[LAGG_LLQ_MAX] = {
-	lagg_llq_action_lladdr,	/* Maps to LAGG_LLQ_LLADDR index */
-	lagg_llq_action_mtu,	/* Maps to LAGG_LLQ_MTU index */
-};
 
 /* lagg protocol table */
 static const struct lagg_proto {
@@ -512,7 +487,7 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 
 	LAGG_LOCK_INIT(sc);
 	SLIST_INIT(&sc->sc_ports);
-	TASK_INIT(&sc->sc_llq_task, 0, lagg_port_ops, sc);
+	TASK_INIT(&sc->sc_lladdr_task, 0, lagg_port_setlladdr, sc);
 
 	/* Initialise pseudo media types */
 	ifmedia_init(&sc->sc_media, 0, lagg_media_change,
@@ -529,10 +504,6 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_get_counter = lagg_get_counter;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
 	ifp->if_capenable = ifp->if_capabilities = IFCAP_HWSTATS;
-
-	mtx_init(&sc->sc_mtu_ctxt.mtu_sync.lock, ifp->if_xname,
-			"mtu_sync_lock", MTX_DEF);
-	cv_init(&sc->sc_mtu_ctxt.mtu_sync.cv, "mtu_sync_cv");
 
 	/*
 	 * Attach as an ordinary ethernet device, children will be attached
@@ -582,9 +553,7 @@ lagg_clone_destroy(struct ifnet *ifp)
 	SLIST_REMOVE(&V_lagg_list, sc, lagg_softc, sc_entries);
 	LAGG_LIST_UNLOCK();
 
-	taskqueue_drain(taskqueue_swi, &sc->sc_llq_task);
-	cv_destroy(&sc->sc_mtu_ctxt.mtu_sync.cv);
-	mtx_destroy(&sc->sc_mtu_ctxt.mtu_sync.lock);
+	taskqueue_drain(taskqueue_swi, &sc->sc_lladdr_task);
 	LAGG_LOCK_DESTROY(sc);
 	free(sc, M_DEVBUF);
 }
@@ -676,8 +645,7 @@ lagg_port_lladdr(struct lagg_port *lp, uint8_t *lladdr, lagg_llqtype llq_type)
 {
 	struct lagg_softc *sc = lp->lp_softc;
 	struct ifnet *ifp = lp->lp_ifp;
-	struct lagg_llq_slist_entry *cmn_llq;
-	struct lagg_lladdr_llq_ctxt *llq_ctxt;
+	struct lagg_llq *llq;
 
 	LAGG_WLOCK_ASSERT(sc);
 
@@ -690,213 +658,51 @@ lagg_port_lladdr(struct lagg_port *lp, uint8_t *lladdr, lagg_llqtype llq_type)
 		return;
 
 	/* Check to make sure its not already queued to be changed */
-	SLIST_FOREACH(cmn_llq, &sc->sc_llq[LAGG_LLQ_LLADDR],
-	    llq_entries) {
-		llq_ctxt = (struct lagg_lladdr_llq_ctxt *)cmn_llq;
-		if (llq_ctxt->llq_ifp == ifp) {
+	SLIST_FOREACH(llq, &sc->sc_llq_head, llq_entries) {
+		if (llq->llq_ifp == ifp) {
 			/* Update lladdr, it may have changed */
-			bcopy(lladdr, llq_ctxt->llq_lladdr, ETHER_ADDR_LEN);
+			bcopy(lladdr, llq->llq_lladdr, ETHER_ADDR_LEN);
 			return;
 		}
 	}
 
-	llq_ctxt = malloc(sizeof(struct lagg_lladdr_llq_ctxt), M_DEVBUF,
-	    M_NOWAIT | M_ZERO);
-	if (llq_ctxt == NULL)	/* XXX what to do */
+	llq = malloc(sizeof(struct lagg_llq), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (llq == NULL)	/* XXX what to do */
 		return;
 
-	llq_ctxt->llq_ifp = ifp;
-	llq_ctxt->llq_type = llq_type;
-	bcopy(lladdr, llq_ctxt->llq_lladdr, ETHER_ADDR_LEN);
+	llq->llq_ifp = ifp;
+	llq->llq_type = llq_type;
+	bcopy(lladdr, llq->llq_lladdr, ETHER_ADDR_LEN);
 	/* XXX: We should insert to tail */
-	SLIST_INSERT_HEAD(&sc->sc_llq[LAGG_LLQ_LLADDR],
-	    (struct lagg_llq_slist_entry *)llq_ctxt, llq_entries);
+	SLIST_INSERT_HEAD(&sc->sc_llq_head, llq, llq_entries);
 
-	taskqueue_enqueue(taskqueue_swi, &sc->sc_llq_task);
+	taskqueue_enqueue(taskqueue_swi, &sc->sc_lladdr_task);
 }
 
 /*
- * Set the interface MTU, MAC address from a taskqueue to avoid a LOR.
+ * Set the interface MAC address from a taskqueue to avoid a LOR.
  *
  * Set noinline to be dtrace-friendly
  */
 static __noinline void
-lagg_port_ops(void *arg, int pending)
+lagg_port_setlladdr(void *arg, int pending)
 {
 	struct lagg_softc *sc = (struct lagg_softc *)arg;
-	struct lagg_llq_slist_entry *llq_first;
-	lagg_llq_idx llq_idx;
-
-	for (llq_idx = LAGG_LLQ_MIN; llq_idx < LAGG_LLQ_MAX; llq_idx++) {
-		LAGG_WLOCK(sc);
-		llq_first = SLIST_FIRST(&sc->sc_llq[llq_idx]);
-		SLIST_INIT(&sc->sc_llq[llq_idx]);
-		LAGG_WUNLOCK(sc);
-
-		if (llq_first != NULL)
-			llq_action[llq_idx](sc, llq_first);
-	}
-}
-
-static void
-lagg_llq_action_mtu(struct lagg_softc *sc, struct lagg_llq_slist_entry *first)
-{
-	struct lagg_llq_slist_entry *llq;
-	int err;
-
-	/* Set the new MTU on the lagg interface */
-	LAGG_WLOCK(sc);
-	sc->sc_ifp->if_mtu = ((struct lagg_mtu_llq_ctxt *)first)->llq_ifr.ifr_mtu;
-	LAGG_WUNLOCK(sc);
-
-	/*
-	 * Traverse the queue and set the mtu on each ifp. It is safe to do
-	 * unlocked as we have the only reference to it.
-	 */
-	err = EIO; /* In case the list is empty. */
-	llq = first;
-	SLIST_FOREACH_FROM(llq, (struct __llqhd *)NULL, llq_entries) {
-		struct lagg_mtu_llq_ctxt *llq_ctxt;
-
-		llq_ctxt = (struct lagg_mtu_llq_ctxt *)llq;
-		/* Set the new MTU on the physical interface */
-		err = (*llq_ctxt->llq_ioctl)(llq_ctxt->llq_ifp, SIOCSIFMTU,
-				(caddr_t)&llq_ctxt->llq_ifr);
-		if (err) {
-			if_printf(llq_ctxt->llq_ifp,
-			    "Failed to change MTU from %d to %d (err %d)\n",
-			    llq_ctxt->llq_old_mtu, llq_ctxt->llq_ifr.ifr_mtu, err);
-			break;
-		}
-	}
-
-	if (err) {
-		/* Restore the old MTU on the lagg interface */
-		LAGG_WLOCK(sc);
-		sc->sc_ifp->if_mtu = ((struct lagg_mtu_llq_ctxt *)first)->llq_old_mtu;
-		LAGG_WUNLOCK(sc);
-
-		/* Restore the old MTU on the physical interface */
-		llq = first;
-		SLIST_FOREACH_FROM(llq, (struct __llqhd *)NULL, llq_entries) {
-			struct lagg_mtu_llq_ctxt *llq_ctxt;
-
-			llq_ctxt = (struct lagg_mtu_llq_ctxt *)llq;
-			llq_ctxt->llq_ifr.ifr_mtu = llq_ctxt->llq_old_mtu;
-			err = (*llq_ctxt->llq_ioctl)
-				(llq_ctxt->llq_ifp, SIOCSIFMTU, (caddr_t)&llq_ctxt->llq_ifr);
-			if (err) {
-				if_printf(llq_ctxt->llq_ifp,
-				    "Failed to restore MTU to %d (err %d)\n",
-				    llq_ctxt->llq_old_mtu, err);
-			}
-		}
-	}
-
-	/* Free the MTU LLQ entries */
-	_lagg_free_llq_entries(first);
-
-	mtx_lock(&sc->sc_mtu_ctxt.mtu_sync.lock);
-	sc->sc_mtu_ctxt.mtu_cmd_ret = err;
-	/* Signal for command completion */
-	cv_signal(&sc->sc_mtu_ctxt.mtu_sync.cv);
-	mtx_unlock(&sc->sc_mtu_ctxt.mtu_sync.lock);
-}
-
-static void
-_lagg_free_llq_entries(struct lagg_llq_slist_entry *llq)
-{
-	struct lagg_llq_slist_entry *tmp_llq;
-
-	SLIST_FOREACH_FROM_SAFE(llq, (struct __llqhd *)NULL, llq_entries,
-			tmp_llq) {
-		free(llq, M_DEVBUF);
-	}
-}
-
-static void
-lagg_free_llq_entries(struct lagg_softc *sc, lagg_llq_idx idx)
-{
-	struct lagg_llq_slist_entry *llq;
-
-	LAGG_WLOCK_ASSERT(sc);
-
-	llq = SLIST_FIRST(&sc->sc_llq[idx]);
-	SLIST_INIT(&sc->sc_llq[idx]);
-
-	_lagg_free_llq_entries(llq);
-}
-
-static int
-lagg_change_mtu(struct ifnet *ifp, struct ifreq *ifr)
-{
-	struct lagg_softc *sc;
-	struct lagg_port *lp;
-	struct lagg_mtu_llq_ctxt *llq_ctxt;
-	int ret;
-
-	sc = (struct lagg_softc *)ifp->if_softc;
-	ret = 0;
-
-	LAGG_WLOCK(sc);
-	if (SLIST_EMPTY(&sc->sc_ports)) {
-		LAGG_WUNLOCK(sc);
-		return (EIO);
-	} else if (sc->sc_mtu_ctxt.busy) {
-		LAGG_WUNLOCK(sc);
-		return (EBUSY);
-	} else if (ifp->if_mtu == ifr->ifr_mtu) {
-		LAGG_WUNLOCK(sc);
-		return (0);
-	}
-	sc->sc_mtu_ctxt.busy = TRUE;
-
-	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
-		llq_ctxt = malloc(sizeof(struct lagg_mtu_llq_ctxt), M_DEVBUF,
-		    M_NOWAIT);
-		if (llq_ctxt == NULL) {
-			lagg_free_llq_entries(sc, LAGG_LLQ_MTU);
-			ret = ENOMEM;
-			goto out;
-		}
-		SLIST_INSERT_HEAD(&sc->sc_llq[LAGG_LLQ_MTU],
-		    (struct lagg_llq_slist_entry *)llq_ctxt, llq_entries);
-
-		bcopy(ifr, &llq_ctxt->llq_ifr, sizeof(struct ifreq));
-		llq_ctxt->llq_old_mtu = ifp->if_mtu;
-		llq_ctxt->llq_ifp = lp->lp_ifp;
-		llq_ctxt->llq_ioctl = lp->lp_ioctl;
-	}
-	mtx_lock(&sc->sc_mtu_ctxt.mtu_sync.lock);
-	taskqueue_enqueue(taskqueue_swi, &sc->sc_llq_task);
-	LAGG_WUNLOCK(sc);
-
-	/* Wait for the command completion */
-	cv_wait(&sc->sc_mtu_ctxt.mtu_sync.cv, &sc->sc_mtu_ctxt.mtu_sync.lock);
-	ret = sc->sc_mtu_ctxt.mtu_cmd_ret;
-	mtx_unlock(&sc->sc_mtu_ctxt.mtu_sync.lock);
-	LAGG_WLOCK(sc);
-
-out:
-	sc->sc_mtu_ctxt.busy = FALSE;
-	LAGG_WUNLOCK(sc);
-	return (ret);
-}
-
-static void
-lagg_llq_action_lladdr(struct lagg_softc *sc, struct lagg_llq_slist_entry *head)
-{
-	struct lagg_lladdr_llq_ctxt *llq_ctxt;
-	struct lagg_llq_slist_entry *llq;
+	struct lagg_llq *llq, *head;
 	struct ifnet *ifp;
+
+	/* Grab a local reference of the queue and remove it from the softc */
+	LAGG_WLOCK(sc);
+	head = SLIST_FIRST(&sc->sc_llq_head);
+	SLIST_FIRST(&sc->sc_llq_head) = NULL;
+	LAGG_WUNLOCK(sc);
 
 	/*
 	 * Traverse the queue and set the lladdr on each ifp. It is safe to do
 	 * unlocked as we have the only reference to it.
 	 */
 	for (llq = head; llq != NULL; llq = head) {
-		llq_ctxt = (struct lagg_lladdr_llq_ctxt *)llq;
-		ifp = llq_ctxt->llq_ifp;
+		ifp = llq->llq_ifp;
 
 		CURVNET_SET(ifp->if_vnet);
 
@@ -905,8 +711,9 @@ lagg_llq_action_lladdr(struct lagg_softc *sc, struct lagg_llq_slist_entry *head)
 		 * Note that if_setlladdr() or iflladdr_event handler
 		 * may result in arp transmission / lltable updates.
 		 */
-		if (llq_ctxt->llq_type == LAGG_LLQTYPE_PHYS)
-			if_setlladdr(ifp, llq_ctxt->llq_lladdr, ETHER_ADDR_LEN);
+		if (llq->llq_type == LAGG_LLQTYPE_PHYS)
+			if_setlladdr(ifp, llq->llq_lladdr,
+			    ETHER_ADDR_LEN);
 		else
 			EVENTHANDLER_INVOKE(iflladdr_event, ifp);
 		CURVNET_RESTORE();
@@ -1070,8 +877,7 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 {
 	struct lagg_softc *sc = lp->lp_softc;
 	struct lagg_port *lp_ptr, *lp0;
-	struct lagg_llq_slist_entry *cmn_llq;
-	struct lagg_lladdr_llq_ctxt *llq_ctxt;
+	struct lagg_llq *llq;
 	struct ifnet *ifp = lp->lp_ifp;
 	uint64_t *pval, vdiff;
 	int i;
@@ -1134,12 +940,11 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 
 	/* Remove any pending lladdr changes from the queue */
 	if (lp->lp_detaching) {
-		SLIST_FOREACH(cmn_llq, &sc->sc_llq[LAGG_LLQ_LLADDR], llq_entries) {
-			llq_ctxt = (struct lagg_lladdr_llq_ctxt *)cmn_llq;
-			if (llq_ctxt->llq_ifp == ifp) {
-				SLIST_REMOVE(&sc->sc_llq[LAGG_LLQ_LLADDR], cmn_llq,
-				    lagg_llq_slist_entry, llq_entries);
-				free(cmn_llq, M_DEVBUF);
+		SLIST_FOREACH(llq, &sc->sc_llq_head, llq_entries) {
+			if (llq->llq_ifp == ifp) {
+				SLIST_REMOVE(&sc->sc_llq_head, llq, lagg_llq,
+				    llq_entries);
+				free(llq, M_DEVBUF);
 				break;	/* Only appears once */
 			}
 		}
@@ -1732,11 +1537,9 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCSIFCAP:
-		/* Do not allow the CAPs to be directly changed. */
-		error = EINVAL;
-		break;
 	case SIOCSIFMTU:
-		error = lagg_change_mtu(ifp, ifr);
+		/* Do not allow the MTU or caps to be directly changed */
+		error = EINVAL;
 		break;
 
 	default:
