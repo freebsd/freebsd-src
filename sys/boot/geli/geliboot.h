@@ -55,6 +55,9 @@
 #ifndef DEV_BSIZE
 #define DEV_BSIZE 			512
 #endif
+#ifndef DEV_GELIBOOT_BSIZE
+#define DEV_GELIBOOT_BSIZE		4096
+#endif
 
 #ifndef MIN
 #define    MIN(a,b) (((a) < (b)) ? (a) : (b))
