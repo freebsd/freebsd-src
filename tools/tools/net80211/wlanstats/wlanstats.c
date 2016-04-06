@@ -365,13 +365,13 @@ static const struct fmt wlanstats[] = {
 #define	S_TX_MCAST		AFTER(S_TX_UCAST)
 	{ 8,	"tx_mcast",	"tx_mcast",	"multicast data frames sent" },
 #define	S_RATE			AFTER(S_TX_MCAST)
-	{ 5,	"rate",		"rate",		"current transmit rate" },
+	{ 7,	"rate",		"rate",		"current transmit rate" },
 #define	S_RSSI			AFTER(S_RATE)
-	{ 5,	"rssi",		"rssi",		"current rssi" },
+	{ 6,	"rssi",		"rssi",		"current rssi" },
 #define	S_NOISE			AFTER(S_RSSI)
 	{ 5,	"noise",	"noise",	"current noise floor (dBm)" },
 #define	S_SIGNAL		AFTER(S_NOISE)
-	{ 5,	"signal",	"sig",		"current signal (dBm)" },
+	{ 6,	"signal",	"sig",		"current signal (dBm)" },
 #define	S_BEACON_BAD		AFTER(S_SIGNAL)
 	{ 9,	"beacon_bad",	"beaconbad",	"bad beacons received" },
 #define	S_AMPDU_BARTX		AFTER(S_BEACON_BAD)
@@ -635,16 +635,17 @@ wlan_getinfo(struct wlanstatfoo_p *wf, int s, char b[], size_t bs)
 
 	switch (s) {
 	case S_RATE:
-		snprintf(b, bs, "%uM", si->isi_txmbps/2);
+		snprintf(b, bs, "%.1fM", (float) si->isi_txmbps/2.0);
 		return 1;
 	case S_RSSI:
-		snprintf(b, bs, "%d", si->isi_rssi);
+		snprintf(b, bs, "%.1f", (float) si->isi_rssi/2.0);
 		return 1;
 	case S_NOISE:
 		snprintf(b, bs, "%d", si->isi_noise);
 		return 1;
 	case S_SIGNAL:
-		snprintf(b, bs, "%d", si->isi_rssi + si->isi_noise);
+		snprintf(b, bs, "%.1f", (float) si->isi_rssi/2.0
+		    + (float) si->isi_noise);
 		return 1;
 	case S_RX_AUTH_FAIL_CODE:
 		if (wf->cur.is_rx_authfail_code == 0)
