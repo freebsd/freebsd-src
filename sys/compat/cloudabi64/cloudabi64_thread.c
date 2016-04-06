@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 struct thread_create_args {
 	cloudabi64_threadattr_t attr;
+	uint64_t tcb;
 	lwpid_t tid;
 };
 
@@ -49,8 +50,7 @@ initialize_thread(struct thread *td, void *thunk)
 	args->tid = td->td_tid;
 
 	/* Set up initial register contents. */
-	cloudabi64_thread_setregs(td, &args->attr);
-	return (0);
+	return (cloudabi64_thread_setregs(td, &args->attr, args->tcb));
 }
 
 int
@@ -63,6 +63,12 @@ cloudabi64_sys_thread_create(struct thread *td,
 	error = copyin(uap->attr, &args.attr, sizeof(args.attr));
 	if (error != 0)
 		return (error);
+
+	/* Remove some space on the top of the stack for the TCB. */
+	args.tcb = rounddown(args.attr.stack + args.attr.stack_size -
+	    sizeof(cloudabi64_tcb_t), _Alignof(cloudabi64_tcb_t));
+	args.attr.stack_size = args.tcb - args.attr.stack;
+
 	error = thread_create(td, NULL, initialize_thread, &args);
 	if (error != 0)
 		return (error);
