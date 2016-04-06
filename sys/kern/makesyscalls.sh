@@ -307,6 +307,98 @@ s/\$//g
 			column = column + 8
 		}
 	}
+	function print_parsearg_func(i, a_saltype, a_name, dep, pdep) {
+		annotation = a_saltype
+		gsub(/ .*/, "", annotation)
+		if (annotation !~ /^_In.*/ && annotation !~ /^_Out.*/)
+			printf("unannotated pointer arg %s in %s\n",
+			    a_name, funcalias) > "/dev/stderr"
+		printf("\n\t/* [%d] %s %s */\n", i-1,
+		    a_saltype, a_name) > sysargparse
+		printf("\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
+		    syscallprefix, funcalias, i-1) > sysargparse
+		printf("\tCHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);\n") > sysargparse
+		printf("\tCHERI_CGETTAG(tag, CHERI_CR_CTEMP0);\n") > sysargparse
+		printf("\tif (!tag) {\n") > sysargparse
+		if (annotation !~ /_opt_/) {
+			printf("\t\treturn (EINVAL);\n") > sysargparse
+		} else {
+			printf("\t\tCHERI_CTOINT(uap->%s, CHERI_CR_CTEMP0);\n", a_name) > sysargparse
+			printf("\t\tif (uap->%s != NULL)\n",
+			     a_name) > sysargparse
+			printf("\t\t\treturn (EINVAL);\n") > sysargparse
+		}
+		printf("\t} else {\n") > sysargparse
+		# XXX-BD: exclude perm check for _pagerange_?
+		reqperms = "CHERI_PERM_GLOBAL"
+		if (annotation ~ /^_In/) {
+			reqperms = reqperms "|CHERI_PERM_LOAD"
+			if (a_saltype ~ /_c \*/)
+				reqperms = reqperms "|CHERI_PERM_LOAD_CAP"
+		}
+		if (annotation ~ /^_Inout/ ||
+		    annotation ~ /^_Out/) {
+			reqperms = reqperms "|CHERI_PERM_STORE"
+			if (a_saltype ~ /_c \*/)
+				reqperms = reqperms "|CHERI_PERM_STORE_CAP"
+		}
+		# Check permissions
+		printf("\t\tCHERI_CGETPERM(perms, CHERI_CR_CTEMP0);\n") > sysargparse
+		printf("\t\treqperms = (%s);\n", reqperms) > sysargparse
+		printf("\t\tif ((perms & reqperms) != reqperms)\n") > sysargparse
+		printf("\t\t\treturn (EPROT);\n") > sysargparse
+
+		# Only allowed unsealed capabilities (for now)
+		printf("\n") > sysargparse
+		printf("\t\tCHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);\n") > sysargparse
+		printf("\t\tif (sealed)\n") > sysargparse
+		printf("\t\t\treturn (EPROT);\n") > sysargparse
+
+		# Check there is enough space
+		printf("\n") > sysargparse
+		if (dep != "") {
+			if (dep ~ /^[0-9]*$/)
+				count = dep
+			else
+				count = "uap->" dep
+
+			if (annotation ~ /_bytes_/)
+				reqspace = "1 * " count
+			else if (annotation ~ /_pagerange_/)
+				reqspace = sprintf("roundup2(%s + adjust, PAGE_SIZE)", count)
+			else
+				reqspace = sprintf("(sizeof(*uap->%s) * %s)", a_name, count);
+		} else if (pdep != "") {
+			printf("\t\tCTASSERT(sizeof(*uap->%s) == sizeof(long));\n", pdep) > sysargparse
+			printf("\t\tif (uap->%s == NULL)\n\t\t\treturn (EINVAL);\n", pdep) > sysargparse
+			printf("\t\tssize_t reqlen = fuword(uap->%s);\n", pdep) > sysargparse
+			printf("\t\tif (reqlen == -1)\n\t\t\treturn (EINVAL);\n") > sysargparse
+			# XXX: no _pagerange_ consumers
+			if (annotation ~ /_bytes_/)
+				reqspace = "reqlen"
+			else
+				reqspace = sprintf("(sizeof(*uap->%s) * reqlen)", a_name);
+			reqspace = pdep
+		} else
+			reqspace = sprintf("sizeof(*uap->%s)", a_name)
+		printf("\t\tCHERI_CGETLEN(length, CHERI_CR_CTEMP0);\n") > sysargparse
+		printf("\t\tCHERI_CGETLEN(offset, CHERI_CR_CTEMP0);\n") > sysargparse
+		printf("\t\tlength -= offset;\n") > sysargparse
+		if (annotation ~ /_pagerange_/) {
+			printf("\t\tCHERI_CGETLEN(base, CHERI_CR_CTEMP0);\n") > sysargparse
+			printf("\t\tif (round_down(base + offset, PAGE_SIZE) < base)\n") > sysargparse
+			printf("\t\t\treturn (EINVAL);\n") > sysargparse
+			printf("\t\tadjust = ((base + offset) & PAGE_MASK);\n") > sysargparse
+			printf("\t\tlength += adjust;\n") > sysargparse
+		}
+		printf("\t\tif (length < %s)\n", reqspace) > sysargparse
+		printf("\t\t\treturn (EINVAL);\n") > sysargparse
+
+		# Load the actual pointer value
+		printf("\n") > sysargparse
+		printf("\t\tCHERI_CTOPTR(uap->%s, CHERI_CR_CTEMP0, CHERI_CR_KDC);\n", a_name) > sysargparse
+		printf("\t}\n") > sysargparse
+	}
 	function parserr(was, wanted) {
 		printf "%s: line %d: unexpected %s (expected %s)\n",
 		    infile, NR, was, wanted
@@ -566,7 +658,7 @@ s/\$//g
 			for (i = 1; i <= argc; i++) {
 				if (isptrtype(argtype[i]))
 					continue
-				printf("\n\t/* [%d] %s %s */\n", i-1, 
+				printf("\n\t/* [%d] %s %s */\n", i-1,
 				    argsaltype[i], argname[i]) > sysargparse
 				printf("\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
 				    syscallprefix, funcalias, i-1) > sysargparse
@@ -580,86 +672,8 @@ s/\$//g
 					continue
 				if (i in pdeps)
 					continue
-
-				annotation = argsaltype[i]
-				gsub(/ .*/, "", annotation)
-				if (annotation !~ /^_In.*/ && annotation !~ /^_Out.*/)
-					printf("unannotated pointer arg %s in %s\n",
-					    argname[i], funcalias)
-				printf("\n\t/* [%d] %s %s */\n", i-1, 
-				    argsaltype[i], argname[i]) > sysargparse
-				printf("\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
-				    syscallprefix, funcalias, i-1) > sysargparse
-				printf("\tCHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);\n") > sysargparse
-				printf("\tCHERI_CGETTAG(tag, CHERI_CR_CTEMP0);\n") > sysargparse
-				printf("\tif (!tag) {\n") > sysargparse
-				if (annotation !~ /_opt_/) {
-					printf("\t\treturn (EINVAL);\n") > sysargparse
-				} else {
-					printf("\t\tCHERI_CTOINT(uap->%s, CHERI_CR_CTEMP0);\n", argname[i]) > sysargparse
-					printf("\t\tif (uap->%s != NULL)\n",
-					     argname[i]) > sysargparse
-					printf("\t\t\treturn (EINVAL);\n") > sysargparse
-				}
-				printf("\t} else {\n") > sysargparse
-				# XXX-BD: exclude perm check for _pagerange_?
-				reqperms = "CHERI_PERM_GLOBAL"
-				if (annotation ~ /^_In/) {
-					reqperms = reqperms "|CHERI_PERM_LOAD"
-					if (argtype[i] ~ /_c \*/)
-						reqperms = reqperms "|CHERI_PERM_LOAD_CAP"
-				}
-				if (annotation ~ /^_Inout/ ||
-				    annotation ~ /^_Out/) {
-					reqperms = reqperms "|CHERI_PERM_STORE"
-					if (argtype[i] ~ /_c \*/)
-						reqperms = reqperms "|CHERI_PERM_STORE_CAP"
-				}
-				# Check permissions
-				printf("\t\tCHERI_CGETPERM(perms, CHERI_CR_CTEMP0);\n") > sysargparse
-				printf("\t\treqperms = (%s);\n", reqperms) > sysargparse
-				printf("\t\tif ((perms & reqperms) != reqperms)\n") > sysargparse
-				printf("\t\t\treturn (EPROT);\n") > sysargparse
-
-				# Only allowed unsealed capabilities (for now)
-				printf("\n") > sysargparse
-				printf("\t\tCHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);\n") > sysargparse
-				printf("\t\tif (sealed)\n") > sysargparse
-				printf("\t\t\treturn (EPROT);\n") > sysargparse
-
-				# Check there is enough space
-				printf("\n") > sysargparse
-				if (i in deps) {
-					if (deps[i] ~ /^[0-9]*$/)
-						count = deps[i]
-					else
-						count = "uap->" deps[i]
-
-					if (annotation ~ /_bytes_/)
-						reqspace = "1 * " count
-					else if (annotation ~ /_pagerange_/)
-						reqspace = sprintf("roundup2(%s + adjust, PAGE_SIZE)", count)
-					else
-						reqspace = sprintf("(sizeof(*uap->%s) * %s)", argname[i], count);
-				} else
-					reqspace = sprintf("sizeof(*uap->%s)", argname[i])
-				printf("\t\tCHERI_CGETLEN(length, CHERI_CR_CTEMP0);\n") > sysargparse
-				printf("\t\tCHERI_CGETLEN(offset, CHERI_CR_CTEMP0);\n") > sysargparse
-				printf("\t\tlength -= offset;\n") > sysargparse
-				if (annotation ~ /_pagerange_/) {
-					printf("\t\tCHERI_CGETLEN(base, CHERI_CR_CTEMP0);\n") > sysargparse
-					printf("\t\tif (round_down(base + offset, PAGE_SIZE) < base)\n") > sysargparse
-					printf("\t\t\treturn (EINVAL);\n") > sysargparse
-					printf("\t\tadjust = ((base + offset) & PAGE_MASK);\n") > sysargparse
-					printf("\t\tlength += adjust;\n") > sysargparse
-				}
-				printf("\t\tif (length < %s)\n", reqspace) > sysargparse
-				printf("\t\t\treturn (EINVAL);\n") > sysargparse
-
-				# Load the actual pointer value
-				printf("\n") > sysargparse
-				printf("\t\tCHERI_CTOPTR(uap->%s, CHERI_CR_CTEMP0, CHERI_CR_KDC);\n", argname[i]) > sysargparse
-				printf("\t}\n") > sysargparse
+				print_parsearg_func(i, argsaltype[i],
+				    argname[i], deps[i], "")
 			}
 			# Process pointer arguments that DO depend on
 			# dereferenced pointers.
@@ -668,9 +682,8 @@ s/\$//g
 					continue
 				if (!(i in pdeps))
 					continue
-				printf("not handling deref dep for %s in %s\n", argname[i], funcalias)
-				printf("\n\t/* [%d] %s %s */\n", i-1, 
-				    argsaltype[i], argname[i]) > sysargparse
+				print_parsearg_func(i, argsaltype[i],
+				    argname[i], "", pdeps[i])
 			}
 			printf("\n\treturn (0);\n") > sysargparse
 			printf("}\n\n") > sysargparse
