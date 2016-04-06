@@ -766,11 +766,19 @@ pic_lookup_locked(device_t dev, intptr_t xref)
 
 	mtx_assert(&pic_list_lock, MA_OWNED);
 
+	if (dev == NULL && xref == 0)
+		return (NULL);
+
+	/* Note that pic->pic_dev is never NULL on registered PIC. */
 	SLIST_FOREACH(pic, &pic_list, pic_next) {
-		if (pic->pic_xref != xref)
-			continue;
-		if (pic->pic_xref != 0 || pic->pic_dev == dev)
-			return (pic);
+		if (dev == NULL) {
+			if (xref == pic->pic_xref)
+				return (pic);
+		} else if (xref == 0 || pic->pic_xref == 0) {
+			if (dev == pic->pic_dev)
+				return (pic);
+		} else if (xref == pic->pic_xref && dev == pic->pic_dev)
+				return (pic);
 	}
 	return (NULL);
 }
@@ -840,14 +848,14 @@ intr_pic_register(device_t dev, intptr_t xref)
 {
 	struct intr_pic *pic;
 
+	if (dev == NULL)
+		return (EINVAL);
 	pic = pic_create(dev, xref);
 	if (pic == NULL)
 		return (ENOMEM);
-	if (pic->pic_dev != dev)
-		return (EINVAL);	/* XXX it could be many things. */
 
-	debugf("PIC %p registered for %s <xref %x>\n", pic,
-	    device_get_nameunit(dev), xref);
+	debugf("PIC %p registered for %s <dev %p, xref %x>\n", pic,
+	    device_get_nameunit(dev), dev, xref);
 	return (0);
 }
 
