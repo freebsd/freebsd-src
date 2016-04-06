@@ -54,7 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/videomode/videomode.h>
 #include <dev/videomode/edidvar.h>
 
-#include <arm/allwinner/a10_clk.h>
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/hwreset/hwreset.h>
 
 #include "fb_if.h"
 #include "hdmi_if.h"
@@ -66,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #define	FB_ALIGN	0x1000
 
 #define	HDMI_ENABLE_DELAY	20000
+#define	DEBE_FREQ		300000000
 
 #define	DOT_CLOCK_TO_HZ(c)	((c) * 1000)
 
@@ -193,18 +195,68 @@ a10fb_freefb(struct a10fb_softc *sc)
 	kmem_free(kernel_arena, sc->vaddr, sc->fbsize);
 }
 
-static void
+static int
 a10fb_setup_debe(struct a10fb_softc *sc, const struct videomode *mode)
 {
 	int width, height, interlace, reg;
+	clk_t clk_ahb, clk_dram, clk_debe;
+	hwreset_t rst;
 	uint32_t val;
+	int error;
 
 	interlace = !!(mode->flags & VID_INTERLACE);
 	width = mode->hdisplay;
 	height = mode->vdisplay << interlace;
 
-	/* Enable DEBE clocks */
-	a10_clk_debe_activate();
+	/* Leave reset */
+	error = hwreset_get_by_ofw_name(sc->dev, "de_be", &rst);
+	if (error != 0) {
+		device_printf(sc->dev, "cannot find reset 'de_be'\n");
+		return (error);
+	}
+	error = hwreset_deassert(rst);
+	if (error != 0) {
+		device_printf(sc->dev, "couldn't de-assert reset 'de_be'\n");
+		return (error);
+	}
+	/* Gating AHB clock for BE */
+	error = clk_get_by_ofw_name(sc->dev, "ahb_de_be", &clk_ahb);
+	if (error != 0) {
+		device_printf(sc->dev, "cannot find clk 'ahb_de_be'\n");
+		return (error);
+	}
+	error = clk_enable(clk_ahb);
+	if (error != 0) {
+		device_printf(sc->dev, "cannot enable clk 'ahb_de_be'\n");
+		return (error);
+	}
+	/* Enable DRAM clock to BE */
+	error = clk_get_by_ofw_name(sc->dev, "dram_de_be", &clk_dram);
+	if (error != 0) {
+		device_printf(sc->dev, "cannot find clk 'dram_de_be'\n");
+		return (error);
+	}
+	error = clk_enable(clk_dram);
+	if (error != 0) {
+		device_printf(sc->dev, "cannot enable clk 'dram_de_be'\n");
+		return (error);
+	}
+	/* Set BE clock to 300MHz and enable */
+	error = clk_get_by_ofw_name(sc->dev, "de_be", &clk_debe);
+	if (error != 0) {
+		device_printf(sc->dev, "cannot find clk 'de_be'\n");
+		return (error);
+	}
+	error = clk_set_freq(clk_debe, DEBE_FREQ, CLK_SET_ROUND_DOWN);
+	if (error != 0) {
+		device_printf(sc->dev, "cannot set 'de_be' frequency\n");
+		return (error);
+	}
+	error = clk_enable(clk_debe);
+	if (error != 0) {
+		device_printf(sc->dev, "cannot enable clk 'de_be'\n");
+		return (error);
+	}
 
 	/* Initialize all registers to 0 */
 	for (reg = DEBE_REG_START; reg < DEBE_REG_END; reg += DEBE_REG_WIDTH)
@@ -247,14 +299,55 @@ a10fb_setup_debe(struct a10fb_softc *sc, const struct videomode *mode)
 	val = DEBE_READ(sc, DEBE_MODCTL);
 	val |= MODCTL_START_CTL;
 	DEBE_WRITE(sc, DEBE_MODCTL, val);
+
+	return (0);
 }
 
-static void
+static int
+a10fb_setup_pll(struct a10fb_softc *sc, uint64_t freq)
+{
+	clk_t clk_sclk1, clk_sclk2;
+	int error;
+
+	error = clk_get_by_ofw_name(sc->dev, "lcd_ch1_sclk1", &clk_sclk1);
+	if (error != 0) {
+		device_printf(sc->dev, "cannot find clk 'lcd_ch1_sclk1'\n");
+		return (error);
+	}
+	error = clk_get_by_ofw_name(sc->dev, "lcd_ch1_sclk2", &clk_sclk2);
+	if (error != 0) {
+		device_printf(sc->dev, "cannot find clk 'lcd_ch1_sclk2'\n");
+		return (error);
+	}
+
+	error = clk_set_freq(clk_sclk2, freq, 0);
+	if (error != 0) {
+		device_printf(sc->dev, "cannot set lcd ch1 frequency\n");
+		return (error);
+	}
+	error = clk_enable(clk_sclk2);
+	if (error != 0) {
+		device_printf(sc->dev, "cannot enable lcd ch1 sclk2\n");
+		return (error);
+	}
+	error = clk_enable(clk_sclk1);
+	if (error != 0) {
+		device_printf(sc->dev, "cannot enable lcd ch1 sclk1\n");
+		return (error);
+	}
+
+	return (0);
+}
+
+static int
 a10fb_setup_tcon(struct a10fb_softc *sc, const struct videomode *mode)
 {
 	u_int interlace, hspw, hbp, vspw, vbp, vbl, width, height, start_delay;
 	u_int vtotal, framerate, clk;
+	clk_t clk_ahb;
+	hwreset_t rst;
 	uint32_t val;
+	int error;
 
 	interlace = !!(mode->flags & VID_INTERLACE);
 	width = mode->hdisplay;
@@ -266,8 +359,28 @@ a10fb_setup_tcon(struct a10fb_softc *sc, const struct videomode *mode)
 	vbl = VBLANK_LEN(mode->vtotal, mode->vdisplay, interlace);
 	start_delay = START_DELAY(vbl);
 
-	/* Enable LCD clocks */
-	a10_clk_lcd_activate();
+	/* Leave reset */
+	error = hwreset_get_by_ofw_name(sc->dev, "lcd", &rst);
+	if (error != 0) {
+		device_printf(sc->dev, "cannot find reset 'lcd'\n");
+		return (error);
+	}
+	error = hwreset_deassert(rst);
+	if (error != 0) {
+		device_printf(sc->dev, "couldn't de-assert reset 'lcd'\n");
+		return (error);
+	}
+	/* Gating AHB clock for LCD */
+	error = clk_get_by_ofw_name(sc->dev, "ahb_lcd", &clk_ahb);
+	if (error != 0) {
+		device_printf(sc->dev, "cannot find clk 'ahb_lcd'\n");
+		return (error);
+	}
+	error = clk_enable(clk_ahb);
+	if (error != 0) {
+		device_printf(sc->dev, "cannot enable clk 'ahb_lcd'\n");
+		return (error);
+	}
 
 	/* Disable TCON and TCON1 */
 	TCON_WRITE(sc, TCON_GCTL, 0);
@@ -322,7 +435,7 @@ a10fb_setup_tcon(struct a10fb_softc *sc, const struct videomode *mode)
 	TCON_WRITE(sc, TCON1_CTL, val);
 
 	/* Setup PLL */
-	a10_clk_tcon_activate(DOT_CLOCK_TO_HZ(mode->dot_clock));
+	return (a10fb_setup_pll(sc, DOT_CLOCK_TO_HZ(mode->dot_clock)));
 }
 
 static void
@@ -378,10 +491,14 @@ a10fb_configure(struct a10fb_softc *sc, const struct videomode *mode)
 	}
 
 	/* Setup display backend */
-	a10fb_setup_debe(sc, mode);
+	error = a10fb_setup_debe(sc, mode);
+	if (error != 0)
+		return (error);
 
 	/* Setup display timing controller */
-	a10fb_setup_tcon(sc, mode);
+	error = a10fb_setup_tcon(sc, mode);
+	if (error != 0)
+		return (error);
 
 	/* Attach framebuffer device */
 	sc->info.fb_name = device_get_nameunit(sc->dev);

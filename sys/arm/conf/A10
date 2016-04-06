@@ -51,6 +51,13 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 #options 	BOOTP_NFSV3
 #options 	BOOTP_WIRED_TO=emac0
 
+# EXT_RESOURCES pseudo devices
+options		EXT_RESOURCES
+device		clk
+device		phy
+device		hwreset
+device		regulator
+
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards

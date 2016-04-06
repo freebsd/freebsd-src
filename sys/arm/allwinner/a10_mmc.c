@@ -49,9 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/mmc/mmcbrvar.h>
 
 #include <arm/allwinner/allwinner_machdep.h>
-#include <arm/allwinner/a10_clk.h>
 #include <arm/allwinner/a10_mmc.h>
-#include <arm/allwinner/a31/a31_clk.h>
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/hwreset/hwreset.h>
 
 #define	A10_MMC_MEMRES		0
 #define	A10_MMC_IRQRES		1
@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #define	A10_MMC_DMA_SEGS	16
 #define	A10_MMC_DMA_MAX_SIZE	0x2000
 #define	A10_MMC_DMA_FTRGLEVEL	0x20070008
+
+#define	CARD_ID_FREQUENCY	400000
 
 static int a10_mmc_pio_mode = 0;
 
@@ -74,6 +76,9 @@ struct a10_mmc_softc {
 	bus_space_handle_t	a10_bsh;
 	bus_space_tag_t		a10_bst;
 	device_t		a10_dev;
+	clk_t			a10_clk_ahb;
+	clk_t			a10_clk_mmc;
+	hwreset_t		a10_rst_ahb;
 	int			a10_bus_busy;
 	int			a10_id;
 	int			a10_resid;
@@ -147,7 +152,7 @@ a10_mmc_attach(device_t dev)
 	struct a10_mmc_softc *sc;
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid_list *tree;
-	int clk;
+	int error;
 
 	sc = device_get_softc(dev);
 	sc->a10_dev = dev;
@@ -170,6 +175,9 @@ a10_mmc_attach(device_t dev)
 		device_printf(dev, "cannot setup interrupt handler\n");
 		return (ENXIO);
 	}
+	mtx_init(&sc->a10_mtx, device_get_nameunit(sc->a10_dev), "a10_mmc",
+	    MTX_DEF);
+	callout_init_mtx(&sc->a10_timeoutc, &sc->a10_mtx, 0);
 
 	/*
 	 * Later chips use a different FIFO offset. Unfortunately the FDT
@@ -186,30 +194,41 @@ a10_mmc_attach(device_t dev)
 		break;
 	}
 
-	/* Activate the module clock. */
-	switch (allwinner_soc_type()) {
-#if defined(SOC_ALLWINNER_A10) || defined(SOC_ALLWINNER_A20)
-	case ALLWINNERSOC_A10:
-	case ALLWINNERSOC_A10S:
-	case ALLWINNERSOC_A20:
-		clk = a10_clk_mmc_activate(sc->a10_id);
-		break;
-#endif
-#if defined(SOC_ALLWINNER_A31) || defined(SOC_ALLWINNER_A31S)
-	case ALLWINNERSOC_A31:
-	case ALLWINNERSOC_A31S:
-		clk = a31_clk_mmc_activate(sc->a10_id);
-		break;
-#endif
-	default:
-		clk = -1;
+	/* De-assert reset */
+	if (hwreset_get_by_ofw_name(dev, "ahb", &sc->a10_rst_ahb) == 0) {
+		error = hwreset_deassert(sc->a10_rst_ahb);
+		if (error != 0) {
+			device_printf(dev, "cannot de-assert reset\n");
+			return (error);
+		}
 	}
-	if (clk != 0) {
-		bus_teardown_intr(dev, sc->a10_res[A10_MMC_IRQRES],
-		    sc->a10_intrhand);
-		bus_release_resources(dev, a10_mmc_res_spec, sc->a10_res);
-		device_printf(dev, "cannot activate mmc clock\n");
-		return (ENXIO);
+
+	/* Activate the module clock. */
+	error = clk_get_by_ofw_name(dev, "ahb", &sc->a10_clk_ahb);
+	if (error != 0) {
+		device_printf(dev, "cannot get ahb clock\n");
+		goto fail;
+	}
+	error = clk_enable(sc->a10_clk_ahb);
+	if (error != 0) {
+		device_printf(dev, "cannot enable ahb clock\n");
+		goto fail;
+	}
+	error = clk_get_by_ofw_name(dev, "mmc", &sc->a10_clk_mmc);
+	if (error != 0) {
+		device_printf(dev, "cannot get mmc clock\n");
+		goto fail;
+	}
+	error = clk_set_freq(sc->a10_clk_mmc, CARD_ID_FREQUENCY,
+	    CLK_SET_ROUND_DOWN);
+	if (error != 0) {
+		device_printf(dev, "cannot init mmc clock\n");
+		goto fail;
+	}
+	error = clk_enable(sc->a10_clk_mmc);
+	if (error != 0) {
+		device_printf(dev, "cannot enable mmc clock\n");
+		goto fail;
 	}
 
 	sc->a10_timeout = 10;
@@ -217,9 +236,6 @@ a10_mmc_attach(device_t dev)
 	tree = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
 	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "req_timeout", CTLFLAG_RW,
 	    &sc->a10_timeout, 0, "Request timeout in seconds");
-	mtx_init(&sc->a10_mtx, device_get_nameunit(sc->a10_dev), "a10_mmc",
-	    MTX_DEF);
-	callout_init_mtx(&sc->a10_timeoutc, &sc->a10_mtx, 0);
 
 	/* Reset controller. */
 	if (a10_mmc_reset(sc) != 0) {
@@ -826,25 +842,14 @@ a10_mmc_update_ios(device_t bus, device_t child)
 			return (error);
 
 		/* Set the MMC clock. */
-		switch (allwinner_soc_type()) {
-#if defined(SOC_ALLWINNER_A10) || defined(SOC_ALLWINNER_A20)
-		case ALLWINNERSOC_A10:
-		case ALLWINNERSOC_A10S:
-		case ALLWINNERSOC_A20:
-			error = a10_clk_mmc_cfg(sc->a10_id, ios->clock);
-			break;
-#endif
-#if defined(SOC_ALLWINNER_A31) || defined(SOC_ALLWINNER_A31S)
-		case ALLWINNERSOC_A31:
-		case ALLWINNERSOC_A31S:
-			error = a31_clk_mmc_cfg(sc->a10_id, ios->clock);
-			break;
-#endif
-		default:
-			error = ENXIO;
-		}
-		if (error != 0)
+		error = clk_set_freq(sc->a10_clk_mmc, ios->clock,
+		    CLK_SET_ROUND_DOWN);
+		if (error != 0) {
+			device_printf(sc->a10_dev,
+			    "failed to set frequency to %u Hz: %d\n",
+			    ios->clock, error);
 			return (error);
+		}
 
 		/* Enable clock. */
 		clkcr |= A10_MMC_CARD_CLK_ON;

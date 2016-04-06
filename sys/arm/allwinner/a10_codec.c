@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/allwinner/a10_clk.h>
+#include <dev/extres/clk/clk.h>
 
 #include "sunxi_dma_if.h"
 #include "mixer_if.h"
@@ -738,6 +738,7 @@ a10codec_attach(device_t dev)
 {
 	struct a10codec_info *sc;
 	char status[SND_STATUSLEN];
+	clk_t clk_apb, clk_codec;
 	uint32_t val;
 	int error;
 
@@ -778,6 +779,24 @@ a10codec_attach(device_t dev)
 		goto fail;
 	}
 
+	/* Get clocks */
+	error = clk_get_by_ofw_name(dev, "apb", &clk_apb);
+	if (error != 0) {
+		device_printf(dev, "cannot find apb clock\n");
+		goto fail;
+	}
+	error = clk_get_by_ofw_name(dev, "codec", &clk_codec);
+	if (error != 0) {
+		device_printf(dev, "cannot find codec clock\n");
+		goto fail;
+	}
+
+	/* Gating APB clock for codec */
+	error = clk_enable(clk_apb);
+	if (error != 0) {
+		device_printf(dev, "cannot enable apb clock\n");
+		goto fail;
+	}
 	/* Activate audio codec clock. According to the A10 and A20 user
 	 * manuals, Audio_pll can be either 24.576MHz or 22.5792MHz. Most
 	 * audio sampling rates require an 24.576MHz input clock with the
@@ -787,7 +806,17 @@ a10codec_attach(device_t dev)
 	 * 24.576MHz clock source and don't advertise native support for
 	 * the three sampling rates that require a 22.5792MHz input.
 	 */
-	a10_clk_codec_activate(24576000);
+	error = clk_set_freq(clk_codec, 24576000, CLK_SET_ROUND_DOWN);
+	if (error != 0) {
+		device_printf(dev, "cannot set codec clock frequency\n");
+		goto fail;
+	}
+	/* Enable audio codec clock */
+	error = clk_enable(clk_codec);
+	if (error != 0) {
+		device_printf(dev, "cannot enable codec clock\n");
+		goto fail;
+	}
 
 	/* Enable DAC */
 	val = CODEC_READ(sc, AC_DAC_DPC);

@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/ahci/ahci.h>
-#include <arm/allwinner/a10_clk.h>
+#include <dev/extres/clk/clk.h>
 
 /*
  * Allwinner a1x/a2x/a8x SATA attachment.  This is just the AHCI register
@@ -116,6 +116,8 @@ __FBSDID("$FreeBSD$");
 #define	AHCI_P0DMACR	0x0070
 #define	AHCI_P0PHYCR	0x0078
 #define	AHCI_P0PHYSR	0x007C
+
+#define	PLL_FREQ	100000000
 
 static void inline
 ahci_set(struct resource *m, bus_size_t off, uint32_t set)
@@ -295,8 +297,11 @@ ahci_a10_attach(device_t dev)
 {
 	int error;
 	struct ahci_controller *ctlr;
+	clk_t clk_pll, clk_gate;
 
 	ctlr = device_get_softc(dev);
+	clk_pll = clk_gate = NULL;
+
 	ctlr->quirks = AHCI_Q_NOPMP;
 	ctlr->vendorid = 0;
 	ctlr->deviceid = 0;
@@ -307,15 +312,36 @@ ahci_a10_attach(device_t dev)
 	    &ctlr->r_rid, RF_ACTIVE)))
 		return (ENXIO);
 
-	/* Turn on the PLL for SATA */
-	a10_clk_ahci_activate();
-
+	/* Enable clocks */
+	error = clk_get_by_ofw_index(dev, 0, &clk_pll);
+	if (error != 0) {
+		device_printf(dev, "Cannot get PLL clock\n");
+		goto fail;
+	}
+	error = clk_get_by_ofw_index(dev, 1, &clk_gate);
+	if (error != 0) {
+		device_printf(dev, "Cannot get gate clock\n");
+		goto fail;
+	}
+	error = clk_set_freq(clk_pll, PLL_FREQ, CLK_SET_ROUND_DOWN);
+	if (error != 0) {
+		device_printf(dev, "Cannot set PLL frequency\n");
+		goto fail;
+	}
+	error = clk_enable(clk_pll);
+	if (error != 0) {
+		device_printf(dev, "Cannot enable PLL\n");
+		goto fail;
+	}
+	error = clk_enable(clk_gate);
+	if (error != 0) {
+		device_printf(dev, "Cannot enable clk gate\n");
+		goto fail;
+	}
+	
 	/* Reset controller */
-	if ((error = ahci_a10_ctlr_reset(dev)) != 0) {
-		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid,
-		    ctlr->r_mem);
-		return (error);
-	};
+	if ((error = ahci_a10_ctlr_reset(dev)) != 0)
+		goto fail;
 
 	/*
 	 * No MSI registers on this platform.
@@ -330,6 +356,14 @@ ahci_a10_attach(device_t dev)
 	 * Note: ahci_attach will release ctlr->r_mem on errors automatically
 	 */
 	return (ahci_attach(dev));
+
+fail:
+	if (clk_gate != NULL)
+		clk_release(clk_gate);
+	if (clk_pll != NULL)
+		clk_release(clk_pll);
+	bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
+	return (error);
 }
 
 static int

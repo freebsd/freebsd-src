@@ -59,8 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ehcireg.h>
 
 #include <arm/allwinner/allwinner_machdep.h>
-#include <arm/allwinner/a10_clk.h>
-#include <arm/allwinner/a31/a31_clk.h>
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/hwreset/hwreset.h>
 
 #define EHCI_HC_DEVSTR			"Allwinner Integrated USB 2.0 controller"
 
@@ -90,25 +90,22 @@ static device_detach_t a10_ehci_detach;
 bs_r_1_proto(reversed);
 bs_w_1_proto(reversed);
 
+struct aw_ehci_softc {
+	ehci_softc_t	sc;
+	clk_t		clk;
+	hwreset_t	rst;
+};
+
 struct aw_ehci_conf {
-	int		(*clk_activate)(void);
-	int		(*clk_deactivate)(void);
 	bool		sdram_init;
 };
 
 static const struct aw_ehci_conf a10_ehci_conf = {
-#if defined(SOC_ALLWINNER_A10) || defined(SOC_ALLWINNER_A20)
-	.clk_activate = a10_clk_ehci_activate,
-	.clk_deactivate = a10_clk_ehci_deactivate,
-#endif
 	.sdram_init = true,
 };
 
 static const struct aw_ehci_conf a31_ehci_conf = {
-#if defined(SOC_ALLWINNER_A31) || defined(SOC_ALLWINNER_A31S)
-	.clk_activate = a31_clk_ehci_activate,
-	.clk_deactivate = a31_clk_ehci_deactivate,
-#endif
+	.sdram_init = false,
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -136,7 +133,8 @@ a10_ehci_probe(device_t self)
 static int
 a10_ehci_attach(device_t self)
 {
-	ehci_softc_t *sc = device_get_softc(self);
+	struct aw_ehci_softc *aw_sc = device_get_softc(self);
+	ehci_softc_t *sc = &aw_sc->sc;
 	const struct aw_ehci_conf *conf;
 	bus_space_handle_t bsh;
 	int err;
@@ -144,10 +142,6 @@ a10_ehci_attach(device_t self)
 	uint32_t reg_value = 0;
 
 	conf = USB_CONF(self);
-	if (conf->clk_activate == NULL) {
-		device_printf(self, "clock not supported\n");
-		return (ENXIO);
-	}
 
 	/* initialise some bus fields */
 	sc->sc_bus.parent = self;
@@ -208,9 +202,24 @@ a10_ehci_attach(device_t self)
 
 	sc->sc_flags |= EHCI_SCFLG_DONTRESET;
 
+	/* De-assert reset */
+	if (hwreset_get_by_ofw_idx(self, 0, &aw_sc->rst) == 0) {
+		err = hwreset_deassert(aw_sc->rst);
+		if (err != 0) {
+			device_printf(self, "Could not de-assert reset\n");
+			goto error;
+		}
+	}
+
 	/* Enable clock for USB */
-	if (conf->clk_activate() != 0) {
-		device_printf(self, "Could not activate clock\n");
+	err = clk_get_by_ofw_index(self, 0, &aw_sc->clk);
+	if (err != 0) {
+		device_printf(self, "Could not get clock\n");
+		goto error;
+	}
+	err = clk_enable(aw_sc->clk);
+	if (err != 0) {
+		device_printf(self, "Could not enable clock\n");
 		goto error;
 	}
 
@@ -240,6 +249,8 @@ a10_ehci_attach(device_t self)
 	return (0);
 
 error:
+	if (aw_sc->clk)
+		clk_release(aw_sc->clk);
 	a10_ehci_detach(self);
 	return (ENXIO);
 }
@@ -247,7 +258,8 @@ error:
 static int
 a10_ehci_detach(device_t self)
 {
-	ehci_softc_t *sc = device_get_softc(self);
+	struct aw_ehci_softc *aw_sc = device_get_softc(self);
+	ehci_softc_t *sc = &aw_sc->sc;
 	const struct aw_ehci_conf *conf;
 	device_t bdev;
 	int err;
@@ -305,7 +317,14 @@ a10_ehci_detach(device_t self)
 	A10_WRITE_4(sc, SW_USB_PMU_IRQ_ENABLE, reg_value);
 
 	/* Disable clock for USB */
-	conf->clk_deactivate();
+	clk_disable(aw_sc->clk);
+	clk_release(aw_sc->clk);
+
+	/* Assert reset */
+	if (aw_sc->rst != NULL) {
+		hwreset_assert(aw_sc->rst);
+		hwreset_release(aw_sc->rst);
+	}
 
 	return (0);
 }
