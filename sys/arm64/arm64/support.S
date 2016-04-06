@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/setjmp.h>
 #include <machine/param.h>
+#include <machine/vmparam.h>
 
 #include "assym.s"
 
