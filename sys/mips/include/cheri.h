@@ -319,7 +319,7 @@ struct cheri_stack {
 									\
 	CHERI_CGETBASE(_base, cb);					\
 	CHERI_CGETOFFSET(_offset, cb);					\
-	v = _base + _offset;						\
+	v = (__typeof__(v))(_base + _offset);				\
 } while (0)
 
 /*
