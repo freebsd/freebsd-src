@@ -99,14 +99,14 @@ struct cheri_frame {
 	__capability void *cf_c8, *cf_c9, *cf_c10, *cf_c11, *cf_c12;
 	__capability void *cf_c13, *cf_c14, *cf_c15, *cf_c16, *cf_c17;
 	__capability void *cf_c18, *cf_c19, *cf_c20, *cf_c21, *cf_c22;
-	__capability void *cf_c23, *cf_rcc, *cf_c25, *cf_idc;
+	__capability void *cf_c23, *cf_c24, *cf_c25, *cf_idc;
 #else
 	struct chericap	cf_c1, cf_c2, cf_c3, cf_c4;
 	struct chericap	cf_c5, cf_c6, cf_c7;
 	struct chericap	cf_c8, cf_c9, cf_c10, cf_c11, cf_c12;
 	struct chericap	cf_c13, cf_c14, cf_c15, cf_c16, cf_c17;
 	struct chericap	cf_c18, cf_c19, cf_c20, cf_c21, cf_c22;
-	struct chericap cf_c23, cf_rcc, cf_c25, cf_idc;
+	struct chericap cf_c23, cf_c24, cf_c25, cf_idc;
 #endif
 
 	/*
@@ -154,7 +154,7 @@ struct cheri_kframe {
 	struct chericap ckf_c21;
 	struct chericap ckf_c22;
 	struct chericap ckf_c23;
-	struct chericap ckf_rcc;
+	struct chericap ckf_c24;
 };
 #endif
 

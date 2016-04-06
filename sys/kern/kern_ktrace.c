@@ -947,7 +947,7 @@ ktrcexception(struct trapframe *frame)
 	    ke->ktr_regnum == CHERI_CR_C21 ? &cheriframe->cf_c21 :
 	    ke->ktr_regnum == CHERI_CR_C22 ? &cheriframe->cf_c22 :
 	    ke->ktr_regnum == CHERI_CR_C23 ? &cheriframe->cf_c23 :
-	    ke->ktr_regnum == CHERI_CR_RCC ? &cheriframe->cf_rcc :
+	    ke->ktr_regnum == CHERI_CR_C24 ? &cheriframe->cf_c24 :
 	    ke->ktr_regnum == CHERI_CR_C25 ? &cheriframe->cf_c25 :
 	    ke->ktr_regnum == CHERI_CR_IDC ? &cheriframe->cf_idc :
 	    NULL);

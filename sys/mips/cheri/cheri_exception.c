@@ -214,8 +214,8 @@ cheri_log_cheri_frame(struct cheri_frame *cheriframe)
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_c23, 0);
 	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 23);
 
-	/* C24 - RCC */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_rcc, 0);
+	/* C24 */
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_c24, 0);
 	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 24);
 
 	/* C26 - IDC */

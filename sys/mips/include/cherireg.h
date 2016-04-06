@@ -264,7 +264,7 @@
 #define	CHERI_CR_C21	21
 #define	CHERI_CR_C22	22
 #define	CHERI_CR_C23	23
-#define	CHERI_CR_RCC	24
+#define	CHERI_CR_C24	24
 #define	CHERI_CR_C25	25
 #define	CHERI_CR_IDC	26
 #define	CHERI_CR_KR1C	27
@@ -305,7 +305,7 @@
 #define	CHERIFRAME_OFF_C21	21
 #define	CHERIFRAME_OFF_C22	22
 #define	CHERIFRAME_OFF_C23	23
-#define	CHERIFRAME_OFF_RCC	24
+#define	CHERIFRAME_OFF_C24	24
 #define	CHERIFRAME_OFF_C25	25
 #define	CHERIFRAME_OFF_IDC	26
 #define	CHERIFRAME_OFF_PCC	27	/* NB: Not register $c27! */
@@ -329,7 +329,7 @@
 #define	CHERIKFRAME_OFF_C21	4
 #define	CHERIKFRAME_OFF_C22	5
 #define	CHERIKFRAME_OFF_C23	6
-#define	CHERIKFRAME_OFF_RCC	7
+#define	CHERIKFRAME_OFF_C24	7
 
 /*
  * List of CHERI capability cause code constants, which are used to
