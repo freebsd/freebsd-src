@@ -378,6 +378,7 @@ create_pagetables:
 	/* Link the l0 -> l1 table */
 	mov	x9, x6
 	mov	x6, x24
+	mov	x10, #1
 	bl	link_l0_pagetable
 
 	/*
@@ -408,6 +409,7 @@ create_pagetables:
 	/* Link the l0 -> l1 table */
 	mov	x9, x6
 	mov	x6, x27
+	mov	x10, #1
 	bl	link_l0_pagetable
 
 	/* Restore the Link register */
@@ -423,6 +425,7 @@ create_pagetables:
  *  x6  = L0 table
  *  x8  = Virtual Address
  *  x9  = L1 PA (trashed)
+ *  x10 = Entry count
  *  x11, x12 and x13 are trashed
  */
 link_l0_pagetable:
@@ -437,11 +440,16 @@ link_l0_pagetable:
 	mov	x12, #L0_TABLE
 
 	/* Only use the output address bits */
-	lsr	x9, x9, #12
-	orr	x12, x12, x9, lsl #12
+	lsr	x9, x9, #PAGE_SHIFT
+1:	orr	x13, x12, x9, lsl #PAGE_SHIFT
 
 	/* Store the entry */
-	str	x12, [x6, x11, lsl #3]
+	str	x13, [x6, x11, lsl #3]
+
+	sub	x10, x10, #1
+	add	x11, x11, #1
+	add	x9, x9, #1
+	cbnz	x10, 1b
 
 	ret
 
@@ -468,11 +476,11 @@ link_l1_pagetable:
 	mov	x12, #L1_TABLE
 
 	/* Only use the output address bits */
-	lsr	x9, x9, #12
-	orr	x12, x12, x9, lsl #12
+	lsr	x9, x9, #PAGE_SHIFT
+	orr	x13, x12, x9, lsl #PAGE_SHIFT
 
 	/* Store the entry */
-	str	x12, [x6, x11, lsl #3]
+	str	x13, [x6, x11, lsl #3]
 
 	ret
 
@@ -482,7 +490,7 @@ link_l1_pagetable:
  *  x7  = Type (0 = Device, 1 = Normal)
  *  x8  = VA start
  *  x9  = PA start (trashed)
- *  x10 = Entry count (TODO)
+ *  x10 = Entry count
  *  x11, x12 and x13 are trashed
  */
 build_l1_block_pagetable:
@@ -505,20 +513,17 @@ build_l1_block_pagetable:
 	lsr	x9, x9, #L1_SHIFT
 
 	/* Set the physical address for this virtual address */
-1:	orr	x12, x12, x9, lsl #L1_SHIFT
+1:	orr	x13, x12, x9, lsl #L1_SHIFT
 
 	/* Store the entry */
-	str	x12, [x6, x11, lsl #3]
-
-	/* Clear the address bits */
-	and	x12, x12, #ATTR_MASK_L
+	str	x13, [x6, x11, lsl #3]
 
 	sub	x10, x10, #1
 	add	x11, x11, #1
 	add	x9, x9, #1
 	cbnz	x10, 1b
 
-2:	ret
+	ret
 
 /*
  * Builds count 2 MiB page table entry
@@ -526,7 +531,7 @@ build_l1_block_pagetable:
  *  x7  = Type (0 = Device, 1 = Normal)
  *  x8  = VA start
  *  x9  = PA start (trashed)
- *  x10 = Entry count (TODO)
+ *  x10 = Entry count
  *  x11, x12 and x13 are trashed
  */
 build_l2_block_pagetable:
@@ -549,20 +554,17 @@ build_l2_block_pagetable:
 	lsr	x9, x9, #L2_SHIFT
 
 	/* Set the physical address for this virtual address */
-1:	orr	x12, x12, x9, lsl #L2_SHIFT
+1:	orr	x13, x12, x9, lsl #L2_SHIFT
 
 	/* Store the entry */
-	str	x12, [x6, x11, lsl #3]
-
-	/* Clear the address bits */
-	and	x12, x12, #ATTR_MASK_L
+	str	x13, [x6, x11, lsl #3]
 
 	sub	x10, x10, #1
 	add	x11, x11, #1
 	add	x9, x9, #1
 	cbnz	x10, 1b
 
-2:	ret
+	ret
 
 start_mmu:
 	dsb	sy
