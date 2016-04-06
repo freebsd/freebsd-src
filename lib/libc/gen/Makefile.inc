@@ -4,6 +4,10 @@
 # machine-independent gen sources
 .PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/gen ${LIBC_SRCTOP}/gen
 
+.ifdef LIBCHERI
+CFLAGS+=	-DNO_COMPAT7
+.endif
+
 SRCS+=	__getosreldate.c \
 	__pthread_mutex_init_calloc_cb_stub.c \
 	__xuname.c \
