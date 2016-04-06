@@ -521,7 +521,9 @@ rsu_attach(device_t self)
 
 		/* Enable basic HT */
 		ic->ic_htcaps = IEEE80211_HTC_HT |
+#if 0
 		    IEEE80211_HTC_AMPDU |
+#endif
 		    IEEE80211_HTC_AMSDU |
 		    IEEE80211_HTCAP_MAXAMSDU_3839 |
 		    IEEE80211_HTCAP_SMPS_OFF;

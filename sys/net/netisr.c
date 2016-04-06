@@ -1167,9 +1167,6 @@ netisr_start(void *arg)
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (nws_count >= netisr_maxthreads)
 			break;
-		/* XXXRW: Is skipping absent CPUs still required here? */
-		if (CPU_ABSENT(pc->pc_cpuid))
-			continue;
 		/* Worker will already be present for boot CPU. */
 		if (pc->pc_netisr != NULL)
 			continue;
