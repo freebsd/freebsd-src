@@ -21,6 +21,8 @@
 #ifndef _NET_LAGG_H
 #define _NET_LAGG_H
 
+#include <sys/condvar.h>
+
 /*
  * Global definitions
  */
@@ -207,16 +209,53 @@ typedef enum {
 	LAGG_LLQTYPE_VIRT,	/* Task related to lagg interface itself */
 } lagg_llqtype;
 
-/* List of interfaces to have the MAC address modified */
-struct lagg_llq {
+/* Adding new entry here, SHOULD also have relevant entry in llq_action */
+typedef enum {
+	LAGG_LLQ_MIN = 0,
+	LAGG_LLQ_LLADDR = LAGG_LLQ_MIN, /* MAC Address index */
+	LAGG_LLQ_MTU, /*  MTU index */
+	LAGG_LLQ_MAX /* This SHOULD be the last entry */
+} lagg_llq_idx;
+
+/* Common list entry definition for each taskq operation */
+struct lagg_llq_slist_entry {
+	SLIST_ENTRY(lagg_llq_slist_entry)	llq_entries;
+};
+
+/* Context for lladdr llq operation part of lagg soft context */
+struct lagg_lladdr_llq_ctxt {
+	struct lagg_llq_slist_entry llq_cmn;	/* This SHOULD be the first
+						member */
 	struct ifnet		*llq_ifp;
 	uint8_t			llq_lladdr[ETHER_ADDR_LEN];
 	lagg_llqtype		llq_type;
-	SLIST_ENTRY(lagg_llq)	llq_entries;
+};
+
+/* Context for mtu llq operation part of lagg soft context */
+struct lagg_mtu_llq_ctxt {
+	struct lagg_llq_slist_entry llq_cmn;	/* This SHOULD be the first
+						member */
+    struct ifnet	*llq_ifp;
+    struct ifreq	llq_ifr;
+    uint32_t		llq_old_mtu;
+    int			(*llq_ioctl)(struct ifnet *, u_long, caddr_t);
 };
 
 struct lagg_counters {
 	uint64_t	val[IFCOUNTERS];
+};
+
+/* Conditional variables context for lagg operations */
+struct lagg_signal {
+	struct mtx	lock;
+	struct cv       cv;
+};
+
+/* Lagg MTU context */
+struct lagg_mtu_ctxt {
+	struct  lagg_signal	mtu_sync;	/* Synchronize cmd completion */
+	int			mtu_cmd_ret;
+	bool			busy;
 };
 
 struct lagg_softc {
@@ -236,9 +275,12 @@ struct lagg_softc {
 	SLIST_HEAD(__tplhd, lagg_port)	sc_ports;	/* list of interfaces */
 	SLIST_ENTRY(lagg_softc)	sc_entries;
 
-	struct task			sc_lladdr_task;
-	SLIST_HEAD(__llqhd, lagg_llq)	sc_llq_head;	/* interfaces to program
-							   the lladdr on */
+	struct task			sc_llq_task;	/* SYNC & ASYNC ops
+							enqueued here */
+	struct lagg_mtu_ctxt		sc_mtu_ctxt;	/* MTU programming */
+	/*  List of LLQs */
+	SLIST_HEAD(__llqhd, lagg_llq_slist_entry)	sc_llq[LAGG_LLQ_MAX];
+
 	eventhandler_tag vlan_attach;
 	eventhandler_tag vlan_detach;
 	struct callout			sc_callout;
