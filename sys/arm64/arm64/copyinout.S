@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/errno.h>
 
+#include <machine/vmparam.h>
+
 #include "assym.s"
 
 /*
