@@ -706,15 +706,38 @@ bd_read(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest)
 {
 #ifdef LOADER_GELI_SUPPORT
 	struct dsk dskp;
-	off_t p_off;
-	int err, n;
+	off_t p_off, diff;
+	daddr_t alignlba;
+	int err, n, alignblks;
+	char *tmpbuf;
 
 	/* if we already know there is no GELI, skip the rest */
 	if (geli_status[dev->d_unit][dev->d_slice] != ISGELI_YES)
 		return (bd_io(dev, dblk, blks, dest, 0));
 
 	if (geli_status[dev->d_unit][dev->d_slice] == ISGELI_YES) {
-		err = bd_io(dev, dblk, blks, dest, 0);
+		/*
+		 * Align reads to DEV_GELIBOOT_BSIZE bytes because partial
+		 * sectors cannot be decrypted. Round the requested LBA down to
+		 * nearest multiple of DEV_GELIBOOT_BSIZE bytes.
+		 */
+		alignlba = dblk &
+		    ~(daddr_t)((DEV_GELIBOOT_BSIZE / BIOSDISK_SECSIZE) - 1);
+		/*
+		 * Round number of blocks to read up to nearest multiple of
+		 * DEV_GELIBOOT_BSIZE
+		 */
+		alignblks = blks + (dblk - alignlba) +
+		    ((DEV_GELIBOOT_BSIZE / BIOSDISK_SECSIZE) - 1) &
+		    ~(int)((DEV_GELIBOOT_BSIZE / BIOSDISK_SECSIZE) - 1);
+		diff = (dblk - alignlba) * BIOSDISK_SECSIZE;
+		/*
+		 * Use a temporary buffer here because the buffer provided by
+		 * the caller may be too small.
+		 */
+		tmpbuf = alloca(alignblks * BIOSDISK_SECSIZE);
+
+		err = bd_io(dev, alignlba, alignblks, tmpbuf, 0);
 		if (err)
 			return (err);
 
@@ -726,13 +749,14 @@ bd_read(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest)
 		dskp.start = dev->d_offset;
 
 		/* GELI needs the offset relative to the partition start */
-		p_off = dblk - dskp.start;
+		p_off = alignlba - dskp.start;
 
-		err = geli_read(&dskp, p_off * BIOSDISK_SECSIZE, dest,
-		    blks * BIOSDISK_SECSIZE);
+		err = geli_read(&dskp, p_off * BIOSDISK_SECSIZE, tmpbuf,
+		    alignblks * BIOSDISK_SECSIZE);
 		if (err)
 			return (err);
 
+		bcopy(tmpbuf + diff, dest, blks * BIOSDISK_SECSIZE);
 		return (0);
 	}
 #endif /* LOADER_GELI_SUPPORT */

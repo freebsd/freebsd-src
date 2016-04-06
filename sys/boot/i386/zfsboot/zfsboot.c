@@ -46,18 +46,20 @@ __FBSDID("$FreeBSD$");
 
 #include "libzfs.h"
 
-#define ARGS		0x900
-#define NOPT		14
-#define NDEV		3
+#define ARGS			0x900
+#define NOPT			14
+#define NDEV			3
 
-#define BIOS_NUMDRIVES	0x475
-#define DRV_HARD	0x80
-#define DRV_MASK	0x7f
+#define BIOS_NUMDRIVES		0x475
+#define DRV_HARD		0x80
+#define DRV_MASK		0x7f
 
-#define TYPE_AD		0
-#define TYPE_DA		1
-#define TYPE_MAXHARD	TYPE_DA
-#define TYPE_FD		2
+#define TYPE_AD			0
+#define TYPE_DA			1
+#define TYPE_MAXHARD		TYPE_DA
+#define TYPE_FD			2
+
+#define DEV_GELIBOOT_BSIZE	4096
 
 extern uint32_t _end;
 
@@ -104,13 +106,13 @@ static struct bios_smap smap;
 /*
  * The minimum amount of memory to reserve in bios_extmem for the heap.
  */
-#define	HEAP_MIN	(3 * 1024 * 1024)
+#define	HEAP_MIN		(3 * 1024 * 1024)
 
 static char *heap_next;
 static char *heap_end;
 
 /* Buffers that must not span a 64k boundary. */
-#define READ_BUF_SIZE	8192
+#define READ_BUF_SIZE		8192
 struct dmadat {
 	char rdbuf[READ_BUF_SIZE];	/* for reading large things */
 	char secbuf[READ_BUF_SIZE];	/* for MBR/disklabel */
@@ -198,8 +200,9 @@ static int
 vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 {
 	char *p;
-	daddr_t lba;
-	unsigned int nb;
+	daddr_t lba, alignlba;
+	off_t alignoff, diff;
+	unsigned int nb, alignnb;
 	struct dsk *dsk = (struct dsk *) priv;
 
 	if ((off & (DEV_BSIZE - 1)) || (bytes & (DEV_BSIZE - 1)))
@@ -208,24 +211,52 @@ vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 	p = buf;
 	lba = off / DEV_BSIZE;
 	lba += dsk->start;
+	/* Align reads to 4k else 4k sector GELIs will not decrypt. */
+	alignoff = off & ~ (off_t)(DEV_GELIBOOT_BSIZE - 1);
+	/* Round LBA down to nearest multiple of DEV_GELIBOOT_BSIZE bytes. */
+	alignlba = alignoff / DEV_BSIZE;
+	/*
+	 * The read must be aligned to DEV_GELIBOOT_BSIZE bytes relative to the
+	 * start of the GELI partition, not the start of the actual disk.
+	 */
+	alignlba += dsk->start;
+	diff = (lba - alignlba) * DEV_BSIZE;
+
 	while (bytes > 0) {
 		nb = bytes / DEV_BSIZE;
 		if (nb > READ_BUF_SIZE / DEV_BSIZE)
 			nb = READ_BUF_SIZE / DEV_BSIZE;
-		if (drvread(dsk, dmadat->rdbuf, lba, nb))
+		/*
+		 * Ensure that the read size plus the leading offset does not
+		 * exceed the size of the read buffer.
+		 */
+		if (nb * DEV_BSIZE + diff > READ_BUF_SIZE)
+		    nb -= diff / DEV_BSIZE;
+		/*
+		 * Round the number of blocks to read up to the nearest multiple
+		 * of DEV_GELIBOOT_BSIZE.
+		 */
+		alignnb = nb + (diff / DEV_BSIZE) +
+		    (DEV_GELIBOOT_BSIZE / DEV_BSIZE - 1) & ~
+		    (unsigned int)(DEV_GELIBOOT_BSIZE / DEV_BSIZE - 1);
+
+		if (drvread(dsk, dmadat->rdbuf, alignlba, alignnb))
 			return -1;
 #ifdef LOADER_GELI_SUPPORT
 		/* decrypt */
 		if (is_geli(dsk) == 0) {
-		    if (geli_read(dsk, ((lba - dsk->start) * DEV_BSIZE),
-			dmadat->rdbuf, nb * DEV_BSIZE))
-			    return (-1);
+			if (geli_read(dsk, ((alignlba - dsk->start) *
+			    DEV_BSIZE), dmadat->rdbuf, alignnb * DEV_BSIZE))
+				return (-1);
 		}
 #endif
-		memcpy(p, dmadat->rdbuf, nb * DEV_BSIZE);
+		memcpy(p, dmadat->rdbuf + diff, nb * DEV_BSIZE);
 		p += nb * DEV_BSIZE;
 		lba += nb;
+		alignlba += alignnb;
 		bytes -= nb * DEV_BSIZE;
+		/* Don't need the leading offset after the first block. */
+		diff = 0;
 	}
 
 	return 0;
