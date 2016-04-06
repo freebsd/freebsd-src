@@ -65,6 +65,10 @@ struct ieee80211_tx_ampdu {
 #define	IEEE80211_AMPDU_RUNNING(tap) \
 	(((tap)->txa_flags & IEEE80211_AGGR_RUNNING) != 0)
 
+/* return non-zero if AMPDU tx for the TID was NACKed */
+#define	IEEE80211_AMPDU_NACKED(tap)\
+	(!! ((tap)->txa_flags & IEEE80211_AGGR_NAK))
+
 /* return non-zero if AMPDU tx for the TID is running or started */
 #define	IEEE80211_AMPDU_REQUESTED(tap) \
 	(((tap)->txa_flags & \
