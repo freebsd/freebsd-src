@@ -70,6 +70,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#ifdef EXT_RESOURCES
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/hwreset/hwreset.h>
+#endif
+
 #include "if_dwc_if.h"
 #include "gpio_if.h"
 #include "miibus_if.h"
@@ -1068,6 +1073,36 @@ dwc_reset(device_t dev)
 	return (0);
 }
 
+#ifdef EXT_RESOURCES
+static int
+dwc_clock_init(device_t dev)
+{
+	hwreset_t rst;
+	clk_t clk;
+	int error;
+
+	/* Enable clock */
+	if (clk_get_by_ofw_name(dev, "stmmaceth", &clk) == 0) {
+		error = clk_enable(clk);
+		if (error != 0) {
+			device_printf(dev, "could not enable main clock\n");
+			return (error);
+		}
+	}
+
+	/* De-assert reset */
+	if (hwreset_get_by_ofw_name(dev, "stmmaceth", &rst) == 0) {
+		error = hwreset_deassert(rst);
+		if (error != 0) {
+			device_printf(dev, "could not de-assert reset\n");
+			return (error);
+		}
+	}
+
+	return (0);
+}
+#endif
+
 static int
 dwc_probe(device_t dev)
 {
@@ -1100,6 +1135,11 @@ dwc_attach(device_t dev)
 
 	if (IF_DWC_INIT(dev) != 0)
 		return (ENXIO);
+
+#ifdef EXT_RESOURCES
+	if (dwc_clock_init(dev) != 0)
+		return (ENXIO);
+#endif
 
 	if (bus_alloc_resources(dev, dwc_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
