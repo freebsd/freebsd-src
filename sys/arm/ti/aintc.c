@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #define INTC_ISR_CLEAR(x)	(0x94 + ((x) * 0x20))
 
 #define INTC_SIR_SPURIOUS_MASK	0xffffff80
-#define INTS_SIR_ACTIVE_MASK	0x7f
+#define INTC_SIR_ACTIVE_MASK	0x7f
 
 #define INTC_NIRQS	128
 
@@ -143,7 +143,7 @@ ti_aintc_intr(void *arg)
 	}
 
 	/* Only level-sensitive interrupts detection is supported. */
-	irq &= INTS_SIR_ACTIVE_MASK;
+	irq &= INTC_SIR_ACTIVE_MASK;
 	if (intr_isrc_dispatch(&sc->aintc_isrcs[irq].tai_isrc,
 	    curthread->td_intr_frame) != 0) {
 		ti_aintc_irq_mask(sc, irq);
