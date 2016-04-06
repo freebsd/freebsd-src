@@ -644,7 +644,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[1] = p->level; /* int */
 		iarg[2] = p->name; /* int */
 		uarg[3] = (intptr_t) p->val; /* caddr_t */
-		uarg[4] = (intptr_t) p->avalsize; /* int * */
+		uarg[4] = (intptr_t) p->avalsize; /* socklen_t * */
 		*n_args = 5;
 		break;
 	}
@@ -905,7 +905,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 189: {
 		struct fstat_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->ub; /* struct stat * */
+		uarg[1] = (intptr_t) p->sb; /* struct stat * */
 		*n_args = 2;
 		break;
 	}
@@ -2481,7 +2481,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = (intptr_t) p->msg; /* caddr_t */
 		iarg[2] = p->mlen; /* int */
 		uarg[3] = (intptr_t) p->to; /* caddr_t */
-		iarg[4] = p->tolen; /* __socklen_t */
+		iarg[4] = p->tolen; /* socklen_t */
 		uarg[5] = (intptr_t) p->sinfo; /* struct sctp_sndrcvinfo * */
 		iarg[6] = p->flags; /* int */
 		*n_args = 7;
@@ -2494,7 +2494,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = (intptr_t) p->iov; /* struct iovec_c * */
 		iarg[2] = p->iovlen; /* int */
 		uarg[3] = (intptr_t) p->to; /* caddr_t */
-		iarg[4] = p->tolen; /* __socklen_t */
+		iarg[4] = p->tolen; /* socklen_t */
 		uarg[5] = (intptr_t) p->sinfo; /* struct sctp_sndrcvinfo * */
 		iarg[6] = p->flags; /* int */
 		*n_args = 7;
@@ -2507,7 +2507,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = (intptr_t) p->iov; /* struct iovec_c * */
 		iarg[2] = p->iovlen; /* int */
 		uarg[3] = (intptr_t) p->from; /* struct sockaddr * */
-		uarg[4] = (intptr_t) p->fromlenaddr; /* __socklen_t * */
+		uarg[4] = (intptr_t) p->fromlenaddr; /* socklen_t * */
 		uarg[5] = (intptr_t) p->sinfo; /* struct sctp_sndrcvinfo * */
 		uarg[6] = (intptr_t) p->msg_flags; /* int * */
 		*n_args = 7;
@@ -3020,7 +3020,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[2] = (intptr_t) p->status; /* int * */
 		iarg[3] = p->options; /* int */
 		uarg[4] = (intptr_t) p->wrusage; /* struct __wrusage * */
-		uarg[5] = (intptr_t) p->info; /* struct __siginfo_c * */
+		uarg[5] = (intptr_t) p->info; /* struct siginfo_c * */
 		*n_args = 6;
 		break;
 	}
@@ -3101,7 +3101,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct accept4_args *p = params;
 		iarg[0] = p->s; /* int */
 		uarg[1] = (intptr_t) p->name; /* struct sockaddr * */
-		uarg[2] = (intptr_t) p->anamelen; /* __socklen_t * */
+		uarg[2] = (intptr_t) p->anamelen; /* socklen_t * */
 		iarg[3] = p->flags; /* int */
 		*n_args = 4;
 		break;
@@ -4194,7 +4194,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "caddr_t";
 			break;
 		case 4:
-			p = "int *";
+			p = "socklen_t *";
 			break;
 		default:
 			break;
@@ -7203,7 +7203,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "caddr_t";
 			break;
 		case 4:
-			p = "__socklen_t";
+			p = "socklen_t";
 			break;
 		case 5:
 			p = "struct sctp_sndrcvinfo *";
@@ -7231,7 +7231,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "caddr_t";
 			break;
 		case 4:
-			p = "__socklen_t";
+			p = "socklen_t";
 			break;
 		case 5:
 			p = "struct sctp_sndrcvinfo *";
@@ -7259,7 +7259,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "struct sockaddr *";
 			break;
 		case 4:
-			p = "__socklen_t *";
+			p = "socklen_t *";
 			break;
 		case 5:
 			p = "struct sctp_sndrcvinfo *";
@@ -8181,7 +8181,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "struct __wrusage *";
 			break;
 		case 5:
-			p = "struct __siginfo_c *";
+			p = "struct siginfo_c *";
 			break;
 		default:
 			break;
@@ -8325,7 +8325,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "struct sockaddr *";
 			break;
 		case 2:
-			p = "__socklen_t *";
+			p = "socklen_t *";
 			break;
 		case 3:
 			p = "int";
