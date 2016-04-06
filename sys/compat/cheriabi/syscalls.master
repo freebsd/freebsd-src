@@ -38,6 +38,9 @@
 ;	NODEF	same as STD except only have the entry in the syscall table
 ;		added.  Meaning - do not create structure or function
 ;		prototype in sys/sysproto.h
+;	NOPARSE	don't attempt to generate an argument parse.  Intended
+;		for use in cases where annotation is insufficient to
+;		accurately check arguments.
 ;	NOPROTO	same as STD except do not create structure or
 ;		function prototype in sys/sysproto.h.  Does add a
 ;		definition to syscall.h besides adding a sysent.
@@ -201,7 +204,7 @@
 76	AUE_NULL	OBSOL	vhangup
 77	AUE_NULL	OBSOL	vlimit
 ; XXX-BD: missing round up of len for misaligned addr
-78	AUE_MINCORE	NOPROTO	{ int mincore( \
+78	AUE_MINCORE	NOPROTO|NOPARSE	{ int mincore( \
 				    _In_pagerange_(len) const void *addr, \
 				    size_t len, \
 				    _Out_writes_bytes_(len/PAGE_SIZE) \
@@ -226,7 +229,7 @@
 90	AUE_DUP2	NOPROTO	{ int dup2(u_int from, u_int to); }
 91	AUE_NULL	UNIMPL	getdopt
 ; XXX-BD: no practical way to check arg
-92	AUE_FCNTL	NOPROTO	{ int fcntl(int fd, int cmd, intptr_t arg); }
+92	AUE_FCNTL	NOPROTO|NOPARSE	{ int fcntl(int fd, int cmd, intptr_t arg); }
 93	AUE_SELECT	NOPROTO	{ int select(int nd, _Inout_opt_ fd_set *in, \
 				    _Inout_opt_ fd_set *ou, \
 				    _Inout_opt_ fd_set *ex, \
@@ -350,7 +353,7 @@
 163	AUE_NULL	OBSOL	setdomainname
 164	AUE_NULL	OBSOL	uname
 ; XXX-BD params is basically uncheckable
-165	AUE_SYSARCH	STD	{ int cheriabi_sysarch(int op, char *parms); }
+165	AUE_SYSARCH	STD|NOPARSE	{ int cheriabi_sysarch(int op, char *parms); }
 ; XXX-BD rtp is _In_ or _Out_ depending on function
 166	AUE_RTPRIO	NOPROTO	{ int rtprio(int function, pid_t pid, \
 				    _Inout_ struct rtprio *rtp); }
@@ -454,15 +457,13 @@
 227	AUE_MSGRCV	NOSTD|NOPROTO	{ int msgrcv(int msqid, \
 				    _Out_writes_bytes_(msgsz) void *msgp, \
 				    size_t msgsz, long msgtyp, int msgflg); }
-; XXX-BD: in the SHM_RND case, shmaddr needs cover being rounded down by
-; SHMLBA.
-; XXX-BD: How much space is needed?
-228	AUE_SHMAT	NOSTD|NOPROTO	{ int shmat(int shmid, \
+; XXX-BD: _In_pagerange_opt_(1) would be wrong if shmaddr points to the last
+; byte of the page
+228	AUE_SHMAT	NOSTD|NOPROTO|NOPARSE	{ int shmat(int shmid, \
 				    _In_pagerange_opt_(1) void *shmaddr, \
 				    int shmflg); }
 229	AUE_SHMCTL	OBSOL	shmctl
-; XXX-BD: How much space is needed?
-230	AUE_SHMDT	NOSTD|NOPROTO	{ int shmdt( \
+230	AUE_SHMDT	NOSTD|NOPROTO|NOPARSE { int shmdt( \
 				    _In_pagerange_(1) void *shmaddr); }
 231	AUE_SHMGET	NOSTD|NOPROTO	{ int shmget(key_t key, int size, \
 				    int shmflg); }
@@ -783,8 +784,8 @@
 				    size_t nbytes, \
 				    _In_opt_ struct sf_hdtr_c *hdtr, \
 				    _Out_opt_ off_t *sbytes, int flags); }
-; XXX-BD: arg isn't centrally checkable
-394	AUE_NULL	NOPROTO	{ int mac_syscall( \
+; XXX-BD: probably requires a wrapper
+394	AUE_NULL	NOPROTO|NOPARSE	{ int mac_syscall( \
 				    _In_z_ const char *policy, \
 				    int call, _In_opt_ void *arg); }
 395	AUE_GETFSSTAT	NOPROTO	{ int getfsstat( \
@@ -902,8 +903,7 @@
 				    _In_reads_bytes_(length) \
 				    const void *record, \
 				    u_int length); }
-; XXX-BD: data is hard to validate
-446	AUE_AUDITON	NOPROTO	{ int auditon(int cmd, \
+446	AUE_AUDITON	NOPROTO|NOPARSE	{ int auditon(int cmd, \
 				    _In_opt_ void *data, \
 				    u_int length); }
 447	AUE_GETAUID	NOPROTO	{ int getauid(_Out_ uid_t *auid); }
@@ -925,16 +925,16 @@
 453	AUE_AUDITCTL	NOPROTO	{ int auditctl(_In_z_ char *path); }
 ; XXX-BD: args pretty much unauditable
 ; XXXBD: do uaddr(2) need special handling?
-454	AUE_NULL	NOPROTO	{ int _umtx_op(void *obj, int op,\
+454	AUE_NULL	NOPROTO|NOPARSE	{ int _umtx_op(void *obj, int op,\
 				    u_long val, void *uaddr, \
 				    void *uaddr2); }
 455	AUE_NULL	STD	{ int cheriabi_thr_new(	\
 				    _In_ struct thr_param_c *param, \
 				    int param_size); }
-; XXX-BD: this is obviously wrong since value is a union containg int or
+; XXX-BD: this is obviously wrong since value is a union containing int or
 ; pointer data.  Unclear how to handle it since I haven't found a
 ; consumer of the pointer.
-456	AUE_NULL	NOPROTO	{ int sigqueue(pid_t pid, int signum, \
+456	AUE_NULL	NOPROTO|NOPARSE	{ int sigqueue(pid_t pid, int signum, \
 				    void *value); }
 457	AUE_NULL	NOSTD|NOPROTO	{ int kmq_open( \
 				    _In_z_ const char *path, int flags, \
@@ -1085,11 +1085,9 @@
 				    unsigned int iovcnt, int flags); }
 508	AUE_NULL	NOPROTO	{ int jail_remove(int jid); }
 509	AUE_CLOSEFROM	NOPROTO	{ int closefrom(int lowfd); }
-; XXX-BD: not mechanically auditable
-510	AUE_SEMCTL	NOSTD { int cheriabi___semctl(int semid, int semnum, \
+510	AUE_SEMCTL	NOSTD|NOPARSE { int cheriabi___semctl(int semid, int semnum, \
 				    int cmd, union semun_c *arg); }
-; XXX-BD: not mechanically auditable
-511	AUE_MSGCTL	NOSTD	{ int cheriabi_msgctl(int msqid, int cmd, \
+511	AUE_MSGCTL	NOSTD|NOPARSE	{ int cheriabi_msgctl(int msqid, int cmd, \
 				    struct msqid_ds_c *buf); }
 ; XXX: technically buf is sometimes _In_ and sometimes _Out_
 512	AUE_SHMCTL	NOSTD|NOPROTO	{ int shmctl(int shmid, int cmd, \
@@ -1175,14 +1173,13 @@
 				    _Out_writes_bytes_opt_(*anamelen) \
 				    struct sockaddr * __restrict name, \
 				    _Inout_opt_ \
-				    __socklen_t * __restrict anamelen, \
+				    socklen_t * __restrict anamelen, \
 				    int flags); }
 542	AUE_PIPE	NOPROTO	{ int pipe2(_Out_writes_(2) int *fildes, \
 				    int flags); }
 543	AUE_NULL	NOSTD	{ int cheriabi_aio_mlock( \
 				    _In_ struct aiocb_c *aiocbp); }
-; XXX-BD: data unauditable
-544	AUE_NULL	NOPROTO	{ int procctl(int idtype, id_t id, \
+544	AUE_NULL	NOPROTO|NOPARSE	{ int procctl(int idtype, id_t id, \
 				    int com, void *data); }
 545	AUE_POLL	NOPROTO	{ int ppoll( \
 				    _Inout_updates_(nfds) struct pollfd *fds, \
