@@ -60,6 +60,22 @@
 #include <sys/sysproto.h>
 #include <sys/ucontext.h>
 
+/* Required by cheriabi_fill_uap.h */
+#include <sys/capsicum.h>
+#include <sys/linker.h>
+#include <sys/mqueue.h>
+#include <sys/poll.h>
+#include <sys/resource.h>
+#include <sys/sched.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/timeffc.h>
+#include <sys/timex.h>
+#include <sys/uuid.h>
+#include <netinet/sctp.h>
+
 #include <machine/cheri.h>
 #include <machine/cpuinfo.h>
 #include <machine/md_var.h>
@@ -70,10 +86,16 @@
 
 #include <sys/cheriabi.h>
 
+#include <compat/cheriabi/cheriabi.h>
 #include <compat/cheriabi/cheriabi_proto.h>
 #include <compat/cheriabi/cheriabi_syscall.h>
 #include <compat/cheriabi/cheriabi_sysargmap.h>
 #include <compat/cheriabi/cheriabi_util.h>
+
+#include <compat/cheriabi/cheriabi_signal.h>
+#include <compat/cheriabi/cheriabi_aio.h>
+#include <compat/cheriabi/cheriabi_fill_uap.h>
+#include <compat/cheriabi/cheriabi_dispatch_fill_uap.h>
 
 #include <ddb/ddb.h>
 #include <sys/kdb.h>
@@ -209,12 +231,15 @@ static int
 cheriabi_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 {
 	struct trapframe *locr0 = td->td_frame;	 /* aka td->td_pcb->pcv_regs */
+#ifdef OLD_ARG_HANDLING
 	struct cheri_frame *capreg = &td->td_pcb->pcb_cheriframe;
 	register_t intargs[8];
 	uintptr_t ptrargs[8];
 	struct sysentvec *se;
 	u_int tag;
-	int error, i, isaved, psaved, curint, curptr, nintargs, nptrargs;
+	int i, isaved, psaved, curint, curptr, nintargs, nptrargs;
+#endif
+	int error;
 
 	error = 0;
 
@@ -227,6 +252,10 @@ cheriabi_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	else
 		locr0->pc += sizeof(int);
 	sa->code = locr0->v0;
+
+#ifndef OLD_ARG_HANDLING
+	error = cheriabi_dispatch_fill_uap(td, sa->code, sa->args);
+#else
 
 	intargs[0] = locr0->a0;
 	intargs[1] = locr0->a1;
@@ -342,6 +371,7 @@ cheriabi_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		sa->args[i] =
 		    (CHERIABI_SYS_argmap[sa->code].sam_ptrmask & 1 << i) ?
 		    ptrargs[curptr++] : intargs[curint++];
+#endif /* OLD_ARG_HANDLING */
 
 	td->td_retval[0] = 0;
 	td->td_retval[1] = locr0->v1;
