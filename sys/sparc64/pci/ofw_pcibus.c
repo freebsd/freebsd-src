@@ -65,6 +65,7 @@ static void ofw_pcibus_setup_device(device_t bridge, uint32_t clock,
     u_int busno, u_int slot, u_int func);
 
 /* Methods */
+static bus_child_deleted_t ofw_pcibus_child_deleted;
 static bus_child_pnpinfo_str_t ofw_pcibus_pnpinfo_str;
 static device_attach_t ofw_pcibus_attach;
 static device_probe_t ofw_pcibus_probe;
@@ -77,6 +78,7 @@ static device_method_t ofw_pcibus_methods[] = {
 	DEVMETHOD(device_attach,	ofw_pcibus_attach),
 
 	/* Bus interface */
+	DEVMETHOD(bus_child_deleted,	ofw_pcibus_child_deleted),
 	DEVMETHOD(bus_child_pnpinfo_str, ofw_pcibus_pnpinfo_str),
 
 	/* PCI interface */
@@ -325,6 +327,16 @@ ofw_pcibus_get_devinfo(device_t bus, device_t dev)
 
 	dinfo = device_get_ivars(dev);
 	return (&dinfo->opd_obdinfo);
+}
+
+static void
+ofw_pcibus_child_deleted(device_t dev, device_t child)
+{
+	struct ofw_pcibus_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
+	pci_child_deleted(dev, child);
 }
 
 static int

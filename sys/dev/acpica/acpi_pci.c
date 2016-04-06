@@ -70,6 +70,7 @@ CTASSERT(ACPI_STATE_D2 == PCI_POWERSTATE_D2);
 CTASSERT(ACPI_STATE_D3 == PCI_POWERSTATE_D3);
 
 static int	acpi_pci_attach(device_t dev);
+static void	acpi_pci_child_deleted(device_t dev, device_t child);
 static int	acpi_pci_child_location_str_method(device_t cbdev,
 		    device_t child, char *buf, size_t buflen);
 static int	acpi_pci_probe(device_t dev);
@@ -97,6 +98,7 @@ static device_method_t acpi_pci_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	acpi_pci_read_ivar),
 	DEVMETHOD(bus_write_ivar,	acpi_pci_write_ivar),
+	DEVMETHOD(bus_child_deleted,	acpi_pci_child_deleted),
 	DEVMETHOD(bus_child_location_str, acpi_pci_child_location_str_method),
 	DEVMETHOD(bus_get_dma_tag,	acpi_pci_get_dma_tag),
 	DEVMETHOD(bus_get_domain,	acpi_get_domain),
@@ -151,6 +153,16 @@ acpi_pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	return (0);
     }
     return (pci_write_ivar(dev, child, which, value));
+}
+
+static void
+acpi_pci_child_deleted(device_t dev, device_t child)
+{
+	struct acpi_pci_devinfo *dinfo = device_get_ivars(child);
+
+	if (acpi_get_device(dinfo->ap_handle) == child)
+		AcpiDetachData(dinfo->ap_handle, acpi_fake_objhandler);
+	pci_child_deleted(dev, child);
 }
 
 static int
