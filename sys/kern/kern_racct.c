@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_sched.h"
 
 #include <sys/param.h>
+#include <sys/buf.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
 #include <sys/jail.h>
@@ -177,7 +178,15 @@ int racct_types[] = {
 	[RACCT_WALLCLOCK] =
 		RACCT_IN_MILLIONS,
 	[RACCT_PCTCPU] =
-		RACCT_DECAYING | RACCT_DENIABLE | RACCT_IN_MILLIONS };
+		RACCT_DECAYING | RACCT_DENIABLE | RACCT_IN_MILLIONS,
+	[RACCT_READBPS] =
+		RACCT_DECAYING,
+	[RACCT_WRITEBPS] =
+		RACCT_DECAYING,
+	[RACCT_READIOPS] =
+		RACCT_DECAYING,
+	[RACCT_WRITEIOPS] =
+		RACCT_DECAYING };
 
 static const fixpt_t RACCT_DECAY_FACTOR = 0.3 * FSCALE;
 
@@ -634,6 +643,28 @@ racct_add_cred(struct ucred *cred, int resource, uint64_t amount)
 	RACCT_UNLOCK();
 }
 
+/*
+ * Account for disk IO resource consumption.  Checks for limits,
+ * but never fails, due to disk limits being undeniable.
+ */
+void
+racct_add_buf(struct proc *p, const struct buf *bp, int is_write)
+{
+
+	ASSERT_RACCT_ENABLED();
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	RACCT_LOCK();
+	if (is_write) {
+		racct_add_locked(curproc, RACCT_WRITEBPS, bp->b_bcount, 1);
+		racct_add_locked(curproc, RACCT_WRITEIOPS, 1, 1);
+	} else {
+		racct_add_locked(curproc, RACCT_READBPS, bp->b_bcount, 1);
+		racct_add_locked(curproc, RACCT_READIOPS, 1, 1);
+	}
+	RACCT_UNLOCK();
+}
+
 static int
 racct_set_locked(struct proc *p, int resource, uint64_t amount, int force)
 {
@@ -655,7 +686,7 @@ racct_set_locked(struct proc *p, int resource, uint64_t amount, int force)
 	 * The diffs may be negative.
 	 */
 	diff_proc = amount - old_amount;
-	if (RACCT_IS_DECAYING(resource)) {
+	if (resource == RACCT_PCTCPU) {
 		/*
 		 * Resources in per-credential racct containers may decay.
 		 * If this is the case, we need to calculate the difference
@@ -1043,14 +1074,19 @@ racct_move(struct racct *dest, struct racct *src)
 	RACCT_UNLOCK();
 }
 
-static void
-racct_proc_throttle(struct proc *p)
+/*
+ * Make the process sleep in userret() for 'timeout' ticks.  Setting
+ * timeout to -1 makes it sleep until woken up by racct_proc_wakeup().
+ */
+void
+racct_proc_throttle(struct proc *p, int timeout)
 {
 	struct thread *td;
 #ifdef SMP
 	int cpuid;
 #endif
 
+	KASSERT(timeout != 0, ("timeout %d", timeout));
 	ASSERT_RACCT_ENABLED();
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
@@ -1058,10 +1094,13 @@ racct_proc_throttle(struct proc *p)
 	 * Do not block kernel processes.  Also do not block processes with
 	 * low %cpu utilization to improve interactivity.
 	 */
-	if (((p->p_flag & (P_SYSTEM | P_KPROC)) != 0) ||
-	    (p->p_racct->r_resources[RACCT_PCTCPU] <= pcpu_threshold))
+	if ((p->p_flag & (P_SYSTEM | P_KPROC)) != 0)
 		return;
-	p->p_throttled = 1;
+
+	if (p->p_throttled < 0 || (timeout > 0 && p->p_throttled > timeout))
+		return;
+
+	p->p_throttled = timeout;
 
 	FOREACH_THREAD_IN_PROC(p, td) {
 		thread_lock(td);
@@ -1102,7 +1141,7 @@ racct_proc_wakeup(struct proc *p)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	if (p->p_throttled) {
+	if (p->p_throttled != 0) {
 		p->p_throttled = 0;
 		wakeup(p->p_racct);
 	}
@@ -1115,6 +1154,13 @@ racct_decay_callback(struct racct *racct, void *dummy1, void *dummy2)
 
 	ASSERT_RACCT_ENABLED();
 	RACCT_LOCK_ASSERT();
+
+#ifdef RCTL
+	rctl_throttle_decay(racct, RACCT_READBPS);
+	rctl_throttle_decay(racct, RACCT_WRITEBPS);
+	rctl_throttle_decay(racct, RACCT_READIOPS);
+	rctl_throttle_decay(racct, RACCT_WRITEIOPS);
+#endif
 
 	r_old = racct->r_resources[RACCT_PCTCPU];
 
@@ -1206,6 +1252,12 @@ racctd(void)
 				pct_estimate = 0;
 			pct = racct_getpcpu(p, pct_estimate);
 			RACCT_LOCK();
+#ifdef RCTL
+			rctl_throttle_decay(p->p_racct, RACCT_READBPS);
+			rctl_throttle_decay(p->p_racct, RACCT_WRITEBPS);
+			rctl_throttle_decay(p->p_racct, RACCT_READIOPS);
+			rctl_throttle_decay(p->p_racct, RACCT_WRITEIOPS);
+#endif
 			racct_set_locked(p, RACCT_PCTCPU, pct, 1);
 			racct_set_locked(p, RACCT_CPU, runtime, 0);
 			racct_set_locked(p, RACCT_WALLCLOCK,
@@ -1228,10 +1280,13 @@ racctd(void)
 				continue;
 			}
 
-			if (racct_pcpu_available(p) <= 0)
-				racct_proc_throttle(p);
-			else if (p->p_throttled)
+			if (racct_pcpu_available(p) <= 0) {
+				if (p->p_racct->r_resources[RACCT_PCTCPU] >
+				    pcpu_threshold)
+					racct_proc_throttle(p, -1);
+			} else if (p->p_throttled == -1) {
 				racct_proc_wakeup(p);
+			}
 			PROC_UNLOCK(p);
 		}
 		sx_sunlock(&allproc_lock);
