@@ -120,7 +120,7 @@ handled:
 	     *
 	     * NOTE:
 	     * mb() is used here, since atomic_thread_fence_seq_cst()
-	     * will become compler fence on UP kernel.
+	     * will become compiler fence on UP kernel.
 	     */
 	    mb();
 
@@ -197,7 +197,7 @@ hv_vmbus_isr(struct trapframe *frame)
 		 *
 		 * NOTE:
 		 * mb() is used here, since atomic_thread_fence_seq_cst()
-		 * will become compler fence on UP kernel.
+		 * will become compiler fence on UP kernel.
 		 */
 		mb();
 
