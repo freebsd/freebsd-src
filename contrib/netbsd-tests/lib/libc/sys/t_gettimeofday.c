@@ -46,9 +46,11 @@ ATF_TC_HEAD(gettimeofday_err, tc)
 ATF_TC_BODY(gettimeofday_err, tc)
 {
 
+#ifdef __NetBSD__
 	errno = 0;
 
 	ATF_REQUIRE_ERRNO(EFAULT, gettimeofday((void *)-1, NULL) != 0);
+#endif
 }
 
 ATF_TC(gettimeofday_mono);
