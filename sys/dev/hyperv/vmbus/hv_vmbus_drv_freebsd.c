@@ -391,79 +391,8 @@ vmbus_probe(device_t dev) {
 }
 
 #ifdef HYPERV
-extern inthand_t IDTVEC(rsvd), IDTVEC(hv_vmbus_callback);
-
-/**
- * @brief Find a free IDT slot and setup the interrupt handler.
- */
-static int
-vmbus_vector_alloc(void)
-{
-	int vector;
-	uintptr_t func;
-	struct gate_descriptor *ip;
-
-	/*
-	 * Search backwards form the highest IDT vector available for use
-	 * as vmbus channel callback vector. We install 'hv_vmbus_callback'
-	 * handler at that vector and use it to interrupt vcpus.
-	 */
-	vector = APIC_SPURIOUS_INT;
-	while (--vector >= APIC_IPI_INTS) {
-		ip = &idt[vector];
-		func = ((long)ip->gd_hioffset << 16 | ip->gd_looffset);
-		if (func == (uintptr_t)&IDTVEC(rsvd)) {
-#ifdef __i386__
-			setidt(vector , IDTVEC(hv_vmbus_callback), SDT_SYS386IGT,
-			    SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-#else
-			setidt(vector , IDTVEC(hv_vmbus_callback), SDT_SYSIGT,
-			    SEL_KPL, 0);
+extern inthand_t IDTVEC(hv_vmbus_callback);
 #endif
-
-			return (vector);
-		}
-	}
-	return (0);
-}
-
-/**
- * @brief Restore the IDT slot to rsvd.
- */
-static void
-vmbus_vector_free(int vector)
-{
-        uintptr_t func;
-        struct gate_descriptor *ip;
-
-	if (vector == 0)
-		return;
-
-        KASSERT(vector >= APIC_IPI_INTS && vector < APIC_SPURIOUS_INT,
-            ("invalid vector %d", vector));
-
-        ip = &idt[vector];
-        func = ((long)ip->gd_hioffset << 16 | ip->gd_looffset);
-        KASSERT(func == (uintptr_t)&IDTVEC(hv_vmbus_callback),
-            ("invalid vector %d", vector));
-
-        setidt(vector, IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
-}
-
-#else /* HYPERV */
-
-static int
-vmbus_vector_alloc(void)
-{
-	return(0);
-}
-
-static void
-vmbus_vector_free(int vector)
-{
-}
-
-#endif /* HYPERV */
 
 /**
  * @brief Main vmbus driver initialization routine.
@@ -497,12 +426,15 @@ vmbus_bus_init(void)
 		return (ret);
 	}
 
+#ifdef HYPERV
 	/*
 	 * Find a free IDT slot for vmbus callback.
 	 */
-	hv_vmbus_g_context.hv_cb_vector = vmbus_vector_alloc();
-
-	if (hv_vmbus_g_context.hv_cb_vector == 0) {
+	hv_vmbus_g_context.hv_cb_vector = lapic_ipi_alloc(IDTVEC(hv_vmbus_callback));
+#else
+	hv_vmbus_g_context.hv_cb_vector = -1;
+#endif
+	if (hv_vmbus_g_context.hv_cb_vector < 0) {
 		if(bootverbose)
 			printf("Error VMBUS: Cannot find free IDT slot for "
 			    "vmbus callback!\n");
@@ -595,7 +527,7 @@ vmbus_bus_init(void)
 		}
 	}
 
-	vmbus_vector_free(hv_vmbus_g_context.hv_cb_vector);
+	lapic_ipi_free(hv_vmbus_g_context.hv_cb_vector);
 
 	cleanup:
 	hv_vmbus_cleanup();
@@ -663,7 +595,7 @@ vmbus_bus_exit(void)
 		}
 	}
 
-	vmbus_vector_free(hv_vmbus_g_context.hv_cb_vector);
+	lapic_ipi_free(hv_vmbus_g_context.hv_cb_vector);
 
 	return;
 }
