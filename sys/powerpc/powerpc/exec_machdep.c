@@ -224,10 +224,10 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		usfp = (void *)(td->td_sigstk.ss_sp +
-		   td->td_sigstk.ss_size - rndfsize);
+		usfp = (void *)(((uintptr_t)td->td_sigstk.ss_sp +
+		   td->td_sigstk.ss_size - rndfsize) & ~0xFul);
 	} else {
-		usfp = (void *)(tf->fixreg[1] - rndfsize);
+		usfp = (void *)((tf->fixreg[1] - rndfsize) & ~0xFul);
 	}
 
 	/*
