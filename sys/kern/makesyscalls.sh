@@ -335,12 +335,12 @@ s/\$//g
 		printf("\tCHERI_CGETTAG(tag, CHERI_CR_CTEMP0);\n") > cheriabi_fill_uap
 		printf("\tif (!tag) {\n") > cheriabi_fill_uap
 		if (annotation !~ /_opt_/) {
-			printf("\t\treturn (EINVAL);\n") > cheriabi_fill_uap
+			printf("\t\treturn (EPROT);\n") > cheriabi_fill_uap
 		} else {
 			printf("\t\tCHERI_CTOINT(uap->%s, CHERI_CR_CTEMP0);\n", a_name) > cheriabi_fill_uap
 			printf("\t\tif (uap->%s != NULL)\n",
 			     a_name) > cheriabi_fill_uap
-			printf("\t\t\treturn (EINVAL);\n") > cheriabi_fill_uap
+			printf("\t\t\treturn (EPROT);\n") > cheriabi_fill_uap
 		}
 		printf("\t} else {\n") > cheriabi_fill_uap
 		# XXX-BD: exclude perm check for _pagerange_?
@@ -407,17 +407,21 @@ s/\$//g
 			reqspace = sprintf("sizeof(*uap->%s)", a_name)
 		printf("\t\tCHERI_CGETLEN(length, CHERI_CR_CTEMP0);\n") > cheriabi_fill_uap
 		printf("\t\tCHERI_CGETLEN(offset, CHERI_CR_CTEMP0);\n") > cheriabi_fill_uap
+		printf("\t\tif (offset => length)\n") > cheriabi_fill_uap
+		printf("\t\t\treturn (EPROT);\n") > cheriabi_fill_uap
 		printf("\t\tlength -= offset;\n") > cheriabi_fill_uap
 		if (annotation ~ /_pagerange_/) {
+			# NB: base + offset can not overflow because
+			# we have enforced (offset < length).
 			printf("\t\tCHERI_CGETLEN(base, CHERI_CR_CTEMP0);\n") > cheriabi_fill_uap
 			printf("\t\tif (rounddown2(base + offset, PAGE_SIZE) < base)\n") > cheriabi_fill_uap
-			printf("\t\t\treturn (EINVAL);\n") > cheriabi_fill_uap
-			printf("\t\t\tsize_t adjust;\n") > cheriabi_fill_uap
+			printf("\t\t\treturn (EPROT);\n") > cheriabi_fill_uap
+			printf("\t\tsize_t adjust;\n") > cheriabi_fill_uap
 			printf("\t\tadjust = ((base + offset) & PAGE_MASK);\n") > cheriabi_fill_uap
 			printf("\t\tlength += adjust;\n") > cheriabi_fill_uap
 		}
 		printf("\t\tif (length < %s)\n", reqspace) > cheriabi_fill_uap
-		printf("\t\t\treturn (EINVAL);\n") > cheriabi_fill_uap
+		printf("\t\t\treturn (EPROT);\n") > cheriabi_fill_uap
 
 		# Load the actual pointer value
 		printf("\n") > cheriabi_fill_uap
