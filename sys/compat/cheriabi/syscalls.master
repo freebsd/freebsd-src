@@ -921,7 +921,7 @@
 ; XXX-BD: args pretty much unauditable
 ; XXXBD: do uaddr(2) need special handling?
 454	AUE_NULL	NOPROTO|NOPARSE	{ int _umtx_op(void *obj, int op,\
-				    u_long val, void *uaddr, \
+				    u_long val, void *uaddr1, \
 				    void *uaddr2); }
 455	AUE_NULL	STD	{ int cheriabi_thr_new(	\
 				    _In_ struct thr_param_c *param, \
