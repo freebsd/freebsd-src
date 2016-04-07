@@ -140,11 +140,6 @@ CTASSERT(sizeof(struct cheri_frame) == (29 * CHERICAP_SIZE));
 /*
  * Data structure defining kernel per-thread caller-save state used in
  * voluntary context switches.  This is morally equivalent to pcb_context[].
- *
- * XXXRW: For now, we define a 'micro-ABI' for the kernel, preserving and
- * restoring only a few capability registers used by overt inline assembly.
- * Once we use a CHERI-aware compiler for the kernel, this will need to be
- * expanded to include a full set of caller-save registers.
  */
 struct cheri_kframe {
 	struct chericap	ckf_c17;
@@ -807,10 +802,16 @@ cheri_get_cyclecount(void)
 	return (_time & 0xffffffff);
 }
 
-/* Special marker nops recognised by analyse_trace.py to start / stop 
-   region of interest in trace */
-#define CHERI_START_TRACE do {asm volatile("li $0, 0xbeef");} while(0)
-#define CHERI_STOP_TRACE do {asm volatile("li $0, 0xdead");} while(0)
+/*
+ * Special marker NOPs recognised by analyse_trace.py to start / stop region
+ * of interest in trace.
+ */
+#define	CHERI_START_TRACE	do {					\
+	__asm__ __volatile__("li $0, 0xbeef");				\
+} while(0)
+#define	CHERI_STOP_TRACE	do {					\
+	__asm__ __volatile__("li $0, 0xdead");				\
+} while(0)
 
 #ifdef _KERNEL
 #define	CHERI_CAP_PRINT(crn) do {					\
@@ -877,7 +878,6 @@ void	*cheri_memcpy(void *dst, void *src, size_t len);
 /*
  * CHERI context management functions.
  */
-
 const char	*cheri_exccode_string(uint8_t exccode);
 void	cheri_exec_setregs(struct thread *td, u_long entry_addr);
 void	cheri_log_cheri_frame(struct cheri_frame *cheriframe);
