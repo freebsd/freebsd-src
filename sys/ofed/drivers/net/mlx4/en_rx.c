@@ -616,7 +616,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			goto next;
 		}
 
-		mb->m_pkthdr.flowid = cq->ring;
+		/* forward Toeplitz compatible hash value */
+		mb->m_pkthdr.flowid = be32_to_cpu(cqe->immed_rss_invalid);
 		mb->m_flags |= M_FLOWID;
 		mb->m_pkthdr.rcvif = dev;
 		if (be32_to_cpu(cqe->vlan_my_qpn) &
