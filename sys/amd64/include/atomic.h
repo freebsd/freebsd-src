@@ -483,6 +483,7 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_cmpset_rel_64	atomic_cmpset_rel_long
 #define	atomic_swap_64		atomic_swap_long
 #define	atomic_readandclear_64	atomic_readandclear_long
+#define	atomic_fetchadd_64	atomic_fetchadd_long
 #define	atomic_testandset_64	atomic_testandset_long
 
 /* Operations on pointers. */
