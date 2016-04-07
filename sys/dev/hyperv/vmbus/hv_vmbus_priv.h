@@ -208,10 +208,10 @@ typedef struct {
 	struct taskqueue		*hv_msg_tq[MAXCPU];
 	struct task			hv_msg_task[MAXCPU];
 	/*
-	 * Host use this vector to intrrupt guest for vmbus channel
+	 * Host use this vector to interrupt guest for vmbus channel
 	 * event and msg.
 	 */
-	unsigned int			hv_cb_vector;
+	int				hv_cb_vector;
 } hv_vmbus_context;
 
 /*
