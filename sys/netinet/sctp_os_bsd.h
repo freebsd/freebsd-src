@@ -480,9 +480,9 @@ sctp_get_mbuf_for_msg(unsigned int space_needed,
 #define SCTP_SAVE_ATOMIC_DECREMENT(addr, val) \
 { \
 	int32_t oldval; \
-	oldval = atomic_fetchadd_int(addr, -val);      \
+	oldval = atomic_fetchadd_int(addr, -val); \
 	if (oldval < val) { \
-		panic("Counter goes negative addr:%p val:%d oldval:%d", addr, val, oldval); \
+		panic("Counter goes negative"); \
 	} \
 }
 #else

@@ -432,7 +432,7 @@ struct sctp_sysctl {
 #define SCTPCTL_STRICT_DATA_ORDER_DESC	"Enforce strict data ordering, abort if control inside data"
 #define SCTPCTL_STRICT_DATA_ORDER_MIN	0
 #define SCTPCTL_STRICT_DATA_ORDER_MAX	1
-#define SCTPCTL_STRICT_DATA_ORDER_DEFAULT	1
+#define SCTPCTL_STRICT_DATA_ORDER_DEFAULT	0
 
 /* min_residual: min residual in a data fragment leftover */
 #define SCTPCTL_MIN_RESIDUAL_DESC	"Minimum residual data chunk in second part of split"

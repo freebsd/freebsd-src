@@ -53,7 +53,7 @@ sctp_build_readq_entry(struct sctp_tcb *stcb,
 		memset(_ctl, 0, sizeof(struct sctp_queued_to_read)); \
 		(_ctl)->sinfo_stream = stream_no; \
 		(_ctl)->sinfo_ssn = stream_seq; \
-		TAILQ_INIT(&_ctl->reasm);	\
+		TAILQ_INIT(&_ctl->reasm); \
 		(_ctl)->top_fsn = tfsn; \
 		(_ctl)->msg_id = msgid; \
 		(_ctl)->sinfo_flags = (flags << 8); \

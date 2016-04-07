@@ -99,8 +99,8 @@ extern struct pr_usrreqs sctp_usrreqs;
  */
 #ifdef INVARIANTS
 #define sctp_free_a_readq(_stcb, _readq) { \
-		if ((_readq)->on_strm_q)		\
-			panic("On strm q stcb:%p readq:%p", (_stcb), (_readq)); \
+	if ((_readq)->on_strm_q) \
+		panic("On strm q stcb:%p readq:%p", (_stcb), (_readq)); \
 	SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_readq), (_readq)); \
 	SCTP_DECR_READQ_COUNT(); \
 }
@@ -204,7 +204,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 }
 
 #define sctp_sbfree(ctl, stcb, sb, m) { \
-	SCTP_SAVE_ATOMIC_DECREMENT(&(sb)->sb_cc, SCTP_BUF_LEN((m)));	\
+	SCTP_SAVE_ATOMIC_DECREMENT(&(sb)->sb_cc, SCTP_BUF_LEN((m))); \
 	SCTP_SAVE_ATOMIC_DECREMENT(&(sb)->sb_mbcnt, MSIZE); \
 	if (((ctl)->do_not_ref_stcb == 0) && stcb) {\
 		SCTP_SAVE_ATOMIC_DECREMENT(&(stcb)->asoc.sb_cc, SCTP_BUF_LEN((m))); \
