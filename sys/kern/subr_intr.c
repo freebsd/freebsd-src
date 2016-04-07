@@ -467,6 +467,32 @@ intr_isrc_deregister(struct intr_irqsrc *isrc)
 	return (error);
 }
 
+#ifdef SMP
+/*
+ *  A support function for a PIC to decide if provided ISRC should be inited
+ *  on given cpu. The logic of INTR_ISRCF_BOUND flag and isrc_cpu member of
+ *  struct intr_irqsrc is the following:
+ *
+ *     If INTR_ISRCF_BOUND is set, the ISRC should be inited only on cpus
+ *     set in isrc_cpu. If not, the ISRC should be inited on every cpu and
+ *     isrc_cpu is kept consistent with it. Thus isrc_cpu is always correct.
+ */
+bool
+intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu)
+{
+
+	if (isrc->isrc_handlers == 0)
+		return (false);
+	if ((isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI)) == 0)
+		return (false);
+	if (isrc->isrc_flags & INTR_ISRCF_BOUND)
+		return (CPU_ISSET(cpu, &isrc->isrc_cpu));
+
+	CPU_SET(cpu, &isrc->isrc_cpu);
+	return (true);
+}
+#endif
+
 static struct intr_dev_data *
 intr_ddata_alloc(u_int extsize)
 {
