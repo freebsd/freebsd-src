@@ -497,19 +497,14 @@ static int
 imx51_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
 	mtx_lock_spin(&sc->sc_mtx);
-	*caps = sc->gpio_pins[i].gp_caps;
+	*caps = sc->gpio_pins[pin].gp_caps;
 	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);
@@ -519,19 +514,14 @@ static int
 imx51_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
 	mtx_lock_spin(&sc->sc_mtx);
-	*flags = sc->gpio_pins[i].gp_flags;
+	*flags = sc->gpio_pins[pin].gp_flags;
 	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);
@@ -541,19 +531,13 @@ static int
 imx51_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
-
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
 	mtx_lock_spin(&sc->sc_mtx);
-	memcpy(name, sc->gpio_pins[i].gp_name, GPIOMAXNAME);
+	memcpy(name, sc->gpio_pins[pin].gp_name, GPIOMAXNAME);
 	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);
@@ -563,18 +547,13 @@ static int
 imx51_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	imx51_gpio_pin_configure(sc, &sc->gpio_pins[i], flags);
+	imx51_gpio_pin_configure(sc, &sc->gpio_pins[pin], flags);
 
 	return (0);
 }
@@ -583,22 +562,17 @@ static int
 imx51_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
 	mtx_lock_spin(&sc->sc_mtx);
 	if (value)
-		SET4(sc, IMX_GPIO_DR_REG, (1U << i));
+		SET4(sc, IMX_GPIO_DR_REG, (1U << pin));
 	else
-		CLEAR4(sc, IMX_GPIO_DR_REG, (1U << i));
+		CLEAR4(sc, IMX_GPIO_DR_REG, (1U << pin));
 	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);
@@ -608,19 +582,14 @@ static int
 imx51_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
 	mtx_lock_spin(&sc->sc_mtx);
-	*val = (READ4(sc, IMX_GPIO_DR_REG) >> i) & 1;
+	*val = (READ4(sc, IMX_GPIO_DR_REG) >> pin) & 1;
 	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);
@@ -630,20 +599,15 @@ static int
 imx51_gpio_pin_toggle(device_t dev, uint32_t pin)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
 	mtx_lock_spin(&sc->sc_mtx);
 	WRITE4(sc, IMX_GPIO_DR_REG,
-	    (READ4(sc, IMX_GPIO_DR_REG) ^ (1U << i)));
+	    (READ4(sc, IMX_GPIO_DR_REG) ^ (1U << pin)));
 	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);
