@@ -108,6 +108,9 @@ void
      sctp_mtu_size_reset(struct sctp_inpcb *, struct sctp_association *, uint32_t);
 
 void
+     sctp_wakeup_the_read_socket(struct sctp_inpcb *inp);
+
+void
 sctp_add_to_readq(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     struct sctp_queued_to_read *control,

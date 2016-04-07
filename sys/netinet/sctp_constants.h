@@ -386,8 +386,8 @@ __FBSDID("$FreeBSD$");
 /* align to 32-bit sizes */
 #define SCTP_SIZE32(x)	((((x) + 3) >> 2) << 2)
 
-#define IS_SCTP_CONTROL(a) ((a)->chunk_type != SCTP_DATA)
-#define IS_SCTP_DATA(a) ((a)->chunk_type == SCTP_DATA)
+#define IS_SCTP_CONTROL(a) (((a)->chunk_type != SCTP_DATA) && ((a)->chunk_type != SCTP_IDATA))
+#define IS_SCTP_DATA(a) (((a)->chunk_type == SCTP_DATA) || ((a)->chunk_type == SCTP_IDATA))
 
 
 /* SCTP parameter types */
@@ -886,12 +886,19 @@ __FBSDID("$FreeBSD$");
 
 /* modular comparison */
 /* See RFC 1982 for details. */
-#define SCTP_SSN_GT(a, b) (((a < b) && ((uint16_t)(b - a) > (1U<<15))) || \
-                           ((a > b) && ((uint16_t)(a - b) < (1U<<15))))
-#define SCTP_SSN_GE(a, b) (SCTP_SSN_GT(a, b) || (a == b))
-#define SCTP_TSN_GT(a, b) (((a < b) && ((uint32_t)(b - a) > (1U<<31))) || \
-                           ((a > b) && ((uint32_t)(a - b) < (1U<<31))))
-#define SCTP_TSN_GE(a, b) (SCTP_TSN_GT(a, b) || (a == b))
+#define SCTP_UINT16_GT(a, b) (((a < b) && ((uint16_t)(b - a) > (1U<<15))) || \
+                              ((a > b) && ((uint16_t)(a - b) < (1U<<15))))
+#define SCTP_UINT16_GE(a, b) (SCTP_UINT16_GT(a, b) || (a == b))
+#define SCTP_UINT32_GT(a, b) (((a < b) && ((uint32_t)(b - a) > (1U<<31))) || \
+                              ((a > b) && ((uint32_t)(a - b) < (1U<<31))))
+#define SCTP_UINT32_GE(a, b) (SCTP_UINT32_GT(a, b) || (a == b))
+
+#define SCTP_SSN_GT(a, b) SCTP_UINT16_GT(a, b)
+#define SCTP_SSN_GE(a, b) SCTP_UINT16_GE(a, b)
+#define SCTP_TSN_GT(a, b) SCTP_UINT32_GT(a, b)
+#define SCTP_TSN_GE(a, b) SCTP_UINT32_GE(a, b)
+#define SCTP_MSGID_GT(o, a, b) ((o == 1) ? SCTP_UINT16_GT((uint16_t)a, (uint16_t)b) : SCTP_UINT32_GT(a, b))
+#define SCTP_MSGID_GE(o, a, b) ((o == 1) ? SCTP_UINT16_GE((uint16_t)a, (uint16_t)b) : SCTP_UINT32_GE(a, b))
 
 /* Mapping array manipulation routines */
 #define SCTP_IS_TSN_PRESENT(arry, gap) ((arry[(gap >> 3)] >> (gap & 0x07)) & 0x01)
