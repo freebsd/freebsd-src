@@ -801,6 +801,8 @@ KBD_MAXWAIT		opt_kbd.h
 KBD_RESETDELAY		opt_kbd.h
 KBDIO_DEBUG		opt_kbd.h
 
+KBDMUX_DFLT_KEYMAP	opt_kbdmux.h
+
 # options for the Atheros driver
 ATH_DEBUG		opt_ath.h
 ATH_TXBUF		opt_ath.h
