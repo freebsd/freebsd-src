@@ -319,6 +319,8 @@ struct ipoib_dev_priv {
 
 	unsigned long flags;
 
+	int gone;
+
 	struct mutex vlan_mutex;
 
 	struct rb_root  path_tree;
