@@ -389,7 +389,7 @@ struct sctp_nets {
 
 struct sctp_data_chunkrec {
 	uint32_t TSN_seq;	/* the TSN of this transmit */
-	uint16_t stream_seq;	/* the stream sequence number of this transmit */
+	uint32_t stream_seq;	/* the stream sequence number of this transmit */
 	uint16_t stream_number;	/* the stream number of this guy */
 	uint32_t payloadtype;
 	uint32_t context;	/* from send */
@@ -400,6 +400,7 @@ struct sctp_data_chunkrec {
 	 */
 	uint32_t fast_retran_tsn;	/* sending_seq at the time of FR */
 	struct timeval timetodrop;	/* time we drop it from queue */
+	uint32_t fsn_num;	/* Fragment Sequence Number */
 	uint8_t doing_fast_retransmit;
 	uint8_t rcv_flags;	/* flags pulled from data chunk on inbound for
 				 * outbound holds sending flags for PR-SCTP. */
@@ -458,7 +459,7 @@ struct sctp_tmit_chunk {
  */
 struct sctp_queued_to_read {	/* sinfo structure Pluse more */
 	uint16_t sinfo_stream;	/* off the wire */
-	uint16_t sinfo_ssn;	/* off the wire */
+	uint32_t sinfo_ssn;	/* off the wire */
 	uint16_t sinfo_flags;	/* SCTP_UNORDERED from wire use SCTP_EOF for
 				 * EOR */
 	uint32_t sinfo_ppid;	/* off the wire */
@@ -468,8 +469,11 @@ struct sctp_queued_to_read {	/* sinfo structure Pluse more */
 	uint32_t sinfo_cumtsn;	/* Use this in reassembly as last TSN */
 	sctp_assoc_t sinfo_assoc_id;	/* our assoc id */
 	/* Non sinfo stuff */
+	uint32_t msg_id;	/* Fragment Index */
 	uint32_t length;	/* length of data */
 	uint32_t held_length;	/* length held in sb */
+	uint32_t top_fsn;	/* Highest FSN in queue */
+	uint32_t fsn_included;	/* Highest FSN in *data portion */
 	struct sctp_nets *whoFrom;	/* where it came from */
 	struct mbuf *data;	/* front of the mbuf chain of data with
 				 * PKT_HDR */
@@ -478,13 +482,23 @@ struct sctp_queued_to_read {	/* sinfo structure Pluse more */
 				 * take it from us */
 	struct sctp_tcb *stcb;	/* assoc, used for window update */
 	         TAILQ_ENTRY(sctp_queued_to_read) next;
+	         TAILQ_ENTRY(sctp_queued_to_read) next_instrm;
+	struct sctpchunk_listhead reasm;
 	uint16_t port_from;
 	uint16_t spec_flags;	/* Flags to hold the notification field */
 	uint8_t do_not_ref_stcb;
 	uint8_t end_added;
 	uint8_t pdapi_aborted;
+	uint8_t pdapi_started;
 	uint8_t some_taken;
+	uint8_t last_frag_seen;
+	uint8_t first_frag_seen;
+	uint8_t on_read_q;
+	uint8_t on_strm_q;
 };
+
+#define SCTP_ON_ORDERED 1
+#define SCTP_ON_UNORDERED 2
 
 /* This data structure will be on the outbound
  * stream queues. Data will be pulled off from
@@ -511,6 +525,8 @@ struct sctp_stream_queue_pending {
 	struct sctp_nets *net;
 	          TAILQ_ENTRY(sctp_stream_queue_pending) next;
 	          TAILQ_ENTRY(sctp_stream_queue_pending) ss_next;
+	uint32_t fsn;
+	uint32_t msg_id;
 	uint32_t length;
 	uint32_t timetolive;
 	uint32_t ppid;
@@ -534,9 +550,11 @@ struct sctp_stream_queue_pending {
 TAILQ_HEAD(sctpwheelunrel_listhead, sctp_stream_in);
 struct sctp_stream_in {
 	struct sctp_readhead inqueue;
+	struct sctp_readhead uno_inqueue;
+	uint32_t last_sequence_delivered;	/* used for re-order */
 	uint16_t stream_no;
-	uint16_t last_sequence_delivered;	/* used for re-order */
 	uint8_t delivery_started;
+	uint8_t pd_api_started;
 };
 
 TAILQ_HEAD(sctpwheel_listhead, sctp_stream_out);
@@ -605,8 +623,8 @@ struct sctp_stream_out {
 	uint32_t abandoned_unsent[1];
 	uint32_t abandoned_sent[1];
 #endif
+	uint32_t next_sequence_send;	/* next one I expect to send out */
 	uint16_t stream_no;
-	uint16_t next_sequence_send;	/* next one I expect to send out */
 	uint8_t last_msg_incomplete;
 	uint8_t state;
 };
@@ -635,12 +653,13 @@ struct sctp_scoping {
 struct sctp_tsn_log {
 	void *stcb;
 	uint32_t tsn;
+	uint32_t seq;
 	uint16_t strm;
-	uint16_t seq;
 	uint16_t sz;
 	uint16_t flgs;
 	uint16_t in_pos;
 	uint16_t in_out;
+	uint16_t resv;
 };
 
 #define SCTP_FS_SPEC_LOG_SIZE 200
@@ -811,9 +830,6 @@ struct sctp_association {
 	struct sctpchunk_listhead sent_queue;
 	struct sctpchunk_listhead send_queue;
 
-	/* re-assembly queue for fragmented chunks on the inbound path */
-	struct sctpchunk_listhead reasmqueue;
-
 	/* Scheduling queues */
 	union scheduling_data ss_data;
 
@@ -881,7 +897,7 @@ struct sctp_association {
 	uint32_t stream_scheduling_module;
 
 	uint32_t vrf_id;
-
+	uint32_t assoc_msg_id;
 	uint32_t cookie_preserve_req;
 	/* ASCONF next seq I am sending out, inits at init-tsn */
 	uint32_t asconf_seq_out;
@@ -1177,12 +1193,12 @@ struct sctp_association {
 	uint8_t reconfig_supported;
 	uint8_t nrsack_supported;
 	uint8_t pktdrop_supported;
+	uint8_t idata_supported;
 
 	/* Did the peer make the stream config (add out) request */
 	uint8_t peer_req_out;
 
 	uint8_t local_strreset_support;
-
 	uint8_t peer_supports_nat;
 
 	struct sctp_scoping scope;
