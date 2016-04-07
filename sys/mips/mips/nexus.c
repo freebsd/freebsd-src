@@ -457,14 +457,11 @@ static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
-	int irq;
 
 #ifdef MIPS_INTRNG
-	for (irq = rman_get_start(res); irq <= rman_get_end(res); irq++) {
-		intr_irq_add_handler(child, filt, intr, arg, irq, flags,
-		    cookiep);
-	}
+	return (intr_setup_irq(child, res, filt, intr, arg, flags, cookiep));
 #else
+	int irq;
 	register_t s;
 
 	s = intr_disable();
@@ -477,8 +474,9 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 	cpu_establish_hardintr(device_get_nameunit(child), filt, intr, arg,
 	    irq, flags, cookiep);
 	intr_restore(s);
-#endif
+
 	return (0);
+#endif
 }
 
 static int
@@ -486,7 +484,7 @@ nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 
 #ifdef MIPS_INTRNG
-	return (intr_irq_remove_handler(child, rman_get_start(r), ih));
+	return (intr_teardown_irq(child, r, ih));
 #else
 	printf("Unimplemented %s at %s:%d\n", __func__, __FILE__, __LINE__);
 	return (0);
@@ -499,7 +497,8 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 
-	return (intr_irq_config(irq, trig, pol));
+	device_printf(dev, "bus_config_intr is obsolete and not supported!\n");
+	return (EOPNOTSUPP);
 }
 
 static int
@@ -507,7 +506,7 @@ nexus_describe_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie, const char *descr)
 {
 
-	return (intr_irq_describe(rman_get_start(irq), cookie, descr));
+	return (intr_describe_irq(child, irq, cookie, descr));
 }
 
 #ifdef SMP
@@ -515,7 +514,7 @@ static int
 nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
 {
 
-	return (intr_irq_bind(rman_get_start(irq), cpu));
+	return (intr_bind_irq(child, irq, cpu));
 }
 #endif
 
