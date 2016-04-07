@@ -1579,9 +1579,7 @@ its_get_devid_thunder(device_t pci_dev)
 	uint32_t bus;
 
 	bus = pci_get_bus(pci_dev);
-
-	bsf = PCI_RID(pci_get_bus(pci_dev), pci_get_slot(pci_dev),
-	    pci_get_function(pci_dev));
+	bsf = pci_get_rid(pci_dev);
 
 	/* Check if accessing internal PCIe (low bus numbers) */
 	if (bus < GIC_V3_ITS_QUIRK_THUNDERX_PEM_BUS_OFFSET) {
