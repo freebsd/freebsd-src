@@ -1057,7 +1057,7 @@ mlx4_en_transmit(struct ifnet *dev, struct mbuf *m)
 
 	/* Compute which queue to use */
 	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
-		i = m->m_pkthdr.flowid % priv->tx_ring_num;
+		i = (m->m_pkthdr.flowid % 128) % priv->tx_ring_num;
 	}
 	else {
 		i = mlx4_en_select_queue(dev, m);
