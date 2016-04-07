@@ -138,11 +138,11 @@ find_last_bit(unsigned long *addr, unsigned long size)
 		if (mask)
 			return (bit + __flsl(mask));
 	}
-	while (--pos) {
+	while (pos--) {
 		addr--;
 		bit -= BITS_PER_LONG;
 		if (*addr)
-			return (bit + __flsl(mask));
+			return (bit + __flsl(*addr));
 	}
 	return (size);
 }
