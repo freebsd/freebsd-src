@@ -77,9 +77,13 @@ FEATURE(rctl, "Resource Limits");
 
 #define	RCTL_PCPU_SHIFT		(10 * 1000000)
 
-unsigned int rctl_maxbufsize = RCTL_MAX_OUTBUFSIZE;
+static unsigned int rctl_maxbufsize = RCTL_MAX_OUTBUFSIZE;
 static int rctl_log_rate_limit = 10;
 static int rctl_devctl_rate_limit = 10;
+static unsigned int rctl_throttle_min = 0;
+static unsigned int rctl_throttle_max = 0;
+static unsigned int rctl_throttle_pct = 0;
+static unsigned int rctl_throttle_pct2 = 0;
 
 SYSCTL_NODE(_kern_racct, OID_AUTO, rctl, CTLFLAG_RW, 0, "Resource Limits");
 SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, maxbufsize, CTLFLAG_RWTUN,
@@ -88,6 +92,16 @@ SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, log_rate_limit, CTLFLAG_RW,
     &rctl_log_rate_limit, 0, "Maximum number of log messages per second");
 SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, devctl_rate_limit, CTLFLAG_RW,
     &rctl_devctl_rate_limit, 0, "Maximum number of devctl messages per second");
+SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, throttle_min, CTLFLAG_RDTUN,
+    &rctl_throttle_min, 0, "Shortest throttling duration, in hz");
+SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, throttle_max, CTLFLAG_RDTUN,
+    &rctl_throttle_max, 0, "Longest throttling duration, in hz");
+SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, throttle_pct, CTLFLAG_RDTUN,
+    &rctl_throttle_pct, 0,
+    "Throttling penalty for process consumption, in percent");
+SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, throttle_pct2, CTLFLAG_RDTUN,
+    &rctl_throttle_pct2, 0,
+    "Throttling penalty for container consumption, in percent");
 
 /*
  * 'rctl_rule_link' connects a rule with every racct it's related to.
@@ -134,6 +148,10 @@ static struct dict resourcenames[] = {
 	{ "shmsize", RACCT_SHMSIZE },
 	{ "wallclock", RACCT_WALLCLOCK },
 	{ "pcpu", RACCT_PCTCPU },
+	{ "readbps", RACCT_READBPS },
+	{ "writebps", RACCT_WRITEBPS },
+	{ "readiops", RACCT_READIOPS },
+	{ "writeiops", RACCT_WRITEIOPS },
 	{ NULL, -1 }};
 
 static struct dict actionnames[] = {
@@ -171,6 +189,7 @@ static struct dict actionnames[] = {
 	{ "deny", RCTL_ACTION_DENY },
 	{ "log", RCTL_ACTION_LOG },
 	{ "devctl", RCTL_ACTION_DEVCTL },
+	{ "throttle", RCTL_ACTION_THROTTLE },
 	{ NULL, -1 }};
 
 static void rctl_init(void);
@@ -274,23 +293,53 @@ rctl_available_resource(const struct proc *p, const struct rctl_rule *rule)
 }
 
 /*
- * Return non-zero if allocating 'amount' by proc 'p' would exceed
- * resource limit specified by 'rule'.
+ * Called every second for proc, uidinfo, loginclass, and jail containers.
+ * If the limit isn't exceeded, it decreases the usage amount to zero.
+ * Otherwise, it decreases it by the value of the limit.  This way
+ * resource consumption exceeding the limit "carries over" to the next
+ * period.
  */
-static int
-rctl_would_exceed(const struct proc *p, const struct rctl_rule *rule,
-    int64_t amount)
+void
+rctl_throttle_decay(struct racct *racct, int resource)
 {
-	int64_t available;
+	struct rctl_rule *rule;
+	struct rctl_rule_link *link;
+	int64_t minavailable;
 
 	ASSERT_RACCT_ENABLED();
-	RCTL_LOCK_ASSERT();
 
-	available = rctl_available_resource(p, rule);
-	if (available >= amount)
-		return (0);
+	minavailable = INT64_MAX;
 
-	return (1);
+	RCTL_RLOCK();
+
+	LIST_FOREACH(link, &racct->r_rule_links, rrl_next) {
+		rule = link->rrl_rule;
+
+		if (rule->rr_resource != resource)
+			continue;
+		if (rule->rr_action != RCTL_ACTION_THROTTLE)
+			continue;
+
+		if (rule->rr_amount < minavailable)
+			minavailable = rule->rr_amount;
+	}
+
+	RCTL_RUNLOCK();
+
+	if (racct->r_resources[resource] < minavailable) {
+		racct->r_resources[resource] = 0;
+	} else {
+		/*
+		 * Cap utilization counter at ten times the limit.  Otherwise,
+		 * if we changed the rule lowering the allowed amount, it could
+		 * take unreasonably long time for the accumulated resource
+		 * usage to drop.
+		 */
+		if (racct->r_resources[resource] > minavailable * 10)
+			racct->r_resources[resource] = minavailable * 10;
+
+		racct->r_resources[resource] -= minavailable;
+	}
 }
 
 /*
@@ -340,6 +389,38 @@ rctl_pcpu_available(const struct proc *p) {
 	return (minavailable);
 }
 
+static uint64_t
+xadd(uint64_t a, uint64_t b)
+{
+	uint64_t c;
+
+	c = a + b;
+
+	/*
+	 * Detect overflow.
+	 */
+	if (c < a || c < b)
+		return (UINT64_MAX);
+
+	return (c);
+}
+
+static uint64_t
+xmul(uint64_t a, uint64_t b)
+{
+	uint64_t c;
+
+	if (a == 0 || b == 0)
+		return (0);
+
+	c = a * b;
+
+	if (c < a || c < b)
+		return (UINT64_MAX);
+
+	return (c);
+}
+
 /*
  * Check whether the proc 'p' can allocate 'amount' of 'resource' in addition
  * to what it keeps allocated now.  Returns non-zero if the allocation should
@@ -353,8 +434,11 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 	struct rctl_rule *rule;
 	struct rctl_rule_link *link;
 	struct sbuf sb;
+	int64_t available;
+	uint64_t sleep_ms, sleep_ratio;
 	int should_deny = 0;
 	char *buf;
+
 
 	ASSERT_RACCT_ENABLED();
 
@@ -368,7 +452,9 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 		rule = link->rrl_rule;
 		if (rule->rr_resource != resource)
 			continue;
-		if (!rctl_would_exceed(p, rule, amount)) {
+
+		available = rctl_available_resource(p, rule);
+		if (available >= (int64_t)amount) {
 			link->rrl_exceeded = 0;
 			continue;
 		}
@@ -421,7 +507,7 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 
 			if (p->p_state != PRS_NORMAL)
 				continue;
-	
+
 			if (!ppsratecheck(&devctl_lasttime, &devctl_curtime,
 			    rctl_devctl_rate_limit))
 				continue;
@@ -443,6 +529,69 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 			sbuf_delete(&sb);
 			free(buf, M_RCTL);
 			link->rrl_exceeded = 1;
+			continue;
+		case RCTL_ACTION_THROTTLE:
+			if (p->p_state != PRS_NORMAL)
+				continue;
+
+			/*
+			 * Make the process sleep for a fraction of second
+			 * proportional to the ratio of process' resource
+			 * utilization compared to the limit.  The point is
+			 * to penalize resource hogs: processes that consume
+			 * more of the available resources sleep for longer.
+			 *
+			 * We're trying to defer division until the very end,
+			 * to minimize the rounding effects.  The following
+			 * calculation could have been written in a clearer
+			 * way like this:
+			 *
+			 * sleep_ms = hz * p->p_racct->r_resources[resource] /
+			 *     rule->rr_amount;
+			 * sleep_ms *= rctl_throttle_pct / 100;
+			 * if (sleep_ms < rctl_throttle_min)
+			 *         sleep_ms = rctl_throttle_min;
+			 *
+			 */
+			sleep_ms = xmul(hz, p->p_racct->r_resources[resource]);
+			sleep_ms = xmul(sleep_ms,  rctl_throttle_pct) / 100;
+			if (sleep_ms < rctl_throttle_min * rule->rr_amount)
+				sleep_ms = rctl_throttle_min * rule->rr_amount;
+
+			/*
+			 * Multiply that by the ratio of the resource
+			 * consumption for the container compared to the limit,
+			 * squared.  In other words, a process in a container
+			 * that is two times over the limit will be throttled
+			 * four times as much for hitting the same rule.  The
+			 * point is to penalize processes more if the container
+			 * itself (eg certain UID or jail) is above the limit.
+			 */
+			if (available < 0)
+				sleep_ratio = -available / rule->rr_amount;
+			else
+				sleep_ratio = 0;
+			sleep_ratio = xmul(sleep_ratio, sleep_ratio);
+			sleep_ratio = xmul(sleep_ratio, rctl_throttle_pct2) / 100;
+			sleep_ms = xadd(sleep_ms, xmul(sleep_ms, sleep_ratio));
+
+			/*
+			 * Finally the division.
+			 */
+			sleep_ms /= rule->rr_amount;
+
+			if (sleep_ms > rctl_throttle_max)
+				sleep_ms = rctl_throttle_max;
+#if 0
+			printf("%s: pid %d (%s), %jd of %jd, will sleep for %ld ms (ratio %ld, available %ld)\n",
+			   __func__, p->p_pid, p->p_comm,
+			   p->p_racct->r_resources[resource],
+			   rule->rr_amount, sleep_ms, sleep_ratio, available);
+#endif
+
+			KASSERT(sleep_ms >= rctl_throttle_min, ("%s: %ju < %d\n",
+			    __func__, (uintmax_t)sleep_ms, rctl_throttle_min));
+			racct_proc_throttle(p, sleep_ms);
 			continue;
 		default:
 			if (link->rrl_exceeded != 0)
@@ -1073,20 +1222,32 @@ rctl_rule_add(struct rctl_rule *rule)
 	KASSERT(rctl_rule_fully_specified(rule), ("rule not fully specified"));
 
 	/*
-	 * Some rules just don't make sense.  Note that the one below
-	 * cannot be rewritten using RACCT_IS_DENIABLE(); the RACCT_PCTCPU,
-	 * for example, is not deniable in the racct sense, but the
-	 * limit is enforced in a different way, so "deny" rules for %CPU
-	 * do make sense.
+	 * Some rules just don't make sense, like "deny" rule for an undeniable
+	 * resource.  The exception are the RSS and %CPU resources - they are
+	 * not deniable in the racct sense, but the limit is enforced in
+	 * a different way.
 	 */
 	if (rule->rr_action == RCTL_ACTION_DENY &&
-	    (rule->rr_resource == RACCT_CPU ||
-	    rule->rr_resource == RACCT_WALLCLOCK))
+	    !RACCT_IS_DENIABLE(rule->rr_resource) &&
+	    rule->rr_resource != RACCT_RSS &&
+	    rule->rr_resource != RACCT_PCTCPU) {
 		return (EOPNOTSUPP);
+	}
+
+	if (rule->rr_action == RCTL_ACTION_THROTTLE &&
+	    !RACCT_IS_DECAYING(rule->rr_resource)) {
+		return (EOPNOTSUPP);
+	}
+
+	if (rule->rr_action == RCTL_ACTION_THROTTLE &&
+	    rule->rr_resource == RACCT_PCTCPU) {
+		return (EOPNOTSUPP);
+	}
 
 	if (rule->rr_per == RCTL_SUBJECT_TYPE_PROCESS &&
-	    RACCT_IS_SLOPPY(rule->rr_resource))
+	    RACCT_IS_SLOPPY(rule->rr_resource)) {
 		return (EOPNOTSUPP);
+	}
 
 	/*
 	 * Make sure there are no duplicated rules.  Also, for the "deny"
@@ -1960,6 +2121,15 @@ rctl_init(void)
 	    UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	rctl_rule_zone = uma_zcreate("rctl_rule", sizeof(struct rctl_rule),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+
+	if (rctl_throttle_min <= 0)
+		rctl_throttle_min = 1;
+	if (rctl_throttle_max <= 0)
+		rctl_throttle_max = 2 * hz;
+	if (rctl_throttle_pct <= 0)
+		rctl_throttle_pct = 100;
+	if (rctl_throttle_pct2 <= 0)
+		rctl_throttle_pct2 = 100;
 }
 
 #else /* !RCTL */

@@ -42,6 +42,7 @@
 #include <sys/stdint.h>
 #include <sys/sysctl.h>
 
+struct buf;
 struct proc;
 struct rctl_rule_link;
 struct ucred;
@@ -71,7 +72,11 @@ struct ucred;
 #define	RACCT_SHMSIZE		18
 #define	RACCT_WALLCLOCK		19
 #define	RACCT_PCTCPU		20
-#define	RACCT_MAX		RACCT_PCTCPU
+#define	RACCT_READBPS		21
+#define	RACCT_WRITEBPS		22
+#define	RACCT_READIOPS		23
+#define	RACCT_WRITEIOPS		24
+#define	RACCT_MAX		RACCT_WRITEIOPS
 
 /*
  * Resource properties.
@@ -153,6 +158,7 @@ SYSCTL_DECL(_kern_racct);
 int	racct_add(struct proc *p, int resource, uint64_t amount);
 void	racct_add_cred(struct ucred *cred, int resource, uint64_t amount);
 void	racct_add_force(struct proc *p, int resource, uint64_t amount);
+void	racct_add_buf(struct proc *p, const struct buf *bufp, int is_write);
 int	racct_set(struct proc *p, int resource, uint64_t amount);
 void	racct_set_force(struct proc *p, int resource, uint64_t amount);
 void	racct_sub(struct proc *p, int resource, uint64_t amount);
@@ -170,6 +176,7 @@ void	racct_proc_exit(struct proc *p);
 void	racct_proc_ucred_changed(struct proc *p, struct ucred *oldcred,
 	    struct ucred *newcred);
 void	racct_move(struct racct *dest, struct racct *src);
+void	racct_proc_throttle(struct proc *p, int timeout);
 
 #else
 

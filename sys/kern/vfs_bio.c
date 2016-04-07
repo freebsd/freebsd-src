@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/smp.h>
@@ -1784,8 +1785,16 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
 		rabp = getblk(vp, *rablkno, *rabsize, 0, 0, 0);
 
 		if ((rabp->b_flags & B_CACHE) == 0) {
-			if (!TD_IS_IDLETHREAD(curthread))
+			if (!TD_IS_IDLETHREAD(curthread)) {
+#ifdef RACCT
+				if (racct_enable) {
+					PROC_LOCK(curproc);
+					racct_add_buf(curproc, rabp, 0);
+					PROC_UNLOCK(curproc);
+				}
+#endif /* RACCT */
 				curthread->td_ru.ru_inblock++;
+			}
 			rabp->b_flags |= B_ASYNC;
 			rabp->b_flags &= ~B_INVAL;
 			rabp->b_ioflags &= ~BIO_ERROR;
@@ -1829,8 +1838,16 @@ breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
 
 	/* if not found in cache, do some I/O */
 	if ((bp->b_flags & B_CACHE) == 0) {
-		if (!TD_IS_IDLETHREAD(curthread))
+		if (!TD_IS_IDLETHREAD(curthread)) {
+#ifdef RACCT
+			if (racct_enable) {
+				PROC_LOCK(curproc);
+				racct_add_buf(curproc, bp, 0);
+				PROC_UNLOCK(curproc);
+			}
+#endif /* RACCT */
 			curthread->td_ru.ru_inblock++;
+		}
 		bp->b_iocmd = BIO_READ;
 		bp->b_flags &= ~B_INVAL;
 		bp->b_ioflags &= ~BIO_ERROR;
@@ -1926,8 +1943,16 @@ bufwrite(struct buf *bp)
 	bp->b_runningbufspace = bp->b_bufsize;
 	space = atomic_fetchadd_long(&runningbufspace, bp->b_runningbufspace);
 
-	if (!TD_IS_IDLETHREAD(curthread))
+	if (!TD_IS_IDLETHREAD(curthread)) {
+#ifdef RACCT
+		if (racct_enable) {
+			PROC_LOCK(curproc);
+			racct_add_buf(curproc, bp, 1);
+			PROC_UNLOCK(curproc);
+		}
+#endif /* RACCT */
 		curthread->td_ru.ru_oublock++;
+	}
 	if (oldflags & B_ASYNC)
 		BUF_KERNPROC(bp);
 	bp->b_iooffset = dbtob(bp->b_blkno);
