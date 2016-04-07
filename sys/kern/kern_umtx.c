@@ -3214,6 +3214,7 @@ __umtx_op_wake(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_nwake_private(struct thread *td, struct _umtx_op_args *uap)
 {
+#ifndef COMPAT_CHERIABI
 	int count = uap->val;
 	void *uaddrs[BATCH_SIZE];
 	char **upp = (char **)uap->obj;
@@ -3234,6 +3235,13 @@ __umtx_op_nwake_private(struct thread *td, struct _umtx_op_args *uap)
 		pos += tocopy;
 	}
 	return (error);
+#else
+	/*
+	 * XXX-BD: we'll get an array of struct chericap and need to
+	 * convert them into addresses.
+	 */
+	return (__umtx_op_unimpl(td, uap));
+#endif
 }
 
 static int
