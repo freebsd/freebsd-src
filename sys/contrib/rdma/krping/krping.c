@@ -259,6 +259,7 @@ static int krping_cma_event_handler(struct rdma_cm_id *cma_id,
 
 	case RDMA_CM_EVENT_ROUTE_RESOLVED:
 		cb->state = ROUTE_RESOLVED;
+		cb->child_cm_id = cma_id;
 		wake_up_interruptible(&cb->sem);
 		break;
 
