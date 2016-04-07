@@ -77,7 +77,7 @@ vcheritest_failure_err(const char *msg, va_list ap)
 		return;
 	if ((size_t)len >= buflen)	/* No room for further strings. */
 		return;
-	vsnprintf(ccsp->ccs_testresult_str + len, buflen - len, ": %s",
+	snprintf(ccsp->ccs_testresult_str + len, buflen - len, ": %s",
 	    strerror(errno));
 }
 
