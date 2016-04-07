@@ -35,7 +35,7 @@
 #include <machine/atomic.h>
 
 typedef struct {
-	volatile u_long counter;
+	volatile long counter;
 } atomic_long_t;
 
 #define	atomic_long_add(i, v)		atomic_long_add_return((i), (v))
