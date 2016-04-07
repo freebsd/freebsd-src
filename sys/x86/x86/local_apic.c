@@ -321,9 +321,9 @@ static int 	native_lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
 static void 	native_lapic_ipi_raw(register_t icrlo, u_int dest);
 static void 	native_lapic_ipi_vectored(u_int vector, int dest);
 static int 	native_lapic_ipi_wait(int delay);
+#endif /* SMP */
 static int	native_lapic_ipi_alloc(inthand_t *ipifunc);
 static void	native_lapic_ipi_free(int vector);
-#endif /* SMP */
 
 struct apic_ops apic_ops = {
 	.create			= native_lapic_create,
@@ -350,9 +350,9 @@ struct apic_ops apic_ops = {
 	.ipi_raw		= native_lapic_ipi_raw,
 	.ipi_vectored		= native_lapic_ipi_vectored,
 	.ipi_wait		= native_lapic_ipi_wait,
+#endif
 	.ipi_alloc		= native_lapic_ipi_alloc,
 	.ipi_free		= native_lapic_ipi_free,
-#endif
 	.set_lvt_mask		= native_lapic_set_lvt_mask,
 	.set_lvt_mode		= native_lapic_set_lvt_mode,
 	.set_lvt_polarity	= native_lapic_set_lvt_polarity,
@@ -1904,6 +1904,8 @@ native_lapic_ipi_vectored(u_int vector, int dest)
 #endif /* DETECT_DEADLOCK */
 }
 
+#endif /* SMP */
+
 /*
  * Since the IDT is shared by all CPUs the IPI slot update needs to be globally
  * visible.
@@ -1958,5 +1960,3 @@ native_lapic_ipi_free(int vector)
 	setidt(vector, &IDTVEC(rsvd), SDT_APICT, SEL_KPL, GSEL_APIC);
 	mtx_unlock_spin(&icu_lock);
 }
-
-#endif /* SMP */
