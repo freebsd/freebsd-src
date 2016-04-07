@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/accommon.h>
 
 #include <dev/acpica/acpivar.h>
+#include <dev/acpica/acpi_pcivar.h>
 
 #include <sys/pciio.h>
 #include <dev/pci/pcireg.h>
@@ -104,6 +105,7 @@ static device_method_t acpi_pci_methods[] = {
 	DEVMETHOD(bus_get_domain,	acpi_get_domain),
 
 	/* PCI interface */
+	DEVMETHOD(pci_child_added,	acpi_pci_child_added),
 	DEVMETHOD(pci_set_powerstate,	acpi_pci_set_powerstate_method),
 #ifdef PCI_IOV
 	DEVMETHOD(pci_create_iov_child,	acpi_pci_create_iov_child),
@@ -271,29 +273,33 @@ acpi_pci_save_handle(ACPI_HANDLE handle, UINT32 level, void *context,
     void **status)
 {
 	struct acpi_pci_devinfo *dinfo;
-	device_t *devlist;
-	int devcount, i, func, slot;
+	device_t child;
+	int func, slot;
 	UINT32 address;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
+	child = context;
 	if (ACPI_FAILURE(acpi_GetInteger(handle, "_ADR", &address)))
 		return_ACPI_STATUS (AE_OK);
 	slot = ACPI_ADR_PCI_SLOT(address);
 	func = ACPI_ADR_PCI_FUNC(address);
-	if (device_get_children((device_t)context, &devlist, &devcount) != 0)
-		return_ACPI_STATUS (AE_OK);
-	for (i = 0; i < devcount; i++) {
-		dinfo = device_get_ivars(devlist[i]);
-		if (dinfo->ap_dinfo.cfg.func == func &&
-		    dinfo->ap_dinfo.cfg.slot == slot) {
-			dinfo->ap_handle = handle;
-			acpi_pci_update_device(handle, devlist[i]);
-			break;
-		}
+	dinfo = device_get_ivars(child);
+	if (dinfo->ap_dinfo.cfg.func == func &&
+	    dinfo->ap_dinfo.cfg.slot == slot) {
+		dinfo->ap_handle = handle;
+		acpi_pci_update_device(handle, child);
+		return_ACPI_STATUS (AE_CTRL_TERMINATE);
 	}
-	free(devlist, M_TEMP);
 	return_ACPI_STATUS (AE_OK);
+}
+
+void
+acpi_pci_child_added(device_t dev, device_t child)
+{
+
+	AcpiWalkNamespace(ACPI_TYPE_DEVICE, acpi_get_handle(dev), 1,
+	    acpi_pci_save_handle, NULL, child, NULL);
 }
 
 static int
@@ -325,18 +331,18 @@ acpi_pci_attach(device_t dev)
 	busno = pcib_get_bus(dev);
 
 	/*
-	 * First, PCI devices are added as in the normal PCI bus driver.
-	 * Afterwards, the ACPI namespace under the bridge driver is
-	 * walked to save ACPI handles to all the devices that appear in
-	 * the ACPI namespace as immediate descendants of the bridge.
+	 * PCI devices are added via the bus scan in the normal PCI
+	 * bus driver.  As each device is added, the
+	 * acpi_pci_child_added() callback walks the ACPI namespace
+	 * under the bridge driver to save ACPI handles to all the
+	 * devices that appear in the ACPI namespace as immediate
+	 * descendants of the bridge.
 	 *
 	 * XXX: Sometimes PCI devices show up in the ACPI namespace that
 	 * pci_add_children() doesn't find.  We currently just ignore
 	 * these devices.
 	 */
 	pci_add_children(dev, domain, busno, sizeof(struct acpi_pci_devinfo));
-	AcpiWalkNamespace(ACPI_TYPE_DEVICE, acpi_get_handle(dev), 1,
-	    acpi_pci_save_handle, NULL, dev, NULL);
 
 	return (bus_generic_attach(dev));
 }
@@ -371,17 +377,9 @@ static device_t
 acpi_pci_create_iov_child(device_t bus, device_t pf, uint16_t rid, uint16_t vid,
     uint16_t did)
 {
-	struct acpi_pci_devinfo *dinfo;
-	device_t vf;
 
-	vf = pci_add_iov_child(bus, pf, sizeof(struct acpi_pci_devinfo), rid,
-	    vid, did);
-	if (vf == NULL)
-		return (NULL);
-
-	dinfo = device_get_ivars(vf);
-	dinfo->ap_handle = NULL;
-	return (vf);
+	return (pci_add_iov_child(bus, pf, sizeof(struct acpi_pci_devinfo), rid,
+	    vid, did));
 }
 #endif
 
