@@ -451,22 +451,27 @@ static void
 imx51_gpio_pin_configure(struct imx51_gpio_softc *sc, struct gpio_pin *pin,
     unsigned int flags)
 {
+	u_int newflags;
 
 	mtx_lock_spin(&sc->sc_mtx);
 
 	/*
-	 * Manage input/output
+	 * Manage input/output; other flags not supported yet.
+	 *
+	 * Note that changes to pin->gp_flags must be acccumulated in newflags
+	 * and stored with a single writeback to gp_flags at the end, to enable
+	 * unlocked reads of that value elsewhere.
 	 */
-	if (flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) {
-		pin->gp_flags &= ~(GPIO_PIN_INPUT|GPIO_PIN_OUTPUT);
+	if (flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) {
+		newflags = pin->gp_flags & ~(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT);
 		if (flags & GPIO_PIN_OUTPUT) {
-			pin->gp_flags |= GPIO_PIN_OUTPUT;
+			newflags |= GPIO_PIN_OUTPUT;
 			SET4(sc, IMX_GPIO_OE_REG, (1U << pin->gp_pin));
-		}
-		else {
-			pin->gp_flags |= GPIO_PIN_INPUT;
+		} else {
+			newflags |= GPIO_PIN_INPUT;
 			CLEAR4(sc, IMX_GPIO_OE_REG, (1U << pin->gp_pin));
 		}
+		pin->gp_flags = newflags;
 	}
 
 	mtx_unlock_spin(&sc->sc_mtx);
@@ -503,9 +508,7 @@ imx51_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	mtx_lock_spin(&sc->sc_mtx);
 	*caps = sc->gpio_pins[pin].gp_caps;
-	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);
 }
@@ -520,9 +523,7 @@ imx51_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	mtx_lock_spin(&sc->sc_mtx);
 	*flags = sc->gpio_pins[pin].gp_flags;
-	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);
 }
@@ -588,9 +589,7 @@ imx51_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	mtx_lock_spin(&sc->sc_mtx);
 	*val = (READ4(sc, IMX_GPIO_DR_REG) >> pin) & 1;
-	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);
 }
