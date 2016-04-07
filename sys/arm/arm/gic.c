@@ -1003,13 +1003,18 @@ arm_gic_ipi_send(device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus,
 static int
 arm_gic_ipi_setup(device_t dev, u_int ipi, struct intr_irqsrc **isrcp)
 {
+	struct intr_irqsrc *isrc;
 	struct arm_gic_softc *sc = device_get_softc(dev);
 
 	if (sgi_first_unused > GIC_LAST_SGI)
 		return (ENOSPC);
 
-	*isrcp = GIC_INTR_ISRC(sc, sgi_first_unused);
+	isrc = GIC_INTR_ISRC(sc, sgi_first_unused);
 	sgi_to_ipi[sgi_first_unused++] = ipi;
+
+	CPU_SET(PCPU_GET(cpuid), &isrc->isrc_cpu);
+
+	*isrcp = isrc;
 	return (0);
 }
 #endif
