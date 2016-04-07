@@ -525,40 +525,21 @@ bcm_lintc_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 }
 
 #ifdef SMP
-static bool
-bcm_lint_init_on_ap(struct bcm_lintc_softc *sc, struct bcm_lintc_irqsrc *bli,
-    u_int cpu)
-{
-	struct intr_irqsrc *isrc;
-
-	isrc = &bli->bli_isrc;
-
-	KASSERT(isrc->isrc_flags & INTR_ISRCF_PPI,
-	    ("%s: irq %d is not PPI", __func__, bli->bli_irq));
-
-	if (isrc->isrc_handlers == 0)
-		return (false);
-	if (isrc->isrc_flags & INTR_ISRCF_BOUND)
-		return (CPU_ISSET(cpu, &isrc->isrc_cpu));
-
-	CPU_SET(cpu, &isrc->isrc_cpu);
-	return (true);
-}
-
 static void
 bcm_lintc_init_rwreg_on_ap(struct bcm_lintc_softc *sc, u_int cpu, u_int irq,
     uint32_t reg, uint32_t mask)
 {
 
-	if (bcm_lint_init_on_ap(sc, &sc->bls_isrcs[irq], cpu))
+	if (intr_isrc_init_on_cpu(&sc->bls_isrcs[irq].bli_isrc, cpu))
 		bcm_lintc_rwreg_set(sc, reg, mask);
 }
 
 static void
 bcm_lintc_init_pmu_on_ap(struct bcm_lintc_softc *sc, u_int cpu)
 {
+	struct intr_irqsrc *isrc = &sc->bls_isrcs[BCM_LINTC_PMU_IRQ].bli_isrc;
 
-	if (bcm_lint_init_on_ap(sc, &sc->bls_isrcs[BCM_LINTC_PMU_IRQ], cpu)) {
+	if (intr_isrc_init_on_cpu(isrc, cpu)) {
 		/* Write-set register. */
 		bcm_lintc_write_4(sc, BCM_LINTC_PMU_ROUTING_SET_REG,
 		    BCM_LINTC_PIRR_IRQ_EN_CORE(cpu));
