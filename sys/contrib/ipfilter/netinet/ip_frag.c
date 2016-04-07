@@ -719,6 +719,8 @@ ipf_frag_lookup(softc, softf, fin, table
 					FBUMP(ifs_overlap);
 					DT2(ifs_overlap, u_short, off,
 					    ipfr_t *, f);
+					DT3(ipf_fi_bad_ifs_overlap, fr_info_t *, fin, u_short, off,
+					    ipfr_t *, f);
 					fin->fin_flx |= FI_BAD;
 					break;
 				}
@@ -901,6 +903,7 @@ ipf_frag_known(fin, passp)
 		if (fin->fin_flx & FI_BAD) {
 			fr = &ipfr_block;
 			fin->fin_reason = FRB_BADFRAG;
+			DT2(ipf_frb_badfrag, fr_info_t *, fin, uint, fra);
 		} else {
 			fr = fra->ipfr_rule;
 		}
