@@ -332,10 +332,11 @@ struct {
 	[CHERIABI_SYS_msgrcv] = {
 		.sam_ptrmask = 0x2
 	},
-	[CHERIABI_SYS_shmat] = {
+	[CHERIABI_SYS_cheriabi_shmat] = {
+		.sam_return_ptr = 1,
 		.sam_ptrmask = 0x2
 	},
-	[CHERIABI_SYS_shmdt] = {
+	[CHERIABI_SYS_cheriabi_shmdt] = {
 		.sam_ptrmask = 0x1
 	},
 	[CHERIABI_SYS_shmget] = {

@@ -457,17 +457,13 @@
 227	AUE_MSGRCV	NOSTD|NOPROTO	{ int msgrcv(int msqid, \
 				    _Out_writes_bytes_(msgsz) void *msgp, \
 				    size_t msgsz, long msgtyp, int msgflg); }
-; XXX-BD: _In_pagerange_opt_(1) would be wrong if shmaddr points to the last
-; byte of the page
-228	AUE_SHMAT	NOSTD|NOPROTO|NOPARSE	{ int shmat(int shmid, \
-				    _In_pagerange_opt_(1) void *shmaddr, \
-				    int shmflg); }
+228	AUE_SHMAT	NOSTD|NOPARSE	{ caddr_t cheriabi_shmat( \
+				    int shmid, void *shmaddr, int shmflg); }
 229	AUE_SHMCTL	OBSOL	shmctl
-230	AUE_SHMDT	NOSTD|NOPROTO|NOPARSE { int shmdt( \
-				    _In_pagerange_(1) void *shmaddr); }
+230	AUE_SHMDT	NOSTD|NOPARSE { int cheriabi_shmdt( \
+				    void *shmaddr); }
 231	AUE_SHMGET	NOSTD|NOPROTO	{ int shmget(key_t key, int size, \
 				    int shmflg); }
-;
 232	AUE_NULL	NOPROTO	{ int clock_gettime(clockid_t clock_id, \
 				    _Out_ struct timespec *tp); }
 233	AUE_CLOCK_SETTIME	NOPROTO	{ int clock_settime(clockid_t clock_id, \

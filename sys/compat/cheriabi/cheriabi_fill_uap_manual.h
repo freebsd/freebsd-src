@@ -194,8 +194,8 @@ CHERIABI_SYS_cheriabi_sysarch_fill_uap(struct thread *td,
 }
 
 static inline int
-CHERIABI_SYS_shmat_fill_uap(struct thread *td,
-    struct shmat_args *uap)
+CHERIABI_SYS_cheriabi_shmat_fill_uap(struct thread *td,
+    struct cheriabi_shmat_args *uap)
 {
 	struct chericap tmpcap;
 	u_int tag;
@@ -250,7 +250,7 @@ CHERIABI_SYS_shmat_fill_uap(struct thread *td,
 }
 
 static inline int
-CHERIABI_SYS_shmdt_fill_uap(struct thread *td,
+CHERIABI_SYS_cheriabi_shmdt_fill_uap(struct thread *td,
     struct shmdt_args *uap)
 {
 	struct chericap tmpcap;
