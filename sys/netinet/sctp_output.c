@@ -10499,6 +10499,7 @@ sctp_fill_in_rest:
 				strseq++;
 			} else {
 				strseq_m->stream = ntohs(at->rec.data.stream_number);
+				strseq_m->reserved = ntohs(0);
 				strseq_m->msg_id = ntohl(at->rec.data.stream_seq);
 				strseq_m++;
 			}

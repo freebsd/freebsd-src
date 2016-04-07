@@ -6100,7 +6100,7 @@ wait_some_more:
 				 * corrupt?
 				 */
 #ifdef INVARIANTS
-				panic("Impossible data==NULL length !=0 control:%p stcb:%p length:%d", control, stcb, control->length);
+				panic("Impossible data==NULL length !=0");
 #endif
 				out_flags |= MSG_EOR;
 				out_flags |= MSG_TRUNC;
