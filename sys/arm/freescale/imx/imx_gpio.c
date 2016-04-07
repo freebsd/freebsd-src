@@ -157,45 +157,6 @@ static int imx51_gpio_pin_toggle(device_t, uint32_t pin);
 
 #ifdef ARM_INTRNG
 static int
-gpio_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
-    struct resource *res, struct intr_map_data *data)
-{
-	struct imx51_gpio_softc *sc;
-	struct gpio_irqsrc *gi;
-
-	sc = device_get_softc(dev);
-	if (isrc->isrc_handlers == 0) {
-		gi = (struct gpio_irqsrc *)isrc;
-		gi->gi_pol = INTR_POLARITY_CONFORM;
-		gi->gi_trig = INTR_TRIGGER_CONFORM;
-
-		// XXX Not sure this is necessary
-		mtx_lock_spin(&sc->sc_mtx);
-		CLEAR4(sc, IMX_GPIO_IMR_REG, (1U << gi->gi_irq));
-		WRITE4(sc, IMX_GPIO_ISR_REG, (1U << gi->gi_irq));
-		mtx_unlock_spin(&sc->sc_mtx);
-	}
-	return (0);
-}
-
-/*
- * this is mask_intr
- */
-static void
-gpio_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
-{
-	struct imx51_gpio_softc *sc;
-	u_int irq;
-
-	sc = device_get_softc(dev);
-	irq = ((struct gpio_irqsrc *)isrc)->gi_irq;
-
-	mtx_lock_spin(&sc->sc_mtx);
-	CLEAR4(sc, IMX_GPIO_IMR_REG, (1U << irq));
-	mtx_unlock_spin(&sc->sc_mtx);
-}
-
-static int
 gpio_pic_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
     enum intr_polarity *polp, enum intr_trigger *trigp)
 {
@@ -279,6 +240,28 @@ gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
 }
 
 static int
+gpio_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct imx51_gpio_softc *sc;
+	struct gpio_irqsrc *gi;
+
+	sc = device_get_softc(dev);
+	if (isrc->isrc_handlers == 0) {
+		gi = (struct gpio_irqsrc *)isrc;
+		gi->gi_pol = INTR_POLARITY_CONFORM;
+		gi->gi_trig = INTR_TRIGGER_CONFORM;
+
+		// XXX Not sure this is necessary
+		mtx_lock_spin(&sc->sc_mtx);
+		CLEAR4(sc, IMX_GPIO_IMR_REG, (1U << gi->gi_irq));
+		WRITE4(sc, IMX_GPIO_ISR_REG, (1U << gi->gi_irq));
+		mtx_unlock_spin(&sc->sc_mtx);
+	}
+	return (0);
+}
+
+static int
 gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
@@ -342,6 +325,23 @@ gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	WRITE4(sc, reg, wrk);
 	mtx_unlock_spin(&sc->sc_mtx);
 	return (0);
+}
+
+/*
+ * this is mask_intr
+ */
+static void
+gpio_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct imx51_gpio_softc *sc;
+	u_int irq;
+
+	sc = device_get_softc(dev);
+	irq = ((struct gpio_irqsrc *)isrc)->gi_irq;
+
+	mtx_lock_spin(&sc->sc_mtx);
+	CLEAR4(sc, IMX_GPIO_IMR_REG, (1U << irq));
+	mtx_unlock_spin(&sc->sc_mtx);
 }
 
 /*
@@ -417,7 +417,7 @@ gpio_pic_filter(void *arg)
 }
 
 /*
- * register our isrcs into intrng to make it known about them.
+ * Initialize our isrcs and register them with intrng.
  */
 static int
 gpio_pic_register_isrcs(struct imx51_gpio_softc *sc)
