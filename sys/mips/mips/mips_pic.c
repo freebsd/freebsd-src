@@ -134,13 +134,6 @@ pic_irq_mask(struct mips_pic_softc *sc, u_int irq)
 	mips_wr_status(mips_rd_status() & ~((1 << irq) << 8));
 }
 
-#ifdef SMP
-static void
-mips_pic_init_secondary(device_t dev)
-{
-}
-#endif /* SMP */
-
 static inline intptr_t
 pic_xref(device_t dev)
 {
@@ -155,23 +148,30 @@ static int
 mips_pic_register_isrcs(struct mips_pic_softc *sc)
 {
 	int error;
-	uint32_t irq, i;
+	uint32_t irq, i, tmpirq;
 	struct intr_irqsrc *isrc;
-	const char *name;
+	char *name;
 
-	name = device_get_nameunit(sc->pic_dev);
 	for (irq = 0; irq < sc->nirqs; irq++) {
 		sc->pic_irqs[irq].irq = irq;
 		sc->pic_irqs[irq].res = rman_reserve_resource(&sc->pic_irq_rman,
 		    irq, irq, 1, RF_ACTIVE, sc->pic_dev);
 		if (sc->pic_irqs[irq].res == NULL) {
 			device_printf(sc->pic_dev,
-			    "%s failed to alloc resource for irq %d",
+			    "%s failed to alloc resource for irq %u",
 			    __func__, irq);
 			return (ENOMEM);
 		}
 		isrc = PIC_INTR_ISRC(sc, irq);
-		error = intr_isrc_register(isrc, sc->pic_dev, 0, "%s", name);
+		if (irq < NSOFT_IRQS) {
+			name = "sint";
+			tmpirq = irq;
+		} else {
+			name = "int";
+			tmpirq = irq - NSOFT_IRQS;
+		}
+		error = intr_isrc_register(isrc, sc->pic_dev, 0, "%s%u",
+		    name, tmpirq);
 		if (error != 0) {
 			for (i = 0; i < irq; i++) {
 				intr_isrc_deregister(PIC_INTR_ISRC(sc, i));
