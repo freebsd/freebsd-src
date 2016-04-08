@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/timetc.h>
-#include <sys/kernel.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
 #include <vm/vm.h>
@@ -207,6 +206,8 @@ hv_vmbus_init(void)
 	    goto cleanup;
 
 	hv_vmbus_g_context.hypercall_page = virt_addr;
+
+	tc_init(&hv_timecounter); /* register virtual timecount */
 
 	hv_et_init();
 	
@@ -436,14 +437,3 @@ void hv_vmbus_synic_cleanup(void *arg)
 	wrmsr(HV_X64_MSR_SIEFP, siefp.as_uint64_t);
 }
 
-static void
-hv_tc_init(void)
-{
-	if (vm_guest != VM_GUEST_HV)
-		return;
-
-	/* register virtual timecounter */
-	tc_init(&hv_timecounter);
-}
-
-SYSINIT(hv_tc_init, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, hv_tc_init, NULL);
