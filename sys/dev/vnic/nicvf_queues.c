@@ -1904,7 +1904,6 @@ static int
 nicvf_tx_mbuf_locked(struct snd_queue *sq, struct mbuf **mbufp)
 {
 	bus_dma_segment_t segs[256];
-	struct nicvf *nic;
 	struct snd_buff *snd_buff;
 	size_t seg;
 	int nsegs, qentry;
@@ -1928,12 +1927,7 @@ nicvf_tx_mbuf_locked(struct snd_queue *sq, struct mbuf **mbufp)
 	}
 
 	/* Set how many subdescriptors is required */
-	nic = sq->nic;
-	if ((*mbufp)->m_pkthdr.tso_segsz != 0 && nic->hw_tso)
-		subdesc_cnt = MIN_SQ_DESC_PER_PKT_XMIT;
-	else
-		subdesc_cnt = MIN_SQ_DESC_PER_PKT_XMIT + nsegs - 1;
-
+	subdesc_cnt = MIN_SQ_DESC_PER_PKT_XMIT + nsegs - 1;
 	if (subdesc_cnt > sq->free_cnt) {
 		/* ARM64TODO: Add mbuf defragmentation if we lack descriptors */
 		bus_dmamap_unload(sq->snd_buff_dmat, snd_buff->dmap);
