@@ -1241,7 +1241,7 @@ package-pkg:
 real-packages:	stage-packages create-packages sign-packages
 
 stage-packages:
-	@mkdir -p ${WSTAGEDIR} ${KSTAGEDIR}
+	@mkdir -p ${REPODIR} ${WSTAGEDIR} ${KSTAGEDIR}
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} DESTDIR=${WSTAGEDIR} -DNO_ROOT -B stageworld ; \
 		${MAKE} DESTDIR=${KSTAGEDIR} -DNO_ROOT -B stagekernel
@@ -1256,37 +1256,37 @@ create-packages:	_pkgbootstrap
 			create-kernel-packages
 
 create-world-packages:	_pkgbootstrap
-	@rm -f ${DESTDIR}/*.plist 2>/dev/null || :
-	@cd ${DESTDIR} ; \
+	@rm -f ${WSTAGEDIR}/*.plist 2>/dev/null || :
+	@cd ${WSTAGEDIR} ; \
 		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
-		${DESTDIR}/METALOG
-	@for plist in ${DESTDIR}/*.plist; do \
+		${WSTAGEDIR}/METALOG
+	@for plist in ${WSTAGEDIR}/*.plist; do \
 		plist=$${plist##*/} ; \
 		pkgname=$${plist%.plist} ; \
 		sh ${SRCDIR}/release/packages/generate-ucl.sh -o $${pkgname} \
-			-s ${SRCDIR} -u ${DESTDIR}/$${pkgname}.ucl ; \
+			-s ${SRCDIR} -u ${WSTAGEDIR}/$${pkgname}.ucl ; \
 	done
-	@for plist in ${DESTDIR}/*.plist; do \
+	@for plist in ${WSTAGEDIR}/*.plist; do \
 		plist=$${plist##*/} ; \
 		pkgname=$${plist%.plist} ; \
 		awk -F\" ' \
 			/^name/ { printf("===> Creating %s-", $$2); next } \
 			/^version/ { print $$2; next } \
-			' ${DESTDIR}/$${pkgname}.ucl ; \
-		pkg -o ABI_FILE=${DESTDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
-			create -M ${DESTDIR}/$${pkgname}.ucl \
-			-p ${DESTDIR}/$${pkgname}.plist \
-			-r ${DESTDIR} \
-			-o ${REPODIR}/$$(pkg -o ABI_FILE=${DESTDIR}/bin/sh config ABI)/${PKG_VERSION} ; \
+			' ${WSTAGEDIR}/$${pkgname}.ucl ; \
+		pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
+			create -M ${WSTAGEDIR}/$${pkgname}.ucl \
+			-p ${WSTAGEDIR}/$${pkgname}.plist \
+			-r ${WSTAGEDIR} \
+			-o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} ; \
 	done
 
 create-kernel-packages:	_pkgbootstrap
-.if exists(${DESTDIR}/kernel.meta)
+.if exists(${KSTAGEDIR}/kernel.meta)
 .for flavor in "" -debug
-	@cd ${DESTDIR}/${DISTDIR} ; \
+	@cd ${KSTAGEDIR}/${DISTDIR} ; \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${INSTALLKERNEL} \
-		${DESTDIR}/kernel.meta ; \
+		${KSTAGEDIR}/kernel.meta ; \
 	cap_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VCAP_MKDB_ENDIAN` ; \
 	pwd_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VPWD_MKDB_ENDIAN` ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
@@ -1296,26 +1296,26 @@ create-kernel-packages:	_pkgbootstrap
 		-e "s/%CAP_MKDB_ENDIAN%/$${cap_arg}/g" \
 		-e "s/%PWD_MKDB_ENDIAN%/$${pwd_arg}/g" \
 		${SRCDIR}/release/packages/kernel.ucl \
-		> ${DESTDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
+		> ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
 	awk -F\" ' \
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
-		${DESTDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
+		${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
 	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
-		create -M ${DESTDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl \
-		-p ${DESTDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
-		-r ${DESTDIR}/${DISTDIR} \
+		create -M ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl \
+		-p ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
+		-r ${KSTAGEDIR}/${DISTDIR} \
 		-o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
 .endfor
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
 .for _kernel in ${BUILDKERNELS:[2..-1]}
-.if exists(${DESTDIR}/kernel.${_kernel}.meta)
+.if exists(${KSTAGEDIR}/kernel.${_kernel}.meta)
 .for flavor in "" -debug
-	@cd ${DESTDIR}/kernel.${_kernel} ; \
+	@cd ${KSTAGEDIR}/kernel.${_kernel} ; \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${_kernel} \
-		${DESTDIR}/kernel.${_kernel}.meta ; \
+		${KSTAGEDIR}/kernel.${_kernel}.meta ; \
 	cap_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VCAP_MKDB_ENDIAN` ; \
 	pwd_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VPWD_MKDB_ENDIAN` ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
@@ -1325,15 +1325,15 @@ create-kernel-packages:	_pkgbootstrap
 		-e "s/%CAP_MKDB_ENDIAN%/$${cap_arg}/g" \
 		-e "s/%PWD_MKDB_ENDIAN%/$${pwd_arg}/g" \
 		${SRCDIR}/release/packages/kernel.ucl \
-		> ${DESTDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
+		> ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
 	awk -F\" ' \
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
-		${DESTDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
+		${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
 	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
-		create -M ${DESTDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl \
-		-p ${DESTDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.plist \
-		-r ${DESTDIR}/kernel.${_kernel} \
+		create -M ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl \
+		-p ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.plist \
+		-r ${KSTAGEDIR}/kernel.${_kernel} \
 		-o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
 .endfor
 .endif
