@@ -51,6 +51,9 @@
 
 #include "thr_private.h"
 
+_Static_assert(sizeof(struct pthread_mutex) <= PAGE_SIZE,
+    "pthread_mutex is too large for off-page");
+
 /*
  * For adaptive mutexes, how many times to spin doing trylock2
  * before entering the kernel to block
