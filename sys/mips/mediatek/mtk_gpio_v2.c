@@ -425,19 +425,29 @@ mtk_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 static int
 mtk_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 {
-	struct mtk_gpio_softc *sc = device_get_softc(dev);
+	struct mtk_gpio_softc *sc;
+	int ret;
 
-	if (pin >= sc->num_pins || !(sc->pins[pin].pin_flags & GPIO_PIN_OUTPUT))
+	if (pin >= sc->num_pins)
 		return (EINVAL);
 
+	sc = device_get_softc(dev);
+	ret = 0;
+
 	MTK_GPIO_LOCK(sc);
+	if (!(sc->pins[pin].pin_flags & GPIO_PIN_OUTPUT)) {
+		ret = EINVAL;
+		goto out;
+	}
 	if (value)
 		MTK_WRITE_4(sc, GPIO_PIOSET(sc), (1u << pin));
 	else
 		MTK_WRITE_4(sc, GPIO_PIORESET(sc), (1u << pin));
+
+out:
 	MTK_GPIO_UNLOCK(sc);
 
-	return (0);
+	return (ret);
 }
 
 static int
@@ -445,39 +455,56 @@ mtk_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 {
 	struct mtk_gpio_softc *sc;
 	uint32_t data;
+	int ret;
 
-	sc = device_get_softc(dev);
-
-	if (pin >= sc->num_pins || !(sc->pins[pin].pin_flags & GPIO_PIN_INPUT))
+	if (pin >= sc->num_pins)
 		return (EINVAL);
 
+	sc = device_get_softc(dev);
+	ret = 0;
+
 	MTK_GPIO_LOCK(sc);
+	if (!(sc->pins[pin].pin_flags & GPIO_PIN_INPUT)) {
+		ret = EINVAL;
+		goto out;
+	}
 	data = MTK_READ_4(sc, GPIO_PIODATA(sc));
-	MTK_GPIO_UNLOCK(sc);
 	*val = (data & (1u << pin)) ? 1 : 0;
 
-	return (0);
+out:
+	MTK_GPIO_UNLOCK(sc);
+	return (ret);
 }
 
 static int
 mtk_gpio_pin_toggle(device_t dev, uint32_t pin)
 {
-	struct mtk_gpio_softc *sc = device_get_softc(dev);
+	struct mtk_gpio_softc *sc;
 	uint32_t val;
+	int ret;
 
-	if (pin >= sc->num_pins || !(sc->pins[pin].pin_flags & GPIO_PIN_OUTPUT))
+	if (pin >= sc->num_pins)
 		return (EINVAL);
 
+	sc = device_get_softc(dev);
+	ret = 0;
+
 	MTK_GPIO_LOCK(sc);
+	if(!(sc->pins[pin].pin_flags & GPIO_PIN_OUTPUT)) {
+		ret = EINVAL;
+		goto out;
+	}
 	val = MTK_READ_4(sc, GPIO_PIODATA(sc));
 	val &= (1u << pin);
 	if (val)
 		MTK_WRITE_4(sc, GPIO_PIORESET(sc), (1u << pin));
 	else
 		MTK_WRITE_4(sc, GPIO_PIOSET(sc), (1u << pin));
+
+out:
 	MTK_GPIO_UNLOCK(sc);
 
-	return (0);
+	return (ret);
 }
 
 static int
@@ -571,7 +598,9 @@ mtk_gpio_pic_post_filter(device_t dev, struct intr_irqsrc *isrc)
 
 	pisrc = (struct mtk_gpio_pin_irqsrc *)isrc;
 	sc = device_get_softc(dev);
+	MTK_GPIO_LOCK(sc);
 	MTK_WRITE_4(sc, GPIO_PIOINT(sc), 1u << pisrc->irq);
+	MTK_GPIO_UNLOCK(sc);
 }
 
 static int
