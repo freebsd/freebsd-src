@@ -37,7 +37,7 @@
 __weak_reference(_pthread_multi_np, pthread_multi_np);
 
 int
-_pthread_multi_np()
+_pthread_multi_np(void)
 {
 
 	/* Return to multi-threaded scheduling mode: */
