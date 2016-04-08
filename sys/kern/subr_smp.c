@@ -1029,8 +1029,8 @@ topo_set_pu_id(struct topo_node *node, cpuid_t id)
 	node->subtype = 1;
 
 	while ((node = node->parent) != NULL) {
-		if (CPU_ISSET(id, &node->cpuset))
-			break;
+		KASSERT(!CPU_ISSET(id, &node->cpuset),
+		    ("logical ID %u is already set in node %p", id, node));
 		CPU_SET(id, &node->cpuset);
 		node->cpu_count++;
 	}
