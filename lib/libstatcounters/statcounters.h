@@ -68,9 +68,9 @@ static inline void resetStatCounters (void)
 
 #include <inttypes.h>
 #define DEFINE_GET_STAT_COUNTER(name,X,Y)       \
-static inline int64_t get_##name##_count (void) \
+static inline uint64_t get_##name##_count (void) \
 {                                               \
-  int64_t ret;                                  \
+  uint64_t ret;                                  \
   __asm __volatile(".word (0x1f << 26) | (0x0 << 21) | (12 << 16) | ("#X" << 11) | ( "#Y"  << 6) | 0x3b\n\tmove %0,$12" : "=r" (ret) :: "$12"); \
   return ret;                                   \
 }
