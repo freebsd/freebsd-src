@@ -255,7 +255,7 @@ in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 		 * ancillary data.
 		 */
 		if ((inp->inp_flags & INP_BINDANY) == 0) {
-			ia = in6ifa_ifwithaddr(&tmp, odstzone);
+			ia = in6ifa_ifwithaddr(&tmp, 0 /* XXX */);
 			if (ia == NULL || (ia->ia6_flags & (IN6_IFF_ANYCAST |
 			    IN6_IFF_NOTREADY))) {
 				if (ia != NULL)
