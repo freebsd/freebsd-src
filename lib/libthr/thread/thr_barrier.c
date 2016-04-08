@@ -34,6 +34,9 @@
 
 #include "thr_private.h"
 
+_Static_assert(sizeof(struct pthread_barrier) <= PAGE_SIZE,
+    "pthread_barrier is too large for off-page");
+
 __weak_reference(_pthread_barrier_init,		pthread_barrier_init);
 __weak_reference(_pthread_barrier_wait,		pthread_barrier_wait);
 __weak_reference(_pthread_barrier_destroy,	pthread_barrier_destroy);
