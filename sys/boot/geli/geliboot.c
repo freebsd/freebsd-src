@@ -90,12 +90,12 @@ geli_taste(int read_func(void *vdev, void *priv, off_t off, void *buf,
 		return (error);
 	}
 
-	if ((md.md_flags & G_ELI_FLAG_ONETIME)) {
-		/* Swap device, skip it. */
+	if (!(md.md_flags & G_ELI_FLAG_GELIBOOT)) {
+		/* The GELIBOOT feature is not activated */
 		return (1);
 	}
-	if (!(md.md_flags & G_ELI_FLAG_BOOT)) {
-		/* Disk is not GELI boot device, skip it. */
+	if ((md.md_flags & G_ELI_FLAG_ONETIME)) {
+		/* Swap device, skip it. */
 		return (1);
 	}
 	if (md.md_iterations < 0) {
