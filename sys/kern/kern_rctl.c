@@ -80,28 +80,43 @@ FEATURE(rctl, "Resource Limits");
 static unsigned int rctl_maxbufsize = RCTL_MAX_OUTBUFSIZE;
 static int rctl_log_rate_limit = 10;
 static int rctl_devctl_rate_limit = 10;
-static unsigned int rctl_throttle_min = 0;
-static unsigned int rctl_throttle_max = 0;
-static unsigned int rctl_throttle_pct = 0;
-static unsigned int rctl_throttle_pct2 = 0;
+
+/*
+ * Values below are initialized in rctl_init().
+ */
+static int rctl_throttle_min = -1;
+static int rctl_throttle_max = -1;
+static int rctl_throttle_pct = -1;
+static int rctl_throttle_pct2 = -1;
+
+static int rctl_throttle_min_sysctl(SYSCTL_HANDLER_ARGS);
+static int rctl_throttle_max_sysctl(SYSCTL_HANDLER_ARGS);
+static int rctl_throttle_pct_sysctl(SYSCTL_HANDLER_ARGS);
+static int rctl_throttle_pct2_sysctl(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_NODE(_kern_racct, OID_AUTO, rctl, CTLFLAG_RW, 0, "Resource Limits");
 SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, maxbufsize, CTLFLAG_RWTUN,
     &rctl_maxbufsize, 0, "Maximum output buffer size");
 SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, log_rate_limit, CTLFLAG_RW,
     &rctl_log_rate_limit, 0, "Maximum number of log messages per second");
-SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, devctl_rate_limit, CTLFLAG_RW,
+SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, devctl_rate_limit, CTLFLAG_RWTUN,
     &rctl_devctl_rate_limit, 0, "Maximum number of devctl messages per second");
-SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, throttle_min, CTLFLAG_RDTUN,
-    &rctl_throttle_min, 0, "Shortest throttling duration, in hz");
-SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, throttle_max, CTLFLAG_RDTUN,
-    &rctl_throttle_max, 0, "Longest throttling duration, in hz");
-SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, throttle_pct, CTLFLAG_RDTUN,
-    &rctl_throttle_pct, 0,
+SYSCTL_PROC(_kern_racct_rctl, OID_AUTO, throttle_min,
+    CTLTYPE_UINT | CTLFLAG_RWTUN, 0, 0, &rctl_throttle_min_sysctl, "IU",
+    "Shortest throttling duration, in hz");
+TUNABLE_INT("kern.racct.rctl.throttle_min", &rctl_throttle_min);
+SYSCTL_PROC(_kern_racct_rctl, OID_AUTO, throttle_max,
+    CTLTYPE_UINT | CTLFLAG_RWTUN, 0, 0, &rctl_throttle_max_sysctl, "IU",
+    "Longest throttling duration, in hz");
+TUNABLE_INT("kern.racct.rctl.throttle_max", &rctl_throttle_max);
+SYSCTL_PROC(_kern_racct_rctl, OID_AUTO, throttle_pct,
+    CTLTYPE_UINT | CTLFLAG_RWTUN, 0, 0, &rctl_throttle_pct_sysctl, "IU",
     "Throttling penalty for process consumption, in percent");
-SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, throttle_pct2, CTLFLAG_RDTUN,
-    &rctl_throttle_pct2, 0,
+TUNABLE_INT("kern.racct.rctl.throttle_pct", &rctl_throttle_pct);
+SYSCTL_PROC(_kern_racct_rctl, OID_AUTO, throttle_pct2,
+    CTLTYPE_UINT | CTLFLAG_RWTUN, 0, 0, &rctl_throttle_pct2_sysctl, "IU",
     "Throttling penalty for container consumption, in percent");
+TUNABLE_INT("kern.racct.rctl.throttle_pct2", &rctl_throttle_pct2);
 
 /*
  * 'rctl_rule_link' connects a rule with every racct it's related to.
@@ -211,6 +226,78 @@ static int rctl_rule_fully_specified(const struct rctl_rule *rule);
 static void rctl_rule_to_sbuf(struct sbuf *sb, const struct rctl_rule *rule);
 
 static MALLOC_DEFINE(M_RCTL, "rctl", "Resource Limits");
+
+static int rctl_throttle_min_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	int val = rctl_throttle_min;
+	int error;
+
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (val < 1 || val > rctl_throttle_max)
+		return (EINVAL);
+
+	RCTL_WLOCK();
+	rctl_throttle_min = val;
+	RCTL_WUNLOCK();
+
+	return (0);
+}
+
+static int rctl_throttle_max_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	int val = rctl_throttle_max;
+	int error;
+
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (val < rctl_throttle_min)
+		return (EINVAL);
+
+	RCTL_WLOCK();
+	rctl_throttle_max = val;
+	RCTL_WUNLOCK();
+
+	return (0);
+}
+
+static int rctl_throttle_pct_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	int val = rctl_throttle_pct;
+	int error;
+
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (val < 0)
+		return (EINVAL);
+
+	RCTL_WLOCK();
+	rctl_throttle_pct = val;
+	RCTL_WUNLOCK();
+
+	return (0);
+}
+
+static int rctl_throttle_pct2_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	int val = rctl_throttle_pct2;
+	int error;
+
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (val < 0)
+		return (EINVAL);
+
+	RCTL_WLOCK();
+	rctl_throttle_pct2 = val;
+	RCTL_WUNLOCK();
+
+	return (0);
+}
 
 static const char *
 rctl_subject_type_name(int subject)
@@ -2122,13 +2209,19 @@ rctl_init(void)
 	rctl_rule_zone = uma_zcreate("rctl_rule", sizeof(struct rctl_rule),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 
-	if (rctl_throttle_min <= 0)
+	/*
+	 * Set default values, making sure not to overwrite the ones
+	 * fetched from tunables.  Most of those could be set at the
+	 * declaration, except for the rctl_throttle_max - we cannot
+	 * set it there due to hz not being compile time constant.
+	 */
+	if (rctl_throttle_min < 1)
 		rctl_throttle_min = 1;
-	if (rctl_throttle_max <= 0)
+	if (rctl_throttle_max < rctl_throttle_min)
 		rctl_throttle_max = 2 * hz;
-	if (rctl_throttle_pct <= 0)
+	if (rctl_throttle_pct < 0)
 		rctl_throttle_pct = 100;
-	if (rctl_throttle_pct2 <= 0)
+	if (rctl_throttle_pct2 < 0)
 		rctl_throttle_pct2 = 100;
 }
 
