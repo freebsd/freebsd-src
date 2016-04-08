@@ -82,13 +82,13 @@ static int eli_backup_create(struct gctl_req *req, const char *prov,
 /*
  * Available commands:
  *
- * init [-bhPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] [-V version] prov
+ * init [-bgPTv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] [-s sectorsize] [-V version] prov
  * label - alias for 'init'
  * attach [-dprv] [-j passfile] [-k keyfile] prov
  * detach [-fl] prov ...
  * stop - alias for 'detach'
  * onetime [-d] [-a aalgo] [-e ealgo] [-l keylen] prov
- * configure [-bB] prov ...
+ * configure [-bBgGtT] prov ...
  * setkey [-pPv] [-n keyno] [-j passfile] [-J newpassfile] [-k keyfile] [-K newkeyfile] prov
  * delkey [-afv] [-n keyno] prov
  * suspend [-v] -a | prov ...
@@ -108,6 +108,7 @@ struct g_command class_commands[] = {
 		{ 'b', "boot", NULL, G_TYPE_BOOL },
 		{ 'B', "backupfile", "", G_TYPE_STRING },
 		{ 'e', "ealgo", "", G_TYPE_STRING },
+		{ 'g', "geliboot", NULL, G_TYPE_BOOL },
 		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
 		{ 'J', "newpassfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
 		{ 'K', "newkeyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
@@ -118,7 +119,7 @@ struct g_command class_commands[] = {
 		{ 'V', "mdversion", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-bPTv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] [-s sectorsize] [-V version] prov"
+	    "[-bgPTv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-J newpassfile] [-K newkeyfile] [-s sectorsize] [-V version] prov"
 	},
 	{ "label", G_FLAG_VERBOSE, eli_main,
 	    {
@@ -126,6 +127,7 @@ struct g_command class_commands[] = {
 		{ 'b', "boot", NULL, G_TYPE_BOOL },
 		{ 'B', "backupfile", "", G_TYPE_STRING },
 		{ 'e', "ealgo", "", G_TYPE_STRING },
+		{ 'g', "geliboot", NULL, G_TYPE_BOOL },
 		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
 		{ 'J', "newpassfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
 		{ 'K', "newkeyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
@@ -180,11 +182,13 @@ struct g_command class_commands[] = {
 	    {
 		{ 'b', "boot", NULL, G_TYPE_BOOL },
 		{ 'B', "noboot", NULL, G_TYPE_BOOL },
+		{ 'g', "geliboot", NULL, G_TYPE_BOOL },
+		{ 'G', "nogeliboot", NULL, G_TYPE_BOOL },
 		{ 't', "trim", NULL, G_TYPE_BOOL },
 		{ 'T', "notrim", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-bBtT] prov ..."
+	    "[-bBgGtT] prov ..."
 	},
 	{ "setkey", G_FLAG_VERBOSE, eli_main,
 	    {
@@ -702,6 +706,8 @@ eli_init(struct gctl_req *req)
 	md.md_flags = 0;
 	if (gctl_get_int(req, "boot"))
 		md.md_flags |= G_ELI_FLAG_BOOT;
+	if (gctl_get_int(req, "geliboot"))
+		md.md_flags |= G_ELI_FLAG_GELIBOOT;
 	if (gctl_get_int(req, "notrim"))
 		md.md_flags |= G_ELI_FLAG_NODELETE;
 	md.md_ealgo = CRYPTO_ALGORITHM_MIN - 1;
@@ -906,7 +912,7 @@ eli_attach(struct gctl_req *req)
 
 static void
 eli_configure_detached(struct gctl_req *req, const char *prov, int boot,
- int trim)
+ int geliboot, int trim)
 {
 	struct g_eli_metadata md;
 	bool changed = 0;
@@ -925,6 +931,20 @@ eli_configure_detached(struct gctl_req *req, const char *prov, int boot,
 			md.md_flags |= G_ELI_FLAG_BOOT;
 		else
 			md.md_flags &= ~G_ELI_FLAG_BOOT;
+		changed = 1;
+	}
+
+	if (geliboot == 1 && (md.md_flags & G_ELI_FLAG_GELIBOOT)) {
+		if (verbose)
+			printf("GELIBOOT flag already configured for %s.\n", prov);
+	} else if (geliboot == 0 && !(md.md_flags & G_ELI_FLAG_GELIBOOT)) {
+		if (verbose)
+			printf("GELIBOOT flag not configured for %s.\n", prov);
+	} else if (geliboot >= 0) {
+		if (geliboot)
+			md.md_flags |= G_ELI_FLAG_GELIBOOT;
+		else
+			md.md_flags &= ~G_ELI_FLAG_GELIBOOT;
 		changed = 1;
 	}
 
@@ -951,8 +971,8 @@ static void
 eli_configure(struct gctl_req *req)
 {
 	const char *prov;
-	bool boot, noboot, trim, notrim;
-	int doboot, dotrim;
+	bool boot, noboot, geliboot, nogeliboot, trim, notrim;
+	int doboot, dogeliboot, dotrim;
 	int i, nargs;
 
 	nargs = gctl_get_int(req, "nargs");
@@ -963,6 +983,8 @@ eli_configure(struct gctl_req *req)
 
 	boot = gctl_get_int(req, "boot");
 	noboot = gctl_get_int(req, "noboot");
+	geliboot = gctl_get_int(req, "geliboot");
+	nogeliboot = gctl_get_int(req, "nogeliboot");
 	trim = gctl_get_int(req, "trim");
 	notrim = gctl_get_int(req, "notrim");
 
@@ -976,6 +998,16 @@ eli_configure(struct gctl_req *req)
 	else if (noboot)
 		doboot = 0;
 
+	dogeliboot = -1;
+	if (geliboot && nogeliboot) {
+		gctl_error(req, "Options -g and -G are mutually exclusive.");
+		return;
+	}
+	if (geliboot)
+		dogeliboot = 1;
+	else if (nogeliboot)
+		dogeliboot = 0;
+
 	dotrim = -1;
 	if (trim && notrim) {
 		gctl_error(req, "Options -t and -T are mutually exclusive.");
@@ -986,7 +1018,7 @@ eli_configure(struct gctl_req *req)
 	else if (notrim)
 		dotrim = 0;
 
-	if (doboot == -1 && dotrim == -1) {
+	if (doboot == -1 && dogeliboot == -1 && dotrim == -1) {
 		gctl_error(req, "No option given.");
 		return;
 	}
@@ -997,7 +1029,7 @@ eli_configure(struct gctl_req *req)
 	for (i = 0; i < nargs; i++) {
 		prov = gctl_get_ascii(req, "arg%d", i);
 		if (!eli_is_attached(prov))
-			eli_configure_detached(req, prov, doboot, dotrim);
+			eli_configure_detached(req, prov, doboot, dogeliboot, dotrim);
 	}
 }
 

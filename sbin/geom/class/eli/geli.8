@@ -51,7 +51,7 @@ utility:
 .Pp
 .Nm
 .Cm init
-.Op Fl bPTv
+.Op Fl bgPTv
 .Op Fl a Ar aalgo
 .Op Fl B Ar backupfile
 .Op Fl e Ar ealgo
@@ -88,7 +88,7 @@ utility:
 .Ar prov
 .Nm
 .Cm configure
-.Op Fl bBtT
+.Op Fl bBgGtT
 .Ar prov ...
 .Nm
 .Cm setkey
@@ -293,6 +293,11 @@ The default and recommended algorithm is
 .Nm AES-XTS .
 .Nm NULL
 is unencrypted.
+.It Fl g
+Enable booting from this encrypted root filesystem.
+The boot loader prompts for the passphrase and loads
+.Xr loader 8
+from the encrypted partition.
 .It Fl i Ar iterations
 Number of iterations to use with PKCS#5v2 when processing User Key
 passphrase component.
@@ -485,6 +490,13 @@ For more information, see the description of the
 subcommand.
 .It Fl B
 Remove the BOOT flag from the given providers.
+.It Fl g
+Enable booting from this encrypted root filesystem.
+The boot loader prompts for the passphrase and loads
+.Xr loader 8
+from the encrypted partition.
+.It Fl G
+Deactivate booting from this encrypted root partition.
 .It Fl t
 Enable TRIM/UNMAP passthru.
 For more information, see the description of the
