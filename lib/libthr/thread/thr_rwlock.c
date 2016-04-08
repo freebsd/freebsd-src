@@ -35,6 +35,9 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
+_Static_assert(sizeof(struct pthread_rwlock) <= PAGE_SIZE,
+    "pthread_rwlock is too large for off-page");
+
 __weak_reference(_pthread_rwlock_destroy, pthread_rwlock_destroy);
 __weak_reference(_pthread_rwlock_init, pthread_rwlock_init);
 __weak_reference(_pthread_rwlock_rdlock, pthread_rwlock_rdlock);

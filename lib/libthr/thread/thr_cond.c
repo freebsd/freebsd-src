@@ -40,6 +40,9 @@
 
 #include "thr_private.h"
 
+_Static_assert(sizeof(struct pthread_cond) <= PAGE_SIZE,
+    "pthread_cond too large");
+
 /*
  * Prototypes
  */

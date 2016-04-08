@@ -38,6 +38,9 @@
 
 #include "thr_private.h"
 
+_Static_assert(sizeof(struct pthread_spinlock) <= PAGE_SIZE,
+    "pthread_spinlock is too large for off-page");
+
 #define SPIN_COUNT 100000
 
 __weak_reference(_pthread_spin_init, pthread_spin_init);
