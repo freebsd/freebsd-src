@@ -257,7 +257,7 @@ mtk_soc_try_early_detect(void)
 	else
 		base = MTK_DEFAULT_BASE;
 
-	if (bus_space_map(bst, MTK_DEFAULT_BASE, MTK_DEFAULT_SIZE, 0, &bsh))
+	if (bus_space_map(bst, base, MTK_DEFAULT_SIZE, 0, &bsh))
 		return;
 
 	/* First, figure out the CPU clock */
