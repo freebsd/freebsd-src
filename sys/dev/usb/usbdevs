@@ -2268,6 +2268,9 @@ product HIDGLOBAL CM6020	0x1784	Omnikey Cardman 6020
 product HITACHI DVDCAM_DZ_MV100A	0x0004	DVD-CAM DZ-MV100A Camcorder
 product HITACHI DVDCAM_USB	0x001e	DVDCAM USB HS Interface
 
+/* Holtek products */
+product HOLTEK F85		0xa030	Holtek USB gaming keyboard
+
 /* HP products */
 product HP 895C			0x0004	DeskJet 895C
 product HP 4100C		0x0101	Scanjet 4100C
