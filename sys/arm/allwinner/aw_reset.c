@@ -159,5 +159,6 @@ static driver_t aw_reset_driver = {
 
 static devclass_t aw_reset_devclass;
 
-DRIVER_MODULE(aw_reset, simplebus, aw_reset_driver, aw_reset_devclass, 0, 0);
+EARLY_DRIVER_MODULE(aw_reset, simplebus, aw_reset_driver, aw_reset_devclass,
+    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(aw_reset, 1);
