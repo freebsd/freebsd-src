@@ -1256,6 +1256,8 @@ zfs_create_boot()
 	f_dprintf "$funcname: Modifying directory permissions..."
 	local dir
 	for dir in /tmp /var/tmp; do
+		f_eval_catch $funcname mkdir "$MKDIR_P" \
+		             $BSDINSTALL_CHROOT$dir || return $FAILURE
 		f_eval_catch $funcname chmod "$CHMOD_MODE" 1777 \
 		             $BSDINSTALL_CHROOT$dir || return $FAILURE
 	done
