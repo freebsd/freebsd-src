@@ -36,7 +36,8 @@
 
 __weak_reference(_pthread_single_np, pthread_single_np);
 
-int _pthread_single_np()
+int
+_pthread_single_np(void)
 {
 
 	/* Enter single-threaded (non-POSIX) scheduling mode: */
