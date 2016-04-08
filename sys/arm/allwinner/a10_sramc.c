@@ -71,7 +71,7 @@ static int
 a10_sramc_probe(device_t dev)
 {
 
-	if (ofw_bus_is_compatible(dev, "allwinner,sun4i-sramc")) {
+	if (ofw_bus_is_compatible(dev, "allwinner,sun4i-a10-sram-controller")) {
 		device_set_desc(dev, "Allwinner sramc module");
 		return (BUS_PROBE_DEFAULT);
 	}
