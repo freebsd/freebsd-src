@@ -2291,6 +2291,8 @@ struct scsi_vpd_id_descriptor
 #define	SVPD_ID_TYPE_LUNGRP	0x06
 #define	SVPD_ID_TYPE_MD5_LUN_ID	0x07
 #define	SVPD_ID_TYPE_SCSI_NAME	0x08
+#define	SVPD_ID_TYPE_PROTO	0x09
+#define	SVPD_ID_TYPE_UUID	0x0a
 #define	SVPD_ID_TYPE_MASK	0x0f
 	u_int8_t	reserved;
 	u_int8_t	length;
