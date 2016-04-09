@@ -599,8 +599,8 @@ ieee80211_ibss_merge_check(struct ieee80211_node *ni)
 int
 ieee80211_ibss_merge(struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
 #ifdef IEEE80211_DEBUG
+	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 #endif
 
