@@ -371,10 +371,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 		/*
 		 * Validate the bssid.
 		 */
-		if (!(type == IEEE80211_FC0_TYPE_MGT &&
-		     (subtype == IEEE80211_FC0_SUBTYPE_BEACON ||
-		      subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)) &&
-		    !IEEE80211_ADDR_EQ(bssid, vap->iv_bss->ni_bssid) &&
+		if (!IEEE80211_ADDR_EQ(bssid, vap->iv_bss->ni_bssid) &&
 		    !IEEE80211_ADDR_EQ(bssid, ifp->if_broadcastaddr)) {
 			/* not interested in */
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
