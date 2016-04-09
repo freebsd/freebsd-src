@@ -2832,7 +2832,7 @@ ixlv_add_sysctls(struct ixlv_sc *sc)
 		{0,0,0}
 	};
 	struct ixl_sysctl_info *entry = ctls;
-	while (entry->stat != 0)
+	while (entry->stat != NULL)
 	{
 		SYSCTL_ADD_QUAD(ctx, child, OID_AUTO, entry->name,
 				CTLFLAG_RD, entry->stat,
