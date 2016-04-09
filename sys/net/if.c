@@ -959,6 +959,11 @@ if_detach_internal(struct ifnet *ifp, int vmove, int shutdown,
 	/* The one thing we have to do. */
 	if_delgroups(ifp);
 
+	/*
+	 * Remove/wait for pending events.
+	 */
+	taskqueue_drain(taskqueue_swi, &ifp->if_linktask);
+
 	if (!vmove && !shutdown &&
 	    ifp->if_vnet->vnet_state <= SI_SUB_PSEUDO_DONE)
 		return (ENOENT);
@@ -966,11 +971,6 @@ if_detach_internal(struct ifnet *ifp, int vmove, int shutdown,
 	/* Check if this is a cloned interface or not. */
 	if (vmove && ifcp != NULL)
 		*ifcp = if_clone_findifc(ifp);
-
-	/*
-	 * Remove/wait for pending events.
-	 */
-	taskqueue_drain(taskqueue_swi, &ifp->if_linktask);
 
 	/*
 	 * Remove routes and flush queues.
