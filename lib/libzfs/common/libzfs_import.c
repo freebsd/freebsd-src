@@ -20,10 +20,10 @@
  */
 
 /*
- * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright 2015 RackTop Systems.
+ * Copyright 2016 Nexenta Systems, Inc.
  */
 
 /*
@@ -1084,9 +1084,7 @@ zpool_open_func(void *arg)
 }
 
 /*
- * Given a file descriptor, clear (zero) the label information.  This function
- * is currently only used in the appliance stack as part of the ZFS sysevent
- * module.
+ * Given a file descriptor, clear (zero) the label information.
  */
 int
 zpool_clear_label(int fd)
@@ -1131,7 +1129,7 @@ zpool_find_import_impl(libzfs_handle_t *hdl, importargs_t *iarg)
 	char *end, **dir = iarg->path;
 	size_t pathleft;
 	nvlist_t *ret = NULL;
-	static char *default_dir = "/dev/dsk";
+	static char *default_dir = ZFS_DISK_ROOT;
 	pool_list_t pools = { 0 };
 	pool_entry_t *pe, *penext;
 	vdev_entry_t *ve, *venext;
@@ -1153,7 +1151,7 @@ zpool_find_import_impl(libzfs_handle_t *hdl, importargs_t *iarg)
 	 */
 	for (i = 0; i < dirs; i++) {
 		tpool_t *t;
-		char *rdsk;
+		char rdsk[MAXPATHLEN];
 		int dfd;
 		boolean_t config_failed = B_FALSE;
 		DIR *dirp;
@@ -1174,10 +1172,10 @@ zpool_find_import_impl(libzfs_handle_t *hdl, importargs_t *iarg)
 		 * reading the labels skips a bunch of slow operations during
 		 * close(2) processing, so we replace /dev/dsk with /dev/rdsk.
 		 */
-		if (strcmp(path, "/dev/dsk/") == 0)
-			rdsk = "/dev/rdsk/";
+		if (strcmp(path, ZFS_DISK_ROOTD) == 0)
+			(void) strlcpy(rdsk, ZFS_RDISK_ROOTD, sizeof (rdsk));
 		else
-			rdsk = path;
+			(void) strlcpy(rdsk, path, sizeof (rdsk));
 
 		if ((dfd = open64(rdsk, O_RDONLY)) < 0 ||
 		    (dirp = fdopendir(dfd)) == NULL) {
