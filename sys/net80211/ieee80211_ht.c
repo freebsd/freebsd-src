@@ -1063,8 +1063,9 @@ ieee80211_ht_node_init(struct ieee80211_node *ni)
 
 	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
 	    ni,
-	    "%s: called",
-	    __func__);
+	    "%s: called (%p)",
+	    __func__,
+	    ni);
 
 	if (ni->ni_flags & IEEE80211_NODE_HT) {
 		/*
@@ -1074,8 +1075,8 @@ ieee80211_ht_node_init(struct ieee80211_node *ni)
 		 */
 		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
 		    ni,
-		    "%s: calling cleanup",
-		    __func__);
+		    "%s: calling cleanup (%p)",
+		    __func__, ni);
 		ieee80211_ht_node_cleanup(ni);
 	}
 	for (tid = 0; tid < WME_NUM_TID; tid++) {
@@ -1100,8 +1101,8 @@ ieee80211_ht_node_cleanup(struct ieee80211_node *ni)
 
 	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
 	    ni,
-	    "%s: called",
-	    __func__);
+	    "%s: called (%p)",
+	    __func__, ni);
 
 	KASSERT(ni->ni_flags & IEEE80211_NODE_HT, ("not an HT node"));
 
