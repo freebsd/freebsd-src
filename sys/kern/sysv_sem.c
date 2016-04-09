@@ -877,6 +877,11 @@ sys_semget(struct thread *td, struct semget_args *uap)
 		}
 		if (semid < seminfo.semmni) {
 			DPRINTF(("found public key\n"));
+			if ((semflg & IPC_CREAT) && (semflg & IPC_EXCL)) {
+				DPRINTF(("not exclusive\n"));
+				error = EEXIST;
+				goto done2;
+			}
 			if ((error = ipcperm(td, &sema[semid].u.sem_perm,
 			    semflg & 0700))) {
 				goto done2;
@@ -884,11 +889,6 @@ sys_semget(struct thread *td, struct semget_args *uap)
 			if (nsems > 0 && sema[semid].u.sem_nsems < nsems) {
 				DPRINTF(("too small\n"));
 				error = EINVAL;
-				goto done2;
-			}
-			if ((semflg & IPC_CREAT) && (semflg & IPC_EXCL)) {
-				DPRINTF(("not exclusive\n"));
-				error = EEXIST;
 				goto done2;
 			}
 #ifdef MAC
