@@ -427,7 +427,6 @@ ahci_port_stop(struct ahci_port *p)
 	struct ahci_ioreq *aior;
 	uint8_t *cfis;
 	int slot;
-	int ncq;
 	int error;
 
 	assert(pthread_mutex_isowned_np(&p->pr_sc->mtx));
@@ -445,10 +444,7 @@ ahci_port_stop(struct ahci_port *p)
 		if (cfis[2] == ATA_WRITE_FPDMA_QUEUED ||
 		    cfis[2] == ATA_READ_FPDMA_QUEUED ||
 		    cfis[2] == ATA_SEND_FPDMA_QUEUED)
-			ncq = 1;
-
-		if (ncq)
-			p->sact &= ~(1 << slot);
+			p->sact &= ~(1 << slot);	/* NCQ */
 		else
 			p->ci &= ~(1 << slot);
 

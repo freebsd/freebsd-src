@@ -104,7 +104,6 @@ acpi_wakedata.h			optional	acpi			\
 amd64/amd64/amd64_mem.c		optional	mem
 #amd64/amd64/apic_vector.S	standard
 amd64/amd64/atomic.c		standard
-amd64/amd64/autoconf.c		standard
 amd64/amd64/bios.c		standard
 amd64/amd64/bpf_jit_machdep.c	optional	bpf_jitter
 amd64/amd64/cpu_switch.S	standard
@@ -596,6 +595,7 @@ x86/isa/nmi.c			standard
 x86/isa/orm.c			optional	isa
 x86/pci/pci_bus.c		optional	pci
 x86/pci/qpi.c			optional	pci
+x86/x86/autoconf.c		standard
 x86/x86/bus_machdep.c		standard
 x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard

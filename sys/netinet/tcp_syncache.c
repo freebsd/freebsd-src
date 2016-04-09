@@ -282,7 +282,7 @@ syncache_destroy(void)
 	int i;
 
 	/*
-	 * Stop the re-seed timer before freeing resources.  Not need to
+	 * Stop the re-seed timer before freeing resources.  No need to
 	 * possibly schedule it another time.
 	 */
 	callout_drain(&V_tcp_syncache.secret.reseed);

@@ -739,9 +739,12 @@ tcp_destroy(void *unused __unused)
 
 	/*
 	 * All our processes are gone, all our sockets should be cleaned
-	 * up, which means, which should past the tcp_discardcb() calls.
+	 * up, which means, we should be past the tcp_discardcb() calls.
 	 * Sleep to let all tcpcb timers really disappear and then cleanup.
-	 * Timewait will cleanup it's queue and will be ready to go.
+	 * Timewait will cleanup its queue and will be ready to go.
+	 * XXX-BZ In theory a few ticks should be good enough to make sure
+	 * the timers are all really gone.  We should see if we could use a
+	 * better metric here and, e.g., check a tcbcb count as an optimization?
 	 */
 	DELAY(1000000 / hz);
 	tcp_hc_destroy();

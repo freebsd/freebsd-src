@@ -294,7 +294,7 @@ fsl_ehci_attach(device_t self)
 	}
 
 	/* Setup interrupt handler */
-	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO,
+	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, (driver_intr_t *)ehci_interrupt, sc, &sc->sc_intr_hdl);
 	if (err) {
 		device_printf(self, "Could not setup irq, %d\n", err);

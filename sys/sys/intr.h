@@ -1,7 +1,6 @@
-/* 	$NetBSD: intr.h,v 1.7 2003/06/16 20:01:00 thorpej Exp $	*/
-
 /*-
- * Copyright (c) 1997 Mark Brinicombe.
+ * Copyright (c) 2015-2016 Svatopluk Kraus
+ * Copyright (c) 2015-2016 Michal Meloun
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -12,34 +11,57 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Mark Brinicombe
- *	for the NetBSD Project.
- * 4. The name of the company nor the name of the author may be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- *
  */
 
 #ifndef _SYS_INTR_H_
 #define _SYS_INTR_H_
 
 #include <sys/systm.h>
+
+enum intr_map_data_type {
+	INTR_MAP_DATA_ACPI,
+	INTR_MAP_DATA_FDT,
+};
+
+#ifdef DEV_ACPI
+struct intr_map_data_acpi {
+	u_int			irq;
+	enum intr_polarity	pol;
+	enum intr_trigger	trig;
+};
+#endif
+#ifdef FDT
+struct intr_map_data_fdt {
+	u_int	ncells;
+	pcell_t	*cells;
+};
+#endif
+
+struct intr_map_data {
+	enum intr_map_data_type	type;
+	union {
+#ifdef DEV_ACPI
+		struct intr_map_data_acpi	acpi;
+#endif
+#ifdef FDT
+		struct intr_map_data_fdt	fdt;
+#endif
+	};
+};
 
 #ifdef notyet
 #define	INTR_SOLO	INTR_MD1
@@ -50,28 +72,16 @@ typedef int intr_irq_filter_t(void *arg);
 
 #define INTR_ISRC_NAMELEN	(MAXCOMLEN + 1)
 
-enum intr_isrc_type {
-	INTR_ISRCT_NAMESPACE,
-	INTR_ISRCT_FDT
-};
-
-#define INTR_ISRCF_REGISTERED	0x01	/* registered in a controller */
-#define INTR_ISRCF_PERCPU	0x02	/* per CPU interrupt */
+#define INTR_ISRCF_IPI		0x01	/* IPI interrupt */
+#define INTR_ISRCF_PPI		0x02	/* PPI interrupt */
 #define INTR_ISRCF_BOUND	0x04	/* bound to a CPU */
 
 /* Interrupt source definition. */
 struct intr_irqsrc {
 	device_t		isrc_dev;	/* where isrc is mapped */
-	intptr_t		isrc_xref;	/* device reference key */
-	uintptr_t		isrc_data;	/* device data for isrc */
 	u_int			isrc_irq;	/* unique identificator */
-	enum intr_isrc_type	isrc_type;	/* how is isrc decribed */
 	u_int			isrc_flags;
 	char			isrc_name[INTR_ISRC_NAMELEN];
-	uint16_t		isrc_nspc_type;
-	uint16_t		isrc_nspc_num;
-	enum intr_trigger	isrc_trig;
-	enum intr_polarity	isrc_pol;
 	cpuset_t		isrc_cpu;	/* on which CPUs is enabled */
 	u_int			isrc_index;
 	u_long *		isrc_count;
@@ -81,47 +91,48 @@ struct intr_irqsrc {
 	intr_irq_filter_t *	isrc_filter;
 	void *			isrc_arg;
 #endif
-#ifdef FDT
-	u_int			isrc_ncells;
-	pcell_t			isrc_cells[];	/* leave it last */
-#endif
 };
 
-struct intr_irqsrc *intr_isrc_alloc(u_int type, u_int extsize);
-void intr_isrc_free(struct intr_irqsrc *isrc);
+/* Intr interface for PIC. */
+int intr_isrc_deregister(struct intr_irqsrc *);
+int intr_isrc_register(struct intr_irqsrc *, device_t, u_int, const char *, ...)
+    __printflike(4, 5);
 
-void intr_irq_set_name(struct intr_irqsrc *isrc, const char *fmt, ...)
-    __printflike(2, 3);
+#ifdef SMP
+bool intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu);
+#endif
 
-void intr_irq_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf);
+int intr_isrc_dispatch(struct intr_irqsrc *, struct trapframe *);
+u_int intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask);
 
-#define INTR_IRQ_NSPC_NONE	0
-#define INTR_IRQ_NSPC_PLAIN	1
-#define INTR_IRQ_NSPC_IRQ	2
-#define INTR_IRQ_NSPC_IPI	3
+int intr_pic_register(device_t, intptr_t);
+int intr_pic_deregister(device_t, intptr_t);
+int intr_pic_claim_root(device_t, intptr_t, intr_irq_filter_t *, void *, u_int);
 
-u_int intr_namespace_map_irq(device_t dev, uint16_t type, uint16_t num);
+extern device_t intr_irq_root_dev;
+
+/* Intr interface for BUS. */
+int intr_map_irq(device_t, intptr_t, struct intr_map_data *, u_int *);
+
+int intr_alloc_irq(device_t, struct resource *);
+int intr_release_irq(device_t, struct resource *);
+
+int intr_setup_irq(device_t, struct resource *, driver_filter_t, driver_intr_t,
+    void *, int, void **);
+int intr_teardown_irq(device_t, struct resource *, void *);
+
+int intr_describe_irq(device_t, struct resource *, void *, const char *);
+
+#ifdef DEV_ACPI
+u_int intr_acpi_map_irq(device_t, u_int, enum intr_polarity,
+    enum intr_trigger);
+#endif
 #ifdef FDT
 u_int intr_fdt_map_irq(phandle_t, pcell_t *, u_int);
 #endif
 
-extern device_t intr_irq_root_dev;
-
-int intr_pic_register(device_t dev, intptr_t xref);
-int intr_pic_unregister(device_t dev, intptr_t xref);
-int intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
-    void *arg, u_int ipicount);
-
-int intr_irq_add_handler(device_t dev, driver_filter_t, driver_intr_t, void *,
-    u_int, int, void **);
-int intr_irq_remove_handler(device_t dev, u_int, void *);
-int intr_irq_config(u_int, enum intr_trigger, enum intr_polarity);
-int intr_irq_describe(u_int, void *, const char *);
-
-u_int intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask);
-
 #ifdef SMP
-int intr_irq_bind(u_int, int);
+int intr_bind_irq(device_t, struct resource *, int);
 
 void intr_pic_init_secondary(void);
 

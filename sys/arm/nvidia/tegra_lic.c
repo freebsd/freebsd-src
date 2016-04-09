@@ -88,35 +88,20 @@ struct tegra_lic_sc {
 };
 
 static int
-tegra_lic_register(device_t dev, struct intr_irqsrc *isrc, boolean_t *is_percpu)
+tegra_lic_alloc_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
 {
 	struct tegra_lic_sc *sc = device_get_softc(dev);
 
-	return (PIC_REGISTER(sc->parent, isrc, is_percpu));
-}
-
-static int
-tegra_lic_unregister(device_t dev, struct intr_irqsrc *isrc)
-{
-	struct tegra_lic_sc *sc = device_get_softc(dev);
-
-	return (PIC_UNREGISTER(sc->parent, isrc));
+	return (PIC_ALLOC_INTR(sc->parent, isrc, res, data));
 }
 
 static void
-tegra_lic_enable_source(device_t dev, struct intr_irqsrc *isrc)
+tegra_lic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct tegra_lic_sc *sc = device_get_softc(dev);
 
-	PIC_ENABLE_SOURCE(sc->parent, isrc);
-}
-
-static void
-tegra_lic_disable_source(device_t dev, struct intr_irqsrc *isrc)
-{
-	struct tegra_lic_sc *sc = device_get_softc(dev);
-
-	PIC_DISABLE_SOURCE(sc->parent, isrc);
+	PIC_DISABLE_INTR(sc->parent, isrc);
 }
 
 static void
@@ -125,6 +110,42 @@ tegra_lic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 	struct tegra_lic_sc *sc = device_get_softc(dev);
 
 	PIC_ENABLE_INTR(sc->parent, isrc);
+}
+
+static int
+tegra_lic_map_intr(device_t dev, struct intr_map_data *data,
+    struct intr_irqsrc **isrcp)
+{
+	struct tegra_lic_sc *sc = device_get_softc(dev);
+
+	return (PIC_MAP_INTR(sc->parent, data, isrcp));
+}
+
+static int
+tegra_lic_release_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct tegra_lic_sc *sc = device_get_softc(dev);
+
+	return (PIC_RELEASE_INTR(sc->parent, isrc, res, data));
+}
+
+static int
+tegra_lic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct tegra_lic_sc *sc = device_get_softc(dev);
+
+	return (PIC_SETUP_INTR(sc->parent, isrc, res, data));
+}
+
+static int
+tegra_lic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct tegra_lic_sc *sc = device_get_softc(dev);
+
+	return (PIC_TEARDOWN_INTR(sc->parent, isrc, res, data));
 }
 
 static void
@@ -154,11 +175,11 @@ tegra_lic_post_filter(device_t dev, struct intr_irqsrc *isrc)
 
 #ifdef SMP
 static int
-tegra_lic_bind(device_t dev, struct intr_irqsrc *isrc)
+tegra_lic_bind_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct tegra_lic_sc *sc = device_get_softc(dev);
 
-	return (PIC_BIND(sc->parent, isrc));
+	return (PIC_BIND_INTR(sc->parent, isrc));
 }
 #endif
 
@@ -245,16 +266,18 @@ static device_method_t tegra_lic_methods[] = {
 	DEVMETHOD(device_detach,	tegra_lic_detach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_register,		tegra_lic_register),
-	DEVMETHOD(pic_unregister,	tegra_lic_unregister),
-	DEVMETHOD(pic_enable_source,	tegra_lic_enable_source),
-	DEVMETHOD(pic_disable_source,	tegra_lic_disable_source),
+	DEVMETHOD(pic_alloc_intr,	tegra_lic_alloc_intr),
+	DEVMETHOD(pic_disable_intr,	tegra_lic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	tegra_lic_enable_intr),
+	DEVMETHOD(pic_map_intr,		tegra_lic_map_intr),
+	DEVMETHOD(pic_release_intr,	tegra_lic_release_intr),
+	DEVMETHOD(pic_setup_intr,	tegra_lic_setup_intr),
+	DEVMETHOD(pic_teardown_intr,	tegra_lic_teardown_intr),
 	DEVMETHOD(pic_pre_ithread,	tegra_lic_pre_ithread),
 	DEVMETHOD(pic_post_ithread,	tegra_lic_post_ithread),
 	DEVMETHOD(pic_post_filter,	tegra_lic_post_filter),
 #ifdef SMP
-	DEVMETHOD(pic_bind,		tegra_lic_bind),
+	DEVMETHOD(pic_bind_intr,	tegra_lic_bind_intr),
 #endif
 	DEVMETHOD_END
 };

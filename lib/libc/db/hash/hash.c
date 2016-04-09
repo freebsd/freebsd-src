@@ -423,7 +423,8 @@ hdestroy(HTAB *hashp)
 		free(hashp->tmp_buf);
 
 	if (hashp->fp != -1) {
-		(void)_fsync(hashp->fp);
+		if (hashp->save_file)
+			(void)_fsync(hashp->fp);
 		(void)_close(hashp->fp);
 	}
 

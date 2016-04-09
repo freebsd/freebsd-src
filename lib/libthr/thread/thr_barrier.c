@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <errno.h>
@@ -33,6 +34,9 @@
 #include "un-namespace.h"
 
 #include "thr_private.h"
+
+_Static_assert(sizeof(struct pthread_barrier) <= PAGE_SIZE,
+    "pthread_barrier is too large for off-page");
 
 __weak_reference(_pthread_barrier_init,		pthread_barrier_init);
 __weak_reference(_pthread_barrier_wait,		pthread_barrier_wait);

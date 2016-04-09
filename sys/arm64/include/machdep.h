@@ -41,5 +41,6 @@ extern vm_paddr_t physmap[];
 extern u_int physmap_idx;
 
 void initarm(struct arm64_bootparams *);
+extern void (*pagezero)(void *);
 
 #endif /* _MACHINE_MACHDEP_H_ */

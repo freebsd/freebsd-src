@@ -246,7 +246,10 @@ struct ieee80211_stats {
 	uint32_t	is_ampdu_bar_tx_retry;	/* A-MPDU BAR frames TX rtry */
 	uint32_t	is_ampdu_bar_tx_fail;	/* A-MPDU BAR frames TX fail */
 
-	uint32_t	is_spare[7];
+	uint32_t	is_ff_encapfail;	/* failed FF encap */
+	uint32_t	is_amsdu_encapfail;	/* failed A-MSDU encap */
+
+	uint32_t	is_spare[5];
 };
 
 /*

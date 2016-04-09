@@ -1,8 +1,6 @@
-/*	$NetBSD: intr.c,v 1.12 2003/07/15 00:24:41 lukem Exp $	*/
-
 /*-
- * Copyright (c) 2004 Olivier Houchard.
- * Copyright (c) 1994-1998 Mark Brinicombe.
+ * Copyright (c) 2015-2016 Svatopluk Kraus
+ * Copyright (c) 2015-2016 Michal Meloun
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -13,27 +11,18 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Mark Brinicombe
- *	for the NetBSD Project.
- * 4. The name of the company nor the name of the author may be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * Soft interrupt and other generic interrupt functions.
  */
 
 #include "opt_platform.h"
@@ -76,7 +65,6 @@ struct intr_ipi {
 };
 
 static struct intr_ipi ipi_sources[INTR_IPI_COUNT];
-u_int ipi_next_num;
 #endif
 #endif
 
@@ -184,7 +172,7 @@ intr_ipi_send(cpuset_t cpus, u_int ipi)
 	if (ii->ii_count == NULL)
 		panic("%s: not setup IPI %u", __func__, ipi);
 
-	ii->ii_send(ii->ii_send_arg, cpus);
+	ii->ii_send(ii->ii_send_arg, cpus, ipi);
 }
 
 void
@@ -211,11 +199,11 @@ intr_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
  *  Send IPI thru interrupt controller.
  */
 static void
-pic_ipi_send(void *arg, cpuset_t cpus)
+pic_ipi_send(void *arg, cpuset_t cpus, u_int ipi)
 {
 
 	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
-	PIC_IPI_SEND(intr_irq_root_dev, arg, cpus);
+	PIC_IPI_SEND(intr_irq_root_dev, arg, cpus, ipi);
 }
 
 /*
@@ -232,18 +220,11 @@ intr_pic_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
 
 	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
 
-	isrc = intr_isrc_alloc(INTR_ISRCT_NAMESPACE, 0);
-	isrc->isrc_nspc_type = INTR_IRQ_NSPC_IPI;
-	isrc->isrc_nspc_num = ipi_next_num;
-
-	error = PIC_IPI_SETUP(intr_irq_root_dev, ipi, isrc);
+	error = PIC_IPI_SETUP(intr_irq_root_dev, ipi, &isrc);
 	if (error != 0)
 		return (error);
 
-	ipi_next_num++;
-
-	isrc->isrc_dev = intr_irq_root_dev;
-	isrc->isrc_handlers = 1;
+	isrc->isrc_handlers++;
 	intr_ipi_setup(ipi, name, hand, arg, pic_ipi_send, isrc);
 	return (0);
 }
