@@ -660,7 +660,7 @@ tcp_init(void)
 	 * These have to be type stable for the benefit of the timers.
 	 */
 	V_tcpcb_zone = uma_zcreate("tcpcb", sizeof(struct tcpcb_mem),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_max(V_tcpcb_zone, maxsockets);
 	uma_zone_set_warning(V_tcpcb_zone, "kern.ipc.maxsockets limit reached");
 
@@ -670,7 +670,7 @@ tcp_init(void)
 
 	TUNABLE_INT_FETCH("net.inet.tcp.sack.enable", &V_tcp_do_sack);
 	V_sack_hole_zone = uma_zcreate("sackhole", sizeof(struct sackhole),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
@@ -737,10 +737,21 @@ tcp_destroy(void)
 {
 	int error;
 
+	/*
+	 * All our processes are gone, all our sockets should be cleaned
+	 * up, which means, we should be past the tcp_discardcb() calls.
+	 * Sleep to let all tcpcb timers really disappear and then cleanup.
+	 * Timewait will cleanup its queue and will be ready to go.
+	 * XXX-BZ In theory a few ticks should be good enough to make sure
+	 * the timers are all really gone.  We should see if we could use a
+	 * better metric here and, e.g., check a tcbcb count as an optimization?
+	 */
+	DELAY(1000000 / hz);
 	tcp_hc_destroy();
 	syncache_destroy();
 	tcp_tw_destroy();
 	in_pcbinfo_destroy(&V_tcbinfo);
+	/* tcp_discardcb() clears the sack_holes up. */
 	uma_zdestroy(V_sack_hole_zone);
 	uma_zdestroy(V_tcpcb_zone);
 
