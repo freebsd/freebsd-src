@@ -1548,7 +1548,9 @@ typedef struct {
 #define	SNS_GFF_ID	0x11F
 #define	SNS_GID_FT	0x171
 #define	SNS_RFT_ID	0x217
+#define	SNS_RSPN_ID	0x218
 #define	SNS_RFF_ID	0x21F
+#define	SNS_RSNN_NN	0x239
 typedef struct {
 	uint16_t	snscb_rblen;	/* response buffer length (words) */
 	uint16_t	snscb_reserved0;
