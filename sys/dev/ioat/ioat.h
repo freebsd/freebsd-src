@@ -68,8 +68,10 @@ typedef void (*bus_dmaengine_callback_t)(void *arg, int error);
 
 /*
  * Called first to acquire a reference to the DMA channel
+ *
+ * Flags may be M_WAITOK or M_NOWAIT.
  */
-bus_dmaengine_t ioat_get_dmaengine(uint32_t channel_index);
+bus_dmaengine_t ioat_get_dmaengine(uint32_t channel_index, int flags);
 
 /* Release the DMA channel */
 void ioat_put_dmaengine(bus_dmaengine_t dmaengine);

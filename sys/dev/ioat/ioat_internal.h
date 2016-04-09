@@ -410,6 +410,7 @@ struct ioat_softc {
 	struct task		reset_task;
 
 	boolean_t		quiescing;
+	boolean_t		destroying;
 	boolean_t		is_resize_pending;
 	boolean_t		is_completion_pending;
 	boolean_t		is_reset_pending;
