@@ -3,7 +3,7 @@
 printf -- '-1-\n'
 set -- -abc
 getopts "ab:" OPTION
-echo ${OPTION}
+printf '%s\n' "${OPTION}"
 
 # In this case 'getopts' should realize that we have not provided the
 # required argument for "-b".
@@ -14,12 +14,12 @@ echo ${OPTION}
 printf -- '-2-\n'
 set -- -ab
 getopts "ab:" OPTION
-echo ${OPTION}
+printf '%s\n' "${OPTION}"
 getopts "ab:" OPTION 3>&2 2>&1 >&3 3>&-
-echo ${OPTION}
+printf '%s\n' "${OPTION}"
 
 # The 'shift' is aimed at causing an error.
 printf -- '-3-\n'
 shift 1
 getopts "ab:" OPTION
-echo ${OPTION}
+printf '%s\n' "${OPTION}"
