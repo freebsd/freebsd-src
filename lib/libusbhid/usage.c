@@ -77,9 +77,9 @@ hid_init(const char *hidname)
 	char line[100], name[100], *p, *n;
 	int no;
 	int lineno;
-	struct usage_page *curpage = 0;
+	struct usage_page *curpage = NULL;
 
-	if (hidname == 0)
+	if (hidname == NULL)
 		hidname = _PATH_HIDTABLE;
 
 	f = fopen(hidname, "r");
@@ -124,7 +124,7 @@ hid_init(const char *hidname)
 			curpage->pagesize++;
 		} else {
 			if (npages >= npagesmax) {
-				if (pages == 0) {
+				if (pages == NULL) {
 					npagesmax = 5;
 					pages = malloc(npagesmax *
 						  sizeof (struct usage_page));
