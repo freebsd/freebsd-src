@@ -330,9 +330,10 @@ ieee80211_create_ibss(struct ieee80211vap* vap, struct ieee80211_channel *chan)
 	struct ieee80211_node *ni;
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		"%s: creating %s on channel %u\n", __func__,
+		"%s: creating %s on channel %u%c\n", __func__,
 		ieee80211_opmode_name[vap->iv_opmode],
-		ieee80211_chan2ieee(ic, chan));
+		ieee80211_chan2ieee(ic, chan),
+		ieee80211_channel_type_char(chan));
 
 	ni = ieee80211_alloc_node(&ic->ic_sta, vap, vap->iv_myaddr);
 	if (ni == NULL) {
