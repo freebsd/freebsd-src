@@ -738,15 +738,20 @@ tcp_destroy(void)
 {
 	int error;
 
-#ifdef TCP_RFC7413
-	tcp_fastopen_destroy();
-#endif
 	tcp_hc_destroy();
 	syncache_destroy();
 	tcp_tw_destroy();
 	in_pcbinfo_destroy(&V_tcbinfo);
 	uma_zdestroy(V_sack_hole_zone);
 	uma_zdestroy(V_tcpcb_zone);
+
+#ifdef TCP_RFC7413
+	/*
+	 * Cannot free the zone until all tcpcbs are released as we attach
+	 * the allocations to them.
+	 */
+	tcp_fastopen_destroy();
+#endif
 
 	error = hhook_head_deregister(V_tcp_hhh[HHOOK_TCP_EST_IN]);
 	if (error != 0) {
