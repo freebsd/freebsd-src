@@ -99,7 +99,7 @@ int vm_phys_mem_affinity(int f, int t);
 static inline struct vm_domain *
 vm_phys_domain(vm_page_t m)
 {
-#if MAXMEMDOM > 1
+#ifdef VM_NUMA_ALLOC
 	int domn, segind;
 
 	/* XXXKIB try to assert that the page is managed */

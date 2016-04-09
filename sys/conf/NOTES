@@ -229,7 +229,15 @@ options 	MAXCPU=32
 
 # MAXMEMDOM defines the maximum number of memory domains that can boot in the
 # system.  A default value should already be defined by every architecture.
-options 	MAXMEMDOM=1
+options 	MAXMEMDOM=2
+
+# VM_NUMA_ALLOC enables use of memory domain-aware allocation in the VM
+# system.
+options 	VM_NUMA_ALLOC
+
+# DEVICE_NUMA enables reporting of domain affinity of I/O devices via
+# bus_get_domain(), etc.
+options 	DEVICE_NUMA
 
 # ADAPTIVE_MUTEXES changes the behavior of blocking mutexes to spin
 # if the thread that currently owns the mutex is executing on another
