@@ -767,6 +767,10 @@ typedef struct ddt_histogram {
 #define	ZVOL_DRIVER	"zvol"
 #define	ZFS_DRIVER	"zfs"
 #define	ZFS_DEV		"/dev/zfs"
+#define	ZFS_DISK_ROOT	"/dev/dsk"
+#define	ZFS_DISK_ROOTD	ZFS_DISK_ROOT "/"
+#define	ZFS_RDISK_ROOT	"/dev/rdsk"
+#define	ZFS_RDISK_ROOTD	ZFS_RDISK_ROOT "/"
 
 /* general zvol path */
 #define	ZVOL_DIR		"/dev/zvol"
