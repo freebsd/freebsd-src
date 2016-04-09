@@ -127,6 +127,7 @@ FILES+=		trap11.0
 FILES+=		trap12.0
 FILES+=		trap13.0
 FILES+=		trap14.0
+FILES+=		trap17.0
 FILES+=		trap2.0
 FILES+=		trap3.0
 FILES+=		trap4.0
