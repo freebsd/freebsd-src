@@ -1706,6 +1706,14 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		}
 
 		/*
+		 * Always initialise FF/superg state; we can use this
+		 * for doing A-MSDU encapsulation as well.
+		 */
+#ifdef	IEEE80211_SUPPORT_SUPERG
+		ieee80211_ff_node_init(ni);
+#endif
+
+		/*
 		 * Configure state now that we are associated.
 		 *
 		 * XXX may need different/additional driver callbacks?
