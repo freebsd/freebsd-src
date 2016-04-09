@@ -314,6 +314,9 @@ ioat_detach(device_t device)
 
 	mtx_lock(IOAT_REFLK);
 	ioat->quiescing = TRUE;
+	ioat->destroying = TRUE;
+	wakeup(&ioat->quiescing);
+
 	ioat_channel[ioat->chan_idx] = NULL;
 
 	ioat_drain_locked(ioat);
@@ -739,18 +742,40 @@ ioat_reset_hw_task(void *ctx, int pending __unused)
  * User API functions
  */
 bus_dmaengine_t
-ioat_get_dmaengine(uint32_t index)
+ioat_get_dmaengine(uint32_t index, int flags)
 {
-	struct ioat_softc *sc;
+	struct ioat_softc *ioat;
+
+	KASSERT((flags & ~(M_NOWAIT | M_WAITOK)) == 0,
+	    ("invalid flags: 0x%08x", flags));
+	KASSERT((flags & (M_NOWAIT | M_WAITOK)) != (M_NOWAIT | M_WAITOK),
+	    ("invalid wait | nowait"));
 
 	if (index >= ioat_channel_index)
 		return (NULL);
 
-	sc = ioat_channel[index];
-	if (sc == NULL || sc->quiescing)
+	ioat = ioat_channel[index];
+	if (ioat == NULL || ioat->destroying)
 		return (NULL);
 
-	return (&ioat_get(sc, IOAT_DMAENGINE_REF)->dmaengine);
+	if (ioat->quiescing) {
+		if ((flags & M_NOWAIT) != 0)
+			return (NULL);
+
+		mtx_lock(IOAT_REFLK);
+		while (ioat->quiescing && !ioat->destroying)
+			msleep(&ioat->quiescing, IOAT_REFLK, 0, "getdma", 0);
+		mtx_unlock(IOAT_REFLK);
+
+		if (ioat->destroying)
+			return (NULL);
+	}
+
+	/*
+	 * There's a race here between the quiescing check and HW reset or
+	 * module destroy.
+	 */
+	return (&ioat_get(ioat, IOAT_DMAENGINE_REF)->dmaengine);
 }
 
 void
@@ -1571,6 +1596,7 @@ ioat_reset_hw(struct ioat_softc *ioat)
 out:
 	mtx_lock(IOAT_REFLK);
 	ioat->quiescing = FALSE;
+	wakeup(&ioat->quiescing);
 	mtx_unlock(IOAT_REFLK);
 
 	if (error == 0)
