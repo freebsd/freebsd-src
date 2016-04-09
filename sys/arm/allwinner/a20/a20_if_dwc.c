@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/allwinner/allwinner_machdep.h>
 #include <dev/extres/clk/clk.h>
+#include <dev/extres/regulator/regulator.h>
 
 #include "if_dwc_if.h"
 
@@ -64,6 +65,7 @@ a20_if_dwc_init(device_t dev)
 	const char *tx_parent_name;
 	char *phy_type;
 	clk_t clk_tx, clk_tx_parent;
+	regulator_t reg;
 	phandle_t node;
 	int error;
 
@@ -92,6 +94,15 @@ a20_if_dwc_init(device_t dev)
 		error = clk_set_parent_by_clk(clk_tx, clk_tx_parent);
 		if (error != 0) {
 			device_printf(dev, "could not set tx clk parent\n");
+			return (error);
+		}
+	}
+
+	/* Enable PHY regulator if applicable */
+	if (regulator_get_by_ofw_property(dev, "phy-supply", &reg) == 0) {
+		error = regulator_enable(reg);
+		if (error != 0) {
+			device_printf(dev, "could not enable PHY regulator\n");
 			return (error);
 		}
 	}
