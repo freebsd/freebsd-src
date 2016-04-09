@@ -915,7 +915,7 @@ cust_install_files ( ) (
 	cd "${NANO_TOOLS}/Files"
 	find . -print | grep -Ev '/(CVS|\.svn|\.hg|\.git)' | cpio -Ldumpv ${NANO_WORLDDIR}
 
-	if [ -f ${NANO_CUST_FILES_MTREE} ]; then
+	if [ -n "${NANO_CUST_FILES_MTREE}" -a -f ${NANO_CUST_FILES_MTREE} ]; then
 		CR "mtree -eiU -p /" <${NANO_CUST_FILES_MTREE}
 	fi
 )
@@ -925,6 +925,7 @@ cust_install_files ( ) (
 
 cust_pkgng ( ) (
 
+	mkdir -p ${NANO_WORLDDIR}/usr/local/etc
 	local PKG_CONF="${NANO_WORLDDIR}/usr/local/etc/pkg.conf"
 	local PKGCMD="env ASSUME_ALWAYS_YES=YES PKG_DBDIR=${NANO_PKG_META_BASE}/pkg SIGNATURE_TYPE=none /usr/sbin/pkg"
 
@@ -956,7 +957,7 @@ cust_pkgng ( ) (
 	mkdir -p ${NANO_WORLDDIR}/_.p
 	mount -t nullfs -o noatime -o ro ${NANO_PACKAGE_DIR} ${NANO_WORLDDIR}/_.p
 
-	trap "umount ${NANO_WORLDDIR}/_.p ; rm -rf ${NANO_WORLDDIR}/_.p" 1 2 15
+	trap "umount ${NANO_WORLDDIR}/_.p ; rm -rf ${NANO_WORLDDIR}/_.p" 1 2 15 EXIT
 
 	# Install packages
 	todo="$(echo "${NANO_PACKAGE_LIST}" | awk '{ print NF }')"
