@@ -3380,7 +3380,7 @@ ixl_add_sysctls_eth_stats(struct sysctl_ctx_list *ctx,
 	};
 
 	struct ixl_sysctl_info *entry = ctls;
-	while (entry->stat != 0)
+	while (entry->stat != NULL)
 	{
 		SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, entry->name,
 				CTLFLAG_RD, entry->stat,
@@ -3439,7 +3439,7 @@ ixl_add_sysctls_mac_stats(struct sysctl_ctx_list *ctx,
 	};
 
 	struct ixl_sysctl_info *entry = ctls;
-	while (entry->stat != 0)
+	while (entry->stat != NULL)
 	{
 		SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, entry->name,
 				CTLFLAG_RD, entry->stat,
