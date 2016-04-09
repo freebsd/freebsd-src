@@ -628,7 +628,7 @@ simplecmd(union node **rpp, union node *redir)
 
 	/* If we don't have any redirections already, then we must reset */
 	/* rpp to be the address of the local redir variable.  */
-	if (redir == 0)
+	if (redir == NULL)
 		rpp = &redir;
 
 	args = NULL;
