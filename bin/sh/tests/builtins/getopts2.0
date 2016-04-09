@@ -3,4 +3,4 @@ set - -ax
 getopts ax option
 set -C
 getopts ax option
-echo $option
+printf '%s\n' "$option"
