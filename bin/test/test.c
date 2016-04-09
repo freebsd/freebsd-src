@@ -172,7 +172,7 @@ static char **t_wp;
 static int parenlevel;
 
 static int	aexpr(enum token);
-static int	binop(void);
+static int	binop(enum token);
 static int	equalf(const char *, const char *);
 static int	filstat(char *, enum token);
 static int	getn(const char *);
@@ -312,21 +312,20 @@ primary(enum token n)
 		}
 	}
 
-	if (TOKEN_TYPE(t_lex(nargc > 0 ? t_wp[1] : NULL)) == BINOP)
-		return binop();
+	nn = t_lex(nargc > 0 ? t_wp[1] : NULL);
+	if (TOKEN_TYPE(nn) == BINOP)
+		return binop(nn);
 
 	return strlen(*t_wp) > 0;
 }
 
 static int
-binop(void)
+binop(enum token n)
 {
 	const char *opnd1, *op, *opnd2;
-	enum token n;
 
 	opnd1 = *t_wp;
-	op = nargc > 0 ? t_wp[1] : NULL;
-	n = t_lex(nargc > 0 ? (--nargc, *++t_wp) : NULL);
+	op = nargc > 0 ? (--nargc, *++t_wp) : NULL;
 
 	if ((opnd2 = nargc > 0 ? (--nargc, *++t_wp) : NULL) == NULL)
 		syntax(op, "argument expected");
