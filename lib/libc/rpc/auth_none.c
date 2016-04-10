@@ -83,9 +83,9 @@ authnone_create(void)
 	XDR *xdrs;
 
 	mutex_lock(&authnone_lock);
-	if (ap == 0) {
-		ap = (struct authnone_private *)calloc(1, sizeof (*ap));
-		if (ap == 0) {
+	if (ap == NULL) {
+		ap = calloc(1, sizeof (*ap));
+		if (ap == NULL) {
 			mutex_unlock(&authnone_lock);
 			return (0);
 		}

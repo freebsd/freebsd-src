@@ -210,7 +210,7 @@ b64_pton(const char *src, u_char *target, size_t targsize)
 			break;
 
 		pos = strchr(Base64, ch);
-		if (pos == 0) 		/* A non-base64 character. */
+		if (pos == NULL)		/* A non-base64 character. */
 			return (-1);
 
 		switch (state) {

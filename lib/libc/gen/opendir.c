@@ -209,7 +209,7 @@ _filldir(DIR *dirp, bool use_current_pos)
 	 * On the second pass, save pointers to each one.
 	 * Then sort the pointers and remove duplicate names.
 	 */
-	for (dpv = 0;;) {
+	for (dpv = NULL;;) {
 		n = 0;
 		ddptr = buf;
 		while (ddptr < ddeptr) {
