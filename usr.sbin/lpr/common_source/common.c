@@ -282,7 +282,7 @@ lock_file_name(const struct printer *pp, char *buf, size_t len)
 {
 	static char staticbuf[MAXPATHLEN];
 
-	if (buf == 0)
+	if (buf == NULL)
 		buf = staticbuf;
 	if (len == 0)
 		len = MAXPATHLEN;
@@ -300,7 +300,7 @@ status_file_name(const struct printer *pp, char *buf, size_t len)
 {
 	static char staticbuf[MAXPATHLEN];
 
-	if (buf == 0)
+	if (buf == NULL)
 		buf = staticbuf;
 	if (len == 0)
 		len = MAXPATHLEN;

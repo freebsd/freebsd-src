@@ -280,7 +280,7 @@ writel(int strm, ...)
 
 	if (n > NIOV) {
 		iovp = malloc(n * sizeof *iovp);
-		if (iovp == 0)
+		if (iovp == NULL)
 			return -1;
 	}
 
