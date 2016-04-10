@@ -8,6 +8,8 @@ DEBUG_FLAGS= -g -O0
 
 MAN=	bhyve.8
 
+SYSDIR?=${.CURDIR}/../..
+
 SRCS=	\
 	atkbdc.c		\
 	acpi.c			\
@@ -42,7 +44,7 @@ SRCS=	\
 	xmsr.c			\
 	spinup_ap.c
 
-.PATH:	${.CURDIR}/../../sys/amd64/vmm
+.PATH:  ${SYSDIR}/sys/amd64/vmm
 SRCS+=	vmm_instruction_emul.c
 
 LIBADD=	vmmapi md pthread
