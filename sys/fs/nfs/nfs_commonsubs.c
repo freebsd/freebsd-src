@@ -507,7 +507,7 @@ nfsm_fhtom(struct nfsrv_descript *nd, u_int8_t *fhp, int size, int set_true)
 		}
 		(void) nfsm_strtom(nd, fhp, size);
 		break;
-	};
+	}
 	return (bytesize);
 }
 
@@ -544,7 +544,7 @@ nfsaddr_match(int family, union nethostaddr *haddr, NFSSOCKADDR_T nam)
 		}
 		break;
 #endif
-	};
+	}
 	return (0);
 }
 
@@ -581,7 +581,7 @@ nfsaddr2_match(NFSSOCKADDR_T nam1, NFSSOCKADDR_T nam2)
 		}
 		break;
 #endif
-	};
+	}
 	return (0);
 }
 
@@ -1774,7 +1774,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			 */
 			bitpos = NFSATTRBIT_MAX;
 			break;
-		};
+		}
 	}
 
 	/*
@@ -2508,7 +2508,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			break;
 		default:
 			printf("EEK! Bad V4 attribute bitpos=%d\n", bitpos);
-		};
+		}
 	    }
 	}
 	if (naclp != NULL)

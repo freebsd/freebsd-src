@@ -187,7 +187,7 @@ MCI_StartReadBlock(unsigned blknum, void *dataBuffer)
 	// (PDC) Receiver Transfer Enable
 	AT91C_BASE_PDC_MCI->PDC_PTCR = (AT91C_PDC_TXTDIS | AT91C_PDC_RXTDIS);
 	AT91C_BASE_PDC_MCI->PDC_RPR  = (unsigned int)dataBuffer;
-	AT91C_BASE_PDC_MCI->PDC_RCR  = SD_BLOCK_SIZE / 4;;
+	AT91C_BASE_PDC_MCI->PDC_RCR  = SD_BLOCK_SIZE / 4;
 	AT91C_BASE_PDC_MCI->PDC_PTCR = AT91C_PDC_RXTEN;
 
 	// SDHC wants block offset, non-HC wants byte offset.

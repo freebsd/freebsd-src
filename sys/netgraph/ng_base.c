@@ -2056,7 +2056,7 @@ ng_acquire_read(node_p node, item_p item)
 			return (item);
 		}
 		cpu_spinwait();
-	};
+	}
 
 	/* Queue the request for later. */
 	ng_queue_rw(node, item, NGQRW_R);

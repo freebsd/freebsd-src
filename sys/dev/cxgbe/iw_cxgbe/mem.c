@@ -796,7 +796,7 @@ struct ib_fast_reg_page_list *c4iw_alloc_fastreg_pbl(struct ib_device *device,
         if (c4pl)
                 dma_addr = vtophys(c4pl);
         else
-                return ERR_PTR(-ENOMEM);;
+                return ERR_PTR(-ENOMEM);
 
 	pci_unmap_addr_set(c4pl, mapping, dma_addr);
 	c4pl->dma_addr = dma_addr;
