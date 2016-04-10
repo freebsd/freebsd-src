@@ -406,14 +406,14 @@ files_servent(void *retval, void *mdata, va_list ap)
 
 			continue;
 		gotname:
-			if (proto == 0 || strcmp(serv->s_proto, proto) == 0)
+			if (proto == NULL || strcmp(serv->s_proto, proto) == 0)
 				rv = NS_SUCCESS;
 			break;
 		case nss_lt_id:
 			if (port != serv->s_port)
 				continue;
 
-			if (proto == 0 || strcmp(serv->s_proto, proto) == 0)
+			if (proto == NULL || strcmp(serv->s_proto, proto) == 0)
 				rv = NS_SUCCESS;
 			break;
 		case nss_lt_all:

@@ -64,8 +64,8 @@ static char *
 _buf(void)
 {
 
-	if (buf == 0)
-		buf = (char *)malloc(CLNT_PERROR_BUFLEN);
+	if (buf == NULL)
+		buf = malloc(CLNT_PERROR_BUFLEN);
 	return (buf);
 }
 
@@ -85,7 +85,7 @@ clnt_sperror(CLIENT *rpch, const char *s)
 	assert(s != NULL);
 
 	str = _buf(); /* side effect: sets CLNT_PERROR_BUFLEN */
-	if (str == 0)
+	if (str == NULL)
 		return (0);
 	len = CLNT_PERROR_BUFLEN;
 	strstart = str;
@@ -240,7 +240,7 @@ clnt_spcreateerror(const char *s)
 	assert(s != NULL);
 
 	str = _buf(); /* side effect: sets CLNT_PERROR_BUFLEN */
-	if (str == 0)
+	if (str == NULL)
 		return(0);
 	len = CLNT_PERROR_BUFLEN;
 	i = snprintf(str, len, "%s: ", s);
