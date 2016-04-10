@@ -117,6 +117,7 @@
 #include <sys/ctype.h>
 #include <sys/eventhandler.h>
 #include <sys/limits.h>
+#include <sys/linker.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -11916,6 +11917,21 @@ dtrace_buffer_activate(dtrace_state_t *state)
 	dtrace_interrupt_enable(cookie);
 }
 
+#ifdef __FreeBSD__
+/*
+ * Activate the specified per-CPU buffer.  This is used instead of
+ * dtrace_buffer_activate() when APs have not yet started, i.e. when
+ * activating anonymous state.
+ */
+static void
+dtrace_buffer_activate_cpu(dtrace_state_t *state, int cpu)
+{
+
+	if (state->dts_buffer[cpu].dtb_tomax != NULL)
+		state->dts_buffer[cpu].dtb_flags &= ~DTRACEBUF_INACTIVE;
+}
+#endif
+
 static int
 dtrace_buffer_alloc(dtrace_buffer_t *bufs, size_t size, int flags,
     processorid_t cpu, int *factor)
@@ -12532,9 +12548,15 @@ dtrace_enabling_dump(dtrace_enabling_t *enab)
 	for (i = 0; i < enab->dten_ndesc; i++) {
 		dtrace_probedesc_t *desc = &enab->dten_desc[i]->dted_probe;
 
+#ifdef __FreeBSD__
+		printf("dtrace: enabling probe %d (%s:%s:%s:%s)\n", i,
+		    desc->dtpd_provider, desc->dtpd_mod,
+		    desc->dtpd_func, desc->dtpd_name);
+#else
 		cmn_err(CE_NOTE, "enabling probe %d (%s:%s:%s:%s)", i,
 		    desc->dtpd_provider, desc->dtpd_mod,
 		    desc->dtpd_func, desc->dtpd_name);
+#endif
 	}
 }
 
@@ -13185,19 +13207,91 @@ dtrace_dof_char(char c)
 		return (c - 'a' + 10);
 	}
 	/* Should not reach here. */
-	return (0);
+	return (UCHAR_MAX);
 }
 #endif /* __FreeBSD__ */
 
 static dof_hdr_t *
 dtrace_dof_property(const char *name)
 {
+#ifdef __FreeBSD__
+	uint8_t *dofbuf;
+	u_char *data, *eol;
+	caddr_t doffile;
+	size_t bytes, len, i;
+	dof_hdr_t *dof;
+	u_char c1, c2;
+
+	dof = NULL;
+
+	doffile = preload_search_by_type("dtrace_dof");
+	if (doffile == NULL)
+		return (NULL);
+
+	data = preload_fetch_addr(doffile);
+	len = preload_fetch_size(doffile);
+	for (;;) {
+		/* Look for the end of the line. All lines end in a newline. */
+		eol = memchr(data, '\n', len);
+		if (eol == NULL)
+			return (NULL);
+
+		if (strncmp(name, data, strlen(name)) == 0)
+			break;
+
+		eol++; /* skip past the newline */
+		len -= eol - data;
+		data = eol;
+	}
+
+	/* We've found the data corresponding to the specified key. */
+
+	data += strlen(name) + 1; /* skip past the '=' */
+	len = eol - data;
+	bytes = len / 2;
+
+	if (bytes < sizeof(dof_hdr_t)) {
+		dtrace_dof_error(NULL, "truncated header");
+		goto doferr;
+	}
+
+	/*
+	 * Each byte is represented by the two ASCII characters in its hex
+	 * representation.
+	 */
+	dofbuf = malloc(bytes, M_SOLARIS, M_WAITOK);
+	for (i = 0; i < bytes; i++) {
+		c1 = dtrace_dof_char(data[i * 2]);
+		c2 = dtrace_dof_char(data[i * 2 + 1]);
+		if (c1 == UCHAR_MAX || c2 == UCHAR_MAX) {
+			dtrace_dof_error(NULL, "invalid hex char in DOF");
+			goto doferr;
+		}
+		dofbuf[i] = c1 * 16 + c2;
+	}
+
+	dof = (dof_hdr_t *)dofbuf;
+	if (bytes < dof->dofh_loadsz) {
+		dtrace_dof_error(NULL, "truncated DOF");
+		goto doferr;
+	}
+
+	if (dof->dofh_loadsz >= dtrace_dof_maxsize) {
+		dtrace_dof_error(NULL, "oversized DOF");
+		goto doferr;
+	}
+
+	return (dof);
+
+doferr:
+	free(dof, M_SOLARIS);
+	return (NULL);
+#else /* __FreeBSD__ */
 	uchar_t *buf;
 	uint64_t loadsz;
 	unsigned int len, i;
 	dof_hdr_t *dof;
 
-#ifdef illumos
 	/*
 	 * Unfortunately, array of values in .conf files are always (and
 	 * only) interpreted to be integer arrays.  We must read our DOF
@@ -13231,49 +13325,9 @@ dtrace_dof_property(const char *name)
 	dof = kmem_alloc(loadsz, KM_SLEEP);
 	bcopy(buf, dof, loadsz);
 	ddi_prop_free(buf);
-#else
-	char *p;
-	char *p_env;
-
-	if ((p_env = kern_getenv(name)) == NULL)
-		return (NULL);
-
-	len = strlen(p_env) / 2;
-
-	buf = kmem_alloc(len, KM_SLEEP);
-
-	dof = (dof_hdr_t *) buf;
-
-	p = p_env;
-
-	for (i = 0; i < len; i++) {
-		buf[i] = (dtrace_dof_char(p[0]) << 4) |
-		     dtrace_dof_char(p[1]);
-		p += 2;
-	}
-
-	freeenv(p_env);
-
-	if (len < sizeof (dof_hdr_t)) {
-		kmem_free(buf, 0);
-		dtrace_dof_error(NULL, "truncated header");
-		return (NULL);
-	}
-
-	if (len < (loadsz = dof->dofh_loadsz)) {
-		kmem_free(buf, 0);
-		dtrace_dof_error(NULL, "truncated DOF");
-		return (NULL);
-	}
-
-	if (loadsz >= dtrace_dof_maxsize) {
-		kmem_free(buf, 0);
-		dtrace_dof_error(NULL, "oversized DOF");
-		return (NULL);
-	}
-#endif
 
 	return (dof);
+#endif /* !__FreeBSD__ */
 }
 
 static void
@@ -14332,7 +14386,7 @@ static dtrace_state_t *
 #ifdef illumos
 dtrace_state_create(dev_t *devp, cred_t *cr)
 #else
-dtrace_state_create(struct cdev *dev)
+dtrace_state_create(struct cdev *dev, struct ucred *cred __unused)
 #endif
 {
 #ifdef illumos
@@ -14945,6 +14999,18 @@ dtrace_state_go(dtrace_state_t *state, processorid_t *cpu)
 	if (state->dts_activity == DTRACE_ACTIVITY_WARMUP)
 		state->dts_activity = DTRACE_ACTIVITY_ACTIVE;
 
+#ifdef __FreeBSD__
+	/*
+	 * We enable anonymous tracing before APs are started, so we must
+	 * activate buffers using the current CPU.
+	 */
+	if (state == dtrace_anon.dta_state)
+		for (int i = 0; i < NCPU; i++)
+			dtrace_buffer_activate_cpu(state, i);
+	else
+		dtrace_xcall(DTRACE_CPUALL,
+		    (dtrace_xcall_t)dtrace_buffer_activate, state);
+#else
 	/*
 	 * Regardless of whether or not now we're in ACTIVE or DRAINING, we
 	 * want each CPU to transition its principal buffer out of the
@@ -14955,6 +15021,7 @@ dtrace_state_go(dtrace_state_t *state, processorid_t *cpu)
 	 */
 	dtrace_xcall(DTRACE_CPUALL,
 	    (dtrace_xcall_t)dtrace_buffer_activate, state);
+#endif
 	goto out;
 
 err:
@@ -15316,11 +15383,7 @@ dtrace_anon_property(void)
 		 * If we haven't allocated an anonymous state, we'll do so now.
 		 */
 		if ((state = dtrace_anon.dta_state) == NULL) {
-#ifdef illumos
 			state = dtrace_state_create(NULL, NULL);
-#else
-			state = dtrace_state_create(NULL);
-#endif
 			dtrace_anon.dta_state = state;
 
 			if (state == NULL) {
@@ -17001,7 +17064,7 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	state = dtrace_state_create(devp, cred_p);
 #else
-	state = dtrace_state_create(dev);
+	state = dtrace_state_create(dev, NULL);
 	devfs_set_cdevpriv(state, dtrace_dtr);
 #endif
 
