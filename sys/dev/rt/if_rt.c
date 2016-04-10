@@ -460,7 +460,7 @@ rt_attach(device_t dev)
 		sc->rx_drx_idx[0]=PDMA_BASE+RX_DRX_IDX0;
 		sc->int_rx_done_mask=INT_RX_DONE;
 		sc->int_tx_done_mask=INT_TXQ0_DONE;
-	};
+	}
 
 	/* allocate Tx and Rx rings */
 	for (i = 0; i < RT_SOFTC_TX_RING_COUNT; i++) {

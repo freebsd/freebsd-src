@@ -436,7 +436,7 @@ nfsrv_buildacl(struct nfsrv_descript *nd, NFSACL_T *aclp, enum vtype type,
 			break;
 		default:
 			continue;
-		};
+		}
 		retlen += nfsrv_buildace(nd, name, namelen, type, isgroup,
 		    isowner, &aclp->acl_entry[i]);
 		entrycnt++;
@@ -505,7 +505,7 @@ nfsrv_compareacl(NFSACL_T *aclp1, NFSACL_T *aclp2)
 		case ACL_OTHER:
 			if (acep1->ae_perm != acep2->ae_perm)
 				return (1);
-		};
+		}
 		acep1++;
 		acep2++;
 	}

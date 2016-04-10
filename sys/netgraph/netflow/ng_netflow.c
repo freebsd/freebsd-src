@@ -609,7 +609,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		 */
 		log(LOG_ERR, "ng_netflow: incoming data on export hook!\n");
 		ERROUT(EINVAL);
-	};
+	}
 
 	if (hook == iface->hook) {
 		if ((iface->info.conf & NG_NETFLOW_CONF_INGRESS) == 0)

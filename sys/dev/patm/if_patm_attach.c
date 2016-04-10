@@ -189,7 +189,7 @@ patm_attach(device_t dev)
 	IFP2IFATM(sc->ifp)->mib.hw_version = 0;
 	IFP2IFATM(sc->ifp)->mib.sw_version = 0;
 	IFP2IFATM(sc->ifp)->mib.vpi_bits = PATM_VPI_BITS;
-	IFP2IFATM(sc->ifp)->mib.vci_bits = 0;	/* set below */;
+	IFP2IFATM(sc->ifp)->mib.vci_bits = 0;	/* set below */
 	IFP2IFATM(sc->ifp)->mib.max_vpcs = 0;
 	IFP2IFATM(sc->ifp)->mib.max_vccs = 0;	/* set below */
 	IFP2IFATM(sc->ifp)->mib.media = IFM_ATM_UNKNOWN;

@@ -323,7 +323,7 @@ kgssapi_modevent(module_t mod, int type, void *data)
 		/* FALLTHROUGH */
 	default:
 		error = EOPNOTSUPP;
-	};
+	}
 	return (error);
 }
 static moduledata_t kgssapi_mod = {

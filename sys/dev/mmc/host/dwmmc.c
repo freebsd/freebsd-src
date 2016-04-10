@@ -191,7 +191,7 @@ dwmmc_ctrl_reset(struct dwmmc_softc *sc, int reset_bits)
 		if (!(READ4(sc, SDMMC_CTRL) & reset_bits))
 			return (0);
 		DELAY(10);
-	};
+	}
 
 	device_printf(sc->dev, "Reset failed\n");
 

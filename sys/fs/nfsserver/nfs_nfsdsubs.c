@@ -1814,7 +1814,7 @@ nfsrv_putreferralattr(struct nfsrv_descript *nd, nfsattrbit_t *retbitp,
 			break;
 		default:
 			printf("EEK! Bad V4 refattr bitpos=%d\n", bitpos);
-		};
+		}
 	    }
 	}
 	*retnump = txdr_unsigned(retnum);

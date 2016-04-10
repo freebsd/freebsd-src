@@ -1238,7 +1238,7 @@ unionfs_checkuppervp(struct vnode *vp, char *fil, int lno)
 		    "unionfs_checkuppervp: on non-unionfs-node.\n");
 #endif
 		panic("unionfs_checkuppervp");
-	};
+	}
 #endif
 	return (unp->un_uppervp);
 }
@@ -1258,7 +1258,7 @@ unionfs_checklowervp(struct vnode *vp, char *fil, int lno)
 		    "unionfs_checklowervp: on non-unionfs-node.\n");
 #endif
 		panic("unionfs_checklowervp");
-	};
+	}
 #endif
 	return (unp->un_lowervp);
 }

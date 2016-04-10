@@ -381,7 +381,7 @@ printf("emsgsize\n");
 			break;
 		default:
 			stat = RPC_CANTRECV;
-		};
+		}
 		errp->re_status = stat;
 		goto out;
 	} else {

@@ -160,7 +160,7 @@ chipc_attach(device_t dev)
 	for (dq = chipc_quirks; dq->quirks != 0; dq++) {
 		if (bhnd_hwrev_matches(bhnd_get_hwrev(dev), &dq->hwrev))
 			sc->quirks |= dq->quirks;
-	};
+	}
 
 	// TODO
 	switch (bhnd_chipc_nvram_src(dev)) {

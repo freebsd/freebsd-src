@@ -1720,7 +1720,7 @@ ti_init_rx_ring_std(struct ti_softc *sc)
 	for (i = 0; i < TI_STD_RX_RING_CNT; i++) {
 		if (ti_newbuf_std(sc, i) != 0)
 			return (ENOBUFS);
-	};
+	}
 
 	sc->ti_std = TI_STD_RX_RING_CNT - 1;
 	TI_UPDATE_STDPROD(sc, TI_STD_RX_RING_CNT - 1);
@@ -1758,7 +1758,7 @@ ti_init_rx_ring_jumbo(struct ti_softc *sc)
 	for (i = 0; i < TI_JUMBO_RX_RING_CNT; i++) {
 		if (ti_newbuf_jumbo(sc, i, NULL) != 0)
 			return (ENOBUFS);
-	};
+	}
 
 	sc->ti_jumbo = TI_JUMBO_RX_RING_CNT - 1;
 	TI_UPDATE_JUMBOPROD(sc, TI_JUMBO_RX_RING_CNT - 1);
@@ -1795,7 +1795,7 @@ ti_init_rx_ring_mini(struct ti_softc *sc)
 	for (i = 0; i < TI_MINI_RX_RING_CNT; i++) {
 		if (ti_newbuf_mini(sc, i) != 0)
 			return (ENOBUFS);
-	};
+	}
 
 	sc->ti_mini = TI_MINI_RX_RING_CNT - 1;
 	TI_UPDATE_MINIPROD(sc, TI_MINI_RX_RING_CNT - 1);

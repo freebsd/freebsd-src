@@ -63,7 +63,7 @@ hv_shutdown_cb(void *context)
 	hv_util_sc			*softc;
 
 	softc = (hv_util_sc*)context;
-	buf = softc->receive_buffer;;
+	buf = softc->receive_buffer;
 	channel = softc->hv_dev->channel;
 	ret = hv_vmbus_channel_recv_packet(channel, buf, PAGE_SIZE,
 					    &recv_len, &request_id);

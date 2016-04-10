@@ -2128,7 +2128,7 @@ rw_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
 			} else {
 				v = *val++;
 				t4_write_reg(sc, mw->mw_base + addr -
-				    mw->mw_curpos, htole32(v));;
+				    mw->mw_curpos, htole32(v));
 			}
 			addr += 4;
 			len -= 4;

@@ -1023,7 +1023,7 @@ gif_set_tunnel(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 #endif
 	default:
 		return (EAFNOSUPPORT);
-	};
+	}
 
 	if (sc->gif_family != src->sa_family)
 		gif_detach(sc);

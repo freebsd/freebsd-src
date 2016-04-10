@@ -230,7 +230,7 @@ ipfw_find_rule(struct ip_fw_chain *chain, uint32_t key, uint32_t id)
 			lo = i + 1;	/* continue from the next one */
 		else /* r->id >= id */
 			hi = i;		/* this might be good */
-	};
+	}
 	return hi;
 }
 

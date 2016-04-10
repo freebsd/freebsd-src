@@ -681,7 +681,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		ncl_printf(" ncl_bioread: type %x unexpected\n", vp->v_type);
 		bp = NULL;
 		break;
-	    };
+	    }
 
 	    if (n > 0) {
 		    error = vn_io_fault_uiomove(bp->b_data + on, (int)n, uio);
@@ -1664,7 +1664,7 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
 	    default:
 		ncl_printf("ncl_doio:  type %x unexpected\n", vp->v_type);
 		break;
-	    };
+	    }
 	    if (error) {
 		bp->b_ioflags |= BIO_ERROR;
 		bp->b_error = error;

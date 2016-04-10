@@ -2122,7 +2122,7 @@ ixgbe_mc_array_itr(struct ixgbe_hw *hw, u8 **update_ptr, u32 *vmdq)
 	mta = (struct ixgbe_mc_addr *)*update_ptr;
 	*vmdq = mta->vmdq;
 
-	*update_ptr = (u8*)(mta + 1);;
+	*update_ptr = (u8*)(mta + 1);
 	return (mta->addr);
 }
 

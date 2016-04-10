@@ -881,7 +881,7 @@ ie_modevent (mod, what, arg)
 		break;
 	default:
 		break;
-	};
+	}
 
 	return (0);
 }

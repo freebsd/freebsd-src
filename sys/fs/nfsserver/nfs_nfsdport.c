@@ -2370,7 +2370,7 @@ nfsrv_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 			vfs_timestamp(&nvap->na_atime);
 			nvap->na_vaflags |= VA_UTIMES_NULL;
 			break;
-		};
+		}
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		switch (fxdr_unsigned(int, *tl)) {
 		case NFSV3SATTRTIME_TOCLIENT:
@@ -2383,11 +2383,11 @@ nfsrv_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 			if (!toclient)
 				nvap->na_vaflags |= VA_UTIMES_NULL;
 			break;
-		};
+		}
 		break;
 	case ND_NFSV4:
 		error = nfsv4_sattr(nd, vp, nvap, attrbitp, aclp, p);
-	};
+	}
 nfsmout:
 	NFSEXITCODE2(error, nd);
 	return (error);
@@ -2585,7 +2585,7 @@ nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 			 */
 			bitpos = NFSATTRBIT_MAX;
 			break;
-		};
+		}
 	}
 
 	/*

@@ -126,7 +126,7 @@ siba_attach(device_t dev)
 			     error = ENXIO;
 			     goto cleanup;
 			}
-		};
+		}
 	}
 
 cleanup:

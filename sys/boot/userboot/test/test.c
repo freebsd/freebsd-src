@@ -273,7 +273,7 @@ test_diskioctl(void *arg, int unit, u_long cmd, void *data)
 		break;
 	default:
 		return (ENOTTY);
-	};
+	}
 	return (0);
 }
 

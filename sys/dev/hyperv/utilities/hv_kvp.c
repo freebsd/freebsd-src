@@ -619,7 +619,7 @@ hv_kvp_process_request(void *context, int pending)
 	hv_kvp_log_info("%s: entering hv_kvp_process_request\n", __func__);
 
 	sc = (hv_kvp_sc*)context;
-	kvp_buf = sc->util_sc.receive_buffer;;
+	kvp_buf = sc->util_sc.receive_buffer;
 	channel = sc->util_sc.hv_dev->channel;
 
 	ret = hv_vmbus_channel_recv_packet(channel, kvp_buf, 2 * PAGE_SIZE,

@@ -1024,7 +1024,7 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 				break;
 			default:
 				break;
-			};
+			}
 		} else {
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			how = fxdr_unsigned(int, *tl);
@@ -1041,7 +1041,7 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 				cverf[1] = *tl;
 				exclusive_flag = 1;
 				break;
-			};
+			}
 			NFSVNO_SETATTRVAL(&nva, type, VREG);
 		}
 	}
@@ -1088,7 +1088,7 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 			if (named.ni_vp == NULL)
 				NFSVNO_SETATTRVAL(&nva, mode, 0);
 			break;
-		};
+		}
 	}
 
 	/*
@@ -2206,7 +2206,7 @@ nfsrvd_lock(struct nfsrv_descript *nd, __unused int isdgram,
 	default:
 		nd->nd_repstat = NFSERR_BADXDR;
 		goto nfsmout;
-	};
+	}
 	if (*tl++ == newnfs_true)
 		flags |= NFSLCK_RECLAIM;
 	offset = fxdr_hyper(tl);
@@ -2400,7 +2400,7 @@ nfsrvd_lockt(struct nfsrv_descript *nd, __unused int isdgram,
 	default:
 		nd->nd_repstat = NFSERR_BADXDR;
 		goto nfsmout;
-	};
+	}
 	lo.lo_first = fxdr_hyper(tl);
 	tl += 2;
 	len = fxdr_hyper(tl);
@@ -2509,7 +2509,7 @@ nfsrvd_locku(struct nfsrv_descript *nd, __unused int isdgram,
 		free(stp, M_NFSDSTATE);
 		free(lop, M_NFSDLOCK);
 		goto nfsmout;
-	};
+	}
 	stp->ls_ownerlen = 0;
 	stp->ls_uid = nd->nd_cred->cr_uid;
 	stp->ls_seq = fxdr_unsigned(int, *tl++);
@@ -2645,7 +2645,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		default:
 			/* nd_repstat will be set to NFSERR_INVAL below. */
 			break;
-		};
+		}
 	}
 	switch (i) {
 	case NFSV4OPEN_ACCESSREAD:
@@ -2659,7 +2659,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		break;
 	default:
 		nd->nd_repstat = NFSERR_INVAL;
-	};
+	}
 	i = fxdr_unsigned(int, *tl++);
 	switch (i) {
 	case NFSV4OPEN_DENYNONE:
@@ -2675,7 +2675,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		break;
 	default:
 		nd->nd_repstat = NFSERR_INVAL;
-	};
+	}
 	clientid.lval[0] = *tl++;
 	clientid.lval[1] = *tl;
 	if ((nd->nd_flag & ND_IMPLIEDCLID) != 0) {
@@ -2750,7 +2750,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		default:
 			nd->nd_repstat = NFSERR_BADXDR;
 			goto nfsmout;
-		};
+		}
 	} else if (create != NFSV4OPEN_NOCREATE) {
 		nd->nd_repstat = NFSERR_BADXDR;
 		goto nfsmout;
@@ -2832,7 +2832,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		    case NFSCREATE_EXCLUSIVE41:
 			exclusive_flag = 1;
 			break;
-		    };
+		    }
 		}
 		nfsvno_open(nd, &named, clientid, &stateid, stp,
 		    &exclusive_flag, &nva, cverf, create, aclp, &attrbits,
@@ -2853,7 +2853,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 			default:
 				nd->nd_repstat = NFSERR_BADXDR;
 				goto nfsmout;
-			};
+			}
 			stp->ls_flags |= NFSLCK_RECLAIM;
 		} else {
 			/* CLAIM_NULL_FH */
@@ -3247,7 +3247,7 @@ nfsrvd_opendowngrade(struct nfsrv_descript *nd, __unused int isdgram,
 		break;
 	default:
 		nd->nd_repstat = NFSERR_BADXDR;
-	};
+	}
 	i = fxdr_unsigned(int, *tl);
 	switch (i) {
 	case NFSV4OPEN_DENYNONE:
@@ -3263,7 +3263,7 @@ nfsrvd_opendowngrade(struct nfsrv_descript *nd, __unused int isdgram,
 		break;
 	default:
 		nd->nd_repstat = NFSERR_BADXDR;
-	};
+	}
 
 	clientid.lval[0] = stp->ls_stateid.other[0];
 	clientid.lval[1] = stp->ls_stateid.other[1];

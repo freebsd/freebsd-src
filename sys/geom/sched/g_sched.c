@@ -742,7 +742,7 @@ g_gsched_modevent(module_t mod, int cmd, void *arg)
 		G_SCHED_DEBUG(0, "Unloaded module %s error %d.",
 		    gsp->gs_name, error);
 		break;
-	};
+	}
 
 	return (error);
 }

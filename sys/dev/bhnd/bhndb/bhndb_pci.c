@@ -1007,7 +1007,7 @@ bhndb_pci_discover_quirks(struct bhndb_pci_softc *sc,
 		for (qt = id->quirks; qt->quirks != 0; qt++) {
 			if (bhnd_hwrev_matches(hwrev, &qt->hwrev))
 				quirks |= qt->quirks;
-		};
+		}
 	}
 
 

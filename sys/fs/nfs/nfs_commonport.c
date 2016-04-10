@@ -337,7 +337,7 @@ nfsvno_pathconf(struct vnode *vp, int flag, register_t *retf,
 			 */
 			*retf = 0;
 			printf("nfsrvd pathconf flag=%d not supp\n", flag);
-		};
+		}
 		error = 0;
 	}
 	NFSEXITCODE(error);

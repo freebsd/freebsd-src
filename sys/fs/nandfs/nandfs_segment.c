@@ -199,7 +199,7 @@ delete_segment(struct nandfs_seginfo *seginfo)
 			TAILQ_REMOVE(&seg->segsum, bp, b_cluster.cluster_entry);
 			bp->b_flags &= ~B_MANAGED;
 			brelse(bp);
-		};
+		}
 
 		LIST_REMOVE(seg, seg_link);
 		free(seg, M_DEVBUF);
@@ -752,7 +752,7 @@ nandfs_clean_segblocks(struct nandfs_segment *seg, uint8_t unlock)
 	TAILQ_FOREACH_SAFE(bp, &seg->segsum, b_cluster.cluster_entry, tbp) {
 		TAILQ_REMOVE(&seg->segsum, bp, b_cluster.cluster_entry);
 		nandfs_clean_buf(fsdev, bp);
-	};
+	}
 
 	TAILQ_FOREACH_SAFE(bp, &seg->data, b_cluster.cluster_entry, tbp) {
 		TAILQ_REMOVE(&seg->data, bp, b_cluster.cluster_entry);
@@ -807,7 +807,7 @@ nandfs_save_segblocks(struct nandfs_segment *seg, uint8_t unlock)
 			goto out;
 		}
 		i++;
-	};
+	}
 
 	i = 0;
 	TAILQ_FOREACH_SAFE(bp, &seg->data, b_cluster.cluster_entry, tbp) {

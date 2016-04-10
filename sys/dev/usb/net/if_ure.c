@@ -419,7 +419,7 @@ ure_probe(device_t dev)
 {
 	struct usb_attach_arg *uaa;
 
-	uaa = device_get_ivars(dev);;
+	uaa = device_get_ivars(dev);
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 	if (uaa->info.bConfigIndex != URE_CONFIG_IDX)

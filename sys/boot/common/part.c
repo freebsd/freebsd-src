@@ -514,7 +514,7 @@ vtoc8_parttype(uint16_t type)
 		return (PART_FREEBSD_VINUM);
 	case VTOC_TAG_FREEBSD_ZFS:
 		return (PART_FREEBSD_ZFS);
-	};
+	}
 	return (PART_UNKNOWN);
 }
 

@@ -161,7 +161,7 @@ channel_configure(struct edma_softc *sc, int mux_grp, int mux_src)
 	} else {
 		channel_first = 0;
 		mux_num = sc->device_id * 2;
-	};
+	}
 
 	/* Take first unused eDMA channel */
 	ch = NULL;
@@ -171,12 +171,12 @@ channel_configure(struct edma_softc *sc, int mux_grp, int mux_src)
 			break;
 		}
 		ch = NULL;
-	};
+	}
 
 	if (ch == NULL) {
 		/* Can't find free channel */
 		return (-1);
-	};
+	}
 
 	chnum = i;
 

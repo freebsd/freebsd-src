@@ -487,7 +487,7 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 				default:
 					error = NFSERR_BADXDR;
 					goto nfsmout;
-				};
+				}
 			} else {
 				ndp->nfsdl_flags = NFSCLDL_READ;
 			}
@@ -2086,7 +2086,7 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 				default:
 					error = NFSERR_BADXDR;
 					goto nfsmout;
-				};
+				}
 			} else {
 				dp->nfsdl_flags = NFSCLDL_READ;
 			}
@@ -3698,7 +3698,7 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 		break;
 	default:
 		return (EINVAL);
-	};
+	}
 	if (start < 0)
 		return (EINVAL);
 	if (fl->l_len != 0) {

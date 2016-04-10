@@ -1297,7 +1297,7 @@ nfscl_checkwritelocked(vnode_t vp, struct flock *fl,
 		break;
 	default:
 		return (1);
-	};
+	}
 	if (fl->l_len != 0) {
 		end = off + fl->l_len;
 		if (end < off)
@@ -3507,7 +3507,7 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 				error = NFSERR_NOTSUPP;
 			}
 			break;
-		};
+		}
 		if (error) {
 			if (error == EBADRPC || error == NFSERR_BADXDR) {
 				nd->nd_repstat = NFSERR_BADXDR;

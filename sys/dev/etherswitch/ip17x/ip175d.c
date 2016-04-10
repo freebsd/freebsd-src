@@ -167,7 +167,7 @@ ip175d_set_vlan_mode(struct ip17x_softc *sc, uint32_t mode)
 		ip17x_updatephy(sc->sc_dev, 22, 0, 0xbfff, 0x8000);
 		sc->vlan_mode = 0;
 		break;
-	};
+	}
 
 	if (sc->vlan_mode != 0) {
 		/*

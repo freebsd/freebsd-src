@@ -590,7 +590,7 @@ bktr_store_address(unit, BKTR_MEM_BUF,          buf);
 			bktr->id = BROOKTREE_879;
 			break;
 		}
-	};
+	}
 
 	bktr->clr_on_start = FALSE;
 
@@ -3046,7 +3046,7 @@ rgb_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 		/* sync vro */
 		*dma_prog++ = OP_SYNC | BKTR_GEN_IRQ | BKTR_RESYNC | BKTR_VRO;
 		*dma_prog++ = 0;  /* NULL WORD */
-		*dma_prog++ = OP_JUMP; ;
+		*dma_prog++ = OP_JUMP;
 		*dma_prog = (uint32_t ) vtophys(bktr->odd_dma_prog);
 		break;
 	}

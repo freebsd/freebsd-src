@@ -365,7 +365,7 @@ ar5416ProcessRadarEvent(struct ath_hal *ah, struct ath_rx_status *rxs,
 			/* Cannot use ctrl channel RSSI if ext channel is stronger */
 			if (ext_rssi >= (rssi + 3)) {
 				rssi = 0;
-			};
+			}
 			break;
 		case EXT_CH_RADAR_FOUND:
 			/* Radar in extended channel */
