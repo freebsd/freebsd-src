@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/taskqueue.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -1005,6 +1006,12 @@ ffs_mountfs(devvp, mp, td)
 			    mp->mnt_stat.f_mntonname);
 			ump->um_candelete = 0;
 		}
+		if (ump->um_candelete) {
+			ump->um_trim_tq = taskqueue_create("trim", M_WAITOK,
+			    taskqueue_thread_enqueue, &ump->um_trim_tq);
+			taskqueue_start_threads(&ump->um_trim_tq, 1, PVFS,
+			    "%s trim", mp->mnt_stat.f_mntonname);
+		}
 	}
 
 	ump->um_mountp = mp;
@@ -1260,6 +1267,12 @@ ffs_unmount(mp, mntflags)
 	}
 	if (susp)
 		vfs_write_resume(mp, VR_START_WRITE);
+	if (ump->um_trim_tq != NULL) {
+		while (ump->um_trim_inflight != 0)
+			pause("ufsutr", hz);
+		taskqueue_drain_all(ump->um_trim_tq);
+		taskqueue_free(ump->um_trim_tq);
+	}
 	DROP_GIANT();
 	g_topology_lock();
 	if (ump->um_fsckpid > 0) {
