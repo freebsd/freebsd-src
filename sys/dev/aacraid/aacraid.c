@@ -3550,7 +3550,7 @@ aac_container_bus(struct aac_softc *sc)
 		device_printf(sc->aac_dev,
 	    	"No memory to add container bus\n");
 		panic("Out of memory?!");
-	};
+	}
 	child = device_add_child(sc->aac_dev, "aacraidp", -1);
 	if (child == NULL) {
 		device_printf(sc->aac_dev,
@@ -3662,7 +3662,7 @@ aac_get_bus_info(struct aac_softc *sc)
 			device_printf(sc->aac_dev,
 			    "No memory to add passthrough bus %d\n", i);
 			break;
-		};
+		}
 
 		child = device_add_child(sc->aac_dev, "aacraidp", -1);
 		if (child == NULL) {

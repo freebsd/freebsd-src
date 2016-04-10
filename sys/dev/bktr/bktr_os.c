@@ -304,7 +304,7 @@ bktr_probe( device_t dev )
 			device_set_desc(dev, "BrookTree 879");
 			return BUS_PROBE_DEFAULT;
 		}
-	};
+	}
 
         return ENXIO;
 }

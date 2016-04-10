@@ -491,7 +491,7 @@ ahci_pci_attach(device_t dev)
 	if ((error = ahci_pci_ctlr_reset(dev)) != 0) {
 		ahci_free_mem(dev);
 		return (error);
-	};
+	}
 
 	/* Setup interrupts. */
 

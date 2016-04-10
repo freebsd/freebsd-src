@@ -209,7 +209,7 @@ m_dumpm(struct mbuf *m) {
 			printf("%02x ",((int)*(p++)) & 0xff);
 		}
 		m=m->m_next;
-	};
+	}
 	printf("\n");
 }
 #endif

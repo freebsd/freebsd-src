@@ -842,7 +842,7 @@ mv_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	default:
 		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
 		    type, rid, start, end, count, flags));
-	};
+	}
 
 	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
 		start = sc->sc_mem_base;

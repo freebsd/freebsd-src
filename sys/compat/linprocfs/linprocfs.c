@@ -640,7 +640,7 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 	} else {
 	   startcode = 0;
 	   startdata = 0;
-	};
+	}
 	sbuf_printf(sb, "%d", p->p_pid);
 #define PS_ADD(name, fmt, arg) sbuf_printf(sb, " " fmt, arg)
 	PS_ADD("comm",		"(%s)",	p->p_comm);
