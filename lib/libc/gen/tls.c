@@ -285,7 +285,7 @@ _init_tls(void)
 	while (*sp++ != 0)
 		;
 	aux = (Elf_Auxinfo *) sp;
-	phdr = 0;
+	phdr = NULL;
 	phent = phnum = 0;
 	for (auxp = aux; auxp->a_type != AT_NULL; auxp++) {
 		switch (auxp->a_type) {
@@ -302,7 +302,7 @@ _init_tls(void)
 			break;
 		}
 	}
-	if (phdr == 0 || phent != sizeof(Elf_Phdr) || phnum == 0)
+	if (phdr == NULL || phent != sizeof(Elf_Phdr) || phnum == 0)
 		return;
 
 	for (i = 0; (unsigned) i < phnum; i++) {
