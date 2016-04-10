@@ -5125,6 +5125,18 @@ bus_free_resource(device_t dev, int type, struct resource *r)
 	return (bus_release_resource(dev, type, rman_get_rid(r), r));
 }
 
+device_t
+device_lookup_by_name(const char *name)
+{
+	device_t dev;
+
+	TAILQ_FOREACH(dev, &bus_data_devices, devlink) {
+		if (dev->nameunit != NULL && strcmp(dev->nameunit, name) == 0)
+			return (dev);
+	}
+	return (NULL);
+}
+
 /*
  * /dev/devctl2 implementation.  The existing /dev/devctl device has
  * implicit semantics on open, so it could not be reused for this.
@@ -5145,12 +5157,10 @@ find_device(struct devreq *req, device_t *devp)
 	 * Second, try to find an attached device whose name matches
 	 * 'name'.
 	 */
-	TAILQ_FOREACH(dev, &bus_data_devices, devlink) {
-		if (dev->nameunit != NULL &&
-		    strcmp(dev->nameunit, req->dr_name) == 0) {
-			*devp = dev;
-			return (0);
-		}
+	dev = device_lookup_by_name(req->dr_name);
+	if (dev != NULL) {
+		*devp = dev;
+		return (0);
 	}
 
 	/* Finally, give device enumerators a chance. */
