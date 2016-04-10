@@ -344,7 +344,7 @@ copy_special(struct stat *from_stat, int exists)
 int
 setfile(struct stat *fs, int fd)
 {
-	static struct timeval tv[2];
+	static struct timespec tspec[2];
 	struct stat ts;
 	int rval, gotstat, islink, fdval;
 
@@ -354,10 +354,11 @@ setfile(struct stat *fs, int fd)
 	fs->st_mode &= S_ISUID | S_ISGID | S_ISVTX |
 	    S_IRWXU | S_IRWXG | S_IRWXO;
 
-	TIMESPEC_TO_TIMEVAL(&tv[0], &fs->st_atim);
-	TIMESPEC_TO_TIMEVAL(&tv[1], &fs->st_mtim);
-	if (islink ? lutimes(to.p_path, tv) : utimes(to.p_path, tv)) {
-		warn("%sutimes: %s", islink ? "l" : "", to.p_path);
+	tspec[0] = fs->st_atim;
+	tspec[1] = fs->st_mtim;
+	if (utimensat(AT_FDCWD, to.p_path, tspec,
+	    islink ? AT_SYMLINK_NOFOLLOW : 0)) {
+		warn("utimensat: %s", to.p_path);
 		rval = 1;
 	}
 	if (fdval ? fstat(fd, &ts) :
