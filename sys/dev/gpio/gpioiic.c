@@ -157,7 +157,7 @@ gpioiic_callback(device_t dev, int index, caddr_t data)
 	int error, how;
 
 	how = GPIOBUS_DONTWAIT;
-	if (data != NULL && (int)*data == IIC_WAIT)
+	if (data != NULL && *(int*)data == IIC_WAIT)
 		how = GPIOBUS_WAIT;
 	error = 0;
 	switch (index) {
