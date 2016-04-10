@@ -2157,7 +2157,7 @@ ieee80211_ampdu_enable(struct ieee80211_node *ni,
 		return 0;
 	/* XXX check rssi? */
 	if (tap->txa_attempts >= ieee80211_addba_maxtries &&
-	    ticks < tap->txa_nextrequest) {
+	    ieee80211_time_after(ticks, tap->txa_nextrequest)) {
 		/*
 		 * Don't retry too often; txa_nextrequest is set
 		 * to the minimum interval we'll retry after
