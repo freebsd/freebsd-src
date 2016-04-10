@@ -192,7 +192,7 @@ static tlb_entry_t tlb1[TLB1_MAXENTRIES];
 
 /* Next free entry in the TLB1 */
 static unsigned int tlb1_idx;
-static vm_offset_t tlb1_map_base = VM_MAXUSER_ADDRESS;
+static vm_offset_t tlb1_map_base = VM_MAXUSER_ADDRESS + PAGE_SIZE;
 
 static tlbtid_t tid_alloc(struct pmap *);
 static void tid_flush(tlbtid_t tid);
