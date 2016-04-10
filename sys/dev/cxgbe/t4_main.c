@@ -9207,8 +9207,101 @@ t4_dump_tcb(struct adapter *sc, int tid)
 	t4_read_reg(sc, reg);
 }
 
+static void
+t4_dump_devlog(struct adapter *sc)
+{
+	struct devlog_params *dparams = &sc->params.devlog;
+	struct fw_devlog_e e;
+	int i, first, j, m, nentries, rc;
+	uint64_t ftstamp = UINT64_MAX;
+
+	if (dparams->start == 0) {
+		db_printf("devlog params not valid\n");
+		return;
+	}
+
+	nentries = dparams->size / sizeof(struct fw_devlog_e);
+	m = fwmtype_to_hwmtype(dparams->memtype);
+
+	/* Find the first entry. */
+	first = -1;
+	for (i = 0; i < nentries && !db_pager_quit; i++) {
+		rc = -t4_mem_read(sc, m, dparams->start + i * sizeof(e),
+		    sizeof(e), (void *)&e);
+		if (rc != 0)
+			break;
+
+		if (e.timestamp == 0)
+			break;
+
+		e.timestamp = be64toh(e.timestamp);
+		if (e.timestamp < ftstamp) {
+			ftstamp = e.timestamp;
+			first = i;
+		}
+	}
+
+	if (first == -1)
+		return;
+
+	i = first;
+	do {
+		rc = -t4_mem_read(sc, m, dparams->start + i * sizeof(e),
+		    sizeof(e), (void *)&e);
+		if (rc != 0)
+			return;
+
+		if (e.timestamp == 0)
+			return;
+
+		e.timestamp = be64toh(e.timestamp);
+		e.seqno = be32toh(e.seqno);
+		for (j = 0; j < 8; j++)
+			e.params[j] = be32toh(e.params[j]);
+
+		db_printf("%10d  %15ju  %8s  %8s  ",
+		    e.seqno, e.timestamp,
+		    (e.level < nitems(devlog_level_strings) ?
+			devlog_level_strings[e.level] : "UNKNOWN"),
+		    (e.facility < nitems(devlog_facility_strings) ?
+			devlog_facility_strings[e.facility] : "UNKNOWN"));
+		db_printf(e.fmt, e.params[0], e.params[1], e.params[2],
+		    e.params[3], e.params[4], e.params[5], e.params[6],
+		    e.params[7]);
+
+		if (++i == nentries)
+			i = 0;
+	} while (i != first && !db_pager_quit);
+}
+
 static struct command_table db_t4_table = LIST_HEAD_INITIALIZER(db_t4_table);
 _DB_SET(_show, t4, NULL, db_show_table, 0, &db_t4_table);
+
+DB_FUNC(devlog, db_show_devlog, db_t4_table, CS_OWN, NULL)
+{
+	device_t dev;
+	int t;
+	bool valid;
+
+	valid = false;
+	t = db_read_token();
+	if (t == tIDENT) {
+		dev = device_lookup_by_name(db_tok_string);
+		valid = true;
+	}
+	db_skip_to_eol();
+	if (!valid) {
+		db_printf("usage: show t4 devlog <nexus>\n");
+		return;
+	}
+
+	if (dev == NULL) {
+		db_printf("device not found\n");
+		return;
+	}
+
+	t4_dump_devlog(device_get_softc(dev));
+}
 
 DB_FUNC(tcb, db_show_t4tcb, db_t4_table, CS_OWN, NULL)
 {
