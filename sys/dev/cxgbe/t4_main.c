@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_rss.h"
@@ -62,6 +63,10 @@ __FBSDID("$FreeBSD$");
 #if defined(__i386__) || defined(__amd64__)
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#endif
+#ifdef DDB
+#include <ddb/ddb.h>
+#include <ddb/db_lex.h>
 #endif
 
 #include "common/common.h"
@@ -9162,6 +9167,86 @@ tweak_tunables(void)
 
 	t4_intr_types &= INTR_MSIX | INTR_MSI | INTR_INTX;
 }
+
+#ifdef DDB
+static void
+t4_dump_tcb(struct adapter *sc, int tid)
+{
+	uint32_t base, i, j, off, pf, reg, save, tcb_addr, win_pos;
+
+	reg = PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 2);
+	save = t4_read_reg(sc, reg);
+	base = sc->memwin[2].mw_base;
+
+	/* Dump TCB for the tid */
+	tcb_addr = t4_read_reg(sc, A_TP_CMM_TCB_BASE);
+	tcb_addr += tid * TCB_SIZE;
+
+	if (is_t4(sc)) {
+		pf = 0;
+		win_pos = tcb_addr & ~0xf;	/* start must be 16B aligned */
+	} else {
+		pf = V_PFNUM(sc->pf);
+		win_pos = tcb_addr & ~0x7f;	/* start must be 128B aligned */
+	}
+	t4_write_reg(sc, reg, win_pos | pf);
+	t4_read_reg(sc, reg);
+
+	off = tcb_addr - win_pos;
+	for (i = 0; i < 4; i++) {
+		uint32_t buf[8];
+		for (j = 0; j < 8; j++, off += 4)
+			buf[j] = htonl(t4_read_reg(sc, base + off));
+
+		db_printf("%08x %08x %08x %08x %08x %08x %08x %08x\n",
+		    buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6],
+		    buf[7]);
+	}
+
+	t4_write_reg(sc, reg, save);
+	t4_read_reg(sc, reg);
+}
+
+static struct command_table db_t4_table = LIST_HEAD_INITIALIZER(db_t4_table);
+_DB_SET(_show, t4, NULL, db_show_table, 0, &db_t4_table);
+
+DB_FUNC(tcb, db_show_t4tcb, db_t4_table, CS_OWN, NULL)
+{
+	device_t dev;
+	int radix, tid, t;
+	bool valid;
+
+	valid = false;
+	radix = db_radix;
+	db_radix = 10;
+	t = db_read_token();
+	if (t == tIDENT) {
+		dev = device_lookup_by_name(db_tok_string);
+		t = db_read_token();
+		if (t == tNUMBER) {
+			tid = db_tok_number;
+			valid = true;
+		}
+	}	
+	db_radix = radix;
+	db_skip_to_eol();
+	if (!valid) {
+		db_printf("usage: show t4 tcb <nexus> <tid>\n");
+		return;
+	}
+
+	if (dev == NULL) {
+		db_printf("device not found\n");
+		return;
+	}
+	if (tid < 0) {
+		db_printf("invalid tid\n");
+		return;
+	}
+
+	t4_dump_tcb(device_get_softc(dev), tid);
+}
+#endif
 
 static struct sx mlu;	/* mod load unload */
 SX_SYSINIT(cxgbe_mlu, &mlu, "cxgbe mod load/unload");
