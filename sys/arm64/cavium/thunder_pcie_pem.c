@@ -530,7 +530,7 @@ thunder_pem_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		parent_dev = device_get_parent(device_get_parent(dev));
 		return (BUS_ALLOC_RESOURCE(parent_dev, dev, type, rid, start,
 		    end, count, flags));
-	};
+	}
 
 
 	if (!RMAN_IS_DEFAULT_RANGE(start, end)) {
