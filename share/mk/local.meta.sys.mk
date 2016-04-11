@@ -61,7 +61,6 @@ MACHINE_ARCH_LIST.$m?= ${TARGET_ARCHES_${m}:U$m}
 MACHINE_ARCH.$m?= ${MACHINE_ARCH_LIST.$m:[1]}
 BOOT_MACHINE_DIR.$m ?= boot/$m
 .endfor
-ALL_MACHINE_LIST+= common
 
 .ifndef _TARGET_SPEC
 .if empty(MACHINE_ARCH)
