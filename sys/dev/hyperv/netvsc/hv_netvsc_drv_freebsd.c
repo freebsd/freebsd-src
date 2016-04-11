@@ -136,6 +136,8 @@ __FBSDID("$FreeBSD$");
 
 #define HN_LROENT_CNT_DEF		128
 
+#define HN_RING_CNT_DEF_MAX		8
+
 #define HN_RNDIS_MSG_LEN		\
     (sizeof(rndis_msg) +		\
      RNDIS_HASH_PPI_SIZE +		\
@@ -460,8 +462,14 @@ netvsc_attach(device_t dev)
 	 * The # of RX rings to use is same as the # of channels to use.
 	 */
 	ring_cnt = hn_chan_cnt;
-	if (ring_cnt <= 0 || ring_cnt > mp_ncpus)
+	if (ring_cnt <= 0) {
+		/* Default */
 		ring_cnt = mp_ncpus;
+		if (ring_cnt > HN_RING_CNT_DEF_MAX)
+			ring_cnt = HN_RING_CNT_DEF_MAX;
+	} else if (ring_cnt > mp_ncpus) {
+		ring_cnt = mp_ncpus;
+	}
 
 	tx_ring_cnt = hn_tx_ring_cnt;
 	if (tx_ring_cnt <= 0 || tx_ring_cnt > ring_cnt)
