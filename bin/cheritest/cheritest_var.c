@@ -68,7 +68,7 @@ test_sandbox_var_bss(const struct cheri_test *ctp __unused)
 
 	v = invoke_get_var_bss();
 	if (v != CHERITEST_VALUE_BSS)
-		cheritest_failure_errx(".bss returned 0x%lx (expected 0x%lx)",
+		cheritest_failure_errx(".bss returned 0x%lx (expected 0x%x)",
 		    v, CHERITEST_VALUE_BSS);
 	cheritest_success();
 }
@@ -80,7 +80,7 @@ test_sandbox_var_data(const struct cheri_test *ctp __unused)
 
 	v = invoke_get_var_data();
 	if (v != CHERITEST_VALUE_DATA)
-		cheritest_failure_errx(".data returned 0x%lx (expected 0x%lx)",
+		cheritest_failure_errx(".data returned 0x%lx (expected 0x%x)",
 		    v, CHERITEST_VALUE_DATA);
 	cheritest_success();
 
@@ -99,7 +99,7 @@ test_sandbox_var_data_getset(const struct cheri_test *ctp __unused)
 	/* Read back data and ensure zero. */
 	v = invoke_get_var_data();
 	if (v != 0)
-		cheritest_failure_errx(".data set to 0 but returned %u\n", v);
+		cheritest_failure_errx(".data set to 0 but returned %lu\n", v);
 
 	/* Set data to one. */
 	invoke_set_var_data(1);
@@ -107,7 +107,7 @@ test_sandbox_var_data_getset(const struct cheri_test *ctp __unused)
 	/* Read back data and ensure one. */
 	v = invoke_get_var_data();
 	if (v != 1)
-		cheritest_failure_errx(".data set to 1 but returned %u\n", v);
+		cheritest_failure_errx(".data set to 1 but returned %lu\n", v);
 	cheritest_success();
 }
 
@@ -147,7 +147,7 @@ test_sandbox_var_constructor(const struct cheri_test *ctp __unused)
 	v = invoke_get_var_constructor();
 	if (v != CHERITEST_VALUE_CONSTRUCTOR)
 		cheritest_failure_errx(
-		    "Constructor returned 0x%lx (expected 0x%lx)",
+		    "Constructor returned 0x%lx (expected 0x%x)",
 		    v, CHERITEST_VALUE_CONSTRUCTOR);
 	cheritest_success();
 }
