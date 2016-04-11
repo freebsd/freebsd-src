@@ -321,7 +321,7 @@ files_servent(void *retval, void *mdata, va_list ap)
 		break;
 	default:
 		return NS_NOTFOUND;
-	};
+	}
 
 	serv = va_arg(ap, struct servent *);
 	buffer  = va_arg(ap, char *);
@@ -463,7 +463,7 @@ files_setservent(void *retval, void *mdata, va_list ap)
 		break;
 	default:
 		break;
-	};
+	}
 
 	st->compat_mode_active = 0;
 	return (NS_UNAVAIL);
@@ -522,7 +522,7 @@ db_servent(void *retval, void *mdata, va_list ap)
 		break;
 	default:
 		return NS_NOTFOUND;
-	};
+	}
 
 	serv = va_arg(ap, struct servent *);
 	buffer  = va_arg(ap, char *);
@@ -641,7 +641,7 @@ db_setservent(void *retval, void *mdata, va_list ap)
 		break;
 	default:
 		break;
-	};
+	}
 
 	return (NS_UNAVAIL);
 }
@@ -694,7 +694,7 @@ nis_servent(void *retval, void *mdata, va_list ap)
 		break;
 	default:
 		return NS_NOTFOUND;
-	};
+	}
 
 	serv = va_arg(ap, struct servent *);
 	buffer  = va_arg(ap, char *);
@@ -781,7 +781,7 @@ nis_servent(void *retval, void *mdata, va_list ap)
 				}
 			}
 			break;
-		};
+		}
 
 		rv = parse_result(serv, buffer, bufsize, resultbuf,
 		    resultbuflen, errnop);
@@ -815,7 +815,7 @@ nis_setservent(void *result, void *mdata, va_list ap)
 		break;
 	default:
 		break;
-	};
+	}
 
 	return (NS_UNAVAIL);
 }
