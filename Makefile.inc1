@@ -1224,6 +1224,11 @@ KSTAGEDIR?=	${MAKEOBJDIRPREFIX}${.CURDIR}/${TARGET}.${TARGET_ARCH}/kernelstage
 REPODIR?=	${MAKEOBJDIRPREFIX}${.CURDIR}/repo
 PKGSIGNKEY?=	# empty
 
+.ORDER:		stage-packages create-packages
+.ORDER:		create-packages create-world-packages
+.ORDER:		create-packages create-kernel-packages
+.ORDER:		create-packages sign-packages
+
 _pkgbootstrap:
 .if !exists(${LOCALBASE}/sbin/pkg)
 	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
