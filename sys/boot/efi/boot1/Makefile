@@ -68,8 +68,8 @@ LDADD+=		-lstand
 
 DPADD+=		${LDSCRIPT}
 
+NM?=		nm
 OBJCOPY?=	objcopy
-OBJDUMP?=	objdump
 
 .if ${MACHINE_CPUARCH} == "amd64"
 EFI_TARGET=	efi-app-x86_64
@@ -78,8 +78,8 @@ EFI_TARGET=	efi-app-ia32
 .endif
 
 boot1.efi: ${PROG}
-	if [ `${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*' | wc -l` != 0 ]; then \
-		${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*'; \
+	if ${NM} ${.ALLSRC} | grep ' U '; then \
+		echo "Undefined symbols in ${.ALLSRC}"; \
 		exit 1; \
 	fi
 	${OBJCOPY} -j .text -j .sdata -j .data \
