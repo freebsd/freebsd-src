@@ -73,7 +73,7 @@ _MSKanji_init(struct xlocale_ctype *l, _RuneLocale *rl)
 	l->__mbsinit = _MSKanji_mbsinit;
 	l->runes = rl;
 	l->__mb_cur_max = 2;
-	l->__mb_sb_limit = 256;
+	l->__mb_sb_limit = 224;
 	return (0);
 }
 
