@@ -1972,10 +1972,12 @@ isp_fibre_init(ispsoftc_t *isp)
 	}
 	isp_prt(isp, ISP_LOGDEBUG0, "isp_fibre_init: fwopt 0x%x xfwopt 0x%x zfwopt 0x%x",
 	    icbp->icb_fwoptions, icbp->icb_xfwoptions, icbp->icb_zfwoptions);
-	if (isp->isp_dblev & ISP_LOGDEBUG1)
-		isp_print_bytes(isp, "isp_fibre_init", sizeof (*icbp), icbp);
 
 	isp_put_icb(isp, icbp, (isp_icb_t *)fcp->isp_scratch);
+	if (isp->isp_dblev & ISP_LOGDEBUG1) {
+		isp_print_bytes(isp, "isp_fibre_init",
+		    sizeof(*icbp), fcp->isp_scratch);
+	}
 
 	/*
 	 * Init the firmware
@@ -2240,16 +2242,16 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	    DMA_WD1(isp->isp_rquest_dma), DMA_WD0(isp->isp_rquest_dma), DMA_WD3(isp->isp_result_dma), DMA_WD2(isp->isp_result_dma),
 	    DMA_WD1(isp->isp_result_dma), DMA_WD0(isp->isp_result_dma));
 
-	if (isp->isp_dblev & ISP_LOGDEBUG1) {
-		isp_print_bytes(isp, "isp_fibre_init_2400", sizeof (*icbp), icbp);
-	}
-
 	if (FC_SCRATCH_ACQUIRE(isp, 0)) {
 		isp_prt(isp, ISP_LOGERR, sacq);
 		return;
 	}
 	ISP_MEMZERO(fcp->isp_scratch, ISP_FC_SCRLEN);
 	isp_put_icb_2400(isp, icbp, fcp->isp_scratch);
+	if (isp->isp_dblev & ISP_LOGDEBUG1) {
+		isp_print_bytes(isp, "isp_fibre_init_2400",
+		    sizeof (*icbp), fcp->isp_scratch);
+	}
 
 	/*
 	 * Now fill in information about any additional channels
@@ -2395,6 +2397,8 @@ isp_fc_enable_vp(ispsoftc_t *isp, int chan)
 		return (EIO);
 	}
 	isp_put_vp_modify(isp, &vp, (vp_modify_t *)reqp);
+	if (isp->isp_dblev & ISP_LOGDEBUG1)
+		isp_print_bytes(isp, "IOCB VP_MODIFY", QENTRY_LEN, reqp);
 	ISP_SYNC_REQUEST(isp);
 	if (msleep(resp, &isp->isp_lock, 0, "VP_MODIFY", 5*hz) == EWOULDBLOCK) {
 		isp_prt(isp, ISP_LOGERR,
@@ -2402,6 +2406,8 @@ isp_fc_enable_vp(ispsoftc_t *isp, int chan)
 		isp_destroy_handle(isp, vp.vp_mod_hdl);
 		return (EIO);
 	}
+	if (isp->isp_dblev & ISP_LOGDEBUG1)
+		isp_print_bytes(isp, "IOCB VP_MODIFY response", QENTRY_LEN, resp);
 	isp_get_vp_modify(isp, (vp_modify_t *)resp, &vp);
 
 	if (vp.vp_mod_hdr.rqs_flags != 0 || vp.vp_mod_status != VP_STS_OK) {
@@ -2452,6 +2458,8 @@ isp_fc_disable_vp(ispsoftc_t *isp, int chan)
 		return (EIO);
 	}
 	isp_put_vp_ctrl_info(isp, &vp, (vp_ctrl_info_t *)reqp);
+	if (isp->isp_dblev & ISP_LOGDEBUG1)
+		isp_print_bytes(isp, "IOCB VP_CTRL", QENTRY_LEN, reqp);
 	ISP_SYNC_REQUEST(isp);
 	if (msleep(resp, &isp->isp_lock, 0, "VP_CTRL", 5*hz) == EWOULDBLOCK) {
 		isp_prt(isp, ISP_LOGERR,
@@ -2459,6 +2467,8 @@ isp_fc_disable_vp(ispsoftc_t *isp, int chan)
 		isp_destroy_handle(isp, vp.vp_ctrl_handle);
 		return (EIO);
 	}
+	if (isp->isp_dblev & ISP_LOGDEBUG1)
+		isp_print_bytes(isp, "IOCB VP_CTRL response", QENTRY_LEN, resp);
 	isp_get_vp_ctrl_info(isp, (vp_ctrl_info_t *)resp, &vp);
 
 	if (vp.vp_ctrl_hdr.rqs_flags != 0 || vp.vp_ctrl_status != 0) {
@@ -2602,9 +2612,9 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 		isp_destroy_handle(isp, pl.plogx_handle);
 		return (-1);
 	}
-	if (isp->isp_dblev & ISP_LOGDEBUG1)
-		isp_print_bytes(isp, "IOCB LOGX", QENTRY_LEN, &pl);
 	isp_put_plogx(isp, &pl, (isp_plogx_t *)reqp);
+	if (isp->isp_dblev & ISP_LOGDEBUG1)
+		isp_print_bytes(isp, "IOCB LOGX", QENTRY_LEN, reqp);
 	ISP_SYNC_REQUEST(isp);
 	if (msleep(resp, &isp->isp_lock, 0, "PLOGX", 3 * ICB_LOGIN_TOV * hz)
 	    == EWOULDBLOCK) {
@@ -2613,9 +2623,9 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 		isp_destroy_handle(isp, pl.plogx_handle);
 		return (-1);
 	}
-	isp_get_plogx(isp, (isp_plogx_t *)resp, &pl);
 	if (isp->isp_dblev & ISP_LOGDEBUG1)
-		isp_print_bytes(isp, "IOCB LOGX response", QENTRY_LEN, &pl);
+		isp_print_bytes(isp, "IOCB LOGX response", QENTRY_LEN, resp);
+	isp_get_plogx(isp, (isp_plogx_t *)resp, &pl);
 
 	if (pl.plogx_status == PLOGX_STATUS_OK) {
 		return (0);
@@ -5155,15 +5165,14 @@ again:
 		 * Synchronize our view of this response queue entry.
 		 */
 		MEMORYBARRIER(isp, SYNC_RESULT, oop, QENTRY_LEN, -1);
+		if (isp->isp_dblev & ISP_LOGDEBUG1)
+			isp_print_qentry(isp, "Response Queue Entry", oop, hp);
 		isp_get_hdr(isp, hp, &sp->req_header);
 		etype = sp->req_header.rqs_entry_type;
 
 		if (IS_24XX(isp) && etype == RQSTYPE_RESPONSE) {
 			isp24xx_statusreq_t *sp2 = (isp24xx_statusreq_t *)qe;
 			isp_get_24xx_response(isp, (isp24xx_statusreq_t *)hp, sp2);
-			if (isp->isp_dblev & ISP_LOGDEBUG1) {
-				isp_print_bytes(isp, "Response Queue Entry", QENTRY_LEN, sp2);
-			}
 			scsi_status = sp2->req_scsi_status;
 			completion_status = sp2->req_completion_status;
 			if ((scsi_status & 0xff) != 0)
@@ -5173,9 +5182,6 @@ again:
 			resid = sp2->req_resid;
 		} else if (etype == RQSTYPE_RESPONSE) {
 			isp_get_response(isp, (ispstatusreq_t *) hp, sp);
-			if (isp->isp_dblev & ISP_LOGDEBUG1) {
-				isp_print_bytes(isp, "Response Queue Entry", QENTRY_LEN, sp);
-			}
 			scsi_status = sp->req_scsi_status;
 			completion_status = sp->req_completion_status;
 			req_status_flags = sp->req_status_flags;
@@ -5184,9 +5190,6 @@ again:
 		} else if (etype == RQSTYPE_RIO1) {
 			isp_rio1_t *rio = (isp_rio1_t *) qe;
 			isp_get_rio1(isp, (isp_rio1_t *) hp, rio);
-			if (isp->isp_dblev & ISP_LOGDEBUG1) {
-				isp_print_bytes(isp, "Response Queue Entry", QENTRY_LEN, rio);
-			}
 			for (i = 0; i < rio->req_header.rqs_seqno; i++) {
 				isp_fastpost_complete(isp, rio->req_handles[i]);
 			}
@@ -5250,7 +5253,6 @@ again:
 			 */
 			if (etype != RQSTYPE_REQUEST) {
 				isp_prt(isp, ISP_LOGERR, notresp, etype, oop, optr, nlooked);
-				isp_print_bytes(isp, "Request Queue Entry", QENTRY_LEN, sp);
 				ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
 				last_etype = etype;
 				continue;
@@ -5265,7 +5267,8 @@ again:
 
 		if (sp->req_header.rqs_flags & RQSFLAG_MASK) {
 			if (sp->req_header.rqs_flags & RQSFLAG_CONTINUATION) {
-				isp_print_bytes(isp, "unexpected continuation segment", QENTRY_LEN, sp);
+				isp_print_qentry(isp, "unexpected continuation segment",
+				    oop, hp);
 				last_etype = etype;
 				continue;
 			}
@@ -5276,19 +5279,23 @@ again:
 				 */
 			}
 			if (sp->req_header.rqs_flags & RQSFLAG_BADHEADER) {
-				isp_print_bytes(isp, "bad header flag", QENTRY_LEN, sp);
+				isp_print_qentry(isp, "bad header flag",
+				    oop, hp);
 				buddaboom++;
 			}
 			if (sp->req_header.rqs_flags & RQSFLAG_BADPACKET) {
-				isp_print_bytes(isp, "bad request packet", QENTRY_LEN, sp);
+				isp_print_qentry(isp, "bad request packet",
+				    oop, hp);
 				buddaboom++;
 			}
 			if (sp->req_header.rqs_flags & RQSFLAG_BADCOUNT) {
-				isp_print_bytes(isp, "invalid entry count", QENTRY_LEN, sp);
+				isp_print_qentry(isp, "invalid entry count",
+				    oop, hp);
 				buddaboom++;
 			}
 			if (sp->req_header.rqs_flags & RQSFLAG_BADORDER) {
-				isp_print_bytes(isp, "invalid IOCB ordering", QENTRY_LEN, sp);
+				isp_print_qentry(isp, "invalid IOCB ordering",
+				    oop, hp);
 				last_etype = etype;
 				continue;
 			}
@@ -5446,7 +5453,8 @@ again:
 				XS_SAVE_SENSE(xs, snsp, totslen, slen);
 			} else if ((req_status_flags & RQSF_GOT_STATUS) && (scsi_status & 0xff) == SCSI_CHECK && IS_FC(isp)) {
 				isp_prt(isp, ISP_LOGWARN, "CHECK CONDITION w/o sense data for CDB=0x%x", XS_CDBP(xs)[0] & 0xff);
-				isp_print_bytes(isp, "CC with no Sense", QENTRY_LEN, qe);
+				isp_print_qentry(isp, "CC with no Sense",
+				    oop, hp);
 			}
 			isp_prt(isp, ISP_LOGDEBUG2, "asked for %ld got raw resid %ld settled for %ld", (long) XS_XFRLEN(xs), resid, (long) XS_GET_RESID(xs));
 			break;
@@ -5472,7 +5480,8 @@ again:
 			XS_SET_RESID(xs, XS_XFRLEN(xs));
 			break;
 		default:
-			isp_print_bytes(isp, "Unhandled Response Type", QENTRY_LEN, qe);
+			isp_print_qentry(isp, "Unhandled Response Type",
+			    oop, hp);
 			if (XS_NOERR(xs)) {
 				XS_SETERR(xs, HBA_BOTCH);
 			}
