@@ -256,11 +256,11 @@ static void
 arm_gic_init_secondary(device_t dev)
 {
 	struct arm_gic_softc *sc = device_get_softc(dev);
-	struct intr_irqsrc *isrc;
-	u_int irq;
+	u_int irq, cpu;
 
 	/* Set the mask so we can find this CPU to send it IPIs */
-	arm_gic_map[PCPU_GET(cpuid)] = gic_cpu_mask(sc);
+	cpu = PCPU_GET(cpuid);
+	arm_gic_map[cpu] = gic_cpu_mask(sc);
 
 	for (irq = 0; irq < sc->nirqs; irq += 4)
 		gic_d_write_4(sc, GICD_IPRIORITYR(irq >> 2), 0);
@@ -280,27 +280,14 @@ arm_gic_init_secondary(device_t dev)
 	gic_d_write_4(sc, GICD_CTLR, 0x01);
 
 	/* Unmask attached SGI interrupts. */
-	for (irq = GIC_FIRST_SGI; irq <= GIC_LAST_SGI; irq++) {
-		isrc = GIC_INTR_ISRC(sc, irq);
-		if (isrc != NULL && isrc->isrc_handlers != 0) {
-			CPU_SET(PCPU_GET(cpuid), &isrc->isrc_cpu);
+	for (irq = GIC_FIRST_SGI; irq <= GIC_LAST_SGI; irq++)
+		if (intr_isrc_init_on_cpu(GIC_INTR_ISRC(sc, irq), cpu))
 			gic_irq_unmask(sc, irq);
-		}
-	}
 
 	/* Unmask attached PPI interrupts. */
-	for (irq = GIC_FIRST_PPI; irq <= GIC_LAST_PPI; irq++) {
-		isrc = GIC_INTR_ISRC(sc, irq);
-		if (isrc == NULL || isrc->isrc_handlers == 0)
-			continue;
-		if (isrc->isrc_flags & INTR_ISRCF_BOUND) {
-			if (CPU_ISSET(PCPU_GET(cpuid), &isrc->isrc_cpu))
-				gic_irq_unmask(sc, irq);
-		} else {
-			CPU_SET(PCPU_GET(cpuid), &isrc->isrc_cpu);
+	for (irq = GIC_FIRST_PPI; irq <= GIC_LAST_PPI; irq++)
+		if (intr_isrc_init_on_cpu(GIC_INTR_ISRC(sc, irq), cpu))
 			gic_irq_unmask(sc, irq);
-		}
-	}
 }
 #else
 static void
@@ -1016,13 +1003,18 @@ arm_gic_ipi_send(device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus,
 static int
 arm_gic_ipi_setup(device_t dev, u_int ipi, struct intr_irqsrc **isrcp)
 {
+	struct intr_irqsrc *isrc;
 	struct arm_gic_softc *sc = device_get_softc(dev);
 
 	if (sgi_first_unused > GIC_LAST_SGI)
 		return (ENOSPC);
 
-	*isrcp = GIC_INTR_ISRC(sc, sgi_first_unused);
+	isrc = GIC_INTR_ISRC(sc, sgi_first_unused);
 	sgi_to_ipi[sgi_first_unused++] = ipi;
+
+	CPU_SET(PCPU_GET(cpuid), &isrc->isrc_cpu);
+
+	*isrcp = isrc;
 	return (0);
 }
 #endif

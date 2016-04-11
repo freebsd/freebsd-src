@@ -331,7 +331,7 @@ static void oce_fill_flash_img_data(POCE_SOFTC sc, const struct flash_sec_info *
 		case IMG_PXEBIOS:
 			pimg->optype = 3;
 			if (IS_BE3(sc)) {
-				pimg->img_offset =  13107200;;
+				pimg->img_offset =  13107200;
 				pimg->img_size   = 524288;
 			}
 			break;

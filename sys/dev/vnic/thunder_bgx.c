@@ -240,7 +240,7 @@ static int
 bgx_poll_reg(struct bgx *bgx, uint8_t lmac, uint64_t reg, uint64_t mask,
     boolean_t zero)
 {
-	int timeout = 100;
+	int timeout = 10;
 	uint64_t reg_val;
 
 	while (timeout) {
@@ -250,7 +250,7 @@ bgx_poll_reg(struct bgx *bgx, uint8_t lmac, uint64_t reg, uint64_t mask,
 		if (!zero && (reg_val & mask))
 			return (0);
 
-		DELAY(1000);
+		DELAY(100);
 		timeout--;
 	}
 	return (ETIMEDOUT);

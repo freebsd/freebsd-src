@@ -281,6 +281,12 @@ syncache_destroy(void)
 	struct syncache *sc, *nsc;
 	int i;
 
+	/*
+	 * Stop the re-seed timer before freeing resources.  No need to
+	 * possibly schedule it another time.
+	 */
+	callout_drain(&V_tcp_syncache.secret.reseed);
+
 	/* Cleanup hash buckets: stop timers, free entries, destroy locks. */
 	for (i = 0; i < V_tcp_syncache.hashsize; i++) {
 
@@ -304,8 +310,6 @@ syncache_destroy(void)
 	/* Free the allocated global resources. */
 	uma_zdestroy(V_tcp_syncache.zone);
 	free(V_tcp_syncache.hashbase, M_SYNCACHE);
-
-	callout_drain(&V_tcp_syncache.secret.reseed);
 }
 #endif
 

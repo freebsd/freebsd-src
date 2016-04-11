@@ -669,7 +669,7 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	         * from a previous session
 	         */
 		MIDIQ_CLEAR(m->inq);
-	};
+	}
 
 	if (flags & FWRITE)
 		m->flags |= M_TX;
@@ -1126,7 +1126,7 @@ midisynth_open(void *n, void *arg, int flags)
 	         */
 		MIDIQ_CLEAR(m->inq);
 		m->rchan = 0;
-	};
+	}
 
 	if (flags & FWRITE) {
 		m->flags |= M_TX;

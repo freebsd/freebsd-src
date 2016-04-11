@@ -423,7 +423,8 @@ hdestroy(HTAB *hashp)
 		free(hashp->tmp_buf);
 
 	if (hashp->fp != -1) {
-		(void)_fsync(hashp->fp);
+		if (hashp->save_file)
+			(void)_fsync(hashp->fp);
 		(void)_close(hashp->fp);
 	}
 
@@ -770,7 +771,7 @@ next_bucket:
 		if (__big_keydata(hashp, bufp, key, data, 1))
 			return (ERROR);
 	} else {
-		if (hashp->cpage == 0)
+		if (hashp->cpage == NULL)
 			return (ERROR);
 		key->data = (u_char *)hashp->cpage->page + bp[ndx];
 		key->size = (ndx > 1 ? bp[ndx - 1] : hashp->BSIZE) - bp[ndx];

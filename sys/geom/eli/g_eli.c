@@ -1181,6 +1181,7 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		ADD_FLAG(G_ELI_FLAG_DESTROY, "DESTROY");
 		ADD_FLAG(G_ELI_FLAG_RO, "READ-ONLY");
 		ADD_FLAG(G_ELI_FLAG_NODELETE, "NODELETE");
+		ADD_FLAG(G_ELI_FLAG_GELIBOOT, "GELIBOOT");
 #undef  ADD_FLAG
 	}
 	sbuf_printf(sb, "</Flags>\n");

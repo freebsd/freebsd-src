@@ -114,7 +114,14 @@ static struct {
 	WHOIS_REFERRAL("Whois Server:"),
 	WHOIS_REFERRAL("Registrar WHOIS Server:"), /* corporatedomains.com */
 	WHOIS_REFERRAL("ReferralServer:  whois://"), /* ARIN */
+	WHOIS_REFERRAL("descr:          region. Please query"), /* AfriNIC */
 	{ NULL, 0 }
+};
+
+static const char *actually_arin[] = {
+	"netname:        ERX-NETBLOCK\n", /* APNIC */
+	"netname:        NON-RIPE-NCC-MANAGED-ADDRESS-BLOCK\n",
+	NULL
 };
 
 static const char *port = DEFAULT_PORT;
@@ -468,6 +475,12 @@ done:
 					s_asprintf(&nhost, "%.*s",
 						   (int)(p - host), host);
 				break;
+			}
+			for (i = 0; actually_arin[i] != NULL; i++) {
+				if (strncmp(buf, actually_arin[i], len) == 0) {
+					s_asprintf(&nhost, "%s", ANICHOST);
+					break;
+				}
 			}
 		}
 		/* Verisign etc. */

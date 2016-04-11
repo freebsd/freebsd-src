@@ -34,7 +34,8 @@
  *		Note that some machines eg. rs6000 have a vfork, but not
  *		with the berkeley semantics, so we cannot use it there either.
  */
-#define VFORK
+/* #define VFORK */
+#define	vfork fork
 
 /*
  * BSDJOBS	You have BSD-style job control (both process groups and
@@ -80,7 +81,6 @@
 /****************** local defines *********************/
 
 #if defined(__FreeBSD__)
-#define	SAVESIGVEC
 #define NLS_BUGS
 #define BSD_STYLE_COLORLS
 /* Use LC_MESSAGES locale category to open the message catalog */

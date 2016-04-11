@@ -3448,7 +3448,7 @@ rt2860_read_eeprom(struct rt2860_softc *sc, uint8_t macaddr[IEEE80211_ADDR_LEN])
 		sc->ext_5ghz_lna = (val >> 3) & 1;
 		sc->ext_2ghz_lna = (val >> 2) & 1;
 		/* check if RF supports automatic Tx access gain control */
-		sc->calib_2ghz = sc->calib_5ghz = 0; /* XXX (val >> 1) & 1 */;
+		sc->calib_2ghz = sc->calib_5ghz = 0; /* XXX (val >> 1) & 1 */
 		/* check if we have a hardware radio switch */
 		sc->rfswitch = val & 1;
 	}
