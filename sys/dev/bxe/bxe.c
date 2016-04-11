@@ -1620,7 +1620,7 @@ bxe_read_dmae(struct bxe_softc *sc,
     /* issue the command and wait for completion */
     if ((rc = bxe_issue_dmae_with_comp(sc, &dmae)) != 0) {
         bxe_panic(sc, ("DMAE failed (%d)\n", rc));
-    };
+    }
 }
 
 void

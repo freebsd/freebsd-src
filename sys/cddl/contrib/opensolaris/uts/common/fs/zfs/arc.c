@@ -132,6 +132,7 @@
 #include <sys/multilist.h>
 #ifdef _KERNEL
 #include <sys/dnlc.h>
+#include <sys/racct.h>
 #endif
 #include <sys/callb.h>
 #include <sys/kstat.h>
@@ -4503,6 +4504,14 @@ top:
 		    demand, prefetch, !HDR_ISTYPE_METADATA(hdr),
 		    data, metadata, misses);
 #ifdef _KERNEL
+#ifdef RACCT
+		if (racct_enable) {
+			PROC_LOCK(curproc);
+			racct_add_force(curproc, RACCT_READBPS, size);
+			racct_add_force(curproc, RACCT_READIOPS, 1);
+			PROC_UNLOCK(curproc);
+		}
+#endif /* RACCT */
 		curthread->td_ru.ru_inblock++;
 #endif
 

@@ -342,7 +342,7 @@ smbfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td
 	    default:
 		printf("smbfs_doio:  type %x unexpected\n",vp->v_type);
 		break;
-	    };
+	    }
 	    if (error) {
 		bp->b_error = error;
 		bp->b_ioflags |= BIO_ERROR;

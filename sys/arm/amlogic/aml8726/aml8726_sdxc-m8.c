@@ -621,7 +621,7 @@ spurious:
 		stop = 1;
 		if ((sndr & AML_SDXC_SEND_RESP_136) != 0) {
 			start = 1;
-			stop = start + 4;;
+			stop = start + 4;
 		}
 		for (i = start; i < stop; i++) {
 			pdmar = CSR_READ_4(sc, AML_SDXC_PDMA_REG);

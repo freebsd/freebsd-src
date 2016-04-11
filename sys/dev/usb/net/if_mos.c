@@ -608,7 +608,7 @@ mos_setmulti(struct usb_ether *ue)
 		if (ifma->ifma_addr->sa_family != AF_LINK) {
 			allmulti = 1;
 			continue;
-		};
+		}
 		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
 		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 		hashtbl[h / 8] |= 1 << (h % 8);

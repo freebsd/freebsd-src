@@ -73,30 +73,34 @@ geli_taste(int read_func(void *vdev, void *priv, off_t off, void *buf,
     size_t bytes), struct dsk *dskp, daddr_t lastsector)
 {
 	struct g_eli_metadata md;
-	u_char buf[DEV_BSIZE];
+	u_char buf[DEV_GELIBOOT_BSIZE];
 	int error;
+	off_t alignsector;
 
-	error = read_func(NULL, dskp, (off_t) lastsector * DEV_BSIZE, &buf,
-	    (size_t) DEV_BSIZE);
+	alignsector = (lastsector * DEV_BSIZE) &
+	    ~(off_t)(DEV_GELIBOOT_BSIZE - 1);
+	error = read_func(NULL, dskp, alignsector, &buf, DEV_GELIBOOT_BSIZE);
 	if (error != 0) {
 		return (error);
 	}
-	error = eli_metadata_decode(buf, &md);
+	/* Extract the last DEV_BSIZE bytes from the block. */
+	error = eli_metadata_decode(buf + (DEV_GELIBOOT_BSIZE - DEV_BSIZE),
+	    &md);
 	if (error != 0) {
 		return (error);
 	}
 
-	if ((md.md_flags & G_ELI_FLAG_ONETIME)) {
-		/* Swap device, skip it */
+	if (!(md.md_flags & G_ELI_FLAG_GELIBOOT)) {
+		/* The GELIBOOT feature is not activated */
 		return (1);
 	}
-	if (!(md.md_flags & G_ELI_FLAG_BOOT)) {
-		/* Disk is not GELI boot device, skip it */
+	if ((md.md_flags & G_ELI_FLAG_ONETIME)) {
+		/* Swap device, skip it. */
 		return (1);
 	}
 	if (md.md_iterations < 0) {
-		/* XXX TODO: Support loading key files */
-		/* Disk does not have a passphrase, skip it */
+		/* XXX TODO: Support loading key files. */
+		/* Disk does not have a passphrase, skip it. */
 		return (1);
 	}
 	geli_e = malloc(sizeof(struct geli_entry));
@@ -143,7 +147,7 @@ geli_attach(struct dsk *dskp, const char *passphrase)
 		 * Prepare Derived-Key from the user passphrase.
 		 */
 		if (geli_e->md.md_iterations < 0) {
-			/* XXX TODO: Support loading key files */
+			/* XXX TODO: Support loading key files. */
 			return (1);
 		} else if (geli_e->md.md_iterations == 0) {
 			g_eli_crypto_hmac_update(&ctx, geli_e->md.md_salt,
@@ -151,8 +155,8 @@ geli_attach(struct dsk *dskp, const char *passphrase)
 			g_eli_crypto_hmac_update(&ctx, passphrase,
 			    strlen(passphrase));
 		} else if (geli_e->md.md_iterations > 0) {
-			printf("Calculating GELI Decryption Key disk%dp%d @ %lu "
-			    "iterations...\n", dskp->unit,
+			printf("Calculating GELI Decryption Key disk%dp%d @ %lu"
+			    " iterations...\n", dskp->unit,
 			    (dskp->slice > 0 ? dskp->slice : dskp->part),
 			    geli_e->md.md_iterations);
 			u_char dkey[G_ELI_USERKEYLEN];
@@ -193,7 +197,7 @@ geli_attach(struct dsk *dskp, const char *passphrase)
 		}
 		bzero(&mkey, sizeof(mkey));
 
-		/* Initialize the per-sector IV */
+		/* Initialize the per-sector IV. */
 		switch (geli_e->sc.sc_ealgo) {
 		case CRYPTO_AES_XTS:
 			break;
@@ -207,7 +211,7 @@ geli_attach(struct dsk *dskp, const char *passphrase)
 		return (0);
 	}
 
-	/* Disk not found */
+	/* Disk not found. */
 	return (2);
 }
 
@@ -229,35 +233,49 @@ geli_read(struct dsk *dskp, off_t offset, u_char *buf, size_t bytes)
 	u_char iv[G_ELI_IVKEYLEN];
 	u_char *pbuf;
 	int error;
-	off_t os;
+	off_t dstoff;
 	uint64_t keyno;
-	size_t n, nb;
+	size_t n, nsec, secsize;
 	struct g_eli_key gkey;
 
+	pbuf = buf;
 	SLIST_FOREACH_SAFE(geli_e, &geli_head, entries, geli_e_tmp) {
 		if (geli_same_device(geli_e, dskp) != 0) {
 			continue;
 		}
 
-		nb = bytes / DEV_BSIZE;
-		for (n = 0; n < nb; n++) {
-			os = offset + (n * DEV_BSIZE);
-			pbuf = buf + (n * DEV_BSIZE);
+		secsize = geli_e->sc.sc_sectorsize;
+		nsec = bytes / secsize;
+		if (nsec == 0) {
+			/*
+			 * A read of less than the GELI sector size has been
+			 * requested. The caller provided destination buffer may
+			 * not be big enough to boost the read to a full sector,
+			 * so just attempt to decrypt the truncated sector.
+			 */
+			secsize = bytes;
+			nsec = 1;
+		}
 
-			g_eli_crypto_ivgen(&geli_e->sc, os, iv, G_ELI_IVKEYLEN);
+		for (n = 0, dstoff = offset; n < nsec; n++, dstoff += secsize) {
 
-			/* Get the key that corresponds to this offset */
-			keyno = (os >> G_ELI_KEY_SHIFT) / DEV_BSIZE;
+			g_eli_crypto_ivgen(&geli_e->sc, dstoff, iv,
+			    G_ELI_IVKEYLEN);
+
+			/* Get the key that corresponds to this offset. */
+			keyno = (dstoff >> G_ELI_KEY_SHIFT) / secsize;
 			g_eli_key_fill(&geli_e->sc, &gkey, keyno);
 
 			error = geliboot_crypt(geli_e->sc.sc_ealgo, 0, pbuf,
-			    DEV_BSIZE, gkey.gek_key, geli_e->sc.sc_ekeylen, iv);
+			    secsize, gkey.gek_key,
+			    geli_e->sc.sc_ekeylen, iv);
 
 			if (error != 0) {
 				bzero(&gkey, sizeof(gkey));
 				printf("Failed to decrypt in geli_read()!");
 				return (error);
 			}
+			pbuf += secsize;
 		}
 		bzero(&gkey, sizeof(gkey));
 		return (0);

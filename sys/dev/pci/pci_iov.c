@@ -640,7 +640,7 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 		error = PCI_IOV_ADD_VF(dev, i, driver_config);
 		if (error != 0) {
 			device_printf(dev, "Failed to add VF %d\n", i);
-			pci_delete_child(bus, vf);
+			device_delete_child(bus, vf);
 		}
 	}
 
@@ -833,7 +833,7 @@ pci_iov_delete(struct cdev *cdev)
 		vf = devlist[i];
 
 		if (pci_iov_is_child_vf(iov, vf))
-			pci_delete_child(bus, vf);
+			device_delete_child(bus, vf);
 	}
 	PCI_IOV_UNINIT(dev);
 

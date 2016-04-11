@@ -96,6 +96,7 @@ __FBSDID("$FreeBSD$");
 
 #include "mmu_if.h"
 
+#define	SPARSE_MAPDEV
 #ifdef  DEBUG
 #define debugf(fmt, args...) printf(fmt, ##args)
 #else
@@ -191,7 +192,7 @@ static tlb_entry_t tlb1[TLB1_MAXENTRIES];
 
 /* Next free entry in the TLB1 */
 static unsigned int tlb1_idx;
-static vm_offset_t tlb1_map_base = VM_MAX_KERNEL_ADDRESS;
+static vm_offset_t tlb1_map_base = VM_MAXUSER_ADDRESS + PAGE_SIZE;
 
 static tlbtid_t tid_alloc(struct pmap *);
 static void tid_flush(tlbtid_t tid);
@@ -2796,7 +2797,7 @@ static void *
 mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
 	void *res;
-	uintptr_t va;
+	uintptr_t va, tmpva;
 	vm_size_t sz;
 	int i;
 
@@ -2819,22 +2820,22 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 	size = roundup(size, PAGE_SIZE);
 
 	/*
-	 * We leave a hole for device direct mapping between the maximum user
-	 * address (0x8000000) and the minimum KVA address (0xc0000000). If
-	 * devices are in there, just map them 1:1. If not, map them to the
-	 * device mapping area about VM_MAX_KERNEL_ADDRESS. These mapped
-	 * addresses should be pulled from an allocator, but since we do not
-	 * ever free TLB1 entries, it is safe just to increment a counter.
-	 * Note that there isn't a lot of address space here (128 MB) and it
-	 * is not at all difficult to imagine running out, since that is a 4:1
-	 * compression from the 0xc0000000 - 0xf0000000 address space that gets
-	 * mapped there.
+	 * The device mapping area is between VM_MAXUSER_ADDRESS and
+	 * VM_MIN_KERNEL_ADDRESS.  This gives 1GB of device addressing.
 	 */
-	if (pa >= (VM_MAXUSER_ADDRESS + PAGE_SIZE) &&
-	    (pa + size - 1) < VM_MIN_KERNEL_ADDRESS) 
-		va = pa;
-	else
-		va = atomic_fetchadd_int(&tlb1_map_base, size);
+#ifdef SPARSE_MAPDEV
+	/*
+	 * With a sparse mapdev, align to the largest starting region.  This
+	 * could feasibly be optimized for a 'best-fit' alignment, but that
+	 * calculation could be very costly.
+	 */
+	do {
+	    tmpva = tlb1_map_base;
+	    va = roundup(tlb1_map_base, 1 << flsl(size));
+	} while (!atomic_cmpset_int(&tlb1_map_base, tmpva, va + size));
+#else
+	va = atomic_fetchadd_int(&tlb1_map_base, size);
+#endif
 	res = (void *)va;
 
 	do {

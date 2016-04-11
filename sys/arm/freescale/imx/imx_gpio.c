@@ -157,45 +157,6 @@ static int imx51_gpio_pin_toggle(device_t, uint32_t pin);
 
 #ifdef ARM_INTRNG
 static int
-gpio_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
-    struct resource *res, struct intr_map_data *data)
-{
-	struct imx51_gpio_softc *sc;
-	struct gpio_irqsrc *gi;
-
-	sc = device_get_softc(dev);
-	if (isrc->isrc_handlers == 0) {
-		gi = (struct gpio_irqsrc *)isrc;
-		gi->gi_pol = INTR_POLARITY_CONFORM;
-		gi->gi_trig = INTR_TRIGGER_CONFORM;
-
-		// XXX Not sure this is necessary
-		mtx_lock_spin(&sc->sc_mtx);
-		CLEAR4(sc, IMX_GPIO_IMR_REG, (1U << gi->gi_irq));
-		WRITE4(sc, IMX_GPIO_ISR_REG, (1U << gi->gi_irq));
-		mtx_unlock_spin(&sc->sc_mtx);
-	}
-	return (0);
-}
-
-/*
- * this is mask_intr
- */
-static void
-gpio_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
-{
-	struct imx51_gpio_softc *sc;
-	u_int irq;
-
-	sc = device_get_softc(dev);
-	irq = ((struct gpio_irqsrc *)isrc)->gi_irq;
-
-	mtx_lock_spin(&sc->sc_mtx);
-	CLEAR4(sc, IMX_GPIO_IMR_REG, (1U << irq));
-	mtx_unlock_spin(&sc->sc_mtx);
-}
-
-static int
 gpio_pic_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
     enum intr_polarity *polp, enum intr_trigger *trigp)
 {
@@ -279,6 +240,28 @@ gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
 }
 
 static int
+gpio_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct imx51_gpio_softc *sc;
+	struct gpio_irqsrc *gi;
+
+	sc = device_get_softc(dev);
+	if (isrc->isrc_handlers == 0) {
+		gi = (struct gpio_irqsrc *)isrc;
+		gi->gi_pol = INTR_POLARITY_CONFORM;
+		gi->gi_trig = INTR_TRIGGER_CONFORM;
+
+		// XXX Not sure this is necessary
+		mtx_lock_spin(&sc->sc_mtx);
+		CLEAR4(sc, IMX_GPIO_IMR_REG, (1U << gi->gi_irq));
+		WRITE4(sc, IMX_GPIO_ISR_REG, (1U << gi->gi_irq));
+		mtx_unlock_spin(&sc->sc_mtx);
+	}
+	return (0);
+}
+
+static int
 gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
@@ -342,6 +325,23 @@ gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	WRITE4(sc, reg, wrk);
 	mtx_unlock_spin(&sc->sc_mtx);
 	return (0);
+}
+
+/*
+ * this is mask_intr
+ */
+static void
+gpio_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct imx51_gpio_softc *sc;
+	u_int irq;
+
+	sc = device_get_softc(dev);
+	irq = ((struct gpio_irqsrc *)isrc)->gi_irq;
+
+	mtx_lock_spin(&sc->sc_mtx);
+	CLEAR4(sc, IMX_GPIO_IMR_REG, (1U << irq));
+	mtx_unlock_spin(&sc->sc_mtx);
 }
 
 /*
@@ -417,7 +417,7 @@ gpio_pic_filter(void *arg)
 }
 
 /*
- * register our isrcs into intrng to make it known about them.
+ * Initialize our isrcs and register them with intrng.
  */
 static int
 gpio_pic_register_isrcs(struct imx51_gpio_softc *sc)
@@ -451,22 +451,27 @@ static void
 imx51_gpio_pin_configure(struct imx51_gpio_softc *sc, struct gpio_pin *pin,
     unsigned int flags)
 {
+	u_int newflags;
 
 	mtx_lock_spin(&sc->sc_mtx);
 
 	/*
-	 * Manage input/output
+	 * Manage input/output; other flags not supported yet.
+	 *
+	 * Note that changes to pin->gp_flags must be acccumulated in newflags
+	 * and stored with a single writeback to gp_flags at the end, to enable
+	 * unlocked reads of that value elsewhere.
 	 */
-	if (flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) {
-		pin->gp_flags &= ~(GPIO_PIN_INPUT|GPIO_PIN_OUTPUT);
+	if (flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) {
+		newflags = pin->gp_flags & ~(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT);
 		if (flags & GPIO_PIN_OUTPUT) {
-			pin->gp_flags |= GPIO_PIN_OUTPUT;
+			newflags |= GPIO_PIN_OUTPUT;
 			SET4(sc, IMX_GPIO_OE_REG, (1U << pin->gp_pin));
-		}
-		else {
-			pin->gp_flags |= GPIO_PIN_INPUT;
+		} else {
+			newflags |= GPIO_PIN_INPUT;
 			CLEAR4(sc, IMX_GPIO_OE_REG, (1U << pin->gp_pin));
 		}
+		pin->gp_flags = newflags;
 	}
 
 	mtx_unlock_spin(&sc->sc_mtx);
@@ -497,20 +502,13 @@ static int
 imx51_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	mtx_lock_spin(&sc->sc_mtx);
-	*caps = sc->gpio_pins[i].gp_caps;
-	mtx_unlock_spin(&sc->sc_mtx);
+	*caps = sc->gpio_pins[pin].gp_caps;
 
 	return (0);
 }
@@ -519,20 +517,13 @@ static int
 imx51_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	mtx_lock_spin(&sc->sc_mtx);
-	*flags = sc->gpio_pins[i].gp_flags;
-	mtx_unlock_spin(&sc->sc_mtx);
+	*flags = sc->gpio_pins[pin].gp_flags;
 
 	return (0);
 }
@@ -541,19 +532,13 @@ static int
 imx51_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
-
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
 	mtx_lock_spin(&sc->sc_mtx);
-	memcpy(name, sc->gpio_pins[i].gp_name, GPIOMAXNAME);
+	memcpy(name, sc->gpio_pins[pin].gp_name, GPIOMAXNAME);
 	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);
@@ -563,18 +548,13 @@ static int
 imx51_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	imx51_gpio_pin_configure(sc, &sc->gpio_pins[i], flags);
+	imx51_gpio_pin_configure(sc, &sc->gpio_pins[pin], flags);
 
 	return (0);
 }
@@ -583,22 +563,17 @@ static int
 imx51_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
 	mtx_lock_spin(&sc->sc_mtx);
 	if (value)
-		SET4(sc, IMX_GPIO_DR_REG, (1U << i));
+		SET4(sc, IMX_GPIO_DR_REG, (1U << pin));
 	else
-		CLEAR4(sc, IMX_GPIO_DR_REG, (1U << i));
+		CLEAR4(sc, IMX_GPIO_DR_REG, (1U << pin));
 	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);
@@ -608,20 +583,13 @@ static int
 imx51_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	mtx_lock_spin(&sc->sc_mtx);
-	*val = (READ4(sc, IMX_GPIO_DR_REG) >> i) & 1;
-	mtx_unlock_spin(&sc->sc_mtx);
+	*val = (READ4(sc, IMX_GPIO_DR_REG) >> pin) & 1;
 
 	return (0);
 }
@@ -630,20 +598,15 @@ static int
 imx51_gpio_pin_toggle(device_t dev, uint32_t pin)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
 	mtx_lock_spin(&sc->sc_mtx);
 	WRITE4(sc, IMX_GPIO_DR_REG,
-	    (READ4(sc, IMX_GPIO_DR_REG) ^ (1U << i)));
+	    (READ4(sc, IMX_GPIO_DR_REG) ^ (1U << pin)));
 	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);

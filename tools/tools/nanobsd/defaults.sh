@@ -52,6 +52,11 @@ NANO_PACKAGE_LIST="*"
 # where package metadata gets placed
 NANO_PKG_META_BASE=/var/db
 
+# Path to mtree file to apply to anything copied by cust_install_files().
+# If you specify this, the mtree file *must* have an entry for every file and
+# directory located in Files.
+#NANO_CUST_FILES_MTREE=""
+
 # Object tree directory
 # default is subdir of /usr/obj
 #NANO_OBJ=""
@@ -909,12 +914,28 @@ cust_allow_ssh_root ( ) (
 cust_install_files ( ) (
 	cd "${NANO_TOOLS}/Files"
 	find . -print | grep -Ev '/(CVS|\.svn|\.hg|\.git)' | cpio -Ldumpv ${NANO_WORLDDIR}
+
+	if [ -n "${NANO_CUST_FILES_MTREE}" -a -f ${NANO_CUST_FILES_MTREE} ]; then
+		CR "mtree -eiU -p /" <${NANO_CUST_FILES_MTREE}
+	fi
 )
 
 #######################################################################
 # Install packages from ${NANO_PACKAGE_DIR}
 
 cust_pkgng ( ) (
+
+	mkdir -p ${NANO_WORLDDIR}/usr/local/etc
+	local PKG_CONF="${NANO_WORLDDIR}/usr/local/etc/pkg.conf"
+	local PKGCMD="env ASSUME_ALWAYS_YES=YES PKG_DBDIR=${NANO_PKG_META_BASE}/pkg SIGNATURE_TYPE=none /usr/sbin/pkg"
+
+	# Ensure pkg.conf points pkg to where the package meta data lives.
+	touch ${PKG_CONF}
+	if grep -Eiq '^PKG_DBDIR:.*' ${PKG_CONF}; then
+		sed -i -e "\|^PKG_DBDIR:.*|Is||PKG_DBDIR: "\"${NANO_PKG_META_BASE}/pkg\""|" ${PKG_CONF}
+	else
+		echo "PKG_DBDIR: \"${NANO_PKG_META_BASE}/pkg\"" >> ${PKG_CONF}
+	fi
 
 	# If the package directory doesn't exist, we're done.
 	if [ ! -d ${NANO_PACKAGE_DIR} ]; then
@@ -930,52 +951,28 @@ cust_pkgng ( ) (
 		echo "FAILED: need a pkg/ package for bootstrapping"
 		exit 2
 	fi
+	NANO_PACKAGE_LIST="${_NANO_PKG_PACKAGE} ${NANO_PACKAGE_LIST}"
 
-	# Copy packages into chroot
-	mkdir -p ${NANO_WORLDDIR}/Pkg
-	(
-		cd "${NANO_PACKAGE_DIR}"
-		find ${NANO_PACKAGE_LIST} -print |
-		cpio -Ldumpv ${NANO_WORLDDIR}/Pkg
-	)
+	# Mount packages into chroot
+	mkdir -p ${NANO_WORLDDIR}/_.p
+	mount -t nullfs -o noatime -o ro ${NANO_PACKAGE_DIR} ${NANO_WORLDDIR}/_.p
 
-	#Bootstrap pkg
-	CR env ASSUME_ALWAYS_YES=YES SIGNATURE_TYPE=none /usr/sbin/pkg add /Pkg/${_NANO_PKG_PACKAGE}
-	CR pkg -N >/dev/null 2>&1
-	if [ "$?" -ne "0" ]; then
-		echo "FAILED: pkg bootstrapping faied"
-		exit 2
-	fi
-	rm -f ${NANO_WORLDDIR}/Pkg/pkg-*
+	trap "umount ${NANO_WORLDDIR}/_.p ; rm -rf ${NANO_WORLDDIR}/_.p" 1 2 15 EXIT
 
-	# Count & report how many we have to install
-	todo=`ls ${NANO_WORLDDIR}/Pkg | /usr/bin/wc -l`
-	todo=$(expr $todo + 1) # add one for pkg since it is installed already
+	# Install packages
+	todo="$(echo "${NANO_PACKAGE_LIST}" | awk '{ print NF }')"
 	echo "=== TODO: $todo"
-	ls ${NANO_WORLDDIR}/Pkg
+	echo "${NANO_PACKAGE_LIST}"
 	echo "==="
-	while true
-	do
-		# Record how many we have now
- 		have=$(CR env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l)
-
-		# Attempt to install more packages
-		CR0 'ls 'Pkg/*txz' | xargs env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg add'
-
-		# See what that got us
- 		now=$(CR env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l)
-		echo "=== NOW $now"
-		CR env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info
-		echo "==="
-		if [ $now -eq $todo ] ; then
-			echo "DONE $now packages"
-			break
-		elif [ $now -eq $have ] ; then
-			echo "FAILED: Nothing happened on this pass"
-			exit 2
-		fi
+	for _PKG in ${NANO_PACKAGE_LIST}; do
+		CR "${PKGCMD} add /_.p/${_PKG}"
 	done
-	rm -rf ${NANO_WORLDDIR}/Pkg
+
+	CR0 "${PKGCMD} info"
+
+	trap - 1 2 15 EXIT
+	umount ${NANO_WORLDDIR}/_.p
+	rm -rf ${NANO_WORLDDIR}/_.p
 )
 
 #######################################################################

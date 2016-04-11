@@ -964,6 +964,8 @@ zfs_create_diskpart()
 	f_expand_number "$ZFSBOOT_SWAP_SIZE" swapsize
 	if [ "$isswapmirror" ]; then
 		# This is not the first disk in the mirror, do nothing
+	elif [ ${swapsize:-0} -eq 0 ]; then
+		# If swap is 0 sized, don't add it to fstab
 	elif [ "$ZFSBOOT_SWAP_ENCRYPTION" -a "$ZFSBOOT_SWAP_MIRROR" ]; then
 		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
 		             /dev/mirror/swap.eli none swap sw 0 0 \
@@ -981,8 +983,6 @@ zfs_create_diskpart()
 		             /dev/$disk${swappart}.eli none swap sw 0 0 \
 		             $BSDINSTALL_TMPETC/fstab ||
 		             return $FAILURE
-	elif [ ${swapsize:-0} -eq 0 ]; then
-		# If swap is 0 sized, don't add it to fstab
 	else
 		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
 		             /dev/$disk$swappart none swap sw 0 0 \
@@ -1256,6 +1256,8 @@ zfs_create_boot()
 	f_dprintf "$funcname: Modifying directory permissions..."
 	local dir
 	for dir in /tmp /var/tmp; do
+		f_eval_catch $funcname mkdir "$MKDIR_P" \
+		             $BSDINSTALL_CHROOT$dir || return $FAILURE
 		f_eval_catch $funcname chmod "$CHMOD_MODE" 1777 \
 		             $BSDINSTALL_CHROOT$dir || return $FAILURE
 	done

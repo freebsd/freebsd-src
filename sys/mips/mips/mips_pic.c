@@ -71,14 +71,23 @@ __FBSDID("$FreeBSD$");
 
 static int mips_pic_intr(void *);
 
+struct mips_pic_irqsrc {
+	struct intr_irqsrc	isrc;
+	struct resource		*res;
+	u_int			irq;
+};
+
 struct mips_pic_softc {
-	device_t		pic_dev;
-	struct intr_irqsrc *	pic_irqs[NREAL_IRQS];
-	struct mtx		mutex;
-	uint32_t		nirqs;
+	device_t			pic_dev;
+	struct mips_pic_irqsrc		pic_irqs[NREAL_IRQS];
+	struct rman			pic_irq_rman;
+	struct mtx			mutex;
+	uint32_t			nirqs;
 };
 
 static struct mips_pic_softc *pic_sc;
+
+#define PIC_INTR_ISRC(sc, irq)		(&(sc)->pic_irqs[(irq)].isrc)
 
 #ifdef FDT
 static struct ofw_compat_data compat_data[] = {
@@ -125,13 +134,6 @@ pic_irq_mask(struct mips_pic_softc *sc, u_int irq)
 	mips_wr_status(mips_rd_status() & ~((1 << irq) << 8));
 }
 
-#ifdef SMP
-static void
-mips_pic_init_secondary(device_t dev)
-{
-}
-#endif /* SMP */
-
 static inline intptr_t
 pic_xref(device_t dev)
 {
@@ -140,6 +142,46 @@ pic_xref(device_t dev)
 #else
 	return (0);
 #endif
+}
+
+static int
+mips_pic_register_isrcs(struct mips_pic_softc *sc)
+{
+	int error;
+	uint32_t irq, i, tmpirq;
+	struct intr_irqsrc *isrc;
+	char *name;
+
+	for (irq = 0; irq < sc->nirqs; irq++) {
+		sc->pic_irqs[irq].irq = irq;
+		sc->pic_irqs[irq].res = rman_reserve_resource(&sc->pic_irq_rman,
+		    irq, irq, 1, RF_ACTIVE, sc->pic_dev);
+		if (sc->pic_irqs[irq].res == NULL) {
+			device_printf(sc->pic_dev,
+			    "%s failed to alloc resource for irq %u",
+			    __func__, irq);
+			return (ENOMEM);
+		}
+		isrc = PIC_INTR_ISRC(sc, irq);
+		if (irq < NSOFT_IRQS) {
+			name = "sint";
+			tmpirq = irq;
+		} else {
+			name = "int";
+			tmpirq = irq - NSOFT_IRQS;
+		}
+		error = intr_isrc_register(isrc, sc->pic_dev, 0, "%s%u",
+		    name, tmpirq);
+		if (error != 0) {
+			for (i = 0; i < irq; i++) {
+				intr_isrc_deregister(PIC_INTR_ISRC(sc, i));
+			}
+			device_printf(sc->pic_dev, "%s failed", __func__);
+			return (error);
+		}
+	}
+
+	return (0);
 }
 
 static int
@@ -162,6 +204,21 @@ mips_pic_attach(device_t dev)
 	/* Set the number of interrupts */
 	sc->nirqs = nitems(sc->pic_irqs);
 
+	/* Init the IRQ rman */
+	sc->pic_irq_rman.rm_type = RMAN_ARRAY;
+	sc->pic_irq_rman.rm_descr = "MIPS PIC IRQs";
+	if (rman_init(&sc->pic_irq_rman) != 0 ||
+	    rman_manage_region(&sc->pic_irq_rman, 0, sc->nirqs - 1) != 0) {
+		device_printf(dev, "failed to setup IRQ rman\n");
+		goto cleanup;
+	}
+
+	/* Register the interrupts */
+	if (mips_pic_register_isrcs(sc) != 0) {
+		device_printf(dev, "could not register PIC ISRCs\n");
+		goto cleanup;
+	}
+
 	/*
 	 * Now, when everything is initialized, it's right time to
 	 * register interrupt controller to interrupt framefork.
@@ -174,7 +231,7 @@ mips_pic_attach(device_t dev)
 	/* Claim our root controller role */
 	if (intr_pic_claim_root(dev, xref, mips_pic_intr, sc, 0) != 0) {
 		device_printf(dev, "could not set PIC as a root\n");
-		intr_pic_unregister(dev, xref);
+		intr_pic_deregister(dev, xref);
 		goto cleanup;
 	}
 
@@ -189,7 +246,6 @@ mips_pic_intr(void *arg)
 {
 	struct mips_pic_softc *sc = arg;
 	register_t cause, status;
-	struct intr_irqsrc *isrc;
 	int i, intr;
 
 	cause = mips_rd_cause();
@@ -205,15 +261,13 @@ mips_pic_intr(void *arg)
 		i--; /* Get a 0-offset interrupt. */
 		intr &= ~(1 << i);
 
-		isrc = sc->pic_irqs[i];
-		if (isrc == NULL) {
+		if (intr_isrc_dispatch(PIC_INTR_ISRC(sc, i),
+		    curthread->td_intr_frame) != 0) {
 			device_printf(sc->pic_dev,
 			    "Stray interrupt %u detected\n", i);
 			pic_irq_mask(sc, i);
 			continue;
 		}
-
-		intr_irq_dispatch(isrc, curthread->td_intr_frame);
 	}
 
 	KASSERT(i == 0, ("all interrupts handled"));
@@ -228,197 +282,62 @@ mips_pic_intr(void *arg)
 	return (FILTER_HANDLED);
 }
 
-static int
-pic_attach_isrc(struct mips_pic_softc *sc, struct intr_irqsrc *isrc, u_int irq)
-{
-
-	/*
-	 * 1. The link between ISRC and controller must be set atomically.
-	 * 2. Just do things only once in rare case when consumers
-	 *    of shared interrupt came here at the same moment.
-	 */
-	mtx_lock_spin(&sc->mutex);
-	if (sc->pic_irqs[irq] != NULL) {
-		mtx_unlock_spin(&sc->mutex);
-		return (sc->pic_irqs[irq] == isrc ? 0 : EEXIST);
-	}
-	sc->pic_irqs[irq] = isrc;
-	isrc->isrc_data = irq;
-	mtx_unlock_spin(&sc->mutex);
-
-	if (irq < NSOFT_IRQS)
-		intr_irq_set_name(isrc, "sint%u", irq);
-	else if (irq < NREAL_IRQS)
-		intr_irq_set_name(isrc, "int%u", irq - NSOFT_IRQS);
-	else
-		panic("Invalid irq %u", irq);
-	return (0);
-}
-
-static int
-pic_detach_isrc(struct mips_pic_softc *sc, struct intr_irqsrc *isrc, u_int irq)
-{
-
-	mtx_lock_spin(&sc->mutex);
-	if (sc->pic_irqs[irq] != isrc) {
-		mtx_unlock_spin(&sc->mutex);
-		return (sc->pic_irqs[irq] == NULL ? 0 : EINVAL);
-	}
-	sc->pic_irqs[irq] = NULL;
-	isrc->isrc_data = 0;
-	mtx_unlock_spin(&sc->mutex);
-
-	intr_irq_set_name(isrc, "%s", "");
-	return (0);
-}
-
-static int
-pic_irq_from_nspc(struct mips_pic_softc *sc, u_int type, u_int num, u_int *irqp)
-{
-
-	switch (type) {
-	case INTR_IRQ_NSPC_PLAIN:
-		*irqp = num;
-		return (*irqp < sc->nirqs ? 0 : EINVAL);
-
-	case INTR_IRQ_NSPC_SWI:
-		*irqp = num;
-		return (num < NSOFT_IRQS ? 0 : EINVAL);
-
-	case INTR_IRQ_NSPC_IRQ:
-		*irqp = num + NSOFT_IRQS;
-		return (num < NHARD_IRQS ? 0 : EINVAL);
-
-	default:
-		return (EINVAL);
-	}
-}
-
-static int
-pic_map_nspc(struct mips_pic_softc *sc, struct intr_irqsrc *isrc, u_int *irqp)
-{
-	int error;
-
-	error = pic_irq_from_nspc(sc, isrc->isrc_nspc_type, isrc->isrc_nspc_num,
-	    irqp);
-	if (error != 0)
-		return (error);
-	return (pic_attach_isrc(sc, isrc, *irqp));
-}
-
-#ifdef FDT
-static int
-pic_map_fdt(struct mips_pic_softc *sc, struct intr_irqsrc *isrc, u_int *irqp)
+static void
+mips_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 	u_int irq;
-	int error;
 
-	irq = isrc->isrc_cells[0];
-
-	if (irq >= sc->nirqs)
-		return (EINVAL);
-
-	error = pic_attach_isrc(sc, isrc, irq);
-	if (error != 0)
-		return (error);
-
-	isrc->isrc_nspc_type = INTR_IRQ_NSPC_PLAIN;
-	isrc->isrc_nspc_num = irq;
-	isrc->isrc_trig = INTR_TRIGGER_CONFORM;
-	isrc->isrc_pol = INTR_POLARITY_CONFORM;
-
-	*irqp = irq;
-	return (0);
-}
-#endif
-
-static int
-mips_pic_register(device_t dev, struct intr_irqsrc *isrc, boolean_t *is_percpu)
-{
-	struct mips_pic_softc *sc = device_get_softc(dev);
-	u_int irq;
-	int error;
-
-	if (isrc->isrc_type == INTR_ISRCT_NAMESPACE)
-		error = pic_map_nspc(sc, isrc, &irq);
-#ifdef FDT
-	else if (isrc->isrc_type == INTR_ISRCT_FDT)
-		error = pic_map_fdt(sc, isrc, &irq);
-#endif
-	else
-		return (EINVAL);
-
-	if (error == 0)
-		*is_percpu = TRUE;
-	return (error);
+	irq = ((struct mips_pic_irqsrc *)isrc)->irq;
+	pic_irq_mask(device_get_softc(dev), irq);
 }
 
 static void
 mips_pic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 {
+	u_int irq;
 
-	if (isrc->isrc_trig == INTR_TRIGGER_CONFORM)
-		isrc->isrc_trig = INTR_TRIGGER_LEVEL;
-}
-
-static void
-mips_pic_enable_source(device_t dev, struct intr_irqsrc *isrc)
-{
-	struct mips_pic_softc *sc = device_get_softc(dev);
-	u_int irq = isrc->isrc_data;
-
-	pic_irq_unmask(sc, irq);
-}
-
-static void
-mips_pic_disable_source(device_t dev, struct intr_irqsrc *isrc)
-{
-	struct mips_pic_softc *sc = device_get_softc(dev);
-	u_int irq = isrc->isrc_data;
-
-	pic_irq_mask(sc, irq);
+	irq = ((struct mips_pic_irqsrc *)isrc)->irq;
+	pic_irq_unmask(device_get_softc(dev), irq);
 }
 
 static int
-mips_pic_unregister(device_t dev, struct intr_irqsrc *isrc)
+mips_pic_map_intr(device_t dev, struct intr_map_data *data,
+    struct intr_irqsrc **isrcp)
 {
-	struct mips_pic_softc *sc = device_get_softc(dev);
-	u_int irq = isrc->isrc_data;
+#ifdef FDT
+	struct mips_pic_softc *sc;
 
-	return (pic_detach_isrc(sc, isrc, irq));
+	sc = device_get_softc(dev);
+
+	if (data == NULL || data->type != INTR_MAP_DATA_FDT ||
+	    data->fdt.ncells != 1 || data->fdt.cells[0] >= sc->nirqs)
+		return (EINVAL);
+
+	*isrcp = PIC_INTR_ISRC(sc, data->fdt.cells[0]);
+	return (0);
+#else
+	return (EINVAL);
+#endif
 }
 
 static void
 mips_pic_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
 
-	mips_pic_disable_source(dev, isrc);
+	mips_pic_disable_intr(dev, isrc);
 }
 
 static void
 mips_pic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
 
-	mips_pic_enable_source(dev, isrc);
+	mips_pic_enable_intr(dev, isrc);
 }
 
 static void
 mips_pic_post_filter(device_t dev, struct intr_irqsrc *isrc)
 {
 }
-
-#ifdef SMP
-static int
-mips_pic_bind(device_t dev, struct intr_irqsrc *isrc)
-{
-	return (EOPNOTSUPP);
-}
-
-static void
-mips_pic_ipi_send(device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus)
-{
-}
-#endif
 
 static device_method_t mips_pic_methods[] = {
 	/* Device interface */
@@ -427,20 +346,15 @@ static device_method_t mips_pic_methods[] = {
 #endif
 	DEVMETHOD(device_probe,		mips_pic_probe),
 	DEVMETHOD(device_attach,	mips_pic_attach),
+
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_disable_source,	mips_pic_disable_source),
+	DEVMETHOD(pic_disable_intr,	mips_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	mips_pic_enable_intr),
-	DEVMETHOD(pic_enable_source,	mips_pic_enable_source),
-	DEVMETHOD(pic_post_filter,	mips_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	mips_pic_post_ithread),
+	DEVMETHOD(pic_map_intr,		mips_pic_map_intr),
 	DEVMETHOD(pic_pre_ithread,	mips_pic_pre_ithread),
-	DEVMETHOD(pic_register,		mips_pic_register),
-	DEVMETHOD(pic_unregister,	mips_pic_unregister),
-#ifdef SMP
-	DEVMETHOD(pic_bind,		mips_pic_bind),
-	DEVMETHOD(pic_init_secondary,	mips_pic_init_secondary),
-	DEVMETHOD(pic_ipi_send,		mips_pic_ipi_send),
-#endif
+	DEVMETHOD(pic_post_ithread,	mips_pic_post_ithread),
+	DEVMETHOD(pic_post_filter,	mips_pic_post_filter),
+
 	{ 0, 0 }
 };
 
@@ -469,7 +383,6 @@ void
 cpu_establish_hardintr(const char *name, driver_filter_t *filt,
     void (*handler)(void*), void *arg, int irq, int flags, void **cookiep)
 {
-	u_int vec;
 	int res;
 
 	/*
@@ -479,17 +392,11 @@ cpu_establish_hardintr(const char *name, driver_filter_t *filt,
 		panic("%s called for unknown hard intr %d", __func__, irq);
 
 	KASSERT(pic_sc != NULL, ("%s: no pic", __func__));
-	vec = intr_namespace_map_irq(pic_sc->pic_dev, INTR_IRQ_NSPC_IRQ, irq);
-	KASSERT(vec != NIRQ, ("Unable to map hard IRQ %d\n", irq));
 
-	res = intr_irq_add_handler(pic_sc->pic_dev, filt, handler, arg, vec,
-	    flags, cookiep);
+	irq += NSOFT_IRQS;
+	res = intr_setup_irq(pic_sc->pic_dev, pic_sc->pic_irqs[irq].res, filt,
+	    handler, arg, flags, cookiep);
 	if (res != 0) panic("Unable to add hard IRQ %d handler", irq);
-
-	(void)pic_irq_from_nspc(pic_sc, INTR_IRQ_NSPC_IRQ, irq, &vec);
-	KASSERT(pic_sc->pic_irqs[vec] != NULL,
-	    ("Hard IRQ %d not registered\n", irq));
-	intr_irq_set_name(pic_sc->pic_irqs[vec], "%s", name);
 }
 
 void
@@ -497,23 +404,15 @@ cpu_establish_softintr(const char *name, driver_filter_t *filt,
     void (*handler)(void*), void *arg, int irq, int flags,
     void **cookiep)
 {
-	u_int vec;
 	int res;
 
 	if (irq < 0 || irq > NSOFT_IRQS)
 		panic("%s called for unknown soft intr %d", __func__, irq);
 
 	KASSERT(pic_sc != NULL, ("%s: no pic", __func__));
-	vec = intr_namespace_map_irq(pic_sc->pic_dev, INTR_IRQ_NSPC_SWI, irq);
-	KASSERT(vec <= NIRQ, ("Unable to map soft IRQ %d\n", irq));
 
-	intr_irq_add_handler(pic_sc->pic_dev, filt, handler, arg, vec,
-	    flags, cookiep);
+	res = intr_setup_irq(pic_sc->pic_dev, pic_sc->pic_irqs[irq].res, filt,
+	    handler, arg, flags, cookiep);
 	if (res != 0) panic("Unable to add soft IRQ %d handler", irq);
-
-	(void)pic_irq_from_nspc(pic_sc, INTR_IRQ_NSPC_SWI, irq, &vec);
-	KASSERT(pic_sc->pic_irqs[vec] != NULL,
-	    ("Soft IRQ %d not registered\n", irq));
-	intr_irq_set_name(pic_sc->pic_irqs[vec], "%s", name);
 }
 

@@ -2,7 +2,6 @@
 kern/kern_clocksource.c			standard
 
 arm/allwinner/a10_ahci.c		optional	ahci
-arm/allwinner/a10_clk.c			standard
 arm/allwinner/a10_codec.c		optional	sound
 arm/allwinner/a10_common.c		standard
 arm/allwinner/a10_dmac.c		standard
@@ -25,3 +24,21 @@ arm/allwinner/a10_fb.c			optional	vt
 arm/allwinner/a10_hdmi.c		optional	hdmi
 arm/allwinner/a10_hdmiaudio.c		optional	hdmi sound
 arm/arm/hdmi_if.m			optional	hdmi
+
+arm/allwinner/aw_reset.c		standard
+arm/allwinner/aw_ccu.c			standard
+arm/allwinner/clk/aw_ahbclk.c		standard
+arm/allwinner/clk/aw_apbclk.c		standard
+arm/allwinner/clk/aw_axiclk.c		standard
+arm/allwinner/clk/aw_codecclk.c		standard
+arm/allwinner/clk/aw_cpuclk.c		standard
+arm/allwinner/clk/aw_debeclk.c		standard
+arm/allwinner/clk/aw_gate.c		standard
+arm/allwinner/clk/aw_gmacclk.c		standard
+arm/allwinner/clk/aw_hdmiclk.c		standard
+arm/allwinner/clk/aw_lcdclk.c		standard
+arm/allwinner/clk/aw_modclk.c		standard
+arm/allwinner/clk/aw_mmcclk.c		standard
+arm/allwinner/clk/aw_oscclk.c		standard
+arm/allwinner/clk/aw_pll.c		standard
+arm/allwinner/clk/aw_usbclk.c		standard

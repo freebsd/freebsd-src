@@ -467,6 +467,32 @@ intr_isrc_deregister(struct intr_irqsrc *isrc)
 	return (error);
 }
 
+#ifdef SMP
+/*
+ *  A support function for a PIC to decide if provided ISRC should be inited
+ *  on given cpu. The logic of INTR_ISRCF_BOUND flag and isrc_cpu member of
+ *  struct intr_irqsrc is the following:
+ *
+ *     If INTR_ISRCF_BOUND is set, the ISRC should be inited only on cpus
+ *     set in isrc_cpu. If not, the ISRC should be inited on every cpu and
+ *     isrc_cpu is kept consistent with it. Thus isrc_cpu is always correct.
+ */
+bool
+intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu)
+{
+
+	if (isrc->isrc_handlers == 0)
+		return (false);
+	if ((isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI)) == 0)
+		return (false);
+	if (isrc->isrc_flags & INTR_ISRCF_BOUND)
+		return (CPU_ISSET(cpu, &isrc->isrc_cpu));
+
+	CPU_SET(cpu, &isrc->isrc_cpu);
+	return (true);
+}
+#endif
+
 static struct intr_dev_data *
 intr_ddata_alloc(u_int extsize)
 {
@@ -766,11 +792,19 @@ pic_lookup_locked(device_t dev, intptr_t xref)
 
 	mtx_assert(&pic_list_lock, MA_OWNED);
 
+	if (dev == NULL && xref == 0)
+		return (NULL);
+
+	/* Note that pic->pic_dev is never NULL on registered PIC. */
 	SLIST_FOREACH(pic, &pic_list, pic_next) {
-		if (pic->pic_xref != xref)
-			continue;
-		if (pic->pic_xref != 0 || pic->pic_dev == dev)
-			return (pic);
+		if (dev == NULL) {
+			if (xref == pic->pic_xref)
+				return (pic);
+		} else if (xref == 0 || pic->pic_xref == 0) {
+			if (dev == pic->pic_dev)
+				return (pic);
+		} else if (xref == pic->pic_xref && dev == pic->pic_dev)
+				return (pic);
 	}
 	return (NULL);
 }
@@ -840,14 +874,14 @@ intr_pic_register(device_t dev, intptr_t xref)
 {
 	struct intr_pic *pic;
 
+	if (dev == NULL)
+		return (EINVAL);
 	pic = pic_create(dev, xref);
 	if (pic == NULL)
 		return (ENOMEM);
-	if (pic->pic_dev != dev)
-		return (EINVAL);	/* XXX it could be many things. */
 
-	debugf("PIC %p registered for %s <xref %x>\n", pic,
-	    device_get_nameunit(dev), xref);
+	debugf("PIC %p registered for %s <dev %p, xref %x>\n", pic,
+	    device_get_nameunit(dev), dev, xref);
 	return (0);
 }
 
@@ -1156,7 +1190,7 @@ intr_irq_shuffle(void *arg __unused)
 	for (i = 0; i < NIRQ; i++) {
 		isrc = irq_sources[i];
 		if (isrc == NULL || isrc->isrc_handlers == 0 ||
-		    isrc->isrc_flags & INTR_ISRCF_PPI)
+		    isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI))
 			continue;
 
 		if (isrc->isrc_event != NULL &&

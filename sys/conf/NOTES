@@ -229,7 +229,15 @@ options 	MAXCPU=32
 
 # MAXMEMDOM defines the maximum number of memory domains that can boot in the
 # system.  A default value should already be defined by every architecture.
-options 	MAXMEMDOM=1
+options 	MAXMEMDOM=2
+
+# VM_NUMA_ALLOC enables use of memory domain-aware allocation in the VM
+# system.
+options 	VM_NUMA_ALLOC
+
+# DEVICE_NUMA enables reporting of domain affinity of I/O devices via
+# bus_get_domain(), etc.
+options 	DEVICE_NUMA
 
 # ADAPTIVE_MUTEXES changes the behavior of blocking mutexes to spin
 # if the thread that currently owns the mutex is executing on another
@@ -1408,6 +1416,10 @@ options 	MSGBUF_SIZE=40960
 # These options are valid for other keyboard drivers as well.
 options 	KBD_DISABLE_KEYMAP_LOAD	# refuse to load a keymap
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+
+device		kbdmux			# keyboard multiplexer
+options		KBDMUX_DFLT_KEYMAP	# specify the built-in keymap
+makeoptions	KBDMUX_DFLT_KEYMAP=it.iso
 
 options 	FB_DEBUG		# Frame buffer debugging
 

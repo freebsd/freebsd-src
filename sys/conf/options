@@ -90,6 +90,7 @@ COMPAT_LINUXKPI	opt_compat.h
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h
+DEVICE_NUMA
 EXT_RESOURCES	opt_global.h
 DIRECTIO
 FILEMON		opt_dontuse.h
@@ -603,6 +604,7 @@ VM_KMEM_SIZE		opt_vm.h
 VM_KMEM_SIZE_SCALE	opt_vm.h
 VM_KMEM_SIZE_MAX	opt_vm.h
 VM_NRESERVLEVEL		opt_vm.h
+VM_NUMA_ALLOC		opt_vm.h
 VM_LEVEL_0_ORDER	opt_vm.h
 NO_SWAPPING		opt_vm.h
 MALLOC_MAKE_FAILURES	opt_vm.h
@@ -800,6 +802,8 @@ KBD_MAXRETRY		opt_kbd.h
 KBD_MAXWAIT		opt_kbd.h
 KBD_RESETDELAY		opt_kbd.h
 KBDIO_DEBUG		opt_kbd.h
+
+KBDMUX_DFLT_KEYMAP	opt_kbdmux.h
 
 # options for the Atheros driver
 ATH_DEBUG		opt_ath.h

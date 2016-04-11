@@ -2025,7 +2025,7 @@ static void sym_fw_bind_script (hcb_p np, u32 *start, int len)
 			MDELAY (10000);
 			++cur;
 			continue;
-		};
+		}
 
 		/*
 		 *  We use the bogus value 0xf00ff00f ;-)
@@ -2114,7 +2114,7 @@ static void sym_fw_bind_script (hcb_p np, u32 *start, int len)
 		default:
 			relocs = 0;
 			break;
-		};
+		}
 
 		/*
 		 *  Scriptify:) the opcode.
@@ -2170,7 +2170,7 @@ static void sym_fw_bind_script (hcb_p np, u32 *start, int len)
 
 			*cur++ = cpu_to_scr(new);
 		}
-	};
+	}
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2867,7 +2867,7 @@ static int sym_prepare_nego(hcb_p np, ccb_p cp, int nego, u_char *msgptr)
 		msgptr[msglen++] = tp->tinfo.goal.width;
 		msgptr[msglen++] = tp->tinfo.goal.options & PPR_OPT_DT;
 		break;
-	};
+	}
 
 	cp->nego_status = nego;
 
@@ -2877,8 +2877,8 @@ static int sym_prepare_nego(hcb_p np, ccb_p cp, int nego, u_char *msgptr)
 			sym_print_msg(cp, nego == NS_SYNC ? "sync msgout" :
 					  nego == NS_WIDE ? "wide msgout" :
 					  "ppr msgout", msgptr);
-		};
-	};
+		}
+	}
 
 	return msglen;
 }
@@ -3827,7 +3827,7 @@ static void sym_intr1 (hcb_p np)
 		istat = INB (nc_istat);		/* DUMMY READ */
 		if (DEBUG_FLAGS & DEBUG_TINY) printf ("F ");
 		(void)sym_wakeup_done (np);
-	};
+	}
 
 	if (!(istat & (SIP|DIP)))
 		return;
@@ -3892,7 +3892,7 @@ static void sym_intr1 (hcb_p np)
 		else if (dstat & SSI)	OUTONB_STD ();
 		else			goto unknown_int;
 		return;
-	};
+	}
 
 	/*
 	 *  Now, interrupts that donnot happen in normal
@@ -3910,7 +3910,7 @@ static void sym_intr1 (hcb_p np)
 		printf("SCSI BUS reset detected.\n");
 		sym_init (np, 1);
 		return;
-	};
+	}
 
 	OUTB (nc_ctest3, np->rv_ctest3 | CLF);	/* clear dma fifo  */
 	OUTB (nc_stest3, TE|CSF);		/* clear scsi fifo */
@@ -3922,7 +3922,7 @@ static void sym_intr1 (hcb_p np)
 		else if (sist & UDC)	sym_int_udc (np);
 		else			goto unknown_int;
 		return;
-	};
+	}
 
 	/*
 	 *  Now, interrupts we are not able to recover cleanly.
@@ -3937,7 +3937,7 @@ static void sym_intr1 (hcb_p np)
 		(dstat & (MDPE|BF|ABRT|IID))) {
 		sym_start_reset(np);
 		return;
-	};
+	}
 
 unknown_int:
 	/*
@@ -4274,7 +4274,7 @@ static void sym_int_ma (hcb_p np)
 			if (ss2 & OLF1) rest++;
 			if (!(np->features & FE_C10))
 				if (ss2 & ORF1) rest++;
-		};
+		}
 
 		/*
 		 *  Clear fifos.
@@ -4313,7 +4313,7 @@ static void sym_int_ma (hcb_p np)
 	if (DEBUG_FLAGS & DEBUG_PHASE) {
 		printf ("\nCP=%p DSP=%x NXT=%x VDSP=%p CMD=%x ",
 			cp, (unsigned)dsp, (unsigned)nxtdsp, vdsp, cmd);
-	};
+	}
 
 	if (!vdsp) {
 		printf ("%s: interrupted SCRIPT address not found.\n",
@@ -4339,7 +4339,7 @@ static void sym_int_ma (hcb_p np)
 	} else {
 		tblp = (u32 *) 0;
 		olen = scr_to_cpu(vdsp[0]) & 0xffffff;
-	};
+	}
 
 	if (DEBUG_FLAGS & DEBUG_PHASE) {
 		printf ("OCMD=%x\nTBLP=%p OLEN=%x OADR=%x\n",
@@ -4347,7 +4347,7 @@ static void sym_int_ma (hcb_p np)
 			tblp,
 			(unsigned) olen,
 			(unsigned) oadr);
-	};
+	}
 
 	/*
 	 *  check cmd against assumed interrupted script command.
@@ -4360,7 +4360,7 @@ static void sym_int_ma (hcb_p np)
 			(unsigned)cmd, (unsigned)scr_to_cpu(vdsp[0]) >> 24);
 
 		goto reset_all;
-	};
+	}
 
 	/*
 	 *  if old phase not dataphase, leave here.
@@ -4371,7 +4371,7 @@ static void sym_int_ma (hcb_p np)
 			cmd&7, INB(nc_sbcl)&7, (unsigned)olen,
 			(unsigned)oadr, (unsigned)rest);
 		goto unexpected_phase;
-	};
+	}
 
 	/*
 	 *  Choose the correct PM save area.
@@ -5541,12 +5541,12 @@ static int sym_show_msg (u_char * msg)
 		for (i=1;i<8;i++) {
 			if (i-1>msg[1]) break;
 			printf ("-%x",msg[i]);
-		};
+		}
 		return (i+1);
 	} else if ((*msg & 0xf0) == 0x20) {
 		printf ("-%x",msg[1]);
 		return (2);
-	};
+	}
 	return (1);
 }
 
@@ -5607,7 +5607,7 @@ static void sym_sync_nego(hcb_p np, tcb_p tp, ccb_p cp)
 	 */
 	if (DEBUG_FLAGS & DEBUG_NEGO) {
 		sym_print_msg(cp, "sync msgin", np->msgin);
-	};
+	}
 
 	/*
 	 * request or answer ?
@@ -5708,7 +5708,7 @@ static void sym_ppr_nego(hcb_p np, tcb_p tp, ccb_p cp)
 	 */
 	if (DEBUG_FLAGS & DEBUG_NEGO) {
 		sym_print_msg(cp, "ppr msgin", np->msgin);
-	};
+	}
 
 	/*
 	 *  get requested values.
@@ -5847,7 +5847,7 @@ static void sym_wide_nego(hcb_p np, tcb_p tp, ccb_p cp)
 	 */
 	if (DEBUG_FLAGS & DEBUG_NEGO) {
 		sym_print_msg(cp, "wide msgin", np->msgin);
-	};
+	}
 
 	/*
 	 * Is it a request from the device?
@@ -5912,7 +5912,7 @@ static void sym_wide_nego(hcb_p np, tcb_p tp, ccb_p cp)
 
 		OUTL_DSP (SCRIPTA_BA (np, clrack));
 		return;
-	};
+	}
 
 	/*
 	 *  It was a request, set value and
@@ -5972,7 +5972,7 @@ static void sym_nego_default(hcb_p np, tcb_p tp, ccb_p cp)
 	case NS_WIDE:
 		sym_setwide (np, cp, 0);
 		break;
-	};
+	}
 	np->msgin [0] = M_NOOP;
 	np->msgout[0] = M_NOOP;
 	cp->nego_status = 0;
@@ -6237,7 +6237,7 @@ static void sym_int_sir (hcb_p np)
 	case SIR_NEGO_PROTO:
 		sym_nego_default(np, tp, cp);
 		goto out;
-	};
+	}
 
 out:
 	OUTONB_STD ();
@@ -6719,7 +6719,7 @@ static int sym_regtest (hcb_p np)
 		printf ("CACHE TEST FAILED: reg dstat-sstat2 readback %x.\n",
 			(unsigned) data);
 		return (0x10);
-	};
+	}
 	return (0);
 }
 #endif
@@ -6763,7 +6763,7 @@ restart_test:
 	if (i>=SYM_SNOOP_TIMEOUT) {
 		printf ("CACHE TEST FAILED: timeout.\n");
 		return (0x20);
-	};
+	}
 	/*
 	 *  Check for fatal DMA errors.
 	 */
@@ -6801,7 +6801,7 @@ restart_test:
 			(u_long) SCRIPTB0_BA (np, snooptest), (u_long) pc,
 			(u_long) SCRIPTB0_BA (np, snoopend) +8);
 		return (0x40);
-	};
+	}
 	/*
 	 *  Show results.
 	 */
@@ -6809,17 +6809,17 @@ restart_test:
 		printf ("CACHE TEST FAILED: host wrote %d, chip read %d.\n",
 			(int) host_wr, (int) sym_rd);
 		err |= 1;
-	};
+	}
 	if (host_rd != sym_wr) {
 		printf ("CACHE TEST FAILED: chip wrote %d, host read %d.\n",
 			(int) sym_wr, (int) host_rd);
 		err |= 2;
-	};
+	}
 	if (sym_bk != sym_wr) {
 		printf ("CACHE TEST FAILED: chip wrote %d, read back %d.\n",
 			(int) sym_wr, (int) sym_bk);
 		err |= 4;
-	};
+	}
 
 	return (err);
 }
@@ -8734,7 +8734,7 @@ sym_pci_attach(device_t dev)
 	if (sym_snooptest (np)) {
 		device_printf(dev, "CACHE INCORRECTLY CONFIGURED.\n");
 		goto attach_failed;
-	};
+	}
 
 	/*
 	 *  Now deal with CAM.

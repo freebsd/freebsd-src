@@ -2590,7 +2590,7 @@ nfe_setmulti(struct nfe_softc *sc)
 		bzero(addr, ETHER_ADDR_LEN);
 		bzero(mask, ETHER_ADDR_LEN);
 		goto done;
-	};
+	}
 
 	if_multiaddr_array(ifp, mta, &mcnt, mc_count);
 

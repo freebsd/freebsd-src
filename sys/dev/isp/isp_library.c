@@ -180,7 +180,8 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t to
 			isp_put_cont_req(isp, (ispcontreq_t *)storage, qe1);
 		}
 		if (isp->isp_dblev & ISP_LOGDEBUG1) {
-			isp_print_bytes(isp, "additional queue entry", QENTRY_LEN, storage);
+			isp_print_bytes(isp, "additional queue entry",
+			    QENTRY_LEN, qe1);
 		}
 		nqe++;
         }
@@ -241,7 +242,7 @@ copy_and_sync:
 		return (CMD_COMPLETE);
 	}
 	if (isp->isp_dblev & ISP_LOGDEBUG1) {
-		isp_print_bytes(isp, "first queue entry", QENTRY_LEN, fqe);
+		isp_print_bytes(isp, "first queue entry", QENTRY_LEN, qe0);
 	}
 	ISP_ADD_REQUEST(isp, nxt);
 	return (CMD_QUEUED);
@@ -1988,6 +1989,17 @@ isp_put_rft_id(ispsoftc_t *isp, rft_id_t *src, rft_id_t *dst)
 }
 
 void
+isp_put_rspn_id(ispsoftc_t *isp, rspn_id_t *src, rspn_id_t *dst)
+{
+/*	int i;*/
+	isp_put_ct_hdr(isp, &src->rspnid_hdr, &dst->rspnid_hdr);
+	ISP_IOZPUT_8(isp, src->rspnid_reserved, &dst->rspnid_reserved);
+	ISP_IOZPUT_8(isp, src->rspnid_length, &dst->rspnid_length);
+/*	for (i = 0; i < src->rspnid_length; i++)
+		ISP_IOZPUT_8(isp, src->rspnid_name[i], &dst->rspnid_name[i]);*/
+}
+
+void
 isp_put_rff_id(ispsoftc_t *isp, rff_id_t *src, rff_id_t *dst)
 {
 	int i;
@@ -1999,6 +2011,18 @@ isp_put_rff_id(ispsoftc_t *isp, rff_id_t *src, rff_id_t *dst)
 	ISP_IOZPUT_16(isp, src->rffid_reserved2, &dst->rffid_reserved2);
 	ISP_IOZPUT_8(isp, src->rffid_fc4features, &dst->rffid_fc4features);
 	ISP_IOZPUT_8(isp, src->rffid_fc4type, &dst->rffid_fc4type);
+}
+
+void
+isp_put_rsnn_nn(ispsoftc_t *isp, rsnn_nn_t *src, rsnn_nn_t *dst)
+{
+	int i;
+	isp_put_ct_hdr(isp, &src->rsnnnn_hdr, &dst->rsnnnn_hdr);
+	for (i = 0; i < 8; i++)
+		ISP_IOZPUT_8(isp, src->rsnnnn_nodename[i], &dst->rsnnnn_nodename[i]);
+	ISP_IOZPUT_8(isp, src->rsnnnn_length, &dst->rsnnnn_length);
+/*	for (i = 0; i < src->rsnnnn_length; i++)
+		ISP_IOZPUT_8(isp, src->rsnnnn_name[i], &dst->rsnnnn_name[i]);*/
 }
 
 void
@@ -2170,7 +2194,8 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_
 			isp_put_cont_req(isp, (ispcontreq_t *)storage, qe1);
 		}
 		if (isp->isp_dblev & ISP_LOGTDEBUG1) {
-			isp_print_bytes(isp, "additional queue entry", QENTRY_LEN, storage);
+			isp_print_bytes(isp, "additional queue entry",
+			    QENTRY_LEN, qe1);
 		}
 		nqe++;
         }
@@ -2207,7 +2232,7 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_
 		return (CMD_COMPLETE);
 	}
 	if (isp->isp_dblev & ISP_LOGTDEBUG1) {
-		isp_print_bytes(isp, "first queue entry", QENTRY_LEN, fqe);
+		isp_print_bytes(isp, "first queue entry", QENTRY_LEN, qe0);
 	}
 	ISP_ADD_REQUEST(isp, nxt);
 	return (CMD_QUEUED);

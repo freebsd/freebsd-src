@@ -330,9 +330,10 @@ ieee80211_create_ibss(struct ieee80211vap* vap, struct ieee80211_channel *chan)
 	struct ieee80211_node *ni;
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		"%s: creating %s on channel %u\n", __func__,
+		"%s: creating %s on channel %u%c\n", __func__,
 		ieee80211_opmode_name[vap->iv_opmode],
-		ieee80211_chan2ieee(ic, chan));
+		ieee80211_chan2ieee(ic, chan),
+		ieee80211_channel_type_char(chan));
 
 	ni = ieee80211_alloc_node(&ic->ic_sta, vap, vap->iv_myaddr);
 	if (ni == NULL) {
@@ -556,6 +557,33 @@ check_bss_debug(struct ieee80211vap *vap, struct ieee80211_node *ni)
 }
 #endif /* IEEE80211_DEBUG */
  
+
+int
+ieee80211_ibss_merge_check(struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+
+	if (ni == vap->iv_bss ||
+	    IEEE80211_ADDR_EQ(ni->ni_bssid, vap->iv_bss->ni_bssid)) {
+		/* unchanged, nothing to do */
+		return 0;
+	}
+
+	if (!check_bss(vap, ni)) {
+		/* capabilities mismatch */
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_ASSOC,
+		    "%s: merge failed, capabilities mismatch\n", __func__);
+#ifdef IEEE80211_DEBUG
+		if (ieee80211_msg_assoc(vap))
+			check_bss_debug(vap, ni);
+#endif
+		vap->iv_stats.is_ibss_capmismatch++;
+		return 0;
+	}
+
+	return 1;
+}
+
 /*
  * Handle 802.11 ad hoc network merge.  The
  * convention, set by the Wireless Ethernet Compatibility Alliance
@@ -571,27 +599,14 @@ check_bss_debug(struct ieee80211vap *vap, struct ieee80211_node *ni)
 int
 ieee80211_ibss_merge(struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
 #ifdef IEEE80211_DEBUG
+	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 #endif
 
-	if (ni == vap->iv_bss ||
-	    IEEE80211_ADDR_EQ(ni->ni_bssid, vap->iv_bss->ni_bssid)) {
-		/* unchanged, nothing to do */
+	if (! ieee80211_ibss_merge_check(ni))
 		return 0;
-	}
-	if (!check_bss(vap, ni)) {
-		/* capabilities mismatch */
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_ASSOC,
-		    "%s: merge failed, capabilities mismatch\n", __func__);
-#ifdef IEEE80211_DEBUG
-		if (ieee80211_msg_assoc(vap))
-			check_bss_debug(vap, ni);
-#endif
-		vap->iv_stats.is_ibss_capmismatch++;
-		return 0;
-	}
+
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_ASSOC,
 		"%s: new bssid %s: %s preamble, %s slot time%s\n", __func__,
 		ether_sprintf(ni->ni_bssid),

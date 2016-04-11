@@ -506,7 +506,7 @@ mvs_set_edma_mode(device_t dev, enum mvs_edma_mode mode)
 				device_printf(dev, "stopping EDMA engine failed\n");
 				break;
 			}
-		};
+		}
 	}
 	ch->curr_mode = mode;
 	ch->fbs_enabled = 0;
