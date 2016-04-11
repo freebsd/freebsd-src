@@ -484,4 +484,5 @@ hyperv_init(void *dummy __unused)
 		tc_init(&hv_timecounter);
 	}
 }
-SYSINIT(hyperv_initialize, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, hyperv_init, NULL);
+SYSINIT(hyperv_initialize, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, hyperv_init,
+    NULL);
