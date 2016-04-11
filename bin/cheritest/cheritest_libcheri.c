@@ -184,7 +184,7 @@ test_sandbox_md5_ccall(const struct cheri_test *ctp __unused, int class)
 		call_invoke_md5(strlen(string_to_md5), md5cap, bufcap);
 		break;
 	default:
-		cheritest_failure_errx("invalid class", class);
+		cheritest_failure_errx("invalid class %d", class);
 		break;
 	}
 

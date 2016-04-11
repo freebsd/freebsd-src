@@ -86,7 +86,7 @@ cheritest_libcheri_userfn_getstack(void)
 
 	/* Validate that two stack frames are found. */
 	if (cs.cs_tsp != cs.cs_tsize - (register_t)(2 * CHERI_FRAME_SIZE))
-		cheritest_failure_errx("stack contains %d frames; expected "
+		cheritest_failure_errx("stack contains %ld frames; expected "
 		    "2", (cs.cs_tsize - (2 * CHERI_FRAME_SIZE)) /
 		    CHERI_FRAME_SIZE);
 
@@ -149,7 +149,7 @@ cheritest_libcheri_userfn_setstack(register_t arg)
 
 	/* Validate that two stack frames are found. */
 	if (cs.cs_tsp != cs.cs_tsize - (register_t)(2 * CHERI_FRAME_SIZE))
-		cheritest_failure_errx("stack contains %d frames; expected "
+		cheritest_failure_errx("stack contains %ld frames; expected "
 		    "2", (cs.cs_tsize - (2 * CHERI_FRAME_SIZE)) /
 		    CHERI_FRAME_SIZE);
 

@@ -219,7 +219,7 @@ test_nofault_ccall_dli_creturn(const struct cheri_test *ctp __unused)
 	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 	if (v0 != DLI_RETVAL)
 		cheritest_failure_errx("Invalid return value (got: 0x%jx; "
-		    "expected 0x%jx)", v0, DLI_RETVAL);
+		    "expected 0x%x)", v0, DLI_RETVAL);
 	else
 		cheritest_success();
 }

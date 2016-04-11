@@ -141,7 +141,7 @@ test_sandbox_fd_write(const struct cheri_test *ctp __unused)
 	stringc = cheri_ptrperm(ctp->ct_stdout_string, len, CHERI_PERM_LOAD);
 	v = invoke_fd_write_c(stdout_fd_object, stringc, len);
 	if (v != (ssize_t)len)
-		cheritest_failure_errx("invoke returned %lu; expected %d\n",
+		cheritest_failure_errx("invoke returned %lu; expected %zd\n",
 		    v, strlen(ctp->ct_stdout_string));
 	cheritest_success();
 }
