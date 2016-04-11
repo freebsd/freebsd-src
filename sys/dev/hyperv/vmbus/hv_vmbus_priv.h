@@ -704,7 +704,6 @@ uint16_t		hv_vmbus_post_msg_via_msg_ipc(
 uint16_t		hv_vmbus_signal_event(void *con_id);
 void			hv_vmbus_synic_init(void *irq_arg);
 void			hv_vmbus_synic_cleanup(void *arg);
-int			hv_vmbus_query_hypervisor_presence(void);
 
 struct hv_device*	hv_vmbus_child_device_create(
 				hv_guid			device_type,

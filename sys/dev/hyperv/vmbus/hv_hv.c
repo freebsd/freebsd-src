@@ -70,18 +70,6 @@ hv_get_timecount(struct timecounter *tc)
 }
 
 /**
- * @brief Query the cpuid for presence of windows hypervisor
- */
-int
-hv_vmbus_query_hypervisor_presence(void) 
-{
-	if (vm_guest != VM_GUEST_HV)
-		return (0);
-
-	return (hv_high >= HV_X64_CPUID_MIN && hv_high <= HV_X64_CPUID_MAX);
-}
-
-/**
  * @brief Get version of the windows hypervisor
  */
 static int
