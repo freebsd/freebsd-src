@@ -83,8 +83,8 @@ NEWVERSWHAT=	"EFI loader" ${MACHINE}
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../../efi/loader/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
+NM?=		nm
 OBJCOPY?=	objcopy
-OBJDUMP?=	objdump
 
 .if ${MACHINE_CPUARCH} == "amd64"
 EFI_TARGET=	efi-app-x86_64
@@ -93,8 +93,8 @@ EFI_TARGET=	efi-app-ia32
 .endif
 
 loader.efi: ${PROG}
-	if [ `${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*' | wc -l` != 0 ]; then \
-		${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*'; \
+	if ${NM} ${.ALLSRC} | grep ' U '; then \
+		echo "Undefined symbols in ${.ALLSRC}"; \
 		exit 1; \
 	fi
 	${OBJCOPY} -j .text -j .sdata -j .data \
