@@ -167,8 +167,6 @@ hv_vmbus_init(void)
 
 	hv_vmbus_g_context.hypercall_page = virt_addr;
 
-	tc_init(&hv_timecounter); /* register virtual timecount */
-
 	hv_et_init();
 	
 	return (0);
@@ -480,5 +478,10 @@ hyperv_init(void *dummy __unused)
 {
 	if (!hyperv_identify())
 		return;
+
+	if (hyperv_features & HV_FEATURE_MSR_TIME_REFCNT) {
+		/* Register virtual timecount */
+		tc_init(&hv_timecounter);
+	}
 }
 SYSINIT(hyperv_initialize, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, hyperv_init, NULL);
