@@ -1,8 +1,0 @@
-# $FreeBSD$
-
-cd /dev
-cd /bin
-cd - >/dev/null
-pwd
-cd - >/dev/null
-pwd

@@ -1,6 +1,0 @@
-compound start
-before dotcmd
-compound start
-before return
-after dotcmd, return value: 0
-compound end

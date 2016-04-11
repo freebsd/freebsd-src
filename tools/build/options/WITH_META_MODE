@@ -1,3 +1,0 @@
-.\" $FreeBSD$
-Create meta files when not doing DIRDEPS_BUILD.
-The meta files can be useful for debugging.

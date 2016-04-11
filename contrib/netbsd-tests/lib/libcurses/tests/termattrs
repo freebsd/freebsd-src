@@ -1,3 +1,0 @@
-include start
-# the atf terminal can do all attributes except PROTECT
-call 0x17f00 termattrs

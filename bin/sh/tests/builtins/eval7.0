@@ -1,9 +1,0 @@
-# $FreeBSD$
-# Assumes that break can break out of a loop outside eval.
-
-while :; do
-	eval "break
-echo bad1"
-	echo bad2
-	exit 3
-done

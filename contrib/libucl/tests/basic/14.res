@@ -1,4 +1,0 @@
-section {
-}
-key = "value";
-

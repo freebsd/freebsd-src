@@ -1,1 +1,0 @@
-../Proc/rwbytype.d

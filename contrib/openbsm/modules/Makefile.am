@@ -1,3 +1,0 @@
-SUBDIRS =		\
-	auditfilter_noop
-

@@ -1,1 +1,0 @@
-../Proc/sigdist.d
