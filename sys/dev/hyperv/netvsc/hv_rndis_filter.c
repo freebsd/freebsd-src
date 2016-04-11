@@ -405,8 +405,7 @@ hv_rf_send_offload_request(struct hv_device *device,
 	}
 
 cleanup:
-	if (request)
-		hv_put_rndis_request(rndis_dev, request);
+	hv_put_rndis_request(rndis_dev, request);
 
 	return (ret);
 }
@@ -907,10 +906,8 @@ hv_rf_halt_device(rndis_device *device)
 	}
 
 	device->state = RNDIS_DEV_UNINITIALIZED;
-	
-	if (request != NULL) {
-		hv_put_rndis_request(device, request);
-	}
+
+	hv_put_rndis_request(device, request);
 
 	return (0);
 }
