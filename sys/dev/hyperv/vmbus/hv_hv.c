@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #define HV_NANOSECONDS_PER_SEC		1000000000L
 
+#define	HYPERV_INTERFACE		0x31237648	/* HV#1 */
 
 static u_int hv_get_timecount(struct timecounter *tc);
 
@@ -416,7 +417,7 @@ hyperv_identify(void)
 
 	op = HV_CPU_ID_FUNCTION_HV_INTERFACE;
 	do_cpuid(op, regs);
-	if (regs[0] != 0x31237648 /* HV#1 */)
+	if (regs[0] != HYPERV_INTERFACE)
 		return (false);
 
 	op = HV_CPU_ID_FUNCTION_MS_HV_FEATURES;
