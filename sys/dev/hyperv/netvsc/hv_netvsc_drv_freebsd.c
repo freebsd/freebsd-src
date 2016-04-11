@@ -282,12 +282,12 @@ static int hn_use_if_start = 0;
 SYSCTL_INT(_hw_hn, OID_AUTO, use_if_start, CTLFLAG_RDTUN,
     &hn_use_if_start, 0, "Use if_start TX method");
 
-static int hn_chan_cnt = 1;
+static int hn_chan_cnt = 0;
 SYSCTL_INT(_hw_hn, OID_AUTO, chan_cnt, CTLFLAG_RDTUN,
     &hn_chan_cnt, 0,
     "# of channels to use; each channel has one RX ring and one TX ring");
 
-static int hn_tx_ring_cnt = 1;
+static int hn_tx_ring_cnt = 0;
 SYSCTL_INT(_hw_hn, OID_AUTO, tx_ring_cnt, CTLFLAG_RDTUN,
     &hn_tx_ring_cnt, 0, "# of TX rings to use");
 
