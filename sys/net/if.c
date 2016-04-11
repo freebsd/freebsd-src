@@ -1021,7 +1021,15 @@ void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
 	struct if_clone *ifc;
+	u_int bif_dlt, bif_hdrlen;
 	int rc;
+
+ 	/*
+	 * if_detach_internal() will call the eventhandler to notify
+	 * interface departure.  That will detach if_bpf.  We need to
+	 * safe the dlt and hdrlen so we can re-attach it later.
+	 */
+	bpf_get_bp_params(ifp->if_bpf, &bif_dlt, &bif_hdrlen);
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
@@ -1061,6 +1069,9 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	IFNET_WUNLOCK();
 
 	if_attach_internal(ifp, 1, ifc);
+
+	if (ifp->if_bpf == NULL)
+		bpfattach(ifp, bif_dlt, bif_hdrlen);
 
 	CURVNET_RESTORE();
 }
