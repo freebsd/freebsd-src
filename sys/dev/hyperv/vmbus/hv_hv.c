@@ -70,35 +70,6 @@ hv_get_timecount(struct timecounter *tc)
 }
 
 /**
- * @brief Get version of the windows hypervisor
- */
-static int
-hv_vmbus_get_hypervisor_version(void) 
-{
-	u_int regs[4];
-	unsigned int maxLeaf;
-	unsigned int op;
-
-	/*
-	 * Its assumed that this is called after confirming that
-	 * Viridian is present
-	 * Query id and revision.
-	 */
-	op = HV_CPU_ID_FUNCTION_HV_VENDOR_AND_MAX_FUNCTION;
-	do_cpuid(op, regs);
-
-	maxLeaf = regs[0];
-	op = HV_CPU_ID_FUNCTION_HV_INTERFACE;
-	do_cpuid(op, regs);
-
-	if (maxLeaf >= HV_CPU_ID_FUNCTION_MS_HV_VERSION) {
-	    op = HV_CPU_ID_FUNCTION_MS_HV_VERSION;
-	    do_cpuid(op, regs);
-	}
-	return (maxLeaf);
-}
-
-/**
  * @brief Invoke the specified hypercall
  */
 static uint64_t
@@ -147,7 +118,6 @@ hv_vmbus_do_hypercall(uint64_t control, void* input, void* output)
 int
 hv_vmbus_init(void) 
 {
-	int					max_leaf;
 	hv_vmbus_x64_msr_hypercall_contents	hypercall_msr;
 	void* 					virt_addr = 0;
 
@@ -163,8 +133,6 @@ hv_vmbus_init(void)
 
 	if (vm_guest != VM_GUEST_HV)
 	    goto cleanup;
-
-	max_leaf = hv_vmbus_get_hypervisor_version();
 
 	/*
 	 * Write our OS info
