@@ -106,7 +106,6 @@ struct pthread_cond_attr _pthread_condattr_default = {
 	.c_clockid = CLOCK_REALTIME
 };
 
-pid_t		_thr_pid;
 int		_thr_is_smp = 0;
 size_t		_thr_guard_default;
 size_t		_thr_stack_default = THR_STACK_DEFAULT;
