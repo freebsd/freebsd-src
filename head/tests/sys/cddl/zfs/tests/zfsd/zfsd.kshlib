@@ -60,7 +60,7 @@ function wait_for_pool_dev_state_change
 function wait_for_pool_removal
 {
 	typeset -i timeout=$1
-	wait_for_pool_dev_state_change $timeout $REMOVAL_DISK REMOVED
+	wait_for_pool_dev_state_change $timeout $REMOVAL_DISK "REMOVED|UNAVAIL"
 }
 
 function wait_until_scrubbed
@@ -122,6 +122,7 @@ function do_autoreplace
 			check_state $TESTPOOL $SPARE_DISK "ONLINE" && break
 			$SLEEP 6
 		done
+		zpool status $TESTPOOL
 		log_must check_state $TESTPOOL "$SPARE_DISK" "ONLINE"
 
 		wait_until_resilvered

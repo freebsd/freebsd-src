@@ -69,7 +69,7 @@ function remove_disk
 	[ -n "$FOUNDDISK" ] && log_fail "Disk \"$DISK\" was not removed"
 
 	# Check to make sure ZFS sees the disk as removed
-	wait_for_pool_dev_state_change 20 $DISK REMOVED
+	wait_for_pool_dev_state_change 20 $DISK "REMOVED|UNAVAIL"
 }
 
 # arg1: disk's old devname

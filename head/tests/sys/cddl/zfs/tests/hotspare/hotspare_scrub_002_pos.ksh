@@ -97,6 +97,19 @@ function verify_assertion # odev
 	[[ $(get_cksum $TESTPOOL "spare-0") > 0 ]]
 	spare0_errors=$?
 	log_must [ $sdev_errors -o $spare0_errors ]
+
+	# Now clear the old errors, remove the original device and scrub again.
+	# No new errors should be found, because the scrub should've found and
+	# fixed all errors
+	log_must $ZPOOL clear $TESTPOOL
+	log_must $ZPOOL detach $TESTPOOL $odev
+	$ZPOOL scrub $TESTPOOL
+	while is_pool_scrubbing $TESTPOOL ; do
+		$SLEEP 2
+	done
+	if [ $(get_cksum $TESTPOOL $sdev) -ne 0 ]; then
+		log_fail "ERROR: Scrub missed cksum errors on a spare vdev"
+	fi
 }
 
 log_assert "'zpool scrub' scans spare vdevs"

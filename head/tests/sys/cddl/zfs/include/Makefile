@@ -24,4 +24,6 @@ CLEANFILES+=	default.cfg
 default.cfg:	default.cfg.in
 	sed "s:%%STFSUITEDIR%%:${STFSUITEDIR}:" ${.ALLSRC} > ${.TARGET}
 
-.include <bsd.prog.mk>
+TESTSDIR=${TESTSBASE}/sys/cddl/zfs/include
+ATF_TESTS_KSH93+=	libtest_test
+.include <bsd.test.mk>

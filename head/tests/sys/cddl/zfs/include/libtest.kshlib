@@ -631,7 +631,7 @@ function wipe_partition_table #<whole_disk_name> [<whole_disk_name> ...]
 		typeset diskname=$1
 		[ ! -e $diskname ] && log_fail "ERROR: $diskname doesn't exist"
 		if gpart list $(basename $diskname) >/dev/null 2>&1; then
-			log_must $GPART destroy -F $diskname
+			wait_for 5 1 $GPART destroy -F $diskname
 		else
 			log_note "No GPT partitions detected on $diskname"
 		fi
@@ -1336,17 +1336,18 @@ function wait_for # timeout dt <method> [args...]
 # Verify a given disk is online or offline
 #
 # Return 0 is pool/disk matches expected state, 1 otherwise
+# stateexpr is a regex like ONLINE or REMOVED|UNAVAIL
 #
-function check_state # pool disk state{online,offline}
+function check_state # pool disk stateexpr
 {
 	typeset pool=$1
 	typeset disk=${2#/dev/dsk/}
 	disk=${disk#/dev/rdsk/}
 	disk=${disk#/dev/}
-	typeset state=$3
+	typeset stateexpr=$3
 
 	$ZPOOL status -v $pool | grep "$disk"  \
-	    | grep -i "$state" > /dev/null 2>&1
+	    | egrep -i "$stateexpr" > /dev/null 2>&1
 
 	return $?
 }
@@ -3212,32 +3213,24 @@ function dva_to_block_addr # dva
 
 #
 # Convert a RAIDZ DVA into a physical block address.  This has the same
-# output as dva_to_block_addr, but is more complicated due to RAIDZ.  ashift
-# is normally always 9, but RAIDZ uses the actual tvd ashift instead.
-# Furthermore, the number of vdevs changes the actual block for each device.
-# This is also tricky because ksh93 requires special effort to round up.
+# output as dva_to_block_addr (number of blocks from beginning of device), but
+# is more complicated due to RAIDZ.  ashift is normally always 9, but RAIDZ
+# uses the actual tvd ashift instead.  Furthermore, the number of vdevs changes
+# the actual block for each device.
 #
 function raidz_dva_to_block_addr # dva ncols ashift
 {
 	typeset dva=$1
-	typeset -F ncols="${2}.0"
-	typeset -i ashift=$3
+	typeset -i ncols=$2
+        typeset -i ashift=$3
 
 	typeset -i offset=0x$(echo $dva | cut -f2 -d:)
 	(( offset >>= ashift ))
 
-	# Calculate the floating point offset after dividing by #columns.
-	typeset -F foff=$offset
-	(( foff /= ncols ))
-
-	# Convert the calculation to integer, then figure out if the
-	# remainder requires rounding up the integer calculation.
-	typeset -i ioff=$foff
-	(( foff -= ioff ))
-	[[ $foff -ge 0.5 ]] && (( ioff += 1 ))
+	typeset -i ioff=$(( (offset + ncols - 1) / ncols  ))
 
 	# Now add the front 4MB and return.
-	(( ioff += 8192 ))
+	(( ioff += ( 4194304 >> $ashift ) ))
 	echo "$ioff"
 }
 
@@ -3313,10 +3306,10 @@ function vdevs_for_tvd # pool tvd
 }
 
 #
-# Get a vdev path & offset for a given pool/dataset and DVA.
+# Get a vdev path, ashift & offset for a given pool/dataset and DVA.
 # If desired, can also select the toplevel vdev child number.
 #
-function dva_to_vdev_off # pool/dataset dva [leaf_vdev_num]
+function dva_to_vdev_ashift_off # pool/dataset dva [leaf_vdev_num]
 {
 	typeset poollike=$1
 	typeset dva=$2
@@ -3343,10 +3336,11 @@ function dva_to_vdev_off # pool/dataset dva [leaf_vdev_num]
 		off=$(raidz_dva_to_block_addr $dva $nchildren $ashift)
 		;;
 	*)
+		ashift=9
 		off=$(dva_to_block_addr $dva)
 		;;
 	esac
-	echo "${lvd}:${off}"
+	echo "${lvd}:${ashift}:${off}"
 }
 
 #
@@ -3357,14 +3351,14 @@ function file_dva # dataset filepath [level] [offset] [dva_num]
 	typeset dataset=$1
 	typeset filepath=$2
 	typeset -i level=$3
-	typeset -F offset=$4
+	typeset -i offset=$4
 	typeset -i dva_num=$5
 
 	# A lot of these numbers can be larger than 32-bit, so we have to
 	# use floats to manage them...  :(
-	typeset -F blksz=0
+	typeset -i blksz=0
 	typeset -i blknum=0
-	typeset -F startoff
+	typeset -i startoff
 
 	# The inner match is for 'DVA[0]=<0:1b412600:200>', in which the
 	# text surrounding the actual DVA is a fixed size with 8 characters
@@ -3401,7 +3395,7 @@ function file_dva # dataset filepath [level] [offset] [dva_num]
 			# Calculate the actual desired block starting offset.
 			if (( level > 0 )); then
 				typeset -i nbps_per_level
-				typeset -F indsz
+				typeset -i indsz
 				typeset -i i=0
 
 				(( nbps_per_level = iblksz / 128 ))
@@ -3419,7 +3413,7 @@ function file_dva # dataset filepath [level] [offset] [dva_num]
 		fi
 
 		typeset lineoffstr=$(echo $line | cut -d " " -f1)
-		typeset -F lineoff=$(printf "%d" "0x${lineoffstr}")
+		typeset -i lineoff=$(printf "%d" "0x${lineoffstr}")
 		typeset dva="$(echo $line | cut -d " " -f2)"
 		log_debug "str='$lineoffstr' lineoff='$lineoff' dva='$dva'"
 		if [[ -n "$dva" ]] && (( lineoff == startoff )); then
@@ -3443,12 +3437,14 @@ function corrupt_file # dataset filepath [leaf_vdev_num]
 	dva=$(file_dva $dataset $filepath)
 	[ $? -ne 0 ] && log_fail "ERROR: Can't find file $filepath on $dataset"
 
-	vdoff=$(dva_to_vdev_off $dataset $dva $leaf_vdev_num)
+	vdoff=$(dva_to_vdev_ashift_off $dataset $dva $leaf_vdev_num)
 	vdev=$(echo $vdoff | cut -d: -f1)
-	off=$(echo $vdoff | cut -d: -f2)
+	ashift=$(echo $vdoff | cut -d: -f2)
+	off=$(echo $vdoff | cut -d: -f3)
+	blocksize=$(( 1 << $ashift ))
 
-	log_note "Corrupting ${dataset}'s $filepath on $vdev at DVA $dva"
-	log_must $DD if=/dev/urandom of=$vdev seek=$off count=1 conv=notrunc
+	log_note "Corrupting ${dataset}'s $filepath on $vdev at DVA $dva with ashift $ashift"
+	log_must $DD if=/dev/urandom bs=$blocksize of=$vdev seek=$off count=1 conv=notrunc
 }
 
 #

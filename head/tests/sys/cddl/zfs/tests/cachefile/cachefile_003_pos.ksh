@@ -103,7 +103,7 @@ while (( i < ${#opts[*]} )); do
 		log_fail "cachefile property not set as expected. " \
 			"Expect: ${opts[((i+1))]}, Current: $PROP"
 	fi
-	log_must $ZPOOL destroy $TESTPOOL
+	log_must $ZPOOL destroy -f $TESTPOOL
 	(( i = i + 2 ))
 done
 
