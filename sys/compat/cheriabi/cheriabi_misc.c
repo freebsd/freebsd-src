@@ -1001,6 +1001,34 @@ cheriabi_thr_new(struct thread *td,
 	return (kern_thr_new(td, &param));
 }
 
+int
+cheriabi_sigqueue(struct thread *td, struct cheriabi_sigqueue_args *uap)
+{
+	/*
+	 * XXX-BD: before we can implement this, we need to know how
+	 * we're going to handle uap->value.  At a minimum we need to
+	 * know which situations we'll send a capability and which if any
+	 * we'll send a virtual address.
+	 */
+
+	return (EINVAL);
+}
+
+int
+cheriabi_procctl(struct thread *td, struct cheriabi_procctl_args *uap)
+{
+
+	switch (uap->com) {
+	case PROC_REAP_GETPIDS:
+		/*
+		 * XXX-BD: implement struct procctl_reaper_pids_c
+		 * support in reap_getpids()
+		 */
+		return (EOPNOTSUPP);
+	}
+	return (sys_procctl(td, (struct procctl_args *)uap));
+}
+
 void
 siginfo_to_siginfo_c(const siginfo_t *src, struct siginfo_c *dst)
 {

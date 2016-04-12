@@ -2367,9 +2367,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* sigqueue */
+	/* cheriabi_sigqueue */
 	case 456: {
-		struct sigqueue_args *p = params;
+		struct cheriabi_sigqueue_args *p = params;
 		iarg[0] = p->pid; /* pid_t */
 		iarg[1] = p->signum; /* int */
 		uarg[2] = (intptr_t) p->value; /* void * */
@@ -3121,9 +3121,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* procctl */
+	/* cheriabi_procctl */
 	case 544: {
-		struct procctl_args *p = params;
+		struct cheriabi_procctl_args *p = params;
 		iarg[0] = p->idtype; /* int */
 		iarg[1] = p->id; /* id_t */
 		iarg[2] = p->com; /* int */
@@ -6998,7 +6998,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* sigqueue */
+	/* cheriabi_sigqueue */
 	case 456:
 		switch(ndx) {
 		case 0:
@@ -8357,7 +8357,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* procctl */
+	/* cheriabi_procctl */
 	case 544:
 		switch(ndx) {
 		case 0:
@@ -9854,7 +9854,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* sigqueue */
+	/* cheriabi_sigqueue */
 	case 456:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -10261,7 +10261,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* procctl */
+	/* cheriabi_procctl */
 	case 544:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

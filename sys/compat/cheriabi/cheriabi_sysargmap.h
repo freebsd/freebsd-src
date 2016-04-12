@@ -755,7 +755,7 @@ struct {
 	[CHERIABI_SYS_cheriabi_thr_new] = {
 		.sam_ptrmask = 0x1
 	},
-	[CHERIABI_SYS_sigqueue] = {
+	[CHERIABI_SYS_cheriabi_sigqueue] = {
 		.sam_ptrmask = 0x4
 	},
 	[CHERIABI_SYS_kmq_open] = {
@@ -987,7 +987,7 @@ struct {
 	[CHERIABI_SYS_cheriabi_aio_mlock] = {
 		.sam_ptrmask = 0x1
 	},
-	[CHERIABI_SYS_procctl] = {
+	[CHERIABI_SYS_cheriabi_procctl] = {
 		.sam_ptrmask = 0x8
 	},
 	[CHERIABI_SYS_ppoll] = {

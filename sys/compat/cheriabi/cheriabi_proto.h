@@ -247,6 +247,11 @@ struct cheriabi_thr_new_args {
 	char param_l_[PADL_(struct thr_param_c *)]; struct thr_param_c * param; char param_r_[PADR_(struct thr_param_c *)];
 	char param_size_l_[PADL_(int)]; int param_size; char param_size_r_[PADR_(int)];
 };
+struct cheriabi_sigqueue_args {
+	char pid_l_[PADL_(pid_t)]; pid_t pid; char pid_r_[PADR_(pid_t)];
+	char signum_l_[PADL_(int)]; int signum; char signum_r_[PADR_(int)];
+	char value_l_[PADL_(void *)]; void * value; char value_r_[PADR_(void *)];
+};
 struct cheriabi_kmq_notify_args {
 	char mqd_l_[PADL_(int)]; int mqd; char mqd_r_[PADR_(int)];
 	char sigev_l_[PADL_(const struct sigevent_c *)]; const struct sigevent_c * sigev; char sigev_r_[PADR_(const struct sigevent_c *)];
@@ -323,6 +328,12 @@ struct cheriabi_wait6_args {
 struct cheriabi_aio_mlock_args {
 	char aiocbp_l_[PADL_(struct aiocb_c *)]; struct aiocb_c * aiocbp; char aiocbp_r_[PADR_(struct aiocb_c *)];
 };
+struct cheriabi_procctl_args {
+	char idtype_l_[PADL_(int)]; int idtype; char idtype_r_[PADR_(int)];
+	char id_l_[PADL_(id_t)]; id_t id; char id_r_[PADR_(id_t)];
+	char com_l_[PADL_(int)]; int com; char com_r_[PADR_(int)];
+	char data_l_[PADL_(void *)]; void * data; char data_r_[PADR_(void *)];
+};
 #if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
 #define PAD64_REQUIRED
 #endif
@@ -373,6 +384,7 @@ int	cheriabi_setcontext(struct thread *, struct cheriabi_setcontext_args *);
 int	cheriabi_swapcontext(struct thread *, struct cheriabi_swapcontext_args *);
 int	cheriabi_thr_create(struct thread *, struct cheriabi_thr_create_args *);
 int	cheriabi_thr_new(struct thread *, struct cheriabi_thr_new_args *);
+int	cheriabi_sigqueue(struct thread *, struct cheriabi_sigqueue_args *);
 int	cheriabi_kmq_notify(struct thread *, struct cheriabi_kmq_notify_args *);
 int	cheriabi_abort2(struct thread *, struct cheriabi_abort2_args *);
 int	cheriabi_aio_fsync(struct thread *, struct cheriabi_aio_fsync_args *);
@@ -386,6 +398,7 @@ int	cheriabi___semctl(struct thread *, struct cheriabi___semctl_args *);
 int	cheriabi_msgctl(struct thread *, struct cheriabi_msgctl_args *);
 int	cheriabi_wait6(struct thread *, struct cheriabi_wait6_args *);
 int	cheriabi_aio_mlock(struct thread *, struct cheriabi_aio_mlock_args *);
+int	cheriabi_procctl(struct thread *, struct cheriabi_procctl_args *);
 
 #ifdef COMPAT_43
 
@@ -469,6 +482,7 @@ int	cheriabi_aio_mlock(struct thread *, struct cheriabi_aio_mlock_args *);
 #define	CHERIABI_SYS_AUE_cheriabi_swapcontext	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_thr_create	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_thr_new	AUE_NULL
+#define	CHERIABI_SYS_AUE_cheriabi_sigqueue	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_kmq_notify	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_abort2	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_aio_fsync	AUE_NULL
@@ -482,6 +496,7 @@ int	cheriabi_aio_mlock(struct thread *, struct cheriabi_aio_mlock_args *);
 #define	CHERIABI_SYS_AUE_cheriabi_msgctl	AUE_MSGCTL
 #define	CHERIABI_SYS_AUE_cheriabi_wait6	AUE_WAIT6
 #define	CHERIABI_SYS_AUE_cheriabi_aio_mlock	AUE_NULL
+#define	CHERIABI_SYS_AUE_cheriabi_procctl	AUE_NULL
 
 #undef PAD_
 #undef PADL_

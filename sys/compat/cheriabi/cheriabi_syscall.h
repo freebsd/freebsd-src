@@ -382,7 +382,7 @@
 #define	CHERIABI_SYS_auditctl	453
 #define	CHERIABI_SYS__umtx_op	454
 #define	CHERIABI_SYS_cheriabi_thr_new	455
-#define	CHERIABI_SYS_sigqueue	456
+#define	CHERIABI_SYS_cheriabi_sigqueue	456
 #define	CHERIABI_SYS_kmq_open	457
 #define	CHERIABI_SYS_kmq_setattr	458
 #define	CHERIABI_SYS_kmq_timedreceive	459
@@ -465,7 +465,7 @@
 #define	CHERIABI_SYS_accept4	541
 #define	CHERIABI_SYS_pipe2	542
 #define	CHERIABI_SYS_cheriabi_aio_mlock	543
-#define	CHERIABI_SYS_procctl	544
+#define	CHERIABI_SYS_cheriabi_procctl	544
 #define	CHERIABI_SYS_ppoll	545
 #define	CHERIABI_SYS_futimens	546
 #define	CHERIABI_SYS_utimensat	547
