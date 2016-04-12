@@ -47301,9 +47301,9 @@
 #define A_MAC_PORT_PTP_OFFSET_ADJUST_FINE 0x9a4
 
 #define S_B    16
-#define M_B    0xffffU
+#define CXGBE_M_B    0xffffU
 #define V_B(x) ((x) << S_B)
-#define G_B(x) (((x) >> S_B) & M_B)
+#define G_B(x) (((x) >> S_B) & CXGBE_M_B)
 
 #define S_A    0
 #define M_A    0xffffU
