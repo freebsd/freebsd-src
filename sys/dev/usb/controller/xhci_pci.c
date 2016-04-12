@@ -95,6 +95,9 @@ xhci_pci_match(device_t self)
 	uint32_t device_id = pci_get_devid(self);
 
 	switch (device_id) {
+	case 0x78141022:
+		return ("AMD FCH USB 3.0 controller");
+
 	case 0x01941033:
 		return ("NEC uPD720200 USB 3.0 controller");
 
