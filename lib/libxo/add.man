@@ -1,11 +1,12 @@
+.\" $FreeBSD$
 .Sh ADDITIONAL DOCUMENTATION
 .Fx
 uses
 .Nm libxo
-version 0.4.3.
+version 0.4.6.
 Complete documentation can be found on github:
 .Bd -literal -offset indent
-http://juniper.github.io/libxo/0.4.3/libxo\-manual.html
+http://juniper.github.io/libxo/0.4.6/libxo\-manual.html
 .Ed
 .Pp
 .Nm libxo
