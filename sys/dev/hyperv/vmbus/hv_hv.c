@@ -127,7 +127,7 @@ int
 hv_vmbus_init(void) 
 {
 	hv_vmbus_x64_msr_hypercall_contents	hypercall_msr;
-	void* 					virt_addr = 0;
+	void* 					virt_addr = NULL;
 
 	memset(
 	    hv_vmbus_g_context.syn_ic_event_page,
