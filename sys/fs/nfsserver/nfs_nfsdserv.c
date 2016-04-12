@@ -54,6 +54,9 @@ extern struct timeval nfsboottime;
 extern int nfs_rootfhset;
 extern int nfsrv_enable_crossmntpt;
 extern int nfsrv_statehashsize;
+extern time_t nfsdev_time;
+extern struct nfsdevicehead nfsrv_devidhead;
+extern int nfsd_debuglevel;
 #endif	/* !APPLEKEXT */
 
 static int	nfs_async = 0;
@@ -1024,7 +1027,7 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 				break;
 			default:
 				break;
-			}
+			};
 		} else {
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			how = fxdr_unsigned(int, *tl);
@@ -1039,9 +1042,22 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 				NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF);
 				cverf[0] = *tl++;
 				cverf[1] = *tl;
+				/*
+				 * Some fuse filesystems, such as GlusterFS,
+				 * will not allow an arbitrary value to be
+				 * set for the atime.tv_nsec.  As such, clear
+				 * the high order bits to avoid a failure in
+				 * VOP_SETATTR().  The 61bit value should still
+				 * normally be unique and this seems preferable
+				 * to returning an NFSERR_NOTSUPP error for
+				 * exclusve open.
+				 */
+				if (strcmp(dp->v_mount->mnt_vfc->vfc_name,
+				    "fusefs") == 0)
+					cverf[1] &= 0x1fffffff;
 				exclusive_flag = 1;
 				break;
-			}
+			};
 			NFSVNO_SETATTRVAL(&nva, type, VREG);
 		}
 	}
@@ -1088,7 +1104,7 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 			if (named.ni_vp == NULL)
 				NFSVNO_SETATTRVAL(&nva, mode, 0);
 			break;
-		}
+		};
 	}
 
 	/*
@@ -2206,7 +2222,7 @@ nfsrvd_lock(struct nfsrv_descript *nd, __unused int isdgram,
 	default:
 		nd->nd_repstat = NFSERR_BADXDR;
 		goto nfsmout;
-	}
+	};
 	if (*tl++ == newnfs_true)
 		flags |= NFSLCK_RECLAIM;
 	offset = fxdr_hyper(tl);
@@ -2400,7 +2416,7 @@ nfsrvd_lockt(struct nfsrv_descript *nd, __unused int isdgram,
 	default:
 		nd->nd_repstat = NFSERR_BADXDR;
 		goto nfsmout;
-	}
+	};
 	lo.lo_first = fxdr_hyper(tl);
 	tl += 2;
 	len = fxdr_hyper(tl);
@@ -2509,7 +2525,7 @@ nfsrvd_locku(struct nfsrv_descript *nd, __unused int isdgram,
 		free(stp, M_NFSDSTATE);
 		free(lop, M_NFSDLOCK);
 		goto nfsmout;
-	}
+	};
 	stp->ls_ownerlen = 0;
 	stp->ls_uid = nd->nd_cred->cr_uid;
 	stp->ls_seq = fxdr_unsigned(int, *tl++);
@@ -2645,7 +2661,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		default:
 			/* nd_repstat will be set to NFSERR_INVAL below. */
 			break;
-		}
+		};
 	}
 	switch (i) {
 	case NFSV4OPEN_ACCESSREAD:
@@ -2659,7 +2675,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		break;
 	default:
 		nd->nd_repstat = NFSERR_INVAL;
-	}
+	};
 	i = fxdr_unsigned(int, *tl++);
 	switch (i) {
 	case NFSV4OPEN_DENYNONE:
@@ -2675,7 +2691,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		break;
 	default:
 		nd->nd_repstat = NFSERR_INVAL;
-	}
+	};
 	clientid.lval[0] = *tl++;
 	clientid.lval[1] = *tl;
 	if ((nd->nd_flag & ND_IMPLIEDCLID) != 0) {
@@ -2724,11 +2740,37 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF);
 			cverf[0] = *tl++;
 			cverf[1] = *tl;
+			/*
+			 * Some fuse filesystems, such as GlusterFS,
+			 * will not allow an arbitrary value to be
+			 * set for the atime.tv_nsec.  As such, clear
+			 * the high order bits to avoid a failure in
+			 * VOP_SETATTR().  The 61bit value should still
+			 * normally be unique and this seems preferable
+			 * to returning an NFSERR_NOTSUPP error for
+			 * exclusve open.
+			 */
+			if (strcmp(dp->v_mount->mnt_vfc->vfc_name, "fusefs") ==
+			    0)
+				cverf[1] &= 0x1fffffff;
 			break;
 		case NFSCREATE_EXCLUSIVE41:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF);
 			cverf[0] = *tl++;
 			cverf[1] = *tl;
+			/*
+			 * Some fuse filesystems, such as GlusterFS,
+			 * will not allow an arbitrary value to be
+			 * set for the atime.tv_nsec.  As such, clear
+			 * the high order bits to avoid a failure in
+			 * VOP_SETATTR().  The 61bit value should still
+			 * normally be unique and this seems preferable
+			 * to returning an NFSERR_NOTSUPP error for
+			 * exclusve open.
+			 */
+			if (strcmp(dp->v_mount->mnt_vfc->vfc_name, "fusefs") ==
+			    0)
+				cverf[1] &= 0x1fffffff;
 			error = nfsv4_sattr(nd, vp, &nva, &attrbits, aclp, p);
 			if (error != 0)
 				goto nfsmout;
@@ -2750,7 +2792,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		default:
 			nd->nd_repstat = NFSERR_BADXDR;
 			goto nfsmout;
-		}
+		};
 	} else if (create != NFSV4OPEN_NOCREATE) {
 		nd->nd_repstat = NFSERR_BADXDR;
 		goto nfsmout;
@@ -2832,7 +2874,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		    case NFSCREATE_EXCLUSIVE41:
 			exclusive_flag = 1;
 			break;
-		    }
+		    };
 		}
 		nfsvno_open(nd, &named, clientid, &stateid, stp,
 		    &exclusive_flag, &nva, cverf, create, aclp, &attrbits,
@@ -2853,7 +2895,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 			default:
 				nd->nd_repstat = NFSERR_BADXDR;
 				goto nfsmout;
-			}
+			};
 			stp->ls_flags |= NFSLCK_RECLAIM;
 		} else {
 			/* CLAIM_NULL_FH */
@@ -3247,7 +3289,7 @@ nfsrvd_opendowngrade(struct nfsrv_descript *nd, __unused int isdgram,
 		break;
 	default:
 		nd->nd_repstat = NFSERR_BADXDR;
-	}
+	};
 	i = fxdr_unsigned(int, *tl);
 	switch (i) {
 	case NFSV4OPEN_DENYNONE:
@@ -3263,7 +3305,7 @@ nfsrvd_opendowngrade(struct nfsrv_descript *nd, __unused int isdgram,
 		break;
 	default:
 		nd->nd_repstat = NFSERR_BADXDR;
-	}
+	};
 
 	clientid.lval[0] = stp->ls_stateid.other[0];
 	clientid.lval[1] = stp->ls_stateid.other[1];
@@ -3784,7 +3826,10 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 		confirm.lval[1] = 1;
 	else
 		confirm.lval[1] = 0;
-	v41flags = NFSV4EXCH_USENONPNFS;
+	if (LIST_EMPTY(&nfsrv_devidhead))
+		v41flags = NFSV4EXCH_USENONPNFS;
+	else
+		v41flags = NFSV4EXCH_USEPNFSMDS;
 	sp4type = fxdr_unsigned(uint32_t, *tl);
 	if (sp4type != NFSV4EXCH_SP4NONE) {
 		nd->nd_repstat = NFSERR_NOTSUPP;
@@ -4084,7 +4129,213 @@ nfsmout:
 }
 
 /*
- * nfsv4 service not supported
+ * nfsv4 layoutget service
+ */
+APPLESTATIC int
+nfsrvd_layoutget(struct nfsrv_descript *nd, __unused int isdgram,
+    vnode_t vp, NFSPROC_T *p, struct nfsexstuff *exp)
+{
+	uint32_t *tl;
+	nfsv4stateid_t stateid;
+	int error = 0, layoutlen, layouttype, iomode, maxcnt, retonclose;
+	uint64_t offset, len, minlen;
+	char *layp = NULL;
+
+	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
+		nd->nd_repstat = NFSERR_WRONGSEC;
+		goto nfsmout;
+	}
+	NFSM_DISSECT(tl, uint32_t *, 4 * NFSX_UNSIGNED + 3 * NFSX_HYPER +
+	    NFSX_STATEID);
+	tl++;		/* Signal layout available. Ignore for now. */
+	layouttype = fxdr_unsigned(int, *tl++);
+	iomode = fxdr_unsigned(int, *tl++);
+	offset = fxdr_hyper(tl); tl += 2;
+	len = fxdr_hyper(tl); tl += 2;
+	minlen = fxdr_hyper(tl); tl += 2;
+	stateid.seqid = fxdr_unsigned(uint32_t, *tl++);
+	NFSBCOPY(tl, stateid.other, NFSX_STATEIDOTHER);
+	tl += (NFSX_STATEIDOTHER / NFSX_UNSIGNED);
+	maxcnt = fxdr_unsigned(int, tl);
+	NFSD_DEBUG(4, "layoutget ltyp=%d iom=%d off=%ju len=%ju mlen=%ju\n",
+	    layouttype, iomode, (uintmax_t)offset, (uintmax_t)len,
+	    (uintmax_t)minlen);
+	if (len < minlen ||
+	    (minlen != UINT64_MAX && offset + minlen < offset) ||
+	    (len != UINT64_MAX && offset + len < offset)) {
+		nd->nd_repstat = NFSERR_INVAL;
+		goto nfsmout;
+	}
+	layp = malloc(NFSX_V4MAXLAYOUT, M_TEMP, M_WAITOK);
+	nd->nd_repstat = nfsrv_layoutget(nd, vp, exp, layouttype, &iomode,
+	    &offset, &len, minlen, &stateid, maxcnt, &retonclose, &layoutlen,
+	    layp, nd->nd_cred, p);
+	NFSD_DEBUG(4, "nfsrv_layoutget stat=%u layoutlen=%d\n", nd->nd_repstat,
+	    layoutlen);
+	if (nd->nd_repstat == 0) {
+		NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED + NFSX_STATEID +
+		    2 * NFSX_HYPER);
+		*tl++ = txdr_unsigned(retonclose);
+		*tl++ = txdr_unsigned(stateid.seqid);
+		NFSBCOPY(stateid.other, tl, NFSX_STATEIDOTHER);
+		tl += (NFSX_STATEIDOTHER / NFSX_UNSIGNED);
+		*tl++ = txdr_unsigned(1);	/* Only returns one layout. */
+		txdr_hyper(offset, tl); tl += 2;
+		txdr_hyper(len, tl); tl += 2;
+		*tl++ = txdr_unsigned(iomode);
+		*tl = txdr_unsigned(layouttype);
+		nfsm_strtom(nd, layp, layoutlen);
+	} else if (nd->nd_repstat == NFSERR_LAYOUTTRYLATER) {
+		NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+		*tl = newnfs_false;
+	}
+	free(layp, M_TEMP);
+nfsmout:
+	vput(vp);
+	NFSEXITCODE2(error, nd);
+	return (error);
+}
+
+/*
+ * nfsv4 layoutreturn service
+ */
+APPLESTATIC int
+nfsrvd_layoutreturn(struct nfsrv_descript *nd, __unused int isdgram,
+    vnode_t vp, NFSPROC_T *p, struct nfsexstuff *exp)
+{
+	uint32_t *tl;
+	nfsv4stateid_t stateid;
+	int error = 0, fnd, kind, layouttype, iomode, maxcnt, reclaim;
+	uint64_t offset, len;
+	char *layp;
+
+	layp = NULL;
+	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
+		nd->nd_repstat = NFSERR_WRONGSEC;
+		goto nfsmout;
+	}
+	NFSM_DISSECT(tl, uint32_t *, 4 * NFSX_UNSIGNED);
+	reclaim = *tl++;
+	layouttype = fxdr_unsigned(int, *tl++);
+	iomode = fxdr_unsigned(int, *tl++);
+	kind = fxdr_unsigned(int, *tl);
+	NFSD_DEBUG(4, "layoutreturn recl=%d ltyp=%d iom=%d kind=%d\n", reclaim,
+	    layouttype, iomode, kind);
+	if (kind == NFSV4LAYOUTRET_FILE) {
+		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_HYPER + NFSX_STATEID +
+		    NFSX_UNSIGNED);
+		offset = fxdr_hyper(tl); tl += 2;
+		len = fxdr_hyper(tl); tl += 2;
+		stateid.seqid = fxdr_unsigned(uint32_t, *tl++);
+		NFSBCOPY(tl, stateid.other, NFSX_STATEIDOTHER);
+		tl += (NFSX_STATEIDOTHER / NFSX_UNSIGNED);
+		maxcnt = fxdr_unsigned(int, *tl);
+		if (maxcnt > 0) {
+			layp = malloc(maxcnt + 1, M_TEMP, M_WAITOK);
+			error = nfsrv_mtostr(nd, layp, maxcnt);
+			if (error != 0)
+				goto nfsmout;
+		}
+	} else {
+		if (reclaim == newnfs_true) {
+			nd->nd_repstat = NFSERR_INVAL;
+			goto nfsmout;
+		}
+		offset = len = 0;
+		maxcnt = 0;
+	}
+	nd->nd_repstat = nfsrv_layoutreturn(nd, vp, layouttype, iomode,
+	    offset, len, reclaim, kind, &stateid, maxcnt, layp, &fnd,
+	    nd->nd_cred, p);
+	NFSD_DEBUG(4, "nfsrv_layoutreturn stat=%u fnd=%d\n", nd->nd_repstat,
+	    fnd);
+	if (nd->nd_repstat == 0) {
+		NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+		if (fnd != 0) {
+			*tl = newnfs_true;
+			NFSM_BUILD(tl, uint32_t *, NFSX_STATEID);
+			*tl++ = txdr_unsigned(stateid.seqid);
+			NFSBCOPY(stateid.other, tl, NFSX_STATEIDOTHER);
+		} else
+			*tl = newnfs_false;
+	}
+nfsmout:
+	free(layp, M_TEMP);
+	vput(vp);
+	NFSEXITCODE2(error, nd);
+	return (error);
+}
+
+/*
+ * nfsv4 getdeviceinfo service
+ */
+APPLESTATIC int
+nfsrvd_getdevinfo(struct nfsrv_descript *nd, __unused int isdgram,
+    __unused vnode_t vp, NFSPROC_T *p, __unused struct nfsexstuff *exp)
+{
+	uint32_t *tl, maxcnt, notify[NFSV4_NOTIFYBITMAP];
+	int cnt, devaddrlen, error = 0, i, layouttype;
+	char devid[NFSX_V4DEVICEID], *devaddr;
+	time_t dev_time;
+
+	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
+		nd->nd_repstat = NFSERR_WRONGSEC;
+		goto nfsmout;
+	}
+	NFSM_DISSECT(tl, uint32_t *, 3 * NFSX_UNSIGNED + NFSX_V4DEVICEID);
+	NFSBCOPY(tl, devid, NFSX_V4DEVICEID);
+	tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
+	layouttype = fxdr_unsigned(int, *tl++);
+	maxcnt = fxdr_unsigned(uint32_t, *tl++);
+	cnt = fxdr_unsigned(int, *tl);
+	NFSD_DEBUG(4, "getdevinfo ltyp=%d maxcnt=%u bitcnt=%d\n", layouttype,
+	    maxcnt, cnt);
+	if (cnt > NFSV4_NOTIFYBITMAP) {
+		nd->nd_repstat = NFSERR_INVAL;
+		goto nfsmout;
+	}
+	NFSM_DISSECT(tl, uint32_t *, cnt * NFSX_UNSIGNED);
+	for (i = 0; i < cnt; i++)
+		notify[i] = fxdr_unsigned(uint32_t, *tl++);
+
+	/*
+	 * Check that the device id is not stale.  Device ids are recreated
+	 * each time the nfsd threads are restarted.
+	 */
+	NFSBCOPY(devid, &dev_time, sizeof(dev_time));
+	if (dev_time != nfsdev_time) {
+		nd->nd_repstat = NFSERR_NOENT;
+		goto nfsmout;
+	}
+
+	/* Look for the device id. */
+	nd->nd_repstat = nfsrv_getdevinfo(devid, layouttype, &maxcnt,
+	    notify, &devaddrlen, &devaddr);
+	NFSD_DEBUG(4, "nfsrv_getdevinfo stat=%u\n", nd->nd_repstat);
+	if (nd->nd_repstat == 0) {
+		NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+		*tl = txdr_unsigned(layouttype);
+		nfsm_strtom(nd, devaddr, devaddrlen);
+		cnt = 0;
+		for (i = 0; i < NFSV4_NOTIFYBITMAP; i++) {
+			if (notify[i] != 0)
+				cnt = i + 1;
+		}
+		NFSM_BUILD(tl, uint32_t *, (cnt + 1) * NFSX_UNSIGNED);
+		*tl++ = txdr_unsigned(cnt);
+		for (i = 0; i < cnt; i++)
+			*tl++ = txdr_unsigned(notify[i]);
+	} else if (nd->nd_repstat == NFSERR_TOOSMALL) {
+		NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+		*tl = txdr_unsigned(maxcnt);
+	}
+nfsmout:
+	NFSEXITCODE2(error, nd);
+	return (error);
+}
+
+/*
+ * nfsv4 service not supported, when there isn't a locked vnode argument.
  */
 APPLESTATIC int
 nfsrvd_notsupp(struct nfsrv_descript *nd, __unused int isdgram,
@@ -4092,6 +4343,20 @@ nfsrvd_notsupp(struct nfsrv_descript *nd, __unused int isdgram,
 {
 
 	nd->nd_repstat = NFSERR_NOTSUPP;
+	NFSEXITCODE2(0, nd);
+	return (0);
+}
+
+/*
+ * nfsv4 service not supported, when there is a locked vnode argument.
+ */
+APPLESTATIC int
+nfsrvd_notsuppvp(struct nfsrv_descript *nd, __unused int isdgram,
+    vnode_t vp, __unused NFSPROC_T *p, __unused struct nfsexstuff *exp)
+{
+
+	nd->nd_repstat = NFSERR_NOTSUPP;
+	vput(vp);
 	NFSEXITCODE2(0, nd);
 	return (0);
 }

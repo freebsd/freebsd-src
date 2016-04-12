@@ -182,11 +182,11 @@ int (*nfsrv4_ops0[NFSV41_NOPS])(struct nfsrv_descript *,
 	nfsrvd_destroysession,
 	nfsrvd_freestateid,
 	nfsrvd_notsupp,
+	nfsrvd_getdevinfo,
 	nfsrvd_notsupp,
-	nfsrvd_notsupp,
-	nfsrvd_notsupp,
-	nfsrvd_notsupp,
-	nfsrvd_notsupp,
+	nfsrvd_notsuppvp,
+	nfsrvd_layoutget,
+	nfsrvd_layoutreturn,
 	nfsrvd_notsupp,
 	nfsrvd_sequence,
 	nfsrvd_notsupp,
@@ -992,7 +992,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 				    NULL, p, &vpnes);
 			}
 		    }
-		}
+		};
 		if (error) {
 			if (error == EBADRPC || error == NFSERR_BADXDR) {
 				nd->nd_repstat = NFSERR_BADXDR;

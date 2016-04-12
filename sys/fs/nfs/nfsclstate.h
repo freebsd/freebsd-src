@@ -70,6 +70,7 @@ struct nfsclsession {
 /*
  * This structure holds the session, clientid and related information
  * needed for an NFSv4.1 Meta Data Server (MDS) or Data Server (DS).
+ * If NFSCLDS_V3CONN is set, it holds the connection for an NFSv3 DS.
  * It is malloc'd to the correct length.
  */
 struct nfsclds {
@@ -90,6 +91,7 @@ struct nfsclds {
 #define	NFSCLDS_HASWRITEVERF	0x0001
 #define	NFSCLDS_MDS		0x0002
 #define	NFSCLDS_DS		0x0004
+#define	NFSCLDS_V3CONN		0x0008
 
 struct nfsclclient {
 	LIST_ENTRY(nfsclclient) nfsc_list;
@@ -257,6 +259,18 @@ struct nfscllayout {
 #define	NFSLY_RECALLALL		0x0040
 #define	NFSLY_RETONCLOSE	0x0080
 #define	NFSLY_WRITTEN		0x0100	/* Has been used to write to a DS. */
+#define	NFSLY_FLEXFILE		0x0200
+
+/*
+ * Flex Files Data Server structures.
+ */
+struct nfsffds {
+	uint32_t		nfsffds_efficiency;
+	nfsv4stateid_t		nfsffds_stateid;
+	uid_t			nfsffds_uid;
+	gid_t			nfsffds_gid;
+	struct nfsfh		*nfsffds_fh[4];
+};
 
 /*
  * MALLOC'd to the correct length to accommodate the file handle list.
@@ -270,20 +284,46 @@ struct nfsclflayout {
 	uint8_t				nfsfl_dev[NFSX_V4DEVICEID];
 	uint64_t			nfsfl_off;
 	uint64_t			nfsfl_end;
-	uint64_t			nfsfl_patoff;
 	struct nfscldevinfo		*nfsfl_devp;
 	uint32_t			nfsfl_iomode;
-	uint32_t			nfsfl_util;
-	uint32_t			nfsfl_stripe1;
 	uint16_t			nfsfl_flags;
-	uint16_t			nfsfl_fhcnt;
-	struct nfsfh			*nfsfl_fh[1];	/* FH list for DS */
+	uint16_t			nfsfl_cnt;
+	union {
+		struct {
+			uint8_t		dev[NFSX_V4DEVICEID];
+			uint64_t	patoff;
+			uint32_t	util;
+			uint32_t	stripe1;
+			struct nfsfh	*fh[1];
+		} nfsfl_unfl;
+		struct {
+			uint64_t	stripeunit;
+			uint32_t	stripecnt;
+			uint32_t	fflags;
+			struct nfsffds	ds;
+		} nfsfl_unff;
+	};
 };
+
+#define	nfsfl_fhcnt		nfsfl_cnt
+#define	nfsfl_patoff		nfsfl_unfl.patoff
+#define	nfsfl_util		nfsfl_unfl.util
+#define	nfsfl_stripe1		nfsfl_unfl.stripe1
+#define	nfsfl_fh		nfsfl_unfl.fh
+#define	nfsfl_stripeunit	nfsfl_unff.stripeunit
+#define	nfsfl_stripecnt		nfsfl_unff.stripecnt
+#define	nfsfl_fflags		nfsfl_unff.fflags
+#define	nfsfl_ffdsefficiency	nfsfl_unff.ds.nfsffds_efficiency
+#define	nfsfl_ffdsstateid	nfsfl_unff.ds.nfsffds_stateid
+#define	nfsfl_ffdsuid		nfsfl_unff.ds.nfsffds_uid
+#define	nfsfl_ffdsgid		nfsfl_unff.ds.nfsffds_gid
+#define	nfsfl_ffdsfh		nfsfl_unff.ds.nfsffds_fh
 
 /*
  * Flags for nfsfl_flags.
  */
 #define	NFSFL_RECALL	0x0001		/* File layout has been recalled */
+#define	NFSFL_FLEXFILE	0x0002		/* Flex Files layout */
 
 /*
  * Structure that is used to store a LAYOUTRECALL.
@@ -298,24 +338,45 @@ struct nfsclrecalllayout {
 };
 
 /*
+ * Structure for the Flex Files layout versions.
+ */
+struct nfsffvers {
+	uint32_t	vers;
+	uint32_t	minorvers;
+	uint32_t	rsize;
+	uint32_t	wsize;
+	uint32_t	tightlycoupled;
+};
+
+/*
  * Stores the NFSv4.1 Device Info. Malloc'd to the correct length to
  * store the list of network connections and list of indices.
  * nfsdi_data[] is allocated the following way:
- * - nfsdi_addrcnt * struct nfsclds
+ * - nfsdi_addrcnt * struct nfsclds ptrs
+ * For NFSv4.1 Files Layout:
  * - stripe indices, each stored as one byte, since there can be many
  *   of them. (This implies a limit of 256 on nfsdi_addrcnt, since the
  *   indices select which address.)
+ * We currently only support 4 Flex Files versions. (That covers us up to
+ * NFSv4.2.)
  */
 struct nfscldevinfo {
 	LIST_ENTRY(nfscldevinfo)	nfsdi_list;
+	struct nfsffvers		nfsdi_ffvers[4];
 	uint8_t				nfsdi_deviceid[NFSX_V4DEVICEID];
 	struct nfsclclient		*nfsdi_clp;
 	uint32_t			nfsdi_refcnt;
 	uint32_t			nfsdi_layoutrefs;
-	uint16_t			nfsdi_stripecnt;
+	union {
+		uint16_t		stripecnt;
+		uint16_t		verspos;
+	} nfsdi_un;
 	uint16_t			nfsdi_addrcnt;
 	struct nfsclds			*nfsdi_data[0];
 };
+
+#define	nfsdi_stripecnt		nfsdi_un.stripecnt
+#define	nfsdi_verspos		nfsdi_un.verspos
 
 /* These inline functions return values from nfsdi_data[]. */
 /*

@@ -775,7 +775,7 @@ nfs_close(struct vop_close_args *ap)
 			if (!ret) {
 				np->n_change = nfsva.na_filerev;
 				(void) nfscl_loadattrcache(&vp, &nfsva, NULL,
-				    NULL, 0, 0);
+				    NULL, 0, 1);
 			}
 		}
 
@@ -974,7 +974,7 @@ nfs_setattr(struct vop_setattr_args *ap)
 			mtx_lock(&np->n_mtx);
  			np->n_vattr.na_size = np->n_size = vap->va_size;
 			mtx_unlock(&np->n_mtx);
-  		}
+  		};
   	} else {
 		mtx_lock(&np->n_mtx);
 		if ((vap->va_mtime.tv_sec != VNOVAL || vap->va_atime.tv_sec != VNOVAL) && 
@@ -1366,17 +1366,18 @@ ncl_readlinkrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 int
 ncl_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 {
-	int error, ret, attrflag;
+	int error, ret, attrflag = 0;
 	struct nfsvattr nfsva;
 	struct nfsmount *nmp;
 
 	nmp = VFSTONFS(vnode_mount(vp));
 	error = EIO;
-	attrflag = 0;
 	if (NFSHASPNFS(nmp))
 		error = nfscl_doiods(vp, uiop, NULL, NULL,
-		    NFSV4OPEN_ACCESSREAD, cred, uiop->uio_td);
+		    NFSV4OPEN_ACCESSREAD, 0, cred, uiop->uio_td, &nfsva,
+		    &attrflag);
 	NFSCL_DEBUG(4, "readrpc: aft doiods=%d\n", error);
+	attrflag = 0;	/* Ignore attributes from the DS. */
 	if (error != 0)
 		error = nfsrpc_read(vp, uiop, cred, uiop->uio_td, &nfsva,
 		    &attrflag, NULL);
@@ -1404,9 +1405,12 @@ ncl_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 	nmp = VFSTONFS(vnode_mount(vp));
 	error = EIO;
 	attrflag = 0;
-	if (NFSHASPNFS(nmp))
+	if (NFSHASPNFS(nmp)) {
 		error = nfscl_doiods(vp, uiop, iomode, must_commit,
-		    NFSV4OPEN_ACCESSWRITE, cred, uiop->uio_td);
+		    NFSV4OPEN_ACCESSWRITE, 0, cred, uiop->uio_td, &nfsva,
+		    &attrflag);
+		attrflag = 0;	/* Ignore DS attributes for now. */
+	}
 	NFSCL_DEBUG(4, "writerpc: aft doiods=%d\n", error);
 	if (error != 0)
 		error = nfsrpc_write(vp, uiop, iomode, must_commit, cred,
@@ -2561,19 +2565,37 @@ ncl_commit(struct vnode *vp, u_quad_t offset, int cnt, struct ucred *cred,
 {
 	struct nfsvattr nfsva;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
+	struct nfsnode *np;
+	struct uio uio;
 	int error, attrflag;
 
-	mtx_lock(&nmp->nm_mtx);
-	if ((nmp->nm_state & NFSSTA_HASWRITEVERF) == 0) {
-		mtx_unlock(&nmp->nm_mtx);
-		return (0);
+	np = VTONFS(vp);
+	error = EIO;
+	attrflag = 0;
+	if (NFSHASPNFS(nmp) && (np->n_flag & NDSCOMMIT) != 0) {
+		uio.uio_offset = offset;
+		uio.uio_resid = cnt;
+		error = nfscl_doiods(vp, &uio, NULL, NULL,
+		    NFSV4OPEN_ACCESSWRITE, 1, cred, td, &nfsva, &attrflag);
+		if (error != 0) {
+			mtx_lock(&np->n_mtx);
+			np->n_flag &= ~NDSCOMMIT;
+			mtx_unlock(&np->n_mtx);
+		}
+		attrflag = 0;	/* Ignore DS attributes for now. */
 	}
-	mtx_unlock(&nmp->nm_mtx);
-	error = nfsrpc_commit(vp, offset, cnt, cred, td, &nfsva,
-	    &attrflag, NULL);
+	if (error != 0) {
+		mtx_lock(&nmp->nm_mtx);
+		if ((nmp->nm_state & NFSSTA_HASWRITEVERF) == 0) {
+			mtx_unlock(&nmp->nm_mtx);
+			return (0);
+		}
+		mtx_unlock(&nmp->nm_mtx);
+		error = nfsrpc_commit(vp, offset, cnt, cred, td, &nfsva,
+		    &attrflag, NULL);
+	}
 	if (attrflag != 0)
-		(void) nfscl_loadattrcache(&vp, &nfsva, NULL, NULL,
-		    0, 1);
+		(void) nfscl_loadattrcache(&vp, &nfsva, NULL, NULL, 0, 1);
 	if (error != 0 && NFS_ISV4(vp))
 		error = nfscl_maperr(td, error, (uid_t)0, (gid_t)0);
 	return (error);

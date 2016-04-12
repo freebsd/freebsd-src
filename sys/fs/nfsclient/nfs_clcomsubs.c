@@ -129,7 +129,8 @@ static int nfs_bigrequest[NFSV41_NPROCS] = {
  */
 APPLESTATIC void
 nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
-    u_int8_t *nfhp, int fhlen, u_int32_t **opcntpp, struct nfsclsession *sep)
+    u_int8_t *nfhp, int fhlen, u_int32_t **opcntpp, struct nfsclsession *sep,
+    int vers, int minorvers)
 {
 	struct mbuf *mb;
 	u_int32_t *tl;
@@ -140,11 +141,12 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 	 * First, fill in some of the fields of nd.
 	 */
 	nd->nd_slotseq = NULL;
-	if (NFSHASNFSV4(nmp)) {
+	if ((NFSHASNFSV4(nmp) && vers == 0) || vers == NFS_VER4) {
 		nd->nd_flag = ND_NFSV4 | ND_NFSCL;
-		if (NFSHASNFSV4N(nmp))
+		if ((NFSHASNFSV4N(nmp) && vers == 0) || minorvers ==
+		    NFSV41_MINORVERSION)
 			nd->nd_flag |= ND_NFSV41;
-	} else if (NFSHASNFSV3(nmp))
+	} else if ((NFSHASNFSV3(nmp) && vers == 0) || vers == NFS_VER3)
 		nd->nd_flag = ND_NFSV3 | ND_NFSCL;
 	else
 		nd->nd_flag = ND_NFSV2 | ND_NFSCL;
@@ -179,7 +181,7 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 			else if (procnum == NFSPROC_WRITEDS ||
 			    procnum == NFSPROC_COMMITDS)
 				/*
-				 * For the special case of a Writeor Commit to
+				 * For the special case of a Write or Commit to
 				 * a DS, the opcnt == 3, for Sequence, PutFH,
 				 * Write/Commit.
 				 */

@@ -130,6 +130,9 @@
 #endif
 #define	NFSV4_CBPORT	7745		/* Callback port for testing */
 
+/* This value is defined in GlusterFS as GF_NFS3_FILE_IO_SIZE_MAX. */
+#define	NFSV4SRV_PNFS_MAXIO	1048576	/* Max I/O size for the DS */
+
 /*
  * This macro defines the high water mark for issuing V4 delegations.
  * (It is currently set at a conservative 20% of nfsrv_v4statelimit. This
@@ -168,9 +171,36 @@ struct nfsd_addsock_args {
 };
 
 /*
+ * The file handle used by the pNFS Data Servers, which are actually
+ * GlusterFS servers.  The userland nfsd passes in the value for the
+ * GlusterFS volume root.  The only field that changes for files within the
+ * volume is the gfid field.
+ */
+struct pnfsfh {
+	char	id[4];		/* Always ":OGL". */
+	char	expid[16];	/* Export ID. */
+	char	gfid[16];	/* Gfid. */
+	char	mntid[16];	/* Mount ID. */
+};
+
+/*
  * nfsd argument for new krpc.
+ * (New version supports pNFS, indicated by NFSSVC_NEWSTRUCT flag.)
  */
 struct nfsd_nfsd_args {
+	const char *principal;	/* GSS-API service principal name */
+	int	minthreads;	/* minimum service thread count */
+	int	maxthreads;	/* maximum service thread count */
+	int	version;	/* Allow multiple variants */
+	struct pnfsfh nfsfh;	/* pNFS DS file handle */
+	char	*addr;		/* pNFS DS addresses */
+	int	addrlen;	/* Length of addrs */
+	char	*dnshost;	/* DNS names for DS addresses */
+	int	dnshostlen;	/* Length of DNS names */
+};
+
+/* Old version. */
+struct nfsd_nfsd_oargs {
 	const char *principal;	/* GSS-API service principal name */
 	int	minthreads;	/* minimum service thread count */
 	int	maxthreads;	/* maximum service thread count */
@@ -333,6 +363,7 @@ struct nfsreferral {
 #define	NFSLCK_WANTWDELEG	0x10000000
 #define	NFSLCK_WANTRDELEG	0x20000000
 #define	NFSLCK_WANTNODELEG	0x40000000
+#define	NFSLCK_LAYOUT		0x80000000
 #define	NFSLCK_WANTBITS							\
     (NFSLCK_WANTWDELEG | NFSLCK_WANTRDELEG | NFSLCK_WANTNODELEG)
 

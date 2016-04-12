@@ -741,6 +741,8 @@ nfscl_wcc_data(struct nfsrv_descript *nd, struct vnode *vp,
 			}
 		}
 		error = nfscl_postop_attr(nd, nap, flagp, stuff);
+		if (wccflagp != NULL && *flagp == 0)
+			*wccflagp = 0;
 	} else if ((nd->nd_flag & (ND_NOMOREDATA | ND_NFSV4 | ND_V4WCCATTR))
 	    == (ND_NFSV4 | ND_V4WCCATTR)) {
 		error = nfsv4_loadattr(nd, NULL, &nfsva, NULL,

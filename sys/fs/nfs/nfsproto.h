@@ -244,13 +244,17 @@
 #define	NFSX_V4SETTIME		(NFSX_UNSIGNED + NFSX_V4TIME)
 #define	NFSX_V4SESSIONID	16
 #define	NFSX_V4DEVICEID		16
+#define	NFSX_V4PNFSFH		(sizeof(struct pnfsfh))
+#define	NFSX_V4FLEXFILELAYOUT	(10 * NFSX_UNSIGNED + NFSX_V4DEVICEID +	\
+				 NFSX_HYPER + NFSX_STATEID + NFSX_V4PNFSFH)
+#define	NFSX_V4MAXLAYOUT	NFSX_V4FLEXFILELAYOUT
+#define	NFSX_STATEIDOTHER	12
+#define	NFSX_STATEID		(NFSX_UNSIGNED + NFSX_STATEIDOTHER)
 
 /* sizes common to multiple NFS versions */
 #define	NFSX_FHMAX		(NFSX_V4FHMAX)
 #define	NFSX_MYFH		(sizeof (fhandle_t)) /* size this server uses */
 #define	NFSX_VERF 		8
-#define	NFSX_STATEIDOTHER	12
-#define	NFSX_STATEID		(NFSX_UNSIGNED + NFSX_STATEIDOTHER)
 #define	NFSX_GSSH		12
 
 /* variants for multiple versions */
@@ -453,6 +457,11 @@
 #define	NFSV4ACE_SYNCHRONIZE		0x00100000
 
 /*
+ * Flags for layout get for Flex files layout.
+ */
+#define	NFSFFLAYOUT_NO_COMMIT		0x1
+
+/*
  * Here are the mappings between mode bits and acl mask bits for
  * directories and other files.
  * (Named attributes have not been included, since named attributes are
@@ -621,6 +630,7 @@
 #define	NFSLAYOUT_NFSV4_1_FILES		0x1
 #define	NFSLAYOUT_OSD2_OBJECTS		0x2
 #define	NFSLAYOUT_BLOCK_VOLUME		0x3
+#define	NFSLAYOUT_FLEXFILE		0x4
 
 #define	NFSLAYOUTIOMODE_READ		1
 #define	NFSLAYOUTIOMODE_RW		2
@@ -1342,5 +1352,15 @@ struct nfsv4stateid {
 	u_int32_t	other[NFSX_STATEIDOTHER / NFSX_UNSIGNED];
 };
 typedef struct nfsv4stateid nfsv4stateid_t;
+
+/* Notify bits and notify bitmap size. */
+#define	NFSV4NOTIFY_CHANGE	1
+#define	NFSV4NOTIFY_DELETE	2
+#define	NFSV4_NOTIFYBITMAP	1	/* # of 32bit values needed for bits */
+
+/* Layoutreturn kinds. */
+#define	NFSV4LAYOUTRET_FILE	1
+#define	NFSV4LAYOUTRET_FSID	2
+#define	NFSV4LAYOUTRET_ALL	3
 
 #endif	/* _NFS_NFSPROTO_H_ */

@@ -72,6 +72,7 @@ struct nfsrvfh nfs_rootfh, nfs_pubfh;
 int nfs_pubfhset = 0, nfs_rootfhset = 0;
 struct proc *nfsd_master_proc = NULL;
 int nfsd_debuglevel = 0;
+struct pnfsfh nfsrv_pnfsfh;
 static pid_t nfsd_master_pid = (pid_t)-1;
 static char nfsd_master_comm[MAXCOMLEN + 1];
 static struct timeval nfsd_master_start;
@@ -795,6 +796,7 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 					error = VOP_SETATTR(ndp->ni_vp,
 					    &nvap->na_vattr, nd->nd_cred);
 					if (error != 0) {
+printf("aft setat=%d\n", error);
 						vput(ndp->ni_vp);
 						ndp->ni_vp = NULL;
 						error = NFSERR_NOTSUPP;
@@ -1428,6 +1430,7 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 					nd->nd_repstat = VOP_SETATTR(ndp->ni_vp,
 					    &nvap->na_vattr, cred);
 					if (nd->nd_repstat != 0) {
+printf("setat=%d\n", nd->nd_repstat);
 						vput(ndp->ni_vp);
 						ndp->ni_vp = NULL;
 						nd->nd_repstat = NFSERR_NOTSUPP;
@@ -2380,7 +2383,7 @@ nfsrv_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 			vfs_timestamp(&nvap->na_atime);
 			nvap->na_vaflags |= VA_UTIMES_NULL;
 			break;
-		}
+		};
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		switch (fxdr_unsigned(int, *tl)) {
 		case NFSV3SATTRTIME_TOCLIENT:
@@ -2393,11 +2396,11 @@ nfsrv_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 			if (!toclient)
 				nvap->na_vaflags |= VA_UTIMES_NULL;
 			break;
-		}
+		};
 		break;
 	case ND_NFSV4:
 		error = nfsv4_sattr(nd, vp, nvap, attrbitp, aclp, p);
-	}
+	};
 nfsmout:
 	NFSEXITCODE2(error, nd);
 	return (error);
@@ -2595,7 +2598,7 @@ nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 			 */
 			bitpos = NFSATTRBIT_MAX;
 			break;
-		}
+		};
 	}
 
 	/*
@@ -3077,8 +3080,10 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 	struct file *fp;
 	struct nfsd_addsock_args sockarg;
 	struct nfsd_nfsd_args nfsdarg;
+	struct nfsd_nfsd_oargs onfsdarg;
 	cap_rights_t rights;
 	int error;
+	char *cp;
 
 	if (uap->flag & NFSSVC_NFSDADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&sockarg, sizeof (sockarg));
@@ -3105,11 +3110,54 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 			error = EINVAL;
 			goto out;
 		}
-		error = copyin(uap->argp, (caddr_t)&nfsdarg,
-		    sizeof (nfsdarg));
+		if ((uap->flag & NFSSVC_NEWSTRUCT) == 0) {
+			error = copyin(uap->argp, &onfsdarg, sizeof(onfsdarg));
+			if (error == 0) {
+				nfsdarg.principal = onfsdarg.principal;
+				nfsdarg.minthreads = onfsdarg.minthreads;
+				nfsdarg.maxthreads = onfsdarg.maxthreads;
+				nfsdarg.version = 1;
+				nfsdarg.addr = NULL;
+				nfsdarg.addrlen = 0;
+				nfsdarg.dnshost = NULL;
+				nfsdarg.dnshostlen = 0;
+			}
+		} else
+			error = copyin(uap->argp, &nfsdarg, sizeof(nfsdarg));
 		if (error)
 			goto out;
+		if (nfsdarg.addrlen > 0 && nfsdarg.addrlen < 10000 &&
+		    nfsdarg.dnshostlen > 0 && nfsdarg.dnshostlen < 10000 &&
+		    nfsdarg.addr != NULL && nfsdarg.dnshost != NULL) {
+printf("addrlen=%d dnslen=%d\n", nfsdarg.addrlen, nfsdarg.dnshostlen);
+			cp = malloc(nfsdarg.addrlen + 1, M_TEMP, M_WAITOK);
+			error = copyin(nfsdarg.addr, cp, nfsdarg.addrlen);
+			if (error != 0) {
+				free(cp, M_TEMP);
+				goto out;
+			}
+			cp[nfsdarg.addrlen] = '\0';	/* Ensure nul term. */
+			nfsdarg.addr = cp;
+			cp = malloc(nfsdarg.dnshostlen + 1, M_TEMP, M_WAITOK);
+			error = copyin(nfsdarg.dnshost, cp, nfsdarg.dnshostlen);
+			if (error != 0) {
+				free(nfsdarg.addr, M_TEMP);
+				free(cp, M_TEMP);
+				goto out;
+			}
+			cp[nfsdarg.dnshostlen] = '\0';	/* Ensure nul term. */
+			nfsdarg.dnshost = cp;
+			NFSBCOPY(&nfsdarg.nfsfh, &nfsrv_pnfsfh,
+			    sizeof(nfsrv_pnfsfh));
+		} else {
+			nfsdarg.addr = NULL;
+			nfsdarg.addrlen = 0;
+			nfsdarg.dnshost = NULL;
+			nfsdarg.dnshostlen = 0;
+		}
 		error = nfsrvd_nfsd(td, &nfsdarg);
+		free(nfsdarg.addr, M_TEMP);
+		free(nfsdarg.dnshost, M_TEMP);
 	} else {
 		error = nfssvc_srvcall(td, uap, td->td_ucred);
 	}

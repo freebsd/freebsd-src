@@ -246,7 +246,7 @@ ncl_inactive(struct vop_inactive_args *ap)
 		taskqueue_enqueue(taskqueue_thread, &sp->s_task);
 		mtx_lock(&np->n_mtx);
 	}
-	np->n_flag &= NMODIFIED;
+	np->n_flag &= (NMODIFIED | NDSCOMMIT);
 	mtx_unlock(&np->n_mtx);
 	return (0);
 }

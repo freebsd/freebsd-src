@@ -84,6 +84,7 @@ struct nfsclient {
 	struct nfsstatehead lc_open;		/* Open owner list */
 	struct nfsstatehead lc_deleg;		/* Delegations */
 	struct nfsstatehead lc_olddeleg;	/* and old delegations */
+	struct nfsstatehead lc_layout;		/* NFSv4.1 layouts */
 	struct nfssessionhead lc_session;	/* List of NFSv4.1 sessions */
 	time_t		lc_expiry;		/* Expiry time (sec) */
 	time_t		lc_delegtime;		/* Old deleg expiry (sec) */
@@ -153,6 +154,7 @@ struct nfsdsession {
  * - open file structures chained off an open_owner structure
  * - lock_owner structures chained off an open file structure
  * - delegated file structures chained off of nfsclient and nfslockfile
+ * - pNFS layouts chained off of nfsclient and nfslockfile
  * - the ls_list field is used for the chain it is in
  * - the ls_head structure is used to chain off the sibling structure
  *   (it is a union between an nfsstate and nfslock structure head)
@@ -186,8 +188,9 @@ struct nfsstate {
 	struct nfslockfile	*ls_lfp;	/* Back pointer */
 	struct nfsrvcache	*ls_op;		/* Op cache reference */
 	struct nfsclient	*ls_clp;	/* Back pointer */
-	u_short			ls_ownerlen;	/* Length of ls_owner */
+	u_int32_t		ls_ownerlen;	/* Length of ls_owner */
 	u_char			ls_owner[1];	/* malloc'd the correct size */
+						/* Must be uint32_t * aligned */
 };
 #define	ls_lock			ls_head.lock
 #define	ls_open			ls_head.open
@@ -199,6 +202,8 @@ struct nfsstate {
 #define	ls_delegtime		ls_un.deleg.expiry
 #define	ls_delegtimelimit	ls_un.deleg.limit
 #define	ls_compref		ls_un.deleg.compref
+#define	ls_layout		ls_owner
+#define	ls_layoutlen		ls_ownerlen
 
 /*
  * Nfs lock structure.
@@ -249,6 +254,7 @@ struct nfsrollback {
 struct nfslockfile {
 	LIST_HEAD(, nfsstate)	lf_open;	/* Open list */
 	LIST_HEAD(, nfsstate)	lf_deleg;	/* Delegation list */
+	LIST_HEAD(, nfsstate)	lf_layout;	/* Layout list */
 	LIST_HEAD(, nfslock)	lf_lock;	/* Lock list */
 	LIST_HEAD(, nfslock)	lf_locallock;	/* Local lock list */
 	LIST_HEAD(, nfsrollback) lf_rollback;	/* Local lock rollback list */
@@ -291,6 +297,24 @@ struct nfsf_rec {
 #if defined(_KERNEL) || defined(KERNEL)
 void nfsrv_cleanclient(struct nfsclient *, NFSPROC_T *);
 void nfsrv_freedeleglist(struct nfsstatehead *);
+void nfsrv_freelayoutlist(struct nfsstatehead *);
+
+/*
+ * This structure is used to create the list of device info entries for
+ * a GetDeviceInfo operation.
+ * The nfsdev_addrandhost field has the fully qualified host domain name
+ * followed by the network address in XDR.
+ */
+struct nfsdevice {
+	LIST_ENTRY(nfsdevice)	nfsdev_list;
+	char			nfsdev_deviceid[NFSX_V4DEVICEID];
+	uint16_t		nfsdev_hostnamelen;
+	uint16_t		nfsdev_addrlen;
+	char			*nfsdev_addr;
+	char			*nfsdev_host;
+};
+LIST_HEAD(nfsdevicehead, nfsdevice);
+
 #endif
 
 #endif	/* _NFS_NFSRVSTATE_H_ */

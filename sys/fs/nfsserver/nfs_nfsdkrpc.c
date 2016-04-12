@@ -103,6 +103,8 @@ static int nfs_proc(struct nfsrv_descript *, u_int32_t, SVCXPRT *xprt,
 extern u_long sb_max_adj;
 extern int newnfs_numnfsd;
 extern struct proc *nfsd_master_proc;
+extern time_t nfsdev_time;
+extern struct nfsdevicehead nfsrv_devidhead;
 
 /*
  * NFS server system calls
@@ -231,10 +233,16 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		 * Get a refcnt (shared lock) on nfsd_suspend_lock.
 		 * NFSSVC_SUSPENDNFSD will take an exclusive lock on
 		 * nfsd_suspend_lock to suspend these threads.
+		 * The call to nfsv4_lock() that preceeds nfsv4_getref()
+		 * ensures that the acquisition of the exclusive lock
+		 * takes priority over acquisition of the shared lock by
+		 * waiting for any exclusive lock request to complete.
 		 * This must be done here, before the check of
 		 * nfsv4root exports by nfsvno_v4rootexport().
 		 */
 		NFSLOCKV4ROOTMUTEX();
+		nfsv4_lock(&nfsd_suspend_lock, 0, NULL, NFSV4ROOTLOCKMUTEXPTR,
+		    NULL);
 		nfsv4_getref(&nfsd_suspend_lock, NULL, NFSV4ROOTLOCKMUTEXPTR,
 		    NULL);
 		NFSUNLOCKV4ROOTMUTEX();
@@ -484,6 +492,7 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 	 */
 	NFSD_LOCK();
 	if (newnfs_numnfsd == 0) {
+		nfsdev_time = time_second;
 		p = td->td_proc;
 		PROC_LOCK(p);
 		p->p_flag2 |= P2_AST_SU;
@@ -491,6 +500,7 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 		newnfs_numnfsd++;
 
 		NFSD_UNLOCK();
+		nfsrv_createdevids(args);
 
 		/* An empty string implies AUTH_SYS only. */
 		if (principal[0] != '\0') {
@@ -544,6 +554,7 @@ nfsrvd_init(int terminating)
 	if (terminating) {
 		nfsd_master_proc = NULL;
 		NFSD_UNLOCK();
+		nfsrv_freealllayoutsanddevids();
 		nfsrv_freeallbackchannel_xprts();
 		svcpool_destroy(nfsrvd_pool);
 		nfsrvd_pool = NULL;
@@ -552,6 +563,7 @@ nfsrvd_init(int terminating)
 
 	NFSD_UNLOCK();
 
+	LIST_INIT(&nfsrv_devidhead);
 	nfsrvd_pool = svcpool_create("nfsd", SYSCTL_STATIC_CHILDREN(_vfs_nfsd));
 	nfsrvd_pool->sp_rcache = NULL;
 	nfsrvd_pool->sp_assign = fhanew_assign;

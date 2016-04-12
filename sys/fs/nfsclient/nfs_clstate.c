@@ -1297,7 +1297,7 @@ nfscl_checkwritelocked(vnode_t vp, struct flock *fl,
 		break;
 	default:
 		return (1);
-	}
+	};
 	if (fl->l_len != 0) {
 		end = off + fl->l_len;
 		if (end < off)
@@ -2502,7 +2502,9 @@ checkdsrenew:
 		if (dsp != NULL)
 			dsp = TAILQ_NEXT(dsp, nfsclds_list);
 		while (dsp != NULL) {
-			if (dsp->nfsclds_expire <= NFSD_MONOSEC) {
+			/* Don't renew NFSv3 connections. */
+			if ((dsp->nfsclds_flags & NFSCLDS_V3CONN) == 0 &&
+			    dsp->nfsclds_expire <= NFSD_MONOSEC) {
 				dsp->nfsclds_expire = NFSD_MONOSEC +
 				    clp->nfsc_renew;
 				NFSUNLOCKMNT(clp->nfsc_nmp);
@@ -3507,7 +3509,7 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 				error = NFSERR_NOTSUPP;
 			}
 			break;
-		}
+		};
 		if (error) {
 			if (error == EBADRPC || error == NFSERR_BADXDR) {
 				nd->nd_repstat = NFSERR_BADXDR;
@@ -4734,8 +4736,12 @@ nfscl_layout(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
 			lyp->nfsly_filesid[0] = np->n_vattr.na_filesid[0];
 			lyp->nfsly_filesid[1] = np->n_vattr.na_filesid[1];
 			lyp->nfsly_clp = clp;
-			lyp->nfsly_flags = (retonclose != 0) ?
-			    (NFSLY_FILES | NFSLY_RETONCLOSE) : NFSLY_FILES;
+			if (NFSHASFLEXFILE(nmp))
+				lyp->nfsly_flags = NFSLY_FLEXFILE;
+			else
+				lyp->nfsly_flags = NFSLY_FILES;
+			if (retonclose != 0)
+				lyp->nfsly_flags |= NFSLY_RETONCLOSE;
 			lyp->nfsly_fhlen = fhlen;
 			NFSBCOPY(fhp, lyp->nfsly_fh, fhlen);
 			TAILQ_INSERT_HEAD(&clp->nfsc_layout, lyp, nfsly_list);
@@ -5038,8 +5044,16 @@ nfscl_freeflayout(struct nfsclflayout *flp)
 {
 	int i;
 
-	for (i = 0; i < flp->nfsfl_fhcnt; i++)
-		free(flp->nfsfl_fh[i], M_NFSFH);
+	if (flp == NULL)
+		return;
+	if ((flp->nfsfl_flags & NFSFL_FLEXFILE) != 0) {
+		/* Some of these are NULL, but free() handles that. */
+		for (i = 0; i < 4; i++)
+			free(flp->nfsfl_ffdsfh[i], M_NFSFH);
+	} else {
+		for (i = 0; i < flp->nfsfl_fhcnt; i++)
+			free(flp->nfsfl_fh[i], M_NFSFH);
+	}
 	if (flp->nfsfl_devp != NULL)
 		flp->nfsfl_devp->nfsdi_layoutrefs--;
 	free(flp, M_NFSFLAYOUT);
@@ -5131,15 +5145,33 @@ nfscl_layoutreturn(struct nfsmount *nmp, struct nfscllayout *lyp,
 {
 	struct nfsclrecalllayout *rp;
 	nfsv4stateid_t stateid;
+	int layouttype, layoutcnt;
+	uint32_t ff_layret[2], *layp;
 
+	CTASSERT(sizeof(ff_layret) == 2 * NFSX_UNSIGNED);
 	NFSBCOPY(lyp->nfsly_stateid.other, stateid.other, NFSX_STATEIDOTHER);
 	LIST_FOREACH(rp, &lyp->nfsly_recall, nfsrecly_list) {
 		stateid.seqid = rp->nfsrecly_stateseqid;
+		if ((lyp->nfsly_flags & NFSLY_FLEXFILE) != 0) {
+			layouttype = NFSLAYOUT_FLEXFILE;
+			/*
+			 * For now, just return 0 length ff_ioerr4 and
+			 * ff_iostats4 lists.
+			 */
+			ff_layret[0] = txdr_unsigned(0);
+			ff_layret[1] = txdr_unsigned(0);
+			layp = ff_layret;
+			layoutcnt = sizeof(ff_layret);
+		} else {
+			layouttype = NFSLAYOUT_NFSV4_1_FILES;
+			layoutcnt = 0;
+			layp = NULL;
+		}
 		(void)nfsrpc_layoutreturn(nmp, lyp->nfsly_fh,
-		    lyp->nfsly_fhlen, 0, NFSLAYOUT_NFSV4_1_FILES,
+		    lyp->nfsly_fhlen, 0, layouttype,
 		    rp->nfsrecly_iomode, rp->nfsrecly_recalltype,
 		    rp->nfsrecly_off, rp->nfsrecly_len,
-		    &stateid, 0, NULL, cred, p, NULL);
+		    &stateid, layoutcnt, layp, cred, p, NULL);
 	}
 }
 

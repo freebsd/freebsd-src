@@ -136,6 +136,15 @@ int nfsrv_checksequence(struct nfsrv_descript *, uint32_t, uint32_t *,
 int nfsrv_checkreclaimcomplete(struct nfsrv_descript *);
 void nfsrv_cache_session(uint8_t *, uint32_t, int, struct mbuf **);
 void nfsrv_freeallbackchannel_xprts(void);
+int nfsrv_layoutget(struct nfsrv_descript *, vnode_t, struct nfsexstuff *,
+    int, int *, uint64_t *, uint64_t *, uint64_t, nfsv4stateid_t *, int, int *,
+    int *, char *, struct ucred *, NFSPROC_T *);
+int nfsrv_layoutreturn(struct nfsrv_descript *, vnode_t, int, int, uint64_t,
+    uint64_t, int, int, nfsv4stateid_t *, int, char *, int *, struct ucred *,
+    NFSPROC_T *);
+int nfsrv_getdevinfo(char *, int, int *, uint32_t *, int *, char **);
+void nfsrv_freealllayoutsanddevids(void);
+void nfsrv_createdevids(struct nfsd_nfsd_args *);
 
 /* nfs_nfsdserv.c */
 int nfsrvd_access(struct nfsrv_descript *, int,
@@ -234,7 +243,15 @@ int nfsrvd_destroysession(struct nfsrv_descript *, int,
     vnode_t, NFSPROC_T *, struct nfsexstuff *);
 int nfsrvd_freestateid(struct nfsrv_descript *, int,
     vnode_t, NFSPROC_T *, struct nfsexstuff *);
+int nfsrvd_getdevinfo(struct nfsrv_descript *, int,
+    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+int nfsrvd_layoutget(struct nfsrv_descript *, int,
+    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+int nfsrvd_layoutreturn(struct nfsrv_descript *, int,
+    vnode_t, NFSPROC_T *, struct nfsexstuff *);
 int nfsrvd_notsupp(struct nfsrv_descript *, int,
+    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+int nfsrvd_notsuppvp(struct nfsrv_descript *, int,
     vnode_t, NFSPROC_T *, struct nfsexstuff *);
 
 /* nfs_nfsdsocket.c */
@@ -287,8 +304,6 @@ void nfsrv_cleanusergroup(void);
 int nfsrv_checkutf8(u_int8_t *, int);
 int newnfs_sndlock(int *);
 void newnfs_sndunlock(int *);
-int nfsv4_getipaddr(struct nfsrv_descript *, struct sockaddr_storage *,
-    int *);
 int nfsv4_seqsession(uint32_t, uint32_t, uint32_t, struct nfsslot *,
     struct mbuf **, uint16_t);
 void nfsv4_seqsess_cacherep(uint32_t, struct nfsslot *, int, struct mbuf **);
@@ -302,11 +317,11 @@ struct ucred *nfsrv_getgrpscred(struct ucred *);
 /* nfs_clcomsubs.c */
 void nfsm_uiombuf(struct nfsrv_descript *, struct uio *, int);
 void nfscl_reqstart(struct nfsrv_descript *, int, struct nfsmount *,
-    u_int8_t *, int, u_int32_t **, struct nfsclsession *);
+    u_int8_t *, int, u_int32_t **, struct nfsclsession *, int, int);
 nfsuint64 *nfscl_getcookie(struct nfsnode *, off_t off, int);
 void nfscl_fillsattr(struct nfsrv_descript *, struct vattr *,
       vnode_t, int, u_int32_t);
-u_int8_t *nfscl_getmyip(struct nfsmount *, struct in6_addr *, int *);
+u_int8_t *nfscl_getmyip(struct nfsmount *, int *);
 int nfsm_getfh(struct nfsrv_descript *, struct nfsfh **);
 int nfscl_mtofh(struct nfsrv_descript *, struct nfsfh **,
         struct nfsvattr *, int *);
@@ -481,8 +496,6 @@ int nfsrpc_destroyclient(struct nfsmount *, struct nfsclclient *,
 int nfsrpc_layoutget(struct nfsmount *, uint8_t *, int, int, uint64_t, uint64_t,
     uint64_t, int, nfsv4stateid_t *, int *, struct nfsclflayouthead *,
     struct ucred *, NFSPROC_T *, void *);
-int nfsrpc_getdeviceinfo(struct nfsmount *, uint8_t *, int, uint32_t *,
-    struct nfscldevinfo **, struct ucred *, NFSPROC_T *);
 int nfsrpc_layoutcommit(struct nfsmount *, uint8_t *, int, int,
     uint64_t, uint64_t, uint64_t, nfsv4stateid_t *, int, int, uint8_t *,
     struct ucred *, NFSPROC_T *, void *);
@@ -490,8 +503,8 @@ int nfsrpc_layoutreturn(struct nfsmount *, uint8_t *, int, int, int, uint32_t,
     int, uint64_t, uint64_t, nfsv4stateid_t *, int, uint32_t *, struct ucred *,
     NFSPROC_T *, void *);
 int nfsrpc_reclaimcomplete(struct nfsmount *, struct ucred *, NFSPROC_T *);
-int nfscl_doiods(vnode_t, struct uio *, int *, int *, uint32_t,
-    struct ucred *, NFSPROC_T *);
+int nfscl_doiods(vnode_t, struct uio *, int *, int *, uint32_t, int,
+    struct ucred *, NFSPROC_T *, struct nfsvattr *, int *);
 int nfscl_findlayoutforio(struct nfscllayout *, uint64_t, uint32_t,
     struct nfsclflayout **);
 void nfscl_freenfsclds(struct nfsclds *);
