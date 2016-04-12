@@ -116,6 +116,8 @@
 
 #define	SIOCGTUNFIB	_IOWR('i', 94, struct ifreq)	/* get tunnel fib */
 #define	SIOCSTUNFIB	 _IOW('i', 95, struct ifreq)	/* set tunnel fib */
+#define	SIOCGETVLAN	_IOWR('i', 96, struct ifreq)	/* get vlan config */
+#define	SIOCSETVLAN	 _IOW('i', 97, struct ifreq)	/* set vlan config */
 
 #define	SIOCSDRVSPEC	_IOW('i', 123, struct ifdrv)	/* set driver-specific
 								  parameters */

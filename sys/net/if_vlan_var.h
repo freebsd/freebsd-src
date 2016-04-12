@@ -70,8 +70,8 @@ struct	vlanreq {
 	char	vlr_parent[IFNAMSIZ];
 	u_short	vlr_tag;
 };
-#define	SIOCSETVLAN	SIOCSIFGENERIC
-#define	SIOCGETVLAN	SIOCGIFGENERIC
+#define	O_SIOCSETVLAN	SIOCSIFGENERIC
+#define	O_SIOCGETVLAN	SIOCGIFGENERIC
 
 #ifdef _KERNEL
 /*
