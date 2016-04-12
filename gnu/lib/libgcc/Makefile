@@ -343,7 +343,7 @@ ${_src:R:S/$/.So/}: ${_src} ${COMMONHDRS}
 #
 # Generated headers
 #
-${COMMONHDRS}: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
+${COMMONHDRS}: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile .PHONY
 	(cd ${.CURDIR}; ${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET})
 
 CLEANFILES += ${COMMONHDRS}

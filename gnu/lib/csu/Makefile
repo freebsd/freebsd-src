@@ -71,7 +71,7 @@ crtendS.o:	${ENDSRC}
 		-c -o ${.TARGET} ${.ALLSRC:N*.h}
 
 CLEANFILES+=	tm.h tconfig.h options.h optionlist cs-tconfig.h cs-tm.h
-tm.h tconfig.h options.h: ${CCDIR}/cc_tools/Makefile
+tm.h tconfig.h options.h: ${CCDIR}/cc_tools/Makefile .PHONY
 	(cd ${.CURDIR}; ${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET})
 
 .include <bsd.lib.mk>
