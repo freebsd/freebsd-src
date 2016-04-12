@@ -103,7 +103,7 @@ SYSCTL_INT(_debug, OID_AUTO, devfs_iosize_max_clamp, CTLFLAG_RW,
  */
 CTASSERT(sizeof(register_t) >= sizeof(size_t));
 
-static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
+MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
