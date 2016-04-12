@@ -2776,7 +2776,6 @@ isp_port_logout(ispsoftc_t *isp, uint16_t handle, uint32_t portid)
 static int
 isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb)
 {
-	fcparam *fcp = FCPARAM(isp, chan);
 	mbreg_t mbs;
 	union {
 		isp_pdb_21xx_t fred;
@@ -2794,23 +2793,19 @@ isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb)
 	} else {
 		mbs.param[1] = id << 8;
 	}
-	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
-	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
-	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
-	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
-	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
-		isp_prt(isp, ISP_LOGERR, sacq);
-		return (-1);
-	}
-	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, sizeof(un), chan);
+	mbs.param[2] = DMA_WD1(isp->isp_iocb_dma);
+	mbs.param[3] = DMA_WD0(isp->isp_iocb_dma);
+	mbs.param[6] = DMA_WD3(isp->isp_iocb_dma);
+	mbs.param[7] = DMA_WD2(isp->isp_iocb_dma);
+	MEMORYBARRIER(isp, SYNC_IFORDEV, 0, sizeof(un), chan);
+
 	isp_mboxcmd(isp, &mbs);
-	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-		FC_SCRATCH_RELEASE(isp, chan);
+	if (mbs.param[0] != MBOX_COMMAND_COMPLETE)
 		return (mbs.param[0] | (mbs.param[1] << 16));
-	}
-	MEMORYBARRIER(isp, SYNC_SFORCPU, 0, sizeof(un), chan);
+
+	MEMORYBARRIER(isp, SYNC_IFORCPU, 0, sizeof(un), chan);
 	if (IS_24XX(isp)) {
-		isp_get_pdb_24xx(isp, fcp->isp_scratch, &un.bill);
+		isp_get_pdb_24xx(isp, isp->isp_iocb, &un.bill);
 		pdb->handle = un.bill.pdb_handle;
 		pdb->prli_word3 = un.bill.pdb_prli_svc3;
 		pdb->portid = BITS2WORD_24XX(un.bill.pdb_portid_bits);
@@ -2822,11 +2817,10 @@ isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb)
 		    un.bill.pdb_curstate);
 		if (un.bill.pdb_curstate < PDB2400_STATE_PLOGI_DONE || un.bill.pdb_curstate > PDB2400_STATE_LOGGED_IN) {
 			mbs.param[0] = MBOX_NOT_LOGGED_IN;
-			FC_SCRATCH_RELEASE(isp, chan);
 			return (mbs.param[0]);
 		}
 	} else {
-		isp_get_pdb_21xx(isp, fcp->isp_scratch, &un.fred);
+		isp_get_pdb_21xx(isp, isp->isp_iocb, &un.fred);
 		pdb->handle = un.fred.pdb_loopid;
 		pdb->prli_word3 = un.fred.pdb_prli_svc3;
 		pdb->portid = BITS2WORD(un.fred.pdb_portid_bits);
@@ -2835,7 +2829,6 @@ isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb)
 		isp_prt(isp, ISP_LOGDEBUG1,
 		    "Chan %d handle 0x%x Port 0x%06x", chan, id, pdb->portid);
 	}
-	FC_SCRATCH_RELEASE(isp, chan);
 	return (0);
 }
 
