@@ -15659,8 +15659,57 @@ CHERIABI_SYS_closefrom_fill_uap(struct thread *td,
 int	CHERIABI_SYS_cheriabi___semctl_fill_uap(struct thread *td,
     struct cheriabi___semctl_args *uap);
 
-int	CHERIABI_SYS_cheriabi_msgctl_fill_uap(struct thread *td,
-    struct cheriabi_msgctl_args *uap);
+static inline int
+CHERIABI_SYS_cheriabi_msgctl_fill_uap(struct thread *td,
+    struct cheriabi_msgctl_args *uap)
+{
+	struct chericap tmpcap;
+	u_int tag;
+	register_t perms, reqperms;
+	register_t sealed;
+	size_t base __unused, length, offset;
+
+	/* [0] int msqid */
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_msgctl, 0);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
+	CHERI_CTOINT(uap->msqid, CHERI_CR_CTEMP0);
+
+	/* [1] int cmd */
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_msgctl, 1);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
+	CHERI_CTOINT(uap->cmd, CHERI_CR_CTEMP0);
+
+	/* [2] _Inout_opt_ struct msqid_ds_c * buf */
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_msgctl, 2);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
+	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+	if (!tag) {
+		CHERI_CTOINT(uap->buf, CHERI_CR_CTEMP0);
+		if (uap->buf != NULL)
+			return (EPROT);
+	} else {
+		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+		reqperms = (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP|CHERI_PERM_STORE|CHERI_PERM_STORE_CAP);
+		if ((perms & reqperms) != reqperms)
+			return (EPROT);
+
+		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
+		if (sealed)
+			return (EPROT);
+
+		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
+		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		if (offset >= length)
+			return (EPROT);
+		length -= offset;
+		if (length < sizeof(*uap->buf))
+			return (EPROT);
+
+		CHERI_CTOPTR(uap->buf, CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	}
+
+	return (0);
+}
 
 static inline int
 CHERIABI_SYS_shmctl_fill_uap(struct thread *td,
