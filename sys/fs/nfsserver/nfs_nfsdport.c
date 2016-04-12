@@ -794,6 +794,11 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 					nvap->na_atime.tv_nsec = cverf[1];
 					error = VOP_SETATTR(ndp->ni_vp,
 					    &nvap->na_vattr, nd->nd_cred);
+					if (error != 0) {
+						vput(ndp->ni_vp);
+						ndp->ni_vp = NULL;
+						error = NFSERR_NOTSUPP;
+					}
 				}
 			}
 		/*
@@ -1422,6 +1427,11 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 					nvap->na_atime.tv_nsec = cverf[1];
 					nd->nd_repstat = VOP_SETATTR(ndp->ni_vp,
 					    &nvap->na_vattr, cred);
+					if (nd->nd_repstat != 0) {
+						vput(ndp->ni_vp);
+						ndp->ni_vp = NULL;
+						nd->nd_repstat = NFSERR_NOTSUPP;
+					}
 				} else {
 					nfsrv_fixattr(nd, ndp->ni_vp, nvap,
 					    aclp, p, attrbitp, exp);
