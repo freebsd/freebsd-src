@@ -105,12 +105,14 @@ static vfs_mount_t fuse_vfsop_mount;
 static vfs_unmount_t fuse_vfsop_unmount;
 static vfs_root_t fuse_vfsop_root;
 static vfs_statfs_t fuse_vfsop_statfs;
+static vfs_fhtovp_t fuse_vfsop_fhtovp;
 
 struct vfsops fuse_vfsops = {
 	.vfs_mount = fuse_vfsop_mount,
 	.vfs_unmount = fuse_vfsop_unmount,
 	.vfs_root = fuse_vfsop_root,
 	.vfs_statfs = fuse_vfsop_statfs,
+	.vfs_fhtovp = fuse_vfsop_fhtovp,
 };
 
 SYSCTL_INT(_vfs_fuse, OID_AUTO, init_backgrounded, CTLFLAG_RD,
@@ -232,8 +234,12 @@ fuse_vfsop_mount(struct mount *mp)
 
 	fuse_trace_printf_vfsop();
 
+	/*
+	 * Allow MNT_UPDATE only so the mountd can set exports on the file
+	 * system.
+	 */
 	if (mp->mnt_flag & MNT_UPDATE)
-		return EOPNOTSUPP;
+		return (0);
 
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_SYNCHRONOUS;
@@ -532,3 +538,35 @@ fake:
 
 	return 0;
 }
+
+/*
+ * Translate a file handle into a vnode.  fid_data0 is the v_type and
+ * fid_data is "struct fuse_fid" memcpy()'d so that alignment doesn't
+ * make the structure too big.
+ * There is no "generation" field in the file handle.  GlusterFS never
+ * sets it.  I don't know if other fuse filesystems do set it, but there
+ * is no space for it in fhandle_t.
+ */
+static int
+fuse_vfsop_fhtovp(struct mount *mp, struct fid *fhp, int flags,
+    struct vnode **vpp)
+{
+	struct fuse_fid_data ffid;
+	enum vtype vtyp;
+	int err;
+
+	if (fhp->fid_len != offsetof(struct fid, fid_data) +
+	    sizeof(struct fuse_fid_data))
+		return (ESTALE);
+	vtyp = (enum vtype)fhp->fid_data0;
+	if (vtyp != VREG && vtyp != VDIR && vtyp != VLNK)
+		return (ESTALE);
+	memcpy(&ffid, fhp->fid_data, sizeof(ffid));
+	err = fuse_vnode_alloc(mp, curthread, ffid.ffid_nid, vtyp, vpp);
+	if (err != 0)
+		return (ESTALE);
+	if (vtyp == VDIR)
+		VTOFUD(*vpp)->parent_nid = ffid.ffid_parent_nid;
+	return (0);
+}
+

@@ -88,6 +88,8 @@ static int fuse_fh_count = 0;
 SYSCTL_INT(_vfs_fuse, OID_AUTO, filehandle_count, CTLFLAG_RD,
     &fuse_fh_count, 0, "");
 
+extern int fuse_force_directio;
+
 int
 fuse_filehandle_open(struct vnode *vp,
     fufh_type_t fufh_type,
@@ -141,7 +143,11 @@ fuse_filehandle_open(struct vnode *vp,
 	foo = fdi.answ;
 
 	fuse_filehandle_init(vp, fufh_type, fufhp, foo->fh);
-	fuse_vnode_open(vp, foo->open_flags, td);
+
+	if (fufh_type == FUFH_WRONLY || fuse_force_directio > 0)
+		fuse_vnode_open(vp, foo->open_flags | FOPEN_DIRECT_IO, td);
+	else
+		fuse_vnode_open(vp, foo->open_flags, td);
 
 out:
 	fdisp_destroy(&fdi);
@@ -204,6 +210,28 @@ fuse_filehandle_valid(struct vnode *vp, fufh_type_t fufh_type)
 
 	fufh = &(fvdat->fufh[fufh_type]);
 	return FUFH_IS_VALID(fufh);
+}
+
+/*
+ * Check for a valid file handle, first the type requested, but if that
+ * isn't valid, try for FUFH_RDWR.
+ * Return the FUFH type that is valid or FUFH_INVALID if there are none.
+ * This is a variant of fuse_filehandle_vaild() analygous to
+ * fuse_filehandle_getrw().
+ */
+fufh_type_t
+fuse_filehandle_validrw(struct vnode *vp, fufh_type_t fufh_type)
+{
+	struct fuse_vnode_data *fvdat = VTOFUD(vp);
+	struct fuse_filehandle *fufh;
+
+	fufh = &fvdat->fufh[fufh_type];
+	if (FUFH_IS_VALID(fufh) != 0)
+		return (fufh_type);
+	fufh = &fvdat->fufh[FUFH_RDWR];
+	if (FUFH_IS_VALID(fufh) != 0)
+		return (FUFH_RDWR);
+	return (FUFH_INVALID);
 }
 
 int

@@ -169,7 +169,7 @@ fuse_vnode_hash(uint64_t id)
 	return (fnv_32_buf(&id, sizeof(id), FNV1_32_INIT));
 }
 
-static int
+int
 fuse_vnode_alloc(struct mount *mp,
     struct thread *td,
     uint64_t nodeid,
@@ -289,7 +289,16 @@ fuse_vnode_open(struct vnode *vp, int32_t fuse_open_flags, struct thread *td)
 	 * XXXIP: Handle fd based DIRECT_IO
 	 */
 	if (fuse_open_flags & FOPEN_DIRECT_IO) {
-		VTOFUD(vp)->flag |= FN_DIRECTIO;
+		ASSERT_VOP_ELOCKED(vp, __func__);
+		/*
+		 * If switching from buffer cache I/O to direct I/O, the
+		 * buffer cache blocks must be invalidated to avoid accessing
+		 * stale data in the buffer cache.
+		 */
+		if ((VTOFUD(vp)->flag & FN_DIRECTIO) == 0) {
+			VTOFUD(vp)->flag |= FN_DIRECTIO;
+			fuse_io_invalbuf(vp, td);
+		}
 	} else {
 	        VTOFUD(vp)->flag &= ~FN_DIRECTIO;
 	}

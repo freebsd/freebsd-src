@@ -549,6 +549,7 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 {
 	int err = 0;
 	enum fuse_opcode opcode;
+	struct fuse_getxattr_in *fgin;
 
 	debug_printf("ftick=%p, blen = %zu\n", ftick, blen);
 
@@ -636,23 +637,23 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 		break;
 
 	case FUSE_SETXATTR:
-		panic("FUSE_SETXATTR implementor has forgotten to define a"
-		      " response body format check");
+		err = (blen == 0) ? 0 : EINVAL;
 		break;
 
 	case FUSE_GETXATTR:
-		panic("FUSE_GETXATTR implementor has forgotten to define a"
-		      " response body format check");
-		break;
-
 	case FUSE_LISTXATTR:
-		panic("FUSE_LISTXATTR implementor has forgotten to define a"
-		      " response body format check");
+		fgin = (struct fuse_getxattr_in *)
+		    ((char *)ftick->tk_ms_fiov.base +
+		     sizeof(struct fuse_in_header));
+		if (fgin->size == 0)
+			err = (blen == sizeof(struct fuse_getxattr_out)) ? 0 :
+			    EINVAL;
+		else
+			err = (blen <= fgin->size) ? 0 : EINVAL;
 		break;
 
 	case FUSE_REMOVEXATTR:
-		panic("FUSE_REMOVEXATTR implementor has forgotten to define a"
-		      " response body format check");
+		err = (blen == 0) ? 0 : EINVAL;
 		break;
 
 	case FUSE_FLUSH:
@@ -687,15 +688,15 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 		break;
 
 	case FUSE_GETLK:
-		panic("FUSE: no response body format check for FUSE_GETLK");
+		err = (blen == sizeof(struct fuse_lk_out)) ? 0 : EINVAL;
 		break;
 
 	case FUSE_SETLK:
-		panic("FUSE: no response body format check for FUSE_SETLK");
+		err = (blen == 0) ? 0 : EINVAL;
 		break;
 
 	case FUSE_SETLKW:
-		panic("FUSE: no response body format check for FUSE_SETLKW");
+		err = (blen == 0) ? 0 : EINVAL;
 		break;
 
 	case FUSE_ACCESS:

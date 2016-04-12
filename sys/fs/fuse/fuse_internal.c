@@ -251,16 +251,19 @@ fuse_internal_fsync(struct vnode *vp,
 int
 fuse_internal_readdir(struct vnode *vp,
     struct uio *uio,
+    off_t startoff,
     struct fuse_filehandle *fufh,
-    struct fuse_iov *cookediov)
+    struct fuse_iov *cookediov,
+    int *ncookies,
+    u_long *cookies)
 {
 	int err = 0;
 	struct fuse_dispatcher fdi;
 	struct fuse_read_in *fri;
+	int fnd_start;
 
-	if (uio_resid(uio) == 0) {
-		return 0;
-	}
+	if (uio_resid(uio) == 0)
+		return (0);
 	fdisp_init(&fdi, 0);
 
 	/*
@@ -268,8 +271,18 @@ fuse_internal_readdir(struct vnode *vp,
 	 * I/O).
 	 */
 
+	/*
+	 * fnd_start is set non-zero once the offset in the directory gets
+	 * to the startoff.  This is done because directories must be read
+	 * from the beginning (offset == 0) when fuse_vnop_readdir() needs
+	 * to do an open of the directory.
+	 * If it is not set non-zero here, it will be set non-zero in
+	 * fuse_internal_readdir_processdata() when uio_offset == startoff.
+	 */
+	fnd_start = 0;
+	if (uio->uio_offset == startoff)
+		fnd_start = 1;
 	while (uio_resid(uio) > 0) {
-
 		fdi.iosize = sizeof(*fri);
 		fdisp_make_vp(&fdi, FUSE_READDIR, vp, NULL, NULL);
 
@@ -277,53 +290,67 @@ fuse_internal_readdir(struct vnode *vp,
 		fri->fh = fufh->fh_id;
 		fri->offset = uio_offset(uio);
 		fri->size = min(uio_resid(uio), FUSE_DEFAULT_IOSIZE);
-		/* mp->max_read */
 
-		    if ((err = fdisp_wait_answ(&fdi))) {
+		if ((err = fdisp_wait_answ(&fdi)) != 0)
 			break;
-		}
-		if ((err = fuse_internal_readdir_processdata(uio, fri->size, fdi.answ,
-		    fdi.iosize, cookediov))) {
+		if ((err = fuse_internal_readdir_processdata(uio, startoff,
+		    &fnd_start, fri->size, fdi.answ, fdi.iosize, cookediov,
+		    ncookies, &cookies)) != 0)
 			break;
-		}
 	}
 
 	fdisp_destroy(&fdi);
 	return ((err == -1) ? 0 : err);
 }
 
+/*
+ * Return -1 to indicate that this readdir is finished, 0 if it copied
+ * all the directory data read in and it may be possible to read more
+ * and greater than 0 for a failure.
+ */
 int
 fuse_internal_readdir_processdata(struct uio *uio,
+    off_t startoff,
+    int *fnd_start,
     size_t reqsize,
     void *buf,
     size_t bufsize,
-    void *param)
+    struct fuse_iov *cookediov,
+    int *ncookies,
+    u_long **cookiesp)
 {
 	int err = 0;
-	int cou = 0;
 	int bytesavail;
 	size_t freclen;
-
 	struct dirent *de;
 	struct fuse_dirent *fudge;
-	struct fuse_iov *cookediov = param;
+	u_long *cookies;
 
+	cookies = *cookiesp;
 	if (bufsize < FUSE_NAME_OFFSET) {
-		return -1;
+		return (-1);
 	}
 	for (;;) {
 
 		if (bufsize < FUSE_NAME_OFFSET) {
-			err = -1;
+			/*
+			 * Return 0 since we have done at least one loop
+			 * iteration and we are at the end of the buffer.
+			 * As such, we might be able to read more directory
+			 * data.
+			 */
+			err = 0;
 			break;
 		}
 		fudge = (struct fuse_dirent *)buf;
 		freclen = FUSE_DIRENT_SIZE(fudge);
 
-		cou++;
-
 		if (bufsize < freclen) {
-			err = ((cou == 1) ? -1 : 0);
+			/*
+			 * This indicates a partial directory entry at the
+			 * end of the directory data.
+			 */
+			err = -1;
 			break;
 		}
 #ifdef ZERO_PAD_INCOMPLETE_BUFS
@@ -333,40 +360,60 @@ fuse_internal_readdir_processdata(struct uio *uio,
 		}
 #endif
 
-		if (!fudge->namelen || fudge->namelen > MAXNAMLEN) {
+		if (fudge->namelen == 0 || fudge->namelen > MAXNAMLEN) {
 			err = EINVAL;
 			break;
 		}
-		bytesavail = GENERIC_DIRSIZ((struct pseudo_dirent *)
-					    &fudge->namelen);
 
+		/* bytesavail is the size of the BSD dirent. */
+		bytesavail = GENERIC_DIRSIZ((struct pseudo_dirent *)
+		    &fudge->namelen);
 		if (bytesavail > uio_resid(uio)) {
+			/* Out of space for the dir so we are done. */
 			err = -1;
 			break;
 		}
-		fiov_refresh(cookediov);
-		fiov_adjust(cookediov, bytesavail);
 
-		de = (struct dirent *)cookediov->base;
-		de->d_fileno = fudge->ino;	/* XXX: truncation */
-		de->d_reclen = bytesavail;
-		de->d_type = fudge->type;
-		de->d_namlen = fudge->namelen;
-		memcpy((char *)cookediov->base + sizeof(struct dirent) - 
-		       MAXNAMLEN - 1,
-		       (char *)buf + FUSE_NAME_OFFSET, fudge->namelen);
-		((char *)cookediov->base)[bytesavail] = '\0';
+		/*
+		 * Don't start to copy the directory entries out until
+		 * the requested offset in the directory is found.
+		 */
+		if (*fnd_start != 0) {
+			fiov_refresh(cookediov);
+			fiov_adjust(cookediov, bytesavail);
+			de = (struct dirent *)cookediov->base;
+			de->d_fileno = fudge->ino;	/* XXX: truncation */
+			de->d_reclen = bytesavail;
+			de->d_type = fudge->type;
+			de->d_namlen = fudge->namelen;
+			memcpy((char *)cookediov->base +
+			    sizeof(struct dirent) - MAXNAMLEN - 1,
+			   (char *)buf + FUSE_NAME_OFFSET, fudge->namelen);
+			((char *)cookediov->base)[bytesavail] = '\0';
+	
+			err = uiomove(cookediov->base, cookediov->len, uio);
+			if (err != 0)
+				break;
+			if (cookies != NULL) {
+				if (*ncookies == 0) {
+					err = -1;
+					break;
+				}
+				*cookies = fudge->off;
+				cookies++;
+				(*ncookies)--;
+			}
+		} else if (startoff == fudge->off)
+			*fnd_start = 1;
 
-		err = uiomove(cookediov->base, cookediov->len, uio);
-		if (err) {
-			break;
-		}
+		/* Move to the next fuse directory entry. */
+		uio_setoffset(uio, fudge->off);
 		buf = (char *)buf + freclen;
 		bufsize -= freclen;
-		uio_setoffset(uio, fudge->off);
 	}
+	*cookiesp = cookies;
 
-	return err;
+	return (err);
 }
 
 /* remove */

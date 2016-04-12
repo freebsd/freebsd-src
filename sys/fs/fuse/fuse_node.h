@@ -111,6 +111,12 @@ fuse_vnode_setparent(struct vnode *vp, struct vnode *dvp)
 
 void fuse_vnode_destroy(struct vnode *vp);
 
+int fuse_vnode_alloc(struct mount       *mp,
+                     struct thread      *td,
+                     uint64_t            nodeid,
+                     enum vtype          vtyp,
+                     struct vnode      **vpp);
+
 int fuse_vnode_get(struct mount         *mp,
                    uint64_t              nodeid,
                    struct vnode         *dvp,
@@ -127,5 +133,22 @@ void fuse_vnode_refreshsize(struct vnode *vp, struct ucred *cred);
 int fuse_vnode_savesize(struct vnode *vp, struct ucred *cred);
 
 int fuse_vnode_setsize(struct vnode *vp, struct ucred *cred, off_t newsize);
+
+/*
+ * Since making a structure that is a file system specific "struct fid"
+ * is too big, due to alignment issues, this structure is copied into the
+ * fid_data field.  fid_data0 in "struct fid" is used for the vnode type.
+ * Until MAXFIDSZ is increased, only the first half of this structure will
+ * fit in fid_data. This is fine for GlusterFS, since it always sets the
+ * "generation" to 0.  As such, the rest is #ifdef notyet.
+ */
+struct fuse_fid_data {
+	uint64_t	ffid_nid;
+	uint64_t	ffid_parent_nid;
+#ifdef notyet
+	uint64_t	ffid_nid_gen;
+	uint64_t	ffid_parent_nid_gen;
+#endif
+};
 
 #endif /* _FUSE_NODE_H_ */

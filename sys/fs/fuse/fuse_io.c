@@ -119,15 +119,10 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 {
 	struct fuse_filehandle *fufh;
 	int err, directio;
+	fufh_type_t fufhtype;
 
 	MPASS(vp->v_type == VREG || vp->v_type == VDIR);
 
-	err = fuse_filehandle_getrw(vp,
-	    (uio->uio_rw == UIO_READ) ? FUFH_RDONLY : FUFH_WRONLY, &fufh);
-	if (err) {
-		printf("FUSE: io dispatch: filehandles are closed\n");
-		return err;
-	}
 	/*
          * Ideally, when the daemon asks for direct io at open time, the
          * standard file flag should be set according to this, so that would
@@ -140,6 +135,18 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
          */
 	directio = (ioflag & IO_DIRECT) || !fsess_opt_datacache(vnode_mount(vp));
 
+	if (uio->uio_rw == UIO_READ)
+		fufhtype = FUFH_RDONLY;
+	else if (directio != 0)
+		fufhtype = FUFH_WRONLY;
+	else
+		/* Buffer cache writing might read a block in. */
+		fufhtype = FUFH_RDWR;
+	err = fuse_filehandle_getrw(vp, fufhtype, &fufh);
+	if (err) {
+		printf("FUSE: io dispatch: filehandles are closed\n");
+		return err;
+	}
 	switch (uio->uio_rw) {
 	case UIO_READ:
 		if (directio) {
