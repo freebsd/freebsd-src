@@ -428,7 +428,7 @@ readtab(force)
 		if (hp->flags.iaddr) {
 			nhosts++;
 		}
-		/* Register by HW addr if known. */
+		/* by HW addr if known. */
 		if (hp->flags.htype && hp->flags.haddr) {
 			/* We will either insert it or free it. */
 			hp->linkcount++;
@@ -441,7 +441,7 @@ readtab(force)
 				continue;
 			}
 		}
-		/* Register by IP addr if known. */
+		/* by IP addr if known. */
 		if (hp->flags.iaddr) {
 			hashcode = hash_HashFunction((u_char *) & (hp->iaddr.s_addr), 4);
 			if (hash_Insert(iphashtable, hashcode, nullcmp, hp, hp) < 0) {
@@ -452,7 +452,7 @@ readtab(force)
 				hp->linkcount++;
 			}
 		}
-		/* Register by Name (always known) */
+		/* by Name (always known) */
 		hashcode = hash_HashFunction((u_char *) hp->hostname->string,
 									 strlen(hp->hostname->string));
 		if (hash_Insert(nmhashtable, hashcode, nullcmp,
@@ -1305,7 +1305,7 @@ process_generic(src, dest, tagvalue)
 
 PRIVATE boolean
 goodname(hostname)
-	register char *hostname;
+	char *hostname;
 {
 	do {
 		if (!isalpha(*hostname++)) {	/* First character must be a letter */
@@ -1524,7 +1524,7 @@ PRIVATE void
 adjust(s)
 	char **s;
 {
-	register char *t;
+	char *t;
 
 	t = *s;
 	while (*t && (*t != ':')) {
@@ -1549,7 +1549,7 @@ PRIVATE void
 eat_whitespace(s)
 	char **s;
 {
-	register char *t;
+	char *t;
 
 	t = *s;
 	while (*t && isspace(*t)) {
@@ -1668,7 +1668,7 @@ prs_inetaddr(src, result)
 	u_int32 *result;
 {
 	char tmpstr[MAXSTRINGLEN];
-	register u_int32 value;
+	u_int32 value;
 	u_int32 parts[4], *pp;
 	int n;
 	char *s, *t;
@@ -1853,7 +1853,7 @@ PRIVATE u_int32
 get_u_long(src)
 	char **src;
 {
-	register u_int32 value, base;
+	u_int32 value, base;
 	char c;
 
 	/*
