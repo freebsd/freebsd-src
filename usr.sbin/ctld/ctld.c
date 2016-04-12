@@ -66,7 +66,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: ctld [-d][-f config-file]\n");
+	fprintf(stderr, "usage: ctld [-d][-u][-f config-file]\n");
 	exit(1);
 }
 
