@@ -144,102 +144,33 @@ sctp_pathmtu_adjustment(struct sctp_tcb *stcb, uint16_t nxtsz)
 
 #ifdef INET
 static void
-sctp_notify_mbuf(struct sctp_inpcb *inp,
+sctp_notify(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     struct sctp_nets *net,
-    struct ip *ip)
-{
-	struct icmp *icmph;
-	int totsz, tmr_stopped = 0;
-	uint16_t nxtsz;
-
-	/* protection */
-	if ((inp == NULL) || (stcb == NULL) || (net == NULL) || (ip == NULL)) {
-		if (stcb != NULL) {
-			SCTP_TCB_UNLOCK(stcb);
-		}
-		return;
-	}
-	icmph = (struct icmp *)((caddr_t)ip - (sizeof(struct icmp) -
-	    sizeof(struct ip)));
-	if (icmph->icmp_type != ICMP_UNREACH) {
-		/* We only care about unreachable */
-		SCTP_TCB_UNLOCK(stcb);
-		return;
-	}
-	if (icmph->icmp_code != ICMP_UNREACH_NEEDFRAG) {
-		/* not a unreachable message due to frag. */
-		SCTP_TCB_UNLOCK(stcb);
-		return;
-	}
-	totsz = ntohs(ip->ip_len);
-
-	nxtsz = ntohs(icmph->icmp_nextmtu);
-	if (nxtsz == 0) {
-		/*
-		 * old type router that does not tell us what the next size
-		 * mtu is. Rats we will have to guess (in a educated fashion
-		 * of course)
-		 */
-		nxtsz = sctp_get_prev_mtu(totsz);
-	}
-	/* Stop any PMTU timer */
-	if (SCTP_OS_TIMER_PENDING(&net->pmtu_timer.timer)) {
-		tmr_stopped = 1;
-		sctp_timer_stop(SCTP_TIMER_TYPE_PATHMTURAISE, inp, stcb, net,
-		    SCTP_FROM_SCTP_USRREQ + SCTP_LOC_1);
-	}
-	/* Adjust destination size limit */
-	if (net->mtu > nxtsz) {
-		net->mtu = nxtsz;
-		if (net->port) {
-			net->mtu -= sizeof(struct udphdr);
-		}
-	}
-	/* now what about the ep? */
-	if (stcb->asoc.smallest_mtu > nxtsz) {
-		sctp_pathmtu_adjustment(stcb, nxtsz);
-	}
-	if (tmr_stopped)
-		sctp_timer_start(SCTP_TIMER_TYPE_PATHMTURAISE, inp, stcb, net);
-
-	SCTP_TCB_UNLOCK(stcb);
-}
-
-static void
-sctp_notify(struct sctp_inpcb *inp,
-    struct ip *ip,
-    struct sockaddr *to,
-    struct sctp_tcb *stcb,
-    struct sctp_nets *net)
+    uint8_t icmp_type,
+    uint8_t icmp_code,
+    uint16_t ip_len,
+    uint16_t next_mtu)
 {
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
 
 #endif
-	struct icmp *icmph;
+	int timer_stopped;
 
-	/* protection */
-	if ((inp == NULL) || (stcb == NULL) || (net == NULL) || (to == NULL)) {
-		if (stcb)
-			SCTP_TCB_UNLOCK(stcb);
-		return;
-	}
-	icmph = (struct icmp *)((caddr_t)ip - (sizeof(struct icmp) -
-	    sizeof(struct ip)));
-	if (icmph->icmp_type != ICMP_UNREACH) {
+	if (icmp_type != ICMP_UNREACH) {
 		/* We only care about unreachable */
 		SCTP_TCB_UNLOCK(stcb);
 		return;
 	}
-	if ((icmph->icmp_code == ICMP_UNREACH_NET) ||
-	    (icmph->icmp_code == ICMP_UNREACH_HOST) ||
-	    (icmph->icmp_code == ICMP_UNREACH_NET_UNKNOWN) ||
-	    (icmph->icmp_code == ICMP_UNREACH_HOST_UNKNOWN) ||
-	    (icmph->icmp_code == ICMP_UNREACH_ISOLATED) ||
-	    (icmph->icmp_code == ICMP_UNREACH_NET_PROHIB) ||
-	    (icmph->icmp_code == ICMP_UNREACH_HOST_PROHIB) ||
-	    (icmph->icmp_code == ICMP_UNREACH_FILTER_PROHIB)) {
+	if ((icmp_code == ICMP_UNREACH_NET) ||
+	    (icmp_code == ICMP_UNREACH_HOST) ||
+	    (icmp_code == ICMP_UNREACH_NET_UNKNOWN) ||
+	    (icmp_code == ICMP_UNREACH_HOST_UNKNOWN) ||
+	    (icmp_code == ICMP_UNREACH_ISOLATED) ||
+	    (icmp_code == ICMP_UNREACH_NET_PROHIB) ||
+	    (icmp_code == ICMP_UNREACH_HOST_PROHIB) ||
+	    (icmp_code == ICMP_UNREACH_FILTER_PROHIB)) {
 
 		/*
 		 * Hmm reachablity problems we must examine closely. If its
@@ -248,7 +179,7 @@ sctp_notify(struct sctp_inpcb *inp,
 		 * it a OOTB abort.
 		 */
 		if (net->dest_state & SCTP_ADDR_REACHABLE) {
-			/* Ok that destination is NOT reachable */
+			/* OK, that destination is NOT reachable. */
 			net->dest_state &= ~SCTP_ADDR_REACHABLE;
 			net->dest_state &= ~SCTP_ADDR_PF;
 			sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN,
@@ -256,8 +187,8 @@ sctp_notify(struct sctp_inpcb *inp,
 			    (void *)net, SCTP_SO_NOT_LOCKED);
 		}
 		SCTP_TCB_UNLOCK(stcb);
-	} else if ((icmph->icmp_code == ICMP_UNREACH_PROTOCOL) ||
-	    (icmph->icmp_code == ICMP_UNREACH_PORT)) {
+	} else if ((icmp_code == ICMP_UNREACH_PROTOCOL) ||
+	    (icmp_code == ICMP_UNREACH_PORT)) {
 		/*
 		 * Here the peer is either playing tricks on us, including
 		 * an address that belongs to someone who does not support
@@ -281,19 +212,51 @@ sctp_notify(struct sctp_inpcb *inp,
 		/* SCTP_TCB_UNLOCK(stcb); MT: I think this is not needed. */
 #endif
 		/* no need to unlock here, since the TCB is gone */
+	} else if (icmp_code == ICMP_UNREACH_NEEDFRAG) {
+		/* Find the next (smaller) MTU */
+		if (next_mtu == 0) {
+			/*
+			 * Old type router that does not tell us what the
+			 * next MTU is. Rats we will have to guess (in a
+			 * educated fashion of course).
+			 */
+			next_mtu = sctp_get_prev_mtu(ip_len);
+		}
+		/* Stop the PMTU timer. */
+		if (SCTP_OS_TIMER_PENDING(&net->pmtu_timer.timer)) {
+			timer_stopped = 1;
+			sctp_timer_stop(SCTP_TIMER_TYPE_PATHMTURAISE, inp, stcb, net,
+			    SCTP_FROM_SCTP_USRREQ + SCTP_LOC_1);
+		} else {
+			timer_stopped = 0;
+		}
+		/* Update the path MTU. */
+		if (net->mtu > next_mtu) {
+			net->mtu = next_mtu;
+			if (net->port) {
+				net->mtu -= sizeof(struct udphdr);
+			}
+		}
+		/* Update the association MTU */
+		if (stcb->asoc.smallest_mtu > next_mtu) {
+			sctp_pathmtu_adjustment(stcb, next_mtu);
+		}
+		/* Finally, start the PMTU timer if it was running before. */
+		if (timer_stopped) {
+			sctp_timer_start(SCTP_TIMER_TYPE_PATHMTURAISE, inp, stcb, net);
+		}
+		SCTP_TCB_UNLOCK(stcb);
 	} else {
 		SCTP_TCB_UNLOCK(stcb);
 	}
 }
 
-#endif
-
-#ifdef INET
 void
 sctp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
 	struct ip *ip = vip;
 	struct sctphdr *sh;
+	struct icmp *icmph;
 	uint32_t vrf_id;
 
 	/* FIX, for non-bsd is this right? */
@@ -313,6 +276,9 @@ sctp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		struct sctp_nets *net = NULL;
 		struct sockaddr_in to, from;
 
+		icmph = (struct icmp *)((caddr_t)ip - (sizeof(struct icmp) -
+		    sizeof(struct ip)));
+
 		sh = (struct sctphdr *)((caddr_t)ip + (ip->ip_hl << 2));
 		bzero(&to, sizeof(to));
 		bzero(&from, sizeof(from));
@@ -322,7 +288,6 @@ sctp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		from.sin_addr = ip->ip_src;
 		to.sin_port = sh->dest_port;
 		to.sin_addr = ip->ip_dst;
-
 		/*
 		 * 'to' holds the dest of the packet that failed to be sent.
 		 * 'from' holds our local endpoint address. Thus we reverse
@@ -332,6 +297,7 @@ sctp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		    (struct sockaddr *)&from,
 		    &inp, &net, 1, vrf_id);
 		if ((stcb != NULL) &&
+		    (net != NULL) &&
 		    (inp != NULL) &&
 		    (inp->sctp_socket != NULL)) {
 			/* Check the verification tag */
@@ -342,7 +308,7 @@ sctp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 				 * consider packets reflecting the
 				 * verification tag.
 				 */
-				if (ntohl(sh->v_tag) != (stcb->asoc.peer_vtag)) {
+				if (ntohl(sh->v_tag) != stcb->asoc.peer_vtag) {
 					SCTP_TCB_UNLOCK(stcb);
 					return;
 				}
@@ -355,14 +321,11 @@ sctp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 				SCTP_TCB_UNLOCK(stcb);
 				return;
 			}
-			if (cmd != PRC_MSGSIZE) {
-				sctp_notify(inp, ip,
-				    (struct sockaddr *)&to, stcb,
-				    net);
-			} else {
-				/* handle possible ICMP size messages */
-				sctp_notify_mbuf(inp, stcb, net, ip);
-			}
+			sctp_notify(inp, stcb, net,
+			    icmph->icmp_type,
+			    icmph->icmp_code,
+			    ntohs(ip->ip_len),
+			    ntohs(icmph->icmp_nextmtu));
 		} else {
 			if ((stcb == NULL) && (inp != NULL)) {
 				/* reduce ref-count */
