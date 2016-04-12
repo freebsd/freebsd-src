@@ -45,7 +45,7 @@ CC_S =	${CC} -c ${CFLAGS} ${PICFLAG} -DSHARED
 COMMONHDRS=	tm.h tconfig.h gcov-iov.h options.h
 CLEANFILES+=	${COMMONHDRS} cs-tm.h cs-tconfig.h options.h optionlist
 
-${COMMONHDRS}: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
+${COMMONHDRS}: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile .PHONY
 	(cd ${.CURDIR}; ${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET})
 
 ${OBJS} beforedepend: ${COMMONHDRS}
