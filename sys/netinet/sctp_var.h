@@ -344,10 +344,6 @@ void sctp_init(void);
 void sctp_finish(void);
 int sctp_flush(struct socket *, int);
 int sctp_shutdown(struct socket *);
-void 
-sctp_notify(struct sctp_inpcb *, struct ip *ip, struct sctphdr *,
-    struct sockaddr *, struct sctp_tcb *,
-    struct sctp_nets *);
 int 
 sctp_bindx(struct socket *, int, struct sockaddr_storage *,
     int, int, struct proc *);

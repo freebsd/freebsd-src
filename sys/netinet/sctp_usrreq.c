@@ -147,24 +147,17 @@ static void
 sctp_notify_mbuf(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     struct sctp_nets *net,
-    struct ip *ip,
-    struct sctphdr *sh)
+    struct ip *ip)
 {
 	struct icmp *icmph;
 	int totsz, tmr_stopped = 0;
 	uint16_t nxtsz;
 
 	/* protection */
-	if ((inp == NULL) || (stcb == NULL) || (net == NULL) ||
-	    (ip == NULL) || (sh == NULL)) {
+	if ((inp == NULL) || (stcb == NULL) || (net == NULL) || (ip == NULL)) {
 		if (stcb != NULL) {
 			SCTP_TCB_UNLOCK(stcb);
 		}
-		return;
-	}
-	/* First job is to verify the vtag matches what I would send */
-	if (ntohl(sh->v_tag) != (stcb->asoc.peer_vtag)) {
-		SCTP_TCB_UNLOCK(stcb);
 		return;
 	}
 	icmph = (struct icmp *)((caddr_t)ip - (sizeof(struct icmp) -
@@ -213,10 +206,9 @@ sctp_notify_mbuf(struct sctp_inpcb *inp,
 	SCTP_TCB_UNLOCK(stcb);
 }
 
-void
+static void
 sctp_notify(struct sctp_inpcb *inp,
     struct ip *ip,
-    struct sctphdr *sh,
     struct sockaddr *to,
     struct sctp_tcb *stcb,
     struct sctp_nets *net)
@@ -228,15 +220,9 @@ sctp_notify(struct sctp_inpcb *inp,
 	struct icmp *icmph;
 
 	/* protection */
-	if ((inp == NULL) || (stcb == NULL) || (net == NULL) ||
-	    (sh == NULL) || (to == NULL)) {
+	if ((inp == NULL) || (stcb == NULL) || (net == NULL) || (to == NULL)) {
 		if (stcb)
 			SCTP_TCB_UNLOCK(stcb);
-		return;
-	}
-	/* First job is to verify the vtag matches what I would send */
-	if (ntohl(sh->v_tag) != (stcb->asoc.peer_vtag)) {
-		SCTP_TCB_UNLOCK(stcb);
 		return;
 	}
 	icmph = (struct icmp *)((caddr_t)ip - (sizeof(struct icmp) -
@@ -304,10 +290,7 @@ sctp_notify(struct sctp_inpcb *inp,
 
 #ifdef INET
 void
-sctp_ctlinput(cmd, sa, vip)
-	int cmd;
-	struct sockaddr *sa;
-	void *vip;
+sctp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
 	struct ip *ip = vip;
 	struct sctphdr *sh;
@@ -348,14 +331,37 @@ sctp_ctlinput(cmd, sa, vip)
 		stcb = sctp_findassociation_addr_sa((struct sockaddr *)&to,
 		    (struct sockaddr *)&from,
 		    &inp, &net, 1, vrf_id);
-		if (stcb != NULL && inp && (inp->sctp_socket != NULL)) {
+		if ((stcb != NULL) &&
+		    (inp != NULL) &&
+		    (inp->sctp_socket != NULL)) {
+			/* Check the verification tag */
+			if (ntohl(sh->v_tag) != 0) {
+				/*
+				 * This must be the verification tag used
+				 * for sending out packets. We don't
+				 * consider packets reflecting the
+				 * verification tag.
+				 */
+				if (ntohl(sh->v_tag) != (stcb->asoc.peer_vtag)) {
+					SCTP_TCB_UNLOCK(stcb);
+					return;
+				}
+			} else {
+				/*
+				 * In this case we could check if we got an
+				 * INIT chunk and if the initiate tag
+				 * matches. But this is not there yet...
+				 */
+				SCTP_TCB_UNLOCK(stcb);
+				return;
+			}
 			if (cmd != PRC_MSGSIZE) {
-				sctp_notify(inp, ip, sh,
+				sctp_notify(inp, ip,
 				    (struct sockaddr *)&to, stcb,
 				    net);
 			} else {
 				/* handle possible ICMP size messages */
-				sctp_notify_mbuf(inp, stcb, net, ip, sh);
+				sctp_notify_mbuf(inp, stcb, net, ip);
 			}
 		} else {
 			if ((stcb == NULL) && (inp != NULL)) {
