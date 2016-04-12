@@ -15,6 +15,9 @@
 PROJECT=libxo
 MAKEOBJDIRPREFIX=/tank/home/phil/work/bsd/base/head/obj/
 export MAKEOBJDIRPREFIX
+EDITOR=vi
+VISUAL=vi
+export EDITOR VISUAL
 
 #"global" vars
 # Set SVN variables
@@ -261,8 +264,8 @@ Cd $CWD/../../../head
 HEAD=`pwd`
 info "HEAD = $HEAD"
 
-run "copying xo_config.h" "cp $CWD/dist/build/libxo/xo_config.h $HEAD/lib/libxo/"
-run "copying add.man" "cp $CWD/dist/build/libxo/add.man $HEAD/lib/libxo/"
+run "copying xo_config.h" "(echo '/* \$FreeBSD\$ */' ; cat $CWD/dist/build/libxo/xo_config.h ) > $HEAD/lib/libxo/xo_config.h"
+run "copying add.man" "(echo '.\\\" \$FreeBSD\$' ; cat $CWD/dist/build/libxo/add.man ) > $HEAD/lib/libxo/add.man"
 
 #BUILDDIRS="lib/libxo usr.bin/xo"
 #for dir in $BUILDDIRS ; do
@@ -309,7 +312,7 @@ run "checking merge issues" "$SVN diff --no-diff-deleted --old=svn+ssh://repo.fr
 Cd $HEAD
 run "show svn stat for 'head'" "$SVN stat"
 run "show svn diff for 'head'" "$SVN diff --no-diff-deleted"
-run "commit changes to 'head'" "$SVN -m 'Merge $PROJECT $VERSION' commit"
+run "commit changes to 'head'" "$SVN commit"
 run "show svn stat for 'head'" "$SVN stat"
 
 exit 0
