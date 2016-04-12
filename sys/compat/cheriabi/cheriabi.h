@@ -57,6 +57,67 @@ __cheri_cap_to_ptr(struct chericap *c)
 #define PTRIN_CP(src,dst,fld) \
 	do { (dst).fld = PTRIN((src).fld); } while (0)
 
+/*
+ * Design note: I considered adding a may_be_integer flag to handle
+ * cases where the value may be a pointer or an integer, but doing so
+ * risks allowing the caller to operate on arbitrary virtual addresses.
+ * If we don't know what type of object we're trying to fill, we should
+ * not create a spurious pointer. -- BD
+ */
+static inline int
+cheriabi_cap_to_ptr(caddr_t *ptrp, struct chericap *cap, size_t reqlen,
+    register_t reqperms, int may_be_null)
+{
+	u_int tag;
+	register_t perms;
+	register_t sealed;
+	size_t length, offset;
+
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, cap, 0);
+	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+	if (!tag) {
+		if (!may_be_null)
+			return (EPROT);
+		CHERI_CTOINT(*ptrp, CHERI_CR_CTEMP0);
+		if (*ptrp != NULL)
+			return (EPROT);
+	} else {
+		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+		if ((perms & reqperms) != reqperms)
+			return (EPROT);
+
+		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
+		if (sealed)
+			return (EPROT);
+
+		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
+		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		if (offset >= length)
+			return (EPROT);
+		length -= offset;
+		if (length < reqlen)
+			return (EPROT);
+
+		CHERI_CTOPTR(*ptrp, CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	}
+	return (0);
+}
+
+static inline int
+cheriabi_strcap_to_ptr(const char **strp, struct chericap *cap, int may_be_null)
+{
+
+	/*
+	 * XXX-BD: place holder implementation checks that the capability
+	 * could hold a NUL terminated string empty string.  We can't
+	 * check that it does hold one because the caller could change
+	 * that out from under us.  Completely safe string handling
+	 * requires pushing the length down to the copyinstr().
+	 */
+	return (cheriabi_cap_to_ptr(__DECONST(caddr_t *, strp), cap, 1,
+	    (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD), may_be_null));
+}
+
 struct kevent_c {
 	struct chericap	ident;		/* identifier for this event */
 	short		filter;		/* filter for event */

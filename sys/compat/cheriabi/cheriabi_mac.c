@@ -31,7 +31,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/types.h>
+#include <sys/errno.h>
 #include <sys/socket.h>
 
 #include <compat/cheriabi/cheriabi.h>
