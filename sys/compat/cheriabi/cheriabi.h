@@ -131,4 +131,34 @@ struct sf_hdtr_c {
 	int		trl_cnt;
 };
 
+struct procctl_reaper_pids_c {
+	u_int   rp_count;
+	u_int   rp_pad0[15];
+	struct chericap rp_pids;	/* struct procctl_reaper_pidinfo * */
+};
+
+union semun_c {
+	int val;
+	/* struct semid_ds *buf; */
+	/* unsigned short  *array; */
+	struct chericap ptr;
+};
+
+#include <sys/ipc.h>
+#include <sys/msg.h>
+
+struct msqid_ds_c {
+	struct ipc_perm	msg_perm;
+	struct chericap	msg_first;		/* struct msg * */
+	struct chericap	msg_last;		/* struct msg * */
+	msglen_t	msg_cbytes;
+	msgqnum_t	msg_qnum;
+	msglen_t	msg_qbytes;
+	pid_t		msg_lspid;
+	pid_t  		msg_lrpid;
+	time_t		msg_stime;
+	time_t 		msg_rtime;
+	time_t		msg_ctime;
+};
+
 #endif /* !_COMPAT_CHERIABI_CHERIABI_H_ */
