@@ -21,15 +21,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * The pci allocator parts are based on code from sys/dev/arm/mv/:
- *
- * Copyright (c) 2008 MARVELL INTERNATIONAL LTD.
- * Copyright (c) 2010 The FreeBSD Foundation
- * Copyright (c) 2010-2012 Semihalf
- * All rights reserved.
- *
- * Developed by Semihalf.
  */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -72,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/mediatek/mtk_sysctl.h>
 #include <mips/mediatek/fdt_reset.h>
 
+#include "ofw_bus_if.h"
 #include "pcib_if.h"
 #include "pic_if.h"
 
@@ -98,7 +90,6 @@ static void mtk_pcie_phy_setup_slots(device_t);
 struct mtx mtk_pci_mtx;
 MTX_SYSINIT(mtk_pci_mtx, &mtk_pci_mtx, "MTK PCIe mutex", MTX_SPIN);
 
-static int mtk_pcib_init(device_t, int, int);
 static int mtk_pci_intr(void *);
 
 static struct mtk_pci_softc *mt_sc = NULL;
@@ -340,9 +331,6 @@ mtk_pci_attach(device_t dev)
 		}
 	}
 
-	/* Do generic PCIe initialization and resource allocation */
-	mtk_pcib_init(dev, 0, PCI_SLOTMAX);
-
 	/* Attach our PCI child so bus enumeration can start */
 	if (device_add_child(dev, "pci", -1) == NULL) {
 		device_printf(dev, "could not attach pci bus\n");
@@ -426,6 +414,9 @@ mtk_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct rman *rm;
 
 	switch (type) {
+	case PCI_RES_BUS:
+		return pci_domain_alloc_bus(0, child, rid, start, end, count,
+					    flags);
 	case SYS_RES_IRQ:
 		rm = &sc->sc_irq_rman;
 		break;
@@ -454,6 +445,47 @@ mtk_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	return (rv);
+}
+
+static int
+mtk_pci_release_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *res)
+{
+
+	if (type == PCI_RES_BUS)
+		return (pci_domain_release_bus(0, child, rid, res));
+
+	return (bus_generic_release_resource(bus, child, type, rid, res));
+}
+
+static int
+mtk_pci_adjust_resource(device_t bus, device_t child, int type,
+    struct resource *res, rman_res_t start, rman_res_t end)
+{
+	struct mtk_pci_softc *sc = device_get_softc(bus);
+	struct rman *rm;
+
+	switch (type) {
+	case PCI_RES_BUS:
+		return pci_domain_adjust_bus(0, child, res, start, end);
+	case SYS_RES_IRQ:
+		rm = &sc->sc_irq_rman;
+		break;
+	case SYS_RES_IOPORT:
+		rm = &sc->sc_io_rman;
+		break;
+	case SYS_RES_MEMORY:
+		rm = &sc->sc_mem_rman;
+		break;
+	default:
+		rm = NULL;
+		break;
+	}
+
+	if (rm != NULL)
+		return (rman_adjust_resource(res, start, end));
+
+	return (bus_generic_adjust_resource(bus, child, type, res, start, end));
 }
 
 static inline int
@@ -643,21 +675,14 @@ mtk_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 	mtx_unlock_spin(&mtk_pci_mtx);
 }
 
-#if 0
-/* We take care of interrupt routing in the allocator code below */
 static int
 mtk_pci_route_interrupt(device_t pcib, device_t device, int pin)
 {
-	//struct mtk_pci_softc *sc = device_get_softc(pcib);
 	int bus, sl, dev;
-
-	if (1) return PCI_INVALID_IRQ;
 
 	bus = pci_get_bus(device);
 	sl = pci_get_slot(device);
 	dev = pci_get_device(device);
-
-	printf("%s: for %d:%d:%d, int = %d\n", __FUNCTION__, bus, sl, dev, pin);
 
 	if (bus != 0)
 		panic("Unexpected bus number %d\n", bus);
@@ -672,7 +697,6 @@ mtk_pci_route_interrupt(device_t pcib, device_t device, int pin)
 
 	return (-1);
 }
-#endif
 
 static device_method_t mtk_pci_methods[] = {
 	/* Device interface */
@@ -686,7 +710,8 @@ static device_method_t mtk_pci_methods[] = {
 	DEVMETHOD(bus_read_ivar,	mtk_pci_read_ivar),
 	DEVMETHOD(bus_write_ivar,	mtk_pci_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	mtk_pci_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_release_resource,	mtk_pci_release_resource),
+	DEVMETHOD(bus_adjust_resource,	mtk_pci_adjust_resource),
 	DEVMETHOD(bus_activate_resource,   bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	mtk_pci_setup_intr),
@@ -696,9 +721,14 @@ static device_method_t mtk_pci_methods[] = {
 	DEVMETHOD(pcib_maxslots,	mtk_pci_maxslots),
 	DEVMETHOD(pcib_read_config,	mtk_pci_read_config),
 	DEVMETHOD(pcib_write_config,	mtk_pci_write_config),
-#if 0
 	DEVMETHOD(pcib_route_interrupt,	mtk_pci_route_interrupt),
-#endif
+
+	/* OFW bus interface */
+	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
 	DEVMETHOD_END
 };
@@ -712,276 +742,6 @@ static driver_t mtk_pci_driver = {
 static devclass_t mtk_pci_devclass;
 
 DRIVER_MODULE(mtk_pci, simplebus, mtk_pci_driver, mtk_pci_devclass, 0, 0);
-
-/* Resource allocation code */
-static inline uint32_t
-pcib_bit_get(uint32_t *map, uint32_t bit)
-{
-	uint32_t n = bit / BITS_PER_UINT32;
-
-	bit = bit % BITS_PER_UINT32;
-	return (map[n] & (1 << bit));
-}
-
-static inline void
-pcib_bit_set(uint32_t *map, uint32_t bit)
-{
-	uint32_t n = bit / BITS_PER_UINT32;
-
-	bit = bit % BITS_PER_UINT32;
-	map[n] |= (1 << bit);
-}
-
-static inline uint32_t
-pcib_map_check(uint32_t *map, uint32_t start, uint32_t bits)
-{
-	uint32_t i;
-
-	for (i = start; i < start + bits; i++)
-		if (pcib_bit_get(map, i))
-			return (0);
-
-	return (1);
-}
-
-static inline void
-pcib_map_set(uint32_t *map, uint32_t start, uint32_t bits)
-{
-	uint32_t i;
-
-	for (i = start; i < start + bits; i++)
-		pcib_bit_set(map, i);
-}
-
-static bus_addr_t
-pcib_alloc(device_t dev, uint32_t smask)
-{
-	struct mtk_pci_softc *sc = device_get_softc(dev);
-	uint32_t bits, bits_limit, i, *map, min_alloc, size;
-	bus_addr_t addr = 0;
-	bus_addr_t base;
-
-	if (smask & 1) {
-		base = sc->sc_io_base;
-		min_alloc = PCI_MIN_IO_ALLOC;
-		bits_limit = sc->sc_io_size / min_alloc;
-		map = sc->sc_io_map;
-		smask &= ~0x3;
-	} else {
-		base = sc->sc_mem_base;
-		min_alloc = PCI_MIN_MEM_ALLOC;
-		bits_limit = sc->sc_mem_size / min_alloc;
-		map = sc->sc_mem_map;
-		smask &= ~0xF;
-	}
-
-	size = ~smask + 1;
-	bits = size / min_alloc;
-
-	for (i = 0; i + bits <= bits_limit; i+= bits)
-		if (pcib_map_check(map, i, bits)) {
-			pcib_map_set(map, i, bits);
-			addr = base + (i * min_alloc);
-			return (addr);
-		}
-
-	return (addr);
-}
-
-static int
-mtk_pcib_init_bar(device_t dev, int bus, int slot, int func, int barno)
-{
-	uint32_t addr, bar;
-	int reg, width;
-
-	reg = PCIR_BAR(barno);
-
-	mtk_pci_write_config(dev, bus, slot, func, reg, ~0, 4);
-	bar = mtk_pci_read_config(dev, bus, slot, func, reg, 4);
-	if (bar == 0)
-		return (1);
-
-	/* Calculate BAR size: 64 or 32 bit (in 32-bit units) */
-	width = ((bar & 7) == 4) ? 2 : 1;
-
-	addr = pcib_alloc(dev, bar);
-	if (!addr)
-		return (-1);
-
-	if (bootverbose)
-		printf("PCI %u:%u:%u: reg %x: smask=%08x: addr=%08x\n",
-		    bus, slot, func, reg, bar, addr);
-
-	mtk_pci_write_config(dev, bus, slot, func, reg, addr, 4);
-	if (width == 2)
-		mtk_pci_write_config(dev, bus, slot, func, reg + 4, 0, 4);
-
-	return (width);
-}
-
-static int
-mtk_pcib_init_all_bars(device_t dev, int bus, int slot, int func,
-	int hdrtype)
-{
-	int maxbar, bar, i;
-
-	maxbar = (hdrtype & PCIM_HDRTYPE) ? 0 : 6;
-	bar = 0;
-
-	while (bar < maxbar) {
-		i = mtk_pcib_init_bar(dev, bus, slot, func, bar);
-		bar += i;
-		if (i < 0) {
-			device_printf(dev, "PCI IO/Memory space exhausted\n");
-			return (ENOMEM);
-		}
-	}
-
-	return (0);
-}
-
-static void
-mtk_pcib_init_bridge(device_t dev, int bus, int slot, int func)
-{
-	struct mtk_pci_softc *sc = device_get_softc(dev);
-	bus_addr_t io_base, mem_base;
-	uint32_t io_limit, mem_limit;
-	int secbus;
-
-	if (bus == 0 && !mtk_pci_slot_has_link(dev, slot)) {
-		sc->sc_cur_secbus++;
-		device_printf(dev, "Skip bus %d due to no link\n",
-		    sc->sc_cur_secbus);
-		return;
-	}
-
-	io_base = sc->sc_io_base;
-	io_limit = io_base + sc->sc_io_size - 1;
-	mem_base = sc->sc_mem_base;
-	mem_limit = mem_base + sc->sc_mem_size - 1;
-
-	mtk_pci_write_config(dev, bus, slot, func, PCIR_IOBASEL_1,
-		io_base >> 8, 1);
-	mtk_pci_write_config(dev, bus, slot, func, PCIR_IOBASEH_1,
-		io_base >> 16, 2);
-	mtk_pci_write_config(dev, bus, slot, func, PCIR_IOLIMITL_1,
-		io_limit >> 8, 1);
-	mtk_pci_write_config(dev, bus, slot, func, PCIR_IOLIMITH_1,
-		io_limit >> 16, 2);
-
-	mtk_pci_write_config(dev, bus, slot, func, PCIR_MEMBASE_1,
-		mem_base >> 16, 2);
-	mtk_pci_write_config(dev, bus, slot, func, PCIR_MEMLIMIT_1,
-		mem_limit >> 16, 2);
-
-	mtk_pci_write_config(dev, bus, slot, func, PCIR_PMBASEL_1,
-		0x10, 2);
-	mtk_pci_write_config(dev, bus, slot, func, PCIR_PMBASEH_1,
-		0x0, 4);
-	mtk_pci_write_config(dev, bus, slot, func, PCIR_PMLIMITL_1,
-		0xF, 2);
-	mtk_pci_write_config(dev, bus, slot, func, PCIR_PMLIMITH_1,
-		0x0, 4);
-
-	mtk_pci_write_config(dev, bus, slot, func, PCIR_INTLINE, 0xff, 1);
-
-	secbus = mtk_pci_read_config(dev, bus, slot, func, PCIR_SECBUS_1, 1);
-
-	if (secbus == 0) {
-		sc->sc_cur_secbus++;
-		mtk_pci_write_config(dev, bus, slot, func, PCIR_SECBUS_1,
-			sc->sc_cur_secbus, 1);
-		mtk_pci_write_config(dev, bus, slot, func, PCIR_SUBBUS_1,
-			sc->sc_cur_secbus, 1);
-		secbus = sc->sc_cur_secbus;
-	}
-
-	mtk_pcib_init(dev, secbus, PCI_SLOTMAX);
-}
-
-static uint8_t
-mtk_pci_get_int(device_t dev, int bus, int slot)
-{
-
-	if (slot != 0)
-		return (PCI_INVALID_IRQ);
-
-	switch (bus) {
-	case 1:
-		return (MTK_PCIE0_IRQ);
-	case 2:
-		return (MTK_PCIE1_IRQ);
-	case 3:
-		return (MTK_PCIE2_IRQ);
-	default:
-		device_printf(dev, "Bus %d out of range\n", slot);
-		return (PCI_INVALID_IRQ);
-	}
-
-	/* Unreachable */
-	return (PCI_INVALID_IRQ);
-}
-
-static int
-mtk_pcib_init(device_t dev, int bus, int maxslot)
-{
-	int slot, func, maxfunc, error;
-	uint8_t hdrtype, command, class, subclass;
-
-	for (slot = 0; slot <= maxslot; slot++) {
-		maxfunc = 0;
-		for (func = 0; func <= maxfunc; func++) {
-			hdrtype = mtk_pci_read_config(dev, bus, slot, func,
-				PCIR_HDRTYPE, 1);
-
-			if ((hdrtype & PCIM_HDRTYPE) > PCI_MAXHDRTYPE)
-				continue;
-
-			if (func == 0 && (hdrtype & PCIM_MFDEV))
-				maxfunc = PCI_FUNCMAX;
-
-			command = mtk_pci_read_config(dev, bus, slot, func,
-				PCIR_COMMAND, 1);
-			command &= ~(PCIM_CMD_MEMEN | PCIM_CMD_PORTEN);
-			mtk_pci_write_config(dev, bus, slot, func,
-				PCIR_COMMAND, command, 1);
-
-			error = mtk_pcib_init_all_bars(dev, bus, slot, func,
-				hdrtype);
-
-			if (error)
-				return (error);
-
-			command |= PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN |
-				PCIM_CMD_PORTEN;
-			mtk_pci_write_config(dev, bus, slot, func,
-				PCIR_COMMAND, command, 1);
-
-			mtk_pci_write_config(dev, bus, slot, func,
-				PCIR_CACHELNSZ, 16, 1);
-
-			class = mtk_pci_read_config(dev, bus, slot, func,
-				PCIR_CLASS, 1);
-			subclass = mtk_pci_read_config(dev, bus, slot, func,
-				PCIR_SUBCLASS, 1);
-
-			if (class != PCIC_BRIDGE ||
-			    subclass != PCIS_BRIDGE_PCI) {
-				uint8_t val;
-
-				val = mtk_pci_get_int(dev, bus, slot);
-
-				mtk_pci_write_config(dev, bus, slot, func,
-				    PCIR_INTLINE, val, 1); /* XXX */
-				continue;
-			}
-
-			mtk_pcib_init_bridge(dev, bus, slot, func);
-		}
-	}
-
-	return (0);
-}
 
 /* Our interrupt handler */
 static int
@@ -1467,6 +1227,8 @@ mtk_pcie_phy_setup_slots(device_t dev)
 		/* If slot has link - mark it */
 		if (MT_READ32(sc, MTK_PCIE_STATUS(i)) & 1)
 			sc->pcie_link_status |= (1<<i);
+		else
+			continue;
 
 		/* Generic slot configuration follows */
 
@@ -1484,6 +1246,18 @@ mtk_pcie_phy_setup_slots(device_t dev)
 		val = mtk_pci_read_config(dev, 0, i, 0, 0x70c, 4);
 		val &= ~(0xff << 8);
 		val |= (0x50 << 8);
-		mtk_pci_write_config(dev, 0, i, 0, 0x4, val, 4);
+		mtk_pci_write_config(dev, 0, i, 0, 0x70c, val, 4);
+
+		mtk_pci_write_config(dev, 0, i, 0, PCIR_IOBASEL_1, 0xff, 1);
+		mtk_pci_write_config(dev, 0, i, 0, PCIR_IOBASEH_1, 0xffff, 2);
+		mtk_pci_write_config(dev, 0, i, 0, PCIR_IOLIMITL_1, 0, 1);
+		mtk_pci_write_config(dev, 0, i, 0, PCIR_IOLIMITH_1, 0, 2);
+		mtk_pci_write_config(dev, 0, i, 0, PCIR_MEMBASE_1, 0xffff, 2);
+		mtk_pci_write_config(dev, 0, i, 0, PCIR_MEMLIMIT_1, 0, 2);
+		mtk_pci_write_config(dev, 0, i, 0, PCIR_PMBASEL_1, 0xffff, 2);
+		mtk_pci_write_config(dev, 0, i, 0, PCIR_PMBASEH_1, 0xffffffff,
+		    4);
+		mtk_pci_write_config(dev, 0, i, 0, PCIR_PMLIMITL_1, 0, 2);
+		mtk_pci_write_config(dev, 0, i, 0, PCIR_PMLIMITH_1, 0, 4);
 	}
 }
