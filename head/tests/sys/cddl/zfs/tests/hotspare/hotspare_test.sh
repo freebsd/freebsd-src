@@ -119,7 +119,6 @@ hotspare_add_004_neg_head()
 }
 hotspare_add_004_neg_body()
 {
-	atf_expect_fail "TeamTrack: BUG25169 ZFS allows pools on active swap devices "
 	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/hotspare.kshlib
