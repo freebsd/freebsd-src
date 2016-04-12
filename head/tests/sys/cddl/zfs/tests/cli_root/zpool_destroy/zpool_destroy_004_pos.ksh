@@ -62,7 +62,7 @@ function send_recv_destroy
 	recv=$2
 	to_destroy=$3
 
-	( $ZFS send -RP $TESTPOOL/$TESTFS@s0 | $ZFS receive -Fu $recv/d1 ) &
+	( $ZFS send -RP $TESTPOOL/$TESTFS@snap1 | $ZFS receive -Fu $recv/d1 ) &
 	sendrecvpid=$!
 
 	log_must sleep $sleeptime
@@ -108,10 +108,11 @@ for sleeptime in 0.1 0.3 0.5 0.75 1 2 3; do
 done
 
 # A longer test that simulates a more realistic send|receive that exceeds
-# the size of physical memory by 1/3 and gets interrupted a decent amount of
+# the size of arc memory by 1/3 and gets interrupted a decent amount of
 # time after the start of the run.
-physmem=$(sysctl -n hw.physmem)
-datasz=$(expr ${physmem} / 1048576 \* 4 / 3)
+arcmem=$(sysctl -n vfs.zfs.arc_max)
+# ARC will use 2xdatasz memory since it caches both the src and dst copies
+datasz=$(expr ${arcmem} / 1048576 \* 2 / 3)
 log_note "Running longer test with ${datasz}MB of data"
 sleeptime=15
 run_tests
