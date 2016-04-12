@@ -476,7 +476,8 @@ check_and_init_mutex(pthread_mutex_t *mutex, struct pthread_mutex **m)
 		*m = __thr_pshared_offpage(mutex, 0);
 		if (*m == NULL)
 			ret = EINVAL;
-		shared_mutex_init(*m, NULL);
+		else
+			shared_mutex_init(*m, NULL);
 	} else if (__predict_false(*m <= THR_MUTEX_DESTROYED)) {
 		if (*m == THR_MUTEX_DESTROYED) {
 			ret = EINVAL;
