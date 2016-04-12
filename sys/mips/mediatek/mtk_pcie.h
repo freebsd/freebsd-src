@@ -28,10 +28,6 @@
 #ifndef __MTK_PCIE_H__
 #define __MTK_PCIE_H__
 
-#define PCI_MIN_IO_ALLOC		4
-#define PCI_MIN_MEM_ALLOC		16
-#define BITS_PER_UINT32			(NBBY * sizeof(uint32_t))
-
 #define MTK_PCI_NIRQS			3
 #define MTK_PCI_BASESLOT		0
 
@@ -54,13 +50,9 @@ struct mtk_pci_softc {
 
 	bus_addr_t		sc_mem_base;
 	bus_addr_t		sc_mem_size;
-	uint32_t		sc_mem_map[(256*1024*1024) /
-				(PCI_MIN_MEM_ALLOC * BITS_PER_UINT32)];
 
 	bus_addr_t		sc_io_base;
 	bus_addr_t		sc_io_size;
-	uint32_t		sc_io_map[(16*1024*1024) /
-				(PCI_MIN_IO_ALLOC * BITS_PER_UINT32)];
 
 	struct intr_event	*sc_eventstab[MTK_PCI_NIRQS];
 

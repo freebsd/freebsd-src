@@ -1030,7 +1030,7 @@ vxge_hal_fifo_txdl_buffer_set_aligned(
 	ptrdiff_t prev_boff;
 
 	vxge_assert((vpath_handle != NULL) && (txdlh != NULL) &&
-	    (vaddr != 0) && (dma_pointer != 0) &&
+	    (vaddr != NULL) && (dma_pointer != 0) &&
 	    (size != 0) && (misaligned_size != 0));
 
 	hldev = vp->vpath->hldev;
@@ -1145,8 +1145,8 @@ vxge_hal_fifo_txdl_buffer_append(
 	__hal_fifo_txdl_priv_t *txdl_priv;
 	ptrdiff_t used;
 
-	vxge_assert((vpath_handle != NULL) && (txdlh != NULL) && (vaddr != 0) &&
-	    (size == 0));
+	vxge_assert((vpath_handle != NULL) && (txdlh != NULL) &&
+	    (vaddr != NULL) && (size == 0));
 
 	hldev = vp->vpath->hldev;
 

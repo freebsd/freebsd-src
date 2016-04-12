@@ -581,7 +581,7 @@ vmbus_bus_exit(void)
 	smp_rendezvous(NULL, hv_vmbus_synic_cleanup, NULL, NULL);
 
 	for(i = 0; i < 2 * MAXCPU; i++) {
-		if (setup_args.page_buffers[i] != 0)
+		if (setup_args.page_buffers[i] != NULL)
 			free(setup_args.page_buffers[i], M_DEVBUF);
 	}
 
