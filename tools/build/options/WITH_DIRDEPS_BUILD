@@ -19,7 +19,9 @@ computing a graph of tree dependencies from the current origin.
 Setting
 .Va NO_DIRDEPS
 will skip checking dirdep dependencies and will only build in the current
-directory.
+and child directories.
+.Va NO_DIRDEPS_BELOW
+will skip building any dirdeps and only build the current directory.
 .Pp
 As each target is made
 .Xr make 1
