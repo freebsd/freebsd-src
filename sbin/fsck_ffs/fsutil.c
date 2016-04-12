@@ -184,7 +184,7 @@ bufinit(void)
 
 	pbp = pdirbp = (struct bufarea *)0;
 	bufp = Malloc((unsigned int)sblock.fs_bsize);
-	if (bufp == 0)
+	if (bufp == NULL)
 		errx(EEXIT, "cannot allocate buffer pool");
 	cgblk.b_un.b_buf = bufp;
 	initbarea(&cgblk, BT_CYLGRP);

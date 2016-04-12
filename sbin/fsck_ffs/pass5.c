@@ -82,7 +82,7 @@ pass5(void)
 			}
 		}
 		if (fs->fs_maxcontig > 1) {
-			const char *doit = 0;
+			const char *doit = NULL;
 
 			if (fs->fs_contigsumsize < 1) {
 				doit = "CREAT";

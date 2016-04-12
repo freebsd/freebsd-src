@@ -151,7 +151,7 @@ pass1(void)
 		 */
 		inostathead[c].il_numalloced = inosused;
 		if (inosused == 0) {
-			inostathead[c].il_stat = 0;
+			inostathead[c].il_stat = NULL;
 			continue;
 		}
 		info = Calloc((unsigned)inosused, sizeof(struct inostat));
@@ -221,7 +221,7 @@ pass1(void)
 		inostathead[c].il_numalloced = inosused;
 		if (inosused == 0) {
 			free(inostathead[c].il_stat);
-			inostathead[c].il_stat = 0;
+			inostathead[c].il_stat = NULL;
 			continue;
 		}
 		info = Calloc((unsigned)inosused, sizeof(struct inostat));
@@ -500,9 +500,9 @@ pass1check(struct inodesc *idesc)
 				return (STOP);
 			}
 			new->dup = blkno;
-			if (muldup == 0) {
+			if (muldup == NULL) {
 				duplist = muldup = new;
-				new->next = 0;
+				new->next = NULL;
 			} else {
 				new->next = muldup->next;
 				muldup->next = new;

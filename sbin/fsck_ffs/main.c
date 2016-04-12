@@ -349,10 +349,10 @@ checkfilesys(char *filesys)
 					pfatal(
 	"CANNOT FIND SNAPSHOT DIRECTORY %s: %s, CANNOT RUN IN BACKGROUND\n",
 					    snapname, strerror(errno));
-				} else if ((grp = getgrnam("operator")) == 0 ||
-				    mkdir(snapname, 0770) < 0 ||
-				    chown(snapname, -1, grp->gr_gid) < 0 ||
-				    chmod(snapname, 0770) < 0) {
+				} else if ((grp = getgrnam("operator")) == NULL ||
+					   mkdir(snapname, 0770) < 0 ||
+					   chown(snapname, -1, grp->gr_gid) < 0 ||
+					   chmod(snapname, 0770) < 0) {
 					bkgrdflag = 0;
 					pfatal(
 	"CANNOT CREATE SNAPSHOT DIRECTORY %s: %s, CANNOT RUN IN BACKGROUND\n",
