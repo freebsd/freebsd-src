@@ -102,7 +102,7 @@ SUBDIR=	\
 	${_ed} \
 	${_elink} \
 	${_em} \
-	en \
+	${_en} \
 	${_ep} \
 	${_epic} \
 	esp \
@@ -123,7 +123,7 @@ SUBDIR=	\
 	geom \
 	${_glxiic} \
 	${_glxsb} \
-	hatm \
+	${_hatm} \
 	hifn \
 	hme \
 	${_hpt27xx} \
@@ -271,13 +271,13 @@ SUBDIR=	\
 	${_nvme} \
 	${_nvram} \
 	${_nxge} \
-	oce \
+	${_oce} \
 	otus \
 	otusfw \
 	ow \
 	${_padlock} \
 	${_padlock_rng} \
-	patm \
+	${_patm} \
 	${_pccard} \
 	${_pcfclock} \
 	pcn \
@@ -484,7 +484,9 @@ _pfsync=	pfsync
 
 .if ${MK_SOURCELESS_UCODE} != "no"
 _bce=		bce
+.if ${MK_CHERI} == "no"
 _fatm=		fatm
+.endif
 _fxp=		fxp
 _ispfw=		ispfw
 _mwlfw=		mwlfw
@@ -503,6 +505,13 @@ _cxgbe=		cxgbe
 
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 SUBDIR+=	zfs
+.endif
+
+.if ${MK_CHERI} == "no"
+_en=		en
+_hatm=		hatm
+_oce=		oce
+_patm=		patm
 .endif
 
 .if ${MACHINE_CPUARCH} != "aarch64" && ${MACHINE_CPUARCH} != "arm" && \

@@ -1430,6 +1430,9 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	/* read out the wl cache */
     case SIOCGWLCACHE:
+#ifdef CPU_CHERI
+#error Unvalidatable ifr_data use.  Unsafe with CheriABI.
+#endif
 	WL_LOCK(sc);
 	size = sc->w_sigitems * sizeof(struct w_sigcache);
 	cpt = malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO);

@@ -527,6 +527,9 @@ oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCGPRIVATE_0:
+#ifdef CPU_CHERI
+#error Unvalidatable ifr_data use.  Unsafe with CheriABI.
+#endif
 		rc = oce_handle_passthrough(ifp, data);
 		break;
 	default:

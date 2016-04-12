@@ -501,6 +501,9 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &sc->media, command);
 		break;
 	case SIOCGPRIVATE_0:
+#ifdef CPU_CHERI
+#error Unvalidatable ifr_data use.  Unsafe with CheriABI.
+#endif
 		error = priv_check(curthread, PRIV_DRIVER);
 		if (error != 0)
 			break;

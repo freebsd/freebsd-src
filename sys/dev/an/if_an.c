@@ -1991,6 +1991,9 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		AN_UNLOCK(sc);
 		break;
 	case SIOCGPRIVATE_0:		/* used by Cisco client utility */
+#ifdef CPU_CHERI
+#error Unvalidatable ifr_data use.  Unsafe with CheriABI.
+#endif
 		if ((error = priv_check(td, PRIV_DRIVER)))
 			goto out;
 		error = copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));

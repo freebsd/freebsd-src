@@ -1689,6 +1689,9 @@ xge_ioctl(struct ifnet *ifnetp, unsigned long command, caddr_t data)
 
 	    /* Custom IOCTL 0 */
 	    case SIOCGPRIVATE_0:
+#ifdef CPU_CHERI
+#error Unvalidatable ifr_data use.  Unsafe with CheriABI.
+#endif
 	        retValue = xge_ioctl_stats(lldev, ifreqp);
 	        break;
 

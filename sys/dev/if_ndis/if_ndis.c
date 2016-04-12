@@ -2984,6 +2984,9 @@ ndis_80211ioctl(struct ieee80211com *ic, u_long cmd, void *data)
 		error = ndis_set_info(sc, oid.oid, oidbuf, &oid.len);
 		break;
 	case SIOCGPRIVATE_0:
+#ifdef CPU_CHERI
+#error Unvalidatable ifr_data use.  Unsafe with CheriABI.
+#endif
 		NDIS_LOCK(sc);
 		if (sc->ndis_evt[sc->ndis_evtcidx].ne_sts == 0) {
 			error = ENOENT;

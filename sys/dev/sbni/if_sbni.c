@@ -1148,6 +1148,9 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCGINSTATS:
+#ifdef CPU_CHERI
+#error Unvalidatable ifr_data use.  Unsafe with CheriABI.
+#endif
 		in_stats = malloc(sizeof(struct sbni_in_stats), M_DEVBUF,
 		    M_WAITOK);
 		SBNI_LOCK(sc);

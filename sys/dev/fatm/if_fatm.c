@@ -2494,6 +2494,9 @@ fatm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t arg)
 		break;
 
 	  case SIOCATMGVCCS:
+#ifdef CPU_CHERI
+#error Unvalidatable ifr_data use.  Unsafe with CheriABI.
+#endif
 		/* return vcc table */
 		vtab = atm_getvccs((struct atmio_vcc **)sc->vccs,
 		    FORE_MAX_VCC + 1, sc->open_vccs, &sc->mtx, 1);
