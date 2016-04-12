@@ -28,7 +28,6 @@ atf_test_case txg_integrity_001_pos cleanup
 txg_integrity_001_pos_head()
 {
 	atf_set "descr" "Ensure that non-aligned writes to the same blocks that crosstransaction groups do not corrupt the file."
-	atf_set "require.config" rt_long
 	atf_set "timeout" 1800
 }
 txg_integrity_001_pos_body()
@@ -60,7 +59,6 @@ atf_test_case fsync_integrity_001_pos cleanup
 fsync_integrity_001_pos_head()
 {
 	atf_set "descr" "Verify the integrity of non-aligned writes to the same blocks within the same transaction group, where an fsync is issued by a non-final writer."
-	atf_set "require.config" rt_long
 	atf_set "timeout" 1800
 }
 fsync_integrity_001_pos_body()

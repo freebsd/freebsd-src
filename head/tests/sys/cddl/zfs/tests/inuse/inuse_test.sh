@@ -28,7 +28,6 @@ atf_test_case inuse_001_pos
 inuse_001_pos_head()
 {
 	atf_set "descr" "Ensure ZFS cannot use a device designated as a dump device"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  dumpadm zpool
 	atf_set "timeout" 1200
 }
@@ -48,7 +47,6 @@ atf_test_case inuse_002_pos
 inuse_002_pos_head()
 {
 	atf_set "descr" "Ensure ZFS does not interfere with devices in use by SVM"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  metainit metadb metastat zpool metaclear
 	atf_set "timeout" 1200
 }
@@ -68,7 +66,6 @@ atf_test_case inuse_003_pos
 inuse_003_pos_head()
 {
 	atf_set "descr" "Ensure ZFS does not interfere with devices that are in use byufsdump or ufsrestore"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zpool ufsrestore ufsdump
 	atf_set "timeout" 1200
 }
@@ -88,7 +85,6 @@ atf_test_case inuse_004_pos
 inuse_004_pos_head()
 {
 	atf_set "descr" "format will disallow modification of a mounted zfs disk partition or a spare device"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs zpool format
 	atf_set "timeout" 1200
 }
@@ -108,7 +104,6 @@ atf_test_case inuse_005_pos
 inuse_005_pos_head()
 {
 	atf_set "descr" "Verify newfs over active pool fails."
-	atf_set "require.config" rt_medium
 	atf_set "timeout" 1200
 }
 inuse_005_pos_body()
@@ -128,7 +123,6 @@ atf_test_case inuse_006_pos
 inuse_006_pos_head()
 {
 	atf_set "descr" "Verify dumpadm over active pool fails."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  dumpadm
 	atf_set "timeout" 1200
 }
@@ -148,7 +142,6 @@ atf_test_case inuse_007_pos
 inuse_007_pos_head()
 {
 	atf_set "descr" "Verify dumpadm over exported pool succeed."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  dumpadm zpool
 	atf_set "timeout" 1200
 }
@@ -168,7 +161,6 @@ atf_test_case inuse_008_pos
 inuse_008_pos_head()
 {
 	atf_set "descr" "Verify newfs over exported pool succeed."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 1200
 }
@@ -188,7 +180,6 @@ atf_test_case inuse_009_pos
 inuse_009_pos_head()
 {
 	atf_set "descr" "Verify format over exported pool succeed."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 1200
 }

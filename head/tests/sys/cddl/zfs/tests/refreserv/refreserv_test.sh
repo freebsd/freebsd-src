@@ -28,7 +28,6 @@ atf_test_case refreserv_001_pos cleanup
 refreserv_001_pos_head()
 {
 	atf_set "descr" "Reservations are enforced using the maximum of'reserv' and 'refreserv'"
-	atf_set "require.config" rt_medium
 	atf_set "require.progs"  zfs mkfile
 }
 refreserv_001_pos_body()
@@ -54,7 +53,6 @@ atf_test_case refreserv_002_pos cleanup
 refreserv_002_pos_head()
 {
 	atf_set "descr" "Setting full size as refreservation, verify no snapshotcan be created."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 refreserv_002_pos_body()
@@ -81,7 +79,6 @@ atf_test_case refreserv_003_pos cleanup
 refreserv_003_pos_head()
 {
 	atf_set "descr" "Verify a snapshot will only be allowed if there is enoughfree space outside of this refreservation."
-	atf_set "require.config" rt_medium
 	atf_set "require.progs"  zfs mkfile
 }
 refreserv_003_pos_body()
@@ -107,7 +104,6 @@ atf_test_case refreserv_004_pos cleanup
 refreserv_004_pos_head()
 {
 	atf_set "descr" "Verify refreservation is limited by available space."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs mkfile
 }
 refreserv_004_pos_body()
@@ -134,7 +130,6 @@ atf_test_case refreserv_005_pos cleanup
 refreserv_005_pos_head()
 {
 	atf_set "descr" "Volume refreservation is limited by volsize"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 refreserv_005_pos_body()

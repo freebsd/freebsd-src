@@ -28,7 +28,6 @@ atf_test_case mmap_write_001_pos cleanup
 mmap_write_001_pos_head()
 {
 	atf_set "descr" "write()s to a file and mmap() that file at the same time does notresult in a deadlock."
-	atf_set "require.config" rt_long
 }
 mmap_write_001_pos_body()
 {

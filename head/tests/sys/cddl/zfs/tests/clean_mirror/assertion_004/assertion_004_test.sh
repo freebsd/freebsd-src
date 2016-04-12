@@ -28,7 +28,6 @@ atf_test_case clean_mirror_004_pos cleanup
 clean_mirror_004_pos_head()
 {
 	atf_set "descr" "The primary side of a zpool mirror may be completely mangledwithout affecting the content of the pool"
-	atf_set "require.config" rt_medium
 }
 clean_mirror_004_pos_body()
 {

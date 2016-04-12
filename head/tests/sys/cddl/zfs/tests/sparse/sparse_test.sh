@@ -28,7 +28,6 @@ atf_test_case sparse_001_pos cleanup
 sparse_001_pos_head()
 {
 	atf_set "descr" "Ensure random blocks are read back correctly"
-	atf_set "require.config" rt_medium
 	atf_set "require.progs" zdb
 	atf_set "timeout" 3600
 }

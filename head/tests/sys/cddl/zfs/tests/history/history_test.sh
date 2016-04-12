@@ -28,7 +28,6 @@ atf_test_case history_001_pos
 history_001_pos_head()
 {
 	atf_set "descr" "Verify zpool sub-commands which modify state are logged."
-	atf_set "require.config" rt_medium
 	atf_set "require.progs"  mkfile zpool nawk
 	atf_set "timeout" 1800
 }
@@ -46,7 +45,6 @@ atf_test_case history_002_pos cleanup
 history_002_pos_head()
 {
 	atf_set "descr" "Verify zfs sub-commands which modify state are logged."
-	atf_set "require.config" rt_medium
 	atf_set "require.progs"  zfs zpool
 	atf_set "timeout" 1800
 }
@@ -75,7 +73,6 @@ atf_test_case history_003_pos cleanup
 history_003_pos_head()
 {
 	atf_set "descr" "zpool history limitation test."
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  zpool zfs
 	atf_set "timeout" 1800
 }
@@ -104,7 +101,6 @@ atf_test_case history_004_pos cleanup
 history_004_pos_head()
 {
 	atf_set "descr" "'zpool history' can copes with many simultaneous command."
-	atf_set "require.config" rt_medium
 	atf_set "require.progs"  zfs zpool
 	atf_set "timeout" 1800
 }
@@ -133,7 +129,6 @@ atf_test_case history_005_neg cleanup
 history_005_neg_head()
 {
 	atf_set "descr" "Verify 'zpool list|status|iostat' will not be logged."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 1800
 }
@@ -162,7 +157,6 @@ atf_test_case history_006_neg cleanup
 history_006_neg_head()
 {
 	atf_set "descr" "Verify 'zfs list|get|mount|unmount|share|unshare|send' will notbe logged."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs zpool
 	atf_set "timeout" 1800
 }
@@ -191,7 +185,6 @@ atf_test_case history_007_pos cleanup
 history_007_pos_head()
 {
 	atf_set "descr" "Verify command history moves with pool while migrating."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 1800
 }
@@ -220,7 +213,6 @@ atf_test_case history_008_pos cleanup
 history_008_pos_head()
 {
 	atf_set "descr" "Internal journal records all the recursively operations."
-	atf_set "require.config" rt_medium
 	atf_set "require.progs"  zfs zpool
 	atf_set "timeout" 1800
 }
@@ -249,7 +241,6 @@ atf_test_case history_009_pos cleanup
 history_009_pos_head()
 {
 	atf_set "descr" "Verify the delegation internal history are correctly."
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  zfs zpool
 	atf_set "timeout" 1800
 }
@@ -278,7 +269,6 @@ atf_test_case history_010_pos cleanup
 history_010_pos_head()
 {
 	atf_set "descr" "Verify internal long history information are correct."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs zpool
 	atf_set "timeout" 1800
 }

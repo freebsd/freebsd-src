@@ -28,7 +28,6 @@ atf_test_case zfsd_fault_001_pos cleanup
 zfsd_fault_001_pos_head()
 {
 	atf_set "descr" "ZFS will fault a vdev that produces IO errors"
-	atf_set "require.config" rt_long
 	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zfs zpool zfsd
 	atf_set "timeout" 300
@@ -60,7 +59,6 @@ atf_test_case zfsd_degrade_001_pos cleanup
 zfsd_degrade_001_pos_head()
 {
 	atf_set "descr" "ZFS will degrade a vdev that produces checksum errors"
-	atf_set "require.config" rt_long
 	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  mkfile zpool zfsd
 	atf_set "timeout" 300
@@ -91,7 +89,6 @@ atf_test_case zfsd_degrade_002_pos cleanup
 zfsd_degrade_002_pos_head()
 {
 	atf_set "descr" "ZFS will degrade a spare that produces checksum errors"
-	atf_set "require.config" rt_long
 	atf_set "require.config" at_least_3_disks
 	atf_set "require.progs"  mkfile zpool zfsd
 	atf_set "timeout" 300
@@ -124,7 +121,6 @@ atf_test_case zfsd_hotspare_001_pos cleanup
 zfsd_hotspare_001_pos_head()
 {
 	atf_set "descr" "An active, damaged spare will be replaced by an available spare"
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  zpool zfsd
 	atf_set "timeout" 3600
 }
@@ -156,7 +152,6 @@ atf_test_case zfsd_hotspare_002_pos cleanup
 zfsd_hotspare_002_pos_head()
 {
 	atf_set "descr" "If a vdev becomes degraded, the spare will be activated."
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  zpool zfsd zinject
 	atf_set "timeout" 3600
 }
@@ -189,7 +184,6 @@ atf_test_case zfsd_hotspare_003_pos cleanup
 zfsd_hotspare_003_pos_head()
 {
 	atf_set "descr" "A faulted vdev will be replaced by an available spare"
-	atf_set "require.config" rt_long
 	atf_set "require.config" at_least_5_disks
 	atf_set "require.progs"  zpool zfsd zinject
 	atf_set "timeout" 3600
@@ -222,7 +216,6 @@ atf_test_case zfsd_hotspare_004_pos cleanup
 zfsd_hotspare_004_pos_head()
 {
 	atf_set "descr" "Removing a disk from a pool results in the spare activating"
-	atf_set "require.config" rt_long
 	atf_set "require.config" at_least_5_disks
 	atf_set "require.progs"  zpool camcontrol zfsd
 	atf_set "timeout" 3600
@@ -255,7 +248,6 @@ atf_test_case zfsd_hotspare_005_pos cleanup
 zfsd_hotspare_005_pos_head()
 {
 	atf_set "descr" "A spare that is added to a degraded pool will be activated"
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  zpool zfsd zinject
 	atf_set "timeout" 3600
 }
@@ -287,7 +279,6 @@ atf_test_case zfsd_hotspare_006_pos cleanup
 zfsd_hotspare_006_pos_head()
 {
 	atf_set "descr" "zfsd will replace two vdevs that fail simultaneously"
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  zpool zfsd zinject
 	atf_set "timeout" 3600
 }
@@ -319,7 +310,6 @@ atf_test_case zfsd_hotspare_007_pos cleanup
 zfsd_hotspare_007_pos_head()
 {
 	atf_set "descr" "zfsd will swap failed drives at startup"
-	atf_set "require.config" rt_long
 	atf_set "require.config" at_least_5_disks
 	atf_set "require.progs"  zpool camcontrol zfsd
 	atf_set "timeout" 3600
@@ -352,7 +342,6 @@ atf_test_case zfsd_autoreplace_001_neg cleanup
 zfsd_autoreplace_001_neg_head()
 {
 	atf_set "descr" "A pool without autoreplace set will not replace by physical path"
-	atf_set "require.config" rt_long
 	atf_set "require.config" at_least_5_disks
 	atf_set "require.progs"  zpool camcontrol zfsd
 	atf_set "timeout" 3600
@@ -385,7 +374,6 @@ atf_test_case zfsd_autoreplace_002_pos cleanup
 zfsd_autoreplace_002_pos_head()
 {
 	atf_set "descr" "A pool with autoreplace set will replace by physical path"
-	atf_set "require.config" rt_long
 	atf_set "require.config" at_least_5_disks
 	atf_set "require.progs"  zpool camcontrol zfsd
 	atf_set "timeout" 3600
@@ -418,7 +406,6 @@ atf_test_case zfsd_autoreplace_003_pos cleanup
 zfsd_autoreplace_003_pos_head()
 {
 	atf_set "descr" "A pool with autoreplace set will replace by physical path even if a spare is active"
-	atf_set "require.config" rt_long
 	atf_set "require.config" at_least_5_disks
 	atf_set "require.progs"  zpool camcontrol zfsd
 	atf_set "timeout" 3600
@@ -451,7 +438,6 @@ atf_test_case zfsd_replace_001_pos cleanup
 zfsd_replace_001_pos_head()
 {
 	atf_set "descr" "ZFSD will automatically replace a SAS disk that dissapears and reappears in the same location, with the same devname"
-	atf_set "require.config" rt_long
 	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool camcontrol zfsd zfs
 }
@@ -482,7 +468,6 @@ atf_test_case zfsd_replace_002_pos cleanup
 zfsd_replace_002_pos_head()
 {
 	atf_set "descr" "A pool can come back online after all disks have dissapeared and reappeared"
-	atf_set "require.config" rt_long
 	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool camcontrol zfsd zfs
 }
@@ -513,7 +498,6 @@ atf_test_case zfsd_replace_003_pos cleanup
 zfsd_replace_003_pos_head()
 {
 	atf_set "descr" "ZFSD will correctly replace disks that dissapear and reappear with different devnames"
-	atf_set "require.config" rt_long
 	atf_set "require.config" at_least_3_disks
 	atf_set "require.progs"  zpool camcontrol zfsd zfs
 }
@@ -543,7 +527,6 @@ atf_test_case zfsd_import_001_pos cleanup
 zfsd_import_001_pos_head()
 {
 	atf_set "descr" "If a removed drive gets reinserted while the pool is exported, it will detach its spare when imported."
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  zfsd zpool
 	atf_set "timeout" 3600
 }

@@ -28,7 +28,6 @@ atf_test_case privilege_001_pos cleanup
 privilege_001_pos_head()
 {
 	atf_set "descr" "The RBAC profile \ZFS Storage Management\ works"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  pfexec svcadm zfs zpool svcs
 }
 privilege_001_pos_body()
@@ -54,7 +53,6 @@ atf_test_case privilege_002_pos cleanup
 privilege_002_pos_head()
 {
 	atf_set "descr" "The RBAC profile \ZFS File System Management\ works"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  pfexec svcadm zfs zpool svcs
 }
 privilege_002_pos_body()

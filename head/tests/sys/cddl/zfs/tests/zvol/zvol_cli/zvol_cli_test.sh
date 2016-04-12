@@ -28,7 +28,6 @@ atf_test_case zvol_cli_001_pos cleanup
 zvol_cli_001_pos_head()
 {
 	atf_set "descr" "Executing well-formed 'zfs list' commands should return success"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 zvol_cli_001_pos_body()
@@ -54,7 +53,6 @@ atf_test_case zvol_cli_002_pos cleanup
 zvol_cli_002_pos_head()
 {
 	atf_set "descr" "Creating a volume a 50 letter name should work."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 zvol_cli_002_pos_body()
@@ -81,7 +79,6 @@ atf_test_case zvol_cli_003_neg cleanup
 zvol_cli_003_neg_head()
 {
 	atf_set "descr" "Try each ZFS volume sub-command without parameters to make sure it returns an error."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 zvol_cli_003_neg_body()

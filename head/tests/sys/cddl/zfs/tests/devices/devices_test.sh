@@ -28,7 +28,6 @@ atf_test_case devices_001_pos cleanup
 devices_001_pos_head()
 {
 	atf_set "descr" "Setting devices=on on file system, the devices files in this filesystem can be used."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 devices_001_pos_body()
@@ -57,7 +56,6 @@ atf_test_case devices_002_neg cleanup
 devices_002_neg_head()
 {
 	atf_set "descr" "Setting devices=off on file system, the devices files in this filesystem can not be used."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 devices_002_neg_body()
@@ -86,7 +84,6 @@ atf_test_case devices_003_pos cleanup
 devices_003_pos_head()
 {
 	atf_set "descr" "Writing random data into /dev/zfs should do no harm."
-	atf_set "require.config" rt_short
 }
 devices_003_pos_body()
 {

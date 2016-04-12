@@ -28,7 +28,6 @@ atf_test_case slog_001_pos cleanup
 slog_001_pos_head()
 {
 	atf_set "descr" "Creating a pool with a log device succeeds."
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  mkfile zpool
 	atf_set "timeout" 1200
 }
@@ -57,7 +56,6 @@ atf_test_case slog_002_pos cleanup
 slog_002_pos_head()
 {
 	atf_set "descr" "Adding a log device to normal pool works."
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  mkfile zpool
 	atf_set "timeout" 1200
 }
@@ -86,7 +84,6 @@ atf_test_case slog_003_pos cleanup
 slog_003_pos_head()
 {
 	atf_set "descr" "Adding an extra log device works."
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  mkfile zpool
 	atf_set "timeout" 1200
 }
@@ -115,7 +112,6 @@ atf_test_case slog_004_pos cleanup
 slog_004_pos_head()
 {
 	atf_set "descr" "Attaching a log device passes."
-	atf_set "require.config" rt_medium
 	atf_set "require.progs"  mkfile zpool
 	atf_set "timeout" 1200
 }
@@ -144,7 +140,6 @@ atf_test_case slog_005_pos cleanup
 slog_005_pos_head()
 {
 	atf_set "descr" "Detaching a log device passes."
-	atf_set "require.config" rt_medium
 	atf_set "require.progs"  mkfile zpool
 	atf_set "timeout" 1200
 }
@@ -173,7 +168,6 @@ atf_test_case slog_006_pos cleanup
 slog_006_pos_head()
 {
 	atf_set "descr" "Replacing a log device passes."
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  mkfile zpool
 	atf_set "timeout" 1200
 }
@@ -202,7 +196,6 @@ atf_test_case slog_007_pos cleanup
 slog_007_pos_head()
 {
 	atf_set "descr" "Exporting and importing pool with log devices passes."
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  mkfile zpool
 	atf_set "timeout" 1200
 }
@@ -231,7 +224,6 @@ atf_test_case slog_008_neg cleanup
 slog_008_neg_head()
 {
 	atf_set "descr" "A raidz/raidz2 log is not supported."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  mkfile zpool
 	atf_set "timeout" 1200
 }
@@ -260,7 +252,6 @@ atf_test_case slog_009_neg cleanup
 slog_009_neg_head()
 {
 	atf_set "descr" "A raidz/raidz2 log can not be added to existed pool."
-	atf_set "require.config" rt_medium
 	atf_set "require.progs"  mkfile zpool
 	atf_set "timeout" 1200
 }
@@ -289,7 +280,6 @@ atf_test_case slog_010_neg cleanup
 slog_010_neg_head()
 {
 	atf_set "descr" "Slog device can not be replaced with spare device."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  mkfile zpool
 	atf_set "timeout" 1200
 }

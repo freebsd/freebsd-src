@@ -28,7 +28,6 @@ atf_test_case migration_001_pos cleanup
 migration_001_pos_head()
 {
 	atf_set "descr" "Migrating test file from ZFS fs to ZFS fs using tar"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 migration_001_pos_body()
@@ -56,7 +55,6 @@ atf_test_case migration_002_pos cleanup
 migration_002_pos_head()
 {
 	atf_set "descr" "Migrating test file from ZFS fs to UFS fs using tar"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 migration_002_pos_body()
@@ -84,7 +82,6 @@ atf_test_case migration_003_pos cleanup
 migration_003_pos_head()
 {
 	atf_set "descr" "Migrating test file from UFS fs to ZFS fs using tar"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 migration_003_pos_body()
@@ -112,7 +109,6 @@ atf_test_case migration_004_pos cleanup
 migration_004_pos_head()
 {
 	atf_set "descr" "Migrating test file from ZFS fs to ZFS fs using cpio"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 migration_004_pos_body()
@@ -140,7 +136,6 @@ atf_test_case migration_005_pos cleanup
 migration_005_pos_head()
 {
 	atf_set "descr" "Migrating test file from ZFS fs to uFS fs using cpio"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 migration_005_pos_body()
@@ -168,7 +163,6 @@ atf_test_case migration_006_pos cleanup
 migration_006_pos_head()
 {
 	atf_set "descr" "Migrating test file from UFS fs to ZFS fs using cpio"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 migration_006_pos_body()
@@ -196,7 +190,6 @@ atf_test_case migration_007_pos cleanup
 migration_007_pos_head()
 {
 	atf_set "descr" "Migrating test file from ZFS fs to ZFS fs using dd"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 migration_007_pos_body()
@@ -224,7 +217,6 @@ atf_test_case migration_008_pos cleanup
 migration_008_pos_head()
 {
 	atf_set "descr" "Migrating test file from ZFS fs to UFS fs using dd"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 migration_008_pos_body()
@@ -252,7 +244,6 @@ atf_test_case migration_009_pos cleanup
 migration_009_pos_head()
 {
 	atf_set "descr" "Migrating test file from UFS fs to ZFS fs using dd"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 migration_009_pos_body()
@@ -280,7 +271,6 @@ atf_test_case migration_010_pos cleanup
 migration_010_pos_head()
 {
 	atf_set "descr" "Migrating test file from ZFS fs to ZFS fs using cp"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 migration_010_pos_body()
@@ -308,7 +298,6 @@ atf_test_case migration_011_pos cleanup
 migration_011_pos_head()
 {
 	atf_set "descr" "Migrating test file from ZFS fs to UFS fs using cp"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 migration_011_pos_body()
@@ -336,7 +325,6 @@ atf_test_case migration_012_pos cleanup
 migration_012_pos_head()
 {
 	atf_set "descr" "Migrating test file from UFS fs to ZFS fs using cp"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 migration_012_pos_body()

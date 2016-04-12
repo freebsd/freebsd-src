@@ -28,7 +28,6 @@ atf_test_case sas_phy_thrash_001_pos cleanup
 sas_phy_thrash_001_pos_head()
 {
 	atf_set "descr" ""
-	atf_set "require.config" rt_long
 	atf_set "require.config" allow_devfs_side_effects
 	atf_set "require.progs"  camcontrol
 }

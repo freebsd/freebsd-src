@@ -28,7 +28,6 @@ atf_test_case redundancy_001_pos cleanup
 redundancy_001_pos_head()
 {
 	atf_set "descr" "Verify raidz pool can withstand one device is failing."
-	atf_set "require.config" rt_long
 	atf_set "timeout" 1800
 }
 redundancy_001_pos_body()
@@ -56,7 +55,6 @@ atf_test_case redundancy_002_pos cleanup
 redundancy_002_pos_head()
 {
 	atf_set "descr" "Verify raidz2 pool can withstand two devices are failing."
-	atf_set "require.config" rt_long
 	atf_set "timeout" 1800
 }
 redundancy_002_pos_body()
@@ -84,7 +82,6 @@ atf_test_case redundancy_003_pos cleanup
 redundancy_003_pos_head()
 {
 	atf_set "descr" "Verify mirrored pool can withstand N-1 devices are failing or missing."
-	atf_set "require.config" rt_long
 	atf_set "timeout" 1800
 }
 redundancy_003_pos_body()
@@ -112,7 +109,6 @@ atf_test_case redundancy_004_neg cleanup
 redundancy_004_neg_head()
 {
 	atf_set "descr" "Verify striped pool have no data redundancy."
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 1800
 }

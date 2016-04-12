@@ -28,7 +28,7 @@ atf_test_case zpool_create_001_pos cleanup
 zpool_create_001_pos_head()
 {
 	atf_set "descr" "'zpool create <pool> <vspec> ...' can successfully createa new pool with a name in ZFS namespace."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  mkfile zpool
 	atf_set "timeout" 2400
 }
@@ -57,7 +57,7 @@ atf_test_case zpool_create_002_pos cleanup
 zpool_create_002_pos_head()
 {
 	atf_set "descr" "'zpool create -f <pool> <vspec> ...' can successfully createa new pool in some cases."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  mkfile zpool
 	atf_set "timeout" 2400
 }
@@ -86,7 +86,7 @@ atf_test_case zpool_create_003_pos cleanup
 zpool_create_003_pos_head()
 {
 	atf_set "descr" "'zpool create -n <pool> <vspec> ...' can display the configureationwithout actually creating the pool."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
@@ -115,7 +115,7 @@ atf_test_case zpool_create_004_pos cleanup
 zpool_create_004_pos_head()
 {
 	atf_set "descr" "'zpool create [-f]' can create a storage pool with large numbers of vdevswithout any errors."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zfs mkfile zpool
 	atf_set "timeout" 2400
 }
@@ -144,7 +144,7 @@ atf_test_case zpool_create_005_pos cleanup
 zpool_create_005_pos_head()
 {
 	atf_set "descr" "'zpool create [-R root][-m mountpoint] <pool> <vdev> ...' can createan alternate pool or a new pool mounted at the specified mountpoint."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  mkfile zpool zfs
 	atf_set "timeout" 2400
 }
@@ -173,7 +173,7 @@ atf_test_case zpool_create_006_pos cleanup
 zpool_create_006_pos_head()
 {
 	atf_set "descr" "Verify 'zpool create' succeed with keywords combination."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  mkfile zpool
 	atf_set "timeout" 2400
 }
@@ -202,7 +202,7 @@ atf_test_case zpool_create_007_neg cleanup
 zpool_create_007_neg_head()
 {
 	atf_set "descr" "'zpool create' should return an error with badly-formed parameters."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
@@ -231,7 +231,7 @@ atf_test_case zpool_create_008_pos cleanup
 zpool_create_008_pos_head()
 {
 	atf_set "descr" "'zpool create' have to use '-f' scenarios"
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool format
 	atf_set "timeout" 2400
 }
@@ -260,7 +260,7 @@ atf_test_case zpool_create_009_neg cleanup
 zpool_create_009_neg_head()
 {
 	atf_set "descr" "Create a pool with same devices twice or create two pools withsame devices, 'zpool create' should fail."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
@@ -289,7 +289,7 @@ atf_test_case zpool_create_010_neg cleanup
 zpool_create_010_neg_head()
 {
 	atf_set "descr" "'zpool create' should return an error with VDEVs <64mb"
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zfs mkfile zpool
 	atf_set "timeout" 2400
 }
@@ -318,7 +318,7 @@ atf_test_case zpool_create_011_neg cleanup
 zpool_create_011_neg_head()
 {
 	atf_set "descr" "'zpool create' should be failed with inapplicable scenarios."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  dumpadm zpool
 	atf_set "timeout" 2400
 }
@@ -347,7 +347,7 @@ atf_test_case zpool_create_012_neg cleanup
 zpool_create_012_neg_head()
 {
 	atf_set "descr" "'zpool create' should fail with disk slice in swap."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool swap
 	atf_set "timeout" 2400
 }
@@ -376,7 +376,7 @@ atf_test_case zpool_create_013_neg cleanup
 zpool_create_013_neg_head()
 {
 	atf_set "descr" "'zpool create' should fail with metadevice in swap."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  metadb metaclear metastat zpool metainit swap
 	atf_set "timeout" 2400
 }
@@ -405,7 +405,7 @@ atf_test_case zpool_create_014_neg cleanup
 zpool_create_014_neg_head()
 {
 	atf_set "descr" "'zpool create' should fail with regular file in swap."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zfs mkfile swap zpool
 	atf_set "timeout" 2400
 }
@@ -434,7 +434,7 @@ atf_test_case zpool_create_015_neg cleanup
 zpool_create_015_neg_head()
 {
 	atf_set "descr" "'zpool create' should fail with zfs vol device in swap."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zfs zpool swap
 	atf_set "timeout" 2400
 }
@@ -463,7 +463,7 @@ atf_test_case zpool_create_016_pos cleanup
 zpool_create_016_pos_head()
 {
 	atf_set "descr" "'zpool create' should success with no device in swap."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  dumpadm swapadd zpool swap
 	atf_set "timeout" 2400
 }
@@ -492,7 +492,7 @@ atf_test_case zpool_create_017_neg cleanup
 zpool_create_017_neg_head()
 {
 	atf_set "descr" "'zpool create' should fail with mountpoint exists and not empty."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
@@ -523,7 +523,7 @@ atf_test_case zpool_create_018_pos cleanup
 zpool_create_018_pos_head()
 {
 	atf_set "descr" "zpool create can create pools with specified properties"
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
@@ -552,7 +552,7 @@ atf_test_case zpool_create_019_pos cleanup
 zpool_create_019_pos_head()
 {
 	atf_set "descr" "zpool create cannot create pools specifying readonly properties"
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
@@ -581,7 +581,7 @@ atf_test_case zpool_create_020_pos cleanup
 zpool_create_020_pos_head()
 {
 	atf_set "descr" "zpool create -R works as expected"
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zfs zpool
 	atf_set "timeout" 2400
 }
@@ -610,7 +610,7 @@ atf_test_case zpool_create_021_pos cleanup
 zpool_create_021_pos_head()
 {
 	atf_set "descr" "'zpool create -O property=value pool' can successfully create a poolwith correct filesystem property set."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
@@ -639,7 +639,7 @@ atf_test_case zpool_create_022_pos cleanup
 zpool_create_022_pos_head()
 {
 	atf_set "descr" "'zpool create -O property=value pool' can successfully create a poolwith multiple filesystem properties set."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
@@ -668,7 +668,7 @@ atf_test_case zpool_create_023_neg cleanup
 zpool_create_023_neg_head()
 {
 	atf_set "descr" "'zpool create -O' should return an error with badly formed parameters."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }

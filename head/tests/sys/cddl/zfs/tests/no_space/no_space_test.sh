@@ -28,7 +28,7 @@ atf_test_case enospc_001_pos cleanup
 enospc_001_pos_head()
 {
 	atf_set "descr" "ENOSPC is returned when file system is full."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zfs
 }
 enospc_001_pos_body()

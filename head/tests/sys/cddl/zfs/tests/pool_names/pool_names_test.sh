@@ -28,7 +28,6 @@ atf_test_case pool_names_001_pos
 pool_names_001_pos_head()
 {
 	atf_set "descr" "Ensure that pool names can use the ASCII subset of UTF-8"
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  zfs zpool
 	atf_set "timeout" 1200
 }
@@ -47,7 +46,6 @@ atf_test_case pool_names_002_neg
 pool_names_002_neg_head()
 {
 	atf_set "descr" "Ensure that a set of invalid names cannot be used to create pools."
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 1200
 }

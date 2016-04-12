@@ -28,7 +28,6 @@ atf_test_case nestedfs_001_pos cleanup
 nestedfs_001_pos_head()
 {
 	atf_set "descr" "Verify a nested file system can be created/destroyed."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 nestedfs_001_pos_body()

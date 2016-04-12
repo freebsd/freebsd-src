@@ -28,7 +28,6 @@ atf_test_case replacement_001_pos cleanup
 replacement_001_pos_head()
 {
 	atf_set "descr" "Replacing a disk during I/O completes."
-	atf_set "require.config" rt_long
 	atf_set "require.config" at_least_3_disks
 	atf_set "require.progs"  zfs zpool zdb
 	atf_set "timeout" 3600
@@ -53,7 +52,6 @@ atf_test_case replacement_002_pos cleanup
 replacement_002_pos_head()
 {
 	atf_set "descr" "Replacing a disk during I/O completes."
-	atf_set "require.config" rt_long
 	atf_set "require.config" at_least_3_disks
 	atf_set "require.progs"  zfs zpool zdb
 	atf_set "timeout" 3600
@@ -78,7 +76,6 @@ atf_test_case replacement_003_pos cleanup
 replacement_003_pos_head()
 {
 	atf_set "descr" "Replacing a disk during I/O completes."
-	atf_set "require.config" rt_medium
 	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zfs zpool zdb
 	atf_set "timeout" 3600

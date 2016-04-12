@@ -325,7 +325,6 @@ atf_test_case zfs_allow_012_neg cleanup
 zfs_allow_012_neg_head()
 {
 	atf_set "descr" "Verify privileged user can not use permissions properly whendelegation property is set off"
-	atf_set "require.config" rt_medium
 	atf_set "require.progs"  zfs zpool svcs
 }
 zfs_allow_012_neg_body()

@@ -28,7 +28,6 @@ atf_test_case ctime_001_pos cleanup
 ctime_001_pos_head()
 {
 	atf_set "descr" "A file's ctime should change when the file is modified"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 ctime_001_pos_body()

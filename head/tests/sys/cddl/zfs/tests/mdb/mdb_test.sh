@@ -28,7 +28,6 @@ atf_test_case mdb_001_pos cleanup
 mdb_001_pos_head()
 {
 	atf_set "descr" "Verify that the ZFS mdb dcmds and walkers are working as expected."
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  mdb
 	atf_set "timeout" 1800
 }

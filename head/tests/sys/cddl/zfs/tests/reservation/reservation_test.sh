@@ -28,7 +28,6 @@ atf_test_case reservation_001_pos cleanup
 reservation_001_pos_head()
 {
 	atf_set "descr" "Verify that to set a reservation on a filesystem or volume must use value smaller than space \ available property of pool"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 reservation_001_pos_body()
@@ -56,7 +55,6 @@ atf_test_case reservation_002_pos cleanup
 reservation_002_pos_head()
 {
 	atf_set "descr" "Reservation values cannot exceed the amount of space available in the pool"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 reservation_002_pos_body()
@@ -84,7 +82,6 @@ atf_test_case reservation_003_pos cleanup
 reservation_003_pos_head()
 {
 	atf_set "descr" "Verify it is possible to set reservations multiple times on a filesystem regular and sparse volume"
-	atf_set "require.config" rt_medium
 	atf_set "require.progs"  zfs
 }
 reservation_003_pos_body()
@@ -112,7 +109,6 @@ atf_test_case reservation_004_pos cleanup
 reservation_004_pos_head()
 {
 	atf_set "descr" "Verify space released when a dataset with reservation is destroyed"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 reservation_004_pos_body()
@@ -140,7 +136,6 @@ atf_test_case reservation_005_pos cleanup
 reservation_005_pos_head()
 {
 	atf_set "descr" "Verify space released when reservation on a dataset is setto 'none'"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 reservation_005_pos_body()
@@ -168,7 +163,6 @@ atf_test_case reservation_006_pos cleanup
 reservation_006_pos_head()
 {
 	atf_set "descr" "Verify can create files both inside and outside reserved areas"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 reservation_006_pos_body()
@@ -196,7 +190,6 @@ atf_test_case reservation_007_pos cleanup
 reservation_007_pos_head()
 {
 	atf_set "descr" "Verify reservations on data sets doesn't affect other data sets at same level except for consuming space from common pool"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 reservation_007_pos_body()
@@ -224,7 +217,6 @@ atf_test_case reservation_008_pos cleanup
 reservation_008_pos_head()
 {
 	atf_set "descr" "Verify reducing reservation allows other datasets to use space"
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  zfs
 	atf_set "timeout" 600
 }
@@ -253,7 +245,6 @@ atf_test_case reservation_009_pos cleanup
 reservation_009_pos_head()
 {
 	atf_set "descr" "Setting top level dataset reservation to 'none' allows more data to be written to top level filesystem"
-	atf_set "require.config" rt_medium
 	atf_set "require.progs"  zfs
 	atf_set "timeout" 600
 }
@@ -282,7 +273,6 @@ atf_test_case reservation_010_pos cleanup
 reservation_010_pos_head()
 {
 	atf_set "descr" "Destroying top level filesystem with reservation allows more data to be written to another top level filesystem"
-	atf_set "require.config" rt_medium
 	atf_set "require.progs"  zfs
 	atf_set "timeout" 600
 }
@@ -311,7 +301,6 @@ atf_test_case reservation_011_pos cleanup
 reservation_011_pos_head()
 {
 	atf_set "descr" "Verify reservation settings do not affect quota settings"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 reservation_011_pos_body()
@@ -339,7 +328,6 @@ atf_test_case reservation_012_pos cleanup
 reservation_012_pos_head()
 {
 	atf_set "descr" "Verify reservations protect space"
-	atf_set "require.config" rt_medium
 	atf_set "require.progs"  zfs
 	atf_set "timeout" 600
 }
@@ -368,7 +356,6 @@ atf_test_case reservation_013_pos cleanup
 reservation_013_pos_head()
 {
 	atf_set "descr" "Reservation properties preserved across exports and imports"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs zpool
 }
 reservation_013_pos_body()
@@ -396,7 +383,6 @@ atf_test_case reservation_014_pos cleanup
 reservation_014_pos_head()
 {
 	atf_set "descr" "Verify cannot set reservation larger than quota"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 reservation_014_pos_body()
@@ -424,7 +410,6 @@ atf_test_case reservation_015_pos cleanup
 reservation_015_pos_head()
 {
 	atf_set "descr" "Setting volume reservation to 'none' allows more data to be written to top level filesystem"
-	atf_set "require.config" rt_medium
 	atf_set "require.progs"  zfs
 	atf_set "timeout" 600
 }
@@ -453,7 +438,6 @@ atf_test_case reservation_016_pos cleanup
 reservation_016_pos_head()
 {
 	atf_set "descr" "Destroying a regular volume with reservation allows more data to be written to top level filesystem"
-	atf_set "require.config" rt_medium
 	atf_set "require.progs"  zfs
 	atf_set "timeout" 600
 }
@@ -482,7 +466,6 @@ atf_test_case reservation_017_pos cleanup
 reservation_017_pos_head()
 {
 	atf_set "descr" "Verify that the volsize changes of sparse volume are not reflectedin the reservation"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 reservation_017_pos_body()
@@ -510,7 +493,6 @@ atf_test_case reservation_018_pos cleanup
 reservation_018_pos_head()
 {
 	atf_set "descr" "Verify that reservation doesnot inherit its value from parent."
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 reservation_018_pos_body()

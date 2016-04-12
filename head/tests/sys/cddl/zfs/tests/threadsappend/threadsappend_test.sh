@@ -28,7 +28,6 @@ atf_test_case threadsappend_001_pos cleanup
 threadsappend_001_pos_head()
 {
 	atf_set "descr" "Ensure multiple threads performing write appends to the sameZFS file succeed"
-	atf_set "require.config" rt_short
 }
 threadsappend_001_pos_body()
 {

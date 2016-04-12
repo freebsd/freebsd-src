@@ -28,7 +28,6 @@ atf_test_case large_files_001_pos cleanup
 large_files_001_pos_head()
 {
 	atf_set "descr" "Write a file to the allowable ZFS fs size."
-	atf_set "require.config" rt_short
 }
 large_files_001_pos_body()
 {

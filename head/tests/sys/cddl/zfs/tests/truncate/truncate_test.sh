@@ -28,7 +28,6 @@ atf_test_case truncate_001_pos cleanup
 truncate_001_pos_head()
 {
 	atf_set "descr" "Ensure file with random blocks is truncated properly"
-	atf_set "require.config" rt_medium
 	atf_set "require.progs" zdb
 	atf_set "timeout" 3600
 }
@@ -55,7 +54,6 @@ atf_test_case truncate_002_pos cleanup
 truncate_002_pos_head()
 {
 	atf_set "descr" "Ensure zeroed file gets written correctly during a sync operation"
-	atf_set "require.config" rt_short
 	atf_set "timeout" 3600
 }
 truncate_002_pos_body()

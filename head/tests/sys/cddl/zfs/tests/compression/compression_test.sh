@@ -28,7 +28,6 @@ atf_test_case compress_001_pos cleanup
 compress_001_pos_head()
 {
 	atf_set "descr" "Ensure that compressed files are smaller."
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  zfs
 }
 compress_001_pos_body()
@@ -54,7 +53,6 @@ atf_test_case compress_003_pos cleanup
 compress_003_pos_head()
 {
 	atf_set "descr" "Changing blocksize doesn't casue system panic with compression settings"
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  zfs mkfile
 }
 compress_003_pos_body()
@@ -80,7 +78,6 @@ atf_test_case compress_004_pos cleanup
 compress_004_pos_head()
 {
 	atf_set "descr" "Creating non-power-of-2 blocksize file and freeing the filestorage space at will should work normally with compression setting"
-	atf_set "require.config" rt_long
 	atf_set "require.progs"  zfs
 }
 compress_004_pos_body()

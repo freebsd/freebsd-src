@@ -28,7 +28,6 @@ atf_test_case poolversion_001_pos cleanup
 poolversion_001_pos_head()
 {
 	atf_set "descr" "zpool set version can upgrade a pool"
-	atf_set "require.config" rt_short
 	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool
 }
@@ -53,7 +52,6 @@ atf_test_case poolversion_002_pos cleanup
 poolversion_002_pos_head()
 {
 	atf_set "descr" "zpool set version can only increment pool version"
-	atf_set "require.config" rt_short
 	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool
 }

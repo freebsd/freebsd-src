@@ -28,7 +28,7 @@ atf_test_case scrub_mirror_001_pos cleanup
 scrub_mirror_001_pos_head()
 {
 	atf_set "descr" "The primary side of a zpool mirror may be completely wipedwithout affecting the content of the pool"
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zfs
 }
 scrub_mirror_001_pos_body()
@@ -56,7 +56,7 @@ atf_test_case scrub_mirror_002_pos cleanup
 scrub_mirror_002_pos_head()
 {
 	atf_set "descr" "The primary side of a zpool mirror may be completely wipedwithout affecting the content of the pool"
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zfs
 }
 scrub_mirror_002_pos_body()
@@ -84,7 +84,7 @@ atf_test_case scrub_mirror_003_pos cleanup
 scrub_mirror_003_pos_head()
 {
 	atf_set "descr" "The primary side of a zpool mirror may be completely mangledwithout affecting the content of the pool"
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zfs
 }
 scrub_mirror_003_pos_body()
@@ -112,7 +112,7 @@ atf_test_case scrub_mirror_004_pos cleanup
 scrub_mirror_004_pos_head()
 {
 	atf_set "descr" "The primary side of a zpool mirror may be completely mangledwithout affecting the content of the pool"
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zfs
 }
 scrub_mirror_004_pos_body()

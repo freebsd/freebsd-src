@@ -28,7 +28,6 @@ atf_test_case link_count_001 cleanup
 link_count_001_head()
 {
 	atf_set "descr" "Verify file link count is zero on zfs"
-	atf_set "require.config" rt_short
 	atf_set "require.progs"  zfs
 }
 link_count_001_body()

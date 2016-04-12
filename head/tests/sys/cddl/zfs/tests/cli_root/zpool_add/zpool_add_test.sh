@@ -28,7 +28,7 @@ atf_test_case zpool_add_001_pos cleanup
 zpool_add_001_pos_head()
 {
 	atf_set "descr" "'zpool add <pool> <vdev> ...' can add devices to the pool."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
@@ -57,7 +57,7 @@ atf_test_case zpool_add_002_pos cleanup
 zpool_add_002_pos_head()
 {
 	atf_set "descr" "'zpool add -f <pool> <vdev> ...' can successfully adddevices to the pool in some cases."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
@@ -86,7 +86,7 @@ atf_test_case zpool_add_003_pos cleanup
 zpool_add_003_pos_head()
 {
 	atf_set "descr" "'zpool add -n <pool> <vdev> ...' can display the configurationwithout actually adding devices to the pool."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
@@ -115,7 +115,7 @@ atf_test_case zpool_add_004_pos cleanup
 zpool_add_004_pos_head()
 {
 	atf_set "descr" "'zpool add <pool> <vdev> ...' can add zfs volume to the pool."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zfs zpool
 	atf_set "timeout" 2400
 }
@@ -145,7 +145,7 @@ atf_test_case zpool_add_005_pos cleanup
 zpool_add_005_pos_head()
 {
 	atf_set "descr" "'zpool add' should fail with inapplicable scenarios."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  dumpadm zpool
 	atf_set "timeout" 2400
 }
@@ -174,7 +174,7 @@ atf_test_case zpool_add_006_pos cleanup
 zpool_add_006_pos_head()
 {
 	atf_set "descr" "'zpool add [-f]' can add large numbers of vdevs to the specified pool without any errors."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zfs mkfile zpool
 	atf_set "timeout" 2400
 }
@@ -203,7 +203,7 @@ atf_test_case zpool_add_007_neg cleanup
 zpool_add_007_neg_head()
 {
 	atf_set "descr" "'zpool add' should return an error with badly-formed parameters."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
@@ -232,7 +232,7 @@ atf_test_case zpool_add_008_neg cleanup
 zpool_add_008_neg_head()
 {
 	atf_set "descr" "'zpool add' should return an error with nonexistent pools and vdevs"
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
@@ -261,7 +261,7 @@ atf_test_case zpool_add_009_neg cleanup
 zpool_add_009_neg_head()
 {
 	atf_set "descr" "'zpool add' should fail if vdevs are the same or vdev iscontained in the given pool."
-	atf_set "require.config" rt_medium disks_are_physical
+	atf_set "require.config" disks_are_physical
 	atf_set "require.progs"  zpool
 	atf_set "timeout" 2400
 }
