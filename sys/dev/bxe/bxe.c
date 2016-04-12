@@ -487,7 +487,9 @@ static const struct {
     { STATS_OFFSET32(mbuf_alloc_sge),
                 4, STATS_FLAGS_FUNC, "mbuf_alloc_sge"},
     { STATS_OFFSET32(mbuf_alloc_tpa),
-                4, STATS_FLAGS_FUNC, "mbuf_alloc_tpa"}
+                4, STATS_FLAGS_FUNC, "mbuf_alloc_tpa"},
+    { STATS_OFFSET32(tx_queue_full_return),
+                4, STATS_FLAGS_FUNC, "tx_queue_full_return"}
 };
 
 static const struct {
@@ -598,7 +600,9 @@ static const struct {
     { Q_STATS_OFFSET32(mbuf_alloc_sge),
                 4, "mbuf_alloc_sge"},
     { Q_STATS_OFFSET32(mbuf_alloc_tpa),
-                4, "mbuf_alloc_tpa"}
+                4, "mbuf_alloc_tpa"},
+    { Q_STATS_OFFSET32(tx_queue_full_return),
+                4, "tx_queue_full_return"}
 };
 
 #define BXE_NUM_ETH_STATS   ARRAY_SIZE(bxe_eth_stats_arr)
@@ -4619,7 +4623,7 @@ bxe_ioctl(if_t ifp,
             if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
                 /* set the receive mode flags */
                 bxe_set_rx_mode(sc);
-            } else {
+            } else if(sc->state != BXE_STATE_DISABLED) {
 		bxe_init_locked(sc);
             }
         } else {
@@ -5723,17 +5727,17 @@ bxe_tx_start(if_t ifp)
         return;
     }
 
-    if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE) {
-        BLOGW(sc, "Interface TX queue is full, ignoring transmit request\n");
-        return;
-    }
-
     if (!sc->link_vars.link_up) {
         BLOGW(sc, "Interface link is down, ignoring transmit request\n");
         return;
     }
 
     fp = &sc->fp[0];
+
+    if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+        fp->eth_q_stats.tx_queue_full_return++;
+        return;
+    }
 
     BXE_FP_TX_LOCK(fp);
     bxe_tx_start_locked(sc, ifp, fp);
@@ -9936,21 +9940,6 @@ bxe_init_internal_common(struct bxe_softc *sc)
 {
     int i;
 
-    if (IS_MF_SI(sc)) {
-        /*
-         * In switch independent mode, the TSTORM needs to accept
-         * packets that failed classification, since approximate match
-         * mac addresses aren't written to NIG LLH.
-         */
-        REG_WR8(sc,
-                (BAR_TSTRORM_INTMEM + TSTORM_ACCEPT_CLASSIFY_FAILED_OFFSET),
-                2);
-    } else if (!CHIP_IS_E1(sc)) { /* 57710 doesn't support MF */
-        REG_WR8(sc,
-                (BAR_TSTRORM_INTMEM + TSTORM_ACCEPT_CLASSIFY_FAILED_OFFSET),
-                0);
-    }
-
     /*
      * Zero this manually as its initialization is currently missing
      * in the initTool.
@@ -12269,6 +12258,8 @@ static void
 bxe_periodic_callout_func(void *xsc)
 {
     struct bxe_softc *sc = (struct bxe_softc *)xsc;
+    struct bxe_fastpath *fp;
+    uint16_t tx_bd_avail;
     int i;
 
     if (!BXE_CORE_TRYLOCK(sc)) {
@@ -12290,6 +12281,48 @@ bxe_periodic_callout_func(void *xsc)
         BXE_CORE_UNLOCK(sc);
         return;
     }
+
+#if __FreeBSD_version >= 800000
+
+    FOR_EACH_QUEUE(sc, i) {
+        fp = &sc->fp[i];
+
+        if (BXE_FP_TX_TRYLOCK(fp)) {
+            if_t ifp = sc->ifp;
+            /*
+             * If interface was stopped due to unavailable
+             * bds, try to process some tx completions
+             */
+            (void) bxe_txeof(sc, fp);
+           
+            tx_bd_avail = bxe_tx_avail(sc, fp);
+            if (tx_bd_avail >= BXE_TX_CLEANUP_THRESHOLD) {
+                bxe_tx_mq_start_locked(sc, ifp, fp, NULL);
+            }
+            BXE_FP_TX_UNLOCK(fp);
+        }
+    }
+
+#else
+
+    fp = &sc->fp[0];
+    if (BXE_FP_TX_TRYLOCK(fp)) {
+        struct ifnet *ifp = sc->ifnet;
+        /*
+         * If interface was stopped due to unavailable
+         * bds, try to process some tx completions
+         */
+        (void) bxe_txeof(sc, fp);
+           
+        tx_bd_avail = bxe_tx_avail(sc, fp);
+        if (tx_bd_avail >= BXE_TX_CLEANUP_THRESHOLD) {
+            bxe_tx_start_locked(sc, ifp, fp);
+        }
+ 
+        BXE_FP_TX_UNLOCK(fp);
+    }
+
+#endif /* #if __FreeBSD_version >= 800000 */
 
     /* Check for TX timeouts on any fastpath. */
     FOR_EACH_QUEUE(sc, i) {
@@ -16137,6 +16170,7 @@ bxe_detach(device_t dev)
     if (sc->state != BXE_STATE_CLOSED) {
         BXE_CORE_LOCK(sc);
         bxe_nic_unload(sc, UNLOAD_CLOSE, TRUE);
+        sc->state = BXE_STATE_DISABLED;
         BXE_CORE_UNLOCK(sc);
     }
 
