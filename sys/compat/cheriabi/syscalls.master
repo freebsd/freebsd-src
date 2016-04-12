@@ -926,11 +926,11 @@
 455	AUE_NULL	STD	{ int cheriabi_thr_new(	\
 				    _In_ struct thr_param_c *param, \
 				    int param_size); }
-; XXX-BD: this is obviously wrong since value is a union containing int or
-; pointer data.  Unclear how to handle it since I haven't found a
-; consumer of the pointer.
-456	AUE_NULL	NOPROTO|NOPARSE	{ int sigqueue(pid_t pid, int signum, \
-				    void *value); }
+; XXX-BD: sigqueue takes union of int and void * as the third argument.
+; It's not clear what to do with it.  Within a process we could deliver
+; a capability safely.  Outside, we definitely should not.
+456	AUE_NULL	STD|NOPARSE	{ int cheriabi_sigqueue(pid_t pid, \
+				    int signum, void *value); }
 457	AUE_NULL	NOSTD|NOPROTO	{ int kmq_open( \
 				    _In_z_ const char *path, int flags, \
 				    mode_t mode, \
@@ -1174,8 +1174,8 @@
 				    int flags); }
 543	AUE_NULL	NOSTD	{ int cheriabi_aio_mlock( \
 				    _In_ struct aiocb_c *aiocbp); }
-544	AUE_NULL	NOPROTO|NOPARSE	{ int procctl(int idtype, id_t id, \
-				    int com, void *data); }
+544	AUE_NULL	STD|NOPARSE	{ int cheriabi_procctl(int idtype, \
+				    id_t id, int com, void *data); }
 545	AUE_POLL	NOPROTO	{ int ppoll( \
 				    _Inout_updates_(nfds) struct pollfd *fds, \
 				    u_int nfds, \
