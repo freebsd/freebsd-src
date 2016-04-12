@@ -1788,6 +1788,7 @@ struct bxe_softc {
     struct cdev *ioctl_dev;
     void *grc_dump;
     int grcdump_done;
+    void *eeprom;
 }; /* struct bxe_softc */
 
 /* IOCTL sub-commands for edebug and firmware upgrade */
@@ -2108,6 +2109,28 @@ static const uint32_t dmae_reg_go_c[] = {
 
 #define PCI_PM_D0    1
 #define PCI_PM_D3hot 2
+
+#ifndef DUPLEX_UNKNOWN
+#define DUPLEX_UNKNOWN (0xff)
+#endif
+
+#ifndef SPEED_UNKNOWN
+#define SPEED_UNKNOWN (-1)
+#endif
+
+/* Enable or disable autonegotiation. */
+#define AUTONEG_DISABLE         0x00
+#define AUTONEG_ENABLE          0x01
+
+/* Which connector port. */
+#define PORT_TP                 0x00
+#define PORT_AUI                0x01
+#define PORT_MII                0x02
+#define PORT_FIBRE              0x03
+#define PORT_BNC                0x04
+#define PORT_DA                 0x05
+#define PORT_NONE               0xef
+#define PORT_OTHER              0xff
 
 int  bxe_test_bit(int nr, volatile unsigned long * addr);
 void bxe_set_bit(unsigned int nr, volatile unsigned long * addr);
