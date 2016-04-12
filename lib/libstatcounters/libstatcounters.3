@@ -24,11 +24,31 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 1, 2016
+.Dd April 12, 2016
 .Dt LIBSTATCOUNTERS 3
 .Os
 .Sh NAME
 .Nm libstatcounters
-.Nd "Compile with '-Wl,--whole-archive -lstatcounters -Wl,--no-whole-archive'. Samples BERI statcounters before and after main. Displays the difference in sdterr if the GATHER_STATCOUNTERS environment variable is set."
+.Nd A library to gather BERI/CHERI's statcounters.
+.Sh DESCRIPTION
+To link with
+.Nm
+use
+.Pp
+-Wl,--whole-archive -lstatcounters -Wl,--no-whole-archive
+.Pp
+as a linker flag.
+The library samples statcounters before and after
+.Fn main
+and outputs the difference.
+.Pp
+.Nm STATCOUNTERS_OUTPUT
+.Nd Environment variable specifying the file in which to output the statcounters'values
+.Pp
+.Nm STATCOUNTERS_FORMAT
+.Nd Environment variable specifying the desired output format. "csv" is supported, any other value will output in a human readable format
 .Sh LIBRARY
 .Lb libstatcounters
+.Sh AUTHORS
+.An Alexandre Joannou
+.Aq aj443@cl.cam.ac.uk
