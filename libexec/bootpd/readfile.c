@@ -428,7 +428,7 @@ readtab(force)
 		if (hp->flags.iaddr) {
 			nhosts++;
 		}
-		/* by HW addr if known. */
+		/* Register by HW addr if known. */
 		if (hp->flags.htype && hp->flags.haddr) {
 			/* We will either insert it or free it. */
 			hp->linkcount++;
@@ -441,7 +441,7 @@ readtab(force)
 				continue;
 			}
 		}
-		/* by IP addr if known. */
+		/* Register by IP addr if known. */
 		if (hp->flags.iaddr) {
 			hashcode = hash_HashFunction((u_char *) & (hp->iaddr.s_addr), 4);
 			if (hash_Insert(iphashtable, hashcode, nullcmp, hp, hp) < 0) {
@@ -452,7 +452,7 @@ readtab(force)
 				hp->linkcount++;
 			}
 		}
-		/* by Name (always known) */
+		/* Register by Name (always known) */
 		hashcode = hash_HashFunction((u_char *) hp->hostname->string,
 									 strlen(hp->hostname->string));
 		if (hash_Insert(nmhashtable, hashcode, nullcmp,
