@@ -287,7 +287,7 @@ mvs_setup_interrupt(device_t dev)
 		device_printf(dev, "unable to setup interrupt\n");
 		bus_release_resource(dev, SYS_RES_IRQ,
 		    ctlr->irq.r_irq_rid, ctlr->irq.r_irq);
-		ctlr->irq.r_irq = 0;
+		ctlr->irq.r_irq = NULL;
 		return (ENXIO);
 	}
 	return (0);

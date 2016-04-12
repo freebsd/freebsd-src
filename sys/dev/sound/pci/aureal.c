@@ -556,8 +556,8 @@ au_pci_attach(device_t dev)
 	struct resource *reg[10];
 	int		i, j, mapped = 0;
 	int		irqid;
-	struct resource *irq = 0;
-	void		*ih = 0;
+	struct resource *irq;
+	void		*ih;
 	struct ac97_info *codec;
 	char 		status[SND_STATUSLEN];
 
@@ -566,6 +566,8 @@ au_pci_attach(device_t dev)
 
 	pci_enable_busmaster(dev);
 
+	irq = NULL;
+	ih = NULL;
 	j=0;
 	/* XXX dfr: is this strictly necessary? */
 	for (i=0; i<PCI_MAXMAPS_0; i++) {

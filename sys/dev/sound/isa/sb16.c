@@ -435,23 +435,23 @@ sb16_release_resources(struct sb_info *sb, device_t dev)
     		if (sb->ih)
 			bus_teardown_intr(dev, sb->irq, sb->ih);
  		bus_release_resource(dev, SYS_RES_IRQ, 0, sb->irq);
-		sb->irq = 0;
+		sb->irq = NULL;
     	}
     	if (sb->drq2) {
 		if (sb->drq2 != sb->drq1) {
 			isa_dma_release(rman_get_start(sb->drq2));
 			bus_release_resource(dev, SYS_RES_DRQ, 1, sb->drq2);
 		}
-		sb->drq2 = 0;
+		sb->drq2 = NULL;
     	}
      	if (sb->drq1) {
 		isa_dma_release(rman_get_start(sb->drq1));
 		bus_release_resource(dev, SYS_RES_DRQ, 0, sb->drq1);
-		sb->drq1 = 0;
+		sb->drq1 = NULL;
     	}
    	if (sb->io_base) {
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sb->io_base);
-		sb->io_base = 0;
+		sb->io_base = NULL;
     	}
     	if (sb->parent_dmat) {
 		bus_dma_tag_destroy(sb->parent_dmat);

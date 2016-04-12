@@ -573,7 +573,7 @@ fm801_init(struct fm801_info *fm801)
 static int
 fm801_pci_attach(device_t dev)
 {
-	struct ac97_info 	*codec = 0;
+	struct ac97_info 	*codec = NULL;
 	struct fm801_info 	*fm801;
 	int 			i;
 	int 			mapped = 0;
@@ -622,7 +622,8 @@ fm801_pci_attach(device_t dev)
 	fm801->irqid = 0;
 	fm801->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &fm801->irqid,
 					    RF_ACTIVE | RF_SHAREABLE);
-	if (!fm801->irq || snd_setup_intr(dev, fm801->irq, 0, fm801_intr, fm801, &fm801->ih)) {
+	if (!fm801->irq ||
+	    snd_setup_intr(dev, fm801->irq, 0, fm801_intr, fm801, &fm801->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto oops;
 	}
