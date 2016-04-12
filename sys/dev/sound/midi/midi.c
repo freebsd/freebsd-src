@@ -1489,7 +1489,7 @@ midi_modevent(module_t mod, int type, void *data)
 kobj_t
 midimapper_addseq(void *arg1, int *unit, void **cookie)
 {
-	unit = 0;
+	unit = NULL;
 
 	return (kobj_t)arg1;
 }
