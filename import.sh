@@ -294,6 +294,7 @@ run "show svn diff for 'dist'" "$SVN diff dist --no-diff-deleted"
 
 
 run "tagging repo" "$SVN cp -m 'Tag $PROJECT $VERSION' $url/dist $url/$VERSION"
+run "refresh libxo" "$SVN update"
 
 Cd $HEAD/contrib/$PROJECT
 CONTRIB=`pwd`
