@@ -643,7 +643,7 @@ s/\$//g
 			printf("\t[%s%s] = (fill_uap_fp)%s%s_fill_uap,\n", syscallprefix,
 			    funcalias, syscallprefix, funcalias) > cheriabi_dispatch_fill_uap
 		if (argc != 0 && flag("NOPARSE")) {
-			printf("int\t") > cheriabi_fill_uap
+			printf("static inline int\t") > cheriabi_fill_uap
 			printf("%s%s_fill_uap(struct thread *td,\n",
 			    syscallprefix, funcalias) > cheriabi_fill_uap
 			printf("    struct %s *uap);\n\n",

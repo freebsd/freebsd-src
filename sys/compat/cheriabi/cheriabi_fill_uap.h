@@ -1700,7 +1700,7 @@ CHERIABI_SYS_cheriabi_sigaltstack_fill_uap(struct thread *td,
 	return (0);
 }
 
-int	CHERIABI_SYS_cheriabi_ioctl_fill_uap(struct thread *td,
+static inline int	CHERIABI_SYS_cheriabi_ioctl_fill_uap(struct thread *td,
     struct cheriabi_ioctl_args *uap);
 
 static inline int
@@ -2277,7 +2277,7 @@ CHERIABI_SYS_madvise_fill_uap(struct thread *td,
 	return (0);
 }
 
-int	CHERIABI_SYS_mincore_fill_uap(struct thread *td,
+static inline int	CHERIABI_SYS_mincore_fill_uap(struct thread *td,
     struct mincore_args *uap);
 
 static inline int
@@ -2567,7 +2567,7 @@ CHERIABI_SYS_dup2_fill_uap(struct thread *td,
 	return (0);
 }
 
-int	CHERIABI_SYS_fcntl_fill_uap(struct thread *td,
+static inline int	CHERIABI_SYS_fcntl_fill_uap(struct thread *td,
     struct fcntl_args *uap);
 
 static inline int
@@ -4252,7 +4252,7 @@ CHERIABI_SYS_getfh_fill_uap(struct thread *td,
 	return (0);
 }
 
-int	CHERIABI_SYS_cheriabi_sysarch_fill_uap(struct thread *td,
+static inline int	CHERIABI_SYS_cheriabi_sysarch_fill_uap(struct thread *td,
     struct cheriabi_sysarch_args *uap);
 
 static inline int
@@ -5419,10 +5419,10 @@ CHERIABI_SYS_msgrcv_fill_uap(struct thread *td,
 	return (0);
 }
 
-int	CHERIABI_SYS_cheriabi_shmat_fill_uap(struct thread *td,
+static inline int	CHERIABI_SYS_cheriabi_shmat_fill_uap(struct thread *td,
     struct cheriabi_shmat_args *uap);
 
-int	CHERIABI_SYS_cheriabi_shmdt_fill_uap(struct thread *td,
+static inline int	CHERIABI_SYS_cheriabi_shmdt_fill_uap(struct thread *td,
     struct cheriabi_shmdt_args *uap);
 
 static inline int
@@ -10460,7 +10460,7 @@ CHERIABI_SYS_cheriabi_sendfile_fill_uap(struct thread *td,
 	return (0);
 }
 
-int	CHERIABI_SYS_mac_syscall_fill_uap(struct thread *td,
+static inline int	CHERIABI_SYS_mac_syscall_fill_uap(struct thread *td,
     struct mac_syscall_args *uap);
 
 static inline int
@@ -12474,7 +12474,7 @@ CHERIABI_SYS_audit_fill_uap(struct thread *td,
 	return (0);
 }
 
-int	CHERIABI_SYS_auditon_fill_uap(struct thread *td,
+static inline int	CHERIABI_SYS_auditon_fill_uap(struct thread *td,
     struct auditon_args *uap);
 
 static inline int
@@ -12767,7 +12767,7 @@ CHERIABI_SYS_auditctl_fill_uap(struct thread *td,
 	return (0);
 }
 
-int	CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
+static inline int	CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
     struct _umtx_op_args *uap);
 
 static inline int
@@ -12815,8 +12815,8 @@ CHERIABI_SYS_cheriabi_thr_new_fill_uap(struct thread *td,
 	return (0);
 }
 
-int	CHERIABI_SYS_sigqueue_fill_uap(struct thread *td,
-    struct sigqueue_args *uap);
+static inline int	CHERIABI_SYS_cheriabi_sigqueue_fill_uap(struct thread *td,
+    struct cheriabi_sigqueue_args *uap);
 
 static inline int
 CHERIABI_SYS_kmq_open_fill_uap(struct thread *td,
@@ -15656,7 +15656,7 @@ CHERIABI_SYS_closefrom_fill_uap(struct thread *td,
 	return (0);
 }
 
-int	CHERIABI_SYS_cheriabi___semctl_fill_uap(struct thread *td,
+static inline int	CHERIABI_SYS_cheriabi___semctl_fill_uap(struct thread *td,
     struct cheriabi___semctl_args *uap);
 
 static inline int
@@ -17360,8 +17360,8 @@ CHERIABI_SYS_cheriabi_aio_mlock_fill_uap(struct thread *td,
 	return (0);
 }
 
-int	CHERIABI_SYS_procctl_fill_uap(struct thread *td,
-    struct procctl_args *uap);
+static inline int	CHERIABI_SYS_cheriabi_procctl_fill_uap(struct thread *td,
+    struct cheriabi_procctl_args *uap);
 
 static inline int
 CHERIABI_SYS_ppoll_fill_uap(struct thread *td,
