@@ -130,6 +130,8 @@ struct ispmdvec {
 #define	SYNC_SFORCPU	3	/* scratch, sync for CPU */
 #define	SYNC_REG	4	/* for registers */
 #define	SYNC_ATIOQ	5	/* atio result queue (24xx) */
+#define	SYNC_IFORDEV	6	/* synchrounous IOCB, sync for ISP */
+#define	SYNC_IFORCPU	7	/* synchrounous IOCB, sync for CPU */
 
 /*
  * Request/Response Queue defines and macros.
@@ -594,6 +596,12 @@ struct ispsoftc {
 	 */
 	isp_hdl_t		*isp_xflist;
 	isp_hdl_t		*isp_xffree;
+
+	/*
+	 * DMA mapped in area for synchronous IOCB requests.
+	 */
+	void *			isp_iocb;
+	XS_DMA_ADDR_T		isp_iocb_dma;
 
 	/*
 	 * request/result queue pointers and DMA handles for them.
