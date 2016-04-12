@@ -1082,8 +1082,9 @@
 509	AUE_CLOSEFROM	NOPROTO	{ int closefrom(int lowfd); }
 510	AUE_SEMCTL	NOSTD|NOPARSE { int cheriabi___semctl(int semid, int semnum, \
 				    int cmd, union semun_c *arg); }
-511	AUE_MSGCTL	NOSTD|NOPARSE	{ int cheriabi_msgctl(int msqid, int cmd, \
-				    struct msqid_ds_c *buf); }
+; XXX-BD: technically IPC_SET doesn't require _Out_ permissions
+511	AUE_MSGCTL	NOSTD { int cheriabi_msgctl(int msqid, int cmd, \
+				    _Inout_opt_ struct msqid_ds_c *buf); }
 ; XXX: technically buf is sometimes _In_ and sometimes _Out_
 512	AUE_SHMCTL	NOSTD|NOPROTO	{ int shmctl(int shmid, int cmd, \
 				    _Inout_ struct shmid_ds *buf); }
