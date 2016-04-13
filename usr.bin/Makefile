@@ -125,6 +125,7 @@ SUBDIR=	alias \
 	protect \
 	rctl \
 	renice \
+	resizewin \
 	rev \
 	revoke \
 	rpcinfo \
