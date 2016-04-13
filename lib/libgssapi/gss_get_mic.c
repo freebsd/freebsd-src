@@ -40,13 +40,14 @@ gss_get_mic(OM_uint32 *minor_status,
     gss_buffer_t message_token)
 {
 	struct _gss_context *ctx = (struct _gss_context *) context_handle;
-	struct _gss_mech_switch *m = ctx->gc_mech;
+	struct _gss_mech_switch *m;
 
 	_gss_buffer_zero(message_token);
 	if (ctx == NULL) {
 		*minor_status = 0;
 		return (GSS_S_NO_CONTEXT);
 	}
+	m = ctx->gc_mech;
 
 	return (m->gm_get_mic(minor_status, ctx->gc_ctx, qop_req,
 		    message_buffer, message_token));
