@@ -18752,12 +18752,12 @@ bxe_grc_dump(struct bxe_softc *sc)
         (uintmax_t)sc->fw_stats_req_mapping,
         (uintmax_t)sc->fw_stats_data_mapping,
         sc->fw_stats_req, (sc->fw_stats_req_size + sc->fw_stats_data_size));
-    BLOGI(sc, "def_status_block paddr %p vaddr %p size 0x%lx\n",
+    BLOGI(sc, "def_status_block paddr %p vaddr %p size 0x%zx\n",
         (void *)sc->def_sb_dma.paddr, sc->def_sb,
         sizeof(struct host_sp_status_block));
     BLOGI(sc, "event_queue paddr %#jx vaddr %p size 0x%x\n",
         (uintmax_t)sc->eq_dma.paddr, sc->eq_dma.vaddr, BCM_PAGE_SIZE);
-    BLOGI(sc, "slow path paddr %#jx vaddr %p size 0x%lx\n",
+    BLOGI(sc, "slow path paddr %#jx vaddr %p size 0x%zx\n",
         (uintmax_t)sc->sp_dma.paddr, sc->sp_dma.vaddr,
         sizeof(struct bxe_slowpath));
     BLOGI(sc, "slow path queue paddr %#jx vaddr %p size 0x%x\n",
@@ -18767,7 +18767,7 @@ bxe_grc_dump(struct bxe_softc *sc)
         FW_BUF_SIZE);
     for (i = 0; i < sc->num_queues; i++) {
         fp = &sc->fp[i];
-        BLOGI(sc, "FP status block fp %d paddr %#jx vaddr %p size 0x%lx\n", i,
+        BLOGI(sc, "FP status block fp %d paddr %#jx vaddr %p size 0x%zx\n", i,
             (uintmax_t)fp->sb_dma.paddr, fp->sb_dma.vaddr,
             sizeof(union bxe_host_hc_status_block));
         BLOGI(sc, "TX BD CHAIN fp %d paddr %#jx vaddr %p size 0x%x\n", i,
@@ -18776,7 +18776,7 @@ bxe_grc_dump(struct bxe_softc *sc)
         BLOGI(sc, "RX BD CHAIN fp %d paddr %#jx vaddr %p size 0x%x\n", i,
             (uintmax_t)fp->rx_dma.paddr, fp->rx_dma.vaddr,
             (BCM_PAGE_SIZE * RX_BD_NUM_PAGES));
-        BLOGI(sc, "RX RCQ CHAIN fp %d paddr %#jx vaddr %p size 0x%lx\n", i,
+        BLOGI(sc, "RX RCQ CHAIN fp %d paddr %#jx vaddr %p size 0x%zx\n", i,
             (uintmax_t)fp->rcq_dma.paddr, fp->rcq_dma.vaddr,
             (BCM_PAGE_SIZE * RCQ_NUM_PAGES));
         BLOGI(sc, "RX SGE CHAIN fp %d paddr %#jx vaddr %p size 0x%x\n", i,
