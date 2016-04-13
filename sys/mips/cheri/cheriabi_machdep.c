@@ -63,8 +63,11 @@
 /* Required by cheriabi_fill_uap.h */
 #include <sys/capsicum.h>
 #include <sys/linker.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
 #include <sys/mqueue.h>
 #include <sys/poll.h>
+#include <sys/procctl.h>
 #include <sys/resource.h>
 #include <sys/sched.h>
 #include <sys/sem.h>
@@ -94,7 +97,9 @@
 
 #include <compat/cheriabi/cheriabi_signal.h>
 #include <compat/cheriabi/cheriabi_aio.h>
+#include <compat/cheriabi/cheriabi_ioctl.h>
 #include <compat/cheriabi/cheriabi_fill_uap.h>
+#include <compat/cheriabi/cheriabi_fill_uap_manual.h>
 #include <compat/cheriabi/cheriabi_dispatch_fill_uap.h>
 
 #include <ddb/ddb.h>
@@ -923,6 +928,11 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		return (0);
 
 	default:
+		/*
+		 * XXX-BD: if new sysarch() ops appear that use parms,
+		 * then we will need to sanity check the value in the
+		 * trap frame and relocate it to uap->parms.
+		 */
 		return (sysarch(td, (struct sysarch_args*)uap));
 	}
 }
