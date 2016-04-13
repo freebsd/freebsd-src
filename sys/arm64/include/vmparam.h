@@ -125,15 +125,16 @@
  * split into 2 regions at each end of the 64 bit address space, with an
  * out of range "hole" in the middle.
  *
- * We limit the size of the two spaces to 39 bits each.
+ * We use the full 48 bits for each region, however the kernel may only use
+ * a limited range within this space.
  *
  * Upper region:	0xffffffffffffffff
- *			0xffffff8000000000
+ *			0xffff000000000000
  *
- * Hole:		0xffffff7fffffffff
- *			0x0000008000000000
+ * Hole:		0xfffeffffffffffff
+ *			0x0001000000000000
  *
- * Lower region:	0x0000007fffffffff
+ * Lower region:	0x0000ffffffffffff
  *			0x0000000000000000
  *
  * We use the upper region for the kernel, and the lower region for userland.
@@ -152,23 +153,23 @@
 #define	VM_MIN_ADDRESS		(0x0000000000000000UL)
 #define	VM_MAX_ADDRESS		(0xffffffffffffffffUL)
 
-/* 32 GiB of kernel addresses */
-#define	VM_MIN_KERNEL_ADDRESS	(0xffffff8000000000UL)
-#define	VM_MAX_KERNEL_ADDRESS	(0xffffff8800000000UL)
+/* 512 GiB of kernel addresses */
+#define	VM_MIN_KERNEL_ADDRESS	(0xffff000000000000UL)
+#define	VM_MAX_KERNEL_ADDRESS	(0xffff008000000000UL)
 
-/* Direct Map for 128 GiB of PA: 0x0 - 0x1fffffffff */
-#define	DMAP_MIN_ADDRESS	(0xffffffc000000000UL)
-#define	DMAP_MAX_ADDRESS	(0xffffffdfffffffffUL)
+/* 2TiB for the direct map region */
+#define	DMAP_MIN_ADDRESS	(0xfffffd0000000000UL)
+#define	DMAP_MAX_ADDRESS	(0xffffff0000000000UL)
 
 #define	DMAP_MIN_PHYSADDR	(dmap_phys_base)
 #define	DMAP_MAX_PHYSADDR	(dmap_phys_base + (DMAP_MAX_ADDRESS - DMAP_MIN_ADDRESS))
 
 /* True if pa is in the dmap range */
 #define	PHYS_IN_DMAP(pa)	((pa) >= DMAP_MIN_PHYSADDR && \
-    (pa) <= DMAP_MAX_PHYSADDR)
+    (pa) < DMAP_MAX_PHYSADDR)
 /* True if va is in the dmap range */
 #define	VIRT_IN_DMAP(va)	((va) >= DMAP_MIN_ADDRESS && \
-    (va) <= DMAP_MAX_ADDRESS)
+    (va) < DMAP_MAX_ADDRESS)
 
 #define	PHYS_TO_DMAP(pa)						\
 ({									\

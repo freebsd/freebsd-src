@@ -222,6 +222,13 @@ static struct rwlock_padalign pvh_global_lock;
 
 vm_paddr_t dmap_phys_base;	/* The start of the dmap region */
 
+/* This code assumes all L1 DMAP entries will be used */
+CTASSERT((DMAP_MIN_ADDRESS  & ~L0_OFFSET) == DMAP_MIN_ADDRESS);
+CTASSERT((DMAP_MAX_ADDRESS  & ~L0_OFFSET) == DMAP_MAX_ADDRESS);
+
+#define	DMAP_TABLES	((DMAP_MAX_ADDRESS - DMAP_MIN_ADDRESS) >> L0_SHIFT)
+extern pt_entry_t pagetable_dmap[];
+
 /*
  * Data for the pv entry allocation mechanism
  */
@@ -543,28 +550,25 @@ pmap_early_vtophys(vm_offset_t l1pt, vm_offset_t va)
 }
 
 static void
-pmap_bootstrap_dmap(vm_offset_t l1pt, vm_paddr_t kernstart)
+pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t kernstart)
 {
 	vm_offset_t va;
 	vm_paddr_t pa;
-	pd_entry_t *l1;
 	u_int l1_slot;
 
 	pa = dmap_phys_base = kernstart & ~L1_OFFSET;
 	va = DMAP_MIN_ADDRESS;
-	l1 = (pd_entry_t *)l1pt;
-	l1_slot = pmap_l1_index(DMAP_MIN_ADDRESS);
-
 	for (; va < DMAP_MAX_ADDRESS;
 	    pa += L1_SIZE, va += L1_SIZE, l1_slot++) {
-		KASSERT(l1_slot < Ln_ENTRIES, ("Invalid L1 index"));
+		l1_slot = ((va - DMAP_MIN_ADDRESS) >> L1_SHIFT);
 
-		pmap_load_store(&l1[l1_slot],
+		pmap_load_store(&pagetable_dmap[l1_slot],
 		    (pa & ~L1_OFFSET) | ATTR_DEFAULT |
 		    ATTR_IDX(CACHED_MEMORY) | L1_BLOCK);
 	}
 
-	cpu_dcache_wb_range((vm_offset_t)l1, PAGE_SIZE);
+	cpu_dcache_wb_range((vm_offset_t)pagetable_dmap,
+	    PAGE_SIZE * DMAP_TABLES);
 	cpu_tlb_flushID();
 }
 
