@@ -565,7 +565,7 @@ its_init_cpu(struct gic_v3_its_softc *sc)
 	 * this function was called during GICv3 secondary initialization.
 	 */
 	if (sc == NULL) {
-		if (device_is_attached(its_sc->dev)) {
+		if (its_sc != NULL && device_is_attached(its_sc->dev)) {
 			/*
 			 * XXX ARM64TODO: This is part of the workaround that
 			 * saves ITS software context for further use in
