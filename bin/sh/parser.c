@@ -1616,7 +1616,6 @@ parsesub: {
 	int flags;
 	char *p;
 	static const char types[] = "}-+?=";
-	int bracketed_name = 0; /* used to handle ${[0-9]*} variables */
 	int linno;
 	int length;
 	int c1;
@@ -1640,7 +1639,6 @@ parsesub: {
 		subtype = VSNORMAL;
 		flags = 0;
 		if (c == '{') {
-			bracketed_name = 1;
 			c = pgetc_linecont();
 			subtype = 0;
 		}
@@ -1665,7 +1663,7 @@ varname:
 				flags |= VSLINENO;
 			}
 		} else if (is_digit(c)) {
-			if (bracketed_name) {
+			if (subtype != VSNORMAL) {
 				do {
 					STPUTC(c, out);
 					c = pgetc_linecont();
