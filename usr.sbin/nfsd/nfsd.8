@@ -28,7 +28,7 @@
 .\"	@(#)nfsd.8	8.4 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2015
+.Dd April 14, 2016
 .Dt NFSD 8
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@ server
 .Op Fl ardute
 .Op Fl n Ar num_servers
 .Op Fl h Ar bindip
+.Op Fl p Ar pnfs_setup
 .Op Fl Fl maxthreads Ar max_threads
 .Op Fl Fl minthreads Ar min_threads
 .Sh DESCRIPTION
@@ -103,6 +104,40 @@ It may also be specified in addition to any
 options given.
 Note that NFS/UDP does not operate properly when
 bound to the wildcard IP address whether you use -a or do not use -h.
+.It Fl p Ar pnfs_setup
+Enables pNFS support in the server and specifies the information that the
+daemon needs to start it.
+This can only be done if an appropriately configured GlusterFS cluster
+is
+.Xr mount_fusefs 8
+mounted on this machine, so that this
+.Nm
+can act as a metadata server.
+.Pp
+The
+.Ar pnfs_setup
+string is a set of ':' separated fields:
+.Bl -tag -width Ds
+.It
+The first is a ',' separated list of the hosts with GlusterFS bricks for
+the pNFS cluster.
+.It
+The second is the volume path for the GlusterFS volume.
+Typically '/' followed by the volume name.
+.It
+The third is the port# for the GlusterFS Mount protocol service, typically
+38466.
+.It
+The last is the port# for the GlusterFS NFSv3 protocol service, typically 38465.
+For example:
+.sp
+nfs-brick1,nfs-brick2:/gv0:38466:38465
+.sp
+Would specify two hosts called nfs-brick1 and nfs-brick2 that comprise the
+GlusterFS volume named gv0.
+This GlusterFS volume is configured for pNFS use with the GlusterFS Mount
+protocol servicing port 38466 and its NFSv3 protocol servicing port 38465.
+.El
 .It Fl t
 Serve
 .Tn TCP NFS
@@ -221,6 +256,7 @@ just do a
 .Xr nfsiod 8 ,
 .Xr nfsrevoke 8 ,
 .Xr nfsuserd 8 ,
+.Xr mount_fusefs 8 ,
 .Xr rpcbind 8
 .Sh HISTORY
 The
