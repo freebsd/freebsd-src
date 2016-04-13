@@ -142,6 +142,8 @@ struct pci_devinst {
 		int	pba_size;
 		int	function_mask; 	
 		struct msix_table_entry *table;	/* allocated at runtime */
+		void	*pba_page;
+		int	pba_page_offset;
 	} pi_msix;
 
 	void      *pi_arg;		/* devemu-private data */
