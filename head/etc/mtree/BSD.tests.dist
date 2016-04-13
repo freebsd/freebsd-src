@@ -302,6 +302,8 @@
         ..
         libcrypt
         ..
+        libdevdctl
+        ..
         libmp
         ..
         libnv
