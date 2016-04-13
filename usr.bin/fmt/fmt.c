@@ -171,8 +171,7 @@
 #ifndef lint
 static const char copyright[] =
 "Copyright (c) 1997 Gareth McCaughan. All rights reserved.\n";
-
-#endif					/* not lint */
+#endif	/* not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -248,7 +247,7 @@ static int grok_mail_headers = 0;	/* treat embedded mail headers magically? */
 static int format_troff = 0;		/* Format troff? */
 
 static int n_errors = 0;		/* Number of failed files. Return on exit. */
-static wchar_t *output_buffer = 0;	/* Output line will be built here */
+static wchar_t *output_buffer = NULL;	/* Output line will be built here */
 static size_t x;			/* Horizontal position in output line */
 static size_t x0;			/* Ditto, ignoring leading whitespace */
 static size_t output_buffer_length = 0;
@@ -693,7 +692,7 @@ center_stream(FILE *stream, const char *name)
 	size_t width;
 	int cwidth;
 
-	while ((line = get_line(stream, &length)) != 0) {
+	while ((line = get_line(stream, &length)) != NULL) {
 		size_t l = length;
 
 		while (l > 0 && iswspace(*line)) {
