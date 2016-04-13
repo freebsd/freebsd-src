@@ -153,7 +153,15 @@ BUILDENV_SHELL?=${SHELL}
 BUILDENV_SHELL?=/bin/sh
 .endif
 
-SVN?=		/usr/local/bin/svn
+.if !defined(SVN) || empty(SVN)
+. for _P in /usr/bin /usr/local/bin
+.  for _S in svn svnlite
+.   if exists(${_P}/${_S})
+SVN=   ${_P}/${_S}
+.   endif
+.  endfor
+. endfor
+.endif
 SVNFLAGS?=	-r HEAD
 
 MAKEOBJDIRPREFIX?=	/usr/obj
@@ -1331,13 +1339,6 @@ doxygen: .PHONY
 # latest copy.
 #
 update:
-.if (defined(CVS_UPDATE) || defined(SUP_UPDATE)) && !defined(SVN_UPDATE)
-	@echo "--------------------------------------------------------------"
-	@echo "CVS_UPDATE and SUP_UPDATE are no longer supported."
-	@echo "Please see: https://wiki.freebsd.org/CvsIsDeprecated"
-	@echo "--------------------------------------------------------------"
-	@exit 1
-.endif
 .if defined(SVN_UPDATE)
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Updating ${.CURDIR} using Subversion"
