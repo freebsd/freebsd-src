@@ -182,7 +182,7 @@
 62	AUE_FSTAT	OBSOL	fstat
 63	AUE_NULL	OBSOL	ogetkerninfo
 64	AUE_NULL	OBSOL	getpagesize
-65	AUE_MSYNC	NOPROTO	{ int msync(_In_pagerange_(len) void *addr, \
+65	AUE_MSYNC	NOPROTO	{ int msync(_Pagerange_(len) void *addr, \
 				    size_t len, int flags); }
 66	AUE_VFORK	NOPROTO	{ int vfork(void); }
 67	AUE_NULL	OBSOL	vread
@@ -193,18 +193,18 @@
 ; XXX: remove ovadvise
 72	AUE_O_VADVISE	NOPROTO	{ int ovadvise(int anom); } vadvise \
 				    ovadvise_args int
-73	AUE_MUNMAP	NOPROTO	{ int munmap(_In_pagerange_(len) void *addr, \
+73	AUE_MUNMAP	NOPROTO	{ int munmap(_Pagerange_(len) void *addr, \
 				    size_t len); }
 74	AUE_MPROTECT	NOPROTO	{ int mprotect( \
-				    _In_pagerange_(len) const void *addr, \
+				    _Pagerange_(len) const void *addr, \
 				    size_t len, int prot); }
-75	AUE_MADVISE	NOPROTO	{ int madvise(_In_pagerange_(len) void *addr, \
+75	AUE_MADVISE	NOPROTO	{ int madvise(_Pagerange_(len) void *addr, \
 				    size_t len, int behav); }
 76	AUE_NULL	OBSOL	vhangup
 77	AUE_NULL	OBSOL	vlimit
 ; XXX-BD: missing round up of len for misaligned addr
 78	AUE_MINCORE	NOPROTO|NOPARSE	{ int mincore( \
-				    _In_pagerange_(len) const void *addr, \
+				    _Pagerange_(len) const void *addr, \
 				    size_t len, \
 				    _Out_writes_bytes_(len/PAGE_SIZE) \
 				    char *vec); }
@@ -408,10 +408,10 @@
 				    _In_reads_bytes_opt_(newlen) void *new, \
 				    void newlen); } __sysctl sysctl_args int
 203	AUE_MLOCK	NOPROTO	{ int mlock( \
-				    _In_pagerange_(len) const void *addr, \
+				    _Pagerange_(len) const void *addr, \
 				    size_t len); }
 204	AUE_MUNLOCK	NOPROTO	{ int munlock( \
-				    _In_pagerange_(len) const void *addr, \
+				    _Pagerange_(len) const void *addr, \
 				    size_t len); }
 205	AUE_UNDELETE	NOPROTO	{ int undelete(_In_z_ char *path); }
 206	AUE_FUTIMES	NOPROTO	{ int futimes(int fd, \
@@ -499,7 +499,7 @@
 249	AUE_NULL	UNIMPL	nosys
 ; syscall numbers initially used in OpenBSD
 250	AUE_MINHERIT	NOPROTO	{ int minherit( \
-				    _In_pagerange_(len) void *addr, \
+				    _Pagerange_(len) void *addr, \
 				    size_t len, int inherit); }
 251	AUE_RFORK	NOPROTO	{ int rfork(int flags); }
 252	AUE_POLL	NOPROTO	{ int openbsd_poll( \
@@ -542,7 +542,7 @@
 				    lchown_args int
 276	AUE_LUTIMES	NOPROTO	{ int lutimes(_In_z_ char *path, \
 				    _In_ struct timeval *tptr); }
-277	AUE_MSYNC	NOPROTO	{ int msync(_In_pagerange_(len) void *addr, \
+277	AUE_MSYNC	NOPROTO	{ int msync(_Pagerange_(len) void *addr, \
 				    size_t len, int flags); } \
 				    netbsd_msync msync_args int
 ; XXX-BD: why are these not COMPAT#?  struct nstat isn't even defined in
@@ -1007,7 +1007,7 @@
 ; XXX: A more complex set of checks on addr is required.  We do that in
 ; cheriabi_mmap().
 477	AUE_MMAP	STD { caddr_t cheriabi_mmap( \
-				    _In_pagerange_opt_(len) caddr_t addr, \
+				    _Pagerange_opt_(len) caddr_t addr, \
 				    size_t len, int prot, int flags, int fd, \
 				    off_t pos); }
 478	AUE_LSEEK	NOPROTO	{ off_t lseek(int fd, off_t offset, \

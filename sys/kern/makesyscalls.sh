@@ -327,7 +327,8 @@ s/\$//g
 	function print_cheriabi_fill_uap_func(i, a_saltype, a_name, dep, pdep) {
 		annotation = a_saltype
 		gsub(/ .*/, "", annotation)
-		if (annotation !~ /^_In.*/ && annotation !~ /^_Out.*/)
+		if (annotation !~ /^_In.*/ && annotation !~ /^_Out.*/ &&
+		   annotation !~ /^_Pagerange.*/)
 			printf("unannotated pointer arg %s in %s\n",
 			    a_name, funcalias) > "/dev/stderr"
 		printf("\n\t/* [%d] %s %s */\n", i-1,
@@ -381,7 +382,7 @@ s/\$//g
 
 			if (annotation ~ /_bytes_/)
 				reqspace = "1 * " count
-			else if (annotation ~ /_pagerange_/)
+			else if (annotation ~ /_Pagerange_/)
 				reqspace = sprintf("roundup2(%s + adjust, PAGE_SIZE)", count)
 			else
 				reqspace = sprintf("(sizeof(*uap->%s) * %s)", a_name, count);
@@ -401,7 +402,7 @@ s/\$//g
 			printf("\t\t\tpanic(\"unhandled dependant argument size %%zu\", sizeof(uap->%s));\n", pdep) > cheriabi_fill_uap
 			printf("\t\treqlen = fuword(uap->%s);\n", pdep) > cheriabi_fill_uap
 			printf("\t\tif (reqlen == -1)\n\t\t\treturn (EINVAL);\n") > cheriabi_fill_uap
-			# XXX: no _pagerange_ consumers
+			# XXX: no _Pagerange_ consumers
 			if (annotation ~ /_bytes_/)
 				reqspace = "reqlen"
 			else
@@ -413,7 +414,7 @@ s/\$//g
 		printf("\t\tif (offset >= length)\n") > cheriabi_fill_uap
 		printf("\t\t\treturn (EPROT);\n") > cheriabi_fill_uap
 		printf("\t\tlength -= offset;\n") > cheriabi_fill_uap
-		if (annotation ~ /_pagerange_/) {
+		if (annotation ~ /_Pagerange_/) {
 			# NB: base + offset can not overflow because
 			# we have enforced (offset < length).
 			printf("\t\tCHERI_CGETLEN(base, CHERI_CR_CTEMP0);\n") > cheriabi_fill_uap
@@ -536,6 +537,7 @@ s/\$//g
 			argsaltype[argc]=argtype[argc];
 			gsub(/_In[^ ]*[_)] /, "", argtype[argc]);
 			gsub(/_Out[^ ]*[_)] /, "", argtype[argc]);
+			gsub(/_Pagerange[^ ]*[_)] /, "", argtype[argc]);
 			argname[argc]=$f;
 			f += 2;			# skip name, and any comma
 		}
