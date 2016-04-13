@@ -215,7 +215,10 @@ s/\$//g
 		printf " * created from%s\n */\n\n", $0 > cheriabi_dispatch_fill_uap
 		printf "#ifndef %s\n", cheriabi_dispatch_fill_uap_h > cheriabi_dispatch_fill_uap
 		printf "#define\t%s\n\n", cheriabi_dispatch_fill_uap_h > cheriabi_dispatch_fill_uap
-		printf "typedef int(*fill_uap_fp)(struct thread *, void *);\n" > cheriabi_dispatch_fill_uap
+		printf "typedef int(*fill_uap_fp)(struct thread *, void *);\n\n" > cheriabi_dispatch_fill_uap
+		printf "static int\n" > cheriabi_dispatch_fill_uap
+		printf "nop_fill_uap(struct thread *td __unused, void *uap __unused)\n" > cheriabi_dispatch_fill_uap
+		printf "{\n\n\treturn (0);\n}\n\n" > cheriabi_dispatch_fill_uap
 		printf "static fill_uap_fp cheriabi_fill_uap_funcs[%sMAXSYSCALL] = {\n", syscallprefix > cheriabi_dispatch_fill_uap
 
 		printf " * created from%s\n */\n\n", $0 > sysnames
@@ -642,6 +645,9 @@ s/\$//g
 		if (argc != 0)
 			printf("\t[%s%s] = (fill_uap_fp)%s%s_fill_uap,\n", syscallprefix,
 			    funcalias, syscallprefix, funcalias) > cheriabi_dispatch_fill_uap
+		else if (!flag("NOTSTATIC"))
+			printf("\t[%s%s] = nop_fill_uap,\n", syscallprefix,
+			    funcalias) > cheriabi_dispatch_fill_uap
 		if (argc != 0 && flag("NOPARSE")) {
 			printf("static inline int\t") > cheriabi_fill_uap
 			printf("%s%s_fill_uap(struct thread *td,\n",
