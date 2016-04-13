@@ -3579,7 +3579,6 @@ scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio,
 #endif /* _KERNEL/!_KERNEL */
 {
 	struct scsi_inquiry_data *inq_data;
-	char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
 #ifdef _KERNEL
 	struct	  ccb_getdev *cgd;
 #endif /* _KERNEL */
@@ -3612,15 +3611,13 @@ scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio,
 #endif /* _KERNEL/!_KERNEL */
 
 	if ((csio->ccb_h.flags & CAM_CDB_POINTER) != 0) {
-		sbuf_printf(sb, "%s. CDB: %s", 
-			    scsi_op_desc(csio->cdb_io.cdb_ptr[0], inq_data),
-			    scsi_cdb_string(csio->cdb_io.cdb_ptr, cdb_str,
-					    sizeof(cdb_str)));
+		sbuf_printf(sb, "%s. CDB: ", 
+			    scsi_op_desc(csio->cdb_io.cdb_ptr[0], inq_data));
+		scsi_cdb_sbuf(csio->cdb_io.cdb_ptr, sb);
 	} else {
-		sbuf_printf(sb, "%s. CDB: %s",
-			    scsi_op_desc(csio->cdb_io.cdb_bytes[0], inq_data),
-			    scsi_cdb_string(csio->cdb_io.cdb_bytes, cdb_str,
-					    sizeof(cdb_str)));
+		sbuf_printf(sb, "%s. CDB: ",
+			    scsi_op_desc(csio->cdb_io.cdb_bytes[0], inq_data));
+		scsi_cdb_sbuf(csio->cdb_io.cdb_bytes, sb);
 	}
 
 #ifdef _KERNEL
