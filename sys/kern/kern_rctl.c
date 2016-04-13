@@ -495,17 +495,11 @@ xadd(uint64_t a, uint64_t b)
 static uint64_t
 xmul(uint64_t a, uint64_t b)
 {
-	uint64_t c;
 
-	if (a == 0 || b == 0)
-		return (0);
-
-	c = a * b;
-
-	if (c < a || c < b)
+	if (b != 0 && a > UINT64_MAX / b)
 		return (UINT64_MAX);
 
-	return (c);
+	return (a * b);
 }
 
 /*
