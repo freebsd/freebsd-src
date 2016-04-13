@@ -1822,22 +1822,24 @@ isp_fibre_init(ispsoftc_t *isp)
 		 * Prefer or force Point-To-Point instead Loop?
 		 */
 		switch (isp->isp_confopts & ISP_CFG_PORT_PREF) {
-		case ISP_CFG_NPORT:
+		case ISP_CFG_LPORT_ONLY:
 			icbp->icb_xfwoptions &= ~ICBXOPT_TOPO_MASK;
-			icbp->icb_xfwoptions |= ICBXOPT_PTP_2_LOOP;
+			icbp->icb_xfwoptions |= ICBXOPT_LOOP_ONLY;
 			break;
 		case ISP_CFG_NPORT_ONLY:
 			icbp->icb_xfwoptions &= ~ICBXOPT_TOPO_MASK;
 			icbp->icb_xfwoptions |= ICBXOPT_PTP_ONLY;
 			break;
-		case ISP_CFG_LPORT_ONLY:
+		case ISP_CFG_LPORT:
 			icbp->icb_xfwoptions &= ~ICBXOPT_TOPO_MASK;
-			icbp->icb_xfwoptions |= ICBXOPT_LOOP_ONLY;
+			icbp->icb_xfwoptions |= ICBXOPT_LOOP_2_PTP;
+			break;
+		case ISP_CFG_NPORT:
+			icbp->icb_xfwoptions &= ~ICBXOPT_TOPO_MASK;
+			icbp->icb_xfwoptions |= ICBXOPT_PTP_2_LOOP;
 			break;
 		default:
-			/*
-			 * Let NVRAM settings define it if they are sane
-			 */
+			/* Let NVRAM settings define it if they are sane */
 			switch (icbp->icb_xfwoptions & ICBXOPT_TOPO_MASK) {
 			case ICBXOPT_PTP_2_LOOP:
 			case ICBXOPT_PTP_ONLY:
@@ -2109,18 +2111,31 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	}
 
 	switch (isp->isp_confopts & ISP_CFG_PORT_PREF) {
-	case ISP_CFG_NPORT_ONLY:
-		icbp->icb_fwoptions2 &= ~ICB2400_OPT2_TOPO_MASK;
-		icbp->icb_fwoptions2 |= ICB2400_OPT2_PTP_ONLY;
-		break;
 	case ISP_CFG_LPORT_ONLY:
 		icbp->icb_fwoptions2 &= ~ICB2400_OPT2_TOPO_MASK;
 		icbp->icb_fwoptions2 |= ICB2400_OPT2_LOOP_ONLY;
 		break;
-	default:
+	case ISP_CFG_NPORT_ONLY:
+		icbp->icb_fwoptions2 &= ~ICB2400_OPT2_TOPO_MASK;
+		icbp->icb_fwoptions2 |= ICB2400_OPT2_PTP_ONLY;
+		break;
+	case ISP_CFG_NPORT:
 		/* ISP_CFG_PTP_2_LOOP not available in 24XX/25XX */
+	case ISP_CFG_LPORT:
 		icbp->icb_fwoptions2 &= ~ICB2400_OPT2_TOPO_MASK;
 		icbp->icb_fwoptions2 |= ICB2400_OPT2_LOOP_2_PTP;
+		break;
+	default:
+		/* Let NVRAM settings define it if they are sane */
+		switch (icbp->icb_fwoptions2 & ICB2400_OPT2_TOPO_MASK) {
+		case ICB2400_OPT2_LOOP_ONLY:
+		case ICB2400_OPT2_PTP_ONLY:
+		case ICB2400_OPT2_LOOP_2_PTP:
+			break;
+		default:
+			icbp->icb_fwoptions2 &= ~ICB2400_OPT2_TOPO_MASK;
+			icbp->icb_fwoptions2 |= ICB2400_OPT2_LOOP_2_PTP;
+		}
 		break;
 	}
 
@@ -2615,6 +2630,7 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 	isp_put_plogx(isp, &pl, (isp_plogx_t *)reqp);
 	if (isp->isp_dblev & ISP_LOGDEBUG1)
 		isp_print_bytes(isp, "IOCB LOGX", QENTRY_LEN, reqp);
+	FCPARAM(isp, chan)->isp_login_hdl = handle;
 	ISP_SYNC_REQUEST(isp);
 	if (msleep(resp, &isp->isp_lock, 0, "PLOGX", 3 * ICB_LOGIN_TOV * hz)
 	    == EWOULDBLOCK) {
@@ -2623,6 +2639,7 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 		isp_destroy_handle(isp, pl.plogx_handle);
 		return (-1);
 	}
+	FCPARAM(isp, chan)->isp_login_hdl = NIL_HANDLE;
 	if (isp->isp_dblev & ISP_LOGDEBUG1)
 		isp_print_bytes(isp, "IOCB LOGX response", QENTRY_LEN, resp);
 	isp_get_plogx(isp, (isp_plogx_t *)resp, &pl);
@@ -5985,9 +6002,13 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			fcp = FCPARAM(isp, chan);
 			if (fcp->role == ISP_ROLE_NONE)
 				continue;
-			if (fcp->isp_loopstate > LOOP_LTEST_DONE)
+			if (fcp->isp_loopstate > LOOP_LTEST_DONE) {
+				if (nphdl != NIL_HANDLE &&
+				    nphdl == fcp->isp_login_hdl &&
+				    reason == PDB24XX_AE_OPN_2)
+					continue;
 				fcp->isp_loopstate = LOOP_LTEST_DONE;
-			else if (fcp->isp_loopstate < LOOP_HAVE_LINK)
+			} else if (fcp->isp_loopstate < LOOP_HAVE_LINK)
 				fcp->isp_loopstate = LOOP_HAVE_LINK;
 			isp_async(isp, ISPASYNC_CHANGE_NOTIFY, chan,
 			    ISPASYNC_CHANGE_PDB, nphdl, nlstate, reason);
@@ -7803,27 +7824,28 @@ isp_setdfltfcparm(ispsoftc_t *isp, int chan)
 	fcp->isp_xfwoptions = 0;
 	fcp->isp_zfwoptions = 0;
 	fcp->isp_lasthdl = NIL_HANDLE;
+	fcp->isp_login_hdl = NIL_HANDLE;
 
 	if (IS_24XX(isp)) {
 		fcp->isp_fwoptions |= ICB2400_OPT1_FAIRNESS;
 		fcp->isp_fwoptions |= ICB2400_OPT1_HARD_ADDRESS;
-		if (isp->isp_confopts & ISP_CFG_FULL_DUPLEX) {
+		if (isp->isp_confopts & ISP_CFG_FULL_DUPLEX)
 			fcp->isp_fwoptions |= ICB2400_OPT1_FULL_DUPLEX;
-		}
 		fcp->isp_fwoptions |= ICB2400_OPT1_BOTH_WWNS;
+		fcp->isp_xfwoptions |= ICB2400_OPT2_LOOP_2_PTP;
 		fcp->isp_zfwoptions |= ICB2400_OPT3_RATE_AUTO;
 	} else {
 		fcp->isp_fwoptions |= ICBOPT_FAIRNESS;
 		fcp->isp_fwoptions |= ICBOPT_PDBCHANGE_AE;
 		fcp->isp_fwoptions |= ICBOPT_HARD_ADDRESS;
-		if (isp->isp_confopts & ISP_CFG_FULL_DUPLEX) {
+		if (isp->isp_confopts & ISP_CFG_FULL_DUPLEX)
 			fcp->isp_fwoptions |= ICBOPT_FULL_DUPLEX;
-		}
 		/*
 		 * Make sure this is turned off now until we get
 		 * extended options from NVRAM
 		 */
 		fcp->isp_fwoptions &= ~ICBOPT_EXTENDED;
+		fcp->isp_xfwoptions |= ICBXOPT_LOOP_2_PTP;
 		fcp->isp_zfwoptions |= ICBZOPT_RATE_AUTO;
 	}
 

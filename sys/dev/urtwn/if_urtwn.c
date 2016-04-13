@@ -360,10 +360,10 @@ static void		urtwn_update_aifs(struct urtwn_softc *, uint8_t);
 static void		urtwn_set_promisc(struct urtwn_softc *);
 static void		urtwn_update_promisc(struct ieee80211com *);
 static void		urtwn_update_mcast(struct ieee80211com *);
-static struct ieee80211_node *urtwn_r88e_node_alloc(struct ieee80211vap *,
+static struct ieee80211_node *urtwn_node_alloc(struct ieee80211vap *,
 			    const uint8_t mac[IEEE80211_ADDR_LEN]);
-static void		urtwn_r88e_newassoc(struct ieee80211_node *, int);
-static void		urtwn_r88e_node_free(struct ieee80211_node *);
+static void		urtwn_newassoc(struct ieee80211_node *, int);
+static void		urtwn_node_free(struct ieee80211_node *);
 static void		urtwn_set_chan(struct urtwn_softc *,
 		    	    struct ieee80211_channel *,
 			    struct ieee80211_channel *);
@@ -628,10 +628,10 @@ urtwn_attach(device_t self)
 	ic->ic_update_promisc = urtwn_update_promisc;
 	ic->ic_update_mcast = urtwn_update_mcast;
 	if (sc->chip & URTWN_CHIP_88E) {
-		ic->ic_node_alloc = urtwn_r88e_node_alloc;
-		ic->ic_newassoc = urtwn_r88e_newassoc;
+		ic->ic_node_alloc = urtwn_node_alloc;
+		ic->ic_newassoc = urtwn_newassoc;
 		sc->sc_node_free = ic->ic_node_free;
-		ic->ic_node_free = urtwn_r88e_node_free;
+		ic->ic_node_free = urtwn_node_free;
 	}
 	ic->ic_update_chw = urtwn_update_chw;
 	ic->ic_ampdu_enable = urtwn_ampdu_enable;
@@ -1025,7 +1025,7 @@ urtwn_rx_frame(struct urtwn_softc *sc, struct mbuf *m, int8_t *rssi_p)
 	struct r92c_rx_stat *stat;
 	uint32_t rxdw0, rxdw3;
 	uint8_t rate, cipher;
-	int8_t rssi = URTWN_NOISE_FLOOR + 1;
+	int8_t rssi = -127;
 	int infosz;
 
 	stat = mtod(m, struct r92c_rx_stat *);
@@ -1042,6 +1042,7 @@ urtwn_rx_frame(struct urtwn_softc *sc, struct mbuf *m, int8_t *rssi_p)
 			rssi = urtwn_r88e_get_rssi(sc, rate, &stat[1]);
 		else
 			rssi = urtwn_get_rssi(sc, rate, &stat[1]);
+		URTWN_DPRINTF(sc, URTWN_DEBUG_RSSI, "%s: rssi=%d\n", __func__, rssi);
 		/* Update our average RSSI. */
 		urtwn_update_avgrssi(sc, rate, rssi);
 	}
@@ -1070,6 +1071,8 @@ urtwn_rx_frame(struct urtwn_softc *sc, struct mbuf *m, int8_t *rssi_p)
 			/* Bit 7 set means HT MCS instead of rate. */
 			tap->wr_rate = 0x80 | (rate - 12);
 		}
+
+		/* XXX TODO: this isn't right; should use the last good RSSI */
 		tap->wr_dbm_antsignal = rssi;
 		tap->wr_dbm_antnoise = URTWN_NOISE_FLOOR;
 	}
@@ -1135,17 +1138,26 @@ tr_setup:
 			m->m_next = NULL;
 
 			ni = urtwn_rx_frame(sc, m, &rssi);
+
+			/* Store a global last-good RSSI */
+			if (rssi != -127)
+				sc->last_rssi = rssi;
+
 			URTWN_UNLOCK(sc);
 
 			nf = URTWN_NOISE_FLOOR;
 			if (ni != NULL) {
+				if (rssi != -127)
+					URTWN_NODE(ni)->last_rssi = rssi;
 				if (ni->ni_flags & IEEE80211_NODE_HT)
 					m->m_flags |= M_AMPDU;
-				(void)ieee80211_input(ni, m, rssi - nf, nf);
+				(void)ieee80211_input(ni, m,
+				    URTWN_NODE(ni)->last_rssi - nf, nf);
 				ieee80211_free_node(ni);
 			} else {
-				(void)ieee80211_input_all(ic, m, rssi - nf,
-				    nf);
+				/* Use last good global RSSI */
+				(void)ieee80211_input_all(ic, m,
+				    sc->last_rssi - nf, nf);
 			}
 			URTWN_LOCK(sc);
 			m = next;
@@ -4868,7 +4880,7 @@ urtwn_update_mcast(struct ieee80211com *ic)
 }
 
 static struct ieee80211_node *
-urtwn_r88e_node_alloc(struct ieee80211vap *vap,
+urtwn_node_alloc(struct ieee80211vap *vap,
     const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct urtwn_node *un;
@@ -4885,11 +4897,15 @@ urtwn_r88e_node_alloc(struct ieee80211vap *vap,
 }
 
 static void
-urtwn_r88e_newassoc(struct ieee80211_node *ni, int isnew)
+urtwn_newassoc(struct ieee80211_node *ni, int isnew)
 {
 	struct urtwn_softc *sc = ni->ni_ic->ic_softc;
 	struct urtwn_node *un = URTWN_NODE(ni);
 	uint8_t id;
+
+	/* Only do this bit for R88E chips */
+	if (! (sc->chip & URTWN_CHIP_88E))
+		return;
 
 	if (!isnew)
 		return;
@@ -4911,7 +4927,7 @@ urtwn_r88e_newassoc(struct ieee80211_node *ni, int isnew)
 }
 
 static void
-urtwn_r88e_node_free(struct ieee80211_node *ni)
+urtwn_node_free(struct ieee80211_node *ni)
 {
 	struct urtwn_softc *sc = ni->ni_ic->ic_softc;
 	struct urtwn_node *un = URTWN_NODE(ni);
