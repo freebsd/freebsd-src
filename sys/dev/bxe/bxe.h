@@ -1786,12 +1786,8 @@ struct bxe_softc {
     int panic;
 
     struct cdev *ioctl_dev;
-
     void *grc_dump;
-    unsigned int trigger_grcdump;
-    unsigned int  grcdump_done;
-    unsigned int grcdump_started;
-
+    int grcdump_done;
     void *eeprom;
 }; /* struct bxe_softc */
 
@@ -2297,7 +2293,7 @@ void bxe_dump_mem(struct bxe_softc *sc, char *tag,
                   uint8_t *mem, uint32_t len);
 void bxe_dump_mbuf_data(struct bxe_softc *sc, char *pTag,
                         struct mbuf *m, uint8_t contents);
-extern int bxe_grc_dump(struct bxe_softc *sc);
+
 
 #if __FreeBSD_version >= 800000
 #if __FreeBSD_version >= 1000000
