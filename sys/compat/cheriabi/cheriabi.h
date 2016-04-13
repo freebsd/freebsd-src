@@ -91,7 +91,7 @@ cheriabi_cap_to_ptr(caddr_t *ptrp, struct chericap *cap, size_t reqlen,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;

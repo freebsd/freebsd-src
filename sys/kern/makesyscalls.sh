@@ -406,7 +406,7 @@ s/\$//g
 		} else
 			reqspace = sprintf("sizeof(*uap->%s)", a_name)
 		printf("\t\tCHERI_CGETLEN(length, CHERI_CR_CTEMP0);\n") > cheriabi_fill_uap
-		printf("\t\tCHERI_CGETLEN(offset, CHERI_CR_CTEMP0);\n") > cheriabi_fill_uap
+		printf("\t\tCHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);\n") > cheriabi_fill_uap
 		printf("\t\tif (offset >= length)\n") > cheriabi_fill_uap
 		printf("\t\t\treturn (EPROT);\n") > cheriabi_fill_uap
 		printf("\t\tlength -= offset;\n") > cheriabi_fill_uap

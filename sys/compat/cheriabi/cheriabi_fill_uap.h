@@ -60,7 +60,7 @@ CHERIABI_SYS_read_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -110,7 +110,7 @@ CHERIABI_SYS_write_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -160,7 +160,7 @@ CHERIABI_SYS_open_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -226,7 +226,7 @@ CHERIABI_SYS_wait4_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -255,7 +255,7 @@ CHERIABI_SYS_wait4_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -295,7 +295,7 @@ CHERIABI_SYS_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -322,7 +322,7 @@ CHERIABI_SYS_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -362,7 +362,7 @@ CHERIABI_SYS_unlink_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -402,7 +402,7 @@ CHERIABI_SYS_chdir_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -466,7 +466,7 @@ CHERIABI_SYS_mknod_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -511,7 +511,7 @@ CHERIABI_SYS_chmod_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -561,7 +561,7 @@ CHERIABI_SYS_chown_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -606,7 +606,7 @@ CHERIABI_SYS_mount_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -633,7 +633,7 @@ CHERIABI_SYS_mount_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -662,7 +662,7 @@ CHERIABI_SYS_mount_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -707,7 +707,7 @@ CHERIABI_SYS_unmount_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -800,7 +800,7 @@ CHERIABI_SYS_cheriabi_recvmsg_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -850,7 +850,7 @@ CHERIABI_SYS_cheriabi_sendmsg_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -905,7 +905,7 @@ CHERIABI_SYS_recvfrom_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -934,7 +934,7 @@ CHERIABI_SYS_recvfrom_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -977,7 +977,7 @@ CHERIABI_SYS_recvfrom_fill_uap(struct thread *td,
 		if (reqlen == -1)
 			return (EINVAL);
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1024,7 +1024,7 @@ CHERIABI_SYS_accept_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1065,7 +1065,7 @@ CHERIABI_SYS_accept_fill_uap(struct thread *td,
 		if (reqlen == -1)
 			return (EINVAL);
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1112,7 +1112,7 @@ CHERIABI_SYS_getpeername_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1153,7 +1153,7 @@ CHERIABI_SYS_getpeername_fill_uap(struct thread *td,
 		if (reqlen == -1)
 			return (EINVAL);
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1198,7 +1198,7 @@ CHERIABI_SYS_getsockname_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1239,7 +1239,7 @@ CHERIABI_SYS_getsockname_fill_uap(struct thread *td,
 		if (reqlen == -1)
 			return (EINVAL);
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1284,7 +1284,7 @@ CHERIABI_SYS_access_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1329,7 +1329,7 @@ CHERIABI_SYS_chflags_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1436,7 +1436,7 @@ CHERIABI_SYS_profil_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1491,7 +1491,7 @@ CHERIABI_SYS_ktrace_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1536,7 +1536,7 @@ CHERIABI_SYS_getlogin_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1576,7 +1576,7 @@ CHERIABI_SYS_setlogin_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1616,7 +1616,7 @@ CHERIABI_SYS_acct_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1658,7 +1658,7 @@ CHERIABI_SYS_cheriabi_sigaltstack_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1687,7 +1687,7 @@ CHERIABI_SYS_cheriabi_sigaltstack_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1744,7 +1744,7 @@ CHERIABI_SYS_revoke_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1784,7 +1784,7 @@ CHERIABI_SYS_symlink_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1811,7 +1811,7 @@ CHERIABI_SYS_symlink_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1856,7 +1856,7 @@ CHERIABI_SYS_readlink_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1883,7 +1883,7 @@ CHERIABI_SYS_readlink_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1923,7 +1923,7 @@ CHERIABI_SYS_cheriabi_execve_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1950,7 +1950,7 @@ CHERIABI_SYS_cheriabi_execve_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -1977,7 +1977,7 @@ CHERIABI_SYS_cheriabi_execve_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2031,7 +2031,7 @@ CHERIABI_SYS_chroot_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2081,7 +2081,7 @@ CHERIABI_SYS_msync_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2146,7 +2146,7 @@ CHERIABI_SYS_munmap_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2202,7 +2202,7 @@ CHERIABI_SYS_mprotect_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2258,7 +2258,7 @@ CHERIABI_SYS_madvise_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2312,7 +2312,7 @@ CHERIABI_SYS_getgroups_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2357,7 +2357,7 @@ CHERIABI_SYS_setgroups_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2421,7 +2421,7 @@ CHERIABI_SYS_setitimer_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2450,7 +2450,7 @@ CHERIABI_SYS_setitimer_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2490,7 +2490,7 @@ CHERIABI_SYS_swapon_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2535,7 +2535,7 @@ CHERIABI_SYS_getitimer_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2604,7 +2604,7 @@ CHERIABI_SYS_select_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2633,7 +2633,7 @@ CHERIABI_SYS_select_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2662,7 +2662,7 @@ CHERIABI_SYS_select_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2691,7 +2691,7 @@ CHERIABI_SYS_select_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2803,7 +2803,7 @@ CHERIABI_SYS_connect_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2872,7 +2872,7 @@ CHERIABI_SYS_bind_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2934,7 +2934,7 @@ CHERIABI_SYS_setsockopt_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -2993,7 +2993,7 @@ CHERIABI_SYS_gettimeofday_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3022,7 +3022,7 @@ CHERIABI_SYS_gettimeofday_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3067,7 +3067,7 @@ CHERIABI_SYS_getrusage_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3122,7 +3122,7 @@ CHERIABI_SYS_getsockopt_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3165,7 +3165,7 @@ CHERIABI_SYS_getsockopt_fill_uap(struct thread *td,
 		if (reqlen == -1)
 			return (EINVAL);
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3215,7 +3215,7 @@ CHERIABI_SYS_cheriabi_readv_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3265,7 +3265,7 @@ CHERIABI_SYS_cheriabi_writev_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3305,7 +3305,7 @@ CHERIABI_SYS_settimeofday_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3334,7 +3334,7 @@ CHERIABI_SYS_settimeofday_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3455,7 +3455,7 @@ CHERIABI_SYS_rename_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3482,7 +3482,7 @@ CHERIABI_SYS_rename_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3546,7 +3546,7 @@ CHERIABI_SYS_mkfifo_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3606,7 +3606,7 @@ CHERIABI_SYS_sendto_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3633,7 +3633,7 @@ CHERIABI_SYS_sendto_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3707,7 +3707,7 @@ CHERIABI_SYS_socketpair_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3752,7 +3752,7 @@ CHERIABI_SYS_mkdir_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3792,7 +3792,7 @@ CHERIABI_SYS_rmdir_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3832,7 +3832,7 @@ CHERIABI_SYS_utimes_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3859,7 +3859,7 @@ CHERIABI_SYS_utimes_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3899,7 +3899,7 @@ CHERIABI_SYS_adjtime_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3928,7 +3928,7 @@ CHERIABI_SYS_adjtime_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -3978,7 +3978,7 @@ CHERIABI_SYS_quotactl_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4005,7 +4005,7 @@ CHERIABI_SYS_quotactl_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4060,7 +4060,7 @@ CHERIABI_SYS_cheriabi_nlm_syscall_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4105,7 +4105,7 @@ CHERIABI_SYS_cheriabi_nfssvc_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4145,7 +4145,7 @@ CHERIABI_SYS_lgetfh_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4172,7 +4172,7 @@ CHERIABI_SYS_lgetfh_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4212,7 +4212,7 @@ CHERIABI_SYS_getfh_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4239,7 +4239,7 @@ CHERIABI_SYS_getfh_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4292,7 +4292,7 @@ CHERIABI_SYS_rtprio_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4346,7 +4346,7 @@ CHERIABI_SYS_ntp_adjtime_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4428,7 +4428,7 @@ CHERIABI_SYS_stat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4455,7 +4455,7 @@ CHERIABI_SYS_stat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4500,7 +4500,7 @@ CHERIABI_SYS_fstat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4540,7 +4540,7 @@ CHERIABI_SYS_lstat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4567,7 +4567,7 @@ CHERIABI_SYS_lstat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4612,7 +4612,7 @@ CHERIABI_SYS_pathconf_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4676,7 +4676,7 @@ CHERIABI_SYS_getrlimit_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4721,7 +4721,7 @@ CHERIABI_SYS_setrlimit_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4771,7 +4771,7 @@ CHERIABI_SYS_getdirentries_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4798,7 +4798,7 @@ CHERIABI_SYS_getdirentries_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4848,7 +4848,7 @@ CHERIABI_SYS___sysctl_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4877,7 +4877,7 @@ CHERIABI_SYS___sysctl_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4904,7 +4904,7 @@ CHERIABI_SYS___sysctl_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4947,7 +4947,7 @@ CHERIABI_SYS___sysctl_fill_uap(struct thread *td,
 		if (reqlen == -1)
 			return (EINVAL);
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -4992,7 +4992,7 @@ CHERIABI_SYS_mlock_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5043,7 +5043,7 @@ CHERIABI_SYS_munlock_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5089,7 +5089,7 @@ CHERIABI_SYS_undelete_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5134,7 +5134,7 @@ CHERIABI_SYS_futimes_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5198,7 +5198,7 @@ CHERIABI_SYS_poll_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5272,7 +5272,7 @@ CHERIABI_SYS_semop_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5346,7 +5346,7 @@ CHERIABI_SYS_msgsnd_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5406,7 +5406,7 @@ CHERIABI_SYS_msgrcv_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5481,7 +5481,7 @@ CHERIABI_SYS_clock_gettime_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5526,7 +5526,7 @@ CHERIABI_SYS_clock_settime_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5571,7 +5571,7 @@ CHERIABI_SYS_clock_getres_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5616,7 +5616,7 @@ CHERIABI_SYS_cheriabi_ktimer_create_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5643,7 +5643,7 @@ CHERIABI_SYS_cheriabi_ktimer_create_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5707,7 +5707,7 @@ CHERIABI_SYS_ktimer_settime_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5736,7 +5736,7 @@ CHERIABI_SYS_ktimer_settime_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5781,7 +5781,7 @@ CHERIABI_SYS_ktimer_gettime_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5835,7 +5835,7 @@ CHERIABI_SYS_nanosleep_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5864,7 +5864,7 @@ CHERIABI_SYS_nanosleep_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5904,7 +5904,7 @@ CHERIABI_SYS_ffclock_getcounter_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5944,7 +5944,7 @@ CHERIABI_SYS_ffclock_setestimate_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -5984,7 +5984,7 @@ CHERIABI_SYS_ffclock_getestimate_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6034,7 +6034,7 @@ CHERIABI_SYS_clock_getcpuclockid2_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6074,7 +6074,7 @@ CHERIABI_SYS_ntp_gettime_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6124,7 +6124,7 @@ CHERIABI_SYS_minherit_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6194,7 +6194,7 @@ CHERIABI_SYS_openbsd_poll_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6244,7 +6244,7 @@ CHERIABI_SYS_lchown_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6284,7 +6284,7 @@ CHERIABI_SYS_cheriabi_aio_read_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6324,7 +6324,7 @@ CHERIABI_SYS_cheriabi_aio_write_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6374,7 +6374,7 @@ CHERIABI_SYS_cheriabi_lio_listio_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6403,7 +6403,7 @@ CHERIABI_SYS_cheriabi_lio_listio_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6453,7 +6453,7 @@ CHERIABI_SYS_getdents_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6498,7 +6498,7 @@ CHERIABI_SYS_lchmod_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6548,7 +6548,7 @@ CHERIABI_SYS_netbsd_lchown_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6588,7 +6588,7 @@ CHERIABI_SYS_lutimes_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6615,7 +6615,7 @@ CHERIABI_SYS_lutimes_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6665,7 +6665,7 @@ CHERIABI_SYS_netbsd_msync_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6711,7 +6711,7 @@ CHERIABI_SYS_nstat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6738,7 +6738,7 @@ CHERIABI_SYS_nstat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6783,7 +6783,7 @@ CHERIABI_SYS_nfstat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6823,7 +6823,7 @@ CHERIABI_SYS_nlstat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6850,7 +6850,7 @@ CHERIABI_SYS_nlstat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6905,7 +6905,7 @@ CHERIABI_SYS_cheriabi_preadv_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -6960,7 +6960,7 @@ CHERIABI_SYS_cheriabi_pwritev_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7005,7 +7005,7 @@ CHERIABI_SYS_fhopen_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7045,7 +7045,7 @@ CHERIABI_SYS_fhstat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7072,7 +7072,7 @@ CHERIABI_SYS_fhstat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7131,7 +7131,7 @@ CHERIABI_SYS_modstat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7185,7 +7185,7 @@ CHERIABI_SYS_modfind_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7225,7 +7225,7 @@ CHERIABI_SYS_kldload_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7279,7 +7279,7 @@ CHERIABI_SYS_kldfind_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7338,7 +7338,7 @@ CHERIABI_SYS_kldstat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7454,7 +7454,7 @@ CHERIABI_SYS_cheriabi_aio_return_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7499,7 +7499,7 @@ CHERIABI_SYS_cheriabi_aio_suspend_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7528,7 +7528,7 @@ CHERIABI_SYS_cheriabi_aio_suspend_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7575,7 +7575,7 @@ CHERIABI_SYS_cheriabi_aio_cancel_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7615,7 +7615,7 @@ CHERIABI_SYS_cheriabi_aio_error_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7674,7 +7674,7 @@ CHERIABI_SYS___getcwd_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7719,7 +7719,7 @@ CHERIABI_SYS_sched_setparam_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7764,7 +7764,7 @@ CHERIABI_SYS_sched_getparam_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7814,7 +7814,7 @@ CHERIABI_SYS_sched_setscheduler_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7901,7 +7901,7 @@ CHERIABI_SYS_sched_rr_get_interval_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7946,7 +7946,7 @@ CHERIABI_SYS_utrace_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -7996,7 +7996,7 @@ CHERIABI_SYS_cheriabi_kldsym_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8036,7 +8036,7 @@ CHERIABI_SYS_cheriabi_jail_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8083,7 +8083,7 @@ CHERIABI_SYS_sigprocmask_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8112,7 +8112,7 @@ CHERIABI_SYS_sigprocmask_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8152,7 +8152,7 @@ CHERIABI_SYS_sigsuspend_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8192,7 +8192,7 @@ CHERIABI_SYS_sigpending_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8232,7 +8232,7 @@ CHERIABI_SYS_cheriabi_sigtimedwait_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8261,7 +8261,7 @@ CHERIABI_SYS_cheriabi_sigtimedwait_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8288,7 +8288,7 @@ CHERIABI_SYS_cheriabi_sigtimedwait_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8328,7 +8328,7 @@ CHERIABI_SYS_cheriabi_sigwaitinfo_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8357,7 +8357,7 @@ CHERIABI_SYS_cheriabi_sigwaitinfo_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8402,7 +8402,7 @@ CHERIABI_SYS___acl_get_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8429,7 +8429,7 @@ CHERIABI_SYS___acl_get_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8474,7 +8474,7 @@ CHERIABI_SYS___acl_set_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8501,7 +8501,7 @@ CHERIABI_SYS___acl_set_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8551,7 +8551,7 @@ CHERIABI_SYS___acl_get_fd_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8601,7 +8601,7 @@ CHERIABI_SYS___acl_set_fd_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8646,7 +8646,7 @@ CHERIABI_SYS___acl_delete_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8710,7 +8710,7 @@ CHERIABI_SYS___acl_aclcheck_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8737,7 +8737,7 @@ CHERIABI_SYS___acl_aclcheck_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8787,7 +8787,7 @@ CHERIABI_SYS___acl_aclcheck_fd_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8837,7 +8837,7 @@ CHERIABI_SYS_extattrctl_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8866,7 +8866,7 @@ CHERIABI_SYS_extattrctl_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8893,7 +8893,7 @@ CHERIABI_SYS_extattrctl_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8943,7 +8943,7 @@ CHERIABI_SYS_extattr_set_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8970,7 +8970,7 @@ CHERIABI_SYS_extattr_set_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -8997,7 +8997,7 @@ CHERIABI_SYS_extattr_set_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9047,7 +9047,7 @@ CHERIABI_SYS_extattr_get_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9074,7 +9074,7 @@ CHERIABI_SYS_extattr_get_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9101,7 +9101,7 @@ CHERIABI_SYS_extattr_get_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9146,7 +9146,7 @@ CHERIABI_SYS_extattr_delete_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9173,7 +9173,7 @@ CHERIABI_SYS_extattr_delete_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9213,7 +9213,7 @@ CHERIABI_SYS_cheriabi_aio_waitcomplete_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9242,7 +9242,7 @@ CHERIABI_SYS_cheriabi_aio_waitcomplete_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9284,7 +9284,7 @@ CHERIABI_SYS_getresuid_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9313,7 +9313,7 @@ CHERIABI_SYS_getresuid_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9342,7 +9342,7 @@ CHERIABI_SYS_getresuid_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9384,7 +9384,7 @@ CHERIABI_SYS_getresgid_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9413,7 +9413,7 @@ CHERIABI_SYS_getresgid_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9442,7 +9442,7 @@ CHERIABI_SYS_getresgid_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9499,7 +9499,7 @@ CHERIABI_SYS_cheriabi_kevent_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9528,7 +9528,7 @@ CHERIABI_SYS_cheriabi_kevent_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9557,7 +9557,7 @@ CHERIABI_SYS_cheriabi_kevent_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9612,7 +9612,7 @@ CHERIABI_SYS_extattr_set_fd_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9639,7 +9639,7 @@ CHERIABI_SYS_extattr_set_fd_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9694,7 +9694,7 @@ CHERIABI_SYS_extattr_get_fd_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9721,7 +9721,7 @@ CHERIABI_SYS_extattr_get_fd_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9771,7 +9771,7 @@ CHERIABI_SYS_extattr_delete_fd_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9830,7 +9830,7 @@ CHERIABI_SYS_eaccess_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9880,7 +9880,7 @@ CHERIABI_SYS_cheriabi_nmount_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9920,7 +9920,7 @@ CHERIABI_SYS_cheriabi___mac_get_proc_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -9960,7 +9960,7 @@ CHERIABI_SYS_cheriabi___mac_set_proc_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10005,7 +10005,7 @@ CHERIABI_SYS_cheriabi___mac_get_fd_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10045,7 +10045,7 @@ CHERIABI_SYS_cheriabi___mac_get_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10072,7 +10072,7 @@ CHERIABI_SYS_cheriabi___mac_get_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10117,7 +10117,7 @@ CHERIABI_SYS_cheriabi___mac_set_fd_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10157,7 +10157,7 @@ CHERIABI_SYS_cheriabi___mac_set_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10184,7 +10184,7 @@ CHERIABI_SYS_cheriabi___mac_set_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10234,7 +10234,7 @@ CHERIABI_SYS_kenv_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10261,7 +10261,7 @@ CHERIABI_SYS_kenv_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10306,7 +10306,7 @@ CHERIABI_SYS_lchflags_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10351,7 +10351,7 @@ CHERIABI_SYS_uuidgen_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10418,7 +10418,7 @@ CHERIABI_SYS_cheriabi_sendfile_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10447,7 +10447,7 @@ CHERIABI_SYS_cheriabi_sendfile_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10502,7 +10502,7 @@ CHERIABI_SYS_getfsstat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10542,7 +10542,7 @@ CHERIABI_SYS_statfs_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10569,7 +10569,7 @@ CHERIABI_SYS_statfs_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10614,7 +10614,7 @@ CHERIABI_SYS_fstatfs_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10654,7 +10654,7 @@ CHERIABI_SYS_fhstatfs_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10681,7 +10681,7 @@ CHERIABI_SYS_fhstatfs_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10726,7 +10726,7 @@ CHERIABI_SYS_cheriabi___mac_get_pid_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10766,7 +10766,7 @@ CHERIABI_SYS_cheriabi___mac_get_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10793,7 +10793,7 @@ CHERIABI_SYS_cheriabi___mac_get_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10833,7 +10833,7 @@ CHERIABI_SYS_cheriabi___mac_set_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10860,7 +10860,7 @@ CHERIABI_SYS_cheriabi___mac_set_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10910,7 +10910,7 @@ CHERIABI_SYS_extattr_set_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10937,7 +10937,7 @@ CHERIABI_SYS_extattr_set_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -10964,7 +10964,7 @@ CHERIABI_SYS_extattr_set_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11014,7 +11014,7 @@ CHERIABI_SYS_extattr_get_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11041,7 +11041,7 @@ CHERIABI_SYS_extattr_get_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11068,7 +11068,7 @@ CHERIABI_SYS_extattr_get_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11113,7 +11113,7 @@ CHERIABI_SYS_extattr_delete_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11140,7 +11140,7 @@ CHERIABI_SYS_extattr_delete_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11180,7 +11180,7 @@ CHERIABI_SYS_cheriabi___mac_execve_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11207,7 +11207,7 @@ CHERIABI_SYS_cheriabi___mac_execve_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11234,7 +11234,7 @@ CHERIABI_SYS_cheriabi___mac_execve_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11261,7 +11261,7 @@ CHERIABI_SYS_cheriabi___mac_execve_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11308,7 +11308,7 @@ CHERIABI_SYS_cheriabi_sigaction_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11337,7 +11337,7 @@ CHERIABI_SYS_cheriabi_sigaction_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11377,7 +11377,7 @@ CHERIABI_SYS_cheriabi_sigreturn_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11417,7 +11417,7 @@ CHERIABI_SYS_cheriabi_getcontext_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11457,7 +11457,7 @@ CHERIABI_SYS_cheriabi_setcontext_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11497,7 +11497,7 @@ CHERIABI_SYS_cheriabi_swapcontext_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11524,7 +11524,7 @@ CHERIABI_SYS_cheriabi_swapcontext_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11564,7 +11564,7 @@ CHERIABI_SYS_swapoff_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11609,7 +11609,7 @@ CHERIABI_SYS___acl_get_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11636,7 +11636,7 @@ CHERIABI_SYS___acl_get_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11681,7 +11681,7 @@ CHERIABI_SYS___acl_set_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11708,7 +11708,7 @@ CHERIABI_SYS___acl_set_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11753,7 +11753,7 @@ CHERIABI_SYS___acl_delete_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11798,7 +11798,7 @@ CHERIABI_SYS___acl_aclcheck_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11825,7 +11825,7 @@ CHERIABI_SYS___acl_aclcheck_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11865,7 +11865,7 @@ CHERIABI_SYS_sigwait_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11892,7 +11892,7 @@ CHERIABI_SYS_sigwait_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11937,7 +11937,7 @@ CHERIABI_SYS_cheriabi_thr_create_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -11964,7 +11964,7 @@ CHERIABI_SYS_cheriabi_thr_create_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12006,7 +12006,7 @@ CHERIABI_SYS_thr_exit_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12046,7 +12046,7 @@ CHERIABI_SYS_thr_self_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12136,7 +12136,7 @@ CHERIABI_SYS_extattr_list_fd_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12186,7 +12186,7 @@ CHERIABI_SYS_extattr_list_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12215,7 +12215,7 @@ CHERIABI_SYS_extattr_list_file_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12265,7 +12265,7 @@ CHERIABI_SYS_extattr_list_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12294,7 +12294,7 @@ CHERIABI_SYS_extattr_list_link_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12341,7 +12341,7 @@ CHERIABI_SYS_ksem_timedwait_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12383,7 +12383,7 @@ CHERIABI_SYS_thr_suspend_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12461,7 +12461,7 @@ CHERIABI_SYS_audit_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12504,7 +12504,7 @@ CHERIABI_SYS_getauid_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12544,7 +12544,7 @@ CHERIABI_SYS_setauid_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12584,7 +12584,7 @@ CHERIABI_SYS_getaudit_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12624,7 +12624,7 @@ CHERIABI_SYS_setaudit_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12669,7 +12669,7 @@ CHERIABI_SYS_getaudit_addr_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12714,7 +12714,7 @@ CHERIABI_SYS_setaudit_addr_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12754,7 +12754,7 @@ CHERIABI_SYS_auditctl_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12802,7 +12802,7 @@ CHERIABI_SYS_cheriabi_thr_new_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12855,7 +12855,7 @@ CHERIABI_SYS_kmq_open_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12884,7 +12884,7 @@ CHERIABI_SYS_kmq_open_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12931,7 +12931,7 @@ CHERIABI_SYS_kmq_setattr_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -12960,7 +12960,7 @@ CHERIABI_SYS_kmq_setattr_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13010,7 +13010,7 @@ CHERIABI_SYS_kmq_timedreceive_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13039,7 +13039,7 @@ CHERIABI_SYS_kmq_timedreceive_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13068,7 +13068,7 @@ CHERIABI_SYS_kmq_timedreceive_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13123,7 +13123,7 @@ CHERIABI_SYS_kmq_timedsend_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13152,7 +13152,7 @@ CHERIABI_SYS_kmq_timedsend_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13199,7 +13199,7 @@ CHERIABI_SYS_cheriabi_kmq_notify_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13239,7 +13239,7 @@ CHERIABI_SYS_kmq_unlink_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13284,7 +13284,7 @@ CHERIABI_SYS_cheriabi_abort2_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13311,7 +13311,7 @@ CHERIABI_SYS_cheriabi_abort2_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13356,7 +13356,7 @@ CHERIABI_SYS_thr_set_name_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13401,7 +13401,7 @@ CHERIABI_SYS_cheriabi_aio_fsync_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13451,7 +13451,7 @@ CHERIABI_SYS_rtprio_thread_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13530,7 +13530,7 @@ CHERIABI_SYS_sctp_generic_sendmsg_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13557,7 +13557,7 @@ CHERIABI_SYS_sctp_generic_sendmsg_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13586,7 +13586,7 @@ CHERIABI_SYS_sctp_generic_sendmsg_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13646,7 +13646,7 @@ CHERIABI_SYS_cheriabi_sctp_generic_sendmsg_iov_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13673,7 +13673,7 @@ CHERIABI_SYS_cheriabi_sctp_generic_sendmsg_iov_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13702,7 +13702,7 @@ CHERIABI_SYS_cheriabi_sctp_generic_sendmsg_iov_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13752,7 +13752,7 @@ CHERIABI_SYS_cheriabi_sctp_generic_recvmsg_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13779,7 +13779,7 @@ CHERIABI_SYS_cheriabi_sctp_generic_recvmsg_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13808,7 +13808,7 @@ CHERIABI_SYS_cheriabi_sctp_generic_recvmsg_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13837,7 +13837,7 @@ CHERIABI_SYS_cheriabi_sctp_generic_recvmsg_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13878,7 +13878,7 @@ CHERIABI_SYS_cheriabi_sctp_generic_recvmsg_fill_uap(struct thread *td,
 		if (reqlen == -1)
 			return (EINVAL);
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13933,7 +13933,7 @@ CHERIABI_SYS_pread_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -13988,7 +13988,7 @@ CHERIABI_SYS_pwrite_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14055,7 +14055,7 @@ CHERIABI_SYS_cheriabi_mmap_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14130,7 +14130,7 @@ CHERIABI_SYS_truncate_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14223,7 +14223,7 @@ CHERIABI_SYS_shm_open_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14263,7 +14263,7 @@ CHERIABI_SYS_shm_unlink_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14303,7 +14303,7 @@ CHERIABI_SYS_cpuset_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14382,7 +14382,7 @@ CHERIABI_SYS_cpuset_getid_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14442,7 +14442,7 @@ CHERIABI_SYS_cpuset_getaffinity_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14502,7 +14502,7 @@ CHERIABI_SYS_cpuset_setaffinity_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14557,7 +14557,7 @@ CHERIABI_SYS_faccessat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14612,7 +14612,7 @@ CHERIABI_SYS_fchmodat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14672,7 +14672,7 @@ CHERIABI_SYS_fchownat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14717,7 +14717,7 @@ CHERIABI_SYS_cheriabi_fexecve_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14744,7 +14744,7 @@ CHERIABI_SYS_cheriabi_fexecve_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14794,7 +14794,7 @@ CHERIABI_SYS_fstatat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14821,7 +14821,7 @@ CHERIABI_SYS_fstatat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14866,7 +14866,7 @@ CHERIABI_SYS_futimesat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14893,7 +14893,7 @@ CHERIABI_SYS_futimesat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14948,7 +14948,7 @@ CHERIABI_SYS_linkat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -14975,7 +14975,7 @@ CHERIABI_SYS_linkat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15025,7 +15025,7 @@ CHERIABI_SYS_mkdirat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15075,7 +15075,7 @@ CHERIABI_SYS_mkfifoat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15130,7 +15130,7 @@ CHERIABI_SYS_mknodat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15185,7 +15185,7 @@ CHERIABI_SYS_openat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15235,7 +15235,7 @@ CHERIABI_SYS_readlinkat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15262,7 +15262,7 @@ CHERIABI_SYS_readlinkat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15312,7 +15312,7 @@ CHERIABI_SYS_renameat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15339,7 +15339,7 @@ CHERIABI_SYS_renameat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15384,7 +15384,7 @@ CHERIABI_SYS_symlinkat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15411,7 +15411,7 @@ CHERIABI_SYS_symlinkat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15461,7 +15461,7 @@ CHERIABI_SYS_unlinkat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15515,7 +15515,7 @@ CHERIABI_SYS_gssd_syscall_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15565,7 +15565,7 @@ CHERIABI_SYS_cheriabi_jail_get_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15615,7 +15615,7 @@ CHERIABI_SYS_cheriabi_jail_set_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15698,7 +15698,7 @@ CHERIABI_SYS_cheriabi_msgctl_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15748,7 +15748,7 @@ CHERIABI_SYS_shmctl_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15793,7 +15793,7 @@ CHERIABI_SYS_lpathconf_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15843,7 +15843,7 @@ CHERIABI_SYS___cap_rights_get_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15883,7 +15883,7 @@ CHERIABI_SYS_cap_getmode_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15928,7 +15928,7 @@ CHERIABI_SYS_pdfork_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -15992,7 +15992,7 @@ CHERIABI_SYS_pdgetpid_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16039,7 +16039,7 @@ CHERIABI_SYS_pselect_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16068,7 +16068,7 @@ CHERIABI_SYS_pselect_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16097,7 +16097,7 @@ CHERIABI_SYS_pselect_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16126,7 +16126,7 @@ CHERIABI_SYS_pselect_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16155,7 +16155,7 @@ CHERIABI_SYS_pselect_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16200,7 +16200,7 @@ CHERIABI_SYS_getloginclass_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16240,7 +16240,7 @@ CHERIABI_SYS_setloginclass_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16290,7 +16290,7 @@ CHERIABI_SYS_rctl_get_racct_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16317,7 +16317,7 @@ CHERIABI_SYS_rctl_get_racct_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16367,7 +16367,7 @@ CHERIABI_SYS_rctl_get_rules_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16394,7 +16394,7 @@ CHERIABI_SYS_rctl_get_rules_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16444,7 +16444,7 @@ CHERIABI_SYS_rctl_get_limits_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16471,7 +16471,7 @@ CHERIABI_SYS_rctl_get_limits_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16521,7 +16521,7 @@ CHERIABI_SYS_rctl_add_rule_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16548,7 +16548,7 @@ CHERIABI_SYS_rctl_add_rule_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16598,7 +16598,7 @@ CHERIABI_SYS_rctl_remove_rule_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16625,7 +16625,7 @@ CHERIABI_SYS_rctl_remove_rule_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16735,7 +16735,7 @@ CHERIABI_SYS_cheriabi_wait6_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16764,7 +16764,7 @@ CHERIABI_SYS_cheriabi_wait6_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16793,7 +16793,7 @@ CHERIABI_SYS_cheriabi_wait6_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16838,7 +16838,7 @@ CHERIABI_SYS_cap_rights_limit_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16888,7 +16888,7 @@ CHERIABI_SYS_cap_ioctls_limit_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -16938,7 +16938,7 @@ CHERIABI_SYS_cap_ioctls_get_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -17002,7 +17002,7 @@ CHERIABI_SYS_cap_fcntls_get_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -17057,7 +17057,7 @@ CHERIABI_SYS_bindat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -17112,7 +17112,7 @@ CHERIABI_SYS_connectat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -17167,7 +17167,7 @@ CHERIABI_SYS_chflagsat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -17219,7 +17219,7 @@ CHERIABI_SYS_accept4_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -17262,7 +17262,7 @@ CHERIABI_SYS_accept4_fill_uap(struct thread *td,
 		if (reqlen == -1)
 			return (EINVAL);
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -17307,7 +17307,7 @@ CHERIABI_SYS_pipe2_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -17347,7 +17347,7 @@ CHERIABI_SYS_cheriabi_aio_mlock_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -17395,7 +17395,7 @@ CHERIABI_SYS_ppoll_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -17424,7 +17424,7 @@ CHERIABI_SYS_ppoll_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -17453,7 +17453,7 @@ CHERIABI_SYS_ppoll_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -17498,7 +17498,7 @@ CHERIABI_SYS_futimens_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -17548,7 +17548,7 @@ CHERIABI_SYS_utimensat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -17575,7 +17575,7 @@ CHERIABI_SYS_utimensat_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -17625,7 +17625,7 @@ CHERIABI_SYS_numa_getaffinity_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
@@ -17675,7 +17675,7 @@ CHERIABI_SYS_numa_setaffinity_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
