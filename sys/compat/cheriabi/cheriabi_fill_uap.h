@@ -4887,12 +4887,14 @@ CHERIABI_SYS___sysctl_fill_uap(struct thread *td,
 		CHERI_CTOPTR(uap->oldlenp, CHERI_CR_CTEMP0, CHERI_CR_KDC);
 	}
 
-	/* [4] _In_reads_bytes_(newlen) void * new */
+	/* [4] _In_reads_bytes_opt_(newlen) void * new */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS___sysctl, 4);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
 	if (!tag) {
-		return (EPROT);
+		CHERI_CTOINT(uap->new, CHERI_CR_CTEMP0);
+		if (uap->new != NULL)
+			return (EPROT);
 	} else {
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
 		reqperms = (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD);
