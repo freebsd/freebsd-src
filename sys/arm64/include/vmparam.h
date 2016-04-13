@@ -128,14 +128,19 @@
  * We use the full 48 bits for each region, however the kernel may only use
  * a limited range within this space.
  *
- * Upper region:	0xffffffffffffffff
- *			0xffff000000000000
+ * Upper region:    0xffffffffffffffff  Top of virtual memory
  *
- * Hole:		0xfffeffffffffffff
- *			0x0001000000000000
+ *                  0xfffffeffffffffff  End of DMAP
+ *                  0xfffffd0000000000  Start of DMAP
  *
- * Lower region:	0x0000ffffffffffff
- *			0x0000000000000000
+ *                  0xffff007fffffffff  End of KVA
+ *                  0xffff000000000000  Kernel base address & start of KVA
+ *
+ * Hole:            0xfffeffffffffffff
+ *                  0x0001000000000000
+ *
+ * Lower region:    0x0000ffffffffffff End of user address space
+ *                  0x0000000000000000 Start of user address space
  *
  * We use the upper region for the kernel, and the lower region for userland.
  *
