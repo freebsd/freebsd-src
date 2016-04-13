@@ -2064,7 +2064,7 @@ CHERIABI_SYS_msync_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
 
-	/* [0] _In_pagerange_(len) void * addr */
+	/* [0] _Pagerange_(len) void * addr */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_msync, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
@@ -2072,7 +2072,7 @@ CHERIABI_SYS_msync_fill_uap(struct thread *td,
 		return (EPROT);
 	} else {
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-		reqperms = (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD);
+		reqperms = (CHERI_PERM_GLOBAL);
 		if ((perms & reqperms) != reqperms)
 			return (EPROT);
 
@@ -2129,7 +2129,7 @@ CHERIABI_SYS_munmap_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->len, CHERI_CR_CTEMP0);
 
-	/* [0] _In_pagerange_(len) void * addr */
+	/* [0] _Pagerange_(len) void * addr */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_munmap, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
@@ -2137,7 +2137,7 @@ CHERIABI_SYS_munmap_fill_uap(struct thread *td,
 		return (EPROT);
 	} else {
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-		reqperms = (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD);
+		reqperms = (CHERI_PERM_GLOBAL);
 		if ((perms & reqperms) != reqperms)
 			return (EPROT);
 
@@ -2185,7 +2185,7 @@ CHERIABI_SYS_mprotect_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->prot, CHERI_CR_CTEMP0);
 
-	/* [0] _In_pagerange_(len) const void * addr */
+	/* [0] _Pagerange_(len) const void * addr */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mprotect, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
@@ -2193,7 +2193,7 @@ CHERIABI_SYS_mprotect_fill_uap(struct thread *td,
 		return (EPROT);
 	} else {
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-		reqperms = (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD);
+		reqperms = (CHERI_PERM_GLOBAL);
 		if ((perms & reqperms) != reqperms)
 			return (EPROT);
 
@@ -2241,7 +2241,7 @@ CHERIABI_SYS_madvise_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->behav, CHERI_CR_CTEMP0);
 
-	/* [0] _In_pagerange_(len) void * addr */
+	/* [0] _Pagerange_(len) void * addr */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_madvise, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
@@ -2249,7 +2249,7 @@ CHERIABI_SYS_madvise_fill_uap(struct thread *td,
 		return (EPROT);
 	} else {
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-		reqperms = (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD);
+		reqperms = (CHERI_PERM_GLOBAL);
 		if ((perms & reqperms) != reqperms)
 			return (EPROT);
 
@@ -4977,7 +4977,7 @@ CHERIABI_SYS_mlock_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->len, CHERI_CR_CTEMP0);
 
-	/* [0] _In_pagerange_(len) const void * addr */
+	/* [0] _Pagerange_(len) const void * addr */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mlock, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
@@ -4985,7 +4985,7 @@ CHERIABI_SYS_mlock_fill_uap(struct thread *td,
 		return (EPROT);
 	} else {
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-		reqperms = (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD);
+		reqperms = (CHERI_PERM_GLOBAL);
 		if ((perms & reqperms) != reqperms)
 			return (EPROT);
 
@@ -5028,7 +5028,7 @@ CHERIABI_SYS_munlock_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->len, CHERI_CR_CTEMP0);
 
-	/* [0] _In_pagerange_(len) const void * addr */
+	/* [0] _Pagerange_(len) const void * addr */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_munlock, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
@@ -5036,7 +5036,7 @@ CHERIABI_SYS_munlock_fill_uap(struct thread *td,
 		return (EPROT);
 	} else {
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-		reqperms = (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD);
+		reqperms = (CHERI_PERM_GLOBAL);
 		if ((perms & reqperms) != reqperms)
 			return (EPROT);
 
@@ -6109,7 +6109,7 @@ CHERIABI_SYS_minherit_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->inherit, CHERI_CR_CTEMP0);
 
-	/* [0] _In_pagerange_(len) void * addr */
+	/* [0] _Pagerange_(len) void * addr */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_minherit, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
@@ -6117,7 +6117,7 @@ CHERIABI_SYS_minherit_fill_uap(struct thread *td,
 		return (EPROT);
 	} else {
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-		reqperms = (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD);
+		reqperms = (CHERI_PERM_GLOBAL);
 		if ((perms & reqperms) != reqperms)
 			return (EPROT);
 
@@ -6650,7 +6650,7 @@ CHERIABI_SYS_netbsd_msync_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
 
-	/* [0] _In_pagerange_(len) void * addr */
+	/* [0] _Pagerange_(len) void * addr */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_netbsd_msync, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
@@ -6658,7 +6658,7 @@ CHERIABI_SYS_netbsd_msync_fill_uap(struct thread *td,
 		return (EPROT);
 	} else {
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-		reqperms = (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD);
+		reqperms = (CHERI_PERM_GLOBAL);
 		if ((perms & reqperms) != reqperms)
 			return (EPROT);
 
@@ -14038,7 +14038,7 @@ CHERIABI_SYS_cheriabi_mmap_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->pos, CHERI_CR_CTEMP0);
 
-	/* [0] _In_pagerange_opt_(len) caddr_t addr */
+	/* [0] _Pagerange_opt_(len) caddr_t addr */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_mmap, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
@@ -14048,7 +14048,7 @@ CHERIABI_SYS_cheriabi_mmap_fill_uap(struct thread *td,
 			return (EPROT);
 	} else {
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-		reqperms = (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD);
+		reqperms = (CHERI_PERM_GLOBAL);
 		if ((perms & reqperms) != reqperms)
 			return (EPROT);
 
