@@ -96,6 +96,7 @@ struct urtwn_fw_info {
 struct urtwn_node {
 	struct ieee80211_node	ni;	/* must be the first */
 	uint8_t			id;
+	int			last_rssi;
 };
 #define URTWN_NODE(ni)	((struct urtwn_node *)(ni))
 
@@ -190,6 +191,8 @@ struct urtwn_softc {
 	int				nrxchains;
 	int				ledlink;
 	int				sc_txtimer;
+
+	int				last_rssi;
 
 	int				fwcur;
 	struct urtwn_data		sc_rx[URTWN_RX_LIST_COUNT];
