@@ -57,11 +57,11 @@
 #include <map>
 #include <string>
 
-#include <devctl/guid.h>
-#include <devctl/event.h>
-#include <devctl/event_factory.h>
-#include <devctl/exception.h>
-#include <devctl/consumer.h>
+#include <devdctl/guid.h>
+#include <devdctl/event.h>
+#include <devdctl/event_factory.h>
+#include <devdctl/exception.h>
+#include <devdctl/consumer.h>
 
 #include "callout.h"
 #include "vdev_iterator.h"
@@ -82,12 +82,12 @@ using std::stringstream;
 using std::setfill;
 using std::setw;
 
-using DevCtl::Event;
-using DevCtl::EventBuffer;
-using DevCtl::EventFactory;
-using DevCtl::EventList;
-using DevCtl::Guid;
-using DevCtl::ParseException;
+using DevdCtl::Event;
+using DevdCtl::EventBuffer;
+using DevdCtl::EventFactory;
+using DevdCtl::EventList;
+using DevdCtl::Guid;
+using DevdCtl::ParseException;
 
 /*-------------------------- File-scoped classes ----------------------------*/
 /**

@@ -55,14 +55,14 @@ __FBSDID("$FreeBSD$");
 /*============================ Namespace Control =============================*/
 using std::string;
 using std::stringstream;
-namespace DevCtl
+namespace DevdCtl
 {
 
 /*============================= Class Definitions ============================*/
 /*-------------------------------- EventBuffer -------------------------------*/
 //- EventBuffer Static Data ----------------------------------------------------
 /**
- * NOTIFY, NOMATCH, ATTACH, DETACH.  See DevCtlEvent::Type.
+ * NOTIFY, NOMATCH, ATTACH, DETACH.  See DevdCtlEvent::Type.
  */
 const char EventBuffer::s_eventStartTokens[] = "!?+-";
 
@@ -213,4 +213,4 @@ EventBuffer::Fill()
 	return (consumed > 0);
 }
 
-} // namespace DevCtl
+} // namespace DevdCtl

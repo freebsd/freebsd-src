@@ -39,7 +39,7 @@
  * Header requirements:
  *     #include <string>
  *
- *     #include <devctl/exception.h>
+ *     #include <devdctl/exception.h>
  */
 #ifndef	_ZFSD_EXCEPTION_H_
 #define	_ZFSD_EXCEPTION_H_
@@ -56,7 +56,7 @@ typedef struct nvlist nvlist_t;
 /**
  * \brief Class allowing unified reporting/logging of exceptional events.
  */
-class ZfsdException : public DevCtl::Exception
+class ZfsdException : public DevdCtl::Exception
 {
 public:
 	/**

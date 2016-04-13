@@ -36,11 +36,11 @@
  * Definition of the ZfsdException class hierarchy.  All exceptions
  * explicitly thrown by Zfsd are defined here.
  */
-#ifndef	_DEVCTL_EXCEPTION_H_
-#define	_DEVCTL_EXCEPTION_H_
+#ifndef	_DEVDCTL_EXCEPTION_H_
+#define	_DEVDCTL_EXCEPTION_H_
 
 /*============================ Namespace Control =============================*/
-namespace DevCtl
+namespace DevdCtl
 {
 
 /*============================= Class Definitions ============================*/
@@ -162,5 +162,5 @@ ParseException::GetOffset() const
 	return (m_offset);
 }
 
-} // namespace DevCtl
-#endif /* _DEVCTL_EXCEPTION_H_ */
+} // namespace DevdCtl
+#endif /* _DEVDCTL_EXCEPTION_H_ */

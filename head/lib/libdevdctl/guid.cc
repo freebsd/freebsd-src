@@ -51,7 +51,7 @@
 __FBSDID("$FreeBSD$");
 /*============================ Namespace Control =============================*/
 using std::string;
-namespace DevCtl
+namespace DevdCtl
 {
 
 /*=========================== Class Implementations ==========================*/
@@ -79,4 +79,4 @@ operator<< (std::ostream& out, Guid g)
 	return (out);
 }
 
-} // namespace DevCtl
+} // namespace DevdCtl

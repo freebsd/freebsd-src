@@ -33,7 +33,7 @@
 /**
  * \file zfsd.cc
  *
- * The ZFS daemon consumes kernel devctl(4) event data via devd(8)'s
+ * The ZFS daemon consumes kernel devdctl(4) event data via devd(8)'s
  * unix domain socket in order to react to system changes that impact
  * the function of ZFS storage pools.  The goal of this daemon is to
  * provide similar functionality to the Solaris ZFS Diagnostic Engine
@@ -57,11 +57,11 @@
 #include <map>
 #include <string>
 
-#include <devctl/guid.h>
-#include <devctl/event.h>
-#include <devctl/event_factory.h>
-#include <devctl/exception.h>
-#include <devctl/consumer.h>
+#include <devdctl/guid.h>
+#include <devdctl/event.h>
+#include <devdctl/event_factory.h>
+#include <devdctl/exception.h>
+#include <devdctl/consumer.h>
 
 #include "callout.h"
 #include "vdev_iterator.h"
@@ -79,9 +79,9 @@ __FBSDID("$FreeBSD$");
 #define NUM_ELEMENTS(x) (sizeof(x) / sizeof(*x))
 
 /*============================ Namespace Control =============================*/
-using DevCtl::Event;
-using DevCtl::EventFactory;
-using DevCtl::EventList;
+using DevdCtl::Event;
+using DevdCtl::EventFactory;
+using DevdCtl::EventList;
 
 /*================================ Global Data ===============================*/
 int              g_debug = 0;
@@ -141,7 +141,7 @@ ZfsDaemon::Run()
 
 			daemon.EventLoop();
 
-		} catch (const DevCtl::Exception &exp) {
+		} catch (const DevdCtl::Exception &exp) {
 			exp.Log();
 		}
 	}
@@ -266,7 +266,7 @@ ZfsDaemon::RescanSystem()
 	int		  result;
 
         /*
-	 * The devctl system doesn't replay events for new consumers
+	 * The devdctl system doesn't replay events for new consumers
 	 * of the interface.  Emit manufactured DEVFS arrival events
 	 * for any devices that already before we started or during
 	 * periods where we've lost our connection to devd.

@@ -45,11 +45,11 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <devctl/guid.h>
-#include <devctl/event.h>
-#include <devctl/event_factory.h>
-#include <devctl/exception.h>
-#include <devctl/consumer.h>
+#include <devdctl/guid.h>
+#include <devdctl/event.h>
+#include <devdctl/event_factory.h>
+#include <devdctl/exception.h>
+#include <devdctl/consumer.h>
 
 #include <zfsd/callout.h>
 #include <zfsd/vdev_iterator.h>
@@ -71,12 +71,12 @@ __FBSDID("$FreeBSD$");
 using std::string;
 using std::stringstream;
 
-using DevCtl::Event;
-using DevCtl::EventBuffer;
-using DevCtl::EventFactory;
-using DevCtl::EventList;
-using DevCtl::Guid;
-using DevCtl::NVPairMap;
+using DevdCtl::Event;
+using DevdCtl::EventBuffer;
+using DevdCtl::EventFactory;
+using DevdCtl::EventList;
+using DevdCtl::Guid;
+using DevdCtl::NVPairMap;
 
 /* redefine zpool_handle here because libzfs_impl.h is not includable */
 struct zpool_handle

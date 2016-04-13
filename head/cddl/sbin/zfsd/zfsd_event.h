@@ -36,15 +36,15 @@
  * \file dev_ctl_event.h
  *
  * \brief Class hierarchy used to express events received via
- *        the devctl API.
+ *        the devdctl API.
  *
  * Header requirements:
  *    #include <string>
  *    #include <list>
  *    #include <map>
  *
- *    #include <devctl/guid.h>
- *    #include <devctl/event.h>
+ *    #include <devdctl/guid.h>
+ *    #include <devdctl/event.h>
  */
 
 #ifndef _ZFSD_EVENT_H_
@@ -62,13 +62,13 @@ typedef struct nvlist nvlist_t;
 
 /*============================= Class Definitions ============================*/
 /*-------------------------------- DevfsEvent --------------------------------*/
-class DevfsEvent : public DevCtl::DevfsEvent
+class DevfsEvent : public DevdCtl::DevfsEvent
 {
 public:
-	/** Specialized DevCtlEvent object factory for Devfs events. */
+	/** Specialized DevdCtlEvent object factory for Devfs events. */
 	static BuildMethod Builder;
 
-	virtual DevCtl::Event *DeepCopy() const;
+	virtual DevdCtl::Event *DeepCopy() const;
 
 	/**
 	 * Interpret and perform any actions necessary to
@@ -114,17 +114,17 @@ protected:
 	DevfsEvent(const DevfsEvent &src);
 
 	/** Constructor */
-	DevfsEvent(Type, DevCtl::NVPairMap &, const string &);
+	DevfsEvent(Type, DevdCtl::NVPairMap &, const string &);
 };
 
 /*--------------------------------- ZfsEvent ---------------------------------*/
-class ZfsEvent : public DevCtl::ZfsEvent
+class ZfsEvent : public DevdCtl::ZfsEvent
 {
 public:
-	/** Specialized DevCtlEvent object factory for ZFS events. */
+	/** Specialized DevdCtlEvent object factory for ZFS events. */
 	static BuildMethod Builder;
 
-	virtual DevCtl::Event *DeepCopy() const;
+	virtual DevdCtl::Event *DeepCopy() const;
 
 	/**
 	 * Interpret and perform any actions necessary to
@@ -138,7 +138,7 @@ protected:
 	ZfsEvent(const ZfsEvent &src);
 
 	/** Constructor */
-	ZfsEvent(Type, DevCtl::NVPairMap &, const string &);
+	ZfsEvent(Type, DevdCtl::NVPairMap &, const string &);
 
 	/**
 	 * Detach any spares that are no longer needed, but were not

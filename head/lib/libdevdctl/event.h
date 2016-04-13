@@ -33,17 +33,17 @@
  */
 
 /**
- * \file devctl_event.h
+ * \file devdctl_event.h
  *
  * \brief Class hierarchy used to express events received via
- *        the devctl API.
+ *        the devdctl API.
  */
 
-#ifndef _DEVCTL_EVENT_H_
-#define	_DEVCTL_EVENT_H_
+#ifndef _DEVDCTL_EVENT_H_
+#define	_DEVDCTL_EVENT_H_
 
 /*============================ Namespace Control =============================*/
-namespace DevCtl
+namespace DevdCtl
 {
 
 /*=========================== Forward Declarations ===========================*/
@@ -140,9 +140,9 @@ public:
 	Type GetType()					 const;
 
 	/**
-	 * Get the orginal DevCtl event string for this event.
+	 * Get the orginal DevdCtl event string for this event.
 	 *
-	 * \return  The DevCtl event string.
+	 * \return  The DevdCtl event string.
 	 */
 	const std::string &GetEventString()		 const;
 
@@ -375,5 +375,5 @@ ZfsEvent::VdevGUID() const
 	return (m_vdevGUID);
 }
 
-} // namespace DevCtl
-#endif /*_DEVCTL_EVENT_H_ */
+} // namespace DevdCtl
+#endif /*_DEVDCTL_EVENT_H_ */

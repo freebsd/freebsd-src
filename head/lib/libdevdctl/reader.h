@@ -33,15 +33,15 @@
  */
 
 /**
- * \file devctl_reader.h
+ * \file devdctl_reader.h
  */
-#ifndef	_DEVCTL_READER_H_
-#define	_DEVCTL_READER_H_
+#ifndef	_DEVDCTL_READER_H_
+#define	_DEVDCTL_READER_H_
 
 /*=========================== Forward Declarations ===========================*/
 
 /*============================ Namespace Control =============================*/
-namespace DevCtl
+namespace DevdCtl
 {
 
 /*============================= Class Definitions ============================*/
@@ -132,5 +132,5 @@ protected:
 	std::istream *m_stream;
 };
 
-} // namespace DevCtl
-#endif	/* _DEVCTL_READER_H_ */
+} // namespace DevdCtl
+#endif	/* _DEVDCTL_READER_H_ */

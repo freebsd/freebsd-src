@@ -46,15 +46,15 @@
 #include <list>
 #include <string>
 
-#include <devctl/exception.h>
-#include <devctl/guid.h>
+#include <devdctl/exception.h>
+#include <devdctl/guid.h>
 
 #include "vdev.h"
 #include "vdev_iterator.h"
 #include "zfsd_exception.h"
 
 /*============================ Namespace Control =============================*/
-using DevCtl::Guid;
+using DevdCtl::Guid;
 
 /*=========================== Class Implementations ==========================*/
 /*------------------------------- VdevIterator -------------------------------*/

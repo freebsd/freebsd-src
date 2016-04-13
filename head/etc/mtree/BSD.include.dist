@@ -153,7 +153,7 @@
         wi
         ..
     ..
-    devctl
+    devdctl
     ..
     edit
         readline

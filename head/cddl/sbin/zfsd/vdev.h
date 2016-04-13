@@ -42,7 +42,7 @@
  *    #include <string>
  *    #include <list>
  *
- *    #include <devctl/guid.h>
+ *    #include <devdctl/guid.h>
  */
 #ifndef	_VDEV_H_
 #define	_VDEV_H_
@@ -115,9 +115,9 @@ public:
 	 */
 	std::list<Vdev>		 Children();
 
-	virtual DevCtl::Guid	 GUID()		const;
+	virtual DevdCtl::Guid	 GUID()		const;
 	bool			 IsSpare()	const;
-	virtual DevCtl::Guid	 PoolGUID()	const;
+	virtual DevdCtl::Guid	 PoolGUID()	const;
 	virtual vdev_state	 State()	const;
 	std::string		 Path()		const;
 	virtual std::string	 PhysicalPath()	const;
@@ -135,8 +135,8 @@ public:
 private:
 	void			 VdevLookupGuid();
 	bool			 VdevLookupPoolGuid();
-	DevCtl::Guid		 m_poolGUID;
-	DevCtl::Guid		 m_vdevGUID;
+	DevdCtl::Guid		 m_poolGUID;
+	DevdCtl::Guid		 m_vdevGUID;
 	nvlist_t		*m_poolConfig;
 	nvlist_t		*m_config;
 };
@@ -145,13 +145,13 @@ private:
 extern Vdev NonexistentVdev;
 
 //- Vdev Inline Public Methods ------------------------------------------------
-inline DevCtl::Guid
+inline DevdCtl::Guid
 Vdev::PoolGUID() const
 {
 	return (m_poolGUID);
 }
 
-inline DevCtl::Guid
+inline DevdCtl::Guid
 Vdev::GUID() const
 {
 	return (m_vdevGUID);

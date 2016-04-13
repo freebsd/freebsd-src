@@ -65,11 +65,11 @@ __FBSDID("$FreeBSD$");
 
 /*============================ Namespace Control =============================*/
 using std::string;
-namespace DevCtl
+namespace DevdCtl
 {
 
 /*============================= Class Definitions ============================*/
-/*----------------------------- DevCtl::Consumer -----------------------------*/
+/*----------------------------- DevdCtl::Consumer ----------------------------*/
 //- Consumer Static Private Data -----------------------------------------------
 const char Consumer::s_devdSockPath[] = "/var/run/devd.seqpacket.pipe";
 
@@ -255,4 +255,4 @@ Consumer::EventsPending()
 	return ((fds->revents & POLLIN) != 0);
 }
 
-} // namespace DevCtl
+} // namespace DevdCtl

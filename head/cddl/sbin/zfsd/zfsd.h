@@ -48,10 +48,10 @@
  *    #include <map>
  *    #include <string>
  *
- *    #include <devctl/guid.h>
- *    #include <devctl/event.h>
- *    #include <devctl/event_factory.h>
- *    #include <devctl/consumer.h>
+ *    #include <devdctl/guid.h>
+ *    #include <devdctl/event.h>
+ *    #include <devdctl/event_factory.h>
+ *    #include <devdctl/consumer.h>
  *
  *    #include "vdev_iterator.h"
  */
@@ -81,7 +81,7 @@ extern libzfs_handle_t *g_zfsHandle;
 /**
  * Static singleton orchestrating the operations of the ZFS daemon program.
  */
-class ZfsDaemon : public DevCtl::Consumer
+class ZfsDaemon : public DevdCtl::Consumer
 {
 public:
 	/** Return the ZfsDaemon singleton. */
@@ -222,7 +222,7 @@ private:
 	 */
 	static bool				s_consumingEvents;
 
-	static DevCtl::EventFactory::Record	s_registryEntries[];
+	static DevdCtl::EventFactory::Record	s_registryEntries[];
 };
 
 #endif	/* _ZFSD_H_ */

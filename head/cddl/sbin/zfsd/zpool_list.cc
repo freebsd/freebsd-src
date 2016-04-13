@@ -46,11 +46,11 @@
 #include <map>
 #include <string>
 
-#include <devctl/guid.h>
-#include <devctl/event.h>
-#include <devctl/event_factory.h>
-#include <devctl/exception.h>
-#include <devctl/consumer.h>
+#include <devdctl/guid.h>
+#include <devdctl/event.h>
+#include <devdctl/event_factory.h>
+#include <devdctl/exception.h>
+#include <devdctl/consumer.h>
 
 #include "vdev.h"
 #include "vdev_iterator.h"
@@ -58,7 +58,7 @@
 #include "zfsd.h"
 
 /*============================ Namespace Control =============================*/
-using DevCtl::Guid;
+using DevdCtl::Guid;
 
 /*=========================== Class Implementations ==========================*/
 /*--------------------------------- ZpoolList --------------------------------*/

@@ -12,7 +12,7 @@ SRCS=	consumer.cc		\
 	exception.cc		\
 	guid.cc
 
-INCSDIR= ${INCLUDEDIR}/devctl
+INCSDIR= ${INCLUDEDIR}/devdctl
 
 WARNS?=	3
 SHLIB_MAJOR=	0

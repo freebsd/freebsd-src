@@ -102,7 +102,7 @@ public:
 	 * Upon return, the VdevIterator's cursor points to the vdev just
 	 * past the returned vdev or end() if no matching vdev is found.
 	 */
-	nvlist_t *Find(DevCtl::Guid vdevGUID);
+	nvlist_t *Find(DevdCtl::Guid vdevGUID);
 
 	/**
 	 * \brief Perform the specified operation on each leaf member of

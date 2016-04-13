@@ -33,15 +33,15 @@
  */
 
 /**
- * \file devctl_guid.h
+ * \file devdctl_guid.h
  *
  * Definition of the Guid class.
  */
-#ifndef	_DEVCTL_GUID_H_
-#define	_DEVCTL_GUID_H_
+#ifndef	_DEVDCTL_GUID_H_
+#define	_DEVDCTL_GUID_H_
 
 /*============================ Namespace Control =============================*/
-namespace DevCtl
+namespace DevdCtl
 {
 
 /*============================= Class Definitions ============================*/
@@ -139,5 +139,5 @@ Guid::operator bool() const
 /** Convert the GUID into its string representation */
 std::ostream& operator<< (std::ostream& out, Guid g);
 
-} // namespace DevCtl
-#endif /* _DEVCTL_GUID_H_ */
+} // namespace DevdCtl
+#endif /* _DEVDCTL_GUID_H_ */

@@ -33,13 +33,13 @@
  */
 
 /**
- * \file devctl_event_buffer.h
+ * \file devdctl_event_buffer.h
  */
-#ifndef	_DEVCTL_EVENT_BUFFER_H_
-#define	_DEVCTL_EVENT_BUFFER_H_
+#ifndef	_DEVDCTL_EVENT_BUFFER_H_
+#define	_DEVDCTL_EVENT_BUFFER_H_
 
 /*============================ Namespace Control =============================*/
-namespace DevCtl
+namespace DevdCtl
 {
 
 /*=========================== Forward Declarations ===========================*/
@@ -184,5 +184,5 @@ EventBuffer::NextEventMaxLen() const
 	return (m_validLen - m_nextEventOffset);
 }
 
-} // namespace DevCtl
-#endif	/* _DEVCTL_EVENT_BUFFER_H_ */
+} // namespace DevdCtl
+#endif	/* _DEVDCTL_EVENT_BUFFER_H_ */

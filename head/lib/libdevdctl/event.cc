@@ -34,7 +34,7 @@
  * \file event.cc
  *
  * Implementation of the class hierarchy used to express events
- * received via the devctl API.
+ * received via the devdctl API.
  */
 #include <sys/cdefs.h>
 #include <sys/disk.h>
@@ -74,7 +74,7 @@ using std::endl;
 using std::string;
 using std::stringstream;
 
-namespace DevCtl
+namespace DevdCtl
 {
 
 /*=========================== Class Implementations ==========================*/
@@ -304,7 +304,7 @@ Event::ParseEventString(Event::Type type,
 		/*
 		 * Find the start of the key by backing up until
 		 * we hit whitespace or '!' (event type "notice").
-		 * Due to the devctl format, all key/value pair must
+		 * Due to the devdctl format, all key/value pair must
 		 * start with one of these two characters.
 		 */
 		start = eventString.find_last_of("! \t\n", end);
@@ -554,4 +554,4 @@ ZfsEvent::ZfsEvent(const ZfsEvent &src)
 {
 }
 
-} // namespace DevCtl
+} // namespace DevdCtl

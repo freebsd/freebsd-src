@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 using std::string;
 using std::stringstream;
 using std::endl;
-namespace DevCtl
+namespace DevdCtl
 {
 
 /*=========================== Class Implementations ==========================*/
@@ -122,4 +122,4 @@ ParseException::ParseException(Type type, const std::string &parsedBuffer,
 	GetString() = logstream.str();
 }
 
-} // namespace DevCtl
+} // namespace DevdCtl

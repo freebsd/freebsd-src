@@ -94,7 +94,7 @@ public:
 	 * \return  If found, a pointer to a valid CaseFile object.
 	 *          Otherwise NULL.
 	 */
-	static CaseFile *Find(DevCtl::Guid poolGUID, DevCtl::Guid vdevGUID);
+	static CaseFile *Find(DevdCtl::Guid poolGUID, DevdCtl::Guid vdevGUID);
 
 	/**
 	 * \brief Find a CaseFile object by a vdev's current/last known
@@ -113,7 +113,7 @@ public:
 	 * \param poolGUID	Only reevaluate cases for this pool
 	 * \param event		Try to consume this event with the casefile
 	 */
-	static void ReEvaluateByGuid(DevCtl::Guid poolGUID,
+	static void ReEvaluateByGuid(DevdCtl::Guid poolGUID,
 				     const ZfsEvent &event);
 
 	/**
@@ -145,8 +145,8 @@ public:
 	 */
 	static void      PurgeAll();
 
-	DevCtl::Guid  PoolGUID()       const;
-	DevCtl::Guid  VdevGUID()       const;
+	DevdCtl::Guid PoolGUID()       const;
+	DevdCtl::Guid VdevGUID()       const;
 	vdev_state    VdevState()      const;
 	const string &PoolGUIDString() const;
 	const string &VdevGUIDString() const;
@@ -183,7 +183,7 @@ public:
 	/**
 	 * \brief Register an itimer callout for the given event, if necessary
 	 */
-	virtual void RegisterCallout(const DevCtl::Event &event);
+	virtual void RegisterCallout(const DevdCtl::Event &event);
 
 	/**
 	 * \brief Close a case if it is no longer relevant.
@@ -290,7 +290,7 @@ protected:
 	 * \param prefix  If not NULL, this prefix will be prepended to
 	 *                every event in the file.
 	 */
-	void SerializeEvList(const DevCtl::EventList events, int fd,
+	void SerializeEvList(const DevdCtl::EventList events, int fd,
 			     const char* prefix=NULL) const;
 
 	/**
@@ -362,21 +362,21 @@ protected:
 	 * \brief A list of soft error events counted against the health of
 	 *        a vdev.
 	 */
-	DevCtl::EventList m_events;
+	DevdCtl::EventList m_events;
 
 	/**
 	 * \brief A list of soft error events waiting for a grace period
 	 *        expiration before being counted against the health of
 	 *        a vdev.
 	 */
-	DevCtl::EventList m_tentativeEvents;
+	DevdCtl::EventList m_tentativeEvents;
 
-	DevCtl::Guid	  m_poolGUID;
-	DevCtl::Guid	  m_vdevGUID;
-	vdev_state	  m_vdevState;
-	string		  m_poolGUIDString;
-	string		  m_vdevGUIDString;
-	string		  m_vdevPhysPath;
+	DevdCtl::Guid	   m_poolGUID;
+	DevdCtl::Guid	   m_vdevGUID;
+	vdev_state	   m_vdevState;
+	string		   m_poolGUIDString;
+	string		   m_vdevGUIDString;
+	string		   m_vdevPhysPath;
 
 	/**
 	 * \brief Callout activated when a grace period
@@ -387,13 +387,13 @@ private:
 	nvlist_t	*CaseVdev(zpool_handle_t *zhp)	const;
 };
 
-inline DevCtl::Guid
+inline DevdCtl::Guid
 CaseFile::PoolGUID() const
 {
 	return (m_poolGUID);
 }
 
-inline DevCtl::Guid
+inline DevdCtl::Guid
 CaseFile::VdevGUID() const
 {
 	return (m_vdevGUID);

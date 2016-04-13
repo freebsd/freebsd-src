@@ -33,13 +33,13 @@
  */
 
 /**
- * \file devctl_consumer.h
+ * \file devdctl_consumer.h
  */
-#ifndef	_DEVCTL_CONSUMER_H_
-#define	_DEVCTL_CONSUMER_H_
+#ifndef	_DEVDCTL_CONSUMER_H_
+#define	_DEVDCTL_CONSUMER_H_
 
 /*============================ Namespace Control =============================*/
-namespace DevCtl
+namespace DevdCtl
 {
 
 /*=========================== Forward Declarations ===========================*/
@@ -48,7 +48,7 @@ class EventBuffer;
 class FDReader;
 
 /*============================ Class Declarations ============================*/
-/*----------------------------- DevCtl::Consumer -----------------------------*/
+/*----------------------------- DevdCtl::Consumer ----------------------------*/
 
 /**
  */
@@ -126,7 +126,7 @@ protected:
 
 	enum {
 		/*
-		 * The maximum event size supported by libdevctl.
+		 * The maximum event size supported by libdevdctl.
 		 */
 		MAX_EVENT_SIZE = 8192,
 	};
@@ -182,5 +182,5 @@ Consumer::GetFactory()
 	return (m_eventFactory);
 }
 
-} // namespace DevCtl
-#endif	/* _DEVCTL_CONSUMER_H_ */
+} // namespace DevdCtl
+#endif	/* _DEVDCTL_CONSUMER_H_ */

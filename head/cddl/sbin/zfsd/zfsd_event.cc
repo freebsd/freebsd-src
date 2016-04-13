@@ -46,11 +46,11 @@
 #include <sstream>
 #include <string>
 
-#include <devctl/guid.h>
-#include <devctl/event.h>
-#include <devctl/event_factory.h>
-#include <devctl/exception.h>
-#include <devctl/consumer.h>
+#include <devdctl/guid.h>
+#include <devdctl/event.h>
+#include <devdctl/event_factory.h>
+#include <devdctl/exception.h>
+#include <devdctl/consumer.h>
 
 #include "callout.h"
 #include "vdev_iterator.h"
@@ -63,9 +63,9 @@
 
 __FBSDID("$FreeBSD$");
 /*============================ Namespace Control =============================*/
-using DevCtl::Event;
-using DevCtl::Guid;
-using DevCtl::NVPairMap;
+using DevdCtl::Event;
+using DevdCtl::Guid;
+using DevdCtl::NVPairMap;
 using std::stringstream;
 
 /*=========================== Class Implementations ==========================*/
@@ -217,18 +217,18 @@ DevfsEvent::Process() const
 //- DevfsEvent Protected Methods -----------------------------------------------
 DevfsEvent::DevfsEvent(Event::Type type, NVPairMap &nvpairs,
 			       const string &eventString)
- : DevCtl::DevfsEvent(type, nvpairs, eventString)
+ : DevdCtl::DevfsEvent(type, nvpairs, eventString)
 {
 }
 
 DevfsEvent::DevfsEvent(const DevfsEvent &src)
- : DevCtl::DevfsEvent::DevfsEvent(src)
+ : DevdCtl::DevfsEvent::DevfsEvent(src)
 {
 }
 
 /*--------------------------------- ZfsEvent ---------------------------------*/
 //- ZfsEvent Static Public Methods ---------------------------------------------
-DevCtl::Event *
+DevdCtl::Event *
 ZfsEvent::Builder(Event::Type type, NVPairMap &nvpairs,
 		  const string &eventString)
 {
@@ -343,12 +343,12 @@ ZfsEvent::Process() const
 //- ZfsEvent Protected Methods -------------------------------------------------
 ZfsEvent::ZfsEvent(Event::Type type, NVPairMap &nvpairs,
 			   const string &eventString)
- : DevCtl::ZfsEvent(type, nvpairs, eventString)
+ : DevdCtl::ZfsEvent(type, nvpairs, eventString)
 {
 }
 
 ZfsEvent::ZfsEvent(const ZfsEvent &src)
- : DevCtl::ZfsEvent(src)
+ : DevdCtl::ZfsEvent(src)
 {
 }
 

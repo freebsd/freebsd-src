@@ -49,7 +49,7 @@
 __FBSDID("$FreeBSD$");
 
 /*============================ Namespace Control =============================*/
-namespace DevCtl
+namespace DevdCtl
 {
 
 //- FDReader Public Methods ---------------------------------------------------
@@ -96,4 +96,4 @@ IstreamReader::in_avail() const
 	return (m_stream->rdbuf()->in_avail());
 }
 
-} // namespace DevCtl
+} // namespace DevdCtl

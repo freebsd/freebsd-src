@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #define NUM_ELEMENTS(x) (sizeof(x) / sizeof(*x))
 
 /*============================ Namespace Control =============================*/
-namespace DevCtl
+namespace DevdCtl
 {
 
 /*=========================== Class Implementations ==========================*/
@@ -96,4 +96,4 @@ EventFactory::Build(Event::Type type, NVPairMap &nvpairs,
 	return (buildMethod(type, nvpairs, eventString));
 }
 
-} // namespace DevCtl
+} // namespace DevdCtl

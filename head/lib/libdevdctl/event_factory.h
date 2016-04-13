@@ -33,14 +33,14 @@
  */
 
 /**
- * \file devctl_event_factory.h
+ * \file devdctl_event_factory.h
  */
 
-#ifndef _DEVCTL_EVENT_FACTORY_H_
-#define	_DEVCTL_EVENT_FACTORY_H_
+#ifndef _DEVDCTL_EVENT_FACTORY_H_
+#define	_DEVDCTL_EVENT_FACTORY_H_
 
 /*============================ Namespace Control =============================*/
-namespace DevCtl
+namespace DevdCtl
 {
 
 /*============================= Class Definitions ============================*/
@@ -90,5 +90,5 @@ EventFactory::GetRegistry() const
 	return (m_registry);
 }
 
-} // namespace DevCtl
-#endif /*_DEVCTL_EVENT_FACTORY_H_ */
+} // namespace DevdCtl
+#endif /*_DEVDCTL_EVENT_FACTORY_H_ */
