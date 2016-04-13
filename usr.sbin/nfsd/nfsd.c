@@ -59,11 +59,15 @@ static const char rcsid[] =
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
 #include <rpcsvc/nfs_prot.h>
+#include <rpcsvc/mount.h>
 
 #include <netdb.h>
 #include <arpa/inet.h>
-#include <nfsserver/nfs.h>
 #include <nfs/nfssvc.h>
+
+#include <fs/nfs/nfsproto.h>
+#include <fs/nfs/nfskpiport.h>
+#include <fs/nfs/nfs.h>
 
 #include <err.h>
 #include <errno.h>
@@ -92,6 +96,8 @@ static int stablefd = -1;	/* Fd for the stable restart file */
 static int backupfd;		/* Fd for the backup stable restart file */
 static const char *getopt_shortopts;
 static const char *getopt_usage;
+static char *dshost = NULL;
+static int dshostc = 0;
 
 static int minthreads_set;
 static int maxthreads_set;
@@ -100,7 +106,16 @@ static struct option longopts[] = {
 	{ "debug", no_argument, &debug, 1 },
 	{ "minthreads", required_argument, &minthreads_set, 1 },
 	{ "maxthreads", required_argument, &maxthreads_set, 1 },
+	{ "pnfs", required_argument, NULL, 'p' },
 	{ NULL, 0, NULL, 0}
+};
+
+struct nfhret {
+	u_long		stat;
+	long		vers;
+	long		auth;
+	long		fhsize;
+	u_char		nfh[NFS3_FHSIZE];
 };
 
 static void	cleanup(int);
@@ -111,13 +126,18 @@ static void	nonfs(int);
 static void	reapchild(int);
 static int	setbindhost(struct addrinfo **ia, const char *bindhost,
 		    struct addrinfo hints);
-static void	start_server(int);
+static void	start_server(int, struct nfsd_nfsd_args *);
 static void	unregistration(void);
 static void	usage(void);
 static void	open_stable(int *, int *);
 static void	copy_stable(int, int);
 static void	backup_stable(int);
 static void	set_nfsdcnt(int);
+static void	parse_dsserver(const char *, struct nfsd_nfsd_args *);
+static int	xdr_dir(XDR *, char *);
+static int	xdr_fh(XDR *, struct nfhret *);
+static u_long	getdsrootfh(struct sockaddr *, socklen_t,
+    struct nfsd_nfsd_args *, char *);
 
 /*
  * Nfs server daemon mostly just a user context for nfssvc()
@@ -161,15 +181,18 @@ main(int argc, char **argv)
 	const char *lopt;
 	char **bindhost = NULL;
 	pid_t pid;
+	struct nfsd_nfsd_args nfsdargs;
 
 	nfsdcnt = DEFNFSDCNT;
 	unregister = reregister = tcpflag = maxsock = 0;
 	bindanyflag = udpflag = connect_type_cnt = bindhostc = 0;
-	getopt_shortopts = "ah:n:rdtue";
+	getopt_shortopts = "ah:n:rdtuep:";
 	getopt_usage =
 	    "usage:\n"
 	    "  nfsd [-ardtue] [-h bindip]\n"
-	    "       [-n numservers] [--minthreads #] [--maxthreads #]\n";
+	    "       [-n numservers] [--minthreads #] [--maxthreads #]\n"
+	    "       [-p/--pnfs dsserver0,...,dsserverN:/gluster-volume-name:"
+	    "mntport#:nfsport#]\n";
 	while ((ch = getopt_long(argc, argv, getopt_shortopts, longopts,
 		    &longindex)) != -1)
 		switch (ch) {
@@ -202,6 +225,10 @@ main(int argc, char **argv)
 			break;
 		case 'e':
 			/* now a no-op, since this is the default */
+			break;
+		case 'p':
+			/* Parse out the DS server host names and the port#s. */
+			parse_dsserver(optarg, &nfsdargs);
 			break;
 		case 0:
 			lopt = longopts[longindex].name;
@@ -393,7 +420,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 	nfssvc_addsock = NFSSVC_NFSDADDSOCK;
-	nfssvc_nfsd = NFSSVC_NFSDNFSD;
+	nfssvc_nfsd = NFSSVC_NFSDNFSD | NFSSVC_NEWSTRUCT;
 
 	if (tcpflag) {
 		/*
@@ -411,7 +438,7 @@ main(int argc, char **argv)
 		} else {
 			(void)signal(SIGUSR1, child_cleanup);
 			setproctitle("server");
-			start_server(0);
+			start_server(0, &nfsdargs);
 		}
 	}
 
@@ -711,7 +738,7 @@ main(int argc, char **argv)
 	 * a "server" too. start_server will not return.
 	 */
 	if (!tcpflag)
-		start_server(1);
+		start_server(1, &nfsdargs);
 
 	/*
 	 * Loop forever accepting connections and passing the sockets
@@ -935,10 +962,9 @@ get_tuned_nfsdcount(void)
 }
 
 static void
-start_server(int master)
+start_server(int master, struct nfsd_nfsd_args *nfsdargp)
 {
 	char principal[MAXHOSTNAMELEN + 5];
-	struct nfsd_nfsd_args nfsdargs;
 	int status, error;
 	char hostname[MAXHOSTNAMELEN + 1], *cp;
 	struct addrinfo *aip, hints;
@@ -961,17 +987,17 @@ start_server(int master)
 			freeaddrinfo(aip);
 		}
 	}
-	nfsdargs.principal = principal;
+	nfsdargp->principal = principal;
 
 	if (nfsdcnt_set)
-		nfsdargs.minthreads = nfsdargs.maxthreads = nfsdcnt;
+		nfsdargp->minthreads = nfsdargp->maxthreads = nfsdcnt;
 	else {
-		nfsdargs.minthreads = minthreads_set ? minthreads : get_tuned_nfsdcount();
-		nfsdargs.maxthreads = maxthreads_set ? maxthreads : nfsdargs.minthreads;
-		if (nfsdargs.maxthreads < nfsdargs.minthreads)
-			nfsdargs.maxthreads = nfsdargs.minthreads;
+		nfsdargp->minthreads = minthreads_set ? minthreads : get_tuned_nfsdcount();
+		nfsdargp->maxthreads = maxthreads_set ? maxthreads : nfsdargp->minthreads;
+		if (nfsdargp->maxthreads < nfsdargp->minthreads)
+			nfsdargp->maxthreads = nfsdargp->minthreads;
 	}
-	error = nfssvc(nfssvc_nfsd, &nfsdargs);
+	error = nfssvc(nfssvc_nfsd, nfsdargp);
 	if (error < 0 && errno == EAUTH) {
 		/*
 		 * This indicates that it could not register the
@@ -981,7 +1007,7 @@ start_server(int master)
 		 */
 		syslog(LOG_ERR, "No gssd, using AUTH_SYS only");
 		principal[0] = '\0';
-		error = nfssvc(nfssvc_nfsd, &nfsdargs);
+		error = nfssvc(nfssvc_nfsd, nfsdargp);
 	}
 	if (error < 0) {
 		syslog(LOG_ERR, "nfssvc: %m");
@@ -1082,5 +1108,241 @@ backup_stable(__unused int signo)
 
 	if (stablefd >= 0)
 		copy_stable(stablefd, backupfd);
+}
+
+/*
+ * Parse the pNFS string and extract the DS servers and ports numbers.
+ */
+static void
+parse_dsserver(const char *optarg, struct nfsd_nfsd_args *nfsdargp)
+{
+	char *ad, *cp, *cp2, *dsaddr, *dshost, *gvol, nfsprt[9], *portcp;
+	int adsiz, dsaddrcnt, dshostcnt, ecode, hostsiz;
+	size_t cpsiz, dsaddrsiz, dshostsiz, nfsprtsiz;
+	struct addrinfo hints, *ai_tcp;
+	struct sockaddr_in *sin;
+	u_short dsmntport, dsnfsport;
+	u_long getrootret;
+
+	cp = strdup(optarg);
+	if (cp == NULL)
+		errx(1, "Out of memory");
+	cpsiz = strlen(cp);
+	/*
+	 * The first field separated from the dshost lby ':' ist is the
+	 * GlusterFS volume path. (ie. '/' followed by the GlusterFS volume
+	 * name).
+	 */
+	gvol = strchr(cp, ':');
+	if (gvol == NULL || gvol == cp)
+		usage();
+
+	/*
+	 * The last two fields separated by ':' are the Mount and NFS protocol
+	 * port #s for the DS servers.
+	 * The minimal field starting with ':' is 4 characters long.
+	 * consisting of 2 ':' characters each followed by a digit.
+	 */
+	portcp = strchr(gvol + 1, ':');
+	if (portcp == NULL || portcp == gvol + 1 || portcp > cp + cpsiz - 4)
+		usage();
+	cp2 = strchr(portcp + 1, ':');
+	if (cp2 == NULL || cp2 == portcp + 1 || cp2 > cp + cpsiz - 1)
+		usage();
+	*gvol++ = '\0';
+	*portcp++ = '\0';
+	*cp2++ = '\0';
+
+	/* Do the port numbers. */
+	dsmntport = atoi(portcp);
+	dsnfsport = atoi(cp2);
+	if (dsmntport <= 0 || dsmntport > 65535 ||
+	    dsnfsport <= 0 || dsnfsport > 65535)
+		usage();
+	snprintf(nfsprt, 9, ".%d.%d", dsnfsport >> 8, dsnfsport & 0xff);
+	nfsprtsiz = strlen(nfsprt);
+
+	/* Now, do the host names. */
+	dshostsiz = 1024;
+	dshostcnt = 0;
+	dshost = malloc(dshostsiz);
+	if (dshost == NULL)
+		errx(1, "Out of memory");
+	dsaddrsiz = 1024;
+	dsaddrcnt = 0;
+	dsaddr = malloc(dsaddrsiz);
+	if (dsaddr == NULL)
+		errx(1, "Out of memory");
+	ai_tcp = NULL;
+	/* Loop around for each DS server name. */
+	do {
+		if (ai_tcp != NULL)
+			freeaddrinfo(ai_tcp);
+		cp2 = strchr(cp, ',');
+		if (cp2 != NULL)
+			*cp2++ = '\0';
+
+		/* Get the fully qualified domain name and IP address. */
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_flags = AI_CANONNAME;
+		hints.ai_family = AF_INET;
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_protocol = IPPROTO_TCP;
+		ecode = getaddrinfo(cp, NULL, &hints, &ai_tcp);
+		if (ecode != 0)
+			err(1, "getaddrinfo pnfs: %s %s", cp,
+			    gai_strerror(ecode));
+		sin = (struct sockaddr_in *)ai_tcp->ai_addr;
+		if (sin->sin_family != AF_INET)
+			err(1, "getaddrinfo() returned non-INET address");
+
+		/* Append this address to dsaddr. */
+		ad = inet_ntoa(sin->sin_addr);
+		adsiz = strlen(ad);
+		if (dsaddrcnt + adsiz + nfsprtsiz + 1 > dsaddrsiz) {
+			dsaddrsiz *= 2;
+			dsaddr = realloc(dsaddr, dsaddrsiz);
+			if (dsaddr == NULL)
+				errx(1, "Out of memory");
+		}
+		strcpy(&dsaddr[dsaddrcnt], ad);
+		strcat(&dsaddr[dsaddrcnt], nfsprt);
+		dsaddrcnt += adsiz + nfsprtsiz + 1;
+
+		/* Append this hostname to dshost. */
+		hostsiz = strlen(ai_tcp->ai_canonname);
+		if (dshostcnt + hostsiz + 1 > dshostsiz) {
+			dshostsiz *= 2;
+			dshost = realloc(dshost, dshostsiz);
+			if (dshost == NULL)
+				errx(1, "Out of memory");
+		}
+		strcpy(&dshost[dshostcnt], ai_tcp->ai_canonname);
+		dshostcnt += hostsiz + 1;
+
+		cp = cp2;
+	} while (cp != NULL && *cp != '\0' && cp < portcp);
+
+	/*
+	 * At the point, ai_tcp refers to the last DS server host and
+	 * sin is set to point to the sockaddr structure in it.
+	 * Set the port# for the DS Mount protocol and get the DS root FH.
+	 */
+	sin->sin_port = htons(dsmntport);
+	getrootret = getdsrootfh(ai_tcp->ai_addr, ai_tcp->ai_addrlen, nfsdargp,
+	    gvol);
+	if (getrootret != 0)
+		errx(1, "Can't do Mount RPC against DS:%s stat=%lu",
+		    ai_tcp->ai_canonname, getrootret);
+	nfsdargp->addr = dsaddr;
+	nfsdargp->addrlen = dsaddrcnt;
+	nfsdargp->dnshost = dshost;
+	nfsdargp->dnshostlen = dshostcnt;
+	freeaddrinfo(ai_tcp);
+}
+
+/*
+ * Do a Mount RPC agains a DS server to get the root fh for the DS volume.
+ */
+static u_long
+getdsrootfh(struct sockaddr *saddr, socklen_t len,
+    struct nfsd_nfsd_args *nfsdargp, char *gvol)
+{
+	struct netbuf srvaddr;
+	struct netconfig *nconf;
+	CLIENT *clp;
+	struct timeval try;
+	struct nfhret nfhret;
+	enum clnt_stat clntstat;
+	int so;
+
+	nconf = getnetconfigent("tcp");
+	if (nconf == NULL)
+		errx(1, "getdsrootfh: getnetconfigent for tcp failed");
+	so = socket(AF_INET, SOCK_STREAM, 0);
+	if (so < 0)
+		err(1, "getdsrootfh: can't create socket");
+	srvaddr.buf = saddr;
+	srvaddr.len = srvaddr.maxlen = len;
+	clp = clnt_tli_create(so, nconf, &srvaddr, MOUNTPROG, 3, 0, 0);
+	if (clp == NULL)
+		errx(1, "getdsrootfh: clnt_tli_create failed");
+	/* Send the MOUNTPROC_MNT RPC to get the root filehandle. */
+	try.tv_sec = 10;
+	try.tv_usec = 0;
+	clp->cl_auth = authsys_create_default();
+	nfhret.auth = AUTH_SYS;
+	nfhret.vers = 3;
+	clntstat = clnt_call(clp, MOUNTPROC_MNT, (xdrproc_t)xdr_dir, gvol,
+	    (xdrproc_t)xdr_fh, &nfhret, try);
+	auth_destroy(clp->cl_auth);
+	clnt_destroy(clp);
+	freenetconfigent(nconf);
+
+	if (clntstat != RPC_SUCCESS)
+		return (clntstat);
+	if (nfhret.stat != 0)
+		return (nfhret.stat);
+	/*
+	 * Store the filehandle and server address in nfsargsp, making
+	 * sure to copy any locally allocated structures.
+	 */
+	if (nfhret.fhsize != sizeof(struct pnfsfh))
+		errx(1, "getdsrootfh: DS FH size wrong");
+	memcpy(&nfsdargp->nfsfh, nfhret.nfh, nfhret.fhsize);
+	return (0);
+}
+
+/*
+ * xdr routines for mount rpc's
+ */
+static int
+xdr_dir(XDR *xdrsp, char *dirp)
+{
+
+	return (xdr_string(xdrsp, &dirp, MNTPATHLEN));
+}
+
+static int
+xdr_fh(XDR *xdrsp, struct nfhret *np)
+{
+	int i;
+	long auth, authcnt, authfnd = 0;
+
+	if (!xdr_u_long(xdrsp, &np->stat))
+		return (0);
+	if (np->stat != 0)
+		return (1);
+	switch (np->vers) {
+	case 3:
+		if (!xdr_long(xdrsp, &np->fhsize))
+			return (0);
+		if (np->fhsize <= 0 || np->fhsize > NFS3_FHSIZE)
+			return (0);
+		if (!xdr_opaque(xdrsp, (caddr_t)np->nfh, np->fhsize))
+			return (0);
+		if (!xdr_long(xdrsp, &authcnt))
+			return (0);
+		for (i = 0; i < authcnt; i++) {
+			if (!xdr_long(xdrsp, &auth))
+				return (0);
+			if (np->auth == -1) {
+				np->auth = auth;
+				authfnd++;
+			} else if (auth == np->auth) {
+				authfnd++;
+			}
+		}
+		/*
+		 * Some servers, such as DEC's OSF/1 return a nil authenticator
+		 * list to indicate RPCAUTH_UNIX.
+		 */
+		if (authcnt == 0 && np->auth == -1)
+			np->auth = AUTH_SYS;
+		if (!authfnd && (authcnt > 0 || np->auth != AUTH_SYS))
+			np->stat = EAUTH;
+		return (1);
+	};
+	return (0);
 }
 
