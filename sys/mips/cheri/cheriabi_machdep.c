@@ -236,11 +236,11 @@ static int
 cheriabi_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 {
 	struct trapframe *locr0 = td->td_frame;	 /* aka td->td_pcb->pcv_regs */
+	struct sysentvec *se;
 #ifdef OLD_ARG_HANDLING
 	struct cheri_frame *capreg = &td->td_pcb->pcb_cheriframe;
 	register_t intargs[8];
 	uintptr_t ptrargs[8];
-	struct sysentvec *se;
 	u_int tag;
 	int i, isaved, psaved, curint, curptr, nintargs, nptrargs;
 #endif
@@ -257,6 +257,17 @@ cheriabi_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	else
 		locr0->pc += sizeof(int);
 	sa->code = locr0->v0;
+
+	se = td->td_proc->p_sysent;
+	if (se->sv_mask)
+		sa->code &= se->sv_mask;
+
+	if (sa->code >= se->sv_size)
+		sa->callp = &se->sv_table[0];
+	else
+		sa->callp = &se->sv_table[sa->code];
+
+	sa->narg = sa->callp->sy_narg;
 
 #ifndef OLD_ARG_HANDLING
 	error = cheriabi_dispatch_fill_uap(td, sa->code, sa->args);
@@ -342,21 +353,6 @@ cheriabi_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	if (trap_debug)
 		printf("SYSCALL #%d pid:%u\n", sa->code, td->td_proc->p_pid);
 #endif
-
-	se = td->td_proc->p_sysent;
-	/*
-	 * XXX
-	 * Shouldn't this go before switching on the code?
-	 */
-	if (se->sv_mask)
-		sa->code &= se->sv_mask;
-
-	if (sa->code >= se->sv_size)
-		sa->callp = &se->sv_table[0];
-	else
-		sa->callp = &se->sv_table[sa->code];
-
-	sa->narg = sa->callp->sy_narg;
 
 	nptrargs = bitcount(CHERIABI_SYS_argmap[sa->code].sam_ptrmask);
 	nintargs = sa->narg - nptrargs;
