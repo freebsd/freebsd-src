@@ -872,7 +872,63 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 {
 	struct cheri_frame *capreg = &td->td_pcb->pcb_cheriframe;
 	int error;
+	int parms_from_cap = 1;
 	uint64_t perms;
+	size_t reqsize;
+	register_t reqperms;
+
+	/*
+	 * The sysarch() fill_uap function is machine-independent so can not
+	 * check the validity of the capabilty which becomes uap->parms.  As
+	 * such, it makes no attempt to convert the result.  We need to
+	 * perform those checks here.
+	 */
+	switch (uap->op) {
+	case MIPS_SET_TLS:
+		/*
+		 * XXX-BD: not exactly clear what perms and size this
+		 * should have, presumably somewhat flexible, at least in
+		 * theory.
+		 */
+		reqsize = 0;
+		reqperms = 0;
+		break;
+
+	case MIPS_GET_TLS:
+	case CHERI_GET_STACK:
+	case CHERI_GET_TYPECAP:
+		reqsize = sizeof(struct chericap);
+		reqperms = CHERI_PERM_STORE|CHERI_PERM_STORE_CAP;
+		break;
+
+	case CHERI_SET_STACK:
+		reqsize = sizeof(struct chericap);
+		reqperms = CHERI_PERM_LOAD|CHERI_PERM_LOAD_CAP;
+		break;
+
+	case CHERI_MMAP_GETPERM:
+		reqsize = sizeof(uint64_t);
+		reqperms = CHERI_PERM_STORE;
+		break;
+
+	case CHERI_MMAP_ANDPERM:
+		reqsize = sizeof(uint64_t);
+		reqperms = CHERI_PERM_LOAD|CHERI_PERM_STORE;
+		break;
+
+	case MIPS_GET_COUNT:
+		parms_from_cap = 0;
+		break;
+
+	default:
+		return (EINVAL);
+	}
+	if (parms_from_cap) {
+		error = cheriabi_cap_to_ptr(&uap->parms, &capreg->cf_c3,
+		    reqsize, CHERI_PERM_GLOBAL | reqperms, 0);
+		if (error != 0)
+			return (error);
+	}
 
 	switch (uap->op) {
 	case MIPS_SET_TLS:
@@ -924,11 +980,6 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		return (0);
 
 	default:
-		/*
-		 * XXX-BD: if new sysarch() ops appear that use parms,
-		 * then we will need to sanity check the value in the
-		 * trap frame and relocate it to uap->parms.
-		 */
 		return (sysarch(td, (struct sysarch_args*)uap));
 	}
 }
