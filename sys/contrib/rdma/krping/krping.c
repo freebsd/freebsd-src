@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 extern int krping_debug;
 #define DEBUG_LOG(cb, x...) if (krping_debug) krping_printf((cb)->cookie, x)
 #define PRINTF(cb, x...) krping_printf((cb)->cookie, x)
+#define BIND_INFO 1
 
 MODULE_AUTHOR("Steve Wise");
 MODULE_DESCRIPTION("RDMA ping client/server");
@@ -99,7 +100,7 @@ static const struct krping_option krping_opts[] = {
  	{"poll", OPT_NOPARAM, 'P'},
  	{"local_dma_lkey", OPT_NOPARAM, 'Z'},
  	{"read_inv", OPT_NOPARAM, 'R'},
- 	{"fr", OPT_NOPARAM, 'f'},
+ 	{"fr", OPT_INT, 'f'},
 	{NULL, 0, 0}
 };
 
@@ -232,6 +233,7 @@ struct krping_cb {
 	int txdepth;			/* SQ depth */
 	int local_dma_lkey;		/* use 0 for lkey */
 	int frtest;			/* fastreg test */
+	int testnum;
 
 	/* CM stuff */
 	struct rdma_cm_id *cm_id;	/* connection on client side,*/
@@ -365,11 +367,7 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 		PRINTF(cb, "cq completion in ERROR state\n");
 		return;
 	}
-	if (cb->frtest) {
-		PRINTF(cb, "cq completion event in frtest!\n");
-		return;
-	}
-	if (!cb->wlat && !cb->rlat && !cb->bw)
+	if (!cb->wlat && !cb->rlat && !cb->bw && !cb->frtest)
 		ib_req_notify_cq(cb->cq, IB_CQ_NEXT_COMP);
 	while ((ret = ib_poll_cq(cb->cq, 1, &wc)) == 1) {
 		if (wc.status) {
@@ -411,7 +409,7 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 			DEBUG_LOG(cb, "recv completion\n");
 			cb->stats.recv_bytes += sizeof(cb->recv_buf);
 			cb->stats.recv_msgs++;
-			if (cb->wlat || cb->rlat || cb->bw)
+			if (cb->wlat || cb->rlat || cb->bw || cb->frtest)
 				ret = server_recv(cb, &wc);
 			else
 				ret = cb->server ? server_recv(cb, &wc) :
@@ -464,7 +462,7 @@ static int krping_accept(struct krping_cb *cb)
 		return ret;
 	}
 
-	if (!cb->wlat && !cb->rlat && !cb->bw) {
+	if (!cb->wlat && !cb->rlat && !cb->bw && !cb->frtest) {
 		wait_event_interruptible(cb->sem, cb->state >= CONNECTED);
 		if (cb->state == ERROR) {
 			PRINTF(cb, "wait for CONNECTED state %d\n", 
@@ -502,7 +500,7 @@ static void krping_setup_wr(struct krping_cb *cb)
 	cb->sq_wr.sg_list = &cb->send_sgl;
 	cb->sq_wr.num_sge = 1;
 
-	if (cb->server || cb->wlat || cb->rlat || cb->bw) {
+	if (cb->server || cb->wlat || cb->rlat || cb->bw || cb->frtest) {
 		cb->rdma_sgl.addr = cb->rdma_dma_addr;
 		if (cb->mem == MR)
 			cb->rdma_sgl.lkey = cb->rdma_mr->lkey;
@@ -531,7 +529,11 @@ static void krping_setup_wr(struct krping_cb *cb)
 	case MW:
 		cb->bind_attr.wr_id = 0xabbaabba;
 		cb->bind_attr.send_flags = 0; /* unsignaled */
+#ifdef BIND_INFO
 		cb->bind_attr.bind_info.length = cb->size;
+#else
+		cb->bind_attr.length = cb->size;
+#endif
 		break;
 	default:
 		break;
@@ -646,7 +648,7 @@ static int krping_setup_buffers(struct krping_cb *cb)
 			buf.size = cb->size;
 			iovbase = cb->rdma_dma_addr;
 			cb->rdma_mr = ib_reg_phys_mr(cb->pd, &buf, 1, 
-			    		     IB_ACCESS_LOCAL_WRITE|
+						IB_ACCESS_LOCAL_WRITE|
 					     IB_ACCESS_REMOTE_READ| 
 					     IB_ACCESS_REMOTE_WRITE, 
 					     &iovbase);
@@ -665,7 +667,7 @@ static int krping_setup_buffers(struct krping_cb *cb)
 		}
 	}
 
-	if (!cb->server || cb->wlat || cb->rlat || cb->bw) {
+	if (!cb->server || cb->wlat || cb->rlat || cb->bw || cb->frtest) {
 
 		cb->start_buf = kmalloc(cb->size, GFP_KERNEL);
 		if (!cb->start_buf) {
@@ -682,9 +684,9 @@ static int krping_setup_buffers(struct krping_cb *cb)
 		if (cb->mem == MR || cb->mem == MW) {
 			unsigned flags = IB_ACCESS_REMOTE_READ;
 
-			if (cb->wlat || cb->rlat || cb->bw) {
+			if (cb->wlat || cb->rlat || cb->bw || cb->frtest) {
 				flags |= IB_ACCESS_LOCAL_WRITE |
-				    IB_ACCESS_REMOTE_WRITE;
+					IB_ACCESS_REMOTE_WRITE;
 			}
 
 			buf.addr = cb->start_dma_addr;
@@ -907,15 +909,33 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 		 * Update the MW with new buf info.
 		 */
 		if (buf == (u64)cb->start_dma_addr) {
+#ifdef BIND_INFO
 			cb->bind_attr.bind_info.mw_access_flags = IB_ACCESS_REMOTE_READ;
 			cb->bind_attr.bind_info.mr = cb->start_mr;
+#else
+			cb->bind_attr.mw_access_flags = IB_ACCESS_REMOTE_READ;
+			cb->bind_attr.mr = cb->start_mr;
+#endif
 		} else {
+#ifdef BIND_INFO
 			cb->bind_attr.bind_info.mw_access_flags = IB_ACCESS_REMOTE_WRITE;
 			cb->bind_attr.bind_info.mr = cb->rdma_mr;
+#else
+			cb->bind_attr.mw_access_flags = IB_ACCESS_REMOTE_WRITE;
+			cb->bind_attr.mr = cb->rdma_mr;
+#endif
 		}
+#ifdef BIND_INFO
 		cb->bind_attr.bind_info.addr = buf;
+#else
+		cb->bind_attr.addr = buf;
+#endif
 		DEBUG_LOG(cb, "binding mw rkey 0x%x to buf %llx mr rkey 0x%x\n",
+#ifdef BIND_INFO
 			cb->mw->rkey, buf, cb->bind_attr.bind_info.mr->rkey);
+#else
+			cb->mw->rkey, buf, cb->bind_attr.mr->rkey);
+#endif
 		ret = ib_bind_mw(cb->qp, cb->mw, &cb->bind_attr);
 		if (ret) {
 			PRINTF(cb, "bind mw error %d\n", ret);
@@ -950,7 +970,7 @@ static void krping_format_send(struct krping_cb *cb, u64 buf)
 	 * advertising the rdma buffer.  Server side
 	 * sends have no data.
 	 */
-	if (!cb->server || cb->wlat || cb->rlat || cb->bw) {
+	if (!cb->server || cb->wlat || cb->rlat || cb->bw || cb->frtest) {
 		rkey = krping_rdma_rkey(cb, buf, !cb->server_invalidate);
 		info->buf = htonll(buf);
 		info->rkey = htonl(rkey);
@@ -980,7 +1000,6 @@ static void krping_test_server(struct krping_cb *cb)
 		cb->rdma_sq_wr.wr.rdma.remote_addr = cb->remote_addr;
 		cb->rdma_sq_wr.sg_list->length = cb->remote_len;
 		cb->rdma_sgl.lkey = krping_rdma_rkey(cb, cb->rdma_dma_addr, 1);
-		cb->rdma_sq_wr.next = NULL;
 
 		/* Issue RDMA Read. */
 		if (cb->read_inv)
@@ -1484,7 +1503,6 @@ static void krping_rlat_test_server(struct krping_cb *cb)
 		PRINTF(cb, "send completiong error %d\n", wc.status);
 		return;
 	}
-
 	wait_event_interruptible(cb->sem, cb->state == ERROR);
 }
 
@@ -1557,9 +1575,10 @@ static void krping_bw_test_server(struct krping_cb *cb)
 	wait_event_interruptible(cb->sem, cb->state == ERROR);
 }
 
-static int fastreg_supported(struct krping_cb *cb)
+static int fastreg_supported(struct krping_cb *cb, int server)
 {
-	struct ib_device *dev = cb->child_cm_id->device;
+	struct ib_device *dev = server?cb->child_cm_id->device:
+					cb->cm_id->device;
 	struct ib_device_attr attr;
 	int ret;
 
@@ -1610,10 +1629,643 @@ static int krping_bind_server(struct krping_cb *cb)
 		return -1;
 	}
 
-	if (cb->mem == FASTREG && !fastreg_supported(cb))
+	if (cb->mem == FASTREG && !fastreg_supported(cb, 1))
 		return -EINVAL;
 
 	return 0;
+}
+
+/*
+ * sq-depth worth of fastreg + 0B read-inv pairs, reposting them as the reads
+ * complete.
+ * NOTE: every 9 seconds we sleep for 1 second to keep the kernel happy.
+ */
+static void krping_fr_test5(struct krping_cb *cb)
+{
+	struct ib_fast_reg_page_list **pl;
+	struct ib_send_wr *fr, *read, *bad;
+	struct ib_wc wc;
+	struct ib_sge *sgl;
+	u8 key = 0;
+	struct ib_mr **mr;
+	u8 **buf;
+	dma_addr_t *dma_addr;
+	int i;
+	int ret;
+	int plen = (((cb->size - 1) & PAGE_MASK) + PAGE_SIZE) >> PAGE_SHIFT;
+	time_t start;
+	int count = 0;
+	int scnt;
+	int depth = cb->txdepth >> 1;
+
+	if (!depth) {
+		PRINTF(cb, "txdepth must be > 1 for this test!\n");
+		return;
+	}
+
+	pl = kzalloc(sizeof *pl * depth, GFP_KERNEL);
+	DEBUG_LOG(cb, "%s pl %p size %lu\n", __func__, pl, sizeof *pl * depth);
+	mr = kzalloc(sizeof *mr * depth, GFP_KERNEL);
+	DEBUG_LOG(cb, "%s mr %p size %lu\n", __func__, mr, sizeof *mr * depth);
+	fr = kzalloc(sizeof *fr * depth, GFP_KERNEL);
+	DEBUG_LOG(cb, "%s fr %p size %lu\n", __func__, fr, sizeof *fr * depth);
+	sgl = kzalloc(sizeof *sgl * depth, GFP_KERNEL);
+	DEBUG_LOG(cb, "%s sgl %p size %lu\n", __func__, sgl, sizeof *sgl * depth);
+	read = kzalloc(sizeof *read * depth, GFP_KERNEL);
+	DEBUG_LOG(cb, "%s read %p size %lu\n", __func__, read, sizeof *read * depth);
+	buf = kzalloc(sizeof *buf * depth, GFP_KERNEL);
+	DEBUG_LOG(cb, "%s buf %p size %lu\n", __func__, buf, sizeof *buf * depth);
+	dma_addr = kzalloc(sizeof *dma_addr * depth, GFP_KERNEL);
+	DEBUG_LOG(cb, "%s dma_addr %p size %lu\n", __func__, dma_addr, sizeof *dma_addr * depth);
+	if (!pl || !mr || !fr || !read || !sgl || !buf || !dma_addr) {
+		PRINTF(cb, "kzalloc failed\n");
+		goto err1;
+	}
+
+	for (scnt = 0; scnt < depth; scnt++) {
+		pl[scnt] = ib_alloc_fast_reg_page_list(cb->qp->device, plen);
+		if (IS_ERR(pl[scnt])) {
+			PRINTF(cb, "alloc_fr_page_list failed %ld\n",
+			       PTR_ERR(pl[scnt]));
+			goto err2;
+		}
+		DEBUG_LOG(cb, "%s pl[%u] %p\n", __func__, scnt, pl[scnt]);
+
+		mr[scnt] = ib_alloc_fast_reg_mr(cb->pd, plen);
+		if (IS_ERR(mr[scnt])) {
+			PRINTF(cb, "alloc_fr failed %ld\n",
+			       PTR_ERR(mr[scnt]));
+			goto err2;
+		}
+		DEBUG_LOG(cb, "%s mr[%u] %p\n", __func__, scnt, mr[scnt]);
+		ib_update_fast_reg_key(mr[scnt], ++key);
+
+		buf[scnt] = kmalloc(cb->size, GFP_KERNEL);
+		if (!buf[scnt]) {
+			PRINTF(cb, "kmalloc failed\n");
+			ret = -ENOMEM;
+			goto err2;
+		}
+		DEBUG_LOG(cb, "%s buf[%u] %p\n", __func__, scnt, buf[scnt]);
+		dma_addr[scnt] = dma_map_single(cb->pd->device->dma_device,
+						   buf[scnt], cb->size,
+						   DMA_BIDIRECTIONAL);
+		if (dma_mapping_error(cb->pd->device->dma_device,
+		    dma_addr[scnt])) {
+			PRINTF(cb, "dma_map failed\n");
+			ret = -ENOMEM;
+			goto err2;
+		}
+		DEBUG_LOG(cb, "%s dma_addr[%u] %p\n", __func__, scnt, (void *)dma_addr[scnt]);
+		for (i=0; i<plen; i++) {
+			pl[scnt]->page_list[i] = ((unsigned long)dma_addr[scnt] & PAGE_MASK) + (i * PAGE_SIZE);
+			DEBUG_LOG(cb, "%s pl[%u]->page_list[%u] 0x%llx\n",
+				  __func__, scnt, i,  pl[scnt]->page_list[i]);
+		}
+
+		sgl[scnt].lkey = mr[scnt]->rkey;
+		sgl[scnt].length = cb->size;
+		sgl[scnt].addr = (u64)buf[scnt];
+		DEBUG_LOG(cb, "%s sgl[%u].lkey 0x%x length %u addr 0x%llx\n",
+			  __func__, scnt,  sgl[scnt].lkey, sgl[scnt].length,
+			  sgl[scnt].addr);
+
+		fr[scnt].opcode = IB_WR_FAST_REG_MR;
+		fr[scnt].wr_id = scnt;
+		fr[scnt].send_flags = 0;
+		fr[scnt].wr.fast_reg.page_shift = PAGE_SHIFT;
+		fr[scnt].wr.fast_reg.length = cb->size;
+		fr[scnt].wr.fast_reg.page_list = pl[scnt];
+		fr[scnt].wr.fast_reg.page_list_len = plen;
+		fr[scnt].wr.fast_reg.iova_start = (u64)buf[scnt];
+		fr[scnt].wr.fast_reg.access_flags = IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE;
+		fr[scnt].wr.fast_reg.rkey = mr[scnt]->rkey;
+		fr[scnt].next = &read[scnt];
+		read[scnt].opcode = IB_WR_RDMA_READ_WITH_INV;
+		read[scnt].wr_id = scnt;
+		read[scnt].send_flags = IB_SEND_SIGNALED;
+		read[scnt].wr.rdma.rkey = cb->remote_rkey;
+		read[scnt].wr.rdma.remote_addr = cb->remote_addr;
+		read[scnt].num_sge = 1;
+		read[scnt].sg_list = &sgl[scnt];
+		ret = ib_post_send(cb->qp, &fr[scnt], &bad);
+		if (ret) {
+			PRINTF(cb, "ib_post_send failed %d\n", ret);
+			goto err2;
+		}
+	}
+
+	start = time_uptime;
+	DEBUG_LOG(cb, "%s starting IO.\n", __func__);
+	while (!cb->count || cb->server || count < cb->count) {
+		if ((time_uptime - start) >= 9) {
+			DEBUG_LOG(cb, "%s pausing 1 tick! count %u\n", __func__,
+				  count);
+			wait_event_interruptible_timeout(cb->sem,
+							 cb->state == ERROR,
+							 1);
+			if (cb->state == ERROR)
+				break;
+			start = time_uptime;
+		}
+		do {
+			ret = ib_poll_cq(cb->cq, 1, &wc);
+			if (ret < 0) {
+				PRINTF(cb, "ib_poll_cq failed %d\n",
+				       ret);
+				goto err2;
+			}
+			if (ret == 1) {
+				if (wc.status) {
+					PRINTF(cb,
+					       "completion error %u wr_id %lld "
+					       "opcode %d\n", wc.status,
+					       wc.wr_id, wc.opcode);
+					goto err2;
+				}
+				count++;
+				if (count == cb->count)
+					break;
+				ib_update_fast_reg_key(mr[wc.wr_id], ++key);
+				fr[wc.wr_id].wr.fast_reg.rkey =
+					mr[wc.wr_id]->rkey;
+				sgl[wc.wr_id].lkey = mr[wc.wr_id]->rkey;
+				ret = ib_post_send(cb->qp, &fr[wc.wr_id], &bad);
+				if (ret) {
+					PRINTF(cb,
+					       "ib_post_send failed %d\n", ret);
+					goto err2;
+				}
+			} else if (krping_sigpending()) {
+				PRINTF(cb, "signal!\n");
+				goto err2;
+			}
+		} while (ret == 1);
+	}
+	DEBUG_LOG(cb, "%s done!\n", __func__);
+err2:
+	DEBUG_LOG(cb, "sleeping 1 second\n");
+	wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
+	DEBUG_LOG(cb, "draining the cq...\n");
+	do {
+		ret = ib_poll_cq(cb->cq, 1, &wc);
+		if (ret < 0) {
+			PRINTF(cb, "ib_poll_cq failed %d\n", ret);
+			break;
+		}
+		if (ret == 1) {
+			if (wc.status) {
+				PRINTF(cb, "completion error %u "
+				       "opcode %u\n", wc.status, wc.opcode);
+			}
+		}
+	} while (ret == 1);
+
+	DEBUG_LOG(cb, "destroying fr mrs!\n");
+	for (scnt = 0; scnt < depth; scnt++) {
+		if (mr[scnt]) {
+			ib_dereg_mr(mr[scnt]);
+			DEBUG_LOG(cb, "%s dereg mr %p\n", __func__, mr[scnt]);
+		}
+	}
+	DEBUG_LOG(cb, "unmapping/freeing bufs!\n");
+	for (scnt = 0; scnt < depth; scnt++) {
+		if (buf[scnt]) {
+			dma_unmap_single(cb->pd->device->dma_device,
+					 dma_addr[scnt], cb->size,
+					 DMA_BIDIRECTIONAL);
+			kfree(buf[scnt]);
+			DEBUG_LOG(cb, "%s unmap/free buf %p dma_addr %p\n", __func__, buf[scnt], (void *)dma_addr[scnt]);
+		}
+	}
+	DEBUG_LOG(cb, "destroying fr page lists!\n");
+	for (scnt = 0; scnt < depth; scnt++) {
+		if (pl[scnt]) {
+			DEBUG_LOG(cb, "%s free pl %p\n", __func__, pl[scnt]);
+			ib_free_fast_reg_page_list(pl[scnt]);
+		}
+	}
+err1:
+	if (pl)
+		kfree(pl);
+	if (mr)
+		kfree(mr);
+	if (fr)
+		kfree(fr);
+	if (read)
+		kfree(read);
+	if (sgl)
+		kfree(sgl);
+	if (buf)
+		kfree(buf);
+	if (dma_addr)
+		kfree(dma_addr);
+}
+static void krping_fr_test_server(struct krping_cb *cb)
+{
+	DEBUG_LOG(cb, "%s waiting for disconnect...\n", __func__);
+	wait_event_interruptible(cb->sem, cb->state == ERROR);
+}
+
+static void krping_fr_test5_server(struct krping_cb *cb)
+{
+	struct ib_send_wr *bad_wr;
+	struct ib_wc wc;
+	int ret;
+
+	/* Spin waiting for client's Start STAG/TO/Len */
+	while (cb->state < RDMA_READ_ADV) {
+		krping_cq_event_handler(cb->cq, cb);
+	}
+	DEBUG_LOG(cb, "%s client STAG %x TO 0x%llx\n", __func__,
+		  cb->remote_rkey, cb->remote_addr);
+
+	/* Send STAG/TO/Len to client */
+	krping_format_send(cb, cb->start_dma_addr);
+	ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
+	if (ret) {
+		PRINTF(cb, "post send error %d\n", ret);
+		return;
+	}
+
+	/* Spin waiting for send completion */
+	while ((ret = ib_poll_cq(cb->cq, 1, &wc) == 0));
+	if (ret < 0) {
+		PRINTF(cb, "poll error %d\n", ret);
+		return;
+	}
+	if (wc.status) {
+		PRINTF(cb, "send completiong error %d\n", wc.status);
+		return;
+	}
+
+	if (cb->duplex)
+		krping_fr_test5(cb);
+	DEBUG_LOG(cb, "%s waiting for disconnect...\n", __func__);
+	wait_event_interruptible(cb->sem, cb->state == ERROR);
+}
+
+static void krping_fr_test5_client(struct krping_cb *cb)
+{
+	struct ib_send_wr *bad;
+	struct ib_wc wc;
+	int ret;
+
+	cb->state = RDMA_READ_ADV;
+
+	/* Send STAG/TO/Len to server */
+	krping_format_send(cb, cb->start_dma_addr);
+	if (cb->state == ERROR) {
+		PRINTF(cb, "krping_format_send failed\n");
+		return;
+	}
+	ret = ib_post_send(cb->qp, &cb->sq_wr, &bad);
+	if (ret) {
+		PRINTF(cb, "post send error %d\n", ret);
+		return;
+	}
+
+	/* Spin waiting for send completion */
+	while ((ret = ib_poll_cq(cb->cq, 1, &wc) == 0));
+	if (ret < 0) {
+		PRINTF(cb, "poll error %d\n", ret);
+		return;
+	}
+	if (wc.status) {
+		PRINTF(cb, "send completion error %d\n", wc.status);
+		return;
+	}
+
+	/* Spin waiting for server's Start STAG/TO/Len */
+	while (cb->state < RDMA_WRITE_ADV) {
+		krping_cq_event_handler(cb->cq, cb);
+	}
+	DEBUG_LOG(cb, "%s server STAG %x TO 0x%llx\n", __func__, cb->remote_rkey, cb->remote_addr);
+
+	return krping_fr_test5(cb);
+}
+
+/*
+ * sq-depth worth of write + fastreg + inv, reposting them as the invs
+ * complete.
+ * NOTE: every 9 seconds we sleep for 1 second to keep the kernel happy.
+ * If a count is given, then the last IO will have a bogus lkey in the
+ * write work request.  This reproduces a fw bug where the connection
+ * will get stuck if a fastreg is processed while the ulptx is failing
+ * the bad write.
+ */
+static void krping_fr_test6(struct krping_cb *cb)
+{
+	struct ib_fast_reg_page_list **pl;
+	struct ib_send_wr *fr, *write, *inv, *bad;
+	struct ib_wc wc;
+	struct ib_sge *sgl;
+	u8 key = 0;
+	struct ib_mr **mr;
+	u8 **buf;
+	dma_addr_t *dma_addr;
+	int i;
+	int ret;
+	int plen = (((cb->size - 1) & PAGE_MASK) + PAGE_SIZE) >> PAGE_SHIFT;
+	unsigned long start;
+	int count = 0;
+	int scnt;
+	int depth = cb->txdepth  / 3;
+
+	if (!depth) {
+		PRINTF(cb, "txdepth must be > 3 for this test!\n");
+		return;
+	}
+
+	pl = kzalloc(sizeof *pl * depth, GFP_KERNEL);
+	DEBUG_LOG(cb, "%s pl %p size %lu\n", __func__, pl, sizeof *pl * depth);
+
+	mr = kzalloc(sizeof *mr * depth, GFP_KERNEL);
+	DEBUG_LOG(cb, "%s mr %p size %lu\n", __func__, mr, sizeof *mr * depth);
+
+	fr = kzalloc(sizeof *fr * depth, GFP_KERNEL);
+	DEBUG_LOG(cb, "%s fr %p size %lu\n", __func__, fr, sizeof *fr * depth);
+
+	sgl = kzalloc(sizeof *sgl * depth, GFP_KERNEL);
+	DEBUG_LOG(cb, "%s sgl %p size %lu\n", __func__, sgl, sizeof *sgl * depth);
+
+	write = kzalloc(sizeof *write * depth, GFP_KERNEL);
+	DEBUG_LOG(cb, "%s read %p size %lu\n", __func__, write, sizeof *write * depth);
+
+	inv = kzalloc(sizeof *inv * depth, GFP_KERNEL);
+	DEBUG_LOG(cb, "%s inv %p size %lu\n", __func__, inv, sizeof *inv * depth);
+
+	buf = kzalloc(sizeof *buf * depth, GFP_KERNEL);
+	DEBUG_LOG(cb, "%s buf %p size %lu\n", __func__, buf, sizeof *buf * depth);
+
+	dma_addr = kzalloc(sizeof *dma_addr * depth, GFP_KERNEL);
+	DEBUG_LOG(cb, "%s dma_addr %p size %lu\n", __func__, dma_addr, sizeof *dma_addr * depth);
+
+	if (!pl || !mr || !fr || !write || !sgl || !buf || !dma_addr) {
+		PRINTF(cb, "kzalloc failed\n");
+		goto err1;
+	}
+
+	for (scnt = 0; scnt < depth; scnt++) {
+		pl[scnt] = ib_alloc_fast_reg_page_list(cb->qp->device, plen);
+		if (IS_ERR(pl[scnt])) {
+			PRINTF(cb, "alloc_fr_page_list failed %ld\n",
+			       PTR_ERR(pl[scnt]));
+			goto err2;
+		}
+		DEBUG_LOG(cb, "%s pl[%u] %p\n", __func__, scnt, pl[scnt]);
+
+		mr[scnt] = ib_alloc_fast_reg_mr(cb->pd, plen);
+		if (IS_ERR(mr[scnt])) {
+			PRINTF(cb, "alloc_fr failed %ld\n",
+			       PTR_ERR(mr[scnt]));
+			goto err2;
+		}
+		DEBUG_LOG(cb, "%s mr[%u] %p\n", __func__, scnt, mr[scnt]);
+		ib_update_fast_reg_key(mr[scnt], ++key);
+
+		buf[scnt] = kmalloc(cb->size, GFP_KERNEL);
+		if (!buf[scnt]) {
+			PRINTF(cb, "kmalloc failed\n");
+			ret = -ENOMEM;
+			goto err2;
+		}
+		DEBUG_LOG(cb, "%s buf[%u] %p\n", __func__, scnt, buf[scnt]);
+		dma_addr[scnt] = dma_map_single(cb->pd->device->dma_device,
+						   buf[scnt], cb->size,
+						   DMA_BIDIRECTIONAL);
+		if (dma_mapping_error(cb->pd->device->dma_device,
+		    dma_addr[scnt])) {
+			PRINTF(cb, "dma_map failed\n");
+			ret = -ENOMEM;
+			goto err2;
+		}
+		DEBUG_LOG(cb, "%s dma_addr[%u] %p\n", __func__, scnt, (void *)dma_addr[scnt]);
+		for (i=0; i<plen; i++) {
+			pl[scnt]->page_list[i] = ((unsigned long)dma_addr[scnt] & PAGE_MASK) + (i * PAGE_SIZE);
+			DEBUG_LOG(cb, "%s pl[%u]->page_list[%u] 0x%llx\n",
+				  __func__, scnt, i,  pl[scnt]->page_list[i]);
+		}
+
+		write[scnt].opcode = IB_WR_RDMA_WRITE;
+		write[scnt].wr_id = scnt;
+		write[scnt].wr.rdma.rkey = cb->remote_rkey;
+		write[scnt].wr.rdma.remote_addr = cb->remote_addr;
+		write[scnt].num_sge = 1;
+		write[scnt].sg_list = &cb->rdma_sgl;
+		write[scnt].sg_list->length = cb->size;
+		write[scnt].next = &fr[scnt];
+
+		fr[scnt].opcode = IB_WR_FAST_REG_MR;
+		fr[scnt].wr_id = scnt;
+		fr[scnt].wr.fast_reg.page_shift = PAGE_SHIFT;
+		fr[scnt].wr.fast_reg.length = cb->size;
+		fr[scnt].wr.fast_reg.page_list = pl[scnt];
+		fr[scnt].wr.fast_reg.page_list_len = plen;
+		fr[scnt].wr.fast_reg.iova_start = (u64)buf[scnt];
+		fr[scnt].wr.fast_reg.access_flags = IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE;
+		fr[scnt].wr.fast_reg.rkey = mr[scnt]->rkey;
+		fr[scnt].next = &inv[scnt];
+
+		inv[scnt].opcode = IB_WR_LOCAL_INV;
+		inv[scnt].send_flags = IB_SEND_SIGNALED;
+		inv[scnt].ex.invalidate_rkey = mr[scnt]->rkey;
+
+		ret = ib_post_send(cb->qp, &write[scnt], &bad);
+		if (ret) {
+			PRINTF(cb, "ib_post_send failed %d\n", ret);
+			goto err2;
+		}
+	}
+
+	start = time_uptime;
+	DEBUG_LOG(cb, "%s starting IO.\n", __func__);
+	while (!cb->count || cb->server || count < cb->count) {
+		if ((time_uptime - start) >= 9) {
+			DEBUG_LOG(cb, "%s pausing 1 tick! count %u\n", __func__,
+				  count);
+			wait_event_interruptible_timeout(cb->sem,
+							 cb->state == ERROR,
+							 1);
+			if (cb->state == ERROR)
+				break;
+			start = time_uptime;
+		}
+		do {
+			ret = ib_poll_cq(cb->cq, 1, &wc);
+			if (ret < 0) {
+				PRINTF(cb, "ib_poll_cq failed %d\n",
+				       ret);
+				goto err2;
+			}
+			if (ret == 1) {
+				if (wc.status) {
+					PRINTF(cb,
+					       "completion error %u wr_id %lld "
+					       "opcode %d\n", wc.status,
+					       wc.wr_id, wc.opcode);
+					goto err2;
+				}
+				count++;
+				if (count == (cb->count -1))
+					cb->rdma_sgl.lkey = 0x00dead;
+				if (count == cb->count)
+					break;
+				ib_update_fast_reg_key(mr[wc.wr_id], ++key);
+				fr[wc.wr_id].wr.fast_reg.rkey =
+					mr[wc.wr_id]->rkey;
+				inv[wc.wr_id].ex.invalidate_rkey =
+					mr[wc.wr_id]->rkey;
+				ret = ib_post_send(cb->qp, &write[wc.wr_id], &bad);
+				if (ret) {
+					PRINTF(cb,
+					       "ib_post_send failed %d\n", ret);
+					goto err2;
+				}
+			} else if (krping_sigpending()){
+				PRINTF(cb, "signal!\n");
+				goto err2;
+			}
+		} while (ret == 1);
+	}
+	DEBUG_LOG(cb, "%s done!\n", __func__);
+err2:
+	DEBUG_LOG(cb, "sleeping 1 second\n");
+	wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
+	DEBUG_LOG(cb, "draining the cq...\n");
+	do {
+		ret = ib_poll_cq(cb->cq, 1, &wc);
+		if (ret < 0) {
+			PRINTF(cb, "ib_poll_cq failed %d\n", ret);
+			break;
+		}
+		if (ret == 1) {
+			if (wc.status) {
+				PRINTF(cb, "completion error %u "
+				       "opcode %u\n", wc.status, wc.opcode);
+			}
+		}
+	} while (ret == 1);
+
+	DEBUG_LOG(cb, "destroying fr mrs!\n");
+	for (scnt = 0; scnt < depth; scnt++) {
+		if (mr[scnt]) {
+			ib_dereg_mr(mr[scnt]);
+			DEBUG_LOG(cb, "%s dereg mr %p\n", __func__, mr[scnt]);
+		}
+	}
+	DEBUG_LOG(cb, "unmapping/freeing bufs!\n");
+	for (scnt = 0; scnt < depth; scnt++) {
+		if (buf[scnt]) {
+			dma_unmap_single(cb->pd->device->dma_device,
+					 dma_addr[scnt], cb->size,
+					 DMA_BIDIRECTIONAL);
+			kfree(buf[scnt]);
+			DEBUG_LOG(cb, "%s unmap/free buf %p dma_addr %p\n", __func__, buf[scnt], (void *)dma_addr[scnt]);
+		}
+	}
+	DEBUG_LOG(cb, "destroying fr page lists!\n");
+	for (scnt = 0; scnt < depth; scnt++) {
+		if (pl[scnt]) {
+			DEBUG_LOG(cb, "%s free pl %p\n", __func__, pl[scnt]);
+			ib_free_fast_reg_page_list(pl[scnt]);
+		}
+	}
+err1:
+	if (pl)
+		kfree(pl);
+	if (mr)
+		kfree(mr);
+	if (fr)
+		kfree(fr);
+	if (write)
+		kfree(write);
+	if (inv)
+		kfree(inv);
+	if (sgl)
+		kfree(sgl);
+	if (buf)
+		kfree(buf);
+	if (dma_addr)
+		kfree(dma_addr);
+}
+
+static void krping_fr_test6_server(struct krping_cb *cb)
+{
+	struct ib_send_wr *bad_wr;
+	struct ib_wc wc;
+	int ret;
+
+	/* Spin waiting for client's Start STAG/TO/Len */
+	while (cb->state < RDMA_READ_ADV) {
+		krping_cq_event_handler(cb->cq, cb);
+	}
+	DEBUG_LOG(cb, "%s client STAG %x TO 0x%llx\n", __func__,
+		  cb->remote_rkey, cb->remote_addr);
+
+	/* Send STAG/TO/Len to client */
+	krping_format_send(cb, cb->start_dma_addr);
+	ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
+	if (ret) {
+		PRINTF(cb, "post send error %d\n", ret);
+		return;
+	}
+
+	/* Spin waiting for send completion */
+	while ((ret = ib_poll_cq(cb->cq, 1, &wc) == 0));
+	if (ret < 0) {
+		PRINTF(cb, "poll error %d\n", ret);
+		return;
+	}
+	if (wc.status) {
+		PRINTF(cb, "send completiong error %d\n", wc.status);
+		return;
+	}
+
+	if (cb->duplex)
+		krping_fr_test6(cb);
+	DEBUG_LOG(cb, "%s waiting for disconnect...\n", __func__);
+	wait_event_interruptible(cb->sem, cb->state == ERROR);
+}
+
+static void krping_fr_test6_client(struct krping_cb *cb)
+{
+	struct ib_send_wr *bad;
+	struct ib_wc wc;
+	int ret;
+
+	cb->state = RDMA_READ_ADV;
+
+	/* Send STAG/TO/Len to server */
+	krping_format_send(cb, cb->start_dma_addr);
+	if (cb->state == ERROR) {
+		PRINTF(cb, "krping_format_send failed\n");
+		return;
+	}
+	ret = ib_post_send(cb->qp, &cb->sq_wr, &bad);
+	if (ret) {
+		PRINTF(cb, "post send error %d\n", ret);
+		return;
+	}
+
+	/* Spin waiting for send completion */
+	while ((ret = ib_poll_cq(cb->cq, 1, &wc) == 0));
+	if (ret < 0) {
+		PRINTF(cb, "poll error %d\n", ret);
+		return;
+	}
+	if (wc.status) {
+		PRINTF(cb, "send completion error %d\n", wc.status);
+		return;
+	}
+
+	/* Spin waiting for server's Start STAG/TO/Len */
+	while (cb->state < RDMA_WRITE_ADV) {
+		krping_cq_event_handler(cb->cq, cb);
+	}
+	DEBUG_LOG(cb, "%s server STAG %x TO 0x%llx\n", __func__, cb->remote_rkey, cb->remote_addr);
+
+	return krping_fr_test6(cb);
 }
 
 static void krping_run_server(struct krping_cb *cb)
@@ -1655,7 +2307,26 @@ static void krping_run_server(struct krping_cb *cb)
 		krping_rlat_test_server(cb);
 	else if (cb->bw)
 		krping_bw_test_server(cb);
-	else
+	else if (cb->frtest) {
+		switch (cb->testnum) {
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+			krping_fr_test_server(cb);
+			break;
+		case 5:
+			krping_fr_test5_server(cb);
+			break;
+		case 6:
+			krping_fr_test6_server(cb);
+			break;
+		default:
+			PRINTF(cb, "unknown fr test %d\n", cb->testnum);
+			goto err2;
+			break;
+		}
+	} else
 		krping_test_server(cb);
 	rdma_disconnect(cb->child_cm_id);
 err2:
@@ -1916,7 +2587,212 @@ static void krping_bw_test_client(struct krping_cb *cb)
 	bw_test(cb);
 }
 
-static void krping_fr_test(struct krping_cb *cb)
+
+/*
+ * fastreg 2 valid different mrs and verify the completions.
+ */
+static void krping_fr_test1(struct krping_cb *cb)
+{
+	struct ib_fast_reg_page_list *pl;
+	struct ib_send_wr fr, *bad;
+	struct ib_wc wc;
+	struct ib_mr *mr1, *mr2;
+	int i;
+	int ret;
+	int size = cb->size;
+	int plen = (((size - 1) & PAGE_MASK) + PAGE_SIZE) >> PAGE_SHIFT;
+	int count = 0;
+
+	pl = ib_alloc_fast_reg_page_list(cb->qp->device, plen);
+	if (IS_ERR(pl)) {
+		PRINTF(cb, "ib_alloc_fast_reg_page_list failed %ld\n", PTR_ERR(pl));
+		return;
+	}
+
+	mr1 = ib_alloc_fast_reg_mr(cb->pd, plen);
+	if (IS_ERR(mr1)) {
+		PRINTF(cb, "ib_alloc_fast_reg_mr failed %ld\n", PTR_ERR(pl));
+		goto err1;
+	}
+	mr2 = ib_alloc_fast_reg_mr(cb->pd, plen);
+	if (IS_ERR(mr2)) {
+		PRINTF(cb, "ib_alloc_fast_reg_mr failed %ld\n", PTR_ERR(pl));
+		goto err2;
+	}
+
+
+	for (i=0; i<plen; i++)
+		pl->page_list[i] = i * PAGE_SIZE;
+
+	memset(&fr, 0, sizeof fr);
+	fr.opcode = IB_WR_FAST_REG_MR;
+	fr.wr_id = 1;
+	fr.wr.fast_reg.page_shift = PAGE_SHIFT;
+	fr.wr.fast_reg.length = size;
+	fr.wr.fast_reg.page_list = pl;
+	fr.wr.fast_reg.page_list_len = plen;
+	fr.wr.fast_reg.iova_start = 0;
+	fr.wr.fast_reg.access_flags = IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE;
+	fr.send_flags = IB_SEND_SIGNALED;
+	fr.wr.fast_reg.rkey = mr1->rkey;
+	DEBUG_LOG(cb, "%s fr1: stag 0x%x plen %u size %u depth %u\n", __func__, fr.wr.fast_reg.rkey, plen, cb->size, cb->txdepth);
+	ret = ib_post_send(cb->qp, &fr, &bad);
+	if (ret) {
+		PRINTF(cb, "ib_post_send failed %d\n", ret);
+		goto err3;
+	}
+	fr.wr.fast_reg.rkey = mr2->rkey;
+	DEBUG_LOG(cb, "%s fr2: stag 0x%x plen %u size %u depth %u\n", __func__, fr.wr.fast_reg.rkey, plen, cb->size, cb->txdepth);
+	ret = ib_post_send(cb->qp, &fr, &bad);
+	if (ret) {
+		PRINTF(cb, "ib_post_send failed %d\n", ret);
+		goto err3;
+	}
+
+	DEBUG_LOG(cb, "sleeping 1 second\n");
+	wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
+	do {
+		ret = ib_poll_cq(cb->cq, 1, &wc);
+		if (ret < 0) {
+			PRINTF(cb, "ib_poll_cq failed %d\n", ret);
+			goto err3;
+		}
+		if (ret == 1) {
+			DEBUG_LOG(cb, "completion status %u wr %s\n",
+				  wc.status, wc.wr_id == 1 ? "fr" : "inv");
+			count++;
+		} else if (krping_sigpending()) {
+			PRINTF(cb, "signal!\n");
+			goto err3;
+		}
+
+		wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
+	} while (count != 2);
+err3:
+	DEBUG_LOG(cb, "sleeping 1 second\n");
+	wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
+	DEBUG_LOG(cb, "draining the cq...\n");
+	do {
+		ret = ib_poll_cq(cb->cq, 1, &wc);
+		if (ret < 0) {
+			PRINTF(cb, "ib_poll_cq failed %d\n", ret);
+			break;
+		}
+		if (ret == 1) {
+			PRINTF(cb, "completion %u opcode %u\n", wc.status, wc.opcode);
+		}
+	} while (ret == 1);
+	DEBUG_LOG(cb, "destroying fr mr2!\n");
+
+	ib_dereg_mr(mr2);
+err2:
+	DEBUG_LOG(cb, "destroying fr mr1!\n");
+	ib_dereg_mr(mr1);
+err1:
+	DEBUG_LOG(cb, "destroying fr page list!\n");
+	ib_free_fast_reg_page_list(pl);
+	DEBUG_LOG(cb, "%s done!\n", __func__);
+}
+
+/*
+ * fastreg the same mr twice, 2nd one should produce error cqe.
+ */
+static void krping_fr_test2(struct krping_cb *cb)
+{
+	struct ib_fast_reg_page_list *pl;
+	struct ib_send_wr fr, *bad;
+	struct ib_wc wc;
+	struct ib_mr *mr1;
+	int i;
+	int ret;
+	int size = cb->size;
+	int plen = (((size - 1) & PAGE_MASK) + PAGE_SIZE) >> PAGE_SHIFT;
+	int count = 0;
+
+	pl = ib_alloc_fast_reg_page_list(cb->qp->device, plen);
+	if (IS_ERR(pl)) {
+		PRINTF(cb, "ib_alloc_fast_reg_page_list failed %ld\n", PTR_ERR(pl));
+		return;
+	}
+
+	mr1 = ib_alloc_fast_reg_mr(cb->pd, plen);
+	if (IS_ERR(mr1)) {
+		PRINTF(cb, "ib_alloc_fast_reg_mr failed %ld\n", PTR_ERR(pl));
+		goto err1;
+	}
+
+	for (i=0; i<plen; i++)
+		pl->page_list[i] = i * PAGE_SIZE;
+
+	memset(&fr, 0, sizeof fr);
+	fr.opcode = IB_WR_FAST_REG_MR;
+	fr.wr_id = 1;
+	fr.wr.fast_reg.page_shift = PAGE_SHIFT;
+	fr.wr.fast_reg.length = size;
+	fr.wr.fast_reg.page_list = pl;
+	fr.wr.fast_reg.page_list_len = plen;
+	fr.wr.fast_reg.iova_start = 0;
+	fr.wr.fast_reg.access_flags = IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE;
+	fr.send_flags = IB_SEND_SIGNALED;
+	fr.wr.fast_reg.rkey = mr1->rkey;
+	DEBUG_LOG(cb, "%s fr1: stag 0x%x plen %u size %u depth %u\n", __func__, fr.wr.fast_reg.rkey, plen, cb->size, cb->txdepth);
+	ret = ib_post_send(cb->qp, &fr, &bad);
+	if (ret) {
+		PRINTF(cb, "ib_post_send failed %d\n", ret);
+		goto err3;
+	}
+	DEBUG_LOG(cb, "%s fr2: stag 0x%x plen %u size %u depth %u\n", __func__, fr.wr.fast_reg.rkey, plen, cb->size, cb->txdepth);
+	ret = ib_post_send(cb->qp, &fr, &bad);
+	if (ret) {
+		PRINTF(cb, "ib_post_send failed %d\n", ret);
+		goto err3;
+	}
+
+	DEBUG_LOG(cb, "sleeping 1 second\n");
+	wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
+	do {
+		ret = ib_poll_cq(cb->cq, 1, &wc);
+		if (ret < 0) {
+			PRINTF(cb, "ib_poll_cq failed %d\n", ret);
+			goto err3;
+		}
+		if (ret == 1) {
+			DEBUG_LOG(cb, "completion status %u wr %s\n",
+				  wc.status, wc.wr_id == 1 ? "fr" : "inv");
+			count++;
+		} else if (krping_sigpending()) {
+			PRINTF(cb, "signal!\n");
+			goto err3;
+		}
+		wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
+	} while (count != 2);
+err3:
+	DEBUG_LOG(cb, "sleeping 1 second\n");
+	wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
+	DEBUG_LOG(cb, "draining the cq...\n");
+	do {
+		ret = ib_poll_cq(cb->cq, 1, &wc);
+		if (ret < 0) {
+			PRINTF(cb, "ib_poll_cq failed %d\n", ret);
+			break;
+		}
+		if (ret == 1) {
+			PRINTF(cb, "completion %u opcode %u\n", wc.status, wc.opcode);
+		}
+	} while (ret == 1);
+	DEBUG_LOG(cb, "destroying fr mr1!\n");
+	ib_dereg_mr(mr1);
+err1:
+	DEBUG_LOG(cb, "destroying fr page list!\n");
+	ib_free_fast_reg_page_list(pl);
+	DEBUG_LOG(cb, "%s done!\n", __func__);
+}
+
+/*
+ * fastreg pipelined in a loop as fast as we can until the user interrupts.
+ * NOTE: every 9 seconds we sleep for 1 second to keep the kernel happy.
+ */
+static void krping_fr_test3(struct krping_cb *cb)
 {
 	struct ib_fast_reg_page_list *pl;
 	struct ib_send_wr fr, inv, *bad;
@@ -1927,9 +2803,10 @@ static void krping_fr_test(struct krping_cb *cb)
 	int ret;
 	int size = cb->size;
 	int plen = (((size - 1) & PAGE_MASK) + PAGE_SIZE) >> PAGE_SHIFT;
-	time_t start;
+	unsigned long start;
 	int count = 0;
 	int scnt = 0;
+
 
 	pl = ib_alloc_fast_reg_page_list(cb->qp->device, plen);
 	if (IS_ERR(pl)) {
@@ -1944,7 +2821,7 @@ static void krping_fr_test(struct krping_cb *cb)
 	}
 
 	for (i=0; i<plen; i++)
-		pl->page_list[i] = 0xcafebabe | i;
+		pl->page_list[i] = i * PAGE_SIZE;
 	
 	memset(&fr, 0, sizeof fr);
 	fr.opcode = IB_WR_FAST_REG_MR;
@@ -1953,6 +2830,7 @@ static void krping_fr_test(struct krping_cb *cb)
 	fr.wr.fast_reg.page_list = pl;
 	fr.wr.fast_reg.page_list_len = plen;
 	fr.wr.fast_reg.iova_start = 0;
+	fr.send_flags = IB_SEND_SIGNALED;
 	fr.wr.fast_reg.access_flags = IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE;
 	fr.next = &inv;
 	memset(&inv, 0, sizeof inv);
@@ -1964,7 +2842,7 @@ static void krping_fr_test(struct krping_cb *cb)
 	while (1) {
 		if ((time_uptime - start) >= 9) {
 			DEBUG_LOG(cb, "fr_test: pausing 1 second! count %u latest size %u plen %u\n", count, size, plen);
-			wait_event_interruptible(cb->sem, cb->state == ERROR);
+			wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
 			if (cb->state == ERROR)
 				break;
 			start = time_uptime;
@@ -1984,7 +2862,7 @@ static void krping_fr_test(struct krping_cb *cb)
 				PRINTF(cb, "ib_post_send failed %d\n", ret);
 				goto err2;	
 			}
-			scnt++;
+			scnt+=2;
 		}
 
 		do {
@@ -2008,10 +2886,8 @@ static void krping_fr_test(struct krping_cb *cb)
 		} while (ret == 1);
 	}
 err2:
-#if 0
 	DEBUG_LOG(cb, "sleeping 1 second\n");
 	wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
-#endif
 	DEBUG_LOG(cb, "draining the cq...\n");
 	do {
 		ret = ib_poll_cq(cb->cq, 1, &wc);
@@ -2028,7 +2904,128 @@ err2:
 	DEBUG_LOG(cb, "fr_test: done!\n");
 	ib_dereg_mr(mr);
 err1:
+	DEBUG_LOG(cb, "destroying fr page list!\n");
 	ib_free_fast_reg_page_list(pl);
+	DEBUG_LOG(cb, "%s done!\n", __func__);
+}
+
+/*
+ * fastreg 1 and invalidate 1 mr and verify completion.
+ */
+static void krping_fr_test4(struct krping_cb *cb)
+{
+	struct ib_fast_reg_page_list *pl;
+	struct ib_send_wr fr, inv, *bad;
+	struct ib_wc wc;
+	struct ib_mr *mr1;
+	int i;
+	int ret;
+	int size = cb->size;
+	int plen = (((size - 1) & PAGE_MASK) + PAGE_SIZE) >> PAGE_SHIFT;
+	int count = 0;
+
+	pl = ib_alloc_fast_reg_page_list(cb->qp->device, plen);
+	if (IS_ERR(pl)) {
+		PRINTF(cb, "ib_alloc_fast_reg_page_list failed %ld\n", PTR_ERR(pl));
+		return;
+	}
+
+	mr1 = ib_alloc_fast_reg_mr(cb->pd, plen);
+	if (IS_ERR(mr1)) {
+		PRINTF(cb, "ib_alloc_fast_reg_mr failed %ld\n", PTR_ERR(pl));
+		goto err1;
+	}
+
+	for (i=0; i<plen; i++)
+		pl->page_list[i] = i * PAGE_SIZE;
+
+	memset(&fr, 0, sizeof fr);
+	fr.opcode = IB_WR_FAST_REG_MR;
+	fr.wr_id = 1;
+	fr.wr.fast_reg.page_shift = PAGE_SHIFT;
+	fr.wr.fast_reg.length = size;
+	fr.wr.fast_reg.page_list = pl;
+	fr.wr.fast_reg.page_list_len = plen;
+	fr.wr.fast_reg.iova_start = 0;
+	fr.wr.fast_reg.access_flags = IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE;
+	fr.send_flags = IB_SEND_SIGNALED;
+	fr.wr.fast_reg.rkey = mr1->rkey;
+	fr.next = &inv;
+	memset(&inv, 0, sizeof inv);
+	inv.opcode = IB_WR_LOCAL_INV;
+	inv.ex.invalidate_rkey = mr1->rkey;
+
+	DEBUG_LOG(cb, "%s fr1: stag 0x%x plen %u size %u depth %u\n", __func__, fr.wr.fast_reg.rkey, plen, cb->size, cb->txdepth);
+	ret = ib_post_send(cb->qp, &fr, &bad);
+	if (ret) {
+		PRINTF(cb, "ib_post_send failed %d\n", ret);
+		goto err3;
+	}
+	DEBUG_LOG(cb, "sleeping 1 second\n");
+	wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
+	do {
+		ret = ib_poll_cq(cb->cq, 1, &wc);
+		if (ret < 0) {
+			PRINTF(cb, "ib_poll_cq failed %d\n", ret);
+			goto err3;
+		}
+		if (ret == 1) {
+			DEBUG_LOG(cb, "completion status %u wr %s\n",
+				  wc.status, wc.wr_id == 1 ? "fr" : "inv");
+			count++;
+		} else if (krping_sigpending()) {
+			PRINTF(cb, "signal!\n");
+			goto err3;
+		}
+		wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
+	} while (count != 1);
+err3:
+	DEBUG_LOG(cb, "sleeping 1 second\n");
+	wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
+	DEBUG_LOG(cb, "draining the cq...\n");
+	do {
+		ret = ib_poll_cq(cb->cq, 1, &wc);
+		if (ret < 0) {
+			PRINTF(cb, "ib_poll_cq failed %d\n", ret);
+			break;
+		}
+		if (ret == 1) {
+			PRINTF(cb, "completion %u opcode %u\n", wc.status, wc.opcode);
+		}
+	} while (ret == 1);
+	DEBUG_LOG(cb, "destroying fr mr1!\n");
+	ib_dereg_mr(mr1);
+err1:
+	DEBUG_LOG(cb, "destroying fr page list!\n");
+	ib_free_fast_reg_page_list(pl);
+	DEBUG_LOG(cb, "%s done!\n", __func__);
+}
+
+static void krping_fr_test(struct krping_cb *cb)
+{
+	switch (cb->testnum) {
+	case 1:
+		krping_fr_test1(cb);
+		break;
+	case 2:
+		krping_fr_test2(cb);
+		break;
+	case 3:
+		krping_fr_test3(cb);
+		break;
+	case 4:
+		krping_fr_test4(cb);
+		break;
+	case 5:
+		krping_fr_test5_client(cb);
+		break;
+	case 6:
+		krping_fr_test6_client(cb);
+		break;
+	default:
+		PRINTF(cb, "Unkown frtest num %u\n", cb->testnum);
+		break;
+	}
 }
 
 static int krping_connect_client(struct krping_cb *cb)
@@ -2083,7 +3080,7 @@ static int krping_bind_client(struct krping_cb *cb)
 		return -EINTR;
 	}
 
-	if (cb->mem == FASTREG && !fastreg_supported(cb))
+	if (cb->mem == FASTREG && !fastreg_supported(cb, 0))
 		return -EINVAL;
 
 	DEBUG_LOG(cb, "rdma_resolve_addr - rdma_resolve_route successful\n");
@@ -2266,6 +3263,7 @@ int krping_doit(char *cmd, void *cookie)
 			break;
 		case 'f':
 			cb->frtest = 1;
+			cb->testnum = optint;
 			DEBUG_LOG(cb, "fast-reg test!\n");
 			break;
 		default:
@@ -2283,18 +3281,11 @@ int krping_doit(char *cmd, void *cookie)
 		goto out;
 	}
 
-	if (cb->server && cb->frtest) {
-		PRINTF(cb, "must be client to run frtest\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
 	if ((cb->frtest + cb->bw + cb->rlat + cb->wlat) > 1) {
 		PRINTF(cb, "Pick only one test: fr, bw, rlat, wlat\n");
 		ret = -EINVAL;
 		goto out;
 	}
-
 	if (cb->server_invalidate && cb->mem != FASTREG) {
 		PRINTF(cb, "server_invalidate only valid with fastreg mem_mode\n");
 		ret = -EINVAL;
@@ -2307,7 +3298,7 @@ int krping_doit(char *cmd, void *cookie)
 		goto out;
 	}
 
-	if (cb->mem != MR && (cb->wlat || cb->rlat || cb->bw)) {
+	if (cb->mem != MR && (cb->wlat || cb->rlat || cb->bw || cb->frtest)) {
 		PRINTF(cb, "wlat, rlat, and bw tests only support mem_mode MR\n");
 		ret = -EINVAL;
 		goto out;

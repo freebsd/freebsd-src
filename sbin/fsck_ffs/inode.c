@@ -290,7 +290,7 @@ ginode(ino_t inumber)
 	if (startinum == 0 ||
 	    inumber < startinum || inumber >= startinum + INOPB(&sblock)) {
 		iblk = ino_to_fsba(&sblock, inumber);
-		if (pbp != 0)
+		if (pbp != NULL)
 			pbp->b_flags &= ~B_INUSE;
 		pbp = getdatablk(iblk, sblock.fs_bsize, BT_INODES);
 		startinum = (inumber / INOPB(&sblock)) * INOPB(&sblock);
@@ -608,7 +608,7 @@ pinode(ino_t ino)
 		return;
 	dp = ginode(ino);
 	printf(" OWNER=");
-	if ((pw = getpwuid((int)DIP(dp, di_uid))) != 0)
+	if ((pw = getpwuid((int)DIP(dp, di_uid))) != NULL)
 		printf("%s ", pw->pw_name);
 	else
 		printf("%u ", (unsigned)DIP(dp, di_uid));

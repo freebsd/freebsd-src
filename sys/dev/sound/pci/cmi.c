@@ -803,8 +803,8 @@ cmi_muninit(struct mpu401 *arg, void *cookie)
 	struct sc_info *sc = cookie;
 
 	snd_mtxlock(sc->lock);
-	sc->mpu_intr = 0;
-	sc->mpu = 0;
+	sc->mpu_intr = NULL;
+	sc->mpu = NULL;
 	snd_mtxunlock(sc->lock);
 
 	return 0;
@@ -902,7 +902,7 @@ cmi_uninit(struct sc_info *sc)
 	cmi_clr4(sc, CMPCI_REG_FUNC_1, CMPCI_REG_UART_ENABLE);
 
 	if( sc->mpu )
-		sc->mpu_intr = 0;
+		sc->mpu_intr = NULL;
 }
 
 /* ------------------------------------------------------------------------- */
