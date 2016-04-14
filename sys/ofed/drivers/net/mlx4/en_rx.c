@@ -55,7 +55,7 @@ static void mlx4_en_init_rx_desc(struct mlx4_en_priv *priv,
 	int i;
 
 	/* Set size and memtype fields */
-	rx_desc->data[0].byte_count = cpu_to_be32(priv->rx_mb_size);
+	rx_desc->data[0].byte_count = cpu_to_be32(priv->rx_mb_size - MLX4_NET_IP_ALIGN);
 	rx_desc->data[0].lkey = cpu_to_be32(priv->mdev->mr.key);
 
 	/*
@@ -87,7 +87,10 @@ mlx4_en_alloc_buf(struct mlx4_en_rx_ring *ring,
 		if (unlikely(mb == NULL))
 			return (-ENOMEM);
 		/* setup correct length */
-		mb->m_len = ring->rx_mb_size;
+		mb->m_pkthdr.len = mb->m_len = ring->rx_mb_size;
+
+		/* make sure IP header gets aligned */
+		m_adj(mb, MLX4_NET_IP_ALIGN);
 
 		/* load spare mbuf into BUSDMA */
 		err = -bus_dmamap_load_mbuf_sg(ring->dma_tag, ring->spare.dma_map,
@@ -117,7 +120,10 @@ mlx4_en_alloc_buf(struct mlx4_en_rx_ring *ring,
 		goto use_spare;
 
 	/* setup correct length */
-	mb->m_len = ring->rx_mb_size;
+	mb->m_pkthdr.len = mb->m_len = ring->rx_mb_size;
+
+	/* make sure IP header gets aligned */
+	m_adj(mb, MLX4_NET_IP_ALIGN);
 
 	err = -bus_dmamap_load_mbuf_sg(ring->dma_tag, mb_list->dma_map,
 	    mb, segs, &nsegs, BUS_DMA_NOWAIT);
@@ -249,7 +255,8 @@ static void mlx4_en_free_rx_buf(struct mlx4_en_priv *priv,
 void mlx4_en_calc_rx_buf(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	int eff_mtu = dev->if_mtu + ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN;
+	int eff_mtu = dev->if_mtu + ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN +
+	    MLX4_NET_IP_ALIGN;
 
 	if (eff_mtu > MJUM16BYTES) {
 		en_err(priv, "MTU(%d) is too big\n", dev->if_mtu);
