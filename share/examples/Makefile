@@ -222,7 +222,7 @@ beforeinstall: ${SHARED} etc-examples
 META_TARGETS+=	copies symlinks
 .ORDER: ${SHARED} etc-examples
 
-copies: ${META_DEPS}
+copies:
 .for i in ${LDIRS}
 	if [ -L ${DESTDIR}${BINDIR}/$i ]; then \
 		rm -f ${DESTDIR}${BINDIR}/$i; \
@@ -235,7 +235,7 @@ copies: ${META_DEPS}
 		${.CURDIR}/${file} ${DESTDIR}${BINDIR}/${file}
 .endfor
 
-symlinks: ${META_DEPS}
+symlinks:
 .for i in ${LDIRS}
 	rm -rf ${DESTDIR}${BINDIR}/$i
 	ln -s ${.CURDIR}/$i ${DESTDIR}${BINDIR}/$i

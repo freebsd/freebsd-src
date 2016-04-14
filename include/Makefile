@@ -135,13 +135,8 @@ _MARCHS+=	x86
 META_TARGETS+=	compat copies symlinks
 stage_includes: ${SHARED}
 
-.include <bsd.prog.mk>
-
-installincludes: ${SHARED}
-${SHARED}: compat
-
 # Take care of stale directory-level symlinks.
-compat: ${META_DEPS}
+compat:
 .for i in ${LDIRS} ${LSUBDIRS} machine ${_MARCHS} crypto
 	if [ -L ${DESTDIR}${INCLUDEDIR}/$i ]; then \
 		rm -f ${DESTDIR}${INCLUDEDIR}/$i; \
@@ -151,7 +146,7 @@ compat: ${META_DEPS}
 	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}${INCLUDEDIR} > /dev/null
 
-copies: ${META_DEPS}
+copies:
 .for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} crypto machine machine/pc \
 	${_MARCHS}
 	if [ -d ${DESTDIR}${INCLUDEDIR}/$i ]; then \
@@ -237,7 +232,7 @@ copies: ${META_DEPS}
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
 	    ${DESTDIR}${INCLUDEDIR}/teken
 
-symlinks: ${META_DEPS}
+symlinks:
 	@${ECHO} "Setting up symlinks to kernel source tree..."
 .for i in ${LDIRS}
 	cd ${.CURDIR}/../sys/$i; \
@@ -350,6 +345,11 @@ symlinks: ${META_DEPS}
 		${INSTALL_SYMLINK} ../../../sys/rpc/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/rpc; \
 	done
+
+.include <bsd.prog.mk>
+
+installincludes: ${SHARED}
+${SHARED}: compat
 
 .if ${MACHINE} == "host" && !defined(_SKIP_BUILD)
 # we're here because we are building a sysroot...
