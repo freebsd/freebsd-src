@@ -100,10 +100,11 @@ struct namedobj_instance {
 };
 #define	BLOCK_ITEMS	(8 * sizeof(u_long))	/* Number of items for ffsl() */
 
-static uint32_t objhash_hash_name(struct namedobj_instance *ni, void *key,
-    uint32_t kopt);
+static uint32_t objhash_hash_name(struct namedobj_instance *ni,
+    const void *key, uint32_t kopt);
 static uint32_t objhash_hash_idx(struct namedobj_instance *ni, uint32_t val);
-static int objhash_cmp_name(struct named_object *no, void *name, uint32_t set);
+static int objhash_cmp_name(struct named_object *no, const void *name,
+    uint32_t set);
 
 MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 
@@ -1491,6 +1492,35 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
 			break;
+
+		case O_EXTERNAL_ACTION:
+			if (cmd->arg1 == 0 ||
+			    cmdlen != F_INSN_SIZE(ipfw_insn)) {
+				printf("ipfw: invalid external "
+				    "action opcode\n");
+				return (EINVAL);
+			}
+			ci->object_opcodes++;
+			/* Do we have O_EXTERNAL_INSTANCE opcode? */
+			if (l != cmdlen) {
+				l -= cmdlen;
+				cmd += cmdlen;
+				cmdlen = F_LEN(cmd);
+				if (cmd->opcode != O_EXTERNAL_INSTANCE) {
+					printf("ipfw: invalid opcode "
+					    "next to external action %u\n",
+					    cmd->opcode);
+					return (EINVAL);
+				}
+				if (cmd->arg1 == 0 ||
+				    cmdlen != F_INSN_SIZE(ipfw_insn)) {
+					printf("ipfw: invalid external "
+					    "action instance opcode\n");
+					return (EINVAL);
+				}
+				ci->object_opcodes++;
+			}
+			goto check_action;
 
 		case O_FIB:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
@@ -4008,17 +4038,17 @@ ipfw_objhash_set_funcs(struct namedobj_instance *ni, objhash_hash_f *hash_f,
 }
 
 static uint32_t
-objhash_hash_name(struct namedobj_instance *ni, void *name, uint32_t set)
+objhash_hash_name(struct namedobj_instance *ni, const void *name, uint32_t set)
 {
 
-	return (fnv_32_str((char *)name, FNV1_32_INIT));
+	return (fnv_32_str((const char *)name, FNV1_32_INIT));
 }
 
 static int
-objhash_cmp_name(struct named_object *no, void *name, uint32_t set)
+objhash_cmp_name(struct named_object *no, const void *name, uint32_t set)
 {
 
-	if ((strcmp(no->name, (char *)name) == 0) && (no->set == set))
+	if ((strcmp(no->name, (const char *)name) == 0) && (no->set == set))
 		return (0);
 
 	return (1);
@@ -4051,11 +4081,90 @@ ipfw_objhash_lookup_name(struct namedobj_instance *ni, uint32_t set, char *name)
 }
 
 /*
+ * Find named object by @uid.
+ * Check @tlvs for valid data inside.
+ *
+ * Returns pointer to found TLV or NULL.
+ */
+static ipfw_obj_ntlv *
+find_name_tlv_type(void *tlvs, int len, uint16_t uidx, uint32_t etlv)
+{
+	ipfw_obj_ntlv *ntlv;
+	uintptr_t pa, pe;
+	int l;
+
+	pa = (uintptr_t)tlvs;
+	pe = pa + len;
+	l = 0;
+	for (; pa < pe; pa += l) {
+		ntlv = (ipfw_obj_ntlv *)pa;
+		l = ntlv->head.length;
+
+		if (l != sizeof(*ntlv))
+			return (NULL);
+
+		if (ntlv->idx != uidx)
+			continue;
+		/*
+		 * When userland has specified zero TLV type, do
+		 * not compare it with eltv. In some cases userland
+		 * doesn't know what type should it have. Use only
+		 * uidx and name for search named_object.
+		 */
+		if (ntlv->head.type != 0 &&
+		    ntlv->head.type != (uint16_t)etlv)
+			continue;
+
+		if (ipfw_check_object_name_generic(ntlv->name) != 0)
+			return (NULL);
+
+		return (ntlv);
+	}
+
+	return (NULL);
+}
+
+/*
+ * Finds object config based on either legacy index
+ * or name in ntlv.
+ * Note @ti structure contains unchecked data from userland.
+ *
+ * Returns 0 in success and fills in @pno with found config
+ */
+int
+ipfw_objhash_find_type(struct namedobj_instance *ni, struct tid_info *ti,
+    uint32_t etlv, struct named_object **pno)
+{
+	char *name;
+	ipfw_obj_ntlv *ntlv;
+	uint32_t set;
+
+	if (ti->tlvs == NULL)
+		return (EINVAL);
+
+	ntlv = find_name_tlv_type(ti->tlvs, ti->tlen, ti->uidx, etlv);
+	if (ntlv == NULL)
+		return (EINVAL);
+	name = ntlv->name;
+
+	/*
+	 * Use set provided by @ti instead of @ntlv one.
+	 * This is needed due to different sets behavior
+	 * controlled by V_fw_tables_sets.
+	 */
+	set = ti->set;
+	*pno = ipfw_objhash_lookup_name(ni, set, name);
+	if (*pno == NULL)
+		return (ESRCH);
+	return (0);
+}
+
+/*
  * Find named object by name, considering also its TLV type.
  */
 struct named_object *
 ipfw_objhash_lookup_name_type(struct namedobj_instance *ni, uint32_t set,
-    uint32_t type, char *name)
+    uint32_t type, const char *name)
 {
 	struct named_object *no;
 	uint32_t hash;

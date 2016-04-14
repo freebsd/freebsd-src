@@ -2542,6 +2542,11 @@ do {								\
 				done = 1;	/* exit outer loop */
 				break;
 			}
+			case O_EXTERNAL_ACTION:
+				l = 0; /* in any case exit inner loop */
+				retval = ipfw_run_eaction(chain, args,
+				    cmd, &done);
+				break;
 
 			default:
 				panic("-- unknown opcode %d\n", cmd->opcode);
@@ -2766,6 +2771,7 @@ vnet_ipfw_init(const void *unused)
 
 	IPFW_LOCK_INIT(chain);
 	ipfw_dyn_init(chain);
+	ipfw_eaction_init(chain, first);
 #ifdef LINEAR_SKIPTO
 	ipfw_init_skipto_cache(chain);
 #endif
@@ -2830,6 +2836,7 @@ vnet_ipfw_uninit(const void *unused)
 	IPFW_WUNLOCK(chain);
 	IPFW_UH_WUNLOCK(chain);
 	ipfw_destroy_tables(chain, last);
+	ipfw_eaction_uninit(chain, last);
 	if (reap != NULL)
 		ipfw_reap_rules(reap);
 	vnet_ipfw_iface_destroy(chain);
