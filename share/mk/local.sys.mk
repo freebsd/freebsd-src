@@ -37,8 +37,11 @@ OBJTOP?= ${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
 # should be added as a target dependency as well.  Otherwise the target
 # is added to in bsd.sys.mk since it comes last.
 .if ${.MAKE.MODE:Mnofilemon} == ""
-META_COOKIE_COND=	empty(.TARGET:M${.OBJDIR})
-META_COOKIE=		${COOKIE.${.TARGET}:U${${META_COOKIE_COND}:?${.OBJDIR}/${.TARGET}:${.TARGET}}}
+# Prepend .OBJDIR if not already there.
+_META_COOKIE_COND=	"${.TARGET:M${.OBJDIR}/*}" == ""
+_META_COOKIE_DEFAULT=	${${_META_COOKIE_COND}:?${.OBJDIR}/${.TARGET}:${.TARGET}}
+# Use the default if COOKIE.${.TARGET} is not defined.
+META_COOKIE=		${COOKIE.${.TARGET}:U${_META_COOKIE_DEFAULT}}
 META_COOKIE_RM=		@rm -f ${META_COOKIE}
 META_COOKIE_TOUCH=	@touch ${META_COOKIE}
 CLEANFILES+=		${META_TARGETS}
