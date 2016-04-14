@@ -912,6 +912,11 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 	if (softc->flags & ADA_FLAG_CAN_FLUSHCACHE) {
 		xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 
+		/*
+		 * Tell the drive to flush its intenral cache. if we
+		 * can't flush in 5s we have big problems. No need to
+		 * wait the default 60s to detect problems.
+		 */
 		ccb.ccb_h.ccb_state = ADA_CCB_DUMP;
 		cam_fill_ataio(&ccb.ataio,
 				    0,
