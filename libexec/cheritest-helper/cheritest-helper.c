@@ -167,7 +167,7 @@ invoke_syscall(void)
 	 * Invoke getpid() to trigger kernel protection features.  Should
 	 * mostly be a nop.
 	 */
-	__asm__ __volatile__ ("syscall 20");
+	__asm__ __volatile__ ("li $v0, 20; syscall");
 
 	return (123456);
 }
