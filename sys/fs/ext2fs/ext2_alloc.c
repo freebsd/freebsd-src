@@ -406,10 +406,8 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 
 	/*
 	 * Set up a new generation number for this inode.
-	 * XXX check if this makes sense in ext2
 	 */
-	if (ip->i_gen == 0 || ++ip->i_gen == 0)
-		ip->i_gen = random() / 2 + 1;
+	ip->i_gen = arc4random();
 
 	vfs_timestamp(&ts);
 	ip->i_birthtime = ts.tv_sec;
