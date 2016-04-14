@@ -1732,7 +1732,6 @@ OLD_FILES+=usr/share/man/man4/lindev.4.gz
 # 20140425
 OLD_FILES+=usr/lib/libssp_p.a
 OLD_FILES+=usr/lib/libstand_p.a
-OLD_FILES+=usr/lib32/libc_pic.a
 OLD_FILES+=usr/lib32/libssp_p.a
 OLD_FILES+=usr/lib32/libstand_p.a
 # 20140314: AppleTalk
