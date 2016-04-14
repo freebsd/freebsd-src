@@ -74,6 +74,172 @@ add_and_delete(void)
 
 }
 
+static void
+proc_track(int sleep_time)
+{
+    char test_id[64];
+    struct kevent kev;
+    pid_t pid;
+    int pipe_fd[2];
+    ssize_t result;
+
+    snprintf(test_id, sizeof(test_id),
+             "kevent(EVFILT_PROC, NOTE_TRACK); sleep %d", sleep_time);
+    test_begin(test_id);
+    test_no_kevents();
+
+    if (pipe(pipe_fd)) {
+        err(1, "pipe (parent) failed! (%s() at %s:%d)",
+            __func__, __FILE__, __LINE__);
+    }
+
+    /* Create a child to track. */
+    pid = fork();
+    if (pid == 0) { /* Child */
+        pid_t grandchild = -1;
+
+        /*
+         * Give the parent a chance to start tracking us.
+         */
+        result = read(pipe_fd[1], test_id, 1);
+        if (result != 1) {
+            err(1, "read from pipe in child failed! (ret %zd) (%s() at %s:%d)",
+                result, __func__, __FILE__, __LINE__);
+        }
+
+        /*
+         * Spawn a grandchild that will immediately exit. If the kernel has bug
+         * 180385, the parent will see a kevent with both NOTE_CHILD and
+         * NOTE_EXIT. If that bug is fixed, it will see two separate kevents
+         * for those notes. Note that this triggers the conditions for
+         * detecting the bug quite reliably on a 1 CPU system (or if the test
+         * process is restricted to a single CPU), but may not trigger it on a
+         * multi-CPU system.
+         */
+        grandchild = fork();
+        if (grandchild == 0) { /* Grandchild */
+            if (sleep_time) sleep(sleep_time);
+            exit(1);
+        } else if (grandchild == -1) { /* Error */
+            err(1, "fork (grandchild) failed! (%s() at %s:%d)",
+                __func__, __FILE__, __LINE__);
+        } else { /* Child (Grandchild Parent) */
+            printf(" -- grandchild created (pid %d)\n", (int) grandchild);
+        }
+        if (sleep_time) sleep(sleep_time);
+        exit(0);
+    } else if (pid == -1) { /* Error */
+        err(1, "fork (child) failed! (%s() at %s:%d)",
+            __func__, __FILE__, __LINE__);
+    }
+    
+    printf(" -- child created (pid %d)\n", (int) pid);
+
+    kevent_add(kqfd, &kev, pid, EVFILT_PROC, EV_ADD | EV_ENABLE,
+               NOTE_TRACK | NOTE_EXEC | NOTE_EXIT | NOTE_FORK,
+               0, NULL);
+
+    printf(" -- tracking child (pid %d)\n", (int) pid);
+
+    /* Now that we're tracking the child, tell it to proceed. */
+    result = write(pipe_fd[0], test_id, 1);
+    if (result != 1) {
+        err(1, "write to pipe in parent failed! (ret %zd) (%s() at %s:%d)",
+            result, __func__, __FILE__, __LINE__);
+    }
+
+    /*
+     * Several events should be received:
+     *  - NOTE_FORK (from child)
+     *  - NOTE_CHILD (from grandchild)
+     *  - NOTE_EXIT (from grandchild)
+     *  - NOTE_EXIT (from child)
+     *
+     * The NOTE_FORK and NOTE_EXIT from the child could be combined into a
+     * single event, but the NOTE_CHILD and NOTE_EXIT from the grandchild must
+     * not be combined.
+     *
+     * The loop continues until no events are received within a 5 second
+     * period, at which point it is assumed that no more will be coming. The
+     * loop is deliberately designed to attempt to get events even after all
+     * the expected ones are received in case some spurious events are
+     * generated as well as the expected ones.
+     */
+    {
+        int child_exit = 0;
+        int child_fork = 0;
+        int gchild_exit = 0;
+        int gchild_note = 0;
+        pid_t gchild_pid = -1;
+        int done = 0;
+        
+        while (!done)
+        {
+            int handled = 0;
+            struct kevent *kevp;
+
+            kevp = kevent_get_timeout(kqfd, 5);
+            if (kevp == NULL) {
+                done = 1;
+            } else {
+                printf(" -- Received kevent: %s\n", kevent_to_str(kevp));
+            
+                if ((kevp->fflags & NOTE_CHILD) && (kevp->fflags & NOTE_EXIT)) {
+                    errx(1, "NOTE_CHILD and NOTE_EXIT in same kevent: %s", kevent_to_str(kevp));
+                }
+            
+                if (kevp->fflags & NOTE_CHILD) {
+                    if (kevp->data == pid) {
+                        if (!gchild_note) {
+                            ++gchild_note;
+                            gchild_pid = kevp->ident;
+                            ++handled;
+                        } else {
+                            errx(1, "Spurious NOTE_CHILD: %s", kevent_to_str(kevp));
+                        }
+                    }
+                }
+
+                if (kevp->fflags & NOTE_EXIT) {
+                    if ((kevp->ident == pid) && (!child_exit)) {
+                        ++child_exit;
+                        ++handled;
+                    } else if ((kevp->ident == gchild_pid) && (!gchild_exit)) {
+                        ++gchild_exit;
+                        ++handled;
+                    } else {
+                        errx(1, "Spurious NOTE_EXIT: %s", kevent_to_str(kevp));
+                    }
+                }
+
+                if (kevp->fflags & NOTE_FORK) {
+                    if ((kevp->ident == pid) && (!child_fork)) {
+                        ++child_fork;
+                        ++handled;
+                    } else {
+                        errx(1, "Spurious NOTE_FORK: %s", kevent_to_str(kevp));
+                    }
+                }
+
+                if (!handled) {
+                    errx(1, "Spurious kevent: %s", kevent_to_str(kevp));
+                }
+
+                free(kevp);
+            }
+        }
+        
+        /* Make sure all expected events were received. */
+        if (child_exit && child_fork && gchild_exit && gchild_note) {
+            printf(" -- Received all expected events.\n");
+        } else {
+            errx(1, "Did not receive all expected events.");
+        }
+    }
+
+    success();
+}
+
 #ifdef TODO
 static void
 event_trigger(void)
@@ -236,6 +402,8 @@ test_evfilt_proc()
     signal(SIGUSR1, sig_handler);
 
     add_and_delete();
+    proc_track(0); /* Run without sleeping before children exit. */
+    proc_track(1); /* Sleep a bit in the children before exiting. */
 
 #if TODO
     event_trigger();
