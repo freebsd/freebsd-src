@@ -475,6 +475,23 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		 * XXX if the packet contains [IPv4 AH TCP], we can't make a
 		 * notification to TCP layer.
 		 */
+		i = sizeof(struct ip) + min(icmplen, ICMP_ADVLENPREF(icp));
+		ip_stripoptions(m);
+		if (m->m_len < i && (m = m_pullup(m, i)) == NULL) {
+			/* This should actually not happen */
+			ICMPSTAT_INC(icps_tooshort);
+			return (IPPROTO_DONE);
+		}
+		ip = mtod(m, struct ip *);
+		icp = (struct icmp *)(ip + 1);
+		/*
+		 * The upper layer handler can rely on:
+		 * - The outer IP header has no options.
+		 * - The outer IP header, the ICMP header, the inner IP header,
+		 *   and the first n bytes of the inner payload are contiguous.
+		 *   n is at least 8, but might be larger based on 
+		 *   ICMP_ADVLENPREF. See its definition in ip_icmp.h.
+		 */
 		ctlfunc = inetsw[ip_protox[icp->icmp_ip.ip_p]].pr_ctlinput;
 		if (ctlfunc)
 			(*ctlfunc)(code, (struct sockaddr *)&icmpsrc,
