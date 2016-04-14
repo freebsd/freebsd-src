@@ -740,6 +740,46 @@ CHERIABI_SYS_cheriabi_sigqueue_fill_uap(struct thread *td,
 }
 
 static inline int
+CHERIABI_SYS_shm_open_fill_uap(struct thread *td,
+    struct shm_open_args *uap)
+{
+	struct chericap tmpcap;
+	u_int tag;
+	int error;
+	size_t base;
+
+	/* [1] int flags */
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_shm_open, 1);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
+	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
+
+	/* [2] mode_t mode */
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_shm_open, 2);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
+	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
+
+	/* [0] _In_z_ const char * path */
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_shm_open, 0);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
+	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+	if (!tag) {
+		CHERI_CGETBASE(base, CHERI_CR_CTEMP0);
+		if (base != 0)
+			return (EPROT);
+		CHERI_CGETOFFSET(uap->path, CHERI_CR_CTEMP0);
+		if (uap->path != SHM_ANON)
+			return (EPROT);
+	} else {
+		error = cheriabi_strcap_to_ptr(&uap->path, &tmpcap,
+		    0);
+		if (error != 0)
+			return (error);
+	}
+
+	return (0);
+}
+
+static inline int
 CHERIABI_SYS_cheriabi___semctl_fill_uap(struct thread *td,
     struct cheriabi___semctl_args *uap)
 {
