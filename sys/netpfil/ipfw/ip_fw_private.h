@@ -313,9 +313,9 @@ struct named_object {
 	TAILQ_ENTRY(named_object)	nn_next;	/* namehash */
 	TAILQ_ENTRY(named_object)	nv_next;	/* valuehash */
 	char			*name;	/* object name */
-	uint8_t			subtype;	/* object subtype within class */
-	uint8_t			etlv;	/* Export TLV id */
-	uint16_t		spare[2];
+	uint16_t		etlv;	/* Export TLV id */
+	uint8_t			subtype;/* object subtype within class */
+	uint8_t			spare[3];
 	uint16_t		kidx;	/* object kernel index */
 	uint32_t		set;	/* set object belongs to */
 	uint32_t		refcnt;	/* number of references */
