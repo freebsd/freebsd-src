@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 29, 2016
+.Dd April 14, 2016
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -539,6 +539,14 @@ instead of
 .Dq make cleandir .
 .It Va NO_CLEAN
 If set, no object tree files are cleaned at all.
+This is the default when
+.Va WITH_META_MODE
+is used with
+.Xr filemon 4
+loaded.
+See
+.Xr src.conf 5
+for more details.
 Setting
 .Va NO_CLEAN
 implies
