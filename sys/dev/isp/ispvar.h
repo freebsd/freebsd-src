@@ -490,14 +490,15 @@ typedef struct {
 
 #define	LOOP_NIL		0
 #define	LOOP_HAVE_LINK		1
-#define	LOOP_TESTING_LINK	2
-#define	LOOP_LTEST_DONE		3
-#define	LOOP_SCANNING_LOOP	4
-#define	LOOP_LSCAN_DONE		5
-#define	LOOP_SCANNING_FABRIC	6
-#define	LOOP_FSCAN_DONE		7
-#define	LOOP_SYNCING_PDB	8
-#define	LOOP_READY		9
+#define	LOOP_HAVE_ADDR		2
+#define	LOOP_TESTING_LINK	3
+#define	LOOP_LTEST_DONE		4
+#define	LOOP_SCANNING_LOOP	5
+#define	LOOP_LSCAN_DONE		6
+#define	LOOP_SCANNING_FABRIC	7
+#define	LOOP_FSCAN_DONE		8
+#define	LOOP_SYNCING_PDB	9
+#define	LOOP_READY		10
 
 #define	TOPO_NL_PORT		0
 #define	TOPO_FL_PORT		1
