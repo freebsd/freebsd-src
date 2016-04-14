@@ -397,12 +397,12 @@ cheriabi_dispatch_fill_uap(struct thread *td, int syscall, void *uap)
 {
 
 	if (syscall < 0 || syscall >= CHERIABI_SYS_MAXSYSCALL)
-		return (EINVAL);
+		return (ENOSYS);
 
 	if (cheriabi_fill_uap_funcs[syscall] != NULL)
 		return (cheriabi_fill_uap_funcs[syscall](td, uap));
 	else
-		return(EINVAL);
+		return(ENOSYS);
 }
 
 #endif /* !_SYS_COMPAT_CHERIABI_DISPATCH_FILL_UAP_H_ */
