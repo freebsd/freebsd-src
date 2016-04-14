@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 ENTRY(cerror)
+	.hidden	cerror
 	sub	sp, sp, #16
 	stp	x0, lr, [sp]
 	bl	_C_LABEL(__error)
