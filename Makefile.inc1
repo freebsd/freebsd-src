@@ -296,6 +296,10 @@ CROSSENV+=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
 		CPUTYPE=${TARGET_CPUTYPE}
+.if ${MK_META_MODE} != "no"
+# Don't rebuild build-tools targets during normal build.
+CROSSENV+=	BUILD_TOOLS_META=.NOMETA_CMP
+.endif
 .if ${MK_GROFF} != "no"
 CROSSENV+=	GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
 		GROFF_FONT_PATH=${WORLDTMP}/legacy/usr/share/groff_font \
