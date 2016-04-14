@@ -27,6 +27,7 @@
 .include "modules.inc"
 
 SUBDIR=	${MODULES}
+SUBDIR_PARALLEL=
 
 .if defined(LIBCHERI)
 
