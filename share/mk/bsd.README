@@ -314,9 +314,27 @@ PROGS_CXX	PROG and PROGS_CXX in one Makefile.  To define
 		LDADD.foo=	-lutil
 		SRCS.bar=	bar_src.c
 
-		The supported variables are BINDIR BINGRP BINMODE BINOWN
-		CFLAGS CXXFLAGS DEBUG_FLAGS DPADD DPSRCS LDADD
-		LDFLAGS LIBADD MAN MLINKS PROGNAME SRCS STRIP.
+		The supported variables are:
+		- BINDIR
+		- BINGRP
+		- BINMODE
+		- BINOWN
+		- CFLAGS
+		- CXXFLAGS
+		- DEBUG_FLAGS
+		- DPADD
+		- DPSRCS
+		- LDADD
+		- LDFLAGS
+		- LIBADD
+		- LINKS
+		- MAN
+		- MLINKS
+		- NO_WERROR
+		- PROGNAME
+		- SRCS
+		- STRIP
+		- WARNS
 
 PROGNAME	The name that the above program will be installed as, if
 		different from ${PROG}.
