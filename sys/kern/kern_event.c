@@ -364,11 +364,21 @@ filt_procattach(struct knote *kn)
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
 
 	/*
-	 * internal flag indicating registration done by kernel
+	 * Internal flag indicating registration done by kernel for the
+	 * purposes of getting a NOTE_CHILD notification.
 	 */
-	if (kn->kn_flags & EV_FLAG1) {
+	if (kn->kn_flags & EV_FLAG2) {
+		kn->kn_flags &= ~EV_FLAG2;
 		kn->kn_data = kn->kn_sdata;		/* ppid */
 		kn->kn_fflags = NOTE_CHILD;
+                kn->kn_sfflags &= ~NOTE_EXIT;
+		immediate = 1; /* Force immediate activation of child note. */
+	}
+	/*
+	 * Internal flag indicating registration done by kernel (for other than
+	 * NOTE_CHILD).
+	 */
+	if (kn->kn_flags & EV_FLAG1) {
 		kn->kn_flags &= ~EV_FLAG1;
 	}
 
@@ -376,9 +386,10 @@ filt_procattach(struct knote *kn)
 		knlist_add(&p->p_klist, kn, 1);
 
 	/*
-	 * Immediately activate any exit notes if the target process is a
-	 * zombie.  This is necessary to handle the case where the target
-	 * process, e.g. a child, dies before the kevent is registered.
+	 * Immediately activate any child notes or, in the case of a zombie
+	 * target process, exit notes.  The latter is necessary to handle the
+	 * case where the target process, e.g. a child, dies before the kevent
+	 * is registered.
 	 */
 	if (immediate && filt_proc(kn, NOTE_EXIT))
 		KNOTE_ACTIVATE(kn, 0);
@@ -487,7 +498,7 @@ knote_fork(struct knlist *list, int pid)
 
 		/*
 		 * The NOTE_TRACK case. In addition to the activation
-		 * of the event, we need to register new event to
+		 * of the event, we need to register new events to
 		 * track the child. Drop the locks in preparation for
 		 * the call to kqueue_register().
 		 */
@@ -496,8 +507,27 @@ knote_fork(struct knlist *list, int pid)
 		list->kl_unlock(list->kl_lockarg);
 
 		/*
-		 * Activate existing knote and register a knote with
+		 * Activate existing knote and register tracking knotes with
 		 * new process.
+		 *
+		 * First register a knote to get just the child notice. This
+		 * must be a separate note from a potential NOTE_EXIT
+		 * notification since both NOTE_CHILD and NOTE_EXIT are defined
+		 * to use the data field (in conflicting ways).
+		 */
+		kev.ident = pid;
+		kev.filter = kn->kn_filter;
+		kev.flags = kn->kn_flags | EV_ADD | EV_ENABLE | EV_ONESHOT | EV_FLAG2;
+		kev.fflags = kn->kn_sfflags;
+		kev.data = kn->kn_id;		/* parent */
+		kev.udata = kn->kn_kevent.udata;/* preserve udata */
+		error = kqueue_register(kq, &kev, NULL, 0);
+		if (error)
+			kn->kn_fflags |= NOTE_TRACKERR;
+
+		/*
+		 * Then register another knote to track other potential events
+		 * from the new process.
 		 */
 		kev.ident = pid;
 		kev.filter = kn->kn_filter;
@@ -1071,7 +1101,7 @@ findkn:
 
 		if (fp->f_type == DTYPE_KQUEUE) {
 			/*
-			 * if we add some inteligence about what we are doing,
+			 * If we add some intelligence about what we are doing,
 			 * we should be able to support events on ourselves.
 			 * We need to know when we are doing this to prevent
 			 * getting both the knlist lock and the kq lock since
@@ -1103,7 +1133,18 @@ findkn:
 			kqueue_expand(kq, fops, kev->ident, waitok);
 
 		KQ_LOCK(kq);
-		if (kq->kq_knhashmask != 0) {
+
+		/*
+		 * If possible, find an existing knote to use for this kevent.
+		 */
+		if (kev->filter == EVFILT_PROC &&
+		    (kev->flags & (EV_FLAG1 | EV_FLAG2)) != 0) {
+			/* This is an internal creation of a process tracking
+			 * note. Don't attempt to coalesce this with an
+			 * existing note.
+			 */
+			;			
+		} else if (kq->kq_knhashmask != 0) {
 			struct klist *list;
 
 			list = &kq->kq_knhash[
@@ -1115,7 +1156,7 @@ findkn:
 		}
 	}
 
-	/* knote is in the process of changing, wait for it to stablize. */
+	/* knote is in the process of changing, wait for it to stabilize. */
 	if (kn != NULL && (kn->kn_status & KN_INFLUX) == KN_INFLUX) {
 		KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
 		if (filedesc_unlock) {

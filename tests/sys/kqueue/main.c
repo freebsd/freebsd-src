@@ -69,6 +69,28 @@ kevent_get(int kqfd)
     return (kev);
 }
 
+/* Retrieve a single kevent, specifying a maximum time to wait for it. */
+struct kevent *
+kevent_get_timeout(int kqfd, int seconds)
+{
+    int nfds;
+    struct kevent *kev;
+    struct timespec timeout = {seconds, 0};
+
+    if ((kev = calloc(1, sizeof(*kev))) == NULL)
+	err(1, "out of memory");
+    
+    nfds = kevent(kqfd, NULL, 0, kev, 1, &timeout);
+    if (nfds < 0) {
+        err(1, "kevent(2)");
+    } else if (nfds == 0) {
+        free(kev);
+        kev = NULL;
+    }
+
+    return (kev);
+}
+
 char *
 kevent_fflags_dump(struct kevent *kev)
 {
@@ -82,25 +104,33 @@ kevent_fflags_dump(struct kevent *kev)
 	abort();
 
     /* Not every filter has meaningful fflags */
-    if (kev->filter != EVFILT_VNODE) {
-    	snprintf(buf, 1024, "fflags = %d", kev->fflags);
-	return (buf);
-    }
-
-    snprintf(buf, 1024, "fflags = %d (", kev->fflags);
-    KEVFFL_DUMP(NOTE_DELETE);
-    KEVFFL_DUMP(NOTE_WRITE);
-    KEVFFL_DUMP(NOTE_EXTEND);
+    if (kev->filter == EVFILT_PROC) {
+        snprintf(buf, 1024, "fflags = %x (", kev->fflags);
+        KEVFFL_DUMP(NOTE_EXIT);
+        KEVFFL_DUMP(NOTE_FORK);
+        KEVFFL_DUMP(NOTE_EXEC);
+        KEVFFL_DUMP(NOTE_CHILD);
+        KEVFFL_DUMP(NOTE_TRACKERR);
+        KEVFFL_DUMP(NOTE_TRACK);
+        buf[strlen(buf) - 1] = ')';
+    } else if (kev->filter == EVFILT_VNODE) {
+        snprintf(buf, 1024, "fflags = %x (", kev->fflags);
+        KEVFFL_DUMP(NOTE_DELETE);
+        KEVFFL_DUMP(NOTE_WRITE);
+        KEVFFL_DUMP(NOTE_EXTEND);
 #if HAVE_NOTE_TRUNCATE
-    KEVFFL_DUMP(NOTE_TRUNCATE);
+        KEVFFL_DUMP(NOTE_TRUNCATE);
 #endif
-    KEVFFL_DUMP(NOTE_ATTRIB);
-    KEVFFL_DUMP(NOTE_LINK);
-    KEVFFL_DUMP(NOTE_RENAME);
+        KEVFFL_DUMP(NOTE_ATTRIB);
+        KEVFFL_DUMP(NOTE_LINK);
+        KEVFFL_DUMP(NOTE_RENAME);
 #if HAVE_NOTE_REVOKE
-    KEVFFL_DUMP(NOTE_REVOKE);
+        KEVFFL_DUMP(NOTE_REVOKE);
 #endif
-    buf[strlen(buf) - 1] = ')';
+        buf[strlen(buf) - 1] = ')';
+    } else {
+    	snprintf(buf, 1024, "fflags = %x", kev->fflags);
+    }
 
     return (buf);
 }
@@ -259,6 +289,15 @@ main(int argc, char **argv)
         argv++;
         argc--;
     }
+
+    /*
+     * Some tests fork.  If output is fully buffered,
+     * the children inherit some buffered data and flush
+     * it when they exit, causing some data to be printed twice.
+     * Use line buffering to avoid this problem.
+     */
+    setlinebuf(stdout);
+    setlinebuf(stderr);
 
     test_kqueue();
     test_kqueue_close();
