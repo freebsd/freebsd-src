@@ -3311,6 +3311,7 @@ xpt_run_devq(struct cam_devq *devq)
 		lock = (mtx_owned(sim->mtx) == 0);
 		if (lock)
 			CAM_SIM_LOCK(sim);
+		work_ccb->ccb_h.qos.sim_data = sbinuptime(); // xxx uintprt_t too small 32bit platforms
 		(*(sim->sim_action))(sim, work_ccb);
 		if (lock)
 			CAM_SIM_UNLOCK(sim);
@@ -4439,6 +4440,8 @@ xpt_done(union ccb *done_ccb)
 	if ((done_ccb->ccb_h.func_code & XPT_FC_QUEUED) == 0)
 		return;
 
+	/* Store the time the ccb was in the sim */
+	done_ccb->ccb_h.qos.sim_data = sbinuptime() - done_ccb->ccb_h.qos.sim_data;
 	hash = (done_ccb->ccb_h.path_id + done_ccb->ccb_h.target_id +
 	    done_ccb->ccb_h.target_lun) % cam_num_doneqs;
 	queue = &cam_doneqs[hash];
@@ -4459,6 +4462,8 @@ xpt_done_direct(union ccb *done_ccb)
 	if ((done_ccb->ccb_h.func_code & XPT_FC_QUEUED) == 0)
 		return;
 
+	/* Store the time the ccb was in the sim */
+	done_ccb->ccb_h.qos.sim_data = sbinuptime() - done_ccb->ccb_h.qos.sim_data;
 	xpt_done_process(&done_ccb->ccb_h);
 }
 

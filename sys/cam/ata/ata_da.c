@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_sim.h>
+#include <cam/cam_iosched.h>
 
 #include <cam/ata/ata_all.h>
 
@@ -67,6 +68,8 @@ __FBSDID("$FreeBSD$");
 #ifdef _KERNEL
 
 #define ATA_MAX_28BIT_LBA               268435455UL
+
+extern int iosched_debug;
 
 typedef enum {
 	ADA_STATE_RAHEAD,
@@ -87,17 +90,21 @@ typedef enum {
 	ADA_FLAG_CAN_CFA        = 0x0400,
 	ADA_FLAG_CAN_POWERMGT   = 0x0800,
 	ADA_FLAG_CAN_DMA48	= 0x1000,
-	ADA_FLAG_DIRTY		= 0x2000
+	ADA_FLAG_DIRTY		= 0x2000,
+	ADA_FLAG_CAN_NCQ_TRIM	= 0x4000,	/* CAN_TRIM also set */
+	ADA_FLAG_PIM_CAN_NCQ_TRIM = 0x8000
 } ada_flags;
 
 typedef enum {
 	ADA_Q_NONE		= 0x00,
 	ADA_Q_4K		= 0x01,
+	ADA_Q_NCQ_TRIM_BROKEN	= 0x02,
 } ada_quirks;
 
 #define ADA_Q_BIT_STRING	\
 	"\020"			\
-	"\0014K"
+	"\0014K"		\
+	"\002NCQ_TRIM_BROKEN"
 
 typedef enum {
 	ADA_CCB_RAHEAD		= 0x01,
@@ -111,6 +118,23 @@ typedef enum {
 /* Offsets into our private area for storing information */
 #define ccb_state	ppriv_field0
 #define ccb_bp		ppriv_ptr1
+
+typedef enum {
+	ADA_DELETE_NONE,
+	ADA_DELETE_DISABLE,
+	ADA_DELETE_CFA_ERASE,
+	ADA_DELETE_DSM_TRIM,
+	ADA_DELETE_NCQ_DSM_TRIM,
+	ADA_DELETE_MIN = ADA_DELETE_CFA_ERASE,
+	ADA_DELETE_MAX = ADA_DELETE_NCQ_DSM_TRIM,
+} ada_delete_methods;
+
+static const char *ada_delete_method_names[] =
+    { "NONE", "DISABLE", "CFA_ERASE", "DSM_TRIM", "NCQ_DSM_TRIM" };
+#if 0
+static const char *ada_delete_method_desc[] =
+    { "NONE", "DISABLED", "CFA Erase", "DSM Trim", "DSM Trim via NCQ" };
+#endif
 
 struct disk_params {
 	u_int8_t  heads;
@@ -128,18 +152,18 @@ struct trim_request {
 };
 
 struct ada_softc {
-	struct	 bio_queue_head bio_queue;
-	struct	 bio_queue_head trim_queue;
+	struct   cam_iosched_softc *cam_iosched;
 	int	 outstanding_cmds;	/* Number of active commands */
 	int	 refcount;		/* Active xpt_action() calls */
 	ada_state state;
 	ada_flags flags;
 	ada_quirks quirks;
-	int	 sort_io_queue;
+	ada_delete_methods delete_method;
 	int	 trim_max_ranges;
-	int	 trim_running;
 	int	 read_ahead;
 	int	 write_cache;
+	int	 unmappedio;
+	int	 rotating;
 #ifdef ADA_TEST_FAILURE
 	int      force_read_error;
 	int      force_write_error;
@@ -153,6 +177,13 @@ struct ada_softc {
 	struct sysctl_oid	*sysctl_tree;
 	struct callout		sendordered_c;
 	struct trim_request	trim_req;
+#ifdef CAM_IO_STATS
+	struct sysctl_ctx_list	sysctl_stats_ctx;
+	struct sysctl_oid	*sysctl_stats_tree;
+	u_int	timeouts;
+	u_int	errors;
+	u_int	invalidations;
+#endif
 };
 
 struct ada_quirk_entry {
@@ -330,6 +361,38 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
+		 * Crucial M500 SSDs EU07 firmware
+		 * NCQ Trim works ? 
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Crucial CT*M500*", "EU07" },
+		/*quirks*/0
+	},
+	{
+		/*
+		 * Crucial M500 SSDs all other firmware
+		 * NCQ Trim doesn't work
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Crucial CT*M500*", "*" },
+		/*quirks*/ADA_Q_NCQ_TRIM_BROKEN
+	},
+	{
+		/*
+		 * Crucial M550 SSDs
+		 * NCQ Trim doesn't work, but only on MU01 firmware
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Crucial CT*M550*", "MU01" },
+		/*quirks*/ADA_Q_NCQ_TRIM_BROKEN
+	},
+	{
+		/*
+		 * Crucial MX100 SSDs
+		 * NCQ Trim doesn't work, but only on MU01 firmware
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Crucial CT*MX100*", "MU01" },
+		/*quirks*/ADA_Q_NCQ_TRIM_BROKEN
+	},
+	{
+		/*
 		 * Crucial RealSSD C300 SSDs
 		 * 4k optimised
 		 */
@@ -402,6 +465,30 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
+		 * Micron M500 SSDs firmware EU07
+		 * NCQ Trim works?
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Micron M500*", "EU07" },
+		/*quirks*/0
+	},
+	{
+		/*
+		 * Micron M500 SSDs all other firmware
+		 * NCQ Trim doesn't work
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Micron M500*", "*" },
+		/*quirks*/ADA_Q_NCQ_TRIM_BROKEN
+	},
+	{
+		/*
+		 * Micron M5[15]0 SSDs
+		 * NCQ Trim doesn't work, but only MU01 firmware
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Micron M5[15]0*", "MU01" },
+		/*quirks*/ADA_Q_NCQ_TRIM_BROKEN
+	},
+	{
+		/*
 		 * OCZ Agility 2 SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
 		 */
@@ -451,26 +538,26 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	{
 		/*
 		 * Samsung 830 Series SSDs
-		 * 4k optimised
+		 * 4k optimised, NCQ TRIM Broken (normal TRIM is fine)
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG SSD 830 Series*", "*" },
-		/*quirks*/ADA_Q_4K
+		/*quirks*/ADA_Q_4K | ADA_Q_NCQ_TRIM_BROKEN
 	},
 	{
 		/*
 		 * Samsung 840 SSDs
-		 * 4k optimised
+		 * 4k optimised, NCQ TRIM Broken (normal TRIM is fine)
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Samsung SSD 840*", "*" },
-		/*quirks*/ADA_Q_4K
+		/*quirks*/ADA_Q_4K | ADA_Q_NCQ_TRIM_BROKEN
 	},
 	{
 		/*
 		 * Samsung 850 SSDs
-		 * 4k optimised
+		 * 4k optimised, NCQ TRIM broken (normal TRIM fine)
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Samsung SSD 850*", "*" },
-		/*quirks*/ADA_Q_4K
+		/*quirks*/ADA_Q_4K | ADA_Q_NCQ_TRIM_BROKEN
 	},
 	{
 		/*
@@ -478,7 +565,7 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		 * Samsung PM851 Series SSDs (MZ7TE*)
 		 * Samsung PM853T Series SSDs (MZ7GE*)
 		 * Samsung SM863 Series SSDs (MZ7KM*)
-		 * 4k optimised
+		 * 4k optimised, NCQ Trim believed working
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG MZ7*", "*" },
 		/*quirks*/ADA_Q_4K
@@ -566,8 +653,6 @@ static void		adaresume(void *arg);
 		 softc->read_ahead : ada_read_ahead)
 #define	ADA_WC	(softc->write_cache >= 0 ? \
 		 softc->write_cache : ada_write_cache)
-#define	ADA_SIO	(softc->sort_io_queue >= 0 ? \
-		 softc->sort_io_queue : cam_sort_io_queues)
 
 /*
  * Most platforms map firmware geometry to actual, but some don't.  If
@@ -623,6 +708,8 @@ static struct periph_driver adadriver =
 	adainit, "ada",
 	TAILQ_HEAD_INITIALIZER(adadriver.units), /* generation */ 0
 };
+
+static int adadeletemethodsysctl(SYSCTL_HANDLER_ARGS);
 
 PERIPHDRIVER_DECLARE(ada, adadriver);
 
@@ -719,11 +806,7 @@ adaschedule(struct cam_periph *periph)
 	if (softc->state != ADA_STATE_NORMAL)
 		return;
 
-	/* Check if we have more work to do. */
-	if (bioq_first(&softc->bio_queue) ||
-	    (!softc->trim_running && bioq_first(&softc->trim_queue))) {
-		xpt_schedule(periph, CAM_PRIORITY_NORMAL);
-	}
+	cam_iosched_schedule(softc->cam_iosched, periph);
 }
 
 /*
@@ -756,14 +839,7 @@ adastrategy(struct bio *bp)
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
-	if (bp->bio_cmd == BIO_DELETE) {
-		bioq_disksort(&softc->trim_queue, bp);
-	} else {
-		if (ADA_SIO)
-		    bioq_disksort(&softc->bio_queue, bp);
-		else
-		    bioq_insert_tail(&softc->bio_queue, bp);
-	}
+	cam_iosched_queue_work(softc->cam_iosched, bp);
 
 	/*
 	 * Schedule ourselves for performing the work.
@@ -844,7 +920,7 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 				    0,
 				    NULL,
 				    0,
-				    ada_default_timeout*1000);
+				    5*1000);
 
 		if (softc->flags & ADA_FLAG_CAN_48BIT)
 			ata_48bit_cmd(&ccb.ataio, ATA_FLUSHCACHE48, 0, 0, 0);
@@ -918,14 +994,16 @@ adaoninvalidate(struct cam_periph *periph)
 	 * De-register any async callbacks.
 	 */
 	xpt_register_async(0, adaasync, periph, periph->path);
+#ifdef CAM_IO_STATS
+	softc->invalidations++;
+#endif
 
 	/*
 	 * Return all queued I/O with ENXIO.
 	 * XXX Handle any transactions queued to the card
 	 *     with XPT_ABORT_CCB.
 	 */
-	bioq_flush(&softc->bio_queue, NULL, ENXIO);
-	bioq_flush(&softc->trim_queue, NULL, ENXIO);
+	cam_iosched_flush(softc->cam_iosched, NULL, ENXIO);
 
 	disk_gone(softc->disk);
 }
@@ -939,18 +1017,40 @@ adacleanup(struct cam_periph *periph)
 
 	cam_periph_unlock(periph);
 
+	cam_iosched_fini(softc->cam_iosched);
+
 	/*
 	 * If we can't free the sysctl tree, oh well...
 	 */
-	if ((softc->flags & ADA_FLAG_SCTX_INIT) != 0
-	    && sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
-		xpt_print(periph->path, "can't remove sysctl context\n");
+	if ((softc->flags & ADA_FLAG_SCTX_INIT) != 0) {
+#ifdef CAM_IO_STATS
+		if (sysctl_ctx_free(&softc->sysctl_stats_ctx) != 0)
+			xpt_print(periph->path,
+			    "can't remove sysctl stats context\n");
+#endif
+		if (sysctl_ctx_free(&softc->sysctl_ctx) != 0)
+			xpt_print(periph->path,
+			    "can't remove sysctl context\n");
 	}
 
 	disk_destroy(softc->disk);
 	callout_drain(&softc->sendordered_c);
 	free(softc, M_DEVBUF);
 	cam_periph_lock(periph);
+}
+
+static void
+adasetdeletemethod(struct ada_softc *softc)
+{
+
+	if (softc->flags & ADA_FLAG_CAN_NCQ_TRIM)
+		softc->delete_method = ADA_DELETE_NCQ_DSM_TRIM;
+	else if (softc->flags & ADA_FLAG_CAN_TRIM)
+		softc->delete_method = ADA_DELETE_DSM_TRIM;
+	else if ((softc->flags & ADA_FLAG_CAN_CFA) && !(softc->flags & ADA_FLAG_CAN_48BIT))
+		softc->delete_method = ADA_DELETE_CFA_ERASE;
+	else
+		softc->delete_method = ADA_DELETE_NONE;
 }
 
 static void
@@ -1018,11 +1118,26 @@ adaasync(void *callback_arg, u_int32_t code,
 			softc->flags |= ADA_FLAG_CAN_NCQ;
 		else
 			softc->flags &= ~ADA_FLAG_CAN_NCQ;
+
 		if ((cgd.ident_data.support_dsm & ATA_SUPPORT_DSM_TRIM) &&
-		    (cgd.inq_flags & SID_DMA))
+		    (cgd.inq_flags & SID_DMA)) {
 			softc->flags |= ADA_FLAG_CAN_TRIM;
-		else
-			softc->flags &= ~ADA_FLAG_CAN_TRIM;
+			/*
+			 * If we can do RCVSND_FPDMA_QUEUED commands, we may be able to do
+			 * NCQ trims, if we support trims at all. We also need support from
+			 * the sim do do things properly. Perhaps we should look at log 13
+			 * dword 0 bit 0 and dword 1 bit 0 are set too...
+			 */
+			if ((softc->quirks & ADA_Q_NCQ_TRIM_BROKEN) == 0 &&
+			    (softc->flags & ADA_FLAG_PIM_CAN_NCQ_TRIM) != 0 &&
+			    (cgd.ident_data.satacapabilities2 & ATA_SUPPORT_RCVSND_FPDMA_QUEUED) != 0 &&
+			    (softc->flags & ADA_FLAG_CAN_TRIM) != 0)
+				softc->flags |= ADA_FLAG_CAN_NCQ_TRIM;
+			else
+				softc->flags &= ~ADA_FLAG_CAN_NCQ_TRIM;
+		} else
+			softc->flags &= ~(ADA_FLAG_CAN_TRIM | ADA_FLAG_CAN_NCQ_TRIM);
+		adasetdeletemethod(softc);
 
 		cam_periph_async(periph, code, path, arg);
 		break;
@@ -1100,6 +1215,10 @@ adasysctlinit(void *context, int pending)
 		return;
 	}
 
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "delete_method", CTLTYPE_STRING | CTLFLAG_RW,
+		softc, 0, adadeletemethodsysctl, "A",
+		"BIO_DELETE execution method");
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "read_ahead", CTLFLAG_RW | CTLFLAG_MPSAFE,
 		&softc->read_ahead, 0, "Enable disk read ahead.");
@@ -1107,9 +1226,11 @@ adasysctlinit(void *context, int pending)
 		OID_AUTO, "write_cache", CTLFLAG_RW | CTLFLAG_MPSAFE,
 		&softc->write_cache, 0, "Enable disk write cache.");
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-		OID_AUTO, "sort_io_queue", CTLFLAG_RW | CTLFLAG_MPSAFE,
-		&softc->sort_io_queue, 0,
-		"Sort IO queue to try and optimise disk access patterns");
+		OID_AUTO, "unmapped_io", CTLFLAG_RD | CTLFLAG_MPSAFE,
+		&softc->unmappedio, 0, "Unmapped I/O leaf");
+	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "rotating", CTLFLAG_RD | CTLFLAG_MPSAFE,
+		&softc->rotating, 0, "Rotating media");
 #ifdef ADA_TEST_FAILURE
 	/*
 	 * Add a 'door bell' sysctl which allows one to set it from userland
@@ -1129,6 +1250,31 @@ adasysctlinit(void *context, int pending)
 		&softc->periodic_read_error, 0,
 		"Force a read error every N reads (don't set too low).");
 #endif
+
+#ifdef CAM_IO_STATS
+	softc->sysctl_stats_tree = SYSCTL_ADD_NODE(&softc->sysctl_stats_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO, "stats",
+		CTLFLAG_RD, 0, "Statistics");
+	SYSCTL_ADD_INT(&softc->sysctl_stats_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_stats_tree),
+		OID_AUTO, "timeouts", CTLFLAG_RD | CTLFLAG_MPSAFE,
+		&softc->timeouts, 0,
+		"Device timeouts reported by the SIM");
+	SYSCTL_ADD_INT(&softc->sysctl_stats_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_stats_tree),
+		OID_AUTO, "errors", CTLFLAG_RD | CTLFLAG_MPSAFE,
+		&softc->errors, 0,
+		"Transport errors reported by the SIM.");
+	SYSCTL_ADD_INT(&softc->sysctl_stats_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_stats_tree),
+		OID_AUTO, "pack_invalidations", CTLFLAG_RD | CTLFLAG_MPSAFE,
+		&softc->invalidations, 0,
+		"Device pack invalidations.");
+#endif
+
+	cam_iosched_sysctl_init(softc->cam_iosched, &softc->sysctl_ctx,
+	    softc->sysctl_tree);
+
 	cam_periph_release(periph);
 }
 
@@ -1146,6 +1292,43 @@ adagetattr(struct bio *bp)
 	if (ret == 0)
 		bp->bio_completed = bp->bio_length;
 	return ret;
+}
+
+static int
+adadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
+{
+	char buf[16];
+	const char *p;
+	struct ada_softc *softc;
+	int i, error, value, methods;
+
+	softc = (struct ada_softc *)arg1;
+
+	value = softc->delete_method;
+	if (value < 0 || value > ADA_DELETE_MAX)
+		p = "UNKNOWN";
+	else
+		p = ada_delete_method_names[value];
+	strncpy(buf, p, sizeof(buf));
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	methods = 1 << ADA_DELETE_DISABLE;
+	if ((softc->flags & ADA_FLAG_CAN_CFA) &&
+	    !(softc->flags & ADA_FLAG_CAN_48BIT))
+		methods |= 1 << ADA_DELETE_CFA_ERASE;
+	if (softc->flags & ADA_FLAG_CAN_TRIM)
+		methods |= 1 << ADA_DELETE_DSM_TRIM;
+	if (softc->flags & ADA_FLAG_CAN_NCQ_TRIM)
+		methods |= 1 << ADA_DELETE_NCQ_DSM_TRIM;
+	for (i = 0; i <= ADA_DELETE_MAX; i++) {
+		if (!(methods & (1 << i)) ||
+		    strcmp(buf, ada_delete_method_names[i]) != 0)
+			continue;
+		softc->delete_method = i;
+		return (0);
+	}
+	return (EINVAL);
 }
 
 static cam_status
@@ -1175,8 +1358,11 @@ adaregister(struct cam_periph *periph, void *arg)
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	bioq_init(&softc->bio_queue);
-	bioq_init(&softc->trim_queue);
+	if (cam_iosched_init(&softc->cam_iosched, periph) != 0) {
+		printf("adaregister: Unable to probe new device. "
+		       "Unable to allocate iosched memory\n");
+		return(CAM_REQ_CMP_ERR);
+	}
 
 	if ((cgd->ident_data.capabilities1 & ATA_SUPPORT_DMA) &&
 	    (cgd->inq_flags & SID_DMA))
@@ -1205,6 +1391,8 @@ adaregister(struct cam_periph *periph, void *arg)
 	}
 	if (cgd->ident_data.support.command2 & ATA_SUPPORT_CFA)
 		softc->flags |= ADA_FLAG_CAN_CFA;
+
+	adasetdeletemethod(softc);
 
 	periph->softc = softc;
 
@@ -1246,10 +1434,12 @@ adaregister(struct cam_periph *periph, void *arg)
 	    "kern.cam.ada.%d.write_cache", periph->unit_number);
 	TUNABLE_INT_FETCH(announce_buf, &softc->write_cache);
 	/* Disable queue sorting for non-rotational media by default. */
-	if (cgd->ident_data.media_rotation_rate == ATA_RATE_NON_ROTATING)
-		softc->sort_io_queue = 0;
-	else
-		softc->sort_io_queue = -1;
+	if (cgd->ident_data.media_rotation_rate == ATA_RATE_NON_ROTATING) {
+		softc->rotating = 0;
+	} else {
+		softc->rotating = 1;
+	}
+	cam_iosched_set_sort_queue(softc->cam_iosched,  softc->rotating ? -1 : 0);
 	adagetparams(periph, cgd);
 	softc->disk = disk_alloc();
 	softc->disk->d_rotation_rate = cgd->ident_data.media_rotation_rate;
@@ -1292,8 +1482,23 @@ adaregister(struct cam_periph *periph, void *arg)
 		softc->disk->d_delmaxsize = 256 * softc->params.secsize;
 	} else
 		softc->disk->d_delmaxsize = maxio;
-	if ((cpi.hba_misc & PIM_UNMAPPED) != 0)
+	if ((cpi.hba_misc & PIM_UNMAPPED) != 0) {
 		softc->disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
+		softc->unmappedio = 1;
+	}
+	/*
+	 * If we can do RCVSND_FPDMA_QUEUED commands, we may be able to do
+	 * NCQ trims, if we support trims at all. We also need support from
+	 * the sim do do things properly. Perhaps we should look at log 13
+	 * dword 0 bit 0 and dword 1 bit 0 are set too...
+	 */
+	if (cpi.hba_misc & PIM_NCQ_KLUDGE)
+		softc->flags |= ADA_FLAG_PIM_CAN_NCQ_TRIM;
+	if ((softc->quirks & ADA_Q_NCQ_TRIM_BROKEN) == 0 &&
+	    (softc->flags & ADA_FLAG_PIM_CAN_NCQ_TRIM) != 0 &&
+	    (cgd->ident_data.satacapabilities2 & ATA_SUPPORT_RCVSND_FPDMA_QUEUED) != 0 &&
+	    (softc->flags & ADA_FLAG_CAN_TRIM) != 0)
+		softc->flags |= ADA_FLAG_CAN_NCQ_TRIM;
 	strlcpy(softc->disk->d_descr, cgd->ident_data.model,
 	    MIN(sizeof(softc->disk->d_descr), sizeof(cgd->ident_data.model)));
 	strlcpy(softc->disk->d_ident, cgd->ident_data.serial,
@@ -1320,6 +1525,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_fwsectors = softc->params.secs_per_track;
 	softc->disk->d_fwheads = softc->params.heads;
 	ata_disk_firmware_geom_adjust(softc->disk);
+	adasetdeletemethod(softc);
 
 	/*
 	 * Acquire a reference to the periph before we register with GEOM.
@@ -1389,10 +1595,9 @@ adaregister(struct cam_periph *periph, void *arg)
 	return(CAM_REQ_CMP);
 }
 
-static void
-ada_dsmtrim(struct ada_softc *softc, struct bio *bp, struct ccb_ataio *ataio)
+static int
+ada_dsmtrim_req_create(struct ada_softc *softc, struct bio *bp, struct trim_request *req)
 {
-	struct trim_request *req = &softc->trim_req;
 	uint64_t lastlba = (uint64_t)-1;
 	int c, lastcount = 0, off, ranges = 0;
 
@@ -1401,8 +1606,6 @@ ada_dsmtrim(struct ada_softc *softc, struct bio *bp, struct ccb_ataio *ataio)
 	do {
 		uint64_t lba = bp->bio_pblkno;
 		int count = bp->bio_bcount / softc->params.secsize;
-
-		bioq_remove(&softc->trim_queue, bp);
 
 		/* Try to extend the previous range. */
 		if (lba == lastlba) {
@@ -1439,12 +1642,27 @@ ada_dsmtrim(struct ada_softc *softc, struct bio *bp, struct ccb_ataio *ataio)
 		}
 		lastlba = lba;
 		TAILQ_INSERT_TAIL(&req->bps, bp, bio_queue);
-		bp = bioq_first(&softc->trim_queue);
-		if (bp == NULL ||
-		    bp->bio_bcount / softc->params.secsize >
-		    (softc->trim_max_ranges - ranges) * ATA_DSM_RANGE_MAX)
+
+		bp = cam_iosched_next_trim(softc->cam_iosched);
+		if (bp == NULL)
 			break;
+		if (bp->bio_bcount / softc->params.secsize >
+		    (softc->trim_max_ranges - ranges) * ATA_DSM_RANGE_MAX) {
+			cam_iosched_put_back_trim(softc->cam_iosched, bp);
+			break;
+		}
 	} while (1);
+
+	return (ranges);
+}
+
+static void
+ada_dsmtrim(struct ada_softc *softc, struct bio *bp, struct ccb_ataio *ataio)
+{
+	struct trim_request *req = &softc->trim_req;
+	int ranges;
+
+	ranges = ada_dsmtrim_req_create(softc, bp, req);
 	cam_fill_ataio(ataio,
 	    ada_retry_count,
 	    adadone,
@@ -1460,6 +1678,30 @@ ada_dsmtrim(struct ada_softc *softc, struct bio *bp, struct ccb_ataio *ataio)
 }
 
 static void
+ada_ncq_dsmtrim(struct ada_softc *softc, struct bio *bp, struct ccb_ataio *ataio)
+{
+	struct trim_request *req = &softc->trim_req;
+	int ranges;
+
+	ranges = ada_dsmtrim_req_create(softc, bp, req);
+	cam_fill_ataio(ataio,
+	    ada_retry_count,
+	    adadone,
+	    CAM_DIR_OUT,
+	    0,
+	    req->data,
+	    ((ranges + ATA_DSM_BLK_RANGES - 1) /
+	    ATA_DSM_BLK_RANGES) * ATA_DSM_BLK_SIZE,
+	    ada_default_timeout * 1000);
+	ata_ncq_cmd(ataio,
+	    ATA_SEND_FPDMA_QUEUED,
+	    0,
+	    (ranges + ATA_DSM_BLK_RANGES - 1) / ATA_DSM_BLK_RANGES);
+	ataio->cmd.sector_count_exp = ATA_SFPDMA_DSM;
+	ataio->cmd.flags |= CAM_ATAIO_AUX_HACK;
+}
+
+static void
 ada_cfaerase(struct ada_softc *softc, struct bio *bp, struct ccb_ataio *ataio)
 {
 	struct trim_request *req = &softc->trim_req;
@@ -1468,7 +1710,6 @@ ada_cfaerase(struct ada_softc *softc, struct bio *bp, struct ccb_ataio *ataio)
 
 	bzero(req, sizeof(*req));
 	TAILQ_INIT(&req->bps);
-	bioq_remove(&softc->trim_queue, bp);
 	TAILQ_INSERT_TAIL(&req->bps, bp, bio_queue);
 
 	cam_fill_ataio(ataio,
@@ -1499,37 +1740,14 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 		struct bio *bp;
 		u_int8_t tag_code;
 
-		/* Run TRIM if not running yet. */
-		if (!softc->trim_running &&
-		    (bp = bioq_first(&softc->trim_queue)) != 0) {
-			if (softc->flags & ADA_FLAG_CAN_TRIM) {
-				ada_dsmtrim(softc, bp, ataio);
-			} else if ((softc->flags & ADA_FLAG_CAN_CFA) &&
-			    !(softc->flags & ADA_FLAG_CAN_48BIT)) {
-				ada_cfaerase(softc, bp, ataio);
-			} else {
-				/* This can happen if DMA was disabled. */
-				bioq_remove(&softc->trim_queue, bp);
-				biofinish(bp, NULL, EOPNOTSUPP);
-				xpt_release_ccb(start_ccb);
-				adaschedule(periph);
-				return;
-			}
-			softc->trim_running = 1;
-			start_ccb->ccb_h.ccb_state = ADA_CCB_TRIM;
-			start_ccb->ccb_h.flags |= CAM_UNLOCKED;
-			goto out;
-		}
-		/* Run regular command. */
-		bp = bioq_first(&softc->bio_queue);
+		bp = cam_iosched_next_bio(softc->cam_iosched);
 		if (bp == NULL) {
 			xpt_release_ccb(start_ccb);
 			break;
 		}
-		bioq_remove(&softc->bio_queue, bp);
 
-		if ((bp->bio_flags & BIO_ORDERED) != 0
-		 || (softc->flags & ADA_FLAG_NEED_OTAG) != 0) {
+		if ((bp->bio_flags & BIO_ORDERED) != 0 ||
+		    (bp->bio_cmd != BIO_DELETE && (softc->flags & ADA_FLAG_NEED_OTAG) != 0)) {
 			softc->flags &= ~ADA_FLAG_NEED_OTAG;
 			softc->flags |= ADA_FLAG_WAS_OTAG;
 			tag_code = 0;
@@ -1659,6 +1877,27 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 			}
 			break;
 		}
+		case BIO_DELETE:
+			switch (softc->delete_method) {
+			case ADA_DELETE_NCQ_DSM_TRIM:
+				ada_ncq_dsmtrim(softc, bp, ataio);
+				break;
+			case ADA_DELETE_DSM_TRIM:
+				ada_dsmtrim(softc, bp, ataio);
+				break;
+			case ADA_DELETE_CFA_ERASE:
+				ada_cfaerase(softc, bp, ataio);
+				break;
+			default:
+				biofinish(bp, NULL, EOPNOTSUPP);
+				xpt_release_ccb(start_ccb);
+				adaschedule(periph);
+				return;
+			}
+			start_ccb->ccb_h.ccb_state = ADA_CCB_TRIM;
+			start_ccb->ccb_h.flags |= CAM_UNLOCKED;
+			cam_iosched_submit_trim(softc->cam_iosched);
+			goto out;
 		case BIO_FLUSH:
 			cam_fill_ataio(ataio,
 			    1,
@@ -1742,6 +1981,7 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		int error;
 
 		cam_periph_lock(periph);
+		bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			error = adaerror(done_ccb, 0, 0);
 			if (error == ERESTART) {
@@ -1755,12 +1995,25 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 						 /*reduction*/0,
 						 /*timeout*/0,
 						 /*getcount_only*/0);
+			/*
+			 * If we get an error on an NCQ DSM TRIM, fall back
+			 * to a non-NCQ DSM TRIM forever. Please note that if
+			 * CAN_NCQ_TRIM is set, CAN_TRIM is necessarily set too.
+			 * However, for this one trim, we treat it as advisory
+			 * and return success up the stack.
+			 */
+			if (state == ADA_CCB_TRIM &&
+			    error != 0 &&
+			    (softc->flags & ADA_FLAG_CAN_NCQ_TRIM) != 0) {
+				softc->flags &= ~ADA_FLAG_CAN_NCQ_TRIM;
+				error = 0;
+				adasetdeletemethod(softc);
+			}
 		} else {
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 				panic("REQ_CMP with QFRZN");
 			error = 0;
 		}
-		bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
 		bp->bio_error = error;
 		if (error != 0) {
 			bp->bio_resid = bp->bio_bcount;
@@ -1776,6 +2029,8 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		softc->outstanding_cmds--;
 		if (softc->outstanding_cmds == 0)
 			softc->flags |= ADA_FLAG_WAS_OTAG;
+
+		cam_iosched_bio_complete(softc->cam_iosched, bp, done_ccb);
 		xpt_release_ccb(done_ccb);
 		if (state == ADA_CCB_TRIM) {
 			TAILQ_HEAD(, bio) queue;
@@ -1793,7 +2048,7 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * daschedule again so that we don't stall if there are
 			 * no other I/Os pending apart from BIO_DELETEs.
 			 */
-			softc->trim_running = 0;
+			cam_iosched_trim_done(softc->cam_iosched);
 			adaschedule(periph);
 			cam_periph_unlock(periph);
 			while ((bp1 = TAILQ_FIRST(&queue)) != NULL) {
@@ -1807,6 +2062,7 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 				biodone(bp1);
 			}
 		} else {
+			adaschedule(periph);
 			cam_periph_unlock(periph);
 			biodone(bp);
 		}
@@ -1898,6 +2154,31 @@ out:
 static int
 adaerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
+	struct ada_softc *softc;
+	struct cam_periph *periph;
+
+	periph = xpt_path_periph(ccb->ccb_h.path);
+	softc = (struct ada_softc *)periph->softc;
+
+	switch (ccb->ccb_h.status & CAM_STATUS_MASK) {
+	case CAM_CMD_TIMEOUT:
+#ifdef CAM_IO_STATS
+		softc->timeouts++;
+#endif
+		break;
+	case CAM_REQ_ABORTED:
+	case CAM_REQ_CMP_ERR:
+	case CAM_REQ_TERMIO:
+	case CAM_UNREC_HBA_ERROR:
+	case CAM_DATA_RUN_ERR:
+	case CAM_ATA_STATUS_ERROR:
+#ifdef CAM_IO_STATS
+		softc->errors++;
+#endif
+		break;
+	default:
+		break;
+	}
 
 	return(cam_periph_error(ccb, cam_flags, sense_flags, NULL));
 }
