@@ -200,10 +200,10 @@ parse_fmt(const char *s, enum fd_drivetype type,
 	*out = in;
 
 	for (i = 0;; i++) {
-		if (s == 0)
+		if (s == NULL)
 			break;
 
-		if ((cp = strchr(s, ',')) == 0) {
+		if ((cp = strchr(s, ',')) == NULL) {
 			s1 = strdup(s);
 			if (s1 == NULL)
 				abort();

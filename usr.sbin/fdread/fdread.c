@@ -170,7 +170,7 @@ doread(int fd, FILE *of, const char *_devname)
 	secsize = 128 << fdt.secsize;
 	tracksize = fdt.sectrac * secsize;
 	mediasize = tracksize * fdt.tracks * fdt.heads;
-	if ((trackbuf = malloc(tracksize)) == 0)
+	if ((trackbuf = malloc(tracksize)) == NULL)
 		errx(EX_TEMPFAIL, "out of memory");
 
 	if (!quiet)
