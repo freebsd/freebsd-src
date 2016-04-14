@@ -219,7 +219,7 @@ DEPEND_CFLAGS+=	-MT${.TARGET}
 .if defined(.PARSEDIR)
 # Only add in DEPEND_CFLAGS for CFLAGS on files we expect from DEPENDOBJS
 # as those are the only ones we will include.
-DEPEND_CFLAGS_CONDITION= !empty(DEPENDOBJS:M${.TARGET})
+DEPEND_CFLAGS_CONDITION= "${DEPENDOBJS:M${.TARGET}}" != ""
 CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
 .else
 CFLAGS+=	${DEPEND_CFLAGS}
