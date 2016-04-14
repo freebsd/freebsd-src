@@ -425,7 +425,7 @@ MAKEFAIL=cat
 
 universe_prologue:  upgrade_checks
 universe: universe_prologue
-universe_prologue:
+universe_prologue: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
@@ -511,7 +511,7 @@ universe_kernconf_${TARGET}_${kernel}: .MAKE
 	    "check _.${TARGET}.${kernel} for details"| ${MAKEFAIL}))
 .endfor
 universe: universe_epilogue
-universe_epilogue:
+universe_epilogue: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe completed on `LC_ALL=C date`"
 	@echo "                      (started ${STARTTIME})"

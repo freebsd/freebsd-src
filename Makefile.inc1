@@ -749,12 +749,12 @@ WMAKE_TGTS+=	build${libcompat}
 buildworld: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue
 .ORDER: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue
 
-buildworld_prologue:
+buildworld_prologue: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> World build started on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
 
-buildworld_epilogue:
+buildworld_epilogue: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> World build completed on `LC_ALL=C date`"
