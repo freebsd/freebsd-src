@@ -101,6 +101,17 @@ elf64_exec(struct preloaded_file *fp)
 	char			buf[24];
 	int			revision;
 
+	/*
+	 * Report the RSDP to the kernel. While this can be found with
+	 * a BIOS boot, the RSDP may be elsewhere when booted from UEFI.
+	 * The old code used the 'hints' method to communite this to
+	 * the kernel. However, while convenient, the 'hints' method
+	 * is fragile and does not work when static hints are compiled
+	 * into the kernel. Instead, move to setting different tunables
+	 * that start with acpi. The old 'hints' can be removed before
+	 * we branch for FreeBSD 12.
+	 */
+
 	rsdp = efi_get_table(&acpi20_guid);
 	if (rsdp == NULL) {
 		rsdp = efi_get_table(&acpi_guid);
@@ -108,23 +119,29 @@ elf64_exec(struct preloaded_file *fp)
 	if (rsdp != NULL) {
 		sprintf(buf, "0x%016llx", (unsigned long long)rsdp);
 		setenv("hint.acpi.0.rsdp", buf, 1);
+		setenv("acpi.rsdp", buf, 1);
 		revision = rsdp->Revision;
 		if (revision == 0)
 			revision = 1;
 		sprintf(buf, "%d", revision);
 		setenv("hint.acpi.0.revision", buf, 1);
+		setenv("acpi.revision", buf, 1);
 		strncpy(buf, rsdp->OemId, sizeof(rsdp->OemId));
 		buf[sizeof(rsdp->OemId)] = '\0';
 		setenv("hint.acpi.0.oem", buf, 1);
+		setenv("acpi.oem", buf, 1);
 		sprintf(buf, "0x%016x", rsdp->RsdtPhysicalAddress);
 		setenv("hint.acpi.0.rsdt", buf, 1);
+		setenv("acpi.rsdt", buf, 1);
 		if (revision >= 2) {
 			/* XXX extended checksum? */
 			sprintf(buf, "0x%016llx",
 			    (unsigned long long)rsdp->XsdtPhysicalAddress);
 			setenv("hint.acpi.0.xsdt", buf, 1);
+			setenv("acpi.xsdt", buf, 1);
 			sprintf(buf, "%d", rsdp->Length);
 			setenv("hint.acpi.0.xsdt_length", buf, 1);
+			setenv("acpi.xsdt_length", buf, 1);
 		}
 	}
 
