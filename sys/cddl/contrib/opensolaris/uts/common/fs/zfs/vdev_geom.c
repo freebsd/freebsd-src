@@ -625,7 +625,8 @@ vdev_geom_open_by_guids(vdev_t *vd)
 
 	g_topology_assert();
 
-	ZFS_LOG(1, "Searching by guid [%ju].", (uintmax_t)vd->vdev_guid);
+	ZFS_LOG(1, "Searching by guids [%ju:%ju].",
+		(uintmax_t)spa_guid(vd->vdev_spa), (uintmax_t)vd->vdev_guid);
 	cp = vdev_geom_attach_by_guids(vd);
 	if (cp != NULL) {
 		len = strlen(cp->provider->name) + strlen("/dev/") + 1;
