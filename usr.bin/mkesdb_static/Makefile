@@ -13,3 +13,5 @@ build-tools: mkesdb_static
 
 .include "${.CURDIR}/../mkesdb/Makefile.inc"
 .include <bsd.prog.mk>
+
+${PROG}: ${BUILD_TOOLS_META}
