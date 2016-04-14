@@ -456,12 +456,15 @@ s/\$//g
 		if (argc != 0 && !flag("NOARGS") && !flag("NOPROTO") && \
 		    !flag("NODEF")) {
 			printf("struct %s {\n", argalias) > sysarg
-			for (i = 1; i <= argc; i++)
+			for (i = 1; i <= argc; i++) {
+				a_type = argtype[i]
+				gsub (/__restrict/, "", a_type)
 				printf("\tchar %s_l_[PADL_(%s)]; " \
 				    "%s %s; char %s_r_[PADR_(%s)];\n",
-				    argname[i], argtype[i],
-				    argtype[i], argname[i],
-				    argname[i], argtype[i]) > sysarg
+				    argname[i], a_type,
+				    a_type, argname[i],
+				    argname[i], a_type) > sysarg
+			}
 			printf("};\n") > sysarg
 		}
 		else if (!flag("NOARGS") && !flag("NOPROTO") && !flag("NODEF"))
