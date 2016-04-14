@@ -57,10 +57,11 @@ snf_pcap_stats(pcap_t *p, struct pcap_stat *ps)
 static void
 snf_platform_cleanup(pcap_t *p)
 {
-	struct pcap_snf *ps = p->priv;
+	struct pcap_snf *ps;
 
 	if (p == NULL)
 		return;
+	ps = p->priv;
 
 	snf_ring_close(ps->snf_ring);
 	snf_close(ps->snf_handle);
