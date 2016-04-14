@@ -18,7 +18,7 @@ all clean cleandir depend lint tags:
 beforeinstall: ${SHARED}
 META_TARGETS+=	copies symlinks
 
-copies: ${META_DEPS}
+copies:
 	if [ -L ${DDIR}/${CFDIR} ]; then rm -f ${DDIR}/${CFDIR}; fi
 .for dir in ${CFDIRS}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 755 -d ${DDIR}/${dir}
@@ -27,7 +27,7 @@ copies: ${META_DEPS}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 ${SENDMAIL_DIR}/${file} ${DDIR}/${file}
 .endfor
 
-symlinks: ${META_DEPS}
+symlinks:
 	rm -rf ${DDIR}/${CFDIR}; ln -s ${SENDMAIL_DIR}/${CFDIR} ${DDIR}/${CFDIR}
 
 .include <bsd.prog.mk>

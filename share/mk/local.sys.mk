@@ -32,6 +32,10 @@ OBJTOP?= ${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
 .if ${.MAKE.MODE:Mmeta*} != ""
 # we can afford to use cookies to prevent some targets
 # re-running needlessly but only when using filemon.
+# Targets that should support the meta mode cookie handling should just be
+# added to META_TARGETS.  If bsd.sys.mk cannot be included then ${META_DEPS}
+# should be added as a target dependency as well.  Otherwise the target
+# is added to in bsd.sys.mk since it comes last.
 .if ${.MAKE.MODE:Mnofilemon} == ""
 META_COOKIE_COND=	empty(.TARGET:M${.OBJDIR})
 META_COOKIE=		${COOKIE.${.TARGET}:U${${META_COOKIE_COND}:?${.OBJDIR}/${.TARGET}:${.TARGET}}}
