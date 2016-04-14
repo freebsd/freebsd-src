@@ -355,7 +355,7 @@ dumpstate(struct kvmvars *kvp)
 
 	setprof(kvp, GMON_PROF_OFF);
 	fp = fopen("gmon.out", "w");
-	if (fp == 0) {
+	if (fp == NULL) {
 		warn("gmon.out");
 		return;
 	}
