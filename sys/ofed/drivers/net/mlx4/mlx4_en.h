@@ -316,9 +316,6 @@ struct mlx4_en_rx_ring {
 	u32 cons;
 	u32 buf_size;
 	u8  fcs_del;
-	u16 rx_alloc_order;
-	u32 rx_alloc_size;
-	u32 rx_buf_size;
 	u32 rx_mb_size;
 	int qpn;
 	u8 *buf;
@@ -557,9 +554,6 @@ struct mlx4_en_priv {
 	u32 tx_ring_num;
 	u32 rx_ring_num;
 	u32 rx_mb_size;
-	u16 rx_alloc_order;
-	u32 rx_alloc_size;
-	u32 rx_buf_size;
 
 	struct mlx4_en_tx_ring **tx_ring;
 	struct mlx4_en_rx_ring *rx_ring[MAX_RX_RINGS];
