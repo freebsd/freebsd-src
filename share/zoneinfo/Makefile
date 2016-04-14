@@ -72,7 +72,7 @@ all: zoneinfo
 .endif
 META_TARGETS+=	zoneinfo install-zoneinfo
 
-zoneinfo: yearistype ${TDATA} ${META_DEPS}
+zoneinfo: yearistype ${TDATA}
 	mkdir -p ${TZBUILDDIR}
 	cd ${TZBUILDDIR}; mkdir -p ${TZBUILDSUBDIRS}
 	umask 022; cd ${.CURDIR}; \
@@ -80,7 +80,7 @@ zoneinfo: yearistype ${TDATA} ${META_DEPS}
 	    ${LEAPFILE} -y ${.OBJDIR}/yearistype ${TZFILES}
 
 beforeinstall: install-zoneinfo
-install-zoneinfo: ${META_DEPS}
+install-zoneinfo:
 	cd ${TZBUILDDIR} && \
 	    find -s * -type f -print -exec ${INSTALL} \
 	    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \

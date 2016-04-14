@@ -297,3 +297,10 @@ STAGE_SYMLINKS.links= ${SYMLINKS}
 .endif
 .endif
 
+.if defined(META_TARGETS)
+.for _tgt in ${META_TARGETS}
+.if target(${_tgt})
+${_tgt}: ${META_DEPS}
+.endif
+.endfor
+.endif
