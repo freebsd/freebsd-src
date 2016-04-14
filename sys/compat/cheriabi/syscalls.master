@@ -117,20 +117,20 @@
 				    _Out_writes_bytes_(len) caddr_t buf, \
 				    size_t len, int flags, \
 				    _Out_writes_bytes_opt_(*fromlenaddr) \
-				    struct sockaddr * restrict from, \
+				    struct sockaddr * __restrict from, \
 				    _Inout_opt_ \
-				    socklen_t * restrict fromlenaddr); }
+				    socklen_t * __restrict fromlenaddr); }
 30	AUE_ACCEPT	NOPROTO	{ int accept(int s, \
 				    _Out_writes_bytes_(*anamelen) \
-				    struct sockaddr * restrict name, \
+				    struct sockaddr * __restrict name, \
 				    _Inout_opt_ socklen_t *anamelen); }
 31	AUE_GETPEERNAME	NOPROTO	{ int getpeername(int fdes, \
 				    _Out_writes_bytes_(*alen) \
-				    struct sockaddr * restrict asa, \
+				    struct sockaddr * __restrict asa, \
 				    _Inout_opt_ socklen_t *alen); }
 32	AUE_GETSOCKNAME	NOPROTO	{ int getsockname(int fdes, \
 				    _Out_writes_bytes_(*alen) \
-				    struct sockaddr * restrict asa, \
+				    struct sockaddr * __restrict asa, \
 				    _Inout_ socklen_t *alen); }
 33	AUE_ACCESS	NOPROTO	{ int access(_In_z_ char *path, int amode); }
 34	AUE_CHFLAGS	NOPROTO	{ int chflags(_In_z_ const char *path, \
