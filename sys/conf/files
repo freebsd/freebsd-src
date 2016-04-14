@@ -68,6 +68,7 @@ usbdevs_data.h			optional usb				   \
 	clean		"usbdevs_data.h"
 cam/cam.c			optional scbus
 cam/cam_compat.c		optional scbus
+cam/cam_iosched.c		optional scbus
 cam/cam_periph.c		optional scbus
 cam/cam_queue.c			optional scbus
 cam/cam_sim.c			optional scbus
