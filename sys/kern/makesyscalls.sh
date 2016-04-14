@@ -940,11 +940,11 @@ s/\$//g
 		# XXX-BD: should this be an assert instead?
 		printf("\tif (syscall < 0 || syscall >= %sMAXSYSCALL)\n",
 		    syscallprefix) > cheriabi_dispatch_fill_uap
-		printf("\t\treturn (EINVAL);\n\n") > cheriabi_dispatch_fill_uap
+		printf("\t\treturn (ENOSYS);\n\n") > cheriabi_dispatch_fill_uap
 		printf("\tif (cheriabi_fill_uap_funcs[syscall] != NULL)\n") > cheriabi_dispatch_fill_uap
 		printf("\t\treturn (cheriabi_fill_uap_funcs[syscall](td, uap));\n") > cheriabi_dispatch_fill_uap
 		printf("\telse\n") > cheriabi_dispatch_fill_uap
-		printf("\t\treturn(EINVAL);\n") > cheriabi_dispatch_fill_uap
+		printf("\t\treturn(ENOSYS);\n") > cheriabi_dispatch_fill_uap
 		printf("}\n\n") > cheriabi_dispatch_fill_uap
 		printf("#endif /* !%s */\n", cheriabi_dispatch_fill_uap_h) > cheriabi_dispatch_fill_uap
 
