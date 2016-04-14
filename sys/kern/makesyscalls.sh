@@ -327,27 +327,21 @@ s/\$//g
 	function print_cheriabi_fill_uap_func(i, a_saltype, a_name, dep, pdep) {
 		annotation = a_saltype
 		gsub(/ .*/, "", annotation)
-		if (annotation !~ /^_In.*/ && annotation !~ /^_Out.*/ &&
-		   annotation !~ /^_Pagerange.*/)
-			printf("unannotated pointer arg %s in %s\n",
-			    a_name, funcalias) > "/dev/stderr"
+		if (cheriabi_fill_uap != "/dev/null")
+			if (annotation !~ /^_In.*/ && annotation !~ /^_Out.*/)
+				printf("unannotated pointer arg %s in %s\n",
+				    a_name, funcalias) > "/dev/stderr"
+
 		printf("\n\t/* [%d] %s %s */\n", i-1,
 		    a_saltype, a_name) > cheriabi_fill_uap
-		printf("\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
-		    syscallprefix, funcalias, i-1) > cheriabi_fill_uap
-		printf("\tCHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);\n") > cheriabi_fill_uap
-		printf("\tCHERI_CGETTAG(tag, CHERI_CR_CTEMP0);\n") > cheriabi_fill_uap
-		printf("\tif (!tag) {\n") > cheriabi_fill_uap
-		if (annotation !~ /_opt_/) {
-			printf("\t\treturn (EPROT);\n") > cheriabi_fill_uap
-		} else {
-			printf("\t\tCHERI_CTOINT(uap->%s, CHERI_CR_CTEMP0);\n", a_name) > cheriabi_fill_uap
-			printf("\t\tif (uap->%s != NULL)\n",
-			     a_name) > cheriabi_fill_uap
-			printf("\t\t\treturn (EPROT);\n") > cheriabi_fill_uap
-		}
-		printf("\t} else {\n") > cheriabi_fill_uap
-		# XXX-BD: exclude perm check for _pagerange_?
+		printf("\t{\n") > cheriabi_fill_uap
+		printf("\t\tint error;\n") > cheriabi_fill_uap
+
+		if (annotation !~ /_opt_/)
+			may_be_null = "0"
+		else
+			may_be_null = "1"
+
 		reqperms = "CHERI_PERM_GLOBAL"
 		if (annotation ~ /^_In/) {
 			reqperms = reqperms "|CHERI_PERM_LOAD"
@@ -360,17 +354,8 @@ s/\$//g
 			if (a_saltype ~ /_c \*/)
 				reqperms = reqperms "|CHERI_PERM_STORE_CAP"
 		}
-		# Check permissions
-		printf("\t\tCHERI_CGETPERM(perms, CHERI_CR_CTEMP0);\n") > cheriabi_fill_uap
-		printf("\t\treqperms = (%s);\n", reqperms) > cheriabi_fill_uap
-		printf("\t\tif ((perms & reqperms) != reqperms)\n") > cheriabi_fill_uap
-		printf("\t\t\treturn (EPROT);\n") > cheriabi_fill_uap
-
-		# Only allowed unsealed capabilities (for now)
-		printf("\n") > cheriabi_fill_uap
-		printf("\t\tCHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);\n") > cheriabi_fill_uap
-		printf("\t\tif (sealed)\n") > cheriabi_fill_uap
-		printf("\t\t\treturn (EPROT);\n") > cheriabi_fill_uap
+		printf("\t\tregister_t reqperms = (%s);\n",
+		    reqperms) > cheriabi_fill_uap
 
 		# Check there is enough space
 		printf("\n") > cheriabi_fill_uap
@@ -402,34 +387,74 @@ s/\$//g
 			printf("\t\t\tpanic(\"unhandled dependant argument size %%zu\", sizeof(uap->%s));\n", pdep) > cheriabi_fill_uap
 			printf("\t\treqlen = fuword(uap->%s);\n", pdep) > cheriabi_fill_uap
 			printf("\t\tif (reqlen == -1)\n\t\t\treturn (EINVAL);\n") > cheriabi_fill_uap
-			# XXX: no _Pagerange_ consumers
 			if (annotation ~ /_bytes_/)
 				reqspace = "reqlen"
 			else
 				reqspace = sprintf("(sizeof(*uap->%s) * reqlen)", a_name);
 		} else
 			reqspace = sprintf("sizeof(*uap->%s)", a_name)
-		printf("\t\tCHERI_CGETLEN(length, CHERI_CR_CTEMP0);\n") > cheriabi_fill_uap
-		printf("\t\tCHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);\n") > cheriabi_fill_uap
-		printf("\t\tif (offset >= length)\n") > cheriabi_fill_uap
-		printf("\t\t\treturn (EPROT);\n") > cheriabi_fill_uap
-		printf("\t\tlength -= offset;\n") > cheriabi_fill_uap
-		if (annotation ~ /_Pagerange_/) {
-			# NB: base + offset can not overflow because
-			# we have enforced (offset < length).
-			printf("\t\tCHERI_CGETLEN(base, CHERI_CR_CTEMP0);\n") > cheriabi_fill_uap
-			printf("\t\tif (rounddown2(base + offset, PAGE_SIZE) < base)\n") > cheriabi_fill_uap
-			printf("\t\t\treturn (EPROT);\n") > cheriabi_fill_uap
-			printf("\t\tsize_t adjust;\n") > cheriabi_fill_uap
-			printf("\t\tadjust = ((base + offset) & PAGE_MASK);\n") > cheriabi_fill_uap
-			printf("\t\tlength += adjust;\n") > cheriabi_fill_uap
-		}
-		printf("\t\tif (length < %s)\n", reqspace) > cheriabi_fill_uap
-		printf("\t\t\treturn (EPROT);\n") > cheriabi_fill_uap
 
-		# Load the actual pointer value
+		printf("\t\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
+		    syscallprefix, funcalias, i-1) > cheriabi_fill_uap
+		printf("\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", a_name) > cheriabi_fill_uap
+		printf("\t\t    &tmpcap, %s, reqperms, %s);\n",
+		    reqspace, may_be_null) > cheriabi_fill_uap
+		printf("\t\tif (error != 0)\n\t\t\treturn (error);\n") > cheriabi_fill_uap
+
+		printf("\t}\n") > cheriabi_fill_uap
+	}
+	function print_cheriabi_pagerange_fill_uap_func(i, a_saltype, a_name, dep, pdep) {
+		annotation = a_saltype
+		gsub(/ .*/, "", annotation)
+		if (annotation !~ /^_Pagerange.*/)
+			printf("unannotated pointer arg %s in %s\n",
+			    a_name, funcalias) > "/dev/stderr"
+
+		printf("\n\t/* [%d] %s %s */\n", i-1,
+		    a_saltype, a_name) > cheriabi_fill_uap
+
+		printf("\t{\n") > cheriabi_fill_uap
+		printf("\t\tint error;\n") > cheriabi_fill_uap
+
+		if (annotation !~ /_opt_/)
+			may_be_null = "0"
+		else
+			may_be_null = "1"
+
 		printf("\n") > cheriabi_fill_uap
-		printf("\t\tCHERI_CTOPTR(uap->%s, CHERI_CR_CTEMP0, CHERI_CR_KDC);\n", a_name) > cheriabi_fill_uap
+		if (dep != "") {
+			if (dep ~ /^[0-9]*$/)
+				count = dep
+			else
+				count = "uap->" dep
+			reqspace = count
+		} else if (pdep != "") {
+			printf("\t\tif (uap->%s == NULL)\n\t\t\treturn (EINVAL);\n", pdep) > cheriabi_fill_uap
+			# XXX-BD: it is hard to know how big the type is
+			# here in awk, so punt and let the compiler remove
+			# the branches that can not happen.
+			printf("\t\tsize_t reqlen;\n") > cheriabi_fill_uap
+			printf("\t\tif (sizeof(uap->%s) == 2)\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\treqlen = fuword16(uap->%s);\n", pdep) > cheriabi_fill_uap
+			printf("\t\telse if (sizeof(uap->%s) == 4)\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\treqlen = fuword32(uap->%s);\n", pdep) > cheriabi_fill_uap
+			printf("\t\telse if (sizeof(uap->%s) == 8)\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\treqlen = fuword64(uap->%s);\n", pdep) > cheriabi_fill_uap
+			printf("\t\telse\n") > cheriabi_fill_uap
+			printf("\t\t\tpanic(\"unhandled dependant argument size %%zu\", sizeof(uap->%s));\n", pdep) > cheriabi_fill_uap
+			printf("\t\treqlen = fuword(uap->%s);\n", pdep) > cheriabi_fill_uap
+			printf("\t\tif (reqlen == -1)\n\t\t\treturn (EINVAL);\n") > cheriabi_fill_uap
+			reqspace = "reqlen"
+		} else
+			printf("%s %s has no length constraint",
+			    a_saltype, a_name) > "/dev/stderr"
+
+		printf("\t\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
+		    syscallprefix, funcalias, i-1) > cheriabi_fill_uap
+		printf("\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", a_name) > cheriabi_fill_uap
+		printf("\t\t    &tmpcap, %s, CHERI_PERM_GLOBAL, %s);\n",
+		    reqspace, may_be_null) > cheriabi_fill_uap
+		printf("\t\tif (error != 0)\n\t\t\treturn (error);\n") > cheriabi_fill_uap
 		printf("\t}\n") > cheriabi_fill_uap
 	}
 	function parserr(was, wanted) {
@@ -688,13 +713,6 @@ s/\$//g
 			printf("    struct %s *uap)\n{\n",
 			    argalias) > cheriabi_fill_uap
 			printf("\tstruct chericap tmpcap;\n") > cheriabi_fill_uap
-			if (pointers != 0) {
-				printf("\tu_int tag;\n") > cheriabi_fill_uap
-				printf("\tregister_t perms, reqperms;\n") > cheriabi_fill_uap
-				printf("\tregister_t sealed;\n") > cheriabi_fill_uap
-				# XXX-BD: avoid emitting base when unused...
-				printf("\tsize_t base __unused, length, offset;\n") > cheriabi_fill_uap
-			}
 			# Process all the integer arguments
 			for (i = 1; i <= argc; i++) {
 				if (isptrtype(argtype[i]))
@@ -713,8 +731,14 @@ s/\$//g
 					continue
 				if (i in pdeps)
 					continue
-				print_cheriabi_fill_uap_func(i, argsaltype[i],
-				    argname[i], deps[i], "")
+				if (argsaltype[i] ~ /_Pagerange_/)
+					print_cheriabi_pagerange_fill_uap_func(i,
+					    argsaltype[i], argname[i],
+					    deps[i], "")
+				else
+					print_cheriabi_fill_uap_func(i,
+					    argsaltype[i], argname[i],
+					    deps[i], "")
 			}
 			# Process pointer arguments that DO depend on
 			# dereferenced pointers.
@@ -723,8 +747,14 @@ s/\$//g
 					continue
 				if (!(i in pdeps))
 					continue
-				print_cheriabi_fill_uap_func(i, argsaltype[i],
-				    argname[i], "", pdeps[i])
+				if (argsaltype[i] ~ /_Pagerange_/)
+					print_cheriabi_pagerange_fill_uap_func(i,
+					    argsaltype[i], argname[i],
+					    deps[i], "")
+				else
+					print_cheriabi_fill_uap_func(i,
+					    argsaltype[i], argname[i], "",
+					    pdeps[i])
 			}
 			printf("\n\treturn (0);\n") > cheriabi_fill_uap
 			printf("}\n\n") > cheriabi_fill_uap
