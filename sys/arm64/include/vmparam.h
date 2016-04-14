@@ -162,19 +162,19 @@
 #define	VM_MIN_KERNEL_ADDRESS	(0xffff000000000000UL)
 #define	VM_MAX_KERNEL_ADDRESS	(0xffff008000000000UL)
 
-/* 2TiB for the direct map region */
+/* 2 TiB maximum for the direct map region */
 #define	DMAP_MIN_ADDRESS	(0xfffffd0000000000UL)
 #define	DMAP_MAX_ADDRESS	(0xffffff0000000000UL)
 
 #define	DMAP_MIN_PHYSADDR	(dmap_phys_base)
-#define	DMAP_MAX_PHYSADDR	(dmap_phys_base + (DMAP_MAX_ADDRESS - DMAP_MIN_ADDRESS))
+#define	DMAP_MAX_PHYSADDR	(dmap_phys_max)
 
 /* True if pa is in the dmap range */
 #define	PHYS_IN_DMAP(pa)	((pa) >= DMAP_MIN_PHYSADDR && \
     (pa) < DMAP_MAX_PHYSADDR)
 /* True if va is in the dmap range */
 #define	VIRT_IN_DMAP(va)	((va) >= DMAP_MIN_ADDRESS && \
-    (va) < DMAP_MAX_ADDRESS)
+    (va) < (dmap_max_addr))
 
 #define	PHYS_TO_DMAP(pa)						\
 ({									\
@@ -237,6 +237,8 @@
 #ifndef LOCORE
 
 extern vm_paddr_t dmap_phys_base;
+extern vm_paddr_t dmap_phys_max;
+extern vm_offset_t dmap_max_addr;
 extern u_int tsb_kernel_ldd_phys;
 extern vm_offset_t vm_max_kernel_address;
 extern vm_offset_t init_pt_va;
