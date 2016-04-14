@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 	.data
 	.align	3
 	.globl	_C_LABEL(minbrk)
+	.hidden	_C_LABEL(minbrk)
 	.type	_C_LABEL(minbrk),#object
 _C_LABEL(minbrk):
 	.quad	_C_LABEL(_end)
