@@ -69,6 +69,7 @@
 
 #define MLX4_EN_PAGE_SHIFT	12
 #define MLX4_EN_PAGE_SIZE	(1 << MLX4_EN_PAGE_SHIFT)
+#define	MLX4_NET_IP_ALIGN	2	/* bytes */
 #define DEF_RX_RINGS		16
 #define MAX_RX_RINGS		128
 #define MIN_RX_RINGS		4
