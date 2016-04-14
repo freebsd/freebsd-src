@@ -1905,7 +1905,7 @@ g_mirror_worker(void *arg)
 				g_mirror_sync_request(bp);	/* WRITE */
 			else {
 				KASSERT(0,
-				    ("Invalid request cflags=0x%hhx to=%s.",
+				    ("Invalid request cflags=0x%hx to=%s.",
 				    bp->bio_cflags, bp->bio_to->name));
 			}
 		} else {
