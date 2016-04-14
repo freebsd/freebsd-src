@@ -53,8 +53,8 @@ static void table_lock(ipfw_obj_header *oh, int lock);
 static int table_swap(ipfw_obj_header *oh, char *second);
 static int table_get_info(ipfw_obj_header *oh, ipfw_xtable_info *i);
 static int table_show_info(ipfw_xtable_info *i, void *arg);
-static void table_fill_ntlv(ipfw_obj_ntlv *ntlv, char *name, uint32_t set,
-    uint16_t uidx);
+static void table_fill_ntlv(ipfw_obj_ntlv *ntlv, const char *name,
+    uint32_t set, uint16_t uidx);
 
 static int table_flush_one(ipfw_xtable_info *i, void *arg);
 static int table_show_one(ipfw_xtable_info *i, void *arg);
@@ -128,18 +128,6 @@ lookup_host (char *host, struct in_addr *ipaddr)
 		*ipaddr = *(struct in_addr *)he->h_addr_list[0];
 	}
 	return(0);
-}
-
-static int
-get_token(struct _s_x *table, char *string, char *errbase)
-{
-	int tcmd;
-
-	if ((tcmd = match_token_relaxed(table, string)) < 0)
-		errx(EX_USAGE, "%s %s %s",
-		    (tcmd == 0) ? "invalid" : "ambiguous", errbase, string);
-
-	return (tcmd);
 }
 
 /*
@@ -293,7 +281,8 @@ ipfw_table_handler(int ac, char *av[])
 }
 
 static void
-table_fill_ntlv(ipfw_obj_ntlv *ntlv, char *name, uint32_t set, uint16_t uidx)
+table_fill_ntlv(ipfw_obj_ntlv *ntlv, const char *name, uint32_t set,
+    uint16_t uidx)
 {
 
 	ntlv->head.type = IPFW_TLV_TBL_NAME;
@@ -1994,30 +1983,14 @@ ipfw_list_values(int ac, char *av[])
 }
 
 int
-table_check_name(char *tablename)
+table_check_name(const char *tablename)
 {
-	int c, i, l;
 
-	/*
-	 * Check if tablename is null-terminated and contains
-	 * valid symbols only. Valid mask is:
-	 * [a-zA-Z0-9\-_\.]{1,63}
-	 */
-	l = strlen(tablename);
-	if (l == 0 || l >= 64)
+	if (ipfw_check_object_name(tablename) != 0)
 		return (EINVAL);
-	for (i = 0; i < l; i++) {
-		c = tablename[i];
-		if (isalpha(c) || isdigit(c) || c == '_' ||
-		    c == '-' || c == '.')
-			continue;
-		return (EINVAL);	
-	}
-
 	/* Restrict some 'special' names */
 	if (strcmp(tablename, "all") == 0)
 		return (EINVAL);
-
 	return (0);
 }
 

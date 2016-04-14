@@ -256,9 +256,11 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_SETDSCP,		/* arg1=DSCP value */
 	O_IP_FLOW_LOOKUP,	/* arg1=table number, u32=value	*/
 
+	O_EXTERNAL_ACTION,	/* arg1=id of external action handler */
+	O_EXTERNAL_INSTANCE,	/* arg1=id of eaction handler instance */
+
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
-
 
 /*
  * The extension header are filtered only for presence using a bit
@@ -780,6 +782,10 @@ typedef struct  _ipfw_obj_tlv {
 #define	IPFW_TLV_RULE_ENT	7
 #define	IPFW_TLV_TBLENT_LIST	8
 #define	IPFW_TLV_RANGE		9
+#define	IPFW_TLV_EACTION	10
+
+#define	IPFW_TLV_EACTION_BASE	1000
+#define	IPFW_TLV_EACTION_NAME(arg)	(IPFW_TLV_EACTION_BASE + (arg))
 
 /* Object name TLV */
 typedef struct _ipfw_obj_ntlv {
