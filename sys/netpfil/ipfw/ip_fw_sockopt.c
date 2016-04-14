@@ -2362,12 +2362,11 @@ unref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule)
  * Find and reference object (if any) stored in instruction @cmd.
  *
  * Saves object info in @pidx, sets
- *  - @found to 1 if object was found and references
  *  - @unresolved to 1 if object should exists but not found
  *
  * Returns non-zero value in case of error.
  */
-int
+static int
 ref_opcode_object(struct ip_fw_chain *ch, ipfw_insn *cmd, struct tid_info *ti,
     struct obj_idx *pidx, int *unresolved)
 {
@@ -2513,7 +2512,7 @@ rewrite_rule_uidx(struct ip_fw_chain *chain, struct rule_check_info *ci)
 	 * to reflect actual number of object opcodes.
 	 */
 
-	/* Perform rule rewrite */
+	/* Perform rewrite of remaining opcodes */
 	p = pidx_first;
 	pidx_last = pidx_first + ci->object_opcodes;
 	for (p = pidx_first; p < pidx_last; p++) {
@@ -2994,7 +2993,7 @@ export_objhash_ntlv_internal(struct namedobj_instance *ni,
 /*
  * Lists all service objects.
  * Data layout (v0)(current):
- * Request: [ ipfw_obj_lheader ] size = ipfw_cfg_lheader.size
+ * Request: [ ipfw_obj_lheader ] size = ipfw_obj_lheader.size
  * Reply: [ ipfw_obj_lheader [ ipfw_obj_ntlv x N ] (optional) ]
  * Returns 0 on success
  */
