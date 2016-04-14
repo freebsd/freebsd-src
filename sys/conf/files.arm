@@ -57,7 +57,6 @@ arm/arm/mpcore_timer.c		optional	mpcore_timer
 arm/arm/nexus.c			standard
 arm/arm/ofw_machdep.c		optional	fdt
 arm/arm/physmem.c		standard
-kern/pic_if.m			optional	arm_intrng
 arm/arm/pl190.c			optional	pl190
 arm/arm/pl310.c			optional	pl310
 arm/arm/platform.c		optional	platform
@@ -116,6 +115,7 @@ font.h				optional	sc			\
 	compile-with	"uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h" \
 	no-obj no-implicit-rule before-depend				\
 	clean	"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
+kern/pic_if.m			optional	arm_intrng
 kern/subr_busdma_bufalloc.c	standard
 kern/subr_sfbuf.c		standard
 libkern/arm/aeabi_unwind.c	standard
