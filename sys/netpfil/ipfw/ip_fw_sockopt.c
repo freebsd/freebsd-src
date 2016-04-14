@@ -4063,7 +4063,8 @@ ipfw_objhash_lookup_name_type(struct namedobj_instance *ni, uint32_t set,
 	hash = ni->hash_f(ni, name, set) % ni->nn_size;
 
 	TAILQ_FOREACH(no, &ni->names[hash], nn_next) {
-		if (ni->cmp_f(no, name, set) == 0 && no->etlv == type)
+		if (ni->cmp_f(no, name, set) == 0 &&
+		    no->etlv == (uint16_t)type)
 			return (no);
 	}
 
