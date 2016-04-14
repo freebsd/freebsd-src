@@ -686,7 +686,8 @@ mqfs_init(struct vfsconf *vfc)
 	    EVENTHANDLER_PRI_ANY);
 	mq_fdclose = mqueue_fdclose;
 	p31b_setcfg(CTL_P1003_1B_MESSAGE_PASSING, _POSIX_MESSAGE_PASSING);
-	/* Note current jails */
+
+	/* Note current jails. */
 	mqfs_osd_jail_slot = osd_jail_register(mqfs_prison_destructor, methods);
 	sx_slock(&allprison_lock);
 	TAILQ_FOREACH(pr, &allprison, pr_list)
@@ -1423,6 +1424,7 @@ mqfs_readdir(struct vop_readdir_args *ap)
 
 	LIST_FOREACH(pn, &pd->mn_children, mn_sibling) {
 		entry.d_reclen = sizeof(entry);
+
 		/*
 		 * Only show names within the same prison root directory
 		 * (or not associated with a prison, e.g. "." and "..").
