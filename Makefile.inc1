@@ -311,6 +311,7 @@ CROSSENV+=	${TARGET_CFLAGS}
 
 # bootstrap-tools stage
 BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
+		TOOLS_PREFIX=${WORLDTMP} \
 		PATH=${BPATH}:${PATH} \
 		WORLDTMP=${WORLDTMP} \
 		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}"
