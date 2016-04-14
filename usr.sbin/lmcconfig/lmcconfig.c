@@ -2008,7 +2008,7 @@ load_xilinx(char *name)
   int c;
 
   if (verbose) printf("Load firmware from file %s...\n", name);
-  if ((f = fopen(name, "r")) == 0)
+  if ((f = fopen(name, "r")) == NULL)
     {
     perror("Failed to open file");
     exit(1);
