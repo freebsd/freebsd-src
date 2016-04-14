@@ -685,14 +685,6 @@ void ipfw_destroy_obj_rewriter(void);
 void ipfw_add_obj_rewriter(struct opcode_obj_rewrite *rw, size_t count);
 int ipfw_del_obj_rewriter(struct opcode_obj_rewrite *rw, size_t count);
 
-int ipfw_rewrite_rule_uidx(struct ip_fw_chain *chain,
-    struct rule_check_info *ci);
-int ipfw_mark_object_kidx(struct ip_fw_chain *chain, struct ip_fw *rule,
-    uint32_t *bmask);
-int ref_opcode_object(struct ip_fw_chain *ch, ipfw_insn *cmd, struct tid_info *ti,
-    struct obj_idx *pidx, int *found, int *unresolved);
-void unref_oib_objects(struct ip_fw_chain *ch, ipfw_insn *cmd,
-    struct obj_idx *oib, struct obj_idx *end);
 int create_objects_compat(struct ip_fw_chain *ch, ipfw_insn *cmd,
     struct obj_idx *oib, struct obj_idx *pidx, struct tid_info *ti);
 void update_opcode_kidx(ipfw_insn *cmd, uint16_t idx);
