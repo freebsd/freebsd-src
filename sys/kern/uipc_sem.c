@@ -271,13 +271,11 @@ ksem_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	mtx_unlock(&sem_lock);
 	if (ks->ks_path != NULL) {
 		sx_slock(&ksem_dict_lock);
-		if (ks->ks_path != NULL)
-		{
+		if (ks->ks_path != NULL) {
 			path = ks->ks_path;
 			pr_path = curthread->td_ucred->cr_prison->pr_path;
-			if (strcmp(pr_path, "/") != 0)
-			{
-				/* Return the jail-rooted pathname */
+			if (strcmp(pr_path, "/") != 0) {
+				/* Return the jail-rooted pathname. */
 				pr_pathlen = strlen(pr_path);
 				if (strncmp(path, pr_path, pr_pathlen) == 0 &&
 				    path[pr_pathlen] == '/')
@@ -503,7 +501,8 @@ ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
 	} else {
 		path = malloc(MAXPATHLEN, M_KSEM, M_WAITOK);
 		pr_path = td->td_ucred->cr_prison->pr_path;
-		/* Construct a full pathname for jailed callers */
+
+		/* Construct a full pathname for jailed callers. */
 		pr_pathlen = strcmp(pr_path, "/") == 0 ? 0
 		    : strlcpy(path, pr_path, MAXPATHLEN);
 		error = copyinstr(name, path + pr_pathlen,

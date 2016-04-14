@@ -727,7 +727,8 @@ kern_shm_open(struct thread *td, const char *userpath, int flags, mode_t mode,
 	} else {
 		path = malloc(MAXPATHLEN, M_SHMFD, M_WAITOK);
 		pr_path = td->td_ucred->cr_prison->pr_path;
-		/* Construct a full pathname for jailed callers */
+
+		/* Construct a full pathname for jailed callers. */
 		pr_pathlen = strcmp(pr_path, "/") == 0 ? 0
 		    : strlcpy(path, pr_path, MAXPATHLEN);
 		error = copyinstr(userpath, path + pr_pathlen,
@@ -1088,13 +1089,11 @@ shm_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	kif->kf_un.kf_file.kf_file_size = shmfd->shm_size;
 	if (shmfd->shm_path != NULL) {
 		sx_slock(&shm_dict_lock);
-		if (shmfd->shm_path != NULL)
-		{
+		if (shmfd->shm_path != NULL) {
 			path = shmfd->shm_path;
 			pr_path = curthread->td_ucred->cr_prison->pr_path;
-			if (strcmp(pr_path, "/") != 0)
-			{
-				/* Return the jail-rooted pathname */
+			if (strcmp(pr_path, "/") != 0) {
+				/* Return the jail-rooted pathname. */
 				pr_pathlen = strlen(pr_path);
 				if (strncmp(path, pr_path, pr_pathlen) == 0 &&
 				    path[pr_pathlen] == '/')
