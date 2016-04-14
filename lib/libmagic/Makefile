@@ -39,7 +39,7 @@ magic.mgc: mkmagic magic
 
 CLEANFILES+=	mkmagic
 build-tools: mkmagic
-mkmagic: apprentice.c cdf_time.c encoding.c funcs.c magic.c print.c
+mkmagic: apprentice.c cdf_time.c encoding.c funcs.c magic.c print.c ${BUILD_TOOLS_META}
 	${CC} ${CFLAGS} -DCOMPILE_ONLY ${LDFLAGS} -o ${.TARGET} ${.ALLSRC} \
 	    ${LDADD}
 

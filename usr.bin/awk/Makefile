@@ -24,6 +24,6 @@ proctab.c: maketab
 	./maketab > proctab.c
 
 build-tools: maketab
-maketab: ytab.h ${AWKSRC}/maketab.c
+maketab: ytab.h ${AWKSRC}/maketab.c ${BUILD_TOOLS_META}
 
 .include <bsd.prog.mk>
