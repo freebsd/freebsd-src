@@ -1705,7 +1705,7 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 
 		/*
 		 * If addr was under aligned, we need to return a
-		 * capability to the whole, propertly aligned region
+		 * capability to the whole, properly aligned region
 		 * with the offset pointing to addr.
 		 */
 		CHERI_CGETBASE(addr_base, CHERI_CR_CTEMP0);
