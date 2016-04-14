@@ -50,7 +50,7 @@ add_kenv()
 
 display_usage() {
 	cat <<-EOF
-	Usage: nextboot [-e variable=value] [-f] [-k kernel] [-o options]
+	Usage: nextboot [-af] [-e variable=value] [-k kernel] [-o options]
 	       nextboot -D
 	EOF
 }
