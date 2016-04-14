@@ -81,6 +81,8 @@ static int check_ipfw_rule1(struct ip_fw_rule *rule, int size,
     struct rule_check_info *ci);
 static int check_ipfw_rule0(struct ip_fw_rule0 *rule, int size,
     struct rule_check_info *ci);
+static int rewrite_rule_uidx(struct ip_fw_chain *chain,
+    struct rule_check_info *ci);
 
 #define	NAMEDOBJ_HASH_SIZE	32
 
@@ -156,7 +158,13 @@ set_legacy_obj_kidx(struct ip_fw_chain *ch, struct ip_fw_rule0 *rule);
 struct opcode_obj_rewrite *ipfw_find_op_rw(uint16_t opcode);
 static int mark_object_kidx(struct ip_fw_chain *ch, struct ip_fw *rule,
     uint32_t *bmask);
+static int ref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule,
+    struct rule_check_info *ci, struct obj_idx *oib, struct tid_info *ti);
+static int ref_opcode_object(struct ip_fw_chain *ch, ipfw_insn *cmd,
+    struct tid_info *ti, struct obj_idx *pidx, int *found, int *unresolved);
 static void unref_rule_objects(struct ip_fw_chain *chain, struct ip_fw *rule);
+static void unref_oib_objects(struct ip_fw_chain *ch, ipfw_insn *cmd,
+    struct obj_idx *oib, struct obj_idx *end);
 static int export_objhash_ntlv(struct namedobj_instance *ni, uint16_t kidx,
     struct sockopt_data *sd);
 
@@ -675,7 +683,7 @@ commit_rules(struct ip_fw_chain *chain, struct rule_check_info *rci, int count)
 		 * We need to find (and create non-existing)
 		 * kernel objects, and reference existing ones.
 		 */
-		error = ipfw_rewrite_rule_uidx(chain, ci);
+		error = rewrite_rule_uidx(chain, ci);
 		if (error != 0) {
 
 			/*
@@ -2286,7 +2294,7 @@ set_legacy_obj_kidx(struct ip_fw_chain *ch, struct ip_fw_rule0 *rule)
  *
  * Used to rollback partially converted rule on error.
  */
-void
+static void
 unref_oib_objects(struct ip_fw_chain *ch, ipfw_insn *cmd, struct obj_idx *oib,
     struct obj_idx *end)
 {
@@ -2404,6 +2412,137 @@ ref_opcode_object(struct ip_fw_chain *ch, ipfw_insn *cmd, struct tid_info *ti,
 	pidx->kidx = no->kidx;
 
 	return (0);
+}
+
+/*
+ * Finds and bumps refcount for objects referenced by given @rule.
+ * Auto-creates non-existing tables.
+ * Fills in @oib array with userland/kernel indexes.
+ *
+ * Returns 0 on success.
+ */
+static int
+ref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule,
+    struct rule_check_info *ci, struct obj_idx *oib, struct tid_info *ti)
+{
+	int cmdlen, error, l, numnew;
+	ipfw_insn *cmd;
+	struct obj_idx *pidx;
+	int found, unresolved;
+
+	pidx = oib;
+	l = rule->cmd_len;
+	cmd = rule->cmd;
+	cmdlen = 0;
+	error = 0;
+	numnew = 0;
+	found = 0;
+	unresolved = 0;
+
+	IPFW_UH_WLOCK(ch);
+
+	/* Increase refcount on each existing referenced table. */
+	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
+		cmdlen = F_LEN(cmd);
+
+		error = ref_opcode_object(ch, cmd, ti, pidx, &found,
+		    &unresolved);
+		if (error != 0)
+			break;
+		if (found || unresolved) {
+			pidx->off = rule->cmd_len - l;
+			pidx++;
+		}
+		/*
+		 * Compability stuff for old clients:
+		 * prepare to manually create non-existing objects.
+		 */
+		if (unresolved)
+			numnew++;
+	}
+
+	if (error != 0) {
+		/* Unref everything we have already done */
+		unref_oib_objects(ch, rule->cmd, oib, pidx);
+		IPFW_UH_WUNLOCK(ch);
+		return (error);
+	}
+	IPFW_UH_WUNLOCK(ch);
+
+	/* Perform auto-creation for non-existing objects */
+	if (numnew != 0)
+		error = create_objects_compat(ch, rule->cmd, oib, pidx, ti);
+
+	/* Calculate real number of dynamic objects */
+	ci->object_opcodes = (uint16_t)(pidx - oib);
+
+	return (error);
+}
+
+/*
+ * Checks is opcode is referencing table of appropriate type.
+ * Adds reference count for found table if true.
+ * Rewrites user-supplied opcode values with kernel ones.
+ *
+ * Returns 0 on success and appropriate error code otherwise.
+ */
+static int
+rewrite_rule_uidx(struct ip_fw_chain *chain, struct rule_check_info *ci)
+{
+	int error;
+	ipfw_insn *cmd;
+	uint8_t type;
+	struct obj_idx *p, *pidx_first, *pidx_last;
+	struct tid_info ti;
+
+	/*
+	 * Prepare an array for storing opcode indices.
+	 * Use stack allocation by default.
+	 */
+	if (ci->object_opcodes <= (sizeof(ci->obuf)/sizeof(ci->obuf[0]))) {
+		/* Stack */
+		pidx_first = ci->obuf;
+	} else
+		pidx_first = malloc(
+		    ci->object_opcodes * sizeof(struct obj_idx),
+		    M_IPFW, M_WAITOK | M_ZERO);
+
+	error = 0;
+	type = 0;
+	memset(&ti, 0, sizeof(ti));
+
+	/*
+	 * Use default set for looking up tables (old way) or
+	 * use set rule is assigned to (new way).
+	 */
+	ti.set = (V_fw_tables_sets != 0) ? ci->krule->set : 0;
+	if (ci->ctlv != NULL) {
+		ti.tlvs = (void *)(ci->ctlv + 1);
+		ti.tlen = ci->ctlv->head.length - sizeof(ipfw_obj_ctlv);
+	}
+
+	/* Reference all used tables and other objects */
+	error = ref_rule_objects(chain, ci->krule, ci, pidx_first, &ti);
+	if (error != 0)
+		goto free;
+	/*
+	 * Note that ref_rule_objects() might have updated ci->object_opcodes
+	 * to reflect actual number of object opcodes.
+	 */
+
+	/* Perform rule rewrite */
+	p = pidx_first;
+	pidx_last = pidx_first + ci->object_opcodes;
+	for (p = pidx_first; p < pidx_last; p++) {
+		cmd = ci->krule->cmd + p->off;
+		update_opcode_kidx(cmd, p->kidx);
+	}
+
+free:
+	if (pidx_first != ci->obuf)
+		free(pidx_first, M_IPFW);
+
+	return (error);
 }
 
 /*
