@@ -144,6 +144,15 @@ CLEANDIR=	clean cleandepend
 CLEANDIR=	cleandir
 .endif
 
+.if ${MK_META_MODE} == "yes"
+# If filemon is used then we can rely on the build being incremental-safe.
+# The .meta files will also track the build command and rebuild should
+# it change.
+.if empty(.MAKE.MODE:Mnofilemon)
+NO_CLEAN=	t
+.endif
+.endif
+
 LOCAL_TOOL_DIRS?=
 PACKAGEDIR?=	${DESTDIR}/${DISTDIR}
 
