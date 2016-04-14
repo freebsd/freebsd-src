@@ -391,9 +391,6 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 		ring->cons = 0;
 		ring->actual_size = 0;
 		ring->cqn = priv->rx_cq[ring_ind]->mcq.cqn;
-		ring->rx_alloc_order = priv->rx_alloc_order;
-		ring->rx_alloc_size = priv->rx_alloc_size;
-		ring->rx_buf_size = priv->rx_buf_size;
                 ring->rx_mb_size = priv->rx_mb_size;
 
 		ring->stride = stride;
