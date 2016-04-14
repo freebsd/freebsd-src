@@ -1484,7 +1484,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 			if (cmd->arg1 == ICMP6_UNREACH_RST)
 				bprintf(bp, "reset6");
 			else
-				print_unreach6_code(cmd->arg1);
+				print_unreach6_code(bp, cmd->arg1);
 			break;
 
 		case O_SKIPTO:
