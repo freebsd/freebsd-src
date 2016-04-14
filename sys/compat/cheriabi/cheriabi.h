@@ -58,6 +58,10 @@ __cheri_cap_to_ptr(struct chericap *c)
 	do { (dst).fld = PTRIN((src).fld); } while (0)
 
 /*
+ * Take a capability and check that it has the expected pointer
+ * properties.  If it does, output a pointer via ptrp and return(0).
+ * Otherwise, return an error.
+ *
  * Design note: I considered adding a may_be_integer flag to handle
  * cases where the value may be a pointer or an integer, but doing so
  * risks allowing the caller to operate on arbitrary virtual addresses.
@@ -96,6 +100,57 @@ cheriabi_cap_to_ptr(caddr_t *ptrp, struct chericap *cap, size_t reqlen,
 			return (EPROT);
 		length -= offset;
 		if (length < reqlen)
+			return (EPROT);
+
+		CHERI_CTOPTR(*ptrp, CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	}
+	return (0);
+}
+
+/*
+ * cheriabi_pagerange_to_ptr() is similar to cheriabi_cap_to_ptr except
+ * that it reqires that the capability complete cover pages the range
+ * touches.  It also does not require an particular permissions beyond
+ * CHERI_PERM_GLOBAL.
+ */
+static inline int
+cheriabi_pagerange_to_ptr(caddr_t *ptrp, struct chericap *cap, size_t reqlen,
+    int may_be_null)
+{
+	u_int tag;
+	register_t perms, reqperms;
+	register_t sealed;
+	size_t adjust, base, length, offset;
+
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, cap, 0);
+	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+	if (!tag) {
+		if (!may_be_null)
+			return (EPROT);
+		CHERI_CTOINT(*ptrp, CHERI_CR_CTEMP0);
+		if (*ptrp != NULL)
+			return (EPROT);
+	} else {
+		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+		reqperms = (CHERI_PERM_GLOBAL);
+		if ((perms & reqperms) != reqperms)
+			return (EPROT);
+
+		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
+		if (sealed)
+			return (EPROT);
+
+		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
+		if (offset >= length)
+			return (EPROT);
+		length -= offset;
+		CHERI_CGETLEN(base, CHERI_CR_CTEMP0);
+		if (rounddown2(base + offset, PAGE_SIZE) < base)
+			return (EPROT);
+		adjust = ((base + offset) & PAGE_MASK);
+		length += adjust;
+		if (length < roundup2(reqlen + adjust, PAGE_SIZE))
 			return (EPROT);
 
 		CHERI_CTOPTR(*ptrp, CHERI_CR_CTEMP0, CHERI_CR_KDC);
