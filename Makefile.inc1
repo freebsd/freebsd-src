@@ -1850,7 +1850,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd lib/libnv \
 		${_lib_casper} \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
-		lib/libopie lib/libpam ${_lib_libthr} \
+		lib/libopie lib/libpam/libpam ${_lib_libthr} \
 		${_lib_libradius} lib/libsbuf lib/libtacplus \
 		lib/libgeom \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
@@ -1862,6 +1862,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_secure_lib_libcrypto} ${_lib_libldns} \
 		${_secure_lib_libssh} ${_secure_lib_libssl} \
 		gnu/lib/libdialog
+
 .if ${MK_GNUCXX} != "no"
 _prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
 gnu/lib/libstdc++__L: lib/msun__L
@@ -2033,7 +2034,7 @@ ${_lib}__PL: .PHONY .MAKE
 .endif
 .endfor
 
-.for _lib in ${_startup_libs} ${_prebuild_libs:Nlib/libpam} ${_generic_libs}
+.for _lib in ${_startup_libs} ${_prebuild_libs} ${_generic_libs}
 ${_lib}__L: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,all,install)"; \
@@ -2043,18 +2044,6 @@ ${_lib}__L: .PHONY .MAKE
 		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ install
 .endif
 .endfor
-
-# libpam is special: we need to build static PAM modules before
-# static PAM library, and dynamic PAM library before dynamic PAM
-# modules.
-lib/libpam__L: .PHONY .MAKE
-	${_+_}@${ECHODIR} "===> lib/libpam (obj,all,install)"; \
-		cd ${.CURDIR}/lib/libpam; \
-		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ obj; \
-		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ \
-		    -D_NO_LIBPAM_SO_YET all; \
-		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ \
-		    -D_NO_LIBPAM_SO_YET install
 
 _prereq_libs: ${_prereq_libs:S/$/__PL/}
 _startup_libs: ${_startup_libs:S/$/__L/}

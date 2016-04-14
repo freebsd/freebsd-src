@@ -35,15 +35,17 @@
 #
 # $FreeBSD$
 
-OPENPAM=	${.CURDIR:H:H:H}/contrib/openpam
-.PATH: ${OPENPAM}/lib
-.PATH: ${OPENPAM}/lib/libpam
+.PATH: ${.CURDIR}/../libpam
 
-all:
+# Only build the static library.
+LIB=	pam
+NO_PIC=
 
-SRCS = openpam_static.c
-
+# Avoid redundancy with the master Makefile.
 MAN=
+INCS=
+MLINKS=
+MK_TESTS=	no
 
 #
 # Static modules
@@ -68,11 +70,7 @@ STATICOBJS+=	openpam_static_modules.o
 CLEANFILES+=	openpam_static.o \
 		openpam_static_modules.o
 
-.include <bsd.prog.mk>
-
-.if empty(_SKIP_BUILD)
 openpam_static_modules.o: openpam_static.o ${STATIC_MODULES}
 	${LD} -o ${.TARGET} -r --whole-archive ${.ALLSRC}
 
-all: ${STATICOBJS}
-.endif
+.include "${.CURDIR}/../libpam/Makefile"
