@@ -169,6 +169,16 @@ main (int argc, char **argv)
     xo_emit("X{P:        }X{Lwc:Cost}{:cost/%u}\n", 425);
     xo_emit("X{P:/%30s}X{Lwc:Cost}{:cost/%u}\n", "", 455);
 
+    xo_emit("{e:mode/%s}{e:mode_octal/%s} {t:links/%s} "
+	    "{t:user/%s}  {t:group/%s}  \n",
+	    "mode", "octal", "links",
+	    "user", "group", "extra1", "extra2", "extra3");
+
+    xo_emit("{t:mode/%s}{e:mode_octal/%03o} {t:links/%*u} "
+	    "{t:user/%-*s}  {t:group/%-*s}  \n",
+	    "/some/file", (int) 0640, 8, 1,
+	    10, "user", 12, "group");
+
     xo_close_container_h(NULL, "top");
 
     xo_finish();

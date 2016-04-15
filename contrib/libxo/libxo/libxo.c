@@ -3378,6 +3378,15 @@ xo_buf_append_div (xo_handle_t *xop, const char *class, xo_xff_flags_t flags,
     static char div_end[] = "\">";
     static char div_close[] = "</div>";
 
+    /* The encoding format defaults to the normal format */
+    if (encoding == NULL) {
+	char *enc  = alloca(vlen + 1);
+	memcpy(enc, value, vlen);
+	enc[vlen] = '\0';
+	encoding = xo_fix_encoding(xop, enc);
+	elen = strlen(encoding);
+    }
+
     /*
      * To build our XPath predicate, we need to save the va_list before
      * we format our data, and then restore it before we format the
@@ -3409,15 +3418,6 @@ xo_buf_append_div (xo_handle_t *xop, const char *class, xo_xff_flags_t flags,
 	    xo_buf_append(pbp, " = '", 4);
 	else
 	    xo_buf_append(pbp, "='", 2);
-
-	/* The encoding format defaults to the normal format */
-	if (encoding == NULL) {
-	    char *enc  = alloca(vlen + 1);
-	    memcpy(enc, value, vlen);
-	    enc[vlen] = '\0';
-	    encoding = xo_fix_encoding(xop, enc);
-	    elen = strlen(encoding);
-	}
 
 	xo_xff_flags_t pflags = flags | XFF_XML | XFF_ATTR;
 	pflags &= ~(XFF_NO_OUTPUT | XFF_ENCODE_ONLY);

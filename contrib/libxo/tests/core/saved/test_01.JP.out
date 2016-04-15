@@ -101,6 +101,16 @@
       ]
     },
     "cost": 425,
-    "cost": 455
+    "cost": 455,
+    "mode": "mode",
+    "mode_octal": "octal",
+    "links": "links",
+    "user": "user",
+    "group": "group",
+    "mode": "/some/file",
+    "mode_octal": 640,
+    "links": 1,
+    "user": "user",
+    "group": "group"
   }
 }

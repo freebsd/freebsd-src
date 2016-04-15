@@ -93,4 +93,14 @@
   </data4>
   <cost>425</cost>
   <cost>455</cost>
+  <mode>mode</mode>
+  <mode_octal>octal</mode_octal>
+  <links>links</links>
+  <user>user</user>
+  <group>group</group>
+  <mode>/some/file</mode>
+  <mode_octal>640</mode_octal>
+  <links>1</links>
+  <user>user</user>
+  <group>group</group>
 </top>
