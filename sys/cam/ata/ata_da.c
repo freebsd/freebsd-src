@@ -913,7 +913,7 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 		xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 
 		/*
-		 * Tell the drive to flush its intenral cache. if we
+		 * Tell the drive to flush its internal cache. if we
 		 * can't flush in 5s we have big problems. No need to
 		 * wait the default 60s to detect problems.
 		 */
