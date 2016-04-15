@@ -432,6 +432,12 @@ mx25l_set_4b_mode(device_t dev, uint8_t command)
 	return (err);
 }
 
+static struct ofw_compat_data compat_data[] = {
+	{ "st,m25p",		1 },
+	{ "jedec,spi-nor",	1 },
+	{ NULL,			0 },
+};
+
 static int
 mx25l_probe(device_t dev)
 {
@@ -439,7 +445,7 @@ mx25l_probe(device_t dev)
 #ifdef FDT
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
-	if (!ofw_bus_is_compatible(dev, "st,m25p"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 #endif
 	device_set_desc(dev, "M25Pxx Flash Family");
