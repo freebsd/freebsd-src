@@ -625,9 +625,11 @@ cam_iosched_cl_maybe_steer(struct control_loop *clp)
 			/* Periph drivers set these flags to indicate work */
 #define CAM_IOSCHED_FLAG_WORK_FLAGS	((0xffffu) << 16)
 
+#ifdef CAM_NETFLIX_IOSCHED
 static void
 cam_iosched_io_metric_update(struct cam_iosched_softc *isc,
     sbintime_t sim_latency, int cmd, size_t size);
+#endif
 
 static inline int
 cam_iosched_has_flagged_work(struct cam_iosched_softc *isc)
@@ -1522,6 +1524,7 @@ cam_iosched_update(struct iop_stats *iop, sbintime_t sim_latency)
 	iop->sd = (int64_t)var < 0 ? 0 : isqrt64(var);
 }
 
+#ifdef CAM_NETFLIX_IOSCHED
 static void
 cam_iosched_io_metric_update(struct cam_iosched_softc *isc,
     sbintime_t sim_latency, int cmd, size_t size)
@@ -1541,6 +1544,7 @@ cam_iosched_io_metric_update(struct cam_iosched_softc *isc,
 		break;
 	}
 }
+#endif
 
 #ifdef DDB
 static int biolen(struct bio_queue_head *bq)
