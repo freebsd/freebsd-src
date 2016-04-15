@@ -2194,10 +2194,10 @@ rctl_init(void)
 		return;
 
 	rctl_rule_zone = uma_zcreate("rctl_rule", sizeof(struct rctl_rule),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	rctl_rule_link_zone = uma_zcreate("rctl_rule_link",
 	    sizeof(struct rctl_rule_link), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    UMA_ALIGN_PTR, 0);
 
 	/*
 	 * Set default values, making sure not to overwrite the ones
