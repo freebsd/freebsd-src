@@ -1,0 +1,30 @@
+#
+# MT7621_FDT -- Kernel configuration file for FreeBSD/MIPS MT7621 SoC
+#
+# This includes all the configurable parts of the kernel. Please read through
+# MEDIATEK kernel config and customize the options to fit your board if needed.
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+#
+# FDT_DTS_FILE should be modified to suit the target board type.
+#
+#makeoptions 	FDT_DTS_FILE=ZBT-WG2626.dts
+
+#
+# The user should never have to edit what's below this line.
+# If customizations are needed, they should be done to the MEDIATEK kernel
+# configuration.
+#
+
+# Start with a base configuration
+include 	MEDIATEK_BASE
+
+ident 		MT7621
+cpu 		CPU_MIPS1004K
+
+# Include optional configuration (to be edited by the user if needed)
+include 	MEDIATEK
