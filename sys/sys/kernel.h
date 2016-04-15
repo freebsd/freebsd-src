@@ -317,6 +317,44 @@ struct tunable_ulong {
 #define	TUNABLE_ULONG_FETCH(path, var)	getenv_ulong((path), (var))
 
 /*
+ * int64_t
+ */
+extern void tunable_int64_init(void *);
+struct tunable_int64 {
+	const char *path;
+	int64_t *var;
+};
+#define	TUNABLE_INT64(path, var)				\
+	static struct tunable_int64 __CONCAT(__tunable_int64_, __LINE__) = { \
+		(path),						\
+		(var),						\
+	};							\
+	SYSINIT(__CONCAT(__Tunable_init_, __LINE__),		\
+	    SI_SUB_TUNABLES, SI_ORDER_MIDDLE, tunable_int64_init, \
+	    &__CONCAT(__tunable_int64_, __LINE__))
+
+#define	TUNABLE_INT64_FETCH(path, var)	getenv_int64((path), (var))
+
+/*
+ * uint64_t
+ */
+extern void tunable_uint64_init(void *);
+struct tunable_uint64 {
+	const char *path;
+	uint64_t *var;
+};
+#define	TUNABLE_UINT64(path, var)				\
+	static struct tunable_ulong __CONCAT(__tunable_uint64_, __LINE__) = { \
+		(path),						\
+		(var),						\
+	};							\
+	SYSINIT(__CONCAT(__Tunable_init_, __LINE__),		\
+	    SI_SUB_TUNABLES, SI_ORDER_MIDDLE, tunable_uint64_init, \
+	    &__CONCAT(__tunable_uint64_, __LINE__))
+
+#define	TUNABLE_UINT64_FETCH(path, var)	getenv_uint64((path), (var))
+
+/*
  * quad
  */
 extern void tunable_quad_init(void *);
