@@ -47,8 +47,12 @@
 
 #include <sys/intr.h>
 
-#ifndef NIRQ
-#define	NIRQ		128
+#ifndef	MIPS_NIRQ
+#define	MIPS_NIRQ		128
+#endif
+
+#ifndef	NIRQ
+#define	NIRQ			MIPS_NIRQ
 #endif
 
 #define INTR_IRQ_NSPC_SWI	4
