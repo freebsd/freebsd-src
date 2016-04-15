@@ -1485,7 +1485,7 @@ ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		e_addr = LLADDR(sdl);
 		if (!IPOIB_IS_MULTICAST(e_addr))
 			return EADDRNOTAVAIL;
-		*llsa = 0;
+		*llsa = NULL;
 		return 0;
 
 #ifdef INET

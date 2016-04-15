@@ -1297,7 +1297,7 @@ static int del_gid_entry(struct ib_qp *ibqp, union ib_gid *gid)
 		pr_warn("could not find mgid entry\n");
 
 	mutex_unlock(&mqp->mutex);
-	return ge != 0 ? 0 : -EINVAL;
+	return ge != NULL ? 0 : -EINVAL;
 }
 
 static int _mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid,
