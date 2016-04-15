@@ -1,0 +1,88 @@
+/* $FreeBSD$ */
+
+/ {
+
+	/*
+	 * FreeBSD's stdin and stdout, so we can have a console
+	 */
+	chosen {
+		stdin = &uartlite;
+		stdout = &uartlite;
+	};
+
+	/*
+	 * OpenWRT doesn't define a clock controller, but we currently need one
+	 */
+	clkctrl: cltctrl {
+		compatible = "ralink,rt2880-clock";
+		#clock-cells = <1>;
+	};
+
+	palmbus@10000000 {
+		/*
+		 * Make palmbus compatible to our simplebus
+		 */
+		compatible = "simple-bus";
+
+		/*
+		 * Reference uart2@e00 as uartlite, so we can address it
+		 * within the chosen node above
+		 */
+		uartlite: uart2@e00 {
+			/*
+			 * Mark uartlite as compatible to mtk,ns16550a instead
+			 * of simply ns16550a so we can autodetect the UART
+			 * clock
+			 */
+			compatible = "mtk,ns16550a";
+		};
+
+		gpio@600 {
+			/*
+			 * Mark gpio as compatible to simple-bus and override
+			 * its #size-cells and provide a default ranges property
+			 * so we can attach instances of our mtk_gpio_v2 driver
+			 * to it for now. Provide exactly the same resources to
+			 * the instances of mtk_gpio_v2.
+			 */
+			compatible = "simple-bus";
+			ranges = <0x0 0x600 0x100>;
+			#size-cells = <1>;
+
+			gpio0: bank@0 {
+				reg = <0x0 0x100>;
+				interrupts = <6>;
+			};
+
+			gpio1: bank@1 {
+				reg = <0x0 0x100>;
+				interrupts = <6>;
+			};
+
+			gpio2: bank@2 {
+				reg = <0x0 0x100>;
+				interrupts = <6>;
+			};
+		};
+	};
+
+	usbphy: usbphy@10120000 {
+		clocks = <&clkctrl 22 &clkctrl 25>;
+		clock-names = "host", "device";
+	};
+
+	pcie@10140000 {
+		/*
+		 * Our driver is different that OpenWRT's, so we need slightly
+		 * different values for the reg property
+		 */
+		reg = <0x10140000 0x10000>;
+
+		/*
+		 * Also, we need resets and clocks defined, so we can properly
+		 * initialize the PCIe
+		 */
+		resets = <&rstctrl 26>, <&rstctrl 27>;
+		clocks = <&clkctrl 26>, <&clkctrl 27>;
+	};
+};

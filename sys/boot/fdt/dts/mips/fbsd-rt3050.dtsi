@@ -1,0 +1,41 @@
+/* $FreeBSD$ */
+
+/ {
+
+	/*
+	 * FreeBSD's stdin and stdout, so we can have a console
+	 */
+	chosen {
+		stdin = &uartlite;
+		stdout = &uartlite;
+	};
+
+	/*
+	 * OpenWRT doesn't define a clock controller, but we currently need one
+	 */
+	clkctrl: cltctrl {
+		compatible = "ralink,rt2880-clock";
+		#clock-cells = <1>;
+	};
+
+	palmbus@10000000 {
+		/*
+		 * Make palmbus compatible to our simplebus
+		 */
+		compatible = "simple-bus";
+
+		/*
+		 * Reference uartlite@c00 as uartlite, so we can address it
+		 * within the chosen node above
+		 */
+		uartlite: uartlite@c00 {};
+	};
+
+	usbphy: usbphy {
+		compatible = "ralink,rt3050-usbphy";
+		resets = <&rstctrl 22>;
+		reset-names = "otg";
+		clocks = <&clkctrl 18>;
+		clock-names = "otg";
+	};
+};
