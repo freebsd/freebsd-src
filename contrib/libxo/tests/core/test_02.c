@@ -42,6 +42,7 @@ main (int argc, char **argv)
     }
 
     xo_set_flags(NULL, XOF_UNITS); /* Always test w/ this */
+    xo_set_file(stdout);
 
     xo_open_container_h(NULL, "top");
 

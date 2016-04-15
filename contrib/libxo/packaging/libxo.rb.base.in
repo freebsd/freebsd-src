@@ -6,15 +6,15 @@
 require 'formula'
 
 class Libxo < Formula
-  homepage 'https://github.com/Juniper/@PACKAGE-NAME@'
-  url 'https://github.com/Juniper/@PACKAGE_NAME@/releases/@PACKAGE_VERSION@/@PACKAGE_NAME@-@PACKAGE_VERSION@.tar.gz'
+  homepage 'https://github.com/Juniper/@PACKAGE_NAME@'
+  url 'https://github.com/Juniper/@PACKAGE_NAME@/releases/download/@PACKAGE_VERSION@/@PACKAGE_NAME@-@PACKAGE_VERSION@.tar.gz'
   sha1 '__SHA1__'
 
   depends_on 'libtool' => :build
 
   def install
-    system "./configure", "--disable-dependency-tracking",
+    system "./configure", "--disable-dependency-tracking", "--disable-silent-rules",
                           "--prefix=#{prefix}"
-    system "make install"
+    system "make", "install"
   end
 end

@@ -5,7 +5,7 @@ includedir=@includedir@
 
 
 Name: libxo
-Version: @VERSION@
+Version: @LIBXO_VERSION@
 Description: The XML Output Library
-Libs: @LIBXO_LIBDIR@ @LIBXO_LIBS@
-Cflags: @LIBXO_INCLUDEDIR@
+Libs: -L@XO_LIBDIR@ @XO_LIBS@
+Cflags: -I@XO_INCLUDEDIR@

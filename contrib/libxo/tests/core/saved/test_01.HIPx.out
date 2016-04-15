@@ -1,4 +1,26 @@
 <div class="line">
+  <div class="text">testing argument modifier </div>
+  <div class="data" data-tag="host" data-xpath="/top/host">my-box</div>
+  <div class="text">.</div>
+  <div class="data" data-tag="domain" data-xpath="/top/domain">example.com</div>
+  <div class="text">...</div>
+</div>
+<div class="line">
+  <div class="text">testing argument modifier with encoding to </div>
+  <div class="text">.</div>
+  <div class="data" data-tag="domain" data-xpath="/top/domain">example.com</div>
+  <div class="text">...</div>
+</div>
+<div class="line">
+  <div class="label">Label text</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="label" data-xpath="/top/label">value</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="max-chaos" data-xpath="/top/max-chaos">  very  </div>
+  <div class="data" data-tag="min-chaos" data-xpath="/top/min-chaos">42</div>
+  <div class="data" data-tag="some-chaos" data-xpath="/top/some-chaos">42
+</div>
   <div class="text">Connecting to </div>
   <div class="data" data-tag="host" data-xpath="/top/host">my-box</div>
   <div class="text">.</div>
