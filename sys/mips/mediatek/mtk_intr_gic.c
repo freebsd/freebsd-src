@@ -281,10 +281,10 @@ mtk_gic_map_intr(device_t dev, struct intr_map_data *data,
 	sc = device_get_softc(dev);
 
 	if (data == NULL || data->type != INTR_MAP_DATA_FDT ||
-	    data->fdt.ncells != 1 || data->fdt.cells[0] >= sc->nirqs)
+	    data->fdt.ncells != 3 || data->fdt.cells[1] >= sc->nirqs)
 		return (EINVAL);
 
-	*isrcp = GIC_INTR_ISRC(sc, data->fdt.cells[0]);
+	*isrcp = GIC_INTR_ISRC(sc, data->fdt.cells[1]);
 	return (0);
 #else
 	return (EINVAL);

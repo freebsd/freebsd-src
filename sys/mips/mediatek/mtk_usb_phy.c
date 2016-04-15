@@ -84,9 +84,10 @@ static void mtk_usb_phy_mt7621_init(device_t);
 static void mtk_usb_phy_mt7628_init(device_t);
 
 static struct ofw_compat_data compat_data[] = {
-	{ "ralink,mt7620a-usbphy",	MTK_SOC_MT7620A },
+	{ "ralink,mt7620-usbphy",	MTK_SOC_MT7620A },
 	{ "ralink,mt7628an-usbphy",	MTK_SOC_MT7628 },
-	{ "ralink,rt3xxx-usbphy",	MTK_SOC_RT3352 },
+	{ "ralink,rt3352-usbphy",	MTK_SOC_RT3352 },
+	{ "ralink,rt3050-usbphy",	MTK_SOC_RT3050 },
 	{ NULL,				MTK_SOC_UNKNOWN }
 };
 

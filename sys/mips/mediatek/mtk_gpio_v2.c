@@ -121,8 +121,8 @@ static int mtk_gpio_intr(void *arg);
 #define GPIO_PIORESET(_sc)		GPIO_REG((_sc), 0x0040)
 
 static struct ofw_compat_data compat_data[] = {
-	{ "mtk,mt7621-gpio",	1 },
-	{ "mtk,mt7628-gpio",	1 },
+	{ "mtk,mt7621-gpio-bank",	1 },
+	{ "mtk,mt7628-gpio-bank",	1 },
 	{ NULL,			0 }
 };
 
@@ -281,7 +281,7 @@ mtk_gpio_attach(device_t dev)
 	else
 		sc->num_pins = MTK_GPIO_PINS;
 
-	for (i = 0; i < num_pins; i++) {
+	for (i = 0; i < sc->num_pins; i++) {
 		sc->pins[i].pin_caps |= GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |
 		    GPIO_PIN_INVIN | GPIO_PIN_INVOUT;
 		sc->pins[i].intr_polarity = INTR_POLARITY_HIGH;
