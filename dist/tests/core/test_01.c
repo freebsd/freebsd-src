@@ -79,6 +79,18 @@ main (int argc, char **argv)
 
     xo_open_container_h(NULL, "top");
 
+    xo_emit("testing argument modifier {a:}.{a:}...\n",
+	    "host", "my-box", "domain", "example.com");
+
+    xo_emit("testing argument modifier with encoding to {ea:}.{a:}...\n",
+	    "host", "my-box", "domain", "example.com");
+
+    xo_emit("{La:} {a:}\n", "Label text", "label", "value");
+
+    xo_emit_field("Vt", "max-chaos", NULL, NULL, "  very  ");
+    xo_emit_field("V", "min-chaos", "%d", NULL, 42);
+    xo_emit_field("V", "some-chaos", "%d\n", "[%d]", 42);
+
     xo_emit("Connecting to {:host}.{:domain}...\n", "my-box", "example.com");
 
     xo_attr("test", "value");
