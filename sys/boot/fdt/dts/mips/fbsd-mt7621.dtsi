@@ -1,0 +1,102 @@
+/* $FreeBSD$ */
+
+/ {
+
+	/*
+	 * FreeBSD's stdin and stdout, so we can have a console
+	 */
+	chosen {
+		stdin = &uartlite;
+		stdout = &uartlite;
+	};
+
+	/*
+	 * OpenWRT doesn't define a clock controller, but we currently need one
+	 */
+	clkctrl: cltctrl {
+		compatible = "ralink,rt2880-clock";
+		#clock-cells = <1>;
+	};
+
+	gic: interrupt-controller@1fbc0000 {
+		/*
+		 * OpenWRT does not define the GIC interrupt, but we need it
+		 * for now, at least until we re-work our GIC driver
+		 */
+		interrupt-parent = <&cpuintc>;
+		interrupts = <2>;
+	};
+
+	palmbus@1E000000 {
+		/*
+		 * Make palmbus compatible to our simplebus
+		 */
+		compatible = "simple-bus";
+
+		/*
+		 * Reference uartlite@c00 as uartlite, so we can address it
+		 * within the chosen node above
+		 */
+		uartlite: uartlite@c00 {
+			/*
+			 * Mark uartlite as compatible to mtk,ns16550a instead
+			 * of simply ns16550a so we can autodetect the UART
+			 * clock
+			 */
+			compatible = "mtk,ns16550a";
+		};
+
+		gpio@600 {
+			/*
+			 * Mark gpio as compatible to simple-bus and override
+			 * its #size-cells and provide a default ranges property
+			 * so we can attach instances of our mtk_gpio_v2 driver
+			 * to it for now. Provide exactly the same resources to
+			 * the instances of mtk_gpio_v2.
+			 */
+			compatible = "simple-bus";
+			ranges = <0x0 0x600 0x100>;
+			#size-cells = <1>;
+
+			interrupt-parent = <&gic>;
+
+			gpio0: bank@0 {
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SHARED 6 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			gpio1: bank@1 {
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SHARED 6 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			gpio2: bank@2 {
+				reg = <0x0 0x100>;
+				interrupts = <GIC_SHARED 6 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+	};
+
+	xhci@1E1C0000 {
+		/*
+		 * A slightly different value for reg size is needed by our
+		 * driver for the moment
+		 */
+		reg = <0x1e1c0000 0x20000>;
+	};
+
+	pcie@1e140000 {
+		/*
+		 * Our driver is different that OpenWRT's, so we need slightly
+		 * different values for the reg property
+		 */
+		reg = <0x1e140000 0x10000>;
+
+		/*
+		 * Also, we need resets and clocks defined, so we can properly
+		 * initialize the PCIe
+		 */
+		resets = <&rstctrl 24>, <&rstctrl 25>, <&rstctrl 26>;
+		clocks = <&clkctrl 24>, <&clkctrl 25>, <&clkctrl 26>;
+	};
+};
