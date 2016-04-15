@@ -32,11 +32,31 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20160414:
-	The CAM I/O scheduler has been committed to the kernel. There should
-	be no user visible impact. This does enable NCQ Trim on ada
-	SSDs. While the list of known rogues that claim support for
-	this but actually corrupt data is believed to be complete, be
-	on the lookout for data corruption.
+	The CAM I/O scheduler has been committed to the kernel. There should be
+	no user visible impact. This does enable NCQ Trim on ada SSDs. While the
+	list of known rogues that claim support for this but actually corrupt
+	data is believed to be complete, be on the lookout for data
+	corruption. The known rogue list is believed to be complete:
+
+		o Crucial MX100, M550 drives with MU01 firmware.
+		o Micron M510 and M550 drives with MU01 firmware.
+		o Micron M500 prior to MU07 firmware
+		o Samsung 830, 840, and 850 all firmwares
+		o FCCT M500 all firmwares
+
+	Crucial has firmware http://www.crucial.com/usa/en/support-ssd-firmware
+	with working NCQ TRIM. For Micron branded drives, see your sales rep for
+	updated firmware. Black listed drives will work correctly because these
+	drives work correctly so long as no NCQ TRIMs are sent to them. Given
+	this list is the same as found in Linux, it's believed there are no
+	other rogues in the market place. All other models from the above
+	vendors work.
+
+	To be safe, if you are at all concerned, you can quirk each of your
+	drives to prevent NCQ from being sent by setting:
+		kern.cam.ada.X.quirks="0x2"
+	in loader.conf. If the drive requires the 4k sector quirk, set the
+	quirks entry to 0x3.
 
 20160330:
 	The FAST_DEPEND build option has been removed and its functionality is
