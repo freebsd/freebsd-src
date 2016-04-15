@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/locore.h>
 #include <machine/md_var.h>
 
-#ifdef MIPS_INTRNG
+#ifdef INTRNG
 #include <machine/intr.h>
 #endif
 
@@ -328,7 +328,7 @@ static int
 clock_attach(device_t dev)
 {
 	struct clock_softc *sc;
-#ifndef MIPS_INTRNG
+#ifndef INTRNG
 	int error;
 #endif
 
@@ -336,7 +336,7 @@ clock_attach(device_t dev)
 		panic("can't attach more clocks");
 
 	softc = sc = device_get_softc(dev);
-#ifdef MIPS_INTRNG
+#ifdef INTRNG
 	cpu_establish_hardintr("clock", clock_intr, NULL, sc, 5, INTR_TYPE_CLK,
 	    NULL);
 #else

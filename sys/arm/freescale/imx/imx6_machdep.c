@@ -58,7 +58,7 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 
 static uint32_t gpio1_node;
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 /*
  * Work around the linux workaround for imx6 erratum 006687, in which some
  * ethernet interrupts don't go to the GPC and thus won't wake the system from

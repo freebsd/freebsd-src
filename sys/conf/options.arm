@@ -1,7 +1,6 @@
 #$FreeBSD$
 ARMV6			opt_global.h
 ARM_CACHE_LOCK_ENABLE	opt_global.h
-ARM_INTRNG		opt_global.h
 ARM_KERN_DIRECTMAP	opt_vm.h
 ARM_L2_PIPT		opt_global.h
 ARM_MANY_BOARD		opt_global.h
@@ -24,6 +23,7 @@ DEV_PMU			opt_global.h
 EFI			opt_platform.h
 FLASHADDR		opt_global.h
 GIC_DEFAULT_ICFGR_INIT	opt_global.h
+INTRNG			opt_global.h
 IPI_IRQ_START		opt_smp.h
 IPI_IRQ_END		opt_smp.h
 FREEBSD_BOOT_LOADER	opt_global.h

@@ -86,14 +86,14 @@ static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
 static	int nexus_activate_resource(device_t, device_t, int, int,
     struct resource *);
 static bus_space_tag_t nexus_get_bus_tag(device_t, device_t);
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #ifdef SMP
 static	int nexus_bind_intr(device_t, device_t, struct resource *, int);
 #endif
 #endif
 static int nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol);
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static	int nexus_describe_intr(device_t dev, device_t child,
     struct resource *irq, void *cookie, const char *descr);
 #endif
@@ -126,7 +126,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
 	DEVMETHOD(bus_get_bus_tag,	nexus_get_bus_tag),
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	DEVMETHOD(bus_describe_intr,	nexus_describe_intr),
 #ifdef SMP
 	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
@@ -280,7 +280,7 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
 {
 	int ret = ENODEV;
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	device_printf(dev, "bus_config_intr is obsolete and not supported!\n");
 	ret = EOPNOTSUPP;
 #else
@@ -294,14 +294,14 @@ static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 	int irq;
 #endif
 
 	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	return(intr_setup_irq(child, res, filt, intr, arg, flags, cookiep));
 #else
 	for (irq = rman_get_start(res); irq <= rman_get_end(res); irq++) {
@@ -317,14 +317,14 @@ static int
 nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	return (intr_teardown_irq(child, r, ih));
 #else
 	return (arm_remove_irqhandler(rman_get_start(r), ih));
 #endif
 }
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static int
 nexus_describe_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie, const char *descr)

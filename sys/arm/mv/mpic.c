@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/fdt/fdt_common.h>
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #include "pic_if.h"
 #endif
 
@@ -98,7 +98,7 @@ __FBSDID("$FreeBSD$");
 
 #define	MPIC_PPI	32
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 struct mv_mpic_irqsrc {
 	struct intr_irqsrc	mmi_isrc;
 	u_int			mmi_irq;
@@ -115,7 +115,7 @@ struct mv_mpic_softc {
 	bus_space_tag_t		drbl_bst;
 	bus_space_handle_t	drbl_bsh;
 	struct mtx		mtx;
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	struct mv_mpic_irqsrc *	mpic_isrcs;
 #endif
 	int			nirqs;
@@ -151,7 +151,7 @@ static void	mpic_mask_irq_err(uintptr_t nb);
 static void	mpic_unmask_irq_err(uintptr_t nb);
 static int	mpic_intr(void *arg);
 static void	mpic_unmask_msi(void);
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 static void	arm_mask_irq_err(uintptr_t);
 static void	arm_unmask_irq_err(uintptr_t);
 #endif
@@ -185,7 +185,7 @@ mv_mpic_probe(device_t dev)
 	return (0);
 }
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static int
 mv_mpic_register_isrcs(struct mv_mpic_softc *sc)
 {
@@ -241,7 +241,7 @@ mv_mpic_attach(device_t dev)
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	if (sc->mpic_res[3] == NULL)
 		device_printf(dev, "No interrupt to use.\n");
 	else
@@ -268,7 +268,7 @@ mv_mpic_attach(device_t dev)
 	val = MPIC_READ(mv_mpic_sc, MPIC_CTRL);
 	sc->nirqs = MPIC_CTRL_NIRQS(val);
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	if (mv_mpic_register_isrcs(sc) != 0) {
 		device_printf(dev, "could not register PIC ISRCs\n");
 		bus_release_resources(dev, mv_mpic_spec, sc->mpic_res);
@@ -286,7 +286,7 @@ mv_mpic_attach(device_t dev)
 	return (0);
 }
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static int
 mpic_intr(void *arg)
 {
@@ -370,7 +370,7 @@ static device_method_t mv_mpic_methods[] = {
 	DEVMETHOD(device_probe,		mv_mpic_probe),
 	DEVMETHOD(device_attach,	mv_mpic_attach),
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	DEVMETHOD(pic_disable_intr,	mpic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	mpic_enable_intr),
 	DEVMETHOD(pic_map_intr,		mpic_map_intr),
@@ -391,7 +391,7 @@ static devclass_t mv_mpic_devclass;
 EARLY_DRIVER_MODULE(mpic, simplebus, mv_mpic_driver, mv_mpic_devclass, 0, 0,
     BUS_PASS_INTERRUPT);
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 int
 arm_get_next_irq(int last)
 {

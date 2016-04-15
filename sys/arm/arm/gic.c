@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/smp.h>
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #include <sys/sched.h>
 #endif
 #include <machine/bus.h>
@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #include "pic_if.h"
 #endif
 
@@ -116,7 +116,7 @@ __FBSDID("$FreeBSD$");
 #define	GIC_DEFAULT_ICFGR_INIT	0x00000000
 #endif
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 struct gic_irqsrc {
 	struct intr_irqsrc	gi_isrc;
 	uint32_t		gi_irq;
@@ -136,7 +136,7 @@ u_int sgi_first_unused = GIC_FIRST_SGI;
 #endif
 #endif
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 struct arm_gic_range {
 	uint64_t bus;
 	uint64_t host;
@@ -151,7 +151,7 @@ struct arm_gic_devinfo {
 
 struct arm_gic_softc {
 	device_t		gic_dev;
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	void *			gic_intrhand;
 	struct gic_irqsrc *	gic_irqs;
 #endif
@@ -167,7 +167,7 @@ struct arm_gic_softc {
 	uint32_t		last_irq[MAXCPU];
 #endif
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	/* FDT child data */
 	pcell_t			addr_cells;
 	pcell_t			size_cells;
@@ -176,14 +176,14 @@ struct arm_gic_softc {
 #endif
 };
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #define GIC_INTR_ISRC(sc, irq)	(&sc->gic_irqs[irq].gi_isrc)
 #endif
 
 static struct resource_spec arm_gic_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Distributor registers */
 	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },	/* CPU Interrupt Intf. registers */
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	{ SYS_RES_IRQ,	  0, RF_ACTIVE | RF_OPTIONAL }, /* Parent interrupt */
 #endif
 	{ -1, 0 }
@@ -204,7 +204,7 @@ static struct arm_gic_softc *gic_sc = NULL;
 #define	gic_d_write_4(_sc, _reg, _val)		\
     bus_space_write_4((_sc)->gic_d_bst, (_sc)->gic_d_bsh, (_reg), (_val))
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 static int gic_config_irq(int irq, enum intr_trigger trig,
     enum intr_polarity pol);
 static void gic_post_filter(void *);
@@ -235,7 +235,7 @@ arm_gic_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static inline void
 gic_irq_unmask(struct arm_gic_softc *sc, u_int irq)
 {
@@ -275,7 +275,7 @@ gic_cpu_mask(struct arm_gic_softc *sc)
 }
 
 #ifdef SMP
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static void
 arm_gic_init_secondary(device_t dev)
 {
@@ -347,10 +347,10 @@ arm_gic_init_secondary(device_t dev)
 	gic_d_write_4(sc, GICD_ISENABLER(29 >> 5), (1UL << (29 & 0x1F)));
 	gic_d_write_4(sc, GICD_ISENABLER(30 >> 5), (1UL << (30 & 0x1F)));
 }
-#endif /* ARM_INTRNG */
+#endif /* INTRNG */
 #endif /* SMP */
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 int
 gic_decode_fdt(phandle_t iparent, pcell_t *intr, int *interrupt,
     int *trig, int *pol)
@@ -411,7 +411,7 @@ gic_decode_fdt(phandle_t iparent, pcell_t *intr, int *interrupt,
 }
 #endif
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static inline intptr_t
 gic_xref(device_t dev)
 {
@@ -570,7 +570,7 @@ arm_gic_attach(device_t dev)
 	struct		arm_gic_softc *sc;
 	int		i;
 	uint32_t	icciidr, mask, nirqs;
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	phandle_t	pxref;
 	intptr_t	xref = gic_xref(dev);
 #endif
@@ -606,7 +606,7 @@ arm_gic_attach(device_t dev)
 	nirqs = gic_d_read_4(sc, GICD_TYPER);
 	nirqs = 32 * ((nirqs & 0x1f) + 1);
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	if (arm_gic_register_isrcs(sc, nirqs)) {
 		device_printf(dev, "could not register irqs\n");
 		goto cleanup;
@@ -662,7 +662,7 @@ arm_gic_attach(device_t dev)
 
 	/* Enable interrupt distribution */
 	gic_d_write_4(sc, GICD_CTLR, 0x01);
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 	return (0);
 #else
 	/*
@@ -723,7 +723,7 @@ cleanup:
 #endif
 }
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static struct resource *
 arm_gic_alloc_resource(device_t bus, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
@@ -1429,14 +1429,14 @@ pic_ipi_clear(int ipi)
 	arm_gic_ipi_clear(gic_sc->gic_dev, ipi);
 }
 #endif
-#endif /* ARM_INTRNG */
+#endif /* INTRNG */
 
 static device_method_t arm_gic_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		arm_gic_probe),
 	DEVMETHOD(device_attach,	arm_gic_attach),
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	/* Bus interface */
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
 	DEVMETHOD(bus_alloc_resource,	arm_gic_alloc_resource),
@@ -1483,7 +1483,7 @@ EARLY_DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0,
 EARLY_DRIVER_MODULE(gic, ofwbus, arm_gic_driver, arm_gic_devclass, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 /*
  * GICv2m support -- the GICv2 MSI/MSI-X controller.
  */

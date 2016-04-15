@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #include "pic_if.h"
 #endif
 
@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #define INTC_NIRQS	128
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 struct ti_aintc_irqsrc {
 	struct intr_irqsrc	tai_isrc;
 	u_int			tai_irq;
@@ -81,7 +81,7 @@ struct ti_aintc_softc {
 	bus_space_tag_t		aintc_bst;
 	bus_space_handle_t	aintc_bsh;
 	uint8_t			ver;
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	struct ti_aintc_irqsrc	aintc_isrcs[INTC_NIRQS];
 #endif
 };
@@ -105,7 +105,7 @@ static struct ofw_compat_data compat_data[] = {
 	{NULL,		 	0},
 };
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static inline void
 ti_aintc_irq_eoi(struct ti_aintc_softc *sc)
 {
@@ -295,7 +295,7 @@ ti_aintc_attach(device_t dev)
 	/*Set Priority Threshold */
 	aintc_write_4(sc, INTC_THRESHOLD, 0xFF);
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 	arm_post_filter = aintc_post_filter;
 #else
 	if (ti_aintc_pic_attach(sc) != 0) {
@@ -310,7 +310,7 @@ static device_method_t ti_aintc_methods[] = {
 	DEVMETHOD(device_probe,		ti_aintc_probe),
 	DEVMETHOD(device_attach,	ti_aintc_attach),
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	DEVMETHOD(pic_disable_intr,	ti_aintc_disable_intr),
 	DEVMETHOD(pic_enable_intr,	ti_aintc_enable_intr),
 	DEVMETHOD(pic_map_intr,		ti_aintc_map_intr),
@@ -334,7 +334,7 @@ EARLY_DRIVER_MODULE(aintc, simplebus, ti_aintc_driver, ti_aintc_devclass,
     0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 SIMPLEBUS_PNP_INFO(compat_data);
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 int
 arm_get_next_irq(int last_irq)
 {

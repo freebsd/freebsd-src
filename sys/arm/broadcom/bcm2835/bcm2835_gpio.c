@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #include "pic_if.h"
 #endif
 
@@ -84,7 +84,7 @@ struct bcm_gpio_sysctl {
 	uint32_t		pin;
 };
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 struct bcm_gpio_irqsrc {
 	struct intr_irqsrc	bgi_isrc;
 	uint32_t		bgi_irq;
@@ -105,11 +105,11 @@ struct bcm_gpio_softc {
 	int			sc_ro_npins;
 	int			sc_ro_pins[BCM_GPIO_PINS];
 	struct gpio_pin		sc_gpio_pins[BCM_GPIO_PINS];
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 	struct intr_event *	sc_events[BCM_GPIO_PINS];
 #endif
 	struct bcm_gpio_sysctl	sc_sysctl[BCM_GPIO_PINS];
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	struct bcm_gpio_irqsrc	sc_isrcs[BCM_GPIO_PINS];
 #else
 	enum intr_trigger	sc_irq_trigger[BCM_GPIO_PINS];
@@ -153,7 +153,7 @@ enum bcm_gpio_pud {
 
 static struct bcm_gpio_softc *bcm_gpio_sc = NULL;
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static int bcm_gpio_intr_bank0(void *arg);
 static int bcm_gpio_intr_bank1(void *arg);
 static int bcm_gpio_pic_attach(struct bcm_gpio_softc *sc);
@@ -691,7 +691,7 @@ bcm_gpio_get_reserved_pins(struct bcm_gpio_softc *sc)
 	return (0);
 }
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 static int
 bcm_gpio_intr(void *arg)
 {
@@ -741,7 +741,7 @@ bcm_gpio_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static int
 bcm_gpio_intr_attach(device_t dev)
 {
@@ -862,7 +862,7 @@ bcm_gpio_attach(device_t dev)
 		sc->sc_gpio_pins[i].gp_pin = j;
 		sc->sc_gpio_pins[i].gp_caps = BCM_GPIO_DEFAULT_CAPS;
 		sc->sc_gpio_pins[i].gp_flags = bcm_gpio_func_flag(func);
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 		/* The default is active-low interrupts. */
 		sc->sc_irq_trigger[i] = INTR_TRIGGER_LEVEL;
 		sc->sc_irq_polarity[i] = INTR_POLARITY_LOW;
@@ -892,7 +892,7 @@ bcm_gpio_detach(device_t dev)
 	return (EBUSY);
 }
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static inline void
 bcm_gpio_isrc_eoi(struct bcm_gpio_softc *sc, struct bcm_gpio_irqsrc *bgi)
 {
@@ -1372,7 +1372,7 @@ static device_method_t bcm_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_set,		bcm_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle,	bcm_gpio_pin_toggle),
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	bcm_gpio_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	bcm_gpio_pic_enable_intr),

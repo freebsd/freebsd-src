@@ -39,7 +39,7 @@
  */
 #define	MAX_GPIO_INTRS			8
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 struct ti_gpio_mask_arg {
 	void	*softc;
 	int	pin;
@@ -61,7 +61,7 @@ struct ti_gpio_irqsrc {
 struct ti_gpio_softc {
 	device_t		sc_dev;
 	device_t		sc_busdev;
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 	/* Interrupt trigger type and level. */
 	enum intr_trigger	*sc_irq_trigger;
 	enum intr_polarity	*sc_irq_polarity;
@@ -74,7 +74,7 @@ struct ti_gpio_softc {
 	struct resource		*sc_mem_res;
 	int			sc_irq_rid;
 	struct resource		*sc_irq_res;
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 	/* Interrupt events. */
 	struct intr_event	**sc_events;
 	struct ti_gpio_mask_arg	*sc_mask_args;
