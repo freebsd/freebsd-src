@@ -122,6 +122,8 @@ struct gic_irqsrc {
 	uint32_t		gi_irq;
 	enum intr_polarity	gi_pol;
 	enum intr_trigger	gi_trig;
+#define GI_FLAG_EARLY_EOI	(1 << 0)
+	u_int			gi_flags;
 };
 
 static u_int gic_irq_cpu;
@@ -853,12 +855,12 @@ dispatch_irq:
 #ifdef GIC_DEBUG_SPURIOUS
 	sc->last_irq[PCPU_GET(cpuid)] = irq;
 #endif
-	if (gi->gi_trig == INTR_TRIGGER_EDGE)
+	if ((gi->gi_flags & GI_FLAG_EARLY_EOI) == GI_FLAG_EARLY_EOI)
 		gic_c_write_4(sc, GICC_EOIR, irq_active_reg);
 
 	if (intr_isrc_dispatch(&gi->gi_isrc, tf) != 0) {
 		gic_irq_mask(sc, irq);
-		if (gi->gi_trig != INTR_TRIGGER_EDGE)
+		if ((gi->gi_flags & GI_FLAG_EARLY_EOI) != GI_FLAG_EARLY_EOI)
 			gic_c_write_4(sc, GICC_EOIR, irq_active_reg);
 		device_printf(sc->gic_dev, "Stray irq %u disabled\n", irq);
 	}
@@ -1087,6 +1089,9 @@ arm_gic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 
 	gi->gi_pol = pol;
 	gi->gi_trig = trig;
+	/* Edge triggered interrupts need an early EOI sent */
+	if (gi->gi_pol == INTR_TRIGGER_EDGE)
+		gi->gi_flags |= GI_FLAG_EARLY_EOI;
 
 	/*
 	 * XXX - In case that per CPU interrupt is going to be enabled in time
@@ -1160,7 +1165,7 @@ arm_gic_post_filter(device_t dev, struct intr_irqsrc *isrc)
 	struct gic_irqsrc *gi = (struct gic_irqsrc *)isrc;
 
         /* EOI for edge-triggered done earlier. */
-	if (gi->gi_trig == INTR_TRIGGER_EDGE)
+	if ((gi->gi_flags & GI_FLAG_EARLY_EOI) == GI_FLAG_EARLY_EOI)
 		return;
 
 	arm_irq_memory_barrier(0);
