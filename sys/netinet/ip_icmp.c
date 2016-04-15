@@ -674,7 +674,7 @@ icmp_reflect(struct mbuf *m)
 	struct in_ifaddr *ia;
 	struct in_addr t;
 	struct nhop4_extended nh_ext;
-	struct mbuf *opts = 0;
+	struct mbuf *opts = NULL;
 	int optlen = (ip->ip_hl << 2) - sizeof(struct ip);
 
 	if (IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
@@ -790,7 +790,7 @@ match:
 		 * add on any record-route or timestamp options.
 		 */
 		cp = (u_char *) (ip + 1);
-		if ((opts = ip_srcroute(m)) == 0 &&
+		if ((opts = ip_srcroute(m)) == NULL &&
 		    (opts = m_gethdr(M_NOWAIT, MT_DATA))) {
 			opts->m_len = sizeof(struct in_addr);
 			mtod(opts, struct in_addr *)->s_addr = 0;
