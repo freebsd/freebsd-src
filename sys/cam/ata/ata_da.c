@@ -361,10 +361,10 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
-		 * Crucial M500 SSDs EU07 firmware
-		 * NCQ Trim works ? 
+		 * Crucial M500 SSDs MU07 firmware
+		 * NCQ Trim works
 		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Crucial CT*M500*", "EU07" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Crucial CT*M500*", "MU07" },
 		/*quirks*/0
 	},
 	{
@@ -398,6 +398,14 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "C300-CTFDDAC???MAG*",
 		"*" }, /*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * FCCT M500 SSDs
+		 * NCQ Trim doesn't work
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "FCCT*M500*", "*" },
+		/*quirks*/ADA_Q_NCQ_TRIM_BROKEN
 	},
 	{
 		/*
@@ -465,10 +473,10 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
-		 * Micron M500 SSDs firmware EU07
+		 * Micron M500 SSDs firmware MU07
 		 * NCQ Trim works?
 		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Micron M500*", "EU07" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Micron M500*", "MU07" },
 		/*quirks*/0
 	},
 	{
