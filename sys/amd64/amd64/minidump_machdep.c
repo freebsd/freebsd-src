@@ -56,9 +56,6 @@ CTASSERT(sizeof(struct kerneldumpheader) == 512);
  */
 #define	SIZEOF_METADATA		(64*1024)
 
-#define	MD_ALIGN(x)	(((off_t)(x) + PAGE_MASK) & ~PAGE_MASK)
-#define	DEV_ALIGN(x)	(((off_t)(x) + (DEV_BSIZE-1)) & ~(DEV_BSIZE-1))
-
 uint64_t *vm_page_dump;
 int vm_page_dump_size;
 
@@ -222,6 +219,7 @@ minidumpsys(struct dumperinfo *di)
 	int error;
 	uint64_t bits;
 	uint64_t *pml4, *pdp, *pd, *pt, pa;
+	size_t size;
 	int i, ii, j, k, n, bit;
 	int retry_count;
 	struct minidumphdr mdhdr;
@@ -319,12 +317,12 @@ minidumpsys(struct dumperinfo *di)
 	dumpsize += PAGE_SIZE;
 
 	/* Determine dump offset on device. */
-	if (di->mediasize < SIZEOF_METADATA + dumpsize + sizeof(kdh) * 2) {
+	if (di->mediasize < SIZEOF_METADATA + dumpsize + di->blocksize * 2) {
 		error = E2BIG;
 		goto fail;
 	}
 	dumplo = di->mediaoffset + di->mediasize - dumpsize;
-	dumplo -= sizeof(kdh) * 2;
+	dumplo -= di->blocksize * 2;
 	progress = dumpsize;
 
 	/* Initialize mdhdr */
@@ -344,10 +342,10 @@ minidumpsys(struct dumperinfo *di)
 	    ptoa((uintmax_t)physmem) / 1048576);
 
 	/* Dump leader */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
+	error = dump_write_pad(di, &kdh, 0, dumplo, sizeof(kdh), &size);
 	if (error)
 		goto fail;
-	dumplo += sizeof(kdh);
+	dumplo += size;
 
 	/* Dump my header */
 	bzero(&fakepd, sizeof(fakepd));
@@ -432,10 +430,10 @@ minidumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump trailer */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
+	error = dump_write_pad(di, &kdh, 0, dumplo, sizeof(kdh), &size);
 	if (error)
 		goto fail;
-	dumplo += sizeof(kdh);
+	dumplo += size;
 
 	/* Signal completion, signoff and exit stage left. */
 	dump_write(di, NULL, 0, 0, 0);
