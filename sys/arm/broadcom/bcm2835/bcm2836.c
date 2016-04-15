@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_bus.h>
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #include "pic_if.h"
 #else
 #include <arm/broadcom/bcm2835/bcm2836.h>
@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #define	MAILBOX0_IRQEN			(1 << 0)
 #endif
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #define	BCM_LINTC_CONTROL_REG		0x00
 #define	BCM_LINTC_PRESCALER_REG		0x08
 #define	BCM_LINTC_GPU_ROUTING_REG	0x0c

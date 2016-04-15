@@ -24,7 +24,7 @@ include 	"std.armv6"
 include 	"../broadcom/bcm2835/std.rpi"
 include 	"../broadcom/bcm2835/std.bcm2836"
 
-options 	ARM_INTRNG
+options 	INTRNG
 
 options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler

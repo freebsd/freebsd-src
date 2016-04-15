@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/vmparam.h>
 
-#ifdef MIPS_INTRNG
+#ifdef INTRNG
 #include <machine/intr.h>
 #else
 #include <machine/intr_machdep.h>
@@ -115,7 +115,7 @@ static int	nexus_setup_intr(device_t dev, device_t child,
 		    driver_intr_t *intr, void *arg, void **cookiep);
 static int	nexus_teardown_intr(device_t, device_t, struct resource *,
 		    void *);
-#ifdef MIPS_INTRNG
+#ifdef INTRNG
 #ifdef SMP
 static int	nexus_bind_intr(device_t, device_t, struct resource *, int);
 #endif
@@ -148,7 +148,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_activate_resource,nexus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
 	DEVMETHOD(bus_hinted_child,	nexus_hinted_child),
-#ifdef MIPS_INTRNG
+#ifdef INTRNG
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 	DEVMETHOD(bus_describe_intr,	nexus_describe_intr),
 #ifdef SMP
@@ -458,7 +458,7 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
 
-#ifdef MIPS_INTRNG
+#ifdef INTRNG
 	return (intr_setup_irq(child, res, filt, intr, arg, flags, cookiep));
 #else
 	int irq;
@@ -483,7 +483,7 @@ static int
 nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 
-#ifdef MIPS_INTRNG
+#ifdef INTRNG
 	return (intr_teardown_irq(child, r, ih));
 #else
 	printf("Unimplemented %s at %s:%d\n", __func__, __FILE__, __LINE__);
@@ -491,7 +491,7 @@ nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 #endif
 }
 
-#ifdef MIPS_INTRNG
+#ifdef INTRNG
 static int
 nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol)
@@ -527,7 +527,7 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
 	return (intr_fdt_map_irq(iparent, intr, icells));
 }
 #endif
-#endif /* MIPS_INTRNG */
+#endif /* INTRNG */
 
 static void
 nexus_hinted_child(device_t bus, const char *dname, int dunit)
