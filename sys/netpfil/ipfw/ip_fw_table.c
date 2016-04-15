@@ -2130,7 +2130,7 @@ export_table_internal(struct namedobj_instance *ni, struct named_object *no,
 	dta = (struct dump_table_args *)arg;
 
 	i = (ipfw_xtable_info *)ipfw_get_sopt_space(dta->sd, sizeof(*i));
-	KASSERT(i != 0, ("previously checked buffer is not enough"));
+	KASSERT(i != NULL, ("previously checked buffer is not enough"));
 
 	export_table_info(dta->ch, (struct table_config *)no, i);
 }
@@ -2746,7 +2746,7 @@ list_table_algo(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 
 	for (n = 1; n <= count; n++) {
 		i = (ipfw_ta_info *)ipfw_get_sopt_space(sd, sizeof(*i));
-		KASSERT(i != 0, ("previously checked buffer is not enough"));
+		KASSERT(i != NULL, ("previously checked buffer is not enough"));
 		ta = tcfg->algo[n];
 		strlcpy(i->algoname, ta->name, sizeof(i->algoname));
 		i->type = ta->type;
