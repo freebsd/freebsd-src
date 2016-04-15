@@ -2,6 +2,14 @@
   "top": {
     "host": "my-box",
     "domain": "example.com",
+    "host": "my-box",
+    "domain": "example.com",
+    "label": "value",
+    "max-chaos": "very",
+    "min-chaos": 42,
+    "some-chaos": "[42]",
+    "host": "my-box",
+    "domain": "example.com",
     "data": {
       "item": [
         {
