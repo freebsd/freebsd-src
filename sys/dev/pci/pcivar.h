@@ -209,7 +209,6 @@ typedef struct pcicfg {
     uint8_t	func;		/* config space function number */
 
     uint32_t	flags;		/* flags defined above */
-    size_t	devinfo_size;	/* Size of devinfo for this bus type. */
 
     struct pcicfg_bridge bridge; /* Bridges */
     struct pcicfg_pp pp;	/* Power management */

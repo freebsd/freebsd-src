@@ -70,6 +70,7 @@ static bus_child_pnpinfo_str_t ofw_pcibus_pnpinfo_str;
 static device_attach_t ofw_pcibus_attach;
 static device_probe_t ofw_pcibus_probe;
 static ofw_bus_get_devinfo_t ofw_pcibus_get_devinfo;
+static pci_alloc_devinfo_t ofw_pcibus_alloc_devinfo;
 static pci_assign_interrupt_t ofw_pcibus_assign_interrupt;
 
 static device_method_t ofw_pcibus_methods[] = {
@@ -82,6 +83,7 @@ static device_method_t ofw_pcibus_methods[] = {
 	DEVMETHOD(bus_child_pnpinfo_str, ofw_pcibus_pnpinfo_str),
 
 	/* PCI interface */
+	DEVMETHOD(pci_alloc_devinfo,	ofw_pcibus_alloc_devinfo),
 	DEVMETHOD(pci_assign_interrupt, ofw_pcibus_assign_interrupt),
 
 	/* ofw_bus interface */
@@ -250,8 +252,8 @@ ofw_pcibus_attach(device_t dev)
 	if (strcmp(device_get_name(device_get_parent(pcib)), "nexus") == 0 &&
 	    ofw_bus_get_type(pcib) != NULL &&
 	    strcmp(ofw_bus_get_type(pcib), OFW_TYPE_PCIE) != 0 &&
-	    (dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib,
-	    domain, busno, 0, 0, sizeof(*dinfo))) != NULL) {
+	    (dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib, dev,
+	    domain, busno, 0, 0)) != NULL) {
 		if (ofw_bus_gen_setup_devinfo(&dinfo->opd_obdinfo, node) != 0)
 			pci_freecfg((struct pci_devinfo *)dinfo);
 		else
@@ -270,8 +272,8 @@ ofw_pcibus_attach(device_t dev)
 		if (pci_find_dbsf(domain, busno, slot, func) != NULL)
 			continue;
 		ofw_pcibus_setup_device(pcib, clock, busno, slot, func);
-		dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib,
-		    domain, busno, slot, func, sizeof(*dinfo));
+		dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib, dev,
+		    domain, busno, slot, func);
 		if (dinfo == NULL)
 			continue;
 		if (ofw_bus_gen_setup_devinfo(&dinfo->opd_obdinfo, child) !=
@@ -284,6 +286,15 @@ ofw_pcibus_attach(device_t dev)
 	}
 
 	return (bus_generic_attach(dev));
+}
+
+struct pci_devinfo *
+ofw_pcibus_alloc_devinfo(device_t dev)
+{
+	struct ofw_pcibus_devinfo *dinfo;
+
+	dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
+	return (&dinfo->opd_dinfo);
 }
 
 static int

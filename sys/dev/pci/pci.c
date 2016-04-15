@@ -126,8 +126,8 @@ static int		pci_remap_intr_method(device_t bus, device_t dev,
 
 static uint16_t		pci_get_rid_method(device_t dev, device_t child);
 
-static struct pci_devinfo * pci_fill_devinfo(device_t pcib, int d, int b, int s,
-    int f, uint16_t vid, uint16_t did, size_t size);
+static struct pci_devinfo * pci_fill_devinfo(device_t pcib, device_t bus, int d,
+    int b, int s, int f, uint16_t vid, uint16_t did);
 
 static device_method_t pci_methods[] = {
 	/* Device interface */
@@ -196,6 +196,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_msix_pba_bar,	pci_msix_pba_bar_method),
 	DEVMETHOD(pci_msix_table_bar,	pci_msix_table_bar_method),
 	DEVMETHOD(pci_get_rid,		pci_get_rid_method),
+	DEVMETHOD(pci_alloc_devinfo,	pci_alloc_devinfo_method),
 	DEVMETHOD(pci_child_added,	pci_child_added_method),
 #ifdef PCI_IOV
 	DEVMETHOD(pci_iov_attach,	pci_iov_attach_method),
@@ -619,7 +620,7 @@ pci_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 
 /* read configuration header into pcicfgregs structure */
 struct pci_devinfo *
-pci_read_device(device_t pcib, int d, int b, int s, int f, size_t size)
+pci_read_device(device_t pcib, device_t bus, int d, int b, int s, int f)
 {
 #define	REG(n, w)	PCIB_READ_CONFIG(pcib, b, s, f, n, w)
 	uint16_t vid, did;
@@ -627,19 +628,27 @@ pci_read_device(device_t pcib, int d, int b, int s, int f, size_t size)
 	vid = REG(PCIR_VENDOR, 2);
 	did = REG(PCIR_DEVICE, 2);
 	if (vid != 0xffff)
-		return (pci_fill_devinfo(pcib, d, b, s, f, vid, did, size));
+		return (pci_fill_devinfo(pcib, bus, d, b, s, f, vid, did));
 
 	return (NULL);
 }
 
+struct pci_devinfo *
+pci_alloc_devinfo_method(device_t dev)
+{
+
+	return (malloc(sizeof(struct pci_devinfo), M_DEVBUF,
+	    M_WAITOK | M_ZERO));
+}
+
 static struct pci_devinfo *
-pci_fill_devinfo(device_t pcib, int d, int b, int s, int f, uint16_t vid,
-    uint16_t did, size_t size)
+pci_fill_devinfo(device_t pcib, device_t bus, int d, int b, int s, int f,
+    uint16_t vid, uint16_t did)
 {
 	struct pci_devinfo *devlist_entry;
 	pcicfgregs *cfg;
 
-	devlist_entry = malloc(size, M_DEVBUF, M_WAITOK | M_ZERO);
+	devlist_entry = PCI_ALLOC_DEVINFO(bus);
 
 	cfg = &devlist_entry->cfg;
 
@@ -665,7 +674,6 @@ pci_fill_devinfo(device_t pcib, int d, int b, int s, int f, uint16_t vid,
 	cfg->hdrtype		&= ~PCIM_MFDEV;
 	STAILQ_INIT(&cfg->maps);
 
-	cfg->devinfo_size	= size;
 	cfg->iov		= NULL;
 
 	pci_fixancient(cfg);
@@ -3854,11 +3862,11 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 
 static struct pci_devinfo *
 pci_identify_function(device_t pcib, device_t dev, int domain, int busno,
-    int slot, int func, size_t dinfo_size)
+    int slot, int func)
 {
 	struct pci_devinfo *dinfo;
 
-	dinfo = pci_read_device(pcib, domain, busno, slot, func, dinfo_size);
+	dinfo = pci_read_device(pcib, dev, domain, busno, slot, func);
 	if (dinfo != NULL)
 		pci_add_child(dev, dinfo);
 
@@ -3866,7 +3874,7 @@ pci_identify_function(device_t pcib, device_t dev, int domain, int busno,
 }
 
 void
-pci_add_children(device_t dev, int domain, int busno, size_t dinfo_size)
+pci_add_children(device_t dev, int domain, int busno)
 {
 #define	REG(n, w)	PCIB_READ_CONFIG(pcib, busno, s, f, n, w)
 	device_t pcib = device_get_parent(dev);
@@ -3882,8 +3890,7 @@ pci_add_children(device_t dev, int domain, int busno, size_t dinfo_size)
 	 * functions on this bus as ARI changes the set of slots and functions
 	 * that are legal on this bus.
 	 */
-	dinfo = pci_identify_function(pcib, dev, domain, busno, 0, 0,
-	    dinfo_size);
+	dinfo = pci_identify_function(pcib, dev, domain, busno, 0, 0);
 	if (dinfo != NULL && pci_enable_ari)
 		PCIB_TRY_ENABLE_ARI(pcib, dinfo->cfg.dev);
 
@@ -3893,8 +3900,6 @@ pci_add_children(device_t dev, int domain, int busno, size_t dinfo_size)
 	 */
 	first_func = 1;
 
-	KASSERT(dinfo_size >= sizeof(struct pci_devinfo),
-	    ("dinfo_size too small"));
 	maxslots = PCIB_MAXSLOTS(pcib);
 	for (s = 0; s <= maxslots; s++, first_func = 0) {
 		pcifunchigh = 0;
@@ -3906,16 +3911,15 @@ pci_add_children(device_t dev, int domain, int busno, size_t dinfo_size)
 		if (hdrtype & PCIM_MFDEV)
 			pcifunchigh = PCIB_MAXFUNCS(pcib);
 		for (f = first_func; f <= pcifunchigh; f++)
-			pci_identify_function(pcib, dev, domain, busno, s, f,
-			    dinfo_size);
+			pci_identify_function(pcib, dev, domain, busno, s, f);
 	}
 #undef REG
 }
 
 #ifdef PCI_IOV
 device_t
-pci_add_iov_child(device_t bus, device_t pf, size_t size, uint16_t rid,
-    uint16_t vid, uint16_t did)
+pci_add_iov_child(device_t bus, device_t pf, uint16_t rid, uint16_t vid,
+    uint16_t did)
 {
 	struct pci_devinfo *pf_dinfo, *vf_dinfo;
 	device_t pcib;
@@ -3923,23 +3927,12 @@ pci_add_iov_child(device_t bus, device_t pf, size_t size, uint16_t rid,
 
 	pf_dinfo = device_get_ivars(pf);
 
-	/*
-	 * Do a sanity check that we have been passed the correct size.  If this
-	 * test fails then likely the pci subclass hasn't implemented the
-	 * pci_create_iov_child method like it's supposed it.
-	 */
-	if (size != pf_dinfo->cfg.devinfo_size) {
-		device_printf(pf,
-		    "PCI subclass does not properly implement PCI_IOV\n");
-		return (NULL);
-	}
-
 	pcib = device_get_parent(bus);
 
 	PCIB_DECODE_RID(pcib, rid, &busno, &slot, &func);
 
-	vf_dinfo = pci_fill_devinfo(pcib, pci_get_domain(pcib), busno, slot, func,
-	    vid, did, size);
+	vf_dinfo = pci_fill_devinfo(pcib, bus, pci_get_domain(pcib), busno,
+	    slot, func, vid, did);
 
 	vf_dinfo->cfg.flags |= PCICFG_VF;
 	pci_add_child(bus, vf_dinfo);
@@ -3952,8 +3945,7 @@ pci_create_iov_child_method(device_t bus, device_t pf, uint16_t rid,
     uint16_t vid, uint16_t did)
 {
 
-	return (pci_add_iov_child(bus, pf, sizeof(struct pci_devinfo), rid, vid,
-	    did));
+	return (pci_add_iov_child(bus, pf, rid, vid, did));
 }
 #endif
 
@@ -4050,7 +4042,7 @@ pci_attach(device_t dev)
 	 */
 	domain = pcib_get_domain(dev);
 	busno = pcib_get_bus(dev);
-	pci_add_children(dev, domain, busno, sizeof(struct pci_devinfo));
+	pci_add_children(dev, domain, busno);
 	return (bus_generic_attach(dev));
 }
 
