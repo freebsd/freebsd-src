@@ -2797,7 +2797,7 @@ dump_soptcodes(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 
 	for (n = 1; n <= count; n++) {
 		i = (ipfw_sopt_info *)ipfw_get_sopt_space(sd, sizeof(*i));
-		KASSERT(i != 0, ("previously checked buffer is not enough"));
+		KASSERT(i != NULL, ("previously checked buffer is not enough"));
 		sh = &ctl3_handlers[n];
 		i->opcode = sh->opcode;
 		i->version = sh->version;

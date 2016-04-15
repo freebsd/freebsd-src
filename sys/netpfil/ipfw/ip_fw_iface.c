@@ -471,7 +471,7 @@ export_iface_internal(struct namedobj_instance *ii, struct named_object *no,
 	da = (struct dump_iface_args *)arg;
 
 	i = (ipfw_iface_info *)ipfw_get_sopt_space(da->sd, sizeof(*i));
-	KASSERT(i != 0, ("previously checked buffer is not enough"));
+	KASSERT(i != NULL, ("previously checked buffer is not enough"));
 
 	iif = (struct ipfw_iface *)no;
 
