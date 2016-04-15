@@ -45,3 +45,5 @@ Item: water
 XXXXXXXX
 X        XCost: 425
 X                              XCost: 455
+ links user  group  
+/some/file        1 user        group         
