@@ -194,7 +194,7 @@ main(int argc, char **argv)
 		default:
 			printf("Hosts on %s:\n", host);
 			break;
-		};
+		}
 		print_dump(mntdump);
 	}
 	if (rpcs & DOEXPORTS) {
@@ -317,7 +317,7 @@ xdr_mntdump(XDR *xdrsp, struct mountlist **mlp)
 						goto next;
 					}
 					break;
-				};
+				}
 				if (val < 0) {
 					otp = &tp->ml_left;
 					tp = tp->ml_left;
@@ -407,7 +407,7 @@ print_dump(struct mountlist *mp)
 	default:
 		printf("%s\n", mp->ml_host);
 		break;
-	};
+	}
 	if (mp->ml_right)
 		print_dump(mp->ml_right);
 }
