@@ -1197,7 +1197,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 					break;
 				len--;
 				truncated = 1;
-			};
+			}
 			fprintf(fp, "\"%s\"%s", tmp3, truncated ?
 			    "..." : "");
 			free(tmp3);
