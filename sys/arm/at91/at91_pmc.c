@@ -636,7 +636,7 @@ at91_pmc_deactivate(device_t dev)
 	if (sc->mem_res)
 		bus_release_resource(dev, SYS_RES_IOPORT,
 		    rman_get_rid(sc->mem_res), sc->mem_res);
-	sc->mem_res = 0;
+	sc->mem_res = NULL;
 }
 
 static int
