@@ -294,7 +294,7 @@ ng_source_newhook(node_p node, hook_p hook, const char *name)
 		sc->input = hook;
 	} else if (strcmp(name, NG_SOURCE_HOOK_OUTPUT) == 0) {
 		sc->output = hook;
-		sc->output_ifp = 0;
+		sc->output_ifp = NULL;
 		bzero(&sc->stats, sizeof(sc->stats));
 	} else
 		return (EINVAL);
