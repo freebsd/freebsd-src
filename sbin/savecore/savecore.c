@@ -506,7 +506,7 @@ DoFile(const char *savedir, const char *device)
 		}
 	}
 	if (lseek(fd, lasthd, SEEK_SET) != lasthd ||
-	    read(fd, temp, sectorsize) != sectorsize) {
+	    read(fd, temp, sectorsize) != (ssize_t)sectorsize) {
 		syslog(LOG_ERR,
 		    "error reading last dump header at offset %lld in %s: %m",
 		    (long long)lasthd, device);
@@ -584,7 +584,7 @@ DoFile(const char *savedir, const char *device)
 	dumpsize = dtoh64(kdhl.dumplength);
 	firsthd = lasthd - dumpsize - sectorsize;
 	if (lseek(fd, firsthd, SEEK_SET) != firsthd ||
-	    read(fd, temp, sectorsize) != sectorsize) {
+	    read(fd, temp, sectorsize) != (ssize_t)sectorsize) {
 		syslog(LOG_ERR,
 		    "error reading first dump header at offset %lld in %s: %m",
 		    (long long)firsthd, device);
@@ -743,7 +743,7 @@ nuke:
 		memcpy(kdhl.magic, KERNELDUMPMAGIC_CLEARED, sizeof(kdhl.magic));
 		memcpy(temp, &kdhl, sizeof(kdhl));
 		if (lseek(fd, lasthd, SEEK_SET) != lasthd ||
-		    write(fd, temp, sectorsize) != sectorsize)
+		    write(fd, temp, sectorsize) != (ssize_t)sectorsize)
 			syslog(LOG_ERR,
 			    "error while clearing the dump header: %m");
 	}
