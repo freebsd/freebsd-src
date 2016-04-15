@@ -569,14 +569,22 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
+		 * Samsung SM863 Series SSDs (MZ7KM*)
+		 * 4k optimised, NCQ believed to be working
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG MZ7KM*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
 		 * Samsung 843T Series SSDs (MZ7WD*)
 		 * Samsung PM851 Series SSDs (MZ7TE*)
 		 * Samsung PM853T Series SSDs (MZ7GE*)
-		 * Samsung SM863 Series SSDs (MZ7KM*)
-		 * 4k optimised, NCQ Trim believed working
+		 * 4k optimised, NCQ believed to be broken since these are
+		 * appear to be built with the same controllers as the 840/850.
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG MZ7*", "*" },
-		/*quirks*/ADA_Q_4K
+		/*quirks*/ADA_Q_4K | ADA_Q_NCQ_TRIM_BROKEN
 	},
 	{
 		/*
