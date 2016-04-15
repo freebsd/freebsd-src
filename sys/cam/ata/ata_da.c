@@ -2175,6 +2175,7 @@ out:
 static int
 adaerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
+#ifdef CAM_IO_STATS
 	struct ada_softc *softc;
 	struct cam_periph *periph;
 
@@ -2183,9 +2184,7 @@ adaerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 
 	switch (ccb->ccb_h.status & CAM_STATUS_MASK) {
 	case CAM_CMD_TIMEOUT:
-#ifdef CAM_IO_STATS
 		softc->timeouts++;
-#endif
 		break;
 	case CAM_REQ_ABORTED:
 	case CAM_REQ_CMP_ERR:
@@ -2193,13 +2192,12 @@ adaerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	case CAM_UNREC_HBA_ERROR:
 	case CAM_DATA_RUN_ERR:
 	case CAM_ATA_STATUS_ERROR:
-#ifdef CAM_IO_STATS
 		softc->errors++;
-#endif
 		break;
 	default:
 		break;
 	}
+#endif
 
 	return(cam_periph_error(ccb, cam_flags, sense_flags, NULL));
 }
