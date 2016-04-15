@@ -310,15 +310,15 @@ static pt2_entry_t *CMAP3;
 static caddr_t CADDR3;
 caddr_t _tmppt = 0;
 
-struct msgbuf *msgbufp = 0; /* XXX move it to machdep.c */
+struct msgbuf *msgbufp = NULL; /* XXX move it to machdep.c */
 
 /*
  *  Crashdump maps.
  */
 static caddr_t crashdumpmap;
 
-static pt2_entry_t *PMAP1 = 0, *PMAP2;
-static pt2_entry_t *PADDR1 = 0, *PADDR2;
+static pt2_entry_t *PMAP1 = NULL, *PMAP2;
+static pt2_entry_t *PADDR1 = NULL, *PADDR2;
 #ifdef DDB
 static pt2_entry_t *PMAP3;
 static pt2_entry_t *PADDR3;

@@ -1064,8 +1064,8 @@ clear_mac_entries(struct ece_softc *ec, int include_this_mac)
 	struct mac_list * current;
 	char mac[ETHER_ADDR_LEN];
 
-	current = 0;
-	mac_list_header = 0;
+	current = NULL;
+	mac_list_header = NULL;
 
 	table_end = read_mac_entry(ec, mac, 1);
 	while (!table_end) {
@@ -1608,7 +1608,7 @@ ece_encap(struct ece_softc *sc, struct mbuf *m0)
 	struct ifnet *ifp;
 	bus_dma_segment_t segs[MAX_FRAGMENT];
 	bus_dmamap_t mapp;
-	eth_tx_desc_t *desc = 0;
+	eth_tx_desc_t *desc = NULL;
 	int csum_flags;
 	int desc_no;
 	int error;
