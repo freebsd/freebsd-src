@@ -88,6 +88,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/signalvar.h>
 
+static MALLOC_DEFINE(M_DUMPER, "dumper", "dumper block buffer");
+
 #ifndef PANIC_REBOOT_WAIT_TIME
 #define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
 #endif
@@ -848,7 +850,9 @@ set_dumper(struct dumperinfo *di, const char *devname, struct thread *td)
 		return (error);
 
 	if (di == NULL) {
-		bzero(&dumper, sizeof dumper);
+		if (dumper.blockbuf != NULL)
+			free(dumper.blockbuf, M_DUMPER);
+		bzero(&dumper, sizeof(dumper));
 		dumpdevname[0] = '\0';
 		return (0);
 	}
@@ -860,6 +864,7 @@ set_dumper(struct dumperinfo *di, const char *devname, struct thread *td)
 		printf("set_dumper: device name truncated from '%s' -> '%s'\n",
 			devname, dumpdevname);
 	}
+	dumper.blockbuf = malloc(di->blocksize, M_DUMPER, M_WAITOK | M_ZERO);
 	return (0);
 }
 
@@ -879,6 +884,31 @@ dump_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
 	}
 	return (di->dumper(di->priv, virtual, physical, offset, length));
 }
+
+/* Call dumper with bounds checking. */
+int
+dump_write_pad(struct dumperinfo *di, void *virtual, vm_offset_t physical,
+    off_t offset, size_t length, size_t *size)
+{
+	char *temp;
+	int ret;
+
+	if (length > di->blocksize)
+		return (ENOMEM);
+
+	*size = di->blocksize;
+	if (length == di->blocksize)
+		temp = virtual;
+	else {
+		temp = di->blockbuf;
+		memset(temp + length, 0, di->blocksize - length);
+		memcpy(temp, virtual, length);
+	}
+	ret = dump_write(di, temp, physical, offset, *size);
+
+	return (ret);
+}
+
 
 void
 mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
