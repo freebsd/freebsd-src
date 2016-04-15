@@ -1314,7 +1314,7 @@ racct_init(void)
 		return;
 
 	racct_zone = uma_zcreate("racct", sizeof(struct racct),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	/*
 	 * XXX: Move this somewhere.
 	 */
