@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 
 #include <sys/param.h>
+#include <sys/types.h>
+#include <sys/sysproto.h>
 #include <sys/capsicum.h>
 #include <sys/cdio.h>
 #include <sys/fcntl.h>
@@ -56,9 +58,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 
+#include <machine/endian.h>
+
 #include <compat/cheriabi/cheriabi.h>
-#include <compat/cheriabi/cheriabi_ioctl.h>
 #include <compat/cheriabi/cheriabi_proto.h>
+/* Must come last due to massive header polution breaking cheriabi_proto.h */
+#include <compat/cheriabi/cheriabi_ioctl.h>
+
+MALLOC_DECLARE(M_IOCTLOPS);
 
 #if 0
 /* Cannot get exact size in 64-bit due to alignment issue of entire struct. */
@@ -71,316 +78,751 @@ CTASSERT(sizeof(struct pci_match_conf32) == 44);
 CTASSERT(sizeof(struct pci_conf32) == 44);
 #endif
 
-
+/*
+ * cheriabi_ioctl_translate_in - translate ioctl command and structure
+ *
+ * Maps *_C command in `com` to `*t_comp`.
+ *
+ * Allocates the appropriate structure and populates it, returning it in
+ * `*t_datap`.
+ */
 static int
-cheriabi_ioctl_md(struct thread *td, struct cheriabi_ioctl_args *uap,
-    struct file *fp)
+cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
+    void **t_datap)
 {
-	struct md_ioctl mdv;
-	struct md_ioctl_c md_c;
-	u_long com = 0;
-	int i, error;
+	int error;
 
-	if (uap->com & IOC_IN) {
-		if ((error = copyincap(uap->data, &md_c, sizeof(md_c)))) {
-			return (error);
-		}
-		CP(md_c, mdv, md_version);
-		CP(md_c, mdv, md_unit);
-		CP(md_c, mdv, md_type);
-		PTRIN_CP(md_c, mdv, md_file);
-		CP(md_c, mdv, md_mediasize);
-		CP(md_c, mdv, md_sectorsize);
-		CP(md_c, mdv, md_options);
-		CP(md_c, mdv, md_base);
-		CP(md_c, mdv, md_fwheads);
-		CP(md_c, mdv, md_fwsectors);
-	} else if (uap->com & IOC_OUT) {
-		/*
-		 * Zero the buffer so the user always
-		 * gets back something deterministic.
-		 */
-		bzero(&mdv, sizeof mdv);
-	}
-
-	switch (uap->com) {
+	switch (com) {
 	case MDIOCATTACH_C:
-		com = MDIOCATTACH;
-		break;
 	case MDIOCDETACH_C:
-		com = MDIOCDETACH;
-		break;
 	case MDIOCQUERY_C:
-		com = MDIOCQUERY;
-		break;
-	case MDIOCLIST_C:
-		com = MDIOCLIST;
-		break;
-	default:
-		panic("%s: unknown MDIOC %lx", __func__, uap->com);
+	case MDIOCLIST_C: {
+		struct md_ioctl *mdv;
+		struct md_ioctl_c *md_c = data;
+
+		mdv = malloc(sizeof(struct md_ioctl), M_IOCTLOPS,
+		     M_WAITOK | M_ZERO);
+		*t_datap = mdv;
+		*t_comp = _IOC_NEWTYPE(com, struct md_ioctl);
+
+		if (!(com & IOC_IN))
+			return (0);
+
+		CP((*md_c), (*mdv), md_version);
+		CP((*md_c), (*mdv), md_unit);
+		CP((*md_c), (*mdv), md_type);
+		CP((*md_c), (*mdv), md_mediasize);
+		CP((*md_c), (*mdv), md_sectorsize);
+		CP((*md_c), (*mdv), md_options);
+		CP((*md_c), (*mdv), md_base);
+		CP((*md_c), (*mdv), md_fwheads);
+		CP((*md_c), (*mdv), md_fwsectors);
+
+		/* _In_z_opt_ const char * md_file */
+		error = cheriabi_cap_to_ptr((caddr_t *)&mdv->md_file,
+		    &md_c->md_file, 1, (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD), 1);
+		if (error != 0)
+			return (error);
+
+		return (0);
 	}
-	error = fo_ioctl(fp, com, (caddr_t)&mdv, td->td_ucred, td);
-	if (error == 0 && (com & IOC_OUT)) {
-		CP(mdv, md_c, md_version);
-		CP(mdv, md_c, md_unit);
-		CP(mdv, md_c, md_type);
+
+	case CDIOREADTOCENTRYS_C: {
+		struct ioc_read_toc_entry *toce;
+		struct ioc_read_toc_entry_c *toce_c = data;
+
+		toce = malloc(sizeof(struct md_ioctl), M_IOCTLOPS,
+		    M_WAITOK | M_ZERO);
+		*t_datap = toce;
+		*t_comp = CDIOREADTOCENTRYS;
+
+		CP((*toce_c), (*toce), address_format);
+		CP((*toce_c), (*toce), starting_track);
+		CP((*toce_c), (*toce), data_len);
+		/* _Out_writes_bytes_(data_len) const char * data */
+		error = cheriabi_cap_to_ptr((caddr_t *)&toce->data,
+		    &toce_c->data, toce->data_len,
+		    (CHERI_PERM_GLOBAL|CHERI_PERM_STORE), 0);
+		if (error != 0)
+			return (error);
+
+		return (0);
+	}
+
+	case FIODGNAME_C: {
+		struct fiodgname_arg *fgn;
+		struct fiodgname_arg_c *fgn_c = data;
+
+		fgn = malloc(sizeof(struct fiodgname_arg), M_IOCTLOPS,
+		    M_WAITOK | M_ZERO);
+		*t_datap = fgn;
+		*t_comp = FIODGNAME;
+
+		CP((*fgn_c), (*fgn), len);
+		/* _Out_writes_bytes_(fgn->len) const char * buf */
+		error = cheriabi_cap_to_ptr((caddr_t *)&fgn->buf, &fgn_c->buf,
+		    fgn->len, (CHERI_PERM_GLOBAL|CHERI_PERM_STORE), 0);
+		if (error != 0)
+			return (error);
+
+		return(0);
+	}
+
+	case MEMRANGE_GET_C:
+	case MEMRANGE_SET_C: {
+		struct mem_range_op *mro;
+		struct mem_range_op_c *mro_c = data;
+		size_t ndesc;
+
+		mro = malloc(sizeof(struct mem_range_op), M_IOCTLOPS,
+		    M_WAITOK | M_ZERO);
+		*t_datap = mro;
+		*t_comp = _IOC_NEWTYPE(com, struct mem_range_op);
+
+		CP((*mro_c), (*mro), mo_arg[0]);
+		CP((*mro_c), (*mro), mo_arg[1]);
+		switch (com) {
+		case MEMRANGE_GET_C:
+			/*
+			 * _Out_writes_(mro->mo_arg[0])
+			 * struct mem_range_desc *mo_desc
+			 */
+			ndesc = mro->mo_arg[0];
+			break;
+		case MEMRANGE_SET_C:
+			/* _Out_writes_ struct mem_range_desc *mo_desc */
+			ndesc = 1;
+			break;
+		}
+		error = cheriabi_cap_to_ptr((caddr_t *)&mro->mo_desc,
+		    &mro_c->mo_desc, ndesc * sizeof(*mro->mo_desc),
+		    (CHERI_PERM_GLOBAL|CHERI_PERM_STORE), 0);
+		if (error != 0)
+			return (error);
+
+		return (0);
+	}
+
+	case PCIOCGETCONF_C: {
+		struct pci_conf_io *pci;
+		struct pci_conf_io_c *pci_c = data;
+
+		pci = malloc(sizeof(struct pci_conf_io), M_IOCTLOPS,
+		    M_WAITOK | M_ZERO);
+		*t_datap = pci;
+		*t_comp = PCIOCGETCONF;
+
+		CP((*pci_c), (*pci), pat_buf_len);
+		CP((*pci_c), (*pci), num_patterns);
+		CP((*pci_c), (*pci), match_buf_len);
+		/* num_matches is an output parameter */
+		CP((*pci_c), (*pci), offset);
+		CP((*pci_c), (*pci), generation);
+		/* status is an output parameter */
+
+		error = cheriabi_cap_to_ptr((caddr_t *)&pci->patterns,
+		    &pci_c->patterns, pci->pat_buf_len,
+		    (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD), 1);
+		if (error != 0)
+			return (error);
+		error = cheriabi_cap_to_ptr((caddr_t *)&pci->matches,
+		    &pci_c->matches, pci->match_buf_len,
+		    (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD), 1);
+		if (error != 0)
+			return (error);
+		return (0);
+	}
+
+	case SG_IO_C: {
+		struct sg_io_hdr *io;
+		struct sg_io_hdr_c *io_c = data;
+
+		io = malloc(sizeof(struct sg_io_hdr), M_IOCTLOPS,
+		    M_WAITOK | M_ZERO);
+		*t_datap = io;
+		*t_comp = SG_IO_C;
+
+		CP((*io_c), (*io), interface_id);
+		CP((*io_c), (*io), dxfer_direction);
+		CP((*io_c), (*io), cmd_len);
+		CP((*io_c), (*io), mx_sb_len);
+		CP((*io_c), (*io), iovec_count);
+		CP((*io_c), (*io), dxfer_len);
+		/*
+		 * XXX-BD: unclear if NULL is allowed, but the lower levels
+		 * will handle it, so let it through.
+		 */
+		error = cheriabi_cap_to_ptr((caddr_t *)&io->dxferp,
+		    &io_c->dxferp, io->dxfer_len,
+		    (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD), 1);
+		if (error != 0)
+			return (error);
+		error = cheriabi_cap_to_ptr((caddr_t *)&io->cmdp,
+		    &io_c->cmdp, io->cmd_len,
+		    (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD), 0);
+		if (error != 0)
+			return (error);
+		error = cheriabi_cap_to_ptr((caddr_t *)&io->sbp, &io_c->sbp,
+		    io->mx_sb_len, (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD), 1);
+		if (error != 0)
+			return (error);
+		CP((*io_c), (*io), timeout);
+		CP((*io_c), (*io), flags);
+		CP((*io_c), (*io), pack_id);
+		/* usr_ptr appears to be unused in kernel, to leave untouched */
+		/*
+		 * XXX-BD: the entries below appear to be output parameters,
+		 * but more auditing is required to remove them.
+		 */
+		CP((*io_c), (*io), status);
+		CP((*io_c), (*io), masked_status);
+		CP((*io_c), (*io), msg_status);
+		CP((*io_c), (*io), sb_len_wr);
+		CP((*io_c), (*io), host_status);
+		CP((*io_c), (*io), driver_status);
+		CP((*io_c), (*io), resid);
+		CP((*io_c), (*io), duration);
+		CP((*io_c), (*io), info);
+
+		return (0);
+	}
+
+	/* Consumers of ifr_buffer */
+	case SIOCSIFDESCR_C:
+	case SIOCGIFDESCR_C: {
+		struct ifreq *ifr;
+		struct ifreq_c *ifr_c = data;
+		register_t reqperms;
+
+		/*
+		 * The memory layout of struct ifreq and struct ifreq_c
+		 * is identical unless ifr_buffer or ifr_data are used.
+		 * In the ifr_buffer case, ifr_buffer.length is even in
+		 * the same location.  Thus we can initialize our struct
+		 * ifreq from data and fix up the pointer.
+		 */
+		ifr = malloc(sizeof(struct ifreq), M_IOCTLOPS, M_WAITOK);
+		memcpy(ifr, ifr_c, sizeof(struct ifreq));
+		*t_datap = ifr;
+		*t_comp = _IOC_NEWTYPE(com, struct ifreq);
+		switch (com) {
+		case SIOCSIFDESCR_C:
+			reqperms = (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD);
+			break;
+		case SIOCGIFDESCR_C:
+			reqperms = (CHERI_PERM_GLOBAL|CHERI_PERM_STORE);
+			break;
+		}
+		error = cheriabi_cap_to_ptr((caddr_t *)&ifr->ifr_buffer.buffer,
+		    &ifr_c->ifr_buffer.buffer, ifr->ifr_buffer.length,
+		    reqperms, 0);
+		if (error != 0)
+			return (error);
+
+		return (0);
+	}
+
+	/* ifr_data consumers */
+	case SIOCGIFMAC_C:
+	case SIOCSIFMAC_C:
+	case SIOCSIFNAME_C:
+	case BXE_IOC_RD_NVRAM_C:
+	case BXE_IOC_STATS_SHOW_CNT_C:
+	case BXE_IOC_STATS_SHOW_NUM_C:
+	case BXE_IOC_STATS_SHOW_STR_C:
+	case BXE_IOC_WR_NVRAM_C:
+	case GIFGOPTS_C:
+	case GIFSOPTS_C:
+	case GREGKEY_C:
+	case GREGOPTS_C:
+	case GRESKEY_C:
+	case GRESOPTS_C:
+	case SIOCG80211STATS_C:
+	case SIOCGATHAGSTATS_C:
+	case SIOCGETPFSYNC_C:
+	case SIOCGETVLAN_C:
+	case SIOCGI2C_C:
+	case SIOCGIFADDR_C:
+	case SIOCGIFGENERIC_C:
+	case SIOCGIWISTATS_C:
+	/* case SIOCGMVSTATS_C: conficts with SIOCGATHSTATS_C */
+	case SIOCGVH_C:
+	case SIOCIFCREATE2_C:
+	case SIOCSETPFSYNC_C:
+	case SIOCSETVLAN_C:
+	case SIOCSIFGENERIC_C:
+	case SIOCATMGVCCS_C: {
+		struct ifreq *ifr;
+		struct ifreq_c *ifr_c = data;
+		size_t reqsize;
+		register_t reqperms;
+		int i;
+
+		/*
+		 * The memory layout of struct ifreq and struct ifreq_c
+		 * is identical unless ifr_buffer or ifr_data are used.
+		 * Thus we can initialize our struct ifreq from data and
+		 * fix up the pointer.
+		 */
+		ifr = malloc(sizeof(struct ifreq), M_IOCTLOPS, M_WAITOK);
+		memcpy(ifr, ifr_c, sizeof(struct ifreq));
+		*t_datap = ifr;
+		switch (com) {
+		case BXE_IOC_RD_NVRAM_C:	/* requires parsing for size */
+		case BXE_IOC_WR_NVRAM_C:	/* requires parsing for size  */
+		case SIOCGIFMAC_C:		/* contains string */
+		case SIOCSIFMAC_C:		/* contains string */
+		case SIOCSIFNAME_C:		/* string */
+		case SIOCGVH_C:			/* copies multiple */
+			*t_comp = com;	/* Direct handling required */
+			break;
+		default:
+			*t_comp = _IOC_NEWTYPE(com, struct ifreq);
+			break;
+		}
+
+		i = 0;
+		do {
+			reqsize = cheriabi_ioctl_iru_data_consumers[i].size;
+			reqperms = cheriabi_ioctl_iru_data_consumers[i].perms;
+		} while(cheriabi_ioctl_iru_data_consumers[i].cmd != com &&
+		    cheriabi_ioctl_iru_data_consumers[i].cmd != 0);
+		reqperms |= CHERI_PERM_GLOBAL;
+
+		error = cheriabi_cap_to_ptr((caddr_t *)&ifr->ifr_data,
+		    &ifr_c->ifr_data, reqsize, reqperms, 1);
+		if (error != 0)
+			return (error);
+
+		return (0);
+	}
+
+	/* Other struct ifreq consumers */
+	case BIOCGETIF_C:
+	case BIOCSETIF_C:
+	case GREGADDRD_C:
+	case GREGADDRS_C:
+	case GREGPROTO_C:
+	case GRESADDRD_C:
+	case GRESADDRS_C:
+	case GRESPROTO_C:
+	case SIOCADDMULTI_C:
+	case SIOCDELMULTI_C:
+	case SIOCDIFADDR_C:
+	case SIOCDIFPHYADDR_C:
+	case SIOCGHWFLAGS_C:
+	case SIOCGIFBRDADDR_C:
+	case SIOCGIFCAP_C:
+	case SIOCGIFDSTADDR_C:
+	case SIOCGIFFIB_C:
+	case SIOCGIFFLAGS_C:
+	case SIOCGIFINDEX_C:
+	case SIOCGIFMETRIC_C:
+	case SIOCGIFMTU_C:
+	case SIOCGIFNETMASK_C:
+	case SIOCGIFPDSTADDR_C:
+	case SIOCGIFPHYS_C:
+	case SIOCGIFPSRCADDR_C:
+	case SIOCGINSTATS_C:
+	case SIOCGPRIVATE_0_C:
+	case SIOCGPRIVATE_1_C:
+	case SIOCGTUNFIB_C:
+	case SIOCIFCREATE_C:
+	case SIOCIFDESTROY_C:
+	case SIOCRINSTATS_C:
+	case SIOCSIFADDR_C:
+	case SIOCSIFBRDADDR_C:
+	case SIOCSIFCAP_C:
+	case SIOCSIFDSTADDR_C:
+	case SIOCSIFFIB_C:
+	case SIOCSIFFLAGS_C:
+	case SIOCSIFLLADDR_C:
+	case SIOCSIFMEDIA_C:
+	case SIOCSIFMETRIC_C:
+	case SIOCSIFMTU_C:
+	case SIOCSIFNETMASK_C:
+	case SIOCSIFPHYS_C:
+	case SIOCSIFRVNET_C:
+	case SIOCSIFVNET_C:
+	case SIOCSTUNFIB_C:
+	case SIOCSVH_C:
+	case SIOCZATHSTATS_C:
+	case SIOCZIWISTATS_C:
+	case TAPGIFNAME_C: {
+		/*
+		 * The memory layout of struct ifreq and struct ifreq_c
+		 * is identical unless ifr_buffer or ifr_data are used
+		 * translate the command, but don't allocate storage.
+		 */
+		*t_datap = NULL;
+		*t_comp = _IOC_NEWTYPE(com, struct ifreq);
+		return (0);
+	}
+	default:
+		return (EINVAL);
+	}
+
+}
+
+static void
+cheriabi_ioctl_translate_out(u_long com, void *data, void *t_data)
+{
+
+	if (!(com & IOC_OUT)) {
+		free(t_data, M_IOCTLOPS);
+		return;
+	}
+
+	switch (com) {
+	case MDIOCATTACH_C:
+	case MDIOCDETACH_C:
+	case MDIOCQUERY_C:
+	case MDIOCLIST_C: {
+		int i;
+		struct md_ioctl *mdv = t_data;
+		struct md_ioctl_c *md_c = data;
+
+		CP((*mdv), (*md_c), md_version);
+		CP((*mdv), (*md_c), md_unit);
+		CP((*mdv), (*md_c), md_type);
 		/*
 		 * Don't copy out a new value for md_file.  Either we've
 		 * used the one that was copied in or there wasn't one.
 		 */
-		CP(mdv, md_c, md_mediasize);
-		CP(mdv, md_c, md_sectorsize);
-		CP(mdv, md_c, md_options);
-		CP(mdv, md_c, md_base);
-		CP(mdv, md_c, md_fwheads);
-		CP(mdv, md_c, md_fwsectors);
-		if (com == MDIOCLIST) {
-			/* Use MDNPAD, and not MDNPAD_C. */
+		CP((*mdv), (*md_c), md_mediasize);
+		CP((*mdv), (*md_c), md_sectorsize);
+		CP((*mdv), (*md_c), md_options);
+		CP((*mdv), (*md_c), md_base);
+		CP((*mdv), (*md_c), md_fwheads);
+		CP((*mdv), (*md_c), md_fwsectors);
+		if (com == MDIOCLIST_C) {
 			for (i = 0; i < MDNPAD; i++)
-				CP(mdv, md_c, md_pad[i]);
+				CP((*mdv), (*md_c), md_pad[i]);
 		}
-		error = copyoutcap(&md_c, uap->data, sizeof(md_c));
+		break;
 	}
-	return error;
-}
 
-
-static int
-cheriabi_ioctl_ioc_read_toc(struct thread *td,
-    struct cheriabi_ioctl_args *uap, struct file *fp)
-{
-	struct ioc_read_toc_entry toce;
-	struct ioc_read_toc_entry_c toce_c;
-	int error;
-
-	if ((error = copyincap(uap->data, &toce_c, sizeof(toce_c))))
-		return (error);
-	CP(toce_c, toce, address_format);
-	CP(toce_c, toce, starting_track);
-	CP(toce_c, toce, data_len);
-	PTRIN_CP(toce_c, toce, data);
-
-	if ((error = fo_ioctl(fp, CDIOREADTOCENTRYS, (caddr_t)&toce,
-	    td->td_ucred, td))) {
-		CP(toce, toce_c, address_format);
-		CP(toce, toce_c, starting_track);
-		CP(toce, toce_c, data_len);
-		/* Don't update data pointer */
-		error = copyoutcap(&toce_c, uap->data, sizeof(toce_c));
+	case CDIOREADTOCENTRYS_C: {
+		struct ioc_read_toc_entry *toce = t_data;
+		struct ioc_read_toc_entry_c *toce_c = data;
+		CP((*toce), (*toce_c), address_format);
+		CP((*toce), (*toce_c), starting_track);
+		CP((*toce), (*toce_c), data_len);
+		break;
 	}
-	return error;
-}
 
-static int
-cheriabi_ioctl_fiodgname(struct thread *td,
-    struct cheriabi_ioctl_args *uap, struct file *fp)
-{
-	struct fiodgname_arg fgn;
-	struct fiodgname_arg_c fgn_c;
-	int error;
+	/* FIODGNAME_C: Input only */
 
-	if ((error = copyincap(uap->data, &fgn_c, sizeof fgn_c)) != 0)
-		return (error);
-	CP(fgn_c, fgn, len);
-	PTRIN_CP(fgn_c, fgn, buf);
-	error = fo_ioctl(fp, FIODGNAME, (caddr_t)&fgn, td->td_ucred, td);
-	return (error);
-}
-
-static int
-cheriabi_ioctl_memrange(struct thread *td,
-    struct cheriabi_ioctl_args *uap, struct file *fp)
-{
-	struct mem_range_op mro;
-	struct mem_range_op_c mro_c;
-	int error;
-	u_long com;
-
-	if ((error = copyincap(uap->data, &mro_c, sizeof(mro_c))) != 0)
-		return (error);
-
-	PTRIN_CP(mro_c, mro, mo_desc);
-	CP(mro_c, mro, mo_arg[0]);
-	CP(mro_c, mro, mo_arg[1]);
-
-	com = 0;
-	switch (uap->com) {
 	case MEMRANGE_GET_C:
-		com = MEMRANGE_GET;
-		break;
+	case MEMRANGE_SET_C: {
+		struct mem_range_op *mro = t_data;
+		struct mem_range_op_c *mro_c = data;
 
-	case MEMRANGE_SET_C:
-		com = MEMRANGE_SET;
+		CP((*mro), (*mro_c), mo_arg[0]);
+		CP((*mro), (*mro_c), mo_arg[1]);
 		break;
+	}
+
+	case PCIOCGETCONF_C: {
+		struct pci_conf_io *pci = t_data;
+		struct pci_conf_io_c *pci_c = data;
+
+		CP((*pci), (*pci_c), num_matches);
+		CP((*pci), (*pci_c), offset);
+		CP((*pci), (*pci_c), generation);
+		CP((*pci), (*pci_c), status);
+		break;
+	}
+
+	case SG_IO_C: {
+		struct sg_io_hdr *io = t_data;
+		struct sg_io_hdr_c *io_c = data;
+
+		/*
+		 * XXX-BD: a number of these are input only, but need
+		 * audting before removal/
+		 */
+		CP((*io), (*io_c), interface_id);
+		CP((*io), (*io_c), dxfer_direction);
+		CP((*io), (*io_c), cmd_len);
+		CP((*io), (*io_c), mx_sb_len);
+		CP((*io), (*io_c), iovec_count);
+		CP((*io), (*io_c), dxfer_len);
+		/* Don't change dxferp, cmdp, or sbp */
+		CP((*io), (*io_c), timeout);
+		CP((*io), (*io_c), flags);
+		CP((*io), (*io_c), pack_id);
+		/* Don't change usr_ptr */
+		CP((*io), (*io_c), status);
+		CP((*io), (*io_c), masked_status);
+		CP((*io), (*io_c), msg_status);
+		CP((*io), (*io_c), sb_len_wr);
+		CP((*io), (*io_c), host_status);
+		CP((*io), (*io_c), driver_status);
+		CP((*io), (*io_c), resid);
+		CP((*io), (*io_c), duration);
+		CP((*io), (*io_c), info);
+		break;
+	}
+
+	/* Consumers of ifr_buffer */
+	/* SIOCSIFDESCR_C: Input only */
+	case SIOCGIFDESCR_C: {
+		struct ifreq *ifr = t_data;
+		struct ifreq_c *ifr_c = data;
+
+		/* XXX-BD: does anyone actually update ifr_name? */
+		memcpy(ifr_c->ifr_name, ifr->ifr_name,
+		    sizeof(ifr_c->ifr_name));
+		CP((*ifr), (*ifr_c), ifr_buffer.length);
+		break;
+	}
+
+	/* ifr_ifdata users */
+	case SIOCGIFMAC_C:
+	case SIOCSIFMAC_C:
+	case SIOCSIFNAME_C:
+	case BXE_IOC_RD_NVRAM_C:
+	case BXE_IOC_STATS_SHOW_CNT_C:
+	case BXE_IOC_STATS_SHOW_NUM_C:
+	case BXE_IOC_STATS_SHOW_STR_C:
+	case BXE_IOC_WR_NVRAM_C:
+	case GIFGOPTS_C:
+	case GIFSOPTS_C:
+	case GREGKEY_C:
+	case GREGOPTS_C:
+	case GRESKEY_C:
+	case GRESOPTS_C:
+	case SIOCG80211STATS_C:
+	case SIOCGATHAGSTATS_C:
+	case SIOCGATHSTATS_C:
+	case SIOCGETPFSYNC_C:
+	case SIOCGETVLAN_C:
+	case SIOCGI2C_C:
+	case SIOCGIFADDR_C:
+	case SIOCGIFGENERIC_C:
+	case SIOCGIWISTATS_C:
+	/* case SIOCGMVSTATS_C: conflicts with SIOCGATHSTATS_C */
+	case SIOCGVH_C:
+	case SIOCIFCREATE2_C:
+	case SIOCSETPFSYNC_C:
+	case SIOCSETVLAN_C:
+	case SIOCSIFGENERIC_C: {
+		struct ifreq *ifr = t_data;
+		struct ifreq_c *ifr_c = data;
+
+		/* XXX-BD: does anyone actually update ifr_name? */
+		memcpy(ifr_c->ifr_name, ifr->ifr_name,
+		    sizeof(ifr_c->ifr_name));
+		break;
+	}
+
+	/* Other struct ifreq consumers don't allocate translation space. */
 
 	default:
-		panic("%s: unknown MEMRANGE %lx", __func__, uap->com);
+		panic("%s: unhandled IOC_OUT command %lu", __func__, com);
 	}
 
-	if ((error = fo_ioctl(fp, com, (caddr_t)&mro, td->td_ucred, td)) != 0)
-		return (error);
-
-	if ( (com & IOC_OUT) ) {
-		CP(mro, mro_c, mo_arg[0]);
-		CP(mro, mro_c, mo_arg[1]);
-
-		error = copyoutcap(&mro_c, uap->data, sizeof(mro_c));
-	}
-
-	return (error);
-}
-
-static int
-cheriabi_ioctl_pciocgetconf(struct thread *td,
-    struct cheriabi_ioctl_args *uap, struct file *fp)
-{
-	struct pci_conf_io pci;
-	struct pci_conf_io_c pci_c;
-	int error;
-
-	if ((error = copyincap(uap->data, &pci_c, sizeof(pci_c))) != 0)
-		return (error);
-
-	CP(pci_c, pci, pat_buf_len);
-	CP(pci_c, pci, num_patterns);
-	PTRIN_CP(pci_c, pci, patterns);
-	CP(pci_c, pci, match_buf_len);
-	/* num_matches is an output parameter */
-	PTRIN_CP(pci_c, pci, matches);
-	CP(pci_c, pci, offset);
-	CP(pci_c, pci, generation);
-	/* status is an output parameter */
-
-	if ((error = fo_ioctl(fp, PCIOCGETCONF, (caddr_t)&pci, td->td_ucred,
-	    td)) != 0)
-		return (error);
-
-	CP(pci, pci_c, num_matches);
-	CP(pci, pci_c, offset);
-	CP(pci, pci_c, generation);
-	CP(pci, pci_c, status);
-
-	error = copyoutcap(&pci_c, uap->data, sizeof(pci_c));
-
-	return (error);
-}
-
-static int
-cheriabi_ioctl_sg(struct thread *td,
-    struct cheriabi_ioctl_args *uap, struct file *fp)
-{
-	struct sg_io_hdr io;
-	struct sg_io_hdr_c io_c;
-	int error;
-
-	if ((error = copyincap(uap->data, &io_c, sizeof(io_c))) != 0)
-		return (error);
-
-	CP(io_c, io, interface_id);
-	CP(io_c, io, dxfer_direction);
-	CP(io_c, io, cmd_len);
-	CP(io_c, io, mx_sb_len);
-	CP(io_c, io, iovec_count);
-	CP(io_c, io, dxfer_len);
-	PTRIN_CP(io_c, io, dxferp);
-	PTRIN_CP(io_c, io, cmdp);
-	PTRIN_CP(io_c, io, sbp);
-	CP(io_c, io, timeout);
-	CP(io_c, io, flags);
-	CP(io_c, io, pack_id);
-	PTRIN_CP(io_c, io, usr_ptr);
-	CP(io_c, io, status);
-	CP(io_c, io, masked_status);
-	CP(io_c, io, msg_status);
-	CP(io_c, io, sb_len_wr);
-	CP(io_c, io, host_status);
-	CP(io_c, io, driver_status);
-	CP(io_c, io, resid);
-	CP(io_c, io, duration);
-	CP(io_c, io, info);
-
-	if ((error = fo_ioctl(fp, SG_IO, (caddr_t)&io, td->td_ucred, td)) != 0)
-		return (error);
-
-	CP(io, io_c, interface_id);
-	CP(io, io_c, dxfer_direction);
-	CP(io, io_c, cmd_len);
-	CP(io, io_c, mx_sb_len);
-	CP(io, io_c, iovec_count);
-	CP(io, io_c, dxfer_len);
-	/* Don't change dxferp, cmdp, or sbp */
-	CP(io, io_c, timeout);
-	CP(io, io_c, flags);
-	CP(io, io_c, pack_id);
-	/* Don't change usr_ptr */
-	CP(io, io_c, status);
-	CP(io, io_c, masked_status);
-	CP(io, io_c, msg_status);
-	CP(io, io_c, sb_len_wr);
-	CP(io, io_c, host_status);
-	CP(io, io_c, driver_status);
-	CP(io, io_c, resid);
-	CP(io, io_c, duration);
-	CP(io, io_c, info);
-
-	error = copyoutcap(&io_c, uap->data, sizeof(io_c));
-
-	return (error);
+	free(t_data, M_IOCTLOPS);
+	return;
 }
 
 int
+ioctl_data_contains_pointers(u_long cmd)
+{
+	switch (cmd) {
+	case CDIOREADTOCENTRYS_C:
+	case MDIOCATTACH_C:
+	case MDIOCDETACH_C:
+	case MDIOCQUERY_C:
+	case MDIOCLIST_C:
+	case FIODGNAME_C:
+	case MEMRANGE_GET_C:
+	case MEMRANGE_SET_C:
+	case PCIOCGETCONF_C:
+	case SG_IO_C:
+
+	/* ifr_ifbuffer users */
+	case SIOCSIFDESCR_C:
+	case SIOCGIFDESCR_C:
+
+	/* ifr_ifdata users */
+	case SIOCGIFMAC_C:
+	case SIOCSIFMAC_C:
+	case SIOCSIFNAME_C:
+	case BXE_IOC_RD_NVRAM_C:
+	case BXE_IOC_STATS_SHOW_CNT_C:
+	case BXE_IOC_STATS_SHOW_NUM_C:
+	case BXE_IOC_STATS_SHOW_STR_C:
+	case BXE_IOC_WR_NVRAM_C:
+	case GIFGOPTS_C:
+	case GIFSOPTS_C:
+	case GREGKEY_C:
+	case GREGOPTS_C:
+	case GRESKEY_C:
+	case GRESOPTS_C:
+	case SIOCG80211STATS_C:
+	case SIOCGATHAGSTATS_C:
+	case SIOCGATHSTATS_C:
+	case SIOCGETPFSYNC_C:
+	case SIOCGETVLAN_C:
+	case SIOCGI2C_C:
+	case SIOCGIFADDR_C:
+	case SIOCGIFGENERIC_C:
+	case SIOCGIWISTATS_C:
+	/* case SIOCGMVSTATS_C: conflicts with SIOCGATHSTATS_C */
+	case SIOCGVH_C:
+	case SIOCIFCREATE2_C:
+	case SIOCSETPFSYNC_C:
+	case SIOCSETVLAN_C:
+	case SIOCSIFGENERIC_C:
+	case SIOCATMGVCCS:
+
+	/* Other struct ifreq users.  Gratutious copy along with translation. */
+	case BIOCGETIF_C:
+	case BIOCSETIF_C:
+	case GREGADDRD_C:
+	case GREGADDRS_C:
+	case GREGPROTO_C:
+	case GRESADDRD_C:
+	case GRESADDRS_C:
+	case GRESPROTO_C:
+	case SIOCADDMULTI_C:
+	case SIOCDELMULTI_C:
+	case SIOCDIFADDR_C:
+	case SIOCDIFPHYADDR_C:
+	case SIOCGHWFLAGS_C:
+	case SIOCGIFBRDADDR_C:
+	case SIOCGIFCAP_C:
+	case SIOCGIFDSTADDR_C:
+	case SIOCGIFFIB_C:
+	case SIOCGIFFLAGS_C:
+	case SIOCGIFINDEX_C:
+	case SIOCGIFMETRIC_C:
+	case SIOCGIFMTU_C:
+	case SIOCGIFNETMASK_C:
+	case SIOCGIFPDSTADDR_C:
+	case SIOCGIFPHYS_C:
+	case SIOCGIFPSRCADDR_C:
+	case SIOCGINSTATS_C:
+	case SIOCGPRIVATE_0_C:
+	case SIOCGPRIVATE_1_C:
+	case SIOCGTUNFIB_C:
+	case SIOCIFCREATE_C:
+	case SIOCIFDESTROY_C:
+	case SIOCRINSTATS_C:
+	case SIOCSIFADDR_C:
+	case SIOCSIFBRDADDR_C:
+	case SIOCSIFCAP_C:
+	case SIOCSIFDSTADDR_C:
+	case SIOCSIFFIB_C:
+	case SIOCSIFFLAGS_C:
+	case SIOCSIFLLADDR_C:
+	case SIOCSIFMEDIA_C:
+	case SIOCSIFMETRIC_C:
+	case SIOCSIFMTU_C:
+	case SIOCSIFNETMASK_C:
+	case SIOCSIFPHYS_C:
+	case SIOCSIFRVNET_C:
+	case SIOCSIFVNET_C:
+	case SIOCSTUNFIB_C:
+	case SIOCSVH_C:
+	case SIOCZATHSTATS_C:
+	case SIOCZIWISTATS_C:
+	case TAPGIFNAME_C:
+
+		return (1);
+	default:
+		return (0);
+	}
+}
+
+#define SYS_IOCTL_SMALL_SIZE	128
+#define SYS_IOCTL_SMALL_ALIGN	sizeof(struct chericap)
+int
 cheriabi_ioctl(struct thread *td, struct cheriabi_ioctl_args *uap)
 {
-	struct file *fp;
-	cap_rights_t rights;
-	int error;
+	u_char smalldata[SYS_IOCTL_SMALL_SIZE] __aligned(SYS_IOCTL_SMALL_ALIGN);
+	u_long com, t_com;
+	int arg, error;
+	u_int size;
+	caddr_t data;
+	void *t_data;
 
-	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_IOCTL), &fp);
-	if (error != 0)
-		return (error);
-	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
-		fdrop(fp, td);
-		return (EBADF);
+	if (uap->com > 0xffffffff) {
+		printf(
+		    "WARNING pid %d (%s): ioctl sign-extension ioctl %lx\n",
+		    td->td_proc->p_pid, td->td_name, uap->com);
+		uap->com &= 0xffffffff;
 	}
+	com = uap->com;
 
-	switch (uap->com) {
-	case MDIOCATTACH_C:	/* FALLTHROUGH */
-	case MDIOCDETACH_C:	/* FALLTHROUGH */
-	case MDIOCQUERY_C:	/* FALLTHROUGH */
-	case MDIOCLIST_C:
-		error = cheriabi_ioctl_md(td, uap, fp);
-		break;
+	/*
+	 * Interpret high order word to find amount of data to be
+	 * copied to/from the user's address space.
+	 */
+	size = IOCPARM_LEN(com);
+	if ((size > IOCPARM_MAX) ||
+	    ((com & (IOC_VOID  | IOC_IN | IOC_OUT)) == 0) ||
+#if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
+	    ((com & IOC_OUT) && size == 0) ||
+#else
+	    ((com & (IOC_IN | IOC_OUT)) && size == 0) ||
+#endif
+	    ((com & IOC_VOID) && size > 0 && size != sizeof(int)))
+		return (ENOTTY);
 
-	case CDIOREADTOCENTRYS_C:
-		error = cheriabi_ioctl_ioc_read_toc(td, uap, fp);
-		break;
-
-	case FIODGNAME_C:
-		error = cheriabi_ioctl_fiodgname(td, uap, fp);
-		break;
-
-	case MEMRANGE_GET_C:	/* FALLTHROUGH */
-	case MEMRANGE_SET_C:
-		error = cheriabi_ioctl_memrange(td, uap, fp);
-		break;
-
-	case PCIOCGETCONF_C:
-		error = cheriabi_ioctl_pciocgetconf(td, uap, fp);
-		break;
-
-	case SG_IO_C:
-		error = cheriabi_ioctl_sg(td, uap, fp);
-		break;
-
-	default:
-		fdrop(fp, td);
+	if (size > 0) {
+		if (com & IOC_VOID) {
+			/* Integer argument. */
+			arg = (intptr_t)uap->data;
+			data = (void *)&arg;
+			size = 0;
+		} else {
+			if (size > SYS_IOCTL_SMALL_SIZE)
+				data = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
+			else
+				data = smalldata;
+		}
+	} else
+		data = (void *)&uap->data;
+	t_data = NULL;
+	if ((com & IOC_IN) && !ioctl_data_contains_pointers(com)) {
+		error = copyin(uap->data, data, size);
+		if (error != 0)
+			goto out;
+	} else if (com & IOC_IN) {
+		error = copyincap(uap->data, data, size);
+		if (error != 0)
+			goto out;
+		error = cheriabi_ioctl_translate_in(com, data, &t_com, &t_data);
+		if (error != 0)
+			goto out;
+		com = t_com;
+	} else if (com & IOC_OUT) {
 		/*
-		 * Unlike on freebsd32, uap contains a 64-bit data pointer
-		 * already so we can just cast the struct pointer.
+		 * Zero the buffer so the user always
+		 * gets back something deterministic.
 		 */
-		return sys_ioctl(td, (struct ioctl_args *)uap);
+		bzero(data, size);
 	}
 
-	fdrop(fp, td);
-	return error;
+	if (t_data == NULL)
+		error = kern_ioctl(td, uap->fd, com, data);
+	else
+		error = kern_ioctl(td, uap->fd, com, t_data);
+
+	if (t_data)
+		cheriabi_ioctl_translate_out(com, data, t_data);
+	if (error == 0 && (com & IOC_OUT)) {
+		if (t_data)
+			error = copyoutcap(data, uap->data, (u_int)size);
+		else
+			error = copyout(data, uap->data, (u_int)size);
+	}
+
+out:
+	if (size > SYS_IOCTL_SMALL_SIZE)
+		free(data, M_IOCTLOPS);
+	return (error);
 }

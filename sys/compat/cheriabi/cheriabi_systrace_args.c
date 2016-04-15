@@ -201,7 +201,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[2] = p->len; /* size_t */
 		iarg[3] = p->flags; /* int */
 		uarg[4] = (intptr_t) p->from; /* struct sockaddr * */
-		uarg[5] = (intptr_t) p->fromlenaddr; /* __socklen_t * */
+		uarg[5] = (intptr_t) p->fromlenaddr; /* socklen_t * */
 		*n_args = 6;
 		break;
 	}
@@ -209,8 +209,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 30: {
 		struct accept_args *p = params;
 		iarg[0] = p->s; /* int */
-		uarg[1] = (intptr_t) p->name; /* caddr_t */
-		uarg[2] = (intptr_t) p->anamelen; /* int * */
+		uarg[1] = (intptr_t) p->name; /* struct sockaddr * */
+		uarg[2] = (intptr_t) p->anamelen; /* socklen_t * */
 		*n_args = 3;
 		break;
 	}
@@ -218,8 +218,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 31: {
 		struct getpeername_args *p = params;
 		iarg[0] = p->fdes; /* int */
-		uarg[1] = (intptr_t) p->asa; /* caddr_t */
-		uarg[2] = (intptr_t) p->alen; /* int * */
+		uarg[1] = (intptr_t) p->asa; /* struct sockaddr * */
+		uarg[2] = (intptr_t) p->alen; /* socklen_t * */
 		*n_args = 3;
 		break;
 	}
@@ -227,8 +227,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 32: {
 		struct getsockname_args *p = params;
 		iarg[0] = p->fdes; /* int */
-		uarg[1] = (intptr_t) p->asa; /* caddr_t */
-		uarg[2] = (intptr_t) p->alen; /* int * */
+		uarg[1] = (intptr_t) p->asa; /* struct sockaddr * */
+		uarg[2] = (intptr_t) p->alen; /* socklen_t * */
 		*n_args = 3;
 		break;
 	}
@@ -365,22 +365,22 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* revoke */
 	case 56: {
 		struct revoke_args *p = params;
-		uarg[0] = (intptr_t) p->path; /* char * */
+		uarg[0] = (intptr_t) p->path; /* const char * */
 		*n_args = 1;
 		break;
 	}
 	/* symlink */
 	case 57: {
 		struct symlink_args *p = params;
-		uarg[0] = (intptr_t) p->path; /* char * */
-		uarg[1] = (intptr_t) p->link; /* char * */
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->link; /* const char * */
 		*n_args = 2;
 		break;
 	}
 	/* readlink */
 	case 58: {
 		struct readlink_args *p = params;
-		uarg[0] = (intptr_t) p->path; /* char * */
+		uarg[0] = (intptr_t) p->path; /* const char * */
 		uarg[1] = (intptr_t) p->buf; /* char * */
 		uarg[2] = p->count; /* size_t */
 		*n_args = 3;
@@ -644,7 +644,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[1] = p->level; /* int */
 		iarg[2] = p->name; /* int */
 		uarg[3] = (intptr_t) p->val; /* caddr_t */
-		uarg[4] = (intptr_t) p->avalsize; /* int * */
+		uarg[4] = (intptr_t) p->avalsize; /* socklen_t * */
 		*n_args = 5;
 		break;
 	}
@@ -905,7 +905,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 189: {
 		struct fstat_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->ub; /* struct stat * */
+		uarg[1] = (intptr_t) p->sb; /* struct stat * */
 		*n_args = 2;
 		break;
 	}
@@ -965,7 +965,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[0] = (intptr_t) p->name; /* int * */
 		uarg[1] = p->namelen; /* u_int */
 		uarg[2] = (intptr_t) p->old; /* void * */
-		uarg[3] = (intptr_t) p->oldlenp; /* void * */
+		uarg[3] = (intptr_t) p->oldlenp; /* size_t * */
 		uarg[4] = (intptr_t) p->new; /* void * */
 		iarg[5] = p->newlen; /* void */
 		*n_args = 6;
@@ -1115,18 +1115,18 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 5;
 		break;
 	}
-	/* shmat */
+	/* cheriabi_shmat */
 	case 228: {
-		struct shmat_args *p = params;
+		struct cheriabi_shmat_args *p = params;
 		iarg[0] = p->shmid; /* int */
 		uarg[1] = (intptr_t) p->shmaddr; /* void * */
 		iarg[2] = p->shmflg; /* int */
 		*n_args = 3;
 		break;
 	}
-	/* shmdt */
+	/* cheriabi_shmdt */
 	case 230: {
-		struct shmdt_args *p = params;
+		struct cheriabi_shmdt_args *p = params;
 		uarg[0] = (intptr_t) p->shmaddr; /* void * */
 		*n_args = 1;
 		break;
@@ -1641,7 +1641,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct cheriabi_kldsym_args *p = params;
 		iarg[0] = p->fileid; /* int */
 		iarg[1] = p->cmd; /* int */
-		uarg[2] = (intptr_t) p->data; /* void * */
+		uarg[2] = (intptr_t) p->data; /* struct kld_sym_lookup_c * */
 		*n_args = 3;
 		break;
 	}
@@ -2354,7 +2354,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[0] = (intptr_t) p->obj; /* void * */
 		iarg[1] = p->op; /* int */
 		uarg[2] = p->val; /* u_long */
-		uarg[3] = (intptr_t) p->uaddr; /* void * */
+		uarg[3] = (intptr_t) p->uaddr1; /* void * */
 		uarg[4] = (intptr_t) p->uaddr2; /* void * */
 		*n_args = 5;
 		break;
@@ -2367,9 +2367,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* sigqueue */
+	/* cheriabi_sigqueue */
 	case 456: {
-		struct sigqueue_args *p = params;
+		struct cheriabi_sigqueue_args *p = params;
 		iarg[0] = p->pid; /* pid_t */
 		iarg[1] = p->signum; /* int */
 		uarg[2] = (intptr_t) p->value; /* void * */
@@ -2481,7 +2481,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = (intptr_t) p->msg; /* caddr_t */
 		iarg[2] = p->mlen; /* int */
 		uarg[3] = (intptr_t) p->to; /* caddr_t */
-		iarg[4] = p->tolen; /* __socklen_t */
+		iarg[4] = p->tolen; /* socklen_t */
 		uarg[5] = (intptr_t) p->sinfo; /* struct sctp_sndrcvinfo * */
 		iarg[6] = p->flags; /* int */
 		*n_args = 7;
@@ -2494,7 +2494,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = (intptr_t) p->iov; /* struct iovec_c * */
 		iarg[2] = p->iovlen; /* int */
 		uarg[3] = (intptr_t) p->to; /* caddr_t */
-		iarg[4] = p->tolen; /* __socklen_t */
+		iarg[4] = p->tolen; /* socklen_t */
 		uarg[5] = (intptr_t) p->sinfo; /* struct sctp_sndrcvinfo * */
 		iarg[6] = p->flags; /* int */
 		*n_args = 7;
@@ -2507,7 +2507,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = (intptr_t) p->iov; /* struct iovec_c * */
 		iarg[2] = p->iovlen; /* int */
 		uarg[3] = (intptr_t) p->from; /* struct sockaddr * */
-		uarg[4] = (intptr_t) p->fromlenaddr; /* __socklen_t * */
+		uarg[4] = (intptr_t) p->fromlenaddr; /* socklen_t * */
 		uarg[5] = (intptr_t) p->sinfo; /* struct sctp_sndrcvinfo * */
 		uarg[6] = (intptr_t) p->msg_flags; /* int * */
 		*n_args = 7;
@@ -2647,7 +2647,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 489: {
 		struct faccessat_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->path; /* char * */
+		uarg[1] = (intptr_t) p->path; /* const char * */
 		iarg[2] = p->amode; /* int */
 		iarg[3] = p->flag; /* int */
 		*n_args = 4;
@@ -2765,7 +2765,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 501: {
 		struct renameat_args *p = params;
 		iarg[0] = p->oldfd; /* int */
-		uarg[1] = (intptr_t) p->old; /* char * */
+		uarg[1] = (intptr_t) p->old; /* const char * */
 		iarg[2] = p->newfd; /* int */
 		uarg[3] = (intptr_t) p->new; /* const char * */
 		*n_args = 4;
@@ -3020,7 +3020,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[2] = (intptr_t) p->status; /* int * */
 		iarg[3] = p->options; /* int */
 		uarg[4] = (intptr_t) p->wrusage; /* struct __wrusage * */
-		uarg[5] = (intptr_t) p->info; /* struct __siginfo_c * */
+		uarg[5] = (intptr_t) p->info; /* struct siginfo_c * */
 		*n_args = 6;
 		break;
 	}
@@ -3101,7 +3101,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct accept4_args *p = params;
 		iarg[0] = p->s; /* int */
 		uarg[1] = (intptr_t) p->name; /* struct sockaddr * */
-		uarg[2] = (intptr_t) p->anamelen; /* __socklen_t * */
+		uarg[2] = (intptr_t) p->anamelen; /* socklen_t * */
 		iarg[3] = p->flags; /* int */
 		*n_args = 4;
 		break;
@@ -3121,9 +3121,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* procctl */
+	/* cheriabi_procctl */
 	case 544: {
-		struct procctl_args *p = params;
+		struct cheriabi_procctl_args *p = params;
 		iarg[0] = p->idtype; /* int */
 		iarg[1] = p->id; /* id_t */
 		iarg[2] = p->com; /* int */
@@ -3489,7 +3489,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "struct sockaddr *";
 			break;
 		case 5:
-			p = "__socklen_t *";
+			p = "socklen_t *";
 			break;
 		default:
 			break;
@@ -3502,10 +3502,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "caddr_t";
+			p = "struct sockaddr *";
 			break;
 		case 2:
-			p = "int *";
+			p = "socklen_t *";
 			break;
 		default:
 			break;
@@ -3518,10 +3518,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "caddr_t";
+			p = "struct sockaddr *";
 			break;
 		case 2:
-			p = "int *";
+			p = "socklen_t *";
 			break;
 		default:
 			break;
@@ -3534,10 +3534,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "caddr_t";
+			p = "struct sockaddr *";
 			break;
 		case 2:
-			p = "int *";
+			p = "socklen_t *";
 			break;
 		default:
 			break;
@@ -3734,7 +3734,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 56:
 		switch(ndx) {
 		case 0:
-			p = "char *";
+			p = "const char *";
 			break;
 		default:
 			break;
@@ -3744,10 +3744,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 57:
 		switch(ndx) {
 		case 0:
-			p = "char *";
+			p = "const char *";
 			break;
 		case 1:
-			p = "char *";
+			p = "const char *";
 			break;
 		default:
 			break;
@@ -3757,7 +3757,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 58:
 		switch(ndx) {
 		case 0:
-			p = "char *";
+			p = "const char *";
 			break;
 		case 1:
 			p = "char *";
@@ -4194,7 +4194,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "caddr_t";
 			break;
 		case 4:
-			p = "int *";
+			p = "socklen_t *";
 			break;
 		default:
 			break;
@@ -4727,7 +4727,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "void *";
 			break;
 		case 3:
-			p = "void *";
+			p = "size_t *";
 			break;
 		case 4:
 			p = "void *";
@@ -4930,7 +4930,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* shmat */
+	/* cheriabi_shmat */
 	case 228:
 		switch(ndx) {
 		case 0:
@@ -4946,7 +4946,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* shmdt */
+	/* cheriabi_shmdt */
 	case 230:
 		switch(ndx) {
 		case 0:
@@ -5762,7 +5762,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "void *";
+			p = "struct kld_sym_lookup_c *";
 			break;
 		default:
 			break;
@@ -6998,7 +6998,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* sigqueue */
+	/* cheriabi_sigqueue */
 	case 456:
 		switch(ndx) {
 		case 0:
@@ -7203,7 +7203,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "caddr_t";
 			break;
 		case 4:
-			p = "__socklen_t";
+			p = "socklen_t";
 			break;
 		case 5:
 			p = "struct sctp_sndrcvinfo *";
@@ -7231,7 +7231,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "caddr_t";
 			break;
 		case 4:
-			p = "__socklen_t";
+			p = "socklen_t";
 			break;
 		case 5:
 			p = "struct sctp_sndrcvinfo *";
@@ -7259,7 +7259,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "struct sockaddr *";
 			break;
 		case 4:
-			p = "__socklen_t *";
+			p = "socklen_t *";
 			break;
 		case 5:
 			p = "struct sctp_sndrcvinfo *";
@@ -7514,7 +7514,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "char *";
+			p = "const char *";
 			break;
 		case 2:
 			p = "int";
@@ -7736,7 +7736,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "char *";
+			p = "const char *";
 			break;
 		case 2:
 			p = "int";
@@ -8181,7 +8181,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "struct __wrusage *";
 			break;
 		case 5:
-			p = "struct __siginfo_c *";
+			p = "struct siginfo_c *";
 			break;
 		default:
 			break;
@@ -8325,7 +8325,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "struct sockaddr *";
 			break;
 		case 2:
-			p = "__socklen_t *";
+			p = "socklen_t *";
 			break;
 		case 3:
 			p = "int";
@@ -8357,7 +8357,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* procctl */
+	/* cheriabi_procctl */
 	case 544:
 		switch(ndx) {
 		case 0:
@@ -9104,12 +9104,12 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* shmat */
+	/* cheriabi_shmat */
 	case 228:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "caddr_t";
 		break;
-	/* shmdt */
+	/* cheriabi_shmdt */
 	case 230:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -9854,7 +9854,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* sigqueue */
+	/* cheriabi_sigqueue */
 	case 456:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -10261,7 +10261,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* procctl */
+	/* cheriabi_procctl */
 	case 544:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

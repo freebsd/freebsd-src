@@ -133,8 +133,8 @@ MIASM =  \
 	msgget.o \
 	msgsnd.o \
 	msgrcv.o \
-	shmat.o \
-	shmdt.o \
+	cheriabi_shmat.o \
+	cheriabi_shmdt.o \
 	shmget.o \
 	clock_gettime.o \
 	clock_settime.o \
@@ -286,7 +286,7 @@ MIASM =  \
 	auditctl.o \
 	_umtx_op.o \
 	cheriabi_thr_new.o \
-	sigqueue.o \
+	cheriabi_sigqueue.o \
 	kmq_open.o \
 	kmq_setattr.o \
 	kmq_timedreceive.o \
@@ -368,7 +368,7 @@ MIASM =  \
 	accept4.o \
 	pipe2.o \
 	cheriabi_aio_mlock.o \
-	procctl.o \
+	cheriabi_procctl.o \
 	ppoll.o \
 	futimens.o \
 	utimensat.o \

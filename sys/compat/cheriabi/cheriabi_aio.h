@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2016 SRI International
+ * Copyright (c) 2015 SRI International
+ * Copyright (c) 2001 Doug Rabson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -26,86 +27,30 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _COMPAT_CHERIABI_CHERIABI_AIO_H_
+#define _COMPAT_CHERIABI_CHERIABI_AIO_H_
 
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/errno.h>
-#include <sys/socket.h>
+struct __aiocb_private_c {
+	long	status;
+	long	error;
+	struct chericap kernelinfo;
+};
 
-#include <compat/cheriabi/cheriabi.h>
-#include <compat/cheriabi/cheriabi_proto.h>
+struct aiocb_c {
+	int		aio_fildes;
+	off_t		aio_offset;
+	struct chericap	aio_buf;	/* XXX-BD: volatile void * aio.h */
+	size_t		aio_nbytes;
+	int		__spare__[2];
+	struct chericap	__spare2__;
+	int		aio_lio_opcode;
+	int		aio_reqprio;
+	struct		__aiocb_private_c	_aiocb_private;
+	struct sigevent_c	aio_sigevent;
+};
 
-int
-cheriabi___mac_get_proc(struct thread *td, struct cheriabi___mac_get_proc_args *uap)
-{
-
-	return(ENOSYS);
-}
-
-int
-cheriabi___mac_set_proc(struct thread *td, struct cheriabi___mac_set_proc_args *uap)
-{
-
-	return(ENOSYS);
-}
-
-int
-cheriabi___mac_get_fd(struct thread *td, struct cheriabi___mac_get_fd_args *uap)
-{
-
-	return(ENOSYS);
-}
-
-int
-cheriabi___mac_get_file(struct thread *td, struct cheriabi___mac_get_file_args *uap)
-{
-
-	return(ENOSYS);
-}
-
-int
-cheriabi___mac_set_fd(struct thread *td, struct cheriabi___mac_set_fd_args *uap)
-{
-
-	return(ENOSYS);
-}
-
-int
-cheriabi___mac_set_file(struct thread *td, struct cheriabi___mac_set_file_args *uap)
-{
-
-	return(ENOSYS);
-}
-
-int
-cheriabi___mac_get_pid(struct thread *td, struct cheriabi___mac_get_pid_args *uap)
-{
-
-	return(ENOSYS);
-}
-
-int
-cheriabi___mac_get_link(struct thread *td, struct cheriabi___mac_get_link_args *uap)
-{
-
-	return(ENOSYS);
-}
-
-int
-cheriabi___mac_set_link(struct thread *td, struct cheriabi___mac_set_link_args *uap)
-{
-
-	return(ENOSYS);
-}
-
-int
-cheriabi___mac_execve(struct thread *td, struct cheriabi___mac_execve_args *uap)
-{
-
-	return(ENOSYS);
-}
-
+#endif /* !_COMPAT_CHERIABI_CHERIABI_AIO_H_ */

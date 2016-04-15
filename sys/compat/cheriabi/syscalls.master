@@ -38,6 +38,9 @@
 ;	NODEF	same as STD except only have the entry in the syscall table
 ;		added.  Meaning - do not create structure or function
 ;		prototype in sys/sysproto.h
+;	NOPARSE	don't attempt to generate an argument parse.  Intended
+;		for use in cases where annotation is insufficient to
+;		accurately check arguments.
 ;	NOPROTO	same as STD except do not create structure or
 ;		function prototype in sys/sysproto.h.  Does add a
 ;		definition to syscall.h besides adding a sysent.
@@ -66,52 +69,72 @@
 1	AUE_EXIT	NOPROTO	{ void sys_exit(int rval); } exit \
 				    sys_exit_args void
 2	AUE_FORK	NOPROTO	{ int fork(void); }
-3	AUE_READ	NOPROTO	{ ssize_t read(int fd, void *buf, \
+3	AUE_READ	NOPROTO	{ ssize_t read(int fd, \
+				    _Out_writes_bytes_(nbyte) void *buf, \
 				    size_t nbyte); }
-4	AUE_WRITE	NOPROTO	{ ssize_t write(int fd, const void *buf, \
+4	AUE_WRITE	NOPROTO	{ ssize_t write(int fd, \
+				    _In_reads_bytes_(nbyte) const void *buf, \
 				    size_t nbyte); }
-5	AUE_OPEN_RWTC	NOPROTO	{ int open(char *path, int flags, \
+5	AUE_OPEN_RWTC	NOPROTO	{ int open(_In_z_ char *path, int flags, \
 				    int mode); }
 6	AUE_CLOSE	NOPROTO	{ int close(int fd); }
-7	AUE_WAIT4	NOPROTO	{ int wait4(int pid, int *status, \
-				    int options, struct rusage *rusage); }
+7	AUE_WAIT4	NOPROTO	{ int wait4(int pid, _Out_opt_ int *status, \
+				    int options, \
+				    _Out_opt_ struct rusage *rusage); }
 8	AUE_CREAT	OBSOL	old creat
-9	AUE_LINK	NOPROTO	{ int link(char *path, char *link); }
-10	AUE_UNLINK	NOPROTO	{ int unlink(char *path); }
+9	AUE_LINK	NOPROTO	{ int link(_In_z_ char *path, \
+				    _In_z_ char *link); }
+10	AUE_UNLINK	NOPROTO	{ int unlink(_In_z_ char *path); }
 11	AUE_NULL	OBSOL	execv
-12	AUE_CHDIR	NOPROTO	{ int chdir(char *path); }
+12	AUE_CHDIR	NOPROTO	{ int chdir(_In_z_ char *path); }
 13	AUE_FCHDIR	NOPROTO	{ int fchdir(int fd); }
-14	AUE_MKNOD	NOPROTO	{ int mknod(char *path, int mode, int dev); }
-15	AUE_CHMOD	NOPROTO	{ int chmod(char *path, int mode); }
-16	AUE_CHOWN	NOPROTO	{ int chown(char *path, int uid, int gid); }
+14	AUE_MKNOD	NOPROTO	{ int mknod(_In_z_ char *path, int mode, \
+				    int dev); }
+15	AUE_CHMOD	NOPROTO	{ int chmod(_In_z_ char *path, int mode); }
+16	AUE_CHOWN	NOPROTO	{ int chown(_In_z_ char *path, int uid, \
+				    int gid); }
 17	AUE_NULL	OBSOL	obreak
 18	AUE_GETFSSTAT	OBSOL	getstatfs
 19	AUE_LSEEK	OBSOL	lseek
 20	AUE_GETPID	NOPROTO	{ pid_t getpid(void); }
-21	AUE_MOUNT	NOPROTO	{ int mount(char *type, char *path, \
-				    int flags, caddr_t data); }
-22	AUE_UMOUNT	NOPROTO	{ int unmount(char *path, int flags); }
+; XXX-BD: no way to sanity check data
+21	AUE_MOUNT	NOPROTO	{ int mount(_In_z_ char *type, \
+				    _In_z_ char *path, \
+				    int flags, _In_opt_ caddr_t data); }
+22	AUE_UMOUNT	NOPROTO	{ int unmount(_In_z_ char *path, int flags); }
 23	AUE_SETUID	NOPROTO	{ int setuid(uid_t uid); }
 24	AUE_GETUID	NOPROTO	{ uid_t getuid(void); }
 25	AUE_GETEUID	NOPROTO	{ uid_t geteuid(void); }
 26	AUE_PTRACE	NOPROTO	{ int ptrace(int req, pid_t pid, \
 				    vaddr_t addr, int data); }
-27	AUE_RECVMSG	STD	{ int cheriabi_recvmsg(int s, struct msghdr_c *msg, \
+27	AUE_RECVMSG	STD	{ int cheriabi_recvmsg(int s, \
+				    _In_ struct msghdr_c *msg, \
 				    int flags); }
-28	AUE_SENDMSG	STD	{ int cheriabi_sendmsg(int s, struct msghdr_c *msg, \
+28	AUE_SENDMSG	STD	{ int cheriabi_sendmsg(int s, \
+				    _In_ struct msghdr_c *msg, \
 				    int flags); }
-29	AUE_RECVFROM	NOPROTO	{ int recvfrom(int s, caddr_t buf, \
+29	AUE_RECVFROM	NOPROTO	{ int recvfrom(int s, \
+				    _Out_writes_bytes_(len) caddr_t buf, \
 				    size_t len, int flags, \
+				    _Out_writes_bytes_opt_(*fromlenaddr) \
 				    struct sockaddr * __restrict from, \
-				    __socklen_t * __restrict fromlenaddr); }
-30	AUE_ACCEPT	NOPROTO	{ int accept(int s, caddr_t name, \
-				    int *anamelen); }
-31	AUE_GETPEERNAME	NOPROTO	{ int getpeername(int fdes, caddr_t asa, \
-				    int *alen); }
-32	AUE_GETSOCKNAME	NOPROTO	{ int getsockname(int fdes, caddr_t asa, \
-				    int *alen); }
-33	AUE_ACCESS	NOPROTO	{ int access(char *path, int amode); }
-34	AUE_CHFLAGS	NOPROTO	{ int chflags(const char *path, u_long flags); }
+				    _Inout_opt_ \
+				    socklen_t * __restrict fromlenaddr); }
+30	AUE_ACCEPT	NOPROTO	{ int accept(int s, \
+				    _Out_writes_bytes_(*anamelen) \
+				    struct sockaddr * __restrict name, \
+				    _Inout_opt_ socklen_t *anamelen); }
+31	AUE_GETPEERNAME	NOPROTO	{ int getpeername(int fdes, \
+				    _Out_writes_bytes_(*alen) \
+				    struct sockaddr * __restrict asa, \
+				    _Inout_opt_ socklen_t *alen); }
+32	AUE_GETSOCKNAME	NOPROTO	{ int getsockname(int fdes, \
+				    _Out_writes_bytes_(*alen) \
+				    struct sockaddr * __restrict asa, \
+				    _Inout_ socklen_t *alen); }
+33	AUE_ACCESS	NOPROTO	{ int access(_In_z_ char *path, int amode); }
+34	AUE_CHFLAGS	NOPROTO	{ int chflags(_In_z_ const char *path, \
+				    u_long flags); }
 35	AUE_FCHFLAGS	NOPROTO	{ int fchflags(int fd, u_long flags); }
 36	AUE_SYNC	NOPROTO	{ int sync(void); }
 37	AUE_KILL	NOPROTO	{ int kill(int pid, int signum); }
@@ -121,95 +144,116 @@
 41	AUE_DUP		NOPROTO	{ int dup(u_int fd); }
 42	AUE_PIPE	NOPROTO	{ int pipe(void); }
 43	AUE_GETEGID	NOPROTO	{ gid_t getegid(void); }
-44	AUE_PROFILE	NOPROTO	{ int profil(caddr_t samples, size_t size, \
-				    size_t offset, u_int scale); }
-45	AUE_KTRACE	NOPROTO	{ int ktrace(const char *fname, int ops, \
-				    int facs, int pid); }
+44	AUE_PROFILE	NOPROTO	{ int profil( \
+				    _Out_writes_bytes_(size) caddr_t samples, \
+				    size_t size, size_t offset, u_int scale); }
+45	AUE_KTRACE	NOPROTO	{ int ktrace(_In_z_ const char *fname, \
+				    int ops, int facs, int pid); }
 46	AUE_SIGACTION	OBSOL	sigaction
 47	AUE_GETGID	NOPROTO	{ gid_t getgid(void); }
 48	AUE_SIGPROCMASK	OBSOL	sigprocmask
-49	AUE_GETLOGIN	NOPROTO	{ int getlogin(char *namebuf, \
+49	AUE_GETLOGIN	NOPROTO	{ int getlogin( \
+				    _Out_writes_z_(namelen) char *namebuf, \
 				    u_int namelen); }
-50	AUE_SETLOGIN	NOPROTO	{ int setlogin(char *namebuf); }
-51	AUE_ACCT	NOPROTO	{ int acct(char *path); }
+50	AUE_SETLOGIN	NOPROTO	{ int setlogin(_In_z_ char *namebuf); }
+51	AUE_ACCT	NOPROTO	{ int acct(_In_z_ char *path); }
 52	AUE_SIGPENDING	OBSOL	sigpending
 53	AUE_SIGALTSTACK	STD	{ int cheriabi_sigaltstack( \
-				    const cheriabi_stack_t *ss, \
-				    cheriabi_stack_t *oss); }
-54	AUE_NULL	STD	{ int cheriabi_ioctl(int fd, u_long com, \
-				    caddr_t data); }
+				    _In_opt_ const cheriabi_stack_t *ss, \
+				    _Out_opt_ cheriabi_stack_t *oss); }
+54	AUE_NULL	STD|NOPARSE	{ int cheriabi_ioctl(int fd, \
+				    u_long com, _Inout_opt_ caddr_t data); }
 55	AUE_REBOOT	NOPROTO	{ int reboot(int opt); }
-56	AUE_REVOKE	NOPROTO	{ int revoke(char *path); }
-57	AUE_SYMLINK	NOPROTO	{ int symlink(char *path, char *link); }
-58	AUE_READLINK	NOPROTO	{ ssize_t readlink(char *path, char *buf, \
+56	AUE_REVOKE	NOPROTO	{ int revoke(_In_z_ const char *path); }
+57	AUE_SYMLINK	NOPROTO	{ int symlink(_In_z_ const char *path, \
+				    _In_z_ const char *link); }
+58	AUE_READLINK	NOPROTO	{ ssize_t readlink(_In_z_ const char *path, \
+				    _Out_writes_z_(count) char *buf, \
 				    size_t count); }
-59	AUE_EXECVE	STD	{ int cheriabi_execve(char *fname, \
-				    struct chericap *argv, \
-				    struct chericap *envv); }
+; XXX-BD: Arguably argv and envv are _In_z_, but the SAL documentation is
+; inconsistant about NUL terminated string, vs NULL terminted array so
+; _In_ for now.
+59	AUE_EXECVE	STD	{ int cheriabi_execve(_In_z_ char *fname, \
+				    _In_ struct chericap *argv, \
+				    _In_ struct chericap *envv); }
 60	AUE_UMASK	NOPROTO	{ int umask(int newmask); } umask \
 				    umask_args int
-61	AUE_CHROOT	NOPROTO	{ int chroot(char *path); }
+61	AUE_CHROOT	NOPROTO	{ int chroot(_In_z_ char *path); }
 62	AUE_FSTAT	OBSOL	fstat
 63	AUE_NULL	OBSOL	ogetkerninfo
 64	AUE_NULL	OBSOL	getpagesize
-65	AUE_MSYNC	NOPROTO	{ int msync(void *addr, size_t len, \
-				    int flags); }
+65	AUE_MSYNC	NOPROTO	{ int msync(_Pagerange_(len) void *addr, \
+				    size_t len, int flags); }
 66	AUE_VFORK	NOPROTO	{ int vfork(void); }
 67	AUE_NULL	OBSOL	vread
 68	AUE_NULL	OBSOL	vwrite
 69	AUE_SBRK	OBSOL	sbrk
 70	AUE_SSTK	OBSOL	sstk
 71	AUE_MMAP	OBSOL	mmap
+; XXX: remove ovadvise
 72	AUE_O_VADVISE	NOPROTO	{ int ovadvise(int anom); } vadvise \
 				    ovadvise_args int
-73	AUE_MUNMAP	NOPROTO	{ int munmap(void *addr, size_t len); }
-74	AUE_MPROTECT	NOPROTO	{ int mprotect(const void *addr, \
+73	AUE_MUNMAP	NOPROTO	{ int munmap(_Pagerange_(len) void *addr, \
+				    size_t len); }
+74	AUE_MPROTECT	NOPROTO	{ int mprotect( \
+				    _Pagerange_(len) const void *addr, \
 				    size_t len, int prot); }
-75	AUE_MADVISE	NOPROTO	{ int madvise(void *addr, size_t len, \
-				    int behav); }
+75	AUE_MADVISE	NOPROTO	{ int madvise(_Pagerange_(len) void *addr, \
+				    size_t len, int behav); }
 76	AUE_NULL	OBSOL	vhangup
 77	AUE_NULL	OBSOL	vlimit
-78	AUE_MINCORE	NOPROTO	{ int mincore(const void *addr, size_t len, \
+; XXX-BD: missing round up of len for misaligned addr
+78	AUE_MINCORE	NOPROTO|NOPARSE	{ int mincore( \
+				    _Pagerange_(len) const void *addr, \
+				    size_t len, \
+				    _Out_writes_bytes_(len/PAGE_SIZE) \
 				    char *vec); }
 79	AUE_GETGROUPS	NOPROTO	{ int getgroups(u_int gidsetsize, \
-				    gid_t *gidset); }
+				    _Out_writes_(gidsetsize) gid_t *gidset); }
 80	AUE_SETGROUPS	NOPROTO	{ int setgroups(u_int gidsetsize, \
-				    gid_t *gidset); }
+				    _In_reads_(gidsetsize) gid_t *gidset); }
 81	AUE_GETPGRP	NOPROTO	{ int getpgrp(void); }
 82	AUE_SETPGRP	NOPROTO	{ int setpgid(int pid, int pgid); }
 83	AUE_SETITIMER	NOPROTO	{ int setitimer(u_int which, \
-				    struct itimerval *itv, \
-				    struct itimerval *oitv); }
+				    _In_ struct itimerval *itv, \
+				    _Out_opt_ struct itimerval *oitv); }
 84	AUE_NULL	OBSOL	owait
 ; XXX implement
-85	AUE_SWAPON	NOPROTO	{ int swapon(char *name); }
+85	AUE_SWAPON	NOPROTO	{ int swapon(_In_z_ char *name); }
 86	AUE_GETITIMER	NOPROTO	{ int getitimer(u_int which, \
-				    struct itimerval *itv); }
+				    _Out_ struct itimerval *itv); }
 87	AUE_O_GETHOSTNAME	OBSOL	ogethostname
 88	AUE_O_SETHOSTNAME	OBSOL	osethostname
 89	AUE_GETDTABLESIZE	NOPROTO	{ int getdtablesize(void); }
 90	AUE_DUP2	NOPROTO	{ int dup2(u_int from, u_int to); }
 91	AUE_NULL	UNIMPL	getdopt
-92	AUE_FCNTL	NOPROTO	{ int fcntl(int fd, int cmd, intptr_t arg); }
-93	AUE_SELECT	NOPROTO	{ int select(int nd, fd_set *in, fd_set *ou, \
-				    fd_set *ex, struct timeval *tv); }
+; XXX-BD: no practical way to check arg
+92	AUE_FCNTL	NOPROTO|NOPARSE	{ int fcntl(int fd, int cmd, intptr_t arg); }
+93	AUE_SELECT	NOPROTO	{ int select(int nd, _Inout_opt_ fd_set *in, \
+				    _Inout_opt_ fd_set *ou, \
+				    _Inout_opt_ fd_set *ex, \
+				    _In_opt_ struct timeval *tv); }
 94	AUE_NULL	UNIMPL	setdopt
 95	AUE_FSYNC	NOPROTO	{ int fsync(int fd); }
 96	AUE_SETPRIORITY	NOPROTO	{ int setpriority(int which, int who, \
 				    int prio); }
 97	AUE_SOCKET	NOPROTO	{ int socket(int domain, int type, \
 				    int protocol); }
-98	AUE_CONNECT	NOPROTO	{ int connect(int s, caddr_t name, \
+98	AUE_CONNECT	NOPROTO	{ int connect(int s, \
+				    _In_reads_bytes_(namelen) caddr_t name, \
 				    int namelen); }
 99	AUE_NULL	OBSOL	oaccept
 100	AUE_GETPRIORITY	NOPROTO	{ int getpriority(int which, int who); }
 101	AUE_NULL	OBSOL	osend
 102	AUE_NULL	OBSOL	orecv
 103	AUE_NULL	OBSOL	sigreturn
-104	AUE_BIND	NOPROTO	{ int bind(int s, caddr_t name, \
+104	AUE_BIND	NOPROTO	{ int bind(int s, \
+				    _In_reads_bytes_(namelen) caddr_t name, \
 				    int namelen); }
 105	AUE_SETSOCKOPT	NOPROTO	{ int setsockopt(int s, int level, \
-				    int name, caddr_t val, int valsize); }
+				    int name, \
+				    _In_reads_bytes_opt_(valsize) caddr_t val, \
+				    int valsize); }
 106	AUE_LISTEN	NOPROTO	{ int listen(int s, int backlog); }
 107	AUE_NULL	OBSOL	vtimes
 108	AUE_O_SIGVEC	OBSOL	sigvec
@@ -221,44 +265,51 @@
 114	AUE_NULL	OBSOL	osendmsg
 115	AUE_NULL	OBSOL	vtrace
 116	AUE_GETTIMEOFDAY	NOPROTO	{ int gettimeofday( \
-				    struct timeval *tp, \
-				    struct timezone *tzp); }
+				    _Out_ struct timeval *tp, \
+				    _Out_opt_ struct timezone *tzp); }
 117	AUE_GETRUSAGE	NOPROTO	{ int getrusage(int who, \
-				    struct rusage *rusage); }
+				    _Out_ struct rusage *rusage); }
 118	AUE_GETSOCKOPT	NOPROTO	{ int getsockopt(int s, int level, \
-				    int name, caddr_t val, int *avalsize); }
+				    int name, \
+				    _Out_writes_bytes_opt_(*avalsize) \
+				    caddr_t val, _Inout_ socklen_t *avalsize); }
 119	AUE_NULL	UNIMPL	resuba (BSD/OS 2.x)
 120	AUE_READV	STD	{ int cheriabi_readv(int fd, \
+				    _Inout_updates_(iovcnt) \
 				    struct iovec_c *iovp, u_int iovcnt); }
 121	AUE_WRITEV	STD	{ int cheriabi_writev(int fd, \
+				    _In_reads_(iovcnt) \
 				    struct iovec_c *iovp, u_int iovcnt); }
 122	AUE_SETTIMEOFDAY	NOPROTO	{ int settimeofday( \
-				    struct timeval *tv, \
-				    struct timezone *tzp); }
+				    _In_ struct timeval *tv, \
+				    _In_opt_ struct timezone *tzp); }
 123	AUE_FCHOWN	NOPROTO	{ int fchown(int fd, int uid, int gid); }
 124	AUE_FCHMOD	NOPROTO	{ int fchmod(int fd, int mode); }
 125	AUE_RECVFROM	OBSOL	orecvfrom
 126	AUE_SETREUID	NOPROTO	{ int setreuid(int ruid, int euid); }
 127	AUE_SETREGID	NOPROTO	{ int setregid(int rgid, int egid); }
-128	AUE_RENAME	NOPROTO	{ int rename(char *from, char *to); }
+128	AUE_RENAME	NOPROTO	{ int rename(_In_z_ char *from, \
+				    _In_z_ char *to); }
 129	AUE_TRUNCATE	OBSOL	truncate
 130	AUE_FTRUNCATE	OBSOL	ftruncate
 131	AUE_FLOCK	NOPROTO	{ int flock(int fd, int how); }
-132	AUE_MKFIFO	NOPROTO	{ int mkfifo(char *path, int mode); }
-133	AUE_SENDTO	NOPROTO	{ int sendto(int s, caddr_t buf, \
-				    size_t len, int flags, caddr_t to, \
+132	AUE_MKFIFO	NOPROTO	{ int mkfifo(_In_z_ char *path, int mode); }
+133	AUE_SENDTO	NOPROTO	{ int sendto(int s, \
+				    _In_reads_bytes_(len) caddr_t buf, \
+				    size_t len, int flags, \
+				    _In_reads_bytes_(tolen) caddr_t to, \
 				    int tolen); }
 134	AUE_SHUTDOWN	NOPROTO	{ int shutdown(int s, int how); }
 135	AUE_SOCKETPAIR	NOPROTO	{ int socketpair(int domain, int type, \
-				    int protocol, int *rsv); }
-136	AUE_MKDIR	NOPROTO	{ int mkdir(char *path, int mode); }
-137	AUE_RMDIR	NOPROTO	{ int rmdir(char *path); }
-138	AUE_UTIMES	NOPROTO	{ int utimes(char *path, \
-				    struct timeval *tptr); }
+				    int protocol, _Out_writes_(2) int *rsv); }
+136	AUE_MKDIR	NOPROTO	{ int mkdir(_In_z_ char *path, int mode); }
+137	AUE_RMDIR	NOPROTO	{ int rmdir(_In_z_ char *path); }
+138	AUE_UTIMES	NOPROTO	{ int utimes(_In_z_ char *path, \
+				    _In_ struct timeval *tptr); }
 139	AUE_NULL	OBSOL	sigreturn
 140	AUE_ADJTIME	NOPROTO	{ int adjtime( \
-				    struct timeval *delta, \
-				    struct timeval *olddelta); }
+				    _In_ struct timeval *delta, \
+				    _Out_opt_ struct timeval *olddelta); }
 141	AUE_GETPEERNAME	OBSOL	ogetpeername
 142	AUE_SYSCTL	OBSOL	ogethostid
 143	AUE_SYSCTL	OBSOL	sethostid
@@ -266,8 +317,9 @@
 145	AUE_SETRLIMIT	OBSOL	setrlimit
 146	AUE_KILLPG	OBSOL	killpg
 147	AUE_SETSID	NOPROTO	{ int setsid(void); }
-148	AUE_QUOTACTL	NOPROTO	{ int quotactl(char *path, int cmd, int uid, \
-				    caddr_t arg); }
+; XXX-BD no practical way to check arg
+148	AUE_QUOTACTL	NOPROTO	{ int quotactl(_In_z_ char *path, int cmd, \
+				    int uid, _In_ caddr_t arg); }
 149	AUE_O_QUOTA	OBSOL oquota
 150	AUE_GETSOCKNAME	OBSOL ogetsockname
 
@@ -281,23 +333,29 @@
 ; 154 is initialised by the NLM code, if present.
 154	AUE_NULL	NOSTD	{ int cheriabi_nlm_syscall(int debug_level, \
 				    int grace_period , int addr_count, \
+				    _In_reads_(addr_count) \
 				    struct chericap *addrs); }
 ; 155 is initialized by the NFS code, if present.
-155	AUE_NFS_SVC	NOSTD	{ int cheriabi_nfssvc(int flag, caddr_t argp); }
+; XXX-BD: argp is impractical to check except by hand
+; XXX-BD: are any of them _Out_ as well?
+155	AUE_NFS_SVC	NOSTD	{ int cheriabi_nfssvc(int flag, \
+				    _In_ caddr_t argp); }
 156	AUE_GETDIRENTRIES OBSOL getdirentries
 157	AUE_STATFS	OBSOL	statfs
 158	AUE_FSTATFS	OBSOL	fstatfs
 159	AUE_NULL	UNIMPL	nosys
-160	AUE_LGETFH	NOPROTO { int lgetfh(char *fname, \
-				    struct fhandle *fhp); }
-161	AUE_NFS_GETFH	NOPROTO	{ int getfh(char *fname, \
-				    struct fhandle *fhp); }
+160	AUE_LGETFH	NOPROTO { int lgetfh(_In_z_ char *fname, \
+				    _Out_ struct fhandle *fhp); }
+161	AUE_NFS_GETFH	NOPROTO	{ int getfh(_In_z_ char *fname, \
+				    _Out_ struct fhandle *fhp); }
 162	AUE_NULL	OBSOL	getdomainname
 163	AUE_NULL	OBSOL	setdomainname
 164	AUE_NULL	OBSOL	uname
-165	AUE_SYSARCH	STD	{ int cheriabi_sysarch(int op, char *parms); }
+; XXX-BD params is basically uncheckable
+165	AUE_SYSARCH	STD|NOPARSE	{ int cheriabi_sysarch(int op, char *parms); }
+; XXX-BD rtp is _In_ or _Out_ depending on function
 166	AUE_RTPRIO	NOPROTO	{ int rtprio(int function, pid_t pid, \
-				    struct rtprio *rtp); }
+				    _Inout_ struct rtprio *rtp); }
 167	AUE_NULL	UNIMPL	nosys
 168	AUE_NULL	UNIMPL	nosys
 169	AUE_SEMSYS	OBSOL	semsys
@@ -307,7 +365,7 @@
 173	AUE_PREAD	OBSOL	pread
 174	AUE_PWRITE	OBSOL	pwrite
 175	AUE_NULL	NOPROTO	{ int setfib(int fibnum); }
-176	AUE_NTP_ADJTIME	NOPROTO	{ int ntp_adjtime(struct timex *tp); }
+176	AUE_NTP_ADJTIME	NOPROTO	{ int ntp_adjtime(_Inout_ struct timex *tp); }
 177	AUE_NULL	UNIMPL	sfork (BSD/OS 2.x)
 178	AUE_NULL	UNIMPL	getdescriptor (BSD/OS 2.x)
 179	AUE_NULL	UNIMPL	setdescriptor (BSD/OS 2.x)
@@ -321,39 +379,48 @@
 185	AUE_NULL	UNIMPL	lfs_markv
 186	AUE_NULL	UNIMPL	lfs_segclean
 187	AUE_NULL	UNIMPL	lfs_segwait
-188	AUE_STAT	NOPROTO	{ int stat(char *path, struct stat *ub); }
-189	AUE_FSTAT	NOPROTO	{ int fstat(int fd, struct stat *ub); }
-190	AUE_LSTAT	NOPROTO	{ int lstat(char *path, struct stat *ub); }
-191	AUE_PATHCONF	NOPROTO	{ int pathconf(char *path, int name); }
+188	AUE_STAT	NOPROTO	{ int stat(_In_z_ char *path, \
+				    _Out_ struct stat *ub); }
+189	AUE_FSTAT	NOPROTO	{ int fstat(int fd, _Out_ struct stat *sb); }
+190	AUE_LSTAT	NOPROTO	{ int lstat(_In_z_ char *path, \
+				    _Out_ struct stat *ub); }
+191	AUE_PATHCONF	NOPROTO	{ int pathconf(_In_z_ char *path, int name); }
 192	AUE_FPATHCONF	NOPROTO	{ int fpathconf(int fd, int name); }
 193	AUE_NULL	UNIMPL	nosys
 194	AUE_GETRLIMIT	NOPROTO	{ int getrlimit(u_int which, \
-				    struct rlimit *rlp); } getrlimit \
+				    _Out_ struct rlimit *rlp); } getrlimit \
 				    __getrlimit_args int
 195	AUE_SETRLIMIT	NOPROTO	{ int setrlimit(u_int which, \
-				    struct rlimit *rlp); } setrlimit \
+				    _In_ struct rlimit *rlp); } setrlimit \
 				    __setrlimit_args int
 196	AUE_GETDIRENTRIES	NOPROTO	{ int getdirentries(int fd, \
-				    char *buf, u_int count, long *basep); }
+				    _Out_writes_bytes_(count) char *buf, \
+				    u_int count, _Out_ long *basep); }
 197	AUE_MMAP	OBSOL	mmap
 198	AUE_NULL	OBSOL	__syscall
 199	AUE_LSEEK	OBSOL	lseek
 200	AUE_TRUNCATE	OBSOL	truncate
 201	AUE_FTRUNCATE	OBSOL	ftruncate
-202	AUE_SYSCTL	NOPROTO	{ int __sysctl(int *name, u_int namelen, \
-				    void *old, void *oldlenp, void *new, \
+202	AUE_SYSCTL	NOPROTO	{ int __sysctl(_In_z_ int *name, \
+				    u_int namelen, \
+				    _Out_writes_bytes_opt_(*oldlenp) \
+				    void *old, _Inout_opt_ size_t *oldlenp, \
+				    _In_reads_bytes_opt_(newlen) void *new, \
 				    void newlen); } __sysctl sysctl_args int
-203	AUE_MLOCK	NOPROTO	{ int mlock(const void *addr, \
+203	AUE_MLOCK	NOPROTO	{ int mlock( \
+				    _Pagerange_(len) const void *addr, \
 				    size_t len); }
-204	AUE_MUNLOCK	NOPROTO	{ int munlock(const void *addr, \
+204	AUE_MUNLOCK	NOPROTO	{ int munlock( \
+				    _Pagerange_(len) const void *addr, \
 				    size_t len); }
-205	AUE_UNDELETE	NOPROTO	{ int undelete(char *path); }
+205	AUE_UNDELETE	NOPROTO	{ int undelete(_In_z_ char *path); }
 206	AUE_FUTIMES	NOPROTO	{ int futimes(int fd, \
-				    struct timeval *tptr); }
+				    _In_reads_(2) struct timeval *tptr); }
 207	AUE_GETPGID	NOPROTO	{ int getpgid(pid_t pid); }
 208	AUE_NULL	UNIMPL	newreboot (NetBSD)
-209	AUE_POLL	NOPROTO	{ int poll(struct pollfd *fds, u_int nfds, \
-				    int timeout); }
+209	AUE_POLL	NOPROTO	{ int poll( \
+				    _Inout_updates_(nfds) struct pollfd *fds, \
+				    u_int nfds, int timeout); }
 
 ;
 ; The following are reserved for loadable syscalls
@@ -377,68 +444,80 @@
 221	AUE_SEMGET	NOSTD|NOPROTO	{ int semget(key_t key, int nsems, \
 				    int semflg); }
 222	AUE_SEMOP	NOSTD|NOPROTO	{ int semop(int semid, \
-				    struct sembuf *sops, u_int nsops); }
+				    _In_reads_(nsops) struct sembuf *sops, \
+				    u_int nsops); }
 223	AUE_NULL	UNIMPL	semconfig
 224	AUE_MSGCTL	OBSOL	msgctl
 225	AUE_MSGGET	NOSTD|NOPROTO	{ int msgget(key_t key, int msgflg); }
-226	AUE_MSGSND	NOSTD|NOPROTO	{ int msgsnd(int msqid, void *msgp, \
+226	AUE_MSGSND	NOSTD|NOPROTO	{ int msgsnd(int msqid, \
+				    _In_reads_bytes_(msgsz) void *msgp, \
 				    size_t msgsz, int msgflg); }
-227	AUE_MSGRCV	NOSTD|NOPROTO	{ int msgrcv(int msqid, void *msgp, \
+227	AUE_MSGRCV	NOSTD|NOPROTO	{ int msgrcv(int msqid, \
+				    _Out_writes_bytes_(msgsz) void *msgp, \
 				    size_t msgsz, long msgtyp, int msgflg); }
-228	AUE_SHMAT	NOSTD|NOPROTO	{ int shmat(int shmid, void *shmaddr, \
-				    int shmflg); }
+228	AUE_SHMAT	NOSTD|NOPARSE	{ caddr_t cheriabi_shmat( \
+				    int shmid, void *shmaddr, int shmflg); }
 229	AUE_SHMCTL	OBSOL	shmctl
-230	AUE_SHMDT	NOSTD|NOPROTO	{ int shmdt(void *shmaddr); }
+230	AUE_SHMDT	NOSTD|NOPARSE { int cheriabi_shmdt( \
+				    void *shmaddr); }
 231	AUE_SHMGET	NOSTD|NOPROTO	{ int shmget(key_t key, int size, \
 				    int shmflg); }
-;
 232	AUE_NULL	NOPROTO	{ int clock_gettime(clockid_t clock_id, \
-				    struct timespec *tp); }
+				    _Out_ struct timespec *tp); }
 233	AUE_CLOCK_SETTIME	NOPROTO	{ int clock_settime(clockid_t clock_id, \
-				    const struct timespec *tp); }
+				    _In_ const struct timespec *tp); }
 234	AUE_NULL	NOPROTO	{ int clock_getres(clockid_t clock_id, \
-				    struct timespec *tp); }
+				    _Out_ struct timespec *tp); }
 235	AUE_NULL	STD	{ int cheriabi_ktimer_create(\
 				    clockid_t clock_id, \
-				    struct sigevent_c *evp, int *timerid); }
+				    _In_ struct sigevent_c *evp, \
+				    _Out_ int *timerid); }
 236	AUE_NULL	NOPROTO	{ int ktimer_delete(int timerid); }
 237	AUE_NULL	NOPROTO	{ int ktimer_settime(int timerid,\
 				    int flags, \
-				    const struct itimerspec *value, \
-				    struct itimerspec *ovalue); }
+				    _In_ const struct itimerspec *value, \
+				    _Out_opt_ struct itimerspec *ovalue); }
 238	AUE_NULL	NOPROTO	{ int ktimer_gettime(int timerid,\
-				    struct itimerspec *value); }
+				    _Out_ struct itimerspec *value); }
 239	AUE_NULL	NOPROTO	{ int ktimer_getoverrun(int timerid); }
 240	AUE_NULL	NOPROTO	{ int nanosleep( \
-				    const struct timespec *rqtp, \
-				    struct timespec *rmtp); }
-241	AUE_NULL	NOPROTO	{ int ffclock_getcounter(ffcounter *ffcount); }
+				    _In_ const struct timespec *rqtp, \
+				    _Out_opt_ struct timespec *rmtp); }
+241	AUE_NULL	NOPROTO	{ int ffclock_getcounter( \
+				    _Out_ ffcounter *ffcount); }
 242	AUE_NULL	NOPROTO	{ int ffclock_setestimate( \
-				    struct ffclock_estimate *cest); }
+				    _In_ struct ffclock_estimate *cest); }
 243	AUE_NULL	NOPROTO	{ int ffclock_getestimate( \
-				    struct ffclock_estimate *cest); }
+				    _Out_ struct ffclock_estimate *cest); }
 244	AUE_NULL	UNIMPL	nosys
 245	AUE_NULL	UNIMPL	nosys
 246	AUE_NULL	UNIMPL	nosys
 247	AUE_NULL	NOPROTO	{ int clock_getcpuclockid2(id_t id,\
-				    int which, clockid_t *clock_id); }
-248	AUE_NULL	NOPROTO	{ int ntp_gettime(struct ntptimeval *ntvp); }
+				    int which, _Out_ clockid_t *clock_id); }
+248	AUE_NULL	NOPROTO	{ int ntp_gettime(\
+				    _Out_ struct ntptimeval *ntvp); }
 249	AUE_NULL	UNIMPL	nosys
 ; syscall numbers initially used in OpenBSD
-250	AUE_MINHERIT	NOPROTO	{ int minherit(void *addr, size_t len, \
-				    int inherit); }
+250	AUE_MINHERIT	NOPROTO	{ int minherit( \
+				    _Pagerange_(len) void *addr, \
+				    size_t len, int inherit); }
 251	AUE_RFORK	NOPROTO	{ int rfork(int flags); }
-252	AUE_POLL	NOPROTO	{ int openbsd_poll(struct pollfd *fds, \
+252	AUE_POLL	NOPROTO	{ int openbsd_poll( \
+				    _Inout_updates_(nfds) struct pollfd *fds, \
 				    u_int nfds, int timeout); }
 253	AUE_ISSETUGID	NOPROTO	{ int issetugid(void); }
-254	AUE_LCHOWN	NOPROTO	{ int lchown(char *path, int uid, int gid); }
+254	AUE_LCHOWN	NOPROTO	{ int lchown(_In_z_ char *path, int uid, \
+				    int gid); }
+; XXX-BD: aio functions impractical to check
 255	AUE_NULL	NOSTD	{ int cheriabi_aio_read( \
-				    struct aiocb_c *aiocbp); }
+				    _Inout_ struct aiocb_c *aiocbp); }
 256	AUE_NULL	NOSTD	{ int cheriabi_aio_write( \
-				    struct aiocb_c *aiocbp); }
+				    _Inout_ struct aiocb_c *aiocbp); }
 257	AUE_NULL	NOSTD	{ int cheriabi_lio_listio(int mode, \
+				    _Inout_updates_(nent) \
 				    struct aiocb_c * const *acb_list, \
-				    int nent, struct sigevent_c *sig); }
+				    int nent, \
+				    _In_opt_ struct sigevent_c *sig); }
 258	AUE_NULL	UNIMPL	nosys
 259	AUE_NULL	UNIMPL	nosys
 260	AUE_NULL	UNIMPL	nosys
@@ -453,20 +532,27 @@
 269	AUE_NULL	UNIMPL	nosys
 270	AUE_NULL	UNIMPL	nosys
 271	AUE_NULL	UNIMPL	nosys
-272	AUE_O_GETDENTS	NOPROTO	{ int getdents(int fd, char *buf, \
+272	AUE_O_GETDENTS	NOPROTO	{ int getdents(int fd, \
+				    _Out_writes_bytes_(count) char *buf, \
 				    size_t count); }
 273	AUE_NULL	UNIMPL	nosys
-274	AUE_LCHMOD	NOPROTO	{ int lchmod(char *path, mode_t mode); }
-275	AUE_LCHOWN	NOPROTO	{ int lchown(char *path, uid_t uid, \
+274	AUE_LCHMOD	NOPROTO	{ int lchmod(_In_z_ char *path, mode_t mode); }
+275	AUE_LCHOWN	NOPROTO	{ int lchown(_In_z_ char *path, uid_t uid, \
 				    gid_t gid); } netbsd_lchown \
 				    lchown_args int
-276	AUE_LUTIMES	NOPROTO	{ int lutimes(char *path, \
-				    struct timeval *tptr); }
-277	AUE_MSYNC	NOPROTO	{ int msync(void *addr, size_t len, \
-				    int flags); } netbsd_msync msync_args int
-278	AUE_STAT	NOPROTO	{ int nstat(char *path, struct nstat *ub); }
-279	AUE_FSTAT	NOPROTO	{ int nfstat(int fd, struct nstat *sb); }
-280	AUE_LSTAT	NOPROTO	{ int nlstat(char *path, struct nstat *ub); }
+276	AUE_LUTIMES	NOPROTO	{ int lutimes(_In_z_ char *path, \
+				    _In_ struct timeval *tptr); }
+277	AUE_MSYNC	NOPROTO	{ int msync(_Pagerange_(len) void *addr, \
+				    size_t len, int flags); } \
+				    netbsd_msync msync_args int
+; XXX-BD: why are these not COMPAT#?  struct nstat isn't even defined in
+; userspace.
+278	AUE_STAT	NOPROTO	{ int nstat(_In_z_ char *path, \
+				    _Out_ struct nstat *ub); }
+279	AUE_FSTAT	NOPROTO	{ int nfstat(int fd, \
+				    _Out_ struct nstat *sb); }
+280	AUE_LSTAT	NOPROTO	{ int nlstat(_In_z_ char *path, \
+				    _Out_ struct nstat *ub); }
 281	AUE_NULL	UNIMPL	nosys
 282	AUE_NULL	UNIMPL	nosys
 283	AUE_NULL	UNIMPL	nosys
@@ -477,11 +563,12 @@
 288	AUE_NULL	UNIMPL	nosys
 ; 289 and 290 from NetBSD (OpenBSD: 267 and 268)
 289	AUE_PREADV	STD	{ ssize_t cheriabi_preadv(int fd, \
-					struct iovec_c *iovp, \
-					u_int iovcnt, off_t offset); }
+				    _In_reads_(iovcnt) \
+				    struct iovec_c *iovp, \
+				    u_int iovcnt, off_t offset); }
 290	AUE_PWRITEV	STD	{ ssize_t cheriabi_pwritev(int fd, \
-					struct iovec_c *iovp, \
-					u_int iovcnt, off_t offset); }
+				    _In_reads_(iovcnt) struct iovec_c *iovp, \
+				    u_int iovcnt, off_t offset); }
 291	AUE_NULL	UNIMPL	nosys
 292	AUE_NULL	UNIMPL	nosys
 293	AUE_NULL	UNIMPL	nosys
@@ -490,23 +577,23 @@
 296	AUE_NULL	UNIMPL	nosys
 ; XXX 297 is 300 in NetBSD 
 297	AUE_FHSTATFS	OBSOL	fhstatfs
-298	AUE_FHOPEN	NOPROTO	{ int fhopen(const struct fhandle *u_fhp, \
+298	AUE_FHOPEN	NOPROTO	{ int fhopen(_In_ const struct fhandle *u_fhp, \
 			 	    int flags); }
-299	AUE_FHSTAT	NOPROTO	{ int fhstat(const struct fhandle *u_fhp, \
-				    struct stat *sb); }
+299	AUE_FHSTAT	NOPROTO	{ int fhstat(_In_ const struct fhandle *u_fhp, \
+				    _Out_ struct stat *sb); }
 ; syscall numbers for FreeBSD
 300	AUE_NULL	NOPROTO	{ int modnext(int modid); }
 301	AUE_NULL	NOPROTO	{ int modstat(int modid, \
-				    struct module_stat* stat); }
+				    _Out_ struct module_stat* stat); }
 302	AUE_NULL	NOPROTO	{ int modfnext(int modid); }
-303	AUE_NULL	NOPROTO	{ int modfind(const char *name); }
-304	AUE_MODLOAD	NOPROTO	{ int kldload(const char *file); }
+303	AUE_NULL	NOPROTO	{ int modfind(_In_z_ const char *name); }
+304	AUE_MODLOAD	NOPROTO	{ int kldload(_In_z_ const char *file); }
 305	AUE_MODUNLOAD	NOPROTO	{ int kldunload(int fileid); }
-306	AUE_NULL	NOPROTO	{ int kldfind(const char *file); }
+306	AUE_NULL	NOPROTO	{ int kldfind(_In_z_ const char *file); }
 307	AUE_NULL	NOPROTO	{ int kldnext(int fileid); }
 ; XXX-BD: kld_file_stat contains a caddr_t to a kernel address
 308	AUE_NULL	NOPROTO	{ int kldstat(int fileid, \
-				    struct kld_file_stat* stat); }
+				    _Out_ struct kld_file_stat* stat); }
 309	AUE_NULL	NOPROTO	{ int kldfirstmod(int fileid); }
 310	AUE_GETSID	NOPROTO	{ int getsid(pid_t pid); }
 311	AUE_SETRESUID	NOPROTO	{ int setresuid(uid_t ruid, uid_t euid, \
@@ -515,101 +602,122 @@
 				    gid_t sgid); }
 313	AUE_NULL	OBSOL	signanosleep
 314	AUE_NULL	NOSTD	{ int cheriabi_aio_return( \
-				    struct aiocb_c *aiocbp); }
+				    _Inout_ struct aiocb_c *aiocbp); }
+; XXX-BD: aiobp more likely struct chericap *
 315	AUE_NULL	NOSTD	{ int cheriabi_aio_suspend( \
+				    _Inout_updates_(nent) \
 				    struct aiocb_c * const * aiocbp, int nent, \
-				    const struct timespec *timeout); }
+				    _In_opt_ const struct timespec *timeout); }
 316	AUE_NULL	NOSTD	{ int cheriabi_aio_cancel(int fd, \
-				    struct aiocb_c *aiocbp); }
+				    _In_opt_ struct aiocb_c *aiocbp); }
 317	AUE_NULL	NOSTD	{ int cheriabi_aio_error( \
-				    struct aiocb_c *aiocbp); }
+				    _In_ struct aiocb_c *aiocbp); }
 318	AUE_NULL	OBSOL	oaio_read
 319	AUE_NULL	OBSOL	oaio_write
 320	AUE_NULL	OBSOL	olio_listio
 321	AUE_NULL	NOPROTO	{ int yield(void); }
 322	AUE_NULL	OBSOL	thr_sleep
 323	AUE_NULL	OBSOL	thr_wakeup
+; XXX-BD: are mlockall and munlockall ok in CheriABI?
 324	AUE_MLOCKALL	NOPROTO	{ int mlockall(int how); }
 325	AUE_MUNLOCKALL	NOPROTO	{ int munlockall(void); }
-326	AUE_GETCWD	NOPROTO	{ int __getcwd(char *buf, u_int buflen); }
+326	AUE_GETCWD	NOPROTO	{ int __getcwd(_In_z_ char *buf, u_int buflen); }
 
 327	AUE_NULL	NOPROTO	{ int sched_setparam (pid_t pid, \
-				    const struct sched_param *param); }
+				    _In_ const struct sched_param *param); }
 328	AUE_NULL	NOPROTO	{ int sched_getparam (pid_t pid, \
-				    struct sched_param *param); }
+				    _Out_ struct sched_param *param); }
 
 329	AUE_NULL	NOPROTO	{ int sched_setscheduler (pid_t pid, \
 				    int policy, \
-				    const struct sched_param *param); }
+				    _In_ const struct sched_param *param); }
 330	AUE_NULL	NOPROTO	{ int sched_getscheduler (pid_t pid); }
 
 331	AUE_NULL	NOPROTO	{ int sched_yield (void); }
 332	AUE_NULL	NOPROTO	{ int sched_get_priority_max (int policy); }
 333	AUE_NULL	NOPROTO	{ int sched_get_priority_min (int policy); }
 334	AUE_NULL	NOPROTO	{ int sched_rr_get_interval (pid_t pid, \
-				    struct timespec *interval); }
-335	AUE_NULL	NOPROTO	{ int utrace(const void *addr, size_t len); }
+				    _Out_ struct timespec *interval); }
+335	AUE_NULL	NOPROTO	{ int utrace( \
+				    _In_reads_bytes_(len) const void *addr, \
+				    size_t len); }
 336	AUE_SENDFILE	OBSOL	sendfile
 337	AUE_NULL	STD	{ int cheriabi_kldsym(int fileid, int cmd, \
-				    void *data); }
-338	AUE_JAIL	STD	{ int cheriabi_jail(struct jail_c *jail); }
+				    _In_ struct kld_sym_lookup_c *data); }
+338	AUE_JAIL	STD	{ int cheriabi_jail( \
+				    _In_ struct jail_c *jail); }
 339	AUE_NULL	UNIMPL	nnpfs_syscall
 340	AUE_SIGPROCMASK	NOPROTO	{ int sigprocmask(int how, \
-				    const sigset_t *set, sigset_t *oset); }
-341	AUE_SIGSUSPEND	NOPROTO	{ int sigsuspend(const sigset_t *sigmask); }
+				    _In_opt_ const sigset_t *set, \
+				    _Out_opt_ sigset_t *oset); }
+341	AUE_SIGSUSPEND	NOPROTO	{ int sigsuspend(_In_ const sigset_t *sigmask); }
 342	AUE_SIGACTION	OBSOL	sigaction
-343	AUE_SIGPENDING	NOPROTO	{ int sigpending(sigset_t *set); }
+343	AUE_SIGPENDING	NOPROTO	{ int sigpending(_In_ sigset_t *set); }
 344	AUE_SIGRETURN	OBSOL	sigreturn
-; XXXBD: siginfo_t contains a void*, but there is no 32-bit version.
-; Do we need a cheri version?
-345	AUE_SIGWAIT	STD	{ int cheriabi_sigtimedwait(const sigset_t *set, \
-				    struct siginfo_c *info, \
-				    const struct timespec *timeout); }
-346	AUE_NULL	STD	{ int cheriabi_sigwaitinfo(const sigset_t *set, \
-				    struct siginfo_c *info); }
-347	AUE_NULL	NOPROTO	{ int __acl_get_file(const char *path, \
-				    acl_type_t type, struct acl *aclp); }
-348	AUE_NULL	NOPROTO	{ int __acl_set_file(const char *path, \
-				    acl_type_t type, struct acl *aclp); }
+345	AUE_SIGWAIT	STD	{ int cheriabi_sigtimedwait( \
+				    _In_ const sigset_t *set, \
+				    _Out_opt_ struct siginfo_c *info, \
+				    _In_ const struct timespec *timeout); }
+346	AUE_NULL	STD	{ int cheriabi_sigwaitinfo( \
+				    _In_ const sigset_t *set, \
+				    _Out_opt_ struct siginfo_c *info); }
+347	AUE_NULL	NOPROTO	{ int __acl_get_file(_In_z_ const char *path, \
+				    acl_type_t type, \
+				    _Out_ struct acl *aclp); }
+348	AUE_NULL	NOPROTO	{ int __acl_set_file(_In_z_ const char *path, \
+				    acl_type_t type, _In_ struct acl *aclp); }
 349	AUE_NULL	NOPROTO	{ int __acl_get_fd(int filedes, \
-				    acl_type_t type, struct acl *aclp); }
+				    acl_type_t type, _Out_ struct acl *aclp); }
 350	AUE_NULL	NOPROTO	{ int __acl_set_fd(int filedes, \
-				    acl_type_t type, struct acl *aclp); }
-351	AUE_NULL	NOPROTO	{ int __acl_delete_file(const char *path, \
+				    acl_type_t type, _In_ struct acl *aclp); }
+351	AUE_NULL	NOPROTO	{ int __acl_delete_file( \
+				    _In_z_ const char *path, \
 				    acl_type_t type); }
 352	AUE_NULL	NOPROTO	{ int __acl_delete_fd(int filedes, \
 				    acl_type_t type); }
-353	AUE_NULL	NOPROTO	{ int __acl_aclcheck_file(const char *path, \
-				    acl_type_t type, struct acl *aclp); }
+353	AUE_NULL	NOPROTO	{ int __acl_aclcheck_file( \
+				    _In_z_ const char *path, \
+				    acl_type_t type, _In_ struct acl *aclp); }
 354	AUE_NULL	NOPROTO	{ int __acl_aclcheck_fd(int filedes, \
-				    acl_type_t type, struct acl *aclp); }
-355	AUE_EXTATTRCTL	NOPROTO	{ int extattrctl(const char *path, int cmd, \
-				    const char *filename, int attrnamespace, \
-				    const char *attrname); }
+				    acl_type_t type, _In_ struct acl *aclp); }
+355	AUE_EXTATTRCTL	NOPROTO	{ int extattrctl(_In_z_ const char *path, \
+				    int cmd, _In_z_opt_ const char *filename, \
+				    int attrnamespace, \
+				    _In_z_ const char *attrname); }
 356	AUE_EXTATTR_SET_FILE	NOPROTO	{ ssize_t extattr_set_file( \
-				    const char *path, int attrnamespace, \
-				    const char *attrname, void *data, \
+				    _In_z_ const char *path, \
+				    int attrnamespace, \
+				    _In_z_ const char *attrname, \
+				    _In_reads_bytes_(nbytes) void *data, \
 				    size_t nbytes); }
 357	AUE_EXTATTR_GET_FILE	NOPROTO	{ ssize_t extattr_get_file( \
-				    const char *path, int attrnamespace, \
-				    const char *attrname, void *data, \
+				    _In_z_ const char *path, \
+				    int attrnamespace, \
+				    _In_z_ const char *attrname, \
+				    _Out_writes_bytes_(nbytes) void *data, \
 				    size_t nbytes); }
 358	AUE_EXTATTR_DELETE_FILE	NOPROTO	{ int extattr_delete_file( \
-				    const char *path, int attrnamespace, \
-				    const char *attrname); }
+				    _In_z_ const char *path, \
+				    int attrnamespace, \
+				    _In_z_ const char *attrname); }
 359	AUE_NULL	NOSTD	{ int cheriabi_aio_waitcomplete( \
+				    _Outptr_result_maybenull_ \
 				    struct aiocb_c **aiocbp, \
-				    struct timespec *timeout); }
-360	AUE_GETRESUID	NOPROTO	{ int getresuid(uid_t *ruid, uid_t *euid, \
-				    uid_t *suid); }
-361	AUE_GETRESGID	NOPROTO	{ int getresgid(gid_t *rgid, gid_t *egid, \
-				    gid_t *sgid); }
+				    _In_opt_ struct timespec *timeout); }
+360	AUE_GETRESUID	NOPROTO	{ int getresuid(_Out_opt_ uid_t *ruid, \
+				    _Out_opt_ uid_t *euid, \
+				    _Out_opt_ uid_t *suid); }
+361	AUE_GETRESGID	NOPROTO	{ int getresgid(_Out_opt_ gid_t *rgid, \
+				    _Out_opt_ gid_t *egid, \
+				    _Out_opt_ gid_t *sgid); }
 362	AUE_KQUEUE	NOPROTO	{ int kqueue(void); }
 363	AUE_NULL	STD	{ int cheriabi_kevent(int fd, \
+				    _In_reads_opt_(nchanges) \
 				    const struct kevent_c *changelist, \
 				    int nchanges, \
+				    _In_reads_opt_(nevents) \
 				    struct kevent_c *eventlist, int nevents, \
-				    const struct timespec *timeout); }
+				    _In_opt_ const struct timespec *timeout); }
 364	AUE_NULL	UNIMPL	__cap_get_proc
 365	AUE_NULL	UNIMPL	__cap_set_proc
 366	AUE_NULL	UNIMPL	__cap_get_fd
@@ -618,19 +726,24 @@
 369	AUE_NULL	UNIMPL	__cap_set_file
 370	AUE_NULL	UNIMPL	nosys
 371	AUE_EXTATTR_SET_FD	NOPROTO	{ ssize_t extattr_set_fd(int fd, \
-				    int attrnamespace, const char *attrname, \
-				    void *data, size_t nbytes); }
+				    int attrnamespace, \
+				    _In_z_ const char *attrname, \
+				    _In_reads_bytes_(nbytes) void *data, \
+				    size_t nbytes); }
 372	AUE_EXTATTR_GET_FD	NOPROTO	{ ssize_t extattr_get_fd(int fd, \
-				    int attrnamespace, const char *attrname, \
-				    void *data, size_t nbytes); }
+				    int attrnamespace, \
+				    _In_z_ const char *attrname, \
+				    _Out_writes_bytes_(nbytes) void *data, \
+				    size_t nbytes); }
 373	AUE_EXTATTR_DELETE_FD	NOPROTO	{ int extattr_delete_fd(int fd, \
 				    int attrnamespace, \
-				    const char *attrname); }
+				    _In_z_ const char *attrname); }
 374	AUE_NULL	NOPROTO	{ int __setugid(int flag); }
 375	AUE_NULL	UNIMPL	nfsclnt
-376	AUE_EACCESS	NOPROTO	{ int eaccess(char *path, int amode); }
+376	AUE_EACCESS	NOPROTO	{ int eaccess(_In_z_ char *path, int amode); }
 377	AUE_NULL	UNIMPL	afs3_syscall
-378	AUE_NMOUNT	STD	{ int cheriabi_nmount(struct iovec_c *iovp, \
+378	AUE_NMOUNT	STD	{ int cheriabi_nmount( \
+				    _In_reads_(iovcnt) struct iovec_c *iovp, \
 				    unsigned int iovcnt, int flags); }
 379	AUE_NULL	OBSOL	kse_exit
 380	AUE_NULL	OBSOL	kse_wakeup
@@ -638,36 +751,48 @@
 382	AUE_NULL	OBSOL	kse_thr_interrupt
 383	AUE_NULL	OBSOL	kse_release
 384	AUE_NULL	STD	{ int cheriabi___mac_get_proc( \
-				    struct mac_c *mac_p); }
+				    _In_ struct mac_c *mac_p); }
 385	AUE_NULL	STD	{ int cheriabi___mac_set_proc( \
-				    struct mac_c *mac_p); }
+				    _In_ struct mac_c *mac_p); }
 386	AUE_NULL	STD	{ int cheriabi___mac_get_fd(int fd, \
-				    struct mac_c *mac_p); }
+				    _In_ struct mac_c *mac_p); }
 387	AUE_NULL	STD	{ int cheriabi___mac_get_file( \
-				    const char *path_p, struct mac_c *mac_p); }
+				    _In_z_ const char *path_p, \
+				    _In_ struct mac_c *mac_p); }
 388	AUE_NULL	STD	{ int cheriabi___mac_set_fd(int fd, \
-				    struct mac_c *mac_p); }
+				    _In_ struct mac_c *mac_p); }
 389	AUE_NULL	STD	{ int cheriabi___mac_set_file( \
-				    const char *path_p, struct mac_c *mac_p); }
-390	AUE_NULL	NOPROTO	{ int kenv(int what, const char *name, \
-				    char *value, int len); }
-391	AUE_LCHFLAGS	NOPROTO	{ int lchflags(const char *path, \
+				    _In_z_ const char *path_p, \
+				    _In_ struct mac_c *mac_p); }
+; XXX-BD: value is hard to check, may not need LOAD.
+390	AUE_NULL	NOPROTO	{ int kenv(int what, \
+				    _In_z_ const char *name, \
+				    _Inout_ char *value, int len); }
+391	AUE_LCHFLAGS	NOPROTO	{ int lchflags(_In_z_ const char *path, \
 				    u_long flags); }
-392	AUE_NULL	NOPROTO	{ int uuidgen(struct uuid *store, \
+392	AUE_NULL	NOPROTO	{ int uuidgen( \
+				    _Out_writes_(count) struct uuid *store, \
 				    int count); }
 393	AUE_SENDFILE	STD	{ int cheriabi_sendfile(int fd, int s, \
 				    off_t offset, \
-				    size_t nbytes, struct sf_hdtr_c *hdtr, \
-				    off_t *sbytes, int flags); }
-394	AUE_NULL	NOPROTO	{ int mac_syscall(const char *policy, \
-				    int call, void *arg); }
-395	AUE_GETFSSTAT	NOPROTO	{ int getfsstat(struct statfs *buf, \
+				    size_t nbytes, \
+				    _In_opt_ struct sf_hdtr_c *hdtr, \
+				    _Out_opt_ off_t *sbytes, int flags); }
+; XXX-BD: probably requires a wrapper
+394	AUE_NULL	NOPROTO|NOPARSE	{ int mac_syscall( \
+				    _In_z_ const char *policy, \
+				    int call, _In_opt_ void *arg); }
+395	AUE_GETFSSTAT	NOPROTO	{ int getfsstat( \
+				    _Out_writes_bytes_opt_(bufsize) \
+				    struct statfs *buf, \
 				    long bufsize, int flags); }
-396	AUE_STATFS	NOPROTO	{ int statfs(char *path, \
-				    struct statfs *buf); }
-397	AUE_FSTATFS	NOPROTO	{ int fstatfs(int fd, struct statfs *buf); }
-398	AUE_FHSTATFS	NOPROTO	{ int fhstatfs(const struct fhandle *u_fhp, \
-				    struct statfs *buf); }
+396	AUE_STATFS	NOPROTO	{ int statfs(_In_z_ char *path, \
+				    _Out_ struct statfs *buf); }
+397	AUE_FSTATFS	NOPROTO	{ int fstatfs(int fd, \
+				    _Out_ struct statfs *buf); }
+398	AUE_FHSTATFS	NOPROTO	{ int fhstatfs( \
+				    _In_ const struct fhandle *u_fhp, \
+				    _Out_ struct statfs *buf); }
 399	AUE_NULL	UNIMPL	nosys
 400	AUE_NULL	OBSOL	ksem_close
 401	AUE_NULL	OBSOL	ksem_post
@@ -679,124 +804,169 @@
 407	AUE_NULL	OBSOL	ksem_getvalue
 408	AUE_NULL	OBSOL	ksem_destroy
 409	AUE_NULL	STD	{ int cheriabi___mac_get_pid(pid_t pid, \
-				    struct mac_c *mac_p); }
+				    _In_ struct mac_c *mac_p); }
 410	AUE_NULL	STD	{ int cheriabi___mac_get_link( \
-				    const char *path_p, struct mac_c *mac_p); }
+				    _In_z_ const char *path_p, \
+				    _In_ struct mac_c *mac_p); }
 411	AUE_NULL	STD	{ int cheriabi___mac_set_link( \
-				    const char *path_p, struct mac_c *mac_p); }
+				    _In_z_ const char *path_p, \
+				    _In_ struct mac_c *mac_p); }
 412	AUE_EXTATTR_SET_LINK	NOPROTO	{ ssize_t extattr_set_link( \
-				    const char *path, int attrnamespace, \
-				    const char *attrname, void *data, \
+				    _In_z_ const char *path, \
+				    int attrnamespace, \
+				    _In_z_ const char *attrname, \
+				    _In_reads_bytes_(nbytes) void *data, \
 				    size_t nbytes); }
 413	AUE_EXTATTR_GET_LINK	NOPROTO	{ ssize_t extattr_get_link( \
-				    const char *path, int attrnamespace, \
-				    const char *attrname, void *data, \
+				    _In_z_ const char *path, \
+				    int attrnamespace, \
+				    _In_z_ const char *attrname, \
+				    _Out_writes_bytes_(nbytes) void *data, \
 				    size_t nbytes); }
 414	AUE_EXTATTR_DELETE_LINK	NOPROTO	{ int extattr_delete_link( \
-				    const char *path, int attrnamespace, \
-				    const char *attrname); }
-415	AUE_NULL	STD	{ int cheriabi___mac_execve(char *fname, \
-				    struct chericap *argv, \
-				    struct chericap *envv, \
-				    struct mac_c *mac_p); }
+				    _In_z_ const char *path, \
+				    int attrnamespace, \
+				    _In_z_ const char *attrname); }
+415	AUE_NULL	STD	{ int cheriabi___mac_execve( \
+				    _In_z_ char *fname, \
+				    _In_ struct chericap *argv, \
+				    _In_ struct chericap *envv, \
+				    _In_ struct mac_c *mac_p); }
 416	AUE_SIGACTION	STD	{ int cheriabi_sigaction(int sig, \
-				    struct sigaction_c *act, \
-				    struct sigaction_c *oact); }
+				    _In_opt_ struct sigaction_c *act, \
+				    _Out_opt_ struct sigaction_c *oact); }
 417	AUE_SIGRETURN	STD	{ int cheriabi_sigreturn( \
-		    const struct ucontext_c *sigcntxp); }
+		    _In_ const struct ucontext_c *sigcntxp); }
 418	AUE_NULL	UNIMPL	__xstat
 419	AUE_NULL	UNIMPL	__xfstat
 420	AUE_NULL	UNIMPL	__xlstat
 421	AUE_NULL	STD	{ int cheriabi_getcontext( \
-				    struct ucontext_c *ucp); }
+				    _Out_ struct ucontext_c *ucp); }
 422	AUE_NULL	STD	{ int cheriabi_setcontext( \
-				    const struct ucontext_c *ucp); }
+				    _In_ const struct ucontext_c *ucp); }
 423	AUE_NULL	STD	{ int cheriabi_swapcontext( \
-				    struct ucontext_c *oucp, \
-				    const struct ucontext_c *ucp); }
-424	AUE_SWAPOFF	NOPROTO	{ int swapoff(const char *name); }
-425	AUE_NULL	NOPROTO	{ int __acl_get_link(const char *path, \
-				    acl_type_t type, struct acl *aclp); }
-426	AUE_NULL	NOPROTO	{ int __acl_set_link(const char *path, \
-				    acl_type_t type, struct acl *aclp); }
-427	AUE_NULL	NOPROTO	{ int __acl_delete_link(const char *path, \
+				    _Out_ struct ucontext_c *oucp, \
+				    _In_ const struct ucontext_c *ucp); }
+424	AUE_SWAPOFF	NOPROTO	{ int swapoff(_In_z_ const char *name); }
+425	AUE_NULL	NOPROTO	{ int __acl_get_link(_In_z_ const char *path, \
+				    acl_type_t type, _Out_ struct acl *aclp); }
+426	AUE_NULL	NOPROTO	{ int __acl_set_link(_In_z_ const char *path, \
+				    acl_type_t type, _In_ struct acl *aclp); }
+427	AUE_NULL	NOPROTO	{ int __acl_delete_link( \
+				    _In_z_ const char *path, \
 				    acl_type_t type); }
-428	AUE_NULL	NOPROTO	{ int __acl_aclcheck_link(const char *path, \
-				    acl_type_t type, struct acl *aclp); }
-429	AUE_SIGWAIT	NOPROTO	{ int sigwait(const sigset_t *set, \
-				    int *sig); }
-430	AUE_NULL	STD	{ int cheriabi_thr_create(ucontext_t *ctx, \
-				    long *id, int flags); }
-431	AUE_NULL	NOPROTO	{ void thr_exit(long *state); }
-432	AUE_NULL	NOPROTO	{ int thr_self(long *id); }
+428	AUE_NULL	NOPROTO	{ int __acl_aclcheck_link( \
+				    _In_z_ const char *path, \
+				    acl_type_t type, _In_ struct acl *aclp); }
+429	AUE_SIGWAIT	NOPROTO	{ int sigwait(_In_ const sigset_t *set, \
+				    _Out_ int *sig); }
+430	AUE_NULL	STD	{ int cheriabi_thr_create( \
+				    _In_ ucontext_t *ctx, \
+				    _Out_ long *id, int flags); }
+431	AUE_NULL	NOPROTO	{ void thr_exit(_Out_opt_ long *state); }
+432	AUE_NULL	NOPROTO	{ int thr_self(_Out_ long *id); }
 433	AUE_NULL	NOPROTO	{ int thr_kill(long id, int sig); }
 434	AUE_NULL	UNIMPL	nosys
 435	AUE_NULL	UNIMPL	nosys
 436	AUE_NULL	NOPROTO	{ int jail_attach(int jid); }
 437	AUE_EXTATTR_LIST_FD	NOPROTO	{ ssize_t extattr_list_fd(int fd, \
-				    int attrnamespace, void *data, \
+				    int attrnamespace, \
+				    _Out_writes_bytes_opt_(nbytes) \
+				    void *data, \
 				    size_t nbytes); }
 438	AUE_EXTATTR_LIST_FILE	NOPROTO	{ ssize_t extattr_list_file( \
-				    const char *path, int attrnamespace, \
+				    _In_z_ const char *path, \
+				    int attrnamespace, \
+				    _Out_writes_bytes_opt_(nbytes) \
 				    void *data, size_t nbytes); }
 439	AUE_EXTATTR_LIST_LINK	NOPROTO	{ ssize_t extattr_list_link( \
-				    const char *path, int attrnamespace, \
+				    _In_z_ const char *path, \
+				    int attrnamespace, \
+				    _Out_writes_bytes_opt_(nbytes) \
 				    void *data, size_t nbytes); }
 440	AUE_NULL	OBSOL	kse_switchin
 441	AUE_NULL	NOSTD|NOPROTO	{ int ksem_timedwait(semid_t id, \
+				    _In_opt_ \
 				    const struct timespec *abstime); }
 442	AUE_NULL	NOPROTO	{ int thr_suspend( \
+				    _In_opt_ \
 				    const struct timespec *timeout); }
 443	AUE_NULL	NOPROTO	{ int thr_wake(long id); }
 444	AUE_MODUNLOAD	NOPROTO	{ int kldunloadf(int fileid, int flags); }
-445	AUE_AUDIT	NOPROTO	{ int audit(const void *record, \
+445	AUE_AUDIT	NOPROTO	{ int audit( \
+				    _In_reads_bytes_(length) \
+				    const void *record, \
 				    u_int length); }
-446	AUE_AUDITON	NOPROTO	{ int auditon(int cmd, void *data, \
+446	AUE_AUDITON	NOPROTO|NOPARSE	{ int auditon(int cmd, \
+				    _In_opt_ void *data, \
 				    u_int length); }
-447	AUE_GETAUID	NOPROTO	{ int getauid(uid_t *auid); }
-448	AUE_SETAUID	NOPROTO	{ int setauid(uid_t *auid); }
-449	AUE_GETAUDIT	NOPROTO	{ int getaudit(struct auditinfo *auditinfo); }
-450	AUE_SETAUDIT	NOPROTO	{ int setaudit(struct auditinfo *auditinfo); }
+447	AUE_GETAUID	NOPROTO	{ int getauid(_Out_ uid_t *auid); }
+448	AUE_SETAUID	NOPROTO	{ int setauid(_In_ uid_t *auid); }
+449	AUE_GETAUDIT	NOPROTO	{ int getaudit( \
+				    _Out_ struct auditinfo *auditinfo); }
+450	AUE_SETAUDIT	NOPROTO	{ int setaudit( \
+				    _In_ struct auditinfo *auditinfo); }
+; XXX-BD: Why does this take a length when it wants to copy out a single
+; struct.
 451	AUE_GETAUDIT_ADDR	NOPROTO	{ int getaudit_addr( \
+				    _Out_writes_bytes_(length) \
 				    struct auditinfo_addr *auditinfo_addr, \
 				    u_int length); }
 452	AUE_SETAUDIT_ADDR	NOPROTO	{ int setaudit_addr( \
+				    _In_reads_bytes_(length) \
 				    struct auditinfo_addr *auditinfo_addr, \
 				    u_int length); }
-453	AUE_AUDITCTL	NOPROTO	{ int auditctl(char *path); }
+453	AUE_AUDITCTL	NOPROTO	{ int auditctl(_In_z_ char *path); }
+; XXX-BD: args pretty much unauditable
 ; XXXBD: do uaddr(2) need special handling?
-454	AUE_NULL	NOPROTO	{ int _umtx_op(void *obj, int op,\
-				    u_long val, void *uaddr, \
+454	AUE_NULL	NOPROTO|NOPARSE	{ int _umtx_op(void *obj, int op,\
+				    u_long val, void *uaddr1, \
 				    void *uaddr2); }
-455	AUE_NULL	STD	{ int cheriabi_thr_new( \
-				    struct thr_param_c *param, \
+455	AUE_NULL	STD	{ int cheriabi_thr_new(	\
+				    _In_ struct thr_param_c *param, \
 				    int param_size); }
-456	AUE_NULL	NOPROTO	{ int sigqueue(pid_t pid, int signum, \
-				    void *value); }
+; XXX-BD: sigqueue takes union of int and void * as the third argument.
+; It's not clear what to do with it.  Within a process we could deliver
+; a capability safely.  Outside, we definitely should not.
+456	AUE_NULL	STD|NOPARSE	{ int cheriabi_sigqueue(pid_t pid, \
+				    int signum, void *value); }
 457	AUE_NULL	NOSTD|NOPROTO	{ int kmq_open( \
-				    const char *path, int flags, mode_t mode, \
-				    const struct mq_attr *attr); }
+				    _In_z_ const char *path, int flags, \
+				    mode_t mode, \
+				    _In_opt_ const struct mq_attr *attr); }
 458	AUE_NULL	NOSTD|NOPROTO	{ int kmq_setattr(int mqd, \
-				    const struct mq_attr *attr, \
-				    struct mq_attr *oattr); }
+				    _In_opt_ const struct mq_attr *attr, \
+				    _Out_opt_ struct mq_attr *oattr); }
 459	AUE_NULL	NOSTD|NOPROTO	{ int kmq_timedreceive(int mqd, \
-				    char *msg_ptr, size_t msg_len, \
-				    unsigned *msg_prio, \
+				    _Out_writes_bytes_(msg_len) char *msg_ptr, \
+				    size_t msg_len, \
+				    _Out_opt_ unsigned *msg_prio, \
+				    _In_opt_ \
 				    const struct timespec *abs_timeout); }
 460	AUE_NULL	NOSTD|NOPROTO	{ int kmq_timedsend(int mqd, \
-				    const char *msg_ptr, size_t msg_len,\
+				    _In_reads_bytes_(msg_len) \
+				    const char *msg_ptr, size_t msg_len, \
 				    unsigned msg_prio, \
-				    const struct timespec *abs_timeout);}
-461	AUE_NULL	NOSTD	{ int cheriabi_kmq_notify(int mqd, \
-				    const struct sigevent_c *sigev); }
-462	AUE_NULL	NOPROTO|NOSTD	{ int kmq_unlink(const char *path); }
-463	AUE_NULL	STD	{ int cheriabi_abort2(const char *why, \
-				    int nargs, struct chericap *args); }
-464	AUE_NULL 	NOPROTO	{ int thr_set_name(long id, const char *name); }
+				    _In_opt_ \
+				    const struct timespec *abs_timeout); }
+461	AUE_NULL	NOSTD	{ int cheriabi_kmq_notify(int mqd,	\
+				    _In_opt_ const struct sigevent_c *sigev); }
+462	AUE_NULL	NOPROTO|NOSTD	{ int kmq_unlink( \
+				    _In_z_ const char *path); }
+; XXX-BD: defensive argument usage probably makes sense, but
+; we have to kill the process even if we're passed garbage so we can't
+; generate an argument handler.
+463	AUE_NULL	STD	{ int cheriabi_abort2(_In_z_ const char *why, \
+				    int nargs, \
+				    _In_reads_(nargs) struct chericap *args); }
+464	AUE_NULL 	NOPROTO	{ int thr_set_name(long id, \
+				    _In_z_ const char *name); }
 465	AUE_NULL	NOSTD	{ int cheriabi_aio_fsync(int op, \
-				    struct aiocb_c *aiocbp); }
+				    _In_ struct aiocb_c *aiocbp); }
+; XXX-BD: _In_ if RTP_SET, _Out_ if RTP_LOOKUP
 466	AUE_RTPRIO	NOPROTO	{ int rtprio_thread(int function, \
-				    lwpid_t lwpid, struct rtprio *rtp); }
+				    lwpid_t lwpid, \
+				    _Inout_ struct rtprio *rtp); }
 467	AUE_NULL	UNIMPL	nosys
 468	AUE_NULL	UNIMPL	nosys
 469	AUE_NULL	UNIMPL	__getpath_fromfd
@@ -804,173 +974,224 @@
 471	AUE_NULL	NOPROTO|NOSTD	{ int sctp_peeloff(int sd, \
 				     uint32_t name); }
 472	AUE_NULL	NOPROTO|NOSTD	{ int sctp_generic_sendmsg(int sd, \
-				     caddr_t msg, int mlen, \
-				    caddr_t to, __socklen_t tolen, \
-				    struct sctp_sndrcvinfo *sinfo, int flags); }
+				    _In_reads_bytes_(mlen) caddr_t msg, \
+				    int mlen, \
+				    _In_reads_bytes_(tolen) caddr_t to,\
+				    socklen_t tolen, \
+				    _In_opt_ struct sctp_sndrcvinfo *sinfo, \
+				    int flags); }
 473	AUE_NULL	NOSTD	{ int cheriabi_sctp_generic_sendmsg_iov( \
-				     int sd, struct iovec_c *iov, int iovlen, \
-				    caddr_t to, __socklen_t tolen, \
-				    struct sctp_sndrcvinfo *sinfo, int flags); }
+				    int sd, \
+				    _In_reads_(iovlen) struct iovec_c *iov, \
+				    int iovlen, \
+				    _In_reads_bytes(tolen) caddr_t to, \
+				    socklen_t tolen, \
+				    _In_opt_ struct sctp_sndrcvinfo *sinfo, \
+				    int flags); }
+; XXX-BD: dependent variables
 474	AUE_NULL	NOSTD	{ int cheriabi_sctp_generic_recvmsg(int sd, \
-				    struct iovec_c *iov, int iovlen, \
+				    _In_reads(iovlen) struct iovec_c *iov, \
+				    int iovlen, \
+				    _Out_writes_bytes_(*fromlenaddr) \
 				    struct sockaddr * from, \
-				    __socklen_t *fromlenaddr, \
-				    struct sctp_sndrcvinfo *sinfo, \
-				    int *msg_flags); }
+				    _Out_ socklen_t *fromlenaddr, \
+				    _In_opt_ struct sctp_sndrcvinfo *sinfo, \
+				    _Out_opt_ int *msg_flags); }
 475	AUE_PREAD	NOPROTO	{ ssize_t pread(int fd, \
-				    void *buf,size_t nbyte, \
-				    off_t offset); }
+				    _Out_writes_bytes_(nbyte) void *buf, \
+				    size_t nbyte, off_t offset); }
 476	AUE_PWRITE	NOPROTO	{ ssize_t pwrite(int fd, \
+				    _Out_writes_bytes_(nbyte) \
 				    const void *buf, size_t nbyte, \
 				    off_t offset); }
-477	AUE_MMAP	STD { caddr_t cheriabi_mmap(caddr_t addr, \
+; XXX: A more complex set of checks on addr is required.  We do that in
+; cheriabi_mmap().
+477	AUE_MMAP	STD { caddr_t cheriabi_mmap( \
+				    _Pagerange_opt_(len) caddr_t addr, \
 				    size_t len, int prot, int flags, int fd, \
 				    off_t pos); }
 478	AUE_LSEEK	NOPROTO	{ off_t lseek(int fd, off_t offset, \
 				    int whence); }
-479	AUE_TRUNCATE	NOPROTO	{ int truncate(char *path, off_t length); }
+479	AUE_TRUNCATE	NOPROTO	{ int truncate(_In_z_ char *path, \
+				    off_t length); }
 480	AUE_FTRUNCATE	NOPROTO	{ int ftruncate(int fd, off_t length); }
 481	AUE_KILL	NOPROTO	{ int thr_kill2(pid_t pid, long id, int sig); }
-482	AUE_SHMOPEN	NOPROTO	{ int shm_open(const char *path, int flags, \
-				    mode_t mode); }
-483	AUE_SHMUNLINK	NOPROTO	{ int shm_unlink(const char *path); }
-484	AUE_NULL	NOPROTO	{ int cpuset(cpusetid_t *setid); }
+; XXX-BD: path may be SHM_ANON
+482	AUE_SHMOPEN	NOPROTO|NOPARSE	{ int shm_open(_In_z_ const char *path, \
+				    int flags, mode_t mode); }
+483	AUE_SHMUNLINK	NOPROTO	{ int shm_unlink(_In_z_ const char *path); }
+484	AUE_NULL	NOPROTO	{ int cpuset(_Out_ cpusetid_t *setid); }
 485	AUE_NULL	NOPROTO	{ int cpuset_setid(cpuwhich_t which, \
 				    id_t id, cpusetid_t setid); }
 486	AUE_NULL	NOPROTO	{ int cpuset_getid(cpulevel_t level, \
 				    cpuwhich_t which, it_t id, \
-				    cpusetid_t *setid); }
+				    _Out_ cpusetid_t *setid); }
 487	AUE_NULL	NOPROTO	{ int cpuset_getaffinity( \
 				    cpulevel_t level, cpuwhich_t which, \
 				    id_t id, size_t cpusetsize, \
-				    cpuset_t *mask); }
+				    _Out_ cpuset_t *mask); }
 488	AUE_NULL	NOPROTO	{ int cpuset_setaffinity( \
 				    cpulevel_t level, cpuwhich_t which, \
 				    id_t id, size_t cpusetsize, \
-				    const cpuset_t *mask); }
-489	AUE_FACCESSAT	NOPROTO	{ int faccessat(int fd, char *path, int amode, \
+				    _Out_ const cpuset_t *mask); }
+489	AUE_FACCESSAT	NOPROTO	{ int faccessat(int fd, \
+				    _In_z_ const char *path, int amode, \
 				    int flag); }
-490	AUE_FCHMODAT	NOPROTO	{ int fchmodat(int fd, const char *path, \
-				    mode_t mode, int flag); }
-491	AUE_FCHOWNAT	NOPROTO	{ int fchownat(int fd, char *path, uid_t uid, \
-				    gid_t gid, int flag); }
+490	AUE_FCHMODAT	NOPROTO	{ int fchmodat(int fd, \
+				    _In_z_ const char *path, mode_t mode, \
+				    int flag); }
+491	AUE_FCHOWNAT	NOPROTO	{ int fchownat(int fd, _In_z_ char *path, \
+				    uid_t uid, gid_t gid, int flag); }
 492	AUE_FEXECVE	STD	{ int cheriabi_fexecve(int fd, \
-				    struct chericap *argv, \
-				    struct chericap *envv); }
-493	AUE_FSTATAT	NOPROTO	{ int fstatat(int fd, char *path, \
-				    struct stat *buf, int flag); }
-494	AUE_FUTIMESAT	NOPROTO	{ int futimesat(int fd, char *path, \
-				    struct timeval *times); }
-495	AUE_LINKAT	NOPROTO	{ int linkat(int fd1, char *path1, int fd2, \
-				    char *path2, int flag); }
-496	AUE_MKDIRAT	NOPROTO	{ int mkdirat(int fd, char *path, \
+				    _In_ struct chericap *argv, \
+				    _In_ struct chericap *envv); }
+493	AUE_FSTATAT	NOPROTO	{ int fstatat(int fd, _In_z_ char *path, \
+				    _Out_ struct stat *buf, int flag); }
+494	AUE_FUTIMESAT	NOPROTO	{ int futimesat(int fd, _In_z_ char *path, \
+				    _In_reads_(2) struct timeval *times); }
+495	AUE_LINKAT	NOPROTO	{ int linkat(int fd1, _In_z_ char *path1, \
+				    int fd2, _In_z_ char *path2, int flag); }
+496	AUE_MKDIRAT	NOPROTO	{ int mkdirat(int fd, _In_z_ char *path, \
 				    mode_t mode); }
-497	AUE_MKFIFOAT	NOPROTO	{ int mkfifoat(int fd, char *path, \
+497	AUE_MKFIFOAT	NOPROTO	{ int mkfifoat(int fd, _In_z_ char *path, \
 				    mode_t mode); }
-498	AUE_MKNODAT	NOPROTO	{ int mknodat(int fd, char *path, \
+498	AUE_MKNODAT	NOPROTO	{ int mknodat(int fd, _In_z_ char *path, \
 				    mode_t mode, dev_t dev); }
-499	AUE_OPENAT_RWTC	NOPROTO	{ int openat(int fd, char *path, int flag, \
-				    mode_t mode); }
-500	AUE_READLINKAT	NOPROTO	{ int readlinkat(int fd, char *path, \
-				    char *buf, size_t bufsize); }
-501	AUE_RENAMEAT	NOPROTO	{ int renameat(int oldfd, char *old, \
-				    int newfd, const char *new); }
-502	AUE_SYMLINKAT	NOPROTO	{ int symlinkat(char *path1, int fd, \
-				    char *path2); }
-503	AUE_UNLINKAT	NOPROTO	{ int unlinkat(int fd, char *path, \
+499	AUE_OPENAT_RWTC	NOPROTO	{ int openat(int fd, _In_z_ char *path, \
+				    int flag, mode_t mode); }
+500	AUE_READLINKAT	NOPROTO	{ int readlinkat(int fd, _In_z_ char *path, \
+				    _Out_writes_bytes_(bufsize) char *buf, \
+				    size_t bufsize); }
+501	AUE_RENAMEAT	NOPROTO	{ int renameat(int oldfd, \
+				    _In_z_ const char *old, \
+				    int newfd, _In_z_ const char *new); }
+502	AUE_SYMLINKAT	NOPROTO	{ int symlinkat(_In_z_ char *path1, int fd, \
+				    _In_z_ char *path2); }
+503	AUE_UNLINKAT	NOPROTO	{ int unlinkat(int fd, _In_z_ char *path, \
 				    int flag); }
 504	AUE_POSIX_OPENPT	NOPROTO	{ int posix_openpt(int flags); }
 ; 505 is initialised by the kgssapi code, if present.
-505	AUE_NULL	NOSTD|NOPROTO	{ int gssd_syscall(char *path); }
-506	AUE_NULL	STD	{ int cheriabi_jail_get(struct iovec_c *iovp, \
+505	AUE_NULL	NOSTD|NOPROTO	{ int gssd_syscall(_In_z_ char *path); }
+506	AUE_NULL	STD	{ int cheriabi_jail_get( \
+				    _In_reads_(iovcnt) struct iovec_c *iovp, \
 				    unsigned int iovcnt, int flags); }
-507	AUE_NULL	STD	{ int cheriabi_jail_set(struct iovec_c *iovp, \
+507	AUE_NULL	STD	{ int cheriabi_jail_set( \
+				    _In_reads_(iovcnt) struct iovec_c *iovp, \
 				    unsigned int iovcnt, int flags); }
 508	AUE_NULL	NOPROTO	{ int jail_remove(int jid); }
 509	AUE_CLOSEFROM	NOPROTO	{ int closefrom(int lowfd); }
-510	AUE_SEMCTL	NOSTD { int cheriabi___semctl(int semid, int semnum, \
+510	AUE_SEMCTL	NOSTD|NOPARSE { int cheriabi___semctl(int semid, int semnum, \
 				    int cmd, union semun_c *arg); }
-511	AUE_MSGCTL	NOSTD	{ int cheriabi_msgctl(int msqid, int cmd, \
-				    struct msqid_ds_c *buf); }
+; XXX-BD: technically IPC_SET doesn't require _Out_ permissions
+511	AUE_MSGCTL	NOSTD { int cheriabi_msgctl(int msqid, int cmd, \
+				    _Inout_opt_ struct msqid_ds_c *buf); }
+; XXX: technically buf is sometimes _In_ and sometimes _Out_
 512	AUE_SHMCTL	NOSTD|NOPROTO	{ int shmctl(int shmid, int cmd, \
-				    struct shmid_ds *buf); }
-513	AUE_LPATHCONF	NOPROTO	{ int lpathconf(char *path, int name); }
+				    _Inout_ struct shmid_ds *buf); }
+513	AUE_LPATHCONF	NOPROTO	{ int lpathconf(_In_z_ char *path, int name); }
 514	AUE_NULL	OBSOL	cap_new
 515	AUE_CAP_RIGHTS_GET	NOPROTO	{ int __cap_rights_get(int version, \
-				    int fd, cap_rights_t *rightsp); }
+				    int fd, _Out_ cap_rights_t *rightsp); }
 516	AUE_CAP_ENTER	NOPROTO	{ int cap_enter(void); }
-517	AUE_CAP_GETMODE	NOPROTO	{ int cap_getmode(u_int *modep); }
-518	AUE_PDFORK	NOPROTO	{ int pdfork(int *fdp, int flags); }
+517	AUE_CAP_GETMODE	NOPROTO	{ int cap_getmode(_Out_ u_int *modep); }
+518	AUE_PDFORK	NOPROTO	{ int pdfork(_Out_ int *fdp, int flags); }
 519	AUE_PDKILL	NOPROTO	{ int pdkill(int fd, int signum); }
-520	AUE_PDGETPID	NOPROTO	{ int pdgetpid(int fd, pid_t *pidp); }
+520	AUE_PDGETPID	NOPROTO	{ int pdgetpid(int fd, _Out_ pid_t *pidp); }
 521	AUE_PDWAIT	UNIMPL	pdwait4
-522	AUE_SELECT	NOPROTO	{ int pselect(int nd, fd_set *in, \
-				    fd_set *ou, fd_set *ex, \
-				    const struct timespec *ts, \
-				    const sigset_t *sm); }
-523	AUE_NULL	NOPROTO	{ int getloginclass(char *namebuf, \
+522	AUE_SELECT	NOPROTO	{ int pselect(int nd, _Inout_opt_ fd_set *in, \
+				    _Inout_opt_ fd_set *ou, \
+				    _Inout_opt_ fd_set *ex, \
+				    _In_opt_ const struct timespec *ts, \
+				    _In_opt_ const sigset_t *sm); }
+523	AUE_NULL	NOPROTO	{ int getloginclass( \
+				    _Out_writes_z_(namelen) char *namebuf, \
 				    size_t namelen); }
-524	AUE_NULL	NOPROTO	{ int setloginclass(const char *namebuf); }
-525	AUE_NULL	NOPROTO	{ int rctl_get_racct(const void *inbufp, \
-				    size_t inbuflen, void *outbufp, \
-				    size_t outbuflen); }
-526	AUE_NULL	NOPROTO	{ int rctl_get_rules(const void *inbufp, \
-				    size_t inbuflen, void *outbufp, \
-				    size_t outbuflen); }
-527	AUE_NULL	NOPROTO	{ int rctl_get_limits(const void *inbufp, \
-				    size_t inbuflen, void *outbufp, \
-				    size_t outbuflen); }
-528	AUE_NULL	NOPROTO	{ int rctl_add_rule(const void *inbufp, \
-				    size_t inbuflen, void *outbufp, \
-				    size_t outbuflen); }
-529	AUE_NULL	NOPROTO	{ int rctl_remove_rule(const void *inbufp, \
-				    size_t inbuflen, void *outbufp, \
-				    size_t outbuflen); }
+524	AUE_NULL	NOPROTO	{ int setloginclass( \
+				    _In_z_ const char *namebuf); }
+525	AUE_NULL	NOPROTO	{ int rctl_get_racct( \
+				    _In_reads_bytes_(inbuflen) \
+				    const void *inbufp, size_t inbuflen, \
+				    _Out_writes_bytes_(outbuflen) \
+				    void *outbufp, size_t outbuflen); }
+526	AUE_NULL	NOPROTO	{ int rctl_get_rules( \
+				    _In_reads_bytes_(inbuflen) \
+				    const void *inbufp, size_t inbuflen, \
+				    _Out_writes_bytes_(outbuflen) \
+				    void *outbufp, size_t outbuflen); }
+527	AUE_NULL	NOPROTO	{ int rctl_get_limits( \
+				    _In_reads_bytes_(inbuflen) \
+				    const void *inbufp, size_t inbuflen, \
+				    _Out_writes_bytes_(outbuflen) \
+				    void *outbufp, size_t outbuflen); }
+528	AUE_NULL	NOPROTO	{ int rctl_add_rule( \
+				    _In_reads_bytes_(inbuflen) \
+				    const void *inbufp, size_t inbuflen, \
+				    _Out_writes_bytes_(outbuflen) \
+				    void *outbufp, size_t outbuflen); }
+529	AUE_NULL	NOPROTO	{ int rctl_remove_rule( \
+				    _In_reads_bytes_(inbuflen) \
+				    const void *inbufp, size_t inbuflen, \
+				    _Out_writes_bytes_(outbuflen) \
+				    void *outbufp, size_t outbuflen); }
 530	AUE_NULL	NOPROTO	{ int posix_fallocate(int fd,\
 				    off_t offset, off_t len); }
 531	AUE_NULL	NOPROTO	{ int posix_fadvise(int fd, off_t offset, \
 				    off_t len, int advice); }
 532	AUE_WAIT6	STD	{ int cheriabi_wait6(int idtype, id_t id, \
-				    int *status, int options, \
-				    struct __wrusage *wrusage, \
-				    struct __siginfo_c *info); }
+				    _Out_opt_ int *status, int options, \
+				    _Out_opt_ struct __wrusage *wrusage, \
+				    _Out_opt_ struct siginfo_c *info); }
 533	AUE_CAP_RIGHTS_LIMIT	NOPROTO	{ \
 				    int cap_rights_limit(int fd, \
-				    cap_rights_t *rightsp); }
+				    _In_ cap_rights_t *rightsp); }
 534	AUE_CAP_IOCTLS_LIMIT	NOPROTO	{ \
 				    int cap_ioctls_limit(int fd, \
-				    const u_long *cmds, size_t ncmds); }
+				    _In_reads_(ncmds) const u_long *cmds, \
+				    size_t ncmds); }
 535	AUE_CAP_IOCTLS_GET	NOPROTO	{ \
 				    ssize_t cap_ioctls_get(int fd, \
-				    u_long *cmds, size_t maxcmds); }
+				    _Out_writes_(maxcmds) u_long *cmds, \
+				    size_t maxcmds); }
 536	AUE_CAP_FCNTLS_LIMIT	NOPROTO	{ int cap_fcntls_limit(int fd, \
 				    uint32_t fcntlrights); }
 537	AUE_CAP_FCNTLS_GET	NOPROTO	{ int cap_fcntls_get(int fd, \
-				    uint32_t *fcntlrightsp); }
-538	AUE_BINDAT	NOPROTO	{ int bindat(int fd, int s, caddr_t name, \
+				    _Out_ uint32_t *fcntlrightsp); }
+538	AUE_BINDAT	NOPROTO	{ int bindat(int fd, int s, \
+				    _In_reads_bytes_(namelen) caddr_t name, \
 				    int namelen); }
-539	AUE_CONNECTAT	NOPROTO	{ int connectat(int fd, int s, caddr_t name, \
+539	AUE_CONNECTAT	NOPROTO	{ int connectat(int fd, int s, \
+				    _In_reads_bytes_(namelen) caddr_t name, \
 				    int namelen); }
-540	AUE_CHFLAGSAT	NOPROTO	{ int chflagsat(int fd, const char *path, \
+540	AUE_CHFLAGSAT	NOPROTO	{ int chflagsat(int fd, \
+				    _In_z_ const char *path, \
 				    u_long flags, int atflag); }
 541	AUE_ACCEPT	NOPROTO	{ int accept4(int s, \
+				    _Out_writes_bytes_opt_(*anamelen) \
 				    struct sockaddr * __restrict name, \
-				    __socklen_t * __restrict anamelen, \
+				    _Inout_opt_ \
+				    socklen_t * __restrict anamelen, \
 				    int flags); }
-542	AUE_PIPE	NOPROTO	{ int pipe2(int *fildes, int flags); }
+542	AUE_PIPE	NOPROTO	{ int pipe2(_Out_writes_(2) int *fildes, \
+				    int flags); }
 543	AUE_NULL	NOSTD	{ int cheriabi_aio_mlock( \
-				    struct aiocb_c *aiocbp); }
-544	AUE_NULL	NOPROTO	{ int procctl(int idtype, id_t id, \
-				    int com, void *data); }
-545	AUE_POLL	NOPROTO	{ int ppoll(struct pollfd *fds, u_int nfds, \
-				    const struct timespec *ts, \
-				    const sigset_t *set); }
-546	AUE_FUTIMES	NOPROTO	{ int futimens(int fd, struct timespec *times); }
-547	AUE_FUTIMESAT	NOPROTO	{ int utimensat(int fd, char *path, \
-				    struct timespec *times, int flag); }
+				    _In_ struct aiocb_c *aiocbp); }
+544	AUE_NULL	STD|NOPARSE	{ int cheriabi_procctl(int idtype, \
+				    id_t id, int com, void *data); }
+545	AUE_POLL	NOPROTO	{ int ppoll( \
+				    _Inout_updates_(nfds) struct pollfd *fds, \
+				    u_int nfds, \
+				    _In_opt_ const struct timespec *ts, \
+				    _In_opt_ const sigset_t *set); }
+546	AUE_FUTIMES	NOPROTO	{ int futimens(int fd, \
+				    _In_reads_(2) struct timespec *times); }
+547	AUE_FUTIMESAT	NOPROTO	{ int utimensat(int fd, _In_z_ char *path, \
+				    _In_reads_(2) struct timespec *times, \
+				    int flag); }
 548	AUE_NULL	NOPROTO	{ int numa_getaffinity(cpuwhich_t which, \
 				    id_t id, \
+				    _Out_ \
 				    struct vm_domain_policy_entry *policy); }
 549	AUE_NULL	NOPROTO	{ int numa_setaffinity(cpuwhich_t which, \
 				    id_t id, \
+				    _In_ \
 				    const struct vm_domain_policy_entry *policy); }

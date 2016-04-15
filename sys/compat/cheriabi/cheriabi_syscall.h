@@ -203,9 +203,9 @@
 #define	CHERIABI_SYS_msgget	225
 #define	CHERIABI_SYS_msgsnd	226
 #define	CHERIABI_SYS_msgrcv	227
-#define	CHERIABI_SYS_shmat	228
+#define	CHERIABI_SYS_cheriabi_shmat	228
 				/* 229 is obsolete shmctl */
-#define	CHERIABI_SYS_shmdt	230
+#define	CHERIABI_SYS_cheriabi_shmdt	230
 #define	CHERIABI_SYS_shmget	231
 #define	CHERIABI_SYS_clock_gettime	232
 #define	CHERIABI_SYS_clock_settime	233
@@ -382,7 +382,7 @@
 #define	CHERIABI_SYS_auditctl	453
 #define	CHERIABI_SYS__umtx_op	454
 #define	CHERIABI_SYS_cheriabi_thr_new	455
-#define	CHERIABI_SYS_sigqueue	456
+#define	CHERIABI_SYS_cheriabi_sigqueue	456
 #define	CHERIABI_SYS_kmq_open	457
 #define	CHERIABI_SYS_kmq_setattr	458
 #define	CHERIABI_SYS_kmq_timedreceive	459
@@ -465,7 +465,7 @@
 #define	CHERIABI_SYS_accept4	541
 #define	CHERIABI_SYS_pipe2	542
 #define	CHERIABI_SYS_cheriabi_aio_mlock	543
-#define	CHERIABI_SYS_procctl	544
+#define	CHERIABI_SYS_cheriabi_procctl	544
 #define	CHERIABI_SYS_ppoll	545
 #define	CHERIABI_SYS_futimens	546
 #define	CHERIABI_SYS_utimensat	547

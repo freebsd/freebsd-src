@@ -57,6 +57,122 @@ __cheri_cap_to_ptr(struct chericap *c)
 #define PTRIN_CP(src,dst,fld) \
 	do { (dst).fld = PTRIN((src).fld); } while (0)
 
+/*
+ * Take a capability and check that it has the expected pointer
+ * properties.  If it does, output a pointer via ptrp and return(0).
+ * Otherwise, return an error.
+ *
+ * Design note: I considered adding a may_be_integer flag to handle
+ * cases where the value may be a pointer or an integer, but doing so
+ * risks allowing the caller to operate on arbitrary virtual addresses.
+ * If we don't know what type of object we're trying to fill, we should
+ * not create a spurious pointer. -- BD
+ */
+static inline int
+cheriabi_cap_to_ptr(caddr_t *ptrp, struct chericap *cap, size_t reqlen,
+    register_t reqperms, int may_be_null)
+{
+	u_int tag;
+	register_t perms;
+	register_t sealed;
+	size_t length, offset;
+
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, cap, 0);
+	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+	if (!tag) {
+		if (!may_be_null)
+			return (EPROT);
+		CHERI_CTOINT(*ptrp, CHERI_CR_CTEMP0);
+		if (*ptrp != NULL)
+			return (EPROT);
+	} else {
+		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+		if ((perms & reqperms) != reqperms)
+			return (EPROT);
+
+		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
+		if (sealed)
+			return (EPROT);
+
+		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
+		if (offset >= length)
+			return (EPROT);
+		length -= offset;
+		if (length < reqlen)
+			return (EPROT);
+
+		CHERI_CTOPTR(*ptrp, CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	}
+	return (0);
+}
+
+/*
+ * cheriabi_pagerange_to_ptr() is similar to cheriabi_cap_to_ptr except
+ * that it reqires that the capability complete cover pages the range
+ * touches.  It also does not require an particular permissions beyond
+ * CHERI_PERM_GLOBAL.
+ */
+static inline int
+cheriabi_pagerange_to_ptr(caddr_t *ptrp, struct chericap *cap, size_t reqlen,
+    int may_be_null)
+{
+	u_int tag;
+	register_t perms, reqperms;
+	register_t sealed;
+	size_t adjust, base, length, offset;
+
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, cap, 0);
+	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+	if (!tag) {
+		if (!may_be_null)
+			return (EPROT);
+		CHERI_CTOINT(*ptrp, CHERI_CR_CTEMP0);
+		if (*ptrp != NULL)
+			return (EPROT);
+	} else {
+		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+		reqperms = (CHERI_PERM_GLOBAL);
+		if ((perms & reqperms) != reqperms)
+			return (EPROT);
+
+		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
+		if (sealed)
+			return (EPROT);
+
+		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
+		if (offset >= length)
+			return (EPROT);
+		length -= offset;
+		CHERI_CGETLEN(base, CHERI_CR_CTEMP0);
+		if (rounddown2(base + offset, PAGE_SIZE) < base)
+			return (EPROT);
+		adjust = ((base + offset) & PAGE_MASK);
+		length += adjust;
+		if (length < roundup2(reqlen + adjust, PAGE_SIZE))
+			return (EPROT);
+
+		CHERI_CTOPTR(*ptrp, CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	}
+	return (0);
+}
+
+static inline int
+cheriabi_strcap_to_ptr(const char **strp, struct chericap *cap, int may_be_null)
+{
+
+	/*
+	 * XXX-BD: place holder implementation checks that the capability
+	 * could hold a NUL terminated string empty string.  We can't
+	 * check that it does hold one because the caller could change
+	 * that out from under us.  Completely safe string handling
+	 * requires pushing the length down to the copyinstr().
+	 */
+	return (cheriabi_cap_to_ptr(__DECONST(caddr_t *, strp), cap, 1,
+	    (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD), may_be_null));
+}
+
 struct kevent_c {
 	struct chericap	ident;		/* identifier for this event */
 	short		filter;		/* filter for event */
@@ -115,6 +231,50 @@ struct thr_param_c {
 struct mac_c {
 	size_t		m_buflen;
 	struct chericap	m_string;
+};
+
+struct kld_sym_lookup_c {
+	int		version; /* set to sizeof(struct kld_sym_lookup_c) */
+	struct chericap symname; /* Symbol name we are looking up */
+	u_long		symvalue;
+	size_t		symsize;
+};
+
+struct sf_hdtr_c {
+	struct chericap	headers;	/* array of iovec_c */
+	int		hdr_cnt;
+	struct chericap	trailers;	/* array of iovec_c */
+	int		trl_cnt;
+};
+
+struct procctl_reaper_pids_c {
+	u_int   rp_count;
+	u_int   rp_pad0[15];
+	struct chericap rp_pids;	/* struct procctl_reaper_pidinfo * */
+};
+
+union semun_c {
+	int val;
+	/* struct semid_ds *buf; */
+	/* unsigned short  *array; */
+	struct chericap ptr;
+};
+
+#include <sys/ipc.h>
+#include <sys/msg.h>
+
+struct msqid_ds_c {
+	struct ipc_perm	msg_perm;
+	struct chericap	msg_first;		/* struct msg * */
+	struct chericap	msg_last;		/* struct msg * */
+	msglen_t	msg_cbytes;
+	msgqnum_t	msg_qnum;
+	msglen_t	msg_qbytes;
+	pid_t		msg_lspid;
+	pid_t  		msg_lrpid;
+	time_t		msg_stime;
+	time_t 		msg_rtime;
+	time_t		msg_ctime;
 };
 
 #endif /* !_COMPAT_CHERIABI_CHERIABI_H_ */
