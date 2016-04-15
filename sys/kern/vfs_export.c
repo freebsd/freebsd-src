@@ -102,7 +102,7 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 	register struct radix_node_head *rnh;
 	register int i;
 	struct radix_node *rn;
-	struct sockaddr *saddr, *smask = 0;
+	struct sockaddr *saddr, *smask = NULL;
 #if defined(INET6) || defined(INET)
 	int off;
 #endif

@@ -174,7 +174,7 @@ dumpsys_cb_dumpdata(struct dump_pa *mdp, int seqnr, void *arg)
 
 	error = 0;	/* catch case in which chunk size is 0 */
 	counter = 0;	/* Update twiddle every 16MB */
-	va = 0;
+	va = NULL;
 	pgs = mdp->pa_size / PAGE_SIZE;
 	pa = mdp->pa_start;
 	maxdumppgs = min(di->maxiosize / PAGE_SIZE, MAXDUMPPGS);
