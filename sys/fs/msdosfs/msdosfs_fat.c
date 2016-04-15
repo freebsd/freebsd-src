@@ -256,14 +256,14 @@ fc_lookup(struct denode *dep, u_long findcn, u_long *frcnp, u_long *fsrcnp)
 {
 	int i;
 	u_long cn;
-	struct fatcache *closest = 0;
+	struct fatcache *closest = NULL;
 
 	ASSERT_VOP_LOCKED(DETOV(dep), "fc_lookup");
 
 	for (i = 0; i < FC_SIZE; i++) {
 		cn = dep->de_fc[i].fc_frcn;
 		if (cn != FCE_EMPTY && cn <= findcn) {
-			if (closest == 0 || cn > closest->fc_frcn)
+			if (closest == NULL || cn > closest->fc_frcn)
 				closest = &dep->de_fc[i];
 		}
 	}

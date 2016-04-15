@@ -454,7 +454,7 @@ found:
 	 * in a deadlock.
 	 */
 	brelse(bp);
-	bp = 0;
+	bp = NULL;
 	
 foundroot:
 	/*
