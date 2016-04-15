@@ -64,9 +64,9 @@ ipfrwlock_t	ipf_global, ipf_mutex, ipf_ipidfrag, ipf_frcache, ipf_tokens;
 int     (*ipf_checkp) __P((struct ip *, int, void *, int, mb_t **));
 
 #ifdef IPFILTER_LKM
-static int *ipff_addr = 0;
+static int *ipff_addr;
 static int ipff_value;
-static __psunsigned_t *ipfk_addr = 0;
+static __psunsigned_t *ipfk_addr;
 static __psunsigned_t ipfk_code[4];
 #endif
 static void nifattach();
@@ -85,7 +85,7 @@ typedef	struct	nif	{
 	int	nf_unit;
 } nif_t;
 
-static nif_t *nif_head = 0;
+static nif_t *nif_head;
 static int nif_interfaces = 0;
 extern int in_interfaces;
 #if IRIX >= 60500
