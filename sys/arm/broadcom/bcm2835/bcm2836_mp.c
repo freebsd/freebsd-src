@@ -139,7 +139,7 @@ platform_mp_start_ap(void)
 	}
 }
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 void
 pic_ipi_send(cpuset_t cpus, u_int ipi)
 {

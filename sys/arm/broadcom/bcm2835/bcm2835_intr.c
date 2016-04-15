@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/broadcom/bcm2835/bcm2836.h>
 #endif
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #include "pic_if.h"
 #endif
 
@@ -105,7 +105,7 @@ __FBSDID("$FreeBSD$");
 #define	BANK1_END	(BANK1_START + 32 - 1)
 #define	BANK2_START	(BANK1_START + 32)
 #define	BANK2_END	(BANK2_START + 32 - 1)
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 #define	BANK3_START	(BANK2_START + 32)
 #define	BANK3_END	(BANK3_START + 32 - 1)
 #endif
@@ -113,7 +113,7 @@ __FBSDID("$FreeBSD$");
 #define	IS_IRQ_BASIC(n)	(((n) >= 0) && ((n) < BANK1_START))
 #define	IS_IRQ_BANK1(n)	(((n) >= BANK1_START) && ((n) <= BANK1_END))
 #define	IS_IRQ_BANK2(n)	(((n) >= BANK2_START) && ((n) <= BANK2_END))
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 #define	ID_IRQ_BCM2836(n) (((n) >= BANK3_START) && ((n) <= BANK3_END))
 #endif
 #define	IRQ_BANK1(n)	((n) - BANK1_START)
@@ -125,7 +125,7 @@ __FBSDID("$FreeBSD$");
 #define dprintf(fmt, args...)
 #endif
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #define BCM_INTC_NIRQS		72	/* 8 + 32 + 32 */
 
 struct bcm_intc_irqsrc {
@@ -142,7 +142,7 @@ struct bcm_intc_softc {
 	struct resource *	intc_res;
 	bus_space_tag_t		intc_bst;
 	bus_space_handle_t	intc_bsh;
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	struct resource *	intc_irq_res;
 	void *			intc_irq_hdl;
 	struct bcm_intc_irqsrc	intc_isrcs[BCM_INTC_NIRQS];
@@ -156,7 +156,7 @@ static struct bcm_intc_softc *bcm_intc_sc = NULL;
 #define	intc_write_4(_sc, reg, val)		\
     bus_space_write_4((_sc)->intc_bst, (_sc)->intc_bsh, (reg), (val))
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static inline void
 bcm_intc_isrc_mask(struct bcm_intc_softc *sc, struct bcm_intc_irqsrc *bii)
 {
@@ -360,7 +360,7 @@ bcm_intc_attach(device_t dev)
 {
 	struct		bcm_intc_softc *sc = device_get_softc(dev);
 	int		rid = 0;
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	intptr_t	xref;
 #endif
 	sc->sc_dev = dev;
@@ -374,7 +374,7 @@ bcm_intc_attach(device_t dev)
 		return (ENXIO);
 	}
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	xref = OF_xref_from_node(ofw_bus_get_node(dev));
 	if (bcm_intc_pic_register(sc, xref) != 0) {
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->intc_res);
@@ -412,7 +412,7 @@ static device_method_t bcm_intc_methods[] = {
 	DEVMETHOD(device_probe,		bcm_intc_probe),
 	DEVMETHOD(device_attach,	bcm_intc_attach),
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	DEVMETHOD(pic_disable_intr,	bcm_intc_disable_intr),
 	DEVMETHOD(pic_enable_intr,	bcm_intc_enable_intr),
 	DEVMETHOD(pic_map_intr,		bcm_intc_map_intr),
@@ -434,7 +434,7 @@ static devclass_t bcm_intc_devclass;
 
 DRIVER_MODULE(intc, simplebus, bcm_intc_driver, bcm_intc_devclass, 0, 0);
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 int
 arm_get_next_irq(int last_irq)
 {
