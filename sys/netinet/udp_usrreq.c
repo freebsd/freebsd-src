@@ -308,7 +308,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 {
 	struct sockaddr *append_sa;
 	struct socket *so;
-	struct mbuf *opts = 0;
+	struct mbuf *opts = NULL;
 #ifdef INET6
 	struct sockaddr_in6 udp_in6;
 #endif
@@ -856,7 +856,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
-	if (inp_list == 0)
+	if (inp_list == NULL)
 		return (ENOMEM);
 
 	INP_INFO_RLOCK(&V_udbinfo);
