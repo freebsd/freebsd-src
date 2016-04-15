@@ -984,13 +984,13 @@
 				    int sd, \
 				    _In_reads_(iovlen) struct iovec_c *iov, \
 				    int iovlen, \
-				    _In_reads_bytes(tolen) caddr_t to, \
+				    _In_reads_bytes_(tolen) caddr_t to, \
 				    socklen_t tolen, \
 				    _In_opt_ struct sctp_sndrcvinfo *sinfo, \
 				    int flags); }
 ; XXX-BD: dependent variables
 474	AUE_NULL	NOSTD	{ int cheriabi_sctp_generic_recvmsg(int sd, \
-				    _In_reads(iovlen) struct iovec_c *iov, \
+				    _In_reads_(iovlen) struct iovec_c *iov, \
 				    int iovlen, \
 				    _Out_writes_bytes_(*fromlenaddr) \
 				    struct sockaddr * from, \
