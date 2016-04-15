@@ -45,8 +45,8 @@ arm/arm/hdmi_if.m		optional	hdmi
 arm/arm/identcpu.c		standard
 arm/arm/in_cksum.c		optional	inet | inet6
 arm/arm/in_cksum_arm.S		optional	inet | inet6
-arm/arm/intr.c			optional	!arm_intrng
-kern/subr_intr.c		optional	arm_intrng
+arm/arm/intr.c			optional	!intrng
+kern/subr_intr.c		optional	intrng
 arm/arm/locore.S		standard	no-obj
 arm/arm/machdep.c		standard
 arm/arm/machdep_intr.c		standard
@@ -115,7 +115,7 @@ font.h				optional	sc			\
 	compile-with	"uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h" \
 	no-obj no-implicit-rule before-depend				\
 	clean	"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
-kern/pic_if.m			optional	arm_intrng
+kern/pic_if.m			optional	intrng
 kern/subr_busdma_bufalloc.c	standard
 kern/subr_sfbuf.c		standard
 libkern/arm/aeabi_unwind.c	standard
