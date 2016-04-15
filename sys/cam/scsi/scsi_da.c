@@ -3773,24 +3773,22 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	if (error == ERESTART)
 		return (ERESTART);
 
+#ifdef CAM_IO_STATS
 	switch (ccb->ccb_h.status & CAM_STATUS_MASK) {
 	case CAM_CMD_TIMEOUT:
-#ifdef CAM_IO_STATS
 		softc->timeouts++;
-#endif
 		break;
 	case CAM_REQ_ABORTED:
 	case CAM_REQ_CMP_ERR:
 	case CAM_REQ_TERMIO:
 	case CAM_UNREC_HBA_ERROR:
 	case CAM_DATA_RUN_ERR:
-#ifdef CAM_IO_STATS
 		softc->errors++;
-#endif
 		break;
 	default:
 		break;
 	}
+#endif
 
 	/*
 	 * XXX
