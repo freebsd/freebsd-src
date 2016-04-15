@@ -4,11 +4,16 @@
 
 .include <bsd.init.mk>
 
-.if defined(LIB_CXX)
-LIB=	${LIB_CXX}
+.if defined(LIB_CXX) || defined(SHLIB_CXX)
 _LD=	${CXX}
 .else
 _LD=	${CC}
+.endif
+.if defined(LIB_CXX)
+LIB=	${LIB_CXX}
+.endif
+.if defined(SHLIB_CXX)
+SHLIB=	${SHLIB_CXX}
 .endif
 
 LIB_PRIVATE=	${PRIVATELIB:Dprivate}
