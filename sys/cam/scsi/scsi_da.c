@@ -1271,7 +1271,7 @@ SYSCTL_INT(_kern_cam_da, OID_AUTO, send_ordered, CTLFLAG_RWTUN,
 SYSCTL_PROC(_kern_cam_da, OID_AUTO, default_softtimeout,
     CTLTYPE_UINT | CTLFLAG_RW, NULL, 0, dasysctlsofttimeout, "I",
     "Soft I/O timeout (ms)");
-TUNABLE_LONG("kern.cam.da.default_softtimeout", &da_default_softtimeout);
+TUNABLE_INT64("kern.cam.da.default_softtimeout", &da_default_softtimeout);
 
 /*
  * DA_ORDEREDTAG_INTERVAL determines how often, relative
