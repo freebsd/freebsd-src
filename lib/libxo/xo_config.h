@@ -180,16 +180,16 @@
 /* #undef LIBXO_TEXT_ONLY */
 
 /* Version number as dotted value */
-#define LIBXO_VERSION "0.4.6"
+#define LIBXO_VERSION "0.4.7"
 
 /* Version number extra information */
 #define LIBXO_VERSION_EXTRA ""
 
 /* Version number as a number */
-#define LIBXO_VERSION_NUMBER 4006
+#define LIBXO_VERSION_NUMBER 4007
 
 /* Version number as string */
-#define LIBXO_VERSION_STRING "4006"
+#define LIBXO_VERSION_STRING "4007"
 
 /* Enable local wcwidth implementation */
 #define LIBXO_WCWIDTH 1
@@ -207,7 +207,7 @@
 #define PACKAGE_NAME "libxo"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "libxo 0.4.6"
+#define PACKAGE_STRING "libxo 0.4.7"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "libxo"
@@ -216,7 +216,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.4.6"
+#define PACKAGE_VERSION "0.4.7"
 
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
@@ -230,7 +230,7 @@
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "0.4.6"
+#define VERSION "0.4.7"
 
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */
