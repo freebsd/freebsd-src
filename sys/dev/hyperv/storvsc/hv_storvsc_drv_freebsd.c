@@ -981,8 +981,6 @@ storvsc_attach(device_t dev)
 		goto cleanup;
 	}
 
-	bzero(sc, sizeof(struct storvsc_softc));
-
 	/* fill in driver specific properties */
 	sc->hs_drv_props = &g_drv_props_table[stor_type];
 
