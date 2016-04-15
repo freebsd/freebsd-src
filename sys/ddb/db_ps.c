@@ -184,7 +184,8 @@ db_ps(db_expr_t addr, bool hasaddr, db_expr_t count, char *modif)
 			strlcat(state, "V", sizeof(state));
 		if (p->p_flag & P_SYSTEM || p->p_lock > 0)
 			strlcat(state, "L", sizeof(state));
-		if (p->p_session != NULL && SESS_LEADER(p))
+		if (p->p_pgrp != NULL && p->p_session != NULL &&
+		    SESS_LEADER(p))
 			strlcat(state, "s", sizeof(state));
 		/* Cheated here and didn't compare pgid's. */
 		if (p->p_flag & P_CONTROLT)
