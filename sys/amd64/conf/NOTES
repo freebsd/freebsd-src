@@ -515,7 +515,6 @@ device		virtio_random	# VirtIO Entropy device
 device		virtio_console	# VirtIO Console device
 
 # Microsoft Hyper-V enchancement support
-options 	HYPERV		# Hyper-V kernel infrastructure
 device 		hyperv		# HyperV drivers
 
 # Xen HVM Guest Optimizations

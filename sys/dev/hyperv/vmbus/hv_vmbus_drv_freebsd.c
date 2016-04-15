@@ -370,9 +370,7 @@ vmbus_probe(device_t dev) {
 	return (BUS_PROBE_DEFAULT);
 }
 
-#ifdef HYPERV
 extern inthand_t IDTVEC(hv_vmbus_callback);
-#endif
 
 /**
  * @brief Main vmbus driver initialization routine.
@@ -406,14 +404,10 @@ vmbus_bus_init(void)
 		return (ret);
 	}
 
-#ifdef HYPERV
 	/*
 	 * Find a free IDT slot for vmbus callback.
 	 */
 	hv_vmbus_g_context.hv_cb_vector = lapic_ipi_alloc(IDTVEC(hv_vmbus_callback));
-#else
-	hv_vmbus_g_context.hv_cb_vector = -1;
-#endif
 	if (hv_vmbus_g_context.hv_cb_vector < 0) {
 		if(bootverbose)
 			printf("Error VMBUS: Cannot find free IDT slot for "
