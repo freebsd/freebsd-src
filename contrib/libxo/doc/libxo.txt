@@ -699,25 +699,26 @@ XOF_WARN is set, a warning will be generated.
 Field modifiers are flags which modify the way content emitted for
 particular output styles:
 
-|---+---------------+-------------------------------------------------|
-| M | Name          | Description                                     |
-|---+---------------+-------------------------------------------------|
-| c | colon         | A colon (":") is appended after the label       |
-| d | display       | Only emit field for display styles (text/HTML)  |
-| e | encoding      | Only emit for encoding styles (XML/JSON)        |
-| g | gettext       | Call gettext on field's render content          |
-| h | humanize (hn) | Format large numbers in human-readable style    |
-|   | hn-space      | Humanize: Place space between numeric and unit  |
-|   | hn-decimal    | Humanize: Add a decimal digit, if number < 10   |
-|   | hn-1000       | Humanize: Use 1000 as divisor instead of 1024   |
-| k | key           | Field is a key, suitable for XPath predicates   |
-| l | leaf-list     | Field is a leaf-list                            |
-| n | no-quotes     | Do not quote the field when using JSON style    |
-| p | plural        | Gettext: Use comma-separated plural form        |
-| q | quotes        | Quote the field when using JSON style           |
-| t | trim          | Trim leading and trailing whitespace            |
-| w | white         | A blank (" ") is appended after the label       |
-|---+---------------+-------------------------------------------------|
+|---+---------------+--------------------------------------------------|
+| M | Name          | Description                                      |
+|---+---------------+--------------------------------------------------|
+| a | argument      | The content appears as a 'const char *' argument |
+| c | colon         | A colon (":") is appended after the label        |
+| d | display       | Only emit field for display styles (text/HTML)   |
+| e | encoding      | Only emit for encoding styles (XML/JSON)         |
+| g | gettext       | Call gettext on field's render content           |
+| h | humanize (hn) | Format large numbers in human-readable style     |
+|   | hn-space      | Humanize: Place space between numeric and unit   |
+|   | hn-decimal    | Humanize: Add a decimal digit, if number < 10    |
+|   | hn-1000       | Humanize: Use 1000 as divisor instead of 1024    |
+| k | key           | Field is a key, suitable for XPath predicates    |
+| l | leaf-list     | Field is a leaf-list                             |
+| n | no-quotes     | Do not quote the field when using JSON style     |
+| p | plural        | Gettext: Use comma-separated plural form         |
+| q | quotes        | Quote the field when using JSON style            |
+| t | trim          | Trim leading and trailing whitespace             |
+| w | white         | A blank (" ") is appended after the label        |
+|---+---------------+--------------------------------------------------|
 
 Roles and modifiers can also use more verbose names, when preceeded by
 a comma.  For example, the modifier string "Lwc" (or "L,white,colon")
@@ -726,6 +727,27 @@ and should be followed by a colon ('c') and a space ('w').  The
 modifier string "Vkq" (or ":key,quote") means the field has a value
 role (the default role), that it is a key for the current instance,
 and that the value should be quoted when encoded for JSON.
+
+**** The Argument Modifier ({a:})
+
+The argument modifier indicates that the content of the field
+descriptor will be placed as a UTF-8 string (const char *) argument
+within the xo_emit parameters.
+
+    EXAMPLE:
+      xo_emit("{La:} {a:}\n", "Label text", "label", "value");
+    TEXT:
+      Label text value
+    JSON:
+      "label": "value"
+    XML:
+      <label>value</label>
+
+The argument modifier allows field names for value fields to be passed
+on the stack, avoiding the need to build a field descriptor using
+snprintf.  For many field roles, the argument modifier is not needed,
+since those roles have specific mechanisms for arguments, such as
+"{C:fg-%s}".
 
 **** The Colon Modifier ({c:})
 
@@ -907,6 +929,21 @@ needed, but often this needs to be controlled by the caller.
     JSON:
       "year": "2014"
 
+The heuristic is based on the format; if the format uses any of the
+following conversion specifiers, then no quotes are used:
+
+    d i o u x X D O U e E f F g G a A c C p
+
+**** The Trim Modifier ({t:})
+
+The trim modifier removes any leading or trailing whitespace from
+the value.
+
+    EXAMPLE:
+      xo_emit("{t:description}", "   some  input   ");
+    JSON:
+      "description": "some input"
+
 **** The White Space Modifier ({w:})
 
 The white space modifier appends a single space to the data value:
@@ -1028,6 +1065,24 @@ string encoded with the current locale, as given by the LC_CTYPE,
 LANG, or LC_ALL environment varibles.  The first of this list of
 variables is used and if none of the variables are set, the locale
 defaults to "UTF-8".
+
+libxo will convert these arguments as needed to either UTF-8 (for XML,
+JSON, and HTML styles) or locale-based strings for display in text
+style.
+
+   xo_emit("Alll strings are utf-8 content {:tag/%ls}",
+           L"except for wide strings");
+
+"%S" is equivalent to "%ls".
+
+|--------+-----------------+-------------------------------|
+| Format | Argument Type   | Argument Contents             |
+|--------+-----------------+-------------------------------|
+| %s     | const char *    | UTF-8 string                  |
+| %S     | const char *    | UTF-8 string (alias for '%s') |
+| %ls    | const wchar_t * | Wide character UNICODE string |
+| %hs    | const char *    | locale-based string           |
+|--------+-----------------+-------------------------------|
 
 For example, a function is passed a locale-base name, a hat size,
 and a time value.  The hat size is formatted in a UTF-8 (ASCII)
@@ -1163,6 +1218,53 @@ variants might be wise.
 | xo_emit_errc     | xo_emit_errc_p         |
 |------------------+------------------------|
 
+*** Retaining Parsed Format Information @retain@
+
+libxo can retain the parsed internal information related to the given
+format string, allowing subsequent xo_emit calls, the retained
+information is used, avoiding repetitive parsing of the format string.
+
+    SYNTAX:
+      int xo_emit_f(xo_emit_flags_t flags, const char fmt, ...);
+    EXAMPLE:
+      xo_emit_f(XOEF_RETAIN, "{:some/%02d}{:thing/%-6s}{:fancy}\n",
+                     some, thing, fancy);
+
+To retain parsed format information, use the XOEF_RETAIN flag to the
+xo_emit_f() function.  A complete set of xo_emit_f functions exist to
+match all the xo_emit function signatures (with handles, varadic
+argument, and printf-like flags):
+
+|------------------+------------------------|
+| Function         | Flags Equivalent       |
+|------------------+------------------------|
+| xo_emit_hv       | xo_emit_hvf            |
+| xo_emit_h        | xo_emit_hf             |
+| xo_emit          | xo_emit_f              |
+| xo_emit_hvp      | xo_emit_hvfp           |
+| xo_emit_hp       | xo_emit_hfp            |
+| xo_emit_p        | xo_emit_fp             |
+|------------------+------------------------|
+
+The format string must be immutable across multiple calls to xo_emit_f(),
+since the library retains the string.  Typically this is done by using
+static constant strings, such as string literals. If the string is not
+immutable, the XOEF_RETAIN flag must not be used.
+
+The functions xo_retain_clear() and xo_retain_clear_all() release
+internal information on either a single format string or all format
+strings, respectively.  Neither is required, but the library will
+retain this information until it is cleared or the process exits.
+
+    const char *fmt = "{:name}  {:count/%d}\n";
+    for (i = 0; i < 1000; i++) {
+        xo_open_instance("item");
+        xo_emit_f(XOEF_RETAIN, fmt, name[i], count[i]);
+    }
+    xo_retain_clear(fmt);
+
+The retained information is kept as thread-specific data.
+
 *** Example
 
 In this example, the value for the number of items in stock is emitted:
@@ -1195,46 +1297,6 @@ penultimate line to:
           data-xpath="/top/data/item/in-stock"
           data-type="number"
           data-help="Number of items in stock">144</div>
-
-** Command-line Arguments
-
-libxo uses command line options to trigger rendering behavior.  The
-following options are recognised:
-
-- --libxo <options>
-- --libxo=<options>
-- --libxo:<brief-options>
-
-Options is a comma-separated list of tokens that correspond to output
-styles, flags, or features:
-
-|-------------+-------------------------------------------------------|
-| Token       | Action                                                |
-|-------------+-------------------------------------------------------|
-| color       | Enable colors/effects for display styles (TEXT, HTML) |
-| dtrt        | Enable "Do The Right Thing" mode                      |
-| html        | Emit HTML output                                      |
-| indent=xx   | Set the indentation level                             |
-| info        | Add info attributes (HTML)                            |
-| json        | Emit JSON output                                      |
-| keys        | Emit the key attribute for keys (XML)                 |
-| log-gettext | Log (via stderr) each gettext(3) string lookup        |
-| log-syslog  | Log (via stderr) each syslog message (via xo_syslog)  |
-| no-humanize | Ignore the {h:} modifier (TEXT, HTML)                 |
-| no-locale   | Do not initialize the locale setting                  |
-| no-top      | Do not emit a top set of braces (JSON)                |
-| not-first   | Pretend the 1st output item was not 1st (JSON)        |
-| pretty      | Emit pretty-printed output                            |
-| text        | Emit TEXT output                                      |
-| underscores | Replace XML-friendly "-"s with JSON friendly "_"s e   |
-| units       | Add the 'units' (XML) or 'data-units (HTML) attribute |
-| warn        | Emit warnings when libxo detects bad calls            |
-| warn-xml    | Emit warnings in XML                                  |
-| xml         | Emit XML output                                       |
-| xpath       | Add XPath expressions (HTML)                          |
-|-------------+-------------------------------------------------------|
-
-The brief options are detailed in ^LIBXO_OPTIONS^.
 
 ** Representing Hierarchy
 
@@ -1382,20 +1444,81 @@ properly.
         xo_close_marker("fish-guts");
     }
 
+** Command-line Arguments
+
+libxo uses command line options to trigger rendering behavior.  The
+following options are recognised:
+
+- --libxo <options>
+- --libxo=<options>
+- --libxo:<brief-options>
+
+Programs using libxo are expecting to call the xo_parse_args function
+to parse these arguments.  See ^xo_parse_args^ for details.
+
+Options is a comma-separated list of tokens that correspond to output
+styles, flags, or features:
+
+|-------------+-------------------------------------------------------|
+| Token       | Action                                                |
+|-------------+-------------------------------------------------------|
+| color       | Enable colors/effects for display styles (TEXT, HTML) |
+| dtrt        | Enable "Do The Right Thing" mode                      |
+| html        | Emit HTML output                                      |
+| indent=xx   | Set the indentation level                             |
+| info        | Add info attributes (HTML)                            |
+| json        | Emit JSON output                                      |
+| keys        | Emit the key attribute for keys (XML)                 |
+| log-gettext | Log (via stderr) each gettext(3) string lookup        |
+| log-syslog  | Log (via stderr) each syslog message (via xo_syslog)  |
+| no-humanize | Ignore the {h:} modifier (TEXT, HTML)                 |
+| no-locale   | Do not initialize the locale setting                  |
+| no-retain   | Prevent retaining formatting information              |
+| no-top      | Do not emit a top set of braces (JSON)                |
+| not-first   | Pretend the 1st output item was not 1st (JSON)        |
+| pretty      | Emit pretty-printed output                            |
+| retain      | Force retaining formatting information                |
+| text        | Emit TEXT output                                      |
+| underscores | Replace XML-friendly "-"s with JSON friendly "_"s e   |
+| units       | Add the 'units' (XML) or 'data-units (HTML) attribute |
+| warn        | Emit warnings when libxo detects bad calls            |
+| warn-xml    | Emit warnings in XML                                  |
+| xml         | Emit XML output                                       |
+| xpath       | Add XPath expressions (HTML)                          |
+|-------------+-------------------------------------------------------|
+
+The brief options are detailed in ^LIBXO_OPTIONS^.
+
+* The libxo API
+
+This section gives details about the functions in libxo, how to call
+them, and the actions they perform.
+
 ** Handles @handles@
 
 libxo uses "handles" to control its rendering functionality.  The
 handle contains state and buffered data, as well as callback functions
 to process data.
 
-A default handle is used when a NULL is passed to functions accepting
-a handle.  This handle is initialized to write its data to stdout
-using the default style of text (XO_STYLE_TEXT).
+Handles give an abstraction for libxo that encapsulates the state of a
+stream of output.  Handles have the data type "xo_handle_t" and are
+opaque to the caller.
 
-For the convenience of callers, the libxo library includes handle-less
-functions that implicitly use the default handle.  Any function that
-takes a handle will use the default handle is a value of NULL is
-passed in place of a valid handle.
+The library has a default handle that is automatically initialized.
+By default, this handle will send text style output (XO_STYLE_TEXT) to
+standard output.  The xo_set_style and xo_set_flags functions can be
+used to change this behavior.
+
+For the typical command that is generating output on standard output,
+there is no need to create an explicit handle, but they are available
+when needed, e.g., for daemons that generate multiple streams of
+output.
+
+Many libxo functions take a handle as their first parameter; most that
+do not use the default handle.  Any function taking a handle can be
+passed NULL to access the default handle.  For the convenience of
+callers, the libxo library includes handle-less functions that
+implicitly use the default handle.
 
 For example, the following are equivalent:
 
@@ -1403,46 +1526,6 @@ For example, the following are equivalent:
     xo_emit_h(NULL, "test");
 
 Handles are created using xo_create() and destroy using xo_destroy().
-
-** UTF-8
-
-All strings for libxo must be UTF-8.  libxo will handle turning them
-into locale-based strings for display to the user.
-
-The only exception is argument formatted using the "%ls" format, which
-require a wide character string (wchar_t *) as input.  libxo will
-convert these arguments as needed to either UTF-8 (for XML, JSON, and
-HTML styles) or locale-based strings for display in text style.
-
-   xo_emit("Alll strings are utf-8 content {:tag/%ls}",
-           L"except for wide strings");
-
-"%S" is equivalent to "%ls".
-
-* The libxo API
-
-This section gives details about the functions in libxo, how to call
-them, and the actions they perform.
-
-** Handles
-
-Handles give an abstraction for libxo that encapsulates the state of a
-stream of output.  Handles have the data type "xo_handle_t" and are
-opaque to the caller.
-
-The library has a default handle that is automatically initialized.
-By default, this handle will send text style output to standard output.
-The xo_set_style and xo_set_flags functions can be used to change this
-behavior.
-
-Many libxo functions take a handle as their first parameter; most that
-do not use the default handle.  Any function taking a handle can
-be passed NULL to access the default handle.
-
-For the typical command that is generating output on standard output,
-there is no need to create an explicit handle, but they are available
-when needed, e.g., for daemons that generate multiple streams of
-output.
 
 *** xo_create
 
@@ -1653,10 +1736,33 @@ string, since an inappropriate cast can ruin your day.  The vap
 argument to xo_emit_hv() points to a variable argument list that can
 be used to retrieve arguments via va_arg().
 
+*** Single Field Emitting Functions (xo_emit_field) @xo_emit_field@
+
+The following functions can also make output, but only make a single
+field at a time:
+
+    int xo_emit_field_hv (xo_handle_t *xop, const char *rolmod,
+                  const char *contents, const char *fmt, 
+		  const char *efmt, va_list vap);
+
+    int xo_emit_field_h (xo_handle_t *xop, const char *rolmod, 
+                 const char *contents, const char *fmt,
+		 const char *efmt, ...);
+
+    int xo_emit_field (const char *rolmod, const char *contents,
+	         const char *fmt, const char *efmt, ...);
+
+These functions are intended to avoid the scenario where one
+would otherwise need to compose a format descriptors using
+snprintf().  The individual parts of the format descriptor are
+passed in distinctly.
+
+    xo_emit("T", "Host name is ", NULL, NULL);
+    xo_emit("V", "host-name", NULL, NULL, host-name);
+
 *** Attributes (xo_attr) @xo_attr@
 
 The xo_attr() function emits attributes for the XML output style.
-
 
     int xo_attr (const char *name, const char *fmt, ...);
     int xo_attr_h (xo_handle_t *xop, const char *name, 
@@ -2555,23 +2661,23 @@ In 2001, we added an XML API to the JUNOS operating system, which is
 built on top of FreeBSD.  Eventually this API became standardized as
 the NETCONF API (RFC 6241).  As part of this effort, we modified many
 FreeBSD utilities to emit XML, typically via a "-X" switch.  The
-results were mixed.  The cost of maintaining this code, updating it
+results were mixed.  The cost of maintaining this code, updating it,
 and carrying it were non-trivial, and contributed to our expense (and
 the associated delay) with upgrading the version of FreeBSD on which
 each release of JUNOS is based.
 
 A recent (2014) effort within JUNOS aims at removing our modifications
 to the underlying FreeBSD code as a means of reducing the expense and
-delay.  JUNOS is structured to have system components generate XML
-that is rendered by the CLI (think: login shell) into human-readable
-text.  This allows the API to use the same plumbing as the CLI, and
-ensures that all components emit XML, and that it is emitted with
-knowledge of the consumer of that XML, yielding an API that have no
-incremental cost or feature delay.
+delay in tracking HEAD.  JUNOS is structured to have system components
+generate XML that is rendered by the CLI (think: login shell) into
+human-readable text.  This allows the API to use the same plumbing as
+the CLI, and ensures that all components emit XML, and that it is
+emitted with knowledge of the consumer of that XML, yielding an API
+that have no incremental cost or feature delay.
 
 libxo is an effort to mix the best aspects of the JUNOS strategy into
 FreeBSD in a seemless way, allowing commands to make printf-like
-output calls without needing to care how the output is rendered.
+output calls with a single code path.
 
 *** Did the complex semantics of format strings evolve over time?
 
