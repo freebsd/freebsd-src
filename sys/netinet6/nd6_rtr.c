@@ -1510,7 +1510,7 @@ pfxlist_onlink_check()
 			    find_pfxlist_reachable_router(pr) == NULL)
 				pr->ndpr_stateflags |= NDPRF_DETACHED;
 			if ((pr->ndpr_stateflags & NDPRF_DETACHED) != 0 &&
-			    find_pfxlist_reachable_router(pr) != 0)
+			    find_pfxlist_reachable_router(pr) != NULL)
 				pr->ndpr_stateflags &= ~NDPRF_DETACHED;
 		}
 	} else {

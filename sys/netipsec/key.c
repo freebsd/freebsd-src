@@ -4923,8 +4923,8 @@ key_update(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		dport = (struct sadb_x_nat_t_port *)
 		    mhp->ext[SADB_X_EXT_NAT_T_DPORT];
 	} else {
-		type = 0;
-		sport = dport = 0;
+		type = NULL;
+		sport = dport = NULL;
 	}
 	if (mhp->ext[SADB_X_EXT_NAT_T_OAI] != NULL &&
 	    mhp->ext[SADB_X_EXT_NAT_T_OAR] != NULL) {
@@ -4949,7 +4949,7 @@ key_update(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		frag = (struct sadb_x_nat_t_frag *)
 		    mhp->ext[SADB_X_EXT_NAT_T_FRAG];
 	} else {
-		frag = 0;
+		frag = NULL;
 	}
 #endif
 
@@ -5215,7 +5215,7 @@ key_add(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 			KEY_PORTTOSADDR(&saidx.dst,
 			    dport->sadb_x_nat_t_port_port);
 	} else {
-		type = 0;
+		type = NULL;
 	}
 	if (mhp->ext[SADB_X_EXT_NAT_T_OAI] != NULL &&
 	    mhp->ext[SADB_X_EXT_NAT_T_OAR] != NULL) {
@@ -5240,7 +5240,7 @@ key_add(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		frag = (struct sadb_x_nat_t_frag *)
 		    mhp->ext[SADB_X_EXT_NAT_T_FRAG];
 	} else {
-		frag = 0;
+		frag = NULL;
 	}
 #endif
 
@@ -6599,7 +6599,7 @@ key_acquire2(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 static int
 key_register(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 {
-	struct secreg *reg, *newreg = 0;
+	struct secreg *reg, *newreg = NULL;
 
 	IPSEC_ASSERT(so != NULL, ("null socket"));
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));

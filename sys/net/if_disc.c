@@ -216,7 +216,7 @@ discioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		if (ifr == 0) {
+		if (ifr == NULL) {
 			error = EAFNOSUPPORT;		/* XXX */
 			break;
 		}

@@ -4835,7 +4835,7 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 	 * Pick the first AF_INET address from the list,
 	 * aliases don't make any sense on a p2p link anyway.
 	 */
-	si = 0;
+	si = NULL;
 	if_addr_rlock(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET) {
@@ -4877,7 +4877,7 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 	 * Pick the first AF_INET address from the list,
 	 * aliases don't make any sense on a p2p link anyway.
 	 */
-	si = 0;
+	si = NULL;
 	if_addr_rlock(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == AF_INET) {
@@ -5055,7 +5055,7 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 	struct spppreq *spr;
 	int rv = 0;
 
-	if ((spr = malloc(sizeof(struct spppreq), M_TEMP, M_NOWAIT)) == 0)
+	if ((spr = malloc(sizeof(struct spppreq), M_TEMP, M_NOWAIT)) == NULL)
 		return (EAGAIN);
 	/*
 	 * ifr->ifr_data is supposed to point to a struct spppreq.

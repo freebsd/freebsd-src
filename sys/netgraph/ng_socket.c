@@ -360,7 +360,7 @@ ngc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 
-	if (pcbp == 0)
+	if (pcbp == NULL)
 		return (EINVAL);
 	return (ng_bind(nam, pcbp));
 }
@@ -474,7 +474,7 @@ ngd_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 
-	if (pcbp == 0)
+	if (pcbp == NULL)
 		return (EINVAL);
 	return (ng_connect_data(nam, pcbp));
 }

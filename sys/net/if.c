@@ -1948,8 +1948,8 @@ link_rtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 	struct sockaddr *dst;
 	struct ifnet *ifp;
 
-	if (cmd != RTM_ADD || ((ifa = rt->rt_ifa) == 0) ||
-	    ((ifp = ifa->ifa_ifp) == 0) || ((dst = rt_key(rt)) == 0))
+	if (cmd != RTM_ADD || ((ifa = rt->rt_ifa) == NULL) ||
+	    ((ifp = ifa->ifa_ifp) == NULL) || ((dst = rt_key(rt)) == NULL))
 		return;
 	ifa = ifaof_ifpforaddr(dst, ifp);
 	if (ifa) {
@@ -2139,7 +2139,7 @@ if_qflush(struct ifnet *ifp)
 		ALTQ_PURGE(ifq);
 #endif
 	n = ifq->ifq_head;
-	while ((m = n) != 0) {
+	while ((m = n) != NULL) {
 		n = m->m_nextpkt;
 		m_freem(m);
 	}

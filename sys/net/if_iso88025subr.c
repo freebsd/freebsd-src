@@ -328,7 +328,7 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	if (snap_type != 0) {
         	struct llc *l;
 		M_PREPEND(m, LLC_SNAPFRAMELEN, M_NOWAIT);
-		if (m == 0)
+		if (m == NULL)
 			senderr(ENOBUFS);
 		l = mtod(m, struct llc *);
 		l->llc_control = LLC_UI;
@@ -344,7 +344,7 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	 * allocate another.
 	 */
 	M_PREPEND(m, ISO88025_HDR_LEN + rif_len, M_NOWAIT);
-	if (m == 0)
+	if (m == NULL)
 		senderr(ENOBUFS);
 	th = mtod(m, struct iso88025_header *);
 	bcopy((caddr_t)edst, (caddr_t)&gen_th.iso88025_dhost, ISO88025_ADDR_LEN);
@@ -638,7 +638,7 @@ iso88025_resolvemulti (ifp, llsa, sa)
 		if ((e_addr[0] & 1) != 1) {
 			return (EADDRNOTAVAIL);
 		}
-		*llsa = 0;
+		*llsa = NULL;
 		return (0);
 
 #ifdef INET
@@ -664,7 +664,7 @@ iso88025_resolvemulti (ifp, llsa, sa)
 			 * (This is used for multicast routers.)
 			 */
 			ifp->if_flags |= IFF_ALLMULTI;
-			*llsa = 0;
+			*llsa = NULL;
 			return (0);
 		}
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
