@@ -265,7 +265,7 @@ void		(*pmap_copy_page_offs_func)(vm_paddr_t a_phys,
 		    int cnt);
 void		(*pmap_zero_page_func)(vm_paddr_t, int, int);
 
-struct msgbuf *msgbufp = 0;
+struct msgbuf *msgbufp = NULL;
 
 /*
  * Crashdump maps.
@@ -842,7 +842,7 @@ pmap_alloc_l2_bucket(pmap_t pm, vm_offset_t va)
 		ptep = uma_zalloc(l2zone, M_NOWAIT);
 		rw_wlock(&pvh_global_lock);
 		PMAP_LOCK(pm);
-		if (l2b->l2b_kva != 0) {
+		if (l2b->l2b_kva != NULL) {
 			/* We lost the race. */
 			l2->l2_occupancy--;
 			uma_zfree(l2zone, ptep);
