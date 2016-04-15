@@ -170,7 +170,7 @@ vm_paddr_t lapic_paddr;
 int x2apic_mode;
 int lapic_eoi_suppression;
 static int lapic_timer_tsc_deadline;
-static u_long lapic_timer_divisor;
+static u_long lapic_timer_divisor, count_freq;
 static struct eventtimer lapic_et;
 #ifdef SMP
 static uint64_t lapic_ipi_wait_mult;
@@ -814,18 +814,44 @@ lapic_calibrate_initcount(struct eventtimer *et, struct lapic *la)
 		printf("lapic: Divisor %lu, Frequency %lu Hz\n",
 		    lapic_timer_divisor, value);
 	}
-	et->et_frequency = value;
+	count_freq = value;
 }
 
 static void
 lapic_calibrate_deadline(struct eventtimer *et, struct lapic *la __unused)
 {
 
-	et->et_frequency = tsc_freq;
 	if (bootverbose) {
 		printf("lapic: deadline tsc mode, Frequency %ju Hz\n",
-		    (uintmax_t)et->et_frequency);
+		    (uintmax_t)tsc_freq);
 	}
+}
+
+static void
+lapic_change_mode(struct eventtimer *et, struct lapic *la,
+    enum lat_timer_mode newmode)
+{
+
+	if (la->la_timer_mode == newmode)
+		return;
+	switch (newmode) {
+	case LAT_MODE_PERIODIC:
+		lapic_timer_set_divisor(lapic_timer_divisor);
+		et->et_frequency = count_freq;
+		break;
+	case LAT_MODE_DEADLINE:
+		et->et_frequency = tsc_freq;
+		break;
+	case LAT_MODE_ONESHOT:
+		lapic_timer_set_divisor(lapic_timer_divisor);
+		et->et_frequency = count_freq;
+		break;
+	default:
+		panic("lapic_change_mode %d", newmode);
+	}
+	la->la_timer_mode = newmode;
+	et->et_min_period = (0x00000002LLU << 32) / et->et_frequency;
+	et->et_max_period = (0xfffffffeLLU << 32) / et->et_frequency;
 }
 
 static int
@@ -835,28 +861,21 @@ lapic_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 
 	la = &lapics[PCPU_GET(apic_id)];
 	if (et->et_frequency == 0) {
+		lapic_calibrate_initcount(et, la);
 		if (lapic_timer_tsc_deadline)
 			lapic_calibrate_deadline(et, la);
-		else
-			lapic_calibrate_initcount(et, la);
-		et->et_min_period = (0x00000002LLU << 32) / et->et_frequency;
-		et->et_max_period = (0xfffffffeLLU << 32) / et->et_frequency;
 	}
 	if (period != 0) {
-		if (la->la_timer_mode == LAT_MODE_UNDEF)
-			lapic_timer_set_divisor(lapic_timer_divisor);
-		la->la_timer_mode = LAT_MODE_PERIODIC;
+		lapic_change_mode(et, la, LAT_MODE_PERIODIC);
 		la->la_timer_period = ((uint32_t)et->et_frequency * period) >>
 		    32;
 		lapic_timer_periodic(la);
 	} else if (lapic_timer_tsc_deadline) {
-		la->la_timer_mode = LAT_MODE_DEADLINE;
+		lapic_change_mode(et, la, LAT_MODE_DEADLINE);
 		la->la_timer_period = (et->et_frequency * first) >> 32;
 		lapic_timer_deadline(la);
 	} else {
-		if (la->la_timer_mode == LAT_MODE_UNDEF)
-			lapic_timer_set_divisor(lapic_timer_divisor);
-		la->la_timer_mode = LAT_MODE_ONESHOT;
+		lapic_change_mode(et, la, LAT_MODE_ONESHOT);
 		la->la_timer_period = ((uint32_t)et->et_frequency * first) >>
 		    32;
 		lapic_timer_oneshot(la);
