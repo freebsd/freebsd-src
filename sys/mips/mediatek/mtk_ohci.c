@@ -78,7 +78,7 @@ ohci_fdt_probe(device_t self)
 	if (!ofw_bus_status_okay(self))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(self, "ralink,rt3xxx-ohci"))
+	if (!ofw_bus_is_compatible(self, "generic-ohci"))
 		return (ENXIO);
 
 	device_set_desc(self, OHCI_HC_DEVSTR);

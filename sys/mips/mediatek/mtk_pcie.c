@@ -99,7 +99,7 @@ struct mtk_pci_range {
 	u_long	len;
 };
 
-#define FDT_RANGES_CELLS	(3 * 2)
+#define FDT_RANGES_CELLS	((1 + 2 + 3) * 2)
 
 static void
 mtk_pci_range_dump(struct mtk_pci_range *range)
@@ -117,30 +117,33 @@ mtk_pci_ranges_decode(phandle_t node, struct mtk_pci_range *io_space,
 {
 	struct mtk_pci_range *pci_space;
 	pcell_t ranges[FDT_RANGES_CELLS];
+	pcell_t addr_cells, size_cells, par_addr_cells;
 	pcell_t *rangesptr;
 	pcell_t cell0, cell1, cell2;
-	int tuples, i, rv, len;
+	int tuple_size, tuples, i, rv, len;
 
 	/*
 	 * Retrieve 'ranges' property.
 	 */
-	if (!OF_hasprop(node, "ranges")) {
-		printf("%s: %d\n", __FUNCTION__, 1);
+	if ((fdt_addrsize_cells(node, &addr_cells, &size_cells)) != 0)
 		return (EINVAL);
-	}
+	if (addr_cells != 3 || size_cells != 2)
+		return (ERANGE);
+
+	par_addr_cells = fdt_parent_addr_cells(node);
+	if (par_addr_cells != 1)
+		return (ERANGE);
 
 	len = OF_getproplen(node, "ranges");
-	if (len > sizeof(ranges)) {
-		printf("%s: %d\n", __FUNCTION__, 2);
+	if (len > sizeof(ranges))
 		return (ENOMEM);
-	}
 
-	if (OF_getprop(node, "ranges", ranges, sizeof(ranges)) <= 0) {
-		printf("%s: %d\n", __FUNCTION__, 3);
+	if (OF_getprop(node, "ranges", ranges, sizeof(ranges)) <= 0)
 		return (EINVAL);
-	}
 
-	tuples = len / (sizeof(pcell_t) * 3);
+	tuple_size = sizeof(pcell_t) * (addr_cells + par_addr_cells +
+	    size_cells);
+	tuples = len / tuple_size;
 
 	/*
 	 * Initialize the ranges so that we don't have to worry about
@@ -159,18 +162,21 @@ mtk_pci_ranges_decode(phandle_t node, struct mtk_pci_range *io_space,
 		cell2 = fdt_data_get((void *)rangesptr, 1);
 		rangesptr++;
 
-		if (cell0 == 2) {
+		if (cell0 & 0x02000000) {
 			pci_space = mem_space;
-		} else if (cell0 == 1) {
+		} else if (cell0 & 0x01000000) {
 			pci_space = io_space;
 		} else {
 			rv = ERANGE;
-			printf("%s: %d\n", __FUNCTION__, 4);
 			goto out;
 		}
 
-		pci_space->base = cell1;
-		pci_space->len = cell2;
+		pci_space->base = fdt_data_get((void *)rangesptr,
+		    par_addr_cells);
+		rangesptr += par_addr_cells;
+
+		pci_space->len = fdt_data_get((void *)rangesptr, size_cells);
+		rangesptr += size_cells;
 	}
 
 	rv = 0;
@@ -199,6 +205,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "ralink,rt3883-pcie",		MTK_SOC_RT3883 },
 	{ "ralink,mt7620a-pcie",	MTK_SOC_MT7620A },
 	{ "ralink,mt7621-pcie",		MTK_SOC_MT7621 },
+	{ "mediatek,mt7621-pci",	MTK_SOC_MT7621 },
 	{ "ralink,mt7628-pcie",		MTK_SOC_MT7628 },
 	{ "ralink,mt7688-pcie",		MTK_SOC_MT7628 },
 	{ NULL,				MTK_SOC_UNKNOWN }
