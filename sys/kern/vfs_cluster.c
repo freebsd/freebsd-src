@@ -368,7 +368,7 @@ cluster_rbuild(struct vnode *vp, u_quad_t filesize, daddr_t lbn,
 		return tbp;
 
 	bp = trypbuf(&cluster_pbuf_freecnt);
-	if (bp == 0)
+	if (bp == NULL)
 		return tbp;
 
 	/*

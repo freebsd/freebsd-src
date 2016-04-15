@@ -486,7 +486,7 @@ int
 lookup(struct nameidata *ndp)
 {
 	char *cp;		/* pointer into pathname argument */
-	struct vnode *dp = 0;	/* the directory we are searching */
+	struct vnode *dp = NULL;	/* the directory we are searching */
 	struct vnode *tdp;		/* saved dp */
 	struct mount *mp;		/* mount table entry */
 	struct prison *pr;
@@ -949,7 +949,7 @@ bad:
 int
 relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 {
-	struct vnode *dp = 0;		/* the directory we are searching */
+	struct vnode *dp = NULL;		/* the directory we are searching */
 	int wantparent;			/* 1 => wantparent or lockparent flag */
 	int rdonly;			/* lookup read-only flag bit */
 	int error = 0;

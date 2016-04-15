@@ -980,8 +980,8 @@ sys_semop(struct thread *td, struct semop_args *uap)
 	size_t nsops = uap->nsops;
 	struct sembuf *sops;
 	struct semid_kernel *semakptr;
-	struct sembuf *sopptr = 0;
-	struct sem *semptr = 0;
+	struct sembuf *sopptr = NULL;
+	struct sem *semptr = NULL;
 	struct sem_undo *suptr;
 	struct mtx *sema_mtxp;
 	size_t i, j, k;

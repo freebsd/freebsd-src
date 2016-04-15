@@ -445,7 +445,7 @@ kproc_kthread_add(void (*func)(void *), void *arg,
 	char buf[100];
 	struct thread *td;
 
-	if (*procptr == 0) {
+	if (*procptr == NULL) {
 		error = kproc_create(func, arg,
 		    	procptr, flags, pages, "%s", procname);
 		if (error)

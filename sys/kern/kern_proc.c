@@ -1449,7 +1449,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			p = LIST_FIRST(&allproc);
 		else
 			p = LIST_FIRST(&zombproc);
-		for (; p != 0; p = LIST_NEXT(p, p_list)) {
+		for (; p != NULL; p = LIST_NEXT(p, p_list)) {
 			/*
 			 * Skip embryonic processes.
 			 */
