@@ -99,7 +99,6 @@ mtk_xhci_fdt_attach(device_t self)
 	sc->sc_bus.parent = self;
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = XHCI_MAX_DEVICES;
-	sc->sc_bus.dma_bits = 32;
 
 	rid = 0;
 	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid,
