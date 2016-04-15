@@ -1,0 +1,30 @@
+#
+# RT3883_FDT -- Kernel configuration file for FreeBSD/MIPS RT3662/RT3883 SoCs
+#
+# This includes all the configurable parts of the kernel. Please read through
+# MEDIATEK kernel config and customize the options to fit your board if needed.
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+#
+# FDT_DTS_FILE should be modified to suit the target board type.
+#
+#makeoptions 	FDT_DTS_FILE=DIR-645.dts
+
+#
+# The user should never have to edit what's below this line.
+# If customizations are needed, they should be done to the MEDIATEK kernel
+# configuration.
+#
+
+# Start with a base configuration
+include 	MEDIATEK_BASE
+
+ident 		RT3883
+cpu 		CPU_MIPS74K
+
+# Include optional configuration (to be edited by the user if needed)
+include 	MEDIATEK

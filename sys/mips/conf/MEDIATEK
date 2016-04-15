@@ -1,0 +1,81 @@
+#
+# MEDIATEK -- Kernel configuration file for FreeBSD/MIPS Mediatek/Ralink SoCs
+#
+# This includes all the configurable parts of the kernel. Please read through
+# the sections below and customize the options to fit your board if needed.
+#
+# $FreeBSD$
+#
+
+#NO_UNIVERSE
+
+# Don't build any modules by default
+makeoptions 	MODULES_OVERRIDE=""
+
+#
+# Default rootfs device configuration, should be changed to suit target board
+#
+options 	ROOTDEVNAME=\"ufs:md0.uzip\"
+
+#
+# Optional drivers section
+#
+# What follows is optional support drivers for the Mediatek SoCs.
+# The kernel can be compiled without them if size is a concern.
+# All optional drivers are built by default.
+#
+
+# Support geom_uzip(4) compressed disk images
+device 		geom_uzip
+options 	GEOM_UZIP
+
+# Support md(4) and md-based rootfs
+device 		md
+options 	MD_ROOT
+
+# SPI and SPI flash support
+device 		spibus
+device 		mx25l
+
+# GPIO and gpioled support
+device 		gpio
+device 		gpioled
+
+# PCI support
+device 		pci
+
+#
+# USB (ehci, ohci, xhci, otg) support. Unneeded drivers can be commented in
+# order to lower kernel size. See below for driver SoC support.
+#
+# For all SoCs that require USB support
+device 		usb
+# For RT3050, RT3052 and RT3350 SoCs
+device 		dwcotg
+# For RT3352, RT3662, RT3883, RT5350, MT7620, MT7628 and MT7688
+device 		ohci
+device 		ehci
+# For MT7621, or cases where the target board has a XHCI controller on PCI
+# (for example Asus RT-N65U)
+device 		xhci
+
+# USB umass(4) storage and da(4) support
+device 		umass
+device 		da
+
+# ahci(4) and ada(4) support, depends on PCI
+device 		ahci
+device 		ada
+
+# CAM support, required if either umass(4) or ahci(4) is enabled above
+device 		pass
+device 		scbus
+
+# Ethernet, BPS and bridge support
+device 		rt
+device 		bpf
+device 		if_bridge
+
+# Extres
+device 		ext_resources
+device 		clk
