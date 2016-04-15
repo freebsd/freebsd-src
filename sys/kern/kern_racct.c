@@ -472,8 +472,8 @@ racct_create(struct racct **racctp)
 static void
 racct_destroy_locked(struct racct **racctp)
 {
-	int i;
 	struct racct *racct;
+	int i;
 
 	ASSERT_RACCT_ENABLED();
 
@@ -668,8 +668,7 @@ racct_add_buf(struct proc *p, const struct buf *bp, int is_write)
 static int
 racct_set_locked(struct proc *p, int resource, uint64_t amount, int force)
 {
-	int64_t old_amount, decayed_amount;
-	int64_t diff_proc, diff_cred;
+	int64_t old_amount, decayed_amount, diff_proc, diff_cred;
 #ifdef RCTL
 	int error;
 #endif
@@ -964,10 +963,9 @@ racct_proc_fork_done(struct proc *child)
 void
 racct_proc_exit(struct proc *p)
 {
-	int i;
-	uint64_t runtime;
 	struct timeval wallclock;
-	uint64_t pct_estimate, pct;
+	uint64_t pct_estimate, pct, runtime;
+	int i;
 
 	if (!racct_enable)
 		return;
@@ -1206,8 +1204,7 @@ racctd(void)
 	struct thread *td;
 	struct proc *p;
 	struct timeval wallclock;
-	uint64_t runtime;
-	uint64_t pct, pct_estimate;
+	uint64_t pct, pct_estimate, runtime;
 
 	ASSERT_RACCT_ENABLED();
 
