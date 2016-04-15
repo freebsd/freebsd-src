@@ -63,6 +63,7 @@ static const struct ofw_compat_data compat_data[] = {
 	{ "ralink,mtk7620a-soc",	MTK_SOC_MT7620A },
 	{ "ralink,mtk7620n-soc",	MTK_SOC_MT7620N },
 	{ "mediatek,mtk7621-soc",	MTK_SOC_MT7621 },
+	{ "mediatek,mt7621-soc",	MTK_SOC_MT7621 },
 	{ "ralink,mtk7621-soc",		MTK_SOC_MT7621 },
 	{ "ralink,mtk7628an-soc",	MTK_SOC_MT7628 },
 	{ "mediatek,mt7628an-soc",	MTK_SOC_MT7628 },

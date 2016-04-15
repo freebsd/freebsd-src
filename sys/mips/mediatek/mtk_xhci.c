@@ -80,7 +80,7 @@ mtk_xhci_fdt_probe(device_t self)
 	if (!ofw_bus_status_okay(self))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(self, "mtk,usb-xhci"))
+	if (!ofw_bus_is_compatible(self, "mediatek,mt8173-xhci"))
 		return (ENXIO);
 
 	device_set_desc(self, XHCI_HC_DEVSTR);
