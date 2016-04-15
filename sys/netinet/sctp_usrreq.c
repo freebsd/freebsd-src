@@ -469,7 +469,7 @@ sctp_attach(struct socket *so, int proto SCTP_UNUSED, struct thread *p SCTP_UNUS
 	uint32_t vrf_id = SCTP_DEFAULT_VRFID;
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp != 0) {
+	if (inp != NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return (EINVAL);
 	}

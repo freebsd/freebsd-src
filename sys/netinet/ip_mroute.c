@@ -2601,7 +2601,7 @@ pim_input(struct mbuf **mp, int *offp, int proto)
      * Get the IP and PIM headers in contiguous memory, and
      * possibly the PIM REGISTER header.
      */
-    if (m->m_len < minlen && (m = m_pullup(m, minlen)) == 0) {
+    if (m->m_len < minlen && (m = m_pullup(m, minlen)) == NULL) {
 	CTR1(KTR_IPMF, "%s: m_pullup() failed", __func__);
 	return (IPPROTO_DONE);
     }

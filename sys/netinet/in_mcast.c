@@ -1810,7 +1810,7 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 		break;
 
 	case IP_MULTICAST_TTL:
-		if (imo == 0)
+		if (imo == NULL)
 			optval = coptval = IP_DEFAULT_MULTICAST_TTL;
 		else
 			optval = coptval = imo->imo_multicast_ttl;
@@ -1822,7 +1822,7 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 		break;
 
 	case IP_MULTICAST_LOOP:
-		if (imo == 0)
+		if (imo == NULL)
 			optval = coptval = IP_DEFAULT_MULTICAST_LOOP;
 		else
 			optval = coptval = imo->imo_multicast_loop;

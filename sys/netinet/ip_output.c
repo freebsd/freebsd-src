@@ -1348,7 +1348,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			caddr_t req = NULL;
 			size_t len = 0;
 
-			if (m != 0) {
+			if (m != NULL) {
 				req = mtod(m, caddr_t);
 				len = m->m_len;
 			}
