@@ -434,7 +434,7 @@ main(int argc, char **argv)
 			break;
 		default:
 			usage();
-		};
+		}
 
 	if (modfind("nfsd") < 0) {
 		/* Not present in kernel, try loading it */
@@ -1241,7 +1241,7 @@ xdr_fhs(XDR *xdrsp, caddr_t cp)
 				return (0);
 			return (xdr_long(xdrsp, &auth));
 		}
-	};
+	}
 	return (0);
 }
 
@@ -2540,7 +2540,7 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 				*cp = savedc;
 			ret = 1;
 			goto error_exit;
-		};
+		}
 
 		/*
 		 * For V4:, use the nfssvc() syscall, instead of mount().

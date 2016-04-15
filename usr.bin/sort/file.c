@@ -1258,7 +1258,7 @@ sort_list_to_file(struct sort_list *list, const char *outfile)
 			break;
 		default:
 			errx(2, "%s", getstr(10));
-		};
+		}
 	}
 
 	if (sort_opts_vals.sort_method == SORT_DEFAULT)

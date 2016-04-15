@@ -688,7 +688,7 @@ static void setsuffix(wchar_t c, unsigned char *si)
 		break;
 	default:
 		*si = 0;
-	};
+	}
 }
 
 /*

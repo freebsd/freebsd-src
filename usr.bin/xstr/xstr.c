@@ -139,7 +139,7 @@ main(int argc, char *argv[])
 			argc--, argv++;
 		else
 			readstd = 0;
-	};
+	}
 	flushsh();
 	if (cflg == 0)
 		xsdotc();

@@ -911,6 +911,6 @@ sfp_status(int s, struct ifreq *ifr, int verbose)
 		break;
 	default:
 		print_sfp_status(&ii, verbose);
-	};
+	}
 }
 

@@ -977,7 +977,7 @@ checkfiles(const char *infile, const char *outfile)
 		{
 			warn("%s", infile);
 			crash();
-		};
+		}
 	if (outfile) {
 		if (stat(outfile, &buf) < 0)
 			return;	/* file does not exist */

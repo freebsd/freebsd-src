@@ -118,7 +118,7 @@ fsckinit(void)
 	bzero(totalreadcnt, sizeof(long) * BT_NUMBUFTYPES);
 	bzero(readtime, sizeof(struct timespec) * BT_NUMBUFTYPES);
 	bzero(totalreadtime, sizeof(struct timespec) * BT_NUMBUFTYPES);
-	bzero(&startprog, sizeof(struct timespec));;
+	bzero(&startprog, sizeof(struct timespec));
 	bzero(&sblk, sizeof(struct bufarea));
 	pdirbp = NULL;
 	pbp = NULL;
