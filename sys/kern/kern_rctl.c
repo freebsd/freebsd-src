@@ -210,8 +210,8 @@ static struct dict actionnames[] = {
 static void rctl_init(void);
 SYSINIT(rctl, SI_SUB_RACCT, SI_ORDER_FIRST, rctl_init, NULL);
 
-static uma_zone_t rctl_rule_link_zone;
 static uma_zone_t rctl_rule_zone;
+static uma_zone_t rctl_rule_link_zone;
 static struct rwlock rctl_lock;
 RW_SYSINIT(rctl_lock, &rctl_lock, "RCTL lock");
 
@@ -229,8 +229,7 @@ static MALLOC_DEFINE(M_RCTL, "rctl", "Resource Limits");
 
 static int rctl_throttle_min_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	int val = rctl_throttle_min;
-	int error;
+	int error, val = rctl_throttle_min;
 
 	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error || !req->newptr)
@@ -247,8 +246,7 @@ static int rctl_throttle_min_sysctl(SYSCTL_HANDLER_ARGS)
 
 static int rctl_throttle_max_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	int val = rctl_throttle_max;
-	int error;
+	int error, val = rctl_throttle_max;
 
 	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error || !req->newptr)
@@ -265,8 +263,7 @@ static int rctl_throttle_max_sysctl(SYSCTL_HANDLER_ARGS)
 
 static int rctl_throttle_pct_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	int val = rctl_throttle_pct;
-	int error;
+	int error, val = rctl_throttle_pct;
 
 	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error || !req->newptr)
@@ -283,8 +280,7 @@ static int rctl_throttle_pct_sysctl(SYSCTL_HANDLER_ARGS)
 
 static int rctl_throttle_pct2_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	int val = rctl_throttle_pct2;
-	int error;
+	int error, val = rctl_throttle_pct2;
 
 	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error || !req->newptr)
@@ -367,8 +363,8 @@ rctl_proc_rule_to_racct(const struct proc *p, const struct rctl_rule *rule)
 static int64_t
 rctl_available_resource(const struct proc *p, const struct rctl_rule *rule)
 {
-	int64_t available;
 	const struct racct *racct;
+	int64_t available;
 
 	ASSERT_RACCT_ENABLED();
 	RCTL_LOCK_ASSERT();
@@ -515,10 +511,10 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 	struct rctl_rule *rule;
 	struct rctl_rule_link *link;
 	struct sbuf sb;
+	char *buf;
 	int64_t available;
 	uint64_t sleep_ms, sleep_ratio;
 	int should_deny = 0;
-	char *buf;
 
 
 	ASSERT_RACCT_ENABLED();
@@ -945,8 +941,8 @@ static int
 rctl_racct_remove_rules(struct racct *racct,
     const struct rctl_rule *filter)
 {
-	int removed = 0;
 	struct rctl_rule_link *link, *linktmp;
+	int removed = 0;
 
 	ASSERT_RACCT_ENABLED();
 	RCTL_WLOCK_ASSERT();
@@ -1160,11 +1156,11 @@ rctl_rule_fully_specified(const struct rctl_rule *rule)
 static int
 rctl_string_to_rule(char *rulestr, struct rctl_rule **rulep)
 {
-	int error = 0;
+	struct rctl_rule *rule;
 	char *subjectstr, *subject_idstr, *resourcestr, *actionstr,
 	     *amountstr, *perstr;
-	struct rctl_rule *rule;
 	id_t id;
+	int error = 0;
 
 	ASSERT_RACCT_ENABLED();
 
@@ -1450,8 +1446,8 @@ rctl_rule_remove_callback(struct racct *racct, void *arg2, void *arg3)
 int
 rctl_rule_remove(struct rctl_rule *filter)
 {
-	int found = 0;
 	struct proc *p;
+	int found = 0;
 
 	ASSERT_RACCT_ENABLED();
 
@@ -1554,8 +1550,8 @@ rctl_rule_to_sbuf(struct sbuf *sb, const struct rctl_rule *rule)
 static int
 rctl_read_inbuf(char **inputstr, const char *inbufp, size_t inbuflen)
 {
-	int error;
 	char *str;
+	int error;
 
 	ASSERT_RACCT_ENABLED();
 
@@ -1603,9 +1599,9 @@ rctl_write_outbuf(struct sbuf *outputsbuf, char *outbufp, size_t outbuflen)
 static struct sbuf *
 rctl_racct_to_sbuf(struct racct *racct, int sloppy)
 {
-	int i;
-	int64_t amount;
 	struct sbuf *sb;
+	int64_t amount;
+	int i;
 
 	ASSERT_RACCT_ENABLED();
 
@@ -1625,14 +1621,14 @@ rctl_racct_to_sbuf(struct racct *racct, int sloppy)
 int
 sys_rctl_get_racct(struct thread *td, struct rctl_get_racct_args *uap)
 {
-	int error;
-	char *inputstr;
 	struct rctl_rule *filter;
 	struct sbuf *outputsbuf = NULL;
 	struct proc *p;
 	struct uidinfo *uip;
 	struct loginclass *lc;
 	struct prison_racct *prr;
+	char *inputstr;
+	int error;
 
 	if (!racct_enable)
 		return (ENOSYS);
@@ -1721,13 +1717,13 @@ rctl_get_rules_callback(struct racct *racct, void *arg2, void *arg3)
 int
 sys_rctl_get_rules(struct thread *td, struct rctl_get_rules_args *uap)
 {
-	int error;
-	size_t bufsize;
-	char *inputstr, *buf;
 	struct sbuf *sb;
 	struct rctl_rule *filter;
 	struct rctl_rule_link *link;
 	struct proc *p;
+	char *inputstr, *buf;
+	size_t bufsize;
+	int error;
 
 	if (!racct_enable)
 		return (ENOSYS);
@@ -1807,12 +1803,12 @@ out:
 int
 sys_rctl_get_limits(struct thread *td, struct rctl_get_limits_args *uap)
 {
-	int error;
-	size_t bufsize;
-	char *inputstr, *buf;
 	struct sbuf *sb;
 	struct rctl_rule *filter;
 	struct rctl_rule_link *link;
+	char *inputstr, *buf;
+	size_t bufsize;
+	int error;
 
 	if (!racct_enable)
 		return (ENOSYS);
@@ -1889,9 +1885,9 @@ out:
 int
 sys_rctl_add_rule(struct thread *td, struct rctl_add_rule_args *uap)
 {
-	int error;
 	struct rctl_rule *rule;
 	char *inputstr;
+	int error;
 
 	if (!racct_enable)
 		return (ENOSYS);
@@ -1934,9 +1930,9 @@ out:
 int
 sys_rctl_remove_rule(struct thread *td, struct rctl_remove_rule_args *uap)
 {
-	int error;
 	struct rctl_rule *filter;
 	char *inputstr;
+	int error;
 
 	if (!racct_enable)
 		return (ENOSYS);
@@ -1970,12 +1966,12 @@ sys_rctl_remove_rule(struct thread *td, struct rctl_remove_rule_args *uap)
 void
 rctl_proc_ucred_changed(struct proc *p, struct ucred *newcred)
 {
-	int rulecnt, i;
+	LIST_HEAD(, rctl_rule_link) newrules;
 	struct rctl_rule_link *link, *newlink;
 	struct uidinfo *newuip;
 	struct loginclass *newlc;
 	struct prison_racct *newprr;
-	LIST_HEAD(, rctl_rule_link) newrules;
+	int rulecnt, i;
 
 	ASSERT_RACCT_ENABLED();
 
@@ -2118,9 +2114,9 @@ goaround:
 int
 rctl_proc_fork(struct proc *parent, struct proc *child)
 {
-	int error;
-	struct rctl_rule_link *link;
 	struct rctl_rule *rule;
+	struct rctl_rule_link *link;
+	int error;
 
 	LIST_INIT(&child->p_racct->r_rule_links);
 
@@ -2197,11 +2193,11 @@ rctl_init(void)
 	if (!racct_enable)
 		return;
 
+	rctl_rule_zone = uma_zcreate("rctl_rule", sizeof(struct rctl_rule),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	rctl_rule_link_zone = uma_zcreate("rctl_rule_link",
 	    sizeof(struct rctl_rule_link), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	rctl_rule_zone = uma_zcreate("rctl_rule", sizeof(struct rctl_rule),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 
 	/*
 	 * Set default values, making sure not to overwrite the ones
