@@ -69,10 +69,10 @@ read_excludes_file(const char *name)
 	size_t len;
 
 	fp = fopen(name, "r");
-	if (fp == 0)
+	if (fp == NULL)
 		err(1, "%s", name);
 
-	while ((line = fgetln(fp, &len)) != 0) {
+	while ((line = fgetln(fp, &len)) != NULL) {
 		if (line[len - 1] == '\n')
 			len--;
 		if (len == 0)
@@ -80,7 +80,7 @@ read_excludes_file(const char *name)
 
 		str = malloc(len + 1);
 		e = malloc(sizeof *e);
-		if (str == 0 || e == 0)
+		if (str == NULL || e == NULL)
 			errx(1, "memory allocation error");
 		e->glob = str;
 		memcpy(str, line, len);
