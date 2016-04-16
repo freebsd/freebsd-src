@@ -820,6 +820,7 @@ sub make_makefile {
 		$SRCOUT3 = "" .
 			".for f t in \${LOCALES_MAPPED}\n" .
 			"FILES+=\t\$t.LC_COLLATE\n" .
+			"FILESDIR_\$t.LC_COLLATE=\t\${LOCALEDIR}/\$t\n" .
 			"\$t.LC_COLLATE: \${.CURDIR}/\$f.src\n" .
 			"\tlocaledef -D -U -i \${.ALLSRC} \\\n" .
 			"\t\t-f \${MAPLOC}/map.\${.TARGET:T:R:E} \\\n" .
