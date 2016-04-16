@@ -1251,19 +1251,14 @@ setup(struct servtab *sep)
 {
 	int on = 1;
 
-	if ((sep->se_fd = socket(sep->se_family, sep->se_socktype, 0)) < 0) {
+	/* Set all listening sockets to close-on-exec. */
+	if ((sep->se_fd = socket(sep->se_family,
+	    sep->se_socktype | SOCK_CLOEXEC, 0)) < 0) {
 		if (debug)
 			warn("socket failed on %s/%s",
 				sep->se_service, sep->se_proto);
 		syslog(LOG_ERR, "%s/%s: socket: %m",
 		    sep->se_service, sep->se_proto);
-		return;
-	}
-	/* Set all listening sockets to close-on-exec. */
-	if (fcntl(sep->se_fd, F_SETFD, FD_CLOEXEC) < 0) {
-		syslog(LOG_ERR, "%s/%s: fcntl (F_SETFD, FD_CLOEXEC): %m",
-		    sep->se_service, sep->se_proto);
-		close(sep->se_fd);
 		return;
 	}
 #define	turnon(fd, opt) \
