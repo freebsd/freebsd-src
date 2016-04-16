@@ -735,11 +735,11 @@ get_addrselectpolicy(struct policyhead *head)
 	char *buf;
 	struct in6_addrpolicy *pol, *ep;
 
-	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), NULL, &l, NULL, 0) < 0)
+	if (sysctl(mib, nitems(mib), NULL, &l, NULL, 0) < 0)
 		return (0);
 	if ((buf = malloc(l)) == NULL)
 		return (0);
-	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), buf, &l, NULL, 0) < 0) {
+	if (sysctl(mib, nitems(mib), buf, &l, NULL, 0) < 0) {
 		free(buf);
 		return (0);
 	}

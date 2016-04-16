@@ -76,7 +76,7 @@ const char *h_errlist[] = {
 	"Unknown server error",			/*%< 3 NO_RECOVERY */
 	"No address associated with name",	/*%< 4 NO_ADDRESS */
 };
-const int h_nerr = { sizeof h_errlist / sizeof h_errlist[0] };
+const int h_nerr = { nitems(h_errlist) };
 
 #undef	h_errno
 int	h_errno;
