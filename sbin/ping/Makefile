@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
 PROG=	ping
 MAN=	ping.8
 BINOWN=	root

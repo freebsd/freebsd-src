@@ -3,6 +3,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime-manuals
+
 MAN=	aac.4 \
 	aacraid.4 \
 	acpi.4 \

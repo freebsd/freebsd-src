@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=	devinfo
 SRCS=	devinfo.c
 INCS=	devinfo.h

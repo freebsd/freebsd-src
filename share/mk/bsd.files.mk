@@ -33,6 +33,14 @@ ${group}DIR?=	${BINDIR}
 STAGE_SETS+=	${group}
 STAGE_DIR.${group}= ${STAGE_OBJTOP}${${group}DIR}
 
+.if defined(NO_ROOT)
+.if !defined(${group}TAGS) || ! ${${group}TAGS:Mpackage=*}
+${group}TAGS+=		package=${${group}PACKAGE:Uruntime}
+.endif
+${group}TAG_ARGS=	-T ${${group}TAGS:[*]:S/ /,/g}
+.endif
+
+
 _${group}FILES=
 .for file in ${${group}}
 .if defined(${group}OWN_${file:T}) || defined(${group}GRP_${file:T}) || \
@@ -55,7 +63,7 @@ stage_as.${file:T}: ${file}
 
 installfiles-${group}: _${group}INS_${file:T}
 _${group}INS_${file:T}: ${file}
-	${INSTALL} -o ${${group}OWN_${.ALLSRC:T}} \
+	${INSTALL} ${${group}TAG_ARGS} -o ${${group}OWN_${.ALLSRC:T}} \
 	    -g ${${group}GRP_${.ALLSRC:T}} -m ${${group}MODE_${.ALLSRC:T}} \
 	    ${.ALLSRC} \
 	    ${DESTDIR}${${group}DIR_${.ALLSRC:T}}/${${group}NAME_${.ALLSRC:T}}
@@ -69,11 +77,11 @@ stage_files.${group}: ${_${group}FILES}
 installfiles-${group}: _${group}INS
 _${group}INS: ${_${group}FILES}
 .if defined(${group}NAME)
-	${INSTALL} -o ${${group}OWN} -g ${${group}GRP} \
+	${INSTALL} ${${group}TAG_ARGS} -o ${${group}OWN} -g ${${group}GRP} \
 	    -m ${${group}MODE} ${.ALLSRC} \
 	    ${DESTDIR}${${group}DIR}/${${group}NAME}
 .else
-	${INSTALL} -o ${${group}OWN} -g ${${group}GRP} \
+	${INSTALL} ${${group}TAG_ARGS} -o ${${group}OWN} -g ${${group}GRP} \
 	    -m ${${group}MODE} ${.ALLSRC} ${DESTDIR}${${group}DIR}/
 .endif
 .endif

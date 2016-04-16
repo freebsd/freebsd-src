@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
 PROG=	mv
 
 .if ${MK_TESTS} != "no"

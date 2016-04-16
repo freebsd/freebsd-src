@@ -2,6 +2,10 @@
 
 .include <bsd.own.mk>
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 TAP_TESTS_SH=	legacy_test
 # Some tests in here are silently not run when the tests are executed as
 # root.  Explicitly tell Kyua to drop privileges.

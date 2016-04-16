@@ -1,5 +1,9 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 NETBSD_ATF_TESTS_SH=		nonexistent_test
 
 .include <netbsd-tests.test.mk>

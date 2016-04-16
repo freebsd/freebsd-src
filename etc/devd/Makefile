@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-FILES=
+FILEGROUPS=	FILES
 
 .if ${MACHINE} == "powerpc"
 FILES+=	apple.conf
@@ -10,7 +10,12 @@ FILES+=	apple.conf
 
 .if ${MACHINE} == "amd64" || ${MACHINE} == "i386"
 .if ${MK_ACPI} != "no"
-FILES+=	asus.conf
+FILESGROUPS+=	ACPI
+ACPI=	asus.conf
+ACPIPACKAGE=	acpi
+ACPIDIR=	/etc/devd
+ACPITAGS=	config
+ACPIMODE=	644
 .endif
 .if ${MK_HYPERV} != "no"
 FILES+=	hyperv.conf

@@ -3,6 +3,10 @@
  *		   traps.  Provides service to ntpq and others.
  */
 
+/*
+ * $FreeBSD: projects/release-pkg/contrib/ntp/ntpd/ntp_control.c 277386 2015-01-19 16:15:12Z gjb $
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
