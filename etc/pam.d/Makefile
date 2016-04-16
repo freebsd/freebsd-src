@@ -4,6 +4,8 @@
 
 NO_OBJ=
 
+FILESGROUPS=	FILES
+
 FILES=	README \
 	cron \
 	ftpd \
@@ -11,13 +13,24 @@ FILES=	README \
 	login \
 	other \
 	passwd pop3 \
-	rsh \
 	sshd su system \
 	telnetd \
 	xdm
 
 .if ${MK_AT} != "no"
-FILES+=	atrun
+FILESGROUPS+=	AT
+AT+=	atrun
+ATPACKAGE+=	at
+ATDIR=	/etc/pam.d
+ATMODE=	644
+.endif
+
+.if ${MK_RCMDS} != "no"
+FILESGROUPS+=	RCMDS
+RCMDS+=		rsh
+RCMDSPACKAGE+=	rcmds
+RCMDSDIR=	/etc/pam.d
+RCMDSMODE=	644
 .endif
 
 FILESDIR=	/etc/pam.d

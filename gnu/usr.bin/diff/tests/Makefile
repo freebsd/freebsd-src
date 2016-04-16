@@ -1,5 +1,9 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/usr.bin/diff
 
 NETBSD_ATF_TESTS_SH=	diff_test

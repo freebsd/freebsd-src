@@ -26,6 +26,7 @@
 # $FreeBSD$
 #
 
+PACKAGE=runtime
 PROG=	kldload
 MAN=	kldload.8
 

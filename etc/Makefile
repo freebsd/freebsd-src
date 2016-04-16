@@ -3,9 +3,10 @@
 
 .include <src.opts.mk>
 
+FILESGROUPS=	FILES
+
 # No need as it is empty and just causes rebuilds since this file does so much.
 UPDATE_DEPENDFILE=	no
-
 SUBDIR=	\
 	newsyslog.conf.d
 
@@ -82,8 +83,13 @@ BIN1+= apmd.conf
 .endif
 
 .if ${MK_AUTOFS} != "no"
-BIN1+= auto_master
+FILESGROUPS+=	AUTOFS
+AUTOFS+=	auto_master
 .endif
+AUTOFSDIR=	/etc
+AUTOFSMODE=	${BINMODE}
+AUTOFSPACKAGE=	autofs
+AUTOFSTAGS=	config
 
 .if ${MK_FREEBSD_UPDATE} != "no"
 BIN1+= freebsd-update.conf
@@ -135,8 +141,12 @@ BIN1+= pf.os
 .endif
 
 .if ${MK_SENDMAIL} != "no"
-BIN1+=	rc.sendmail
+FILESGROUPS+=	SENDMAILRC
+SENDMAILRC=	rc.sendmail
 .endif
+SENDMAILRCDIR=	/etc
+SENDMAILRCMODE=	${BINMODE}
+SENDMAILRCPACKAGE=sendmail
 
 .if ${MK_TCSH} != "no"
 BIN1+= csh.cshrc csh.login csh.logout

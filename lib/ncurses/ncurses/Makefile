@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=	clibs
 SHLIBDIR?=	/lib
 
 .if !defined(ENABLE_WIDEC)

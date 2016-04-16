@@ -6,6 +6,7 @@ SSHDIR=	${.CURDIR}/../../../../crypto/openssh
 LIB=	pam_ssh
 MAN=	pam_ssh.8
 SRCS=	pam_ssh.c
+PACKAGE=	ssh
 
 WARNS?=	5
 CFLAGS+= -I${SSHDIR} -include ssh_namespace.h
