@@ -4269,6 +4269,12 @@ OLD_FILES+=usr/share/man/man1/lldb.1.gz
 .endif
 
 .if ${MK_LOCALES} == no
+OLD_FILES+=usr/share/locale/af_ZA.ISO8859-15/LC_COLLATE
+OLD_FILES+=usr/share/locale/af_ZA.ISO8859-15/LC_CTYPE
+OLD_FILES+=usr/share/locale/af_ZA.ISO8859-15/LC_MESSAGES
+OLD_FILES+=usr/share/locale/af_ZA.ISO8859-15/LC_MONETARY
+OLD_FILES+=usr/share/locale/af_ZA.ISO8859-15/LC_NUMERIC
+OLD_FILES+=usr/share/locale/af_ZA.ISO8859-15/LC_TIME
 OLD_FILES+=usr/share/locale/af_ZA.ISO8859-1/LC_COLLATE
 OLD_FILES+=usr/share/locale/af_ZA.ISO8859-1/LC_CTYPE
 OLD_FILES+=usr/share/locale/af_ZA.ISO8859-1/LC_MESSAGES
@@ -5415,12 +5421,6 @@ OLD_FILES+=usr/share/locale/zh_Hans_CN.UTF-8/LC_MESSAGES
 OLD_FILES+=usr/share/locale/zh_Hans_CN.UTF-8/LC_MONETARY
 OLD_FILES+=usr/share/locale/zh_Hans_CN.UTF-8/LC_NUMERIC
 OLD_FILES+=usr/share/locale/zh_Hans_CN.UTF-8/LC_TIME
-OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_COLLATE
-OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_CTYPE
-OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_MESSAGES
-OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_MONETARY
-OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_NUMERIC
-OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_TIME
 OLD_FILES+=usr/share/locale/zh_Hant_HK.UTF-8/LC_COLLATE
 OLD_FILES+=usr/share/locale/zh_Hant_HK.UTF-8/LC_CTYPE
 OLD_FILES+=usr/share/locale/zh_Hant_HK.UTF-8/LC_MESSAGES
@@ -7934,7 +7934,13 @@ OLD_FILES+=usr/share/man/man1/ul.1.gz
 
 .if ${MK_TOOLCHAIN} == no
 OLD_FILES+=usr/bin/addr2line
+OLD_FILES+=usr/bin/as
+OLD_FILES+=usr/bin/cc
+OLD_FILES+=usr/bin/c88
+OLD_FILES+=usr/bin/c++
 OLD_FILES+=usr/bin/c++filt
+OLD_FILES+=usr/bin/ld
+OLD_FILES+=usr/bin/ld.bfd
 OLD_FILES+=usr/bin/nm
 OLD_FILES+=usr/bin/readelf
 OLD_FILES+=usr/bin/size
