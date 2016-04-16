@@ -28,8 +28,8 @@ makeoptions 	KERNLOADADDR=0x80001000
 options 	FDT
 options 	FDT_DTB_STATIC
 
-# We rely on MIPS_INTRNG code
-options 	MIPS_INTRNG
+# We rely on INTRNG code
+options 	INTRNG
 options 	MIPS_NIRQ=256
 
 # We rely on NEW_PCIB code
