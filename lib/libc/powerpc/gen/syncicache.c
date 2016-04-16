@@ -66,8 +66,8 @@ getcachelinesize()
 
 	clen = sizeof(cacheline_size);
 
-	if (sysctl(cachemib, sizeof(cachemib) / sizeof(cachemib[0]),
-	    &cacheline_size, &clen, NULL, 0) < 0 || !cacheline_size) {
+	if (sysctl(cachemib, nitems(cachemib), &cacheline_size, &clen,
+	    NULL, 0) < 0 || !cacheline_size) {
 		abort();
 	}
 }
