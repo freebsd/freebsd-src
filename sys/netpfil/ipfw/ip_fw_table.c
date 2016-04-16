@@ -2130,7 +2130,7 @@ export_table_internal(struct namedobj_instance *ni, struct named_object *no,
 	dta = (struct dump_table_args *)arg;
 
 	i = (ipfw_xtable_info *)ipfw_get_sopt_space(dta->sd, sizeof(*i));
-	KASSERT(i != 0, ("previously checked buffer is not enough"));
+	KASSERT(i != NULL, ("previously checked buffer is not enough"));
 
 	export_table_info(dta->ch, (struct table_config *)no, i);
 }
@@ -2746,7 +2746,7 @@ list_table_algo(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 
 	for (n = 1; n <= count; n++) {
 		i = (ipfw_ta_info *)ipfw_get_sopt_space(sd, sizeof(*i));
-		KASSERT(i != 0, ("previously checked buffer is not enough"));
+		KASSERT(i != NULL, ("previously checked buffer is not enough"));
 		ta = tcfg->algo[n];
 		strlcpy(i->algoname, ta->name, sizeof(i->algoname));
 		i->type = ta->type;
@@ -3334,136 +3334,6 @@ ipfw_move_tables_sets(struct ip_fw_chain *ch, ipfw_range_tlv *rt,
 	}
 
 	return (bad);
-}
-
-/*
- * Finds and bumps refcount for objects referenced by given @rule.
- * Auto-creates non-existing tables.
- * Fills in @oib array with userland/kernel indexes.
- *
- * Returns 0 on success.
- */
-static int
-ref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule,
-    struct rule_check_info *ci, struct obj_idx *oib, struct tid_info *ti)
-{
-	int cmdlen, error, l, numnew;
-	ipfw_insn *cmd;
-	struct obj_idx *pidx;
-	int found, unresolved;
-
-	pidx = oib;
-	l = rule->cmd_len;
-	cmd = rule->cmd;
-	cmdlen = 0;
-	error = 0;
-	numnew = 0;
-	found = 0;
-	unresolved = 0;
-
-	IPFW_UH_WLOCK(ch);
-
-	/* Increase refcount on each existing referenced table. */
-	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
-		cmdlen = F_LEN(cmd);
-
-		error = ref_opcode_object(ch, cmd, ti, pidx, &found, &unresolved);
-		if (error != 0)
-			break;
-		if (found || unresolved) {
-			pidx->off = rule->cmd_len - l;
-			pidx++;
-		}
-		/*
-		 * Compability stuff for old clients:
-		 * prepare to manually create non-existing objects.
-		 */
-		if (unresolved)
-			numnew++;
-	}
-
-	if (error != 0) {
-		/* Unref everything we have already done */
-		unref_oib_objects(ch, rule->cmd, oib, pidx);
-		IPFW_UH_WUNLOCK(ch);
-		return (error);
-	}
-	IPFW_UH_WUNLOCK(ch);
-
-	/* Perform auto-creation for non-existing objects */
-	if (numnew != 0)
-		error = create_objects_compat(ch, rule->cmd, oib, pidx, ti);
-
-	/* Calculate real number of dynamic objects */
-	ci->object_opcodes = (uint16_t)(pidx - oib);
-
-	return (error);
-}
-
-/*
- * Checks is opcode is referencing table of appropriate type.
- * Adds reference count for found table if true.
- * Rewrites user-supplied opcode values with kernel ones.
- *
- * Returns 0 on success and appropriate error code otherwise.
- */
-int
-ipfw_rewrite_rule_uidx(struct ip_fw_chain *chain,
-    struct rule_check_info *ci)
-{
-	int error;
-	ipfw_insn *cmd;
-	uint8_t type;
-	struct obj_idx *p, *pidx_first, *pidx_last;
-	struct tid_info ti;
-
-	/*
-	 * Prepare an array for storing opcode indices.
-	 * Use stack allocation by default.
-	 */
-	if (ci->object_opcodes <= (sizeof(ci->obuf)/sizeof(ci->obuf[0]))) {
-		/* Stack */
-		pidx_first = ci->obuf;
-	} else
-		pidx_first = malloc(ci->object_opcodes * sizeof(struct obj_idx),
-		    M_IPFW, M_WAITOK | M_ZERO);
-
-	error = 0;
-	type = 0;
-	memset(&ti, 0, sizeof(ti));
-
-	/*
-	 * Use default set for looking up tables (old way) or
-	 * use set rule is assigned to (new way).
-	 */
-	ti.set = (V_fw_tables_sets != 0) ? ci->krule->set : 0;
-	if (ci->ctlv != NULL) {
-		ti.tlvs = (void *)(ci->ctlv + 1);
-		ti.tlen = ci->ctlv->head.length - sizeof(ipfw_obj_ctlv);
-	}
-
-	/* Reference all used tables and other objects */
-	error = ref_rule_objects(chain, ci->krule, ci, pidx_first, &ti);
-	if (error != 0)
-		goto free;
-	/*
-	 * Note that ref_rule_objects() might have updated ci->object_opcodes
-	 * to reflect actual number of object opcodes.
-	 */
-
-	/* Perform rule rewrite */
-	p = pidx_first;
-	pidx_last = pidx_first + ci->object_opcodes;
-	for (p = pidx_first; p < pidx_last; p++) {
-		cmd = ci->krule->cmd + p->off;
-		update_opcode_kidx(cmd, p->kidx);
-	}
-
-free:
-	if (pidx_first != ci->obuf)
-		free(pidx_first, M_IPFW);
-
-	return (error);
 }
 
 static struct ipfw_sopt_handler	scodes[] = {

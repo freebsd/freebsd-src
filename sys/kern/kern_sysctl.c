@@ -912,7 +912,7 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 			name++;
 			continue;
 		}
-		lsp2 = 0;
+		lsp2 = NULL;
 		SLIST_FOREACH(oid, lsp, oid_link) {
 			if (oid->oid_number != *name)
 				continue;
@@ -1083,7 +1083,7 @@ sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 {
 	char *p;
 	int error, oid[CTL_MAXNAME], len = 0;
-	struct sysctl_oid *op = 0;
+	struct sysctl_oid *op = NULL;
 	struct rm_priotracker tracker;
 
 	if (!req->newlen) 

@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/sysctl.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -59,6 +60,16 @@ acpi_get_root_from_loader(void)
 {
 	long acpi_root;
 
+	if (TUNABLE_ULONG_FETCH("acpi.rsdp", &acpi_root))
+		return (acpi_root);
+
+	/*
+	 * The hints mechanism is unreliable (it fails if anybody ever
+	 * compiled in hints to the kernel). It has been replaced
+	 * by the tunable method, but is used here as a fallback to
+	 * retain maximum compatibility between old loaders and new
+	 * kernels. It can be removed after 11.0R.
+	 */
 	if (resource_long_value("acpi", 0, "rsdp", &acpi_root) == 0)
 		return (acpi_root);
 

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PACKAGE=tests
 FILESGROUPS=	TESTS
 TESTSPACKAGE=	${PACKAGE}
@@ -50,7 +52,10 @@ TAP_TESTS_C+=	ctrig_test
 TAP_TESTS_C+=	exponential_test
 TAP_TESTS_C+=	fenv_test
 TAP_TESTS_C+=	fma_test
+# clang 3.8.0 fails always fails this test. See: bug 208703
+.if ! (${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} == 30800)
 TAP_TESTS_C+=	fmaxmin_test
+.endif
 TAP_TESTS_C+=	ilogb_test
 TAP_TESTS_C+=	invtrig_test
 TAP_TESTS_C+=	invctrig_test

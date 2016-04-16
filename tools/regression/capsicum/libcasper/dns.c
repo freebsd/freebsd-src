@@ -72,6 +72,63 @@ static int ntest = 1;
 #define	GETHOSTBYNAME2_AF_INET6		0x04
 #define	GETHOSTBYADDR_AF_INET		0x08
 #define	GETHOSTBYADDR_AF_INET6		0x10
+#define	GETADDRINFO_AF_UNSPEC		0x20
+#define	GETADDRINFO_AF_INET		0x40
+#define	GETADDRINFO_AF_INET6		0x80
+
+static bool
+addrinfo_compare(struct addrinfo *ai0, struct addrinfo *ai1)
+{
+	struct addrinfo *at0, *at1;
+
+	if (ai0 == NULL && ai1 == NULL)
+		return (true);
+	if (ai0 == NULL || ai1 == NULL)
+		return (false);
+
+	at0 = ai0;
+	at1 = ai1;
+	while (true) {
+		if ((at0->ai_flags == at1->ai_flags) &&
+		    (at0->ai_family == at1->ai_family) &&
+		    (at0->ai_socktype == at1->ai_socktype) &&
+		    (at0->ai_protocol == at1->ai_protocol) &&
+		    (at0->ai_addrlen == at1->ai_addrlen) &&
+		    (memcmp(at0->ai_addr, at1->ai_addr,
+			at0->ai_addrlen) == 0)) {
+			if (at0->ai_canonname != NULL &&
+			    at1->ai_canonname != NULL) {
+				if (strcmp(at0->ai_canonname,
+				    at1->ai_canonname) != 0) {
+					return (false);
+				}
+			}
+
+			if (at0->ai_canonname == NULL &&
+			    at1->ai_canonname != NULL) {
+				return (false);
+			}
+			if (at0->ai_canonname != NULL &&
+			    at1->ai_canonname == NULL) {
+				return (false);
+			}
+
+			if (at0->ai_next == NULL && at1->ai_next == NULL)
+				return (true);
+			if (at0->ai_next == NULL || at1->ai_next == NULL)
+				return (false);
+
+			at0 = at0->ai_next;
+			at1 = at1->ai_next;
+		} else {
+			return (false);
+		}
+	}
+
+	/* NOTREACHED */
+	fprintf(stderr, "Dead code reached in addrinfo_compare()\n");
+	exit(1);
+}
 
 static bool
 hostent_aliases_compare(char **aliases0, char **aliases1)
@@ -161,6 +218,7 @@ static unsigned int
 runtest(cap_channel_t *capdns)
 {
 	unsigned int result;
+	struct addrinfo *ais, *aic, hints, *hintsp;
 	struct hostent *hps, *hpc;
 	struct in_addr ip4;
 	struct in6_addr ip6;
@@ -187,6 +245,55 @@ runtest(cap_channel_t *capdns)
 	hpc = cap_gethostbyname2(capdns, "example.com", AF_INET6);
 	if (hostent_compare(hps, hpc))
 		result |= GETHOSTBYNAME2_AF_INET6;
+
+	hints.ai_flags = 0;
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = 0;
+	hints.ai_protocol = 0;
+	hints.ai_addrlen = 0;
+	hints.ai_addr = NULL;
+	hints.ai_canonname = NULL;
+	hints.ai_next = NULL;
+
+	hintsp = &hints;
+
+	if (getaddrinfo("freebsd.org", "25", hintsp, &ais) != 0) {
+		fprintf(stderr,
+		    "Unable to issue [system] getaddrinfo() for AF_UNSPEC: %s\n",
+		    gai_strerror(errno));
+	}
+	if (cap_getaddrinfo(capdns, "freebsd.org", "25", hintsp, &aic) == 0) {
+		if (addrinfo_compare(ais, aic))
+			result |= GETADDRINFO_AF_UNSPEC;
+		freeaddrinfo(ais);
+		freeaddrinfo(aic);
+	}
+
+	hints.ai_family = AF_INET;
+	if (getaddrinfo("freebsd.org", "25", hintsp, &ais) != 0) {
+		fprintf(stderr,
+		    "Unable to issue [system] getaddrinfo() for AF_UNSPEC: %s\n",
+		    gai_strerror(errno));
+	}
+	if (cap_getaddrinfo(capdns, "freebsd.org", "25", hintsp, &aic) == 0) {
+		if (addrinfo_compare(ais, aic))
+			result |= GETADDRINFO_AF_INET;
+		freeaddrinfo(ais);
+		freeaddrinfo(aic);
+	}
+
+	hints.ai_family = AF_INET6;
+	if (getaddrinfo("freebsd.org", "25", hintsp, &ais) != 0) {
+		fprintf(stderr,
+		    "Unable to issue [system] getaddrinfo() for AF_UNSPEC: %s\n",
+		    gai_strerror(errno));
+	}
+	if (cap_getaddrinfo(capdns, "freebsd.org", "25", hintsp, &aic) == 0) {
+		if (addrinfo_compare(ais, aic))
+			result |= GETADDRINFO_AF_INET6;
+		freeaddrinfo(ais);
+		freeaddrinfo(aic);
+	}
 
 	/*
 	 * 8.8.178.135 is IPv4 address of freefall.freebsd.org
@@ -238,7 +345,8 @@ main(void)
 
 	CHECK(runtest(capdns) ==
 	    (GETHOSTBYNAME | GETHOSTBYNAME2_AF_INET | GETHOSTBYNAME2_AF_INET6 |
-	     GETHOSTBYADDR_AF_INET | GETHOSTBYADDR_AF_INET6));
+	     GETHOSTBYADDR_AF_INET | GETHOSTBYADDR_AF_INET6 |
+	     GETADDRINFO_AF_UNSPEC | GETADDRINFO_AF_INET | GETADDRINFO_AF_INET6));
 
 	/*
 	 * Allow:
@@ -258,7 +366,8 @@ main(void)
 
 	CHECK(runtest(capdns) ==
 	    (GETHOSTBYNAME | GETHOSTBYNAME2_AF_INET | GETHOSTBYNAME2_AF_INET6 |
-	     GETHOSTBYADDR_AF_INET | GETHOSTBYADDR_AF_INET6));
+	     GETHOSTBYADDR_AF_INET | GETHOSTBYADDR_AF_INET6 |
+	     GETADDRINFO_AF_INET | GETADDRINFO_AF_INET6));
 
 	cap_close(capdns);
 
@@ -310,7 +419,8 @@ main(void)
 	CHECK(cap_dns_family_limit(capdns, families, 2) == 0);
 
 	CHECK(runtest(capdns) ==
-	    (GETHOSTBYADDR_AF_INET | GETHOSTBYADDR_AF_INET6));
+	    (GETHOSTBYADDR_AF_INET | GETHOSTBYADDR_AF_INET6 |
+	    GETADDRINFO_AF_INET | GETADDRINFO_AF_INET6));
 
 	cap_close(capdns);
 
@@ -336,7 +446,8 @@ main(void)
 	    errno == ENOTCAPABLE);
 
 	CHECK(runtest(capdns) ==
-	    (GETHOSTBYNAME | GETHOSTBYNAME2_AF_INET | GETHOSTBYADDR_AF_INET));
+	    (GETHOSTBYNAME | GETHOSTBYNAME2_AF_INET | GETHOSTBYADDR_AF_INET |
+	    GETADDRINFO_AF_INET));
 
 	cap_close(capdns);
 
@@ -362,7 +473,8 @@ main(void)
 	    errno == ENOTCAPABLE);
 
 	CHECK(runtest(capdns) ==
-	    (GETHOSTBYNAME2_AF_INET6 | GETHOSTBYADDR_AF_INET6));
+	    (GETHOSTBYNAME2_AF_INET6 | GETHOSTBYADDR_AF_INET6 |
+	    GETADDRINFO_AF_INET6));
 
 	cap_close(capdns);
 
@@ -472,7 +584,7 @@ main(void)
 	CHECK(cap_dns_family_limit(capdns, families, 1) == -1 &&
 	    errno == ENOTCAPABLE);
 
-	CHECK(runtest(capdns) == GETHOSTBYADDR_AF_INET);
+	CHECK(runtest(capdns) == (GETHOSTBYADDR_AF_INET | GETADDRINFO_AF_INET));
 
 	cap_close(capdns);
 
@@ -508,7 +620,8 @@ main(void)
 	CHECK(cap_dns_family_limit(capdns, families, 1) == -1 &&
 	    errno == ENOTCAPABLE);
 
-	CHECK(runtest(capdns) == GETHOSTBYADDR_AF_INET6);
+	CHECK(runtest(capdns) == (GETHOSTBYADDR_AF_INET6 |
+	    GETADDRINFO_AF_INET6));
 
 	cap_close(capdns);
 
@@ -578,7 +691,8 @@ main(void)
 	    errno == ENOTCAPABLE);
 
 	/* Do the limits still hold? */
-	CHECK(runtest(capdns) == GETHOSTBYADDR_AF_INET6);
+	CHECK(runtest(capdns) == (GETHOSTBYADDR_AF_INET6 |
+	    GETADDRINFO_AF_INET6));
 
 	cap_close(capdns);
 

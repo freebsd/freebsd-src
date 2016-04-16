@@ -144,4 +144,5 @@ PV_STATS		opt_pmap.h
 #
 # Options to use INTRNG code
 #
-MIPS_INTRNG		opt_global.h
+INTRNG			opt_global.h
+MIPS_NIRQ		opt_global.h

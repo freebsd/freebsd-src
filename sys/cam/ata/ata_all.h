@@ -46,6 +46,7 @@ struct ata_cmd {
 #define		CAM_ATAIO_CONTROL	0x04	/* Control, not a command */
 #define		CAM_ATAIO_NEEDRESULT	0x08	/* Request requires result. */
 #define		CAM_ATAIO_DMA		0x10	/* DMA command */
+#define		CAM_ATAIO_AUX_HACK	0x20	/* Kludge to make FPDMA DSM TRIM work */
 
 	u_int8_t	command;
 	u_int8_t	features;
@@ -103,10 +104,11 @@ int	ata_version(int ver);
 
 char *	ata_op_string(struct ata_cmd *cmd);
 char *	ata_cmd_string(struct ata_cmd *cmd, char *cmd_string, size_t len);
+void	ata_cmd_sbuf(struct ata_cmd *cmd, struct sbuf *sb);
 char *	ata_res_string(struct ata_res *res, char *res_string, size_t len);
 int	ata_command_sbuf(struct ccb_ataio *ataio, struct sbuf *sb);
 int	ata_status_sbuf(struct ccb_ataio *ataio, struct sbuf *sb);
-int	ata_res_sbuf(struct ccb_ataio *ataio, struct sbuf *sb);
+int	ata_res_sbuf(struct ata_res *res, struct sbuf *sb);
 
 void	ata_print_ident(struct ata_params *ident_data);
 void	ata_print_ident_short(struct ata_params *ident_data);

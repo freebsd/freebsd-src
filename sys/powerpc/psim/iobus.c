@@ -272,7 +272,7 @@ iobus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
         struct iobus_devinfo *dinfo;
 
-        if ((dinfo = device_get_ivars(child)) == 0)
+        if ((dinfo = device_get_ivars(child)) == NULL)
                 return (ENOENT);
 
         switch (which) {

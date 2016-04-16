@@ -161,7 +161,7 @@ int main(int argc,char * argv[])
 			    (cbz2err != BZ_STREAM_END)))
 				errx(1, "Corrupt patch\n");
 			ctrl[i]=offtin(buf);
-		};
+		}
 
 		/* Sanity-check */
 		if(newpos+ctrl[0]>newsize)
@@ -195,7 +195,7 @@ int main(int argc,char * argv[])
 		/* Adjust pointers */
 		newpos+=ctrl[1];
 		oldpos+=ctrl[2];
-	};
+	}
 
 	/* Clean up the bzip2 reads */
 	BZ2_bzReadClose(&cbz2err, cpfbz2);

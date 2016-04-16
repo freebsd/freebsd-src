@@ -98,8 +98,8 @@ struct buf {
 	void		*b_caller1;
 	caddr_t		b_data;
 	int		b_error;
-	uint8_t		b_iocmd;
-	uint8_t		b_ioflags;
+	uint16_t	b_iocmd;	/* BIO_* bio_cmd from bio.h */
+	uint16_t	b_ioflags;	/* BIO_* bio_flags from bio.h */
 	off_t		b_iooffset;
 	long		b_resid;
 	void	(*b_iodone)(struct buf *);

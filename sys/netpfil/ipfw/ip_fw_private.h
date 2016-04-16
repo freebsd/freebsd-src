@@ -313,9 +313,9 @@ struct named_object {
 	TAILQ_ENTRY(named_object)	nn_next;	/* namehash */
 	TAILQ_ENTRY(named_object)	nv_next;	/* valuehash */
 	char			*name;	/* object name */
-	uint8_t			subtype;	/* object subtype within class */
-	uint8_t			etlv;	/* Export TLV id */
-	uint16_t		spare[2];
+	uint16_t		etlv;	/* Export TLV id */
+	uint8_t			subtype;/* object subtype within class */
+	uint8_t			spare[3];
 	uint16_t		kidx;	/* object kernel index */
 	uint32_t		set;	/* set object belongs to */
 	uint32_t		refcnt;	/* number of references */
@@ -516,9 +516,10 @@ struct ip_fw_bcounter0 {
 #define	IPFW_TABLES_MAX		65536
 #define	IPFW_TABLES_DEFAULT	128
 #define	IPFW_OBJECTS_MAX	65536
-#define	IPFW_OBJECTS_DEFAULT	128
+#define	IPFW_OBJECTS_DEFAULT	1024
 
 #define	CHAIN_TO_SRV(ch)	((ch)->srvmap)
+#define	SRV_OBJECT(ch, idx)	((ch)->srvstate[(idx)])
 
 struct tid_info {
 	uint32_t	set;	/* table set */
@@ -650,9 +651,10 @@ caddr_t ipfw_get_sopt_header(struct sockopt_data *sd, size_t needed);
 struct namedobj_instance;
 typedef void (objhash_cb_t)(struct namedobj_instance *ni, struct named_object *,
     void *arg);
-typedef uint32_t (objhash_hash_f)(struct namedobj_instance *ni, void *key,
+typedef uint32_t (objhash_hash_f)(struct namedobj_instance *ni, const void *key,
     uint32_t kopt);
-typedef int (objhash_cmp_f)(struct named_object *no, void *key, uint32_t kopt);
+typedef int (objhash_cmp_f)(struct named_object *no, const void *key,
+    uint32_t kopt);
 struct namedobj_instance *ipfw_objhash_create(uint32_t items);
 void ipfw_objhash_destroy(struct namedobj_instance *);
 void ipfw_objhash_bitmap_alloc(uint32_t items, void **idx, int *pblocks);
@@ -665,7 +667,7 @@ void ipfw_objhash_set_hashf(struct namedobj_instance *ni, objhash_hash_f *f);
 struct named_object *ipfw_objhash_lookup_name(struct namedobj_instance *ni,
     uint32_t set, char *name);
 struct named_object *ipfw_objhash_lookup_name_type(struct namedobj_instance *ni,
-    uint32_t set, uint32_t type, char *name);
+    uint32_t set, uint32_t type, const char *name);
 struct named_object *ipfw_objhash_lookup_kidx(struct namedobj_instance *ni,
     uint16_t idx);
 int ipfw_objhash_same_name(struct namedobj_instance *ni, struct named_object *a,
@@ -679,20 +681,14 @@ int ipfw_objhash_free_idx(struct namedobj_instance *ni, uint16_t idx);
 int ipfw_objhash_alloc_idx(void *n, uint16_t *pidx);
 void ipfw_objhash_set_funcs(struct namedobj_instance *ni,
     objhash_hash_f *hash_f, objhash_cmp_f *cmp_f);
+int ipfw_objhash_find_type(struct namedobj_instance *ni, struct tid_info *ti,
+    uint32_t etlv, struct named_object **pno);
 void ipfw_export_obj_ntlv(struct named_object *no, ipfw_obj_ntlv *ntlv);
 void ipfw_init_obj_rewriter(void);
 void ipfw_destroy_obj_rewriter(void);
 void ipfw_add_obj_rewriter(struct opcode_obj_rewrite *rw, size_t count);
 int ipfw_del_obj_rewriter(struct opcode_obj_rewrite *rw, size_t count);
 
-int ipfw_rewrite_rule_uidx(struct ip_fw_chain *chain,
-    struct rule_check_info *ci);
-int ipfw_mark_object_kidx(struct ip_fw_chain *chain, struct ip_fw *rule,
-    uint32_t *bmask);
-int ref_opcode_object(struct ip_fw_chain *ch, ipfw_insn *cmd, struct tid_info *ti,
-    struct obj_idx *pidx, int *found, int *unresolved);
-void unref_oib_objects(struct ip_fw_chain *ch, ipfw_insn *cmd,
-    struct obj_idx *oib, struct obj_idx *end);
 int create_objects_compat(struct ip_fw_chain *ch, ipfw_insn *cmd,
     struct obj_idx *oib, struct obj_idx *pidx, struct tid_info *ti);
 void update_opcode_kidx(ipfw_insn *cmd, uint16_t idx);
@@ -700,6 +696,18 @@ int classify_opcode_kidx(ipfw_insn *cmd, uint16_t *puidx);
 void ipfw_init_srv(struct ip_fw_chain *ch);
 void ipfw_destroy_srv(struct ip_fw_chain *ch);
 int ipfw_check_object_name_generic(const char *name);
+
+/* In ip_fw_eaction.c */
+typedef int (ipfw_eaction_t)(struct ip_fw_chain *ch, struct ip_fw_args *args,
+    ipfw_insn *cmd, int *done);
+int ipfw_eaction_init(struct ip_fw_chain *ch, int first);
+void ipfw_eaction_uninit(struct ip_fw_chain *ch, int last);
+
+uint16_t ipfw_add_eaction(struct ip_fw_chain *ch, ipfw_eaction_t handler,
+    const char *name);
+int ipfw_del_eaction(struct ip_fw_chain *ch, uint16_t eaction_id);
+int ipfw_run_eaction(struct ip_fw_chain *ch, struct ip_fw_args *args,
+    ipfw_insn *cmd, int *done);
 
 /* In ip_fw_table.c */
 struct table_info;

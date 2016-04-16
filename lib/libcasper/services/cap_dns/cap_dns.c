@@ -632,6 +632,7 @@ dns_getaddrinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 		hints.ai_addrlen = 0;
 		hints.ai_addr = NULL;
 		hints.ai_canonname = NULL;
+		hints.ai_next = NULL;
 		hintsp = &hints;
 		family = hints.ai_family;
 	} else {

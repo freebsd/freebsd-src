@@ -328,15 +328,18 @@ EVENTHANDLER_DECLARE(dev_clone, dev_clone_fn);
 
 struct dumperinfo {
 	dumper_t *dumper;	/* Dumping function. */
-	void    *priv;		/* Private parts. */
-	u_int   blocksize;	/* Size of block in bytes. */
+	void	*priv;		/* Private parts. */
+	u_int	blocksize;	/* Size of block in bytes. */
 	u_int	maxiosize;	/* Max size allowed for an individual I/O */
-	off_t   mediaoffset;	/* Initial offset in bytes. */
-	off_t   mediasize;	/* Space available in bytes. */
+	off_t	mediaoffset;	/* Initial offset in bytes. */
+	off_t	mediasize;	/* Space available in bytes. */
+	void	*blockbuf;	/* Buffer for padding shorter dump blocks */
 };
 
 int set_dumper(struct dumperinfo *, const char *_devname, struct thread *td);
 int dump_write(struct dumperinfo *, void *, vm_offset_t, off_t, size_t);
+int dump_write_pad(struct dumperinfo *, void *, vm_offset_t, off_t, size_t,
+    size_t *);
 int doadump(boolean_t);
 extern int dumping;		/* system is dumping */
 
