@@ -108,16 +108,16 @@ typedef struct tcpsinfo {
 	uint32_t tcps_snxt;		/* next sequence # to send */
 	uint32_t tcps_rack;		/* sequence # we have acked */
 	uint32_t tcps_rnxt;		/* next sequence # expected */
-	uint32_t tcps_swnd;		/* send window size */
+	u_long tcps_swnd;		/* send window size */
 	int32_t tcps_snd_ws;		/* send window scaling */
 	uint32_t tcps_swl1;		/* window update seg seq number */
 	uint32_t tcps_swl2;		/* window update seg ack number */
 	uint32_t tcps_rup;		/* receive urgent pointer */
 	uint32_t tcps_radv;		/* advertised window */
-	uint32_t tcps_rwnd;		/* receive window size */
+	u_long tcps_rwnd;		/* receive window size */
 	int32_t tcps_rcv_ws;		/* receive window scaling */
-	uint32_t tcps_cwnd;		/* congestion window */
-	uint32_t tcps_cwnd_ssthresh;	/* threshold for congestion avoidance */
+	u_long tcps_cwnd;		/* congestion window */
+	u_long tcps_cwnd_ssthresh;	/* threshold for congestion avoidance */
 	uint32_t tcps_srecover;	/* for use in NewReno Fast Recovery */
 	uint32_t tcps_sack_fack;	/* SACK sequence # we have acked */
 	uint32_t tcps_sack_snxt;	/* next SACK seq # for retransmission */

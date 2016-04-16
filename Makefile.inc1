@@ -144,6 +144,15 @@ CLEANDIR=	clean cleandepend
 CLEANDIR=	cleandir
 .endif
 
+.if ${MK_META_MODE} == "yes"
+# If filemon is used then we can rely on the build being incremental-safe.
+# The .meta files will also track the build command and rebuild should
+# it change.
+.if empty(.MAKE.MODE:Mnofilemon)
+NO_CLEAN=	t
+.endif
+.endif
+
 LOCAL_TOOL_DIRS?=
 PACKAGEDIR?=	${DESTDIR}/${DISTDIR}
 
@@ -316,6 +325,10 @@ CROSSENV+=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
 		CPUTYPE=${TARGET_CPUTYPE}
+.if ${MK_META_MODE} != "no"
+# Don't rebuild build-tools targets during normal build.
+CROSSENV+=	BUILD_TOOLS_META=.NOMETA_CMP
+.endif
 .if ${MK_GROFF} != "no"
 CROSSENV+=	GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
 		GROFF_FONT_PATH=${WORLDTMP}/legacy/usr/share/groff_font \
@@ -327,6 +340,7 @@ CROSSENV+=	${TARGET_CFLAGS}
 
 # bootstrap-tools stage
 BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
+		TOOLS_PREFIX=${WORLDTMP} \
 		PATH=${BPATH}:${PATH} \
 		WORLDTMP=${WORLDTMP} \
 		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}"
@@ -672,12 +686,12 @@ WMAKE_TGTS+=	build${libcompat}
 buildworld: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue
 .ORDER: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue
 
-buildworld_prologue:
+buildworld_prologue: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> World build started on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
 
-buildworld_epilogue:
+buildworld_epilogue: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> World build completed on `LC_ALL=C date`"
@@ -1897,7 +1911,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd lib/libnv \
 		${_lib_casper} \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
-		lib/libopie lib/libpam ${_lib_libthr} \
+		lib/libopie lib/libpam/libpam ${_lib_libthr} \
 		${_lib_libradius} lib/libsbuf lib/libtacplus \
 		lib/libgeom \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
@@ -1909,6 +1923,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_secure_lib_libcrypto} ${_lib_libldns} \
 		${_secure_lib_libssh} ${_secure_lib_libssl} \
 		gnu/lib/libdialog
+
 .if ${MK_GNUCXX} != "no"
 _prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
 gnu/lib/libstdc++__L: lib/msun__L
@@ -2076,7 +2091,7 @@ ${_lib}__PL: .PHONY .MAKE
 .endif
 .endfor
 
-.for _lib in ${_startup_libs} ${_prebuild_libs:Nlib/libpam} ${_generic_libs}
+.for _lib in ${_startup_libs} ${_prebuild_libs} ${_generic_libs}
 ${_lib}__L: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,all,install)"; \
@@ -2086,18 +2101,6 @@ ${_lib}__L: .PHONY .MAKE
 		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ install
 .endif
 .endfor
-
-# libpam is special: we need to build static PAM modules before
-# static PAM library, and dynamic PAM library before dynamic PAM
-# modules.
-lib/libpam__L: .PHONY .MAKE
-	${_+_}@${ECHODIR} "===> lib/libpam (obj,all,install)"; \
-		cd ${.CURDIR}/lib/libpam; \
-		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ obj; \
-		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ \
-		    -D_NO_LIBPAM_SO_YET all; \
-		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ \
-		    -D_NO_LIBPAM_SO_YET install
 
 _prereq_libs: ${_prereq_libs:S/$/__PL/}
 _startup_libs: ${_startup_libs:S/$/__L/}

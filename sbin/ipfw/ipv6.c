@@ -71,14 +71,14 @@ fill_unreach6_code(u_short *codep, char *str)
 }
 
 void
-print_unreach6_code(uint16_t code)
+print_unreach6_code(struct buf_pr *bp, uint16_t code)
 {
 	char const *s = match_value(icmp6codes, code);
 
 	if (s != NULL)
-		printf("unreach6 %s", s);
+		bprintf(bp, "unreach6 %s", s);
 	else
-		printf("unreach6 %u", code);
+		bprintf(bp, "unreach6 %u", code);
 }
 
 /*

@@ -58,9 +58,10 @@ __FBSDID("$FreeBSD$");
 #include <netpfil/ipfw/ip_fw_private.h>
 #include <netpfil/ipfw/ip_fw_table.h>
 
-static uint32_t hash_table_value(struct namedobj_instance *ni, void *key,
+static uint32_t hash_table_value(struct namedobj_instance *ni, const void *key,
     uint32_t kopt);
-static int cmp_table_value(struct named_object *no, void *key, uint32_t kopt);
+static int cmp_table_value(struct named_object *no, const void *key,
+    uint32_t kopt);
 
 static int list_table_values(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
@@ -87,14 +88,14 @@ struct vdump_args {
 
 
 static uint32_t
-hash_table_value(struct namedobj_instance *ni, void *key, uint32_t kopt)
+hash_table_value(struct namedobj_instance *ni, const void *key, uint32_t kopt)
 {
 
 	return (hash32_buf(key, 56, 0));
 }
 
 static int
-cmp_table_value(struct named_object *no, void *key, uint32_t kopt)
+cmp_table_value(struct named_object *no, const void *key, uint32_t kopt)
 {
 
 	return (memcmp(((struct table_val_link *)no)->pval, key, 56));

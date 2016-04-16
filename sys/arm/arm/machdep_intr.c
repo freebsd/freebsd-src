@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #include "pic_if.h"
 
 #ifdef SMP
@@ -131,7 +131,7 @@ arm_irq_memory_barrier(uintptr_t irq)
 	cpu_l2cache_drain_writebuf();
 }
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #ifdef SMP
 static inline struct intr_ipi *
 intr_ipi_lookup(u_int ipi)

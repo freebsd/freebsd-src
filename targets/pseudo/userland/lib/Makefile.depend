@@ -117,6 +117,7 @@ DIRDEPS = \
 	lib/libpam/modules/pam_ssh \
 	lib/libpam/modules/pam_tacplus \
 	lib/libpam/modules/pam_unix \
+	lib/libpam/static_libpam \
 	lib/libpcap \
 	lib/libpe \
 	lib/libpjdlog \

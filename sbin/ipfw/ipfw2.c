@@ -234,6 +234,9 @@ static struct _s_x ether_types[] = {
 	{ NULL,		0 }
 };
 
+static struct _s_x rule_eactions[] = {
+	{ NULL, 0 }	/* terminator */
+};
 
 static struct _s_x rule_actions[] = {
 	{ "accept",		TOK_ACCEPT },
@@ -265,6 +268,7 @@ static struct _s_x rule_actions[] = {
 	{ "setdscp",		TOK_SETDSCP },
 	{ "call",		TOK_CALL },
 	{ "return",		TOK_RETURN },
+	{ "eaction",		TOK_EACTION },
 	{ NULL, 0 }	/* terminator */
 };
 
@@ -381,6 +385,8 @@ static uint16_t pack_table(struct tidx *tstate, char *name);
 
 static char *table_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx);
 static void object_sort_ctlv(ipfw_obj_ctlv *ctlv);
+static char *object_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx,
+    uint16_t type);
 
 /*
  * Simple string buffer API.
@@ -634,7 +640,7 @@ do_get3(int optname, ip_fw3_opheader *op3, size_t *optlen)
  * with the string (-1 in case of failure).
  */
 int
-match_token(struct _s_x *table, char *string)
+match_token(struct _s_x *table, const char *string)
 {
 	struct _s_x *pt;
 	uint i = strlen(string);
@@ -646,7 +652,7 @@ match_token(struct _s_x *table, char *string)
 }
 
 /**
- * match_token takes a table and a string, returns the value associated
+ * match_token_relaxed takes a table and a string, returns the value associated
  * with the string for the best match.
  *
  * Returns:
@@ -655,7 +661,7 @@ match_token(struct _s_x *table, char *string)
  * -2 if more than one records match @string.
  */
 int
-match_token_relaxed(struct _s_x *table, char *string)
+match_token_relaxed(struct _s_x *table, const char *string)
 {
 	struct _s_x *pt, *m;
 	int i, c;
@@ -674,6 +680,18 @@ match_token_relaxed(struct _s_x *table, char *string)
 		return (m->x);
 
 	return (c > 0 ? -2: -1);
+}
+
+int
+get_token(struct _s_x *table, const char *string, const char *errbase)
+{
+	int tcmd;
+
+	if ((tcmd = match_token_relaxed(table, string)) < 0)
+		errx(EX_USAGE, "%s %s %s",
+		    (tcmd == 0) ? "invalid" : "ambiguous", errbase, string);
+
+	return (tcmd);
 }
 
 /**
@@ -1383,7 +1401,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 {
 	static int twidth = 0;
 	int l;
-	ipfw_insn *cmd, *tagptr = NULL;
+	ipfw_insn *cmd, *has_eaction = NULL, *tagptr = NULL;
 	const char *comment = NULL;	/* ptr to comment if we have one */
 	int proto = 0;		/* default */
 	int flags = 0;	/* prerequisites */
@@ -1484,7 +1502,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 			if (cmd->arg1 == ICMP6_UNREACH_RST)
 				bprintf(bp, "reset6");
 			else
-				print_unreach6_code(cmd->arg1);
+				print_unreach6_code(bp, cmd->arg1);
 			break;
 
 		case O_SKIPTO:
@@ -1566,6 +1584,52 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 		case O_SETFIB:
 			bprint_uint_arg(bp, "setfib ", cmd->arg1 & 0x7FFF);
  			break;
+
+		case O_EXTERNAL_ACTION: {
+			const char *ename;
+
+			/*
+			 * The external action can consists of two following
+			 * each other opcodes - O_EXTERNAL_ACTION and
+			 * O_EXTERNAL_INSTANCE. The first contains the ID of
+			 * name of external action. The second contains the ID
+			 * of name of external action instance.
+			 * NOTE: in case when external action has no named
+			 * instances support, the second opcode isn't needed.
+			 */
+			has_eaction = cmd;
+			ename = object_search_ctlv(fo->tstate, cmd->arg1,
+			    IPFW_TLV_EACTION);
+			if (match_token(rule_eactions, ename) != -1)
+				bprintf(bp, "%s", ename);
+			else
+				bprintf(bp, "eaction %s", ename);
+			break;
+		}
+
+		case O_EXTERNAL_INSTANCE: {
+			const char *ename;
+
+			if (has_eaction == NULL)
+				break;
+			/*
+			 * XXX: we need to teach ipfw(9) to rewrite opcodes
+			 * in the user buffer on rule addition. When we add
+			 * the rule, we specify zero TLV type for
+			 * O_EXTERNAL_INSTANCE object. To show correct
+			 * rule after `ipfw add` we need to search instance
+			 * name with zero type. But when we do `ipfw show`
+			 * we calculate TLV type using IPFW_TLV_EACTION_NAME()
+			 * macro.
+			 */
+			ename = object_search_ctlv(fo->tstate, cmd->arg1, 0);
+			if (ename == NULL)
+				ename = object_search_ctlv(fo->tstate,
+				    cmd->arg1,
+				    IPFW_TLV_EACTION_NAME(has_eaction->arg1));
+			bprintf(bp, " %s", ename);
+			break;
+		}
 
 		case O_SETDSCP:
 		    {
@@ -2730,6 +2794,42 @@ struct tidx {
 	uint8_t set;
 };
 
+int
+ipfw_check_object_name(const char *name)
+{
+	int c, i, l;
+
+	/*
+	 * Check that name is null-terminated and contains
+	 * valid symbols only. Valid mask is:
+	 * [a-zA-Z0-9\-_\.]{1,63}
+	 */
+	l = strlen(name);
+	if (l == 0 || l >= 64)
+		return (EINVAL);
+	for (i = 0; i < l; i++) {
+		c = name[i];
+		if (isalpha(c) || isdigit(c) || c == '_' ||
+		    c == '-' || c == '.')
+			continue;
+		return (EINVAL);
+	}
+	return (0);
+}
+
+static int
+eaction_check_name(const char *name)
+{
+
+	if (ipfw_check_object_name(name) != 0)
+		return (EINVAL);
+	/* Restrict some 'special' names */
+	if (match_token(rule_actions, name) != -1 &&
+	    match_token(rule_action_params, name) != -1)
+		return (EINVAL);
+	return (0);
+}
+
 static uint16_t
 pack_object(struct tidx *tstate, char *name, int otype)
 {
@@ -3833,7 +3933,46 @@ chkarg:
 		break;
 
 	default:
-		errx(EX_DATAERR, "invalid action %s\n", av[-1]);
+		av--;
+		if (match_token(rule_eactions, *av) == -1)
+			errx(EX_DATAERR, "invalid action %s\n", *av);
+		/*
+		 * External actions support.
+		 * XXX: we support only syntax with instance name.
+		 *	For known external actions (from rule_eactions list)
+		 *	we can handle syntax directly. But with `eaction'
+		 *	keyword we can use only `eaction <name> <instance>'
+		 *	syntax.
+		 */
+	case TOK_EACTION: {
+		uint16_t idx;
+
+		NEED1("Missing eaction name");
+		if (eaction_check_name(*av) != 0)
+			errx(EX_DATAERR, "Invalid eaction name %s", *av);
+		idx = pack_object(tstate, *av, IPFW_TLV_EACTION);
+		if (idx == 0)
+			errx(EX_DATAERR, "pack_object failed");
+		fill_cmd(action, O_EXTERNAL_ACTION, 0, idx);
+		av++;
+		NEED1("Missing eaction instance name");
+		action = next_cmd(action, &ablen);
+		action->len = 1;
+		CHECK_ACTLEN;
+		if (eaction_check_name(*av) != 0)
+			errx(EX_DATAERR, "Invalid eaction instance name %s",
+			    *av);
+		/*
+		 * External action instance object has TLV type depended
+		 * from the external action name object index. Since we
+		 * currently don't know this index, use zero as TLV type.
+		 */
+		idx = pack_object(tstate, *av, 0);
+		if (idx == 0)
+			errx(EX_DATAERR, "pack_object failed");
+		fill_cmd(action, O_EXTERNAL_INSTANCE, 0, idx);
+		av++;
+		}
 	}
 	action = next_cmd(action, &ablen);
 
@@ -4758,7 +4897,7 @@ object_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx, uint16_t type)
 	ntlv = bsearch(&key, (ctlv + 1), ctlv->count, ctlv->objsize,
 	    compare_object_kntlv);
 
-	if (ntlv != 0)
+	if (ntlv != NULL)
 		return (ntlv->name);
 
 	return (NULL);
@@ -5019,7 +5158,7 @@ ipfw_list_objects(int ac, char *av[])
 		printf("There are no objects\n");
 	ntlv = (ipfw_obj_ntlv *)(olh + 1);
 	for (i = 0; i < olh->count; i++) {
-		printf(" kidx: %4d\ttype: %2d\tname: %s\n", ntlv->idx,
+		printf(" kidx: %4d\ttype: %6d\tname: %s\n", ntlv->idx,
 		    ntlv->head.type, ntlv->name);
 		ntlv++;
 	}

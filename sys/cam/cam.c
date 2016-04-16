@@ -412,7 +412,8 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 			}
 			if (proto_flags & CAM_EAF_PRINT_RESULT) {
 				sbuf_cat(&sb, path_str);
-				ata_res_sbuf(&ccb->ataio, &sb);
+				sbuf_printf(&sb, "RES: ");
+				ata_res_sbuf(&ccb->ataio.res, &sb);
 				sbuf_printf(&sb, "\n");
 			}
 

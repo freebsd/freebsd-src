@@ -43,7 +43,7 @@
 #include <dev/ofw/openfirm.h>
 #endif
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 
 #ifndef NIRQ
 #define	NIRQ		1024	/* XXX - It should be an option. */
@@ -63,7 +63,7 @@ void intr_ipi_setup(u_int, const char *, intr_ipi_handler_t *, void *,
 
 int intr_pic_ipi_setup(u_int, const char *, intr_ipi_handler_t *, void *);
 #endif
-#else /* ARM_INTRNG */
+#else /* INTRNG */
 
 /* XXX move to std.* files? */
 #ifdef CPU_XSCALE_81342
@@ -111,7 +111,7 @@ int gic_decode_fdt(phandle_t, pcell_t *, int *, int *, int *);
 int intr_fdt_map_irq(phandle_t, pcell_t *, int);
 #endif
 
-#endif /* ARM_INTRNG */
+#endif /* INTRNG */
 
 void arm_irq_memory_barrier(uintptr_t);
 

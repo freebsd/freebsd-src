@@ -54,8 +54,8 @@ __FBSDID("$FreeBSD$");
 #include "getopt.h"
 
 extern int krping_debug;
-#define DEBUG_LOG(cb, x...) if (krping_debug) krping_printf((cb)->cookie, x)
-#define PRINTF(cb, x...) krping_printf((cb)->cookie, x)
+#define DEBUG_LOG(cb, x...) if (krping_debug) log(LOG_INFO, x)
+#define PRINTF(cb, x...) log(LOG_INFO, x)
 #define BIND_INFO 1
 
 MODULE_AUTHOR("Steve Wise");
@@ -376,8 +376,8 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 				continue;
 			} else {
 				PRINTF(cb, "cq completion failed with "
-				       "wr_id %Lx status %d opcode %d vender_err %x\n",
-					wc.wr_id, wc.status, wc.opcode, wc.vendor_err);
+				       "wr_id %jx status %d opcode %d vender_err %x\n",
+					(uintmax_t)wc.wr_id, wc.status, wc.opcode, wc.vendor_err);
 				goto error;
 			}
 		}
@@ -570,8 +570,8 @@ static int krping_setup_buffers(struct krping_cb *cb)
 		if (!cb->local_dma_lkey) {
 			buf.addr = cb->recv_dma_addr;
 			buf.size = sizeof cb->recv_buf;
-			DEBUG_LOG(cb, "recv buf dma_addr %llx size %d\n", buf.addr, 
-				(int)buf.size);
+			DEBUG_LOG(cb, "recv buf dma_addr %jx size %d\n",
+			    (uintmax_t)buf.addr, (int)buf.size);
 			iovbase = cb->recv_dma_addr;
 			cb->recv_mr = ib_reg_phys_mr(cb->pd, &buf, 1, 
 						     IB_ACCESS_LOCAL_WRITE, 
@@ -585,8 +585,8 @@ static int krping_setup_buffers(struct krping_cb *cb)
 
 			buf.addr = cb->send_dma_addr;
 			buf.size = sizeof cb->send_buf;
-			DEBUG_LOG(cb, "send buf dma_addr %llx size %d\n", buf.addr, 
-				(int)buf.size);
+			DEBUG_LOG(cb, "send buf dma_addr %jx size %d\n",
+			    (uintmax_t)buf.addr, (int)buf.size);
 			iovbase = cb->send_dma_addr;
 			cb->send_mr = ib_reg_phys_mr(cb->pd, &buf, 1, 
 						     0, &iovbase);
@@ -657,8 +657,8 @@ static int krping_setup_buffers(struct krping_cb *cb)
 				ret = PTR_ERR(cb->rdma_mr);
 				goto bail;
 			}
-			DEBUG_LOG(cb, "rdma buf dma_addr %llx size %d mr rkey 0x%x\n", 
-				buf.addr, (int)buf.size, cb->rdma_mr->rkey);
+			DEBUG_LOG(cb, "rdma buf dma_addr %jx size %d mr rkey 0x%x\n",
+				(uintmax_t)buf.addr, (int)buf.size, cb->rdma_mr->rkey);
 			break;
 		default:
 			ret = -EINVAL;
@@ -691,8 +691,8 @@ static int krping_setup_buffers(struct krping_cb *cb)
 
 			buf.addr = cb->start_dma_addr;
 			buf.size = cb->size;
-			DEBUG_LOG(cb, "start buf dma_addr %llx size %d\n", 
-				buf.addr, (int)buf.size);
+			DEBUG_LOG(cb, "start buf dma_addr %jx size %d\n",
+				(uintmax_t)buf.addr, (int)buf.size);
 			iovbase = cb->start_dma_addr;
 			cb->start_mr = ib_reg_phys_mr(cb->pd, &buf, 1, 
 					     flags,
@@ -882,16 +882,16 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 		for (i=0; i < cb->fastreg_wr.wr.fast_reg.page_list_len; 
 		     i++, p += PAGE_SIZE) {
 			cb->page_list->page_list[i] = p;
-			DEBUG_LOG(cb, "page_list[%d] 0x%llx\n", i, p);
+			DEBUG_LOG(cb, "page_list[%d] 0x%jx\n", i, (uintmax_t)p);
 		}
 
 		DEBUG_LOG(cb, "post_inv = %d, fastreg new rkey 0x%x shift %u len %u"
-			" iova_start %llx page_list_len %u\n",
+			" iova_start %jx page_list_len %u\n",
 			post_inv,
 			cb->fastreg_wr.wr.fast_reg.rkey,
 			cb->fastreg_wr.wr.fast_reg.page_shift,
 			cb->fastreg_wr.wr.fast_reg.length,
-			cb->fastreg_wr.wr.fast_reg.iova_start,
+			(uintmax_t)cb->fastreg_wr.wr.fast_reg.iova_start,
 			cb->fastreg_wr.wr.fast_reg.page_list_len);
 
 		if (post_inv)
@@ -930,9 +930,9 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 #else
 		cb->bind_attr.addr = buf;
 #endif
-		DEBUG_LOG(cb, "binding mw rkey 0x%x to buf %llx mr rkey 0x%x\n",
+		DEBUG_LOG(cb, "binding mw rkey 0x%x to buf %jx mr rkey 0x%x\n",
 #ifdef BIND_INFO
-			cb->mw->rkey, buf, cb->bind_attr.bind_info.mr->rkey);
+			cb->mw->rkey, (uintmax_t)buf, cb->bind_attr.bind_info.mr->rkey);
 #else
 			cb->mw->rkey, buf, cb->bind_attr.mr->rkey);
 #endif
@@ -1199,8 +1199,8 @@ static void rlat_test(struct krping_cb *cb)
         }
 
 	PRINTF(cb, "delta sec %lu delta usec %lu iter %d size %d\n",
-		stop_tv.tv_sec - start_tv.tv_sec, 
-		stop_tv.tv_usec - start_tv.tv_usec,
+		(unsigned long)(stop_tv.tv_sec - start_tv.tv_sec),
+		(unsigned long)(stop_tv.tv_usec - start_tv.tv_usec),
 		scnt, cb->size);
 }
 
@@ -1333,12 +1333,12 @@ static void wlat_test(struct krping_cb *cb)
 		sum_poll += poll_cycles_stop[i] - poll_cycles_start[i];
 		sum_last_poll += poll_cycles_stop[i]-last_poll_cycles_start[i];
 	}
-	PRINTF(cb, 
+	PRINTF(cb,
 		"delta sec %lu delta usec %lu iter %d size %d cycle_iters %d"
 		" sum_post %llu sum_poll %llu sum_last_poll %llu\n",
-		stop_tv.tv_sec - start_tv.tv_sec, 
-		stop_tv.tv_usec - start_tv.tv_usec,
-		scnt, cb->size, cycle_iters, 
+		(unsigned long)(stop_tv.tv_sec - start_tv.tv_sec),
+		(unsigned long)(stop_tv.tv_usec - start_tv.tv_usec),
+		scnt, cb->size, cycle_iters,
 		(unsigned long long)sum_post, (unsigned long long)sum_poll, 
 		(unsigned long long)sum_last_poll);
 	kfree(post_cycles_start);
@@ -1459,11 +1459,11 @@ static void bw_test(struct krping_cb *cb)
 		sum_poll += poll_cycles_stop[i] - poll_cycles_start[i];
 		sum_last_poll += poll_cycles_stop[i]-last_poll_cycles_start[i];
 	}
-	PRINTF(cb, 
+	PRINTF(cb,
 		"delta sec %lu delta usec %lu iter %d size %d cycle_iters %d"
 		" sum_post %llu sum_poll %llu sum_last_poll %llu\n",
-		stop_tv.tv_sec - start_tv.tv_sec, 
-		stop_tv.tv_usec - start_tv.tv_usec,
+		(unsigned long)(stop_tv.tv_sec - start_tv.tv_sec),
+		(unsigned long)(stop_tv.tv_usec - start_tv.tv_usec),
 		scnt, cb->size, cycle_iters, 
 		(unsigned long long)sum_post, (unsigned long long)sum_poll, 
 		(unsigned long long)sum_last_poll);
@@ -1588,12 +1588,12 @@ static int fastreg_supported(struct krping_cb *cb, int server)
 		return 0;
 	}
 	if (!(attr.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS)) {
-		PRINTF(cb, "Fastreg not supported - device_cap_flags 0x%x\n",
-		    attr.device_cap_flags);
+		PRINTF(cb, "Fastreg not supported - device_cap_flags 0x%llx\n",
+		    (unsigned long long)attr.device_cap_flags);
 		return 0;
 	}
-	DEBUG_LOG(cb, "Fastreg supported - device_cap_flags 0x%x\n",
-		attr.device_cap_flags);
+	DEBUG_LOG(cb, "Fastreg supported - device_cap_flags 0x%jx\n",
+		(uintmax_t)attr.device_cap_flags);
 	return 1;
 }
 
@@ -1664,19 +1664,19 @@ static void krping_fr_test5(struct krping_cb *cb)
 	}
 
 	pl = kzalloc(sizeof *pl * depth, GFP_KERNEL);
-	DEBUG_LOG(cb, "%s pl %p size %lu\n", __func__, pl, sizeof *pl * depth);
+	DEBUG_LOG(cb, "%s pl %p size %zu\n", __func__, pl, sizeof *pl * depth);
 	mr = kzalloc(sizeof *mr * depth, GFP_KERNEL);
-	DEBUG_LOG(cb, "%s mr %p size %lu\n", __func__, mr, sizeof *mr * depth);
+	DEBUG_LOG(cb, "%s mr %p size %zu\n", __func__, mr, sizeof *mr * depth);
 	fr = kzalloc(sizeof *fr * depth, GFP_KERNEL);
-	DEBUG_LOG(cb, "%s fr %p size %lu\n", __func__, fr, sizeof *fr * depth);
+	DEBUG_LOG(cb, "%s fr %p size %zu\n", __func__, fr, sizeof *fr * depth);
 	sgl = kzalloc(sizeof *sgl * depth, GFP_KERNEL);
-	DEBUG_LOG(cb, "%s sgl %p size %lu\n", __func__, sgl, sizeof *sgl * depth);
+	DEBUG_LOG(cb, "%s sgl %p size %zu\n", __func__, sgl, sizeof *sgl * depth);
 	read = kzalloc(sizeof *read * depth, GFP_KERNEL);
-	DEBUG_LOG(cb, "%s read %p size %lu\n", __func__, read, sizeof *read * depth);
+	DEBUG_LOG(cb, "%s read %p size %zu\n", __func__, read, sizeof *read * depth);
 	buf = kzalloc(sizeof *buf * depth, GFP_KERNEL);
-	DEBUG_LOG(cb, "%s buf %p size %lu\n", __func__, buf, sizeof *buf * depth);
+	DEBUG_LOG(cb, "%s buf %p size %zu\n", __func__, buf, sizeof *buf * depth);
 	dma_addr = kzalloc(sizeof *dma_addr * depth, GFP_KERNEL);
-	DEBUG_LOG(cb, "%s dma_addr %p size %lu\n", __func__, dma_addr, sizeof *dma_addr * depth);
+	DEBUG_LOG(cb, "%s dma_addr %p size %zu\n", __func__, dma_addr, sizeof *dma_addr * depth);
 	if (!pl || !mr || !fr || !read || !sgl || !buf || !dma_addr) {
 		PRINTF(cb, "kzalloc failed\n");
 		goto err1;
@@ -1719,16 +1719,16 @@ static void krping_fr_test5(struct krping_cb *cb)
 		DEBUG_LOG(cb, "%s dma_addr[%u] %p\n", __func__, scnt, (void *)dma_addr[scnt]);
 		for (i=0; i<plen; i++) {
 			pl[scnt]->page_list[i] = ((unsigned long)dma_addr[scnt] & PAGE_MASK) + (i * PAGE_SIZE);
-			DEBUG_LOG(cb, "%s pl[%u]->page_list[%u] 0x%llx\n",
-				  __func__, scnt, i,  pl[scnt]->page_list[i]);
+			DEBUG_LOG(cb, "%s pl[%u]->page_list[%u] 0x%jx\n",
+				  __func__, scnt, i,  (uintmax_t)pl[scnt]->page_list[i]);
 		}
 
 		sgl[scnt].lkey = mr[scnt]->rkey;
 		sgl[scnt].length = cb->size;
 		sgl[scnt].addr = (u64)buf[scnt];
-		DEBUG_LOG(cb, "%s sgl[%u].lkey 0x%x length %u addr 0x%llx\n",
+		DEBUG_LOG(cb, "%s sgl[%u].lkey 0x%x length %u addr 0x%jx\n",
 			  __func__, scnt,  sgl[scnt].lkey, sgl[scnt].length,
-			  sgl[scnt].addr);
+			  (uintmax_t)sgl[scnt].addr);
 
 		fr[scnt].opcode = IB_WR_FAST_REG_MR;
 		fr[scnt].wr_id = scnt;
@@ -1778,9 +1778,9 @@ static void krping_fr_test5(struct krping_cb *cb)
 			if (ret == 1) {
 				if (wc.status) {
 					PRINTF(cb,
-					       "completion error %u wr_id %lld "
+					       "completion error %u wr_id %ju "
 					       "opcode %d\n", wc.status,
-					       wc.wr_id, wc.opcode);
+					       (uintmax_t)wc.wr_id, wc.opcode);
 					goto err2;
 				}
 				count++;
@@ -1877,8 +1877,8 @@ static void krping_fr_test5_server(struct krping_cb *cb)
 	while (cb->state < RDMA_READ_ADV) {
 		krping_cq_event_handler(cb->cq, cb);
 	}
-	DEBUG_LOG(cb, "%s client STAG %x TO 0x%llx\n", __func__,
-		  cb->remote_rkey, cb->remote_addr);
+	DEBUG_LOG(cb, "%s client STAG %x TO 0x%jx\n", __func__,
+		  cb->remote_rkey, (uintmax_t)cb->remote_addr);
 
 	/* Send STAG/TO/Len to client */
 	krping_format_send(cb, cb->start_dma_addr);
@@ -1940,7 +1940,8 @@ static void krping_fr_test5_client(struct krping_cb *cb)
 	while (cb->state < RDMA_WRITE_ADV) {
 		krping_cq_event_handler(cb->cq, cb);
 	}
-	DEBUG_LOG(cb, "%s server STAG %x TO 0x%llx\n", __func__, cb->remote_rkey, cb->remote_addr);
+	DEBUG_LOG(cb, "%s server STAG %x TO 0x%jx\n", __func__, cb->remote_rkey,
+	    (uintmax_t)cb->remote_addr);
 
 	return krping_fr_test5(cb);
 }
@@ -1978,28 +1979,28 @@ static void krping_fr_test6(struct krping_cb *cb)
 	}
 
 	pl = kzalloc(sizeof *pl * depth, GFP_KERNEL);
-	DEBUG_LOG(cb, "%s pl %p size %lu\n", __func__, pl, sizeof *pl * depth);
+	DEBUG_LOG(cb, "%s pl %p size %zu\n", __func__, pl, sizeof *pl * depth);
 
 	mr = kzalloc(sizeof *mr * depth, GFP_KERNEL);
-	DEBUG_LOG(cb, "%s mr %p size %lu\n", __func__, mr, sizeof *mr * depth);
+	DEBUG_LOG(cb, "%s mr %p size %zu\n", __func__, mr, sizeof *mr * depth);
 
 	fr = kzalloc(sizeof *fr * depth, GFP_KERNEL);
-	DEBUG_LOG(cb, "%s fr %p size %lu\n", __func__, fr, sizeof *fr * depth);
+	DEBUG_LOG(cb, "%s fr %p size %zu\n", __func__, fr, sizeof *fr * depth);
 
 	sgl = kzalloc(sizeof *sgl * depth, GFP_KERNEL);
-	DEBUG_LOG(cb, "%s sgl %p size %lu\n", __func__, sgl, sizeof *sgl * depth);
+	DEBUG_LOG(cb, "%s sgl %p size %zu\n", __func__, sgl, sizeof *sgl * depth);
 
 	write = kzalloc(sizeof *write * depth, GFP_KERNEL);
-	DEBUG_LOG(cb, "%s read %p size %lu\n", __func__, write, sizeof *write * depth);
+	DEBUG_LOG(cb, "%s read %p size %zu\n", __func__, write, sizeof *write * depth);
 
 	inv = kzalloc(sizeof *inv * depth, GFP_KERNEL);
-	DEBUG_LOG(cb, "%s inv %p size %lu\n", __func__, inv, sizeof *inv * depth);
+	DEBUG_LOG(cb, "%s inv %p size %zu\n", __func__, inv, sizeof *inv * depth);
 
 	buf = kzalloc(sizeof *buf * depth, GFP_KERNEL);
-	DEBUG_LOG(cb, "%s buf %p size %lu\n", __func__, buf, sizeof *buf * depth);
+	DEBUG_LOG(cb, "%s buf %p size %zu\n", __func__, buf, sizeof *buf * depth);
 
 	dma_addr = kzalloc(sizeof *dma_addr * depth, GFP_KERNEL);
-	DEBUG_LOG(cb, "%s dma_addr %p size %lu\n", __func__, dma_addr, sizeof *dma_addr * depth);
+	DEBUG_LOG(cb, "%s dma_addr %p size %zu\n", __func__, dma_addr, sizeof *dma_addr * depth);
 
 	if (!pl || !mr || !fr || !write || !sgl || !buf || !dma_addr) {
 		PRINTF(cb, "kzalloc failed\n");
@@ -2043,8 +2044,8 @@ static void krping_fr_test6(struct krping_cb *cb)
 		DEBUG_LOG(cb, "%s dma_addr[%u] %p\n", __func__, scnt, (void *)dma_addr[scnt]);
 		for (i=0; i<plen; i++) {
 			pl[scnt]->page_list[i] = ((unsigned long)dma_addr[scnt] & PAGE_MASK) + (i * PAGE_SIZE);
-			DEBUG_LOG(cb, "%s pl[%u]->page_list[%u] 0x%llx\n",
-				  __func__, scnt, i,  pl[scnt]->page_list[i]);
+			DEBUG_LOG(cb, "%s pl[%u]->page_list[%u] 0x%jx\n",
+				  __func__, scnt, i,  (uintmax_t)pl[scnt]->page_list[i]);
 		}
 
 		write[scnt].opcode = IB_WR_RDMA_WRITE;
@@ -2101,9 +2102,9 @@ static void krping_fr_test6(struct krping_cb *cb)
 			if (ret == 1) {
 				if (wc.status) {
 					PRINTF(cb,
-					       "completion error %u wr_id %lld "
+					       "completion error %u wr_id %ju "
 					       "opcode %d\n", wc.status,
-					       wc.wr_id, wc.opcode);
+					       (uintmax_t)wc.wr_id, wc.opcode);
 					goto err2;
 				}
 				count++;
@@ -2200,8 +2201,8 @@ static void krping_fr_test6_server(struct krping_cb *cb)
 	while (cb->state < RDMA_READ_ADV) {
 		krping_cq_event_handler(cb->cq, cb);
 	}
-	DEBUG_LOG(cb, "%s client STAG %x TO 0x%llx\n", __func__,
-		  cb->remote_rkey, cb->remote_addr);
+	DEBUG_LOG(cb, "%s client STAG %x TO 0x%jx\n", __func__,
+		  cb->remote_rkey, (uintmax_t)cb->remote_addr);
 
 	/* Send STAG/TO/Len to client */
 	krping_format_send(cb, cb->start_dma_addr);
@@ -2263,7 +2264,8 @@ static void krping_fr_test6_client(struct krping_cb *cb)
 	while (cb->state < RDMA_WRITE_ADV) {
 		krping_cq_event_handler(cb->cq, cb);
 	}
-	DEBUG_LOG(cb, "%s server STAG %x TO 0x%llx\n", __func__, cb->remote_rkey, cb->remote_addr);
+	DEBUG_LOG(cb, "%s server STAG %x TO 0x%jx\n", __func__, cb->remote_rkey,
+	    (uintmax_t)cb->remote_addr);
 
 	return krping_fr_test6(cb);
 }

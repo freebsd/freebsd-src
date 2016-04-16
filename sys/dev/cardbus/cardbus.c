@@ -169,6 +169,15 @@ cardbus_device_setup_regs(pcicfgregs *cfg)
 	pci_write_config(dev, PCIR_MAXLAT, 0x14, 1);
 }
 
+static struct pci_devinfo *
+cardbus_alloc_devinfo(device_t dev)
+{
+	struct cardbus_devinfo *dinfo;
+
+	dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
+	return (&dinfo->pci);
+}
+
 static int
 cardbus_attach_card(device_t cbdev)
 {
@@ -191,8 +200,7 @@ cardbus_attach_card(device_t cbdev)
 		struct cardbus_devinfo *dinfo;
 
 		dinfo = (struct cardbus_devinfo *)
-		    pci_read_device(brdev, domain, bus, slot, func,
-			sizeof(struct cardbus_devinfo));
+		    pci_read_device(brdev, cbdev, domain, bus, slot, func);
 		if (dinfo == NULL)
 			continue;
 		if (dinfo->pci.cfg.mfdev)
@@ -342,6 +350,9 @@ static device_method_t cardbus_methods[] = {
 	/* Card Interface */
 	DEVMETHOD(card_attach_card,	cardbus_attach_card),
 	DEVMETHOD(card_detach_card,	cardbus_detach_card),
+
+	/* PCI interface */
+	DEVMETHOD(pci_alloc_devinfo,	cardbus_alloc_devinfo),
 
 	{0,0}
 };
