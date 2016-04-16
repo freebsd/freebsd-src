@@ -391,6 +391,14 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 		return (NULL);
 	}
 #endif
+#ifndef ALTQ_CODEL
+	if (flags & HFCF_CODEL) {
+#ifdef ALTQ_DEBUG
+		printf("hfsc_class_create: CODEL not configured for HFSC!\n");
+#endif
+		return (NULL);
+	}
+#endif
 
 	cl = malloc(sizeof(struct hfsc_class), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (cl == NULL)
@@ -407,6 +415,7 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 	qlimit(cl->cl_q) = qlimit;
 	qtype(cl->cl_q) = Q_DROPTAIL;
 	qlen(cl->cl_q) = 0;
+	qsize(cl->cl_q) = 0;
 	cl->cl_flags = flags;
 #ifdef ALTQ_RED
 	if (flags & (HFCF_RED|HFCF_RIO)) {
@@ -451,6 +460,13 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 #endif
 	}
 #endif /* ALTQ_RED */
+#ifdef ALTQ_CODEL
+	if (flags & HFCF_CODEL) {
+		cl->cl_codel = codel_alloc(5, 100, 0);
+		if (cl->cl_codel != NULL)
+			qtype(cl->cl_q) = Q_CODEL;
+	}
+#endif
 
 	if (rsc != NULL && (rsc->m1 != 0 || rsc->m2 != 0)) {
 		cl->cl_rsc = malloc(sizeof(struct internal_sc),
@@ -543,6 +559,10 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 		if (q_is_red(cl->cl_q))
 			red_destroy(cl->cl_red);
 #endif
+#ifdef ALTQ_CODEL
+		if (q_is_codel(cl->cl_q))
+			codel_destroy(cl->cl_codel);
+#endif
 	}
 	if (cl->cl_fsc != NULL)
 		free(cl->cl_fsc, M_DEVBUF);
@@ -616,6 +636,10 @@ hfsc_class_destroy(struct hfsc_class *cl)
 #ifdef ALTQ_RED
 		if (q_is_red(cl->cl_q))
 			red_destroy(cl->cl_red);
+#endif
+#ifdef ALTQ_CODEL
+		if (q_is_codel(cl->cl_q))
+			codel_destroy(cl->cl_codel);
 #endif
 	}
 
@@ -844,6 +868,10 @@ hfsc_addq(struct hfsc_class *cl, struct mbuf *m)
 	if (q_is_red(cl->cl_q))
 		return red_addq(cl->cl_red, cl->cl_q, m, cl->cl_pktattr);
 #endif
+#ifdef ALTQ_CODEL
+	if (q_is_codel(cl->cl_q))
+		return codel_addq(cl->cl_codel, cl->cl_q, m);
+#endif
 	if (qlen(cl->cl_q) >= qlimit(cl->cl_q)) {
 		m_freem(m);
 		return (-1);
@@ -867,6 +895,10 @@ hfsc_getq(struct hfsc_class *cl)
 #ifdef ALTQ_RED
 	if (q_is_red(cl->cl_q))
 		return red_getq(cl->cl_red, cl->cl_q);
+#endif
+#ifdef ALTQ_CODEL
+	if (q_is_codel(cl->cl_q))
+		return codel_getq(cl->cl_codel, cl->cl_q);
 #endif
 	return _getq(cl->cl_q);
 }
@@ -1651,6 +1683,10 @@ get_class_stats(struct hfsc_classstats *sp, struct hfsc_class *cl)
 #ifdef ALTQ_RIO
 	if (q_is_rio(cl->cl_q))
 		rio_getstats((rio_t *)cl->cl_red, &sp->red[0]);
+#endif
+#ifdef ALTQ_CODEL
+	if (q_is_codel(cl->cl_q))
+		codel_getstats(cl->cl_codel, &sp->codel);
 #endif
 }
 
