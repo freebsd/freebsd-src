@@ -3644,6 +3644,7 @@ const char *	scsi_op_desc(u_int16_t opcode,
 			     struct scsi_inquiry_data *inq_data);
 char *		scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string,
 				size_t len);
+void		scsi_cdb_sbuf(u_int8_t *cdb_ptr, struct sbuf *sb);
 
 void		scsi_print_inquiry(struct scsi_inquiry_data *inq_data);
 void		scsi_print_inquiry_short(struct scsi_inquiry_data *inq_data);

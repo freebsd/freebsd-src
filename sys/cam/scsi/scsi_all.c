@@ -3464,14 +3464,32 @@ scsi_error_action(struct ccb_scsiio *csio, struct scsi_inquiry_data *inq_data,
 char *
 scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string, size_t len)
 {
+	struct sbuf sb;
+	int error;
+
+	if (len == 0)
+		return ("");
+
+	sbuf_new(&sb, cdb_string, len, SBUF_FIXEDLEN);
+
+	scsi_cdb_sbuf(cdb_ptr, &sb);
+
+	/* ENOMEM just means that the fixed buffer is full, OK to ignore */
+	error = sbuf_finish(&sb);
+	if (error != 0 && error != ENOMEM)
+		return ("");
+
+	return(sbuf_data(&sb));
+}
+
+void
+scsi_cdb_sbuf(u_int8_t *cdb_ptr, struct sbuf *sb)
+{
 	u_int8_t cdb_len;
 	int i;
 
 	if (cdb_ptr == NULL)
-		return("");
-
-	/* Silence warnings */
-	cdb_len = 0;
+		return;
 
 	/*
 	 * This is taken from the SCSI-3 draft spec.
@@ -3508,12 +3526,11 @@ scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string, size_t len)
 			cdb_len = 12;
 			break;
 	}
-	*cdb_string = '\0';
-	for (i = 0; i < cdb_len; i++)
-		snprintf(cdb_string + strlen(cdb_string),
-			 len - strlen(cdb_string), "%02hhx ", cdb_ptr[i]);
 
-	return(cdb_string);
+	for (i = 0; i < cdb_len; i++)
+		sbuf_printf(sb, "%02hhx ", cdb_ptr[i]);
+
+	return;
 }
 
 const char *
@@ -3562,7 +3579,6 @@ scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio,
 #endif /* _KERNEL/!_KERNEL */
 {
 	struct scsi_inquiry_data *inq_data;
-	char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
 #ifdef _KERNEL
 	struct	  ccb_getdev *cgd;
 #endif /* _KERNEL */
@@ -3595,15 +3611,13 @@ scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio,
 #endif /* _KERNEL/!_KERNEL */
 
 	if ((csio->ccb_h.flags & CAM_CDB_POINTER) != 0) {
-		sbuf_printf(sb, "%s. CDB: %s", 
-			    scsi_op_desc(csio->cdb_io.cdb_ptr[0], inq_data),
-			    scsi_cdb_string(csio->cdb_io.cdb_ptr, cdb_str,
-					    sizeof(cdb_str)));
+		sbuf_printf(sb, "%s. CDB: ", 
+			    scsi_op_desc(csio->cdb_io.cdb_ptr[0], inq_data));
+		scsi_cdb_sbuf(csio->cdb_io.cdb_ptr, sb);
 	} else {
-		sbuf_printf(sb, "%s. CDB: %s",
-			    scsi_op_desc(csio->cdb_io.cdb_bytes[0], inq_data),
-			    scsi_cdb_string(csio->cdb_io.cdb_bytes, cdb_str,
-					    sizeof(cdb_str)));
+		sbuf_printf(sb, "%s. CDB: ",
+			    scsi_op_desc(csio->cdb_io.cdb_bytes[0], inq_data));
+		scsi_cdb_sbuf(csio->cdb_io.cdb_bytes, sb);
 	}
 
 #ifdef _KERNEL
