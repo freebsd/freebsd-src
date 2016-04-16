@@ -537,6 +537,11 @@ altq_pfattach(struct pf_altq *a)
 		error = hfsc_pfattach(a);
 		break;
 #endif
+#ifdef ALTQ_FAIRQ
+	case ALTQT_FAIRQ:
+		error = fairq_pfattach(a);
+		break;
+#endif
 	default:
 		error = ENXIO;
 	}
@@ -612,6 +617,11 @@ altq_add(struct pf_altq *a)
 		error = hfsc_add_altq(a);
 		break;
 #endif
+#ifdef ALTQ_FAIRQ
+        case ALTQT_FAIRQ:
+                error = fairq_add_altq(a);
+                break;
+#endif
 	default:
 		error = ENXIO;
 	}
@@ -648,6 +658,11 @@ altq_remove(struct pf_altq *a)
 		error = hfsc_remove_altq(a);
 		break;
 #endif
+#ifdef ALTQ_FAIRQ
+        case ALTQT_FAIRQ:
+                error = fairq_remove_altq(a);
+                break;
+#endif
 	default:
 		error = ENXIO;
 	}
@@ -680,6 +695,11 @@ altq_add_queue(struct pf_altq *a)
 	case ALTQT_HFSC:
 		error = hfsc_add_queue(a);
 		break;
+#endif
+#ifdef ALTQ_FAIRQ
+        case ALTQT_FAIRQ:
+                error = fairq_add_queue(a);
+                break;
 #endif
 	default:
 		error = ENXIO;
@@ -714,6 +734,11 @@ altq_remove_queue(struct pf_altq *a)
 		error = hfsc_remove_queue(a);
 		break;
 #endif
+#ifdef ALTQ_FAIRQ
+        case ALTQT_FAIRQ:
+                error = fairq_remove_queue(a);
+                break;
+#endif
 	default:
 		error = ENXIO;
 	}
@@ -746,6 +771,11 @@ altq_getqstats(struct pf_altq *a, void *ubuf, int *nbytes)
 	case ALTQT_HFSC:
 		error = hfsc_getqstats(a, ubuf, nbytes);
 		break;
+#endif
+#ifdef ALTQ_FAIRQ
+        case ALTQT_FAIRQ:
+                error = fairq_getqstats(a, ubuf, nbytes);
+                break;
 #endif
 	default:
 		error = ENXIO;
