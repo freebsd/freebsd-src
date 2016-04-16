@@ -187,6 +187,9 @@
 		countries="CN" />
 	<language name="zh"
 		family="Hant"
+		countries="HK" />
+	<language name="zh"
+		family="Hant"
 		encoding="Big5"
 		countries="TW" />
 </languages>
