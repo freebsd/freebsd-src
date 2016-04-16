@@ -2084,13 +2084,13 @@ dump_cachefile(const char *cachefile)
 	nvlist_t *config;
 
 	if ((fd = open64(cachefile, O_RDONLY)) < 0) {
-		(void) printf("cannot open '%s': %s\n", cachefile,
+		(void) fprintf(stderr, "cannot open '%s': %s\n", cachefile,
 		    strerror(errno));
 		exit(1);
 	}
 
 	if (fstat64(fd, &statbuf) != 0) {
-		(void) printf("failed to stat '%s': %s\n", cachefile,
+		(void) fprintf(stderr, "failed to stat '%s': %s\n", cachefile,
 		    strerror(errno));
 		exit(1);
 	}
