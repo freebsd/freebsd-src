@@ -252,6 +252,7 @@ compat/freebsd32/freebsd32_syscalls.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_sysent.c	optional compat_freebsd32
 contrib/altq/altq/altq_cbq.c		optional altq
 contrib/altq/altq/altq_cdnr.c		optional altq
+contrib/altq/altq/altq_fairq.c		optional altq
 contrib/altq/altq/altq_hfsc.c		optional altq
 contrib/altq/altq/altq_priq.c		optional altq
 contrib/altq/altq/altq_red.c		optional altq
