@@ -27,6 +27,8 @@ LOCALES+=	zh_Hans_CN.GB2312
 LOCALES+=	zh_Hans_CN.eucCN
 LOCALES+=	zh_Hant_TW.Big5
 
+
+
 SAME+=		uk_UA.ISO8859-5 uk_UA.CP1251
 SAME+=		uk_UA.ISO8859-5 sv_SE.ISO8859-15
 SAME+=		uk_UA.ISO8859-5 sv_SE.ISO8859-1
@@ -86,7 +88,6 @@ SAME+=		uk_UA.UTF-8 be_BY.UTF-8
 SAME+=		uk_UA.UTF-8 af_ZA.UTF-8
 SAME+=		en_US.UTF-8 zh_Hant_TW.UTF-8
 SAME+=		en_US.UTF-8 zh_Hant_HK.UTF-8
-SAME+=		en_US.UTF-8 zh_Hant_HK.Big5HKSCS
 SAME+=		en_US.UTF-8 zh_Hans_CN.UTF-8
 SAME+=		en_US.UTF-8 zh_Hans_CN.GBK
 SAME+=		en_US.UTF-8 zh_Hans_CN.GB18030
