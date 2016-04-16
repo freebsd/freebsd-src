@@ -38,6 +38,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160419: remove Big5HKSCS locales
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_COLLATE
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_CTYPE
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_MONETARY
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_NUMERIC
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_TIME
+OLD_DIRS+=usr/share/locale/zh_HK.Big5HKSCS
 # 20160317: rman_res_t size bump to uintmax_t
 OLD_LIBS+=usr/lib/libdevinfo.so.5
 OLD_LIBS+=usr/lib32/libdevinfo.so.5
