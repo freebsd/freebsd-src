@@ -539,13 +539,8 @@ main(int argc, char **argv)
 		(void)setenv("inetd_dummy", dummy, 1);
 	}
 
-	if (pipe(signalpipe) != 0) {
+	if (pipe2(signalpipe, O_CLOEXEC) != 0) {
 		syslog(LOG_ERR, "pipe: %m");
-		exit(EX_OSERR);
-	}
-	if (fcntl(signalpipe[0], F_SETFD, FD_CLOEXEC) < 0 ||
-	    fcntl(signalpipe[1], F_SETFD, FD_CLOEXEC) < 0) {
-		syslog(LOG_ERR, "signalpipe: fcntl (F_SETFD, FD_CLOEXEC): %m");
 		exit(EX_OSERR);
 	}
 	FD_SET(signalpipe[0], &allsock);
