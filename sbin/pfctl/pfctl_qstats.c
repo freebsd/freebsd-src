@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <altq/altq_cbq.h>
 #include <altq/altq_priq.h>
 #include <altq/altq_hfsc.h>
-#include <net/altq/altq_fairq.h>
+#include <altq/altq_fairq.h>
 
 #include "pfctl.h"
 #include "pfctl_parser.h"
