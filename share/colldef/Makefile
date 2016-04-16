@@ -221,6 +221,7 @@ FILESDIR_${f}.LC_COLLATE= ${LOCALEDIR}/${f}
 
 .for f t in ${LOCALES_MAPPED}
 FILES+=	$t.LC_COLLATE
+FILESDIR_$t.LC_COLLATE=	${LOCALEDIR}/$t
 $t.LC_COLLATE: ${.CURDIR}/$f.src
 	localedef -D -U -i ${.ALLSRC} \
 		-f ${MAPLOC}/map.${.TARGET:T:R:E} \
