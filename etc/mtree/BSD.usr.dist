@@ -905,15 +905,11 @@
             ..
             zh_Hans_CN.eucCN
             ..
-            zh_Hant_HK.Big5HKSCS
-            ..
             zh_Hant_HK.UTF-8
             ..
             zh_Hant_TW.Big5
             ..
             zh_Hant_TW.UTF-8
-            ..
-            zh_HK.Big5HKSCS
             ..
             zh_HK.UTF-8
             ..
