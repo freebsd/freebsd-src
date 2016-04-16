@@ -8,7 +8,6 @@ haible.de:	http://haible.de/bruno/charsets/conversion-tables/
 
     ARMSCII-8	haible.de: Armenian.html
     Big5	unicodeorg: OBSOLETE/EASTASIA/OTHER
-    Big5HKSCS	haible.de: BIG5-HKSCS.html / 
     CP1131	haible.de: CP1131.html / aix-4.3.2/IBM-1131.TXT
     CP1251	unicode.org: VENDORS/MICSFT/WINDOWS
     CP866	unicode.org: VENDORS/MICSFT/PC

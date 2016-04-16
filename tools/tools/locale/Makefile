@@ -22,6 +22,23 @@ KNOWN=		monetdef numericdef msgdef timedef colldef ctypedef
 TYPES?=		${KNOWN}
 LOCALE_DESTDIR?=	/tmp/generated-locales/
 
+COLLATION_SPECIAL?= \
+	cs_CZ ISO8859-2 \
+	da_DK ISO8859-1 \
+	da_DK ISO8859-15 \
+	hr_HR ISO8859-2 \
+	hu_HU ISO8859-2 \
+	nb_NO ISO8859-1 \
+	nb_NO ISO8859-15 \
+	sk_SK ISO8859-2 \
+	zh_Hans_CN GB2312 \
+	zh_Hans_CN eucCN \
+
+.for area enc in ${COLLATION_SPECIAL}
+COLLATIONS_SPECIAL_ENV+=	${area}.${enc}
+.endfor
+PASSON+=	COLLATIONS_SPECIAL="${COLLATIONS_SPECIAL_ENV}"
+
 .if defined(LC)
 LC:=	--lc=${LC}
 .endif
@@ -55,17 +72,26 @@ post-install:
 .endfor
 
 .for t in ${TYPES}
-build-${t}:
+gen-${t}:
 	mkdir -p ${t} ${t}.draft
 	perl -I tools tools/cldr2def.pl \
 		--cldr=$$(realpath ${CLDRDIR}) \
 		--unidata=$$(realpath ${UNIDATADIR}) \
 		--etc=$$(realpath ${ETCDIR}) \
 		--type=${t} ${LC}
+
+build-${t}: gen-${t}
 	env ${PASSON} tools/finalize ${t}
 .endfor
 
-build-ctypedef:	transfer-rollup
+gen-ctypedef:	transfer-rollup
+static-colldef: gen-colldef
+build-colldef:	static-colldef
+
+static-colldef:
+.for area enc in ${COLLATION_SPECIAL}
+	awk -f tools/extract-colldef.awk ${CLDRDIR}/posix/${area}.${enc}.src > colldef/${area}.${enc}.src
+.endfor
 
 transfer-rollup:
 	cp ${ETCDIR}/common.UTF-8.src ${CLDRDIR}/posix/xx_Comm_US.UTF-8.src
@@ -93,11 +119,33 @@ BASE_LOCALES_OF_INTEREST?= \
 	uk_UA \
 	kk_Cyrl_KZ mn_Cyrl_MN sr_Cyrl_RS sr_Latn_RS \
 	zh_Hans_CN zh_Hant_HK zh_Hant_TW \
-	\
-	\
 	bn_IN gu_IN or_IN ta_IN te_IN kn_IN ml_IN si_LK \
 	th_TH lo_LA bo_IN my_MM pa_Guru_IN ka_GE chr_US \
 	km_KH shi_Tfng_MA ii_CN vai_Vaii_LR vi_VN
+
+ENCODINGS=	Big5 \
+		CP1251 \
+		CP866 \
+		CP949 \
+		eucCN \
+		eucJP \
+		eucKR \
+		GB18030 \
+		GB2312 \
+		GBK \
+		ISO8859-1 \
+		ISO8859-13 \
+		ISO8859-15 \
+		ISO8859-2 \
+		ISO8859-5 \
+		ISO8859-7 \
+		ISO8859-9 \
+		KOI8-R \
+		KOI8-U \
+		SJIS \
+		US-ASCII \
+		UTF-8 \
+
 
 POSIX:
 .if exists (${CLDRDIR}/tools/java/cldr.jar)
@@ -109,11 +157,20 @@ POSIX:
 		-d ${CLDRDIR}/posix -m ${area} -c UTF-8
 .    endif
 .  endfor
-.  if !exists(${CLDRDIR}/posix/UTF-8.cm)
+.  for area encoding in ${COLLATION_SPECIAL}
+.    if !exists(${CLDRDIR}/posix/${area}.${encoding}.src)
+	java -DCLDR_DIR=${CLDRDIR:Q} -jar ${CLDRDIR}/tools/java/cldr.jar \
+		org.unicode.cldr.posix.GeneratePOSIX \
+		-d ${CLDRDIR}/posix -m ${area} -c ${encoding}
+.    endif
+.  endfor
+.  for enc in ${ENCODINGS}
+.  if !exists(${CLDRDIR}/posix/${enc}.cm)
 	java -DCLDR_DIR=${CLDRDIR:Q} -jar ${CLDRDIR}/tools/java/cldr.jar \
 		org.unicode.cldr.posix.GenerateCharmap \
-		-d ${CLDRDIR}/posix
+		-d ${CLDRDIR}/posix -c ${enc}
 .  endif
+.  endfor
 .else
 	@echo "Please install CLDR toolset for the desired release"
 	@echo "It should go at ${CLDRDIR}/tools"
