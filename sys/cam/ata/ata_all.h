@@ -103,6 +103,7 @@ int	ata_version(int ver);
 
 char *	ata_op_string(struct ata_cmd *cmd);
 char *	ata_cmd_string(struct ata_cmd *cmd, char *cmd_string, size_t len);
+void	ata_cmd_sbuf(struct ata_cmd *cmd, struct sbuf *sb);
 char *	ata_res_string(struct ata_res *res, char *res_string, size_t len);
 int	ata_command_sbuf(struct ccb_ataio *ataio, struct sbuf *sb);
 int	ata_status_sbuf(struct ccb_ataio *ataio, struct sbuf *sb);
