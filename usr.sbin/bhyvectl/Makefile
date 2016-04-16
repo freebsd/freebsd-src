@@ -4,6 +4,7 @@
 
 PROG=	bhyvectl
 SRCS=	bhyvectl.c
+PACKAGE=	bhyve
 
 MAN=	bhyvectl.8
 

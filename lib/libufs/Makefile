@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=	ufs
 SHLIBDIR?= /lib
 SHLIB_MAJOR=	6

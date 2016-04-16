@@ -2,6 +2,10 @@
 # $FreeBSD$
 #
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 .PATH: ${.CURDIR}/../../../tests/callout_test
 
 KMOD=	callout_test

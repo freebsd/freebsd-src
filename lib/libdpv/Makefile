@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=		dpv
 SHLIB_MAJOR=	1
 INCS=		dpv.h

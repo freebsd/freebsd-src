@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 PROG=	ldconfig
 SRCS=	elfhints.c ldconfig.c shlib.c support.c
 LDDIR?= ${.CURDIR}/../../libexec/rtld-aout

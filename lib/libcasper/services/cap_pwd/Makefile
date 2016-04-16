@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=libcasper
 LIB=	cap_pwd
 
 SHLIB_MAJOR=	0

@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 PROG=	mount_udf
 SRCS=	mount_udf.c getmntopts.c
 MAN=	mount_udf.8

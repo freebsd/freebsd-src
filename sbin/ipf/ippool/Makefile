@@ -1,5 +1,6 @@
 #	$FreeBSD$
 
+PACKAGE=	ipf
 PROG=		ippool
 SRCS=		${GENHDRS} ippool_y.c ippool_l.c kmem.c ippool.c
 MAN=		ippool.5 ippool.8

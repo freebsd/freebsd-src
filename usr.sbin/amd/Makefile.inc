@@ -11,6 +11,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE= amd
+
 CFLAGS+= -I. -I${.CURDIR} 
 CFLAGS+= -I${.CURDIR}/../include
 .if exists(${.OBJDIR}/../include)

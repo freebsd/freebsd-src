@@ -194,6 +194,21 @@ VERSION=	FreeBSD ${REVISION}-${BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE
 .export VERSION
 .endif
 
+.if !defined(PKG_VERSION)
+REVISION!=	${MAKE} -C ${SRCDIR}/release -V REVISION
+BRANCH!=	${MAKE} -C ${SRCDIR}/release -V BRANCH
+SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
+		${SRCDIR}/sys/sys/param.h
+.if ${BRANCH:MSTABLE*} || ${BRANCH:MCURRENT*}
+TIMENOW=	%Y%m%d%H%M%S
+EXTRA_REVISION=	.s${TIMENOW:gmtime}
+.endif
+.if ${BRANCH:M*-p*}
+EXTRA_REVISION=	_${BRANCH:C/.*-p([0-9]+$)/\1/}
+.endif
+PKG_VERSION=	${REVISION}${EXTRA_REVISION}
+.endif
+
 KNOWN_ARCHES?=	aarch64/arm64 \
 		amd64 \
 		arm \
@@ -262,8 +277,13 @@ TMPPATH=	${STRICTTMPPATH}:${PATH}
 # It may not be functional, e.g., due to new ABI
 # when in the middle of installing over this system.
 #
-.if make(distributeworld) || make(installworld)
+.if make(distributeworld) || make(installworld) || make(stageworld)
 INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
+.endif
+
+.if make(stagekernel) || make(distributekernel)
+TAGS+=		kernel
+PACKAGE=	kernel
 .endif
 
 #
@@ -532,6 +552,9 @@ METALOG?=	${DESTDIR}/${DISTDIR}/METALOG
 IMAKE+=		-DNO_ROOT METALOG=${METALOG}
 INSTALLFLAGS+=	-U -M ${METALOG} -D ${INSTALL_DDIR}
 MTREEFLAGS+=	-W
+.endif
+.if defined(BUILD_PKGS)
+INSTALLFLAGS+=	-h sha256
 .endif
 .if defined(DB_FROM_SRC) || defined(NO_ROOT)
 IMAKE_INSTALL=	INSTALL="install ${INSTALLFLAGS}"
@@ -919,7 +942,7 @@ DEBUG_DISTRIBUTIONS+=	base ${EXTRA_DISTRIBUTIONS:S,doc,,:S,tests,,}
 
 MTREE_MAGIC?=	mtree 2.0
 
-distributeworld installworld: _installcheck_world
+distributeworld installworld stageworld: _installcheck_world
 	mkdir -p ${INSTALLTMP}
 	progs=$$(for prog in ${ITOOLS}; do \
 		if progpath=`which $$prog`; then \
@@ -1073,6 +1096,21 @@ reinstall: .MAKE .PHONY
 .endif
 .if ${MK_CHERI} != "no"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 installcheri
+.endif
+
+restage: .MAKE .PHONY
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Making hierarchy"
+	@echo "--------------------------------------------------------------"
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 \
+	    LOCAL_MTREE=${LOCAL_MTREE:Q} hierarchy distribution
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Installing everything"
+	@echo "--------------------------------------------------------------"
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
+.if defined(LIB32TMP) && ${MK_LIB32} != "no"
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install32
 .endif
 
 redistribute: .MAKE .PHONY
@@ -1244,7 +1282,7 @@ distributekernel distributekernel.debug:
 .endif
 	mkdir -p ${DESTDIR}/${DISTDIR}
 .if defined(NO_ROOT)
-	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.premeta
+	@echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.premeta
 .endif
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.premeta/} \
@@ -1252,14 +1290,14 @@ distributekernel distributekernel.debug:
 	    DESTDIR=${INSTALL_DDIR}/kernel \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
-	sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta > \
+	@sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta > \
 	    ${DESTDIR}/${DISTDIR}/kernel.meta
 .endif
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 .if defined(NO_ROOT)
-	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
+	@echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.${_kernel}.premeta/} \
@@ -1268,7 +1306,7 @@ distributekernel distributekernel.debug:
 	    DESTDIR=${INSTALL_DDIR}/kernel.${_kernel} \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
-	sed -e 's|^./kernel|.|' \
+	@sed -e "s|^./kernel.${_kernel}|.|" \
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta > \
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
 .endif
@@ -1319,6 +1357,146 @@ packagekernel:
 .endfor
 .endif
 .endif
+
+stagekernel:
+	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} distributekernel
+
+PORTSDIR?=	/usr/ports
+WSTAGEDIR?=	${MAKEOBJDIRPREFIX}${.CURDIR}/${TARGET}.${TARGET_ARCH}/worldstage
+KSTAGEDIR?=	${MAKEOBJDIRPREFIX}${.CURDIR}/${TARGET}.${TARGET_ARCH}/kernelstage
+REPODIR?=	${MAKEOBJDIRPREFIX}${.CURDIR}/repo
+PKGSIGNKEY?=	# empty
+
+.ORDER:		stage-packages create-packages
+.ORDER:		create-packages create-world-packages
+.ORDER:		create-packages create-kernel-packages
+.ORDER:		create-packages sign-packages
+
+_pkgbootstrap:
+.if !exists(${LOCALBASE}/sbin/pkg)
+	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
+.endif
+
+packages:
+	${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} real-packages
+
+package-pkg:
+	rm -rf /tmp/ports.${TARGET} || :
+	env ${WMAKEENV:Q} SRCDIR=${.CURDIR} PORTSDIR=${PORTSDIR} REVISION=${REVISION} \
+		PKG_VERSION=${PKG_VERSION} REPODIR=${REPODIR} WSTAGEDIR=${WSTAGEDIR} \
+		sh ${.CURDIR}/release/scripts/make-pkg-package.sh
+
+real-packages:	stage-packages create-packages sign-packages
+
+stage-packages:
+	@mkdir -p ${REPODIR} ${WSTAGEDIR} ${KSTAGEDIR}
+	${_+_}@cd ${.CURDIR}; \
+		${MAKE} DESTDIR=${WSTAGEDIR} -DNO_ROOT -B stageworld ; \
+		${MAKE} DESTDIR=${KSTAGEDIR} -DNO_ROOT -B stagekernel
+
+create-packages:	_pkgbootstrap
+	@mkdir -p ${REPODIR}
+	${_+_}@cd ${.CURDIR}; \
+		${MAKE} DESTDIR=${WSTAGEDIR} \
+			PKG_VERSION=${PKG_VERSION} create-world-packages ; \
+		${MAKE} DESTDIR=${KSTAGEDIR} \
+			PKG_VERSION=${PKG_VERSION} DISTDIR=kernel \
+			create-kernel-packages
+
+create-world-packages:	_pkgbootstrap
+	@rm -f ${WSTAGEDIR}/*.plist 2>/dev/null || :
+	@cd ${WSTAGEDIR} ; \
+		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
+		${WSTAGEDIR}/METALOG
+	@for plist in ${WSTAGEDIR}/*.plist; do \
+		plist=$${plist##*/} ; \
+		pkgname=$${plist%.plist} ; \
+		sh ${SRCDIR}/release/packages/generate-ucl.sh -o $${pkgname} \
+			-s ${SRCDIR} -u ${WSTAGEDIR}/$${pkgname}.ucl ; \
+	done
+	@for plist in ${WSTAGEDIR}/*.plist; do \
+		plist=$${plist##*/} ; \
+		pkgname=$${plist%.plist} ; \
+		awk -F\" ' \
+			/^name/ { printf("===> Creating %s-", $$2); next } \
+			/^version/ { print $$2; next } \
+			' ${WSTAGEDIR}/$${pkgname}.ucl ; \
+		pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
+			create -M ${WSTAGEDIR}/$${pkgname}.ucl \
+			-p ${WSTAGEDIR}/$${pkgname}.plist \
+			-r ${WSTAGEDIR} \
+			-o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} ; \
+	done
+
+create-kernel-packages:	_pkgbootstrap
+.if exists(${KSTAGEDIR}/kernel.meta)
+.for flavor in "" -debug
+	@cd ${KSTAGEDIR}/${DISTDIR} ; \
+	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
+		-v kernel=yes -v _kernconf=${INSTALLKERNEL} \
+		${KSTAGEDIR}/kernel.meta ; \
+	cap_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VCAP_MKDB_ENDIAN` ; \
+	pwd_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VPWD_MKDB_ENDIAN` ; \
+	sed -e "s/%VERSION%/${PKG_VERSION}/" \
+		-e "s/%PKGNAME%/kernel-${INSTALLKERNEL:tl}${flavor}/" \
+		-e "s/%COMMENT%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
+		-e "s/%DESC%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
+		-e "s/%CAP_MKDB_ENDIAN%/$${cap_arg}/g" \
+		-e "s/%PWD_MKDB_ENDIAN%/$${pwd_arg}/g" \
+		${SRCDIR}/release/packages/kernel.ucl \
+		> ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
+	awk -F\" ' \
+		/name/ { printf("===> Creating %s-", $$2); next } \
+		/version/ {print $$2; next } ' \
+		${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
+	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
+		create -M ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl \
+		-p ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
+		-r ${KSTAGEDIR}/${DISTDIR} \
+		-o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
+.endfor
+.endif
+.if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
+.for _kernel in ${BUILDKERNELS:[2..-1]}
+.if exists(${KSTAGEDIR}/kernel.${_kernel}.meta)
+.for flavor in "" -debug
+	@cd ${KSTAGEDIR}/kernel.${_kernel} ; \
+	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
+		-v kernel=yes -v _kernconf=${_kernel} \
+		${KSTAGEDIR}/kernel.${_kernel}.meta ; \
+	cap_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VCAP_MKDB_ENDIAN` ; \
+	pwd_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VPWD_MKDB_ENDIAN` ; \
+	sed -e "s/%VERSION%/${PKG_VERSION}/" \
+		-e "s/%PKGNAME%/kernel-${_kernel:tl}${flavor}/" \
+		-e "s/%COMMENT%/FreeBSD ${_kernel} kernel ${flavor}/" \
+		-e "s/%DESC%/FreeBSD ${_kernel} kernel ${flavor}/" \
+		-e "s/%CAP_MKDB_ENDIAN%/$${cap_arg}/g" \
+		-e "s/%PWD_MKDB_ENDIAN%/$${pwd_arg}/g" \
+		${SRCDIR}/release/packages/kernel.ucl \
+		> ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
+	awk -F\" ' \
+		/name/ { printf("===> Creating %s-", $$2); next } \
+		/version/ {print $$2; next } ' \
+		${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
+	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
+		create -M ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl \
+		-p ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.plist \
+		-r ${KSTAGEDIR}/kernel.${_kernel} \
+		-o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
+.endfor
+.endif
+.endfor
+.endif
+
+sign-packages:	_pkgbootstrap
+	@[ -L "${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest" ] && \
+		unlink ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest ; \
+	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
+		-o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
+		${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
+		${PKGSIGNKEY} ; \
+	ln -s ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
+		${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest
 
 #
 #

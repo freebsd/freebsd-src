@@ -2,6 +2,7 @@
 
 .PATH: ${.CURDIR}/../misc
 
+PACKAGE=runtime
 PROG=	geom
 MAN=	geom.8
 SRCS=	geom.c subr.c

@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 PRIVATELIB=	yes
 LIB=	sqlite3
 SHLIB_MAJOR?=	0

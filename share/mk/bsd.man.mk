@@ -50,7 +50,7 @@
 .error bsd.man.mk cannot be included directly.
 .endif
 
-MINSTALL?=	${INSTALL} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
+MINSTALL?=	${INSTALL} ${TAG_ARGS} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 
 CATDIR=		${MANDIR:H:S/$/\/cat/}
 CATEXT=		.cat
@@ -61,6 +61,7 @@ MCOMPRESS_EXT?=	${COMPRESS_EXT}
 
 SECTIONS=	1 2 3 4 5 6 7 8 9
 .SUFFIXES:	${SECTIONS:S/^/./g}
+
 
 # Backwards compatibility.
 .if !defined(MAN)
@@ -226,7 +227,7 @@ maninstall: ${MAN}
 .endif
 .for l t in ${_MANLINKS}
 	rm -f ${DESTDIR}${t} ${DESTDIR}${t}${MCOMPRESS_EXT}; \
-	    ${INSTALL_LINK} ${DESTDIR}${l}${ZEXT} ${DESTDIR}${t}${ZEXT}
+	    ${INSTALL_LINK} ${TAG_ARGS} ${DESTDIR}${l}${ZEXT} ${DESTDIR}${t}${ZEXT}
 .endfor
 
 manlint:

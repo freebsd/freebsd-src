@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=lib${LIB}
 LIB=	compiler_rt
 NO_PIC=
 WARNS?=	2

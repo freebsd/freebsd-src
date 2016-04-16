@@ -3,6 +3,7 @@
 
 .PATH: ${.CURDIR}/../dump
 
+PACKAGE=runtime
 PROG=	restore
 LINKS=	${BINDIR}/restore ${BINDIR}/rrestore
 MAN=	restore.8

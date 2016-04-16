@@ -2,6 +2,7 @@
 
 .PATH: ${.CURDIR}/../../../sys/netinet/libalias
 
+PACKAGE=lib${LIB}
 LIB=	alias
 SHLIBDIR?= /lib
 SHLIB_MAJOR= 7

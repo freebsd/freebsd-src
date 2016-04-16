@@ -2,6 +2,10 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 SUBDIR=		tls_dso
 
 TESTS_SUBDIRS=	c063

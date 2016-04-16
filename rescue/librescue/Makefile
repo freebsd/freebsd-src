@@ -3,6 +3,7 @@
 #
 
 .include <src.opts.mk>
+PACKAGE=	rescue
 MK_SSP=		no
 
 # Certain library entries have hard-coded references to

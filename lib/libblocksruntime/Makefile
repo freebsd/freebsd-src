@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB:tl}
 LIB=	BlocksRuntime
 SHLIB_MAJOR=0
 CFLAGS+=-I${.CURDIR}

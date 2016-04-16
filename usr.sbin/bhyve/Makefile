@@ -3,6 +3,7 @@
 #
 
 PROG=	bhyve
+PACKAGE=	bhyve
 
 DEBUG_FLAGS= -g -O0
 

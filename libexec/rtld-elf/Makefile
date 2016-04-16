@@ -5,9 +5,13 @@
 # make DEBUG_FLAGS=-g DEBUG=-DDEBUG MK_TESTS=no all
 
 .include <src.opts.mk>
+PACKAGE=	clibs
 MK_SSP=		no
 
 PROG?=		ld-elf.so.1
+.if (${PROG:M*ld-elf32*} != "")
+TAGS+=		lib32
+.endif
 SRCS=		rtld_start.S \
 		reloc.c rtld.c rtld_lock.c rtld_printf.c map_object.c \
 		malloc.c xmalloc.c debug.c libmap.c

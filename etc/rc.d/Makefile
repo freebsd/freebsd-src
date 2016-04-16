@@ -2,13 +2,16 @@
 
 .include <src.opts.mk>
 
+FILESGROUPS=	FILES
+FILESDIR=	/etc/rc.d
+FILESMODE=	${BINMODE}
+
 FILES=	DAEMON \
 	FILESYSTEMS \
 	LOGIN \
 	NETWORKING \
 	SERVERS \
 	abi \
-	accounting \
 	addswap \
 	adjkerntz \
 	archdep \
@@ -109,7 +112,6 @@ FILES=	DAEMON \
 	securelevel \
 	serial \
 	sppp \
-	${_sshd} \
 	statd \
 	static_arp \
 	static_ndp \
@@ -121,7 +123,6 @@ FILES=	DAEMON \
 	tmp \
 	${_ubthidhci} \
 	ugidfw \
-	${_unbound} \
 	${_utx} \
 	var \
 	watchdogd \
@@ -135,25 +136,41 @@ FILES=	DAEMON \
 	zvol
 
 .if ${MK_ACCT} != "no"
-FILES+=		accounting
+FILESGROUPS+=	ACCT
+ACCT+=		accounting
 .endif
+ACCTDIR=	/etc/rc.d
+ACCTMODE=	${BINMODE}
+ACCTPACKAGE=	acct
 
 .if ${MK_ACPI} != "no"
-FILES+=		power_profile
+FILESGROUPS+=	ACPI
+ACPI=		power_profile
 .endif
+ACPIDIR=	/etc/rc.d
+ACPIMODE=	${BINMODE}
+ACPIPACKAGE=	acpi
 
 .if ${MK_ACPI} != "no" || ${MK_APM} != "no"
 FILES+=		powerd
 .endif
 
 .if ${MK_AMD} != "no"
-FILES+=		amd
+FILESGROUPS+=	AMD
+AMD+=		amd
 .endif
+AMDDIR=		/etc/rc.d
+AMDMODE=	${BINMODE}
+AMDPACKAGE=	amd
 
 .if ${MK_APM} != "no"
-FILES+=	apm
-FILES+=	apmd
+FILESGROUPS+=	APM
+APM+=		apm
+APM+=		apmd
 .endif
+APMDIR=		/etc/rc.d
+APMMODE=	${BINMODE}
+APMPACKAGE=	apm
 
 .if ${MK_AUTOFS} != "no"
 FILES+=		automount
@@ -173,8 +190,12 @@ FILES+=		bootparams
 .endif
 
 .if ${MK_BSNMP} != "no"
-FILES+=		bsnmpd
+FILESGROUPS+=	BSNMP
+BSNMP+=		bsnmpd
 .endif
+BSNMPDIR=	/etc/rc.d
+BSNMPMODE=	${BINMODE}
+BSNMPPACKAGE=	bsnmp
 
 .if ${MK_CCD} != "no"
 FILES+=		ccd
@@ -185,8 +206,12 @@ FILES+=		ftpd
 .endif
 
 .if ${MK_HAST} != "no"
-FILES+=		hastd
+FILESGROUPS+=	HAST
+HAST=		hastd
 .endif
+HASTDIR=	/etc/rc.d
+HASTMODE=	${BINMODE}
+HASTPACKAGE=	hast
 
 .if ${MK_INETD} != "no"
 FILES+=		inetd
@@ -198,8 +223,12 @@ FILES+=		iscsid
 .endif
 
 .if ${MK_JAIL} != "no"
-FILES+=	jail
+FILESGROUPS+=	JAIL
+JAIL+=		jail
 .endif
+JAILDIR=	/etc/rc.d
+JAILMODE=	${BINMODE}
+JAILPACKAGE=	jail
 
 .if ${MK_LEGACY_CONSOLE} != "no"
 FILES+=		moused
@@ -240,47 +269,64 @@ FILES+=		keyserv
 .endif
 
 .if ${MK_OPENSSH} != "no"
-_sshd=		sshd
+FILESGROUPS+=	SSH
+SSH=		sshd
 .endif
+SSHDIR=		/etc/rc.d
+SSHMODE=	${BINMODE}
+SSHPACKAGE=	ssh
 
 .if ${MK_PF} != "no"
 FILES+=		ftp-proxy
 .endif
 
 .if ${MK_RCMDS} != "no"
-FILES+=		rwho
+FILESGROUPS+=	RCMDS
+RCMDS+=		rwho
 .endif
+RCMDSDIR=	/etc/rc.d
+RCMDSMODE=	${BINMODE}
+RCMDSPACKAGE=	rcmds
 
 .if ${MK_ROUTED} != "no"
 FILES+=		routed
 .endif
 
 .if ${MK_SENDMAIL} != "no"
-FILES+=		sendmail
+FILESGROUPS+=	SMRCD
+SMRCD=		sendmail
 .endif
+SMRCDDIR=	/etc/rc.d
+SMRCDDIRMODE=	${BINMODE}
+SMRCDPACKAGE=	sendmail
 
 .if ${MK_TIMED} != "no"
 FILES+=		timed
 .endif
 
 .if ${MK_UNBOUND} != "no"
-_unbound=	local_unbound
+FILESGROUPS+=	UNBOUND
+UNBOUND+=	local_unbound
 .endif
+UNBOUNDDIR=	/etc/rc.d
+UNBOUNDMODE=	${BINMODE}
+UNBOUNDPACKAGE=	unbound
 
 .if ${MK_UTMPX} != "no"
 _utx=		utx
 .endif
 
 .if ${MK_VI} != "no"
-FILES+=		virecover
+FILESGROUPS+=	VI
+VI+=		virecover
 .endif
+VIDIR=		/etc/rc.d
+VIMODE=		${BINMODE}
+VIPACKAGE=	vi
 
 .if ${MK_WIRELESS} != "no"
 FILES+=		hostapd
 FILES+=		wpa_supplicant
 .endif
-
-FILESDIR=	/etc/rc.d
-FILESMODE=	${BINMODE}
 
 .include <bsd.prog.mk>

@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libpthread
 
 # TODO: t_name (missing pthread_getname_np support in FreeBSD)

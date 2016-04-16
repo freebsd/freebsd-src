@@ -2,6 +2,10 @@
 
 .include <bsd.own.mk>
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 LIBXOSRC=	${SRCTOP}/contrib/libxo
 
 .PATH: ${LIBXOSRC}/tests/xo ${LIBXOSRC}/tests/xo/saved

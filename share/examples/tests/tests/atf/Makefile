@@ -2,6 +2,11 @@
 
 .include <bsd.own.mk>
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+TESTS+=		Kyuafile
+
 # Directory into which the Kyuafile provided by this directory will be
 # installed.
 #

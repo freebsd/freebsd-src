@@ -2,6 +2,7 @@
 # $Revision: 1.6 $
 # $FreeBSD$
 
+PACKAGE=runtime
 PROG=	rtquery
 MAN=	rtquery.8
 LIBADD=	md

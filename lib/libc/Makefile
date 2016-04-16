@@ -1,6 +1,7 @@
 #	@(#)Makefile	8.2 (Berkeley) 2/3/94
 # $FreeBSD$
 
+PACKAGE=	clibs
 SHLIBDIR?= /lib
 WANT_DUMP=	yes
 WANT_CHERI=	variables

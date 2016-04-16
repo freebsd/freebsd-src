@@ -1,5 +1,9 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 .PATH:	${.CURDIR}/..
 
 PLAIN_TESTS_C=				option-domain-search_test

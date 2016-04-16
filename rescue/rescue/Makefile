@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=rescue
 MAN=
 MK_SSP=	no
 

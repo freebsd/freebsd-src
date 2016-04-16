@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
 PROG=		mdconfig
 MAN=		mdconfig.8
 

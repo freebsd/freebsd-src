@@ -1,6 +1,10 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/usr.sbin/mtree
+
 .PATH: ${TESTSRC}
 
 ATF_TESTS_SH=	nmtree_test
