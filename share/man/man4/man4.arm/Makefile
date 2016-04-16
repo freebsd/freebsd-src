@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=runtime-manuals
+
 MAN=	cgem.4 \
 	devcfg.4 \
 	mge.4 \

@@ -4,6 +4,7 @@
 
 PROG=	ssh-keygen
 SRCS=	ssh-keygen.c
+PACKAGE=	ssh
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 SRCS+=	ssh_namespace.h
 

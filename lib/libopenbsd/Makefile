@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=	openbsd
 SRCS=	getdtablecount.c \
 	imsg-buffer.c \

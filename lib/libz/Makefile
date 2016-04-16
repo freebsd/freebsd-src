@@ -2,6 +2,7 @@
 # $FreeBSD$
 #
 
+PACKAGE=lib${LIB}
 LIB=		z
 SHLIBDIR?=	/lib
 SHLIB_MAJOR=	6

@@ -2,6 +2,10 @@
 # $FreeBSD$
 #
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 .PATH: ${.CURDIR}/../../../tests/framework
 
 KMOD=	kern_testfrwk
