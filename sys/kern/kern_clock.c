@@ -449,7 +449,6 @@ hardclock_cpu(int usermode)
 		PROC_ITIMUNLOCK(p);
 	}
 	thread_lock(td);
-	sched_tick(1);
 	td->td_flags |= flags;
 	thread_unlock(td);
 
@@ -539,7 +538,6 @@ hardclock_cnt(int cnt, int usermode)
 		PROC_ITIMUNLOCK(p);
 	}
 	thread_lock(td);
-	sched_tick(cnt);
 	td->td_flags |= flags;
 	thread_unlock(td);
 
