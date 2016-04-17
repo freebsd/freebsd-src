@@ -250,7 +250,6 @@ struct thread {
 	int		td_pinned;	/* (k) Temporary cpu pin count. */
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
 	struct plimit	*td_limit;	/* (k) Resource limits. */
-	u_int		td_estcpu;	/* (t) estimated cpu utilization */
 	int		td_slptick;	/* (t) Time at sleep. */
 	int		td_blktick;	/* (t) Time spent blocked. */
 	int		td_swvoltick;	/* (t) Time at last SW_VOL switch. */
