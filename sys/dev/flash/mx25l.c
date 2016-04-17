@@ -432,11 +432,13 @@ mx25l_set_4b_mode(device_t dev, uint8_t command)
 	return (err);
 }
 
+#ifdef	FDT
 static struct ofw_compat_data compat_data[] = {
 	{ "st,m25p",		1 },
 	{ "jedec,spi-nor",	1 },
 	{ NULL,			0 },
 };
+#endif
 
 static int
 mx25l_probe(device_t dev)
