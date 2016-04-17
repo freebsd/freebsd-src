@@ -945,7 +945,7 @@ passdone(struct cam_periph *periph, union ccb *done_ccb)
 		case XPT_ATA_IO:
 			devstat_end_transaction(softc->device_stats,
 			    done_ccb->ataio.dxfer_len - done_ccb->ataio.resid,
-			    done_ccb->ataio.tag_action & 0x3,
+			    0, /* Not used in ATA */
 			    ((done_ccb->ccb_h.flags & CAM_DIR_MASK) ==
 			    CAM_DIR_NONE) ? DEVSTAT_NO_DATA : 
 			    (done_ccb->ccb_h.flags & CAM_DIR_OUT) ?

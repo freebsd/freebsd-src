@@ -1117,7 +1117,7 @@ cam_periph_runccb(union ccb *ccb,
 		} else if (ccb->ccb_h.func_code == XPT_ATA_IO) {
 			devstat_end_transaction(ds,
 					ccb->ataio.dxfer_len - ccb->ataio.resid,
-					ccb->ataio.tag_action & 0x3,
+					0, /* Not used in ATA */
 					((ccb->ccb_h.flags & CAM_DIR_MASK) ==
 					CAM_DIR_NONE) ?  DEVSTAT_NO_DATA : 
 					(ccb->ccb_h.flags & CAM_DIR_OUT) ?
