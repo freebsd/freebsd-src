@@ -1,7 +1,7 @@
 [
     {
         "description": "remote ref",
-        "schema": {"$ref": "http://localhost:1234/integer.json"},
+        "schema": {"$ref": "http://highsecure.ru/ucl-schema/remotes/integer.json"},
         "tests": [
             {
                 "description": "remote ref valid",
@@ -17,7 +17,7 @@
     },
     {
         "description": "fragment within remote ref",
-        "schema": {"$ref": "http://localhost:1234/subSchemas.json#/integer"},
+        "schema": {"$ref": "http://highsecure.ru/ucl-schema/remotes/subSchemas.json#/integer"},
         "tests": [
             {
                 "description": "remote fragment valid",
@@ -34,7 +34,7 @@
     {
         "description": "ref within remote ref",
         "schema": {
-            "$ref": "http://localhost:1234/subSchemas.json#/refToInteger"
+            "$ref": "http://highsecure.ru/ucl-schema/remotes/subSchemas.json#/refToInteger"
         },
         "tests": [
             {
@@ -49,10 +49,11 @@
             }
         ]
     },
+/*
     {
         "description": "change resolution scope",
         "schema": {
-            "id": "http://localhost:1234/",
+            "id": "http://highsecure.ru/ucl-schema/remotes/",
             "items": {
                 "id": "folder/",
                 "items": {"$ref": "folderInteger.json"}
@@ -71,4 +72,5 @@
             }
         ]
     }
+*/
 ]

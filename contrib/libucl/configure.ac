@@ -1,7 +1,7 @@
 m4_define([maj_ver], [0])
-m4_define([med_ver], [7])
-m4_define([min_ver], [3])
-m4_define([so_version], [5:0:2])
+m4_define([med_ver], [8])
+m4_define([min_ver], [0])
+m4_define([so_version], [6:0:0])
 m4_define([ucl_version], [maj_ver.med_ver.min_ver])
 
 AC_INIT([libucl],[ucl_version],[https://github.com/vstakhov/libucl],[libucl])
@@ -172,6 +172,8 @@ AC_LINK_IFELSE([
 	AC_DEFINE([HAVE_ATOMIC_BUILTINS], [0], [Has gcc/MSVC atomic intrinsics])
 	AC_MSG_WARN([Libucl references could be thread-unsafe because atomic builtins are missing])
 ])
+
+AX_CODE_COVERAGE
 
 AC_CONFIG_FILES(Makefile \
 	src/Makefile \

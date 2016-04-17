@@ -37,3 +37,31 @@
 
 - Fixed a bug with macroes that come after an empty object
 - Fixed a bug in include processing when an incorrect variable has been destroyed (use-after-free)
+
+### Libucl 0.8.0
+
+- Allow to save comments and macros when parsing UCL documents
+- C++ API
+- Python bindings (by Eitan Adler)
+- Add msgpack support for parser and emitter
+- Add Canonical S-expressions parser for libucl
+- CLI interface for parsing and validation (by Maxim Ignatenko)
+- Implement include with priority
+- Add 'nested' functionality to .include macro (by Allan Jude)
+- Allow searching an array of paths for includes (by Allan Jude)
+- Add new .load macro (by Allan Jude)
+- Implement .inherit macro (#100)
+- Add merge strategies
+- Add schema validation to lua API
+- Add support for external references to schema validation
+- Add coveralls integration to libucl
+- Implement tests for 80% of libucl code lines
+- Fix tonns of minor and major bugs
+- Improve documentation
+- Rework function names to the common conventions (old names are preserved for backwards compatibility)
+- Add Coverity scan integration
+- Add fuzz tests
+
+**Incompatible changes**:
+
+- `ucl_object_emit_full` now accepts additional argument `comments` that could be used to emit comments with UCL output

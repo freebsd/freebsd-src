@@ -31,8 +31,8 @@
 struct ucl_hash_node_s;
 typedef struct ucl_hash_node_s ucl_hash_node_t;
 
-typedef int ucl_hash_cmp_func (const void* void_a, const void* void_b);
-typedef void ucl_hash_free_func (void *ptr);
+typedef int (*ucl_hash_cmp_func) (const void* void_a, const void* void_b);
+typedef void (*ucl_hash_free_func) (void *ptr);
 typedef void* ucl_hash_iter_t;
 
 
@@ -51,7 +51,7 @@ ucl_hash_t* ucl_hash_create (bool ignore_case);
 /**
  * Deinitializes the hashtable.
  */
-void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func *func);
+void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func func);
 
 /**
  * Inserts an element in the the hashtable.
