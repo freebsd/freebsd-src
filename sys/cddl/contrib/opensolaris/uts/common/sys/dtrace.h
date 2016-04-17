@@ -2398,8 +2398,9 @@ extern int dtrace_instr_size(uchar_t *instr);
 extern int dtrace_instr_size_isa(uchar_t *, model_t, int *);
 extern void dtrace_invop_callsite(void);
 #endif
-extern void dtrace_invop_add(int (*)(uintptr_t, uintptr_t *, uintptr_t));
-extern void dtrace_invop_remove(int (*)(uintptr_t, uintptr_t *, uintptr_t));
+extern void dtrace_invop_add(int (*)(uintptr_t, struct trapframe *, uintptr_t));
+extern void dtrace_invop_remove(int (*)(uintptr_t, struct trapframe *,
+    uintptr_t));
 
 #ifdef __sparc
 extern int dtrace_blksuword32(uintptr_t, uint32_t *, int);
@@ -2427,7 +2428,9 @@ extern void dtrace_helpers_destroy(proc_t *);
 #if defined(__i386) || defined(__amd64)
 
 #define	DTRACE_INVOP_PUSHL_EBP		1
+#define	DTRACE_INVOP_PUSHQ_RBP		DTRACE_INVOP_PUSHL_EBP
 #define	DTRACE_INVOP_POPL_EBP		2
+#define	DTRACE_INVOP_POPQ_RBP		DTRACE_INVOP_POPL_EBP
 #define	DTRACE_INVOP_LEAVE		3
 #define	DTRACE_INVOP_NOP		4
 #define	DTRACE_INVOP_RET		5
