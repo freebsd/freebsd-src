@@ -1347,6 +1347,7 @@ options 	CAM_MAX_HIGHPOWER=4
 options 	SCSI_NO_SENSE_STRINGS
 options 	SCSI_NO_OP_STRINGS
 options 	SCSI_DELAY=5000	# Be pessimistic about Joe SCSI device
+options 	CAM_NETFLIX_IOSCHED
 
 # Options for the CAM CDROM driver:
 # CHANGER_MIN_BUSY_SECONDS: Guaranteed minimum time quantum for a changer LUN
