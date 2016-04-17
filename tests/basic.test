@@ -21,6 +21,18 @@ for _tin in ${TEST_DIR}/basic/*.in ; do
 		fi
 	fi
 	rm $_out
+	# Use FD interface
+	$PROG -f $_t.in > /dev/null
+	# JSON output
+	$PROG -j $_t.in > /dev/null
+	$PROG -c -j $_t.in > /dev/null
+	# YAML output
+	$PROG -y $_t.in > /dev/null
+	# Save comments mode
+	$PROG -C $_t.in > /dev/null
+	# Save macro mode
+	$PROG -M $_t.in > /dev/null
+	$PROG -M -C $_t.in > /dev/null
 done
 
 

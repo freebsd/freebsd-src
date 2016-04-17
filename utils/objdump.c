@@ -41,7 +41,7 @@ ucl_obj_dump (const ucl_object_t *obj, unsigned int shift)
 
 	tmp = obj;
 
-	while ((obj = ucl_iterate_object (tmp, &it, false))) {
+	while ((obj = ucl_object_iterate (tmp, &it, false))) {
 		printf ("%sucl object address: %p\n", pre + 4, obj);
 		if (obj->key != NULL) {
 			printf ("%skey: \"%s\"\n", pre, ucl_object_key (obj));
@@ -54,7 +54,7 @@ ucl_obj_dump (const ucl_object_t *obj, unsigned int shift)
 			printf ("%stype: UCL_OBJECT\n", pre);
 			printf ("%svalue: %p\n", pre, obj->value.ov);
 			it_obj = NULL;
-			while ((cur = ucl_iterate_object (obj, &it_obj, true))) {
+			while ((cur = ucl_object_iterate (obj, &it_obj, true))) {
 				ucl_obj_dump (cur, shift + 2);
 			}
 		}
@@ -62,7 +62,7 @@ ucl_obj_dump (const ucl_object_t *obj, unsigned int shift)
 			printf ("%stype: UCL_ARRAY\n", pre);
 			printf ("%svalue: %p\n", pre, obj->value.av);
 			it_obj = NULL;
-			while ((cur = ucl_iterate_object (obj, &it_obj, true))) {
+			while ((cur = ucl_object_iterate (obj, &it_obj, true))) {
 				ucl_obj_dump (cur, shift + 2);
 			}
 		}
@@ -161,7 +161,7 @@ main(int argc, char **argv)
 	if (argc > 2) {
 		for (k = 2; k < argc; k++) {
 			printf ("search for \"%s\"... ", argv[k]);
-			par = ucl_object_find_key (obj, argv[k]);
+			par = ucl_object_lookup (obj, argv[k]);
 			printf ("%sfound\n", (par == NULL )?"not ":"");
 			ucl_obj_dump (par, 0);
 		}
