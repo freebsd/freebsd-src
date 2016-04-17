@@ -1335,4 +1335,4 @@ arp_init(void)
 		iflladdr_tag = EVENTHANDLER_REGISTER(iflladdr_event,
 		    arp_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
 }
-SYSINIT(arp, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, arp_init, 0);
+SYSINIT(arp, SI_SUB_PROTO_DOMAIN, SI_ORDER_SECOND, arp_init, 0);
