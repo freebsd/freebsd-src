@@ -588,6 +588,15 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
+		 * Samsung PM851 Series SSDs Dell OEM
+		 * device model          "SAMSUNG SSD PM851 mSATA 256GB"
+		 * 4k optimised, NCQ broken
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG SSD PM851*", "*" },
+		/*quirks*/ADA_Q_4K | ADA_Q_NCQ_TRIM_BROKEN
+	},
+	{
+		/*
 		 * SuperTalent TeraDrive CT SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
 		 */
