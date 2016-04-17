@@ -685,7 +685,7 @@ vnet_ether_destroy(__unused void *arg)
 		printf("%s: WARNING: unable to unregister pfil link hook, "
 			"error %d\n", __func__, i);
 }
-VNET_SYSUNINIT(vnet_ether_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_ether_uninit, SI_SUB_PROTO_PFIL, SI_ORDER_ANY,
     vnet_ether_destroy, NULL);
 
 
