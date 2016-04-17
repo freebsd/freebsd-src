@@ -121,7 +121,7 @@ static int
 at45d_get_status(device_t dev, uint8_t *status)
 {
 	uint8_t rxBuf[8], txBuf[8];
-	struct spi_command cmd = SPI_COMMAND_INITIALIZER;
+	struct spi_command cmd;
 	int err;
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -141,7 +141,7 @@ static int
 at45d_get_mfg_info(device_t dev, uint8_t *resp)
 {
 	uint8_t rxBuf[8], txBuf[8];
-	struct spi_command cmd = SPI_COMMAND_INITIALIZER;
+	struct spi_command cmd;
 	int err;
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -303,7 +303,7 @@ at45d_task(void *arg)
 	uint8_t rxBuf[8], txBuf[8];
 	struct at45d_softc *sc;
 	struct bio *bp;
-	struct spi_command cmd = SPI_COMMAND_INITIALIZER;
+	struct spi_command cmd;
 	device_t dev, pdev;
 	caddr_t buf;
 	u_long len, resid;
