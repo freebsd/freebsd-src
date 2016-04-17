@@ -10,12 +10,7 @@ FILES+=	apple.conf
 
 .if ${MACHINE} == "amd64" || ${MACHINE} == "i386"
 .if ${MK_ACPI} != "no"
-FILESGROUPS+=	ACPI
-ACPI=	asus.conf
-ACPIPACKAGE=	acpi
-ACPIDIR=	/etc/devd
-ACPITAGS=	config
-ACPIMODE=	644
+FILES+=	asus.conf
 .endif
 .if ${MK_HYPERV} != "no"
 FILES+=	hyperv.conf

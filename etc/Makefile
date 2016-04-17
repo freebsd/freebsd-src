@@ -83,13 +83,8 @@ BIN1+= apmd.conf
 .endif
 
 .if ${MK_AUTOFS} != "no"
-FILESGROUPS+=	AUTOFS
-AUTOFS+=	auto_master
+BIN1+=	auto_master
 .endif
-AUTOFSDIR=	/etc
-AUTOFSMODE=	${BINMODE}
-AUTOFSPACKAGE=	autofs
-AUTOFSTAGS=	config
 
 .if ${MK_FREEBSD_UPDATE} != "no"
 BIN1+= freebsd-update.conf
@@ -141,12 +136,8 @@ BIN1+= pf.os
 .endif
 
 .if ${MK_SENDMAIL} != "no"
-FILESGROUPS+=	SENDMAILRC
-SENDMAILRC=	rc.sendmail
+BIN1+=	rc.sendmail
 .endif
-SENDMAILRCDIR=	/etc
-SENDMAILRCMODE=	${BINMODE}
-SENDMAILRCPACKAGE=sendmail
 
 .if ${MK_TCSH} != "no"
 BIN1+= csh.cshrc csh.login csh.logout
