@@ -114,6 +114,7 @@ struct dmar_domain {
 							 unload */
 	struct dmar_map_entry *first_place, *last_place; /* (d) */
 	struct task unload_task;	/* (c) */
+	u_int batch_no;
 };
 
 struct dmar_ctx {
@@ -378,6 +379,7 @@ extern dmar_haddr_t dmar_high;
 extern int haw;
 extern int dmar_tbl_pagecnt;
 extern int dmar_match_verbose;
+extern int dmar_batch_coalesce;
 extern int dmar_check_free;
 
 static inline uint32_t
