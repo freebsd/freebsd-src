@@ -1522,7 +1522,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	 * the sim do do things properly. Perhaps we should look at log 13
 	 * dword 0 bit 0 and dword 1 bit 0 are set too...
 	 */
-	if (cpi.hba_misc & PIM_NCQ_KLUDGE)
+	if (cpi.hba_misc & PIM_ATA_EXT)
 		softc->flags |= ADA_FLAG_PIM_CAN_NCQ_TRIM;
 	if ((softc->quirks & ADA_Q_NCQ_TRIM_BROKEN) == 0 &&
 	    (softc->flags & ADA_FLAG_PIM_CAN_NCQ_TRIM) != 0 &&
@@ -1728,7 +1728,8 @@ ada_ncq_dsmtrim(struct ada_softc *softc, struct bio *bp, struct ccb_ataio *ataio
 	    0,
 	    (ranges + ATA_DSM_BLK_RANGES - 1) / ATA_DSM_BLK_RANGES);
 	ataio->cmd.sector_count_exp = ATA_SFPDMA_DSM;
-	ataio->cmd.flags |= CAM_ATAIO_AUX_HACK;
+	ataio->ata_flags |= ATA_FLAG_AUX;
+	ataio->aux = 1;
 }
 
 static void
