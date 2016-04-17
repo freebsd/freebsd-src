@@ -35,7 +35,9 @@
  *	nl_langinfo(CODESET).
  */
 
+#include <sys/param.h>
 #include <sys/types.h>
+
 #include <dirent.h>
 #include <err.h>
 #include <locale.h>
@@ -79,7 +81,7 @@ struct _lcinfo {
 	{ "LC_MONETARY",	LC_MONETARY },
 	{ "LC_MESSAGES",	LC_MESSAGES }
 };
-#define	NLCINFO (sizeof(lcinfo)/sizeof(lcinfo[0]))
+#define	NLCINFO nitems(lcinfo)
 
 /* ids for values not referenced by nl_langinfo() */
 #define	KW_ZERO			10000
@@ -290,7 +292,7 @@ main(int argc, char *argv[])
 			}
 		} else {
 			uint i;
-			for (i = 0; i < sizeof (kwinfo) / sizeof (struct _kwinfo); i++)
+			for (i = 0; i < nitems(kwinfo); i++)
 				showdetails ((char *)kwinfo [i].name);
 		}
 		exit(0);
