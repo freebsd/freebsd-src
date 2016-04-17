@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/time.h>
 
+#include <fcntl.h>
+
 #include "rcv.h"
 #include "extern.h"
 
@@ -319,15 +321,13 @@ unstack(void)
 void
 alter(char *name)
 {
-	struct stat sb;
-	struct timeval tv[2];
+	struct timespec ts[2];
 
-	if (stat(name, &sb))
-		return;
-	(void)gettimeofday(&tv[0], NULL);
-	tv[0].tv_sec++;
-	TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtim);
-	(void)utimes(name, tv);
+	(void)clock_gettime(CLOCK_REALTIME, &ts[0]);
+	ts[0].tv_sec++;
+	ts[1].tv_sec = 0;
+	ts[1].tv_nsec = UTIME_OMIT;
+	(void)utimensat(AT_FDCWD, name, ts, 0);
 }
 
 /*
