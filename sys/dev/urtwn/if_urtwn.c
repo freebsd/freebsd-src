@@ -791,6 +791,10 @@ urtwn_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	vap->iv_key_alloc = urtwn_key_alloc;
 	vap->iv_key_set = urtwn_key_set;
 	vap->iv_key_delete = urtwn_key_delete;
+
+	/* 802.11n parameters */
+	vap->iv_ampdu_density = IEEE80211_HTCAP_MPDUDENSITY_16;
+
 	if (opmode == IEEE80211_M_IBSS) {
 		uvp->recv_mgmt = vap->iv_recv_mgmt;
 		vap->iv_recv_mgmt = urtwn_ibss_recv_mgmt;
