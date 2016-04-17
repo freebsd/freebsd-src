@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 		
 extern dtrace_id_t	dtrace_probeid_error;
 
-int dtrace_invop(uintptr_t, uintptr_t *, uintptr_t);
+int dtrace_invop(uintptr_t, struct trapframe *, uintptr_t);
 
 typedef struct dtrace_invop_hdlr {
 	int (*dtih_func)(uintptr_t, uintptr_t *, uintptr_t);
@@ -58,7 +58,7 @@ typedef struct dtrace_invop_hdlr {
 dtrace_invop_hdlr_t *dtrace_invop_hdlr;
 
 int
-dtrace_invop(uintptr_t addr, uintptr_t *stack, uintptr_t eax)
+dtrace_invop(uintptr_t addr, struct trapframe *stack, uintptr_t eax)
 {
 	dtrace_invop_hdlr_t *hdlr;
 	int rval;
