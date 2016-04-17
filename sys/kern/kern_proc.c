@@ -2645,10 +2645,8 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 	st = stack_create();
 
 	lwpidarray = NULL;
-	numthreads = 0;
 	PROC_LOCK(p);
-repeat:
-	if (numthreads < p->p_numthreads) {
+	do {
 		if (lwpidarray != NULL) {
 			free(lwpidarray, M_TEMP);
 			lwpidarray = NULL;
@@ -2658,9 +2656,7 @@ repeat:
 		lwpidarray = malloc(sizeof(*lwpidarray) * numthreads, M_TEMP,
 		    M_WAITOK | M_ZERO);
 		PROC_LOCK(p);
-		goto repeat;
-	}
-	i = 0;
+	} while (numthreads < p->p_numthreads);
 
 	/*
 	 * XXXRW: During the below loop, execve(2) and countless other sorts
@@ -2671,6 +2667,7 @@ repeat:
 	 * have changed, in which case the right to extract debug info might
 	 * no longer be assured.
 	 */
+	i = 0;
 	FOREACH_THREAD_IN_PROC(p, td) {
 		KASSERT(i < numthreads,
 		    ("sysctl_kern_proc_kstack: numthreads"));
