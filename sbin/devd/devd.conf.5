@@ -41,7 +41,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd July 11, 2015
+.Dd April 14, 2016
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -492,6 +492,23 @@ Information about the state of the system.
 Notification that the system has woken from the suspended state.
 .El
 .El
+.Pp
+.It Li CAM
+Events related to the
+.Xr cam 4
+system.
+.Bl -tag -width ".Sy Subsystem" -compact
+.It Sy Subsystem
+.It Li periph
+Events related to peripheral devices.
+.Bl -tag -width ".li timeout" -compact
+.It Sy Type
+.It Li error
+Generic errors.
+.It Li timeout
+Command timeouts.
+.El
+.El
 .El
 .Pp
 A link state change to UP on the interface
@@ -621,4 +638,5 @@ has many additional examples.
 .Xr coretemp 4 ,
 .Xr devfs 5 ,
 .Xr re_format 7 ,
-.Xr devd 8
+.Xr devd 8 ,
+.Xr cam 4
