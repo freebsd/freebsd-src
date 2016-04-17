@@ -969,7 +969,7 @@ vnet_epair_uninit(const void *unused __unused)
 
 	if_clone_detach(V_epair_cloner);
 }
-VNET_SYSUNINIT(vnet_epair_uninit, SI_SUB_PSEUDO_DONE, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_epair_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
     vnet_epair_uninit, NULL);
 
 static int
