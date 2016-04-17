@@ -581,7 +581,7 @@ typedef enum {
 } pi_tmflag;
 
 typedef enum {
-	PIM_NCQ_KLUDGE  = 0x200, /* Supports the sata ncq trim kludge */
+	PIM_ATA_EXT	= 0x200,/* ATA requests can understand ata_ext requests */
 	PIM_EXTLUNS	= 0x100,/* 64bit extended LUNs supported */
 	PIM_SCANHILO	= 0x80,	/* Bus scans from high ID to low ID */
 	PIM_NOREMOVE	= 0x40,	/* Removeable devices not included in scan */
@@ -745,7 +745,9 @@ struct ccb_ataio {
 	u_int32_t  dxfer_len;		/* Data transfer length */
 	u_int32_t  resid;		/* Transfer residual length: 2's comp */
 	u_int8_t   ata_flags;		/* Flags for the rest of the buffer */
-	uint32_t   unused[2];		/* Keep the same size */
+#define ATA_FLAG_AUX 0x1
+	uint32_t   aux;
+	uint32_t   unused;
 };
 
 struct ccb_accept_tio {

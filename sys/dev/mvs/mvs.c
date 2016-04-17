@@ -2245,6 +2245,12 @@ mvs_check_ids(device_t dev, union ccb *ccb)
 		xpt_done(ccb);
 		return (-1);
 	}
+	/*
+	 * It's a programming error to see AUXILIARY register requests.
+	 */
+	KASSERT(ccb->ccb_h.func_code != XPT_ATA_IO ||
+	    ((ccb->ataio.ata_flags & ATA_FLAG_AUX) == 0),
+	    ("AUX register unsupported"));
 	return (0);
 }
 

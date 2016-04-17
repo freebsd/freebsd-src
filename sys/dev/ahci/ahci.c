@@ -2417,11 +2417,14 @@ ahci_setup_fis(struct ahci_channel *ch, struct ahci_cmd_tab *ctp, union ccb *ccb
 			fis[13] = ccb->ataio.cmd.sector_count_exp;
 		}
 		fis[15] = ATA_A_4BIT;
-		/* Gross and vile hack -- makes ncq trim work w/o changing ataio size */
-		if (ccb->ataio.cmd.flags & CAM_ATAIO_AUX_HACK)
-			fis[16] = 1;
 	} else {
 		fis[15] = ccb->ataio.cmd.control;
+	}
+	if (ccb->ataio.ata_flags & ATA_FLAG_AUX) {
+		fis[16] =  ccb->ataio.aux        & 0xff;
+		fis[17] = (ccb->ataio.aux >>  8) & 0xff;
+		fis[18] = (ccb->ataio.aux >> 16) & 0xff;
+		fis[19] = (ccb->ataio.aux >> 24) & 0xff;
 	}
 	return (20);
 }
@@ -2677,7 +2680,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		if (ch->caps & AHCI_CAP_SPM)
 			cpi->hba_inquiry |= PI_SATAPM;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED | PIM_NCQ_KLUDGE;
+		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED | PIM_ATA_EXT;
 		cpi->hba_eng_cnt = 0;
 		if (ch->caps & AHCI_CAP_SPM)
 			cpi->max_target = 15;
