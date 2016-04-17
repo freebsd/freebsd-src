@@ -6407,8 +6407,6 @@ nfsrv_addlayout(struct nfsrv_descript *nd, struct nfslockfile **new_lfpp,
 		NFSUNLOCKSTATE();
 		return (0);
 	}
-	stp = *stpp;
-	*stpp = NULL;
 
 	error = nfsrv_getclient((nfsquad_t)((u_quad_t)0), CLOPS_RENEW, &clp,
 	    NULL, (nfsquad_t)((u_quad_t)0), 0, nd, NULL);
@@ -6418,6 +6416,8 @@ nfsrv_addlayout(struct nfsrv_descript *nd, struct nfslockfile **new_lfpp,
 	}
 
 	/* Insert the new layout in the lists. */
+	stp = *stpp;
+	*stpp = NULL;
 	stp->ls_flags = NFSLCK_LAYOUT;
 	stp->ls_stateid.seqid = 1;
 	stp->ls_stateid.other[0] = stateidp->other[0] =
