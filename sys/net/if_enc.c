@@ -383,11 +383,24 @@ vnet_enc_uninit(const void *unused __unused)
 {
 	KASSERT(V_enc_sc != NULL, ("%s: V_enc_sc is %p\n", __func__, V_enc_sc));
 
-	enc_remove_hhooks(V_enc_sc);
 	if_clone_detach(V_enc_cloner);
 }
-VNET_SYSUNINIT(vnet_enc_uninit, SI_SUB_PSEUDO_DONE, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_enc_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
     vnet_enc_uninit, NULL);
+
+/*
+ * The hhook consumer needs to go before ip[6]_destroy are called on
+ * SI_ORDER_THIRD.
+ */
+static void
+vnet_enc_uninit_hhook(const void *unused __unused)
+{
+	KASSERT(V_enc_sc != NULL, ("%s: V_enc_sc is %p\n", __func__, V_enc_sc));
+
+	enc_remove_hhooks(V_enc_sc);
+}
+VNET_SYSUNINIT(vnet_enc_uninit_hhook, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
+    vnet_enc_uninit_hhook, NULL);
 
 static int
 enc_modevent(module_t mod, int type, void *data)
