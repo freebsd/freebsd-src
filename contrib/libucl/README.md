@@ -1,6 +1,6 @@
 # LIBUCL
 
-[![Build Status](https://travis-ci.org/vstakhov/libucl.svg?branch=master)](https://travis-ci.org/vstakhov/libucl)[![Coverity](https://scan.coverity.com/projects/4138/badge.svg)](https://scan.coverity.com/projects/4138)
+[![Build Status](https://travis-ci.org/vstakhov/libucl.svg?branch=master)](https://travis-ci.org/vstakhov/libucl)[![Coverity](https://scan.coverity.com/projects/4138/badge.svg)](https://scan.coverity.com/projects/4138)[![Coverage Status](https://coveralls.io/repos/github/vstakhov/libucl/badge.svg?branch=master)](https://coveralls.io/github/vstakhov/libucl?branch=master)
 
 **Table of Contents**  *generated with [DocToc](http://doctoc.herokuapp.com/)*
 
