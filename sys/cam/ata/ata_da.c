@@ -1851,7 +1851,7 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 			    ada_retry_count,
 			    adadone,
 			    rw_op,
-			    tag_code,
+			    0,
 			    data_ptr,
 			    bp->bio_bcount,
 			    ada_default_timeout*1000);
