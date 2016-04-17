@@ -606,10 +606,10 @@ cam_iosched_cl_maybe_steer(struct control_loop *clp)
 			isc->write_stats.current = isc->write_stats.min;
 		if (isc->write_stats.current > isc->write_stats.max)
 			isc->write_stats.current = isc->write_stats.max;
-		if (old != isc->write_stats.current)
-			printf("Steering write from %d kBps to %d kBps due to latency of %ldus\n",
+		if (old != isc->write_stats.current && 	iosched_debug)
+			printf("Steering write from %d kBps to %d kBps due to latency of %jdms\n",
 			    old, isc->write_stats.current,
-			    ((uint64_t)1000000 * (uint32_t)lat) >> 32);
+			    (uintmax_t)((uint64_t)1000000 * (uint32_t)lat) >> 32);
 		break;
 	case cl_max:
 		break;
