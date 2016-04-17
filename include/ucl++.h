@@ -26,7 +26,6 @@
 #include <string>
 #include <memory>
 #include <iostream>
-#include <strstream>
 
 #include "ucl.h"
 
@@ -120,18 +119,19 @@ public:
 			it = std::shared_ptr<void>(ucl_object_iterate_new (obj.obj.get()),
 					ucl_iter_deleter());
 			cur.reset (new Ucl(ucl_object_iterate_safe (it.get(), true)));
+			if (!*cur) {
+				it.reset ();
+				cur.reset ();
+			}
 		}
 
 		const_iterator() {}
-		const_iterator(const const_iterator &other) {
-			it = other.it;
-		}
+		const_iterator(const const_iterator &other) = delete;
+		const_iterator(const_iterator &&other) = default;
 		~const_iterator() {}
 
-		const_iterator& operator=(const const_iterator &other) {
-			it = other.it;
-			return *this;
-		}
+		const_iterator& operator=(const const_iterator &other) = delete;
+		const_iterator& operator=(const_iterator &&other) = default;
 
 		bool operator==(const const_iterator &other) const
 		{
@@ -264,45 +264,51 @@ public:
 		return res;
 	}
 
-	double number_value () const
+	double number_value (const double default_val = 0.0) const
 	{
-		if (obj) {
-			return ucl_object_todouble (obj.get());
+		double res;
+
+		if (ucl_object_todouble_safe(obj.get(), &res)) {
+			return res;
 		}
 
-		return 0.0;
+		return default_val;
 	}
 
-	int64_t int_value () const
+	int64_t int_value (const int64_t default_val = 0) const
 	{
-		if (obj) {
-			return ucl_object_toint (obj.get());
+		int64_t res;
+
+		if (ucl_object_toint_safe(obj.get(), &res)) {
+			return res;
 		}
 
-		return 0;
+		return default_val;
 	}
 
-	bool bool_value () const
+	bool bool_value (const bool default_val = false) const
 	{
-		if (obj) {
-			return ucl_object_toboolean (obj.get());
+		bool res;
+
+		if (ucl_object_toboolean_safe(obj.get(), &res)) {
+			return res;
 		}
 
-		return false;
+		return default_val;
 	}
 
-	const std::string string_value () const
+	const std::string string_value (const std::string& default_val = "") const
 	{
-		std::string res;
+		const char* res = nullptr;
 
-		if (obj) {
-			res.assign (ucl_object_tostring (obj.get()));
+		if (ucl_object_tostring_safe(obj.get(), &res)) {
+			return res;
 		}
 
-		return res;
+		return default_val;
 	}
 
-	const Ucl operator[] (size_t i) const
+	const Ucl at (size_t i) const
 	{
 		if (type () == UCL_ARRAY) {
 			return Ucl (ucl_array_find_index (obj.get(), i));
@@ -311,14 +317,24 @@ public:
 		return Ucl (nullptr);
 	}
 
-	const Ucl operator[](const std::string &key) const
+	const Ucl lookup (const std::string &key) const
 	{
 		if (type () == UCL_OBJECT) {
-			return Ucl (ucl_object_find_keyl (obj.get(),
+			return Ucl (ucl_object_lookup_len (obj.get(),
 					key.data (), key.size ()));
 		}
 
 		return Ucl (nullptr);
+	}
+
+	inline const Ucl operator[] (size_t i) const
+	{
+		return at(i);
+	}
+
+	inline const Ucl operator[](const std::string &key) const
+	{
+		return lookup(key);
 	}
 	// Serialize.
 	void dump (std::string &out, ucl_emitter_t type = UCL_EMIT_JSON) const
@@ -328,7 +344,7 @@ public:
 		cbdata = Ucl::default_emit_funcs();
 		cbdata.ud = reinterpret_cast<void *>(&out);
 
-		ucl_object_emit_full (obj.get(), type, &cbdata);
+		ucl_object_emit_full (obj.get(), type, &cbdata, nullptr);
 	}
 
 	std::string dump (ucl_emitter_t type = UCL_EMIT_JSON) const
@@ -375,6 +391,12 @@ public:
 				std::istreambuf_iterator<char>()), err);
 	}
 
+    Ucl& operator= (Ucl rhs)
+    {
+        obj.swap (rhs.obj);
+        return *this;
+    }
+
 	bool operator== (const Ucl &rhs) const
 	{
 		return ucl_object_compare (obj.get(), rhs.obj.get ()) == 0;
@@ -388,7 +410,7 @@ public:
 	bool operator> (const Ucl &rhs) const { return (rhs < *this); }
 	bool operator>= (const Ucl &rhs) const { return !(*this < rhs); }
 
-	operator bool () const
+	explicit operator bool () const
 	{
 		if (!obj || type() == UCL_NULL) {
 			return false;
