@@ -1645,7 +1645,7 @@ pfkey_recv(so)
 
 	/* read real message */
 	reallen = PFKEY_UNUNIT64(buf.sadb_msg_len);
-	if ((newmsg = CALLOC(reallen, struct sadb_msg *)) == 0) {
+	if ((newmsg = CALLOC(reallen, struct sadb_msg *)) == NULL) {
 		__ipsec_set_strerror(strerror(errno));
 		return NULL;
 	}
