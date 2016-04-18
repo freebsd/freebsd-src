@@ -1558,7 +1558,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		if (ch->ch.chunk_flags & SCTP_DATA_FIRST_FRAG)
 			fsn = 0;
 		else
-			fsn = ntohl(nch->dp.fsn);
+			fsn = ntohl(nch->dp.ppid_fsn.fsn);
 		old_data = 0;
 	} else {
 		ch = (struct sctp_data_chunk *)sctp_m_getptr(*m, offset,
