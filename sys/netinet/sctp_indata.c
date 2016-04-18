@@ -2598,7 +2598,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 			} else {
 				clen = sizeof(struct sctp_idata_chunk);
 			}
-			if ((size_t)chk_length < clen) {
+			if (chk_length < clen) {
 				/*
 				 * Need to send an abort since we had a
 				 * invalid data chunk.
