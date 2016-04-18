@@ -52,6 +52,8 @@
 
 #define SYSCFG1_USB_HOST_MODE	(1<<10)
 
+#define RT3350_CHIPID0_3	0x33335452
+
 extern uint32_t	mtk_sysctl_get(uint32_t);
 extern void	mtk_sysctl_set(uint32_t, uint32_t);
 extern void	mtk_sysctl_clr_set(uint32_t, uint32_t, uint32_t);
