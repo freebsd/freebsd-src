@@ -1288,7 +1288,7 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			}
 		}
 	}
-	if ((asoc->idata_supported == 0) && ((control->sinfo_flags >> 8) & SCTP_DATA_UNORDERED)) {
+	if ((asoc->idata_supported == 0) && (unordered == 1)) {
 		sctp_inject_old_data_unordered(stcb, asoc, strm, control, chk, abort_flag);
 		return;
 	}
