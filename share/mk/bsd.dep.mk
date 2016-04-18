@@ -54,6 +54,9 @@ HTAGSFLAGS?=
 .MAKE.DEPENDFILE= ${DEPENDFILE}
 .endif
 CLEANDEPENDFILES+=	${DEPENDFILE} ${DEPENDFILE}.*
+.if ${MK_META_MODE} == "yes"
+CLEANDEPENDFILES+=	*.meta
+.endif
 
 # Keep `tags' here, before SRCS are mangled below for `depend'.
 .if !target(tags) && defined(SRCS) && !defined(NO_TAGS)
