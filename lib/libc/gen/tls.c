@@ -33,6 +33,7 @@
  */
 
 #include <sys/cdefs.h>
+#include <sys/param.h>
 
 #ifdef __CHERI_PURE_CAPABILITY__
 #include <cheri/cheric.h>
@@ -86,9 +87,6 @@ void __libc_free_tls(void *tls, size_t tcbsize, size_t tcbalign);
 #endif
 
 #ifndef PIC
-
-#define round(size, align) \
-	(((size) + (align) - 1) & ~((align) - 1))
 
 static size_t tls_static_space;
 static size_t tls_init_size;
@@ -205,7 +203,7 @@ __libc_free_tls(void *tcb, size_t tcbsize __unused, size_t tcbalign)
 	 * Figure out the size of the initial TLS block so that we can
 	 * find stuff which ___tls_get_addr() allocated dynamically.
 	 */
-	size = round(tls_static_space, tcbalign);
+	size = roundup2(tls_static_space, tcbalign);
 
 	dtv = ((Elf_Addr**)tcb)[1];
 	tlsend = (Elf_Addr) tcb;
@@ -225,7 +223,7 @@ __libc_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
 	Elf_Addr *dtv;
 	Elf_Addr segbase, oldsegbase;
 
-	size = round(tls_static_space, tcbalign);
+	size = roundup2(tls_static_space, tcbalign);
 
 	if (tcbsize < 2 * sizeof(Elf_Addr))
 		tcbsize = 2 * sizeof(Elf_Addr);
@@ -332,7 +330,7 @@ _init_tls(void)
 
 	for (i = 0; (unsigned) i < phnum; i++) {
 		if (phdr[i].p_type == PT_TLS) {
-			tls_static_space = round(phdr[i].p_memsz,
+			tls_static_space = roundup2(phdr[i].p_memsz,
 			    phdr[i].p_align);
 			tls_init_size = phdr[i].p_filesz;
 #ifndef __CHERI_PURE_CAPABILITY__
