@@ -252,16 +252,16 @@ and then prints the sorted array to standard output is:
 #include <stdlib.h>
 
 /*
- * Custom comparison function that can compare 'int' values through pointers
+ * Custom comparison function that compares 'int' values through pointers
  * passed by qsort(3).
  */
 static int
 int_compare(const void *p1, const void *p2)
 {
-        int left = *(const int *)p1;
-        int right = *(const int *)p2;
+	int left = *(const int *)p1;
+	int right = *(const int *)p2;
 
-        return ((left > right) - (left < right));
+	return ((left > right) - (left < right));
 }
 
 /*
@@ -270,15 +270,15 @@ int_compare(const void *p1, const void *p2)
 int
 main(void)
 {
-       int int_array[] = { 4, 5, 9, 3, 0, 1, 7, 2, 8, 6 };
-       const size_t array_size = sizeof(int_array) / sizeof(int_array[0]);
-       size_t k;
+	int int_array[] = { 4, 5, 9, 3, 0, 1, 7, 2, 8, 6 };
+	size_t array_size = sizeof(int_array) / sizeof(int_array[0]);
+	size_t k;
 
-       qsort(&int_array, array_size, sizeof(int_array[0]), int_compare);
-       for (k = 0; k < array_size; k++)
-                printf(" %d", int_array[k]);
-        puts("");
-        return (EXIT_SUCCESS);
+	qsort(&int_array, array_size, sizeof(int_array[0]), int_compare);
+	for (k = 0; k < array_size; k++)
+		printf(" %d", int_array[k]);
+	puts("");
+	return (EXIT_SUCCESS);
 }
 .Ed
 .Sh COMPATIBILITY
