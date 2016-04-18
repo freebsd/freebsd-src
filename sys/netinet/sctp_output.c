@@ -7641,9 +7641,9 @@ dont_do_it:
 		ndchkh->dp.reserved = htons(0);
 		ndchkh->dp.msg_id = htonl(sp->msg_id);
 		if (sp->fsn == 0)
-			ndchkh->dp.protocol_id = chk->rec.data.payloadtype;
+			ndchkh->dp.ppid_fsn.protocol_id = chk->rec.data.payloadtype;
 		else
-			ndchkh->dp.fsn = htonl(sp->fsn);
+			ndchkh->dp.ppid_fsn.fsn = htonl(sp->fsn);
 		sp->fsn++;
 		ndchkh->ch.chunk_length = htons(chk->send_size);
 	}
