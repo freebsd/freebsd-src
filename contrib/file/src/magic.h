@@ -80,7 +80,7 @@
 #define	MAGIC_NO_CHECK_FORTRAN	0x000000 /* Don't check ascii/fortran */
 #define	MAGIC_NO_CHECK_TROFF	0x000000 /* Don't check ascii/troff */
 
-#define MAGIC_VERSION		524	/* This implementation */
+#define MAGIC_VERSION		525	/* This implementation */
 
 
 #ifdef __cplusplus
@@ -114,6 +114,7 @@ int magic_errno(magic_t);
 #define MAGIC_PARAM_ELF_SHNUM_MAX	3
 #define MAGIC_PARAM_ELF_NOTES_MAX	4
 #define MAGIC_PARAM_REGEX_MAX		5
+#define MAGIC_PARAM_BYTES_MAX		6
 
 int magic_setparam(magic_t, int, const void *);
 int magic_getparam(magic_t, int, void *);
