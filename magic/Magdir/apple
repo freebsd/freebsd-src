@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: apple,v 1.31 2015/08/29 07:10:35 christos Exp $
+# $File: apple,v 1.32 2015/12/04 20:40:10 christos Exp $
 # apple:  file(1) magic for Apple file formats
 #
 0	search/1/t	FiLeStArTfIlEsTaRt	binscii (apple ][) text
@@ -65,18 +65,48 @@
 # Eric Fischer <enf@pobox.com>
 
 # AppleWorks word processor:
-#
-# This matches the standard tab stops for an AppleWorks file, but if
-# a file has a tab stop set in the first four columns this will fail.
-#
+# URL: https://en.wikipedia.org/wiki/AppleWorks
+# Reference: http://www.gno.org/pub/apple2/doc/apple/filetypes/ftn.1a.xxxx
+# Update: Joerg Jenderek 
+# NOTE:
 # The "O" is really the magic number, but that's so common that it's
 # necessary to check the tab stops that follow it to avoid false positives.
-
-4       string          O====   AppleWorks word processor data
->85     byte&0x01       >0      \b, zoomed
->90     byte&0x01       >0      \b, paginated
->92     byte&0x01       >0      \b, with mail merge
-#>91    byte            x       \b, left margin %d
+# and/or look for unused bits of booleans bytes like zoom, paginated, mail merge
+# the newer AppleWorks is from claris with extension CWK
+4	string		O	
+# test for unused bits of zoom- , paginated-boolean bytes
+>84	ubequad		^0x00Fe00000000Fe00		
+# look for tabstop definitions "=" no tab, "|" no tab
+# "<" left tab,"^" center tab,">" right tab, "." decimal tab,
+# unofficial "!" other , "\x8a" other
+# official only if SFMinVers is nonzero
+>>5	regex/s	[=.<>|!^\x8a]{79}	AppleWorks Word Processor
+# AppleWorks Word Processor File (Apple II)
+# ./apple (version 5.25) labeled the entry as "AppleWorks word processor data"
+# application/x-appleworks is mime type for claris version with cwk extension
+!:mime	application/x-appleworks3
+# http://home.earthlink.net/~hughhood/appleiiworksenvoy/
+# ('p' + 1-byte ProDOS File Type + 2-byte ProDOS Aux Type')
+# $70 $1A $F8 $FF is this the apple type ?
+#:apple pdospøÿ
+!:ext awp
+# minimum version needed to read this files. SFMinVers (0 , 30~3.0 )
+>>>183	ubyte		30	3.0
+>>>183	ubyte		!30	
+>>>>183	ubyte		!0	0x%x
+# usual tabstop start sequence "=====<" 
+>>>5	string		x	\b, tabstop ruler "%6.6s"
+# tabstop ruler
+#>>>5	string		>\0	\b, tabstops "%-79s"
+# zoom switch
+>>>85	  byte&0x01	>0	\b, zoomed
+# whether paginated
+>>>90	  byte&0x01	>0	\b, paginated
+# contains any mail-merge commands
+>>>92	  byte&0x01	>0	\b, with mail merge
+# left margin in 1/10 inches ( normally 0 or 10 )
+>>>91	ubyte		>0	
+>>>>91	ubyte		x	\b, %d/10 inch left margin
 
 # AppleWorks database:
 #
