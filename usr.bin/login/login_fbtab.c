@@ -96,15 +96,15 @@ login_fbtab(char *tty, uid_t uid, gid_t gid)
     while (fgets(buf, sizeof(buf), fp)) {
 	if ((cp = strchr(buf, '#')))
 	    *cp = 0;				/* strip comment */
-	if ((cp = devname = strtok(buf, WSPACE)) == 0)
+	if ((cp = devname = strtok(buf, WSPACE)) == NULL)
 	    continue;				/* empty or comment */
 	if (strncmp(devname, _PATH_DEV, sizeof _PATH_DEV - 1) != 0
-	       || (cp = strtok(NULL, WSPACE)) == 0
+	       || (cp = strtok(NULL, WSPACE)) == NULL
 	       || *cp != '0'
 	       || sscanf(cp, "%o", &prot) == 0
 	       || prot == 0
 	       || (prot & 0777) != prot
-	       || (cp = strtok(NULL, WSPACE)) == 0) {
+	       || (cp = strtok(NULL, WSPACE)) == NULL) {
 	    syslog(LOG_ERR, "%s: bad entry: %s", table, cp ? cp : "(null)");
 	    continue;
 	}
