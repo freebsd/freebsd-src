@@ -178,6 +178,13 @@ ACFLAGS+=	${ACFLAGS.${.IMPSRC:T}}
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
 CXXFLAGS+=	${CXXFLAGS.${.IMPSRC:T}}
 
+.if defined(SRCTOP)
+# Prevent rebuilding during install to support read-only objdirs.
+.if make(install) && empty(.MAKE.MODE:Mmeta)
+CFLAGS+=	ERROR-tried-to-rebuild-during-make-install
+.endif
+.endif
+
 # Tell bmake not to mistake standard targets for things to be searched for
 # or expect to ever be up-to-date.
 PHONY_NOTMAIN = analyze afterdepend afterinstall all beforedepend beforeinstall \
