@@ -451,7 +451,7 @@ generate_guard(const char *pathname)
 	char *guard, *tmp, *stopat;
 
 	filename = strrchr(pathname, '/');  /* find last component */
-	filename = ((filename == 0) ? pathname : filename+1);
+	filename = ((filename == NULL) ? pathname : filename+1);
 	guard = xstrdup(filename);
 	stopat = strrchr(guard, '.');
 
