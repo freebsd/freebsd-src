@@ -202,6 +202,14 @@ CHERI_FLAGS+=	-DWITH_CHERI256
 
 _MAKE=	PATH=${PATH} ${SUB_MAKE} -f Makefile.inc1 ${CHERI_FLAGS} TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
 
+# Must disable META_MODE when installing to avoid missing anything.  The
+# main problem is that buildworld will create cookies for install targets
+# since they are being installed into WORLDTMP.  This avoids unneeded and
+# redundant restaging but is dangerous for user install targets.
+.if make(distrib*) || make(*install*)
+_MAKE+=	MK_META_MODE=no
+.endif
+
 # Guess machine architecture from machine type, and vice versa.
 .if !defined(TARGET_ARCH) && defined(TARGET)
 _TARGET_ARCH=	${TARGET:S/pc98/i386/:S/arm64/aarch64/}
