@@ -143,7 +143,7 @@ susp_lookup_record(struct open_file *f, const char *identifier,
 		if (bcmp(sh->type, SUSP_CONTINUATION, 2) == 0) {
 			shc = (ISO_RRIP_CONT *)sh;
 			error = f->f_dev->dv_strategy(f->f_devdata, F_READ,
-			    cdb2devb(isonum_733(shc->location)),
+			    cdb2devb(isonum_733(shc->location)), 0,
 			    ISO_DEFAULT_BLOCK_SIZE, susp_buffer, &read);
 
 			/* Bail if it fails. */
@@ -288,7 +288,7 @@ cd9660_open(const char *path, struct open_file *f)
 	for (bno = 16;; bno++) {
 		twiddle(1);
 		rc = f->f_dev->dv_strategy(f->f_devdata, F_READ, cdb2devb(bno),
-					   ISO_DEFAULT_BLOCK_SIZE, buf, &read);
+					0, ISO_DEFAULT_BLOCK_SIZE, buf, &read);
 		if (rc)
 			goto out;
 		if (read != ISO_DEFAULT_BLOCK_SIZE) {
@@ -322,7 +322,7 @@ cd9660_open(const char *path, struct open_file *f)
 				twiddle(1);
 				rc = f->f_dev->dv_strategy
 					(f->f_devdata, F_READ,
-					 cdb2devb(bno + boff),
+					 cdb2devb(bno + boff), 0,
 					 ISO_DEFAULT_BLOCK_SIZE,
 					 buf, &read);
 				if (rc)
@@ -381,7 +381,7 @@ cd9660_open(const char *path, struct open_file *f)
 		bno = isonum_733(rec.extent) + isonum_711(rec.ext_attr_length);
 		twiddle(1);
 		rc = f->f_dev->dv_strategy(f->f_devdata, F_READ, cdb2devb(bno),
-		    ISO_DEFAULT_BLOCK_SIZE, buf, &read);
+		    0, ISO_DEFAULT_BLOCK_SIZE, buf, &read);
 		if (rc)
 			goto out;
 		if (read != ISO_DEFAULT_BLOCK_SIZE) {
@@ -438,7 +438,8 @@ buf_read_file(struct open_file *f, char **buf_p, size_t *size_p)
 
 		twiddle(16);
 		rc = f->f_dev->dv_strategy(f->f_devdata, F_READ,
-		    cdb2devb(blkno), ISO_DEFAULT_BLOCK_SIZE, fp->f_buf, &read);
+		    cdb2devb(blkno), 0, ISO_DEFAULT_BLOCK_SIZE,
+		    fp->f_buf, &read);
 		if (rc)
 			return (rc);
 		if (read != ISO_DEFAULT_BLOCK_SIZE)
