@@ -63,7 +63,6 @@ static MALLOC_DEFINE(M_CAMSCHED, "CAM I/O Scheduler",
 
 #ifdef CAM_NETFLIX_IOSCHED
 
-SYSCTL_DECL(_kern_cam);
 static int do_netflix_iosched = 1;
 TUNABLE_INT("kern.cam.do_netflix_iosched", &do_netflix_iosched);
 SYSCTL_INT(_kern_cam, OID_AUTO, do_netflix_iosched, CTLFLAG_RD,
