@@ -244,7 +244,6 @@ sctp6_notify(struct sctp_inpcb *inp,
 		} else {
 			timer_stopped = 0;
 		}
-		break;
 		/* Update the path MTU. */
 		if (net->mtu > next_mtu) {
 			net->mtu = next_mtu;
@@ -310,7 +309,7 @@ sctp6_ctlinput(int cmd, struct sockaddr *pktdst, void *d)
 		 * verification tag of the SCTP common header.
 		 */
 		if (ip6cp->ip6c_m->m_pkthdr.len <
-		    ip6cp->ip6c_off + offsetof(struct sctphdr, checksum)) {
+		    (int32_t) (ip6cp->ip6c_off + offsetof(struct sctphdr, checksum))) {
 			return;
 		}
 		/* Copy out the port numbers and the verification tag. */
