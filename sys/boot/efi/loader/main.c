@@ -210,6 +210,11 @@ main(int argc, CHAR16 *argv[])
 	cons_probe();
 
 	/*
+	 * Initialise the block cache. Set the upper limit.
+	 */
+	bcache_init(32768, 512);
+
+	/*
 	 * Parse the args to set the console settings, etc
 	 * boot1.efi passes these in, if it can read /boot.config or /boot/config
 	 * or iPXE may be setup to pass these in.
