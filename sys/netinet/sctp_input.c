@@ -900,10 +900,12 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 				/* Ordered */
 				TAILQ_REMOVE(&strm->inqueue, asoc->control_pdapi, next_instrm);
 				asoc->control_pdapi->on_strm_q = 0;
+#ifdef INVARIANTS
 			} else {
 				panic("Unknown state on ctrl:%p on_strm_q:%d",
 				    asoc->control_pdapi,
 				    asoc->control_pdapi->on_strm_q);
+#endif
 			}
 		}
 		asoc->control_pdapi->end_added = 1;

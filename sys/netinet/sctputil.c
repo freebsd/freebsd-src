@@ -5565,10 +5565,12 @@ restart_nosblocks:
 			sctp_m_free(control->aux_data);
 			control->aux_data = NULL;
 		}
+#ifdef INVARIANTS
 		if (control->on_strm_q) {
 			panic("About to free ctl:%p so:%p and its in %d",
 			    control, so, control->on_strm_q);
 		}
+#endif
 		sctp_free_remote_addr(control->whoFrom);
 		sctp_free_a_readq(stcb, control);
 		if (hold_rlock) {
@@ -5976,10 +5978,12 @@ get_more_data:
 				no_rcv_needed = control->do_not_ref_stcb;
 				sctp_free_remote_addr(control->whoFrom);
 				control->data = NULL;
+#ifdef INVARIANTS
 				if (control->on_strm_q) {
 					panic("About to free ctl:%p so:%p and its in %d",
 					    control, so, control->on_strm_q);
 				}
+#endif
 				sctp_free_a_readq(stcb, control);
 				control = NULL;
 				if ((freed_so_far >= rwnd_req) &&

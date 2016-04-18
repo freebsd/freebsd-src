@@ -570,9 +570,11 @@ protocol_error:
 				sctp_ucount_decr(asoc->cnt_on_all_streams);
 				if (control->on_strm_q == SCTP_ON_ORDERED) {
 					TAILQ_REMOVE(&strm->inqueue, control, next_instrm);
+#ifdef INVARIANTS
 				} else {
 					panic("Huh control: %p is on_strm_q: %d",
 					    control, control->on_strm_q);
+#endif
 				}
 				control->on_strm_q = 0;
 				strm->last_sequence_delivered++;
@@ -674,7 +676,11 @@ sctp_add_to_tail_pointer(struct sctp_queued_to_read *control, struct mbuf *m)
 
 	stcb = control->stcb;
 	if (stcb == NULL) {
+#ifdef INVARIANTS
 		panic("Control broken");
+#else
+		return;
+#endif
 	}
 	if (control->tail_mbuf == NULL) {
 		/* TSNH */
@@ -1020,10 +1026,12 @@ sctp_deliver_reasm_check(struct sctp_tcb *stcb, struct sctp_association *asoc, s
 		if (control->end_added) {
 			/* We just put the last bit on */
 			if (control->on_strm_q) {
+#ifdef INVARIANTS
 				if (control->on_strm_q != SCTP_ON_UNORDERED) {
 					panic("Huh control: %p on_q: %d -- not unordered?",
 					    control, control->on_strm_q);
 				}
+#endif
 				TAILQ_REMOVE(&strm->uno_inqueue, control, next_instrm);
 				control->on_strm_q = 0;
 			}
@@ -1072,10 +1080,12 @@ done_un:
 		    strm->last_sequence_delivered);
 		if (control->end_added) {
 			if (control->on_strm_q) {
+#ifdef INVARIANTS
 				if (control->on_strm_q != SCTP_ON_ORDERED) {
 					panic("Huh control: %p on_q: %d -- not ordered?",
 					    control, control->on_strm_q);
 				}
+#endif
 				TAILQ_REMOVE(&strm->inqueue, control, next_instrm);
 				control->on_strm_q = 0;
 			}
@@ -1113,10 +1123,12 @@ deliver_more:
 			if (control->end_added) {
 				/* We are done with it afterwards */
 				if (control->on_strm_q) {
+#ifdef INVARIANTS
 					if (control->on_strm_q != SCTP_ON_ORDERED) {
 						panic("Huh control: %p on_q: %d -- not ordered?",
 						    control, control->on_strm_q);
 					}
+#endif
 					TAILQ_REMOVE(&strm->inqueue, control, next_instrm);
 					control->on_strm_q = 0;
 				}
@@ -1210,9 +1222,11 @@ sctp_add_chk_to_control(struct sctp_queued_to_read *control,
 				/* Ordered */
 				TAILQ_REMOVE(&strm->inqueue, control, next_instrm);
 				control->on_strm_q = 0;
+#ifdef INVARIANTS
 			} else if (control->on_strm_q) {
 				panic("Unknown state on ctrl: %p on_strm_q: %d", control,
 				    control->on_strm_q);
+#endif
 			}
 		}
 		control->end_added = 1;
@@ -5167,9 +5181,11 @@ sctp_kick_prsctp_reorder_queue(struct sctp_tcb *stcb,
 						TAILQ_REMOVE(&strmin->inqueue, ctl, next_instrm);
 					} else if (ctl->on_strm_q == SCTP_ON_UNORDERED) {
 						TAILQ_REMOVE(&strmin->uno_inqueue, ctl, next_instrm);
+#ifdef INVARIANTS
 					} else {
 						panic("strmin: %p ctl: %p unknown %d",
 						    strmin, ctl, ctl->on_strm_q);
+#endif
 					}
 					ctl->on_strm_q = 0;
 				}
@@ -5230,9 +5246,11 @@ sctp_kick_prsctp_reorder_queue(struct sctp_tcb *stcb,
 						TAILQ_REMOVE(&strmin->inqueue, ctl, next_instrm);
 					} else if (ctl->on_strm_q == SCTP_ON_UNORDERED) {
 						TAILQ_REMOVE(&strmin->uno_inqueue, ctl, next_instrm);
+#ifdef INVARIANTS
 					} else {
 						panic("strmin: %p ctl: %p unknown %d",
 						    strmin, ctl, ctl->on_strm_q);
+#endif
 					}
 					ctl->on_strm_q = 0;
 				}
@@ -5493,9 +5511,11 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 						TAILQ_REMOVE(&strm->inqueue, ctl, next_instrm);
 					} else if (ctl->on_strm_q == SCTP_ON_UNORDERED) {
 						TAILQ_REMOVE(&strm->uno_inqueue, ctl, next_instrm);
+#ifdef INVARIANTS
 					} else if (ctl->on_strm_q) {
 						panic("strm: %p ctl: %p unknown %d",
 						    strm, ctl, ctl->on_strm_q);
+#endif
 					}
 					ctl->on_strm_q = 0;
 					stcb->asoc.control_pdapi = ctl;
