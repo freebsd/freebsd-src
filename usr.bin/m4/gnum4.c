@@ -129,7 +129,7 @@ dopath(struct input_file *i, const char *filename)
 
 	for (pe = first; pe; pe = pe->next) {
 		snprintf(path, sizeof(path), "%s/%s", pe->name, filename);
-		if ((f = fopen(path, "r")) != 0) {
+		if ((f = fopen(path, "r")) != NULL) {
 			set_input(i, f, path);
 			return i;
 		}
