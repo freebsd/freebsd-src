@@ -138,8 +138,8 @@ am__DEPENDENCIES_1 =
 libmagic_la_DEPENDENCIES = $(LTLIBOBJS) $(am__DEPENDENCIES_1)
 am_libmagic_la_OBJECTS = magic.lo apprentice.lo softmagic.lo \
 	ascmagic.lo encoding.lo compress.lo is_tar.lo readelf.lo \
-	print.lo fsmagic.lo funcs.lo apptype.lo cdf.lo cdf_time.lo \
-	readcdf.lo
+	print.lo fsmagic.lo funcs.lo apptype.lo der.lo cdf.lo \
+	cdf_time.lo readcdf.lo
 libmagic_la_OBJECTS = $(am_libmagic_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -214,9 +214,9 @@ am__define_uniq_tagged_files = \
 ETAGS = etags
 CTAGS = ctags
 am__DIST_COMMON = $(srcdir)/Makefile.in $(top_srcdir)/depcomp \
-	asctime_r.c asprintf.c ctime_r.c fmtcheck.c getline.c \
-	getopt_long.c gmtime_r.c localtime_r.c pread.c strcasestr.c \
-	strlcat.c strlcpy.c vasprintf.c
+	asctime_r.c asprintf.c ctime_r.c dprintf.c fmtcheck.c \
+	getline.c getopt_long.c gmtime_r.c localtime_r.c pread.c \
+	strcasestr.c strlcat.c strlcpy.c vasprintf.c
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 pkgdatadir = @pkgdatadir@
 ACLOCAL = @ACLOCAL@
@@ -345,7 +345,7 @@ AM_CPPFLAGS = -DMAGIC='"$(MAGIC)"'
 AM_CFLAGS = $(CFLAG_VISIBILITY) @WARNINGS@
 libmagic_la_SOURCES = magic.c apprentice.c softmagic.c ascmagic.c \
 	encoding.c compress.c is_tar.c readelf.c print.c fsmagic.c \
-	funcs.c file.h readelf.h tar.h apptype.c \
+	funcs.c file.h readelf.h tar.h apptype.c der.c der.h \
 	file_opts.h elfclass.h mygetopt.h cdf.c cdf_time.c readcdf.c cdf.h
 
 libmagic_la_LDFLAGS = -no-undefined -version-info 1:0:0
@@ -493,6 +493,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/asctime_r.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/asprintf.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/ctime_r.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/dprintf.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/fmtcheck.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/getline.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/getopt_long.Plo@am__quote@
@@ -509,6 +510,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cdf.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cdf_time.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/compress.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/der.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/encoding.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/file.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fsmagic.Plo@am__quote@

@@ -1,10 +1,24 @@
 
 #------------------------------------------------------------------------------
-# $File: terminfo,v 1.6 2009/09/19 16:28:12 christos Exp $
+# $File: terminfo,v 1.7 2016/03/17 21:02:29 christos Exp $
 # terminfo:  file(1) magic for terminfo
 #
 # XXX - byte order for screen images?
 #
-0	string		\032\001	Compiled terminfo entry
+# URL: https://en.wikipedia.org/wiki/Terminfo
+# Reference: ncurses-5.9/ncurses/tinfo/write_entry.c
+# Update: Joerg Jenderek
+#
+# GRR: line below too general as it catches also 
+# Targa image type 1 with 26 long identification field
+# and HELP.DSK
+0	string		\032\001	
+# 5th character of terminal name list, but not Targa image pixel size (15 16 24 32)
+>16	ubyte		>32		
+# namelist, if more than 1 separated by "|" like "st|stterm| simpleterm 0.4.1"
+>>12	regex		\^[a-zA-Z0-9][a-zA-Z0-9.][^|]*	Compiled terminfo entry "%-s"
+!:mime	application/x-terminfo
+# no extension
+#!:ext	
 0	short		0433		Curses screen image
 0	short		0434		Curses screen image

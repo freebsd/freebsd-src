@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: archive,v 1.91 2015/09/16 13:49:33 christos Exp $
+# $File: archive,v 1.102 2016/01/11 20:59:24 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -246,7 +246,15 @@
 # BA
 # TODO: idarc says "bytes 0-2 == bytes 3-5"
 # TTComp
-0	string	\0\6 TTComp archive data
+# URL: http://fileformats.archiveteam.org/wiki/TTComp_archive
+# Update: Joerg Jenderek
+# GRR: line below is too general as it matches also Panorama database "TCDB 2003-10 demo.pan", others
+0	string	\0\6 
+# look for first keyword of Panorama database *.pan
+>12	search/261	DESIGN	
+# skip keyword with low entropy
+>12	default		x	TTComp archive, binary, 4K dictionary
+# (version 5.25) labeled the above entry as "TTComp archive data"
 # ESP, could this conflict with Easy Software Products' (e.g.ESP ghostscript) documentation?
 0	string	ESP ESP archive data
 # ZPack
@@ -544,55 +552,212 @@
 >>0x36	string		>\0			fstype %.8s
 
 # LHARC/LHA archiver (Greg Roelofs, newt@uchicago.edu)
-2	string		-lh0-		LHarc 1.x/ARX archive data [lh0]
-!:mime	application/x-lharc
-2	string		-lh1-		LHarc 1.x/ARX archive data [lh1]
-!:mime	application/x-lharc
-2	string		-lz4-		LHarc 1.x archive data [lz4]
-!:mime	application/x-lharc
-2	string		-lz5-		LHarc 1.x archive data [lz5]
-!:mime	application/x-lharc
+# Update: Joerg Jenderek 
+# URL: https://en.wikipedia.org/wiki/LHA_(file_format)
+# Reference: http://web.archive.org/web/20021005080911/http://www.osirusoft.com/joejared/lzhformat.html
+#
+#	check and display information of lharc (LHa,PMarc) file
+0	name				lharc-file
+# check 1st character of method id like -lz4- -lh5- or -pm2-
+>2	string		-
+# check 5th character of method id
+>>6	string		-		
+# check header level 0 1 2 3
+>>>20	ubyte		<4		
+# check 2nd, 3th and 4th character of method id
+>>>>3	regex		\^(lh[0-9a-ex]|lz[s2-8]|pm[012]|pc1)		\b 
+!:mime	application/x-lzh-compressed
+# creator type "LHA "
+!:apple	????LHA 
+# display archive type name like "LHa/LZS archive data" or "LArc archive"
+>>>>>2	string		-lz		\b 
+!:ext	lzs
+# already known  -lzs- -lz4- -lz5- with old names
+>>>>>>2	string	-lzs		LHa/LZS archive data
+>>>>>>3	regex	\^lz[45]	LHarc 1.x archive data
+# missing -lz?- with wikipedia names
+>>>>>>3	regex	\^lz[2378]	LArc archive
+# display archive type name like "LHa (2.x) archive data"
+>>>>>2	string		-lh		\b 
+# already known -lh0- -lh1- -lh2- -lh3-  -lh4- -lh5- -lh6- -lh7- -lhd- variants with old names
+>>>>>>3	regex		\^lh[01]	LHarc 1.x/ARX archive data
+# LHice archiver use ".ICE" as name extension instead usual one ".lzh"
+# FOOBAR archiver use ".foo" as name extension instead usual one
+# "Florain Orjanov's and Olga Bachetska's ARchiver" not found at the moment
+>>>>>>>2	string	-lh1		\b 
+!:ext lha/lzh/ice
+>>>>>>3	regex		\^lh[23d]	LHa 2.x? archive data
+>>>>>>3	regex		\^lh[7]		LHa (2.x)/LHark archive data
+>>>>>>3	regex		\^lh[456]	LHa (2.x) archive data
+>>>>>>>2	string	-lh5		\b 
+# https://en.wikipedia.org/wiki/BIOS
+# Some mainboard BIOS like Award use LHa compression. So archives with unusal extension are found like
+# bios.rom , kd7_v14.bin, 1010.004, ...
+!:ext lha/lzh/rom/bin
+# missing -lh?- variants (Joe Jared)
+>>>>>>3	regex		\^lh[89a-ce]	LHa (Joe Jared) archive
+# UNLHA32 2.67a
+>>>>>>2	string		-lhx		LHa (UNLHA32) archive
+# lha archives with standard file name extensions ".lha" ".lzh"
+>>>>>>3	regex		!\^(lh1|lh5)	\b 
+!:ext lha/lzh
+# this should not happen if all -lh variants are described
+>>>>>>2	default		x		LHa (unknown) archive
+#!:ext	lha
+# PMarc
+>>>>>3	regex		\^pm[012]	PMarc archive data
+!:ext pma
+# append method id without leading and trailing minus character
+>>>>>3	string		x		[%3.3s]
+>>>>>>0	use	lharc-header
+#
+#	check and display information of lharc header
+0	name				lharc-header
+# header size 0x4 , 0x1b-0x61
+>0	ubyte		x		
+# compressed data size != compressed file size
+#>7	ulelong		x		\b, data size %d
+# attribute: 0x2~?? 0x10~symlink|target 0x20~normal 
+#>19	ubyte		x		\b, 19_0x%x
+# level identifier 0 1 2 3
+#>20	ubyte		x		\b, level %d
+# time stamp
+#>15		ubelong	x		DATE 0x%8.8x
+# OS ID for level 1
+>20	ubyte		1		
+# 0x20 types find for *.rom files
+>>(21.b+24)	ubyte	<0x21		\b, 0x%x OS
+# ascii type like M for MSDOS
+>>(21.b+24)	ubyte	>0x20		\b, '%c' OS
+# OS ID for level 2
+>20	ubyte		2		
+#>>23	ubyte		x		\b, OS ID 0x%x
+>>23	ubyte		<0x21		\b, 0x%x OS
+>>23	ubyte		>0x20		\b, '%c' OS
+# filename only for level 0 and 1
+>20	ubyte		<2		
+# length of filename
+>>21		ubyte	>0		\b, with
+# filename
+>>>21		pstring	x		"%s"
+#
+#2	string		-lh0-		LHarc 1.x/ARX archive data [lh0]
+#!:mime	application/x-lharc
+2	string		-lh0-		
+>0	use	lharc-file
+#2	string		-lh1-		LHarc 1.x/ARX archive data [lh1]
+#!:mime	application/x-lharc
+2	string		-lh1-		
+>0	use	lharc-file
+# NEW -lz2- ... -lz8-
+2	string		-lz2-		
+>0	use	lharc-file
+2	string		-lz3-		
+>0	use	lharc-file
+2	string		-lz4-		
+>0	use	lharc-file
+2	string		-lz5-		
+>0	use	lharc-file
+2	string		-lz7-		
+>0	use	lharc-file
+2	string		-lz8-		
+>0	use	lharc-file
 #	[never seen any but the last; -lh4- reported in comp.compression:]
-2	string		-lzs-		LHa/LZS archive data [lzs]
-!:mime	application/x-lha
-2	string		-lh\40-		LHa 2.x? archive data [lh ]
-!:mime	application/x-lha
-2	string		-lhd-		LHa 2.x? archive data [lhd]
-!:mime	application/x-lha
-2	string		-lh2-		LHa 2.x? archive data [lh2]
-!:mime	application/x-lha
-2	string		-lh3-		LHa 2.x? archive data [lh3]
-!:mime	application/x-lha
-2	string		-lh4-		LHa (2.x) archive data [lh4]
-!:mime	application/x-lha
-2	string		-lh5-		LHa (2.x) archive data [lh5]
-!:mime	application/x-lha
-2	string		-lh6-		LHa (2.x) archive data [lh6]
-!:mime	application/x-lha
-2	string		-lh7-		LHa (2.x)/LHark archive data [lh7]
-!:mime	application/x-lha
->20	byte		x		- header level %d
+#2	string		-lzs-		LHa/LZS archive data [lzs]
+2	string		-lzs-		
+>0	use	lharc-file
+# According to wikipedia and others such a version does not exist
+#2	string		-lh\40-		LHa 2.x? archive data [lh ]
+#2	string		-lhd-		LHa 2.x? archive data [lhd]
+2	string		-lhd-		
+>0	use	lharc-file
+#2	string		-lh2-		LHa 2.x? archive data [lh2]
+2	string		-lh2-		
+>0	use	lharc-file
+#2	string		-lh3-		LHa 2.x? archive data [lh3]
+2	string		-lh3-		
+>0	use	lharc-file
+#2	string		-lh4-		LHa (2.x) archive data [lh4]
+2	string		-lh4-		
+>0	use	lharc-file
+#2	string		-lh5-		LHa (2.x) archive data [lh5]
+2	string		-lh5-		
+>0	use	lharc-file
+#2	string		-lh6-		LHa (2.x) archive data [lh6]
+2	string		-lh6-		
+>0	use	lharc-file
+#2	string		-lh7-		LHa (2.x)/LHark archive data [lh7]
+2	string		-lh7-		
+# !:mime	application/x-lha
+# >20	byte		x		- header level %d
+>0	use	lharc-file
+# NEW -lh8- ... -lhe- , -lhx-
+2	string		-lh8-		
+>0	use	lharc-file
+2	string		-lh9-		
+>0	use	lharc-file
+2	string		-lha-		
+>0	use	lharc-file
+2	string		-lhb-		
+>0	use	lharc-file
+2	string		-lhc-		
+>0	use	lharc-file
+2	string		-lhe-		
+>0	use	lharc-file
+2	string		-lhx-		
+>0	use	lharc-file
 # taken from idarc [JW]
 2   string      -lZ         PUT archive data
-2   string      -lz         LZS archive data
+# already done by LHarc magics
+# this should never happen if all sub types of LZS archive are identified 
+#2   string      -lz         LZS archive data
 2   string      -sw1-       Swag archive data
 
-# RAR archiver (Greg Roelofs, newt@uchicago.edu)
-0	string		Rar!		RAR archive data,
+0	name		rar-file-header
+>24	byte		15		\b, v1.5
+>24	byte		20		\b, v2.0
+>24	byte		29		\b, v4
+>15	byte		0		\b, os: MS-DOS
+>15	byte		1		\b, os: OS/2
+>15	byte		2		\b, os: Win32
+>15	byte		3		\b, os: Unix
+>15	byte		4		\b, os: Mac OS
+>15	byte		5		\b, os: BeOS
+
+0	name		rar-archive-header
+>3	leshort&0x1ff	>0		\b, flags:
+>>3	leshort		&0x01		ArchiveVolume
+>>3	leshort		&0x02		Commented
+>>3	leshort		&0x04		Locked
+>>3	leshort		&0x10		NewVolumeNaming
+>>3	leshort		&0x08		Solid
+>>3	leshort		&0x20		Authenticated
+>>3	leshort		&0x40		RecoveryRecordPresent
+>>3	leshort		&0x80		EncryptedBlockHeader
+>>3	leshort		&0x100		FirstVolume
+
+# RAR (Roshal Archive) archive
+0	string		Rar!\x1a\7\0		RAR archive data
 !:mime	application/x-rar
->44	byte		x		v%0x,
->10	byte		>0		flags:
->>10	byte		&0x01		Archive volume,
->>10	byte		&0x02		Commented,
->>10	byte		&0x04		Locked,
->>10	byte		&0x08		Solid,
->>10	byte		&0x20		Authenticated,
->35	byte		0		os: MS-DOS
->35	byte		1		os: OS/2
->35	byte		2		os: Win32
->35	byte		3		os: Unix
-# some old version? idarc says:
-0   string      RE\x7e\x5e  RAR archive data
+!:ext	rar/cbr
+# file header
+>(0xc.l+9)	byte	0x74
+>>(0xc.l+7)	use	rar-file-header
+# subblock seems to share information with file header
+>(0xc.l+9)	byte	0x7a
+>>(0xc.l+7)	use	rar-file-header
+>9		byte	0x73
+>>7		use	rar-archive-header
+
+0	string		Rar!\x1a\7\1\0		RAR archive data, v5
+!:mime	application/x-rar
+!:ext	rar
+
+# Very old RAR archive
+# http://jasonblanks.com/wp-includes/images/papers/KnowyourarchiveRAR.pdf
+0	string		RE\x7e\x5e  RAR archive data (<v1.5)
+!:mime	application/x-rar
+!:ext	rar/cbr
 
 # SQUISH archiver (Greg Roelofs, newt@uchicago.edu)
 0	string		SQSH		squished archive data (Acorn RISCOS)
@@ -604,9 +769,12 @@
 # PKZIP multi-volume archive
 0	string		PK\x07\x08PK\x03\x04	Zip multi-volume archive data, at least PKZIP v2.50 to extract
 !:mime	application/zip
+!:ext zip/cbz
 
 # Zip archives (Greg Roelofs, c/o zip-bugs@wkuvx1.wku.edu)
 0	string		PK\005\006	Zip archive data (empty)
+!:mime application/zip
+!:ext zip/cbz
 0	string		PK\003\004
 
 # Specialised zip formats which start with a member named 'mimetype'
@@ -764,12 +932,24 @@
 0       string  \0\ \ \ \ \ \ \ \ \ \ \ \0\0    LBR archive data
 #
 # PMA (CP/M derivative of LHA)
+# Update: Joerg Jenderek 
+# URL: https://en.wikipedia.org/wiki/LHA_(file_format)
 #
-2       string          -pm0-           PMarc archive data [pm0]
-2       string          -pm1-           PMarc archive data [pm1]
-2       string          -pm2-           PMarc archive data [pm2]
+#2       string          -pm0-           PMarc archive data [pm0]
+2	string		-pm0-		
+>0	use	lharc-file
+#2       string          -pm1-           PMarc archive data [pm1]
+2	string		-pm1-		
+>0	use	lharc-file
+#2       string          -pm2-           PMarc archive data [pm2]
+2	string		-pm2-		
+>0	use	lharc-file
 2       string          -pms-           PMarc SFX archive (CP/M, DOS)
+#!:mime	application/x-foobar-exec
+!:ext com
 5       string          -pc1-           PopCom compressed executable (CP/M)
+#!:mime	application/x-
+#!:ext com
 
 # From Rafael Laboissiere <rafael@laboissiere.net>
 # The Project Revision Control System (see
@@ -801,6 +981,9 @@
 
 # Felix von Leitner <felix-file@fefe.de>
 0	string	d8:announce	BitTorrent file
+!:mime	application/x-bittorrent
+# Durval Menezes, <jmgthbfile at durval dot com>
+0	string	d13:announce-list	BitTorrent file
 !:mime	application/x-bittorrent
 
 # Atari MSA archive - Teemu Hukkanen <tjhukkan@iki.fi>
@@ -889,19 +1072,16 @@
 # From "Nelson A. de Oliveira" <naoliv@gmail.com>
 0	string	MPQ\032		MoPaQ (MPQ) archive
 
-# From: Dirk Jagdmann <doj@cubic.org>
-# xar archive format: http://code.google.com/p/xar/
-0	string	xar!		xar archive
->6	beshort	x		- version %d
-
 # From: "Nelson A. de Oliveira" <naoliv@gmail.com>
 # .kgb
 0	string KGB_arch		KGB Archiver file
 >10	string x		with compression level %.1s
 
 # xar (eXtensible ARchiver) archive
+# xar archive format: http://code.google.com/p/xar/
 # From: "David Remahl" <dremahl@apple.com>
 0	string	xar!		xar archive
+!:mime	application/x-xar
 #>4	beshort	x		header size %d
 >6	beshort	x		version %d,
 #>8	quad	x		compressed TOC: %d,
@@ -975,3 +1155,9 @@
 >0xE08	search/7776		\x55\xAA	
 >>&-512	indirect		x		\b; contains 
 
+# Google Chrome extensions
+# https://developer.chrome.com/extensions/crx
+# https://developer.chrome.com/extensions/hosting
+0	string	Cr24	Google Chrome extension
+!:mime	application/x-chrome-extension
+>4	ulong	x	\b, version %u

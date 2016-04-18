@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: commands,v 1.52 2015/06/04 19:16:55 christos Exp $
+# $File: commands,v 1.53 2016/02/23 12:35:20 christos Exp $
 # commands:  file(1) magic for various shells and interpreters
 #
 #0	string/w	:			shell archive or script for antique kernel text
@@ -98,7 +98,9 @@
 !:mime	text/x-php
 # Smarty compiled template, http://www.smarty.net/
 # Elan Ruusamae <glen@delfi.ee>
-0	string	=<?php\ /*\ Smarty\ version	Smarty compiled template
+0	string	=<?php
+>5	regex	[\ \n]
+>>6	string	/*\ Smarty\ version		Smarty compiled template
 >24	regex	[0-9.]+				\b, version %s
 !:mime	text/x-php
 

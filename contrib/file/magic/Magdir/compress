@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: compress,v 1.64 2015/07/27 15:41:09 christos Exp $
+# $File: compress,v 1.65 2015/12/04 20:48:03 christos Exp $
 # compress:  file(1) magic for pure-compression formats (no archives)
 #
 # compress, gzip, pack, compact, huf, squeeze, crunch, freeze, yabba, etc.
@@ -188,6 +188,7 @@
 >6	byte		x			version %d
 >7	byte		x			\b.%d
 !:mime	application/x-7z-compressed
+!:ext 7z/cb7
 
 # Type: LZMA
 0	lelong&0xffffff	=0x5d
