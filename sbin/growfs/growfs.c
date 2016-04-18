@@ -1331,7 +1331,7 @@ getdev(const char *name)
 		return (name);
 
 	cp = strrchr(name, '/');
-	if (cp == 0) {
+	if (cp == NULL) {
 		snprintf(device, sizeof(device), "%s%s", _PATH_DEV, name);
 		if (is_dev(device))
 			return (device);
