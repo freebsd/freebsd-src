@@ -135,6 +135,9 @@ DIRDEPS := ${.TARGETS:M*[/.]*}
 DEP_RELDIR := ${DIRDEPS:[1]:R}
 # this will become DEP_MACHINE below
 TARGET_MACHINE := ${DIRDEPS:[1]:E:C/,.*//}
+.if ${TARGET_MACHINE:N*/*} == ""
+TARGET_MACHINE := ${MACHINE}
+.endif
 # disable DIRDEPS_CACHE as it does not like this trick
 MK_DIRDEPS_CACHE = no
 .endif
