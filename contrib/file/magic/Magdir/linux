@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: linux,v 1.62 2015/05/03 13:06:36 christos Exp $
+# $File: linux,v 1.63 2015/08/24 05:16:11 christos Exp $
 # linux:  file(1) magic for Linux files
 #
 # Values for Linux/i386 binaries, from Daniel Quinlan <quinlan@yggdrasil.com>
@@ -416,6 +416,25 @@
 # glibc locale archive as defined in glibc locale/locarchive.h
 0		lelong		0xde020109	locale archive
 >24		lelong		x		%d strings
+
+# Linux Software RAID (mdadm)
+# Russell Coker <russell@coker.com.au>
+0	name	linuxraid
+>16	belong	x		UUID=%8x:
+>20	belong	x		\b%8x:
+>24	belong	x		\b%8x:
+>28	belong	x		\b%8x
+>32	string	x		name=%s
+>72	lelong	x		level=%d
+>92	lelong	x		disks=%d
+
+4096	lelong	0xa92b4efc	Linux Software RAID
+>4100	lelong	x		version 1.2 (%d)
+>4096	use	linuxraid
+
+0	lelong	0xa92b4efc	Linux Software RAID
+>4	lelong	x		version 1.1 (%d)
+>0	use	linuxraid
 
 # Summary:     Database file for mlocate
 # Description: A database file as used by mlocate, a fast implementation
