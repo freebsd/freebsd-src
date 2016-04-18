@@ -273,13 +273,13 @@ dirmatch(struct open_file *f, const char *path, struct iso_directory_record *dp,
 static int
 cd9660_open(const char *path, struct open_file *f)
 {
-	struct file *fp = 0;
+	struct file *fp = NULL;
 	void *buf;
 	struct iso_primary_descriptor *vd;
 	size_t buf_size, read, dsize, off;
 	daddr_t bno, boff;
 	struct iso_directory_record rec;
-	struct iso_directory_record *dp = 0;
+	struct iso_directory_record *dp = NULL;
 	int rc, first, use_rrip, lenskip;
 
 	/* First find the volume descriptor */
@@ -415,7 +415,7 @@ cd9660_close(struct open_file *f)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 
-	f->f_fsdata = 0;
+	f->f_fsdata = NULL;
 	free(fp);
 
 	return 0;
