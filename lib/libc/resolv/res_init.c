@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/stat.h>

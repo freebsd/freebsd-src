@@ -19,7 +19,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/exec.h>
 #include <sys/sysctl.h>

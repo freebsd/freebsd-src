@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include "port_before.h"
 
 #include "namespace.h"
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/uio.h>
 
