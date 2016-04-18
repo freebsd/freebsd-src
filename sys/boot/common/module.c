@@ -769,7 +769,7 @@ mod_search_hints(struct moduledir *mdp, const char *modname,
 	intp = (int*)recptr;
 	reclen = *intp++;
 	ival = *intp++;
-	cp = (char*)intp;
+	cp = (u_char*)intp;
 	switch (ival) {
 	case MDT_VERSION:
 	    clen = *cp++;
@@ -801,9 +801,9 @@ mod_search_hints(struct moduledir *mdp, const char *modname,
      * Finally check if KLD is in the place
      */
     if (found)
-	result = file_lookup(mdp->d_path, cp, clen, NULL);
+	result = file_lookup(mdp->d_path, (const char *)cp, clen, NULL);
     else if (best)
-	result = file_lookup(mdp->d_path, best, blen, NULL);
+	result = file_lookup(mdp->d_path, (const char *)best, blen, NULL);
 bad:
     /*
      * If nothing found or hints is absent - fallback to the old way

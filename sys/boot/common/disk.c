@@ -178,7 +178,7 @@ ptblread(void *d, void *buf, size_t blocks, off_t offset)
 
 	dev = (struct disk_devdesc *)d;
 	od = (struct open_disk *)dev->d_opendata;
-	return (dev->d_dev->dv_strategy(dev, F_READ, offset,
+	return (dev->d_dev->dv_strategy(dev, F_READ, offset, 0,
 	    blocks * od->sectorsize, (char *)buf, NULL));
 }
 
@@ -239,7 +239,7 @@ disk_read(struct disk_devdesc *dev, void *buf, off_t offset, u_int blocks)
 	int ret;
 
 	od = (struct open_disk *)dev->d_opendata;
-	ret = dev->d_dev->dv_strategy(dev, F_READ, dev->d_offset + offset,
+	ret = dev->d_dev->dv_strategy(dev, F_READ, dev->d_offset + offset, 0,
 	    blocks * od->sectorsize, buf, NULL);
 
 	return (ret);
@@ -252,7 +252,7 @@ disk_write(struct disk_devdesc *dev, void *buf, off_t offset, u_int blocks)
 	int ret;
 
 	od = (struct open_disk *)dev->d_opendata;
-	ret = dev->d_dev->dv_strategy(dev, F_WRITE, dev->d_offset + offset,
+	ret = dev->d_dev->dv_strategy(dev, F_WRITE, dev->d_offset + offset, 0,
 	    blocks * od->sectorsize, buf, NULL);
 
 	return (ret);
