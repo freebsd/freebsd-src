@@ -120,7 +120,7 @@ pcblist_sysctl(int proto, const char *name, char **bufp, int istcp __unused)
 			xo_warn("sysctl: %s", mibvar);
 		return (0);
 	}
-	if ((buf = malloc(len)) == 0) {
+	if ((buf = malloc(len)) == NULL) {
 		xo_warnx("malloc %lu bytes", (u_long)len);
 		return (0);
 	}
@@ -207,7 +207,7 @@ pcblist_kvm(u_long off, char **bufp, int istcp)
 		len = 2 * sizeof(xig) +
 		    (pcbinfo.ipi_count + pcbinfo.ipi_count / 8) *
 		    sizeof(struct xinpcb);
-	if ((buf = malloc(len)) == 0) {
+	if ((buf = malloc(len)) == NULL) {
 		xo_warnx("malloc %lu bytes", (u_long)len);
 		return (0);
 	}
@@ -1460,7 +1460,7 @@ inetname(struct in_addr *inp)
 			if (np)
 				cp = np->n_name;
 		}
-		if (cp == 0) {
+		if (cp == NULL) {
 			hp = gethostbyaddr((char *)inp, sizeof (*inp), AF_INET);
 			if (hp) {
 				cp = hp->h_name;
