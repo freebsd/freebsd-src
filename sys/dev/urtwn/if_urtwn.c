@@ -794,6 +794,7 @@ urtwn_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 
 	/* 802.11n parameters */
 	vap->iv_ampdu_density = IEEE80211_HTCAP_MPDUDENSITY_16;
+	vap->iv_ampdu_rxmax = IEEE80211_HTCAP_MAXRXAMPDU_64K;
 
 	if (opmode == IEEE80211_M_IBSS) {
 		uvp->recv_mgmt = vap->iv_recv_mgmt;
