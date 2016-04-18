@@ -189,6 +189,7 @@ _MAKE=	PATH=${PATH} ${SUB_MAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=$
 # redundant restaging but is dangerous for user install targets.
 .if make(distrib*) || make(*install*)
 _MAKE+=	MK_META_MODE=no
+.unexport META_MODE
 .endif
 
 # Guess machine architecture from machine type, and vice versa.
