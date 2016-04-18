@@ -76,13 +76,17 @@ static const struct ofw_compat_data compat_data[] = {
 static uint32_t
 mtk_detect_cpuclk_rt305x(bus_space_tag_t bst, bus_space_handle_t bsh)
 {
-	uint32_t clk;
+	uint32_t val;
 
-	clk = bus_space_read_4(bst, bsh, SYSCTL_SYSCFG);
-	clk >>= RT305X_CPU_CLKSEL_OFF;
-	clk &= RT305X_CPU_CLKSEL_MSK;
+	val = bus_space_read_4(bst, bsh, SYSCTL_CHIPID0_3);
+	if (val == RT3350_CHIPID0_3)
+		return (MTK_CPU_CLK_320MHZ);
 
-	return ((clk == 0) ? MTK_CPU_CLK_320MHZ : MTK_CPU_CLK_384MHZ);
+	val = bus_space_read_4(bst, bsh, SYSCTL_SYSCFG);
+	val >>= RT305X_CPU_CLKSEL_OFF;
+	val &= RT305X_CPU_CLKSEL_MSK;
+
+	return ((val == 0) ? MTK_CPU_CLK_320MHZ : MTK_CPU_CLK_384MHZ);
 }
 
 static uint32_t
@@ -265,10 +269,8 @@ mtk_soc_try_early_detect(void)
 	switch (mtk_soc_socid) {
 	case MTK_SOC_RT3050:  /* fallthrough */
 	case MTK_SOC_RT3052:
-		mtk_soc_cpuclk = mtk_detect_cpuclk_rt305x(bst, bsh);
-		break;
 	case MTK_SOC_RT3350:
-		mtk_soc_cpuclk = MTK_CPU_CLK_320MHZ;
+		mtk_soc_cpuclk = mtk_detect_cpuclk_rt305x(bst, bsh);
 		break;
 	case MTK_SOC_RT3352:
 		mtk_soc_cpuclk = mtk_detect_cpuclk_rt3352(bst, bsh);
