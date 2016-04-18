@@ -72,11 +72,10 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <paths.h>
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/eui64.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/param.h>
 #ifdef YP
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
