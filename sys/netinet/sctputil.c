@@ -4454,9 +4454,15 @@ sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
 }
 
 void
-sctp_wakeup_the_read_socket(struct sctp_inpcb *inp)
+sctp_wakeup_the_read_socket(struct sctp_inpcb *inp,
+    struct sctp_tcb *stcb,
+    int so_locked
+#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
+    SCTP_UNUSED
+#endif
+)
 {
-	if (inp && inp->sctp_socket) {
+	if ((inp != NULL) && (inp->sctp_socket != NULL)) {
 		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE)) {
 			SCTP_ZERO_COPY_EVENT(inp, inp->sctp_socket);
 		} else {
@@ -4584,7 +4590,7 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 	if (inp_read_lock_held == 0)
 		SCTP_INP_READ_UNLOCK(inp);
 	if (inp && inp->sctp_socket) {
-		sctp_wakeup_the_read_socket(inp);
+		sctp_wakeup_the_read_socket(inp, stcb, so_locked);
 	}
 }
 

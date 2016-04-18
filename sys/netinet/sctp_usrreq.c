@@ -242,7 +242,8 @@ sctp_notify(struct sctp_inpcb *inp,
 void
 sctp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
-	struct ip *outer_ip, *inner_ip;
+	struct ip *outer_ip;
+	struct ip *inner_ip;
 	struct sctphdr *sh;
 	struct icmp *icmp;
 	struct sctp_inpcb *inp;
