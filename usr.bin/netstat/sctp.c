@@ -128,7 +128,7 @@ inetname(struct in_addr *inp)
 			if (np)
 				cp = np->n_name;
 		}
-		if (cp == 0) {
+		if (cp == NULL) {
 			hp = gethostbyaddr((char *)inp, sizeof (*inp), AF_INET);
 			if (hp) {
 				cp = hp->h_name;
@@ -586,7 +586,7 @@ sctp_protopr(u_long off __unused,
 			xo_warn("sysctl: %s", mibvar);
 		return;
 	}
-	if ((buf = malloc(len)) == 0) {
+	if ((buf = malloc(len)) == NULL) {
 		xo_warnx("malloc %lu bytes", (u_long)len);
 		return;
 	}
