@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-ELFTCDIR=	${.CURDIR}/../../contrib/elftoolchain
+ELFTCDIR=	${.CURDIR:H:H}/contrib/elftoolchain
 ADDR2LINEDIR=	${ELFTCDIR}/addr2line
 
 .PATH: ${ADDR2LINEDIR}

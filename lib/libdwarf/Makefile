@@ -2,7 +2,7 @@
 .include <bsd.own.mk>
 
 PACKAGE=lib${LIB}
-TOP=	${.CURDIR}/../../contrib/elftoolchain
+TOP=	${.CURDIR:H:H}/contrib/elftoolchain
 SRCDIR=	${TOP}/libdwarf
 
 .PATH:	${SRCDIR}

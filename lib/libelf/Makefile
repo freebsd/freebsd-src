@@ -5,7 +5,7 @@ SHLIBDIR?= /lib
 
 .include <bsd.own.mk>
 
-TOP=	${.CURDIR}/../../contrib/elftoolchain
+TOP=	${.CURDIR:H:H}/contrib/elftoolchain
 SRCDIR=	${TOP}/libelf
 
 .PATH:	${SRCDIR}
