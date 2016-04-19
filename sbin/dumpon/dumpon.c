@@ -72,7 +72,7 @@ static void
 check_size(int fd, const char *fn)
 {
 	int name[] = { CTL_HW, HW_PHYSMEM };
-	size_t namelen = sizeof(name) / sizeof(*name);
+	size_t namelen = nitems(name);
 	unsigned long physmem;
 	size_t len;
 	off_t mediasize;
