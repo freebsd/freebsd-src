@@ -56,7 +56,7 @@ static const char * const suffixes[] = {
 	"EiB",	/* 2^60 Exbibyte */
 };
 
-#define NSUFFIXES	(sizeof(suffixes) / sizeof(suffixes[0]))
+#define NSUFFIXES	nitems(suffixes)
 #define SECSPERHOUR	(60 * 60)
 #define DEFAULT_TTYWIDTH	80
 
