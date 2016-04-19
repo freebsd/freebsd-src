@@ -642,7 +642,7 @@ static const uint32_t uplcom_rates[] = {
 	230400, 460800, 614400, 921600, 1228800
 };
 
-#define	N_UPLCOM_RATES	(sizeof(uplcom_rates)/sizeof(uplcom_rates[0]))
+#define	N_UPLCOM_RATES	nitems(uplcom_rates)
 
 static int
 uplcom_pre_param(struct ucom_softc *ucom, struct termios *t)
