@@ -465,7 +465,7 @@ t_lex(char *s)
 {
 	int num;
 
-	if (s == 0) {
+	if (s == NULL) {
 		return EOI;
 	}
 	num = find_op(s);
