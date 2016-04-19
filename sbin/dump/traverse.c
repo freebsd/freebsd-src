@@ -928,7 +928,7 @@ loop:
 		if (cnt == size)
 			return;
 	} else {
-		if (tmpbuf == NULL && (tmpbuf = malloc(secsize)) == 0)
+		if (tmpbuf == NULL && (tmpbuf = malloc(secsize)) == NULL)
 			quit("buffer malloc failed\n");
 		xfer = 0;
 		bytes = size;
