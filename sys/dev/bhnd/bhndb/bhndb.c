@@ -85,8 +85,11 @@ static int			 bhndb_read_chipid(struct bhndb_softc *sc,
 				     const struct bhndb_hwcfg *cfg,
 				     struct bhnd_chipid *result);
 
+bhndb_addrspace			 bhndb_get_addrspace(struct bhndb_softc *sc,
+				     device_t child);
+
 static struct rman		*bhndb_get_rman(struct bhndb_softc *sc,
-				     int type);
+				     device_t child, int type);
 
 static int			 bhndb_init_child_resource(struct resource *r,
 				     struct resource *parent,
@@ -509,6 +512,7 @@ bhndb_read_chipid(struct bhndb_softc *sc, const struct bhndb_hwcfg *cfg,
 int
 bhndb_attach(device_t dev, bhnd_devclass_t bridge_devclass)
 {
+	struct bhndb_devinfo		*dinfo;
 	struct bhndb_softc		*sc;
 	const struct bhndb_hwcfg	*cfg;
 	int				 error;
@@ -525,44 +529,29 @@ bhndb_attach(device_t dev, bhnd_devclass_t bridge_devclass)
 	if ((error = bhndb_read_chipid(sc, cfg, &sc->chipid)))
 		return (error);
 
-	/* Set up a resource manager for the device's address space. */
-	sc->mem_rman.rm_start = 0;
-	sc->mem_rman.rm_end = BUS_SPACE_MAXADDR_32BIT;
-	sc->mem_rman.rm_type = RMAN_ARRAY;
-	sc->mem_rman.rm_descr = "BHND I/O memory addresses";
-	
-	if ((error = rman_init(&sc->mem_rman))) {
-		device_printf(dev, "could not initialize mem_rman\n");
-		return (error);
-	}
-
-	error = rman_manage_region(&sc->mem_rman, 0, BUS_SPACE_MAXADDR_32BIT);
-	if (error) {
-		device_printf(dev, "could not configure mem_rman\n");
-		goto failed;
-	}
-
-	/* Initialize basic resource allocation state. */
+	/* Populate generic resource allocation state. */
 	sc->bus_res = bhndb_alloc_resources(dev, sc->parent_dev, cfg);
 	if (sc->bus_res == NULL) {
-		error = ENXIO;
-		goto failed;
+		return (ENXIO);
 	}
 
 	/* Attach our bridged bus device */
-	sc->bus_dev = device_add_child(dev, devclass_get_name(bhnd_devclass),
+	sc->bus_dev = BUS_ADD_CHILD(dev, 0, devclass_get_name(bhnd_devclass),
 	    -1);
 	if (sc->bus_dev == NULL) {
 		error = ENXIO;
 		goto failed;
 	}
 
+	/* Configure address space */
+	dinfo = device_get_ivars(sc->bus_dev);
+	dinfo->addrspace = BHNDB_ADDRSPACE_BRIDGED;
+
+	/* Finish attach */
 	return (bus_generic_attach(dev));
 
 failed:
 	BHNDB_LOCK_DESTROY(sc);
-
-	rman_fini(&sc->mem_rman);
 
 	if (sc->bus_res != NULL)
 		bhndb_free_resources(sc->bus_res);
@@ -680,7 +669,6 @@ bhndb_generic_detach(device_t dev)
 		return (error);
 
 	/* Clean up our driver state. */
-	rman_fini(&sc->mem_rman);
 	bhndb_free_resources(sc->bus_res);
 	
 	BHNDB_LOCK_DESTROY(sc);
@@ -826,24 +814,60 @@ bhndb_write_ivar(device_t dev, device_t child, int index,
 }
 
 /**
+ * Return the address space for the given @p child device.
+ */
+bhndb_addrspace
+bhndb_get_addrspace(struct bhndb_softc *sc, device_t child)
+{
+	struct bhndb_devinfo	*dinfo;
+	device_t		 imd_dev;
+
+	/* Find the directly attached parent of the requesting device */
+	imd_dev = child;
+	while (imd_dev != NULL && device_get_parent(imd_dev) != sc->dev)
+		imd_dev = device_get_parent(imd_dev);
+
+	if (imd_dev == NULL)
+		panic("bhndb address space request for non-child device %s\n",
+		     device_get_nameunit(child));
+
+	dinfo = device_get_ivars(imd_dev);
+	return (dinfo->addrspace);
+}
+
+/**
  * Return the rman instance for a given resource @p type, if any.
  * 
  * @param sc The bhndb device state.
+ * @param child The requesting child.
  * @param type The resource type (e.g. SYS_RES_MEMORY, SYS_RES_IRQ, ...)
  */
 static struct rman *
-bhndb_get_rman(struct bhndb_softc *sc, int type)
-{
-	switch (type) {
-	case SYS_RES_MEMORY:
-		return &sc->mem_rman;
-	case SYS_RES_IRQ:
-		// TODO
-		// return &sc->irq_rman;
-		return (NULL);
-	default:
-		return (NULL);
-	};
+bhndb_get_rman(struct bhndb_softc *sc, device_t child, int type)
+{	
+	switch (bhndb_get_addrspace(sc, child)) {
+	case BHNDB_ADDRSPACE_NATIVE:
+		switch (type) {
+		case SYS_RES_MEMORY:
+			return (&sc->bus_res->ht_mem_rman);
+		case SYS_RES_IRQ:
+			return (NULL);
+		default:
+			return (NULL);
+		};
+		
+	case BHNDB_ADDRSPACE_BRIDGED:
+		switch (type) {
+		case SYS_RES_MEMORY:
+			return (&sc->bus_res->br_mem_rman);
+		case SYS_RES_IRQ:
+			// TODO
+			// return &sc->irq_rman;
+			return (NULL);
+		default:
+			return (NULL);
+		};
+	}
 }
 
 /**
@@ -865,6 +889,7 @@ bhndb_add_child(device_t dev, u_int order, const char *name, int unit)
 		return (NULL);
 	}
 
+	dinfo->addrspace = BHNDB_ADDRSPACE_NATIVE;
 	resource_list_init(&dinfo->resources);
 
 	device_set_ivars(child, dinfo);
@@ -1062,7 +1087,7 @@ bhndb_alloc_resource(device_t dev, device_t child, int type,
 		return (NULL);
 	
 	/* Fetch the resource manager */
-	rm = bhndb_get_rman(sc, type);
+	rm = bhndb_get_rman(sc, child, type);
 	if (rm == NULL)
 		return (NULL);
 
@@ -1080,8 +1105,8 @@ bhndb_alloc_resource(device_t dev, device_t child, int type,
 		if (error) {
 			device_printf(dev,
 			    "failed to activate entry %#x type %d for "
-				"child %s\n",
-			     *rid, type, device_get_nameunit(child));
+				"child %s: %d\n",
+			     *rid, type, device_get_nameunit(child), error);
 
 			rman_release_resource(rv);
 
@@ -1137,7 +1162,7 @@ bhndb_adjust_resource(device_t dev, device_t child, int type,
 	error = 0;
 
 	/* Fetch resource manager */
-	rm = bhndb_get_rman(sc, type);
+	rm = bhndb_get_rman(sc, child, type);
 	if (rm == NULL)
 		return (ENXIO);
 
@@ -1159,7 +1184,8 @@ bhndb_adjust_resource(device_t dev, device_t child, int type,
 
 /**
  * Initialize child resource @p r with a virtual address, tag, and handle
- * copied from @p parent, adjusted to contain only the range defined by @p win.
+ * copied from @p parent, adjusted to contain only the range defined by
+ * @p offsize and @p size.
  * 
  * @param r The register to be initialized.
  * @param parent The parent bus resource that fully contains the subregion.
@@ -1171,7 +1197,6 @@ static int
 bhndb_init_child_resource(struct resource *r,
     struct resource *parent, bhnd_size_t offset, bhnd_size_t size)
 {
-
 	bus_space_handle_t	bh, child_bh;
 	bus_space_tag_t		bt;
 	uintptr_t		vaddr;
@@ -1335,13 +1360,39 @@ bhndb_try_activate_resource(struct bhndb_softc *sc, device_t child, int type,
 	
 	if (indirect)
 		*indirect = false;
+	
+	r_start = rman_get_start(r);
+	r_size = rman_get_size(r);
+
+	/* Activate native addrspace resources using the host address space */
+	if (bhndb_get_addrspace(sc, child) == BHNDB_ADDRSPACE_NATIVE) {
+		struct resource *parent;
+
+		/* Find the bridge resource referenced by the child */
+		parent = bhndb_find_resource_range(sc->bus_res, r_start,
+		    r_size);
+		if (parent == NULL) {
+			device_printf(sc->dev, "host resource not found "
+			     "for 0x%llx-0x%llx\n",
+			     (unsigned long long) r_start,
+			     (unsigned long long) r_start + r_size - 1);
+			return (ENOENT);
+		}
+
+		/* Initialize child resource with the real bus values */
+		error = bhndb_init_child_resource(r, parent,
+		    r_start - rman_get_start(parent), r_size);
+		if (error)
+			return (error);
+
+		/* Try to activate child resource */
+		return (rman_activate_resource(r));
+	}
 
 	/* Default to low priority */
 	dw_priority = BHNDB_PRIORITY_LOW;
 
 	/* Look for a bus region matching the resource's address range */
-	r_start = rman_get_start(r);
-	r_size = rman_get_size(r);
 	region = bhndb_find_resource_region(sc->bus_res, r_start, r_size);
 	if (region != NULL)
 		dw_priority = region->priority;
@@ -1431,7 +1482,7 @@ bhndb_deactivate_resource(device_t dev, device_t child, int type,
 
 	sc = device_get_softc(dev);
 
-	if ((rm = bhndb_get_rman(sc, type)) == NULL)
+	if ((rm = bhndb_get_rman(sc, child, type)) == NULL)
 		return (EINVAL);
 
 	/* Mark inactive */
@@ -1439,11 +1490,13 @@ bhndb_deactivate_resource(device_t dev, device_t child, int type,
 		return (error);
 
 	/* Free any dynamic window allocation. */
-	BHNDB_LOCK(sc);
-	dwa = bhndb_dw_find_resource(sc->bus_res, r);
-	if (dwa != NULL)
-		bhndb_dw_release(sc->bus_res, dwa, r);
-	BHNDB_UNLOCK(sc);
+	if (bhndb_get_addrspace(sc, child) == BHNDB_ADDRSPACE_BRIDGED) {
+		BHNDB_LOCK(sc);
+		dwa = bhndb_dw_find_resource(sc->bus_res, r);
+		if (dwa != NULL)
+			bhndb_dw_release(sc->bus_res, dwa, r);
+		BHNDB_UNLOCK(sc);
+	}
 
 	return (0);
 }
@@ -1516,9 +1569,13 @@ bhndb_release_bhnd_resource(device_t dev, device_t child,
 
 /**
  * Default bhndb(4) implementation of BHND_BUS_ACTIVATE_RESOURCE().
+ *
+ * For BHNDB_ADDRSPACE_NATIVE children, all resources may be assumed to
+ * be actived by the bridge.
  * 
- * Attempts to activate a static register window, a dynamic register window,
- * or configures @p r as an indirect resource -- in that order.
+ * For BHNDB_ADDRSPACE_BRIDGED children, attempts to activate a static register
+ * window, a dynamic register window, or configures @p r as an indirect
+ * resource -- in that order.
  */
 static int
 bhndb_activate_bhnd_resource(device_t dev, device_t child,
@@ -1526,7 +1583,6 @@ bhndb_activate_bhnd_resource(device_t dev, device_t child,
 {
 	struct bhndb_softc	*sc;
 	struct bhndb_region	*region;
-	bhndb_priority_t	 r_prio;
 	rman_res_t		 r_start, r_size;
 	int 			 error;
 	bool			 indirect;
@@ -1539,19 +1595,25 @@ bhndb_activate_bhnd_resource(device_t dev, device_t child,
 
 	sc = device_get_softc(dev);
 
-	/* Fetch the address range's resource priority */
 	r_start = rman_get_start(r->res);
 	r_size = rman_get_size(r->res);
-	r_prio = BHNDB_PRIORITY_NONE;
 
-	region = bhndb_find_resource_region(sc->bus_res, r_start, r_size);
-	if (region != NULL)
-		r_prio = region->priority;
-	
-	/* If less than the minimum dynamic window priority, this
-	 * resource should always be indirect. */
-	if (r_prio < sc->bus_res->min_prio)
-		return (0);
+	/* Verify bridged address range's resource priority, and skip direct
+	 * allocation if the priority is too low. */
+	if (bhndb_get_addrspace(sc, child) == BHNDB_ADDRSPACE_BRIDGED) {
+		bhndb_priority_t r_prio;
+
+		region = bhndb_find_resource_region(sc->bus_res, r_start, r_size);
+		if (region != NULL)
+			r_prio = region->priority;
+		else
+			r_prio = BHNDB_PRIORITY_NONE;
+
+		/* If less than the minimum dynamic window priority, this
+		 * resource should always be indirect. */
+		if (r_prio < sc->bus_res->min_prio)
+			return (0);
+	}
 
 	/* Attempt direct activation */
 	error = bhndb_try_activate_resource(sc, child, type, rid, r->res,
@@ -1565,7 +1627,9 @@ bhndb_activate_bhnd_resource(device_t dev, device_t child,
 		r->direct = false;
 	}
 
-	if (BHNDB_DEBUG(PRIO)) {
+	if (BHNDB_DEBUG(PRIO) &&
+	    bhndb_get_addrspace(sc, child) == BHNDB_ADDRSPACE_BRIDGED)
+	{
 		device_printf(child, "activated 0x%llx-0x%llx as %s "
 		    "resource\n",
 		    (unsigned long long) r_start, 
