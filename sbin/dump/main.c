@@ -340,7 +340,7 @@ main(int argc, char *argv[])
 	spcl.c_dev[NAMELEN-1]='\0';
 	spcl.c_filesys[NAMELEN-1]='\0';
 
-	if ((mntpt = getmntpt(disk, &mntflags)) != 0) {
+	if ((mntpt = getmntpt(disk, &mntflags)) != NULL) {
 		if (mntflags & MNT_RDONLY) {
 			if (snapdump != 0) {
 				msg("WARNING: %s\n",
