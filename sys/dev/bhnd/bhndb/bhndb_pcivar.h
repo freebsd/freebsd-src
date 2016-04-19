@@ -97,15 +97,6 @@ struct bhndb_pci_softc {
 	} sdr9_quirk_polarity;
 };
 
-/* Declare a bhndb_pci_id entry */
-#define	BHNDB_PCI_ID(_device, _desc, ...)	{	\
-	BHND_COREID_ ## _device, 			\
-	BHND_PCI_REGFMT_ ## _device,			\
-	(struct bhnd_device_quirk[]) {			\
-		__VA_ARGS__				\
-	}						\
-}
-
 /* 
  * PCI/PCIe-Gen1 endpoint-mode device quirks
  */

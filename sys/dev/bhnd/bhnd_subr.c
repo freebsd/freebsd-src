@@ -470,6 +470,85 @@ bhnd_device_matches(device_t dev, const struct bhnd_core_match *desc)
 }
 
 /**
+ * Search @p table for an entry matching @p dev.
+ * 
+ * @param dev A bhnd device to match against @p table.
+ * @param table The device table to search.
+ * @param entry_size The @p table entry size, in bytes.
+ * 
+ * @retval bhnd_device the first matching device, if any.
+ * @retval NULL if no matching device is found in @p table.
+ */
+const struct bhnd_device *
+bhnd_device_lookup(device_t dev, const struct bhnd_device *table,
+    size_t entry_size)
+{
+	const struct bhnd_device *entry;
+
+	for (entry = table; entry->desc != NULL; entry =
+	    (const struct bhnd_device *) ((const char *) entry + entry_size))
+	{
+		/* match core info */
+		if (!bhnd_device_matches(dev, &entry->core))
+			continue;
+
+		/* match device flags */
+		if (entry->device_flags & BHND_DF_HOSTB) {
+			if (!bhnd_is_hostb_device(dev))
+				continue;
+		}
+
+		/* device found */
+		return (entry);
+	}
+
+	/* not found */
+	return (NULL);
+}
+
+/**
+ * Scan @p table for all quirk flags applicable to @p dev.
+ * 
+ * @param dev A bhnd device to match against @p table.
+ * @param table The device table to search.
+ * @param entry_size The @p table entry size, in bytes.
+ * 
+ * @return returns all matching quirk flags.
+ */
+uint32_t
+bhnd_device_quirks(device_t dev, const struct bhnd_device *table,
+    size_t entry_size)
+{
+	const struct bhnd_device	*dent;
+	const struct bhnd_device_quirk	*qtable, *qent;
+	uint32_t			 quirks;
+	uint16_t			 hwrev;
+
+	hwrev = bhnd_get_hwrev(dev);
+	quirks = 0;
+
+	/* Find the quirk table */
+	if ((dent = bhnd_device_lookup(dev, table, entry_size)) == NULL) {
+		/* This is almost certainly a (caller) implementation bug */
+		device_printf(dev, "quirk lookup did not match any device\n");
+		return (0);
+	}
+
+	/* Quirks aren't a mandatory field */
+	if ((qtable = dent->quirks_table) == NULL)
+		return (0);
+
+	/* Collect matching quirk entries */
+	for (qent = qtable; !BHND_DEVICE_QUIRK_IS_END(qent); qent++) {
+		if (bhnd_hwrev_matches(hwrev, &qent->hwrev))
+			quirks |= qent->quirks;
+	}
+
+	return (quirks);
+}
+
+
+/**
  * Allocate bhnd(4) resources defined in @p rs from a parent bus.
  * 
  * @param dev The device requesting ownership of the resources.
@@ -619,25 +698,21 @@ cleanup:
 }
 
 /**
- * Using the bhnd(4) bus-level core information, populate @p dev's device
- * description.
+ * Using the bhnd(4) bus-level core information and a custom core name,
+ * populate @p dev's device description.
  * 
  * @param dev A bhnd-bus attached device.
+ * @param dev_name The core's name (e.g. "SDIO Device Core")
  */
 void
-bhnd_set_generic_core_desc(device_t dev)
+bhnd_set_custom_core_desc(device_t dev, const char *dev_name)
 {
-	const char *dev_name;
 	const char *vendor_name;
 	char *desc;
 
 	vendor_name = bhnd_get_vendor_name(dev);
-	dev_name = bhnd_get_device_name(dev);
-
-	asprintf(&desc, M_BHND, "%s %s, rev %hhu",
-		bhnd_get_vendor_name(dev),
-		bhnd_get_device_name(dev),
-		bhnd_get_hwrev(dev));
+	asprintf(&desc, M_BHND, "%s %s, rev %hhu", vendor_name, dev_name,
+	    bhnd_get_hwrev(dev));
 
 	if (desc != NULL) {
 		device_set_desc_copy(dev, desc);
@@ -645,6 +720,18 @@ bhnd_set_generic_core_desc(device_t dev)
 	} else {
 		device_set_desc(dev, dev_name);
 	}
+}
+
+/**
+ * Using the bhnd(4) bus-level core information, populate @p dev's device
+ * description.
+ * 
+ * @param dev A bhnd-bus attached device.
+ */
+void
+bhnd_set_default_core_desc(device_t dev)
+{
+	bhnd_set_custom_core_desc(dev, bhnd_get_device_name(dev));
 }
 
 /**
