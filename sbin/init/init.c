@@ -1144,7 +1144,7 @@ start_session_db(void)
 {
 	if (session_db && (*session_db->close)(session_db))
 		emergency("session database close: %s", strerror(errno));
-	if ((session_db = dbopen(NULL, O_RDWR, 0, DB_HASH, NULL)) == 0) {
+	if ((session_db = dbopen(NULL, O_RDWR, 0, DB_HASH, NULL)) == NULL) {
 		emergency("session database open: %s", strerror(errno));
 		return (1);
 	}
@@ -1284,7 +1284,7 @@ new_session(session_t *sprev, struct ttyent *typ)
 	}
 
 	sp->se_next = 0;
-	if (sprev == 0) {
+	if (sprev == NULL) {
 		sessions = sp;
 		sp->se_prev = 0;
 	} else {
@@ -1311,7 +1311,7 @@ setupargv(session_t *sp, struct ttyent *typ)
 	sprintf(sp->se_getty, "%s %s", typ->ty_getty, typ->ty_name);
 	sp->se_getty_argv_space = strdup(sp->se_getty);
 	sp->se_getty_argv = construct_argv(sp->se_getty_argv_space);
-	if (sp->se_getty_argv == 0) {
+	if (sp->se_getty_argv == NULL) {
 		warning("can't parse getty for port %s", sp->se_device);
 		free(sp->se_getty);
 		free(sp->se_getty_argv_space);
@@ -1329,7 +1329,7 @@ setupargv(session_t *sp, struct ttyent *typ)
 		sp->se_window = strdup(typ->ty_window);
 		sp->se_window_argv_space = strdup(sp->se_window);
 		sp->se_window_argv = construct_argv(sp->se_window_argv_space);
-		if (sp->se_window_argv == 0) {
+		if (sp->se_window_argv == NULL) {
 			warning("can't parse window for port %s",
 			    sp->se_device);
 			free(sp->se_window_argv_space);
