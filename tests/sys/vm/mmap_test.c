@@ -91,8 +91,10 @@ static void
 checked_mmap(int prot, int flags, int fd, int error, const char *msg)
 {
 	void *p;
+	int pagesize;
 
-	p = mmap(NULL, getpagesize(), prot, flags, fd, 0);
+	ATF_REQUIRE((pagesize = getpagesize()) > 0);
+	p = mmap(NULL, pagesize, prot, flags, fd, 0);
 	if (p == MAP_FAILED) {
 		if (error == 0)
 			ATF_CHECK_MSG(0, "%s failed with errno %d", msg,
@@ -103,18 +105,19 @@ checked_mmap(int prot, int flags, int fd, int error, const char *msg)
 			    errno, error);
 	} else {
 		ATF_CHECK_MSG(error == 0, "%s succeeded", msg);
-		munmap(p, getpagesize());
+		munmap(p, pagesize);
 	}
 }
 
 ATF_TC_WITHOUT_HEAD(mmap__bad_arguments);
 ATF_TC_BODY(mmap__bad_arguments, tc)
 {
-	int devstatfd, shmfd, zerofd;
+	int devstatfd, pagesize, shmfd, zerofd;
 
+	ATF_REQUIRE((pagesize = getpagesize()) > 0);
 	ATF_REQUIRE((devstatfd = open("/dev/devstat", O_RDONLY)) >= 0);
 	ATF_REQUIRE((shmfd = shm_open(SHM_ANON, O_RDWR, 0644)) >= 0);
-	ATF_REQUIRE(ftruncate(shmfd, getpagesize()) == 0);
+	ATF_REQUIRE(ftruncate(shmfd, pagesize) == 0);
 	ATF_REQUIRE((zerofd = open("/dev/zero", O_RDONLY)) >= 0);
 
 	/* These should work. */
@@ -171,6 +174,10 @@ ATF_TC_BODY(mmap__bad_arguments, tc)
 	 */
 	checked_mmap(PROT_READ, MAP_PRIVATE, devstatfd, EINVAL,
 	    "MAP_PRIVATE of /dev/devstat");
+
+	close(devstatfd);
+	close(shmfd);
+	close(zerofd);
 }
 
 ATF_TC_WITHOUT_HEAD(mmap__dev_zero_private);
@@ -178,22 +185,21 @@ ATF_TC_BODY(mmap__dev_zero_private, tc)
 {
 	char *p1, *p2, *p3;
 	size_t i;
-	int fd;
+	int fd, pagesize;
 
+	ATF_REQUIRE((pagesize = getpagesize()) > 0);
 	ATF_REQUIRE((fd = open("/dev/zero", O_RDONLY)) >= 0);
 
-	p1 = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_PRIVATE, fd,
-	    0);
+	p1 = mmap(NULL, pagesize, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
 	ATF_REQUIRE(p1 != MAP_FAILED);
 
-	p2 = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_PRIVATE, fd,
-	    0);
+	p2 = mmap(NULL, pagesize, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
 	ATF_REQUIRE(p2 != MAP_FAILED);
 
-	for (i = 0; i < getpagesize(); i++)
+	for (i = 0; i < pagesize; i++)
 		ATF_REQUIRE_EQ_MSG(0, p1[i], "byte at p1[%zu] is %x", i, p1[i]);
 
-	ATF_REQUIRE(memcmp(p1, p2, getpagesize()) == 0);
+	ATF_REQUIRE(memcmp(p1, p2, pagesize) == 0);
 
 	p1[0] = 1;
 
@@ -203,11 +209,15 @@ ATF_TC_BODY(mmap__dev_zero_private, tc)
 
 	ATF_REQUIRE(p1[0] == 1);
 
-	p3 = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_PRIVATE, fd,
-	    0);
+	p3 = mmap(NULL, pagesize, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
 	ATF_REQUIRE(p3 != MAP_FAILED);
 
 	ATF_REQUIRE(p3[0] == 0);
+
+	munmap(p1, pagesize);
+	munmap(p2, pagesize);
+	munmap(p3, pagesize);
+	close(fd);
 }
 
 ATF_TC_WITHOUT_HEAD(mmap__dev_zero_shared);
@@ -215,22 +225,21 @@ ATF_TC_BODY(mmap__dev_zero_shared, tc)
 {
 	char *p1, *p2, *p3;
 	size_t i;
-	int fd;
+	int fd, pagesize;
 
+	ATF_REQUIRE((pagesize = getpagesize()) > 0);
 	ATF_REQUIRE((fd = open("/dev/zero", O_RDWR)) >= 0);
 
-	p1 = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED, fd,
-	    0);
+	p1 = mmap(NULL, pagesize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	ATF_REQUIRE(p1 != MAP_FAILED);
 
-	p2 = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED, fd,
-	    0);
+	p2 = mmap(NULL, pagesize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	ATF_REQUIRE(p2 != MAP_FAILED);
 
-	for (i = 0; i < getpagesize(); i++)
+	for (i = 0; i < pagesize; i++)
 		ATF_REQUIRE_EQ_MSG(0, p1[i], "byte at p1[%zu] is %x", i, p1[i]);
 
-	ATF_REQUIRE(memcmp(p1, p2, getpagesize()) == 0);
+	ATF_REQUIRE(memcmp(p1, p2, pagesize) == 0);
 
 	p1[0] = 1;
 
@@ -240,11 +249,16 @@ ATF_TC_BODY(mmap__dev_zero_shared, tc)
 
 	ATF_REQUIRE(p1[0] == 1);
 
-	p3 = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED, fd,
+	p3 = mmap(NULL, pagesize, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
 	    0);
 	ATF_REQUIRE(p3 != MAP_FAILED);
 
 	ATF_REQUIRE(p3[0] == 0);
+
+	munmap(p1, pagesize);
+	munmap(p2, pagesize);
+	munmap(p3, pagesize);
+	close(fd);
 }
 
 ATF_TP_ADD_TCS(tp)
