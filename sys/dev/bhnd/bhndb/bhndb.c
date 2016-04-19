@@ -1048,15 +1048,15 @@ bhndb_alloc_resource(device_t dev, device_t child, int type,
 	struct resource			*rv;
 	struct rman			*rm;
 	int				 error;
-	bool				 immed_child, defaults;
+	bool				 passthrough, isdefault;
 
 	sc = device_get_softc(dev);
-	immed_child = (device_get_parent(child) == dev);
-	defaults = (start == 0UL && end == ~0UL);
+	passthrough = (device_get_parent(child) != dev);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	rle = NULL;
 
 	/* Populate defaults */
-	if (immed_child && defaults) {
+	if (!passthrough && isdefault) {
 		/* Fetch the resource list entry. */
 		rle = resource_list_find(BUS_GET_RESOURCE_LIST(dev, child),
 		    type, *rid);
@@ -1083,7 +1083,7 @@ bhndb_alloc_resource(device_t dev, device_t child, int type,
 	}
 
 	/* Validate resource addresses */
-	if (start > end || end < start || count > ((end - start) + 1))
+	if (start > end || count > ((end - start) + 1))
 		return (NULL);
 	
 	/* Fetch the resource manager */
@@ -1512,62 +1512,6 @@ bhndb_get_resource_list(device_t dev, device_t child)
 }
 
 /**
- * Default bhndb(4) implementation of BHND_BUS_ALLOC_RESOURCE().
- */
-static struct bhnd_resource *
-bhndb_alloc_bhnd_resource(device_t dev, device_t child, int type,
-     int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
-{
-	struct bhndb_softc	*sc;
-	struct bhnd_resource	*br;
-
-	sc = device_get_softc(dev);
-
-	/* Allocate resource wrapper */
-	br = malloc(sizeof(struct bhnd_resource), M_BHND, M_NOWAIT|M_ZERO);
-	if (br == NULL)
-		return (NULL);
-
-	/* Configure */
-	br->direct = false;
-	br->res = bus_alloc_resource(child, type, rid, start, end, count,
-	    flags & ~RF_ACTIVE);
-	if (br->res == NULL)
-		goto failed;
-	
-
-	if (flags & RF_ACTIVE) {
-		if (bhnd_activate_resource(child, type, *rid, br))
-			goto failed;
-	}
-
-	return (br);
-
-failed:
-	if (br->res != NULL)
-		bus_release_resource(child, type, *rid, br->res);
-
-	free(br, M_BHND);
-	return (NULL);
-}
-
-/**
- * Default bhndb(4) implementation of BHND_BUS_RELEASE_RESOURCE().
- */
-static int
-bhndb_release_bhnd_resource(device_t dev, device_t child,
-    int type, int rid, struct bhnd_resource *r)
-{
-	int error;
-
-	if ((error = bus_release_resource(child, type, rid, r->res)))
-		return (error);
-
-	free(r, M_BHND);
-	return (0);
-}
-
-/**
  * Default bhndb(4) implementation of BHND_BUS_ACTIVATE_RESOURCE().
  *
  * For BHNDB_ADDRSPACE_NATIVE children, all resources may be assumed to
@@ -1983,8 +1927,6 @@ static device_method_t bhndb_methods[] = {
 	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhndb_is_hw_disabled),
 	DEVMETHOD(bhnd_bus_is_hostb_device,	bhndb_is_hostb_device),
 	DEVMETHOD(bhnd_bus_get_chipid,		bhndb_get_chipid),
-	DEVMETHOD(bhnd_bus_alloc_resource,	bhndb_alloc_bhnd_resource),
-	DEVMETHOD(bhnd_bus_release_resource,	bhndb_release_bhnd_resource),
 	DEVMETHOD(bhnd_bus_activate_resource,	bhndb_activate_bhnd_resource),
 	DEVMETHOD(bhnd_bus_activate_resource,	bhndb_deactivate_bhnd_resource),
 	DEVMETHOD(bhnd_bus_read_1,		bhndb_bus_read_1),
