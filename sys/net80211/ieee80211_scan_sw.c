@@ -736,8 +736,11 @@ end:
 	/* clear mindwell lock and initial channel change flush */
 	ss_priv->ss_iflags &= ~ISCAN_REP;
 
-	if (ss_priv->ss_iflags & (ISCAN_CANCEL|ISCAN_ABORT))
+	if (ss_priv->ss_iflags & (ISCAN_CANCEL|ISCAN_ABORT)) {
+		taskqueue_cancel_timeout(ic->ic_tq, &ss_priv->ss_scan_curchan,
+		    NULL);
 		goto end;
+	}
 
 	IEEE80211_DPRINTF(ss->ss_vap, IEEE80211_MSG_SCAN, "%s: waiting\n",
 	    __func__);
