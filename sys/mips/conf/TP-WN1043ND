@@ -37,14 +37,14 @@ options 	MSDOSFS
 options 	AR71XX_ENV_UBOOT
 
 # uncompress - to boot natively from flash
-device         geom_uncompress
-options                GEOM_UNCOMPRESS
+device         geom_uzip
+options        GEOM_UZIP
 
 # Used for the static uboot partition map
 device          geom_map
 
 # Boot off of the rootfs, as defined in the geom_map setup.
-options                ROOTDEVNAME=\"ufs:map/rootfs.uncompress\"
+options                ROOTDEVNAME=\"ufs:map/rootfs.uzip\"
 
 # We bite the performance overhead for now; the kernel won't
 # fit if the mutexes are inlined.

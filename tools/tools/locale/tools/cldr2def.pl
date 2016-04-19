@@ -808,14 +808,25 @@ sub make_makefile {
 	my $SRCOUT;
 	my $SRCOUT2;
 	my $SRCOUT3 = "";
+	my $SRCOUT4 = "";
 	my $MAPLOC;
 	if ($TYPE eq "colldef") {
 		$SRCOUT = "localedef -D -U -i \${.IMPSRC} \\\n" .
-			"\t-f \${MAPLOC}/map.UTF-8 " .
+			"\t-f \${MAPLOC}/map.\${.TARGET:T:R:E} " .
 			"\${.OBJDIR}/\${.IMPSRC:T:R}";
 		$MAPLOC = "MAPLOC=\t\t\${.CURDIR}/../../tools/tools/" .
 				"locale/etc/final-maps\n";
 		$SRCOUT2 = "LC_COLLATE";
+		$SRCOUT3 = "" .
+			".for f t in \${LOCALES_MAPPED}\n" .
+			"FILES+=\t\$t.LC_COLLATE\n" .
+			"FILESDIR_\$t.LC_COLLATE=\t\${LOCALEDIR}/\$t\n" .
+			"\$t.LC_COLLATE: \${.CURDIR}/\$f.src\n" .
+			"\tlocaledef -D -U -i \${.ALLSRC} \\\n" .
+			"\t\t-f \${MAPLOC}/map.\${.TARGET:T:R:E} \\\n" .
+			"\t\t\${.OBJDIR}/\${.TARGET:T:R}\n" .
+			".endfor\n\n";
+		$SRCOUT4 = "## LOCALES_MAPPED\n";
 	}
 	elsif ($TYPE eq "ctypedef") {
 		$SRCOUT = "localedef -D -U -c -w \${MAPLOC}/widths.txt \\\n" .
@@ -854,6 +865,8 @@ ${MAPLOC}
 	$SRCOUT
 
 ## PLACEHOLDER
+
+${SRCOUT4}
 
 EOF
 

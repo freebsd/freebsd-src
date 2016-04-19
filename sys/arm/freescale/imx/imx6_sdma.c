@@ -444,7 +444,7 @@ boot_firmware(struct sdma_softc *sc)
 		if (timeout-- <= 0)
 			break;
 		DELAY(10);
-	};
+	}
 
 	if (ret == 0) {
 		device_printf(sc->dev, "SDMA failed to boot\n");

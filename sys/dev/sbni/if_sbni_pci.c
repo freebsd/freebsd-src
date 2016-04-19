@@ -95,8 +95,8 @@ sbni_pci_probe(device_t dev)
 		device_set_desc(dev, "Granch SBNI12/PCI adapter");
 
 	sc->io_rid = PCIR_BAR(0);
- 	sc->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->io_rid,
-					0ul, ~0ul, ports, RF_ACTIVE);
+ 	sc->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+					    &sc->io_rid, RF_ACTIVE);
 	if (!sc->io_res) {
 		device_printf(dev, "cannot allocate io ports!\n");
 		if (sc->slave_sc)

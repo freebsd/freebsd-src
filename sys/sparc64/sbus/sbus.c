@@ -723,7 +723,7 @@ sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	int i, slot;
 	int isdefault, passthrough;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
 	rle = NULL;
 	sc = device_get_softc(bus);
@@ -929,8 +929,8 @@ sbus_print_res(struct sbus_devinfo *sdi)
 
 	rv = 0;
 	rv += resource_list_print_type(&sdi->sdi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx");
+	    "%#jx");
 	rv += resource_list_print_type(&sdi->sdi_rl, "irq", SYS_RES_IRQ,
-	    "%ld");
+	    "%jd");
 	return (rv);
 }

@@ -5,7 +5,7 @@
 
 PROG=   smpquery
 SRCS=   smpquery.c ibdiag_common.c
-LIBADD= ibumad ibcommon ibmad osmcomp pthread
+LIBADD= ibumad ibmad osmcomp
 CFLAGS+= -I${DIAGPATH}/include
 MAN=	smpquery.8
 

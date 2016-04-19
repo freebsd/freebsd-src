@@ -129,8 +129,8 @@ scc_bfe_attach(device_t dev, u_int ipc)
 	 * Re-allocate. We expect that the softc contains the information
 	 * collected by scc_bfe_probe() intact.
 	 */
-	sc->sc_rres = bus_alloc_resource(dev, sc->sc_rtype, &sc->sc_rrid,
-	    0, ~0, cl->cl_channels * size, RF_ACTIVE);
+	sc->sc_rres = bus_alloc_resource_anywhere(dev, sc->sc_rtype,
+	    &sc->sc_rrid, cl->cl_channels * size, RF_ACTIVE);
 	if (sc->sc_rres == NULL)
 		return (ENXIO);
 	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
@@ -378,13 +378,13 @@ scc_bfe_probe(device_t dev, u_int regshft, u_int rclk, u_int rid)
 	 */
 	sc->sc_rrid = rid;
 	sc->sc_rtype = SYS_RES_MEMORY;
-	sc->sc_rres = bus_alloc_resource(dev, sc->sc_rtype, &sc->sc_rrid,
-	    0, ~0, cl->cl_channels * size, RF_ACTIVE);
+	sc->sc_rres = bus_alloc_resource_anywhere(dev, sc->sc_rtype,
+	    &sc->sc_rrid, cl->cl_channels * size, RF_ACTIVE);
 	if (sc->sc_rres == NULL) {
 		sc->sc_rrid = rid;
 		sc->sc_rtype = SYS_RES_IOPORT;
-		sc->sc_rres = bus_alloc_resource(dev, sc->sc_rtype,
-		    &sc->sc_rrid, 0, ~0, cl->cl_channels * size, RF_ACTIVE);
+		sc->sc_rres = bus_alloc_resource_anywhere(dev, sc->sc_rtype,
+		    &sc->sc_rrid, cl->cl_channels * size, RF_ACTIVE);
 		if (sc->sc_rres == NULL)
 			return (ENXIO);
 	}
@@ -417,7 +417,7 @@ scc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		return (NULL);
 
 	/* We only support default allocations. */
-	if (start != 0UL || end != ~0UL)
+	if (!RMAN_IS_DEFAULT_RANGE(start, end))
 		return (NULL);
 
 	m = device_get_ivars(child);

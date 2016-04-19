@@ -1064,7 +1064,7 @@ pmu_battquery_sysctl(SYSCTL_HANDLER_ARGS)
 	default:
 		/* This should never happen */
 		result = -1;
-	};
+	}
 
 	error = sysctl_handle_int(oidp, &result, 0, req);
 

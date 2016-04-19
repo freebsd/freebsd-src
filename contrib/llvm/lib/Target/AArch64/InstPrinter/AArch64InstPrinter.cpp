@@ -19,6 +19,7 @@
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -55,7 +56,7 @@ void AArch64InstPrinter::printInst(const MCInst *MI, raw_ostream &O,
   unsigned Opcode = MI->getOpcode();
 
   if (Opcode == AArch64::SYSxt)
-    if (printSysAlias(MI, O)) {
+    if (printSysAlias(MI, STI, O)) {
       printAnnotation(O, Annot);
       return;
     }
@@ -269,7 +270,7 @@ struct LdStNInstrDesc {
   int NaturalOffset;
 };
 
-static LdStNInstrDesc LdStNInstInfo[] = {
+static const LdStNInstrDesc LdStNInstInfo[] = {
   { AArch64::LD1i8,             "ld1",  ".b",     1, true,  0  },
   { AArch64::LD1i16,            "ld1",  ".h",     1, true,  0  },
   { AArch64::LD1i32,            "ld1",  ".s",     1, true,  0  },
@@ -612,7 +613,7 @@ static LdStNInstrDesc LdStNInstInfo[] = {
   { AArch64::ST4Fourv2s_POST,   "st4",  ".2s",    1, false, 32 },
 };
 
-static LdStNInstrDesc *getLdStNInstrDesc(unsigned Opcode) {
+static const LdStNInstrDesc *getLdStNInstrDesc(unsigned Opcode) {
   unsigned Idx;
   for (Idx = 0; Idx != array_lengthof(LdStNInstInfo); ++Idx)
     if (LdStNInstInfo[Idx].Opcode == Opcode)
@@ -641,7 +642,7 @@ void AArch64AppleInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
     return;
   }
 
-  if (LdStNInstrDesc *LdStDesc = getLdStNInstrDesc(Opcode)) {
+  if (const LdStNInstrDesc *LdStDesc = getLdStNInstrDesc(Opcode)) {
     O << "\t" << LdStDesc->Mnemonic << LdStDesc->Layout << '\t';
 
     // Now onto the operands: first a vector list with possible lane
@@ -674,7 +675,9 @@ void AArch64AppleInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
   AArch64InstPrinter::printInst(MI, O, Annot, STI);
 }
 
-bool AArch64InstPrinter::printSysAlias(const MCInst *MI, raw_ostream &O) {
+bool AArch64InstPrinter::printSysAlias(const MCInst *MI,
+                                       const MCSubtargetInfo &STI,
+                                       raw_ostream &O) {
 #ifndef NDEBUG
   unsigned Opcode = MI->getOpcode();
   assert(Opcode == AArch64::SYSxt && "Invalid opcode for SYS alias!");
@@ -729,6 +732,11 @@ bool AArch64InstPrinter::printSysAlias(const MCInst *MI, raw_ostream &O) {
       if (Op1Val == 3 && Op2Val == 1)
         Asm = "dc\tcvau";
       break;
+    case 12:
+      if (Op1Val == 3 && Op2Val == 1 &&
+          (STI.getFeatureBits()[AArch64::HasV8_2aOps]))
+        Asm = "dc\tcvap";
+      break;
     case 14:
       if (Op1Val == 3 && Op2Val == 1)
         Asm = "dc\tcivac";
@@ -773,6 +781,21 @@ bool AArch64InstPrinter::printSysAlias(const MCInst *MI, raw_ostream &O) {
         break;
       }
       break;
+    case 9:
+      switch (Op1Val) {
+      default:
+        break;
+      case 0:
+        if (STI.getFeatureBits()[AArch64::HasV8_2aOps]) {
+          switch (Op2Val) {
+          default:
+            break;
+          case 0: Asm = "at\ts1e1rp"; break;
+          case 1: Asm = "at\ts1e1wp"; break;
+          }
+        }
+        break;
+      }
     }
   } else if (CnVal == 8) {
     // TLBI aliases
@@ -1120,6 +1143,19 @@ void AArch64InstPrinter::printPrefetchOp(const MCInst *MI, unsigned OpNum,
     O << Name;
   else
     O << '#' << prfop;
+}
+
+void AArch64InstPrinter::printPSBHintOp(const MCInst *MI, unsigned OpNum,
+                                        const MCSubtargetInfo &STI,
+                                        raw_ostream &O) {
+  unsigned psbhintop = MI->getOperand(OpNum).getImm();
+  bool Valid;
+  StringRef Name =
+      AArch64PSBHint::PSBHintMapper().toString(psbhintop, STI.getFeatureBits(), Valid);
+  if (Valid)
+    O << Name;
+  else
+    O << '#' << psbhintop;
 }
 
 void AArch64InstPrinter::printFPImmOperand(const MCInst *MI, unsigned OpNum,

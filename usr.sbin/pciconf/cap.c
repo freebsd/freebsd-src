@@ -117,7 +117,7 @@ cap_agp(int fd, struct pci_conf *p, uint8_t ptr)
 }
 
 static void
-cap_vpd(int fd, struct pci_conf *p, uint8_t ptr)
+cap_vpd(int fd __unused, struct pci_conf *p __unused, uint8_t ptr __unused)
 {
 
 	printf("VPD");
@@ -172,6 +172,7 @@ cap_pcix(int fd, struct pci_conf *p, uint8_t ptr)
 	}
 	if ((p->pc_hdr & PCIM_HDRTYPE) == 1)
 		return;
+	max_burst_read = 0;
 	switch (status & PCIXM_STATUS_MAX_READ) {
 	case PCIXM_STATUS_MAX_READ_512:
 		max_burst_read = 512;
@@ -186,6 +187,7 @@ cap_pcix(int fd, struct pci_conf *p, uint8_t ptr)
 		max_burst_read = 4096;
 		break;
 	}
+	max_splits = 0;
 	switch (status & PCIXM_STATUS_MAX_SPLITS) {
 	case PCIXM_STATUS_MAX_SPLITS_1:
 		max_splits = 1;
@@ -408,14 +410,38 @@ aspm_string(uint8_t aspm)
 	}
 }
 
+static int
+slot_power(uint32_t cap)
+{
+	int mwatts;
+
+	mwatts = (cap & PCIEM_SLOT_CAP_SPLV) >> 7;
+	switch (cap & PCIEM_SLOT_CAP_SPLS) {
+	case 0x0:
+		mwatts *= 1000;
+		break;
+	case 0x1:
+		mwatts *= 100;
+		break;
+	case 0x2:
+		mwatts *= 10;
+		break;
+	default:
+		break;
+	}
+	return (mwatts);
+}
+
 static void
 cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 {
-	uint32_t cap, cap2;
+	uint32_t cap;
 	uint16_t ctl, flags, sta;
+	unsigned int version;
 
 	flags = read_config(fd, &p->pc_sel, ptr + PCIER_FLAGS, 2);
-	printf("PCI-Express %d ", flags & PCIEM_FLAGS_VERSION);
+	version = flags & PCIEM_FLAGS_VERSION;
+	printf("PCI-Express %u ", version);
 	switch (flags & PCIEM_FLAGS_TYPE) {
 	case PCIEM_TYPE_ENDPOINT:
 		printf("endpoint");
@@ -448,12 +474,9 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 		printf("type %d", (flags & PCIEM_FLAGS_TYPE) >> 4);
 		break;
 	}
-	if (flags & PCIEM_FLAGS_SLOT)
-		printf(" slot");
 	if (flags & PCIEM_FLAGS_IRQ)
-		printf(" IRQ %d", (flags & PCIEM_FLAGS_IRQ) >> 9);
+		printf(" MSI %d", (flags & PCIEM_FLAGS_IRQ) >> 9);
 	cap = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CAP, 4);
-	cap2 = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CAP2, 4);
 	ctl = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CTL, 2);
 	printf(" max data %d(%d)",
 	    MAX_PAYLOAD((ctl & PCIEM_CTL_MAX_PAYLOAD) >> 5),
@@ -464,12 +487,22 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 		printf(" RO");
 	if (ctl & PCIEM_CTL_NOSNOOP_ENABLE)
 		printf(" NS");
+	if (version >= 2) {
+		cap = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CAP2, 4);
+		if ((cap & PCIEM_CAP2_ARI) != 0) {
+			ctl = read_config(fd, &p->pc_sel,
+			    ptr + PCIER_DEVICE_CTL2, 4);
+			printf(" ARI %s",
+			    (ctl & PCIEM_CTL2_ARI) ? "enabled" : "disabled");
+		}
+	}
 	cap = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_CAP, 4);
 	sta = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_STA, 2);
+	if (cap == 0 && sta == 0)
+		return;
+	printf("\n                ");
 	printf(" link x%d(x%d)", (sta & PCIEM_LINK_STA_WIDTH) >> 4,
 	    (cap & PCIEM_LINK_CAP_MAX_WIDTH) >> 4);
-	if ((cap & (PCIEM_LINK_CAP_MAX_WIDTH | PCIEM_LINK_CAP_ASPM)) != 0)
-		printf("\n                ");
 	if ((cap & PCIEM_LINK_CAP_MAX_WIDTH) != 0) {
 		printf(" speed %s(%s)", (sta & PCIEM_LINK_STA_WIDTH) == 0 ?
 		    "0.0" : link_speed_string(sta & PCIEM_LINK_STA_SPEED),
@@ -480,11 +513,26 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 		printf(" ASPM %s(%s)", aspm_string(ctl & PCIEM_LINK_CTL_ASPMC),
 		    aspm_string((cap & PCIEM_LINK_CAP_ASPM) >> 10));
 	}
-	if ((cap2 & PCIEM_CAP2_ARI) != 0) {
-		ctl = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CTL2, 4);
-		printf(" ARI %s",
-		    (ctl & PCIEM_CTL2_ARI) ? "enabled" : "disabled");
-	}
+	if (!(flags & PCIEM_FLAGS_SLOT))
+		return;
+	cap = read_config(fd, &p->pc_sel, ptr + PCIER_SLOT_CAP, 4);
+	sta = read_config(fd, &p->pc_sel, ptr + PCIER_SLOT_STA, 2);
+	ctl = read_config(fd, &p->pc_sel, ptr + PCIER_SLOT_CTL, 2);
+	printf("\n                ");
+	printf(" slot %d", (cap & PCIEM_SLOT_CAP_PSN) >> 19);
+	printf(" power limit %d mW", slot_power(cap));
+	if (cap & PCIEM_SLOT_CAP_HPC)
+		printf(" HotPlug(%s)", sta & PCIEM_SLOT_STA_PDS ? "present" :
+		    "empty");
+	if (cap & PCIEM_SLOT_CAP_HPS)
+		printf(" surprise");
+	if (cap & PCIEM_SLOT_CAP_APB)
+		printf(" Attn Button");
+	if (cap & PCIEM_SLOT_CAP_PCP)
+		printf(" PC(%s)", ctl & PCIEM_SLOT_CTL_PCC ? "on" : "off");
+	if (cap & PCIEM_SLOT_CAP_MRLSP)
+		printf(" MRL(%s)", sta & PCIEM_SLOT_STA_MRLSS ? "open" :
+		    "closed");
 }
 
 static void
@@ -515,7 +563,7 @@ cap_msix(int fd, struct pci_conf *p, uint8_t ptr)
 }
 
 static void
-cap_sata(int fd, struct pci_conf *p, uint8_t ptr)
+cap_sata(int fd __unused, struct pci_conf *p __unused, uint8_t ptr __unused)
 {
 
 	printf("SATA Index-Data Pair");
@@ -530,6 +578,141 @@ cap_pciaf(int fd, struct pci_conf *p, uint8_t ptr)
 	printf("PCI Advanced Features:%s%s",
 	    cap & PCIM_PCIAFCAP_FLR ? " FLR" : "",
 	    cap & PCIM_PCIAFCAP_TP  ? " TP"  : "");
+}
+
+static const char *
+ea_bei_to_name(int bei)
+{
+	static const char *barstr[] = {
+		"BAR0", "BAR1", "BAR2", "BAR3", "BAR4", "BAR5"
+	};
+	static const char *vfbarstr[] = {
+		"VFBAR0", "VFBAR1", "VFBAR2", "VFBAR3", "VFBAR4", "VFBAR5"
+	};
+
+	if ((bei >= PCIM_EA_BEI_BAR_0) && (bei <= PCIM_EA_BEI_BAR_5))
+		return (barstr[bei - PCIM_EA_BEI_BAR_0]);
+	if ((bei >= PCIM_EA_BEI_VF_BAR_0) && (bei <= PCIM_EA_BEI_VF_BAR_5))
+		return (vfbarstr[bei - PCIM_EA_BEI_VF_BAR_0]);
+
+	switch (bei) {
+	case PCIM_EA_BEI_BRIDGE:
+		return "BRIDGE";
+	case PCIM_EA_BEI_ENI:
+		return "ENI";
+	case PCIM_EA_BEI_ROM:
+		return "ROM";
+	case PCIM_EA_BEI_RESERVED:
+	default:
+		return "RSVD";
+	}
+}
+
+static const char *
+ea_prop_to_name(uint8_t prop)
+{
+
+	switch (prop) {
+	case PCIM_EA_P_MEM:
+		return "Non-Prefetchable Memory";
+	case PCIM_EA_P_MEM_PREFETCH:
+		return "Prefetchable Memory";
+	case PCIM_EA_P_IO:
+		return "I/O Space";
+	case PCIM_EA_P_VF_MEM_PREFETCH:
+		return "VF Prefetchable Memory";
+	case PCIM_EA_P_VF_MEM:
+		return "VF Non-Prefetchable Memory";
+	case PCIM_EA_P_BRIDGE_MEM:
+		return "Bridge Non-Prefetchable Memory";
+	case PCIM_EA_P_BRIDGE_MEM_PREFETCH:
+		return "Bridge Prefetchable Memory";
+	case PCIM_EA_P_BRIDGE_IO:
+		return "Bridge I/O Space";
+	case PCIM_EA_P_MEM_RESERVED:
+		return "Reserved Memory";
+	case PCIM_EA_P_IO_RESERVED:
+		return "Reserved I/O Space";
+	case PCIM_EA_P_UNAVAILABLE:
+		return "Unavailable";
+	default:
+		return "Reserved";
+	}
+}
+
+static void
+cap_ea(int fd, struct pci_conf *p, uint8_t ptr)
+{
+	int num_ent;
+	int a, b;
+	uint32_t bei;
+	uint32_t val;
+	int ent_size;
+	uint32_t dw[4];
+	uint32_t flags, flags_pp, flags_sp;
+	uint64_t base, max_offset;
+	uint8_t fixed_sub_bus_nr, fixed_sec_bus_nr;
+
+	/* Determine the number of entries */
+	num_ent = read_config(fd, &p->pc_sel, ptr + PCIR_EA_NUM_ENT, 2);
+	num_ent &= PCIM_EA_NUM_ENT_MASK;
+
+	printf("PCI Enhanced Allocation (%d entries)", num_ent);
+
+	/* Find the first entry to care of */
+	ptr += PCIR_EA_FIRST_ENT;
+
+	/* Print BUS numbers for bridges */
+	if ((p->pc_hdr & PCIM_HDRTYPE) == PCIM_HDRTYPE_BRIDGE) {
+		val = read_config(fd, &p->pc_sel, ptr, 4);
+
+		fixed_sec_bus_nr = PCIM_EA_SEC_NR(val);
+		fixed_sub_bus_nr = PCIM_EA_SUB_NR(val);
+
+		printf("\n\t\t BRIDGE, sec bus [%d], sub bus [%d]",
+		    fixed_sec_bus_nr, fixed_sub_bus_nr);
+		ptr += 4;
+	}
+
+	for (a = 0; a < num_ent; a++) {
+		/* Read a number of dwords in the entry */
+		val = read_config(fd, &p->pc_sel, ptr, 4);
+		ptr += 4;
+		ent_size = (val & PCIM_EA_ES);
+
+		for (b = 0; b < ent_size; b++) {
+			dw[b] = read_config(fd, &p->pc_sel, ptr, 4);
+			ptr += 4;
+		}
+
+		flags = val;
+		flags_pp = (flags & PCIM_EA_PP) >> PCIM_EA_PP_OFFSET;
+		flags_sp = (flags & PCIM_EA_SP) >> PCIM_EA_SP_OFFSET;
+		bei = (PCIM_EA_BEI & val) >> PCIM_EA_BEI_OFFSET;
+
+		base = dw[0] & PCIM_EA_FIELD_MASK;
+		max_offset = dw[1] | ~PCIM_EA_FIELD_MASK;
+		b = 2;
+		if (((dw[0] & PCIM_EA_IS_64) != 0) && (b < ent_size)) {
+			base |= (uint64_t)dw[b] << 32UL;
+			b++;
+		}
+		if (((dw[1] & PCIM_EA_IS_64) != 0)
+			&& (b < ent_size)) {
+			max_offset |= (uint64_t)dw[b] << 32UL;
+			b++;
+		}
+
+		printf("\n\t\t [%d] %s, %s, %s, base [0x%jx], size [0x%jx]"
+		    "\n\t\t\tPrimary properties [0x%x] (%s)"
+		    "\n\t\t\tSecondary properties [0x%x] (%s)",
+		    bei, ea_bei_to_name(bei),
+		    (flags & PCIM_EA_ENABLE ? "Enabled" : "Disabled"),
+		    (flags & PCIM_EA_WRITABLE ? "Writable" : "Read-only"),
+		    (uintmax_t)base, (uintmax_t)(max_offset + 1),
+		    flags_pp, ea_prop_to_name(flags_pp),
+		    flags_sp, ea_prop_to_name(flags_sp));
+	}
 }
 
 void
@@ -602,6 +785,9 @@ list_caps(int fd, struct pci_conf *p)
 			break;
 		case PCIY_PCIAF:
 			cap_pciaf(fd, p, ptr);
+			break;
+		case PCIY_EA:
+			cap_ea(fd, p, ptr);
 			break;
 		default:
 			printf("unknown");
@@ -759,7 +945,7 @@ ecap_sriov(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 		print_bar(fd, p, "iov bar  ", ptr + PCIR_SRIOV_BAR(i));
 }
 
-struct {
+static struct {
 	uint16_t id;
 	const char *name;
 } ecap_names[] = {

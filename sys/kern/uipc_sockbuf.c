@@ -332,7 +332,7 @@ sowakeup(struct socket *so, struct sockbuf *sb)
 	} else
 		ret = SU_OK;
 	if (sb->sb_flags & SB_AIO)
-		aio_swake(so, sb);
+		sowakeup_aio(so, sb);
 	SOCKBUF_UNLOCK(sb);
 	if (ret == SU_ISCONNECTED)
 		soisconnected(so);
@@ -593,7 +593,7 @@ sbappend_locked(struct sockbuf *sb, struct mbuf *m, int flags)
 
 	SOCKBUF_LOCK_ASSERT(sb);
 
-	if (m == 0)
+	if (m == NULL)
 		return;
 	sbm_clrprotoflags(m, flags);
 	SBLASTRECORDCHK(sb);
@@ -746,7 +746,7 @@ sbappendrecord_locked(struct sockbuf *sb, struct mbuf *m0)
 
 	SOCKBUF_LOCK_ASSERT(sb);
 
-	if (m0 == 0)
+	if (m0 == NULL)
 		return;
 	m_clrprotoflags(m0);
 	/*
@@ -885,7 +885,7 @@ sbappendcontrol_locked(struct sockbuf *sb, struct mbuf *m0,
 
 	SOCKBUF_LOCK_ASSERT(sb);
 
-	if (control == 0)
+	if (control == NULL)
 		panic("sbappendcontrol_locked");
 	space = m_length(control, &n) + m_length(m0, NULL);
 

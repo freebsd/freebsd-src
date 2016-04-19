@@ -46,10 +46,6 @@ sctp_find_alternate_net(struct sctp_tcb *,
     struct sctp_nets *, int mode);
 
 int
-sctp_threshold_management(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *, uint16_t);
-
-int
 sctp_t3rxt_timer(struct sctp_inpcb *, struct sctp_tcb *,
     struct sctp_nets *);
 int

@@ -17,13 +17,11 @@ DIRDEPS = \
 	lib/libthr \
 	lib/msun \
 	lib/ncurses/ncursesw \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-llvm-dis.o: Intrinsics.inc.h
-llvm-dis.po: Intrinsics.inc.h
 .endif

@@ -16,12 +16,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-vacm_snmp.So: vacm_oid.h
-vacm_snmp.So: vacm_tree.h
-vacm_snmp.po: vacm_oid.h
-vacm_snmp.po: vacm_tree.h
-vacm_tree.So: vacm_tree.c
-vacm_tree.So: vacm_tree.h
-vacm_tree.po: vacm_tree.c
-vacm_tree.po: vacm_tree.h
 .endif

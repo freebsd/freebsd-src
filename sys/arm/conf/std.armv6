@@ -2,6 +2,8 @@
 #
 # $FreeBSD$
 
+options 	ARM_L2_PIPT		# Only L2 PIPT is supported
+
 options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
@@ -36,6 +38,8 @@ options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
 options 	VFP			# Enable floating point hardware support
+
+options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
 
 # DTrace support
 options 	KDTRACE_HOOKS		# Kernel DTrace hooks

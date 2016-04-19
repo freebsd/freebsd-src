@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/debug_monitor.h>
 #include <machine/smp.h>
 #include <machine/pcb.h>
-#include <machine/pmap.h>
 #include <machine/physmem.h>
 #include <machine/intr.h>
 #include <machine/vmparam.h>
@@ -75,7 +74,7 @@ volatile int mp_naps;
 /* Set to 1 once we're ready to let the APs out of the pen. */
 volatile int aps_ready = 0;
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 static int ipi_handler(void *arg);
 #endif
 void set_stackptrs(int cpu);
@@ -87,9 +86,12 @@ void *dpcpu[MAXCPU - 1];
 int
 cpu_mp_probe(void)
 {
+
+	KASSERT(mp_ncpus != 0, ("cpu_mp_probe: mp_ncpus is unset"));
+
 	CPU_SETOF(0, &all_cpus);
 
-	return (platform_mp_probe());
+	return (mp_ncpus > 1);
 }
 
 /* Start Application Processor via platform specific function */
@@ -150,7 +152,7 @@ init_secondary(int cpu)
 {
 	struct pcpu *pc;
 	uint32_t loop_counter;
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 	int start = 0, end = 0;
 #endif
 	uint32_t actlr_mask, actlr_set;
@@ -205,7 +207,7 @@ init_secondary(int cpu)
 
 	mtx_unlock_spin(&ap_boot_mtx);
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 	/* Enable ipi */
 #ifdef IPI_IRQ_START
 	start = IPI_IRQ_START;
@@ -232,7 +234,7 @@ init_secondary(int cpu)
 	cpu_initclocks_ap();
 
 	CTR0(KTR_SMP, "go into scheduler");
-	platform_mp_init_secondary();
+	intr_pic_init_secondary();
 
 	/* Enter the scheduler */
 	sched_throw(NULL);
@@ -241,7 +243,7 @@ init_secondary(int cpu)
 	/* NOTREACHED */
 }
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static void
 ipi_rendezvous(void *dummy __unused)
 {
@@ -419,20 +421,19 @@ static void
 release_aps(void *dummy __unused)
 {
 	uint32_t loop_counter;
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 	int start = 0, end = 0;
 #endif
 
 	if (mp_ncpus == 1)
 		return;
 
-#ifdef ARM_INTRNG
-	intr_ipi_set_handler(IPI_RENDEZVOUS, "rendezvous", ipi_rendezvous, NULL, 0);
-	intr_ipi_set_handler(IPI_AST, "ast", ipi_ast, NULL, 0);
-	intr_ipi_set_handler(IPI_STOP, "stop", ipi_stop, NULL, 0);
-	intr_ipi_set_handler(IPI_PREEMPT, "preempt", ipi_preempt, NULL, 0);
-	intr_ipi_set_handler(IPI_HARDCLOCK, "hardclock", ipi_hardclock, NULL, 0);
-
+#ifdef INTRNG
+	intr_pic_ipi_setup(IPI_RENDEZVOUS, "rendezvous", ipi_rendezvous, NULL);
+	intr_pic_ipi_setup(IPI_AST, "ast", ipi_ast, NULL);
+	intr_pic_ipi_setup(IPI_STOP, "stop", ipi_stop, NULL);
+	intr_pic_ipi_setup(IPI_PREEMPT, "preempt", ipi_preempt, NULL);
+	intr_pic_ipi_setup(IPI_HARDCLOCK, "hardclock", ipi_hardclock, NULL);
 #else
 #ifdef IPI_IRQ_START
 	start = IPI_IRQ_START;
@@ -500,7 +501,11 @@ ipi_all_but_self(u_int ipi)
 	other_cpus = all_cpus;
 	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	platform_ipi_send(other_cpus, ipi);
+#ifdef INTRNG
+	intr_ipi_send(other_cpus, ipi);
+#else
+	pic_ipi_send(other_cpus, ipi);
+#endif
 }
 
 void
@@ -512,7 +517,11 @@ ipi_cpu(int cpu, u_int ipi)
 	CPU_SET(cpu, &cpus);
 
 	CTR3(KTR_SMP, "%s: cpu: %d, ipi: %x", __func__, cpu, ipi);
-	platform_ipi_send(cpus, ipi);
+#ifdef INTRNG
+	intr_ipi_send(cpus, ipi);
+#else
+	pic_ipi_send(cpus, ipi);
+#endif
 }
 
 void
@@ -520,6 +529,9 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 {
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	platform_ipi_send(cpus, ipi);
+#ifdef INTRNG
+	intr_ipi_send(cpus, ipi);
+#else
+	pic_ipi_send(cpus, ipi);
+#endif
 }
-

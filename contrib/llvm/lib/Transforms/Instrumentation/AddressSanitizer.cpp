@@ -18,6 +18,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/DepthFirstIterator.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
@@ -90,7 +91,9 @@ static const char *const kAsanUnregisterGlobalsName =
     "__asan_unregister_globals";
 static const char *const kAsanPoisonGlobalsName = "__asan_before_dynamic_init";
 static const char *const kAsanUnpoisonGlobalsName = "__asan_after_dynamic_init";
-static const char *const kAsanInitName = "__asan_init_v5";
+static const char *const kAsanInitName = "__asan_init";
+static const char *const kAsanVersionCheckName =
+    "__asan_version_mismatch_check_v6";
 static const char *const kAsanPtrCmp = "__sanitizer_ptr_cmp";
 static const char *const kAsanPtrSub = "__sanitizer_ptr_sub";
 static const char *const kAsanHandleNoReturnName = "__asan_handle_no_return";
@@ -118,6 +121,10 @@ static const unsigned kAllocaRzSize = 32;
 // Command-line flags.
 static cl::opt<bool> ClEnableKasan(
     "asan-kernel", cl::desc("Enable KernelAddressSanitizer instrumentation"),
+    cl::Hidden, cl::init(false));
+static cl::opt<bool> ClRecover(
+    "asan-recover",
+    cl::desc("Enable recovery mode (continue-after-error)."),
     cl::Hidden, cl::init(false));
 
 // This flag may need to be replaced with -f[no-]asan-reads.
@@ -177,7 +184,7 @@ static cl::opt<std::string> ClMemoryAccessCallbackPrefix(
     cl::init("__asan_"));
 static cl::opt<bool> ClInstrumentAllocas("asan-instrument-allocas",
                                          cl::desc("instrument dynamic allocas"),
-                                         cl::Hidden, cl::init(false));
+                                         cl::Hidden, cl::init(true));
 static cl::opt<bool> ClSkipPromotableAllocas(
     "asan-skip-promotable-allocas",
     cl::desc("Do not instrument promotable allocas"), cl::Hidden,
@@ -273,6 +280,11 @@ class GlobalsMetadata {
 
   GlobalsMetadata() : inited_(false) {}
 
+  void reset() {
+    inited_ = false;
+    Entries.clear();
+  }
+
   void init(Module &M) {
     assert(!inited_);
     inited_ = true;
@@ -321,7 +333,7 @@ struct ShadowMapping {
 
 static ShadowMapping getShadowMapping(Triple &TargetTriple, int LongSize,
                                       bool IsKasan) {
-  bool IsAndroid = TargetTriple.getEnvironment() == llvm::Triple::Android;
+  bool IsAndroid = TargetTriple.isAndroid();
   bool IsIOS = TargetTriple.isiOS();
   bool IsFreeBSD = TargetTriple.isOSFreeBSD();
   bool IsLinux = TargetTriple.isOSLinux();
@@ -338,6 +350,8 @@ static ShadowMapping getShadowMapping(Triple &TargetTriple, int LongSize,
   ShadowMapping Mapping;
 
   if (LongSize == 32) {
+    // Android is always PIE, which means that the beginning of the address
+    // space is always available.
     if (IsAndroid)
       Mapping.Offset = 0;
     else if (IsMIPS32)
@@ -376,7 +390,8 @@ static ShadowMapping getShadowMapping(Triple &TargetTriple, int LongSize,
   // OR-ing shadow offset if more efficient (at least on x86) if the offset
   // is a power of two, but on ppc64 we have to use add since the shadow
   // offset is not necessary 1/8-th of the address space.
-  Mapping.OrShadowOffset = !IsPPC64 && !(Mapping.Offset & (Mapping.Offset - 1));
+  Mapping.OrShadowOffset = !IsAArch64 && !IsPPC64
+                           && !(Mapping.Offset & (Mapping.Offset - 1));
 
   return Mapping;
 }
@@ -389,8 +404,9 @@ static size_t RedzoneSizeForScale(int MappingScale) {
 
 /// AddressSanitizer: instrument the code in module to find memory bugs.
 struct AddressSanitizer : public FunctionPass {
-  explicit AddressSanitizer(bool CompileKernel = false)
-      : FunctionPass(ID), CompileKernel(CompileKernel || ClEnableKasan) {
+  explicit AddressSanitizer(bool CompileKernel = false, bool Recover = false)
+      : FunctionPass(ID), CompileKernel(CompileKernel || ClEnableKasan),
+        Recover(Recover || ClRecover) {
     initializeAddressSanitizerPass(*PassRegistry::getPassRegistry());
   }
   const char *getPassName() const override {
@@ -437,7 +453,9 @@ struct AddressSanitizer : public FunctionPass {
   Value *memToShadow(Value *Shadow, IRBuilder<> &IRB);
   bool runOnFunction(Function &F) override;
   bool maybeInsertAsanInitAtFunctionEntry(Function &F);
+  void markEscapedLocalAllocas(Function &F);
   bool doInitialization(Module &M) override;
+  bool doFinalization(Module &M) override;
   static char ID;  // Pass identification, replacement for typeid
 
   DominatorTree &getDominatorTree() const { return *DT; }
@@ -450,10 +468,21 @@ struct AddressSanitizer : public FunctionPass {
   bool isSafeAccess(ObjectSizeOffsetVisitor &ObjSizeVis, Value *Addr,
                     uint64_t TypeSize) const;
 
+  /// Helper to cleanup per-function state.
+  struct FunctionStateRAII {
+    AddressSanitizer *Pass;
+    FunctionStateRAII(AddressSanitizer *Pass) : Pass(Pass) {
+      assert(Pass->ProcessedAllocas.empty() &&
+             "last pass forgot to clear cache");
+    }
+    ~FunctionStateRAII() { Pass->ProcessedAllocas.clear(); }
+  };
+
   LLVMContext *C;
   Triple TargetTriple;
   int LongSize;
   bool CompileKernel;
+  bool Recover;
   Type *IntptrTy;
   ShadowMapping Mapping;
   DominatorTree *DT;
@@ -477,8 +506,10 @@ struct AddressSanitizer : public FunctionPass {
 
 class AddressSanitizerModule : public ModulePass {
  public:
-  explicit AddressSanitizerModule(bool CompileKernel = false)
-      : ModulePass(ID), CompileKernel(CompileKernel || ClEnableKasan) {}
+  explicit AddressSanitizerModule(bool CompileKernel = false,
+                                  bool Recover = false)
+      : ModulePass(ID), CompileKernel(CompileKernel || ClEnableKasan),
+        Recover(Recover || ClRecover) {}
   bool runOnModule(Module &M) override;
   static char ID;  // Pass identification, replacement for typeid
   const char *getPassName() const override { return "AddressSanitizerModule"; }
@@ -496,6 +527,7 @@ class AddressSanitizerModule : public ModulePass {
 
   GlobalsMetadata GlobalsMD;
   bool CompileKernel;
+  bool Recover;
   Type *IntptrTy;
   LLVMContext *C;
   Triple TargetTriple;
@@ -525,6 +557,7 @@ struct FunctionStackPoisoner : public InstVisitor<FunctionStackPoisoner> {
   ShadowMapping Mapping;
 
   SmallVector<AllocaInst *, 16> AllocaVec;
+  SmallSetVector<AllocaInst *, 16> NonInstrumentedStaticAllocaVec;
   SmallVector<Instruction *, 8> RetVec;
   unsigned StackAlignment;
 
@@ -545,12 +578,14 @@ struct FunctionStackPoisoner : public InstVisitor<FunctionStackPoisoner> {
   SmallVector<AllocaInst *, 1> DynamicAllocaVec;
   SmallVector<IntrinsicInst *, 1> StackRestoreVec;
   AllocaInst *DynamicAllocaLayout = nullptr;
+  IntrinsicInst *LocalEscapeCall = nullptr;
 
   // Maps Value to an AllocaInst from which the Value is originated.
   typedef DenseMap<Value *, AllocaInst *> AllocaForValueMapTy;
   AllocaForValueMapTy AllocaForValue;
 
-  bool HasNonEmptyInlineAsm;
+  bool HasNonEmptyInlineAsm = false;
+  bool HasReturnsTwiceCall = false;
   std::unique_ptr<CallInst> EmptyInlineAsm;
 
   FunctionStackPoisoner(Function &F, AddressSanitizer &ASan)
@@ -562,7 +597,6 @@ struct FunctionStackPoisoner : public InstVisitor<FunctionStackPoisoner> {
         IntptrPtrTy(PointerType::get(IntptrTy, 0)),
         Mapping(ASan.Mapping),
         StackAlignment(1 << Mapping.Scale),
-        HasNonEmptyInlineAsm(false),
         EmptyInlineAsm(CallInst::Create(ASan.EmptyAsm)) {}
 
   bool runOnFunction() {
@@ -596,9 +630,24 @@ struct FunctionStackPoisoner : public InstVisitor<FunctionStackPoisoner> {
   void unpoisonDynamicAllocasBeforeInst(Instruction *InstBefore,
                                         Value *SavedStack) {
     IRBuilder<> IRB(InstBefore);
+    Value *DynamicAreaPtr = IRB.CreatePtrToInt(SavedStack, IntptrTy);
+    // When we insert _asan_allocas_unpoison before @llvm.stackrestore, we
+    // need to adjust extracted SP to compute the address of the most recent
+    // alloca. We have a special @llvm.get.dynamic.area.offset intrinsic for
+    // this purpose.
+    if (!isa<ReturnInst>(InstBefore)) {
+      Function *DynamicAreaOffsetFunc = Intrinsic::getDeclaration(
+          InstBefore->getModule(), Intrinsic::get_dynamic_area_offset,
+          {IntptrTy});
+
+      Value *DynamicAreaOffset = IRB.CreateCall(DynamicAreaOffsetFunc, {});
+
+      DynamicAreaPtr = IRB.CreateAdd(IRB.CreatePtrToInt(SavedStack, IntptrTy),
+                                     DynamicAreaOffset);
+    }
+
     IRB.CreateCall(AsanAllocasUnpoisonFunc,
-                   {IRB.CreateLoad(DynamicAllocaLayout),
-                    IRB.CreatePtrToInt(SavedStack, IntptrTy)});
+                   {IRB.CreateLoad(DynamicAllocaLayout), DynamicAreaPtr});
   }
 
   // Unpoison dynamic allocas redzones.
@@ -625,7 +674,10 @@ struct FunctionStackPoisoner : public InstVisitor<FunctionStackPoisoner> {
 
   /// \brief Collect Alloca instructions we want (and can) handle.
   void visitAllocaInst(AllocaInst &AI) {
-    if (!ASan.isInterestingAlloca(AI)) return;
+    if (!ASan.isInterestingAlloca(AI)) {
+      if (AI.isStaticAlloca()) NonInstrumentedStaticAllocaVec.insert(&AI);
+      return;
+    }
 
     StackAlignment = std::max(StackAlignment, AI.getAlignment());
     if (ASan.isDynamicAlloca(AI))
@@ -639,6 +691,7 @@ struct FunctionStackPoisoner : public InstVisitor<FunctionStackPoisoner> {
   void visitIntrinsicInst(IntrinsicInst &II) {
     Intrinsic::ID ID = II.getIntrinsicID();
     if (ID == Intrinsic::stackrestore) StackRestoreVec.push_back(&II);
+    if (ID == Intrinsic::localescape) LocalEscapeCall = &II;
     if (!ClCheckLifetime) return;
     if (ID != Intrinsic::lifetime_start && ID != Intrinsic::lifetime_end)
       return;
@@ -660,9 +713,13 @@ struct FunctionStackPoisoner : public InstVisitor<FunctionStackPoisoner> {
     AllocaPoisonCallVec.push_back(APC);
   }
 
-  void visitCallInst(CallInst &CI) {
-    HasNonEmptyInlineAsm |=
-        CI.isInlineAsm() && !CI.isIdenticalTo(EmptyInlineAsm.get());
+  void visitCallSite(CallSite CS) {
+    Instruction *I = CS.getInstruction();
+    if (CallInst *CI = dyn_cast<CallInst>(I)) {
+      HasNonEmptyInlineAsm |=
+          CI->isInlineAsm() && !CI->isIdenticalTo(EmptyInlineAsm.get());
+      HasReturnsTwiceCall |= CI->canReturnTwice();
+    }
   }
 
   // ---------------------- Helpers.
@@ -689,7 +746,7 @@ struct FunctionStackPoisoner : public InstVisitor<FunctionStackPoisoner> {
                      Instruction *ThenTerm, Value *ValueIfFalse);
 };
 
-}  // namespace
+} // anonymous namespace
 
 char AddressSanitizer::ID = 0;
 INITIALIZE_PASS_BEGIN(
@@ -697,12 +754,15 @@ INITIALIZE_PASS_BEGIN(
     "AddressSanitizer: detects use-after-free and out-of-bounds bugs.", false,
     false)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
 INITIALIZE_PASS_END(
     AddressSanitizer, "asan",
     "AddressSanitizer: detects use-after-free and out-of-bounds bugs.", false,
     false)
-FunctionPass *llvm::createAddressSanitizerFunctionPass(bool CompileKernel) {
-  return new AddressSanitizer(CompileKernel);
+FunctionPass *llvm::createAddressSanitizerFunctionPass(bool CompileKernel,
+                                                       bool Recover) {
+  assert(!CompileKernel || Recover);
+  return new AddressSanitizer(CompileKernel, Recover);
 }
 
 char AddressSanitizerModule::ID = 0;
@@ -711,8 +771,10 @@ INITIALIZE_PASS(
     "AddressSanitizer: detects use-after-free and out-of-bounds bugs."
     "ModulePass",
     false, false)
-ModulePass *llvm::createAddressSanitizerModulePass(bool CompileKernel) {
-  return new AddressSanitizerModule(CompileKernel);
+ModulePass *llvm::createAddressSanitizerModulePass(bool CompileKernel,
+                                                   bool Recover) {
+  assert(!CompileKernel || Recover);
+  return new AddressSanitizerModule(CompileKernel, Recover);
 }
 
 static size_t TypeSizeToSizeIndex(uint32_t TypeSize) {
@@ -799,8 +861,10 @@ bool AddressSanitizer::isInterestingAlloca(AllocaInst &AI) {
        getAllocaSizeInBytes(&AI) > 0 &&
        // We are only interested in allocas not promotable to registers.
        // Promotable allocas are common under -O0.
-       (!ClSkipPromotableAllocas || !isAllocaPromotable(&AI) ||
-        isDynamicAlloca(AI)));
+       (!ClSkipPromotableAllocas || !isAllocaPromotable(&AI)) &&
+       // inalloca allocas are not treated as static, and we don't want
+       // dynamic alloca instrumentation for them as well.
+       !AI.isUsedWithInAlloca());
 
   ProcessedAllocas[&AI] = IsInteresting;
   return IsInteresting;
@@ -868,10 +932,8 @@ static bool isInterestingPointerComparisonOrSubtraction(Instruction *I) {
   } else {
     return false;
   }
-  if (!isPointerOperand(I->getOperand(0)) ||
-      !isPointerOperand(I->getOperand(1)))
-    return false;
-  return true;
+  return isPointerOperand(I->getOperand(0)) &&
+         isPointerOperand(I->getOperand(1));
 }
 
 bool AddressSanitizer::GlobalIsLinkerInitialized(GlobalVariable *G) {
@@ -919,7 +981,7 @@ void AddressSanitizer::instrumentMop(ObjectSizeOffsetVisitor &ObjSizeVis,
     // If initialization order checking is disabled, a simple access to a
     // dynamically initialized global is always valid.
     GlobalVariable *G = dyn_cast<GlobalVariable>(GetUnderlyingObject(Addr, DL));
-    if (G != NULL && (!ClInitializers || GlobalIsLinkerInitialized(G)) &&
+    if (G && (!ClInitializers || GlobalIsLinkerInitialized(G)) &&
         isSafeAccess(ObjSizeVis, Addr, TypeSize)) {
       NumOptimizedAccessesToGlobalVar++;
       return;
@@ -1041,13 +1103,17 @@ void AddressSanitizer::instrumentAddress(Instruction *OrigIns,
     BasicBlock *NextBB = CheckTerm->getSuccessor(0);
     IRB.SetInsertPoint(CheckTerm);
     Value *Cmp2 = createSlowPathCmp(IRB, AddrLong, ShadowValue, TypeSize);
-    BasicBlock *CrashBlock =
+    if (Recover) {
+      CrashTerm = SplitBlockAndInsertIfThen(Cmp2, CheckTerm, false);
+    } else {
+      BasicBlock *CrashBlock =
         BasicBlock::Create(*C, "", NextBB->getParent(), NextBB);
-    CrashTerm = new UnreachableInst(*C, CrashBlock);
-    BranchInst *NewTerm = BranchInst::Create(CrashBlock, NextBB, Cmp2);
-    ReplaceInstWithInst(CheckTerm, NewTerm);
+      CrashTerm = new UnreachableInst(*C, CrashBlock);
+      BranchInst *NewTerm = BranchInst::Create(CrashBlock, NextBB, Cmp2);
+      ReplaceInstWithInst(CheckTerm, NewTerm);
+    }
   } else {
-    CrashTerm = SplitBlockAndInsertIfThen(Cmp, InsertBefore, true);
+    CrashTerm = SplitBlockAndInsertIfThen(Cmp, InsertBefore, !Recover);
   }
 
   Instruction *Crash = generateCrashCode(CrashTerm, AddrLong, IsWrite,
@@ -1084,7 +1150,8 @@ void AddressSanitizer::instrumentUnusualSizeOrAlignment(
 void AddressSanitizerModule::poisonOneInitializer(Function &GlobalInit,
                                                   GlobalValue *ModuleName) {
   // Set up the arguments to our poison/unpoison functions.
-  IRBuilder<> IRB(GlobalInit.begin()->getFirstInsertionPt());
+  IRBuilder<> IRB(&GlobalInit.front(),
+                  GlobalInit.front().getFirstInsertionPt());
 
   // Add a call to poison all external globals before the given function starts.
   Value *ModuleNameAddr = ConstantExpr::getPointerCast(ModuleName, IntptrTy);
@@ -1147,6 +1214,14 @@ bool AddressSanitizerModule::ShouldInstrumentGlobal(GlobalVariable *G) {
     // Do not instrument globals from special LLVM sections.
     if (Section.find("__llvm") != StringRef::npos) return false;
 
+    // Do not instrument function pointers to initialization and termination
+    // routines: dynamic linker will not properly handle redzones.
+    if (Section.startswith(".preinit_array") ||
+        Section.startswith(".init_array") ||
+        Section.startswith(".fini_array")) {
+      return false;
+    }
+
     // Callbacks put into the CRT initializer/terminator sections
     // should not be instrumented.
     // See https://code.google.com/p/address-sanitizer/issues/detail?id=305
@@ -1162,10 +1237,7 @@ bool AddressSanitizerModule::ShouldInstrumentGlobal(GlobalVariable *G) {
       bool TAAParsed;
       std::string ErrorCode = MCSectionMachO::ParseSectionSpecifier(
           Section, ParsedSegment, ParsedSection, TAA, TAAParsed, StubSize);
-      if (!ErrorCode.empty()) {
-        assert(false && "Invalid section specifier.");
-        return false;
-      }
+      assert(ErrorCode.empty() && "Invalid section specifier.");
 
       // Ignore the globals from the __OBJC section. The ObjC runtime assumes
       // those conform to /usr/lib/objc/runtime.h, so we can't add redzones to
@@ -1383,13 +1455,11 @@ void AddressSanitizer::initializeCallbacks(Module &M) {
       const std::string TypeStr = AccessIsWrite ? "store" : "load";
       const std::string ExpStr = Exp ? "exp_" : "";
       const std::string SuffixStr = CompileKernel ? "N" : "_n";
-      const std::string EndingStr = CompileKernel ? "_noabort" : "";
-      const Type *ExpType = Exp ? Type::getInt32Ty(*C) : nullptr;
-      // TODO(glider): for KASan builds add _noabort to error reporting
-      // functions and make them actually noabort (remove the UnreachableInst).
+      const std::string EndingStr = Recover ? "_noabort" : "";
+      Type *ExpType = Exp ? Type::getInt32Ty(*C) : nullptr;
       AsanErrorCallbackSized[AccessIsWrite][Exp] =
           checkSanitizerInterfaceFunction(M.getOrInsertFunction(
-              kAsanReportErrorTemplate + ExpStr + TypeStr + SuffixStr,
+              kAsanReportErrorTemplate + ExpStr + TypeStr + SuffixStr + EndingStr,
               IRB.getVoidTy(), IntptrTy, IntptrTy, ExpType, nullptr));
       AsanMemoryAccessCallbackSized[AccessIsWrite][Exp] =
           checkSanitizerInterfaceFunction(M.getOrInsertFunction(
@@ -1400,7 +1470,7 @@ void AddressSanitizer::initializeCallbacks(Module &M) {
         const std::string Suffix = TypeStr + itostr(1 << AccessSizeIndex);
         AsanErrorCallback[AccessIsWrite][Exp][AccessSizeIndex] =
             checkSanitizerInterfaceFunction(M.getOrInsertFunction(
-                kAsanReportErrorTemplate + ExpStr + Suffix,
+                kAsanReportErrorTemplate + ExpStr + Suffix + EndingStr,
                 IRB.getVoidTy(), IntptrTy, ExpType, nullptr));
         AsanMemoryAccessCallback[AccessIsWrite][Exp][AccessSizeIndex] =
             checkSanitizerInterfaceFunction(M.getOrInsertFunction(
@@ -1448,13 +1518,18 @@ bool AddressSanitizer::doInitialization(Module &M) {
 
   if (!CompileKernel) {
     std::tie(AsanCtorFunction, AsanInitFunction) =
-        createSanitizerCtorAndInitFunctions(M, kAsanModuleCtorName, kAsanInitName,
-                                            /*InitArgTypes=*/{},
-                                            /*InitArgs=*/{});
+        createSanitizerCtorAndInitFunctions(
+            M, kAsanModuleCtorName, kAsanInitName,
+            /*InitArgTypes=*/{}, /*InitArgs=*/{}, kAsanVersionCheckName);
     appendToGlobalCtors(M, AsanCtorFunction, kAsanCtorAndDtorPriority);
   }
   Mapping = getShadowMapping(TargetTriple, LongSize, CompileKernel);
   return true;
+}
+
+bool AddressSanitizer::doFinalization(Module &M) {
+  GlobalsMD.reset();
+  return false;
 }
 
 bool AddressSanitizer::maybeInsertAsanInitAtFunctionEntry(Function &F) {
@@ -1466,11 +1541,39 @@ bool AddressSanitizer::maybeInsertAsanInitAtFunctionEntry(Function &F) {
   // We cannot just ignore these methods, because they may call other
   // instrumented functions.
   if (F.getName().find(" load]") != std::string::npos) {
-    IRBuilder<> IRB(F.begin()->begin());
+    IRBuilder<> IRB(&F.front(), F.front().begin());
     IRB.CreateCall(AsanInitFunction, {});
     return true;
   }
   return false;
+}
+
+void AddressSanitizer::markEscapedLocalAllocas(Function &F) {
+  // Find the one possible call to llvm.localescape and pre-mark allocas passed
+  // to it as uninteresting. This assumes we haven't started processing allocas
+  // yet. This check is done up front because iterating the use list in
+  // isInterestingAlloca would be algorithmically slower.
+  assert(ProcessedAllocas.empty() && "must process localescape before allocas");
+
+  // Try to get the declaration of llvm.localescape. If it's not in the module,
+  // we can exit early.
+  if (!F.getParent()->getFunction("llvm.localescape")) return;
+
+  // Look for a call to llvm.localescape call in the entry block. It can't be in
+  // any other block.
+  for (Instruction &I : F.getEntryBlock()) {
+    IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I);
+    if (II && II->getIntrinsicID() == Intrinsic::localescape) {
+      // We found a call. Mark all the allocas passed in as uninteresting.
+      for (Value *Arg : II->arg_operands()) {
+        AllocaInst *AI = dyn_cast<AllocaInst>(Arg->stripPointerCasts());
+        assert(AI && AI->isStaticAlloca() &&
+               "non-static alloca arg to localescape");
+        ProcessedAllocas[AI] = false;
+      }
+      break;
+    }
+  }
 }
 
 bool AddressSanitizer::runOnFunction(Function &F) {
@@ -1487,6 +1590,12 @@ bool AddressSanitizer::runOnFunction(Function &F) {
   if (!F.hasFnAttribute(Attribute::SanitizeAddress)) return false;
 
   if (!ClDebugFunc.empty() && ClDebugFunc != F.getName()) return false;
+
+  FunctionStateRAII CleanupObj(this);
+
+  // We can't instrument allocas used with llvm.localescape. Only static allocas
+  // can be passed to that intrinsic.
+  markEscapedLocalAllocas(F);
 
   // We want to instrument every address only once per basic block (unless there
   // are calls between uses).
@@ -1715,6 +1824,16 @@ void FunctionStackPoisoner::createDynamicAllocasInitStorage() {
 void FunctionStackPoisoner::poisonStack() {
   assert(AllocaVec.size() > 0 || DynamicAllocaVec.size() > 0);
 
+  // Insert poison calls for lifetime intrinsics for alloca.
+  bool HavePoisonedAllocas = false;
+  for (const auto &APC : AllocaPoisonCallVec) {
+    assert(APC.InsBefore);
+    assert(APC.AI);
+    IRBuilder<> IRB(APC.InsBefore);
+    poisonAlloca(APC.AI, APC.Size, IRB, APC.DoPoison);
+    HavePoisonedAllocas |= APC.DoPoison;
+  }
+
   if (ClInstrumentAllocas && DynamicAllocaVec.size() > 0) {
     // Handle dynamic allocas.
     createDynamicAllocasInitStorage();
@@ -1723,7 +1842,7 @@ void FunctionStackPoisoner::poisonStack() {
     unpoisonDynamicAllocas();
   }
 
-  if (AllocaVec.size() == 0) return;
+  if (AllocaVec.empty()) return;
 
   int StackMallocIdx = -1;
   DebugLoc EntryDebugLocation;
@@ -1733,6 +1852,19 @@ void FunctionStackPoisoner::poisonStack() {
   Instruction *InsBefore = AllocaVec[0];
   IRBuilder<> IRB(InsBefore);
   IRB.SetCurrentDebugLocation(EntryDebugLocation);
+
+  // Make sure non-instrumented allocas stay in the entry block. Otherwise,
+  // debug info is broken, because only entry-block allocas are treated as
+  // regular stack slots.
+  auto InsBeforeB = InsBefore->getParent();
+  assert(InsBeforeB == &F.getEntryBlock());
+  for (BasicBlock::iterator I(InsBefore); I != InsBeforeB->end(); ++I)
+    if (auto *AI = dyn_cast<AllocaInst>(I))
+      if (NonInstrumentedStaticAllocaVec.count(AI) > 0)
+        AI->moveBefore(InsBefore);
+
+  // If we have a call to llvm.localescape, keep it in the entry block.
+  if (LocalEscapeCall) LocalEscapeCall->moveBefore(InsBefore);
 
   SmallVector<ASanStackVariableDescription, 16> SVD;
   SVD.reserve(AllocaVec.size());
@@ -1751,10 +1883,15 @@ void FunctionStackPoisoner::poisonStack() {
   uint64_t LocalStackSize = L.FrameSize;
   bool DoStackMalloc = ClUseAfterReturn && !ASan.CompileKernel &&
                        LocalStackSize <= kMaxStackMallocSize;
-  // Don't do dynamic alloca or stack malloc in presence of inline asm:
-  // too often it makes assumptions on which registers are available.
-  bool DoDynamicAlloca = ClDynamicAllocaStack && !HasNonEmptyInlineAsm;
-  DoStackMalloc &= !HasNonEmptyInlineAsm;
+  bool DoDynamicAlloca = ClDynamicAllocaStack;
+  // Don't do dynamic alloca or stack malloc if:
+  // 1) There is inline asm: too often it makes assumptions on which registers
+  //    are available.
+  // 2) There is a returns_twice call (typically setjmp), which is
+  //    optimization-hostile, and doesn't play well with introduced indirect
+  //    register-relative calculation of local variable addresses.
+  DoDynamicAlloca &= !HasNonEmptyInlineAsm && !HasReturnsTwiceCall;
+  DoStackMalloc &= !HasNonEmptyInlineAsm && !HasReturnsTwiceCall;
 
   Value *StaticAlloca =
       DoDynamicAlloca ? nullptr : createAllocaForLayout(IRB, L, false);
@@ -1802,16 +1939,6 @@ void FunctionStackPoisoner::poisonStack() {
     FakeStack = ConstantInt::get(IntptrTy, 0);
     LocalStackBase =
         DoDynamicAlloca ? createAllocaForLayout(IRB, L, true) : StaticAlloca;
-  }
-
-  // Insert poison calls for lifetime intrinsics for alloca.
-  bool HavePoisonedAllocas = false;
-  for (const auto &APC : AllocaPoisonCallVec) {
-    assert(APC.InsBefore);
-    assert(APC.AI);
-    IRBuilder<> IRB(APC.InsBefore);
-    poisonAlloca(APC.AI, APC.Size, IRB, APC.DoPoison);
-    HavePoisonedAllocas |= APC.DoPoison;
   }
 
   // Replace Alloca instructions with base+offset.

@@ -873,10 +873,10 @@ repoll:
 					       + !cqe->timestamp_0_15) << 16)
 					| be16_to_cpu(cqe->timestamp_0_15);
 				wc->wc_flags |= IB_WC_WITH_TIMESTAMP;
-		}
+			}
 		} else {
 			wc->wc_flags |= IB_WC_WITH_SLID;
-		wc->slid	   = be16_to_cpu(cqe->rlid);
+			wc->slid	   = be16_to_cpu(cqe->rlid);
 		}
 		g_mlpath_rqpn	   = be32_to_cpu(cqe->g_mlpath_rqpn);
 		wc->src_qp	   = g_mlpath_rqpn & 0xffffff;
@@ -886,12 +886,12 @@ repoll:
 		wc->wc_flags	  |= mlx4_ib_ipoib_csum_ok(cqe->status,
 					cqe->checksum) ? IB_WC_IP_CSUM_OK : 0;
 		if (!timestamp_en) {
-		if (rdma_port_get_link_layer(wc->qp->device,
+			if (rdma_port_get_link_layer(wc->qp->device,
 						     (*cur_qp)->port) ==
 						      IB_LINK_LAYER_ETHERNET)
-			wc->sl  = be16_to_cpu(cqe->sl_vid) >> 13;
-		else
-			wc->sl  = be16_to_cpu(cqe->sl_vid) >> 12;
+				wc->sl  = be16_to_cpu(cqe->sl_vid) >> 13;
+			else
+				wc->sl  = be16_to_cpu(cqe->sl_vid) >> 12;
 			wc->wc_flags	  |= IB_WC_WITH_SL;
 		}
 		if ((be32_to_cpu(cqe->vlan_my_qpn) &

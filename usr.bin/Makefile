@@ -99,7 +99,6 @@ SUBDIR=	alias \
 	mkimg \
 	mklocale \
 	mktemp \
-	mkulzma \
 	mkuzip \
 	mt \
 	ncal \
@@ -126,6 +125,7 @@ SUBDIR=	alias \
 	protect \
 	rctl \
 	renice \
+	resizewin \
 	rev \
 	revoke \
 	rpcinfo \

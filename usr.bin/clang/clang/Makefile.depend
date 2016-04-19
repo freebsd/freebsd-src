@@ -26,18 +26,17 @@ DIRDEPS = \
 	lib/clang/libclangstaticanalyzercore \
 	lib/clang/libclangstaticanalyzerfrontend \
 	lib/clang/libllvmaarch64asmparser \
+	lib/clang/libllvmaarch64asmprinter \
 	lib/clang/libllvmaarch64codegen \
 	lib/clang/libllvmaarch64desc \
 	lib/clang/libllvmaarch64info \
-	lib/clang/libllvmaarch64instprinter \
 	lib/clang/libllvmaarch64utils \
 	lib/clang/libllvmanalysis \
 	lib/clang/libllvmarmasmparser \
+	lib/clang/libllvmarmasmprinter \
 	lib/clang/libllvmarmcodegen \
 	lib/clang/libllvmarmdesc \
-	lib/clang/libllvmarmdisassembler \
 	lib/clang/libllvmarminfo \
-	lib/clang/libllvmarminstprinter \
 	lib/clang/libllvmasmparser \
 	lib/clang/libllvmasmprinter \
 	lib/clang/libllvmbitreader \
@@ -46,7 +45,6 @@ DIRDEPS = \
 	lib/clang/libllvmcore \
 	lib/clang/libllvminstcombine \
 	lib/clang/libllvminstrumentation \
-	lib/clang/libllvmipa \
 	lib/clang/libllvmipo \
 	lib/clang/libllvmirreader \
 	lib/clang/libllvmlinker \
@@ -54,36 +52,35 @@ DIRDEPS = \
 	lib/clang/libllvmmcdisassembler \
 	lib/clang/libllvmmcparser \
 	lib/clang/libllvmmipsasmparser \
+	lib/clang/libllvmmipsasmprinter \
 	lib/clang/libllvmmipscodegen \
 	lib/clang/libllvmmipsdesc \
 	lib/clang/libllvmmipsinfo \
-	lib/clang/libllvmmipsinstprinter \
 	lib/clang/libllvmobjcarcopts \
 	lib/clang/libllvmobject \
 	lib/clang/libllvmoption \
 	lib/clang/libllvmpowerpcasmparser \
+	lib/clang/libllvmpowerpcasmprinter \
 	lib/clang/libllvmpowerpccodegen \
 	lib/clang/libllvmpowerpcdesc \
-	lib/clang/libllvmpowerpcdisassembler \
 	lib/clang/libllvmpowerpcinfo \
-	lib/clang/libllvmpowerpcinstprinter \
 	lib/clang/libllvmprofiledata \
 	lib/clang/libllvmscalaropts \
 	lib/clang/libllvmselectiondag \
 	lib/clang/libllvmsparcasmparser \
+	lib/clang/libllvmsparcasmprinter \
 	lib/clang/libllvmsparccodegen \
 	lib/clang/libllvmsparcdesc \
 	lib/clang/libllvmsparcinfo \
-	lib/clang/libllvmsparcinstprinter \
 	lib/clang/libllvmsupport \
 	lib/clang/libllvmtarget \
 	lib/clang/libllvmtransformutils \
 	lib/clang/libllvmvectorize \
 	lib/clang/libllvmx86asmparser \
+	lib/clang/libllvmx86asmprinter \
 	lib/clang/libllvmx86codegen \
 	lib/clang/libllvmx86desc \
 	lib/clang/libllvmx86info \
-	lib/clang/libllvmx86instprinter \
 	lib/clang/libllvmx86utils \
 	lib/libc \
 	lib/libc++ \
@@ -93,33 +90,11 @@ DIRDEPS = \
 	lib/msun \
 	lib/ncurses/ncursesw \
 	usr.bin/clang/clang-tblgen.host \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-cc1_main.o: DiagnosticCommonKinds.inc.h
-cc1_main.o: DiagnosticDriverKinds.inc.h
-cc1_main.o: DiagnosticFrontendKinds.inc.h
-cc1_main.o: Options.inc.h
-cc1_main.po: DiagnosticCommonKinds.inc.h
-cc1_main.po: DiagnosticDriverKinds.inc.h
-cc1_main.po: DiagnosticFrontendKinds.inc.h
-cc1_main.po: Options.inc.h
-cc1as_main.o: DiagnosticCommonKinds.inc.h
-cc1as_main.o: DiagnosticDriverKinds.inc.h
-cc1as_main.o: DiagnosticFrontendKinds.inc.h
-cc1as_main.o: Options.inc.h
-cc1as_main.po: DiagnosticCommonKinds.inc.h
-cc1as_main.po: DiagnosticDriverKinds.inc.h
-cc1as_main.po: DiagnosticFrontendKinds.inc.h
-cc1as_main.po: Options.inc.h
-driver.o: DiagnosticCommonKinds.inc.h
-driver.o: DiagnosticDriverKinds.inc.h
-driver.o: Options.inc.h
-driver.po: DiagnosticCommonKinds.inc.h
-driver.po: DiagnosticDriverKinds.inc.h
-driver.po: Options.inc.h
 .endif

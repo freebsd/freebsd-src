@@ -383,6 +383,7 @@ struct xhci_endpoint_ext {
 	uint8_t			trb_halted;
 	uint8_t			trb_running;
 	uint8_t			trb_ep_mode;
+	uint8_t			trb_ep_maxp;
 };
 
 enum {

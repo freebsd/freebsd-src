@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------
-# $File: mach,v 1.20 2015/05/21 18:28:41 christos Exp $
+# $File: mach,v 1.23 2015/10/15 21:51:22 christos Exp $
 # Mach has two magic numbers, 0xcafebabe and 0xfeedface.
 # Unfortunately the first, cafebabe, is shared with
 # Java ByteCode, so they are both handled in the file "cafebabe".
@@ -106,15 +106,19 @@
 >>>4		belong&0x00ffffff	2	subarchitecture=%d
 >>>4		belong&0x00ffffff	3	subarchitecture=%d
 >>>4		belong&0x00ffffff	4	subarchitecture=%d
->>>4		belong&0x00ffffff	5	\b_v4t
->>>4		belong&0x00ffffff	6	\b_v6
->>>4		belong&0x00ffffff	7	\b_v5tej
->>>4		belong&0x00ffffff	8	\b_xscale
->>>4		belong&0x00ffffff	9	\b_v7
->>>4		belong&0x00ffffff	10	\b_v7f
->>>4		belong&0x00ffffff	11	subarchitecture=%d
->>>4		belong&0x00ffffff	12	\b_v7k
->>>4		belong&0x00ffffff	>12	subarchitecture=%d
+>>>4		belong&0x00ffffff	5	\bv4t
+>>>4		belong&0x00ffffff	6	\bv6
+>>>4		belong&0x00ffffff	7	\bv5tej
+>>>4		belong&0x00ffffff	8	\bxscale
+>>>4		belong&0x00ffffff	9	\bv7
+>>>4		belong&0x00ffffff	10	\bv7f
+>>>4		belong&0x00ffffff	11	\bv7s
+>>>4		belong&0x00ffffff	12	\bv7k
+>>>4		belong&0x00ffffff	13	\bv8
+>>>4		belong&0x00ffffff	14	\bv6m
+>>>4		belong&0x00ffffff	15	\bv7m
+>>>4		belong&0x00ffffff	16	\bv7em
+>>>4		belong&0x00ffffff	>16	subarchitecture=%d
 #				13	m88k
 >>0	belong&0x00ffffff	13
 >>>4		belong&0x00ffffff	0	mc88000
@@ -158,12 +162,15 @@
 >>>4		belong&0x00ffffff	2	subarchitecture=%d
 >>>4		belong&0x00ffffff	3
 >>>4		belong&0x00ffffff	4	\b_arch1
+>>>4		belong&0x00ffffff	8	\b_haswell
 >>>4		belong&0x00ffffff	>4	subarchitecture=%d
 >>0	belong&0x00ffffff	8	64-bit architecture=%d
 >>0	belong&0x00ffffff	9	64-bit architecture=%d
 >>0	belong&0x00ffffff	10	64-bit architecture=%d
 >>0	belong&0x00ffffff	11	64-bit architecture=%d
->>0	belong&0x00ffffff	12	64-bit architecture=%d
+>>0	belong&0x00ffffff	12	arm64
+>>>4		belong&0x00ffffff	0
+>>>4		belong&0x00ffffff	1	\bv8
 >>0	belong&0x00ffffff	13	64-bit architecture=%d
 >>0	belong&0x00ffffff	14	64-bit architecture=%d
 >>0	belong&0x00ffffff	15	64-bit architecture=%d
@@ -203,6 +210,34 @@
 >12	belong		11		kext bundle
 >12	belong		>11
 >>12	belong		x		filetype=%d
+>24	belong		>0		\b, flags:<
+>>24	belong		&0x0000001	\bNOUNDEFS
+>>24	belong		&0x0000002	\b|INCRLINK
+>>24	belong		&0x0000004	\b|DYLDLINK
+>>24	belong		&0x0000008	\b|BINDATLOAD
+>>24	belong		&0x0000010	\b|PREBOUND
+>>24	belong		&0x0000020	\b|SPLIT_SEGS
+>>24	belong		&0x0000040	\b|LAZY_INIT
+>>24	belong		&0x0000080	\b|TWOLEVEL
+>>24	belong		&0x0000100	\b|FORCE_FLAT
+>>24	belong		&0x0000200	\b|NOMULTIDEFS
+>>24	belong		&0x0000400	\b|NOFIXPREBINDING
+>>24	belong		&0x0000800	\b|PREBINDABLE
+>>24	belong		&0x0001000	\b|ALLMODSBOUND
+>>24	belong		&0x0002000	\b|SUBSECTIONS_VIA_SYMBOLS
+>>24	belong		&0x0004000	\b|CANONICAL
+>>24	belong		&0x0008000	\b|WEAK_DEFINES
+>>24	belong		&0x0010000	\b|BINDS_TO_WEAK
+>>24	belong		&0x0020000	\b|ALLOW_STACK_EXECUTION
+>>24	belong		&0x0040000	\b|ROOT_SAFE
+>>24	belong		&0x0080000	\b|SETUID_SAFE
+>>24	belong		&0x0100000	\b|NO_REEXPORTED_DYLIBS
+>>24	belong		&0x0200000	\b|PIE
+>>24	belong		&0x0400000	\b|DEAD_STRIPPABLE_DYLIB
+>>24	belong		&0x0800000	\b|HAS_TLV_DESCRIPTORS
+>>24	belong		&0x1000000	\b|NO_HEAP_EXECUTION
+>>24	belong		&0x2000000	\b|APP_EXTENSION_SAFE
+>>24	belong		x		\b>
 
 #
 0	lelong&0xfffffffe	0xfeedface	Mach-O

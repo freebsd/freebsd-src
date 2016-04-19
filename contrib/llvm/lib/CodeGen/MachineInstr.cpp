@@ -33,6 +33,7 @@
 #include "llvm/IR/Value.h"
 #include "llvm/MC/MCInstrDesc.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
@@ -42,6 +43,11 @@
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
+
+static cl::opt<bool> PrintWholeRegMask(
+    "print-whole-regmask",
+    cl::desc("Print the full contents of regmask operands in IR dumps"),
+    cl::init(true), cl::Hidden);
 
 //===----------------------------------------------------------------------===//
 // MachineOperand Implementation
@@ -407,9 +413,26 @@ void MachineOperand::print(raw_ostream &OS, ModuleSlotTracker &MST,
     if (getOffset()) OS << "+" << getOffset();
     OS << '>';
     break;
-  case MachineOperand::MO_RegisterMask:
-    OS << "<regmask>";
+  case MachineOperand::MO_RegisterMask: {
+    unsigned NumRegsInMask = 0;
+    unsigned NumRegsEmitted = 0;
+    OS << "<regmask";
+    for (unsigned i = 0; i < TRI->getNumRegs(); ++i) {
+      unsigned MaskWord = i / 32;
+      unsigned MaskBit = i % 32;
+      if (getRegMask()[MaskWord] & (1 << MaskBit)) {
+        if (PrintWholeRegMask || NumRegsEmitted <= 10) {
+          OS << " " << PrintReg(i, TRI);
+          NumRegsEmitted++;
+        }
+        NumRegsInMask++;
+      }
+    }
+    if (NumRegsEmitted != NumRegsInMask)
+      OS << " and " << (NumRegsInMask - NumRegsEmitted) << " more...";
+    OS << ">";
     break;
+  }
   case MachineOperand::MO_RegisterLiveOut:
     OS << "<regliveout>";
     break;
@@ -443,26 +466,28 @@ unsigned MachinePointerInfo::getAddrSpace() const {
 
 /// getConstantPool - Return a MachinePointerInfo record that refers to the
 /// constant pool.
-MachinePointerInfo MachinePointerInfo::getConstantPool() {
-  return MachinePointerInfo(PseudoSourceValue::getConstantPool());
+MachinePointerInfo MachinePointerInfo::getConstantPool(MachineFunction &MF) {
+  return MachinePointerInfo(MF.getPSVManager().getConstantPool());
 }
 
 /// getFixedStack - Return a MachinePointerInfo record that refers to the
 /// the specified FrameIndex.
-MachinePointerInfo MachinePointerInfo::getFixedStack(int FI, int64_t offset) {
-  return MachinePointerInfo(PseudoSourceValue::getFixedStack(FI), offset);
+MachinePointerInfo MachinePointerInfo::getFixedStack(MachineFunction &MF,
+                                                     int FI, int64_t Offset) {
+  return MachinePointerInfo(MF.getPSVManager().getFixedStack(FI), Offset);
 }
 
-MachinePointerInfo MachinePointerInfo::getJumpTable() {
-  return MachinePointerInfo(PseudoSourceValue::getJumpTable());
+MachinePointerInfo MachinePointerInfo::getJumpTable(MachineFunction &MF) {
+  return MachinePointerInfo(MF.getPSVManager().getJumpTable());
 }
 
-MachinePointerInfo MachinePointerInfo::getGOT() {
-  return MachinePointerInfo(PseudoSourceValue::getGOT());
+MachinePointerInfo MachinePointerInfo::getGOT(MachineFunction &MF) {
+  return MachinePointerInfo(MF.getPSVManager().getGOT());
 }
 
-MachinePointerInfo MachinePointerInfo::getStack(int64_t Offset) {
-  return MachinePointerInfo(PseudoSourceValue::getStack(), Offset);
+MachinePointerInfo MachinePointerInfo::getStack(MachineFunction &MF,
+                                                int64_t Offset) {
+  return MachinePointerInfo(MF.getPSVManager().getStack(), Offset);
 }
 
 MachineMemOperand::MachineMemOperand(MachinePointerInfo ptrinfo, unsigned f,
@@ -606,10 +631,12 @@ void MachineMemOperand::print(raw_ostream &OS, ModuleSlotTracker &MST) const {
 
 void MachineInstr::addImplicitDefUseOperands(MachineFunction &MF) {
   if (MCID->ImplicitDefs)
-    for (const uint16_t *ImpDefs = MCID->getImplicitDefs(); *ImpDefs; ++ImpDefs)
+    for (const MCPhysReg *ImpDefs = MCID->getImplicitDefs(); *ImpDefs;
+           ++ImpDefs)
       addOperand(MF, MachineOperand::CreateReg(*ImpDefs, true, true));
   if (MCID->ImplicitUses)
-    for (const uint16_t *ImpUses = MCID->getImplicitUses(); *ImpUses; ++ImpUses)
+    for (const MCPhysReg *ImpUses = MCID->getImplicitUses(); *ImpUses;
+           ++ImpUses)
       addOperand(MF, MachineOperand::CreateReg(*ImpUses, false, true));
 }
 
@@ -839,9 +866,60 @@ void MachineInstr::addMemOperand(MachineFunction &MF,
   setMemRefs(NewMemRefs, NewMemRefs + NewNum);
 }
 
+/// Check to see if the MMOs pointed to by the two MemRefs arrays are
+/// identical. 
+static bool hasIdenticalMMOs(const MachineInstr &MI1, const MachineInstr &MI2) {
+  auto I1 = MI1.memoperands_begin(), E1 = MI1.memoperands_end();
+  auto I2 = MI2.memoperands_begin(), E2 = MI2.memoperands_end();
+  if ((E1 - I1) != (E2 - I2))
+    return false;
+  for (; I1 != E1; ++I1, ++I2) {
+    if (**I1 != **I2)
+      return false;
+  }
+  return true;
+}
+
+std::pair<MachineInstr::mmo_iterator, unsigned>
+MachineInstr::mergeMemRefsWith(const MachineInstr& Other) {
+
+  // If either of the incoming memrefs are empty, we must be conservative and
+  // treat this as if we've exhausted our space for memrefs and dropped them.
+  if (memoperands_empty() || Other.memoperands_empty())
+    return std::make_pair(nullptr, 0);
+
+  // If both instructions have identical memrefs, we don't need to merge them.
+  // Since many instructions have a single memref, and we tend to merge things
+  // like pairs of loads from the same location, this catches a large number of
+  // cases in practice.
+  if (hasIdenticalMMOs(*this, Other))
+    return std::make_pair(MemRefs, NumMemRefs);
+  
+  // TODO: consider uniquing elements within the operand lists to reduce
+  // space usage and fall back to conservative information less often.
+  size_t CombinedNumMemRefs = NumMemRefs + Other.NumMemRefs;
+
+  // If we don't have enough room to store this many memrefs, be conservative
+  // and drop them.  Otherwise, we'd fail asserts when trying to add them to
+  // the new instruction.
+  if (CombinedNumMemRefs != uint8_t(CombinedNumMemRefs))
+    return std::make_pair(nullptr, 0);
+
+  MachineFunction *MF = getParent()->getParent();
+  mmo_iterator MemBegin = MF->allocateMemRefsArray(CombinedNumMemRefs);
+  mmo_iterator MemEnd = std::copy(memoperands_begin(), memoperands_end(),
+                                  MemBegin);
+  MemEnd = std::copy(Other.memoperands_begin(), Other.memoperands_end(),
+                     MemEnd);
+  assert(MemEnd - MemBegin == (ptrdiff_t)CombinedNumMemRefs &&
+         "missing memrefs");
+  
+  return std::make_pair(MemBegin, CombinedNumMemRefs);
+}
+
 bool MachineInstr::hasPropertyInBundle(unsigned Mask, QueryType Type) const {
   assert(!isBundledWithPred() && "Must be called on bundle header");
-  for (MachineBasicBlock::const_instr_iterator MII = this;; ++MII) {
+  for (MachineBasicBlock::const_instr_iterator MII = getIterator();; ++MII) {
     if (MII->getDesc().getFlags() & Mask) {
       if (Type == AnyInBundle)
         return true;
@@ -865,13 +943,13 @@ bool MachineInstr::isIdenticalTo(const MachineInstr *Other,
 
   if (isBundle()) {
     // Both instructions are bundles, compare MIs inside the bundle.
-    MachineBasicBlock::const_instr_iterator I1 = *this;
+    MachineBasicBlock::const_instr_iterator I1 = getIterator();
     MachineBasicBlock::const_instr_iterator E1 = getParent()->instr_end();
-    MachineBasicBlock::const_instr_iterator I2 = *Other;
+    MachineBasicBlock::const_instr_iterator I2 = Other->getIterator();
     MachineBasicBlock::const_instr_iterator E2= Other->getParent()->instr_end();
     while (++I1 != E1 && I1->isInsideBundle()) {
       ++I2;
-      if (I2 == E2 || !I2->isInsideBundle() || !I1->isIdenticalTo(I2, Check))
+      if (I2 == E2 || !I2->isInsideBundle() || !I1->isIdenticalTo(&*I2, Check))
         return false;
     }
   }
@@ -976,7 +1054,7 @@ unsigned MachineInstr::getNumExplicitOperands() const {
 void MachineInstr::bundleWithPred() {
   assert(!isBundledWithPred() && "MI is already bundled with its predecessor");
   setFlag(BundledPred);
-  MachineBasicBlock::instr_iterator Pred = this;
+  MachineBasicBlock::instr_iterator Pred = getIterator();
   --Pred;
   assert(!Pred->isBundledWithSucc() && "Inconsistent bundle flags");
   Pred->setFlag(BundledSucc);
@@ -985,7 +1063,7 @@ void MachineInstr::bundleWithPred() {
 void MachineInstr::bundleWithSucc() {
   assert(!isBundledWithSucc() && "MI is already bundled with its successor");
   setFlag(BundledSucc);
-  MachineBasicBlock::instr_iterator Succ = this;
+  MachineBasicBlock::instr_iterator Succ = getIterator();
   ++Succ;
   assert(!Succ->isBundledWithPred() && "Inconsistent bundle flags");
   Succ->setFlag(BundledPred);
@@ -994,7 +1072,7 @@ void MachineInstr::bundleWithSucc() {
 void MachineInstr::unbundleFromPred() {
   assert(isBundledWithPred() && "MI isn't bundled with its predecessor");
   clearFlag(BundledPred);
-  MachineBasicBlock::instr_iterator Pred = this;
+  MachineBasicBlock::instr_iterator Pred = getIterator();
   --Pred;
   assert(Pred->isBundledWithSucc() && "Inconsistent bundle flags");
   Pred->clearFlag(BundledSucc);
@@ -1003,7 +1081,7 @@ void MachineInstr::unbundleFromPred() {
 void MachineInstr::unbundleFromSucc() {
   assert(isBundledWithSucc() && "MI isn't bundled with its successor");
   clearFlag(BundledSucc);
-  MachineBasicBlock::instr_iterator Succ = this;
+  MachineBasicBlock::instr_iterator Succ = getIterator();
   ++Succ;
   assert(Succ->isBundledWithPred() && "Inconsistent bundle flags");
   Succ->clearFlag(BundledPred);
@@ -1139,7 +1217,7 @@ const TargetRegisterClass *MachineInstr::getRegClassConstraintEffect(
 /// Return the number of instructions inside the MI bundle, not counting the
 /// header instruction.
 unsigned MachineInstr::getBundleSize() const {
-  MachineBasicBlock::const_instr_iterator I = this;
+  MachineBasicBlock::const_instr_iterator I = getIterator();
   unsigned Size = 0;
   while (I->isBundledWithSucc())
     ++Size, ++I;
@@ -1501,6 +1579,10 @@ bool MachineInstr::hasUnmodeledSideEffects() const {
   return false;
 }
 
+bool MachineInstr::isLoadFoldBarrier() const {
+  return mayStore() || isCall() || hasUnmodeledSideEffects();
+}
+
 /// allDefsAreDead - Return true if all the defs of this instruction are dead.
 ///
 bool MachineInstr::allDefsAreDead() const {
@@ -1615,7 +1697,6 @@ void MachineInstr::print(raw_ostream &OS, ModuleSlotTracker &MST,
     FirstOp = false;
   }
 
-
   for (unsigned i = StartOp, e = getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = getOperand(i);
 
@@ -1706,17 +1787,26 @@ void MachineInstr::print(raw_ostream &OS, ModuleSlotTracker &MST,
   }
 
   bool HaveSemi = false;
-  const unsigned PrintableFlags = FrameSetup;
+  const unsigned PrintableFlags = FrameSetup | FrameDestroy;
   if (Flags & PrintableFlags) {
-    if (!HaveSemi) OS << ";"; HaveSemi = true;
+    if (!HaveSemi) {
+      OS << ";";
+      HaveSemi = true;
+    }
     OS << " flags: ";
 
     if (Flags & FrameSetup)
       OS << "FrameSetup";
+
+    if (Flags & FrameDestroy)
+      OS << "FrameDestroy";
   }
 
   if (!memoperands_empty()) {
-    if (!HaveSemi) OS << ";"; HaveSemi = true;
+    if (!HaveSemi) {
+      OS << ";";
+      HaveSemi = true;
+    }
 
     OS << " mem:";
     for (mmo_iterator i = memoperands_begin(), e = memoperands_end();
@@ -1729,7 +1819,10 @@ void MachineInstr::print(raw_ostream &OS, ModuleSlotTracker &MST,
 
   // Print the regclass of any virtual registers encountered.
   if (MRI && !VirtRegs.empty()) {
-    if (!HaveSemi) OS << ";"; HaveSemi = true;
+    if (!HaveSemi) {
+      OS << ";";
+      HaveSemi = true;
+    }
     for (unsigned i = 0; i != VirtRegs.size(); ++i) {
       const TargetRegisterClass *RC = MRI->getRegClass(VirtRegs[i]);
       OS << " " << TRI->getRegClassName(RC)
@@ -1748,21 +1841,23 @@ void MachineInstr::print(raw_ostream &OS, ModuleSlotTracker &MST,
 
   // Print debug location information.
   if (isDebugValue() && getOperand(e - 2).isMetadata()) {
-    if (!HaveSemi) OS << ";";
+    if (!HaveSemi)
+      OS << ";";
     auto *DV = cast<DILocalVariable>(getOperand(e - 2).getMetadata());
     OS << " line no:" <<  DV->getLine();
     if (auto *InlinedAt = debugLoc->getInlinedAt()) {
       DebugLoc InlinedAtDL(InlinedAt);
       if (InlinedAtDL && MF) {
         OS << " inlined @[ ";
-	InlinedAtDL.print(OS);
+        InlinedAtDL.print(OS);
         OS << " ]";
       }
     }
     if (isIndirectDebugValue())
       OS << " indirect";
   } else if (debugLoc && MF) {
-    if (!HaveSemi) OS << ";";
+    if (!HaveSemi)
+      OS << ";";
     OS << " dbg:";
     debugLoc.print(OS);
   }
@@ -1902,11 +1997,11 @@ void MachineInstr::clearRegisterDeads(unsigned Reg) {
   }
 }
 
-void MachineInstr::addRegisterDefReadUndef(unsigned Reg) {
+void MachineInstr::setRegisterDefReadUndef(unsigned Reg, bool IsUndef) {
   for (MachineOperand &MO : operands()) {
     if (!MO.isReg() || !MO.isDef() || MO.getReg() != Reg || MO.getSubReg() == 0)
       continue;
-    MO.setIsUndef();
+    MO.setIsUndef(IsUndef);
   }
 }
 

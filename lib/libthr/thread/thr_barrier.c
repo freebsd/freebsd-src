@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <errno.h>
@@ -34,6 +35,9 @@
 
 #include "thr_private.h"
 
+_Static_assert(sizeof(struct pthread_barrier) <= PAGE_SIZE,
+    "pthread_barrier is too large for off-page");
+
 __weak_reference(_pthread_barrier_init,		pthread_barrier_init);
 __weak_reference(_pthread_barrier_wait,		pthread_barrier_wait);
 __weak_reference(_pthread_barrier_destroy,	pthread_barrier_destroy);
@@ -41,14 +45,25 @@ __weak_reference(_pthread_barrier_destroy,	pthread_barrier_destroy);
 int
 _pthread_barrier_destroy(pthread_barrier_t *barrier)
 {
-	pthread_barrier_t	bar;
-	struct pthread		*curthread;
+	pthread_barrier_t bar;
+	struct pthread *curthread;
+	int pshared;
 
 	if (barrier == NULL || *barrier == NULL)
 		return (EINVAL);
 
+	if (*barrier == THR_PSHARED_PTR) {
+		bar = __thr_pshared_offpage(barrier, 0);
+		if (bar == NULL) {
+			*barrier = NULL;
+			return (0);
+		}
+		pshared = 1;
+	} else {
+		bar = *barrier;
+		pshared = 0;
+	}
 	curthread = _get_curthread();
-	bar = *barrier;
 	THR_UMUTEX_LOCK(curthread, &bar->b_lock);
 	if (bar->b_destroying) {
 		THR_UMUTEX_UNLOCK(curthread, &bar->b_lock);
@@ -71,37 +86,52 @@ _pthread_barrier_destroy(pthread_barrier_t *barrier)
 	THR_UMUTEX_UNLOCK(curthread, &bar->b_lock);
 
 	*barrier = NULL;
-	free(bar);
+	if (pshared)
+		__thr_pshared_destroy(barrier);
+	else
+		free(bar);
 	return (0);
 }
 
 int
 _pthread_barrier_init(pthread_barrier_t *barrier,
-		      const pthread_barrierattr_t *attr, unsigned count)
+    const pthread_barrierattr_t *attr, unsigned count)
 {
-	pthread_barrier_t	bar;
-
-	(void)attr;
+	pthread_barrier_t bar;
+	int pshared;
 
 	if (barrier == NULL || count <= 0)
 		return (EINVAL);
 
-	bar = calloc(1, sizeof(struct pthread_barrier));
-	if (bar == NULL)
-		return (ENOMEM);
+	if (attr == NULL || *attr == NULL ||
+	    (*attr)->pshared == PTHREAD_PROCESS_PRIVATE) {
+		bar = calloc(1, sizeof(struct pthread_barrier));
+		if (bar == NULL)
+			return (ENOMEM);
+		*barrier = bar;
+		pshared = 0;
+	} else {
+		bar = __thr_pshared_offpage(barrier, 1);
+		if (bar == NULL)
+			return (EFAULT);
+		*barrier = THR_PSHARED_PTR;
+		pshared = 1;
+	}
 
 	_thr_umutex_init(&bar->b_lock);
 	_thr_ucond_init(&bar->b_cv);
-	bar->b_count	= count;
-	*barrier	= bar;
-
+	if (pshared) {
+		bar->b_lock.m_flags |= USYNC_PROCESS_SHARED;
+		bar->b_cv.c_flags |= USYNC_PROCESS_SHARED;
+	}
+	bar->b_count = count;
 	return (0);
 }
 
 int
 _pthread_barrier_wait(pthread_barrier_t *barrier)
 {
-	struct pthread *curthread = _get_curthread();
+	struct pthread *curthread;
 	pthread_barrier_t bar;
 	int64_t cycle;
 	int ret;
@@ -109,7 +139,14 @@ _pthread_barrier_wait(pthread_barrier_t *barrier)
 	if (barrier == NULL || *barrier == NULL)
 		return (EINVAL);
 
-	bar = *barrier;
+	if (*barrier == THR_PSHARED_PTR) {
+		bar = __thr_pshared_offpage(barrier, 0);
+		if (bar == NULL)
+			return (EINVAL);
+	} else {
+		bar = *barrier;
+	}
+	curthread = _get_curthread();
 	THR_UMUTEX_LOCK(curthread, &bar->b_lock);
 	if (++bar->b_waiters == bar->b_count) {
 		/* Current thread is lastest thread */

@@ -91,8 +91,11 @@ __FBSDID("$FreeBSD$");
 #define	WB_LDN8_CRF7_FORCE	0x20	/* 1: force timeout (self-clear) */
 #define	WB_LDN8_CRF7_TS		0x10	/* 0: counting, 1: fired */
 #define	WB_LDN8_CRF7_IRQS	0x0f	/* irq source for watchdog, 2 == SMI */
-#define	WB_LDN8_CRF7_CLEAR_MASK	\
-    (WB_LDN8_CRF7_MOUSE|WB_LDN8_CRF7_KEYB|WB_LDN8_CRF7_TS|WB_LDN8_CRF7_IRQS)
+
+enum chips { w83627hf, w83627s, w83697hf, w83697ug, w83637hf, w83627thf,
+	     w83687thf, w83627ehf, w83627dhg, w83627uhg, w83667hg,
+	     w83627dhg_p, w83667hg_b, nct6775, nct6776, nct6779, nct6791,
+	     nct6792, nct6102 };
 
 struct wb_softc {
 	device_t		dev;
@@ -103,6 +106,10 @@ struct wb_softc {
 	eventhandler_tag	ev_tag;
 	int			(*ext_cfg_enter_f)(struct wb_softc *, u_short);
 	void			(*ext_cfg_exit_f)(struct wb_softc *, u_short);
+	enum chips		chip;
+	uint8_t			ctl_reg;
+	uint8_t			time_reg;
+	uint8_t			csr_reg;
 	int			debug_verbose;
 
 	/*
@@ -144,46 +151,104 @@ struct winbond_superio_cfg {
 };
 
 struct winbond_vendor_device_id {
-	uint16_t		vendor_id;
 	uint8_t			device_id;
-	uint8_t			device_rev;
+	enum chips		chip;
 	const char *		descr;
 } wb_devs[] = {
 	{
-		.vendor_id	= 0x5ca3,
 		.device_id	= 0x52,
-		.device_rev	= 0x17,
-		.descr		= "Winbond 83627HF/F/HG/G Rev. G",
+		.chip		= w83627hf,
+		.descr		= "Winbond 83627HF/F/HG/G",
 	},
 	{
-		.vendor_id	= 0x5ca3,
-		.device_id	= 0x52,
-		.device_rev	= 0x3a,
-		.descr		= "Winbond 83627HF/F/HG/G Rev. J",
+		.device_id	= 0x59,
+		.chip		= w83627s,
+		.descr		= "Winbond 83627S",
 	},
 	{
-		.vendor_id	= 0x5ca3,
-		.device_id	= 0x52,
-		.device_rev	= 0x41,
-		.descr		= "Winbond 83627HF/F/HG/G Rev. UD-A",
+		.device_id	= 0x60,
+		.chip		= w83697hf,
+		.descr		= "Winbond 83697HF",
 	},
 	{
-		.vendor_id	= 0x5ca3,
+		.device_id	= 0x68,
+		.chip		= w83697ug,
+		.descr		= "Winbond 83697UG",
+	},
+	{
+		.device_id	= 0x70,
+		.chip		= w83637hf,
+		.descr		= "Winbond 83637HF",
+	},
+	{
+		.device_id	= 0x82,
+		.chip		= w83627thf,
+		.descr		= "Winbond 83627THF",
+	},
+	{
+		.device_id	= 0x85,
+		.chip		= w83687thf,
+		.descr		= "Winbond 83687THF",
+	},
+	{
+		.device_id	= 0x88,
+		.chip		= w83627ehf,
+		.descr		= "Winbond 83627EHF",
+	},
+	{
 		.device_id	= 0xa0,
-		.device_rev	= 0x25,
-		.descr		= "Winbond 83627DHG IC ver. 5",   
+		.chip		= w83627dhg,
+		.descr		= "Winbond 83627DHG",
 	},
 	{
-		.vendor_id	= 0x5ca3,
+		.device_id	= 0xa2,
+		.chip		= w83627uhg,
+		.descr		= "Winbond 83627UHG",
+	},
+	{
+		.device_id	= 0xa5,
+		.chip		= w83667hg,
+		.descr		= "Winbond 83667HG",
+	},
+	{
 		.device_id	= 0xb0,
-		.device_rev	= 0x73,
-		.descr		= "Winbond 83627DHG-P",   
+		.chip		= w83627dhg_p,
+		.descr		= "Winbond 83627DHG-P",
 	},
 	{
-		.vendor_id	= 0x5ca3,
+		.device_id	= 0xb3,
+		.chip		= w83667hg_b,
+		.descr		= "Winbond 83667HG-B",
+	},
+	{
+		.device_id	= 0xb4,
+		.chip		= nct6775,
+		.descr		= "Nuvoton NCT6775",
+	},
+	{
 		.device_id	= 0xc3,
-		.device_rev	= 0x33,
-		.descr		= "Nuvoton WPCM450RA0BX",   
+		.chip		= nct6776,
+		.descr		= "Nuvoton NCT6776",
+	},
+	{
+		.device_id	= 0xc4,
+		.chip		= nct6102,
+		.descr		= "Nuvoton NCT6102",
+	},
+	{
+		.device_id	= 0xc5,
+		.chip		= nct6779,
+		.descr		= "Nuvoton NCT6779",
+	},
+	{
+		.device_id	= 0xc8,
+		.chip		= nct6791,
+		.descr		= "Nuvoton NCT6791",
+	},
+	{
+		.device_id	= 0xc9,
+		.chip		= nct6792,
+		.descr		= "Nuvoton NCT6792",
 	},
 };
 
@@ -231,6 +296,22 @@ read_efdr_1(struct wb_softc *sc, u_short baseport)
 		return (inb(baseport + 1));
 }
 
+static void
+write_reg(struct wb_softc *sc, uint8_t reg, uint8_t value)
+{
+
+	write_efir_1(sc, 0, reg);
+	write_efdr_1(sc, 0, value);
+}
+
+static uint8_t
+read_reg(struct wb_softc *sc, uint8_t reg)
+{
+
+	write_efir_1(sc, 0, reg);
+	return (read_efdr_1(sc, 0));
+}
+
 /*
  * Return the watchdog related registers as we last read them.  This will
  * usually not give the current timeout or state on whether the watchdog
@@ -248,9 +329,9 @@ sysctl_wb_debug(SYSCTL_HANDLER_ARGS)
 	sbuf_new_for_sysctl(&sb, NULL, 64, req);
 
 	sbuf_printf(&sb, "LDN8 (GPIO2, Watchdog): ");
-	sbuf_printf(&sb, "CRF5 0x%02x ", sc->reg_1);
-	sbuf_printf(&sb, "CRF6 0x%02x ", sc->reg_timeout);
-	sbuf_printf(&sb, "CRF7 0x%02x", sc->reg_2);
+	sbuf_printf(&sb, "CR%02X 0x%02x ", sc->ctl_reg, sc->reg_1);
+	sbuf_printf(&sb, "CR%02X 0x%02x ", sc->time_reg, sc->reg_timeout);
+	sbuf_printf(&sb, "CR%02X 0x%02x", sc->csr_reg, sc->reg_2);
 
 	error = sbuf_finish(&sb);
 	sbuf_delete(&sb);
@@ -269,23 +350,17 @@ sysctl_wb_debug_current(SYSCTL_HANDLER_ARGS)
 
 	sc = arg1;
 
-	/*
-	 * Enter extended function mode in case someone else has been
-	 * poking on the registers.  We will not leave it though.
-	 */
 	if ((*sc->ext_cfg_enter_f)(sc, 0) != 0)
 		return (ENXIO);
 
 	/* Watchdog is configured as part of LDN 8 (GPIO Port2, Watchdog). */
-	write_efir_1(sc, 0, WB_LDN_REG);
-	write_efdr_1(sc, 0, WB_LDN_REG_LDN8);
+	write_reg(sc, WB_LDN_REG, WB_LDN_REG_LDN8);
 
-	write_efir_1(sc, 0, WB_LDN8_CRF5);
-	sc->reg_1 = read_efdr_1(sc, 0);
-	write_efir_1(sc, 0, WB_LDN8_CRF6);
-	sc->reg_timeout = read_efdr_1(sc, 0);
-	write_efir_1(sc, 0, WB_LDN8_CRF7);
-	sc->reg_2 = read_efdr_1(sc, 0);
+	sc->reg_1 = read_reg(sc, sc->ctl_reg);
+	sc->reg_timeout = read_reg(sc, sc->time_reg);
+	sc->reg_2 = read_reg(sc, sc->csr_reg);
+
+	(*sc->ext_cfg_exit_f)(sc, 0);
 
 	return (sysctl_wb_debug(oidp, arg1, arg2, req));
 }
@@ -326,10 +401,6 @@ sysctl_wb_force_test_nmi(SYSCTL_HANDLER_ARGS)
 	}
 #endif
 
-	/*
-	 * Enter extended function mode in case someone else has been
-	 * poking on the registers.  We will not leave it though.
-	 */
 	if ((*sc->ext_cfg_enter_f)(sc, 0) != 0)
 		return (ENXIO);
 
@@ -343,16 +414,14 @@ sysctl_wb_force_test_nmi(SYSCTL_HANDLER_ARGS)
 #endif
 
 	/* Watchdog is configured as part of LDN 8 (GPIO Port2, Watchdog). */
-	write_efir_1(sc, 0, WB_LDN_REG);
-	write_efdr_1(sc, 0, WB_LDN_REG_LDN8);
+	write_reg(sc, WB_LDN_REG, WB_LDN_REG_LDN8);
 
 	/* Force watchdog to fire. */
-	write_efir_1(sc, 0, WB_LDN8_CRF7);
-	sc->reg_2 = read_efdr_1(sc, 0);
+	sc->reg_2 = read_reg(sc, sc->csr_reg);
 	sc->reg_2 |= WB_LDN8_CRF7_FORCE;
+	write_reg(sc, sc->csr_reg, sc->reg_2);
 
-	write_efir_1(sc, 0, WB_LDN8_CRF7);
-	write_efdr_1(sc, 0, sc->reg_2);
+	(*sc->ext_cfg_exit_f)(sc, 0);
 
 	return (0);
 }
@@ -414,37 +483,7 @@ static int
 wb_set_watchdog(struct wb_softc *sc, unsigned int timeout)
 {
 
-	if (sc->debug_verbose)
-		wb_print_state(sc, "Before watchdog counter (re)load");
-
-	/*
-	 * Enter extended function mode in case someone else has been
-	 * poking on the registers.  We will not leave it though.
-	 */
-	if ((*sc->ext_cfg_enter_f)(sc, 0) != 0)
-		return (ENXIO);
-
-	/* Watchdog is configured as part of LDN 8 (GPIO Port2, Watchdog) */
-	write_efir_1(sc, 0, WB_LDN_REG);
-	write_efdr_1(sc, 0, WB_LDN_REG_LDN8);
-
-	/* Disable and validate or arm/reset watchdog. */
-	if (timeout == 0) {
-		/* Disable watchdog. */
-		write_efir_1(sc, 0, WB_LDN8_CRF6);
-		write_efdr_1(sc, 0, 0x00);
-
-		/* Re-check. */
-		write_efir_1(sc, 0, WB_LDN8_CRF6);
-		sc->reg_timeout = read_efdr_1(sc, 0);
-		
-		if (sc->reg_timeout != 0x00) {
-			device_printf(sc->dev, "Failed to disable watchdog: "
-			    "0x%02x.\n", sc->reg_timeout);
-			return (EIO);
-		}
-
-	} else {
+	if (timeout != 0) {
 		/*
 		 * In case an override is set, let it override.  It may lead
 		 * to strange results as we do not check the input of the sysctl.
@@ -455,10 +494,25 @@ wb_set_watchdog(struct wb_softc *sc, unsigned int timeout)
 		/* Make sure we support the requested timeout. */
 		if (timeout > 255 * 60)
 			return (EINVAL);
+	}
 
+	if (sc->debug_verbose)
+		wb_print_state(sc, "Before watchdog counter (re)load");
+
+	if ((*sc->ext_cfg_enter_f)(sc, 0) != 0)
+		return (ENXIO);
+
+	/* Watchdog is configured as part of LDN 8 (GPIO Port2, Watchdog) */
+	write_reg(sc, WB_LDN_REG, WB_LDN_REG_LDN8);
+
+	if (timeout == 0) {
+		/* Disable watchdog. */
+		sc->reg_timeout = 0;
+		write_reg(sc, sc->time_reg, sc->reg_timeout);
+
+	} else {
 		/* Read current scaling factor. */
-		write_efir_1(sc, 0, WB_LDN8_CRF5);
-		sc->reg_1 = read_efdr_1(sc, 0);
+		sc->reg_1 = read_reg(sc, sc->ctl_reg);
 
 		if (timeout > 255) {
 			/* Set scaling factor to 60s. */
@@ -473,26 +527,23 @@ wb_set_watchdog(struct wb_softc *sc, unsigned int timeout)
 		}
 
 		/* In case we fired before we need to clear to fire again. */
-		write_efir_1(sc, 0, WB_LDN8_CRF7);
-		sc->reg_2 = read_efdr_1(sc, 0);
+		sc->reg_2 = read_reg(sc, sc->csr_reg);
 		if (sc->reg_2 & WB_LDN8_CRF7_TS) {
 			sc->reg_2 &= ~WB_LDN8_CRF7_TS;
-			write_efir_1(sc, 0, WB_LDN8_CRF7);
-			write_efdr_1(sc, 0, sc->reg_2);
+			write_reg(sc, sc->csr_reg, sc->reg_2);
 		}
 
 		/* Write back scaling factor. */
-		write_efir_1(sc, 0, WB_LDN8_CRF5);
-		write_efdr_1(sc, 0, sc->reg_1);
+		write_reg(sc, sc->ctl_reg, sc->reg_1);
 
 		/* Set timer and arm/reset the watchdog. */
-		write_efir_1(sc, 0, WB_LDN8_CRF6);
-		write_efdr_1(sc, 0, sc->reg_timeout);
+		write_reg(sc, sc->time_reg, sc->reg_timeout);
 	}
+
+	(*sc->ext_cfg_exit_f)(sc, 0);
 
 	if (sc->debug_verbose)
 		wb_print_state(sc, "After watchdog counter (re)load");
-
 	return (0);
 }
 
@@ -556,6 +607,7 @@ wb_probe_enable(device_t dev, int probe)
 	struct wb_softc *sc;
 	int error, found, i, j;
 	uint8_t dev_id, dev_rev, cr26;
+	char buf[128];
 
 	if (dev == NULL)
 		sc = NULL;
@@ -566,6 +618,7 @@ wb_probe_enable(device_t dev, int probe)
 	}
 
 	error = ENXIO;
+	found = 0;
 	for (i = 0; i < sizeof(probe_addrs) / sizeof(*probe_addrs); i++) {
 
 		if (sc != NULL) {
@@ -578,7 +631,6 @@ wb_probe_enable(device_t dev, int probe)
 			sc->bsh = rman_get_bushandle(sc->portres);
 		}
 
-		found = 0;
 		error = (*probe_addrs[i].ext_cfg_enter_f)(sc, probe_addrs[i].efer);
 		if (error != 0)
 			goto cleanup;
@@ -591,6 +643,9 @@ wb_probe_enable(device_t dev, int probe)
 		write_efir_1(sc, probe_addrs[i].efer, WB_CR26);
 		cr26 = read_efdr_1(sc, probe_addrs[i].efer);
 
+		if (dev_id == 0xff && dev_rev == 0xff)
+			goto cleanup;
+
 		/* HEFRAS of 0 means EFER at 0x2e, 1 means EFER at 0x4e. */
 		if (((cr26 & 0x40) == 0x00 && probe_addrs[i].efer != 0x2e) ||
 		    ((cr26 & 0x40) == 0x40 && probe_addrs[i].efer != 0x4e)) {
@@ -602,36 +657,30 @@ wb_probe_enable(device_t dev, int probe)
 			goto cleanup;
 		}
 
-		if (dev_id == 0xff && dev_rev == 0xff)
-			goto cleanup;
-
 		for (j = 0; j < sizeof(wb_devs) / sizeof(*wb_devs); j++) {
-			if (wb_devs[j].device_id == dev_id &&
-			    wb_devs[j].device_rev == dev_rev) {
-				if (probe && dev != NULL)
-					device_set_desc(dev, wb_devs[j].descr);
-				found++;
+			if (wb_devs[j].device_id == dev_id) {
+				found = 1;
 				break;
 			}
 		}
 
-		if (!found) {
-			if (probe && dev != NULL) {
-				device_set_desc(dev, "Unknown Winbond/Nuvoton model");
-				device_printf(dev, "DevID 0x%02x DevRev 0x%02x, "
-				    "please report this.\n", dev_id, dev_rev);
-			}
-			found++;
+		if (probe && dev != NULL) {
+			snprintf(buf, sizeof(buf),
+			    "%s (0x%02x/0x%02x) Watchdog Timer",
+			    found ? wb_devs[j].descr :
+			     "Unknown Winbond/Nuvoton", dev_id, dev_rev);
+			device_set_desc_copy(dev, buf);
 		}
 
-		if (probe && found && bootverbose && dev != NULL)
-			device_printf(dev, "%s EFER 0x%02x ID 0x%02x Rev 0x%02x"
-			     " CR26 0x%02x (probing)\n", device_get_desc(dev),
-			     probe_addrs[i].efer, dev_id, dev_rev, cr26);
+		/* If this is hinted attach, try to guess the model. */
+		if (dev != NULL && !found) {
+			found = 1;
+			j = 0;
+		}
+
 cleanup:
 		if (probe || !found) {
 			(*probe_addrs[i].ext_cfg_exit_f)(sc, probe_addrs[i].efer);
-
 			if (sc != NULL)
 				(void) bus_release_resource(dev, SYS_RES_IOPORT,
 				    sc->rid, sc->portres);
@@ -646,9 +695,21 @@ cleanup:
 			if (sc != NULL) {
 				sc->ext_cfg_enter_f = probe_addrs[i].ext_cfg_enter_f;
 				sc->ext_cfg_exit_f = probe_addrs[i].ext_cfg_exit_f;
+				sc->chip = wb_devs[j].chip;
+				sc->ctl_reg = 0xf5;
+				sc->time_reg = 0xf6;
+				sc->csr_reg = 0xf7;
+				if (sc->chip == w83697hf ||
+				    sc->chip == w83697ug) {
+					sc->ctl_reg = 0xf3;
+					sc->time_reg = 0xf4;
+				} else if (sc->chip == nct6102) {
+					sc->ctl_reg = 0xf0;
+					sc->time_reg = 0xf1;
+					sc->csr_reg = 0xf2;
+				}
 			}
-			error = BUS_PROBE_DEFAULT;
-			break;
+			return (BUS_PROBE_SPECIFIC);
 		} else
 			error = ENXIO;
 	}
@@ -659,15 +720,10 @@ cleanup:
 static void
 wb_identify(driver_t *driver, device_t parent)
 {
-	device_t dev;
 
-	if ((dev = device_find_child(parent, driver->name, 0)) == NULL) {
-		if (wb_probe_enable(dev, 1) != BUS_PROBE_DEFAULT) {
-			if (bootverbose)
-				device_printf(dev, "can not find compatible Winbond chip.\n");
-		} else
-			dev = BUS_ADD_CHILD(parent, 0, driver->name, 0);
-		return;
+	if (device_find_child(parent, driver->name, 0) == NULL) {
+		if (wb_probe_enable(NULL, 1) <= 0)
+			BUS_ADD_CHILD(parent, 0, driver->name, 0);
 	}
 }
 
@@ -690,6 +746,7 @@ wb_attach(device_t dev)
 	struct sysctl_oid *soid;
 	unsigned long timeout;
 	int error;
+	uint8_t t;
 
 	error = wb_probe_enable(dev, 0);
 	if (error > 0)
@@ -700,37 +757,95 @@ wb_attach(device_t dev)
 	    ("%s: successfull probe result but not setup correctly", __func__));
 
 	/* Watchdog is configured as part of LDN 8 (GPIO Port2, Watchdog). */
-	write_efir_1(sc, 0, WB_LDN_REG);
-	write_efdr_1(sc, 0, WB_LDN_REG_LDN8);
+	write_reg(sc, WB_LDN_REG, WB_LDN_REG_LDN8);
 
-	/* Make sure LDN8 is enabled (Do we need to? Also affects GPIO). */
-	write_efir_1(sc, 0, WB_LDN8_CR30);
-	write_efdr_1(sc, 0, WB_LDN8_CR30_ACTIVE);
+	/* Make sure WDT is enabled. */
+	write_reg(sc, WB_LDN8_CR30,
+	    read_reg(sc, WB_LDN8_CR30) | WB_LDN8_CR30_ACTIVE);
+
+	switch (sc->chip) {
+	case w83627hf:
+	case w83627s:
+		t = read_reg(sc, 0x2B) & ~0x10;
+		write_reg(sc, 0x2B, t); /* set GPIO24 to WDT0 */
+		break;
+	case w83697hf:
+		/* Set pin 119 to WDTO# mode (= CR29, WDT0) */
+		t = read_reg(sc, 0x29) & ~0x60;
+		t |= 0x20;
+		write_reg(sc, 0x29, t);
+		break;
+	case w83697ug:
+		/* Set pin 118 to WDTO# mode */
+		t = read_reg(sc, 0x2b) & ~0x04;
+		write_reg(sc, 0x2b, t);
+		break;
+	case w83627thf:
+		t = (read_reg(sc, 0x2B) & ~0x08) | 0x04;
+		write_reg(sc, 0x2B, t); /* set GPIO3 to WDT0 */
+		break;
+	case w83627dhg:
+	case w83627dhg_p:
+		t = read_reg(sc, 0x2D) & ~0x01; /* PIN77 -> WDT0# */
+		write_reg(sc, 0x2D, t); /* set GPIO5 to WDT0 */
+		t = read_reg(sc, sc->ctl_reg);
+		t |= 0x02;	/* enable the WDTO# output low pulse
+				 * to the KBRST# pin */
+		write_reg(sc, sc->ctl_reg, t);
+		break;
+	case w83637hf:
+		break;
+	case w83687thf:
+		t = read_reg(sc, 0x2C) & ~0x80; /* PIN47 -> WDT0# */
+		write_reg(sc, 0x2C, t);
+		break;
+	case w83627ehf:
+	case w83627uhg:
+	case w83667hg:
+	case w83667hg_b:
+	case nct6775:
+	case nct6776:
+	case nct6779:
+	case nct6791:
+	case nct6792:
+	case nct6102:
+		/*
+		 * These chips have a fixed WDTO# output pin (W83627UHG),
+		 * or support more than one WDTO# output pin.
+		 * Don't touch its configuration, and hope the BIOS
+		 * does the right thing.
+		 */
+		t = read_reg(sc, sc->ctl_reg);
+		t |= 0x02;	/* enable the WDTO# output low pulse
+				 * to the KBRST# pin */
+		write_reg(sc, sc->ctl_reg, t);
+		break;
+	default:
+		break;
+	}
 
 	/* Read the current watchdog configuration. */
-	write_efir_1(sc, 0, WB_LDN8_CRF5);
-	sc->reg_1 = read_efdr_1(sc, 0);
-	write_efir_1(sc, 0, WB_LDN8_CRF6);
-	sc->reg_timeout = read_efdr_1(sc, 0);
-	write_efir_1(sc, 0, WB_LDN8_CRF7);
-	sc->reg_2 = read_efdr_1(sc, 0);
+	sc->reg_1 = read_reg(sc, sc->ctl_reg);
+	sc->reg_timeout = read_reg(sc, sc->time_reg);
+	sc->reg_2 = read_reg(sc, sc->csr_reg);
 
 	/* Print current state if bootverbose or watchdog already enabled. */
 	if (bootverbose || (sc->reg_timeout > 0x00))
 		wb_print_state(sc, "Before watchdog attach");
 
-	/*
-	 * Clear a previous watchdog timeout event (if (still) set).
-	 * Disable all all interrupt reset sources (defaults).
-	 */
-	sc->reg_1 &= ~(WB_LDN8_CRF5_KEYB_P20);
+	sc->reg_1 &= ~WB_LDN8_CRF5_KEYB_P20;
 	sc->reg_1 |= WB_LDN8_CRF5_KBRST;
-	write_efir_1(sc, 0, WB_LDN8_CRF5);
-	write_efdr_1(sc, 0, sc->reg_1);
+	write_reg(sc, sc->ctl_reg, sc->reg_1);
 
-	sc->reg_2 &= ~WB_LDN8_CRF7_CLEAR_MASK;
-	write_efir_1(sc, 0, WB_LDN8_CRF7);
-	write_efdr_1(sc, 0, sc->reg_2);
+	/*
+	 * Clear a previous watchdog timeout event (if still set).
+	 * Disable timer reset on mouse interrupts.  Leave reset on keyboard,
+	 * since one of my boards is getting stuck in reboot without it.
+	 */
+	sc->reg_2 &= ~(WB_LDN8_CRF7_MOUSE|WB_LDN8_CRF7_TS);
+	write_reg(sc, sc->csr_reg, sc->reg_2);
+
+	(*sc->ext_cfg_exit_f)(sc, 0);
 
 	/* Read global timeout override tunable, Add per device sysctls. */
 	if (TUNABLE_ULONG_FETCH("hw.wbwd.timeout_override", &timeout)) {

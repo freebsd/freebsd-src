@@ -46,6 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
+#ifdef KDB
+#include <sys/kdb.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -57,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/pcpu.h>
-#include <machine/vmparam.h>
 
 #include <machine/resource.h>
 #include <machine/intr.h>
@@ -168,6 +170,13 @@ data_abort(struct trapframe *frame, int lower)
 	int error;
 	int sig;
 
+#ifdef KDB
+	if (kdb_active) {
+		kdb_reenter();
+		return;
+	}
+#endif
+
 	td = curthread;
 	pcb = td->td_pcb;
 
@@ -271,6 +280,18 @@ do_trap_supervisor(struct trapframe *frame)
 	case EXCP_INSTR_ACCESS_FAULT:
 		data_abort(frame, 0);
 		break;
+	case EXCP_INSTR_BREAKPOINT:
+#ifdef KDB
+		kdb_trap(exception, 0, frame);
+#else
+		dump_regs(frame);
+		panic("No debugger in kernel.\n");
+#endif
+		break;
+	case EXCP_INSTR_ILLEGAL:
+		dump_regs(frame);
+		panic("Illegal instruction at %x\n", frame->tf_sepc);
+		break;
 	default:
 		dump_regs(frame);
 		panic("Unknown kernel exception %x badaddr %lx\n",
@@ -282,6 +303,10 @@ void
 do_trap_user(struct trapframe *frame)
 {
 	uint64_t exception;
+	struct thread *td;
+
+	td = curthread;
+	td->td_frame = frame;
 
 	exception = (frame->tf_scause & EXCP_MASK);
 	if (frame->tf_scause & EXCP_INTR) {
@@ -302,6 +327,14 @@ do_trap_user(struct trapframe *frame)
 	case EXCP_UMODE_ENV_CALL:
 		frame->tf_sepc += 4;	/* Next instruction */
 		svc_handler(frame);
+		break;
+	case EXCP_INSTR_ILLEGAL:
+		call_trapsignal(td, SIGILL, ILL_ILLTRP, (void *)frame->tf_sepc);
+		userret(td, frame);
+		break;
+	case EXCP_INSTR_BREAKPOINT:
+		call_trapsignal(td, SIGTRAP, TRAP_BRKPT, (void *)frame->tf_sepc);
+		userret(td, frame);
 		break;
 	default:
 		dump_regs(frame);

@@ -1,5 +1,10 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
+ATF_TESTS_C+=		memcmp_test
 ATF_TESTS_C+=		stpncpy_test
 ATF_TESTS_C+=		strerror2_test
 ATF_TESTS_C+=		wcscasecmp_test

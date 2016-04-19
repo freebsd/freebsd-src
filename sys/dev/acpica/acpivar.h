@@ -441,6 +441,8 @@ int		acpi_wakeup_machdep(struct acpi_softc *sc, int state,
 int		acpi_table_quirks(int *quirks);
 int		acpi_machdep_quirks(int *quirks);
 
+uint32_t	hpet_get_uid(device_t dev);
+
 /* Battery Abstraction. */
 struct acpi_battinfo;
 
@@ -500,9 +502,7 @@ SYSCTL_DECL(_debug_acpi);
  *
  * Returns the VM domain ID if found, or -1 if not found / invalid.
  */
-#if MAXMEMDOM > 1
 extern	int acpi_map_pxm_to_vm_domainid(int pxm);
-#endif
 extern	int acpi_get_domain(device_t dev, device_t child, int *domain);
 extern	int acpi_parse_pxm(device_t dev, int *domain);
 

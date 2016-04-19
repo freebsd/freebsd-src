@@ -84,7 +84,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-#include <machine/vmparam.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_map.h>

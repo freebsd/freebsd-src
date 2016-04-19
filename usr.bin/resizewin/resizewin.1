@@ -1,0 +1,64 @@
+.\" resizewin
+.\"
+.\" Query terminal for size and inform the kernel
+.\"
+.\" Copyright 2015 EMC / Isilon Storage Division
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 17, 2016
+.Dt RESIZEWIN 1
+.Os
+.Sh NAME
+.Nm resizewin
+.Nd update the kernel window size for the current TTY
+.Sh DESCRIPTION
+Query the terminal emulator window size with the
+.Dv TIOCSWINSZ
+ioctl and set the window size known by the kernel to the new values.
+The terminal is assumed to be VT100/ANSI compatible.
+.Nm
+is functionally similar to
+.Xr resize 1 ,
+which is part of the
+.Xr xterm 1
+distribution.
+However,
+.Nm
+only works with VT100/ANSI-compatible terminals and does
+not emit commands to set environment variables.
+.Pp
+After a terminal window has been resized, running
+.Nm
+updates the kernel's window size to match the new size.
+.Pp
+Note that virtually all modern terninals support VT100/ANSI escape
+sequences, including xterm, konsole, gnome-terminal iTerm,
+Terminal.app, and puTTY.
+.Sh SEE ALSO
+.Xr resize 1 ,
+.Xr stty 1
+.Sh HISTORY
+.Nm
+appeared in FreeBSD 11.

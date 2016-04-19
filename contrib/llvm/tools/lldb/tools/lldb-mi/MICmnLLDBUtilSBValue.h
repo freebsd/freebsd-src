@@ -22,9 +22,6 @@ class CMIUtilString;
 //++ ============================================================================
 // Details: Utility helper class to lldb::SBValue. Using a lldb::SBValue extract
 //          value object information to help form verbose debug information.
-// Gotchas: None.
-// Authors: Illya Rudkin 08/07/2014.
-// Changes: None.
 //--
 class CMICmnLLDBUtilSBValue
 {
@@ -32,31 +29,34 @@ class CMICmnLLDBUtilSBValue
   public:
     /* ctor */ CMICmnLLDBUtilSBValue(const lldb::SBValue &vrValue, const bool vbHandleCharType = false,
                                      const bool vbHandleArrayType = true);
-    /* dtor */ ~CMICmnLLDBUtilSBValue(void);
+    /* dtor */ ~CMICmnLLDBUtilSBValue();
     //
-    CMIUtilString GetName(void) const;
+    CMIUtilString GetName() const;
     CMIUtilString GetValue(const bool vbExpandAggregates = false) const;
-    CMIUtilString GetTypeName(void) const;
-    CMIUtilString GetTypeNameDisplay(void) const;
-    bool IsCharType(void) const;
-    bool IsFirstChildCharType(void) const;
-    bool IsIntegerType(void) const;
-    bool IsPointerType(void) const;
-    bool IsArrayType(void) const;
-    bool IsLLDBVariable(void) const;
-    bool IsNameUnknown(void) const;
-    bool IsValueUnknown(void) const;
-    bool IsValid(void) const;
-    bool HasName(void) const;
+    CMIUtilString GetTypeName() const;
+    CMIUtilString GetTypeNameDisplay() const;
+    bool IsCharType() const;
+    bool IsFirstChildCharType() const;
+    bool IsPointeeCharType() const;
+    bool IsIntegerType() const;
+    bool IsPointerType() const;
+    bool IsArrayType() const;
+    bool IsLLDBVariable() const;
+    bool IsNameUnknown() const;
+    bool IsValueUnknown() const;
+    bool IsValid() const;
+    bool HasName() const;
 
     // Methods:
   private:
     template <typename charT> CMIUtilString ReadCStringFromHostMemory(lldb::SBValue &vrValue, const MIuint vnMaxLen = UINT32_MAX) const;
     bool GetSimpleValue(const bool vbHandleArrayType, CMIUtilString &vrValue) const;
-    CMIUtilString GetSimpleValueChar(void) const;
-    CMIUtilString GetSimpleValueCStringPointer(void) const;
-    CMIUtilString GetSimpleValueCStringArray(void) const;
     bool GetCompositeValue(const bool vbPrintFieldNames, CMICmnMIValueTuple &vwrMiValueTuple, const MIuint vnDepth = 1) const;
+    CMIUtilString GetValueSummary(bool valueOnly, const CMIUtilString& failVal = CMIUtilString()) const;
+
+    // Statics:
+  private:
+    static bool IsCharBasicType(lldb::BasicType eType);
 
     // Attributes:
   private:

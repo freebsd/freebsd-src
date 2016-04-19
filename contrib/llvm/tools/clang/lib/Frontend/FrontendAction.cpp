@@ -190,9 +190,9 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
 
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags(&CI.getDiagnostics());
 
-    std::unique_ptr<ASTUnit> AST =
-        ASTUnit::LoadFromASTFile(InputFile, CI.getPCHContainerReader(),
-                                 Diags, CI.getFileSystemOpts());
+    std::unique_ptr<ASTUnit> AST = ASTUnit::LoadFromASTFile(
+        InputFile, CI.getPCHContainerReader(), Diags, CI.getFileSystemOpts(),
+        CI.getCodeGenOpts().DebugTypeExtRefs);
 
     if (!AST)
       goto failure;
@@ -284,7 +284,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
 
       if (!Found) {
         CI.getDiagnostics().Report(diag::err_fe_no_pch_in_dir) << PCHInclude;
-        return true;
+        goto failure;
       }
     }
   }
@@ -375,7 +375,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     if (CI.getLangOpts().Modules)
       CI.createModuleManager();
 
-    PP.getBuiltinInfo().InitializeBuiltins(PP.getIdentifierTable(),
+    PP.getBuiltinInfo().initializeBuiltins(PP.getIdentifierTable(),
                                            PP.getLangOpts());
   } else {
     // FIXME: If this is a problem, recover from it by creating a multiplex
@@ -442,9 +442,11 @@ bool FrontendAction::Execute() {
   // there were any module-build failures.
   if (CI.shouldBuildGlobalModuleIndex() && CI.hasFileManager() &&
       CI.hasPreprocessor()) {
-    GlobalModuleIndex::writeIndex(
-        CI.getFileManager(), CI.getPCHContainerReader(),
-        CI.getPreprocessor().getHeaderSearchInfo().getModuleCachePath());
+    StringRef Cache =
+        CI.getPreprocessor().getHeaderSearchInfo().getModuleCachePath();
+    if (!Cache.empty())
+      GlobalModuleIndex::writeIndex(CI.getFileManager(),
+                                    CI.getPCHContainerReader(), Cache);
   }
 
   return true;

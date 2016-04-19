@@ -54,6 +54,11 @@ FBSD_1.3 {
 FBSD_1.4 {
 	sdallocx;
 	__sdallocx;
+	__aligned_alloc;
+	__malloc_stats_print;
+	__mallctl;
+	__mallctlnametomib;
+	__mallctlbymib;
 };
 
 FBSDprivate_1.0 {

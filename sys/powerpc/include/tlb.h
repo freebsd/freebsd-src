@@ -74,6 +74,7 @@
 #define	MAS2_M			0x00000004
 #define	MAS2_G			0x00000002
 #define	MAS2_E			0x00000001
+#define	MAS2_WIMGE_MASK		0x0000007F
 
 #define	MAS3_RPN		0xFFFFF000
 #define	MAS3_RPN_SHIFT		12
@@ -119,12 +120,16 @@
  */
 #define KERNEL_REGION_MAX_TLB_ENTRIES   4
 
+/*
+ * Use MAS2_X0 to mark entries which will be copied
+ * to AP CPUs during SMP bootstrap. As result entries
+ * marked with _TLB_ENTRY_SHARED will be shared by all CPUs.
+ */
+#define _TLB_ENTRY_SHARED	(MAS2_X0)	/* XXX under SMP? */
 #define _TLB_ENTRY_IO	(MAS2_I | MAS2_G)
-#ifdef SMP
 #define _TLB_ENTRY_MEM	(MAS2_M)
-#else
-#define _TLB_ENTRY_MEM	(0)
-#endif
+
+#define TLB1_MAX_ENTRIES	64
 
 #if !defined(LOCORE)
 typedef struct tlb_entry {
@@ -214,6 +219,8 @@ struct pmap;
 
 void tlb_lock(uint32_t *);
 void tlb_unlock(uint32_t *);
+void tlb1_ap_prep(void);
+int  tlb1_set_entry(vm_offset_t, vm_paddr_t, vm_size_t, uint32_t);
 
 #endif /* !LOCORE */
 

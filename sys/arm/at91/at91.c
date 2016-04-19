@@ -164,7 +164,7 @@ at91_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		return (NULL);
 	if (rle->res)
 		panic("Resource rid %d type %d already in use", *rid, type);
-	if (start == 0UL && end == ~0UL) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
 		start = rle->start;
 		count = ulmax(count, rle->count);
 		end = ulmax(rle->end, start + count - 1);
@@ -281,9 +281,9 @@ at91_print_child(device_t dev, device_t child)
 
 	retval += bus_print_child_header(dev, child);
 
-	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#lx");
-	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#jx");
+	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 	if (device_get_flags(dev))
 		retval += printf(" flags %#x", device_get_flags(dev));
 

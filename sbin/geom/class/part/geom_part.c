@@ -1126,6 +1126,7 @@ gpart_write_partcode(struct ggeom *gp, int idx, void *code, ssize_t size)
 			err(EXIT_FAILURE, "%s", dsf);
 		free(buf);
 		close(fd);
+		printf("partcode written to %s\n", pp->lg_name);
 	} else
 		errx(EXIT_FAILURE, "invalid partition index");
 }
@@ -1172,6 +1173,9 @@ gpart_write_partcode_vtoc8(struct ggeom *gp, int idx, void *code)
 	}
 	if (installed == 0)
 		errx(EXIT_FAILURE, "%s: no partitions", gp->lg_name);
+	else
+		printf("partcode written to %s\n",
+		    idx != 0 ? pp->lg_name: gp->lg_name);
 }
 
 static void
@@ -1193,10 +1197,8 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 		    bootcode);
 		if (error)
 			errc(EXIT_FAILURE, error, "internal error");
-	} else {
+	} else
 		bootcode = NULL;
-		bootsize = 0;
-	}
 
 	s = gctl_get_ascii(req, "class");
 	if (s == NULL)
@@ -1220,21 +1222,23 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 	s = find_geomcfg(gp, "scheme");
 	if (s == NULL)
 		errx(EXIT_FAILURE, "Scheme not found for geom %s", gp->lg_name);
-	vtoc8 = 0;
 	if (strcmp(s, "VTOC8") == 0)
 		vtoc8 = 1;
+	else
+		vtoc8 = 0;
 
 	if (gctl_has_param(req, GPART_PARAM_PARTCODE)) {
 		s = gctl_get_ascii(req, GPART_PARAM_PARTCODE);
-		partsize = vtoc8 != 0 ? VTOC_BOOTSIZE : bootsize * 1024;
+		if (vtoc8 != 0)
+			partsize = VTOC_BOOTSIZE;
+		else
+			partsize = 1024 * 1024;		/* Arbitrary limit. */
 		partcode = gpart_bootfile_read(s, &partsize);
 		error = gctl_delete_param(req, GPART_PARAM_PARTCODE);
 		if (error)
 			errc(EXIT_FAILURE, error, "internal error");
-	} else {
+	} else
 		partcode = NULL;
-		partsize = 0;
-	}
 
 	if (gctl_has_param(req, GPART_PARAM_INDEX)) {
 		if (partcode == NULL)

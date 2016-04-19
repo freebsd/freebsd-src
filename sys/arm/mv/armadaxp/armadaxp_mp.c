@@ -87,18 +87,6 @@ platform_mp_setmaxid(void)
 	mp_maxid = mp_ncpus - 1;
 }
 
-int
-platform_mp_probe(void)
-{
-
-	return (mp_ncpus > 1);
-}
-
-void
-platform_mp_init_secondary(void)
-{
-}
-
 void mptramp(void);
 void mptramp_end(void);
 extern vm_offset_t mptramp_pmu_boot;
@@ -185,11 +173,4 @@ platform_mp_start_ap(void)
 	DELAY(10);
 
 	armadaxp_init_coher_fabric();
-}
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
 }

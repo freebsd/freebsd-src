@@ -75,8 +75,15 @@ ErrorOr<std::string> sys::findProgramByName(StringRef Name,
 
     do {
       U16Result.reserve(Len);
-      Len = ::SearchPathW(Path, c_str(U16Name),
-                          U16Ext.empty() ? nullptr : c_str(U16Ext),
+      // Lets attach the extension manually. That is needed for files
+      // with a point in name like aaa.bbb. SearchPathW will not add extension
+      // from its argument to such files because it thinks they already had one.
+      SmallVector<wchar_t, MAX_PATH> U16NameExt;
+      if (std::error_code EC =
+              windows::UTF8ToUTF16(Twine(Name + Ext).str(), U16NameExt))
+        return EC;
+
+      Len = ::SearchPathW(Path, c_str(U16NameExt), nullptr,
                           U16Result.capacity(), U16Result.data(), nullptr);
     } while (Len > U16Result.capacity());
 
@@ -132,7 +139,7 @@ static HANDLE RedirectIO(const StringRef *path, int fd, std::string* ErrMsg) {
                   FILE_ATTRIBUTE_NORMAL, NULL);
   if (h == INVALID_HANDLE_VALUE) {
     MakeErrMsg(ErrMsg, fname + ": Can't open file for " +
-        (fd ? "input: " : "output: "));
+        (fd ? "input" : "output"));
   }
 
   return h;
@@ -250,6 +257,14 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
       *ErrMsg = "program not executable";
     return false;
   }
+
+  // can_execute may succeed by looking at Program + ".exe". CreateProcessW
+  // will implicitly add the .exe if we provide a command line without an
+  // executable path, but since we use an explicit executable, we have to add
+  // ".exe" ourselves.
+  SmallString<64> ProgramStorage;
+  if (!sys::fs::exists(Program))
+    Program = Twine(Program + ".exe").toStringRef(ProgramStorage);
 
   // Windows wants a command line, not an array of args, to pass to the new
   // process.  We have to concatenate them all, while quoting the args that
@@ -416,7 +431,7 @@ ProcessInfo sys::Wait(const ProcessInfo &PI, unsigned SecondsToWait,
     if (SecondsToWait) {
       if (!TerminateProcess(PI.ProcessHandle, 1)) {
         if (ErrMsg)
-          MakeErrMsg(ErrMsg, "Failed to terminate timed-out program.");
+          MakeErrMsg(ErrMsg, "Failed to terminate timed-out program");
 
         // -2 indicates a crash or timeout as opposed to failure to execute.
         WaitResult.ReturnCode = -2;
@@ -441,7 +456,7 @@ ProcessInfo sys::Wait(const ProcessInfo &PI, unsigned SecondsToWait,
   if (!rc) {
     SetLastError(err);
     if (ErrMsg)
-      MakeErrMsg(ErrMsg, "Failed getting status for program.");
+      MakeErrMsg(ErrMsg, "Failed getting status for program");
 
     // -2 indicates a crash or timeout as opposed to failure to execute.
     WaitResult.ReturnCode = -2;
@@ -520,14 +535,15 @@ llvm::sys::writeFileWithEncoding(StringRef FileName, StringRef Contents,
   return EC;
 }
 
-bool llvm::sys::argumentsFitWithinSystemLimits(ArrayRef<const char*> Args) {
+bool llvm::sys::commandLineFitsWithinSystemLimits(StringRef Program, ArrayRef<const char*> Args) {
   // The documented max length of the command line passed to CreateProcess.
   static const size_t MaxCommandStringLength = 32768;
-  size_t ArgLength = 0;
+  // Account for the trailing space for the program path and the
+  // trailing NULL of the last argument.
+  size_t ArgLength = ArgLenWithQuotes(Program.str().c_str()) + 2;
   for (ArrayRef<const char*>::iterator I = Args.begin(), E = Args.end();
        I != E; ++I) {
-    // Account for the trailing space for every arg but the last one and the
-    // trailing NULL of the last argument.
+    // Account for the trailing space for every arg
     ArgLength += ArgLenWithQuotes(*I) + 1;
     if (ArgLength > MaxCommandStringLength) {
       return false;

@@ -41,9 +41,8 @@
 #define	TCP_LRO_SEQUENCE(mb) \
     (mb)->m_pkthdr.PH_loc.thirtytwo[0]
 
-struct lro_entry
-{
-	SLIST_ENTRY(lro_entry)	next;
+struct lro_entry {
+	LIST_ENTRY(lro_entry)	next;
 	struct mbuf		*m_head;
 	struct mbuf		*m_tail;
 	union {
@@ -72,7 +71,7 @@ struct lro_entry
 	uint16_t		timestamp;	/* flag, not a TCP hdr field. */
 	struct timeval		mtime;
 };
-SLIST_HEAD(lro_head, lro_entry);
+LIST_HEAD(lro_head, lro_entry);
 
 #define	le_ip4			leip.ip4
 #define	le_ip6			leip.ip6
@@ -91,10 +90,15 @@ struct lro_ctrl {
 	unsigned	lro_cnt;
 	unsigned	lro_mbuf_count;
 	unsigned	lro_mbuf_max;
+	unsigned short	lro_ackcnt_lim;		/* max # of aggregated ACKs */
+	unsigned 	lro_length_lim;		/* max len of aggregated data */
 
 	struct lro_head	lro_active;
 	struct lro_head	lro_free;
 };
+
+#define	TCP_LRO_LENGTH_MAX	65535
+#define	TCP_LRO_ACKCNT_MAX	65535		/* unlimited */
 
 int tcp_lro_init(struct lro_ctrl *);
 int tcp_lro_init_args(struct lro_ctrl *, struct ifnet *, unsigned, unsigned);
@@ -105,6 +109,7 @@ void tcp_lro_flush_all(struct lro_ctrl *);
 int tcp_lro_rx(struct lro_ctrl *, struct mbuf *, uint32_t);
 void tcp_lro_queue_mbuf(struct lro_ctrl *, struct mbuf *);
 
+#define	TCP_LRO_NO_ENTRIES	-2
 #define	TCP_LRO_CANNOT		-1
 #define	TCP_LRO_NOT_SUPPORTED	1
 

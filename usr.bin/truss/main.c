@@ -96,7 +96,7 @@ main(int ac, char **av)
 	trussinfo->curthread = NULL;
 	LIST_INIT(&trussinfo->proclist);
 	init_syscalls();
-	while ((c = getopt(ac, av, "p:o:facedDs:S")) != -1) {
+	while ((c = getopt(ac, av, "p:o:facedDs:SH")) != -1) {
 		switch (c) {
 		case 'p':	/* specified pid */
 			pid = atoi(optarg);
@@ -131,6 +131,9 @@ main(int ac, char **av)
 			break;
 		case 'S':	/* Don't trace signals */
 			trussinfo->flags |= NOSIGS;
+			break;
+		case 'H':
+			trussinfo->flags |= DISPLAYTIDS;
 			break;
 		default:
 			usage();

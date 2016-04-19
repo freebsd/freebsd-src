@@ -1,5 +1,9 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 ATF_TESTS_SH=	fstyp_test
 
 FILES=	ext2.img.bz2

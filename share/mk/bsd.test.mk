@@ -15,6 +15,7 @@ LOCALBASE?=	/usr/local
 
 # Tests install directory
 TESTSDIR?=	${TESTSBASE}/${RELDIR:H}
+PACKAGE=	tests
 
 # List of subdirectories containing tests into which to recurse.  This has the
 # same semantics as SUBDIR at build-time.  However, the directories listed here
@@ -76,10 +77,6 @@ SUBDIR_PARALLEL= t
 MAN=
 .endif
 
-# tell progs.mk we might want to install things
-PROG_VARS+= BINDIR
-PROGS_TARGETS+= install
-
 .if !defined(NOT_FOR_TEST_SUITE)
 .include <suite.test.mk>
 .endif
@@ -93,30 +90,4 @@ beforecheck realcheck aftercheck check: .PHONY
 .ORDER: beforecheck realcheck aftercheck
 check: beforecheck realcheck aftercheck
 
-.ifdef PROG
-# we came here via bsd.progs.mk below
-# parent will do staging.
-MK_STAGING= no
-.endif
-
-.if !empty(PROGS) || !empty(PROGS_CXX) || !empty(SCRIPTS)
 .include <bsd.progs.mk>
-.endif
-.include <bsd.files.mk>
-
-.if !defined(PROG) && ${MK_STAGING} != "no"
-.if !defined(_SKIP_BUILD)
-# this will handle staging if needed
-_SKIP_STAGING= no
-# but we don't want it to build anything
-_SKIP_BUILD=
-.endif
-.if !empty(PROGS)
-stage_files.prog: ${PROGS}
-.endif
-.include <bsd.prog.mk>
-.endif
-
-.if !target(objwarn)
-.include <bsd.obj.mk>
-.endif

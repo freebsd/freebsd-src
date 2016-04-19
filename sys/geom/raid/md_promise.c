@@ -290,7 +290,7 @@ promise_meta_unused_range(struct promise_raid_conf **metaarr, int nsd,
 		     metaarr[i]->disk_sectors;
 		csize = sectors - coff;
 		i++;
-	};
+	}
 	return ((*size > 0) ? 1 : 0);
 }
 

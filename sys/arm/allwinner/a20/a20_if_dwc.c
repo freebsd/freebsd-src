@@ -40,8 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/allwinner/a10_clk.h>
-#include <arm/allwinner/a10_gpio.h>
+#include <arm/allwinner/allwinner_machdep.h>
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/regulator/regulator.h>
 
 #include "if_dwc_if.h"
 
@@ -61,12 +62,49 @@ a20_if_dwc_probe(device_t dev)
 static int
 a20_if_dwc_init(device_t dev)
 {
+	const char *tx_parent_name;
+	char *phy_type;
+	clk_t clk_tx, clk_tx_parent;
+	regulator_t reg;
+	phandle_t node;
+	int error;
 
-	/* Activate GMAC clock and set the pin mux to rgmii. */
-	if (a10_clk_gmac_activate(ofw_bus_get_node(dev)) != 0 ||
-	    a10_gpio_ethernet_activate(A10_GPIO_FUNC_RGMII)) {
-		device_printf(dev, "could not activate gmac module\n");
-		return (ENXIO);
+	node = ofw_bus_get_node(dev);
+
+	/* Configure PHY for MII or RGMII mode */
+	if (OF_getprop_alloc(node, "phy-mode", 1, (void **)&phy_type)) {
+		error = clk_get_by_ofw_name(dev, "allwinner_gmac_tx", &clk_tx);
+		if (error != 0) {
+			device_printf(dev, "could not get tx clk\n");
+			return (error);
+		}
+
+		if (strcmp(phy_type, "rgmii") == 0)
+			tx_parent_name = "gmac_int_tx";
+		else
+			tx_parent_name = "mii_phy_tx";
+
+		error = clk_get_by_name(dev, tx_parent_name, &clk_tx_parent);
+		if (error != 0) {
+			device_printf(dev, "could not get clock '%s'\n",
+			    tx_parent_name);
+			return (error);
+		}
+
+		error = clk_set_parent_by_clk(clk_tx, clk_tx_parent);
+		if (error != 0) {
+			device_printf(dev, "could not set tx clk parent\n");
+			return (error);
+		}
+	}
+
+	/* Enable PHY regulator if applicable */
+	if (regulator_get_by_ofw_property(dev, "phy-supply", &reg) == 0) {
+		error = regulator_enable(reg);
+		if (error != 0) {
+			device_printf(dev, "could not enable PHY regulator\n");
+			return (error);
+		}
 	}
 
 	return (0);

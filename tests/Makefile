@@ -2,6 +2,11 @@
 
 .include <bsd.own.mk>
 
+PACKAGE= tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+TESTS+=		Kyuafile
+
 SUBDIR+= etc
 SUBDIR+= sys
 SUBDIR_PARALLEL=

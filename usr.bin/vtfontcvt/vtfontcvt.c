@@ -315,12 +315,13 @@ parse_hex(FILE *fp, unsigned int map_idx)
 			if (bytes != NULL)
 				errx(1, "malformed input: Width tag after font data");
 			set_width(atoi(ln + 9));
-		} else if (sscanf(ln, "%4x:", &curchar)) {
+		} else if (sscanf(ln, "%6x:", &curchar)) {
 			if (bytes == NULL) {
 				bytes = xmalloc(wbytes * height);
 				bytes_r = xmalloc(wbytes * height);
 			}
-			p = ln + 5;
+			/* ln is guaranteed to have a colon here. */
+			p = strchr(ln, ':') + 1;
 			chars_per_row = strlen(p) / height;
 			dwidth = width;
 			if (chars_per_row / 2 > (width + 7) / 8)

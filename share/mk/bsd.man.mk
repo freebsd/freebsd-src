@@ -50,7 +50,7 @@
 .error bsd.man.mk cannot be included directly.
 .endif
 
-MINSTALL?=	${INSTALL} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
+MINSTALL?=	${INSTALL} ${TAG_ARGS} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 
 CATDIR=		${MANDIR:H:S/$/\/cat/}
 CATEXT=		.cat
@@ -62,6 +62,7 @@ MCOMPRESS_EXT?=	${COMPRESS_EXT}
 SECTIONS=	1 2 3 4 5 6 7 8 9
 .SUFFIXES:	${SECTIONS:S/^/./g}
 
+
 # Backwards compatibility.
 .if !defined(MAN)
 .for __sect in ${SECTIONS}
@@ -71,8 +72,7 @@ MAN+=	${MAN${__sect}}
 .endfor
 .endif
 
-_manpages:
-all-man: _manpages
+all-man:
 
 .if ${MK_MANCOMPRESS} == "no"
 
@@ -92,13 +92,13 @@ CLEANFILES+=	${MAN:T:S/$/${FILTEXTENSION}/g}
 CLEANFILES+=	${MAN:T:S/$/${CATEXT}${FILTEXTENSION}/g}
 .for __page in ${MAN}
 .for __target in ${__page:T:S/$/${FILTEXTENSION}/g}
-_manpages: ${__target}
+all-man: ${__target}
 ${__target}: ${__page}
 	${MANFILTER} < ${.ALLSRC} > ${.TARGET}
 .endfor
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for __target in ${__page:T:S/$/${CATEXT}${FILTEXTENSION}/g}
-_manpages: ${__target}
+all-man: ${__target}
 ${__target}: ${__page}
 	${MANFILTER} < ${.ALLSRC} | ${MANDOC_CMD} > ${.TARGET}
 .endfor
@@ -111,13 +111,13 @@ CLEANFILES+=	${MAN:T:S/$/${CATEXT}/g}
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for __page in ${MAN}
 .for __target in ${__page:T:S/$/${CATEXT}/g}
-_manpages: ${__target}
+all-man: ${__target}
 ${__target}: ${__page}
 	${MANDOC_CMD} ${.ALLSRC} > ${.TARGET}
 .endfor
 .endfor
 .else
-_manpages: ${MAN}
+all-man: ${MAN}
 .endif
 .endif
 .endif	# defined(MANFILTER)
@@ -147,7 +147,7 @@ CLEANFILES+=	${MAN:T:S/$/${MCOMPRESS_EXT}/g}
 CLEANFILES+=	${MAN:T:S/$/${CATEXT}${MCOMPRESS_EXT}/g}
 .for __page in ${MAN}
 .for __target in ${__page:T:S/$/${MCOMPRESS_EXT}/}
-_manpages: ${__target}
+all-man: ${__target}
 ${__target}: ${__page}
 .if defined(MANFILTER)
 	${MANFILTER} < ${.ALLSRC} | ${MCOMPRESS_CMD} > ${.TARGET}
@@ -157,7 +157,7 @@ ${__target}: ${__page}
 .endfor
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for __target in ${__page:T:S/$/${CATEXT}${MCOMPRESS_EXT}/}
-_manpages: ${__target}
+all-man: ${__target}
 ${__target}: ${__page}
 .if defined(MANFILTER)
 	${MANFILTER} < ${.ALLSRC} | ${MANDOC_CMD} | ${MCOMPRESS_CMD} > ${.TARGET}
@@ -182,10 +182,9 @@ _MANLINKS+=	${CATDIR}${_osect}${MANSUBDIR}/${_oname} \
 .endfor
 .endif
 
-maninstall: _maninstall
-_maninstall:
+maninstall:
 .if defined(MAN) && !empty(MAN)
-_maninstall: ${MAN}
+maninstall: ${MAN}
 .if ${MK_MANCOMPRESS} == "no"
 .if defined(MANFILTER)
 .for __page in ${MAN}
@@ -228,7 +227,7 @@ _maninstall: ${MAN}
 .endif
 .for l t in ${_MANLINKS}
 	rm -f ${DESTDIR}${t} ${DESTDIR}${t}${MCOMPRESS_EXT}; \
-	    ${INSTALL_LINK} ${DESTDIR}${l}${ZEXT} ${DESTDIR}${t}${ZEXT}
+	    ${INSTALL_LINK} ${TAG_ARGS} ${DESTDIR}${l}${ZEXT} ${DESTDIR}${t}${ZEXT}
 .endfor
 
 manlint:

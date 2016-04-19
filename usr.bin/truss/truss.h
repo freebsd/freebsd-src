@@ -35,6 +35,7 @@
 #define	EXECVEARGS		0x00000010
 #define	EXECVEENVS		0x00000020
 #define	COUNTONLY		0x00000040
+#define	DISPLAYTIDS		0x00000080
 
 struct procinfo;
 struct trussinfo;
@@ -72,7 +73,7 @@ struct current_syscall {
 
 struct threadinfo
 {
-	SLIST_ENTRY(threadinfo) entries;
+	LIST_ENTRY(threadinfo) entries;
 	struct procinfo *proc;
 	lwpid_t tid;
 	int in_syscall;
@@ -86,7 +87,7 @@ struct procinfo {
 	pid_t pid;
 	struct procabi *abi;
 
-	SLIST_HEAD(, threadinfo) threadlist;
+	LIST_HEAD(, threadinfo) threadlist;
 };
 
 struct trussinfo

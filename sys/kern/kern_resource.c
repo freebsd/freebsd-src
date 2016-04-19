@@ -1432,3 +1432,10 @@ chgkqcnt(struct uidinfo *uip, int diff, rlim_t max)
 
 	return (chglimit(uip, &uip->ui_kqcnt, diff, max, "kqcnt"));
 }
+
+int
+chgumtxcnt(struct uidinfo *uip, int diff, rlim_t max)
+{
+
+	return (chglimit(uip, &uip->ui_umtxcnt, diff, max, "umtxcnt"));
+}

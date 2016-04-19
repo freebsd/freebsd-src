@@ -3,6 +3,10 @@
 
 .include <src.opts.mk>
 
+FILESGROUPS=	FILES
+
+# No need as it is empty and just causes rebuilds since this file does so much.
+UPDATE_DEPENDFILE=	no
 SUBDIR=	\
 	newsyslog.conf.d
 
@@ -79,7 +83,7 @@ BIN1+= apmd.conf
 .endif
 
 .if ${MK_AUTOFS} != "no"
-BIN1+= auto_master
+BIN1+=	auto_master
 .endif
 
 .if ${MK_FREEBSD_UPDATE} != "no"
@@ -450,11 +454,14 @@ distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 	done
 .endif
 
-etc-examples:
+etc-examples-install: ${META_DEPS}
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${BIN1} ${BIN2} nsmb.conf opieaccess \
 	    ${DESTDIR}${SHAREDIR}/examples/etc
-	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install \
+
+etc-examples: etc-examples-install
+	${_+_}cd ${.CURDIR}/defaults; \
+	    ${MAKE} ${${MK_STAGING} == "yes":?all:install} \
 	    DESTDIR=${DESTDIR}${SHAREDIR}/examples
 
 .include <bsd.prog.mk>

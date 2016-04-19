@@ -17,24 +17,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-awkgram.o: awkgram.c
-awkgram.po: awkgram.c
-b.o: ytab.h
-b.po: ytab.h
-lex.o: ytab.h
-lex.po: ytab.h
-lib.o: ytab.h
-lib.po: ytab.h
-main.o: ytab.h
-main.po: ytab.h
-parse.o: ytab.h
-parse.po: ytab.h
-proctab.o: proctab.c
-proctab.o: ytab.h
-proctab.po: proctab.c
-proctab.po: ytab.h
-run.o: ytab.h
-run.po: ytab.h
-tran.o: ytab.h
-tran.po: ytab.h
 .endif

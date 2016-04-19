@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include "gic_v3_reg.h"
 #include "gic_v3_var.h"
 
-#define	GIC_V3_ITS_QUIRK_THUNDERX_PEM_BUS_OFFSET	144
+#define	GIC_V3_ITS_QUIRK_THUNDERX_PEM_BUS_OFFSET	88
 
 #include "pic_if.h"
 
@@ -565,7 +565,7 @@ its_init_cpu(struct gic_v3_its_softc *sc)
 	 * this function was called during GICv3 secondary initialization.
 	 */
 	if (sc == NULL) {
-		if (device_is_attached(its_sc->dev)) {
+		if (its_sc != NULL && device_is_attached(its_sc->dev)) {
 			/*
 			 * XXX ARM64TODO: This is part of the workaround that
 			 * saves ITS software context for further use in
@@ -1579,9 +1579,7 @@ its_get_devid_thunder(device_t pci_dev)
 	uint32_t bus;
 
 	bus = pci_get_bus(pci_dev);
-
-	bsf = PCI_RID(pci_get_bus(pci_dev), pci_get_slot(pci_dev),
-	    pci_get_function(pci_dev));
+	bsf = pci_get_rid(pci_dev);
 
 	/* Check if accessing internal PCIe (low bus numbers) */
 	if (bus < GIC_V3_ITS_QUIRK_THUNDERX_PEM_BUS_OFFSET) {

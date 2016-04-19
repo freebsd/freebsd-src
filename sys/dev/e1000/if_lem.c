@@ -1699,7 +1699,7 @@ lem_xmit(struct adapter *adapter, struct mbuf **m_headp)
 		return (error);
 	}
 
-        if (nsegs > (adapter->num_tx_desc_avail - 2)) {
+        if (adapter->num_tx_desc_avail < (nsegs + 2)) {
                 adapter->no_tx_desc_avail2++;
 		bus_dmamap_unload(adapter->txtag, map);
 		return (ENOBUFS);

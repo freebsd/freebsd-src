@@ -135,7 +135,7 @@ cbor_encode_uint (xo_buffer_t *xbp, uint64_t minor, unsigned limit)
     char *bp = xbp->xb_curp;
     int i, m;
 
-    if (minor > (1UL<<32)) {
+    if (minor > (1ULL << 32)) {
 	*bp++ |= CBOR_LEN64;
 	m = 64;
 

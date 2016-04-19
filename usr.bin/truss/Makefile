@@ -2,7 +2,7 @@
 
 NO_WERROR=
 PROG=	truss
-SRCS=	cloudabi.c main.c setup.c syscalls.c
+SRCS=	main.c setup.c syscalls.c
 
 LIBADD=	sysdecode
 

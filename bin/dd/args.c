@@ -66,6 +66,7 @@ static void	f_obs(char *);
 static void	f_of(char *);
 static void	f_seek(char *);
 static void	f_skip(char *);
+static void	f_speed(char *);
 static void	f_status(char *);
 static uintmax_t get_num(const char *);
 static off_t	get_off_t(const char *);
@@ -89,6 +90,7 @@ static const struct arg {
 	{ "oseek",	f_seek,		C_SEEK,	 C_SEEK },
 	{ "seek",	f_seek,		C_SEEK,	 C_SEEK },
 	{ "skip",	f_skip,		C_SKIP,	 C_SKIP },
+	{ "speed",	f_speed,	0,	 0 },
 	{ "status",	f_status,	C_STATUS,C_STATUS },
 };
 
@@ -295,6 +297,13 @@ f_skip(char *arg)
 }
 
 static void
+f_speed(char *arg)
+{
+
+	speed = get_num(arg);
+}
+
+static void
 f_status(char *arg)
 {
 
@@ -422,11 +431,10 @@ get_num(const char *val)
 
 	errno = 0;
 	num = strtoumax(val, &expr, 0);
-	if (errno != 0)				/* Overflow or underflow. */
-		err(1, "%s", oper);
-	
 	if (expr == val)			/* No valid digits. */
-		errx(1, "%s: illegal numeric value", oper);
+		errx(1, "%s: invalid numeric value", oper);
+	if (errno != 0)
+		err(1, "%s", oper);
 
 	mult = postfix_to_mult(*expr);
 
@@ -472,11 +480,10 @@ get_off_t(const char *val)
 
 	errno = 0;
 	num = strtoimax(val, &expr, 0);
-	if (errno != 0)				/* Overflow or underflow. */
-		err(1, "%s", oper);
-	
 	if (expr == val)			/* No valid digits. */
-		errx(1, "%s: illegal numeric value", oper);
+		errx(1, "%s: invalid numeric value", oper);
+	if (errno != 0)
+		err(1, "%s", oper);
 
 	mult = postfix_to_mult(*expr);
 

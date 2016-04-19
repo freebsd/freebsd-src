@@ -87,7 +87,7 @@ namespace {
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesCFG();
       MachineFunctionPass::getAnalysisUsage(AU);
-      AU.addRequired<AliasAnalysis>();
+      AU.addRequired<AAResultsWrapperPass>();
       AU.addRequired<MachineDominatorTree>();
       AU.addRequired<MachinePostDominatorTree>();
       AU.addRequired<MachineLoopInfo>();
@@ -150,7 +150,7 @@ INITIALIZE_PASS_BEGIN(MachineSinking, "machine-sink",
                 "Machine code sinking", false, false)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
 INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
-INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
+INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
 INITIALIZE_PASS_END(MachineSinking, "machine-sink",
                 "Machine code sinking", false, false)
 
@@ -268,7 +268,7 @@ bool MachineSinking::runOnMachineFunction(MachineFunction &MF) {
   PDT = &getAnalysis<MachinePostDominatorTree>();
   LI = &getAnalysis<MachineLoopInfo>();
   MBFI = UseBlockFreqInfo ? &getAnalysis<MachineBlockFrequencyInfo>() : nullptr;
-  AA = &getAnalysis<AliasAnalysis>();
+  AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
 
   bool EverMadeChange = false;
 
@@ -667,7 +667,7 @@ MachineBasicBlock *MachineSinking::FindSuccToSinkTo(MachineInstr *MI,
 
   // It's not safe to sink instructions to EH landing pad. Control flow into
   // landing pad is implicitly defined.
-  if (SuccToSinkTo && SuccToSinkTo->isLandingPad())
+  if (SuccToSinkTo && SuccToSinkTo->isEHPad())
     return nullptr;
 
   return SuccToSinkTo;
@@ -686,7 +686,8 @@ bool MachineSinking::SinkInstruction(MachineInstr *MI, bool &SawStore,
   if (!MI->isSafeToMove(AA, SawStore))
     return false;
 
-  // Convergent operations may only be moved to control equivalent locations.
+  // Convergent operations may not be made control-dependent on additional
+  // values.
   if (MI->isConvergent())
     return false;
 

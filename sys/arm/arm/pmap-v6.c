@@ -121,7 +121,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <machine/physmem.h>
-#include <machine/vmparam.h>
 
 #include <vm/vm.h>
 #include <vm/uma.h>
@@ -311,15 +310,15 @@ static pt2_entry_t *CMAP3;
 static caddr_t CADDR3;
 caddr_t _tmppt = 0;
 
-struct msgbuf *msgbufp = 0; /* XXX move it to machdep.c */
+struct msgbuf *msgbufp = NULL; /* XXX move it to machdep.c */
 
 /*
  *  Crashdump maps.
  */
 static caddr_t crashdumpmap;
 
-static pt2_entry_t *PMAP1 = 0, *PMAP2;
-static pt2_entry_t *PADDR1 = 0, *PADDR2;
+static pt2_entry_t *PMAP1 = NULL, *PMAP2;
+static pt2_entry_t *PADDR1 = NULL, *PADDR2;
 #ifdef DDB
 static pt2_entry_t *PMAP3;
 static pt2_entry_t *PADDR3;
@@ -1265,13 +1264,6 @@ pmap_kenter_prot_attr(vm_offset_t va, vm_paddr_t pa, uint32_t prot,
 
 	pte2p = pt2map_entry(va);
 	pte2_store(pte2p, PTE2_KERN(pa, prot, attr));
-}
-
-static __inline void
-pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int attr)
-{
-
-	pmap_kenter_prot_attr(va, pa, PTE2_AP_KRW, attr);
 }
 
 PMAP_INLINE void

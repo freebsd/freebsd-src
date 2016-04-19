@@ -1372,7 +1372,7 @@ g_mirror_sync_request(struct bio *bp)
 
 		/* Send next synchronization request. */
 		data = bp->bio_data;
-		bzero(bp, sizeof(*bp));
+		g_reset_bio(bp);
 		bp->bio_cmd = BIO_READ;
 		bp->bio_offset = sync->ds_offset;
 		bp->bio_length = MIN(MAXPHYS, sc->sc_mediasize - bp->bio_offset);
@@ -1905,7 +1905,7 @@ g_mirror_worker(void *arg)
 				g_mirror_sync_request(bp);	/* WRITE */
 			else {
 				KASSERT(0,
-				    ("Invalid request cflags=0x%hhx to=%s.",
+				    ("Invalid request cflags=0x%hx to=%s.",
 				    bp->bio_cflags, bp->bio_to->name));
 			}
 		} else {

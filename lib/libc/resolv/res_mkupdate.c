@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include "port_before.h"
 
-#include <sys/types.h>
 #include <sys/param.h>
 
 #include <netinet/in.h>
@@ -127,7 +126,7 @@ res_nmkupdate(res_state statp, ns_updrec *rrecp_in, u_char *buf, int buflen) {
 	dpp = dnptrs;
 	*dpp++ = buf;
 	*dpp++ = NULL;
-	lastdnptr = dnptrs + sizeof dnptrs / sizeof dnptrs[0];
+	lastdnptr = dnptrs + nitems(dnptrs);
 
 	if (rrecp_start == NULL)
 		return (-5);
@@ -1175,7 +1174,7 @@ res_protocolname(int num) {
 	if (protolist == (struct valuelist *)0)
 		res_buildprotolist();
 	pp = cgetprotobynumber(num);
-	if (pp == 0)  {
+	if (pp == NULL)  {
 		(void) sprintf(number, "%d", num);
 		return (number);
 	}
@@ -1190,7 +1189,7 @@ res_servicename(u_int16_t port, const char *proto) {	/*%< Host byte order. */
 	if (servicelist == (struct valuelist *)0)
 		res_buildservicelist();
 	ss = cgetservbyport(htons(port), proto);
-	if (ss == 0)  {
+	if (ss == NULL)  {
 		(void) sprintf(number, "%d", port);
 		return (number);
 	}

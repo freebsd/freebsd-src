@@ -529,6 +529,9 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 
 	/* DYMO LabelManager Pnp */
 	USB_QUIRK(DYMO, LABELMANAGERPNP, 0x0000, 0xffff, UQ_MSC_DYMO_EJECT),
+
+	/* Holtek USB gaming keyboard */
+	USB_QUIRK(HOLTEK, F85, 0x0000, 0xffff, UQ_KBD_BOOTPROTO),
 };
 #undef USB_QUIRK_VP
 #undef USB_QUIRK
@@ -682,8 +685,6 @@ usb_test_quirk_by_info(const struct usbd_lookup_info *info, uint16_t quirk)
 				return (1);
 			}
 		}
-		/* no quirk found */
-		break;
 	}
 	mtx_unlock(&usb_quirk_mtx);
 done:

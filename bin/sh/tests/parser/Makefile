@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
 TESTSDIR=	${TESTSBASE}/bin/sh/${.CURDIR:T}
 
 .PATH: ${.CURDIR:H}
@@ -25,6 +28,8 @@ FILES+=		alias15.0 alias15.0.stdout
 FILES+=		and-pipe-not.0
 FILES+=		case1.0
 FILES+=		case2.0
+FILES+=		comment1.0
+FILES+=		comment2.42
 FILES+=		dollar-quote1.0
 FILES+=		dollar-quote2.0
 FILES+=		dollar-quote3.0
@@ -71,11 +76,13 @@ FILES+=		line-cont10.0
 FILES+=		line-cont11.0
 FILES+=		no-space1.0
 FILES+=		no-space2.0
+FILES+=		nul1.0
 FILES+=		only-redir1.0
 FILES+=		only-redir2.0
 FILES+=		only-redir3.0
 FILES+=		only-redir4.0
 FILES+=		pipe-not1.0
+FILES+=		set-v1.0 set-v1.0.stderr
 FILES+=		var-assign1.0
 
 .include <bsd.test.mk>

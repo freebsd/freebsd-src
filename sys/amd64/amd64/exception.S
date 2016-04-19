@@ -211,6 +211,8 @@ alltraps_pushregs_no_rdi:
 	 * interrupt. For all other trap types, just handle them in
 	 * the usual way.
 	 */
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
+	jnz	calltrap		/* ignore userland traps */
 	cmpl	$T_BPTFLT,TF_TRAPNO(%rsp)
 	jne	calltrap
 
@@ -657,6 +659,7 @@ MCOUNT_LABEL(eintr)
 	.text
 	SUPERALIGN_TEXT
 	.type	doreti,@function
+	.globl	doreti
 doreti:
 	FAKE_MCOUNT($bintr)		/* init "from" bintr -> doreti */
 	/*

@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
 PROG=	sh
 INSTALLFLAGS= -S
 SHSRCS=	alias.c arith_yacc.c arith_yylex.c cd.c echo.c error.c eval.c \
@@ -44,10 +45,10 @@ builtins.c builtins.h: mkbuiltins builtins.def
 # XXX this is just to stop the default .c rule being used, so that the
 # intermediate object has a fixed name.
 # XXX we have a default .c rule, but no default .o rule.
-.o:
+mknodes.o mksyntax.o: ${BUILD_TOOLS_META}
 	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
-mknodes: mknodes.o
-mksyntax: mksyntax.o
+mknodes: mknodes.o ${BUILD_TOOLS_META}
+mksyntax: mksyntax.o ${BUILD_TOOLS_META}
 
 .ORDER: nodes.c nodes.h
 nodes.c nodes.h: mknodes nodetypes nodes.c.pat

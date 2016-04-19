@@ -876,8 +876,8 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 
 		UDP_PROBE(send, NULL, inp, ip6, inp, udp6);
 		UDPSTAT_INC(udps_opackets);
-		error = ip6_output(m, optp, NULL, flags, inp->in6p_moptions,
-		    NULL, inp);
+		error = ip6_output(m, optp, &inp->inp_route6, flags,
+		    inp->in6p_moptions, NULL, inp);
 		break;
 	case AF_INET:
 		error = EAFNOSUPPORT;
@@ -1212,9 +1212,9 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 #ifdef INET
 	if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0) {
 		int hasv4addr;
-		struct sockaddr_in6 *sin6 = 0;
+		struct sockaddr_in6 *sin6 = NULL;
 
-		if (addr == 0)
+		if (addr == NULL)
 			hasv4addr = (inp->inp_vflag & INP_IPV4);
 		else {
 			sin6 = (struct sockaddr_in6 *)addr;

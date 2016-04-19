@@ -260,7 +260,7 @@ loop:
 			case OP_SYSCALL:
 			case OP_BREAK:
 				more = 1;	/* stop now */
-			};
+			}
 			break;
 
 		case OP_BCOND:
@@ -281,7 +281,7 @@ loop:
 			case OP_BCx:
 			case OP_BCy:
 				more = 2;	/* stop after next instruction */
-			};
+			}
 			break;
 
 		case OP_SW:

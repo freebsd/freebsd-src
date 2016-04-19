@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <x86/mca.h>
 #include <machine/pcb.h>
-#include <machine/pmap.h>
 #include <machine/specialreg.h>
 #include <machine/md_var.h>
 

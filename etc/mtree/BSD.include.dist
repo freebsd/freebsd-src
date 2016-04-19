@@ -93,6 +93,8 @@
         scsi
         ..
     ..
+    casper
+    ..
     crypto
     ..
     dev

@@ -108,10 +108,20 @@ def FeatureEnableUnsafeDSOffsetFolding : SubtargetFeature <"unsafe-ds-offset-fol
         "true",
         "Force using DS instruction immediate offsets on SI">;
 
+def FeatureFlatForGlobal : SubtargetFeature<"flat-for-global",
+        "FlatForGlobal",
+        "true",
+        "Force to generate flat instruction for global">;
+
 def FeatureFlatAddressSpace : SubtargetFeature<"flat-address-space",
         "FlatAddressSpace",
         "true",
         "Support flat address space">;
+
+def FeatureXNACK : SubtargetFeature<"xnack",
+        "EnableXNACK",
+        "true",
+        "Enable XNACK support">;
 
 def FeatureVGPRSpilling : SubtargetFeature<"vgpr-spilling",
         "EnableVGPRSpilling",
@@ -127,6 +137,11 @@ def FeatureEnableHugeScratchBuffer : SubtargetFeature<"huge-scratch-buffer",
         "EnableHugeScratchBuffer",
         "true",
         "Enable scratch buffer sizes greater than 128 GB">;
+
+def FeatureEnableSIScheduler : SubtargetFeature<"si-scheduler",
+        "EnableSIScheduler",
+        "true",
+        "Enable SI Machine Scheduler">;
 
 class SubtargetFeatureFetchLimit <string Value> :
                           SubtargetFeature <"fetch"#Value,
@@ -168,6 +183,7 @@ def FeatureISAVersion7_0_0 : SubtargetFeatureISAVersion <7,0,0>;
 def FeatureISAVersion7_0_1 : SubtargetFeatureISAVersion <7,0,1>;
 def FeatureISAVersion8_0_0 : SubtargetFeatureISAVersion <8,0,0>;
 def FeatureISAVersion8_0_1 : SubtargetFeatureISAVersion <8,0,1>;
+def FeatureISAVersion8_0_3 : SubtargetFeatureISAVersion <8,0,3>;
 
 class SubtargetFeatureLocalMemorySize <int Value> : SubtargetFeature<
         "localmemorysize"#Value,
@@ -237,7 +253,7 @@ def FeatureSeaIslands : SubtargetFeatureGeneration<"SEA_ISLANDS",
 def FeatureVolcanicIslands : SubtargetFeatureGeneration<"VOLCANIC_ISLANDS",
         [Feature64BitPtr, FeatureFP64, FeatureLocalMemorySize65536,
          FeatureWavefrontSize64, FeatureFlatAddressSpace, FeatureGCN,
-         FeatureGCN3Encoding, FeatureCIInsts, FeatureLDSBankCount32]>;
+         FeatureGCN3Encoding, FeatureCIInsts]>;
 
 //===----------------------------------------------------------------------===//
 
@@ -272,9 +288,14 @@ def isSICI : Predicate<
   "Subtarget->getGeneration() == AMDGPUSubtarget::SEA_ISLANDS"
 >, AssemblerPredicate<"FeatureGCN1Encoding">;
 
+def isVI : Predicate <
+  "Subtarget->getGeneration() >= AMDGPUSubtarget::VOLCANIC_ISLANDS">,
+  AssemblerPredicate<"FeatureGCN3Encoding">;
+
 class PredicateControl {
   Predicate SubtargetPredicate;
   Predicate SIAssemblerPredicate = isSICI;
+  Predicate VIAssemblerPredicate = isVI;
   list<Predicate> AssemblerPredicates = [];
   Predicate AssemblerPredicate = TruePredicate;
   list<Predicate> OtherPredicates = [];

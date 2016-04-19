@@ -526,16 +526,16 @@ at91_mci_deactivate(device_t dev)
 	sc = device_get_softc(dev);
 	if (sc->intrhand)
 		bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
-	sc->intrhand = 0;
+	sc->intrhand = NULL;
 	bus_generic_detach(sc->dev);
 	if (sc->mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->mem_res), sc->mem_res);
-	sc->mem_res = 0;
+	sc->mem_res = NULL;
 	if (sc->irq_res)
 		bus_release_resource(dev, SYS_RES_IRQ,
 		    rman_get_rid(sc->irq_res), sc->irq_res);
-	sc->irq_res = 0;
+	sc->irq_res = NULL;
 	return;
 }
 
@@ -1412,3 +1412,4 @@ DRIVER_MODULE(at91_mci, atmelarm, at91_mci_driver, at91_mci_devclass, NULL,
     NULL);
 #endif
 DRIVER_MODULE(mmc, at91_mci, mmc_driver, mmc_devclass, NULL, NULL);
+MODULE_DEPEND(at91_mci, mmc, 1, 1, 1);

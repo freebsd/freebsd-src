@@ -1,0 +1,111 @@
+/*-
+ * Copyright (c) 2016 Jared McNeill <jmcneill@invisible.ca>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+/ {
+	clocks {
+		pll3: clk@01c20010 {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun4i-a10-pll3-clk";
+			reg = <0x01c20010 0x4>;
+			clock-output-names = "pll3-1x", "pll3-2x";
+		};
+
+		pll7: clk@01c20030 {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun4i-a10-pll3-clk";
+			reg = <0x01c20030 0x4>;
+			clock-output-names = "pll7-1x", "pll7-2x";
+		};
+
+		hdmi_clk: clk@01c20150 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-a10-hdmi-clk";
+			reg = <0x01c20150 0x4>;
+			clocks = <&pll3 0>, <&pll7 0>, <&pll3 1>, <&pll7 1>;
+			clock-output-names = "hdmi";
+		};
+
+		lcd0_ch0_clk: clk@01c20118 {
+			#clock-cells = <0>;
+			#reset-cells = <0>;
+			compatible = "allwinner,sun4i-a10-lcd-ch0-clk";
+			reg = <0x01c20118 0x4>;
+			clocks = <&pll3 0>, <&pll7 0>, <&pll3 1>, <&pll6 2>;
+			clock-output-names = "lcd0_ch0";
+		};
+
+		lcd0_ch1_clk: clk@01c2012c {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun4i-a10-lcd-ch1-clk";
+			reg = <0x01c2012c 0x4>;
+			clocks = <&pll3 0>, <&pll7 0>, <&pll3 1>, <&pll7 1>;
+			clock-output-names = "lcd0_ch1_sclk1",
+					     "lcd0_ch1_sclk2";
+		};
+
+		de_be0_clk: clk@01c20104 {
+			#clock-cells = <0>;
+			#reset-cells = <0>;
+			compatible = "allwinner,sun4i-a10-de-be-clk";
+			reg = <0x01c20104 0x4>;
+			clocks = <&pll3 0>, <&pll7 0>, <&pll5 1>;
+			clock-output-names = "de_be0";
+		};
+	};
+
+	soc@01c00000 {
+		hdmi: hdmi@01c16000 {
+			compatible = "allwinner,sun7i-a20-hdmi";
+			reg = <0x01c16000 0x1000>;
+			clocks = <&ahb_gates 43>, <&hdmi_clk>,
+				 <&lcd0_ch1_clk 1>;
+			clock-names = "ahb", "hdmi",
+				      "lcd";
+			status = "disabled";
+		};
+
+		hdmiaudio {
+			compatible = "allwinner,sun7i-a20-hdmiaudio";
+			status = "disabled";
+		};
+
+		fb: fb@01e60000 {
+			compatible = "allwinner,sun7i-a20-fb";
+			reg = <0x01e60000 0x10000>,	/* DEBE0 */
+			      <0x01c0c000 0x1000>;	/* LCD0 */
+			clocks = <&ahb_gates 44>, <&dram_gates 26>,
+				 <&de_be0_clk>, <&ahb_gates 36>,
+				 <&lcd0_ch1_clk 0>, <&lcd0_ch1_clk 1>;
+			clock-names = "ahb_de_be", "dram_de_be",
+				      "de_be", "ahb_lcd",
+				      "lcd_ch1_sclk1", "lcd_ch1_sclk2";
+			resets = <&de_be0_clk>, <&lcd0_ch0_clk>;
+			reset-names = "de_be", "lcd";
+		};
+	};
+};

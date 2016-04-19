@@ -57,36 +57,20 @@ struct omap4_wugen_sc {
 };
 
 static int
-omap4_wugen_register(device_t dev, struct intr_irqsrc *isrc,
-    boolean_t *is_percpu)
+omap4_wugen_alloc_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
 {
 	struct omap4_wugen_sc *sc = device_get_softc(dev);
 
-	return (PIC_REGISTER(sc->sc_parent, isrc, is_percpu));
-}
-
-static int
-omap4_wugen_unregister(device_t dev, struct intr_irqsrc *isrc)
-{
-	struct omap4_wugen_sc *sc = device_get_softc(dev);
-
-	return (PIC_UNREGISTER(sc->sc_parent, isrc));
+	return (PIC_ALLOC_INTR(sc->sc_parent, isrc, res, data));
 }
 
 static void
-omap4_wugen_enable_source(device_t dev, struct intr_irqsrc *isrc)
+omap4_wugen_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct omap4_wugen_sc *sc = device_get_softc(dev);
 
-	PIC_ENABLE_SOURCE(sc->sc_parent, isrc);
-}
-
-static void
-omap4_wugen_disable_source(device_t dev, struct intr_irqsrc *isrc)
-{
-	struct omap4_wugen_sc *sc = device_get_softc(dev);
-
-	PIC_DISABLE_SOURCE(sc->sc_parent, isrc);
+	PIC_DISABLE_INTR(sc->sc_parent, isrc);
 }
 
 static void
@@ -95,6 +79,42 @@ omap4_wugen_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 	struct omap4_wugen_sc *sc = device_get_softc(dev);
 
 	PIC_ENABLE_INTR(sc->sc_parent, isrc);
+}
+
+static int
+omap4_wugen_map_intr(device_t dev, struct intr_map_data *data,
+    struct intr_irqsrc **isrcp)
+{
+	struct omap4_wugen_sc *sc = device_get_softc(dev);
+
+	return (PIC_MAP_INTR(sc->sc_parent, data, isrcp));
+}
+
+static int
+omap4_wugen_release_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct omap4_wugen_sc *sc = device_get_softc(dev);
+
+	return (PIC_RELEASE_INTR(sc->sc_parent, isrc, res, data));
+}
+
+static int
+omap4_wugen_setup_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct omap4_wugen_sc *sc = device_get_softc(dev);
+
+	return (PIC_SETUP_INTR(sc->sc_parent, isrc, res, data));
+}
+
+static int
+omap4_wugen_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct omap4_wugen_sc *sc = device_get_softc(dev);
+
+	return (PIC_TEARDOWN_INTR(sc->sc_parent, isrc, res, data));
 }
 
 static void
@@ -124,11 +144,11 @@ omap4_wugen_post_filter(device_t dev, struct intr_irqsrc *isrc)
 
 #ifdef SMP
 static int
-omap4_wugen_bind(device_t dev, struct intr_irqsrc *isrc)
+omap4_wugen_bind_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct omap4_wugen_sc *sc = device_get_softc(dev);
 
-	return (PIC_BIND(sc->sc_parent, isrc));
+	return (PIC_BIND_INTR(sc->sc_parent, isrc));
 }
 #endif
 
@@ -207,16 +227,18 @@ static device_method_t omap4_wugen_methods[] = {
 	DEVMETHOD(device_detach,	omap4_wugen_detach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_register,		omap4_wugen_register),
-	DEVMETHOD(pic_unregister,	omap4_wugen_unregister),
-	DEVMETHOD(pic_enable_source,	omap4_wugen_enable_source),
-	DEVMETHOD(pic_disable_source,	omap4_wugen_disable_source),
+	DEVMETHOD(pic_alloc_intr,	omap4_wugen_alloc_intr),
+	DEVMETHOD(pic_disable_intr,	omap4_wugen_disable_intr),
 	DEVMETHOD(pic_enable_intr,	omap4_wugen_enable_intr),
+	DEVMETHOD(pic_map_intr,		omap4_wugen_map_intr),
+	DEVMETHOD(pic_release_intr,	omap4_wugen_release_intr),
+	DEVMETHOD(pic_setup_intr,	omap4_wugen_setup_intr),
+	DEVMETHOD(pic_teardown_intr,	omap4_wugen_teardown_intr),
 	DEVMETHOD(pic_pre_ithread,	omap4_wugen_pre_ithread),
 	DEVMETHOD(pic_post_ithread,	omap4_wugen_post_ithread),
 	DEVMETHOD(pic_post_filter,	omap4_wugen_post_filter),
 #ifdef SMP
-	DEVMETHOD(pic_bind,		omap4_wugen_bind),
+	DEVMETHOD(pic_bind_intr,	omap4_wugen_bind_intr),
 #endif
 	DEVMETHOD_END
 };

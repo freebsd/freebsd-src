@@ -1691,7 +1691,7 @@ static int mlx4_set_path(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah,
 		 * If one was already assigned, but the new mac differs,
 		 * unregister the old one and register the new one.
 		*/
-			u64_mac = mlx4_mac_to_u64(smac);
+		u64_mac = mlx4_mac_to_u64(smac);
 
 		if (!smac_info->smac || smac_info->smac != u64_mac) {
 			/* register candidate now, unreg if needed, after success */
@@ -2746,7 +2746,7 @@ static __be32 convert_access(int acc)
 		cpu_to_be32(MLX4_WQE_FMR_AND_BIND_PERM_REMOTE_WRITE) : 0) |
 	       (acc & IB_ACCESS_REMOTE_READ   ?
 		cpu_to_be32(MLX4_WQE_FMR_AND_BIND_PERM_REMOTE_READ)  : 0) |
-	       (acc & IB_ACCESS_LOCAL_WRITE   ? cpu_to_be32(MLX4_WQE_FMR_PERM_LOCAL_WRITE)  		: 0) |
+	       (acc & IB_ACCESS_LOCAL_WRITE   ? cpu_to_be32(MLX4_WQE_FMR_PERM_LOCAL_WRITE)  : 0) |
 		cpu_to_be32(MLX4_WQE_FMR_PERM_LOCAL_READ);
 }
 

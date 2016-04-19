@@ -266,21 +266,24 @@ static int
 sysctl_ieee80211coms(SYSCTL_HANDLER_ARGS)
 {
 	struct ieee80211com *ic;
-	struct sbuf *sb;
+	struct sbuf sb;
 	char *sp;
 	int error;
 
-	sb = sbuf_new_auto();
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error)
+		return (error);
+	sbuf_new_for_sysctl(&sb, NULL, 8, req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 	sp = "";
 	mtx_lock(&ic_list_mtx);
 	LIST_FOREACH(ic, &ic_head, ic_next) {
-		sbuf_printf(sb, "%s%s", sp, ic->ic_name);
+		sbuf_printf(&sb, "%s%s", sp, ic->ic_name);
 		sp = " ";
 	}
 	mtx_unlock(&ic_list_mtx);
-	sbuf_finish(sb);
-	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
-	sbuf_delete(sb);
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
 	return (error);
 }
 
@@ -480,7 +483,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	vap->iv_htextcaps = ic->ic_htextcaps;
 	vap->iv_opmode = opmode;
 	vap->iv_caps |= ieee80211_opcap[opmode];
-	vap->iv_myaddr = ic->ic_macaddr;
+	IEEE80211_ADDR_COPY(vap->iv_myaddr, ic->ic_macaddr);
 	switch (opmode) {
 	case IEEE80211_M_WDS:
 		/*
@@ -600,7 +603,7 @@ ieee80211_vap_attach(struct ieee80211vap *vap, ifm_change_cb_t media_change,
 		ifp->if_baudrate = IF_Mbps(maxrate);
 
 	ether_ifattach(ifp, macaddr);
-	vap->iv_myaddr = IF_LLADDR(ifp);
+	IEEE80211_ADDR_COPY(vap->iv_myaddr, IF_LLADDR(ifp));
 	/* hook output method setup by ether_ifattach */
 	vap->iv_output = ifp->if_output;
 	ifp->if_output = ieee80211_output;
@@ -711,7 +714,8 @@ ieee80211_promisc(struct ieee80211vap *vap, bool on)
 	       (vap->iv_caps & IEEE80211_C_TDMA) == 0)))
 			return;
 
-	IEEE80211_LOCK(ic);
+	IEEE80211_LOCK_ASSERT(ic);
+
 	if (on) {
 		if (++ic->ic_promisc == 1)
 			ieee80211_runtask(ic, &ic->ic_promisc_task);
@@ -721,7 +725,6 @@ ieee80211_promisc(struct ieee80211vap *vap, bool on)
 		if (--ic->ic_promisc == 0)
 			ieee80211_runtask(ic, &ic->ic_promisc_task);
 	}
-	IEEE80211_UNLOCK(ic);
 }
 
 /*
@@ -733,7 +736,8 @@ ieee80211_allmulti(struct ieee80211vap *vap, bool on)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 
-	IEEE80211_LOCK(ic);
+	IEEE80211_LOCK_ASSERT(ic);
+
 	if (on) {
 		if (++ic->ic_allmulti == 1)
 			ieee80211_runtask(ic, &ic->ic_mcast_task);
@@ -743,7 +747,6 @@ ieee80211_allmulti(struct ieee80211vap *vap, bool on)
 		if (--ic->ic_allmulti == 0)
 			ieee80211_runtask(ic, &ic->ic_mcast_task);
 	}
-	IEEE80211_UNLOCK(ic);
 }
 
 /*

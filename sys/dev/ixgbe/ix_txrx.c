@@ -402,7 +402,7 @@ retry:
 	}
 
 	/* Make certain there are enough descriptors */
-	if (nsegs > txr->tx_avail - 2) {
+	if (txr->tx_avail < (nsegs + 2)) {
 		txr->no_desc_avail++;
 		bus_dmamap_unload(txr->txtag, map);
 		return (ENOBUFS);
@@ -1753,7 +1753,6 @@ ixgbe_rxeof(struct ix_queue *que)
 	struct rx_ring		*rxr = que->rxr;
 	struct ifnet		*ifp = adapter->ifp;
 	struct lro_ctrl		*lro = &rxr->lro;
-	struct lro_entry	*queued;
 	int			i, nextp, processed = 0;
 	u32			staterr = 0;
 	u32			count = adapter->rx_process_limit;
@@ -2003,10 +2002,7 @@ next_desc:
 	/*
 	 * Flush any outstanding LRO work
 	 */
-	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
-		SLIST_REMOVE_HEAD(&lro->lro_active, next);
-		tcp_lro_flush(lro, queued);
-	}
+	tcp_lro_flush_all(lro);
 
 	IXGBE_RX_UNLOCK(rxr);
 

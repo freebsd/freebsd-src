@@ -6,43 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-PPCAsmBackend.o: PPCGenInstrInfo.inc.h
-PPCAsmBackend.o: PPCGenRegisterInfo.inc.h
-PPCAsmBackend.o: PPCGenSubtargetInfo.inc.h
-PPCAsmBackend.po: PPCGenInstrInfo.inc.h
-PPCAsmBackend.po: PPCGenRegisterInfo.inc.h
-PPCAsmBackend.po: PPCGenSubtargetInfo.inc.h
-PPCELFObjectWriter.o: PPCGenInstrInfo.inc.h
-PPCELFObjectWriter.o: PPCGenRegisterInfo.inc.h
-PPCELFObjectWriter.o: PPCGenSubtargetInfo.inc.h
-PPCELFObjectWriter.po: PPCGenInstrInfo.inc.h
-PPCELFObjectWriter.po: PPCGenRegisterInfo.inc.h
-PPCELFObjectWriter.po: PPCGenSubtargetInfo.inc.h
-PPCMCCodeEmitter.o: PPCGenInstrInfo.inc.h
-PPCMCCodeEmitter.o: PPCGenMCCodeEmitter.inc.h
-PPCMCCodeEmitter.o: PPCGenRegisterInfo.inc.h
-PPCMCCodeEmitter.o: PPCGenSubtargetInfo.inc.h
-PPCMCCodeEmitter.po: PPCGenInstrInfo.inc.h
-PPCMCCodeEmitter.po: PPCGenMCCodeEmitter.inc.h
-PPCMCCodeEmitter.po: PPCGenRegisterInfo.inc.h
-PPCMCCodeEmitter.po: PPCGenSubtargetInfo.inc.h
-PPCMCTargetDesc.o: PPCGenInstrInfo.inc.h
-PPCMCTargetDesc.o: PPCGenRegisterInfo.inc.h
-PPCMCTargetDesc.o: PPCGenSubtargetInfo.inc.h
-PPCMCTargetDesc.po: PPCGenInstrInfo.inc.h
-PPCMCTargetDesc.po: PPCGenRegisterInfo.inc.h
-PPCMCTargetDesc.po: PPCGenSubtargetInfo.inc.h
-PPCMachObjectWriter.o: PPCGenInstrInfo.inc.h
-PPCMachObjectWriter.o: PPCGenRegisterInfo.inc.h
-PPCMachObjectWriter.o: PPCGenSubtargetInfo.inc.h
-PPCMachObjectWriter.po: PPCGenInstrInfo.inc.h
-PPCMachObjectWriter.po: PPCGenRegisterInfo.inc.h
-PPCMachObjectWriter.po: PPCGenSubtargetInfo.inc.h
 .endif

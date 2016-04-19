@@ -63,7 +63,6 @@ char ixl_driver_version[] = "1.4.3";
 static ixl_vendor_info_t ixl_vendor_info_array[] =
 {
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_SFP_XL710, 0, 0, 0},
-	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_KX_A, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_KX_B, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_KX_C, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_QSFP_A, 0, 0, 0},
@@ -71,8 +70,6 @@ static ixl_vendor_info_t ixl_vendor_info_array[] =
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_QSFP_C, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_10G_BASE_T, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_10G_BASE_T4, 0, 0, 0},
-	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_20G_KR2, 0, 0, 0},
-	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_20G_KR2_A, 0, 0, 0},
 #ifdef X722_SUPPORT
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_SFP_X722, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_1G_BASE_T_X722, 0, 0, 0},
@@ -118,6 +115,8 @@ static int	ixl_init_msix(struct ixl_pf *);
 static void	ixl_configure_msix(struct ixl_pf *);
 static void	ixl_configure_itr(struct ixl_pf *);
 static void	ixl_configure_legacy(struct ixl_pf *);
+static void	ixl_init_taskqueues(struct ixl_pf *);
+static void	ixl_free_taskqueues(struct ixl_pf *);
 static void	ixl_free_pci_resources(struct ixl_pf *);
 static void	ixl_local_timer(void *);
 static int	ixl_setup_interface(device_t, struct ixl_vsi *);
@@ -645,7 +644,7 @@ ixl_attach(device_t dev)
 	else
 		error = ixl_assign_vsi_legacy(pf);
 	if (error) 
-		goto err_late;
+		goto err_mac_hmc;
 
 	if (((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver < 33)) ||
 	    (hw->aq.fw_maj_ver < 4)) {
@@ -670,7 +669,7 @@ ixl_attach(device_t dev)
 	error = ixl_switch_config(pf);
 	if (error) {
 		device_printf(dev, "Initial switch config failed: %d\n", error);
-		goto err_mac_hmc;
+		goto err_late;
 	}
 
 	/* Limit phy interrupts to link and modules failure */
@@ -682,6 +681,9 @@ ixl_attach(device_t dev)
 	/* Get the bus configuration and set the shared code */
 	bus = ixl_get_bus_info(hw, dev);
 	i40e_set_pci_config_data(hw, bus);
+
+	/* Initialize taskqueues */
+	ixl_init_taskqueues(pf);
 
 	/* Initialize statistics */
 	ixl_pf_reset_stats(pf);
@@ -751,7 +753,6 @@ ixl_detach(device_t dev)
 	struct ixl_pf		*pf = device_get_softc(dev);
 	struct i40e_hw		*hw = &pf->hw;
 	struct ixl_vsi		*vsi = &pf->vsi;
-	struct ixl_queue	*que = vsi->queues;
 	i40e_status		status;
 #ifdef PCI_IOV
 	int			error;
@@ -780,13 +781,7 @@ ixl_detach(device_t dev)
 		IXL_PF_UNLOCK(pf);
 	}
 
-	for (int i = 0; i < vsi->num_queues; i++, que++) {
-		if (que->tq) {
-			taskqueue_drain(que->tq, &que->task);
-			taskqueue_drain(que->tq, &que->tx_task);
-			taskqueue_free(que->tq);
-		}
-	}
+	ixl_free_taskqueues(pf);
 
 	/* Shutdown LAN HMC */
 	status = i40e_shutdown_lan_hmc(hw);
@@ -1175,6 +1170,7 @@ ixl_init_locked(struct ixl_pf *pf)
 #ifdef IXL_FDIR
 	filter.enable_fdir = TRUE;
 #endif
+	filter.hash_lut_size = I40E_HASH_LUT_SIZE_512;
 	if (i40e_set_filter_control(hw, &filter))
 		device_printf(dev, "set_filter_control() failed\n");
 
@@ -1992,6 +1988,62 @@ ixl_assign_vsi_legacy(struct ixl_pf *pf)
 	return (0);
 }
 
+static void
+ixl_init_taskqueues(struct ixl_pf *pf)
+{
+	struct ixl_vsi *vsi = &pf->vsi;
+	struct ixl_queue *que = vsi->queues;
+	device_t dev = pf->dev;
+#ifdef	RSS
+	int cpu_id;
+	cpuset_t cpu_mask;
+#endif
+
+	/* Tasklet for Admin Queue */
+	TASK_INIT(&pf->adminq, 0, ixl_do_adminq, pf);
+#ifdef PCI_IOV
+	/* VFLR Tasklet */
+	TASK_INIT(&pf->vflr_task, 0, ixl_handle_vflr, pf);
+#endif
+
+	/* Create and start PF taskqueue */
+	pf->tq = taskqueue_create_fast("ixl_adm", M_NOWAIT,
+	    taskqueue_thread_enqueue, &pf->tq);
+	taskqueue_start_threads(&pf->tq, 1, PI_NET, "%s adminq",
+	    device_get_nameunit(dev));
+
+	/* Create queue tasks and start queue taskqueues */
+	for (int i = 0; i < vsi->num_queues; i++, que++) {
+		TASK_INIT(&que->tx_task, 0, ixl_deferred_mq_start, que);
+		TASK_INIT(&que->task, 0, ixl_handle_que, que);
+		que->tq = taskqueue_create_fast("ixl_que", M_NOWAIT,
+		    taskqueue_thread_enqueue, &que->tq);
+#ifdef RSS
+		cpu_id = rss_getcpu(i % rss_getnumbuckets());
+		CPU_SETOF(cpu_id, &cpu_mask);
+		taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
+		    &cpu_mask, "%s (bucket %d)",
+		    device_get_nameunit(dev), cpu_id);
+#else
+		taskqueue_start_threads(&que->tq, 1, PI_NET,
+		    "%s (que %d)", device_get_nameunit(dev), que->me);
+#endif
+	}
+}
+
+static void
+ixl_free_taskqueues(struct ixl_pf *pf)
+{
+	struct ixl_vsi *vsi = &pf->vsi;
+	struct ixl_queue *que = vsi->queues;
+
+	if (pf->tq)
+		taskqueue_free(pf->tq);
+	for (int i = 0; i < vsi->num_queues; i++, que++) {
+		if (que->tq)
+			taskqueue_free(que->tq);
+	}
+}
 
 /*********************************************************************
  *
@@ -2006,9 +2058,6 @@ ixl_assign_vsi_msix(struct ixl_pf *pf)
 	struct 		ixl_queue *que = vsi->queues;
 	struct		tx_ring	 *txr;
 	int 		error, rid, vector = 0;
-#ifdef	RSS
-	cpuset_t cpu_mask;
-#endif
 
 	/* Admin Que is vector 0*/
 	rid = vector + 1;
@@ -2030,17 +2079,6 @@ ixl_assign_vsi_msix(struct ixl_pf *pf)
 	}
 	bus_describe_intr(dev, pf->res, pf->tag, "aq");
 	pf->admvec = vector;
-	/* Tasklet for Admin Queue */
-	TASK_INIT(&pf->adminq, 0, ixl_do_adminq, pf);
-
-#ifdef PCI_IOV
-	TASK_INIT(&pf->vflr_task, 0, ixl_handle_vflr, pf);
-#endif
-
-	pf->tq = taskqueue_create_fast("ixl_adm", M_NOWAIT,
-	    taskqueue_thread_enqueue, &pf->tq);
-	taskqueue_start_threads(&pf->tq, 1, PI_NET, "%s adminq",
-	    device_get_nameunit(pf->dev));
 	++vector;
 
 	/* Now set up the stations */
@@ -2071,19 +2109,6 @@ ixl_assign_vsi_msix(struct ixl_pf *pf)
 #endif
 		bus_bind_intr(dev, que->res, cpu_id);
 		que->msix = vector;
-		TASK_INIT(&que->tx_task, 0, ixl_deferred_mq_start, que);
-		TASK_INIT(&que->task, 0, ixl_handle_que, que);
-		que->tq = taskqueue_create_fast("ixl_que", M_NOWAIT,
-		    taskqueue_thread_enqueue, &que->tq);
-#ifdef RSS
-		CPU_SETOF(cpu_id, &cpu_mask);
-		taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
-		    &cpu_mask, "%s (bucket %d)",
-		    device_get_nameunit(dev), cpu_id);
-#else
-		taskqueue_start_threads(&que->tq, 1, PI_NET,
-		    "%s que", device_get_nameunit(dev));
-#endif
 	}
 
 	return (0);
@@ -2146,9 +2171,15 @@ ixl_init_msix(struct ixl_pf *pf)
 	/* Figure out a reasonable auto config value */
 	queues = (mp_ncpus > (available - 1)) ? (available - 1) : mp_ncpus;
 
-	/* Override with hardcoded value if sane */
+	/* Override with hardcoded value if it's less than autoconfig count */
 	if ((ixl_max_queues != 0) && (ixl_max_queues <= queues)) 
 		queues = ixl_max_queues;
+	else if ((ixl_max_queues != 0) && (ixl_max_queues > queues))
+		device_printf(dev, "ixl_max_queues > # of cpus, using "
+		    "autoconfig amount...\n");
+	/* Or limit maximum auto-configured queues to 8 */
+	else if ((ixl_max_queues == 0) && (queues > 8))
+		queues = 8;
 
 #ifdef  RSS
 	/* If we're doing RSS, clamp at the number of RSS buckets */
@@ -2248,7 +2279,8 @@ ixl_configure_msix(struct ixl_pf *pf)
 
 	/* Next configure the queues */
 	for (int i = 0; i < vsi->num_queues; i++, vector++) {
-		wr32(hw, I40E_PFINT_DYN_CTLN(i), i);
+		wr32(hw, I40E_PFINT_DYN_CTLN(i), 0);
+		/* First queue type is RX / type 0 */
 		wr32(hw, I40E_PFINT_LNKLSTN(i), i);
 
 		reg = I40E_QINT_RQCTL_CAUSE_ENA_MASK |
@@ -2261,11 +2293,8 @@ ixl_configure_msix(struct ixl_pf *pf)
 		reg = I40E_QINT_TQCTL_CAUSE_ENA_MASK |
 		(IXL_TX_ITR << I40E_QINT_TQCTL_ITR_INDX_SHIFT) |
 		(vector << I40E_QINT_TQCTL_MSIX_INDX_SHIFT) |
-		((i+1) << I40E_QINT_TQCTL_NEXTQ_INDX_SHIFT) |
+		(IXL_QUEUE_EOL << I40E_QINT_TQCTL_NEXTQ_INDX_SHIFT) |
 		(I40E_QUEUE_TYPE_RX << I40E_QINT_TQCTL_NEXTQ_TYPE_SHIFT);
-		if (i == (vsi->num_queues - 1))
-			reg |= (IXL_QUEUE_EOL
-			    << I40E_QINT_TQCTL_NEXTQ_INDX_SHIFT);
 		wr32(hw, I40E_QINT_TQCTL(i), reg);
 	}
 }
@@ -2758,8 +2787,17 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 	*/
 	ctxt.info.valid_sections = I40E_AQ_VSI_PROP_QUEUE_MAP_VALID;
 	ctxt.info.mapping_flags |= I40E_AQ_VSI_QUE_MAP_CONTIG;
-	ctxt.info.queue_mapping[0] = 0; 
-	ctxt.info.tc_mapping[0] = 0x0800; 
+	/* In contig mode, que_mapping[0] is first queue index used by this VSI */
+	ctxt.info.queue_mapping[0] = 0;
+	/*
+	 * This VSI will only use traffic class 0; start traffic class 0's
+	 * queue allocation at queue 0, and assign it 64 (2^6) queues (though
+	 * the driver may not use all of them).
+	 */
+	ctxt.info.tc_mapping[0] = ((0 << I40E_AQ_VSI_TC_QUE_OFFSET_SHIFT)
+	    & I40E_AQ_VSI_TC_QUE_OFFSET_MASK) |
+	    ((6 << I40E_AQ_VSI_TC_QUE_NUMBER_SHIFT)
+	    & I40E_AQ_VSI_TC_QUE_NUMBER_MASK);
 
 	/* Set VLAN receive stripping mode */
 	ctxt.info.valid_sections |= I40E_AQ_VSI_PROP_VLAN_VALID;
@@ -2875,7 +2913,6 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 			device_printf(dev, "Fail in init_rx_ring %d\n", i);
 			break;
 		}
-		wr32(vsi->hw, I40E_QRX_TAIL(que->me), 0);
 #ifdef DEV_NETMAP
 		/* preserve queue */
 		if (vsi->ifp->if_capenable & IFCAP_NETMAP) {
@@ -3343,7 +3380,7 @@ ixl_add_sysctls_eth_stats(struct sysctl_ctx_list *ctx,
 	};
 
 	struct ixl_sysctl_info *entry = ctls;
-	while (entry->stat != 0)
+	while (entry->stat != NULL)
 	{
 		SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, entry->name,
 				CTLFLAG_RD, entry->stat,
@@ -3402,7 +3439,7 @@ ixl_add_sysctls_mac_stats(struct sysctl_ctx_list *ctx,
 	};
 
 	struct ixl_sysctl_info *entry = ctls;
-	while (entry->stat != 0)
+	while (entry->stat != NULL)
 	{
 		SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, entry->name,
 				CTLFLAG_RD, entry->stat,
@@ -6311,7 +6348,7 @@ ixl_vf_config_promisc_msg(struct ixl_pf *pf, struct ixl_vf *vf,
 		return;
 	}
 
-	if (!vf->vf_flags & VF_FLAG_PROMISC_CAP) {
+	if (!(vf->vf_flags & VF_FLAG_PROMISC_CAP)) {
 		i40e_send_vf_nack(pf, vf,
 		    I40E_VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE, I40E_ERR_PARAM);
 		return;

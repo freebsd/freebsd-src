@@ -22,7 +22,7 @@
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdInvoker::CMICmdInvoker(void)
+CMICmdInvoker::CMICmdInvoker()
     : m_rStreamOut(CMICmnStreamStdout::Instance())
 {
 }
@@ -34,7 +34,7 @@ CMICmdInvoker::CMICmdInvoker(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdInvoker::~CMICmdInvoker(void)
+CMICmdInvoker::~CMICmdInvoker()
 {
     Shutdown();
 }
@@ -48,7 +48,7 @@ CMICmdInvoker::~CMICmdInvoker(void)
 // Throws:  None.
 //--
 bool
-CMICmdInvoker::Initialize(void)
+CMICmdInvoker::Initialize()
 {
     m_clientUsageRefCnt++;
 
@@ -69,7 +69,7 @@ CMICmdInvoker::Initialize(void)
 // Throws:  None.
 //--
 bool
-CMICmdInvoker::Shutdown(void)
+CMICmdInvoker::Shutdown()
 {
     if (--m_clientUsageRefCnt > 0)
         return MIstatus::success;
@@ -92,7 +92,7 @@ CMICmdInvoker::Shutdown(void)
 // Throws:  None.
 //--
 void
-CMICmdInvoker::CmdDeleteAll(void)
+CMICmdInvoker::CmdDeleteAll()
 {
     CMICmdMgr &rMgr = CMICmdMgr::Instance();
     MapCmdIdToCmd_t::const_iterator it = m_mapCmdIdToCmd.begin();
@@ -189,16 +189,20 @@ CMICmdInvoker::CmdExecute(CMICmdBase &vCmd)
 {
     bool bOk = CmdAdd(vCmd);
 
-    if (bOk && !vCmd.ParseArgs())
+    if (bOk)
     {
-        // Report command execution failed
-        const SMICmdData cmdData(vCmd.GetCmdData());
-        CmdStdout(cmdData);
-        CmdCauseAppExit(vCmd);
-        CmdDelete(cmdData.id);
+        vCmd.AddCommonArgs();
+        if (!vCmd.ParseArgs())
+        {
+            // Report command execution failed
+            const SMICmdData cmdData(vCmd.GetCmdData());
+            CmdStdout(cmdData);
+            CmdCauseAppExit(vCmd);
+            CmdDelete(cmdData.id);
 
-        // Proceed to wait or execute next command
-        return MIstatus::success;
+            // Proceed to wait or execute next command
+            return MIstatus::success;
+        }
     }
 
     if (bOk && !vCmd.Execute())

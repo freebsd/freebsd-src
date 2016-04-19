@@ -14,32 +14,32 @@ LIBDEPS=llvmaarch64disassembler \
 	llvmaarch64asmparser \
 	llvmaarch64desc \
 	llvmaarch64info \
-	llvmaarch64instprinter \
+	llvmaarch64asmprinter \
 	llvmaarch64utils \
 	llvmarmdisassembler \
 	llvmarmcodegen \
 	llvmarmasmparser \
 	llvmarmdesc \
 	llvmarminfo \
-	llvmarminstprinter \
+	llvmarmasmprinter \
 	llvmmipsdisassembler \
 	llvmmipscodegen \
 	llvmmipsasmparser \
 	llvmmipsdesc \
 	llvmmipsinfo \
-	llvmmipsinstprinter \
+	llvmmipsasmprinter \
 	llvmpowerpcdisassembler \
 	llvmpowerpccodegen \
 	llvmpowerpcasmparser \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
-	llvmpowerpcinstprinter \
+	llvmpowerpcasmprinter \
 	llvmsparcdisassembler \
 	llvmsparccodegen \
 	llvmsparcasmparser \
 	llvmsparcdesc \
 	llvmsparcinfo \
-	llvmsparcinstprinter \
+	llvmsparcasmprinter \
 	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \
@@ -48,16 +48,16 @@ LIBDEPS=llvmaarch64disassembler \
 	llvmcodegen \
 	llvmtarget \
 	llvmscalaropts \
-	llvmprofiledata \
 	llvminstcombine \
 	llvminstrumentation \
+	llvmprofiledata \
 	llvmtransformutils \
-	llvmipa \
+	llvmbitwriter \
 	llvmanalysis \
 	llvmx86desc \
 	llvmmcdisassembler \
 	llvmx86info \
-	llvmx86instprinter \
+	llvmx86asmprinter \
 	llvmx86utils \
 	llvmobject \
 	llvmmcparser \
@@ -66,6 +66,6 @@ LIBDEPS=llvmaarch64disassembler \
 	llvmcore \
 	llvmsupport
 
-LIBADD=	z
+LIBADD+=	z
 
 .include "../clang.prog.mk"

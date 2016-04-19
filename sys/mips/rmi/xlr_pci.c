@@ -125,16 +125,12 @@ xlr_pci_init_resources(void)
 	    || rman_manage_region(&irq_rman, 0, 255))
 		panic("pci_init_resources irq_rman");
 
-	port_rman.rm_start = 0;
-	port_rman.rm_end = ~0ul;
 	port_rman.rm_type = RMAN_ARRAY;
 	port_rman.rm_descr = "I/O ports";
 	if (rman_init(&port_rman)
 	    || rman_manage_region(&port_rman, 0x10000000, 0x1fffffff))
 		panic("pci_init_resources port_rman");
 
-	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0ul;
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "I/O memory";
 	if (rman_init(&mem_rman)
@@ -468,7 +464,7 @@ mips_platform_pci_setup_intr(device_t dev, device_t child,
 	if (error)
 		return error;
 	if (rman_get_start(irq) != rman_get_end(irq)) {
-		device_printf(dev, "Interrupt allocation %lu != %lu\n",
+		device_printf(dev, "Interrupt allocation %ju != %ju\n",
 		    rman_get_start(irq), rman_get_end(irq));
 		return (EINVAL);
 	}
@@ -541,7 +537,7 @@ xlr_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv == 0)
+	if (rv == NULL)
 		return (0);
 
 	rman_set_rid(rv, *rid);

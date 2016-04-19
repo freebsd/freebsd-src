@@ -167,6 +167,8 @@ WITHOUT_SHAREDOCS=true
 WITHOUT_SYSCONS=true
 WITHOUT_LIB32=true
 WITHOUT_TESTS=true
+WITHOUT_DEBUG_FILES=t
+WITHOUT_KERNEL_SYMBOLS=t
 "
 CONF_INSTALL="$CONF_BUILD
 INSTALL_NODEBUG=t
@@ -320,6 +322,7 @@ create_diskimage_mbr ( ) (
 			-o ${out}
 		;;
 	esac
+	rm -f ${out}.xz
 	xz -9 --keep ${out}
 	) > ${NANO_LOG}/_.di 2>&1
 )

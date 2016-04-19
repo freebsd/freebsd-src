@@ -42,7 +42,10 @@ static EFI_GUID blkio_guid = BLOCK_IO_PROTOCOL;
 static EFI_GUID devpath_guid = DEVICE_PATH_PROTOCOL;
 
 static int efipart_init(void);
-static int efipart_strategy(void *, int, daddr_t, size_t, char *, size_t *);
+static int efipart_strategy(void *, int, daddr_t, size_t, size_t, char *,
+    size_t *);
+static int efipart_realstrategy(void *, int, daddr_t, size_t, size_t, char *,
+    size_t *);
 static int efipart_open(struct open_file *, ...);
 static int efipart_close(struct open_file *);
 static void efipart_print(int);
@@ -58,6 +61,21 @@ struct devsw efipart_dev = {
 	.dv_print = efipart_print,
 	.dv_cleanup = NULL
 };
+
+/*
+ * info structure to support bcache
+ */
+#define	MAXPDDEV	31	/* see MAXDEV in libi386.h */
+
+static struct pdinfo
+{
+	int	pd_unit;	/* unit number */
+	int	pd_open;	/* reference counter */
+	void	*pd_bcache;	/* buffer cache data */
+} pdinfo [MAXPDDEV];
+static int npdinfo = 0;
+
+#define PD(dev)         (pdinfo[(dev)->d_unit])
 
 static int
 efipart_init(void) 
@@ -140,8 +158,13 @@ efipart_init(void)
 		} else
 			hout[nout] = hin[n];
 		nout++;
+		pdinfo[npdinfo].pd_open = 0;
+		pdinfo[npdinfo].pd_bcache = NULL;
+		pdinfo[npdinfo].pd_unit = npdinfo;
+		npdinfo++;
 	}
 
+	bcache_add_dev(npdinfo);
 	err = efi_register_handles(&efipart_dev, hout, aliases, nout);
 	free(hin);
 	return (err);
@@ -173,7 +196,7 @@ efipart_print(int verbose)
 	}
 }
 
-static int 
+static int
 efipart_open(struct open_file *f, ...)
 {
 	va_list args;
@@ -198,10 +221,13 @@ efipart_open(struct open_file *f, ...)
 		return (EAGAIN);
 
 	dev->d_opendata = blkio;
+	PD(dev).pd_open++;
+	if (PD(dev).pd_bcache == NULL)
+		PD(dev).pd_bcache = bcache_allocate();
 	return (0);
 }
 
-static int 
+static int
 efipart_close(struct open_file *f)
 {
 	struct devdesc *dev;
@@ -211,6 +237,11 @@ efipart_close(struct open_file *f)
 		return (EINVAL);
 
 	dev->d_opendata = NULL;
+	PD(dev).pd_open--;
+	if (PD(dev).pd_open == 0) {
+		bcache_free(PD(dev).pd_bcache);
+		PD(dev).pd_bcache = NULL;
+	}
 	return (0);
 }
 
@@ -254,9 +285,24 @@ efipart_readwrite(EFI_BLOCK_IO *blkio, int rw, daddr_t blk, daddr_t nblks,
 	return (efi_status_to_errno(status));
 }
 
-static int 
-efipart_strategy(void *devdata, int rw, daddr_t blk, size_t size, char *buf,
-    size_t *rsize)
+static int
+efipart_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
+    size_t size, char *buf, size_t *rsize)
+{
+	struct bcache_devdata bcd;
+	struct devdesc *dev;
+
+	dev = (struct devdesc *)devdata;
+	bcd.dv_strategy = efipart_realstrategy;
+	bcd.dv_devdata = devdata;
+	bcd.dv_cache = PD(dev).pd_bcache;
+	return (bcache_strategy(&bcd, rw, blk, offset, size,
+	    buf, rsize));
+}
+
+static int
+efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t offset,
+    size_t size, char *buf, size_t *rsize)
 {
 	struct devdesc *dev = (struct devdesc *)devdata;
 	EFI_BLOCK_IO *blkio;

@@ -141,7 +141,8 @@ static uintptr_t readEncodedPointer(const uint8_t** data, uint8_t encoding)
  * throw through a C function compiled with -fexceptions.
  */
 #if __USING_SJLJ_EXCEPTIONS__
-// the setjump-longjump based exceptions personality routine has a different name
+/* the setjump-longjump based exceptions personality routine has a
+ * different name */
 COMPILER_RT_ABI _Unwind_Reason_Code
 __gcc_personality_sj0(int version, _Unwind_Action actions,
          uint64_t exceptionClass, struct _Unwind_Exception* exceptionObject,
@@ -194,15 +195,15 @@ __gcc_personality_v0(int version, _Unwind_Action actions,
              * Set Instruction Pointer to so we re-enter function 
              * at landing pad. The landing pad is created by the compiler
              * to take two parameters in registers.
-	     */
-            _Unwind_SetGR(context, __builtin_eh_return_data_regno(0), 
-                                                (uintptr_t)exceptionObject);
+             */
+            _Unwind_SetGR(context, __builtin_eh_return_data_regno(0),
+                          (uintptr_t)exceptionObject);
             _Unwind_SetGR(context, __builtin_eh_return_data_regno(1), 0);
-            _Unwind_SetIP(context, funcStart+landingPad);
+            _Unwind_SetIP(context, (funcStart + landingPad));
             return _URC_INSTALL_CONTEXT;
         }
     }
-    
+
     /* No landing pad found, continue unwinding. */
     return _URC_CONTINUE_UNWIND;
 }

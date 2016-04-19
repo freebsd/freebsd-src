@@ -15,16 +15,11 @@ DIRDEPS = \
 	lib/libcom_err \
 	lib/libcompiler_rt \
 	secure/lib/libcrypto \
+	usr.bin/compile_et.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ntlm_err.So: ntlm_err.c
-ntlm_err.So: ntlm_err.h
-ntlm_err.o: ntlm_err.c
-ntlm_err.o: ntlm_err.h
-ntlm_err.po: ntlm_err.c
-ntlm_err.po: ntlm_err.h
 .endif

@@ -215,37 +215,38 @@ static void cf_start (struct bio *bp)
 	* the bio struct.
 	*/
 
-	if(bp->bio_cmd & BIO_GETATTR) {
+	switch (bp->bio_cmd) {
+	case BIO_GETATTR:
 		if (g_handleattr_int(bp, "GEOM::fwsectors", cf_priv->drive_param.sec_track))
                         return;
                 if (g_handleattr_int(bp, "GEOM::fwheads", cf_priv->drive_param.heads))
                         return;
                 g_io_deliver(bp, ENOIOCTL);
                 return;
+
+	case BIO_READ:
+		error = cf_cmd_read(bp->bio_length / cf_priv->drive_param.sector_size,
+		    bp->bio_offset / cf_priv->drive_param.sector_size, bp->bio_data);
+		break;
+	case BIO_WRITE:
+		error = cf_cmd_write(bp->bio_length / cf_priv->drive_param.sector_size,
+		    bp->bio_offset/cf_priv->drive_param.sector_size, bp->bio_data);
+		break;
+
+	default:
+		printf("%s: unrecognized bio_cmd %x.\n", __func__, bp->bio_cmd);
+		error = ENOTSUP;
+		break;
 	}
 
-	if ((bp->bio_cmd & (BIO_READ | BIO_WRITE))) {
-
-		if (bp->bio_cmd & BIO_READ) {
-			error = cf_cmd_read(bp->bio_length / cf_priv->drive_param.sector_size,
-			    bp->bio_offset / cf_priv->drive_param.sector_size, bp->bio_data);
-		} else if (bp->bio_cmd & BIO_WRITE) {
-			error = cf_cmd_write(bp->bio_length / cf_priv->drive_param.sector_size,
-			    bp->bio_offset/cf_priv->drive_param.sector_size, bp->bio_data);
-		} else {
-			printf("%s: unrecognized bio_cmd %x.\n", __func__, bp->bio_cmd);
-			error = ENOTSUP;
-		}
-
-		if (error != 0) {
-			g_io_deliver(bp, error);
-			return;
-		}
-
-		bp->bio_resid = 0;
-		bp->bio_completed = bp->bio_length;
-		g_io_deliver(bp, 0);
+	if (error != 0) {
+		g_io_deliver(bp, error);
+		return;
 	}
+
+	bp->bio_resid = 0;
+	bp->bio_completed = bp->bio_length;
+	g_io_deliver(bp, 0);
 }
 
 

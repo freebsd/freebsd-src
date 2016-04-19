@@ -117,6 +117,8 @@ elf64_exec(struct preloaded_file *fp)
 	if (err != 0)
 		return (err);
 
+	dev_cleanup();
+
 	/* Clean D-cache under kernel area and invalidate whole I-cache */
 	clean_addr = (vm_offset_t)efi_translate(fp->f_addr);
 	clean_size = (vm_offset_t)efi_translate(kernendp) - clean_addr;

@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef FDT
+#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #endif
 
@@ -107,6 +108,14 @@ struct kva_md_info kmi;
 int64_t dcache_line_size;	/* The minimum D cache line size */
 int64_t icache_line_size;	/* The minimum I cache line size */
 int64_t idcache_line_size;	/* The minimum cache line size */
+int64_t dczva_line_size;	/* The size of cache line the dc zva zeroes */
+
+/* pagezero_* implementations are provided in support.S */
+void pagezero_simple(void *);
+void pagezero_cache(void *);
+
+/* pagezero_simple is default pagezero */
+void (*pagezero)(void *p) = pagezero_simple;
 
 static void
 cpu_startup(void *dummy)
@@ -126,16 +135,6 @@ cpu_idle_wakeup(int cpu)
 {
 
 	return (0);
-}
-
-void
-bzero(void *buf, size_t len)
-{
-	uint8_t *p;
-
-	p = buf;
-	while(len-- > 0)
-		*p++ = 0;
 }
 
 int
@@ -668,6 +667,20 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
 	return (1);
 }
 
+#ifdef FDT
+static void
+add_fdt_mem_regions(struct mem_region *mr, int mrcnt, vm_paddr_t *physmap,
+    u_int *physmap_idxp)
+{
+
+	for (int i = 0; i < mrcnt; i++) {
+		if (!add_physmap_entry(mr[i].mr_start, mr[i].mr_size, physmap,
+		    physmap_idxp))
+			break;
+	}
+}
+#endif
+
 #define efi_next_descriptor(ptr, size) \
 	((struct efi_md *)(((uint8_t *) ptr) + size))
 
@@ -785,8 +798,9 @@ try_load_dtb(caddr_t kmdp)
 static void
 cache_setup(void)
 {
-	int dcache_line_shift, icache_line_shift;
+	int dcache_line_shift, icache_line_shift, dczva_line_shift;
 	uint32_t ctr_el0;
+	uint32_t dczid_el0;
 
 	ctr_el0 = READ_SPECIALREG(ctr_el0);
 
@@ -800,6 +814,20 @@ cache_setup(void)
 	icache_line_size = sizeof(int) << icache_line_shift;
 
 	idcache_line_size = MIN(dcache_line_size, icache_line_size);
+
+	dczid_el0 = READ_SPECIALREG(dczid_el0);
+
+	/* Check if dc zva is not prohibited */
+	if (dczid_el0 & DCZID_DZP)
+		dczva_line_size = 0;
+	else {
+		/* Same as with above calculations */
+		dczva_line_shift = DCZID_BS_SIZE(dczid_el0);
+		dczva_line_size = sizeof(int) << dczva_line_shift;
+
+		/* Change pagezero function */
+		pagezero = pagezero_cache;
+	}
 }
 
 void
@@ -807,6 +835,10 @@ initarm(struct arm64_bootparams *abp)
 {
 	struct efi_map_header *efihdr;
 	struct pcpu *pcpup;
+#ifdef FDT
+	struct mem_region mem_regions[FDT_MEM_REGIONS];
+	int mem_regions_sz;
+#endif
 	vm_offset_t lastaddr;
 	caddr_t kmdp;
 	vm_paddr_t mem_len;
@@ -834,7 +866,18 @@ initarm(struct arm64_bootparams *abp)
 	physmap_idx = 0;
 	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
-	add_efi_map_entries(efihdr, physmap, &physmap_idx);
+	if (efihdr != NULL)
+		add_efi_map_entries(efihdr, physmap, &physmap_idx);
+#ifdef FDT
+	else {
+		/* Grab physical memory regions information from device tree. */
+		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,
+		    NULL) != 0)
+			panic("Cannot get physical memory regions");
+		add_fdt_mem_regions(mem_regions, mem_regions_sz, physmap,
+		    &physmap_idx);
+	}
+#endif
 
 	/* Print the memory map */
 	mem_len = 0;
@@ -866,8 +909,8 @@ initarm(struct arm64_bootparams *abp)
 	cache_setup();
 
 	/* Bootstrap enough of pmap  to enter the kernel proper */
-	pmap_bootstrap(abp->kern_l1pt, KERNBASE - abp->kern_delta,
-	    lastaddr - KERNBASE);
+	pmap_bootstrap(abp->kern_l0pt, abp->kern_l1pt,
+	    KERNBASE - abp->kern_delta, lastaddr - KERNBASE);
 
 	arm_devmap_bootstrap(0, NULL);
 

@@ -219,3 +219,37 @@ create_file() {
 		expect 0 lchmod ${name} ${3}
 	fi
 }
+
+# Tests for whether or not a filesystem is mounted with a particular option
+# with -o, e.g. `mount -o noexec`.
+#
+# Parameters:
+# - mount_option - noatime, noexec, etc.
+#
+# Returns:
+# - 0 if mounted with the option.
+# - 1 otherwise.
+has_mount_option()
+{
+	local IFS=,
+	local mount_opt
+
+	local mount_option_search=$1
+
+	# XXX: mountpoint is defined in .../tests/sys/pjdfstest/tests/conf
+	for mount_opt in $(mount -d -p | awk '$2 == "'$mountpoint'" { print $4 }'); do
+		if [ "$mount_opt" = "$mount_option_search" ]; then
+			return 0
+		fi
+	done
+	return 1
+}
+
+# Filesystem must be mounted with -o exec
+requires_exec()
+{
+	if has_mount_option noexec; then
+		echo "1..0 # SKIP filesystem mounted with -o noexec"
+		exit 0
+	fi
+}

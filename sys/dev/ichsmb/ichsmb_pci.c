@@ -241,11 +241,11 @@ ichsmb_pci_attach(device_t dev)
 
 	/* Allocate an I/O range */
 	sc->io_rid = ICH_SMB_BASE;
-	sc->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-	    &sc->io_rid, 0, ~0, 16, RF_ACTIVE);
+	sc->io_res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+	    &sc->io_rid, 16, RF_ACTIVE);
 	if (sc->io_res == NULL)
-		sc->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-		    &sc->io_rid, 0ul, ~0ul, 32, RF_ACTIVE);
+		sc->io_res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+		    &sc->io_rid, 32, RF_ACTIVE);
 	if (sc->io_res == NULL) {
 		device_printf(dev, "can't map I/O\n");
 		error = ENXIO;

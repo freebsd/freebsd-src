@@ -24,6 +24,12 @@ static ManagedStatic<
     sys::ThreadLocal<const CrashRecoveryContextImpl> > CurrentContext;
 
 struct CrashRecoveryContextImpl {
+  // When threads are disabled, this links up all active
+  // CrashRecoveryContextImpls.  When threads are enabled there's one thread
+  // per CrashRecoveryContext and CurrentContext is a thread-local, so only one
+  // CrashRecoveryContextImpl is active per thread and this is always null.
+  const CrashRecoveryContextImpl *Next;
+
   CrashRecoveryContext *CRC;
   std::string Backtrace;
   ::jmp_buf JumpBuffer;
@@ -34,21 +40,26 @@ public:
   CrashRecoveryContextImpl(CrashRecoveryContext *CRC) : CRC(CRC),
                                                         Failed(false),
                                                         SwitchedThread(false) {
+    Next = CurrentContext->get();
     CurrentContext->set(this);
   }
   ~CrashRecoveryContextImpl() {
     if (!SwitchedThread)
-      CurrentContext->erase();
+      CurrentContext->set(Next);
   }
 
   /// \brief Called when the separate crash-recovery thread was finished, to
   /// indicate that we don't need to clear the thread-local CurrentContext.
-  void setSwitchedThread() { SwitchedThread = true; }
+  void setSwitchedThread() { 
+#if defined(LLVM_ENABLE_THREADS) && LLVM_ENABLE_THREADS != 0
+    SwitchedThread = true;
+#endif
+  }
 
   void HandleCrash() {
     // Eliminate the current context entry, to avoid re-entering in case the
     // cleanup code crashes.
-    CurrentContext->erase();
+    CurrentContext->set(Next);
 
     assert(!Failed && "Crash recovery context already failed!");
     Failed = true;
@@ -65,7 +76,7 @@ public:
 static ManagedStatic<sys::Mutex> gCrashRecoveryContextMutex;
 static bool gCrashRecoveryEnabled = false;
 
-static ManagedStatic<sys::ThreadLocal<const CrashRecoveryContextCleanup> >
+static ManagedStatic<sys::ThreadLocal<const CrashRecoveryContext>>
        tlIsRecoveringFromCrash;
 
 CrashRecoveryContextCleanup::~CrashRecoveryContextCleanup() {}
@@ -73,7 +84,8 @@ CrashRecoveryContextCleanup::~CrashRecoveryContextCleanup() {}
 CrashRecoveryContext::~CrashRecoveryContext() {
   // Reclaim registered resources.
   CrashRecoveryContextCleanup *i = head;
-  tlIsRecoveringFromCrash->set(head);
+  const CrashRecoveryContext *PC = tlIsRecoveringFromCrash->get();
+  tlIsRecoveringFromCrash->set(this);
   while (i) {
     CrashRecoveryContextCleanup *tmp = i;
     i = tmp->next;
@@ -81,7 +93,7 @@ CrashRecoveryContext::~CrashRecoveryContext() {
     tmp->recoverResources();
     delete tmp;
   }
-  tlIsRecoveringFromCrash->erase();
+  tlIsRecoveringFromCrash->set(PC);
   
   CrashRecoveryContextImpl *CRCI = (CrashRecoveryContextImpl *) Impl;
   delete CRCI;
@@ -232,7 +244,7 @@ void CrashRecoveryContext::Disable() {
 
 static const int Signals[] =
     { SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGSEGV, SIGTRAP };
-static const unsigned NumSignals = sizeof(Signals) / sizeof(Signals[0]);
+static const unsigned NumSignals = array_lengthof(Signals);
 static struct sigaction PrevActions[NumSignals];
 
 static void CrashRecoverySignalHandler(int Signal) {

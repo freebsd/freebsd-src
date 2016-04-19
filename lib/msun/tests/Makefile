@@ -1,5 +1,10 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
+PACKAGE=tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libm
 
 # All architectures on FreeBSD have fenv.h
@@ -38,12 +43,19 @@ NETBSD_ATF_TESTS_C+=	tanh_test
 
 TAP_TESTS_C+=	cexp_test
 TAP_TESTS_C+=	conj_test
+.if ${MACHINE_CPUARCH} != "aarch64"
+# Hits an assert in llvm when building for arm64:
+# https://llvm.org/bugs/show_bug.cgi?id=26081
 TAP_TESTS_C+=	csqrt_test
+.endif
 TAP_TESTS_C+=	ctrig_test
 TAP_TESTS_C+=	exponential_test
 TAP_TESTS_C+=	fenv_test
 TAP_TESTS_C+=	fma_test
+# clang 3.8.0 fails always fails this test. See: bug 208703
+.if ! (${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} == 30800)
 TAP_TESTS_C+=	fmaxmin_test
+.endif
 TAP_TESTS_C+=	ilogb_test
 TAP_TESTS_C+=	invtrig_test
 TAP_TESTS_C+=	invctrig_test
@@ -58,9 +70,9 @@ TAP_TESTS_C+=	next_test
 TAP_TESTS_C+=	rem_test
 TAP_TESTS_C+=	trig_test
 
-.for t in ${TAP_TESTS_C}
-CFLAGS.$t+=	-O0
-.endfor
+.if !empty(PROG) && !empty(TAP_TESTS_C:M${PROG})
+CFLAGS+=	-O0
+.endif
 
 CSTD=		c99
 

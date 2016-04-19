@@ -390,7 +390,7 @@ gpiobus_probe_nomatch(device_t dev, device_t child)
 		device_printf(dev, "<unknown device> at pins %s", pins);
 	else
 		device_printf(dev, "<unknown device> at pin %s", pins);
-	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%ld");
+	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%jd");
 	printf("\n");
 }
 
@@ -412,7 +412,7 @@ gpiobus_print_child(device_t dev, device_t child)
 		gpiobus_print_pins(devi, pins, sizeof(pins));
 		retval += printf("%s", pins);
 	}
-	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%ld");
+	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%jd");
 	retval += bus_print_child_footer(dev, child);
 
 	return (retval);
@@ -516,7 +516,7 @@ gpiobus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	if (type != SYS_RES_IRQ)
 		return (NULL);
-	isdefault = (start == 0UL && end == ~0UL && count == 1);
+	isdefault = (RMAN_IS_DEFAULT_RANGE(start, end) && count == 1);
 	rle = NULL;
 	if (isdefault) {
 		rl = BUS_GET_RESOURCE_LIST(bus, child);

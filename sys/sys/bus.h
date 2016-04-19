@@ -30,6 +30,7 @@
 #define _SYS_BUS_H_
 
 #include <machine/_limits.h>
+#include <machine/_bus.h>
 #include <sys/_bus_dma.h>
 #include <sys/ioccom.h>
 
@@ -140,6 +141,7 @@ void devctl_notify(const char *__system, const char *__subsystem,
     const char *__type, const char *__data);
 void devctl_queue_data_f(char *__data, int __flags);
 void devctl_queue_data(char *__data);
+void devctl_safe_quote(char *__dst, const char *__src, size_t len);
 
 /**
  * Device name parsers.  Hook to allow device enumerators to map
@@ -383,6 +385,8 @@ int	bus_generic_detach(device_t dev);
 void	bus_generic_driver_added(device_t dev, driver_t *driver);
 bus_dma_tag_t
 	bus_generic_get_dma_tag(device_t dev, device_t child);
+bus_space_tag_t
+	bus_generic_get_bus_tag(device_t dev, device_t child);
 int	bus_generic_get_domain(device_t dev, device_t child, int *domain);
 struct resource_list *
 	bus_generic_get_resource_list (device_t, device_t);
@@ -448,6 +452,7 @@ int	bus_activate_resource(device_t dev, int type, int rid,
 int	bus_deactivate_resource(device_t dev, int type, int rid,
 				struct resource *r);
 bus_dma_tag_t bus_get_dma_tag(device_t dev);
+bus_space_tag_t bus_get_bus_tag(device_t dev);
 int	bus_get_domain(device_t dev, int *domain);
 int	bus_release_resource(device_t dev, int type, int rid,
 			     struct resource *r);
@@ -474,7 +479,14 @@ void	bus_enumerate_hinted_children(device_t bus);
 static __inline struct resource *
 bus_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
 {
-	return (bus_alloc_resource(dev, type, rid, 0ul, ~0ul, 1, flags));
+	return (bus_alloc_resource(dev, type, rid, 0, ~0, 1, flags));
+}
+
+static __inline struct resource *
+bus_alloc_resource_anywhere(device_t dev, int type, int *rid,
+    rman_res_t count, u_int flags)
+{
+	return (bus_alloc_resource(dev, type, rid, 0, ~0, count, flags));
 }
 
 /*
@@ -512,6 +524,7 @@ int	device_is_attached(device_t dev);	/* did attach succeed? */
 int	device_is_enabled(device_t dev);
 int	device_is_suspended(device_t dev);
 int	device_is_quiet(device_t dev);
+device_t device_lookup_by_name(const char *name);
 int	device_print_prettyname(device_t dev);
 int	device_printf(device_t dev, const char *, ...) __printflike(2, 3);
 int	device_probe(device_t dev);

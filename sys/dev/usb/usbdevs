@@ -835,6 +835,7 @@ product ABOCOM RT2573_4		0xb21e	RT2573
 product ABOCOM RTL8188CU_1	0x8188  RTL8188CU
 product ABOCOM RTL8188CU_2	0x8189  RTL8188CU
 product ABOCOM RTL8192CU	0x8178  RTL8192CU
+product ABOCOM RTL8188EU	0x8179  RTL8188EU
 product ABOCOM WUG2700		0xb21f	WUG2700
 
 /* Acton Research Corp. */
@@ -1699,6 +1700,7 @@ product DISPLAYLINK UM7X0	0x401a	nanovision MiMo
 product DISPLAYLINK LT1421	0x03e0	Lenovo ThinkVision LT1421
 product DISPLAYLINK POLARIS2	0x0117	Polaris2 USB dock
 product DISPLAYLINK PLUGABLE	0x0377	Plugable docking station
+product DISPLAYLINK ITEC	0x02e9  i-tec USB 2.0 Docking Station
 
 /* DMI products */
 product DMI CFSM_RW		0xa109	CF/SM Reader/Writer
@@ -2265,6 +2267,9 @@ product HIDGLOBAL CM6020	0x1784	Omnikey Cardman 6020
 /* Hitachi, Ltd. products */
 product HITACHI DVDCAM_DZ_MV100A	0x0004	DVD-CAM DZ-MV100A Camcorder
 product HITACHI DVDCAM_USB	0x001e	DVDCAM USB HS Interface
+
+/* Holtek products */
+product HOLTEK F85		0xa030	Holtek USB gaming keyboard
 
 /* HP products */
 product HP 895C			0x0004	DeskJet 895C

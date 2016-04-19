@@ -2534,6 +2534,78 @@ printwmeinfo(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 }
 
 static void
+printvhtcap(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
+{
+	printf("%s", tag);
+	if (verbose) {
+		const struct ieee80211_ie_vhtcap *vhtcap =
+		    (const struct ieee80211_ie_vhtcap *) ie;
+		uint32_t vhtcap_info = LE_READ_4(&vhtcap->vht_cap_info);
+
+		printf("<cap 0x%08x", vhtcap_info);
+		printf(" rx_mcs_map 0x%x",
+		    LE_READ_2(&vhtcap->supp_mcs.rx_mcs_map));
+		printf(" rx_highest %d",
+		    LE_READ_2(&vhtcap->supp_mcs.rx_highest) & 0x1fff);
+		printf(" tx_mcs_map 0x%x",
+		    LE_READ_2(&vhtcap->supp_mcs.tx_mcs_map));
+		printf(" tx_highest %d",
+		    LE_READ_2(&vhtcap->supp_mcs.tx_highest) & 0x1fff);
+
+		printf(">");
+	}
+}
+
+static void
+printvhtinfo(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
+{
+	printf("%s", tag);
+	if (verbose) {
+		const struct ieee80211_ie_vht_operation *vhtinfo =
+		    (const struct ieee80211_ie_vht_operation *) ie;
+
+		printf("<chw %d freq1_idx %d freq2_idx %d basic_mcs_set 0x%04x>",
+		    vhtinfo->chan_width,
+		    vhtinfo->center_freq_seg1_idx,
+		    vhtinfo->center_freq_seg2_idx,
+		    LE_READ_2(&vhtinfo->basic_mcs_set));
+	}
+}
+
+static void
+printvhtpwrenv(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
+{
+	printf("%s", tag);
+	static const char *txpwrmap[] = {
+		"20",
+		"40",
+		"80",
+		"160",
+	};
+	if (verbose) {
+		const struct ieee80211_ie_vht_txpwrenv *vhtpwr =
+		    (const struct ieee80211_ie_vht_txpwrenv *) ie;
+		int i, n;
+		const char *sep = "";
+
+		/* Get count; trim at ielen */
+		n = (vhtpwr->tx_info &
+		    IEEE80211_VHT_TXPWRENV_INFO_COUNT_MASK) + 1;
+		/* Trim at ielen */
+		if (n > ielen - 3)
+			n = ielen - 3;
+		printf("<tx_info 0x%02x pwr:[", vhtpwr->tx_info);
+		for (i = 0; i < n; i++) {
+			printf("%s%s:%.2f", sep, txpwrmap[i],
+			    ((float) ((int8_t) ie[i+3])) / 2.0);
+			sep = " ";
+		}
+
+		printf("]>");
+	}
+}
+
+static void
 printhtcap(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 {
 	printf("%s", tag);
@@ -2672,6 +2744,40 @@ do {									\
 		    mconf->conf_cap);
 	}
 #undef MATCHOUI
+}
+
+static void
+printbssload(const char *tag, const uint8_t *ie, size_t ielen, int maxlen)
+{
+	printf("%s", tag);
+	if (verbose) {
+		const struct ieee80211_bss_load_ie *bssload =
+		    (const struct ieee80211_bss_load_ie *) ie;
+		printf("<sta count %d, chan load %d, aac %d>",
+		    LE_READ_2(&bssload->sta_count),
+		    bssload->chan_load,
+		    bssload->aac);
+	}
+}
+
+static void
+printapchanrep(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
+{
+	printf("%s", tag);
+	if (verbose) {
+		const struct ieee80211_ap_chan_report_ie *ap =
+		    (const struct ieee80211_ap_chan_report_ie *) ie;
+		const char *sep = "";
+		int i;
+
+		printf("<class %u, chan:[", ap->i_class);
+
+		for (i = 3; i < ielen; i++) {
+			printf("%s%u", sep, ie[i]);
+			sep = ",";
+		}
+		printf("]>");
+	}
 }
 
 static const char *
@@ -3018,14 +3124,6 @@ printcountry(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 	printf(">");
 }
 
-/* unaligned little endian access */     
-#define LE_READ_4(p)					\
-	((u_int32_t)					\
-	 ((((const u_int8_t *)(p))[0]      ) |		\
-	  (((const u_int8_t *)(p))[1] <<  8) |		\
-	  (((const u_int8_t *)(p))[2] << 16) |		\
-	  (((const u_int8_t *)(p))[3] << 24)))
-
 static __inline int
 iswpaoui(const u_int8_t *frm)
 {
@@ -3072,6 +3170,7 @@ iename(int elemid)
 	case IEEE80211_ELEMID_CFPARMS:	return " CFPARMS";
 	case IEEE80211_ELEMID_TIM:	return " TIM";
 	case IEEE80211_ELEMID_IBSSPARMS:return " IBSSPARMS";
+	case IEEE80211_ELEMID_BSSLOAD:	return " BSSLOAD";
 	case IEEE80211_ELEMID_CHALLENGE:return " CHALLENGE";
 	case IEEE80211_ELEMID_PWRCNSTR:	return " PWRCNSTR";
 	case IEEE80211_ELEMID_PWRCAP:	return " PWRCAP";
@@ -3148,6 +3247,21 @@ printies(const u_int8_t *vp, int ielen, int maxcols)
 			break;
 		case IEEE80211_ELEMID_MESHCONF:
 			printmeshconf(" MESHCONF", vp, 2+vp[1], maxcols);
+			break;
+		case IEEE80211_ELEMID_VHT_CAP:
+			printvhtcap(" VHTCAP", vp, 2+vp[1], maxcols);
+			break;
+		case IEEE80211_ELEMID_VHT_OPMODE:
+			printvhtinfo(" VHTOPMODE", vp, 2+vp[1], maxcols);
+			break;
+		case IEEE80211_ELEMID_VHT_PWR_ENV:
+			printvhtpwrenv(" VHTPWRENV", vp, 2+vp[1], maxcols);
+			break;
+		case IEEE80211_ELEMID_BSSLOAD:
+			printbssload(" BSSLOAD", vp, 2+vp[1], maxcols);
+			break;
+		case IEEE80211_ELEMID_APCHANREP:
+			printapchanrep(" APCHANREP", vp, 2+vp[1], maxcols);
 			break;
 		default:
 			if (verbose)

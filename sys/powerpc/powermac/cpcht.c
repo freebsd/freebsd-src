@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <powerpc/ofw/ofw_pci.h>
+#include <dev/ofw/ofwpci.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>

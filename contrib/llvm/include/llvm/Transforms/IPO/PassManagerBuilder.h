@@ -15,9 +15,11 @@
 #ifndef LLVM_TRANSFORMS_IPO_PASSMANAGERBUILDER_H
 #define LLVM_TRANSFORMS_IPO_PASSMANAGERBUILDER_H
 
+#include <memory>
 #include <vector>
 
 namespace llvm {
+class FunctionInfoIndex;
 class Pass;
 class TargetLibraryInfoImpl;
 class TargetMachine;
@@ -81,6 +83,11 @@ public:
     /// run after everything else.
     EP_OptimizerLast,
 
+    /// EP_VectorizerStart - This extension point allows adding optimization
+    /// passes before the vectorizer and other highly target specific
+    /// optimization passes are executed.
+    EP_VectorizerStart,
+
     /// EP_EnabledOnOptLevel0 - This extension point allows adding passes that
     /// should not be disabled by O0 optimization level. The passes will be
     /// inserted after the inlining pass.
@@ -108,6 +115,9 @@ public:
   /// Inliner - Specifies the inliner to use.  If this is non-null, it is
   /// added to the per-module passes.
   Pass *Inliner;
+
+  /// The function summary index to use for function importing.
+  const FunctionInfoIndex *FunctionIndex;
 
   bool DisableTailCalls;
   bool DisableUnitAtATime;

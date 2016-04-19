@@ -6,19 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-PPCAsmParser.o: PPCGenAsmMatcher.inc.h
-PPCAsmParser.o: PPCGenInstrInfo.inc.h
-PPCAsmParser.o: PPCGenRegisterInfo.inc.h
-PPCAsmParser.o: PPCGenSubtargetInfo.inc.h
-PPCAsmParser.po: PPCGenAsmMatcher.inc.h
-PPCAsmParser.po: PPCGenInstrInfo.inc.h
-PPCAsmParser.po: PPCGenRegisterInfo.inc.h
-PPCAsmParser.po: PPCGenSubtargetInfo.inc.h
 .endif

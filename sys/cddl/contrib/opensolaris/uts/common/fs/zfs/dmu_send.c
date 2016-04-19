@@ -25,6 +25,8 @@
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright 2014 HybridCluster. All rights reserved.
+ * Copyright 2016 RackTop Systems.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 #include <sys/dmu.h>
@@ -64,6 +66,12 @@
 int zfs_send_corrupt_data = B_FALSE;
 int zfs_send_queue_length = 16 * 1024 * 1024;
 int zfs_recv_queue_length = 16 * 1024 * 1024;
+/* Set this tunable to FALSE to disable setting of DRR_FLAG_FREERECORDS */
+int zfs_send_set_freerecords_bit = B_TRUE;
+
+#ifdef _KERNEL
+TUNABLE_INT("vfs.zfs.send_set_freerecords_bit", &zfs_send_set_freerecords_bit);
+#endif
 
 static char *dmu_recv_tag = "dmu_recv_tag";
 const char *recv_clone_name = "%recv";
@@ -99,6 +107,19 @@ dump_bytes(dmu_sendarg_t *dsp, void *buf, int len)
 	dsl_dataset_t *ds = dmu_objset_ds(dsp->dsa_os);
 	struct uio auio;
 	struct iovec aiov;
+
+	/*
+	 * The code does not rely on this (len being a multiple of 8).  We keep
+	 * this assertion because of the corresponding assertion in
+	 * receive_read().  Keeping this assertion ensures that we do not
+	 * inadvertently break backwards compatibility (causing the assertion
+	 * in receive_read() to trigger on old software).
+	 *
+	 * Removing the assertions could be rolled into a new feature that uses
+	 * data that isn't 8-byte aligned; if the assertions were removed, a
+	 * feature flag would have to be added.
+	 */
+
 	ASSERT0(len % 8);
 
 	aiov.iov_base = buf;
@@ -771,7 +792,8 @@ dmu_send_impl(void *tag, dsl_pool_t *dp, dsl_dataset_t *to_ds,
 	drr->drr_u.drr_begin.drr_toguid = dsl_dataset_phys(to_ds)->ds_guid;
 	if (dsl_dataset_phys(to_ds)->ds_flags & DS_FLAG_CI_DATASET)
 		drr->drr_u.drr_begin.drr_flags |= DRR_FLAG_CI_DATA;
-	drr->drr_u.drr_begin.drr_flags |= DRR_FLAG_FREERECORDS;
+	if (zfs_send_set_freerecords_bit)
+		drr->drr_u.drr_begin.drr_flags |= DRR_FLAG_FREERECORDS;
 
 	if (ancestor_zb != NULL) {
 		drr->drr_u.drr_begin.drr_fromguid =
@@ -1815,7 +1837,10 @@ receive_read(struct receive_arg *ra, int len, void *buf)
 {
 	int done = 0;
 
-	/* some things will require 8-byte alignment, so everything must */
+	/*
+	 * The code doesn't rely on this (lengths being multiples of 8).  See
+	 * comment in dump_bytes.
+	 */
 	ASSERT0(len % 8);
 
 	while (done < len) {

@@ -30,23 +30,32 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/sysproto.h>
 
+#include <contrib/cloudabi/cloudabi_types_common.h>
+
 #include <compat/cloudabi/cloudabi_proto.h>
-#include <compat/cloudabi/cloudabi_syscalldefs.h>
 
 /* Converts CloudABI's memory protection flags to FreeBSD's. */
 static int
-convert_mprot(cloudabi_mprot_t in)
+convert_mprot(cloudabi_mprot_t in, int *out)
 {
-	int out;
 
-	out = 0;
+	/* Unknown protection flags. */
+	if ((in & ~(CLOUDABI_PROT_EXEC | CLOUDABI_PROT_WRITE |
+	    CLOUDABI_PROT_READ)) != 0)
+		return (ENOTSUP);
+	/* W^X: Write and exec cannot be enabled at the same time. */
+	if ((in & (CLOUDABI_PROT_EXEC | CLOUDABI_PROT_WRITE)) ==
+	    (CLOUDABI_PROT_EXEC | CLOUDABI_PROT_WRITE))
+		return (ENOTSUP);
+
+	*out = 0;
 	if (in & CLOUDABI_PROT_EXEC)
-		out |= PROT_EXEC;
+		*out |= PROT_EXEC;
 	if (in & CLOUDABI_PROT_WRITE)
-		out |= PROT_WRITE;
+		*out |= PROT_WRITE;
 	if (in & CLOUDABI_PROT_READ)
-		out |= PROT_READ;
-	return (out);
+		*out |= PROT_READ;
+	return (0);
 }
 
 int
@@ -98,10 +107,10 @@ cloudabi_sys_mem_map(struct thread *td, struct cloudabi_sys_mem_map_args *uap)
 	struct mmap_args mmap_args = {
 		.addr	= uap->addr,
 		.len	= uap->len,
-		.prot	= convert_mprot(uap->prot),
 		.fd	= uap->fd,
 		.pos	= uap->off
 	};
+	int error;
 
 	/* Translate flags. */
 	if (uap->flags & CLOUDABI_MAP_ANON)
@@ -113,6 +122,11 @@ cloudabi_sys_mem_map(struct thread *td, struct cloudabi_sys_mem_map_args *uap)
 	if (uap->flags & CLOUDABI_MAP_SHARED)
 		mmap_args.flags |= MAP_SHARED;
 
+	/* Translate protection. */
+	error = convert_mprot(uap->prot, &mmap_args.prot);
+	if (error != 0)
+		return (error);
+
 	return (sys_mmap(td, &mmap_args));
 }
 
@@ -123,8 +137,13 @@ cloudabi_sys_mem_protect(struct thread *td,
 	struct mprotect_args mprotect_args = {
 		.addr	= uap->addr,
 		.len	= uap->len,
-		.prot	= convert_mprot(uap->prot),
 	};
+	int error;
+
+	/* Translate protection. */
+	error = convert_mprot(uap->prot, &mprotect_args.prot);
+	if (error != 0)
+		return (error);
 
 	return (sys_mprotect(td, &mprotect_args));
 }

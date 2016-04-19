@@ -231,7 +231,7 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct rman			*rm;
 	int				 isdefault, needactivate, passthrough;
 
-	isdefault = (start == 0UL && end == ~0UL && count == 1);
+	isdefault = (RMAN_IS_DEFAULT_RANGE(start, end) && count == 1);
 	needactivate = flags & RF_ACTIVE;
 	passthrough = (device_get_parent(child) != bus);
 	rle = NULL;
@@ -270,7 +270,7 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv == 0) {
+	if (rv == NULL) {
 		printf("%s: could not reserve resource\n", __func__);
 		return (0);
 	}

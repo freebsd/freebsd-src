@@ -2400,11 +2400,11 @@ envy24ht_alloc_resource(struct sc_info *sc)
 {
 	/* allocate I/O port resource */
 	sc->csid = PCIR_CCS;
-	sc->cs = bus_alloc_resource(sc->dev, SYS_RES_IOPORT,
-	    &sc->csid, 0, ~0, 1, RF_ACTIVE);
+	sc->cs = bus_alloc_resource_any(sc->dev, SYS_RES_IOPORT,
+	    &sc->csid, RF_ACTIVE);
 	sc->mtid = ENVY24HT_PCIR_MT;
-	sc->mt = bus_alloc_resource(sc->dev, SYS_RES_IOPORT,
-	    &sc->mtid, 0, ~0, 1, RF_ACTIVE);
+	sc->mt = bus_alloc_resource_any(sc->dev, SYS_RES_IOPORT,
+	    &sc->mtid, RF_ACTIVE);
 	if (!sc->cs || !sc->mt) {
 		device_printf(sc->dev, "unable to map IO port space\n");
 		return ENXIO;
@@ -2422,8 +2422,8 @@ envy24ht_alloc_resource(struct sc_info *sc)
 
 	/* allocate interrupt resource */
 	sc->irqid = 0;
-	sc->irq = bus_alloc_resource(sc->dev, SYS_RES_IRQ, &sc->irqid,
-				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	sc->irq = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, &sc->irqid,
+				 RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->irq ||
 	    snd_setup_intr(sc->dev, sc->irq, INTR_MPSAFE, envy24ht_intr, sc, &sc->ih)) {
 		device_printf(sc->dev, "unable to map interrupt\n");
@@ -2507,7 +2507,7 @@ envy24ht_pci_attach(device_t dev)
 
 	/* set status iformation */
 	snprintf(status, SND_STATUSLEN,
-	    "at io 0x%lx:%ld,0x%lx:%ld irq %ld",
+	    "at io 0x%jx:%jd,0x%jx:%jd irq %jd",
 	    rman_get_start(sc->cs),
 	    rman_get_end(sc->cs) - rman_get_start(sc->cs) + 1,
 	    rman_get_start(sc->mt),

@@ -47,6 +47,10 @@ pccarddevs.h			standard				   \
 	compile-with	"${AWK} -f $S/tools/pccarddevs2h.awk $S/dev/pccard/pccarddevs" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"pccarddevs.h"
+kbdmuxmap.h			optional	kbdmux_dflt_keymap 	   \
+	compile-with	"kbdcontrol -P ${S:S/sys$/share/}/vt/keymaps -P ${S:S/sys$/share/}/syscons/keymaps -L ${KBDMUX_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > kbdmuxmap.h" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"kbdmuxmap.h"
 teken_state.h		optional sc | vt				   \
 	dependency	"$S/teken/gensequences $S/teken/sequences" \
 	compile-with	"${AWK} -f $S/teken/gensequences $S/teken/sequences > teken_state.h" \
@@ -64,6 +68,7 @@ usbdevs_data.h			optional usb				   \
 	clean		"usbdevs_data.h"
 cam/cam.c			optional scbus
 cam/cam_compat.c		optional scbus
+cam/cam_iosched.c		optional scbus
 cam/cam_periph.c		optional scbus
 cam/cam_queue.c			optional scbus
 cam/cam_sim.c			optional scbus
@@ -1212,7 +1217,7 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.14.4.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.15.28.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
@@ -1236,7 +1241,7 @@ t5fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t5fw.fwo"
 t5fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t5fw-1.14.4.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.15.28.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
@@ -1413,12 +1418,20 @@ dev/exca/exca.c			optional cbb
 dev/extres/clk/clk.c		optional ext_resources clk
 dev/extres/clk/clkdev_if.m	optional ext_resources clk
 dev/extres/clk/clknode_if.m	optional ext_resources clk
+dev/extres/clk/clk_bus.c	optional ext_resources clk fdt
 dev/extres/clk/clk_div.c	optional ext_resources clk
 dev/extres/clk/clk_fixed.c	optional ext_resources clk
 dev/extres/clk/clk_gate.c	optional ext_resources clk
 dev/extres/clk/clk_mux.c	optional ext_resources clk
+dev/extres/phy/phy.c		optional ext_resources phy
+dev/extres/phy/phy_if.m		optional ext_resources phy
 dev/extres/hwreset/hwreset.c	optional ext_resources hwreset
 dev/extres/hwreset/hwreset_if.m	optional ext_resources hwreset
+dev/extres/regulator/regdev_if.m	optional ext_resources regulator
+dev/extres/regulator/regnode_if.m	optional ext_resources regulator
+dev/extres/regulator/regulator.c	optional ext_resources regulator
+dev/extres/regulator/regulator_bus.c	optional ext_resources regulator fdt
+dev/extres/regulator/regulator_fixed.c	optional ext_resources regulator
 dev/fatm/if_fatm.c		optional fatm pci
 dev/fb/fbd.c			optional fbd | vt
 dev/fb/fb_if.m			standard
@@ -1430,7 +1443,7 @@ dev/fdt/fdt_pinctrl.c		optional fdt fdt_pinctrl
 dev/fdt/fdt_pinctrl_if.m	optional fdt fdt_pinctrl
 dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand | fdt mx25l
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
-	dependency	"$S/boot/fdt/dts/${MACHINE}/${FDT_DTS_FILE}"
+	dependency	"fdt_dtb_file"
 dev/fdt/simplebus.c		optional fdt
 dev/fe/if_fe.c			optional fe
 dev/fe/if_fe_pccard.c		optional fe pccard
@@ -1560,10 +1573,10 @@ ipw_monitor.fw			optional ipwmonitorfw | ipwfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"ipw_monitor.fw"
-dev/iscsi/icl.c			optional iscsi | ctl 
-dev/iscsi/icl_conn_if.m		optional iscsi | ctl 
+dev/iscsi/icl.c			optional iscsi | ctl
+dev/iscsi/icl_conn_if.m		optional iscsi | ctl
 dev/iscsi/icl_proxy.c		optional iscsi | ctl
-dev/iscsi/icl_soft.c		optional iscsi | ctl 
+dev/iscsi/icl_soft.c		optional iscsi | ctl
 dev/iscsi/iscsi.c		optional iscsi scbus
 dev/iscsi_initiator/iscsi.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/iscsi_subr.c	optional iscsi_initiator scbus
@@ -2547,11 +2560,12 @@ dev/uart/uart_bus_puc.c		optional uart puc
 dev/uart/uart_bus_scc.c		optional uart scc
 dev/uart/uart_core.c		optional uart
 dev/uart/uart_dbg.c		optional uart gdb
-dev/uart/uart_dev_ns8250.c	optional uart uart_ns8250
+dev/uart/uart_dev_ns8250.c	optional uart uart_ns8250 | uart uart_snps
 dev/uart/uart_dev_pl011.c	optional uart pl011
 dev/uart/uart_dev_quicc.c	optional uart quicc
 dev/uart/uart_dev_sab82532.c	optional uart uart_sab82532
 dev/uart/uart_dev_sab82532.c	optional uart scc
+dev/uart/uart_dev_snps.c	optional uart uart_snps
 dev/uart/uart_dev_z8530.c	optional uart uart_z8530
 dev/uart/uart_dev_z8530.c	optional uart scc
 dev/uart/uart_if.m		optional uart
@@ -2670,50 +2684,6 @@ dev/usb/wlan/if_uath.c		optional uath
 dev/usb/wlan/if_upgt.c		optional upgt
 dev/usb/wlan/if_ural.c		optional ural
 dev/usb/wlan/if_urtw.c		optional urtw
-dev/usb/wlan/if_urtwn.c		optional urtwn
-urtwn-rtl8188eufw.c		optional urtwn-rtl8188eufw | urtwnfw	\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk urtwn-rtl8188eufw.fw:urtwn-rtl8188eufw:111 -murtwn-rtl8188eufw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
-	clean		"urtwn-rtl8188eufw.c"
-urtwn-rtl8188eufw.fwo		optional urtwn-rtl8188eufw | urtwnfw	\
-	dependency	"urtwn-rtl8188eufw.fw"				\
-	compile-with	"${NORMAL_FWO}"					\
-	no-implicit-rule						\
-	clean		"urtwn-rtl8188eufw.fwo"
-urtwn-rtl8188eufw.fw		optional urtwn-rtl8188eufw | urtwnfw	\
-	dependency	"$S/contrib/dev/urtwn/urtwn-rtl8188eufw.fw.uu"	\
-	compile-with	"${NORMAL_FW}"					\
-	no-obj no-implicit-rule						\
-	clean		"urtwn-rtl8188eufw.fw"
-urtwn-rtl8192cfwT.c		optional urtwn-rtl8192cfwT | urtwnfw	\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk urtwn-rtl8192cfwT.fw:urtwn-rtl8192cfwT:111 -murtwn-rtl8192cfwT -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
-	clean		"urtwn-rtl8192cfwT.c"
-urtwn-rtl8192cfwT.fwo		optional urtwn-rtl8192cfwT | urtwnfw	\
-	dependency	"urtwn-rtl8192cfwT.fw"				\
-	compile-with	"${NORMAL_FWO}"					\
-	no-implicit-rule						\
-	clean		"urtwn-rtl8192cfwT.fwo"
-urtwn-rtl8192cfwT.fw		optional urtwn-rtl8192cfwT | urtwnfw	\
-	dependency	"$S/contrib/dev/urtwn/urtwn-rtl8192cfwT.fw.uu"	\
-	compile-with	"${NORMAL_FW}"					\
-	no-obj no-implicit-rule						\
-	clean		"urtwn-rtl8192cfwT.fw"
-urtwn-rtl8192cfwU.c		optional urtwn-rtl8192cfwU | urtwnfw	\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk urtwn-rtl8192cfwU.fw:urtwn-rtl8192cfwU:111 -murtwn-rtl8192cfwU -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
-	clean		"urtwn-rtl8192cfwU.c"
-urtwn-rtl8192cfwU.fwo		optional urtwn-rtl8192cfwU | urtwnfw	\
-	dependency	"urtwn-rtl8192cfwU.fw"				\
-	compile-with	"${NORMAL_FWO}"					\
-	no-implicit-rule						\
-	clean		"urtwn-rtl8192cfwU.fwo"
-urtwn-rtl8192cfwU.fw		optional urtwn-rtl8192cfwU | urtwnfw	\
-	dependency	"$S/contrib/dev/urtwn/urtwn-rtl8192cfwU.fw.uu"	\
-	compile-with	"${NORMAL_FW}"					\
-	no-obj no-implicit-rule						\
-	clean		"urtwn-rtl8192cfwU.fw"
-
 dev/usb/wlan/if_zyd.c		optional zyd
 #
 # USB serial and parallel port drivers
@@ -3081,23 +3051,25 @@ geom/raid3/g_raid3.c		optional geom_raid3
 geom/raid3/g_raid3_ctl.c	optional geom_raid3
 geom/shsec/g_shsec.c		optional geom_shsec
 geom/stripe/g_stripe.c		optional geom_stripe
-geom/uncompress/g_uncompress.c	optional geom_uncompress
 contrib/xz-embedded/freebsd/xz_malloc.c	\
-	optional xz_embedded | geom_uncompress \
+	optional xz_embedded | geom_uzip \
 	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
 contrib/xz-embedded/linux/lib/xz/xz_crc32.c \
-	optional xz_embedded | geom_uncompress \
+	optional xz_embedded | geom_uzip \
 	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
 contrib/xz-embedded/linux/lib/xz/xz_dec_bcj.c \
-	optional xz_embedded | geom_uncompress \
+	optional xz_embedded | geom_uzip \
 	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
 contrib/xz-embedded/linux/lib/xz/xz_dec_lzma2.c \
-	optional xz_embedded | geom_uncompress \
+	optional xz_embedded | geom_uzip \
 	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
 contrib/xz-embedded/linux/lib/xz/xz_dec_stream.c \
-	optional xz_embedded | geom_uncompress \
+	optional xz_embedded | geom_uzip \
 	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
 geom/uzip/g_uzip.c		optional geom_uzip
+geom/uzip/g_uzip_lzma.c		optional geom_uzip
+geom/uzip/g_uzip_wrkthr.c	optional geom_uzip
+geom/uzip/g_uzip_zlib.c		optional geom_uzip
 geom/vinum/geom_vinum.c		optional geom_vinum
 geom/vinum/geom_vinum_create.c	optional geom_vinum
 geom/vinum/geom_vinum_drive.c	optional geom_vinum
@@ -3330,7 +3302,7 @@ kern/uipc_socket.c		standard
 kern/uipc_syscalls.c		standard
 kern/uipc_usrreq.c		standard
 kern/vfs_acl.c			standard
-kern/vfs_aio.c			optional vfs_aio
+kern/vfs_aio.c			standard
 kern/vfs_bio.c			standard
 kern/vfs_cache.c		standard
 kern/vfs_cluster.c		standard
@@ -3455,7 +3427,7 @@ libkern/strvalid.c		standard
 libkern/timingsafe_bcmp.c	standard
 libkern/zlib.c			optional crypto | geom_uzip | ipsec | \
 					 mxge | netgraph_deflate | \
-					 ddb_ctf | gzio | geom_uncompress
+					 ddb_ctf | gzio
 net/altq/altq_cbq.c		optional altq
 net/altq/altq_cdnr.c		optional altq
 net/altq/altq_codel.c		optional altq
@@ -3777,6 +3749,7 @@ netpfil/ipfw/ip_dn_io.c		optional inet dummynet
 netpfil/ipfw/ip_dn_glue.c	optional inet dummynet
 netpfil/ipfw/ip_fw2.c		optional inet ipfirewall
 netpfil/ipfw/ip_fw_dynamic.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_eaction.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_log.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_pfil.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_sockopt.c	optional inet ipfirewall

@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/cpufunc.h>
-#include <machine/pmap.h>
 
 #include <netinet/in.h>
 #include <netinet/ip.h>

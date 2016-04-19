@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <vis.h>
 
-#include <compat/cloudabi/cloudabi_syscalldefs.h>
+#include <contrib/cloudabi/cloudabi_types_common.h>
 
 #include "truss.h"
 #include "extern.h"
@@ -818,7 +818,7 @@ static struct xlat cloudabi_ssflags[] = {
 };
 
 static struct xlat cloudabi_ssstate[] = {
-	X(SOCKSTAT_ACCEPTCONN)
+	X(SOCKSTATE_ACCEPTCONN)
 	XEND
 };
 
@@ -1197,7 +1197,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 					break;
 				len--;
 				truncated = 1;
-			};
+			}
 			fprintf(fp, "\"%s\"%s", tmp3, truncated ?
 			    "..." : "");
 			free(tmp3);
@@ -2005,38 +2005,18 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 void
 print_syscall(struct trussinfo *trussinfo)
 {
-	struct timespec timediff;
 	struct threadinfo *t;
 	const char *name;
 	char **s_args;
 	int i, len, nargs;
 
-	len = 0;
 	t = trussinfo->curthread;
-	if (trussinfo->flags & FOLLOWFORKS)
-		len += fprintf(trussinfo->outfile, "%5d: ",
-		    t->proc->pid);
 
 	name = t->cs.name;
 	nargs = t->cs.nargs;
 	s_args = t->cs.s_args;
-	if (name != NULL && (strcmp(name, "execve") == 0 ||
-	    strcmp(name, "exit") == 0)) {
-		clock_gettime(CLOCK_REALTIME, &t->after);
-	}
 
-	if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
-		timespecsubt(&t->after, &trussinfo->start_time, &timediff);
-		len += fprintf(trussinfo->outfile, "%jd.%09ld ",
-		    (intmax_t)timediff.tv_sec, timediff.tv_nsec);
-	}
-
-	if (trussinfo->flags & RELATIVETIMESTAMPS) {
-		timespecsubt(&t->after, &t->before, &timediff);
-		len += fprintf(trussinfo->outfile, "%jd.%09ld ",
-		    (intmax_t)timediff.tv_sec, timediff.tv_nsec);
-	}
-
+	len = print_line_prefix(trussinfo);
 	len += fprintf(trussinfo->outfile, "%s(", name);
 
 	for (i = 0; i < nargs; i++) {
@@ -2059,11 +2039,11 @@ print_syscall_ret(struct trussinfo *trussinfo, int errorp, long *retval)
 	struct timespec timediff;
 	struct threadinfo *t;
 	struct syscall *sc;
+	int error;
 
 	t = trussinfo->curthread;
 	sc = t->cs.sc;
 	if (trussinfo->flags & COUNTONLY) {
-		clock_gettime(CLOCK_REALTIME, &t->after);
 		timespecsubt(&t->after, &t->before, &timediff);
 		timespecadd(&sc->time, &timediff, &sc->time);
 		sc->ncalls++;
@@ -2074,9 +2054,22 @@ print_syscall_ret(struct trussinfo *trussinfo, int errorp, long *retval)
 
 	print_syscall(trussinfo);
 	fflush(trussinfo->outfile);
-	if (errorp)
+
+	if (retval == NULL) {
+		/*
+		 * This system call resulted in the current thread's exit,
+		 * so there is no return value or error to display.
+		 */
+		fprintf(trussinfo->outfile, "\n");
+		return;
+	}
+
+	if (errorp) {
+		error = sysdecode_abi_to_freebsd_errno(t->proc->abi->abi,
+		    retval[0]);
 		fprintf(trussinfo->outfile, " ERR#%ld '%s'\n", retval[0],
-		    strerror(retval[0]));
+		    error == INT_MAX ? "Unknown error" : strerror(error));
+	}
 #ifndef __LP64__
 	else if (sc->ret_type == 2) {
 		off_t off;

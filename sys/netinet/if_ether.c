@@ -578,7 +578,7 @@ int
 arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
 {
-	struct llentry *la = 0;
+	struct llentry *la = NULL;
 
 	if (pflags != NULL)
 		*pflags = 0;

@@ -111,7 +111,6 @@ net_init(void)
 static int
 net_open(struct open_file *f, ...)
 {
-	char temp[FNAME_SIZE];
 	struct iodesc *d;
 	va_list args;
 	char *devname;		/* Device part of file name (or NULL). */
@@ -164,13 +163,18 @@ net_open(struct open_file *f, ...)
 		 * info from bootp or other sources.
 		 */
 		d = socktodesc(netdev_sock);
-		sprintf(temp, "%6D", d->myea, ":");
-		setenv("boot.netif.hwaddr", temp, 1);
+		setenv("boot.netif.hwaddr", ether_sprintf(d->myea), 1);
 		setenv("boot.netif.ip", inet_ntoa(myip), 1);
 		setenv("boot.netif.netmask", intoa(netmask), 1);
 		setenv("boot.netif.gateway", inet_ntoa(gateip), 1);
 		setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
 		setenv("boot.nfsroot.path", rootpath, 1);
+		if (intf_mtu != 0) {
+			char mtu[16];
+			sprintf(mtu, "%u", intf_mtu);
+			setenv("boot.netif.mtu", mtu, 1);
+		}
+
 	}
 	netdev_opens++;
 	f->f_devdata = &netdev_sock;

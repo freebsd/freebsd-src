@@ -293,7 +293,7 @@ static const struct {
 	{0x11851039, 0x00, "SiS 968",		0},
 	{0x01861039, 0x00, "SiS 968",		0},
 	{0xa01c177d, 0x00, "ThunderX",		AHCI_Q_ABAR0|AHCI_Q_1MSI},
-	{0x00311c36, 0x00, "Annapurna",		AHCI_Q_FORCE_PI|AHCI_Q_RESTORE_CAP},
+	{0x00311c36, 0x00, "Annapurna",		AHCI_Q_FORCE_PI|AHCI_Q_RESTORE_CAP|AHCI_Q_NOMSIX},
 	{0x00000000, 0x00, NULL,		0}
 };
 
@@ -423,6 +423,8 @@ ahci_pci_attach(device_t dev)
 	    pci_get_subvendor(dev) == 0x1043 &&
 	    pci_get_subdevice(dev) == 0x81e4)
 		ctlr->quirks |= AHCI_Q_SATA1_UNIT0;
+	resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "quirks", &ctlr->quirks);
 	ctlr->vendorid = pci_get_vendor(dev);
 	ctlr->deviceid = pci_get_device(dev);
 	ctlr->subvendorid = pci_get_subvendor(dev);
@@ -436,6 +438,9 @@ ahci_pci_attach(device_t dev)
 	if (!(ctlr->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &ctlr->r_rid, RF_ACTIVE)))
 		return ENXIO;
+
+	if (ctlr->quirks & AHCI_Q_NOMSIX)
+		msix_count = 0;
 
 	/* Read MSI-x BAR IDs if supported */
 	if (msix_count > 0) {
@@ -488,7 +493,7 @@ ahci_pci_attach(device_t dev)
 	if ((error = ahci_pci_ctlr_reset(dev)) != 0) {
 		ahci_free_mem(dev);
 		return (error);
-	};
+	}
 
 	/* Setup interrupts. */
 

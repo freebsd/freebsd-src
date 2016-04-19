@@ -433,7 +433,7 @@ fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	int passthrough;
 	int i;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
 	res = NULL;
 	rle = NULL;
@@ -529,7 +529,7 @@ fhc_print_res(struct fhc_devinfo *fdi)
 
 	rv = 0;
 	rv += resource_list_print_type(&fdi->fdi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx");
-	rv += resource_list_print_type(&fdi->fdi_rl, "irq", SYS_RES_IRQ, "%ld");
+	    "%#jx");
+	rv += resource_list_print_type(&fdi->fdi_rl, "irq", SYS_RES_IRQ, "%jd");
 	return (rv);
 }

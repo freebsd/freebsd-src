@@ -1,7 +1,9 @@
 # $FreeBSD$
 
+PACKAGE=	clibs
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
+CCDIR=	${.CURDIR}/../../usr.bin/cc
 COMPILERRTDIR=	${.CURDIR}/../../../contrib/compiler-rt
 UNWINDINCDIR=	${.CURDIR}/../../../contrib/llvm/projects/libunwind/include
 UNWINDSRCDIR=	${.CURDIR}/../../../contrib/llvm/projects/libunwind/src
@@ -16,7 +18,8 @@ SHLIBDIR?=	/lib
 #
 MK_SSP=	no
 
-.include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
+.include "${CCDIR}/Makefile.tgt"
+.include "${CCDIR}/cc_tools/Makefile.hdrs"
 
 .if ${TARGET_CPUARCH} == "arm"
 CFLAGS+=	-DTARGET_ARM_EABI
@@ -28,12 +31,12 @@ CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 		-DHAVE_GTHR_DEFAULT \
 		-I${GCCLIB}/include \
 		-I${GCCDIR}/config -I${GCCDIR} -I. \
-		-I${.CURDIR}/../../usr.bin/cc/cc_tools
+		-I${CCDIR}/cc_tools
 
 LDFLAGS+=	-nodefaultlibs
 LIBADD+=	c
 
-OBJS=		# added to below in various ways depending on TARGET_CPUARCH
+SOBJS=		# added to below in various ways depending on TARGET_CPUARCH
 
 #---------------------------------------------------------------------------
 #
@@ -252,7 +255,7 @@ OBJ_GRPS +=	FPBIT DPBIT
 ${T}_OBJS_T =	${${T}_FUNCS:S/$/.o/}
 ${T}_OBJS_P =	${${T}_FUNCS:S/$/.po/}
 ${T}_OBJS_S =	${${T}_FUNCS:S/$/.So/}
-OBJS +=		${${T}_FUNCS:S/$/.o/}
+SOBJS +=	${${T}_FUNCS:S/$/.So/}
 
 ${${T}_OBJS_T}: ${${T}_CFILE} ${COMMONHDRS}
 	${CC_T} ${${T}_CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
@@ -267,9 +270,7 @@ ${${T}_OBJS_S}: ${${T}_CFILE} ${COMMONHDRS}
 # Extra objects coming from separate files
 #
 .if !empty(LIB2ADD)
-OBJS  +=	${LIB2ADD:R:S/$/.o/}
 SOBJS +=	${LIB2ADD:R:S/$/.So/}
-POBJS +=	${LIB2ADD:R:S/$/.po/}
 .endif
 
 #-----------------------------------------------------------------------
@@ -295,7 +296,7 @@ ASM_T =		${LIB1ASMFUNCS:S/$/.o/}
 ASM_P =		${LIB1ASMFUNCS:S/$/.po/}
 ASM_S =		${LIB1ASMFUNCS:S/$/.So/}
 ASM_V =		${LIB1ASMFUNCS:S/$/.vis/}
-OBJS +=		${LIB1ASMFUNCS:S/$/.o/}
+SOBJS +=	${LIB1ASMFUNCS:S/$/.So/}
 
 ${ASM_T}: ${LIB1ASMSRC} ${.PREFIX}.vis
 	${CC} -x assembler-with-cpp -c ${CFLAGS} -DL${.PREFIX} \
@@ -341,13 +342,6 @@ ${_src:R:S/$/.So/}: ${_src} ${COMMONHDRS}
 .endfor
 
 
-#-----------------------------------------------------------------------
-#
-# Generated headers
-#
-${COMMONHDRS}: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
-	(cd ${.CURDIR}; ${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET})
-
 CLEANFILES += ${COMMONHDRS}
 CLEANFILES += cs-*.h option*
 
@@ -363,7 +357,7 @@ SHLIB_MAPFILES  += ${GCCDIR}/config/arm/libgcc-bpabi.ver
 .endif
 VERSION_MAP      = libgcc.map
 
-libgcc.map: ${SHLIB_MKMAP} ${SHLIB_MAPFILES} ${SOBJS} ${OBJS:R:S/$/.So/}
+libgcc.map: ${SHLIB_MKMAP} ${SHLIB_MAPFILES} ${SOBJS}
 	(  ${NM} -pg ${SOBJS};echo %% ; \
 	  cat ${SHLIB_MAPFILES} \
 	    | sed -e '/^[   ]*#/d' \
@@ -380,7 +374,7 @@ CLEANFILES +=	libgcc.map
 libgcc_eh.a:	${EH_OBJS_T}
 	@${ECHO} building static gcc_eh library
 	@rm -f ${.TARGET}
-	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_T} | tsort -q`
+	${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_T} | tsort -q`
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 
 _LIBS+= libgcc_eh.a
@@ -389,7 +383,7 @@ _LIBS+= libgcc_eh.a
 libgcc_eh_p.a:	${EH_OBJS_P}
 	@${ECHO} building profiled gcc_eh library
 	@rm -f ${.TARGET}
-	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_P} | tsort -q`
+	${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_P} | tsort -q`
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 
 _LIBS+= libgcc_eh_p.a

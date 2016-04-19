@@ -57,3 +57,11 @@ METHOD int set_videomode {
 	device_t dev;
 	const struct videomode *videomode;
 };
+
+#
+# Enable/disable output
+#
+METHOD int enable {
+	device_t dev;
+	int onoff;
+};

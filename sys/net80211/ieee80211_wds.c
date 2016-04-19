@@ -288,9 +288,11 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 		/*
 		 * Encapsulate the packet in prep for transmission.
 		 */
+		IEEE80211_TX_LOCK(ic);
 		mcopy = ieee80211_encap(vap, ni, mcopy);
 		if (mcopy == NULL) {
 			/* NB: stat+msg handled in ieee80211_encap */
+			IEEE80211_TX_UNLOCK(ic);
 			ieee80211_free_node(ni);
 			continue;
 		}
@@ -298,6 +300,7 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 		mcopy->m_pkthdr.rcvif = (void *) ni;
 
 		err = ieee80211_parent_xmitpkt(ic, mcopy);
+		IEEE80211_TX_UNLOCK(ic);
 		if (!err) {
 			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
@@ -416,7 +419,6 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 	struct ether_header *eh;
 	int hdrspace, need_tap = 1;	/* mbuf need to be tapped. */
 	uint8_t dir, type, subtype, qos;
-	uint16_t rxseq;
 
 	if (m->m_flags & M_AMPDU_MPDU) {
 		/*
@@ -494,22 +496,8 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 		if (IEEE80211_QOS_HAS_SEQ(wh) &&
 		    TID_TO_WME_AC(tid) >= WME_AC_VI)
 			ic->ic_wme.wme_hipri_traffic++;
-		rxseq = le16toh(*(uint16_t *)wh->i_seq);
-		if (! ieee80211_check_rxseq(ni, wh)) {
-			/* duplicate, discard */
-			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
-			    wh->i_addr1, "duplicate",
-			    "seqno <%u,%u> fragno <%u,%u> tid %u",
-			    rxseq >> IEEE80211_SEQ_SEQ_SHIFT,
-			    ni->ni_rxseqs[tid] >> IEEE80211_SEQ_SEQ_SHIFT,
-			    rxseq & IEEE80211_SEQ_FRAG_MASK,
-			    ni->ni_rxseqs[tid] & IEEE80211_SEQ_FRAG_MASK,
-			    tid);
-			vap->iv_stats.is_rx_dup++;
-			IEEE80211_NODE_STAT(ni, rx_dup);
+		if (! ieee80211_check_rxseq(ni, wh, wh->i_addr1))
 			goto out;
-		}
-		ni->ni_rxseqs[tid] = rxseq;
 	}
 	switch (type) {
 	case IEEE80211_FC0_TYPE_DATA:
@@ -782,6 +770,7 @@ wds_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 	case IEEE80211_FC0_SUBTYPE_REASSOC_RESP:
 	case IEEE80211_FC0_SUBTYPE_PROBE_REQ:
 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
+	case IEEE80211_FC0_SUBTYPE_TIMING_ADV:
 	case IEEE80211_FC0_SUBTYPE_BEACON:
 	case IEEE80211_FC0_SUBTYPE_ATIM:
 	case IEEE80211_FC0_SUBTYPE_DISASSOC:

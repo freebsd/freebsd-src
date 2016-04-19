@@ -86,8 +86,9 @@ sbni_probe_isa(device_t dev)
 
 	sc = device_get_softc(dev);
 
- 	sc->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->io_rid,
-					0ul, ~0ul, SBNI_PORTS, RF_ACTIVE);
+ 	sc->io_res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+ 						 &sc->io_rid, SBNI_PORTS,
+ 						 RF_ACTIVE);
 	if (!sc->io_res) {
 		printf("sbni: cannot allocate io ports!\n");
 		return (ENOENT);

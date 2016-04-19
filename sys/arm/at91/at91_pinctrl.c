@@ -280,7 +280,7 @@ pinctrl_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * Request for the default allocation with a given rid: use resource
 	 * list stored in the local device info.
 	 */
-	if ((start == 0UL) && (end == ~0UL)) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
 		if ((di = device_get_ivars(child)) == NULL)
 			return (NULL);
 
@@ -330,8 +330,8 @@ pinctrl_print_res(struct pinctrl_devinfo *di)
 	int rv;
 
 	rv = 0;
-	rv += resource_list_print_type(&di->rl, "mem", SYS_RES_MEMORY, "%#lx");
-	rv += resource_list_print_type(&di->rl, "irq", SYS_RES_IRQ, "%ld");
+	rv += resource_list_print_type(&di->rl, "mem", SYS_RES_MEMORY, "%#jx");
+	rv += resource_list_print_type(&di->rl, "irq", SYS_RES_IRQ, "%jd");
 	return (rv);
 }
 

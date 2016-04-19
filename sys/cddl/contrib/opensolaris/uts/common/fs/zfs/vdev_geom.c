@@ -115,27 +115,14 @@ vdev_geom_attrchanged(struct g_consumer *cp, const char *attr)
 	if (error == 0) {
 		char *old_physpath;
 
+		/* g_topology lock ensures that vdev has not been closed */
+		g_topology_assert();
 		old_physpath = vd->vdev_physpath;
 		vd->vdev_physpath = spa_strdup(physpath);
 		spa_async_request(spa, SPA_ASYNC_CONFIG_UPDATE);
 
-		if (old_physpath != NULL) {
-			int held_lock;
-
-			held_lock = spa_config_held(spa, SCL_STATE, RW_WRITER);
-			if (held_lock == 0) {
-				g_topology_unlock();
-				spa_config_enter(spa, SCL_STATE, FTAG,
-				    RW_WRITER);
-			}
-
+		if (old_physpath != NULL)
 			spa_strfree(old_physpath);
-
-			if (held_lock == 0) {
-				spa_config_exit(spa, SCL_STATE, FTAG);
-				g_topology_lock();
-			}
-		}
 	}
 	g_free(physpath);
 }
@@ -176,6 +163,7 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
+	int error;
 
 	g_topology_assert();
 
@@ -193,11 +181,17 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd)
 		gp->orphan = vdev_geom_orphan;
 		gp->attrchanged = vdev_geom_attrchanged;
 		cp = g_new_consumer(gp);
-		if (g_attach(cp, pp) != 0) {
+		error = g_attach(cp, pp);
+		if (error != 0) {
+			ZFS_LOG(1, "%s(%d): g_attach failed: %d\n", __func__,
+			    __LINE__, error);
 			g_wither_geom(gp, ENXIO);
 			return (NULL);
 		}
-		if (g_access(cp, 1, 0, 1) != 0) {
+		error = g_access(cp, 1, 0, 1);
+		if (error != 0) {
+			ZFS_LOG(1, "%s(%d): g_access failed: %d\n", __func__,
+			       __LINE__, error);
 			g_wither_geom(gp, ENXIO);
 			return (NULL);
 		}
@@ -212,19 +206,29 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd)
 		}
 		if (cp == NULL) {
 			cp = g_new_consumer(gp);
-			if (g_attach(cp, pp) != 0) {
+			error = g_attach(cp, pp);
+			if (error != 0) {
+				ZFS_LOG(1, "%s(%d): g_attach failed: %d\n",
+				    __func__, __LINE__, error);
 				g_destroy_consumer(cp);
 				return (NULL);
 			}
-			if (g_access(cp, 1, 0, 1) != 0) {
+			error = g_access(cp, 1, 0, 1);
+			if (error != 0) {
+				ZFS_LOG(1, "%s(%d): g_access failed: %d\n",
+				    __func__, __LINE__, error);
 				g_detach(cp);
 				g_destroy_consumer(cp);
 				return (NULL);
 			}
 			ZFS_LOG(1, "Created consumer for %s.", pp->name);
 		} else {
-			if (g_access(cp, 1, 0, 1) != 0)
+			error = g_access(cp, 1, 0, 1);
+			if (error != 0) {
+				ZFS_LOG(1, "%s(%d): g_access failed: %d\n",
+				    __func__, __LINE__, error);
 				return (NULL);
+			}
 			ZFS_LOG(1, "Used existing consumer for %s.", pp->name);
 		}
 	}
@@ -242,9 +246,6 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd)
 	cp->private = vd;
 	vd->vdev_tsd = cp;
 
-	/* Fetch initial physical path information for this device. */
-	vdev_geom_attrchanged(cp, "GEOM::physpath");
-	
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	return (cp);
 }
@@ -314,7 +315,7 @@ vdev_geom_io(struct g_consumer *cp, int cmd, void *data, off_t offset, off_t siz
 	error = 0;
 
 	for (; off < offset; off += maxio, p += maxio, size -= maxio) {
-		bzero(bp, sizeof(*bp));
+		g_reset_bio(bp);
 		bp->bio_cmd = cmd;
 		bp->bio_done = NULL;
 		bp->bio_offset = off;
@@ -638,7 +639,8 @@ vdev_geom_open_by_guids(vdev_t *vd)
 
 	g_topology_assert();
 
-	ZFS_LOG(1, "Searching by guid [%ju].", (uintmax_t)vd->vdev_guid);
+	ZFS_LOG(1, "Searching by guids [%ju:%ju].",
+		(uintmax_t)spa_guid(vd->vdev_spa), (uintmax_t)vd->vdev_guid);
 	cp = vdev_geom_attach_by_guids(vd);
 	if (cp != NULL) {
 		len = strlen(cp->provider->name) + strlen("/dev/") + 1;
@@ -679,7 +681,15 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 			g_topology_unlock();
 			vdev_geom_read_guids(cp, &pguid, &vguid);
 			g_topology_lock();
-			if (pguid != spa_guid(vd->vdev_spa) ||
+			/*
+			 * Check that the label's vdev guid matches the
+			 * desired guid.  If the label has a pool guid,
+			 * check that it matches too. (Inactive spares
+			 * and L2ARCs do not have any pool guid in the
+			 * label.)
+			 */
+			if ((pguid != 0 &&
+			    pguid != spa_guid(vd->vdev_spa)) ||
 			    vguid != vd->vdev_guid) {
 				vdev_geom_close_locked(vd);
 				cp = NULL;
@@ -792,6 +802,10 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 		}
 	}
 
+	/* Fetch initial physical path information for this device. */
+	if (cp != NULL)
+		vdev_geom_attrchanged(cp, "GEOM::physpath");
+	
 	g_topology_unlock();
 	PICKUP_GIANT();
 	if (cp == NULL) {
@@ -811,7 +825,8 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	 */
 	*logical_ashift = highbit(MAX(pp->sectorsize, SPA_MINBLOCKSIZE)) - 1;
 	*physical_ashift = 0;
-	if (pp->stripesize)
+	if (pp->stripesize > (1 << *logical_ashift) && ISP2(pp->stripesize) &&
+	    pp->stripesize <= (1 << SPA_MAXASHIFT) && pp->stripeoffset == 0)
 		*physical_ashift = highbit(pp->stripesize) - 1;
 
 	/*
@@ -885,7 +900,7 @@ vdev_geom_io_intr(struct bio *bp)
 		break;
 	}
 	g_destroy_bio(bp);
-	zio_interrupt(zio);
+	zio_delay_interrupt(zio);
 }
 
 static void
@@ -948,6 +963,7 @@ sendreq:
 	switch (zio->io_type) {
 	case ZIO_TYPE_READ:
 	case ZIO_TYPE_WRITE:
+		zio->io_target_timestamp = zio_handle_io_delay(zio);
 		bp->bio_cmd = zio->io_type == ZIO_TYPE_READ ? BIO_READ : BIO_WRITE;
 		bp->bio_data = zio->io_data;
 		bp->bio_offset = zio->io_offset;

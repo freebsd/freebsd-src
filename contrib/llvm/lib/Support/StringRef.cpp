@@ -140,20 +140,30 @@ std::string StringRef::upper() const {
 /// \return - The index of the first occurrence of \arg Str, or npos if not
 /// found.
 size_t StringRef::find(StringRef Str, size_t From) const {
-  size_t N = Str.size();
-  if (N > Length)
+  if (From > Length)
     return npos;
+
+  const char *Needle = Str.data();
+  size_t N = Str.size();
+  if (N == 0)
+    return From;
+
+  size_t Size = Length - From;
+  if (Size < N)
+    return npos;
+
+  const char *Start = Data + From;
+  const char *Stop = Start + (Size - N + 1);
 
   // For short haystacks or unsupported needles fall back to the naive algorithm
-  if (Length < 16 || N > 255 || N == 0) {
-    for (size_t e = Length - N + 1, i = std::min(From, e); i != e; ++i)
-      if (substr(i, N).equals(Str))
-        return i;
+  if (Size < 16 || N > 255) {
+    do {
+      if (std::memcmp(Start, Needle, N) == 0)
+        return Start - Data;
+      ++Start;
+    } while (Start < Stop);
     return npos;
   }
-
-  if (From >= Length)
-    return npos;
 
   // Build the bad char heuristic table, with uint8_t to reduce cache thrashing.
   uint8_t BadCharSkip[256];
@@ -161,16 +171,13 @@ size_t StringRef::find(StringRef Str, size_t From) const {
   for (unsigned i = 0; i != N-1; ++i)
     BadCharSkip[(uint8_t)Str[i]] = N-1-i;
 
-  unsigned Len = Length-From, Pos = From;
-  while (Len >= N) {
-    if (substr(Pos, N).equals(Str)) // See if this is the correct substring.
-      return Pos;
+  do {
+    if (std::memcmp(Start, Needle, N) == 0)
+      return Start - Data;
 
     // Otherwise skip the appropriate number of bytes.
-    uint8_t Skip = BadCharSkip[(uint8_t)(*this)[Pos+N-1]];
-    Len -= Skip;
-    Pos += Skip;
-  }
+    Start += BadCharSkip[(uint8_t)Start[N-1]];
+  } while (Start < Stop);
 
   return npos;
 }
@@ -274,24 +281,56 @@ StringRef::size_type StringRef::find_last_not_of(StringRef Chars,
 }
 
 void StringRef::split(SmallVectorImpl<StringRef> &A,
-                      StringRef Separators, int MaxSplit,
+                      StringRef Separator, int MaxSplit,
                       bool KeepEmpty) const {
-  StringRef rest = *this;
+  StringRef S = *this;
 
-  // rest.data() is used to distinguish cases like "a," that splits into
-  // "a" + "" and "a" that splits into "a" + 0.
-  for (int splits = 0;
-       rest.data() != nullptr && (MaxSplit < 0 || splits < MaxSplit);
-       ++splits) {
-    std::pair<StringRef, StringRef> p = rest.split(Separators);
+  // Count down from MaxSplit. When MaxSplit is -1, this will just split
+  // "forever". This doesn't support splitting more than 2^31 times
+  // intentionally; if we ever want that we can make MaxSplit a 64-bit integer
+  // but that seems unlikely to be useful.
+  while (MaxSplit-- != 0) {
+    size_t Idx = S.find(Separator);
+    if (Idx == npos)
+      break;
 
-    if (KeepEmpty || p.first.size() != 0)
-      A.push_back(p.first);
-    rest = p.second;
+    // Push this split.
+    if (KeepEmpty || Idx > 0)
+      A.push_back(S.slice(0, Idx));
+
+    // Jump forward.
+    S = S.slice(Idx + Separator.size(), npos);
   }
-  // If we have a tail left, add it.
-  if (rest.data() != nullptr && (rest.size() != 0 || KeepEmpty))
-    A.push_back(rest);
+
+  // Push the tail.
+  if (KeepEmpty || !S.empty())
+    A.push_back(S);
+}
+
+void StringRef::split(SmallVectorImpl<StringRef> &A, char Separator,
+                      int MaxSplit, bool KeepEmpty) const {
+  StringRef S = *this;
+
+  // Count down from MaxSplit. When MaxSplit is -1, this will just split
+  // "forever". This doesn't support splitting more than 2^31 times
+  // intentionally; if we ever want that we can make MaxSplit a 64-bit integer
+  // but that seems unlikely to be useful.
+  while (MaxSplit-- != 0) {
+    size_t Idx = S.find(Separator);
+    if (Idx == npos)
+      break;
+
+    // Push this split.
+    if (KeepEmpty || Idx > 0)
+      A.push_back(S.slice(0, Idx));
+
+    // Jump forward.
+    S = S.slice(Idx + 1, npos);
+  }
+
+  // Push the tail.
+  if (KeepEmpty || !S.empty())
+    A.push_back(S);
 }
 
 //===----------------------------------------------------------------------===//

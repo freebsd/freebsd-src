@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "sanitizer_platform.h"
+
 #if SANITIZER_POSIX
 
 #include "sanitizer_common.h"
@@ -57,8 +58,8 @@ static uptr GetKernelAreaSize() {
   // mapped to top gigabyte (e.g. stack).
   MemoryMappingLayout proc_maps(/*cache_enabled*/true);
   uptr end, prot;
-  while (proc_maps.Next(/*start*/0, &end,
-                        /*offset*/0, /*filename*/0,
+  while (proc_maps.Next(/*start*/nullptr, &end,
+                        /*offset*/nullptr, /*filename*/nullptr,
                         /*filename_size*/0, &prot)) {
     if ((end >= 3 * gbyte)
         && (prot & MemoryMappingLayout::kProtectionWrite) != 0)
@@ -111,27 +112,14 @@ uptr GetMaxVirtualAddress() {
 #endif  // SANITIZER_WORDSIZE
 }
 
-void *MmapOrDie(uptr size, const char *mem_type) {
+void *MmapOrDie(uptr size, const char *mem_type, bool raw_report) {
   size = RoundUpTo(size, GetPageSizeCached());
-  uptr res = internal_mmap(0, size,
-                            PROT_READ | PROT_WRITE,
-                            MAP_PRIVATE | MAP_ANON, -1, 0);
+  uptr res = internal_mmap(nullptr, size,
+                           PROT_READ | PROT_WRITE,
+                           MAP_PRIVATE | MAP_ANON, -1, 0);
   int reserrno;
-  if (internal_iserror(res, &reserrno)) {
-    static int recursion_count;
-    if (recursion_count) {
-      // The Report() and CHECK calls below may call mmap recursively and fail.
-      // If we went into recursion, just die.
-      RawWrite("ERROR: Failed to mmap\n");
-      Die();
-    }
-    recursion_count++;
-    Report("ERROR: %s failed to "
-           "allocate 0x%zx (%zd) bytes of %s (errno: %d)\n",
-           SanitizerToolName, size, size, mem_type, reserrno);
-    DumpProcessMap();
-    CHECK("unable to mmap" && 0);
-  }
+  if (internal_iserror(res, &reserrno))
+    ReportMmapFailureAndDie(size, mem_type, "allocate", reserrno, raw_report);
   IncreaseTotalMmap(size);
   return (void *)res;
 }
@@ -149,18 +137,14 @@ void UnmapOrDie(void *addr, uptr size) {
 
 void *MmapNoReserveOrDie(uptr size, const char *mem_type) {
   uptr PageSize = GetPageSizeCached();
-  uptr p = internal_mmap(0,
-      RoundUpTo(size, PageSize),
-      PROT_READ | PROT_WRITE,
-      MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
-      -1, 0);
+  uptr p = internal_mmap(nullptr,
+                         RoundUpTo(size, PageSize),
+                         PROT_READ | PROT_WRITE,
+                         MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
+                         -1, 0);
   int reserrno;
-  if (internal_iserror(p, &reserrno)) {
-    Report("ERROR: %s failed to "
-           "allocate noreserve 0x%zx (%zd) bytes for '%s' (errno: %d)\n",
-           SanitizerToolName, size, size, mem_type, reserrno);
-    CHECK("unable to mmap" && 0);
-  }
+  if (internal_iserror(p, &reserrno))
+    ReportMmapFailureAndDie(size, mem_type, "allocate noreserve", reserrno);
   IncreaseTotalMmap(size);
   return (void *)p;
 }
@@ -174,10 +158,10 @@ void *MmapFixedOrDie(uptr fixed_addr, uptr size) {
       -1, 0);
   int reserrno;
   if (internal_iserror(p, &reserrno)) {
-    Report("ERROR: %s failed to "
-           "allocate 0x%zx (%zd) bytes at address %zx (errno: %d)\n",
-           SanitizerToolName, size, size, fixed_addr, reserrno);
-    CHECK("unable to mmap" && 0);
+    char mem_type[30];
+    internal_snprintf(mem_type, sizeof(mem_type), "memory at address 0x%zx",
+                      fixed_addr);
+    ReportMmapFailureAndDie(size, mem_type, "allocate", reserrno);
   }
   IncreaseTotalMmap(size);
   return (void *)p;
@@ -236,8 +220,8 @@ void *MapFileToMemory(const char *file_name, uptr *buff_size) {
   CHECK_NE(fsize, (uptr)-1);
   CHECK_GT(fsize, 0);
   *buff_size = RoundUpTo(fsize, GetPageSizeCached());
-  uptr map = internal_mmap(0, *buff_size, PROT_READ, MAP_PRIVATE, fd, 0);
-  return internal_iserror(map) ? 0 : (void *)map;
+  uptr map = internal_mmap(nullptr, *buff_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  return internal_iserror(map) ? nullptr : (void *)map;
 }
 
 void *MapWritableFileToMemory(void *addr, uptr size, fd_t fd, OFF_T offset) {
@@ -248,7 +232,7 @@ void *MapWritableFileToMemory(void *addr, uptr size, fd_t fd, OFF_T offset) {
   if (internal_iserror(p, &mmap_errno)) {
     Printf("could not map writable file (%d, %lld, %zu): %zd, errno: %d\n",
            fd, (long long)offset, size, p, mmap_errno);
-    return 0;
+    return nullptr;
   }
   return (void *)p;
 }
@@ -268,8 +252,8 @@ bool MemoryRangeIsAvailable(uptr range_start, uptr range_end) {
   MemoryMappingLayout proc_maps(/*cache_enabled*/true);
   uptr start, end;
   while (proc_maps.Next(&start, &end,
-                        /*offset*/0, /*filename*/0, /*filename_size*/0,
-                        /*protection*/0)) {
+                        /*offset*/nullptr, /*filename*/nullptr,
+                        /*filename_size*/0, /*protection*/nullptr)) {
     if (start == end) continue;  // Empty range.
     CHECK_NE(0, end);
     if (!IntervalsAreSeparate(start, end - 1, range_start, range_end))
@@ -284,8 +268,8 @@ void DumpProcessMap() {
   const sptr kBufSize = 4095;
   char *filename = (char*)MmapOrDie(kBufSize, __func__);
   Report("Process memory map follows:\n");
-  while (proc_maps.Next(&start, &end, /* file_offset */0,
-                        filename, kBufSize, /* protection */0)) {
+  while (proc_maps.Next(&start, &end, /* file_offset */nullptr,
+                        filename, kBufSize, /* protection */nullptr)) {
     Printf("\t%p-%p\t%s\n", (void*)start, (void*)end, filename);
   }
   Report("End of process memory map.\n");
@@ -294,30 +278,6 @@ void DumpProcessMap() {
 
 const char *GetPwd() {
   return GetEnv("PWD");
-}
-
-char *FindPathToBinary(const char *name) {
-  const char *path = GetEnv("PATH");
-  if (!path)
-    return 0;
-  uptr name_len = internal_strlen(name);
-  InternalScopedBuffer<char> buffer(kMaxPathLength);
-  const char *beg = path;
-  while (true) {
-    const char *end = internal_strchrnul(beg, ':');
-    uptr prefix_len = end - beg;
-    if (prefix_len + name_len + 2 <= kMaxPathLength) {
-      internal_memcpy(buffer.data(), beg, prefix_len);
-      buffer[prefix_len] = '/';
-      internal_memcpy(&buffer[prefix_len + 1], name, name_len);
-      buffer[prefix_len + 1 + name_len] = '\0';
-      if (FileExists(buffer.data()))
-        return internal_strdup(buffer.data());
-    }
-    if (*end == '\0') break;
-    beg = end + 1;
-  }
-  return 0;
 }
 
 bool IsPathSeparator(const char c) {
@@ -361,6 +321,6 @@ SignalContext SignalContext::Create(void *siginfo, void *context) {
   return SignalContext(context, addr, pc, sp, bp);
 }
 
-}  // namespace __sanitizer
+} // namespace __sanitizer
 
-#endif  // SANITIZER_POSIX
+#endif // SANITIZER_POSIX

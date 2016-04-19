@@ -2291,6 +2291,8 @@ struct scsi_vpd_id_descriptor
 #define	SVPD_ID_TYPE_LUNGRP	0x06
 #define	SVPD_ID_TYPE_MD5_LUN_ID	0x07
 #define	SVPD_ID_TYPE_SCSI_NAME	0x08
+#define	SVPD_ID_TYPE_PROTO	0x09
+#define	SVPD_ID_TYPE_UUID	0x0a
 #define	SVPD_ID_TYPE_MASK	0x0f
 	u_int8_t	reserved;
 	u_int8_t	length;
@@ -3644,6 +3646,7 @@ const char *	scsi_op_desc(u_int16_t opcode,
 			     struct scsi_inquiry_data *inq_data);
 char *		scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string,
 				size_t len);
+void		scsi_cdb_sbuf(u_int8_t *cdb_ptr, struct sbuf *sb);
 
 void		scsi_print_inquiry(struct scsi_inquiry_data *inq_data);
 void		scsi_print_inquiry_short(struct scsi_inquiry_data *inq_data);
@@ -3658,6 +3661,7 @@ int		scsi_devid_is_lun_eui64(uint8_t *bufp);
 int		scsi_devid_is_lun_naa(uint8_t *bufp);
 int		scsi_devid_is_lun_name(uint8_t *bufp);
 int		scsi_devid_is_lun_t10(uint8_t *bufp);
+int		scsi_devid_is_port_naa(uint8_t *bufp);
 struct scsi_vpd_id_descriptor *
 		scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t len,
 			       scsi_devid_checkfn_t ck_fn);

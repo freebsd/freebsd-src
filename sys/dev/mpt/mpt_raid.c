@@ -595,7 +595,7 @@ mpt_issue_raid_req(struct mpt_softc *mpt, struct mpt_raid_volume *vol,
 	rap->Function = MPI_FUNCTION_RAID_ACTION;
 	rap->VolumeID = vol->config_page->VolumeID;
 	rap->VolumeBus = vol->config_page->VolumeBus;
-	if (disk != 0)
+	if (disk != NULL)
 		rap->PhysDiskNum = disk->config_page.PhysDiskNum;
 	else
 		rap->PhysDiskNum = 0xFF;

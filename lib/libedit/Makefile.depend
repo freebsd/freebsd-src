@@ -16,49 +16,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-editline.So: common.h
-editline.So: editline.c
-editline.So: emacs.h
-editline.So: fcns.c
-editline.So: fcns.h
-editline.So: help.c
-editline.So: help.h
-editline.So: vi.h
-editline.o: common.h
-editline.o: editline.c
-editline.o: emacs.h
-editline.o: fcns.c
-editline.o: fcns.h
-editline.o: help.c
-editline.o: help.h
-editline.o: vi.h
-editline.po: common.h
-editline.po: editline.c
-editline.po: emacs.h
-editline.po: fcns.c
-editline.po: fcns.h
-editline.po: help.c
-editline.po: help.h
-editline.po: vi.h
-historyn.So: historyn.c
-historyn.o: historyn.c
-historyn.po: historyn.c
-readline.So: common.h
-readline.So: emacs.h
-readline.So: fcns.h
-readline.So: help.h
-readline.So: vi.h
-readline.o: common.h
-readline.o: emacs.h
-readline.o: fcns.h
-readline.o: help.h
-readline.o: vi.h
-readline.po: common.h
-readline.po: emacs.h
-readline.po: fcns.h
-readline.po: help.h
-readline.po: vi.h
-tokenizern.So: tokenizern.c
-tokenizern.o: tokenizern.c
-tokenizern.po: tokenizern.c
 .endif

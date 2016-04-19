@@ -58,6 +58,10 @@ nooptions	SMP
 nooptions	MAXCPU
 
 nooptions	COMPAT_FREEBSD4
+nooptions	COMPAT_FREEBSD5
+nooptions	COMPAT_FREEBSD6
+nooptions	COMPAT_FREEBSD7
+nooptions	COMPAT_FREEBSD9
 nooption	PPC_PROBE_CHIPSET
 
 nodevice	fdc

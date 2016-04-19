@@ -76,8 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_param.h>
 #include <vm/vm_phys.h>
-#include <machine/param.h>
-#include <machine/pmap.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #if defined(__i386__) || defined(__amd64__)
@@ -239,7 +237,6 @@ struct drm_device;
 		printf("[" DRM_NAME "]:KMS:pid%d:%s]" fmt, DRM_CURRENTPID,\
 			__func__ , ##__VA_ARGS__);			\
 } while (0)
-
 
 /*@}*/
 
@@ -702,6 +699,8 @@ struct drm_driver {
 	void (*postclose) (struct drm_device *, struct drm_file *);
 	void (*lastclose) (struct drm_device *);
 	int (*unload) (struct drm_device *);
+	int (*suspend) (struct drm_device *, pm_message_t state);
+	int (*resume) (struct drm_device *);
 	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
 	int (*dma_quiescent) (struct drm_device *);
 	int (*context_dtor) (struct drm_device *dev, int context);
@@ -1120,7 +1119,7 @@ struct drm_device {
 	char busid_str[128];
 	int modesetting;
 
-	drm_pci_id_list_t *id_entry;	/* PCI ID, name, and chipset private */
+	const drm_pci_id_list_t *id_entry;	/* PCI ID, name, and chipset private */
 };
 
 #define DRM_SWITCH_POWER_ON 0
@@ -1583,6 +1582,8 @@ static __inline__ void drm_core_dropmap(struct drm_local_map *map)
 {
 }
 
+#include <dev/drm2/drm_mem_util.h>
+
 extern int drm_fill_in_dev(struct drm_device *dev,
 			   struct drm_driver *driver);
 extern void drm_cancel_fill_in_dev(struct drm_device *dev);
@@ -1760,9 +1761,11 @@ struct dmi_system_id {
 bool dmi_check_system(const struct dmi_system_id *);
 
 /* Device setup support (drm_drv.c) */
-int	drm_probe_helper(device_t kdev, drm_pci_id_list_t *idlist);
-int	drm_attach_helper(device_t kdev, drm_pci_id_list_t *idlist,
+int	drm_probe_helper(device_t kdev, const drm_pci_id_list_t *idlist);
+int	drm_attach_helper(device_t kdev, const drm_pci_id_list_t *idlist,
 	    struct drm_driver *driver);
+int	drm_generic_suspend(device_t kdev);
+int	drm_generic_resume(device_t kdev);
 int	drm_generic_detach(device_t kdev);
 
 void drm_event_wakeup(struct drm_pending_event *e);

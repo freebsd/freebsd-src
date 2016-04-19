@@ -166,7 +166,7 @@ clkintr(void *arg)
 		mtx_unlock_spin(&clock_lock);
 	}
 
-	if (sc && sc->et.et_active && sc->mode != MODE_STOP)
+	if (sc->et.et_active && sc->mode != MODE_STOP)
 		sc->et.et_event_cb(&sc->et, sc->et.et_arg);
 
 #ifdef DEV_MCA

@@ -20,14 +20,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ipmon_l.o: ipmon_l.c
-ipmon_l.o: ipmon_l.h
-ipmon_l.o: ipmon_y.h
-ipmon_l.po: ipmon_l.c
-ipmon_l.po: ipmon_l.h
-ipmon_l.po: ipmon_y.h
-ipmon_y.o: ipmon_l.h
-ipmon_y.o: ipmon_y.c
-ipmon_y.po: ipmon_l.h
-ipmon_y.po: ipmon_y.c
 .endif

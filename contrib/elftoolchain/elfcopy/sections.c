@@ -343,7 +343,7 @@ create_scn(struct elfcopy *ecp)
 	GElf_Shdr	 ish;
 	size_t		 indx;
 	uint64_t	 oldndx, newndx;
-	int		 elferr, sec_flags;
+	int		 elferr, sec_flags, reorder;
 
 	/*
 	 * Insert a pseudo section that contains the ELF header
@@ -367,6 +367,7 @@ create_scn(struct elfcopy *ecp)
 		errx(EXIT_FAILURE, "elf_getshstrndx failed: %s",
 		    elf_errmsg(-1));
 
+	reorder = 0;
 	is = NULL;
 	while ((is = elf_nextscn(ecp->ein, is)) != NULL) {
 		if (gelf_getshdr(is, &ish) == NULL)
@@ -482,8 +483,20 @@ create_scn(struct elfcopy *ecp)
 		/* create section header based on input object. */
 		if (strcmp(name, ".symtab") != 0 &&
 		    strcmp(name, ".strtab") != 0 &&
-		    strcmp(name, ".shstrtab") != 0)
+		    strcmp(name, ".shstrtab") != 0) {
 			copy_shdr(ecp, s, NULL, 0, sec_flags);
+			/*
+			 * elfcopy puts .symtab, .strtab and .shstrtab
+			 * sections in the end of the output object.
+			 * If the input objects have more sections
+			 * after any of these 3 sections, the section
+			 * table will be reordered. section symbols
+			 * should be regenerated for relocations.
+			 */
+			if (reorder)
+				ecp->flags &= ~SYMTAB_INTACT;
+		} else
+			reorder = 1;
 
 		if (strcmp(name, ".symtab") == 0) {
 			ecp->flags |= SYMTAB_EXIST;
@@ -1522,6 +1535,9 @@ add_gnu_debuglink(struct elfcopy *ecp)
 		err(EXIT_FAILURE, "strdup failed");
 	if (stat(ecp->debuglink, &sb) == -1)
 		err(EXIT_FAILURE, "stat failed");
+	if (sb.st_size == 0)
+		errx(EXIT_FAILURE, "empty debug link target %s",
+		    ecp->debuglink);
 	if ((buf = malloc(sb.st_size)) == NULL)
 		err(EXIT_FAILURE, "malloc failed");
 	if ((fp = fopen(ecp->debuglink, "r")) == NULL)

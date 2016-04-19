@@ -15,14 +15,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-confstr.o: confstr.c
-confstr.po: confstr.c
-limits.o: limits.c
-limits.po: limits.c
-pathconf.o: pathconf.c
-pathconf.po: pathconf.c
-progenv.o: progenv.c
-progenv.po: progenv.c
-sysconf.o: sysconf.c
-sysconf.po: sysconf.c
 .endif

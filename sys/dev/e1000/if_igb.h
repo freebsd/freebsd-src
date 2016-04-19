@@ -278,7 +278,7 @@
 #define HW_DEBUGOUT1(S, A)          if (DEBUG_HW) printf(S "\n", A)
 #define HW_DEBUGOUT2(S, A, B)       if (DEBUG_HW) printf(S "\n", A, B)
 
-#define IGB_MAX_SCATTER		64
+#define IGB_MAX_SCATTER		40
 #define IGB_VFTA_SIZE		128
 #define IGB_BR_SIZE		4096	/* ring buf size */
 #define IGB_TSO_SIZE		(65535 + sizeof(struct ether_vlan_header))
@@ -291,7 +291,11 @@
 #define ETH_ADDR_LEN		6
 
 /* Offload bits in mbuf flag */
-#if __FreeBSD_version >= 800000
+#if __FreeBSD_version >= 1000000
+#define CSUM_OFFLOAD_IPV4       (CSUM_IP|CSUM_IP_TCP|CSUM_IP_UDP|CSUM_IP_SCTP)
+#define CSUM_OFFLOAD_IPV6       (CSUM_IP6_TCP|CSUM_IP6_UDP|CSUM_IP6_SCTP)
+#define CSUM_OFFLOAD            (CSUM_OFFLOAD_IPV4|CSUM_OFFLOAD_IPV6)
+#elif __FreeBSD_version >= 800000
 #define CSUM_OFFLOAD		(CSUM_IP|CSUM_TCP|CSUM_UDP|CSUM_SCTP)
 #else
 #define CSUM_OFFLOAD		(CSUM_IP|CSUM_TCP|CSUM_UDP)

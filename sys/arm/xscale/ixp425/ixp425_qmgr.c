@@ -355,7 +355,7 @@ ixpqmgr_qconfig(int qId, int qEntries, int ne, int nf, int srcSel,
 	if (cb == NULL) {
 	    /* Reset to dummy callback */
 	    qi->cb = dummyCallback;
-	    qi->cbarg = 0;
+	    qi->cbarg = NULL;
 	} else {
 	    qi->cb = cb;
 	    qi->cbarg = cbarg;

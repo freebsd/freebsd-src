@@ -15,70 +15,11 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcom_err \
 	lib/libcompiler_rt \
+	usr.bin/compile_et.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ad.So: kadm5_err.h
-ad.o: kadm5_err.h
-ad.po: kadm5_err.h
-chpass_c.So: kadm5_err.h
-chpass_c.o: kadm5_err.h
-chpass_c.po: kadm5_err.h
-client_glue.So: kadm5_err.h
-client_glue.o: kadm5_err.h
-client_glue.po: kadm5_err.h
-common_glue.So: kadm5_err.h
-common_glue.o: kadm5_err.h
-common_glue.po: kadm5_err.h
-create_c.So: kadm5_err.h
-create_c.o: kadm5_err.h
-create_c.po: kadm5_err.h
-delete_c.So: kadm5_err.h
-delete_c.o: kadm5_err.h
-delete_c.po: kadm5_err.h
-destroy_c.So: kadm5_err.h
-destroy_c.o: kadm5_err.h
-destroy_c.po: kadm5_err.h
-flush_c.So: kadm5_err.h
-flush_c.o: kadm5_err.h
-flush_c.po: kadm5_err.h
-free.So: kadm5_err.h
-free.o: kadm5_err.h
-free.po: kadm5_err.h
-get_c.So: kadm5_err.h
-get_c.o: kadm5_err.h
-get_c.po: kadm5_err.h
-get_princs_c.So: kadm5_err.h
-get_princs_c.o: kadm5_err.h
-get_princs_c.po: kadm5_err.h
-init_c.So: kadm5_err.h
-init_c.o: kadm5_err.h
-init_c.po: kadm5_err.h
-kadm5_err.So: kadm5_err.c
-kadm5_err.So: kadm5_err.h
-kadm5_err.o: kadm5_err.c
-kadm5_err.o: kadm5_err.h
-kadm5_err.po: kadm5_err.c
-kadm5_err.po: kadm5_err.h
-marshall.So: kadm5_err.h
-marshall.o: kadm5_err.h
-marshall.po: kadm5_err.h
-modify_c.So: kadm5_err.h
-modify_c.o: kadm5_err.h
-modify_c.po: kadm5_err.h
-privs_c.So: kadm5_err.h
-privs_c.o: kadm5_err.h
-privs_c.po: kadm5_err.h
-randkey_c.So: kadm5_err.h
-randkey_c.o: kadm5_err.h
-randkey_c.po: kadm5_err.h
-rename_c.So: kadm5_err.h
-rename_c.o: kadm5_err.h
-rename_c.po: kadm5_err.h
-send_recv.So: kadm5_err.h
-send_recv.o: kadm5_err.h
-send_recv.po: kadm5_err.h
 .endif

@@ -70,13 +70,19 @@ options 	MAC			# TrustedBSD MAC Framework
 options 	RACCT			# Resource accounting framework
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
 options 	RCTL			# Resource limits
-# options 	SMP
+options 	SMP
+
+# Uncomment for memory disk
+# options 	MD_ROOT
+# options 	MD_ROOT_SIZE=8192	# 8MB ram disk
+# makeoptions	MFS_IMAGE=/path/to/img
+# options 	ROOTDEVNAME=\"ufs:/dev/md0\"
 
 # Debugging support.  Always need this:
-# options 	KDB			# Enable kernel debugger support.
-# options 	KDB_TRACE		# Print a stack trace for a panic.
+options 	KDB			# Enable kernel debugger support.
+options 	KDB_TRACE		# Print a stack trace for a panic.
 # For full debugger support use (turn off in stable branch):
-# options 	DDB			# Support DDB.
+options 	DDB			# Support DDB.
 # options 	GDB			# Support remote GDB.
 options 	DEADLKRES		# Enable the deadlock resolver
 options 	INVARIANTS		# Enable calls of extra sanity checking

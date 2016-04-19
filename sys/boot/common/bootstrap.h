@@ -33,24 +33,6 @@
 #include <sys/queue.h>
 #include <sys/linker_set.h>
 
-/*
- * Generic device specifier; architecture-dependant 
- * versions may be larger, but should be allowed to
- * overlap.
- */
-struct devdesc 
-{
-    struct devsw	*d_dev;
-    int			d_type;
-#define DEVT_NONE	0
-#define DEVT_DISK	1
-#define DEVT_NET	2
-#define	DEVT_CD		3
-#define DEVT_ZFS	4
-    int			d_unit;
-    void		*d_opendata;
-};
-
 /* Commands and return values; nonzero return sets command_errmsg != NULL */
 typedef int	(bootblk_cmd_t)(int argc, char *argv[]);
 extern char	*command_errmsg;	
@@ -90,9 +72,11 @@ int	kern_pread(int fd, vm_offset_t dest, size_t len, off_t off);
 void	*alloc_pread(int fd, off_t off, size_t len);
 
 /* bcache.c */
-int	bcache_init(u_int nblks, size_t bsize);
-void	bcache_flush(void);
-int	bcache_strategy(void *devdata, int unit, int rw, daddr_t blk,
+void	bcache_init(u_int nblks, size_t bsize);
+void	bcache_add_dev(int);
+void	*bcache_allocate(void);
+void	bcache_free(void *);
+int	bcache_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
 			size_t size, char *buf, size_t *rsize);
 
 /*
@@ -100,8 +84,10 @@ int	bcache_strategy(void *devdata, int unit, int rw, daddr_t blk,
  */
 struct bcache_devdata
 {
-    int         (*dv_strategy)(void *devdata, int rw, daddr_t blk, size_t size, char *buf, size_t *rsize);
+    int         (*dv_strategy)(void *devdata, int rw, daddr_t blk,
+			size_t offset, size_t size, char *buf, size_t *rsize);
     void	*dv_devdata;
+    void	*dv_cache;
 };
 
 /*

@@ -73,7 +73,7 @@ static device_attach_t ehci_xls_attach;
 static device_detach_t ehci_xls_detach;
 
 static const char *xlr_usb_dev_desc = "RMI XLR USB 2.0 controller";
-#define XLR_VENDOR_DESC "RMI Corp";
+#define XLR_VENDOR_DESC "RMI Corp"
 
 static int
 ehci_xls_probe(device_t self)

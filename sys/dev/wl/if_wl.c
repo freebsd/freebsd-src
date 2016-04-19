@@ -495,7 +495,7 @@ wlattach(device_t device)
     }
 
 #ifdef WLDEBUG
-    printf("wlattach: base %lx, unit %d\n", rman_get_start(sc->res_ioport),
+    printf("wlattach: base %jx, unit %d\n", rman_get_start(sc->res_ioport),
 	device_get_unit(device));
 #endif
 
@@ -604,8 +604,8 @@ wl_allocate_resources(device_t device)
     struct wl_softc *sc = device_get_softc(device);
     int ports = 16;		/* Number of ports */
 
-    sc->res_ioport = bus_alloc_resource(device, SYS_RES_IOPORT,
-	&sc->rid_ioport, 0ul, ~0ul, ports, RF_ACTIVE);
+    sc->res_ioport = bus_alloc_resource_anywhere(device, SYS_RES_IOPORT,
+	&sc->rid_ioport, ports, RF_ACTIVE);
     if (sc->res_ioport == NULL)
 	goto errexit;
 

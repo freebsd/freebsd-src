@@ -259,7 +259,6 @@ ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, flags, cred, bpp)
 	static int curfail;
 	int64_t delta;
 
-	*bpp = 0;
 	vp = ITOV(ip);
 	fs = ip->i_fs;
 	bp = NULL;
@@ -319,6 +318,7 @@ retry:
 	/*
 	 * Check for extension in the existing location.
 	 */
+	*bpp = NULL;
 	cg = dtog(fs, bprev);
 	UFS_LOCK(ump);
 	bno = ffs_fragextend(ip, cg, bprev, osize, nsize);
@@ -518,7 +518,7 @@ ffs_reallocblks_ufs1(ap)
 	struct inode *ip;
 	struct vnode *vp;
 	struct buf *sbp, *ebp;
-	ufs1_daddr_t *bap, *sbap, *ebap = 0;
+	ufs1_daddr_t *bap, *sbap, *ebap;
 	struct cluster_save *buflist;
 	struct ufsmount *ump;
 	ufs_lbn_t start_lbn, end_lbn;
@@ -598,6 +598,7 @@ ffs_reallocblks_ufs1(ap)
 	/*
 	 * If the block range spans two block maps, get the second map.
 	 */
+	ebap = NULL;
 	if (end_lvl == 0 || (idp = &end_ap[end_lvl - 1])->in_off + 1 >= len) {
 		ssize = len;
 	} else {
@@ -767,7 +768,7 @@ ffs_reallocblks_ufs2(ap)
 	struct inode *ip;
 	struct vnode *vp;
 	struct buf *sbp, *ebp;
-	ufs2_daddr_t *bap, *sbap, *ebap = 0;
+	ufs2_daddr_t *bap, *sbap, *ebap;
 	struct cluster_save *buflist;
 	struct ufsmount *ump;
 	ufs_lbn_t start_lbn, end_lbn;
@@ -846,6 +847,7 @@ ffs_reallocblks_ufs2(ap)
 	/*
 	 * If the block range spans two block maps, get the second map.
 	 */
+	ebap = NULL;
 	if (end_lvl == 0 || (idp = &end_ap[end_lvl - 1])->in_off + 1 >= len) {
 		ssize = len;
 	} else {
@@ -2270,8 +2272,6 @@ ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
 	bdwrite(bp);
 }
 
-TASKQUEUE_DEFINE_THREAD(ffs_trim);
-
 struct ffs_blkfree_trim_params {
 	struct task task;
 	struct ufsmount *ump;
@@ -2294,6 +2294,7 @@ ffs_blkfree_trim_task(ctx, pending)
 	ffs_blkfree_cg(tp->ump, tp->ump->um_fs, tp->devvp, tp->bno, tp->size,
 	    tp->inum, tp->pdephd);
 	vn_finished_secondary_write(UFSTOVFS(tp->ump));
+	atomic_add_int(&tp->ump->um_trim_inflight, -1);
 	free(tp, M_TEMP);
 }
 
@@ -2306,7 +2307,7 @@ ffs_blkfree_trim_completed(bip)
 	tp = bip->bio_caller2;
 	g_destroy_bio(bip);
 	TASK_INIT(&tp->task, 0, ffs_blkfree_trim_task, tp);
-	taskqueue_enqueue(taskqueue_ffs_trim, &tp->task);
+	taskqueue_enqueue(tp->ump->um_trim_tq, &tp->task);
 }
 
 void
@@ -2350,6 +2351,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd)
 	 * reordering, TRIM might be issued after we reuse the block
 	 * and write some new data into it.
 	 */
+	atomic_add_int(&ump->um_trim_inflight, 1);
 	tp = malloc(sizeof(struct ffs_blkfree_trim_params), M_TEMP, M_WAITOK);
 	tp->ump = ump;
 	tp->devvp = devvp;
@@ -2784,7 +2786,8 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	}
 	vn_start_write(vp, &mp, V_WAIT);
-	if (mp == 0 || strncmp(mp->mnt_stat.f_fstypename, "ufs", MFSNAMELEN)) {
+	if (mp == NULL ||
+	    strncmp(mp->mnt_stat.f_fstypename, "ufs", MFSNAMELEN)) {
 		vn_finished_write(mp);
 		fdrop(fp, td);
 		return (EINVAL);

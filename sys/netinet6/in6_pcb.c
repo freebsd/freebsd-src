@@ -827,9 +827,10 @@ void
 in6_losing(struct inpcb *in6p)
 {
 
-	/*
-	 * We don't store route pointers in the routing table anymore
-	 */
+	if (in6p->inp_route6.ro_rt) {
+		RTFREE(in6p->inp_route6.ro_rt);
+		in6p->inp_route6.ro_rt = (struct rtentry *)NULL;
+	}
 	return;
 }
 
@@ -840,9 +841,11 @@ in6_losing(struct inpcb *in6p)
 struct inpcb *
 in6_rtchange(struct inpcb *inp, int errno)
 {
-	/*
-	 * We don't store route pointers in the routing table anymore
-	 */
+
+	if (inp->inp_route6.ro_rt) {
+		RTFREE(inp->inp_route6.ro_rt);
+		inp->inp_route6.ro_rt = (struct rtentry *)NULL;
+	}
 	return inp;
 }
 

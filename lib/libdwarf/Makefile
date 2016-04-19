@@ -1,7 +1,8 @@
 # $FreeBSD$
 .include <bsd.own.mk>
 
-TOP=	${.CURDIR}/../../contrib/elftoolchain
+PACKAGE=lib${LIB}
+TOP=	${.CURDIR:H:H}/contrib/elftoolchain
 SRCDIR=	${TOP}/libdwarf
 
 .PATH:	${SRCDIR}

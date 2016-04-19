@@ -32,7 +32,7 @@
 .\"     @(#)dd.1	8.2 (Berkeley) 1/13/94
 .\" $FreeBSD$
 .\"
-.Dd February 4, 2016
+.Dd February 28, 2016
 .Dt DD 1
 .Os
 .Sh NAME
@@ -156,6 +156,10 @@ Otherwise, input data is read and discarded.
 For pipes, the correct number of bytes is read.
 For all other devices, the correct number of blocks is read without
 distinguishing between a partial or complete block being read.
+.It Cm speed Ns = Ns Ar n
+Limit the copying speed to
+.Ar n
+bytes per second.
 .It Cm status Ns = Ns Ar value
 Where
 .Cm value
@@ -325,7 +329,7 @@ appended.
 .El
 .El
 .Pp
-Where sizes are specified, a decimal, octal, or hexadecimal number of
+Where sizes or speed are specified, a decimal, octal, or hexadecimal number of
 bytes is expected.
 If the number ends with a
 .Dq Li b ,

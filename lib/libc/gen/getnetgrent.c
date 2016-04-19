@@ -85,9 +85,8 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/errno.h>
 static char *_netgr_yp_domain;
 int _use_only_yp;

@@ -6,61 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ARMAsmBackend.o: ARMGenInstrInfo.inc.h
-ARMAsmBackend.o: ARMGenRegisterInfo.inc.h
-ARMAsmBackend.o: ARMGenSubtargetInfo.inc.h
-ARMAsmBackend.po: ARMGenInstrInfo.inc.h
-ARMAsmBackend.po: ARMGenRegisterInfo.inc.h
-ARMAsmBackend.po: ARMGenSubtargetInfo.inc.h
-ARMELFObjectWriter.o: ARMGenInstrInfo.inc.h
-ARMELFObjectWriter.o: ARMGenRegisterInfo.inc.h
-ARMELFObjectWriter.o: ARMGenSubtargetInfo.inc.h
-ARMELFObjectWriter.po: ARMGenInstrInfo.inc.h
-ARMELFObjectWriter.po: ARMGenRegisterInfo.inc.h
-ARMELFObjectWriter.po: ARMGenSubtargetInfo.inc.h
-ARMELFStreamer.o: ARMGenInstrInfo.inc.h
-ARMELFStreamer.o: ARMGenRegisterInfo.inc.h
-ARMELFStreamer.o: ARMGenSubtargetInfo.inc.h
-ARMELFStreamer.po: ARMGenInstrInfo.inc.h
-ARMELFStreamer.po: ARMGenRegisterInfo.inc.h
-ARMELFStreamer.po: ARMGenSubtargetInfo.inc.h
-ARMMCCodeEmitter.o: ARMGenInstrInfo.inc.h
-ARMMCCodeEmitter.o: ARMGenMCCodeEmitter.inc.h
-ARMMCCodeEmitter.o: ARMGenRegisterInfo.inc.h
-ARMMCCodeEmitter.o: ARMGenSubtargetInfo.inc.h
-ARMMCCodeEmitter.po: ARMGenInstrInfo.inc.h
-ARMMCCodeEmitter.po: ARMGenMCCodeEmitter.inc.h
-ARMMCCodeEmitter.po: ARMGenRegisterInfo.inc.h
-ARMMCCodeEmitter.po: ARMGenSubtargetInfo.inc.h
-ARMMCTargetDesc.o: ARMGenInstrInfo.inc.h
-ARMMCTargetDesc.o: ARMGenRegisterInfo.inc.h
-ARMMCTargetDesc.o: ARMGenSubtargetInfo.inc.h
-ARMMCTargetDesc.po: ARMGenInstrInfo.inc.h
-ARMMCTargetDesc.po: ARMGenRegisterInfo.inc.h
-ARMMCTargetDesc.po: ARMGenSubtargetInfo.inc.h
-ARMMachORelocationInfo.o: ARMGenInstrInfo.inc.h
-ARMMachORelocationInfo.o: ARMGenRegisterInfo.inc.h
-ARMMachORelocationInfo.o: ARMGenSubtargetInfo.inc.h
-ARMMachORelocationInfo.po: ARMGenInstrInfo.inc.h
-ARMMachORelocationInfo.po: ARMGenRegisterInfo.inc.h
-ARMMachORelocationInfo.po: ARMGenSubtargetInfo.inc.h
-ARMMachObjectWriter.o: ARMGenInstrInfo.inc.h
-ARMMachObjectWriter.o: ARMGenRegisterInfo.inc.h
-ARMMachObjectWriter.o: ARMGenSubtargetInfo.inc.h
-ARMMachObjectWriter.po: ARMGenInstrInfo.inc.h
-ARMMachObjectWriter.po: ARMGenRegisterInfo.inc.h
-ARMMachObjectWriter.po: ARMGenSubtargetInfo.inc.h
-ARMWinCOFFStreamer.o: ARMGenInstrInfo.inc.h
-ARMWinCOFFStreamer.o: ARMGenRegisterInfo.inc.h
-ARMWinCOFFStreamer.o: ARMGenSubtargetInfo.inc.h
-ARMWinCOFFStreamer.po: ARMGenInstrInfo.inc.h
-ARMWinCOFFStreamer.po: ARMGenRegisterInfo.inc.h
-ARMWinCOFFStreamer.po: ARMGenSubtargetInfo.inc.h
 .endif

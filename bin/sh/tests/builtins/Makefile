@@ -2,6 +2,9 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
 TESTSDIR=	${TESTSBASE}/bin/sh/${.CURDIR:T}
 
 .PATH: ${.CURDIR:H}
@@ -140,6 +143,7 @@ FILES+=		return7.4
 FILES+=		return8.0
 FILES+=		set1.0
 FILES+=		set2.0
+FILES+=		set3.0
 FILES+=		trap1.0
 FILES+=		trap10.0
 FILES+=		trap11.0
@@ -148,6 +152,7 @@ FILES+=		trap13.0
 FILES+=		trap14.0
 FILES+=		trap15.0
 FILES+=		trap16.0
+FILES+=		trap17.0
 FILES+=		trap2.0
 FILES+=		trap3.0
 FILES+=		trap4.0

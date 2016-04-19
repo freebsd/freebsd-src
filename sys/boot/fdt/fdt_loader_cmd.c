@@ -296,8 +296,8 @@ fdt_setup_fdtp()
 	/* If we were given the address of a valid blob in memory, use it. */
 	if (fdt_to_load != NULL) {
 		if (fdt_load_dtb_addr(fdt_to_load) == 0) {
-			printf("Using DTB from memory address 0x%08X.\n",
-			    (unsigned int)fdt_to_load);
+			printf("Using DTB from memory address 0x%p.\n",
+			    fdt_to_load);
 			return (0);
 		}
 	}
@@ -427,6 +427,7 @@ fdt_fixup_cpubusfreqs(unsigned long cpufreq, unsigned long busfreq)
 	}
 }
 
+#ifdef notyet
 static int
 fdt_reg_valid(uint32_t *reg, int len, int addr_cells, int size_cells)
 {
@@ -458,6 +459,7 @@ fdt_reg_valid(uint32_t *reg, int len, int addr_cells, int size_cells)
 	}
 	return (0);
 }
+#endif
 
 void
 fdt_fixup_memory(struct fdt_mem_region *region, size_t num)

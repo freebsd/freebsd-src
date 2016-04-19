@@ -86,8 +86,9 @@ protected:
   void InitMCProcessorInfo(StringRef CPU, StringRef FS);
 
 public:
-  /// Set the features to the default for the given CPU.
-  void setDefaultFeatures(StringRef CPU);
+  /// Set the features to the default for the given CPU with an appended feature
+  /// string.
+  void setDefaultFeatures(StringRef CPU, StringRef FS);
 
   /// ToggleFeature - Toggle a feature and returns the re-computed feature
   /// bits. This version does not change the implied bits.
@@ -159,11 +160,8 @@ public:
 
   /// Check whether the CPU string is valid.
   bool isCPUStringValid(StringRef CPU) const {
-    auto Found = std::find_if(ProcDesc.begin(), ProcDesc.end(),
-                              [=](const SubtargetFeatureKV &KV) {
-                                return CPU == KV.Key; 
-                              });
-    return Found != ProcDesc.end();
+    auto Found = std::lower_bound(ProcDesc.begin(), ProcDesc.end(), CPU);
+    return Found != ProcDesc.end() && StringRef(Found->Key) == CPU;
   }
 };
 

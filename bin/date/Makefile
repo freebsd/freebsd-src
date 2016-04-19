@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
 PROG=	date
 SRCS=	date.c netdate.c vary.c
 

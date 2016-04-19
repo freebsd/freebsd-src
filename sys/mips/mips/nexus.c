@@ -54,11 +54,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/pmap.h>
 #include <machine/resource.h>
 #include <machine/vmparam.h>
 
-#ifdef MIPS_INTRNG
+#ifdef INTRNG
 #include <machine/intr.h>
 #else
 #include <machine/intr_machdep.h>
@@ -116,7 +115,7 @@ static int	nexus_setup_intr(device_t dev, device_t child,
 		    driver_intr_t *intr, void *arg, void **cookiep);
 static int	nexus_teardown_intr(device_t, device_t, struct resource *,
 		    void *);
-#ifdef MIPS_INTRNG
+#ifdef INTRNG
 #ifdef SMP
 static int	nexus_bind_intr(device_t, device_t, struct resource *, int);
 #endif
@@ -149,7 +148,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_activate_resource,nexus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
 	DEVMETHOD(bus_hinted_child,	nexus_hinted_child),
-#ifdef MIPS_INTRNG
+#ifdef INTRNG
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 	DEVMETHOD(bus_describe_intr,	nexus_describe_intr),
 #ifdef SMP
@@ -186,11 +185,11 @@ nexus_probe(device_t dev)
 	}
 
 	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0ul;
+	mem_rman.rm_end = BUS_SPACE_MAXADDR;
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "Memory addresses";
 	if (rman_init(&mem_rman) != 0 ||
-	    rman_manage_region(&mem_rman, 0, ~0) != 0) {
+	    rman_manage_region(&mem_rman, 0, BUS_SPACE_MAXADDR) != 0) {
 		panic("%s: mem_rman", __func__);
 	}
 
@@ -232,8 +231,8 @@ nexus_print_all_resources(device_t dev)
 	if (STAILQ_FIRST(rl))
 		retval += printf(" at");
 
-	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 
 	return (retval);
 }
@@ -276,12 +275,12 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct rman			*rm;
 	int				 isdefault, needactivate, passthrough;
 
-	dprintf("%s: entry (%p, %p, %d, %p, %p, %p, %ld, %d)\n",
+	dprintf("%s: entry (%p, %p, %d, %p, %p, %p, %jd, %d)\n",
 	    __func__, bus, child, type, rid, (void *)(intptr_t)start,
 	    (void *)(intptr_t)end, count, flags);
 	dprintf("%s: requested rid is %d\n", __func__, *rid);
 
-	isdefault = (start == 0UL && end == ~0UL && count == 1);
+	isdefault = (RMAN_IS_DEFAULT_RANGE(start, end) && count == 1);
 	needactivate = flags & RF_ACTIVE;
 	passthrough = (device_get_parent(child) != bus);
 	rle = NULL;
@@ -316,7 +315,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv == 0) {
+	if (rv == NULL) {
 		printf("%s: could not reserve resource for %s\n", __func__,
 		    device_get_nameunit(child));
 		return (0);
@@ -351,7 +350,7 @@ nexus_set_resource(device_t dev, device_t child, int type, int rid,
 	struct resource_list		*rl = &ndev->nx_resources;
 	struct resource_list_entry	*rle;
 
-	dprintf("%s: entry (%p, %p, %d, %d, %p, %ld)\n",
+	dprintf("%s: entry (%p, %p, %d, %d, %p, %jd)\n",
 	    __func__, dev, child, type, rid, (void *)(intptr_t)start, count);
 
 	rle = resource_list_add(rl, type, rid, start, start + count - 1,
@@ -458,14 +457,11 @@ static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
-	int irq;
 
-#ifdef MIPS_INTRNG
-	for (irq = rman_get_start(res); irq <= rman_get_end(res); irq++) {
-		intr_irq_add_handler(child, filt, intr, arg, irq, flags,
-		    cookiep);
-	}
+#ifdef INTRNG
+	return (intr_setup_irq(child, res, filt, intr, arg, flags, cookiep));
 #else
+	int irq;
 	register_t s;
 
 	s = intr_disable();
@@ -478,29 +474,31 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 	cpu_establish_hardintr(device_get_nameunit(child), filt, intr, arg,
 	    irq, flags, cookiep);
 	intr_restore(s);
-#endif
+
 	return (0);
+#endif
 }
 
 static int
 nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 
-#ifdef MIPS_INTRNG
-	return (intr_irq_remove_handler(child, rman_get_start(r), ih));
+#ifdef INTRNG
+	return (intr_teardown_irq(child, r, ih));
 #else
 	printf("Unimplemented %s at %s:%d\n", __func__, __FILE__, __LINE__);
 	return (0);
 #endif
 }
 
-#ifdef MIPS_INTRNG
+#ifdef INTRNG
 static int
 nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 
-	return (intr_irq_config(irq, trig, pol));
+	device_printf(dev, "bus_config_intr is obsolete and not supported!\n");
+	return (EOPNOTSUPP);
 }
 
 static int
@@ -508,7 +506,7 @@ nexus_describe_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie, const char *descr)
 {
 
-	return (intr_irq_describe(rman_get_start(irq), cookie, descr));
+	return (intr_describe_irq(child, irq, cookie, descr));
 }
 
 #ifdef SMP
@@ -516,7 +514,7 @@ static int
 nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
 {
 
-	return (intr_irq_bind(rman_get_start(irq), cpu));
+	return (intr_bind_irq(child, irq, cpu));
 }
 #endif
 
@@ -529,7 +527,7 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
 	return (intr_fdt_map_irq(iparent, intr, icells));
 }
 #endif
-#endif /* MIPS_INTRNG */
+#endif /* INTRNG */
 
 static void
 nexus_hinted_child(device_t bus, const char *dname, int dunit)

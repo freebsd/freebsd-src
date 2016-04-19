@@ -515,7 +515,7 @@ post_update()
 			fi
 		else
 			warn "Needs update: /etc/localtime (required" \
-			    "manual update via tzsetup(1))"
+			    "manual update via tzsetup(8))"
 		fi
 	fi
 }

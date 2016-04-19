@@ -1,7 +1,6 @@
 /*-
- * Copyright (c) 2012-2014 Jakub Wojciech Klama <jceel@FreeBSD.org>.
- * Copyright (c) 2015 Svatopluk Kraus
- * Copyright (c) 2015 Michal Meloun
+ * Copyright (c) 2015-2016 Svatopluk Kraus
+ * Copyright (c) 2015-2016 Michal Meloun
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,8 +23,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -38,6 +35,7 @@ __FBSDID("$FreeBSD$");
  *        - to complete things for removable PICs
  */
 
+#include "opt_acpi.h"
 #include "opt_ddb.h"
 #include "opt_platform.h"
 
@@ -52,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/interrupt.h>
 #include <sys/conf.h>
 #include <sys/cpuset.h>
+#include <sys/rman.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <machine/atomic.h>
@@ -88,8 +87,7 @@ MALLOC_DEFINE(M_INTRNG, "intr", "intr interrupt handling");
 void intr_irq_handler(struct trapframe *tf);
 
 /* Root interrupt controller stuff. */
-static struct intr_irqsrc *irq_root_isrc;
-static device_t irq_root_dev;
+device_t intr_irq_root_dev;
 static intr_irq_filter_t *irq_root_filter;
 static void *irq_root_arg;
 static u_int irq_root_ipicount;
@@ -113,11 +111,37 @@ u_int irq_next_free;
 
 #define IRQ_INVALID	nitems(irq_sources)
 
+/*
+ *  XXX - All stuff around struct intr_dev_data is considered as temporary
+ *  until better place for storing struct intr_map_data will be find.
+ *
+ *  For now, there are two global interrupt numbers spaces:
+ *  <0, NIRQ)                      ... interrupts without config data
+ *                                     managed in irq_sources[]
+ *  IRQ_DDATA_BASE + <0, 2 * NIRQ) ... interrupts with config data
+ *                                     managed in intr_ddata_tab[]
+ *
+ *  Read intr_ddata_lookup() to see how these spaces are worked with.
+ *  Note that each interrupt number from second space duplicates some number
+ *  from first space at this moment. An interrupt number from first space can
+ *  be duplicated even multiple times in second space.
+ */
+struct intr_dev_data {
+	device_t		idd_dev;
+	intptr_t		idd_xref;
+	u_int			idd_irq;
+	struct intr_map_data	idd_data;
+	struct intr_irqsrc *	idd_isrc;
+};
+
+static struct intr_dev_data *intr_ddata_tab[2 * NIRQ];
+static u_int intr_ddata_first_unused;
+
+#define IRQ_DDATA_BASE	10000
+CTASSERT(IRQ_DDATA_BASE > IRQ_INVALID);
+
 #ifdef SMP
 static boolean_t irq_assign_cpu = FALSE;
-
-static struct intr_irqsrc ipi_sources[INTR_IPI_COUNT];
-static u_int ipi_next_num;
 #endif
 
 /*
@@ -177,12 +201,10 @@ static inline void
 isrc_increment_count(struct intr_irqsrc *isrc)
 {
 
-	/*
-	 * XXX - It should be atomic for PPI interrupts. It was proven that
-	 *       the lost is measurable easily for timer PPI interrupts.
-	 */
-	isrc->isrc_count[0]++;
-	/*atomic_add_long(&isrc->isrc_count[0], 1);*/
+	if (isrc->isrc_flags & INTR_ISRCF_PPI)
+		atomic_add_long(&isrc->isrc_count[0], 1);
+	else
+		isrc->isrc_count[0]++;
 }
 
 /*
@@ -237,38 +259,32 @@ isrc_setup_counters(struct intr_irqsrc *isrc)
 	isrc_update_name(isrc, NULL);
 }
 
-#ifdef SMP
 /*
- *  Virtualization for interrupt source IPI counter increment.
+ *  Virtualization for interrupt source interrupt counters release.
  */
-static inline void
-isrc_increment_ipi_count(struct intr_irqsrc *isrc, u_int cpu)
+static void
+isrc_release_counters(struct intr_irqsrc *isrc)
 {
 
-	isrc->isrc_count[cpu]++;
+	panic("%s: not implemented", __func__);
 }
 
+#ifdef SMP
 /*
  *  Virtualization for interrupt source IPI counters setup.
  */
-static void
-isrc_setup_ipi_counters(struct intr_irqsrc *isrc, const char *name)
+u_long *
+intr_ipi_setup_counters(const char *name)
 {
 	u_int index, i;
 	char str[INTRNAME_LEN];
 
 	index = atomic_fetchadd_int(&intrcnt_index, MAXCPU);
-	isrc->isrc_index = index;
-	isrc->isrc_count = &intrcnt[index];
-
 	for (i = 0; i < MAXCPU; i++) {
-		/*
-		 * We do not expect any race in IPI case here,
-		 * so locking is not needed.
-		 */
 		snprintf(str, INTRNAME_LEN, "cpu%d:%s", i, name);
 		intrcnt_setname(str, index + i);
 	}
+	return (&intrcnt[index]);
 }
 #endif
 
@@ -299,8 +315,8 @@ intr_irq_handler(struct trapframe *tf)
  *  be called straight from the interrupt controller, when associated interrupt
  *  source is learned.
  */
-void
-intr_irq_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
+int
+intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 {
 
 	KASSERT(isrc != NULL, ("%s: no source", __func__));
@@ -313,57 +329,16 @@ intr_irq_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 		error = isrc->isrc_filter(isrc->isrc_arg, tf);
 		PIC_POST_FILTER(isrc->isrc_dev, isrc);
 		if (error == FILTER_HANDLED)
-			return;
-	} else 
+			return (0);
+	} else
 #endif
 	if (isrc->isrc_event != NULL) {
 		if (intr_event_handle(isrc->isrc_event, tf) == 0)
-			return;
+			return (0);
 	}
 
 	isrc_increment_straycount(isrc);
-	PIC_DISABLE_SOURCE(isrc->isrc_dev, isrc);
-
-	device_printf(isrc->isrc_dev, "stray irq <%s> disabled",
-	    isrc->isrc_name);
-}
-
-/*
- *  Allocate interrupt source.
- */
-static struct intr_irqsrc *
-isrc_alloc(u_int type, u_int extsize)
-{
-	struct intr_irqsrc *isrc;
-
-	isrc = malloc(sizeof(*isrc) + extsize, M_INTRNG, M_WAITOK | M_ZERO);
-	isrc->isrc_irq = IRQ_INVALID;	/* just to be safe */
-	isrc->isrc_type = type;
-	isrc->isrc_nspc_type = INTR_IRQ_NSPC_NONE;
-	isrc->isrc_trig = INTR_TRIGGER_CONFORM;
-	isrc->isrc_pol = INTR_POLARITY_CONFORM;
-	CPU_ZERO(&isrc->isrc_cpu);
-	return (isrc);
-}
-
-/*
- *  Free interrupt source.
- */
-static void
-isrc_free(struct intr_irqsrc *isrc)
-{
-
-	free(isrc, M_INTRNG);
-}
-
-void
-intr_irq_set_name(struct intr_irqsrc *isrc, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	vsnprintf(isrc->isrc_name, INTR_ISRC_NAMELEN, fmt, ap);
-	va_end(ap);
+	return (EINVAL);
 }
 
 /*
@@ -376,8 +351,8 @@ intr_irq_set_name(struct intr_irqsrc *isrc, const char *fmt, ...)
  *     immediately. However, if only one free handle left which is reused
  *     constantly...
  */
-static int
-isrc_alloc_irq_locked(struct intr_irqsrc *isrc)
+static inline int
+isrc_alloc_irq(struct intr_irqsrc *isrc)
 {
 	u_int maxirqs, irq;
 
@@ -403,46 +378,35 @@ found:
 	isrc->isrc_irq = irq;
 	irq_sources[irq] = isrc;
 
-	intr_irq_set_name(isrc, "irq%u", irq);
-	isrc_setup_counters(isrc);
-
 	irq_next_free = irq + 1;
 	if (irq_next_free >= maxirqs)
 		irq_next_free = 0;
 	return (0);
 }
-#ifdef notyet
+
 /*
  *  Free unique interrupt number (resource handle) from interrupt source.
  */
-static int
+static inline int
 isrc_free_irq(struct intr_irqsrc *isrc)
 {
-	u_int maxirqs;
 
-	mtx_assert(&isrc_table_lock, MA_NOTOWNED);
+	mtx_assert(&isrc_table_lock, MA_OWNED);
 
-	maxirqs = nitems(irq_sources);
-	if (isrc->isrc_irq >= maxirqs)
+	if (isrc->isrc_irq >= nitems(irq_sources))
 		return (EINVAL);
-
-	mtx_lock(&isrc_table_lock);
-	if (irq_sources[isrc->isrc_irq] != isrc) {
-		mtx_unlock(&isrc_table_lock);
+	if (irq_sources[isrc->isrc_irq] != isrc)
 		return (EINVAL);
-	}
 
 	irq_sources[isrc->isrc_irq] = NULL;
 	isrc->isrc_irq = IRQ_INVALID;	/* just to be safe */
-	mtx_unlock(&isrc_table_lock);
-
 	return (0);
 }
-#endif
+
 /*
  *  Lookup interrupt source by interrupt number (resource handle).
  */
-static struct intr_irqsrc *
+static inline struct intr_irqsrc *
 isrc_lookup(u_int irq)
 {
 
@@ -452,84 +416,161 @@ isrc_lookup(u_int irq)
 }
 
 /*
- *  Lookup interrupt source by namespace description.
+ *  Initialize interrupt source and register it into global interrupt table.
  */
-static struct intr_irqsrc *
-isrc_namespace_lookup(device_t dev, uint16_t type, uint16_t num)
+int
+intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
+    const char *fmt, ...)
 {
-	u_int irq;
-	struct intr_irqsrc *isrc;
+	int error;
+	va_list ap;
 
-	mtx_assert(&isrc_table_lock, MA_OWNED);
+	bzero(isrc, sizeof(struct intr_irqsrc));
+	isrc->isrc_dev = dev;
+	isrc->isrc_irq = IRQ_INVALID;	/* just to be safe */
+	isrc->isrc_flags = flags;
 
-	for (irq = 0; irq < nitems(irq_sources); irq++) {
-		isrc = irq_sources[irq];
-		if (isrc != NULL && isrc->isrc_dev == dev &&
-		    isrc->isrc_nspc_type == type && isrc->isrc_nspc_num == num)
-			return (isrc);
+	va_start(ap, fmt);
+	vsnprintf(isrc->isrc_name, INTR_ISRC_NAMELEN, fmt, ap);
+	va_end(ap);
+
+	mtx_lock(&isrc_table_lock);
+	error = isrc_alloc_irq(isrc);
+	if (error != 0) {
+		mtx_unlock(&isrc_table_lock);
+		return (error);
 	}
-	return (NULL);
+	/*
+	 * Setup interrupt counters, but not for IPI sources. Those are setup
+	 * later and only for used ones (up to INTR_IPI_COUNT) to not exhaust
+	 * our counter pool.
+	 */
+	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
+		isrc_setup_counters(isrc);
+	mtx_unlock(&isrc_table_lock);
+	return (0);
 }
 
 /*
- *  Map interrupt source according to namespace into framework. If such mapping
+ *  Deregister interrupt source from global interrupt table.
+ */
+int
+intr_isrc_deregister(struct intr_irqsrc *isrc)
+{
+	int error;
+
+	mtx_lock(&isrc_table_lock);
+	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
+		isrc_release_counters(isrc);
+	error = isrc_free_irq(isrc);
+	mtx_unlock(&isrc_table_lock);
+	return (error);
+}
+
+#ifdef SMP
+/*
+ *  A support function for a PIC to decide if provided ISRC should be inited
+ *  on given cpu. The logic of INTR_ISRCF_BOUND flag and isrc_cpu member of
+ *  struct intr_irqsrc is the following:
+ *
+ *     If INTR_ISRCF_BOUND is set, the ISRC should be inited only on cpus
+ *     set in isrc_cpu. If not, the ISRC should be inited on every cpu and
+ *     isrc_cpu is kept consistent with it. Thus isrc_cpu is always correct.
+ */
+bool
+intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu)
+{
+
+	if (isrc->isrc_handlers == 0)
+		return (false);
+	if ((isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI)) == 0)
+		return (false);
+	if (isrc->isrc_flags & INTR_ISRCF_BOUND)
+		return (CPU_ISSET(cpu, &isrc->isrc_cpu));
+
+	CPU_SET(cpu, &isrc->isrc_cpu);
+	return (true);
+}
+#endif
+
+static struct intr_dev_data *
+intr_ddata_alloc(u_int extsize)
+{
+	struct intr_dev_data *ddata;
+
+	ddata = malloc(sizeof(*ddata) + extsize, M_INTRNG, M_WAITOK | M_ZERO);
+
+	mtx_lock(&isrc_table_lock);
+	if (intr_ddata_first_unused >= nitems(intr_ddata_tab)) {
+		mtx_unlock(&isrc_table_lock);
+		free(ddata, M_INTRNG);
+		return (NULL);
+	}
+	intr_ddata_tab[intr_ddata_first_unused] = ddata;
+	ddata->idd_irq = IRQ_DDATA_BASE + intr_ddata_first_unused++;
+	mtx_unlock(&isrc_table_lock);
+	return (ddata);
+}
+
+static struct intr_irqsrc *
+intr_ddata_lookup(u_int irq, struct intr_map_data **datap)
+{
+	int error;
+	struct intr_irqsrc *isrc;
+	struct intr_dev_data *ddata;
+
+	isrc = isrc_lookup(irq);
+	if (isrc != NULL) {
+		if (datap != NULL)
+			*datap = NULL;
+		return (isrc);
+	}
+
+	if (irq < IRQ_DDATA_BASE)
+		return (NULL);
+
+	irq -= IRQ_DDATA_BASE;
+	if (irq >= nitems(intr_ddata_tab))
+		return (NULL);
+
+	ddata = intr_ddata_tab[irq];
+	if (ddata->idd_isrc == NULL) {
+		error = intr_map_irq(ddata->idd_dev, ddata->idd_xref,
+		    &ddata->idd_data, &irq);
+		if (error != 0)
+			return (NULL);
+		ddata->idd_isrc = isrc_lookup(irq);
+	}
+	if (datap != NULL)
+		*datap = &ddata->idd_data;
+	return (ddata->idd_isrc);
+}
+
+#ifdef DEV_ACPI
+/*
+ *  Map interrupt source according to ACPI info into framework. If such mapping
  *  does not exist, create it. Return unique interrupt number (resource handle)
  *  associated with mapped interrupt source.
  */
 u_int
-intr_namespace_map_irq(device_t dev, uint16_t type, uint16_t num)
+intr_acpi_map_irq(device_t dev, u_int irq, enum intr_polarity pol,
+    enum intr_trigger trig)
 {
-	struct intr_irqsrc *isrc, *new_isrc;
-	int error;
+	struct intr_dev_data *ddata;
 
-	new_isrc = isrc_alloc(INTR_ISRCT_NAMESPACE, 0);
+	ddata = intr_ddata_alloc(0);
+	if (ddata == NULL)
+		return (0xFFFFFFFF);	/* no space left */
 
-	mtx_lock(&isrc_table_lock);
-	isrc = isrc_namespace_lookup(dev, type, num);
-	if (isrc != NULL) {
-		mtx_unlock(&isrc_table_lock);
-		isrc_free(new_isrc);
-		return (isrc->isrc_irq);	/* already mapped */
-	}
-
-	error = isrc_alloc_irq_locked(new_isrc);
-	if (error != 0) {
-		mtx_unlock(&isrc_table_lock);
-		isrc_free(new_isrc);
-		return (IRQ_INVALID);		/* no space left */
-	}
-
-	new_isrc->isrc_dev = dev;
-	new_isrc->isrc_nspc_type = type;
-	new_isrc->isrc_nspc_num = num;
-	mtx_unlock(&isrc_table_lock);
-
-	return (new_isrc->isrc_irq);
+	ddata->idd_dev = dev;
+	ddata->idd_data.type = INTR_MAP_DATA_ACPI;
+	ddata->idd_data.acpi.irq = irq;
+	ddata->idd_data.acpi.pol = pol;
+	ddata->idd_data.acpi.trig = trig;
+	return (ddata->idd_irq);
 }
-
+#endif
 #ifdef FDT
-/*
- *  Lookup interrupt source by FDT description.
- */
-static struct intr_irqsrc *
-isrc_fdt_lookup(intptr_t xref, pcell_t *cells, u_int ncells)
-{
-	u_int irq, cellsize;
-	struct intr_irqsrc *isrc;
-
-	mtx_assert(&isrc_table_lock, MA_OWNED);
-
-	cellsize = ncells * sizeof(*cells);
-	for (irq = 0; irq < nitems(irq_sources); irq++) {
-		isrc = irq_sources[irq];
-		if (isrc != NULL && isrc->isrc_type == INTR_ISRCT_FDT &&
-		    isrc->isrc_xref == xref && isrc->isrc_ncells == ncells &&
-		    memcmp(isrc->isrc_cells, cells, cellsize) == 0)
-			return (isrc);
-	}
-	return (NULL);
-}
-
 /*
  *  Map interrupt source according to FDT data into framework. If such mapping
  *  does not exist, create it. Return unique interrupt number (resource handle)
@@ -538,72 +579,22 @@ isrc_fdt_lookup(intptr_t xref, pcell_t *cells, u_int ncells)
 u_int
 intr_fdt_map_irq(phandle_t node, pcell_t *cells, u_int ncells)
 {
-	struct intr_irqsrc *isrc, *new_isrc;
+	struct intr_dev_data *ddata;
 	u_int cellsize;
-	intptr_t xref;
-	int error;
-
-	xref = (intptr_t)node;	/* It's so simple for now. */
 
 	cellsize = ncells * sizeof(*cells);
-	new_isrc = isrc_alloc(INTR_ISRCT_FDT, cellsize);
+	ddata = intr_ddata_alloc(cellsize);
+	if (ddata == NULL)
+		return (0xFFFFFFFF);	/* no space left */
 
-	mtx_lock(&isrc_table_lock);
-	isrc = isrc_fdt_lookup(xref, cells, ncells);
-	if (isrc != NULL) {
-		mtx_unlock(&isrc_table_lock);
-		isrc_free(new_isrc);
-		return (isrc->isrc_irq);	/* already mapped */
-	}
-
-	error = isrc_alloc_irq_locked(new_isrc);
-	if (error != 0) {
-		mtx_unlock(&isrc_table_lock);
-		isrc_free(new_isrc);
-		return (IRQ_INVALID);		/* no space left */
-	}
-
-	new_isrc->isrc_xref = xref;
-	new_isrc->isrc_ncells = ncells;
-	memcpy(new_isrc->isrc_cells, cells, cellsize);
-	mtx_unlock(&isrc_table_lock);
-
-	return (new_isrc->isrc_irq);
+	ddata->idd_xref = (intptr_t)node;
+	ddata->idd_data.type = INTR_MAP_DATA_FDT;
+	ddata->idd_data.fdt.ncells = ncells;
+	ddata->idd_data.fdt.cells = (pcell_t *)(ddata + 1);
+	memcpy(ddata->idd_data.fdt.cells, cells, cellsize);
+	return (ddata->idd_irq);
 }
 #endif
-
-/*
- *  Register interrupt source into interrupt controller.
- */
-static int
-isrc_register(struct intr_irqsrc *isrc)
-{
-	struct intr_pic *pic;
-	boolean_t is_percpu;
-	int error;
-
-	if (isrc->isrc_flags & INTR_ISRCF_REGISTERED)
-		return (0);
-
-	if (isrc->isrc_dev == NULL) {
-		pic = pic_lookup(NULL, isrc->isrc_xref);
-		if (pic == NULL || pic->pic_dev == NULL)
-			return (ESRCH);
-		isrc->isrc_dev = pic->pic_dev;
-	}
-
-	error = PIC_REGISTER(isrc->isrc_dev, isrc, &is_percpu);
-	if (error != 0)
-		return (error);
-
-	mtx_lock(&isrc_table_lock);
-	isrc->isrc_flags |= INTR_ISRCF_REGISTERED;
-	if (is_percpu)
-		isrc->isrc_flags |= INTR_ISRCF_PERCPU;
-	isrc_update_name(isrc, NULL);
-	mtx_unlock(&isrc_table_lock);
-	return (0);
-}
 
 #ifdef INTR_SOLO
 /*
@@ -679,7 +670,7 @@ intr_isrc_assign_cpu(void *arg, int cpu)
 	struct intr_irqsrc *isrc = arg;
 	int error;
 
-	if (isrc->isrc_dev != irq_root_dev)
+	if (isrc->isrc_dev != intr_irq_root_dev)
 		return (EINVAL);
 
 	mtx_lock(&isrc_table_lock);
@@ -698,7 +689,7 @@ intr_isrc_assign_cpu(void *arg, int cpu)
 	 * informed if the call is successfull.
 	 */
 	if (irq_assign_cpu) {
-		error = PIC_BIND(isrc->isrc_dev, isrc);
+		error = PIC_BIND_INTR(isrc->isrc_dev, isrc);
 		if (error) {
 			CPU_ZERO(&isrc->isrc_cpu);
 			mtx_unlock(&isrc_table_lock);
@@ -732,7 +723,11 @@ isrc_event_create(struct intr_irqsrc *isrc)
 	 * Make sure that we do not mix the two ways
 	 * how we handle interrupt sources. Let contested event wins.
 	 */
+#ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL || isrc->isrc_event != NULL) {
+#else
+	if (isrc->isrc_event != NULL) {
+#endif
 		mtx_unlock(&isrc_table_lock);
 		intr_event_destroy(ie);
 		return (isrc->isrc_event != NULL ? EBUSY : 0);
@@ -790,18 +785,26 @@ isrc_add_handler(struct intr_irqsrc *isrc, const char *name,
 /*
  *  Lookup interrupt controller locked.
  */
-static struct intr_pic *
+static inline struct intr_pic *
 pic_lookup_locked(device_t dev, intptr_t xref)
 {
 	struct intr_pic *pic;
 
 	mtx_assert(&pic_list_lock, MA_OWNED);
 
+	if (dev == NULL && xref == 0)
+		return (NULL);
+
+	/* Note that pic->pic_dev is never NULL on registered PIC. */
 	SLIST_FOREACH(pic, &pic_list, pic_next) {
-		if (pic->pic_xref != xref)
-			continue;
-		if (pic->pic_xref != 0 || pic->pic_dev == dev)
-			return (pic);
+		if (dev == NULL) {
+			if (xref == pic->pic_xref)
+				return (pic);
+		} else if (xref == 0 || pic->pic_xref == 0) {
+			if (dev == pic->pic_dev)
+				return (pic);
+		} else if (xref == pic->pic_xref && dev == pic->pic_dev)
+				return (pic);
 	}
 	return (NULL);
 }
@@ -817,7 +820,6 @@ pic_lookup(device_t dev, intptr_t xref)
 	mtx_lock(&pic_list_lock);
 	pic = pic_lookup_locked(dev, xref);
 	mtx_unlock(&pic_list_lock);
-
 	return (pic);
 }
 
@@ -872,14 +874,14 @@ intr_pic_register(device_t dev, intptr_t xref)
 {
 	struct intr_pic *pic;
 
+	if (dev == NULL)
+		return (EINVAL);
 	pic = pic_create(dev, xref);
 	if (pic == NULL)
 		return (ENOMEM);
-	if (pic->pic_dev != dev)
-		return (EINVAL);	/* XXX it could be many things. */
 
-	debugf("PIC %p registered for %s <xref %x>\n", pic,
-	    device_get_nameunit(dev), xref);
+	debugf("PIC %p registered for %s <dev %p, xref %x>\n", pic,
+	    device_get_nameunit(dev), dev, xref);
 	return (0);
 }
 
@@ -887,7 +889,7 @@ intr_pic_register(device_t dev, intptr_t xref)
  *  Unregister interrupt controller.
  */
 int
-intr_pic_unregister(device_t dev, intptr_t xref)
+intr_pic_deregister(device_t dev, intptr_t xref)
 {
 
 	panic("%s: not implemented", __func__);
@@ -909,8 +911,6 @@ int
 intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
     void *arg, u_int ipicount)
 {
-	int error;
-	u_int rootirq;
 
 	if (pic_lookup(dev, xref) == NULL) {
 		device_printf(dev, "not registered\n");
@@ -926,30 +926,12 @@ intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
 	 * Note that we further suppose that there is not threaded interrupt
 	 * routine (handler) on the root. See intr_irq_handler().
 	 */
-	if (irq_root_dev != NULL) {
+	if (intr_irq_root_dev != NULL) {
 		device_printf(dev, "another root already set\n");
 		return (EBUSY);
 	}
 
-	rootirq = intr_namespace_map_irq(device_get_parent(dev), 0, 0);
-	if (rootirq == IRQ_INVALID) {
-		device_printf(dev, "failed to map an irq for the root pic\n");
-		return (ENOMEM);
-	}
-
-        /* Create the isrc. */
-	irq_root_isrc = isrc_lookup(rootirq);
-
-        /* XXX "register" with the PIC.  We are the "pic" here, so fake it. */
-	irq_root_isrc->isrc_flags |= INTR_ISRCF_REGISTERED;
-
-	error = intr_irq_add_handler(device_get_parent(dev), 
-		(void*)filter, NULL, arg, rootirq, INTR_TYPE_CLK, NULL);
-	if (error != 0) {
-		device_printf(dev, "failed to install root pic handler\n");
-		return (error);
-	}
-	irq_root_dev = dev;
+	intr_irq_root_dev = dev;
 	irq_root_filter = filter;
 	irq_root_arg = arg;
 	irq_root_ipicount = ipicount;
@@ -959,12 +941,73 @@ intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
 }
 
 int
-intr_irq_add_handler(device_t dev, driver_filter_t filt, driver_intr_t hand,
-    void *arg, u_int irq, int flags, void **cookiep)
+intr_map_irq(device_t dev, intptr_t xref, struct intr_map_data *data,
+    u_int *irqp)
 {
-	const char *name;
-	struct intr_irqsrc *isrc;
 	int error;
+	struct intr_irqsrc *isrc;
+	struct intr_pic *pic;
+
+	if (data == NULL)
+		return (EINVAL);
+
+	pic = pic_lookup(dev, xref);
+	if (pic == NULL || pic->pic_dev == NULL)
+		return (ESRCH);
+
+	error = PIC_MAP_INTR(pic->pic_dev, data, &isrc);
+	if (error == 0)
+		*irqp = isrc->isrc_irq;
+	return (error);
+}
+
+int
+intr_alloc_irq(device_t dev, struct resource *res)
+{
+	struct intr_map_data *data;
+	struct intr_irqsrc *isrc;
+
+	KASSERT(rman_get_start(res) == rman_get_end(res),
+	    ("%s: more interrupts in resource", __func__));
+
+	isrc = intr_ddata_lookup(rman_get_start(res), &data);
+	if (isrc == NULL)
+		return (EINVAL);
+
+	return (PIC_ALLOC_INTR(isrc->isrc_dev, isrc, res, data));
+}
+
+int
+intr_release_irq(device_t dev, struct resource *res)
+{
+	struct intr_map_data *data;
+	struct intr_irqsrc *isrc;
+
+	KASSERT(rman_get_start(res) == rman_get_end(res),
+	    ("%s: more interrupts in resource", __func__));
+
+	isrc = intr_ddata_lookup(rman_get_start(res), &data);
+	if (isrc == NULL)
+		return (EINVAL);
+
+	return (PIC_RELEASE_INTR(isrc->isrc_dev, isrc, res, data));
+}
+
+int
+intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
+    driver_intr_t hand, void *arg, int flags, void **cookiep)
+{
+	int error;
+	struct intr_map_data *data;
+	struct intr_irqsrc *isrc;
+	const char *name;
+
+	KASSERT(rman_get_start(res) == rman_get_end(res),
+	    ("%s: more interrupts in resource", __func__));
+
+	isrc = intr_ddata_lookup(rman_get_start(res), &data);
+	if (isrc == NULL)
+		return (EINVAL);
 
 	name = device_get_nameunit(dev);
 
@@ -983,21 +1026,7 @@ intr_irq_add_handler(device_t dev, driver_filter_t filt, driver_intr_t hand,
 		debugf("irq %u cannot solo on %s\n", irq, name);
 		return (EINVAL);
 	}
-#endif
 
-	isrc = isrc_lookup(irq);
-	if (isrc == NULL) {
-		debugf("irq %u without source on %s\n", irq, name);
-		return (EINVAL);
-	}
-
-	error = isrc_register(isrc);
-	if (error != 0) {
-		debugf("irq %u map error %d on %s\n", irq, error, name);
-		return (error);
-	}
-
-#ifdef INTR_SOLO
 	if (flags & INTR_SOLO) {
 		error = iscr_setup_filter(isrc, name, (intr_irq_filter_t *)filt,
 		    arg, cookiep);
@@ -1014,25 +1043,33 @@ intr_irq_add_handler(device_t dev, driver_filter_t filt, driver_intr_t hand,
 		return (error);
 
 	mtx_lock(&isrc_table_lock);
-	isrc->isrc_handlers++;
-	if (isrc->isrc_handlers == 1) {
-		PIC_ENABLE_INTR(isrc->isrc_dev, isrc);
-		PIC_ENABLE_SOURCE(isrc->isrc_dev, isrc);
+	error = PIC_SETUP_INTR(isrc->isrc_dev, isrc, res, data);
+	if (error == 0) {
+		isrc->isrc_handlers++;
+		if (isrc->isrc_handlers == 1)
+			PIC_ENABLE_INTR(isrc->isrc_dev, isrc);
 	}
 	mtx_unlock(&isrc_table_lock);
-	return (0);
+	if (error != 0)
+		intr_event_remove_handler(*cookiep);
+	return (error);
 }
 
 int
-intr_irq_remove_handler(device_t dev, u_int irq, void *cookie)
+intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 {
-	struct intr_irqsrc *isrc;
 	int error;
+	struct intr_map_data *data;
+	struct intr_irqsrc *isrc;
 
-	isrc = isrc_lookup(irq);
+	KASSERT(rman_get_start(res) == rman_get_end(res),
+	    ("%s: more interrupts in resource", __func__));
+
+	isrc = intr_ddata_lookup(rman_get_start(res), &data);
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
 
+#ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL) {
 		if (isrc != cookie)
 			return (EINVAL);
@@ -1041,13 +1078,13 @@ intr_irq_remove_handler(device_t dev, u_int irq, void *cookie)
 		isrc->isrc_filter = NULL;
 		isrc->isrc_arg = NULL;
 		isrc->isrc_handlers = 0;
-		PIC_DISABLE_SOURCE(isrc->isrc_dev, isrc);
 		PIC_DISABLE_INTR(isrc->isrc_dev, isrc);
+		PIC_TEARDOWN_INTR(isrc->isrc_dev, isrc, res, data);
 		isrc_update_name(isrc, NULL);
 		mtx_unlock(&isrc_table_lock);
 		return (0);
 	}
-
+#endif
 	if (isrc != intr_handler_source(cookie))
 		return (EINVAL);
 
@@ -1055,10 +1092,9 @@ intr_irq_remove_handler(device_t dev, u_int irq, void *cookie)
 	if (error == 0) {
 		mtx_lock(&isrc_table_lock);
 		isrc->isrc_handlers--;
-		if (isrc->isrc_handlers == 0) {
-			PIC_DISABLE_SOURCE(isrc->isrc_dev, isrc);
+		if (isrc->isrc_handlers == 0)
 			PIC_DISABLE_INTR(isrc->isrc_dev, isrc);
-		}
+		PIC_TEARDOWN_INTR(isrc->isrc_dev, isrc, res, data);
 		intrcnt_updatename(isrc);
 		mtx_unlock(&isrc_table_lock);
 	}
@@ -1066,39 +1102,19 @@ intr_irq_remove_handler(device_t dev, u_int irq, void *cookie)
 }
 
 int
-intr_irq_config(u_int irq, enum intr_trigger trig, enum intr_polarity pol)
+intr_describe_irq(device_t dev, struct resource *res, void *cookie,
+    const char *descr)
 {
-	struct intr_irqsrc *isrc;
-
-	isrc = isrc_lookup(irq);
-	if (isrc == NULL)
-		return (EINVAL);
-
-	if (isrc->isrc_handlers != 0)
-		return (EBUSY);	/* interrrupt is enabled (active) */
-
-	/*
-	 * Once an interrupt is enabled, we do not change its configuration.
-	 * A controller PIC_ENABLE_INTR() method is called when an interrupt
-	 * is going to be enabled. In this method, a controller should setup
-	 * the interrupt according to saved configuration parameters.
-	 */
-	isrc->isrc_trig = trig;
-	isrc->isrc_pol = pol;
-
-	return (0);
-}
-
-int
-intr_irq_describe(u_int irq, void *cookie, const char *descr)
-{
-	struct intr_irqsrc *isrc;
 	int error;
+	struct intr_irqsrc *isrc;
 
-	isrc = isrc_lookup(irq);
+	KASSERT(rman_get_start(res) == rman_get_end(res),
+	    ("%s: more interrupts in resource", __func__));
+
+	isrc = intr_ddata_lookup(rman_get_start(res), NULL);
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
-
+#ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL) {
 		if (isrc != cookie)
 			return (EINVAL);
@@ -1108,7 +1124,7 @@ intr_irq_describe(u_int irq, void *cookie, const char *descr)
 		mtx_unlock(&isrc_table_lock);
 		return (0);
 	}
-
+#endif
 	error = intr_event_describe_handler(isrc->isrc_event, cookie, descr);
 	if (error == 0) {
 		mtx_lock(&isrc_table_lock);
@@ -1120,17 +1136,20 @@ intr_irq_describe(u_int irq, void *cookie, const char *descr)
 
 #ifdef SMP
 int
-intr_irq_bind(u_int irq, int cpu)
+intr_bind_irq(device_t dev, struct resource *res, int cpu)
 {
 	struct intr_irqsrc *isrc;
 
-	isrc = isrc_lookup(irq);
+	KASSERT(rman_get_start(res) == rman_get_end(res),
+	    ("%s: more interrupts in resource", __func__));
+
+	isrc = intr_ddata_lookup(rman_get_start(res), NULL);
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
-
+#ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL)
 		return (intr_isrc_assign_cpu(isrc, cpu));
-
+#endif
 	return (intr_event_bind(isrc->isrc_event, cpu));
 }
 
@@ -1171,7 +1190,7 @@ intr_irq_shuffle(void *arg __unused)
 	for (i = 0; i < NIRQ; i++) {
 		isrc = irq_sources[i];
 		if (isrc == NULL || isrc->isrc_handlers == 0 ||
-		    isrc->isrc_flags & INTR_ISRCF_PERCPU)
+		    isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI))
 			continue;
 
 		if (isrc->isrc_event != NULL &&
@@ -1187,7 +1206,7 @@ intr_irq_shuffle(void *arg __unused)
 		 * for bound ISRC. The best thing we can do is to clear
 		 * isrc_cpu so inconsistency with ie_cpu will be detectable.
 		 */
-		if (PIC_BIND(isrc->isrc_dev, isrc) != 0)
+		if (PIC_BIND_INTR(isrc->isrc_dev, isrc) != 0)
 			CPU_ZERO(&isrc->isrc_cpu);
 	}
 	mtx_unlock(&isrc_table_lock);
@@ -1211,132 +1230,6 @@ dosoftints(void)
 
 #ifdef SMP
 /*
- *  Lookup IPI source.
- */
-static struct intr_irqsrc *
-intr_ipi_lookup(u_int ipi)
-{
-
-	if (ipi >= INTR_IPI_COUNT)
-		panic("%s: no such IPI %u", __func__, ipi);
-
-	return (&ipi_sources[ipi]);
-}
-
-/*
- *  interrupt controller dispatch function for IPIs. It should
- *  be called straight from the interrupt controller, when associated
- *  interrupt source is learned. Or from anybody who has an interrupt
- *  source mapped.
- */
-void
-intr_ipi_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
-{
-	void *arg;
-
-	KASSERT(isrc != NULL, ("%s: no source", __func__));
-
-	isrc_increment_ipi_count(isrc, PCPU_GET(cpuid));
-
-	/*
-	 * Supply ipi filter with trapframe argument
-	 * if none is registered.
-	 */
-	arg = isrc->isrc_arg != NULL ? isrc->isrc_arg : tf;
-	isrc->isrc_ipifilter(arg);
-}
-
-/*
- *  Map IPI into interrupt controller.
- *
- *  Not SMP coherent.
- */
-static int
-ipi_map(struct intr_irqsrc *isrc, u_int ipi)
-{
-	boolean_t is_percpu;
-	int error;
-
-	if (ipi >= INTR_IPI_COUNT)
-		panic("%s: no such IPI %u", __func__, ipi);
-
-	KASSERT(irq_root_dev != NULL, ("%s: no root attached", __func__));
-
-	isrc->isrc_type = INTR_ISRCT_NAMESPACE;
-	isrc->isrc_nspc_type = INTR_IRQ_NSPC_IPI;
-	isrc->isrc_nspc_num = ipi_next_num;
-
-	error = PIC_REGISTER(irq_root_dev, isrc, &is_percpu);
-
-	debugf("ipi %u mapped to %u on %s - error %d\n", ipi, ipi_next_num,
-	    device_get_nameunit(irq_root_dev), error);
-
-	if (error == 0) {
-		isrc->isrc_dev = irq_root_dev;
-		ipi_next_num++;
-	}
-	return (error);
-}
-
-/*
- *  Setup IPI handler to interrupt source.
- *
- *  Note that there could be more ways how to send and receive IPIs
- *  on a platform like fast interrupts for example. In that case,
- *  one can call this function with ASIF_NOALLOC flag set and then
- *  call intr_ipi_dispatch() when appropriate.
- *
- *  Not SMP coherent.
- */
-int
-intr_ipi_set_handler(u_int ipi, const char *name, intr_ipi_filter_t *filter,
-    void *arg, u_int flags)
-{
-	struct intr_irqsrc *isrc;
-	int error;
-
-	if (filter == NULL)
-		return(EINVAL);
-
-	isrc = intr_ipi_lookup(ipi);
-	if (isrc->isrc_ipifilter != NULL)
-		return (EEXIST);
-
-	if ((flags & AISHF_NOALLOC) == 0) {
-		error = ipi_map(isrc, ipi);
-		if (error != 0)
-			return (error);
-	}
-
-	isrc->isrc_ipifilter = filter;
-	isrc->isrc_arg = arg;
-	isrc->isrc_handlers = 1;
-	isrc_setup_ipi_counters(isrc, name);
-
-	if (isrc->isrc_dev != NULL) {
-		mtx_lock(&isrc_table_lock);
-		PIC_ENABLE_INTR(isrc->isrc_dev, isrc);
-		PIC_ENABLE_SOURCE(isrc->isrc_dev, isrc);
-		mtx_unlock(&isrc_table_lock);
-	}
-	return (0);
-}
-
-/*
- *  Send IPI thru interrupt controller.
- */
-void
-pic_ipi_send(cpuset_t cpus, u_int ipi)
-{
-	struct intr_irqsrc *isrc;
-
-	isrc = intr_ipi_lookup(ipi);
-
-	KASSERT(irq_root_dev != NULL, ("%s: no root attached", __func__));
-	PIC_IPI_SEND(irq_root_dev, isrc, cpus);
-}
-
-/*
  *  Init interrupt controller on another CPU.
  */
 void
@@ -1346,10 +1239,10 @@ intr_pic_init_secondary(void)
 	/*
 	 * QQQ: Only root PIC is aware of other CPUs ???
 	 */
-	KASSERT(irq_root_dev != NULL, ("%s: no root attached", __func__));
+	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
 
 	//mtx_lock(&isrc_table_lock);
-	PIC_INIT_SECONDARY(irq_root_dev);
+	PIC_INIT_SECONDARY(intr_irq_root_dev);
 	//mtx_unlock(&isrc_table_lock);
 }
 #endif
@@ -1358,37 +1251,19 @@ intr_pic_init_secondary(void)
 DB_SHOW_COMMAND(irqs, db_show_irqs)
 {
 	u_int i, irqsum;
+	u_long num;
 	struct intr_irqsrc *isrc;
-
-#ifdef SMP
-	for (i = 0; i <= mp_maxid; i++) {
-		struct pcpu *pc;
-		u_int ipi, ipisum;
-
-		pc = pcpu_find(i);
-		if (pc != NULL) {
-			for (ipisum = 0, ipi = 0; ipi < INTR_IPI_COUNT; ipi++) {
-				isrc = intr_ipi_lookup(ipi);
-				if (isrc->isrc_count != NULL)
-					ipisum += isrc->isrc_count[i];
-			}
-			printf ("cpu%u: total %u ipis %u\n", i,
-			    pc->pc_cnt.v_intr, ipisum);
-		}
-	}
-	db_printf("\n");
-#endif
 
 	for (irqsum = 0, i = 0; i < NIRQ; i++) {
 		isrc = irq_sources[i];
 		if (isrc == NULL)
 			continue;
 
+		num = isrc->isrc_count != NULL ? isrc->isrc_count[0] : 0;
 		db_printf("irq%-3u <%s>: cpu %02lx%s cnt %lu\n", i,
 		    isrc->isrc_name, isrc->isrc_cpu.__bits[0],
-		    isrc->isrc_flags & INTR_ISRCF_BOUND ? " (bound)" : "",
-		    isrc->isrc_count[0]);
-		irqsum += isrc->isrc_count[0];
+		    isrc->isrc_flags & INTR_ISRCF_BOUND ? " (bound)" : "", num);
+		irqsum += num;
 	}
 	db_printf("irq total %u\n", irqsum);
 }

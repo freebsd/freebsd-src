@@ -76,7 +76,6 @@ SRCS=	base64.c \
 	write_pid.c \
 	xfree.c
 
-CPPFLAGS+=	-DBUILD_ROKEN_LIB
 CFLAGS+=-I${KRB5DIR}/lib/roken -I.
 
 CLEANFILES= roken.h

@@ -48,7 +48,7 @@ options		AR71XX_ENV_UBOOT
 device          geom_map
 
 # uzip - to boot natively from flash
-options 	GEOM_UNCOMPRESS
+options 	GEOM_UZIP
 options         GEOM_PART_GPT
 
 # yes, this board has a PCI connected atheros device
@@ -58,11 +58,11 @@ device          firmware                # Used by the above
 options         ATH_EEPROM_FIRMWARE
 
 # Boot off of the rootfs, as defined in the geom_map setup.
-options         ROOTDEVNAME=\"ufs:map/rootfs.uncompress\"
+options         ROOTDEVNAME=\"ufs:map/rootfs.uzip\"
 
 # In order to netboot, you have to build the mfsroot into the kernel
 # 19443712 or 19M is the biggest rootfs via netboot this thing supports
 #options         MD_ROOT         # md device usable as a potential root device
 #options         MD_ROOT_SIZE=19444
 #makeoptions     MFS_IMAGE=/tftpboot/mfsroot-dir825c1.img.ulzma
-#options         ROOTDEVNAME=\"ufs:md0.uncompress\"
+#options         ROOTDEVNAME=\"ufs:md0.uzip\"

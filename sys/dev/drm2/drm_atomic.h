@@ -39,8 +39,8 @@ typedef uint64_t	atomic64_t;
 #define	NB_BITS_PER_LONG		(sizeof(long) * NBBY)
 #define	BITS_TO_LONGS(x)		howmany(x, NB_BITS_PER_LONG)
 
-#define	atomic_read(p)			(*(volatile u_int *)(p))
-#define	atomic_set(p, v)		do { *(u_int *)(p) = (v); } while (0)
+#define	atomic_read(p)			atomic_load_acq_int(p)
+#define	atomic_set(p, v)		atomic_store_rel_int(p, v)
 
 #define	atomic64_read(p)		atomic_load_acq_64(p)
 #define	atomic64_set(p, v)		atomic_store_rel_64(p, v)
@@ -77,6 +77,9 @@ typedef uint64_t	atomic64_t;
     (atomic_xchg((p), 1) != b)
 #define	cmpxchg(ptr, old, new) \
     (atomic_cmpset_int((volatile u_int *)(ptr),(old),(new)) ? (old) : (0))
+
+#define	atomic_inc_not_zero(p)		atomic_inc(p)
+#define	atomic_clear_mask(b, p)		atomic_clear_int((p), (b))
 
 static __inline u_long
 find_first_zero_bit(const u_long *p, u_long max)

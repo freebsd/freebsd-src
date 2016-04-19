@@ -1395,9 +1395,8 @@ sys_fpathconf(struct thread *td, struct fpathconf_args *uap)
 	if (error != 0)
 		return (error);
 
-	/* If asynchronous I/O is available, it works for all descriptors. */
 	if (uap->name == _PC_ASYNC_IO) {
-		td->td_retval[0] = async_io_version;
+		td->td_retval[0] = _POSIX_ASYNCHRONOUS_IO;
 		goto out;
 	}
 	vp = fp->f_vnode;
@@ -3959,7 +3958,7 @@ badfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 static int
 badfo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct thread *td)
+    struct thread *td)
 {
 
 	return (EBADF);
@@ -4045,7 +4044,7 @@ invfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 int
 invfo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct thread *td)
+    struct thread *td)
 {
 
 	return (EINVAL);

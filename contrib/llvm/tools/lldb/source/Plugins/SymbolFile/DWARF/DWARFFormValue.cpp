@@ -136,21 +136,21 @@ g_form_sizes_addr8_dwarf64[] =
     8, // 0x20 DW_FORM_ref_sig8
 };
 
-const uint8_t * 
+DWARFFormValue::FixedFormSizes
 DWARFFormValue::GetFixedFormSizesForAddressSize (uint8_t addr_size, bool is_dwarf64)
 {
     if (!is_dwarf64) {
         switch (addr_size)
         {
-        case 4: return g_form_sizes_addr4;
-        case 8: return g_form_sizes_addr8;
+        case 4: return FixedFormSizes(g_form_sizes_addr4, sizeof(g_form_sizes_addr4));
+        case 8: return FixedFormSizes(g_form_sizes_addr8, sizeof(g_form_sizes_addr8));
         }
     } else {
         if (addr_size == 8)
-            return g_form_sizes_addr8_dwarf64;
+            return FixedFormSizes(g_form_sizes_addr8_dwarf64, sizeof(g_form_sizes_addr8_dwarf64));
         // is_dwarf64 && addr_size == 4 : no provider does this.
     }
-    return NULL;
+    return FixedFormSizes();
 }
 
 DWARFFormValue::DWARFFormValue() :
@@ -187,11 +187,7 @@ DWARFFormValue::ExtractValue(const DWARFDataExtractor& data, lldb::offset_t* off
         case DW_FORM_data2:     m_value.value.uval = data.GetU16(offset_ptr);                           break;
         case DW_FORM_data4:     m_value.value.uval = data.GetU32(offset_ptr);                           break;
         case DW_FORM_data8:     m_value.value.uval = data.GetU64(offset_ptr);                           break;
-        case DW_FORM_string:    m_value.value.cstr = data.GetCStr(offset_ptr);
-                                // Set the string value to also be the data for inlined cstr form values only
-                                // so we can tell the difference between DW_FORM_string and DW_FORM_strp form
-                                // values;
-                                m_value.data = (const uint8_t*)m_value.value.cstr;                      break;
+        case DW_FORM_string:    m_value.value.cstr = data.GetCStr(offset_ptr);                          break;
         case DW_FORM_exprloc:
         case DW_FORM_block:     m_value.value.uval = data.GetULEB128(offset_ptr); is_block = true;      break;
         case DW_FORM_block1:    m_value.value.uval = data.GetU8(offset_ptr); is_block = true;           break;
@@ -219,10 +215,12 @@ DWARFFormValue::ExtractValue(const DWARFDataExtractor& data, lldb::offset_t* off
             indirect = true;
             break;
 
-        case DW_FORM_sec_offset:    assert(m_cu);
-                                    m_value.value.uval = data.GetMaxU64(offset_ptr, DWARFCompileUnit::IsDWARF64(m_cu) ? 8 : 4);  break;
-        case DW_FORM_flag_present:  m_value.value.uval = 1;                                             break;
-        case DW_FORM_ref_sig8:      m_value.value.uval = data.GetU64(offset_ptr);                       break;
+        case DW_FORM_sec_offset:     assert(m_cu);
+                                     m_value.value.uval = data.GetMaxU64(offset_ptr, DWARFCompileUnit::IsDWARF64(m_cu) ? 8 : 4); break;
+        case DW_FORM_flag_present:   m_value.value.uval = 1;                                            break;
+        case DW_FORM_ref_sig8:       m_value.value.uval = data.GetU64(offset_ptr);                      break;
+        case DW_FORM_GNU_str_index:  m_value.value.uval = data.GetULEB128(offset_ptr);                  break;
+        case DW_FORM_GNU_addr_index: m_value.value.uval = data.GetULEB128(offset_ptr);                  break;
         default:
             return false;
             break;
@@ -322,6 +320,8 @@ DWARFFormValue::SkipValue(dw_form_t form, const DWARFDataExtractor& debug_info_d
     case DW_FORM_sdata:
     case DW_FORM_udata:
     case DW_FORM_ref_udata:
+    case DW_FORM_GNU_addr_index:
+    case DW_FORM_GNU_str_index:
         debug_info_data.Skip_LEB128(offset_ptr);
         return true;
 
@@ -342,7 +342,7 @@ DWARFFormValue::SkipValue(dw_form_t form, const DWARFDataExtractor& debug_info_d
 
 
 void
-DWARFFormValue::Dump(Stream &s, const DWARFDataExtractor* debug_str_data) const
+DWARFFormValue::Dump(Stream &s) const
 {
     uint64_t uvalue = Unsigned();
     bool cu_relative_offset = false;
@@ -353,13 +353,13 @@ DWARFFormValue::Dump(Stream &s, const DWARFDataExtractor* debug_str_data) const
     {
     case DW_FORM_addr:      s.Address(uvalue, sizeof (uint64_t)); break;
     case DW_FORM_flag:
-    case DW_FORM_data1:     s.PutHex8(uvalue);     break;
+    case DW_FORM_data1:     s.PutHex8(uvalue);         break;
     case DW_FORM_data2:     s.PutHex16(uvalue);        break;
     case DW_FORM_sec_offset:
     case DW_FORM_data4:     s.PutHex32(uvalue);        break;
     case DW_FORM_ref_sig8:
     case DW_FORM_data8:     s.PutHex64(uvalue);        break;
-    case DW_FORM_string:    s.QuotedCString(AsCString(NULL));          break;
+    case DW_FORM_string:    s.QuotedCString(AsCString()); break;
     case DW_FORM_exprloc:
     case DW_FORM_block:
     case DW_FORM_block1:
@@ -395,18 +395,18 @@ DWARFFormValue::Dump(Stream &s, const DWARFDataExtractor* debug_str_data) const
     case DW_FORM_sdata:     s.PutSLEB128(uvalue); break;
     case DW_FORM_udata:     s.PutULEB128(uvalue); break;
     case DW_FORM_strp:
-        if (debug_str_data)
         {
-            if (verbose)
-                s.Printf(" .debug_str[0x%8.8x] = ", (uint32_t)uvalue);
-
-            const char* dbg_str = AsCString(debug_str_data);
+            const char* dbg_str = AsCString();
             if (dbg_str)
+            {
+                if (verbose)
+                    s.Printf(" .debug_str[0x%8.8x] = ", (uint32_t)uvalue);
                 s.QuotedCString(dbg_str);
-        }
-        else
-        {
-            s.PutHex32(uvalue);
+            }
+            else
+            {
+                s.PutHex32(uvalue);
+            }
         }
         break;
 
@@ -444,13 +444,52 @@ DWARFFormValue::Dump(Stream &s, const DWARFDataExtractor* debug_str_data) const
 }
 
 const char*
-DWARFFormValue::AsCString(const DWARFDataExtractor* debug_str_data_ptr) const
+DWARFFormValue::AsCString() const
 {
-    if (IsInlinedCStr())
+    SymbolFileDWARF* symbol_file = m_cu->GetSymbolFileDWARF();
+
+    if (m_form == DW_FORM_string)
+    {
         return m_value.value.cstr;
-    else if (debug_str_data_ptr)
-        return debug_str_data_ptr->PeekCStr(m_value.value.uval);
-    return NULL;
+    }
+    else if (m_form == DW_FORM_strp)
+    {
+        if (!symbol_file)
+            return nullptr;
+
+        return symbol_file->get_debug_str_data().PeekCStr(m_value.value.uval);
+    }
+    else if (m_form == DW_FORM_GNU_str_index)
+    {
+        if (!symbol_file)
+            return nullptr;
+
+        uint32_t index_size = m_cu->IsDWARF64() ? 8 : 4;
+        lldb::offset_t offset = m_value.value.uval * index_size;
+        dw_offset_t str_offset = symbol_file->get_debug_str_offsets_data().GetMaxU64(&offset, index_size);
+        return symbol_file->get_debug_str_data().PeekCStr(str_offset);
+    }
+    return nullptr;
+}
+
+dw_addr_t
+DWARFFormValue::Address() const
+{
+    SymbolFileDWARF* symbol_file = m_cu->GetSymbolFileDWARF();
+
+    if (m_form == DW_FORM_addr)
+        return Unsigned();
+
+    assert(m_cu);
+    assert(m_form == DW_FORM_GNU_addr_index);
+
+    if (!symbol_file)
+        return 0;
+
+    uint32_t index_size = m_cu->GetAddressByteSize();
+    dw_offset_t addr_base = m_cu->GetAddrBase();
+    lldb::offset_t offset = addr_base + m_value.value.uval * index_size;
+    return symbol_file->get_debug_addr_data().GetMaxU64(&offset, index_size);
 }
 
 uint64_t
@@ -500,9 +539,7 @@ DWARFFormValue::Reference (dw_offset_t base_offset) const
 const uint8_t*
 DWARFFormValue::BlockData() const
 {
-    if (!IsInlinedCStr())
-        return m_value.data;
-    return NULL;
+    return m_value.data;
 }
 
 
@@ -537,7 +574,8 @@ DWARFFormValue::IsDataForm(const dw_form_t form)
 }
 
 int
-DWARFFormValue::Compare (const DWARFFormValue& a_value, const DWARFFormValue& b_value, const DWARFDataExtractor* debug_str_data_ptr)
+DWARFFormValue::Compare (const DWARFFormValue& a_value,
+                         const DWARFFormValue& b_value)
 {
     dw_form_t a_form = a_value.Form();
     dw_form_t b_form = b_value.Form();
@@ -558,6 +596,7 @@ DWARFFormValue::Compare (const DWARFFormValue& a_value, const DWARFFormValue& b_
     case DW_FORM_sec_offset:
     case DW_FORM_flag_present:
     case DW_FORM_ref_sig8:
+    case DW_FORM_GNU_addr_index:
         {
             uint64_t a = a_value.Unsigned();
             uint64_t b = b_value.Unsigned();
@@ -581,9 +620,10 @@ DWARFFormValue::Compare (const DWARFFormValue& a_value, const DWARFFormValue& b_
 
     case DW_FORM_string:
     case DW_FORM_strp:
+    case DW_FORM_GNU_str_index:
         {
-            const char *a_string = a_value.AsCString(debug_str_data_ptr);
-            const char *b_string = b_value.AsCString(debug_str_data_ptr);
+            const char *a_string = a_value.AsCString();
+            const char *b_string = b_value.AsCString();
             if (a_string == b_string)
                 return 0;
             else if (a_string && b_string)

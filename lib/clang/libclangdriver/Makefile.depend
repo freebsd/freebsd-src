@@ -7,69 +7,11 @@ DIRDEPS = \
 	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/clang-tblgen.host \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-Compilation.o: DiagnosticCommonKinds.inc.h
-Compilation.o: DiagnosticDriverKinds.inc.h
-Compilation.o: Options.inc.h
-Compilation.po: DiagnosticCommonKinds.inc.h
-Compilation.po: DiagnosticDriverKinds.inc.h
-Compilation.po: Options.inc.h
-CrossWindowsToolChain.o: DiagnosticCommonKinds.inc.h
-CrossWindowsToolChain.o: Options.inc.h
-CrossWindowsToolChain.po: DiagnosticCommonKinds.inc.h
-CrossWindowsToolChain.po: Options.inc.h
-Driver.o: DiagnosticCommonKinds.inc.h
-Driver.o: DiagnosticDriverKinds.inc.h
-Driver.o: Options.inc.h
-Driver.po: DiagnosticCommonKinds.inc.h
-Driver.po: DiagnosticDriverKinds.inc.h
-Driver.po: Options.inc.h
-DriverOptions.o: Options.inc.h
-DriverOptions.po: Options.inc.h
-Job.o: DiagnosticCommonKinds.inc.h
-Job.o: DiagnosticDriverKinds.inc.h
-Job.po: DiagnosticCommonKinds.inc.h
-Job.po: DiagnosticDriverKinds.inc.h
-MSVCToolChain.o: DiagnosticCommonKinds.inc.h
-MSVCToolChain.o: DiagnosticDriverKinds.inc.h
-MSVCToolChain.o: Options.inc.h
-MSVCToolChain.po: DiagnosticCommonKinds.inc.h
-MSVCToolChain.po: DiagnosticDriverKinds.inc.h
-MSVCToolChain.po: Options.inc.h
-MinGWToolChain.o: DiagnosticCommonKinds.inc.h
-MinGWToolChain.o: Options.inc.h
-MinGWToolChain.po: DiagnosticCommonKinds.inc.h
-MinGWToolChain.po: Options.inc.h
-Multilib.o: Options.inc.h
-Multilib.po: Options.inc.h
-SanitizerArgs.o: DiagnosticCommonKinds.inc.h
-SanitizerArgs.o: DiagnosticDriverKinds.inc.h
-SanitizerArgs.o: Options.inc.h
-SanitizerArgs.po: DiagnosticCommonKinds.inc.h
-SanitizerArgs.po: DiagnosticDriverKinds.inc.h
-SanitizerArgs.po: Options.inc.h
-ToolChain.o: DiagnosticCommonKinds.inc.h
-ToolChain.o: DiagnosticDriverKinds.inc.h
-ToolChain.o: Options.inc.h
-ToolChain.po: DiagnosticCommonKinds.inc.h
-ToolChain.po: DiagnosticDriverKinds.inc.h
-ToolChain.po: Options.inc.h
-ToolChains.o: DiagnosticCommonKinds.inc.h
-ToolChains.o: DiagnosticDriverKinds.inc.h
-ToolChains.o: Options.inc.h
-ToolChains.po: DiagnosticCommonKinds.inc.h
-ToolChains.po: DiagnosticDriverKinds.inc.h
-ToolChains.po: Options.inc.h
-Tools.o: DiagnosticCommonKinds.inc.h
-Tools.o: DiagnosticDriverKinds.inc.h
-Tools.o: Options.inc.h
-Tools.po: DiagnosticCommonKinds.inc.h
-Tools.po: DiagnosticDriverKinds.inc.h
-Tools.po: Options.inc.h
 .endif

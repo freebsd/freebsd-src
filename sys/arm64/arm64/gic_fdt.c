@@ -198,7 +198,7 @@ arm_gic_fdt_attach(device_t dev)
 
 static struct resource *
 arm_gic_fdt_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct arm_gic_fdt_softc *sc = device_get_softc(bus);
 	struct gic_devinfo *di;
@@ -211,7 +211,7 @@ arm_gic_fdt_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * Request for the default allocation with a given rid: use resource
 	 * list stored in the local device info.
 	 */
-	if ((start == 0UL) && (end == ~0UL)) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
 		if ((di = device_get_ivars(child)) == NULL)
 			return (NULL);
 

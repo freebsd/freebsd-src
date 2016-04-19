@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2014 Andrew Turner
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -93,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 struct pcpu __pcpu[MAXCPU];
+extern uint64_t pagetable_l0;
 
 static struct trapframe proc0_tf;
 
@@ -389,7 +390,12 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
+	uint64_t addr;
 
+	addr = (uint64_t)&pagetable_l0;
+	addr += (cpuid * PAGE_SIZE);
+
+	pcpu->pc_sptbr = addr;
 }
 
 void
@@ -555,7 +561,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		tf->tf_ra = (register_t)(sysent->sv_psstrings -
 		    *(sysent->sv_szsigcode));
 
-	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, tf->tf_elr,
+	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, tf->tf_sepc,
 	    tf->tf_sp);
 
 	PROC_LOCK(p);
@@ -729,9 +735,12 @@ fake_preload_metadata(struct riscv_bootparams *rvbp __unused)
 void
 initriscv(struct riscv_bootparams *rvbp)
 {
+	struct mem_region mem_regions[FDT_MEM_REGIONS];
 	vm_offset_t lastaddr;
+	int mem_regions_sz;
 	vm_size_t kernlen;
 	caddr_t kmdp;
+	int i;
 
 	/* Set the module data location */
 	lastaddr = fake_preload_metadata(rvbp);
@@ -752,11 +761,12 @@ initriscv(struct riscv_bootparams *rvbp)
 	/* Load the physical memory ranges */
 	physmap_idx = 0;
 
-	/*
-	 * RISCVTODO: figure out whether platform provides ranges,
-	 * or grab from FDT.
-	 */
-	add_physmap_entry(0, 0x8000000, physmap, &physmap_idx);
+	/* Grab physical memory regions information from device tree. */
+	if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, NULL) != 0)
+		panic("Cannot get physical memory regions");
+	for (i = 0; i < mem_regions_sz; i++)
+		add_physmap_entry(mem_regions[i].mr_start,
+		    mem_regions[i].mr_size, physmap, &physmap_idx);
 
 	/* Set the pcpu data, this is needed by pmap_bootstrap */
 	pcpup = &__pcpu[0];

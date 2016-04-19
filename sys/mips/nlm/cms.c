@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/hwfunc.h>
 #include <machine/mips_opcode.h>
-#include <machine/param.h>
 #include <machine/intr_machdep.h>
 
 #include <mips/nlm/hal/mips-extns.h>

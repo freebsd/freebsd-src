@@ -2,6 +2,10 @@
 
 .include <bsd.own.mk>
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 NO_WERROR=
 WARNS?=	2
 
@@ -32,7 +36,7 @@ PROGS+=		h_memset
 #
 # sanitizer is not tested or supported for ARM right now. sbruno
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-.if ${COMPILER_TYPE} == "clang"
+.if ${COMPILER_TYPE} == "clang" && ${MK_TOOLCHAIN} == "yes"
 .if ${COMPILER_VERSION} < 30500 || 30700 <= ${COMPILER_VERSION}
 PROGS+=		h_raw
 .endif

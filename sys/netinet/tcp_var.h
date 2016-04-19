@@ -364,7 +364,7 @@ struct tcpcb {
  * options in tcp_addoptions.
  */
 struct tcpopt {
-	u_int64_t	to_flags;	/* which options are present */
+	u_int32_t	to_flags;	/* which options are present */
 #define	TOF_MSS		0x0001		/* maximum segment size */
 #define	TOF_SCALE	0x0002		/* window scaling */
 #define	TOF_SACKPERM	0x0004		/* SACK permitted */
@@ -588,9 +588,6 @@ struct	tcpstat {
 	uint64_t tcps_sig_err_sigopt;	/* No signature expected by socket */
 	uint64_t tcps_sig_err_nosigopt;	/* No signature provided by segment */
 
-	/* Running connection count. */
-	uint64_t tcps_states[TCP_NSTATES];
-
 	uint64_t _pad[12];		/* 6 UTO, 6 TBD */
 };
 
@@ -609,9 +606,6 @@ VNET_PCPUSTAT_DECLARE(struct tcpstat, tcpstat);	/* tcp statistics */
 #define	TCPSTAT_ADD(name, val)	\
     VNET_PCPUSTAT_ADD(struct tcpstat, tcpstat, name, (val))
 #define	TCPSTAT_INC(name)	TCPSTAT_ADD(name, 1)
-#define	TCPSTAT_DEC(name)	TCPSTAT_ADD(name, -1)
-#define	TCPSTAT_FETCH(name)	VNET_PCPUSTAT_FETCH(struct tcpstat, tcpstat, \
-				    name)
 
 /*
  * Kernel module consumers must use this accessor macro.
@@ -619,6 +613,13 @@ VNET_PCPUSTAT_DECLARE(struct tcpstat, tcpstat);	/* tcp statistics */
 void	kmod_tcpstat_inc(int statnum);
 #define	KMOD_TCPSTAT_INC(name)						\
     kmod_tcpstat_inc(offsetof(struct tcpstat, name) / sizeof(uint64_t))
+
+/*
+ * Running TCP connection count by state.
+ */
+VNET_DECLARE(counter_u64_t, tcps_states[TCP_NSTATES]);
+#define	TCPSTATES_INC(state)	counter_u64_add(VNET(tcps_states)[state], 1)
+#define	TCPSTATES_DEC(state)	counter_u64_add(VNET(tcps_states)[state], -1)
 
 /*
  * TCP specific helper hook point identifiers.
@@ -666,7 +667,7 @@ struct	xtcpcb {
  */
 #define	TCPCTL_DO_RFC1323	1	/* use RFC-1323 extensions */
 #define	TCPCTL_MSSDFLT		3	/* MSS default */
-#define TCPCTL_STATS		4	/* statistics (read-only) */
+#define TCPCTL_STATS		4	/* statistics */
 #define	TCPCTL_RTTDFLT		5	/* default RTT estimate */
 #define	TCPCTL_KEEPIDLE		6	/* keepalive idle timer */
 #define	TCPCTL_KEEPINTVL	7	/* interval to send keepalives */
@@ -678,6 +679,7 @@ struct	xtcpcb {
 #define	TCPCTL_V6MSSDFLT	13	/* MSS default for IPv6 */
 #define	TCPCTL_SACK		14	/* Selective Acknowledgement,rfc 2018 */
 #define	TCPCTL_DROP		15	/* drop tcp connection */
+#define	TCPCTL_STATES		16	/* connection counts by TCP state */
 
 #ifdef _KERNEL
 #ifdef SYSCTL_DECL

@@ -53,7 +53,8 @@
      FILENAME = 269,
      NAME = 270,
      LEVEL = 271,
-     LINE = 272
+     LINE = 272,
+     SUBNET = 273
    };
 #endif
 /* Tokens.  */
@@ -72,19 +73,20 @@
 #define NAME 270
 #define LEVEL 271
 #define LINE 272
+#define SUBNET 273
 
 
 
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 167 "./config_parser.y"
+#line 197 "./config_parser.y"
 {
   int        ival;
   char      *sval;
 }
 /* Line 1529 of yacc.c.  */
-#line 88 "y.tab.h"
+#line 90 "y.tab.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

@@ -211,29 +211,64 @@ ata_op_string(struct ata_cmd *cmd)
 char *
 ata_cmd_string(struct ata_cmd *cmd, char *cmd_string, size_t len)
 {
+	struct sbuf sb;
+	int error;
 
-	snprintf(cmd_string, len, "%02x %02x %02x %02x "
+	if (len == 0)
+		return ("");
+
+	sbuf_new(&sb, cmd_string, len, SBUF_FIXEDLEN);
+	ata_cmd_sbuf(cmd, &sb);
+
+	error = sbuf_finish(&sb);
+	if (error != 0 && error != ENOMEM)
+		return ("");
+
+	return(sbuf_data(&sb));
+}
+
+void
+ata_cmd_sbuf(struct ata_cmd *cmd, struct sbuf *sb)
+{
+	sbuf_printf(sb, "%02x %02x %02x %02x "
 	    "%02x %02x %02x %02x %02x %02x %02x %02x",
 	    cmd->command, cmd->features,
 	    cmd->lba_low, cmd->lba_mid, cmd->lba_high, cmd->device,
 	    cmd->lba_low_exp, cmd->lba_mid_exp, cmd->lba_high_exp,
 	    cmd->features_exp, cmd->sector_count, cmd->sector_count_exp);
-
-	return(cmd_string);
 }
 
 char *
 ata_res_string(struct ata_res *res, char *res_string, size_t len)
 {
+	struct sbuf sb;
+	int error;
 
-	snprintf(res_string, len, "%02x %02x %02x %02x "
+	if (len == 0)
+		return ("");
+
+	sbuf_new(&sb, res_string, len, SBUF_FIXEDLEN);
+	ata_res_sbuf(res, &sb);
+
+	error = sbuf_finish(&sb);
+	if (error != 0 && error != ENOMEM)
+		return ("");
+
+	return(sbuf_data(&sb));
+}
+
+int
+ata_res_sbuf(struct ata_res *res, struct sbuf *sb)
+{
+
+	sbuf_printf(sb, "%02x %02x %02x %02x "
 	    "%02x %02x %02x %02x %02x %02x %02x",
 	    res->status, res->error,
 	    res->lba_low, res->lba_mid, res->lba_high, res->device,
 	    res->lba_low_exp, res->lba_mid_exp, res->lba_high_exp,
 	    res->sector_count, res->sector_count_exp);
 
-	return(res_string);
+	return (0);
 }
 
 /*
@@ -242,11 +277,10 @@ ata_res_string(struct ata_res *res, char *res_string, size_t len)
 int
 ata_command_sbuf(struct ccb_ataio *ataio, struct sbuf *sb)
 {
-	char cmd_str[(12 * 3) + 1];
 
-	sbuf_printf(sb, "%s. ACB: %s",
-	    ata_op_string(&ataio->cmd),
-	    ata_cmd_string(&ataio->cmd, cmd_str, sizeof(cmd_str)));
+	sbuf_printf(sb, "%s. ACB: ",
+	    ata_op_string(&ataio->cmd));
+	ata_cmd_sbuf(&ataio->cmd, sb);
 
 	return(0);
 }
@@ -280,20 +314,6 @@ ata_status_sbuf(struct ccb_ataio *ataio, struct sbuf *sb)
 		(ataio->res.error & 0x02) ? "NM " : "",
 		(ataio->res.error & 0x01) ? "ILI" : "");
 	}
-
-	return(0);
-}
-
-/*
- * ata_res_sbuf() returns 0 for success and -1 for failure.
- */
-int
-ata_res_sbuf(struct ccb_ataio *ataio, struct sbuf *sb)
-{
-	char res_str[(11 * 3) + 1];
-
-	sbuf_printf(sb, "RES: %s",
-	    ata_res_string(&ataio->res, res_str, sizeof(res_str)));
 
 	return(0);
 }

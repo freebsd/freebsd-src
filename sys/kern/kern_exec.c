@@ -676,7 +676,7 @@ interpret:
 	 * Don't honor setuid/setgid if the filesystem prohibits it or if
 	 * the process is being traced.
 	 *
-	 * We disable setuid/setgid/etc in compatibility mode on the basis
+	 * We disable setuid/setgid/etc in capability mode on the basis
 	 * that most setugid applications are not written with that
 	 * environment in mind, and will therefore almost certainly operate
 	 * incorrectly. In principle there's no reason that setugid
@@ -1570,8 +1570,6 @@ exec_register(execsw_arg)
 		for (es = execsw; *es; es++)
 			count++;
 	newexecsw = malloc(count * sizeof(*es), M_TEMP, M_WAITOK);
-	if (newexecsw == NULL)
-		return (ENOMEM);
 	xs = newexecsw;
 	if (execsw)
 		for (es = execsw; *es; es++)
@@ -1604,8 +1602,6 @@ exec_unregister(execsw_arg)
 		if (*es != execsw_arg)
 			count++;
 	newexecsw = malloc(count * sizeof(*es), M_TEMP, M_WAITOK);
-	if (newexecsw == NULL)
-		return (ENOMEM);
 	xs = newexecsw;
 	for (es = execsw; *es; es++)
 		if (*es != execsw_arg)

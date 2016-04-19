@@ -195,8 +195,7 @@ retry:
 int
 preadbuffer(void)
 {
-	char *p, *q;
-	int more;
+	char *p, *q, *r, *end;
 	char savec;
 
 	while (parsefile->strpush) {
@@ -213,8 +212,6 @@ preadbuffer(void)
 	}
 	if (parsenleft == EOF_NLEFT || parsefile->buf == NULL)
 		return PEOF;
-	flushout(&output);
-	flushout(&errout);
 
 again:
 	if (parselleft <= 0) {
@@ -224,34 +221,32 @@ again:
 		}
 	}
 
-	q = p = parsefile->buf + (parsenextc - parsefile->buf);
-
-	/* delete nul characters */
-	for (more = 1; more;) {
-		switch (*p) {
-		case '\0':
-			p++;	/* Skip nul */
-			goto check;
-
-		case '\n':
-			parsenleft = q - parsenextc;
-			more = 0; /* Stop processing here */
-			break;
-
-		default:
-			break;
+	p = parsefile->buf + (parsenextc - parsefile->buf);
+	end = p + parselleft;
+	*end = '\0';
+	q = strchrnul(p, '\n');
+	if (q != end && *q == '\0') {
+		/* delete nul characters */
+		for (r = q; q != end; q++) {
+			if (*q != '\0')
+				*r++ = *q;
 		}
-
-		*q++ = *p++;
-check:
-		if (--parselleft <= 0) {
-			parsenleft = q - parsenextc - 1;
-			if (parsenleft < 0)
-				goto again;
-			*q = '\0';
-			more = 0;
-		}
+		parselleft -= end - r;
+		if (parselleft == 0)
+			goto again;
+		end = p + parselleft;
+		*end = '\0';
+		q = strchrnul(p, '\n');
 	}
+	if (q == end) {
+		parsenleft = parselleft;
+		parselleft = 0;
+	} else /* *q == '\n' */ {
+		q++;
+		parsenleft = q - parsenextc;
+		parselleft -= parsenleft;
+	}
+	parsenleft--;
 
 	savec = *q;
 	*q = '\0';

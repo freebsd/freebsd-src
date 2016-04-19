@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/debug_monitor.h>
 #include <machine/kdb.h>
-#include <machine/param.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>

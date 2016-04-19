@@ -475,6 +475,23 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		 * XXX if the packet contains [IPv4 AH TCP], we can't make a
 		 * notification to TCP layer.
 		 */
+		i = sizeof(struct ip) + min(icmplen, ICMP_ADVLENPREF(icp));
+		ip_stripoptions(m);
+		if (m->m_len < i && (m = m_pullup(m, i)) == NULL) {
+			/* This should actually not happen */
+			ICMPSTAT_INC(icps_tooshort);
+			return (IPPROTO_DONE);
+		}
+		ip = mtod(m, struct ip *);
+		icp = (struct icmp *)(ip + 1);
+		/*
+		 * The upper layer handler can rely on:
+		 * - The outer IP header has no options.
+		 * - The outer IP header, the ICMP header, the inner IP header,
+		 *   and the first n bytes of the inner payload are contiguous.
+		 *   n is at least 8, but might be larger based on 
+		 *   ICMP_ADVLENPREF. See its definition in ip_icmp.h.
+		 */
 		ctlfunc = inetsw[ip_protox[icp->icmp_ip.ip_p]].pr_ctlinput;
 		if (ctlfunc)
 			(*ctlfunc)(code, (struct sockaddr *)&icmpsrc,
@@ -657,7 +674,7 @@ icmp_reflect(struct mbuf *m)
 	struct in_ifaddr *ia;
 	struct in_addr t;
 	struct nhop4_extended nh_ext;
-	struct mbuf *opts = 0;
+	struct mbuf *opts = NULL;
 	int optlen = (ip->ip_hl << 2) - sizeof(struct ip);
 
 	if (IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
@@ -773,7 +790,7 @@ match:
 		 * add on any record-route or timestamp options.
 		 */
 		cp = (u_char *) (ip + 1);
-		if ((opts = ip_srcroute(m)) == 0 &&
+		if ((opts = ip_srcroute(m)) == NULL &&
 		    (opts = m_gethdr(M_NOWAIT, MT_DATA))) {
 			opts->m_len = sizeof(struct in_addr);
 			mtod(opts, struct in_addr *)->s_addr = 0;

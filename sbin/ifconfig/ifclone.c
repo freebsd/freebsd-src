@@ -144,11 +144,12 @@ ifclonecreate(int s, void *arg)
 	}
 
 	/*
-	 * If we get a different name back than we put in, print it.
+	 * If we get a different name back than we put in, update record and
+	 * indicate it should be printed later.
 	 */
 	if (strncmp(name, ifr.ifr_name, sizeof(name)) != 0) {
 		strlcpy(name, ifr.ifr_name, sizeof(name));
-		printf("%s\n", name);
+		printifname = 1;
 	}
 }
 

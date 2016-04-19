@@ -8,9 +8,10 @@ LLVM_SRCS= ${.CURDIR}/../../../contrib/llvm
 
 .PATH: ${LLVM_SRCS}/tools/clang/lib/Headers
 
-INCSDIR=${LIBDIR}/clang/3.7.1/include
+INCSDIR=${LIBDIR}/clang/3.8.0/include
 
-INCS=	__stddef_max_align_t.h \
+INCS=	__clang_cuda_runtime_wrapper.h \
+	__stddef_max_align_t.h \
 	__wmmintrin_aes.h \
 	__wmmintrin_pclmul.h \
 	adxintrin.h \
@@ -46,6 +47,7 @@ INCS=	__stddef_max_align_t.h \
 	mmintrin.h \
 	module.modulemap \
 	nmmintrin.h \
+	pkuintrin.h \
 	pmmintrin.h \
 	popcntintrin.h \
 	prfchwintrin.h \
@@ -62,6 +64,10 @@ INCS=	__stddef_max_align_t.h \
 	x86intrin.h \
 	xmmintrin.h \
 	xopintrin.h \
+	xsavecintrin.h \
+	xsaveintrin.h \
+	xsaveoptintrin.h \
+	xsavesintrin.h \
 	xtestintrin.h \
 	${GENINCS}
 GENINCS= arm_neon.h

@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/stdarg.h>
-#include <machine/pmap.h>
 
 #include <linux/kobject.h>
 #include <linux/device.h>
@@ -893,16 +892,6 @@ kasprintf(gfp_t gfp, const char *fmt, ...)
 	va_end(ap);
 
 	return (p);
-}
-
-static int
-linux_timer_jiffies_until(unsigned long expires)
-{
-	int delta = expires - jiffies;
-	/* guard against already expired values */
-	if (delta < 1)
-		delta = 1;
-	return (delta);
 }
 
 static void

@@ -77,6 +77,95 @@ inline void write(void *memory, value_type value) {
          &value,
          sizeof(value_type));
 }
+
+template <typename value_type>
+using make_unsigned_t = typename std::make_unsigned<value_type>::type;
+
+/// Read a value of a particular endianness from memory, for a location
+/// that starts at the given bit offset within the first byte.
+template <typename value_type, endianness endian, std::size_t alignment>
+inline value_type readAtBitAlignment(const void *memory, uint64_t startBit) {
+  assert(startBit < 8);
+  if (startBit == 0)
+    return read<value_type, endian, alignment>(memory);
+  else {
+    // Read two values and compose the result from them.
+    value_type val[2];
+    memcpy(&val[0],
+           LLVM_ASSUME_ALIGNED(
+               memory, (detail::PickAlignment<value_type, alignment>::value)),
+           sizeof(value_type) * 2);
+    val[0] = byte_swap<value_type, endian>(val[0]);
+    val[1] = byte_swap<value_type, endian>(val[1]);
+
+    // Shift bits from the lower value into place.
+    make_unsigned_t<value_type> lowerVal = val[0] >> startBit;
+    // Mask off upper bits after right shift in case of signed type.
+    make_unsigned_t<value_type> numBitsFirstVal =
+        (sizeof(value_type) * 8) - startBit;
+    lowerVal &= ((make_unsigned_t<value_type>)1 << numBitsFirstVal) - 1;
+
+    // Get the bits from the upper value.
+    make_unsigned_t<value_type> upperVal =
+        val[1] & (((make_unsigned_t<value_type>)1 << startBit) - 1);
+    // Shift them in to place.
+    upperVal <<= numBitsFirstVal;
+
+    return lowerVal | upperVal;
+  }
+}
+
+/// Write a value to memory with a particular endianness, for a location
+/// that starts at the given bit offset within the first byte.
+template <typename value_type, endianness endian, std::size_t alignment>
+inline void writeAtBitAlignment(void *memory, value_type value,
+                                uint64_t startBit) {
+  assert(startBit < 8);
+  if (startBit == 0)
+    write<value_type, endian, alignment>(memory, value);
+  else {
+    // Read two values and shift the result into them.
+    value_type val[2];
+    memcpy(&val[0],
+           LLVM_ASSUME_ALIGNED(
+               memory, (detail::PickAlignment<value_type, alignment>::value)),
+           sizeof(value_type) * 2);
+    val[0] = byte_swap<value_type, endian>(val[0]);
+    val[1] = byte_swap<value_type, endian>(val[1]);
+
+    // Mask off any existing bits in the upper part of the lower value that
+    // we want to replace.
+    val[0] &= ((make_unsigned_t<value_type>)1 << startBit) - 1;
+    make_unsigned_t<value_type> numBitsFirstVal =
+        (sizeof(value_type) * 8) - startBit;
+    make_unsigned_t<value_type> lowerVal = value;
+    if (startBit > 0) {
+      // Mask off the upper bits in the new value that are not going to go into
+      // the lower value. This avoids a left shift of a negative value, which
+      // is undefined behavior.
+      lowerVal &= (((make_unsigned_t<value_type>)1 << numBitsFirstVal) - 1);
+      // Now shift the new bits into place
+      lowerVal <<= startBit;
+    }
+    val[0] |= lowerVal;
+
+    // Mask off any existing bits in the lower part of the upper value that
+    // we want to replace.
+    val[1] &= ~(((make_unsigned_t<value_type>)1 << startBit) - 1);
+    // Next shift the bits that go into the upper value into position.
+    make_unsigned_t<value_type> upperVal = value >> numBitsFirstVal;
+    // Mask off upper bits after right shift in case of signed type.
+    upperVal &= ((make_unsigned_t<value_type>)1 << startBit) - 1;
+    val[1] |= upperVal;
+
+    // Finally, rewrite values.
+    val[0] = byte_swap<value_type, endian>(val[0]);
+    val[1] = byte_swap<value_type, endian>(val[1]);
+    memcpy(LLVM_ASSUME_ALIGNED(
+               memory, (detail::PickAlignment<value_type, alignment>::value)),
+           &val[0], sizeof(value_type) * 2);
+  }
+}
 } // end namespace endian
 
 namespace detail {
@@ -208,19 +297,47 @@ typedef detail::packed_endian_specific_integral
                    <int64_t, native, unaligned> unaligned_int64_t;
 
 namespace endian {
-inline uint16_t read16le(const void *p) { return *(const ulittle16_t *)p; }
-inline uint32_t read32le(const void *p) { return *(const ulittle32_t *)p; }
-inline uint64_t read64le(const void *p) { return *(const ulittle64_t *)p; }
-inline uint16_t read16be(const void *p) { return *(const ubig16_t *)p; }
-inline uint32_t read32be(const void *p) { return *(const ubig32_t *)p; }
-inline uint64_t read64be(const void *p) { return *(const ubig64_t *)p; }
+template <typename T, endianness E> inline T read(const void *P) {
+  return *(const detail::packed_endian_specific_integral<T, E, unaligned> *)P;
+}
 
-inline void write16le(void *p, uint16_t v) { *(ulittle16_t *)p = v; }
-inline void write32le(void *p, uint32_t v) { *(ulittle32_t *)p = v; }
-inline void write64le(void *p, uint64_t v) { *(ulittle64_t *)p = v; }
-inline void write16be(void *p, uint16_t v) { *(ubig16_t *)p = v; }
-inline void write32be(void *p, uint32_t v) { *(ubig32_t *)p = v; }
-inline void write64be(void *p, uint64_t v) { *(ubig64_t *)p = v; }
+template <endianness E> inline uint16_t read16(const void *P) {
+  return read<uint16_t, E>(P);
+}
+template <endianness E> inline uint32_t read32(const void *P) {
+  return read<uint32_t, E>(P);
+}
+template <endianness E> inline uint64_t read64(const void *P) {
+  return read<uint64_t, E>(P);
+}
+
+inline uint16_t read16le(const void *P) { return read16<little>(P); }
+inline uint32_t read32le(const void *P) { return read32<little>(P); }
+inline uint64_t read64le(const void *P) { return read64<little>(P); }
+inline uint16_t read16be(const void *P) { return read16<big>(P); }
+inline uint32_t read32be(const void *P) { return read32<big>(P); }
+inline uint64_t read64be(const void *P) { return read64<big>(P); }
+
+template <typename T, endianness E> inline void write(void *P, T V) {
+  *(detail::packed_endian_specific_integral<T, E, unaligned> *)P = V;
+}
+
+template <endianness E> inline void write16(void *P, uint16_t V) {
+  write<uint16_t, E>(P, V);
+}
+template <endianness E> inline void write32(void *P, uint32_t V) {
+  write<uint32_t, E>(P, V);
+}
+template <endianness E> inline void write64(void *P, uint64_t V) {
+  write<uint64_t, E>(P, V);
+}
+
+inline void write16le(void *P, uint16_t V) { write16<little>(P, V); }
+inline void write32le(void *P, uint32_t V) { write32<little>(P, V); }
+inline void write64le(void *P, uint64_t V) { write64<little>(P, V); }
+inline void write16be(void *P, uint16_t V) { write16<big>(P, V); }
+inline void write32be(void *P, uint32_t V) { write32<big>(P, V); }
+inline void write64be(void *P, uint64_t V) { write64<big>(P, V); }
 } // end namespace endian
 } // end namespace support
 } // end namespace llvm

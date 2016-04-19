@@ -217,6 +217,9 @@ done:
  * environment obtained from a boot loader, or to provide an empty buffer into
  * which MD code can store an initial environment using kern_setenv() calls.
  *
+ * When a copy of an initial environment is passed in, we start by scanning that
+ * env for overrides to the compiled-in envmode and hintmode variables.
+ *
  * If the global envmode is 1, the environment is initialized from the global
  * static_env[], regardless of the arguments passed.  This implements the env
  * keyword described in config(5).  In this case env_pos is set to env_len,
@@ -238,6 +241,14 @@ done:
 void
 init_static_kenv(char *buf, size_t len)
 {
+	char *cp;
+	
+	for (cp = buf; cp != NULL && cp[0] != '\0'; cp += strlen(cp) + 1) {
+		if (strcmp(cp, "static_env.disabled=1") == 0)
+			envmode = 0;
+		if (strcmp(cp, "static_hints.disabled=1") == 0)
+			hintmode = 0;
+	}
 
 	if (envmode == 1) {
 		kern_envp = static_env;
@@ -534,6 +545,36 @@ getenv_uint(const char *name, unsigned int *data)
 }
 
 /*
+ * Return an int64_t value from an environment variable.
+ */
+int
+getenv_int64(const char *name, int64_t *data)
+{
+	quad_t tmp;
+	int64_t rval;
+
+	rval = getenv_quad(name, &tmp);
+	if (rval)
+		*data = (int64_t) tmp;
+	return (rval);
+}
+
+/*
+ * Return an uint64_t value from an environment variable.
+ */
+int
+getenv_uint64(const char *name, uint64_t *data)
+{
+	quad_t tmp;
+	uint64_t rval;
+
+	rval = getenv_quad(name, &tmp);
+	if (rval)
+		*data = (uint64_t) tmp;
+	return (rval);
+}
+
+/*
  * Return a long value from an environment variable.
  */
 int
@@ -636,6 +677,22 @@ tunable_ulong_init(void *data)
 	struct tunable_ulong *d = (struct tunable_ulong *)data;
 
 	TUNABLE_ULONG_FETCH(d->path, d->var);
+}
+
+void
+tunable_int64_init(void *data)
+{
+	struct tunable_int64 *d = (struct tunable_int64 *)data;
+
+	TUNABLE_INT64_FETCH(d->path, d->var);
+}
+
+void
+tunable_uint64_init(void *data)
+{
+	struct tunable_uint64 *d = (struct tunable_uint64 *)data;
+
+	TUNABLE_UINT64_FETCH(d->path, d->var);
 }
 
 void

@@ -48,7 +48,7 @@ struct imsgev		*iev_dns;
 void	dns_dispatch_imsg(int, short, void *);
 void	dns_sig_handler(int, short, void *);
 void	dns_shutdown(void);
-int	host_dns(const char *s, struct ypldap_addr **hn);
+int	host_dns(const char *, struct ypldap_addr_list *);
 
 void
 dns_sig_handler(int sig, short event, void *p)
@@ -129,7 +129,8 @@ dns_dispatch_imsg(int fd, short events, void *p)
 	struct imsg		 imsg;
 	int			 n, cnt;
 	char			*name;
-	struct ypldap_addr	*h, *hn;
+	struct ypldap_addr_list	hn = TAILQ_HEAD_INITIALIZER(hn);
+	struct ypldap_addr	*h;
 	struct ibuf		*buf;
 	struct env		*env = p;
 	struct imsgev		*iev = env->sc_iev;
@@ -176,12 +177,11 @@ dns_dispatch_imsg(int fd, short events, void *p)
 			if (buf == NULL)
 				break;
 			if (cnt > 0) {
-				h = hn;
-				while (h != NULL) {
+				while(!TAILQ_EMPTY(&hn)) {
+					h = TAILQ_FIRST(&hn);
+					TAILQ_REMOVE(&hn, h, next);
 					imsg_add(buf, &h->ss, sizeof(h->ss));
-					hn = h->next;
 					free(h);
-					h = hn;
 				}
 			}
 
@@ -204,13 +204,13 @@ done:
 }
 
 int
-host_dns(const char *s, struct ypldap_addr **hn)
+host_dns(const char *s, struct ypldap_addr_list *hn)
 {
 	struct addrinfo		 hints, *res0, *res;
 	int			 error, cnt = 0;
 	struct sockaddr_in	*sa_in;
 	struct sockaddr_in6	*sa_in6;
-	struct ypldap_addr	*h, *hh = NULL;
+	struct ypldap_addr	*h;
 
 	bzero(&hints, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
@@ -243,12 +243,9 @@ host_dns(const char *s, struct ypldap_addr **hn)
 			    res->ai_addr)->sin6_addr, sizeof(struct in6_addr));
 		}
 
-		h->next = hh;
-		hh = h;
+		TAILQ_INSERT_HEAD(hn, h, next);
 		cnt++;
 	}
 	freeaddrinfo(res0);
-
-	*hn = hh;
 	return (cnt);
 }

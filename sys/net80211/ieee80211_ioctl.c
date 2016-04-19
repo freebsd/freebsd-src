@@ -1020,6 +1020,10 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP)
 			ireq->i_val = vap->iv_ampdu_rxmax;
 		else if (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP)
+			/*
+			 * XXX TODO: this isn't completely correct, as we've
+			 * negotiated the higher of the two.
+			 */
 			ireq->i_val = MS(vap->iv_bss->ni_htparam,
 			    IEEE80211_HTCAP_MAXRXAMPDU);
 		else
@@ -1028,6 +1032,10 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 	case IEEE80211_IOC_AMPDU_DENSITY:
 		if (vap->iv_opmode == IEEE80211_M_STA &&
 		    (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP))
+			/*
+			 * XXX TODO: this isn't completely correct, as we've
+			 * negotiated the higher of the two.
+			 */
 			ireq->i_val = MS(vap->iv_bss->ni_htparam,
 			    IEEE80211_HTCAP_MPDUDENSITY);
 		else
@@ -3289,7 +3297,7 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ieee80211vap *vap = ifp->if_softc;
 	struct ieee80211com *ic = vap->iv_ic;
-	int error = 0;
+	int error = 0, wait = 0;
 	struct ifreq *ifr;
 	struct ifaddr *ifa;			/* XXX */
 
@@ -3308,18 +3316,24 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 * then it will automatically be brought up as a
 			 * side-effect of bringing ourself up.
 			 */
-			if (vap->iv_state == IEEE80211_S_INIT)
+			if (vap->iv_state == IEEE80211_S_INIT) {
+				if (ic->ic_nrunning == 0)
+					wait = 1;
 				ieee80211_start_locked(vap);
+			}
 		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			/*
 			 * Stop ourself.  If we are the last vap to be
 			 * marked down the parent will also be taken down.
 			 */
+			if (ic->ic_nrunning == 1)
+				wait = 1;
 			ieee80211_stop_locked(vap);
 		}
 		IEEE80211_UNLOCK(ic);
 		/* Wait for parent ioctl handler if it was queued */
-		ieee80211_waitfor_parent(ic);
+		if (wait)
+			ieee80211_waitfor_parent(ic);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:

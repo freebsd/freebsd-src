@@ -44,7 +44,6 @@
 #include <machine/bus.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/vm.h>
 
 #include <dev/ofw/openfirm.h>
 

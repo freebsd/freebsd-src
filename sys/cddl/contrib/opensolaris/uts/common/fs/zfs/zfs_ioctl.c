@@ -31,6 +31,7 @@
  * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 /*
@@ -1442,7 +1443,14 @@ getzfsvfs(const char *dsname, zfsvfs_t **zfvp)
 	mutex_enter(&os->os_user_ptr_lock);
 	*zfvp = dmu_objset_get_user(os);
 	if (*zfvp) {
+#ifdef illumos
 		VFS_HOLD((*zfvp)->z_vfs);
+#else
+		if (vfs_busy((*zfvp)->z_vfs, 0) != 0) {
+			*zfvp = NULL;
+			error = SET_ERROR(ESRCH);
+		}
+#endif
 	} else {
 		error = SET_ERROR(ESRCH);
 	}
@@ -1486,7 +1494,11 @@ zfsvfs_rele(zfsvfs_t *zfsvfs, void *tag)
 	rrm_exit(&zfsvfs->z_teardown_lock, tag);
 
 	if (zfsvfs->z_vfs) {
+#ifdef illumos
 		VFS_RELE(zfsvfs->z_vfs);
+#else
+		vfs_unbusy(zfsvfs->z_vfs);
+#endif
 	} else {
 		dmu_objset_disown(zfsvfs->z_os, zfsvfs);
 		zfsvfs_free(zfsvfs);
@@ -1601,8 +1613,7 @@ zfs_ioc_pool_import(zfs_cmd_t *zc)
 
 	nvlist_free(config);
 
-	if (props)
-		nvlist_free(props);
+	nvlist_free(props);
 
 	return (error);
 }
@@ -3018,11 +3029,13 @@ zfs_get_vfs(const char *resource)
 	mtx_lock(&mountlist_mtx);
 	TAILQ_FOREACH(vfsp, &mountlist, mnt_list) {
 		if (strcmp(refstr_value(vfsp->vfs_resource), resource) == 0) {
-			VFS_HOLD(vfsp);
+			if (vfs_busy(vfsp, MBF_MNTLSTLOCK) != 0)
+				vfsp = NULL;
 			break;
 		}
 	}
-	mtx_unlock(&mountlist_mtx);
+	if (vfsp == NULL)
+		mtx_unlock(&mountlist_mtx);
 	return (vfsp);
 }
 
@@ -3475,7 +3488,11 @@ zfs_unmount_snap(const char *snapname)
 	ASSERT(!dsl_pool_config_held(dmu_objset_pool(zfsvfs->z_os)));
 
 	err = vn_vfswlock(vfsp->vfs_vnodecovered);
+#ifdef illumos
 	VFS_RELE(vfsp);
+#else
+	vfs_unbusy(vfsp);
+#endif
 	if (err != 0)
 		return (SET_ERROR(err));
 
@@ -3721,7 +3738,11 @@ zfs_ioc_rollback(const char *fsname, nvlist_t *args, nvlist_t *outnvl)
 			resume_err = zfs_resume_fs(zfsvfs, fsname);
 			error = error ? error : resume_err;
 		}
+#ifdef illumos
 		VFS_RELE(zfsvfs->z_vfs);
+#else
+		vfs_unbusy(zfsvfs->z_vfs);
+#endif
 	} else {
 		error = dsl_dataset_rollback(fsname, NULL, outnvl);
 	}
@@ -3972,7 +3993,7 @@ zfs_check_settable(const char *dsname, nvpair_t *pair, cred_t *cr)
 			return (SET_ERROR(EINVAL));
 
 		/* check prop value is enabled in features */
-		feature = zio_checksum_to_feature(intval);
+		feature = zio_checksum_to_feature(intval & ZIO_CHECKSUM_MASK);
 		if (feature == SPA_FEATURE_NONE)
 			break;
 
@@ -4376,7 +4397,11 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 			if (error == 0)
 				error = zfs_resume_fs(zfsvfs, tofs);
 			error = error ? error : end_err;
+#ifdef illumos
 			VFS_RELE(zfsvfs->z_vfs);
+#else
+			vfs_unbusy(zfsvfs->z_vfs);
+#endif
 		} else {
 			error = dmu_recv_end(&drc, NULL);
 		}
@@ -4925,7 +4950,11 @@ zfs_ioc_userspace_upgrade(zfs_cmd_t *zc)
 		}
 		if (error == 0)
 			error = dmu_objset_userspace_upgrade(zfsvfs->z_os);
+#ifdef illumos
 		VFS_RELE(zfsvfs->z_vfs);
+#else
+		vfs_unbusy(zfsvfs->z_vfs);
+#endif
 	} else {
 		/* XXX kind of reading contents without owning */
 		error = dmu_objset_hold(zc->zc_name, FTAG, &os);
@@ -6220,6 +6249,14 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 				error = SET_ERROR(EINVAL);
 				goto out;
 			}
+			break;
+		case ZFS_IOCVER_RESUME:
+			if (zc_iocparm->zfs_cmd_size != sizeof(zfs_cmd_resume_t)) {
+				error = SET_ERROR(EFAULT);
+				goto out;
+			}
+			compat = B_TRUE;
+			cflag = ZFS_CMD_COMPAT_RESUME;
 			break;
 		case ZFS_IOCVER_EDBP:
 			if (zc_iocparm->zfs_cmd_size != sizeof(zfs_cmd_edbp_t)) {

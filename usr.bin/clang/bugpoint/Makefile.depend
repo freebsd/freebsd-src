@@ -15,7 +15,6 @@ DIRDEPS = \
 	lib/clang/libllvmcore \
 	lib/clang/libllvminstcombine \
 	lib/clang/libllvminstrumentation \
-	lib/clang/libllvmipa \
 	lib/clang/libllvmipo \
 	lib/clang/libllvmirreader \
 	lib/clang/libllvmlinker \
@@ -33,15 +32,14 @@ DIRDEPS = \
 	lib/libc++ \
 	lib/libcompiler_rt \
 	lib/libthr \
+	lib/libz \
 	lib/msun \
 	lib/ncurses/ncursesw \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-bugpoint.o: Intrinsics.inc.h
-bugpoint.po: Intrinsics.inc.h
 .endif

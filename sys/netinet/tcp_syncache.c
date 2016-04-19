@@ -281,6 +281,12 @@ syncache_destroy(void)
 	struct syncache *sc, *nsc;
 	int i;
 
+	/*
+	 * Stop the re-seed timer before freeing resources.  No need to
+	 * possibly schedule it another time.
+	 */
+	callout_drain(&V_tcp_syncache.secret.reseed);
+
 	/* Cleanup hash buckets: stop timers, free entries, destroy locks. */
 	for (i = 0; i < V_tcp_syncache.hashsize; i++) {
 
@@ -304,8 +310,6 @@ syncache_destroy(void)
 	/* Free the allocated global resources. */
 	uma_zdestroy(V_tcp_syncache.zone);
 	free(V_tcp_syncache.hashbase, M_SYNCACHE);
-
-	callout_drain(&V_tcp_syncache.secret.reseed);
 }
 #endif
 
@@ -351,7 +355,7 @@ syncache_insert(struct syncache *sc, struct syncache_head *sch)
 
 	SCH_UNLOCK(sch);
 
-	TCPSTAT_INC(tcps_states[TCPS_SYN_RECEIVED]);
+	TCPSTATES_INC(TCPS_SYN_RECEIVED);
 	TCPSTAT_INC(tcps_sc_added);
 }
 
@@ -365,7 +369,7 @@ syncache_drop(struct syncache *sc, struct syncache_head *sch)
 
 	SCH_LOCK_ASSERT(sch);
 
-	TCPSTAT_DEC(tcps_states[TCPS_SYN_RECEIVED]);
+	TCPSTATES_DEC(TCPS_SYN_RECEIVED);
 	TAILQ_REMOVE(&sch->sch_bucket, sc, sc_hash);
 	sch->sch_length--;
 
@@ -1003,7 +1007,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 * sonewconn->tcp_usr_attach in TCPS_CLOSED state, then
 		 * syncache_socket() will change it to TCPS_SYN_RECEIVED.
 		 */
-		TCPSTAT_DEC(tcps_states[TCPS_SYN_RECEIVED]);
+		TCPSTATES_DEC(TCPS_SYN_RECEIVED);
 		TAILQ_REMOVE(&sch->sch_bucket, sc, sc_hash);
 		sch->sch_length--;
 #ifdef TCP_OFFLOAD

@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 8, 2010
+.Dd February 18, 2016
 .Dt MAILER.CONF 5
 .Os
 .Sh NAME
@@ -101,9 +101,10 @@ mailq		/usr/libexec/sendmail/sendmail
 newaliases	/usr/libexec/sendmail/sendmail
 .Ed
 .Pp
-This example shows how to invoke a sendmail-workalike like
+Using
 .Nm Postfix
-in place of
+(from ports)
+to replace
 .Xr sendmail 8 :
 .Bd -literal -offset indent
 # Emulate sendmail using postfix
@@ -113,12 +114,10 @@ mailq		/usr/local/sbin/sendmail
 newaliases	/usr/local/sbin/sendmail
 .Ed
 .Pp
-This example shows
-how to invoke
-a sendmail-workalike with
+Using
 .Nm Exim
 (from ports)
-in place of
+to replace
 .Xr sendmail 8 :
 .Bd -literal -offset indent
 # Emulate sendmail using exim
@@ -129,24 +128,40 @@ newaliases	/usr/bin/true
 rmail		/usr/local/sbin/exim -i -oee
 .Ed
 .Pp
-This example shows the use of the
+Using
 .Nm mini_sendmail
-package from ports in place of
-.Xr sendmail 8 .
-Note the use of additional arguments.
+(from ports)
+to replace
+.Xr sendmail 8 :
 .Bd -literal -offset indent
 # Send outgoing mail to a smart relay using mini_sendmail
 sendmail	/usr/local/bin/mini_sendmail -srelayhost
 send-mail	/usr/local/bin/mini_sendmail -srelayhost
 .Ed
+.Pp
+Using
+.Xr dma 8
+to replace
+.Xr sendmail 8 :
+.Bd -literal -offset indent
+# Execute dma instead of sendmail
+sendmail	/usr/libexec/dma
+send-mail	/usr/libexec/dma
+mailq		/usr/libexec/dma
+newaliases	/usr/libexec/dma
+rmail		/usr/libexec/dma
+.Ed
 .Sh SEE ALSO
 .Xr mail 1 ,
 .Xr mailq 1 ,
 .Xr newaliases 1 ,
+.Xr dma 8 ,
 .Xr mailwrapper 8 ,
 .Xr sendmail 8
 .Pp
 .Xr postfix 1 Pq Pa ports/mail/postfix ,
+.Xr dma 8 Pq Pa ports/mail/dma ,
+.Xr exim 8 Pq Pa ports/mail/exim ,
 .Xr mini_sendmail 8 Pq Pa ports/mail/mini_sendmail
 .Sh HISTORY
 .Nm

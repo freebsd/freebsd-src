@@ -2,6 +2,7 @@
 # $FreeBSD$
 #
 
+PACKAGE=lib${LIB}
 SHLIBDIR?=	/lib
 
 .include <bsd.own.mk>
@@ -14,7 +15,5 @@ SHLIB_MAJOR=	0
 CFLAGS+=-I${.CURDIR}
 
 LIBADD=	util
-
-WARNS?=	6
 
 .include <bsd.lib.mk>

@@ -1,4 +1,4 @@
-//===-- MIUtilStreamStdin.h -------------------------------------*- C++ -*-===//
+//===-- MICmnStreamStdin.h --------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -21,9 +21,6 @@
 //          provide can receive callbacks when a new line of data is received.
 //          Each line is determined by a carriage return.
 //          A singleton class.
-// Gotchas: None.
-// Authors: Illya Rudkin 10/02/2014.
-// Changes: Factored out OS specific handling of reading stdin  - IOR 16/06/2014.
 //--
 class CMICmnStreamStdin : public CMICmnBase, public MI::ISingleton<CMICmnStreamStdin>
 {
@@ -32,25 +29,25 @@ class CMICmnStreamStdin : public CMICmnBase, public MI::ISingleton<CMICmnStreamS
 
     // Methods:
   public:
-    bool Initialize(void) override;
-    bool Shutdown(void) override;
+    bool Initialize() override;
+    bool Shutdown() override;
     //
-    const CMIUtilString &GetPrompt(void) const;
+    const CMIUtilString &GetPrompt() const;
     bool SetPrompt(const CMIUtilString &vNewPrompt);
     void SetEnablePrompt(const bool vbYes);
-    bool GetEnablePrompt(void) const;
+    bool GetEnablePrompt() const;
     const char *ReadLine(CMIUtilString &vwErrMsg);
 
     // Methods:
   private:
-    /* ctor */ CMICmnStreamStdin(void);
+    /* ctor */ CMICmnStreamStdin();
     /* ctor */ CMICmnStreamStdin(const CMICmnStreamStdin &);
     void operator=(const CMICmnStreamStdin &);
 
     // Overridden:
   private:
     // From CMICmnBase
-    /* dtor */ ~CMICmnStreamStdin(void) override;
+    /* dtor */ ~CMICmnStreamStdin() override;
 
     // Attributes:
   private:
