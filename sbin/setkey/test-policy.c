@@ -76,7 +76,7 @@ main()
 	int i;
 	char *buf;
 
-	for (i = 0; i < sizeof(requests)/sizeof(requests[0]); i++) {
+	for (i = 0; i < nitems(requests); i++) {
 		printf("* requests:[%s]\n", requests[i]);
 		if ((buf = setpolicy(requests[i])) == NULL)
 			continue;
