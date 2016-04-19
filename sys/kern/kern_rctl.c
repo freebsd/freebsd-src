@@ -660,10 +660,11 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 			if (sleep_ms > rctl_throttle_max)
 				sleep_ms = rctl_throttle_max;
 #if 0
-			printf("%s: pid %d (%s), %jd of %jd, will sleep for %ld ms (ratio %ld, available %ld)\n",
+			printf("%s: pid %d (%s), %jd of %jd, will sleep for %ju ms (ratio %ju, available %jd)\n",
 			   __func__, p->p_pid, p->p_comm,
 			   p->p_racct->r_resources[resource],
-			   rule->rr_amount, sleep_ms, sleep_ratio, available);
+			   rule->rr_amount, (uintmax_t)sleep_ms,
+			   (uintmax_t)sleep_ratio, (intmax_t)available);
 #endif
 
 			KASSERT(sleep_ms >= rctl_throttle_min, ("%s: %ju < %d\n",
