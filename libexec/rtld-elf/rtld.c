@@ -519,7 +519,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	    rtld_die();
     }
 
-    if (aux_info[AT_EXECPATH] != 0) {
+    if (aux_info[AT_EXECPATH] != NULL) {
 	    char *kexecpath;
 	    char buf[MAXPATHLEN];
 
