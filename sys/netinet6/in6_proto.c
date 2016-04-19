@@ -382,7 +382,7 @@ struct domain inet6domain = {
 	.dom_name =		"internet6",
 	.dom_protosw =		(struct protosw *)inet6sw,
 	.dom_protoswNPROTOSW =	(struct protosw *)
-				&inet6sw[sizeof(inet6sw)/sizeof(inet6sw[0])],
+				&inet6sw[nitems(inet6sw)],
 #ifdef RADIX_MPATH
 	.dom_rtattach =		rn6_mpath_inithead,
 #else

@@ -709,8 +709,7 @@ static struct witness_order_list_entry order_lists[] = {
  */
 static struct witness_blessed blessed_list[] = {
 };
-static int blessed_count =
-	sizeof(blessed_list) / sizeof(struct witness_blessed);
+static int blessed_count = nitems(blessed_list);
 #endif
 
 /*

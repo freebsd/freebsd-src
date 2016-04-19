@@ -54,7 +54,7 @@ static struct db_variable db_vars[] = {
 #endif
 };
 static struct db_variable *db_evars =
-	db_vars + sizeof(db_vars)/sizeof(db_vars[0]);
+	db_vars + nitems(db_vars);
 
 static int
 db_find_variable(struct db_variable **varp)

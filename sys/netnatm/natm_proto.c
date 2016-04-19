@@ -87,7 +87,7 @@ static struct domain natmdomain = {
 	.dom_name =		"natm",
 	.dom_init =		natm_init,
 	.dom_protosw =		natmsw,
-	.dom_protoswNPROTOSW =	&natmsw[sizeof(natmsw)/sizeof(natmsw[0])],
+	.dom_protoswNPROTOSW =	&natmsw[nitems(natmsw)],
 };
 
 static struct netisr_handler natm_nh = {
