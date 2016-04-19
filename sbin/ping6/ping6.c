@@ -2495,7 +2495,7 @@ pr_icmph(struct icmp6_hdr *icp, u_char *end)
 			break;
 		}
 		if (options & F_VERBOSE) {
-			if (ni->ni_code > sizeof(nircode) / sizeof(nircode[0]))
+			if (ni->ni_code > nitems(nircode))
 				printf(", invalid");
 			else
 				printf(", %s", nircode[ni->ni_code]);
