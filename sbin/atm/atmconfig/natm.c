@@ -575,7 +575,7 @@ natm_delete(int argc, char *argv[])
 		TAILQ_FOREACH(aif, &diagif_list, link)
 			if (strcmp(aif->ifname, argv[0]) == 0)
 				break;
-		if (aif == 0)
+		if (aif == NULL)
 			errx(1, "no such interface '%s'", argv[0]);
 
 		vpi = parse_num(argv[1], "VPI", 0xff);
