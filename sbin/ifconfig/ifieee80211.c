@@ -2573,6 +2573,39 @@ printvhtinfo(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 }
 
 static void
+printvhtpwrenv(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
+{
+	printf("%s", tag);
+	static const char *txpwrmap[] = {
+		"20",
+		"40",
+		"80",
+		"160",
+	};
+	if (verbose) {
+		const struct ieee80211_ie_vht_txpwrenv *vhtpwr =
+		    (const struct ieee80211_ie_vht_txpwrenv *) ie;
+		int i, n;
+		const char *sep = "";
+
+		/* Get count; trim at ielen */
+		n = (vhtpwr->tx_info &
+		    IEEE80211_VHT_TXPWRENV_INFO_COUNT_MASK) + 1;
+		/* Trim at ielen */
+		if (n > ielen - 3)
+			n = ielen - 3;
+		printf("<tx_info 0x%02x pwr:[", vhtpwr->tx_info);
+		for (i = 0; i < n; i++) {
+			printf("%s%s:%.2f", sep, txpwrmap[i],
+			    ((float) ((int8_t) ie[i+3])) / 2.0);
+			sep = " ";
+		}
+
+		printf("]>");
+	}
+}
+
+static void
 printhtcap(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 {
 	printf("%s", tag);
@@ -3151,7 +3184,6 @@ iename(int elemid)
 	case IEEE80211_ELEMID_IBSSDFS:	return " IBSSDFS";
 	case IEEE80211_ELEMID_TPC:	return " TPC";
 	case IEEE80211_ELEMID_CCKM:	return " CCKM";
-	case IEEE80211_ELEMID_VHT_PWR_ENV:	return " VHTPWRENV";
 	}
 	return " ???";
 }
@@ -3221,6 +3253,9 @@ printies(const u_int8_t *vp, int ielen, int maxcols)
 			break;
 		case IEEE80211_ELEMID_VHT_OPMODE:
 			printvhtinfo(" VHTOPMODE", vp, 2+vp[1], maxcols);
+			break;
+		case IEEE80211_ELEMID_VHT_PWR_ENV:
+			printvhtpwrenv(" VHTPWRENV", vp, 2+vp[1], maxcols);
 			break;
 		case IEEE80211_ELEMID_BSSLOAD:
 			printbssload(" BSSLOAD", vp, 2+vp[1], maxcols);
