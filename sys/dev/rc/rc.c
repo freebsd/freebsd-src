@@ -186,7 +186,7 @@ rc_probe(device_t dev)
 	if (port == -1)
 		return (ENXIO);
 	found = 0;
-	for (i = 0; i < sizeof(rc_ports) / sizeof(int); i++)
+	for (i = 0; i < nitems(rc_ports); i++)
 		if (rc_ports[i] == port) {
 			found = 1;
 			break;

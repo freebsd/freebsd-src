@@ -3230,7 +3230,7 @@ static int ncr_chip_lookup(u_long device_id, u_char revision_id)
 	int i, found;
 	
 	found = -1;
-	for (i = 0; i < sizeof(ncr_chip_table)/sizeof(ncr_chip_table[0]); i++) {
+	for (i = 0; i < nitems(ncr_chip_table); i++) {
 		if (device_id	== ncr_chip_table[i].device_id &&
 		    ncr_chip_table[i].minrevid <= revision_id) {
 			if (found < 0 || 

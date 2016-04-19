@@ -455,7 +455,7 @@ nct_probe(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	for (i = 0; i < sizeof(probe_addrs) / sizeof(*probe_addrs); i++) {
+	for (i = 0; i < nitems(probe_addrs); i++) {
 		sc->rid = 0;
 		sc->portres = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->rid,
 			probe_addrs[i], probe_addrs[i] + 1, 2, RF_ACTIVE);
@@ -476,7 +476,7 @@ nct_probe(device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT, sc->rid, sc->portres);
 		bus_delete_resource(dev, SYS_RES_IOPORT, sc->rid);
 
-		for (j = 0; j < sizeof(nct_devs) / sizeof(*nct_devs); j++) {
+		for (j = 0; j < nitems(nct_devs); j++) {
 			if (chipid == nct_devs[j].chip_id) {
 				rc = bus_set_resource(dev, SYS_RES_IOPORT, 0, probe_addrs[i], 2);
 				if (rc != 0) {
