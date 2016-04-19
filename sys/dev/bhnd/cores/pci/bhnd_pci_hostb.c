@@ -68,7 +68,7 @@ bhnd_pci_hostb_probe(device_t dev)
 	if (!bhnd_is_hostb_device(dev))
 		return (ENXIO);
 
-	bhnd_set_generic_core_desc(dev);
+	bhnd_set_default_core_desc(dev);
 	return (BUS_PROBE_DEFAULT);
 }
 
