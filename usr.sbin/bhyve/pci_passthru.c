@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -483,9 +483,9 @@ init_msix_table(struct vmctx *ctx, struct passthru_softc *sc, uint64_t base)
 			    PROT_WRITE, MAP_SHARED, memfd, start +
 			    pi->pi_msix.pba_page_offset);
 			if (pi->pi_msix.pba_page == MAP_FAILED) {
-				printf(
-		    "Failed to map PBA page for MSI-X on %d/%d/%d: %s\n",
-				    b, s, f, strerror(errno));
+				warn(
+			    "Failed to map PBA page for MSI-X on %d/%d/%d",
+				    b, s, f);
 				return (-1);
 			}
 		}
@@ -559,7 +559,7 @@ cfginitbar(struct vmctx *ctx, struct passthru_softc *sc)
 
 		if (bartype != PCIBAR_IO) {
 			if (((base | size) & PAGE_MASK) != 0) {
-				printf("passthru device %d/%d/%d BAR %d: "
+				warnx("passthru device %d/%d/%d BAR %d: "
 				    "base %#lx or size %#lx not page aligned\n",
 				    sc->psc_sel.pc_bus, sc->psc_sel.pc_dev,
 				    sc->psc_sel.pc_func, i, base, size);
@@ -617,11 +617,17 @@ cfginit(struct vmctx *ctx, struct pci_devinst *pi, int bus, int slot, int func)
 	sc->psc_sel.pc_dev = slot;
 	sc->psc_sel.pc_func = func;
 
-	if (cfginitmsi(sc) != 0)
+	if (cfginitmsi(sc) != 0) {
+		warnx("failed to initialize MSI for PCI %d/%d/%d",
+		    bus, slot, func);
 		goto done;
+	}
 
-	if (cfginitbar(ctx, sc) != 0)
+	if (cfginitbar(ctx, sc) != 0) {
+		warnx("failed to initialize BARs for PCI %d/%d/%d",
+		    bus, slot, func);
 		goto done;
+	}
 
 	error = 0;				/* success */
 done:
@@ -639,34 +645,45 @@ passthru_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 
 	memflags = vm_get_memflags(ctx);
 	if (!(memflags & VM_MEM_F_WIRED)) {
-		fprintf(stderr, "passthru requires guest memory to be wired\n");
+		warnx("passthru requires guest memory to be wired");
 		goto done;
 	}
 
 	if (pcifd < 0) {
 		pcifd = open(_PATH_DEVPCI, O_RDWR, 0);
-		if (pcifd < 0)
+		if (pcifd < 0) {
+			warn("failed to open %s", _PATH_DEVPCI);
 			goto done;
+		}
 	}
 
 	if (iofd < 0) {
 		iofd = open(_PATH_DEVIO, O_RDWR, 0);
-		if (iofd < 0)
+		if (iofd < 0) {
+			warn("failed to open %s", _PATH_DEVIO);
 			goto done;
+		}
 	}
 
 	if (memfd < 0) {
 		memfd = open(_PATH_MEM, O_RDWR, 0);
-		if (memfd < 0)
+		if (memfd < 0) {
+			warn("failed to open %s", _PATH_MEM);
 			goto done;
+		}
 	}
 
 	if (opts == NULL ||
-	    sscanf(opts, "%d/%d/%d", &bus, &slot, &func) != 3)
+	    sscanf(opts, "%d/%d/%d", &bus, &slot, &func) != 3) {
+		warnx("invalid passthru options");
 		goto done;
+	}
 
-	if (vm_assign_pptdev(ctx, bus, slot, func) != 0)
+	if (vm_assign_pptdev(ctx, bus, slot, func) != 0) {
+		warnx("PCI device at %d/%d/%d is not using the ppt(4) driver",
+		    bus, slot, func);
 		goto done;
+	}
 
 	sc = calloc(1, sizeof(struct passthru_softc));
 
@@ -777,10 +794,8 @@ passthru_cfgwrite(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 			sc->psc_sel.pc_dev, sc->psc_sel.pc_func,
 			pi->pi_msi.addr, pi->pi_msi.msg_data,
 			pi->pi_msi.maxmsgnum);
-		if (error != 0) {
-			printf("vm_setup_pptdev_msi error %d\r\n", errno);
-			exit(1);
-		}
+		if (error != 0)
+			err(1, "vm_setup_pptdev_msi");
 		return (0);
 	}
 
@@ -796,11 +811,8 @@ passthru_cfgwrite(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 				    pi->pi_msix.table[i].msg_data,
 				    pi->pi_msix.table[i].vector_control);
 		
-				if (error) {
-					printf("vm_setup_pptdev_msix error "
-					    "%d\r\n", errno);
-					exit(1);	
-				}
+				if (error)
+					err(1, "vm_setup_pptdev_msix");
 			}
 		}
 		return (0);
