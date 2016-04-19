@@ -843,7 +843,7 @@ nfe_can_use_msix(struct nfe_softc *sc)
 	product = kern_getenv("smbios.planar.product");
 	use_msix = 1;
 	if (maker != NULL && product != NULL) {
-		count = sizeof(msix_blacklists) / sizeof(msix_blacklists[0]);
+		count = nitems(msix_blacklists);
 		mblp = msix_blacklists;
 		for (n = 0; n < count; n++) {
 			if (strcmp(maker, mblp->maker) == 0 &&

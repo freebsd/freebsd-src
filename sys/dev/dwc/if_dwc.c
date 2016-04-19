@@ -1049,7 +1049,7 @@ dwc_reset(device_t dev)
 	}
 
 	if (GPIO_MAP_GPIOS(gpio, node, gpio_node,
-	    sizeof(gpio_prop) / sizeof(gpio_prop[0]) - 1,
+	    nitems(gpio_prop) - 1,
 	    gpio_prop + 1, &pin, &flags) != 0) {
 		device_printf(dev, "Can't map gpio for phy reset\n");
 		return (ENXIO);

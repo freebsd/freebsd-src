@@ -619,7 +619,7 @@ wb_probe_enable(device_t dev, int probe)
 
 	error = ENXIO;
 	found = 0;
-	for (i = 0; i < sizeof(probe_addrs) / sizeof(*probe_addrs); i++) {
+	for (i = 0; i < nitems(probe_addrs); i++) {
 
 		if (sc != NULL) {
 			/* Allocate bus resources for IO index/data register access. */
@@ -657,7 +657,7 @@ wb_probe_enable(device_t dev, int probe)
 			goto cleanup;
 		}
 
-		for (j = 0; j < sizeof(wb_devs) / sizeof(*wb_devs); j++) {
+		for (j = 0; j < nitems(wb_devs); j++) {
 			if (wb_devs[j].device_id == dev_id) {
 				found = 1;
 				break;

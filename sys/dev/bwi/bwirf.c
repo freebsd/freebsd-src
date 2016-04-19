@@ -1018,8 +1018,7 @@ bwi_rf_calibval(struct bwi_mac *mac)
 
 	val = RF_READ(mac, BWI_RFR_BBP_ATTEN);
 	idx = __SHIFTOUT(val, BWI_RFR_BBP_ATTEN_CALIB_IDX);
-	KASSERT(idx < (int)(sizeof(rf_calibvals) / sizeof(rf_calibvals[0])),
-	    ("idx %d", idx));
+	KASSERT(idx < (int)nitems(rf_calibvals), ("idx %d", idx));
 
 	calib = rf_calibvals[idx] << 1;
 	if (val & BWI_RFR_BBP_ATTEN_CALIB_BIT)

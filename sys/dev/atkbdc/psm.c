@@ -524,8 +524,7 @@ static struct {
 	{ MOUSE_MODEL_GENERIC,
 	  0xc0, MOUSE_PS2_PACKETSIZE, NULL },
 };
-#define	GENERIC_MOUSE_ENTRY	\
-    ((sizeof(vendortype) / sizeof(*vendortype)) - 1)
+#define	GENERIC_MOUSE_ENTRY (nitems(vendortype) - 1)
 
 /* device driver declarateion */
 static device_method_t psm_methods[] = {
@@ -3874,7 +3873,7 @@ enable_kmouse(struct psm_softc *sc, enum probearg arg)
 	 * The special sequence to enable the third and fourth buttons.
 	 * Otherwise they behave like the first and second buttons.
 	 */
-	for (i = 0; i < sizeof(rate)/sizeof(rate[0]); ++i)
+	for (i = 0; i < nitems(rate); ++i)
 		if (set_mouse_sampling_rate(kbdc, rate[i]) != rate[i])
 			return (FALSE);
 
@@ -3971,7 +3970,7 @@ enable_msexplorer(struct psm_softc *sc, enum probearg arg)
 	enable_msintelli(sc, arg);
 
 	/* the special sequence to enable the extra buttons and the roller. */
-	for (i = 0; i < sizeof(rate1)/sizeof(rate1[0]); ++i)
+	for (i = 0; i < nitems(rate1); ++i)
 		if (set_mouse_sampling_rate(kbdc, rate1[i]) != rate1[i])
 			return (FALSE);
 	/* the device will give the genuine ID only after the above sequence */
@@ -3994,7 +3993,7 @@ enable_msexplorer(struct psm_softc *sc, enum probearg arg)
 	 * sequence; it will make the KVM think the mouse is IntelliMouse
 	 * when it is in fact IntelliMouse Explorer.
 	 */
-	for (i = 0; i < sizeof(rate0)/sizeof(rate0[0]); ++i)
+	for (i = 0; i < nitems(rate0); ++i)
 		if (set_mouse_sampling_rate(kbdc, rate0[i]) != rate0[i])
 			break;
 	get_aux_id(kbdc);
@@ -4016,7 +4015,7 @@ enable_msintelli(struct psm_softc *sc, enum probearg arg)
 	int i;
 
 	/* the special sequence to enable the third button and the roller. */
-	for (i = 0; i < sizeof(rate)/sizeof(rate[0]); ++i)
+	for (i = 0; i < nitems(rate); ++i)
 		if (set_mouse_sampling_rate(kbdc, rate[i]) != rate[i])
 			return (FALSE);
 	/* the device will give the genuine ID only after the above sequence */
@@ -4044,7 +4043,7 @@ enable_4dmouse(struct psm_softc *sc, enum probearg arg)
 	int id;
 	int i;
 
-	for (i = 0; i < sizeof(rate)/sizeof(rate[0]); ++i)
+	for (i = 0; i < nitems(rate); ++i)
 		if (set_mouse_sampling_rate(kbdc, rate[i]) != rate[i])
 			return (FALSE);
 	id = get_aux_id(kbdc);

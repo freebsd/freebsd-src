@@ -608,7 +608,7 @@ hatm_read_prom_byte(struct hatm_softc *sc, u_int addr)
 	BARRIER_W(sc);
 
 	/* send READ */
-	for (i = 0; i < sizeof(readtab) / sizeof(readtab[0]); i++) {
+	for (i = 0; i < nitems(readtab); i++) {
 		WRITE4(sc, HE_REGO_HOST_CNTL, val | readtab[i]);
 		BARRIER_W(sc);
 		DELAY(EEPROM_DELAY);

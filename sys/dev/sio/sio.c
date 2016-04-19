@@ -1638,7 +1638,7 @@ txrdy:
 				outb(com->data_port, *ioptr++);
 				++com->bytes_out;
 				if (com->unit == siotsunit
-				    && siotso < sizeof siots / sizeof siots[0])
+				    && siotso < nitems(siots))
 					nanouptime(&siots[siotso++]);
 			}
 			com->obufq.l_head = ioptr;

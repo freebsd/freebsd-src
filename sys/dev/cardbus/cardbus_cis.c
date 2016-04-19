@@ -205,7 +205,7 @@ decode_tuple_funcid(device_t cbdev, device_t child, int id,
     struct tuple_callbacks *info, void *argp)
 {
 	struct cardbus_devinfo *dinfo = device_get_ivars(child);
-	int numnames = sizeof(funcnames) / sizeof(funcnames[0]);
+	int numnames = nitems(funcnames);
 	int i;
 
 	if (cardbus_cis_debug) {

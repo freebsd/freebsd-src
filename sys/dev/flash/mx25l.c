@@ -189,7 +189,7 @@ mx25l_get_device_ident(struct mx25l_softc *sc)
 	dev_id = (rxBuf[2] << 8) | (rxBuf[3]);
 
 	for (i = 0; 
-	    i < sizeof(flash_devices)/sizeof(struct mx25l_flash_ident); i++) {
+	    i < nitems(flash_devices); i++) {
 		if ((flash_devices[i].manufacturer_id == manufacturer_id) &&
 		    (flash_devices[i].device_id == dev_id))
 			return &flash_devices[i];

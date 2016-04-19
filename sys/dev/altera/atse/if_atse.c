@@ -1727,8 +1727,7 @@ atse_sysctl_stats_attach(device_t dev)
         soid = device_get_sysctl_tree(dev);
 
 	/* MAC statistics. */
-	for (i = 0; i < sizeof(atse_mac_stats_regs) /
-	    sizeof(*atse_mac_stats_regs); i++) {
+	for (i = 0; i < nitems(atse_mac_stats_regs); i++) {
 		if (atse_mac_stats_regs[i].name == NULL ||
 		    atse_mac_stats_regs[i].descr == NULL)
 			continue;

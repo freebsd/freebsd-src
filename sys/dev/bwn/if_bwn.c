@@ -906,7 +906,7 @@ bwn_probe(device_t dev)
 {
 	int i;
 
-	for (i = 0; i < sizeof(bwn_devs) / sizeof(bwn_devs[0]); i++) {
+	for (i = 0; i < nitems(bwn_devs); i++) {
 		if (siba_get_vendor(dev) == bwn_devs[i].sd_vendor &&
 		    siba_get_device(dev) == bwn_devs[i].sd_device &&
 		    siba_get_revid(dev) == bwn_devs[i].sd_rev)
