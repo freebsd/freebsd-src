@@ -808,7 +808,7 @@ create_fs(void)
 	char *data;
 	int i;
 
-	nuserfiles = (sizeof(user_files) / sizeof(user_files[0]));
+	nuserfiles = nitems(user_files);
 
 	/* Count and assign blocks */
 	count_seg_blocks();
