@@ -223,7 +223,7 @@ malloc(size_t nbytes)
 	 * Record allocated size of block and
 	 * bound space with magic numbers.
 	 */
-	op->ov_size = (nbytes + RSLOP - 1) & ~(RSLOP - 1);
+	op->ov_size = roundup2(nbytes, RSLOP);
 	op->ov_rmagic = RMAGIC;
   	*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
 #endif
@@ -383,7 +383,7 @@ realloc(void *cp, size_t nbytes)
 		}
 		if (nbytes <= onb && nbytes > (size_t)i) {
 #ifdef RCHECK
-			op->ov_size = (nbytes + RSLOP - 1) & ~(RSLOP - 1);
+			op->ov_size = roundup2(nbytes, RSLOP);
 			*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
 #endif
 			return(cp);
