@@ -1024,7 +1024,7 @@ ioread(struct open_file *f, off_t pos, void *buf, u_int length)
 
 	buffer = malloc(nsec * bsize);
 
-	err = (f->f_dev->dv_strategy)(f->f_devdata, F_READ, pos,
+	err = (f->f_dev->dv_strategy)(f->f_devdata, F_READ, pos, 0,
 	    nsec * bsize, buffer, NULL);
 
 	memcpy(buf, (void *)((uintptr_t)buffer + off), length);
@@ -1045,7 +1045,7 @@ nandfs_probe_sectorsize(struct open_file *f)
 
 	for (i = 512; i < (16 * 1024); i <<= 1) {
 		NANDFS_DEBUG("%d ", i);
-		err = (f->f_dev->dv_strategy)(f->f_devdata, F_READ, 0, i,
+		err = (f->f_dev->dv_strategy)(f->f_devdata, F_READ, 0, 0, i,
 		    buffer, NULL);
 
 		if (err == 0) {
