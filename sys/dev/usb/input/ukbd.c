@@ -2087,7 +2087,7 @@ ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 		0x72,   /* Apple Keyboard JIS (Eisu) */
 	};
 
-	if ((code >= 89) && (code < (int)(89 + (sizeof(scan) / sizeof(scan[0]))))) {
+	if ((code >= 89) && (code < (int)(89 + nitems(scan)))) {
 		code = scan[code - 89];
 	}
 	/* Pause/Break */

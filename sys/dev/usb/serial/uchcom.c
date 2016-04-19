@@ -195,7 +195,7 @@ static const struct uchcom_divider_record dividers[] =
 	{367, 1, 11719, {0, 0, 0}},
 };
 
-#define	NUM_DIVIDERS	(sizeof (dividers) / sizeof (dividers[0]))
+#define	NUM_DIVIDERS	nitems(dividers)
 
 static const STRUCT_USB_HOST_ID uchcom_devs[] = {
 	{USB_VPI(USB_VENDOR_WCH, USB_PRODUCT_WCH_CH341SER, 0)},
