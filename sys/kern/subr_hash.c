@@ -101,7 +101,7 @@ hashdestroy(void *vhashtbl, struct malloc_type *type, u_long hashmask)
 static const int primes[] = { 1, 13, 31, 61, 127, 251, 509, 761, 1021, 1531,
 			2039, 2557, 3067, 3583, 4093, 4603, 5119, 5623, 6143,
 			6653, 7159, 7673, 8191, 12281, 16381, 24571, 32749 };
-#define NPRIMES (sizeof(primes) / sizeof(primes[0]))
+#define	NPRIMES nitems(primes)
 
 /*
  * General routine to allocate a prime number sized hash table.
