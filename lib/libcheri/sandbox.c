@@ -584,11 +584,6 @@ sandbox_object_cinvoke(struct sandbox_object *sbop, register_t methodnum,
 /*
  * This version of invoke() is intended for callers not implementing CHERI
  * compiler support -- but internally, it can be implemented either way.
- *
- * XXXRW: Zeroing the capability pointer will clear the tag, but it seems a
- * bit ugly.  It would be nice to have a pretty way to do this.  Note that C
- * NULL != an untagged capability pointer, and we would benefit from having a
- * canonical 'NULL' for the capability space (connoting no rights).
  */
 register_t
 sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
@@ -604,15 +599,14 @@ sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
 	register_t v0;
 
 	sbcp = sbop->sbo_sandbox_classp;
-	cclear = cheri_zerocap();
-	c3 = (c3p != NULL ? *(__capability void **)c3p : cclear);
-	c4 = (c4p != NULL ? *(__capability void **)c4p : cclear);
-	c5 = (c5p != NULL ? *(__capability void **)c5p : cclear);
-	c6 = (c6p != NULL ? *(__capability void **)c6p : cclear);
-	c7 = (c7p != NULL ? *(__capability void **)c7p : cclear);
-	c8 = (c8p != NULL ? *(__capability void **)c8p : cclear);
-	c9 = (c9p != NULL ? *(__capability void **)c9p : cclear);
-	c10 = (c10p != NULL ? (__capability void *)c10p : cclear);
+	c3 = (c3p != NULL ? *(__capability void **)c3p : NULL);
+	c4 = (c4p != NULL ? *(__capability void **)c4p : NULL);
+	c5 = (c5p != NULL ? *(__capability void **)c5p : NULL);
+	c6 = (c6p != NULL ? *(__capability void **)c6p : NULL);
+	c7 = (c7p != NULL ? *(__capability void **)c7p : NULL);
+	c8 = (c8p != NULL ? *(__capability void **)c8p : NULL);
+	c9 = (c9p != NULL ? *(__capability void **)c9p : NULL);
+	c10 = (c10p != NULL ? (__capability void *)c10p : NULL);
 
 	v0 = sandbox_object_cinvoke(sbop,
 	    methodnum,
