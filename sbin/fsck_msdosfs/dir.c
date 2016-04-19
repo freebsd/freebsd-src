@@ -289,7 +289,7 @@ finishDosDirSection(void)
 		np = p->next;
 		freeDirTodo(p);
 	}
-	pendingDirectories = 0;
+	pendingDirectories = NULL;
 	for (d = rootDir; d; d = nd) {
 		if ((nd = d->child) != NULL) {
 			d->child = 0;
