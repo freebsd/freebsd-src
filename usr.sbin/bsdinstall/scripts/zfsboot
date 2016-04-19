@@ -112,7 +112,7 @@ f_include $BSDCFG_SHARE/variable.subr
 : ${ZFSBOOT_PARTITION_SCHEME:=}
 
 #
-# Default partitioning scheme to use on disks
+# Default boot type to use on disks
 #
 : ${ZFSBOOT_BOOT_TYPE:=}
 
@@ -755,6 +755,21 @@ zfs_create_diskpart()
 	esac
 
 	#
+	# Enable boot pool if encryption is desired
+	#
+	[ "$ZFSBOOT_GELI_ENCRYPTION" ] && ZFSBOOT_BOOT_POOL=1
+
+	#
+	# ZFSBOOT_BOOT_POOL and BIOS+UEFI boot type are incompatible
+	#
+	if [ "$ZFSBOOT_BOOT_POOL" -a "$ZFSBOOT_BOOT_TYPE" = "BIOS+UEFI" ]; then
+		f_dprintf "$funcname: ZFSBOOT_BOOT_POOL is incompatible with BIOS+UEFI boot type"
+		msg_error="$msg_error: $funcname" f_show_err \
+			"ZFSBOOT_BOOT_POOL is incompatible with BIOS+UEFI boot type"
+		return $FAILURE
+	fi
+
+	#
 	# Destroy whatever partition layout is currently on disk.
 	# NOTE: `-F' required to destroy if partitions still exist.
 	# NOTE: Failure is ok here, blank disk will have nothing to destroy.
@@ -767,11 +782,6 @@ zfs_create_diskpart()
 	# Make doubly-sure backup GPT is destroyed
 	f_eval_catch -d $funcname gpart "$GPART_CREATE" gpt $disk
 	f_eval_catch -d $funcname gpart "$GPART_DESTROY_F" $disk
-
-	#
-	# Enable boot pool if encryption is desired
-	#
-	[ "$ZFSBOOT_GELI_ENCRYPTION" ] && ZFSBOOT_BOOT_POOL=1
 
 	#
 	# Lay down the desired type of partition scheme
@@ -813,7 +823,7 @@ zfs_create_diskpart()
 		#
 		# 2. Add small freebsd-boot or efi partition
 		#
-		if [ "$ZFSBOOT_BOOT_TYPE" = "UEFI" ]; then
+		if [ "$ZFSBOOT_BOOT_TYPE" = "UEFI" -o "$ZFSBOOT_BOOT_TYPE" = "BIOS+UEFI" ]; then
 			f_eval_catch $funcname gpart \
 			             "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
 			             "$align_small" efiboot$index efi 800k $disk ||
@@ -821,26 +831,49 @@ zfs_create_diskpart()
 			f_eval_catch $funcname gpart "$GPART_BOOTCODE_PARTONLY" \
 			             /boot/boot1.efifat 1 $disk ||
 			             return $FAILURE
-		else
+		fi
+
+		if [ "$ZFSBOOT_BOOT_TYPE" = "BIOS" -o "$ZFSBOOT_BOOT_TYPE" = "BIOS+UEFI" ]; then
 			f_eval_catch $funcname gpart \
 			             "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
 			             "$align_small" gptboot$index freebsd-boot \
 			             512k $disk || return $FAILURE
-			f_eval_catch $funcname gpart "$GPART_BOOTCODE_PART" \
-			             /boot/pmbr /boot/gptzfsboot 1 $disk ||
-			             return $FAILURE
+			if [ "$ZFSBOOT_BOOT_TYPE" = "BIOS" ]; then
+				f_eval_catch $funcname gpart "$GPART_BOOTCODE_PART" \
+				             /boot/pmbr /boot/gptzfsboot 1 $disk ||
+				             return $FAILURE
+			else
+				f_eval_catch $funcname gpart "$GPART_BOOTCODE_PART" \
+				             /boot/pmbr /boot/gptzfsboot 2 $disk ||
+				             return $FAILURE
+			fi
 		fi
 
 		# NB: zpool will use the `zfs#' GPT labels
-		bootpart=p2 swappart=p2 targetpart=p2
-		[ ${swapsize:-0} -gt 0 ] && targetpart=p3
+		if [ "$ZFSBOOT_BOOT_TYPE" = "BIOS+UEFI" ]; then
+			if [ "$ZFSBOOT_BOOT_POOL" ]; then
+				bootpart=p3 swappart=p4 targetpart=p4
+				[ ${swapsize:-0} -gt 0 ] && targetpart=p5
+			else
+				# Bootpart unused
+				bootpart=p3 swappart=p3 targetpart=p3
+				[ ${swapsize:-0} -gt 0 ] && targetpart=p4
+			fi
+		else
+			if [ "$ZFSBOOT_BOOT_POOL" ]; then
+				bootpart=p2 swappart=p3 targetpart=p3
+				[ ${swapsize:-0} -gt 0 ] && targetpart=p4
+			else
+				# Bootpart unused
+				bootpart=p2 swappart=p2 targetpart=p2
+				[ ${swapsize:-0} -gt 0 ] && targetpart=p3
+			fi
+		fi
 
 		#
 		# Prepare boot pool if enabled (e.g., for geli(8))
 		#
 		if [ "$ZFSBOOT_BOOT_POOL" ]; then
-			bootpart=p2 swappart=p3 targetpart=p3
-			[ ${swapsize:-0} -gt 0 ] && targetpart=p4
 			f_eval_catch $funcname gpart \
 			             "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
 			             "$align_big" boot$index freebsd-zfs \
@@ -1444,7 +1477,7 @@ f_dprintf "FSTAB_FMT=[%s]" "$FSTAB_FMT"
 bootmethod=$( sysctl -n machdep.bootmethod )
 f_dprintf "machdep.bootmethod=[%s]" "$bootmethod"
 if [ "$bootmethod" = "UEFI" ]; then
-	: ${ZFSBOOT_BOOT_TYPE:=UEFI}
+	: ${ZFSBOOT_BOOT_TYPE:=BIOS+UEFI}
 	: ${ZFSBOOT_PARTITION_SCHEME:=GPT}
 else
 	: ${ZFSBOOT_BOOT_TYPE:=BIOS}
@@ -1574,6 +1607,9 @@ while :; do
 		if [ "$ZFSBOOT_PARTITION_SCHEME" = "GPT" -a "$ZFSBOOT_BOOT_TYPE" = "BIOS" ]; then
 			ZFSBOOT_PARTITION_SCHEME="GPT"
 			ZFSBOOT_BOOT_TYPE="UEFI"
+		elif [ "$ZFSBOOT_PARTITION_SCHEME" = "GPT" -a "$ZFSBOOT_BOOT_TYPE" = "UEFI" ]; then
+			ZFSBOOT_PARTITION_SCHEME="GPT"
+			ZFSBOOT_BOOT_TYPE="BIOS+UEFI"
 		elif [ "$ZFSBOOT_PARTITION_SCHEME" = "GPT" ]; then
 			ZFSBOOT_PARTITION_SCHEME="MBR"
 			ZFSBOOT_BOOT_TYPE="BIOS"
