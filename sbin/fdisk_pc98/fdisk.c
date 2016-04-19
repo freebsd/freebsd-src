@@ -854,7 +854,7 @@ string(const char *str, char **ans)
 static const char *
 get_type(int type)
 {
-	int	numentries = (sizeof(part_types)/sizeof(struct part_type));
+	int	numentries = (nitems(part_types));
 	int	counter = 0;
 	struct	part_type *ptr = part_types;
 
