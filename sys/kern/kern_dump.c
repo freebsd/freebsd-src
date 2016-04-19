@@ -71,7 +71,7 @@ dumpsys_gen_pa_init(void)
 	int n, idx;
 
 	bzero(dump_map, sizeof(dump_map));
-	for (n = 0; n < sizeof(dump_map) / sizeof(dump_map[0]); n++) {
+	for (n = 0; n < nitems(dump_map); n++) {
 		idx = n * 2;
 		if (dump_avail[idx] == 0 && dump_avail[idx + 1] == 0)
 			break;
