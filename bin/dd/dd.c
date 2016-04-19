@@ -77,7 +77,6 @@ STAT	st;			/* statistics */
 void	(*cfunc)(void);		/* conversion function */
 uintmax_t cpy_cnt;		/* # of blocks to copy */
 static off_t	pending = 0;	/* pending seek if sparse */
-static off_t	last_sp = 0;	/* size of last added sparse block */
 u_int	ddflags = 0;		/* conversion options */
 size_t	cbsz;			/* conversion block size */
 uintmax_t files_cnt = 1;	/* # of files to copy */
@@ -410,6 +409,15 @@ dd_close(void)
 	}
 	if (out.dbcnt || pending)
 		dd_out(1);
+
+	/*
+	 * If the file ends with a hole, ftruncate it to extend its size
+	 * up to the end of the hole (without having to write any data).
+	 */
+	if (out.seek_offset > 0 && (out.flags & ISTRUNC)) {
+		if (ftruncate(out.fd, out.seek_offset) == -1)
+			err(1, "truncating %s", out.name);
+	}
 }
 
 void
@@ -458,29 +466,27 @@ dd_out(int force)
 			}
 			if (sparse && !force) {
 				pending += cnt;
-				last_sp = cnt;
 				nw = cnt;
 			} else {
 				if (pending != 0) {
-					/* If forced to write, and we have no
-					 * data left, we need to write the last
-					 * sparse block explicitly.
+					/*
+					 * Seek past hole.  Note that we need to record the
+					 * reached offset, because we might have no more data
+					 * to write, in which case we'll need to call
+					 * ftruncate to extend the file size.
 					 */
-					if (force && cnt == 0) {
-						pending -= last_sp;
-						assert(outp == out.db);
-						memset(outp, 0, cnt);
-					}
-					if (lseek(out.fd, pending, SEEK_CUR) ==
-					    -1)
+					out.seek_offset = lseek(out.fd, pending, SEEK_CUR);
+					if (out.seek_offset == -1)
 						err(2, "%s: seek error creating sparse file",
 						    out.name);
-					pending = last_sp = 0;
+					pending = 0;
 				}
-				if (cnt)
+				if (cnt) {
 					nw = write(out.fd, outp, cnt);
-				else
+					out.seek_offset = 0;
+				} else {
 					return;
+				}
 			}
 
 			if (nw <= 0) {
