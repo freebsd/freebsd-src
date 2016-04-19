@@ -36,12 +36,12 @@
 .Nm sandbox_class_method_declare ,
 .Nm sandbox_class_destroy ,
 .Nm sandbox_object_new ,
-.Nm sandbox_object_reset ,
 .Nm sandbox_object_getobject ,
 .Nm sandbox_object_getsystemobject ,
+.Nm sandbox_object_reset ,
+.Nm sandbox_object_destroy ,
 .Nm sandbox_object_cinvoke ,
-.Nm sandbox_object_invoke ,
-.Nm sandbox_object_destroy
+.Nm sandbox_object_invoke
 .Nd Library interface for CHERI sandboxing
 .Sh LIBRARY
 .Lb libcheri
@@ -71,10 +71,6 @@
 .Fa "size_t heaplen"
 .Fa "struct sandbox_object **sbopp"
 .Fc
-.Ft int
-.Fo sandbox_object_reset
-.Fa "struct sandbox_object *sbop"
-.Fc
 .Ft struct cheri_object
 .Fo sandbox_object_getobject
 .Fa "struct sandbox_object *sbop"
@@ -83,7 +79,17 @@
 .Fo sandbox_object_getsystemobject
 .Fa "struct sandbox_object *sbop"
 .Fc
+.Ft int
+.Fo sandbox_object_reset
+.Fa "struct sandbox_object *sbop"
+.Fc
+.Ft void
+.Fo sandbox_object_destroy
+.Fa "struct sandbox_object *sbop"
+.Fc
+.Pp
 #if __has_feature(capabilities)
+.Pp
 .Ft register_t
 .Fo sandbox_object_cinvoke
 .Fa "struct sandbox_object *sbop"
@@ -104,7 +110,9 @@
 .Fa "__capability void *c9"
 .Fa "__capability void *c10"
 .Fc
+.Pp
 #else
+.Pp
 .Ft register_t
 .Fo sandbox_object_invoke
 .Fa "struct sandbox_object *sbop"
@@ -125,14 +133,9 @@
 .Fa "struct chericap *c9p"
 .Fa "struct chericap *c10p"
 .Fc
+.Pp
 #endif
-.Ft void
-.Fo sandbox_object_destroy
-.Fa "struct sandbox_object *sbop"
-.Fc
-.Fo sandbox_object_getsystemobject
-.Fa "struct sandbox_object *sbop"
-.Fc
+.Pp
 .Sh DESCRIPTION
 .Nm
 provides a programmer-friendly interface to CHERI in-process sandboxing
