@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2014 Robert N. M. Watson
+.\" Copyright (c) 2014, 2016 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" This software was developed by SRI International and the University of
@@ -42,7 +42,7 @@
 .Nm sandbox_object_destroy ,
 .Nm sandbox_object_cinvoke ,
 .Nm sandbox_object_invoke
-.Nd Library interface for CHERI sandboxing
+.Nd Library interface for CHERI compartmentalization
 .Sh LIBRARY
 .Lb libcheri
 .Sh SYNOPSIS
@@ -138,20 +138,20 @@
 .Pp
 .Sh DESCRIPTION
 .Nm
-provides a programmer-friendly interface to CHERI in-process sandboxing
-using the object-capability security model.
-The programming interface requires programmers to define sandboxes in terms
+provides a programmer-friendly interface to CHERI in-process
+compartmentalization using an object-capability security model.
+The programming interface requires programmers to define compartments in terms
 of
 .Em classes
-(particular pieces of code that will run in sandboxes) and
+(particular pieces of code that will run in isolation) and
 .Em objects
-(in-execution instances of sandboxed code).
+(in-execution instances of isolated code).
 In
 .Nm ,
 classes are statically linked memory images (in the future to be ELF
 binaries).
 .Pp
-.Ss Sandbox classes
+.Ss libcheri classes
 A new class may be created using
 .Fn sandbox_class_new ,
 which accepts
@@ -174,55 +174,60 @@ The method number is passed via
 and string via
 .Fa methodname .
 .Pp
-Classes may be destroyed, once all its sandbox objects have been freed, using
+Classes may be destroyed, once all its objects have been freed, using
 .Fn sandbox_class_destroy .
 .Pp
 .Ss Sandbox objects
-Sandbox instances may be created using
+Object instances may be created using
 .Fn sandbox_object_new ,
 which accepts a previously created class passed via
 .Fa sbcp ,
 with a heap size specified by
 .Fa heaplen ,
-and on success returns a sandbox object via
+and on success returns a
+.Nm
+object via
 .Fa sbopp .
-When a sandbox object is no longer required, it can be destroyed by passing it
+When an object is no longer required, it can be destroyed by passing it
 to
 .Fn sandbox_object_destroy .
-A sandbox object may be restored to a pristine state by passing it to
+An object may be restored to a pristine state by passing it to
 .Fn sandbox_object_reset .
 .Pp
 .Fn sandbox_object_getobject
-returns the sandbox object's underlying CHERI object.
+returns the
+.Nm
+object's underlying CHERI object (sealed code and data capabilities).
 .Fn sandbox_object_getsystemobject
-returns the CHERI system-class instance suitable for passing into the sandbox
-object.
+returns the CHERI system-class instance suitable for delegating to the object.
 .Ss Object invocation
-Sandbox methods may be invoked using
+Methods may be invoked using
 .Fn sandbox_object_cinvoke
 if CHERI compiler support is present (allowing use of
 .Em __capability ) ,
 or
 .Fn sandbox_object_invoke
 (which can be used without compiler support).
-Both interfaces accept a sandbox object pointer,
+Both interfaces accept a
+.Nm
+object pointer,
 .Fa sbop ,
 method number via
 .Fa methodnum ,
 and general-purpose and capability register arguments.
 These functions are implemented as wrappers around
 .Xr cheri_invoke 3 .
-.Ss Sandbox monitoring
+.Ss Object monitoring
 .Pp
-Sandboxes within a
+Objects within a
 .Nm
 process may be monitored using
 .Xr procstat 1 ,
 or programmatically using
 .Xr libprocstat 3
 APIs.
-Various stastics are maintained, including object counts, method invocation
-counts, and sandbox fault information.
+Various statistics are maintained, including object counts, method invocation
+counts, and object fault information.
 .Sh RETURN VALUES
 .Rv -std sandbox_class_new sandbox_class_method_declare sandbox_object_new sandbox_object_reset
 .Pp
@@ -234,8 +239,8 @@ do not have return values as they cannot fail.
 .Fn sandbox_object_cinvoke
 and
 .Fn sandbox_object_invoke
-return the value returned by the invoked object method unless a sandbox fault
-occurs, in which case -1 will be returned.
+return the value returned by the invoked object method unless a fault occurs,
+in which case -1 will be returned.
 As a method returning -1 cannot be distinguished from a fault in the caller,
 use of negative return values for method return values is discouraged.
 .Sh SEE ALSO
@@ -251,17 +256,12 @@ Laboratory under DARPA/AFRL contract
 .Pq Do CTSRD Dc ,
 as part of the DARPA CRASH research programme.
 .Sh BUGS
-.Nm
-relies on classes being statically linked memory images rather than ELF
-binaries; this should be corrected by adding a small run-time ELF loader to
-the library.
-.Pp
 The
 .Fn sandbox_object_cinvoke
 and
 .Fn sandbox_object_invoke
 APIs cannot distinguish the invoked object returning a negative value and a
-sandbox fault causing a negative value to be returned.
+fault causing a negative value to be returned.
 .Pp
 It is not clear how programmers should select a suitable
 .Fa sandboxlen
@@ -269,6 +269,8 @@ value to pass to
 .Fn sandbox_class_new .
 .Pp
 This man page should include information on how to structure and link code
-intended to run within sandboxes.
+intended to be used as
+.Nm
+classes.
 .Pp
 This man page does not document the CHERI system class.
