@@ -146,10 +146,10 @@ bcm_fb_attach(device_t dev)
 		sc = device_get_softc(dev);
 
 	memset(&fb, 0, sizeof(fb));
-	if (bcm2835_mbox_fb_get_w_h(dev, &fb) != 0)
+	if (bcm2835_mbox_fb_get_w_h(&fb) != 0)
 		return (ENXIO);
 	fb.bpp = FB_DEPTH;
-	if (bcm2835_mbox_fb_init(dev, &fb) != 0)
+	if (bcm2835_mbox_fb_init(&fb) != 0)
 		return (ENXIO);
 
 	sc->fb_addr = (intptr_t)pmap_mapdev(fb.base, fb.size);
