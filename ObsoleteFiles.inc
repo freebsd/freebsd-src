@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160419: rename units.lib -> definitions.units
+OLD_FILES+=usr/share/misc/units.lib
 # 20160419: remove Big5HKSCS locales
 OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_COLLATE
 OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_CTYPE
