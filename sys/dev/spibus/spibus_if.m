@@ -39,3 +39,19 @@ METHOD int transfer {
 	device_t child;
 	struct spi_command *cmd;
 };
+
+#
+# Assert chip select
+#
+METHOD int chip_select {
+	device_t dev;
+	device_t child;
+};
+
+#
+# Deassert chip select
+#
+METHOD int chip_deselect {
+	device_t dev;
+	device_t child;
+};
