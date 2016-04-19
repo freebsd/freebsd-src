@@ -123,33 +123,6 @@ spi_probe(device_t dev)
 }
 
 static int
-spi_chip_select(device_t dev, device_t child)
-{
-	struct spi_softc *sc;
-	uint32_t cs;
-
-	sc = device_get_softc(dev);
-
-	spibus_get_cs(child, &cs);
-
-	WRITE4(sc, SPI_SSR, ~(1 << cs));
-
-	return (0);
-}
-
-static int
-spi_chip_deselect(device_t dev, device_t child)
-{
-	struct spi_softc *sc;
-
-	sc = device_get_softc(dev);
-
-	WRITE4(sc, SPI_SSR, ~0);
-
-	return (0);
-}
-
-static int
 spi_attach(device_t dev)
 {
 	struct spi_softc *sc;
@@ -207,6 +180,7 @@ static int
 spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 {
 	struct spi_softc *sc;
+	uint32_t reg;
 	uint32_t cs;
 
 	sc = device_get_softc(dev);
@@ -219,11 +193,21 @@ spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	/* get the proper chip select */
 	spibus_get_cs(child, &cs);
 
+	/* Assert CS */
+	reg = READ4(sc, SPI_SSR);
+	reg &= ~(1 << cs);
+	WRITE4(sc, SPI_SSR, reg);
+
 	/* Command */
 	spi_txrx(sc, cmd->tx_cmd, cmd->rx_cmd, cmd->tx_cmd_sz, cs);
 
 	/* Data */
 	spi_txrx(sc, cmd->tx_data, cmd->rx_data, cmd->tx_data_sz, cs);
+
+	/* Deassert CS */
+	reg = READ4(sc, SPI_SSR);
+	reg |= (1 << cs);
+	WRITE4(sc, SPI_SSR, reg);
 
 	return (0);
 }
@@ -235,9 +219,6 @@ static device_method_t spi_methods[] = {
 
 	/* SPI interface */
 	DEVMETHOD(spibus_transfer,	spi_transfer),
-	DEVMETHOD(spibus_chip_select,	spi_chip_select),
-	DEVMETHOD(spibus_chip_deselect,	spi_chip_deselect),
-
 	DEVMETHOD_END
 };
 
