@@ -1183,8 +1183,8 @@ lapic_timer_set_divisor(u_int divisor)
 {
 
 	KASSERT(powerof2(divisor), ("lapic: invalid divisor %u", divisor));
-	KASSERT(ffs(divisor) <= sizeof(lapic_timer_divisors) /
-	    sizeof(u_int32_t), ("lapic: invalid divisor %u", divisor));
+	KASSERT(ffs(divisor) <= nitems(lapic_timer_divisors),
+		("lapic: invalid divisor %u", divisor));
 	lapic_write32(LAPIC_DCR_TIMER, lapic_timer_divisors[ffs(divisor) - 1]);
 }
 
