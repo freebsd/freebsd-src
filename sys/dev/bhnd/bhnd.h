@@ -293,6 +293,36 @@ int				 bhnd_read_chipid(device_t dev,
 void				 bhnd_set_generic_core_desc(device_t dev);
 
 
+
+
+bool				 bhnd_bus_generic_is_hostb_device(device_t dev,
+				     device_t child);
+bool				 bhnd_bus_generic_is_hw_disabled(device_t dev,
+				     device_t child);
+bool				 bhnd_bus_generic_is_region_valid(device_t dev,
+				     device_t child, bhnd_port_type type,
+				     u_int port, u_int region);
+int				 bhnd_bus_generic_read_nvram_var(device_t dev,
+				     device_t child, const char *name,
+				     void *buf, size_t *size);
+const struct bhnd_chipid	*bhnd_bus_generic_get_chipid(device_t dev,
+				     device_t child);
+struct bhnd_resource		*bhnd_bus_generic_alloc_resource (device_t dev,
+				     device_t child, int type, int *rid,
+				     rman_res_t start, rman_res_t end,
+				     rman_res_t count, u_int flags);
+int				 bhnd_bus_generic_release_resource (device_t dev,
+				     device_t child, int type, int rid,
+				     struct bhnd_resource *r);
+int				 bhnd_bus_generic_activate_resource (device_t dev,
+				     device_t child, int type, int rid,
+				     struct bhnd_resource *r);
+int				 bhnd_bus_generic_deactivate_resource (device_t dev,
+				     device_t child, int type, int rid,
+				     struct bhnd_resource *r);
+
+
+
 /**
  * Return true if @p dev is serving as a host bridge for its parent bhnd
  * bus.

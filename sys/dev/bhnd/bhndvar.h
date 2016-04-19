@@ -70,37 +70,5 @@ int			 bhnd_generic_suspend_child(device_t dev,
 			     device_t child);
 int			 bhnd_generic_resume_child(device_t dev,
 			     device_t child);
-	
-bool			 bhnd_generic_is_hostb_device(device_t dev,
-			     device_t child);
-bool			 bhnd_generic_is_hw_disabled(device_t dev,
-			     device_t child);
-bool			 bhnd_generic_is_region_valid(device_t dev,
-			     device_t child, bhnd_port_type type, u_int port,
-			     u_int region);
-
-int			 bhnd_generic_read_nvram_var(device_t dev,
-			     device_t child, const char *name, void *buf,
-			     size_t *size);
-
-const struct bhnd_chipid *bhnd_generic_get_chipid(device_t dev, device_t child);
-
-struct bhnd_resource	*bhnd_generic_alloc_bhnd_resource (device_t dev,
-			     device_t child, int type, int *rid,
-			     rman_res_t start, rman_res_t end, rman_res_t count,
-			     u_int flags);
-
-int			 bhnd_generic_release_bhnd_resource (device_t dev,
-			     device_t child, int type, int rid,
-			     struct bhnd_resource *r);
-
-int			 bhnd_generic_activate_bhnd_resource (device_t dev,
-			     device_t child, int type, int rid,
-			     struct bhnd_resource *r);
-
-int			 bhnd_generic_deactivate_bhnd_resource (device_t dev,
-			     device_t child, int type, int rid,
-			     struct bhnd_resource *r);
-
 
 #endif /* _BHND_BHNDVAR_H_ */
