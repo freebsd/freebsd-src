@@ -357,8 +357,7 @@ sys_jail(struct thread *td, struct jail_args *uap)
 int
 kern_jail(struct thread *td, struct jail *j)
 {
-	struct iovec optiov[2 * (4
-			    + sizeof(pr_allow_names) / sizeof(pr_allow_names[0])
+	struct iovec optiov[2 * (4 + nitems(pr_allow_names)
 #ifdef INET
 			    + 1
 #endif
@@ -389,8 +388,7 @@ kern_jail(struct thread *td, struct jail *j)
 
 	/* Set permissions for top-level jails from sysctls. */
 	if (!jailed(td->td_ucred)) {
-		for (fi = 0; fi < sizeof(pr_allow_names) /
-		     sizeof(pr_allow_names[0]); fi++) {
+		for (fi = 0; fi < nitems(pr_allow_names); fi++) {
 			optiov[opt.uio_iovcnt].iov_base =
 			    (jail_default_allow & (1 << fi))
 			    ? pr_allow_names[fi] : pr_allow_nonames[fi];
@@ -503,8 +501,8 @@ kern_jail(struct thread *td, struct jail *j)
 	}
 	opt.uio_iovcnt++;
 #endif
-	KASSERT(opt.uio_iovcnt <= sizeof(optiov) / sizeof(optiov[0]),
-	    ("kern_jail: too many iovecs (%d)", opt.uio_iovcnt));
+	KASSERT(opt.uio_iovcnt <= nitems(optiov),
+		("kern_jail: too many iovecs (%d)", opt.uio_iovcnt));
 	error = kern_jail_set(td, &opt, JAIL_CREATE | JAIL_ATTACH);
 	free(u_path, M_TEMP);
 	return (error);
@@ -651,16 +649,14 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		gotrsnum = 1;
 
 	pr_flags = ch_flags = 0;
-	for (fi = 0; fi < sizeof(pr_flag_names) / sizeof(pr_flag_names[0]);
-	    fi++) {
+	for (fi = 0; fi < nitems(pr_flag_names); fi++) {
 		if (pr_flag_names[fi] == NULL)
 			continue;
 		vfs_flagopt(opts, pr_flag_names[fi], &pr_flags, 1 << fi);
 		vfs_flagopt(opts, pr_flag_nonames[fi], &ch_flags, 1 << fi);
 	}
 	ch_flags |= pr_flags;
-	for (fi = 0; fi < sizeof(pr_flag_jailsys) / sizeof(pr_flag_jailsys[0]);
-	    fi++) {
+	for (fi = 0; fi < nitems(pr_flag_jailsys); fi++) {
 		error = vfs_copyopt(opts, pr_flag_jailsys[fi].name, &jsys,
 		    sizeof(jsys));
 		if (error == ENOENT)
@@ -716,8 +712,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #endif
 
 	pr_allow = ch_allow = 0;
-	for (fi = 0; fi < sizeof(pr_allow_names) / sizeof(pr_allow_names[0]);
-	    fi++) {
+	for (fi = 0; fi < nitems(pr_allow_names); fi++) {
 		vfs_flagopt(opts, pr_allow_names[fi], &pr_allow, 1 << fi);
 		vfs_flagopt(opts, pr_allow_nonames[fi], &ch_allow, 1 << fi);
 	}
@@ -2136,8 +2131,7 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 	    sizeof(pr->pr_devfs_rsnum));
 	if (error != 0 && error != ENOENT)
 		goto done_deref;
-	for (fi = 0; fi < sizeof(pr_flag_names) / sizeof(pr_flag_names[0]);
-	    fi++) {
+	for (fi = 0; fi < nitems(pr_flag_names); fi++) {
 		if (pr_flag_names[fi] == NULL)
 			continue;
 		i = (pr->pr_flags & (1 << fi)) ? 1 : 0;
@@ -2149,8 +2143,7 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 		if (error != 0 && error != ENOENT)
 			goto done_deref;
 	}
-	for (fi = 0; fi < sizeof(pr_flag_jailsys) / sizeof(pr_flag_jailsys[0]);
-	    fi++) {
+	for (fi = 0; fi < nitems(pr_flag_jailsys); fi++) {
 		i = pr->pr_flags &
 		    (pr_flag_jailsys[fi].disable | pr_flag_jailsys[fi].new);
 		i = pr_flag_jailsys[fi].disable &&
@@ -2162,8 +2155,7 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 		if (error != 0 && error != ENOENT)
 			goto done_deref;
 	}
-	for (fi = 0; fi < sizeof(pr_allow_names) / sizeof(pr_allow_names[0]);
-	    fi++) {
+	for (fi = 0; fi < nitems(pr_allow_names); fi++) {
 		if (pr_allow_names[fi] == NULL)
 			continue;
 		i = (pr->pr_allow & (1 << fi)) ? 1 : 0;
@@ -4694,12 +4686,10 @@ db_show_prison(struct prison *pr)
 	db_printf(" child           = %p\n", LIST_FIRST(&pr->pr_children));
 	db_printf(" sibling         = %p\n", LIST_NEXT(pr, pr_sibling));
 	db_printf(" flags           = 0x%x", pr->pr_flags);
-	for (fi = 0; fi < sizeof(pr_flag_names) / sizeof(pr_flag_names[0]);
-	    fi++)
+	for (fi = 0; fi < nitems(pr_flag_names); fi++)
 		if (pr_flag_names[fi] != NULL && (pr->pr_flags & (1 << fi)))
 			db_printf(" %s", pr_flag_names[fi]);
-	for (fi = 0; fi < sizeof(pr_flag_jailsys) / sizeof(pr_flag_jailsys[0]);
-	    fi++) {
+	for (fi = 0; fi < nitems(pr_flag_jailsys); fi++) {
 		jsf = pr->pr_flags &
 		    (pr_flag_jailsys[fi].disable | pr_flag_jailsys[fi].new);
 		db_printf(" %-16s= %s\n", pr_flag_jailsys[fi].name,
@@ -4709,8 +4699,7 @@ db_show_prison(struct prison *pr)
 		    : "inherit");
 	}
 	db_printf(" allow           = 0x%x", pr->pr_allow);
-	for (fi = 0; fi < sizeof(pr_allow_names) / sizeof(pr_allow_names[0]);
-	    fi++)
+	for (fi = 0; fi < nitems(pr_allow_names); fi++)
 		if (pr_allow_names[fi] != NULL && (pr->pr_allow & (1 << fi)))
 			db_printf(" %s", pr_allow_names[fi]);
 	db_printf("\n");

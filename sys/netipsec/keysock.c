@@ -564,7 +564,7 @@ struct domain keydomain = {
 	.dom_destroy =		key_destroy,
 #endif
 	.dom_protosw =		keysw,
-	.dom_protoswNPROTOSW =	&keysw[sizeof(keysw)/sizeof(keysw[0])]
+	.dom_protoswNPROTOSW =	&keysw[nitems(keysw)]
 };
 
 VNET_DOMAIN_SET(key);

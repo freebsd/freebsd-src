@@ -454,7 +454,7 @@ ldm_privhdr_check(struct ldm_db *db, struct g_consumer *cp, int is_gpt)
 	} else
 		last = pp->mediasize / pp->sectorsize - 1;
 	for (found = 0, i = is_gpt;
-	    i < sizeof(ldm_ph_off) / sizeof(ldm_ph_off[0]); i++) {
+	    i < nitems(ldm_ph_off); i++) {
 		offset = ldm_ph_off[i];
 		/*
 		 * In the GPT case consumer is attached to the LDM metadata
@@ -1469,7 +1469,7 @@ g_part_ldm_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 
 	entry = (struct g_part_ldm_entry *)baseentry;
 	for (i = 0;
-	    i < sizeof(ldm_alias_match) / sizeof(ldm_alias_match[0]); i++) {
+	    i < nitems(ldm_alias_match); i++) {
 		if (ldm_alias_match[i].typ == entry->type)
 			return (g_part_alias_name(ldm_alias_match[i].alias));
 	}

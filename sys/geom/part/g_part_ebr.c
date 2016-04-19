@@ -189,7 +189,7 @@ ebr_parse_type(const char *type, u_char *dp_typ)
 		return (0);
 	}
 	for (i = 0;
-	    i < sizeof(ebr_alias_match) / sizeof(ebr_alias_match[0]); i++) {
+	    i < nitems(ebr_alias_match); i++) {
 		alias = g_part_alias_name(ebr_alias_match[i].alias);
 		if (strcasecmp(type, alias) == 0) {
 			*dp_typ = ebr_alias_match[i].typ;
@@ -604,7 +604,7 @@ g_part_ebr_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 
 	entry = (struct g_part_ebr_entry *)baseentry;
 	for (i = 0;
-	    i < sizeof(ebr_alias_match) / sizeof(ebr_alias_match[0]); i++) {
+	    i < nitems(ebr_alias_match); i++) {
 		if (ebr_alias_match[i].typ == entry->ent.dp_typ)
 			return (g_part_alias_name(ebr_alias_match[i].alias));
 	}

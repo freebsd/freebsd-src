@@ -1896,7 +1896,7 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc)
 
 	/* Map our computed MSS into the 3-bit index. */
 	mss = min(tcp_mssopt(&sc->sc_inc), max(sc->sc_peer_mss, V_tcp_minmss));
-	for (i = sizeof(tcp_sc_msstab) / sizeof(*tcp_sc_msstab) - 1;
+	for (i = nitems(tcp_sc_msstab) - 1;
 	     tcp_sc_msstab[i] > mss && i > 0;
 	     i--)
 		;
@@ -1908,7 +1908,7 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc)
 	 */
 	if (sc->sc_flags & SCF_WINSCALE) {
 		wscale = sc->sc_requested_s_scale;
-		for (i = sizeof(tcp_sc_wstab) / sizeof(*tcp_sc_wstab) - 1;
+		for (i = nitems(tcp_sc_wstab) - 1;
 		     tcp_sc_wstab[i] > wscale && i > 0;
 		     i--)
 			;
