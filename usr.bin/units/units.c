@@ -33,7 +33,7 @@ static const char rcsid[] =
 
 #include <sys/capsicum.h>
 
-#include "pathnames.h"
+#define	_PATH_UNITSLIB	"/usr/share/misc/units.lib"
 
 #ifndef UNITSFILE
 #define UNITSFILE _PATH_UNITSLIB
