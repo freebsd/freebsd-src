@@ -598,7 +598,7 @@ setdirmodes(int flags)
 			if (bufsize < node.extsize) {
 				if (bufsize > 0)
 					free(buf);
-				if ((buf = malloc(node.extsize)) != 0) {
+				if ((buf = malloc(node.extsize)) != NULL) {
 					bufsize = node.extsize;
 				} else {
 					bufsize = 0;
