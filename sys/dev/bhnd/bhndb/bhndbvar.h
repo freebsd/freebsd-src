@@ -65,9 +65,20 @@ int	bhndb_generic_init_full_config(device_t dev, device_t child,
 int	bhnd_generic_br_suspend_child(device_t dev, device_t child);
 int	bhnd_generic_br_resume_child(device_t dev, device_t child);
 
+/** 
+ * bhndb child address space. Children either operate in the bridged
+ * SoC address space, or within the address space mapped to the host
+ * device (e.g. the PCI BAR(s)).
+ */
+typedef enum {
+	BHNDB_ADDRSPACE_BRIDGED,	/**< bridged (SoC) address space */
+	BHNDB_ADDRSPACE_NATIVE		/**< host address space */
+} bhndb_addrspace;
+
 /** bhndb child instance state */
 struct bhndb_devinfo {
-        struct resource_list    resources;	/**< child resources. */
+	bhndb_addrspace		addrspace;	/**< child address space. */
+	struct resource_list    resources;	/**< child resources. */
 };
 
 /**
@@ -85,9 +96,7 @@ struct bhndb_softc {
 							     if the @p bus_dev has not yet
 							     called BHNDB_INIT_FULL_CONFIG() */
 
-	struct rman			 mem_rman;	/**< bridged bus memory manager */
 	struct mtx			 sc_mtx;	/**< resource lock. */
-
 	struct bhndb_resources		*bus_res;	/**< bus resource state */
 };
 

@@ -375,10 +375,18 @@ bhndb_pci_init_full_config(device_t dev, device_t child,
 	 * access to the PCIe SerDes required by the quirk workarounds.
 	 */
 	if (sc->pci_devclass == BHND_DEVCLASS_PCIE) {
-		sc->mdio = device_add_child(dev, 
+		sc->mdio = BUS_ADD_CHILD(dev, 0,
 		    devclass_get_name(bhnd_mdio_pci_devclass), 0);
 		if (sc->mdio == NULL)
 			return (ENXIO);
+		
+		error = bus_set_resource(sc->mdio, SYS_RES_MEMORY, 0,
+		    rman_get_start(sc->mem_res) + sc->mem_off +
+		    BHND_PCIE_MDIO_CTL, sizeof(uint32_t)*2);
+		if (error) {
+			device_printf(dev, "failed to set MDIO resource\n");
+			return (error);
+		}
 
 		if ((error = device_probe_and_attach(sc->mdio))) {
 			device_printf(dev, "failed to attach MDIO device\n");
@@ -1021,25 +1029,6 @@ bhndb_pci_discover_quirks(struct bhndb_pci_softc *sc,
 static int
 bhndb_mdio_pcie_probe(device_t dev)
 {
-	struct bhndb_softc	*psc;
-	device_t		 parent;
-
-	/* Parent must be a bhndb_pcie instance */
-	parent = device_get_parent(dev);
-	if (device_get_driver(parent) != &bhndb_pci_driver)
-		return (ENXIO);
-
-	/* Parent must have PCIe-Gen1 hostb device */
-	psc = device_get_softc(parent);
-	if (psc->hostb_dev == NULL)
-		return (ENXIO);
-
-	if (bhnd_get_vendor(psc->hostb_dev) != BHND_MFGID_BCM ||
-	    bhnd_get_device(psc->hostb_dev) != BHND_COREID_PCIE)
-	{
-		return (ENXIO);
-	}
-
 	device_quiet(dev);
 	return (BUS_PROBE_NOWILDCARD);
 }
@@ -1048,15 +1037,11 @@ static int
 bhndb_mdio_pcie_attach(device_t dev)
 {
 	struct bhndb_pci_softc	*psc;
-	
 	psc = device_get_softc(device_get_parent(dev));
-
 	return (bhnd_mdio_pcie_attach(dev,
 	    &psc->bhnd_mem_res, -1,
 	    psc->mem_off + BHND_PCIE_MDIO_CTL,
 	    (psc->quirks & BHNDB_PCIE_QUIRK_SD_C22_EXTADDR) != 0));
-
-	return (ENXIO);
 }
 
 static device_method_t bhnd_mdio_pcie_methods[] = {

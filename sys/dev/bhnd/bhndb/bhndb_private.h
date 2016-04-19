@@ -50,6 +50,10 @@ struct bhndb_dw_alloc;
 struct bhndb_region;
 struct bhndb_resources;
 
+struct resource			*bhndb_find_resource_range(
+				     struct bhndb_resources *br,
+				     rman_res_t start, rman_res_t count);
+
 struct resource			*bhndb_find_regwin_resource(
 				     struct bhndb_resources *br,
 				     const struct bhndb_regwin *win);
@@ -167,6 +171,9 @@ struct bhndb_resources {
 	device_t			 parent_dev;	/**< parent device */
 	struct resource_spec		*res_spec;	/**< parent bus resource specs */
 	struct resource			**res;		/**< parent bus resources */
+	
+	struct rman			 ht_mem_rman;	/**< host memory manager */
+	struct rman			 br_mem_rman;	/**< bridged memory manager */
 
 	STAILQ_HEAD(, bhndb_region) 	 bus_regions;	/**< bus region descriptors */
 
