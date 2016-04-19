@@ -451,7 +451,7 @@ main(int argc, char *argv[])
 		xkeep = xkeep_implied;
 
 	kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
-	if (kd == 0)
+	if (kd == NULL)
 		xo_errx(1, "%s", errbuf);
 
 	if (!_fmt)
