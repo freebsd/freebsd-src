@@ -545,31 +545,3 @@ sandbox_object_unload(struct sandbox_object *sbop)
 
 	munmap(sbop->sbo_datamem, sbop->sbo_datalen);
 }
-
-void *
-sandbox_class_getbase(struct sandbox_class *sbcp)
-{
-
-	return (sbcp->sbc_codemem);
-}
-
-void *
-sandbox_object_getbase(struct sandbox_object *sbop)
-{
-
-	return (sbop->sbo_datamem);
-}
-
-size_t
-sandbox_class_getlength(struct sandbox_class *sbcp)
-{
-
-	return (sbcp->sbc_codelen);
-}
-
-size_t
-sandbox_object_getlength(struct sandbox_object *sbop)
-{
-
-	return (sbop->sbo_datalen);
-}

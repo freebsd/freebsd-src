@@ -74,8 +74,6 @@ int	sandbox_class_new(const char *path, size_t maxmapsize,
 	    struct sandbox_class **sbcpp);
 int	sandbox_class_method_declare(struct sandbox_class *sbcp,
 	    u_int methodnum, const char *methodname);
-void	*sandbox_class_getbase(struct sandbox_class *sbcp);
-size_t	sandbox_class_getlength(struct sandbox_class *sbcp);
 void	sandbox_class_destroy(struct sandbox_class *sbcp);
 
 struct sandbox_object;
@@ -84,8 +82,6 @@ int	sandbox_object_new(struct sandbox_class *sbcp, size_t heaplen,
 int	sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
 	    uint flags, struct sandbox_object **sbopp);
 int	sandbox_object_reset(struct sandbox_object *sbop);
-void	*sandbox_object_getbase(struct sandbox_object *sbop);
-size_t	sandbox_object_getlength(struct sandbox_object *sbop);
 #if __has_feature(capabilities)
 register_t	sandbox_object_cinvoke(struct sandbox_object *sbop,
 		    register_t methodnum, register_t a1,
