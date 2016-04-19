@@ -110,10 +110,6 @@ extern unsigned char _end[];
 
 extern uint32_t *bootinfo;
 
-#ifdef SMP
-extern uint32_t bp_ntlb1s;
-#endif
-
 vm_paddr_t kernload;
 vm_offset_t kernstart;
 vm_size_t kernsize;
@@ -187,11 +183,6 @@ uint32_t tlb1_entries;
 #define TLB1_ENTRIES (tlb1_entries)
 #define TLB1_MAXENTRIES	64
 
-/* In-ram copy of the TLB1 */
-static tlb_entry_t tlb1[TLB1_MAXENTRIES];
-
-/* Next free entry in the TLB1 */
-static unsigned int tlb1_idx;
 static vm_offset_t tlb1_map_base = VM_MAXUSER_ADDRESS + PAGE_SIZE;
 
 static tlbtid_t tid_alloc(struct pmap *);
@@ -199,7 +190,8 @@ static void tid_flush(tlbtid_t tid);
 
 static void tlb_print_entry(int, uint32_t, uint32_t, uint32_t, uint32_t);
 
-static void tlb1_write_entry(unsigned int);
+static void tlb1_read_entry(tlb_entry_t *, unsigned int);
+static void tlb1_write_entry(tlb_entry_t *, unsigned int);
 static int tlb1_iomapped(int, vm_paddr_t, vm_size_t, vm_offset_t *);
 static vm_size_t tlb1_mapin_region(vm_offset_t, vm_paddr_t, vm_size_t);
 
@@ -271,6 +263,7 @@ static vm_offset_t ptbl_buf_pool_vabase;
 static struct ptbl_buf *ptbl_bufs;
 
 #ifdef SMP
+extern tlb_entry_t __boot_tlb1[];
 void pmap_bootstrap_ap(volatile uint32_t *);
 #endif
 
@@ -1369,6 +1362,22 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 }
 
 #ifdef SMP
+ void
+tlb1_ap_prep(void)
+{
+	tlb_entry_t *e, tmp;
+	unsigned int i;
+
+	/* Prepare TLB1 image for AP processors */
+	e = __boot_tlb1;
+	for (i = 0; i < TLB1_ENTRIES; i++) {
+		tlb1_read_entry(&tmp, i);
+
+		if ((tmp.mas1 & MAS1_VALID) && (tmp.mas2 & _TLB_ENTRY_SHARED))
+			memcpy(e++, &tmp, sizeof(tmp));
+	}
+}
+
 void
 pmap_bootstrap_ap(volatile uint32_t *trcp __unused)
 {
@@ -1376,15 +1385,15 @@ pmap_bootstrap_ap(volatile uint32_t *trcp __unused)
 
 	/*
 	 * Finish TLB1 configuration: the BSP already set up its TLB1 and we
-	 * have the snapshot of its contents in the s/w tlb1[] table, so use
-	 * these values directly to (re)program AP's TLB1 hardware.
+	 * have the snapshot of its contents in the s/w __boot_tlb1[] table
+	 * created by tlb1_ap_prep(), so use these values directly to
+	 * (re)program AP's TLB1 hardware.
+	 *
+	 * Start at index 1 because index 0 has the kernel map.
 	 */
-	for (i = bp_ntlb1s; i < tlb1_idx; i++) {
-		/* Skip invalid entries */
-		if (!(tlb1[i].mas1 & MAS1_VALID))
-			continue;
-
-		tlb1_write_entry(i);
+	for (i = 1; i < TLB1_ENTRIES; i++) {
+		if (__boot_tlb1[i].mas1 & MAS1_VALID)
+			tlb1_write_entry(&__boot_tlb1[i], i);
 	}
 
 	set_mas4_defaults();
@@ -1429,14 +1438,16 @@ mmu_booke_extract(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 static vm_paddr_t
 mmu_booke_kextract(mmu_t mmu, vm_offset_t va)
 {
+	tlb_entry_t e;
 	int i;
 
 	/* Check TLB1 mappings */
-	for (i = 0; i < tlb1_idx; i++) {
-		if (!(tlb1[i].mas1 & MAS1_VALID))
+	for (i = 0; i < TLB1_ENTRIES; i++) {
+		tlb1_read_entry(&e, i);
+		if (!(e.mas1 & MAS1_VALID))
 			continue;
-		if (va >= tlb1[i].virt && va < tlb1[i].virt + tlb1[i].size)
-			return (tlb1[i].phys + (va - tlb1[i].virt));
+		if (va >= e.virt && va < e.virt + e.size)
+			return (e.phys + (va - e.virt));
 	}
 
 	return (pte_vatopa(mmu, kernel_pmap, va));
@@ -2652,7 +2663,7 @@ mmu_booke_dev_direct_mapped(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 	 * This currently does not work for entries that
 	 * overlap TLB1 entries.
 	 */
-	for (i = 0; i < tlb1_idx; i ++) {
+	for (i = 0; i < TLB1_ENTRIES; i ++) {
 		if (tlb1_iomapped(i, pa, size, &va) == 0)
 			return (0);
 	}
@@ -2692,28 +2703,36 @@ mmu_booke_dumpsys_unmap(mmu_t mmu, vm_paddr_t pa, size_t sz, void *va)
 	vm_paddr_t ppa;
 	vm_offset_t ofs;
 	vm_size_t gran;
+	tlb_entry_t e;
+	int i;
 
 	/* Minidumps are based on virtual memory addresses. */
 	/* Nothing to do... */
 	if (do_minidump)
 		return;
 
+	for (i = 0; i < TLB1_ENTRIES; i++) {
+		tlb1_read_entry(&e, i);
+		if (!(e.mas1 & MAS1_VALID))
+			break;
+	}
+
 	/* Raw physical memory dumps don't have a virtual address. */
-	tlb1_idx--;
-	tlb1[tlb1_idx].mas1 = 0;
-	tlb1[tlb1_idx].mas2 = 0;
-	tlb1[tlb1_idx].mas3 = 0;
-	tlb1_write_entry(tlb1_idx);
+	i--;
+	e.mas1 = 0;
+	e.mas2 = 0;
+	e.mas3 = 0;
+	tlb1_write_entry(&e, i);
 
 	gran = 256 * 1024 * 1024;
 	ppa = pa & ~(gran - 1);
 	ofs = pa - ppa;
 	if (sz > (gran - ofs)) {
-		tlb1_idx--;
-		tlb1[tlb1_idx].mas1 = 0;
-		tlb1[tlb1_idx].mas2 = 0;
-		tlb1[tlb1_idx].mas3 = 0;
-		tlb1_write_entry(tlb1_idx);
+		i--;
+		e.mas1 = 0;
+		e.mas2 = 0;
+		e.mas3 = 0;
+		tlb1_write_entry(&e, i);
 	}
 }
 
@@ -2796,6 +2815,7 @@ mmu_booke_mapdev(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 static void *
 mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
+	tlb_entry_t e;
 	void *res;
 	uintptr_t va, tmpva;
 	vm_size_t sz;
@@ -2807,13 +2827,14 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 	 * requirement, but now only checks the easy case.
 	 */
 	if (ma == VM_MEMATTR_DEFAULT) {
-		for (i = 0; i < tlb1_idx; i++) {
-			if (!(tlb1[i].mas1 & MAS1_VALID))
+		for (i = 0; i < TLB1_ENTRIES; i++) {
+			tlb1_read_entry(&e, i);
+			if (!(e.mas1 & MAS1_VALID))
 				continue;
-			if (pa >= tlb1[i].phys &&
-			    (pa + size) <= (tlb1[i].phys + tlb1[i].size))
-				return (void *)(tlb1[i].virt +
-				    (vm_offset_t)(pa - tlb1[i].phys));
+			if (pa >= e.phys &&
+			    (pa + size) <= (e.phys + e.size))
+				return (void *)(e.virt +
+				    (vm_offset_t)(pa - e.phys));
 		}
 	}
 
@@ -2846,9 +2867,10 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 			} while (va % sz != 0);
 		}
 		if (bootverbose)
-			printf("Wiring VA=%x to PA=%jx (size=%x), "
-			    "using TLB1[%d]\n", va, (uintmax_t)pa, sz, tlb1_idx);
-		tlb1_set_entry(va, pa, sz, tlb_calc_wimg(pa, ma));
+			printf("Wiring VA=%x to PA=%jx (size=%x)\n",
+			    va, (uintmax_t)pa, sz);
+		tlb1_set_entry(va, pa, sz,
+		    _TLB_ENTRY_SHARED | tlb_calc_wimg(pa, ma));
 		size -= sz;
 		pa += sz;
 		va += sz;
@@ -2912,30 +2934,34 @@ mmu_booke_change_attr(mmu_t mmu, vm_offset_t addr, vm_size_t sz,
 	vm_offset_t va;
 	pte_t *pte;
 	int i, j;
+	tlb_entry_t e;
 
 	/* Check TLB1 mappings */
-	for (i = 0; i < tlb1_idx; i++) {
-		if (!(tlb1[i].mas1 & MAS1_VALID))
+	for (i = 0; i < TLB1_ENTRIES; i++) {
+		tlb1_read_entry(&e, i);
+		if (!(e.mas1 & MAS1_VALID))
 			continue;
-		if (addr >= tlb1[i].virt && addr < tlb1[i].virt + tlb1[i].size)
+		if (addr >= e.virt && addr < e.virt + e.size)
 			break;
 	}
-	if (i < tlb1_idx) {
+	if (i < TLB1_ENTRIES) {
 		/* Only allow full mappings to be modified for now. */
 		/* Validate the range. */
-		for (j = i, va = addr; va < addr + sz; va += tlb1[j].size, j++) {
-			if (va != tlb1[j].virt || (sz - (va - addr) < tlb1[j].size))
+		for (j = i, va = addr; va < addr + sz; va += e.size, j++) {
+			tlb1_read_entry(&e, j);
+			if (va != e.virt || (sz - (va - addr) < e.size))
 				return (EINVAL);
 		}
-		for (va = addr; va < addr + sz; va += tlb1[i].size, i++) {
-			tlb1[i].mas2 &= ~MAS2_WIMGE_MASK;
-			tlb1[i].mas2 |= tlb_calc_wimg(tlb1[i].phys, mode);
+		for (va = addr; va < addr + sz; va += e.size, i++) {
+			tlb1_read_entry(&e, i);
+			e.mas2 &= ~MAS2_WIMGE_MASK;
+			e.mas2 |= tlb_calc_wimg(e.phys, mode);
 
 			/*
 			 * Write it out to the TLB.  Should really re-sync with other
 			 * cores.
 			 */
-			tlb1_write_entry(i);
+			tlb1_write_entry(&e, i);
 		}
 		return (0);
 	}
@@ -3118,12 +3144,48 @@ tlb0_print_tlbentries(void)
  *		windows, other devices mappings.
  */
 
+ /*
+ * Read an entry from given TLB1 slot.
+ */
+void
+tlb1_read_entry(tlb_entry_t *entry, unsigned int slot)
+{
+	uint32_t mas0;
+
+	KASSERT((entry != NULL), ("%s(): Entry is NULL!", __func__));
+
+	mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(slot);
+	mtspr(SPR_MAS0, mas0);
+	__asm __volatile("isync; tlbre");
+
+	entry->mas1 = mfspr(SPR_MAS1);
+	entry->mas2 = mfspr(SPR_MAS2);
+	entry->mas3 = mfspr(SPR_MAS3);
+
+	switch ((mfpvr() >> 16) & 0xFFFF) {
+	case FSL_E500v2:
+	case FSL_E500mc:
+	case FSL_E5500:
+		entry->mas7 = mfspr(SPR_MAS7);
+		break;
+	default:
+		entry->mas7 = 0;
+		break;
+	}
+
+	entry->virt = entry->mas2 & MAS2_EPN_MASK;
+	entry->phys = ((vm_paddr_t)(entry->mas7 & MAS7_RPN) << 32) |
+	    (entry->mas3 & MAS3_RPN);
+	entry->size =
+	    tsize2size((entry->mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT);
+}
+
 /*
  * Write given entry to TLB1 hardware.
  * Use 32 bit pa, clear 4 high-order bits of RPN (mas7).
  */
 static void
-tlb1_write_entry(unsigned int idx)
+tlb1_write_entry(tlb_entry_t *e, unsigned int idx)
 {
 	uint32_t mas0;
 
@@ -3135,11 +3197,11 @@ tlb1_write_entry(unsigned int idx)
 
 	mtspr(SPR_MAS0, mas0);
 	__asm __volatile("isync");
-	mtspr(SPR_MAS1, tlb1[idx].mas1);
+	mtspr(SPR_MAS1, e->mas1);
 	__asm __volatile("isync");
-	mtspr(SPR_MAS2, tlb1[idx].mas2);
+	mtspr(SPR_MAS2, e->mas2);
 	__asm __volatile("isync");
-	mtspr(SPR_MAS3, tlb1[idx].mas3);
+	mtspr(SPR_MAS3, e->mas3);
 	__asm __volatile("isync");
 	switch ((mfpvr() >> 16) & 0xFFFF) {
 	case FSL_E500mc:
@@ -3148,7 +3210,7 @@ tlb1_write_entry(unsigned int idx)
 		__asm __volatile("isync");
 		/* FALLTHROUGH */
 	case FSL_E500v2:
-		mtspr(SPR_MAS7, tlb1[idx].mas7);
+		mtspr(SPR_MAS7, e->mas7);
 		__asm __volatile("isync");
 		break;
 	default:
@@ -3207,10 +3269,21 @@ int
 tlb1_set_entry(vm_offset_t va, vm_paddr_t pa, vm_size_t size,
     uint32_t flags)
 {
+	tlb_entry_t e;
 	uint32_t ts, tid;
 	int tsize, index;
 
-	index = atomic_fetchadd_int(&tlb1_idx, 1);
+	for (index = 0; index < TLB1_ENTRIES; index++) {
+		tlb1_read_entry(&e, index);
+		if ((e.mas1 & MAS1_VALID) == 0)
+			break;
+		/* Check if we're just updating the flags, and update them. */
+		if (e.phys == pa && e.virt == va && e.size == size) {
+			e.mas2 = (va & MAS2_EPN_MASK) | flags;
+			tlb1_write_entry(&e, index);
+			return (0);
+		}
+	}
 	if (index >= TLB1_ENTRIES) {
 		printf("tlb1_set_entry: TLB1 full!\n");
 		return (-1);
@@ -3223,23 +3296,18 @@ tlb1_set_entry(vm_offset_t va, vm_paddr_t pa, vm_size_t size,
 	/* XXX TS is hard coded to 0 for now as we only use single address space */
 	ts = (0 << MAS1_TS_SHIFT) & MAS1_TS_MASK;
 
-	/*
-	 * Atomicity is preserved by the atomic increment above since nothing
-	 * is ever removed from tlb1.
-	 */
-
-	tlb1[index].phys = pa;
-	tlb1[index].virt = va;
-	tlb1[index].size = size;
-	tlb1[index].mas1 = MAS1_VALID | MAS1_IPROT | ts | tid;
-	tlb1[index].mas1 |= ((tsize << MAS1_TSIZE_SHIFT) & MAS1_TSIZE_MASK);
-	tlb1[index].mas2 = (va & MAS2_EPN_MASK) | flags;
+	e.phys = pa;
+	e.virt = va;
+	e.size = size;
+	e.mas1 = MAS1_VALID | MAS1_IPROT | ts | tid;
+	e.mas1 |= ((tsize << MAS1_TSIZE_SHIFT) & MAS1_TSIZE_MASK);
+	e.mas2 = (va & MAS2_EPN_MASK) | flags;
 
 	/* Set supervisor RWX permission bits */
-	tlb1[index].mas3 = (pa & MAS3_RPN) | MAS3_SR | MAS3_SW | MAS3_SX;
-	tlb1[index].mas7 = (pa >> 32) & MAS7_RPN;
+	e.mas3 = (pa & MAS3_RPN) | MAS3_SR | MAS3_SW | MAS3_SX;
+	e.mas7 = (pa >> 32) & MAS7_RPN;
 
-	tlb1_write_entry(index);
+	tlb1_write_entry(&e, index);
 
 	/*
 	 * XXX in general TLB1 updates should be propagated between CPUs,
@@ -3302,7 +3370,8 @@ tlb1_mapin_region(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 	for (idx = 0; idx < nents; idx++) {
 		pgsz = pgs[idx];
 		debugf("%u: %llx -> %x, size=%x\n", idx, pa, va, pgsz);
-		tlb1_set_entry(va, pa, pgsz, _TLB_ENTRY_MEM);
+		tlb1_set_entry(va, pa, pgsz,
+		    _TLB_ENTRY_SHARED | _TLB_ENTRY_MEM);
 		pa += pgsz;
 		va += pgsz;
 	}
@@ -3326,9 +3395,6 @@ tlb1_init()
 {
 	uint32_t mas0, mas1, mas2, mas3, mas7;
 	uint32_t tsz;
-	int i;
-
-	tlb1_idx = 1;
 
 	tlb1_get_tlbconf();
 
@@ -3341,27 +3407,11 @@ tlb1_init()
 	mas3 = mfspr(SPR_MAS3);
 	mas7 = mfspr(SPR_MAS7);
 
-	tlb1[0].mas1 = mas1;
-	tlb1[0].mas2 = mfspr(SPR_MAS2);
-	tlb1[0].mas3 = mas3;
-	tlb1[0].mas7 = mas7;
-	tlb1[0].virt = mas2 & MAS2_EPN_MASK;
-	tlb1[0].phys =  ((vm_paddr_t)(mas7 & MAS7_RPN) << 32) |
+	kernload =  ((vm_paddr_t)(mas7 & MAS7_RPN) << 32) |
 	    (mas3 & MAS3_RPN);
 
-	kernload = tlb1[0].phys;
-
 	tsz = (mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
-	tlb1[0].size = (tsz > 0) ? tsize2size(tsz) : 0;
-	kernsize += tlb1[0].size;
-
-#ifdef SMP
-	bp_ntlb1s = tlb1_idx;
-#endif
-
-	/* Purge the remaining entries */
-	for (i = tlb1_idx; i < TLB1_ENTRIES; i++)
-		tlb1_write_entry(i);
+	kernsize += (tsz > 0) ? tsize2size(tsz) : 0;
 
 	/* Setup TLB miss defaults */
 	set_mas4_defaults();
@@ -3373,15 +3423,17 @@ pmap_early_io_map(vm_paddr_t pa, vm_size_t size)
 	vm_paddr_t pa_base;
 	vm_offset_t va, sz;
 	int i;
+	tlb_entry_t e;
 
 	KASSERT(!pmap_bootstrapped, ("Do not use after PMAP is up!"));
 	
-	for (i = 0; i < tlb1_idx; i++) {
-		if (!(tlb1[i].mas1 & MAS1_VALID))
+	for (i = 0; i < TLB1_ENTRIES; i++) {
+		tlb1_read_entry(&e, i);
+		if (!(e.mas1 & MAS1_VALID))
 			continue;
-		if (pa >= tlb1[i].phys && (pa + size) <=
-		    (tlb1[i].phys + tlb1[i].size))
-			return (tlb1[i].virt + (pa - tlb1[i].phys));
+		if (pa >= e.phys && (pa + size) <=
+		    (e.phys + e.size))
+			return (e.virt + (pa - e.phys));
 	}
 
 	pa_base = rounddown(pa, PAGE_SIZE);
@@ -3391,15 +3443,12 @@ pmap_early_io_map(vm_paddr_t pa, vm_size_t size)
 
 	do {
 		sz = 1 << (ilog2(size) & ~1);
-		tlb1_set_entry(tlb1_map_base, pa_base, sz, _TLB_ENTRY_IO);
+		tlb1_set_entry(tlb1_map_base, pa_base, sz,
+		    _TLB_ENTRY_SHARED | _TLB_ENTRY_IO);
 		size -= sz;
 		pa_base += sz;
 		tlb1_map_base += sz;
 	} while (size > 0);
-
-#ifdef SMP
-	bp_ntlb1s = tlb1_idx;
-#endif
 
 	return (va);
 }
@@ -3450,20 +3499,6 @@ tlb1_print_tlbentries(void)
 }
 
 /*
- * Print out contents of the in-ram tlb1 table.
- */
-void
-tlb1_print_entries(void)
-{
-	int i;
-
-	debugf("tlb1[] table entries:\n");
-	for (i = 0; i < TLB1_ENTRIES; i++)
-		tlb_print_entry(i, tlb1[i].mas1, tlb1[i].mas2, tlb1[i].mas3,
-		    tlb1[i].mas7);
-}
-
-/*
  * Return 0 if the physical IO range is encompassed by one of the
  * the TLB1 entries, otherwise return related error code.
  */
@@ -3475,39 +3510,41 @@ tlb1_iomapped(int i, vm_paddr_t pa, vm_size_t size, vm_offset_t *va)
 	vm_paddr_t pa_end;
 	unsigned int entry_tsize;
 	vm_size_t entry_size;
+	tlb_entry_t e;
 
 	*va = (vm_offset_t)NULL;
 
+	tlb1_read_entry(&e, i);
 	/* Skip invalid entries */
-	if (!(tlb1[i].mas1 & MAS1_VALID))
+	if (!(e.mas1 & MAS1_VALID))
 		return (EINVAL);
 
 	/*
 	 * The entry must be cache-inhibited, guarded, and r/w
 	 * so it can function as an i/o page
 	 */
-	prot = tlb1[i].mas2 & (MAS2_I | MAS2_G);
+	prot = e.mas2 & (MAS2_I | MAS2_G);
 	if (prot != (MAS2_I | MAS2_G))
 		return (EPERM);
 
-	prot = tlb1[i].mas3 & (MAS3_SR | MAS3_SW);
+	prot = e.mas3 & (MAS3_SR | MAS3_SW);
 	if (prot != (MAS3_SR | MAS3_SW))
 		return (EPERM);
 
 	/* The address should be within the entry range. */
-	entry_tsize = (tlb1[i].mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
+	entry_tsize = (e.mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
 	KASSERT((entry_tsize), ("tlb1_iomapped: invalid entry tsize"));
 
 	entry_size = tsize2size(entry_tsize);
-	pa_start = (((vm_paddr_t)tlb1[i].mas7 & MAS7_RPN) << 32) | 
-	    (tlb1[i].mas3 & MAS3_RPN);
+	pa_start = (((vm_paddr_t)e.mas7 & MAS7_RPN) << 32) | 
+	    (e.mas3 & MAS3_RPN);
 	pa_end = pa_start + entry_size;
 
 	if ((pa < pa_start) || ((pa + size) > pa_end))
 		return (ERANGE);
 
 	/* Return virtual address of this mapping. */
-	*va = (tlb1[i].mas2 & MAS2_EPN_MASK) + (pa - pa_start);
+	*va = (e.mas2 & MAS2_EPN_MASK) + (pa - pa_start);
 	return (0);
 }
 
