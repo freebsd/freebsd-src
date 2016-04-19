@@ -250,12 +250,14 @@ ATF_TC_BODY(test_append_binary_pos, tc)
 	FILE *fp;
 
 	fp = fmemopen(NULL, 16, "ab+");
+	ATF_REQUIRE(fp != NULL);
 	ATF_REQUIRE(ftell(fp) == 0L);
 	fclose(fp);
 
 	/* Make sure that a pre-allocated buffer behaves correctly. */
 	char buf[] = "Hello";
 	fp = fmemopen(buf, sizeof(buf), "ab+");
+	ATF_REQUIRE(fp != NULL);
 	ATF_REQUIRE(ftell(fp) == strlen(buf));
 	fclose(fp);
 }
