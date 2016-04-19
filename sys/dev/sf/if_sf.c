@@ -710,7 +710,7 @@ sf_probe(device_t dev)
 	sdid = pci_get_subdevice(dev);
 
 	t = sf_devs;
-	for (i = 0; i < sizeof(sf_devs) / sizeof(sf_devs[0]); i++, t++) {
+	for (i = 0; i < nitems(sf_devs); i++, t++) {
 		if (vid == t->sf_vid && did == t->sf_did) {
 			if (sdid == t->sf_sdid) {
 				device_set_desc(dev, t->sf_sname);

@@ -416,8 +416,7 @@ stge_probe(device_t dev)
 	vendor = pci_get_vendor(dev);
 	devid = pci_get_device(dev);
 	sp = stge_products;
-	for (i = 0; i < sizeof(stge_products)/sizeof(stge_products[0]);
-	    i++, sp++) {
+	for (i = 0; i < nitems(stge_products); i++, sp++) {
 		if (vendor == sp->stge_vendorid &&
 		    devid == sp->stge_deviceid) {
 			device_set_desc(dev, sp->stge_name);
