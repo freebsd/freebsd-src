@@ -646,3 +646,160 @@ bhnd_set_generic_core_desc(device_t dev)
 		device_set_desc(dev, dev_name);
 	}
 }
+
+/**
+ * Helper function for implementing BHND_BUS_IS_HOSTB_DEVICE().
+ * 
+ * If a parent device is available, this implementation delegates the
+ * request to the BHND_BUS_IS_HOSTB_DEVICE() method on the parent of @p dev.
+ * 
+ * If no parent device is available (i.e. on a the bus root), false
+ * is returned.
+ */
+bool
+bhnd_bus_generic_is_hostb_device(device_t dev, device_t child) {
+	if (device_get_parent(dev) != NULL)
+		return (BHND_BUS_IS_HOSTB_DEVICE(device_get_parent(dev),
+		    child));
+
+	return (false);
+}
+
+/**
+ * Helper function for implementing BHND_BUS_IS_HW_DISABLED().
+ * 
+ * If a parent device is available, this implementation delegates the
+ * request to the BHND_BUS_IS_HW_DISABLED() method on the parent of @p dev.
+ * 
+ * If no parent device is available (i.e. on a the bus root), the hardware
+ * is assumed to be usable and false is returned.
+ */
+bool
+bhnd_bus_generic_is_hw_disabled(device_t dev, device_t child)
+{
+	if (device_get_parent(dev) != NULL)
+		return (BHND_BUS_IS_HW_DISABLED(device_get_parent(dev), child));
+
+	return (false);
+}
+
+/**
+ * Helper function for implementing BHND_BUS_GET_CHIPID().
+ * 
+ * This implementation delegates the request to the BHND_BUS_GET_CHIPID()
+ * method on the parent of @p dev. If no parent exists, the implementation
+ * will panic.
+ */
+const struct bhnd_chipid *
+bhnd_bus_generic_get_chipid(device_t dev, device_t child)
+{
+	if (device_get_parent(dev) != NULL)
+		return (BHND_BUS_GET_CHIPID(device_get_parent(dev), child));
+
+	panic("missing BHND_BUS_GET_CHIPID()");
+}
+
+/**
+ * Helper function for implementing BHND_BUS_ALLOC_RESOURCE().
+ * 
+ * This implementation of BHND_BUS_ALLOC_RESOURCE() delegates allocation
+ * of the underlying resource to BUS_ALLOC_RESOURCE(), and activation
+ * to @p dev's BHND_BUS_ACTIVATE_RESOURCE().
+ */
+struct bhnd_resource *
+bhnd_bus_generic_alloc_resource(device_t dev, device_t child, int type,
+	int *rid, rman_res_t start, rman_res_t end, rman_res_t count,
+	u_int flags)
+{
+	struct bhnd_resource	*br;
+	struct resource		*res;
+	int			 error;
+
+	br = NULL;
+	res = NULL;
+
+	/* Allocate the real bus resource (without activating it) */
+	res = BUS_ALLOC_RESOURCE(dev, child, type, rid, start, end, count,
+	    (flags & ~RF_ACTIVE));
+	if (res == NULL)
+		return (NULL);
+
+	/* Allocate our bhnd resource wrapper. */
+	br = malloc(sizeof(struct bhnd_resource), M_BHND, M_NOWAIT);
+	if (br == NULL)
+		goto failed;
+	
+	br->direct = false;
+	br->res = res;
+
+	/* Attempt activation */
+	if (flags & RF_ACTIVE) {
+		error = BHND_BUS_ACTIVATE_RESOURCE(dev, child, type, *rid, br);
+		if (error)
+			goto failed;
+	}
+
+	return (br);
+	
+failed:
+	if (res != NULL)
+		BUS_RELEASE_RESOURCE(dev, child, type, *rid, res);
+
+	free(br, M_BHND);
+	return (NULL);
+}
+
+/**
+ * Helper function for implementing BHND_BUS_RELEASE_RESOURCE().
+ * 
+ * This implementation of BHND_BUS_RELEASE_RESOURCE() delegates release of
+ * the backing resource to BUS_RELEASE_RESOURCE().
+ */
+int
+bhnd_bus_generic_release_resource(device_t dev, device_t child, int type,
+    int rid, struct bhnd_resource *r)
+{
+	int error;
+
+	if ((error = BUS_RELEASE_RESOURCE(dev, child, type, rid, r->res)))
+		return (error);
+
+	free(r, M_BHND);
+	return (0);
+}
+
+
+/**
+ * Helper function for implementing BHND_BUS_ACTIVATE_RESOURCE().
+ * 
+ * This implementation of BHND_BUS_ACTIVATE_RESOURCE() simply calls the
+ * BHND_BUS_ACTIVATE_RESOURCE() method of the parent of @p dev.
+ */
+int
+bhnd_bus_generic_activate_resource(device_t dev, device_t child, int type,
+    int rid, struct bhnd_resource *r)
+{
+	/* Try to delegate to the parent */
+	if (device_get_parent(dev) != NULL)
+		return (BHND_BUS_ACTIVATE_RESOURCE(device_get_parent(dev),
+		    child, type, rid, r));
+
+	return (EINVAL);
+};
+
+/**
+ * Helper function for implementing BHND_BUS_DEACTIVATE_RESOURCE().
+ * 
+ * This implementation of BHND_BUS_ACTIVATE_RESOURCE() simply calls the
+ * BHND_BUS_ACTIVATE_RESOURCE() method of the parent of @p dev.
+ */
+int
+bhnd_bus_generic_deactivate_resource(device_t dev, device_t child,
+    int type, int rid, struct bhnd_resource *r)
+{
+	if (device_get_parent(dev) != NULL)
+		return (BHND_BUS_DEACTIVATE_RESOURCE(device_get_parent(dev),
+		    child, type, rid, r));
+
+	return (EINVAL);
+};
