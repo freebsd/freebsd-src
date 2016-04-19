@@ -185,22 +185,7 @@ spibus_hinted_child(device_t bus, const char *dname, int dunit)
 static int
 spibus_transfer_impl(device_t dev, device_t child, struct spi_command *cmd)
 {
-
 	return (SPIBUS_TRANSFER(device_get_parent(dev), child, cmd));
-}
-
-static int
-spibus_chip_select_impl(device_t dev, device_t child)
-{
-
-	return (SPIBUS_CHIP_SELECT(device_get_parent(dev), child));
-}
-
-static int
-spibus_chip_deselect_impl(device_t dev, device_t child)
-{
-
-	return (SPIBUS_CHIP_DESELECT(device_get_parent(dev), child));
 }
 
 static device_method_t spibus_methods[] = {
@@ -223,8 +208,6 @@ static device_method_t spibus_methods[] = {
 
 	/* spibus interface */
 	DEVMETHOD(spibus_transfer,	spibus_transfer_impl),
-	DEVMETHOD(spibus_chip_select,	spibus_chip_select_impl),
-	DEVMETHOD(spibus_chip_deselect,	spibus_chip_deselect_impl),
 
 	DEVMETHOD_END
 };
