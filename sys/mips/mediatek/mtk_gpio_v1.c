@@ -59,6 +59,20 @@ __FBSDID("$FreeBSD$");
 
 #define MTK_GPIO_PINS 32
 
+enum mtk_gpio_regs {
+	GPIO_PIOINT = 0,
+	GPIO_PIOEDGE,
+	GPIO_PIORENA,
+	GPIO_PIOFENA,
+	GPIO_PIODATA,
+	GPIO_PIODIR,
+	GPIO_PIOPOL,
+	GPIO_PIOSET,
+	GPIO_PIORESET,
+	GPIO_PIOTOG,
+	GPIO_PIOMAX
+};
+
 struct mtk_gpio_pin_irqsrc {
 	struct intr_irqsrc	isrc;
 	u_int			irq;
@@ -81,6 +95,7 @@ struct mtk_gpio_softc {
 	struct mtk_gpio_pin	pins[MTK_GPIO_PINS];
 	void			*intrhand;
 
+	uint8_t		regs[GPIO_PIOMAX];
 	uint32_t		num_pins;
 	uint8_t			do_remap;
 };
@@ -105,20 +120,10 @@ static int mtk_gpio_intr(void *arg);
     "mtk_gpio", MTX_SPIN)
 #define MTK_GPIO_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->mtx)
 
-#define MTK_WRITE_4(sc, reg, val)	bus_write_4((sc)->res[0], (reg), (val))
-#define MTK_READ_4(sc, reg)		bus_read_4((sc)->res[0], (reg))
-
-/* Register definitions */
-#define GPIO_PIOINT(_sc)		0x0000
-#define GPIO_PIOEDGE(_sc)		0x0004
-#define GPIO_PIORENA(_sc)		0x0008
-#define GPIO_PIOFENA(_sc)		0x000C
-#define GPIO_PIODATA(_sc)		((_sc)->do_remap ? 0x0020 : 0x0010)
-#define GPIO_PIODIR(_sc)		((_sc)->do_remap ? 0x0024 : 0x0014)
-#define GPIO_PIOPOL(_sc)		((_sc)->do_remap ? 0x0028 : 0x0018)
-#define GPIO_PIOSET(_sc)		((_sc)->do_remap ? 0x002C : 0x001C)
-#define GPIO_PIORESET(_sc)		((_sc)->do_remap ? 0x0030 : 0x0020)
-#define GPIO_PIOTOG(_sc)		((_sc)->do_remap ? 0x0034 : 0x0024)
+#define MTK_WRITE_4(sc, reg, val)	\
+    bus_write_4((sc)->res[0], (sc)->regs[(reg)], (val))
+#define MTK_READ_4(sc, reg)		\
+    bus_read_4((sc)->res[0], (sc)->regs[(reg)])
 
 static struct ofw_compat_data compat_data[] = {
 	{ "ralink,rt2880-gpio",		1 },
@@ -182,12 +187,12 @@ mtk_gpio_pin_set_direction(struct mtk_gpio_softc *sc, uint32_t pin,
 	if (!(sc->pins[pin].pin_caps & dir))
 		return (EINVAL);
 
-	regval = MTK_READ_4(sc, GPIO_PIODIR(sc));
+	regval = MTK_READ_4(sc, GPIO_PIODIR);
 	if (dir == GPIO_PIN_INPUT)
 		regval &= ~mask;
 	else
 		regval |= mask;
-	MTK_WRITE_4(sc, GPIO_PIODIR(sc), regval);
+	MTK_WRITE_4(sc, GPIO_PIODIR, regval);
 
 	sc->pins[pin].pin_flags &= ~(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT);
 	sc->pins[pin].pin_flags |= dir;
@@ -200,12 +205,12 @@ mtk_gpio_pin_set_invert(struct mtk_gpio_softc *sc, uint32_t pin, uint32_t val)
 {
 	uint32_t regval, mask = (1u << pin);
 
-	regval = MTK_READ_4(sc, GPIO_PIOPOL(sc));
+	regval = MTK_READ_4(sc, GPIO_PIOPOL);
 	if (val)
 		regval |= mask;
 	else
 		regval &= ~mask;
-	MTK_WRITE_4(sc, GPIO_PIOPOL(sc), regval);
+	MTK_WRITE_4(sc, GPIO_PIOPOL, regval);
 	sc->pins[pin].pin_flags &= ~(GPIO_PIN_INVIN | GPIO_PIN_INVOUT);
 	sc->pins[pin].pin_flags |= val;
 
@@ -221,25 +226,25 @@ mtk_gpio_pin_probe(struct mtk_gpio_softc *sc, uint32_t pin)
 	/* Clear cached gpio config */
 	sc->pins[pin].pin_flags = 0;
 
-	val = MTK_READ_4(sc, GPIO_PIORENA(sc)) |
-	    MTK_READ_4(sc, GPIO_PIOFENA(sc));
+	val = MTK_READ_4(sc, GPIO_PIORENA) |
+	    MTK_READ_4(sc, GPIO_PIOFENA);
 	if (val & mask) {
 		/* Pin is in interrupt mode */
 		sc->pins[pin].intr_trigger = INTR_TRIGGER_EDGE;
-		val = MTK_READ_4(sc, GPIO_PIORENA(sc));
+		val = MTK_READ_4(sc, GPIO_PIORENA);
 		if (val & mask)
 			sc->pins[pin].intr_polarity = INTR_POLARITY_HIGH;
 		else
 			sc->pins[pin].intr_polarity = INTR_POLARITY_LOW;
 	}
 
-	val = MTK_READ_4(sc, GPIO_PIODIR(sc));
+	val = MTK_READ_4(sc, GPIO_PIODIR);
 	if (val & mask)
 		sc->pins[pin].pin_flags |= GPIO_PIN_OUTPUT;
 	else
 		sc->pins[pin].pin_flags |= GPIO_PIN_INPUT;
 
-	val = MTK_READ_4(sc, GPIO_PIOPOL(sc));
+	val = MTK_READ_4(sc, GPIO_PIOPOL);
 	if (val & mask) {
 		if (sc->pins[pin].pin_flags & GPIO_PIN_INPUT) {
 			sc->pins[pin].pin_flags |= GPIO_PIN_INVIN;
@@ -273,12 +278,10 @@ mtk_gpio_attach(device_t dev)
 	if (OF_hasprop(node, "resets"))
 		mtk_soc_reset_device(dev);
 
-	if (OF_hasprop(node, "mtk,register-gap")) {
-		device_printf(dev, "<register gap>\n");
-		sc->do_remap = 1;
-	} else {
-		device_printf(dev, "<no register gap>\n");
-		sc->do_remap = 0;
+	if (OF_getprop(node, "ralink,register-map", sc->regs,
+	    GPIO_PIOMAX) <= 0) {
+		device_printf(dev, "Failed to read register map\n");
+		return (ENXIO);
 	}
 
 	if (OF_hasprop(node, "ralink,num-gpios") && (OF_getencprop(node,
@@ -447,9 +450,9 @@ mtk_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 	}
 
 	if (value)
-		MTK_WRITE_4(sc, GPIO_PIOSET(sc), (1u << pin));
+		MTK_WRITE_4(sc, GPIO_PIOSET, (1u << pin));
 	else
-		MTK_WRITE_4(sc, GPIO_PIORESET(sc), (1u << pin));
+		MTK_WRITE_4(sc, GPIO_PIORESET, (1u << pin));
 
 out:
 	MTK_GPIO_UNLOCK(sc);
@@ -474,7 +477,7 @@ mtk_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 		ret = EINVAL;
 		goto out;
 	}
-	data = MTK_READ_4(sc, GPIO_PIODATA(sc));
+	data = MTK_READ_4(sc, GPIO_PIODATA);
 	*val = (data & (1u << pin)) ? 1 : 0;
 
 out:
@@ -499,7 +502,7 @@ mtk_gpio_pin_toggle(device_t dev, uint32_t pin)
 		ret = EINVAL;
 		goto out;
 	}
-	MTK_WRITE_4(sc, GPIO_PIOTOG(sc), (1u << pin));
+	MTK_WRITE_4(sc, GPIO_PIOTOG, (1u << pin));
 
 out:
 	MTK_GPIO_UNLOCK(sc);
@@ -539,15 +542,15 @@ mtk_gpio_pic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 	MTK_GPIO_LOCK(sc);
 
 	if (sc->pins[pin].intr_polarity == INTR_POLARITY_LOW) {
-		val = MTK_READ_4(sc, GPIO_PIORENA(sc)) & ~mask;
-		MTK_WRITE_4(sc, GPIO_PIORENA(sc), val);
-		val = MTK_READ_4(sc, GPIO_PIOFENA(sc)) | mask;
-		MTK_WRITE_4(sc, GPIO_PIOFENA(sc), val);
+		val = MTK_READ_4(sc, GPIO_PIORENA) & ~mask;
+		MTK_WRITE_4(sc, GPIO_PIORENA, val);
+		val = MTK_READ_4(sc, GPIO_PIOFENA) | mask;
+		MTK_WRITE_4(sc, GPIO_PIOFENA, val);
 	} else {
-		val = MTK_READ_4(sc, GPIO_PIOFENA(sc)) & ~mask;
-		MTK_WRITE_4(sc, GPIO_PIOFENA(sc), val);
-		val = MTK_READ_4(sc, GPIO_PIORENA(sc)) | mask;
-		MTK_WRITE_4(sc, GPIO_PIORENA(sc), val);
+		val = MTK_READ_4(sc, GPIO_PIOFENA) & ~mask;
+		MTK_WRITE_4(sc, GPIO_PIOFENA, val);
+		val = MTK_READ_4(sc, GPIO_PIORENA) | mask;
+		MTK_WRITE_4(sc, GPIO_PIORENA, val);
 	}
 
 	MTK_GPIO_UNLOCK(sc);
@@ -568,10 +571,10 @@ mtk_gpio_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 
 	MTK_GPIO_LOCK(sc);
 
-	val = MTK_READ_4(sc, GPIO_PIORENA(sc)) & ~mask;
-	MTK_WRITE_4(sc, GPIO_PIORENA(sc), val);
-	val = MTK_READ_4(sc, GPIO_PIOFENA(sc)) & ~mask;
-	MTK_WRITE_4(sc, GPIO_PIOFENA(sc), val);
+	val = MTK_READ_4(sc, GPIO_PIORENA) & ~mask;
+	MTK_WRITE_4(sc, GPIO_PIORENA, val);
+	val = MTK_READ_4(sc, GPIO_PIOFENA) & ~mask;
+	MTK_WRITE_4(sc, GPIO_PIOFENA, val);
 
 	MTK_GPIO_UNLOCK(sc);
 }
@@ -599,7 +602,7 @@ mtk_gpio_pic_post_filter(device_t dev, struct intr_irqsrc *isrc)
 	pisrc = (struct mtk_gpio_pin_irqsrc *)isrc;
 	sc = device_get_softc(dev);
 	MTK_GPIO_LOCK(sc);
-	MTK_WRITE_4(sc, GPIO_PIOINT(sc), 1u << pisrc->irq);
+	MTK_WRITE_4(sc, GPIO_PIOINT, 1u << pisrc->irq);
 	MTK_GPIO_UNLOCK(sc);
 }
 
@@ -610,7 +613,7 @@ mtk_gpio_intr(void *arg)
 	uint32_t i, interrupts;
 
 	sc = arg;
-	interrupts = MTK_READ_4(sc, GPIO_PIOINT(sc));
+	interrupts = MTK_READ_4(sc, GPIO_PIOINT);
 
 	for (i = 0; interrupts != 0; i++, interrupts >>= 1) {
 		if ((interrupts & 0x1) == 0)
