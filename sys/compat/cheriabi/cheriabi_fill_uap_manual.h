@@ -770,8 +770,7 @@ CHERIABI_SYS_shm_open_fill_uap(struct thread *td,
 		if (uap->path != SHM_ANON)
 			return (EPROT);
 	} else {
-		error = cheriabi_strcap_to_ptr(&uap->path, &tmpcap,
-		    0);
+		error = cheriabi_strcap_to_ptr(&uap->path, &tmpcap, 0);
 		if (error != 0)
 			return (error);
 	}
