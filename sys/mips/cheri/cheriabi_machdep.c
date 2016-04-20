@@ -944,9 +944,11 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 			 * adjusted like in the case of the rdhwr trap()
 			 * instruction handler.
 			 *
-			 * XXXSS For more information why this offset is
-			 * required see: 'git show \
-			 * c6be4f4d2d1b71c04de5d3bbb6933ce2dbcdb317'
+			 * The user local register needs the TLS and TCB
+			 * offsets because the compiler simply generates a
+			 * 'rdhwr reg, $29' instruction to access thread local
+			 * storage (i.e., variables with the '_thread'
+			 * attribute).
 			 */
 			mips_wr_userlocal((unsigned long)(uap->parms +
 			    td->td_md.md_tls_tcb_offset));
