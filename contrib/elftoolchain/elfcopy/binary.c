@@ -26,6 +26,7 @@
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <ctype.h>
 #include <err.h>
 #include <gelf.h>
 #include <stdio.h>
@@ -213,9 +214,9 @@ create_elf_from_binary(struct elfcopy *ecp, int ifd, const char *ifn)
 
 	if ((sym_basename = strdup(ifn)) == NULL)
 		err(1, "strdup");
-	p = sym_basename;
-	while ((p = strchr(p, '.')) != NULL)
-		*p++ = '_';
+	for (p = sym_basename; *p != '\0'; p++)
+		if (!isalnum(*p))
+			*p = '_';
 #define	_GEN_SYMNAME(S) do {						\
 	snprintf(name, sizeof(name), "%s%s%s", "_binary_", sym_basename, S); \
 } while (0)
