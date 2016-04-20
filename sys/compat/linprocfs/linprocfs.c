@@ -1403,6 +1403,8 @@ linprocfs_doproclimits(PFS_FILL_ARGS)
 	ssize_t size;
 	int res, error;
 
+	error = 0;
+
 	PROC_LOCK(p);
 	limp = lim_hold(p->p_limit);
 	PROC_UNLOCK(p);
