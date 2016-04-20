@@ -502,7 +502,7 @@ DoFile(const char *savedir, const char *device)
 		temp = malloc(sectorsize);
 		if (temp == NULL) {
 			syslog(LOG_ERR, "%m");
-			return;
+			goto closefd;
 		}
 	}
 	if (lseek(fd, lasthd, SEEK_SET) != lasthd ||
@@ -845,6 +845,7 @@ main(int argc, char **argv)
 				continue;
 			DoFile(savedir, fsp->fs_spec);
 		}
+		endfsent();
 	} else {
 		for (i = 0; i < argc; i++)
 			DoFile(savedir, argv[i]);
