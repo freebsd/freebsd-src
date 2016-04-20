@@ -51,6 +51,8 @@ extern	const char *ieee80211_mgt_subtype_name[];
 extern	const char *ieee80211_phymode_name[IEEE80211_MODE_MAX];
 extern	const int ieee80211_opcap[IEEE80211_OPMODE_MAX];
 
+const char *ieee80211_reason_to_string(uint16_t);
+
 void	ieee80211_proto_attach(struct ieee80211com *);
 void	ieee80211_proto_detach(struct ieee80211com *);
 void	ieee80211_proto_vattach(struct ieee80211vap *);
