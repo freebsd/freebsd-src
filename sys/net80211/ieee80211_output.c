@@ -2317,7 +2317,8 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 
 	case IEEE80211_FC0_SUBTYPE_DEAUTH:
 		IEEE80211_NOTE(vap, IEEE80211_MSG_AUTH, ni,
-		    "send station deauthenticate (reason %d)", arg);
+		    "send station deauthenticate (reason: %d (%s))", arg,
+		    ieee80211_reason_to_string(arg));
 		m = ieee80211_getmgtframe(&frm,
 			ic->ic_headroom + sizeof(struct ieee80211_frame),
 			sizeof(uint16_t));
@@ -2537,7 +2538,8 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 
 	case IEEE80211_FC0_SUBTYPE_DISASSOC:
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ASSOC, ni,
-		    "send station disassociate (reason %d)", arg);
+		    "send station disassociate (reason: %d (%s))", arg,
+		    ieee80211_reason_to_string(arg));
 		m = ieee80211_getmgtframe(&frm,
 			ic->ic_headroom + sizeof(struct ieee80211_frame),
 			sizeof(uint16_t));
