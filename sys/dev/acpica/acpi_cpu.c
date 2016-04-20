@@ -391,9 +391,9 @@ acpi_cpu_attach(device_t dev)
      * Intel Processor Vendor-Specific ACPI Interface Specification.
      */
     if (sc->cpu_features) {
+	cap_set[0] = 0;
 	cap_set[1] = sc->cpu_features;
-	status = acpi_EvaluateOSC(sc->cpu_handle, cpu_oscuuid, 1, 2, cap_set,
-	    false);
+	status = acpi_EvaluateOSC(sc->cpu_handle, cpu_oscuuid, 1, 2, cap_set);
 	if (ACPI_SUCCESS(status)) {
 	    if (cap_set[0] != 0)
 		device_printf(dev, "_OSC returned status %#x\n", cap_set[0]);
