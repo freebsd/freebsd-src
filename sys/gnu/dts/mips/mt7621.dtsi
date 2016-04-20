@@ -374,4 +374,4 @@
 	};
 };
 
-#include <fbsd-mt7621.dtsi>
+/include/ "fbsd-mt7621.dtsi"

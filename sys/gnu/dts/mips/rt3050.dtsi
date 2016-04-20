@@ -262,4 +262,4 @@
 	};
 };
 
-#include <fbsd-rt3050.dtsi>
+/include/ "fbsd-rt3050.dtsi"
