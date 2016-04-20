@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/i915_drv.h>
 #include <dev/drm2/i915/intel_drv.h>
 #include <sys/kdb.h>
+#include <machine/clock.h>
 
 #define FORCEWAKE_ACK_TIMEOUT_MS 2
 
@@ -2686,9 +2687,9 @@ static void gen6_update_ring_freq(struct drm_device *dev)
 	if (!max_ia_freq)
 		max_ia_freq = tsc_khz;
 #else
-	uint64_t tsc_freq;
-	tsc_freq = atomic_load_acq_64(&tsc_freq);
-	max_ia_freq = tsc_freq / 1000;
+	uint64_t freq;
+	freq = atomic_load_acq_64(&tsc_freq);
+	max_ia_freq = freq / 1000;
 #endif /* FREEBSD_WIP */
 
 	/* Convert from kHz to MHz */
