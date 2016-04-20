@@ -2482,7 +2482,7 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
 
 ACPI_STATUS
 acpi_EvaluateOSC(ACPI_HANDLE handle, uint8_t *uuid, int revision, int count,
-    uint32_t *caps, bool query)
+    uint32_t *caps)
 {
 	ACPI_OBJECT arg[4];
 	ACPI_OBJECT_LIST arglist;
@@ -2499,7 +2499,6 @@ acpi_EvaluateOSC(ACPI_HANDLE handle, uint8_t *uuid, int revision, int count,
 	arg[3].Type = ACPI_TYPE_BUFFER;
 	arg[3].Buffer.Length = count * sizeof(uint32_t);
 	arg[3].Buffer.Pointer = (uint8_t *)caps;
-	caps[0] = query ? 1 : 0;
 	return (AcpiEvaluateObject(handle, "_OSC", &arglist, NULL));
 }
 
