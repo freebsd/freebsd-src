@@ -474,9 +474,7 @@ main(int argc, char *argv[])
 	add_arg(&args, NULL);
 
 	init_ui_hook = kgdb_init;
-#if TARGET_CPUARCH == arm
 	frame_tdep_pc_fixup = kgdb_trgt_pc_fixup;
-#endif
 	kgdb_sniffer_kluge = kgdb_trgt_trapframe_sniffer;
 
 	return (gdb_main(&args));

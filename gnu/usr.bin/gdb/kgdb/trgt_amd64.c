@@ -195,3 +195,16 @@ kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame)
 	/* printf("%s: %lx =%s\n", __func__, pc, pname); */
 	return (NULL);
 }
+
+/*
+ * This function ensures, that the PC is inside the
+ * function section which is understood by GDB.
+ *
+ * Return 0 when fixup is necessary, -1 otherwise.
+ */
+int
+kgdb_trgt_pc_fixup(CORE_ADDR *pc __unused)
+{
+
+	return (-1);
+}
