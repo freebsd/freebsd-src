@@ -1788,7 +1788,8 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		IEEE80211_NODE_STAT(ni, rx_deauth);
 
 		IEEE80211_NOTE(vap, IEEE80211_MSG_AUTH, ni,
-		    "recv deauthenticate (reason %d)", reason);
+		    "recv deauthenticate (reason: %d (%s))", reason,
+		    ieee80211_reason_to_string(reason));
 		ieee80211_new_state(vap, IEEE80211_S_AUTH,
 		    (reason << 8) | IEEE80211_FC0_SUBTYPE_DEAUTH);
 		break;
@@ -1821,7 +1822,8 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		IEEE80211_NODE_STAT(ni, rx_disassoc);
 
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ASSOC, ni,
-		    "recv disassociate (reason %d)", reason);
+		    "recv disassociate (reason: %d (%s))", reason,
+		    ieee80211_reason_to_string(reason));
 		ieee80211_new_state(vap, IEEE80211_S_ASSOC, 0);
 		break;
 	}
