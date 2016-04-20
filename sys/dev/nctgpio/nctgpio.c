@@ -101,7 +101,7 @@ struct nct_softc {
 	struct mtx			mtx;
 	struct resource			*portres;
 	int				rid;
-	struct gpio_pin			pins[NCT_MAX_PIN];
+	struct gpio_pin			pins[NCT_MAX_PIN + 1];
 };
 
 #define GPIO_LOCK_INIT(_sc)	mtx_init(&(_sc)->mtx,		\
