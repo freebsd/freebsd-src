@@ -1439,6 +1439,12 @@ nlm_register_services(SVCPOOL *pool, int addr_count, char **addrs)
 		return (EINVAL);
 	}
 
+	if (addr_count < 0 || addr_count > 256 ) {
+		NLM_ERR("NLM:  too many service addresses (%d) given, "
+		    "max 256 - can't start server\n", addr_count);
+		return (EINVAL);
+	}
+
 	xprts = malloc(addr_count * sizeof(SVCXPRT *), M_NLM, M_WAITOK|M_ZERO);
 	for (i = 0; i < version_count; i++) {
 		for (j = 0; j < addr_count; j++) {
