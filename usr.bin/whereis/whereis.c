@@ -207,7 +207,7 @@ decolonify(char *s, ccharp **cppp, int *ip)
 			*cp = '\0';
 		if (strlen(s) && !contains(*cppp, s)) {
 			*cppp = realloc(*cppp, (*ip + 2) * sizeof(char *));
-			if (cppp == NULL)
+			if (*cppp == NULL)
 				abort();
 			(*cppp)[*ip] = s;
 			(*cppp)[*ip + 1] = NULL;
