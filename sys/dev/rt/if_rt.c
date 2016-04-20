@@ -104,6 +104,7 @@ static const struct ofw_compat_data rt_compat_data[] = {
 	{ "ralink,rt3883-eth",		RT_CHIPID_RT3050 },
 	{ "ralink,rt5350-eth",		RT_CHIPID_RT5350 },
 	{ "ralink,mt7620a-eth",		RT_CHIPID_MT7620 },
+	{ "mediatek,mt7620-eth",	RT_CHIPID_MT7620 },
 	{ "ralink,mt7621-eth",		RT_CHIPID_MT7621 },
 	{ "mediatek,mt7621-eth",	RT_CHIPID_MT7621 },
 	{ NULL,				0 }
