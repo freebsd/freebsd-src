@@ -87,6 +87,7 @@ add_time_str(wchar_t *wcs)
 	case T_ERA_T_FMT:
 	case T_ERA_D_T_FMT:
 		/* Silently ignore it. */
+		free(str);
 		break;
 	default:
 		free(str);
@@ -139,6 +140,7 @@ add_time_list(wchar_t *wcs)
 			tm.pm = str;
 		} else {
 			fprintf(stderr,"too many list elements");
+			free(str);
 		}
 		break;
 	case T_ALT_DIGITS:
