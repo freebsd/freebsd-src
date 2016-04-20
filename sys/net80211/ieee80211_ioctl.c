@@ -1281,18 +1281,20 @@ mlmedebug(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 	if (op == IEEE80211_MLME_AUTH) {
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_IOCTL |
 		    IEEE80211_MSG_STATE | IEEE80211_MSG_AUTH, mac,
-		    "station authenticate %s via MLME (reason %d)",
+		    "station authenticate %s via MLME (reason: %d (%s))",
 		    reason == IEEE80211_STATUS_SUCCESS ? "ACCEPT" : "REJECT",
-		    reason);
+		    reason, ieee80211_reason_to_string(reason));
 	} else if (!(IEEE80211_MLME_ASSOC <= op && op <= IEEE80211_MLME_AUTH)) {
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_ANY, mac,
-		    "unknown MLME request %d (reason %d)", op, reason);
+		    "unknown MLME request %d (reason: %d (%s))", op, reason,
+		    ieee80211_reason_to_string(reason));
 	} else if (reason == IEEE80211_STATUS_SUCCESS) {
 		IEEE80211_NOTE_MAC(vap, ops[op].mask, mac,
 		    "station %s via MLME", ops[op].opstr);
 	} else {
 		IEEE80211_NOTE_MAC(vap, ops[op].mask, mac,
-		    "station %s via MLME (reason %d)", ops[op].opstr, reason);
+		    "station %s via MLME (reason: %d (%s))", ops[op].opstr,
+		    reason, ieee80211_reason_to_string(reason));
 	}
 #endif /* IEEE80211_DEBUG */
 }

@@ -2183,8 +2183,10 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			IEEE80211_NODE_STAT(ni, rx_disassoc);
 		}
 		IEEE80211_NOTE(vap, IEEE80211_MSG_AUTH, ni,
-		    "recv %s (reason %d)", ieee80211_mgt_subtype_name[subtype >>
-			IEEE80211_FC0_SUBTYPE_SHIFT], reason);
+		    "recv %s (reason: %d (%s))",
+		    ieee80211_mgt_subtype_name[subtype >>
+		        IEEE80211_FC0_SUBTYPE_SHIFT],
+		    reason, ieee80211_reason_to_string(reason));
 		if (ni != vap->iv_bss)
 			ieee80211_node_leave(ni);
 		break;
