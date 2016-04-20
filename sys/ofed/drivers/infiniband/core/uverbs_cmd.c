@@ -1613,7 +1613,7 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 	response = (void __user *) (unsigned long) cmd->response;
 
 	if (!disable_raw_qp_enforcement &&
-	    cmd->qp_type == IB_QPT_RAW_PACKET && !priv_check(curthread, PRIV_NET_RAW))
+	    cmd->qp_type == IB_QPT_RAW_PACKET && priv_check(curthread, PRIV_NET_RAW))
 		return -EPERM;
 
 	INIT_UDATA(&udata, buf + cmd_size, response + resp_size,
@@ -3377,7 +3377,7 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	if (cmd.comp_mask)
 		return -EINVAL;
 
-	if (!priv_check(curthread, PRIV_NET_RAW) && !disable_raw_qp_enforcement)
+	if (priv_check(curthread, PRIV_NET_RAW) && !disable_raw_qp_enforcement)
 		return -EPERM;
 
 	if (cmd.flow_attr.num_of_specs > IB_FLOW_SPEC_SUPPORT_LAYERS)
@@ -3686,7 +3686,7 @@ ssize_t ib_uverbs_exp_create_qp(struct ib_uverbs_file *file,
 		return ret;
 
 	if (!disable_raw_qp_enforcement &&
-	    cmd_exp.qp_type == IB_QPT_RAW_PACKET && !priv_check(curthread,
+	    cmd_exp.qp_type == IB_QPT_RAW_PACKET && priv_check(curthread,
 		    PRIV_NET_RAW))
 		return -EPERM;
 
