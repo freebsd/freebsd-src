@@ -68,8 +68,6 @@ static struct smb_dialect smb_dialects[] = {
 	{-1,			NULL}
 };
 
-#define	SMB_DIALECT_MAX	(nitems(smb_dialects) - 2)
-
 static u_int32_t
 smb_vc_maxread(struct smb_vc *vcp)
 {
