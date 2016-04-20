@@ -3483,10 +3483,10 @@ ath_update_mcast_hw(struct ath_softc *sc)
 				/* calculate XOR of eight 6bit values */
 				dl = LLADDR((struct sockaddr_dl *)
 				    ifma->ifma_addr);
-				val = LE_READ_4(dl + 0);
+				val = le32dec(dl + 0);
 				pos = (val >> 18) ^ (val >> 12) ^ (val >> 6) ^
 				    val;
-				val = LE_READ_4(dl + 3);
+				val = le32dec(dl + 3);
 				pos ^= (val >> 18) ^ (val >> 12) ^ (val >> 6) ^
 				    val;
 				pos &= 0x3f;

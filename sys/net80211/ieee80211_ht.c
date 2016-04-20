@@ -1424,7 +1424,7 @@ ieee80211_parse_htcap(struct ieee80211_node *ni, const uint8_t *ie)
 	} else
 		ni->ni_flags &= ~IEEE80211_NODE_HTCOMPAT;
 
-	ni->ni_htcap = LE_READ_2(ie +
+	ni->ni_htcap = le16dec(ie +
 		__offsetof(struct ieee80211_ie_htcap, hc_cap));
 	ni->ni_htparam = ie[__offsetof(struct ieee80211_ie_htcap, hc_param)];
 }
@@ -1437,9 +1437,9 @@ htinfo_parse(struct ieee80211_node *ni,
 
 	ni->ni_htctlchan = htinfo->hi_ctrlchannel;
 	ni->ni_ht2ndchan = SM(htinfo->hi_byte1, IEEE80211_HTINFO_2NDCHAN);
-	w = LE_READ_2(&htinfo->hi_byte2);
+	w = le16dec(&htinfo->hi_byte2);
 	ni->ni_htopmode = SM(w, IEEE80211_HTINFO_OPMODE);
-	w = LE_READ_2(&htinfo->hi_byte45);
+	w = le16dec(&htinfo->hi_byte45);
 	ni->ni_htstbc = SM(w, IEEE80211_HTINFO_BASIC_STBCMCS);
 }
 
@@ -1932,9 +1932,9 @@ ht_recv_action_ba_addba_request(struct ieee80211_node *ni,
 	int tid;
 
 	dialogtoken = frm[2];
-	baparamset = LE_READ_2(frm+3);
-	batimeout = LE_READ_2(frm+5);
-	baseqctl = LE_READ_2(frm+7);
+	baparamset = le16dec(frm+3);
+	batimeout = le16dec(frm+5);
+	baseqctl = le16dec(frm+7);
 
 	tid = MS(baparamset, IEEE80211_BAPS_TID);
 
@@ -1997,12 +1997,12 @@ ht_recv_action_ba_addba_response(struct ieee80211_node *ni,
 	int tid, bufsiz;
 
 	dialogtoken = frm[2];
-	code = LE_READ_2(frm+3);
-	baparamset = LE_READ_2(frm+5);
+	code = le16dec(frm+3);
+	baparamset = le16dec(frm+5);
 	tid = MS(baparamset, IEEE80211_BAPS_TID);
 	bufsiz = MS(baparamset, IEEE80211_BAPS_BUFSIZ);
 	policy = MS(baparamset, IEEE80211_BAPS_POLICY);
-	batimeout = LE_READ_2(frm+7);
+	batimeout = le16dec(frm+7);
 
 	tap = &ni->ni_tx_ampdu[tid];
 	if ((tap->txa_flags & IEEE80211_AGGR_XCHGPEND) == 0) {
@@ -2069,8 +2069,8 @@ ht_recv_action_ba_delba(struct ieee80211_node *ni,
 	uint16_t baparamset, code;
 	int tid;
 
-	baparamset = LE_READ_2(frm+2);
-	code = LE_READ_2(frm+4);
+	baparamset = le16dec(frm+2);
+	code = le16dec(frm+4);
 
 	tid = MS(baparamset, IEEE80211_DELBAPS_TID);
 

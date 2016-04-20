@@ -1265,8 +1265,8 @@ rtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		rtwn_write_4(sc, R92C_CR, reg);
 
 		/* Set BSSID. */
-		rtwn_write_4(sc, R92C_BSSID + 0, LE_READ_4(&ni->ni_bssid[0]));
-		rtwn_write_4(sc, R92C_BSSID + 4, LE_READ_2(&ni->ni_bssid[4]));
+		rtwn_write_4(sc, R92C_BSSID + 0, le32dec(&ni->ni_bssid[0]));
+		rtwn_write_4(sc, R92C_BSSID + 4, le16dec(&ni->ni_bssid[4]));
 
 		if (ic->ic_curmode == IEEE80211_MODE_11B)
 			rtwn_write_1(sc, R92C_INIRTS_RATE_SEL, 0);
