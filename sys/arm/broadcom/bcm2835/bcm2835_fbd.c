@@ -80,6 +80,10 @@ bcm_fb_init(struct bcmsc_softc *sc, struct bcm2835_fb_config *fb)
 		return (ENXIO);
 	fb->bpp = FB_DEPTH;
 
+	fb->vxres = fb->xres;
+	fb->vyres = fb->yres;
+	fb->xoffset = fb->yoffset = 0;
+
 	if ((err = bcm2835_mbox_fb_init(fb)) != 0) {
 		device_printf(sc->dev, "bcm2835_mbox_fb_init failed, err=%d\n", err);
 		return (ENXIO);

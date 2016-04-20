@@ -469,8 +469,6 @@ struct bcm2835_fb_config {
 struct msg_fb_get_w_h {
 	struct bcm2835_mbox_hdr hdr;
 	struct bcm2835_mbox_tag_fb_w_h physical_w_h;
-	struct bcm2835_mbox_tag_fb_w_h virtual_w_h;
-	struct bcm2835_mbox_tag_virtual_offset offset;
 	uint32_t end_tag;
 };
 

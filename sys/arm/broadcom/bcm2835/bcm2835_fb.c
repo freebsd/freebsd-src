@@ -149,6 +149,9 @@ bcm_fb_attach(device_t dev)
 	if (bcm2835_mbox_fb_get_w_h(&fb) != 0)
 		return (ENXIO);
 	fb.bpp = FB_DEPTH;
+	fb.vxres = fb.xres;
+	fb.vyres = fb.yres;
+	fb.xoffset = fb.yoffset = 0;
 	if (bcm2835_mbox_fb_init(&fb) != 0)
 		return (ENXIO);
 
