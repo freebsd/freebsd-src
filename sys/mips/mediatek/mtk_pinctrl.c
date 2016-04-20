@@ -40,11 +40,13 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_pinctrl.h>
 #include <mips/mediatek/mtk_sysctl.h>
+#include <mips/mediatek/mtk_soc.h>
+#include <mips/mediatek/mtk_pinctrl.h>
 
 #include "fdt_pinctrl_if.h"
 
 static const struct ofw_compat_data compat_data[] = {
-	{ "ralink,rt2880-pinctrl",	1 },
+	{ "ralink,rt2880-pinmux",	1 },
 
 	/* Sentinel */
 	{ NULL,				0 }
@@ -74,21 +76,142 @@ mtk_pinctrl_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	fdt_pinctrl_register(dev, "pinctrl-single,bits");
+	if (bootverbose)
+		device_printf(dev, "GPIO mode start: 0x%08x\n",
+		    mtk_sysctl_get(SYSCTL_GPIOMODE));
+
+	fdt_pinctrl_register(dev, NULL);
 	fdt_pinctrl_configure_tree(dev);
 
 	if (bootverbose)
-		device_printf(dev, "GPIO mode: 0x%08x\n",
+		device_printf(dev, "GPIO mode end  : 0x%08x\n",
 		    mtk_sysctl_get(SYSCTL_GPIOMODE));
 
 	return (0);
 }
 
 static int
+mtk_pinctrl_process_entry(device_t dev, struct mtk_pin_group *table,
+    const char *group, char *func)
+{
+	uint32_t val;
+	int found = 0, i, j;
+
+	for (i = 0; table[i].name != NULL; i++) {
+                if (strcmp(table[i].name, group) == 0) {
+			found = 1;
+                        break;
+		}
+        }
+
+	if (!found)
+		return (ENOENT);
+
+        for (j = 0; j < table[i].funcnum; j++) {
+                if (strcmp(table[i].functions[j].name, func) == 0) {
+                        val = mtk_sysctl_get(table[i].sysc_reg);
+                        val &= ~(table[i].mask << table[i].offset);
+                        val |= (table[i].functions[j].value << table[i].offset);
+                        mtk_sysctl_set(table[i].sysc_reg, val);
+                        return (0);
+		}
+	}
+
+	return (ENOENT);
+}
+
+static int
+mtk_pinctrl_process_node(device_t dev, struct mtk_pin_group *table,
+    phandle_t node)
+{
+	const char **group_list = NULL;
+	char *pin_function = NULL;
+	int ret, num_groups, i;
+
+	ret = 0;
+
+	num_groups = ofw_bus_string_list_to_array(node, "ralink,group",
+	    &group_list);
+
+	if (num_groups <= 0)
+		return (ENOENT);
+
+	if (OF_getprop_alloc(node, "ralink,function", sizeof(*pin_function),
+			     (void **)&pin_function) == -1) {
+		ret = ENOENT;
+		goto out;
+	}
+
+	for (i = 0; i < num_groups; i++) {
+		if ((ret = mtk_pinctrl_process_entry(dev, table, group_list[i],
+		    pin_function)) != 0)
+			goto out;
+	}
+
+out:
+	free(group_list, M_OFWPROP);
+	free(pin_function, M_OFWPROP);
+	return (ret);
+}
+
+static int
 mtk_pinctrl_configure(device_t dev, phandle_t cfgxref)
 {
+	struct mtk_pin_group *pintable;
+	phandle_t node, child;
+	uint32_t socid;
+	int ret;
 
-	return (EINVAL);
+	node = OF_node_from_xref(cfgxref);
+	ret = 0;
+
+	/* Now, get the system type, so we can get the proper GPIO mode array */
+	socid = mtk_soc_get_socid();
+
+	switch (socid) {
+	case MTK_SOC_RT3050: /* fallthrough */
+	case MTK_SOC_RT3052:
+	case MTK_SOC_RT3350:
+		pintable = rt3050_pintable;
+		break;
+	case MTK_SOC_RT3352:
+		pintable = rt3352_pintable;
+		break;
+	case MTK_SOC_RT3662: /* fallthrough */
+	case MTK_SOC_RT3883:
+		pintable = rt3883_pintable;
+		break;
+	case MTK_SOC_RT5350:
+		pintable = rt5350_pintable;
+		break;
+	case MTK_SOC_MT7620A: /* fallthrough */
+	case MTK_SOC_MT7620N:
+		pintable = mt7620_pintable;
+		break;
+	case MTK_SOC_MT7628: /* fallthrough */
+	case MTK_SOC_MT7688:
+		pintable = mt7628_pintable;
+		break;
+	case MTK_SOC_MT7621:
+		pintable = mt7621_pintable;
+		break;
+	default:
+		ret = ENOENT;
+		goto out;
+	}
+
+	/*
+	 * OpenWRT dts files have single child within the pinctrl nodes, which
+	 * contains the 'ralink,group' and 'ralink,function' properties.
+	 */ 
+	for (child = OF_child(node); child != 0 && child != -1;
+	    child = OF_peer(child)) {
+		if ((ret = mtk_pinctrl_process_node(dev, pintable, child)) != 0)
+			return (ret);
+	}
+
+out:
+	return (ret);
 }
 
 static device_method_t mtk_pinctrl_methods[] = {
