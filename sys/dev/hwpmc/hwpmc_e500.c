@@ -242,9 +242,6 @@ static struct e500_event_code_map e500_event_codes[] = {
 	PMC_E500MC_ONLY(STWCX_FAILURES, 180),
 };
 
-const size_t e500_event_codes_size = 
-	sizeof(e500_event_codes) / sizeof(e500_event_codes[0]);
-
 static pmc_value_t
 e500_pmcn_read(unsigned int pmc)
 {
