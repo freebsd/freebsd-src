@@ -104,10 +104,12 @@ sys_gssd_syscall(struct thread *td, struct gssd_syscall_args *uap)
 	error = copyinstr(uap->path, path, sizeof(path), NULL);
 	if (error)
 		return (error);
+	if (strlen(path) + 1 > sizeof(sun.sun_path))
+		return (EINVAL);
 
 	if (path[0] != '\0') {
 		sun.sun_family = AF_LOCAL;
-		strcpy(sun.sun_path, path);
+		strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
 		sun.sun_len = SUN_LEN(&sun);
 		
 		nconf = getnetconfigent("local");
