@@ -402,7 +402,7 @@
 #else /* (!(CHERICAP_SIZE == 32)) */
 
 #define	CHERI_BASELEN_BITS	20
-#define	CHERI_SEAL_BASELEN_BITS	10
+#define	CHERI_SEAL_BASELEN_BITS	5
 #define	CHERI_SLOP_BITS		2
 #define	CHERI_ADDR_BITS		64
 
@@ -410,8 +410,8 @@
     ((flsll(l) <= (CHERI_BASELEN_BITS - CHERI_SLOP_BITS)) ? 0ULL :	\
     (flsll(l) - (CHERI_BASELEN_BITS - CHERI_SLOP_BITS)))
 #define	CHERI_SEAL_ALIGN_SHIFT(l)					\
-    ((flsll(l) <= (CHERI_SEAL_BASELEN_BITS - CHERI_SLOP_BITS)) ? 0ULL :	\
-    (flsll(l) - (CHERI_SEAL_BASELEN_BITS - CHERI_SLOP_BITS)))
+    ((flsll(l) <= (CHERI_SEAL_BASELEN_BITS)) ? 0ULL :	\
+    (flsll(l) - (CHERI_SEAL_BASELEN_BITS)))
 #endif /* (!(CHERICAP_SIZE == 32)) */
 
 #define	CHERI_ALIGN_MASK(l)		~(~0ULL << CHERI_ALIGN_SHIFT(l))
