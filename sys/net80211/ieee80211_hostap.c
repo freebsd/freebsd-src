@@ -1677,18 +1677,19 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	efrm = mtod(m0, uint8_t *) + m0->m_len;
 	switch (subtype) {
 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
-	case IEEE80211_FC0_SUBTYPE_BEACON: {
-		struct ieee80211_scanparams scan;
 		/*
 		 * We process beacon/probe response frames when scanning;
 		 * otherwise we check beacon frames for overlapping non-ERP
 		 * BSS in 11g and/or overlapping legacy BSS when in HT.
-		 */ 
-		if ((ic->ic_flags & IEEE80211_F_SCAN) == 0 &&
-		    subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP) {
+		 */
+		if ((ic->ic_flags & IEEE80211_F_SCAN) == 0) {
 			vap->iv_stats.is_rx_mgtdiscard++;
 			return;
 		}
+		/* FALLTHROUGH */
+	case IEEE80211_FC0_SUBTYPE_BEACON: {
+		struct ieee80211_scanparams scan;
+
 		/* NB: accept off-channel frames */
 		/* XXX TODO: use rxstatus to determine off-channel details */
 		if (ieee80211_parse_beacon(ni, m0, ic->ic_curchan, &scan) &~ IEEE80211_BPARSE_OFFCHAN)
