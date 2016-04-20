@@ -903,7 +903,7 @@ tagname(unsigned int tag)
 	struct tags *tp;
 
 	for (i = 0, tp = knowntags;
-	     i < sizeof(knowntags) / sizeof(struct tags);
+	     i < nitems(knowntags);
 	     i++, tp++)
 		if (tp->id == tag)
 			return (tp->name);
@@ -921,7 +921,7 @@ flagname(unsigned int flag)
 	struct tags *tp;
 
 	for (i = 0, tp = knownflags;
-	     i < sizeof(knownflags) / sizeof(struct tags);
+	     i < nitems(knownflags);
 	     i++, tp++)
 		if (tp->id == flag)
 			return (tp->name);
@@ -940,7 +940,7 @@ parse_tag(struct sun_disklabel *sl, int part, const char *tag)
 	unsigned long l;
 
 	for (i = 0, tp = knowntags;
-	     i < sizeof(knowntags) / sizeof(struct tags);
+	     i < nitems(knowntags);
 	     i++, tp++)
 		if (strcmp(tp->name, tag) == 0) {
 			sl->sl_vtoc_map[part].svtoc_tag = (uint16_t)tp->id;
@@ -965,7 +965,7 @@ parse_flag(struct sun_disklabel *sl, int part, const char *flag)
 	unsigned long l;
 
 	for (i = 0, tp = knownflags;
-	     i < sizeof(knownflags) / sizeof(struct tags);
+	     i < nitems(knownflags);
 	     i++, tp++)
 		if (strcmp(tp->name, flag) == 0) {
 			sl->sl_vtoc_map[part].svtoc_flag = (uint16_t)tp->id;
