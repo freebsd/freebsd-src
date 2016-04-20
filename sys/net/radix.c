@@ -1156,6 +1156,8 @@ rn_inithead(void **head, int off)
 	if (rnh == NULL || rmh == NULL) {
 		if (rnh != NULL)
 			R_Free(rnh);
+		if (rmh != NULL)
+			R_Free(rmh);
 		return (0);
 	}
 
