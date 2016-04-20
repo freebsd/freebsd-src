@@ -2275,6 +2275,17 @@ script_set_env(struct client_state *client, const char *prefix,
 {
 	int i, j, namelen;
 
+	/* No `` or $() command substitution allowed in environment values! */
+	for (j=0; j < strlen(value); j++)
+		switch (value[j]) {
+		case '`':
+		case '$':
+			warning("illegal character (%c) in value '%s'",
+			    value[j], value);
+			/* Ignore this option */
+			return;
+		}
+
 	namelen = strlen(name);
 
 	for (i = 0; client->scriptEnv[i]; i++)
@@ -2311,16 +2322,6 @@ script_set_env(struct client_state *client, const char *prefix,
 	    strlen(value) + 1);
 	if (client->scriptEnv[i] == NULL)
 		error("script_set_env: no memory for variable assignment");
-
-	/* No `` or $() command substitution allowed in environment values! */
-	for (j=0; j < strlen(value); j++)
-		switch (value[j]) {
-		case '`':
-		case '$':
-			error("illegal character (%c) in value '%s'", value[j],
-			    value);
-			/* not reached */
-		}
 	snprintf(client->scriptEnv[i], strlen(prefix) + strlen(name) +
 	    1 + strlen(value) + 1, "%s%s=%s", prefix, name, value);
 }
