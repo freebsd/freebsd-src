@@ -470,7 +470,7 @@ cpsw_init_slots(struct cpsw_softc *sc)
 	STAILQ_INIT(&sc->avail);
 
 	/* Put the slot descriptors onto the global avail list. */
-	for (i = 0; i < sizeof(sc->_slots) / sizeof(sc->_slots[0]); i++) {
+	for (i = 0; i < nitems(sc->_slots); i++) {
 		slot = &sc->_slots[i];
 		slot->bd_offset = cpsw_cpdma_bd_offset(i);
 		STAILQ_INSERT_TAIL(&sc->avail, slot, next);
@@ -480,7 +480,7 @@ cpsw_init_slots(struct cpsw_softc *sc)
 static int
 cpsw_add_slots(struct cpsw_softc *sc, struct cpsw_queue *queue, int requested)
 {
-	const int max_slots = sizeof(sc->_slots) / sizeof(sc->_slots[0]);
+	const int max_slots = nitems(sc->_slots);
 	struct cpsw_slot *slot;
 	int i;
 
@@ -917,7 +917,7 @@ cpsw_detach(device_t dev)
 	cpsw_intr_detach(sc);
 
 	/* Free dmamaps and mbufs */
-	for (i = 0; i < sizeof(sc->_slots) / sizeof(sc->_slots[0]); ++i)
+	for (i = 0; i < nitems(sc->_slots); ++i)
 		cpsw_free_slot(sc, &sc->_slots[i]);
 
 	/* Free null mbuf. */
