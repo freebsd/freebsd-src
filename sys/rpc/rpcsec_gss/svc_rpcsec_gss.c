@@ -331,7 +331,7 @@ rpc_gss_get_principal_name(rpc_gss_principal_t *principal,
 	 * Construct a gss_buffer containing the full name formatted
 	 * as "name/node@domain" where node and domain are optional.
 	 */
-	namelen = strlen(name);
+	namelen = strlen(name) + 1;
 	if (node) {
 		namelen += strlen(node) + 1;
 	}
