@@ -2739,7 +2739,7 @@ again:
 	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		if (bp->bif_ifp != ifp)
 			continue;
-		if (n > n1) {
+		if (n >= n1) {
 			free(lst, M_TEMP);
 			goto again;
 		}
