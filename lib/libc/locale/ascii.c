@@ -133,11 +133,14 @@ _ascii_mbsnrtowcs(wchar_t * __restrict dst, const char ** __restrict src,
 
 	if (dst == NULL) {
 		s = memchr(*src, '\0', nms);
+		if (s == NULL)
+			return (nms);
+
 		if (*s & 0x80) {
 			errno = EILSEQ;
 			return ((size_t)-1);
 		}
-		return (s != NULL ? s - *src : nms);
+		return (s - *src);
 	}
 
 	s = *src;
