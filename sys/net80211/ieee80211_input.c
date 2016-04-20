@@ -549,7 +549,7 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 			break;
 		case IEEE80211_ELEMID_FHPARMS:
 			if (ic->ic_phytype == IEEE80211_T_FH) {
-				scan->fhdwell = LE_READ_2(&frm[2]);
+				scan->fhdwell = le16dec(&frm[2]);
 				scan->chan = IEEE80211_FH_CHAN(frm[4], frm[5]);
 				scan->fhindex = frm[6];
 			}
