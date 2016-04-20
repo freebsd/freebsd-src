@@ -2480,6 +2480,29 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
     return (AE_OK);
 }
 
+ACPI_STATUS
+acpi_EvaluateOSC(ACPI_HANDLE handle, uint8_t *uuid, int revision, int count,
+    uint32_t *caps, bool query)
+{
+	ACPI_OBJECT arg[4];
+	ACPI_OBJECT_LIST arglist;
+
+	arglist.Pointer = arg;
+	arglist.Count = 4;
+	arg[0].Type = ACPI_TYPE_BUFFER;
+	arg[0].Buffer.Length = ACPI_UUID_LENGTH;
+	arg[0].Buffer.Pointer = uuid;
+	arg[1].Type = ACPI_TYPE_INTEGER;
+	arg[1].Integer.Value = revision;
+	arg[2].Type = ACPI_TYPE_INTEGER;
+	arg[2].Integer.Value = count;
+	arg[3].Type = ACPI_TYPE_BUFFER;
+	arg[3].Buffer.Length = count * sizeof(uint32_t);
+	arg[3].Buffer.Pointer = (uint8_t *)caps;
+	caps[0] = query ? 1 : 0;
+	return (AcpiEvaluateObject(handle, "_OSC", &arglist, NULL));
+}
+
 /*
  * Set interrupt model.
  */
