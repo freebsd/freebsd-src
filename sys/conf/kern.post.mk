@@ -368,8 +368,6 @@ embedfs_${MFS_IMAGE:T:R}.o: ${MFS_IMAGE}
 	    --output-target ${EMBEDFS_FORMAT.${MACHINE_ARCH}} \
 	    --binary-architecture ${EMBEDFS_ARCH.${MACHINE_ARCH}} \
 	    ${MFS_IMAGE} ${.TARGET}
-	# Provide set of two distinct regexp to work around an elfcopy bug
-	# fixed in r298361 (last three).
 	${OBJCOPY} \
 	    --rename-section .data=mfs,contents,alloc,load,readonly,data \
 	    --redefine-sym \
@@ -378,12 +376,6 @@ embedfs_${MFS_IMAGE:T:R}.o: ${MFS_IMAGE}
 		_binary_${MFS_IMAGE:C,[^[:alnum:]],_,g}_start=mfs_root \
 	    --redefine-sym \
 		_binary_${MFS_IMAGE:C,[^[:alnum:]],_,g}_end=mfs_root_end \
-	    --redefine-sym \
-		_binary_${MFS_IMAGE:C,[^-/[:alnum:]],_,g}_size=__mfs_root_size \
-	    --redefine-sym \
-		_binary_${MFS_IMAGE:C,[^-/[:alnum:]],_,g}_start=mfs_root \
-	    --redefine-sym \
-		_binary_${MFS_IMAGE:C,[^-/[:alnum:]],_,g}_end=mfs_root_end \
 	    ${.TARGET}
 .endif
 .endif
