@@ -368,9 +368,8 @@ embedfs_${MFS_IMAGE:T:R}.o: ${MFS_IMAGE}
 	    --output-target ${EMBEDFS_FORMAT.${MACHINE_ARCH}} \
 	    --binary-architecture ${EMBEDFS_ARCH.${MACHINE_ARCH}} \
 	    ${MFS_IMAGE} ${.TARGET}
-	# Provide set of two distinct regexp to match for GCC (first three)
-	# and for CLANG >= 3.8.0 (last three). First three should be removed
-	# once support for GCC and CLANG < 3.8.0 is abandoned.
+	# Provide set of two distinct regexp to work around an elfcopy bug
+	# fixed in r298361 (last three).
 	${OBJCOPY} \
 	    --rename-section .data=mfs,contents,alloc,load,readonly,data \
 	    --redefine-sym \
