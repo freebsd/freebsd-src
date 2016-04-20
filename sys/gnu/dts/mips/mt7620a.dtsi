@@ -535,4 +535,4 @@
 	};
 };
 
-#include <fbsd-mt7620a.dtsi>
+/include/ "fbsd-mt7620a.dtsi"
