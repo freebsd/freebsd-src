@@ -749,11 +749,11 @@ command(void)
 		if (margc == 0)
 			continue;
 		c = getcmd(margv[0]);
-		if (c == (struct cmd *)-1) {
+		if (c == (struct cmd *) - 1) {
 			printf("?Ambiguous command\n");
 			continue;
 		}
-		if (c == 0) {
+		if (c == NULL) {
 			printf("?Invalid command\n");
 			continue;
 		}
