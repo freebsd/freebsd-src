@@ -1866,6 +1866,7 @@ sys_rctl_get_limits(struct thread *td, struct rctl_get_limits_args *uap)
 	RCTL_RUNLOCK();
 	if (sbuf_error(sb) == ENOMEM) {
 		error = ERANGE;
+		sbuf_delete(sb);
 		goto out;
 	}
 
