@@ -161,9 +161,8 @@ static device_method_t thunder_pem_methods[] = {
 	DEVMETHOD(device_probe,			thunder_pem_probe),
 	DEVMETHOD(device_attach,		thunder_pem_attach),
 	DEVMETHOD(device_detach,		thunder_pem_detach),
-	DEVMETHOD(pcib_maxslots,		thunder_pem_maxslots),
-	DEVMETHOD(pcib_read_config,		thunder_pem_read_config),
-	DEVMETHOD(pcib_write_config,		thunder_pem_write_config),
+
+	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,		thunder_pem_read_ivar),
 	DEVMETHOD(bus_write_ivar,		thunder_pem_write_ivar),
 	DEVMETHOD(bus_alloc_resource,		thunder_pem_alloc_resource),
@@ -174,6 +173,10 @@ static device_method_t thunder_pem_methods[] = {
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
 
+	/* pcib interface */
+	DEVMETHOD(pcib_maxslots,		thunder_pem_maxslots),
+	DEVMETHOD(pcib_read_config,		thunder_pem_read_config),
+	DEVMETHOD(pcib_write_config,		thunder_pem_write_config),
 	DEVMETHOD(pcib_map_msi,			thunder_pem_map_msi),
 	DEVMETHOD(pcib_alloc_msix,		thunder_pem_alloc_msix),
 	DEVMETHOD(pcib_release_msix,		thunder_pem_release_msix),
