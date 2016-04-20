@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 
 #include <net80211/ieee80211_var.h>
-#include <net80211/ieee80211_input.h>
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_ratectl.h>
@@ -2266,20 +2265,20 @@ urtwn_key_set_cb(struct urtwn_softc *sc, union sec_param *data)
 	/* Write key. */
 	for (i = 0; i < 4; i++) {
 		error = urtwn_cam_write(sc, R92C_CAM_KEY(k->wk_keyix, i),
-		    LE_READ_4(&k->wk_key[i * 4]));
+		    le32dec(&k->wk_key[i * 4]));
 		if (error != 0)
 			goto fail;
 	}
 
 	/* Write CTL0 last since that will validate the CAM entry. */
 	error = urtwn_cam_write(sc, R92C_CAM_CTL1(k->wk_keyix),
-	    LE_READ_4(&k->wk_macaddr[2]));
+	    le32dec(&k->wk_macaddr[2]));
 	if (error != 0)
 		goto fail;
 	error = urtwn_cam_write(sc, R92C_CAM_CTL0(k->wk_keyix),
 	    SM(R92C_CAM_ALGO, algo) |
 	    SM(R92C_CAM_KEYID, keyid) |
-	    SM(R92C_CAM_MACLO, LE_READ_2(&k->wk_macaddr[0])) |
+	    SM(R92C_CAM_MACLO, le16dec(&k->wk_macaddr[0])) |
 	    R92C_CAM_VALID);
 	if (error != 0)
 		goto fail;
@@ -2579,8 +2578,8 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		urtwn_set_mode(sc, mode);
 
 		/* Set BSSID. */
-		urtwn_write_4(sc, R92C_BSSID + 0, LE_READ_4(&ni->ni_bssid[0]));
-		urtwn_write_4(sc, R92C_BSSID + 4, LE_READ_2(&ni->ni_bssid[4]));
+		urtwn_write_4(sc, R92C_BSSID + 0, le32dec(&ni->ni_bssid[0]));
+		urtwn_write_4(sc, R92C_BSSID + 4, le16dec(&ni->ni_bssid[4]));
 
 		if (ic->ic_curmode == IEEE80211_MODE_11B)
 			urtwn_write_1(sc, R92C_INIRTS_RATE_SEL, 0);

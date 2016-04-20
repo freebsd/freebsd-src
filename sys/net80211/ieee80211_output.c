@@ -77,18 +77,6 @@ __FBSDID("$FreeBSD$");
 #define	ETHER_HEADER_COPY(dst, src) \
 	memcpy(dst, src, sizeof(struct ether_header))
 
-/* unalligned little endian access */     
-#define LE_WRITE_2(p, v) do {				\
-	((uint8_t *)(p))[0] = (v) & 0xff;		\
-	((uint8_t *)(p))[1] = ((v) >> 8) & 0xff;	\
-} while (0)
-#define LE_WRITE_4(p, v) do {				\
-	((uint8_t *)(p))[0] = (v) & 0xff;		\
-	((uint8_t *)(p))[1] = ((v) >> 8) & 0xff;	\
-	((uint8_t *)(p))[2] = ((v) >> 16) & 0xff;	\
-	((uint8_t *)(p))[3] = ((v) >> 24) & 0xff;	\
-} while (0)
-
 static int ieee80211_fragment(struct ieee80211vap *, struct mbuf *,
 	u_int hdrsize, u_int ciphdrsize, u_int mtu);
 static	void ieee80211_tx_mgt_cb(struct ieee80211_node *, void *, int);
@@ -1518,7 +1506,7 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		}
 		mc->mc_ttl = ms->ms_ttl;
 		ms->ms_seq++;
-		LE_WRITE_4(mc->mc_seq, ms->ms_seq);
+		le32enc(mc->mc_seq, ms->ms_seq);
 		break;
 #endif
 	case IEEE80211_M_WDS:		/* NB: is4addr should always be true */
@@ -1843,7 +1831,7 @@ static uint8_t *
 ieee80211_add_cfparms(uint8_t *frm, struct ieee80211com *ic)
 {
 #define	ADDSHORT(frm, v) do {	\
-	LE_WRITE_2(frm, v);	\
+	le16enc(frm, v);	\
 	frm += 2;		\
 } while (0)
 	*frm++ = IEEE80211_ELEMID_CFPARMS;
@@ -1898,7 +1886,7 @@ ieee80211_add_wme_param(uint8_t *frm, struct ieee80211_wme_state *wme)
 {
 #define	SM(_v, _f)	(((_v) << _f##_S) & _f)
 #define	ADDSHORT(frm, v) do {	\
-	LE_WRITE_2(frm, v);	\
+	le16enc(frm, v);	\
 	frm += 2;		\
 } while (0)
 	/* NB: this works 'cuz a param has an info at the front */

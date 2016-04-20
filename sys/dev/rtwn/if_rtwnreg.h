@@ -895,10 +895,6 @@
 #define R92C_RAID_11B	6
 
 
-/* Macros to access unaligned little-endian memory. */
-#define LE_READ_2(x)	((x)[0] | (x)[1] << 8)
-#define LE_READ_4(x)	((x)[0] | (x)[1] << 8 | (x)[2] << 16 | (x)[3] << 24)
-
 /*
  * Macros to access subfields in registers.
  */

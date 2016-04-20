@@ -1710,7 +1710,7 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m,
 		}
 		/* XXX: are we sure there is no reallocating after m_pullup? */
 
-		seq = LE_READ_4(mc->mc_seq);
+		seq = le32dec(mc->mc_seq);
 		if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 			addr = wh->i_addr3;
 		else if (ae == IEEE80211_MESH_AE_01)
@@ -2135,12 +2135,12 @@ mesh_parse_meshpeering_action(struct ieee80211_node *ni,
 			mpie = (const struct ieee80211_meshpeer_ie *) frm;
 			memset(mp, 0, sizeof(*mp));
 			mp->peer_len = mpie->peer_len;
-			mp->peer_proto = LE_READ_2(&mpie->peer_proto);
-			mp->peer_llinkid = LE_READ_2(&mpie->peer_llinkid);
+			mp->peer_proto = le16dec(&mpie->peer_proto);
+			mp->peer_llinkid = le16dec(&mpie->peer_llinkid);
 			switch (subtype) {
 			case IEEE80211_ACTION_MESHPEERING_CONFIRM:
 				mp->peer_linkid =
-				    LE_READ_2(&mpie->peer_linkid);
+				    le16dec(&mpie->peer_linkid);
 				break;
 			case IEEE80211_ACTION_MESHPEERING_CLOSE:
 				/* NB: peer link ID is optional */
@@ -2148,12 +2148,12 @@ mesh_parse_meshpeering_action(struct ieee80211_node *ni,
 				    (IEEE80211_MPM_BASE_SZ + 2)) {
 					mp->peer_linkid = 0;
 					mp->peer_rcode =
-					    LE_READ_2(&mpie->peer_linkid);
+					    le16dec(&mpie->peer_linkid);
 				} else {
 					mp->peer_linkid =
-					    LE_READ_2(&mpie->peer_linkid);
+					    le16dec(&mpie->peer_linkid);
 					mp->peer_rcode =
-					    LE_READ_2(&mpie->peer_rcode);
+					    le16dec(&mpie->peer_rcode);
 				}
 				break;
 			}
@@ -2550,8 +2550,8 @@ mesh_parse_meshgate_action(struct ieee80211_node *ni,
 			ie->gann_hopcount = gannie->gann_hopcount;
 			ie->gann_ttl = gannie->gann_ttl;
 			IEEE80211_ADDR_COPY(ie->gann_addr, gannie->gann_addr);
-			ie->gann_seq = LE_READ_4(&gannie->gann_seq);
-			ie->gann_interval = LE_READ_2(&gannie->gann_interval);
+			ie->gann_seq = le32dec(&gannie->gann_seq);
+			ie->gann_interval = le16dec(&gannie->gann_interval);
 			break;
 		}
 		frm += frm[1] + 2;

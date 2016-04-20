@@ -195,7 +195,7 @@ ieee80211_parse_ath(struct ieee80211_node *ni, uint8_t *ie)
 		(const struct ieee80211_ath_ie *) ie;
 
 	ni->ni_ath_flags = ath->ath_capability;
-	ni->ni_ath_defkeyix = LE_READ_2(&ath->ath_defkeyix);
+	ni->ni_ath_defkeyix = le16dec(&ath->ath_defkeyix);
 }
 
 int
@@ -216,7 +216,7 @@ ieee80211_parse_athparams(struct ieee80211_node *ni, uint8_t *frm,
 	}
 	ath = (const struct ieee80211_ath_ie *)frm;
 	capschanged = (ni->ni_ath_flags != ath->ath_capability);
-	defkeyix = LE_READ_2(ath->ath_defkeyix);
+	defkeyix = le16dec(ath->ath_defkeyix);
 	if (capschanged || defkeyix != ni->ni_ath_defkeyix) {
 		ni->ni_ath_flags = ath->ath_capability;
 		ni->ni_ath_defkeyix = defkeyix;

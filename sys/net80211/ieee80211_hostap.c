@@ -1165,7 +1165,7 @@ static int
 wpa_cipher(const uint8_t *sel, uint8_t *keylen)
 {
 #define	WPA_SEL(x)	(((x)<<24)|WPA_OUI)
-	uint32_t w = LE_READ_4(sel);
+	uint32_t w = le32dec(sel);
 
 	switch (w) {
 	case WPA_SEL(WPA_CSE_NULL):
@@ -1195,7 +1195,7 @@ static int
 wpa_keymgmt(const uint8_t *sel)
 {
 #define	WPA_SEL(x)	(((x)<<24)|WPA_OUI)
-	uint32_t w = LE_READ_4(sel);
+	uint32_t w = le32dec(sel);
 
 	switch (w) {
 	case WPA_SEL(WPA_ASE_8021X_UNSPEC):
@@ -1242,7 +1242,7 @@ ieee80211_parse_wpa(struct ieee80211vap *vap, const uint8_t *frm,
 	}
 	frm += 6, len -= 4;		/* NB: len is payload only */
 	/* NB: iswpaoui already validated the OUI and type */
-	w = LE_READ_2(frm);
+	w = le16dec(frm);
 	if (w != WPA_VERSION) {
 		IEEE80211_DISCARD_IE(vap,
 		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_WPA,
@@ -1258,7 +1258,7 @@ ieee80211_parse_wpa(struct ieee80211vap *vap, const uint8_t *frm,
 	frm += 4, len -= 4;
 
 	/* unicast ciphers */
-	n = LE_READ_2(frm);
+	n = le16dec(frm);
 	frm += 2, len -= 2;
 	if (len < n*4+2) {
 		IEEE80211_DISCARD_IE(vap,
@@ -1278,7 +1278,7 @@ ieee80211_parse_wpa(struct ieee80211vap *vap, const uint8_t *frm,
 		rsn->rsn_ucastcipher = IEEE80211_CIPHER_AES_CCM;
 
 	/* key management algorithms */
-	n = LE_READ_2(frm);
+	n = le16dec(frm);
 	frm += 2, len -= 2;
 	if (len < n*4) {
 		IEEE80211_DISCARD_IE(vap,
@@ -1298,7 +1298,7 @@ ieee80211_parse_wpa(struct ieee80211vap *vap, const uint8_t *frm,
 		rsn->rsn_keymgmt = WPA_ASE_8021X_PSK;
 
 	if (len > 2)		/* optional capabilities */
-		rsn->rsn_caps = LE_READ_2(frm);
+		rsn->rsn_caps = le16dec(frm);
 
 	return 0;
 }
@@ -1312,7 +1312,7 @@ static int
 rsn_cipher(const uint8_t *sel, uint8_t *keylen)
 {
 #define	RSN_SEL(x)	(((x)<<24)|RSN_OUI)
-	uint32_t w = LE_READ_4(sel);
+	uint32_t w = le32dec(sel);
 
 	switch (w) {
 	case RSN_SEL(RSN_CSE_NULL):
@@ -1344,7 +1344,7 @@ static int
 rsn_keymgmt(const uint8_t *sel)
 {
 #define	RSN_SEL(x)	(((x)<<24)|RSN_OUI)
-	uint32_t w = LE_READ_4(sel);
+	uint32_t w = le32dec(sel);
 
 	switch (w) {
 	case RSN_SEL(RSN_ASE_8021X_UNSPEC):
@@ -1389,7 +1389,7 @@ ieee80211_parse_rsn(struct ieee80211vap *vap, const uint8_t *frm,
 		return IEEE80211_REASON_IE_INVALID;
 	}
 	frm += 2;
-	w = LE_READ_2(frm);
+	w = le16dec(frm);
 	if (w != RSN_VERSION) {
 		IEEE80211_DISCARD_IE(vap,
 		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_WPA,
@@ -1405,7 +1405,7 @@ ieee80211_parse_rsn(struct ieee80211vap *vap, const uint8_t *frm,
 	frm += 4, len -= 4;
 
 	/* unicast ciphers */
-	n = LE_READ_2(frm);
+	n = le16dec(frm);
 	frm += 2, len -= 2;
 	if (len < n*4+2) {
 		IEEE80211_DISCARD_IE(vap,
@@ -1425,7 +1425,7 @@ ieee80211_parse_rsn(struct ieee80211vap *vap, const uint8_t *frm,
 		rsn->rsn_ucastcipher = IEEE80211_CIPHER_AES_CCM;
 
 	/* key management algorithms */
-	n = LE_READ_2(frm);
+	n = le16dec(frm);
 	frm += 2, len -= 2;
 	if (len < n*4) {
 		IEEE80211_DISCARD_IE(vap,
@@ -1446,7 +1446,7 @@ ieee80211_parse_rsn(struct ieee80211vap *vap, const uint8_t *frm,
 
 	/* optional RSN capabilities */
 	if (len > 2)
-		rsn->rsn_caps = LE_READ_2(frm);
+		rsn->rsn_caps = le16dec(frm);
 	/* XXXPMKID */
 
 	return 0;
