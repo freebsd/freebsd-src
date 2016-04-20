@@ -2497,7 +2497,7 @@ acpi_EvaluateOSC(ACPI_HANDLE handle, uint8_t *uuid, int revision, int count,
 	arg[2].Type = ACPI_TYPE_INTEGER;
 	arg[2].Integer.Value = count;
 	arg[3].Type = ACPI_TYPE_BUFFER;
-	arg[3].Buffer.Length = count * sizeof(uint32_t);
+	arg[3].Buffer.Length = count * sizeof(*caps);
 	arg[3].Buffer.Pointer = (uint8_t *)caps;
 	return (AcpiEvaluateObject(handle, "_OSC", &arglist, NULL));
 }
