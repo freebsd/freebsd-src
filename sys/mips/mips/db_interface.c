@@ -117,7 +117,7 @@ struct db_variable db_regs[] = {
 	{ "cs",  DB_OFFSET(cause),	db_frame },
 	{ "pc",  DB_OFFSET(pc),		db_frame },
 };
-struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
+struct db_variable *db_eregs = db_regs + nitems(db_regs);
 
 int (*do_db_log_stack_trace_cmd)(char *);
 

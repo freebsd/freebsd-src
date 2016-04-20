@@ -473,7 +473,7 @@ gethwvtrans(uint32_t hwbase, uint32_t size)
 	};
 	int i;
 
-	for (i = 0; i < sizeof hwvtrans / sizeof *hwvtrans; i++) {
+	for (i = 0; i < nitems(hwvtrans); i++) {
 		if (hwbase >= hwvtrans[i].hwbase &&
 		    hwbase + size <= hwvtrans[i].hwbase + hwvtrans[i].size)
 			return &hwvtrans[i];

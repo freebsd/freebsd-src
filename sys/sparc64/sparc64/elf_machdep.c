@@ -357,8 +357,7 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
 		return (0);
 
 	if (rtype == R_SPARC_JMP_SLOT || rtype == R_SPARC_COPY ||
-	    rtype >= sizeof(reloc_target_bitmask) /
-	    sizeof(*reloc_target_bitmask)) {
+	    rtype >= nitems(reloc_target_bitmask)) {
 		printf("kldload: unexpected relocation type %ld\n", rtype);
 		return (-1);
 	}
