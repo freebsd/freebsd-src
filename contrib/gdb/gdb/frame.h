@@ -702,4 +702,6 @@ extern struct frame_info *deprecated_frame_xmalloc_with_cleanup (long sizeof_sav
    code.  */
 extern int legacy_frame_p (struct gdbarch *gdbarch);
 
+extern int (*frame_tdep_pc_fixup)(CORE_ADDR *pc);
+
 #endif /* !defined (FRAME_H)  */
