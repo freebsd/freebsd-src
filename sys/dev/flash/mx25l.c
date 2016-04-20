@@ -443,12 +443,26 @@ static struct ofw_compat_data compat_data[] = {
 static int
 mx25l_probe(device_t dev)
 {
-
 #ifdef FDT
+	int i;
+
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
-		return (ENXIO);
+
+	/* First try to match the compatible property to the compat_data */
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 1)
+		goto found;
+
+	/*
+	 * Next, try to find a compatible device using the names in the
+	 * flash_devices structure
+	 */
+	for (i = 0; i < nitems(flash_devices); i++)
+		if (ofw_bus_is_compatible(dev, flash_devices[i].name))
+			goto found;
+
+	return (ENXIO);
+found:
 #endif
 	device_set_desc(dev, "M25Pxx Flash Family");
 
