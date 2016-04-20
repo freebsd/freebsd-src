@@ -136,6 +136,7 @@ static int frame_debug;
 static int backtrace_past_main;
 static unsigned int backtrace_limit = UINT_MAX;
 
+int (*frame_tdep_pc_fixup)(CORE_ADDR *pc);
 
 void
 fprint_frame_id (struct ui_file *file, struct frame_id id)
@@ -2009,6 +2010,9 @@ frame_unwind_address_in_block (struct frame_info *next_frame)
 {
   /* A draft address.  */
   CORE_ADDR pc = frame_pc_unwind (next_frame);
+
+  if ((frame_tdep_pc_fixup != NULL) && (frame_tdep_pc_fixup(&pc) == 0))
+  	return pc;
 
   /* If THIS frame is not inner most (i.e., NEXT isn't the sentinel),
      and NEXT is `normal' (i.e., not a sigtramp, dummy, ....) THIS
