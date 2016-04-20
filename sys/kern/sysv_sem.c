@@ -1400,8 +1400,7 @@ sys_semsys(td, uap)
 
 	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
-	if (uap->which < 0 ||
-	    uap->which >= nitems(semcalls))
+	if (uap->which < 0 || uap->which >= nitems(semcalls))
 		return (EINVAL);
 	error = (*semcalls[uap->which])(td, &uap->a2);
 	return (error);
