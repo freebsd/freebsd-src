@@ -199,8 +199,7 @@ inet6_option_alloc(struct cmsghdr *cmsg, int datalen, int multx, int plusy)
 
 	/* calculate pad length before the option. */
 	off = bp - (u_char *)eh;
-	padlen = roundup2(off % multx, multx) -
-		(off % multx);
+	padlen = roundup2(off % multx, multx) - (off % multx);
 	padlen += plusy;
 	padlen %= multx;	/* keep the pad as short as possible */
 	/* insert padding */
