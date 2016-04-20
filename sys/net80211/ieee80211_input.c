@@ -930,12 +930,8 @@ ieee80211_discard_frame(const struct ieee80211vap *vap,
 
 	if_printf(vap->iv_ifp, "[%s] discard ",
 		ether_sprintf(ieee80211_getbssid(vap, wh)));
-	if (type == NULL) {
-		printf("%s frame, ", ieee80211_mgt_subtype_name[
-			(wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) >>
-			IEEE80211_FC0_SUBTYPE_SHIFT]);
-	} else
-		printf("%s frame, ", type);
+	printf("%s frame, ", type != NULL ? type :
+	    ieee80211_mgt_subtype_name(wh->i_fc[0]));
 	va_start(ap, fmt);
 	vprintf(fmt, ap);
 	va_end(ap);

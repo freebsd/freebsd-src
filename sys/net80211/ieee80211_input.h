@@ -62,8 +62,7 @@ void	ieee80211_ssid_mismatch(struct ieee80211vap *, const char *tag,
 	    memcmp((_ssid) + 2, (_ni)->ni_essid, (_ssid)[1]) != 0)) {	\
 		if (ieee80211_msg_input(vap))				\
 			ieee80211_ssid_mismatch(vap, 			\
-			    ieee80211_mgt_subtype_name[subtype >>	\
-				IEEE80211_FC0_SUBTYPE_SHIFT],		\
+			    ieee80211_mgt_subtype_name(subtype),	\
 				wh->i_addr2, _ssid);			\
 		vap->iv_stats.is_rx_ssidmismatch++;			\
 		_action;						\

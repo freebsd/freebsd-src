@@ -63,13 +63,13 @@ __FBSDID("$FreeBSD$");
 #define	AGGRESSIVE_MODE_SWITCH_HYSTERESIS	3	/* pkts / 100ms */
 #define	HIGH_PRI_SWITCH_THRESH			10	/* pkts / 100ms */
 
-const char *ieee80211_mgt_subtype_name[] = {
+const char *mgt_subtype_name[] = {
 	"assoc_req",	"assoc_resp",	"reassoc_req",	"reassoc_resp",
 	"probe_req",	"probe_resp",	"timing_adv",	"reserved#7",
 	"beacon",	"atim",		"disassoc",	"auth",
 	"deauth",	"action",	"action_noack",	"reserved#15"
 };
-const char *ieee80211_ctl_subtype_name[] = {
+const char *ctl_subtype_name[] = {
 	"reserved#0",	"reserved#1",	"reserved#2",	"reserved#3",
 	"reserved#4",	"reserved#5",	"reserved#6",	"control_wrap",
 	"bar",		"ba",		"ps_poll",	"rts",
@@ -574,9 +574,7 @@ ieee80211_dump_pkt(struct ieee80211com *ic,
 		printf(" data");
 		break;
 	case IEEE80211_FC0_TYPE_MGT:
-		printf(" %s", ieee80211_mgt_subtype_name[
-		    (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK)
-		    >> IEEE80211_FC0_SUBTYPE_SHIFT]);
+		printf(" %s", ieee80211_mgt_subtype_name(wh->i_fc[0]));
 		break;
 	default:
 		printf(" type#%d", wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK);
