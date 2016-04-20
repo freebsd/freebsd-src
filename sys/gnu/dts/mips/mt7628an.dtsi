@@ -456,4 +456,4 @@
 	};
 };
 
-#include <fbsd-mt7628an.dtsi>
+/include/ "fbsd-mt7628an.dtsi"

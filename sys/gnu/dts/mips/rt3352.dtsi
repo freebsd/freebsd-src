@@ -290,4 +290,4 @@
 	};
 };
 
-#include <fbsd-rt3352.dtsi>
+/include/ "fbsd-rt3352.dtsi"

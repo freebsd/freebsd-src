@@ -334,4 +334,4 @@
 	};
 };
 
-#include <fbsd-mt7620n.dtsi>
+/include/ "fbsd-mt7620n.dtsi"
