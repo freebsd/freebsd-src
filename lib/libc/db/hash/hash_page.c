@@ -677,7 +677,7 @@ overflow_page(HTAB *hashp)
 			bit = hashp->LAST_FREED &
 			    ((hashp->BSIZE << BYTE_SHIFT) - 1);
 			j = bit / BITS_PER_MAP;
-			bit = bit & ~(BITS_PER_MAP - 1);
+			bit = rounddown2(bit, BITS_PER_MAP);
 		} else {
 			bit = 0;
 			j = 0;
