@@ -953,7 +953,10 @@ fdc_worker(struct fdc_data *fdc)
 	if (fdc->flags & FDC_NEEDS_RESET) {
 		fdc->flags &= ~FDC_NEEDS_RESET;
 		fdc_reset(fdc);
-		tsleep(fdc, PRIBIO, "fdcrst", hz);
+		if (cold)
+			DELAY(1000000);
+		else
+			tsleep(fdc, PRIBIO, "fdcrst", hz);
 		/* Discard results */
 		for (i = 0; i < 4; i++)
 			fdc_sense_int(fdc, &st0, &cyl);
@@ -2055,12 +2058,19 @@ fdc_attach(device_t dev)
 #endif
 	bioq_init(&fdc->head);
 
-	kproc_create(fdc_thread, fdc, &fdc->fdc_thread, 0, 0,
-	    "fdc%d", device_get_unit(dev));
-
 	settle = hz / 8;
 
 	return (0);
+}
+
+void
+fdc_start_worker(device_t dev)
+{
+	struct	fdc_data *fdc;
+
+	fdc = device_get_softc(dev);
+	kproc_create(fdc_thread, fdc, &fdc->fdc_thread, 0, 0,
+	    "fdc%d", device_get_unit(dev));
 }
 
 int
@@ -2155,9 +2165,8 @@ fd_probe(device_t dev)
 		return (ENXIO);
 
 #ifndef PC98
-/*
 	mtx_lock(&fdc->fdc_mtx);
-*/
+
 	/* select it */
 	fd_select(fd);
 	fd_motor(fd, 1);
@@ -2200,9 +2209,7 @@ fd_probe(device_t dev)
 
 	fd_motor(fd, 0);
 	fdc->fd = NULL;
-/*
 	mtx_unlock(&fdc->fdc_mtx);
-*/
 
 	if ((flags & FD_NO_PROBE) == 0 &&
 	    (st0 & NE7_ST0_EC) != 0) /* no track 0 -> no drive present */
