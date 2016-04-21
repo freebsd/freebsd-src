@@ -333,17 +333,18 @@ mcast:
 	switch (dst_in->sa_family) {
 #ifdef INET
 	case AF_INET:
-		error = arpresolve(ifp, is_gw, NULL, dst_in, edst, NULL);
+		error = arpresolve(ifp, is_gw, NULL,
+		    is_gw ? rte->rt_gateway : dst_in, edst, NULL);
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_resolve(ifp, is_gw, NULL, dst_in, edst, NULL);
+		error = nd6_resolve(ifp, is_gw, NULL,
+		    is_gw ? rte->rt_gateway : dst_in, edst, NULL);
 		break;
 #endif
 	default:
-		/* XXX: Shouldn't happen. */
-		error = -EINVAL;
+		break;
 	}
 	RTFREE(rte);
 	if (error == 0) {
