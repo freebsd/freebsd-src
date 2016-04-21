@@ -111,7 +111,7 @@ const static struct iffam gFamilies[] = {
 	{ AF_ATM,	NG_GIF_DEMUX_HOOK_ATM	},
 	{ AF_NATM,	NG_GIF_DEMUX_HOOK_NATM	},
 };
-#define NUM_FAMILIES		(sizeof(gFamilies) / sizeof(*gFamilies))
+#define	NUM_FAMILIES		nitems(gFamilies)
 
 /* Per-node private data */
 struct ng_gif_demux_private {
