@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 
 #define MAX_LD 8192
 #define LD_PER_PAGE 512
-#define NEW_MAX_LD(num)  ((num + LD_PER_PAGE) & ~(LD_PER_PAGE-1))
+#define	NEW_MAX_LD(num)  rounddown2(num + LD_PER_PAGE, LD_PER_PAGE)
 #define SIZE_FROM_LARGEST_LD(num) (NEW_MAX_LD(num) << 3)
 #define	NULL_LDT_BASE	((caddr_t)NULL)
 

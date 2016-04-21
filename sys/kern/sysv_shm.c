@@ -370,7 +370,7 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 		prot |= VM_PROT_WRITE;
 	if (shmaddr != NULL) {
 		if ((shmflg & SHM_RND) != 0)
-			attach_va = (vm_offset_t)shmaddr & ~(SHMLBA-1);
+			attach_va = rounddown2((vm_offset_t)shmaddr, SHMLBA);
 		else if (((vm_offset_t)shmaddr & (SHMLBA-1)) == 0)
 			attach_va = (vm_offset_t)shmaddr;
 		else

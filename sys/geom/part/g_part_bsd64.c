@@ -447,9 +447,9 @@ g_part_bsd64_resize(struct g_part_table *basetable,
 	if (baseentry == NULL) {
 		pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
 		table = (struct g_part_bsd64_table *)basetable;
-		table->d_abase = ((pp->mediasize -
-		    table->d_bbase * pp->sectorsize) & ~(table->d_align - 1)) /
-		    pp->sectorsize;
+		table->d_abase =
+		    rounddown2(pp->mediasize - table->d_bbase * pp->sectorsize,
+		        table->d_align) / pp->sectorsize;
 		basetable->gpt_last = table->d_abase - 1;
 		return (0);
 	}
@@ -477,8 +477,8 @@ g_part_bsd64_probe(struct g_part_table *table, struct g_consumer *cp)
 	pp = cp->provider;
 	if (pp->mediasize < 2 * PALIGN_SIZE)
 		return (ENOSPC);
-	v = (pp->sectorsize +
-	    offsetof(struct disklabel64, d_magic)) & ~(pp->sectorsize - 1);
+	v = rounddown2(pp->sectorsize + offsetof(struct disklabel64, d_magic),
+		       pp->sectorsize);
 	buf = g_read_data(cp, 0, v, &error);
 	if (buf == NULL)
 		return (error);
@@ -502,8 +502,7 @@ g_part_bsd64_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	table = (struct g_part_bsd64_table *)basetable;
-	v32 = (pp->sectorsize +
-	    sizeof(struct disklabel64) - 1) & ~(pp->sectorsize - 1);
+	v32 = roundup2(sizeof(struct disklabel64), pp->sectorsize);
 	buf = g_read_data(cp, 0, v32, &error);
 	if (buf == NULL)
 		return (error);
@@ -620,8 +619,7 @@ g_part_bsd64_write(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	table = (struct g_part_bsd64_table *)basetable;
-	sz = (pp->sectorsize +
-	    sizeof(struct disklabel64) - 1) & ~(pp->sectorsize - 1);
+	sz = roundup2(sizeof(struct disklabel64), pp->sectorsize);
 	dlp = g_malloc(sz, M_WAITOK | M_ZERO);
 
 	memcpy(dlp->d_reserved0, table->d_reserved0,

@@ -2687,7 +2687,7 @@ mmu_booke_dumpsys_map(mmu_t mmu, vm_paddr_t pa, size_t sz, void **va)
 	/* Raw physical memory dumps don't have a virtual address. */
 	/* We always map a 256MB page at 256M. */
 	gran = 256 * 1024 * 1024;
-	ppa = pa & ~(gran - 1);
+	ppa = rounddown2(pa, gran);
 	ofs = pa - ppa;
 	*va = (void *)gran;
 	tlb1_set_entry((vm_offset_t)va, ppa, gran, _TLB_ENTRY_IO);
@@ -2725,7 +2725,7 @@ mmu_booke_dumpsys_unmap(mmu_t mmu, vm_paddr_t pa, size_t sz, void *va)
 	tlb1_write_entry(&e, i);
 
 	gran = 256 * 1024 * 1024;
-	ppa = pa & ~(gran - 1);
+	ppa = rounddown2(pa, gran);
 	ofs = pa - ppa;
 	if (sz > (gran - ofs)) {
 		i--;
@@ -3332,7 +3332,7 @@ tlb1_mapin_region(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 	int idx, nents;
 
 	/* Round up to the next 1M */
-	size = (size + (1 << 20) - 1) & ~((1 << 20) - 1);
+	size = roundup2(size, 1 << 20);
 
 	mapped = 0;
 	idx = 0;

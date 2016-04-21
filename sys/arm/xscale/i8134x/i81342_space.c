@@ -178,13 +178,13 @@ i81342_mem_bs_map(bus_space_tag_t tag, bus_addr_t bpa, bus_size_t size, int flag
 		tmp = tmp->next;
 	}
 	addr = allocable;
-	endaddr = ((addr + size) &~ (0x1000000 - 1)) + 0x1000000;
+	endaddr = rounddown2(addr + size, 0x1000000) + 0x1000000;
 	if (endaddr >= IOP34X_VADDR)
 		panic("PCI virtual memory exhausted");
 	allocable = endaddr;
 	tmp = malloc(sizeof(*tmp), M_DEVBUF, M_WAITOK);
 	tmp->next = NULL;
-	paddr = bpa &~ (0x100000 - 1);
+	paddr = rounddown2(bpa, 0x100000);
 	tmp->paddr = paddr;
 	tmp->vaddr = addr;
 	tmp->size = 0;
