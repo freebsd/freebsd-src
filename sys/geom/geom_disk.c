@@ -846,7 +846,8 @@ disk_attr_changed(struct disk *dp, const char *attr, int flag)
 	if (gp != NULL)
 		LIST_FOREACH(pp, &gp->provider, provider)
 			(void)g_attr_changed(pp, attr, flag);
-	snprintf(devnamebuf, 128, "devname=%s%d", dp->d_name, dp->d_unit);
+	snprintf(devnamebuf, sizeof(devnamebuf), "devname=%s%d", dp->d_name,
+	    dp->d_unit);
 	devctl_notify("GEOM", "disk", attr, devnamebuf);
 }
 
