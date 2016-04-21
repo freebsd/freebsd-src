@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-ELFTCDIR=	${.CURDIR:H:H}/contrib/elftoolchain
+ELFTCDIR=	${SRCTOP}/contrib/elftoolchain
 READELFDIR=	${ELFTCDIR}/readelf
 
 .PATH: ${READELFDIR}
