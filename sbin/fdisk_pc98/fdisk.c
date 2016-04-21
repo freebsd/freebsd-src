@@ -857,7 +857,7 @@ get_type(int type)
 	size_t i;
 
 	for (i = 0; i < nitems(part_types); i++)
-		if(part_types[i].type == (type & 0x7f))
+		if (part_types[i].type == (type & 0x7f))
 			return(part_types[i].name);
 	return("unknown");
 }
