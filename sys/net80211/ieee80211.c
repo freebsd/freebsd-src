@@ -704,16 +704,6 @@ ieee80211_promisc(struct ieee80211vap *vap, bool on)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 
-	/*
-	 * XXX the bridge sets PROMISC but we don't want to
-	 * enable it on the device, discard here so all the
-	 * drivers don't need to special-case it
-	 */
-	if (!(vap->iv_opmode == IEEE80211_M_MONITOR ||
-	      (vap->iv_opmode == IEEE80211_M_AHDEMO &&
-	       (vap->iv_caps & IEEE80211_C_TDMA) == 0)))
-			return;
-
 	IEEE80211_LOCK_ASSERT(ic);
 
 	if (on) {
