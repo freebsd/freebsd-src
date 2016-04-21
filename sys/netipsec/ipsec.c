@@ -240,14 +240,14 @@ SYSCTL_VNET_PCPUSTAT(_net_inet6_ipsec6, IPSECCTL_STATS, ipsecstats,
     struct ipsecstat, ipsec6stat, "IPsec IPv6 statistics.");
 #endif /* INET6 */
 
-static int ipsec_in_reject(struct secpolicy *, struct mbuf *);
-static int ipsec_setspidx_inpcb(struct mbuf *, struct inpcb *);
-static int ipsec_setspidx(struct mbuf *, struct secpolicyindex *, int);
-static void ipsec4_get_ulp(struct mbuf *m, struct secpolicyindex *, int);
-static int ipsec4_setspidx_ipaddr(struct mbuf *, struct secpolicyindex *);
+static int ipsec_in_reject(struct secpolicy *, const struct mbuf *);
+static int ipsec_setspidx_inpcb(const struct mbuf *, struct inpcb *);
+static int ipsec_setspidx(const struct mbuf *, struct secpolicyindex *, int);
+static void ipsec4_get_ulp(const struct mbuf *m, struct secpolicyindex *, int);
+static int ipsec4_setspidx_ipaddr(const struct mbuf *, struct secpolicyindex *);
 #ifdef INET6
-static void ipsec6_get_ulp(struct mbuf *m, struct secpolicyindex *, int);
-static int ipsec6_setspidx_ipaddr(struct mbuf *, struct secpolicyindex *);
+static void ipsec6_get_ulp(const struct mbuf *m, struct secpolicyindex *, int);
+static int ipsec6_setspidx_ipaddr(const struct mbuf *, struct secpolicyindex *);
 #endif
 static void ipsec_delpcbpolicy(struct inpcbpolicy *);
 static struct secpolicy *ipsec_deepcopy_policy(struct secpolicy *src);
@@ -324,7 +324,8 @@ ipsec_getpolicy(struct tdb_ident *tdbi, u_int dir)
  * NOTE: IPv6 mapped adddress concern is implemented here.
  */
 static struct secpolicy *
-ipsec_getpolicybysock(struct mbuf *m, u_int dir, struct inpcb *inp, int *error)
+ipsec_getpolicybysock(const struct mbuf *m, u_int dir, struct inpcb *inp,
+    int *error)
 {
 	struct inpcbpolicy *pcbsp;
 	struct secpolicy *currsp = NULL;	/* Policy on socket. */
@@ -427,7 +428,7 @@ ipsec_getpolicybysock(struct mbuf *m, u_int dir, struct inpcb *inp, int *error)
  *		others	: error occured.
  */
 struct secpolicy *
-ipsec_getpolicybyaddr(struct mbuf *m, u_int dir, int *error)
+ipsec_getpolicybyaddr(const struct mbuf *m, u_int dir, int *error)
 {
 	struct secpolicyindex spidx;
 	struct secpolicy *sp;
@@ -457,7 +458,8 @@ ipsec_getpolicybyaddr(struct mbuf *m, u_int dir, int *error)
 }
 
 struct secpolicy *
-ipsec4_checkpolicy(struct mbuf *m, u_int dir, int *error, struct inpcb *inp)
+ipsec4_checkpolicy(const struct mbuf *m, u_int dir, int *error,
+    struct inpcb *inp)
 {
 	struct secpolicy *sp;
 
@@ -499,7 +501,7 @@ ipsec4_checkpolicy(struct mbuf *m, u_int dir, int *error, struct inpcb *inp)
 }
 
 static int
-ipsec_setspidx_inpcb(struct mbuf *m, struct inpcb *inp)
+ipsec_setspidx_inpcb(const struct mbuf *m, struct inpcb *inp)
 {
 	int error;
 
@@ -528,12 +530,13 @@ ipsec_setspidx_inpcb(struct mbuf *m, struct inpcb *inp)
  * The caller is responsible for error recovery (like clearing up spidx).
  */
 static int
-ipsec_setspidx(struct mbuf *m, struct secpolicyindex *spidx, int needport)
+ipsec_setspidx(const struct mbuf *m, struct secpolicyindex *spidx,
+    int needport)
 {
-	struct ip *ip = NULL;
 	struct ip ipbuf;
+	const struct ip *ip = NULL;
+	const struct mbuf *n;
 	u_int v;
-	struct mbuf *n;
 	int len;
 	int error;
 
@@ -562,7 +565,7 @@ ipsec_setspidx(struct mbuf *m, struct secpolicyindex *spidx, int needport)
 	}
 
 	if (m->m_len >= sizeof(*ip))
-		ip = mtod(m, struct ip *);
+		ip = mtod(m, const struct ip *);
 	else {
 		m_copydata(m, 0, sizeof(ipbuf), (caddr_t)&ipbuf);
 		ip = &ipbuf;
@@ -598,7 +601,8 @@ ipsec_setspidx(struct mbuf *m, struct secpolicyindex *spidx, int needport)
 }
 
 static void
-ipsec4_get_ulp(struct mbuf *m, struct secpolicyindex *spidx, int needport)
+ipsec4_get_ulp(const struct mbuf *m, struct secpolicyindex *spidx,
+    int needport)
 {
 	u_int8_t nxt;
 	int off;
@@ -608,7 +612,7 @@ ipsec4_get_ulp(struct mbuf *m, struct secpolicyindex *spidx, int needport)
 	IPSEC_ASSERT(m->m_pkthdr.len >= sizeof(struct ip),("packet too short"));
 
 	if (m->m_len >= sizeof (struct ip)) {
-		struct ip *ip = mtod(m, struct ip *);
+		const struct ip *ip = mtod(m, const struct ip *);
 		if (ip->ip_off & htons(IP_MF | IP_OFFMASK))
 			goto done;
 		off = ip->ip_hl << 2;
@@ -673,7 +677,7 @@ done_proto:
 
 /* Assumes that m is sane. */
 static int
-ipsec4_setspidx_ipaddr(struct mbuf *m, struct secpolicyindex *spidx)
+ipsec4_setspidx_ipaddr(const struct mbuf *m, struct secpolicyindex *spidx)
 {
 	static const struct sockaddr_in template = {
 		sizeof (struct sockaddr_in),
@@ -692,7 +696,7 @@ ipsec4_setspidx_ipaddr(struct mbuf *m, struct secpolicyindex *spidx)
 			   sizeof (struct  in_addr),
 			   (caddr_t) &spidx->dst.sin.sin_addr);
 	} else {
-		struct ip *ip = mtod(m, struct ip *);
+		const struct ip *ip = mtod(m, const struct ip *);
 		spidx->src.sin.sin_addr = ip->ip_src;
 		spidx->dst.sin.sin_addr = ip->ip_dst;
 	}
@@ -705,7 +709,8 @@ ipsec4_setspidx_ipaddr(struct mbuf *m, struct secpolicyindex *spidx)
 
 #ifdef INET6
 static void
-ipsec6_get_ulp(struct mbuf *m, struct secpolicyindex *spidx, int needport)
+ipsec6_get_ulp(const struct mbuf *m, struct secpolicyindex *spidx,
+    int needport)
 {
 	int off, nxt;
 	struct tcphdr th;
@@ -769,14 +774,14 @@ ipsec6_get_ulp(struct mbuf *m, struct secpolicyindex *spidx, int needport)
 
 /* Assumes that m is sane. */
 static int
-ipsec6_setspidx_ipaddr(struct mbuf *m, struct secpolicyindex *spidx)
+ipsec6_setspidx_ipaddr(const struct mbuf *m, struct secpolicyindex *spidx)
 {
-	struct ip6_hdr *ip6 = NULL;
 	struct ip6_hdr ip6buf;
+	const struct ip6_hdr *ip6 = NULL;
 	struct sockaddr_in6 *sin6;
 
 	if (m->m_len >= sizeof(*ip6))
-		ip6 = mtod(m, struct ip6_hdr *);
+		ip6 = mtod(m, const struct ip6_hdr *);
 	else {
 		m_copydata(m, 0, sizeof(ip6buf), (caddr_t)&ip6buf);
 		ip6 = &ip6buf;
@@ -1229,7 +1234,7 @@ ipsec_get_reqlevel(struct ipsecrequest *isr)
  *	1: invalid
  */
 static int
-ipsec_in_reject(struct secpolicy *sp, struct mbuf *m)
+ipsec_in_reject(struct secpolicy *sp, const struct mbuf *m)
 {
 	struct ipsecrequest *isr;
 	int need_auth;
@@ -1300,7 +1305,7 @@ ipsec_in_reject(struct secpolicy *sp, struct mbuf *m)
  * Non zero return value means security policy DISCARD or policy violation.
  */
 static int
-ipsec46_in_reject(struct mbuf *m, struct inpcb *inp)
+ipsec46_in_reject(const struct mbuf *m, struct inpcb *inp)
 {
 	struct secpolicy *sp;
 	int error;
@@ -1332,7 +1337,7 @@ ipsec46_in_reject(struct mbuf *m, struct inpcb *inp)
  * and {ah,esp}4_input for tunnel mode.
  */
 int
-ipsec4_in_reject(struct mbuf *m, struct inpcb *inp)
+ipsec4_in_reject(const struct mbuf *m, struct inpcb *inp)
 {
 	int result;
 
@@ -1350,7 +1355,7 @@ ipsec4_in_reject(struct mbuf *m, struct inpcb *inp)
  * and {ah,esp}6_input for tunnel mode.
  */
 int
-ipsec6_in_reject(struct mbuf *m, struct inpcb *inp)
+ipsec6_in_reject(const struct mbuf *m, struct inpcb *inp)
 {
 	int result;
 
@@ -1430,7 +1435,7 @@ ipsec_hdrsiz_internal(struct secpolicy *sp)
  * disabled ip6_ipsec_mtu() and ip6_forward().
  */
 size_t
-ipsec_hdrsiz(struct mbuf *m, u_int dir, struct inpcb *inp)
+ipsec_hdrsiz(const struct mbuf *m, u_int dir, struct inpcb *inp)
 {
 	struct secpolicy *sp;
 	int error;
@@ -1678,16 +1683,16 @@ ipsec_logsastr(struct secasvar *sav, char *buf, size_t size)
 }
 
 void
-ipsec_dumpmbuf(struct mbuf *m)
+ipsec_dumpmbuf(const struct mbuf *m)
 {
+	const u_char *p;
 	int totlen;
 	int i;
-	u_char *p;
 
 	totlen = 0;
 	printf("---\n");
 	while (m) {
-		p = mtod(m, u_char *);
+		p = mtod(m, const u_char *);
 		for (i = 0; i < m->m_len; i++) {
 			printf("%02x ", p[i]);
 			totlen++;
