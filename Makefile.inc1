@@ -721,7 +721,7 @@ _libraries:
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG MK_HTML=no -DNO_LINT MK_MAN=no \
 	    MK_PROFILE=no MK_TESTS=no MK_TESTS_SUPPORT=${MK_TESTS} libraries
-everything:
+everything: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.3: building everything"
@@ -779,7 +779,7 @@ WMAKE_TGTS+=	everything
 WMAKE_TGTS+=	build${libcompat}
 .endif
 
-buildworld: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue
+buildworld: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue .PHONY
 .ORDER: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue
 
 buildworld_prologue: .PHONY
@@ -831,8 +831,8 @@ libcheribuildenv:
 .endif
 
 TOOLCHAIN_TGTS=	${WMAKE_TGTS:Neverything:Nbuild${libcompat}:Nbuildcheri}
-toolchain: ${TOOLCHAIN_TGTS}
-kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
+toolchain: ${TOOLCHAIN_TGTS} .PHONY
+kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries} .PHONY
 
 #
 # installcheck
@@ -938,7 +938,7 @@ DEBUG_DISTRIBUTIONS+=	base ${EXTRA_DISTRIBUTIONS:S,doc,,:S,tests,,}
 
 MTREE_MAGIC?=	mtree 2.0
 
-distributeworld installworld stageworld: _installcheck_world
+distributeworld installworld stageworld: _installcheck_world .PHONY
 	mkdir -p ${INSTALLTMP}
 	progs=$$(for prog in ${ITOOLS}; do \
 		if progpath=`which $$prog`; then \
