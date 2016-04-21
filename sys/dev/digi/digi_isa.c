@@ -68,7 +68,7 @@ static u_long digi_validmem[] = {
 	0xf6000000, 0xf7000000, 0xf8000000, 0xf9000000, 0xfa000000, 0xfb000000,
 	0xfc000000, 0xfd000000, 0xfe000000, 0xff000000
 };
-#define	DIGI_NVALIDMEM	(nitems(digi_validmem))
+#define	DIGI_NVALIDMEM	nitems(digi_validmem)
 
 static u_char *
 digi_isa_setwin(struct digi_softc *sc, unsigned int addr)
