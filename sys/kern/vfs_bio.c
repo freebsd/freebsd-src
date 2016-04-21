@@ -3865,7 +3865,7 @@ allocbuf(struct buf *bp, int size)
 	if (bp->b_kvasize != 0 && bp->b_kvasize < size)
 		panic("allocbuf: buffer too small");
 
-	newbsize = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
+	newbsize = roundup2(size, DEV_BSIZE);
 	if ((bp->b_flags & B_VMIO) == 0) {
 		if ((bp->b_flags & B_MALLOC) == 0)
 			newbsize = round_page(newbsize);

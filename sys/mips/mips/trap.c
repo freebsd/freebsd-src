@@ -1576,7 +1576,7 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 		return (0);
 	}
 
-	if (!useracc((void *)((vm_offset_t)addr & ~(size - 1)), size * 2, mode))
+	if (!useracc((void *)rounddown2((vm_offset_t)addr, size), size * 2, mode))
 		return (0);
 
 	/*

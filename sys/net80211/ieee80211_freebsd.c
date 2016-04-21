@@ -340,7 +340,7 @@ ieee80211_flush_ifq(struct ifqueue *ifq, struct ieee80211vap *vap)
  */
 #define	MC_ALIGN(m, len)						\
 do {									\
-	(m)->m_data += (MCLBYTES - (len)) &~ (sizeof(long) - 1);	\
+	(m)->m_data += rounddown2(MCLBYTES - (len), sizeof(long));	\
 } while (/* CONSTCOND */ 0)
 
 /*

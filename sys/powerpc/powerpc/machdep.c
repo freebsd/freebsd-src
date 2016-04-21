@@ -449,7 +449,7 @@ cpu_flush_dcache(void *ptr, size_t len)
 	addr = (uintptr_t)ptr;
 	off = addr & (cacheline_size - 1);
 	addr -= off;
-	len = (len + off + cacheline_size - 1) & ~(cacheline_size - 1);
+	len = roundup2(len + off, cacheline_size);
 
 	while (len > 0) {
 		__asm __volatile ("dcbf 0,%0" :: "r"(addr));

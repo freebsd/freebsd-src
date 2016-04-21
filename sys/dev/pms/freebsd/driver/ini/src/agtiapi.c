@@ -5049,8 +5049,8 @@ STATIC void agtiapi_PrepCCBs( struct agtiapi_softc *pCard,
                   sizeof(tiSgl_t),
                   max_ccb );
 
-  ccb_sz = (AGTIAPI_CCB_SIZE + cache_line_size() - 1) & ~(cache_line_size() -1);
-  hdr_sz = (sizeof(*hdr) + cache_line_size() - 1) & ~(cache_line_size() - 1);
+  ccb_sz = roundup2(AGTIAPI_CCB_SIZE, cache_line_size());
+  hdr_sz = roundup2(sizeof(*hdr), cache_line_size());
 
   AGTIAPI_PRINTK("agtiapi_PrepCCBs: after cache line\n");
 
@@ -5174,9 +5174,8 @@ STATIC U32 agtiapi_InitCCBs(struct agtiapi_softc *pCard, int tgtCount, int tid)
 #endif
 
   max_ccb = tgtCount * AGTIAPI_CCB_PER_DEVICE;//      / 4; // TBR
-  ccb_sz = ( (AGTIAPI_CCB_SIZE + cache_line_size() - 1) &
-             ~(cache_line_size() -1) );
-  hdr_sz = (sizeof(*hdr) + cache_line_size() - 1) & ~(cache_line_size() - 1);
+  ccb_sz = roundup2(AGTIAPI_CCB_SIZE, cache_line_size());
+  hdr_sz = roundup2(sizeof(*hdr), cache_line_size());
   size = ccb_sz * max_ccb + hdr_sz;
   
   for (i = 0; i < (1 << no_allocs); i++) 
@@ -5854,7 +5853,7 @@ STATIC void agtiapi_ReleaseCCBs( struct agtiapi_softc *pCard )
   while ((hdr = pCard->ccbAllocList) != NULL)
   {
     pCard->ccbAllocList = hdr->next;
-    hdr_sz = (sizeof(*hdr) + cache_line_size() - 1) & ~(cache_line_size() - 1);
+    hdr_sz = roundup2(sizeof(*hdr), cache_line_size());
     pccb = (ccb_t*) ((char*)hdr + hdr_sz);
     if (pCard->buffer_dmat != NULL && pccb->CCB_dmamap != NULL)
     {

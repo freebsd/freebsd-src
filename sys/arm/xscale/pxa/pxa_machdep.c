@@ -222,8 +222,8 @@ initarm(struct arm_boot_params *abp)
 	l1pagetable = kernel_l1pt.pv_va;
 
 	/* Map the L2 pages tables in the L1 page table */
-	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH & ~(0x00100000 - 1),
-	    &kernel_pt_table[KERNEL_PT_SYS]);
+	pmap_link_l2pt(l1pagetable, rounddown2(ARM_VECTORS_HIGH, 0x00100000),
+		       &kernel_pt_table[KERNEL_PT_SYS]);
 #if 0 /* XXXBJR: What is this?  Don't know if there's an analogue. */
 	pmap_link_l2pt(l1pagetable, IQ80321_IOPXS_VBASE,
 	                &kernel_pt_table[KERNEL_PT_IOPXS]);
@@ -235,11 +235,10 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_chunk(l1pagetable, KERNBASE + 0x100000, SDRAM_START + 0x100000,
 	    0x100000, VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 	pmap_map_chunk(l1pagetable, KERNBASE + 0x200000, SDRAM_START + 0x200000,
-	   (((uint32_t)(lastaddr) - KERNBASE - 0x200000) + L1_S_SIZE) & ~(L1_S_SIZE - 1),
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	freemem_after = ((int)lastaddr + PAGE_SIZE) & ~(PAGE_SIZE - 1);
-	afterkern = round_page(((vm_offset_t)lastaddr + L1_S_SIZE) &
-	    ~(L1_S_SIZE - 1));
+	   rounddown2(((uint32_t)(lastaddr) - KERNBASE - 0x200000) + L1_S_SIZE, L1_S_SIZE),
+	   VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+	freemem_after = rounddown2((int)lastaddr + PAGE_SIZE, PAGE_SIZE);
+	afterkern = round_page(rounddown2((vm_offset_t)lastaddr + L1_S_SIZE, L1_S_SIZE));
 	for (i = 0; i < KERNEL_PT_AFKERNEL_NUM; i++) {
 		pmap_link_l2pt(l1pagetable, afterkern + i * 0x00100000,
 		    &kernel_pt_table[KERNEL_PT_AFKERNEL + i]);

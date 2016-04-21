@@ -1467,9 +1467,9 @@ vm_phys_alloc_seg_contig(struct vm_phys_seg *seg, u_long npages,
 				 */
 				pa = VM_PAGE_TO_PHYS(m_ret);
 				pa_end = pa + size;
-				if (pa >= low && pa_end <= high && (pa &
-				    (alignment - 1)) == 0 && ((pa ^ (pa_end -
-				    1)) & ~(boundary - 1)) == 0)
+				if (pa >= low && pa_end <= high &&
+				    (pa & (alignment - 1)) == 0 &&
+				    rounddown2(pa ^ (pa_end - 1), boundary) == 0)
 					goto done;
 			}
 		}

@@ -13594,7 +13594,7 @@ clear_inodedeps(mp)
 	/*
 	 * Find the last inode in the block with dependencies.
 	 */
-	firstino = inodedep->id_ino & ~(INOPB(fs) - 1);
+	firstino = rounddown2(inodedep->id_ino, INOPB(fs));
 	for (lastino = firstino + INOPB(fs) - 1; lastino > firstino; lastino--)
 		if (inodedep_lookup(mp, lastino, 0, &inodedep) != 0)
 			break;

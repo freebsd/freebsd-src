@@ -1155,7 +1155,7 @@ cbb_cardbus_auto_open(struct cbb_softc *sc, int type)
 		if (starts[i] == START_NONE)
 			continue;
 		starts[i] &= ~(align - 1);
-		ends[i] = ((ends[i] + align - 1) & ~(align - 1)) - 1;
+		ends[i] = roundup2(ends[i], align) - 1;
 	}
 	if (starts[0] != START_NONE && starts[1] != START_NONE) {
 		if (starts[0] < starts[1]) {

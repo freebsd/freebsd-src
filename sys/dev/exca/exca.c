@@ -402,7 +402,7 @@ exca_mem_set_offset(struct exca_softc *sc, struct resource *res,
 		    "set_memory_offset: specified resource not active\n");
 		return (ENOENT);
 	}
-	sc->mem[win].cardaddr = cardaddr & ~(EXCA_MEM_PAGESIZE - 1);
+	sc->mem[win].cardaddr = rounddown2(cardaddr, EXCA_MEM_PAGESIZE);
 	delta = cardaddr % EXCA_MEM_PAGESIZE;
 	if (deltap)
 		*deltap = delta;

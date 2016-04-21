@@ -515,9 +515,9 @@ initarm(struct arm_boot_params *abp)
 		pmap_link_l2pt(l1pagetable, KERNBASE + i * L1_S_SIZE,
 		    &kernel_pt_table[KERNEL_PT_KERN + i]);
 	pmap_map_chunk(l1pagetable, KERNBASE, PHYSADDR,
-	   (((uint32_t)lastaddr - KERNBASE) + PAGE_SIZE) & ~(PAGE_SIZE - 1),
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	afterkern = round_page((lastaddr + L1_S_SIZE) & ~(L1_S_SIZE - 1));
+	   rounddown2(((uint32_t)lastaddr - KERNBASE) + PAGE_SIZE, PAGE_SIZE),
+	   VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+	afterkern = round_page(rounddown2(lastaddr + L1_S_SIZE, L1_S_SIZE));
 	for (i = 0; i < KERNEL_PT_AFKERNEL_NUM; i++) {
 		pmap_link_l2pt(l1pagetable, afterkern + i * L1_S_SIZE,
 		    &kernel_pt_table[KERNEL_PT_AFKERNEL + i]);
