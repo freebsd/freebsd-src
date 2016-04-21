@@ -47,6 +47,20 @@ LEAF(rtld_start)
 	.frame	sp, 4*PTR_SIZE, ra
 	.mask	0x10090000,-PTR_SIZE
 	.set	noreorder
+
+#if defined(CHERI)
+	/*
+	 * Ensure the stack is aligned we can store capabilities on it.
+	 * Do this before allocating the first stack frame.  This is only
+	 * necessary on CHERI.
+	 */
+#ifndef _MIPS_CAP_ALIGN_MASK
+#define	_MIPS_CAP_ALIGN_MASK	0xffffffffffffffe0
+#endif
+	li	t0, _MIPS_CAP_ALIGN_MASK
+	and	sp, sp, t0
+#endif
+
 	SETUP_GP
 	PTR_SUBU sp, 4*PTR_SIZE		/* adjust stack pointer */
 	SETUP_GP64(s4, rtld_start)

@@ -15,6 +15,9 @@ MAN=		rtld.1
 CSTD?=		gnu99
 CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD -ffreestanding
 CFLAGS+=	-I${SRCTOP}/lib/csu/common
+.if ${MK_CHERI} != "no"
+CFLAGS+=	-DCHERI
+.endif
 .if exists(${.CURDIR}/${MACHINE_ARCH})
 RTLD_ARCH=	${MACHINE_ARCH}
 .else
