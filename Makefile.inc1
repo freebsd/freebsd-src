@@ -1359,7 +1359,7 @@ packagekernel: .PHONY
 .endif
 
 stagekernel: .PHONY
-	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} distributekernel
+	${_+_}${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} distributekernel
 
 PORTSDIR?=	/usr/ports
 WSTAGEDIR?=	${MAKEOBJDIRPREFIX}${.CURDIR}/${TARGET}.${TARGET_ARCH}/worldstage
@@ -1378,7 +1378,7 @@ _pkgbootstrap: .PHONY
 .endif
 
 packages: .PHONY
-	${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} real-packages
+	${_+_}${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} real-packages
 
 package-pkg: .PHONY
 	rm -rf /tmp/ports.${TARGET} || :
