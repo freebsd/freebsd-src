@@ -213,10 +213,9 @@ static struct protosw		ng_btsocket_protosw[] = {
 	.pr_usrreqs =		&ng_btsocket_sco_usrreqs,
 },
 };
-#define ng_btsocket_protosw_size \
-	(sizeof(ng_btsocket_protosw)/sizeof(ng_btsocket_protosw[0]))
+
 #define ng_btsocket_protosw_end \
-	&ng_btsocket_protosw[ng_btsocket_protosw_size]
+	&ng_btsocket_protosw[nitems(ng_btsocket_protosw)]
 
 /*
  * BLUETOOTH domain
