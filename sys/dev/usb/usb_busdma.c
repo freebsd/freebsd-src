@@ -467,7 +467,7 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 
 	off = 0;
 	pg = pc->page_start;
-	pg->physaddr = segs->ds_addr & ~(USB_PAGE_SIZE - 1);
+	pg->physaddr = rounddown2(segs->ds_addr, USB_PAGE_SIZE);
 	rem = segs->ds_addr & (USB_PAGE_SIZE - 1);
 	pc->page_offset_buf = rem;
 	pc->page_offset_end += rem;
@@ -502,7 +502,7 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 				break;
 		}
 		pg++;
-		pg->physaddr = (segs->ds_addr + off) & ~(USB_PAGE_SIZE - 1);
+		pg->physaddr = rounddown2(segs->ds_addr + off, USB_PAGE_SIZE);
 	}
 
 done:

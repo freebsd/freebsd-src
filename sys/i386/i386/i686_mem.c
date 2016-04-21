@@ -377,7 +377,7 @@ i686_mrstoreone(void *arg)
 		/* mask/active register */
 		if (mrd->mr_flags & MDF_ACTIVE) {
 			msrv = MTRR_PHYSMASK_VALID |
-			    (~(mrd->mr_len - 1) & mtrr_physmask);
+			    rounddown2(mtrr_physmask, mrd->mr_len);
 		} else {
 			msrv = 0;
 		}

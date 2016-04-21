@@ -823,7 +823,7 @@ decode_win_cpu_valid(void)
 			continue;
 		}
 
-		if (b != (b & ~(s - 1))) {
+		if (b != rounddown2(b, s)) {
 			printf("CPU window#%d: address 0x%08x is not aligned "
 			    "to 0x%08x\n", i, b, s);
 			rv = 0;

@@ -7903,7 +7903,7 @@ sym_scatter_sg_physical(hcb_p np, ccb_p cp, bus_dma_segment_t *psegs, int nsegs)
 	pe = ps + psegs[t].ds_len;
 
 	while (s >= 0) {
-		pn = (pe - 1) & ~(SYM_CONF_DMA_BOUNDARY - 1);
+		pn = rounddown2(pe - 1, SYM_CONF_DMA_BOUNDARY);
 		if (pn <= ps)
 			pn = ps;
 		k = pe - pn;

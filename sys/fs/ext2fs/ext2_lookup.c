@@ -540,7 +540,7 @@ found:
 	 * in the cache as to where the entry was found.
 	 */
 	if ((flags & ISLASTCN) && nameiop == LOOKUP)
-		dp->i_diroff = i_offset &~ (DIRBLKSIZ - 1);
+		dp->i_diroff = rounddown2(i_offset, DIRBLKSIZ);
 	/*
 	 * If deleting, and at end of pathname, return
 	 * parameters which can be used to remove file.
