@@ -212,15 +212,6 @@ SYSINIT(rctl, SI_SUB_RACCT, SI_ORDER_FIRST, rctl_init, NULL);
 
 static uma_zone_t rctl_rule_zone;
 static uma_zone_t rctl_rule_link_zone;
-static struct rwlock rctl_lock;
-RW_SYSINIT(rctl_lock, &rctl_lock, "RCTL lock");
-
-#define RCTL_RLOCK()		rw_rlock(&rctl_lock)
-#define RCTL_RUNLOCK()		rw_runlock(&rctl_lock)
-#define RCTL_WLOCK()		rw_wlock(&rctl_lock)
-#define RCTL_WUNLOCK()		rw_wunlock(&rctl_lock)
-#define RCTL_LOCK_ASSERT()	rw_assert(&rctl_lock, RA_LOCKED)
-#define RCTL_WLOCK_ASSERT()	rw_assert(&rctl_lock, RA_WLOCKED)
 
 static int rctl_rule_fully_specified(const struct rctl_rule *rule);
 static void rctl_rule_to_sbuf(struct sbuf *sb, const struct rctl_rule *rule);
@@ -237,9 +228,9 @@ static int rctl_throttle_min_sysctl(SYSCTL_HANDLER_ARGS)
 	if (val < 1 || val > rctl_throttle_max)
 		return (EINVAL);
 
-	RCTL_WLOCK();
+	RACCT_LOCK();
 	rctl_throttle_min = val;
-	RCTL_WUNLOCK();
+	RACCT_UNLOCK();
 
 	return (0);
 }
@@ -254,9 +245,9 @@ static int rctl_throttle_max_sysctl(SYSCTL_HANDLER_ARGS)
 	if (val < rctl_throttle_min)
 		return (EINVAL);
 
-	RCTL_WLOCK();
+	RACCT_LOCK();
 	rctl_throttle_max = val;
-	RCTL_WUNLOCK();
+	RACCT_UNLOCK();
 
 	return (0);
 }
@@ -271,9 +262,9 @@ static int rctl_throttle_pct_sysctl(SYSCTL_HANDLER_ARGS)
 	if (val < 0)
 		return (EINVAL);
 
-	RCTL_WLOCK();
+	RACCT_LOCK();
 	rctl_throttle_pct = val;
-	RCTL_WUNLOCK();
+	RACCT_UNLOCK();
 
 	return (0);
 }
@@ -288,9 +279,9 @@ static int rctl_throttle_pct2_sysctl(SYSCTL_HANDLER_ARGS)
 	if (val < 0)
 		return (EINVAL);
 
-	RCTL_WLOCK();
+	RACCT_LOCK();
 	rctl_throttle_pct2 = val;
-	RCTL_WUNLOCK();
+	RACCT_UNLOCK();
 
 	return (0);
 }
@@ -340,7 +331,7 @@ rctl_proc_rule_to_racct(const struct proc *p, const struct rctl_rule *rule)
 	struct ucred *cred = p->p_ucred;
 
 	ASSERT_RACCT_ENABLED();
-	RCTL_LOCK_ASSERT();
+	RACCT_LOCK_ASSERT();
 
 	switch (rule->rr_per) {
 	case RCTL_SUBJECT_TYPE_PROCESS:
@@ -367,7 +358,7 @@ rctl_available_resource(const struct proc *p, const struct rctl_rule *rule)
 	int64_t available;
 
 	ASSERT_RACCT_ENABLED();
-	RCTL_LOCK_ASSERT();
+	RACCT_LOCK_ASSERT();
 
 	racct = rctl_proc_rule_to_racct(p, rule);
 	available = rule->rr_amount - racct->r_resources[rule->rr_resource];
@@ -390,10 +381,9 @@ rctl_throttle_decay(struct racct *racct, int resource)
 	int64_t minavailable;
 
 	ASSERT_RACCT_ENABLED();
+	RACCT_LOCK_ASSERT();
 
 	minavailable = INT64_MAX;
-
-	RCTL_RLOCK();
 
 	LIST_FOREACH(link, &racct->r_rule_links, rrl_next) {
 		rule = link->rrl_rule;
@@ -406,8 +396,6 @@ rctl_throttle_decay(struct racct *racct, int resource)
 		if (rule->rr_amount < minavailable)
 			minavailable = rule->rr_amount;
 	}
-
-	RCTL_RUNLOCK();
 
 	if (racct->r_resources[resource] < minavailable) {
 		racct->r_resources[resource] = 0;
@@ -436,11 +424,10 @@ rctl_pcpu_available(const struct proc *p) {
 	int64_t available, minavailable, limit;
 
 	ASSERT_RACCT_ENABLED();
+	RACCT_LOCK_ASSERT();
 
 	minavailable = INT64_MAX;
 	limit = 0;
-
-	RCTL_RLOCK();
 
 	LIST_FOREACH(link, &p->p_racct->r_rule_links, rrl_next) {
 		rule = link->rrl_rule;
@@ -454,8 +441,6 @@ rctl_pcpu_available(const struct proc *p) {
 			limit = rule->rr_amount;
 		}
 	}
-
-	RCTL_RUNLOCK();
 
 	/*
 	 * Return slightly less than actual value of the available
@@ -516,10 +501,8 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 	uint64_t sleep_ms, sleep_ratio;
 	int should_deny = 0;
 
-
 	ASSERT_RACCT_ENABLED();
-
-	RCTL_RLOCK();
+	RACCT_LOCK_ASSERT();
 
 	/*
 	 * There may be more than one matching rule; go through all of them.
@@ -693,8 +676,6 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 		}
 	}
 
-	RCTL_RUNLOCK();
-
 	if (should_deny) {
 		/*
 		 * Return fake error code; the caller should change it
@@ -714,8 +695,7 @@ rctl_get_limit(struct proc *p, int resource)
 	uint64_t amount = UINT64_MAX;
 
 	ASSERT_RACCT_ENABLED();
-
-	RCTL_RLOCK();
+	RACCT_LOCK_ASSERT();
 
 	/*
 	 * There may be more than one matching rule; go through all of them.
@@ -731,8 +711,6 @@ rctl_get_limit(struct proc *p, int resource)
 			amount = rule->rr_amount;
 	}
 
-	RCTL_RUNLOCK();
-
 	return (amount);
 }
 
@@ -746,8 +724,7 @@ rctl_get_available(struct proc *p, int resource)
 	minavailable = INT64_MAX;
 
 	ASSERT_RACCT_ENABLED();
-
-	RCTL_RLOCK();
+	RACCT_LOCK_ASSERT();
 
 	/*
 	 * There may be more than one matching rule; go through all of them.
@@ -764,8 +741,6 @@ rctl_get_available(struct proc *p, int resource)
 			minavailable = available;
 	}
 
-	RCTL_RUNLOCK();
-
 	/*
 	 * XXX: Think about this _hard_.
 	 */
@@ -774,6 +749,7 @@ rctl_get_available(struct proc *p, int resource)
 		minavailable += allocated;
 	if (minavailable < 0)
 		minavailable = 0;
+
 	return (minavailable);
 }
 
@@ -908,9 +884,9 @@ rctl_racct_add_rule(struct racct *racct, struct rctl_rule *rule)
 	link->rrl_rule = rule;
 	link->rrl_exceeded = 0;
 
-	RCTL_WLOCK();
+	RACCT_LOCK();
 	LIST_INSERT_HEAD(&racct->r_rule_links, link, rrl_next);
-	RCTL_WUNLOCK();
+	RACCT_UNLOCK();
 }
 
 static int
@@ -920,7 +896,7 @@ rctl_racct_add_rule_locked(struct racct *racct, struct rctl_rule *rule)
 
 	ASSERT_RACCT_ENABLED();
 	KASSERT(rctl_rule_fully_specified(rule), ("rule not fully specified"));
-	RCTL_WLOCK_ASSERT();
+	RACCT_LOCK_ASSERT();
 
 	link = uma_zalloc(rctl_rule_link_zone, M_NOWAIT);
 	if (link == NULL)
@@ -930,6 +906,7 @@ rctl_racct_add_rule_locked(struct racct *racct, struct rctl_rule *rule)
 	link->rrl_exceeded = 0;
 
 	LIST_INSERT_HEAD(&racct->r_rule_links, link, rrl_next);
+
 	return (0);
 }
 
@@ -946,7 +923,7 @@ rctl_racct_remove_rules(struct racct *racct,
 	int removed = 0;
 
 	ASSERT_RACCT_ENABLED();
-	RCTL_WLOCK_ASSERT();
+	RACCT_LOCK_ASSERT();
 
 	LIST_FOREACH_SAFE(link, &racct->r_rule_links, rrl_next, linktmp) {
 		if (!rctl_rule_matches(link->rrl_rule, filter))
@@ -1417,14 +1394,14 @@ static void
 rctl_rule_pre_callback(void)
 {
 
-	RCTL_WLOCK();
+	RACCT_LOCK();
 }
 
 static void
 rctl_rule_post_callback(void)
 {
 
-	RCTL_WUNLOCK();
+	RACCT_UNLOCK();
 }
 
 static void
@@ -1434,7 +1411,7 @@ rctl_rule_remove_callback(struct racct *racct, void *arg2, void *arg3)
 	int found = 0;
 
 	ASSERT_RACCT_ENABLED();
-	RCTL_WLOCK_ASSERT();
+	RACCT_LOCK_ASSERT();
 
 	found += rctl_racct_remove_rules(racct, filter);
 
@@ -1455,9 +1432,9 @@ rctl_rule_remove(struct rctl_rule *filter)
 	if (filter->rr_subject_type == RCTL_SUBJECT_TYPE_PROCESS &&
 	    filter->rr_subject.rs_proc != NULL) {
 		p = filter->rr_subject.rs_proc;
-		RCTL_WLOCK();
+		RACCT_LOCK();
 		found = rctl_racct_remove_rules(p->p_racct, filter);
-		RCTL_WUNLOCK();
+		RACCT_UNLOCK();
 		if (found)
 			return (0);
 		return (ESRCH);
@@ -1474,11 +1451,11 @@ rctl_rule_remove(struct rctl_rule *filter)
 	    filter, (void *)&found);
 
 	sx_assert(&allproc_lock, SA_LOCKED);
-	RCTL_WLOCK();
+	RACCT_LOCK();
 	FOREACH_PROC_IN_SYSTEM(p) {
 		found += rctl_racct_remove_rules(p->p_racct, filter);
 	}
-	RCTL_WUNLOCK();
+	RACCT_UNLOCK();
 
 	if (found)
 		return (0);
@@ -1610,7 +1587,9 @@ rctl_racct_to_sbuf(struct racct *racct, int sloppy)
 	for (i = 0; i <= RACCT_MAX; i++) {
 		if (sloppy == 0 && RACCT_IS_SLOPPY(i))
 			continue;
+		RACCT_LOCK();
 		amount = racct->r_resources[i];
+		RACCT_UNLOCK();
 		if (RACCT_IS_IN_MILLIONS(i))
 			amount /= 1000000;
 		sbuf_printf(sb, "%s=%jd,", rctl_resource_name(i), amount);
@@ -1705,7 +1684,7 @@ rctl_get_rules_callback(struct racct *racct, void *arg2, void *arg3)
 	struct sbuf *sb = (struct sbuf *)arg3;
 
 	ASSERT_RACCT_ENABLED();
-	RCTL_LOCK_ASSERT();
+	RACCT_LOCK_ASSERT();
 
 	LIST_FOREACH(link, &racct->r_rule_links, rrl_next) {
 		if (!rctl_rule_matches(link->rrl_rule, filter))
@@ -1756,7 +1735,7 @@ sys_rctl_get_rules(struct thread *td, struct rctl_get_rules_args *uap)
 	KASSERT(sb != NULL, ("sbuf_new failed"));
 
 	FOREACH_PROC_IN_SYSTEM(p) {
-		RCTL_RLOCK();
+		RACCT_LOCK();
 		LIST_FOREACH(link, &p->p_racct->r_rule_links, rrl_next) {
 			/*
 			 * Non-process rules will be added to the buffer later.
@@ -1770,7 +1749,7 @@ sys_rctl_get_rules(struct thread *td, struct rctl_get_rules_args *uap)
 			rctl_rule_to_sbuf(sb, link->rrl_rule);
 			sbuf_printf(sb, ",");
 		}
-		RCTL_RUNLOCK();
+		RACCT_UNLOCK();
 	}
 
 	loginclass_racct_foreach(rctl_get_rules_callback,
@@ -1857,13 +1836,13 @@ sys_rctl_get_limits(struct thread *td, struct rctl_get_limits_args *uap)
 	sb = sbuf_new(NULL, buf, bufsize, SBUF_FIXEDLEN);
 	KASSERT(sb != NULL, ("sbuf_new failed"));
 
-	RCTL_RLOCK();
+	RACCT_LOCK();
 	LIST_FOREACH(link, &filter->rr_subject.rs_proc->p_racct->r_rule_links,
 	    rrl_next) {
 		rctl_rule_to_sbuf(sb, link->rrl_rule);
 		sbuf_printf(sb, ",");
 	}
-	RCTL_RUNLOCK();
+	RACCT_UNLOCK();
 	if (sbuf_error(sb) == ENOMEM) {
 		error = ERANGE;
 		sbuf_delete(sb);
@@ -1989,7 +1968,7 @@ again:
 	 * credentials.
 	 */
 	rulecnt = 0;
-	RCTL_RLOCK();
+	RACCT_LOCK();
 	LIST_FOREACH(link, &p->p_racct->r_rule_links, rrl_next) {
 		if (link->rrl_rule->rr_subject_type ==
 		    RCTL_SUBJECT_TYPE_PROCESS)
@@ -2001,7 +1980,7 @@ again:
 		rulecnt++;
 	LIST_FOREACH(link, &newprr->prr_racct->r_rule_links, rrl_next)
 		rulecnt++;
-	RCTL_RUNLOCK();
+	RACCT_UNLOCK();
 
 	/*
 	 * Create temporary list.  We've dropped the rctl_lock in order
@@ -2019,7 +1998,7 @@ again:
 	/*
 	 * Assign rules to the newly allocated list entries.
 	 */
-	RCTL_WLOCK();
+	RACCT_LOCK();
 	LIST_FOREACH(link, &p->p_racct->r_rule_links, rrl_next) {
 		if (link->rrl_rule->rr_subject_type ==
 		    RCTL_SUBJECT_TYPE_PROCESS) {
@@ -2087,13 +2066,13 @@ again:
 			    newlink, rrl_next);
 		}
 
-		RCTL_WUNLOCK();
+		RACCT_UNLOCK();
 
 		return;
 	}
 
 goaround:
-	RCTL_WUNLOCK();
+	RACCT_UNLOCK();
 
 	/*
 	 * Rule list changed while we were not holding the rctl_lock.
@@ -2120,12 +2099,11 @@ rctl_proc_fork(struct proc *parent, struct proc *child)
 	struct rctl_rule_link *link;
 	int error;
 
-	LIST_INIT(&child->p_racct->r_rule_links);
-
 	ASSERT_RACCT_ENABLED();
+	RACCT_LOCK_ASSERT();
 	KASSERT(parent->p_racct != NULL, ("process without racct; p = %p", parent));
 
-	RCTL_WLOCK();
+	LIST_INIT(&child->p_racct->r_rule_links);
 
 	/*
 	 * Go through limits applicable to the parent and assign them
@@ -2154,7 +2132,6 @@ rctl_proc_fork(struct proc *parent, struct proc *child)
 		}
 	}
 
-	RCTL_WUNLOCK();
 	return (0);
 
 fail:
@@ -2164,7 +2141,7 @@ fail:
 		rctl_rule_release(link->rrl_rule);
 		uma_zfree(rctl_rule_link_zone, link);
 	}
-	RCTL_WUNLOCK();
+
 	return (EAGAIN);
 }
 
@@ -2177,15 +2154,14 @@ rctl_racct_release(struct racct *racct)
 	struct rctl_rule_link *link;
 
 	ASSERT_RACCT_ENABLED();
+	RACCT_LOCK_ASSERT();
 
-	RCTL_WLOCK();
 	while (!LIST_EMPTY(&racct->r_rule_links)) {
 		link = LIST_FIRST(&racct->r_rule_links);
 		LIST_REMOVE(link, rrl_next);
 		rctl_rule_release(link->rrl_rule);
 		uma_zfree(rctl_rule_link_zone, link);
 	}
-	RCTL_WUNLOCK();
 }
 
 static void
