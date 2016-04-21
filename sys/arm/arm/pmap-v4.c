@@ -4754,7 +4754,7 @@ pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
 	vm_size_t resid;
 	int i;
 
-	resid = (size + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
+	resid = roundup2(size, PAGE_SIZE);
 
 	if (l1pt == 0)
 		panic("pmap_map_chunk: no L1 table provided");

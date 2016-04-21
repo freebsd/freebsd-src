@@ -116,7 +116,7 @@ vt_efifb_init(struct vt_device *vd)
 	info->fb_depth = fls(efifb->fb_mask_red | efifb->fb_mask_green |
 	    efifb->fb_mask_blue | efifb->fb_mask_reserved);
 	/* Round to a multiple of the bits in a byte. */
-	info->fb_bpp = (info->fb_depth + NBBY - 1) & ~(NBBY - 1);
+	info->fb_bpp = roundup2(info->fb_depth, NBBY);
 
 	/* Stride in bytes, not pixels */
 	info->fb_stride = efifb->fb_stride * (info->fb_bpp / NBBY);

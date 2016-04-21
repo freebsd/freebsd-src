@@ -1713,7 +1713,7 @@ linker_lookup_file(const char *path, int pathlen, const char *name,
 }
 
 #define	INT_ALIGN(base, ptr)	ptr =					\
-	(base) + (((ptr) - (base) + sizeof(int) - 1) & ~(sizeof(int) - 1))
+	(base) + roundup2((ptr) - (base), sizeof(int))
 
 /*
  * Lookup KLD which contains requested module in the "linker.hints" file. If

@@ -3047,7 +3047,7 @@ bce_get_rx_buffer_sizes(struct bce_softc *sc, int mtu)
 		sc->rx_bd_mbuf_alloc_size = MHLEN;
 		/* Make sure offset is 16 byte aligned for hardware. */
 		sc->rx_bd_mbuf_align_pad =
-			roundup2((MSIZE - MHLEN), 16) - (MSIZE - MHLEN);
+			roundup2(MSIZE - MHLEN, 16) - (MSIZE - MHLEN);
 		sc->rx_bd_mbuf_data_len = sc->rx_bd_mbuf_alloc_size -
 			sc->rx_bd_mbuf_align_pad;
 	} else {

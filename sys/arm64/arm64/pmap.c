@@ -622,7 +622,7 @@ pmap_bootstrap_l3(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l3_start)
 	KASSERT((va & L2_OFFSET) == 0, ("Invalid virtual address"));
 
 	l2 = pmap_l2(kernel_pmap, va);
-	l2 = (pd_entry_t *)((uintptr_t)l2 & ~(PAGE_SIZE - 1));
+	l2 = (pd_entry_t *)rounddown2((uintptr_t)l2, PAGE_SIZE);
 	l2pt = (vm_offset_t)l2;
 	l2_slot = pmap_l2_index(va);
 	l3pt = l3_start;

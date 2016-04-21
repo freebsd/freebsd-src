@@ -116,8 +116,8 @@ static const struct utopia_methods fatm_utopia_methods = {
 };
 
 #define VC_OK(SC, VPI, VCI)						\
-	(((VPI) & ~((1 << IFP2IFATM((SC)->ifp)->mib.vpi_bits) - 1)) == 0 &&	\
-	 (VCI) != 0 && ((VCI) & ~((1 << IFP2IFATM((SC)->ifp)->mib.vci_bits) - 1)) == 0)
+	(rounddown2(VPI, 1 << IFP2IFATM((SC)->ifp)->mib.vpi_bits) == 0 &&	\
+	 (VCI) != 0 && rounddown2(VCI, 1 << IFP2IFATM((SC)->ifp)->mib.vci_bits) == 0)
 
 static int fatm_load_vc(struct fatm_softc *sc, struct card_vcc *vc);
 

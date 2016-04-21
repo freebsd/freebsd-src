@@ -1966,7 +1966,7 @@ moea64_get_unique_vsid(void) {
 			}
 			i = ffs(~moea64_vsid_bitmap[n]) - 1;
 			mask = 1 << i;
-			hash &= VSID_HASHMASK & ~(VSID_NBPW - 1);
+			hash &= rounddown2(VSID_HASHMASK, VSID_NBPW);
 			hash |= i;
 		}
 		if (hash == VSID_VRMA)	/* also special, avoid this too */
@@ -2296,7 +2296,7 @@ moea64_bootstrap_alloc(vm_size_t size, u_int align)
 	size = round_page(size);
 	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
 		if (align != 0)
-			s = (phys_avail[i] + align - 1) & ~(align - 1);
+			s = roundup2(phys_avail[i], align);
 		else
 			s = phys_avail[i];
 		e = s + size;

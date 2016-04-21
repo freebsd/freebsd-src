@@ -675,8 +675,8 @@ __start(void)
 	curaddr = (void*)((unsigned int)curaddr & 0xfff00000);
 #ifdef KZIP
 	if (*kernel == 0x1f && kernel[1] == 0x8b) {
-		pt_addr = (((int)&_end + KERNSIZE + 0x100) &
-		    ~(L1_TABLE_SIZE - 1)) + L1_TABLE_SIZE;
+		pt_addr = L1_TABLE_SIZE +
+		    rounddown2((int)&_end + KERNSIZE + 0x100, L1_TABLE_SIZE);
 
 #ifdef CPU_ARM9
 		/* So that idcache_wbinv works; */
@@ -710,7 +710,7 @@ __start(void)
 	    (unsigned int)curaddr,
 	    (unsigned int)&func_end, 0);
 	dst = (void *)(((vm_offset_t)dst & ~3));
-	pt_addr = ((unsigned int)dst &~(L1_TABLE_SIZE - 1)) + L1_TABLE_SIZE;
+	pt_addr = L1_TABLE_SIZE + rounddown2((unsigned int)dst, L1_TABLE_SIZE);
 	setup_pagetables(pt_addr, (vm_paddr_t)curaddr,
 	    (vm_paddr_t)curaddr + 0x10000000, 0);
 	sp = pt_addr + L1_TABLE_SIZE + 8192;

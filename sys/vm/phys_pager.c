@@ -187,7 +187,7 @@ phys_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
 {
 	vm_pindex_t base, end;
 
-	base = pindex & (~(PHYSCLUSTER - 1));
+	base = rounddown2(pindex, PHYSCLUSTER);
 	end = base + (PHYSCLUSTER - 1);
 	if (before != NULL)
 		*before = pindex - base;

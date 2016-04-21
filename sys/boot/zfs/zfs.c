@@ -310,7 +310,7 @@ zfs_readdir(struct open_file *f, struct dirent *d)
 	fzap_next:
 		chunk = fp->f_seekp & (bsize - 1);
 		if (chunk == ZAP_LEAF_NUMCHUNKS(&zl)) {
-			fp->f_seekp = (fp->f_seekp & ~(bsize - 1)) + bsize;
+			fp->f_seekp = rounddown2(fp->f_seekp, bsize) + bsize;
 			chunk = 0;
 
 			/*

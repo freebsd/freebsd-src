@@ -607,8 +607,8 @@ int t4_mem_read(struct adapter *adap, int mtype, u32 addr, u32 len,
 	 * need to round down the start and round up the end.  We'll start
 	 * copying out of the first line at (addr - start) a word at a time.
 	 */
-	start = addr & ~(64-1);
-	end = (addr + len + 64-1) & ~(64-1);
+	start = rounddown2(addr, 64);
+	end = roundup2(addr + len, 64);
 	offset = (addr - start)/sizeof(__be32);
 
 	for (pos = start; pos < end; pos += 64, offset = 0) {

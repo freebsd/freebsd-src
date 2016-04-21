@@ -1673,7 +1673,7 @@ moea_pinit(mmu_t mmu, pmap_t pmap)
 			}
 			i = ffs(~moea_vsid_bitmap[n]) - 1;
 			mask = 1 << i;
-			hash &= 0xfffff & ~(VSID_NBPW - 1);
+			hash &= rounddown2(0xfffff, VSID_NBPW);
 			hash |= i;
 		}
 		KASSERT(!(moea_vsid_bitmap[n] & mask),
@@ -1865,7 +1865,7 @@ moea_bootstrap_alloc(vm_size_t size, u_int align)
 	size = round_page(size);
 	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
 		if (align != 0)
-			s = (phys_avail[i] + align - 1) & ~(align - 1);
+			s = roundup2(phys_avail[i], align);
 		else
 			s = phys_avail[i];
 		e = s + size;
