@@ -150,7 +150,9 @@ fdc_cbus_attach(device_t dev)
 		error = fdc_attach(dev);
 	if (error == 0)
 		error = fdc_hints_probe(dev);
-	if (error)
+	if (error == 0)
+		fdc_start_worker(dev);
+	else
 		fdc_release_resources(fdc);
 	return (error);
 }
