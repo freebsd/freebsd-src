@@ -4702,7 +4702,7 @@ scsi_sense_desc_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 {
 	int i;
 
-	for (i = 0; i < (nitems(scsi_sense_printers)); i++) {
+	for (i = 0; i < nitems(scsi_sense_printers); i++) {
 		struct scsi_sense_desc_printer *printer;
 
 		printer = &scsi_sense_printers[i];
@@ -7285,8 +7285,7 @@ struct scsi_attrib_table_entry *
 scsi_get_attrib_entry(uint32_t id)
 {
 	return (scsi_find_attrib_entry(scsi_mam_attr_table,
-		nitems(scsi_mam_attr_table),
-		id));
+	    nitems(scsi_mam_attr_table), id));
 }
 
 int
