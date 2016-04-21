@@ -1413,6 +1413,10 @@ options 	MSGBUF_SIZE=40960
 options 	KBD_DISABLE_KEYMAP_LOAD	# refuse to load a keymap
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 
+device		kbdmux			# keyboard multiplexer
+options		KBDMUX_DFLT_KEYMAP	# specify the built-in keymap
+makeoptions	KBDMUX_DFLT_KEYMAP=it.iso
+
 options 	FB_DEBUG		# Frame buffer debugging
 
 device		splash			# Splash screen and screen saver support
