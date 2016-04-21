@@ -476,8 +476,9 @@ ieee80211_swscan_cancel_anyscan(struct ieee80211vap *vap)
 }
 
 /*
- * Public access to scan_next for drivers that manage
- * scanning themselves (e.g. for firmware-based devices).
+ * Manually switch to the next channel in the channel list.
+ * Provided for drivers that manage scanning themselves
+ * (e.g. for firmware-based devices).
  */
 static void
 ieee80211_swscan_scan_next(struct ieee80211vap *vap)
@@ -491,8 +492,9 @@ ieee80211_swscan_scan_next(struct ieee80211vap *vap)
 }
 
 /*
- * Public access to scan_next for drivers that are not able to scan single
- * channels (e.g. for firmware-based devices).
+ * Manually stop a scan that is currently running.
+ * Provided for drivers that are not able to scan single channels
+ * (e.g. for firmware-based devices).
  */
 static void
 ieee80211_swscan_scan_done(struct ieee80211vap *vap)
@@ -506,7 +508,7 @@ ieee80211_swscan_scan_done(struct ieee80211vap *vap)
 }
 
 /*
- * Probe the curent channel, if allowed, while scanning.
+ * Probe the current channel, if allowed, while scanning.
  * If the channel is not marked passive-only then send
  * a probe request immediately.  Otherwise mark state and
  * listen for beacons on the channel; if we receive something
