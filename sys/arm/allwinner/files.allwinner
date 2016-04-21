@@ -10,10 +10,12 @@ arm/allwinner/aw_usbphy.c		optional	ehci
 arm/allwinner/a10_gpio.c		optional	gpio
 arm/allwinner/a10_mmc.c			optional	mmc
 arm/allwinner/a10_sramc.c		standard
+arm/allwinner/aw_if_dwc.c		optional	dwc
 arm/allwinner/aw_rtc.c			standard
 arm/allwinner/aw_wdog.c			standard
 arm/allwinner/a20/a20_cpu_cfg.c 	standard
 arm/allwinner/allwinner_machdep.c	standard
+arm/allwinner/aw_mp.c			optional	smp
 arm/allwinner/axp209.c			optional	axp209
 arm/allwinner/if_emac.c			optional	emac
 arm/allwinner/sunxi_dma_if.m		standard

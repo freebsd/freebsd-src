@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/allwinner/allwinner_pinctrl.h>
 
+#ifdef SOC_ALLWINNER_A10
+
 const static struct allwinner_pins a10_pins[] = {
 	{"PA0",  0, 0,  {"gpio_in", "gpio_out", "emac", "spi1", "uart2", NULL, NULL, NULL}},
 	{"PA1",  0, 1,  {"gpio_in", "gpio_out", "emac", "spi1", "uart2", NULL, NULL, NULL}},
@@ -225,3 +227,5 @@ const struct allwinner_padconf a10_padconf = {
 	.npins = sizeof(a10_pins) / sizeof(struct allwinner_pins),
 	.pins = a10_pins,
 };
+
+#endif /* SOC_ALLWINNER_A10 */

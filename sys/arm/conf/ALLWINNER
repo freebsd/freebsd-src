@@ -1,5 +1,5 @@
 #
-# A20 -- Custom configuration for the Allwinner A20 ARM SoC
+# ALLWINNER -- Custom configuration for the Allwinner A20 and A31 ARM SoC
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -18,14 +18,16 @@
 #
 # $FreeBSD$
 
-ident		A20
+ident		ALLWINNER
 
 include 	"std.armv6"
-include 	"../allwinner/a20/std.a20"
+include 	"../allwinner/std.allwinner"
 
 options 	INTRNG
 
 options 	SOC_ALLWINNER_A20
+options 	SOC_ALLWINNER_A31
+options 	SOC_ALLWINNER_A31S
 
 options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
@@ -56,7 +58,7 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 #options 	BOOTP_WIRED_TO=dwc0
 
 # EXT_RESOURCES pseudo devices
-options		EXT_RESOURCES
+options 	EXT_RESOURCES
 device		clk
 device		phy
 device		hwreset
@@ -125,9 +127,6 @@ device		miibus
 # Sound support
 device		sound
 
-# Pinmux
-device		fdt_pinctrl
-
 # Framebuffer support
 device		vt
 device		kbdmux
@@ -135,6 +134,9 @@ device		ums
 device		ukbd
 device		videomode
 device		hdmi
+
+# Pinmux
+device		fdt_pinctrl
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
