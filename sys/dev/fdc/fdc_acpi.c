@@ -135,6 +135,9 @@ fdc_acpi_attach(device_t dev)
 	obj = buf.Pointer;
 	error = fdc_acpi_probe_children(bus, dev, obj->Buffer.Pointer);
 
+	if (error == 0)
+		fdc_start_worker(dev);
+
 out:
 	if (buf.Pointer)
 		free(buf.Pointer, M_TEMP);
