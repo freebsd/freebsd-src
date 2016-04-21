@@ -1570,14 +1570,7 @@ malo_mode_init(struct malo_softc *sc)
 	struct ieee80211com *ic = &sc->malo_ic;
 	struct malo_hal *mh = sc->malo_mh;
 
-	/*
-	 * NB: Ignore promisc in hostap mode; it's set by the
-	 * bridge.  This is wrong but we have no way to
-	 * identify internal requests (from the bridge)
-	 * versus external requests such as for tcpdump.
-	 */
-	malo_hal_setpromisc(mh, ic->ic_promisc > 0 &&
-	    ic->ic_opmode != IEEE80211_M_HOSTAP);
+	malo_hal_setpromisc(mh, ic->ic_promisc > 0);
 	malo_setmcastfilter(sc);
 
 	return ENXIO;
