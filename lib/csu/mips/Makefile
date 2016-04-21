@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 .PATH: ${.CURDIR}/../common
 
 SRCS=		crti.S crtn.S
@@ -7,7 +9,9 @@ OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		gcrt1.o crt1.o Scrt1.o
 CFLAGS+=	-I${.CURDIR}/../common \
 		-I${.CURDIR}/../../libc/include
-CFLAGS+=	-DCHERI # XXX: this should be a build system option
+.if ${MK_CHERI}	!= "no"
+CFLAGS+=	-DCHERI
+.endif
 
 FILES=		${OBJS}
 FILESMODE=	${LIBMODE}
