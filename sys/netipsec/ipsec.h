@@ -354,8 +354,6 @@ extern int ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 extern int ipsec4_process_packet(struct mbuf *, struct ipsecrequest *);
 extern int ipsec_process_done(struct mbuf *, struct ipsecrequest *);
 
-extern struct mbuf *ipsec_copypkt(struct mbuf *);
-
 extern	void m_checkalignment(const char* where, struct mbuf *m0,
 		int off, int len);
 extern	struct mbuf *m_makespace(struct mbuf *m0, int skip, int hlen, int *off);
