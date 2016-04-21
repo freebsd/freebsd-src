@@ -310,13 +310,19 @@ mcast:
 		return rdma_copy_addr(addr, ifp, ifp->if_broadcastaddr);
 	if (multi) {
 		struct sockaddr *llsa;
+		struct sockaddr_dl sdl;
+
+		sdl.sdl_len = sizeof(sdl);
+		llsa = (struct sockaddr *)&sdl;
+
+		if (ifp->if_resolvemulti == NULL)
+			return -EOPNOTSUPP;
 
 		error = ifp->if_resolvemulti(ifp, &llsa, dst_in);
 		if (error)
 			return -error;
 		error = rdma_copy_addr(addr, ifp,
 		    LLADDR((struct sockaddr_dl *)llsa));
-		free(llsa, M_IFMADDR);
 		if (error == 0)
 			memcpy(src_in, ifa->ifa_addr, ip_addr_size(ifa->ifa_addr));
 		return error;
