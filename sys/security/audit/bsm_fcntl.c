@@ -237,8 +237,7 @@ static const bsm_fcntl_cmd_t bsm_fcntl_cmdtab[] = {
 	{ BSM_F_FS_SPECIFIC_15,	FCNTL_FS_SPECIFIC_BASE + 15},
 #endif	/* FCNTL_FS_SPECIFIC_BASE */
 };
-static const int bsm_fcntl_cmd_count = sizeof(bsm_fcntl_cmdtab) /
-	    sizeof(bsm_fcntl_cmdtab[0]);
+static const int bsm_fcntl_cmd_count = nitems(bsm_fcntl_cmdtab);
 
 static const bsm_fcntl_cmd_t *
 bsm_lookup_local_fcntl_cmd(int local_fcntl_cmd)

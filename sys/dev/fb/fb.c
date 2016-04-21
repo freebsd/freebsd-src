@@ -610,7 +610,7 @@ fb_type(int adp_type)
 	};
 	int i;
 
-	for (i = 0; i < sizeof(types)/sizeof(types[0]); ++i) {
+	for (i = 0; i < nitems(types); ++i) {
 		if (types[i].va_type == adp_type)
 			return types[i].fb_type;
 	}

@@ -556,8 +556,7 @@ static struct scsi_quirk_entry scsi_quirk_table[] =
 	},
 };
 
-static const int scsi_quirk_table_size =
-	sizeof(scsi_quirk_table) / sizeof(*scsi_quirk_table);
+static const int scsi_quirk_table_size = nitems(scsi_quirk_table);
 
 static cam_status	proberegister(struct cam_periph *periph,
 				      void *arg);
@@ -1848,8 +1847,7 @@ scsi_find_quirk(struct cam_ed *device)
 
 	match = cam_quirkmatch((caddr_t)&device->inq_data,
 			       (caddr_t)scsi_quirk_table,
-			       sizeof(scsi_quirk_table) /
-			       sizeof(*scsi_quirk_table),
+			       nitems(scsi_quirk_table),
 			       sizeof(*scsi_quirk_table), scsi_inquiry_match);
 
 	if (match == NULL)
