@@ -316,7 +316,7 @@ advasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 
 		target_mask = ADV_TID_TO_TARGET_MASK(cgd->ccb_h.target_id);
 
-		num_entries = sizeof(adv_quirk_table)/sizeof(*adv_quirk_table);
+		num_entries = nitems(adv_quirk_table);
 		match = cam_quirkmatch((caddr_t)&cgd->inq_data,
 				       (caddr_t)adv_quirk_table,
 				       num_entries, sizeof(*adv_quirk_table),

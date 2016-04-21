@@ -2404,7 +2404,7 @@ dump_fmn_cpu_credits_for_gmac(struct xlr_board_info *board, int gmac_id)
 	int j, k, r, c;
 	int n_gmac_buckets;
 
-	n_gmac_buckets = sizeof (gmac_bucket_ids) / sizeof (gmac_bucket_ids[0]);
+	n_gmac_buckets = nitems(gmac_bucket_ids);
 	for (j = 0; j < 8; j++) { 		// for each cpu
 		cc = board->credit_configs[j];
 		printf("Credits for Station CPU_%d ---> GMAC buckets (tx path)\n", j);
@@ -2518,7 +2518,7 @@ dump_mii_regs(struct nlge_softc *sc)
 	if (sc->mii_base == NULL || sc->mii_bus == NULL)
 		return;
 
-	n_regs = sizeof (mii_regs) / sizeof (mii_regs[0]);
+	n_regs = nitems(mii_regs);
 	for (i = 0; i < n_regs; i++) {
 		printf("[mii_0x%x] = %x\n", mii_regs[i],
 		    nlge_mii_read_internal(sc->mii_base, sc->phy_addr,

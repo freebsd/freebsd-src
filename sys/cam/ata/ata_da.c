@@ -1431,7 +1431,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	 */
 	match = cam_quirkmatch((caddr_t)&cgd->ident_data,
 			       (caddr_t)ada_quirk_table,
-			       sizeof(ada_quirk_table)/sizeof(*ada_quirk_table),
+			       nitems(ada_quirk_table),
 			       sizeof(*ada_quirk_table), ata_identify_match);
 	if (match != NULL)
 		softc->quirks = ((struct ada_quirk_entry *)match)->quirks;
