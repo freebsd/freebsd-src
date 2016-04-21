@@ -1,19 +1,14 @@
 #
-# MEDIATEK_BASE -- Base kernel configuration file for FreeBSD/MIPS
-# Mediatek/Ralink SoCs.
+# std.mtk -- Base kernel configuration file for FreeBSD/MIPS Mediatek/Ralink
+# SoCs.
 #
 # This includes all the required drivers for the SoCs.
-# Ususally, users should not build this kernel configuration. It is provided
-# only as a minimum base, from which customizations can be made. Please look
-# at MEDIATEK kernel configuration for customization details.
 #
 # $FreeBSD$
 #
 
-#NO_UNIVERSE
-
 # Include the standard file list for Mediatek SoCs.
-files 		"../mediatek/files.mtk"
+files 		"../mediatek/files.mediatek"
 
 # Building a mips/mipsel kernel
 machine 	mips mipsel
