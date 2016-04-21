@@ -1641,8 +1641,9 @@ _crunch=	usr.sbin/crunch
 _awk=		usr.bin/awk
 .endif
 
-# r296926 -P keymap search path
-.if ${BOOTSTRAPPING} < 1100103
+# r296926 -P keymap search path, MFC to stable/10 in r298297
+.if ${BOOTSTRAPPING} < 1003501 || \
+	(${BOOTSTRAPPING} >= 1100000 && ${BOOTSTRAPPING} < 1100103)
 _kbdcontrol=	usr.sbin/kbdcontrol
 .endif
 
