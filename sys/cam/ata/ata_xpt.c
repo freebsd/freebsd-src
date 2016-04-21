@@ -160,9 +160,6 @@ static struct ata_quirk_entry ata_quirk_table[] =
 	},
 };
 
-static const int ata_quirk_table_size =
-	sizeof(ata_quirk_table) / sizeof(*ata_quirk_table);
-
 static cam_status	proberegister(struct cam_periph *periph,
 				      void *arg);
 static void	 probeschedule(struct cam_periph *probe_periph);
@@ -1284,7 +1281,7 @@ ata_find_quirk(struct cam_ed *device)
 
 	match = cam_quirkmatch((caddr_t)&device->ident_data,
 			       (caddr_t)ata_quirk_table,
-			       ata_quirk_table_size,
+			       nitems(ata_quirk_table),
 			       sizeof(*ata_quirk_table), ata_identify_match);
 
 	if (match == NULL)
@@ -1579,7 +1576,7 @@ ata_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	 * Take the default quirk entry until we have inquiry
 	 * data and can determine a better quirk to use.
 	 */
-	quirk = &ata_quirk_table[ata_quirk_table_size - 1];
+	quirk = &ata_quirk_table[nitems(ata_quirk_table) - 1];
 	device->quirk = (void *)quirk;
 	device->mintags = 0;
 	device->maxtags = 0;

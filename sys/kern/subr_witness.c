@@ -709,7 +709,6 @@ static struct witness_order_list_entry order_lists[] = {
  */
 static struct witness_blessed blessed_list[] = {
 };
-static int blessed_count = nitems(blessed_list);
 #endif
 
 /*
@@ -2059,7 +2058,7 @@ blessed(struct witness *w1, struct witness *w2)
 	int i;
 	struct witness_blessed *b;
 
-	for (i = 0; i < blessed_count; i++) {
+	for (i = 0; i < nitems(blessed_list); i++) {
 		b = &blessed_list[i];
 		if (strcmp(w1->w_name, b->b_lock1) == 0) {
 			if (strcmp(w2->w_name, b->b_lock2) == 0)

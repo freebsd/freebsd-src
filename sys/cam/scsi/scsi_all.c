@@ -737,9 +737,6 @@ const struct sense_key_table_entry sense_key_table[] =
 	{ SSD_KEY_COMPLETED, SS_NOP, "COMPLETED" }
 };
 
-const int sense_key_table_size =
-    sizeof(sense_key_table)/sizeof(sense_key_table[0]);
-
 static struct asc_table_entry quantum_fireball_entries[] = {
 	{ SST(0x04, 0x0b, SS_START | SSQ_DECREMENT_COUNT | ENXIO, 
 	     "Logical unit not ready, initializing cmd. required") }
@@ -3291,14 +3288,14 @@ fetchtableentries(int sense_key, int asc, int ascq,
 		sense_tables[0] = quirk->sense_key_info;
 		sense_tables_size[0] = quirk->num_sense_keys;
 		sense_tables[1] = sense_key_table;
-		sense_tables_size[1] = sense_key_table_size;
+		sense_tables_size[1] = nitems(sense_key_table);
 		num_sense_tables = 2;
 	} else {
 		asc_tables[0] = asc_table;
 		asc_tables_size[0] = asc_table_size;
 		num_asc_tables = 1;
 		sense_tables[0] = sense_key_table;
-		sense_tables_size[0] = sense_key_table_size;
+		sense_tables_size[0] = nitems(sense_key_table);
 		num_sense_tables = 1;
 	}
 

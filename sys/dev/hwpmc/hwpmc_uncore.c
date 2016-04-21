@@ -790,8 +790,6 @@ static struct ucp_event_descr ucp_events[] = {
     UCPDESCR(86H_01H, 0x86, 0x01, UCP_F_FM | UCP_F_WM)
 };
 
-static const int nucp_events = sizeof(ucp_events) / sizeof(ucp_events[0]);
-
 static pmc_value_t
 ucp_perfctr_value_to_reload_count(pmc_value_t v)
 {
@@ -883,11 +881,11 @@ ucp_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		return (EINVAL);
 	}
 
-	for (n = 0, ie = ucp_events; n < nucp_events; n++, ie++)
+	for (n = 0, ie = ucp_events; n < nitems(ucp_events); n++, ie++)
 		if (ie->ucp_ev == ev && ie->ucp_flags & cpuflag)
 			break;
 
-	if (n == nucp_events)
+	if (n == nitems(ucp_events))
 		return (EINVAL);
 
 	/*
