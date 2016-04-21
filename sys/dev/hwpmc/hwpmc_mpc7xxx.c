@@ -311,9 +311,6 @@ static struct mpc7xxx_event_code_map mpc7xxx_event_codes[] = {
 	PMC_POWERPC_EVENT(PREFETCH_ENGINE_FULL, 0x20, 57)
 };
 
-const size_t mpc7xxx_event_codes_size = 
-	sizeof(mpc7xxx_event_codes) / sizeof(mpc7xxx_event_codes[0]);
-
 static pmc_value_t
 mpc7xxx_pmcn_read(unsigned int pmc)
 {
@@ -616,14 +613,14 @@ mpc7xxx_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	caps = a->pm_caps;
 
 	pe = a->pm_ev;
-	for (i = 0; i < mpc7xxx_event_codes_size; i++) {
+	for (i = 0; i < nitems(mpc7xxx_event_codes); i++) {
 		if (mpc7xxx_event_codes[i].pe_ev == pe) {
 			config = mpc7xxx_event_codes[i].pe_code;
 			counter =  mpc7xxx_event_codes[i].pe_counter_mask;
 			break;
 		}
 	}
-	if (i == mpc7xxx_event_codes_size)
+	if (i == nitems(mpc7xxx_event_codes))
 		return (EINVAL);
 
 	if ((counter & (1 << ri)) == 0)
