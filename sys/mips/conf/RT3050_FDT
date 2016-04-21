@@ -1,9 +1,8 @@
 #
-# RT3050_FDT -- Kernel configuration file for FreeBSD/MIPS RT3050/RT3052/RT3350
-# SoCs
+# RT3050_FDT -- Kernel configuration file for FreeBSD/MIPS RT3050, RT3052 and
+# RT3350 SoCs
 #
-# This includes all the configurable parts of the kernel. Please read through
-# MEDIATEK kernel config and customize the options to fit your board if needed.
+# This includes all the configurable parts of the kernel.
 #
 # $FreeBSD$
 #
@@ -15,17 +14,65 @@
 #
 #makeoptions 	FDT_DTS_FILE=DIR-600-B1.dts
 
-#
-# The user should never have to edit what's below this line.
-# If customizations are needed, they should be done to the MEDIATEK kernel
-# configuration.
-#
-
 # Start with a base configuration
-include 	MEDIATEK_BASE
+include 	"../mediatek/std.mediatek"
 
 ident 		RT3050
 cpu 		CPU_MIPS24K
 
-# Include optional configuration (to be edited by the user if needed)
-include 	MEDIATEK
+# Don't build any modules by default
+makeoptions 	MODULES_OVERRIDE=""
+
+# Default rootfs device configuration, should be changed to suit target board
+options 	ROOTDEVNAME=\"ufs:md0.uzip\"
+
+# Support geom_uzip(4) compressed disk images
+device 		geom_uzip
+options 	GEOM_UZIP
+
+# Support md(4) and md-based rootfs
+device 		md
+options 	MD_ROOT
+
+# Interrupt controller support
+device 		mtk_intr_v1
+
+# UART device support
+nodevice 	uart_ns8250
+device 		uart_dev_mtk
+
+# SPI and SPI flash support
+device 		mtk_spi_v1
+device 		spibus
+device 		mx25l
+
+# CFI support
+device 		cfi
+device 		cfid
+
+# GPIO and gpioled support
+device 		mtk_gpio_v1
+device 		gpio
+device 		gpioled
+
+# USB (dwcotg) support
+device 		usb
+device 		mtk_usb_phy
+device 		dwcotg
+
+# USB umass(4) storage and da(4) support
+device 		umass
+device 		da
+
+# CAM support, required if umass(4) is enabled above
+device 		pass
+device 		scbus
+
+# Ethernet, BPF and bridge support
+device 		rt
+device 		bpf
+device 		if_bridge
+
+# Extres
+device 		ext_resources
+device 		clk
