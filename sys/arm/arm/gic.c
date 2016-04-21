@@ -131,8 +131,8 @@ static int arm_gic_intr(void *);
 static int arm_gic_bind_intr(device_t dev, struct intr_irqsrc *isrc);
 
 #ifdef SMP
-u_int sgi_to_ipi[GIC_LAST_SGI - GIC_FIRST_SGI + 1];
-u_int sgi_first_unused = GIC_FIRST_SGI;
+static u_int sgi_to_ipi[GIC_LAST_SGI - GIC_FIRST_SGI + 1];
+static u_int sgi_first_unused = GIC_FIRST_SGI;
 #endif
 #endif
 
