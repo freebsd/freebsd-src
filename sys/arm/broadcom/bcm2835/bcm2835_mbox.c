@@ -501,7 +501,7 @@ bcm2835_mbox_fb_init(struct bcm2835_fb_config *fb)
 	BCM2835_MBOX_INIT_TAG(&msg.virtual_w_h, SET_VIRTUAL_W_H);
 	msg.virtual_w_h.body.req.width = fb->vxres;
 	msg.virtual_w_h.body.req.height = fb->vyres;
-	BCM2835_MBOX_INIT_TAG(&msg.offset, GET_VIRTUAL_OFFSET);
+	BCM2835_MBOX_INIT_TAG(&msg.offset, SET_VIRTUAL_OFFSET);
 	msg.offset.body.req.x = fb->xoffset;
 	msg.offset.body.req.y = fb->yoffset;
 	BCM2835_MBOX_INIT_TAG(&msg.depth, SET_DEPTH);
