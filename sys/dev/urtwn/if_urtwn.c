@@ -1944,6 +1944,32 @@ urtwn_r88e_read_rom(struct urtwn_softc *sc)
 	return (0);
 }
 
+static __inline uint8_t
+rate2ridx(uint8_t rate)
+{
+	if (rate & IEEE80211_RATE_MCS) {
+		/* 11n rates start at idx 12 */
+		return ((rate & 0xf) + 12);
+	}
+	switch (rate) {
+	/* 11g */
+	case 12:	return 4;
+	case 18:	return 5;
+	case 24:	return 6;
+	case 36:	return 7;
+	case 48:	return 8;
+	case 72:	return 9;
+	case 96:	return 10;
+	case 108:	return 11;
+	/* 11b */
+	case 2:		return 0;
+	case 4:		return 1;
+	case 11:	return 2;
+	case 22:	return 3;
+	default:	return URTWN_RIDX_UNKNOWN;
+	}
+}
+
 /*
  * Initialize rate adaptation in firmware.
  */
@@ -1956,8 +1982,8 @@ urtwn_ra_init(struct urtwn_softc *sc)
 	struct ieee80211_rateset *rs, *rs_ht;
 	struct r92c_fw_cmd_macid_cfg cmd;
 	uint32_t rates, basicrates;
-	uint8_t mode;
-	int maxrate, maxbasicrate, error, i, j;
+	uint8_t mode, ridx;
+	int maxrate, maxbasicrate, error, i;
 
 	ni = ieee80211_ref_node(vap->iv_bss);
 	rs = &ni->ni_rates;
@@ -1970,19 +1996,16 @@ urtwn_ra_init(struct urtwn_softc *sc)
 	/* This is for 11bg */
 	for (i = 0; i < rs->rs_nrates; i++) {
 		/* Convert 802.11 rate to HW rate index. */
-		for (j = 0; j < nitems(ridx2rate); j++)
-			if ((rs->rs_rates[i] & IEEE80211_RATE_VAL) ==
-			    ridx2rate[j])
-				break;
-		if (j == nitems(ridx2rate))	/* Unknown rate, skip. */
+		ridx = rate2ridx(IEEE80211_RV(rs->rs_rates[i]));
+		if (ridx == URTWN_RIDX_UNKNOWN)	/* Unknown rate, skip. */
 			continue;
-		rates |= 1 << j;
-		if (j > maxrate)
-			maxrate = j;
+		rates |= 1 << ridx;
+		if (ridx > maxrate)
+			maxrate = ridx;
 		if (rs->rs_rates[i] & IEEE80211_RATE_BASIC) {
-			basicrates |= 1 << j;
-			if (j > maxbasicrate)
-				maxbasicrate = j;
+			basicrates |= 1 << ridx;
+			if (ridx > maxbasicrate)
+				maxbasicrate = ridx;
 		}
 	}
 
@@ -1992,12 +2015,12 @@ urtwn_ra_init(struct urtwn_softc *sc)
 			if ((rs_ht->rs_rates[i] & 0x7f) > 0xf)
 				continue;
 			/* 11n rates start at index 12 */
-			j = ((rs_ht->rs_rates[i]) & 0xf) + 12;
-			rates |= (1 << j);
+			ridx = ((rs_ht->rs_rates[i]) & 0xf) + 12;
+			rates |= (1 << ridx);
 
 			/* Guard against the rate table being oddly ordered */
-			if (j > maxrate)
-				maxrate = j;
+			if (ridx > maxrate)
+				maxrate = ridx;
 		}
 	}
 
@@ -2800,32 +2823,6 @@ urtwn_r88e_get_rssi(struct urtwn_softc *sc, int rate, void *physt)
 		rssi = ((le32toh(phy->phydw1) >> 1) & 0x7f) - 110;
 	}
 	return (rssi);
-}
-
-static __inline uint8_t
-rate2ridx(uint8_t rate)
-{
-	if (rate & IEEE80211_RATE_MCS) {
-		/* 11n rates start at idx 12 */
-		return ((rate & 0xf) + 12);
-	}
-	switch (rate) {
-	/* 11g */
-	case 12:	return 4;
-	case 18:	return 5;
-	case 24:	return 6;
-	case 36:	return 7;
-	case 48:	return 8;
-	case 72:	return 9;
-	case 96:	return 10;
-	case 108:	return 11;
-	/* 11b */
-	case 2:		return 0;
-	case 4:		return 1;
-	case 11:	return 2;
-	case 22:	return 3;
-	default:	return 0;
-	}
 }
 
 static int
