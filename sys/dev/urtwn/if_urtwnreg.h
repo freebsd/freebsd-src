@@ -1242,6 +1242,7 @@ static const uint8_t ridx2rate[] =
 #define URTWN_RIDX_OFDM54	11
 
 #define URTWN_RIDX_COUNT	28
+#define URTWN_RIDX_UNKNOWN	(uint8_t)-1
 
 
 /*
