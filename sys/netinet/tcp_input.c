@@ -2754,6 +2754,9 @@ process_ACK:
 		INP_WLOCK_ASSERT(tp->t_inpcb);
 
 		acked = BYTES_THIS_ACK(tp, th);
+		KASSERT(acked >= 0, ("%s: acked unexepectedly negative "
+		    "(tp->snd_una=%u, th->th_ack=%u, tp=%p, m=%p)", __func__,
+		    tp->snd_una, th->th_ack, tp, m));
 		TCPSTAT_INC(tcps_rcvackpack);
 		TCPSTAT_ADD(tcps_rcvackbyte, acked);
 
@@ -2823,13 +2826,19 @@ process_ACK:
 
 		SOCKBUF_LOCK(&so->so_snd);
 		if (acked > sbavail(&so->so_snd)) {
-			tp->snd_wnd -= sbavail(&so->so_snd);
+			if (tp->snd_wnd >= sbavail(&so->so_snd))
+				tp->snd_wnd -= sbavail(&so->so_snd);
+			else
+				tp->snd_wnd = 0;
 			mfree = sbcut_locked(&so->so_snd,
 			    (int)sbavail(&so->so_snd));
 			ourfinisacked = 1;
 		} else {
 			mfree = sbcut_locked(&so->so_snd, acked);
-			tp->snd_wnd -= acked;
+			if (tp->snd_wnd >= (u_long) acked)
+				tp->snd_wnd -= acked;
+			else
+				tp->snd_wnd = 0;
 			ourfinisacked = 0;
 		}
 		/* NB: sowwakeup_locked() does an implicit unlock. */
