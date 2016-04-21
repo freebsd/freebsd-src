@@ -690,7 +690,7 @@ genliteraldir(char *name, ino_t ino)
 	rst_seekdir(dirp, itp->t_seekpt, itp->t_seekpt);
 	dp = dup(dirp->dd_fd);
 	for (i = itp->t_size; i > 0; i -= BUFSIZ) {
-		size = i < BUFSIZ ? i : BUFSIZ;
+		size = MIN(i, BUFSIZ);
 		if (read(dp, buf, (int) size) == -1) {
 			fprintf(stderr,
 			    "write error extracting inode %ju, name %s\n",
