@@ -156,6 +156,12 @@ SYSCTL_DECL(_kern_racct);
 
 #ifdef RACCT
 
+extern struct mtx racct_lock;
+
+#define RACCT_LOCK()		mtx_lock(&racct_lock)
+#define RACCT_UNLOCK()		mtx_unlock(&racct_lock)
+#define RACCT_LOCK_ASSERT()	mtx_assert(&racct_lock, MA_OWNED)
+
 int	racct_add(struct proc *p, int resource, uint64_t amount);
 void	racct_add_cred(struct ucred *cred, int resource, uint64_t amount);
 void	racct_add_force(struct proc *p, int resource, uint64_t amount);
