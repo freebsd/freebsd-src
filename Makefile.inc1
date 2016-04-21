@@ -185,24 +185,33 @@ OSRELDATE=	0
 .endif
 
 # Set VERSION for CTFMERGE to use via the default CTFFLAGS=-L VERSION.
-.if !defined(VERSION)
-REVISION!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V REVISION
-BRANCH!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V BRANCH
+.if !defined(_REVISION)
+_REVISION!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V REVISION
+.export _REVISION
+.endif
+.if !defined(_BRANCH)
+_BRANCH!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V BRANCH
+.export _BRANCH
+.endif
+.if !defined(SRCRELDATE)
 SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 		${SRCDIR}/sys/sys/param.h
-VERSION=	FreeBSD ${REVISION}-${BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE}
+.export SRCRELDATE
+.endif
+.if !defined(VERSION)
+VERSION=	FreeBSD ${_REVISION}-${_BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE}
 .export VERSION
 .endif
 
 .if !defined(PKG_VERSION)
-.if ${BRANCH:MSTABLE*} || ${BRANCH:MCURRENT*}
+.if ${_BRANCH:MSTABLE*} || ${_BRANCH:MCURRENT*}
 TIMENOW=	%Y%m%d%H%M%S
 EXTRA_REVISION=	.s${TIMENOW:gmtime}
 .endif
-.if ${BRANCH:M*-p*}
-EXTRA_REVISION=	_${BRANCH:C/.*-p([0-9]+$)/\1/}
+.if ${_BRANCH:M*-p*}
+EXTRA_REVISION=	_${_BRANCH:C/.*-p([0-9]+$)/\1/}
 .endif
-PKG_VERSION=	${REVISION}${EXTRA_REVISION}
+PKG_VERSION=	${_REVISION}${EXTRA_REVISION}
 .endif
 
 KNOWN_ARCHES?=	aarch64/arm64 \
@@ -1378,7 +1387,7 @@ packages: .PHONY
 
 package-pkg: .PHONY
 	rm -rf /tmp/ports.${TARGET} || :
-	env ${WMAKEENV:Q} SRCDIR=${.CURDIR} PORTSDIR=${PORTSDIR} REVISION=${REVISION} \
+	env ${WMAKEENV:Q} SRCDIR=${.CURDIR} PORTSDIR=${PORTSDIR} REVISION=${_REVISION} \
 		PKG_VERSION=${PKG_VERSION} REPODIR=${REPODIR} WSTAGEDIR=${WSTAGEDIR} \
 		sh ${.CURDIR}/release/scripts/make-pkg-package.sh
 
