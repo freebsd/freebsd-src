@@ -195,10 +195,6 @@ VERSION=	FreeBSD ${REVISION}-${BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE
 .endif
 
 .if !defined(PKG_VERSION)
-REVISION!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V REVISION
-BRANCH!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V BRANCH
-SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
-		${SRCDIR}/sys/sys/param.h
 .if ${BRANCH:MSTABLE*} || ${BRANCH:MCURRENT*}
 TIMENOW=	%Y%m%d%H%M%S
 EXTRA_REVISION=	.s${TIMENOW:gmtime}
