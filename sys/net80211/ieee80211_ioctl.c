@@ -3306,11 +3306,27 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		IEEE80211_LOCK(ic);
-		if ((ifp->if_flags ^ vap->iv_ifflags) & IFF_PROMISC)
-			ieee80211_promisc(vap, ifp->if_flags & IFF_PROMISC);
-		if ((ifp->if_flags ^ vap->iv_ifflags) & IFF_ALLMULTI)
+		if ((ifp->if_flags ^ vap->iv_ifflags) & IFF_PROMISC) {
+			/*
+			 * Enable promiscuous mode when:
+			 * 1. Interface is not a member of bridge, or
+			 * 2. Requested by user, or
+			 * 3. In monitor (or adhoc-demo) mode.
+			 */
+			if (ifp->if_bridge == NULL ||
+			    (ifp->if_flags & IFF_PPROMISC) != 0 ||
+			    vap->iv_opmode == IEEE80211_M_MONITOR ||
+			    (vap->iv_opmode == IEEE80211_M_AHDEMO &&
+			    (vap->iv_caps & IEEE80211_C_TDMA) == 0)) {
+				ieee80211_promisc(vap,
+				    ifp->if_flags & IFF_PROMISC);
+				vap->iv_ifflags ^= IFF_PROMISC;
+			}
+		}
+		if ((ifp->if_flags ^ vap->iv_ifflags) & IFF_ALLMULTI) {
 			ieee80211_allmulti(vap, ifp->if_flags & IFF_ALLMULTI);
-		vap->iv_ifflags = ifp->if_flags;
+			vap->iv_ifflags ^= IFF_ALLMULTI;
+		}
 		if (ifp->if_flags & IFF_UP) {
 			/*
 			 * Bring ourself up unless we're already operational.
