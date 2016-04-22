@@ -305,11 +305,10 @@ struct l_dirent64 {
  * at least glibc-2.7 requires it. That is why l_dirent is padded with 2 bytes.
  */
 #define LINUX_RECLEN(namlen)						\
-    roundup((offsetof(struct l_dirent, d_name) + (namlen) + 2),		\
-    sizeof(l_ulong))
+    roundup(offsetof(struct l_dirent, d_name) + (namlen) + 2, sizeof(l_ulong))
 
 #define LINUX_RECLEN64(namlen)						\
-    roundup((offsetof(struct l_dirent64, d_name) + (namlen) + 1),	\
+    roundup(offsetof(struct l_dirent64, d_name) + (namlen) + 1,		\
     sizeof(uint64_t))
 
 #define LINUX_MAXRECLEN		max(LINUX_RECLEN(LINUX_NAME_MAX),	\
