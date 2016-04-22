@@ -264,6 +264,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 #if VM_NRESERVLEVEL > 0
 	LIST_INIT(&object->rvq);
 #endif
+	umtx_shm_object_init(object);
 }
 
 /*
@@ -475,6 +476,9 @@ vm_object_vndeallocate(vm_object_t object)
 	}
 #endif
 
+	if (object->ref_count == 1)
+		umtx_shm_object_terminated(object);
+
 	/*
 	 * The test for text of vp vnode does not need a bypass to
 	 * reach right VV_TEXT there, since it is obtained from
@@ -647,6 +651,7 @@ retry:
 			return;
 		}
 doterm:
+		umtx_shm_object_terminated(object);
 		temp = object->backing_object;
 		if (temp != NULL) {
 			KASSERT((object->flags & OBJ_TMPFS_NODE) == 0,
@@ -2014,7 +2019,7 @@ vm_object_populate(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 	for (pindex = start; pindex < end; pindex++) {
 		m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
 		if (m->valid != VM_PAGE_BITS_ALL) {
-			rv = vm_pager_get_pages(object, &m, 1, 0);
+			rv = vm_pager_get_pages(object, &m, 1, NULL, NULL);
 			if (rv != VM_PAGER_OK) {
 				vm_page_lock(m);
 				vm_page_free(m);

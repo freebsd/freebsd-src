@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 #include <sys/time.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -92,6 +93,7 @@ static void ioat_submit_single(struct ioat_softc *ioat);
 static void ioat_comp_update_map(void *arg, bus_dma_segment_t *seg, int nseg,
     int error);
 static int ioat_reset_hw(struct ioat_softc *ioat);
+static void ioat_reset_hw_task(void *, int);
 static void ioat_setup_sysctl(device_t device);
 static int sysctl_handle_reset(SYSCTL_HANDLER_ARGS);
 static inline struct ioat_softc *ioat_get(struct ioat_softc *,
@@ -308,9 +310,13 @@ ioat_detach(device_t device)
 	ioat = DEVICE2SOFTC(device);
 
 	ioat_test_detach();
+	taskqueue_drain(taskqueue_thread, &ioat->reset_task);
 
 	mtx_lock(IOAT_REFLK);
 	ioat->quiescing = TRUE;
+	ioat->destroying = TRUE;
+	wakeup(&ioat->quiescing);
+
 	ioat_channel[ioat->chan_idx] = NULL;
 
 	ioat_drain_locked(ioat);
@@ -414,6 +420,7 @@ ioat3_attach(device_t device)
 	mtx_init(&ioat->submit_lock, "ioat_submit", NULL, MTX_DEF);
 	mtx_init(&ioat->cleanup_lock, "ioat_cleanup", NULL, MTX_DEF);
 	callout_init(&ioat->timer, 1);
+	TASK_INIT(&ioat->reset_task, 0, ioat_reset_hw_task, ioat);
 
 	/* Establish lock order for Witness */
 	mtx_lock(&ioat->submit_lock);
@@ -630,8 +637,14 @@ ioat_process_events(struct ioat_softc *ioat)
 
 	CTR0(KTR_IOAT, __func__);
 
-	if (status == ioat->last_seen)
+	if (status == ioat->last_seen) {
+		/*
+		 * If we landed in process_events and nothing has been
+		 * completed, check for a timeout due to channel halt.
+		 */
+		comp_update = ioat_get_chansts(ioat);
 		goto out;
+	}
 
 	while (1) {
 		desc = ioat_get_ring_entry(ioat, ioat->tail);
@@ -661,10 +674,12 @@ out:
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 	mtx_unlock(&ioat->cleanup_lock);
 
-	ioat_putn(ioat, completed, IOAT_ACTIVE_DESCR_REF);
-	wakeup(&ioat->tail);
+	if (completed != 0) {
+		ioat_putn(ioat, completed, IOAT_ACTIVE_DESCR_REF);
+		wakeup(&ioat->tail);
+	}
 
-	if (!is_ioat_halted(comp_update))
+	if (!is_ioat_halted(comp_update) && !is_ioat_suspended(comp_update))
 		return;
 
 	ioat->stats.channel_halts++;
@@ -704,26 +719,63 @@ out:
 	mtx_unlock(&ioat->submit_lock);
 
 	ioat_log_message(0, "Resetting channel to recover from error\n");
+	error = taskqueue_enqueue(taskqueue_thread, &ioat->reset_task);
+	KASSERT(error == 0,
+	    ("%s: taskqueue_enqueue failed: %d", __func__, error));
+}
+
+static void
+ioat_reset_hw_task(void *ctx, int pending __unused)
+{
+	struct ioat_softc *ioat;
+	int error;
+
+	ioat = ctx;
+	ioat_log_message(1, "%s: Resetting channel\n", __func__);
+
 	error = ioat_reset_hw(ioat);
 	KASSERT(error == 0, ("%s: reset failed: %d", __func__, error));
+	(void)error;
 }
 
 /*
  * User API functions
  */
 bus_dmaengine_t
-ioat_get_dmaengine(uint32_t index)
+ioat_get_dmaengine(uint32_t index, int flags)
 {
-	struct ioat_softc *sc;
+	struct ioat_softc *ioat;
+
+	KASSERT((flags & ~(M_NOWAIT | M_WAITOK)) == 0,
+	    ("invalid flags: 0x%08x", flags));
+	KASSERT((flags & (M_NOWAIT | M_WAITOK)) != (M_NOWAIT | M_WAITOK),
+	    ("invalid wait | nowait"));
 
 	if (index >= ioat_channel_index)
 		return (NULL);
 
-	sc = ioat_channel[index];
-	if (sc == NULL || sc->quiescing)
+	ioat = ioat_channel[index];
+	if (ioat == NULL || ioat->destroying)
 		return (NULL);
 
-	return (&ioat_get(sc, IOAT_DMAENGINE_REF)->dmaengine);
+	if (ioat->quiescing) {
+		if ((flags & M_NOWAIT) != 0)
+			return (NULL);
+
+		mtx_lock(IOAT_REFLK);
+		while (ioat->quiescing && !ioat->destroying)
+			msleep(&ioat->quiescing, IOAT_REFLK, 0, "getdma", 0);
+		mtx_unlock(IOAT_REFLK);
+
+		if (ioat->destroying)
+			return (NULL);
+	}
+
+	/*
+	 * There's a race here between the quiescing check and HW reset or
+	 * module destroy.
+	 */
+	return (&ioat_get(ioat, IOAT_DMAENGINE_REF)->dmaengine);
 }
 
 void
@@ -733,6 +785,24 @@ ioat_put_dmaengine(bus_dmaengine_t dmaengine)
 
 	ioat = to_ioat_softc(dmaengine);
 	ioat_put(ioat, IOAT_DMAENGINE_REF);
+}
+
+int
+ioat_get_hwversion(bus_dmaengine_t dmaengine)
+{
+	struct ioat_softc *ioat;
+
+	ioat = to_ioat_softc(dmaengine);
+	return (ioat->version);
+}
+
+size_t
+ioat_get_max_io_size(bus_dmaengine_t dmaengine)
+{
+	struct ioat_softc *ioat;
+
+	ioat = to_ioat_softc(dmaengine);
+	return (ioat->max_xfer_size);
 }
 
 int
@@ -769,6 +839,21 @@ ioat_acquire(bus_dmaengine_t dmaengine)
 	ioat = to_ioat_softc(dmaengine);
 	mtx_lock(&ioat->submit_lock);
 	CTR0(KTR_IOAT, __func__);
+}
+
+int
+ioat_acquire_reserve(bus_dmaengine_t dmaengine, unsigned n, int mflags)
+{
+	struct ioat_softc *ioat;
+	int error;
+
+	ioat = to_ioat_softc(dmaengine);
+	ioat_acquire(dmaengine);
+
+	error = ioat_reserve_space(ioat, n, mflags);
+	if (error != 0)
+		ioat_release(dmaengine);
+	return (error);
 }
 
 void
@@ -819,6 +904,8 @@ ioat_op_generic(struct ioat_softc *ioat, uint8_t op,
 
 	if ((flags & DMA_INT_EN) != 0)
 		hw_desc->u.control_generic.int_enable = 1;
+	if ((flags & DMA_FENCE) != 0)
+		hw_desc->u.control_generic.fence = 1;
 
 	hw_desc->size = size;
 	hw_desc->src_addr = src;
@@ -1509,6 +1596,7 @@ ioat_reset_hw(struct ioat_softc *ioat)
 out:
 	mtx_lock(IOAT_REFLK);
 	ioat->quiescing = FALSE;
+	wakeup(&ioat->quiescing);
 	mtx_unlock(IOAT_REFLK);
 
 	if (error == 0)

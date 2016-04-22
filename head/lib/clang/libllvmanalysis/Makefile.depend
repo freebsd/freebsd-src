@@ -6,59 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-AliasAnalysis.o: Intrinsics.inc.h
-AliasAnalysis.po: Intrinsics.inc.h
-AliasSetTracker.o: Intrinsics.inc.h
-AliasSetTracker.po: Intrinsics.inc.h
-AssumptionCache.o: Intrinsics.inc.h
-AssumptionCache.po: Intrinsics.inc.h
-BasicAliasAnalysis.o: Intrinsics.inc.h
-BasicAliasAnalysis.po: Intrinsics.inc.h
-CFLAliasAnalysis.o: Intrinsics.inc.h
-CFLAliasAnalysis.po: Intrinsics.inc.h
-CodeMetrics.o: Intrinsics.inc.h
-CodeMetrics.po: Intrinsics.inc.h
-ConstantFolding.o: Intrinsics.inc.h
-ConstantFolding.po: Intrinsics.inc.h
-CostModel.o: Intrinsics.inc.h
-CostModel.po: Intrinsics.inc.h
-DivergenceAnalysis.o: Intrinsics.inc.h
-DivergenceAnalysis.po: Intrinsics.inc.h
-InstCount.o: Intrinsics.inc.h
-InstCount.po: Intrinsics.inc.h
-InstructionSimplify.o: Intrinsics.inc.h
-InstructionSimplify.po: Intrinsics.inc.h
-LazyCallGraph.o: Intrinsics.inc.h
-LazyCallGraph.po: Intrinsics.inc.h
-LazyValueInfo.o: Intrinsics.inc.h
-LazyValueInfo.po: Intrinsics.inc.h
-Lint.o: Intrinsics.inc.h
-Lint.po: Intrinsics.inc.h
-Loads.o: Intrinsics.inc.h
-Loads.po: Intrinsics.inc.h
-LoopAccessAnalysis.o: Intrinsics.inc.h
-LoopAccessAnalysis.po: Intrinsics.inc.h
-MemoryBuiltins.o: Intrinsics.inc.h
-MemoryBuiltins.po: Intrinsics.inc.h
-MemoryDependenceAnalysis.o: Intrinsics.inc.h
-MemoryDependenceAnalysis.po: Intrinsics.inc.h
-MemoryLocation.o: Intrinsics.inc.h
-MemoryLocation.po: Intrinsics.inc.h
-PtrUseVisitor.o: Intrinsics.inc.h
-PtrUseVisitor.po: Intrinsics.inc.h
-ScalarEvolutionExpander.o: Intrinsics.inc.h
-ScalarEvolutionExpander.po: Intrinsics.inc.h
-TargetTransformInfo.o: Intrinsics.inc.h
-TargetTransformInfo.po: Intrinsics.inc.h
-ValueTracking.o: Intrinsics.inc.h
-ValueTracking.po: Intrinsics.inc.h
-VectorUtils.o: Intrinsics.inc.h
-VectorUtils.po: Intrinsics.inc.h
 .endif

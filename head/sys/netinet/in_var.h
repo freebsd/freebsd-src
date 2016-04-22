@@ -129,9 +129,6 @@ extern	struct rmlock in_ifaddr_lock;
 #define	IN_IFADDR_WLOCK_ASSERT()	rm_assert(&in_ifaddr_lock, RA_WLOCKED)
 #define	IN_IFADDR_WUNLOCK()	rm_wunlock(&in_ifaddr_lock)
 
-#define	IFA_IN(ifa) \
-	(&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr)
-
 /*
  * Macro for finding the internet address structure (in_ifaddr)
  * corresponding to one of our IP addresses (in_addr).
@@ -354,7 +351,6 @@ inm_acquire_locked(struct in_multi *inm)
 struct	rtentry;
 struct	route;
 struct	ip_moptions;
-struct radix_node_head;
 
 struct in_multi *inm_lookup_locked(struct ifnet *, const struct in_addr);
 struct in_multi *inm_lookup(struct ifnet *, const struct in_addr);
@@ -390,8 +386,6 @@ void	in_domifdetach(struct ifnet *, void *);
 
 /* XXX */
 void	 in_rtalloc_ign(struct route *ro, u_long ignflags, u_int fibnum);
-void	 in_rtalloc(struct route *ro, u_int fibnum);
-struct rtentry *in_rtalloc1(struct sockaddr *, int, u_long, u_int);
 void	 in_rtredirect(struct sockaddr *, struct sockaddr *,
 	    struct sockaddr *, int, struct sockaddr *, u_int);
 #endif /* _KERNEL */

@@ -3018,11 +3018,14 @@ reserve_pv_entries(pmap_t pmap, int needed, struct rwlock **lockp)
 retry:
 	avail = 0;
 	TAILQ_FOREACH(pc, &pmap->pm_pvchunk, pc_list) {
+#ifndef __POPCNT__
 		if ((cpu_feature2 & CPUID2_POPCNT) == 0) {
 			free = bitcount64(pc->pc_map[0]);
 			free += bitcount64(pc->pc_map[1]);
 			free += bitcount64(pc->pc_map[2]);
-		} else {
+		} else
+#endif
+		{
 			free = popcnt_pc_map_elem_pq(pc->pc_map[0]);
 			free += popcnt_pc_map_elem_pq(pc->pc_map[1]);
 			free += popcnt_pc_map_elem_pq(pc->pc_map[2]);

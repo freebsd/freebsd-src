@@ -7,11 +7,11 @@ size_t key_cnt = 0;
 
 int
 make_mac(
-	char *pkt_data,
+	const void *pkt_data,
 	int pkt_size,
 	int mac_size,
-	struct key *cmp_key,
-	char * digest
+	const struct key *cmp_key,
+	void * digest
 	)
 {
 	u_int		len = mac_size;
@@ -26,39 +26,40 @@ make_mac(
 	INIT_SSL();
 	key_type = keytype_from_text(cmp_key->type, NULL);
 	EVP_DigestInit(&ctx, EVP_get_digestbynid(key_type));
-	EVP_DigestUpdate(&ctx, (u_char *)cmp_key->key_seq, (u_int)cmp_key->key_len);
-	EVP_DigestUpdate(&ctx, (u_char *)pkt_data, (u_int)pkt_size);
-	EVP_DigestFinal(&ctx, (u_char *)digest, &len);
+	EVP_DigestUpdate(&ctx, (const u_char *)cmp_key->key_seq, (u_int)cmp_key->key_len);
+	EVP_DigestUpdate(&ctx, pkt_data, (u_int)pkt_size);
+	EVP_DigestFinal(&ctx, digest, &len);
 
 	return (int)len;
 }
 
 
-/* Generates a md5 digest of the key specified in keyid concatinated with the 
+/* Generates a md5 digest of the key specified in keyid concatenated with the 
  * ntp packet (exluding the MAC) and compares this digest to the digest in
  * the packet's MAC. If they're equal this function returns 1 (packet is 
  * authentic) or else 0 (not authentic).
  */
 int
 auth_md5(
-	char *pkt_data,
+	const void *pkt_data,
 	int pkt_size,
 	int mac_size,
-	struct key *cmp_key
+	const struct key *cmp_key
 	)
 {
 	int  hash_len;
 	int  authentic;
 	char digest[20];
-
+	const u_char *pkt_ptr; 
 	if (mac_size > (int)sizeof(digest))
 		return 0;
-	hash_len = make_mac(pkt_data, pkt_size, sizeof(digest), cmp_key,
+	pkt_ptr = pkt_data;
+	hash_len = make_mac(pkt_ptr, pkt_size, sizeof(digest), cmp_key,
 			    digest);
 	if (!hash_len)
 		authentic = FALSE;
 	else
-		authentic = !memcmp(digest, pkt_data + pkt_size + 4,
+		authentic = !memcmp(digest, pkt_ptr + pkt_size + 4,
 				    hash_len);
 	return authentic;
 }

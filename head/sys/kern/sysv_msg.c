@@ -1518,8 +1518,7 @@ sys_msgsys(td, uap)
 
 	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
-	if (uap->which < 0 ||
-	    uap->which >= sizeof(msgcalls)/sizeof(msgcalls[0]))
+	if (uap->which < 0 || uap->which >= nitems(msgcalls))
 		return (EINVAL);
 	error = (*msgcalls[uap->which])(td, &uap->a2);
 	return (error);

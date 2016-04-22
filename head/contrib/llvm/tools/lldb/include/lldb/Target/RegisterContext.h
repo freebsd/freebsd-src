@@ -29,8 +29,7 @@ public:
     //------------------------------------------------------------------
     RegisterContext (Thread &thread, uint32_t concrete_frame_idx);
 
-    virtual
-    ~RegisterContext ();
+    ~RegisterContext() override;
 
     void
     InvalidateIfNeeded (bool force);
@@ -93,7 +92,7 @@ public:
     ///
     /// There may be multiple ways to enumerate the registers for a given
     /// architecture.  ABI references will specify one to be used with
-    /// DWARF, the register numberings from stabs (aka "gcc"), there may
+    /// DWARF, the register numberings from process plugin, there may
     /// be a variation used for eh_frame unwind instructions (e.g. on Darwin),
     /// and so on.  Register 5 by itself is meaningless - RegisterKind
     /// enumeration tells you what context that number should be translated as.
@@ -213,26 +212,27 @@ public:
 
     bool
     WriteRegisterFromUnsigned (const RegisterInfo *reg_info, uint64_t uval);
+
     bool
     ConvertBetweenRegisterKinds (lldb::RegisterKind source_rk, uint32_t source_regnum, lldb::RegisterKind target_rk, uint32_t& target_regnum);
 
     //------------------------------------------------------------------
     // lldb::ExecutionContextScope pure virtual functions
     //------------------------------------------------------------------
-    virtual lldb::TargetSP
-    CalculateTarget ();
+    lldb::TargetSP
+    CalculateTarget() override;
     
-    virtual lldb::ProcessSP
-    CalculateProcess ();
+    lldb::ProcessSP
+    CalculateProcess() override;
     
-    virtual lldb::ThreadSP
-    CalculateThread ();
+    lldb::ThreadSP
+    CalculateThread() override;
     
-    virtual lldb::StackFrameSP
-    CalculateStackFrame ();
+    lldb::StackFrameSP
+    CalculateStackFrame() override;
 
-    virtual void
-    CalculateExecutionContext (ExecutionContext &exe_ctx);
+    void
+    CalculateExecutionContext(ExecutionContext &exe_ctx) override;
 
     uint32_t
     GetStopID () const
@@ -262,4 +262,4 @@ private:
 
 } // namespace lldb_private
 
-#endif  // liblldb_RegisterContext_h_
+#endif // liblldb_RegisterContext_h_

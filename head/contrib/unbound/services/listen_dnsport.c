@@ -99,7 +99,7 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 	int rcv, int snd, int listen, int* reuseport, int transparent)
 {
 	int s;
-#if defined(SO_REUSEADDR) || defined(SO_REUSEPORT) || defined(IPV6_USE_MIN_MTU)  || defined(IP_TRANSPARENT)
+#if defined(SO_REUSEADDR) || defined(SO_REUSEPORT) || defined(IPV6_USE_MIN_MTU)  || defined(IP_TRANSPARENT) || defined(IP_BINDANY)
 	int on=1;
 #endif
 #ifdef IPV6_MTU
@@ -114,7 +114,7 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 #ifndef IPV6_V6ONLY
 	(void)v6only;
 #endif
-#ifndef IP_TRANSPARENT
+#if !defined(IP_TRANSPARENT) && !defined(IP_BINDANY)
 	(void)transparent;
 #endif
 	if((s = socket(family, socktype, 0)) == -1) {
@@ -187,7 +187,14 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 			log_warn("setsockopt(.. IP_TRANSPARENT ..) failed: %s",
 			strerror(errno));
 		}
-#endif /* IP_TRANSPARENT */
+#elif defined(IP_BINDANY)
+		if (transparent &&
+		    setsockopt(s, (family==AF_INET6? IPPROTO_IPV6:IPPROTO_IP),
+		    IP_BINDANY, (void*)&on, (socklen_t)sizeof(on)) < 0) {
+			log_warn("setsockopt(.. IP_BINDANY ..) failed: %s",
+			strerror(errno));
+		}
+#endif /* IP_TRANSPARENT || IP_BINDANY */
 	}
 	if(rcv) {
 #ifdef SO_RCVBUF
@@ -483,7 +490,7 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 
 int
 create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
-	int* reuseport, int transparent)
+	int* reuseport, int transparent, int mss)
 {
 	int s;
 #if defined(SO_REUSEADDR) || defined(SO_REUSEPORT) || defined(IPV6_V6ONLY) || defined(IP_TRANSPARENT)
@@ -511,6 +518,25 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 			wsa_strerror(WSAGetLastError()));
 #endif
 		return -1;
+	}
+	if (mss > 0) {
+#if defined(IPPROTO_TCP) && defined(TCP_MAXSEG)
+		if(setsockopt(s, IPPROTO_TCP, TCP_MAXSEG, (void*)&mss,
+			(socklen_t)sizeof(mss)) < 0) {
+			#ifndef USE_WINSOCK
+			log_err(" setsockopt(.. TCP_MAXSEG ..) failed: %s",
+				strerror(errno));
+			#else
+			log_err(" setsockopt(.. TCP_MAXSEG ..) failed: %s",
+				wsa_strerror(WSAGetLastError()));
+			#endif
+		} else {
+			verbose(VERB_ALGO,
+				" tcp socket mss set to %d", mss);
+		}
+#else
+		log_warn(" setsockopt(TCP_MAXSEG) unsupported");
+#endif /* defined(IPPROTO_TCP) && defined(TCP_MAXSEG) */
 	}
 #ifdef SO_REUSEADDR
 	if(setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void*)&on, 
@@ -678,7 +704,7 @@ create_local_accept_sock(const char *path, int* noproto)
 static int
 make_sock(int stype, const char* ifname, const char* port, 
 	struct addrinfo *hints, int v6only, int* noip6, size_t rcv, size_t snd,
-	int* reuseport, int transparent)
+	int* reuseport, int transparent, int tcp_mss)
 {
 	struct addrinfo *res = NULL;
 	int r, s, inuse, noproto;
@@ -714,7 +740,7 @@ make_sock(int stype, const char* ifname, const char* port,
 		}
 	} else	{
 		s = create_tcp_accept_sock(res, v6only, &noproto, reuseport,
-			transparent);
+			transparent, tcp_mss);
 		if(s == -1 && noproto && hints->ai_family == AF_INET6){
 			*noip6 = 1;
 		}
@@ -727,7 +753,7 @@ make_sock(int stype, const char* ifname, const char* port,
 static int
 make_sock_port(int stype, const char* ifname, const char* port, 
 	struct addrinfo *hints, int v6only, int* noip6, size_t rcv, size_t snd,
-	int* reuseport, int transparent)
+	int* reuseport, int transparent, int tcp_mss)
 {
 	char* s = strchr(ifname, '@');
 	if(s) {
@@ -749,10 +775,10 @@ make_sock_port(int stype, const char* ifname, const char* port,
 		(void)strlcpy(p, s+1, sizeof(p));
 		p[strlen(s+1)]=0;
 		return make_sock(stype, newif, p, hints, v6only, noip6,
-			rcv, snd, reuseport, transparent);
+			rcv, snd, reuseport, transparent, tcp_mss);
 	}
 	return make_sock(stype, ifname, port, hints, v6only, noip6, rcv, snd,
-		reuseport, transparent);
+		reuseport, transparent, tcp_mss);
 }
 
 /**
@@ -847,19 +873,22 @@ set_recvpktinfo(int s, int family)
  * @param reuseport: try to set SO_REUSEPORT if nonNULL and true.
  * 	set to false on exit if reuseport failed due to no kernel support.
  * @param transparent: set IP_TRANSPARENT socket option.
+ * @param tcp_mss: maximum segment size of tcp socket. default if zero.
  * @return: returns false on error.
  */
 static int
 ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp, 
 	struct addrinfo *hints, const char* port, struct listen_port** list,
-	size_t rcv, size_t snd, int ssl_port, int* reuseport, int transparent)
+	size_t rcv, size_t snd, int ssl_port, int* reuseport, int transparent,
+	int tcp_mss)
 {
 	int s, noip6=0;
 	if(!do_udp && !do_tcp)
 		return 0;
 	if(do_auto) {
 		if((s = make_sock_port(SOCK_DGRAM, ifname, port, hints, 1, 
-			&noip6, rcv, snd, reuseport, transparent)) == -1) {
+			&noip6, rcv, snd, reuseport, transparent,
+			tcp_mss)) == -1) {
 			if(noip6) {
 				log_warn("IPv6 protocol not available");
 				return 1;
@@ -886,7 +915,8 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 	} else if(do_udp) {
 		/* regular udp socket */
 		if((s = make_sock_port(SOCK_DGRAM, ifname, port, hints, 1, 
-			&noip6, rcv, snd, reuseport, transparent)) == -1) {
+			&noip6, rcv, snd, reuseport, transparent,
+			tcp_mss)) == -1) {
 			if(noip6) {
 				log_warn("IPv6 protocol not available");
 				return 1;
@@ -907,7 +937,7 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 			atoi(strchr(ifname, '@')+1) == ssl_port) ||
 			(!strchr(ifname, '@') && atoi(port) == ssl_port));
 		if((s = make_sock_port(SOCK_STREAM, ifname, port, hints, 1, 
-			&noip6, 0, 0, reuseport, transparent)) == -1) {
+			&noip6, 0, 0, reuseport, transparent, tcp_mss)) == -1) {
 			if(noip6) {
 				/*log_warn("IPv6 protocol not available");*/
 				return 1;
@@ -1064,7 +1094,8 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 				&hints, portbuf, &list,
 				cfg->so_rcvbuf, cfg->so_sndbuf,
 				cfg->ssl_port, reuseport,
-				cfg->ip_transparent)) {
+				cfg->ip_transparent,
+				cfg->tcp_mss)) {
 				listening_ports_free(list);
 				return NULL;
 			}
@@ -1076,7 +1107,8 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 				&hints, portbuf, &list,
 				cfg->so_rcvbuf, cfg->so_sndbuf,
 				cfg->ssl_port, reuseport,
-				cfg->ip_transparent)) {
+				cfg->ip_transparent,
+				cfg->tcp_mss)) {
 				listening_ports_free(list);
 				return NULL;
 			}
@@ -1090,7 +1122,8 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 				do_tcp, &hints, portbuf, &list, 
 				cfg->so_rcvbuf, cfg->so_sndbuf,
 				cfg->ssl_port, reuseport,
-				cfg->ip_transparent)) {
+				cfg->ip_transparent,
+				cfg->tcp_mss)) {
 				listening_ports_free(list);
 				return NULL;
 			}
@@ -1102,7 +1135,8 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 				do_tcp, &hints, portbuf, &list, 
 				cfg->so_rcvbuf, cfg->so_sndbuf,
 				cfg->ssl_port, reuseport,
-				cfg->ip_transparent)) {
+				cfg->ip_transparent,
+				cfg->tcp_mss)) {
 				listening_ports_free(list);
 				return NULL;
 			}

@@ -103,7 +103,7 @@ main(int argc, char *argv[])
 			printf("?Ambiguous command\n");
 			exit(1);
 		}
-		if (c == 0) {
+		if (c == NULL) {
 			printf("?Invalid command\n");
 			exit(1);
 		}
@@ -112,7 +112,7 @@ main(int argc, char *argv[])
 			printf("?Privileged command\n");
 			exit(1);
 		}
-		if (c->c_generic != 0)
+		if (c->c_generic != NULL)
 			generic(c->c_generic, c->c_opts, c->c_handler,
 			    argc, argv);
 		else
@@ -205,7 +205,7 @@ cmdscanner(void)
 			printf("?Ambiguous command\n");
 			continue;
 		}
-		if (c == 0) {
+		if (c == NULL) {
 			printf("?Invalid command\n");
 			continue;
 		}
@@ -222,7 +222,7 @@ cmdscanner(void)
 		 * routine might also be set on a generic routine for
 		 * initial parameter processing.
 		 */
-		if (c->c_generic != 0)
+		if (c->c_generic != NULL)
 			generic(c->c_generic, c->c_opts, c->c_handler,
 			    margc, margv);
 		else
@@ -239,7 +239,7 @@ getcmd(const char *name)
 
 	longest = 0;
 	nmatches = 0;
-	found = 0;
+	found = NULL;
 	for (c = cmdtab; (p = c->c_name); c++) {
 		for (q = name; *q == *p++; q++)
 			if (*q == 0)		/* exact match? */
@@ -283,7 +283,7 @@ makeargv(void)
 			break;
 		*cp++ = '\0';
 	}
-	*argp++ = 0;
+	*argp++ = NULL;
 }
 
 #define HELPINDENT (sizeof ("directory"))

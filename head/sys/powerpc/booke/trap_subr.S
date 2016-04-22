@@ -686,7 +686,7 @@ pte_lookup:
 	 * This load may cause a Data TLB miss for non-kernel pmap!
 	 */
 	lwz	%r21, PTE_FLAGS(%r25)
-	andis.	%r21, %r21, PTE_VALID@h
+	andi.	%r21, %r21, PTE_VALID@l
 	bne	2f
 1:
 	li	%r25, 0
@@ -721,20 +721,21 @@ tlb_fill_entry:
 
 	andi.	%r22, %r21, (PTE_SW | PTE_UW)@l	/* check if writable */
 	beq	2f
-	oris	%r21, %r21, PTE_MODIFIED@h	/* set modified bit */
+	ori	%r21, %r21, PTE_MODIFIED@l	/* set modified bit */
 2:
 	stwcx.	%r21, %r23, %r25		/* write it back */
 	bne-	1b
 
 	/* Update MAS2. */
-	rlwimi	%r27, %r21, 0, 27, 30		/* insert WIMG bits from pte */
+	rlwimi	%r27, %r21, 13, 27, 30		/* insert WIMG bits from pte */
 
 	/* Setup MAS3 value in r23. */
 	lwz	%r23, PTE_RPN(%r25)		/* get pte->rpn */
-	rlwinm	%r22, %r23, 12, 0, 20		/* extract MAS3 portion of RPN */
+	rlwinm	%r22, %r23, 20, 0, 11		/* extract MAS3 portion of RPN */
 
-	rlwimi	%r22, %r21, 24, 26, 31		/* insert protection bits from pte */
-	rlwinm	%r23, %r23, 12, 28, 31		/* MAS7 portion of RPN */
+	rlwimi	%r22, %r21, 30, 26, 31		/* insert protection bits from pte */
+	rlwimi	%r22, %r21, 20, 12, 19		/* insert lower 8 RPN bits to MAS3 */
+	rlwinm	%r23, %r23, 20, 24, 31		/* MAS7 portion of RPN */
 
 	/* Load MAS registers. */
 	mtspr	SPR_MAS0, %r29

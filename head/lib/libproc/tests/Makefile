@@ -1,5 +1,9 @@
 # $FreeBSD$
 
+PACKAGE=tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 ATF_TESTS_C+=	proc_test
 
 PROGS=		target_prog
@@ -11,7 +15,5 @@ LIBADD=	elf proc rtld_db util
 # Ensure that symbols aren't stripped from the test program, as they're needed
 # for testing symbol lookup.
 STRIP=
-
-WARNS?=	6
 
 .include <bsd.test.mk>

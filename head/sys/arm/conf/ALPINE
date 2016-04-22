@@ -37,6 +37,7 @@ options 	DDB			#Enable the kernel debugger
 
 # Interrupt controller
 device		gic
+options 	INTRNG
 
 # Pseudo devices
 device		loop

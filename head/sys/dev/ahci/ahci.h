@@ -597,6 +597,7 @@ enum ahci_err_type {
 #define AHCI_Q_1MSI		0x00020000
 #define AHCI_Q_FORCE_PI		0x00040000
 #define AHCI_Q_RESTORE_CAP	0x00080000
+#define AHCI_Q_NOMSIX		0x00100000
 
 #define AHCI_Q_BIT_STRING	\
 	"\020"			\
@@ -619,14 +620,15 @@ enum ahci_err_type {
 	"\021ABAR0"		\
 	"\0221MSI"              \
 	"\023FORCE_PI"          \
-	"\024RESTORE_CAP"
+	"\024RESTORE_CAP"	\
+	"\025NOMSIX"
 
 int ahci_attach(device_t dev);
 int ahci_detach(device_t dev);
 int ahci_setup_interrupt(device_t dev);
 int ahci_print_child(device_t dev, device_t child);
 struct resource *ahci_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags);
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags);
 int ahci_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r);
 int ahci_setup_intr(device_t dev, device_t child, struct resource *irq, 

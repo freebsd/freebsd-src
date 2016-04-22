@@ -136,6 +136,7 @@ infinite:
 	while (1) {}
 }
 
+#ifndef INTRNG
 static int
 alpine_pic_decode_fdt(uint32_t iparent, uint32_t *intr, int *interrupt,
     int *trig, int *pol)
@@ -158,3 +159,4 @@ fdt_pic_decode_t fdt_pic_table[] = {
 	&alpine_pic_decode_fdt,
 	NULL
 };
+#endif

@@ -1,8 +1,13 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 ATF_TESTS_C+=		heapsort_test
 ATF_TESTS_C+=		mergesort_test
 ATF_TESTS_C+=		qsort_test
+ATF_TESTS_C+=		tsearch_test
 
 # TODO: t_getenv_thread, t_mi_vector_hash
 NETBSD_ATF_TESTS_C+=	abs_test

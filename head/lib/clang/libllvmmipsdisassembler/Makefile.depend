@@ -6,19 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-MipsDisassembler.o: MipsGenDisassemblerTables.inc.h
-MipsDisassembler.o: MipsGenInstrInfo.inc.h
-MipsDisassembler.o: MipsGenRegisterInfo.inc.h
-MipsDisassembler.o: MipsGenSubtargetInfo.inc.h
-MipsDisassembler.po: MipsGenDisassemblerTables.inc.h
-MipsDisassembler.po: MipsGenInstrInfo.inc.h
-MipsDisassembler.po: MipsGenRegisterInfo.inc.h
-MipsDisassembler.po: MipsGenSubtargetInfo.inc.h
 .endif

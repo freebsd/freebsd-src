@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,8 +35,25 @@
 #include <sys/socket.h>
 #include <net/if.h>
 #include <net/ethernet.h>
+#include <net/if_var.h>
 #include <net/if_vlan_var.h>
+#include <net/if_types.h>
 
 #define VLAN_N_VID              4096
+
+static inline int
+is_vlan_dev(struct ifnet *ifp)
+{
+	return (ifp->if_type == IFT_L2VLAN);
+}
+
+static inline uint16_t
+vlan_dev_vlan_id(struct ifnet *ifp)
+{
+	uint16_t vtag;
+	if (VLAN_TAG(ifp, &vtag) == 0)
+		return (vtag);
+	return (0);
+}
 
 #endif	/* _LINUX_IF_VLAN_H_ */

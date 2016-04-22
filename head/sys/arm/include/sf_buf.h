@@ -29,11 +29,13 @@
 #ifndef _MACHINE_SF_BUF_H_
 #define _MACHINE_SF_BUF_H_
 
+#include <machine/acle-compat.h>
+
 static inline void
 sf_buf_map(struct sf_buf *sf, int flags)
 {
 
-#ifdef ARM_NEW_PMAP
+#if __ARM_ARCH >= 6
 	pmap_qenter(sf->kva, &(sf->m), 1);
 #else
 	pmap_kenter(sf->kva, VM_PAGE_TO_PHYS(sf->m));
@@ -44,7 +46,7 @@ static inline int
 sf_buf_unmap(struct sf_buf *sf)
 {
 
-#ifdef ARM_NEW_PMAP
+#if __ARM_ARCH >= 6
 	pmap_qremove(sf->kva, 1);
 #else
 	pmap_kremove(sf->kva);

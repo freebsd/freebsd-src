@@ -1,9 +1,10 @@
 # $FreeBSD$
 .include <bsd.own.mk>
 
+PACKAGE=lib${LIB}
 INTERNALLIB=
 
-ELFTCDIR=	${.CURDIR}/../../contrib/elftoolchain
+ELFTCDIR=	${SRCTOP}/contrib/elftoolchain
 
 .PATH:	${ELFTCDIR}/libelftc
 
@@ -25,6 +26,6 @@ SRCS=	elftc_bfdtarget.c                       \
 INCS=	libelftc.h
 CFLAGS+=-I${ELFTCDIR}/libelftc -I${ELFTCDIR}/common
 
-NO_MAN=	yes
+MAN=
 
 .include <bsd.lib.mk>

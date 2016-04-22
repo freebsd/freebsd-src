@@ -1073,7 +1073,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 			    | IEEE80211_HTCAP_MAXAMSDU_3839
 			    				/* max A-MSDU length */
 			    | IEEE80211_HTCAP_SMPS_OFF;	/* SM power save off */
-			;
 
 		/*
 		 * Enable short-GI for HT20 only if the hardware
@@ -3484,10 +3483,10 @@ ath_update_mcast_hw(struct ath_softc *sc)
 				/* calculate XOR of eight 6bit values */
 				dl = LLADDR((struct sockaddr_dl *)
 				    ifma->ifma_addr);
-				val = LE_READ_4(dl + 0);
+				val = le32dec(dl + 0);
 				pos = (val >> 18) ^ (val >> 12) ^ (val >> 6) ^
 				    val;
-				val = LE_READ_4(dl + 3);
+				val = le32dec(dl + 3);
 				pos ^= (val >> 18) ^ (val >> 12) ^ (val >> 6) ^
 				    val;
 				pos &= 0x3f;
@@ -6160,7 +6159,7 @@ ath_announce(struct ath_softc *sc)
 {
 	struct ath_hal *ah = sc->sc_ah;
 
-	device_printf(sc->sc_dev, "AR%s mac %d.%d RF%s phy %d.%d\n",
+	device_printf(sc->sc_dev, "%s mac %d.%d RF%s phy %d.%d\n",
 		ath_hal_mac_name(ah), ah->ah_macVersion, ah->ah_macRev,
 		ath_hal_rf_name(ah), ah->ah_phyRev >> 4, ah->ah_phyRev & 0xf);
 	device_printf(sc->sc_dev, "2GHz radio: 0x%.4x; 5GHz radio: 0x%.4x\n",

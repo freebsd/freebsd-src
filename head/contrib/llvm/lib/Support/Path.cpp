@@ -455,17 +455,15 @@ void append(SmallVectorImpl<char> &path, const Twine &a,
   if (!c.isTriviallyEmpty()) components.push_back(c.toStringRef(c_storage));
   if (!d.isTriviallyEmpty()) components.push_back(d.toStringRef(d_storage));
 
-  for (SmallVectorImpl<StringRef>::const_iterator i = components.begin(),
-                                                  e = components.end();
-                                                  i != e; ++i) {
+  for (auto &component : components) {
     bool path_has_sep = !path.empty() && is_separator(path[path.size() - 1]);
-    bool component_has_sep = !i->empty() && is_separator((*i)[0]);
-    bool is_root_name = has_root_name(*i);
+    bool component_has_sep = !component.empty() && is_separator(component[0]);
+    bool is_root_name = has_root_name(component);
 
     if (path_has_sep) {
       // Strip separators from beginning of component.
-      size_t loc = i->find_first_not_of(separators);
-      StringRef c = i->substr(loc);
+      size_t loc = component.find_first_not_of(separators);
+      StringRef c = component.substr(loc);
 
       // Append it.
       path.append(c.begin(), c.end());
@@ -477,7 +475,7 @@ void append(SmallVectorImpl<char> &path, const Twine &a,
       path.push_back(preferred_separator);
     }
 
-    path.append(i->begin(), i->end());
+    path.append(component.begin(), component.end());
   }
 }
 
@@ -661,8 +659,51 @@ bool is_absolute(const Twine &path) {
   return rootDir && rootName;
 }
 
-bool is_relative(const Twine &path) {
-  return !is_absolute(path);
+bool is_relative(const Twine &path) { return !is_absolute(path); }
+
+StringRef remove_leading_dotslash(StringRef Path) {
+  // Remove leading "./" (or ".//" or "././" etc.)
+  while (Path.size() > 2 && Path[0] == '.' && is_separator(Path[1])) {
+    Path = Path.substr(2);
+    while (Path.size() > 0 && is_separator(Path[0]))
+      Path = Path.substr(1);
+  }
+  return Path;
+}
+
+static SmallString<256> remove_dots(StringRef path, bool remove_dot_dot) {
+  SmallVector<StringRef, 16> components;
+
+  // Skip the root path, then look for traversal in the components.
+  StringRef rel = path::relative_path(path);
+  for (StringRef C : llvm::make_range(path::begin(rel), path::end(rel))) {
+    if (C == ".")
+      continue;
+    if (remove_dot_dot) {
+      if (C == "..") {
+        if (!components.empty())
+          components.pop_back();
+        continue;
+      }
+    }
+    components.push_back(C);
+  }
+
+  SmallString<256> buffer = path::root_path(path);
+  for (StringRef C : components)
+    path::append(buffer, C);
+  return buffer;
+}
+
+bool remove_dots(SmallVectorImpl<char> &path, bool remove_dot_dot) {
+  StringRef p(path.data(), path.size());
+
+  SmallString<256> result = remove_dots(p, remove_dot_dot);
+  if (result == path)
+    return false;
+
+  path.swap(result);
+  return true;
 }
 
 } // end namespace path
@@ -732,7 +773,9 @@ std::error_code createUniqueDirectory(const Twine &Prefix,
                             true, 0, FS_Dir);
 }
 
-std::error_code make_absolute(SmallVectorImpl<char> &path) {
+static std::error_code make_absolute(const Twine &current_directory,
+                                     SmallVectorImpl<char> &path,
+                                     bool use_current_directory) {
   StringRef p(path.data(), path.size());
 
   bool rootDirectory = path::has_root_directory(p),
@@ -748,7 +791,9 @@ std::error_code make_absolute(SmallVectorImpl<char> &path) {
 
   // All of the following conditions will need the current directory.
   SmallString<128> current_dir;
-  if (std::error_code ec = current_path(current_dir))
+  if (use_current_directory)
+    current_directory.toVector(current_dir);
+  else if (std::error_code ec = current_path(current_dir))
     return ec;
 
   // Relative path. Prepend the current directory.
@@ -785,12 +830,22 @@ std::error_code make_absolute(SmallVectorImpl<char> &path) {
                    "occurred above!");
 }
 
-std::error_code create_directories(const Twine &Path, bool IgnoreExisting) {
+std::error_code make_absolute(const Twine &current_directory,
+                              SmallVectorImpl<char> &path) {
+  return make_absolute(current_directory, path, true);
+}
+
+std::error_code make_absolute(SmallVectorImpl<char> &path) {
+  return make_absolute(Twine(), path, false);
+}
+
+std::error_code create_directories(const Twine &Path, bool IgnoreExisting,
+                                   perms Perms) {
   SmallString<128> PathStorage;
   StringRef P = Path.toStringRef(PathStorage);
 
   // Be optimistic and try to create the directory
-  std::error_code EC = create_directory(P, IgnoreExisting);
+  std::error_code EC = create_directory(P, IgnoreExisting, Perms);
   // If we succeeded, or had any error other than the parent not existing, just
   // return it.
   if (EC != errc::no_such_file_or_directory)
@@ -802,10 +857,10 @@ std::error_code create_directories(const Twine &Path, bool IgnoreExisting) {
   if (Parent.empty())
     return EC;
 
-  if ((EC = create_directories(Parent)))
+  if ((EC = create_directories(Parent, IgnoreExisting, Perms)))
       return EC;
 
-  return create_directory(P, IgnoreExisting);
+  return create_directory(P, IgnoreExisting, Perms);
 }
 
 std::error_code copy_file(const Twine &From, const Twine &To) {
@@ -889,8 +944,7 @@ std::error_code is_other(const Twine &Path, bool &Result) {
 }
 
 void directory_entry::replace_filename(const Twine &filename, file_status st) {
-  SmallString<128> path(Path.begin(), Path.end());
-  path::remove_filename(path);
+  SmallString<128> path = path::parent_path(Path);
   path::append(path, filename);
   Path = path.str();
   Status = st;
@@ -940,7 +994,8 @@ file_magic identify_magic(StringRef Magic) {
       break;
     case '!':
       if (Magic.size() >= 8)
-        if (memcmp(Magic.data(),"!<arch>\n",8) == 0)
+        if (memcmp(Magic.data(), "!<arch>\n", 8) == 0 ||
+            memcmp(Magic.data(), "!<thin>\n", 8) == 0)
           return file_magic::archive;
       break;
 
@@ -1074,3 +1129,20 @@ std::error_code directory_entry::status(file_status &result) const {
 #if defined(LLVM_ON_WIN32)
 #include "Windows/Path.inc"
 #endif
+
+namespace llvm {
+namespace sys {
+namespace path {
+
+bool user_cache_directory(SmallVectorImpl<char> &Result, const Twine &Path1,
+                          const Twine &Path2, const Twine &Path3) {
+  if (getUserCacheDir(Result)) {
+    append(Result, Path1, Path2, Path3);
+    return true;
+  }
+  return false;
+}
+
+} // end namespace path
+} // end namsspace sys
+} // end namespace llvm

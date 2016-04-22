@@ -21,10 +21,11 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
- * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  * Copyright 2013 Saso Kiselkov. All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 #include <sys/zfs_context.h>
@@ -53,6 +54,11 @@
 #include <sys/ddt.h>
 #include "zfs_prop.h"
 #include <sys/zfeature.h>
+
+#if defined(__FreeBSD__) && defined(_KERNEL)
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#endif
 
 /*
  * SPA locking
@@ -254,35 +260,6 @@ int zfs_flags = 0;
  * in leaked space, or worse.
  */
 boolean_t zfs_recover = B_FALSE;
-SYSCTL_DECL(_vfs_zfs);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, recover, CTLFLAG_RWTUN, &zfs_recover, 0,
-    "Try to recover from otherwise-fatal errors.");
-
-static int
-sysctl_vfs_zfs_debug_flags(SYSCTL_HANDLER_ARGS)
-{
-	int err, val;
-
-	val = zfs_flags;
-	err = sysctl_handle_int(oidp, &val, 0, req);
-	if (err != 0 || req->newptr == NULL)
-		return (err);
-
-	/*
-	 * ZFS_DEBUG_MODIFY must be enabled prior to boot so all
-	 * arc buffers in the system have the necessary additional
-	 * checksum data.  However, it is safe to disable at any
-	 * time.
-	 */
-	if (!(zfs_flags & ZFS_DEBUG_MODIFY))
-		val &= ~ZFS_DEBUG_MODIFY;
-	zfs_flags = val;
-
-	return (0);
-}
-SYSCTL_PROC(_vfs_zfs, OID_AUTO, debug_flags,
-    CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RWTUN, 0, sizeof(int),
-    sysctl_vfs_zfs_debug_flags, "IU", "Debug flags for ZFS testing.");
 
 /*
  * If destroy encounters an EIO while reading metadata (e.g. indirect
@@ -324,26 +301,18 @@ boolean_t zfs_free_leak_on_eio = B_FALSE;
  * in a system panic.
  */
 uint64_t zfs_deadman_synctime_ms = 1000000ULL;
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_synctime_ms, CTLFLAG_RDTUN,
-    &zfs_deadman_synctime_ms, 0,
-    "Stalled ZFS I/O expiration time in milliseconds");
 
 /*
  * Check time in milliseconds. This defines the frequency at which we check
  * for hung I/O.
  */
 uint64_t zfs_deadman_checktime_ms = 5000ULL;
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_checktime_ms, CTLFLAG_RDTUN,
-    &zfs_deadman_checktime_ms, 0,
-    "Period of checks for stalled ZFS I/O in milliseconds");
 
 /*
  * Default value of -1 for zfs_deadman_enabled is resolved in
  * zfs_deadman_init()
  */
 int zfs_deadman_enabled = -1;
-SYSCTL_INT(_vfs_zfs, OID_AUTO, deadman_enabled, CTLFLAG_RDTUN,
-    &zfs_deadman_enabled, 0, "Kernel panic on stalled ZFS I/O");
 
 /*
  * The worst case is single-sector max-parity RAID-Z blocks, in which
@@ -355,8 +324,50 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, deadman_enabled, CTLFLAG_RDTUN,
  *     (VDEV_RAIDZ_MAXPARITY + 1) * SPA_DVAS_PER_BP * 2 == 24
  */
 int spa_asize_inflation = 24;
+
+#if defined(__FreeBSD__) && defined(_KERNEL)
+SYSCTL_DECL(_vfs_zfs);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, recover, CTLFLAG_RWTUN, &zfs_recover, 0,
+    "Try to recover from otherwise-fatal errors.");
+
+static int
+sysctl_vfs_zfs_debug_flags(SYSCTL_HANDLER_ARGS)
+{
+	int err, val;
+
+	val = zfs_flags;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	/*
+	 * ZFS_DEBUG_MODIFY must be enabled prior to boot so all
+	 * arc buffers in the system have the necessary additional
+	 * checksum data.  However, it is safe to disable at any
+	 * time.
+	 */
+	if (!(zfs_flags & ZFS_DEBUG_MODIFY))
+		val &= ~ZFS_DEBUG_MODIFY;
+	zfs_flags = val;
+
+	return (0);
+}
+
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, debug_flags,
+    CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RWTUN, 0, sizeof(int),
+    sysctl_vfs_zfs_debug_flags, "IU", "Debug flags for ZFS testing.");
+
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_synctime_ms, CTLFLAG_RDTUN,
+    &zfs_deadman_synctime_ms, 0,
+    "Stalled ZFS I/O expiration time in milliseconds");
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_checktime_ms, CTLFLAG_RDTUN,
+    &zfs_deadman_checktime_ms, 0,
+    "Period of checks for stalled ZFS I/O in milliseconds");
+SYSCTL_INT(_vfs_zfs, OID_AUTO, deadman_enabled, CTLFLAG_RDTUN,
+    &zfs_deadman_enabled, 0, "Kernel panic on stalled ZFS I/O");
 SYSCTL_INT(_vfs_zfs, OID_AUTO, spa_asize_inflation, CTLFLAG_RWTUN,
     &spa_asize_inflation, 0, "Worst case inflation factor for single sector writes");
+#endif
 
 #ifndef illumos
 #ifdef _KERNEL
@@ -449,14 +460,16 @@ spa_config_tryenter(spa_t *spa, int locks, void *tag, krw_t rw)
 		if (rw == RW_READER) {
 			if (scl->scl_writer || scl->scl_write_wanted) {
 				mutex_exit(&scl->scl_lock);
-				spa_config_exit(spa, locks ^ (1 << i), tag);
+				spa_config_exit(spa, locks & ((1 << i) - 1),
+				    tag);
 				return (0);
 			}
 		} else {
 			ASSERT(scl->scl_writer != curthread);
 			if (!refcount_is_zero(&scl->scl_count)) {
 				mutex_exit(&scl->scl_lock);
-				spa_config_exit(spa, locks ^ (1 << i), tag);
+				spa_config_exit(spa, locks & ((1 << i) - 1),
+				    tag);
 				return (0);
 			}
 			scl->scl_writer = curthread;

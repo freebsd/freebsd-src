@@ -58,12 +58,19 @@ typedef uint16_t hv_vmbus_status;
 #define HV_EVENT_FLAGS_BYTE_COUNT   (256)
 #define HV_EVENT_FLAGS_DWORD_COUNT  (256 / sizeof(uint32_t))
 
+/**
+ * max channel count <== event_flags_dword_count * bit_of_dword
+ */
+#define HV_CHANNEL_DWORD_LEN        (32)
+#define HV_CHANNEL_MAX_COUNT        \
+	((HV_EVENT_FLAGS_DWORD_COUNT) * HV_CHANNEL_DWORD_LEN)
 /*
  * MessageId: HV_STATUS_INSUFFICIENT_BUFFERS
  * MessageText:
  *    You did not supply enough message buffers to send a message.
  */
 
+#define HV_STATUS_SUCCESS                ((uint16_t)0)
 #define HV_STATUS_INSUFFICIENT_BUFFERS   ((uint16_t)0x0013)
 
 typedef void (*hv_vmbus_channel_callback)(void *context);
@@ -174,7 +181,8 @@ enum {
 	HV_VMBUS_EVENT_PORT_ID		= 2,
 	HV_VMBUS_MONITOR_CONNECTION_ID	= 3,
 	HV_VMBUS_MONITOR_PORT_ID	= 3,
-	HV_VMBUS_MESSAGE_SINT		= 2
+	HV_VMBUS_MESSAGE_SINT		= 2,
+	HV_VMBUS_TIMER_SINT		= 4,
 };
 
 #define HV_PRESENT_BIT		0x80000000
@@ -196,15 +204,14 @@ typedef struct {
 	 * Each cpu has its own software interrupt handler for channel
 	 * event and msg handling.
 	 */
-	struct intr_event		*hv_event_intr_event[MAXCPU];
-	struct intr_event		*hv_msg_intr_event[MAXCPU];
-	void				*event_swintr[MAXCPU];
-	void				*msg_swintr[MAXCPU];
+	struct taskqueue		*hv_event_queue[MAXCPU];
+	struct taskqueue		*hv_msg_tq[MAXCPU];
+	struct task			hv_msg_task[MAXCPU];
 	/*
-	 * Host use this vector to intrrupt guest for vmbus channel
+	 * Host use this vector to interrupt guest for vmbus channel
 	 * event and msg.
 	 */
-	unsigned int			hv_cb_vector;
+	int				hv_cb_vector;
 } hv_vmbus_context;
 
 /*
@@ -345,7 +352,8 @@ typedef struct {
 	 * notification and 2nd is child->parent
 	 * notification
 	 */
-	void					*monitor_pages;
+	void					*monitor_page_1;
+	void					*monitor_page_2;
 	TAILQ_HEAD(, hv_vmbus_channel_msg_info)	channel_msg_anchor;
 	struct mtx				channel_msg_lock;
 	/**
@@ -355,14 +363,11 @@ typedef struct {
 	TAILQ_HEAD(, hv_vmbus_channel)		channel_anchor;
 	struct mtx				channel_lock;
 
-	hv_vmbus_handle				work_queue;
-	struct sema				control_sema;
+	/**
+	 * channel table for fast lookup through id.
+	*/
+	hv_vmbus_channel                        **channels;
 } hv_vmbus_connection;
-
-/*
- * Declare the MSR used to identify the guest OS
- */
-#define HV_X64_MSR_GUEST_OS_ID	0x40000000
 
 typedef union {
 	uint64_t as_uint64_t;
@@ -380,10 +385,6 @@ typedef union {
 	} u;
 } hv_vmbus_x64_msr_guest_os_id_contents;
 
-/*
- *  Declare the MSR used to setup pages used to communicate with the hypervisor
- */
-#define HV_X64_MSR_HYPERCALL	0x40000001
 
 typedef union {
 	uint64_t as_uint64_t;
@@ -470,9 +471,27 @@ typedef enum {
 	HV_CPU_ID_FUNCTION_MS_HV_VERSION			= 0x40000002,
 	HV_CPU_ID_FUNCTION_MS_HV_FEATURES			= 0x40000003,
 	HV_CPU_ID_FUNCTION_MS_HV_ENLIGHTENMENT_INFORMATION	= 0x40000004,
-	HV_CPU_ID_FUNCTION_MS_HV_IMPLEMENTATION_LIMITS		= 0x40000005
-
+	HV_CPU_ID_FUNCTION_MS_HV_IMPLEMENTATION_LIMITS		= 0x40000005,
+	HV_CPU_ID_FUNCTION_MS_HV_HARDWARE_FEATURE		= 0x40000006
 } hv_vmbus_cpuid_function;
+
+#define	HV_FEATURE_MSR_TIME_REFCNT	0x0002	/* MSR_TIME_REF_COUNT */
+#define	HV_FEATURE_MSR_SYNIC		0x0004	/* MSRs for SynIC */
+#define	HV_FEATURE_MSR_SYNTIMER		0x0008	/* MSRs for SynTimer */
+#define	HV_FEATURE_MSR_APIC		0x0010	/* MSR_{EOI,ICR,TPR} */
+#define	HV_FEATURE_MSR_HYPERCALL	0x0020	/* MSR_{GUEST_OS_ID,HYPERCALL} */
+#define	HV_FEATURE_MSR_GUEST_IDLE	0x0400	/* MSR_GUEST_IDLE */
+
+#define	HV_PM_FEATURE_CSTATE_MASK	0x000f
+#define	HV_PM_FEATURE_C3_HPET		0x0010	/* C3 requires HPET */
+#define	HV_PM_FEATURE_CSTATE(f)		((f) & HV_PM_FEATURE_CSTATE_MASK)
+
+#define	HV_FEATURE3_MWAIT		0x0001	/* MWAIT */
+#define	HV_FEATURE3_XMM_HYPERCALL	0x0010	/* hypercall input through XMM regs */
+#define	HV_FEATURE3_GUEST_IDLE		0x0020	/* guest idle support */
+#define	HV_FEATURE3_NUMA		0x0080	/* NUMA distance query support */
+#define	HV_FEATURE3_TIME_FREQ		0x0100	/* timer frequency query (TSC, LAPIC) */
+#define	HV_FEATURE3_MSR_CRASH		0x0400	/* MSRs for guest crash */
 
 /*
  * Define the format of the SIMP register
@@ -513,6 +532,22 @@ typedef union {
 } hv_vmbus_synic_sint;
 
 /*
+ * Timer configuration register.
+ */
+union hv_timer_config {
+	uint64_t as_uint64;
+	struct {
+		uint64_t enable:1;
+		uint64_t periodic:1;
+		uint64_t lazy:1;
+		uint64_t auto_enable:1;
+		uint64_t reserved_z0:12;
+		uint64_t sintx:4;
+		uint64_t reserved_z1:44;
+	};
+};
+
+/*
  * Define syn_ic control register
  */
 typedef union _hv_vmbus_synic_scontrol {
@@ -542,8 +577,21 @@ typedef union {
 	uint32_t	flags32[HV_EVENT_FLAGS_DWORD_COUNT];
 } hv_vmbus_synic_event_flags;
 
+#define HV_X64_CPUID_MIN	(0x40000005)
+#define HV_X64_CPUID_MAX	(0x4000ffff)
+
+/*
+ * Declare the MSR used to identify the guest OS
+ */
+#define HV_X64_MSR_GUEST_OS_ID	(0x40000000)
+/*
+ *  Declare the MSR used to setup pages used to communicate with the hypervisor
+ */
+#define HV_X64_MSR_HYPERCALL	(0x40000001)
 /* MSR used to provide vcpu index */
-#define	HV_X64_MSR_VP_INDEX   (0x40000002)
+#define	HV_X64_MSR_VP_INDEX	(0x40000002)
+
+#define HV_X64_MSR_TIME_REF_COUNT      (0x40000020)
 
 /*
  * Define synthetic interrupt controller model specific registers
@@ -572,6 +620,18 @@ typedef union {
 #define HV_X64_MSR_SINT15     (0x4000009F)
 
 /*
+ * Synthetic Timer MSRs. Four timers per vcpu.
+ */
+#define HV_X64_MSR_STIMER0_CONFIG		0x400000B0
+#define HV_X64_MSR_STIMER0_COUNT		0x400000B1
+#define HV_X64_MSR_STIMER1_CONFIG		0x400000B2
+#define HV_X64_MSR_STIMER1_COUNT		0x400000B3
+#define HV_X64_MSR_STIMER2_CONFIG		0x400000B4
+#define HV_X64_MSR_STIMER2_COUNT		0x400000B5
+#define HV_X64_MSR_STIMER3_CONFIG		0x400000B6
+#define HV_X64_MSR_STIMER3_COUNT		0x400000B7
+
+/*
  * Declare the various hypercall operations
  */
 typedef enum {
@@ -586,10 +646,30 @@ typedef enum {
 extern hv_vmbus_context		hv_vmbus_g_context;
 extern hv_vmbus_connection	hv_vmbus_g_connection;
 
+extern u_int			hyperv_features;
+extern u_int			hyperv_recommends;
+
+typedef void (*vmbus_msg_handler)(hv_vmbus_channel_msg_header *msg);
+
+typedef struct hv_vmbus_channel_msg_table_entry {
+	hv_vmbus_channel_msg_type    messageType;
+
+	vmbus_msg_handler   messageHandler;
+} hv_vmbus_channel_msg_table_entry;
+
+extern hv_vmbus_channel_msg_table_entry	g_channel_message_table[];
 
 /*
  * Private, VM Bus functions
  */
+struct sysctl_ctx_list;
+struct sysctl_oid_list;
+
+void			hv_ring_buffer_stat(
+				struct sysctl_ctx_list		*ctx,
+				struct sysctl_oid_list		*tree_node,
+				hv_vmbus_ring_buffer_info	*rbi,
+				const char			*desc);
 
 int			hv_vmbus_ring_buffer_init(
 				hv_vmbus_ring_buffer_info	*ring_info,
@@ -631,7 +711,6 @@ uint32_t		hv_ring_buffer_read_end(
 
 hv_vmbus_channel*	hv_vmbus_allocate_channel(void);
 void			hv_vmbus_free_vmbus_channel(hv_vmbus_channel *channel);
-void			hv_vmbus_on_channel_message(void *context);
 int			hv_vmbus_request_channel_offers(void);
 void			hv_vmbus_release_unattached_channels(void);
 int			hv_vmbus_init(void);
@@ -646,7 +725,6 @@ uint16_t		hv_vmbus_post_msg_via_msg_ipc(
 uint16_t		hv_vmbus_signal_event(void *con_id);
 void			hv_vmbus_synic_init(void *irq_arg);
 void			hv_vmbus_synic_cleanup(void *arg);
-int			hv_vmbus_query_hypervisor_presence(void);
 
 struct hv_device*	hv_vmbus_child_device_create(
 				hv_guid			device_type,
@@ -657,7 +735,6 @@ int			hv_vmbus_child_device_register(
 					struct hv_device *child_dev);
 int			hv_vmbus_child_device_unregister(
 					struct hv_device *child_dev);
-hv_vmbus_channel*	hv_vmbus_get_channel_from_rel_id(uint32_t rel_id);
 
 /**
  * Connection interfaces
@@ -666,8 +743,16 @@ int			hv_vmbus_connect(void);
 int			hv_vmbus_disconnect(void);
 int			hv_vmbus_post_message(void *buffer, size_t buf_size);
 int			hv_vmbus_set_event(hv_vmbus_channel *channel);
-void			hv_vmbus_on_events(void *);
+void			hv_vmbus_on_events(int cpu);
 
+/**
+ * Event Timer interfaces
+ */
+void			hv_et_init(void);
+void			hv_et_intr(struct trapframe*);
+
+/* Wait for device creation */
+void			vmbus_scan(void);
 
 /*
  * The guest OS needs to register the guest ID with the hypervisor.

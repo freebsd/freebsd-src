@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/isci/isci.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 #include <machine/vmparam.h>
 #include <machine/pc/bios.h>
 #include <dev/isci/scil/scu_bios_definitions.h>

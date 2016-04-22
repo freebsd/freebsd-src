@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/domain.h>
 #include <sys/mbuf.h>
 #include <sys/systm.h>
@@ -380,8 +381,7 @@ struct domain inet6domain = {
 	.dom_family =		AF_INET6,
 	.dom_name =		"internet6",
 	.dom_protosw =		(struct protosw *)inet6sw,
-	.dom_protoswNPROTOSW =	(struct protosw *)
-				&inet6sw[sizeof(inet6sw)/sizeof(inet6sw[0])],
+	.dom_protoswNPROTOSW =	(struct protosw *)&inet6sw[nitems(inet6sw)],
 #ifdef RADIX_MPATH
 	.dom_rtattach =		rn6_mpath_inithead,
 #else

@@ -1214,7 +1214,6 @@ vga_init(struct vt_device *vd)
 	if (vd->vd_softc == NULL)
 		vd->vd_softc = (void *)&vga_conssoftc;
 	sc = vd->vd_softc;
-	textmode = 0;
 
 	if (vd->vd_flags & VDF_DOWNGRADE && vd->vd_video_dev != NULL)
 		vga_pci_repost(vd->vd_video_dev);
@@ -1229,6 +1228,13 @@ vga_init(struct vt_device *vd)
 	bus_space_map(sc->vga_reg_tag, VGA_REG_BASE, VGA_REG_SIZE, 0,
 	    &sc->vga_reg_handle);
 
+	/*
+	 * If "hw.vga.textmode" is not set and we're running on hypervisor,
+	 * we use text mode by default, this is because when we're on
+	 * hypervisor, vt(4) is usually much slower in graphics mode than
+	 * in text mode, especially when we're on Hyper-V.
+	 */
+	textmode = vm_guest != VM_GUEST_NO;
 	TUNABLE_INT_FETCH("hw.vga.textmode", &textmode);
 	if (textmode) {
 		vd->vd_flags |= VDF_TEXTMODE;

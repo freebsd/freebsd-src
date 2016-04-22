@@ -30,6 +30,7 @@
 #define _SYS_BUS_H_
 
 #include <machine/_limits.h>
+#include <machine/_bus.h>
 #include <sys/_bus_dma.h>
 #include <sys/ioccom.h>
 
@@ -140,6 +141,7 @@ void devctl_notify(const char *__system, const char *__subsystem,
     const char *__type, const char *__data);
 void devctl_queue_data_f(char *__data, int __flags);
 void devctl_queue_data(char *__data);
+void devctl_safe_quote(char *__dst, const char *__src, size_t len);
 
 /**
  * Device name parsers.  Hook to allow device enumerators to map
@@ -292,9 +294,9 @@ struct resource_list_entry {
 	int	rid;			/**< @brief resource identifier */
 	int	flags;			/**< @brief resource flags */
 	struct	resource *res;		/**< @brief the real resource when allocated */
-	u_long	start;			/**< @brief start of resource range */
-	u_long	end;			/**< @brief end of resource range */
-	u_long	count;			/**< @brief count within range */
+	rman_res_t	start;		/**< @brief start of resource range */
+	rman_res_t	end;		/**< @brief end of resource range */
+	rman_res_t	count;			/**< @brief count within range */
 };
 STAILQ_HEAD(resource_list, resource_list_entry);
 
@@ -307,10 +309,10 @@ void	resource_list_free(struct resource_list *rl);
 struct resource_list_entry *
 	resource_list_add(struct resource_list *rl,
 			  int type, int rid,
-			  u_long start, u_long end, u_long count);
+			  rman_res_t start, rman_res_t end, rman_res_t count);
 int	resource_list_add_next(struct resource_list *rl,
 			  int type,
-			  u_long start, u_long end, u_long count);
+			  rman_res_t start, rman_res_t end, rman_res_t count);
 int	resource_list_busy(struct resource_list *rl,
 			   int type, int rid);
 int	resource_list_reserved(struct resource_list *rl, int type, int rid);
@@ -323,8 +325,8 @@ struct resource *
 	resource_list_alloc(struct resource_list *rl,
 			    device_t bus, device_t child,
 			    int type, int *rid,
-			    u_long start, u_long end,
-			    u_long count, u_int flags);
+			    rman_res_t start, rman_res_t end,
+			    rman_res_t count, u_int flags);
 int	resource_list_release(struct resource_list *rl,
 			      device_t bus, device_t child,
 			      int type, int rid, struct resource *res);
@@ -335,8 +337,8 @@ struct resource *
 	resource_list_reserve(struct resource_list *rl,
 			      device_t bus, device_t child,
 			      int type, int *rid,
-			      u_long start, u_long end,
-			      u_long count, u_int flags);
+			      rman_res_t start, rman_res_t end,
+			      rman_res_t count, u_int flags);
 int	resource_list_unreserve(struct resource_list *rl,
 				device_t bus, device_t child,
 				int type, int rid);
@@ -362,12 +364,12 @@ device_t
 	bus_generic_add_child(device_t dev, u_int order, const char *name,
 			      int unit);
 int	bus_generic_adjust_resource(device_t bus, device_t child, int type,
-				    struct resource *r, u_long start,
-				    u_long end);
+				    struct resource *r, rman_res_t start,
+				    rman_res_t end);
 struct resource *
 	bus_generic_alloc_resource(device_t bus, device_t child, int type,
-				   int *rid, u_long start, u_long end,
-				   u_long count, u_int flags);
+				   int *rid, rman_res_t start, rman_res_t end,
+				   rman_res_t count, u_int flags);
 int	bus_generic_attach(device_t dev);
 int	bus_generic_bind_intr(device_t dev, device_t child,
 			      struct resource *irq, int cpu);
@@ -383,6 +385,8 @@ int	bus_generic_detach(device_t dev);
 void	bus_generic_driver_added(device_t dev, driver_t *driver);
 bus_dma_tag_t
 	bus_generic_get_dma_tag(device_t dev, device_t child);
+bus_space_tag_t
+	bus_generic_get_bus_tag(device_t dev, device_t child);
 int	bus_generic_get_domain(device_t dev, device_t child, int *domain);
 struct resource_list *
 	bus_generic_get_resource_list (device_t, device_t);
@@ -405,12 +409,12 @@ int	bus_generic_setup_intr(device_t dev, device_t child,
 
 struct resource *
 	bus_generic_rl_alloc_resource (device_t, device_t, int, int *,
-				       u_long, u_long, u_long, u_int);
+				       rman_res_t, rman_res_t, rman_res_t, u_int);
 void	bus_generic_rl_delete_resource (device_t, device_t, int, int);
-int	bus_generic_rl_get_resource (device_t, device_t, int, int, u_long *,
-				     u_long *);
-int	bus_generic_rl_set_resource (device_t, device_t, int, int, u_long,
-				     u_long);
+int	bus_generic_rl_get_resource (device_t, device_t, int, int, rman_res_t *,
+				     rman_res_t *);
+int	bus_generic_rl_set_resource (device_t, device_t, int, int, rman_res_t,
+				     rman_res_t);
 int	bus_generic_rl_release_resource (device_t, device_t, int, int,
 					 struct resource *);
 
@@ -439,15 +443,16 @@ void	bus_release_resources(device_t dev, const struct resource_spec *rs,
 			      struct resource **res);
 
 int	bus_adjust_resource(device_t child, int type, struct resource *r,
-			    u_long start, u_long end);
+			    rman_res_t start, rman_res_t end);
 struct	resource *bus_alloc_resource(device_t dev, int type, int *rid,
-				     u_long start, u_long end, u_long count,
-				     u_int flags);
+				     rman_res_t start, rman_res_t end,
+				     rman_res_t count, u_int flags);
 int	bus_activate_resource(device_t dev, int type, int rid,
 			      struct resource *r);
 int	bus_deactivate_resource(device_t dev, int type, int rid,
 				struct resource *r);
 bus_dma_tag_t bus_get_dma_tag(device_t dev);
+bus_space_tag_t bus_get_bus_tag(device_t dev);
 int	bus_get_domain(device_t dev, int *domain);
 int	bus_release_resource(device_t dev, int type, int rid,
 			     struct resource *r);
@@ -460,11 +465,11 @@ int	bus_bind_intr(device_t dev, struct resource *r, int cpu);
 int	bus_describe_intr(device_t dev, struct resource *irq, void *cookie,
 			  const char *fmt, ...);
 int	bus_set_resource(device_t dev, int type, int rid,
-			 u_long start, u_long count);
+			 rman_res_t start, rman_res_t count);
 int	bus_get_resource(device_t dev, int type, int rid,
-			 u_long *startp, u_long *countp);
-u_long	bus_get_resource_start(device_t dev, int type, int rid);
-u_long	bus_get_resource_count(device_t dev, int type, int rid);
+			 rman_res_t *startp, rman_res_t *countp);
+rman_res_t	bus_get_resource_start(device_t dev, int type, int rid);
+rman_res_t	bus_get_resource_count(device_t dev, int type, int rid);
 void	bus_delete_resource(device_t dev, int type, int rid);
 int	bus_child_present(device_t child);
 int	bus_child_pnpinfo_str(device_t child, char *buf, size_t buflen);
@@ -474,7 +479,14 @@ void	bus_enumerate_hinted_children(device_t bus);
 static __inline struct resource *
 bus_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
 {
-	return (bus_alloc_resource(dev, type, rid, 0ul, ~0ul, 1, flags));
+	return (bus_alloc_resource(dev, type, rid, 0, ~0, 1, flags));
+}
+
+static __inline struct resource *
+bus_alloc_resource_anywhere(device_t dev, int type, int *rid,
+    rman_res_t count, u_int flags)
+{
+	return (bus_alloc_resource(dev, type, rid, 0, ~0, count, flags));
 }
 
 /*
@@ -512,6 +524,7 @@ int	device_is_attached(device_t dev);	/* did attach succeed? */
 int	device_is_enabled(device_t dev);
 int	device_is_suspended(device_t dev);
 int	device_is_quiet(device_t dev);
+device_t device_lookup_by_name(const char *name);
 int	device_print_prettyname(device_t dev);
 int	device_printf(device_t dev, const char *, ...) __printflike(2, 3);
 int	device_probe(device_t dev);

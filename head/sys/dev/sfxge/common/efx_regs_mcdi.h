@@ -299,6 +299,9 @@
  * have already installed filters. See the comment at
  * MC_CMD_WORKAROUND_BUG26807. */
 #define MC_CMD_ERR_FILTERS_PRESENT 0x1014
+/* The clock whose frequency you've attempted to set set
+ * doesn't exist on this NIC */
+#define MC_CMD_ERR_NO_CLOCK 0x1015
 
 #define MC_CMD_ERR_CODE_OFST 0
 
@@ -318,9 +321,11 @@
 /* Point to the copycode entry point. */
 #define SIENA_MC_BOOTROM_COPYCODE_VEC (0x800 - 3 * 0x4)
 #define HUNT_MC_BOOTROM_COPYCODE_VEC (0x8000 - 3 * 0x4)
+#define MEDFORD_MC_BOOTROM_COPYCODE_VEC (0x10000 - 3 * 0x4)
 /* Points to the recovery mode entry point. */
 #define SIENA_MC_BOOTROM_NOFLASH_VEC (0x800 - 2 * 0x4)
 #define HUNT_MC_BOOTROM_NOFLASH_VEC (0x8000 - 2 * 0x4)
+#define MEDFORD_MC_BOOTROM_NOFLASH_VEC (0x10000 - 2 * 0x4)
 
 /* The command set exported by the boot ROM (MCDI v0) */
 #define MC_CMD_GET_VERSION_V0_SUPPORTED_FUNCS {		\
@@ -1456,9 +1461,11 @@
 #define	MC_CMD_FC_IN_DDR_TEST_START_B1_WIDTH 1
 
 /* MC_CMD_FC_IN_DDR_TEST_POLL msgrequest */
-#define	MC_CMD_FC_IN_DDR_TEST_POLL_LEN 8
+#define	MC_CMD_FC_IN_DDR_TEST_POLL_LEN 12
 #define	MC_CMD_FC_IN_DDR_TEST_CMD_OFST 0
 /*            MC_CMD_FC_IN_DDR_TEST_HEADER_OFST 4 */
+/* Clear previous test result and prepare for restarting DDR test */
+#define	MC_CMD_FC_IN_DDR_TEST_POLL_CLEAR_RESULT_FOR_DDR_TEST_OFST 8
 
 /* MC_CMD_FC_IN_GET_ASSERT msgrequest */
 #define	MC_CMD_FC_IN_GET_ASSERT_LEN 4
@@ -1475,6 +1482,10 @@
 #define	MC_CMD_FC_IN_FPGA_BUILD_SERVICES 0x2
 /* enum: Get the BSP version */
 #define	MC_CMD_FC_IN_FPGA_BUILD_BSP_VERSION 0x3
+/* enum: Get build register for V2 (SFA974X) */
+#define	MC_CMD_FC_IN_FPGA_BUILD_BUILD_V2 0x4
+/* enum: GEt the services register for V2 (SFA974X) */
+#define	MC_CMD_FC_IN_FPGA_BUILD_SERVICES_V2 0x5
 
 /* MC_CMD_FC_IN_READ_MAP msgrequest */
 #define	MC_CMD_FC_IN_READ_MAP_LEN 8
@@ -1832,6 +1843,7 @@
 #define	MC_CMD_FC_IN_DDR_OP_OFST 4
 #define	MC_CMD_FC_IN_DDR_SET_SPD  0x0 /* enum */
 #define	MC_CMD_FC_IN_DDR_GET_STATUS  0x1 /* enum */
+#define	MC_CMD_FC_IN_DDR_SET_INFO  0x2 /* enum */
 #define	MC_CMD_FC_IN_DDR_BANK_OFST 8
 #define	MC_CMD_FC_IN_DDR_BANK_B0  0x0 /* enum */
 #define	MC_CMD_FC_IN_DDR_BANK_B1  0x1 /* enum */
@@ -1854,6 +1866,15 @@
 #define	MC_CMD_FC_IN_DDR_SPD_NUM 128
 /* Page index of the spd data copied into MC_CMD_FC_IN_DDR_SPD */
 #define	MC_CMD_FC_IN_DDR_SPD_PAGE_ID_OFST 144
+
+/* MC_CMD_FC_IN_DDR_SET_INFO msgrequest */
+#define	MC_CMD_FC_IN_DDR_SET_INFO_LEN 16
+/*            MC_CMD_FC_IN_CMD_OFST 0 */
+/*            MC_CMD_FC_IN_DDR_OP_OFST 4 */
+/* Affected bank */
+/*            MC_CMD_FC_IN_DDR_BANK_OFST 8 */
+/* Size of DDR */
+#define	MC_CMD_FC_IN_DDR_SIZE_OFST 12
 
 /* MC_CMD_FC_IN_DDR_GET_STATUS msgrequest */
 #define	MC_CMD_FC_IN_DDR_GET_STATUS_LEN 12
@@ -2387,6 +2408,116 @@
 #define	MC_CMD_FC_OUT_FPGA_BUILD_REVISION_HIGH_LBN 0
 #define	MC_CMD_FC_OUT_FPGA_BUILD_REVISION_HIGH_WIDTH 16
 
+/* MC_CMD_FC_OUT_FPGA_BUILD_V2 msgresponse */
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_LEN 32
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_COMPONENT_INFO_OFST 0
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_IS_APPLICATION_LBN 31
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_IS_APPLICATION_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_IS_LICENSED_LBN 30
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_IS_LICENSED_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_COMPONENT_ID_LBN 16
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_COMPONENT_ID_WIDTH 14
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_VERSION_MAJOR_LBN 12
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_VERSION_MAJOR_WIDTH 4
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_VERSION_MINOR_LBN 4
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_VERSION_MINOR_WIDTH 8
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_BUILD_NUM_LBN 0
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_BUILD_NUM_WIDTH 4
+/* Build timestamp (seconds since epoch) */
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_TIMESTAMP_OFST 4
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_PARAMETERS_OFST 8
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_PMA_PASSTHROUGH_LBN 31
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_PMA_PASSTHROUGH_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SODIMM2_QDR_DEF_LBN 29
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SODIMM2_QDR_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SODIMM1_QDR_DEF_LBN 28
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SODIMM1_QDR_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DDR3_ECC_ENABLED_LBN 27
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DDR3_ECC_ENABLED_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DISCRETE2_DDR3_DEF_LBN 26
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DISCRETE2_DDR3_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DISCRETE1_DDR3_DEF_LBN 25
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DISCRETE1_DDR3_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SODIMM2_TO_DDR3_DEF_LBN 24
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SODIMM2_TO_DDR3_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SODIMM1_T0_DDR3_DEF_LBN 23
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SODIMM1_T0_DDR3_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DISCRETE2_RLDRAM_DEF_LBN 22
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DISCRETE2_RLDRAM_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DISCRETE1_RLDRAM_DEF_LBN 21
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DISCRETE1_RLDRAM_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SODIMM2_RLDRAM_DEF_LBN 20
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SODIMM2_RLDRAM_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SODIMM1_RLDRAM_DEF_LBN 19
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SODIMM1_RLDRAM_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_NIC0_3_SPEED_LBN 18
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_NIC0_3_SPEED_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_NIC0_3_SPEED_10G 0x0 /* enum */
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_NIC0_3_SPEED_40G 0x1 /* enum */
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP4_7_SPEED_LBN 17
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP4_7_SPEED_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP4_7_SPEED_10G 0x0 /* enum */
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP4_7_SPEED_40G 0x1 /* enum */
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP0_3_SPEED_LBN 16
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP0_3_SPEED_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP0_3_SPEED_10G 0x0 /* enum */
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP0_3_SPEED_40G 0x1 /* enum */
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP7_DEF_LBN 15
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP7_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP6_DEF_LBN 14
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP6_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP5_DEF_LBN 13
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP5_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP4_DEF_LBN 12
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP4_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP3_DEF_LBN 11
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP3_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP2_DEF_LBN 10
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP2_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP1_DEF_LBN 9
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP1_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP0_DEF_LBN 8
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_SFP0_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_NIC3_DEF_LBN 7
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_NIC3_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_NIC2_DEF_LBN 6
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_NIC2_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_NIC1_DEF_LBN 5
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_NIC1_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_NIC0_DEF_LBN 4
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_NIC0_DEF_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_FPGA_TYPE_LBN 0
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_FPGA_TYPE_WIDTH 4
+#define	MC_CMD_FC_FPGA_V2_TYPE_A3 0x0 /* enum */
+#define	MC_CMD_FC_FPGA_V2_TYPE_A4 0x1 /* enum */
+#define	MC_CMD_FC_FPGA_V2_TYPE_A5 0x2 /* enum */
+#define	MC_CMD_FC_FPGA_V2_TYPE_A7 0x3 /* enum */
+#define	MC_CMD_FC_FPGA_V2_TYPE_D3 0x8 /* enum */
+#define	MC_CMD_FC_FPGA_V2_TYPE_D4 0x9 /* enum */
+#define	MC_CMD_FC_FPGA_V2_TYPE_D5 0xa /* enum */
+#define	MC_CMD_FC_FPGA_V2_TYPE_D7 0xb /* enum */
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_IDENTIFIER_OFST 12
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_CHANGESET_LBN 0
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_CHANGESET_WIDTH 16
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_BUILD_FLAG_LBN 16
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_BUILD_FLAG_WIDTH 1
+/*               MC_CMD_FC_FPGA_BUILD_FLAG_INTERNAL 0x0 */
+/*               MC_CMD_FC_FPGA_BUILD_FLAG_RELEASE 0x1 */
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_VERSION_HI_OFST 16
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DEPLOYMENT_VERSION_MINOR_LBN 0
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DEPLOYMENT_VERSION_MINOR_WIDTH 16
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DEPLOYMENT_VERSION_MAJOR_LBN 16
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DEPLOYMENT_VERSION_MAJOR_WIDTH 16
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_VERSION_LO_OFST 20
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DEPLOYMENT_VERSION_BUILD_LBN 0
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DEPLOYMENT_VERSION_BUILD_WIDTH 16
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DEPLOYMENT_VERSION_MICRO_LBN 16
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_DEPLOYMENT_VERSION_MICRO_WIDTH 16
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_REVISION_LO_OFST 24
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_REVISION_HI_OFST 28
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_REVISION_HIGH_LBN 0
+#define	MC_CMD_FC_OUT_FPGA_BUILD_V2_REVISION_HIGH_WIDTH 16
+
 /* MC_CMD_FC_OUT_FPGA_SERVICES msgresponse */
 #define	MC_CMD_FC_OUT_FPGA_SERVICES_LEN 32
 #define	MC_CMD_FC_OUT_FPGA_SERVICES_COMPONENT_INFO_OFST 0
@@ -2436,6 +2567,40 @@
 #define	MC_CMD_FC_OUT_FPGA_SERVICES_REVISION_HI_OFST 28
 #define	MC_CMD_FC_OUT_FPGA_SERVICES_REVISION_HIGH_LBN 0
 #define	MC_CMD_FC_OUT_FPGA_SERVICES_REVISION_HIGH_WIDTH 16
+
+/* MC_CMD_FC_OUT_FPGA_SERVICES_V2 msgresponse */
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_LEN 32
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_COMPONENT_INFO_OFST 0
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_IS_APPLICATION_LBN 31
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_IS_APPLICATION_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_IS_LICENSED_LBN 30
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_IS_LICENSED_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_COMPONENT_ID_LBN 16
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_COMPONENT_ID_WIDTH 14
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_VERSION_MAJOR_LBN 12
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_VERSION_MAJOR_WIDTH 4
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_VERSION_MINOR_LBN 4
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_VERSION_MINOR_WIDTH 8
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_BUILD_NUM_LBN 0
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_BUILD_NUM_WIDTH 4
+/* Build timestamp (seconds since epoch) */
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_TIMESTAMP_OFST 4
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_PARAMETERS_OFST 8
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_PTP_ENABLED_LBN 0
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_PTP_ENABLED_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_FC_FLASH_BOOTED_LBN 8
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_FC_FLASH_BOOTED_WIDTH 1
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_IDENTIFIER_OFST 12
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_CHANGESET_LBN 0
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_CHANGESET_WIDTH 16
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_BUILD_FLAG_LBN 16
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_BUILD_FLAG_WIDTH 1
+/*               MC_CMD_FC_FPGA_BUILD_FLAG_INTERNAL 0x0 */
+/*               MC_CMD_FC_FPGA_BUILD_FLAG_RELEASE 0x1 */
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_REVISION_LO_OFST 24
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_REVISION_HI_OFST 28
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_REVISION_HIGH_LBN 0
+#define	MC_CMD_FC_OUT_FPGA_SERVICES_V2_REVISION_HIGH_WIDTH 16
 
 /* MC_CMD_FC_OUT_BSP_VERSION msgresponse */
 #define	MC_CMD_FC_OUT_BSP_VERSION_LEN 4
@@ -2717,6 +2882,9 @@
 
 /* MC_CMD_FC_OUT_DDR_SET_SPD msgresponse */
 #define	MC_CMD_FC_OUT_DDR_SET_SPD_LEN 0
+
+/* MC_CMD_FC_OUT_DDR_SET_INFO msgresponse */
+#define	MC_CMD_FC_OUT_DDR_SET_INFO_LEN 0
 
 /* MC_CMD_FC_OUT_DDR_GET_STATUS msgresponse */
 #define	MC_CMD_FC_OUT_DDR_GET_STATUS_LEN 4
@@ -3131,6 +3299,8 @@
 #define	MC_CMD_AOE_OUT_INFO_FPGA_VERSION_OFST 12
 /* FPGA type - read from CPLD straps */
 #define	MC_CMD_AOE_OUT_INFO_FPGA_TYPE_OFST 16
+#define	MC_CMD_AOE_OUT_INFO_FPGA_TYPE_A5_C2   0x1 /* enum */
+#define	MC_CMD_AOE_OUT_INFO_FPGA_TYPE_A7_C2   0x2 /* enum */
 /* FPGA state (debug) */
 #define	MC_CMD_AOE_OUT_INFO_FPGA_STATE_OFST 20
 /* FPGA image - partition from which loaded */
@@ -3144,23 +3314,28 @@
 /* Random pieces of information */
 #define	MC_CMD_AOE_OUT_INFO_FLAGS_OFST 32
 /* enum: Power to FPGA supplied by PEG connector, not PCIe bus */
-#define	MC_CMD_AOE_OUT_INFO_PEG_POWER 0x1
+#define	MC_CMD_AOE_OUT_INFO_PEG_POWER            0x1
 /* enum: CPLD apparently good */
-#define	MC_CMD_AOE_OUT_INFO_CPLD_GOOD 0x2
+#define	MC_CMD_AOE_OUT_INFO_CPLD_GOOD            0x2
 /* enum: FPGA working normally */
-#define	MC_CMD_AOE_OUT_INFO_FPGA_GOOD 0x4
+#define	MC_CMD_AOE_OUT_INFO_FPGA_GOOD            0x4
 /* enum: FPGA is powered */
-#define	MC_CMD_AOE_OUT_INFO_FPGA_POWER 0x8
+#define	MC_CMD_AOE_OUT_INFO_FPGA_POWER           0x8
 /* enum: Board has incompatible SODIMMs fitted */
-#define	MC_CMD_AOE_OUT_INFO_BAD_SODIMM 0x10
+#define	MC_CMD_AOE_OUT_INFO_BAD_SODIMM           0x10
 /* enum: Board has ByteBlaster connected */
-#define	MC_CMD_AOE_OUT_INFO_HAS_BYTEBLASTER 0x20
-/* Revision of Modena board */
+#define	MC_CMD_AOE_OUT_INFO_HAS_BYTEBLASTER      0x20
+/* enum: FPGA Boot flash has an invalid header. */
+#define	MC_CMD_AOE_OUT_INFO_FPGA_BAD_BOOT_HDR    0x40
+/* enum: FPGA Application flash is accessible. */
+#define	MC_CMD_AOE_OUT_INFO_FPGA_APP_FLASH_GOOD  0x80
+/* Revision of Modena and Sorrento boards. Sorrento can be R1_2 or R1_3. */
 #define	MC_CMD_AOE_OUT_INFO_BOARD_REVISION_OFST 36
 #define	MC_CMD_AOE_OUT_INFO_UNKNOWN  0x0 /* enum */
 #define	MC_CMD_AOE_OUT_INFO_R1_0  0x10 /* enum */
 #define	MC_CMD_AOE_OUT_INFO_R1_1  0x11 /* enum */
 #define	MC_CMD_AOE_OUT_INFO_R1_2  0x12 /* enum */
+#define	MC_CMD_AOE_OUT_INFO_R1_3  0x13 /* enum */
 /* Result of FC booting - not valid while a ByteBlaster is connected. */
 #define	MC_CMD_AOE_OUT_INFO_FC_BOOT_RESULT_OFST 40
 /* enum: No error */
@@ -3931,14 +4106,29 @@
 
 /* MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS msgresponse */
 #define	MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_LEN 16
-/* Uncorrected error on transmit timestamps in NIC clock format */
+/* Uncorrected error on PTP transmit timestamps in NIC clock format */
 #define	MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_TRANSMIT_OFST 0
-/* Uncorrected error on receive timestamps in NIC clock format */
+/* Uncorrected error on PTP receive timestamps in NIC clock format */
 #define	MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_RECEIVE_OFST 4
 /* Uncorrected error on PPS output in NIC clock format */
 #define	MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_PPS_OUT_OFST 8
 /* Uncorrected error on PPS input in NIC clock format */
 #define	MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_PPS_IN_OFST 12
+
+/* MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2 msgresponse */
+#define	MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2_LEN 24
+/* Uncorrected error on PTP transmit timestamps in NIC clock format */
+#define	MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2_PTP_TX_OFST 0
+/* Uncorrected error on PTP receive timestamps in NIC clock format */
+#define	MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2_PTP_RX_OFST 4
+/* Uncorrected error on PPS output in NIC clock format */
+#define	MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2_PPS_OUT_OFST 8
+/* Uncorrected error on PPS input in NIC clock format */
+#define	MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2_PPS_IN_OFST 12
+/* Uncorrected error on non-PTP transmit timestamps in NIC clock format */
+#define	MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2_GENERAL_TX_OFST 16
+/* Uncorrected error on non-PTP receive timestamps in NIC clock format */
+#define	MC_CMD_PTP_OUT_GET_TIMESTAMP_CORRECTIONS_V2_GENERAL_RX_OFST 20
 
 /* MC_CMD_PTP_OUT_MANFTEST_PPS msgresponse */
 #define	MC_CMD_PTP_OUT_MANFTEST_PPS_LEN 4
@@ -5203,7 +5393,7 @@
 #define	MC_CMD_SET_MAC 0x2c
 #undef	MC_CMD_0x2c_PRIVILEGE_CTG
 
-#define	MC_CMD_0x2c_PRIVILEGE_CTG SRIOV_CTG_LINK
+#define	MC_CMD_0x2c_PRIVILEGE_CTG SRIOV_CTG_GENERAL
 
 /* MC_CMD_SET_MAC_IN msgrequest */
 #define	MC_CMD_SET_MAC_IN_LEN 28
@@ -5950,6 +6140,37 @@
 /* amount to read in bytes */
 #define	MC_CMD_NVRAM_READ_IN_LENGTH_OFST 8
 
+/* MC_CMD_NVRAM_READ_IN_V2 msgrequest */
+#define	MC_CMD_NVRAM_READ_IN_V2_LEN 16
+#define	MC_CMD_NVRAM_READ_IN_V2_TYPE_OFST 0
+/*            Enum values, see field(s): */
+/*               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES */
+#define	MC_CMD_NVRAM_READ_IN_V2_OFFSET_OFST 4
+/* amount to read in bytes */
+#define	MC_CMD_NVRAM_READ_IN_V2_LENGTH_OFST 8
+/* Optional control info. If a partition is stored with an A/B versioning
+ * scheme (i.e. in more than one physical partition in NVRAM) the host can set
+ * this to control which underlying physical partition is used to read data
+ * from. This allows it to perform a read-modify-write-verify with the write
+ * lock continuously held by calling NVRAM_UPDATE_START, reading the old
+ * contents using MODE=TARGET_CURRENT, overwriting the old partition and then
+ * verifying by reading with MODE=TARGET_BACKUP.
+ */
+#define	MC_CMD_NVRAM_READ_IN_V2_MODE_OFST 12
+/* enum: Same as omitting MODE: caller sees data in current partition unless it
+ * holds the write lock in which case it sees data in the partition it is
+ * updating.
+ */
+#define	MC_CMD_NVRAM_READ_IN_V2_DEFAULT 0x0
+/* enum: Read from the current partition of an A/B pair, even if holding the
+ * write lock.
+ */
+#define	MC_CMD_NVRAM_READ_IN_V2_TARGET_CURRENT 0x1
+/* enum: Read from the non-current (i.e. to be updated) partition of an A/B
+ * pair
+ */
+#define	MC_CMD_NVRAM_READ_IN_V2_TARGET_BACKUP 0x2
+
 /* MC_CMD_NVRAM_READ_OUT msgresponse */
 #define	MC_CMD_NVRAM_READ_OUT_LENMIN 1
 #define	MC_CMD_NVRAM_READ_OUT_LENMAX 252
@@ -6329,6 +6550,8 @@
 #define	MC_CMD_SENSOR_PHY0_VCC  0x4c
 /* enum: Voltage supplied to the QSFP #1 from their power supply: mV */
 #define	MC_CMD_SENSOR_PHY1_VCC  0x4d
+/* enum: Controller die temperature (TDIODE): degC */
+#define	MC_CMD_SENSOR_CONTROLLER_TDIODE_TEMP  0x4e
 /* MC_CMD_SENSOR_INFO_ENTRY_TYPEDEF */
 #define	MC_CMD_SENSOR_ENTRY_OFST 4
 #define	MC_CMD_SENSOR_ENTRY_LEN 8
@@ -6406,7 +6629,7 @@
 
 /* MC_CMD_READ_SENSORS_EXT_IN msgrequest */
 #define	MC_CMD_READ_SENSORS_EXT_IN_LEN 12
-/* DMA address of host buffer for sensor readings */
+/* DMA address of host buffer for sensor readings (must be 4Kbyte aligned). */
 #define	MC_CMD_READ_SENSORS_EXT_IN_DMA_ADDR_OFST 0
 #define	MC_CMD_READ_SENSORS_EXT_IN_DMA_ADDR_LEN 8
 #define	MC_CMD_READ_SENSORS_EXT_IN_DMA_ADDR_LO_OFST 0
@@ -7656,6 +7879,88 @@
 #define	LICENSED_APP_ID_ID_LBN 0
 #define	LICENSED_APP_ID_ID_WIDTH 32
 
+/* LICENSED_FEATURES structuredef */
+#define	LICENSED_FEATURES_LEN 8
+/* Bitmask of licensed firmware features */
+#define	LICENSED_FEATURES_MASK_OFST 0
+#define	LICENSED_FEATURES_MASK_LEN 8
+#define	LICENSED_FEATURES_MASK_LO_OFST 0
+#define	LICENSED_FEATURES_MASK_HI_OFST 4
+#define	LICENSED_FEATURES_RX_CUT_THROUGH_LBN 0
+#define	LICENSED_FEATURES_RX_CUT_THROUGH_WIDTH 1
+#define	LICENSED_FEATURES_PIO_LBN 1
+#define	LICENSED_FEATURES_PIO_WIDTH 1
+#define	LICENSED_FEATURES_EVQ_TIMER_LBN 2
+#define	LICENSED_FEATURES_EVQ_TIMER_WIDTH 1
+#define	LICENSED_FEATURES_CLOCK_LBN 3
+#define	LICENSED_FEATURES_CLOCK_WIDTH 1
+#define	LICENSED_FEATURES_RX_TIMESTAMPS_LBN 4
+#define	LICENSED_FEATURES_RX_TIMESTAMPS_WIDTH 1
+#define	LICENSED_FEATURES_TX_TIMESTAMPS_LBN 5
+#define	LICENSED_FEATURES_TX_TIMESTAMPS_WIDTH 1
+#define	LICENSED_FEATURES_RX_SNIFF_LBN 6
+#define	LICENSED_FEATURES_RX_SNIFF_WIDTH 1
+#define	LICENSED_FEATURES_TX_SNIFF_LBN 7
+#define	LICENSED_FEATURES_TX_SNIFF_WIDTH 1
+#define	LICENSED_FEATURES_PROXY_FILTER_OPS_LBN 8
+#define	LICENSED_FEATURES_PROXY_FILTER_OPS_WIDTH 1
+#define	LICENSED_FEATURES_MASK_LBN 0
+#define	LICENSED_FEATURES_MASK_WIDTH 64
+
+/* LICENSED_V3_APPS structuredef */
+#define	LICENSED_V3_APPS_LEN 8
+/* Bitmask of licensed applications */
+#define	LICENSED_V3_APPS_MASK_OFST 0
+#define	LICENSED_V3_APPS_MASK_LEN 8
+#define	LICENSED_V3_APPS_MASK_LO_OFST 0
+#define	LICENSED_V3_APPS_MASK_HI_OFST 4
+#define	LICENSED_V3_APPS_ONLOAD_LBN 0
+#define	LICENSED_V3_APPS_ONLOAD_WIDTH 1
+#define	LICENSED_V3_APPS_PTP_LBN 1
+#define	LICENSED_V3_APPS_PTP_WIDTH 1
+#define	LICENSED_V3_APPS_SOLARCAPTURE_PRO_LBN 2
+#define	LICENSED_V3_APPS_SOLARCAPTURE_PRO_WIDTH 1
+#define	LICENSED_V3_APPS_SOLARSECURE_LBN 3
+#define	LICENSED_V3_APPS_SOLARSECURE_WIDTH 1
+#define	LICENSED_V3_APPS_PERF_MONITOR_LBN 4
+#define	LICENSED_V3_APPS_PERF_MONITOR_WIDTH 1
+#define	LICENSED_V3_APPS_SOLARCAPTURE_LIVE_LBN 5
+#define	LICENSED_V3_APPS_SOLARCAPTURE_LIVE_WIDTH 1
+#define	LICENSED_V3_APPS_CAPTURE_SOLARSYSTEM_LBN 6
+#define	LICENSED_V3_APPS_CAPTURE_SOLARSYSTEM_WIDTH 1
+#define	LICENSED_V3_APPS_NETWORK_ACCESS_CONTROL_LBN 7
+#define	LICENSED_V3_APPS_NETWORK_ACCESS_CONTROL_WIDTH 1
+#define	LICENSED_V3_APPS_MASK_LBN 0
+#define	LICENSED_V3_APPS_MASK_WIDTH 64
+
+/* LICENSED_V3_FEATURES structuredef */
+#define	LICENSED_V3_FEATURES_LEN 8
+/* Bitmask of licensed firmware features */
+#define	LICENSED_V3_FEATURES_MASK_OFST 0
+#define	LICENSED_V3_FEATURES_MASK_LEN 8
+#define	LICENSED_V3_FEATURES_MASK_LO_OFST 0
+#define	LICENSED_V3_FEATURES_MASK_HI_OFST 4
+#define	LICENSED_V3_FEATURES_RX_CUT_THROUGH_LBN 0
+#define	LICENSED_V3_FEATURES_RX_CUT_THROUGH_WIDTH 1
+#define	LICENSED_V3_FEATURES_PIO_LBN 1
+#define	LICENSED_V3_FEATURES_PIO_WIDTH 1
+#define	LICENSED_V3_FEATURES_EVQ_TIMER_LBN 2
+#define	LICENSED_V3_FEATURES_EVQ_TIMER_WIDTH 1
+#define	LICENSED_V3_FEATURES_CLOCK_LBN 3
+#define	LICENSED_V3_FEATURES_CLOCK_WIDTH 1
+#define	LICENSED_V3_FEATURES_RX_TIMESTAMPS_LBN 4
+#define	LICENSED_V3_FEATURES_RX_TIMESTAMPS_WIDTH 1
+#define	LICENSED_V3_FEATURES_TX_TIMESTAMPS_LBN 5
+#define	LICENSED_V3_FEATURES_TX_TIMESTAMPS_WIDTH 1
+#define	LICENSED_V3_FEATURES_RX_SNIFF_LBN 6
+#define	LICENSED_V3_FEATURES_RX_SNIFF_WIDTH 1
+#define	LICENSED_V3_FEATURES_TX_SNIFF_LBN 7
+#define	LICENSED_V3_FEATURES_TX_SNIFF_WIDTH 1
+#define	LICENSED_V3_FEATURES_PROXY_FILTER_OPS_LBN 8
+#define	LICENSED_V3_FEATURES_PROXY_FILTER_OPS_WIDTH 1
+#define	LICENSED_V3_FEATURES_MASK_LBN 0
+#define	LICENSED_V3_FEATURES_MASK_WIDTH 64
+
 /* TX_TIMESTAMP_EVENT structuredef */
 #define	TX_TIMESTAMP_EVENT_LEN 6
 /* lower 16 bits of timestamp data */
@@ -8050,6 +8355,8 @@
 #define	MC_CMD_INIT_TXQ_EXT_IN_FLAG_INNER_IP_CSUM_EN_WIDTH 1
 #define	MC_CMD_INIT_TXQ_EXT_IN_FLAG_INNER_TCP_CSUM_EN_LBN 11
 #define	MC_CMD_INIT_TXQ_EXT_IN_FLAG_INNER_TCP_CSUM_EN_WIDTH 1
+#define	MC_CMD_INIT_TXQ_EXT_IN_FLAG_TSOV2_EN_LBN 12
+#define	MC_CMD_INIT_TXQ_EXT_IN_FLAG_TSOV2_EN_WIDTH 1
 /* Owner ID to use if in buffer mode (zero if physical) */
 #define	MC_CMD_INIT_TXQ_EXT_IN_OWNER_ID_OFST 20
 /* The port ID associated with the v-adaptor which should contain this DMAQ. */
@@ -8923,7 +9230,10 @@
 
 /***********************************/
 /* MC_CMD_PARSER_DISP_RW
- * Direct read/write of parser-dispatcher state (DICPUs and LUE) for debugging
+ * Direct read/write of parser-dispatcher state (DICPUs and LUE) for debugging.
+ * Please note that this interface is only of use to debug tools which have
+ * knowledge of firmware and hardware data structures; nothing here is intended
+ * for use by normal driver code.
  */
 #define	MC_CMD_PARSER_DISP_RW 0xe5
 #undef	MC_CMD_0xe5_PRIVILEGE_CTG
@@ -8942,6 +9252,12 @@
 #define	MC_CMD_PARSER_DISP_RW_IN_LUE  0x2
 /* enum: Lookup engine (with requested metadata format) */
 #define	MC_CMD_PARSER_DISP_RW_IN_LUE_VERSIONED_METADATA  0x3
+/* enum: RX0 dispatcher CPU (alias for RX_DICPU; Medford has 2 RX DICPUs) */
+#define	MC_CMD_PARSER_DISP_RW_IN_RX0_DICPU  0x0
+/* enum: RX1 dispatcher CPU (only valid for Medford) */
+#define	MC_CMD_PARSER_DISP_RW_IN_RX1_DICPU  0x4
+/* enum: Miscellaneous other state (only valid for Medford) */
+#define	MC_CMD_PARSER_DISP_RW_IN_MISC_STATE  0x5
 /* identifies the type of operation requested */
 #define	MC_CMD_PARSER_DISP_RW_IN_OP_OFST 4
 /* enum: read a word of DICPU DMEM or a LUE entry */
@@ -8950,8 +9266,12 @@
 #define	MC_CMD_PARSER_DISP_RW_IN_WRITE  0x1
 /* enum: read-modify-write a word of DICPU DMEM (not valid for LUE) */
 #define	MC_CMD_PARSER_DISP_RW_IN_RMW  0x2
-/* data memory address or LUE index */
+/* data memory address (DICPU targets) or LUE index (LUE targets) */
 #define	MC_CMD_PARSER_DISP_RW_IN_ADDRESS_OFST 8
+/* selector (for MISC_STATE target) */
+#define	MC_CMD_PARSER_DISP_RW_IN_SELECTOR_OFST 8
+/* enum: Port to datapath mapping */
+#define	MC_CMD_PARSER_DISP_RW_IN_PORT_DP_MAPPING  0x1
 /* value to write (for DMEM writes) */
 #define	MC_CMD_PARSER_DISP_RW_IN_DMEM_WRITE_VALUE_OFST 12
 /* XOR value (for DMEM read-modify-writes: new = (old & mask) ^ value) */
@@ -8976,6 +9296,12 @@
  */
 #define	MC_CMD_PARSER_DISP_RW_OUT_LUE_MGR_STATE_OFST 20
 #define	MC_CMD_PARSER_DISP_RW_OUT_LUE_MGR_STATE_LEN 32
+/* datapath(s) used for each port (for MISC_STATE PORT_DP_MAPPING selector) */
+#define	MC_CMD_PARSER_DISP_RW_OUT_PORT_DP_MAPPING_OFST 0
+#define	MC_CMD_PARSER_DISP_RW_OUT_PORT_DP_MAPPING_LEN 4
+#define	MC_CMD_PARSER_DISP_RW_OUT_PORT_DP_MAPPING_NUM 4
+#define	MC_CMD_PARSER_DISP_RW_OUT_DP0  0x1 /* enum */
+#define	MC_CMD_PARSER_DISP_RW_OUT_DP1  0x2 /* enum */
 
 
 /***********************************/
@@ -9656,6 +9982,14 @@
 #define	MC_CMD_GET_CAPABILITIES_OUT_LEN 20
 /* First word of flags. */
 #define	MC_CMD_GET_CAPABILITIES_OUT_FLAGS1_OFST 0
+#define	MC_CMD_GET_CAPABILITIES_OUT_VPORT_RECONFIGURE_LBN 3
+#define	MC_CMD_GET_CAPABILITIES_OUT_VPORT_RECONFIGURE_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_OUT_TX_STRIPING_LBN 4
+#define	MC_CMD_GET_CAPABILITIES_OUT_TX_STRIPING_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_OUT_VADAPTOR_QUERY_LBN 5
+#define	MC_CMD_GET_CAPABILITIES_OUT_VADAPTOR_QUERY_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_OUT_EVB_PORT_VLAN_RESTRICT_LBN 6
+#define	MC_CMD_GET_CAPABILITIES_OUT_EVB_PORT_VLAN_RESTRICT_WIDTH 1
 #define	MC_CMD_GET_CAPABILITIES_OUT_DRV_ATTACH_PREBOOT_LBN 7
 #define	MC_CMD_GET_CAPABILITIES_OUT_DRV_ATTACH_PREBOOT_WIDTH 1
 #define	MC_CMD_GET_CAPABILITIES_OUT_RX_FORCE_EVENT_MERGING_LBN 8
@@ -9823,6 +10157,200 @@
 #define	MC_CMD_GET_CAPABILITIES_OUT_HW_CAPABILITIES_OFST 12
 /* Licensed capabilities */
 #define	MC_CMD_GET_CAPABILITIES_OUT_LICENSE_CAPABILITIES_OFST 16
+
+/* MC_CMD_GET_CAPABILITIES_V2_IN msgrequest */
+#define	MC_CMD_GET_CAPABILITIES_V2_IN_LEN 0
+
+/* MC_CMD_GET_CAPABILITIES_V2_OUT msgresponse */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_LEN 26
+/* First word of flags. */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_FLAGS1_OFST 0
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_VPORT_RECONFIGURE_LBN 3
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_VPORT_RECONFIGURE_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_STRIPING_LBN 4
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_STRIPING_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_VADAPTOR_QUERY_LBN 5
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_VADAPTOR_QUERY_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_EVB_PORT_VLAN_RESTRICT_LBN 6
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_EVB_PORT_VLAN_RESTRICT_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_DRV_ATTACH_PREBOOT_LBN 7
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_DRV_ATTACH_PREBOOT_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_FORCE_EVENT_MERGING_LBN 8
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_FORCE_EVENT_MERGING_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_SET_MAC_ENHANCED_LBN 9
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_SET_MAC_ENHANCED_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN 10
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN 11
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_MAC_SECURITY_FILTERING_LBN 12
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_MAC_SECURITY_FILTERING_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_ADDITIONAL_RSS_MODES_LBN 13
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_ADDITIONAL_RSS_MODES_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_QBB_LBN 14
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_QBB_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_PACKED_STREAM_VAR_BUFFERS_LBN 15
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_PACKED_STREAM_VAR_BUFFERS_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_RSS_LIMITED_LBN 16
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_RSS_LIMITED_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_PACKED_STREAM_LBN 17
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_PACKED_STREAM_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_INCLUDE_FCS_LBN 18
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_INCLUDE_FCS_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_VLAN_INSERTION_LBN 19
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_VLAN_INSERTION_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_VLAN_STRIPPING_LBN 20
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_VLAN_STRIPPING_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_LBN 21
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_PREFIX_LEN_0_LBN 22
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_PREFIX_LEN_0_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_PREFIX_LEN_14_LBN 23
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_PREFIX_LEN_14_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_TIMESTAMP_LBN 24
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_TIMESTAMP_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_BATCHING_LBN 25
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_BATCHING_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_MCAST_FILTER_CHAINING_LBN 26
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_MCAST_FILTER_CHAINING_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_PM_AND_RXDP_COUNTERS_LBN 27
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_PM_AND_RXDP_COUNTERS_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_DISABLE_SCATTER_LBN 28
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_DISABLE_SCATTER_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_MCAST_UDP_LOOPBACK_LBN 29
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_MCAST_UDP_LOOPBACK_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_EVB_LBN 30
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_EVB_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_VXLAN_NVGRE_LBN 31
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_VXLAN_NVGRE_WIDTH 1
+/* RxDPCPU firmware id. */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_DPCPU_FW_ID_OFST 4
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RX_DPCPU_FW_ID_LEN 2
+/* enum: Standard RXDP firmware */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP  0x0
+/* enum: Low latency RXDP firmware */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_LOW_LATENCY  0x1
+/* enum: Packed stream RXDP firmware */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_PACKED_STREAM  0x2
+/* enum: BIST RXDP firmware */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_BIST  0x10a
+/* enum: RXDP Test firmware image 1 */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH  0x101
+/* enum: RXDP Test firmware image 2 */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD  0x102
+/* enum: RXDP Test firmware image 3 */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST  0x103
+/* enum: RXDP Test firmware image 4 */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE  0x104
+/* enum: RXDP Test firmware image 5 */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_BACKPRESSURE  0x105
+/* enum: RXDP Test firmware image 6 */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_FW_PACKET_EDITS  0x106
+/* enum: RXDP Test firmware image 7 */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_FW_RX_HDR_SPLIT  0x107
+/* enum: RXDP Test firmware image 8 */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_FW_DISABLE_DL  0x108
+/* enum: RXDP Test firmware image 9 */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_FW_DOORBELL_DELAY  0x10b
+/* TxDPCPU firmware id. */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_DPCPU_FW_ID_OFST 6
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_DPCPU_FW_ID_LEN 2
+/* enum: Standard TXDP firmware */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXDP  0x0
+/* enum: Low latency TXDP firmware */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXDP_LOW_LATENCY  0x1
+/* enum: High packet rate TXDP firmware */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXDP_HIGH_PACKET_RATE  0x3
+/* enum: BIST TXDP firmware */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXDP_BIST  0x12d
+/* enum: TXDP Test firmware image 1 */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXDP_TEST_FW_TSO_EDIT  0x101
+/* enum: TXDP Test firmware image 2 */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXDP_TEST_FW_PACKET_EDITS  0x102
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_VERSION_OFST 8
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_VERSION_LEN 2
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_VERSION_REV_LBN 0
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_VERSION_REV_WIDTH 12
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_VERSION_TYPE_LBN 12
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_VERSION_TYPE_WIDTH 4
+/* enum: reserved value - do not use (may indicate alternative interpretation
+ * of REV field in future)
+ */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_RESERVED  0x0
+/* enum: Trivial RX PD firmware for early Huntington development (Huntington
+ * development only)
+ */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_FIRST_PKT  0x1
+/* enum: RX PD firmware with approximately Siena-compatible behaviour
+ * (Huntington development only)
+ */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_SIENA_COMPAT  0x2
+/* enum: Virtual switching (full feature) RX PD production firmware */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_VSWITCH  0x3
+/* enum: siena_compat variant RX PD firmware using PM rather than MAC
+ * (Huntington development only)
+ */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_SIENA_COMPAT_PM  0x4
+/* enum: Low latency RX PD production firmware */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_LOW_LATENCY  0x5
+/* enum: Packed stream RX PD production firmware */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_PACKED_STREAM  0x6
+/* enum: RX PD firmware handling layer 2 only for high packet rate performance
+ * tests (Medford development only)
+ */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_LAYER2_PERF  0x7
+/* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE  0xe
+/* enum: RX PD firmware parsing but not filtering network overlay tunnel
+ * encapsulations (Medford development only)
+ */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY  0xf
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_VERSION_OFST 10
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_VERSION_LEN 2
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_VERSION_REV_LBN 0
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_VERSION_REV_WIDTH 12
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_VERSION_TYPE_LBN 12
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_VERSION_TYPE_WIDTH 4
+/* enum: reserved value - do not use (may indicate alternative interpretation
+ * of REV field in future)
+ */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_RESERVED  0x0
+/* enum: Trivial TX PD firmware for early Huntington development (Huntington
+ * development only)
+ */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_FIRST_PKT  0x1
+/* enum: TX PD firmware with approximately Siena-compatible behaviour
+ * (Huntington development only)
+ */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_SIENA_COMPAT  0x2
+/* enum: Virtual switching (full feature) TX PD production firmware */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_VSWITCH  0x3
+/* enum: siena_compat variant TX PD firmware using PM rather than MAC
+ * (Huntington development only)
+ */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_SIENA_COMPAT_PM  0x4
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_LOW_LATENCY  0x5 /* enum */
+/* enum: TX PD firmware handling layer 2 only for high packet rate performance
+ * tests (Medford development only)
+ */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_LAYER2_PERF  0x7
+/* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE  0xe
+/* Hardware capabilities of NIC */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_HW_CAPABILITIES_OFST 12
+/* Licensed capabilities */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_LICENSE_CAPABILITIES_OFST 16
+/* Second word of flags. Not present on older firmware (check the length). */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_FLAGS2_OFST 20
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_LBN 0
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_ENCAP_LBN 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_ENCAP_WIDTH 1
+/* Number of FATSOv2 contexts per datapath supported by this NIC. Not present
+ * on older firmware (check the length).
+ */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_N_CONTEXTS_OFST 24
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_N_CONTEXTS_LEN 2
 
 
 /***********************************/
@@ -10545,10 +11073,17 @@
 #define	MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_LEN 8
 /* The handle of the RSS context */
 #define	MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_RSS_CONTEXT_ID_OFST 0
-/* Hash control flags. The _EN bits are always supported. The _MODE bits only
- * work when the firmware reports ADDITIONAL_RSS_MODES in
- * MC_CMD_GET_CAPABILITIES and override the _EN bits if any of them are not 0.
- * See the RSS_MODE structure for the meaning of the mode bits.
+/* Hash control flags. The _EN bits are always supported, but new modes are
+ * available when ADDITIONAL_RSS_MODES is reported by MC_CMD_GET_CAPABILITIES:
+ * in this case, the MODE fields may be set to non-zero values, and will take
+ * effect regardless of the settings of the _EN flags. See the RSS_MODE
+ * structure for the meaning of the mode bits. Drivers must check the
+ * capability before trying to set any _MODE fields, as older firmware will
+ * reject any attempt to set the FLAGS field to a value > 0xff with EINVAL. In
+ * the case where all the _MODE flags are zero, the _EN flags take effect,
+ * providing backward compatibility for existing drivers. (Setting all _MODE
+ * *and* all _EN flags to zero is valid, to disable RSS spreading for that
+ * particular packet type.)
  */
 #define	MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_FLAGS_OFST 4
 #define	MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_TOEPLITZ_IPV4_EN_LBN 0
@@ -10594,11 +11129,18 @@
 
 /* MC_CMD_RSS_CONTEXT_GET_FLAGS_OUT msgresponse */
 #define	MC_CMD_RSS_CONTEXT_GET_FLAGS_OUT_LEN 8
-/* Hash control flags. If any _MODE bits are non-zero (which will only be true
- * when the firmware reports ADDITIONAL_RSS_MODES) then the _EN bits should be
- * disregarded (but are guaranteed to be consistent with the _MODE bits if
- * RSS_CONTEXT_SET_FLAGS has never been called for this context since it was
- * allocated).
+/* Hash control flags. If all _MODE bits are zero (which will always be true
+ * for older firmware which does not report the ADDITIONAL_RSS_MODES
+ * capability), the _EN bits report the state. If any _MODE bits are non-zero
+ * (which will only be true when the firmware reports ADDITIONAL_RSS_MODES)
+ * then the _EN bits should be disregarded, although the _MODE flags are
+ * guaranteed to be consistent with the _EN flags for a freshly-allocated RSS
+ * context and in the case where the _EN flags were used in the SET. This
+ * provides backward compatibility: old drivers will not be attempting to
+ * derive any meaning from the _MODE bits (and can never set them to any value
+ * not representable by the _EN bits); new drivers can always determine the
+ * mode by looking only at the _MODE bits; the value returned by a GET can
+ * always be used for a SET regardless of old/new driver vs. old/new firmware.
  */
 #define	MC_CMD_RSS_CONTEXT_GET_FLAGS_OUT_FLAGS_OFST 4
 #define	MC_CMD_RSS_CONTEXT_GET_FLAGS_OUT_TOEPLITZ_IPV4_EN_LBN 0
@@ -11568,32 +12110,38 @@
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_PARAM_MAXNUM 63
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_PARAM_ID_LBN 0
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_PARAM_ID_WIDTH 8
-/* enum: Attenuation (0-15, TBD for Medford) */
+/* enum: Attenuation (0-15, Huntington) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_ATT  0x0
-/* enum: CTLE Boost (0-15, TBD for Medford) */
+/* enum: CTLE Boost (0-15, Huntington) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_BOOST  0x1
-/* enum: Edge DFE Tap1 (0 - max negative, 64 - zero, 127 - max positive, TBD
- * for Medford)
+/* enum: Edge DFE Tap1 (Huntington - 0 - max negative, 64 - zero, 127 - max
+ * positive, Medford - 0-31)
  */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_EDFE_TAP1  0x2
-/* enum: Edge DFE Tap2 (0 - max negative, 32 - zero, 63 - max positive, TBD for
- * Medford)
+/* enum: Edge DFE Tap2 (Huntington - 0 - max negative, 32 - zero, 63 - max
+ * positive, Medford - 0-31)
  */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_EDFE_TAP2  0x3
-/* enum: Edge DFE Tap3 (0 - max negative, 32 - zero, 63 - max positive, TBD for
- * Medford)
+/* enum: Edge DFE Tap3 (Huntington - 0 - max negative, 32 - zero, 63 - max
+ * positive, Medford - 0-16)
  */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_EDFE_TAP3  0x4
-/* enum: Edge DFE Tap4 (0 - max negative, 32 - zero, 63 - max positive, TBD for
- * Medford)
+/* enum: Edge DFE Tap4 (Huntington - 0 - max negative, 32 - zero, 63 - max
+ * positive, Medford - 0-16)
  */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_EDFE_TAP4  0x5
-/* enum: Edge DFE Tap5 (0 - max negative, 32 - zero, 63 - max positive, TBD for
- * Medford)
+/* enum: Edge DFE Tap5 (Huntington - 0 - max negative, 32 - zero, 63 - max
+ * positive, Medford - 0-16)
  */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_EDFE_TAP5  0x6
-/* enum: Edge DFE DLEV (TBD for Medford) */
+/* enum: Edge DFE DLEV (0-128 for Medford) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_EDFE_DLEV  0x7
+/* enum: Variable Gain Amplifier (0-15, Medford) */
+#define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_VGA  0x8
+/* enum: CTLE EQ Capacitor (0-15, Medford) */
+#define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_CTLE_EQC  0x9
+/* enum: CTLE EQ Resistor (0-7, Medford) */
+#define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_CTLE_EQRES  0xa
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_PARAM_LANE_LBN 8
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_PARAM_LANE_WIDTH 3
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_LANE_0  0x0 /* enum */
@@ -11665,26 +12213,32 @@
 #define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_PARAM_MAXNUM 63
 #define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_PARAM_ID_LBN 0
 #define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_PARAM_ID_WIDTH 8
-/* enum: TX Amplitude */
+/* enum: TX Amplitude (Huntington, Medford) */
 #define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_TX_LEV  0x0
-/* enum: De-Emphasis Tap1 Magnitude (0-7) */
+/* enum: De-Emphasis Tap1 Magnitude (0-7) (Huntington) */
 #define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_TX_MODE  0x1
 /* enum: De-Emphasis Tap1 Fine */
 #define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_TX_DTLEV  0x2
-/* enum: De-Emphasis Tap2 Magnitude (0-6) */
+/* enum: De-Emphasis Tap2 Magnitude (0-6) (Huntington) */
 #define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_TX_D2  0x3
-/* enum: De-Emphasis Tap2 Fine */
+/* enum: De-Emphasis Tap2 Fine (Huntington) */
 #define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_TX_D2TLEV  0x4
-/* enum: Pre-Emphasis Magnitude */
+/* enum: Pre-Emphasis Magnitude (Huntington) */
 #define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_TX_E  0x5
-/* enum: Pre-Emphasis Fine */
+/* enum: Pre-Emphasis Fine (Huntington) */
 #define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_TX_ETLEV  0x6
-/* enum: TX Slew Rate Coarse control */
+/* enum: TX Slew Rate Coarse control (Huntington) */
 #define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_TX_PREDRV_DLY  0x7
-/* enum: TX Slew Rate Fine control */
+/* enum: TX Slew Rate Fine control (Huntington) */
 #define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_TX_SR_SET  0x8
-/* enum: TX Termination Impedance control */
+/* enum: TX Termination Impedance control (Huntington) */
 #define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_TX_RT_SET  0x9
+/* enum: TX Amplitude Fine control (Medford) */
+#define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_TX_LEV_FINE  0xa
+/* enum: Pre-shoot Tap (Medford) */
+#define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_TAP_ADV  0xb
+/* enum: De-emphasis Tap (Medford) */
+#define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_TAP_DLY  0xc
 #define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_PARAM_LANE_LBN 8
 #define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_PARAM_LANE_WIDTH 3
 #define	MC_CMD_KR_TUNE_TXEQ_GET_OUT_LANE_0  0x0 /* enum */
@@ -11871,8 +12425,12 @@
 #define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_DFE_DLEV  0x7
 /* enum: Figure of Merit */
 #define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_FOM  0x8
+/* enum: CTLE EQ Capacitor (HF Gain) */
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_CTLE_EQC  0x9
+/* enum: CTLE EQ Resistor (DC Gain) */
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_CTLE_EQRES  0xa
 #define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_PARAM_LANE_LBN 8
-#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_PARAM_LANE_WIDTH 4
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_PARAM_LANE_WIDTH 5
 #define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_LANE_0  0x0 /* enum */
 #define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_LANE_1  0x1 /* enum */
 #define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_LANE_2  0x2 /* enum */
@@ -11881,11 +12439,56 @@
 #define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_LANE_5  0x5 /* enum */
 #define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_LANE_6  0x6 /* enum */
 #define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_LANE_7  0x7 /* enum */
-#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_LANE_ALL  0x8 /* enum */
-#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_RESERVED_LBN 12
-#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_RESERVED_WIDTH 12
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_LANE_8  0x8 /* enum */
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_LANE_9  0x9 /* enum */
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_LANE_10  0xa /* enum */
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_LANE_11  0xb /* enum */
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_LANE_12  0xc /* enum */
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_LANE_13  0xd /* enum */
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_LANE_14  0xe /* enum */
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_LANE_15  0xf /* enum */
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_LANE_ALL  0x10 /* enum */
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_PARAM_AUTOCAL_LBN 13
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_PARAM_AUTOCAL_WIDTH 1
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_RESERVED_LBN 14
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_RESERVED_WIDTH 10
 #define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_PARAM_CURRENT_LBN 24
 #define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_PARAM_CURRENT_WIDTH 8
+
+/* MC_CMD_PCIE_TUNE_RXEQ_SET_IN msgrequest */
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_LENMIN 8
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_LENMAX 252
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_LEN(num) (4+4*(num))
+/* Requested operation */
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_PCIE_TUNE_OP_OFST 0
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_PCIE_TUNE_OP_LEN 1
+/* Align the arguments to 32 bits */
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_PCIE_TUNE_RSVD_OFST 1
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_PCIE_TUNE_RSVD_LEN 3
+/* RXEQ Parameter */
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_PARAM_OFST 4
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_PARAM_LEN 4
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_PARAM_MINNUM 1
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_PARAM_MAXNUM 62
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_PARAM_ID_LBN 0
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_PARAM_ID_WIDTH 8
+/*             Enum values, see field(s): */
+/*                MC_CMD_PCIE_TUNE_RXEQ_GET_OUT/PARAM_ID */
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_PARAM_LANE_LBN 8
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_PARAM_LANE_WIDTH 5
+/*             Enum values, see field(s): */
+/*                MC_CMD_PCIE_TUNE_RXEQ_GET_OUT/PARAM_LANE */
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_PARAM_AUTOCAL_LBN 13
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_PARAM_AUTOCAL_WIDTH 1
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_RESERVED_LBN 14
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_RESERVED_WIDTH 2
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_PARAM_INITIAL_LBN 16
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_PARAM_INITIAL_WIDTH 8
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_RESERVED2_LBN 24
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_IN_RESERVED2_WIDTH 8
+
+/* MC_CMD_PCIE_TUNE_RXEQ_SET_OUT msgresponse */
+#define	MC_CMD_PCIE_TUNE_RXEQ_SET_OUT_LEN 0
 
 /* MC_CMD_PCIE_TUNE_TXEQ_GET_IN msgrequest */
 #define	MC_CMD_PCIE_TUNE_TXEQ_GET_IN_LEN 4
@@ -11961,6 +12564,7 @@
 /***********************************/
 /* MC_CMD_LICENSING
  * Operations on the NVRAM_PARTITION_TYPE_LICENSE application license partition
+ * - not used for V3 licensing
  */
 #define	MC_CMD_LICENSING 0xf3
 #undef	MC_CMD_0xf3_PRIVILEGE_CTG
@@ -12006,6 +12610,95 @@
 
 
 /***********************************/
+/* MC_CMD_LICENSING_V3
+ * Operations on the NVRAM_PARTITION_TYPE_LICENSE application license partition
+ * - V3 licensing (Medford)
+ */
+#define	MC_CMD_LICENSING_V3 0xd0
+#undef	MC_CMD_0xd0_PRIVILEGE_CTG
+
+#define	MC_CMD_0xd0_PRIVILEGE_CTG SRIOV_CTG_GENERAL
+
+/* MC_CMD_LICENSING_V3_IN msgrequest */
+#define	MC_CMD_LICENSING_V3_IN_LEN 4
+/* identifies the type of operation requested */
+#define	MC_CMD_LICENSING_V3_IN_OP_OFST 0
+/* enum: re-read and apply licenses after a license key partition update; note
+ * that this operation returns a zero-length response
+ */
+#define	MC_CMD_LICENSING_V3_IN_OP_UPDATE_LICENSE  0x0
+/* enum: report counts of installed licenses */
+#define	MC_CMD_LICENSING_V3_IN_OP_REPORT_LICENSE  0x1
+
+/* MC_CMD_LICENSING_V3_OUT msgresponse */
+#define	MC_CMD_LICENSING_V3_OUT_LEN 88
+/* count of keys which are valid */
+#define	MC_CMD_LICENSING_V3_OUT_VALID_KEYS_OFST 0
+/* sum of UNVERIFIABLE_KEYS + WRONG_NODE_KEYS (for compatibility with
+ * MC_CMD_FC_OP_LICENSE)
+ */
+#define	MC_CMD_LICENSING_V3_OUT_INVALID_KEYS_OFST 4
+/* count of keys which are invalid due to being unverifiable */
+#define	MC_CMD_LICENSING_V3_OUT_UNVERIFIABLE_KEYS_OFST 8
+/* count of keys which are invalid due to being for the wrong node */
+#define	MC_CMD_LICENSING_V3_OUT_WRONG_NODE_KEYS_OFST 12
+/* licensing state (for diagnostics; the exact meaning of the bits in this
+ * field are private to the firmware)
+ */
+#define	MC_CMD_LICENSING_V3_OUT_LICENSING_STATE_OFST 16
+/* licensing subsystem self-test report (for manftest) */
+#define	MC_CMD_LICENSING_V3_OUT_LICENSING_SELF_TEST_OFST 20
+/* enum: licensing subsystem self-test failed */
+#define	MC_CMD_LICENSING_V3_OUT_SELF_TEST_FAIL  0x0
+/* enum: licensing subsystem self-test passed */
+#define	MC_CMD_LICENSING_V3_OUT_SELF_TEST_PASS  0x1
+/* bitmask of licensed applications */
+#define	MC_CMD_LICENSING_V3_OUT_LICENSED_APPS_OFST 24
+#define	MC_CMD_LICENSING_V3_OUT_LICENSED_APPS_LEN 8
+#define	MC_CMD_LICENSING_V3_OUT_LICENSED_APPS_LO_OFST 24
+#define	MC_CMD_LICENSING_V3_OUT_LICENSED_APPS_HI_OFST 28
+/* reserved for future use */
+#define	MC_CMD_LICENSING_V3_OUT_RESERVED_0_OFST 32
+#define	MC_CMD_LICENSING_V3_OUT_RESERVED_0_LEN 24
+/* bitmask of licensed features */
+#define	MC_CMD_LICENSING_V3_OUT_LICENSED_FEATURES_OFST 56
+#define	MC_CMD_LICENSING_V3_OUT_LICENSED_FEATURES_LEN 8
+#define	MC_CMD_LICENSING_V3_OUT_LICENSED_FEATURES_LO_OFST 56
+#define	MC_CMD_LICENSING_V3_OUT_LICENSED_FEATURES_HI_OFST 60
+/* reserved for future use */
+#define	MC_CMD_LICENSING_V3_OUT_RESERVED_1_OFST 64
+#define	MC_CMD_LICENSING_V3_OUT_RESERVED_1_LEN 24
+
+
+/***********************************/
+/* MC_CMD_LICENSING_GET_ID_V3
+ * Get ID and type from the NVRAM_PARTITION_TYPE_LICENSE application license
+ * partition - V3 licensing (Medford)
+ */
+#define	MC_CMD_LICENSING_GET_ID_V3 0xd1
+#undef	MC_CMD_0xd1_PRIVILEGE_CTG
+
+#define	MC_CMD_0xd1_PRIVILEGE_CTG SRIOV_CTG_GENERAL
+
+/* MC_CMD_LICENSING_GET_ID_V3_IN msgrequest */
+#define	MC_CMD_LICENSING_GET_ID_V3_IN_LEN 0
+
+/* MC_CMD_LICENSING_GET_ID_V3_OUT msgresponse */
+#define	MC_CMD_LICENSING_GET_ID_V3_OUT_LENMIN 8
+#define	MC_CMD_LICENSING_GET_ID_V3_OUT_LENMAX 252
+#define	MC_CMD_LICENSING_GET_ID_V3_OUT_LEN(num) (8+1*(num))
+/* type of license (eg 3) */
+#define	MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_TYPE_OFST 0
+/* length of the license ID (in bytes) */
+#define	MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_LENGTH_OFST 4
+/* the unique license ID of the adapter */
+#define	MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_OFST 8
+#define	MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_LEN 1
+#define	MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_MINNUM 0
+#define	MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_MAXNUM 244
+
+
+/***********************************/
 /* MC_CMD_MC2MC_PROXY
  * Execute an arbitrary MCDI command on the slave MC of a dual-core device.
  * This will fail on a single-core system.
@@ -12026,7 +12719,7 @@
 /* MC_CMD_GET_LICENSED_APP_STATE
  * Query the state of an individual licensed application. (Note that the actual
  * state may be invalidated by the MC_CMD_LICENSING OP_UPDATE_LICENSE operation
- * or a reboot of the MC.)
+ * or a reboot of the MC.) Not used for V3 licensing
  */
 #define	MC_CMD_GET_LICENSED_APP_STATE 0xf5
 #undef	MC_CMD_0xf5_PRIVILEGE_CTG
@@ -12049,8 +12742,70 @@
 
 
 /***********************************/
+/* MC_CMD_GET_LICENSED_V3_APP_STATE
+ * Query the state of an individual licensed application. (Note that the actual
+ * state may be invalidated by the MC_CMD_LICENSING_V3 OP_UPDATE_LICENSE
+ * operation or a reboot of the MC.) Used for V3 licensing (Medford)
+ */
+#define	MC_CMD_GET_LICENSED_V3_APP_STATE 0xd2
+#undef	MC_CMD_0xd2_PRIVILEGE_CTG
+
+#define	MC_CMD_0xd2_PRIVILEGE_CTG SRIOV_CTG_GENERAL
+
+/* MC_CMD_GET_LICENSED_V3_APP_STATE_IN msgrequest */
+#define	MC_CMD_GET_LICENSED_V3_APP_STATE_IN_LEN 8
+/* application ID to query (LICENSED_V3_APPS_xxx) expressed as a single bit
+ * mask
+ */
+#define	MC_CMD_GET_LICENSED_V3_APP_STATE_IN_APP_ID_OFST 0
+#define	MC_CMD_GET_LICENSED_V3_APP_STATE_IN_APP_ID_LEN 8
+#define	MC_CMD_GET_LICENSED_V3_APP_STATE_IN_APP_ID_LO_OFST 0
+#define	MC_CMD_GET_LICENSED_V3_APP_STATE_IN_APP_ID_HI_OFST 4
+
+/* MC_CMD_GET_LICENSED_V3_APP_STATE_OUT msgresponse */
+#define	MC_CMD_GET_LICENSED_V3_APP_STATE_OUT_LEN 4
+/* state of this application */
+#define	MC_CMD_GET_LICENSED_V3_APP_STATE_OUT_STATE_OFST 0
+/* enum: no (or invalid) license is present for the application */
+#define	MC_CMD_GET_LICENSED_V3_APP_STATE_OUT_NOT_LICENSED  0x0
+/* enum: a valid license is present for the application */
+#define	MC_CMD_GET_LICENSED_V3_APP_STATE_OUT_LICENSED  0x1
+
+
+/***********************************/
+/* MC_CMD_GET_LICENSED_V3_FEATURE_STATES
+ * Query the state of an one or more licensed features. (Note that the actual
+ * state may be invalidated by the MC_CMD_LICENSING_V3 OP_UPDATE_LICENSE
+ * operation or a reboot of the MC.) Used for V3 licensing (Medford)
+ */
+#define	MC_CMD_GET_LICENSED_V3_FEATURE_STATES 0xd3
+#undef	MC_CMD_0xd3_PRIVILEGE_CTG
+
+#define	MC_CMD_0xd3_PRIVILEGE_CTG SRIOV_CTG_GENERAL
+
+/* MC_CMD_GET_LICENSED_V3_FEATURE_STATES_IN msgrequest */
+#define	MC_CMD_GET_LICENSED_V3_FEATURE_STATES_IN_LEN 8
+/* features to query (LICENSED_V3_FEATURES_xxx) expressed as a mask with one or
+ * more bits set
+ */
+#define	MC_CMD_GET_LICENSED_V3_FEATURE_STATES_IN_FEATURES_OFST 0
+#define	MC_CMD_GET_LICENSED_V3_FEATURE_STATES_IN_FEATURES_LEN 8
+#define	MC_CMD_GET_LICENSED_V3_FEATURE_STATES_IN_FEATURES_LO_OFST 0
+#define	MC_CMD_GET_LICENSED_V3_FEATURE_STATES_IN_FEATURES_HI_OFST 4
+
+/* MC_CMD_GET_LICENSED_V3_FEATURE_STATES_OUT msgresponse */
+#define	MC_CMD_GET_LICENSED_V3_FEATURE_STATES_OUT_LEN 8
+/* states of these features - bit set for licensed, clear for not licensed */
+#define	MC_CMD_GET_LICENSED_V3_FEATURE_STATES_OUT_STATES_OFST 0
+#define	MC_CMD_GET_LICENSED_V3_FEATURE_STATES_OUT_STATES_LEN 8
+#define	MC_CMD_GET_LICENSED_V3_FEATURE_STATES_OUT_STATES_LO_OFST 0
+#define	MC_CMD_GET_LICENSED_V3_FEATURE_STATES_OUT_STATES_HI_OFST 4
+
+
+/***********************************/
 /* MC_CMD_LICENSED_APP_OP
- * Perform an action for an individual licensed application.
+ * Perform an action for an individual licensed application - not used for V3
+ * licensing.
  */
 #define	MC_CMD_LICENSED_APP_OP 0xf6
 #undef	MC_CMD_0xf6_PRIVILEGE_CTG
@@ -12114,6 +12869,69 @@
 
 /* MC_CMD_LICENSED_APP_OP_MASK_OUT msgresponse */
 #define	MC_CMD_LICENSED_APP_OP_MASK_OUT_LEN 0
+
+
+/***********************************/
+/* MC_CMD_LICENSED_V3_VALIDATE_APP
+ * Perform validation for an individual licensed application - V3 licensing
+ * (Medford)
+ */
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP 0xd4
+#undef	MC_CMD_0xd4_PRIVILEGE_CTG
+
+#define	MC_CMD_0xd4_PRIVILEGE_CTG SRIOV_CTG_GENERAL
+
+/* MC_CMD_LICENSED_V3_VALIDATE_APP_IN msgrequest */
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_LEN 72
+/* application ID expressed as a single bit mask */
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_APP_ID_OFST 0
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_APP_ID_LEN 8
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_APP_ID_LO_OFST 0
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_APP_ID_HI_OFST 4
+/* challenge for validation */
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_CHALLENGE_OFST 8
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_IN_CHALLENGE_LEN 64
+
+/* MC_CMD_LICENSED_V3_VALIDATE_APP_OUT msgresponse */
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_LEN 72
+/* application expiry time */
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_EXPIRY_TIME_OFST 0
+/* application expiry units */
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_EXPIRY_UNITS_OFST 4
+/* enum: expiry units are accounting units */
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_EXPIRY_UNIT_ACC  0x0
+/* enum: expiry units are calendar days */
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_EXPIRY_UNIT_DAYS  0x1
+/* validation response to challenge */
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_RESPONSE_OFST 8
+#define	MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_RESPONSE_LEN 64
+
+
+/***********************************/
+/* MC_CMD_LICENSED_V3_MASK_FEATURES
+ * Mask features - V3 licensing (Medford)
+ */
+#define	MC_CMD_LICENSED_V3_MASK_FEATURES 0xd5
+#undef	MC_CMD_0xd5_PRIVILEGE_CTG
+
+#define	MC_CMD_0xd5_PRIVILEGE_CTG SRIOV_CTG_GENERAL
+
+/* MC_CMD_LICENSED_V3_MASK_FEATURES_IN msgrequest */
+#define	MC_CMD_LICENSED_V3_MASK_FEATURES_IN_LEN 12
+/* mask to be applied to features to be changed */
+#define	MC_CMD_LICENSED_V3_MASK_FEATURES_IN_MASK_OFST 0
+#define	MC_CMD_LICENSED_V3_MASK_FEATURES_IN_MASK_LEN 8
+#define	MC_CMD_LICENSED_V3_MASK_FEATURES_IN_MASK_LO_OFST 0
+#define	MC_CMD_LICENSED_V3_MASK_FEATURES_IN_MASK_HI_OFST 4
+/* whether to turn on or turn off the masked features */
+#define	MC_CMD_LICENSED_V3_MASK_FEATURES_IN_FLAG_OFST 8
+/* enum: turn the features off */
+#define	MC_CMD_LICENSED_V3_MASK_FEATURES_IN_OFF  0x0
+/* enum: turn the features back on */
+#define	MC_CMD_LICENSED_V3_MASK_FEATURES_IN_ON  0x1
+
+/* MC_CMD_LICENSED_V3_MASK_FEATURES_OUT msgresponse */
+#define	MC_CMD_LICENSED_V3_MASK_FEATURES_OUT_LEN 0
 
 
 /***********************************/

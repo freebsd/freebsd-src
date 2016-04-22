@@ -236,10 +236,10 @@ nand_strategy(struct bio *bp)
 	chip = dev->si_drv1;
 
 	nand_debug(NDBG_CDEV, "Strategy %s on chip %d [%p]\n",
-	    (bp->bio_cmd & BIO_READ) == BIO_READ ? "READ" : "WRITE",
+	    bp->bio_cmd == BIO_READ ? "READ" : "WRITE",
 	    chip->num, chip);
 
-	if ((bp->bio_cmd & BIO_READ) == BIO_READ) {
+	if (bp->bio_cmd == BIO_READ) {
 		err = nand_read(chip,
 		    bp->bio_offset & 0xffffffff,
 		    bp->bio_data, bp->bio_bcount);

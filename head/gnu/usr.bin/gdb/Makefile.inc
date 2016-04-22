@@ -3,6 +3,8 @@
 VERSION= "6.1.1 [FreeBSD]"
 VENDOR= marcel
 
+PACKAGE=	gdb
+
 BMAKE_GDB= ${.CURDIR}/..
 BMAKE_ROOT= ${BMAKE_GDB}/..
 BMAKE_BU= ${BMAKE_ROOT}/binutils

@@ -744,9 +744,9 @@ gdt_next(struct gdt_softc *gdt)
                                   ccb->ccb_h.flags));
         csio = &ccb->csio;
         ccbh = &ccb->ccb_h;
-        cmd  = csio->cdb_io.cdb_bytes[0];
-        /* Max CDB length is 12 bytes */
-        if (csio->cdb_len > 12) { 
+        cmd  = scsiio_cdb_ptr(csio)[0];
+        /* Max CDB length is 12 bytes, can't be phys addr */
+        if (csio->cdb_len > 12 || (ccbh->flags & CAM_CDB_PHYS)) { 
             ccbh->status = CAM_REQ_INVALID;
             --gdt_stat.io_count_act;
             xpt_done(ccb);

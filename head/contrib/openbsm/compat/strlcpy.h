@@ -25,7 +25,6 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * dollar OpenBSD: strlcpy.c,v 1.4 1999/05/01 18:56:41 millert Exp dollar
- * $P4: //depot/projects/trustedbsd/openbsm/compat/strlcpy.h#1 $
  */
 
 /*

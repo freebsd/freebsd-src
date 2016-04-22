@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-passwd.c,v 1.11 2014/02/02 03:44:31 djm Exp $ */
+/* $OpenBSD: auth2-passwd.c,v 1.12 2014/07/15 15:54:14 millert Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -41,6 +41,7 @@
 #include "ssh-gss.h"
 #endif
 #include "monitor_wrap.h"
+#include "misc.h"
 #include "servconf.h"
 
 /* import */

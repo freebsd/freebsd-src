@@ -132,7 +132,7 @@ setinput(char *source, int ispipecommand)
 	if (bflag)
 		newtapebuf(ntrec);
 	else
-		newtapebuf(NTREC > HIGHDENSITYTREC ? NTREC : HIGHDENSITYTREC);
+		newtapebuf(MAX(NTREC, HIGHDENSITYTREC));
 	terminal = stdin;
 
 	if (ispipecommand)
@@ -340,6 +340,7 @@ getvol(long nextvol)
 		}
 		if (volno == 1)
 			return;
+		newvol = 0;
 		goto gethdr;
 	}
 again:
@@ -1009,7 +1010,7 @@ loop:
 			 * block of the hole in the file. Postpone the
 			 * seek until next file write.
 			 */
-			seekpos += (long)(size > TP_BSIZE ? TP_BSIZE : size);
+			seekpos += (long)MIN(TP_BSIZE, size);
 		}
 		if ((size -= TP_BSIZE) <= 0) {
 			if (size > -TP_BSIZE && curblk > 0) {

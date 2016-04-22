@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd October 27, 2015
+.Dd January 21, 2016
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -137,6 +137,11 @@ send window size,
 receive window size,
 and
 bandwidth-controlled window space.
+.It Dv TCP_CCALGOOPT
+Set or query congestion control algorithm specific parameters.
+See
+.Xr mod_cc 4
+for details.
 .It Dv TCP_CONGESTION
 Select or query the congestion control algorithm that TCP will use for the
 connection.

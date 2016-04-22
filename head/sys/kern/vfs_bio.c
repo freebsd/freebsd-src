@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/smp.h>
@@ -1784,8 +1785,16 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
 		rabp = getblk(vp, *rablkno, *rabsize, 0, 0, 0);
 
 		if ((rabp->b_flags & B_CACHE) == 0) {
-			if (!TD_IS_IDLETHREAD(curthread))
+			if (!TD_IS_IDLETHREAD(curthread)) {
+#ifdef RACCT
+				if (racct_enable) {
+					PROC_LOCK(curproc);
+					racct_add_buf(curproc, rabp, 0);
+					PROC_UNLOCK(curproc);
+				}
+#endif /* RACCT */
 				curthread->td_ru.ru_inblock++;
+			}
 			rabp->b_flags |= B_ASYNC;
 			rabp->b_flags &= ~B_INVAL;
 			rabp->b_ioflags &= ~BIO_ERROR;
@@ -1809,6 +1818,8 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
  * must clear BIO_ERROR and B_INVAL prior to initiating I/O.  If B_CACHE
  * is set, the buffer is valid and we do not have to do anything, see
  * getblk(). Also starts asynchronous I/O on read-ahead blocks.
+ *
+ * Always return a NULL buffer pointer (in bpp) when returning an error.
  */
 int
 breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
@@ -1827,8 +1838,16 @@ breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
 
 	/* if not found in cache, do some I/O */
 	if ((bp->b_flags & B_CACHE) == 0) {
-		if (!TD_IS_IDLETHREAD(curthread))
+		if (!TD_IS_IDLETHREAD(curthread)) {
+#ifdef RACCT
+			if (racct_enable) {
+				PROC_LOCK(curproc);
+				racct_add_buf(curproc, bp, 0);
+				PROC_UNLOCK(curproc);
+			}
+#endif /* RACCT */
 			curthread->td_ru.ru_inblock++;
+		}
 		bp->b_iocmd = BIO_READ;
 		bp->b_flags &= ~B_INVAL;
 		bp->b_ioflags &= ~BIO_ERROR;
@@ -1844,6 +1863,10 @@ breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
 
 	if (readwait) {
 		rv = bufwait(bp);
+		if (rv != 0) {
+			brelse(bp);
+			*bpp = NULL;
+		}
 	}
 	return (rv);
 }
@@ -1920,8 +1943,16 @@ bufwrite(struct buf *bp)
 	bp->b_runningbufspace = bp->b_bufsize;
 	space = atomic_fetchadd_long(&runningbufspace, bp->b_runningbufspace);
 
-	if (!TD_IS_IDLETHREAD(curthread))
+	if (!TD_IS_IDLETHREAD(curthread)) {
+#ifdef RACCT
+		if (racct_enable) {
+			PROC_LOCK(curproc);
+			racct_add_buf(curproc, bp, 1);
+			PROC_UNLOCK(curproc);
+		}
+#endif /* RACCT */
 		curthread->td_ru.ru_oublock++;
+	}
 	if (oldflags & B_ASYNC)
 		BUF_KERNPROC(bp);
 	bp->b_iooffset = dbtob(bp->b_blkno);
@@ -2238,6 +2269,12 @@ brelse(struct buf *bp)
 {
 	int qindex;
 
+	/*
+	 * Many functions erroneously call brelse with a NULL bp under rare
+	 * error conditions. Simply return when called with a NULL bp.
+	 */
+	if (bp == NULL)
+		return;
 	CTR3(KTR_BUF, "brelse(%p) vp %p flags %X",
 	    bp, bp->b_vp, bp->b_flags);
 	KASSERT(!(bp->b_flags & (B_CLUSTER|B_PAGING)),
@@ -2909,7 +2946,7 @@ getnewbuf(struct vnode *vp, int slpflag, int slptimeo, int maxsize, int gbflags)
 	} while(buf_scan(false) == 0);
 
 	if (reserved)
-		bufspace_release(maxsize);
+		atomic_subtract_long(&bufspace, maxsize);
 	if (bp != NULL) {
 		bp->b_flags |= B_INVAL;
 		brelse(bp);

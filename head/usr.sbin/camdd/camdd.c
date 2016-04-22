@@ -1276,7 +1276,6 @@ camdd_probe_pass(struct cam_device *cam_dev, struct camdd_io_opts *io_opts,
 	struct camdd_dev_pass *pass_dev;
 	struct kevent ke;
 	int scsi_dev_type;
-	int retval;
 
 	dev = NULL;
 
@@ -1336,7 +1335,6 @@ camdd_probe_pass(struct cam_device *cam_dev, struct camdd_io_opts *io_opts,
 
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		cam_error_print(cam_dev, ccb, CAM_ESF_ALL, CAM_EPF_ALL, stderr);
-		retval = 1;
 		goto bailout;
 	}
 
@@ -1371,11 +1369,8 @@ camdd_probe_pass(struct cam_device *cam_dev, struct camdd_io_opts *io_opts,
 
 	if (cam_send_ccb(cam_dev, ccb) < 0) {
 		warn("error sending READ CAPACITY (16) command");
-
 		cam_error_print(cam_dev, ccb, CAM_ESF_ALL,
 				CAM_EPF_ALL, stderr);
-
-		retval = 1;
 		goto bailout;
 	}
 

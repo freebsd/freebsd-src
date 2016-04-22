@@ -1,4 +1,4 @@
-/* $OpenBSD: dh.h,v 1.11 2013/10/08 11:42:13 dtucker Exp $ */
+/* $OpenBSD: dh.h,v 1.14 2015/10/16 22:32:22 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
@@ -37,14 +37,18 @@ DH	*dh_new_group_asc(const char *, const char *);
 DH	*dh_new_group(BIGNUM *, BIGNUM *);
 DH	*dh_new_group1(void);
 DH	*dh_new_group14(void);
+DH	*dh_new_group_fallback(int);
 
-void	 dh_gen_key(DH *, int);
+int	 dh_gen_key(DH *, int);
 int	 dh_pub_is_valid(DH *, BIGNUM *);
 
-int	 dh_estimate(int);
+u_int	 dh_estimate(int);
 
-/* Min and max values from RFC4419. */
-#define DH_GRP_MIN	1024
+/*
+ * Max value from RFC4419.
+ * Miniumum increased in light of DH precomputation attacks.
+ */
+#define DH_GRP_MIN	2048
 #define DH_GRP_MAX	8192
 
 /*

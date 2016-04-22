@@ -103,6 +103,7 @@ device		mii
 device		miibus		# MII bus support
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
 device		igb		# Intel PRO/1000 PCIE Server Gigabit Family
+device		ix		# Intel 10Gb Ethernet Family
 device		msk		# Marvell/SysKonnect Yukon II Gigabit Ethernet
 device		vnic		# Cavium ThunderX NIC
 
@@ -121,6 +122,7 @@ device		dwmmc
 
 # Serial (COM) ports
 device		uart		# Generic UART driver
+device		uart_ns8250	# ns8250-type UART driver
 device		pl011
 
 # USB support

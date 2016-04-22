@@ -337,7 +337,7 @@ typedef struct nt_dispatch_header nt_dispatch_header;
 #define	SYNC_LEVEL_MP		(IPI_LEVEL - 1)
 
 #define	AT_PASSIVE_LEVEL(td)		\
-	((td)->td_proc->p_flag & P_KTHREAD == FALSE)
+	((td)->td_proc->p_flag & P_KPROC == FALSE)
 
 #define	AT_DISPATCH_LEVEL(td)		\
 	((td)->td_base_pri == PI_REALTIME)

@@ -1,4 +1,4 @@
-/*	$Id: term_ps.c,v 1.72 2015/01/21 19:40:54 schwarze Exp $ */
+/*	$Id: term_ps.c,v 1.80 2015/12/23 20:50:13 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -7,9 +7,9 @@
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHORS DISCLAIM ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -20,6 +20,9 @@
 #include <sys/types.h>
 
 #include <assert.h>
+#if HAVE_ERR
+#include <err.h>
+#endif
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -30,6 +33,7 @@
 #include "mandoc_aux.h"
 #include "out.h"
 #include "term.h"
+#include "manconf.h"
 #include "main.h"
 
 /* These work the buffer used by the header and footer. */
@@ -86,7 +90,7 @@ struct	termp_ps {
 	size_t		  pdfobjsz;	/* size of pdfobjs */
 };
 
-static	double		  ps_hspan(const struct termp *,
+static	int		  ps_hspan(const struct termp *,
 				const struct roffsu *);
 static	size_t		  ps_width(const struct termp *, int);
 static	void		  ps_advance(struct termp *, size_t);
@@ -105,8 +109,8 @@ __attribute__((__format__ (__printf__, 2, 3)))
 static	void		  ps_printf(struct termp *, const char *, ...);
 static	void		  ps_putchar(struct termp *, char);
 static	void		  ps_setfont(struct termp *, enum termfont);
-static	void		  ps_setwidth(struct termp *, int, size_t);
-static	struct termp	 *pspdf_alloc(const struct mchars *, char *);
+static	void		  ps_setwidth(struct termp *, int, int);
+static	struct termp	 *pspdf_alloc(const struct manoutput *);
 static	void		  pdf_obj(struct termp *, size_t);
 
 /*
@@ -507,39 +511,36 @@ static	const struct font fonts[TERMFONT__MAX] = {
 };
 
 void *
-pdf_alloc(const struct mchars *mchars, char *outopts)
+pdf_alloc(const struct manoutput *outopts)
 {
 	struct termp	*p;
 
-	if (NULL != (p = pspdf_alloc(mchars, outopts)))
+	if (NULL != (p = pspdf_alloc(outopts)))
 		p->type = TERMTYPE_PDF;
 
-	return(p);
+	return p;
 }
 
 void *
-ps_alloc(const struct mchars *mchars, char *outopts)
+ps_alloc(const struct manoutput *outopts)
 {
 	struct termp	*p;
 
-	if (NULL != (p = pspdf_alloc(mchars, outopts)))
+	if (NULL != (p = pspdf_alloc(outopts)))
 		p->type = TERMTYPE_PS;
 
-	return(p);
+	return p;
 }
 
 static struct termp *
-pspdf_alloc(const struct mchars *mchars, char *outopts)
+pspdf_alloc(const struct manoutput *outopts)
 {
 	struct termp	*p;
 	unsigned int	 pagex, pagey;
 	size_t		 marginx, marginy, lineheight;
-	const char	*toks[2];
 	const char	*pp;
-	char		*v;
 
 	p = mandoc_calloc(1, sizeof(struct termp));
-	p->symtab = mchars;
 	p->enc = TERMENC_ASCII;
 	p->fontq = mandoc_reallocarray(NULL,
 	    (p->fontsz = 8), sizeof(enum termfont));
@@ -555,20 +556,6 @@ pspdf_alloc(const struct mchars *mchars, char *outopts)
 	p->setwidth = ps_setwidth;
 	p->width = ps_width;
 
-	toks[0] = "paper";
-	toks[1] = NULL;
-
-	pp = NULL;
-
-	while (outopts && *outopts)
-		switch (getsubopt(&outopts, UNCONST(toks), &v)) {
-		case 0:
-			pp = v;
-			break;
-		default:
-			break;
-		}
-
 	/* Default to US letter (millimetres). */
 
 	pagex = 216;
@@ -581,6 +568,7 @@ pspdf_alloc(const struct mchars *mchars, char *outopts)
 	 * only happens once, I'm not terribly concerned.
 	 */
 
+	pp = outopts->paper;
 	if (pp && strcasecmp(pp, "letter")) {
 		if (0 == strcasecmp(pp, "a3")) {
 			pagex = 297;
@@ -595,7 +583,7 @@ pspdf_alloc(const struct mchars *mchars, char *outopts)
 			pagex = 216;
 			pagey = 356;
 		} else if (2 != sscanf(pp, "%ux%u", &pagex, &pagey))
-			fprintf(stderr, "%s: Unknown paper\n", pp);
+			warnx("%s: Unknown paper", pp);
 	}
 
 	/*
@@ -629,11 +617,11 @@ pspdf_alloc(const struct mchars *mchars, char *outopts)
 	p->ps->lineheight = lineheight;
 
 	p->defrmargin = pagex - (marginx * 2);
-	return(p);
+	return p;
 }
 
 static void
-ps_setwidth(struct termp *p, int iop, size_t width)
+ps_setwidth(struct termp *p, int iop, int width)
 {
 	size_t	 lastwidth;
 
@@ -641,8 +629,8 @@ ps_setwidth(struct termp *p, int iop, size_t width)
 	if (iop > 0)
 		p->ps->width += width;
 	else if (iop == 0)
-		p->ps->width = width ? width : p->ps->lastwidth;
-	else if (p->ps->width > width)
+		p->ps->width = width ? (size_t)width : p->ps->lastwidth;
+	else if (p->ps->width > (size_t)width)
 		p->ps->width -= width;
 	else
 		p->ps->width = 0;
@@ -656,10 +644,8 @@ pspdf_free(void *arg)
 
 	p = (struct termp *)arg;
 
-	if (p->ps->psmarg)
-		free(p->ps->psmarg);
-	if (p->ps->pdfobjs)
-		free(p->ps->pdfobjs);
+	free(p->ps->psmarg);
+	free(p->ps->pdfobjs);
 
 	free(p->ps);
 	term_free(p);
@@ -998,9 +984,7 @@ ps_pletter(struct termp *p, int c)
 
 	switch (c) {
 	case '(':
-		/* FALLTHROUGH */
 	case ')':
-		/* FALLTHROUGH */
 	case '\\':
 		ps_putchar(p, '\\');
 		break;
@@ -1283,10 +1267,10 @@ ps_width(const struct termp *p, int c)
 	else
 		c -= 32;
 
-	return((size_t)fonts[(int)TERMFONT_NONE].gly[c].wx);
+	return (size_t)fonts[(int)TERMFONT_NONE].gly[c].wx;
 }
 
-static double
+static int
 ps_hspan(const struct termp *p, const struct roffsu *su)
 {
 	double		 r;
@@ -1338,7 +1322,7 @@ ps_hspan(const struct termp *p, const struct roffsu *su)
 		break;
 	}
 
-	return(r);
+	return r * 24.0;
 }
 
 static void

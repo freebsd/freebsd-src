@@ -2,6 +2,7 @@
 
 .include <bsd.own.mk>
 
+PACKAGE=lib${LIB}
 LIB=	efi
 SHLIB_MAJOR= 1
 

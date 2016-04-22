@@ -117,6 +117,8 @@ ds_digest_size_supported(int algo)
 #endif
 #ifdef USE_GOST
 		case LDNS_HASH_GOST:
+			/* we support GOST if it can be loaded */
+			(void)sldns_key_EVP_load_gost_id();
 			if(EVP_get_digestbyname("md_gost94"))
 				return 32;
 			else	return 0;

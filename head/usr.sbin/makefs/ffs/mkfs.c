@@ -492,7 +492,7 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts)
 		iobufsize = SBLOCKSIZE + 3 * sblock.fs_bsize;
 	else
 		iobufsize = 4 * sblock.fs_bsize;
-	if ((iobuf = malloc(iobufsize)) == 0) {
+	if ((iobuf = malloc(iobufsize)) == NULL) {
 		printf("Cannot allocate I/O buffer\n");
 		exit(38);
 	}

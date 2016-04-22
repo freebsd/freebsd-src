@@ -1,0 +1,6 @@
+Makefile
+snprintftest
+strduptest
+strtonumtest
+closefromtest
+opensslvertest

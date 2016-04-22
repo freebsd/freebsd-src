@@ -221,6 +221,9 @@ __elfN(obj_loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 		switch (shdr[i].sh_type) {
 		case SHT_PROGBITS:
 		case SHT_NOBITS:
+#if defined(__i386__) || defined(__amd64__)
+		case SHT_X86_64_UNWIND:
+#endif
 			lastaddr = roundup(lastaddr, shdr[i].sh_addralign);
 			shdr[i].sh_addr = (Elf_Addr)lastaddr;
 			lastaddr += shdr[i].sh_size;
@@ -520,10 +523,8 @@ __elfN(obj_symaddr)(struct elf_file *ef, Elf_Size symidx)
 {
 	Elf_Sym sym;
 	Elf_Addr base;
-	int symcnt;
 
-	symcnt = ef->e_shdr[ef->symtabindex].sh_size / sizeof(Elf_Sym);
-	if (symidx >= symcnt)
+	if (symidx >= ef->e_shdr[ef->symtabindex].sh_size / sizeof(Elf_Sym))
 		return (0);
 	COPYOUT(ef->e_shdr[ef->symtabindex].sh_addr + symidx * sizeof(Elf_Sym),
 	    &sym, sizeof(sym));

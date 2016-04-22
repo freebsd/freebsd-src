@@ -441,7 +441,7 @@ send_dump(struct ccdata *data, void *uarg, const char *buf)
 		m->m_pkthdr.len = 0;
 	} else {
 		m = m_getcl(M_NOWAIT, MT_DATA, 0);
-		if (m == 0) {
+		if (m == NULL) {
 			m_freem(priv->dump_first);
 			return (ENOBUFS);
 		}

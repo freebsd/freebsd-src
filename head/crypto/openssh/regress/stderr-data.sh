@@ -1,10 +1,10 @@
-#	$OpenBSD: stderr-data.sh,v 1.3 2013/05/17 04:29:14 dtucker Exp $
+#	$OpenBSD: stderr-data.sh,v 1.4 2015/03/03 22:35:19 markus Exp $
 #	Placed in the Public Domain.
 
 tid="stderr data transfer"
 
 for n in '' -n; do
-for p in 1 2; do
+for p in ${SSH_PROTOCOLS}; do
 	verbose "test $tid: proto $p ($n)"
 	${SSH} $n -$p -F $OBJ/ssh_proxy otherhost \
 		exec sh -c \'"exec > /dev/null; sleep 3; cat ${DATA} 1>&2 $s"\' \

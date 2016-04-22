@@ -410,6 +410,7 @@ struct sctp_inpcb {
 	uint8_t ecn_supported;
 	uint8_t prsctp_supported;
 	uint8_t auth_supported;
+	uint8_t idata_supported;
 	uint8_t asconf_supported;
 	uint8_t reconfig_supported;
 	uint8_t nrsack_supported;
@@ -598,10 +599,6 @@ void
 
 void sctp_add_local_addr_ep(struct sctp_inpcb *, struct sctp_ifa *, uint32_t);
 
-int sctp_insert_laddr(struct sctpladdr *, struct sctp_ifa *, uint32_t);
-
-void sctp_remove_laddr(struct sctp_laddr *);
-
 void sctp_del_local_addr_ep(struct sctp_inpcb *, struct sctp_ifa *);
 
 int sctp_add_remote_addr(struct sctp_tcb *, struct sockaddr *, struct sctp_nets **, int, int);
@@ -632,6 +629,8 @@ int sctp_is_vtag_good(uint32_t, uint16_t lport, uint16_t rport, struct timeval *
 int sctp_destination_is_reachable(struct sctp_tcb *, struct sockaddr *);
 
 int sctp_swap_inpcb_for_listen(struct sctp_inpcb *inp);
+
+void sctp_clean_up_stream(struct sctp_tcb *stcb, struct sctp_readhead *rh);
 
 /*-
  * Null in last arg inpcb indicate run on ALL ep's. Specific inp in last arg

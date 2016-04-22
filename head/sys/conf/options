@@ -90,6 +90,8 @@ COMPAT_LINUXKPI	opt_compat.h
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h
+DEVICE_NUMA
+EXT_RESOURCES	opt_global.h
 DIRECTIO
 FILEMON		opt_dontuse.h
 FFCLOCK
@@ -131,9 +133,8 @@ GEOM_RAID3	opt_geom.h
 GEOM_SHSEC	opt_geom.h
 GEOM_STRIPE	opt_geom.h
 GEOM_SUNLABEL	opt_geom.h
-GEOM_UNCOMPRESS	opt_geom.h
-GEOM_UNCOMPRESS_DEBUG	opt_geom.h
 GEOM_UZIP	opt_geom.h
+GEOM_UZIP_DEBUG	opt_geom.h
 GEOM_VINUM	opt_geom.h
 GEOM_VIRSTOR	opt_geom.h
 GEOM_VOL	opt_geom.h
@@ -213,7 +214,6 @@ SYSVSHM		opt_sysvipc.h
 SW_WATCHDOG	opt_watchdog.h
 TURNSTILE_PROFILING
 UMTX_PROFILING
-VFS_AIO
 VERBOSE_SYSINIT
 WLCACHE		opt_wavelan.h
 WLDEBUG		opt_wavelan.h
@@ -329,6 +329,7 @@ CAM_DEBUG_TARGET	opt_cam.h
 CAM_DEBUG_LUN		opt_cam.h
 CAM_DEBUG_FLAGS		opt_cam.h
 CAM_BOOT_DELAY		opt_cam.h
+CAM_NETFLIX_IOSCHED	opt_cam.h
 SCSI_DELAY		opt_scsi.h
 SCSI_NO_SENSE_STRINGS	opt_scsi.h
 SCSI_NO_OP_STRINGS	opt_scsi.h
@@ -440,6 +441,8 @@ TCPDEBUG
 TCPPCAP		opt_global.h
 SIFTR
 TCP_OFFLOAD		opt_inet.h # Enable code to dispatch TCP offloading
+TCP_RFC7413		opt_inet.h
+TCP_RFC7413_MAX_KEYS	opt_inet.h
 TCP_SIGNATURE		opt_inet.h
 VLAN_ARRAY		opt_vlan.h
 XBONEHACK
@@ -602,6 +605,7 @@ VM_KMEM_SIZE		opt_vm.h
 VM_KMEM_SIZE_SCALE	opt_vm.h
 VM_KMEM_SIZE_MAX	opt_vm.h
 VM_NRESERVLEVEL		opt_vm.h
+VM_NUMA_ALLOC		opt_vm.h
 VM_LEVEL_0_ORDER	opt_vm.h
 NO_SWAPPING		opt_vm.h
 MALLOC_MAKE_FAILURES	opt_vm.h
@@ -669,6 +673,9 @@ UKBD_DFLT_KEYMAP	opt_ukbd.h
 UPLCOM_INTR_INTERVAL	opt_uplcom.h
 UVSCOM_DEFAULT_OPKTSIZE	opt_uvscom.h
 UVSCOM_INTR_INTERVAL	opt_uvscom.h
+
+# options for the Realtek RTL8188*U/RTL8192CU driver (urtwn)
+URTWN_WITHOUT_UCODE	opt_urtwn.h
 
 # Embedded system options
 INIT_PATH
@@ -797,6 +804,8 @@ KBD_MAXWAIT		opt_kbd.h
 KBD_RESETDELAY		opt_kbd.h
 KBDIO_DEBUG		opt_kbd.h
 
+KBDMUX_DFLT_KEYMAP	opt_kbdmux.h
+
 # options for the Atheros driver
 ATH_DEBUG		opt_ath.h
 ATH_TXBUF		opt_ath.h
@@ -915,6 +924,7 @@ VNET_DEBUG		opt_global.h
 # Common Flash Interface (CFI) options
 CFI_SUPPORT_STRATAFLASH	opt_cfi.h
 CFI_ARMEDANDDANGEROUS	opt_cfi.h
+CFI_HARDWAREBYTESWAP	opt_cfi.h
 
 # Sound options
 SND_DEBUG		opt_snd.h

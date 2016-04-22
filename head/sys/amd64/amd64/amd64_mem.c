@@ -117,7 +117,7 @@ static int amd64_mtrrtomrt[] = {
 	MDF_WRITEBACK
 };
 
-#define	MTRRTOMRTLEN (sizeof(amd64_mtrrtomrt) / sizeof(amd64_mtrrtomrt[0]))
+#define	MTRRTOMRTLEN nitems(amd64_mtrrtomrt)
 
 static int
 amd64_mtrr2mrt(int val)

@@ -854,17 +854,11 @@ string(const char *str, char **ans)
 static const char *
 get_type(int type)
 {
-	int	numentries = (sizeof(part_types)/sizeof(struct part_type));
-	int	counter = 0;
-	struct	part_type *ptr = part_types;
+	size_t i;
 
-
-	while(counter < numentries) {
-		if(ptr->type == (type & 0x7f))
-			return(ptr->name);
-		ptr++;
-		counter++;
-	}
+	for (i = 0; i < nitems(part_types); i++)
+		if (part_types[i].type == (type & 0x7f))
+			return(part_types[i].name);
 	return("unknown");
 }
 

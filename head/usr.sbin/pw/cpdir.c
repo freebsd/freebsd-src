@@ -37,7 +37,6 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #include "pw.h"
-#include "pwupd.h"
 
 void
 copymkdir(int rootfd, char const * dir, int skelfd, mode_t mode, uid_t uid,

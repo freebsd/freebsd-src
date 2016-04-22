@@ -42,7 +42,7 @@
 #include <linux/sched.h>
 
 static inline void
-_kthread_fn(void *arg)
+linux_kthread_fn(void *arg)
 {
 	struct task_struct *task;
 
@@ -58,7 +58,7 @@ _kthread_fn(void *arg)
 }
 
 static inline struct task_struct *
-_kthread_create(int (*threadfn)(void *data), void *data)
+linux_kthread_create(int (*threadfn)(void *data), void *data)
 {
 	struct task_struct *task;
 
@@ -69,17 +69,12 @@ _kthread_create(int (*threadfn)(void *data), void *data)
 	return (task);
 }
 
-struct task_struct *kthread_create(int (*threadfn)(void *data),
-                                   void *data,
-                                   const char namefmt[], ...)
-        __attribute__((format(printf, 3, 4)));
-
 #define	kthread_run(fn, data, fmt, ...)					\
 ({									\
 	struct task_struct *_task;					\
 									\
-	_task = _kthread_create((fn), (data));				\
-	if (kthread_add(_kthread_fn, _task, NULL, &_task->task_thread,	\
+	_task = linux_kthread_create((fn), (data));			\
+	if (kthread_add(linux_kthread_fn, _task, NULL, &_task->task_thread,	\
 	    0, 0, fmt, ## __VA_ARGS__)) {				\
 		kfree(_task);						\
 		_task = NULL;						\

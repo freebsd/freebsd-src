@@ -74,7 +74,7 @@ path_check(const char *kldname, int quiet)
 	dev = sb.st_dev;
 	ino = sb.st_ino;
 
-	miblen = sizeof(mib) / sizeof(mib[0]);
+	miblen = nitems(mib);
 	if (sysctlnametomib(PATHCTL, mib, &miblen) != 0) {
 		err(1, "sysctlnametomib(%s)", PATHCTL);
 	}

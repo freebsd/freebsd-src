@@ -308,8 +308,8 @@ ext2_check_sb_compat(struct ext2fs *es, struct cdev *dev, int ronly)
 }
 
 /*
- * This computes the fields of the  ext2_sb_info structure from the
- * data in the ext2_super_block structure read in.
+ * This computes the fields of the m_ext2fs structure from the
+ * data in the ext2fs structure read in.
  */
 static int
 compute_sb_data(struct vnode *devvp, struct ext2fs *es,
@@ -399,8 +399,22 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	if (es->e2fs_rev == E2FS_REV0 ||
 	    !EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_LARGEFILE))
 		fs->e2fs_maxfilesize = 0x7fffffff;
-	else
-		fs->e2fs_maxfilesize = 0x7fffffffffffffff;
+	else {
+		fs->e2fs_maxfilesize = 0xffffffffffff;
+		if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_HUGE_FILE))
+			fs->e2fs_maxfilesize = 0x7fffffffffffffff;
+	}
+	if (es->e4fs_flags & E2FS_UNSIGNED_HASH) {
+		fs->e2fs_uhash = 3;
+	} else if ((es->e4fs_flags & E2FS_SIGNED_HASH) == 0) {
+#ifdef __CHAR_UNSIGNED__
+		es->e4fs_flags |= E2FS_UNSIGNED_HASH;
+		fs->e2fs_uhash = 3;
+#else
+		es->e4fs_flags |= E2FS_SIGNED_HASH;
+#endif
+	}
+
 	return (0);
 }
 
@@ -586,11 +600,11 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 
 	/*
 	 * I don't know whether this is the right strategy. Note that
-	 * we dynamically allocate both an ext2_sb_info and an ext2_super_block
+	 * we dynamically allocate both an m_ext2fs and an ext2fs
 	 * while Linux keeps the super block in a locked buffer.
 	 */
 	ump->um_e2fs = malloc(sizeof(struct m_ext2fs),
-		M_EXT2MNT, M_WAITOK);
+		M_EXT2MNT, M_WAITOK | M_ZERO);
 	ump->um_e2fs->e2fs = malloc(sizeof(struct ext2fs),
 		M_EXT2MNT, M_WAITOK);
 	mtx_init(EXT2_MTX(ump), "EXT2FS", "EXT2FS Lock", MTX_DEF);

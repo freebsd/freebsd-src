@@ -45,6 +45,7 @@ _rc_subr_loaded="YES"
 SYSCTL="/sbin/sysctl"
 SYSCTL_N="${SYSCTL} -n"
 SYSCTL_W="${SYSCTL}"
+PROTECT="/usr/bin/protect"
 ID="/usr/bin/id"
 IDCMD="if [ -x $ID ]; then $ID -un; fi"
 PS="/bin/ps -ww"
@@ -755,6 +756,8 @@ check_startmsgs()
 #
 #	${name}_nice	n	Nice level to run ${command} at.
 #
+#	${name}_oomprotect n	Don't kill ${command} when swap space is exhausted.
+#
 #	${name}_user	n	User to run ${command} as, using su(1) if not
 #				using ${name}_chroot.
 #				Requires /usr to be mounted.
@@ -944,7 +947,8 @@ run_rc_command()
 	    _nice=\$${name}_nice	_user=\$${name}_user \
 	    _group=\$${name}_group	_groups=\$${name}_groups \
 	    _fib=\$${name}_fib		_env=\$${name}_env \
-	    _prepend=\$${name}_prepend	_login_class=\${${name}_login_class:-daemon}
+	    _prepend=\$${name}_prepend	_login_class=\${${name}_login_class:-daemon} \
+	    _oomprotect=\$${name}_oomprotect
 
 	if [ -n "$_user" ]; then	# unset $_user if running as that user
 		if [ "$_user" = "$(eval $IDCMD)" ]; then
@@ -1182,6 +1186,26 @@ $command $rc_flags $command_args"
 			;;
 
 		esac
+
+		# Apply protect(1) to the PID if ${name}_oomprotect is set.
+		case "$rc_arg" in
+		start)
+			if [ -n "$_oomprotect" ]; then
+				if [ -f "${PROTECT}" ]; then
+					pid=$(check_process $command)
+					case $_oomprotect in
+					[Aa][Ll][Ll])
+						${PROTECT} -i -p ${pid}
+						;;
+					[Yy][Ee][Ss])
+						${PROTECT} -p ${pid}
+						;;
+					esac
+				fi
+			fi	
+		;;
+		esac
+
 		return $_return
 	done
 

@@ -13,6 +13,7 @@
 
 #include "sanitizer_platform.h"
 #if SANITIZER_MAC
+#include "sanitizer_mac.h"
 
 // Use 64-bit inodes in file operations. ASan does not support OS X 10.5, so
 // the clients will most certainly use 64-bit ones as well.
@@ -25,7 +26,6 @@
 #include "sanitizer_flags.h"
 #include "sanitizer_internal_defs.h"
 #include "sanitizer_libc.h"
-#include "sanitizer_mac.h"
 #include "sanitizer_placement_new.h"
 #include "sanitizer_platform_limits_posix.h"
 #include "sanitizer_procmaps.h"
@@ -36,11 +36,29 @@
 extern char **environ;
 #endif
 
+#if defined(__has_include) && __has_include(<os/trace.h>)
+#define SANITIZER_OS_TRACE 1
+#include <os/trace.h>
+#else
+#define SANITIZER_OS_TRACE 0
+#endif
+
+#if !SANITIZER_IOS
+#include <crt_externs.h>  // for _NSGetArgv and _NSGetEnviron
+#else
+extern "C" {
+  extern char ***_NSGetArgv(void);
+}
+#endif
+
+#include <asl.h>
+#include <dlfcn.h>  // for dladdr()
 #include <errno.h>
 #include <fcntl.h>
 #include <libkern/OSAtomic.h>
 #include <mach-o/dyld.h>
 #include <mach/mach.h>
+#include <mach/vm_statistics.h>
 #include <pthread.h>
 #include <sched.h>
 #include <signal.h>
@@ -51,6 +69,7 @@ extern char **environ;
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <util.h>
 
 namespace __sanitizer {
 
@@ -59,6 +78,7 @@ namespace __sanitizer {
 // ---------------------- sanitizer_libc.h
 uptr internal_mmap(void *addr, size_t length, int prot, int flags,
                    int fd, u64 offset) {
+  if (fd == -1) fd = VM_MAKE_TAG(VM_MEMORY_ANALYSIS_TOOL);
   return (uptr)mmap(addr, length, prot, flags, fd, offset);
 }
 
@@ -145,9 +165,30 @@ uptr internal_sigprocmask(int how, __sanitizer_sigset_t *set,
   return sigprocmask(how, set, oldset);
 }
 
+// Doesn't call pthread_atfork() handlers.
+extern "C" pid_t __fork(void);
+
 int internal_fork() {
-  // TODO(glider): this may call user's pthread_atfork() handlers which is bad.
-  return fork();
+  return __fork();
+}
+
+int internal_forkpty(int *amaster) {
+  int master, slave;
+  if (openpty(&master, &slave, nullptr, nullptr, nullptr) == -1) return -1;
+  int pid = __fork();
+  if (pid == -1) {
+    close(master);
+    close(slave);
+    return -1;
+  }
+  if (pid == 0) {
+    close(master);
+    CHECK_EQ(login_tty(slave), 0);
+  } else {
+    *amaster = master;
+    close(slave);
+  }
+  return pid;
 }
 
 uptr internal_rename(const char *oldpath, const char *newpath) {
@@ -178,7 +219,7 @@ void GetThreadStackTopAndBottom(bool at_initialization, uptr *stack_top,
   uptr stacksize = pthread_get_stacksize_np(pthread_self());
   // pthread_get_stacksize_np() returns an incorrect stack size for the main
   // thread on Mavericks. See
-  // https://code.google.com/p/address-sanitizer/issues/detail?id=261
+  // https://github.com/google/sanitizers/issues/261
   if ((GetMacosVersion() >= MACOS_VERSION_MAVERICKS) && at_initialization &&
       stacksize == (1 << 19))  {
     struct rlimit rl;
@@ -239,6 +280,10 @@ uptr ReadBinaryName(/*out*/char *buf, uptr buf_len) {
     return internal_strlen(buf);
   }
   return 0;
+}
+
+uptr ReadLongProcessName(/*out*/char *buf, uptr buf_len) {
+  return ReadBinaryName(buf, buf_len);
 }
 
 void ReExec() {
@@ -365,8 +410,67 @@ uptr GetRSS() {
   return info.resident_size;
 }
 
-void *internal_start_thread(void (*func)(void *arg), void *arg) { return 0; }
-void internal_join_thread(void *th) { }
+void *internal_start_thread(void(*func)(void *arg), void *arg) {
+  // Start the thread with signals blocked, otherwise it can steal user signals.
+  __sanitizer_sigset_t set, old;
+  internal_sigfillset(&set);
+  internal_sigprocmask(SIG_SETMASK, &set, &old);
+  pthread_t th;
+  pthread_create(&th, 0, (void*(*)(void *arg))func, arg);
+  internal_sigprocmask(SIG_SETMASK, &old, 0);
+  return th;
+}
+
+void internal_join_thread(void *th) { pthread_join((pthread_t)th, 0); }
+
+static BlockingMutex syslog_lock(LINKER_INITIALIZED);
+
+void WriteOneLineToSyslog(const char *s) {
+  syslog_lock.CheckLocked();
+  asl_log(nullptr, nullptr, ASL_LEVEL_ERR, "%s", s);
+}
+
+void LogMessageOnPrintf(const char *str) {
+  // Log all printf output to CrashLog.
+  if (common_flags()->abort_on_error)
+    CRAppendCrashLogMessage(str);
+}
+
+void LogFullErrorReport(const char *buffer) {
+  // Log with os_trace. This will make it into the crash log.
+#if SANITIZER_OS_TRACE
+  if (GetMacosVersion() >= MACOS_VERSION_YOSEMITE) {
+    // os_trace requires the message (format parameter) to be a string literal.
+    if (internal_strncmp(SanitizerToolName, "AddressSanitizer",
+                         sizeof("AddressSanitizer") - 1) == 0)
+      os_trace("Address Sanitizer reported a failure.");
+    else if (internal_strncmp(SanitizerToolName, "UndefinedBehaviorSanitizer",
+                              sizeof("UndefinedBehaviorSanitizer") - 1) == 0)
+      os_trace("Undefined Behavior Sanitizer reported a failure.");
+    else if (internal_strncmp(SanitizerToolName, "ThreadSanitizer",
+                              sizeof("ThreadSanitizer") - 1) == 0)
+      os_trace("Thread Sanitizer reported a failure.");
+    else
+      os_trace("Sanitizer tool reported a failure.");
+
+    if (common_flags()->log_to_syslog)
+      os_trace("Consult syslog for more information.");
+  }
+#endif
+
+  // Log to syslog.
+  // The logging on OS X may call pthread_create so we need the threading
+  // environment to be fully initialized. Also, this should never be called when
+  // holding the thread registry lock since that may result in a deadlock. If
+  // the reporting thread holds the thread registry mutex, and asl_log waits
+  // for GCD to dispatch a new thread, the process will deadlock, because the
+  // pthread_create wrapper needs to acquire the lock as well.
+  BlockingMutexLock l(&syslog_lock);
+  if (common_flags()->log_to_syslog)
+    WriteToSyslog(buffer);
+
+  // The report is added to CrashLog as part of logging all of Printf output.
+}
 
 void GetPcSpBp(void *context, uptr *pc, uptr *sp, uptr *bp) {
   ucontext_t *ucontext = (ucontext_t*)context;
@@ -393,6 +497,173 @@ void GetPcSpBp(void *context, uptr *pc, uptr *sp, uptr *bp) {
 # else
 # error "Unknown architecture"
 # endif
+}
+
+static const char kDyldInsertLibraries[] = "DYLD_INSERT_LIBRARIES";
+LowLevelAllocator allocator_for_env;
+
+// Change the value of the env var |name|, leaking the original value.
+// If |name_value| is NULL, the variable is deleted from the environment,
+// otherwise the corresponding "NAME=value" string is replaced with
+// |name_value|.
+void LeakyResetEnv(const char *name, const char *name_value) {
+  char **env = GetEnviron();
+  uptr name_len = internal_strlen(name);
+  while (*env != 0) {
+    uptr len = internal_strlen(*env);
+    if (len > name_len) {
+      const char *p = *env;
+      if (!internal_memcmp(p, name, name_len) && p[name_len] == '=') {
+        // Match.
+        if (name_value) {
+          // Replace the old value with the new one.
+          *env = const_cast<char*>(name_value);
+        } else {
+          // Shift the subsequent pointers back.
+          char **del = env;
+          do {
+            del[0] = del[1];
+          } while (*del++);
+        }
+      }
+    }
+    env++;
+  }
+}
+
+static bool reexec_disabled = false;
+
+void DisableReexec() {
+  reexec_disabled = true;
+}
+
+extern "C" double dyldVersionNumber;
+static const double kMinDyldVersionWithAutoInterposition = 360.0;
+
+bool DyldNeedsEnvVariable() {
+  // If running on OS X 10.11+ or iOS 9.0+, dyld will interpose even if
+  // DYLD_INSERT_LIBRARIES is not set. However, checking OS version via
+  // GetMacosVersion() doesn't work for the simulator. Let's instead check
+  // `dyldVersionNumber`, which is exported by dyld, against a known version
+  // number from the first OS release where this appeared.
+  return dyldVersionNumber < kMinDyldVersionWithAutoInterposition;
+}
+
+void MaybeReexec() {
+  if (reexec_disabled) return;
+
+  // Make sure the dynamic runtime library is preloaded so that the
+  // wrappers work. If it is not, set DYLD_INSERT_LIBRARIES and re-exec
+  // ourselves.
+  Dl_info info;
+  CHECK(dladdr((void*)((uptr)&__sanitizer_report_error_summary), &info));
+  char *dyld_insert_libraries =
+      const_cast<char*>(GetEnv(kDyldInsertLibraries));
+  uptr old_env_len = dyld_insert_libraries ?
+      internal_strlen(dyld_insert_libraries) : 0;
+  uptr fname_len = internal_strlen(info.dli_fname);
+  const char *dylib_name = StripModuleName(info.dli_fname);
+  uptr dylib_name_len = internal_strlen(dylib_name);
+
+  bool lib_is_in_env = dyld_insert_libraries &&
+                       internal_strstr(dyld_insert_libraries, dylib_name);
+  if (DyldNeedsEnvVariable() && !lib_is_in_env) {
+    // DYLD_INSERT_LIBRARIES is not set or does not contain the runtime
+    // library.
+    InternalScopedString program_name(1024);
+    uint32_t buf_size = program_name.size();
+    _NSGetExecutablePath(program_name.data(), &buf_size);
+    char *new_env = const_cast<char*>(info.dli_fname);
+    if (dyld_insert_libraries) {
+      // Append the runtime dylib name to the existing value of
+      // DYLD_INSERT_LIBRARIES.
+      new_env = (char*)allocator_for_env.Allocate(old_env_len + fname_len + 2);
+      internal_strncpy(new_env, dyld_insert_libraries, old_env_len);
+      new_env[old_env_len] = ':';
+      // Copy fname_len and add a trailing zero.
+      internal_strncpy(new_env + old_env_len + 1, info.dli_fname,
+                       fname_len + 1);
+      // Ok to use setenv() since the wrappers don't depend on the value of
+      // asan_inited.
+      setenv(kDyldInsertLibraries, new_env, /*overwrite*/1);
+    } else {
+      // Set DYLD_INSERT_LIBRARIES equal to the runtime dylib name.
+      setenv(kDyldInsertLibraries, info.dli_fname, /*overwrite*/0);
+    }
+    VReport(1, "exec()-ing the program with\n");
+    VReport(1, "%s=%s\n", kDyldInsertLibraries, new_env);
+    VReport(1, "to enable wrappers.\n");
+    execv(program_name.data(), *_NSGetArgv());
+
+    // We get here only if execv() failed.
+    Report("ERROR: The process is launched without DYLD_INSERT_LIBRARIES, "
+           "which is required for the sanitizer to work. We tried to set the "
+           "environment variable and re-execute itself, but execv() failed, "
+           "possibly because of sandbox restrictions. Make sure to launch the "
+           "executable with:\n%s=%s\n", kDyldInsertLibraries, new_env);
+    CHECK("execv failed" && 0);
+  }
+
+  if (!lib_is_in_env)
+    return;
+
+  // DYLD_INSERT_LIBRARIES is set and contains the runtime library. Let's remove
+  // the dylib from the environment variable, because interceptors are installed
+  // and we don't want our children to inherit the variable.
+
+  uptr env_name_len = internal_strlen(kDyldInsertLibraries);
+  // Allocate memory to hold the previous env var name, its value, the '='
+  // sign and the '\0' char.
+  char *new_env = (char*)allocator_for_env.Allocate(
+      old_env_len + 2 + env_name_len);
+  CHECK(new_env);
+  internal_memset(new_env, '\0', old_env_len + 2 + env_name_len);
+  internal_strncpy(new_env, kDyldInsertLibraries, env_name_len);
+  new_env[env_name_len] = '=';
+  char *new_env_pos = new_env + env_name_len + 1;
+
+  // Iterate over colon-separated pieces of |dyld_insert_libraries|.
+  char *piece_start = dyld_insert_libraries;
+  char *piece_end = NULL;
+  char *old_env_end = dyld_insert_libraries + old_env_len;
+  do {
+    if (piece_start[0] == ':') piece_start++;
+    piece_end = internal_strchr(piece_start, ':');
+    if (!piece_end) piece_end = dyld_insert_libraries + old_env_len;
+    if ((uptr)(piece_start - dyld_insert_libraries) > old_env_len) break;
+    uptr piece_len = piece_end - piece_start;
+
+    char *filename_start =
+        (char *)internal_memrchr(piece_start, '/', piece_len);
+    uptr filename_len = piece_len;
+    if (filename_start) {
+      filename_start += 1;
+      filename_len = piece_len - (filename_start - piece_start);
+    } else {
+      filename_start = piece_start;
+    }
+
+    // If the current piece isn't the runtime library name,
+    // append it to new_env.
+    if ((dylib_name_len != filename_len) ||
+        (internal_memcmp(filename_start, dylib_name, dylib_name_len) != 0)) {
+      if (new_env_pos != new_env + env_name_len + 1) {
+        new_env_pos[0] = ':';
+        new_env_pos++;
+      }
+      internal_strncpy(new_env_pos, piece_start, piece_len);
+      new_env_pos += piece_len;
+    }
+    // Move on to the next piece.
+    piece_start = piece_end;
+  } while (piece_start < old_env_end);
+
+  // Can't use setenv() here, because it requires the allocator to be
+  // initialized.
+  // FIXME: instead of filtering DYLD_INSERT_LIBRARIES here, do it in
+  // a separate function called after InitializeAllocator().
+  if (new_env_pos == new_env + env_name_len + 1) new_env = NULL;
+  LeakyResetEnv(kDyldInsertLibraries, new_env);
 }
 
 }  // namespace __sanitizer

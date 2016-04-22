@@ -428,7 +428,7 @@ vte_attach(device_t dev)
 	/* Reset the ethernet controller. */
 	vte_reset(sc);
 
-	if ((error = vte_dma_alloc(sc) != 0))
+	if ((error = vte_dma_alloc(sc)) != 0)
 		goto fail;
 
 	/* Create device sysctl node. */

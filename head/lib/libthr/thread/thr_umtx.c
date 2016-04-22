@@ -22,10 +22,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "thr_private.h"
 #include "thr_umtx.h"
@@ -42,7 +42,7 @@ int _umtx_op_err(void *obj, int op, u_long val, void *uaddr, void *uaddr2)
 void
 _thr_umutex_init(struct umutex *mtx)
 {
-	static struct umutex default_mtx = DEFAULT_UMUTEX;
+	static const struct umutex default_mtx = DEFAULT_UMUTEX;
 
 	*mtx = default_mtx;
 }
@@ -50,7 +50,8 @@ _thr_umutex_init(struct umutex *mtx)
 void
 _thr_urwlock_init(struct urwlock *rwl)
 {
-	static struct urwlock default_rwl = DEFAULT_URWLOCK;
+	static const struct urwlock default_rwl = DEFAULT_URWLOCK;
+
 	*rwl = default_rwl;
 }
 

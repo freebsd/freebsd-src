@@ -37,8 +37,6 @@ mlx5e_get_cqe(struct mlx5e_cq *cq)
 	if ((cqe->op_own ^ mlx5_cqwq_get_wrap_cnt(&cq->wq)) & MLX5_CQE_OWNER_MASK)
 		return (NULL);
 
-	mlx5_cqwq_pop(&cq->wq);
-
 	/* ensure cqe content is read after cqe ownership bit */
 	rmb();
 

@@ -1,0 +1,165 @@
+.\" $OpenBSD: rtwn.4,v 1.2 2015/07/09 11:28:53 stsp Exp $
+.\"
+.\" Copyright (c) 2010 Damien Bergamini <damien.bergamini@free.fr>
+.\" Copyright (c) 2015 Stefan Sperling <stsp@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 28, 2015
+.Dt RTWN 4
+.Os
+.Sh NAME
+.Nm rtwn
+.Nd Realtek RTL8188CE PCIe IEEE 802.11b/g/n wireless network device
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device rtwn"
+.Cd "device rtwnfw"
+.Cd "device wlan"
+.Cd "device firmware"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_rtwn_load="YES"
+.Ed
+.Pp
+After you have read the license in
+.Pa /usr/share/doc/legal/realtek.LICENSE
+you will want to add the following lines to
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+legal.realtek.license_ack=1
+rtwn-rtl8192cfwU_load="YES"
+rtwn-rtl8192cfwU_B_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports PCIe wireless network devices based on the Realtek
+RTL8188CE chipset.
+.Pp
+The RTL8188CE is a highly integrated 802.11n adapter that combines a MAC,
+a 1T1R capable baseband and an RF in a single chip.
+It operates in the 2GHz spectrum only.
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "IBSS-masterXX"
+.It BSS mode
+Also known as
+.Em infrastructure
+mode, this is used when associating with an access point, through
+which all traffic passes.
+This mode is the default.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Pp
+The
+.Nm
+driver can be configured to use
+Wired Equivalent Privacy (WEP) or
+Wi-Fi Protected Access (WPA-PSK and WPA2-PSK).
+WPA is the current encryption standard for wireless networks.
+It is strongly recommended that WEP
+not be used as the sole mechanism
+to secure wireless communication,
+due to serious weaknesses in it.
+.Pp
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8 .
+.Sh FILES
+The driver needs at least version 1.0 of the following firmware files,
+which are loaded when an interface is brought up:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Pa /boot/kernel/rtwn-rtl8192cfwU.ko
+.It Pa /boot/kernel/rtwn-rtl8192cfwU_B.ko
+.El
+.Sh EXAMPLES
+Join an existing BSS network (i.e., connect to an access point):
+.Bd -literal -offset indent
+ifconfig wlan create wlandev rtwn0 inet 192.168.0.20 \e
+    netmask 0xffffff00
+.Ed
+.Pp
+Join a specific BSS network with network name
+.Dq Li my_net :
+.Pp
+.Dl "ifconfig wlan create wlandev rtwn0 ssid my_net up"
+.Pp
+Join a specific BSS network with 64-bit WEP encryption:
+.Bd -literal -offset indent
+ifconfig wlan create wlandev rtwn0 ssid my_net \e
+        wepmode on wepkey 0x1234567890 weptxkey 1 up
+.Ed
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "could not read firmware %s"
+For some reason, the driver was unable to read the microcode file from the
+filesystem.
+The file might be missing or corrupted.
+.It "device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
+The driver will reset the hardware.
+This should not happen.
+.El
+.Sh SEE ALSO
+.Xr pci 4 ,
+.Xr rtwnfw 4 ,
+.Xr wlan 4 ,
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 5.8 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An -nosplit
+.An Stefan Sperling Aq Mt stsp@openbsd.org
+and ported by
+.An Kevin Lo Aq Mt kevlo@freebsd.org .
+It was based on the
+.Xr urtwn 4
+driver written by
+.An Damien Bergamini Aq Mt damien.bergamini@free.fr .
+.Sh CAVEATS
+The
+.Nm
+driver does not support any of the 802.11n capabilities offered by the
+adapters.
+Additional work is required in
+.Xr ieee80211 9
+before those features can be supported.

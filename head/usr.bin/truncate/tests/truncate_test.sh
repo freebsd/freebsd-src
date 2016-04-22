@@ -173,25 +173,22 @@ bad_refer_body()
 	[ ! -e afile ] || atf_fail "afile should not exist"
 }
 
-atf_test_case bad_truncate cleanup
+atf_test_case bad_truncate
 bad_truncate_head()
 {
 	atf_set "descr" "Verifies that truncate reports an error during" \
 	    "truncation"
+	atf_set "require.user" "unprivileged"
 }
 bad_truncate_body()
 {
-	create_stderr_file "truncate: exists.txt: Operation not permitted"
+	create_stderr_file "truncate: exists.txt: Permission denied"
 
 	# Trying to get the ftruncate() call to return -1.
 	> exists.txt
-	atf_check chflags uimmutable exists.txt
+	atf_check chmod 444 exists.txt
 
 	atf_check -s not-exit:0 -e file:stderr.txt truncate -s1 exists.txt
-}
-bad_truncate_cleanup()
-{
-	chflags 0 exists.txt
 }
 
 atf_test_case new_absolute_grow

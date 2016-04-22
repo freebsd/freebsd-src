@@ -1,6 +1,7 @@
 # $FreeBSD$
 .include <src.opts.mk>
 
+PACKAGE=lib${LIB}
 _LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
 
 LIB=	archive

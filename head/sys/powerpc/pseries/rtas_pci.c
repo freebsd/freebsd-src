@@ -32,11 +32,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/rman.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofwpci.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -48,12 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/rtas.h>
 
-#include <sys/rman.h>
-
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <powerpc/ofw/ofw_pci.h>
 #include <powerpc/pseries/plpar_iommu.h>
 
 #include "pcib_if.h"
@@ -91,6 +90,8 @@ static device_method_t	rtaspci_methods[] = {
 struct rtaspci_softc {
 	struct ofw_pci_softc	pci_sc;
 
+	struct ofw_pci_register	sc_pcir;
+
 	cell_t			read_pci_config, write_pci_config;
 	cell_t			ex_read_pci_config, ex_write_pci_config;
 	int			sc_extended_config;
@@ -127,6 +128,10 @@ rtaspci_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	if (OF_getencprop(ofw_bus_get_node(dev), "reg", (pcell_t *)&sc->sc_pcir,
+	    sizeof(sc->sc_pcir)) == -1)
+		return (ENXIO);
+
 	sc->read_pci_config = rtas_token_lookup("read-pci-config");
 	sc->write_pci_config = rtas_token_lookup("write-pci-config");
 	sc->ex_read_pci_config = rtas_token_lookup("ibm,read-pci-config");
@@ -157,8 +162,8 @@ rtaspci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 		
 	if (sc->ex_read_pci_config != -1)
 		error = rtas_call_method(sc->ex_read_pci_config, 4, 2,
-		    config_addr, sc->pci_sc.sc_pcir.phys_hi,
-		    sc->pci_sc.sc_pcir.phys_mid, width, &pcierror, &retval);
+		    config_addr, sc->sc_pcir.phys_hi,
+		    sc->sc_pcir.phys_mid, width, &pcierror, &retval);
 	else
 		error = rtas_call_method(sc->read_pci_config, 2, 2,
 		    config_addr, width, &pcierror, &retval);
@@ -196,7 +201,7 @@ rtaspci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 		
 	if (sc->ex_write_pci_config != -1)
 		rtas_call_method(sc->ex_write_pci_config, 5, 1, config_addr,
-		    sc->pci_sc.sc_pcir.phys_hi, sc->pci_sc.sc_pcir.phys_mid,
+		    sc->sc_pcir.phys_hi, sc->sc_pcir.phys_mid,
 		    width, val, &pcierror);
 	else
 		rtas_call_method(sc->write_pci_config, 3, 1, config_addr,

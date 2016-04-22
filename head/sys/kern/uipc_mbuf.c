@@ -47,6 +47,51 @@ __FBSDID("$FreeBSD$");
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/uio.h>
+#include <sys/sdt.h>
+
+SDT_PROBE_DEFINE5_XLATE(sdt, , , m__init,
+    "struct mbuf *", "mbufinfo_t *",
+    "uint32_t", "uint32_t",
+    "uint16_t", "uint16_t",
+    "uint32_t", "uint32_t",
+    "uint32_t", "uint32_t");
+
+SDT_PROBE_DEFINE3_XLATE(sdt, , , m__gethdr,
+    "uint32_t", "uint32_t",
+    "uint16_t", "uint16_t",
+    "struct mbuf *", "mbufinfo_t *");
+
+SDT_PROBE_DEFINE3_XLATE(sdt, , , m__get,
+    "uint32_t", "uint32_t",
+    "uint16_t", "uint16_t",
+    "struct mbuf *", "mbufinfo_t *");
+
+SDT_PROBE_DEFINE4_XLATE(sdt, , , m__getcl,
+    "uint32_t", "uint32_t",
+    "uint16_t", "uint16_t",
+    "uint32_t", "uint32_t",
+    "struct mbuf *", "mbufinfo_t *");
+
+SDT_PROBE_DEFINE3_XLATE(sdt, , , m__clget,
+    "struct mbuf *", "mbufinfo_t *",
+    "uint32_t", "uint32_t",
+    "uint32_t", "uint32_t");
+
+SDT_PROBE_DEFINE4_XLATE(sdt, , , m__cljget,
+    "struct mbuf *", "mbufinfo_t *",
+    "uint32_t", "uint32_t",
+    "uint32_t", "uint32_t",
+    "void*", "void*");
+
+SDT_PROBE_DEFINE(sdt, , , m__cljset);
+
+SDT_PROBE_DEFINE1_XLATE(sdt, , , m__free,
+        "struct mbuf *", "mbufinfo_t *");
+
+SDT_PROBE_DEFINE1_XLATE(sdt, , , m__freem,
+    "struct mbuf *", "mbufinfo_t *");
+
+#include <security/mac/mac_framework.h>
 
 int	max_linkhdr;
 int	max_protohdr;
@@ -132,292 +177,35 @@ CTASSERT(sizeof(m_assertbuf.m_stailqpkt) == sizeof(m_assertbuf.m_nextpkt));
 #endif
 
 /*
- * m_get2() allocates minimum mbuf that would fit "size" argument.
- */
-struct mbuf *
-m_get2(int size, int how, short type, int flags)
-{
-	struct mb_args args;
-	struct mbuf *m, *n;
-
-	args.flags = flags;
-	args.type = type;
-
-	if (size <= MHLEN || (size <= MLEN && (flags & M_PKTHDR) == 0))
-		return (uma_zalloc_arg(zone_mbuf, &args, how));
-	if (size <= MCLBYTES)
-		return (uma_zalloc_arg(zone_pack, &args, how));
-
-	if (size > MJUMPAGESIZE)
-		return (NULL);
-
-	m = uma_zalloc_arg(zone_mbuf, &args, how);
-	if (m == NULL)
-		return (NULL);
-
-	n = uma_zalloc_arg(zone_jumbop, m, how);
-	if (n == NULL) {
-		uma_zfree(zone_mbuf, m);
-		return (NULL);
-	}
-
-	return (m);
-}
-
-/*
- * m_getjcl() returns an mbuf with a cluster of the specified size attached.
- * For size it takes MCLBYTES, MJUMPAGESIZE, MJUM9BYTES, MJUM16BYTES.
- */
-struct mbuf *
-m_getjcl(int how, short type, int flags, int size)
-{
-	struct mb_args args;
-	struct mbuf *m, *n;
-	uma_zone_t zone;
-
-	if (size == MCLBYTES)
-		return m_getcl(how, type, flags);
-
-	args.flags = flags;
-	args.type = type;
-
-	m = uma_zalloc_arg(zone_mbuf, &args, how);
-	if (m == NULL)
-		return (NULL);
-
-	zone = m_getzone(size);
-	n = uma_zalloc_arg(zone, m, how);
-	if (n == NULL) {
-		uma_zfree(zone_mbuf, m);
-		return (NULL);
-	}
-	return (m);
-}
-
-/*
- * Allocate a given length worth of mbufs and/or clusters (whatever fits
- * best) and return a pointer to the top of the allocated chain.  If an
- * existing mbuf chain is provided, then we will append the new chain
- * to the existing one but still return the top of the newly allocated
- * chain.
- */
-struct mbuf *
-m_getm2(struct mbuf *m, int len, int how, short type, int flags)
-{
-	struct mbuf *mb, *nm = NULL, *mtail = NULL;
-
-	KASSERT(len >= 0, ("%s: len is < 0", __func__));
-
-	/* Validate flags. */
-	flags &= (M_PKTHDR | M_EOR);
-
-	/* Packet header mbuf must be first in chain. */
-	if ((flags & M_PKTHDR) && m != NULL)
-		flags &= ~M_PKTHDR;
-
-	/* Loop and append maximum sized mbufs to the chain tail. */
-	while (len > 0) {
-		if (len > MCLBYTES)
-			mb = m_getjcl(how, type, (flags & M_PKTHDR),
-			    MJUMPAGESIZE);
-		else if (len >= MINCLSIZE)
-			mb = m_getcl(how, type, (flags & M_PKTHDR));
-		else if (flags & M_PKTHDR)
-			mb = m_gethdr(how, type);
-		else
-			mb = m_get(how, type);
-
-		/* Fail the whole operation if one mbuf can't be allocated. */
-		if (mb == NULL) {
-			if (nm != NULL)
-				m_freem(nm);
-			return (NULL);
-		}
-
-		/* Book keeping. */
-		len -= M_SIZE(mb);
-		if (mtail != NULL)
-			mtail->m_next = mb;
-		else
-			nm = mb;
-		mtail = mb;
-		flags &= ~M_PKTHDR;	/* Only valid on the first mbuf. */
-	}
-	if (flags & M_EOR)
-		mtail->m_flags |= M_EOR;  /* Only valid on the last mbuf. */
-
-	/* If mbuf was supplied, append new chain to the end of it. */
-	if (m != NULL) {
-		for (mtail = m; mtail->m_next != NULL; mtail = mtail->m_next)
-			;
-		mtail->m_next = nm;
-		mtail->m_flags &= ~M_EOR;
-	} else
-		m = nm;
-
-	return (m);
-}
-
-/*
- * Free an entire chain of mbufs and associated external buffers, if
- * applicable.
- */
-void
-m_freem(struct mbuf *mb)
-{
-
-	while (mb != NULL)
-		mb = m_free(mb);
-}
-
-/*-
- * Configure a provided mbuf to refer to the provided external storage
- * buffer and setup a reference count for said buffer.  If the setting
- * up of the reference count fails, the M_EXT bit will not be set.  If
- * successfull, the M_EXT bit is set in the mbuf's flags.
- *
- * Arguments:
- *    mb     The existing mbuf to which to attach the provided buffer.
- *    buf    The address of the provided external storage buffer.
- *    size   The size of the provided buffer.
- *    freef  A pointer to a routine that is responsible for freeing the
- *           provided external storage buffer.
- *    args   A pointer to an argument structure (of any type) to be passed
- *           to the provided freef routine (may be NULL).
- *    flags  Any other flags to be passed to the provided mbuf.
- *    type   The type that the external storage buffer should be
- *           labeled with.
- *
- * Returns:
- *    Nothing.
- */
-int
-m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
-    void (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2,
-    int flags, int type, int wait)
-{
-	KASSERT(type != EXT_CLUSTER, ("%s: EXT_CLUSTER not allowed", __func__));
-
-	if (type != EXT_EXTREF)
-		mb->m_ext.ext_cnt = uma_zalloc(zone_ext_refcnt, wait);
-
-	if (mb->m_ext.ext_cnt == NULL)
-		return (ENOMEM);
-
-	*(mb->m_ext.ext_cnt) = 1;
-	mb->m_flags |= (M_EXT | flags);
-	mb->m_ext.ext_buf = buf;
-	mb->m_data = mb->m_ext.ext_buf;
-	mb->m_ext.ext_size = size;
-	mb->m_ext.ext_free = freef;
-	mb->m_ext.ext_arg1 = arg1;
-	mb->m_ext.ext_arg2 = arg2;
-	mb->m_ext.ext_type = type;
-	mb->m_ext.ext_flags = 0;
-
-	return (0);
-}
-
-/*
- * Non-directly-exported function to clean up after mbufs with M_EXT
- * storage attached to them if the reference count hits 1.
- */
-void
-mb_free_ext(struct mbuf *m)
-{
-	int freembuf;
-
-	KASSERT(m->m_flags & M_EXT, ("%s: M_EXT not set on %p", __func__, m));
-
-	/*
-	 * Check if the header is embedded in the cluster.
-	 */
-	freembuf = (m->m_flags & M_NOFREE) ? 0 : 1;
-
-	switch (m->m_ext.ext_type) {
-	case EXT_SFBUF:
-		sf_ext_free(m->m_ext.ext_arg1, m->m_ext.ext_arg2);
-		break;
-	default:
-		KASSERT(m->m_ext.ext_cnt != NULL,
-		    ("%s: no refcounting pointer on %p", __func__, m));
-		/* 
-		 * Free attached storage if this mbuf is the only
-		 * reference to it.
-		 */
-		if (*(m->m_ext.ext_cnt) != 1) {
-			if (atomic_fetchadd_int(m->m_ext.ext_cnt, -1) != 1)
-				break;
-		}
-
-		switch (m->m_ext.ext_type) {
-		case EXT_PACKET:	/* The packet zone is special. */
-			if (*(m->m_ext.ext_cnt) == 0)
-				*(m->m_ext.ext_cnt) = 1;
-			uma_zfree(zone_pack, m);
-			return;		/* Job done. */
-		case EXT_CLUSTER:
-			uma_zfree(zone_clust, m->m_ext.ext_buf);
-			break;
-		case EXT_JUMBOP:
-			uma_zfree(zone_jumbop, m->m_ext.ext_buf);
-			break;
-		case EXT_JUMBO9:
-			uma_zfree(zone_jumbo9, m->m_ext.ext_buf);
-			break;
-		case EXT_JUMBO16:
-			uma_zfree(zone_jumbo16, m->m_ext.ext_buf);
-			break;
-		case EXT_NET_DRV:
-		case EXT_MOD_TYPE:
-		case EXT_DISPOSABLE:
-			*(m->m_ext.ext_cnt) = 0;
-			uma_zfree(zone_ext_refcnt, __DEVOLATILE(u_int *,
-				m->m_ext.ext_cnt));
-			/* FALLTHROUGH */
-		case EXT_EXTREF:
-			KASSERT(m->m_ext.ext_free != NULL,
-				("%s: ext_free not set", __func__));
-			(*(m->m_ext.ext_free))(m, m->m_ext.ext_arg1,
-			    m->m_ext.ext_arg2);
-			break;
-		default:
-			KASSERT(m->m_ext.ext_type == 0,
-				("%s: unknown ext_type", __func__));
-		}
-	}
-
-	if (freembuf)
-		uma_zfree(zone_mbuf, m);
-}
-
-/*
  * Attach the cluster from *m to *n, set up m_ext in *n
  * and bump the refcount of the cluster.
  */
 void
-mb_dupcl(struct mbuf *n, const struct mbuf *m)
+mb_dupcl(struct mbuf *n, struct mbuf *m)
 {
+	volatile u_int *refcnt;
 
 	KASSERT(m->m_flags & M_EXT, ("%s: M_EXT not set on %p", __func__, m));
 	KASSERT(!(n->m_flags & M_EXT), ("%s: M_EXT set on %p", __func__, n));
 
-	switch (m->m_ext.ext_type) {
-	case EXT_SFBUF:
-		sf_ext_ref(m->m_ext.ext_arg1, m->m_ext.ext_arg2);
-		break;
-	default:
-		KASSERT(m->m_ext.ext_cnt != NULL,
-		    ("%s: no refcounting pointer on %p", __func__, m));
-		if (*(m->m_ext.ext_cnt) == 1)
-			*(m->m_ext.ext_cnt) += 1;
-		else
-			atomic_add_int(m->m_ext.ext_cnt, 1);
-	}
-
 	n->m_ext = m->m_ext;
 	n->m_flags |= M_EXT;
 	n->m_flags |= m->m_flags & M_RDONLY;
+
+	/* See if this is the mbuf that holds the embedded refcount. */
+	if (m->m_ext.ext_flags & EXT_FLAG_EMBREF) {
+		refcnt = n->m_ext.ext_cnt = &m->m_ext.ext_count;
+		n->m_ext.ext_flags &= ~EXT_FLAG_EMBREF;
+	} else {
+		KASSERT(m->m_ext.ext_cnt != NULL,
+		    ("%s: no refcounting pointer on %p", __func__, m));
+		refcnt = m->m_ext.ext_cnt;
+	}
+
+	if (*refcnt == 1)
+		*refcnt += 1;
+	else
+		atomic_add_int(refcnt, 1);
 }
 
 void
@@ -530,6 +318,26 @@ m_sanity(struct mbuf *m0, int sanitize)
 #undef	M_SANITY_ACTION
 }
 
+/*
+ * Non-inlined part of m_init().
+ */
+int
+m_pkthdr_init(struct mbuf *m, int how)
+{
+#ifdef MAC
+	int error;
+#endif
+	m->m_data = m->m_pktdat;
+	bzero(&m->m_pkthdr, sizeof(m->m_pkthdr));
+#ifdef MAC
+	/* If the label init fails, fail the alloc */
+	error = mac_mbuf_init(m, how);
+	if (error)
+		return (error);
+#endif
+
+	return (0);
+}
 
 /*
  * "Move" mbuf pkthdr from "from" to "to".
@@ -631,7 +439,7 @@ m_prepend(struct mbuf *m, int len, int how)
  * only their reference counts are incremented.
  */
 struct mbuf *
-m_copym(const struct mbuf *m, int off0, int len, int wait)
+m_copym(struct mbuf *m, int off0, int len, int wait)
 {
 	struct mbuf *n, **np;
 	int off = off0;
@@ -651,7 +459,7 @@ m_copym(const struct mbuf *m, int off0, int len, int wait)
 		m = m->m_next;
 	}
 	np = &top;
-	top = 0;
+	top = NULL;
 	while (len > 0) {
 		if (m == NULL) {
 			KASSERT(len == M_COPYALL,
@@ -1862,7 +1670,7 @@ m_unshare(struct mbuf *m0, int how)
 		 * don't know how to break up the non-contiguous memory when
 		 * doing DMA.
 		 */
-		n = m_getcl(how, m->m_type, m->m_flags);
+		n = m_getcl(how, m->m_type, m->m_flags & M_COPYFLAGS);
 		if (n == NULL) {
 			m_freem(m0);
 			return (NULL);
@@ -1892,7 +1700,7 @@ m_unshare(struct mbuf *m0, int how)
 				break;
 			off += cc;
 
-			n = m_getcl(how, m->m_type, m->m_flags);
+			n = m_getcl(how, m->m_type, m->m_flags & M_COPYFLAGS);
 			if (n == NULL) {
 				m_freem(mfirst);
 				m_freem(m0);

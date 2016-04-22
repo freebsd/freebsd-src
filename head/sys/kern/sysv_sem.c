@@ -867,6 +867,11 @@ sys_semget(struct thread *td, struct semget_args *uap)
 		}
 		if (semid < seminfo.semmni) {
 			DPRINTF(("found public key\n"));
+			if ((semflg & IPC_CREAT) && (semflg & IPC_EXCL)) {
+				DPRINTF(("not exclusive\n"));
+				error = EEXIST;
+				goto done2;
+			}
 			if ((error = ipcperm(td, &sema[semid].u.sem_perm,
 			    semflg & 0700))) {
 				goto done2;
@@ -874,11 +879,6 @@ sys_semget(struct thread *td, struct semget_args *uap)
 			if (nsems > 0 && sema[semid].u.sem_nsems < nsems) {
 				DPRINTF(("too small\n"));
 				error = EINVAL;
-				goto done2;
-			}
-			if ((semflg & IPC_CREAT) && (semflg & IPC_EXCL)) {
-				DPRINTF(("not exclusive\n"));
-				error = EEXIST;
 				goto done2;
 			}
 #ifdef MAC
@@ -980,8 +980,8 @@ sys_semop(struct thread *td, struct semop_args *uap)
 	size_t nsops = uap->nsops;
 	struct sembuf *sops;
 	struct semid_kernel *semakptr;
-	struct sembuf *sopptr = 0;
-	struct sem *semptr = 0;
+	struct sembuf *sopptr = NULL;
+	struct sem *semptr = NULL;
 	struct sem_undo *suptr;
 	struct mtx *sema_mtxp;
 	size_t i, j, k;
@@ -1400,8 +1400,7 @@ sys_semsys(td, uap)
 
 	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
-	if (uap->which < 0 ||
-	    uap->which >= sizeof(semcalls)/sizeof(semcalls[0]))
+	if (uap->which < 0 || uap->which >= nitems(semcalls))
 		return (EINVAL);
 	error = (*semcalls[uap->which])(td, &uap->a2);
 	return (error);

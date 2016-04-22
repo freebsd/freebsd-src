@@ -168,9 +168,6 @@ linux_find_prison(struct prison *spr, struct prison **prp)
 	struct prison *pr;
 	struct linux_prison *lpr;
 
-	if (!linux_osd_jail_slot)
-		/* In case osd_register failed. */
-		spr = &prison0;
 	for (pr = spr;; pr = pr->pr_parent) {
 		mtx_lock(&pr->pr_mtx);
 		lpr = (pr == &prison0)
@@ -189,15 +186,14 @@ linux_find_prison(struct prison *spr, struct prison **prp)
  * Ensure a prison has its own Linux info.  If lprp is non-null, point it to
  * the Linux info and lock the prison.
  */
-static int
+static void
 linux_alloc_prison(struct prison *pr, struct linux_prison **lprp)
 {
 	struct prison *ppr;
 	struct linux_prison *lpr, *nlpr;
-	int error;
+	void *rsv;
 
 	/* If this prison already has Linux info, return that. */
-	error = 0;
 	lpr = linux_find_prison(pr, &ppr);
 	if (ppr == pr)
 		goto done;
@@ -207,29 +203,24 @@ linux_alloc_prison(struct prison *pr, struct linux_prison **lprp)
 	 */
 	mtx_unlock(&ppr->pr_mtx);
 	nlpr = malloc(sizeof(struct linux_prison), M_PRISON, M_WAITOK);
+	rsv = osd_reserve(linux_osd_jail_slot);
 	lpr = linux_find_prison(pr, &ppr);
 	if (ppr == pr) {
 		free(nlpr, M_PRISON);
+		osd_free_reserved(rsv);
 		goto done;
 	}
 	/* Inherit the initial values from the ancestor. */
 	mtx_lock(&pr->pr_mtx);
-	error = osd_jail_set(pr, linux_osd_jail_slot, nlpr);
-	if (error == 0) {
-		bcopy(lpr, nlpr, sizeof(*lpr));
-		lpr = nlpr;
-	} else {
-		free(nlpr, M_PRISON);
-		lpr = NULL;
-	}
+	(void)osd_jail_set_reserved(pr, linux_osd_jail_slot, rsv, nlpr);
+	bcopy(lpr, nlpr, sizeof(*lpr));
+	lpr = nlpr;
 	mtx_unlock(&ppr->pr_mtx);
  done:
 	if (lprp != NULL)
 		*lprp = lpr;
 	else
 		mtx_unlock(&pr->pr_mtx);
-
-	return (error);
 }
 
 /*
@@ -249,7 +240,8 @@ linux_prison_create(void *obj, void *data)
 	 * Inherit a prison's initial values from its parent
 	 * (different from JAIL_SYS_INHERIT which also inherits changes).
 	 */
-	return (linux_alloc_prison(pr, NULL));
+	linux_alloc_prison(pr, NULL);
+	return (0);
 }
 
 static int
@@ -345,11 +337,7 @@ linux_prison_set(void *obj, void *data)
 		 * "linux=new" or "linux.*":
 		 * the prison gets its own Linux info.
 		 */
-		error = linux_alloc_prison(pr, &lpr);
-		if (error) {
-			mtx_unlock(&pr->pr_mtx);
-			return (error);
-		}
+		linux_alloc_prison(pr, &lpr);
 		if (osrelease) {
 			error = linux_map_osrel(osrelease, &lpr->pr_osrel);
 			if (error) {
@@ -449,21 +437,18 @@ linux_osd_jail_register(void)
 
 	linux_osd_jail_slot =
 	    osd_jail_register(linux_prison_destructor, methods);
-	if (linux_osd_jail_slot > 0) {
-		/* Copy the system linux info to any current prisons. */
-		sx_xlock(&allprison_lock);
-		TAILQ_FOREACH(pr, &allprison, pr_list)
-			(void)linux_alloc_prison(pr, NULL);
-		sx_xunlock(&allprison_lock);
-	}
+	/* Copy the system linux info to any current prisons. */
+	sx_slock(&allprison_lock);
+	TAILQ_FOREACH(pr, &allprison, pr_list)
+		linux_alloc_prison(pr, NULL);
+	sx_sunlock(&allprison_lock);
 }
 
 void
 linux_osd_jail_deregister(void)
 {
 
-	if (linux_osd_jail_slot)
-		osd_jail_deregister(linux_osd_jail_slot);
+	osd_jail_deregister(linux_osd_jail_slot);
 }
 
 void

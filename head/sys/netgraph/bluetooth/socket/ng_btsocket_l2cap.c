@@ -708,8 +708,15 @@ static int ng_btsocket_l2cap_process_l2ca_enc_change(struct ng_mesg *msg, ng_bts
 
 	op = (ng_l2cap_l2ca_enc_chg_op *)(msg->data);
 
+	mtx_lock(&ng_btsocket_l2cap_sockets_mtx);
+
 	pcb = ng_btsocket_l2cap_pcb_by_cid(&rt->src, op->lcid,
 					   op->idtype);
+	if (pcb == NULL) {
+		mtx_unlock(&ng_btsocket_l2cap_sockets_mtx);
+		return (ENOENT);
+	}
+
 	mtx_lock(&pcb->pcb_mtx);
 	pcb->encryption = op->result;
 	
@@ -729,6 +736,7 @@ static int ng_btsocket_l2cap_process_l2ca_enc_change(struct ng_mesg *msg, ng_bts
 		}
 	}
 	mtx_unlock(&pcb->pcb_mtx);
+	mtx_unlock(&ng_btsocket_l2cap_sockets_mtx);
 
 	return 0;
 }

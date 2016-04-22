@@ -25,6 +25,8 @@
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright 2014 HybridCluster. All rights reserved.
+ * Copyright 2016 RackTop Systems.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 #include <sys/dmu.h>
@@ -64,6 +66,12 @@
 int zfs_send_corrupt_data = B_FALSE;
 int zfs_send_queue_length = 16 * 1024 * 1024;
 int zfs_recv_queue_length = 16 * 1024 * 1024;
+/* Set this tunable to FALSE to disable setting of DRR_FLAG_FREERECORDS */
+int zfs_send_set_freerecords_bit = B_TRUE;
+
+#ifdef _KERNEL
+TUNABLE_INT("vfs.zfs.send_set_freerecords_bit", &zfs_send_set_freerecords_bit);
+#endif
 
 static char *dmu_recv_tag = "dmu_recv_tag";
 const char *recv_clone_name = "%recv";
@@ -99,6 +107,19 @@ dump_bytes(dmu_sendarg_t *dsp, void *buf, int len)
 	dsl_dataset_t *ds = dmu_objset_ds(dsp->dsa_os);
 	struct uio auio;
 	struct iovec aiov;
+
+	/*
+	 * The code does not rely on this (len being a multiple of 8).  We keep
+	 * this assertion because of the corresponding assertion in
+	 * receive_read().  Keeping this assertion ensures that we do not
+	 * inadvertently break backwards compatibility (causing the assertion
+	 * in receive_read() to trigger on old software).
+	 *
+	 * Removing the assertions could be rolled into a new feature that uses
+	 * data that isn't 8-byte aligned; if the assertions were removed, a
+	 * feature flag would have to be added.
+	 */
+
 	ASSERT0(len % 8);
 
 	aiov.iov_base = buf;
@@ -158,6 +179,14 @@ dump_record(dmu_sendarg_t *dsp, void *payload, int payload_len)
 	return (0);
 }
 
+/*
+ * Fill in the drr_free struct, or perform aggregation if the previous record is
+ * also a free record, and the two are adjacent.
+ *
+ * Note that we send free records even for a full send, because we want to be
+ * able to receive a full send as a clone, which requires a list of all the free
+ * and freeobject records that were generated on the source.
+ */
 static int
 dump_free(dmu_sendarg_t *dsp, uint64_t object, uint64_t offset,
     uint64_t length)
@@ -180,15 +209,6 @@ dump_free(dmu_sendarg_t *dsp, uint64_t object, uint64_t offset,
 	ASSERT(object > dsp->dsa_last_data_object ||
 	    (object == dsp->dsa_last_data_object &&
 	    offset > dsp->dsa_last_data_offset));
-
-	/*
-	 * If we are doing a non-incremental send, then there can't
-	 * be any data in the dataset we're receiving into.  Therefore
-	 * a free record would simply be a no-op.  Save space by not
-	 * sending it to begin with.
-	 */
-	if (!dsp->dsa_incremental)
-		return (0);
 
 	if (length != -1ULL && offset + length < offset)
 		length = -1ULL;
@@ -367,10 +387,6 @@ static int
 dump_freeobjects(dmu_sendarg_t *dsp, uint64_t firstobj, uint64_t numobjs)
 {
 	struct drr_freeobjects *drrfo = &(dsp->dsa_drr->drr_u.drr_freeobjects);
-
-	/* See comment in dump_free(). */
-	if (!dsp->dsa_incremental)
-		return (0);
 
 	/*
 	 * If there is a pending op, but it's not PENDING_FREEOBJECTS,
@@ -776,6 +792,8 @@ dmu_send_impl(void *tag, dsl_pool_t *dp, dsl_dataset_t *to_ds,
 	drr->drr_u.drr_begin.drr_toguid = dsl_dataset_phys(to_ds)->ds_guid;
 	if (dsl_dataset_phys(to_ds)->ds_flags & DS_FLAG_CI_DATASET)
 		drr->drr_u.drr_begin.drr_flags |= DRR_FLAG_CI_DATA;
+	if (zfs_send_set_freerecords_bit)
+		drr->drr_u.drr_begin.drr_flags |= DRR_FLAG_FREERECORDS;
 
 	if (ancestor_zb != NULL) {
 		drr->drr_u.drr_begin.drr_fromguid =
@@ -799,7 +817,6 @@ dmu_send_impl(void *tag, dsl_pool_t *dp, dsl_dataset_t *to_ds,
 	dsp->dsa_off = off;
 	dsp->dsa_toguid = dsl_dataset_phys(to_ds)->ds_guid;
 	dsp->dsa_pending_op = PENDING_NONE;
-	dsp->dsa_incremental = (ancestor_zb != NULL);
 	dsp->dsa_featureflags = featureflags;
 	dsp->dsa_resume_object = resumeobj;
 	dsp->dsa_resume_offset = resumeoff;
@@ -1321,7 +1338,7 @@ dmu_recv_begin_check(void *arg, dmu_tx_t *tx)
 		/* target fs already exists; recv into temp clone */
 
 		/* Can't recv a clone into an existing fs */
-		if (flags & DRR_FLAG_CLONE) {
+		if (flags & DRR_FLAG_CLONE || drba->drba_origin) {
 			dsl_dataset_rele(ds, FTAG);
 			return (SET_ERROR(EINVAL));
 		}
@@ -1339,6 +1356,15 @@ dmu_recv_begin_check(void *arg, dmu_tx_t *tx)
 		if (fromguid != 0 && !(flags & DRR_FLAG_CLONE ||
 		    drba->drba_origin))
 			return (SET_ERROR(ENOENT));
+
+		/*
+		 * If we're receiving a full send as a clone, and it doesn't
+		 * contain all the necessary free records and freeobject
+		 * records, reject it.
+		 */
+		if (fromguid == 0 && drba->drba_origin &&
+		    !(flags & DRR_FLAG_FREERECORDS))
+			return (SET_ERROR(EINVAL));
 
 		/* Open the parent of tofs */
 		ASSERT3U(strlen(tofs), <, MAXNAMELEN);
@@ -1379,7 +1405,8 @@ dmu_recv_begin_check(void *arg, dmu_tx_t *tx)
 				dsl_dataset_rele(ds, FTAG);
 				return (SET_ERROR(EINVAL));
 			}
-			if (dsl_dataset_phys(origin)->ds_guid != fromguid) {
+			if (dsl_dataset_phys(origin)->ds_guid != fromguid &&
+			    fromguid != 0) {
 				dsl_dataset_rele(origin, FTAG);
 				dsl_dataset_rele(ds, FTAG);
 				return (SET_ERROR(ENODEV));
@@ -1709,6 +1736,20 @@ struct receive_writer_arg {
 	uint64_t bytes_read; /* bytes read when current record created */
 };
 
+struct objlist {
+	list_t list; /* List of struct receive_objnode. */
+	/*
+	 * Last object looked up. Used to assert that objects are being looked
+	 * up in ascending order.
+	 */
+	uint64_t last_lookup;
+};
+
+struct receive_objnode {
+	list_node_t node;
+	uint64_t object;
+};
+
 struct receive_arg  {
 	objset_t *os;
 	kthread_t *td;
@@ -1727,12 +1768,7 @@ struct receive_arg  {
 	int err;
 	boolean_t byteswap;
 	/* Sorted list of objects not to issue prefetches for. */
-	list_t ignore_obj_list;
-};
-
-struct receive_ign_obj_node {
-	list_node_t node;
-	uint64_t object;
+	struct objlist ignore_objlist;
 };
 
 typedef struct guid_map_entry {
@@ -1801,7 +1837,10 @@ receive_read(struct receive_arg *ra, int len, void *buf)
 {
 	int done = 0;
 
-	/* some things will require 8-byte alignment, so everything must */
+	/*
+	 * The code doesn't rely on this (lengths being multiples of 8).  See
+	 * comment in dump_bytes.
+	 */
 	ASSERT0(len % 8);
 
 	while (done < len) {
@@ -2068,13 +2107,14 @@ receive_freeobjects(struct receive_writer_arg *rwa,
     struct drr_freeobjects *drrfo)
 {
 	uint64_t obj;
+	int next_err = 0;
 
 	if (drrfo->drr_firstobj + drrfo->drr_numobjs < drrfo->drr_firstobj)
 		return (SET_ERROR(EINVAL));
 
 	for (obj = drrfo->drr_firstobj;
-	    obj < drrfo->drr_firstobj + drrfo->drr_numobjs;
-	    (void) dmu_object_next(rwa->os, &obj, FALSE, 0)) {
+	    obj < drrfo->drr_firstobj + drrfo->drr_numobjs && next_err == 0;
+	    next_err = dmu_object_next(rwa->os, &obj, FALSE, 0)) {
 		int err;
 
 		if (dmu_object_info(rwa->os, obj, NULL) != 0)
@@ -2084,7 +2124,8 @@ receive_freeobjects(struct receive_writer_arg *rwa,
 		if (err != 0)
 			return (err);
 	}
-
+	if (next_err != ESRCH)
+		return (next_err);
 	return (0);
 }
 
@@ -2414,6 +2455,66 @@ receive_read_payload_and_next_header(struct receive_arg *ra, int len, void *buf)
 	return (0);
 }
 
+static void
+objlist_create(struct objlist *list)
+{
+	list_create(&list->list, sizeof (struct receive_objnode),
+	    offsetof(struct receive_objnode, node));
+	list->last_lookup = 0;
+}
+
+static void
+objlist_destroy(struct objlist *list)
+{
+	for (struct receive_objnode *n = list_remove_head(&list->list);
+	    n != NULL; n = list_remove_head(&list->list)) {
+		kmem_free(n, sizeof (*n));
+	}
+	list_destroy(&list->list);
+}
+
+/*
+ * This function looks through the objlist to see if the specified object number
+ * is contained in the objlist.  In the process, it will remove all object
+ * numbers in the list that are smaller than the specified object number.  Thus,
+ * any lookup of an object number smaller than a previously looked up object
+ * number will always return false; therefore, all lookups should be done in
+ * ascending order.
+ */
+static boolean_t
+objlist_exists(struct objlist *list, uint64_t object)
+{
+	struct receive_objnode *node = list_head(&list->list);
+	ASSERT3U(object, >=, list->last_lookup);
+	list->last_lookup = object;
+	while (node != NULL && node->object < object) {
+		VERIFY3P(node, ==, list_remove_head(&list->list));
+		kmem_free(node, sizeof (*node));
+		node = list_head(&list->list);
+	}
+	return (node != NULL && node->object == object);
+}
+
+/*
+ * The objlist is a list of object numbers stored in ascending order.  However,
+ * the insertion of new object numbers does not seek out the correct location to
+ * store a new object number; instead, it appends it to the list for simplicity.
+ * Thus, any users must take care to only insert new object numbers in ascending
+ * order.
+ */
+static void
+objlist_insert(struct objlist *list, uint64_t object)
+{
+	struct receive_objnode *node = kmem_zalloc(sizeof (*node), KM_SLEEP);
+	node->object = object;
+#ifdef ZFS_DEBUG
+	struct receive_objnode *last_object = list_tail(&list->list);
+	uint64_t last_objnum = (last_object != NULL ? last_object->object : 0);
+	ASSERT3U(node->object, >, last_objnum);
+#endif
+	list_insert_tail(&list->list, node);
+}
+
 /*
  * Issue the prefetch reads for any necessary indirect blocks.
  *
@@ -2436,13 +2537,7 @@ static void
 receive_read_prefetch(struct receive_arg *ra,
     uint64_t object, uint64_t offset, uint64_t length)
 {
-	struct receive_ign_obj_node *node = list_head(&ra->ignore_obj_list);
-	while (node != NULL && node->object < object) {
-		VERIFY3P(node, ==, list_remove_head(&ra->ignore_obj_list));
-		kmem_free(node, sizeof (*node));
-		node = list_head(&ra->ignore_obj_list);
-	}
-	if (node == NULL || node->object > object) {
+	if (!objlist_exists(&ra->ignore_objlist, object)) {
 		dmu_prefetch(ra->os, object, 1, offset, length,
 		    ZIO_PRIORITY_SYNC_READ);
 	}
@@ -2475,18 +2570,7 @@ receive_read_record(struct receive_arg *ra)
 		 */
 		if (err == ENOENT ||
 		    (err == 0 && doi.doi_data_block_size != drro->drr_blksz)) {
-			struct receive_ign_obj_node *node =
-			    kmem_zalloc(sizeof (*node),
-			    KM_SLEEP);
-			node->object = drro->drr_object;
-#ifdef ZFS_DEBUG
-			struct receive_ign_obj_node *last_object =
-			    list_tail(&ra->ignore_obj_list);
-			uint64_t last_objnum = (last_object != NULL ?
-			    last_object->object : 0);
-			ASSERT3U(node->object, >, last_objnum);
-#endif
-			list_insert_tail(&ra->ignore_obj_list, node);
+			objlist_insert(&ra->ignore_objlist, drro->drr_object);
 			err = 0;
 		}
 		return (err);
@@ -2704,7 +2788,6 @@ resume_check(struct receive_arg *ra, nvlist_t *begin_nvl)
 	return (0);
 }
 
-
 /*
  * Read in the stream's records, one by one, and apply them to the pool.  There
  * are two threads involved; the thread that calls this function will spin up a
@@ -2739,8 +2822,7 @@ dmu_recv_stream(dmu_recv_cookie_t *drc, struct file *fp, offset_t *voffp,
 		    sizeof (ra.bytes_read), 1, &ra.bytes_read);
 	}
 
-	list_create(&ra.ignore_obj_list, sizeof (struct receive_ign_obj_node),
-	    offsetof(struct receive_ign_obj_node, node));
+	objlist_create(&ra.ignore_objlist);
 
 	/* these were verified in dmu_recv_begin */
 	ASSERT3U(DMU_GET_STREAM_HDRTYPE(drc->drc_drrb->drr_versioninfo), ==,
@@ -2894,12 +2976,7 @@ out:
 	}
 
 	*voffp = ra.voff;
-	for (struct receive_ign_obj_node *n =
-	    list_remove_head(&ra.ignore_obj_list); n != NULL;
-	    n = list_remove_head(&ra.ignore_obj_list)) {
-		kmem_free(n, sizeof (*n));
-	}
-	list_destroy(&ra.ignore_obj_list);
+	objlist_destroy(&ra.ignore_objlist);
 	return (err);
 }
 

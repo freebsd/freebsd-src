@@ -43,10 +43,9 @@ int isp_send_cmd(ispsoftc_t *, void *, void *, uint32_t, uint32_t, isp_ddir_t, i
  *
  * These handles are associate with a command.
  */
-int isp_allocate_xs(ispsoftc_t *, XS_T *, uint32_t *);
-XS_T * isp_find_xs(ispsoftc_t *, uint32_t);
-uint32_t isp_find_handle(ispsoftc_t *, XS_T *);
-uint32_t isp_handle_index(ispsoftc_t *, uint32_t);
+uint32_t isp_allocate_handle(ispsoftc_t *, void *, int);
+void *isp_find_xs(ispsoftc_t *, uint32_t);
+uint32_t isp_find_handle(ispsoftc_t *, void *);
 void isp_destroy_handle(ispsoftc_t *, uint32_t);
 
 /*
@@ -71,9 +70,6 @@ void isp_gen_role_str(char *, size_t, uint16_t);
 const char *isp_fc_fw_statename(int);
 const char *isp_fc_loop_statename(int);
 const char *isp_fc_toponame(fcparam *);
-
-int isp_fc_change_role(ispsoftc_t *, int, int);
-
 
 /*
  * Cleanup
@@ -148,7 +144,9 @@ void isp_get_fc_hdr(ispsoftc_t *, fc_hdr_t *, fc_hdr_t *);
 void isp_put_fc_hdr(ispsoftc_t *, fc_hdr_t *, fc_hdr_t *);
 void isp_get_fcp_cmnd_iu(ispsoftc_t *, fcp_cmnd_iu_t *, fcp_cmnd_iu_t *);
 void isp_put_rft_id(ispsoftc_t *, rft_id_t *, rft_id_t *);
+void isp_put_rspn_id(ispsoftc_t *, rspn_id_t *, rspn_id_t *);
 void isp_put_rff_id(ispsoftc_t *, rff_id_t *, rff_id_t *);
+void isp_put_rsnn_nn(ispsoftc_t *, rsnn_nn_t *, rsnn_nn_t *);
 void isp_get_ct_hdr(ispsoftc_t *isp, ct_hdr_t *, ct_hdr_t *);
 void isp_put_ct_hdr(ispsoftc_t *isp, ct_hdr_t *, ct_hdr_t *);
 void isp_put_fcp_rsp_iu(ispsoftc_t *isp, fcp_rsp_iu_t *, fcp_rsp_iu_t *);
@@ -165,11 +163,6 @@ void isp_put_fcp_rsp_iu(ispsoftc_t *isp, fcp_rsp_iu_t *, fcp_rsp_iu_t *);
 #endif
 
 int isp_send_tgt_cmd(ispsoftc_t *, void *, void *, uint32_t, uint32_t, isp_ddir_t, void *, uint32_t);
-
-int isp_allocate_xs_tgt(ispsoftc_t *, void *, uint32_t *);
-void *isp_find_xs_tgt(ispsoftc_t *, uint32_t);
-uint32_t isp_find_tgt_handle(ispsoftc_t *, void *);
-void isp_destroy_tgt_handle(ispsoftc_t *, uint32_t);
 #endif
 int isp_find_pdb_empty(ispsoftc_t *, int, fcportdb_t **);
 int isp_find_pdb_by_wwpn(ispsoftc_t *, int, uint64_t, fcportdb_t **);

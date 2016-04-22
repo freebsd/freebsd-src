@@ -87,7 +87,6 @@ struct nicvf_info {
 
 struct nicpf {
 	device_t		dev;
-	uint8_t			rev_id;
 	uint8_t			node;
 	u_int			flags;
 	uint8_t			num_vf_en;      /* No of VF enabled */
@@ -120,7 +119,7 @@ static int nicpf_detach(device_t);
 #ifdef PCI_IOV
 static int nicpf_iov_init(device_t, uint16_t, const nvlist_t *);
 static void nicpf_iov_uninit(device_t);
-static int nicpf_iov_addr_vf(device_t, uint16_t, const nvlist_t *);
+static int nicpf_iov_add_vf(device_t, uint16_t, const nvlist_t *);
 #endif
 
 static device_method_t nicpf_methods[] = {
@@ -132,7 +131,7 @@ static device_method_t nicpf_methods[] = {
 #ifdef PCI_IOV
 	DEVMETHOD(pci_iov_init,		nicpf_iov_init),
 	DEVMETHOD(pci_iov_uninit,	nicpf_iov_uninit),
-	DEVMETHOD(pci_iov_add_vf,	nicpf_iov_addr_vf),
+	DEVMETHOD(pci_iov_add_vf,	nicpf_iov_add_vf),
 #endif
 	DEVMETHOD_END,
 };
@@ -200,7 +199,6 @@ nicpf_attach(device_t dev)
 	}
 
 	nic->node = nic_get_node_id(nic->reg_base);
-	nic->rev_id = pci_read_config(dev, PCIR_REVID, 1);
 
 	/* Enable Traffic Network Switch (TNS) bypass mode by default */
 	nic->flags &= ~NIC_TNS_ENABLED;
@@ -271,18 +269,9 @@ nicpf_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *params)
 
 	nic = device_get_softc(dev);
 
-	nic->num_vf_en = 0;
 	if (num_vfs == 0)
 		return (ENXIO);
-	if (num_vfs > MAX_NUM_VFS_SUPPORTED)
-		return (EINVAL);
 
-	/*
-	 * Just set variables here.
-	 * The number of VFs will be written to configuration
-	 * space later in PCI_ADD_VF().
-	 */
-	nic->num_vf_en = num_vfs;
 	nic->flags |= NIC_SRIOV_ENABLED;
 
 	return (0);
@@ -296,7 +285,7 @@ nicpf_iov_uninit(device_t dev)
 }
 
 static int
-nicpf_iov_addr_vf(device_t dev, uint16_t vfnum, const nvlist_t *params)
+nicpf_iov_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *params)
 {
 	const void *mac;
 	struct nicpf *nic;
@@ -307,6 +296,9 @@ nicpf_iov_addr_vf(device_t dev, uint16_t vfnum, const nvlist_t *params)
 
 	if ((nic->flags & NIC_SRIOV_ENABLED) == 0)
 		return (ENXIO);
+
+	if (vfnum > (nic->num_vf_en - 1))
+		return (EINVAL);
 
 	if (nvlist_exists_binary(params, "mac-addr") != 0) {
 		mac = nvlist_get_binary(params, "mac-addr", &size);
@@ -416,7 +408,7 @@ nic_send_msg_to_vf(struct nicpf *nic, int vf, union nic_mbx *mbx)
 	 * when PF writes to MBOX(1), in next revisions when
 	 * PF writes to MBOX(0)
 	 */
-	if (nic->rev_id == 0) {
+	if (pass1_silicon(nic->dev)) {
 		nic_reg_write(nic, mbx_addr + 0, msg[0]);
 		nic_reg_write(nic, mbx_addr + 8, msg[1]);
 	} else {
@@ -628,9 +620,6 @@ nic_init_hw(struct nicpf *nic)
 {
 	int i;
 
-	/* Reset NIC, in case the driver is repeatedly inserted and removed */
-	nic_reg_write(nic, NIC_PF_SOFT_RESET, 1);
-
 	/* Enable NIC HW block */
 	nic_reg_write(nic, NIC_PF_CFG, 0x3);
 
@@ -732,8 +721,17 @@ nic_config_cpi(struct nicpf *nic, struct cpi_cfg_msg *cfg)
 			padd = cpi % 8; /* 3 bits CS out of 6bits DSCP */
 
 		/* Leave RSS_SIZE as '0' to disable RSS */
-		nic_reg_write(nic, NIC_PF_CPI_0_2047_CFG | (cpi << 3),
-		    (vnic << 24) | (padd << 16) | (rssi_base + rssi));
+		if (pass1_silicon(nic->dev)) {
+			nic_reg_write(nic, NIC_PF_CPI_0_2047_CFG | (cpi << 3),
+			    (vnic << 24) | (padd << 16) | (rssi_base + rssi));
+		} else {
+			/* Set MPI_ALG to '0' to disable MCAM parsing */
+			nic_reg_write(nic, NIC_PF_CPI_0_2047_CFG | (cpi << 3),
+			    (padd << 16));
+			/* MPI index is same as CPI if MPI_ALG is not enabled */
+			nic_reg_write(nic, NIC_PF_MPI_0_2047_CFG | (cpi << 3),
+			    (vnic << 24) | (rssi_base + rssi));
+		}
 
 		if ((rssi + 1) >= cfg->rq_cnt)
 			continue;
@@ -1090,11 +1088,8 @@ static int nic_sriov_init(device_t dev, struct nicpf *nic)
 	}
 	/* Fix-up the number of enabled VFs */
 	total_vf_cnt = pci_read_config(dev, iov_pos + PCIR_SRIOV_TOTAL_VFS, 2);
-	if (total_vf_cnt < nic->num_vf_en)
-		nic->num_vf_en = total_vf_cnt;
-
 	if (total_vf_cnt == 0)
-		return (0);
+		return (ENXIO);
 
 	/* Attach SR-IOV */
 	pf_schema = pci_iov_schema_alloc_node();
@@ -1112,7 +1107,6 @@ static int nic_sriov_init(device_t dev, struct nicpf *nic)
 		device_printf(dev,
 		    "Failed to initialize SR-IOV (error=%d)\n",
 		    err);
-		nic->num_vf_en = 0;
 		return (err);
 	}
 #endif

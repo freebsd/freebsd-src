@@ -37,10 +37,37 @@
 
 __FBSDID("$FreeBSD$");
 
+.macro clear_step_flag pcbflags, tmp
+	tbz	\pcbflags, #PCB_SINGLE_STEP_SHIFT, 999f
+	mrs	\tmp, mdscr_el1
+	bic	\tmp, \tmp, #1
+	msr	mdscr_el1, \tmp
+	isb
+999:
+.endm
+
+.macro set_step_flag pcbflags, tmp
+	tbz	\pcbflags, #PCB_SINGLE_STEP_SHIFT, 999f
+	mrs	\tmp, mdscr_el1
+	orr	\tmp, \tmp, #1
+	msr	mdscr_el1, \tmp
+	isb
+999:
+.endm
+
 /*
  * void cpu_throw(struct thread *old, struct thread *new)
  */
 ENTRY(cpu_throw)
+	/* Of old == NULL skip disabling stepping */
+	cbz	x0, 1f
+
+	/* If we were single stepping, disable it */
+	ldr	x4, [x0, #TD_PCB]
+	ldr	w5, [x4, #PCB_FLAGS]
+	clear_step_flag w5, x6
+1:
+
 #ifdef VFP
 	/* Backup the new thread pointer around a call to C code */
 	mov	x19, x1
@@ -59,7 +86,7 @@ ENTRY(cpu_throw)
 	 */
 
 	/* Switch to the new pmap */
-	ldr	x5, [x4, #PCB_L1ADDR]
+	ldr	x5, [x4, #PCB_L0ADDR]
 	msr	ttbr0_el1, x5
 	isb
 
@@ -68,6 +95,10 @@ ENTRY(cpu_throw)
 	tlbi	vmalle1is
 	dsb	sy
 	isb
+
+	/* If we are single stepping, enable it */
+	ldr	w5, [x4, #PCB_FLAGS]
+	set_step_flag w5, x6
 
 	/* Restore the registers */
 	ldp	x5, x6, [x4, #PCB_SP]
@@ -98,12 +129,6 @@ END(cpu_throw)
  * x3 to x7, x16 and x17 are caller saved
  */
 ENTRY(cpu_switch)
-	/* Store the new curthread */
-	str	x1, [x18, #PC_CURTHREAD]
-	/* And the new pcb */
-	ldr	x4, [x1, #TD_PCB]
-	str	x4, [x18, #PC_CURPCB]
-
 	/*
 	 * Save the old context.
 	 */
@@ -127,6 +152,10 @@ ENTRY(cpu_switch)
 	mrs	x6, tpidr_el0
 	stp	x5, x6, [x4, #PCB_SP]
 
+	/* If we were single stepping, disable it */
+	ldr	w5, [x4, #PCB_FLAGS]
+	clear_step_flag w5, x6
+
 #ifdef VFP
 	mov	x19, x0
 	mov	x20, x1
@@ -139,10 +168,14 @@ ENTRY(cpu_switch)
 	mov	x0, x19
 #endif
 
+	/* Store the new curthread */
+	str	x1, [x18, #PC_CURTHREAD]
+
 	/*
-	 * Restore the saved context.
+	 * Restore the saved context and set it as curpcb.
 	 */
 	ldr	x4, [x1, #TD_PCB]
+	str	x4, [x18, #PC_CURPCB]
 
 	/*
 	 * TODO: We may need to flush the cache here if switching
@@ -150,7 +183,7 @@ ENTRY(cpu_switch)
 	 */
 
 	/* Switch to the new pmap */
-	ldr	x5, [x4, #PCB_L1ADDR]
+	ldr	x5, [x4, #PCB_L0ADDR]
 	msr	ttbr0_el1, x5
 	isb
 
@@ -166,14 +199,17 @@ ENTRY(cpu_switch)
 	 */
 	str	x2, [x0, #TD_LOCK]
 #if defined(SCHED_ULE) && defined(SMP)
-	/* Read the value in blocked_lock */
-	ldr	x0, =_C_LABEL(blocked_lock)
-	ldr	x2, [x0]
+	/* Spin if TD_LOCK points to a blocked_lock */
+	ldr	x2, =_C_LABEL(blocked_lock)
 1:
 	ldar	x3, [x1, #TD_LOCK]
 	cmp	x3, x2
 	b.eq	1b
 #endif
+
+	/* If we are single stepping, enable it */
+	ldr	w5, [x4, #PCB_FLAGS]
+	set_step_flag w5, x6
 
 	/* Restore the registers */
 	ldp	x5, x6, [x4, #PCB_SP]

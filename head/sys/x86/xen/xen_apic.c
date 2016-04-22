@@ -74,12 +74,6 @@ static driver_filter_t xen_cpususpend_handler;
 static driver_filter_t xen_cpustophard_handler;
 #endif
 
-/*---------------------------- Extern Declarations ---------------------------*/
-/* Variables used by mp_machdep to perform the MMU related IPIs */
-#ifdef __amd64__
-extern int pmap_pcid_enabled;
-#endif
-
 /*---------------------------------- Macros ----------------------------------*/
 #define	IPI_TO_IDX(ipi) ((ipi) - APIC_IPI_INTS)
 
@@ -302,6 +296,7 @@ xen_pv_lapic_ipi_wait(int delay)
 	XEN_APIC_UNSUPPORTED;
 	return (0);
 }
+#endif	/* SMP */
 
 static int
 xen_pv_lapic_ipi_alloc(inthand_t *ipifunc)
@@ -317,7 +312,6 @@ xen_pv_lapic_ipi_free(int vector)
 
 	XEN_APIC_UNSUPPORTED;
 }
-#endif	/* SMP */
 
 static int
 xen_pv_lapic_set_lvt_mask(u_int apic_id, u_int lvt, u_char masked)
@@ -378,9 +372,9 @@ struct apic_ops xen_apic_ops = {
 	.ipi_raw		= xen_pv_lapic_ipi_raw,
 	.ipi_vectored		= xen_pv_lapic_ipi_vectored,
 	.ipi_wait		= xen_pv_lapic_ipi_wait,
+#endif
 	.ipi_alloc		= xen_pv_lapic_ipi_alloc,
 	.ipi_free		= xen_pv_lapic_ipi_free,
-#endif
 	.set_lvt_mask		= xen_pv_lapic_set_lvt_mask,
 	.set_lvt_mode		= xen_pv_lapic_set_lvt_mode,
 	.set_lvt_polarity	= xen_pv_lapic_set_lvt_polarity,

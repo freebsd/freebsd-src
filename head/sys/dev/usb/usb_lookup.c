@@ -154,28 +154,10 @@ usbd_lookup_id_by_uaa(const struct usb_device_id *id, usb_size_t sizeof_id,
 /*------------------------------------------------------------------------*
  *	Export the USB device ID format we use to userspace tools.
  *------------------------------------------------------------------------*/
-#if BYTE_ORDER == BIG_ENDIAN
-#define	U16_XOR "8"
-#define	U32_XOR "12"
-#define	U64_XOR "56"
-#define	U8_BITFIELD_XOR "7"
-#define	U16_BITFIELD_XOR "15"
-#define	U32_BITFIELD_XOR "31"
-#define	U64_BITFIELD_XOR "63"
-#else
+#if BYTE_ORDER == LITTLE_ENDIAN
 #define	U16_XOR "0"
-#define	U32_XOR "0"
-#define	U64_XOR "0"
-#define	U8_BITFIELD_XOR "0"
-#define	U16_BITFIELD_XOR "0"
-#define	U32_BITFIELD_XOR "0"
-#define	U64_BITFIELD_XOR "0"
-#endif
-
-#if USB_HAVE_COMPAT_LINUX
-#define	MFL_SIZE "1"
 #else
-#define	MFL_SIZE "0"
+#define	U16_XOR "8"
 #endif
 
 #if defined(KLD_MODULE) && (USB_HAVE_ID_SECTION != 0)
@@ -189,20 +171,19 @@ static const char __section("bus_autoconf_format") __used usb_id_format[] = {
 
 	/* List size of fields in the usb_device_id structure */
 
-#if ULONG_MAX >= 0xFFFFFFFFUL
-	"unused{0,8}"
-	"unused{0,8}"
-	"unused{0,8}"
-	"unused{0,8}"
-#if ULONG_MAX >= 0xFFFFFFFFFFFFFFFFULL
-	"unused{0,8}"
-	"unused{0,8}"
-	"unused{0,8}"
-	"unused{0,8}"
-#endif
-#else
-#error "Please update code."
-#endif
+	"mf_vendor{" U16_XOR ",1}"
+	"mf_product{" U16_XOR ",1}"
+	"mf_dev_lo{" U16_XOR ",1}"
+	"mf_dev_hi{" U16_XOR ",1}"
+
+	"mf_dev_class{" U16_XOR ",1}"
+	"mf_dev_subclass{" U16_XOR ",1}"
+	"mf_dev_protocol{" U16_XOR ",1}"
+	"mf_int_class{" U16_XOR ",1}"
+
+	"mf_int_subclass{" U16_XOR ",1}"
+	"mf_int_protocol{" U16_XOR ",1}"
+	"unused{" U16_XOR ",6}"
 
 	"idVendor[0]{" U16_XOR ",8}"
 	"idVendor[1]{" U16_XOR ",8}"
@@ -220,38 +201,20 @@ static const char __section("bus_autoconf_format") __used usb_id_format[] = {
 	"bInterfaceSubClass{0,8}"
 	"bInterfaceProtocol{0,8}"
 
-	"mf_vendor{" U8_BITFIELD_XOR ",1}"
-	"mf_product{" U8_BITFIELD_XOR ",1}"
-	"mf_dev_lo{" U8_BITFIELD_XOR ",1}"
-	"mf_dev_hi{" U8_BITFIELD_XOR ",1}"
+#if USB_HAVE_COMPAT_LINUX
+	"mfl_vendor{" U16_XOR ",1}"
+	"mfl_product{" U16_XOR ",1}"
+	"mfl_dev_lo{" U16_XOR ",1}"
+	"mfl_dev_hi{" U16_XOR ",1}"
 
-	"mf_dev_class{" U8_BITFIELD_XOR ",1}"
-	"mf_dev_subclass{" U8_BITFIELD_XOR ",1}"
-	"mf_dev_protocol{" U8_BITFIELD_XOR ",1}"
-	"mf_int_class{" U8_BITFIELD_XOR ",1}"
+	"mfl_dev_class{" U16_XOR ",1}"
+	"mfl_dev_subclass{" U16_XOR ",1}"
+	"mfl_dev_protocol{" U16_XOR ",1}"
+	"mfl_int_class{" U16_XOR ",1}"
 
-	"mf_int_subclass{" U8_BITFIELD_XOR ",1}"
-	"mf_int_protocol{" U8_BITFIELD_XOR ",1}"
-	"unused{" U8_BITFIELD_XOR ",6}"
-
-	"mfl_vendor{" U16_XOR "," MFL_SIZE "}"
-	"mfl_product{" U16_XOR "," MFL_SIZE "}"
-	"mfl_dev_lo{" U16_XOR "," MFL_SIZE "}"
-	"mfl_dev_hi{" U16_XOR "," MFL_SIZE "}"
-
-	"mfl_dev_class{" U16_XOR "," MFL_SIZE "}"
-	"mfl_dev_subclass{" U16_XOR "," MFL_SIZE "}"
-	"mfl_dev_protocol{" U16_XOR "," MFL_SIZE "}"
-	"mfl_int_class{" U16_XOR "," MFL_SIZE "}"
-
-	"mfl_int_subclass{" U16_XOR "," MFL_SIZE "}"
-	"mfl_int_protocol{" U16_XOR "," MFL_SIZE "}"
-	"unused{" U16_XOR "," MFL_SIZE "}"
-	"unused{" U16_XOR "," MFL_SIZE "}"
-
-	"unused{" U16_XOR "," MFL_SIZE "}"
-	"unused{" U16_XOR "," MFL_SIZE "}"
-	"unused{" U16_XOR "," MFL_SIZE "}"
-	"unused{" U16_XOR "," MFL_SIZE "}"
+	"mfl_int_subclass{" U16_XOR ",1}"
+	"mfl_int_protocol{" U16_XOR ",1}"
+	"unused{" U16_XOR ",6}"
+#endif
 };
 #endif

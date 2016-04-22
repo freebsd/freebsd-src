@@ -77,7 +77,7 @@ struct ispmdvec {
  */
 #define	MAX_TARGETS		16
 #ifndef	MAX_FC_TARG
-#define	MAX_FC_TARG		256
+#define	MAX_FC_TARG		1024
 #endif
 #define	ISP_MAX_TARGETS(isp)	(IS_FC(isp)? MAX_FC_TARG : MAX_TARGETS)
 #define	ISP_MAX_LUNS(isp)	(isp)->isp_maxluns
@@ -130,6 +130,8 @@ struct ispmdvec {
 #define	SYNC_SFORCPU	3	/* scratch, sync for CPU */
 #define	SYNC_REG	4	/* for registers */
 #define	SYNC_ATIOQ	5	/* atio result queue (24xx) */
+#define	SYNC_IFORDEV	6	/* synchrounous IOCB, sync for ISP */
+#define	SYNC_IFORCPU	7	/* synchrounous IOCB, sync for CPU */
 
 /*
  * Request/Response Queue defines and macros.
@@ -315,21 +317,16 @@ typedef struct {
 #	define	ISP_HANDLE_NONE		0
 #	define	ISP_HANDLE_INITIATOR	1
 #	define	ISP_HANDLE_TARGET	2
+#	define	ISP_HANDLE_CTRL		3
 #define	ISP_HANDLE_SEQ_MASK	0xffff0000
 #define	ISP_HANDLE_SEQ_SHIFT	16
 #define	ISP_H2SEQ(hdl)	((hdl & ISP_HANDLE_SEQ_MASK) >> ISP_HANDLE_SEQ_SHIFT)
-#define	ISP_VALID_INI_HANDLE(c, hdl)	\
-	(ISP_H2HT(hdl) == ISP_HANDLE_INITIATOR && (hdl & ISP_HANDLE_CMD_MASK) < (c)->isp_maxcmds && \
-	 ISP_H2SEQ(hdl) == ISP_H2SEQ((c)->isp_xflist[hdl & ISP_HANDLE_CMD_MASK].handle))
-#ifdef	ISP_TARGET_MODE
-#define	ISP_VALID_TGT_HANDLE(c, hdl)	\
-	(ISP_H2HT(hdl) == ISP_HANDLE_TARGET && (hdl & ISP_HANDLE_CMD_MASK) < (c)->isp_maxcmds && \
-	 ISP_H2SEQ(hdl) == ISP_H2SEQ((c)->isp_tgtlist[hdl & ISP_HANDLE_CMD_MASK].handle))
 #define	ISP_VALID_HANDLE(c, hdl)	\
-	(ISP_VALID_INI_HANDLE((c), hdl) || ISP_VALID_TGT_HANDLE((c), hdl))
-#else
-#define	ISP_VALID_HANDLE	ISP_VALID_INI_HANDLE
-#endif
+	((ISP_H2HT(hdl) == ISP_HANDLE_INITIATOR || \
+	  ISP_H2HT(hdl) == ISP_HANDLE_TARGET || \
+	  ISP_H2HT(hdl) == ISP_HANDLE_CTRL) && \
+	 ((hdl) & ISP_HANDLE_CMD_MASK) < (c)->isp_maxcmds && \
+	 (hdl) == ((c)->isp_xflist[(hdl) & ISP_HANDLE_CMD_MASK].handle))
 #define	ISP_BAD_HANDLE_INDEX	0xffffffff
 
 
@@ -452,6 +449,7 @@ typedef struct {
 	uint16_t		isp_lasthdl;		/* only valid for channel 0 */
 	uint16_t		isp_maxalloc;
 	uint16_t		isp_fabric_params;
+	uint16_t		isp_login_hdl;		/* Logging in handle */
 	uint8_t			isp_retry_delay;
 	uint8_t			isp_retry_count;
 
@@ -477,6 +475,8 @@ typedef struct {
 	 */
 	void *			isp_scratch;
 	XS_DMA_ADDR_T		isp_scdma;
+
+	uint8_t			isp_scanscratch[ISP_FC_SCRLEN];
 } fcparam;
 
 #define	FW_CONFIG_WAIT		0
@@ -490,14 +490,15 @@ typedef struct {
 
 #define	LOOP_NIL		0
 #define	LOOP_HAVE_LINK		1
-#define	LOOP_TESTING_LINK	2
-#define	LOOP_LTEST_DONE		3
-#define	LOOP_SCANNING_LOOP	4
-#define	LOOP_LSCAN_DONE		5
-#define	LOOP_SCANNING_FABRIC	6
-#define	LOOP_FSCAN_DONE		7
-#define	LOOP_SYNCING_PDB	8
-#define	LOOP_READY		9
+#define	LOOP_HAVE_ADDR		2
+#define	LOOP_TESTING_LINK	3
+#define	LOOP_LTEST_DONE		4
+#define	LOOP_SCANNING_LOOP	5
+#define	LOOP_LSCAN_DONE		6
+#define	LOOP_SCANNING_FABRIC	7
+#define	LOOP_FSCAN_DONE		8
+#define	LOOP_SYNCING_PDB	9
+#define	LOOP_READY		10
 
 #define	TOPO_NL_PORT		0
 #define	TOPO_FL_PORT		1
@@ -598,13 +599,11 @@ struct ispsoftc {
 	isp_hdl_t		*isp_xflist;
 	isp_hdl_t		*isp_xffree;
 
-#ifdef	ISP_TARGET_MODE
 	/*
-	 * Active target commands are stored here, indexed by handle functions.
+	 * DMA mapped in area for synchronous IOCB requests.
 	 */
-	isp_hdl_t		*isp_tgtlist;
-	isp_hdl_t		*isp_tgtfree;
-#endif
+	void *			isp_iocb;
+	XS_DMA_ADDR_T		isp_iocb_dma;
 
 	/*
 	 * request/result queue pointers and DMA handles for them.
@@ -648,11 +647,12 @@ struct ispsoftc {
  * ISP Runtime Configuration Options
  */
 #define	ISP_CFG_FULL_DUPLEX	0x01	/* Full Duplex (Fibre Channel only) */
-#define	ISP_CFG_PORT_PREF	0x0c	/* Mask for Port Prefs (all FC except 2100) */
-#define	ISP_CFG_LPORT		0x00	/* prefer {N/F}L-Port connection */
-#define	ISP_CFG_NPORT		0x04	/* prefer {N/F}-Port connection */
-#define	ISP_CFG_NPORT_ONLY	0x08	/* insist on {N/F}-Port connection */
-#define	ISP_CFG_LPORT_ONLY	0x0c	/* insist on {N/F}L-Port connection */
+#define	ISP_CFG_PORT_PREF	0x0e	/* Mask for Port Prefs (all FC except 2100) */
+#define	ISP_CFG_PORT_DEF	0x00	/* prefer connection type from NVRAM */
+#define	ISP_CFG_LPORT_ONLY	0x02	/* insist on {N/F}L-Port connection */
+#define	ISP_CFG_NPORT_ONLY	0x04	/* insist on {N/F}-Port connection */
+#define	ISP_CFG_LPORT		0x06	/* prefer {N/F}L-Port connection */
+#define	ISP_CFG_NPORT		0x08	/* prefer {N/F}-Port connection */
 #define	ISP_CFG_1GB		0x10	/* force 1GB connection (23XX only) */
 #define	ISP_CFG_2GB		0x20	/* force 2GB connection (23XX only) */
 #define	ISP_CFG_NORELOAD	0x80	/* don't download f/w */

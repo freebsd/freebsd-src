@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/aio.h> /* for aio_swake proto */
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -67,6 +68,23 @@ static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 
 static struct mbuf	*sbcut_internal(struct sockbuf *sb, int len);
 static void	sbflush_internal(struct sockbuf *sb);
+
+/*
+ * Our own version of m_clrprotoflags(), that can preserve M_NOTREADY.
+ */
+static void
+sbm_clrprotoflags(struct mbuf *m, int flags)
+{
+	int mask;
+
+	mask = ~M_PROTOFLAGS;
+	if (flags & PRUS_NOTREADY)
+		mask |= M_NOTREADY;
+	while (m) {
+		m->m_flags &= mask;
+		m = m->m_next;
+	}
+}
 
 /*
  * Mark ready "count" mbufs starting with "m".
@@ -314,7 +332,7 @@ sowakeup(struct socket *so, struct sockbuf *sb)
 	} else
 		ret = SU_OK;
 	if (sb->sb_flags & SB_AIO)
-		aio_swake(so, sb);
+		sowakeup_aio(so, sb);
 	SOCKBUF_UNLOCK(sb);
 	if (ret == SU_ISCONNECTED)
 		soisconnected(so);
@@ -569,15 +587,15 @@ sblastmbufchk(struct sockbuf *sb, const char *file, int line)
  * are discarded and mbufs are compacted where possible.
  */
 void
-sbappend_locked(struct sockbuf *sb, struct mbuf *m)
+sbappend_locked(struct sockbuf *sb, struct mbuf *m, int flags)
 {
 	struct mbuf *n;
 
 	SOCKBUF_LOCK_ASSERT(sb);
 
-	if (m == 0)
+	if (m == NULL)
 		return;
-	m_clrprotoflags(m);
+	sbm_clrprotoflags(m, flags);
 	SBLASTRECORDCHK(sb);
 	n = sb->sb_mb;
 	if (n) {
@@ -620,11 +638,11 @@ sbappend_locked(struct sockbuf *sb, struct mbuf *m)
  * are discarded and mbufs are compacted where possible.
  */
 void
-sbappend(struct sockbuf *sb, struct mbuf *m)
+sbappend(struct sockbuf *sb, struct mbuf *m, int flags)
 {
 
 	SOCKBUF_LOCK(sb);
-	sbappend_locked(sb, m);
+	sbappend_locked(sb, m, flags);
 	SOCKBUF_UNLOCK(sb);
 }
 
@@ -728,7 +746,7 @@ sbappendrecord_locked(struct sockbuf *sb, struct mbuf *m0)
 
 	SOCKBUF_LOCK_ASSERT(sb);
 
-	if (m0 == 0)
+	if (m0 == NULL)
 		return;
 	m_clrprotoflags(m0);
 	/*
@@ -867,7 +885,7 @@ sbappendcontrol_locked(struct sockbuf *sb, struct mbuf *m0,
 
 	SOCKBUF_LOCK_ASSERT(sb);
 
-	if (control == 0)
+	if (control == NULL)
 		panic("sbappendcontrol_locked");
 	space = m_length(control, &n) + m_length(m0, NULL);
 

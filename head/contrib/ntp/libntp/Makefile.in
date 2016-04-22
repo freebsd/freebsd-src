@@ -150,12 +150,12 @@ am__libntp_a_SOURCES_DIST = systime.c a_md5encrypt.c adjtime.c \
 	calyearstart.c clocktime.c clocktypes.c decodenetnum.c \
 	dofptoa.c dolfptoa.c emalloc.c findconfig.c getopt.c \
 	hextoint.c hextolfp.c humandate.c icom.c iosignal.c \
-	lib_strbuf.c machines.c mktime.c modetoa.c mstolfp.c msyslog.c \
-	netof.c ntp_calendar.c ntp_crypto_rnd.c ntp_intres.c \
-	ntp_libopts.c ntp_lineedit.c ntp_random.c ntp_rfc2553.c \
-	ntp_worker.c numtoa.c numtohost.c octtoint.c prettydate.c \
-	refidsmear.c recvbuff.c refnumtoa.c snprintf.c socket.c \
-	socktoa.c socktohost.c ssl_init.c statestr.c strdup.c \
+	is_ip_address.c lib_strbuf.c machines.c mktime.c modetoa.c \
+	mstolfp.c msyslog.c netof.c ntp_calendar.c ntp_crypto_rnd.c \
+	ntp_intres.c ntp_libopts.c ntp_lineedit.c ntp_random.c \
+	ntp_rfc2553.c ntp_worker.c numtoa.c numtohost.c octtoint.c \
+	prettydate.c refidsmear.c recvbuff.c refnumtoa.c snprintf.c \
+	socket.c socktoa.c socktohost.c ssl_init.c statestr.c strdup.c \
 	strl_obsd.c syssignal.c timetoa.c timevalops.c uglydate.c \
 	vint64ops.c work_fork.c work_thread.c ymd2yd.c \
 	$(srcdir)/../lib/isc/assertions.c \
@@ -207,21 +207,21 @@ am__objects_4 = a_md5encrypt.$(OBJEXT) adjtime.$(OBJEXT) \
 	dolfptoa.$(OBJEXT) emalloc.$(OBJEXT) findconfig.$(OBJEXT) \
 	getopt.$(OBJEXT) hextoint.$(OBJEXT) hextolfp.$(OBJEXT) \
 	humandate.$(OBJEXT) icom.$(OBJEXT) iosignal.$(OBJEXT) \
-	lib_strbuf.$(OBJEXT) machines.$(OBJEXT) mktime.$(OBJEXT) \
-	modetoa.$(OBJEXT) mstolfp.$(OBJEXT) msyslog.$(OBJEXT) \
-	netof.$(OBJEXT) ntp_calendar.$(OBJEXT) \
-	ntp_crypto_rnd.$(OBJEXT) ntp_intres.$(OBJEXT) \
-	ntp_libopts.$(OBJEXT) ntp_lineedit.$(OBJEXT) \
-	ntp_random.$(OBJEXT) ntp_rfc2553.$(OBJEXT) \
-	ntp_worker.$(OBJEXT) numtoa.$(OBJEXT) numtohost.$(OBJEXT) \
-	octtoint.$(OBJEXT) prettydate.$(OBJEXT) refidsmear.$(OBJEXT) \
-	recvbuff.$(OBJEXT) refnumtoa.$(OBJEXT) snprintf.$(OBJEXT) \
-	socket.$(OBJEXT) socktoa.$(OBJEXT) socktohost.$(OBJEXT) \
-	ssl_init.$(OBJEXT) statestr.$(OBJEXT) strdup.$(OBJEXT) \
-	strl_obsd.$(OBJEXT) syssignal.$(OBJEXT) timetoa.$(OBJEXT) \
-	timevalops.$(OBJEXT) uglydate.$(OBJEXT) vint64ops.$(OBJEXT) \
-	work_fork.$(OBJEXT) work_thread.$(OBJEXT) ymd2yd.$(OBJEXT) \
-	$(am__objects_3) $(am__objects_1)
+	is_ip_address.$(OBJEXT) lib_strbuf.$(OBJEXT) \
+	machines.$(OBJEXT) mktime.$(OBJEXT) modetoa.$(OBJEXT) \
+	mstolfp.$(OBJEXT) msyslog.$(OBJEXT) netof.$(OBJEXT) \
+	ntp_calendar.$(OBJEXT) ntp_crypto_rnd.$(OBJEXT) \
+	ntp_intres.$(OBJEXT) ntp_libopts.$(OBJEXT) \
+	ntp_lineedit.$(OBJEXT) ntp_random.$(OBJEXT) \
+	ntp_rfc2553.$(OBJEXT) ntp_worker.$(OBJEXT) numtoa.$(OBJEXT) \
+	numtohost.$(OBJEXT) octtoint.$(OBJEXT) prettydate.$(OBJEXT) \
+	refidsmear.$(OBJEXT) recvbuff.$(OBJEXT) refnumtoa.$(OBJEXT) \
+	snprintf.$(OBJEXT) socket.$(OBJEXT) socktoa.$(OBJEXT) \
+	socktohost.$(OBJEXT) ssl_init.$(OBJEXT) statestr.$(OBJEXT) \
+	strdup.$(OBJEXT) strl_obsd.$(OBJEXT) syssignal.$(OBJEXT) \
+	timetoa.$(OBJEXT) timevalops.$(OBJEXT) uglydate.$(OBJEXT) \
+	vint64ops.$(OBJEXT) work_fork.$(OBJEXT) work_thread.$(OBJEXT) \
+	ymd2yd.$(OBJEXT) $(am__objects_3) $(am__objects_1)
 am_libntp_a_OBJECTS = systime.$(OBJEXT) $(am__objects_4)
 libntp_a_OBJECTS = $(am_libntp_a_OBJECTS)
 libntpsim_a_AR = $(AR) $(ARFLAGS)
@@ -232,12 +232,12 @@ am__libntpsim_a_SOURCES_DIST = systime_s.c a_md5encrypt.c adjtime.c \
 	calyearstart.c clocktime.c clocktypes.c decodenetnum.c \
 	dofptoa.c dolfptoa.c emalloc.c findconfig.c getopt.c \
 	hextoint.c hextolfp.c humandate.c icom.c iosignal.c \
-	lib_strbuf.c machines.c mktime.c modetoa.c mstolfp.c msyslog.c \
-	netof.c ntp_calendar.c ntp_crypto_rnd.c ntp_intres.c \
-	ntp_libopts.c ntp_lineedit.c ntp_random.c ntp_rfc2553.c \
-	ntp_worker.c numtoa.c numtohost.c octtoint.c prettydate.c \
-	refidsmear.c recvbuff.c refnumtoa.c snprintf.c socket.c \
-	socktoa.c socktohost.c ssl_init.c statestr.c strdup.c \
+	is_ip_address.c lib_strbuf.c machines.c mktime.c modetoa.c \
+	mstolfp.c msyslog.c netof.c ntp_calendar.c ntp_crypto_rnd.c \
+	ntp_intres.c ntp_libopts.c ntp_lineedit.c ntp_random.c \
+	ntp_rfc2553.c ntp_worker.c numtoa.c numtohost.c octtoint.c \
+	prettydate.c refidsmear.c recvbuff.c refnumtoa.c snprintf.c \
+	socket.c socktoa.c socktohost.c ssl_init.c statestr.c strdup.c \
 	strl_obsd.c syssignal.c timetoa.c timevalops.c uglydate.c \
 	vint64ops.c work_fork.c work_thread.c ymd2yd.c \
 	$(srcdir)/../lib/isc/assertions.c \
@@ -660,6 +660,7 @@ libntp_a_SRCS = \
 	humandate.c					\
 	icom.c						\
 	iosignal.c					\
+	is_ip_address.c					\
 	lib_strbuf.c					\
 	machines.c					\
 	mktime.c					\
@@ -806,6 +807,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/inet_pton.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/interfaceiter.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/iosignal.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/is_ip_address.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lib.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lib_strbuf.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/log.Po@am__quote@

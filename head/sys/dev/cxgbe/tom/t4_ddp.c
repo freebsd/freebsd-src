@@ -80,31 +80,6 @@ static struct mbuf *get_ddp_mbuf(int len);
 /* XXX: must match A_ULP_RX_TDDP_PSZ */
 static int t4_ddp_pgsz[] = {4096, 4096 << 2, 4096 << 4, 4096 << 6};
 
-#if 0
-static void
-t4_dump_tcb(struct adapter *sc, int tid)
-{
-	uint32_t tcb_base, off, i, j;
-
-	/* Dump TCB for the tid */
-	tcb_base = t4_read_reg(sc, A_TP_CMM_TCB_BASE);
-	t4_write_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 2),
-	    tcb_base + tid * TCB_SIZE);
-	t4_read_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 2));
-	off = 0;
-	printf("\n");
-	for (i = 0; i < 4; i++) {
-		uint32_t buf[8];
-		for (j = 0; j < 8; j++, off += 4)
-			buf[j] = htonl(t4_read_reg(sc, MEMWIN2_BASE + off));
-
-		printf("%08x %08x %08x %08x %08x %08x %08x %08x\n",
-		    buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6],
-		    buf[7]);
-	}
-}
-#endif
-
 #define MAX_DDP_BUFFER_SIZE		(M_TCB_RX_DDP_BUF0_LEN)
 static int
 alloc_ppods(struct tom_data *td, int n, u_int *ppod_addr)
@@ -513,7 +488,6 @@ do_rx_data_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	unsigned int tid = GET_TID(cpl);
 	uint32_t vld;
 	struct toepcb *toep = lookup_tid(sc, tid);
-	struct tom_data *td = toep->td;
 
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
 	KASSERT(toep->tid == tid, ("%s: toep tid/atid mismatch", __func__));
@@ -525,16 +499,11 @@ do_rx_data_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		panic("%s: DDP error 0x%x (tid %d, toep %p)",
 		    __func__, vld, tid, toep);
 	}
+
 	if (toep->ulp_mode == ULP_MODE_ISCSI) {
-		m = m_get(M_NOWAIT, MT_DATA);
-		if (m == NULL)
-			CXGBE_UNIMPLEMENTED("mbuf alloc failure");
-		memcpy(mtod(m, unsigned char *), cpl,
-		    sizeof(struct cpl_rx_data_ddp));
-        	if (!t4_cpl_iscsi_callback(td, toep, m, CPL_RX_DATA_DDP))
-			return (0);
-		m_freem(m);
-        }
+		sc->cpl_handler[CPL_RX_ISCSI_DDP](iq, rss, m);
+		return (0);
+	}
 
 	handle_ddp_data(toep, cpl->u.ddp_report, cpl->seq, be16toh(cpl->len));
 

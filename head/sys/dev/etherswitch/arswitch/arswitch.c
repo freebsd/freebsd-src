@@ -52,7 +52,7 @@
 #include <dev/iicbus/iicbus.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
-#include <dev/etherswitch/mdio.h>
+#include <dev/mdio/mdio.h>
 
 #include <dev/etherswitch/etherswitch.h>
 
@@ -225,7 +225,7 @@ arswitch_set_vlan_mode(struct arswitch_softc *sc, uint32_t mode)
 		break;
 	default:
 		sc->vlan_mode = 0;
-	};
+	}
 
 	/* Reset VLANs. */
 	sc->hal.arswitch_vlan_init_hw(sc);

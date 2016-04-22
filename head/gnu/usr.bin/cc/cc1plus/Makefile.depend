@@ -18,8 +18,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-cc1plus-checksum.o: cc1plus-checksum.c
-cc1plus-checksum.po: cc1plus-checksum.c
-except.o: cfns.h
-except.po: cfns.h
 .endif

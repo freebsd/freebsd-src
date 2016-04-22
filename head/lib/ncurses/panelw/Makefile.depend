@@ -16,49 +16,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-p_above.So: ncurses_def.h
-p_above.o: ncurses_def.h
-p_above.po: ncurses_def.h
-p_below.So: ncurses_def.h
-p_below.o: ncurses_def.h
-p_below.po: ncurses_def.h
-p_bottom.So: ncurses_def.h
-p_bottom.o: ncurses_def.h
-p_bottom.po: ncurses_def.h
-p_delete.So: ncurses_def.h
-p_delete.o: ncurses_def.h
-p_delete.po: ncurses_def.h
-p_hidden.So: ncurses_def.h
-p_hidden.o: ncurses_def.h
-p_hidden.po: ncurses_def.h
-p_hide.So: ncurses_def.h
-p_hide.o: ncurses_def.h
-p_hide.po: ncurses_def.h
-p_move.So: ncurses_def.h
-p_move.o: ncurses_def.h
-p_move.po: ncurses_def.h
-p_new.So: ncurses_def.h
-p_new.o: ncurses_def.h
-p_new.po: ncurses_def.h
-p_replace.So: ncurses_def.h
-p_replace.o: ncurses_def.h
-p_replace.po: ncurses_def.h
-p_show.So: ncurses_def.h
-p_show.o: ncurses_def.h
-p_show.po: ncurses_def.h
-p_top.So: ncurses_def.h
-p_top.o: ncurses_def.h
-p_top.po: ncurses_def.h
-p_update.So: ncurses_def.h
-p_update.o: ncurses_def.h
-p_update.po: ncurses_def.h
-p_user.So: ncurses_def.h
-p_user.o: ncurses_def.h
-p_user.po: ncurses_def.h
-p_win.So: ncurses_def.h
-p_win.o: ncurses_def.h
-p_win.po: ncurses_def.h
-panel.So: ncurses_def.h
-panel.o: ncurses_def.h
-panel.po: ncurses_def.h
 .endif

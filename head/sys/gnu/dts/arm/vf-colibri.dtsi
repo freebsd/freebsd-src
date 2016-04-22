@@ -23,6 +23,24 @@
 	status = "okay";
 };
 
+&can0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan0>;
+	status = "disabled";
+};
+
+&can1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan1>;
+	status = "disabled";
+};
+
+&dspi1 {
+	bus-num = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_dspi1>;
+};
+
 &edma0 {
 	status = "okay";
 };
@@ -44,6 +62,26 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c0>;
+};
+
+&nfc {
+	assigned-clocks = <&clks VF610_CLK_NFC>;
+	assigned-clock-rates = <33000000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_nfc>;
+	status = "okay";
+
+	nand@0 {
+		compatible = "fsl,vf610-nfc-nandcs";
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		nand-bus-width = <8>;
+		nand-ecc-mode = "hw";
+		nand-ecc-strength = <32>;
+		nand-ecc-step-size = <2048>;
+		nand-on-flash-bbt;
+	};
 };
 
 &pwm0 {
@@ -99,11 +137,34 @@
 
 &iomuxc {
 	vf610-colibri {
+		pinctrl_flexcan0: can0grp {
+			fsl,pins = <
+				VF610_PAD_PTB14__CAN0_RX	0x31F1
+				VF610_PAD_PTB15__CAN0_TX	0x31F2
+			>;
+		};
+
+		pinctrl_flexcan1: can1grp {
+			fsl,pins = <
+				VF610_PAD_PTB16__CAN1_RX	0x31F1
+				VF610_PAD_PTB17__CAN1_TX	0x31F2
+			>;
+		};
+
 		pinctrl_gpio_ext: gpio_ext {
 			fsl,pins = <
 				VF610_PAD_PTD10__GPIO_89	0x22ed /* EXT_IO_0 */
 				VF610_PAD_PTD9__GPIO_88		0x22ed /* EXT_IO_1 */
 				VF610_PAD_PTD26__GPIO_68	0x22ed /* EXT_IO_2 */
+			>;
+		};
+
+		pinctrl_dspi1: dspi1grp {
+			fsl,pins = <
+				VF610_PAD_PTD5__DSPI1_CS0		0x33e2
+				VF610_PAD_PTD6__DSPI1_SIN		0x33e1
+				VF610_PAD_PTD7__DSPI1_SOUT		0x33e2
+				VF610_PAD_PTD8__DSPI1_SCK		0x33e2
 			>;
 		};
 
@@ -125,7 +186,7 @@
 				VF610_PAD_PTC9__ENET_RMII1_MDC		0x30d2
 				VF610_PAD_PTC10__ENET_RMII1_MDIO	0x30d3
 				VF610_PAD_PTC11__ENET_RMII1_CRS		0x30d1
-				VF610_PAD_PTC12__ENET_RMII_RXD1		0x30d1
+				VF610_PAD_PTC12__ENET_RMII1_RXD1	0x30d1
 				VF610_PAD_PTC13__ENET_RMII1_RXD0	0x30d1
 				VF610_PAD_PTC14__ENET_RMII1_RXER	0x30d1
 				VF610_PAD_PTC15__ENET_RMII1_TXD1	0x30d2
@@ -138,6 +199,25 @@
 			fsl,pins = <
 				VF610_PAD_PTB14__I2C0_SCL		0x37ff
 				VF610_PAD_PTB15__I2C0_SDA		0x37ff
+			>;
+		};
+
+		pinctrl_nfc: nfcgrp {
+			fsl,pins = <
+				VF610_PAD_PTD23__NF_IO7		0x28df
+				VF610_PAD_PTD22__NF_IO6		0x28df
+				VF610_PAD_PTD21__NF_IO5		0x28df
+				VF610_PAD_PTD20__NF_IO4		0x28df
+				VF610_PAD_PTD19__NF_IO3		0x28df
+				VF610_PAD_PTD18__NF_IO2		0x28df
+				VF610_PAD_PTD17__NF_IO1		0x28df
+				VF610_PAD_PTD16__NF_IO0		0x28df
+				VF610_PAD_PTB24__NF_WE_B	0x28c2
+				VF610_PAD_PTB25__NF_CE0_B	0x28c2
+				VF610_PAD_PTB27__NF_RE_B	0x28c2
+				VF610_PAD_PTC26__NF_RB_B	0x283d
+				VF610_PAD_PTC27__NF_ALE		0x28c2
+				VF610_PAD_PTC28__NF_CLE		0x28c2
 			>;
 		};
 

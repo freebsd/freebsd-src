@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/bus.h>
-#include <machine/param.h>
 #include <machine/intr_machdep.h>
 #include <machine/clock.h>	/* for DELAY */
 #include <machine/resource.h>
@@ -67,7 +66,7 @@ extern bus_space_tag_t uart_bus_space_mem;
 
 static struct resource *
 iodi_alloc_resource(device_t, device_t, int, int *,
-    u_long, u_long, u_long, u_int);
+    rman_res_t, rman_res_t, rman_res_t, u_int);
 
 static int
 iodi_activate_resource(device_t, device_t, int, int,
@@ -126,7 +125,7 @@ iodi_setup_intr(device_t dev, device_t child,
 
 static struct resource *
 iodi_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *res = malloc(sizeof(*res), M_DEVBUF, M_WAITOK);
 	const char *name = device_get_name(child);
@@ -135,17 +134,17 @@ iodi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 #ifdef DEBUG
 	switch (type) {
 	case SYS_RES_IRQ:
-		device_printf(bus, "IRQ resource - for %s %lx-%lx\n",
+		device_printf(bus, "IRQ resource - for %s %jx-%jx\n",
 		    device_get_nameunit(child), start, end);
 		break;
 
 	case SYS_RES_IOPORT:
-		device_printf(bus, "IOPORT resource - for %s %lx-%lx\n",
+		device_printf(bus, "IOPORT resource - for %s %jx-%jx\n",
 		    device_get_nameunit(child), start, end);
 		break;
 
 	case SYS_RES_MEMORY:
-		device_printf(bus, "MEMORY resource - for %s %lx-%lx\n",
+		device_printf(bus, "MEMORY resource - for %s %jx-%jx\n",
 		    device_get_nameunit(child), start, end);
 		break;
 	}

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 10, 2015
+.Dd December 9, 2015
 .Dt UART 4
 .Os
 .Sh NAME
@@ -156,11 +156,13 @@ The
 .Nm
 driver can capture PPS timing information as defined in RFC 2783.
 The API, accessed via
-.Xr ioctl 8 ,
+.Xr ioctl 2 ,
 is available on the tty device.
 To use the PPS capture feature with
 .Xr ntpd 8 ,
-symlink the tty device to
+symlink the tty callout device
+.Va /dev/cuau?
+to
 .Va /dev/pps0.
 .Pp
 The
@@ -175,15 +177,54 @@ it can be set in
 .Xr loader.conf 5
 or
 .Xr sysctl.conf 5 .
+.Pp
 The following capture modes are available:
 .Bl -tag -compact -offset "mmmm" -width "mmmm"
-.It 0
+.It 0x00
 Capture disabled.
-.It 1
+.It 0x01
 Capture pulses on the CTS line.
-.It 2
-Capture pulses on the DCD line (default).
+.It 0x02
+Capture pulses on the DCD line.
 .El
+.Pp
+The following values may be ORed with the capture mode to configure
+capture processing options:
+.Bl -tag -compact -offset "mmmm" -width "mmmm"
+.It 0x10
+Invert the pulse (RS-232 logic low = ASSERT, high = CLEAR).
+.It 0x20
+Attempt to capture narrow pulses.
+.El
+.Pp
+Add the narrow pulse option when the incoming PPS pulse width is small
+enough to prevent reliable capture in normal mode.
+In narrow mode the driver uses the hardware's ability to latch a line
+state change; not all hardware has this capability.
+The hardware latch provides a reliable indication that a pulse occurred,
+but prevents distinguishing between the CLEAR and ASSERT edges of the pulse.
+For each detected pulse, the driver synthesizes both an ASSERT and a CLEAR
+event, using the same timestamp for each.
+To prevent spurious events when the hardware is intermittently able to
+see both edges of a pulse, the driver will not generate a new pair of
+events within a half second of the prior pair.
+Both normal and narrow pulse modes work with
+.Xr ntpd 8 .
+.Pp
+Add the invert option when the connection to the uart device uses TTL
+level signals, or when the PPS source emits inverted pulses.
+RFC 2783 defines an ASSERT event as a higher-voltage line level, and a CLEAR
+event as a lower-voltage line level, in the context of the RS-232 protocol.
+The modem control signals on a TTL-level connection are typically
+inverted from the RS-232 levels.
+For example, carrier presence is indicated by a high signal on an RS-232
+DCD line, and by a low signal on a TTL DCD line.
+This is due to the use of inverting line driver buffers to convert between
+TTL and RS-232 line levels in most hardware designs.
+Generally speaking, a connection to a DB-9 style connector is an RS-232
+level signal at up to 12 volts.
+A connection to header pins or an edge-connector on an embedded board
+is typically a TTL signal at 3.3 or 5 volts.
 .Sh FILES
 .Bl -tag -width ".Pa /dev/ttyu?.init" -compact
 .It Pa /dev/ttyu?

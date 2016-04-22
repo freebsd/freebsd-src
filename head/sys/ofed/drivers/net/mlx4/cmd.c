@@ -2572,7 +2572,7 @@ int mlx4_set_vf_link_state(struct mlx4_dev *dev, int port, int vf, int link_stat
 		mlx4_warn(dev, "unknown value for link_state %02x on slave %d port %d\n",
 			  link_state, slave, port);
 		return -EINVAL;
-	};
+	}
 	/* update the admin & oper state on the link state */
 	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
 	vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];

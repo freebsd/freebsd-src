@@ -5,6 +5,7 @@
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  * Copyright (c) 2005 Open Grid Computing, Inc. All rights reserved.
  * Copyright (c) 2005 Network Appliance, Inc. All rights reserved.
+ * Copyright (c) 2016 Chelsio Communications.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,6 +36,8 @@
  * SOFTWARE.
  *
  */
+#include "opt_inet.h"
+
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/idr.h>
@@ -47,7 +50,10 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <netinet/tcp.h>
+#include <sys/mutex.h>
 
+#include <rdma/rdma_cm.h>
 #include <rdma/iw_cm.h>
 #include <rdma/ib_addr.h>
 
@@ -65,6 +71,84 @@ struct iwcm_work {
 	struct iw_cm_event event;
 	struct list_head free_list;
 };
+struct iwcm_listen_work {
+	struct work_struct work;
+	struct iw_cm_id *cm_id;
+};
+
+static LIST_HEAD(listen_port_list);
+
+static DEFINE_MUTEX(listen_port_mutex);
+
+struct listen_port_info {
+	struct list_head list;
+	uint16_t port_num;
+	uint32_t refcnt;
+};
+
+static int32_t
+add_port_to_listenlist(uint16_t port)
+{
+	struct listen_port_info *port_info;
+	int err = 0;
+
+	mutex_lock(&listen_port_mutex);
+
+	list_for_each_entry(port_info, &listen_port_list, list)
+		if (port_info->port_num == port)
+			goto found_port;
+
+	port_info = kmalloc(sizeof(*port_info), GFP_KERNEL);
+	if (!port_info) {
+		err = -ENOMEM;
+		mutex_unlock(&listen_port_mutex);
+		goto out;
+	}
+
+	port_info->port_num = port;
+	port_info->refcnt    = 0;
+
+	list_add(&port_info->list, &listen_port_list);
+
+found_port:
+	++(port_info->refcnt);
+	mutex_unlock(&listen_port_mutex);
+	return port_info->refcnt;
+out:
+	return err;
+}
+
+static int32_t
+rem_port_from_listenlist(uint16_t port)
+{
+	struct listen_port_info *port_info;
+	int ret, found_port = 0;
+
+	mutex_lock(&listen_port_mutex);
+
+	list_for_each_entry(port_info, &listen_port_list, list)
+		if (port_info->port_num == port) {
+			found_port = 1;
+			break;
+		}
+
+	if (found_port) {
+		--(port_info->refcnt);
+		ret = port_info->refcnt;
+		if (port_info->refcnt == 0) {
+			/* Remove this entry from the list as there are no
+			 * more listeners for this port_num.
+			 */
+			list_del(&port_info->list);
+			kfree(port_info);
+		}
+	} else {
+		ret = -EINVAL;
+	}
+	mutex_unlock(&listen_port_mutex);
+	return ret;
+
+}
 
 /*
  * The following services provide a mechanism for pre-allocating iwcm_work
@@ -320,6 +404,163 @@ int iw_cm_disconnect(struct iw_cm_id *cm_id, int abrupt)
 }
 EXPORT_SYMBOL(iw_cm_disconnect);
 
+static struct socket *
+dequeue_socket(struct socket *head)
+{
+	struct socket *so;
+	struct sockaddr_in *remote;
+
+	ACCEPT_LOCK();
+	so = TAILQ_FIRST(&head->so_comp);
+	if (!so) {
+		ACCEPT_UNLOCK();
+		return NULL;
+	}
+
+	SOCK_LOCK(so);
+	/*
+	 * Before changing the flags on the socket, we have to bump the
+	 * reference count.  Otherwise, if the protocol calls sofree(),
+	 * the socket will be released due to a zero refcount.
+	 */
+	soref(so);
+	TAILQ_REMOVE(&head->so_comp, so, so_list);
+	head->so_qlen--;
+	so->so_qstate &= ~SQ_COMP;
+	so->so_head = NULL;
+	so->so_state |= SS_NBIO;
+	SOCK_UNLOCK(so);
+	ACCEPT_UNLOCK();
+	soaccept(so, (struct sockaddr **)&remote);
+
+	free(remote, M_SONAME);
+	return so;
+}
+static void
+iw_so_event_handler(struct work_struct *_work)
+{
+#ifdef INET
+	struct	iwcm_listen_work *work = container_of(_work,
+						struct iwcm_listen_work, work);
+	struct	iw_cm_id *listen_cm_id = work->cm_id;
+	struct	iwcm_id_private *cm_id_priv;
+	struct	iw_cm_id *real_cm_id;
+	struct	sockaddr_in *local;
+	struct	socket *so;
+
+	cm_id_priv = container_of(listen_cm_id, struct iwcm_id_private, id);
+
+	if (cm_id_priv->state != IW_CM_STATE_LISTEN) {
+		kfree(work);
+		return;
+	}
+
+	/* Dequeue & process  all new 'so' connection requests for this cmid */
+	while ((so = dequeue_socket(work->cm_id->so)) != NULL) {
+		if (rdma_cma_any_addr((struct sockaddr *)
+					&listen_cm_id->local_addr)) {
+			in_getsockaddr(so, (struct sockaddr **)&local);
+			if (rdma_find_cmid_laddr(local, ARPHRD_ETHER,
+					(void **) &real_cm_id)) {
+				free(local, M_SONAME);
+				goto err;
+			}
+			free(local, M_SONAME);
+
+			real_cm_id->device->iwcm->newconn(real_cm_id, so);
+		} else {
+			listen_cm_id->device->iwcm->newconn(listen_cm_id, so);
+		}
+	}
+err:
+	kfree(work);
+#endif
+	return;
+}
+static int
+iw_so_upcall(struct socket *parent_so, void *arg, int waitflag)
+{
+	struct iwcm_listen_work *work;
+	struct socket *so;
+	struct iw_cm_id *cm_id = arg;
+
+	/* check whether iw_so_event_handler() already dequeued this 'so' */
+	so = TAILQ_FIRST(&parent_so->so_comp);
+	if (!so)
+		return SU_OK;
+	work = kzalloc(sizeof(*work), M_NOWAIT);
+	if (!work)
+		return -ENOMEM;
+	work->cm_id = cm_id;
+
+	INIT_WORK(&work->work, iw_so_event_handler);
+	queue_work(iwcm_wq, &work->work);
+
+	return SU_OK;
+}
+
+static void
+iw_init_sock(struct iw_cm_id *cm_id)
+{
+	struct sockopt sopt;
+	struct socket *so = cm_id->so;
+	int on = 1;
+
+	SOCK_LOCK(so);
+	soupcall_set(so, SO_RCV, iw_so_upcall, cm_id);
+	so->so_state |= SS_NBIO;
+	SOCK_UNLOCK(so);
+	sopt.sopt_dir = SOPT_SET;
+	sopt.sopt_level = IPPROTO_TCP;
+	sopt.sopt_name = TCP_NODELAY;
+	sopt.sopt_val = (caddr_t)&on;
+	sopt.sopt_valsize = sizeof(on);
+	sopt.sopt_td = NULL;
+	sosetopt(so, &sopt);
+}
+
+static int
+iw_close_socket(struct iw_cm_id *cm_id, int close)
+{
+	struct socket *so = cm_id->so;
+	int rc;
+
+
+	SOCK_LOCK(so);
+	soupcall_clear(so, SO_RCV);
+	SOCK_UNLOCK(so);
+
+	if (close)
+		rc = soclose(so);
+	else
+		rc = soshutdown(so, SHUT_WR | SHUT_RD);
+
+	cm_id->so = NULL;
+
+	return rc;
+}
+
+static int
+iw_create_listen(struct iw_cm_id *cm_id, int backlog)
+{
+	int rc;
+
+	iw_init_sock(cm_id);
+	rc = solisten(cm_id->so, backlog, curthread);
+	if (rc != 0)
+		iw_close_socket(cm_id, 0);
+	return rc;
+}
+
+static int
+iw_destroy_listen(struct iw_cm_id *cm_id)
+{
+	int rc;
+	rc = iw_close_socket(cm_id, 0);
+	return rc;
+}
+
+
 /*
  * CM_ID <-- DESTROYING
  *
@@ -330,7 +571,7 @@ static void destroy_cm_id(struct iw_cm_id *cm_id)
 {
 	struct iwcm_id_private *cm_id_priv;
 	unsigned long flags;
-	int ret;
+	int ret = 0, refcnt;
 
 	cm_id_priv = container_of(cm_id, struct iwcm_id_private, id);
 	/*
@@ -345,8 +586,18 @@ static void destroy_cm_id(struct iw_cm_id *cm_id)
 	case IW_CM_STATE_LISTEN:
 		cm_id_priv->state = IW_CM_STATE_DESTROYING;
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
-		/* destroy the listening endpoint */
-		ret = cm_id->device->iwcm->destroy_listen(cm_id);
+		if (rdma_cma_any_addr((struct sockaddr *)&cm_id->local_addr)) {
+			refcnt =
+			  rem_port_from_listenlist(cm_id->local_addr.sin_port);
+
+			if (refcnt == 0)
+				ret = iw_destroy_listen(cm_id);
+
+			cm_id->device->iwcm->destroy_listen_ep(cm_id);
+		} else {
+			ret = iw_destroy_listen(cm_id);
+			cm_id->device->iwcm->destroy_listen_ep(cm_id);
+		}
 		spin_lock_irqsave(&cm_id_priv->lock, flags);
 		break;
 	case IW_CM_STATE_ESTABLISHED:
@@ -418,7 +669,7 @@ int iw_cm_listen(struct iw_cm_id *cm_id, int backlog)
 {
 	struct iwcm_id_private *cm_id_priv;
 	unsigned long flags;
-	int ret;
+	int ret, refcnt;
 
 	cm_id_priv = container_of(cm_id, struct iwcm_id_private, id);
 
@@ -431,9 +682,33 @@ int iw_cm_listen(struct iw_cm_id *cm_id, int backlog)
 	case IW_CM_STATE_IDLE:
 		cm_id_priv->state = IW_CM_STATE_LISTEN;
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
-		ret = cm_id->device->iwcm->create_listen(cm_id, backlog);
-		if (ret)
+
+		if (rdma_cma_any_addr((struct sockaddr *)&cm_id->local_addr)) {
+			refcnt =
+			  add_port_to_listenlist(cm_id->local_addr.sin_port);
+
+			if (refcnt == 1) {
+				ret = iw_create_listen(cm_id, backlog);
+			} else if (refcnt <= 0) {
+				ret = -EINVAL;
+			} else {
+				/* if refcnt > 1, a socket listener created
+				 * already. And we need not create socket
+				 * listener on other rdma devices/listen cm_id's
+				 * due to TOE. That is when a socket listener is
+				 * created with INADDR_ANY all registered TOE
+				 * devices will get a call to start
+				 * hardware listeners.
+				 */
+			}
+		} else {
+			ret = iw_create_listen(cm_id, backlog);
+		}
+		if (!ret)
+			cm_id->device->iwcm->create_listen_ep(cm_id, backlog);
+		else
 			cm_id_priv->state = IW_CM_STATE_IDLE;
+
 		spin_lock_irqsave(&cm_id_priv->lock, flags);
 		break;
 	default:

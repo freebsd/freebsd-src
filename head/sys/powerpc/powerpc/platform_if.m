@@ -84,6 +84,14 @@ CODE {
 	{
 		return;
 	}
+	static void platform_null_idle(platform_t plat, int cpu)
+	{
+		return;
+	}
+	static int platform_null_idle_wakeup(platform_t plat, int cpu)
+	{
+		return (0);
+	}
 };
 
 /**
@@ -209,6 +217,22 @@ METHOD cpu_group_t smp_topo {
 METHOD void reset {
 	platform_t	_plat;
 };
+
+/**
+ * @brief Idle a CPU
+ */
+METHOD void idle {
+	platform_t	_plat;
+	int		_cpu;
+} DEFAULT platform_null_idle;
+
+/**
+ * @brief Wake up an idle CPU
+ */
+METHOD int idle_wakeup {
+	platform_t	_plat;
+	int		_cpu;
+} DEFAULT platform_null_idle_wakeup;
 
 /**
  * @brief Suspend the CPU

@@ -166,6 +166,8 @@ sysctl_root_handler_locked(struct sysctl_oid *oid, void *arg1, intmax_t arg2,
 	if (!(oid->oid_kind & CTLFLAG_MPSAFE))
 		mtx_unlock(&Giant);
 
+	KFAIL_POINT_ERROR(_debug_fail_point, sysctl_running, error);
+
 	if (tracker != NULL)
 		SYSCTL_RLOCK(tracker);
 	else
@@ -910,7 +912,7 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 			name++;
 			continue;
 		}
-		lsp2 = 0;
+		lsp2 = NULL;
 		SLIST_FOREACH(oid, lsp, oid_link) {
 			if (oid->oid_number != *name)
 				continue;
@@ -1081,7 +1083,7 @@ sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 {
 	char *p;
 	int error, oid[CTL_MAXNAME], len = 0;
-	struct sysctl_oid *op = 0;
+	struct sysctl_oid *op = NULL;
 	struct rm_priotracker tracker;
 
 	if (!req->newlen) 
@@ -1837,8 +1839,6 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 		arg1 = (void *)(curvnet->vnet_data_base + (uintptr_t)arg1);
 #endif
 	error = sysctl_root_handler_locked(oid, arg1, arg2, req, &tracker);
-
-	KFAIL_POINT_ERROR(_debug_fail_point, sysctl_running, error);
 
 out:
 	SYSCTL_RUNLOCK(&tracker);

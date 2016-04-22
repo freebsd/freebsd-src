@@ -598,7 +598,7 @@ rl_probe(device_t dev)
 		}
 	}
 	t = rl_devs;
-	for (i = 0; i < sizeof(rl_devs) / sizeof(rl_devs[0]); i++, t++) {
+	for (i = 0; i < nitems(rl_devs); i++, t++) {
 		if (vendor == t->rl_vid && devid == t->rl_did) {
 			device_set_desc(dev, t->rl_name);
 			return (BUS_PROBE_DEFAULT);
@@ -1938,15 +1938,13 @@ rl_stop(struct rl_softc *sc)
 	 */
 	for (i = 0; i < RL_TX_LIST_CNT; i++) {
 		if (sc->rl_cdata.rl_tx_chain[i] != NULL) {
-			if (sc->rl_cdata.rl_tx_chain[i] != NULL) {
-				bus_dmamap_sync(sc->rl_cdata.rl_tx_tag,
-				    sc->rl_cdata.rl_tx_dmamap[i],
-				    BUS_DMASYNC_POSTWRITE);
-				bus_dmamap_unload(sc->rl_cdata.rl_tx_tag,
-				    sc->rl_cdata.rl_tx_dmamap[i]);
-				m_freem(sc->rl_cdata.rl_tx_chain[i]);
-				sc->rl_cdata.rl_tx_chain[i] = NULL;
-			}
+			bus_dmamap_sync(sc->rl_cdata.rl_tx_tag,
+			    sc->rl_cdata.rl_tx_dmamap[i],
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->rl_cdata.rl_tx_tag,
+			    sc->rl_cdata.rl_tx_dmamap[i]);
+			m_freem(sc->rl_cdata.rl_tx_chain[i]);
+			sc->rl_cdata.rl_tx_chain[i] = NULL;
 			CSR_WRITE_4(sc, RL_TXADDR0 + (i * sizeof(uint32_t)),
 			    0x0000000);
 		}

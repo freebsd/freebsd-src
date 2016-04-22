@@ -22,7 +22,6 @@ ident		CNS11XXNAS
 
 include 	"std.arm"
 #options 	PHYSADDR=0x10000000
-#options 	KERNPHYSADDR=0x10200000
 #options 	KERNVIRTADDR=0xc0200000	# Used in ldscript.arm
 #options 	FLASHADDR=0x50000000
 #options 	LOADERRAMADDR=0x00000000
@@ -45,11 +44,6 @@ options 	DDB			# Enable the kernel debugger
 #options 	WITNESS			# Enable checks to detect deadlocks and cycles
 ##options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 #options 	DIAGNOSTIC
-
-
-#options 	COMPAT_FREEBSD5
-#options 	COMPAT_FREEBSD6
-#options 	COMPAT_FREEBSD7n
 
 
 options 	SCHED_ULE		# ULE scheduler

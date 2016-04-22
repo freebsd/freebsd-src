@@ -2,7 +2,6 @@
 include "../at91/std.at91"
 
 makeoptions	KERNPHYSADDR=0x20100000
-options		KERNPHYSADDR=0x20100000	
 makeoptions	KERNVIRTADDR=0xc0100000
 options		KERNVIRTADDR=0xc0100000
 

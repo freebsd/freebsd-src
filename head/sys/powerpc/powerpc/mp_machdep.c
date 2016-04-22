@@ -67,7 +67,6 @@ volatile static u_quad_t ap_timebase;
 static u_int ipi_msg_cnt[32];
 static struct mtx ap_boot_mtx;
 struct pcb stoppcbs[MAXCPU];
-int longfault(faultbuf, int);
 
 void
 machdep_ap_bootstrap(void)
@@ -213,6 +212,9 @@ cpu_mp_unleash(void *dummy)
 
 	cpus = 0;
 	smp_cpus = 0;
+#ifdef BOOKE
+	tlb1_ap_prep();
+#endif
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		cpus++;
 		if (!pc->pc_bsp) {

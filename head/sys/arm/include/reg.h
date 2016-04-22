@@ -19,7 +19,9 @@ struct fpreg {
 };
 
 struct dbreg {
-	        unsigned int  dr[8];    /* debug registers */
+#define	ARM_WR_MAX	16 /* Maximum number of watchpoint registers */
+	unsigned int dbg_wcr[ARM_WR_MAX]; /* Watchpoint Control Registers */
+	unsigned int dbg_wvr[ARM_WR_MAX]; /* Watchpoint Value Registers */
 };
 
 #ifdef _KERNEL

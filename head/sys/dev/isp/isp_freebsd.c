@@ -607,9 +607,10 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 		nphdl = fct->loopid;
 		ISP_LOCK(isp);
 		if (IS_24XX(isp)) {
-			uint8_t local[QENTRY_LEN];
-			isp24xx_tmf_t *tmf;
-			isp24xx_statusreq_t *sp;
+			void *reqp;
+			uint8_t resp[QENTRY_LEN];
+			isp24xx_tmf_t tmf;
+			isp24xx_statusreq_t sp;
 			fcparam *fcp = FCPARAM(isp, chan);
 			fcportdb_t *lp;
 			int i;
@@ -625,39 +626,37 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 				ISP_UNLOCK(isp);
 				break;
 			}
-			/* XXX VALIDATE LP XXX */
-			tmf = (isp24xx_tmf_t *) local;
-			ISP_MEMZERO(tmf, QENTRY_LEN);
-			tmf->tmf_header.rqs_entry_type = RQSTYPE_TSK_MGMT;
-			tmf->tmf_header.rqs_entry_count = 1;
-			tmf->tmf_nphdl = lp->handle;
-			tmf->tmf_delay = 2;
-			tmf->tmf_timeout = 2;
-			tmf->tmf_tidlo = lp->portid;
-			tmf->tmf_tidhi = lp->portid >> 16;
-			tmf->tmf_vpidx = ISP_GET_VPIDX(isp, chan);
-			tmf->tmf_lun[1] = fct->lun & 0xff;
+			ISP_MEMZERO(&tmf, sizeof(tmf));
+			tmf.tmf_header.rqs_entry_type = RQSTYPE_TSK_MGMT;
+			tmf.tmf_header.rqs_entry_count = 1;
+			tmf.tmf_nphdl = lp->handle;
+			tmf.tmf_delay = 2;
+			tmf.tmf_timeout = 4;
+			tmf.tmf_tidlo = lp->portid;
+			tmf.tmf_tidhi = lp->portid >> 16;
+			tmf.tmf_vpidx = ISP_GET_VPIDX(isp, chan);
+			tmf.tmf_lun[1] = fct->lun & 0xff;
 			if (fct->lun >= 256) {
-				tmf->tmf_lun[0] = 0x40 | (fct->lun >> 8);
+				tmf.tmf_lun[0] = 0x40 | (fct->lun >> 8);
 			}
 			switch (fct->action) {
 			case IPT_CLEAR_ACA:
-				tmf->tmf_flags = ISP24XX_TMF_CLEAR_ACA;
+				tmf.tmf_flags = ISP24XX_TMF_CLEAR_ACA;
 				break;
 			case IPT_TARGET_RESET:
-				tmf->tmf_flags = ISP24XX_TMF_TARGET_RESET;
+				tmf.tmf_flags = ISP24XX_TMF_TARGET_RESET;
 				needmarker = 1;
 				break;
 			case IPT_LUN_RESET:
-				tmf->tmf_flags = ISP24XX_TMF_LUN_RESET;
+				tmf.tmf_flags = ISP24XX_TMF_LUN_RESET;
 				needmarker = 1;
 				break;
 			case IPT_CLEAR_TASK_SET:
-				tmf->tmf_flags = ISP24XX_TMF_CLEAR_TASK_SET;
+				tmf.tmf_flags = ISP24XX_TMF_CLEAR_TASK_SET;
 				needmarker = 1;
 				break;
 			case IPT_ABORT_TASK_SET:
-				tmf->tmf_flags = ISP24XX_TMF_ABORT_TASK_SET;
+				tmf.tmf_flags = ISP24XX_TMF_ABORT_TASK_SET;
 				needmarker = 1;
 				break;
 			default:
@@ -668,35 +667,52 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 				ISP_UNLOCK(isp);
 				break;
 			}
-			MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 5000000);
-			mbs.param[1] = QENTRY_LEN;
-			mbs.param[2] = DMA_WD1(fcp->isp_scdma);
-			mbs.param[3] = DMA_WD0(fcp->isp_scdma);
-			mbs.param[6] = DMA_WD3(fcp->isp_scdma);
-			mbs.param[7] = DMA_WD2(fcp->isp_scdma);
 
-			if (FC_SCRATCH_ACQUIRE(isp, chan)) {
+			/* Prepare space for response in memory */
+			memset(resp, 0xff, sizeof(resp));
+			tmf.tmf_handle = isp_allocate_handle(isp, resp,
+			    ISP_HANDLE_CTRL);
+			if (tmf.tmf_handle == 0) {
+				isp_prt(isp, ISP_LOGERR,
+				    "%s: TMF of Chan %d out of handles",
+				    __func__, chan);
 				ISP_UNLOCK(isp);
 				retval = ENOMEM;
 				break;
 			}
-			isp_put_24xx_tmf(isp, tmf, fcp->isp_scratch);
-			MEMORYBARRIER(isp, SYNC_SFORDEV, 0, QENTRY_LEN, chan);
-			sp = (isp24xx_statusreq_t *) local;
-			sp->req_completion_status = 1;
-			retval = isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
-			MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
-			isp_get_24xx_response(isp, &((isp24xx_statusreq_t *)fcp->isp_scratch)[1], sp);
-			FC_SCRATCH_RELEASE(isp, chan);
-			if (retval || sp->req_completion_status != 0) {
-				FC_SCRATCH_RELEASE(isp, chan);
+
+			/* Send request and wait for response. */
+			reqp = isp_getrqentry(isp);
+			if (reqp == NULL) {
+				isp_prt(isp, ISP_LOGERR,
+				    "%s: TMF of Chan %d out of rqent",
+				    __func__, chan);
+				isp_destroy_handle(isp, tmf.tmf_handle);
+				ISP_UNLOCK(isp);
 				retval = EIO;
+				break;
 			}
-			if (retval == 0) {
-				if (needmarker) {
-					fcp->sendmarker = 1;
-				}
+			isp_put_24xx_tmf(isp, &tmf, (isp24xx_tmf_t *)reqp);
+			if (isp->isp_dblev & ISP_LOGDEBUG1)
+				isp_print_bytes(isp, "IOCB TMF", QENTRY_LEN, reqp);
+			ISP_SYNC_REQUEST(isp);
+			if (msleep(resp, &isp->isp_lock, 0, "TMF", 5*hz) == EWOULDBLOCK) {
+				isp_prt(isp, ISP_LOGERR,
+				    "%s: TMF of Chan %d timed out",
+				    __func__, chan);
+				isp_destroy_handle(isp, tmf.tmf_handle);
+				ISP_UNLOCK(isp);
+				retval = EIO;
+				break;
 			}
+			if (isp->isp_dblev & ISP_LOGDEBUG1)
+				isp_print_bytes(isp, "IOCB TMF response", QENTRY_LEN, resp);
+			isp_get_24xx_response(isp, (isp24xx_statusreq_t *)resp, &sp);
+
+			if (sp.req_completion_status != 0)
+				retval = EIO;
+			else if (needmarker)
+				fcp->sendmarker = 1;
 		} else {
 			MBSINIT(&mbs, 0, MBLOGALL, 0);
 			if (ISP_CAP_2KLOGIN(isp) == 0) {
@@ -1403,7 +1419,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			cto->ct_iid_hi = atp->portid >> 16;
 			cto->ct_oxid = atp->oxid;
 			cto->ct_vpidx = ISP_GET_VPIDX(isp, XS_CHANNEL(ccb));
-			cto->ct_timeout = 120;
+			cto->ct_timeout = (XS_TIME(ccb) + 999) / 1000;
 			cto->ct_flags = atp->tattr << CT7_TASK_ATTR_SHIFT;
 
 			/*
@@ -1555,7 +1571,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 					cto->ct_lun = ccb->ccb_h.target_lun;
 				}
 			}
-			cto->ct_timeout = 10;
+			cto->ct_timeout = (XS_TIME(ccb) + 999) / 1000;
 			cto->ct_rxid = cso->tag_id;
 
 			/*
@@ -1693,7 +1709,8 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
 			break;
 		}
-		if (isp_allocate_xs_tgt(isp, ccb, &handle)) {
+		handle = isp_allocate_handle(isp, ccb, ISP_HANDLE_TARGET);
+		if (handle == 0) {
 			ISP_PATH_PRT(isp, ISP_LOGWARN, ccb->ccb_h.path, "No XFLIST pointers for %s\n", __func__);
 			TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
 			isp_free_pcmd(isp, ccb);
@@ -1722,7 +1739,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 
 		dmaresult = ISP_DMASETUP(isp, cso, (ispreq_t *) local);
 		if (dmaresult != CMD_QUEUED) {
-			isp_destroy_tgt_handle(isp, handle);
+			isp_destroy_handle(isp, handle);
 			isp_free_pcmd(isp, ccb);
 			if (dmaresult == CMD_EAGAIN) {
 				TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
@@ -2379,12 +2396,12 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 	uint32_t handle, moved_data = 0, data_requested;
 
 	handle = ((ct2_entry_t *)arg)->ct_syshandle;
-	ccb = isp_find_xs_tgt(isp, handle);
+	ccb = isp_find_xs(isp, handle);
 	if (ccb == NULL) {
 		isp_print_bytes(isp, "null ccb in isp_handle_platform_ctio", QENTRY_LEN, arg);
 		return;
 	}
-	isp_destroy_tgt_handle(isp, handle);
+	isp_destroy_handle(isp, handle);
 	data_requested = PISP_PCMD(ccb)->datalen;
 	isp_free_pcmd(isp, ccb);
 	if (isp->isp_nactive) {
@@ -3320,7 +3337,7 @@ isp_loop_dead(ispsoftc_t *isp, int chan)
 		for (i = 0; i < isp->isp_maxcmds; i++) {
 			struct ccb_scsiio *xs;
 
-			if (!ISP_VALID_HANDLE(isp, isp->isp_xflist[i].handle)) {
+			if (ISP_H2HT(isp->isp_xflist[i].handle) != ISP_HANDLE_INITIATOR) {
 				continue;
 			}
 			if ((xs = isp->isp_xflist[i].cmd) == NULL) {
@@ -3942,6 +3959,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		xpt_done(ccb);
 		break;
 	}
+	case XPT_GET_SIM_KNOB_OLD:	/* Get SIM knobs -- compat value */
 	case XPT_GET_SIM_KNOB:		/* Get SIM knobs */
 	{
 		struct ccb_sim_knob *kp = &ccb->knob;

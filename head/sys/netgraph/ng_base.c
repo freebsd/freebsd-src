@@ -63,6 +63,7 @@
 #include <sys/syslog.h>
 #include <sys/unistd.h>
 #include <machine/cpu.h>
+#include <vm/uma.h>
 
 #include <net/netisr.h>
 #include <net/vnet.h>
@@ -2055,7 +2056,7 @@ ng_acquire_read(node_p node, item_p item)
 			return (item);
 		}
 		cpu_spinwait();
-	};
+	}
 
 	/* Queue the request for later. */
 	ng_queue_rw(node, item, NGQRW_R);

@@ -606,13 +606,13 @@ static void mlx4_en_put_qp(struct mlx4_en_priv *priv)
 		mlx4_unregister_mac(dev, priv->port, mac);
 	} else {
 		struct mlx4_mac_entry *entry;
-		struct hlist_node *n, *tmp;
+		struct hlist_node *tmp;
 		struct hlist_head *bucket;
 		unsigned int i;
 
 		for (i = 0; i < MLX4_EN_MAC_HASH_SIZE; ++i) {
 			bucket = &priv->mac_hash[i];
-			hlist_for_each_entry_safe(entry, n, tmp, bucket, hlist) {
+			hlist_for_each_entry_safe(entry, tmp, bucket, hlist) {
 				mac = mlx4_mac_to_u64(entry->mac);
 				en_dbg(DRV, priv, "Registering MAC: %pM for deleting\n",
 				       entry->mac);
@@ -1243,10 +1243,6 @@ int mlx4_en_start_port(struct net_device *dev)
 	/* Calculate Rx buf size */
 	dev->if_mtu = min(dev->if_mtu, priv->max_mtu);
         mlx4_en_calc_rx_buf(dev);
-	priv->rx_alloc_size = max_t(int, 2 * roundup_pow_of_two(priv->rx_mb_size),
-				    PAGE_SIZE);
-	priv->rx_alloc_order = get_order(priv->rx_alloc_size);
-	priv->rx_buf_size = roundup_pow_of_two(priv->rx_mb_size);
 	en_dbg(DRV, priv, "Rx buf size:%d\n", priv->rx_mb_size);
 
 	/* Configure rx cq's and rings */

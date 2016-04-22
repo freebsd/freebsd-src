@@ -337,8 +337,7 @@ jme_probe(device_t dev)
 	vendor = pci_get_vendor(dev);
 	devid = pci_get_device(dev);
 	sp = jme_devs;
-	for (i = 0; i < sizeof(jme_devs) / sizeof(jme_devs[0]);
-	    i++, sp++) {
+	for (i = 0; i < nitems(jme_devs); i++, sp++) {
 		if (vendor == sp->jme_vendorid &&
 		    devid == sp->jme_deviceid) {
 			device_set_desc(dev, sp->jme_name);
@@ -804,7 +803,7 @@ jme_attach(device_t dev)
 	}
 	/* Create coalescing sysctl node. */
 	jme_sysctl_node(sc);
-	if ((error = jme_dma_alloc(sc) != 0))
+	if ((error = jme_dma_alloc(sc)) != 0)
 		goto fail;
 
 	ifp = sc->jme_ifp = if_alloc(IFT_ETHER);

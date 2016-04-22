@@ -178,7 +178,7 @@ ofwbus_attach(device_t dev)
 
 static struct resource *
 ofwbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ofwbus_softc *sc;
 	struct rman *rm;
@@ -186,7 +186,7 @@ ofwbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct resource_list_entry *rle;
 	int isdefault, passthrough;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
 	sc = device_get_softc(bus);
 	rle = NULL;
@@ -200,8 +200,8 @@ ofwbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			return (NULL);
 		}
 		start = rle->start;
-		count = ulmax(count, rle->count);
-		end = ulmax(rle->end, start + count - 1);
+		count = ummax(count, rle->count);
+		end = ummax(rle->end, start + count - 1);
 	}
 
 	switch (type) {
@@ -239,7 +239,7 @@ ofwbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 static int
 ofwbus_adjust_resource(device_t bus, device_t child __unused, int type,
-    struct resource *r, u_long start, u_long end)
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct ofwbus_softc *sc;
 	struct rman *rm;
@@ -271,12 +271,17 @@ ofwbus_release_resource(device_t bus, device_t child, int type,
     int rid, struct resource *r)
 {
 	struct resource_list_entry *rle;
+	int passthrough;
 	int error;
 
-	/* Clean resource list entry */
-	rle = resource_list_find(BUS_GET_RESOURCE_LIST(bus, child), type, rid);
-	if (rle != NULL)
-		rle->res = NULL;
+	passthrough = (device_get_parent(child) != bus);
+	if (!passthrough) {
+		/* Clean resource list entry */
+		rle = resource_list_find(BUS_GET_RESOURCE_LIST(bus, child),
+		    type, rid);
+		if (rle != NULL)
+			rle->res = NULL;
+	}
 
 	if ((rman_get_flags(r) & RF_ACTIVE) != 0) {
 		error = bus_deactivate_resource(child, type, rid, r);

@@ -108,13 +108,13 @@ static struct protox {
 	  igmp_stats,	NULL,		"igmp",	1,	IPPROTO_IGMP },
 #ifdef IPSEC
 	{ -1,		N_IPSEC4STAT,	1,	NULL,	/* keep as compat */
-	  ipsec_stats,	NULL,		"ipsec", 0,	0},
+	  ipsec_stats,	NULL,		"ipsec", 1,	0},
 	{ -1,		N_AHSTAT,	1,	NULL,
-	  ah_stats,	NULL,		"ah",	0,	0},
+	  ah_stats,	NULL,		"ah",	1,	0},
 	{ -1,		N_ESPSTAT,	1,	NULL,
-	  esp_stats,	NULL,		"esp",	0,	0},
+	  esp_stats,	NULL,		"esp",	1,	0},
 	{ -1,		N_IPCOMPSTAT,	1,	NULL,
-	  ipcomp_stats,	NULL,		"ipcomp", 0,	0},
+	  ipcomp_stats,	NULL,		"ipcomp", 1,	0},
 #endif
 	{ N_RIPCBINFO,	N_PIMSTAT,	1,	protopr,
 	  pim_stats,	NULL,		"pim",	1,	IPPROTO_PIM },
@@ -146,7 +146,7 @@ static struct protox ip6protox[] = {
 #endif
 #ifdef IPSEC
 	{ -1,		N_IPSEC6STAT,	1,	NULL,
-	  ipsec_stats,	NULL,		"ipsec6", 0,	0 },
+	  ipsec_stats,	NULL,		"ipsec6", 1,	0 },
 #endif
 #ifdef notyet
 	{ -1,		N_PIM6STAT,	1,	NULL,
@@ -551,15 +551,15 @@ main(int argc, char *argv[])
 	exit(0);
 }
 
-int
-fetch_stats(const char *sysctlname, u_long off, void *stats, size_t len,
-    int (*kreadfn)(u_long, void *, size_t))
+static int
+fetch_stats_internal(const char *sysctlname, u_long off, void *stats,
+    size_t len, kreadfn_t kreadfn, int zero)
 {
 	int error;
 
 	if (live) {
 		memset(stats, 0, len);
-		if (zflag)
+		if (zero)
 			error = sysctlbyname(sysctlname, NULL, NULL, stats,
 			    len);
 		else
@@ -572,6 +572,23 @@ fetch_stats(const char *sysctlname, u_long off, void *stats, size_t len,
 		error = kreadfn(off, stats, len);
 	}
 	return (error);
+}
+
+int
+fetch_stats(const char *sysctlname, u_long off, void *stats,
+    size_t len, kreadfn_t kreadfn)
+{
+
+	return (fetch_stats_internal(sysctlname, off, stats, len, kreadfn,
+    zflag));
+}
+
+int
+fetch_stats_ro(const char *sysctlname, u_long off, void *stats,
+    size_t len, kreadfn_t kreadfn)
+{
+
+	return (fetch_stats_internal(sysctlname, off, stats, len, kreadfn, 0));
 }
 
 /*

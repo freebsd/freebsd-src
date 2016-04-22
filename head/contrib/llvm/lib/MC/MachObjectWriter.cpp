@@ -78,7 +78,6 @@ uint64_t MachObjectWriter::getSymbolAddress(const MCSymbol &S,
           dyn_cast<const MCConstantExpr>(S.getVariableValue()))
       return C->getValue();
 
-
     MCValue Target;
     if (!S.getVariableValue()->evaluateAsRelocatable(Target, &Layout, nullptr))
       report_fatal_error("unable to evaluate offset for variable '" +
@@ -117,7 +116,8 @@ uint64_t MachObjectWriter::getPaddingSize(const MCSection *Sec,
   return OffsetToAlignment(EndAddr, NextSec.getAlignment());
 }
 
-void MachObjectWriter::writeHeader(unsigned NumLoadCommands,
+void MachObjectWriter::writeHeader(MachO::HeaderFileType Type,
+                                   unsigned NumLoadCommands,
                                    unsigned LoadCommandsSize,
                                    bool SubsectionsViaSymbols) {
   uint32_t Flags = 0;
@@ -128,7 +128,7 @@ void MachObjectWriter::writeHeader(unsigned NumLoadCommands,
   // struct mach_header (28 bytes) or
   // struct mach_header_64 (32 bytes)
 
-  uint64_t Start = OS.tell();
+  uint64_t Start = getStream().tell();
   (void) Start;
 
   write32(is64Bit() ? MachO::MH_MAGIC_64 : MachO::MH_MAGIC);
@@ -136,29 +136,30 @@ void MachObjectWriter::writeHeader(unsigned NumLoadCommands,
   write32(TargetObjectWriter->getCPUType());
   write32(TargetObjectWriter->getCPUSubtype());
 
-  write32(MachO::MH_OBJECT);
+  write32(Type);
   write32(NumLoadCommands);
   write32(LoadCommandsSize);
   write32(Flags);
   if (is64Bit())
     write32(0); // reserved
 
-  assert(OS.tell() - Start ==
-         (is64Bit()?sizeof(MachO::mach_header_64): sizeof(MachO::mach_header)));
+  assert(
+      getStream().tell() - Start ==
+      (is64Bit() ? sizeof(MachO::mach_header_64) : sizeof(MachO::mach_header)));
 }
 
 /// writeSegmentLoadCommand - Write a segment load command.
 ///
 /// \param NumSections The number of sections in this segment.
 /// \param SectionDataSize The total size of the sections.
-void MachObjectWriter::writeSegmentLoadCommand(unsigned NumSections,
-                                               uint64_t VMSize,
-                                               uint64_t SectionDataStartOffset,
-                                               uint64_t SectionDataSize) {
+void MachObjectWriter::writeSegmentLoadCommand(
+    StringRef Name, unsigned NumSections, uint64_t VMAddr, uint64_t VMSize,
+    uint64_t SectionDataStartOffset, uint64_t SectionDataSize, uint32_t MaxProt,
+    uint32_t InitProt) {
   // struct segment_command (56 bytes) or
   // struct segment_command_64 (72 bytes)
 
-  uint64_t Start = OS.tell();
+  uint64_t Start = getStream().tell();
   (void) Start;
 
   unsigned SegmentLoadCommandSize =
@@ -169,31 +170,32 @@ void MachObjectWriter::writeSegmentLoadCommand(unsigned NumSections,
           NumSections * (is64Bit() ? sizeof(MachO::section_64) :
                          sizeof(MachO::section)));
 
-  writeBytes("", 16);
+  assert(Name.size() <= 16);
+  writeBytes(Name, 16);
   if (is64Bit()) {
-    write64(0); // vmaddr
+    write64(VMAddr);                 // vmaddr
     write64(VMSize); // vmsize
     write64(SectionDataStartOffset); // file offset
     write64(SectionDataSize); // file size
   } else {
-    write32(0); // vmaddr
+    write32(VMAddr);                 // vmaddr
     write32(VMSize); // vmsize
     write32(SectionDataStartOffset); // file offset
     write32(SectionDataSize); // file size
   }
   // maxprot
-  write32(MachO::VM_PROT_READ | MachO::VM_PROT_WRITE | MachO::VM_PROT_EXECUTE);
+  write32(MaxProt);
   // initprot
-  write32(MachO::VM_PROT_READ | MachO::VM_PROT_WRITE | MachO::VM_PROT_EXECUTE);
+  write32(InitProt);
   write32(NumSections);
   write32(0); // flags
 
-  assert(OS.tell() - Start == SegmentLoadCommandSize);
+  assert(getStream().tell() - Start == SegmentLoadCommandSize);
 }
 
-void MachObjectWriter::writeSection(const MCAssembler &Asm,
-                                    const MCAsmLayout &Layout,
-                                    const MCSection &Sec, uint64_t FileOffset,
+void MachObjectWriter::writeSection(const MCAsmLayout &Layout,
+                                    const MCSection &Sec, uint64_t VMAddr,
+                                    uint64_t FileOffset, unsigned Flags,
                                     uint64_t RelocationsStart,
                                     unsigned NumRelocations) {
   uint64_t SectionSize = Layout.getSectionAddressSize(&Sec);
@@ -208,23 +210,19 @@ void MachObjectWriter::writeSection(const MCAssembler &Asm,
   // struct section (68 bytes) or
   // struct section_64 (80 bytes)
 
-  uint64_t Start = OS.tell();
+  uint64_t Start = getStream().tell();
   (void) Start;
 
   writeBytes(Section.getSectionName(), 16);
   writeBytes(Section.getSegmentName(), 16);
   if (is64Bit()) {
-    write64(getSectionAddress(&Sec)); // address
+    write64(VMAddr);      // address
     write64(SectionSize); // size
   } else {
-    write32(getSectionAddress(&Sec)); // address
+    write32(VMAddr);      // address
     write32(SectionSize); // size
   }
   write32(FileOffset);
-
-  unsigned Flags = Section.getTypeAndAttributes();
-  if (Section.hasInstructions())
-    Flags |= MachO::S_ATTR_SOME_INSTRUCTIONS;
 
   assert(isPowerOf2_32(Section.getAlignment()) && "Invalid alignment!");
   write32(Log2_32(Section.getAlignment()));
@@ -236,8 +234,8 @@ void MachObjectWriter::writeSection(const MCAssembler &Asm,
   if (is64Bit())
     write32(0); // reserved3
 
-  assert(OS.tell() - Start == (is64Bit() ? sizeof(MachO::section_64) :
-                               sizeof(MachO::section)));
+  assert(getStream().tell() - Start ==
+         (is64Bit() ? sizeof(MachO::section_64) : sizeof(MachO::section)));
 }
 
 void MachObjectWriter::writeSymtabLoadCommand(uint32_t SymbolOffset,
@@ -246,7 +244,7 @@ void MachObjectWriter::writeSymtabLoadCommand(uint32_t SymbolOffset,
                                               uint32_t StringTableSize) {
   // struct symtab_command (24 bytes)
 
-  uint64_t Start = OS.tell();
+  uint64_t Start = getStream().tell();
   (void) Start;
 
   write32(MachO::LC_SYMTAB);
@@ -256,7 +254,7 @@ void MachObjectWriter::writeSymtabLoadCommand(uint32_t SymbolOffset,
   write32(StringTableOffset);
   write32(StringTableSize);
 
-  assert(OS.tell() - Start == sizeof(MachO::symtab_command));
+  assert(getStream().tell() - Start == sizeof(MachO::symtab_command));
 }
 
 void MachObjectWriter::writeDysymtabLoadCommand(uint32_t FirstLocalSymbol,
@@ -269,7 +267,7 @@ void MachObjectWriter::writeDysymtabLoadCommand(uint32_t FirstLocalSymbol,
                                                 uint32_t NumIndirectSymbols) {
   // struct dysymtab_command (80 bytes)
 
-  uint64_t Start = OS.tell();
+  uint64_t Start = getStream().tell();
   (void) Start;
 
   write32(MachO::LC_DYSYMTAB);
@@ -293,7 +291,7 @@ void MachObjectWriter::writeDysymtabLoadCommand(uint32_t FirstLocalSymbol,
   write32(0); // locreloff
   write32(0); // nlocrel
 
-  assert(OS.tell() - Start == sizeof(MachO::dysymtab_command));
+  assert(getStream().tell() - Start == sizeof(MachO::dysymtab_command));
 }
 
 MachObjectWriter::MachSymbolData *
@@ -389,7 +387,7 @@ void MachObjectWriter::writeNlist(MachSymbolData &MSD,
 void MachObjectWriter::writeLinkeditLoadCommand(uint32_t Type,
                                                 uint32_t DataOffset,
                                                 uint32_t DataSize) {
-  uint64_t Start = OS.tell();
+  uint64_t Start = getStream().tell();
   (void) Start;
 
   write32(Type);
@@ -397,7 +395,7 @@ void MachObjectWriter::writeLinkeditLoadCommand(uint32_t Type,
   write32(DataOffset);
   write32(DataSize);
 
-  assert(OS.tell() - Start == sizeof(MachO::linkedit_data_command));
+  assert(getStream().tell() - Start == sizeof(MachO::linkedit_data_command));
 }
 
 static unsigned ComputeLinkerOptionsLoadCommandSize(
@@ -413,7 +411,7 @@ void MachObjectWriter::writeLinkerOptionsLoadCommand(
   const std::vector<std::string> &Options)
 {
   unsigned Size = ComputeLinkerOptionsLoadCommandSize(Options, is64Bit());
-  uint64_t Start = OS.tell();
+  uint64_t Start = getStream().tell();
   (void) Start;
 
   write32(MachO::LC_LINKER_OPTION);
@@ -429,7 +427,7 @@ void MachObjectWriter::writeLinkerOptionsLoadCommand(
   // Pad to a multiple of the pointer size.
   writeBytes("", OffsetToAlignment(BytesWritten, is64Bit() ? 8 : 4));
 
-  assert(OS.tell() - Start == Size);
+  assert(getStream().tell() - Start == Size);
 }
 
 void MachObjectWriter::recordRelocation(MCAssembler &Asm,
@@ -458,9 +456,9 @@ void MachObjectWriter::bindIndirectSymbols(MCAssembler &Asm) {
     if (Section.getType() != MachO::S_NON_LAZY_SYMBOL_POINTERS &&
         Section.getType() != MachO::S_LAZY_SYMBOL_POINTERS &&
         Section.getType() != MachO::S_SYMBOL_STUBS) {
-	MCSymbol &Symbol = *it->Symbol;
-	report_fatal_error("indirect symbol '" + Symbol.getName() +
-                           "' not in a symbol pointer or stub section");
+      MCSymbol &Symbol = *it->Symbol;
+      report_fatal_error("indirect symbol '" + Symbol.getName() +
+                         "' not in a symbol pointer or stub section");
     }
   }
 
@@ -522,7 +520,7 @@ void MachObjectWriter::computeSymbolTable(
 
     StringTable.add(Symbol.getName());
   }
-  StringTable.finalize(StringTableBuilder::MachO);
+  StringTable.finalize();
 
   // Build the symbol arrays but only for non-local symbols.
   //
@@ -625,6 +623,18 @@ void MachObjectWriter::executePostLayoutBinding(MCAssembler &Asm,
 
   // Create symbol data for any indirect symbols.
   bindIndirectSymbols(Asm);
+}
+
+bool MachObjectWriter::isSymbolRefDifferenceFullyResolvedImpl(
+    const MCAssembler &Asm, const MCSymbol &A, const MCSymbol &B,
+    bool InSet) const {
+  // FIXME: We don't handle things like
+  // foo = .
+  // creating atoms.
+  if (A.isVariable() || B.isVariable())
+    return false;
+  return MCObjectWriter::isSymbolRefDifferenceFullyResolvedImpl(Asm, A, B,
+                                                                InSet);
 }
 
 bool MachObjectWriter::isSymbolRefDifferenceFullyResolvedImpl(
@@ -746,7 +756,7 @@ void MachObjectWriter::writeObject(MCAssembler &Asm,
     ++NumLoadCommands;
     LoadCommandsSize += ComputeLinkerOptionsLoadCommandSize(Option, is64Bit());
   }
-  
+
   // Compute the total size of the section data, as well as its file size and vm
   // size.
   uint64_t SectionDataStart = (is64Bit() ? sizeof(MachO::mach_header_64) :
@@ -776,18 +786,25 @@ void MachObjectWriter::writeObject(MCAssembler &Asm,
   SectionDataFileSize += SectionDataPadding;
 
   // Write the prolog, starting with the header and load command...
-  writeHeader(NumLoadCommands, LoadCommandsSize,
+  writeHeader(MachO::MH_OBJECT, NumLoadCommands, LoadCommandsSize,
               Asm.getSubsectionsViaSymbols());
-  writeSegmentLoadCommand(NumSections, VMSize,
-                          SectionDataStart, SectionDataSize);
+  uint32_t Prot =
+      MachO::VM_PROT_READ | MachO::VM_PROT_WRITE | MachO::VM_PROT_EXECUTE;
+  writeSegmentLoadCommand("", NumSections, 0, VMSize, SectionDataStart,
+                          SectionDataSize, Prot, Prot);
 
   // ... and then the section headers.
   uint64_t RelocTableEnd = SectionDataStart + SectionDataFileSize;
-  for (const MCSection &Sec : Asm) {
+  for (const MCSection &Section : Asm) {
+    const auto &Sec = cast<MCSectionMachO>(Section);
     std::vector<RelAndSymbol> &Relocs = Relocations[&Sec];
     unsigned NumRelocs = Relocs.size();
     uint64_t SectionStart = SectionDataStart + getSectionAddress(&Sec);
-    writeSection(Asm, Layout, Sec, SectionStart, RelocTableEnd, NumRelocs);
+    unsigned Flags = Sec.getTypeAndAttributes();
+    if (Sec.hasInstructions())
+      Flags |= MachO::S_ATTR_SOME_INSTRUCTIONS;
+    writeSection(Layout, Sec, getSectionAddress(&Sec), SectionStart, Flags,
+                 RelocTableEnd, NumRelocs);
     RelocTableEnd += NumRelocs * sizeof(MachO::any_relocation_info);
   }
 
@@ -798,8 +815,22 @@ void MachObjectWriter::writeObject(MCAssembler &Asm,
     assert(VersionInfo.Major < 65536 && "unencodable major target version");
     uint32_t EncodedVersion = VersionInfo.Update | (VersionInfo.Minor << 8) |
       (VersionInfo.Major << 16);
-    write32(VersionInfo.Kind == MCVM_OSXVersionMin ? MachO::LC_VERSION_MIN_MACOSX :
-            MachO::LC_VERSION_MIN_IPHONEOS);
+    MachO::LoadCommandType LCType;
+    switch (VersionInfo.Kind) {
+    case MCVM_OSXVersionMin:
+      LCType = MachO::LC_VERSION_MIN_MACOSX;
+      break;
+    case MCVM_IOSVersionMin:
+      LCType = MachO::LC_VERSION_MIN_IPHONEOS;
+      break;
+    case MCVM_TvOSVersionMin:
+      LCType = MachO::LC_VERSION_MIN_TVOS;
+      break;
+    case MCVM_WatchOSVersionMin:
+      LCType = MachO::LC_VERSION_MIN_WATCHOS;
+      break;
+    }
+    write32(LCType);
     write32(sizeof(MachO::version_min_command));
     write32(EncodedVersion);
     write32(0);         // reserved.
@@ -901,12 +932,12 @@ void MachObjectWriter::writeObject(MCAssembler &Asm,
   // Write out the loh commands, if there is one.
   if (LOHSize) {
 #ifndef NDEBUG
-    unsigned Start = OS.tell();
+    unsigned Start = getStream().tell();
 #endif
     Asm.getLOHContainer().emit(*this, Layout);
     // Pad to a multiple of the pointer size.
     writeBytes("", OffsetToAlignment(LOHRawSize, is64Bit() ? 8 : 4));
-    assert(OS.tell() - Start == LOHSize);
+    assert(getStream().tell() - Start == LOHSize);
   }
 
   // Write the symbol table data, if used.
@@ -942,7 +973,7 @@ void MachObjectWriter::writeObject(MCAssembler &Asm,
         writeNlist(Entry, Layout);
 
     // Write the string table.
-    OS << StringTable.data();
+    getStream() << StringTable.data();
   }
 }
 

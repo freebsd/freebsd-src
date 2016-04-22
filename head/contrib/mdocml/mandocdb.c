@@ -1,15 +1,15 @@
-/*	$Id: mandocdb.c,v 1.186 2015/03/13 00:19:41 schwarze Exp $ */
+/*	$Id: mandocdb.c,v 1.215 2016/01/08 17:48:09 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011-2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011-2016 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHORS DISCLAIM ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -23,6 +23,9 @@
 
 #include <assert.h>
 #include <ctype.h>
+#if HAVE_ERR
+#include <err.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #if HAVE_FTS
@@ -39,18 +42,15 @@
 #include <string.h>
 #include <unistd.h>
 
-#if HAVE_OHASH
-#include <ohash.h>
-#else
-#include "compat_ohash.h"
-#endif
 #include <sqlite3.h>
 
+#include "mandoc_aux.h"
+#include "mandoc_ohash.h"
+#include "mandoc.h"
+#include "roff.h"
 #include "mdoc.h"
 #include "man.h"
-#include "mandoc.h"
-#include "mandoc_aux.h"
-#include "manpath.h"
+#include "manconf.h"
 #include "mansearch.h"
 
 extern int mansearch_keymax;
@@ -129,8 +129,8 @@ enum	stmt {
 	STMT__MAX
 };
 
-typedef	int (*mdoc_fp)(struct mpage *, const struct mdoc_meta *,
-			const struct mdoc_node *);
+typedef	int (*mdoc_fp)(struct mpage *, const struct roff_meta *,
+			const struct roff_node *);
 
 struct	mdoc_handler {
 	mdoc_fp		 fp; /* optional handler */
@@ -144,9 +144,6 @@ static	void	 dbadd_mlink_name(const struct mlink *mlink);
 static	int	 dbopen(int);
 static	void	 dbprune(void);
 static	void	 filescan(const char *);
-static	void	*hash_alloc(size_t, void *);
-static	void	 hash_free(void *, void *);
-static	void	*hash_calloc(size_t, size_t, void *);
 static	void	 mlink_add(struct mlink *, const struct stat *);
 static	void	 mlink_check(struct mpage *, struct mlink *);
 static	void	 mlink_free(struct mlink *);
@@ -155,33 +152,33 @@ static	void	 mpages_free(void);
 static	void	 mpages_merge(struct mparse *);
 static	void	 names_check(void);
 static	void	 parse_cat(struct mpage *, int);
-static	void	 parse_man(struct mpage *, const struct man_meta *,
-			const struct man_node *);
-static	void	 parse_mdoc(struct mpage *, const struct mdoc_meta *,
-			const struct mdoc_node *);
-static	int	 parse_mdoc_body(struct mpage *, const struct mdoc_meta *,
-			const struct mdoc_node *);
-static	int	 parse_mdoc_head(struct mpage *, const struct mdoc_meta *,
-			const struct mdoc_node *);
-static	int	 parse_mdoc_Fd(struct mpage *, const struct mdoc_meta *,
-			const struct mdoc_node *);
-static	void	 parse_mdoc_fname(struct mpage *, const struct mdoc_node *);
-static	int	 parse_mdoc_Fn(struct mpage *, const struct mdoc_meta *,
-			const struct mdoc_node *);
-static	int	 parse_mdoc_Fo(struct mpage *, const struct mdoc_meta *,
-			const struct mdoc_node *);
-static	int	 parse_mdoc_Nd(struct mpage *, const struct mdoc_meta *,
-			const struct mdoc_node *);
-static	int	 parse_mdoc_Nm(struct mpage *, const struct mdoc_meta *,
-			const struct mdoc_node *);
-static	int	 parse_mdoc_Sh(struct mpage *, const struct mdoc_meta *,
-			const struct mdoc_node *);
-static	int	 parse_mdoc_Xr(struct mpage *, const struct mdoc_meta *,
-			const struct mdoc_node *);
+static	void	 parse_man(struct mpage *, const struct roff_meta *,
+			const struct roff_node *);
+static	void	 parse_mdoc(struct mpage *, const struct roff_meta *,
+			const struct roff_node *);
+static	int	 parse_mdoc_head(struct mpage *, const struct roff_meta *,
+			const struct roff_node *);
+static	int	 parse_mdoc_Fd(struct mpage *, const struct roff_meta *,
+			const struct roff_node *);
+static	void	 parse_mdoc_fname(struct mpage *, const struct roff_node *);
+static	int	 parse_mdoc_Fn(struct mpage *, const struct roff_meta *,
+			const struct roff_node *);
+static	int	 parse_mdoc_Fo(struct mpage *, const struct roff_meta *,
+			const struct roff_node *);
+static	int	 parse_mdoc_Nd(struct mpage *, const struct roff_meta *,
+			const struct roff_node *);
+static	int	 parse_mdoc_Nm(struct mpage *, const struct roff_meta *,
+			const struct roff_node *);
+static	int	 parse_mdoc_Sh(struct mpage *, const struct roff_meta *,
+			const struct roff_node *);
+static	int	 parse_mdoc_Va(struct mpage *, const struct roff_meta *,
+			const struct roff_node *);
+static	int	 parse_mdoc_Xr(struct mpage *, const struct roff_meta *,
+			const struct roff_node *);
 static	void	 putkey(const struct mpage *, char *, uint64_t);
 static	void	 putkeys(const struct mpage *, char *, size_t, uint64_t);
 static	void	 putmdockey(const struct mpage *,
-			const struct mdoc_node *, uint64_t);
+			const struct roff_node *, uint64_t);
 static	int	 render_string(char **, size_t *);
 static	void	 say(const char *, const char *, ...);
 static	int	 set_basedir(const char *, int);
@@ -189,7 +186,6 @@ static	int	 treescan(void);
 static	size_t	 utf8(unsigned int, char [7]);
 
 static	char		 tempfilename[32];
-static	char		*progname;
 static	int		 nodb; /* no database changes */
 static	int		 mparse_options; /* abort the parse early */
 static	int		 use_all; /* use all found files */
@@ -199,7 +195,6 @@ static	int		 write_utf8; /* write UTF-8 output; else ASCII */
 static	int		 exitcode; /* to be returned by main */
 static	enum op		 op; /* operational mode */
 static	char		 basedir[PATH_MAX]; /* current base directory */
-static	struct mchars	*mchars; /* table of named characters */
 static	struct ohash	 mpages; /* table of distinct manual pages */
 static	struct ohash	 mlinks; /* table of directory entries */
 static	struct ohash	 names; /* table of all names */
@@ -247,8 +242,8 @@ static	const struct mdoc_handler mdocs[MDOC_MAX] = {
 	{ NULL, TYPE_Pa },  /* Pa */
 	{ NULL, 0 },  /* Rv */
 	{ NULL, TYPE_St },  /* St */
-	{ NULL, TYPE_Va },  /* Va */
-	{ parse_mdoc_body, TYPE_Va },  /* Vt */
+	{ parse_mdoc_Va, TYPE_Va },  /* Va */
+	{ parse_mdoc_Va, TYPE_Vt },  /* Vt */
 	{ parse_mdoc_Xr, 0 },  /* Xr */
 	{ NULL, 0 },  /* %A */
 	{ NULL, 0 },  /* %B */
@@ -338,29 +333,21 @@ static	const struct mdoc_handler mdocs[MDOC_MAX] = {
 int
 mandocdb(int argc, char *argv[])
 {
-	int		  ch, i;
-	size_t		  j, sz;
-	const char	 *path_arg;
-	struct manpaths	  dirs;
+	struct manconf	  conf;
 	struct mparse	 *mp;
-	struct ohash_info mpages_info, mlinks_info;
+	const char	 *path_arg, *progname;
+	size_t		  j, sz;
+	int		  ch, i;
 
+#if HAVE_PLEDGE
+	if (pledge("stdio rpath wpath cpath fattr flock proc exec", NULL) == -1) {
+		warn("pledge");
+		return (int)MANDOCLEVEL_SYSERR;
+	}
+#endif
+
+	memset(&conf, 0, sizeof(conf));
 	memset(stmts, 0, STMT__MAX * sizeof(sqlite3_stmt *));
-	memset(&dirs, 0, sizeof(struct manpaths));
-
-	mpages_info.alloc  = mlinks_info.alloc  = hash_alloc;
-	mpages_info.calloc = mlinks_info.calloc = hash_calloc;
-	mpages_info.free   = mlinks_info.free   = hash_free;
-	mpages_info.data   = mlinks_info.data   = NULL;
-
-	mpages_info.key_offset = offsetof(struct mpage, inodev);
-	mlinks_info.key_offset = offsetof(struct mlink, file);
-
-	progname = strrchr(argv[0], '/');
-	if (progname == NULL)
-		progname = argv[0];
-	else
-		++progname;
 
 	/*
 	 * We accept a few different invocations.
@@ -369,8 +356,7 @@ mandocdb(int argc, char *argv[])
 	 */
 #define	CHECKOP(_op, _ch) do \
 	if (OP_DEFAULT != (_op)) { \
-		fprintf(stderr, "%s: -%c: Conflicting option\n", \
-		    progname, (_ch)); \
+		warnx("-%c: Conflicting option", (_ch)); \
 		goto usage; \
 	} while (/*CONSTCOND*/0)
 
@@ -406,9 +392,8 @@ mandocdb(int argc, char *argv[])
 			break;
 		case 'T':
 			if (strcmp(optarg, "utf8")) {
-				fprintf(stderr, "%s: -T%s: "
-				    "Unsupported output format\n",
-				    progname, optarg);
+				warnx("-T%s: Unsupported output format",
+				    optarg);
 				goto usage;
 			}
 			write_utf8 = 1;
@@ -434,18 +419,25 @@ mandocdb(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+#if HAVE_PLEDGE
+	if (nodb) {
+		if (pledge("stdio rpath", NULL) == -1) {
+			warn("pledge");
+			return (int)MANDOCLEVEL_SYSERR;
+		}
+	}
+#endif
+
 	if (OP_CONFFILE == op && argc > 0) {
-		fprintf(stderr, "%s: -C: Too many arguments\n",
-		    progname);
+		warnx("-C: Too many arguments");
 		goto usage;
 	}
 
 	exitcode = (int)MANDOCLEVEL_OK;
-	mchars = mchars_alloc();
-	mp = mparse_alloc(mparse_options, MANDOCLEVEL_BADARG, NULL,
-	    mchars, NULL);
-	ohash_init(&mpages, 6, &mpages_info);
-	ohash_init(&mlinks, 6, &mlinks_info);
+	mchars_alloc();
+	mp = mparse_alloc(mparse_options, MANDOCLEVEL_BADARG, NULL, NULL);
+	mandoc_ohash_init(&mpages, 6, offsetof(struct mpage, inodev));
+	mandoc_ohash_init(&mlinks, 6, offsetof(struct mlink, file));
 
 	if (OP_UPDATE == op || OP_DELETE == op || OP_TEST == op) {
 
@@ -461,6 +453,15 @@ mandocdb(int argc, char *argv[])
 			 * The existing database is usable.  Process
 			 * all files specified on the command-line.
 			 */
+#if HAVE_PLEDGE
+			if (!nodb) {
+				if (pledge("stdio rpath wpath cpath fattr flock", NULL) == -1) {
+					warn("pledge");
+					exitcode = (int)MANDOCLEVEL_SYSERR;
+					goto out;
+				}
+			}
+#endif
 			use_all = 1;
 			for (i = 0; i < argc; i++)
 				filescan(argv[i]);
@@ -485,18 +486,18 @@ mandocdb(int argc, char *argv[])
 		/*
 		 * If we have arguments, use them as our manpaths.
 		 * If we don't, grok from manpath(1) or however else
-		 * manpath_parse() wants to do it.
+		 * manconf_parse() wants to do it.
 		 */
 		if (argc > 0) {
-			dirs.paths = mandoc_reallocarray(NULL,
+			conf.manpath.paths = mandoc_reallocarray(NULL,
 			    argc, sizeof(char *));
-			dirs.sz = (size_t)argc;
+			conf.manpath.sz = (size_t)argc;
 			for (i = 0; i < argc; i++)
-				dirs.paths[i] = mandoc_strdup(argv[i]);
+				conf.manpath.paths[i] = mandoc_strdup(argv[i]);
 		} else
-			manpath_parse(&dirs, path_arg, NULL, NULL);
+			manconf_parse(&conf, path_arg, NULL, NULL);
 
-		if (0 == dirs.sz) {
+		if (conf.manpath.sz == 0) {
 			exitcode = (int)MANDOCLEVEL_BADARG;
 			say("", "Empty manpath");
 		}
@@ -507,19 +508,21 @@ mandocdb(int argc, char *argv[])
 		 * Ignore zero-length directories and strip trailing
 		 * slashes.
 		 */
-		for (j = 0; j < dirs.sz; j++) {
-			sz = strlen(dirs.paths[j]);
-			if (sz && '/' == dirs.paths[j][sz - 1])
-				dirs.paths[j][--sz] = '\0';
+		for (j = 0; j < conf.manpath.sz; j++) {
+			sz = strlen(conf.manpath.paths[j]);
+			if (sz && conf.manpath.paths[j][sz - 1] == '/')
+				conf.manpath.paths[j][--sz] = '\0';
 			if (0 == sz)
 				continue;
 
 			if (j) {
-				ohash_init(&mpages, 6, &mpages_info);
-				ohash_init(&mlinks, 6, &mlinks_info);
+				mandoc_ohash_init(&mpages, 6,
+				    offsetof(struct mpage, inodev));
+				mandoc_ohash_init(&mlinks, 6,
+				    offsetof(struct mlink, file));
 			}
 
-			if (0 == set_basedir(dirs.paths[j], argc > 0))
+			if ( ! set_basedir(conf.manpath.paths[j], argc > 0))
 				continue;
 			if (0 == treescan())
 				continue;
@@ -532,7 +535,7 @@ mandocdb(int argc, char *argv[])
 				names_check();
 			dbclose(0);
 
-			if (j + 1 < dirs.sz) {
+			if (j + 1 < conf.manpath.sz) {
 				mpages_free();
 				ohash_delete(&mpages);
 				ohash_delete(&mlinks);
@@ -540,23 +543,23 @@ mandocdb(int argc, char *argv[])
 		}
 	}
 out:
-	manpath_free(&dirs);
+	manconf_free(&conf);
 	mparse_free(mp);
-	mchars_free(mchars);
+	mchars_free();
 	mpages_free();
 	ohash_delete(&mpages);
 	ohash_delete(&mlinks);
-	return(exitcode);
+	return exitcode;
 usage:
+	progname = getprogname();
 	fprintf(stderr, "usage: %s [-aDnpQ] [-C file] [-Tutf8]\n"
 			"       %s [-aDnpQ] [-Tutf8] dir ...\n"
 			"       %s [-DnpQ] [-Tutf8] -d dir [file ...]\n"
 			"       %s [-Dnp] -u dir [file ...]\n"
 			"       %s [-Q] -t file ...\n",
-		       progname, progname, progname,
-		       progname, progname);
+		        progname, progname, progname, progname, progname);
 
-	return((int)MANDOCLEVEL_BADARG);
+	return (int)MANDOCLEVEL_BADARG;
 }
 
 /*
@@ -590,16 +593,16 @@ treescan(void)
 
 	f = fts_open((char * const *)argv,
 	    FTS_PHYSICAL | FTS_NOCHDIR, NULL);
-	if (NULL == f) {
+	if (f == NULL) {
 		exitcode = (int)MANDOCLEVEL_SYSERR;
 		say("", "&fts_open");
-		return(0);
+		return 0;
 	}
 
 	dsec = arch = NULL;
 	dform = FORM_NONE;
 
-	while (NULL != (ff = fts_read(f))) {
+	while ((ff = fts_read(f)) != NULL) {
 		path = ff->fts_path + 2;
 		switch (ff->fts_info) {
 
@@ -608,7 +611,7 @@ treescan(void)
 		 * then get handled just like regular files.
 		 */
 		case FTS_SL:
-			if (NULL == realpath(path, buf)) {
+			if (realpath(path, buf) == NULL) {
 				if (warnings)
 					say(path, "&realpath");
 				continue;
@@ -623,7 +626,7 @@ treescan(void)
 				continue;
 			}
 			/* Use logical inode to avoid mpages dupe. */
-			if (-1 == stat(path, ff->fts_statp)) {
+			if (stat(path, ff->fts_statp) == -1) {
 				if (warnings)
 					say(path, "&stat");
 				continue;
@@ -635,7 +638,7 @@ treescan(void)
 		 * stored directory data and handling the filename.
 		 */
 		case FTS_F:
-			if (0 == strcmp(path, MANDOC_DB))
+			if ( ! strcmp(path, MANDOC_DB))
 				continue;
 			if ( ! use_all && ff->fts_level < 2) {
 				if (warnings)
@@ -644,37 +647,37 @@ treescan(void)
 			}
 			gzip = 0;
 			fsec = NULL;
-			while (NULL == fsec) {
+			while (fsec == NULL) {
 				fsec = strrchr(ff->fts_name, '.');
-				if (NULL == fsec || strcmp(fsec+1, "gz"))
+				if (fsec == NULL || strcmp(fsec+1, "gz"))
 					break;
 				gzip = 1;
 				*fsec = '\0';
 				fsec = NULL;
 			}
-			if (NULL == fsec) {
+			if (fsec == NULL) {
 				if ( ! use_all) {
 					if (warnings)
 						say(path,
 						    "No filename suffix");
 					continue;
 				}
-			} else if (0 == strcmp(++fsec, "html")) {
+			} else if ( ! strcmp(++fsec, "html")) {
 				if (warnings)
 					say(path, "Skip html");
 				continue;
-			} else if (0 == strcmp(fsec, "ps")) {
+			} else if ( ! strcmp(fsec, "ps")) {
 				if (warnings)
 					say(path, "Skip ps");
 				continue;
-			} else if (0 == strcmp(fsec, "pdf")) {
+			} else if ( ! strcmp(fsec, "pdf")) {
 				if (warnings)
 					say(path, "Skip pdf");
 				continue;
 			} else if ( ! use_all &&
-			    ((FORM_SRC == dform &&
+			    ((dform == FORM_SRC &&
 			      strncmp(fsec, dsec, strlen(dsec))) ||
-			     (FORM_CAT == dform && strcmp(fsec, "0")))) {
+			     (dform == FORM_CAT && strcmp(fsec, "0")))) {
 				if (warnings)
 					say(path, "Wrong filename suffix");
 				continue;
@@ -699,7 +702,6 @@ treescan(void)
 			continue;
 
 		case FTS_D:
-			/* FALLTHROUGH */
 		case FTS_DP:
 			break;
 
@@ -720,13 +722,16 @@ treescan(void)
 			 * If we're not in use_all, enforce it.
 			 */
 			cp = ff->fts_name;
-			if (FTS_DP == ff->fts_info)
+			if (ff->fts_info == FTS_DP) {
+				dform = FORM_NONE;
+				dsec = NULL;
 				break;
+			}
 
-			if (0 == strncmp(cp, "man", 3)) {
+			if ( ! strncmp(cp, "man", 3)) {
 				dform = FORM_SRC;
 				dsec = cp + 3;
-			} else if (0 == strncmp(cp, "cat", 3)) {
+			} else if ( ! strncmp(cp, "cat", 3)) {
 				dform = FORM_CAT;
 				dsec = cp + 3;
 			} else {
@@ -734,7 +739,7 @@ treescan(void)
 				dsec = NULL;
 			}
 
-			if (NULL != dsec || use_all)
+			if (dsec != NULL || use_all)
 				break;
 
 			if (warnings)
@@ -746,13 +751,13 @@ treescan(void)
 			 * Possibly our architecture.
 			 * If we're descending, keep tabs on it.
 			 */
-			if (FTS_DP != ff->fts_info && NULL != dsec)
+			if (ff->fts_info != FTS_DP && dsec != NULL)
 				arch = ff->fts_name;
 			else
 				arch = NULL;
 			break;
 		default:
-			if (FTS_DP == ff->fts_info || use_all)
+			if (ff->fts_info == FTS_DP || use_all)
 				break;
 			if (warnings)
 				say(path, "Extraneous directory part");
@@ -762,7 +767,7 @@ treescan(void)
 	}
 
 	fts_close(f);
-	return(1);
+	return 1;
 }
 
 /*
@@ -1103,21 +1108,13 @@ static void
 mpages_merge(struct mparse *mp)
 {
 	char			 any[] = "any";
-	struct ohash_info	 str_info;
 	struct mpage		*mpage, *mpage_dest;
 	struct mlink		*mlink, *mlink_dest;
-	struct mdoc		*mdoc;
-	struct man		*man;
+	struct roff_man		*man;
 	char			*sodest;
 	char			*cp;
 	int			 fd;
 	unsigned int		 pslot;
-
-	str_info.alloc = hash_alloc;
-	str_info.calloc = hash_calloc;
-	str_info.free = hash_free;
-	str_info.data = NULL;
-	str_info.key_offset = offsetof(struct str, key);
 
 	if ( ! nodb)
 		SQL_EXEC("BEGIN TRANSACTION");
@@ -1131,15 +1128,13 @@ mpages_merge(struct mparse *mp)
 		}
 
 		name_mask = NAME_MASK;
-		ohash_init(&names, 4, &str_info);
-		ohash_init(&strings, 6, &str_info);
+		mandoc_ohash_init(&names, 4, offsetof(struct str, key));
+		mandoc_ohash_init(&strings, 6, offsetof(struct str, key));
 		mparse_reset(mp);
-		mdoc = NULL;
 		man = NULL;
 		sodest = NULL;
 
-		mparse_open(mp, &fd, mlink->file);
-		if (fd == -1) {
+		if ((fd = mparse_open(mp, mlink->file)) == -1) {
 			say(mlink->file, "&open");
 			goto nextpage;
 		}
@@ -1150,7 +1145,8 @@ mpages_merge(struct mparse *mp)
 		 */
 		if (mlink->dform != FORM_CAT || mlink->fform != FORM_CAT) {
 			mparse_readfd(mp, fd, mlink->file);
-			mparse_result(mp, &mdoc, &man, &sodest);
+			close(fd);
+			mparse_result(mp, &man, &sodest);
 		}
 
 		if (sodest != NULL) {
@@ -1194,21 +1190,22 @@ mpages_merge(struct mparse *mp)
 				mpage->mlinks = NULL;
 			}
 			goto nextpage;
-		} else if (mdoc != NULL) {
+		} else if (man != NULL && man->macroset == MACROSET_MDOC) {
+			mdoc_validate(man);
 			mpage->form = FORM_SRC;
-			mpage->sec = mdoc_meta(mdoc)->msec;
+			mpage->sec = man->meta.msec;
 			mpage->sec = mandoc_strdup(
 			    mpage->sec == NULL ? "" : mpage->sec);
-			mpage->arch = mdoc_meta(mdoc)->arch;
+			mpage->arch = man->meta.arch;
 			mpage->arch = mandoc_strdup(
 			    mpage->arch == NULL ? "" : mpage->arch);
-			mpage->title =
-			    mandoc_strdup(mdoc_meta(mdoc)->title);
-		} else if (man != NULL) {
+			mpage->title = mandoc_strdup(man->meta.title);
+		} else if (man != NULL && man->macroset == MACROSET_MAN) {
+			man_validate(man);
 			mpage->form = FORM_SRC;
-			mpage->sec = mandoc_strdup(man_meta(man)->msec);
+			mpage->sec = mandoc_strdup(man->meta.msec);
 			mpage->arch = mandoc_strdup(mlink->arch);
-			mpage->title = mandoc_strdup(man_meta(man)->title);
+			mpage->title = mandoc_strdup(man->meta.title);
 		} else {
 			mpage->form = FORM_CAT;
 			mpage->sec = mandoc_strdup(mlink->dsec);
@@ -1230,10 +1227,10 @@ mpages_merge(struct mparse *mp)
 		}
 
 		assert(mpage->desc == NULL);
-		if (mdoc != NULL)
-			parse_mdoc(mpage, mdoc_meta(mdoc), mdoc_node(mdoc));
+		if (man != NULL && man->macroset == MACROSET_MDOC)
+			parse_mdoc(mpage, &man->meta, man->first);
 		else if (man != NULL)
-			parse_man(mpage, man_meta(man), man_node(man));
+			parse_man(mpage, &man->meta, man->first);
 		else
 			parse_cat(mpage, fd);
 		if (mpage->desc == NULL)
@@ -1248,10 +1245,6 @@ mpages_merge(struct mparse *mp)
 		mlink = mpage->mlinks;
 
 nextpage:
-		if (mparse_wait(mp) != MANDOCLEVEL_OK) {
-			exitcode = (int)MANDOCLEVEL_SYSERR;
-			say(mlink->file, "&wait gunzip");
-		}
 		ohash_delete(&strings);
 		ohash_delete(&names);
 		mpage = ohash_next(&mpages, &pslot);
@@ -1266,7 +1259,6 @@ names_check(void)
 {
 	sqlite3_stmt	*stmt;
 	const char	*name, *sec, *arch, *key;
-	int		 irc;
 
 	sqlite3_prepare_v2(db,
 	  "SELECT name, sec, arch, key FROM ("
@@ -1282,10 +1274,10 @@ names_check(void)
 	  ") USING (pageid);",
 	  -1, &stmt, NULL);
 
-	if (SQLITE_OK != sqlite3_bind_int64(stmt, 1, NAME_TITLE))
+	if (sqlite3_bind_int64(stmt, 1, NAME_TITLE) != SQLITE_OK)
 		say("", "%s", sqlite3_errmsg(db));
 
-	while (SQLITE_ROW == (irc = sqlite3_step(stmt))) {
+	while (sqlite3_step(stmt) == SQLITE_ROW) {
 		name = (const char *)sqlite3_column_text(stmt, 0);
 		sec  = (const char *)sqlite3_column_text(stmt, 1);
 		arch = (const char *)sqlite3_column_text(stmt, 2);
@@ -1302,7 +1294,9 @@ parse_cat(struct mpage *mpage, int fd)
 {
 	FILE		*stream;
 	char		*line, *p, *title;
-	size_t		 len, plen, titlesz;
+	size_t		 linesz, plen, titlesz;
+	ssize_t		 len;
+	int		 offs;
 
 	stream = (-1 == fd) ?
 	    fopen(mpage->mlinks->file, "r") :
@@ -1315,10 +1309,13 @@ parse_cat(struct mpage *mpage, int fd)
 		return;
 	}
 
+	line = NULL;
+	linesz = 0;
+
 	/* Skip to first blank line. */
 
-	while (NULL != (line = fgetln(stream, &len)))
-		if ('\n' == *line)
+	while (getline(&line, &linesz, stream) != -1)
+		if (*line == '\n')
 			break;
 
 	/*
@@ -1326,8 +1323,8 @@ parse_cat(struct mpage *mpage, int fd)
 	 * is the first section header.  Skip to it.
 	 */
 
-	while (NULL != (line = fgetln(stream, &len)))
-		if ('\n' != *line && ' ' != *line)
+	while (getline(&line, &linesz, stream) != -1)
+		if (*line != '\n' && *line != ' ')
 			break;
 
 	/*
@@ -1340,20 +1337,20 @@ parse_cat(struct mpage *mpage, int fd)
 	titlesz = 0;
 	title = NULL;
 
-	while (NULL != (line = fgetln(stream, &len))) {
-		if (' ' != *line || '\n' != line[len - 1])
+	while ((len = getline(&line, &linesz, stream)) != -1) {
+		if (*line != ' ')
 			break;
-		while (len > 0 && isspace((unsigned char)*line)) {
-			line++;
-			len--;
-		}
-		if (1 == len)
+		offs = 0;
+		while (isspace((unsigned char)line[offs]))
+			offs++;
+		if (line[offs] == '\0')
 			continue;
-		title = mandoc_realloc(title, titlesz + len);
-		memcpy(title + titlesz, line, len);
-		titlesz += len;
+		title = mandoc_realloc(title, titlesz + len - offs);
+		memcpy(title + titlesz, line + offs, len - offs);
+		titlesz += len - offs;
 		title[titlesz - 1] = ' ';
 	}
+	free(line);
 
 	/*
 	 * If no page content can be found, or the input line
@@ -1371,8 +1368,7 @@ parse_cat(struct mpage *mpage, int fd)
 		return;
 	}
 
-	title = mandoc_realloc(title, titlesz + 1);
-	title[titlesz] = '\0';
+	title[titlesz - 1] = '\0';
 
 	/*
 	 * Skip to the first dash.
@@ -1430,27 +1426,27 @@ putkey(const struct mpage *mpage, char *value, uint64_t type)
  */
 static void
 putmdockey(const struct mpage *mpage,
-	const struct mdoc_node *n, uint64_t m)
+	const struct roff_node *n, uint64_t m)
 {
 
 	for ( ; NULL != n; n = n->next) {
 		if (NULL != n->child)
 			putmdockey(mpage, n->child, m);
-		if (MDOC_TEXT == n->type)
+		if (n->type == ROFFT_TEXT)
 			putkey(mpage, n->string, m);
 	}
 }
 
 static void
-parse_man(struct mpage *mpage, const struct man_meta *meta,
-	const struct man_node *n)
+parse_man(struct mpage *mpage, const struct roff_meta *meta,
+	const struct roff_node *n)
 {
-	const struct man_node *head, *body;
+	const struct roff_node *head, *body;
 	char		*start, *title;
 	char		 byte;
 	size_t		 sz;
 
-	if (NULL == n)
+	if (n == NULL)
 		return;
 
 	/*
@@ -1460,15 +1456,14 @@ parse_man(struct mpage *mpage, const struct man_meta *meta,
 	 * the correct section or not.
 	 */
 
-	if (MAN_BODY == n->type && MAN_SH == n->tok) {
+	if (n->type == ROFFT_BODY && n->tok == MAN_SH) {
 		body = n;
-		assert(body->parent);
-		if (NULL != (head = body->parent->head) &&
-		    1 == head->nchild &&
-		    NULL != (head = (head->child)) &&
-		    MAN_TEXT == head->type &&
-		    0 == strcmp(head->string, "NAME") &&
-		    NULL != body->child) {
+		if ((head = body->parent->head) != NULL &&
+		    (head = head->child) != NULL &&
+		    head->next == NULL &&
+		    head->type == ROFFT_TEXT &&
+		    strcmp(head->string, "NAME") == 0 &&
+		    body->child != NULL) {
 
 			/*
 			 * Suck the entire NAME section into memory.
@@ -1478,7 +1473,7 @@ parse_man(struct mpage *mpage, const struct man_meta *meta,
 			 */
 
 			title = NULL;
-			man_deroff(&title, body);
+			deroff(&title, body);
 			if (NULL == title)
 				return;
 
@@ -1568,22 +1563,18 @@ parse_man(struct mpage *mpage, const struct man_meta *meta,
 }
 
 static void
-parse_mdoc(struct mpage *mpage, const struct mdoc_meta *meta,
-	const struct mdoc_node *n)
+parse_mdoc(struct mpage *mpage, const struct roff_meta *meta,
+	const struct roff_node *n)
 {
 
 	assert(NULL != n);
 	for (n = n->child; NULL != n; n = n->next) {
 		switch (n->type) {
-		case MDOC_ELEM:
-			/* FALLTHROUGH */
-		case MDOC_BLOCK:
-			/* FALLTHROUGH */
-		case MDOC_HEAD:
-			/* FALLTHROUGH */
-		case MDOC_BODY:
-			/* FALLTHROUGH */
-		case MDOC_TAIL:
+		case ROFFT_ELEM:
+		case ROFFT_BLOCK:
+		case ROFFT_HEAD:
+		case ROFFT_BODY:
+		case ROFFT_TAIL:
 			if (NULL != mdocs[n->tok].fp)
 			       if (0 == (*mdocs[n->tok].fp)(mpage, meta, n))
 				       break;
@@ -1592,7 +1583,7 @@ parse_mdoc(struct mpage *mpage, const struct mdoc_meta *meta,
 				    mdocs[n->tok].mask);
 			break;
 		default:
-			assert(MDOC_ROOT != n->type);
+			assert(n->type != ROFFT_ROOT);
 			continue;
 		}
 		if (NULL != n->child)
@@ -1601,16 +1592,16 @@ parse_mdoc(struct mpage *mpage, const struct mdoc_meta *meta,
 }
 
 static int
-parse_mdoc_Fd(struct mpage *mpage, const struct mdoc_meta *meta,
-	const struct mdoc_node *n)
+parse_mdoc_Fd(struct mpage *mpage, const struct roff_meta *meta,
+	const struct roff_node *n)
 {
 	char		*start, *end;
 	size_t		 sz;
 
 	if (SEC_SYNOPSIS != n->sec ||
 	    NULL == (n = n->child) ||
-	    MDOC_TEXT != n->type)
-		return(0);
+	    n->type != ROFFT_TEXT)
+		return 0;
 
 	/*
 	 * Only consider those `Fd' macro fields that begin with an
@@ -1618,10 +1609,10 @@ parse_mdoc_Fd(struct mpage *mpage, const struct mdoc_meta *meta,
 	 */
 
 	if (strcmp("#include", n->string))
-		return(0);
+		return 0;
 
-	if (NULL == (n = n->next) || MDOC_TEXT != n->type)
-		return(0);
+	if ((n = n->next) == NULL || n->type != ROFFT_TEXT)
+		return 0;
 
 	/*
 	 * Strip away the enclosing angle brackets and make sure we're
@@ -1633,7 +1624,7 @@ parse_mdoc_Fd(struct mpage *mpage, const struct mdoc_meta *meta,
 		start++;
 
 	if (0 == (sz = strlen(start)))
-		return(0);
+		return 0;
 
 	end = &start[(int)sz - 1];
 	if ('>' == *end || '"' == *end)
@@ -1641,16 +1632,16 @@ parse_mdoc_Fd(struct mpage *mpage, const struct mdoc_meta *meta,
 
 	if (end > start)
 		putkeys(mpage, start, end - start + 1, TYPE_In);
-	return(0);
+	return 0;
 }
 
 static void
-parse_mdoc_fname(struct mpage *mpage, const struct mdoc_node *n)
+parse_mdoc_fname(struct mpage *mpage, const struct roff_node *n)
 {
 	char	*cp;
 	size_t	 sz;
 
-	if (n->type != MDOC_TEXT)
+	if (n->type != ROFFT_TEXT)
 		return;
 
 	/* Skip function pointer punctuation. */
@@ -1666,74 +1657,99 @@ parse_mdoc_fname(struct mpage *mpage, const struct mdoc_node *n)
 }
 
 static int
-parse_mdoc_Fn(struct mpage *mpage, const struct mdoc_meta *meta,
-	const struct mdoc_node *n)
+parse_mdoc_Fn(struct mpage *mpage, const struct roff_meta *meta,
+	const struct roff_node *n)
 {
 
 	if (n->child == NULL)
-		return(0);
+		return 0;
 
 	parse_mdoc_fname(mpage, n->child);
 
 	for (n = n->child->next; n != NULL; n = n->next)
-		if (n->type == MDOC_TEXT)
+		if (n->type == ROFFT_TEXT)
 			putkey(mpage, n->string, TYPE_Fa);
 
-	return(0);
+	return 0;
 }
 
 static int
-parse_mdoc_Fo(struct mpage *mpage, const struct mdoc_meta *meta,
-	const struct mdoc_node *n)
+parse_mdoc_Fo(struct mpage *mpage, const struct roff_meta *meta,
+	const struct roff_node *n)
 {
 
-	if (n->type != MDOC_HEAD)
-		return(1);
+	if (n->type != ROFFT_HEAD)
+		return 1;
 
 	if (n->child != NULL)
 		parse_mdoc_fname(mpage, n->child);
 
-	return(0);
+	return 0;
 }
 
 static int
-parse_mdoc_Xr(struct mpage *mpage, const struct mdoc_meta *meta,
-	const struct mdoc_node *n)
+parse_mdoc_Va(struct mpage *mpage, const struct roff_meta *meta,
+	const struct roff_node *n)
+{
+	char *cp;
+
+	if (n->type != ROFFT_ELEM && n->type != ROFFT_BODY)
+		return 0;
+
+	if (n->child != NULL &&
+	    n->child->next == NULL &&
+	    n->child->type == ROFFT_TEXT)
+		return 1;
+
+	cp = NULL;
+	deroff(&cp, n);
+	if (cp != NULL) {
+		putkey(mpage, cp, TYPE_Vt | (n->tok == MDOC_Va ||
+		    n->type == ROFFT_BODY ? TYPE_Va : 0));
+		free(cp);
+	}
+
+	return 0;
+}
+
+static int
+parse_mdoc_Xr(struct mpage *mpage, const struct roff_meta *meta,
+	const struct roff_node *n)
 {
 	char	*cp;
 
 	if (NULL == (n = n->child))
-		return(0);
+		return 0;
 
 	if (NULL == n->next) {
 		putkey(mpage, n->string, TYPE_Xr);
-		return(0);
+		return 0;
 	}
 
 	mandoc_asprintf(&cp, "%s(%s)", n->string, n->next->string);
 	putkey(mpage, cp, TYPE_Xr);
 	free(cp);
-	return(0);
+	return 0;
 }
 
 static int
-parse_mdoc_Nd(struct mpage *mpage, const struct mdoc_meta *meta,
-	const struct mdoc_node *n)
+parse_mdoc_Nd(struct mpage *mpage, const struct roff_meta *meta,
+	const struct roff_node *n)
 {
 
-	if (MDOC_BODY == n->type)
-		mdoc_deroff(&mpage->desc, n);
-	return(0);
+	if (n->type == ROFFT_BODY)
+		deroff(&mpage->desc, n);
+	return 0;
 }
 
 static int
-parse_mdoc_Nm(struct mpage *mpage, const struct mdoc_meta *meta,
-	const struct mdoc_node *n)
+parse_mdoc_Nm(struct mpage *mpage, const struct roff_meta *meta,
+	const struct roff_node *n)
 {
 
 	if (SEC_NAME == n->sec)
 		putmdockey(mpage, n->child, NAME_TITLE);
-	else if (SEC_SYNOPSIS == n->sec && MDOC_HEAD == n->type) {
+	else if (n->sec == SEC_SYNOPSIS && n->type == ROFFT_HEAD) {
 		if (n->child == NULL)
 			putkey(mpage, meta->name, NAME_SYN);
 		else
@@ -1742,34 +1758,26 @@ parse_mdoc_Nm(struct mpage *mpage, const struct mdoc_meta *meta,
 	if ( ! (mpage->name_head_done ||
 	    n->child == NULL || n->child->string == NULL ||
 	    strcasecmp(n->child->string, meta->title))) {
-		putkey(mpage, n->child->string, NAME_HEAD);
+		putkey(mpage, n->child->string, ROFFT_HEAD);
 		mpage->name_head_done = 1;
 	}
-	return(0);
+	return 0;
 }
 
 static int
-parse_mdoc_Sh(struct mpage *mpage, const struct mdoc_meta *meta,
-	const struct mdoc_node *n)
+parse_mdoc_Sh(struct mpage *mpage, const struct roff_meta *meta,
+	const struct roff_node *n)
 {
 
-	return(SEC_CUSTOM == n->sec && MDOC_HEAD == n->type);
+	return n->sec == SEC_CUSTOM && n->type == ROFFT_HEAD;
 }
 
 static int
-parse_mdoc_head(struct mpage *mpage, const struct mdoc_meta *meta,
-	const struct mdoc_node *n)
+parse_mdoc_head(struct mpage *mpage, const struct roff_meta *meta,
+	const struct roff_node *n)
 {
 
-	return(MDOC_HEAD == n->type);
-}
-
-static int
-parse_mdoc_body(struct mpage *mpage, const struct mdoc_meta *meta,
-	const struct mdoc_node *n)
-{
-
-	return(MDOC_BODY == n->type);
+	return n->type == ROFFT_HEAD;
 }
 
 /*
@@ -1874,10 +1882,10 @@ utf8(unsigned int cp, char out[7])
 		out[4] = (cp >> 6  & 63) | 128;
 		out[5] = (cp       & 63) | 128;
 	} else
-		return(0);
+		return 0;
 
 	out[rc] = '\0';
-	return(rc);
+	return rc;
 }
 
 /*
@@ -1935,7 +1943,6 @@ render_string(char **public, size_t *psz)
 		case '\\':
 			break;
 		case '\t':
-			/* FALLTHROUGH */
 		case ASCII_NBRSP:
 			dst[dsz++] = ' ';
 			scp++;
@@ -1966,7 +1973,7 @@ render_string(char **public, size_t *psz)
 		 */
 
 		if (write_utf8) {
-			unicode = mchars_spec2cp(mchars, seq, seqlen);
+			unicode = mchars_spec2cp(seq, seqlen);
 			if (unicode <= 0)
 				continue;
 			addsz = utf8(unicode, utfbuf);
@@ -1974,7 +1981,7 @@ render_string(char **public, size_t *psz)
 				continue;
 			addcp = utfbuf;
 		} else {
-			addcp = mchars_spec2str(mchars, seq, seqlen, &addsz);
+			addcp = mchars_spec2str(seq, seqlen, &addsz);
 			if (addcp == NULL)
 				continue;
 			if (*addcp == ASCII_NBRSP) {
@@ -2001,9 +2008,9 @@ render_string(char **public, size_t *psz)
 		--*psz;
 	if (dst != NULL) {
 		(*public)[*psz] = '\0';
-		return(1);
+		return 1;
 	} else
-		return(0);
+		return 0;
 }
 
 static void
@@ -2214,7 +2221,7 @@ dbclose(int real)
 		return;
 	case 0:
 		execlp("cmp", "cmp", "-s",
-		    tempfilename, MANDOC_DB, NULL);
+		    tempfilename, MANDOC_DB, (char *)NULL);
 		say("", "&exec cmp");
 		exit(0);
 	default:
@@ -2239,7 +2246,7 @@ dbclose(int real)
 		say("", "&fork rm");
 		return;
 	case 0:
-		execlp("rm", "rm", "-rf", tempfilename, NULL);
+		execlp("rm", "rm", "-rf", tempfilename, (char *)NULL);
 		say("", "&exec rm");
 		exit((int)MANDOCLEVEL_SYSERR);
 	default:
@@ -2270,7 +2277,7 @@ dbopen(int real)
 	int		 rc, ofl;
 
 	if (nodb)
-		return(1);
+		return 1;
 
 	*tempfilename = '\0';
 	ofl = SQLITE_OPEN_READWRITE;
@@ -2281,7 +2288,7 @@ dbopen(int real)
 			exitcode = (int)MANDOCLEVEL_SYSERR;
 			if (SQLITE_CANTOPEN != rc)
 				say(MANDOC_DB, "%s", sqlite3_errstr(rc));
-			return(0);
+			return 0;
 		}
 		goto prepare_statements;
 	}
@@ -2295,7 +2302,7 @@ dbopen(int real)
 	if (MPARSE_QUICK & mparse_options) {
 		exitcode = (int)MANDOCLEVEL_SYSERR;
 		say(MANDOC_DB "~", "%s", sqlite3_errstr(rc));
-		return(0);
+		return 0;
 	}
 
 	(void)strlcpy(tempfilename, "/tmp/mandocdb.XXXXXX",
@@ -2303,7 +2310,7 @@ dbopen(int real)
 	if (NULL == mkdtemp(tempfilename)) {
 		exitcode = (int)MANDOCLEVEL_SYSERR;
 		say("", "&%s", tempfilename);
-		return(0);
+		return 0;
 	}
 	(void)strlcat(tempfilename, "/" MANDOC_DB,
 	    sizeof(tempfilename));
@@ -2311,7 +2318,7 @@ dbopen(int real)
 	if (SQLITE_OK != rc) {
 		exitcode = (int)MANDOCLEVEL_SYSERR;
 		say("", "%s: %s", tempfilename, sqlite3_errstr(rc));
-		return(0);
+		return 0;
 	}
 
 create_tables:
@@ -2350,7 +2357,7 @@ create_tables:
 		exitcode = (int)MANDOCLEVEL_SYSERR;
 		say(MANDOC_DB, "%s", sqlite3_errmsg(db));
 		sqlite3_close(db);
-		return(0);
+		return 0;
 	}
 
 prepare_statements:
@@ -2360,7 +2367,7 @@ prepare_statements:
 		say(MANDOC_DB, "PRAGMA foreign_keys: %s",
 		    sqlite3_errmsg(db));
 		sqlite3_close(db);
-		return(0);
+		return 0;
 	}
 
 	sql = "DELETE FROM mpages WHERE pageid IN "
@@ -2394,32 +2401,11 @@ prepare_statements:
 		say(MANDOC_DB, "PRAGMA synchronous: %s",
 		    sqlite3_errmsg(db));
 		sqlite3_close(db);
-		return(0);
+		return 0;
 	}
 #endif
 
-	return(1);
-}
-
-static void *
-hash_calloc(size_t n, size_t sz, void *arg)
-{
-
-	return(mandoc_calloc(n, sz));
-}
-
-static void *
-hash_alloc(size_t sz, void *arg)
-{
-
-	return(mandoc_malloc(sz));
-}
-
-static void
-hash_free(void *p, void *arg)
-{
-
-	free(p);
+	return 1;
 }
 
 static int
@@ -2461,12 +2447,12 @@ set_basedir(const char *targetdir, int report_baddir)
 		if (2 == getcwd_status) {
 			exitcode = (int)MANDOCLEVEL_SYSERR;
 			say("", "getcwd: %s", startdir);
-			return(0);
+			return 0;
 		}
 		if (-1 == chdir(startdir)) {
 			exitcode = (int)MANDOCLEVEL_SYSERR;
 			say("", "&chdir %s", startdir);
-			return(0);
+			return 0;
 		}
 	}
 
@@ -2480,13 +2466,13 @@ set_basedir(const char *targetdir, int report_baddir)
 			exitcode = (int)MANDOCLEVEL_BADARG;
 			say("", "&%s: realpath", targetdir);
 		}
-		return(0);
+		return 0;
 	} else if (-1 == chdir(basedir)) {
 		if (report_baddir || errno != ENOENT) {
 			exitcode = (int)MANDOCLEVEL_BADARG;
 			say("", "&chdir");
 		}
-		return(0);
+		return 0;
 	}
 	chdir_status = 1;
 	cp = strchr(basedir, '\0');
@@ -2494,12 +2480,12 @@ set_basedir(const char *targetdir, int report_baddir)
 		if (cp - basedir >= PATH_MAX - 1) {
 			exitcode = (int)MANDOCLEVEL_SYSERR;
 			say("", "Filename too long");
-			return(0);
+			return 0;
 		}
 		*cp++ = '/';
 		*cp = '\0';
 	}
-	return(1);
+	return 1;
 }
 
 static void

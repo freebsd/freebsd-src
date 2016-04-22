@@ -16,6 +16,7 @@
 
 #include <l_stdlib.h>
 #include <ntp_random.h>
+#include "safecast.h"
 
 #ifdef USE_OPENSSL_CRYPTO_RAND
 #include <openssl/err.h>
@@ -93,7 +94,7 @@ ntp_crypto_random_buf(
 #ifdef USE_OPENSSL_CRYPTO_RAND
 	int rc;
 
-	rc = RAND_bytes(buf, nbytes);
+	rc = RAND_bytes(buf, size2int_chk(nbytes));
 	if (1 != rc) {
 		unsigned long err;
 		char *err_str;

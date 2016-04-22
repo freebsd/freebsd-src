@@ -35,11 +35,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/rman.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofwpci.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -50,9 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/pio.h>
 #include <machine/resource.h>
 
-#include <sys/rman.h>
-
-#include <powerpc/ofw/ofw_pci.h>
 #include <powerpc/powermac/gracklevar.h>
 
 #include <vm/vm.h>
@@ -81,8 +80,6 @@ static int		grackle_enable_config(struct grackle_softc *, u_int,
 			    u_int, u_int, u_int);
 static void		grackle_disable_config(struct grackle_softc *);
 static int		badaddr(void *, size_t);
-
-int			setfault(faultbuf);	/* defined in locore.S */
 
 /*
  * Driver methods.
@@ -244,7 +241,7 @@ static int
 badaddr(void *addr, size_t size)
 {
 	struct thread	*td;
-	faultbuf	env, *oldfaultbuf;
+	jmp_buf		env, *oldfaultbuf;
 	int		x;
 
 	/* Get rid of any stale machine checks that have been waiting.  */
@@ -253,7 +250,8 @@ badaddr(void *addr, size_t size)
 	td = curthread;
 
 	oldfaultbuf = td->td_pcb->pcb_onfault;
-	if (setfault(env)) {
+	td->td_pcb->pcb_onfault = &env;
+	if (setjmp(env)) {
 		td->td_pcb->pcb_onfault = oldfaultbuf;
 		__asm __volatile ("sync");
 		return 1;

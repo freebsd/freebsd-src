@@ -64,6 +64,6 @@ NAME="$1"; shift
 publisher="The FreeBSD Project.  http://www.FreeBSD.org/"
 echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$1/etc/fstab"
 makefs -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@"
-rm "$1/etc/fstab"
-rm /tmp/hfs-boot-block
+rm -f "$1/etc/fstab"
+rm -f /tmp/hfs-boot-block
 rm -rf "$1/ppc"

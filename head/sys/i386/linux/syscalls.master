@@ -452,7 +452,7 @@
 267	AUE_NULL	STD	{ int linux_clock_nanosleep(clockid_t which, int flags, \
 					struct l_timespec *rqtp, struct l_timespec *rmtp); }
 268	AUE_STATFS	STD	{ int linux_statfs64(char *path, size_t bufsize, struct l_statfs64_buf *buf); }
-269	AUE_FSTATFS	STD	{ int linux_fstatfs64(void); }
+269	AUE_FSTATFS	STD	{ int linux_fstatfs64(l_uint fd, size_t bufsize, struct l_statfs64_buf *buf); }
 270	AUE_NULL	STD	{ int linux_tgkill(int tgid, int pid, int sig); }
 271	AUE_UTIMES	STD	{ int linux_utimes(char *fname, \
 					struct l_timeval *tptr); }
@@ -528,8 +528,8 @@
 ; linux 2.6.17:
 311	AUE_NULL	STD	{ int linux_set_robust_list(struct linux_robust_list_head *head, \
 					l_size_t len); }
-312	AUE_NULL	STD	{ int linux_get_robust_list(l_int pid, struct linux_robust_list_head **head, \
-					l_size_t *len); }
+312	AUE_NULL	STD	{ int linux_get_robust_list(l_int pid, \
+				    struct linux_robust_list_head **head, l_size_t *len); }
 313	AUE_NULL	STD	{ int linux_splice(void); }
 314	AUE_NULL	STD	{ int linux_sync_file_range(void); }
 315	AUE_NULL	STD	{ int linux_tee(void); }

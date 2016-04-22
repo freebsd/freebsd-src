@@ -64,6 +64,9 @@ __FBSDID("$FreeBSD$");
 #include <mips.h>
 #include <sdcard.h>
 
+#include "paths.h"
+#include "rbx.h"
+
 static int		 beri_argc;
 static const char	**beri_argv, **beri_envv;
 static uint64_t		 beri_memsize;
@@ -72,46 +75,6 @@ static uint64_t		 beri_memsize;
 #define IO_SERIAL	2
 
 #define SECOND		1	/* Circa that many ticks in a second. */
-
-#define RBX_ASKNAME	0x0	/* -a */
-#define RBX_SINGLE	0x1	/* -s */
-/* 0x2 is reserved for log2(RB_NOSYNC). */
-/* 0x3 is reserved for log2(RB_HALT). */
-/* 0x4 is reserved for log2(RB_INITNAME). */
-#define RBX_DFLTROOT	0x5	/* -r */
-#define RBX_KDB 	0x6	/* -d */
-/* 0x7 is reserved for log2(RB_RDONLY). */
-/* 0x8 is reserved for log2(RB_DUMP). */
-/* 0x9 is reserved for log2(RB_MINIROOT). */
-#define RBX_CONFIG	0xa	/* -c */
-#define RBX_VERBOSE	0xb	/* -v */
-#define RBX_SERIAL	0xc	/* -h */
-#define RBX_CDROM	0xd	/* -C */
-/* 0xe is reserved for log2(RB_POWEROFF). */
-#define RBX_GDB 	0xf	/* -g */
-#define RBX_MUTE	0x10	/* -m */
-/* 0x11 is reserved for log2(RB_SELFTEST). */
-/* 0x12 is reserved for boot programs. */
-/* 0x13 is reserved for boot programs. */
-#define RBX_PAUSE	0x14	/* -p */
-#define RBX_QUIET	0x15	/* -q */
-#define RBX_NOINTR	0x1c	/* -n */
-/* 0x1d is reserved for log2(RB_MULTIPLE) and is just misnamed here. */
-#define RBX_DUAL	0x1d	/* -D */
-/* 0x1f is reserved for log2(RB_BOOTINFO). */
-
-/* pass: -a, -s, -r, -d, -c, -v, -h, -C, -g, -m, -p, -D */
-#define RBX_MASK	(OPT_SET(RBX_ASKNAME) | OPT_SET(RBX_SINGLE) | \
-			OPT_SET(RBX_DFLTROOT) | OPT_SET(RBX_KDB ) | \
-			OPT_SET(RBX_CONFIG) | OPT_SET(RBX_VERBOSE) | \
-			OPT_SET(RBX_SERIAL) | OPT_SET(RBX_CDROM) | \
-			OPT_SET(RBX_GDB ) | OPT_SET(RBX_MUTE) | \
-			OPT_SET(RBX_PAUSE) | OPT_SET(RBX_DUAL))
-
-#define PATH_DOTCONFIG	"/boot.config"
-#define PATH_CONFIG	"/boot/config"
-#define PATH_BOOT3	"/boot/loader"
-#define PATH_KERNEL	"/boot/kernel/kernel"
 
 #define ARGS		0x900
 #define NOPT		14
@@ -130,9 +93,6 @@ static uint64_t		 beri_memsize;
 
 /* Hard-coded assumption about location of JTAG-loaded kernel. */
 #define	DRAM_KERNEL_ADDR	((void *)mips_phys_to_cached(0x20000))
-
-#define OPT_SET(opt)	(1 << (opt))
-#define OPT_CHECK(opt)	((opts) & OPT_SET(opt))
 
 extern uint32_t _end;
 
@@ -156,7 +116,7 @@ static const unsigned char flags[NOPT] = {
 
 /* These must match BOOTINFO_DEV_TYPE constants. */
 static const char *const dev_nm[] = {"dram", "cfi", "sdcard"};
-static const u_int dev_nm_count = sizeof(dev_nm) / sizeof(dev_nm[0]);
+static const u_int dev_nm_count = nitems(dev_nm);
 
 static struct dmadat __dmadat;
 
@@ -172,7 +132,7 @@ static struct dsk {
 } dsk;
 static char cmd[512], cmddup[512], knamebuf[1024];
 static const char *kname;
-static uint32_t opts;
+uint32_t opts;
 #if 0
 static int comspeed = SIOSPD;
 #endif
@@ -288,7 +248,7 @@ main(u_int argc, const char *argv[], const char *envv[], uint64_t memsize)
      */
 
     if (!kname) {
-	kname = PATH_BOOT3;
+	kname = PATH_LOADER;
 	if (autoboot && !keyhit(3*SECOND)) {
 	    boot_fromfs();
 	    kname = PATH_KERNEL;

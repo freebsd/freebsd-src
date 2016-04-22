@@ -44,7 +44,6 @@
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
-#include <machine/pmap.h>
 #include <machine/resource.h>
 #include <machine/vmparam.h>
 
@@ -78,7 +77,8 @@ static int  macio_attach(device_t);
 static int  macio_print_child(device_t dev, device_t child);
 static void macio_probe_nomatch(device_t, device_t);
 static struct   resource *macio_alloc_resource(device_t, device_t, int, int *,
-					       u_long, u_long, u_long, u_int);
+					       rman_res_t, rman_res_t, rman_res_t,
+					       u_int);
 static int  macio_activate_resource(device_t, device_t, int, int,
 				    struct resource *);
 static int  macio_deactivate_resource(device_t, device_t, int, int,
@@ -447,8 +447,8 @@ macio_print_child(device_t dev, device_t child)
 
         retval += bus_print_child_header(dev, child);
 
-        retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-        retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+        retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+        retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 
         retval += bus_print_child_footer(dev, child);
 
@@ -470,8 +470,8 @@ macio_probe_nomatch(device_t dev, device_t child)
 		if ((type = ofw_bus_get_type(child)) == NULL)
 			type = "(unknown)";
 		device_printf(dev, "<%s, %s>", type, ofw_bus_get_name(child));
-		resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-		resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+		resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+		resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 		printf(" (no driver attached)\n");
 	}
 }
@@ -479,7 +479,8 @@ macio_probe_nomatch(device_t dev, device_t child)
 
 static struct resource *
 macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		     u_long start, u_long end, u_long count, u_int flags)
+		     rman_res_t start, rman_res_t end, rman_res_t count,
+		     u_int flags)
 {
 	struct		macio_softc *sc;
 	int		needactivate;

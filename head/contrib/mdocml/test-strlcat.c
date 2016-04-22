@@ -4,6 +4,6 @@ int
 main(void)
 {
 	char buf[3] = "a";
-	return( ! (2 == strlcat(buf, "b", sizeof(buf)) &&
-	    'a' == buf[0] && 'b' == buf[1] && '\0' == buf[2]));
+	return ! (strlcat(buf, "b", sizeof(buf)) == 2 &&
+	    buf[0] == 'a' && buf[1] == 'b' && buf[2] == '\0');
 }

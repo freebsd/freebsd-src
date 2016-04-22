@@ -32,8 +32,8 @@ void MCSubtargetInfo::InitMCProcessorInfo(StringRef CPU, StringRef FS) {
     CPUSchedModel = &MCSchedModel::GetDefaultSchedModel();
 }
 
-void MCSubtargetInfo::setDefaultFeatures(StringRef CPU) {
-  FeatureBits = getFeatures(CPU, "", ProcDesc, ProcFeatures);
+void MCSubtargetInfo::setDefaultFeatures(StringRef CPU, StringRef FS) {
+  FeatureBits = getFeatures(CPU, FS, ProcDesc, ProcFeatures);
 }
 
 MCSubtargetInfo::MCSubtargetInfo(
@@ -63,32 +63,30 @@ FeatureBitset MCSubtargetInfo::ToggleFeature(const FeatureBitset &FB) {
 /// ToggleFeature - Toggle a feature and returns the re-computed feature
 /// bits. This version will also change all implied bits.
 FeatureBitset MCSubtargetInfo::ToggleFeature(StringRef FS) {
-  SubtargetFeatures Features;
-  FeatureBits = Features.ToggleFeature(FeatureBits, FS, ProcFeatures);
+  SubtargetFeatures::ToggleFeature(FeatureBits, FS, ProcFeatures);
   return FeatureBits;
 }
 
 FeatureBitset MCSubtargetInfo::ApplyFeatureFlag(StringRef FS) {
-  SubtargetFeatures Features;
-  FeatureBits = Features.ApplyFeatureFlag(FeatureBits, FS, ProcFeatures);
+  SubtargetFeatures::ApplyFeatureFlag(FeatureBits, FS, ProcFeatures);
   return FeatureBits;
 }
 
 const MCSchedModel &MCSubtargetInfo::getSchedModelForCPU(StringRef CPU) const {
   assert(ProcSchedModels && "Processor machine model not available!");
 
-  unsigned NumProcs = ProcDesc.size();
-#ifndef NDEBUG
-  for (size_t i = 1; i < NumProcs; i++) {
-    assert(strcmp(ProcSchedModels[i - 1].Key, ProcSchedModels[i].Key) < 0 &&
-           "Processor machine model table is not sorted");
-  }
-#endif
+  ArrayRef<SubtargetInfoKV> SchedModels(ProcSchedModels, ProcDesc.size());
+
+  assert(std::is_sorted(SchedModels.begin(), SchedModels.end(),
+                    [](const SubtargetInfoKV &LHS, const SubtargetInfoKV &RHS) {
+                      return strcmp(LHS.Key, RHS.Key) < 0;
+                    }) &&
+         "Processor machine model table is not sorted");
 
   // Find entry
-  const SubtargetInfoKV *Found =
-    std::lower_bound(ProcSchedModels, ProcSchedModels+NumProcs, CPU);
-  if (Found == ProcSchedModels+NumProcs || StringRef(Found->Key) != CPU) {
+  auto Found =
+    std::lower_bound(SchedModels.begin(), SchedModels.end(), CPU);
+  if (Found == SchedModels.end() || StringRef(Found->Key) != CPU) {
     if (CPU != "help") // Don't error if the user asked for help.
       errs() << "'" << CPU
              << "' is not a recognized processor for this target"

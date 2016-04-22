@@ -46,13 +46,13 @@ struct miscdevice  {
 	umode_t mode;
 };
 
-extern struct class	miscclass;
+extern struct class linux_class_misc;
 
 static inline int
 misc_register(struct miscdevice *misc)
 {
-	misc->this_device = device_create(&miscclass, &linux_rootdev, 0, misc, 
-	    misc->name);
+	misc->this_device = device_create(&linux_class_misc,
+	    &linux_root_device, 0, misc, misc->name);
 	misc->cdev = cdev_alloc();
 	if (misc->cdev == NULL)
 		return -ENOMEM;
@@ -67,7 +67,7 @@ misc_register(struct miscdevice *misc)
 static inline int
 misc_deregister(struct miscdevice *misc)
 {
-	device_destroy(&miscclass, misc->this_device->devt);
+	device_destroy(&linux_class_misc, misc->this_device->devt);
 	cdev_del(misc->cdev);
 
 	return (0);

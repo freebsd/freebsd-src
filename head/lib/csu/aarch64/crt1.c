@@ -54,11 +54,7 @@ __asm("	.text			\n"
 "	.align	0		\n"
 "	.globl	_start		\n"
 "	_start:			\n"
-/* TODO: Remove this when the kernel correctly aligns the stack */
-"	cbnz	x0, 1f		\n" /* Are we using a new kernel? */
-"	mov	x0, sp		\n" /* No, load the args from sp */
-"	and	sp, x0, #~0xf	\n" /* And align the stack */
-"1:	mov	x3, x2		\n" /* cleanup */
+"	mov	x3, x2		\n" /* cleanup */
 "	add	x1, x0, #8	\n" /* load argv */
 "	ldr	x0, [x0]	\n" /* load argc */
 "	add	x2, x1, x0, lsl #3 \n" /* env is after argv */

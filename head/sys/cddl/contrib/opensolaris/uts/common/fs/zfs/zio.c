@@ -22,6 +22,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2011 Nexenta Systems, Inc. All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 #include <sys/sysmacros.h>
@@ -127,10 +128,12 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, sync_pass_rewrite, CTLFLAG_RDTUN,
 
 boolean_t	zio_requeue_io_start_cut_in_line = B_TRUE;
 
+#ifdef illumos
 #ifdef ZFS_DEBUG
 int zio_buf_debug_limit = 16384;
 #else
 int zio_buf_debug_limit = 0;
+#endif
 #endif
 
 void
@@ -153,7 +156,7 @@ zio_init(void)
 		size_t size = (c + 1) << SPA_MINBLOCKSHIFT;
 		size_t p2 = size;
 		size_t align = 0;
-		size_t cflags = (size > zio_buf_debug_limit) ? KMC_NODEBUG : 0;
+		int cflags = zio_exclude_metadata ? KMC_NODEBUG : 0;
 
 		while (!ISP2(p2))
 			p2 &= p2 - 1;
@@ -1217,6 +1220,8 @@ zio_write_bp_init(zio_t *zio)
 			zio->io_pipeline |= ZIO_STAGE_DDT_WRITE;
 			return (ZIO_PIPELINE_CONTINUE);
 		}
+		zio->io_bp_override = NULL;
+		BP_ZERO(bp);
 	}
 
 	if (!BP_IS_HOLE(bp) && bp->blk_birth == zio->io_txg) {
@@ -1438,6 +1443,58 @@ void
 zio_interrupt(zio_t *zio)
 {
 	zio_taskq_dispatch(zio, ZIO_TASKQ_INTERRUPT, B_FALSE);
+}
+
+void
+zio_delay_interrupt(zio_t *zio)
+{
+	/*
+	 * The timeout_generic() function isn't defined in userspace, so
+	 * rather than trying to implement the function, the zio delay
+	 * functionality has been disabled for userspace builds.
+	 */
+
+#ifdef _KERNEL
+	/*
+	 * If io_target_timestamp is zero, then no delay has been registered
+	 * for this IO, thus jump to the end of this function and "skip" the
+	 * delay; issuing it directly to the zio layer.
+	 */
+	if (zio->io_target_timestamp != 0) {
+		hrtime_t now = gethrtime();
+
+		if (now >= zio->io_target_timestamp) {
+			/*
+			 * This IO has already taken longer than the target
+			 * delay to complete, so we don't want to delay it
+			 * any longer; we "miss" the delay and issue it
+			 * directly to the zio layer. This is likely due to
+			 * the target latency being set to a value less than
+			 * the underlying hardware can satisfy (e.g. delay
+			 * set to 1ms, but the disks take 10ms to complete an
+			 * IO request).
+			 */
+
+			DTRACE_PROBE2(zio__delay__miss, zio_t *, zio,
+			    hrtime_t, now);
+
+			zio_interrupt(zio);
+		} else {
+			hrtime_t diff = zio->io_target_timestamp - now;
+
+			DTRACE_PROBE3(zio__delay__hit, zio_t *, zio,
+			    hrtime_t, now, hrtime_t, diff);
+
+			(void) timeout_generic(CALLOUT_NORMAL,
+			    (void (*)(void *))zio_interrupt, zio, diff, 1, 0);
+		}
+
+		return;
+	}
+#endif
+
+	DTRACE_PROBE1(zio__delay__skip, zio_t *, zio);
+	zio_interrupt(zio);
 }
 
 /*
@@ -2748,11 +2805,13 @@ zio_vdev_io_start(zio_t *zio)
 		ASSERT0(P2PHASE(zio->io_size, align));
 	} else {
 		/*
-		 * For physical writes, we allow 512b aligned writes and assume
-		 * the device will perform a read-modify-write as necessary.
+		 * For the physical io we allow alignment
+		 * to a logical block size.
 		 */
-		ASSERT0(P2PHASE(zio->io_offset, SPA_MINBLOCKSIZE));
-		ASSERT0(P2PHASE(zio->io_size, SPA_MINBLOCKSIZE));
+		uint64_t log_align =
+		    1ULL << vd->vdev_top->vdev_logical_ashift;
+		ASSERT0(P2PHASE(zio->io_offset, log_align));
+		ASSERT0(P2PHASE(zio->io_size, log_align));
 	}
 
 	VERIFY(zio->io_type == ZIO_TYPE_READ || spa_writeable(spa));

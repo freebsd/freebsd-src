@@ -58,6 +58,14 @@
 #include "hunt_impl.h"
 #endif	/* EFSYS_OPT_HUNTINGTON */
 
+#if EFSYS_OPT_MEDFORD
+#include "medford_impl.h"
+#endif	/* EFSYS_OPT_MEDFORD */
+
+#if (EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#include "ef10_impl.h"
+#endif	/* (EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD) */
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -76,6 +84,7 @@ extern "C" {
 #define	EFX_MOD_WOL		0x00000800
 #define	EFX_MOD_FILTER		0x00001000
 #define	EFX_MOD_PKTFILTER	0x00002000
+#define	EFX_MOD_LIC		0x00004000
 
 #define	EFX_RESET_MAC		0x00000001
 #define	EFX_RESET_PHY		0x00000002
@@ -88,6 +97,7 @@ typedef enum efx_mac_type_e {
 	EFX_MAC_FALCON_XMAC,
 	EFX_MAC_SIENA,
 	EFX_MAC_HUNTINGTON,
+	EFX_MAC_MEDFORD,
 	EFX_MAC_NTYPES
 } efx_mac_type_t;
 
@@ -138,6 +148,9 @@ typedef struct efx_tx_ops_s {
 	void		(*etxo_qdesc_tso_create)(efx_txq_t *, uint16_t,
 						uint32_t, uint8_t,
 						efx_desc_t *);
+	void		(*etxo_qdesc_tso2_create)(efx_txq_t *, uint16_t,
+						uint32_t, uint16_t,
+						efx_desc_t *, int);
 	void		(*etxo_qdesc_vlantci_create)(efx_txq_t *, uint16_t,
 						efx_desc_t *);
 #if EFSYS_OPT_QSTATS
@@ -149,10 +162,6 @@ typedef struct efx_tx_ops_s {
 typedef struct efx_rx_ops_s {
 	efx_rc_t	(*erxo_init)(efx_nic_t *);
 	void		(*erxo_fini)(efx_nic_t *);
-#if EFSYS_OPT_RX_HDR_SPLIT
-	efx_rc_t	(*erxo_hdr_split_enable)(efx_nic_t *, unsigned int,
-						 unsigned int);
-#endif
 #if EFSYS_OPT_RX_SCATTER
 	efx_rc_t	(*erxo_scatter_enable)(efx_nic_t *, unsigned int);
 #endif
@@ -162,7 +171,11 @@ typedef struct efx_rx_ops_s {
 	efx_rc_t	(*erxo_scale_key_set)(efx_nic_t *, uint8_t *, size_t);
 	efx_rc_t	(*erxo_scale_tbl_set)(efx_nic_t *, unsigned int *,
 					      size_t);
-#endif
+	uint32_t	(*erxo_prefix_hash)(efx_nic_t *, efx_rx_hash_alg_t,
+					    uint8_t *);
+#endif /* EFSYS_OPT_RX_SCALE */
+	efx_rc_t	(*erxo_prefix_pktlen)(efx_nic_t *, uint8_t *,
+					      uint16_t *);
 	void		(*erxo_qpost)(efx_rxq_t *, efsys_dma_addr_t *, size_t,
 				      unsigned int, unsigned int,
 				      unsigned int);
@@ -181,6 +194,7 @@ typedef struct efx_mac_ops_s {
 	efx_rc_t	(*emo_poll)(efx_nic_t *, efx_link_mode_t *);
 	efx_rc_t	(*emo_up)(efx_nic_t *, boolean_t *);
 	efx_rc_t	(*emo_addr_set)(efx_nic_t *);
+	efx_rc_t	(*emo_pdu_set)(efx_nic_t *);
 	efx_rc_t	(*emo_reconfigure)(efx_nic_t *);
 	efx_rc_t	(*emo_multicast_list_set)(efx_nic_t *);
 	efx_rc_t	(*emo_filter_default_rxq_set)(efx_nic_t *,
@@ -258,16 +272,6 @@ efx_filter_reconfigure(
 
 #endif /* EFSYS_OPT_FILTER */
 
-typedef struct efx_pktfilter_ops_s {
-	efx_rc_t	(*epfo_set)(efx_nic_t *,
-				boolean_t unicst,
-				boolean_t brdcast);
-#if EFSYS_OPT_MCAST_FILTER_LIST
-	efx_rc_t	(*epfo_mcast_list_set)(efx_nic_t *,
-				uint8_t const *addrs, int count);
-#endif /* EFSYS_OPT_MCAST_FILTER_LIST */
-	efx_rc_t	(*epfo_mcast_all)(efx_nic_t *);
-} efx_pktfilter_ops_t;
 
 typedef struct efx_port_s {
 	efx_mac_type_t		ep_mac_type;
@@ -344,6 +348,10 @@ typedef struct efx_intr_ops_s {
 	void		(*eio_disable)(efx_nic_t *);
 	void		(*eio_disable_unlocked)(efx_nic_t *);
 	efx_rc_t	(*eio_trigger)(efx_nic_t *, unsigned int);
+	void		(*eio_status_line)(efx_nic_t *, boolean_t *, uint32_t *);
+	void		(*eio_status_message)(efx_nic_t *, unsigned int,
+				 boolean_t *);
+	void		(*eio_fatal)(efx_nic_t *);
 	void		(*eio_fini)(efx_nic_t *);
 } efx_intr_ops_t;
 
@@ -356,6 +364,7 @@ typedef struct efx_intr_s {
 
 typedef struct efx_nic_ops_s {
 	efx_rc_t	(*eno_probe)(efx_nic_t *);
+	efx_rc_t	(*eno_board_cfg)(efx_nic_t *);
 	efx_rc_t	(*eno_set_drv_limits)(efx_nic_t *, efx_drv_limits_t*);
 	efx_rc_t	(*eno_reset)(efx_nic_t *);
 	efx_rc_t	(*eno_init)(efx_nic_t *);
@@ -438,9 +447,9 @@ typedef struct efx_filter_s {
 #if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
 	falconsiena_filter_t	*ef_falconsiena_filter;
 #endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
-#if EFSYS_OPT_HUNTINGTON
-	hunt_filter_table_t	*ef_hunt_filter_table;
-#endif /* EFSYS_OPT_HUNTINGTON */
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+	ef10_filter_table_t	*ef_ef10_filter_table;
+#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 } efx_filter_t;
 
 extern			void
@@ -454,9 +463,8 @@ falconsiena_filter_tbl_clear(
 
 typedef struct efx_mcdi_ops_s {
 	efx_rc_t	(*emco_init)(efx_nic_t *, const efx_mcdi_transport_t *);
-	void		(*emco_request_copyin)(efx_nic_t *, efx_mcdi_req_t *,
-					unsigned int, boolean_t, boolean_t);
-	void		(*emco_request_copyout)(efx_nic_t *, efx_mcdi_req_t *);
+	void		(*emco_send_request)(efx_nic_t *, void *, size_t,
+					void *, size_t);
 	efx_rc_t	(*emco_poll_reboot)(efx_nic_t *);
 	boolean_t	(*emco_poll_response)(efx_nic_t *);
 	void		(*emco_read_response)(efx_nic_t *, void *, size_t, size_t);
@@ -477,19 +485,21 @@ typedef struct efx_nvram_ops_s {
 #if EFSYS_OPT_DIAG
 	efx_rc_t	(*envo_test)(efx_nic_t *);
 #endif	/* EFSYS_OPT_DIAG */
-	efx_rc_t	(*envo_size)(efx_nic_t *, efx_nvram_type_t, size_t *);
-	efx_rc_t	(*envo_get_version)(efx_nic_t *, efx_nvram_type_t,
+	efx_rc_t	(*envo_type_to_partn)(efx_nic_t *, efx_nvram_type_t,
+					    uint32_t *);
+	efx_rc_t	(*envo_partn_size)(efx_nic_t *, uint32_t, size_t *);
+	efx_rc_t	(*envo_partn_rw_start)(efx_nic_t *, uint32_t, size_t *);
+	efx_rc_t	(*envo_partn_read)(efx_nic_t *, uint32_t,
+					    unsigned int, caddr_t, size_t);
+	efx_rc_t	(*envo_partn_erase)(efx_nic_t *, uint32_t,
+					    unsigned int, size_t);
+	efx_rc_t	(*envo_partn_write)(efx_nic_t *, uint32_t,
+					    unsigned int, caddr_t, size_t);
+	void		(*envo_partn_rw_finish)(efx_nic_t *, uint32_t);
+	efx_rc_t	(*envo_partn_get_version)(efx_nic_t *, uint32_t,
 					    uint32_t *, uint16_t *);
-	efx_rc_t	(*envo_rw_start)(efx_nic_t *, efx_nvram_type_t, size_t *);
-	efx_rc_t	(*envo_read_chunk)(efx_nic_t *, efx_nvram_type_t,
-					    unsigned int, caddr_t, size_t);
-	efx_rc_t	(*envo_erase)(efx_nic_t *, efx_nvram_type_t);
-	efx_rc_t	(*envo_write_chunk)(efx_nic_t *, efx_nvram_type_t,
-					    unsigned int, caddr_t, size_t);
-	void		(*envo_rw_finish)(efx_nic_t *, efx_nvram_type_t);
-	efx_rc_t	(*envo_set_version)(efx_nic_t *, efx_nvram_type_t,
+	efx_rc_t	(*envo_partn_set_version)(efx_nic_t *, uint32_t,
 					    uint16_t *);
-
 } efx_nvram_ops_t;
 #endif /* EFSYS_OPT_NVRAM */
 
@@ -549,7 +559,8 @@ efx_mcdi_nvram_read(
 	__in			uint32_t partn,
 	__in			uint32_t offset,
 	__out_bcount(size)	caddr_t data,
-	__in			size_t size);
+	__in			size_t size,
+	__in			uint32_t mode);
 
 	__checkReturn		efx_rc_t
 efx_mcdi_nvram_erase(
@@ -582,6 +593,18 @@ efx_mcdi_nvram_test(
 #endif	/* EFSYS_OPT_DIAG */
 
 #endif /* EFSYS_OPT_VPD || EFSYS_OPT_NVRAM */
+
+#if EFSYS_OPT_LICENSING
+
+typedef struct efx_lic_ops_s {
+	efx_rc_t	(*elo_update_licenses)(efx_nic_t *);
+	efx_rc_t	(*elo_get_key_stats)(efx_nic_t *, efx_key_stats_t *);
+	efx_rc_t	(*elo_app_state)(efx_nic_t *, uint64_t, boolean_t *);
+	efx_rc_t	(*elo_get_id)(efx_nic_t *, size_t, uint32_t *,
+				      size_t *, uint8_t *);
+} efx_lic_ops_t;
+
+#endif
 
 typedef struct efx_drv_cfg_s {
 	uint32_t		edc_min_vi_count;
@@ -616,7 +639,6 @@ struct efx_nic_s {
 	efx_filter_t		en_filter;
 	efx_filter_ops_t	*en_efop;
 #endif	/* EFSYS_OPT_FILTER */
-	efx_pktfilter_ops_t	*en_epfop;
 #if EFSYS_OPT_MCDI
 	efx_mcdi_t		en_mcdi;
 #endif	/* EFSYS_OPT_MCDI */
@@ -633,6 +655,9 @@ struct efx_nic_s {
 	uint32_t		en_rss_context;
 #endif	/* EFSYS_OPT_RX_SCALE */
 	uint32_t		en_vport_id;
+#if EFSYS_OPT_LICENSING
+	efx_lic_ops_t		*en_elop;
+#endif
 	union {
 #if EFSYS_OPT_FALCON
 		struct {
@@ -664,26 +689,30 @@ struct efx_nic_s {
 			int			enu_unused;
 		} siena;
 #endif	/* EFSYS_OPT_SIENA */
-#if EFSYS_OPT_HUNTINGTON
-		struct {
-			int			enu_vi_base;
-			int			enu_vi_count;
-#if EFSYS_OPT_VPD
-			caddr_t			enu_svpd;
-			size_t			enu_svpd_length;
-#endif	/* EFSYS_OPT_VPD */
-			efx_piobuf_handle_t	enu_piobuf_handle[HUNT_PIOBUF_NBUFS];
-			uint32_t		enu_piobuf_count;
-			uint32_t		enu_pio_alloc_map[HUNT_PIOBUF_NBUFS];
-			uint32_t		enu_pio_write_vi_base;
-			/* Memory BAR mapping regions */
-			uint32_t		enu_uc_mem_map_offset;
-			size_t			enu_uc_mem_map_size;
-			uint32_t		enu_wc_mem_map_offset;
-			size_t			enu_wc_mem_map_size;
-		} hunt;
-#endif	/* EFSYS_OPT_HUNTINGTON */
+		int	enu_unused;
 	} en_u;
+#if (EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+	union en_arch {
+		struct {
+			int			ena_vi_base;
+			int			ena_vi_count;
+			int			ena_vi_shift;
+#if EFSYS_OPT_VPD
+			caddr_t			ena_svpd;
+			size_t			ena_svpd_length;
+#endif	/* EFSYS_OPT_VPD */
+			efx_piobuf_handle_t	ena_piobuf_handle[EF10_MAX_PIOBUF_NBUFS];
+			uint32_t		ena_piobuf_count;
+			uint32_t		ena_pio_alloc_map[EF10_MAX_PIOBUF_NBUFS];
+			uint32_t		ena_pio_write_vi_base;
+			/* Memory BAR mapping regions */
+			uint32_t		ena_uc_mem_map_offset;
+			size_t			ena_uc_mem_map_size;
+			uint32_t		ena_wc_mem_map_offset;
+			size_t			ena_wc_mem_map_size;
+		} ef10;
+	} en_arch;
+#endif	/* (EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD) */
 };
 
 
@@ -795,6 +824,10 @@ struct efx_txq_s {
 									\
 		case EFX_FAMILY_HUNTINGTON:				\
 			rev = 'D';					\
+			break;						\
+									\
+		case EFX_FAMILY_MEDFORD:				\
+			rev = 'E';					\
 			break;						\
 									\
 		default:						\
@@ -1109,7 +1142,7 @@ efx_vpd_hunk_next(
 	__in				size_t size,
 	__out				efx_vpd_tag_t *tagp,
 	__out				efx_vpd_keyword_t *keyword,
-	__out_bcount_opt(*paylenp)	unsigned int *payloadp,
+	__out_opt			unsigned int *payloadp,
 	__out_opt			uint8_t *paylenp,
 	__inout				unsigned int *contp);
 

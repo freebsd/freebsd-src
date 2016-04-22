@@ -4,8 +4,10 @@
 #ifndef _MACHDEP_BOOT_MACHDEP_H_
 #define _MACHDEP_BOOT_MACHDEP_H_
 
+#include <machine/acle-compat.h>
+
 /* Structs that need to be initialised by initarm */
-#ifdef ARM_NEW_PMAP
+#if __ARM_ARCH >= 6
 extern vm_offset_t irqstack;
 extern vm_offset_t undstack;
 extern vm_offset_t abtstack;
@@ -35,7 +37,8 @@ struct arm_boot_params;
 vm_offset_t default_parse_boot_param(struct arm_boot_params *abp);
 vm_offset_t freebsd_parse_boot_param(struct arm_boot_params *abp);
 vm_offset_t linux_parse_boot_param(struct arm_boot_params *abp);
-vm_offset_t fake_preload_metadata(struct arm_boot_params *abp);
+vm_offset_t fake_preload_metadata(struct arm_boot_params *abp,
+    void *dtb_ptr, size_t dtb_size);
 vm_offset_t parse_boot_param(struct arm_boot_params *abp);
 void arm_generic_initclocks(void);
 

@@ -27,6 +27,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/module.h>
 #include <sys/socket.h>
 
 #include <netinet/in.h>
@@ -64,6 +65,16 @@ main(void)
 	struct sockaddr_in sin;
 	socklen_t len;
 	int lso, ret;
+
+	/* XXX: PLAIN_TEST_REQUIRE_MODULE "backport" for stable/9 */
+	const char *_mod_name = "accf_data";
+
+	if (modfind(_mod_name) == -1) {
+		printf("1..0 # SKIP - module %s could not be resolved: %s\n",
+		    _mod_name, strerror(errno));
+		_exit(0);
+	}
+	/* XXX: PLAIN_TEST_REQUIRE_MODULE for stable/9 */
 
 	printf("1..11\n");
 
@@ -119,7 +130,7 @@ main(void)
 	 * yet a listen() socket.
 	 */
 	bzero(&afa, sizeof(afa));
-	strcpy(afa.af_name, ACCF_NAME);
+	strncpy(afa.af_name, ACCF_NAME, sizeof(afa.af_name));
 	ret = setsockopt(lso, SOL_SOCKET, SO_ACCEPTFILTER, &afa, sizeof(afa));
 	if (ret == 0)
 		errx(-1, "not ok 5 - setsockopt() before listen() succeeded");
@@ -164,7 +175,7 @@ main(void)
 	 * Step 8: After listen().  This call to setsockopt() should succeed.
 	 */
 	bzero(&afa, sizeof(afa));
-	strcpy(afa.af_name, ACCF_NAME);
+	strncpy(afa.af_name, ACCF_NAME, sizeof(afa.af_name));
 	ret = setsockopt(lso, SOL_SOCKET, SO_ACCEPTFILTER, &afa, sizeof(afa));
 	if (ret != 0)
 		errx(-1, "not ok 9 - setsockopt() after listen() failed with %d "

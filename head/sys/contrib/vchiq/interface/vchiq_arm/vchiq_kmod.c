@@ -173,7 +173,7 @@ bcm_vchiq_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	mtx_init(&sc->lock, "vchiq", MTX_DEF, 0);
+	mtx_init(&sc->lock, "vchiq", 0, MTX_DEF);
 	bcm_vchiq_sc = sc;
 
 	vchiq_init();

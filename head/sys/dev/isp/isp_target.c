@@ -1094,7 +1094,7 @@ isp_handle_ctio2(ispsoftc_t *isp, ct2_entry_t *ct)
 	char *fmsg = NULL;
 
 	if (ct->ct_syshandle) {
-		xs = isp_find_xs_tgt(isp, ct->ct_syshandle);
+		xs = isp_find_xs(isp, ct->ct_syshandle);
 		if (xs == NULL) {
 			pl = ISP_LOGALL;
 		}
@@ -1249,7 +1249,7 @@ isp_handle_ctio7(ispsoftc_t *isp, ct7_entry_t *ct)
 	char *fmsg = NULL;
 
 	if (ct->ct_syshandle) {
-		xs = isp_find_xs_tgt(isp, ct->ct_syshandle);
+		xs = isp_find_xs(isp, ct->ct_syshandle);
 		if (xs == NULL) {
 			pl = ISP_LOGALL;
 		}

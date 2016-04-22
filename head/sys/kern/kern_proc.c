@@ -92,18 +92,15 @@ __FBSDID("$FreeBSD$");
 #endif
 
 SDT_PROVIDER_DEFINE(proc);
-SDT_PROBE_DEFINE4(proc, kernel, ctor, entry, "struct proc *", "int",
-    "void *", "int");
-SDT_PROBE_DEFINE4(proc, kernel, ctor, return, "struct proc *", "int",
-    "void *", "int");
-SDT_PROBE_DEFINE4(proc, kernel, dtor, entry, "struct proc *", "int",
-    "void *", "struct thread *");
-SDT_PROBE_DEFINE3(proc, kernel, dtor, return, "struct proc *", "int",
-    "void *");
-SDT_PROBE_DEFINE3(proc, kernel, init, entry, "struct proc *", "int",
+SDT_PROBE_DEFINE4(proc, , ctor, entry, "struct proc *", "int", "void *",
     "int");
-SDT_PROBE_DEFINE3(proc, kernel, init, return, "struct proc *", "int",
+SDT_PROBE_DEFINE4(proc, , ctor, return, "struct proc *", "int", "void *",
     "int");
+SDT_PROBE_DEFINE4(proc, , dtor, entry, "struct proc *", "int", "void *",
+    "struct thread *");
+SDT_PROBE_DEFINE3(proc, , dtor, return, "struct proc *", "int", "void *");
+SDT_PROBE_DEFINE3(proc, , init, entry, "struct proc *", "int", "int");
+SDT_PROBE_DEFINE3(proc, , init, return, "struct proc *", "int", "int");
 
 MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
 MALLOC_DEFINE(M_SESSION, "session", "session header");
@@ -196,9 +193,9 @@ proc_ctor(void *mem, int size, void *arg, int flags)
 	struct proc *p;
 
 	p = (struct proc *)mem;
-	SDT_PROBE4(proc, kernel, ctor , entry, p, size, arg, flags);
+	SDT_PROBE4(proc, , ctor , entry, p, size, arg, flags);
 	EVENTHANDLER_INVOKE(process_ctor, p);
-	SDT_PROBE4(proc, kernel, ctor , return, p, size, arg, flags);
+	SDT_PROBE4(proc, , ctor , return, p, size, arg, flags);
 	return (0);
 }
 
@@ -214,7 +211,7 @@ proc_dtor(void *mem, int size, void *arg)
 	/* INVARIANTS checks go here */
 	p = (struct proc *)mem;
 	td = FIRST_THREAD_IN_PROC(p);
-	SDT_PROBE4(proc, kernel, dtor, entry, p, size, arg, td);
+	SDT_PROBE4(proc, , dtor, entry, p, size, arg, td);
 	if (td != NULL) {
 #ifdef INVARIANTS
 		KASSERT((p->p_numthreads == 1),
@@ -227,7 +224,7 @@ proc_dtor(void *mem, int size, void *arg)
 	EVENTHANDLER_INVOKE(process_dtor, p);
 	if (p->p_ksi != NULL)
 		KASSERT(! KSI_ONQ(p->p_ksi), ("SIGCHLD queue"));
-	SDT_PROBE3(proc, kernel, dtor, return, p, size, arg);
+	SDT_PROBE3(proc, , dtor, return, p, size, arg);
 }
 
 /*
@@ -239,7 +236,7 @@ proc_init(void *mem, int size, int flags)
 	struct proc *p;
 
 	p = (struct proc *)mem;
-	SDT_PROBE3(proc, kernel, init, entry, p, size, flags);
+	SDT_PROBE3(proc, , init, entry, p, size, flags);
 	p->p_sched = (struct p_sched *)&p[1];
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK | MTX_NEW);
 	mtx_init(&p->p_slock, "process slock", NULL, MTX_SPIN | MTX_NEW);
@@ -251,7 +248,8 @@ proc_init(void *mem, int size, int flags)
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
 	EVENTHANDLER_INVOKE(process_init, p);
 	p->p_stats = pstats_alloc();
-	SDT_PROBE3(proc, kernel, init, return, p, size, flags);
+	p->p_pgrp = NULL;
+	SDT_PROBE3(proc, , init, return, p, size, flags);
 	return (0);
 }
 
@@ -652,13 +650,11 @@ pgadjustjobc(pgrp, entering)
  * entering == 1 => p is entering specified group.
  */
 void
-fixjobc(p, pgrp, entering)
-	register struct proc *p;
-	register struct pgrp *pgrp;
-	int entering;
+fixjobc(struct proc *p, struct pgrp *pgrp, int entering)
 {
-	register struct pgrp *hispgrp;
-	register struct session *mysession;
+	struct pgrp *hispgrp;
+	struct session *mysession;
+	struct proc *q;
 
 	sx_assert(&proctree_lock, SX_LOCKED);
 	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
@@ -679,19 +675,88 @@ fixjobc(p, pgrp, entering)
 	 * their process groups; if so, adjust counts for children's
 	 * process groups.
 	 */
-	LIST_FOREACH(p, &p->p_children, p_sibling) {
-		hispgrp = p->p_pgrp;
+	LIST_FOREACH(q, &p->p_children, p_sibling) {
+		hispgrp = q->p_pgrp;
 		if (hispgrp == pgrp ||
 		    hispgrp->pg_session != mysession)
 			continue;
-		PROC_LOCK(p);
-		if (p->p_state == PRS_ZOMBIE) {
-			PROC_UNLOCK(p);
+		if (q->p_state == PRS_ZOMBIE)
 			continue;
-		}
-		PROC_UNLOCK(p);
 		pgadjustjobc(hispgrp, entering);
 	}
+}
+
+void
+killjobc(void)
+{
+	struct session *sp;
+	struct tty *tp;
+	struct proc *p;
+	struct vnode *ttyvp;
+
+	p = curproc;
+	MPASS(p->p_flag & P_WEXIT);
+	/*
+	 * Do a quick check to see if there is anything to do with the
+	 * proctree_lock held. pgrp and LIST_EMPTY checks are for fixjobc().
+	 */
+	PROC_LOCK(p);
+	if (!SESS_LEADER(p) &&
+	    (p->p_pgrp == p->p_pptr->p_pgrp) &&
+	    LIST_EMPTY(&p->p_children)) {
+		PROC_UNLOCK(p);
+		return;
+	}
+	PROC_UNLOCK(p);
+
+	sx_xlock(&proctree_lock);
+	if (SESS_LEADER(p)) {
+		sp = p->p_session;
+
+		/*
+		 * s_ttyp is not zero'd; we use this to indicate that
+		 * the session once had a controlling terminal. (for
+		 * logging and informational purposes)
+		 */
+		SESS_LOCK(sp);
+		ttyvp = sp->s_ttyvp;
+		tp = sp->s_ttyp;
+		sp->s_ttyvp = NULL;
+		sp->s_ttydp = NULL;
+		sp->s_leader = NULL;
+		SESS_UNLOCK(sp);
+
+		/*
+		 * Signal foreground pgrp and revoke access to
+		 * controlling terminal if it has not been revoked
+		 * already.
+		 *
+		 * Because the TTY may have been revoked in the mean
+		 * time and could already have a new session associated
+		 * with it, make sure we don't send a SIGHUP to a
+		 * foreground process group that does not belong to this
+		 * session.
+		 */
+
+		if (tp != NULL) {
+			tty_lock(tp);
+			if (tp->t_session == sp)
+				tty_signal_pgrp(tp, SIGHUP);
+			tty_unlock(tp);
+		}
+
+		if (ttyvp != NULL) {
+			sx_xunlock(&proctree_lock);
+			if (vn_lock(ttyvp, LK_EXCLUSIVE) == 0) {
+				VOP_REVOKE(ttyvp, REVOKEALL);
+				VOP_UNLOCK(ttyvp, 0);
+			}
+			vrele(ttyvp);
+			sx_xlock(&proctree_lock);
+		}
+	}
+	fixjobc(p, p->p_pgrp, 0);
+	sx_xunlock(&proctree_lock);
 }
 
 /*
@@ -790,7 +855,7 @@ fill_kinfo_aggregate(struct proc *p, struct kinfo_proc *kp)
 	FOREACH_THREAD_IN_PROC(p, td) {
 		thread_lock(td);
 		kp->ki_pctcpu += sched_pctcpu(td);
-		kp->ki_estcpu += td->td_estcpu;
+		kp->ki_estcpu += sched_estcpu(td);
 		thread_unlock(td);
 	}
 }
@@ -1036,7 +1101,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 		rufetchtd(td, &kp->ki_rusage);
 		kp->ki_runtime = cputick2usec(td->td_rux.rux_runtime);
 		kp->ki_pctcpu = sched_pctcpu(td);
-		kp->ki_estcpu = td->td_estcpu;
+		kp->ki_estcpu = sched_estcpu(td);
 		kp->ki_cow = td->td_cow;
 	}
 
@@ -1379,7 +1444,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			p = LIST_FIRST(&allproc);
 		else
 			p = LIST_FIRST(&zombproc);
-		for (; p != 0; p = LIST_NEXT(p, p_list)) {
+		for (; p != NULL; p = LIST_NEXT(p, p_list)) {
 			/*
 			 * Skip embryonic processes.
 			 */
@@ -2469,10 +2534,8 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 	st = stack_create();
 
 	lwpidarray = NULL;
-	numthreads = 0;
 	PROC_LOCK(p);
-repeat:
-	if (numthreads < p->p_numthreads) {
+	do {
 		if (lwpidarray != NULL) {
 			free(lwpidarray, M_TEMP);
 			lwpidarray = NULL;
@@ -2482,9 +2545,7 @@ repeat:
 		lwpidarray = malloc(sizeof(*lwpidarray) * numthreads, M_TEMP,
 		    M_WAITOK | M_ZERO);
 		PROC_LOCK(p);
-		goto repeat;
-	}
-	i = 0;
+	} while (numthreads < p->p_numthreads);
 
 	/*
 	 * XXXRW: During the below loop, execve(2) and countless other sorts
@@ -2495,6 +2556,7 @@ repeat:
 	 * have changed, in which case the right to extract debug info might
 	 * no longer be assured.
 	 */
+	i = 0;
 	FOREACH_THREAD_IN_PROC(p, td) {
 		KASSERT(i < numthreads,
 		    ("sysctl_kern_proc_kstack: numthreads"));
@@ -2918,6 +2980,12 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_SIGTRAMP, sigtramp, CTLFLAG_RD |
 
 int allproc_gen;
 
+/*
+ * stop_all_proc() purpose is to stop all process which have usermode,
+ * except current process for obvious reasons.  This makes it somewhat
+ * unreliable when invoked from multithreaded process.  The service
+ * must not be user-callable anyway.
+ */
 void
 stop_all_proc(void)
 {
@@ -2926,17 +2994,6 @@ stop_all_proc(void)
 	bool restart, seen_stopped, seen_exiting, stopped_some;
 
 	cp = curproc;
-	/*
-	 * stop_all_proc() assumes that all process which have
-	 * usermode must be stopped, except current process, for
-	 * obvious reasons.  Since other threads in the process
-	 * establishing global stop could unstop something, disable
-	 * calls from multithreaded processes as precaution.  The
-	 * service must not be user-callable anyway.
-	 */
-	KASSERT((cp->p_flag & P_HADTHREADS) == 0 ||
-	    (cp->p_flag & P_KTHREAD) != 0, ("mt stop_all_proc"));
-
 allproc_loop:
 	sx_xlock(&allproc_lock);
 	gen = allproc_gen;
@@ -2950,8 +3007,7 @@ allproc_loop:
 		LIST_REMOVE(cp, p_list);
 		LIST_INSERT_AFTER(p, cp, p_list);
 		PROC_LOCK(p);
-		if ((p->p_flag & (P_KTHREAD | P_SYSTEM |
-		    P_TOTAL_STOP)) != 0) {
+		if ((p->p_flag & (P_KPROC | P_SYSTEM | P_TOTAL_STOP)) != 0) {
 			PROC_UNLOCK(p);
 			continue;
 		}
@@ -3023,7 +3079,7 @@ resume_all_proc(void)
 	sx_xunlock(&allproc_lock);
 }
 
-#define	TOTAL_STOP_DEBUG	1
+/* #define	TOTAL_STOP_DEBUG	1 */
 #ifdef TOTAL_STOP_DEBUG
 volatile static int ap_resume;
 #include <sys/mount.h>

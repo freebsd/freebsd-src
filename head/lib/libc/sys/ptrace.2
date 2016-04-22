@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd October 20, 2015
+.Dd December 29, 2015
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -103,7 +103,7 @@ be ignored.
 If the child was created by
 .Xr vfork 2
 system call or
-.Xr rfork(2)
+.Xr rfork 2
 call with the
 .Dv RFMEM
 flag specified, the debugging events are reported to the parent
@@ -372,6 +372,20 @@ The flag is set for first event reported from a new child, which is
 automatically attached due to
 .Dv PT_FOLLOW_FORK
 enabled.
+.It PL_FLAG_BORN
+This flag is set for the first event reported from a new LWP when LWP
+events are enabled via
+.Dv PT_LWP_EVENTS .
+It is reported along with
+.Dv PL_FLAG_SCX
+and is always reported if LWP events are enabled.
+.It PL_FLAG_EXITED
+This flag is set for the last event reported by an exiting LWP when
+LWP events are enabled via
+.Dv PT_LWP_EVENTS .
+Note that this event is not reported when the last LWP in a process exits.
+The termination of the last thread is reported via a normal process exit
+event.
 .El
 .It pl_sigmask
 The current signal mask of the LWP
@@ -463,6 +477,29 @@ Child processes do not inherit this property.
 The traced process will set the
 .Dv PL_FLAG_FORKED
 flag upon exit from a system call that creates a new process.
+.It PT_LWP_EVENTS
+This request controls tracing of LWP creation and destruction.
+If
+.Fa data
+is non-zero,
+then LWPs will stop to report creation and destruction events.
+If
+.Fa data
+is zero,
+then LWP creation and destruction events will not be reported.
+By default, tracing is not enabled for LWP events.
+Child processes do not inherit this property.
+New LWPs will stop to report an event with
+.Dv PL_FLAG_BORN
+set before executing their first instruction.
+Exiting LWPs will stop to report an event with
+.Dv PL_FLAG_EXITED
+set before completing their termination.
+.Pp
+Note that new processes do not report an event for the creation of their
+initial thread,
+and exiting processes do not report an event for the termination of the
+last thread.
 .It PT_VM_TIMESTAMP
 This request returns the generation number or timestamp of the memory map of
 the traced process as the return value from

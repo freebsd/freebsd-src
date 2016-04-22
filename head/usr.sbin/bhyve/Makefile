@@ -3,10 +3,13 @@
 #
 
 PROG=	bhyve
+PACKAGE=	bhyve
 
 DEBUG_FLAGS= -g -O0
 
 MAN=	bhyve.8
+
+BHYVE_SYSDIR?=${SRCTOP}
 
 SRCS=	\
 	atkbdc.c		\
@@ -42,7 +45,7 @@ SRCS=	\
 	xmsr.c			\
 	spinup_ap.c
 
-.PATH:	${.CURDIR}/../../sys/amd64/vmm
+.PATH:  ${BHYVE_SYSDIR}/sys/amd64/vmm
 SRCS+=	vmm_instruction_emul.c
 
 LIBADD=	vmmapi md pthread

@@ -164,25 +164,36 @@ SSP_CFLAGS?=	-fstack-protector
 CFLAGS+=	${SSP_CFLAGS}
 .endif # SSP && !ARM && !MIPS
 
-# Allow user-specified additional warning flags, plus compiler specific flag overrides.
-# Unless we've overriden this...
+# Allow user-specified additional warning flags, plus compiler and file
+# specific flag overrides, unless we've overriden this...
 .if ${MK_WARNS} != "no"
 CFLAGS+=	${CWARNFLAGS} ${CWARNFLAGS.${COMPILER_TYPE}}
+CFLAGS+=	${CWARNFLAGS.${.IMPSRC:T}}
 .endif
 
 CFLAGS+=	 ${CFLAGS.${COMPILER_TYPE}}
 CXXFLAGS+=	 ${CXXFLAGS.${COMPILER_TYPE}}
 
+ACFLAGS+=	${ACFLAGS.${.IMPSRC:T}}
+CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
+CXXFLAGS+=	${CXXFLAGS.${.IMPSRC:T}}
+
+.if defined(SRCTOP)
+# Prevent rebuilding during install to support read-only objdirs.
+.if !make(all) && make(install) && empty(.MAKE.MODE:Mmeta)
+CFLAGS+=	ERROR-tried-to-rebuild-during-make-install
+.endif
+.endif
+
 # Tell bmake not to mistake standard targets for things to be searched for
 # or expect to ever be up-to-date.
-PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
+PHONY_NOTMAIN = analyze afterdepend afterinstall all beforedepend beforeinstall \
 		beforelinking build build-tools buildconfig buildfiles \
-		buildincludes checkdpadd clean cleandepend cleandir cleanobj \
-		configure depend dependall distclean distribute exe \
+		buildincludes check checkdpadd clean cleandepend cleandir \
+		cleanobj configure depend distclean distribute exe \
 		files html includes install installconfig installfiles \
-		installincludes lint obj objlink objs objwarn realall \
-		realdepend realinstall regress subdir-all subdir-depend \
-		subdir-install tags whereobj
+		installincludes lint obj objlink objs objwarn \
+		realinstall tags whereobj
 
 # we don't want ${PROG} to be PHONY
 .PHONY: ${PHONY_NOTMAIN:N${PROG:U}}
@@ -197,8 +208,9 @@ staging stage_libs stage_files stage_as stage_links stage_symlinks:
 .else
 # allow targets like beforeinstall to be leveraged
 DESTDIR= ${STAGE_OBJTOP}
+.export DESTDIR
 
-.if commands(beforeinstall)
+.if target(beforeinstall)
 .if !empty(_LIBS) || (${MK_STAGING_PROG} != "no" && !defined(INTERNALPROG))
 staging: beforeinstall
 .endif
@@ -208,7 +220,7 @@ staging: beforeinstall
 .if ${MK_STAGING_PROG} != "no" && !defined(INTERNALPROG)
 STAGE_DIR.prog= ${STAGE_OBJTOP}${BINDIR}
 
-.if !empty(PROG) || !empty(PROGS)
+.if !empty(PROG)
 .if defined(PROGNAME)
 STAGE_AS_SETS+= prog
 STAGE_AS_${PROG}= ${PROGNAME}
@@ -230,7 +242,6 @@ stage_files.shlib: ${_LIBS:M*.so.*}
 .endif
 
 .if defined(SHLIB_LINK) && commands(${SHLIB_LINK:R}.ld)
-_LDSCRIPTROOT?= ${STAGE_OBJTOP}
 STAGE_AS_SETS+= ldscript
 STAGE_AS.ldscript+= ${SHLIB_LINK:R}.ld
 stage_as.ldscript: ${SHLIB_LINK:R}.ld
@@ -293,3 +304,10 @@ STAGE_SYMLINKS.links= ${SYMLINKS}
 .endif
 .endif
 
+.if defined(META_TARGETS)
+.for _tgt in ${META_TARGETS}
+.if target(${_tgt})
+${_tgt}: ${META_DEPS}
+.endif
+.endfor
+.endif

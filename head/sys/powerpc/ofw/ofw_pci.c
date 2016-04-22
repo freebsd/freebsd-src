@@ -62,8 +62,8 @@ __FBSDID("$FreeBSD$");
 static int		ofw_pci_read_ivar(device_t, device_t, int,
 			    uintptr_t *);
 static struct		resource * ofw_pci_alloc_resource(device_t bus,
-			    device_t child, int type, int *rid, u_long start,
-			    u_long end, u_long count, u_int flags);
+			    device_t child, int type, int *rid, rman_res_t start,
+			    rman_res_t end, rman_res_t count, u_int flags);
 static int		ofw_pci_release_resource(device_t bus, device_t child,
     			    int type, int rid, struct resource *res);
 static int		ofw_pci_activate_resource(device_t bus, device_t child,
@@ -72,8 +72,8 @@ static int		ofw_pci_deactivate_resource(device_t bus,
     			    device_t child, int type, int rid,
     			    struct resource *res);
 static int		ofw_pci_adjust_resource(device_t bus, device_t child,
-			    int type, struct resource *res, u_long start,
-			    u_long end);
+			    int type, struct resource *res, rman_res_t start,
+			    rman_res_t end);
 
 /*
  * pcib interface.
@@ -135,10 +135,6 @@ ofw_pci_init(device_t dev)
 	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
 	sc->sc_initialized = 1;
-
-	if (OF_getencprop(node, "reg", (pcell_t *)&sc->sc_pcir,
-	    sizeof(sc->sc_pcir)) == -1)
-		return (ENXIO);
 
 	if (OF_getencprop(node, "bus-range", busrange, sizeof(busrange)) != 8)
 		busrange[0] = 0;
@@ -308,7 +304,7 @@ ofw_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
 static struct resource *
 ofw_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct			ofw_pci_softc *sc;
 	struct			resource *rv;
@@ -388,10 +384,10 @@ ofw_pci_activate_resource(device_t bus, device_t child, int type, int rid,
 	}
 	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
 		struct ofw_pci_range *rp;
-		vm_offset_t start;
+		vm_paddr_t start;
 		int space;
 
-		start = (vm_offset_t)rman_get_start(res);
+		start = (vm_paddr_t)rman_get_start(res);
 
 		/*
 		 * Map this through the ranges list
@@ -420,8 +416,8 @@ ofw_pci_activate_resource(device_t bus, device_t child, int type, int rid,
 		}
 
 		if (bootverbose)
-			printf("ofw_pci mapdev: start %zx, len %ld\n", start,
-			    rman_get_size(res));
+			printf("ofw_pci mapdev: start %jx, len %jd\n",
+			    (rman_res_t)start, rman_get_size(res));
 
 		p = pmap_mapdev(start, (vm_size_t)rman_get_size(res));
 		if (p == NULL)
@@ -454,7 +450,7 @@ ofw_pci_deactivate_resource(device_t bus, device_t child, int type, int rid,
 
 static int
 ofw_pci_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *res, u_long start, u_long end)
+    struct resource *res, rman_res_t start, rman_res_t end)
 {
 	struct rman *rm = NULL;
 	struct ofw_pci_softc *sc = device_get_softc(bus);

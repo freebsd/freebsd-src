@@ -4,8 +4,9 @@
 
 PROG=	bhyvectl
 SRCS=	bhyvectl.c
+PACKAGE=	bhyve
 
-MAN=
+MAN=	bhyvectl.8
 
 LIBADD=	vmmapi util
 

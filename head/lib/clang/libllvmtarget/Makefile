@@ -16,6 +16,7 @@ SRCS=	Target.cpp \
 SRCS+=	TargetIntrinsicInfo.cpp
 .endif
 	
-TGHDRS=	Intrinsics
+TGHDRS=	Attributes \
+	Intrinsics
 
 .include "../clang.lib.mk"

@@ -2,10 +2,14 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	clibs
 _LIBCXXRTDIR=	${.CURDIR}/../../contrib/libcxxrt
 HDRDIR=		${.CURDIR}/../../contrib/libc++/include
 SRCDIR=		${.CURDIR}/../../contrib/libc++/src
 CXXINCLUDEDIR=	${INCLUDEDIR}/c++/v${SHLIB_MAJOR}
+.if ${MACHINE_CPUARCH} == "arm"
+STATIC_CXXFLAGS+= -mlong-calls
+.endif
 
 .PATH: ${SRCDIR}
 
@@ -51,6 +55,7 @@ CXXRT_SRCS+=	libelftc_dem_gnu3.c\
 		guard.cc
 
 .for _S in ${CXXRT_SRCS}
+CLEANFILES+=	cxxrt_${_S}
 STATICOBJS+=	cxxrt_${_S:R}.o
 cxxrt_${_S}: ${_LIBCXXRTDIR}/${_S} .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}

@@ -92,8 +92,8 @@ static int	siba_activate_resource(device_t, device_t, int, int,
 		    struct resource *);
 static device_t	siba_add_child(device_t, u_int, const char *, int);
 static struct resource *
-		siba_alloc_resource(device_t, device_t, int, int *, u_long,
-		    u_long, u_long, u_int);
+		siba_alloc_resource(device_t, device_t, int, int *, rman_res_t,
+		    rman_res_t, rman_res_t, u_int);
 static int	siba_attach(device_t);
 #ifdef notyet
 static void	siba_destroy_devinfo(struct siba_devinfo *);
@@ -337,22 +337,19 @@ siba_attach(device_t dev)
 static struct siba_devid *
 siba_dev_match(uint16_t vid, uint16_t devid, uint8_t rev)
 {
-	size_t			 i, bound;
+	size_t			 i;
 	struct siba_devid	*sd;
 
-	bound = sizeof(siba_devids) / sizeof(struct siba_devid);
 	sd = &siba_devids[0];
-	for (i = 0; i < bound; i++, sd++) {
+	for (i = 0; i < nitems(siba_devids); i++, sd++) {
 		if (((vid == SIBA_VID_ANY) || (vid == sd->sd_vendor)) &&
 		    ((devid == SIBA_DEVID_ANY) || (devid == sd->sd_device)) &&
 		    ((rev == SIBA_REV_ANY) || (rev == sd->sd_rev) ||
 		     (sd->sd_rev == SIBA_REV_ANY)))
-			break;
+			return(sd);
 	}
-	if (i == bound)
-		sd = NULL;
 
-	return (sd);
+	return (NULL);
 }
 
 static int
@@ -371,7 +368,7 @@ siba_print_child(device_t bus, device_t child)
 
 static struct resource *
 siba_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource			*rv;
 	struct resource_list		*rl;
@@ -383,7 +380,7 @@ siba_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		printf("%s: entry\n", __func__);
 #endif
 
-	isdefault = (start == 0UL && end == ~0UL && count == 1);
+	isdefault = (RMAN_IS_DEFAULT_RANGE(start, end) && count == 1);
 	needactivate = flags & RF_ACTIVE;
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
 	rle = NULL;
@@ -597,8 +594,8 @@ siba_print_all_resources(device_t dev)
 	if (STAILQ_FIRST(rl))
 		retval += printf(" at");
 
-	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 
 	return (retval);
 }

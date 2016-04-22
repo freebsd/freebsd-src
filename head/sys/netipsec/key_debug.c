@@ -36,10 +36,10 @@
 #include "opt_ipsec.h"
 #endif
 
-#include <sys/types.h>
 #include <sys/param.h>
 #ifdef _KERNEL
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/queue.h>
 #endif
@@ -623,7 +623,7 @@ kdebug_secreplay(struct secreplay *rpl)
 }
 
 void
-kdebug_mbufhdr(struct mbuf *m)
+kdebug_mbufhdr(const struct mbuf *m)
 {
 	/* sanity check */
 	if (m == NULL)
@@ -650,9 +650,9 @@ kdebug_mbufhdr(struct mbuf *m)
 }
 
 void
-kdebug_mbuf(struct mbuf *m0)
+kdebug_mbuf(const struct mbuf *m0)
 {
-	struct mbuf *m = m0;
+	const struct mbuf *m = m0;
 	int i, j;
 
 	for (j = 0; m; m = m->m_next) {
@@ -663,7 +663,7 @@ kdebug_mbuf(struct mbuf *m0)
 				printf("\n");
 			if (i % 4 == 0)
 				printf(" ");
-			printf("%02x", mtod(m, u_char *)[i]);
+			printf("%02x", mtod(m, const u_char *)[i]);
 			j++;
 		}
 		printf("\n");

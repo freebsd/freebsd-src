@@ -710,7 +710,7 @@ sbus_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 
 static struct resource *
 sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct sbus_softc *sc;
 	struct rman *rm;
@@ -723,7 +723,7 @@ sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	int i, slot;
 	int isdefault, passthrough;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
 	rle = NULL;
 	sc = device_get_softc(bus);
@@ -821,7 +821,7 @@ sbus_activate_resource(device_t bus, device_t child, int type, int rid,
 
 static int
 sbus_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *r, u_long start, u_long end)
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct sbus_softc *sc;
 	int i;
@@ -929,8 +929,8 @@ sbus_print_res(struct sbus_devinfo *sdi)
 
 	rv = 0;
 	rv += resource_list_print_type(&sdi->sdi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx");
+	    "%#jx");
 	rv += resource_list_print_type(&sdi->sdi_rl, "irq", SYS_RES_IRQ,
-	    "%ld");
+	    "%jd");
 	return (rv);
 }

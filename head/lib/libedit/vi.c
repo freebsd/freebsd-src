@@ -1088,7 +1088,7 @@ vi_history_word(EditLine *el, Int c __attribute__((__unused__)))
 	if (wp == NULL)
 		return CC_ERROR;
 
-	wep = wsp = 0;
+	wep = wsp = NULL;
 	do {
 		while (Isspace(*wp))
 			wp++;
@@ -1101,7 +1101,7 @@ vi_history_word(EditLine *el, Int c __attribute__((__unused__)))
 	} while ((!el->el_state.doingarg || --el->el_state.argument > 0)
 	    && *wp != 0);
 
-	if (wsp == 0 || (el->el_state.doingarg && el->el_state.argument != 0))
+	if (wsp == NULL || (el->el_state.doingarg && el->el_state.argument != 0))
 		return CC_ERROR;
 
 	cv_undo(el);

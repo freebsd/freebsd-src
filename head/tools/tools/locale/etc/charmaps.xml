@@ -187,7 +187,6 @@
 		countries="CN" />
 	<language name="zh"
 		family="Hant"
-		encoding="Big5HKSCS"
 		countries="HK" />
 	<language name="zh"
 		family="Hant"
@@ -444,69 +443,69 @@
 	    unicode="FULLWIDTH HYPHEN-MINUS" />
 	<translation encoding="Big5" cldr="DOLLAR SIGN"
 	    unicode="FULLWIDTH DOLLAR SIGN" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-4E00" ucc="4E00" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-4E03" ucc="4E03" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-4E09" ucc="4E09" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-4E0A" ucc="4E0A" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-4E0B" ucc="4E0B" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-4E0D" ucc="4E0D" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-4E5D" ucc="4E5D" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-4E8C" ucc="4E8C" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-4E94" ucc="4E94" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-516B" ucc="516B" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-516D" ucc="516D" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-5206" ucc="5206" />
 	<translation encoding="eucJP SJIS"
 	    cldr="CJK UNIFIED IDEOGRAPH-524D" ucc="524D" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-5341" ucc="5341" />
 	<translation
-	    encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN eucJP SJIS"
+	    encoding="GB2312 GB18030 GBK Big5 eucCN eucJP SJIS"
 	    cldr="CJK UNIFIED IDEOGRAPH-5348" ucc="5348" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-5426" ucc="5426" />
 	<translation encoding="GB2312 GB18030 GBK eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-5468" ucc="5468" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-56DB" ucc="56DB" />
 	<translation encoding="eucJP SJIS"
 	    cldr="CJK UNIFIED IDEOGRAPH-571F" ucc="571F" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-5B9A" ucc="5B9A" />
 	<translation
-	    encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN eucJP SJIS"
+	    encoding="GB2312 GB18030 GBK Big5 eucCN eucJP SJIS"
 	    cldr="CJK UNIFIED IDEOGRAPH-5E74" ucc="5E74" />
 	<translation encoding="eucJP SJIS"
 	    cldr="CJK UNIFIED IDEOGRAPH-5F8C" ucc="5F8C" />
 	<translation
-	    encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN eucJP SJIS"
+	    encoding="GB2312 GB18030 GBK Big5 eucCN eucJP SJIS"
 	    cldr="CJK UNIFIED IDEOGRAPH-65E5" ucc="65E5" />
 	<translation encoding="GB2312 GB18030 GBK eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-65F6" ucc="65F6" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-661F" ucc="661F" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-662F" ucc="662F" />
-	<translation encoding="Big5 Big5HKSCS"
+	<translation encoding="Big5 "
 	    cldr="CJK UNIFIED IDEOGRAPH-6642" ucc="6642" />
 	<translation encoding="eucJP SJIS"
 	    cldr="CJK UNIFIED IDEOGRAPH-66DC" ucc="66DC" />
 	<translation
-	    encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN eucJP SJIS"
+	    encoding="GB2312 GB18030 GBK Big5 eucCN eucJP SJIS"
 	    cldr="CJK UNIFIED IDEOGRAPH-6708" ucc="6708" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-671F" ucc="671F" />
 	<translation encoding="eucJP SJIS"
 	    cldr="CJK UNIFIED IDEOGRAPH-6728" ucc="6728" />
@@ -516,11 +515,11 @@
 	    cldr="CJK UNIFIED IDEOGRAPH-706B" ucc="706B" />
 	<translation encoding="GB2312 GB18030 GBK eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-786E" ucc="786E" />
-	<translation encoding="Big5 Big5HKSCS"
+	<translation encoding="Big5 "
 	    cldr="CJK UNIFIED IDEOGRAPH-78BA" ucc="78BA" />
-	<translation encoding="GB2312 GB18030 GBK Big5 Big5HKSCS eucCN"
+	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
 	    cldr="CJK UNIFIED IDEOGRAPH-79D2" ucc="79D2" />
-	<translation encoding="Big5 Big5HKSCS"
+	<translation encoding="Big5 "
 	    cldr="CJK UNIFIED IDEOGRAPH-9031" ucc="9031" />
 	<translation encoding="eucJP SJIS"
 	    cldr="CJK UNIFIED IDEOGRAPH-91D1" ucc="91D1" />

@@ -37,6 +37,7 @@ static char sccsid[] = "@(#)fputs.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include "un-namespace.h"
@@ -62,5 +63,7 @@ fputs(const char * __restrict s, FILE * __restrict fp)
 	ORIENT(fp, -1);
 	retval = __sfvwrite(fp, &uio);
 	FUNLOCKFILE(fp);
+	if (retval == 0)
+		return (iov.iov_len > INT_MAX ? INT_MAX : iov.iov_len);
 	return (retval);
 }

@@ -31,10 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
 #if EFSYS_OPT_FALCON
 #include "falcon_nvram.h"
@@ -268,33 +265,34 @@ static efx_phy_ops_t	__efx_phy_siena_ops = {
 };
 #endif	/* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON
-static efx_phy_ops_t	__efx_phy_hunt_ops = {
-	hunt_phy_power,			/* epo_power */
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+static efx_phy_ops_t	__efx_phy_ef10_ops = {
+	ef10_phy_power,			/* epo_power */
 	NULL,				/* epo_reset */
-	hunt_phy_reconfigure,		/* epo_reconfigure */
-	hunt_phy_verify,		/* epo_verify */
+	ef10_phy_reconfigure,		/* epo_reconfigure */
+	ef10_phy_verify,		/* epo_verify */
 	NULL,				/* epo_uplink_check */
 	NULL,				/* epo_downlink_check */
-	hunt_phy_oui_get,		/* epo_oui_get */
+	ef10_phy_oui_get,		/* epo_oui_get */
 #if EFSYS_OPT_PHY_STATS
-	hunt_phy_stats_update,		/* epo_stats_update */
+	ef10_phy_stats_update,		/* epo_stats_update */
 #endif	/* EFSYS_OPT_PHY_STATS */
 #if EFSYS_OPT_PHY_PROPS
 #if EFSYS_OPT_NAMES
-	hunt_phy_prop_name,		/* epo_prop_name */
+	ef10_phy_prop_name,		/* epo_prop_name */
 #endif
-	hunt_phy_prop_get,		/* epo_prop_get */
-	hunt_phy_prop_set,		/* epo_prop_set */
+	ef10_phy_prop_get,		/* epo_prop_get */
+	ef10_phy_prop_set,		/* epo_prop_set */
 #endif	/* EFSYS_OPT_PHY_PROPS */
 #if EFSYS_OPT_BIST
+	/* FIXME: Are these BIST methods appropriate for Medford? */
 	hunt_bist_enable_offline,	/* epo_bist_enable_offline */
 	hunt_bist_start,		/* epo_bist_start */
 	hunt_bist_poll,			/* epo_bist_poll */
 	hunt_bist_stop,			/* epo_bist_stop */
 #endif	/* EFSYS_OPT_BIST */
 };
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
 	__checkReturn	efx_rc_t
 efx_phy_probe(
@@ -359,9 +357,14 @@ efx_phy_probe(
 #endif	/* EFSYS_OPT_SIENA */
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		epop = (efx_phy_ops_t *)&__efx_phy_hunt_ops;
+		epop = (efx_phy_ops_t *)&__efx_phy_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_HUNTINGTON */
+#if EFSYS_OPT_MEDFORD
+	case EFX_FAMILY_MEDFORD:
+		epop = (efx_phy_ops_t *)&__efx_phy_ef10_ops;
+		break;
+#endif	/* EFSYS_OPT_MEDFORD */
 	default:
 		rc = ENOTSUP;
 		goto fail1;
@@ -555,6 +558,38 @@ efx_phy_media_type_get(
 		*typep = epp->ep_module_type;
 	else
 		*typep = epp->ep_fixed_port_type;
+}
+
+	__checkReturn	efx_rc_t
+efx_phy_module_get_info(
+	__in			efx_nic_t *enp,
+	__in			uint8_t dev_addr,
+	__in			uint8_t offset,
+	__in			uint8_t len,
+	__out_bcount(len)	uint8_t *data)
+{
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT(data != NULL);
+
+	if ((uint32_t)offset + len > 0xff) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	if ((rc = efx_mcdi_phy_module_get_info(enp, dev_addr,
+	    offset, len, data)) != 0)
+		goto fail2;
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
 }
 
 #if EFSYS_OPT_PHY_STATS

@@ -16,37 +16,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-dwarf_funcs.So: dwarf_funcs.c
-dwarf_funcs.o: dwarf_funcs.c
-dwarf_funcs.po: dwarf_funcs.c
-dwarf_pro_funcs.So: dwarf_pro_funcs.c
-dwarf_pro_funcs.o: dwarf_pro_funcs.c
-dwarf_pro_funcs.po: dwarf_pro_funcs.c
-dwarf_pro_pubnames.So: dwarf_pro_pubnames.c
-dwarf_pro_pubnames.o: dwarf_pro_pubnames.c
-dwarf_pro_pubnames.po: dwarf_pro_pubnames.c
-dwarf_pro_types.So: dwarf_pro_types.c
-dwarf_pro_types.o: dwarf_pro_types.c
-dwarf_pro_types.po: dwarf_pro_types.c
-dwarf_pro_vars.So: dwarf_pro_vars.c
-dwarf_pro_vars.o: dwarf_pro_vars.c
-dwarf_pro_vars.po: dwarf_pro_vars.c
-dwarf_pro_weaks.So: dwarf_pro_weaks.c
-dwarf_pro_weaks.o: dwarf_pro_weaks.c
-dwarf_pro_weaks.po: dwarf_pro_weaks.c
-dwarf_pubnames.So: dwarf_pubnames.c
-dwarf_pubnames.o: dwarf_pubnames.c
-dwarf_pubnames.po: dwarf_pubnames.c
-dwarf_pubtypes.So: dwarf_pubtypes.c
-dwarf_pubtypes.o: dwarf_pubtypes.c
-dwarf_pubtypes.po: dwarf_pubtypes.c
-dwarf_types.So: dwarf_types.c
-dwarf_types.o: dwarf_types.c
-dwarf_types.po: dwarf_types.c
-dwarf_vars.So: dwarf_vars.c
-dwarf_vars.o: dwarf_vars.c
-dwarf_vars.po: dwarf_vars.c
-dwarf_weaks.So: dwarf_weaks.c
-dwarf_weaks.o: dwarf_weaks.c
-dwarf_weaks.po: dwarf_weaks.c
 .endif

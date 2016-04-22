@@ -297,8 +297,10 @@ int			rchap_receive(struct rchap *rchap,
 char			*rchap_get_response(struct rchap *rchap);
 void			rchap_delete(struct rchap *rchap);
 
+int			parse_conf(struct conf *conf, const char *path);
+int			uclparse_conf(struct conf *conf, const char *path);
+
 struct conf		*conf_new(void);
-struct conf		*conf_new_from_file(const char *path, struct conf *old);
 struct conf		*conf_new_from_kernel(void);
 void			conf_delete(struct conf *conf);
 int			conf_verify(struct conf *conf);

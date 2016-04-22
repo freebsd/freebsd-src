@@ -174,6 +174,7 @@ static int	check_options(struct dirlist *);
 static int	checkmask(struct sockaddr *sa);
 static int	chk_host(struct dirlist *, struct sockaddr *, int *, int *,
 		    int *, int **);
+static char	*strsep_quote(char **stringp, const char *delim);
 static int	create_service(struct netconfig *nconf);
 static void	complete_service(struct netconfig *nconf, char *port_str);
 static void	clearout_service(void);
@@ -278,6 +279,73 @@ static int debug = 0;
 #endif
 
 /*
+ * Similar to strsep(), but it allows for quoted strings
+ * and escaped characters.
+ *
+ * It returns the string (or NULL, if *stringp is NULL),
+ * which is a de-quoted version of the string if necessary.
+ *
+ * It modifies *stringp in place.
+ */
+static char *
+strsep_quote(char **stringp, const char *delim)
+{
+	char *srcptr, *dstptr, *retval;
+	char quot = 0;
+	
+	if (stringp == NULL || *stringp == NULL)
+		return (NULL);
+
+	srcptr = dstptr = retval = *stringp;
+
+	while (*srcptr) {
+		/*
+		 * We're looking for several edge cases here.
+		 * First:  if we're in quote state (quot != 0),
+		 * then we ignore the delim characters, but otherwise
+		 * process as normal, unless it is the quote character.
+		 * Second:  if the current character is a backslash,
+		 * we take the next character as-is, without checking
+		 * for delim, quote, or backslash.  Exception:  if the
+		 * next character is a NUL, that's the end of the string.
+		 * Third:  if the character is a quote character, we toggle
+		 * quote state.
+		 * Otherwise:  check the current character for NUL, or
+		 * being in delim, and end the string if either is true.
+		 */
+		if (*srcptr == '\\') {
+			srcptr++;
+			/*
+			 * The edge case here is if the next character
+			 * is NUL, we want to stop processing.  But if
+			 * it's not NUL, then we simply want to copy it.
+			 */
+			if (*srcptr) {
+				*dstptr++ = *srcptr++;
+			}
+			continue;
+		}
+		if (quot == 0 && (*srcptr == '\'' || *srcptr == '"')) {
+			quot = *srcptr++;
+			continue;
+		}
+		if (quot && *srcptr == quot) {
+			/* End of the quoted part */
+			quot = 0;
+			srcptr++;
+			continue;
+		}
+		if (!quot && strchr(delim, *srcptr))
+			break;
+		*dstptr++ = *srcptr++;
+	}
+
+	*dstptr = 0; /* Terminate the string */
+	*stringp = (*srcptr == '\0') ? NULL : srcptr + 1;
+	return (retval);
+}
+
+/*
  * Mountd server for NFS mount protocol as described in:
  * NFS: Network File System Protocol Specification, RFC1094, Appendix A
  * The optional arguments are the exports file name
@@ -366,7 +434,7 @@ main(int argc, char **argv)
 			break;
 		default:
 			usage();
-		};
+		}
 
 	if (modfind("nfsd") < 0) {
 		/* Not present in kernel, try loading it */
@@ -422,7 +490,7 @@ main(int argc, char **argv)
 	 * list.
 	 */
 	if (nhosts == 0) {
-		hosts = malloc(sizeof(char**));
+		hosts = malloc(sizeof(char *));
 		if (hosts == NULL)
 			out_of_mem();
 		hosts[0] = "*";
@@ -1173,7 +1241,7 @@ xdr_fhs(XDR *xdrsp, caddr_t cp)
 				return (0);
 			return (xdr_long(xdrsp, &auth));
 		}
-	};
+	}
 	return (0);
 }
 
@@ -2472,7 +2540,7 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 				*cp = savedc;
 			ret = 1;
 			goto error_exit;
-		};
+		}
 
 		/*
 		 * For V4:, use the nfssvc() syscall, instead of mount().
@@ -2831,8 +2899,9 @@ parsecred(char *namelist, struct xucred *cr)
 	/*
 	 * Get the user's password table entry.
 	 */
-	names = strsep(&namelist, " \t\n");
+	names = strsep_quote(&namelist, " \t\n");
 	name = strsep(&names, ":");
+	/* Bug?  name could be NULL here */
 	if (isdigit(*name) || *name == '-')
 		pw = getpwuid(atoi(name));
 	else

@@ -44,7 +44,7 @@
 .In sys/rman.h
 .Ft int
 .Fo bus_get_resource
-.Fa "device_t dev" "int type" "int rid" "u_long *startp" "u_long *countp"
+.Fa "device_t dev" "int type" "int rid" "rman_res_t *startp" "rman_res_t *countp"
 .Fc
 .Sh DESCRIPTION
 The

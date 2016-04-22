@@ -3,7 +3,7 @@
 .include <src.opts.mk>
 
 PROG=	units
-FILES=	units.lib
+FILES=	definitions.units
 FILESDIR=	${SHAREDIR}/misc
 
 LIBADD=	edit

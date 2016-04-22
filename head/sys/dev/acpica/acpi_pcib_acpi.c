@@ -91,12 +91,12 @@ static int		acpi_pcib_alloc_msix(device_t pcib, device_t dev,
 			    int *irq);
 static struct resource *acpi_pcib_acpi_alloc_resource(device_t dev,
 			    device_t child, int type, int *rid,
-			    u_long start, u_long end, u_long count,
+			    rman_res_t start, rman_res_t end, rman_res_t count,
 			    u_int flags);
 #ifdef NEW_PCIB
 static int		acpi_pcib_acpi_adjust_resource(device_t dev,
 			    device_t child, int type, struct resource *r,
-			    u_long start, u_long end);
+			    rman_res_t start, rman_res_t end);
 #ifdef PCI_RES_BUS
 static int		acpi_pcib_acpi_release_resource(device_t dev,
 			    device_t child, int type, int rid,
@@ -283,7 +283,7 @@ acpi_pcib_producer_handler(ACPI_RESOURCE *res, void *context)
 
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 static int
-first_decoded_bus(struct acpi_hpcib_softc *sc, u_long *startp)
+first_decoded_bus(struct acpi_hpcib_softc *sc, rman_res_t *startp)
 {
 	struct resource_list_entry *rle;
 
@@ -295,6 +295,43 @@ first_decoded_bus(struct acpi_hpcib_softc *sc, u_long *startp)
 }
 #endif
 
+static void
+acpi_pcib_osc(struct acpi_hpcib_softc *sc)
+{
+	ACPI_STATUS status;
+	uint32_t cap_set[3];
+
+	static uint8_t pci_host_bridge_uuid[ACPI_UUID_LENGTH] = {
+		0x5b, 0x4d, 0xdb, 0x33, 0xf7, 0x1f, 0x1c, 0x40,
+		0x96, 0x57, 0x74, 0x41, 0xc0, 0x3d, 0xd7, 0x66
+	};
+
+	/* Query Support Flag */
+	cap_set[0] = 0;
+
+	/* Support Field: Extended PCI Config Space, MSI */
+	cap_set[1] = 0x11;
+
+	/* Control Field */
+	cap_set[2] = 0;
+
+	status = acpi_EvaluateOSC(sc->ap_handle, pci_host_bridge_uuid, 1,
+	    nitems(cap_set), cap_set);
+	if (ACPI_FAILURE(status)) {
+		if (status == AE_NOT_FOUND)
+			return;
+		device_printf(sc->ap_dev, "_OSC failed: %s\n",
+		    AcpiFormatException(status));
+		return;
+	}
+
+	if (cap_set[0] != 0) {
+		device_printf(sc->ap_dev, "_OSC returned error %#x\n",
+		    cap_set[0]);
+		return;
+	}
+}
+
 static int
 acpi_pcib_acpi_attach(device_t dev)
 {
@@ -304,7 +341,7 @@ acpi_pcib_acpi_attach(device_t dev)
     u_int slot, func, busok;
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
     struct resource *bus_res;
-    u_long start;
+    rman_res_t start;
     int rid;
 #endif
     uint8_t busno;
@@ -320,6 +357,8 @@ acpi_pcib_acpi_attach(device_t dev)
      */
     if (!acpi_DeviceIsPresent(dev))
 	return (ENXIO);
+
+    acpi_pcib_osc(sc);
 
     /*
      * Get our segment number by evaluating _SEG.
@@ -584,7 +623,7 @@ acpi_pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
 
 struct resource *
 acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 #ifdef NEW_PCIB
     struct acpi_hpcib_softc *sc;
@@ -625,7 +664,7 @@ acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
 #ifdef NEW_PCIB
 int
 acpi_pcib_acpi_adjust_resource(device_t dev, device_t child, int type,
-    struct resource *r, u_long start, u_long end)
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct acpi_hpcib_softc *sc;
 

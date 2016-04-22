@@ -136,6 +136,13 @@ struct icmp {
 #define	ICMP_ADVLENMIN	(8 + sizeof (struct ip) + 8)	/* min */
 #define	ICMP_ADVLEN(p)	(8 + ((p)->icmp_ip.ip_hl << 2) + 8)
 	/* N.B.: must separately check that ip_hl >= 5 */
+	/* This is the minimum length required by RFC 792. */
+/*
+ * ICMP_ADVLENPREF is the preferred number of bytes which should be contiguous.
+ * SCTP needs additional 12 bytes to be able to access the initiate tag
+ * in packets containing an INIT chunk.
+ */
+#define	ICMP_ADVLENPREF(p)	(8 + ((p)->icmp_ip.ip_hl << 2) + 8 + 12)
 
 /*
  * Definition of type and code field values.

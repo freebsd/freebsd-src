@@ -52,6 +52,10 @@ struct ofw_compat_data {
 	uintptr_t	 ocd_data;
 };
 
+#define SIMPLEBUS_PNP_DESCR "Z:compat;P:private;"
+#define SIMPLEBUS_PNP_INFO(t) \
+	MODULE_PNP_INFO(SIMPLEBUS_PNP_DESCR, simplebus, t, t, sizeof(t[0]), sizeof(t) / sizeof(t[0]));
+
 /* Generic implementation of ofw_bus_if.m methods and helper routines */
 int	ofw_bus_gen_setup_devinfo(struct ofw_bus_devinfo *, phandle_t);
 void	ofw_bus_gen_destroy_devinfo(struct ofw_bus_devinfo *);
@@ -114,6 +118,8 @@ device_t ofw_bus_find_child_device_by_phandle(device_t bus, phandle_t node);
 int ofw_bus_parse_xref_list_alloc(phandle_t node, const char *list_name,
     const char *cells_name, int idx, phandle_t *producer, int *ncells,
     pcell_t **cells);
+int ofw_bus_parse_xref_list_get_length(phandle_t node, const char *list_name,
+    const char *cells_name, int *count);
 int ofw_bus_find_string_index(phandle_t node, const char *list_name,
     const char *name, int *idx);
 int ofw_bus_string_list_to_array(phandle_t node, const char *list_name,

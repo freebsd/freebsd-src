@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/pmap.h>
 #include <machine/intr_machdep.h>
 
 #include <mips/nlm/hal/haldefs.h>
@@ -72,7 +71,7 @@ __FBSDID("$FreeBSD$");
  */
 static int		xlp_simplebus_probe(device_t dev);
 static struct resource *xlp_simplebus_alloc_resource(device_t, device_t, int,
-    int *, u_long, u_long, u_long, u_int);
+    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static int		xlp_simplebus_activate_resource(device_t, device_t, int,
     int, struct resource *);
 static int		xlp_simplebus_setup_intr(device_t, device_t,
@@ -115,32 +114,24 @@ xlp_simplebus_init_resources(void)
 	    || rman_manage_region(&irq_rman, 0, 255))
 		panic("xlp_simplebus_init_resources irq_rman");
 
-	port_rman.rm_start = 0;
-	port_rman.rm_end = ~0ul;
 	port_rman.rm_type = RMAN_ARRAY;
 	port_rman.rm_descr = "I/O ports";
 	if (rman_init(&port_rman)
 	    || rman_manage_region(&port_rman, PCIE_IO_BASE, PCIE_IO_LIMIT))
 		panic("xlp_simplebus_init_resources port_rman");
 
-	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0ul;
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "I/O memory";
 	if (rman_init(&mem_rman)
 	    || rman_manage_region(&mem_rman, PCIE_MEM_BASE, PCIE_MEM_LIMIT))
 		panic("xlp_simplebus_init_resources mem_rman");
 
-	pci_ecfg_rman.rm_start = 0;
-	pci_ecfg_rman.rm_end = ~0ul;
 	pci_ecfg_rman.rm_type = RMAN_ARRAY;
 	pci_ecfg_rman.rm_descr = "PCI ECFG IO";
 	if (rman_init(&pci_ecfg_rman) || rman_manage_region(&pci_ecfg_rman,
 	    PCI_ECFG_BASE, PCI_ECFG_LIMIT))
 		panic("xlp_simplebus_init_resources pci_ecfg_rman");
 
-	gbu_rman.rm_start = 0;
-	gbu_rman.rm_end = ~0ul;
 	gbu_rman.rm_type = RMAN_ARRAY;
 	gbu_rman.rm_descr = "Flash region";
 	if (rman_init(&gbu_rman)
@@ -174,7 +165,7 @@ xlp_simplebus_probe(device_t dev)
 
 static struct resource *
 xlp_simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct rman			*rm;
 	struct resource			*rv;
@@ -192,7 +183,7 @@ xlp_simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	bustag = NULL;
 
 	if (!passthrough) {
-		isdefault = (start == 0UL && end == ~0UL);
+		isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 		if (isdefault) {
 			rle = resource_list_find(&di->rl, type, *rid);
 			if (rle == NULL)
@@ -218,7 +209,7 @@ xlp_simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			if (j == sc->nranges && sc->nranges != 0) {
 				if (bootverbose)
 					device_printf(bus, "Could not map resource "
-					    "%#lx-%#lx\n", start, end);
+					    "%#jx-%#jx\n", start, end);
 				return (NULL);
 			}
 		}
@@ -244,7 +235,7 @@ xlp_simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		} else {
 			if (bootverbose)
 				device_printf(bus, "Invalid MEM range"
-					    "%#lx-%#lx\n", start, end);
+					    "%#jx-%#jx\n", start, end);
 			return (NULL);
 		}
 		break;
@@ -253,7 +244,7 @@ xlp_simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv == 0) {
+	if (rv == NULL) {
 		device_printf(bus, "%s: could not reserve resource for %s\n",
 		    __func__, device_get_nameunit(child));
 		return (NULL);

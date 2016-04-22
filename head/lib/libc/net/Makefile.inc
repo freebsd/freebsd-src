@@ -12,7 +12,7 @@ SRCS+=	base64.c ether_addr.c eui64.c \
 	getproto.c getprotoent.c getprotoname.c getservent.c \
 	if_indextoname.c if_nameindex.c if_nametoindex.c \
 	ip6opt.c linkaddr.c map_v4v6.c name6.c ntoh.c \
-	nsdispatch.c nslexer.c nsparser.y nss_compat.c \
+	nsdispatch.c nslexer.l nsparser.y nss_compat.c \
 	rcmd.c rcmdsh.c recv.c rthdr.c sctp_sys_calls.c send.c \
         sockatmark.c sourcefilter.c vars.c
 
@@ -34,13 +34,7 @@ CFLAGS+=-I${LIBC_SRCTOP}/resolv
 YFLAGS+=-p_nsyy
 LFLAGS+=-P_nsyy
 
-CLEANFILES+=nslexer.c nslexer.c.*
-
-nslexer.c: nslexer.l nsparser.h
-	${LEX} ${LFLAGS} -o${.TARGET}.tmp1 ${.IMPSRC}
-	sed -e '/YY_BUF_SIZE/s/16384/1024/' ${.TARGET}.tmp1 >${.TARGET}.tmp2
-	rm -f ${.TARGET}.tmp1
-	mv -f ${.TARGET}.tmp2 ${.TARGET}
+CFLAGS.nslexer.c= -DYY_BUF_SIZE=1024
 
 MAN+=	byteorder.3 ethers.3 eui64.3 \
 	getaddrinfo.3 gai_strerror.3 gethostbyname.3 \

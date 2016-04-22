@@ -17,6 +17,7 @@
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
 #include "clang/Basic/IdentifierTable.h"
+#include "clang/Basic/TargetInfo.h"
 #include "clang/Sema/SemaInternal.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -108,6 +109,19 @@ void AttributePool::takePool(AttributeList *pool) {
 
 #include "clang/Sema/AttrParsedAttrKinds.inc"
 
+static StringRef normalizeAttrName(StringRef AttrName, StringRef ScopeName,
+                                   AttributeList::Syntax SyntaxUsed) {
+  // Normalize the attribute name, __foo__ becomes foo. This is only allowable
+  // for GNU attributes.
+  bool IsGNU = SyntaxUsed == AttributeList::AS_GNU ||
+               (SyntaxUsed == AttributeList::AS_CXX11 && ScopeName == "gnu");
+  if (IsGNU && AttrName.size() >= 4 && AttrName.startswith("__") &&
+      AttrName.endswith("__"))
+    AttrName = AttrName.slice(2, AttrName.size() - 2);
+
+  return AttrName;
+}
+
 AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name,
                                            const IdentifierInfo *ScopeName,
                                            Syntax SyntaxUsed) {
@@ -117,13 +131,7 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name,
   if (ScopeName)
     FullName += ScopeName->getName();
 
-  // Normalize the attribute name, __foo__ becomes foo. This is only allowable
-  // for GNU attributes.
-  bool IsGNU = SyntaxUsed == AS_GNU || (SyntaxUsed == AS_CXX11 &&
-                                        FullName == "gnu");
-  if (IsGNU && AttrName.size() >= 4 && AttrName.startswith("__") &&
-      AttrName.endswith("__"))
-    AttrName = AttrName.slice(2, AttrName.size() - 2);
+  AttrName = normalizeAttrName(AttrName, FullName, SyntaxUsed);
 
   // Ensure that in the case of C++11 attributes, we look for '::foo' if it is
   // unscoped.
@@ -137,8 +145,9 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name,
 unsigned AttributeList::getAttributeSpellingListIndex() const {
   // Both variables will be used in tablegen generated
   // attribute spell list index matching code.
-  StringRef Name = AttrName->getName();
   StringRef Scope = ScopeName ? ScopeName->getName() : "";
+  StringRef Name = normalizeAttrName(AttrName->getName(), Scope,
+                                     (AttributeList::Syntax)SyntaxUsed);
 
 #include "clang/Sema/AttrSpellingListIndex.inc"
 
@@ -155,7 +164,7 @@ struct ParsedAttrInfo {
   bool (*DiagAppertainsToDecl)(Sema &S, const AttributeList &Attr,
                                const Decl *);
   bool (*DiagLangOpts)(Sema &S, const AttributeList &Attr);
-  bool (*ExistsInTarget)(const llvm::Triple &T);
+  bool (*ExistsInTarget)(const TargetInfo &Target);
   unsigned (*SpellingIndexToSemanticSpelling)(const AttributeList &Attr);
 };
 
@@ -195,8 +204,8 @@ bool AttributeList::isTypeAttr() const {
   return getInfo(*this).IsType;
 }
 
-bool AttributeList::existsInTarget(const llvm::Triple &T) const {
-  return getInfo(*this).ExistsInTarget(T);
+bool AttributeList::existsInTarget(const TargetInfo &Target) const {
+  return getInfo(*this).ExistsInTarget(Target);
 }
 
 bool AttributeList::isKnownToGCC() const {

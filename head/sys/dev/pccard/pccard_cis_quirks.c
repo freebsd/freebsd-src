@@ -257,9 +257,6 @@ static struct pccard_cis_quirk pccard_cis_quirks[] = {
 	  &pccard_ndc_nd5100_func0, &pccard_ndc_nd5100_func0_cfe0 },
 };
 	
-static int n_pccard_cis_quirks =
-	sizeof(pccard_cis_quirks)/sizeof(pccard_cis_quirks[0]);
-
 static int
 pccard_cis_quirk_match(struct pccard_softc *sc, struct pccard_cis_quirk *q)
 {
@@ -289,7 +286,7 @@ void pccard_check_cis_quirks(device_t dev)
 	pf = NULL;
 	pf_last = NULL;
 
-	for (i=0; i<n_pccard_cis_quirks; i++) {
+	for (i = 0; i < nitems(pccard_cis_quirks); i++) {
 		q = &pccard_cis_quirks[i];
 		if (!pccard_cis_quirk_match(sc, q))
 			continue;

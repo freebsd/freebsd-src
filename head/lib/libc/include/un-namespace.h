@@ -189,6 +189,7 @@
 #undef		readv
 #undef		recvfrom
 #undef		recvmsg
+#undef		recvmmsg
 #undef		select
 #undef		sem_close
 #undef		sem_destroy
@@ -201,6 +202,7 @@
 #undef		sem_unlink
 #undef		sem_wait
 #undef		sendmsg
+#undef		sendmmsg
 #undef		sendto
 #undef		setsockopt
 #undef		sigaction

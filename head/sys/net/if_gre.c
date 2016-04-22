@@ -353,7 +353,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			if (error != 0)
 				goto end;
 #endif
-		};
+		}
 		error = gre_set_tunnel(ifp, src, dst);
 		break;
 	case SIOCDIFPHYADDR:
@@ -682,7 +682,10 @@ gre_input(struct mbuf **mp, int *offp, int proto)
 	struct grehdr *gh;
 	struct ifnet *ifp;
 	struct mbuf *m;
-	uint32_t *opts, key;
+	uint32_t *opts;
+#ifdef notyet
+	uint32_t key;
+#endif
 	uint16_t flags;
 	int hlen, isr, af;
 
@@ -715,17 +718,28 @@ gre_input(struct mbuf **mp, int *offp, int proto)
 		opts++;
 	}
 	if (flags & GRE_FLAGS_KP) {
+#ifdef notyet
+        /* 
+         * XXX: The current implementation uses the key only for outgoing
+         * packets. But we can check the key value here, or even in the
+         * encapcheck function.
+         */
 		key = ntohl(*opts);
+#endif
 		hlen += sizeof(uint32_t);
 		opts++;
+    }
+#ifdef notyet
 	} else
 		key = 0;
-	/*
+
 	if (sc->gre_key != 0 && (key != sc->gre_key || key != 0))
 		goto drop;
-	*/
+#endif
 	if (flags & GRE_FLAGS_SP) {
-		/* seq = ntohl(*opts); */
+#ifdef notyet
+		seq = ntohl(*opts);
+#endif
 		hlen += sizeof(uint32_t);
 	}
 	switch (ntohs(gh->gre_proto)) {
@@ -946,7 +960,7 @@ gre_transmit(struct ifnet *ifp, struct mbuf *m)
 	default:
 		m_freem(m);
 		error = ENETDOWN;
-	};
+	}
 drop:
 	if (error)
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);

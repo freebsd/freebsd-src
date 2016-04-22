@@ -13,18 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ProcessGDBRemote.o: AttrList.inc.h
-ProcessGDBRemote.o: Attrs.inc.h
-ProcessGDBRemote.o: CommentCommandList.inc.h
-ProcessGDBRemote.o: DeclNodes.inc.h
-ProcessGDBRemote.o: DiagnosticCommonKinds.inc.h
-ProcessGDBRemote.o: StmtNodes.inc.h
-ProcessGDBRemote.po: AttrList.inc.h
-ProcessGDBRemote.po: Attrs.inc.h
-ProcessGDBRemote.po: CommentCommandList.inc.h
-ProcessGDBRemote.po: DeclNodes.inc.h
-ProcessGDBRemote.po: DiagnosticCommonKinds.inc.h
-ProcessGDBRemote.po: StmtNodes.inc.h
-ThreadGDBRemote.o: DiagnosticCommonKinds.inc.h
-ThreadGDBRemote.po: DiagnosticCommonKinds.inc.h
 .endif

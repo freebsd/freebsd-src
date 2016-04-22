@@ -7,6 +7,7 @@ configure_args="
     --prefix=/usr
     --sysconfdir=/etc/ssh
     --with-pam
+    --with-ssl-dir=/usr
     --with-tcp-wrappers
     --with-libedit
     --with-ssl-engine
@@ -14,6 +15,19 @@ configure_args="
 " 
 
 set -e
+
+# make sure configure uses the correct compiler
+export CC=$(echo ".include <bsd.lib.mk>" | make -f /dev/stdin -VCC)
+export CPP=$(echo ".include <bsd.lib.mk>" | make -f /dev/stdin -VCPP)
+unset CFLAGS CPPFLAGS LDFLAGS LIBS
+
+# regenerate configure and config.h.in
+autoheader
+autoconf
+
+# reset PATH to avoid picking up the wrong libraries
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin
+unset LD_LIBRARY_PATH
 
 # generate config.h with krb5 and stash it
 sh configure $configure_args --with-kerberos5

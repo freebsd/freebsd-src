@@ -20,6 +20,8 @@ SRCS+=	load_elf64.c reloc_elf64.c
 SRCS+=	load_elf64.c reloc_elf64.c
 .elif ${MACHINE_ARCH} == "mips64" || ${MACHINE_ARCH} == "mips64el"
 SRCS+= load_elf64.c reloc_elf64.c
+.elif ${MACHINE} == "mips"
+SRCS+=	load_elf32.c reloc_elf32.c
 .endif
 
 .if defined(LOADER_NET_SUPPORT)

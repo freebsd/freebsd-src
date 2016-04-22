@@ -40,10 +40,14 @@ struct pcb {
 	/* These two need to be in order as we access them together */
 	uint64_t	pcb_sp;
 	uint64_t	pcb_tpidr_el0;
-	vm_offset_t	pcb_l1addr;
+	vm_offset_t	pcb_l0addr;
 
 	/* Fault handler, the error value is passed in x0 */
 	vm_offset_t	pcb_onfault;
+
+	u_int		pcb_flags;
+#define	PCB_SINGLE_STEP_SHIFT	0
+#define	PCB_SINGLE_STEP		(1 << PCB_SINGLE_STEP_SHIFT)
 
 	/* Place last to simplify the asm to access the rest if the struct */
 	__uint128_t	pcb_vfp[32];

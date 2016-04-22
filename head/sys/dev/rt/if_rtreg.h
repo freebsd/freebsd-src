@@ -62,6 +62,7 @@
 #define	    FC_DROP_CNT_SHIFT	16
 #define	    PSE_RESET		(1<<0)
 
+/* RT305x interrupt registers */
 #define	FE_INT_STATUS	0x10
 #define	    CNT_PPE_AF		(1<<31)
 #define	    CNT_GDM_AF		(1<<29)
@@ -82,6 +83,21 @@
 #define	    TX_DLY_INT		(1<<1) /* TXQ[0|1]_DONE with delay */
 #define	    RX_DLY_INT		(1<<0) /* RX_DONE with delay */
 #define	FE_INT_ENABLE	0x14
+
+/* RT5350 interrupt registers */
+#define RT5350_FE_INT_STATUS    (RT5350_PDMA_BASE + 0x220)
+#define            RT5350_INT_RX_COHERENT      (1<<31)
+#define            RT5350_RX_DLY_INT           (1<<30)
+#define            RT5350_INT_TX_COHERENT      (1<<29)
+#define            RT5350_TX_DLY_INT           (1<<28)
+#define            RT5350_INT_RXQ1_DONE	       (1<<17)
+#define            RT5350_INT_RXQ0_DONE        (1<<16)
+#define            RT5350_INT_TXQ3_DONE        (1<<3)
+#define            RT5350_INT_TXQ2_DONE        (1<<2)
+#define            RT5350_INT_TXQ1_DONE        (1<<1)
+#define            RT5350_INT_TXQ0_DONE        (1<<0)
+#define RT5350_FE_INT_ENABLE    (RT5350_PDMA_BASE + 0x228)
+
 #define	MDIO_CFG2	0x18
 #define	FOE_TS_T	0x1c
 #define	    PSE_FQ_PCNT_MASK	0xff000000
@@ -208,7 +224,9 @@
 #define	    P0_IQ_PCNT_SHIFT	0
 
 #define	PDMA_BASE 0x0100
+#define RT5350_PDMA_BASE 0x0800
 #define	PDMA_GLO_CFG	    0x00
+#define RT5350_PDMA_GLO_CFG 0x204
 #define	    FE_TX_WB_DDONE	(1<<6)
 #define	    FE_DMA_BT_SIZE4	(0<<4)
 #define	    FE_DMA_BT_SIZE8	(1<<4)
@@ -218,6 +236,7 @@
 #define	    FE_TX_DMA_BUSY	(1<<1)
 #define	    FE_TX_DMA_EN	(1<<0)
 #define	PDMA_RST_IDX        0x04
+#define RT5350_PDMA_RST_IDX 0x208
 #define	    FE_RST_DRX_IDX0	(1<<16)
 #define	    FE_RST_DTX_IDX3	(1<<3)
 #define	    FE_RST_DTX_IDX2	(1<<2)
@@ -225,7 +244,9 @@
 #define	    FE_RST_DTX_IDX0	(1<<0)
 
 #define	PDMA_SCH_CFG        0x08
+#define RT5350_PDMA_SCH_CFG 0x280
 #define	DELAY_INT_CFG       0x0C
+#define RT5350_DELAY_INT_CFG 0x20C
 #define	    TXDLY_INT_EN 	(1<<31)
 #define	    TXMAX_PINT_SHIFT	24
 #define	    TXMAX_PTIME_SHIFT	16
@@ -262,6 +283,41 @@
 #define	TX_MAX_CNT(qid)			(((qid>1)?(0x24):(0x14)) + (qid) * 16)
 #define	TX_CTX_IDX(qid)			(((qid>1)?(0x28):(0x18)) + (qid) * 16)
 #define	TX_DTX_IDX(qid)			(((qid>1)?(0x2c):(0x1c)) + (qid) * 16)
+
+#define RT5350_TX_BASE_PTR0        0x000
+#define RT5350_TX_MAX_CNT0         0x004
+#define RT5350_TX_CTX_IDX0         0x008
+#define RT5350_TX_DTX_IDX0         0x00C
+
+#define RT5350_TX_BASE_PTR1        0x010
+#define RT5350_TX_MAX_CNT1         0x014
+#define RT5350_TX_CTX_IDX1         0x018
+#define RT5350_TX_DTX_IDX1         0x01C
+
+#define        RT5350_TX_BASE_PTR2        0x020
+#define        RT5350_TX_MAX_CNT2         0x024
+#define        RT5350_TX_CTX_IDX2         0x028
+#define        RT5350_TX_DTX_IDX2         0x02C
+
+#define        RT5350_TX_BASE_PTR3        0x030
+#define        RT5350_TX_MAX_CNT3         0x034
+#define        RT5350_TX_CTX_IDX3         0x038
+#define        RT5350_TX_DTX_IDX3         0x03C
+
+#define        RT5350_RX_BASE_PTR0        0x100
+#define        RT5350_RX_MAX_CNT0         0x104
+#define        RT5350_RX_CALC_IDX0        0x108
+#define        RT5350_RX_DRX_IDX0         0x10C
+
+#define        RT5350_RX_BASE_PTR1        0x110
+#define        RT5350_RX_MAX_CNT1         0x114
+#define        RT5350_RX_CALC_IDX1        0x118
+#define        RT5350_RX_DRX_IDX1         0x11C
+
+#define        RT5350_TX_BASE_PTR(qid)         ((qid) * 0x10 + 0x000)
+#define        RT5350_TX_MAX_CNT(qid)          ((qid) * 0x10 + 0x004)
+#define        RT5350_TX_CTX_IDX(qid)          ((qid) * 0x10 + 0x008)
+#define        RT5350_TX_DTX_IDX(qid)          ((qid) * 0x10 + 0x00C)
 
 #define	PPE_BASE 0x0200
 

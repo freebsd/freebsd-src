@@ -74,7 +74,7 @@ ed_probe_3Com(device_t dev, int port_rid, int flags)
 	int     i;
 	u_int   memsize;
 	u_char  isa16bit;
-	u_long	conf_maddr, conf_msize, irq, junk, pmem;
+	rman_res_t	conf_maddr, conf_msize, irq, junk, pmem;
 
 	error = ed_alloc_port(dev, 0, ED_3COM_IO_PORTS);
 	if (error)
@@ -324,7 +324,7 @@ ed_probe_3Com(device_t dev, int port_rid, int flags)
 		ed_asic_outb(sc, ED_3COM_IDCFR, ED_3COM_IDCFR_IRQ5);
 		break;
 	default:
-		device_printf(dev, "Invalid irq configuration (%ld) must be 3-5,9 for 3c503\n",
+		device_printf(dev, "Invalid irq configuration (%jd) must be 3-5,9 for 3c503\n",
 			      irq);
 		return (ENXIO);
 	}

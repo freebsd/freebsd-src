@@ -463,7 +463,7 @@ find_sdma_controller(struct sc_info *sc)
 	if (sdma_sc == NULL) {
 		device_printf(sc->dev, "No sDMA found. Can't operate\n");
 		return (ENXIO);
-	};
+	}
 
 	sc->sdma_sc = sdma_sc;
 

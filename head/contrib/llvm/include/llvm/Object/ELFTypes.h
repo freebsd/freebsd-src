@@ -12,7 +12,6 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/Object/Error.h"
-#include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ELF.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/ErrorOr.h"
@@ -307,14 +306,18 @@ struct Elf_Dyn_Base<ELFType<TargetEndianness, true>> {
   } d_un;
 };
 
-/// Elf_Dyn_Impl: This inherits from Elf_Dyn_Base, adding getters and setters.
+/// Elf_Dyn_Impl: This inherits from Elf_Dyn_Base, adding getters.
 template <class ELFT>
 struct Elf_Dyn_Impl : Elf_Dyn_Base<ELFT> {
   using Elf_Dyn_Base<ELFT>::d_tag;
   using Elf_Dyn_Base<ELFT>::d_un;
-  int64_t getTag() const { return d_tag; }
-  uint64_t getVal() const { return d_un.d_val; }
-  uint64_t getPtr() const { return d_un.d_ptr; }
+  typedef typename std::conditional<ELFT::Is64Bits,
+                                    int64_t, int32_t>::type intX_t;
+  typedef typename std::conditional<ELFT::Is64Bits,
+                                    uint64_t, uint32_t>::type uintX_t;
+  intX_t getTag() const { return d_tag; }
+  uintX_t getVal() const { return d_un.d_val; }
+  uintX_t getPtr() const { return d_un.d_ptr; }
 };
 
 // Elf_Rel: Elf Relocation
@@ -478,6 +481,30 @@ struct Elf_Hash_Impl {
   ArrayRef<Elf_Word> chains() const {
     return ArrayRef<Elf_Word>(&nbucket + 2 + nbucket,
                               &nbucket + 2 + nbucket + nchain);
+  }
+};
+
+// .gnu.hash section
+template <class ELFT>
+struct Elf_GnuHash_Impl {
+  LLVM_ELF_IMPORT_TYPES_ELFT(ELFT)
+  Elf_Word nbuckets;
+  Elf_Word symndx;
+  Elf_Word maskwords;
+  Elf_Word shift2;
+
+  ArrayRef<Elf_Off> filter() const {
+    return ArrayRef<Elf_Off>(reinterpret_cast<const Elf_Off *>(&shift2 + 1),
+                             maskwords);
+  }
+
+  ArrayRef<Elf_Word> buckets() const {
+    return ArrayRef<Elf_Word>(
+        reinterpret_cast<const Elf_Word *>(filter().end()), nbuckets);
+  }
+
+  ArrayRef<Elf_Word> values(unsigned DynamicSymCount) const {
+    return ArrayRef<Elf_Word>(buckets().end(), DynamicSymCount - symndx);
   }
 };
 

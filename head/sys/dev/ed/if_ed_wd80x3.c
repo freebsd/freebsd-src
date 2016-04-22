@@ -97,7 +97,7 @@ ed_probe_WD80x3_generic(device_t dev, int flags, uint16_t *intr_vals[])
 	int     i;
 	u_int   memsize;
 	u_char  iptr, isa16bit, sum, totalsum;
-	u_long	irq, junk, pmem;
+	rman_res_t	irq, junk, pmem;
 
 	sc->chip_type = ED_CHIP_TYPE_DP8390;
 

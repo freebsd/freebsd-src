@@ -321,7 +321,6 @@ print_enadis(int enadis, char *s)
 	printf(" %s %sabled", s, (enadis == 0) ? "dis" : "en");
 }
 
-extern int ctrl;
 enum cpu_class cpu_class = CPU_CLASS_NONE;
 
 u_int cpu_pfr(int num)
@@ -388,9 +387,10 @@ void
 identify_arm_cpu(void)
 {
 	u_int cpuid, reg, size, sets, ways;
-	u_int8_t type, linesize;
+	u_int8_t type, linesize, ctrl;
 	int i;
 
+	ctrl = cpu_get_control();
 	cpuid = cpu_ident();
 
 	if (cpuid == 0) {

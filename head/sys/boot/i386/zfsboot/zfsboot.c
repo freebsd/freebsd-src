@@ -42,26 +42,24 @@ __FBSDID("$FreeBSD$");
 #include "util.h"
 #include "cons.h"
 #include "bootargs.h"
+#include "paths.h"
 
 #include "libzfs.h"
 
-#define PATH_DOTCONFIG	"/boot.config"
-#define PATH_CONFIG	"/boot/config"
-#define PATH_BOOT3	"/boot/zfsloader"
-#define PATH_KERNEL	"/boot/kernel/kernel"
+#define ARGS			0x900
+#define NOPT			14
+#define NDEV			3
 
-#define ARGS		0x900
-#define NOPT		14
-#define NDEV		3
+#define BIOS_NUMDRIVES		0x475
+#define DRV_HARD		0x80
+#define DRV_MASK		0x7f
 
-#define BIOS_NUMDRIVES	0x475
-#define DRV_HARD	0x80
-#define DRV_MASK	0x7f
+#define TYPE_AD			0
+#define TYPE_DA			1
+#define TYPE_MAXHARD		TYPE_DA
+#define TYPE_FD			2
 
-#define TYPE_AD		0
-#define TYPE_DA		1
-#define TYPE_MAXHARD	TYPE_DA
-#define TYPE_FD		2
+#define DEV_GELIBOOT_BSIZE	4096
 
 extern uint32_t _end;
 
@@ -108,13 +106,13 @@ static struct bios_smap smap;
 /*
  * The minimum amount of memory to reserve in bios_extmem for the heap.
  */
-#define	HEAP_MIN	(3 * 1024 * 1024)
+#define	HEAP_MIN		(3 * 1024 * 1024)
 
 static char *heap_next;
 static char *heap_end;
 
 /* Buffers that must not span a 64k boundary. */
-#define READ_BUF_SIZE	8192
+#define READ_BUF_SIZE		8192
 struct dmadat {
 	char rdbuf[READ_BUF_SIZE];	/* for reading large things */
 	char secbuf[READ_BUF_SIZE];	/* for MBR/disklabel */
@@ -125,8 +123,10 @@ void exit(int);
 static void load(void);
 static int parse(void);
 static void bios_getmem(void);
+void *malloc(size_t n);
+void free(void *ptr);
 
-static void *
+void *
 malloc(size_t n)
 {
 	char *p = heap_next;
@@ -134,10 +134,18 @@ malloc(size_t n)
 		printf("malloc failure\n");
 		for (;;)
 		    ;
-		return 0;
+		/* NOTREACHED */
+		return (0);
 	}
 	heap_next += n;
-	return p;
+	return (p);
+}
+
+void
+free(void *ptr)
+{
+
+	return;
 }
 
 static char *
@@ -145,8 +153,13 @@ strdup(const char *s)
 {
 	char *p = malloc(strlen(s) + 1);
 	strcpy(p, s);
-	return p;
+	return (p);
 }
+
+#ifdef LOADER_GELI_SUPPORT
+#include "geliboot.c"
+static char gelipw[GELI_PW_MAXLEN];
+#endif
 
 #include "zfsimpl.c"
 
@@ -187,8 +200,9 @@ static int
 vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 {
 	char *p;
-	daddr_t lba;
-	unsigned int nb;
+	daddr_t lba, alignlba;
+	off_t alignoff, diff;
+	unsigned int nb, alignnb;
 	struct dsk *dsk = (struct dsk *) priv;
 
 	if ((off & (DEV_BSIZE - 1)) || (bytes & (DEV_BSIZE - 1)))
@@ -197,16 +211,52 @@ vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 	p = buf;
 	lba = off / DEV_BSIZE;
 	lba += dsk->start;
+	/* Align reads to 4k else 4k sector GELIs will not decrypt. */
+	alignoff = off & ~ (off_t)(DEV_GELIBOOT_BSIZE - 1);
+	/* Round LBA down to nearest multiple of DEV_GELIBOOT_BSIZE bytes. */
+	alignlba = alignoff / DEV_BSIZE;
+	/*
+	 * The read must be aligned to DEV_GELIBOOT_BSIZE bytes relative to the
+	 * start of the GELI partition, not the start of the actual disk.
+	 */
+	alignlba += dsk->start;
+	diff = (lba - alignlba) * DEV_BSIZE;
+
 	while (bytes > 0) {
 		nb = bytes / DEV_BSIZE;
 		if (nb > READ_BUF_SIZE / DEV_BSIZE)
 			nb = READ_BUF_SIZE / DEV_BSIZE;
-		if (drvread(dsk, dmadat->rdbuf, lba, nb))
+		/*
+		 * Ensure that the read size plus the leading offset does not
+		 * exceed the size of the read buffer.
+		 */
+		if (nb * DEV_BSIZE + diff > READ_BUF_SIZE)
+		    nb -= diff / DEV_BSIZE;
+		/*
+		 * Round the number of blocks to read up to the nearest multiple
+		 * of DEV_GELIBOOT_BSIZE.
+		 */
+		alignnb = nb + (diff / DEV_BSIZE) +
+		    (DEV_GELIBOOT_BSIZE / DEV_BSIZE - 1) & ~
+		    (unsigned int)(DEV_GELIBOOT_BSIZE / DEV_BSIZE - 1);
+
+		if (drvread(dsk, dmadat->rdbuf, alignlba, alignnb))
 			return -1;
-		memcpy(p, dmadat->rdbuf, nb * DEV_BSIZE);
+#ifdef LOADER_GELI_SUPPORT
+		/* decrypt */
+		if (is_geli(dsk) == 0) {
+			if (geli_read(dsk, ((alignlba - dsk->start) *
+			    DEV_BSIZE), dmadat->rdbuf, alignnb * DEV_BSIZE))
+				return (-1);
+		}
+#endif
+		memcpy(p, dmadat->rdbuf + diff, nb * DEV_BSIZE);
 		p += nb * DEV_BSIZE;
 		lba += nb;
+		alignlba += alignnb;
 		bytes -= nb * DEV_BSIZE;
+		/* Don't need the leading offset after the first block. */
+		diff = 0;
 	}
 
 	return 0;
@@ -238,7 +288,7 @@ bios_getmem(void)
 	v86.es = VTOPSEG(&smap);
 	v86.edi = VTOPOFF(&smap);
 	v86int();
-	if ((v86.efl & 1) || (v86.eax != SMAP_SIG))
+	if (V86_CY(v86.efl) || (v86.eax != SMAP_SIG))
 	    break;
 	/* look for a low-memory segment that's large enough */
 	if ((smap.type == SMAP_TYPE_MEMORY) && (smap.base == 0) &&
@@ -285,7 +335,7 @@ bios_getmem(void)
 	v86.addr = 0x15;		/* int 0x15 function 0xe801*/
 	v86.eax = 0xe801;
 	v86int();
-	if (!(v86.efl & 1)) {
+	if (!V86_CY(v86.efl)) {
 	    bios_extmem = ((v86.ecx & 0xffff) + ((v86.edx & 0xffff) * 64)) * 1024;
 	}
     }
@@ -306,7 +356,7 @@ bios_getmem(void)
 	high_heap_size = HEAP_MIN;
 	high_heap_base = bios_extmem + 0x100000 - HEAP_MIN;
     }
-}    
+}
 
 /*
  * Try to detect a device supported by the legacy int13 BIOS
@@ -320,7 +370,7 @@ int13probe(int drive)
     v86.edx = drive;
     v86int();
     
-    if (!(v86.efl & 0x1) &&				/* carry clear */
+    if (!V86_CY(v86.efl) &&				/* carry clear */
 	((v86.edx & 0xff) != (drive & DRV_MASK))) {	/* unit # OK */
 	if ((v86.ecx & 0x3f) == 0) {			/* absurd sector size */
 		return(0);				/* skip device */
@@ -350,20 +400,38 @@ probe_drive(struct dsk *dsk)
 #ifdef GPT
     struct gpt_hdr hdr;
     struct gpt_ent *ent;
-    daddr_t slba, elba;
     unsigned part, entries_per_sec;
 #endif
+    daddr_t slba, elba;
     struct dos_partition *dp;
     char *sec;
     unsigned i;
 
     /*
-     * If we find a vdev on the whole disk, stop here. Otherwise dig
-     * out the partition table and probe each slice/partition
-     * in turn for a vdev.
+     * If we find a vdev on the whole disk, stop here.
      */
     if (vdev_probe(vdev_read, dsk, NULL) == 0)
 	return;
+
+#ifdef LOADER_GELI_SUPPORT
+    /*
+     * Taste the disk, if it is GELI encrypted, decrypt it and check to see if
+     * it is a usable vdev then. Otherwise dig
+     * out the partition table and probe each slice/partition
+     * in turn for a vdev or GELI encrypted vdev.
+     */
+    elba = drvsize(dsk);
+    if (elba > 0) {
+	elba--;
+    }
+    if (geli_taste(vdev_read, dsk, elba) == 0) {
+	if (geli_passphrase(&gelipw, dsk->unit, ':', 0, dsk) == 0) {
+	    if (vdev_probe(vdev_read, dsk, NULL) == 0) {
+		return;
+	    }
+	}
+    }
+#endif /* LOADER_GELI_SUPPORT */
 
     sec = dmadat->secbuf;
     dsk->start = 0;
@@ -387,6 +455,8 @@ probe_drive(struct dsk *dsk)
      * return the spa_t for the first we find (if requested). This
      * will have the effect of booting from the first pool on the
      * disk.
+     *
+     * If no vdev is found, GELI decrypting the device and try again
      */
     entries_per_sec = DEV_BSIZE / hdr.hdr_entsz;
     slba = hdr.hdr_lba_table;
@@ -400,6 +470,8 @@ probe_drive(struct dsk *dsk)
 	    if (memcmp(&ent->ent_type, &freebsd_zfs_uuid,
 		     sizeof(uuid_t)) == 0) {
 		dsk->start = ent->ent_lba_start;
+		dsk->slice = part + 1;
+		dsk->part = 255;
 		if (vdev_probe(vdev_read, dsk, NULL) == 0) {
 		    /*
 		     * This slice had a vdev. We need a new dsk
@@ -407,13 +479,31 @@ probe_drive(struct dsk *dsk)
 		     */
 		    dsk = copy_dsk(dsk);
 		}
+#ifdef LOADER_GELI_SUPPORT
+		else if (geli_taste(vdev_read, dsk, ent->ent_lba_end -
+			 ent->ent_lba_start) == 0) {
+		    if (geli_passphrase(&gelipw, dsk->unit, 'p', dsk->slice, dsk) == 0) {
+			/*
+			 * This slice has GELI, check it for ZFS.
+			 */
+			if (vdev_probe(vdev_read, dsk, NULL) == 0) {
+			    /*
+			     * This slice had a vdev. We need a new dsk
+			     * structure now since the vdev now owns this one.
+			     */
+			    dsk = copy_dsk(dsk);
+			}
+			break;
+		    }
+		}
+#endif /* LOADER_GELI_SUPPORT */
 	    }
 	}
 	slba++;
     }
     return;
 trymbr:
-#endif
+#endif /* GPT */
 
     if (drvread(dsk, sec, DOSBBSECTOR, 1))
 	return;
@@ -423,13 +513,28 @@ trymbr:
 	if (!dp[i].dp_typ)
 	    continue;
 	dsk->start = dp[i].dp_start;
+	dsk->slice = i + 1;
 	if (vdev_probe(vdev_read, dsk, NULL) == 0) {
-	    /*
-	     * This slice had a vdev. We need a new dsk structure now
-	     * since the vdev now owns this one.
-	     */
 	    dsk = copy_dsk(dsk);
 	}
+#ifdef LOADER_GELI_SUPPORT
+	else if (geli_taste(vdev_read, dsk, dp[i].dp_size -
+		 dp[i].dp_start) == 0) {
+	    if (geli_passphrase(&gelipw, dsk->unit, 's', i, dsk) == 0) {
+		/*
+		 * This slice has GELI, check it for ZFS.
+		 */
+		if (vdev_probe(vdev_read, dsk, NULL) == 0) {
+		    /*
+		     * This slice had a vdev. We need a new dsk
+		     * structure now since the vdev now owns this one.
+		     */
+		    dsk = copy_dsk(dsk);
+		}
+		break;
+	    }
+	}
+#endif /* LOADER_GELI_SUPPORT */
     }
 }
 
@@ -449,8 +554,8 @@ main(void)
 	heap_end = PTOV(high_heap_base + high_heap_size);
 	heap_next = PTOV(high_heap_base);
     } else {
-	heap_next = (char *) dmadat + sizeof(*dmadat);
-	heap_end = (char *) PTOV(bios_basemem);
+	heap_next = (char *)dmadat + sizeof(*dmadat);
+	heap_end = (char *)PTOV(bios_basemem);
     }
 
     dsk = malloc(sizeof(struct dsk));
@@ -476,6 +581,9 @@ main(void)
 
     autoboot = 1;
 
+#ifdef LOADER_GELI_SUPPORT
+    geli_init();
+#endif
     zfs_init();
 
     /*
@@ -550,12 +658,12 @@ main(void)
     }
 
     /*
-     * Try to exec stage 3 boot loader. If interrupted by a keypress,
+     * Try to exec /boot/loader. If interrupted by a keypress,
      * or in case of failure, try to load a kernel directly instead.
      */
 
     if (autoboot && !*kname) {
-	memcpy(kname, PATH_BOOT3, sizeof(PATH_BOOT3));
+	memcpy(kname, PATH_LOADER_ZFS, sizeof(PATH_LOADER_ZFS));
 	if (!keyhit(3)) {
 	    load();
 	    memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
@@ -694,6 +802,12 @@ load(void)
     zfsargs.pool = zfsmount.spa->spa_guid;
     zfsargs.root = zfsmount.rootobj;
     zfsargs.primary_pool = primary_spa->spa_guid;
+#ifdef LOADER_GELI_SUPPORT
+    bcopy(gelipw, zfsargs.gelipw, sizeof(zfsargs.gelipw));
+    bzero(gelipw, sizeof(gelipw));
+#else
+    zfsargs.gelipw[0] = '\0';
+#endif
     if (primary_vdev != NULL)
 	zfsargs.primary_vdev = primary_vdev->v_guid;
     else

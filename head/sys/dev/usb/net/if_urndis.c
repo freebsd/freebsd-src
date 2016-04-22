@@ -235,7 +235,7 @@ urndis_attach(device_t dev)
 
 	cmd = usbd_find_descriptor(uaa->device, NULL, uaa->info.bIfaceIndex,
 	    UDESC_CS_INTERFACE, 0xFF, UDESCSUB_CDC_CM, 0xFF);
-	if (cmd != 0) {
+	if (cmd != NULL) {
 		DPRINTF("Call Mode Descriptor found, dataif=%d\n", cmd->bDataInterface);
 		iface_index[0] = cmd->bDataInterface;
 	}

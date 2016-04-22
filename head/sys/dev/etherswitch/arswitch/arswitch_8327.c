@@ -50,7 +50,7 @@
 #include <dev/iicbus/iicbus.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
-#include <dev/etherswitch/mdio.h>
+#include <dev/mdio/mdio.h>
 
 #include <dev/etherswitch/etherswitch.h>
 
@@ -662,7 +662,7 @@ ar8327_hw_setup(struct arswitch_softc *sc)
 		/* start PHY autonegotiation? */
 		/* XXX is this done as part of the normal PHY setup? */
 
-	};
+	}
 
 	/* Let things settle */
 	DELAY(1000);

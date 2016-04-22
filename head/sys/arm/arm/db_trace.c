@@ -28,6 +28,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
+#include "opt_ddb.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -43,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/asm.h>
 #include <machine/cpufunc.h>
 #include <machine/db_machdep.h>
+#include <machine/debug_monitor.h>
 #include <machine/pcb.h>
 #include <machine/stack.h>
 #include <machine/vmparam.h>
@@ -127,22 +129,25 @@ db_stack_trace_cmd(struct unwind_state *state)
 	}
 }
 
-/* XXX stubs */
 void
 db_md_list_watchpoints()
 {
+
+	dbg_show_watchpoint();
 }
 
 int
 db_md_clr_watchpoint(db_expr_t addr, db_expr_t size)
 {
-	return (0);
+
+	return (dbg_remove_watchpoint(addr, size));
 }
 
 int
 db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
 {
-	return (0);
+
+	return (dbg_setup_watchpoint(addr, size, HW_WATCHPOINT_RW));
 }
 
 int

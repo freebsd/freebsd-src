@@ -52,6 +52,11 @@ NANO_PACKAGE_LIST="*"
 # where package metadata gets placed
 NANO_PKG_META_BASE=/var/db
 
+# Path to mtree file to apply to anything copied by cust_install_files().
+# If you specify this, the mtree file *must* have an entry for every file and
+# directory located in Files.
+#NANO_CUST_FILES_MTREE=""
+
 # Object tree directory
 # default is subdir of /usr/obj
 #NANO_OBJ=""
@@ -83,6 +88,9 @@ NANO_KERNEL=GENERIC
 # Use "default" to install all built modules.
 NANO_MODULES=
 
+# Early customize commands.
+NANO_EARLY_CUSTOMIZE=""
+
 # Customize commands.
 NANO_CUSTOMIZE=""
 
@@ -93,7 +101,7 @@ NANO_LATE_CUSTOMIZE=""
 NANO_NEWFS="-b 4096 -f 512 -i 8192 -U"
 
 # The drive name of the media at runtime
-NANO_DRIVE=ad0
+NANO_DRIVE=ada0
 
 # Target media size in 512 bytes sectors
 NANO_MEDIASIZE=2000000
@@ -156,6 +164,8 @@ NANO_SLICE_ROOT=s1
 NANO_SLICE_ALTROOT=s2
 NANO_SLICE_CFG=s3
 NANO_SLICE_DATA=s4
+NANO_ROOT=s1a
+NANO_ALTROOT=s2a
 
 # Default ownwership for nopriv build
 NANO_DEF_UNAME=root
@@ -354,7 +364,7 @@ clean_world ( ) (
 			rm -r ${NANO_OBJ}/
 		fi
 		mkdir -p "${NANO_OBJ}" "${NANO_WORLDDIR}"
-		printenv > ${NANO_OBJ}/_.env
+		printenv > ${NANO_LOG}/_.env
 	else
 		pprint 2 "Clean and create world directory (${NANO_WORLDDIR})"
 		if ! rm -rf "${NANO_WORLDDIR}/" > /dev/null 2>&1 ; then
@@ -383,7 +393,7 @@ make_conf_install ( ) (
 
 install_world ( ) (
 	pprint 2 "installworld"
-	pprint 3 "log: ${NANO_OBJ}/_.iw"
+	pprint 3 "log: ${NANO_LOG}/_.iw"
 
 	(
 	nano_make_install_env
@@ -391,13 +401,13 @@ install_world ( ) (
 	cd "${NANO_SRC}"
 	${NANO_MAKE} installworld DESTDIR="${NANO_WORLDDIR}"
 	chflags -R noschg "${NANO_WORLDDIR}"
-	) > ${NANO_OBJ}/_.iw 2>&1
+	) > ${NANO_LOG}/_.iw 2>&1
 )
 
 install_etc ( ) (
 
 	pprint 2 "install /etc"
-	pprint 3 "log: ${NANO_OBJ}/_.etc"
+	pprint 3 "log: ${NANO_LOG}/_.etc"
 
 	(
 	nano_make_install_env
@@ -407,14 +417,14 @@ install_etc ( ) (
 	# make.conf doesn't get created by default, but some ports need it
 	# so they can spam it.
 	cp /dev/null "${NANO_WORLDDIR}"/etc/make.conf
-	) > ${NANO_OBJ}/_.etc 2>&1
+	) > ${NANO_LOG}/_.etc 2>&1
 )
 
 install_kernel ( ) (
 	local extra
 
 	pprint 2 "install kernel ($NANO_KERNEL)"
-	pprint 3 "log: ${NANO_OBJ}/_.ik"
+	pprint 3 "log: ${NANO_LOG}/_.ik"
 
 	(
 
@@ -430,12 +440,12 @@ install_kernel ( ) (
 	cd "${NANO_SRC}"
 	${NANO_MAKE} installkernel DESTDIR="${NANO_WORLDDIR}"
 
-	) > ${NANO_OBJ}/_.ik 2>&1
+	) > ${NANO_LOG}/_.ik 2>&1
 )
 
 native_xtools ( ) (
 	print 2 "Installing the optimized native build tools for cross env"
-	pprint 3 "log: ${NANO_OBJ}/_.native_xtools"
+	pprint 3 "log: ${NANO_LOG}/_.native_xtools"
 
 	(
 
@@ -444,8 +454,24 @@ native_xtools ( ) (
 	cd "${NANO_SRC}"
 	${NANO_MAKE} native-xtools DESTDIR="${NANO_WORLDDIR}"
 
-	) > ${NANO_OBJ}/_.native_xtools 2>&1
+	) > ${NANO_LOG}/_.native_xtools 2>&1
 )
+
+#
+# Run the requested set of early customization scripts, run before
+# buildworld.
+#
+run_early_customize() {
+
+	pprint 2 "run early customize scripts"
+	for c in $NANO_EARLY_CUSTOMIZE
+	do      
+		pprint 2 "early customize \"$c\""
+		pprint 3 "log: ${NANO_LOG}/_.early_cust.$c"
+		pprint 4 "`type $c`"
+		{ set -x ; $c ; set +x ; } >${NANO_LOG}/_.early_cust.$c 2>&1
+	done
+}
 
 #
 # Run the requested set of customization scripts, run after we've
@@ -458,9 +484,9 @@ run_customize ( ) (
 	for c in $NANO_CUSTOMIZE
 	do
 		pprint 2 "customize \"$c\""
-		pprint 3 "log: ${NANO_OBJ}/_.cust.$c"
+		pprint 3 "log: ${NANO_LOG}/_.cust.$c"
 		pprint 4 "`type $c`"
-		( set -x ; $c ) > ${NANO_OBJ}/_.cust.$c 2>&1
+		( set -x ; $c ) > ${NANO_LOG}/_.cust.$c 2>&1
 	done
 )
 
@@ -474,9 +500,9 @@ run_late_customize ( ) (
 	for c in $NANO_LATE_CUSTOMIZE
 	do
 		pprint 2 "late customize \"$c\""
-		pprint 3 "log: ${NANO_OBJ}/_.late_cust.$c"
+		pprint 3 "log: ${NANO_LOG}/_.late_cust.$c"
 		pprint 4 "`type $c`"
-		( set -x ; $c ) > ${NANO_OBJ}/_.late_cust.$c 2>&1
+		( set -x ; $c ) > ${NANO_LOG}/_.late_cust.$c 2>&1
 	done
 )
 
@@ -500,16 +526,15 @@ fixup_before_diskimage ( ) (
 	if [ -n "${NANO_METALOG}" ]; then
 		pprint 2 "Fixing metalog"
 		cp ${NANO_METALOG} ${NANO_METALOG}.pre
-		(echo "/set uname=${NANO_DEF_UNAME} gname=${NANO_DEF_GNAME}" &&
-			cat ${NANO_METALOG}.pre) | \
-		    ${NANO_TOOLS}/mtree-dedup.awk | \
-		    sed -e 's/ size=[0-9][0-9]*//' | sort > ${NANO_METALOG}
+		echo "/set uname=${NANO_DEF_UNAME} gname=${NANO_DEF_GNAME}" > ${NANO_METALOG}
+		cat ${NANO_METALOG}.pre | ${NANO_TOOLS}/mtree-dedup.awk | \
+		    sed -e 's/ size=[0-9][0-9]*//' | sort >> ${NANO_METALOG}
 	fi	
 )
 
 setup_nanobsd ( ) (
 	pprint 2 "configure nanobsd setup"
-	pprint 3 "log: ${NANO_OBJ}/_.dl"
+	pprint 3 "log: ${NANO_LOG}/_.dl"
 
 	(
 	cd "${NANO_WORLDDIR}"
@@ -546,7 +571,7 @@ setup_nanobsd ( ) (
 	# Put /tmp on the /var ramdisk (could be symlink already)
 	tgt_dir2symlink tmp var/tmp
 
-	) > ${NANO_OBJ}/_.dl 2>&1
+	) > ${NANO_LOG}/_.dl 2>&1
 )
 
 setup_nanobsd_etc ( ) (
@@ -570,7 +595,7 @@ setup_nanobsd_etc ( ) (
 	# save config file for scripts
 	echo "NANO_DRIVE=${NANO_DRIVE}" > etc/nanobsd.conf
 
-	echo "/dev/${NANO_DRIVE}${NANO_SLICE_ROOT}a / ufs ro 1 1" > etc/fstab
+	echo "/dev/${NANO_DRIVE}${NANO_ROOT} / ufs ro 1 1" > etc/fstab
 	echo "/dev/${NANO_DRIVE}${NANO_SLICE_CFG} /cfg ufs rw,noauto 2 2" >> etc/fstab
 	mkdir -p cfg
 	)
@@ -629,7 +654,7 @@ populate_data_slice ( ) (
 
 create_diskimage ( ) (
 	pprint 2 "build diskimage"
-	pprint 3 "log: ${NANO_OBJ}/_.di"
+	pprint 3 "log: ${NANO_LOG}/_.di"
 
 	(
 	echo $NANO_MEDIASIZE $NANO_IMAGES \
@@ -698,7 +723,7 @@ create_diskimage ( ) (
 		# for booting the image from a USB device to work.
 		print "a 1"
 	}
-	' > ${NANO_OBJ}/_.fdisk
+	' > ${NANO_LOG}/_.fdisk
 
 	IMG=${NANO_DISKIMGDIR}/${NANO_IMGNAME}
 	MNT=${NANO_OBJ}/_.mnt
@@ -717,7 +742,7 @@ create_diskimage ( ) (
 
 	trap "echo 'Running exit trap code' ; df -i ${MNT} ; nano_umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
 
-	fdisk -i -f ${NANO_OBJ}/_.fdisk ${MD}
+	fdisk -i -f ${NANO_LOG}/_.fdisk ${MD}
 	fdisk ${MD}
 	# XXX: params
 	# XXX: pick up cached boot* files, they may not be in image anymore.
@@ -732,18 +757,18 @@ create_diskimage ( ) (
 	bsdlabel ${MD}${NANO_SLICE_ROOT}
 
 	# Create first image
-	populate_slice /dev/${MD}${NANO_SLICE_ROOT}a ${NANO_WORLDDIR} ${MNT} "${NANO_SLICE_ROOT}a"
-	mount /dev/${MD}${NANO_SLICE_ROOT}a ${MNT}
+	populate_slice /dev/${MD}${NANO_ROOT} ${NANO_WORLDDIR} ${MNT} "${NANO_ROOT}"
+	mount /dev/${MD}${NANO_ROOT} ${MNT}
 	echo "Generating mtree..."
-	( cd "${MNT}" && mtree -c ) > ${NANO_OBJ}/_.mtree
-	( cd "${MNT}" && du -k ) > ${NANO_OBJ}/_.du
+	( cd "${MNT}" && mtree -c ) > ${NANO_LOG}/_.mtree
+	( cd "${MNT}" && du -k ) > ${NANO_LOG}/_.du
 	nano_umount "${MNT}"
 
 	if [ $NANO_IMAGES -gt 1 -a $NANO_INIT_IMG2 -gt 0 ] ; then
 		# Duplicate to second image (if present)
 		echo "Duplicating to second image..."
 		dd conv=sparse if=/dev/${MD}${NANO_SLICE_ROOT} of=/dev/${MD}${NANO_SLICE_ALTROOT} bs=64k
-		mount /dev/${MD}${NANO_SLICE_ALTROOT}a ${MNT}
+		mount /dev/${MD}${NANO_ALTROOT} ${MNT}
 		for f in ${MNT}/etc/fstab ${MNT}/conf/base/etc/fstab
 		do
 			sed -i "" "s=${NANO_DRIVE}${NANO_SLICE_ROOT}=${NANO_DRIVE}${NANO_SLICE_ALTROOT}=g" $f
@@ -752,7 +777,7 @@ create_diskimage ( ) (
 		# Override the label from the first partition so we
 		# don't confuse glabel with duplicates.
 		if [ -n "${NANO_LABEL}" ]; then
-			tunefs -L ${NANO_LABEL}"${NANO_SLICE_ALTROOT}a" /dev/${MD}${NANO_SLICE_ALTROOT}a
+			tunefs -L ${NANO_LABEL}"${NANO_ALTROOT}" /dev/${MD}${NANO_ALTROOT}
 		fi
 	fi
 	
@@ -791,7 +816,7 @@ create_diskimage ( ) (
 	trap - 1 2 15
 	trap nano_cleanup EXIT
 
-	) > ${NANO_OBJ}/_.di 2>&1
+	) > ${NANO_LOG}/_.di 2>&1
 )
 
 last_orders ( ) (
@@ -889,12 +914,28 @@ cust_allow_ssh_root ( ) (
 cust_install_files ( ) (
 	cd "${NANO_TOOLS}/Files"
 	find . -print | grep -Ev '/(CVS|\.svn|\.hg|\.git)' | cpio -Ldumpv ${NANO_WORLDDIR}
+
+	if [ -n "${NANO_CUST_FILES_MTREE}" -a -f ${NANO_CUST_FILES_MTREE} ]; then
+		CR "mtree -eiU -p /" <${NANO_CUST_FILES_MTREE}
+	fi
 )
 
 #######################################################################
 # Install packages from ${NANO_PACKAGE_DIR}
 
 cust_pkgng ( ) (
+
+	mkdir -p ${NANO_WORLDDIR}/usr/local/etc
+	local PKG_CONF="${NANO_WORLDDIR}/usr/local/etc/pkg.conf"
+	local PKGCMD="env ASSUME_ALWAYS_YES=YES PKG_DBDIR=${NANO_PKG_META_BASE}/pkg SIGNATURE_TYPE=none /usr/sbin/pkg"
+
+	# Ensure pkg.conf points pkg to where the package meta data lives.
+	touch ${PKG_CONF}
+	if grep -Eiq '^PKG_DBDIR:.*' ${PKG_CONF}; then
+		sed -i -e "\|^PKG_DBDIR:.*|Is||PKG_DBDIR: "\"${NANO_PKG_META_BASE}/pkg\""|" ${PKG_CONF}
+	else
+		echo "PKG_DBDIR: \"${NANO_PKG_META_BASE}/pkg\"" >> ${PKG_CONF}
+	fi
 
 	# If the package directory doesn't exist, we're done.
 	if [ ! -d ${NANO_PACKAGE_DIR} ]; then
@@ -910,53 +951,38 @@ cust_pkgng ( ) (
 		echo "FAILED: need a pkg/ package for bootstrapping"
 		exit 2
 	fi
+	NANO_PACKAGE_LIST="${_NANO_PKG_PACKAGE} ${NANO_PACKAGE_LIST}"
 
-	# Copy packages into chroot
-	mkdir -p ${NANO_WORLDDIR}/Pkg
-	(
-		cd "${NANO_PACKAGE_DIR}"
-		find "${NANO_PACKAGE_LIST}" -print |
-		cpio -Ldumpv ${NANO_WORLDDIR}/Pkg
-	)
+	# Mount packages into chroot
+	mkdir -p ${NANO_WORLDDIR}/_.p
+	mount -t nullfs -o noatime -o ro ${NANO_PACKAGE_DIR} ${NANO_WORLDDIR}/_.p
 
-	#Bootstrap pkg
-	CR env ASSUME_ALWAYS_YES=YES SIGNATURE_TYPE=none /usr/sbin/pkg add /Pkg/${_NANO_PKG_PACKAGE}
-	CR pkg -N >/dev/null 2>&1
-	if [ "$?" -ne "0" ]; then
-		echo "FAILED: pkg bootstrapping faied"
-		exit 2
-	fi
-	rm -f ${NANO_WORLDDIR}/Pkg/pkg-*
+	trap "umount ${NANO_WORLDDIR}/_.p ; rm -rf ${NANO_WORLDDIR}/_.p" 1 2 15 EXIT
 
-	# Count & report how many we have to install
-	todo=`ls ${NANO_WORLDDIR}/Pkg | /usr/bin/wc -l`
-	todo=$(expr $todo + 1) # add one for pkg since it is installed already
+	# Install packages
+	todo="$(echo "${NANO_PACKAGE_LIST}" | awk '{ print NF }')"
 	echo "=== TODO: $todo"
-	ls ${NANO_WORLDDIR}/Pkg
+	echo "${NANO_PACKAGE_LIST}"
 	echo "==="
-	while true
-	do
-		# Record how many we have now
- 		have=$(CR env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l)
-
-		# Attempt to install more packages
-		CR0 'ls 'Pkg/*txz' | xargs env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg add'
-
-		# See what that got us
- 		now=$(CR env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l)
-		echo "=== NOW $now"
-		CR env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info
-		echo "==="
-		if [ $now -eq $todo ] ; then
-			echo "DONE $now packages"
-			break
-		elif [ $now -eq $have ] ; then
-			echo "FAILED: Nothing happened on this pass"
-			exit 2
-		fi
+	for _PKG in ${NANO_PACKAGE_LIST}; do
+		CR "${PKGCMD} add /_.p/${_PKG}"
 	done
-	rm -rf ${NANO_WORLDDIR}/Pkg
+
+	CR0 "${PKGCMD} info"
+
+	trap - 1 2 15 EXIT
+	umount ${NANO_WORLDDIR}/_.p
+	rm -rf ${NANO_WORLDDIR}/_.p
 )
+
+#######################################################################
+# Convenience function:
+#	Register all args as early customize function to run just before
+#	build commences.
+
+early_customize_cmd () {
+	NANO_EARLY_CUSTOMIZE="$NANO_EARLY_CUSTOMIZE $*"
+}
 
 #######################################################################
 # Convenience function:
@@ -1025,7 +1051,8 @@ set_defaults_and_export ( ) {
 	: ${NANO_OBJ:=/usr/obj/nanobsd.${NANO_NAME}}
 	: ${MAKEOBJDIRPREFIX:=${NANO_OBJ}}
 	: ${NANO_DISKIMGDIR:=${NANO_OBJ}}
-	NANO_WORLDDIR=${NANO_OBJ}/_.w
+	: ${NANO_WORLDDIR:=${NANO_OBJ}/_.w}
+	: ${NANO_LOG:=${NANO_OBJ}}
 	NANO_MAKE_CONF_BUILD=${MAKEOBJDIRPREFIX}/make.conf.build
 	NANO_MAKE_CONF_INSTALL=${NANO_OBJ}/make.conf.install
 
@@ -1069,6 +1096,7 @@ set_defaults_and_export ( ) {
 	export_var NANO_MODULES
 	export_var NANO_NOPRIV_BUILD
 	export_var NANO_METALOG
+	export_var NANO_LOG
 	export_var SRCCONF
 	export_var SRC_ENV_CONF
 }

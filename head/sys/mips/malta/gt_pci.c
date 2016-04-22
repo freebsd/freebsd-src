@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/pmap.h>
 
 #include <mips/malta/maltareg.h>
 
@@ -150,7 +149,7 @@ static void gt_pci_write_config(device_t, u_int, u_int, u_int, u_int,
     uint32_t, int);
 static int gt_pci_route_interrupt(device_t pcib, device_t dev, int pin);
 static struct resource * gt_pci_alloc_resource(device_t, device_t, int, 
-    int *, u_long, u_long, u_long, u_int);
+    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 
 static void
 gt_pci_mask_irq(void *source)
@@ -631,7 +630,7 @@ gt_write_ivar(device_t dev, device_t child, int which, uintptr_t result)
 
 static struct resource *
 gt_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct gt_pci_softc *sc = device_get_softc(bus);	
 	struct resource *rv = NULL;

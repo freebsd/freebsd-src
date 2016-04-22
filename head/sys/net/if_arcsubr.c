@@ -113,9 +113,8 @@ arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 	error = 0;
 #if defined(INET) || defined(INET6)
-	if (ro != NULL && ro->ro_rt != NULL &&
-	    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
-		is_gw = 1;
+	if (ro != NULL)
+		is_gw = (ro->ro_flags & RT_HAS_GW) != 0;
 #endif
 
 	switch (dst->sa_family) {
@@ -211,7 +210,7 @@ arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 	isphds = arc_isphds(atype);
 	M_PREPEND(m, isphds ? ARC_HDRNEWLEN : ARC_HDRLEN, M_NOWAIT);
-	if (m == 0)
+	if (m == NULL)
 		senderr(ENOBUFS);
 	ah = mtod(m, struct arc_header *);
 	ah->arc_type = atype;
@@ -262,12 +261,12 @@ arc_frag_next(struct ifnet *ifp)
 	struct arc_header *ah;
 
 	ac = (struct arccom *)ifp->if_l2com;
-	if ((m = ac->curr_frag) == 0) {
+	if ((m = ac->curr_frag) == NULL) {
 		int tfrags;
 
 		/* dequeue new packet */
 		IF_DEQUEUE(&ifp->if_snd, m);
-		if (m == 0)
+		if (m == NULL)
 			return 0;
 
 		ah = mtod(m, struct arc_header *);
@@ -297,7 +296,7 @@ arc_frag_next(struct ifnet *ifp)
 		}
 
 		M_PREPEND(m, ARC_HDRNEWLEN, M_NOWAIT);
-		if (m == 0) {
+		if (m == NULL) {
 			m_freem(ac->curr_frag);
 			ac->curr_frag = 0;
 			return 0;
@@ -316,7 +315,7 @@ arc_frag_next(struct ifnet *ifp)
 		ac->curr_frag = 0;
 
 		M_PREPEND(m, ARC_HDRNEWLEN_EXC, M_NOWAIT);
-		if (m == 0)
+		if (m == NULL)
 			return 0;
 
 		ah = mtod(m, struct arc_header *);
@@ -329,7 +328,7 @@ arc_frag_next(struct ifnet *ifp)
 		ac->curr_frag = 0;
 
 		M_PREPEND(m, ARC_HDRNEWLEN, M_NOWAIT);
-		if (m == 0)
+		if (m == NULL)
 			return 0;
 
 		ah = mtod(m, struct arc_header *);
@@ -741,7 +740,7 @@ arc_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		sdl = (struct sockaddr_dl *)sa;
 		if (*LLADDR(sdl) != arcbroadcastaddr)
 			return EADDRNOTAVAIL;
-		*llsa = 0;
+		*llsa = NULL;
 		return 0;
 #ifdef INET
 	case AF_INET:
@@ -764,7 +763,7 @@ arc_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 			 * (This is used for multicast routers.)
 			 */
 			ifp->if_flags |= IFF_ALLMULTI;
-			*llsa = 0;
+			*llsa = NULL;
 			return 0;
 		}
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))

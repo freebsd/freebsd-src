@@ -1,8 +1,8 @@
-.\"	$Id: mandoc_char.7,v 1.59 2015/01/20 19:39:34 schwarze Exp $
+.\"	$Id: mandoc_char.7,v 1.63 2015/09/02 15:38:35 schwarze Exp $
 .\"
 .\" Copyright (c) 2003 Jason McIntyre <jmc@openbsd.org>
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2011 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2011, 2013, 2015 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 20 2015 $
+.Dd $Mdocdate: September 2 2015 $
 .Dt MANDOC_CHAR 7
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@ names; instead, provide ASCII transcriptions of the names.
 .Ss Dashes and Hyphens
 In typography there are different types of dashes of various width:
 the hyphen (-),
-the minus sign (\-),
+the minus sign (\(mi),
 the en-dash (\(en),
 and the em-dash (\(em).
 .Pp
@@ -64,10 +64,10 @@ lorry-driver
 .Pp
 The mathematical minus sign is used for negative numbers or subtraction.
 It should be written as
-.Sq \e- :
+.Sq \e(mi :
 .Bd -unfilled -offset indent
-a = 3 \e- 1;
-b = \e-2;
+a = 3 \e(mi 1;
+b = \e(mi2;
 .Ed
 .Pp
 The en-dash is used to separate the two elements of a range,
@@ -142,6 +142,28 @@ Note that on text lines, literal double-quote characters can be used
 verbatim.
 All other quote-like characters can be used verbatim as well,
 even on request and macro lines.
+.Ss Accents
+In output modes supporting such special output characters, for example
+.Fl T Cm pdf ,
+some
+.Xr roff 7
+formatters convert the following ASCII input characters to the
+following Unicode special output characters:
+.Bl -column x(ga U+2018 -offset indent
+.It \(ga Ta U+2018 Ta left single quotation mark
+.It \(aq Ta U+2019 Ta right single quotation mark
+.It \(ti Ta U+02DC Ta small tilde
+.El
+.Pp
+In prose, this automatic substitution is often desirable;
+but when these characters have to be displayed as plain ASCII
+characters, for example in source code samples, they require
+escaping to render as follows:
+.Bl -column x(ga U+2018 -offset indent
+.It \e(ga Ta U+0060 Ta grave accent
+.It \e(aq Ta U+0027 Ta apostrophe
+.It \e(ti Ta U+007E Ta tilde
+.El
 .Ss Periods
 The period
 .Pq Sq \&.
@@ -196,7 +218,7 @@ Spacing:
 .Bl -column "Input" "Description" -offset indent -compact
 .It Em Input Ta Em Description
 .It Sq \e\ \& Ta unpaddable non-breaking space
-.It \e~      Ta paddable non-breaking space
+.It \e\(ti   Ta paddable non-breaking space
 .It \e0      Ta unpaddable, breaking digit-width space
 .It \e|      Ta one-sixth \e(em narrow space, zero width in nroff mode
 .It \e^      Ta one-twelfth \e(em half-narrow space, zero width in nroff
@@ -371,9 +393,9 @@ Mathematical:
 .It \e(ne    Ta \(ne        Ta not equivalent
 .It \e(ap    Ta \(ap        Ta tilde operator
 .It \e(|=    Ta \(|=        Ta asymptotically equal
-.It \e(=~    Ta \(=~        Ta approximately equal
-.It \e(~~    Ta \(~~        Ta almost equal
-.It \e(~=    Ta \(~=        Ta almost equal
+.It \e(=\(ti Ta \(=~        Ta approximately equal
+.It \e(\(ti\(ti Ta \(~~        Ta almost equal
+.It \e(\(ti= Ta \(~=        Ta almost equal
 .It \e(pt    Ta \(pt        Ta proportionate
 .It \e(es    Ta \(es        Ta empty set
 .It \e(mo    Ta \(mo        Ta element
@@ -436,15 +458,15 @@ Accents:
 .It \e(a.    Ta \(a.        Ta dotted
 .It \e(a^    Ta \(a^        Ta circumflex
 .It \e(aa    Ta \(aa        Ta acute
-.It \e'      Ta \'          Ta acute
+.It \e\(aq   Ta \'          Ta acute
 .It \e(ga    Ta \(ga        Ta grave
-.It \e`      Ta \`          Ta grave
+.It \e\(ga   Ta \`          Ta grave
 .It \e(ab    Ta \(ab        Ta breve
 .It \e(ac    Ta \(ac        Ta cedilla
 .It \e(ad    Ta \(ad        Ta dieresis
 .It \e(ah    Ta \(ah        Ta caron
 .It \e(ao    Ta \(ao        Ta ring
-.It \e(a~    Ta \(a~        Ta tilde
+.It \e(a\(ti Ta \(a~        Ta tilde
 .It \e(ho    Ta \(ho        Ta ogonek
 .It \e(ha    Ta \(ha        Ta hat (text)
 .It \e(ti    Ta \(ti        Ta tilde (text)
@@ -453,32 +475,32 @@ Accents:
 Accented letters:
 .Bl -column "Input" "Rendered" "Description" -offset indent -compact
 .It Em Input Ta Em Rendered Ta Em Description
-.It \e('A    Ta \('A        Ta acute A
-.It \e('E    Ta \('E        Ta acute E
-.It \e('I    Ta \('I        Ta acute I
-.It \e('O    Ta \('O        Ta acute O
-.It \e('U    Ta \('U        Ta acute U
-.It \e('a    Ta \('a        Ta acute a
-.It \e('e    Ta \('e        Ta acute e
-.It \e('i    Ta \('i        Ta acute i
-.It \e('o    Ta \('o        Ta acute o
-.It \e('u    Ta \('u        Ta acute u
-.It \e(`A    Ta \(`A        Ta grave A
-.It \e(`E    Ta \(`E        Ta grave E
-.It \e(`I    Ta \(`I        Ta grave I
-.It \e(`O    Ta \(`O        Ta grave O
-.It \e(`U    Ta \(`U        Ta grave U
-.It \e(`a    Ta \(`a        Ta grave a
-.It \e(`e    Ta \(`e        Ta grave e
-.It \e(`i    Ta \(`i        Ta grave i
-.It \e(`o    Ta \(`i        Ta grave o
-.It \e(`u    Ta \(`u        Ta grave u
-.It \e(~A    Ta \(~A        Ta tilde A
-.It \e(~N    Ta \(~N        Ta tilde N
-.It \e(~O    Ta \(~O        Ta tilde O
-.It \e(~a    Ta \(~a        Ta tilde a
-.It \e(~n    Ta \(~n        Ta tilde n
-.It \e(~o    Ta \(~o        Ta tilde o
+.It \e(\(aqA Ta \('A        Ta acute A
+.It \e(\(aqE Ta \('E        Ta acute E
+.It \e(\(aqI Ta \('I        Ta acute I
+.It \e(\(aqO Ta \('O        Ta acute O
+.It \e(\(aqU Ta \('U        Ta acute U
+.It \e(\(aqa Ta \('a        Ta acute a
+.It \e(\(aqe Ta \('e        Ta acute e
+.It \e(\(aqi Ta \('i        Ta acute i
+.It \e(\(aqo Ta \('o        Ta acute o
+.It \e(\(aqu Ta \('u        Ta acute u
+.It \e(\(gaA Ta \(`A        Ta grave A
+.It \e(\(gaE Ta \(`E        Ta grave E
+.It \e(\(gaI Ta \(`I        Ta grave I
+.It \e(\(gaO Ta \(`O        Ta grave O
+.It \e(\(gaU Ta \(`U        Ta grave U
+.It \e(\(gaa Ta \(`a        Ta grave a
+.It \e(\(gae Ta \(`e        Ta grave e
+.It \e(\(gai Ta \(`i        Ta grave i
+.It \e(\(gao Ta \(`i        Ta grave o
+.It \e(\(gau Ta \(`u        Ta grave u
+.It \e(\(tiA Ta \(~A        Ta tilde A
+.It \e(\(tiN Ta \(~N        Ta tilde N
+.It \e(\(tiO Ta \(~O        Ta tilde O
+.It \e(\(tia Ta \(~a        Ta tilde a
+.It \e(\(tin Ta \(~n        Ta tilde n
+.It \e(\(tio Ta \(~o        Ta tilde o
 .It \e(:A    Ta \(:A        Ta dieresis A
 .It \e(:E    Ta \(:E        Ta dieresis E
 .It \e(:I    Ta \(:I        Ta dieresis I
@@ -657,7 +679,7 @@ manual.
 .Sh UNICODE CHARACTERS
 The escape sequences
 .Pp
-.Dl \e[uXXXX] and \eC'uXXXX'
+.Dl \e[uXXXX] and \eC\(aquXXXX\(aq
 .Pp
 are interpreted as Unicode codepoints.
 The codepoint must be in the range above U+0080 and less than U+10FFFF.
@@ -669,10 +691,6 @@ must be given as uppercase characters,
 and points must be zero-padded to four characters; if
 greater than four characters, no zero padding is allowed.
 Unicode surrogates are not allowed.
-.\" .Pp
-.\" Unicode glyphs attenuate to the
-.\" .Sq \&?
-.\" character if invalid or not rendered by current output media.
 .Sh NUMBERED CHARACTERS
 For backward compatibility with existing manuals,
 .Xr mandoc 1
@@ -685,7 +703,7 @@ escape sequence, inserting the character
 from the current character set into the output.
 Of course, this is inherently non-portable and is already marked
 as deprecated in the Heirloom roff manual.
-For example, do not use \eN'34', use \e(dq, or even the plain
+For example, do not use \eN\(aq34\(aq, use \e(dq, or even the plain
 .Sq \(dq
 character where possible.
 .Sh COMPATIBILITY
@@ -702,14 +720,14 @@ In
 .Fl T Ns Cm ascii ,
 the
 \e(ss, \e(nm, \e(nb, \e(nc, \e(ib, \e(ip, \e(pp, \e[sum], \e[product],
-\e[coproduct], \e(gr, \e(\-h, and \e(a. special characters render
+\e[coproduct], \e(gr, \e(-h, and \e(a. special characters render
 differently between mandoc and groff.
 .It
 In
 .Fl T Ns Cm html
 and
 .Fl T Ns Cm xhtml ,
-the \e(~=, \e(nb, and \e(nc special characters render differently
+the \e(\(ti=, \e(nb, and \e(nc special characters render differently
 between mandoc and groff.
 .It
 The

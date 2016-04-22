@@ -372,7 +372,7 @@ struct strhdr {
 };
 
 #define STRTBLINCR	(sizeof(struct strhdr))
-#define allocsize(size)	(((size) + 1 + STRTBLINCR - 1) & ~(STRTBLINCR - 1))
+#define	allocsize(size)	roundup2((size) + 1, STRTBLINCR)
 
 static struct strhdr strtblhdr[allocsize(NAME_MAX) / STRTBLINCR];
 
@@ -384,7 +384,7 @@ char *
 savename(char *name)
 {
 	struct strhdr *np;
-	long len;
+	size_t len;
 	char *cp;
 
 	if (name == NULL)
@@ -395,7 +395,7 @@ savename(char *name)
 		strtblhdr[len / STRTBLINCR].next = np->next;
 		cp = (char *)np;
 	} else {
-		cp = malloc((unsigned)allocsize(len));
+		cp = malloc(allocsize(len));
 		if (cp == NULL)
 			panic("no space for string table\n");
 	}

@@ -72,7 +72,7 @@
 
 #include "ar.h"
 
-ELFTC_VCSID("$Id: ar.c 3243 2015-08-31 19:28:45Z emaste $");
+ELFTC_VCSID("$Id: ar.c 3319 2016-01-13 21:37:53Z jkoshy $");
 
 enum options
 {
@@ -407,7 +407,7 @@ Usage: %s <command> [options] archive file...\n\
   -F FORMAT | --flavor=FORMAT\n\
                 Create archives with the specified format.\n\
   -S            Do not generate an archive symbol table.\n\
-  -U            Use original metadata, for unique archive checksums.\n"
+  -U            Use original metadata for archive members.\n"
 
 static void
 bsdar_usage(void)

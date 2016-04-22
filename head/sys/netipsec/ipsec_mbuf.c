@@ -34,6 +34,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 
@@ -201,7 +202,7 @@ m_pad(struct mbuf *m, int n)
 	if (pad > M_TRAILINGSPACE(m0)) {
 		/* Add an mbuf to the chain. */
 		MGET(m1, M_NOWAIT, MT_DATA);
-		if (m1 == 0) {
+		if (m1 == NULL) {
 			m_freem(m0);
 			DPRINTF(("%s: unable to get extra mbuf\n", __func__));
 			return NULL;

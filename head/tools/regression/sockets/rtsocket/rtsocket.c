@@ -52,7 +52,7 @@ main(void)
 		    sock);
 	}
 
-	if (errno != EPROTONOSUPPORT)
+	if (errno != EPROTOTYPE)
 		err(-1, "socket(PF_ROUTE, SOCK_STREAM, 0)");
 
 	sock = socket(PF_ROUTE, SOCK_DGRAM, 0);
@@ -62,7 +62,7 @@ main(void)
 		    sock);
 	}
 
-	if (errno != EPROTONOSUPPORT)
+	if (errno != EPROTOTYPE)
 		err(-1, "socket(PF_ROUTE, SOCK_DGRAM, 0)");
 
 	sock = socket(PF_ROUTE, SOCK_RAW, 0);
@@ -77,7 +77,7 @@ main(void)
 		    "socketpair(PF_ROUTE, SOCK_STREAM, 0, socks) success");
 	}
 
-	if (errno != EPROTONOSUPPORT)
+	if (errno != EPROTOTYPE)
 		err(-1, "socketpair(PF_ROUTE, SOCK_STREAM, 0, socks)");
 
 	if (socketpair(PF_ROUTE, SOCK_DGRAM, 0, socks) == 0) {
@@ -87,7 +87,7 @@ main(void)
 		    "socketpair(PF_ROUTE, SOCK_DGRAM, 0, socks) success");
 	}
 
-	if (errno != EPROTONOSUPPORT)
+	if (errno != EPROTOTYPE)
 		err(-1, "socketpair(PF_ROUTE, SOCK_DGRAM, 0, socks)");
 
 	if (socketpair(PF_ROUTE, SOCK_RAW, 0, socks) == 0) {

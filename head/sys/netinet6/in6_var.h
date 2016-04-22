@@ -399,16 +399,6 @@ struct	in6_rrenumreq {
 #define IA6_SIN6(ia)	(&((ia)->ia_addr))
 #define IA6_DSTSIN6(ia)	(&((ia)->ia_dstaddr))
 #define IFA_IN6(x)	(&((struct sockaddr_in6 *)((x)->ifa_addr))->sin6_addr)
-#define IFA_IN6_FLAGS(ifa)	((struct in6_ifaddr *)ifa)->ia6_flags
-#define IFA_ND6_NA_BASE_FLAGS(ifp, ifa)			\
-    (IFA_IN6_FLAGS(ifa) & IN6_IFF_ANYCAST ? 0 : ND_NA_FLAG_OVERRIDE) | \
-    ((V_ip6_forwarding && !(ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV && \
-    V_ip6_norbit_raif)) ? ND_NA_FLAG_ROUTER : 0)
-#define IFA_ND6_NA_UNSOLICITED_SKIP(ifa)		\
-    (IFA_IN6_FLAGS(ifa) & (IN6_IFF_DUPLICATED | IN6_IFF_DEPRECATED | \
-    IN6_IFF_TENTATIVE)) != 0
-#define IN6_MAX_ANYCAST_DELAY_TIME_MS 1000000
-#define IN6_BROADCAST_DELAY_TIME_MS 1000
 #define IFA_DSTIN6(x)	(&((struct sockaddr_in6 *)((x)->ifa_dstaddr))->sin6_addr)
 
 #define IFPR_IN6(x)	(&((struct sockaddr_in6 *)((x)->ifpr_prefix))->sin6_addr)

@@ -10,14 +10,14 @@
 #include <string.h>
 
 
-#define TEST_ASSERT_EQUAL_timespec(a, b) { \
-    TEST_ASSERT_EQUAL_MESSAGE(a.tv_sec, b.tv_sec, "Field tv_sec"); \
+#define TEST_ASSERT_EQUAL_timespec(a, b) {				\
+    TEST_ASSERT_EQUAL_MESSAGE(a.tv_sec, b.tv_sec, "Field tv_sec");	\
     TEST_ASSERT_EQUAL_MESSAGE(a.tv_nsec, b.tv_nsec, "Field tv_nsec");	\
 }
 
 
-#define TEST_ASSERT_EQUAL_l_fp(a, b) { \
-    TEST_ASSERT_EQUAL_MESSAGE(a.l_i, b.l_i, "Field l_i"); \
+#define TEST_ASSERT_EQUAL_l_fp(a, b) {					\
+    TEST_ASSERT_EQUAL_MESSAGE(a.l_i, b.l_i, "Field l_i");		\
     TEST_ASSERT_EQUAL_UINT_MESSAGE(a.l_uf, b.l_uf, "Field l_uf");	\
 }
 
@@ -33,6 +33,7 @@ struct lfpfracdata {
 };
 
 
+void setUp(void);
 void test_Helpers1(void);
 void test_Normalise(void);
 void test_SignNoFrac(void);
@@ -64,35 +65,52 @@ void test_ToString(void);
 
 typedef int bool;
 
-const bool timespec_isValid(struct timespec V);
+const bool	timespec_isValid(struct timespec V);
 struct timespec timespec_init(time_t hi, long lo);
-l_fp l_fp_init(int32 i, u_int32 f);
-bool AssertFpClose(const l_fp m, const l_fp n, const l_fp limit);
-bool AssertTimespecClose(const struct timespec m, const struct timespec n, const struct timespec limit);
+l_fp		l_fp_init(int32 i, u_int32 f);
+bool		AssertFpClose(const l_fp m, const l_fp n, const l_fp limit);
+bool		AssertTimespecClose(const struct timespec m,
+				    const struct timespec n,
+				    const struct timespec limit);
 
 
-//******************************************MY CUSTOM FUNCTIONS*******************************
+//***************************MY CUSTOM FUNCTIONS***************************
 
+
+void
+setUp(void)
+{
+	init_lib();
+
+	return;
+}
 
 
 const bool
-timespec_isValid(struct timespec V) {
+timespec_isValid(struct timespec V)
+{
+
 	return V.tv_nsec >= 0 && V.tv_nsec < 1000000000;
 }
 
 
 struct timespec
-timespec_init(time_t hi, long lo) {
-	struct timespec V;	
+timespec_init(time_t hi, long lo)
+{
+	struct timespec V;
+
 	V.tv_sec = hi;
 	V.tv_nsec = lo;
+
 	return V;
 }
 
 
 l_fp
-l_fp_init(int32 i, u_int32 f) {
+l_fp_init(int32 i, u_int32 f)
+{
 	l_fp temp;
+
 	temp.l_i  = i;
 	temp.l_uf = f;
 
@@ -101,7 +119,8 @@ l_fp_init(int32 i, u_int32 f) {
 
 
 bool
-AssertFpClose(const l_fp m, const l_fp n, const l_fp limit) {
+AssertFpClose(const l_fp m, const l_fp n, const l_fp limit)
+{
 	l_fp diff;
 
 	if (L_ISGEQ(&m, &n)) {
@@ -111,7 +130,7 @@ AssertFpClose(const l_fp m, const l_fp n, const l_fp limit) {
 		diff = n;
 		L_SUB(&diff, &m);
 	}
-	if (L_ISGEQ(&limit, &diff)){
+	if (L_ISGEQ(&limit, &diff)) {
 		return TRUE;
 	}
 	else {
@@ -122,7 +141,9 @@ AssertFpClose(const l_fp m, const l_fp n, const l_fp limit) {
 
 
 bool
-AssertTimespecClose(const struct timespec m, const struct timespec n, const struct timespec limit) {
+AssertTimespecClose(const struct timespec m, const struct timespec n,
+	const struct timespec limit)
+{
 	struct timespec diff;
 
 	diff = abs_tspec(sub_tspec(m, n));
@@ -156,11 +177,13 @@ static const struct lfpfracdata fdata[] = {
 
 
 u_int32
-my_tick_to_tsf(u_int32 ticks) {
+my_tick_to_tsf(u_int32 ticks)
+{
 	// convert nanoseconds to l_fp fractional units, using double
 	// precision float calculations or, if available, 64bit integer
 	// arithmetic. This should give the precise fraction, rounded to
 	// the nearest representation.
+
 #ifdef HAVE_U_INT64
 	return (u_int32)((( ((u_int64)(ticks)) << 32) + 500000000) / 1000000000);
 #else
@@ -172,7 +195,9 @@ my_tick_to_tsf(u_int32 ticks) {
 
 
 u_int32
-my_tsf_to_tick(u_int32 tsf) {
+my_tsf_to_tick(u_int32 tsf)
+{
+
 	// Inverse operation: converts fraction to microseconds.
 #ifdef HAVE_U_INT64
 	return (u_int32)(( ((u_int64)(tsf)) * 1000000000 + 0x80000000) >> 32);
@@ -189,7 +214,8 @@ my_tsf_to_tick(u_int32 tsf) {
 // ---------------------------------------------------------------------
 
 void
-test_Helpers1(void) {
+test_Helpers1(void)
+{
 	struct timespec x;
 
 	for (x.tv_sec = -2; x.tv_sec < 3; x.tv_sec++) {
@@ -202,6 +228,8 @@ test_Helpers1(void) {
 		x.tv_nsec = 1000000000;
 		TEST_ASSERT_FALSE(timespec_isValid(x));
 	}
+
+	return;
 }
 
 
@@ -210,14 +238,18 @@ test_Helpers1(void) {
 //----------------------------------------------------------------------
 
 void
-test_Normalise(void) {
+test_Normalise(void)
+{
 	long ns;
+
 	for ( ns = -2000000000; ns <= 2000000000; ns += 10000000) {
 		struct timespec x = timespec_init(0, ns);
 
 		x = normalize_tspec(x);
 		TEST_ASSERT_TRUE(timespec_isValid(x));
 	}
+
+	return;
 }
 
 //----------------------------------------------------------------------
@@ -225,9 +257,11 @@ test_Normalise(void) {
 //----------------------------------------------------------------------
 
 void
-test_SignNoFrac(void) {
+test_SignNoFrac(void)
+{
 	// sign test, no fraction
 	int i;
+
 	for (i = -4; i <= 4; ++i) {
 		struct timespec a = timespec_init(i, 0);
 		int E = (i > 0) - (i < 0);
@@ -235,26 +269,34 @@ test_SignNoFrac(void) {
 
 		TEST_ASSERT_EQUAL(E, r);
 	}
+
+	return;
 }
 
 
 void
-test_SignWithFrac(void) {
+test_SignWithFrac(void)
+{
 	// sign test, with fraction
 	int i;
+
 	for (i = -4; i <= 4; ++i) {
 		struct timespec a = timespec_init(i, 10);
 		int E = (i >= 0) - (i < 0);
 		int r = test_tspec(a);
+
 		TEST_ASSERT_EQUAL(E, r);
 	}
+
+	return;
 }
 
 //----------------------------------------------------------------------
 // test compare
 //----------------------------------------------------------------------
 void
-test_CmpFracEQ(void) {
+test_CmpFracEQ(void)
+{
 	// fractions are equal
 	int i, j;
 	for (i = -4; i <= 4; ++i)
@@ -263,38 +305,51 @@ test_CmpFracEQ(void) {
 			struct timespec b = timespec_init( j , 200);
 			int   E = (i > j) - (i < j);
 			int   r = cmp_tspec_denorm(a, b);
+
 			TEST_ASSERT_EQUAL(E, r);
 		}
+
+	return;
 }
 
 
 void
-test_CmpFracGT(void) {
+test_CmpFracGT(void)
+{
 	// fraction a bigger fraction b
 	int i, j;
+
 	for (i = -4; i <= 4; ++i)
 		for (j = -4; j <= 4; ++j) {
 			struct timespec a = timespec_init(i, 999999800);
 			struct timespec b = timespec_init(j, 200);
 			int   E = (i >= j) - (i < j);
 			int   r = cmp_tspec_denorm(a, b);
+
 			TEST_ASSERT_EQUAL(E, r);
 		}
+
+	return;
 }
 
 
 void
-test_CmpFracLT(void) {
+test_CmpFracLT(void)
+{
 	// fraction a less fraction b
 	int i, j;
+
 	for (i = -4; i <= 4; ++i)
 		for (j = -4; j <= 4; ++j) {
 			struct timespec a = timespec_init(i, 200);
 			struct timespec b = timespec_init(j, 999999800);
 			int   E = (i > j) - (i <= j);
 			int   r = cmp_tspec_denorm(a, b);
+
 			TEST_ASSERT_EQUAL(E, r);
 		}
+
+	return;
 }
 
 //----------------------------------------------------------------------
@@ -302,8 +357,10 @@ test_CmpFracLT(void) {
 //----------------------------------------------------------------------
 
 void
-test_AddFullNorm(void) {
+test_AddFullNorm(void)
+{
 	int i, j;
+
 	for (i = -4; i <= 4; ++i)
 		for (j = -4; j <= 4; ++j) {
 			struct timespec a = timespec_init(i, 200);
@@ -314,12 +371,16 @@ test_AddFullNorm(void) {
 			c = add_tspec(a, b);
 			TEST_ASSERT_EQUAL_timespec(E, c);
 		}
+
+	return;
 }
 
 
 void
-test_AddFullOflow1(void) {
+test_AddFullOflow1(void)
+{
 	int i, j;
+
 	for (i = -4; i <= 4; ++i)
 		for (j = -4; j <= 4; ++j) {
 			struct timespec a = timespec_init(i, 200);
@@ -330,12 +391,15 @@ test_AddFullOflow1(void) {
 			c = add_tspec(a, b);
 			TEST_ASSERT_EQUAL_timespec(E, c);
 		}
+
+	return;
 }
 
 
 void
 test_AddNsecNorm(void) {
 	int i;
+
 	for (i = -4; i <= 4; ++i) {
 		struct timespec a = timespec_init(i, 200);
 		struct timespec E = timespec_init(i, 600);
@@ -344,12 +408,16 @@ test_AddNsecNorm(void) {
 		c = add_tspec_ns(a, 600 - 200);
 		TEST_ASSERT_EQUAL_timespec(E, c);
 	}
+
+	return;
 }
 
 
 void
-test_AddNsecOflow1(void) {
+test_AddNsecOflow1(void)
+{
 	int i;
+
 	for (i = -4; i <= 4; ++i) {
 		struct timespec a = timespec_init(i, 200);
 		struct timespec E = timespec_init(i + 1, 100);
@@ -358,6 +426,8 @@ test_AddNsecOflow1(void) {
 		c = add_tspec_ns(a, NANOSECONDS - 100);
 		TEST_ASSERT_EQUAL_timespec(E, c);
 	}
+
+	return;
 }
 
 //----------------------------------------------------------------------
@@ -365,8 +435,10 @@ test_AddNsecOflow1(void) {
 //----------------------------------------------------------------------
 
 void
-test_SubFullNorm(void) {
+test_SubFullNorm(void)
+{
 	int i, j;
+
 	for (i = -4; i <= 4; ++i)
 		for (j = -4; j <= 4; ++j) {
 			struct timespec a = timespec_init( i , 600);
@@ -377,12 +449,16 @@ test_SubFullNorm(void) {
 			c = sub_tspec(a, b);
 			TEST_ASSERT_EQUAL_timespec(E, c);
 		}
+
+	return;
 }
 
 
 void
-test_SubFullOflow(void) {
+test_SubFullOflow(void)
+{
 	int i, j;
+
 	for (i = -4; i <= 4; ++i)
 		for (j = -4; j <= 4; ++j) {
 			struct timespec a = timespec_init(i, 100);
@@ -393,12 +469,16 @@ test_SubFullOflow(void) {
 			c = sub_tspec(a, b);
 			TEST_ASSERT_EQUAL_timespec(E, c);
 		}
+
+	return;
 }
 
 
 void
-test_SubNsecNorm(void) {
+test_SubNsecNorm(void)
+{
 	int i;
+
 	for (i = -4; i <= 4; ++i) {
 		struct timespec a = timespec_init(i, 600);
 		struct timespec E = timespec_init(i, 200);
@@ -407,12 +487,16 @@ test_SubNsecNorm(void) {
 		c = sub_tspec_ns(a, 600 - 200);
 		TEST_ASSERT_EQUAL_timespec(E, c);
 	}
+
+	return;
 }
 
 
 void
-test_SubNsecOflow(void) {
+test_SubNsecOflow(void)
+{
 	int i;
+
 	for (i = -4; i <= 4; ++i) {
 		struct timespec a = timespec_init( i , 100);
 		struct timespec E = timespec_init(i-1, 200);
@@ -421,6 +505,8 @@ test_SubNsecOflow(void) {
 		c = sub_tspec_ns(a, NANOSECONDS - 100);
 		TEST_ASSERT_EQUAL_timespec(E, c);
 	}
+
+	return;
 }
 
 //----------------------------------------------------------------------
@@ -429,8 +515,10 @@ test_SubNsecOflow(void) {
 
 
 void
-test_Neg(void) {
+test_Neg(void)
+{
 	int i;
+
 	for (i = -4; i <= 4; ++i) {
 		struct timespec a = timespec_init(i, 100);
 		struct timespec b;
@@ -440,6 +528,8 @@ test_Neg(void) {
 		c = add_tspec(a, b);
 		TEST_ASSERT_EQUAL(0, test_tspec(c));
 	}
+
+	return;
 }
 
 //----------------------------------------------------------------------
@@ -447,8 +537,10 @@ test_Neg(void) {
 //----------------------------------------------------------------------
 
 void
-test_AbsNoFrac(void) {
+test_AbsNoFrac(void)
+{
 	int i;
+
 	for (i = -4; i <= 4; ++i) {
 		struct timespec a = timespec_init(i , 0);
 		struct timespec b;
@@ -456,12 +548,16 @@ test_AbsNoFrac(void) {
 		b = abs_tspec(a);
 		TEST_ASSERT_EQUAL((i != 0), test_tspec(b));
 	}
+
+	return;
 }
 
 
 void
-test_AbsWithFrac(void) {
+test_AbsWithFrac(void)
+{
 	int i;
+
 	for (i = -4; i <= 4; ++i) {
 		struct timespec a = timespec_init(i, 100);
 		struct timespec b;
@@ -469,6 +565,8 @@ test_AbsWithFrac(void) {
 		b = abs_tspec(a);
 		TEST_ASSERT_EQUAL(1, test_tspec(b));
 	}
+
+	return;
 }
 
 // ---------------------------------------------------------------------
@@ -476,9 +574,9 @@ test_AbsWithFrac(void) {
 // ---------------------------------------------------------------------
 
 void
-test_Helpers2(void) {
+test_Helpers2(void)
+{
 	struct timespec limit = timespec_init(0, 2);
-	
 	struct timespec x, y;
 	long i;
 
@@ -489,7 +587,7 @@ test_Helpers2(void) {
 			for (i = -4; i < 5; ++i) {
 				y = x;
 				y.tv_nsec += i;
-				if (i >= -2 && i <= 2){
+				if (i >= -2 && i <= 2) {
 					TEST_ASSERT_TRUE(AssertTimespecClose(x, y, limit));
 				}
 				else
@@ -498,6 +596,8 @@ test_Helpers2(void) {
 				}
 			}
 		}
+
+	return;
 }
 
 //----------------------------------------------------------------------
@@ -505,9 +605,11 @@ test_Helpers2(void) {
 //----------------------------------------------------------------------
 
 void
-test_ToLFPbittest(void) {
+test_ToLFPbittest(void)
+{
 	l_fp lfpClose =  l_fp_init(0, 1);
 	u_int32 i;
+
 	for (i = 0; i < 1000000000; i+=1000) {
 		struct timespec a = timespec_init(1, i);
 		l_fp E= l_fp_init(1, my_tick_to_tsf(i));
@@ -516,12 +618,16 @@ test_ToLFPbittest(void) {
 		r = tspec_intv_to_lfp(a);
 		TEST_ASSERT_TRUE(AssertFpClose(E, r, lfpClose));
 	}
+
+	return;
 }
 
 
 void
-test_ToLFPrelPos(void) {
+test_ToLFPrelPos(void)
+{
 	int i;
+
 	for (i = 0; i < COUNTOF(fdata); ++i) {
 		struct timespec a = timespec_init(1, fdata[i].nsec);
 		l_fp E = l_fp_init(1, fdata[i].frac);
@@ -530,12 +636,16 @@ test_ToLFPrelPos(void) {
 		r = tspec_intv_to_lfp(a);
 		TEST_ASSERT_EQUAL_l_fp(E, r);
 	}
+
+	return;
 }
 
 
 void
-test_ToLFPrelNeg(void) {
+test_ToLFPrelNeg(void)
+{
 	int i;
+
 	for (i = 0; i < COUNTOF(fdata); ++i) {
 		struct timespec a = timespec_init(-1, fdata[i].nsec);
 		l_fp E = l_fp_init(~0, fdata[i].frac);
@@ -544,12 +654,16 @@ test_ToLFPrelNeg(void) {
 		r = tspec_intv_to_lfp(a);
 		TEST_ASSERT_EQUAL_l_fp(E, r);
 	}
+
+	return;
 }
 
 
 void
-test_ToLFPabs(void) {
+test_ToLFPabs(void)
+{
 	int i;
+
 	for (i = 0; i < COUNTOF(fdata); ++i) {
 		struct timespec a = timespec_init(1, fdata[i].nsec);
 		l_fp E = l_fp_init(1 + JAN_1970, fdata[i].frac);
@@ -558,6 +672,8 @@ test_ToLFPabs(void) {
 		r = tspec_stamp_to_lfp(a);
 		TEST_ASSERT_EQUAL_l_fp(E, r);
 	}
+
+	return;
 }
 
 //----------------------------------------------------------------------
@@ -565,7 +681,8 @@ test_ToLFPabs(void) {
 //----------------------------------------------------------------------
 
 void
-test_FromLFPbittest(void) {
+test_FromLFPbittest(void)
+{
 	struct timespec limit = timespec_init(0, 2);
 
 	// Not *exactly* a bittest, because 2**32 tests would take a
@@ -582,13 +699,17 @@ test_FromLFPbittest(void) {
 		// comparing to calculated value.
 		TEST_ASSERT_TRUE(AssertTimespecClose(E, r, limit));
 	}
+
+	return;
 }
 
 
 void
-test_FromLFPrelPos(void) {
+test_FromLFPrelPos(void)
+{
 	struct timespec limit = timespec_init(0, 2);
 	int i;
+
 	for (i = 0; i < COUNTOF(fdata); ++i) {
 		l_fp a = l_fp_init(1, fdata[i].frac);
 		struct timespec E = timespec_init(1, fdata[i].nsec);
@@ -597,13 +718,17 @@ test_FromLFPrelPos(void) {
 		r = lfp_intv_to_tspec(a);
 		TEST_ASSERT_TRUE(AssertTimespecClose(E, r, limit));
 	}
+
+	return;
 }
 
 
 void
-test_FromLFPrelNeg(void) {
+test_FromLFPrelNeg(void)
+{
 	struct timespec limit = timespec_init(0, 2);
 	int i;
+
 	for (i = 0; i < COUNTOF(fdata); ++i) {
 		l_fp a = l_fp_init(~0, fdata[i].frac);
 		struct timespec E = timespec_init(-1, fdata[i].nsec);
@@ -612,14 +737,18 @@ test_FromLFPrelNeg(void) {
 		r = lfp_intv_to_tspec(a);
 		TEST_ASSERT_TRUE(AssertTimespecClose(E, r, limit));
 	}
+
+	return;
 }
 
 
 // nsec -> frac -> nsec roundtrip, using a prime start and increment
 void
-test_LFProundtrip(void) {
+test_LFProundtrip(void)
+{
 	int32_t t;
 	u_int32 i;
+
 	for (t = -1; t < 2; ++t)
 		for (i = 4999; i < 1000000000; i += 10007) {
 			struct timespec E = timespec_init(t, i);
@@ -630,6 +759,8 @@ test_LFProundtrip(void) {
 			r = lfp_intv_to_tspec(a);
 			TEST_ASSERT_EQUAL_timespec(E, r);
 		}
+
+	return;
 }
 
 //----------------------------------------------------------------------
@@ -637,7 +768,8 @@ test_LFProundtrip(void) {
 //----------------------------------------------------------------------
 
 void
-test_ToString(void) {
+test_ToString(void)
+{
 	static const struct {
 		time_t		sec;
 		long		nsec;
@@ -653,12 +785,15 @@ test_ToString(void) {
 		{-1,-1, "-1.000000001" },
 	};
 	int i;
+
 	for (i = 0; i < COUNTOF(data); ++i) {
 		struct timespec a = timespec_init(data[i].sec, data[i].nsec);
 		const char * E = data[i].repr;
 		const char * r = tspectoa(a);
 		TEST_ASSERT_EQUAL_STRING(E, r);
 	}
+
+	return;
 }
 
 // -*- EOF -*-

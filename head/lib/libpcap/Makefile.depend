@@ -17,19 +17,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-grammar.So: grammar.c
-grammar.o: grammar.c
-grammar.po: grammar.c
-pcap.So: version.h
-pcap.o: version.h
-pcap.po: version.h
-scanner.So: scanner.c
-scanner.So: tokdefs.h
-scanner.o: scanner.c
-scanner.o: tokdefs.h
-scanner.po: scanner.c
-scanner.po: tokdefs.h
-version.So: version.c
-version.o: version.c
-version.po: version.c
 .endif

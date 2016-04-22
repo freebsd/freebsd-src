@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-rsa.c,v 1.86 2014/01/27 19:18:54 markus Exp $ */
+/* $OpenBSD: auth-rsa.c,v 1.90 2015/01/28 22:36:00 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -15,6 +15,8 @@
  */
 
 #include "includes.h"
+
+#ifdef WITH_SSH1
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -35,6 +37,7 @@
 #include "buffer.h"
 #include "pathnames.h"
 #include "log.h"
+#include "misc.h"
 #include "servconf.h"
 #include "key.h"
 #include "auth-options.h"
@@ -45,7 +48,6 @@
 #endif
 #include "monitor_wrap.h"
 #include "ssh.h"
-#include "misc.h"
 
 #include "digest.h"
 
@@ -144,7 +146,8 @@ auth_rsa_challenge_dialog(Key *key)
 	challenge = PRIVSEP(auth_rsa_generate_challenge(key));
 
 	/* Encrypt the challenge with the public key. */
-	rsa_public_encrypt(encrypted_challenge, challenge, key->rsa);
+	if (rsa_public_encrypt(encrypted_challenge, challenge, key->rsa) != 0)
+		fatal("%s: rsa_public_encrypt failed", __func__);
 
 	/* Send the encrypted challenge to the client. */
 	packet_start(SSH_SMSG_AUTH_RSA_CHALLENGE);
@@ -235,7 +238,9 @@ rsa_key_allowed_in_file(struct passwd *pw, char *file,
 			    "actual %d vs. announced %d.",
 			    file, linenum, BN_num_bits(key->rsa->n), bits);
 
-		fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
+		if ((fp = sshkey_fingerprint(key, options.fingerprint_hash,
+		    SSH_FP_DEFAULT)) == NULL)
+			continue;
 		debug("matching key found: file %s, line %lu %s %s",
 		    file, linenum, key_type(key), fp);
 		free(fp);
@@ -340,3 +345,5 @@ auth_rsa(Authctxt *authctxt, BIGNUM *client_n)
 	packet_send_debug("RSA authentication accepted.");
 	return (1);
 }
+
+#endif /* WITH_SSH1 */

@@ -1364,7 +1364,7 @@ mlx_periodic_eventlog_respond(struct mlx_command *mc)
 	    /* Mylex vendor-specific message indicating a drive was killed? */
 	    if ((el->el_sensekey == 9) &&
 		(el->el_asc == 0x80)) {
-		if (el->el_asq < (sizeof(mlx_sense_messages) / sizeof(mlx_sense_messages[0]))) {
+		if (el->el_asq < nitems(mlx_sense_messages)) {
 		    reason = mlx_sense_messages[el->el_asq];
 		} else {
 		    reason = "for unknown reason";

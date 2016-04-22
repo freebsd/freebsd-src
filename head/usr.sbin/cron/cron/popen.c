@@ -82,9 +82,8 @@ cron_popen(program, type, e)
 	if (!pids) {
 		if ((fds = getdtablesize()) <= 0)
 			return(NULL);
-		if (!(pids = (PID_T *)malloc((u_int)(fds * sizeof(PID_T)))))
+		if (!(pids = calloc(fds, sizeof(PID_T))))
 			return(NULL);
-		bzero((char *)pids, fds * sizeof(PID_T));
 	}
 	if (pipe(pdes) < 0)
 		return(NULL);

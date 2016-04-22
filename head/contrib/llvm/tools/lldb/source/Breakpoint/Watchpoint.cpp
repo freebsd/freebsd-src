@@ -7,12 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/Breakpoint/Watchpoint.h"
-
 // C Includes
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
+#include "lldb/Breakpoint/Watchpoint.h"
+
 #include "lldb/Breakpoint/StoppointCallbackContext.h"
 #include "lldb/Core/Stream.h"
 #include "lldb/Core/Value.h"
@@ -22,12 +22,12 @@
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/ThreadSpec.h"
-#include "lldb/Expression/ClangUserExpression.h"
+#include "lldb/Expression/UserExpression.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
-Watchpoint::Watchpoint (Target& target, lldb::addr_t addr, uint32_t size, const ClangASTType *type, bool hardware) :
+Watchpoint::Watchpoint (Target& target, lldb::addr_t addr, uint32_t size, const CompilerType *type, bool hardware) :
     StoppointLocation (0, addr, size, hardware),
     m_target(target),
     m_enabled(false),
@@ -67,9 +67,7 @@ Watchpoint::Watchpoint (Target& target, lldb::addr_t addr, uint32_t size, const 
     m_being_created = false;
 }
 
-Watchpoint::~Watchpoint()
-{
-}
+Watchpoint::~Watchpoint() = default;
 
 // This function is used when "baton" doesn't need to be freed
 void
@@ -102,7 +100,6 @@ void
 Watchpoint::SetDeclInfo (const std::string &str)
 {
     m_decl_str = str;
-    return;
 }
 
 std::string
@@ -115,7 +112,6 @@ void
 Watchpoint::SetWatchSpec (const std::string &str)
 {
     m_watch_spec_str = str;
-    return;
 }
 
 // Override default impl of StoppointLocation::IsHardware() since m_is_hardware
@@ -154,10 +150,7 @@ Watchpoint::CaptureWatchedValue (const ExecutionContext &exe_ctx)
     }
     m_new_value_sp = ValueObjectMemory::Create (exe_ctx.GetBestExecutionContextScope(), watch_name.AsCString(), watch_address, m_type);
     m_new_value_sp = m_new_value_sp->CreateConstantValue(watch_name);
-    if (m_new_value_sp && m_new_value_sp->GetError().Success())
-        return true;
-    else
-        return false;
+    return (m_new_value_sp && m_new_value_sp->GetError().Success());
 }
 
 void
@@ -190,9 +183,6 @@ Watchpoint::ShouldStop (StoppointCallbackContext *context)
     if (!IsEnabled())
         return false;
 
-    if (GetHitCount() <= GetIgnoreCount())
-        return false;
-
     return true;
 }
 
@@ -200,7 +190,6 @@ void
 Watchpoint::GetDescription (Stream *s, lldb::DescriptionLevel level)
 {
     DumpWithLevel(s, level);
-    return;
 }
 
 void
@@ -209,7 +198,7 @@ Watchpoint::Dump(Stream *s) const
     DumpWithLevel(s, lldb::eDescriptionLevelBrief);
 }
 
-// If prefix is NULL, we display the watch id and ignore the prefix altogether.
+// If prefix is nullptr, we display the watch id and ignore the prefix altogether.
 void
 Watchpoint::DumpSnapshots(Stream *s, const char *prefix) const
 {
@@ -218,21 +207,38 @@ Watchpoint::DumpSnapshots(Stream *s, const char *prefix) const
         s->Printf("\nWatchpoint %u hit:", GetID());
         prefix = "";
     }
-    
+
     if (m_old_value_sp)
     {
-        s->Printf("\n%sold value: %s", prefix, m_old_value_sp->GetValueAsCString());
+        const char *old_value_cstr =  m_old_value_sp->GetValueAsCString();
+        if (old_value_cstr && old_value_cstr[0])
+            s->Printf("\n%sold value: %s", prefix, old_value_cstr);
+        else
+        {
+            const char *old_summary_cstr =  m_old_value_sp-> GetSummaryAsCString();
+            if (old_summary_cstr && old_summary_cstr[0])
+                s->Printf("\n%sold value: %s", prefix, old_summary_cstr);
+        }
     }
+
     if (m_new_value_sp)
     {
-        s->Printf("\n%snew value: %s", prefix, m_new_value_sp->GetValueAsCString());
+        const char *new_value_cstr =  m_new_value_sp->GetValueAsCString();
+        if (new_value_cstr && new_value_cstr[0])
+            s->Printf("\n%snew value: %s", prefix, new_value_cstr);
+        else
+        {
+            const char *new_summary_cstr =  m_new_value_sp-> GetSummaryAsCString();
+            if (new_summary_cstr && new_summary_cstr[0])
+                s->Printf("\n%snew value: %s", prefix, new_summary_cstr);
+        }
     }
 }
 
 void
 Watchpoint::DumpWithLevel(Stream *s, lldb::DescriptionLevel description_level) const
 {
-    if (s == NULL)
+    if (s == nullptr)
         return;
 
     assert(description_level >= lldb::eDescriptionLevelBrief &&
@@ -334,11 +340,13 @@ Watchpoint::WatchpointRead () const
 {
     return m_watch_read != 0;
 }
+
 bool
 Watchpoint::WatchpointWrite () const
 {
     return m_watch_write != 0;
 }
+
 uint32_t
 Watchpoint::GetIgnoreCount () const
 {
@@ -363,15 +371,26 @@ Watchpoint::InvokeCallback (StoppointCallbackContext *context)
 void 
 Watchpoint::SetCondition (const char *condition)
 {
-    if (condition == NULL || condition[0] == '\0')
+    if (condition == nullptr || condition[0] == '\0')
     {
         if (m_condition_ap.get())
             m_condition_ap.reset();
     }
     else
     {
-        // Pass NULL for expr_prefix (no translation-unit level definitions).
-        m_condition_ap.reset(new ClangUserExpression (condition, NULL, lldb::eLanguageTypeUnknown, ClangUserExpression::eResultTypeAny));
+        // Pass nullptr for expr_prefix (no translation-unit level definitions).
+        Error error;
+        m_condition_ap.reset(m_target.GetUserExpressionForLanguage(condition,
+                                                                   nullptr,
+                                                                   lldb::eLanguageTypeUnknown,
+                                                                   UserExpression::eResultTypeAny,
+                                                                   EvaluateExpressionOptions(),
+                                                                   error));
+        if (error.Fail())
+        {
+            // FIXME: Log something...
+            m_condition_ap.reset();
+        }
     }
     SendWatchpointChangedEvent (eWatchpointEventTypeConditionChanged);
 }
@@ -382,7 +401,7 @@ Watchpoint::GetConditionText () const
     if (m_condition_ap.get())
         return m_condition_ap->GetUserText();
     else
-        return NULL;
+        return nullptr;
 }
 
 void
@@ -399,8 +418,7 @@ Watchpoint::SendWatchpointChangedEvent (lldb::WatchpointEventType eventKind)
 void
 Watchpoint::SendWatchpointChangedEvent (WatchpointEventData *data)
 {
-
-    if (data == NULL)
+    if (data == nullptr)
         return;
         
     if (!m_being_created
@@ -418,9 +436,7 @@ Watchpoint::WatchpointEventData::WatchpointEventData (WatchpointEventType sub_ty
 {
 }
 
-Watchpoint::WatchpointEventData::~WatchpointEventData ()
-{
-}
+Watchpoint::WatchpointEventData::~WatchpointEventData() = default;
 
 const ConstString &
 Watchpoint::WatchpointEventData::GetFlavorString ()
@@ -434,7 +450,6 @@ Watchpoint::WatchpointEventData::GetFlavor () const
 {
     return WatchpointEventData::GetFlavorString ();
 }
-
 
 WatchpointSP &
 Watchpoint::WatchpointEventData::GetWatchpoint ()
@@ -462,7 +477,7 @@ Watchpoint::WatchpointEventData::GetEventDataFromEvent (const Event *event)
         if (event_data && event_data->GetFlavor() == WatchpointEventData::GetFlavorString())
             return static_cast <const WatchpointEventData *> (event->GetData());
     }
-    return NULL;
+    return nullptr;
 }
 
 WatchpointEventType
@@ -470,7 +485,7 @@ Watchpoint::WatchpointEventData::GetWatchpointEventTypeFromEvent (const EventSP 
 {
     const WatchpointEventData *data = GetEventDataFromEvent (event_sp.get());
 
-    if (data == NULL)
+    if (data == nullptr)
         return eWatchpointEventTypeInvalidType;
     else
         return data->GetWatchpointEventType();

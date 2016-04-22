@@ -945,7 +945,7 @@ tmpfs_dir_attach_dup(struct tmpfs_node *dnode,
 		LIST_INSERT_BEFORE(de, nde, uh.td_dup.index_entries);
 		LIST_INSERT_HEAD(duphead, nde, uh.td_dup.entries);
 		return;
-	};
+	}
 }
 
 /*
@@ -1370,7 +1370,8 @@ retry:
 					VM_OBJECT_WLOCK(uobj);
 					goto retry;
 				} else if (m->valid != VM_PAGE_BITS_ALL)
-					rv = vm_pager_get_pages(uobj, &m, 1, 0);
+					rv = vm_pager_get_pages(uobj, &m, 1,
+					    NULL, NULL);
 				else
 					/* A cached page was reactivated. */
 					rv = VM_PAGER_OK;

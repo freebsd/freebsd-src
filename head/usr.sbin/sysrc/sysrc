@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2010-2015 Devin Teske
+# Copyright (c) 2010-2016 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 #
 # Version information
 #
-SYSRC_VERSION="7.0 Sep-13,2015"
+SYSRC_VERSION="7.1 Feb-2,2016"
 
 #
 # Options
@@ -595,7 +595,7 @@ fi
 if [ "$SHOW_ALL" ]; then
 	#
 	# Get a list of variables that are currently set in the rc.conf(5)
-	# files (included `/etc/defaults/rc.conf') by performing a call to
+	# files (including `/etc/defaults/rc.conf') by performing a call to
 	# source_rc_confs() in a clean environment.
 	#
 	( # Operate in a sub-shell to protect the parent environment
@@ -790,7 +790,7 @@ while [ $# -gt 0 ]; do
 			delim="${add%"${add#?}"}" # first character
 			oldIFS="$IFS"
 			case "$delim" in
-			""|[$IFS]|[a-zA-Z0-9]) delim=" " ;;
+			""|[$IFS]|[a-zA-Z0-9./]) delim=" " ;;
 			*) IFS="$delim"
 			esac
 			new="$before"
@@ -812,7 +812,7 @@ while [ $# -gt 0 ]; do
 			delim="${remove%"${remove#?}"}" # first character
 			oldIFS="$IFS"
 			case "$delim" in
-			""|[$IFS]|[a-zA-Z0-9]) delim=" " ;;
+			""|[$IFS]|[a-zA-Z0-9./]) delim=" " ;;
 			*) IFS="$delim"
 			esac
 			new=

@@ -24,6 +24,7 @@
 // Using #ifdef rather than relying on Makefiles etc.
 // simplifies the build procedure.
 #ifdef ASAN_DYNAMIC_RUNTIME_THUNK
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 // First, declare CRT sections we'll be using in this file
@@ -58,6 +59,7 @@ int __asan_option_detect_stack_use_after_return =
 // using atexit() that calls a small subset of C terminators
 // where LLVM global_dtors is placed.  Fingers crossed, no other C terminators
 // are there.
+extern "C" int __cdecl atexit(void (__cdecl *f)(void));
 extern "C" void __cdecl _initterm(void *a, void *b);
 
 namespace {

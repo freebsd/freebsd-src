@@ -83,17 +83,14 @@ void
 yp_enable_events(void)
 {
 	int i;
-	extern fd_set	svc_fdset;
 	struct yp_event	*ye;
 
 	for (i = 0; i < getdtablesize(); i++) {
-		if (FD_ISSET(i, &svc_fdset)) {
-			if ((ye = calloc(1, sizeof(*ye))) == NULL)
-				fatal(NULL);
-			event_set(&ye->ye_event, i, EV_READ, yp_fd_event, NULL);
-			event_add(&ye->ye_event, NULL);
-			TAILQ_INSERT_TAIL(&env->sc_yp->yd_events, ye, ye_entry);
-		}
+		if ((ye = calloc(1, sizeof(*ye))) == NULL)
+			fatal(NULL);
+		event_set(&ye->ye_event, i, EV_READ, yp_fd_event, NULL);
+		event_add(&ye->ye_event, NULL);
+		TAILQ_INSERT_TAIL(&env->sc_yp->yd_events, ye, ye_entry);
 	}
 }
 
@@ -219,12 +216,16 @@ yp_dispatch(struct svc_req *req, SVCXPRT *trans)
 		return;
 	case YPPROC_ALL:
 		log_debug("ypproc_all");
+		xdr_argument = (xdrproc_t) xdr_ypreq_nokey;
+		xdr_result = (xdrproc_t) xdr_ypresp_all;
 		if (yp_check(req) == -1)
 			return;
 		cb = (void *)ypproc_all_2_svc;
 		break;
 	case YPPROC_MASTER:
 		log_debug("ypproc_master");
+		xdr_argument = (xdrproc_t) xdr_ypreq_nokey;
+		xdr_result = (xdrproc_t) xdr_ypresp_master;
 		if (yp_check(req) == -1)
 			return;
 		cb = (void *)ypproc_master_2_svc;
@@ -237,6 +238,8 @@ yp_dispatch(struct svc_req *req, SVCXPRT *trans)
 		return;
 	case YPPROC_MAPLIST:
 		log_debug("ypproc_maplist");
+		xdr_argument = (xdrproc_t) xdr_domainname;
+		xdr_result = (xdrproc_t) xdr_ypresp_maplist;
 		if (yp_check(req) == -1)
 			return;
 		cb = (void *)ypproc_maplist_2_svc;
@@ -562,11 +565,18 @@ ypresp_master *
 ypproc_master_2_svc(ypreq_nokey *arg, struct svc_req *req)
 {
 	static struct ypresp_master	 res;
+	static char master[YPMAXPEER + 1];
 
+	bzero(&res, sizeof(res));
 	if (yp_valid_domain(arg->domain, (struct ypresp_val *)&res) == -1)
 		return (&res);
+	
+	if (gethostname(master, sizeof(master)) == 0) {
+		res.peer = (peername)master;
+		res.stat = YP_TRUE;
+	} else
+		res.stat = YP_NOKEY;
 
-	res.stat = YP_YPERR;
 	return (&res);
 }
 
@@ -587,14 +597,14 @@ ypproc_maplist_2_svc(domainname *arg, struct svc_req *req)
 		{ "netid.byname",		YPMAP_NETID_BYNAME },
 	};
 	static ypresp_maplist	 res;
-	static struct ypmaplist	 maps[sizeof(mapnames) / sizeof(mapnames[0])];
+	static struct ypmaplist	 maps[nitems(mapnames)];
 	
 	if (yp_valid_domain(*arg, (struct ypresp_val *)&res) == -1)
 		return (&res);
 
 	res.stat = YP_TRUE;
 	res.maps = NULL;
-	for (i = 0; i < sizeof(mapnames) / sizeof(mapnames[0]); i++) {
+	for (i = 0; i < nitems(mapnames); i++) {
 		if (!(env->sc_flags & mapnames[i].cond))
 			continue;
 		maps[i].map = mapnames[i].name;

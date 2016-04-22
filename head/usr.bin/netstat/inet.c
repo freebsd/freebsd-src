@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <libxo/xo.h>
 #include "netstat.h"
+#include "nl_defs.h"
 
 char	*inetname(struct in_addr *);
 void	inetprint(const char *, struct in_addr *, int, const char *, int,
@@ -119,7 +120,7 @@ pcblist_sysctl(int proto, const char *name, char **bufp, int istcp __unused)
 			xo_warn("sysctl: %s", mibvar);
 		return (0);
 	}
-	if ((buf = malloc(len)) == 0) {
+	if ((buf = malloc(len)) == NULL) {
 		xo_warnx("malloc %lu bytes", (u_long)len);
 		return (0);
 	}
@@ -206,7 +207,7 @@ pcblist_kvm(u_long off, char **bufp, int istcp)
 		len = 2 * sizeof(xig) +
 		    (pcbinfo.ipi_count + pcbinfo.ipi_count / 8) *
 		    sizeof(struct xinpcb);
-	if ((buf = malloc(len)) == 0) {
+	if ((buf = malloc(len)) == NULL) {
 		xo_warnx("malloc %lu bytes", (u_long)len);
 		return (0);
 	}
@@ -486,11 +487,11 @@ protopr(u_long off, const char *name, int af1, int proto)
 		else
 			xo_emit("{:protocol/%-3.3s%-2.2s/%s%s} ", name, vchar);
 		if (Lflag) {
-			char buf1[15];
+			char buf1[33];
 
-			snprintf(buf1, 15, "%d/%d/%d", so->so_qlen,
+			snprintf(buf1, sizeof buf1, "%u/%u/%u", so->so_qlen,
 			    so->so_incqlen, so->so_qlimit);
-			xo_emit("{:listen-queue-sizes/%-14.14s} ", buf1);
+			xo_emit("{:listen-queue-sizes/%-32.32s} ", buf1);
 		} else if (Tflag) {
 			if (istcp)
 				xo_emit("{:sent-retransmit-packets/%6u} "
@@ -638,6 +639,7 @@ void
 tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct tcpstat tcpstat;
+	uint64_t tcps_states[TCP_NSTATES];
 
 #ifdef INET6
 	if (tcp_done != 0)
@@ -648,6 +650,10 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 
 	if (fetch_stats("net.inet.tcp.stats", off, &tcpstat,
 	    sizeof(tcpstat), kread_counters) != 0)
+		return;
+
+	if (fetch_stats_ro("net.inet.tcp.states", nl[N_TCPS_STATES].n_value,
+	    &tcps_states, sizeof(tcps_states), kread_counters) != 0)
 		return;
 
 	xo_open_container("tcp");
@@ -853,6 +859,28 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
  #undef p2a
  #undef p3
 	xo_close_container("ecn");
+
+	xo_open_container("TCP connection count by state");
+	xo_emit("{T:/TCP connection count by state}:\n");
+	for (int i = 0; i < TCP_NSTATES; i++) {
+		/*
+		 * XXXGL: is there a way in libxo to use %s
+		 * in the "content string" of a format
+		 * string? I failed to do that, that's why
+		 * a temporary buffer is used to construct
+		 * format string for xo_emit().
+		 */
+		char fmtbuf[80];
+
+		if (sflag > 1 && tcps_states[i] == 0)
+			continue;
+		snprintf(fmtbuf, sizeof(fmtbuf), "\t{:%s/%%ju} "
+                    "{Np:/connection ,connections} in %s state\n",
+		    tcpstates[i], tcpstates[i]);
+		xo_emit(fmtbuf, (uintmax_t )tcps_states[i]);
+	}
+	xo_close_container("TCP connection count by state");
+
 	xo_close_container("tcp");
 }
 
@@ -1432,7 +1460,7 @@ inetname(struct in_addr *inp)
 			if (np)
 				cp = np->n_name;
 		}
-		if (cp == 0) {
+		if (cp == NULL) {
 			hp = gethostbyaddr((char *)inp, sizeof (*inp), AF_INET);
 			if (hp) {
 				cp = hp->h_name;

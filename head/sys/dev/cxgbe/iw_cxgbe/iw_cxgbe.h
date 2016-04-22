@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 Chelsio, Inc. All rights reserved.
+ * Copyright (c) 2009-2013, 2016 Chelsio, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -157,7 +157,7 @@ static inline int c4iw_fatal_error(struct c4iw_rdev *rdev)
 
 static inline int c4iw_num_stags(struct c4iw_rdev *rdev)
 {
-	return min((int)T4_MAX_NUM_STAG, (int)(rdev->adap->vres.stag.size >> 5));
+	return (int)(rdev->adap->vres.stag.size >> 5);
 }
 
 #define C4IW_WR_TO (10*HZ)
@@ -435,6 +435,7 @@ struct c4iw_qp {
 	atomic_t refcnt;
 	wait_queue_head_t wait;
 	struct timer_list timer;
+	int sq_sig_all;
 };
 
 static inline struct c4iw_qp *to_c4iw_qp(struct ib_qp *ibqp)
@@ -712,7 +713,8 @@ enum c4iw_ep_flags {
 	ABORT_REQ_IN_PROGRESS	= 1,
 	RELEASE_RESOURCES	= 2,
 	CLOSE_SENT		= 3,
-	TIMEOUT                 = 4
+	TIMEOUT                 = 4,
+	QP_REFERENCED		= 5
 };
 
 enum c4iw_ep_history {
@@ -737,7 +739,13 @@ enum c4iw_ep_history {
         EP_DISC_ABORT           = 18,
         CONN_RPL_UPCALL         = 19,
         ACT_RETRY_NOMEM         = 20,
-        ACT_RETRY_INUSE         = 21
+        ACT_RETRY_INUSE         = 21,
+        CLOSE_CON_RPL           = 22,
+        EP_DISC_FAIL            = 24,
+        QP_REFED                = 25,
+        QP_DEREFED              = 26,
+        CM_ID_REFED             = 27,
+        CM_ID_DEREFED           = 28
 };
 
 struct c4iw_ep_common {
@@ -850,8 +858,8 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 int c4iw_bind_mw(struct ib_qp *qp, struct ib_mw *mw,
 		 struct ib_mw_bind *mw_bind);
 int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
-int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog);
-int c4iw_destroy_listen(struct iw_cm_id *cm_id);
+int c4iw_create_listen_ep(struct iw_cm_id *cm_id, int backlog);
+void c4iw_destroy_listen_ep(struct iw_cm_id *cm_id);
 int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len);
 void c4iw_qp_add_ref(struct ib_qp *qp);
@@ -914,6 +922,8 @@ u32 c4iw_get_qpid(struct c4iw_rdev *rdev, struct c4iw_dev_ucontext *uctx);
 void c4iw_put_qpid(struct c4iw_rdev *rdev, u32 qid,
 		struct c4iw_dev_ucontext *uctx);
 void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe);
+void process_newconn(struct iw_cm_id *parent_cm_id,
+		struct socket *child_so);
 
 extern struct cxgb4_client t4c_client;
 extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
@@ -1038,5 +1048,4 @@ void your_reg_device(struct c4iw_dev *dev);
 
 #define SGE_CTRLQ_NUM	0
 
-extern int spg_creds;/* Status Page size in credit units(1 unit = 64) */
 #endif

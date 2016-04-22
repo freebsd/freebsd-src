@@ -152,6 +152,23 @@ struct sctp_data_chunk {
 	struct sctp_data dp;
 }               SCTP_PACKED;
 
+struct sctp_idata {
+	uint32_t tsn;
+	uint16_t stream_id;
+	uint16_t reserved;	/* Where does the SSN go? */
+	uint32_t msg_id;
+	union {
+		uint32_t protocol_id;
+		uint32_t fsn;	/* Fragment Sequence Number */
+	}     ppid_fsn;
+	/* user data follows */
+}          SCTP_PACKED;
+
+struct sctp_idata_chunk {
+	struct sctp_chunkhdr ch;
+	struct sctp_idata dp;
+}                SCTP_PACKED;
+
 /*
  * Structures for the control chunks
  */
@@ -377,6 +394,12 @@ struct sctp_strseq {
 	uint16_t stream;
 	uint16_t sequence;
 }           SCTP_PACKED;
+
+struct sctp_strseq_mid {
+	uint16_t stream;
+	uint16_t reserved;
+	uint32_t msg_id;
+};
 
 struct sctp_forward_tsn_msg {
 	struct sctphdr sh;

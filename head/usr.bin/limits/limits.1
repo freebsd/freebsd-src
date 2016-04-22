@@ -30,11 +30,11 @@
 .Op Fl C Ar class | Fl P Ar pid | Fl U Ar user
 .Op Fl SHB
 .Op Fl ea
-.Op Fl bcdfklmnstuvpw Op Ar val
+.Op Fl bcdfklmnopstuvw Op Ar val
 .Nm
 .Op Fl C Ar class | Fl U Ar user
 .Op Fl SHB
-.Op Fl bcdfklmnstuvpw Op Ar val
+.Op Fl bcdfklmnopstuvw Op Ar val
 .Op Fl E
 .Oo
 .Op Ar name Ns = Ns Ar value ...
@@ -233,6 +233,18 @@ system is limited to the value displayed by the
 .Va kern.maxfiles
 .Xr sysctl 8
 variable.
+.It Fl o Op Ar val
+Select or set the
+.Va umtxp
+resource limit.
+The limit determines the maximal number of the process-shared locks
+which may be simultaneously created by the processes owned by the
+user, see
+.Xr pthread 3 .
+.It Fl p Op Ar val
+Select or set the
+.Va pseudoterminals
+resource limit.
 .It Fl s Op Ar val
 Select or set the
 .Va stacksize
@@ -266,10 +278,6 @@ and is inclusive of text, data, bss, stack,
 and
 .Xr mmap 2 Ns 'd
 space.
-.It Fl p Op Ar val
-Select or set the
-.Va pseudoterminals
-resource limit.
 .It Fl w Op Ar val
 Select or set the
 .Va swapuse

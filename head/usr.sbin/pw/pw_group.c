@@ -664,6 +664,11 @@ pw_group_mod(int argc, char **argv, char *arg1)
 		grp_add_members(&grp, newmembers);
 	}
 
+	if (dryrun) {
+		print_group(grp, pretty);
+		return (EXIT_SUCCESS);
+	}
+
 	if ((rc = chggrent(name, grp)) != 0) {
 		if (rc == -1)
 			errx(EX_IOERR, "group '%s' not available (NIS?)",

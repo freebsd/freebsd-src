@@ -43,6 +43,7 @@ static void userboot_zfs_probe(void);
 static int userboot_zfs_found;
 #endif
 
+/* Minimum version required */
 #define	USERBOOT_VERSION	USERBOOT_VERSION_3
 
 #define	MALLOCSZ		(10*1024*1024)
@@ -64,7 +65,7 @@ void
 delay(int usec)
 {
 
-        CALLBACK(delay, usec);
+	CALLBACK(delay, usec);
 }
 
 void
@@ -82,11 +83,11 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 	const char *var;
 	int i;
 
-        if (version != USERBOOT_VERSION)
-                abort();
+	if (version < USERBOOT_VERSION)
+		abort();
 
 	callbacks = cb;
-        callbacks_arg = arg;
+	callbacks_arg = arg;
 	userboot_disk_maxunit = ndisks;
 
 	/*
@@ -95,9 +96,9 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 	 */
 	setheap((void *)mallocbuf, (void *)(mallocbuf + sizeof(mallocbuf)));
 
-        /*
-         * Hook up the console
-         */
+	/*
+	 * Hook up the console
+	 */
 	cons_probe();
 
 	printf("\n");
@@ -129,6 +130,10 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 	archsw.arch_zfs_probe = userboot_zfs_probe;
 #endif
 
+	/*
+	 * Initialise the block cache. Set the upper limit.
+	 */
+	bcache_init(32768, 512);
 	/*
 	 * March through the device switch probing for things.
 	 */
@@ -167,6 +172,7 @@ extract_currdev(void)
 		zdev.d_type = zdev.d_dev->dv_type;
 		
 		dev = *(struct disk_devdesc *)&zdev;
+		init_zfs_bootenv(zfs_fmtdev(&dev));
 	} else
 #endif
 
@@ -191,9 +197,9 @@ extract_currdev(void)
 	}
 
 	env_setenv("currdev", EV_VOLATILE, userboot_fmtdev(&dev),
-            userboot_setcurrdev, env_nounset);
+	    userboot_setcurrdev, env_nounset);
 	env_setenv("loaddev", EV_VOLATILE, userboot_fmtdev(&dev),
-            env_noset, env_nounset);
+	    env_noset, env_nounset);
 }
 
 #if defined(USERBOOT_ZFS_SUPPORT)
@@ -235,6 +241,38 @@ command_lszfs(int argc, char *argv[])
 		command_errmsg = strerror(err);
 		return (CMD_ERROR);
 	}
+	return (CMD_OK);
+}
+
+COMMAND_SET(reloadbe, "reloadbe", "refresh the list of ZFS Boot Environments",
+	    command_reloadbe);
+
+static int
+command_reloadbe(int argc, char *argv[])
+{
+	int err;
+	char *root;
+
+	if (argc > 2) {
+		command_errmsg = "wrong number of arguments";
+		return (CMD_ERROR);
+	}
+
+	if (argc == 2) {
+		err = zfs_bootenv(argv[1]);
+	} else {
+		root = getenv("zfs_be_root");
+		if (root == NULL) {
+			return (CMD_OK);
+		}
+		err = zfs_bootenv(root);
+	}
+
+	if (err != 0) {
+		command_errmsg = strerror(err);
+		return (CMD_ERROR);
+	}
+
 	return (CMD_OK);
 }
 #endif /* USERBOOT_ZFS_SUPPORT */

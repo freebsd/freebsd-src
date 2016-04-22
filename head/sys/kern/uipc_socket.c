@@ -134,6 +134,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 #include <sys/uio.h>
 #include <sys/jail.h>
 #include <sys/syslog.h>
@@ -196,7 +197,7 @@ VNET_DEFINE(struct hhook_head *, socket_hhh[HHOOK_SOCKET_LAST + 1]);
  * NB: The orginal sysctl somaxconn is still available but hidden
  * to prevent confusion about the actual purpose of this number.
  */
-static int somaxconn = SOMAXCONN;
+static u_int somaxconn = SOMAXCONN;
 
 static int
 sysctl_somaxconn(SYSCTL_HANDLER_ARGS)
@@ -209,7 +210,13 @@ sysctl_somaxconn(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr )
 		return (error);
 
-	if (val < 1 || val > USHRT_MAX)
+	/*
+	 * The purpose of the UINT_MAX / 3 limit, is so that the formula
+	 *   3 * so_qlimit / 2
+	 * below, will not overflow.
+         */
+
+	if (val < 1 || val > UINT_MAX / 3)
 		return (EINVAL);
 
 	somaxconn = val;
@@ -351,7 +358,7 @@ sysctl_maxsockets(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_kern_ipc, OID_AUTO, maxsockets, CTLTYPE_INT|CTLFLAG_RW,
     &maxsockets, 0, sysctl_maxsockets, "IU",
-    "Maximum number of sockets avaliable");
+    "Maximum number of sockets available");
 
 /*
  * Socket operation routines.  These routines are called by the routines in
@@ -390,7 +397,10 @@ soalloc(struct vnet *vnet)
 	SOCKBUF_LOCK_INIT(&so->so_rcv, "so_rcv");
 	sx_init(&so->so_snd.sb_sx, "so_snd_sx");
 	sx_init(&so->so_rcv.sb_sx, "so_rcv_sx");
-	TAILQ_INIT(&so->so_aiojobq);
+	TAILQ_INIT(&so->so_snd.sb_aiojobq);
+	TAILQ_INIT(&so->so_rcv.sb_aiojobq);
+	TASK_INIT(&so->so_snd.sb_aiotask, 0, soaio_snd, so);
+	TASK_INIT(&so->so_rcv.sb_aiotask, 0, soaio_rcv, so);
 #ifdef VIMAGE
 	VNET_ASSERT(vnet != NULL, ("%s:%d vnet is NULL, so=%p",
 	    __func__, __LINE__, so));

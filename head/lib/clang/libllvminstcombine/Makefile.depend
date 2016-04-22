@@ -6,37 +6,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-InstCombineAddSub.o: Intrinsics.inc.h
-InstCombineAddSub.po: Intrinsics.inc.h
-InstCombineAndOrXor.o: Intrinsics.inc.h
-InstCombineAndOrXor.po: Intrinsics.inc.h
-InstCombineCalls.o: Intrinsics.inc.h
-InstCombineCalls.po: Intrinsics.inc.h
-InstCombineCasts.o: Intrinsics.inc.h
-InstCombineCasts.po: Intrinsics.inc.h
-InstCombineCompares.o: Intrinsics.inc.h
-InstCombineCompares.po: Intrinsics.inc.h
-InstCombineLoadStoreAlloca.o: Intrinsics.inc.h
-InstCombineLoadStoreAlloca.po: Intrinsics.inc.h
-InstCombineMulDivRem.o: Intrinsics.inc.h
-InstCombineMulDivRem.po: Intrinsics.inc.h
-InstCombinePHI.o: Intrinsics.inc.h
-InstCombinePHI.po: Intrinsics.inc.h
-InstCombineSelect.o: Intrinsics.inc.h
-InstCombineSelect.po: Intrinsics.inc.h
-InstCombineShifts.o: Intrinsics.inc.h
-InstCombineShifts.po: Intrinsics.inc.h
-InstCombineSimplifyDemanded.o: Intrinsics.inc.h
-InstCombineSimplifyDemanded.po: Intrinsics.inc.h
-InstCombineVectorOps.o: Intrinsics.inc.h
-InstCombineVectorOps.po: Intrinsics.inc.h
-InstructionCombining.o: Intrinsics.inc.h
-InstructionCombining.po: Intrinsics.inc.h
 .endif

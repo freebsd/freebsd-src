@@ -3,6 +3,8 @@
 
 DIRDEPS = \
 	include \
+	include/xlocale \
+	lib/libstand \
 
 
 .include <dirdeps.mk>

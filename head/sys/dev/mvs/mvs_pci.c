@@ -316,7 +316,7 @@ mvs_setup_interrupt(device_t dev)
 		device_printf(dev, "unable to setup interrupt\n");
 		bus_release_resource(dev, SYS_RES_IRQ,
 		    ctlr->irq.r_irq_rid, ctlr->irq.r_irq);
-		ctlr->irq.r_irq = 0;
+		ctlr->irq.r_irq = NULL;
 		return (ENXIO);
 	}
 	return (0);
@@ -389,13 +389,14 @@ mvs_intr(void *data)
 
 static struct resource *
 mvs_alloc_resource(device_t dev, device_t child, int type, int *rid,
-		       u_long start, u_long end, u_long count, u_int flags)
+		       rman_res_t start, rman_res_t end, rman_res_t count,
+		       u_int flags)
 {
 	struct mvs_controller *ctlr = device_get_softc(dev);
 	int unit = ((struct mvs_channel *)device_get_softc(child))->unit;
 	struct resource *res = NULL;
 	int offset = HC_BASE(unit >> 2) + PORT_BASE(unit & 0x03);
-	long st;
+	rman_res_t st;
 
 	switch (type) {
 	case SYS_RES_MEMORY:

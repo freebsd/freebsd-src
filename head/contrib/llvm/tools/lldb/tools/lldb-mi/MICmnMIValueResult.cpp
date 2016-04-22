@@ -1,4 +1,4 @@
-//===-- Platform.cpp --------------------------------------------*- C++ -*-===//
+//===-- MICmnMIValueResult.cpp ----------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -21,7 +21,7 @@ const CMIUtilString CMICmnMIValueResult::ms_constStrEqual("=");
 // Return:  None.
 // Throws:  None.
 //--
-CMICmnMIValueResult::CMICmnMIValueResult(void)
+CMICmnMIValueResult::CMICmnMIValueResult()
     : m_bEmptyConstruction(true)
 {
 }
@@ -68,7 +68,7 @@ CMICmnMIValueResult::CMICmnMIValueResult(const CMIUtilString &vrVariable, const 
 // Return:  None.
 // Throws:  None.
 //--
-CMICmnMIValueResult::~CMICmnMIValueResult(void)
+CMICmnMIValueResult::~CMICmnMIValueResult()
 {
 }
 
@@ -76,17 +76,14 @@ CMICmnMIValueResult::~CMICmnMIValueResult(void)
 // Details: Build the MI value result string.
 // Type:    Method.
 // Args:    None.
-// Return:  MIstatus::success - Functional succeeded.
-//          MIstatus::failure - Functional failed.
+// Return:  None.
 // Throws:  None.
 //--
-bool
-CMICmnMIValueResult::BuildResult(void)
+void
+CMICmnMIValueResult::BuildResult()
 {
     const char *pFormat = m_bUseSpacing ? "%s %s %s" : "%s%s%s";
     m_strValue = CMIUtilString::Format(pFormat, m_strPartVariable.c_str(), ms_constStrEqual.c_str(), m_partMIValue.GetString().c_str());
-
-    return MIstatus::success;
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -94,18 +91,15 @@ CMICmnMIValueResult::BuildResult(void)
 // Type:    Method.
 // Args:    vrVariable  - (R) MI value's name.
 //          vrValue     - (R) The MI value.
-// Return:  MIstatus::success - Functional succeeded.
-//          MIstatus::failure - Functional failed.
+// Return:  None.
 // Throws:  None.
 //--
-bool
+void
 CMICmnMIValueResult::BuildResult(const CMIUtilString &vVariable, const CMICmnMIValue &vValue)
 {
     const char *pFormat = m_bUseSpacing ? "%s, %s %s %s" : "%s,%s%s%s";
     m_strValue =
         CMIUtilString::Format(pFormat, m_strValue.c_str(), vVariable.c_str(), ms_constStrEqual.c_str(), vValue.GetString().c_str());
-
-    return MIstatus::success;
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -117,16 +111,16 @@ CMICmnMIValueResult::BuildResult(const CMIUtilString &vVariable, const CMICmnMIV
 //          MIstatus::failure - Functional failed.
 // Throws:  None.
 //--
-bool
+void
 CMICmnMIValueResult::Add(const CMIUtilString &vrVariable, const CMICmnMIValue &vrValue)
 {
     if (!m_bEmptyConstruction)
-        return BuildResult(vrVariable, vrValue);
+        BuildResult(vrVariable, vrValue);
     else
     {
         m_bEmptyConstruction = false;
         m_strPartVariable = vrVariable;
         m_partMIValue = vrValue;
-        return BuildResult();
+        BuildResult();
     }
 }

@@ -101,10 +101,9 @@ static void createPHIsForSplitLoopExit(ArrayRef<BasicBlock *> Preds,
         continue;
 
     // Otherwise a new PHI is needed. Create one and populate it.
-    PHINode *NewPN =
-      PHINode::Create(PN->getType(), Preds.size(), "split",
-                      SplitBB->isLandingPad() ?
-                      SplitBB->begin() : SplitBB->getTerminator());
+    PHINode *NewPN = PHINode::Create(
+        PN->getType(), Preds.size(), "split",
+        SplitBB->isLandingPad() ? &SplitBB->front() : SplitBB->getTerminator());
     for (unsigned i = 0, e = Preds.size(); i != e; ++i)
       NewPN->addIncoming(V, Preds[i]);
 
@@ -141,9 +140,9 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
   BasicBlock *TIBB = TI->getParent();
   BasicBlock *DestBB = TI->getSuccessor(SuccNum);
 
-  // Splitting the critical edge to a landing pad block is non-trivial. Don't do
+  // Splitting the critical edge to a pad block is non-trivial. Don't do
   // it in this generic function.
-  if (DestBB->isLandingPad()) return nullptr;
+  if (DestBB->isEHPad()) return nullptr;
 
   // Create a new basic block, linking it into the CFG.
   BasicBlock *NewBB = BasicBlock::Create(TI->getContext(),
@@ -157,7 +156,7 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
 
   // Insert the block into the function... right after the block TI lives in.
   Function &F = *TIBB->getParent();
-  Function::iterator FBBI = TIBB;
+  Function::iterator FBBI = TIBB->getIterator();
   F.getBasicBlockList().insert(++FBBI, NewBB);
 
   // If there are any PHI nodes in DestBB, we need to update them so that they
@@ -197,7 +196,6 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
   }
 
   // If we have nothing to update, just return.
-  auto *AA = Options.AA;
   auto *DT = Options.DT;
   auto *LI = Options.LI;
   if (!DT && !LI)
@@ -319,10 +317,9 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
           LoopPreds.push_back(P);
         }
         if (!LoopPreds.empty()) {
-          assert(!DestBB->isLandingPad() &&
-                 "We don't split edges to landing pads!");
+          assert(!DestBB->isEHPad() && "We don't split edges to EH pads!");
           BasicBlock *NewExitBB = SplitBlockPredecessors(
-              DestBB, LoopPreds, "split", AA, DT, LI, Options.PreserveLCSSA);
+              DestBB, LoopPreds, "split", DT, LI, Options.PreserveLCSSA);
           if (Options.PreserveLCSSA)
             createPHIsForSplitLoopExit(LoopPreds, NewExitBB, DestBB);
         }

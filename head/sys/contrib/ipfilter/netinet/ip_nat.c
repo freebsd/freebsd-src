@@ -5123,7 +5123,7 @@ ipf_nat_out(fin, nat, natadd, nflags)
 		ipf_fix_outcksum(0, &fin->fin_ip->ip_sum, msumd, 0);
 	}
 #if !defined(_KERNEL) || defined(MENTAT) || defined(__sgi) || \
-    defined(linux) || defined(BRIDGE_IPF)
+    defined(linux) || defined(BRIDGE_IPF) || defined(__FreeBSD__)
 	else {
 		/*
 		 * Strictly speaking, this isn't necessary on BSD
@@ -5235,7 +5235,7 @@ ipf_nat_out(fin, nat, natadd, nflags)
 		uh->uh_ulen += fin->fin_plen;
 		uh->uh_ulen = htons(uh->uh_ulen);
 #if !defined(_KERNEL) || defined(MENTAT) || defined(__sgi) || \
-    defined(linux) || defined(BRIDGE_IPF)
+    defined(linux) || defined(BRIDGE_IPF) || defined(__FreeBSD__)
 		ipf_fix_outcksum(0, &ip->ip_sum, sumd, 0);
 #endif
 

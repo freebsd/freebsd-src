@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/bio.h>
+#include <sys/bus.h>
 #include <sys/ctype.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
@@ -225,8 +226,16 @@ g_disk_done(struct bio *bp)
 	if (bp2->bio_error == 0)
 		bp2->bio_error = bp->bio_error;
 	bp2->bio_completed += bp->bio_completed;
-	if ((bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE|BIO_FLUSH)) != 0)
+	switch (bp->bio_cmd) {
+	case BIO_READ:
+	case BIO_WRITE:
+	case BIO_DELETE:
+	case BIO_FLUSH:
 		devstat_end_transaction_bio_bt(sc->dp->d_devstat, bp, &now);
+		break;
+	default:
+		break;
+	}
 	bp2->bio_inbed++;
 	if (bp2->bio_children == bp2->bio_inbed) {
 		mtx_unlock(&sc->done_mtx);
@@ -549,6 +558,23 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 		    indent, dp->d_fwheads);
 		sbuf_printf(sb, "%s<fwsectors>%u</fwsectors>\n",
 		    indent, dp->d_fwsectors);
+
+		/*
+		 * "rotationrate" is a little complicated, because the value
+		 * returned by the drive might not be the RPM; 0 and 1 are
+		 * special cases, and there's also a valid range.
+		 */
+		sbuf_printf(sb, "%s<rotationrate>", indent);
+		if (dp->d_rotation_rate == 0)		/* Old drives don't */
+			sbuf_printf(sb, "unknown");	/* report RPM. */
+		else if (dp->d_rotation_rate == 1)	/* Since 0 is used */
+			sbuf_printf(sb, "0");		/* above, SSDs use 1. */
+		else if ((dp->d_rotation_rate >= 0x041) &&
+		    (dp->d_rotation_rate <= 0xfffe))
+			sbuf_printf(sb, "%u", dp->d_rotation_rate);
+		else
+			sbuf_printf(sb, "invalid");
+		sbuf_printf(sb, "</rotationrate>\n");
 		if (dp->d_getattr != NULL) {
 			buf = g_malloc(DISK_IDENT_SIZE, M_WAITOK);
 			bp = g_alloc_bio();
@@ -814,11 +840,14 @@ disk_attr_changed(struct disk *dp, const char *attr, int flag)
 {
 	struct g_geom *gp;
 	struct g_provider *pp;
+	char devnamebuf[128];
 
 	gp = dp->d_geom;
 	if (gp != NULL)
 		LIST_FOREACH(pp, &gp->provider, provider)
 			(void)g_attr_changed(pp, attr, flag);
+	snprintf(devnamebuf, 128, "devname=%s%d", dp->d_name, dp->d_unit);
+	devctl_notify("GEOM", "disk", attr, devnamebuf);
 }
 
 void

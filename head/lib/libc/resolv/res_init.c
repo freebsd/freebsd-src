@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -315,7 +314,7 @@ __res_vinit(res_state statp, int preinit) {
 		while (*cp != '\0' && *cp != ' ' && *cp != '\t' && *cp != '\n')
 			cp++;
 		*cp = '\0';
-		*pp++ = 0;
+		*pp++ = NULL;
 	}
 
 #define	MATCH(line, name) \
@@ -391,7 +390,7 @@ __res_vinit(res_state statp, int preinit) {
 		    while (*cp != '\0' && *cp != ' ' && *cp != '\t')
 			    cp++;
 		    *cp = '\0';
-		    *pp++ = 0;
+		    *pp++ = NULL;
 		    havesearch = 1;
 		    continue;
 		}

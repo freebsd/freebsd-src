@@ -131,9 +131,10 @@ nehemiah_modevent(module_t mod, int type, void *unused)
 		break;
 
 	case MOD_UNLOAD:
-		if (via_feature_rng & VIA_HAS_RNG)
+		if (via_feature_rng & VIA_HAS_RNG) {
 			random_nehemiah_deinit();
 			random_source_deregister(&random_nehemiah);
+		}
 		break;
 
 	case MOD_SHUTDOWN:
@@ -150,4 +151,4 @@ nehemiah_modevent(module_t mod, int type, void *unused)
 
 DEV_MODULE(nehemiah, nehemiah_modevent, NULL);
 MODULE_VERSION(nehemiah, 1);
-MODULE_DEPEND(nehemiah, randomdev, 1, 1, 1);
+MODULE_DEPEND(nehemiah, random_device, 1, 1, 1);

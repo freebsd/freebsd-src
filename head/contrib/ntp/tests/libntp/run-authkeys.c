@@ -26,6 +26,7 @@
 #include "ntp.h"
 #include "ntp_stdlib.h"
 #include "ntp_calendar.h"
+#include <limits.h>
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
@@ -36,6 +37,7 @@ extern void test_HaveKeyCorrect(void);
 extern void test_HaveKeyIncorrect(void);
 extern void test_AddWithAuthUseKey(void);
 extern void test_EmptyKey(void);
+extern void test_auth_log2(void);
 
 
 //=======Test Reset Option=====
@@ -54,12 +56,13 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("authkeys.c");
-  RUN_TEST(test_AddTrustedKeys, 24);
-  RUN_TEST(test_AddUntrustedKey, 25);
-  RUN_TEST(test_HaveKeyCorrect, 26);
-  RUN_TEST(test_HaveKeyIncorrect, 27);
-  RUN_TEST(test_AddWithAuthUseKey, 28);
-  RUN_TEST(test_EmptyKey, 29);
+  RUN_TEST(test_AddTrustedKeys, 25);
+  RUN_TEST(test_AddUntrustedKey, 26);
+  RUN_TEST(test_HaveKeyCorrect, 27);
+  RUN_TEST(test_HaveKeyIncorrect, 28);
+  RUN_TEST(test_AddWithAuthUseKey, 29);
+  RUN_TEST(test_EmptyKey, 30);
+  RUN_TEST(test_auth_log2, 31);
 
   return (UnityEnd());
 }

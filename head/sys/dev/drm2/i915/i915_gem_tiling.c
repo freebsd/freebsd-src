@@ -29,7 +29,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drmP.h>
-#include <dev/drm2/drm.h>
 #include <dev/drm2/i915/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
 
@@ -95,7 +94,10 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 	uint32_t swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 
-	if (INTEL_INFO(dev)->gen >= 6) {
+	if (IS_VALLEYVIEW(dev)) {
+		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
+		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
+	} else if (INTEL_INFO(dev)->gen >= 6) {
 		uint32_t dimm_c0, dimm_c1;
 		dimm_c0 = I915_READ(MAD_DIMM_C0);
 		dimm_c1 = I915_READ(MAD_DIMM_C1);
@@ -313,12 +315,12 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 
 	if (!i915_tiling_ok(dev,
 			    args->stride, obj->base.size, args->tiling_mode)) {
-		drm_gem_object_unreference(&obj->base);
+		drm_gem_object_unreference_unlocked(&obj->base);
 		return -EINVAL;
 	}
 
 	if (obj->pin_count) {
-		drm_gem_object_unreference(&obj->base);
+		drm_gem_object_unreference_unlocked(&obj->base);
 		return -EBUSY;
 	}
 
@@ -453,15 +455,15 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
  * by the GPU.
  */
 static void
-i915_gem_swizzle_page(vm_page_t m)
+i915_gem_swizzle_page(vm_page_t page)
 {
 	char temp[64];
-	char *vaddr;
 	struct sf_buf *sf;
+	char *vaddr;
 	int i;
 
 	/* XXXKIB sleep */
-	sf = sf_buf_alloc(m, SFB_DEFAULT);
+	sf = sf_buf_alloc(page, SFB_DEFAULT);
 	vaddr = (char *)sf_buf_kva(sf);
 
 	for (i = 0; i < PAGE_SIZE; i += 128) {
@@ -483,7 +485,8 @@ i915_gem_object_do_bit_17_swizzle_page(struct drm_i915_gem_object *obj,
 		return;
 
 	new_bit_17 = VM_PAGE_TO_PHYS(m) >> 17;
-	if ((new_bit_17 & 0x1) != (test_bit(m->pindex, obj->bit_17) != 0)) {
+	if ((new_bit_17 & 0x1) !=
+	    (test_bit(m->pindex, obj->bit_17) != 0)) {
 		i915_gem_swizzle_page(m);
 		vm_page_dirty(m);
 	}
@@ -499,11 +502,12 @@ i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj)
 		return;
 
 	for (i = 0; i < page_count; i++) {
-		char new_bit_17 = VM_PAGE_TO_PHYS(obj->pages[i]) >> 17;
+		vm_page_t page = obj->pages[i];
+		char new_bit_17 = VM_PAGE_TO_PHYS(page) >> 17;
 		if ((new_bit_17 & 0x1) !=
 		    (test_bit(i, obj->bit_17) != 0)) {
-			i915_gem_swizzle_page(obj->pages[i]);
-			vm_page_dirty(obj->pages[i]);
+			i915_gem_swizzle_page(page);
+			vm_page_dirty(page);
 		}
 	}
 }
@@ -516,14 +520,20 @@ i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj)
 
 	if (obj->bit_17 == NULL) {
 		obj->bit_17 = malloc(BITS_TO_LONGS(page_count) *
-		    sizeof(long), DRM_I915_GEM, M_WAITOK);
+					   sizeof(long), DRM_I915_GEM, M_WAITOK);
+		if (obj->bit_17 == NULL) {
+			DRM_ERROR("Failed to allocate memory for bit 17 "
+				  "record\n");
+			return;
+		}
 	}
 
 	/* XXXKIB: review locking, atomics might be not needed there */
 	for (i = 0; i < page_count; i++) {
-		if (VM_PAGE_TO_PHYS(obj->pages[i]) & (1 << 17))
-			set_bit(i, obj->bit_17);
+		vm_page_t page = obj->pages[i];
+		if (VM_PAGE_TO_PHYS(page) & (1 << 17))
+			__set_bit(i, obj->bit_17);
 		else
-			clear_bit(i, obj->bit_17);
+			__clear_bit(i, obj->bit_17);
 	}
 }

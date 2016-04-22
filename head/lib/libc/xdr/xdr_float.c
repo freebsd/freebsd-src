@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "namespace.h"
-#include <sys/types.h>
 #include <sys/param.h>
 
 #include <stdio.h>
@@ -61,14 +60,8 @@ __FBSDID("$FreeBSD$");
  * This routine works on machines with IEEE754 FP and Vaxen.
  */
 
-#if defined(__m68k__) || defined(__sparc__) || defined(__i386__) || \
-    defined(__mips__) || defined(__ns32k__) || defined(__alpha__) || \
-    defined(__arm__) || defined(__ppc__) || \
-    defined(__arm26__) || defined(__sparc64__) || defined(__amd64__) || \
-    defined(__aarch64__)
 #include <machine/endian.h>
 #define IEEEFP
-#endif
 
 #if defined(__vax__)
 
@@ -117,9 +110,8 @@ xdr_float(XDR *xdrs, float *fp)
 		return (XDR_PUTINT32(xdrs, (int32_t *)fp));
 #else
 		vs = *((struct vax_single *)fp);
-		for (i = 0, lim = sgl_limits;
-			i < sizeof(sgl_limits)/sizeof(struct sgl_limits);
-			i++, lim++) {
+		for (i = 0, lim = sgl_limits; i < nitems(sgl_limits);
+		    i++, lim++) {
 			if ((vs.mantissa2 == lim->s.mantissa2) &&
 				(vs.exp == lim->s.exp) &&
 				(vs.mantissa1 == lim->s.mantissa1)) {
@@ -141,9 +133,8 @@ xdr_float(XDR *xdrs, float *fp)
 		vsp = (struct vax_single *)fp;
 		if (!XDR_GETINT32(xdrs, (int32_t *)&is))
 			return (FALSE);
-		for (i = 0, lim = sgl_limits;
-			i < sizeof(sgl_limits)/sizeof(struct sgl_limits);
-			i++, lim++) {
+		for (i = 0, lim = sgl_limits; i < nitems(sgl_limits);
+		    i++, lim++) {
 			if ((is.exp == lim->ieee.exp) &&
 				(is.mantissa == lim->ieee.mantissa)) {
 				*vsp = lim->s;
@@ -234,9 +225,8 @@ xdr_double(XDR *xdrs, double *dp)
 		return (rv);
 #else
 		vd = *((struct vax_double *)dp);
-		for (i = 0, lim = dbl_limits;
-			i < sizeof(dbl_limits)/sizeof(struct dbl_limits);
-			i++, lim++) {
+		for (i = 0, lim = dbl_limits; i < nitems(dbl_limits);
+		    i++, lim++) {
 			if ((vd.mantissa4 == lim->d.mantissa4) &&
 				(vd.mantissa3 == lim->d.mantissa3) &&
 				(vd.mantissa2 == lim->d.mantissa2) &&
@@ -276,9 +266,8 @@ xdr_double(XDR *xdrs, double *dp)
 		lp = (int32_t *)&id;
 		if (!XDR_GETINT32(xdrs, lp++) || !XDR_GETINT32(xdrs, lp))
 			return (FALSE);
-		for (i = 0, lim = dbl_limits;
-			i < sizeof(dbl_limits)/sizeof(struct dbl_limits);
-			i++, lim++) {
+		for (i = 0, lim = dbl_limits; i < nitems(dbl_limits);
+		    i++, lim++) {
 			if ((id.mantissa2 == lim->ieee.mantissa2) &&
 				(id.mantissa1 == lim->ieee.mantissa1) &&
 				(id.exp == lim->ieee.exp)) {

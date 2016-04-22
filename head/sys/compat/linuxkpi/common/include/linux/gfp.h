@@ -54,6 +54,7 @@
 #define	GFP_HIGHUSER	M_WAITOK
 #define	GFP_HIGHUSER_MOVABLE	M_WAITOK
 #define	GFP_IOFS	M_NOWAIT
+#define	GFP_NOIO	M_NOWAIT
 
 static inline void *
 page_address(struct page *page)
@@ -66,15 +67,15 @@ page_address(struct page *page)
 }
 
 static inline unsigned long
-_get_page(gfp_t mask)
+linux_get_page(gfp_t mask)
 {
 
 	return kmem_malloc(kmem_arena, PAGE_SIZE, mask);
 }
 
-#define	get_zeroed_page(mask)	_get_page((mask) | M_ZERO)
-#define	alloc_page(mask)	virt_to_page(_get_page((mask)))
-#define	__get_free_page(mask)	_get_page((mask))
+#define	get_zeroed_page(mask)	linux_get_page((mask) | M_ZERO)
+#define	alloc_page(mask)	virt_to_page(linux_get_page((mask)))
+#define	__get_free_page(mask)	linux_get_page((mask))
 
 static inline void
 free_page(unsigned long page)

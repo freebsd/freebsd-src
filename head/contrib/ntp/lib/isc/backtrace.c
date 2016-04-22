@@ -278,7 +278,7 @@ isc_backtrace_getsymbol(const void *addr, const char **symbolp,
 		result = ISC_R_NOTFOUND;
 	else {
 		*symbolp = found->symbol;
-		*offsetp = (const char *)addr - (char *)found->addr;
+		*offsetp = (u_long)((const char *)addr - (char *)found->addr);
 	}
 
 	return (result);

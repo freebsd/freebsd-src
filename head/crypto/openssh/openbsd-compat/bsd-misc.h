@@ -111,7 +111,7 @@ pid_t getpgid(pid_t);
 #endif
 
 #ifndef HAVE_ENDGRENT
-# define endgrent() do { } while (0)
+# define endgrent() do { } while(0)
 #endif
 
 #ifndef HAVE_KRB5_GET_ERROR_MESSAGE
@@ -120,6 +120,10 @@ pid_t getpgid(pid_t);
 
 #ifndef HAVE_KRB5_FREE_ERROR_MESSAGE
 # define krb5_free_error_message(a,b) do { } while(0)
+#endif
+
+#ifndef HAVE_PLEDGE
+int pledge(const char *promises, const char *paths[]);
 #endif
 
 #endif /* _BSD_MISC_H */

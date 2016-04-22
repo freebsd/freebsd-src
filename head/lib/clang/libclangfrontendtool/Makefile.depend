@@ -7,23 +7,11 @@ DIRDEPS = \
 	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/clang-tblgen.host \
-	usr.bin/clang/tblgen.host \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ExecuteCompilerInvocation.o: CommentCommandList.inc.h
-ExecuteCompilerInvocation.o: DeclNodes.inc.h
-ExecuteCompilerInvocation.o: DiagnosticCommonKinds.inc.h
-ExecuteCompilerInvocation.o: DiagnosticFrontendKinds.inc.h
-ExecuteCompilerInvocation.o: Options.inc.h
-ExecuteCompilerInvocation.o: StmtNodes.inc.h
-ExecuteCompilerInvocation.po: CommentCommandList.inc.h
-ExecuteCompilerInvocation.po: DeclNodes.inc.h
-ExecuteCompilerInvocation.po: DiagnosticCommonKinds.inc.h
-ExecuteCompilerInvocation.po: DiagnosticFrontendKinds.inc.h
-ExecuteCompilerInvocation.po: Options.inc.h
-ExecuteCompilerInvocation.po: StmtNodes.inc.h
 .endif

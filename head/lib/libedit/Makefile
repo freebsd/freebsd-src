@@ -2,6 +2,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
+PACKAGE=clibs
 LIB=	edit
 SHLIB_MAJOR=	7
 SHLIBDIR?= /lib

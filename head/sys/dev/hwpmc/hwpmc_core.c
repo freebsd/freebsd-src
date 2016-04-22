@@ -103,6 +103,7 @@ static int core_iaf_npmc;
 
 static int core_iap_width;
 static int core_iap_npmc;
+static int core_iap_wroffset;
 
 static int
 core_pcpu_noop(struct pmc_mdep *md, int cpu)
@@ -1893,8 +1894,6 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(FDH_40H, 0xFD, 0x40, IAP_F_FM | IAP_F_WM | IAP_F_I7),
 };
 
-static const int niap_events = sizeof(iap_events) / sizeof(iap_events[0]);
-
 static pmc_value_t
 iap_perfctr_value_to_reload_count(pmc_value_t v)
 {
@@ -2250,11 +2249,11 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		break;
 	}
 
-	for (n = 0, ie = iap_events; n < niap_events; n++, ie++)
+	for (n = 0, ie = iap_events; n < nitems(iap_events); n++, ie++)
 		if (ie->iap_ev == ev && ie->iap_flags & cpuflag)
 			break;
 
-	if (n == niap_events)
+	if (n == nitems(iap_events))
 		return (EINVAL);
 
 	/*
@@ -2473,7 +2472,7 @@ iap_read_pmc(int cpu, int ri, pmc_value_t *v)
 		*v = tmp & ((1ULL << core_iap_width) - 1);
 
 	PMCDBG4(MDP,REA,1, "iap-read cpu=%d ri=%d msr=0x%x -> v=%jx", cpu, ri,
-	    ri, *v);
+	    IAP_PMC0 + ri, *v);
 
 	return (0);
 }
@@ -2605,19 +2604,20 @@ iap_write_pmc(int cpu, int ri, pmc_value_t v)
 	    ("[core,%d] cpu%d ri%d no configured PMC to stop", __LINE__,
 		cpu, ri));
 
-	PMCDBG4(MDP,WRI,1, "iap-write cpu=%d ri=%d msr=0x%x v=%jx", cpu, ri,
-	    IAP_PMC0 + ri, v);
-
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		v = iap_reload_count_to_perfctr_value(v);
 
+	v &= (1ULL << core_iap_width) - 1;
+
+	PMCDBG4(MDP,WRI,1, "iap-write cpu=%d ri=%d msr=0x%x v=%jx", cpu, ri,
+	    IAP_PMC0 + ri, v);
+
 	/*
-	 * Write the new value to the counter.  The counter will be in
-	 * a stopped state when the pcd_write() entry point is called.
+	 * Write the new value to the counter (or it's alias).  The
+	 * counter will be in a stopped state when the pcd_write()
+	 * entry point is called.
 	 */
-
-	wrmsr(IAP_PMC0 + ri, v & ((1ULL << core_iap_width) - 1));
-
+	wrmsr(core_iap_wroffset + IAP_PMC0 + ri, v);
 	return (0);
 }
 
@@ -2700,7 +2700,7 @@ core_intr(int cpu, struct trapframe *tf)
 		 */
 		msr = rdmsr(IAP_EVSEL0 + ri) & ~IAP_EVSEL_MASK;
 		wrmsr(IAP_EVSEL0 + ri, msr);
-		wrmsr(IAP_PMC0 + ri, v);
+		wrmsr(core_iap_wroffset + IAP_PMC0 + ri, v);
 
 		if (error)
 			continue;
@@ -2814,7 +2814,7 @@ core2_intr(int cpu, struct trapframe *tf)
 		    (uintmax_t) v);
 
 		/* Reload sampling count. */
-		wrmsr(IAP_PMC0 + n, v);
+		wrmsr(core_iap_wroffset + IAP_PMC0 + n, v);
 	}
 
 	/*
@@ -2864,6 +2864,18 @@ pmc_core_initialize(struct pmc_mdep *md, int maxcpu, int version_override)
 		    ipa_version);
 		return (EPROGMISMATCH);
 	}
+
+	core_iap_wroffset = 0;
+	if (cpu_feature2 & CPUID2_PDCM) {
+		if (rdmsr(IA32_PERF_CAPABILITIES) & PERFCAP_FW_WRITE) {
+			PMCDBG0(MDP, INI, 1,
+			    "core-init full-width write supported");
+			core_iap_wroffset = IAP_A_PMC0 - IAP_PMC0;
+		} else
+			PMCDBG0(MDP, INI, 1,
+			    "core-init full-width write NOT supported");
+	} else
+		PMCDBG0(MDP, INI, 1, "core-init pdcm not supported");
 
 	core_pmcmask = 0;
 

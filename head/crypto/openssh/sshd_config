@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.93 2014/01/10 05:59:19 djm Exp $
+#	$OpenBSD: sshd_config,v 1.98 2016/02/17 05:29:04 djm Exp $
 #	$FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See
@@ -120,22 +120,13 @@
 #MaxStartups 10:30:100
 #PermitTunnel no
 #ChrootDirectory none
-#VersionAddendum FreeBSD-20140420
+#VersionAddendum FreeBSD-20160310
 
 # no default banner path
 #Banner none
 
 # override default of no subsystems
 Subsystem	sftp	/usr/libexec/sftp-server
-
-# Change to yes to disable HPN tuning improvements.
-#HPNDisabled no
-
-# Buffer size for HPN to non-HPN connections.
-#HPNBufferSize 2048
-
-# TCP receive socket buffer polling for HPN.  Disable on non autotuning kernels.
-#TcpRcvBufPoll yes
 
 # Example of overriding settings on a per-user basis
 #Match User anoncvs

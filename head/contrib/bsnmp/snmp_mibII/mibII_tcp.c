@@ -45,10 +45,11 @@ struct tcp_index {
 };
 
 static uint64_t tcp_tick;
+static uint64_t tcp_stats_tick;
 static struct tcpstat tcpstat;
+static uint64_t tcps_states[TCP_NSTATES];
 static struct xinpgen *xinpgen;
 static size_t xinpgen_len;
-static u_int tcp_count;
 static u_int tcp_total;
 
 static u_int oidnum;
@@ -64,13 +65,9 @@ tcp_compare(const void *p1, const void *p2)
 }
 
 static int
-fetch_tcp(void)
+fetch_tcp_stats(void)
 {
 	size_t len;
-	struct xinpgen *ptr;
-	struct xtcpcb *tp;
-	struct tcp_index *oid;
-	in_addr_t inaddr;
 
 	len = sizeof(tcpstat);
 	if (sysctlbyname("net.inet.tcp.stats", &tcpstat, &len, NULL, 0) == -1) {
@@ -81,6 +78,31 @@ fetch_tcp(void)
 		syslog(LOG_ERR, "net.inet.tcp.stats: wrong size");
 		return (-1);
 	}
+
+	len = sizeof(tcps_states);
+	if (sysctlbyname("net.inet.tcp.states", &tcps_states, &len, NULL,
+	    0) == -1) {
+		syslog(LOG_ERR, "net.inet.tcp.states: %m");
+		return (-1);
+	}
+	if (len != sizeof(tcps_states)) {
+		syslog(LOG_ERR, "net.inet.tcp.states: wrong size");
+		return (-1);
+	}
+
+	tcp_stats_tick = get_ticks();
+
+	return (0);
+}
+
+static int
+fetch_tcp(void)
+{
+	size_t len;
+	struct xinpgen *ptr;
+	struct xtcpcb *tp;
+	struct tcp_index *oid;
+	in_addr_t inaddr;
 
 	len = 0;
 	if (sysctlbyname("net.inet.tcp.pcblist", NULL, &len, NULL, 0) == -1) {
@@ -102,7 +124,6 @@ fetch_tcp(void)
 
 	tcp_tick = get_ticks();
 
-	tcp_count = 0;
 	tcp_total = 0;
 	for (ptr = (struct xinpgen *)(void *)((char *)xinpgen + xinpgen->xig_len);
 	     ptr->xig_len > sizeof(struct xinpgen);
@@ -114,10 +135,6 @@ fetch_tcp(void)
 
 		if (tp->xt_inp.inp_vflag & INP_IPV4)
 			tcp_total++;
-
-		if (tp->xt_tp.t_state == TCPS_ESTABLISHED ||
-		    tp->xt_tp.t_state == TCPS_CLOSE_WAIT)
-			tcp_count++;
 	}
 
 	if (oidnum < tcp_total) {
@@ -184,8 +201,8 @@ op_tcp(struct snmp_context *ctx __unused, struct snmp_value *value,
 		abort();
 	}
 
-	if (tcp_tick < this_tick)
-		if (fetch_tcp() == -1)
+	if (tcp_stats_tick < this_tick)
+		if (fetch_tcp_stats() == -1)
 			return (SNMP_ERR_GENERR);
 
 	switch (value->var.subs[sub - 1]) {
@@ -226,7 +243,8 @@ op_tcp(struct snmp_context *ctx __unused, struct snmp_value *value,
 		break;
 
 	  case LEAF_tcpCurrEstab:
-		value->v.uint32 = tcp_count;
+		value->v.uint32 = tcps_states[TCPS_ESTABLISHED] +
+		    tcps_states[TCPS_CLOSE_WAIT];
 		break;
 
 	  case LEAF_tcpInSegs:

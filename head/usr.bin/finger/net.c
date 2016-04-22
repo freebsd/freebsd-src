@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
-#include <ctype.h>
+#include <wctype.h>
 #include <db.h>
 #include <err.h>
 #include <netdb.h>
@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include <utmpx.h>
+#include <wchar.h>
 #include "finger.h"
 
 static void cleanup(int sig);
@@ -67,7 +68,7 @@ netfinger(char *name)
 	static struct addrinfo hint;
 
 	host = strrchr(name, '@');
-	if (host == 0)
+	if (host == NULL)
 		return;
 	*host++ = '\0';
 	signal(SIGALRM, cleanup);
@@ -91,7 +92,7 @@ netfinger(char *name)
 	else
 		printf("[%s]\n", ai0->ai_canonname);
 
-	for (ai = ai0; ai != 0; ai = ai->ai_next) {
+	for (ai = ai0; ai != NULL; ai = ai->ai_next) {
 		if (multi)
 			trying(ai);
 
@@ -108,7 +109,7 @@ do_protocol(const char *name, const struct addrinfo *ai)
 {
 	int cnt, line_len, s;
 	FILE *fp;
-	int c, lastc;
+	wint_t c, lastc;
 	struct iovec iov[3];
 	struct msghdr msg;
 	static char slash_w[] = "/W ";
@@ -168,7 +169,7 @@ do_protocol(const char *name, const struct addrinfo *ai)
 	if ((fp = fdopen(s, "r")) != NULL) {
 		cnt = 0;
 		line_len = 0;
-		while ((c = getc(fp)) != EOF) {
+		while ((c = getwc(fp)) != EOF) {
 			if (++cnt > OUTPUT_MAX) {
 				printf("\n\n Output truncated at %d bytes...\n",
 					cnt - 1);
@@ -180,7 +181,7 @@ do_protocol(const char *name, const struct addrinfo *ai)
 				c = '\n';
 				lastc = '\r';
 			} else {
-				if (!isprint(c) && !isspace(c)) {
+				if (!iswprint(c) && !iswspace(c)) {
 					c &= 0x7f;
 					c |= 0x40;
 				}
@@ -191,7 +192,7 @@ do_protocol(const char *name, const struct addrinfo *ai)
 					continue;
 				}
 			}
-			putchar(c);
+			putwchar(c);
 			if (c != '\n' && ++line_len > _POSIX2_LINE_MAX) {
 				putchar('\\');
 				putchar('\n');
@@ -206,7 +207,7 @@ do_protocol(const char *name, const struct addrinfo *ai)
 			 */
 			warn("reading from network");
 		}
-		if (lastc != '\n')
+		if (lastc != L'\n')
 			putchar('\n');
 
 		fclose(fp);

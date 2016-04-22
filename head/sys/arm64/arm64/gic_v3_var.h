@@ -96,6 +96,7 @@ struct lpi_chunk {
 	u_int	lpi_base;
 	u_int	lpi_num;
 	u_int	lpi_free;	/* First free LPI in set */
+	u_int	*lpi_col_ids;
 };
 
 /* ITS device */
@@ -109,8 +110,6 @@ struct its_dev {
 	struct lpi_chunk	lpis;
 	/* Virtual address of ITT */
 	vm_offset_t		itt;
-	/* Interrupt collection */
-	struct its_col *	col;
 };
 TAILQ_HEAD(its_dev_list, its_dev);
 
@@ -133,6 +132,7 @@ struct its_cmd {
 };
 
 /* ITS commands encoding */
+#define	ITS_CMD_MOVI		(0x01)
 #define	ITS_CMD_SYNC		(0x05)
 #define	ITS_CMD_MAPD		(0x08)
 #define	ITS_CMD_MAPC		(0x09)
@@ -172,6 +172,12 @@ struct its_cmd_desc {
 
 	union {
 		struct {
+			struct its_dev *its_dev;
+			struct its_col *col;
+			uint32_t id;
+		} cmd_desc_movi;
+
+		struct {
 			struct its_col *col;
 		} cmd_desc_sync;
 
@@ -182,13 +188,15 @@ struct its_cmd_desc {
 
 		struct {
 			struct its_dev *its_dev;
+			struct its_col *col;
 			uint32_t pid;
 			uint32_t id;
 		} cmd_desc_mapvi;
 
 		struct {
 			struct its_dev *its_dev;
-			uint32_t lpinum;
+			struct its_col *col;
+			uint32_t pid;
 		} cmd_desc_mapi;
 
 		struct {
@@ -198,7 +206,8 @@ struct its_cmd_desc {
 
 		struct {
 			struct its_dev *its_dev;
-			uint32_t lpinum;
+			struct its_col *col;
+			uint32_t pid;
 		} cmd_desc_inv;
 
 		struct {
@@ -230,8 +239,8 @@ struct gic_v3_its_softc {
 	unsigned long *		its_lpi_bitmap;
 	uint32_t		its_lpi_maxid;
 
-	struct mtx		its_mtx;
-	struct mtx		its_spin_mtx;
+	struct mtx		its_dev_lock;
+	struct mtx		its_cmd_lock;
 
 	uint32_t		its_socket;	/* Socket number ITS is attached to */
 };
@@ -257,6 +266,7 @@ int gic_v3_its_map_msi(device_t, device_t, int, uint64_t *, uint32_t *);
 
 int its_init_cpu(struct gic_v3_its_softc *);
 
+int lpi_migrate(device_t, uint32_t, u_int);
 void lpi_unmask_irq(device_t, uint32_t);
 void lpi_mask_irq(device_t, uint32_t);
 /*

@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "libi386.h"
 #include "btxv86.h"
+#include "smbios.h"
 
 vm_offset_t	memtop, memtop_copyin, high_heap_base;
 uint32_t	bios_basemem, bios_extmem, high_heap_size;
@@ -55,7 +56,7 @@ static uint8_t b_bios_probed;
 /*
  * The minimum amount of memory to reserve in bios_extmem for the heap.
  */
-#define	HEAP_MIN	(3 * 1024 * 1024)
+#define	HEAP_MIN	(64 * 1024 * 1024)
 
 /*
  * Products in this list need quirks to detect

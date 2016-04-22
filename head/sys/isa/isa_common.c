@@ -150,8 +150,8 @@ isa_find_memory(device_t child, struct isa_config *config,
 		     start += MAX(align, 1)) {
 			bus_set_resource(child, SYS_RES_MEMORY, i,
 					 start, size);
-			res[i] = bus_alloc_resource(child,
-			    SYS_RES_MEMORY, &i, 0, ~0, 1,
+			res[i] = bus_alloc_resource_any(child,
+			    SYS_RES_MEMORY, &i,
 			    rman_make_alignment_flags(align) /* !RF_ACTIVE */);
 			if (res[i]) {
 				result->ic_mem[i].ir_start = start;
@@ -224,8 +224,8 @@ isa_find_port(device_t child, struct isa_config *config,
 		     start += align) {
 			bus_set_resource(child, SYS_RES_IOPORT, i,
 					 start, size);
-			res[i] = bus_alloc_resource(child,
-			    SYS_RES_IOPORT, &i, 0, ~0, 1,
+			res[i] = bus_alloc_resource_any(child,
+			    SYS_RES_IOPORT, &i,
 			    rman_make_alignment_flags(align) /* !RF_ACTIVE */);
 			if (res[i]) {
 				result->ic_port[i].ir_start = start;
@@ -483,7 +483,7 @@ isa_claim_resources(device_t dev, device_t child)
 		if (!rle->res) {
 			rid = rle->rid;
 			resource_list_alloc(rl, dev, child, rle->type, &rid,
-			    0ul, ~0ul, 1, 0);
+			    0, ~0, 1, 0);
 		}
 	}
 }
@@ -629,10 +629,10 @@ isa_print_all_resources(device_t dev)
 	if (STAILQ_FIRST(rl) || device_get_flags(dev))
 		retval += printf(" at");
 	
-	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#lx");
-	retval += resource_list_print_type(rl, "iomem", SYS_RES_MEMORY, "%#lx");
-	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
-	retval += resource_list_print_type(rl, "drq", SYS_RES_DRQ, "%ld");
+	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#jx");
+	retval += resource_list_print_type(rl, "iomem", SYS_RES_MEMORY, "%#jx");
+	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
+	retval += resource_list_print_type(rl, "drq", SYS_RES_DRQ, "%jd");
 	if (device_get_flags(dev))
 		retval += printf(" flags %#x", device_get_flags(dev));
 #ifdef ISAPNP
@@ -928,7 +928,7 @@ isa_driver_added(device_t dev, driver_t *driver)
 
 static int
 isa_set_resource(device_t dev, device_t child, int type, int rid,
-    u_long start, u_long count)
+    rman_res_t start, rman_res_t count)
 {
 	struct isa_device* idev = DEVTOISA(child);
 	struct resource_list *rl = &idev->id_resources;

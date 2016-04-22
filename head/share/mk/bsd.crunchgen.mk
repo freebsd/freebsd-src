@@ -70,7 +70,9 @@ LINKS+= ${BINDIR}/${PROG} ${BINDIR}/${A}
 .endfor
 .endfor
 
+.if !defined(_SKIP_BUILD)
 all: ${PROG}
+.endif
 exe: ${PROG}
 
 ${CONF}: Makefile

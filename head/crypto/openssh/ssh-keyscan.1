@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keyscan.1,v 1.34 2014/01/28 14:13:39 jmc Exp $
+.\"	$OpenBSD: ssh-keyscan.1,v 1.38 2015/11/08 23:24:03 jmc Exp $
 .\"
 .\" Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
 .\"
@@ -6,7 +6,7 @@
 .\" permitted provided that due credit is given to the author and the
 .\" OpenBSD project by leaving this copyright notice intact.
 .\"
-.Dd $Mdocdate: January 28 2014 $
+.Dd $Mdocdate: November 8 2015 $
 .Dt SSH-KEYSCAN 1
 .Os
 .Sh NAME
@@ -15,7 +15,7 @@
 .Sh SYNOPSIS
 .Nm ssh-keyscan
 .Bk -words
-.Op Fl 46Hv
+.Op Fl 46cHv
 .Op Fl f Ar file
 .Op Fl p Ar port
 .Op Fl T Ar timeout
@@ -54,6 +54,8 @@ to use IPv4 addresses only.
 Forces
 .Nm
 to use IPv6 addresses only.
+.It Fl c
+Request certificates from target hosts instead of plain keys.
 .It Fl f Ar file
 Read hosts or
 .Dq addrlist namelist
@@ -98,9 +100,10 @@ or
 for protocol version 2.
 Multiple values may be specified by separating them with commas.
 The default is to fetch
-.Dq rsa
+.Dq rsa ,
+.Dq ecdsa ,
 and
-.Dq ecdsa
+.Dq ed25519
 keys.
 .It Fl v
 Verbose mode.
@@ -124,12 +127,12 @@ Input format:
 1.2.3.4,1.2.4.4 name.my.domain,name,n.my.domain,n,1.2.3.4,1.2.4.4
 .Ed
 .Pp
-Output format for rsa1 keys:
+Output format for RSA1 keys:
 .Bd -literal
 host-or-namelist bits exponent modulus
 .Ed
 .Pp
-Output format for rsa, dsa and ecdsa keys:
+Output format for RSA, DSA, ECDSA, and Ed25519 keys:
 .Bd -literal
 host-or-namelist keytype base64-encoded-key
 .Ed
@@ -158,7 +161,7 @@ Find all hosts from the file
 which have new or different keys from those in the sorted file
 .Pa ssh_known_hosts :
 .Bd -literal
-$ ssh-keyscan -t rsa,dsa,ecdsa -f ssh_hosts | \e
+$ ssh-keyscan -t rsa,dsa,ecdsa,ed25519 -f ssh_hosts | \e
 	sort -u - ssh_known_hosts | diff ssh_known_hosts -
 .Ed
 .Sh SEE ALSO

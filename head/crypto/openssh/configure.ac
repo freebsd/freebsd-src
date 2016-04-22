@@ -1,4 +1,5 @@
-# $Id: configure.ac,v 1.571 2014/02/21 17:09:34 tim Exp $
+# $Id: configure.ac,v 1.583 2014/08/26 20:32:01 djm Exp $
+# $FreeBSD$
 #
 # Copyright (c) 1999-2004 Damien Miller
 #
@@ -15,7 +16,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_INIT([OpenSSH], [Portable], [openssh-unix-dev@mindrot.org])
-AC_REVISION($Revision: 1.571 $)
+AC_REVISION($Revision: 1.583 $)
 AC_CONFIG_SRCDIR([ssh.c])
 AC_LANG([C])
 
@@ -30,7 +31,7 @@ AC_PROG_CPP
 AC_PROG_RANLIB
 AC_PROG_INSTALL
 AC_PROG_EGREP
-AC_PATH_PROG([AR], [ar])
+AC_CHECK_TOOLS([AR], [ar])
 AC_PATH_PROG([CAT], [cat])
 AC_PATH_PROG([KILL], [kill])
 AC_PATH_PROGS([PERL], [perl5 perl])
@@ -120,6 +121,47 @@ AC_CHECK_DECL([PR_SET_NO_NEW_PRIVS], [have_linux_no_new_privs=1], , [
 	#include <sys/types.h>
 	#include <linux/prctl.h>
 ])
+
+openssl=yes
+ssh1=yes
+AC_ARG_WITH([openssl],
+	[  --without-openssl       Disable use of OpenSSL; use only limited internal crypto **EXPERIMENTAL** ],
+	[  if test "x$withval" = "xno" ; then
+		openssl=no
+		ssh1=no
+	   fi
+	]
+)
+AC_MSG_CHECKING([whether OpenSSL will be used for cryptography])
+if test "x$openssl" = "xyes" ; then
+	AC_MSG_RESULT([yes])
+	AC_DEFINE_UNQUOTED([WITH_OPENSSL], [1], [use libcrypto for cryptography])
+else
+	AC_MSG_RESULT([no])
+fi
+
+AC_ARG_WITH([ssh1],
+	[  --with-ssh1             Enable support for SSH protocol 1],
+	[
+		if test "x$withval" = "xyes" ; then
+			if test "x$openssl" = "xno" ; then
+				AC_MSG_ERROR([Cannot enable SSH protocol 1 with OpenSSL disabled])
+			fi
+			ssh1=yes
+		elif test "x$withval" = "xno" ; then
+			ssh1=no
+		else
+			AC_MSG_ERROR([unknown --with-ssh1 argument])
+		fi
+	]
+)
+AC_MSG_CHECKING([whether SSH protocol 1 support is enabled])
+if test "x$ssh1" = "xyes" ; then
+	AC_MSG_RESULT([yes])
+	AC_DEFINE_UNQUOTED([WITH_SSH1], [1], [include SSH protocol version 1 support])
+else
+	AC_MSG_RESULT([no])
+fi
 
 use_stack_protector=1
 use_toolchain_hardening=1
@@ -364,7 +406,6 @@ AC_CHECK_HEADERS([ \
 	sys/audit.h \
 	sys/bitypes.h \
 	sys/bsdtty.h \
-	sys/capability.h \
 	sys/cdefs.h \
 	sys/dir.h \
 	sys/mman.h \
@@ -392,6 +433,13 @@ AC_CHECK_HEADERS([ \
 	utmp.h \
 	utmpx.h \
 	vis.h \
+])
+
+# sys/capsicum.h requires sys/types.h
+AC_CHECK_HEADERS([sys/capsicum.h], [], [], [
+#ifdef HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
 ])
 
 # lastlog.h requires sys/time.h to be included first on Solaris
@@ -428,6 +476,11 @@ AC_CHECK_HEADERS([sys/un.h], [], [], [
 SIA_MSG="no"
 SPC_MSG="no"
 SP_MSG="no"
+SPP_MSG="no"
+
+# Support for Solaris/Illumos privileges (this test is used by both
+# the --with-solaris-privs option and --with-sandbox=solaris).
+SOLARIS_PRIVS="no"
 
 # Check for some target-specific stuff
 case "$host" in
@@ -534,6 +587,8 @@ case "$host" in
 	LIBS="$LIBS /usr/lib/textreadmode.o"
 	AC_DEFINE([HAVE_CYGWIN], [1], [Define if you are on Cygwin])
 	AC_DEFINE([USE_PIPES], [1], [Use PIPES instead of a socketpair()])
+	AC_DEFINE([NO_UID_RESTORATION_TEST], [1],
+		[Define to disable UID restoration test])
 	AC_DEFINE([DISABLE_SHADOW], [1],
 		[Define if you want to disable shadow passwords])
 	AC_DEFINE([NO_X11_UNIX_SOCKETS], [1],
@@ -596,6 +651,9 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 		supported by bsd-setproctitle.c])
 	AC_CHECK_FUNCS([sandbox_init])
 	AC_CHECK_HEADERS([sandbox.h])
+	AC_CHECK_LIB([sandbox], [sandbox_apply], [
+	    SSHDLIBS="$SSHDLIBS -lsandbox"
+	])
 	;;
 *-*-dragonfly*)
 	SSHDLIBS="$SSHDLIBS -lcrypt"
@@ -740,14 +798,17 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	i*86-*)
 		seccomp_audit_arch=AUDIT_ARCH_I386
 		;;
-        arm*-*)
+	arm*-*)
 		seccomp_audit_arch=AUDIT_ARCH_ARM
-                ;;
+		;;
+	aarch64*-*)
+		seccomp_audit_arch=AUDIT_ARCH_AARCH64
+		;;
 	esac
 	if test "x$seccomp_audit_arch" != "x" ; then
 		AC_MSG_RESULT(["$seccomp_audit_arch"])
-                AC_DEFINE_UNQUOTED([SECCOMP_AUDIT_ARCH], [$seccomp_audit_arch],
-                    [Specify the system call convention in use])
+		AC_DEFINE_UNQUOTED([SECCOMP_AUDIT_ARCH], [$seccomp_audit_arch],
+		    [Specify the system call convention in use])
 	else
 		AC_MSG_RESULT([architecture not supported])
 	fi
@@ -845,13 +906,16 @@ mips-sony-bsd|mips-sony-newsos4)
 	else
 		AC_MSG_RESULT([no])
 	fi
+	AC_CHECK_FUNCS([setppriv])
+	AC_CHECK_FUNCS([priv_basicset])
+	AC_CHECK_HEADERS([priv.h])
 	AC_ARG_WITH([solaris-contracts],
 		[  --with-solaris-contracts Enable Solaris process contracts (experimental)],
 		[
 		AC_CHECK_LIB([contract], [ct_tmpl_activate],
 			[ AC_DEFINE([USE_SOLARIS_PROCESS_CONTRACTS], [1],
 				[Define if you have Solaris process contracts])
-			  SSHDLIBS="$SSHDLIBS -lcontract"
+			  LIBS="$LIBS -lcontract"
 			  SPC_MSG="yes" ], )
 		],
 	)
@@ -861,8 +925,27 @@ mips-sony-bsd|mips-sony-newsos4)
 		AC_CHECK_LIB([project], [setproject],
 			[ AC_DEFINE([USE_SOLARIS_PROJECTS], [1],
 				[Define if you have Solaris projects])
-			SSHDLIBS="$SSHDLIBS -lproject"
+			LIBS="$LIBS -lproject"
 			SP_MSG="yes" ], )
+		],
+	)
+	AC_ARG_WITH([solaris-privs],
+		[  --with-solaris-privs    Enable Solaris/Illumos privileges (experimental)],
+		[
+		AC_MSG_CHECKING([for Solaris/Illumos privilege support])
+		if test "x$ac_cv_func_setppriv" = "xyes" -a \
+			"x$ac_cv_header_priv_h" = "xyes" ; then
+			SOLARIS_PRIVS=yes
+			AC_MSG_RESULT([found])
+			AC_DEFINE([NO_UID_RESTORATION_TEST], [1],
+				[Define to disable UID restoration test])
+			AC_DEFINE([USE_SOLARIS_PRIVS], [1],
+				[Define if you have Solaris privileges])
+			SPP_MSG="yes"
+		else
+			AC_MSG_RESULT([not found])
+			AC_MSG_ERROR([*** must have support for Solaris privileges to use --with-solaris-privs])
+		fi
 		],
 	)
 	TEST_SHELL=$SHELL	# let configure find us a capable shell
@@ -1078,7 +1161,6 @@ AC_RUN_IFELSE([AC_LANG_PROGRAM([[ #include <stdio.h> ]], [[ exit(0); ]])],
 
 dnl Checks for header files.
 # Checks for libraries.
-AC_CHECK_FUNC([yp_match], , [AC_CHECK_LIB([nsl], [yp_match])])
 AC_CHECK_FUNC([setsockopt], , [AC_CHECK_LIB([socket], [setsockopt])])
 
 dnl IRIX and Solaris 2.5.1 have dirname() in libgen
@@ -1242,8 +1324,10 @@ AC_SEARCH_LIBS([openpty], [util bsd])
 AC_SEARCH_LIBS([updwtmp], [util bsd])
 AC_CHECK_FUNCS([fmt_scaled scan_scaled login logout openpty updwtmp logwtmp])
 
-# On some platforms, inet_ntop may be found in libresolv or libnsl.
+# On some platforms, inet_ntop and gethostbyname may be found in libresolv
+# or libnsl.
 AC_SEARCH_LIBS([inet_ntop], [resolv nsl])
+AC_SEARCH_LIBS([gethostbyname], [resolv nsl])
 
 AC_FUNC_STRFTIME
 
@@ -1296,7 +1380,7 @@ g.gl_statv = NULL;
 		AC_MSG_RESULT([yes])
 	], [
 		AC_MSG_RESULT([no])
-	
+
 ])
 
 AC_CHECK_DECLS([GLOB_NOMATCH], , , [#include <glob.h>])
@@ -1579,7 +1663,7 @@ AC_ARG_WITH([audit],
 )
 
 AC_ARG_WITH([pie],
-    [  --with-pie           Build Position Independent Executables if possible], [
+    [  --with-pie              Build Position Independent Executables if possible], [
 	if test "x$withval" = "xno"; then
 		use_pie=no
 	fi
@@ -1631,10 +1715,6 @@ AC_CHECK_FUNCS([ \
 	Blowfish_expandstate \
 	Blowfish_expand0state \
 	Blowfish_stream2word \
-	arc4random \
-	arc4random_buf \
-	arc4random_stir \
-	arc4random_uniform \
 	asprintf \
 	b64_ntop \
 	__b64_ntop \
@@ -1678,17 +1758,19 @@ AC_CHECK_FUNCS([ \
 	mblen \
 	md5_crypt \
 	memmove \
+	memset_s \
 	mkdtemp \
 	mmap \
 	ngetaddrinfo \
 	nsleep \
 	ogetaddrinfo \
 	openlog_r \
+	pledge \
 	poll \
 	prctl \
 	pstat \
 	readpassphrase \
-	realpath \
+	reallocarray \
 	recvmsg \
 	rresvport_af \
 	sendmsg \
@@ -1736,7 +1818,6 @@ AC_CHECK_FUNCS([ \
 	user_from_uid \
 	usleep \
 	vasprintf \
-	vhangup \
 	vsnprintf \
 	waitpid \
 ])
@@ -1748,10 +1829,13 @@ AC_LINK_IFELSE(
 	[AC_DEFINE([HAVE_ISBLANK], [1], [Define if you have isblank(3C).])
 ])
 
-# PKCS#11 support requires dlopen() and co
-AC_SEARCH_LIBS([dlopen], [dl],
-    [AC_DEFINE([ENABLE_PKCS11], [], [Enable for PKCS#11 support])]
-)
+# PKCS11 depends on OpenSSL.
+if test "x$openssl" = "xyes" ; then
+	# PKCS#11 support requires dlopen() and co
+	AC_SEARCH_LIBS([dlopen], [dl],
+	    [AC_DEFINE([ENABLE_PKCS11], [], [Enable for PKCS#11 support])]
+	)
+fi
 
 # IRIX has a const char return value for gai_strerror()
 AC_CHECK_FUNCS([gai_strerror], [
@@ -1903,6 +1987,32 @@ AC_CHECK_FUNCS([setresgid], [
 	)
 ])
 
+AC_CHECK_FUNCS([realpath], [
+	dnl the sftp v3 spec says SSH_FXP_REALPATH will "canonicalize any given
+	dnl path name", however some implementations of realpath (and some
+	dnl versions of the POSIX spec) do not work on non-existent files,
+	dnl so we use the OpenBSD implementation on those platforms.
+	AC_MSG_CHECKING([if realpath works with non-existent files])
+	AC_RUN_IFELSE(
+		[AC_LANG_PROGRAM([[
+#include <limits.h>
+#include <stdlib.h>
+#include <errno.h>
+		]], [[
+		char buf[PATH_MAX];
+		if (realpath("/opensshnonexistentfilename1234", buf) == NULL)
+			if (errno == ENOENT)
+				exit(1);
+		exit(0);
+		]])],
+		[AC_MSG_RESULT([yes])],
+		[AC_DEFINE([BROKEN_REALPATH], [1],
+			[realpath does not work with nonexistent files])
+		 AC_MSG_RESULT([no])],
+		[AC_MSG_WARN([cross compiling: assuming working])]
+	)
+])
+
 dnl    Checks for time functions
 AC_CHECK_FUNCS([gettimeofday time])
 dnl    Checks for utmp functions
@@ -1948,11 +2058,9 @@ if test "x$ac_cv_func_snprintf" = "xyes" ; then
 	)
 fi
 
-# If we don't have a working asprintf, then we strongly depend on vsnprintf
-# returning the right thing on overflow: the number of characters it tried to
-# create (as per SUSv3)
-if test "x$ac_cv_func_asprintf" != "xyes" && \
-   test "x$ac_cv_func_vsnprintf" = "xyes" ; then
+# We depend on vsnprintf returning the right thing on overflow: the
+# number of characters it tried to create (as per SUSv3)
+if test "x$ac_cv_func_vsnprintf" = "xyes" ; then
 	AC_MSG_CHECKING([whether vsnprintf returns correct values on overflow])
 	AC_RUN_IFELSE(
 		[AC_LANG_PROGRAM([[
@@ -1960,15 +2068,23 @@ if test "x$ac_cv_func_asprintf" != "xyes" && \
 #include <stdio.h>
 #include <stdarg.h>
 
-int x_snprintf(char *str,size_t count,const char *fmt,...)
+int x_snprintf(char *str, size_t count, const char *fmt, ...)
 {
-	size_t ret; va_list ap;
-	va_start(ap, fmt); ret = vsnprintf(str, count, fmt, ap); va_end(ap);
+	size_t ret;
+	va_list ap;
+
+	va_start(ap, fmt);
+	ret = vsnprintf(str, count, fmt, ap);
+	va_end(ap);
 	return ret;
 }
 		]], [[
-	char x[1];
-	exit(x_snprintf(x, 1, "%s %d", "hello", 12345) == 11 ? 0 : 1);
+char x[1];
+if (x_snprintf(x, 1, "%s %d", "hello", 12345) != 11)
+	return 1;
+if (x_snprintf(NULL, 0, "%s %d", "hello", 12345) != 11)
+	return 1;
+return 0;
 		]])],
 		[AC_MSG_RESULT([yes])],
 		[
@@ -2211,6 +2327,13 @@ if test "x$ac_cv_func_getaddrinfo" = "xyes" && \
 	)
 fi
 
+if test "x$ac_cv_func_getaddrinfo" = "xyes"; then
+	AC_CHECK_DECLS(AI_NUMERICSERV, , ,
+	    [#include <sys/types.h>
+	     #include <sys/socket.h>
+	     #include <netdb.h>])
+fi
+
 if test "x$check_for_conflicting_getspnam" = "x1"; then
 	AC_MSG_CHECKING([for conflicting getspnam in shadow.h])
 	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[ #include <shadow.h> ]],
@@ -2234,6 +2357,9 @@ saved_LDFLAGS="$LDFLAGS"
 AC_ARG_WITH([ssl-dir],
 	[  --with-ssl-dir=PATH     Specify path to OpenSSL installation ],
 	[
+		if test "x$openssl" = "xno" ; then
+			AC_MSG_ERROR([cannot use --with-ssl-dir when OpenSSL disabled])
+		fi
 		if test "x$withval" != "xno" ; then
 			case "$withval" in
 				# Relative paths
@@ -2266,424 +2392,467 @@ AC_ARG_WITH([ssl-dir],
 		fi
 	]
 )
-LIBS="-lcrypto $LIBS"
-AC_TRY_LINK_FUNC([RAND_add], [AC_DEFINE([HAVE_OPENSSL], [1],
-	[Define if your ssl headers are included
-	with #include <openssl/header.h>])],
-	[
-		dnl Check default openssl install dir
-		if test -n "${need_dash_r}"; then
-			LDFLAGS="-L/usr/local/ssl/lib -R/usr/local/ssl/lib ${saved_LDFLAGS}"
-		else
-			LDFLAGS="-L/usr/local/ssl/lib ${saved_LDFLAGS}"
-		fi
-		CPPFLAGS="-I/usr/local/ssl/include ${saved_CPPFLAGS}"
-		AC_CHECK_HEADER([openssl/opensslv.h], ,
-		    [AC_MSG_ERROR([*** OpenSSL headers missing - please install first or check config.log ***])])
-		AC_TRY_LINK_FUNC([RAND_add], [AC_DEFINE([HAVE_OPENSSL])],
-			[
-				AC_MSG_ERROR([*** Can't find recent OpenSSL libcrypto (see config.log for details) ***])
-			]
-		)
-	]
-)
-
-# Determine OpenSSL header version
-AC_MSG_CHECKING([OpenSSL header version])
-AC_RUN_IFELSE(
-	[AC_LANG_PROGRAM([[
-#include <stdio.h>
-#include <string.h>
-#include <openssl/opensslv.h>
-#define DATA "conftest.sslincver"
-	]], [[
-	FILE *fd;
-	int rc;
-
-	fd = fopen(DATA,"w");
-	if(fd == NULL)
-		exit(1);
-
-	if ((rc = fprintf(fd ,"%x (%s)\n", OPENSSL_VERSION_NUMBER, OPENSSL_VERSION_TEXT)) <0)
-		exit(1);
-
-	exit(0);
-	]])],
-	[
-		ssl_header_ver=`cat conftest.sslincver`
-		AC_MSG_RESULT([$ssl_header_ver])
-	],
-	[
-		AC_MSG_RESULT([not found])
-		AC_MSG_ERROR([OpenSSL version header not found.])
-	],
-	[
-		AC_MSG_WARN([cross compiling: not checking])
-	]
-)
-
-# Determine OpenSSL library version
-AC_MSG_CHECKING([OpenSSL library version])
-AC_RUN_IFELSE(
-	[AC_LANG_PROGRAM([[
-#include <stdio.h>
-#include <string.h>
-#include <openssl/opensslv.h>
-#include <openssl/crypto.h>
-#define DATA "conftest.ssllibver"
-	]], [[
-	FILE *fd;
-	int rc;
-
-	fd = fopen(DATA,"w");
-	if(fd == NULL)
-		exit(1);
-
-	if ((rc = fprintf(fd ,"%x (%s)\n", SSLeay(), SSLeay_version(SSLEAY_VERSION))) <0)
-		exit(1);
-
-	exit(0);
-	]])],
-	[
-		ssl_library_ver=`cat conftest.ssllibver`
-		AC_MSG_RESULT([$ssl_library_ver])
-	],
-	[
-		AC_MSG_RESULT([not found])
-		AC_MSG_ERROR([OpenSSL library not found.])
-	],
-	[
-		AC_MSG_WARN([cross compiling: not checking])
-	]
-)
 
 AC_ARG_WITH([openssl-header-check],
 	[  --without-openssl-header-check Disable OpenSSL version consistency check],
-	[  if test "x$withval" = "xno" ; then
-		openssl_check_nonfatal=1
-	   fi
-	]
-)
-
-# Sanity check OpenSSL headers
-AC_MSG_CHECKING([whether OpenSSL's headers match the library])
-AC_RUN_IFELSE(
-	[AC_LANG_PROGRAM([[
-#include <string.h>
-#include <openssl/opensslv.h>
-	]], [[
-	exit(SSLeay() == OPENSSL_VERSION_NUMBER ? 0 : 1);
-	]])],
 	[
-		AC_MSG_RESULT([yes])
-	],
-	[
-		AC_MSG_RESULT([no])
-		if test "x$openssl_check_nonfatal" = "x"; then
-			AC_MSG_ERROR([Your OpenSSL headers do not match your
-library. Check config.log for details.
-If you are sure your installation is consistent, you can disable the check
-by running "./configure --without-openssl-header-check".
-Also see contrib/findssl.sh for help identifying header/library mismatches.
-])
-		else
-			AC_MSG_WARN([Your OpenSSL headers do not match your
-library. Check config.log for details.
-Also see contrib/findssl.sh for help identifying header/library mismatches.])
+		if test "x$withval" = "xno" ; then
+			openssl_check_nonfatal=1
 		fi
-	],
-	[
-		AC_MSG_WARN([cross compiling: not checking])
 	]
 )
 
-AC_MSG_CHECKING([if programs using OpenSSL functions will link])
-AC_LINK_IFELSE(
-	[AC_LANG_PROGRAM([[ #include <openssl/evp.h> ]],
-	[[ SSLeay_add_all_algorithms(); ]])],
-	[
-		AC_MSG_RESULT([yes])
-	],
-	[
-		AC_MSG_RESULT([no])
-		saved_LIBS="$LIBS"
-		LIBS="$LIBS -ldl"
-		AC_MSG_CHECKING([if programs using OpenSSL need -ldl])
-		AC_LINK_IFELSE(
-			[AC_LANG_PROGRAM([[ #include <openssl/evp.h> ]],
-			[[ SSLeay_add_all_algorithms(); ]])],
-			[
-				AC_MSG_RESULT([yes])
-			],
-			[
-				AC_MSG_RESULT([no])
-				LIBS="$saved_LIBS"
-			]
-		)
-	]
-)
-
-AC_CHECK_FUNCS([ \
-	BN_is_prime_ex \
-	DSA_generate_parameters_ex \
-	EVP_DigestInit_ex \
-	EVP_DigestFinal_ex \
-	EVP_MD_CTX_init \
-	EVP_MD_CTX_cleanup \
-	EVP_MD_CTX_copy_ex \
-	HMAC_CTX_init \
-	RSA_generate_key_ex \
-	RSA_get_default_method \
-])
-
+openssl_engine=no
 AC_ARG_WITH([ssl-engine],
 	[  --with-ssl-engine       Enable OpenSSL (hardware) ENGINE support ],
-	[ if test "x$withval" != "xno" ; then
+	[
+		if test "x$withval" != "xno" ; then
+			if test "x$openssl" = "xno" ; then
+				AC_MSG_ERROR([cannot use --with-ssl-engine when OpenSSL disabled])
+			fi
+			openssl_engine=yes
+		fi
+	]
+)
+
+if test "x$openssl" = "xyes" ; then
+	LIBS="-lcrypto $LIBS"
+	AC_TRY_LINK_FUNC([RAND_add], [AC_DEFINE([HAVE_OPENSSL], [1],
+		[Define if your ssl headers are included
+		with #include <openssl/header.h>])],
+		[
+			dnl Check default openssl install dir
+			if test -n "${need_dash_r}"; then
+				LDFLAGS="-L/usr/local/ssl/lib -R/usr/local/ssl/lib ${saved_LDFLAGS}"
+			else
+				LDFLAGS="-L/usr/local/ssl/lib ${saved_LDFLAGS}"
+			fi
+			CPPFLAGS="-I/usr/local/ssl/include ${saved_CPPFLAGS}"
+			AC_CHECK_HEADER([openssl/opensslv.h], ,
+			    [AC_MSG_ERROR([*** OpenSSL headers missing - please install first or check config.log ***])])
+			AC_TRY_LINK_FUNC([RAND_add], [AC_DEFINE([HAVE_OPENSSL])],
+				[
+					AC_MSG_ERROR([*** Can't find recent OpenSSL libcrypto (see config.log for details) ***])
+				]
+			)
+		]
+	)
+
+	# Determine OpenSSL header version
+	AC_MSG_CHECKING([OpenSSL header version])
+	AC_RUN_IFELSE(
+		[AC_LANG_PROGRAM([[
+	#include <stdlib.h>
+	#include <stdio.h>
+	#include <string.h>
+	#include <openssl/opensslv.h>
+	#define DATA "conftest.sslincver"
+		]], [[
+		FILE *fd;
+		int rc;
+
+		fd = fopen(DATA,"w");
+		if(fd == NULL)
+			exit(1);
+
+		if ((rc = fprintf(fd ,"%08lx (%s)\n",
+		    (unsigned long)OPENSSL_VERSION_NUMBER, OPENSSL_VERSION_TEXT)) <0)
+			exit(1);
+
+		exit(0);
+		]])],
+		[
+			ssl_header_ver=`cat conftest.sslincver`
+			AC_MSG_RESULT([$ssl_header_ver])
+		],
+		[
+			AC_MSG_RESULT([not found])
+			AC_MSG_ERROR([OpenSSL version header not found.])
+		],
+		[
+			AC_MSG_WARN([cross compiling: not checking])
+		]
+	)
+
+	# Determine OpenSSL library version
+	AC_MSG_CHECKING([OpenSSL library version])
+	AC_RUN_IFELSE(
+		[AC_LANG_PROGRAM([[
+	#include <stdio.h>
+	#include <string.h>
+	#include <openssl/opensslv.h>
+	#include <openssl/crypto.h>
+	#define DATA "conftest.ssllibver"
+		]], [[
+		FILE *fd;
+		int rc;
+
+		fd = fopen(DATA,"w");
+		if(fd == NULL)
+			exit(1);
+
+		if ((rc = fprintf(fd ,"%08x (%s)\n", SSLeay(),
+		    SSLeay_version(SSLEAY_VERSION))) <0)
+			exit(1);
+
+		exit(0);
+		]])],
+		[
+			ssl_library_ver=`cat conftest.ssllibver`
+			# Check version is supported.
+			case "$ssl_library_ver" in
+				0090[[0-7]]*|009080[[0-5]]*)
+					AC_MSG_ERROR([OpenSSL >= 0.9.8f required (have "$ssl_library_ver")])
+			                ;;
+			        *) ;;
+			esac
+			AC_MSG_RESULT([$ssl_library_ver])
+		],
+		[
+			AC_MSG_RESULT([not found])
+			AC_MSG_ERROR([OpenSSL library not found.])
+		],
+		[
+			AC_MSG_WARN([cross compiling: not checking])
+		]
+	)
+
+	# Sanity check OpenSSL headers
+	AC_MSG_CHECKING([whether OpenSSL's headers match the library])
+	AC_RUN_IFELSE(
+		[AC_LANG_PROGRAM([[
+	#include <string.h>
+	#include <openssl/opensslv.h>
+	#include <openssl/crypto.h>
+		]], [[
+		exit(SSLeay() == OPENSSL_VERSION_NUMBER ? 0 : 1);
+		]])],
+		[
+			AC_MSG_RESULT([yes])
+		],
+		[
+			AC_MSG_RESULT([no])
+			if test "x$openssl_check_nonfatal" = "x"; then
+				AC_MSG_ERROR([Your OpenSSL headers do not match your
+	library. Check config.log for details.
+	If you are sure your installation is consistent, you can disable the check
+	by running "./configure --without-openssl-header-check".
+	Also see contrib/findssl.sh for help identifying header/library mismatches.
+	])
+			else
+				AC_MSG_WARN([Your OpenSSL headers do not match your
+	library. Check config.log for details.
+	Also see contrib/findssl.sh for help identifying header/library mismatches.])
+			fi
+		],
+		[
+			AC_MSG_WARN([cross compiling: not checking])
+		]
+	)
+
+	AC_MSG_CHECKING([if programs using OpenSSL functions will link])
+	AC_LINK_IFELSE(
+		[AC_LANG_PROGRAM([[ #include <openssl/evp.h> ]],
+		[[ SSLeay_add_all_algorithms(); ]])],
+		[
+			AC_MSG_RESULT([yes])
+		],
+		[
+			AC_MSG_RESULT([no])
+			saved_LIBS="$LIBS"
+			LIBS="$LIBS -ldl"
+			AC_MSG_CHECKING([if programs using OpenSSL need -ldl])
+			AC_LINK_IFELSE(
+				[AC_LANG_PROGRAM([[ #include <openssl/evp.h> ]],
+				[[ SSLeay_add_all_algorithms(); ]])],
+				[
+					AC_MSG_RESULT([yes])
+				],
+				[
+					AC_MSG_RESULT([no])
+					LIBS="$saved_LIBS"
+				]
+			)
+		]
+	)
+
+	AC_CHECK_FUNCS([ \
+		BN_is_prime_ex \
+		DSA_generate_parameters_ex \
+		EVP_DigestInit_ex \
+		EVP_DigestFinal_ex \
+		EVP_MD_CTX_init \
+		EVP_MD_CTX_cleanup \
+		EVP_MD_CTX_copy_ex \
+		HMAC_CTX_init \
+		RSA_generate_key_ex \
+		RSA_get_default_method \
+	])
+
+	if test "x$openssl_engine" = "xyes" ; then
 		AC_MSG_CHECKING([for OpenSSL ENGINE support])
 		AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#include <openssl/engine.h>
+	#include <openssl/engine.h>
 			]], [[
-	ENGINE_load_builtin_engines();
-	ENGINE_register_all_complete();
+				ENGINE_load_builtin_engines();
+				ENGINE_register_all_complete();
 			]])],
 			[ AC_MSG_RESULT([yes])
 			  AC_DEFINE([USE_OPENSSL_ENGINE], [1],
 			     [Enable OpenSSL engine support])
 			], [ AC_MSG_ERROR([OpenSSL ENGINE support not found])
 		])
-	  fi ]
-)
+	fi
 
-# Check for OpenSSL without EVP_aes_{192,256}_cbc
-AC_MSG_CHECKING([whether OpenSSL has crippled AES support])
-AC_LINK_IFELSE(
-	[AC_LANG_PROGRAM([[
-#include <string.h>
-#include <openssl/evp.h>
-	]], [[
-	exit(EVP_aes_192_cbc() == NULL || EVP_aes_256_cbc() == NULL);
-	]])],
-	[
-		AC_MSG_RESULT([no])
-	],
-	[
-		AC_MSG_RESULT([yes])
-		AC_DEFINE([OPENSSL_LOBOTOMISED_AES], [1],
-		    [libcrypto is missing AES 192 and 256 bit functions])
-	]
-)
-
-# Check for OpenSSL with EVP_aes_*ctr
-AC_MSG_CHECKING([whether OpenSSL has AES CTR via EVP])
-AC_LINK_IFELSE(
-	[AC_LANG_PROGRAM([[
-#include <string.h>
-#include <openssl/evp.h>
-	]], [[
-	exit(EVP_aes_128_ctr() == NULL ||
-	    EVP_aes_192_cbc() == NULL ||
-	    EVP_aes_256_cbc() == NULL);
-	]])],
-	[
-		AC_MSG_RESULT([yes])
-		AC_DEFINE([OPENSSL_HAVE_EVPCTR], [1],
-		    [libcrypto has EVP AES CTR])
-	],
-	[
-		AC_MSG_RESULT([no])
-	]
-)
-
-# Check for OpenSSL with EVP_aes_*gcm
-AC_MSG_CHECKING([whether OpenSSL has AES GCM via EVP])
-AC_LINK_IFELSE(
-	[AC_LANG_PROGRAM([[
-#include <string.h>
-#include <openssl/evp.h>
-	]], [[
-	exit(EVP_aes_128_gcm() == NULL ||
-	    EVP_aes_256_gcm() == NULL ||
-	    EVP_CTRL_GCM_SET_IV_FIXED == 0 ||
-	    EVP_CTRL_GCM_IV_GEN == 0 ||
-	    EVP_CTRL_GCM_SET_TAG == 0 ||
-	    EVP_CTRL_GCM_GET_TAG == 0 ||
-	    EVP_CIPHER_CTX_ctrl(NULL, 0, 0, NULL) == 0);
-	]])],
-	[
-		AC_MSG_RESULT([yes])
-		AC_DEFINE([OPENSSL_HAVE_EVPGCM], [1],
-		    [libcrypto has EVP AES GCM])
-	],
-	[
-		AC_MSG_RESULT([no])
-		unsupported_algorithms="$unsupported_cipers \
-		   aes128-gcm@openssh.com aes256-gcm@openssh.com"
-	]
-)
-
-AC_SEARCH_LIBS([EVP_CIPHER_CTX_ctrl], [crypto],
-	[AC_DEFINE([HAVE_EVP_CIPHER_CTX_CTRL], [1],
-	    [Define if libcrypto has EVP_CIPHER_CTX_ctrl])])
-
-AC_MSG_CHECKING([if EVP_DigestUpdate returns an int])
-AC_LINK_IFELSE(
-	[AC_LANG_PROGRAM([[
-#include <string.h>
-#include <openssl/evp.h>
-	]], [[
-	if(EVP_DigestUpdate(NULL, NULL,0))
-		exit(0);
-	]])],
-	[
-		AC_MSG_RESULT([yes])
-	],
-	[
-		AC_MSG_RESULT([no])
-		AC_DEFINE([OPENSSL_EVP_DIGESTUPDATE_VOID], [1],
-		    [Define if EVP_DigestUpdate returns void])
-	]
-)
-
-# Some systems want crypt() from libcrypt, *not* the version in OpenSSL,
-# because the system crypt() is more featureful.
-if test "x$check_for_libcrypt_before" = "x1"; then
-	AC_CHECK_LIB([crypt], [crypt])
-fi
-
-# Some Linux systems (Slackware) need crypt() from libcrypt, *not* the
-# version in OpenSSL.
-if test "x$check_for_libcrypt_later" = "x1"; then
-	AC_CHECK_LIB([crypt], [crypt], [LIBS="$LIBS -lcrypt"])
-fi
-AC_CHECK_FUNCS([crypt DES_crypt])
-
-# Search for SHA256 support in libc and/or OpenSSL
-AC_CHECK_FUNCS([SHA256_Update EVP_sha256], ,
-    [unsupported_algorithms="$unsupported_algorithms \
-	hmac-sha2-256 hmac-sha2-512 \
-	diffie-hellman-group-exchange-sha256 \
-	hmac-sha2-256-etm@openssh.com hmac-sha2-512-etm@openssh.com"
-     ]
-)
-
-# Check complete ECC support in OpenSSL
-AC_MSG_CHECKING([whether OpenSSL has NID_X9_62_prime256v1])
-AC_LINK_IFELSE(
-	[AC_LANG_PROGRAM([[
-#include <openssl/ec.h>
-#include <openssl/ecdh.h>
-#include <openssl/ecdsa.h>
-#include <openssl/evp.h>
-#include <openssl/objects.h>
-#include <openssl/opensslv.h>
-#if OPENSSL_VERSION_NUMBER < 0x0090807f /* 0.9.8g */
-# error "OpenSSL < 0.9.8g has unreliable ECC code"
-#endif
-	]], [[
-	EC_KEY *e = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-	const EVP_MD *m = EVP_sha256(); /* We need this too */
-	]])],
-	[ AC_MSG_RESULT([yes])
-	  enable_nistp256=1 ],
-	[ AC_MSG_RESULT([no]) ]
-)
-
-AC_MSG_CHECKING([whether OpenSSL has NID_secp384r1])
-AC_LINK_IFELSE(
-	[AC_LANG_PROGRAM([[
-#include <openssl/ec.h>
-#include <openssl/ecdh.h>
-#include <openssl/ecdsa.h>
-#include <openssl/evp.h>
-#include <openssl/objects.h>
-#include <openssl/opensslv.h>
-#if OPENSSL_VERSION_NUMBER < 0x0090807f /* 0.9.8g */
-# error "OpenSSL < 0.9.8g has unreliable ECC code"
-#endif
-	]], [[
-	EC_KEY *e = EC_KEY_new_by_curve_name(NID_secp384r1);
-	const EVP_MD *m = EVP_sha384(); /* We need this too */
-	]])],
-	[ AC_MSG_RESULT([yes])
-	  enable_nistp384=1 ],
-	[ AC_MSG_RESULT([no]) ]
-)
-
-AC_MSG_CHECKING([whether OpenSSL has NID_secp521r1])
-AC_LINK_IFELSE(
-	[AC_LANG_PROGRAM([[
-#include <openssl/ec.h>
-#include <openssl/ecdh.h>
-#include <openssl/ecdsa.h>
-#include <openssl/evp.h>
-#include <openssl/objects.h>
-#include <openssl/opensslv.h>
-#if OPENSSL_VERSION_NUMBER < 0x0090807f /* 0.9.8g */
-# error "OpenSSL < 0.9.8g has unreliable ECC code"
-#endif
-	]], [[
-	EC_KEY *e = EC_KEY_new_by_curve_name(NID_secp521r1);
-	const EVP_MD *m = EVP_sha512(); /* We need this too */
-	]])],
-	[ AC_MSG_RESULT([yes])
-	  AC_MSG_CHECKING([if OpenSSL's NID_secp521r1 is functional])
-	  AC_RUN_IFELSE(
+	# Check for OpenSSL without EVP_aes_{192,256}_cbc
+	AC_MSG_CHECKING([whether OpenSSL has crippled AES support])
+	AC_LINK_IFELSE(
 		[AC_LANG_PROGRAM([[
-#include <openssl/ec.h>
-#include <openssl/ecdh.h>
-#include <openssl/ecdsa.h>
-#include <openssl/evp.h>
-#include <openssl/objects.h>
-#include <openssl/opensslv.h>
-		]],[[
-		EC_KEY *e = EC_KEY_new_by_curve_name(NID_secp521r1);
-		const EVP_MD *m = EVP_sha512(); /* We need this too */
-		exit(e == NULL || m == NULL);
+	#include <string.h>
+	#include <openssl/evp.h>
+		]], [[
+		exit(EVP_aes_192_cbc() == NULL || EVP_aes_256_cbc() == NULL);
+		]])],
+		[
+			AC_MSG_RESULT([no])
+		],
+		[
+			AC_MSG_RESULT([yes])
+			AC_DEFINE([OPENSSL_LOBOTOMISED_AES], [1],
+			    [libcrypto is missing AES 192 and 256 bit functions])
+		]
+	)
+
+	# Check for OpenSSL with EVP_aes_*ctr
+	AC_MSG_CHECKING([whether OpenSSL has AES CTR via EVP])
+	AC_LINK_IFELSE(
+		[AC_LANG_PROGRAM([[
+	#include <string.h>
+	#include <openssl/evp.h>
+		]], [[
+		exit(EVP_aes_128_ctr() == NULL ||
+		    EVP_aes_192_cbc() == NULL ||
+		    EVP_aes_256_cbc() == NULL);
+		]])],
+		[
+			AC_MSG_RESULT([yes])
+			AC_DEFINE([OPENSSL_HAVE_EVPCTR], [1],
+			    [libcrypto has EVP AES CTR])
+		],
+		[
+			AC_MSG_RESULT([no])
+		]
+	)
+
+	# Check for OpenSSL with EVP_aes_*gcm
+	AC_MSG_CHECKING([whether OpenSSL has AES GCM via EVP])
+	AC_LINK_IFELSE(
+		[AC_LANG_PROGRAM([[
+	#include <string.h>
+	#include <openssl/evp.h>
+		]], [[
+		exit(EVP_aes_128_gcm() == NULL ||
+		    EVP_aes_256_gcm() == NULL ||
+		    EVP_CTRL_GCM_SET_IV_FIXED == 0 ||
+		    EVP_CTRL_GCM_IV_GEN == 0 ||
+		    EVP_CTRL_GCM_SET_TAG == 0 ||
+		    EVP_CTRL_GCM_GET_TAG == 0 ||
+		    EVP_CIPHER_CTX_ctrl(NULL, 0, 0, NULL) == 0);
+		]])],
+		[
+			AC_MSG_RESULT([yes])
+			AC_DEFINE([OPENSSL_HAVE_EVPGCM], [1],
+			    [libcrypto has EVP AES GCM])
+		],
+		[
+			AC_MSG_RESULT([no])
+			unsupported_algorithms="$unsupported_cipers \
+			   aes128-gcm@openssh.com aes256-gcm@openssh.com"
+		]
+	)
+
+	AC_SEARCH_LIBS([EVP_CIPHER_CTX_ctrl], [crypto],
+		[AC_DEFINE([HAVE_EVP_CIPHER_CTX_CTRL], [1],
+		    [Define if libcrypto has EVP_CIPHER_CTX_ctrl])])
+
+	AC_MSG_CHECKING([if EVP_DigestUpdate returns an int])
+	AC_LINK_IFELSE(
+		[AC_LANG_PROGRAM([[
+	#include <string.h>
+	#include <openssl/evp.h>
+		]], [[
+		if(EVP_DigestUpdate(NULL, NULL,0))
+			exit(0);
+		]])],
+		[
+			AC_MSG_RESULT([yes])
+		],
+		[
+			AC_MSG_RESULT([no])
+			AC_DEFINE([OPENSSL_EVP_DIGESTUPDATE_VOID], [1],
+			    [Define if EVP_DigestUpdate returns void])
+		]
+	)
+
+	# Some systems want crypt() from libcrypt, *not* the version in OpenSSL,
+	# because the system crypt() is more featureful.
+	if test "x$check_for_libcrypt_before" = "x1"; then
+		AC_CHECK_LIB([crypt], [crypt])
+	fi
+
+	# Some Linux systems (Slackware) need crypt() from libcrypt, *not* the
+	# version in OpenSSL.
+	if test "x$check_for_libcrypt_later" = "x1"; then
+		AC_CHECK_LIB([crypt], [crypt], [LIBS="$LIBS -lcrypt"])
+	fi
+	AC_CHECK_FUNCS([crypt DES_crypt])
+
+	# Search for SHA256 support in libc and/or OpenSSL
+	AC_CHECK_FUNCS([SHA256_Update EVP_sha256], ,
+	    [unsupported_algorithms="$unsupported_algorithms \
+		hmac-sha2-256 hmac-sha2-512 \
+		diffie-hellman-group-exchange-sha256 \
+		hmac-sha2-256-etm@openssh.com hmac-sha2-512-etm@openssh.com"
+	     ]
+	)
+	# Search for RIPE-MD support in OpenSSL
+	AC_CHECK_FUNCS([EVP_ripemd160], ,
+	    [unsupported_algorithms="$unsupported_algorithms \
+		hmac-ripemd160
+		hmac-ripemd160@openssh.com
+		hmac-ripemd160-etm@openssh.com"
+	     ]
+	)
+
+	# Check complete ECC support in OpenSSL
+	AC_MSG_CHECKING([whether OpenSSL has NID_X9_62_prime256v1])
+	AC_LINK_IFELSE(
+		[AC_LANG_PROGRAM([[
+	#include <openssl/ec.h>
+	#include <openssl/ecdh.h>
+	#include <openssl/ecdsa.h>
+	#include <openssl/evp.h>
+	#include <openssl/objects.h>
+	#include <openssl/opensslv.h>
+	#if OPENSSL_VERSION_NUMBER < 0x0090807f /* 0.9.8g */
+	# error "OpenSSL < 0.9.8g has unreliable ECC code"
+	#endif
+		]], [[
+		EC_KEY *e = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+		const EVP_MD *m = EVP_sha256(); /* We need this too */
 		]])],
 		[ AC_MSG_RESULT([yes])
-		  enable_nistp521=1 ],
-		[ AC_MSG_RESULT([no]) ],
-		[ AC_MSG_WARN([cross-compiling: assuming yes])
-		  enable_nistp521=1 ]
-	  )],
-	AC_MSG_RESULT([no])
-)
+		  enable_nistp256=1 ],
+		[ AC_MSG_RESULT([no]) ]
+	)
 
-COMMENT_OUT_ECC="#no ecc#"
-TEST_SSH_ECC=no
+	AC_MSG_CHECKING([whether OpenSSL has NID_secp384r1])
+	AC_LINK_IFELSE(
+		[AC_LANG_PROGRAM([[
+	#include <openssl/ec.h>
+	#include <openssl/ecdh.h>
+	#include <openssl/ecdsa.h>
+	#include <openssl/evp.h>
+	#include <openssl/objects.h>
+	#include <openssl/opensslv.h>
+	#if OPENSSL_VERSION_NUMBER < 0x0090807f /* 0.9.8g */
+	# error "OpenSSL < 0.9.8g has unreliable ECC code"
+	#endif
+		]], [[
+		EC_KEY *e = EC_KEY_new_by_curve_name(NID_secp384r1);
+		const EVP_MD *m = EVP_sha384(); /* We need this too */
+		]])],
+		[ AC_MSG_RESULT([yes])
+		  enable_nistp384=1 ],
+		[ AC_MSG_RESULT([no]) ]
+	)
 
-if test x$enable_nistp256 = x1 || test x$enable_nistp384 = x1 || \
-    test x$enable_nistp521 = x1; then
-	AC_DEFINE(OPENSSL_HAS_ECC, [1], [OpenSSL has ECC])
-fi
-if test x$enable_nistp256 = x1; then
-	AC_DEFINE([OPENSSL_HAS_NISTP256], [1],
-	    [libcrypto has NID_X9_62_prime256v1])
-	TEST_SSH_ECC=yes
-	COMMENT_OUT_ECC=""
+	AC_MSG_CHECKING([whether OpenSSL has NID_secp521r1])
+	AC_LINK_IFELSE(
+		[AC_LANG_PROGRAM([[
+	#include <openssl/ec.h>
+	#include <openssl/ecdh.h>
+	#include <openssl/ecdsa.h>
+	#include <openssl/evp.h>
+	#include <openssl/objects.h>
+	#include <openssl/opensslv.h>
+	#if OPENSSL_VERSION_NUMBER < 0x0090807f /* 0.9.8g */
+	# error "OpenSSL < 0.9.8g has unreliable ECC code"
+	#endif
+		]], [[
+		EC_KEY *e = EC_KEY_new_by_curve_name(NID_secp521r1);
+		const EVP_MD *m = EVP_sha512(); /* We need this too */
+		]])],
+		[ AC_MSG_RESULT([yes])
+		  AC_MSG_CHECKING([if OpenSSL's NID_secp521r1 is functional])
+		  AC_RUN_IFELSE(
+			[AC_LANG_PROGRAM([[
+	#include <openssl/ec.h>
+	#include <openssl/ecdh.h>
+	#include <openssl/ecdsa.h>
+	#include <openssl/evp.h>
+	#include <openssl/objects.h>
+	#include <openssl/opensslv.h>
+			]],[[
+			EC_KEY *e = EC_KEY_new_by_curve_name(NID_secp521r1);
+			const EVP_MD *m = EVP_sha512(); /* We need this too */
+			exit(e == NULL || m == NULL);
+			]])],
+			[ AC_MSG_RESULT([yes])
+			  enable_nistp521=1 ],
+			[ AC_MSG_RESULT([no]) ],
+			[ AC_MSG_WARN([cross-compiling: assuming yes])
+			  enable_nistp521=1 ]
+		  )],
+		AC_MSG_RESULT([no])
+	)
+
+	COMMENT_OUT_ECC="#no ecc#"
+	TEST_SSH_ECC=no
+
+	if test x$enable_nistp256 = x1 || test x$enable_nistp384 = x1 || \
+	    test x$enable_nistp521 = x1; then
+		AC_DEFINE(OPENSSL_HAS_ECC, [1], [OpenSSL has ECC])
+	fi
+	if test x$enable_nistp256 = x1; then
+		AC_DEFINE([OPENSSL_HAS_NISTP256], [1],
+		    [libcrypto has NID_X9_62_prime256v1])
+		TEST_SSH_ECC=yes
+		COMMENT_OUT_ECC=""
+	else
+		unsupported_algorithms="$unsupported_algorithms ecdsa-sha2-nistp256 \
+		    ecdh-sha2-nistp256 ecdsa-sha2-nistp256-cert-v01@openssh.com"
+	fi
+	if test x$enable_nistp384 = x1; then
+		AC_DEFINE([OPENSSL_HAS_NISTP384], [1], [libcrypto has NID_secp384r1])
+		TEST_SSH_ECC=yes
+		COMMENT_OUT_ECC=""
+	else
+		unsupported_algorithms="$unsupported_algorithms ecdsa-sha2-nistp384 \
+		    ecdh-sha2-nistp384 ecdsa-sha2-nistp384-cert-v01@openssh.com"
+	fi
+	if test x$enable_nistp521 = x1; then
+		AC_DEFINE([OPENSSL_HAS_NISTP521], [1], [libcrypto has NID_secp521r1])
+		TEST_SSH_ECC=yes
+		COMMENT_OUT_ECC=""
+	else
+		unsupported_algorithms="$unsupported_algorithms ecdh-sha2-nistp521 \
+		    ecdsa-sha2-nistp521 ecdsa-sha2-nistp521-cert-v01@openssh.com"
+	fi
+
+	AC_SUBST([TEST_SSH_ECC])
+	AC_SUBST([COMMENT_OUT_ECC])
 else
-	unsupported_algorithms="$unsupported_algorithms ecdsa-sha2-nistp256 \
-	    ecdh-sha2-nistp256 ecdsa-sha2-nistp256-cert-v01@openssh.com"
-fi
-if test x$enable_nistp384 = x1; then
-	AC_DEFINE([OPENSSL_HAS_NISTP384], [1], [libcrypto has NID_secp384r1])
-	TEST_SSH_ECC=yes
-	COMMENT_OUT_ECC=""
-else
-	unsupported_algorithms="$unsupported_algorithms ecdsa-sha2-nistp384 \
-	    ecdh-sha2-nistp384 ecdsa-sha2-nistp384-cert-v01@openssh.com"
-fi
-if test x$enable_nistp521 = x1; then
-	AC_DEFINE([OPENSSL_HAS_NISTP521], [1], [libcrypto has NID_secp521r1])
-	TEST_SSH_ECC=yes
-	COMMENT_OUT_ECC=""
-else
-	unsupported_algorithms="$unsupported_algorithms ecdh-sha2-nistp521 \
-	    ecdsa-sha2-nistp521 ecdsa-sha2-nistp521-cert-v01@openssh.com"
+	AC_CHECK_LIB([crypt], [crypt], [LIBS="$LIBS -lcrypt"])
+	AC_CHECK_FUNCS([crypt])
 fi
 
-AC_SUBST([TEST_SSH_ECC])
-AC_SUBST([COMMENT_OUT_ECC])
+AC_CHECK_FUNCS([ \
+	arc4random \
+	arc4random_buf \
+	arc4random_stir \
+	arc4random_uniform \
+])
 
 saved_LIBS="$LIBS"
 AC_CHECK_LIB([iaf], [ia_openinfo], [
@@ -2698,28 +2867,30 @@ LIBS="$saved_LIBS"
 ### Configure cryptographic random number support
 
 # Check wheter OpenSSL seeds itself
-AC_MSG_CHECKING([whether OpenSSL's PRNG is internally seeded])
-AC_RUN_IFELSE(
-	[AC_LANG_PROGRAM([[
-#include <string.h>
-#include <openssl/rand.h>
-	]], [[
-	exit(RAND_status() == 1 ? 0 : 1);
-	]])],
-	[
-		OPENSSL_SEEDS_ITSELF=yes
-		AC_MSG_RESULT([yes])
-	],
-	[
-		AC_MSG_RESULT([no])
-	],
-	[
-		AC_MSG_WARN([cross compiling: assuming yes])
-		# This is safe, since we will fatal() at runtime if
-		# OpenSSL is not seeded correctly.
-		OPENSSL_SEEDS_ITSELF=yes
-	]
-)
+if test "x$openssl" = "xyes" ; then
+	AC_MSG_CHECKING([whether OpenSSL's PRNG is internally seeded])
+	AC_RUN_IFELSE(
+		[AC_LANG_PROGRAM([[
+	#include <string.h>
+	#include <openssl/rand.h>
+		]], [[
+		exit(RAND_status() == 1 ? 0 : 1);
+		]])],
+		[
+			OPENSSL_SEEDS_ITSELF=yes
+			AC_MSG_RESULT([yes])
+		],
+		[
+			AC_MSG_RESULT([no])
+		],
+		[
+			AC_MSG_WARN([cross compiling: assuming yes])
+			# This is safe, since we will fatal() at runtime if
+			# OpenSSL is not seeded correctly.
+			OPENSSL_SEEDS_ITSELF=yes
+		]
+	)
+fi
 
 # PRNGD TCP socket
 AC_ARG_WITH([prngd-port],
@@ -2801,8 +2972,10 @@ elif test ! -z "$PRNGD_SOCKET" ; then
 	RAND_MSG="PRNGd socket $PRNGD_SOCKET"
 elif test ! -z "$OPENSSL_SEEDS_ITSELF" ; then
 	AC_DEFINE([OPENSSL_PRNG_ONLY], [1],
-		[Define if you want OpenSSL's internally seeded PRNG only])
+		[Define if you want the OpenSSL internally seeded PRNG only])
 	RAND_MSG="OpenSSL internal ONLY"
+elif test "x$openssl" = "xno" ; then
+	AC_MSG_WARN([OpenSSH will use /dev/urandom as a source of random numbers. It will fail if this device is not supported or accessible])
 else
 	AC_MSG_ERROR([OpenSSH has no source of random numbers. Please configure OpenSSL with an entropy source or re-run configure using one of the --with-prngd-port or --with-prngd-socket options])
 fi
@@ -2864,11 +3037,18 @@ if test "x$PAM_MSG" = "xyes" ; then
 				which takes only one argument to pam_strerror])
 			AC_MSG_RESULT([yes])
 			PAM_MSG="yes (old library)"
-		
+
 	])
 fi
 
-SSH_PRIVSEP_USER=sshd
+case "$host" in
+*-*-cygwin*)
+	SSH_PRIVSEP_USER=CYGWIN_SSH_PRIVSEP_USER
+	;;
+*)
+	SSH_PRIVSEP_USER=sshd
+	;;
+esac
 AC_ARG_WITH([privsep-user],
 	[  --with-privsep-user=user Specify non-privileged user for privilege separation],
 	[
@@ -2878,8 +3058,13 @@ AC_ARG_WITH([privsep-user],
 		fi
 	]
 )
-AC_DEFINE_UNQUOTED([SSH_PRIVSEP_USER], ["$SSH_PRIVSEP_USER"],
-	[non-privileged user for privilege separation])
+if test "x$SSH_PRIVSEP_USER" = "xCYGWIN_SSH_PRIVSEP_USER" ; then
+	AC_DEFINE_UNQUOTED([SSH_PRIVSEP_USER], [CYGWIN_SSH_PRIVSEP_USER],
+		[Cygwin function to fetch non-privileged user for privilege separation])
+else
+	AC_DEFINE_UNQUOTED([SSH_PRIVSEP_USER], ["$SSH_PRIVSEP_USER"],
+		[non-privileged user for privilege separation])
+fi
 AC_SUBST([SSH_PRIVSEP_USER])
 
 if test "x$have_linux_no_new_privs" = "x1" ; then
@@ -2913,7 +3098,7 @@ fi
 # Decide which sandbox style to use
 sandbox_arg=""
 AC_ARG_WITH([sandbox],
-	[  --with-sandbox=style    Specify privilege separation sandbox (no, darwin, rlimit, systrace, seccomp_filter, capsicum)],
+	[  --with-sandbox=style    Specify privilege separation sandbox (no, capsicum, darwin, rlimit, seccomp_filter, systrace, pledge)],
 	[
 		if test "x$withval" = "xyes" ; then
 			sandbox_arg=""
@@ -3009,7 +3194,13 @@ AC_RUN_IFELSE(
 	[AC_MSG_WARN([cross compiling: assuming yes])]
 )
 
-if test "x$sandbox_arg" = "xsystrace" || \
+if test "x$sandbox_arg" = "xpledge" || \
+   ( test -z "$sandbox_arg" && test "x$ac_cv_func_pledge" = "xyes" ) ; then
+	test "x$ac_cv_func_pledge" != "xyes" && \
+		AC_MSG_ERROR([pledge sandbox requires pledge(2) support])
+	SANDBOX_STYLE="pledge"
+	AC_DEFINE([SANDBOX_PLEDGE], [1], [Sandbox using pledge(2)])
+elif test "x$sandbox_arg" = "xsystrace" || \
    ( test -z "$sandbox_arg" && test "x$have_systr_policy_kill" = "x1" ) ; then
 	test "x$have_systr_policy_kill" != "x1" && \
 		AC_MSG_ERROR([systrace sandbox requires systrace headers and SYSTR_POLICY_KILL support])
@@ -3044,10 +3235,10 @@ elif test "x$sandbox_arg" = "xseccomp_filter" || \
 	AC_DEFINE([SANDBOX_SECCOMP_FILTER], [1], [Sandbox using seccomp filter])
 elif test "x$sandbox_arg" = "xcapsicum" || \
      ( test -z "$sandbox_arg" && \
-       test "x$ac_cv_header_sys_capability_h" = "xyes" && \
+       test "x$ac_cv_header_sys_capsicum_h" = "xyes" && \
        test "x$ac_cv_func_cap_rights_limit" = "xyes") ; then
-       test "x$ac_cv_header_sys_capability_h" != "xyes" && \
-		AC_MSG_ERROR([capsicum sandbox requires sys/capability.h header])
+       test "x$ac_cv_header_sys_capsicum_h" != "xyes" && \
+		AC_MSG_ERROR([capsicum sandbox requires sys/capsicum.h header])
        test "x$ac_cv_func_cap_rights_limit" != "xyes" && \
 		AC_MSG_ERROR([capsicum sandbox requires cap_rights_limit function])
        SANDBOX_STYLE="capsicum"
@@ -3062,6 +3253,10 @@ elif test "x$sandbox_arg" = "xrlimit" || \
 		AC_MSG_ERROR([rlimit sandbox requires select to work with rlimit])
 	SANDBOX_STYLE="rlimit"
 	AC_DEFINE([SANDBOX_RLIMIT], [1], [Sandbox using setrlimit(2)])
+elif test "x$sandbox_arg" = "xsolaris" || \
+   ( test -z "$sandbox_arg" && test "x$SOLARIS_PRIVS" = "xyes" ) ; then
+	SANDBOX_STYLE="solaris"
+	AC_DEFINE([SANDBOX_SOLARIS], [1], [Sandbox using Solaris/Illumos privileges])
 elif test -z "$sandbox_arg" || test "x$sandbox_arg" = "xno" || \
      test "x$sandbox_arg" = "xnone" || test "x$sandbox_arg" = "xnull" ; then
 	SANDBOX_STYLE="none"
@@ -3885,7 +4080,10 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 #include <arpa/nameser.h>
 #include <resolv.h>
 extern struct __res_state _res;
-		]], [[ ]])],
+		]], [[
+struct __res_state *volatile p = &_res;  /* force resolution of _res */
+return 0;
+		]],)],
 		[AC_MSG_RESULT([yes])
 		 AC_DEFINE([HAVE__RES_EXTERN], [1],
 		    [Define if you have struct __res_state _res as an extern])
@@ -4299,7 +4497,7 @@ if test ! -z "$IPADDR_IN_DISPLAY" ; then
 else
 	DISPLAY_HACK_MSG="no"
 	AC_ARG_WITH([ipaddr-display],
-		[  --with-ipaddr-display   Use ip address instead of hostname in \$DISPLAY],
+		[  --with-ipaddr-display   Use ip address instead of hostname in $DISPLAY],
 		[
 			if test "x$withval" != "xno" ; then
 				AC_DEFINE([IPADDR_IN_DISPLAY])
@@ -4345,7 +4543,7 @@ fi
 # Whether to mess with the default path
 SERVER_PATH_MSG="(default)"
 AC_ARG_WITH([default-path],
-	[  --with-default-path=    Specify default \$PATH environment for server],
+	[  --with-default-path=    Specify default $PATH environment for server],
 	[
 		if test "x$external_path_file" = "x/etc/login.conf" ; then
 			AC_MSG_WARN([
@@ -4849,6 +5047,7 @@ echo "              MD5 password support: $MD5_MSG"
 echo "                   libedit support: $LIBEDIT_MSG"
 echo "  Solaris process contract support: $SPC_MSG"
 echo "           Solaris project support: $SP_MSG"
+echo "         Solaris privilege support: $SPP_MSG"
 echo "       IP address in \$DISPLAY hack: $DISPLAY_HACK_MSG"
 echo "           Translate v4 in v6 hack: $IPV4_IN6_HACK_MSG"
 echo "                  BSD Auth support: $BSD_AUTH_MSG"

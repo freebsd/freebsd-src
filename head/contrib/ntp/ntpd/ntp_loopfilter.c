@@ -154,7 +154,6 @@ int	hardpps_enable;		/* kernel PPS discipline enabled */
 int	ext_enable;		/* external clock enabled */
 int	pps_stratum;		/* pps stratum */
 int	kernel_status;		/* from ntp_adjtime */
-int	allow_panic = FALSE;	/* allow panic correction (-g) */
 int	force_step_once = FALSE; /* always step time once at startup (-G) */
 int	mode_ntpdate = FALSE;	/* exit on first clock set (-q) */
 int	freq_cnt;		/* initial frequency clamp */
@@ -459,16 +458,16 @@ local_clock(
 	double	dtemp, etemp;	/* double temps */
 	char	tbuf[80];	/* report buffer */
 
+	(void)ntp_adj_ret; /* not always used below... */
 	/*
 	 * If the loop is opened or the NIST LOCKCLOCK is in use,
 	 * monitor and record the offsets anyway in order to determine
 	 * the open-loop response and then go home.
 	 */
-#ifdef LOCKCLOCK
+#ifndef LOCKCLOCK
+	if (!ntp_enable)
+#endif /* not LOCKCLOCK */
 	{
-#else
-	if (!ntp_enable) {
-#endif /* LOCKCLOCK */
 		record_loop_stats(fp_offset, drift_comp, clock_jitter,
 		    clock_stability, sys_poll);
 		return (0);
@@ -492,6 +491,8 @@ local_clock(
 		report_event(EVNT_SYSFAULT, NULL, tbuf);
 		return (-1);
 	}
+
+	allow_panic = FALSE;
 
 	/*
 	 * This section simulates ntpdate. If the offset exceeds the
@@ -538,12 +539,8 @@ local_clock(
 		else
 			dtemp = (peer->delay - sys_mindly) / 2;
 		fp_offset += dtemp;
-#ifdef DEBUG
-		if (debug)
-			printf(
-		    "local_clock: size %d mindly %.6f huffpuff %.6f\n",
-			    sys_hufflen, sys_mindly, dtemp);
-#endif
+		DPRINTF(1, ("local_clock: size %d mindly %.6f huffpuff %.6f\n",
+			    sys_hufflen, sys_mindly, dtemp));
 	}
 
 	/*
@@ -694,7 +691,6 @@ local_clock(
 		 * startup until the initial transient has subsided.
 		 */
 		default:
-			allow_panic = FALSE;
 			if (freq_cnt == 0) {
 
 				/*
@@ -921,15 +917,11 @@ local_clock(
 	 */
 	record_loop_stats(clock_offset, drift_comp, clock_jitter,
 	    clock_stability, sys_poll);
-#ifdef DEBUG
-	if (debug)
-		printf(
-		    "local_clock: offset %.9f jit %.9f freq %.3f stab %.3f poll %d\n",
+	DPRINTF(1, ("local_clock: offset %.9f jit %.9f freq %.3f stab %.3f poll %d\n",
 		    clock_offset, clock_jitter, drift_comp * 1e6,
-		    clock_stability * 1e6, sys_poll);
-#endif /* DEBUG */
+		    clock_stability * 1e6, sys_poll));
 	return (rval);
-#endif /* LOCKCLOCK */
+#endif /* not LOCKCLOCK */
 }
 
 
@@ -1005,7 +997,10 @@ adj_host_clock(
 	 * but does not automatically stop slewing when an offset
 	 * has decayed to zero.
 	 */
+	DEBUG_INSIST(enable_panic_check == TRUE);
+	enable_panic_check = FALSE;
 	adj_systime(offset_adj + freq_adj);
+	enable_panic_check = TRUE;
 #endif /* LOCKCLOCK */
 }
 
@@ -1019,12 +1014,9 @@ rstclock(
 	double	offset		/* new offset */
 	)
 {
-#ifdef DEBUG
-	if (debug > 1)
-		printf("local_clock: mu %lu state %d poll %d count %d\n",
+	DPRINTF(2, ("rstclock: mu %lu state %d poll %d count %d\n",
 		    current_time - clock_epoch, trans, sys_poll,
-		    tc_counter);
-#endif
+		    tc_counter));
 	if (trans != state && trans != EVNT_FSET)
 		report_event(trans, NULL, NULL);
 	state = trans;
@@ -1075,6 +1067,7 @@ set_freq(
 	const char *	loop_desc;
 	int ntp_adj_ret;
 
+	(void)ntp_adj_ret; /* not always used below... */
 	drift_comp = freq;
 	loop_desc = "ntpd";
 #ifdef KERNEL_PLL
@@ -1236,10 +1229,7 @@ loop_config(
 	int	i;
 	double	ftemp;
 
-#ifdef DEBUG
-	if (debug > 1)
-		printf("loop_config: item %d freq %f\n", item, freq);
-#endif
+	DPRINTF(2, ("loop_config: item %d freq %f\n", item, freq));
 	switch (item) {
 
 	/*

@@ -1537,7 +1537,6 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m,
 	uint32_t seq;
 	const uint8_t *addr;
 	uint8_t qos[2];
-	ieee80211_seq rxseq;
 
 	KASSERT(ni != NULL, ("null node"));
 	ni->ni_inact = ni->ni_inact_reload;
@@ -1582,24 +1581,8 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m,
 			if (IEEE80211_QOS_HAS_SEQ(wh) &&
 			    TID_TO_WME_AC(tid) >= WME_AC_VI)
 				ic->ic_wme.wme_hipri_traffic++;
-			rxseq = le16toh(*(uint16_t *)wh->i_seq);
-			if (! ieee80211_check_rxseq(ni, wh)) {
-				/* duplicate, discard */
-				IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
-				    wh->i_addr1, "duplicate",
-				    "seqno <%u,%u> fragno <%u,%u> tid %u",
-				    rxseq >> IEEE80211_SEQ_SEQ_SHIFT,
-				    ni->ni_rxseqs[tid] >>
-				    IEEE80211_SEQ_SEQ_SHIFT,
-				    rxseq & IEEE80211_SEQ_FRAG_MASK,
-				    ni->ni_rxseqs[tid] &
-				    IEEE80211_SEQ_FRAG_MASK,
-				    tid);
-				vap->iv_stats.is_rx_dup++;
-				IEEE80211_NODE_STAT(ni, rx_dup);
+			if (! ieee80211_check_rxseq(ni, wh, wh->i_addr1))
 				goto out;
-			}
-			ni->ni_rxseqs[tid] = rxseq;
 		}
 	}
 #ifdef IEEE80211_DEBUG
@@ -1727,7 +1710,7 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m,
 		}
 		/* XXX: are we sure there is no reallocating after m_pullup? */
 
-		seq = LE_READ_4(mc->mc_seq);
+		seq = le32dec(mc->mc_seq);
 		if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 			addr = wh->i_addr3;
 		else if (ae == IEEE80211_MESH_AE_01)
@@ -1810,8 +1793,7 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m,
 		    (vap->iv_ic->ic_flags & IEEE80211_F_SCAN)) ||
 		    ieee80211_msg_dumppkts(vap)) {
 			if_printf(ifp, "received %s from %s rssi %d\n",
-			    ieee80211_mgt_subtype_name[subtype >>
-			    IEEE80211_FC0_SUBTYPE_SHIFT],
+			    ieee80211_mgt_subtype_name(subtype),
 			    ether_sprintf(wh->i_addr2), rssi);
 		}
 #endif
@@ -2093,6 +2075,7 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 	case IEEE80211_FC0_SUBTYPE_ASSOC_RESP:
 	case IEEE80211_FC0_SUBTYPE_REASSOC_REQ:
 	case IEEE80211_FC0_SUBTYPE_REASSOC_RESP:
+	case IEEE80211_FC0_SUBTYPE_TIMING_ADV:
 	case IEEE80211_FC0_SUBTYPE_ATIM:
 	case IEEE80211_FC0_SUBTYPE_DISASSOC:
 	case IEEE80211_FC0_SUBTYPE_AUTH:
@@ -2151,12 +2134,12 @@ mesh_parse_meshpeering_action(struct ieee80211_node *ni,
 			mpie = (const struct ieee80211_meshpeer_ie *) frm;
 			memset(mp, 0, sizeof(*mp));
 			mp->peer_len = mpie->peer_len;
-			mp->peer_proto = LE_READ_2(&mpie->peer_proto);
-			mp->peer_llinkid = LE_READ_2(&mpie->peer_llinkid);
+			mp->peer_proto = le16dec(&mpie->peer_proto);
+			mp->peer_llinkid = le16dec(&mpie->peer_llinkid);
 			switch (subtype) {
 			case IEEE80211_ACTION_MESHPEERING_CONFIRM:
 				mp->peer_linkid =
-				    LE_READ_2(&mpie->peer_linkid);
+				    le16dec(&mpie->peer_linkid);
 				break;
 			case IEEE80211_ACTION_MESHPEERING_CLOSE:
 				/* NB: peer link ID is optional */
@@ -2164,12 +2147,12 @@ mesh_parse_meshpeering_action(struct ieee80211_node *ni,
 				    (IEEE80211_MPM_BASE_SZ + 2)) {
 					mp->peer_linkid = 0;
 					mp->peer_rcode =
-					    LE_READ_2(&mpie->peer_linkid);
+					    le16dec(&mpie->peer_linkid);
 				} else {
 					mp->peer_linkid =
-					    LE_READ_2(&mpie->peer_linkid);
+					    le16dec(&mpie->peer_linkid);
 					mp->peer_rcode =
-					    LE_READ_2(&mpie->peer_rcode);
+					    le16dec(&mpie->peer_rcode);
 				}
 				break;
 			}
@@ -2566,8 +2549,8 @@ mesh_parse_meshgate_action(struct ieee80211_node *ni,
 			ie->gann_hopcount = gannie->gann_hopcount;
 			ie->gann_ttl = gannie->gann_ttl;
 			IEEE80211_ADDR_COPY(ie->gann_addr, gannie->gann_addr);
-			ie->gann_seq = LE_READ_4(&gannie->gann_seq);
-			ie->gann_interval = LE_READ_2(&gannie->gann_interval);
+			ie->gann_seq = le32dec(&gannie->gann_seq);
+			ie->gann_interval = le16dec(&gannie->gann_interval);
 			break;
 		}
 		frm += frm[1] + 2;
@@ -2872,8 +2855,8 @@ mesh_send_action_meshpeering_close(struct ieee80211_node *ni,
 	uint8_t *frm;
 
 	IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_MESH, ni,
-	    "send PEER CLOSE action: localid 0x%x, peerid 0x%x reason %d",
-	    args[0], args[1], args[2]);
+	    "send PEER CLOSE action: localid 0x%x, peerid 0x%x reason %d (%s)",
+	    args[0], args[1], args[2], ieee80211_reason_to_string(args[2]));
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
 	    "ieee80211_ref_node (%s:%u) %p<%s> refcnt %d\n", __func__, __LINE__,

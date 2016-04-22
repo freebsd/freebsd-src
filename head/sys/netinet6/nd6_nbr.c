@@ -124,16 +124,20 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	struct in6_addr saddr6 = ip6->ip6_src;
 	struct in6_addr daddr6 = ip6->ip6_dst;
 	struct in6_addr taddr6;
+	struct in6_addr myaddr6;
 	char *lladdr = NULL;
 	struct ifaddr *ifa = NULL;
-	u_long flags;
 	int lladdrlen = 0;
-	int proxy = 0;
+	int anycast = 0, proxy = 0, tentative = 0;
 	int tlladdr;
+	int rflag;
 	union nd_opts ndopts;
 	struct sockaddr_dl proxydl;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
+	rflag = (V_ip6_forwarding) ? ND_NA_FLAG_ROUTER : 0;
+	if (ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV && V_ip6_norbit_raif)
+		rflag = 0;
 #ifndef PULLDOWN_TEST
 	IP6_EXTHDR_CHECK(m, off, icmp6len,);
 	nd_ns = (struct nd_neighbor_solicit *)((caddr_t)ip6 + off);
@@ -225,7 +229,10 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	 * In implementation, we add target link-layer address by default.
 	 * We do not add one in MUST NOT cases.
 	 */
-	tlladdr = !IN6_IS_ADDR_MULTICAST(&daddr6);
+	if (!IN6_IS_ADDR_MULTICAST(&daddr6))
+		tlladdr = 0;
+	else
+		tlladdr = 1;
 
 	/*
 	 * Target address (taddr6) must be either:
@@ -241,37 +248,35 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 
 	/* (2) check. */
 	if (ifa == NULL) {
-		struct route_in6 ro;
-		int need_proxy;
+		struct sockaddr_dl rt_gateway;
+		struct rt_addrinfo info;
+		struct sockaddr_in6 dst6;
 
-		bzero(&ro, sizeof(ro));
-		ro.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
-		ro.ro_dst.sin6_family = AF_INET6;
-		ro.ro_dst.sin6_addr = taddr6;
+		bzero(&dst6, sizeof(dst6));
+		dst6.sin6_len = sizeof(struct sockaddr_in6);
+		dst6.sin6_family = AF_INET6;
+		dst6.sin6_addr = taddr6;
+
+		bzero(&rt_gateway, sizeof(rt_gateway));
+		rt_gateway.sdl_len = sizeof(rt_gateway);
+		bzero(&info, sizeof(info));
+		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&rt_gateway;
 
 		/* Always use the default FIB. */
-#ifdef RADIX_MPATH
-		rtalloc_mpath_fib((struct route *)&ro, ntohl(taddr6.s6_addr32[3]),
-		    RT_DEFAULT_FIB);
-#else
-		in6_rtalloc(&ro, RT_DEFAULT_FIB);
-#endif
-		need_proxy = (ro.ro_rt &&
-		    (ro.ro_rt->rt_flags & RTF_ANNOUNCE) != 0 &&
-		    ro.ro_rt->rt_gateway->sa_family == AF_LINK);
-		if (ro.ro_rt != NULL) {
-			if (need_proxy)
-				proxydl = *SDL(ro.ro_rt->rt_gateway);
-			RTFREE(ro.ro_rt);
-		}
-		if (need_proxy) {
-			/*
-			 * proxy NDP for single entry
-			 */
-			ifa = (struct ifaddr *)in6ifa_ifpforlinklocal(ifp,
-				IN6_IFF_NOTREADY|IN6_IFF_ANYCAST);
-			if (ifa)
-				proxy = 1;
+		if (rib_lookup_info(RT_DEFAULT_FIB, (struct sockaddr *)&dst6,
+		    0, 0, &info) == 0) {
+			if ((info.rti_flags & RTF_ANNOUNCE) != 0 &&
+			    rt_gateway.sdl_family == AF_LINK) {
+
+				/*
+				 * proxy NDP for single entry
+				 */
+				proxydl = *SDL(&rt_gateway);
+				ifa = (struct ifaddr *)in6ifa_ifpforlinklocal(
+				    ifp, IN6_IFF_NOTREADY|IN6_IFF_ANYCAST);
+				if (ifa)
+					proxy = 1;
+			}
 		}
 	}
 	if (ifa == NULL) {
@@ -282,6 +287,9 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		 */
 		goto freeit;
 	}
+	myaddr6 = *IFA_IN6(ifa);
+	anycast = ((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_ANYCAST;
+	tentative = ((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_TENTATIVE;
 	if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_DUPLICATED)
 		goto freeit;
 
@@ -293,7 +301,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		goto bad;
 	}
 
-	if (IN6_ARE_ADDR_EQUAL(IFA_IN6(ifa), &saddr6)) {
+	if (IN6_ARE_ADDR_EQUAL(&myaddr6, &saddr6)) {
 		nd6log((LOG_INFO, "nd6_ns_input: duplicate IP6 address %s\n",
 		    ip6_sprintf(ip6bufs, &saddr6)));
 		goto freeit;
@@ -311,7 +319,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	 *
 	 * The processing is defined in RFC 2462.
 	 */
-	if (IFA_IN6_FLAGS(ifa) & IN6_IFF_TENTATIVE) {
+	if (tentative) {
 		/*
 		 * If source address is unspecified address, it is for
 		 * duplicate address detection.
@@ -324,10 +332,6 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 
 		goto freeit;
 	}
-
-	flags = IFA_ND6_NA_BASE_FLAGS(ifp, ifa);
-	if (proxy || !tlladdr)
-		flags &= ~ND_NA_FLAG_OVERRIDE;
 
 	/*
 	 * If the source address is unspecified address, entries must not
@@ -343,16 +347,20 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		in6_all = in6addr_linklocal_allnodes;
 		if (in6_setscope(&in6_all, ifp, NULL) != 0)
 			goto bad;
-		nd6_na_output_fib(ifp, &in6_all, &taddr6, flags, tlladdr,
-		    proxy ? (struct sockaddr *)&proxydl : NULL, M_GETFIB(m));
+		nd6_na_output_fib(ifp, &in6_all, &taddr6,
+		    ((anycast || proxy || !tlladdr) ? 0 : ND_NA_FLAG_OVERRIDE) |
+		    rflag, tlladdr, proxy ? (struct sockaddr *)&proxydl : NULL,
+		    M_GETFIB(m));
 		goto freeit;
 	}
 
 	nd6_cache_lladdr(ifp, &saddr6, lladdr, lladdrlen,
 	    ND_NEIGHBOR_SOLICIT, 0);
 
-	nd6_na_output_fib(ifp, &saddr6, &taddr6, flags | ND_NA_FLAG_SOLICITED,
-	    tlladdr, proxy ? (struct sockaddr *)&proxydl : NULL, M_GETFIB(m));
+	nd6_na_output_fib(ifp, &saddr6, &taddr6,
+	    ((anycast || proxy || !tlladdr) ? 0 : ND_NA_FLAG_OVERRIDE) |
+	    rflag | ND_NA_FLAG_SOLICITED, tlladdr,
+	    proxy ? (struct sockaddr *)&proxydl : NULL, M_GETFIB(m));
  freeit:
 	if (ifa != NULL)
 		ifa_free(ifa);
@@ -398,7 +406,6 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 	int icmp6len;
 	int maxlen;
 	caddr_t mac;
-	struct route_in6 ro;
 
 	if (IN6_IS_ADDR_MULTICAST(taddr6))
 		return;
@@ -417,8 +424,6 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 	if (m == NULL)
 		return;
 	M_SETFIB(m, fibnum);
-
-	bzero(&ro, sizeof(ro));
 
 	if (daddr6 == NULL || IN6_IS_ADDR_MULTICAST(daddr6)) {
 		m->m_flags |= M_MCAST;
@@ -476,27 +481,21 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 			ifa_free(ifa);
 		} else {
 			int error;
-			struct sockaddr_in6 dst_sa;
-			struct in6_addr src_in;
-			struct ifnet *oifp;
+			struct in6_addr dst6, src6;
+			uint32_t scopeid;
 
-			bzero(&dst_sa, sizeof(dst_sa));
-			dst_sa.sin6_family = AF_INET6;
-			dst_sa.sin6_len = sizeof(dst_sa);
-			dst_sa.sin6_addr = ip6->ip6_dst;
-
-			oifp = ifp;
-			error = in6_selectsrc(&dst_sa, NULL,
-			    NULL, &ro, NULL, &oifp, &src_in);
+			in6_splitscope(&ip6->ip6_dst, &dst6, &scopeid);
+			error = in6_selectsrc_addr(RT_DEFAULT_FIB, &dst6,
+			    scopeid, ifp, &src6, NULL);
 			if (error) {
 				char ip6buf[INET6_ADDRSTRLEN];
 				nd6log((LOG_DEBUG, "%s: source can't be "
 				    "determined: dst=%s, error=%d\n", __func__,
-				    ip6_sprintf(ip6buf, &dst_sa.sin6_addr),
+				    ip6_sprintf(ip6buf, &dst6),
 				    error));
 				goto bad;
 			}
-			ip6->ip6_src = src_in;
+			ip6->ip6_src = src6;
 		}
 	} else {
 		/*
@@ -575,23 +574,16 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 		m_tag_prepend(m, mtag);
 	}
 
-	ip6_output(m, NULL, &ro, (nonce != NULL) ? IPV6_UNSPECSRC : 0,
+	ip6_output(m, NULL, NULL, (nonce != NULL) ? IPV6_UNSPECSRC : 0,
 	    &im6o, NULL, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighborsolicit);
 	ICMP6STAT_INC(icp6s_outhist[ND_NEIGHBOR_SOLICIT]);
 
-	/* We don't cache this route. */
-	RO_RTFREE(&ro);
-
 	return;
 
   bad:
-	if (ro.ro_rt) {
-		RTFREE(ro.ro_rt);
-	}
 	m_freem(m);
-	return;
 }
 
 #ifndef BURN_BRIDGES
@@ -633,6 +625,9 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	union nd_opts ndopts;
 	struct mbuf *chain = NULL;
 	struct sockaddr_in6 sin6;
+	u_char linkhdr[LLE_MAX_LINKHDR];
+	size_t linkhdrsize;
+	int lladdr_off;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
 	if (ip6->ip6_hlim != 255) {
@@ -755,7 +750,13 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		/*
 		 * Record link-layer address, and update the state.
 		 */
-		if (lltable_try_set_entry_addr(ifp, ln, lladdr) == 0) {
+		linkhdrsize = sizeof(linkhdr);
+		if (lltable_calc_llheader(ifp, AF_INET6, lladdr,
+		    linkhdr, &linkhdrsize, &lladdr_off) != 0)
+			return;
+
+		if (lltable_try_set_entry_addr(ifp, ln, linkhdr, linkhdrsize,
+		    lladdr_off) == 0) {
 			ln = NULL;
 			goto freeit;
 		}
@@ -782,7 +783,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			llchange = 0;
 		else {
 			if (ln->la_flags & LLE_VALID) {
-				if (bcmp(lladdr, &ln->ll_addr, ifp->if_addrlen))
+				if (bcmp(lladdr, ln->ll_addr, ifp->if_addrlen))
 					llchange = 1;
 				else
 					llchange = 0;
@@ -824,9 +825,12 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * Update link-local address, if any.
 			 */
 			if (lladdr != NULL) {
-				int ret;
-				ret = lltable_try_set_entry_addr(ifp, ln,lladdr);
-				if (ret == 0) {
+				linkhdrsize = sizeof(linkhdr);
+				if (lltable_calc_llheader(ifp, AF_INET6, lladdr,
+				    linkhdr, &linkhdrsize, &lladdr_off) != 0)
+					goto freeit;
+				if (lltable_try_set_entry_addr(ifp, ln, linkhdr,
+				    linkhdrsize, lladdr_off) == 0) {
 					ln = NULL;
 					goto freeit;
 				}
@@ -853,31 +857,19 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * Remove the sender from the Default Router List and
 			 * update the Destination Cache entries.
 			 */
-			struct nd_defrouter *dr;
-			struct in6_addr *in6;
+			struct ifnet *nd6_ifp;
 
-			in6 = &ln->r_l3addr.addr6;
-
-			/*
-			 * Lock to protect the default router list.
-			 * XXX: this might be unnecessary, since this function
-			 * is only called under the network software interrupt
-			 * context.  However, we keep it just for safety.
-			 */
-			dr = defrouter_lookup(in6, ln->lle_tbl->llt_ifp);
-			if (dr)
-				defrtrlist_del(dr);
-			else if (ND_IFINFO(ln->lle_tbl->llt_ifp)->flags &
-			    ND6_IFF_ACCEPT_RTADV) {
+			nd6_ifp = lltable_get_ifp(ln->lle_tbl);
+			if (!defrouter_remove(&ln->r_l3addr.addr6, nd6_ifp) &&
+			    (ND_IFINFO(nd6_ifp)->flags &
+			     ND6_IFF_ACCEPT_RTADV) != 0)
 				/*
 				 * Even if the neighbor is not in the default
-				 * router list, the neighbor may be used
-				 * as a next hop for some destinations
-				 * (e.g. redirect case). So we must
-				 * call rt6_flush explicitly.
+				 * router list, the neighbor may be used as a
+				 * next hop for some destinations (e.g. redirect
+				 * case). So we must call rt6_flush explicitly.
 				 */
 				rt6_flush(&ip6->ip6_src, ifp);
-			}
 		}
 		ln->ln_router = is_router;
 	}
@@ -928,17 +920,14 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 {
 	struct mbuf *m;
 	struct m_tag *mtag;
-	struct ifnet *oifp;
 	struct ip6_hdr *ip6;
 	struct nd_neighbor_advert *nd_na;
 	struct ip6_moptions im6o;
-	struct in6_addr src, daddr6;
-	struct sockaddr_in6 dst_sa;
+	struct in6_addr daddr6, dst6, src6;
+	uint32_t scopeid;
+
 	int icmp6len, maxlen, error;
 	caddr_t mac = NULL;
-	struct route_in6 ro;
-
-	bzero(&ro, sizeof(ro));
 
 	daddr6 = *daddr6_0;	/* make a local copy for modification */
 
@@ -988,25 +977,21 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		flags &= ~ND_NA_FLAG_SOLICITED;
 	}
 	ip6->ip6_dst = daddr6;
-	bzero(&dst_sa, sizeof(struct sockaddr_in6));
-	dst_sa.sin6_family = AF_INET6;
-	dst_sa.sin6_len = sizeof(struct sockaddr_in6);
-	dst_sa.sin6_addr = daddr6;
 
 	/*
 	 * Select a source whose scope is the same as that of the dest.
 	 */
-	bcopy(&dst_sa, &ro.ro_dst, sizeof(dst_sa));
-	oifp = ifp;
-	error = in6_selectsrc(&dst_sa, NULL, NULL, &ro, NULL, &oifp, &src);
+	in6_splitscope(&daddr6, &dst6, &scopeid);
+	error = in6_selectsrc_addr(RT_DEFAULT_FIB, &dst6,
+	    scopeid, ifp, &src6, NULL);
 	if (error) {
 		char ip6buf[INET6_ADDRSTRLEN];
 		nd6log((LOG_DEBUG, "nd6_na_output: source can't be "
 		    "determined: dst=%s, error=%d\n",
-		    ip6_sprintf(ip6buf, &dst_sa.sin6_addr), error));
+		    ip6_sprintf(ip6buf, &daddr6), error));
 		goto bad;
 	}
-	ip6->ip6_src = src;
+	ip6->ip6_src = src6;
 	nd_na = (struct nd_neighbor_advert *)(ip6 + 1);
 	nd_na->nd_na_type = ND_NEIGHBOR_ADVERT;
 	nd_na->nd_na_code = 0;
@@ -1069,22 +1054,15 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		m_tag_prepend(m, mtag);
 	}
 
-	ip6_output(m, NULL, &ro, 0, &im6o, NULL, NULL);
+	ip6_output(m, NULL, NULL, 0, &im6o, NULL, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighboradvert);
 	ICMP6STAT_INC(icp6s_outhist[ND_NEIGHBOR_ADVERT]);
 
-	/* We don't cache this route. */
-	RO_RTFREE(&ro);
-
 	return;
 
   bad:
-	if (ro.ro_rt) {
-		RTFREE(ro.ro_rt);
-	}
 	m_freem(m);
-	return;
 }
 
 #ifndef BURN_BRIDGES
@@ -1276,9 +1254,10 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	}
 	if ((dp = nd6_dad_find(ifa, NULL)) != NULL) {
 		/*
-		 * DAD already in progress.  Let the existing entry
-		 * to finish it.
+		 * DAD is already in progress.  Let the existing entry
+		 * finish it.
 		 */
+		nd6_dad_rele(dp);
 		return;
 	}
 
@@ -1587,110 +1566,3 @@ nd6_dad_na_input(struct ifaddr *ifa)
 		nd6_dad_rele(dp);
 	}
 }
-
-/*
- * Send unsolicited neighbor advertisements for all interface addresses to
- * notify other nodes of changes.
- *
- * This is a noop if the interface isn't up.
- */
-void __noinline
-nd6_na_output_unsolicited(struct ifnet *ifp)
-{
-	int i, cnt, entries;
-	struct ifaddr *ifa;
-	struct ann {
-		struct in6_addr addr;
-		u_long flags;
-		int delay;
-	} *ann1, *head;
-
-	if (!(ifp->if_flags & IFF_UP))
-		return;
-
-	entries = 8;
-	cnt = 0;
-	head = malloc(sizeof(struct ann) * entries, M_TEMP, M_WAITOK);
-
-	/* Take a copy then process to avoid locking issues. */
-	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		if (ifa->ifa_addr->sa_family != AF_INET6 ||
-		    IFA_ND6_NA_UNSOLICITED_SKIP(ifa))
-			continue;
-
-		if (cnt == entries) {
-			ann1 = (struct ann*)realloc(head, sizeof(struct ann) *
-			    (entries + 8), M_TEMP, M_NOWAIT);
-			if (ann1 == NULL) {
-				log(LOG_INFO, "nd6_announce: realloc to %d "
-				    "entries failed\n", entries + 8);
-				/* Process what we have. */
-				break;
-			}
-			entries += 8;
-			head = ann1;
-		}
-
-		ann1 = head + cnt;
-		bcopy(IFA_IN6(ifa), &ann1->addr, sizeof(ann1->addr));
-		ann1->flags = IFA_ND6_NA_BASE_FLAGS(ifp, ifa);
-		ann1->delay = nd6_na_unsolicited_addr_delay(ifa);
-		cnt++;
-	}
-	IF_ADDR_RUNLOCK(ifp);
-
-	for (i = 0; i < cnt;) {
-		ann1 = head + i;
-		nd6_na_output_unsolicited_addr(ifp, &ann1->addr, ann1->flags);
-		i++;
-		if (i == cnt)
-			break;
-		DELAY(ann1->delay);
-	}
-	free(head, M_TEMP);
-}
-
-/*
- * Return the delay required for announcements of the address as per RFC 4861.
- */
-int
-nd6_na_unsolicited_addr_delay(struct ifaddr *ifa)
-{
-
-	if (IFA_IN6_FLAGS(ifa) & IN6_IFF_ANYCAST) {
-		/*
-		 * Random value between 0 and MAX_ANYCAST_DELAY_TIME
-		 * as per section 7.2.7.
-		 */
-		return (random() % IN6_MAX_ANYCAST_DELAY_TIME_MS);
-	}
-
-	/* Small delay as per section 7.2.6. */
-	return (IN6_BROADCAST_DELAY_TIME_MS);
-}
-
-/*
- * Send an unsolicited neighbor advertisement for an address to notify other
- * nodes of changes.
- */
-void __noinline
-nd6_na_output_unsolicited_addr(struct ifnet *ifp, const struct in6_addr *addr,
-    u_long flags)
-{
-	int error;
-	struct in6_addr mcast;
-
-	mcast = in6addr_linklocal_allnodes;
-	if ((error = in6_setscope(&mcast, ifp, NULL)) != 0) {
-		/*
-		 * This shouldn't by possible as the only error is for loopback
-		 * address which we're not using.
-		 */
-		log(LOG_INFO, "in6_setscope: on mcast failed: %d\n", error);
-		return;
-	}
-	nd6_na_output(ifp, &mcast, addr, flags, 1, NULL);
-}
-
-

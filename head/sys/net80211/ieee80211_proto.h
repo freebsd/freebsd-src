@@ -47,9 +47,26 @@ enum ieee80211_state {
 #define	IEEE80211_SEND_MGMT(_ni,_type,_arg) \
 	((*(_ni)->ni_ic->ic_send_mgmt)(_ni, _type, _arg))
 
-extern	const char *ieee80211_mgt_subtype_name[];
+extern	const char *mgt_subtype_name[];
+extern	const char *ctl_subtype_name[];
 extern	const char *ieee80211_phymode_name[IEEE80211_MODE_MAX];
 extern	const int ieee80211_opcap[IEEE80211_OPMODE_MAX];
+
+static __inline const char *
+ieee80211_mgt_subtype_name(uint8_t subtype)
+{
+	return mgt_subtype_name[(subtype & IEEE80211_FC0_SUBTYPE_MASK) >>
+		   IEEE80211_FC0_SUBTYPE_SHIFT];
+}
+
+static __inline const char *
+ieee80211_ctl_subtype_name(uint8_t subtype)
+{
+	return ctl_subtype_name[(subtype & IEEE80211_FC0_SUBTYPE_MASK) >>
+		   IEEE80211_FC0_SUBTYPE_SHIFT];
+}
+
+const char *ieee80211_reason_to_string(uint16_t);
 
 void	ieee80211_proto_attach(struct ieee80211com *);
 void	ieee80211_proto_detach(struct ieee80211com *);

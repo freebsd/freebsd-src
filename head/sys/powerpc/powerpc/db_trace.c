@@ -106,7 +106,7 @@ struct db_variable db_regs[] = {
 	{ "esr", DB_OFFSET(cpu.booke.esr),	db_frame },
 #endif
 };
-struct db_variable *db_eregs = db_regs + sizeof (db_regs)/sizeof (db_regs[0]);
+struct db_variable *db_eregs = db_regs + nitems(db_regs);
 
 /*
  * register variable handling

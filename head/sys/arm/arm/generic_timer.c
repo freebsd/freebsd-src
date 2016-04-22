@@ -361,11 +361,10 @@ arm_tmr_attach(device_t dev)
 	/* Get the base clock frequency */
 	node = ofw_bus_get_node(dev);
 	if (node > 0) {
-		error = OF_getprop(node, "clock-frequency", &clock,
+		error = OF_getencprop(node, "clock-frequency", &clock,
 		    sizeof(clock));
-		if (error > 0) {
-			sc->clkfreq = fdt32_to_cpu(clock);
-		}
+		if (error > 0)
+			sc->clkfreq = clock;
 	}
 #endif
 

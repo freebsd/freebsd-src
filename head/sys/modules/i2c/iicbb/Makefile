@@ -2,7 +2,7 @@
 
 .PATH:		${.CURDIR}/../../../dev/iicbus
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm" || \
-    ${MACHINE_CPUARCH} == "powerpc"
+    ${MACHINE_CPUARCH} == "mips" || ${MACHINE_CPUARCH} == "powerpc"
 ofw_bus_if=	ofw_bus_if.h
 .endif
 KMOD		= iicbb

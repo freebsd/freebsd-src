@@ -28,6 +28,8 @@
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 
+#include "lldb/Target/Language.h"
+
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 
@@ -395,7 +397,7 @@ CommandObject::HandleCompletion
     StringList &matches
 )
 {
-    // Default implmentation of WantsCompletion() is !WantsRawCommandString().
+    // Default implementation of WantsCompletion() is !WantsRawCommandString().
     // Subclasses who want raw command string but desire, for example,
     // argument completion should override WantsCompletion() to return true,
     // instead.
@@ -848,7 +850,7 @@ LanguageTypeHelpTextCallback ()
     StreamString sstr;
     sstr << "One of the following languages:\n";
 
-    LanguageRuntime::PrintAllLanguages(sstr, "  ", "\n");
+    Language::PrintAllLanguages(sstr, "  ", "\n");
 
     sstr.Flush();
     

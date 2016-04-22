@@ -724,8 +724,8 @@ ndis_80211attach(struct ndis_softc *sc)
 	ndis_80211_rates_ex	rates;
 	struct ndis_80211_nettype_list *ntl;
 	uint32_t		arg;
-	int			mode, i, r, len;
-	uint8_t			bands = 0;
+	int			mode, i, r, len, nonettypes = 1;
+	uint8_t			bands[howmany(IEEE80211_MODE_MAX, 8)] = { 0 };
 
 	callout_init(&sc->ndis_scan_callout, 1);
 
@@ -751,8 +751,9 @@ ndis_80211attach(struct ndis_softc *sc)
 	for (i = 0; i < ntl->ntl_items; i++) {
 		mode = ndis_nettype_mode(ntl->ntl_type[i]);
 		if (mode) {
+			nonettypes = 0;
 			setbit(ic->ic_modecaps, mode);
-			setbit(&bands, mode);
+			setbit(bands, mode);
 		} else
 			device_printf(sc->ndis_dev, "Unknown nettype %d\n",
 			    ntl->ntl_type[i]);
@@ -760,9 +761,9 @@ ndis_80211attach(struct ndis_softc *sc)
 	free(ntl, M_DEVBUF);
 nonettypes:
 	/* Default to 11b channels if the card did not supply any */
-	if (bands == 0) {
+	if (nonettypes) {
 		setbit(ic->ic_modecaps, IEEE80211_MODE_11B);
-		setbit(&bands, IEEE80211_MODE_11B);
+		setbit(bands, IEEE80211_MODE_11B);
 	}
 	len = sizeof(rates);
 	bzero((char *)&rates, len);
@@ -859,7 +860,7 @@ nonettypes:
 #undef INCRATE
 #undef TESTSETRATE
 
-	ieee80211_init_channels(ic, NULL, &bands);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	/*
 	 * To test for WPA support, we need to see if we can
@@ -2399,7 +2400,7 @@ ndis_setstate_80211(struct ndis_softc *sc)
 
 	/* Set TX power */
 	if ((ic->ic_caps & IEEE80211_C_TXPMGT) &&
-	    ic->ic_txpowlimit < (sizeof(dBm2mW) / sizeof(dBm2mW[0]))) {
+	    ic->ic_txpowlimit < nitems(dBm2mW)) {
 		arg = dBm2mW[ic->ic_txpowlimit];
 		len = sizeof(arg);
 		ndis_set_info(sc, OID_802_11_TX_POWER_LEVEL, &arg, &len);
@@ -2809,7 +2810,7 @@ ndis_getstate_80211(struct ndis_softc *sc)
 	if (ic->ic_caps & IEEE80211_C_TXPMGT) {
 		len = sizeof(arg);
 		ndis_get_info(sc, OID_802_11_TX_POWER_LEVEL, &arg, &len);
-		for (i = 0; i < (sizeof(dBm2mW) / sizeof(dBm2mW[0])); i++)
+		for (i = 0; i < nitems(dBm2mW); i++)
 			if (dBm2mW[i] >= arg)
 				break;
 		ic->ic_txpowlimit = i;

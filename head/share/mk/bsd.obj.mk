@@ -89,6 +89,7 @@ objwarn:
 		canonical ${CANONICALOBJDIR}"
 .endif
 .endif
+beforebuild: objwarn
 
 .if !defined(NO_OBJ)
 .if !target(obj)

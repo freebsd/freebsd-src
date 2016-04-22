@@ -47,8 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
-/* There is no a.out support on arm64 */
-#ifndef __aarch64__
+/* i386 is the only current FreeBSD architecture that used a.out format. */
+#ifdef __i386__
 #define _NLIST_DO_AOUT
 #endif
 #define _NLIST_DO_ELF
@@ -93,7 +93,7 @@ __fdnlist(int fd, struct nlist *list)
 	int n = -1;
 	unsigned int i;
 
-	for (i = 0; i < sizeof(nlist_fn) / sizeof(nlist_fn[0]); i++) {
+	for (i = 0; i < nitems(nlist_fn); i++) {
 		n = (nlist_fn[i].fn)(fd, list);
 		if (n != -1)
 			break;

@@ -57,11 +57,20 @@
 #define ASSERT(x) if(!(x)) panic("IXGBE: x")
 #define EWARN(H, W, S) printf(W)
 
+enum {
+	IXGBE_ERROR_SOFTWARE,
+	IXGBE_ERROR_POLLING,
+	IXGBE_ERROR_INVALID_STATE,
+	IXGBE_ERROR_UNSUPPORTED,
+	IXGBE_ERROR_ARGUMENT,
+	IXGBE_ERROR_CAUTION,
+};
+
 /* The happy-fun DELAY macro is defined in /usr/src/sys/i386/include/clock.h */
 #define usec_delay(x) DELAY(x)
 #define msec_delay(x) DELAY(1000*(x))
 
-#define DBG 0 
+#define DBG 0
 #define MSGOUT(S, A, B)     printf(S "\n", A, B)
 #define DEBUGFUNC(F)        DEBUGOUT(F);
 #if DBG
@@ -73,9 +82,23 @@
 	#define DEBUGOUT5(S,A,B,C,D,E)  printf(S "\n",A,B,C,D,E)
 	#define DEBUGOUT6(S,A,B,C,D,E,F)  printf(S "\n",A,B,C,D,E,F)
 	#define DEBUGOUT7(S,A,B,C,D,E,F,G)  printf(S "\n",A,B,C,D,E,F,G)
-	#define ERROR_REPORT1(S,A)      printf(S "\n",A)
-	#define ERROR_REPORT2(S,A,B)    printf(S "\n",A,B)
-	#define ERROR_REPORT3(S,A,B,C)  printf(S "\n",A,B,C)
+	#define ERROR_REPORT1 ERROR_REPORT
+	#define ERROR_REPORT2 ERROR_REPORT
+	#define ERROR_REPORT3 ERROR_REPORT
+	#define ERROR_REPORT(level, format, arg...) do { \
+		switch (level) { \
+		case IXGBE_ERROR_SOFTWARE: \
+		case IXGBE_ERROR_CAUTION: \
+		case IXGBE_ERROR_POLLING: \
+		case IXGBE_ERROR_INVALID_STATE: \
+		case IXGBE_ERROR_UNSUPPORTED: \
+		case IXGBE_ERROR_ARGUMENT: \
+			device_printf(ixgbe_dev_from_hw(hw), format, ## arg); \
+			break; \
+		default: \
+			break; \
+		} \
+	} while (0)
 #else
 	#define DEBUGOUT(S)
 	#define DEBUGOUT1(S,A)
@@ -165,7 +188,7 @@ void prefetch(void *x)
  * non-overlapping regions and 32-byte padding on both src and dst.
  */
 static __inline int
-ixgbe_bcopy(void *_src, void *_dst, int l)
+ixgbe_bcopy(void *restrict _src, void *restrict _dst, int l)
 {
 	uint64_t *src = _src;
 	uint64_t *dst = _dst;
@@ -183,11 +206,13 @@ struct ixgbe_osdep
 {
 	bus_space_tag_t    mem_bus_space_tag;
 	bus_space_handle_t mem_bus_space_handle;
-	struct device     *dev;
 };
 
-/* These routines are needed by the shared code */
+/* These routines need struct ixgbe_hw declared */
 struct ixgbe_hw; 
+device_t ixgbe_dev_from_hw(struct ixgbe_hw *hw);
+
+/* These routines are needed by the shared code */
 extern u16 ixgbe_read_pci_cfg(struct ixgbe_hw *, u32);
 #define IXGBE_READ_PCIE_WORD ixgbe_read_pci_cfg
 
@@ -196,26 +221,18 @@ extern void ixgbe_write_pci_cfg(struct ixgbe_hw *, u32, u16);
 
 #define IXGBE_WRITE_FLUSH(a) IXGBE_READ_REG(a, IXGBE_STATUS)
 
-#define IXGBE_READ_REG(a, reg) (\
-   bus_space_read_4( ((struct ixgbe_osdep *)(a)->back)->mem_bus_space_tag, \
-                     ((struct ixgbe_osdep *)(a)->back)->mem_bus_space_handle, \
-                     reg))
+extern u32 ixgbe_read_reg(struct ixgbe_hw *, u32);
+#define IXGBE_READ_REG(a, reg) ixgbe_read_reg(a, reg)
 
-#define IXGBE_WRITE_REG(a, reg, value) (\
-   bus_space_write_4( ((struct ixgbe_osdep *)(a)->back)->mem_bus_space_tag, \
-                     ((struct ixgbe_osdep *)(a)->back)->mem_bus_space_handle, \
-                     reg, value))
+extern void ixgbe_write_reg(struct ixgbe_hw *, u32, u32);
+#define IXGBE_WRITE_REG(a, reg, val) ixgbe_write_reg(a, reg, val)
 
+extern u32 ixgbe_read_reg_array(struct ixgbe_hw *, u32, u32);
+#define IXGBE_READ_REG_ARRAY(a, reg, offset) \
+    ixgbe_read_reg_array(a, reg, offset)
 
-#define IXGBE_READ_REG_ARRAY(a, reg, offset) (\
-   bus_space_read_4( ((struct ixgbe_osdep *)(a)->back)->mem_bus_space_tag, \
-                     ((struct ixgbe_osdep *)(a)->back)->mem_bus_space_handle, \
-                     (reg + ((offset) << 2))))
-
-#define IXGBE_WRITE_REG_ARRAY(a, reg, offset, value) (\
-      bus_space_write_4( ((struct ixgbe_osdep *)(a)->back)->mem_bus_space_tag, \
-                      ((struct ixgbe_osdep *)(a)->back)->mem_bus_space_handle, \
-                      (reg + ((offset) << 2)), value))
-
+extern void ixgbe_write_reg_array(struct ixgbe_hw *, u32, u32, u32);
+#define IXGBE_WRITE_REG_ARRAY(a, reg, offset, val) \
+    ixgbe_write_reg_array(a, reg, offset, val)
 
 #endif /* _IXGBE_OS_H_ */

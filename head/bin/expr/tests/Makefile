@@ -1,5 +1,9 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 NETBSD_ATF_TESTS_SH=	expr_test
 
 ATF_TESTS_SH_SED_expr_test+=	-e 's/eval expr/eval expr --/g'

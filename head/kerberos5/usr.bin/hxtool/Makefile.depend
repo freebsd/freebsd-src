@@ -13,6 +13,7 @@ DIRDEPS = \
 	kerberos5/lib/libsl \
 	kerberos5/lib/libvers \
 	kerberos5/lib/libwind \
+	kerberos5/tools/slc.host \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcom_err \
@@ -27,10 +28,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-hxtool-commands.o: hxtool-commands.c
-hxtool-commands.o: hxtool-commands.h
-hxtool-commands.po: hxtool-commands.c
-hxtool-commands.po: hxtool-commands.h
-hxtool.o: hxtool-commands.h
-hxtool.po: hxtool-commands.h
 .endif

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-add.c,v 1.109 2014/02/02 03:44:31 djm Exp $ */
+/* $OpenBSD: ssh-add.c,v 1.128 2016/02/15 09:47:49 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -39,11 +39,11 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/param.h>
 
 #include <openssl/evp.h>
 #include "openbsd-compat/openssl-compat.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <pwd.h>
 #include <stdarg.h>
@@ -51,32 +51,41 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <limits.h>
 
 #include "xmalloc.h"
 #include "ssh.h"
 #include "rsa.h"
 #include "log.h"
-#include "key.h"
-#include "buffer.h"
+#include "sshkey.h"
+#include "sshbuf.h"
 #include "authfd.h"
 #include "authfile.h"
 #include "pathnames.h"
 #include "misc.h"
+#include "ssherr.h"
+#include "digest.h"
 
 /* argv0 */
 extern char *__progname;
 
 /* Default files to add */
 static char *default_files[] = {
+#ifdef WITH_OPENSSL
 	_PATH_SSH_CLIENT_ID_RSA,
 	_PATH_SSH_CLIENT_ID_DSA,
 #ifdef OPENSSL_HAS_ECC
 	_PATH_SSH_CLIENT_ID_ECDSA,
 #endif
+#endif /* WITH_OPENSSL */
 	_PATH_SSH_CLIENT_ID_ED25519,
+#ifdef WITH_SSH1
 	_PATH_SSH_CLIENT_IDENTITY,
+#endif
 	NULL
 };
+
+static int fingerprint_hash = SSH_FP_HASH_DEFAULT;
 
 /* Default lifetime (0 == forever) */
 static int lifetime = 0;
@@ -84,7 +93,7 @@ static int lifetime = 0;
 /* User has to confirm key use */
 static int confirm = 0;
 
-/* we keep a cache of one passphrases */
+/* we keep a cache of one passphrase */
 static char *pass = NULL;
 static void
 clear_pass(void)
@@ -97,22 +106,22 @@ clear_pass(void)
 }
 
 static int
-delete_file(AuthenticationConnection *ac, const char *filename, int key_only)
+delete_file(int agent_fd, const char *filename, int key_only)
 {
-	Key *public = NULL, *cert = NULL;
+	struct sshkey *public, *cert = NULL;
 	char *certpath = NULL, *comment = NULL;
-	int ret = -1;
+	int r, ret = -1;
 
-	public = key_load_public(filename, &comment);
-	if (public == NULL) {
-		printf("Bad key file %s\n", filename);
+	if ((r = sshkey_load_public(filename, &public,  &comment)) != 0) {
+		printf("Bad key file %s: %s\n", filename, ssh_err(r));
 		return -1;
 	}
-	if (ssh_remove_identity(ac, public)) {
+	if ((r = ssh_remove_identity(agent_fd, public)) == 0) {
 		fprintf(stderr, "Identity removed: %s (%s)\n", filename, comment);
 		ret = 0;
 	} else
-		fprintf(stderr, "Could not remove identity: %s\n", filename);
+		fprintf(stderr, "Could not remove identity \"%s\": %s\n",
+		    filename, ssh_err(r));
 
 	if (key_only)
 		goto out;
@@ -121,24 +130,28 @@ delete_file(AuthenticationConnection *ac, const char *filename, int key_only)
 	free(comment);
 	comment = NULL;
 	xasprintf(&certpath, "%s-cert.pub", filename);
-	if ((cert = key_load_public(certpath, &comment)) == NULL)
+	if ((r = sshkey_load_public(certpath, &cert, &comment)) != 0) {
+		if (r != SSH_ERR_SYSTEM_ERROR || errno != ENOENT)
+			error("Failed to load certificate \"%s\": %s",
+			    certpath, ssh_err(r));
 		goto out;
-	if (!key_equal_public(cert, public))
+	}
+
+	if (!sshkey_equal_public(cert, public))
 		fatal("Certificate %s does not match private key %s",
 		    certpath, filename);
 
-	if (ssh_remove_identity(ac, cert)) {
+	if ((r = ssh_remove_identity(agent_fd, cert)) == 0) {
 		fprintf(stderr, "Identity removed: %s (%s)\n", certpath,
 		    comment);
 		ret = 0;
 	} else
-		fprintf(stderr, "Could not remove identity: %s\n", certpath);
+		fprintf(stderr, "Could not remove identity \"%s\": %s\n",
+		    certpath, ssh_err(r));
 
  out:
-	if (cert != NULL)
-		key_free(cert);
-	if (public != NULL)
-		key_free(public);
+	sshkey_free(cert);
+	sshkey_free(public);
 	free(certpath);
 	free(comment);
 
@@ -147,14 +160,14 @@ delete_file(AuthenticationConnection *ac, const char *filename, int key_only)
 
 /* Send a request to remove all identities. */
 static int
-delete_all(AuthenticationConnection *ac)
+delete_all(int agent_fd)
 {
 	int ret = -1;
 
-	if (ssh_remove_all_identities(ac, 1))
+	if (ssh_remove_all_identities(agent_fd, 2) == 0)
 		ret = 0;
-	/* ignore error-code for ssh2 */
-	ssh_remove_all_identities(ac, 2);
+	/* ignore error-code for ssh1 */
+	ssh_remove_all_identities(agent_fd, 1);
 
 	if (ret == 0)
 		fprintf(stderr, "All identities removed.\n");
@@ -165,13 +178,13 @@ delete_all(AuthenticationConnection *ac)
 }
 
 static int
-add_file(AuthenticationConnection *ac, const char *filename, int key_only)
+add_file(int agent_fd, const char *filename, int key_only)
 {
-	Key *private, *cert;
+	struct sshkey *private, *cert;
 	char *comment = NULL;
 	char msg[1024], *certpath = NULL;
-	int fd, perms_ok, ret = -1;
-	Buffer keyblob;
+	int r, fd, ret = -1;
+	struct sshbuf *keyblob;
 
 	if (strcmp(filename, "-") == 0) {
 		fd = STDIN_FILENO;
@@ -186,53 +199,71 @@ add_file(AuthenticationConnection *ac, const char *filename, int key_only)
 	 * will occur multiple times, so check perms first and bail if wrong.
 	 */
 	if (fd != STDIN_FILENO) {
-		perms_ok = key_perm_ok(fd, filename);
-		if (!perms_ok) {
+		if (sshkey_perm_ok(fd, filename) != 0) {
 			close(fd);
 			return -1;
 		}
 	}
-	buffer_init(&keyblob);
-	if (!key_load_file(fd, filename, &keyblob)) {
-		buffer_free(&keyblob);
+	if ((keyblob = sshbuf_new()) == NULL)
+		fatal("%s: sshbuf_new failed", __func__);
+	if ((r = sshkey_load_file(fd, keyblob)) != 0) {
+		fprintf(stderr, "Error loading key \"%s\": %s\n",
+		    filename, ssh_err(r));
+		sshbuf_free(keyblob);
 		close(fd);
 		return -1;
 	}
 	close(fd);
 
 	/* At first, try empty passphrase */
-	private = key_parse_private(&keyblob, filename, "", &comment);
-	if (comment == NULL)
-		comment = xstrdup(filename);
+	if ((r = sshkey_parse_private_fileblob(keyblob, "", &private,
+	    &comment)) != 0 && r != SSH_ERR_KEY_WRONG_PASSPHRASE) {
+		fprintf(stderr, "Error loading key \"%s\": %s\n",
+		    filename, ssh_err(r));
+		goto fail_load;
+	}
 	/* try last */
-	if (private == NULL && pass != NULL)
-		private = key_parse_private(&keyblob, filename, pass, NULL);
+	if (private == NULL && pass != NULL) {
+		if ((r = sshkey_parse_private_fileblob(keyblob, pass, &private,
+		    &comment)) != 0 && r != SSH_ERR_KEY_WRONG_PASSPHRASE) {
+			fprintf(stderr, "Error loading key \"%s\": %s\n",
+			    filename, ssh_err(r));
+			goto fail_load;
+		}
+	}
 	if (private == NULL) {
 		/* clear passphrase since it did not work */
 		clear_pass();
-		snprintf(msg, sizeof msg, "Enter passphrase for %.200s: ",
-		    comment);
+		snprintf(msg, sizeof msg, "Enter passphrase for %s%s: ",
+		    filename, confirm ? " (will confirm each use)" : "");
 		for (;;) {
 			pass = read_passphrase(msg, RP_ALLOW_STDIN);
-			if (strcmp(pass, "") == 0) {
+			if (strcmp(pass, "") == 0)
+				goto fail_load;
+			if ((r = sshkey_parse_private_fileblob(keyblob, pass,
+			    &private, &comment)) == 0)
+				break;
+			else if (r != SSH_ERR_KEY_WRONG_PASSPHRASE) {
+				fprintf(stderr,
+				    "Error loading key \"%s\": %s\n",
+				    filename, ssh_err(r));
+ fail_load:
 				clear_pass();
-				free(comment);
-				buffer_free(&keyblob);
+				sshbuf_free(keyblob);
 				return -1;
 			}
-			private = key_parse_private(&keyblob, filename, pass,
-			    &comment);
-			if (private != NULL)
-				break;
 			clear_pass();
 			snprintf(msg, sizeof msg,
-			    "Bad passphrase, try again for %.200s: ", comment);
+			    "Bad passphrase, try again for %s%s: ", filename,
+			    confirm ? " (will confirm each use)" : "");
 		}
 	}
-	buffer_free(&keyblob);
+	if (comment == NULL || *comment == '\0')
+		comment = xstrdup(filename);
+	sshbuf_free(keyblob);
 
-	if (ssh_add_identity_constrained(ac, private, comment, lifetime,
-	    confirm)) {
+	if ((r = ssh_add_identity_constrained(agent_fd, private, comment,
+	    lifetime, confirm)) == 0) {
 		fprintf(stderr, "Identity added: %s (%s)\n", filename, comment);
 		ret = 0;
 		if (lifetime != 0)
@@ -242,7 +273,8 @@ add_file(AuthenticationConnection *ac, const char *filename, int key_only)
 			fprintf(stderr,
 			    "The user must confirm each use of the key\n");
 	} else {
-		fprintf(stderr, "Could not add identity: %s\n", filename);
+		fprintf(stderr, "Could not add identity \"%s\": %s\n",
+		    filename, ssh_err(r));
 	}
 
 	/* Skip trying to load the cert if requested */
@@ -251,29 +283,38 @@ add_file(AuthenticationConnection *ac, const char *filename, int key_only)
 
 	/* Now try to add the certificate flavour too */
 	xasprintf(&certpath, "%s-cert.pub", filename);
-	if ((cert = key_load_public(certpath, NULL)) == NULL)
+	if ((r = sshkey_load_public(certpath, &cert, NULL)) != 0) {
+		if (r != SSH_ERR_SYSTEM_ERROR || errno != ENOENT)
+			error("Failed to load certificate \"%s\": %s",
+			    certpath, ssh_err(r));
 		goto out;
+	}
 
-	if (!key_equal_public(cert, private)) {
+	if (!sshkey_equal_public(cert, private)) {
 		error("Certificate %s does not match private key %s",
 		    certpath, filename);
-		key_free(cert);
+		sshkey_free(cert);
 		goto out;
 	} 
 
 	/* Graft with private bits */
-	if (key_to_certified(private, key_cert_is_legacy(cert)) != 0) {
-		error("%s: key_to_certified failed", __func__);
-		key_free(cert);
+	if ((r = sshkey_to_certified(private)) != 0) {
+		error("%s: sshkey_to_certified: %s", __func__, ssh_err(r));
+		sshkey_free(cert);
 		goto out;
 	}
-	key_cert_copy(cert, private);
-	key_free(cert);
+	if ((r = sshkey_cert_copy(cert, private)) != 0) {
+		error("%s: key_cert_copy: %s", __func__, ssh_err(r));
+		sshkey_free(cert);
+		goto out;
+	}
+	sshkey_free(cert);
 
-	if (!ssh_add_identity_constrained(ac, private, comment,
-	    lifetime, confirm)) {
-		error("Certificate %s (%s) add failed", certpath,
-		    private->cert->key_id);
+	if ((r = ssh_add_identity_constrained(agent_fd, private, comment,
+	    lifetime, confirm)) != 0) {
+		error("Certificate %s (%s) add failed: %s", certpath,
+		    private->cert->key_id, ssh_err(r));
+		goto out;
 	}
 	fprintf(stderr, "Certificate added: %s (%s)\n", certpath,
 	    private->cert->key_id);
@@ -282,19 +323,18 @@ add_file(AuthenticationConnection *ac, const char *filename, int key_only)
 	if (confirm != 0)
 		fprintf(stderr, "The user must confirm each use of the key\n");
  out:
-	if (certpath != NULL)
-		free(certpath);
+	free(certpath);
 	free(comment);
-	key_free(private);
+	sshkey_free(private);
 
 	return ret;
 }
 
 static int
-update_card(AuthenticationConnection *ac, int add, const char *id)
+update_card(int agent_fd, int add, const char *id)
 {
 	char *pin = NULL;
-	int ret = -1;
+	int r, ret = -1;
 
 	if (add) {
 		if ((pin = read_passphrase("Enter passphrase for PKCS#11: ",
@@ -302,14 +342,14 @@ update_card(AuthenticationConnection *ac, int add, const char *id)
 			return -1;
 	}
 
-	if (ssh_update_card(ac, add, id, pin == NULL ? "" : pin,
-	    lifetime, confirm)) {
+	if ((r = ssh_update_card(agent_fd, add, id, pin == NULL ? "" : pin,
+	    lifetime, confirm)) == 0) {
 		fprintf(stderr, "Card %s: %s\n",
 		    add ? "added" : "removed", id);
 		ret = 0;
 	} else {
-		fprintf(stderr, "Could not %s card: %s\n",
-		    add ? "add" : "remove", id);
+		fprintf(stderr, "Could not %s card \"%s\": %s\n",
+		    add ? "add" : "remove", id, ssh_err(r));
 		ret = -1;
 	}
 	free(pin);
@@ -317,32 +357,48 @@ update_card(AuthenticationConnection *ac, int add, const char *id)
 }
 
 static int
-list_identities(AuthenticationConnection *ac, int do_fp)
+list_identities(int agent_fd, int do_fp)
 {
-	Key *key;
-	char *comment, *fp;
-	int had_identities = 0;
-	int version;
+	char *fp;
+	int r, had_identities = 0;
+	struct ssh_identitylist *idlist;
+	size_t i;
+#ifdef WITH_SSH1
+	int version = 1;
+#else
+	int version = 2;
+#endif
 
-	for (version = 1; version <= 2; version++) {
-		for (key = ssh_get_first_identity(ac, &comment, version);
-		    key != NULL;
-		    key = ssh_get_next_identity(ac, &comment, version)) {
+	for (; version <= 2; version++) {
+		if ((r = ssh_fetch_identitylist(agent_fd, version,
+		    &idlist)) != 0) {
+			if (r != SSH_ERR_AGENT_NO_IDENTITIES)
+				fprintf(stderr, "error fetching identities for "
+				    "protocol %d: %s\n", version, ssh_err(r));
+			continue;
+		}
+		for (i = 0; i < idlist->nkeys; i++) {
 			had_identities = 1;
 			if (do_fp) {
-				fp = key_fingerprint(key, SSH_FP_MD5,
-				    SSH_FP_HEX);
-				printf("%d %s %s (%s)\n",
-				    key_size(key), fp, comment, key_type(key));
+				fp = sshkey_fingerprint(idlist->keys[i],
+				    fingerprint_hash, SSH_FP_DEFAULT);
+				printf("%u %s %s (%s)\n",
+				    sshkey_size(idlist->keys[i]),
+				    fp == NULL ? "(null)" : fp,
+				    idlist->comments[i],
+				    sshkey_type(idlist->keys[i]));
 				free(fp);
 			} else {
-				if (!key_write(key, stdout))
-					fprintf(stderr, "key_write failed");
-				fprintf(stdout, " %s\n", comment);
+				if ((r = sshkey_write(idlist->keys[i],
+				    stdout)) != 0) {
+					fprintf(stderr, "sshkey_write: %s\n",
+					    ssh_err(r));
+					continue;
+				}
+				fprintf(stdout, " %s\n", idlist->comments[i]);
 			}
-			key_free(key);
-			free(comment);
 		}
+		ssh_free_identitylist(idlist);
 	}
 	if (!had_identities) {
 		printf("The agent has no identities.\n");
@@ -352,10 +408,10 @@ list_identities(AuthenticationConnection *ac, int do_fp)
 }
 
 static int
-lock_agent(AuthenticationConnection *ac, int lock)
+lock_agent(int agent_fd, int lock)
 {
 	char prompt[100], *p1, *p2;
-	int passok = 1, ret = -1;
+	int r, passok = 1, ret = -1;
 
 	strlcpy(prompt, "Enter lock password: ", sizeof(prompt));
 	p1 = read_passphrase(prompt, RP_ALLOW_STDIN);
@@ -369,24 +425,28 @@ lock_agent(AuthenticationConnection *ac, int lock)
 		explicit_bzero(p2, strlen(p2));
 		free(p2);
 	}
-	if (passok && ssh_lock_agent(ac, lock, p1)) {
-		fprintf(stderr, "Agent %slocked.\n", lock ? "" : "un");
-		ret = 0;
-	} else
-		fprintf(stderr, "Failed to %slock agent.\n", lock ? "" : "un");
+	if (passok) {
+		if ((r = ssh_lock_agent(agent_fd, lock, p1)) == 0) {
+			fprintf(stderr, "Agent %slocked.\n", lock ? "" : "un");
+			ret = 0;
+		} else {
+			fprintf(stderr, "Failed to %slock agent: %s\n",
+			    lock ? "" : "un", ssh_err(r));
+		}
+	}
 	explicit_bzero(p1, strlen(p1));
 	free(p1);
 	return (ret);
 }
 
 static int
-do_file(AuthenticationConnection *ac, int deleting, int key_only, char *file)
+do_file(int agent_fd, int deleting, int key_only, char *file)
 {
 	if (deleting) {
-		if (delete_file(ac, file, key_only) == -1)
+		if (delete_file(agent_fd, file, key_only) == -1)
 			return -1;
 	} else {
-		if (add_file(ac, file, key_only) == -1)
+		if (add_file(agent_fd, file, key_only) == -1)
 			return -1;
 	}
 	return 0;
@@ -398,6 +458,7 @@ usage(void)
 	fprintf(stderr, "usage: %s [options] [file ...]\n", __progname);
 	fprintf(stderr, "Options:\n");
 	fprintf(stderr, "  -l          List fingerprints of all identities.\n");
+	fprintf(stderr, "  -E hash     Specify hash algorithm used for fingerprints.\n");
 	fprintf(stderr, "  -L          List public key parameters of all identities.\n");
 	fprintf(stderr, "  -k          Load only keys and not certificates.\n");
 	fprintf(stderr, "  -c          Require confirmation to sign using identities\n");
@@ -415,40 +476,59 @@ main(int argc, char **argv)
 {
 	extern char *optarg;
 	extern int optind;
-	AuthenticationConnection *ac = NULL;
+	int agent_fd;
 	char *pkcs11provider = NULL;
-	int i, ch, deleting = 0, ret = 0, key_only = 0;
+	int r, i, ch, deleting = 0, ret = 0, key_only = 0;
+	int xflag = 0, lflag = 0, Dflag = 0;
 
+	ssh_malloc_init();	/* must be called before any mallocs */
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();
 
 	__progname = ssh_get_progname(argv[0]);
 	seed_rng();
 
+#ifdef WITH_OPENSSL
 	OpenSSL_add_all_algorithms();
+#endif
 
-	/* At first, get a connection to the authentication agent. */
-	ac = ssh_get_authentication_connection();
-	if (ac == NULL) {
-		fprintf(stderr,
-		    "Could not open a connection to your authentication agent.\n");
+	setvbuf(stdout, NULL, _IOLBF, 0);
+
+	/* First, get a connection to the authentication agent. */
+	switch (r = ssh_get_authentication_socket(&agent_fd)) {
+	case 0:
+		break;
+	case SSH_ERR_AGENT_NOT_PRESENT:
+		fprintf(stderr, "Could not open a connection to your "
+		    "authentication agent.\n");
+		exit(2);
+	default:
+		fprintf(stderr, "Error connecting to agent: %s\n", ssh_err(r));
 		exit(2);
 	}
-	while ((ch = getopt(argc, argv, "klLcdDxXe:s:t:")) != -1) {
+
+	while ((ch = getopt(argc, argv, "klLcdDxXE:e:s:t:")) != -1) {
 		switch (ch) {
+		case 'E':
+			fingerprint_hash = ssh_digest_alg_by_name(optarg);
+			if (fingerprint_hash == -1)
+				fatal("Invalid hash algorithm \"%s\"", optarg);
+			break;
 		case 'k':
 			key_only = 1;
 			break;
 		case 'l':
 		case 'L':
-			if (list_identities(ac, ch == 'l' ? 1 : 0) == -1)
-				ret = 1;
-			goto done;
+			if (lflag != 0)
+				fatal("-%c flag already specified", lflag);
+			lflag = ch;
+			break;
 		case 'x':
 		case 'X':
-			if (lock_agent(ac, ch == 'x' ? 1 : 0) == -1)
-				ret = 1;
-			goto done;
+			if (xflag != 0)
+				fatal("-%c flag already specified", xflag);
+			xflag = ch;
+			break;
 		case 'c':
 			confirm = 1;
 			break;
@@ -456,9 +536,8 @@ main(int argc, char **argv)
 			deleting = 1;
 			break;
 		case 'D':
-			if (delete_all(ac) == -1)
-				ret = 1;
-			goto done;
+			Dflag = 1;
+			break;
 		case 's':
 			pkcs11provider = optarg;
 			break;
@@ -479,15 +558,32 @@ main(int argc, char **argv)
 			goto done;
 		}
 	}
+
+	if ((xflag != 0) + (lflag != 0) + (Dflag != 0) > 1)
+		fatal("Invalid combination of actions");
+	else if (xflag) {
+		if (lock_agent(agent_fd, xflag == 'x' ? 1 : 0) == -1)
+			ret = 1;
+		goto done;
+	} else if (lflag) {
+		if (list_identities(agent_fd, lflag == 'l' ? 1 : 0) == -1)
+			ret = 1;
+		goto done;
+	} else if (Dflag) {
+		if (delete_all(agent_fd) == -1)
+			ret = 1;
+		goto done;
+	}
+
 	argc -= optind;
 	argv += optind;
 	if (pkcs11provider != NULL) {
-		if (update_card(ac, !deleting, pkcs11provider) == -1)
+		if (update_card(agent_fd, !deleting, pkcs11provider) == -1)
 			ret = 1;
 		goto done;
 	}
 	if (argc == 0) {
-		char buf[MAXPATHLEN];
+		char buf[PATH_MAX];
 		struct passwd *pw;
 		struct stat st;
 		int count = 0;
@@ -504,7 +600,7 @@ main(int argc, char **argv)
 			    default_files[i]);
 			if (stat(buf, &st) < 0)
 				continue;
-			if (do_file(ac, deleting, key_only, buf) == -1)
+			if (do_file(agent_fd, deleting, key_only, buf) == -1)
 				ret = 1;
 			else
 				count++;
@@ -513,13 +609,14 @@ main(int argc, char **argv)
 			ret = 1;
 	} else {
 		for (i = 0; i < argc; i++) {
-			if (do_file(ac, deleting, key_only, argv[i]) == -1)
+			if (do_file(agent_fd, deleting, key_only,
+			    argv[i]) == -1)
 				ret = 1;
 		}
 	}
 	clear_pass();
 
 done:
-	ssh_close_authentication_connection(ac);
+	ssh_close_authentication_socket(agent_fd);
 	return ret;
 }

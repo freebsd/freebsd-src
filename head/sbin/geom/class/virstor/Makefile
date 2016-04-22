@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 .PATH: ${.CURDIR}/../../misc ${.CURDIR}/../../../../sys/geom/virstor
 
 GEOM_CLASS=	virstor

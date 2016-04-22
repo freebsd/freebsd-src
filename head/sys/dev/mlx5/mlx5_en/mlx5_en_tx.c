@@ -383,6 +383,8 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 		if (!cqe)
 			break;
 
+		mlx5_cqwq_pop(&sq->cq.wq);
+
 		ci = sqcc & sq->wq.sz_m1;
 		mb = sq->mbuf[ci].mbuf;
 		sq->mbuf[ci].mbuf = NULL;	/* Safety clear */

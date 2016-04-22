@@ -25,8 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -58,6 +56,9 @@
  * SUCH DAMAGE.
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <string.h>
@@ -176,8 +177,7 @@ _pthread_mutexattr_getpshared(const pthread_mutexattr_t *attr,
 
 	if (attr == NULL || *attr == NULL)
 		return (EINVAL);
-
-	*pshared = PTHREAD_PROCESS_PRIVATE;
+	*pshared = (*attr)->m_pshared;
 	return (0);
 }
 
@@ -185,13 +185,11 @@ int
 _pthread_mutexattr_setpshared(pthread_mutexattr_t *attr, int pshared)
 {
 
-	if (attr == NULL || *attr == NULL)
+	if (attr == NULL || *attr == NULL ||
+	    (pshared != PTHREAD_PROCESS_PRIVATE &&
+	    pshared != PTHREAD_PROCESS_SHARED))
 		return (EINVAL);
-
-	/* Only PTHREAD_PROCESS_PRIVATE is supported. */
-	if (pshared != PTHREAD_PROCESS_PRIVATE)
-		return (EINVAL);
-
+	(*attr)->m_pshared = pshared;
 	return (0);
 }
 

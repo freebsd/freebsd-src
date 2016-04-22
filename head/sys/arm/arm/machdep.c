@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/cpu.h>
+#include <sys/ctype.h>
 #include <sys/efi.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
@@ -74,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
+#include <sys/boot.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
@@ -96,6 +98,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/atags.h>
 #include <machine/cpu.h>
 #include <machine/cpuinfo.h>
+#include <machine/debug_monitor.h>
 #include <machine/db_machdep.h>
 #include <machine/devmap.h>
 #include <machine/frame.h>
@@ -114,6 +117,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/sysarch.h>
 
 #ifdef FDT
+#include <contrib/libfdt/libfdt.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #endif
@@ -122,7 +126,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 
 #if __ARM_ARCH >= 6
-#include <machine/cpu-v6.h>
 
 DB_SHOW_COMMAND(cp15, db_show_cp15)
 {
@@ -178,6 +181,12 @@ DB_SHOW_COMMAND(vtop, db_show_vtop)
 #define	debugf(fmt, args...)
 #endif
 
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7) || \
+    defined(COMPAT_FREEBSD9)
+#error FreeBSD/arm doesn't provide compatibility with releases prior to 10
+#endif
+
 struct pcpu __pcpu[MAXCPU];
 struct pcpu *pcpup = &__pcpu[0];
 
@@ -194,9 +203,11 @@ int _min_bzero_size = 0;
 extern int *end;
 
 #ifdef FDT
+static char *loader_envp;
+
 vm_paddr_t pmap_pa;
 
-#ifdef ARM_NEW_PMAP
+#if __ARM_ARCH >= 6
 vm_offset_t systempage;
 vm_offset_t irqstack;
 vm_offset_t undstack;
@@ -223,6 +234,7 @@ static struct pv_addr kernelstack;
 #if defined(LINUX_BOOT_ABI)
 #define LBABI_MAX_BANKS	10
 
+#define CMDLINE_GUARD "FreeBSD:"
 uint32_t board_id;
 struct arm_lbabi_tag *atag_list;
 char linux_command_line[LBABI_MAX_COMMAND_LINE + 1];
@@ -293,7 +305,7 @@ sendsig(catcher, ksi, mask)
 	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !(onstack) &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct sigframe *)(td->td_sigstk.ss_sp +
+		fp = (struct sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size);
 #if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
@@ -394,7 +406,7 @@ arm_vector_init(vm_offset_t va, int which)
 	}
 
 	/* Now sync the vectors. */
-	cpu_icache_sync_range(va, (ARM_NVEC * 2) * sizeof(u_int));
+	icache_sync(va, (ARM_NVEC * 2) * sizeof(u_int));
 
 	vector_page = va;
 
@@ -424,10 +436,8 @@ cpu_startup(void *dummy)
 {
 	struct pcb *pcb = thread0.td_pcb;
 	const unsigned int mbyte = 1024 * 1024;
-#ifdef ARM_TP_ADDRESS
-#ifndef ARM_CACHE_LOCK_ENABLE
+#if __ARM_ARCH < 6 && !defined(ARM_CACHE_LOCK_ENABLE)
 	vm_page_t m;
-#endif
 #endif
 
 	identify_arm_cpu();
@@ -452,12 +462,10 @@ cpu_startup(void *dummy)
 	vm_pager_bufferinit();
 	pcb->pcb_regs.sf_sp = (u_int)thread0.td_kstack +
 	    USPACE_SVC_STACK_TOP;
-	pmap_set_pcb_pagedir(pmap_kernel(), pcb);
-#ifndef ARM_NEW_PMAP
+	pmap_set_pcb_pagedir(kernel_pmap, pcb);
+#if __ARM_ARCH < 6
 	vector_page_setprot(VM_PROT_READ);
 	pmap_postinit();
-#endif
-#ifdef ARM_TP_ADDRESS
 #ifdef ARM_CACHE_LOCK_ENABLE
 	pmap_kenter_user(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
 	arm_lock_cache_line(ARM_TP_ADDRESS);
@@ -480,12 +488,7 @@ void
 cpu_flush_dcache(void *ptr, size_t len)
 {
 
-	cpu_dcache_wb_range((uintptr_t)ptr, len);
-#ifdef ARM_L2_PIPT
-	cpu_l2cache_wb_range((uintptr_t)vtophys(ptr), len);
-#else
-	cpu_l2cache_wb_range((uintptr_t)ptr, len);
-#endif
+	dcache_wb_poc((vm_offset_t)ptr, (vm_paddr_t)vtophys(ptr), len);
 }
 
 /* Get current clock frequency for the given cpu id. */
@@ -960,7 +963,8 @@ makectx(struct trapframe *tf, struct pcb *pcb)
  * Fake up a boot descriptor table
  */
 vm_offset_t
-fake_preload_metadata(struct arm_boot_params *abp __unused)
+fake_preload_metadata(struct arm_boot_params *abp __unused, void *dtb_ptr,
+    size_t dtb_size)
 {
 #ifdef DDB
 	vm_offset_t zstart = 0, zend = 0;
@@ -998,9 +1002,21 @@ fake_preload_metadata(struct arm_boot_params *abp __unused)
 	} else
 #endif
 		lastaddr = (vm_offset_t)&end;
+	if (dtb_ptr != NULL) {
+		/* Copy DTB to KVA space and insert it into module chain. */
+		lastaddr = roundup(lastaddr, sizeof(int));
+		fake_preload[i++] = MODINFO_METADATA | MODINFOMD_DTBP;
+		fake_preload[i++] = sizeof(uint32_t);
+		fake_preload[i++] = (uint32_t)lastaddr;
+		memmove((void *)lastaddr, dtb_ptr, dtb_size);
+		lastaddr += dtb_size;
+		lastaddr = roundup(lastaddr, sizeof(int));
+	}
 	fake_preload[i++] = 0;
 	fake_preload[i] = 0;
 	preload_metadata = (void *)fake_preload;
+
+	init_static_kenv(NULL, 0);
 
 	return (lastaddr);
 }
@@ -1016,26 +1032,83 @@ pcpu0_init(void)
 }
 
 #if defined(LINUX_BOOT_ABI)
+
+/* Convert the U-Boot command line into FreeBSD kenv and boot options. */
+static void
+cmdline_set_env(char *cmdline, const char *guard)
+{
+	char *cmdline_next, *env;
+	size_t size, guard_len;
+	int i;
+
+	size = strlen(cmdline);
+	/* Skip leading spaces. */
+	for (; isspace(*cmdline) && (size > 0); cmdline++)
+		size--;
+
+	/* Test and remove guard. */
+	if (guard != NULL && guard[0] != '\0') {
+		guard_len  =  strlen(guard);
+		if (strncasecmp(cmdline, guard, guard_len) != 0)
+			return;
+		cmdline += guard_len;
+		size -= guard_len;
+	}
+
+	/* Skip leading spaces. */
+	for (; isspace(*cmdline) && (size > 0); cmdline++)
+		size--;
+
+	/* Replace ',' with '\0'. */
+	/* TODO: implement escaping for ',' character. */
+	cmdline_next = cmdline;
+	while(strsep(&cmdline_next, ",") != NULL)
+		;
+	init_static_kenv(cmdline, 0);
+	/* Parse boothowto. */
+	for (i = 0; howto_names[i].ev != NULL; i++) {
+		env = kern_getenv(howto_names[i].ev);
+		if (env != NULL) {
+			if (strtoul(env, NULL, 10) != 0)
+				boothowto |= howto_names[i].mask;
+			freeenv(env);
+		}
+	}
+}
+
 vm_offset_t
 linux_parse_boot_param(struct arm_boot_params *abp)
 {
 	struct arm_lbabi_tag *walker;
 	uint32_t revision;
 	uint64_t serial;
+	int size;
+	vm_offset_t lastaddr;
+#ifdef FDT
+	struct fdt_header *dtb_ptr;
+	uint32_t dtb_size;
+#endif
 
 	/*
 	 * Linux boot ABI: r0 = 0, r1 is the board type (!= 0) and r2
 	 * is atags or dtb pointer.  If all of these aren't satisfied,
-	 * then punt.
+	 * then punt. Unfortunately, it looks like DT enabled kernels
+	 * doesn't uses board type and U-Boot delivers 0 in r1 for them.
 	 */
-	if (!(abp->abp_r0 == 0 && abp->abp_r1 != 0 && abp->abp_r2 != 0))
-		return 0;
+	if (abp->abp_r0 != 0 || abp->abp_r2 == 0)
+		return (0);
+#ifdef FDT
+	/* Test if r2 point to valid DTB. */
+	dtb_ptr = (struct fdt_header *)abp->abp_r2;
+	if (fdt_check_header(dtb_ptr) == 0) {
+		dtb_size = fdt_totalsize(dtb_ptr);
+		return (fake_preload_metadata(abp, dtb_ptr, dtb_size));
+	}
+#endif
 
 	board_id = abp->abp_r1;
-	walker = (struct arm_lbabi_tag *)
-	    (abp->abp_r2 + KERNVIRTADDR - abp->abp_physaddr);
+	walker = (struct arm_lbabi_tag *)abp->abp_r2;
 
-	/* xxx - Need to also look for binary device tree */
 	if (ATAG_TAG(walker) != ATAG_CORE)
 		return 0;
 
@@ -1051,8 +1124,9 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 		case ATAG_INITRD2:
 			break;
 		case ATAG_SERIAL:
-			serial = walker->u.tag_sn.low |
-			    ((uint64_t)walker->u.tag_sn.high << 32);
+			serial = walker->u.tag_sn.high;
+			serial <<= 32;
+			serial |= walker->u.tag_sn.low;
 			board_set_serial(serial);
 			break;
 		case ATAG_REVISION:
@@ -1060,9 +1134,12 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 			board_set_revision(revision);
 			break;
 		case ATAG_CMDLINE:
-			/* XXX open question: Parse this for boothowto? */
-			bcopy(walker->u.tag_cmd.command, linux_command_line,
-			      ATAG_SIZE(walker));
+			size = ATAG_SIZE(walker) -
+			    sizeof(struct arm_lbabi_header);
+			size = min(size, LBABI_MAX_COMMAND_LINE);
+			strncpy(linux_command_line, walker->u.tag_cmd.command,
+			    size);
+			linux_command_line[size] = '\0';
 			break;
 		default:
 			break;
@@ -1074,7 +1151,9 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 	bcopy(atag_list, atags,
 	    (char *)walker - (char *)atag_list + ATAG_SIZE(walker));
 
-	return fake_preload_metadata(abp);
+	lastaddr = fake_preload_metadata(abp, NULL, 0);
+	cmdline_set_env(linux_command_line, CMDLINE_GUARD);
+	return lastaddr;
 }
 #endif
 
@@ -1106,7 +1185,8 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 		return 0;
 
 	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	loader_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	init_static_kenv(loader_envp, 0);
 	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
 #ifdef DDB
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
@@ -1131,7 +1211,7 @@ default_parse_boot_param(struct arm_boot_params *abp)
 		return lastaddr;
 #endif
 	/* Fall back to hardcoded metadata. */
-	lastaddr = fake_preload_metadata(abp);
+	lastaddr = fake_preload_metadata(abp, NULL, 0);
 
 	return lastaddr;
 }
@@ -1275,7 +1355,7 @@ arm_predict_branch(void *cookie, u_int insn, register_t pc, register_t *new_pc,
 	}
 }
 
-#ifdef ARM_NEW_PMAP
+#if __ARM_ARCH >= 6
 void
 set_stackptrs(int cpu)
 {
@@ -1307,7 +1387,7 @@ set_stackptrs(int cpu)
 
 static void
 add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
-    int *mrcnt, uint32_t *memsize)
+    int *mrcnt)
 {
 	struct efi_md *map, *p;
 	const char *type;
@@ -1332,7 +1412,6 @@ add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
 	};
 
 	*mrcnt = 0;
-	*memsize = 0;
 
 	/*
 	 * Memory map data provided by UEFI via the GetMemoryMap
@@ -1404,7 +1483,6 @@ add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
 	}
 
 	*mrcnt = j;
-	*memsize = memory_size;
 }
 #endif /* EFI */
 
@@ -1429,17 +1507,17 @@ print_kenv(void)
 	char *cp;
 
 	debugf("loader passed (static) kenv:\n");
-	if (kern_envp == NULL) {
+	if (loader_envp == NULL) {
 		debugf(" no env, null ptr\n");
 		return;
 	}
-	debugf(" kern_envp = 0x%08x\n", (uint32_t)kern_envp);
+	debugf(" loader_envp = 0x%08x\n", (uint32_t)loader_envp);
 
-	for (cp = kern_envp; cp != NULL; cp = kenv_next(cp))
+	for (cp = loader_envp; cp != NULL; cp = kenv_next(cp))
 		debugf(" %x %s\n", (uint32_t)cp, cp);
 }
 
-#ifndef ARM_NEW_PMAP
+#if __ARM_ARCH < 6
 void *
 initarm(struct arm_boot_params *abp)
 {
@@ -1447,7 +1525,8 @@ initarm(struct arm_boot_params *abp)
 	struct pv_addr kernel_l1pt;
 	struct pv_addr dpcpu;
 	vm_offset_t dtbp, freemempos, l2_start, lastaddr;
-	uint32_t memsize, l2size;
+	uint64_t memsize;
+	uint32_t l2size;
 	char *env;
 	void *kmdp;
 	u_int l1pagetable;
@@ -1618,7 +1697,7 @@ initarm(struct arm_boot_params *abp)
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	pmap_pa = kernel_l1pt.pv_pa;
-	setttb(kernel_l1pt.pv_pa);
+	cpu_setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2));
 
@@ -1671,7 +1750,7 @@ initarm(struct arm_boot_params *abp)
 	/*
 	 * We must now clean the cache again....
 	 * Cleaning may be done by reading new data to displace any
-	 * dirty data in the cache. This will have happened in setttb()
+	 * dirty data in the cache. This will have happened in cpu_setttb()
 	 * but since we are boot strapping the addresses used for the read
 	 * may have just been remapped and thus the cache could be out
 	 * of sync. A re-clean after the switch will cure this.
@@ -1703,19 +1782,19 @@ initarm(struct arm_boot_params *abp)
 	arm_physmem_init_kernel_globals();
 
 	init_param2(physmem);
+	dbg_monitor_init();
 	kdb_init();
 
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }
-#else /* !ARM_NEW_PMAP */
+#else /* __ARM_ARCH < 6 */
 void *
 initarm(struct arm_boot_params *abp)
 {
 	struct mem_region mem_regions[FDT_MEM_REGIONS];
 	vm_paddr_t lastaddr;
 	vm_offset_t dtbp, kernelstack, dpcpu;
-	uint32_t memsize;
 	char *env;
 	void *kmdp;
 	int err_devmap, mem_regions_sz;
@@ -1727,7 +1806,6 @@ initarm(struct arm_boot_params *abp)
 	arm_physmem_kernaddr = abp->abp_physaddr;
 	lastaddr = parse_boot_param(abp) - KERNVIRTADDR + arm_physmem_kernaddr;
 
-	memsize = 0;
 	set_cpufuncs();
 	cpuinfo_init();
 
@@ -1751,18 +1829,22 @@ initarm(struct arm_boot_params *abp)
 	if (OF_init((void *)dtbp) != 0)
 		panic("OF_init failed with the found device tree");
 
+#if defined(LINUX_BOOT_ABI)
+	if (loader_envp == NULL && fdt_get_chosen_bootargs(linux_command_line,
+	    LBABI_MAX_COMMAND_LINE) == 0)
+		cmdline_set_env(linux_command_line, CMDLINE_GUARD);
+#endif
+
 #ifdef EFI
 	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
 	if (efihdr != NULL) {
-		add_efi_map_entries(efihdr, mem_regions, &mem_regions_sz,
-		   &memsize);
+		add_efi_map_entries(efihdr, mem_regions, &mem_regions_sz);
 	} else
 #endif
 	{
 		/* Grab physical memory regions information from device tree. */
-		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,
-		    &memsize) != 0)
+		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,NULL) != 0)
 			panic("Cannot get physical memory regions");
 	}
 	arm_physmem_hardware_regions(mem_regions, mem_regions_sz);
@@ -1862,7 +1944,7 @@ initarm(struct arm_boot_params *abp)
 	/*
 	 * We must now clean the cache again....
 	 * Cleaning may be done by reading new data to displace any
-	 * dirty data in the cache. This will have happened in setttb()
+	 * dirty data in the cache. This will have happened in cpu_setttb()
 	 * but since we are boot strapping the addresses used for the read
 	 * may have just been remapped and thus the cache could be out
 	 * of sync. A re-clean after the switch will cure this.
@@ -1890,12 +1972,13 @@ initarm(struct arm_boot_params *abp)
 	init_param2(physmem);
 	/* Init message buffer. */
 	msgbufinit(msgbufp, msgbufsize);
+	dbg_monitor_init();
 	kdb_init();
 	return ((void *)STACKALIGN(thread0.td_pcb));
 
 }
 
-#endif /* !ARM_NEW_PMAP */
+#endif /* __ARM_ARCH < 6 */
 #endif /* FDT */
 
 uint32_t (*arm_cpu_fill_vdso_timehands)(struct vdso_timehands *,

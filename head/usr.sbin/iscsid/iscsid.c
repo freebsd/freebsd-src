@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <netdb.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -50,8 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#include <libutil.h>
 
 #include "iscsid.h"
 
@@ -291,7 +290,9 @@ void
 fail(const struct connection *conn, const char *reason)
 {
 	struct iscsi_daemon_fail idf;
-	int error;
+	int error, saved_errno;
+
+	saved_errno = errno;
 
 	memset(&idf, 0, sizeof(idf));
 	idf.idf_session_id = conn->conn_session_id;
@@ -300,6 +301,8 @@ fail(const struct connection *conn, const char *reason)
 	error = ioctl(conn->conn_iscsi_fd, ISCSIDFAIL, &idf);
 	if (error != 0)
 		log_err(1, "ISCSIDFAIL");
+
+	errno = saved_errno;
 }
 
 /*

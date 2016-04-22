@@ -53,6 +53,7 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
+#ifndef INTRNG
 #ifdef SOC_TI_AM335X
 static int
 fdt_aintc_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
@@ -72,7 +73,7 @@ fdt_aintc_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
 #endif
 
 fdt_pic_decode_t fdt_pic_table[] = {
-#if defined(SOC_OMAP4) && !defined(ARM_INTRNG)
+#if defined(SOC_OMAP4)
 	&gic_decode_fdt,
 #endif
 #ifdef SOC_TI_AM335X
@@ -80,3 +81,4 @@ fdt_pic_decode_t fdt_pic_table[] = {
 #endif
 	NULL
 };
+#endif /* !INTRNG */

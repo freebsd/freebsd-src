@@ -84,13 +84,19 @@ struct specification_packet {
 static struct bcinfo {
 	int	bc_unit;		/* BIOS unit number */
 	struct specification_packet bc_sp;
+	int	bc_open;		/* reference counter */
+	void	*bc_bcache;		/* buffer cache data */
 } bcinfo [MAXBCDEV];
 static int nbcinfo = 0;
+
+#define	BC(dev)	(bcinfo[(dev)->d_unit])
 
 static int	bc_read(int unit, daddr_t dblk, int blks, caddr_t dest);
 static int	bc_init(void);
 static int	bc_strategy(void *devdata, int flag, daddr_t dblk,
-		    size_t size, char *buf, size_t *rsize);
+		    size_t offset, size_t size, char *buf, size_t *rsize);
+static int	bc_realstrategy(void *devdata, int flag, daddr_t dblk,
+		    size_t offset, size_t size, char *buf, size_t *rsize);
 static int	bc_open(struct open_file *f, ...);
 static int	bc_close(struct open_file *f);
 static void	bc_print(int verbose);
@@ -160,6 +166,7 @@ bc_add(int biosdev)
 
 	printf("BIOS CD is cd%d\n", nbcinfo);
 	nbcinfo++;
+	bcache_add_dev(nbcinfo);	/* register cd device in bcache */
 	return(0);
 }
 
@@ -196,19 +203,44 @@ bc_open(struct open_file *f, ...)
 		return(ENXIO);
 	}
 
+	BC(dev).bc_open++;
+	if (BC(dev).bc_bcache == NULL)
+		BC(dev).bc_bcache = bcache_allocate();
 	return(0);
 }
  
 static int 
 bc_close(struct open_file *f)
 {
+	struct i386_devdesc *dev;
 
+	dev = (struct i386_devdesc *)f->f_devdata;
+	BC(dev).bc_open--;
+	if (BC(dev).bc_open == 0) {
+		bcache_free(BC(dev).bc_bcache);
+		BC(dev).bc_bcache = NULL;
+	}
 	return(0);
 }
 
+static int
+bc_strategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
+    char *buf, size_t *rsize)
+{
+	struct bcache_devdata bcd;
+	struct i386_devdesc *dev;
+
+	dev = (struct i386_devdesc *)devdata;
+	bcd.dv_strategy = bc_realstrategy;
+	bcd.dv_devdata = devdata;
+	bcd.dv_cache = BC(dev).bc_bcache;
+
+	return (bcache_strategy(&bcd, rw, dblk, offset, size, buf, rsize));
+}
+
 static int 
-bc_strategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf,
-    size_t *rsize)
+bc_realstrategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
+    char *buf, size_t *rsize)
 {
 	struct i386_devdesc *dev;
 	int unit;

@@ -258,6 +258,10 @@ ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifreq *ifr = (struct ifreq *) data;
 	int error = 0;
 
+	/* check if detaching */
+	if (priv == NULL || priv->gone != 0)
+		return (ENXIO);
+
 	switch (command) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
@@ -794,6 +798,7 @@ ipoib_detach(struct ipoib_dev_priv *priv)
 
 	dev = priv->dev;
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
+		priv->gone = 1;
 		bpfdetach(dev);
 		if_detach(dev);
 		if_free(dev);
@@ -1257,19 +1262,15 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 	const struct sockaddr *dst, struct route *ro)
 {
 	u_char edst[INFINIBAND_ALEN];
+#if defined(INET) || defined(INET6)
 	struct llentry *lle = NULL;
-	struct rtentry *rt0 = NULL;
+#endif
 	struct ipoib_header *eh;
 	int error = 0, is_gw = 0;
 	short type;
 
-	if (ro != NULL) {
-		if (!(m->m_flags & (M_BCAST | M_MCAST)))
-			lle = ro->ro_lle;
-		rt0 = ro->ro_rt;
-		if (rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) != 0)
-			is_gw = 1;
-	}
+	if (ro != NULL)
+		is_gw = (ro->ro_flags & RT_HAS_GW) != 0;
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error)
@@ -1291,7 +1292,7 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 #ifdef INET
 	case AF_INET:
 		if (lle != NULL && (lle->la_flags & LLE_VALID))
-			memcpy(edst, &lle->ll_addr.mac8, sizeof(edst));
+			memcpy(edst, lle->ll_addr, sizeof(edst));
 		else if (m->m_flags & M_MCAST)
 			ip_ib_mc_map(((struct sockaddr_in *)dst)->sin_addr.s_addr, ifp->if_broadcastaddr, edst);
 		else
@@ -1329,7 +1330,7 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 #ifdef INET6
 	case AF_INET6:
 		if (lle != NULL && (lle->la_flags & LLE_VALID))
-			memcpy(edst, &lle->ll_addr.mac8, sizeof(edst));
+			memcpy(edst, lle->ll_addr, sizeof(edst));
 		else if (m->m_flags & M_MCAST)
 			ipv6_ib_mc_map(&((struct sockaddr_in6 *)dst)->sin6_addr, ifp->if_broadcastaddr, edst);
 		else
@@ -1484,7 +1485,7 @@ ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		e_addr = LLADDR(sdl);
 		if (!IPOIB_IS_MULTICAST(e_addr))
 			return EADDRNOTAVAIL;
-		*llsa = 0;
+		*llsa = NULL;
 		return 0;
 
 #ifdef INET
@@ -1539,6 +1540,6 @@ static moduledata_t ipoib_mod = {
 			                .evhand = ipoib_evhand,
 };
 
-DECLARE_MODULE(ipoib, ipoib_mod, SI_SUB_SMP, SI_ORDER_ANY);
+DECLARE_MODULE(ipoib, ipoib_mod, SI_SUB_LAST, SI_ORDER_ANY);
 MODULE_DEPEND(ipoib, ibcore, 1, 1, 1);
 MODULE_DEPEND(ipoib, linuxkpi, 1, 1, 1);

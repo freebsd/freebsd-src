@@ -8,6 +8,7 @@
 
 /* This file tests both atolfp and mstolfp */
 
+void setUp(void);
 void test_PositiveInteger(void);
 void test_NegativeInteger(void);
 void test_PositiveFraction(void);
@@ -15,6 +16,15 @@ void test_NegativeFraction(void);
 void test_PositiveMsFraction(void);
 void test_NegativeMsFraction(void);
 void test_InvalidChars(void);
+
+
+void
+setUp(void)
+{
+	init_lib();
+
+	return;
+}
 
 
 void test_PositiveInteger(void) {

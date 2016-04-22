@@ -26,12 +26,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2013
+.Dd January 23, 2016
 .Dt EXT2FS 5
 .Os
 .Sh NAME
 .Nm ext2fs
-.Nd "Ext2fs file system"
+.Nd "ext2/ext3/ext4 file system"
 .Sh SYNOPSIS
 To link into the kernel:
 .Bd -ragged -offset indent
@@ -47,8 +47,14 @@ The
 driver will permit the
 .Fx
 kernel to access
-.Tn Ext2
+.Tn ext2 ,
+.Tn ext3 ,
+and
+.Tn ext4
 file systems.
+The
+.Tn ext4
+support is read-only.
 .Sh EXAMPLES
 To mount a
 .Nm

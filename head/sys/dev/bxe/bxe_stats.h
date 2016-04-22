@@ -218,6 +218,8 @@ struct bxe_eth_stats {
     uint32_t rx_calls;
     uint32_t rx_pkts;
     uint32_t rx_tpa_pkts;
+    uint32_t rx_erroneous_jumbo_sge_pkts;
+    uint32_t rx_bxe_service_rxsgl;
     uint32_t rx_jumbo_sge_pkts;
     uint32_t rx_soft_errors;
     uint32_t rx_hw_csum_errors;
@@ -261,6 +263,9 @@ struct bxe_eth_stats {
     uint32_t mbuf_alloc_rx;
     uint32_t mbuf_alloc_sge;
     uint32_t mbuf_alloc_tpa;
+
+    /* num. of times tx queue full occured */
+    uint32_t tx_queue_full_return;
 };
 
 
@@ -319,6 +324,8 @@ struct bxe_eth_q_stats {
     uint32_t rx_calls;
     uint32_t rx_pkts;
     uint32_t rx_tpa_pkts;
+    uint32_t rx_erroneous_jumbo_sge_pkts;
+    uint32_t rx_bxe_service_rxsgl;
     uint32_t rx_jumbo_sge_pkts;
     uint32_t rx_soft_errors;
     uint32_t rx_hw_csum_errors;
@@ -362,6 +369,9 @@ struct bxe_eth_q_stats {
     uint32_t mbuf_alloc_rx;
     uint32_t mbuf_alloc_sge;
     uint32_t mbuf_alloc_tpa;
+
+    /* num. of times tx queue full occured */
+    uint32_t tx_queue_full_return;
 };
 
 struct bxe_eth_stats_old {
@@ -413,6 +423,8 @@ struct bxe_eth_q_stats_old {
     uint32_t rx_calls_old;
     uint32_t rx_pkts_old;
     uint32_t rx_tpa_pkts_old;
+    uint32_t rx_erroneous_jumbo_sge_pkts_old;
+    uint32_t rx_bxe_service_rxsgl_old;
     uint32_t rx_jumbo_sge_pkts_old;
     uint32_t rx_soft_errors_old;
     uint32_t rx_hw_csum_errors_old;

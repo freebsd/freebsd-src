@@ -50,9 +50,9 @@ typedef void pgo_init_t(void);
 typedef vm_object_t pgo_alloc_t(void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t,
     struct ucred *);
 typedef void pgo_dealloc_t(vm_object_t);
-typedef int pgo_getpages_t(vm_object_t, vm_page_t *, int, int);
+typedef int pgo_getpages_t(vm_object_t, vm_page_t *, int, int *, int *);
 typedef void pgo_getpages_iodone_t(void *, vm_page_t *, int, int);
-typedef int pgo_getpages_async_t(vm_object_t, vm_page_t *, int, int,
+typedef int pgo_getpages_async_t(vm_object_t, vm_page_t *, int, int *, int *,
     pgo_getpages_iodone_t, void *);
 typedef void pgo_putpages_t(vm_object_t, vm_page_t *, int, int, int *);
 typedef boolean_t pgo_haspage_t(vm_object_t, vm_pindex_t, int *, int *);
@@ -106,14 +106,12 @@ vm_object_t vm_pager_allocate(objtype_t, void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
 void vm_pager_bufferinit(void);
 void vm_pager_deallocate(vm_object_t);
-int vm_pager_get_pages(vm_object_t, vm_page_t *, int, int);
-int vm_pager_get_pages_async(vm_object_t, vm_page_t *, int, int,
+int vm_pager_get_pages(vm_object_t, vm_page_t *, int, int *, int *);
+int vm_pager_get_pages_async(vm_object_t, vm_page_t *, int, int *, int *,
     pgo_getpages_iodone_t, void *);
 static __inline boolean_t vm_pager_has_page(vm_object_t, vm_pindex_t, int *, int *);
 void vm_pager_init(void);
 vm_object_t vm_pager_object_lookup(struct pagerlst *, void *);
-void vm_pager_free_nonreq(vm_object_t object, vm_page_t ma[], int reqpage,
-    int npages, boolean_t object_locked);
 
 static __inline void
 vm_pager_put_pages(

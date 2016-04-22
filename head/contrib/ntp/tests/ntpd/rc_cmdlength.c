@@ -3,6 +3,7 @@
 #include "ntp.h"
 #include "ntp_calendar.h"
 #include "ntp_stdlib.h"
+#include "rc_cmdlength.h"
 
 #include "unity.h"
 

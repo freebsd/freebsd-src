@@ -375,9 +375,8 @@ void ExeDepsFix::enterBasicBlock(MachineBasicBlock *MBB) {
 
   // This is the entry block.
   if (MBB->pred_empty()) {
-    for (MachineBasicBlock::livein_iterator i = MBB->livein_begin(),
-         e = MBB->livein_end(); i != e; ++i) {
-      for (int rx : regIndices(*i)) {
+    for (const auto &LI : MBB->liveins()) {
+      for (int rx : regIndices(LI.PhysReg)) {
         // Treat function live-ins as if they were defined just before the first
         // instruction.  Usually, function arguments are set up immediately
         // before the call.
@@ -559,12 +558,11 @@ void ExeDepsFix::processUndefReads(MachineBasicBlock *MBB) {
   MachineInstr *UndefMI = UndefReads.back().first;
   unsigned OpIdx = UndefReads.back().second;
 
-  for (MachineBasicBlock::reverse_iterator I = MBB->rbegin(), E = MBB->rend();
-       I != E; ++I) {
+  for (MachineInstr &I : make_range(MBB->rbegin(), MBB->rend())) {
     // Update liveness, including the current instruction's defs.
-    LiveRegSet.stepBackward(*I);
+    LiveRegSet.stepBackward(I);
 
-    if (UndefMI == &*I) {
+    if (UndefMI == &I) {
       if (!LiveRegSet.contains(UndefMI->getOperand(OpIdx).getReg()))
         TII->breakPartialRegDependency(UndefMI, OpIdx, TRI);
 
@@ -733,12 +731,13 @@ bool ExeDepsFix::runOnMachineFunction(MachineFunction &mf) {
   // If no relevant registers are used in the function, we can skip it
   // completely.
   bool anyregs = false;
-  for (TargetRegisterClass::const_iterator I = RC->begin(), E = RC->end();
-       I != E; ++I)
-    if (MF->getRegInfo().isPhysRegUsed(*I)) {
+  const MachineRegisterInfo &MRI = mf.getRegInfo();
+  for (unsigned Reg : *RC) {
+    if (MRI.isPhysRegUsed(Reg)) {
       anyregs = true;
       break;
     }
+  }
   if (!anyregs) return false;
 
   // Initialize the AliasMap on the first use.
@@ -752,7 +751,7 @@ bool ExeDepsFix::runOnMachineFunction(MachineFunction &mf) {
         AliasMap[*AI].push_back(i);
   }
 
-  MachineBasicBlock *Entry = MF->begin();
+  MachineBasicBlock *Entry = &*MF->begin();
   ReversePostOrderTraversal<MachineBasicBlock*> RPOT(Entry);
   SmallVector<MachineBasicBlock*, 16> Loops;
   for (ReversePostOrderTraversal<MachineBasicBlock*>::rpo_iterator
@@ -761,22 +760,19 @@ bool ExeDepsFix::runOnMachineFunction(MachineFunction &mf) {
     enterBasicBlock(MBB);
     if (SeenUnknownBackEdge)
       Loops.push_back(MBB);
-    for (MachineBasicBlock::iterator I = MBB->begin(), E = MBB->end(); I != E;
-        ++I)
-      visitInstr(I);
+    for (MachineInstr &MI : *MBB)
+      visitInstr(&MI);
     processUndefReads(MBB);
     leaveBasicBlock(MBB);
   }
 
   // Visit all the loop blocks again in order to merge DomainValues from
   // back-edges.
-  for (unsigned i = 0, e = Loops.size(); i != e; ++i) {
-    MachineBasicBlock *MBB = Loops[i];
+  for (MachineBasicBlock *MBB : Loops) {
     enterBasicBlock(MBB);
-    for (MachineBasicBlock::iterator I = MBB->begin(), E = MBB->end(); I != E;
-        ++I)
-      if (!I->isDebugValue())
-        processDefs(I, false);
+    for (MachineInstr &MI : *MBB)
+      if (!MI.isDebugValue())
+        processDefs(&MI, false);
     processUndefReads(MBB);
     leaveBasicBlock(MBB);
   }

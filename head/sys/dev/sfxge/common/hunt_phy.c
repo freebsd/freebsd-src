@@ -31,22 +31,16 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
 #include "efx_impl.h"
 
 #if EFSYS_OPT_HUNTINGTON
 
 static			void
-hunt_phy_decode_cap(
+mcdi_phy_decode_cap(
 	__in		uint32_t mcdi_cap,
 	__out		uint32_t *maskp)
 {
-	/*
-	 * TBD: consider common Siena/Hunt function: Hunt is a superset of
-	 * Siena here (adds 40G)
-	 */
-
 	uint32_t mask;
 
 	mask = 0;
@@ -77,7 +71,7 @@ hunt_phy_decode_cap(
 }
 
 static			void
-hunt_phy_decode_link_mode(
+mcdi_phy_decode_link_mode(
 	__in		efx_nic_t *enp,
 	__in		uint32_t link_flags,
 	__in		unsigned int speed,
@@ -85,11 +79,6 @@ hunt_phy_decode_link_mode(
 	__out		efx_link_mode_t *link_modep,
 	__out		unsigned int *fcntlp)
 {
-	/*
-	 * TBD: consider common Siena/Hunt function: Hunt is a superset of
-	 * Siena here (adds 40G and generate-only flow control)
-	 */
-
 	boolean_t fd = !!(link_flags &
 		    (1 << MC_CMD_GET_LINK_OUT_FULL_DUPLEX_LBN));
 	boolean_t up = !!(link_flags &
@@ -128,16 +117,11 @@ hunt_phy_decode_link_mode(
 
 
 			void
-hunt_phy_link_ev(
+ef10_phy_link_ev(
 	__in		efx_nic_t *enp,
 	__in		efx_qword_t *eqp,
 	__out		efx_link_mode_t *link_modep)
 {
-	/*
-	 * TBD: consider common Siena/Hunt function: Hunt is a superset of
-	 * Siena here (adds 40G)
-	 */
-
 	efx_port_t *epp = &(enp->en_port);
 	unsigned int link_flags;
 	unsigned int speed;
@@ -168,10 +152,10 @@ hunt_phy_link_ev(
 	}
 
 	link_flags = MCDI_EV_FIELD(eqp, LINKCHANGE_LINK_FLAGS);
-	hunt_phy_decode_link_mode(enp, link_flags, speed,
+	mcdi_phy_decode_link_mode(enp, link_flags, speed,
 				    MCDI_EV_FIELD(eqp, LINKCHANGE_FCNTL),
 				    &link_mode, &fcntl);
-	hunt_phy_decode_cap(MCDI_EV_FIELD(eqp, LINKCHANGE_LP_CAP),
+	mcdi_phy_decode_cap(MCDI_EV_FIELD(eqp, LINKCHANGE_LP_CAP),
 			    &lp_cap_mask);
 
 	/*
@@ -192,19 +176,17 @@ hunt_phy_link_ev(
 }
 
 	__checkReturn	efx_rc_t
-hunt_phy_power(
+ef10_phy_power(
 	__in		efx_nic_t *enp,
 	__in		boolean_t power)
 {
-	/* TBD: consider common Siena/Hunt function: essentially identical */
-
 	efx_rc_t rc;
 
 	if (!power)
 		return (0);
 
 	/* Check if the PHY is a zombie */
-	if ((rc = hunt_phy_verify(enp)) != 0)
+	if ((rc = ef10_phy_verify(enp)) != 0)
 		goto fail1;
 
 	enp->en_reset_flags |= EFX_RESET_PHY;
@@ -218,16 +200,10 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-hunt_phy_get_link(
+ef10_phy_get_link(
 	__in		efx_nic_t *enp,
-	__out		hunt_link_state_t *hlsp)
+	__out		ef10_link_state_t *elsp)
 {
-	/*
-	 * TBD: consider common Siena/Hunt function: Hunt is very similar
-	 * (at least for now; not clear that the loopbacks should necessarily
-	 * be quite the same...)
-	 */
-
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_LINK_IN_LEN,
 			    MC_CMD_GET_LINK_OUT_LEN)];
@@ -252,15 +228,15 @@ hunt_phy_get_link(
 		goto fail2;
 	}
 
-	hunt_phy_decode_cap(MCDI_OUT_DWORD(req, GET_LINK_OUT_CAP),
-			    &hlsp->hls_adv_cap_mask);
-	hunt_phy_decode_cap(MCDI_OUT_DWORD(req, GET_LINK_OUT_LP_CAP),
-			    &hlsp->hls_lp_cap_mask);
+	mcdi_phy_decode_cap(MCDI_OUT_DWORD(req, GET_LINK_OUT_CAP),
+			    &elsp->els_adv_cap_mask);
+	mcdi_phy_decode_cap(MCDI_OUT_DWORD(req, GET_LINK_OUT_LP_CAP),
+			    &elsp->els_lp_cap_mask);
 
-	hunt_phy_decode_link_mode(enp, MCDI_OUT_DWORD(req, GET_LINK_OUT_FLAGS),
+	mcdi_phy_decode_link_mode(enp, MCDI_OUT_DWORD(req, GET_LINK_OUT_FLAGS),
 			    MCDI_OUT_DWORD(req, GET_LINK_OUT_LINK_SPEED),
 			    MCDI_OUT_DWORD(req, GET_LINK_OUT_FCNTL),
-			    &hlsp->hls_link_mode, &hlsp->hls_fcntl);
+			    &elsp->els_link_mode, &elsp->els_fcntl);
 
 #if EFSYS_OPT_LOOPBACK
 	/* Assert the MC_CMD_LOOPBACK and EFX_LOOPBACK namespace agree */
@@ -283,10 +259,10 @@ hunt_phy_get_link(
 	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_PCS == EFX_LOOPBACK_PCS);
 	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_PMAPMD == EFX_LOOPBACK_PMA_PMD);
 
-	hlsp->hls_loopback = MCDI_OUT_DWORD(req, GET_LINK_OUT_LOOPBACK_MODE);
+	elsp->els_loopback = MCDI_OUT_DWORD(req, GET_LINK_OUT_LOOPBACK_MODE);
 #endif	/* EFSYS_OPT_LOOPBACK */
 
-	hlsp->hls_mac_up = MCDI_OUT_DWORD(req, GET_LINK_OUT_MAC_FAULT) == 0;
+	elsp->els_mac_up = MCDI_OUT_DWORD(req, GET_LINK_OUT_MAC_FAULT) == 0;
 
 	return (0);
 
@@ -299,15 +275,9 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-hunt_phy_reconfigure(
+ef10_phy_reconfigure(
 	__in		efx_nic_t *enp)
 {
-	/*
-	 * TBD: this is a little different for now (no LED support for Hunt
-	 * yet), but ultimately should consider common Siena/Hunt function:
-	 * Hunt should be a superset of Siena here (adds 40G)
-	 */
-
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_port_t *epp = &(enp->en_port);
 	efx_mcdi_req_t req;
@@ -429,11 +399,9 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-hunt_phy_verify(
+ef10_phy_verify(
 	__in		efx_nic_t *enp)
 {
-	/* TBD: consider common Siena/Hunt function: essentially identical */
-
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_PHY_STATE_IN_LEN,
 			    MC_CMD_GET_PHY_STATE_OUT_LEN)];
@@ -480,7 +448,7 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-hunt_phy_oui_get(
+ef10_phy_oui_get(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *ouip)
 {
@@ -492,7 +460,7 @@ hunt_phy_oui_get(
 #if EFSYS_OPT_PHY_STATS
 
 	__checkReturn				efx_rc_t
-hunt_phy_stats_update(
+ef10_phy_stats_update(
 	__in					efx_nic_t *enp,
 	__in					efsys_mem_t *esmp,
 	__inout_ecount(EFX_PHY_NSTATS)		uint32_t *stat)
@@ -510,8 +478,8 @@ hunt_phy_stats_update(
 
 #if EFSYS_OPT_NAMES
 
-extern		const char *
-hunt_phy_prop_name(
+		const char *
+ef10_phy_prop_name(
 	__in	efx_nic_t *enp,
 	__in	unsigned int id)
 {
@@ -522,8 +490,8 @@ hunt_phy_prop_name(
 
 #endif	/* EFSYS_OPT_NAMES */
 
-extern	__checkReturn	efx_rc_t
-hunt_phy_prop_get(
+	__checkReturn	efx_rc_t
+ef10_phy_prop_get(
 	__in		efx_nic_t *enp,
 	__in		unsigned int id,
 	__in		uint32_t flags,
@@ -534,8 +502,8 @@ hunt_phy_prop_get(
 	return (ENOTSUP);
 }
 
-extern	__checkReturn	efx_rc_t
-hunt_phy_prop_set(
+	__checkReturn	efx_rc_t
+ef10_phy_prop_set(
 	__in		efx_nic_t *enp,
 	__in		unsigned int id,
 	__in		uint32_t val)

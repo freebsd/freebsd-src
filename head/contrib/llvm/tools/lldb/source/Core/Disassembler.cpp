@@ -28,7 +28,6 @@
 #include "lldb/Interpreter/OptionValueDictionary.h"
 #include "lldb/Interpreter/OptionValueString.h"
 #include "lldb/Interpreter/OptionValueUInt64.h"
-#include "lldb/Symbol/ClangNamespaceDecl.h"
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Target/ExecutionContext.h"
@@ -675,6 +674,13 @@ Instruction::DumpEmulation (const ArchSpec &arch)
     return false;
 }
 
+bool
+Instruction::HasDelaySlot ()
+{
+    // Default is false.
+    return false;
+}
+
 OptionValueSP
 Instruction::ReadArray (FILE *in_file, Stream *out_stream, OptionValue::Type data_type)
 {
@@ -1264,7 +1270,7 @@ Disassembler::Disassembler(const ArchSpec& arch, const char *flavor) :
     // If this is an arm variant that can only include thumb (T16, T32)
     // instructions, force the arch triple to be "thumbv.." instead of
     // "armv..."
-    if (arch.GetTriple().getArch() == llvm::Triple::arm
+    if ((arch.GetTriple().getArch() == llvm::Triple::arm || arch.GetTriple().getArch() == llvm::Triple::thumb)
         && (arch.GetCore() == ArchSpec::Core::eCore_arm_armv7m
             || arch.GetCore() == ArchSpec::Core::eCore_arm_armv7em
             || arch.GetCore() == ArchSpec::Core::eCore_arm_armv6m))
@@ -1319,6 +1325,13 @@ PseudoInstruction::DoesBranch ()
     return false;
 }
     
+bool
+PseudoInstruction::HasDelaySlot ()
+{
+    // This is NOT a valid question for a pseudo instruction.
+    return false;
+}
+
 size_t
 PseudoInstruction::Decode (const lldb_private::Disassembler &disassembler,
                            const lldb_private::DataExtractor &data,

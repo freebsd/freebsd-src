@@ -49,7 +49,6 @@ SRCS+=	__getosreldate.c \
 	fstab.c \
 	ftok.c \
 	fts.c \
-	fts-compat.c \
 	ftw.c \
 	getbootfile.c \
 	getbsize.c \
@@ -99,11 +98,13 @@ SRCS+=	__getosreldate.c \
 	raise.c \
 	readdir.c \
 	readpassphrase.c \
+	recvmmsg.c \
 	rewinddir.c \
 	scandir.c \
 	seed48.c \
 	seekdir.c \
 	semctl.c \
+	sendmmsg.c \
 	setdomainname.c \
 	sethostname.c \
 	setjmperr.c \
@@ -135,7 +136,6 @@ SRCS+=	__getosreldate.c \
 	ualarm.c \
 	ulimit.c \
 	uname.c \
-	unvis-compat.c \
 	usleep.c \
 	utime.c \
 	utxdb.c \
@@ -145,6 +145,10 @@ SRCS+=	__getosreldate.c \
 	waitpid.c \
 	waitid.c \
 	wordexp.c
+.if ${MK_SYMVER} == yes
+SRCS+=	fts-compat.c \
+	unvis-compat.c
+.endif
 
 .PATH: ${LIBC_SRCTOP}/../../contrib/libc-pwcache
 SRCS+=	pwcache.c pwcache.h
@@ -451,10 +455,12 @@ MLINKS+=rand48.3 _rand48.3 \
 	rand48.3 nrand48.3 \
 	rand48.3 seed48.3 \
 	rand48.3 srand48.3
+MLINKS+=recv.2 recvmmsg.2
 MLINKS+=scandir.3 alphasort.3
 MLINKS+=sem_open.3 sem_close.3 \
 	sem_open.3 sem_unlink.3
 MLINKS+=sem_wait.3 sem_trywait.3
+MLINKS+=send.2 sendmmsg.2
 MLINKS+=setjmp.3 _longjmp.3 \
 	setjmp.3 _setjmp.3 \
 	setjmp.3 longjmp.3 \

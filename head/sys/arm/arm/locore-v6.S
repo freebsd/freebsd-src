@@ -30,20 +30,16 @@
 
 #include "assym.s"
 #include <sys/syscall.h>
+#include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
 #include <machine/sysreg.h>
 #include <machine/cpuconf.h>
-#include <machine/pte.h>
+#include <machine/pte-v6.h>
 
 __FBSDID("$FreeBSD$");
 
-#ifndef ARM_NEW_PMAP
-#define	PTE1_OFFSET	L1_S_OFFSET
-#define	PTE1_SHIFT	L1_S_SHIFT
-#define	PTE1_SIZE	L1_S_SIZE
-#endif
 
 #if __ARM_ARCH >= 7
 #if defined(__ARM_ARCH_7VE__) || defined(__clang__)
@@ -136,9 +132,9 @@ ASENTRY_NP(_start)
 	bic	r7, #CPU_CONTROL_DC_ENABLE
 	bic	r7, #CPU_CONTROL_MMU_ENABLE
 	bic	r7, #CPU_CONTROL_IC_ENABLE
-	bic	r7, #CPU_CONTROL_UNAL_ENABLE
 	bic	r7, #CPU_CONTROL_BPRD_ENABLE
 	bic	r7, #CPU_CONTROL_SW_ENABLE
+	orr	r7, #CPU_CONTROL_UNAL_ENABLE
 	orr	r7, #CPU_CONTROL_AFLT_ENABLE
 	orr	r7, #CPU_CONTROL_VECRELOC
 	mcr	CP15_SCTLR(r7)
@@ -153,46 +149,49 @@ ASENTRY_NP(_start)
 	 * Build page table from scratch.
 	 */
 
-	/* Calculate the physical address of the startup pagetable. */
+	/* 
+	 * Figure out the physical address we're loaded at by assuming this
+	 * entry point code is in the first L1 section and so if we clear the
+	 * offset bits of the pc that will give us the section-aligned load
+	 * address, which remains in r5 throughout all the following code.
+	 */
+	ldr	r2, =(L1_S_OFFSET)
+	bic	r5, pc, r2
+
+	/* Find the delta between VA and PA, result stays in r0 throughout. */
 	adr	r0, Lpagetable
 	bl	translate_va_to_pa
 
-	/* Clear boot page table */
-	mov	r1, r0
-	mov	r2, L1_TABLE_SIZE
-	mov	r3,#0
-1:	str	r3, [r1], #4
-	subs	r2, #4
-	bgt	1b
-
-	/*
-	 * Map PA == VA
+	/* 
+	 * First map the entire 4GB address space as VA=PA.  It's mapped as
+	 * normal (cached) memory because it's for things like accessing the
+	 * parameters passed in from the bootloader, which might be at any
+	 * physical address, different for every platform.
 	 */
-	/* Find the start kernels load address */
-	adr	r5, _start
-	ldr	r2, =(PTE1_OFFSET)
-	bic	r5, r2
+	mov	r1, #0
+	mov	r2, #0
+	mov	r3, #4096
+	bl	build_pagetables
+
+	/* 
+	 * Next we do 64MiB starting at the physical load address, mapped to
+	 * the VA the kernel is linked for.
+	 */
 	mov	r1, r5
-	mov	r2, r5
-	/* Map 64MiB, preserved over calls to build_pagetables */
+	ldr	r2, =(KERNVIRTADDR)
 	mov	r3, #64
 	bl	build_pagetables
 
-	/* Create the kernel map to jump to */
-	mov	r1, r5
-	ldr	r2, =(KERNVIRTADDR)
-	bl	build_pagetables
-
+	/* Create a device mapping for early_printf if specified. */
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
-	/* Create the custom map (1MB) used for early_printf(). */
 	ldr	r1, =SOCDEV_PA
 	ldr	r2, =SOCDEV_VA
 	mov	r3, #1
-	bl	build_pagetables
+	bl	build_device_pagetables
 #endif
 	bl	init_mmu
 
-	/* Switch to virtual addresses. */
+	/* Transition the PC from physical to virtual addressing. */
 	ldr	pc, =1f
 1:
 
@@ -281,10 +280,9 @@ ASENTRY_NP(init_mmu)
 	mcr	CP15_CONTEXTIDR(r0)	/* Set ASID to 0 */
 
 	/* Set the Domain Access register */
-	mov	r0, #((DOMAIN_CLIENT <<	(PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
+	mov	r0, #DOMAIN_CLIENT	/* Only domain #0 is used */
 	mcr	CP15_DACR(r0)
 
-#ifdef ARM_NEW_PMAP
 	/*
 	 * Set TEX remap registers
 	 *  - All is set to uncacheable memory
@@ -293,7 +291,6 @@ ASENTRY_NP(init_mmu)
 	mcr	CP15_PRRR(r0)
 	mov	r0, #0
 	mcr	CP15_NMRR(r0)
-#endif
 	mcr	CP15_TLBIALL		/* Flush TLB */
 	DSB
 	ISB
@@ -302,9 +299,7 @@ ASENTRY_NP(init_mmu)
 	mrc	CP15_SCTLR(r0)
 	orr	r0, r0,	#CPU_CONTROL_MMU_ENABLE
 	orr	r0, r0,	#CPU_CONTROL_V6_EXTPAGE
-#ifdef ARM_NEW_PMAP
 	orr	r0, r0,	#CPU_CONTROL_TR_ENABLE
-#endif
 	orr	r0, r0,	#CPU_CONTROL_AF_ENABLE
 	mcr	CP15_SCTLR(r0)
 	DSB
@@ -394,27 +389,25 @@ END(reinit_mmu)
  *
  * Addresses must be 1MiB aligned
  */
+build_device_pagetables:
+	ldr	r4, =PTE1_V|PTE1_A|PTE1_AP_KRW|TEX1_CLASS_0
+	b	1f
 build_pagetables:
 	/* Set the required page attributed */
-#if defined(ARM_NEW_PMAP)
 	ldr	r4, =PTE1_V|PTE1_A|PTE1_AP_KRW|TEX1_CLASS_0
-#elif defined(SMP)
-	ldr	r4, =(L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW)|L1_SHARED)
-#else
-	ldr	r4, =(L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
-#endif
+1:
 	orr	r1, r4
 
 	/* Move the virtual address to the correct bit location */
 	lsr	r2, #(PTE1_SHIFT - 2)
 
 	mov	r4, r3
-1:
+2:
 	str	r1, [r0, r2]
 	add	r2, r2, #4
 	add	r1, r1, #(PTE1_SIZE)
 	adds	r4, r4, #-1
-	bhi	1b
+	bhi	2b
 
 	mov	pc, lr
 
@@ -463,9 +456,9 @@ ASENTRY_NP(mpentry)
 	bic	r0, #CPU_CONTROL_MMU_ENABLE
 	bic	r0, #CPU_CONTROL_DC_ENABLE
 	bic	r0, #CPU_CONTROL_IC_ENABLE
-	bic	r0, #CPU_CONTROL_UNAL_ENABLE
 	bic	r0, #CPU_CONTROL_BPRD_ENABLE
 	bic	r0, #CPU_CONTROL_SW_ENABLE
+	orr	r0, #CPU_CONTROL_UNAL_ENABLE
 	orr	r0, #CPU_CONTROL_AFLT_ENABLE
 	orr	r0, #CPU_CONTROL_VECRELOC
 	mcr	CP15_SCTLR(r0)

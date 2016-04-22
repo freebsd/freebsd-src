@@ -3,13 +3,20 @@
 # $FreeBSD$
 #
 # PROVIDE: netwait
-# REQUIRE: NETWORKING
+# REQUIRE: devd ipfilter ipfw pf routing
 # KEYWORD: nojail
 #
-# The netwait script is intended to be used by systems which have
-# statically-configured IP addresses in rc.conf(5).  If your system
-# uses DHCP, you should use synchronous_dhclient="YES" in your
-# /etc/rc.conf instead of using netwait.
+# The netwait script helps handle two situations:
+#  - Systems with USB or other late-attaching network hardware which
+#    is initialized by devd events.  The script waits for all the
+#    interfaces named in the netwait_if list to appear.
+#  - Systems with statically-configured IP addresses in rc.conf(5).
+#    The IP addresses in the netwait_ip list are pinged.  The script
+#    waits for any single IP in the list to respond to the ping.  If your
+#    system uses DHCP, you should probably use synchronous_dhclient="YES"
+#    in your /etc/rc.conf instead of netwait_ip.
+# Either or both of the wait lists can be used (at least one must be
+# non-empty if netwait is enabled).
 
 . /etc/rc.subr
 
@@ -21,77 +28,87 @@ stop_cmd=":"
 
 netwait_start()
 {
-	local ip rc count output link
+	local ip rc count output link wait_if got_if any_error
 
-	if [ -z "${netwait_ip}" ]; then
-		err 1 "You must define one or more IP addresses in netwait_ip"
+	if [ -z "${netwait_if}" ] && [ -z "${netwait_ip}" ]; then
+		err 1 "No interface or IP addresses listed, nothing to wait for"
 	fi
 
 	if [ ${netwait_timeout} -lt 1 ]; then
 		err 1 "netwait_timeout must be >= 1"
 	fi
 
-	# Handle SIGINT (Ctrl-C); force abort of while() loop
-	trap break SIGINT
-
 	if [ -n "${netwait_if}" ]; then
-		echo -n "Waiting for $netwait_if to have link"
-
-		count=1
-		while [ ${count} -le ${netwait_if_timeout} ]; do
-			if output=`/sbin/ifconfig ${netwait_if} 2>/dev/null`; then
-				link=`expr "${output}" : '.*[[:blank:]]status: \(no carrier\)'`
-				if [ -z "${link}" ]; then
-					echo '.'
-					break
+		any_error=0
+		for wait_if in ${netwait_if}; do
+			echo -n "Waiting for ${wait_if}"
+			link=""
+			got_if=0
+			count=1
+			# Handle SIGINT (Ctrl-C); force abort of while() loop
+			trap break SIGINT
+			while [ ${count} -le ${netwait_if_timeout} ]; do
+				if output=`/sbin/ifconfig ${wait_if} 2>/dev/null`; then
+					if [ ${got_if} -eq 0 ]; then
+						echo -n ", interface present"
+						got_if=1
+					fi
+					link=`expr "${output}" : '.*[[:blank:]]status: \(no carrier\)'`
+					if [ -z "${link}" ]; then
+						echo ', got link.'
+						break
+					fi
 				fi
-			else
-				echo ''
-				err 1 "ifconfig ${netwait_if} failed"
-			fi
-			sleep 1
-			count=$((count+1))
-		done
-		if [ -n "${link}" ]; then
+				sleep 1
+				count=$((count+1))
+			done
 			# Restore default SIGINT handler
 			trap - SIGINT
-
-			echo ''
-			warn "Interface still has no link.  Continuing with startup, but"
-			warn "be aware you may not have a fully functional networking"
-			warn "layer at this point."
-			return
+			if [ ${got_if} -eq 0 ]; then
+				echo ", wait failed: interface never appeared."
+				any_error=1
+			elif [ -n "${link}" ]; then
+				echo ", wait failed: interface still has no link."
+				any_error=1
+			fi
+		done
+		if [ ${any_error} -eq 1 ]; then
+		    warn "Continuing with startup, but be aware you may not have "
+		    warn "a fully functional networking layer at this point."
 		fi
 	fi
+	
+	if [ -n "${netwait_ip}" ]; then
+		# Handle SIGINT (Ctrl-C); force abort of for() loop
+		trap break SIGINT
 
-	# Handle SIGINT (Ctrl-C); force abort of while() loop
-	trap break SIGINT
+		for ip in ${netwait_ip}; do
+			echo -n "Waiting for ${ip} to respond to ICMP ping"
 
-	for ip in ${netwait_ip}; do
-		echo -n "Waiting for ${ip} to respond to ICMP"
+			count=1
+			while [ ${count} -le ${netwait_timeout} ]; do
+				/sbin/ping -t 1 -c 1 -o ${ip} >/dev/null 2>&1
+				rc=$?
 
-		count=1
-		while [ ${count} -le ${netwait_timeout} ]; do
-			/sbin/ping -t 1 -c 1 -o ${ip} >/dev/null 2>&1
-			rc=$?
+				if [ $rc -eq 0 ]; then
+					# Restore default SIGINT handler
+					trap - SIGINT
 
-			if [ $rc -eq 0 ]; then
-				# Restore default SIGINT handler
-				trap - SIGINT
-
-				echo '.'
-				return
-			fi
-			count=$((count+1))
+					echo ', got response.'
+					return
+				fi
+				count=$((count+1))
+			done
+			echo ', failed: No response from host.'
 		done
-		echo ': No response from host.'
-	done
 
-	# Restore default SIGINT handler
-	trap - SIGINT
+		# Restore default SIGINT handler
+		trap - SIGINT
 
-	warn "Exhausted IP list.  Continuing with startup, but be aware you may"
-	warn "not have a fully functional networking layer at this point."
+		warn "Exhausted IP list.  Continuing with startup, but be aware you may"
+		warn "not have a fully functional networking layer at this point."
+	fi
+
 }
 
 load_rc_config $name

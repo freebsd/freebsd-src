@@ -169,6 +169,18 @@ static devclass_t ehci_devclass;
 DRIVER_MODULE(ehci, simplebus, ehci_driver, ehci_devclass, 0, 0);
 MODULE_DEPEND(ehci, usb, 1, 1, 1);
 
+static void
+vybrid_ehci_post_reset(struct ehci_softc *ehci_softc)
+{
+	uint32_t usbmode;
+
+	/* Force HOST mode */
+	usbmode = EOREAD4(ehci_softc, EHCI_USBMODE_NOLPM);
+	usbmode &= ~EHCI_UM_CM;
+	usbmode |= EHCI_UM_CM_HOST;
+	EOWRITE4(ehci_softc, EHCI_USBMODE_NOLPM, usbmode);
+}
+
 /*
  * Public methods
  */
@@ -343,8 +355,10 @@ vybrid_ehci_attach(device_t dev)
 	reg |= 0x3;
 	bus_space_write_4(sc->sc_io_tag, sc->sc_io_hdl, 0xA8, reg);
 
-	/* Set flags */
-	sc->sc_flags |= EHCI_SCFLG_SETMODE | EHCI_SCFLG_NORESTERM;
+	/* Set flags  and callbacks*/
+	sc->sc_flags |= EHCI_SCFLG_TT | EHCI_SCFLG_NORESTERM;
+	sc->sc_vendor_post_reset = vybrid_ehci_post_reset;
+	sc->sc_vendor_get_port_speed = ehci_get_port_speed_portsc;
 
 	err = ehci_init(sc);
 	if (!err) {

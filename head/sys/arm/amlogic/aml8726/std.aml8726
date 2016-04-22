@@ -17,8 +17,6 @@ device		fdt_pinctrl
 
 files		"../amlogic/aml8726/files.aml8726"
 
-options		ARM_L2_PIPT
-
 # Set all global interrupts to be edge triggered, active high.
 options		GIC_DEFAULT_ICFGR_INIT=0xffffffff
 

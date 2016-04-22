@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/stddef.h>
+#include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/ktr.h>
 #include <sys/malloc.h>
@@ -537,7 +538,7 @@ X_mrt_ioctl(u_long cmd, caddr_t data, int fibnum __unused)
     int error = 0;
 
     /*
-     * Currently the only function calling this ioctl routine is rtioctl().
+     * Currently the only function calling this ioctl routine is rtioctl_fib().
      * Typically, only root can create the raw socket in order to execute
      * this ioctl method, however the request might be coming from a prison
      */
@@ -2600,7 +2601,7 @@ pim_input(struct mbuf **mp, int *offp, int proto)
      * Get the IP and PIM headers in contiguous memory, and
      * possibly the PIM REGISTER header.
      */
-    if (m->m_len < minlen && (m = m_pullup(m, minlen)) == 0) {
+    if (m->m_len < minlen && (m = m_pullup(m, minlen)) == NULL) {
 	CTR1(KTR_IPMF, "%s: m_pullup() failed", __func__);
 	return (IPPROTO_DONE);
     }

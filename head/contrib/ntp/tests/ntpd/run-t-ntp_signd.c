@@ -36,7 +36,7 @@ extern void test_connect_correct_socket(void);
 extern void test_write_all(void);
 extern void test_send_packet(void);
 extern void test_recv_packet(void);
-extern void test_send_via_ntp_signd();
+extern void test_send_via_ntp_signd(void);
 
 
 //=======Test Reset Option=====
@@ -55,12 +55,12 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("t-ntp_signd.c");
-  RUN_TEST(test_connect_incorrect_socket, 49);
-  RUN_TEST(test_connect_correct_socket, 54);
-  RUN_TEST(test_write_all, 74);
-  RUN_TEST(test_send_packet, 84);
-  RUN_TEST(test_recv_packet, 93);
-  RUN_TEST(test_send_via_ntp_signd, 104);
+  RUN_TEST(test_connect_incorrect_socket, 67);
+  RUN_TEST(test_connect_correct_socket, 68);
+  RUN_TEST(test_write_all, 69);
+  RUN_TEST(test_send_packet, 70);
+  RUN_TEST(test_recv_packet, 71);
+  RUN_TEST(test_send_via_ntp_signd, 72);
 
   return (UnityEnd());
 }

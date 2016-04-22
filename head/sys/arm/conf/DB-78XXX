@@ -82,6 +82,7 @@ device		da
 # I2C (TWSI)
 device		iic
 device		iicbus
+device		twsi
 device		ds133x
 
 # SATA
@@ -89,6 +90,9 @@ device		mvs
 
 # NAND
 device		nand
+
+# GPIO
+device		gpio
 
 # Flattened Device Tree
 options 	FDT

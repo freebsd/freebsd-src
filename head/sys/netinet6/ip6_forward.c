@@ -341,6 +341,7 @@ again:
 	dst->sin6_addr = ip6->ip6_dst;
 again2:
 	rin6.ro_rt = in6_rtalloc1((struct sockaddr *)dst, 0, 0, M_GETFIB(m));
+	rt = rin6.ro_rt;
 	if (rin6.ro_rt != NULL)
 		RT_UNLOCK(rin6.ro_rt);
 	else {
@@ -352,7 +353,6 @@ again2:
 		}
 		goto bad;
 	}
-	rt = rin6.ro_rt;
 
 	/*
 	 * Source scope check: if a packet can't be delivered to its
@@ -505,8 +505,10 @@ again2:
 		/* If destination is now ourself drop to ip6_input(). */
 		if (in6_localip(&ip6->ip6_dst))
 			m->m_flags |= M_FASTFWD_OURS;
-		else
+		else {
+			RTFREE(rt);
 			goto again;	/* Redo the routing table lookup. */
+		}
 	}
 
 	/* See if local, if yes, send it to netisr. */
@@ -533,6 +535,7 @@ again2:
 		m->m_flags |= M_SKIP_FIREWALL;
 		m->m_flags &= ~M_IP6_NEXTHOP;
 		m_tag_delete(m, fwd_tag);
+		RTFREE(rt);
 		goto again2;
 	}
 

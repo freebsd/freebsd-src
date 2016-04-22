@@ -37,7 +37,7 @@ The available section types are:
 #define KRL_SECTION_FINGERPRINT_SHA1		3
 #define KRL_SECTION_SIGNATURE			4
 
-3. Certificate serial section
+2. Certificate section
 
 These sections use type KRL_SECTION_CERTIFICATES to revoke certificates by
 serial number or key ID. The consist of the CA key that issued the
@@ -46,6 +46,11 @@ ignored.
 
 	string ca_key
 	string reserved
+
+Where "ca_key" is the standard SSH wire serialisation of the CA's
+public key. Alternately, "ca_key" may be an empty string to indicate
+the certificate section applies to all CAs (this is most useful when
+revoking key IDs).
 
 Followed by one or more sections:
 
@@ -161,4 +166,4 @@ Implementations that retrieve KRLs over untrusted channels must verify
 signatures. Signature sections are optional for KRLs distributed by
 trusted means.
 
-$OpenBSD: PROTOCOL.krl,v 1.2 2013/01/18 00:24:58 djm Exp $
+$OpenBSD: PROTOCOL.krl,v 1.3 2015/01/30 01:10:33 djm Exp $

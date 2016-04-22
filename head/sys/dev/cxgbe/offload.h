@@ -125,7 +125,6 @@ struct t4_virt_res {                      /* virtualized HW resources */
 	struct t4_range l2t;
 };
 
-#ifdef TCP_OFFLOAD
 enum {
 	ULD_TOM = 0,
 	ULD_IWARP,
@@ -152,11 +151,12 @@ struct tom_tunables {
 	int tx_align;
 };
 
+#ifdef TCP_OFFLOAD
 int t4_register_uld(struct uld_info *);
 int t4_unregister_uld(struct uld_info *);
 int t4_activate_uld(struct adapter *, int);
 int t4_deactivate_uld(struct adapter *, int);
-void t4_iscsi_init(struct ifnet *, unsigned int, const unsigned int *);
+void t4_iscsi_init(struct adapter *, u_int, const u_int *);
 int uld_active(struct adapter *, int);
 #endif
 #endif

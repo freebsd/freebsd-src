@@ -40,6 +40,7 @@ SRCS=	ASanStackFrameLayout.cpp \
 	SimplifyIndVar.cpp \
 	SimplifyInstructions.cpp \
 	SimplifyLibCalls.cpp \
+	SplitModule.cpp \
 	SymbolRewriter.cpp \
 	UnifyFunctionExitNodes.cpp \
 	ValueMapper.cpp
@@ -48,6 +49,7 @@ SRCS=	ASanStackFrameLayout.cpp \
 SRCS+=	Utils.cpp
 .endif
 
-TGHDRS=	Intrinsics
+TGHDRS=	Attributes \
+	Intrinsics
 
 .include "../clang.lib.mk"

@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -83,7 +82,7 @@ read_buf(FILE *fp, off_t off, size_t len)
 	}
 
 	buf = malloc(len);
-	if (buf == 0) {
+	if (buf == NULL) {
 		warn("cannot malloc %zd bytes of memory", len);
 		return (NULL);
 	}

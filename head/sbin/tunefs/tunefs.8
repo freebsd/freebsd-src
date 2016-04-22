@@ -28,7 +28,7 @@
 .\"     @(#)tunefs.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd June 22, 2011
+.Dd April 19, 2016
 .Dt TUNEFS 8
 .Os
 .Sh NAME
@@ -166,9 +166,15 @@ device for each freed block.
 The trim enable flag is typically set when the underlying device
 uses flash-memory as the device can use the delete command to
 pre-zero or at least avoid copying blocks that have been deleted.
+.Pp
+Note that this does not trim blocks that are already free.
+See the
+.Xr fsck_ffs 8
+.Fl E
+flag.
 .El
 .Pp
-At least one of the above flags is required.
+At least one of these flags is required.
 .Sh FILES
 .Bl -tag -width ".Pa /etc/fstab"
 .It Pa /etc/fstab

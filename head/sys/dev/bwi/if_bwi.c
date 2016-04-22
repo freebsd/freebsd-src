@@ -356,8 +356,8 @@ bwi_attach(struct bwi_softc *sc)
 	device_t dev = sc->sc_dev;
 	struct bwi_mac *mac;
 	struct bwi_phy *phy;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
 	int i, error;
-	uint8_t bands;
 
 	BWI_LOCK_INIT(sc);
 
@@ -453,15 +453,15 @@ bwi_attach(struct bwi_softc *sc)
 	/*
 	 * Setup ratesets, phytype, channels and get MAC address
 	 */
-	bands = 0;
+	memset(bands, 0, sizeof(bands));
 	if (phy->phy_mode == IEEE80211_MODE_11B ||
 	    phy->phy_mode == IEEE80211_MODE_11G) {
-		setbit(&bands, IEEE80211_MODE_11B);
+		setbit(bands, IEEE80211_MODE_11B);
 		if (phy->phy_mode == IEEE80211_MODE_11B) {
 			ic->ic_phytype = IEEE80211_T_DS;
 		} else {
 			ic->ic_phytype = IEEE80211_T_OFDM;
-			setbit(&bands, IEEE80211_MODE_11G);
+			setbit(bands, IEEE80211_MODE_11G);
 		}
 
 		bwi_get_eaddr(sc, BWI_SPROM_11BG_EADDR, ic->ic_macaddr);
@@ -475,7 +475,7 @@ bwi_attach(struct bwi_softc *sc)
 		}
 	} else if (phy->phy_mode == IEEE80211_MODE_11A) {
 		/* TODO:11A */
-		setbit(&bands, IEEE80211_MODE_11A);
+		setbit(bands, IEEE80211_MODE_11A);
 		error = ENXIO;
 		goto fail;
 	} else {
@@ -487,7 +487,7 @@ bwi_attach(struct bwi_softc *sc)
 				   BWI_SPROM_CARD_INFO_LOCALE);
 	DPRINTF(sc, BWI_DBG_ATTACH, "locale: %d\n", sc->sc_locale);
 	/* XXX use locale */
-	ieee80211_init_channels(ic, NULL, &bands);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	ic->ic_softc = sc;
 	ic->ic_name = device_get_nameunit(dev);

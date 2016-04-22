@@ -669,7 +669,7 @@ midi_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	         * from a previous session
 	         */
 		MIDIQ_CLEAR(m->inq);
-	};
+	}
 
 	if (flags & FWRITE)
 		m->flags |= M_TX;
@@ -1126,7 +1126,7 @@ midisynth_open(void *n, void *arg, int flags)
 	         */
 		MIDIQ_CLEAR(m->inq);
 		m->rchan = 0;
-	};
+	}
 
 	if (flags & FWRITE) {
 		m->flags |= M_TX;
@@ -1401,7 +1401,7 @@ midi_destroy(struct snd_midi *m, int midiuninit)
  */
 
 static int
-midi_load()
+midi_load(void)
 {
 	mtx_init(&midistat_lock, "midistat lock", NULL, 0);
 	TAILQ_INIT(&midi_devs);		/* Initialize the queue. */
@@ -1414,9 +1414,9 @@ midi_load()
 }
 
 static int
-midi_unload()
+midi_unload(void)
 {
-	struct snd_midi *m;
+	struct snd_midi *m, *tmp;
 	int retval;
 
 	MIDI_DEBUG(1, printf("midi_unload()\n"));
@@ -1425,7 +1425,7 @@ midi_unload()
 	if (midistat_isopen)
 		goto exit0;
 
-	TAILQ_FOREACH(m, &midi_devs, link) {
+	TAILQ_FOREACH_SAFE(m, &midi_devs, link, tmp) {
 		mtx_lock(&m->lock);
 		if (m->busy)
 			retval = EBUSY;
@@ -1489,7 +1489,7 @@ midi_modevent(module_t mod, int type, void *data)
 kobj_t
 midimapper_addseq(void *arg1, int *unit, void **cookie)
 {
-	unit = 0;
+	unit = NULL;
 
 	return (kobj_t)arg1;
 }

@@ -70,6 +70,7 @@ libntp_a_SRCS =						\
 	humandate.c					\
 	icom.c						\
 	iosignal.c					\
+	is_ip_address.c					\
 	lib_strbuf.c					\
 	machines.c					\
 	mktime.c					\

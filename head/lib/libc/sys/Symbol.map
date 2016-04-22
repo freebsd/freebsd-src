@@ -200,9 +200,6 @@ FBSD_1.0 {
 	nstat;
 	ntp_adjtime;
 	ntp_gettime;
-	oaio_read;
-	oaio_write;
-	olio_listio;
 	open;
 	pathconf;
 	pipe;
@@ -399,6 +396,8 @@ FBSD_1.4 {
 	utimensat;
 	numa_setaffinity;
 	numa_getaffinity;
+	sendmmsg;
+	recvmmsg;
 };
 
 FBSDprivate_1.0 {
@@ -807,12 +806,6 @@ FBSDprivate_1.0 {
 	__sys_ntp_adjtime;
 	_ntp_gettime;
 	__sys_ntp_gettime;
-	_oaio_read;
-	__sys_oaio_read;
-	_oaio_write;
-	__sys_oaio_write;
-	_olio_listio;
-	__sys_olio_listio;
 	_open;
 	__sys_open;
 	_openat;

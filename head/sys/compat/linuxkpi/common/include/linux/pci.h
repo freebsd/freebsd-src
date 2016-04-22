@@ -114,14 +114,29 @@ struct pci_device_id {
 #define	PCI_EXP_TYPE_DOWNSTREAM PCIEM_TYPE_DOWNSTREAM_PORT	/* Downstream Port */
 #define	PCI_EXP_FLAGS_SLOT	PCIEM_FLAGS_SLOT		/* Slot implemented */
 #define	PCI_EXP_TYPE_RC_EC	PCIEM_TYPE_ROOT_EC		/* Root Complex Event Collector */
-
+#define	PCI_EXP_LNKCAP_SLS_2_5GB 0x01	/* Supported Link Speed 2.5GT/s */
+#define	PCI_EXP_LNKCAP_SLS_5_0GB 0x02	/* Supported Link Speed 5.0GT/s */
+#define	PCI_EXP_LNKCAP_MLW	0x03f0	/* Maximum Link Width */
+#define	PCI_EXP_LNKCAP2_SLS_2_5GB 0x02	/* Supported Link Speed 2.5GT/s */
+#define	PCI_EXP_LNKCAP2_SLS_5_0GB 0x04	/* Supported Link Speed 5.0GT/s */
+#define	PCI_EXP_LNKCAP2_SLS_8_0GB 0x08	/* Supported Link Speed 8.0GT/s */
 
 #define	IORESOURCE_MEM	SYS_RES_MEMORY
 #define	IORESOURCE_IO	SYS_RES_IOPORT
 #define	IORESOURCE_IRQ	SYS_RES_IRQ
 
-struct pci_dev;
+enum pci_bus_speed {
+	PCI_SPEED_UNKNOWN = -1,
+	PCIE_SPEED_2_5GT,
+	PCIE_SPEED_5_0GT,
+	PCIE_SPEED_8_0GT,
+};
 
+enum pcie_link_width {
+	PCIE_LNK_WIDTH_UNKNOWN = -1,
+};
+
+struct pci_dev;
 
 struct pci_driver {
 	struct list_head		links;
@@ -129,8 +144,9 @@ struct pci_driver {
 	const struct pci_device_id		*id_table;
 	int  (*probe)(struct pci_dev *dev, const struct pci_device_id *id);
 	void (*remove)(struct pci_dev *dev);
-        int  (*suspend) (struct pci_dev *dev, pm_message_t state);      /* Device suspended */
-        int  (*resume) (struct pci_dev *dev);                   /* Device woken up */
+	int  (*suspend) (struct pci_dev *dev, pm_message_t state);	/* Device suspended */
+	int  (*resume) (struct pci_dev *dev);		/* Device woken up */
+	void (*shutdown) (struct pci_dev *dev);		/* Device shutdown */
 	driver_t			driver;
 	devclass_t			bsdclass;
         const struct pci_error_handlers       *err_handler;
@@ -350,20 +366,6 @@ pci_find_capability(struct pci_dev *pdev, int capid)
 	return (reg);
 }
 
-
-
-
-/**
- * pci_pcie_cap - get the saved PCIe capability offset
- * @dev: PCI device
- *
- * PCIe capability offset is calculated at PCI device initialization
- * time and saved in the data structure. This function returns saved
- * PCIe capability offset. Using this instead of pci_find_capability()
- * reduces unnecessary search in the PCI configuration space. If you
- * need to calculate PCIe capability offset from raw device for some
- * reasons, please use pci_find_capability() instead.
- */
 static inline int pci_pcie_cap(struct pci_dev *dev)
 {
         return pci_find_capability(dev, PCI_CAP_ID_EXP);
@@ -504,13 +506,6 @@ static inline void pci_disable_sriov(struct pci_dev *dev)
 {
 }
 
-/**
- * DEFINE_PCI_DEVICE_TABLE - macro used to describe a pci device table
- * @_table: device table name
- *
- * This macro is used to create a struct pci_device_id array (a device table)
- * in a generic manner.
- */
 #define DEFINE_PCI_DEVICE_TABLE(_table) \
 	const struct pci_device_id _table[] __devinitdata
 
@@ -568,54 +563,31 @@ typedef unsigned int __bitwise pci_channel_state_t;
 typedef unsigned int __bitwise pci_ers_result_t;
 
 enum pci_channel_state {
-        /* I/O channel is in normal state */
-        pci_channel_io_normal = (__force pci_channel_state_t) 1,
-
-        /* I/O to channel is blocked */
-        pci_channel_io_frozen = (__force pci_channel_state_t) 2,
-
-        /* PCI card is dead */
-        pci_channel_io_perm_failure = (__force pci_channel_state_t) 3,
+        pci_channel_io_normal = 1,
+        pci_channel_io_frozen = 2,
+        pci_channel_io_perm_failure = 3,
 };
 
 enum pci_ers_result {
-        /* no result/none/not supported in device driver */
-        PCI_ERS_RESULT_NONE = (__force pci_ers_result_t) 1,
-
-        /* Device driver can recover without slot reset */
-        PCI_ERS_RESULT_CAN_RECOVER = (__force pci_ers_result_t) 2,
-
-        /* Device driver wants slot to be reset. */
-        PCI_ERS_RESULT_NEED_RESET = (__force pci_ers_result_t) 3,
-
-        /* Device has completely failed, is unrecoverable */
-        PCI_ERS_RESULT_DISCONNECT = (__force pci_ers_result_t) 4,
-
-        /* Device driver is fully recovered and operational */
-        PCI_ERS_RESULT_RECOVERED = (__force pci_ers_result_t) 5,
+        PCI_ERS_RESULT_NONE = 1,
+        PCI_ERS_RESULT_CAN_RECOVER = 2,
+        PCI_ERS_RESULT_NEED_RESET = 3,
+        PCI_ERS_RESULT_DISCONNECT = 4,
+        PCI_ERS_RESULT_RECOVERED = 5,
 };
 
 
 /* PCI bus error event callbacks */
 struct pci_error_handlers {
-        /* PCI bus error detected on this device */
         pci_ers_result_t (*error_detected)(struct pci_dev *dev,
                         enum pci_channel_state error);
-
-        /* MMIO has been re-enabled, but not DMA */
         pci_ers_result_t (*mmio_enabled)(struct pci_dev *dev);
-
-        /* PCI Express link has been reset */
         pci_ers_result_t (*link_reset)(struct pci_dev *dev);
-
-        /* PCI slot has been reset */
         pci_ers_result_t (*slot_reset)(struct pci_dev *dev);
-
-        /* Device driver may resume normal operations */
         void (*resume)(struct pci_dev *dev);
 };
 
-/* freeBSD does not support SRIOV - yet */
+/* FreeBSD does not support SRIOV - yet */
 static inline struct pci_dev *pci_physfn(struct pci_dev *dev)
 {
         return dev;
@@ -720,7 +692,17 @@ static bool pcie_capability_reg_implemented(struct pci_dev *dev, int pos)
         }
 }
 
- 
+static inline int pcie_capability_read_dword(struct pci_dev *dev, int pos, u32 *dst)
+{
+        if (pos & 3)
+                return -EINVAL;
+
+        if (!pcie_capability_reg_implemented(dev, pos))
+                return -EINVAL;
+
+        return pci_read_config_dword(dev, pci_pcie_cap(dev) + pos, dst);
+}
+
 static inline int pcie_capability_write_word(struct pci_dev *dev, int pos, u16 val)
 {
         if (pos & 1)
@@ -730,6 +712,20 @@ static inline int pcie_capability_write_word(struct pci_dev *dev, int pos, u16 v
                 return 0;
 
         return pci_write_config_word(dev, pci_pcie_cap(dev) + pos, val);
+}
+
+static inline int pcie_get_minimum_link(struct pci_dev *dev,
+    enum pci_bus_speed *speed, enum pcie_link_width *width)
+{
+	*speed = PCI_SPEED_UNKNOWN;
+	*width = PCIE_LNK_WIDTH_UNKNOWN;
+	return (0);
+}
+
+static inline int
+pci_num_vf(struct pci_dev *dev)
+{
+	return (0);
 }
 
 #endif	/* _LINUX_PCI_H_ */

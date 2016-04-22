@@ -34,11 +34,7 @@
 
 #include <x86/x86_var.h>
 
-extern	char	ctx_switch_xsave[];
 extern  uint64_t *vm_page_dump;
-
-/* XXX */
-typedef void alias_for_inthand_t(u_int cs, u_int ef, u_int esp, u_int ss);
 
 struct	savefpu;
 

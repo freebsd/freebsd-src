@@ -1,11 +1,10 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
-.PATH: ${.CURDIR}/..
-
-TESTS_SUBDIRS+=	geom_part
-
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
 TESTSDIR=	${TESTSBASE}/sys/geom
+
+TESTS_SUBDIRS+=	class
 
 .include <bsd.test.mk>
