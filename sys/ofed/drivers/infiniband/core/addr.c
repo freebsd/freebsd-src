@@ -43,6 +43,7 @@
 #include <net/netevent.h>
 #include <rdma/ib_addr.h>
 #include <netinet/if_ether.h>
+#include <netinet6/scope6_var.h>
 
 
 MODULE_AUTHOR("Sean Hefty");
@@ -417,7 +418,8 @@ done:
 #ifdef INET6
 	if (scope_id < 256) {
 		sin6 = (struct sockaddr_in6 *)src_in;
-		SCOPE_ID_RESTORE(scope_id, sin6);
+		if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr))
+			SCOPE_ID_RESTORE(scope_id, sin6);
 		sin6 = (struct sockaddr_in6 *)dst_in;
 		SCOPE_ID_RESTORE(scope_id, sin6);
 	}
@@ -554,7 +556,7 @@ static void resolve_cb(int status, struct sockaddr *src_addr,
 }
 
 int rdma_addr_find_dmac_by_grh(union ib_gid *sgid, union ib_gid *dgid, u8 *dmac,
-			       u16 *vlan_id)
+			       u16 *vlan_id, u32 scope_id)
 {
 	int ret = 0;
 	struct rdma_dev_addr dev_addr;
@@ -568,11 +570,11 @@ int rdma_addr_find_dmac_by_grh(union ib_gid *sgid, union ib_gid *dgid, u8 *dmac,
 	} sgid_addr, dgid_addr;
 
 
-	ret = rdma_gid2ip(&sgid_addr._sockaddr, sgid);
+	ret = rdma_gid2ip(&sgid_addr._sockaddr, sgid, scope_id);
 	if (ret)
 		return ret;
 
-	ret = rdma_gid2ip(&dgid_addr._sockaddr, dgid);
+	ret = rdma_gid2ip(&dgid_addr._sockaddr, dgid, scope_id);
 	if (ret)
 		return ret;
 
@@ -598,7 +600,23 @@ int rdma_addr_find_dmac_by_grh(union ib_gid *sgid, union ib_gid *dgid, u8 *dmac,
 }
 EXPORT_SYMBOL(rdma_addr_find_dmac_by_grh);
 
-int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id)
+u32 rdma_get_ipv6_scope_id(struct ib_device *ib, u8 port_num)
+{
+#ifdef INET6
+	struct ifnet *ifp;
+	if (ib->get_netdev == NULL)
+		return (-1U);
+	ifp = ib->get_netdev(ib, port_num);
+	if (ifp == NULL)
+		return (-1U);
+	return (in6_getscopezone(ifp, IPV6_ADDR_SCOPE_LINKLOCAL));
+#else
+	return (-1U);
+#endif
+}
+
+int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id,
+    u32 scope_id)
 {
 	int ret = 0;
 	struct rdma_dev_addr dev_addr;
@@ -608,8 +626,7 @@ int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id)
 		struct sockaddr_in6 _sockaddr_in6;
 	} gid_addr;
 
-	ret = rdma_gid2ip(&gid_addr._sockaddr, sgid);
-
+	ret = rdma_gid2ip(&gid_addr._sockaddr, sgid, scope_id);
 	if (ret)
 		return ret;
 	memset(&dev_addr, 0, sizeof(dev_addr));
