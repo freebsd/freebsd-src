@@ -53,7 +53,7 @@
 
 #include "ef.h"
 
-#define	MAXRECSIZE	1024
+#define	MAXRECSIZE	8192
 #define check(val)	if ((error = (val)) != 0) break
 
 static int dflag;	/* do not create a hint file, only write on stdout */
