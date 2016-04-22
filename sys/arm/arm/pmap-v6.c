@@ -3230,7 +3230,6 @@ pmap_promote_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va)
 	 * within a 1MB page.
 	 */
 	fpte2p = pmap_pte2_quick(pmap, pte1_trunc(va));
-setpte1:
 	fpte2 = pte2_load(fpte2p);
 	if ((fpte2 & ((PTE2_FRAME & PTE1_OFFSET) | PTE2_A | PTE2_V)) !=
 	    (PTE2_A | PTE2_V)) {
@@ -3249,16 +3248,9 @@ setpte1:
 		/*
 		 * When page is not modified, PTE2_RO can be set without
 		 * a TLB invalidation.
-		 *
-		 * Note: When modified bit is being set, then in hardware case,
-		 *       the TLB entry is re-read (updated) from PT2, and in
-		 *       software case (abort), the PTE2 is read from PT2 and
-		 *       TLB flushed if changed. The following cmpset() solves
-		 *       any race with setting this bit in both cases.
 		 */
-		if (!pte2_cmpset(fpte2p, fpte2, fpte2 | PTE2_RO))
-			goto setpte1;
 		fpte2 |= PTE2_RO;
+		pte2_store(fpte2p, fpte2);
 	}
 
 	/*
@@ -3269,7 +3261,6 @@ setpte1:
 	fpte2_fav = (fpte2 & (PTE2_FRAME | PTE2_A | PTE2_V));
 	fpte2_fav += PTE1_SIZE - PTE2_SIZE; /* examine from the end */
 	for (pte2p = fpte2p + NPTE2_IN_PT2 - 1; pte2p > fpte2p; pte2p--) {
-setpte2:
 		pte2 = pte2_load(pte2p);
 		if ((pte2 & (PTE2_FRAME | PTE2_A | PTE2_V)) != fpte2_fav) {
 			pmap_pte1_p_failures++;
@@ -3282,9 +3273,8 @@ setpte2:
 			 * When page is not modified, PTE2_RO can be set
 			 * without a TLB invalidation. See note above.
 			 */
-			if (!pte2_cmpset(pte2p, pte2, pte2 | PTE2_RO))
-				goto setpte2;
 			pte2 |= PTE2_RO;
+			pte2_store(pte2p, pte2);
 			pteva = pte1_trunc(va) | (pte2 & PTE1_OFFSET &
 			    PTE2_FRAME);
 			CTR3(KTR_PMAP, "%s: protect for va %#x in pmap %p",
@@ -4655,7 +4645,7 @@ pmap_protect_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t sva,
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT((sva & PTE1_OFFSET) == 0,
 	    ("%s: sva is not 1mpage aligned", __func__));
-retry:
+
 	opte1 = npte1 = pte1_load(pte1p);
 	if (pte1_is_managed(opte1)) {
 		eva = sva + PTE1_SIZE;
@@ -4676,8 +4666,7 @@ retry:
 	 */
 
 	if (npte1 != opte1) {
-		if (!pte1_cmpset(pte1p, opte1, npte1))
-			goto retry;
+		pte1_store(pte1p, npte1);
 		pmap_tlb_flush(pmap, sva);
 	}
 }
@@ -4779,7 +4768,7 @@ resume:
 		for (pte2p = pmap_pte2_quick(pmap, sva); sva != nextva; pte2p++,
 		    sva += PAGE_SIZE) {
 			vm_page_t m;
-retry:
+
 			opte2 = npte2 = pte2_load(pte2p);
 			if (!pte2_is_valid(opte2))
 				continue;
@@ -4803,9 +4792,7 @@ retry:
 			 */
 
 			if (npte2 != opte2) {
-
-				if (!pte2_cmpset(pte2p, opte2, npte2))
-					goto retry;
+				pte2_store(pte2p, npte2);
 				pmap_tlb_flush(pmap, sva);
 			}
 		}
@@ -5287,12 +5274,9 @@ small_mappings:
 		KASSERT(!pte1_is_section(pte1_load(pte1p)), ("%s: found"
 		    " a section in page %p's pv list", __func__, m));
 		pte2p = pmap_pte2_quick(pmap, pv->pv_va);
-retry:
 		opte2 = pte2_load(pte2p);
 		if (!(opte2 & PTE2_RO)) {
-			if (!pte2_cmpset(pte2p, opte2,
-			    opte2 | (PTE2_RO | PTE2_NM)))
-				goto retry;
+			pte2_store(pte2p, opte2 | PTE2_RO | PTE2_NM);
 			if (pte2_is_dirty(opte2))
 				vm_page_dirty(m);
 			pmap_tlb_flush(pmap, pv->pv_va);
@@ -6200,33 +6184,49 @@ pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, bool usermode)
 	}
 
 	/*
+	 * A pmap lock is used below for handling of access and R/W emulation
+	 * aborts. They were handled by atomic operations before so some
+	 * analysis of new situation is needed to answer the following question:
+	 * Is it safe to use the lock even for these aborts?
+	 *
+	 * There may happen two cases in general:
+	 *
+	 * (1) Aborts while the pmap lock is locked already - this should not
+	 * happen as pmap lock is not recursive. However, under pmap lock only
+	 * internal kernel data should be accessed and such data should be
+	 * mapped with A bit set and NM bit cleared. If double abort happens,
+	 * then a mapping of data which has caused it must be fixed. Further,
+	 * all new mappings are always made with A bit set and the bit can be
+	 * cleared only on managed mappings.
+	 *
+	 * (2) Aborts while another lock(s) is/are locked - this already can
+	 * happen. However, there is no difference here if it's either access or
+	 * R/W emulation abort, or if it's some other abort.
+	 */
+
+	PMAP_LOCK(pmap);
+	/*
 	 * Accesss bits for page and section. Note that the entry
 	 * is not in TLB yet, so TLB flush is not necessary.
 	 *
 	 * QQQ: This is hardware emulation, we do not call userret()
 	 *      for aborts from user mode.
-	 *      We do not lock PMAP, so cmpset() is a need. Hopefully,
-	 *      no one removes the mapping when we are here.
 	 */
 	if (idx == FAULT_ACCESS_L2) {
 		pte2p = pt2map_entry(far);
-pte2_seta:
 		pte2 = pte2_load(pte2p);
 		if (pte2_is_valid(pte2)) {
-			if (!pte2_cmpset(pte2p, pte2, pte2 | PTE2_A)) {
-				goto pte2_seta;
-			}
+			pte2_store(pte2p, pte2 | PTE2_A);
+			PMAP_UNLOCK(pmap);
 			return (KERN_SUCCESS);
 		}
 	}
 	if (idx == FAULT_ACCESS_L1) {
 		pte1p = pmap_pte1(pmap, far);
-pte1_seta:
 		pte1 = pte1_load(pte1p);
 		if (pte1_is_section(pte1)) {
-			if (!pte1_cmpset(pte1p, pte1, pte1 | PTE1_A)) {
-				goto pte1_seta;
-			}
+			pte1_store(pte1p, pte1 | PTE1_A);
+			PMAP_UNLOCK(pmap);
 			return (KERN_SUCCESS);
 		}
 	}
@@ -6238,32 +6238,26 @@ pte1_seta:
 	 *
 	 * QQQ: This is hardware emulation, we do not call userret()
 	 *      for aborts from user mode.
-	 *      We do not lock PMAP, so cmpset() is a need. Hopefully,
-	 *      no one removes the mapping when we are here.
 	 */
 	if ((fsr & FSR_WNR) && (idx == FAULT_PERM_L2)) {
 		pte2p = pt2map_entry(far);
-pte2_setrw:
 		pte2 = pte2_load(pte2p);
 		if (pte2_is_valid(pte2) && !(pte2 & PTE2_RO) &&
 		    (pte2 & PTE2_NM)) {
-			if (!pte2_cmpset(pte2p, pte2, pte2 & ~PTE2_NM)) {
-				goto pte2_setrw;
-			}
+			pte2_store(pte2p, pte2 & ~PTE2_NM);
 			tlb_flush(trunc_page(far));
+			PMAP_UNLOCK(pmap);
 			return (KERN_SUCCESS);
 		}
 	}
 	if ((fsr & FSR_WNR) && (idx == FAULT_PERM_L1)) {
 		pte1p = pmap_pte1(pmap, far);
-pte1_setrw:
 		pte1 = pte1_load(pte1p);
 		if (pte1_is_section(pte1) && !(pte1 & PTE1_RO) &&
 		    (pte1 & PTE1_NM)) {
-			if (!pte1_cmpset(pte1p, pte1, pte1 & ~PTE1_NM)) {
-				goto pte1_setrw;
-			}
+			pte1_store(pte1p, pte1 & ~PTE1_NM);
 			tlb_flush(pte1_trunc(far));
+			PMAP_UNLOCK(pmap);
 			return (KERN_SUCCESS);
 		}
 	}
@@ -6278,9 +6272,6 @@ pte1_setrw:
 	/*
 	 * Read an entry in PT2TAB associated with both pmap and far.
 	 * It's safe because PT2TAB is always mapped.
-	 *
-	 * QQQ: We do not lock PMAP, so false positives could happen if
-	 *      the mapping is removed concurrently.
 	 */
 	pte2 = pt2tab_load(pmap_pt2tab_entry(pmap, far));
 	if (pte2_is_valid(pte2)) {
@@ -6303,6 +6294,7 @@ pte1_setrw:
 		}
 	}
 #endif
+	PMAP_UNLOCK(pmap);
 	return (KERN_FAILURE);
 }
 
