@@ -379,12 +379,12 @@ _kvm_open(kvm_t *kd, const char *uf, const char *mf, int flag, char *errout)
 	kd->vmfd = -1;
 	kd->pmfd = -1;
 	kd->nlfd = -1;
-	kd->vmst = 0;
-	kd->procbase = 0;
-	kd->argspc = 0;
-	kd->argv = 0;
+	kd->vmst = NULL;
+	kd->procbase = NULL;
+	kd->argspc = NULL;
+	kd->argv = NULL;
 
-	if (uf == 0)
+	if (uf == NULL)
 		uf = getbootfile();
 	else if (strlen(uf) >= MAXPATHLEN) {
 		_kvm_err(kd, kd->program, "exec file name too long");
@@ -394,7 +394,7 @@ _kvm_open(kvm_t *kd, const char *uf, const char *mf, int flag, char *errout)
 		_kvm_err(kd, kd->program, "bad flags arg");
 		goto failed;
 	}
-	if (mf == 0)
+	if (mf == NULL)
 		mf = _PATH_MEM;
 
 	if ((kd->pmfd = open(mf, flag | O_CLOEXEC, 0)) < 0) {
@@ -471,7 +471,7 @@ failed:
 	/*
 	 * Copy out the error if doing sane error semantics.
 	 */
-	if (errout != 0)
+	if (errout != NULL)
 		strlcpy(errout, kd->errbuf, _POSIX2_LINE_MAX);
 	(void)kvm_close(kd);
 	return (0);
@@ -484,7 +484,9 @@ kvm_openfiles(const char *uf, const char *mf, const char *sf __unused, int flag,
 	kvm_t *kd;
 
 	if ((kd = calloc(1, sizeof(*kd))) == NULL) {
-		(void)strlcpy(errout, strerror(errno), _POSIX2_LINE_MAX);
+		if (errout != NULL)
+			(void)strlcpy(errout, strerror(errno),
+			    _POSIX2_LINE_MAX);
 		return (0);
 	}
 	return (_kvm_open(kd, uf, mf, flag, errout));
@@ -513,7 +515,9 @@ kvm_open2(const char *uf, const char *mf, int flag, char *errout,
 	kvm_t *kd;
 
 	if ((kd = calloc(1, sizeof(*kd))) == NULL) {
-		(void)strlcpy(errout, strerror(errno), _POSIX2_LINE_MAX);
+		if (errout != NULL)
+			(void)strlcpy(errout, strerror(errno),
+			    _POSIX2_LINE_MAX);
 		return (0);
 	}
 	kd->resolve_symbol = resolver;
