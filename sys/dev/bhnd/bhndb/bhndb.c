@@ -757,7 +757,7 @@ bhndb_suspend_resource(device_t dev, device_t child, int type,
 	}
 
 	if (BHNDB_DEBUG(PRIO))
-		device_printf(child, "suspend resource type=%d 0x%lx+0x%lx\n",
+		device_printf(child, "suspend resource type=%d 0x%jx+0x%jx\n",
 		    type, rman_get_start(r), rman_get_size(r));
 
 	/* Release the resource's window reference */
@@ -785,7 +785,7 @@ bhndb_resume_resource(device_t dev, device_t child, int type,
 		return (0);
 
 	if (BHNDB_DEBUG(PRIO))
-		device_printf(child, "resume resource type=%d 0x%lx+0x%lx\n",
+		device_printf(child, "resume resource type=%d 0x%jx+0x%jx\n",
 		    type, rman_get_start(r), rman_get_size(r));
 
 	return (bhndb_try_activate_resource(sc, rman_get_device(r), type,
