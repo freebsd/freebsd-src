@@ -223,7 +223,7 @@ resetDosDirSection(struct bootblock *boot, struct fatEntry *fat)
 	b1 = boot->bpbRootDirEnts * 32;
 	b2 = boot->bpbSecPerClust * boot->bpbBytesPerSec;
 
-	if ((buffer = malloc(len = b1 > b2 ? b1 : b2)) == NULL) {
+	if ((buffer = malloc(len = MAX(b1, b2))) == NULL) {
 		perr("No space for directory buffer (%zu)", len);
 		return FSFATAL;
 	}
