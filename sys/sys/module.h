@@ -35,6 +35,7 @@
 #define	MDT_DEPEND	1		/* argument is a module name */
 #define	MDT_MODULE	2		/* module declaration */
 #define	MDT_VERSION	3		/* module version(s) */
+#define	MDT_PNP_INFO	4		/* Plug and play hints record */
 
 #define	MDT_STRUCT_VERSION	1	/* version of metadata structure */
 #define	MDT_SETNAME	"modmetadata_set"

@@ -412,6 +412,7 @@ __elfN(obj_parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
 			modcnt++;
 			break;
 		case MDT_MODULE:
+		case MDT_PNP_INFO:
 			break;
 		default:
 			printf("unknown type %d\n", md.md_type);
