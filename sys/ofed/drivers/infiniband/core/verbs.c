@@ -207,8 +207,10 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num, struct ib_wc *wc,
 			memcpy(ah_attr->dmac, wc->smac, ETH_ALEN);
 			ah_attr->vlan_id = wc->vlan_id;
 		} else {
+			u32 scope_id = rdma_get_ipv6_scope_id(device, port_num);
 			ret = rdma_addr_find_dmac_by_grh(&grh->dgid, &grh->sgid,
-					ah_attr->dmac, &ah_attr->vlan_id);
+					 ah_attr->dmac, &ah_attr->vlan_id,
+					 scope_id);
 			if (ret)
 				return ret;
 		}
