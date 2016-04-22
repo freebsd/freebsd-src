@@ -203,6 +203,31 @@
 #define	BHND_PCIE_CFG_OFFSET(f, r)	\
 	((((f) & BHND_PCIE_CFG_ADDR_FUNC_MASK) << BHND_PCIE_CFG_ADDR_FUNC_SHIFT) | \
 	(((r) & BHND_PCIE_CFG_ADDR_FUNC_SHIFT) << BHND_PCIE_CFG_ADDR_REG_SHIFT))
+	
+/* BHND_PCIE_MDIO_CTL control */
+#define	BHND_PCIE_MDIOCTL_DIVISOR_MASK		0x7f	/* clock divisor mask */
+#define	BHND_PCIE_MDIOCTL_DIVISOR_VAL		0x2	/* default clock divisor */
+#define	BHND_PCIE_MDIOCTL_PREAM_EN		0x80	/* enable preamble mode */
+#define	BHND_PCIE_MDIOCTL_DONE			0x100	/* tranaction completed */
+
+/* PCIe BHND_PCIE_MDIO_DATA Data */
+#define	BHND_PCIE_MDIODATA_PHYADDR_MASK		0x0f800000	/* phy addr */
+#define	BHND_PCIE_MDIODATA_PHYADDR_SHIFT	23
+#define	BHND_PCIE_MDIODATA_REGADDR_MASK		0x007c0000	/* reg/dev addr */
+#define	BHND_PCIE_MDIODATA_REGADDR_SHIFT	18
+#define	BHND_PCIE_MDIODATA_DATA_MASK		0x0000ffff	/* data  */
+
+#define	BHND_PCIE_MDIODATA_TA			0x00020000	/* slave turnaround time */
+#define	BHND_PCIE_MDIODATA_START		0x40000000	/* start of transaction */
+#define	BHND_PCIE_MDIODATA_CMD_WRITE		0x10000000	/* write command */
+#define	BHND_PCIE_MDIODATA_CMD_READ		0x20000000	/* read command */
+
+#define	BHND_PCIE_MDIODATA_ADDR(_phyaddr, _regaddr)	(		\
+	(((_phyaddr) << BHND_PCIE_MDIODATA_PHYADDR_SHIFT) &		\
+	    BHND_PCIE_MDIODATA_PHYADDR_MASK) |				\
+	(((_regaddr) << BHND_PCIE_MDIODATA_REGADDR_SHIFT) &		\
+	    BHND_PCIE_MDIODATA_REGADDR_MASK)				\
+)
 
 /* PCIE protocol PHY diagnostic registers */
 #define	BHND_PCIE_PLP_MODEREG			0x200	/* Mode */

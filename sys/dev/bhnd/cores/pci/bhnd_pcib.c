@@ -31,10 +31,10 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Broadcom PCI-BHND Host Bridge.
+ * Broadcom PCI/PCIe-Gen1 Host-PCI bridge.
  * 
- * This driver is used to "eat" PCI(e) cores operating in endpoint mode when
- * they're attached to a bhndb_pci driver on the host side.
+ * This driver handles all interactions with PCI bridge cores operating in
+ * root complex mode.
  */
 
 #include <sys/param.h>
@@ -49,69 +49,36 @@ __FBSDID("$FreeBSD$");
 #include <dev/bhnd/bhnd.h>
 
 #include "bhnd_pcireg.h"
-
 #include "bhnd_pcibvar.h"
-
-static const struct bhnd_pcib_device {
-	uint16_t	 vendor;
-	uint16_t	 device;
-	const char	*desc;
-} bhnd_pcib_devs[] = {
-	{ BHND_MFGID_BCM,	BHND_COREID_PCI,	"BHND Host-PCI bridge" },
-	{ BHND_MFGID_BCM,	BHND_COREID_PCIE,	"BHND Host-PCI bridge (PCIe Gen1)" },
-	{ BHND_MFGID_INVALID,	BHND_COREID_INVALID,	NULL }
-};
-
-static int
-bhnd_pcib_probe(device_t dev)
-{
-	const struct bhnd_pcib_device *id;
-
-	/* Ignore PCI cores configured in host bridge mode */
-	if (bhnd_is_hostb_device(dev))
-		return (ENXIO);
-
-	for (id = bhnd_pcib_devs; id->device != BHND_COREID_INVALID; id++) {
-		if (bhnd_get_vendor(dev) != id->vendor)
-			continue;
-
-		if (bhnd_get_device(dev) != id->device)
-			continue;
-
-		device_set_desc(dev, id->desc);
-		return (BUS_PROBE_SPECIFIC);
-	}
-
-	return (ENXIO);
-}
 
 static int
 bhnd_pcib_attach(device_t dev)
 {
-	return (ENXIO);
+	// TODO
+	return (bhnd_pci_generic_attach(dev));
 }
 
 static int
 bhnd_pcib_detach(device_t dev)
 {
-	return (ENXIO);
+	// TODO
+	return (bhnd_pci_generic_detach(dev));
 }
 
 static int
 bhnd_pcib_suspend(device_t dev)
 {
-	return (ENXIO);
+	return (bhnd_pci_generic_suspend(dev));
 }
 
 static int
 bhnd_pcib_resume(device_t dev)
 {
-	return (ENXIO);
+	return (bhnd_pci_generic_resume(dev));
 }
 
 static device_method_t bhnd_pcib_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		bhnd_pcib_probe),
 	DEVMETHOD(device_attach,	bhnd_pcib_attach),
 	DEVMETHOD(device_detach,	bhnd_pcib_detach),
 	DEVMETHOD(device_suspend,	bhnd_pcib_suspend),
@@ -119,7 +86,7 @@ static device_method_t bhnd_pcib_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(bhnd_pcib, bhnd_pcib_driver, bhnd_pcib_methods, sizeof(struct bhnd_pcib_softc));
+DEFINE_CLASS_1(bhnd_pcib, bhnd_pcib_driver, bhnd_pcib_methods, sizeof(struct bhnd_pcib_softc), bhnd_pci_driver);
 DRIVER_MODULE(bhnd_pcib, bhnd, bhnd_pcib_driver, bhnd_hostb_devclass, 0, 0);
 
 MODULE_VERSION(bhnd_pcib, 1);
