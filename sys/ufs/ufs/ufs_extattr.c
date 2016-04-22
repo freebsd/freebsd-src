@@ -69,6 +69,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef UFS_EXTATTR
 
+FEATURE(ufs_extattr, "ufs extended attribute support");
+
 static MALLOC_DEFINE(M_UFS_EXTATTR, "ufs_extattr", "ufs extended attribute");
 
 static int ufs_extattr_sync = 0;
