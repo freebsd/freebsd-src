@@ -1655,6 +1655,14 @@ struct ib_device {
 						 struct ib_port_attr *port_attr);
 	enum rdma_link_layer	   (*get_link_layer)(struct ib_device *device,
 						     u8 port_num);
+	/* When calling get_netdev, the HW vendor's driver should return the
+	 * net device of device @device at port @port_num. The function
+	 * is called in rtnl_lock. The HW vendor's device driver must guarantee
+	 * to return NULL before the net device has reached
+	 * NETDEV_UNREGISTER_FINAL state.
+	 */
+	struct net_device	*(*get_netdev)(struct ib_device *device,
+					       u8 port_num);
 	int		           (*query_gid)(struct ib_device *device,
 						u8 port_num, int index,
 						union ib_gid *gid);
