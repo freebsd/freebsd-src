@@ -640,6 +640,8 @@
     usr.sbin
         etcupdate
         ..
+        extattr
+        ..
         fstyp
         ..
         makefs
