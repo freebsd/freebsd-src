@@ -743,10 +743,8 @@ parse_type(enum tok *tok, struct type *t, const char *vname)
 				report("need value for ENUM/BITS");
 			if (gettoken() != TOK_STR)
 				report("need string in ENUM/BITS");
-			if (e != NULL) {
-				e->name = savetok();
-				TAILQ_INSERT_TAIL(&t->enums, e, link);
-			}
+			e->name = savetok();
+			TAILQ_INSERT_TAIL(&t->enums, e, link);
 			if ((*tok = gettoken()) == TOK_EOF)
 				report("unexpected EOF in ENUM/BITS");
 		} while (*tok != ')');
