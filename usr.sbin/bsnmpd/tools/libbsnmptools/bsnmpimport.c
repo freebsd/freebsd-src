@@ -693,6 +693,7 @@ snmp_import_table(struct snmp_toolinfo *snmptoolctx, struct snmp_oid2str *obj)
 		/* Same entry already present in lists. */
 		free(entry->string);
 		free(entry);
+		return (0);
 	}
 
 	(void) snmp_import_update_table(ENTRY_INDEX, entry);
