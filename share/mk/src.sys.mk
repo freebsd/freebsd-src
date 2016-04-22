@@ -8,7 +8,9 @@
 .if !defined(_WITHOUT_SRCCONF)
 # Allow user to configure things that only effect src tree builds.
 SRCCONF?=	/etc/src.conf
-.if (exists(${SRCCONF}) || ${SRCCONF} != "/etc/src.conf") && !target(_srcconf_included_)
+.if !empty(SRCCONF) && \
+    (exists(${SRCCONF}) || ${SRCCONF} != "/etc/src.conf") && \
+    !target(_srcconf_included_)
 
 # Validate that the user didn't try setting an env-only variable in
 # their src.conf. This benefits from already including bsd.mkopt.mk.
