@@ -1025,7 +1025,7 @@ format1(const struct stat *st,
 		 *
 		 * Nanoseconds: long.
 		 */
-		(void)snprintf(tmp, sizeof(tmp), "%dld", prec > 9 ? 9 : prec);
+		(void)snprintf(tmp, sizeof(tmp), "%dld", MAX(9, prec));
 		(void)strcat(lfmt, tmp);
 
 		/*
