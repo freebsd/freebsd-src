@@ -81,7 +81,7 @@ _i386_minidump_initvtop(kvm_t *kd)
 	off_t off;
 
 	vmst = _kvm_malloc(kd, sizeof(*vmst));
-	if (vmst == 0) {
+	if (vmst == NULL) {
 		_kvm_err(kd, kd->program, "cannot allocate vm");
 		return (-1);
 	}
