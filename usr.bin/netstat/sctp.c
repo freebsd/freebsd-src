@@ -349,7 +349,7 @@ sctp_process_tcb(struct xsctp_tcb *xstcb,
 	xo_open_list("address");
 	xl = LIST_FIRST(&xladdr_head);
 	xr = LIST_FIRST(&xraddr_head);
-	x_max = (xl_total > xr_total) ? xl_total : xr_total;
+	x_max = MAX(xl_total, xr_total);
 	for (i = 0; i < x_max; i++) {
 		xo_open_instance("address");
 
