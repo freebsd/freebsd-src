@@ -181,6 +181,8 @@ _RF0(cp15_actlr_get, CP15_ACTLR(%0))
 _WF1(cp15_actlr_set, CP15_ACTLR(%0))
 _WF1(cp15_ats1cpr_set, CP15_ATS1CPR(%0))
 _WF1(cp15_ats1cpw_set, CP15_ATS1CPW(%0))
+_WF1(cp15_ats1cur_set, CP15_ATS1CUR(%0))
+_WF1(cp15_ats1cuw_set, CP15_ATS1CUW(%0))
 _RF0(cp15_par_get, CP15_PAR(%0))
 _RF0(cp15_sctlr_get, CP15_SCTLR(%0))
 
@@ -581,6 +583,52 @@ cp15_ttbr_set(uint32_t reg)
 	isb();
 	tlb_flush_all_ng_local();
 }
-#endif /* _KERNEL */
+
+/*
+ * Functions for address checking:
+ *
+ *  cp15_ats1cpr_check() ... check stage 1 privileged (PL1) read access
+ *  cp15_ats1cpw_check() ... check stage 1 privileged (PL1) write access
+ *  cp15_ats1cur_check() ... check stage 1 unprivileged (PL0) read access
+ *  cp15_ats1cuw_check() ... check stage 1 unprivileged (PL0) write access
+ *
+ * They must be called while interrupts are disabled to get consistent result.
+ */
+static __inline int
+cp15_ats1cpr_check(vm_offset_t addr)
+{
+
+	cp15_ats1cpr_set(addr);
+	isb();
+	return (cp15_par_get() & 0x01 ? EFAULT : 0);
+}
+
+static __inline int
+cp15_ats1cpw_check(vm_offset_t addr)
+{
+
+	cp15_ats1cpw_set(addr);
+	isb();
+	return (cp15_par_get() & 0x01 ? EFAULT : 0);
+}
+
+static __inline int
+cp15_ats1cur_check(vm_offset_t addr)
+{
+
+	cp15_ats1cur_set(addr);
+	isb();
+	return (cp15_par_get() & 0x01 ? EFAULT : 0);
+}
+
+static __inline int
+cp15_ats1cuw_check(vm_offset_t addr)
+{
+
+	cp15_ats1cuw_set(addr);
+	isb();
+	return (cp15_par_get() & 0x01 ? EFAULT : 0);
+}
+#endif /* !__ARM_ARCH < 6 */
 
 #endif /* !MACHINE_CPU_V6_H */
