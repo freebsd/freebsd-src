@@ -356,7 +356,7 @@ op_ifentry(struct snmp_context *ctx, struct snmp_value *value,
 		value->v.oid = ifp->spec_oid;
 		break;
 	}
-	return (SNMP_ERR_NOERROR);
+	return (ret);
 }
 
 /*
