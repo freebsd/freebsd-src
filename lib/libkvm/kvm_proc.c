@@ -544,7 +544,7 @@ kvm_getprocs(kvm_t *kd, int op, int arg, int *cnt)
 			size += size / 10;
 			kd->procbase = (struct kinfo_proc *)
 			    _kvm_realloc(kd, kd->procbase, size);
-			if (kd->procbase == 0)
+			if (kd->procbase == NULL)
 				return (0);
 			osize = size;
 			st = sysctl(mib, temp_op == KERN_PROC_ALL ||
@@ -614,7 +614,7 @@ liveout:
 		}
 		size = nprocs * sizeof(struct kinfo_proc);
 		kd->procbase = (struct kinfo_proc *)_kvm_malloc(kd, size);
-		if (kd->procbase == 0)
+		if (kd->procbase == NULL)
 			return (0);
 
 		nprocs = kvm_deadprocs(kd, op, arg, nl[1].n_value,
@@ -637,21 +637,19 @@ liveout:
 void
 _kvm_freeprocs(kvm_t *kd)
 {
-	if (kd->procbase) {
-		free(kd->procbase);
-		kd->procbase = 0;
-	}
+
+	free(kd->procbase);
+	kd->procbase = NULL;
 }
 
 void *
 _kvm_realloc(kvm_t *kd, void *p, size_t n)
 {
-	void *np = (void *)realloc(p, n);
+	void *np;
 
-	if (np == 0) {
-		free(p);
+	np = reallocf(p, n);
+	if (np == NULL)
 		_kvm_err(kd, kd->program, "out of memory");
-	}
 	return (np);
 }
 
@@ -672,7 +670,7 @@ kvm_argv(kvm_t *kd, const struct kinfo_proc *kp, int env, int nchr)
 	if (!ISALIVE(kd)) {
 		_kvm_err(kd, kd->program,
 		    "cannot read user space from dead kernel");
-		return (0);
+		return (NULL);
 	}
 
 	if (nchr == 0 || nchr > ARG_MAX)
@@ -681,7 +679,7 @@ kvm_argv(kvm_t *kd, const struct kinfo_proc *kp, int env, int nchr)
 		buf = malloc(nchr);
 		if (buf == NULL) {
 			_kvm_err(kd, kd->program, "cannot allocate memory");
-			return (0);
+			return (NULL);
 		}
 		buflen = nchr;
 		argc = 32;
@@ -706,12 +704,11 @@ kvm_argv(kvm_t *kd, const struct kinfo_proc *kp, int env, int nchr)
 		 * to the requested len.
 		 */
 		if (errno != ENOMEM || bufsz != (size_t)buflen)
-			return (0);
+			return (NULL);
 		buf[bufsz - 1] = '\0';
 		errno = 0;
-	} else if (bufsz == 0) {
-		return (0);
-	}
+	} else if (bufsz == 0)
+		return (NULL);
 	i = 0;
 	p = buf;
 	do {
