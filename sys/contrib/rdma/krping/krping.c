@@ -890,7 +890,7 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 			post_inv,
 			cb->fastreg_wr.wr.fast_reg.rkey,
 			cb->fastreg_wr.wr.fast_reg.page_shift,
-			cb->fastreg_wr.wr.fast_reg.length,
+			(unsigned)cb->fastreg_wr.wr.fast_reg.length,
 			(uintmax_t)cb->fastreg_wr.wr.fast_reg.iova_start,
 			cb->fastreg_wr.wr.fast_reg.page_list_len);
 
