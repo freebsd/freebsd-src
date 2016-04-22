@@ -58,9 +58,9 @@ TAP_TESTS_C+=	next_test
 TAP_TESTS_C+=	rem_test
 TAP_TESTS_C+=	trig_test
 
-.for t in ${TAP_TESTS_C}
-CFLAGS.$t+=	-O0
-.endfor
+.if !empty(PROG) && !empty(TAP_TESTS_C:M${PROG})
+CFLAGS+=	-O0
+.endif
 
 CSTD=		c99
 
