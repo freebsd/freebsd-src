@@ -404,6 +404,8 @@ mcast:
 		break;
 #endif
 	default:
+		KASSERT(0, ("rdma_addr_resolve: Unreachable"));
+		error = EINVAL;
 		break;
 	}
 	RTFREE(rte);
