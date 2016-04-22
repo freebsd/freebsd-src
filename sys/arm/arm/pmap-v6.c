@@ -1531,6 +1531,14 @@ static u_long pmap_pte1_promotions;
 SYSCTL_ULONG(_vm_pmap_pte1, OID_AUTO, promotions, CTLFLAG_RD,
     &pmap_pte1_promotions, 0, "1MB page promotions");
 
+static u_long pmap_pte1_kern_demotions;
+SYSCTL_ULONG(_vm_pmap_pte1, OID_AUTO, kern_demotions, CTLFLAG_RD,
+    &pmap_pte1_kern_demotions, 0, "1MB page kernel demotions");
+
+static u_long pmap_pte1_kern_promotions;
+SYSCTL_ULONG(_vm_pmap_pte1, OID_AUTO, kern_promotions, CTLFLAG_RD,
+    &pmap_pte1_kern_promotions, 0, "1MB page kernel promotions");
+
 static __inline ttb_entry_t
 pmap_ttb_get(pmap_t pmap)
 {
@@ -3198,6 +3206,166 @@ pmap_pv_insert_pte1(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 		return (FALSE);
 }
 
+static inline void
+pmap_tlb_flush_pte1(pmap_t pmap, vm_offset_t va, pt1_entry_t npte1)
+{
+
+	/* Kill all the small mappings or the big one only. */
+	if (pte1_is_section(npte1))
+		pmap_tlb_flush_range(pmap, pte1_trunc(va), PTE1_SIZE);
+	else
+		pmap_tlb_flush(pmap, pte1_trunc(va));
+}
+
+/*
+ *  Update kernel pte1 on all pmaps.
+ *
+ *  The following function is called only on one cpu with disabled interrupts.
+ *  In SMP case, smp_rendezvous_cpus() is used to stop other cpus. This way
+ *  nobody can invoke explicit hardware table walk during the update of pte1.
+ *  Unsolicited hardware table walk can still happen, invoked by speculative
+ *  data or instruction prefetch or even by speculative hardware table walk.
+ *
+ *  The break-before-make approach should be implemented here. However, it's
+ *  not so easy to do that for kernel mappings as it would be unhappy to unmap
+ *  itself unexpectedly but voluntarily.
+ */
+static void
+pmap_update_pte1_kernel(vm_offset_t va, pt1_entry_t npte1)
+{
+	pmap_t pmap;
+	pt1_entry_t *pte1p;
+
+	/*
+	 * Get current pmap. Interrupts should be disabled here
+	 * so PCPU_GET() is done atomically.
+	 */
+	pmap = PCPU_GET(curpmap);
+	if (pmap == NULL)
+		pmap = kernel_pmap;
+
+	/*
+	 * (1) Change pte1 on current pmap.
+	 * (2) Flush all obsolete TLB entries on current CPU.
+	 * (3) Change pte1 on all pmaps.
+	 * (4) Flush all obsolete TLB entries on all CPUs in SMP case.
+	 */
+
+	pte1p = pmap_pte1(pmap, va);
+	pte1_store(pte1p, npte1);
+
+	/* Kill all the small mappings or the big one only. */
+	if (pte1_is_section(npte1)) {
+		pmap_pte1_kern_promotions++;
+		tlb_flush_range_local(pte1_trunc(va), PTE1_SIZE);
+	} else {
+		pmap_pte1_kern_demotions++;
+		tlb_flush_local(pte1_trunc(va));
+	}
+
+	/*
+	 * In SMP case, this function is called when all cpus are at smp
+	 * rendezvous, so there is no need to use 'allpmaps_lock' lock here.
+	 * In UP case, the function is called with this lock locked.
+	 */
+	LIST_FOREACH(pmap, &allpmaps, pm_list) {
+		pte1p = pmap_pte1(pmap, va);
+		pte1_store(pte1p, npte1);
+	}
+
+#ifdef SMP
+	/* Kill all the small mappings or the big one only. */
+	if (pte1_is_section(npte1))
+		tlb_flush_range(pte1_trunc(va), PTE1_SIZE);
+	else
+		tlb_flush(pte1_trunc(va));
+#endif
+}
+
+#ifdef SMP
+struct pte1_action {
+	vm_offset_t va;
+	pt1_entry_t npte1;
+	u_int update;		/* CPU that updates the PTE1 */
+};
+
+static void
+pmap_update_pte1_action(void *arg)
+{
+	struct pte1_action *act = arg;
+
+	if (act->update == PCPU_GET(cpuid))
+		pmap_update_pte1_kernel(act->va, act->npte1);
+}
+
+/*
+ *  Change pte1 on current pmap.
+ *  Note that kernel pte1 must be changed on all pmaps.
+ *
+ *  By ARM ARM manual, the behaviour is UNPREDICABLE when two or more TLB
+ *  entries map same VA. It's a problem when either promotion or demotion
+ *  is being done. The pte1 update and appropriate TLB flush must be done
+ *  atomically in general.
+ */
+static void
+pmap_change_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va,
+    pt1_entry_t npte1)
+{
+
+	if (pmap == kernel_pmap) {
+		struct pte1_action act;
+
+		sched_pin();
+		act.va = va;
+		act.npte1 = npte1;
+		act.update = PCPU_GET(cpuid);
+		smp_rendezvous_cpus(all_cpus, smp_no_rendevous_barrier,
+		    pmap_update_pte1_action, NULL, &act);
+		sched_unpin();
+	} else {
+		register_t cspr;
+
+		/*
+		 * Use break-before-make approach for changing userland
+		 * mappings. It can cause L1 translation aborts on other
+		 * cores in SMP case. So, special treatment is implemented
+		 * in pmap_fault(). Interrups are disabled here to make it
+		 * without any interruption as quick as possible.
+		 */
+		cspr = disable_interrupts(PSR_I | PSR_F);
+		pte1_clear(pte1p);
+		pmap_tlb_flush_pte1(pmap, va, npte1);
+		pte1_store(pte1p, npte1);
+		restore_interrupts(cspr);
+	}
+}
+#else
+static void
+pmap_change_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va,
+    pt1_entry_t npte1)
+{
+
+	if (pmap == kernel_pmap) {
+		mtx_lock_spin(&allpmaps_lock);
+		pmap_update_pte1_kernel(va, npte1);
+		mtx_unlock_spin(&allpmaps_lock);
+	} else {
+		register_t cspr;
+
+		/*
+		 * Use break-before-make approach for changing userland
+		 * mappings. It's absolutely safe in UP case when interrupts
+		 * are disabled.
+		 */
+		cspr = disable_interrupts(PSR_I | PSR_F);
+		pte1_clear(pte1p);
+		pmap_tlb_flush_pte1(pmap, va, npte1);
+		pte1_store(pte1p, npte1);
+		restore_interrupts(cspr);
+	}
+}
+#endif
+
 /*
  *  Tries to promote the NPTE2_IN_PT2, contiguous 4KB page mappings that are
  *  within a single page table page (PT2) to a single 1MB page mapping.
@@ -3303,8 +3471,8 @@ pmap_promote_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va)
 	    ("%s: PT2 page's pindex is wrong", __func__));
 
 	/*
-	 *  Get pte1 from pte2 format.
-	*/
+	 * Get pte1 from pte2 format.
+	 */
 	npte1 = (fpte2 & PTE1_FRAME) | ATTR_TO_L1(fpte2) | PTE1_V;
 
 	/*
@@ -3314,19 +3482,9 @@ pmap_promote_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va)
 		pmap_pv_promote_pte1(pmap, va, pte1_pa(npte1));
 
 	/*
-	 * Map the section.
+	 * Promote the mappings.
 	 */
-	if (pmap == kernel_pmap)
-		pmap_kenter_pte1(va, npte1);
-	else
-		pte1_store(pte1p, npte1);
-	/*
-	 * Flush old small mappings. We call single pmap_tlb_flush() in
-	 * pmap_demote_pte1() and pmap_remove_pte1(), so we must be sure that
-	 * no small mappings survive. We assume that given pmap is current and
-	 * don't play game with PTE2_NG.
-	 */
-	pmap_tlb_flush_range(pmap, pte1_trunc(va), PTE1_SIZE);
+	pmap_change_pte1(pmap, pte1p, va, npte1);
 
 	pmap_pte1_promotions++;
 	CTR3(KTR_PMAP, "%s: success for va %#x in pmap %p",
@@ -3608,17 +3766,7 @@ pmap_demote_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va)
 	 * another processor changing the setting of PTE1_A and/or PTE1_NM
 	 * between the read above and the store below.
 	 */
-	if (pmap == kernel_pmap)
-		pmap_kenter_pte1(va, npte1);
-	else
-		pte1_store(pte1p, npte1);
-
-	/*
-	 * Flush old big mapping. The mapping should occupy one and only
-	 * TLB entry. So, pmap_tlb_flush() called with aligned address
-	 * should be sufficient.
-	 */
-	pmap_tlb_flush(pmap, pte1_trunc(va));
+	pmap_change_pte1(pmap, pte1p, va, npte1);
 
 	/*
 	 * Demote the pv entry. This depends on the earlier demotion
@@ -6205,6 +6353,18 @@ pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, bool usermode)
 	 */
 
 	PMAP_LOCK(pmap);
+#ifdef SMP
+	/*
+	 * Special treatment due to break-before-make approach done when
+	 * pte1 is updated for userland mapping during section promotion or
+	 * demotion. If not catched here, pmap_enter() can find a section
+	 * mapping on faulting address. That is not allowed.
+	 */
+	if (idx == FAULT_TRAN_L1 && usermode && cp15_ats1cur_check(far) == 0) {
+		PMAP_UNLOCK(pmap);
+		return (KERN_SUCCESS);
+	}
+#endif
 	/*
 	 * Accesss bits for page and section. Note that the entry
 	 * is not in TLB yet, so TLB flush is not necessary.
