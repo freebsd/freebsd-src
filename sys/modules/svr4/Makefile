@@ -8,6 +8,7 @@ SRCS=	svr4_sysent.c svr4_sysvec.c opt_compat.h opt_svr4.h \
 	svr4_termios.c svr4_stream.c svr4_socket.c svr4_sockio.c \
 	svr4_machdep.c svr4_resource.c svr4_ipc.c
 OBJS=	svr4_locore.o 
+EXPORT_SYMS= svr4_delete_socket
 
 SRCS+=	opt_ktrace.h opt_sysvipc.h
 
