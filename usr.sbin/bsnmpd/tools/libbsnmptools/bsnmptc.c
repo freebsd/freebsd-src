@@ -440,8 +440,8 @@ snmp_date2asn_oid(char *str, struct asn_oid *oid)
 
 	/* 'UTC' - optional */
 	ptr = endptr + 1;
-	if (*ptr == 'U' && *(ptr + 1) == 'T' && *(ptr + 1) == 'C')
-		ptr += 3;
+	if (strncmp(ptr, "UTC", strlen("UTC")) == 0)
+		ptr += strlen("UTC");
 
 	/* '+/-' */
 	if (*ptr == '-' || *ptr == '+') {
