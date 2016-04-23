@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2016
+.Dd April 23, 2016
 .Dt PW 8
 .Os
 .Sh NAME
@@ -954,6 +954,18 @@ Pw default options file
 .It Pa /var/log/userlog
 User/group modification logfile
 .El
+.Sh EXAMPLES
+Add new user Glurmo Smith (gsmith).
+A gsmith login group is created if not already present.
+The login shell is set to
+.Xr csh 1 .
+A new home directory at
+.Pa /home/gsmith
+is created if it does not already exist.
+Finally, a random password is generated and displayed:
+.Bd -literal -offset indent
+pw useradd -n gsmith -c "Glurmo Smith" -s /bin/csh -m -w random
+.Ed
 .Sh EXIT STATUS
 The
 .Nm
