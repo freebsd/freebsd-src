@@ -888,6 +888,7 @@ printcpuinfo(void)
 				       /* RDFSBASE/RDGSBASE/WRFSBASE/WRGSBASE */
 				       "\001FSGSBASE"
 				       "\002TSCADJ"
+				       "\003SGX"
 				       /* Bit Manipulation Instructions */
 				       "\004BMI1"
 				       /* Hardware Lock Elision */
@@ -907,9 +908,9 @@ printcpuinfo(void)
 				       "\014RTM"
 				       "\015PQM"
 				       "\016NFPUSG"
-				       "\020PQE"
 				       /* Intel Memory Protection Extensions */
 				       "\017MPX"
+				       "\020PQE"
 				       /* AVX512 Foundation */
 				       "\021AVX512F"
 				       /* Enhanced NRBG */
@@ -932,8 +933,11 @@ printcpuinfo(void)
 				    cpu_stdext_feature2,
 				       "\020"
 				       "\001PREFETCHWT1"
+				       "\003UMIP"
 				       "\004PKU"
 				       "\005OSPKE"
+				       "\027RDPID"
+				       "\037SGXLC"
 				       );
 			}
 
@@ -1880,7 +1884,10 @@ print_INTEL_TLB(u_int data)
 		printf("Instruction TLB: 4 KByte pages, fully associative, 48 entries\n");
 		break;
 	case 0x63:
-		printf("Data TLB: 1 GByte pages, 4-way set associative, 4 entries\n");
+		printf("Data TLB: 2 MByte or 4 MByte pages, 4-way set associative, 32 entries and a separate array with 1 GByte pages, 4-way set associative, 4 entries\n");
+		break;
+	case 0x64:
+		printf("Data TLB: 4 KBytes pages, 4-way set associative, 512 entries\n");
 		break;
 	case 0x66:
 		printf("1st-level data cache: 8 KB, 4-way set associative, sectored cache, 64 byte line size\n");
@@ -1995,6 +2002,9 @@ print_INTEL_TLB(u_int data)
 		break;
 	case 0xc3:
 		printf("Shared 2nd-Level TLB: 4 KByte /2 MByte pages, 6-way associative, 1536 entries. Also 1GBbyte pages, 4-way, 16 entries\n");
+		break;
+	case 0xc4:
+		printf("DTLB: 2M/4M Byte pages, 4-way associative, 32 entries\n");
 		break;
 	case 0xca:
 		printf("Shared 2nd-Level TLB: 4 KByte pages, 4-way associative, 512 entries\n");
