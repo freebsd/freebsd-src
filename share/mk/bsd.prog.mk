@@ -7,6 +7,7 @@
 
 # XXX The use of COPTS in modern makefiles is discouraged.
 .if defined(COPTS)
+.warning COPTS should be CFLAGS.
 CFLAGS+=${COPTS}
 .endif
 
