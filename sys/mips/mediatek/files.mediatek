@@ -11,7 +11,6 @@ mips/mediatek/mtk_intr_v1.c 		optional mtk_intr_v1
 mips/mediatek/mtk_intr_v2.c 		optional mtk_intr_v2
 mips/mediatek/mtk_intr_gic.c 		optional mtk_intr_gic
 mips/mediatek/uart_dev_mtk.c 		optional uart uart_dev_mtk
-mips/mediatek/uart_dev_mtk_ns8250.c 	optional uart uart_ns8250
 mips/mediatek/mtk_spi_v1.c 		optional spibus mtk_spi_v1
 mips/mediatek/mtk_spi_v2.c 		optional spibus mtk_spi_v2
 mips/mediatek/mtk_usb_phy.c 		optional usb mtk_usb_phy
