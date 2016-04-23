@@ -4429,115 +4429,6 @@ bxe_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
     }
 }
 
-static int
-bxe_ioctl_nvram(struct bxe_softc *sc,
-                uint32_t         priv_op,
-                struct ifreq     *ifr)
-{
-    struct bxe_nvram_data nvdata_base;
-    struct bxe_nvram_data *nvdata;
-    int len;
-    int error = 0;
-
-    copyin(ifr->ifr_data, &nvdata_base, sizeof(nvdata_base));
-
-    len = (sizeof(struct bxe_nvram_data) +
-           nvdata_base.len -
-           sizeof(uint32_t));
-
-    if (len > sizeof(struct bxe_nvram_data)) {
-        if ((nvdata = (struct bxe_nvram_data *)
-                 malloc(len, M_DEVBUF,
-                        (M_NOWAIT | M_ZERO))) == NULL) {
-            BLOGE(sc, "BXE_IOC_RD_NVRAM malloc failed priv_op 0x%x "
-                " len = 0x%x\n", priv_op, len);
-            return (1);
-        }
-        memcpy(nvdata, &nvdata_base, sizeof(struct bxe_nvram_data));
-    } else {
-        nvdata = &nvdata_base;
-    }
-
-    if (priv_op == BXE_IOC_RD_NVRAM) {
-        BLOGD(sc, DBG_IOCTL, "IOC_RD_NVRAM 0x%x %d\n",
-              nvdata->offset, nvdata->len);
-        error = bxe_nvram_read(sc,
-                               nvdata->offset,
-                               (uint8_t *)nvdata->value,
-                               nvdata->len);
-        copyout(nvdata, ifr->ifr_data, len);
-    } else { /* BXE_IOC_WR_NVRAM */
-        BLOGD(sc, DBG_IOCTL, "IOC_WR_NVRAM 0x%x %d\n",
-              nvdata->offset, nvdata->len);
-        copyin(ifr->ifr_data, nvdata, len);
-        error = bxe_nvram_write(sc,
-                                nvdata->offset,
-                                (uint8_t *)nvdata->value,
-                                nvdata->len);
-    }
-
-    if (len > sizeof(struct bxe_nvram_data)) {
-        free(nvdata, M_DEVBUF);
-    }
-
-    return (error);
-}
-
-static int
-bxe_ioctl_stats_show(struct bxe_softc *sc,
-                     uint32_t         priv_op,
-                     struct ifreq     *ifr)
-{
-    const size_t str_size   = (BXE_NUM_ETH_STATS * STAT_NAME_LEN);
-    const size_t stats_size = (BXE_NUM_ETH_STATS * sizeof(uint64_t));
-    caddr_t p_tmp;
-    uint32_t *offset;
-    int i;
-
-    switch (priv_op)
-    {
-    case BXE_IOC_STATS_SHOW_NUM:
-        memset(ifr->ifr_data, 0, sizeof(union bxe_stats_show_data));
-        ((union bxe_stats_show_data *)ifr->ifr_data)->desc.num =
-            BXE_NUM_ETH_STATS;
-        ((union bxe_stats_show_data *)ifr->ifr_data)->desc.len =
-            STAT_NAME_LEN;
-        return (0);
-
-    case BXE_IOC_STATS_SHOW_STR:
-        memset(ifr->ifr_data, 0, str_size);
-        p_tmp = ifr->ifr_data;
-        for (i = 0; i < BXE_NUM_ETH_STATS; i++) {
-            strcpy(p_tmp, bxe_eth_stats_arr[i].string);
-            p_tmp += STAT_NAME_LEN;
-        }
-        return (0);
-
-    case BXE_IOC_STATS_SHOW_CNT:
-        memset(ifr->ifr_data, 0, stats_size);
-        p_tmp = ifr->ifr_data;
-        for (i = 0; i < BXE_NUM_ETH_STATS; i++) {
-            offset = ((uint32_t *)&sc->eth_stats +
-                      bxe_eth_stats_arr[i].offset);
-            switch (bxe_eth_stats_arr[i].size) {
-            case 4:
-                *((uint64_t *)p_tmp) = (uint64_t)*offset;
-                break;
-            case 8:
-                *((uint64_t *)p_tmp) = HILO_U64(*offset, *(offset + 1));
-                break;
-            default:
-                *((uint64_t *)p_tmp) = 0;
-            }
-            p_tmp += sizeof(uint64_t);
-        }
-        return (0);
-
-    default:
-        return (-1);
-    }
-}
-
 static void
 bxe_handle_chip_tq(void *context,
                    int  pending)
@@ -4578,8 +4469,6 @@ bxe_ioctl(if_t ifp,
 {
     struct bxe_softc *sc = if_getsoftc(ifp);
     struct ifreq *ifr = (struct ifreq *)data;
-    struct bxe_nvram_data *nvdata;
-    uint32_t priv_op;
     int mask = 0;
     int reinit = 0;
     int error = 0;
@@ -4766,36 +4655,6 @@ bxe_ioctl(if_t ifp,
               "Received SIOCSIFMEDIA/SIOCGIFMEDIA ioctl (cmd=%lu)\n",
               (command & 0xff));
         error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, command);
-        break;
-
-    case SIOCGPRIVATE_0:
-        copyin(ifr->ifr_data, &priv_op, sizeof(priv_op));
-
-        switch (priv_op)
-        {
-        case BXE_IOC_RD_NVRAM:
-        case BXE_IOC_WR_NVRAM:
-            nvdata = (struct bxe_nvram_data *)ifr->ifr_data;
-            BLOGD(sc, DBG_IOCTL,
-                  "Received Private NVRAM ioctl addr=0x%x size=%u\n",
-                  nvdata->offset, nvdata->len);
-            error = bxe_ioctl_nvram(sc, priv_op, ifr);
-            break;
-
-        case BXE_IOC_STATS_SHOW_NUM:
-        case BXE_IOC_STATS_SHOW_STR:
-        case BXE_IOC_STATS_SHOW_CNT:
-            BLOGD(sc, DBG_IOCTL, "Received Private Stats ioctl (%d)\n",
-                  priv_op);
-            error = bxe_ioctl_stats_show(sc, priv_op, ifr);
-            break;
-
-        default:
-            BLOGW(sc, "Received Private Unknown ioctl (%d)\n", priv_op);
-            error = EINVAL;
-            break;
-        }
-
         break;
 
     default:
