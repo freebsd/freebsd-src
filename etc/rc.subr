@@ -844,6 +844,10 @@ check_startmsgs()
 #
 #	enabled		Return true if the service is enabled.
 #
+#	describe	Show the service's description
+#
+#	extracommands	Show the service's extra commands
+#
 #	Variables available to methods, and after run_rc_command() has
 #	completed:
 #
@@ -912,7 +916,7 @@ run_rc_command()
 	eval _override_command=\$${name}_program
 	command=${_override_command:-$command}
 
-	_keywords="start stop restart rcvar enabled $extra_commands"
+	_keywords="start stop restart rcvar enabled describe extracommands $extra_commands"
 	rc_pid=
 	_pidcmd=
 	_procname=${procname:-${command}}
@@ -962,12 +966,13 @@ run_rc_command()
 		if [ "$_elem" != "$rc_arg" ]; then
 			continue
 		fi
-					# if ${rcvar} is set, $1 is not "rcvar"
+					# if ${rcvar} is set, $1 is not "rcvar" and not "describe"
 					# and ${rc_pid} is not set, then run
 					#	checkyesno ${rcvar}
 					# and return if that failed
 					#
-		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" -a "$rc_arg" != "stop" ] ||
+		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" -a "$rc_arg" != "stop" \
+		    -a "$rc_arg" != "describe" ] ||
 		    [ -n "${rcvar}" -a "$rc_arg" = "stop" -a -z "${rc_pid}" ]; then
 			if ! checkyesno ${rcvar}; then
 				if [ -n "${rc_quiet}" ]; then
@@ -1003,6 +1008,16 @@ run_rc_command()
 		fi
 
 		case "$rc_arg" in	# default operations...
+
+		describe)
+			if [ -n "$desc" ]; then
+				echo "$desc"
+			fi
+			;;
+	
+		extracommands)
+			echo "$extra_commands"
+			;;
 
 		status)
 			_run_rc_precmd || return 1
