@@ -158,17 +158,14 @@ main(int argc, char *argv[])
 		asprintf(&fmfname, "%s.filemon", fname);
 		if (!fmfname)
 			err(1, "%s.filemon", fname);
-		if ((fm_fd = open("/dev/filemon", O_RDWR)) == -1)
+		if ((fm_fd = open("/dev/filemon", O_RDWR | O_CLOEXEC)) == -1)
 			err(1, "open(\"/dev/filemon\", O_RDWR)");
-		if ((fm_log = open(fmfname, O_WRONLY | O_CREAT | O_TRUNC,
+		if ((fm_log = open(fmfname,
+		    O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
 		    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1)
 			err(1, "open(%s)", fmfname);
 		if (ioctl(fm_fd, FILEMON_SET_FD, &fm_log) < 0)
 			err(1, "Cannot set filemon log file descriptor");
-
-		/* Set up these two fd's to close on exec. */
-		(void)fcntl(fm_fd, F_SETFD, FD_CLOEXEC);
-		(void)fcntl(fm_log, F_SETFD, FD_CLOEXEC);
 	}
 
 	if (pflg)
