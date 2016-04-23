@@ -54,49 +54,26 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/allwinner/allwinner_machdep.h>
 #include <arm/allwinner/allwinner_pinctrl.h>
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/hwreset/hwreset.h>
 
 #include "gpio_if.h"
-
-/*
- * A10 have 9 banks of gpio.
- * 32 pins per bank:
- * PA0 - PA17 | PB0 - PB23 | PC0 - PC24
- * PD0 - PD27 | PE0 - PE31 | PF0 - PF5
- * PG0 - PG9 | PH0 - PH27 | PI0 - PI12
- */
 
 #define	A10_GPIO_DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |	\
     GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN)
 
-#define A10_GPIO_NONE		0
-#define A10_GPIO_PULLUP		1
-#define A10_GPIO_PULLDOWN	2
+#define	A10_GPIO_NONE		0
+#define	A10_GPIO_PULLUP		1
+#define	A10_GPIO_PULLDOWN	2
 
-#define A10_GPIO_INPUT		0
-#define A10_GPIO_OUTPUT		1
+#define	A10_GPIO_INPUT		0
+#define	A10_GPIO_OUTPUT		1
 
-#define AW_GPIO_DRV_MASK	0x3
-#define AW_GPIO_PUD_MASK	0x3
+#define	AW_GPIO_DRV_MASK	0x3
+#define	AW_GPIO_PUD_MASK	0x3
 
-static struct ofw_compat_data compat_data[] = {
-	{"allwinner,sun4i-a10-pinctrl", 1},
-	{"allwinner,sun7i-a20-pinctrl", 1},
-	{"allwinner,sun6i-a31-pinctrl", 1},
-	{"allwinner,sun6i-a31s-pinctrl", 1},
-	{NULL,             0}
-};
-
-struct a10_gpio_softc {
-	device_t		sc_dev;
-	device_t		sc_busdev;
-	struct mtx		sc_mtx;
-	struct resource *	sc_mem_res;
-	struct resource *	sc_irq_res;
-	bus_space_tag_t		sc_bst;
-	bus_space_handle_t	sc_bsh;
-	void *			sc_intrhand;
-	const struct allwinner_padconf *	padconf;
-};
+#define	AW_PINCTRL	1
+#define	AW_R_PINCTRL	2
 
 /* Defined in a10_padconf.c */
 #ifdef SOC_ALLWINNER_A10
@@ -117,6 +94,41 @@ extern const struct allwinner_padconf a31_padconf;
 #ifdef SOC_ALLWINNER_A31S
 extern const struct allwinner_padconf a31s_padconf;
 #endif
+
+#if defined(SOC_ALLWINNER_A31) || defined(SOC_ALLWINNER_A31S)
+extern const struct allwinner_padconf a31_r_padconf;
+#endif
+
+static struct ofw_compat_data compat_data[] = {
+#ifdef SOC_ALLWINNER_A10
+	{"allwinner,sun4i-a10-pinctrl",		(uintptr_t)&a10_padconf},
+#endif
+#ifdef SOC_ALLWINNER_A20
+	{"allwinner,sun7i-a20-pinctrl",		(uintptr_t)&a20_padconf},
+#endif
+#ifdef SOC_ALLWINNER_A31
+	{"allwinner,sun6i-a31-pinctrl",		(uintptr_t)&a31_padconf},
+#endif
+#ifdef SOC_ALLWINNER_A31S
+	{"allwinner,sun6i-a31s-pinctrl",	(uintptr_t)&a31s_padconf},
+#endif
+#if defined(SOC_ALLWINNER_A31) || defined(SOC_ALLWINNER_A31S)
+	{"allwinner,sun6i-a31-r-pinctrl",	(uintptr_t)&a31_r_padconf},
+#endif
+	{NULL,	0}
+};
+
+struct a10_gpio_softc {
+	device_t		sc_dev;
+	device_t		sc_busdev;
+	struct mtx		sc_mtx;
+	struct resource *	sc_mem_res;
+	struct resource *	sc_irq_res;
+	bus_space_tag_t		sc_bst;
+	bus_space_handle_t	sc_bsh;
+	void *			sc_intrhand;
+	const struct allwinner_padconf *	padconf;
+};
 
 #define	A10_GPIO_LOCK(_sc)		mtx_lock_spin(&(_sc)->sc_mtx)
 #define	A10_GPIO_UNLOCK(_sc)		mtx_unlock_spin(&(_sc)->sc_mtx)
@@ -526,9 +538,11 @@ a10_gpio_probe(device_t dev)
 static int
 a10_gpio_attach(device_t dev)
 {
-	int rid;
+	int rid, error;
 	phandle_t gpio;
 	struct a10_gpio_softc *sc;
+	clk_t clk;
+	hwreset_t rst;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -561,29 +575,23 @@ a10_gpio_attach(device_t dev)
 		goto fail;
 
 	/* Use the right pin data for the current SoC */
-	switch (allwinner_soc_type()) {
-#ifdef SOC_ALLWINNER_A10
-	case ALLWINNERSOC_A10:
-		sc->padconf = &a10_padconf;
-		break;
-#endif
-#ifdef SOC_ALLWINNER_A20
-	case ALLWINNERSOC_A20:
-		sc->padconf = &a20_padconf;
-		break;
-#endif
-#ifdef SOC_ALLWINNER_A31
-	case ALLWINNERSOC_A31:
-		sc->padconf = &a31_padconf;
-		break;
-#endif
-#ifdef SOC_ALLWINNER_A31S
-	case ALLWINNERSOC_A31S:
-		sc->padconf = &a31s_padconf;
-		break;
-#endif
-	default:
-		return (ENOENT);
+	sc->padconf = (struct allwinner_padconf *)ofw_bus_search_compatible(dev,
+	    compat_data)->ocd_data;
+
+	if (hwreset_get_by_ofw_idx(dev, 0, &rst) == 0) {
+		error = hwreset_deassert(rst);
+		if (error != 0) {
+			device_printf(dev, "cannot de-assert reset\n");
+			return (error);
+		}
+	}
+
+	if (clk_get_by_ofw_index(dev, 0, &clk) == 0) {
+		error = clk_enable(clk);
+		if (error != 0) {
+			device_printf(dev, "could not enable clock\n");
+			return (error);
+		}
 	}
 
 	sc->sc_busdev = gpiobus_attach_bus(dev);
