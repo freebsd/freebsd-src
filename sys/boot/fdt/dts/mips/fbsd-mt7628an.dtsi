@@ -1,13 +1,9 @@
 /* $FreeBSD$ */
 
 / {
-
-	/*
-	 * FreeBSD's stdin and stdout, so we can have a console
-	 */
-	chosen {
-		stdin = &uartlite;
-		stdout = &uartlite;
+	/* Specify alias for serial0 so we have a working console */
+	aliases {
+		serial0 = "/palmbus@10000000/uart2@e00";
 	};
 
 	/*
@@ -19,23 +15,9 @@
 	};
 
 	palmbus@10000000 {
-		/*
-		 * Make palmbus compatible to our simplebus
-		 */
-		compatible = "simple-bus";
-
-		/*
-		 * Reference uart2@e00 as uartlite, so we can address it
-		 * within the chosen node above
-		 */
-		uartlite: uart2@e00 {
-			/*
-			 * Mark uartlite as compatible to mtk,ns16550a instead
-			 * of simply ns16550a so we can autodetect the UART
-			 * clock
-			 */
-			compatible = "mtk,ns16550a";
-		};
+		uartlite@c00 { clock-frequency = <40000000>; };
+		uart1@d00 { clock-frequency = <40000000>; };
+		uart2@e00 { clock-frequency = <40000000>; };
 
 		gpio@600 {
 			/*
@@ -66,9 +48,9 @@
 		};
 	};
 
+	/* Specify the clocks node for the usbphy */
 	usbphy: usbphy@10120000 {
 		clocks = <&clkctrl 22 &clkctrl 25>;
-		clock-names = "host", "device";
 	};
 
 	pcie@10140000 {
