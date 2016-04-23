@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="jail"
+desc="Manage system jails"
 rcvar="jail_enable"
 
 start_cmd="jail_start"

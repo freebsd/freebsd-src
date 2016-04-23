@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="hostid_save"
+desc="Save unique host ID to disk"
 start_cmd="hostid_save"
 stop_cmd=":"
 rcvar="hostid_enable"

@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="abi"
+desc="Enable foreign ABIs"
 start_cmd="${name}_start"
 stop_cmd=":"
 
