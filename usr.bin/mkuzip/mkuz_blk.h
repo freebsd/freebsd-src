@@ -22,66 +22,27 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#define OFFSET_UNDEF      UINT64_MAX
 
-#include <sys/param.h>
-#include <err.h>
-#include <stdint.h>
-
-#include <zlib.h>
-
-#include "mkuzip.h"
-#include "mkuz_zlib.h"
-#include "mkuz_blk.h"
-
-struct mkuz_zlib {
-	uLongf oblen;
-	uint32_t blksz;
+struct mkuz_blk_info {
+    uint64_t offset;
+    size_t len;
+    uint32_t blkno;
+    unsigned char digest[16];
 };
 
-void *
-mkuz_zlib_init(uint32_t blksz)
-{
-	struct mkuz_zlib *zp;
+#define MKUZ_BLK_EOF        (void *)0x1
+#define MKUZ_BLK_MORE       (void *)0x2
 
-	if (blksz % DEV_BSIZE != 0) {
-		errx(1, "cluster size should be multiple of %d",
-		    DEV_BSIZE);
-		/* Not reached */
-	}
-	if (compressBound(blksz) > MAXPHYS) {
-		errx(1, "cluster size is too large");
-		/* Not reached */
-	}
-	zp = mkuz_safe_zmalloc(sizeof(struct mkuz_zlib));
-	zp->oblen = compressBound(blksz);
-	zp->blksz = blksz;
+struct mkuz_blk {
+    struct mkuz_blk_info info;
+    size_t alen;
+    uint64_t br_offset;
+    unsigned char data[];
+};
 
-	return (void *)zp;
-}
-
-struct mkuz_blk *
-mkuz_zlib_compress(void *p, const struct mkuz_blk *iblk)
-{
-	uLongf destlen_z;
-	struct mkuz_blk *rval;
-	struct mkuz_zlib *zp;
-
-	zp = (struct mkuz_zlib *)p;
-
-	rval = mkuz_blk_ctor(zp->oblen);
-
-	destlen_z = rval->alen;
-	if (compress2(rval->data, &destlen_z, iblk->data, zp->blksz,
-	    Z_BEST_COMPRESSION) != Z_OK) {
-		errx(1, "can't compress data: compress2() "
-		    "failed");
-		/* Not reached */
-	}
-
-	rval->info.len = (uint32_t)destlen_z;
-	return (rval);
-}
+struct mkuz_blk *mkuz_blk_ctor(size_t);

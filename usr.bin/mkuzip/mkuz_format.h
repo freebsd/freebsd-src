@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2016 Maxim Sobolev <sobomax@FreeBSD.org>
+ * Copyright (c) 2016 Maxim Sobolev <sobomax@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,66 +22,18 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#define DEFINE_RAW_METHOD(func, rval, args...) typedef rval (*func##_t)(args)
 
-#include <sys/param.h>
-#include <err.h>
-#include <stdint.h>
+DEFINE_RAW_METHOD(f_init, void *, uint32_t);
+DEFINE_RAW_METHOD(f_compress, struct mkuz_blk *, void *, const struct mkuz_blk *);
 
-#include <zlib.h>
-
-#include "mkuzip.h"
-#include "mkuz_zlib.h"
-#include "mkuz_blk.h"
-
-struct mkuz_zlib {
-	uLongf oblen;
-	uint32_t blksz;
+struct mkuz_format {
+        const char *magic;
+        const char *default_sufx;
+        f_init_t f_init;
+        f_compress_t f_compress;
 };
-
-void *
-mkuz_zlib_init(uint32_t blksz)
-{
-	struct mkuz_zlib *zp;
-
-	if (blksz % DEV_BSIZE != 0) {
-		errx(1, "cluster size should be multiple of %d",
-		    DEV_BSIZE);
-		/* Not reached */
-	}
-	if (compressBound(blksz) > MAXPHYS) {
-		errx(1, "cluster size is too large");
-		/* Not reached */
-	}
-	zp = mkuz_safe_zmalloc(sizeof(struct mkuz_zlib));
-	zp->oblen = compressBound(blksz);
-	zp->blksz = blksz;
-
-	return (void *)zp;
-}
-
-struct mkuz_blk *
-mkuz_zlib_compress(void *p, const struct mkuz_blk *iblk)
-{
-	uLongf destlen_z;
-	struct mkuz_blk *rval;
-	struct mkuz_zlib *zp;
-
-	zp = (struct mkuz_zlib *)p;
-
-	rval = mkuz_blk_ctor(zp->oblen);
-
-	destlen_z = rval->alen;
-	if (compress2(rval->data, &destlen_z, iblk->data, zp->blksz,
-	    Z_BEST_COMPRESSION) != Z_OK) {
-		errx(1, "can't compress data: compress2() "
-		    "failed");
-		/* Not reached */
-	}
-
-	rval->info.len = (uint32_t)destlen_z;
-	return (rval);
-}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2016 Maxim Sobolev <sobomax@FreeBSD.org>
+ * Copyright (c) 2016 Maxim Sobolev <sobomax@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,66 +22,31 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+struct mkuz_fifo_queue;
 
-#include <sys/param.h>
-#include <err.h>
-#include <stdint.h>
+#define ITEMS_PER_WORKER	4
 
-#include <zlib.h>
+#define MAX_WORKERS_AUTO	24
 
-#include "mkuzip.h"
-#include "mkuz_zlib.h"
-#include "mkuz_blk.h"
+struct mkuz_conveyor {
+    /*
+     * Work items are places in here, and picked up by workers in a FIFO
+     * fashion.
+     */
+    struct mkuz_fifo_queue *wrk_queue;
+    /*
+     * Results are dropped into this FIFO and consumer is buzzed to pick them
+     * up
+     */
+    struct mkuz_fifo_queue *results;
 
-struct mkuz_zlib {
-	uLongf oblen;
-	uint32_t blksz;
+    pthread_t wthreads[];
 };
 
-void *
-mkuz_zlib_init(uint32_t blksz)
-{
-	struct mkuz_zlib *zp;
+struct mkuz_cfg;
 
-	if (blksz % DEV_BSIZE != 0) {
-		errx(1, "cluster size should be multiple of %d",
-		    DEV_BSIZE);
-		/* Not reached */
-	}
-	if (compressBound(blksz) > MAXPHYS) {
-		errx(1, "cluster size is too large");
-		/* Not reached */
-	}
-	zp = mkuz_safe_zmalloc(sizeof(struct mkuz_zlib));
-	zp->oblen = compressBound(blksz);
-	zp->blksz = blksz;
-
-	return (void *)zp;
-}
-
-struct mkuz_blk *
-mkuz_zlib_compress(void *p, const struct mkuz_blk *iblk)
-{
-	uLongf destlen_z;
-	struct mkuz_blk *rval;
-	struct mkuz_zlib *zp;
-
-	zp = (struct mkuz_zlib *)p;
-
-	rval = mkuz_blk_ctor(zp->oblen);
-
-	destlen_z = rval->alen;
-	if (compress2(rval->data, &destlen_z, iblk->data, zp->blksz,
-	    Z_BEST_COMPRESSION) != Z_OK) {
-		errx(1, "can't compress data: compress2() "
-		    "failed");
-		/* Not reached */
-	}
-
-	rval->info.len = (uint32_t)destlen_z;
-	return (rval);
-}
+struct mkuz_conveyor *mkuz_conveyor_ctor(struct mkuz_cfg *);
