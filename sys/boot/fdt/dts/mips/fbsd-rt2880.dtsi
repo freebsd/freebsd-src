@@ -1,13 +1,9 @@
 /* $FreeBSD$ */
 
 / {
-
-	/*
-	 * FreeBSD's stdin and stdout, so we can have a console
-	 */
-	chosen {
-		stdin = &uartlite;
-		stdout = &uartlite;
+	/* Specify alias for serial0 so we have a working console */
+	aliases {
+		serial0 = "/palmbus@300000/uartlite@c00";
 	};
 
 	/*
@@ -16,18 +12,5 @@
 	clkctrl: cltctrl {
 		compatible = "ralink,rt2880-clock";
 		#clock-cells = <1>;
-	};
-
-	palmbus@300000 {
-		/*
-		 * Make palmbus compatible to our simplebus
-		 */
-		compatible = "simple-bus";
-
-		/*
-		 * Reference uartlite@c00 as uartlite, so we can address it
-		 * within the chosen node above
-		 */
-		uartlite: uartlite@c00 {};
 	};
 };

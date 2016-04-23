@@ -1,13 +1,9 @@
 /* $FreeBSD$ */
 
 / {
-
-	/*
-	 * FreeBSD's stdin and stdout, so we can have a console
-	 */
-	chosen {
-		stdin = &uartlite;
-		stdout = &uartlite;
+	/* Specify alias for serial0 so we have a working console */
+	aliases {
+		serial0 = "/palmbus@1E000000/uartlite@c00";
 	};
 
 	/*
@@ -18,33 +14,8 @@
 		#clock-cells = <1>;
 	};
 
-	gic: interrupt-controller@1fbc0000 {
-		/*
-		 * OpenWRT does not define the GIC interrupt, but we need it
-		 * for now, at least until we re-work our GIC driver
-		 */
-		interrupt-parent = <&cpuintc>;
-		interrupts = <2>;
-	};
-
 	palmbus@1E000000 {
-		/*
-		 * Make palmbus compatible to our simplebus
-		 */
-		compatible = "simple-bus";
-
-		/*
-		 * Reference uartlite@c00 as uartlite, so we can address it
-		 * within the chosen node above
-		 */
-		uartlite: uartlite@c00 {
-			/*
-			 * Mark uartlite as compatible to mtk,ns16550a instead
-			 * of simply ns16550a so we can autodetect the UART
-			 * clock
-			 */
-			compatible = "mtk,ns16550a";
-		};
+		uartlite@c00 { clock-frequency = <50000000>; };
 
 		gpio@600 {
 			/*
@@ -62,17 +33,17 @@
 
 			gpio0: bank@0 {
 				reg = <0x0 0x100>;
-				interrupts = <GIC_SHARED 6 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <0 6 4>;
 			};
 
 			gpio1: bank@1 {
 				reg = <0x0 0x100>;
-				interrupts = <GIC_SHARED 6 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <0 6 4>;
 			};
 
 			gpio2: bank@2 {
 				reg = <0x0 0x100>;
-				interrupts = <GIC_SHARED 6 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <0 6 4>;
 			};
 		};
 	};
