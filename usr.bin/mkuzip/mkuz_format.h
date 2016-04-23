@@ -26,8 +26,6 @@
  * $FreeBSD$
  */
 
-#define DEFINE_RAW_METHOD(func, rval, args...) typedef rval (*func##_t)(args)
-
 DEFINE_RAW_METHOD(f_init, void *, uint32_t);
 DEFINE_RAW_METHOD(f_compress, struct mkuz_blk *, void *, const struct mkuz_blk *);
 
