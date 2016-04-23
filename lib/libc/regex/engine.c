@@ -154,7 +154,7 @@ matcher(struct re_guts *g,
 	int eflags)
 {
 	const char *endp;
-	int i;
+	size_t i;
 	struct match mv;
 	struct match *m = &mv;
 	const char *dp = NULL;
@@ -1108,7 +1108,7 @@ print(struct match *m,
 	FILE *d)
 {
 	struct re_guts *g = m->g;
-	int i;
+	sopno i;
 	int first = 1;
 
 	if (!(m->eflags&REG_TRACE))
