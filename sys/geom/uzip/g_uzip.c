@@ -102,10 +102,9 @@ SYSCTL_UINT(_kern_geom_uzip, OID_AUTO, debug_block, CTLFLAG_RWTUN,
 		printf a; \
 	}
 #define	DPRINTF_BRNG(lvl, bcn, ecn, a) \
-	if (bcn >= ecn) { \
-		printf("DPRINTF_BRNG: invalid range (%ju, %ju), BUG BUG " \
-		    "BUG!\n", (uintmax_t)bcn, (uintmax_t)ecn); \
-	} else if (((lvl) <= g_uzip_debug) || \
+	KASSERT(bcn < ecn, ("DPRINTF_BRNG: invalid range (%ju, %ju)", \
+	    (uintmax_t)bcn, (uintmax_t)ecn)); \
+	if (((lvl) <= g_uzip_debug) || \
 	    BLK_IN_RANGE(g_uzip_debug_block, bcn, \
 	     (intmax_t)ecn - (intmax_t)bcn)) { \
 		printf a; \
@@ -274,9 +273,14 @@ g_uzip_request(struct g_geom *gp, struct bio *bp)
 		bp2->bio_length = TLEN_2_BLEN(sc, pp, bp2, end_blk - 1);
 		if (bp2->bio_length <= MAXPHYS)
 			break;
-
+		if (end_blk == (start_blk + 1)) {
+			break;
+		}
 		end_blk--;
 	}
+
+	DPRINTF(GUZ_DBG_IO, ("%s/%s: bp2->bio_length = %jd\n",
+	    __func__, gp->name, (intmax_t)bp2->bio_length));
 
 	bp2->bio_data = malloc(bp2->bio_length, M_GEOM_UZIP, M_NOWAIT);
 	if (bp2->bio_data == NULL) {
