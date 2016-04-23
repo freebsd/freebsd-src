@@ -113,7 +113,7 @@ struct nfsclient {
  * Structure for an NFSv4.1 session.
  * Locking rules for this structure.
  * To add/delete one of these structures from the lists, you must lock
- * both: NFSLOCKSESSION(session hashhead) and NFSLOCKSTATE() in that order.
+ * both: NFSLOCKSTATE() and NFSLOCKSESSION(session hashhead) in that order.
  * To traverse the lists looking for one of these, you must hold one
  * of these two locks.
  * The exception is if the thread holds the exclusive root sleep lock.
