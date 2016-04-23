@@ -27,61 +27,19 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <err.h>
 #include <stdint.h>
-
-#include <zlib.h>
+#include <stdlib.h>
 
 #include "mkuzip.h"
-#include "mkuz_zlib.h"
 #include "mkuz_blk.h"
 
-struct mkuz_zlib {
-	uLongf oblen;
-	uint32_t blksz;
-};
-
-void *
-mkuz_zlib_init(uint32_t blksz)
-{
-	struct mkuz_zlib *zp;
-
-	if (blksz % DEV_BSIZE != 0) {
-		errx(1, "cluster size should be multiple of %d",
-		    DEV_BSIZE);
-		/* Not reached */
-	}
-	if (compressBound(blksz) > MAXPHYS) {
-		errx(1, "cluster size is too large");
-		/* Not reached */
-	}
-	zp = mkuz_safe_zmalloc(sizeof(struct mkuz_zlib));
-	zp->oblen = compressBound(blksz);
-	zp->blksz = blksz;
-
-	return (void *)zp;
-}
-
 struct mkuz_blk *
-mkuz_zlib_compress(void *p, const struct mkuz_blk *iblk)
+mkuz_blk_ctor(size_t blen)
 {
-	uLongf destlen_z;
-	struct mkuz_blk *rval;
-	struct mkuz_zlib *zp;
+    struct mkuz_blk *rval;
 
-	zp = (struct mkuz_zlib *)p;
-
-	rval = mkuz_blk_ctor(zp->oblen);
-
-	destlen_z = rval->alen;
-	if (compress2(rval->data, &destlen_z, iblk->data, zp->blksz,
-	    Z_BEST_COMPRESSION) != Z_OK) {
-		errx(1, "can't compress data: compress2() "
-		    "failed");
-		/* Not reached */
-	}
-
-	rval->info.len = (uint32_t)destlen_z;
-	return (rval);
+    rval = mkuz_safe_zmalloc(sizeof(struct mkuz_blk) + blen);
+    rval->alen = blen;
+    rval->br_offset = OFFSET_UNDEF;
+    return (rval);
 }
