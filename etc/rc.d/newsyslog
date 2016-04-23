@@ -9,6 +9,7 @@
 . /etc/rc.subr
 
 name="newsyslog"
+desc="Logfile rotation"
 rcvar="newsyslog_enable"
 required_files="/etc/newsyslog.conf"
 command="/usr/sbin/${name}"

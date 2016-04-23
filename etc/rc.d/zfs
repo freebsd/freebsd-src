@@ -9,6 +9,7 @@
 . /etc/rc.subr
 
 name="zfs"
+desc="Mount and share ZFS datasets"
 rcvar="zfs_enable"
 start_cmd="zfs_start"
 stop_cmd="zfs_stop"

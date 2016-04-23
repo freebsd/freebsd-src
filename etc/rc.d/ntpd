@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="ntpd"
+desc="Network Time Protocol daemon"
 rcvar="ntpd_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"

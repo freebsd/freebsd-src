@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="ypbind"
+desc="NIS domain binding daemon"
 rcvar="nis_client_enable"
 
 load_rc_config $name

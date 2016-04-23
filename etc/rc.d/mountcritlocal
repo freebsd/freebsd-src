@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="mountcritlocal"
+desc="Mount critical local filesystems"
 start_cmd="mountcritlocal_start"
 stop_cmd=sync
 
@@ -28,7 +29,7 @@ mountcritlocal_start()
 	esac
 
 	# Mount everything except nfs filesystems.
-	check_startmsgs && echo -n 'Mounting local file systems:'
+	check_startmsgs && echo -n 'Mounting local filesystems:'
 	mount_excludes='no'
 	for i in ${netfs_types}; do
 		fstype=${i%:*}

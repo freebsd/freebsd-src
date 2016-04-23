@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="ugidfw"
+desc="Firewall-like access controls for file system objects"
 rcvar="ugidfw_enable"
 start_cmd="ugidfw_start"
 stop_cmd="ugidfw_stop"

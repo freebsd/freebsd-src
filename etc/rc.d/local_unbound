@@ -11,7 +11,7 @@
 . /etc/rc.subr
 
 name="local_unbound"
-desc="local caching forwarding resolver"
+desc="Local caching forwarding resolver"
 rcvar="local_unbound_enable"
 
 command="/usr/sbin/unbound"

@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="hcsecd"
+desc="Control link keys and PIN codes for Bluetooth devices"
 rcvar="hcsecd_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"

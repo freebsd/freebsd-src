@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="yppasswdd"
+desc="Server for updating NIS passwords"
 rcvar="nis_yppasswdd_enable"
 
 load_rc_config $name

@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="root"
+desc="Mount root filesystem read/write"
 start_cmd="root_start"
 stop_cmd=":"
 

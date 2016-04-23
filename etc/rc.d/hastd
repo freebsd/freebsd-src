@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="hastd"
+desc="Highly Available Storage daemon"
 rcvar="hastd_enable"
 pidfile="/var/run/${name}.pid"
 command="/sbin/${name}"

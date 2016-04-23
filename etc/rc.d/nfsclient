@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="nfsclient"
+desc="NFS client setup"
 rcvar="nfs_client_enable"
 start_cmd="nfsclient_start"
 stop_cmd="unmount_all"

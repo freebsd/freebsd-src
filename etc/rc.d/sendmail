@@ -15,6 +15,7 @@
 . /etc/rc.subr
 
 name="sendmail"
+desc="Electronic mail transport agent"
 rcvar="sendmail_enable"
 required_files="/etc/mail/${name}.cf"
 start_precmd="sendmail_precmd"

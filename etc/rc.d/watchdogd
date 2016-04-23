@@ -34,6 +34,7 @@
 . /etc/rc.subr
 
 name="watchdogd"
+desc="Watchdog daemon"
 rcvar="watchdogd_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"

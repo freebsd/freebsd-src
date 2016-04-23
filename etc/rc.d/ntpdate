@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="ntpdate"
+desc="Set the date and time via NTP"
 rcvar="ntpdate_enable"
 stop_cmd=":"
 start_cmd="ntpdate_start"

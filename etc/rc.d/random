@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="random"
+desc="Harvest and save entropy for random device"
 start_cmd="random_start"
 stop_cmd="random_stop"
 

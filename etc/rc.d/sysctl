@@ -8,6 +8,7 @@
 . /etc/rc.subr
 
 name="sysctl"
+desc="Set sysctl variables from /etc/sysctl.conf and /etc/sysctl.conf.local"
 command="/sbin/sysctl"
 stop_cmd=":"
 start_cmd="sysctl_start"

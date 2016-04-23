@@ -33,6 +33,7 @@
 . /etc/rc.subr
 
 name="nisdomain"
+desc="Set NIS domain name"
 start_cmd="nisdomain_start"
 stop_cmd=":"
 

@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="fsck"
+desc="Run file system checks"
 start_cmd="fsck_start"
 stop_cmd=":"
 

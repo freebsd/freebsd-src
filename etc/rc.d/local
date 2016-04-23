@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="local"
+desc="Run /etc/rc.local and /etc/shutdown.local"
 start_cmd="local_start"
 stop_cmd="local_stop"
 

@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="powerd"
+desc="Modify the power profile based on AC line state"
 rcvar="powerd_enable"
 command="/usr/sbin/${name}"
 stop_postcmd=powerd_poststop

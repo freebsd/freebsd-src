@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="pfsync"
+desc="Packet filter state table sychronisation interface"
 rcvar="pfsync_enable"
 start_precmd="pfsync_prestart"
 start_cmd="pfsync_start"

@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="rwhod"
+desc="System status server"
 rcvar="rwhod_enable"
 command="/usr/sbin/${name}"
 

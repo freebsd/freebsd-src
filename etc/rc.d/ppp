@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="ppp"
+desc="Point to Point Protocol"
 rcvar="ppp_enable"
 command="/usr/sbin/${name}"
 start_cmd="ppp_start"
