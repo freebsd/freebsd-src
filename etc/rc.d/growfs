@@ -41,6 +41,7 @@
 . /etc/rc.subr
 
 name="growfs"
+desc="Grow root partition to fill device"
 start_cmd="growfs_start"
 stop_cmd=":"
 rcvar="growfs_enable"

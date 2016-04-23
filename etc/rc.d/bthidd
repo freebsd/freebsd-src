@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="bthidd"
+desc="Bluetooth HID daemon"
 rcvar="bthidd_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"

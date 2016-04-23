@@ -33,6 +33,7 @@
 . /etc/rc.subr
 
 name="geli"
+desc="GELI disk encryption"
 start_precmd='[ -n "$(geli_make_list)" ]'
 start_cmd="geli_start"
 stop_cmd="geli_stop"

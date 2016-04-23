@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name=kdc
+desc="Kerberos 5 server"
 rcvar=${name}_enable
 start_precmd=${name}_start_precmd
 

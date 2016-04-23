@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="devfs"
+desc="Device filesystem"
 start_cmd='devfs_start'
 stop_cmd=':'
 
