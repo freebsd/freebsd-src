@@ -539,13 +539,8 @@ main(int argc, char **argv)
 		(void)setenv("inetd_dummy", dummy, 1);
 	}
 
-	if (pipe(signalpipe) != 0) {
+	if (pipe2(signalpipe, O_CLOEXEC) != 0) {
 		syslog(LOG_ERR, "pipe: %m");
-		exit(EX_OSERR);
-	}
-	if (fcntl(signalpipe[0], F_SETFD, FD_CLOEXEC) < 0 ||
-	    fcntl(signalpipe[1], F_SETFD, FD_CLOEXEC) < 0) {
-		syslog(LOG_ERR, "signalpipe: fcntl (F_SETFD, FD_CLOEXEC): %m");
 		exit(EX_OSERR);
 	}
 	FD_SET(signalpipe[0], &allsock);
@@ -1256,19 +1251,14 @@ setup(struct servtab *sep)
 {
 	int on = 1;
 
-	if ((sep->se_fd = socket(sep->se_family, sep->se_socktype, 0)) < 0) {
+	/* Set all listening sockets to close-on-exec. */
+	if ((sep->se_fd = socket(sep->se_family,
+	    sep->se_socktype | SOCK_CLOEXEC, 0)) < 0) {
 		if (debug)
 			warn("socket failed on %s/%s",
 				sep->se_service, sep->se_proto);
 		syslog(LOG_ERR, "%s/%s: socket: %m",
 		    sep->se_service, sep->se_proto);
-		return;
-	}
-	/* Set all listening sockets to close-on-exec. */
-	if (fcntl(sep->se_fd, F_SETFD, FD_CLOEXEC) < 0) {
-		syslog(LOG_ERR, "%s/%s: fcntl (F_SETFD, FD_CLOEXEC): %m",
-		    sep->se_service, sep->se_proto);
-		close(sep->se_fd);
 		return;
 	}
 #define	turnon(fd, opt) \
