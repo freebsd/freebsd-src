@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="cron"
+desc="Daemon to execute scheduled commands"
 rcvar="cron_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"

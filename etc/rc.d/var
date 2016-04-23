@@ -35,6 +35,7 @@
 . /etc/rc.subr
 
 name="var"
+desc="Populate /var directory"
 stop_cmd=':'
 
 load_rc_config $name

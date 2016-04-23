@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="hostapd"
+desc="Authenticator for IEEE 802.11 networks"
 command="/usr/sbin/${name}"
 
 ifn="$2"
