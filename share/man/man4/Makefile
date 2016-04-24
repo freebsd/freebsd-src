@@ -662,6 +662,8 @@ MLINKS+=lp.4 plip.4
 MLINKS+=malo.4 if_malo.4
 MLINKS+=md.4 vn.4
 MLINKS+=mem.4 kmem.4
+MLINKS+=mfi.4 mfi_linux.4 \
+	mfi.4 mfip.4
 MLINKS+=mlx5en.4 mce.4
 MLINKS+=mn.4 if_mn.4
 MLINKS+=mos.4 if_mos.4
