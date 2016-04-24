@@ -1868,7 +1868,7 @@ softdep_move_dependencies(oldbp, newbp)
 		if (wk->wk_type == D_BMSAFEMAP &&
 		    bmsafemap_backgroundwrite(WK_BMSAFEMAP(wk), newbp))
 			dirty = 1;
-		if (wktail == 0)
+		if (wktail == NULL)
 			LIST_INSERT_HEAD(&newbp->b_dep, wk, wk_list);
 		else
 			LIST_INSERT_AFTER(wktail, wk, wk_list);
@@ -6667,7 +6667,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 		}
 	}
 	if ((flags & IO_EXT) != 0)
-		while ((adp = TAILQ_FIRST(&inodedep->id_extupdt)) != 0)
+		while ((adp = TAILQ_FIRST(&inodedep->id_extupdt)) != NULL)
 			cancel_allocdirect(&inodedep->id_extupdt, adp,
 			    freeblks);
 	/*
@@ -6919,14 +6919,14 @@ softdep_setup_freeblocks(ip, length, flags)
 	if (flags & IO_NORMAL) {
 		merge_inode_lists(&inodedep->id_newinoupdt,
 		    &inodedep->id_inoupdt);
-		while ((adp = TAILQ_FIRST(&inodedep->id_inoupdt)) != 0)
+		while ((adp = TAILQ_FIRST(&inodedep->id_inoupdt)) != NULL)
 			cancel_allocdirect(&inodedep->id_inoupdt, adp,
 			    freeblks);
 	}
 	if (flags & IO_EXT) {
 		merge_inode_lists(&inodedep->id_newextupdt,
 		    &inodedep->id_extupdt);
-		while ((adp = TAILQ_FIRST(&inodedep->id_extupdt)) != 0)
+		while ((adp = TAILQ_FIRST(&inodedep->id_extupdt)) != NULL)
 			cancel_allocdirect(&inodedep->id_extupdt, adp,
 			    freeblks);
 	}
@@ -8041,8 +8041,8 @@ indir_trunc(freework, dbn, lbn)
 	struct fs *fs;
 	struct indirdep *indirdep;
 	struct ufsmount *ump;
-	ufs1_daddr_t *bap1 = 0;
-	ufs2_daddr_t nb, nnb, *bap2 = 0;
+	ufs1_daddr_t *bap1;
+	ufs2_daddr_t nb, nnb, *bap2;
 	ufs_lbn_t lbnadd, nlbn;
 	int i, nblocks, ufs1fmt;
 	int freedblocks;
@@ -8125,10 +8125,12 @@ indir_trunc(freework, dbn, lbn)
 		bap1 = (ufs1_daddr_t *)bp->b_data;
 		nb = bap1[freework->fw_off];
 		ufs1fmt = 1;
+		bap2 = NULL;
 	} else {
 		bap2 = (ufs2_daddr_t *)bp->b_data;
 		nb = bap2[freework->fw_off];
 		ufs1fmt = 0;
+		bap1 = NULL;
 	}
 	level = lbn_level(lbn);
 	needj = MOUNTEDSUJ(UFSTOVFS(ump)) != 0;
@@ -8303,7 +8305,7 @@ setup_newdir(dap, newinum, dinum, newdirbp, mkdirp)
 	struct newblk *newblk;
 	struct pagedep *pagedep;
 	struct inodedep *inodedep;
-	struct newdirblk *newdirblk = 0;
+	struct newdirblk *newdirblk;
 	struct mkdir *mkdir1, *mkdir2;
 	struct worklist *wk;
 	struct jaddref *jaddref;
@@ -8430,7 +8432,7 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 	struct newblk *newblk;
 	struct pagedep *pagedep;
 	struct inodedep *inodedep;
-	struct newdirblk *newdirblk = 0;
+	struct newdirblk *newdirblk;
 	struct mkdir *mkdir1, *mkdir2;
 	struct jaddref *jaddref;
 	struct ufsmount *ump;
@@ -8462,6 +8464,7 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 	dap->da_state = ATTACHED;
 	LIST_INIT(&dap->da_jwork);
 	isindir = bp->b_lblkno >= NDADDR;
+	newdirblk = NULL;
 	if (isnewblk &&
 	    (isindir ? blkoff(fs, diroffset) : fragoff(fs, diroffset)) == 0) {
 		newdirblk = malloc(sizeof(struct newdirblk),
@@ -8552,7 +8555,7 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 		inodedep->id_mkdiradd = dap;
 	} else if (inodedep->id_mkdiradd)
 		merge_diradd(inodedep, dap);
-	if (newdirblk) {
+	if (newdirblk != NULL) {
 		/*
 		 * There is nothing to do if we are already tracking
 		 * this block.
@@ -10529,13 +10532,13 @@ cancel_indirdep(indirdep, bp, freeblks)
 	 * Pass in bp for blocks still have journal writes
 	 * pending so we can cancel them on their own.
 	 */
-	while ((aip = LIST_FIRST(&indirdep->ir_deplisthd)) != 0)
+	while ((aip = LIST_FIRST(&indirdep->ir_deplisthd)) != NULL)
 		cancel_allocindir(aip, bp, freeblks, 0);
-	while ((aip = LIST_FIRST(&indirdep->ir_donehd)) != 0)
+	while ((aip = LIST_FIRST(&indirdep->ir_donehd)) != NULL)
 		cancel_allocindir(aip, NULL, freeblks, 0);
-	while ((aip = LIST_FIRST(&indirdep->ir_writehd)) != 0)
+	while ((aip = LIST_FIRST(&indirdep->ir_writehd)) != NULL)
 		cancel_allocindir(aip, NULL, freeblks, 0);
-	while ((aip = LIST_FIRST(&indirdep->ir_completehd)) != 0)
+	while ((aip = LIST_FIRST(&indirdep->ir_completehd)) != NULL)
 		cancel_allocindir(aip, NULL, freeblks, 0);
 	/*
 	 * If there are pending partial truncations we need to keep the
@@ -11565,7 +11568,7 @@ handle_written_indirdep(indirdep, bp, bpp)
 	 * the indirdep's pointer is not yet written.  Otherwise
 	 * free them here.
 	 */
-	while ((aip = LIST_FIRST(&indirdep->ir_writehd)) != 0) {
+	while ((aip = LIST_FIRST(&indirdep->ir_writehd)) != NULL) {
 		LIST_REMOVE(aip, ai_next);
 		if ((indirdep->ir_state & DEPCOMPLETE) == 0) {
 			LIST_INSERT_HEAD(&indirdep->ir_completehd, aip,
@@ -11580,7 +11583,7 @@ handle_written_indirdep(indirdep, bp, bpp)
 	 * the done list to the write list after updating the pointers.
 	 */
 	if (TAILQ_EMPTY(&indirdep->ir_trunc)) {
-		while ((aip = LIST_FIRST(&indirdep->ir_donehd)) != 0) {
+		while ((aip = LIST_FIRST(&indirdep->ir_donehd)) != NULL) {
 			handle_allocindir_partdone(aip);
 			if (aip == LIST_FIRST(&indirdep->ir_donehd))
 				panic("disk_write_complete: not gone");
