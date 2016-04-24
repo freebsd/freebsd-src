@@ -582,8 +582,8 @@ vnet_sysuninit(void)
 	VNET_SYSINIT_RLOCK();
 	TAILQ_FOREACH_REVERSE(vs, &vnet_destructors, vnet_sysuninit_head,
 	    link) {
-		vs->func(vs->arg);
 		curvnet->vnet_state = vs->subsystem;
+		vs->func(vs->arg);
 	}
 	VNET_SYSINIT_RUNLOCK();
 }
