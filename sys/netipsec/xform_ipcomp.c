@@ -47,7 +47,10 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
+#include <netinet/ip_encap.h>
 
+#include <net/netisr.h>
+#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netipsec/ipsec.h>
@@ -97,6 +100,75 @@ ipcomp_algorithm_lookup(int alg)
 	}
 	return NULL;
 }
+
+#if defined(INET) || defined(INET6)
+/*
+ * RFC 3173 p 2.2. Non-Expansion Policy:
+ * If the total size of a compressed payload and the IPComp header, as
+ * defined in section 3, is not smaller than the size of the original
+ * payload, the IP datagram MUST be sent in the original non-compressed
+ * form.
+ *
+ * When we use IPComp in tunnel mode, for small packets we will receive
+ * encapsulated IP-IP datagrams without any compression and without IPComp
+ * header.
+ */
+static int
+ipcomp_encapcheck(union sockaddr_union *src, union sockaddr_union *dst)
+{
+	struct secasvar *sav;
+
+	sav = KEY_ALLOCSA_TUNNEL(src, dst, IPPROTO_IPCOMP);
+	if (sav == NULL)
+		return (0);
+	KEY_FREESAV(&sav);
+
+	if (src->sa.sa_family == AF_INET)
+		return (sizeof(struct in_addr) << 4);
+	else
+		return (sizeof(struct in6_addr) << 4);
+}
+
+static int
+ipcomp_nonexp_input(struct mbuf **mp, int *offp, int proto)
+{
+	int isr;
+
+	switch (proto) {
+#ifdef INET
+	case IPPROTO_IPV4:
+		isr = NETISR_IP;
+		break;
+#endif
+#ifdef INET6
+	case IPPROTO_IPV6:
+		isr = NETISR_IPV6;
+		break;
+#endif
+	default:
+		IPCOMPSTAT_INC(ipcomps_nopf);
+		m_freem(*mp);
+		return (IPPROTO_DONE);
+	}
+	m_adj(*mp, *offp);
+	IPCOMPSTAT_ADD(ipcomps_ibytes, (*mp)->m_pkthdr.len);
+	IPCOMPSTAT_INC(ipcomps_input);
+	netisr_dispatch(isr, *mp);
+	return (IPPROTO_DONE);
+}
+
+extern struct domain inetdomain;
+static struct protosw ipcomp_protosw = {
+	.pr_type =	SOCK_RAW,
+	.pr_domain =	&inetdomain,
+	.pr_protocol =	0 /* IPPROTO_IPV[46] */,
+	.pr_flags =	PR_ATOMIC | PR_ADDR | PR_LASTHDR,
+	.pr_input =	ipcomp_nonexp_input,
+	.pr_output =	rip_output,
+	.pr_ctloutput =	rip_ctloutput,
+	.pr_usrreqs =	&rip_usrreqs
+};
+#endif /* INET || INET6 */
 
 /*
  * ipcomp_init() is called when an CPI is being set up.
@@ -628,11 +700,75 @@ static struct xformsw ipcomp_xformsw = {
 	ipcomp_output
 };
 
+#ifdef INET
+static const struct encaptab *ipe4_cookie = NULL;
+static int
+ipcomp4_nonexp_encapcheck(const struct mbuf *m, int off, int proto,
+    void *arg __unused)
+{
+	union sockaddr_union src, dst;
+	const struct ip *ip;
+
+	if (V_ipcomp_enable == 0)
+		return (0);
+	bzero(&src, sizeof(src));
+	bzero(&dst, sizeof(dst));
+	src.sa.sa_family = dst.sa.sa_family = AF_INET;
+	src.sin.sin_len = dst.sin.sin_len = sizeof(struct sockaddr_in);
+	ip = mtod(m, const struct ip *);
+	src.sin.sin_addr = ip->ip_src;
+	dst.sin.sin_addr = ip->ip_dst;
+	return (ipcomp_encapcheck(&src, &dst));
+}
+#endif
+#ifdef INET6
+static const struct encaptab *ipe6_cookie = NULL;
+static int
+ipcomp6_nonexp_encapcheck(const struct mbuf *m, int off, int proto,
+    void *arg __unused)
+{
+	union sockaddr_union src, dst;
+	const struct ip6_hdr *ip6;
+
+	if (V_ipcomp_enable == 0)
+		return (0);
+	bzero(&src, sizeof(src));
+	bzero(&dst, sizeof(dst));
+	src.sa.sa_family = dst.sa.sa_family = AF_INET;
+	src.sin6.sin6_len = dst.sin6.sin6_len = sizeof(struct sockaddr_in6);
+	ip6 = mtod(m, const struct ip6_hdr *);
+	src.sin6.sin6_addr = ip6->ip6_src;
+	dst.sin6.sin6_addr = ip6->ip6_dst;
+	if (IN6_IS_SCOPE_LINKLOCAL(&src.sin6.sin6_addr)) {
+		/* XXX: sa6_recoverscope() */
+		src.sin6.sin6_scope_id =
+		    ntohs(src.sin6.sin6_addr.s6_addr16[1]);
+		src.sin6.sin6_addr.s6_addr16[1] = 0;
+	}
+	if (IN6_IS_SCOPE_LINKLOCAL(&dst.sin6.sin6_addr)) {
+		/* XXX: sa6_recoverscope() */
+		dst.sin6.sin6_scope_id =
+		    ntohs(dst.sin6.sin6_addr.s6_addr16[1]);
+		dst.sin6.sin6_addr.s6_addr16[1] = 0;
+	}
+	return (ipcomp_encapcheck(&src, &dst));
+}
+#endif
+
 static void
 ipcomp_attach(void)
 {
 
+#ifdef INET
+	ipe4_cookie = encap_attach_func(AF_INET, IPPROTO_IPV4,
+	    ipcomp4_nonexp_encapcheck, &ipcomp_protosw, NULL);
+#endif
+#ifdef INET6
+	ipe6_cookie = encap_attach_func(AF_INET6, IPPROTO_IPV6,
+	    ipcomp6_nonexp_encapcheck, &ipcomp_protosw, NULL);
+#endif
 	xform_register(&ipcomp_xformsw);
 }
 
-SYSINIT(ipcomp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ipcomp_attach, NULL);
+SYSINIT(ipcomp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,
+    ipcomp_attach, NULL);

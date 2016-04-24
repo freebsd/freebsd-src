@@ -1158,6 +1158,66 @@ done:
 	return sav;
 }
 
+struct secasvar *
+key_allocsa_tunnel(union sockaddr_union *src, union sockaddr_union *dst,
+    u_int proto, const char* where, int tag)
+{
+	struct secashead *sah;
+	struct secasvar *sav;
+	u_int stateidx, arraysize, state;
+	const u_int *saorder_state_valid;
+
+	IPSEC_ASSERT(src != NULL, ("null src address"));
+	IPSEC_ASSERT(dst != NULL, ("null dst address"));
+	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
+		printf("DP %s from %s:%u\n", __func__, where, tag));
+
+	SAHTREE_LOCK();
+	if (V_key_preferred_oldsa) {
+		saorder_state_valid = saorder_state_valid_prefer_old;
+		arraysize = _ARRAYLEN(saorder_state_valid_prefer_old);
+	} else {
+		saorder_state_valid = saorder_state_valid_prefer_new;
+		arraysize = _ARRAYLEN(saorder_state_valid_prefer_new);
+	}
+	LIST_FOREACH(sah, &V_sahtree, chain) {
+		/* search valid state */
+		for (stateidx = 0; stateidx < arraysize; stateidx++) {
+			state = saorder_state_valid[stateidx];
+			LIST_FOREACH(sav, &sah->savtree[state], chain) {
+				/* sanity check */
+				KEY_CHKSASTATE(sav->state, state, __func__);
+				/* do not return entries w/ unusable state */
+				if (sav->state != SADB_SASTATE_MATURE &&
+				    sav->state != SADB_SASTATE_DYING)
+					continue;
+				if (IPSEC_MODE_TUNNEL != sav->sah->saidx.mode)
+					continue;
+				if (proto != sav->sah->saidx.proto)
+					continue;
+				/* check src address */
+				if (key_sockaddrcmp(&src->sa,
+				    &sav->sah->saidx.src.sa, 0) != 0)
+					continue;
+				/* check dst address */
+				if (key_sockaddrcmp(&dst->sa,
+				    &sav->sah->saidx.dst.sa, 0) != 0)
+					continue;
+				sa_addref(sav);
+				goto done;
+			}
+		}
+	}
+	sav = NULL;
+done:
+	SAHTREE_UNLOCK();
+
+	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
+		printf("DP %s return SA:%p; refcnt %u\n", __func__,
+			sav, sav ? sav->refcnt : 0));
+	return (sav);
+}
+
 /*
  * Must be called after calling key_allocsp().
  * For both the packet without socket and key_freeso().
