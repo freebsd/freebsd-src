@@ -217,7 +217,7 @@ static void
 closedisk(const char *devnam)
 {
 	struct csum *cgsum;
-	int i;
+	u_int i;
 
 	/*
 	 * Recompute the fs summary info from correct cs summaries.
@@ -2252,7 +2252,7 @@ suj_build(void)
 	struct suj_seg *seg;
 	union jrec *rec;
 	int off;
-	int i;
+	u_int i;
 
 	TAILQ_FOREACH(seg, &allsegs, ss_next) {
 		if (debug)
@@ -2540,10 +2540,10 @@ suj_read(void)
 	struct jsegrec *rec;
 	ufs2_daddr_t blk;
 	int readsize;
-	int blocks;
+	u_int blocks;
 	int recsize;
 	int size;
-	int i;
+	u_int i;
 
 	/*
 	 * Read records until we exhaust the journal space.  If we find
