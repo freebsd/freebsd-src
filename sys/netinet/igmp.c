@@ -3592,6 +3592,15 @@ igmp_rec_type_to_str(const int type)
 }
 #endif
 
+static void
+vnet_igmp_init(const void *unused __unused)
+{
+
+	netisr_register(&igmp_nh);
+}
+VNET_SYSINIT(vnet_igmp_init, SI_SUB_PROTO_MC, SI_ORDER_ANY,
+    vnet_igmp_init, NULL);
+
 #ifdef VIMAGE
 static void
 vnet_igmp_uninit(const void *unused __unused)
@@ -3599,6 +3608,8 @@ vnet_igmp_uninit(const void *unused __unused)
 
 	/* This can happen when we shutdown the entire network stack. */
 	CTR1(KTR_IGMPV3, "%s: tearing down", __func__);
+
+	netisr_unregister(&igmp_nh);
 }
 VNET_SYSUNINIT(vnet_igmp_uninit, SI_SUB_PROTO_MC, SI_ORDER_ANY,
     vnet_igmp_uninit, NULL);
@@ -3644,11 +3655,9 @@ igmp_modevent(module_t mod, int type, void *unused __unused)
 		CTR1(KTR_IGMPV3, "%s: initializing", __func__);
 		IGMP_LOCK_INIT();
 		m_raopt = igmp_ra_alloc();
-		netisr_register(&igmp_nh);
 		break;
 	case MOD_UNLOAD:
 		CTR1(KTR_IGMPV3, "%s: tearing down", __func__);
-		netisr_unregister(&igmp_nh);
 		m_free(m_raopt);
 		m_raopt = NULL;
 		IGMP_LOCK_DESTROY();
@@ -3664,4 +3673,4 @@ static moduledata_t igmp_mod = {
     igmp_modevent,
     0
 };
-DECLARE_MODULE(igmp, igmp_mod, SI_SUB_PROTO_MC, SI_ORDER_ANY);
+DECLARE_MODULE(igmp, igmp_mod, SI_SUB_PROTO_MC, SI_ORDER_MIDDLE);
