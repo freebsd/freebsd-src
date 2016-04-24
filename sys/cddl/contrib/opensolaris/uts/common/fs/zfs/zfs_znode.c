@@ -741,7 +741,9 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	if (vp->v_type != VFIFO)
 		VN_LOCK_ASHARE(vp);
 
+#ifdef illumos
 	VFS_HOLD(zfsvfs->z_vfs);
+#endif
 	return (zp);
 }
 
@@ -1426,7 +1428,9 @@ zfs_znode_free(znode_t *zp)
 
 	kmem_cache_free(znode_cache, zp);
 
+#ifdef illumos
 	VFS_RELE(zfsvfs->z_vfs);
+#endif
 }
 
 void
