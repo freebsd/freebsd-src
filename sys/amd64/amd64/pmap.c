@@ -721,7 +721,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 	pml4_entry_t *p4_p;
 
 	/* Allocate page table pages for the direct map */
-	ndmpdp = (ptoa(Maxmem) + NBPDP - 1) >> PDPSHIFT;
+	ndmpdp = howmany(ptoa(Maxmem), NBPDP);
 	if (ndmpdp < 4)		/* Minimum 4GB of dirmap */
 		ndmpdp = 4;
 	ndmpdpphys = howmany(ndmpdp, NPDPEPG);
