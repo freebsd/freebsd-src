@@ -2319,6 +2319,7 @@ static int cma_bind_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 	if (!cma_any_addr(src_addr))
 		return rdma_bind_addr(id, src_addr);
 	else {
+#if defined(INET6) || defined(INET)
 		union {
 #ifdef INET
 			struct sockaddr_in in;
@@ -2327,6 +2328,7 @@ static int cma_bind_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 			struct sockaddr_in6 in6;
 #endif
 		} addr;
+#endif
 
 		switch(dst_addr->sa_family) {
 #ifdef INET
