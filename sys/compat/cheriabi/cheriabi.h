@@ -86,12 +86,12 @@ cheriabi_cap_to_ptr(caddr_t *ptrp, struct chericap *cap, size_t reqlen,
 		if (*ptrp != NULL)
 			return (EPROT);
 	} else {
-		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-		if ((perms & reqperms) != reqperms)
-			return (EPROT);
-
 		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
 		if (sealed)
+			return (EPROT);
+
+		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+		if ((perms & reqperms) != reqperms)
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
@@ -131,13 +131,13 @@ cheriabi_pagerange_to_ptr(caddr_t *ptrp, struct chericap *cap, size_t reqlen,
 		if (*ptrp != NULL)
 			return (EPROT);
 	} else {
+		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
+		if (sealed)
+			return (EPROT);
+
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
 		reqperms = (CHERI_PERM_GLOBAL);
 		if ((perms & reqperms) != reqperms)
-			return (EPROT);
-
-		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
-		if (sealed)
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);

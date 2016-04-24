@@ -106,13 +106,13 @@ CHERIABI_SYS_mincore_fill_uap(struct thread *td,
 	if (!tag) {
 		return (EPROT);
 	} else {
+		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
+		if (sealed)
+			return (EPROT);
+
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
 		reqperms = (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD);
 		if ((perms & reqperms) != reqperms)
-			return (EPROT);
-
-		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
-		if (sealed)
 			return (EPROT);
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
@@ -264,6 +264,10 @@ CHERIABI_SYS_cheriabi_shmat_fill_uap(struct thread *td,
 		if (uap->shmaddr != NULL)
 			return (EPROT);
 	} else {
+		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
+		if (sealed)
+			return (EPROT);
+
 		/*
 		 * Don't check for any particular permissions beyond
 		 * global.  As with mmap(), we'll sort it out on the
@@ -272,10 +276,6 @@ CHERIABI_SYS_cheriabi_shmat_fill_uap(struct thread *td,
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
 		reqperms = (CHERI_PERM_GLOBAL);
 		if ((perms & reqperms) != reqperms)
-			return (EPROT);
-
-		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
-		if (sealed)
 			return (EPROT);
 
 		/*
@@ -311,16 +311,16 @@ CHERIABI_SYS_cheriabi_shmdt_fill_uap(struct thread *td,
 	if (!tag) {
 		return (EPROT);
 	} else {
+		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
+		if (sealed)
+			return (EPROT);
+
 		/*
 		 * Don't check for any particular permissions beyond global.
 		 */
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
 		reqperms = (CHERI_PERM_GLOBAL);
 		if ((perms & reqperms) != reqperms)
-			return (EPROT);
-
-		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
-		if (sealed)
 			return (EPROT);
 
 		/*
@@ -651,13 +651,13 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 		if (!tag) {
 			return (EPROT);
 		} else {
+			CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
+			if (sealed)
+				return (EPROT);
+
 			CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
 			reqperms = (CHERI_PERM_GLOBAL);
 			if ((perms & reqperms) != reqperms)
-				return (EPROT);
-
-			CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
-			if (sealed)
 				return (EPROT);
 
 			/*
