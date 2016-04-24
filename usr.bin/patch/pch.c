@@ -1142,7 +1142,7 @@ hunk_done:
 			say("Not enough memory to swap next hunk!\n");
 #ifdef DEBUGGING
 	if (debug & 2) {
-		int	i;
+		LINENUM	i;
 		char	special;
 
 		for (i = 0; i <= p_end; i++) {
@@ -1150,7 +1150,7 @@ hunk_done:
 				special = '^';
 			else
 				special = ' ';
-			fprintf(stderr, "%3d %c %c %s", i, p_char[i],
+			fprintf(stderr, "%3ld %c %c %s", i, p_char[i],
 			    special, p_line[i]);
 			fflush(stderr);
 		}
