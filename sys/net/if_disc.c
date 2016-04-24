@@ -146,7 +146,7 @@ vnet_disc_uninit(const void *unused __unused)
 
 	if_clone_detach(V_disc_cloner);
 }
-VNET_SYSUNINIT(vnet_disc_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_disc_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
     vnet_disc_uninit, NULL);
 
 static int
