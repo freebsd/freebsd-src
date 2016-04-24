@@ -222,6 +222,7 @@ le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 lidl [label="Kurt Lidl\nlidl@FreeBSD.org\n2015/10/21"]
 loos [label="Luiz Otavio O Souza\nloos@FreeBSD.org\n2013/07/03"]
 lstewart [label="Lawrence Stewart\nlstewart@FreeBSD.org\n2008/10/06"]
+manu [label="Emmanuel Vadot\nmanu@FreeBSD.org\n2016/04/24"]
 marcel [label="Marcel Moolenaar\nmarcel@FreeBSD.org\n1999/07/03"]
 marius [label="Marius Strobl\nmarius@FreeBSD.org\n2004/04/17"]
 markj [label="Mark Johnston\nmarkj@FreeBSD.org\n2012/12/18"]
@@ -358,6 +359,8 @@ alc -> davide
 
 andre -> qingli
 
+andrew -> manu
+
 anholt -> jkim
 
 avg -> art
@@ -396,6 +399,7 @@ cognet -> br
 cognet -> jceel
 cognet -> kevlo
 cognet -> ian
+cognet -> manu
 cognet -> wkoszek
 cognet -> wma
 cognet -> zbb
