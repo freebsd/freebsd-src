@@ -444,8 +444,13 @@ enqueue_mutex(struct pthread *curthread, struct pthread_mutex *m)
 	/* Add to the list of owned mutexes: */
 	mutex_assert_not_owned(m);
 	qidx = mutex_qidx(m);
-	TAILQ_INSERT_TAIL(&curthread->mq[qidx], m, m_qe);
-	if (!is_pshared_mutex(m))
+	if (TAILQ_EMPTY(&curthread->mq[qidx]))
+		TAILQ_INSERT_HEAD(&curthread->mq[qidx], m, m_qe);
+	else
+		TAILQ_INSERT_TAIL(&curthread->mq[qidx], m, m_qe);
+	if (!is_pshared_mutex(m) && TAILQ_EMPTY(&curthread->mq[qidx + 1]))
+		TAILQ_INSERT_HEAD(&curthread->mq[qidx + 1], m, m_pqe);
+	else if (!is_pshared_mutex(m))
 		TAILQ_INSERT_TAIL(&curthread->mq[qidx + 1], m, m_pqe);
 }
 
