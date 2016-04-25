@@ -20,3 +20,4 @@ options 	KTRACE
 options 	CPU_CHERI
 options 	COMPAT_CHERIABI
 options 	KSTACK_LARGE_PAGE
+options 	TMPFS

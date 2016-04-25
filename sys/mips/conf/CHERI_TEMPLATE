@@ -7,6 +7,8 @@
 options 	CPU_CHERI
 options 	COMPAT_CHERIABI
 
-options       CPU_CHERI_HW_CCALL_CHECKS
-options       CPU_CHERI_HW_RCLEAR
-options       CPU_CHERI_HW_CCLEAR
+options 	CPU_CHERI_HW_CCALL_CHECKS
+options 	CPU_CHERI_HW_RCLEAR
+options 	CPU_CHERI_HW_CCLEAR
+
+options 	TMPFS
