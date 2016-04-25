@@ -445,7 +445,7 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
 	  .ct_cp2_exccode = CHERI_EXCCODE_TLBSTORE,
-	  .ct_check_xfail = xfail_need_writable_tmp, },
+	  .ct_check_xfail = xfail_need_writable_non_tmpfs_tmp, },
 
 	{ .ct_name = "cheritest_vm_tag_tmpfile_private",
 	  .ct_desc = "check tags are stored for tmpfile() MAP_PRIVATE pages",

@@ -219,6 +219,7 @@
 
 #define	xfail_swap_required				NULL
 #define	xfail_need_writable_tmp				NULL
+#define	xfail_need_writable_non_tmpfs_tmp		NULL
 
 #ifdef CHERI_C_TESTS
 #define DECLARE_TEST(name, desc)				\
