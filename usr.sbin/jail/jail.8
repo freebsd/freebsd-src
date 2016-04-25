@@ -493,10 +493,14 @@ or
 .Xr sethostname 3 .
 .It Va allow.sysvipc
 A process within the jail has access to System V IPC primitives.
-In the current jail implementation, System V primitives share a single
-namespace across the host and jail environments, meaning that processes
-within a jail would be able to communicate with (and potentially interfere
-with) processes outside of the jail, and in other jails.
+This is deprecated in favor of the per-module parameters (see below).
+When this parameter is set, it is equivalent to setting
+.Va sysvmsg ,
+.Va sysvsem ,
+and
+.Va sysvshm
+all to
+.Dq inherit .
 .It Va allow.raw_sockets
 The jail root is allowed to create raw sockets.
 Setting this parameter allows utilities like
@@ -634,6 +638,25 @@ will give the jail it's own environment (still originally inherited when
 the jail is created).
 .It Va linux.osname , linux.osrelease , linux.oss_version
 The Linux OS name, OS release, and OSS version associated with this jail.
+.It Va sysvmsg
+Allow access to SYSV IPC message primitives.
+If set to
+.Dq inherit ,
+all IPC objects on the system are visible to this jail, whether they
+were created by the jail itself, the base system, or other jails.
+If set to
+.Dq new ,
+the jail will have its own key namespace, and can only see the objects
+that it has created;
+the system (or parent jail) has access to the jail's objects, but not to
+its keys.
+If set to
+.Dq disable ,
+the jail cannot perform any sysvmsg-related system calls.
+.It Va sysvsem, sysvmsg
+Allow access to SYSV IPC semaphore and shared memory primitives, in the
+same manner as
+.Va sysvmsg.
 .El
 .Pp
 There are pseudo-parameters that are not passed to the kernel, but are
