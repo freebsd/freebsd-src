@@ -50,7 +50,7 @@
 
 #define	cpu_getstack(td)	((td)->td_frame->tf_sp)
 #define	cpu_setstack(td, sp)	((td)->td_frame->tf_sp = (sp))
-#define	cpu_spinwait()		/* nothing */
+#define	cpu_spinwait()		__asm __volatile("yield" ::: "memory")
 
 /* Extract CPU affinity levels 0-3 */
 #define	CPU_AFF0(mpidr)	(u_int)(((mpidr) >> 0) & 0xff)
