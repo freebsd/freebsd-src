@@ -174,13 +174,10 @@ hv_vmbus_free_vmbus_channel(hv_vmbus_channel* channel)
 static void
 vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 {
-	boolean_t		f_new;
 	hv_vmbus_channel*	channel;
 	int			ret;
 	uint32_t                relid;
 
-	f_new = TRUE;
-	channel = NULL;
 	relid = new_channel->offer_msg.child_rel_id;
 	/*
 	 * Make sure this is a new offer
@@ -196,14 +193,12 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 		    sizeof(hv_guid)) == 0 &&
 		    memcmp(&channel->offer_msg.offer.interface_instance,
 		    &new_channel->offer_msg.offer.interface_instance,
-		    sizeof(hv_guid)) == 0) {
-			f_new = FALSE;
+		    sizeof(hv_guid)) == 0)
 			break;
-		}
 	}
 
-	if (f_new) {
-		/* Insert at tail */
+	if (channel == NULL) {
+		/* Install the new primary channel */
 		TAILQ_INSERT_TAIL(
 		    &hv_vmbus_g_connection.channel_anchor,
 		    new_channel,
@@ -213,7 +208,7 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 
 	/*XXX add new channel to percpu_list */
 
-	if (!f_new) {
+	if (channel != NULL) {
 		/*
 		 * Check if this is a sub channel.
 		 */
