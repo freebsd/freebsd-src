@@ -818,6 +818,7 @@ typedef struct hv_vmbus_channel {
 	 */
 	TAILQ_HEAD(, hv_vmbus_channel)	sc_list_anchor;
 	TAILQ_ENTRY(hv_vmbus_channel)	sc_list_entry;
+	int				subchan_cnt;
 
 	/*
 	 * The primary channel this sub-channle belongs to.
@@ -914,6 +915,9 @@ int		hv_vmbus_channel_teardown_gpdal(
 struct hv_vmbus_channel* vmbus_select_outgoing_channel(struct hv_vmbus_channel *promary);
 
 void		vmbus_channel_cpu_set(struct hv_vmbus_channel *chan, int cpu);
+struct hv_vmbus_channel **
+		vmbus_get_subchan(struct hv_vmbus_channel *pri_chan, int subchan_cnt);
+void		vmbus_rel_subchan(struct hv_vmbus_channel **subchan, int subchan_cnt);
 
 /**
  * @brief Get physical address from virtual
