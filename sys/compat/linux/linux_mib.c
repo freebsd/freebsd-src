@@ -153,7 +153,8 @@ linux_map_osrel(char *osrelease, int *osrel)
 	if (v < 1000000)
 		return (EINVAL);
 
-	*osrel = v;
+	if (osrel != NULL)
+		*osrel = v;
 
 	return (0);
 }
@@ -249,7 +250,7 @@ linux_prison_check(void *obj __unused, void *data)
 {
 	struct vfsoptlist *opts = data;
 	char *osname, *osrelease;
-	int error, jsys, len, osrel, oss_version;
+	int error, jsys, len, oss_version;
 
 	/* Check that the parameters are correct. */
 	error = vfs_copyopt(opts, "linux", &jsys, sizeof(jsys));
@@ -280,7 +281,7 @@ linux_prison_check(void *obj __unused, void *data)
 			vfs_opterror(opts, "linux.osrelease too long");
 			return (ENAMETOOLONG);
 		}
-		error = linux_map_osrel(osrelease, &osrel);
+		error = linux_map_osrel(osrelease, NULL);
 		if (error != 0) {
 			vfs_opterror(opts, "linux.osrelease format error");
 			return (error);
@@ -339,11 +340,7 @@ linux_prison_set(void *obj, void *data)
 		 */
 		linux_alloc_prison(pr, &lpr);
 		if (osrelease) {
-			error = linux_map_osrel(osrelease, &lpr->pr_osrel);
-			if (error) {
-				mtx_unlock(&pr->pr_mtx);
-				return (error);
-			}
+			(void)linux_map_osrel(osrelease, &lpr->pr_osrel);
 			strlcpy(lpr->pr_osrelease, osrelease,
 			    LINUX_MAX_UTSNAME);
 		}
