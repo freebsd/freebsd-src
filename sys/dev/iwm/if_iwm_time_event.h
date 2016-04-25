@@ -108,6 +108,6 @@
 #define	__IF_IWM_TIME_EVENT_H__
 
 extern	void iwm_mvm_protect_session(struct iwm_softc *sc, struct iwm_node *in,
-	    uint32_t duration, uint32_t min_duration, uint32_t max_delay);
+	    uint32_t duration, uint32_t max_delay);
 
 #endif	/* __IF_IWM_TIME_EVENT_H__ */
