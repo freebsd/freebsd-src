@@ -336,6 +336,7 @@ void	cheritest_vm_tag_tmpfile_private_prefault(const struct cheri_test *ctp
 void	cheritest_vm_cow_read(const struct cheri_test *ctp);
 void	cheritest_vm_cow_write(const struct cheri_test *ctp);
 const char	*xfail_need_writable_tmp(const char *name);
+const char	*xfail_need_writable_non_tmpfs_tmp(const char *name);
 
 /* cheritest_vm_swap.c */
 void	cheritest_vm_swap(const struct cheri_test *ctp __unused);

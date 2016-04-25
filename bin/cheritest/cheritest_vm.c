@@ -40,6 +40,7 @@
 
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/ucontext.h>
@@ -310,6 +311,20 @@ xfail_need_writable_tmp(const char *name __unused)
 	}
 	reason = "/tmp is not writable";
 	return (reason);
+}
+
+const char*
+xfail_need_writable_non_tmpfs_tmp(const char *name)
+{
+	struct statfs info;
+
+	if (statfs("/tmp", &info) != 0) {
+		cheritest_failure_err("statfs /tmp");
+	}
+	if (strcmp(info.f_fstypename, "tmpfs") == 0) {
+		return ("cheritest_vm_notag_tmpfile_shared needs non-tmpfs /tmp");
+	}
+	return (xfail_need_writable_tmp(name));
 }
 
 /*
