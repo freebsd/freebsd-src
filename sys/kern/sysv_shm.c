@@ -230,7 +230,7 @@ shm_find_segment(struct prison *rpr, int arg, bool is_shmid)
 	    (!shm_allow_removed &&
 	    (shmseg->u.shm_perm.mode & SHMSEG_REMOVED) != 0) ||
 	    (is_shmid && shmseg->u.shm_perm.seq != IPCID_TO_SEQ(arg)) ||
-	    !shm_prison_cansee(rpr, shmseg))
+	    shm_prison_cansee(rpr, shmseg) != 0)
 		return (NULL);
 	return (shmseg);
 }
