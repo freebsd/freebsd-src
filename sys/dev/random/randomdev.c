@@ -68,9 +68,6 @@ static u_int READ_RANDOM(void *, u_int);
 #define READ_RANDOM	read_random
 #endif
 
-/* Return the largest number >= x that is a multiple of m */
-#define CEIL_TO_MULTIPLE(x, m) ((((x) + (m) - 1)/(m))*(m))
-
 static d_read_t randomdev_read;
 static d_write_t randomdev_write;
 static d_poll_t randomdev_poll;
@@ -164,7 +161,7 @@ READ_RANDOM_UIO(struct uio *uio, bool nonblock)
 			 * which is what the underlying generator is expecting.
 			 * See the random_buf size requirements in the Yarrow/Fortuna code.
 			 */
-			read_len = CEIL_TO_MULTIPLE(read_len, RANDOM_BLOCKSIZE);
+			read_len = roundup(read_len, RANDOM_BLOCKSIZE);
 			/* Work in chunks page-sized or less */
 			read_len = MIN(read_len, PAGE_SIZE);
 			p_random_alg_context->ra_read(random_buf, read_len);
@@ -204,7 +201,7 @@ READ_RANDOM(void *random_buf, u_int len)
 			 * Round up the read length to a crypto block size multiple,
 			 * which is what the underlying generator is expecting.
 			 */
-			read_len = CEIL_TO_MULTIPLE(len, RANDOM_BLOCKSIZE);
+			read_len = roundup(len, RANDOM_BLOCKSIZE);
 			p_random_alg_context->ra_read(local_buf, read_len);
 			memcpy(random_buf, local_buf, len);
 		}
