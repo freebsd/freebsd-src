@@ -186,8 +186,7 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	hv_vmbus_g_connection.channels[relid] = new_channel;
 
 	TAILQ_FOREACH(channel, &hv_vmbus_g_connection.channel_anchor,
-	    list_entry)
-	{
+	    list_entry) {
 		if (memcmp(&channel->offer_msg.offer.interface_type,
 		    &new_channel->offer_msg.offer.interface_type,
 		    sizeof(hv_guid)) == 0 &&
@@ -199,10 +198,8 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 
 	if (channel == NULL) {
 		/* Install the new primary channel */
-		TAILQ_INSERT_TAIL(
-		    &hv_vmbus_g_connection.channel_anchor,
-		    new_channel,
-		    list_entry);
+		TAILQ_INSERT_TAIL(&hv_vmbus_g_connection.channel_anchor,
+		    new_channel, list_entry);
 	}
 	mtx_unlock(&hv_vmbus_g_connection.channel_lock);
 
@@ -219,10 +216,8 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 			new_channel->primary_channel = channel;
 			new_channel->device = channel->device;
 			mtx_lock(&channel->sc_lock);
-			TAILQ_INSERT_TAIL(
-			    &channel->sc_list_anchor,
-			    new_channel,
-			    sc_list_entry);
+			TAILQ_INSERT_TAIL(&channel->sc_list_anchor,
+			    new_channel, sc_list_entry);
 			mtx_unlock(&channel->sc_lock);
 
 			if (bootverbose) {
@@ -246,14 +241,13 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 			/*XXX add it to percpu_list */
 
 			new_channel->state = HV_CHANNEL_OPEN_STATE;
-			if (channel->sc_creation_callback != NULL) {
+			if (channel->sc_creation_callback != NULL)
 				channel->sc_creation_callback(new_channel);
-			}
 			return;
 		}
 
-	    hv_vmbus_free_vmbus_channel(new_channel);
-	    return;
+		hv_vmbus_free_vmbus_channel(new_channel);
+		return;
 	}
 
 	new_channel->state = HV_CHANNEL_OPEN_STATE;
@@ -275,10 +269,8 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	ret = hv_vmbus_child_device_register(new_channel->device);
 	if (ret != 0) {
 		mtx_lock(&hv_vmbus_g_connection.channel_lock);
-		TAILQ_REMOVE(
-		    &hv_vmbus_g_connection.channel_anchor,
-		    new_channel,
-		    list_entry);
+		TAILQ_REMOVE(&hv_vmbus_g_connection.channel_anchor,
+		    new_channel, list_entry);
 		mtx_unlock(&hv_vmbus_g_connection.channel_lock);
 		hv_vmbus_free_vmbus_channel(new_channel);
 	}
