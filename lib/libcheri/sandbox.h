@@ -75,6 +75,8 @@ int	sandbox_class_new(const char *path, size_t maxmapsize,
 int	sandbox_class_method_declare(struct sandbox_class *sbcp,
 	    u_int methodnum, const char *methodname);
 void	sandbox_class_destroy(struct sandbox_class *sbcp);
+int	sandbox_class_method_get_number(struct sandbox_class *sbcp,
+	    const char *name);
 
 struct sandbox_object;
 int	sandbox_object_new(struct sandbox_class *sbcp, size_t heaplen,
