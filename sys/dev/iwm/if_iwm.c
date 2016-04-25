@@ -4344,7 +4344,6 @@ iwm_intr(void *arg)
 	handled |= (r1 & (IWM_CSR_INT_BIT_ALIVE /*| IWM_CSR_INT_BIT_SCD*/));
 
 	if (r1 & IWM_CSR_INT_BIT_SW_ERR) {
-#ifdef IWM_DEBUG
 		int i;
 		struct ieee80211com *ic = &sc->sc_ic;
 		struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
@@ -4364,13 +4363,21 @@ iwm_intr(void *arg)
 		    "  rx ring: cur=%d\n", sc->rxq.cur);
 		device_printf(sc->sc_dev,
 		    "  802.11 state %d\n", vap->iv_state);
-#endif
 
-		device_printf(sc->sc_dev, "fatal firmware error\n");
-		iwm_stop(sc);
-		rv = 1;
-		goto out;
+		/* Don't stop the device; just do a VAP restart */
+		IWM_UNLOCK(sc);
 
+		if (vap == NULL) {
+			printf("%s: null vap\n", __func__);
+			return;
+		}
+
+		device_printf(sc->sc_dev, "%s: controller panicked, iv_state = %d; "
+		    "restarting\n", __func__, vap->iv_state);
+
+		/* XXX TODO: turn this into a callout/taskqueue */
+		ieee80211_restart_all(ic);
+		return;
 	}
 
 	if (r1 & IWM_CSR_INT_BIT_HW_ERR) {
