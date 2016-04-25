@@ -74,12 +74,18 @@ struct pv_addr {
 	vm_paddr_t	pv_pa;
 };
 
+/* An entry in the list of all pmaps */
+struct pmap_list_entry {
+	SLIST_ENTRY(pmap_list_entry) pmap_link;
+	struct pmap *pmap;
+};
 
 struct pmap {
 	struct mtx		pm_mtx;
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
 	pd_entry_t		*pm_l1;
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
+	struct pmap_list_entry	*p_entry; /* Place in the list of all pmaps */
 };
 
 typedef struct pv_entry {
