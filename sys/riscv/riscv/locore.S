@@ -133,9 +133,6 @@ _start:
 	la	t0, hardstack_end
 	csrw	mscratch, t0
 
-	la	t0, mentry
-	csrw	mtvec, t0
-
 	li	t0, 0
 	csrw	sscratch, t0
 
@@ -334,10 +331,6 @@ ENTRY(mpentry)
 	/* Wait the kernel to be ready */
 	lw	t1, 0(t0)
 	beqz	t1, 1b
-
-	/* Setup machine exception vector */
-	la	t0, mentry
-	csrw	mtvec, t0
 
 	/* Build event queue ring for this core */
 	build_ring
