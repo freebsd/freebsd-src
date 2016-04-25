@@ -3159,7 +3159,6 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 	struct iwm_node *in;
 	struct iwm_vap *iv = IWM_VAP(vap);
 	uint32_t duration;
-	uint32_t min_duration;
 	int error;
 
 	/*
@@ -3201,7 +3200,25 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 	if (iv->is_uploaded) {
 		if ((error = iwm_mvm_mac_ctxt_changed(sc, vap)) != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: failed to add MAC\n", __func__);
+			    "%s: failed to update MAC\n", __func__);
+			goto out;
+		}
+		if ((error = iwm_mvm_phy_ctxt_changed(sc, &sc->sc_phyctxt[0],
+		    in->in_ni.ni_chan, 1, 1)) != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: failed update phy ctxt\n", __func__);
+			goto out;
+		}
+		in->in_phyctxt = &sc->sc_phyctxt[0];
+
+		if ((error = iwm_mvm_binding_update(sc, in)) != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: binding update cmd\n", __func__);
+			goto out;
+		}
+		if ((error = iwm_mvm_update_sta(sc, in)) != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: failed to update sta\n", __func__);
 			goto out;
 		}
 	} else {
@@ -3210,61 +3227,36 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 			    "%s: failed to add MAC\n", __func__);
 			goto out;
 		}
-	}
-
-	if ((error = iwm_mvm_phy_ctxt_changed(sc, &sc->sc_phyctxt[0],
-	    in->in_ni.ni_chan, 1, 1)) != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: failed add phy ctxt\n", __func__);
-		goto out;
-	}
-	in->in_phyctxt = &sc->sc_phyctxt[0];
-
-	if ((error = iwm_mvm_binding_add_vif(sc, in)) != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: binding cmd\n", __func__);
-		goto out;
-	}
-
-	if ((error = iwm_mvm_add_sta(sc, in)) != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: failed to add MAC\n", __func__);
-		goto out;
-	}
-
-	/* a bit superfluous? */
-	while (sc->sc_auth_prot)
-		msleep(&sc->sc_auth_prot, &sc->sc_mtx, 0, "iwmauth", 0);
-	sc->sc_auth_prot = 1;
-
-	duration = min(IWM_MVM_TE_SESSION_PROTECTION_MAX_TIME_MS,
-	    200 + in->in_ni.ni_intval);
-	min_duration = min(IWM_MVM_TE_SESSION_PROTECTION_MIN_TIME_MS,
-	    100 + in->in_ni.ni_intval);
-	iwm_mvm_protect_session(sc, in, duration, min_duration, 500);
-
-	IWM_DPRINTF(sc, IWM_DEBUG_RESET,
-	    "%s: waiting for auth_prot\n", __func__);
-	while (sc->sc_auth_prot != 2) {
-		/*
-		 * well, meh, but if the kernel is sleeping for half a
-		 * second, we have bigger problems
-		 */
-		if (sc->sc_auth_prot == 0) {
+		if ((error = iwm_mvm_phy_ctxt_changed(sc, &sc->sc_phyctxt[0],
+		    in->in_ni.ni_chan, 1, 1)) != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: missed auth window!\n", __func__);
+			    "%s: failed add phy ctxt!\n", __func__);
 			error = ETIMEDOUT;
 			goto out;
-		} else if (sc->sc_auth_prot == -1) {
+		}
+		in->in_phyctxt = &sc->sc_phyctxt[0];
+
+		if ((error = iwm_mvm_binding_add_vif(sc, in)) != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: no time event, denied!\n", __func__);
-			sc->sc_auth_prot = 0;
-			error = EAUTH;
+			    "%s: binding add cmd\n", __func__);
 			goto out;
 		}
-		msleep(&sc->sc_auth_prot, &sc->sc_mtx, 0, "iwmau2", 0);
+		if ((error = iwm_mvm_add_sta(sc, in)) != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: failed to add sta\n", __func__);
+			goto out;
+		}
 	}
-	IWM_DPRINTF(sc, IWM_DEBUG_RESET, "<-%s\n", __func__);
+
+	/*
+	 * Prevent the FW from wandering off channel during association
+	 * by "protecting" the session with a time event.
+	 */
+	/* XXX duration is in units of TU, not MS */
+	duration = IWM_MVM_TE_SESSION_PROTECTION_MAX_TIME_MS;
+	iwm_mvm_protect_session(sc, in, duration, 500 /* XXX magic number */);
+	DELAY(100);
+
 	error = 0;
 out:
 	ieee80211_free_node(ni);
