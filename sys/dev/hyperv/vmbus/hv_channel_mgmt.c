@@ -242,6 +242,8 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 			return;
 		}
 
+		printf("VMBUS: duplicated primary channel%u\n",
+		    new_channel->offer_msg.child_rel_id);
 		hv_vmbus_free_vmbus_channel(new_channel);
 		return;
 	}
