@@ -76,7 +76,7 @@ __start:
 
 	/* Jump to the second part of __start(), implemented in C. */
 	dla	$25, _start1
-	jalr	$25
+	jr	$25
 	nop # delay slot
 
 	.set pop # restore assembler options
