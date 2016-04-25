@@ -241,7 +241,8 @@ struct prison_racct {
 #define	PR_METHOD_SET		2
 #define	PR_METHOD_CHECK		3
 #define	PR_METHOD_ATTACH	4
-#define	PR_MAXMETHOD		5
+#define	PR_METHOD_REMOVE	5
+#define	PR_MAXMETHOD		6
 
 /*
  * Lock/unlock a prison.
