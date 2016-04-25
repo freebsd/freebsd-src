@@ -11969,8 +11969,8 @@ static elink_status_t elink_54618se_config_init(struct elink_phy *phy,
 			elink_eee_disable(phy, params, vars);
 		}
 	} else {
-		vars->eee_status &= ~SHMEM_EEE_1G_ADV <<
-				    SHMEM_EEE_SUPPORTED_SHIFT;
+		vars->eee_status &= ((uint32_t)(~SHMEM_EEE_1G_ADV) <<
+				    SHMEM_EEE_SUPPORTED_SHIFT);
 
 		if (phy->flags & ELINK_FLAGS_EEE) {
 			/* Handle legacy auto-grEEEn */
