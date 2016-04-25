@@ -798,7 +798,7 @@ AcpiDbIntegrityWalk (
         return (AE_OK);
     }
 
-    if (!AcpiUtValidAcpiName (Node->Name.Ascii))
+    if (!AcpiUtValidNameseg (Node->Name.Ascii))
     {
         AcpiOsPrintf ("Invalid AcpiName for Node %p\n", Node);
         return (AE_OK);

@@ -58,15 +58,6 @@ AcpiAhGetTableInfo (
     char                    *Signature);
 
 
-/* Local Prototypes */
-
-static void
-AcpiDmCheckAscii (
-    UINT8                   *Target,
-    char                    *RepairedName,
-    UINT32                  Count);
-
-
 /* Common format strings for commented values */
 
 #define UINT8_FORMAT        "%2.2X [%s]\n"
@@ -255,6 +246,7 @@ static const char           *AcpiDmPcctSubnames[] =
 {
     "Generic Communications Subspace",  /* ACPI_PCCT_TYPE_GENERIC_SUBSPACE */
     "HW-Reduced Comm Subspace",         /* ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE */
+    "HW-Reduced Comm Subspace Type2",   /* ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE_TYPE2 */
     "Unknown Subtable Type"             /* Reserved */
 };
 
@@ -1059,7 +1051,7 @@ AcpiDmDumpTable (
 
         case ACPI_DMT_SIG:
 
-            AcpiDmCheckAscii (Target, RepairedName, 4);
+            AcpiUtCheckAndRepairAscii (Target, RepairedName, 4);
             AcpiOsPrintf ("\"%.4s\"    ", RepairedName);
 
             TableData = AcpiAhGetTableInfo (ACPI_CAST_PTR (char, Target));
@@ -1075,19 +1067,19 @@ AcpiDmDumpTable (
 
         case ACPI_DMT_NAME4:
 
-            AcpiDmCheckAscii (Target, RepairedName, 4);
+            AcpiUtCheckAndRepairAscii (Target, RepairedName, 4);
             AcpiOsPrintf ("\"%.4s\"\n", RepairedName);
             break;
 
         case ACPI_DMT_NAME6:
 
-            AcpiDmCheckAscii (Target, RepairedName, 6);
+            AcpiUtCheckAndRepairAscii (Target, RepairedName, 6);
             AcpiOsPrintf ("\"%.6s\"\n", RepairedName);
             break;
 
         case ACPI_DMT_NAME8:
 
-            AcpiDmCheckAscii (Target, RepairedName, 8);
+            AcpiUtCheckAndRepairAscii (Target, RepairedName, 8);
             AcpiOsPrintf ("\"%.8s\"\n", RepairedName);
             break;
 
@@ -1489,43 +1481,4 @@ AcpiDmDumpTable (
     }
 
     return (AE_OK);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDmCheckAscii
- *
- * PARAMETERS:  Name                - Ascii string
- *              Count               - Number of characters to check
- *
- * RETURN:      None
- *
- * DESCRIPTION: Ensure that the requested number of characters are printable
- *              Ascii characters. Sets non-printable and null chars to <space>.
- *
- ******************************************************************************/
-
-static void
-AcpiDmCheckAscii (
-    UINT8                   *Name,
-    char                    *RepairedName,
-    UINT32                  Count)
-{
-    UINT32                  i;
-
-
-    for (i = 0; i < Count; i++)
-    {
-        RepairedName[i] = (char) Name[i];
-
-        if (!Name[i])
-        {
-            return;
-        }
-        if (!isprint (Name[i]))
-        {
-            RepairedName[i] = ' ';
-        }
-    }
 }

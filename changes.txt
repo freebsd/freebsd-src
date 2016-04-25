@@ -1,4 +1,99 @@
 ----------------------------------------
+22 April 2016. Summary of changes for version 20160422:
+
+1) ACPICA kernel-resident subsystem:
+
+Fixed a regression in the GAS (generic address structure) arbitrary bit 
+support in AcpiHwRead/AcpiHwWrite. Problem could cause incorrect behavior 
+and incorrect return values. Lv Zheng. ACPICA BZ 1270.
+
+ACPI 6.0: Added support for new/renamed resource macros. One new argument 
+was added to each of these macros, and the original name has been 
+deprecated. The AML disassembler will always disassemble to the new 
+names. Support for the new macros was added to iASL, disassembler, 
+resource manager, and the acpihelp utility. ACPICA BZ 1274.
+
+    I2cSerialBus  -> I2cSerialBusV2
+    SpiSerialBus  -> SpiSerialBusV2
+    UartSerialBus -> UartSerialBusV2
+
+ACPI 6.0: Added support for a new integer field that was appended to the 
+package object returned by the _BIX method. This adds iASL compile-time 
+and AML runtime error checking. ACPICA BZ 1273.
+
+ACPI 6.1: Added support for a new PCCT subtable, "HW-Reduced Comm 
+Subspace Type2" (Headers, Disassembler, and data table compiler).
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 137.4K Code, 52.6K Data, 190.0K Total
+    Debug Version:     201.5K Code, 82.2K Data, 283.7K Total
+  Previous Release:
+    Non-Debug Version: 137.1K Code, 51.5K Data, 188.6K Total
+    Debug Version:     201.0K Code, 82.0K Data, 283.0K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Implemented an ASL grammar extension to allow/enable executable 
+"module-level code" to be created and executed under the various 
+operators that create new scopes. This type of AML code is already 
+supported in all known AML interpreters, and the grammar change will 
+appear in the next version of the ACPI specification. Simplifies the 
+conditional runtime creation of named objects under these object types: 
+
+    Device
+    PowerResource
+    Processor
+    Scope
+    ThermalZone
+
+iASL: Implemented a new ASL extension, a "For" loop macro to add greater 
+ease-of-use to the ASL language. The syntax is similar to the 
+corresponding C operator, and is implemented with the existing AML While 
+opcode -- thus requiring no changes to existing AML interpreters.
+
+    For (Initialize, Predicate, Update) {TermList}
+
+Grammar:
+    ForTerm :=
+        For (
+            Initializer    // Nothing | TermArg => ComputationalData
+            Predicate      // Nothing | TermArg => ComputationalData
+            Update         // Nothing | TermArg => ComputationalData
+        ) {TermList}
+
+
+iASL: The _HID/_ADR detection and validation has been enhanced to search 
+under conditionals in order to allow these objects to be conditionally 
+created at runtime.
+
+iASL: Fixed several issues with the constant folding feature. The 
+improvement allows better detection and resolution of statements that can 
+be folded at compile time. ACPICA BZ 1266. 
+
+iASL/Disassembler: Fixed a couple issues with the Else{If{}...} 
+conversion to the ASL ElseIf operator where incorrect ASL code could be 
+generated.
+
+iASL/Disassembler: Fixed a problem with the ASL+ code disassembly where 
+sometimes an extra (and extraneous) set of parentheses were emitted for 
+some combinations of operators. Although this did not cause any problems 
+with recompilation of the disassembled code, it made the code more 
+difficult to read. David Box. ACPICA BZ 1231.
+
+iASL: Changed to ignore the unreferenced detection for predefined names 
+of resource descriptor elements, when the resource descriptor is 
+created/defined within a control method.
+
+iASL: Disassembler: Fix a possible fault with externally declared Buffer 
+objects.
+
+----------------------------------------
 18 March 2016. Summary of changes for version 20160318:
 
 1) ACPICA kernel-resident subsystem:

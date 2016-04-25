@@ -454,8 +454,8 @@ ApCheckForPredefinedName (
 
     if (Name[0] == 0)
     {
-        AcpiOsPrintf ("Found a null name, external = %s\n",
-            Op->Asl.ExternalName);
+        AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL, Op,
+            "zero length name found");
     }
 
     /* All reserved names are prefixed with a single underscore */

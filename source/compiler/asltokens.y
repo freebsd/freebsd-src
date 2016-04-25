@@ -166,6 +166,7 @@ NoEcho('
 %token <i> PARSEOP_GPIO_INT
 %token <i> PARSEOP_GPIO_IO
 %token <i> PARSEOP_I2C_SERIALBUS
+%token <i> PARSEOP_I2C_SERIALBUS_V2
 %token <i> PARSEOP_IF
 %token <i> PARSEOP_INCLUDE
 %token <i> PARSEOP_INCLUDE_END
@@ -323,6 +324,7 @@ NoEcho('
 %token <i> PARSEOP_SLAVEMODE_DEVICEINIT
 %token <i> PARSEOP_SLEEP
 %token <i> PARSEOP_SPI_SERIALBUS
+%token <i> PARSEOP_SPI_SERIALBUS_V2
 %token <i> PARSEOP_STALL
 %token <i> PARSEOP_STARTDEPENDENTFN
 %token <i> PARSEOP_STARTDEPENDENTFN_NOPRI
@@ -348,6 +350,7 @@ NoEcho('
 %token <i> PARSEOP_TYPE_STATIC
 %token <i> PARSEOP_TYPE_TRANSLATION
 %token <i> PARSEOP_UART_SERIALBUS
+%token <i> PARSEOP_UART_SERIALBUS_V2
 %token <i> PARSEOP_UNICODE
 %token <i> PARSEOP_UNLOAD
 %token <i> PARSEOP_UPDATERULE_ONES
@@ -457,8 +460,11 @@ NoEcho('
 %left <i>  PARSEOP_EXP_INDEX_LEFT
 %right <i> PARSEOP_EXP_INDEX_RIGHT
 
+/* Macros */
+
 %token <i> PARSEOP_PRINTF
 %token <i> PARSEOP_FPRINTF
+%token <i> PARSEOP_FOR
 
 /* Specific parentheses tokens are not used at this time */
            /* PARSEOP_EXP_PAREN_OPEN */

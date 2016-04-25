@@ -112,7 +112,7 @@ const AH_ASL_OPERATOR       AslOperatorInfo[] =
                                 "Declare a Definition Block"},
     {"DerefOf",                 "(Source) => Object",
                                 "Dereference an object reference"},
-    {"Device",                  "(DeviceName) {ObjectList}",
+    {"Device",                  "(DeviceName) {TermList}",
                                 "Declare a bus/device object"},
     {"Divide",                  "(Dividend, Divisor, Remainder, Result) => Integer",
                                 "Integer Divide"},
@@ -193,9 +193,9 @@ const AH_ASL_OPERATOR       AslOperatorInfo[] =
                                 "ResourceSourceIndex, ResourceTypeKeyword, DescriptorName, "
                                 "RawDataBuffer() {VendorData}) {PinList}",
                                 "GPIO I/O Connection Resource Descriptor Macro"},
-    {"I2cSerialBus",            "(SlaveAddress, SlaveModeKeyword, ConnectionSpeed, "
+    {"I2cSerialBusV2",           "(SlaveAddress, SlaveModeKeyword, ConnectionSpeed, "
                                 "AddressingModeKeyword, ResourceSource, "
-                                "ResourceSourceIndex, ResourceTypeKeyword, DescriptorName, "
+                                "ResourceSourceIndex, ResourceTypeKeyword, DescriptorName, Shared, "
                                 "RawDataBuffer() {VendorData})",
                                 "I2C Serial Bus Connection Resource Descriptor Macro"},
     {"If",                      "(Predicate) {TermList}",
@@ -295,9 +295,9 @@ const AH_ASL_OPERATOR       AslOperatorInfo[] =
                                 "Integer Bitwise Or"},
     {"Package",                 "(NumElements) {PackageList} => Package",
                                 "Declare a package object"},
-    {"PowerResource",           "(ResourceName, SystemLevel, ResourceOrder) {ObjectList}",
+    {"PowerResource",           "(ResourceName, SystemLevel, ResourceOrder) {TermList}",
                                 "Declare a power resource object"},
-    {"Processor",               "(ProcessorName, ProcessorID, PBlockAddress, PblockLength) {ObjectList}",
+    {"Processor",               "(ProcessorName, ProcessorID, PBlockAddress, PblockLength) {TermList}",
                                 "Declare a processor package"},
     {"QWordIo",                 "(ResourceTypeKeyword, MinKeyword, MaxKeyword, DecodeKeyword, "
                                 "RangeTypeKeyword, AddressGranularity, "
@@ -335,7 +335,7 @@ const AH_ASL_OPERATOR       AslOperatorInfo[] =
                                 "Return from method execution"},
     {"Revision",                "=> Integer",
                                 "Constant revision object"},
-    {"Scope",                   "(Location) {ObjectList}",
+    {"Scope",                   "(Location) {TermList}",
                                 "Open named scope "},
     {"ShiftLeft",               "(Source, ShiftCount, Result) => Integer",
                                 "Integer shift value left"},
@@ -347,11 +347,11 @@ const AH_ASL_OPERATOR       AslOperatorInfo[] =
                                 "Get the size of a buffer}, string}, or package"},
     {"Sleep",                   "(Milliseconds)",
                                 "Sleep n milliseconds (yields the processor)"},
-    {"SpiSerialBus",            "(DeviceSelection, PolarityKeyword, WireModeKeyword, "
+    {"SpiSerialBusV2",          "(DeviceSelection, PolarityKeyword, WireModeKeyword, "
                                 "DataBitLength, SlaveModeKeyword, "
                                 "ConnectionSpeed, ClockPolarityKeyword, ClockPhaseKeyword, "
                                 "ResourceSource, ResourceSourceIndex, "
-                                "ResourceTypeKeyword, DescriptorName, RawDataBuffer() {VendorData})",
+                                "ResourceTypeKeyword, DescriptorName, Shared, RawDataBuffer() {VendorData})",
                                 "SPI Serial Bus Connection Resource Descriptor Macro"},
     {"Stall",                   "(Microseconds)",
                                 "Delay n microseconds (does not yield the processor)"},
@@ -365,7 +365,7 @@ const AH_ASL_OPERATOR       AslOperatorInfo[] =
                                 "Integer Subtract"},
     {"Switch",                  "(Expression) {CaseTermList}",
                                 "Select code to execute based on expression value"},
-    {"ThermalZone",             "(ThermalZoneName) {ObjectList}",
+    {"ThermalZone",             "(ThermalZoneName) {TermList}",
                                 "Declare a thermal zone package"},
     {"Timer",                   "=> Integer",
                                 "Get 64-bit timer value"},
@@ -383,10 +383,10 @@ const AH_ASL_OPERATOR       AslOperatorInfo[] =
                                 "Copy ASCII string from buffer"},
     {"ToUuid",                  "(AsciiString) => Buffer",
                                 "Convert Ascii string to UUID"},
-    {"UartSerialBus",           "(ConnectionSpeed, ByteLengthKeyword, StopBitsKeyword, "
+    {"UartSerialBusV2",         "(ConnectionSpeed, ByteLengthKeyword, StopBitsKeyword, "
                                 "LinesInUse, EndianKeyword, ParityKeyword, "
                                 "FlowControlKeyword, ReceiveBufferSize, TransmitBufferSize, ResourceSource, "
-                                "ResourceSourceIndex, ResourceTypeKeyword, DescriptorName, "
+                                "ResourceSourceIndex, ResourceTypeKeyword, DescriptorName, Shared, "
                                 "RawDataBuffer() {VendorData})",
                                 "UART Serial Bus Connection Resource Descriptor Macro"},
     {"Unicode",                 "(String) => Buffer",

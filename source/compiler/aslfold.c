@@ -101,6 +101,7 @@ TrInstallReducedConstant (
  * RETURN:      Status
  *
  * DESCRIPTION: Reduce an Op and its subtree to a constant if possible.
+ *              Called during ascent of the parse tree.
  *
  ******************************************************************************/
 
@@ -192,9 +193,7 @@ OpcAmlConstantWalk (
         OpcUpdateIntegerNode (Op, 0);
     }
 
-    /* Abort the walk of this subtree, we are done with it */
-
-    return (AE_CTRL_DEPTH);
+    return (AE_OK);
 }
 
 
@@ -207,7 +206,7 @@ OpcAmlConstantWalk (
  * RETURN:      Status
  *
  * DESCRIPTION: Check one Op for a reducible type 3/4/5 AML opcode.
- *              This is performed via a downward walk of the parse subtree.
+ *              This is performed via an upward walk of the parse subtree.
  *
  ******************************************************************************/
 
@@ -373,7 +372,6 @@ OpcAmlCheckForConstant (
         goto CleanupAndExit;
     }
 
-
     /* Debug output */
 
     DbgPrint (ASL_PARSE_OUTPUT, "TYPE_345");
@@ -519,9 +517,6 @@ TrTransformToStoreOp (
     ACPI_STATUS             Status;
 
 
-    DbgPrint (ASL_PARSE_OUTPUT,
-        "Reduction/Transform to StoreOp: Store(Constant, Target)\n");
-
     /* Extract the operands */
 
     Child1 = Op->Asl.Child;
@@ -542,6 +537,10 @@ TrTransformToStoreOp (
             return (AE_OK);
         }
     }
+
+    DbgPrint (ASL_PARSE_OUTPUT,
+        "Reduction/Transform to StoreOp: Store(%s, %s)\n",
+        Child1->Asl.ParseOpName, Child2->Asl.ParseOpName);
 
     /*
      * Create a NULL (zero) target so that we can use the

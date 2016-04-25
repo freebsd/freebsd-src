@@ -406,10 +406,8 @@ MtMethodAnalysisWalkBegin (
 
     case PARSEOP_DEVICE:
 
-        Next = Op->Asl.Child;
-
-        if (!ApFindNameInScope (METHOD_NAME__HID, Next) &&
-            !ApFindNameInScope (METHOD_NAME__ADR, Next))
+        if (!ApFindNameInDeviceTree (METHOD_NAME__HID, Op) &&
+            !ApFindNameInDeviceTree (METHOD_NAME__ADR, Op))
         {
             AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
                 "Device object requires a _HID or _ADR in same scope");

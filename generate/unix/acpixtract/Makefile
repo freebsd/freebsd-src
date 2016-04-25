@@ -33,6 +33,7 @@ OBJECTS = \
     $(OBJDIR)/getopt.o\
     $(OBJDIR)/oslibcfs.o\
     $(OBJDIR)/osunixxf.o\
+    $(OBJDIR)/utascii.o\
     $(OBJDIR)/utdebug.o\
     $(OBJDIR)/utexcep.o\
     $(OBJDIR)/utglobal.o\

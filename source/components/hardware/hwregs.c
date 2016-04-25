@@ -54,6 +54,11 @@
 
 /* Local Prototypes */
 
+static UINT8
+AcpiHwGetAccessBitWidth (
+    ACPI_GENERIC_ADDRESS    *Reg,
+    UINT8                   MaxBitWidth);
+
 static ACPI_STATUS
 AcpiHwReadMultiple (
     UINT32                  *Value,
@@ -67,6 +72,43 @@ AcpiHwWriteMultiple (
     ACPI_GENERIC_ADDRESS    *RegisterB);
 
 #endif /* !ACPI_REDUCED_HARDWARE */
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiHwGetAccessBitWidth
+ *
+ * PARAMETERS:  Reg                 - GAS register structure
+ *              MaxBitWidth         - Max BitWidth supported (32 or 64)
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Obtain optimal access bit width
+ *
+ ******************************************************************************/
+
+static UINT8
+AcpiHwGetAccessBitWidth (
+    ACPI_GENERIC_ADDRESS    *Reg,
+    UINT8                   MaxBitWidth)
+{
+
+    if (!Reg->AccessWidth)
+    {
+        if (Reg->SpaceId == ACPI_ADR_SPACE_SYSTEM_IO)
+        {
+            return (32);
+        }
+        else
+        {
+            return (MaxBitWidth);
+        }
+    }
+    else
+    {
+        return (1 << (Reg->AccessWidth + 2));
+    }
+}
 
 
 /******************************************************************************
@@ -134,8 +176,7 @@ AcpiHwValidateRegister (
 
     /* Validate the BitWidth, convert AccessWidth into number of bits */
 
-    AccessWidth = Reg->AccessWidth ? Reg->AccessWidth : 1;
-    AccessWidth = 1 << (AccessWidth + 2);
+    AccessWidth = AcpiHwGetAccessBitWidth (Reg, MaxBitWidth);
     BitWidth = ACPI_ROUND_UP (Reg->BitOffset + Reg->BitWidth, AccessWidth);
     if (MaxBitWidth < BitWidth)
     {
@@ -198,9 +239,8 @@ AcpiHwRead (
      * into number of bits based
      */
     *Value = 0;
-    AccessWidth = Reg->AccessWidth ? Reg->AccessWidth : 1;
-    AccessWidth = 1 << (AccessWidth + 2);
-    BitWidth = ACPI_ROUND_UP (Reg->BitOffset + Reg->BitWidth, AccessWidth);
+    AccessWidth = AcpiHwGetAccessBitWidth (Reg, 32);
+    BitWidth = Reg->BitOffset + Reg->BitWidth;
     BitOffset = Reg->BitOffset;
 
     /*
@@ -243,7 +283,7 @@ AcpiHwRead (
         }
 
         ACPI_SET_BITS (Value, Index * AccessWidth,
-            ((1 << AccessWidth) - 1), Value32);
+            ACPI_MASK_BITS_ABOVE_32 (AccessWidth), Value32);
 
         BitWidth -= BitWidth > AccessWidth ? AccessWidth : BitWidth;
         Index++;
@@ -301,9 +341,8 @@ AcpiHwWrite (
 
     /* Convert AccessWidth into number of bits based */
 
-    AccessWidth = Reg->AccessWidth ? Reg->AccessWidth : 1;
-    AccessWidth = 1 << (AccessWidth + 2);
-    BitWidth = ACPI_ROUND_UP (Reg->BitOffset + Reg->BitWidth, AccessWidth);
+    AccessWidth = AcpiHwGetAccessBitWidth (Reg, 32);
+    BitWidth = Reg->BitOffset + Reg->BitWidth;
     BitOffset = Reg->BitOffset;
 
     /*
@@ -313,8 +352,8 @@ AcpiHwWrite (
     Index = 0;
     while (BitWidth)
     {
-        NewValue32 = ACPI_GET_BITS (&Value, (Index * AccessWidth),
-            ((1 << AccessWidth) - 1));
+        NewValue32 = ACPI_GET_BITS (&Value, Index * AccessWidth,
+            ACPI_MASK_BITS_ABOVE_32 (AccessWidth));
 
         if (BitOffset > AccessWidth)
         {

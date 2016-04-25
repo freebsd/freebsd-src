@@ -207,8 +207,8 @@ CmDoCompile (
 
     if (Gbl_FoldConstants)
     {
-        TrWalkParseTree (Gbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
-            OpcAmlConstantWalk, NULL, NULL);
+        TrWalkParseTree (Gbl_ParseTreeRoot, ASL_WALK_VISIT_UPWARD,
+            NULL, OpcAmlConstantWalk, NULL);
     }
     else
     {
