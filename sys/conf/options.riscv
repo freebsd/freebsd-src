@@ -2,4 +2,3 @@
 
 RISCV				opt_global.h
 VFP				opt_global.h
-DDR_CLEAR_SIZE			opt_global.h

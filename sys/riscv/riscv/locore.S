@@ -126,17 +126,6 @@ _start:
 	csrr	a0, mhartid
 	bnez	a0, mpentry
 
-#if defined(DDR_CLEAR_SIZE)
-	/* Clear DDR memory */
-	la	t0, _end
-	li	t1, DDR_CLEAR_SIZE
-1:
-	sd	zero, 0(t0)
-	addi	t0, t0, 8
-	bltu	t0, t1, 1b
-	/* End */
-#endif
-
 	/* Build event queue for current core */
 	build_ring
 
