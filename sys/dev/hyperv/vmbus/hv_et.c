@@ -100,7 +100,7 @@ hv_et_intr(struct trapframe *frame)
 }
 
 static void
-hv_et_identify (driver_t *driver, device_t parent)
+hv_et_identify(driver_t *driver, device_t parent)
 {
 	if (device_find_child(parent, "hv_et", -1) != NULL)
 		return;
