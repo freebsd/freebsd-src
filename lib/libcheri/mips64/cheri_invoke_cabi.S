@@ -197,6 +197,7 @@ cheri_invoke_restore_caps:
 	clc	$c22, $sp, 5*CHERICAP_SIZE($c11)
 	clc	$c23, $sp, 6*CHERICAP_SIZE($c11)
 	clc	$c24, $sp, 7*CHERICAP_SIZE($c11)
+	bnez	$a0, set_cheri_errno
 	daddiu	$sp, 8*CHERICAP_SIZE
 
 	#
@@ -230,4 +231,26 @@ cheri_invoke_return:
 	cjr	$c17
 	nop				# Branch-delay slot
 
+set_cheri_errno:
+	#
+	# Get the address of the thread-local cherierrno variable.
+	#
+	lui	$at, %tprel_hi(cherierrno)
+	.set	push
+	.set	mips32r2
+	rdhwr	$t0, $29
+	.set	pop
+	daddiu	$at, $at, %tprel_lo(cherierrno)
+	daddu	$at, $t0, $at
+	b	cheri_invoke_restore_regs
+	sw	$a0, 0($at)
+
 	.end	cheri_invoke
+
+	.type	cherierrno,@object      # @cherierrno
+	.section	.tbss,"awT",@nobits
+	.globl	cherierrno
+	.align	2
+cherierrno:
+	.4byte	0
+	.size	cherierrno, 4

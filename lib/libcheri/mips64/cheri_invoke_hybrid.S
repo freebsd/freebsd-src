@@ -118,6 +118,7 @@ cheri_invoke_save_regs:
 	sd	$gp, 64($sp)
 	sd	$fp, 72($sp)
 	sd	$ra, 80($sp)
+	sd	$t9, 88($sp)
 
 	#
 	# Save capability registers we later need to restore (that won't be
@@ -197,6 +198,7 @@ cheri_invoke_restore_caps:
 	clc	$c22, $sp, 5*CHERICAP_SIZE($c11)
 	clc	$c23, $sp, 6*CHERICAP_SIZE($c11)
 	clc	$c24, $sp, 7*CHERICAP_SIZE($c11)
+	bnez	$a0, set_cheri_errno
 	daddiu	$sp, 8*CHERICAP_SIZE
 
 	#
@@ -230,4 +232,44 @@ cheri_invoke_return:
 	jr	$ra
 	nop				# Branch-delay slot
 
+set_cheri_errno:
+	ld	$t9, 88($sp)
+	sd	$a0, 88($sp)
+	#
+	# Set up $gp.
+	#
+	lui	$at, %hi(%neg(%gp_rel(cheri_invoke)))
+	daddu	$at, $at, $t9
+	daddiu	$gp, $at, %lo(%neg(%gp_rel(cheri_invoke)))
+	#
+	# Get the address of the thread-local cherierrno variable.
+	#
+	lui	$at, %call_hi(__tls_get_addr)
+	daddu	$at, $at, $gp
+	ld	$t9, %call_lo(__tls_get_addr)($at)
+	jalr	$t9
+	daddiu	$a0, $gp, %tlsgd(cherierrno)
+	#
+	# Store the signal value in cherierrno.
+	#
+	ld	$a0, 88($sp)
+	sw	$a0, 0($v0)
+	#
+	# Store the values in v0 / v1 that code that doesn't know about
+	# cherierrno might be expecting.
+	#
+	daddiu	$v0, $zero, -1
+	b	cheri_invoke_restore_regs
+	move	$v1, $a0
+
 	.end	cheri_invoke
+
+	.type	cherierrno,@object      # @cherierrno
+	.section	.tbss,"awT",@nobits
+	.globl	cherierrno
+	.align	2
+cherierrno:
+	.4byte	0                       # 0x0
+	.size	cherierrno, 4
+
+

@@ -69,6 +69,14 @@ struct sandbox_metadata {
 
 extern int sb_verbose;
 
+/**
+ * The CHERI error number variable.  If the stack is forcibly unwound as the
+ * result of signal delivery during a ccall invocation, this will be set to the
+ * signal number of the signal inside the sandbox.  If a ccall invocation
+ * returns normally then this value is unmodified.
+ */
+extern _Thread_local int cherierrno;
+
 struct sandbox_class;
 int	sandbox_class_new(const char *path, size_t maxmapsize,
 	    struct sandbox_class **sbcpp);
