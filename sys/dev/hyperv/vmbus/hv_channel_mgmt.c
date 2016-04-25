@@ -239,6 +239,17 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 			new_channel->state = HV_CHANNEL_OPEN_STATE;
 			if (channel->sc_creation_callback != NULL)
 				channel->sc_creation_callback(new_channel);
+
+			/*
+			 * Bump up sub-channel count and notify anyone that is
+			 * interested in this sub-channel, after this sub-channel
+			 * is setup.
+			 */
+			mtx_lock(&channel->sc_lock);
+			channel->subchan_cnt++;
+			mtx_unlock(&channel->sc_lock);
+			wakeup(channel);
+
 			return;
 		}
 
@@ -770,4 +781,42 @@ vmbus_scan(void)
 	while (vmbus_devcnt != chancnt)
 		mtx_sleep(&vmbus_devcnt, &vmbus_chwait_lock, 0, "waitdev", 0);
 	mtx_unlock(&vmbus_chwait_lock);
+}
+
+struct hv_vmbus_channel **
+vmbus_get_subchan(struct hv_vmbus_channel *pri_chan, int subchan_cnt)
+{
+	struct hv_vmbus_channel **ret, *chan;
+	int i;
+
+	ret = malloc(subchan_cnt * sizeof(struct hv_vmbus_channel *), M_TEMP,
+	    M_WAITOK);
+
+	mtx_lock(&pri_chan->sc_lock);
+
+	while (pri_chan->subchan_cnt < subchan_cnt)
+		mtx_sleep(pri_chan, &pri_chan->sc_lock, 0, "subch", 0);
+
+	i = 0;
+	TAILQ_FOREACH(chan, &pri_chan->sc_list_anchor, sc_list_entry) {
+		/* TODO: refcnt chan */
+		ret[i] = chan;
+
+		++i;
+		if (i == subchan_cnt)
+			break;
+	}
+	KASSERT(i == subchan_cnt, ("invalid subchan count %d, should be %d",
+	    pri_chan->subchan_cnt, subchan_cnt));
+
+	mtx_unlock(&pri_chan->sc_lock);
+
+	return ret;
+}
+
+void
+vmbus_rel_subchan(struct hv_vmbus_channel **subchan, int subchan_cnt __unused)
+{
+
+	free(subchan, M_TEMP);
 }
