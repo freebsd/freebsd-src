@@ -273,9 +273,21 @@
  * Bit positions start at zero.
  * MASK_BITS_ABOVE creates a mask starting AT the position and above
  * MASK_BITS_BELOW creates a mask starting one bit BELOW the position
+ * MASK_BITS_ABOVE/BELOW accpets a bit offset to create a mask
+ * MASK_BITS_ABOVE/BELOW_32/64 accpets a bit width to create a mask
+ * Note: The ACPI_INTEGER_BIT_SIZE check is used to bypass compiler
+ * differences with the shift operator
  */
 #define ACPI_MASK_BITS_ABOVE(position)      (~((ACPI_UINT64_MAX) << ((UINT32) (position))))
 #define ACPI_MASK_BITS_BELOW(position)      ((ACPI_UINT64_MAX) << ((UINT32) (position)))
+#define ACPI_MASK_BITS_ABOVE_32(width)      ((UINT32) ACPI_MASK_BITS_ABOVE(width))
+#define ACPI_MASK_BITS_BELOW_32(width)      ((UINT32) ACPI_MASK_BITS_BELOW(width))
+#define ACPI_MASK_BITS_ABOVE_64(width)      ((width) == ACPI_INTEGER_BIT_SIZE ? \
+                                                ACPI_UINT64_MAX : \
+                                                ACPI_MASK_BITS_ABOVE(width))
+#define ACPI_MASK_BITS_BELOW_64(width)      ((width) == ACPI_INTEGER_BIT_SIZE ? \
+                                                (UINT64) 0 : \
+                                                ACPI_MASK_BITS_BELOW(width))
 
 /* Bitfields within ACPI registers */
 
@@ -291,10 +303,10 @@
 /* Generic bitfield macros and masks */
 
 #define ACPI_GET_BITS(SourcePtr, Position, Mask) \
-    ((*SourcePtr >> Position) & Mask)
+    ((*(SourcePtr) >> (Position)) & (Mask))
 
 #define ACPI_SET_BITS(TargetPtr, Position, Mask, Value) \
-    (*TargetPtr |= ((Value & Mask) << Position))
+    (*(TargetPtr) |= (((Value) & (Mask)) << (Position)))
 
 #define ACPI_1BIT_MASK      0x00000001
 #define ACPI_2BIT_MASK      0x00000003

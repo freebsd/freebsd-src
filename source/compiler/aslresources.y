@@ -392,6 +392,7 @@ ResourceMacroTerm
     | GpioIntTerm                   {}
     | GpioIoTerm                    {}
     | I2cSerialBusTerm              {}
+    | I2cSerialBusTermV2            {}
     | InterruptTerm                 {}
     | IOTerm                        {}
     | IRQNoFlagsTerm                {}
@@ -404,9 +405,11 @@ ResourceMacroTerm
     | QWordSpaceTerm                {}
     | RegisterTerm                  {}
     | SpiSerialBusTerm              {}
+    | SpiSerialBusTermV2            {}
     | StartDependentFnNoPriTerm     {}
     | StartDependentFnTerm          {}
     | UartSerialBusTerm             {}
+    | UartSerialBusTermV2           {}
     | VendorLongTerm                {}
     | VendorShortTerm               {}
     | WordBusNumberTerm             {}
@@ -630,8 +633,27 @@ I2cSerialBusTerm
         OptionalResourceType        /* 12: ResourceType */
         OptionalNameString          /* 13: DescriptorName */
         OptionalBuffer_Last         /* 14: VendorData */
-        ')'                         {$$ = TrLinkChildren ($<n>3,9,$4,$5,$7,$8,$10,$11,$12,$13,$14);}
+        ')'                         {$$ = TrLinkChildren ($<n>3,10,$4,$5,$7,$8,$10,$11,$12,$13,
+                                        TrCreateLeafNode (PARSEOP_DEFAULT_ARG),$14);}
     | PARSEOP_I2C_SERIALBUS '('
+        error ')'                   {$$ = AslDoError(); yyclearin;}
+    ;
+
+I2cSerialBusTermV2
+    : PARSEOP_I2C_SERIALBUS_V2 '('  {$<n>$ = TrCreateLeafNode (PARSEOP_I2C_SERIALBUS_V2);}
+        WordConstExpr               /* 04: SlaveAddress */
+        OptionalSlaveMode           /* 05: SlaveMode */
+        ',' DWordConstExpr          /* 07: ConnectionSpeed */
+        OptionalAddressingMode      /* 08: AddressingMode */
+        ',' StringData              /* 10: ResourceSource */
+        OptionalByteConstExpr       /* 11: ResourceSourceIndex */
+        OptionalResourceType        /* 12: ResourceType */
+        OptionalNameString          /* 13: DescriptorName */
+        OptionalShareType           /* 14: Share */
+        OptionalBuffer_Last         /* 15: VendorData */
+        ')'                         {$$ = TrLinkChildren ($<n>3,10,$4,$5,$7,$8,$10,$11,$12,$13,
+                                        $14,$15);}
+    | PARSEOP_I2C_SERIALBUS_V2 '('
         error ')'                   {$$ = AslDoError(); yyclearin;}
     ;
 
@@ -815,8 +837,31 @@ SpiSerialBusTerm
         OptionalResourceType        /* 19: ResourceType */
         OptionalNameString          /* 20: DescriptorName */
         OptionalBuffer_Last         /* 21: VendorData */
-        ')'                         {$$ = TrLinkChildren ($<n>3,13,$4,$5,$6,$8,$9,$11,$13,$15,$17,$18,$19,$20,$21);}
+        ')'                         {$$ = TrLinkChildren ($<n>3,14,$4,$5,$6,$8,$9,$11,$13,$15,$17,$18,$19,$20,
+                                        TrCreateLeafNode (PARSEOP_DEFAULT_ARG),$21);}
     | PARSEOP_SPI_SERIALBUS '('
+        error ')'                   {$$ = AslDoError(); yyclearin;}
+    ;
+
+SpiSerialBusTermV2
+    : PARSEOP_SPI_SERIALBUS_V2 '('  {$<n>$ = TrCreateLeafNode (PARSEOP_SPI_SERIALBUS_V2);}
+        WordConstExpr               /* 04: DeviceSelection */
+        OptionalDevicePolarity      /* 05: DevicePolarity */
+        OptionalWireMode            /* 06: WireMode */
+        ',' ByteConstExpr           /* 08: DataBitLength */
+        OptionalSlaveMode           /* 09: SlaveMode */
+        ',' DWordConstExpr          /* 11: ConnectionSpeed */
+        ',' ClockPolarityKeyword    /* 13: ClockPolarity */
+        ',' ClockPhaseKeyword       /* 15: ClockPhase */
+        ',' StringData              /* 17: ResourceSource */
+        OptionalByteConstExpr       /* 18: ResourceSourceIndex */
+        OptionalResourceType        /* 19: ResourceType */
+        OptionalNameString          /* 20: DescriptorName */
+        OptionalShareType           /* 21: Share */
+        OptionalBuffer_Last         /* 22: VendorData */
+        ')'                         {$$ = TrLinkChildren ($<n>3,14,$4,$5,$6,$8,$9,$11,$13,$15,$17,$18,$19,$20,
+                                        $21,$22);}
+    | PARSEOP_SPI_SERIALBUS_V2 '('
         error ')'                   {$$ = AslDoError(); yyclearin;}
     ;
 
@@ -854,8 +899,32 @@ UartSerialBusTerm
         OptionalResourceType        /* 19: ResourceType */
         OptionalNameString          /* 20: DescriptorName */
         OptionalBuffer_Last         /* 21: VendorData */
-        ')'                         {$$ = TrLinkChildren ($<n>3,14,$4,$5,$6,$8,$9,$10,$11,$13,$15,$17,$18,$19,$20,$21);}
+        ')'                         {$$ = TrLinkChildren ($<n>3,15,$4,$5,$6,$8,$9,$10,$11,$13,$15,$17,$18,$19,$20,
+                                        TrCreateLeafNode (PARSEOP_DEFAULT_ARG),$21);}
     | PARSEOP_UART_SERIALBUS '('
+        error ')'                   {$$ = AslDoError(); yyclearin;}
+    ;
+
+UartSerialBusTermV2
+    : PARSEOP_UART_SERIALBUS_V2 '(' {$<n>$ = TrCreateLeafNode (PARSEOP_UART_SERIALBUS_V2);}
+        DWordConstExpr              /* 04: ConnectionSpeed */
+        OptionalBitsPerByte         /* 05: BitsPerByte */
+        OptionalStopBits            /* 06: StopBits */
+        ',' ByteConstExpr           /* 08: LinesInUse */
+        OptionalEndian              /* 09: Endianess */
+        OptionalParityType          /* 10: Parity */
+        OptionalFlowControl         /* 11: FlowControl */
+        ',' WordConstExpr           /* 13: Rx BufferSize */
+        ',' WordConstExpr           /* 15: Tx BufferSize */
+        ',' StringData              /* 17: ResourceSource */
+        OptionalByteConstExpr       /* 18: ResourceSourceIndex */
+        OptionalResourceType        /* 19: ResourceType */
+        OptionalNameString          /* 20: DescriptorName */
+        OptionalShareType           /* 21: Share */
+        OptionalBuffer_Last         /* 22: VendorData */
+        ')'                         {$$ = TrLinkChildren ($<n>3,15,$4,$5,$6,$8,$9,$10,$11,$13,$15,$17,$18,$19,$20,
+                                        $21,$22);}
+    | PARSEOP_UART_SERIALBUS_V2 '('
         error ')'                   {$$ = AslDoError(); yyclearin;}
     ;
 

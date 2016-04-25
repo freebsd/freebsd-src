@@ -865,16 +865,19 @@ RsDoOneResourceDescriptor (
         break;
 
     case PARSEOP_I2C_SERIALBUS:
+    case PARSEOP_I2C_SERIALBUS_V2:
 
         Rnode = RsDoI2cSerialBusDescriptor (Info);
         break;
 
     case PARSEOP_SPI_SERIALBUS:
+    case PARSEOP_SPI_SERIALBUS_V2:
 
         Rnode = RsDoSpiSerialBusDescriptor (Info);
         break;
 
     case PARSEOP_UART_SERIALBUS:
+    case PARSEOP_UART_SERIALBUS_V2:
 
         Rnode = RsDoUartSerialBusDescriptor (Info);
         break;

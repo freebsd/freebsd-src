@@ -279,8 +279,8 @@ AcpiDmCommaIfListMember (
             }
         }
 
-        if ((Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST) &&
-            (!(Op->Common.Next->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST)))
+        if ((Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST) &&
+            (!(Op->Common.Next->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST)))
         {
             return (FALSE);
         }
@@ -295,8 +295,8 @@ AcpiDmCommaIfListMember (
         return (TRUE);
     }
 
-    else if ((Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST) &&
-             (Op->Common.Next->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST))
+    else if ((Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST) &&
+             (Op->Common.Next->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST))
     {
         AcpiOsPrintf (", ");
         return (TRUE);

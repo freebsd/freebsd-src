@@ -148,10 +148,6 @@ void
 AxNormalizeSignature (
     char                    *Signature);
 
-BOOLEAN
-AcpiIsValidSignature (
-    char                    *Signature);
-
 void
 AxCheckAscii (
     char                    *Name,

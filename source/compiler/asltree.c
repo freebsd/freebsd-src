@@ -58,6 +58,29 @@ TrGetNextNode (
 
 /*******************************************************************************
  *
+ * FUNCTION:    TrSetParent
+ *
+ * PARAMETERS:  Op                  - To be set to new parent
+ *              ParentOp            - The parent
+ *
+ * RETURN:      None, sets Op parent directly
+ *
+ * DESCRIPTION: Change the parent of a parse op.
+ *
+ ******************************************************************************/
+
+void
+TrSetParent (
+    ACPI_PARSE_OBJECT       *Op,
+    ACPI_PARSE_OBJECT       *ParentOp)
+{
+
+    Op->Asl.Parent = ParentOp;
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    TrGetNextNode
  *
  * PARAMETERS:  None

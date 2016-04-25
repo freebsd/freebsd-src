@@ -50,6 +50,15 @@
         ACPI_MODULE_NAME    ("aslanalyze")
 
 
+/* Local Prototypes */
+
+static ACPI_STATUS
+ApDeviceSubtreeWalk (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Level,
+    void                    *Context);
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AnIsInternalMethod
@@ -574,6 +583,108 @@ ApCheckRegMethod (
     /* No region found, issue warning */
 
     AslError (ASL_WARNING, ASL_MSG_NO_REGION, Op, NULL);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    ApFindNameInDeviceTree
+ *
+ * PARAMETERS:  Name                - Name to search for
+ *              Op                  - Current parse op
+ *
+ * RETURN:      TRUE if name found in the same scope as Op.
+ *
+ * DESCRIPTION: Determine if a name appears in the same scope as Op, as either
+ *              a Method() or a Name(). "Same scope" can mean under an If or
+ *              Else statement.
+ *
+ * NOTE: Detects _HID/_ADR in this type of construct (legal in ACPI 6.1+)
+ *
+ * Scope (\_SB.PCI0)
+ * {
+ *     Device (I2C0)
+ *     {
+ *         If (SMD0 != 4) {
+ *             Name (_HID, "INT3442")
+ *         } Else {
+ *             Name (_ADR, 0x400)
+ *         }
+ *     }
+ * }
+ ******************************************************************************/
+
+BOOLEAN
+ApFindNameInDeviceTree (
+    char                    *Name,
+    ACPI_PARSE_OBJECT       *Op)
+{
+    ACPI_STATUS             Status;
+
+
+    Status = TrWalkParseTree (Op, ASL_WALK_VISIT_DOWNWARD,
+        ApDeviceSubtreeWalk, NULL, Name);
+
+    if (Status == AE_CTRL_TRUE)
+    {
+        return (TRUE);  /* Found a match */
+    }
+
+    return (FALSE);
+}
+
+
+/* Callback function for interface above */
+
+static ACPI_STATUS
+ApDeviceSubtreeWalk (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Level,
+    void                    *Context)
+{
+    char                    *Name = ACPI_CAST_PTR (char, Context);
+
+
+    switch (Op->Asl.ParseOpcode)
+    {
+    case PARSEOP_DEVICE:
+
+        /* Level 0 is the starting device, ignore it */
+
+        if (Level > 0)
+        {
+            /* Ignore sub-devices */
+
+            return (AE_CTRL_DEPTH);
+        }
+        break;
+
+    case PARSEOP_NAME:
+    case PARSEOP_METHOD:
+
+        /* These are what we are looking for */
+
+        if (ACPI_COMPARE_NAME (Name, Op->Asl.NameSeg))
+        {
+            return (AE_CTRL_TRUE);
+        }
+        return (AE_CTRL_DEPTH);
+
+    case PARSEOP_SCOPE:
+    case PARSEOP_FIELD:
+    case PARSEOP_OPERATIONREGION:
+
+        /*
+         * We want to ignore these, because either they can be large
+         * subtrees or open a scope to somewhere else.
+         */
+        return (AE_CTRL_DEPTH);
+
+    default:
+        break;
+    }
+
+    return (AE_OK);
 }
 
 

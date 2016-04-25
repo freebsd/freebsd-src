@@ -39,6 +39,7 @@ OBJECTS = \
     $(OBJDIR)/oslibcfs.o\
     $(OBJDIR)/osunixdir.o\
     $(OBJDIR)/osunixxf.o\
+	$(OBJDIR)/utascii.o\
     $(OBJDIR)/utdebug.o\
     $(OBJDIR)/utexcep.o\
     $(OBJDIR)/utglobal.o\

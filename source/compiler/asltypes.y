@@ -62,7 +62,6 @@ NoEcho('
 %type <n> NamedObject
 %type <n> NameSpaceModifier
 %type <n> Object
-%type <n> ObjectList
 %type <n> PackageData
 %type <n> ParameterTypePackage
 %type <n> ParameterTypePackageList
@@ -295,6 +294,7 @@ NoEcho('
 %type <n> PrintfArgList
 %type <n> PrintfTerm
 %type <n> FprintfTerm
+%type <n> ForTerm
 
 /* Resource Descriptors */
 
@@ -312,6 +312,7 @@ NoEcho('
 %type <n> GpioIntTerm
 %type <n> GpioIoTerm
 %type <n> I2cSerialBusTerm
+%type <n> I2cSerialBusTermV2
 %type <n> InterruptTerm
 %type <n> IOTerm
 %type <n> IRQNoFlagsTerm
@@ -326,9 +327,11 @@ NoEcho('
 %type <n> QWordSpaceTerm
 %type <n> RegisterTerm
 %type <n> SpiSerialBusTerm
+%type <n> SpiSerialBusTermV2
 %type <n> StartDependentFnNoPriTerm
 %type <n> StartDependentFnTerm
 %type <n> UartSerialBusTerm
+%type <n> UartSerialBusTermV2
 %type <n> VendorLongTerm
 %type <n> VendorShortTerm
 %type <n> WordBusNumberTerm
@@ -347,6 +350,7 @@ NoEcho('
 %type <n> OptionalAddressRange
 %type <n> OptionalBitsPerByte
 %type <n> OptionalBuffer_Last
+%type <n> OptionalBufferLength
 %type <n> OptionalByteConstExpr
 %type <n> OptionalCount
 %type <n> OptionalDecodeType
@@ -366,6 +370,7 @@ NoEcho('
 %type <n> OptionalParameterTypePackage
 %type <n> OptionalParameterTypesPackage
 %type <n> OptionalParityType
+%type <n> OptionalPredicate
 %type <n> OptionalQWordConstExpr
 %type <n> OptionalRangeType
 %type <n> OptionalReference

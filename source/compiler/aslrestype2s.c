@@ -734,6 +734,11 @@ RsDoI2cSerialBusDescriptor (
     Descriptor->I2cSerialBus.Type = AML_RESOURCE_I2C_SERIALBUSTYPE;
     Descriptor->I2cSerialBus.TypeDataLength = AML_RESOURCE_I2C_MIN_DATA_LEN + VendorLength;
 
+    if (Info->DescriptorTypeOp->Asl.ParseOpcode == PARSEOP_I2C_SERIALBUS_V2)
+    {
+        Descriptor->I2cSerialBus.RevisionId = 2;
+    }
+
     /* Build pointers to optional areas */
 
     VendorData = ACPI_ADD_PTR (UINT8, Descriptor, sizeof (AML_RESOURCE_I2C_SERIALBUS));
@@ -803,7 +808,18 @@ RsDoI2cSerialBusDescriptor (
             UtAttachNamepathToOwner (Info->DescriptorTypeOp, InitializerOp);
             break;
 
-        case 8: /* Vendor Data (Optional - Buffer of BYTEs) (_VEN) */
+        case 8:
+            /*
+             * Connection Share - Added for V2 (ACPI 6.0) version of the descriptor
+             * Note: For V1, the share bit will be zero (Op is DEFAULT_ARG from
+             * the ASL parser)
+             */
+            RsSetFlagBits (&Descriptor->I2cSerialBus.Flags, InitializerOp, 2, 0);
+            RsCreateBitField (InitializerOp, ACPI_RESTAG_INTERRUPTSHARE,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (I2cSerialBus.Flags), 2);
+            break;
+
+        case 9: /* Vendor Data (Optional - Buffer of BYTEs) (_VEN) */
 
             RsGetVendorData (InitializerOp, VendorData,
                 CurrentByteOffset + sizeof (AML_RESOURCE_I2C_SERIALBUS));
@@ -876,6 +892,11 @@ RsDoSpiSerialBusDescriptor (
     Descriptor->SpiSerialBus.TypeRevisionId = AML_RESOURCE_SPI_TYPE_REVISION;
     Descriptor->SpiSerialBus.Type = AML_RESOURCE_SPI_SERIALBUSTYPE;
     Descriptor->SpiSerialBus.TypeDataLength = AML_RESOURCE_SPI_MIN_DATA_LEN + VendorLength;
+
+    if (Info->DescriptorTypeOp->Asl.ParseOpcode == PARSEOP_SPI_SERIALBUS_V2)
+    {
+        Descriptor->I2cSerialBus.RevisionId = 2;
+    }
 
     /* Build pointers to optional areas */
 
@@ -975,7 +996,18 @@ RsDoSpiSerialBusDescriptor (
             UtAttachNamepathToOwner (Info->DescriptorTypeOp, InitializerOp);
             break;
 
-        case 12: /* Vendor Data (Optional - Buffer of BYTEs) (_VEN) */
+        case 12:
+            /*
+             * Connection Share - Added for V2 (ACPI 6.0) version of the descriptor
+             * Note: For V1, the share bit will be zero (Op is DEFAULT_ARG from
+             * the ASL parser)
+             */
+            RsSetFlagBits (&Descriptor->SpiSerialBus.Flags, InitializerOp, 2, 0);
+            RsCreateBitField (InitializerOp, ACPI_RESTAG_INTERRUPTSHARE,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (SpiSerialBus.Flags), 2);
+            break;
+
+        case 13: /* Vendor Data (Optional - Buffer of BYTEs) (_VEN) */
 
             RsGetVendorData (InitializerOp, VendorData,
                 CurrentByteOffset + sizeof (AML_RESOURCE_SPI_SERIALBUS));
@@ -1048,6 +1080,11 @@ RsDoUartSerialBusDescriptor (
     Descriptor->UartSerialBus.TypeRevisionId = AML_RESOURCE_UART_TYPE_REVISION;
     Descriptor->UartSerialBus.Type = AML_RESOURCE_UART_SERIALBUSTYPE;
     Descriptor->UartSerialBus.TypeDataLength = AML_RESOURCE_UART_MIN_DATA_LEN + VendorLength;
+
+    if (Info->DescriptorTypeOp->Asl.ParseOpcode == PARSEOP_UART_SERIALBUS_V2)
+    {
+        Descriptor->I2cSerialBus.RevisionId = 2;
+    }
 
     /* Build pointers to optional areas */
 
@@ -1163,7 +1200,18 @@ RsDoUartSerialBusDescriptor (
             UtAttachNamepathToOwner (Info->DescriptorTypeOp, InitializerOp);
             break;
 
-        case 13: /* Vendor Data (Optional - Buffer of BYTEs) (_VEN) */
+        case 13:
+            /*
+             * Connection Share - Added for V2 (ACPI 6.0) version of the descriptor
+             * Note: For V1, the share bit will be zero (Op is DEFAULT_ARG from
+             * the ASL parser)
+             */
+            RsSetFlagBits (&Descriptor->UartSerialBus.Flags, InitializerOp, 2, 0);
+            RsCreateBitField (InitializerOp, ACPI_RESTAG_INTERRUPTSHARE,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (UartSerialBus.Flags), 2);
+            break;
+
+        case 14: /* Vendor Data (Optional - Buffer of BYTEs) (_VEN) */
 
             RsGetVendorData (InitializerOp, VendorData,
                 CurrentByteOffset + sizeof (AML_RESOURCE_UART_SERIALBUS));

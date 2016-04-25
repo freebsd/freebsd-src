@@ -279,6 +279,7 @@ static const ACPI_RESOURCE_TAG      AcpiDmGpioIoTags[] =
 static const ACPI_RESOURCE_TAG      AcpiDmI2cSerialBusTags[] =
 {
     {( 6 * 8) + 0,  ACPI_RESTAG_SLAVEMODE},
+    {( 6 * 8) + 2,  ACPI_RESTAG_INTERRUPTSHARE},    /* V2 - ACPI 6.0 */
     {( 7 * 8) + 0,  ACPI_RESTAG_MODE},
     {(12 * 8),      ACPI_RESTAG_SPEED},
     {(16 * 8),      ACPI_RESTAG_ADDRESS},
@@ -288,6 +289,7 @@ static const ACPI_RESOURCE_TAG      AcpiDmI2cSerialBusTags[] =
 static const ACPI_RESOURCE_TAG      AcpiDmSpiSerialBusTags[] =
 {
     {( 6 * 8) + 0,  ACPI_RESTAG_SLAVEMODE},
+    {( 6 * 8) + 2,  ACPI_RESTAG_INTERRUPTSHARE},    /* V2 - ACPI 6.0 */
     {( 7 * 8) + 0,  ACPI_RESTAG_MODE},
     {( 7 * 8) + 1,  ACPI_RESTAG_DEVICEPOLARITY},
     {(12 * 8),      ACPI_RESTAG_SPEED},
@@ -300,7 +302,8 @@ static const ACPI_RESOURCE_TAG      AcpiDmSpiSerialBusTags[] =
 
 static const ACPI_RESOURCE_TAG      AcpiDmUartSerialBusTags[] =
 {
-    {( 6 * 8) + 0,  ACPI_RESTAG_SLAVEMODE}, /* Note: not part of original macro */
+    {( 6 * 8) + 0,  ACPI_RESTAG_SLAVEMODE},         /* Note: not part of original macro */
+    {( 6 * 8) + 2,  ACPI_RESTAG_INTERRUPTSHARE},    /* V2 - ACPI 6.0 */
     {( 7 * 8) + 0,  ACPI_RESTAG_FLOWCONTROL},
     {( 7 * 8) + 2,  ACPI_RESTAG_STOPBITS},
     {( 7 * 8) + 4,  ACPI_RESTAG_LENGTH},

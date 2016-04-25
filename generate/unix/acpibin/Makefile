@@ -32,6 +32,7 @@ OBJECTS = \
 	$(OBJDIR)/cmfsize.o\
 	$(OBJDIR)/getopt.o\
 	$(OBJDIR)/utalloc.o\
+	$(OBJDIR)/utascii.o\
 	$(OBJDIR)/utbuffer.o\
 	$(OBJDIR)/utcache.o\
 	$(OBJDIR)/utdebug.o\

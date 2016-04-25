@@ -201,6 +201,7 @@ OBJECTS = \
 	$(OBJDIR)/tbxfload.o\
 	$(OBJDIR)/utaddress.o\
 	$(OBJDIR)/utalloc.o\
+	$(OBJDIR)/utascii.o\
 	$(OBJDIR)/utbuffer.o\
 	$(OBJDIR)/utcache.o\
 	$(OBJDIR)/utcopy.o\
@@ -274,12 +275,14 @@ include ../Makefile.rules
 # Function to safely execute yacc
 #
 safe_yacc = \
-	_f=`echo $(1) | tr '[:upper:]' '[:lower:]'` &&\
-	_d=`mktemp -d $(OBJDIR)/$$_f.XXXXXX` &&\
-	_t=`basename $(3)` &&\
-	$(YACC) $(YFLAGS) -p$(1) -o$$_d/$$_f.c -d $(2) &&\
-	mv $$_d/$$_f.$${_t\#\#*.} $(3);\
-	test -d $$_d && rm -fr $$_d
+	_d=`mktemp -d $(OBJDIR)/$(1).XXXXXX` &&\
+	cd $$_d &&\
+	$(YACC) $(YFLAGS) -d -p$(1) $(abspath $(2)) &&\
+	cd - &&\
+	mv $$_d/y.tab$(suffix $(3)) $(3);\
+	_r=$$?;\
+	rm -fr $$_d;\
+	exit $$_r
 
 #
 # Macro processing for iASL .y files
