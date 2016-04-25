@@ -274,6 +274,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	} else {
 		bzero(__sbss_start, __sbss_end - __sbss_start);
 		bzero(__bss_start, _end - __bss_start);
+		init_static_kenv(NULL, 0);
 	}
 #ifdef BOOKE
 	tlb1_init();
