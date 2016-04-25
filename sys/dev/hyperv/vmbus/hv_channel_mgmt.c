@@ -203,8 +203,6 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	}
 	mtx_unlock(&hv_vmbus_g_connection.channel_lock);
 
-	/*XXX add new channel to percpu_list */
-
 	if (channel != NULL) {
 		/*
 		 * Check if this is a sub channel.
@@ -237,8 +235,6 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 				printf("VMBUS: new multi-channel offer <%p>, "
 				    "its primary channel is <%p>.\n",
 				    new_channel, new_channel->primary_channel);
-
-			/*XXX add it to percpu_list */
 
 			new_channel->state = HV_CHANNEL_OPEN_STATE;
 			if (channel->sc_creation_callback != NULL)
