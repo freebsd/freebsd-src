@@ -37,7 +37,7 @@
 #endif
 #endif
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/mman.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
@@ -79,8 +79,6 @@
 #ifdef LIST_ONLY
 #include "cheritest_list_only.h"
 #endif
-
-#define	max(x, y)	((x) > (y) ? (x) : (y))
 
 static const struct cheri_test cheri_tests[] = {
 	/*
@@ -1481,7 +1479,7 @@ main(int argc, char *argv[])
 	 * XXXRW: It is unclear if this should be done by libcheri rather than
 	 * the main program?
 	 */
-	stack.ss_size = max(getpagesize(), SIGSTKSZ);
+	stack.ss_size = MAX(getpagesize(), SIGSTKSZ);
 	stack.ss_sp = mmap(NULL, stack.ss_size, PROT_READ | PROT_WRITE,
 	    MAP_ANON, -1, 0);
 	if (stack.ss_sp == MAP_FAILED)
