@@ -2700,8 +2700,10 @@ hn_transmit(struct ifnet *ifp, struct mbuf *m)
 	txr = &sc->hn_tx_ring[idx];
 
 	error = drbr_enqueue(ifp, txr->hn_mbuf_br, m);
-	if (error)
+	if (error) {
+		if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
 		return error;
+	}
 
 	if (txr->hn_oactive)
 		return 0;
