@@ -374,7 +374,7 @@ random_yarrow_read(uint8_t *buf, u_int bytecount)
 
 	KASSERT((bytecount % RANDOM_BLOCKSIZE) == 0, ("%s(): bytecount (= %d) must be a multiple of %d", __func__, bytecount, RANDOM_BLOCKSIZE ));
 	RANDOM_RESEED_LOCK();
-	blockcount = (bytecount + RANDOM_BLOCKSIZE - 1)/RANDOM_BLOCKSIZE;
+	blockcount = howmany(bytecount, RANDOM_BLOCKSIZE);
 	for (i = 0; i < blockcount; i++) {
 		if (yarrow_state.ys_outputblocks++ >= yarrow_state.ys_gengateinterval) {
 			random_yarrow_generator_gate();

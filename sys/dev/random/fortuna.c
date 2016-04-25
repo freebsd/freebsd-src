@@ -324,7 +324,7 @@ random_fortuna_genrandom(uint8_t *buf, u_int bytecount)
 	 *      - K = GenerateBlocks(2)
 	 */
 	KASSERT((bytecount <= RANDOM_FORTUNA_MAX_READ), ("invalid single read request to Fortuna of %d bytes", bytecount));
-	blockcount = (bytecount + RANDOM_BLOCKSIZE - 1)/RANDOM_BLOCKSIZE;
+	blockcount = howmany(bytecount, RANDOM_BLOCKSIZE);
 	random_fortuna_genblocks(buf, blockcount);
 	random_fortuna_genblocks(temp, RANDOM_KEYS_PER_BLOCK);
 	randomdev_encrypt_init(&fortuna_state.fs_key, temp);
