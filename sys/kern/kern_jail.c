@@ -556,7 +556,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #endif
 	unsigned long hid;
 	size_t namelen, onamelen;
-	int created, cuflags, descend, enforce, error, errmsg_len, errmsg_pos;
+	int born, created, cuflags, descend, enforce;
+	int error, errmsg_len, errmsg_pos;
 	int gotchildmax, gotenforce, gothid, gotrsnum, gotslevel;
 	int fi, jid, jsys, len, level;
 	int childmax, osreldt, rsnum, slevel;
@@ -1767,6 +1768,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	 * for now, so new ones will remain unseen until after the module
 	 * handlers have completed.
 	 */
+	born = pr->pr_uref == 0;
 	if (!created && (ch_flags & PR_PERSIST & (pr_flags ^ pr->pr_flags))) {
 		if (pr_flags & PR_PERSIST) {
 			pr->pr_ref++;
@@ -1836,15 +1838,20 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 
 	/* Let the modules do their work. */
 	sx_downgrade(&allprison_lock);
-	if (created) {
+	if (born) {
 		error = osd_jail_call(pr, PR_METHOD_CREATE, opts);
 		if (error) {
-			prison_deref(pr, PD_LIST_SLOCKED);
+			(void)osd_jail_call(pr, PR_METHOD_REMOVE, NULL);
+			prison_deref(pr, created
+			    ? PD_LIST_SLOCKED
+			    : PD_DEREF | PD_LIST_SLOCKED);
 			goto done_errmsg;
 		}
 	}
 	error = osd_jail_call(pr, PR_METHOD_SET, opts);
 	if (error) {
+		if (born)
+			(void)osd_jail_call(pr, PR_METHOD_REMOVE, NULL);
 		prison_deref(pr, created
 		    ? PD_LIST_SLOCKED
 		    : PD_DEREF | PD_LIST_SLOCKED);
@@ -1896,7 +1903,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			sx_sunlock(&allprison_lock);
 	}
 
-	goto done_errmsg;
+	goto done_free;
 
  done_deref_locked:
 	prison_deref(pr, created
@@ -2596,19 +2603,46 @@ static void
 prison_deref(struct prison *pr, int flags)
 {
 	struct prison *ppr, *tpr;
+	int ref, lasturef;
 
 	if (!(flags & PD_LOCKED))
 		mtx_lock(&pr->pr_mtx);
 	for (;;) {
 		if (flags & PD_DEUREF) {
 			pr->pr_uref--;
+			lasturef = pr->pr_uref == 0;
+			if (lasturef)
+				pr->pr_ref++;
 			KASSERT(prison0.pr_uref != 0, ("prison0 pr_uref=0"));
-		}
+		} else
+			lasturef = 0;
 		if (flags & PD_DEREF)
 			pr->pr_ref--;
-		/* If the prison still has references, nothing else to do. */
-		if (pr->pr_ref > 0) {
+		ref = pr->pr_ref;
+		mtx_unlock(&pr->pr_mtx);
+
+		/*
+		 * Tell the modules if the last user reference was removed
+		 * (even it sticks around in dying state).
+		 */
+		if (lasturef) {
+			if (!(flags & (PD_LIST_SLOCKED | PD_LIST_XLOCKED))) {
+				if (ref > 1) {
+					sx_slock(&allprison_lock);
+					flags |= PD_LIST_SLOCKED;
+				} else {
+					sx_xlock(&allprison_lock);
+					flags |= PD_LIST_XLOCKED;
+				}
+			}
+			(void)osd_jail_call(pr, PR_METHOD_REMOVE, NULL);
+			mtx_lock(&pr->pr_mtx);
+			ref = --pr->pr_ref;
 			mtx_unlock(&pr->pr_mtx);
+		}
+
+		/* If the prison still has references, nothing else to do. */
+		if (ref > 0) {
 			if (flags & PD_LIST_SLOCKED)
 				sx_sunlock(&allprison_lock);
 			else if (flags & PD_LIST_XLOCKED)
@@ -2616,7 +2650,6 @@ prison_deref(struct prison *pr, int flags)
 			return;
 		}
 
-		mtx_unlock(&pr->pr_mtx);
 		if (flags & PD_LIST_SLOCKED) {
 			if (!sx_try_upgrade(&allprison_lock)) {
 				sx_sunlock(&allprison_lock);
