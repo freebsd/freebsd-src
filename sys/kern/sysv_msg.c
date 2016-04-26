@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/msg.h>
 #include <sys/racct.h>
-#include <sys/sbuf.h>
 #include <sys/sx.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
@@ -1423,38 +1422,28 @@ sys_msgrcv(td, uap)
 static int
 sysctl_msqids(SYSCTL_HANDLER_ARGS)
 {
-	struct sbuf sb;
-	struct msqid_kernel tmp, empty;
-	struct msqid_kernel *msqkptr;
-	struct prison *rpr;
+	struct msqid_kernel tmsqk;
+	struct prison *pr, *rpr;
 	int error, i;
 
-	error = sysctl_wire_old_buffer(req, 0);
-	if (error != 0)
-		goto done;
+	pr = req->td->td_ucred->cr_prison;
 	rpr = msg_find_prison(req->td->td_ucred);
-	sbuf_new_for_sysctl(&sb, NULL, sizeof(struct msqid_kernel) *
-	    msginfo.msgmni, req);
-
-	bzero(&empty, sizeof(empty));
+	error = 0;
 	for (i = 0; i < msginfo.msgmni; i++) {
-		msqkptr = &msqids[i];
-		if (msqkptr->u.msg_qbytes == 0 || rpr == NULL ||
-		    msq_prison_cansee(rpr, msqkptr) != 0) {
-			msqkptr = &empty;
-		} else if (req->td->td_ucred->cr_prison !=
-		    msqkptr->cred->cr_prison) {
-			bcopy(msqkptr, &tmp, sizeof(tmp));
-			msqkptr = &tmp;
-			msqkptr->u.msg_perm.key = IPC_PRIVATE;
+		mtx_lock(&msq_mtx);
+		if (msqids[i].u.msg_qbytes == 0 || rpr == NULL ||
+		    msq_prison_cansee(rpr, &msqids[i]) != 0)
+			bzero(&tmsqk, sizeof(tmsqk));
+		else {
+			tmsqk = msqids[i];
+			if (tmsqk.cred->cr_prison != pr)
+				tmsqk.u.msg_perm.key = IPC_PRIVATE;
 		}
-
-		sbuf_bcat(&sb, msqkptr, sizeof(*msqkptr));
+		mtx_unlock(&msq_mtx);
+		error = SYSCTL_OUT(req, &tmsqk, sizeof(tmsqk));
+		if (error != 0)
+			break;
 	}
-	error = sbuf_finish(&sb);
-	sbuf_delete(&sb);
-
-done:
 	return (error);
 }
 
@@ -1470,7 +1459,8 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, msgssz, CTLFLAG_RDTUN, &msginfo.msgssz, 0,
     "Size of a message segment");
 SYSCTL_INT(_kern_ipc, OID_AUTO, msgseg, CTLFLAG_RDTUN, &msginfo.msgseg, 0,
     "Number of message segments");
-SYSCTL_PROC(_kern_ipc, OID_AUTO, msqids, CTLTYPE_OPAQUE | CTLFLAG_RD,
+SYSCTL_PROC(_kern_ipc, OID_AUTO, msqids,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE,
     NULL, 0, sysctl_msqids, "", "Message queue IDs");
 
 static int

@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
-#include <sys/sbuf.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
@@ -1009,40 +1008,28 @@ shmunload(void)
 static int
 sysctl_shmsegs(SYSCTL_HANDLER_ARGS)
 {
-	struct prison *rpr;
-	struct sbuf sb;
-	struct shmid_kernel tmp, empty;
-	struct shmid_kernel *shmseg;
+	struct shmid_kernel tshmseg;
+	struct prison *pr, *rpr;
 	int error, i;
 
 	SYSVSHM_LOCK();
-
-	error = sysctl_wire_old_buffer(req, 0);
-	if (error != 0)
-		goto done;
+	pr = req->td->td_ucred->cr_prison;
 	rpr = shm_find_prison(req->td->td_ucred);
-	sbuf_new_for_sysctl(&sb, NULL, shmalloced * sizeof(shmsegs[0]), req);
-
-	bzero(&empty, sizeof(empty));
-	empty.u.shm_perm.mode = SHMSEG_FREE;
+	error = 0;
 	for (i = 0; i < shmalloced; i++) {
-		shmseg = &shmsegs[i];
-		if ((shmseg->u.shm_perm.mode & SHMSEG_ALLOCATED) == 0 ||
+		if ((shmsegs[i].u.shm_perm.mode & SHMSEG_ALLOCATED) == 0 ||
 		    rpr == NULL || shm_prison_cansee(rpr, &shmsegs[i]) != 0) {
-			shmseg = &empty;
-		} else if (req->td->td_ucred->cr_prison !=
-		    shmseg->cred->cr_prison) {
-			bcopy(shmseg, &tmp, sizeof(tmp));
-			shmseg = &tmp;
-			shmseg->u.shm_perm.key = IPC_PRIVATE;
+			bzero(&tshmseg, sizeof(tshmseg));
+			tshmseg.u.shm_perm.mode = SHMSEG_FREE;
+		} else {
+			tshmseg = shmsegs[i];
+			if (tshmseg.cred->cr_prison != pr)
+				tshmseg.u.shm_perm.key = IPC_PRIVATE;
 		}
-
-		sbuf_bcat(&sb, shmseg, sizeof(*shmseg));
+		error = SYSCTL_OUT(req, &tshmseg, sizeof(tshmseg));
+		if (error != 0)
+			break;
 	}
-	error = sbuf_finish(&sb);
-	sbuf_delete(&sb);
-
-done:
 	SYSVSHM_UNLOCK();
 	return (error);
 }
