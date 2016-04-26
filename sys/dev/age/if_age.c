@@ -2486,7 +2486,7 @@ age_rxintr(struct age_softc *sc, int rr_prod, int count)
 		 * I'm not sure whether this check is really needed.
 		 */
 		pktlen = AGE_RX_BYTES(le32toh(rxrd->len));
-		if (nsegs != (pktlen + (AGE_RX_BUF_SIZE - 1)) / AGE_RX_BUF_SIZE)
+		if (nsegs != howmany(pktlen, AGE_RX_BUF_SIZE))
 			break;
 
 		/* Received a frame. */

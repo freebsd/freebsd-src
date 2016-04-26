@@ -1316,7 +1316,7 @@ amr_bio_command(struct amr_softc *sc, struct amr_command **acp)
     }
     amrd = (struct amrd_softc *)bio->bio_disk->d_drv1;
     driveno = amrd->amrd_drive - sc->amr_drive;
-    blkcount = (bio->bio_bcount + AMR_BLKSIZE - 1) / AMR_BLKSIZE;
+    blkcount = howmany(bio->bio_bcount, AMR_BLKSIZE);
 
     ac->ac_mailbox.mb_command = cmd;
     if (bio->bio_cmd == BIO_READ || bio->bio_cmd == BIO_WRITE) {

@@ -246,7 +246,7 @@ usbd_transfer_setup_sub_malloc(struct usb_setup_params *parm,
 		 * Compute number of DMA chunks, rounded up
 		 * to nearest one:
 		 */
-		n_dma_pc = ((count + n_obj - 1) / n_obj);
+		n_dma_pc = howmany(count, n_obj);
 		n_dma_pg = 1;
 	}
 
