@@ -1699,12 +1699,10 @@ ada_dsmtrim(struct ada_softc *softc, struct bio *bp, struct ccb_ataio *ataio)
 	    CAM_DIR_OUT,
 	    0,
 	    req->data,
-	    ((ranges + ATA_DSM_BLK_RANGES - 1) /
-	    ATA_DSM_BLK_RANGES) * ATA_DSM_BLK_SIZE,
+	    howmany(ranges, ATA_DSM_BLK_RANGES) * ATA_DSM_BLK_SIZE,
 	    ada_default_timeout * 1000);
 	ata_48bit_cmd(ataio, ATA_DATA_SET_MANAGEMENT,
-	    ATA_DSM_TRIM, 0, (ranges + ATA_DSM_BLK_RANGES -
-	    1) / ATA_DSM_BLK_RANGES);
+	    ATA_DSM_TRIM, 0, howmany(ranges, ATA_DSM_BLK_RANGES));
 }
 
 static void
@@ -1720,13 +1718,12 @@ ada_ncq_dsmtrim(struct ada_softc *softc, struct bio *bp, struct ccb_ataio *ataio
 	    CAM_DIR_OUT,
 	    0,
 	    req->data,
-	    ((ranges + ATA_DSM_BLK_RANGES - 1) /
-	    ATA_DSM_BLK_RANGES) * ATA_DSM_BLK_SIZE,
+	    howmany(ranges, ATA_DSM_BLK_RANGES) * ATA_DSM_BLK_SIZE,
 	    ada_default_timeout * 1000);
 	ata_ncq_cmd(ataio,
 	    ATA_SEND_FPDMA_QUEUED,
 	    0,
-	    (ranges + ATA_DSM_BLK_RANGES - 1) / ATA_DSM_BLK_RANGES);
+	    howmany(ranges, ATA_DSM_BLK_RANGES));
 	ataio->cmd.sector_count_exp = ATA_SFPDMA_DSM;
 	ataio->ata_flags |= ATA_FLAG_AUX;
 	ataio->aux = 1;

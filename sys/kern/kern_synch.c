@@ -337,7 +337,7 @@ pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 			sbt -= SBT_1S;
 		}
 		/* Do the delay remainder, if any */
-		sbt = (sbt + SBT_1US - 1) / SBT_1US;
+		sbt = howmany(sbt, SBT_1US);
 		if (sbt > 0)
 			DELAY(sbt);
 		return (0);

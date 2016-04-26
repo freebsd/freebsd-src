@@ -195,9 +195,8 @@ g_uzip_cached(struct g_geom *gp, struct bio *bp)
 
 #define TOFF_2_BOFF(sc, pp, bi)	    ((sc)->toc[(bi)].offset - \
     (sc)->toc[(bi)].offset % (pp)->sectorsize)
-#define TLEN_2_BLEN(sc, pp, bp, ei) ((BLK_ENDS((sc), (ei)) - \
-    (bp)->bio_offset + (pp)->sectorsize - 1) / \
-    (pp)->sectorsize * (pp)->sectorsize)
+#define	TLEN_2_BLEN(sc, pp, bp, ei) roundup(BLK_ENDS((sc), (ei)) - \
+    (bp)->bio_offset, (pp)->sectorsize)
 
 static int
 g_uzip_request(struct g_geom *gp, struct bio *bp)
@@ -220,7 +219,7 @@ g_uzip_request(struct g_geom *gp, struct bio *bp)
 	ofs = bp->bio_offset + bp->bio_completed;
 	start_blk = ofs / sc->blksz;
 	KASSERT(start_blk < sc->nblocks, ("start_blk out of range"));
-	end_blk = (ofs + bp->bio_resid + sc->blksz - 1) / sc->blksz;
+	end_blk = howmany(ofs + bp->bio_resid, sc->blksz);
 	KASSERT(end_blk <= sc->nblocks, ("end_blk out of range"));
 
 	for (; BLK_IS_NIL(sc, start_blk) && start_blk < end_blk; start_blk++) {

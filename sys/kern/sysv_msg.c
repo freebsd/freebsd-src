@@ -842,7 +842,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	}
 #endif
 
-	segs_needed = (msgsz + msginfo.msgssz - 1) / msginfo.msgssz;
+	segs_needed = howmany(msgsz, msginfo.msgssz);
 	DPRINTF(("msgsz=%zu, msgssz=%d, segs_needed=%d\n", msgsz,
 	    msginfo.msgssz, segs_needed));
 	for (;;) {
