@@ -90,8 +90,6 @@ options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, require
 # options 	WITNESS			# Enable checks to detect deadlocks and cycles
 # options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
-
-options 	ROOTDEVNAME=\"ufs:/dev/htif_blk0\"
 # options 	EARLY_PRINTF
 
 # Pseudo devices.

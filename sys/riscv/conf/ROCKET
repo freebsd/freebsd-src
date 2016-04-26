@@ -1,5 +1,5 @@
 #
-# Kernel configuration file for QEMU emulator.
+# Kernel configuration file for Rocket Core.
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -19,11 +19,11 @@
 # $FreeBSD$
 
 include		GENERIC
-ident		QEMU
+ident		ROCKET
 
 device		htif
 options 	ROOTDEVNAME=\"ufs:/dev/htif_blk0\"
 
 # RISCVTODO: This needs to be done via loader (when it's available).
 options 	FDT_DTB_STATIC
-makeoptions	FDT_DTS_FILE=qemu.dts
+makeoptions	FDT_DTS_FILE=rocket.dts
