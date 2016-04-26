@@ -42,9 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#if !defined(__aarch64__) && !defined(__riscv__)
-#include <machine/fdt.h>
-#endif
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
