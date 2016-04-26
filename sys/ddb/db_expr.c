@@ -154,7 +154,7 @@ db_mult_expr(db_expr_t *valuep)
 		else if (t == tPCT)
 		    lhs %= rhs;
 		else
-		    lhs = ((lhs+rhs-1)/rhs)*rhs;
+		    lhs = roundup(lhs, rhs);
 	    }
 	    t = db_read_token();
 	}
