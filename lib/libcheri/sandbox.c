@@ -201,7 +201,6 @@ int
 sandbox_class_new(const char *path, size_t maxmaplen,
     struct sandbox_class **sbcpp)
 {
-	char sandbox_basename[MAXPATHLEN];
 	struct sandbox_class *sbcp;
 	struct sandbox_class **new_sandbox_classes;
 	int fd, saved_errno;
@@ -385,7 +384,7 @@ error:
 
 int
 sandbox_class_method_declare(struct sandbox_class *sbcp, u_int methodnum,
-    const char *methodname)
+    const char *methodname __unused)
 {
 
 	if (methodnum >= SANDBOX_CLASS_METHOD_COUNT) {
@@ -402,7 +401,6 @@ sandbox_class_method_declare(struct sandbox_class *sbcp, u_int methodnum,
 void
 sandbox_class_destroy(struct sandbox_class *sbcp)
 {
-	u_int i;
 
 	sandbox_class_unload(sbcp);
 	close(sbcp->sbc_fd);
