@@ -1431,7 +1431,7 @@ ciss_init_logical(struct ciss_softc *sc)
 	goto out;
     }
 
-    for (i = 0; i <= sc->ciss_max_logical_bus; i++) {
+    for (i = 0; i < sc->ciss_max_logical_bus; i++) {
 	sc->ciss_logical[i] =
 	    malloc(sc->ciss_cfg->max_logical_supported *
 		   sizeof(struct ciss_ldrive),
@@ -2030,7 +2030,7 @@ ciss_free(struct ciss_softc *sc)
     if (sc->ciss_parent_dmat)
 	bus_dma_tag_destroy(sc->ciss_parent_dmat);
     if (sc->ciss_logical) {
-	for (i = 0; i <= sc->ciss_max_logical_bus; i++) {
+	for (i = 0; i < sc->ciss_max_logical_bus; i++) {
 	    for (j = 0; j < sc->ciss_cfg->max_logical_supported; j++) {
 		if (sc->ciss_logical[i][j].cl_ldrive)
 		    free(sc->ciss_logical[i][j].cl_ldrive, CISS_MALLOC_CLASS);
