@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/cpu.h>
+#include <sys/devmap.h>
 #include <sys/efi.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
@@ -70,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/debug_monitor.h>
 #include <machine/kdb.h>
-#include <machine/devmap.h>
 #include <machine/machdep.h>
 #include <machine/metadata.h>
 #include <machine/md_var.h>
@@ -912,7 +912,7 @@ initarm(struct arm64_bootparams *abp)
 	pmap_bootstrap(abp->kern_l0pt, abp->kern_l1pt,
 	    KERNBASE - abp->kern_delta, lastaddr - KERNBASE);
 
-	arm_devmap_bootstrap(0, NULL);
+	devmap_bootstrap(0, NULL);
 
 	cninit();
 

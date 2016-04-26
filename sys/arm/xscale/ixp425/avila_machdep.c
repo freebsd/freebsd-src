@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/kdb.h>
 #include <sys/msgbuf.h>
+#include <sys/devmap.h>
 #include <machine/physmem.h>
 #include <machine/reg.h>
 #include <machine/cpu.h>
@@ -81,7 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
-#include <machine/devmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
@@ -117,7 +117,7 @@ struct pv_addr kernelstack;
 struct pv_addr minidataclean;
 
 /* Static device mappings. */
-static const struct arm_devmap_entry ixp425_devmap[] = {
+static const struct devmap_entry ixp425_devmap[] = {
 	/* Physical/Virtual address for I/O space */
     { IXP425_IO_VBASE, IXP425_IO_HWBASE, IXP425_IO_SIZE, },
 
@@ -144,7 +144,7 @@ static const struct arm_devmap_entry ixp425_devmap[] = {
 };
 
 /* Static device mappings. */
-static const struct arm_devmap_entry ixp435_devmap[] = {
+static const struct devmap_entry ixp435_devmap[] = {
 	/* Physical/Virtual address for I/O space */
     { IXP425_IO_VBASE, IXP425_IO_HWBASE, IXP425_IO_SIZE, },
 
@@ -326,9 +326,9 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	if (cpu_is_ixp43x())
-		arm_devmap_bootstrap(l1pagetable, ixp435_devmap);
+		devmap_bootstrap(l1pagetable, ixp435_devmap);
 	else
-		arm_devmap_bootstrap(l1pagetable, ixp425_devmap);
+		devmap_bootstrap(l1pagetable, ixp425_devmap);
 	/*
 	 * Give the XScale global cache clean code an appropriately
 	 * sized chunk of unmapped VA space starting at 0xff000000
