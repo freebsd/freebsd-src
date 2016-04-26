@@ -47,7 +47,8 @@
 #define	ECALL_SEND_IPI		0x07
 #define	ECALL_CLEAR_IPI		0x08
 #define	ECALL_HTIF_LOWPUTC	0x09
-#define	ECALL_MIE_SET		0x10
+#define	ECALL_MIE_SET		0x0a
+#define	ECALL_IO_IRQ_MASK	0x0b
 
 #define	EXCP_SHIFT			0
 #define	EXCP_MASK			(0xf << EXCP_SHIFT)
@@ -119,6 +120,7 @@
 
 #define	NCSRS		4096
 #define	CSR_IPI		0x783
+#define	CSR_IO_IRQ	0x7c0	/* lowRISC only? */
 #define	XLEN		8
 #define	INSN_SIZE	4
 
