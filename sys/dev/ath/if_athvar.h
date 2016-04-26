@@ -653,6 +653,7 @@ struct ath_softc {
 				sc_use_ent  : 1,
 				sc_rx_stbc  : 1,
 				sc_tx_stbc  : 1,
+				sc_has_ldpc : 1,
 				sc_hasenforcetxop : 1, /* support enforce TxOP */
 				sc_hasdivcomb : 1,     /* RX diversity combining */
 				sc_rx_lnamixer : 1;    /* RX using LNA mixing */
@@ -1307,6 +1308,10 @@ void	ath_intr(void *);
 
 #define	ath_hal_hasdivantcomb(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_ANT_DIV_COMB, 0, NULL) == HAL_OK)
+#define	ath_hal_hasldpc(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_LDPC, 0, NULL) == HAL_OK)
+#define	ath_hal_hasldpcwar(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_LDPCWAR, 0, NULL) == HAL_OK)
 
 /* EDMA definitions */
 #define	ath_hal_hasedma(_ah) \
