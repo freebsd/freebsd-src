@@ -1720,7 +1720,7 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
    struct chericap *addr, size_t len, int prot, int flags)
 {
 	register_t perms, ret;
-	size_t addr_base, addr_offset, off;
+	size_t addr_base;
 
 	ret = td->td_retval[0];
 	/* On failure, return a NULL capability with an offset of -1. */
@@ -1731,15 +1731,11 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 	}
 
 	/*
-	 * Leave addr alone entierly in the MAP_CHERI_NOSETBOUNDS
-	 * case.  We don't need to modify the trap frame
-	 * because the first argument is already in the
-	 * return register.
+	 * Leave addr alone in the MAP_CHERI_NOSETBOUNDS case.
 	 *
-	 * NB: This means no permission upgrades or downgrades!
-	 * The assumption is that the larger capability
-	 * has the right permissions and we're only intrested
-	 * in adjusting page mappings.
+	 * NB: This means no permission changes.
+	 * The assumption is that the larger capability has the right
+	 * permissions and we're only intrested in adjusting page mappings.
 	 */
 	if (flags & MAP_CHERI_NOSETBOUNDS) {
 		cheri_capability_copy(retcap, addr);
@@ -1748,30 +1744,44 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 
 	if (flags & MAP_FIXED) {
 		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, addr, 0);
+	} else {
+		PROC_LOCK(td->td_proc);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		PROC_UNLOCK(td->td_proc);
+	}
 
+	CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+	CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+	    (~PERM_RWX | cheriabi_mmap_prot2perms(prot)));
+
+	if (flags & MAP_FIXED) {
 		/*
 		 * If addr was under aligned, we need to return a
 		 * capability to the whole, properly aligned region
 		 * with the offset pointing to addr.
 		 */
 		CHERI_CGETBASE(addr_base, CHERI_CR_CTEMP0);
-		CHERI_CGETOFFSET(addr_offset, CHERI_CR_CTEMP0);
-		off = (addr_base + addr_offset) - (size_t)ret;
+		/* Set offset to vaddr of page */
+		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		    rounddown2(ret, PAGE_SIZE) - addr_base);
+		CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		    roundup2(len + (ret - rounddown2(ret, PAGE_SIZE)),
+		    PAGE_SIZE));
+		/* Shift offset up if required */
+		CHERI_CGETBASE(addr_base, CHERI_CR_CTEMP0);
+		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		    addr_base - ret);
 	} else {
-		PROC_LOCK(td->td_proc);
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
-		PROC_UNLOCK(td->td_proc);
-
 		/*
-		 * XXX-BD: Need to make sure we fit within the mmap cap.
+		 * XXX-BD: Once we provide a way to change it, we need to make
+		 * sure we fit within the mmap cap.
 		 */
-		off = 0;
-	}
-	CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-	perms &= (~PERM_RWX | cheriabi_mmap_prot2perms(prot));
+		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		    ret);
+		CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		    roundup2(len, PAGE_SIZE));
 
-	/* XXX-BD: should derive cap from addr or md_cheri_mmap_cap */
-	cheri_capability_set(retcap, perms, NULL,
-	    (void *)(ret - off), roundup2(len + off, PAGE_SIZE), off);
+	}
+	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, retcap, 0);
 }
