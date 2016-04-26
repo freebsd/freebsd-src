@@ -207,9 +207,9 @@ __FBSDID("$FreeBSD$");
 #define	VM_PAGE_TO_PV_LIST_LOCK(m)	\
 			PHYS_TO_PV_LIST_LOCK(VM_PAGE_TO_PHYS(m))
 
-/* The list of all the pmaps */
-static SLIST_HEAD(, pmap_list_entry) pmap_list =
-    SLIST_HEAD_INITIALIZER(pmap_list);
+/* The list of all the user pmaps */
+LIST_HEAD(pmaplist, pmap);
+static struct pmaplist allpmaps;
 
 static MALLOC_DEFINE(M_VMPMAP, "pmap", "PMAP L1");
 
@@ -416,7 +416,6 @@ static void
 pmap_distribute_l1(struct pmap *pmap, vm_pindex_t l1index,
     pt_entry_t entry)
 {
-	struct pmap_list_entry *p_entry;
 	struct pmap *user_pmap;
 	pd_entry_t *l1;
 
@@ -424,8 +423,7 @@ pmap_distribute_l1(struct pmap *pmap, vm_pindex_t l1index,
 	if (pmap != kernel_pmap)
 		return;
 
-	SLIST_FOREACH(p_entry, &pmap_list, pmap_link) {
-		user_pmap = p_entry->pmap;
+	LIST_FOREACH(user_pmap, &allpmaps, pm_list) {
 		l1 = &user_pmap->pm_l1[l1index];
 		if (entry)
 			pmap_load_store(l1, entry);
@@ -568,6 +566,8 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	 * Initialize the global pv list lock.
 	 */
 	rw_init(&pvh_global_lock, "pmap pv global");
+
+	LIST_INIT(&allpmaps);
 
 	/* Assume the address we were loaded to is a valid physical address */
 	min_pa = KERNBASE - kern_delta;
@@ -1177,7 +1177,6 @@ pmap_pinit0(pmap_t pmap)
 int
 pmap_pinit(pmap_t pmap)
 {
-	struct pmap_list_entry *p_entry;
 	vm_paddr_t l1phys;
 	vm_page_t l1pt;
 
@@ -1199,12 +1198,8 @@ pmap_pinit(pmap_t pmap)
 	/* Install kernel pagetables */
 	memcpy(pmap->pm_l1, kernel_pmap->pm_l1, PAGE_SIZE);
 
-	p_entry = malloc(sizeof(struct pmap_list_entry), M_VMPMAP, M_WAITOK);
-	p_entry->pmap = pmap;
-	pmap->p_entry = p_entry;
-
-	/* Add to the list of all pmaps */
-	SLIST_INSERT_HEAD(&pmap_list, p_entry, pmap_link);
+	/* Add to the list of all user pmaps */
+	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
 
 	return (1);
 }
@@ -1374,12 +1369,11 @@ pmap_release(pmap_t pmap)
 	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 	vm_page_free_zero(m);
 
+	/* Remove pmap from the allpmaps list */
+	LIST_REMOVE(pmap, pm_list);
+
 	/* Remove kernel pagetables */
 	bzero(pmap->pm_l1, PAGE_SIZE);
-
-	/* Remove pmap from the all pmaps list */
-	SLIST_REMOVE(&pmap_list, pmap->p_entry,
-	    pmap_list_entry, pmap_link);
 }
 
 #if 0
