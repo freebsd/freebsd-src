@@ -1004,6 +1004,17 @@ struct in_llentry {
 
 /*
  * Do actual deallocation of @lle.
+ */
+static void
+in_lltable_destroy_lle_unlocked(struct llentry *lle)
+{
+
+	LLE_LOCK_DESTROY(lle);
+	LLE_REQ_DESTROY(lle);
+	free(lle, M_LLTABLE);
+}
+
+/*
  * Called by LLE_FREE_LOCKED when number of references
  * drops to zero.
  */
@@ -1012,9 +1023,7 @@ in_lltable_destroy_lle(struct llentry *lle)
 {
 
 	LLE_WUNLOCK(lle);
-	LLE_LOCK_DESTROY(lle);
-	LLE_REQ_DESTROY(lle);
-	free(lle, M_LLTABLE);
+	in_lltable_destroy_lle_unlocked(lle);
 }
 
 static struct llentry *
@@ -1277,8 +1286,10 @@ in_lltable_alloc(struct lltable *llt, u_int flags, const struct sockaddr *l3addr
 	if ((flags & LLE_IFADDR) == LLE_IFADDR) {
 		linkhdrsize = LLE_MAX_LINKHDR;
 		if (lltable_calc_llheader(ifp, AF_INET, IF_LLADDR(ifp),
-		    linkhdr, &linkhdrsize, &lladdr_off) != 0)
+		    linkhdr, &linkhdrsize, &lladdr_off) != 0) {
+			in_lltable_destroy_lle_unlocked(lle);
 			return (NULL);
+		}
 		lltable_set_entry_addr(ifp, lle, linkhdr, linkhdrsize,
 		    lladdr_off);
 		lle->la_flags |= LLE_STATIC;
