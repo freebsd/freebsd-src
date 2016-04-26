@@ -78,6 +78,9 @@ test_cheriabi_mmap_perms(const struct cheri_test *ctp __unused)
 	if (sysarch(CHERI_MMAP_GETPERM, &perms) != 0)
 		cheritest_failure_err("sysarch(CHERI_MMAP_GETPERM) failed");
 
+	/*
+	 * Make sure perms we are going to try removing are there...
+	 */
 	if (!(perms & CHERI_PERM_USER0))
 		cheritest_failure_errx(
 		    "no CHERI_PERM_USER0 in default perms (0x%lx)", perms);
@@ -105,6 +108,11 @@ test_cheriabi_mmap_perms(const struct cheri_test *ctp __unused)
 		    "just remove CHERI_PERM_USER1.  Got 0x%lx but "
 		    "expected 0x%lx", perms,
 		    operms & ~CHERI_PERM_USER1);
+	if (sysarch(CHERI_MMAP_GETPERM, &perms) != 0)
+		cheritest_failure_err("sysarch(CHERI_MMAP_GETPERM) failed");
+	if (perms & CHERI_PERM_USER1)
+		cheritest_failure_errx("sysarch(CHERI_MMAP_ANDPERM) failed "
+		    "to remove CHERI_PERM_USER1.  Got 0x%lx.", perms);
 
 	if ((cap = mmap(0, PAGE_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC,
 	    MAP_ANON, -1, 0)) == MAP_FAILED)
@@ -133,14 +141,6 @@ test_cheriabi_mmap_perms(const struct cheri_test *ctp __unused)
 	if (cheri_getperm(cap) & PERM_RWX)
 		cheritest_failure_errx("mmap(PROT_NONE) returned unrequested "
 		    "permissions (0x%lx)", cheri_getperm(cap));
-
-	if ((cap = mmap(cap, PAGE_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC,
-	    MAP_ANON|MAP_FIXED, -1, 0)) == MAP_FAILED)
-		cheritest_failure_err("mmap(MAP_FIXED) failed");
-	if ((cheri_getperm(cap) & PERM_RWX) != PERM_RWX)
-		cheritest_failure_errx("mmap(PROT_READ|PROT_WRITE|PROT_EXEC) "
-		    "failed to upgrade permissions (0x%lx)",
-		    cheri_getperm(cap));
 
 	if (munmap(cap, PAGE_SIZE) != 0)
 		cheritest_failure_err("munmap() failed");

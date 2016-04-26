@@ -138,6 +138,8 @@ int	sandbox_class_load(struct sandbox_class *sbcp);
 void	sandbox_class_unload(struct sandbox_class *sbcp);
 int	sandbox_object_load(struct sandbox_class *sbcp,
 	    struct sandbox_object *sbop);
+int	sandbox_object_protect(struct sandbox_class *sbcp,
+	    struct sandbox_object *sbop);
 int	sandbox_object_reload(struct sandbox_object *sbop);
 void	sandbox_object_unload(struct sandbox_object *sbop);
 

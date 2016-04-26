@@ -178,15 +178,14 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 
 	td2->td_md.md_tls = td1->td_md.md_tls;
 	td2->td_md.md_tls_tcb_offset = td1->td_md.md_tls_tcb_offset;
-#ifdef CPU_CHERI
-	cheri_capability_copy(&td2->td_md.md_tls_cap, &td1->td_md.md_tls_cap);
-#endif
 	td2->td_md.md_saved_intr = MIPS_SR_INT_IE;
 	td2->td_md.md_spinlock_count = 1;
-#ifdef COMPAT_CHERIABI
-	p2->p_md.md_cheri_mmap_perms = p1->p_md.md_cheri_mmap_perms;
-#endif
 #ifdef CPU_CHERI
+#ifdef COMPAT_CHERIABI
+	cheri_capability_copy(&td2->td_md.md_tls_cap, &td1->td_md.md_tls_cap);
+	cheri_capability_copy(&p2->p_md.md_cheri_mmap_cap,
+	    &p1->p_md.md_cheri_mmap_cap);
+#endif
 	/*
 	 * XXXRW: Ensure capability coprocessor is enabled for both kernel and
 	 * userspace in child.

@@ -467,10 +467,7 @@ sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
 	error = sandbox_object_load(sbcp, sbop);
 	if (error) {
 		saved_errno = errno;
-		(void)munmap(sbop->sbo_stackmem, sbop->sbo_stacklen);
-		free(sbop);
-		errno = saved_errno;
-		return (-1);
+		goto error;
 	}
 
 	/*
@@ -486,9 +483,14 @@ sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap()) != 0) {
 		sandbox_object_unload(sbop);
-		(void)munmap(sbop->sbo_stackmem, sbop->sbo_stacklen);
-		errno = EPROT;
-		return (-1);
+		saved_errno = EPROT;
+		goto error;
+	}
+
+	error = sandbox_object_protect(sbcp, sbop);
+	if (error) {
+		saved_errno = errno;
+		goto error;
 	}
 
 	/*
@@ -496,6 +498,11 @@ sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
 	 */
 	*sbopp = sbop;
 	return (0);
+error:
+	(void)munmap(sbop->sbo_stackmem, sbop->sbo_stacklen);
+	free(sbop);
+	errno = saved_errno;
+	return (-1);
 }
 
 int

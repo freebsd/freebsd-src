@@ -103,7 +103,7 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	sbcp->sbc_codelen = sandbox_map_maxoffset(sbcp->sbc_codemap);
 	sbcp->sbc_codelen = roundup2(sbcp->sbc_codelen, PAGE_SIZE);
 	base = sbcp->sbc_codemem = mmap(NULL, sbcp->sbc_codelen,
-	    PROT_READ|PROT_EXEC, MAP_ANON, -1, 0);
+	    PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON, -1, 0);
 	if (sbcp->sbc_codemem == MAP_FAILED) {
 		saved_errno = errno;
 		warn("%s: mmap region", __func__);
@@ -129,6 +129,12 @@ sandbox_class_load(struct sandbox_class *sbcp)
 		saved_errno = EINVAL;
 		warnx("%s: sandbox_parse_ccall_methods() failed for %s",
 		    __func__, sbcp->sbc_path);
+		goto error;
+	}
+
+	if (sandbox_map_protect(base, sbcp->sbc_codemap) == -1) {
+		saved_errno = EINVAL;
+		warnx("%s: sandbox_map_protect(sbc_codemap)\n", __func__);
 		goto error;
 	}
 
@@ -476,6 +482,21 @@ error:
 		munmap(sbop->sbo_datamem, sbop->sbo_datalen);
 	errno = saved_errno;
 	return (-1);
+}
+
+int
+sandbox_object_protect(struct sandbox_class *sbcp, struct sandbox_object *sbop)
+{
+	int saved_errno;
+
+	if (sandbox_map_protect(sbop->sbo_datamem, sbcp->sbc_datamap) == -1) {
+		saved_errno = EINVAL;
+		warnx("%s: sandbox_map_protect(sbc_datamap)\n", __func__);
+		errno = saved_errno;
+		return (-1);
+	}
+
+	return (0);
 }
 
 /*

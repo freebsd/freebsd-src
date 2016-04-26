@@ -86,7 +86,7 @@ struct mdproc {
 #ifndef COMPAT_CHERIABI
 	/* empty */
 #else
-	u_int		md_cheri_mmap_perms;
+	struct chericap	md_cheri_mmap_cap;
 #endif
 };
 

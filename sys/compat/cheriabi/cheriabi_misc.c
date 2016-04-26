@@ -135,6 +135,7 @@ CTASSERT(sizeof(struct sigaction32) == 24);
 
 static int cheriabi_kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count);
+static register_t cheriabi_mmap_prot2perms(int prot);
 
 int
 cheriabi_wait6(struct thread *td, struct cheriabi_wait6_args *uap)
@@ -1508,6 +1509,7 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 	int tagged;
 	size_t cap_len, cap_offset;
 	struct chericap addr_cap;
+	register_t perms, reqperms;
 
 	/* MAP_CHERI_NOSETBOUNDS requires MAP_FIXED. */
 	if ((flags & (MAP_CHERI_NOSETBOUNDS | MAP_FIXED)) ==
@@ -1651,6 +1653,10 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 			 * that match the offset alignment.
 			 */
 
+			CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+			reqperms = cheriabi_mmap_prot2perms(uap->prot);
+			if ((perms & reqperms) != reqperms)
+				return (EPROT);
 			/*
 			 * XXX-BD: What to do about permissions?
 			 *
@@ -1741,12 +1747,7 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 	}
 
 	if (flags & MAP_FIXED) {
-		/*
-		 * Use the passed capability's permissions as a base to avoid
-		 * upgrading permissions not related to the PROT_* flags.
-		 */
 		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, addr, 0);
-		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
 
 		/*
 		 * If addr was under aligned, we need to return a
@@ -1757,23 +1758,20 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 		CHERI_CGETOFFSET(addr_offset, CHERI_CR_CTEMP0);
 		off = (addr_base + addr_offset) - (size_t)ret;
 	} else {
+		PROC_LOCK(td->td_proc);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		PROC_UNLOCK(td->td_proc);
+
 		/*
-		 * Start with all data and code permissions.
+		 * XXX-BD: Need to make sure we fit within the mmap cap.
 		 */
-		perms = CHERI_CAP_USER_DATA_PERMS |
-		    CHERI_CAP_USER_CODE_PERMS;
 		off = 0;
 	}
+	CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+	perms &= (~PERM_RWX | cheriabi_mmap_prot2perms(prot));
 
-	/* Remove RMX permissions and add back requested ones. */
-	perms &= ~PERM_RWX;
-	perms |= cheriabi_mmap_prot2perms(prot);
-
-	/* Restrict permissions to process max. */
-	PROC_LOCK(td->td_proc);
-	perms &= td->td_proc->p_md.md_cheri_mmap_perms;
-	PROC_UNLOCK(td->td_proc);
-
+	/* XXX-BD: should derive cap from addr or md_cheri_mmap_cap */
 	cheri_capability_set(retcap, perms, NULL,
 	    (void *)(ret - off), roundup2(len + off, PAGE_SIZE), off);
 }

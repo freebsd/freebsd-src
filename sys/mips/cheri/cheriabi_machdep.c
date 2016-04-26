@@ -796,8 +796,11 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	KASSERT(stack % sizeof(struct chericap) == 0,
 	    ("CheriABI stack pointer not properly aligned"));
 
-	td->td_proc->p_md.md_cheri_mmap_perms = CHERI_CAP_USER_DATA_PERMS |
-	    CHERI_CAP_USER_CODE_PERMS;
+	/* XXX-BD: use MMAP defines, not DATA */
+	cheri_capability_set(&td->td_proc->p_md.md_cheri_mmap_cap,
+	    CHERI_CAP_USER_DATA_PERMS | CHERI_CAP_USER_CODE_PERMS, NULL,
+	    CHERI_CAP_USER_DATA_BASE, CHERI_CAP_USER_DATA_LENGTH,
+	    CHERI_CAP_USER_DATA_OFFSET);
 
 	td->td_frame->pc = imgp->entry_addr;
 	td->td_frame->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | MIPS_SR_INT_IE |
@@ -963,7 +966,9 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 
 	case CHERI_MMAP_GETPERM:
 		PROC_LOCK(td->td_proc);
-		perms = td->td_proc->p_md.md_cheri_mmap_perms;
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
 		PROC_UNLOCK(td->td_proc);
 		if (suword64(uap->parms, perms) != 0)
 			return (EFAULT);
@@ -974,8 +979,13 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 		if (perms == -1)
 			return (EINVAL);
 		PROC_LOCK(td->td_proc);
-		td->td_proc->p_md.md_cheri_mmap_perms &= perms;
-		perms = td->td_proc->p_md.md_cheri_mmap_perms;
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		    (register_t)perms);
+		CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_proc->p_md.md_cheri_mmap_cap, 0);
+		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
 		PROC_UNLOCK(td->td_proc);
 		if (suword64(uap->parms, perms) != 0)
 			return (EFAULT);

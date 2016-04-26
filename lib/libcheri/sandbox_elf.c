@@ -89,7 +89,7 @@ sandbox_map_entry_new(size_t map_offset, size_t len, int prot, int flags,
 }
 
 static void *
-sandbox_map_entry_mmap(void *base, struct sandbox_map_entry *sme)
+sandbox_map_entry_mmap(void *base, struct sandbox_map_entry *sme, int add_prot)
 {
 	caddr_t taddr;
 	void *addr;
@@ -102,8 +102,9 @@ sandbox_map_entry_mmap(void *base, struct sandbox_map_entry *sme)
 	else
 		printf("mapping 0x%zx bytes at 0x%p\n", sme->sme_len, taddr);
 #endif
-	if ((addr = mmap(taddr, sme->sme_len, sme->sme_prot, sme->sme_flags,
-	    sme->sme_fd, sme->sme_file_offset)) == sandbox_map_entry_mmap) {
+	if ((addr = mmap(taddr, sme->sme_len, sme->sme_prot | add_prot,
+	    sme->sme_flags, sme->sme_fd, sme->sme_file_offset)) ==
+	    sandbox_map_entry_mmap) {
 		warn("%s: mmap", __func__);
 		return (addr);
 	}
@@ -114,13 +115,40 @@ sandbox_map_entry_mmap(void *base, struct sandbox_map_entry *sme)
 	return (addr);
 }
 
+static int
+sandbox_map_entry_mprotect(void *base, struct sandbox_map_entry *sme)
+{
+	caddr_t taddr;
+
+	taddr = (caddr_t)base + sme->sme_map_offset;
+	if (mprotect(taddr, sme->sme_len, sme->sme_prot) != 0) {
+		warn("%s: mprotect", __func__);
+		return (-1);
+	}
+	return (0);
+}
+
 int
 sandbox_map_load(void *base, struct sandbox_map *sm)
 {
 	struct sandbox_map_entry *sme;
 
 	STAILQ_FOREACH(sme, &sm->sm_head, sme_entries) {
-		if (sandbox_map_entry_mmap(base, sme) == MAP_FAILED)
+		if (sandbox_map_entry_mmap(base, sme, PROT_WRITE) == MAP_FAILED)
+			return (-1);
+	}
+	return (0);
+}
+
+int
+sandbox_map_protect(void *base, struct sandbox_map *sm)
+{
+	struct sandbox_map_entry *sme;
+
+	STAILQ_FOREACH(sme, &sm->sm_head, sme_entries) {
+		if (sme->sme_prot & PROT_WRITE)
+			continue;
+		if (sandbox_map_entry_mprotect(base, sme) == MAP_FAILED)
 			return (-1);
 	}
 	return (0);
@@ -134,7 +162,7 @@ sandbox_map_reload(void *base, struct sandbox_map *sm)
 	STAILQ_FOREACH(sme, &sm->sm_head, sme_entries) {
 		if (!(sme->sme_prot & PROT_WRITE))
 			continue;
-		if (sandbox_map_entry_mmap(base, sme) == MAP_FAILED)
+		if (sandbox_map_entry_mmap(base, sme, 0) == MAP_FAILED)
 			return (-1);
 	}
 	return (0);
