@@ -139,7 +139,7 @@ spibus_child_pnpinfo_str(device_t bus, device_t child, char *buf,
 }
 
 static int
-spibus_read_ivar(device_t bus, device_t child, int which, u_int *result)
+spibus_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 {
 	struct spibus_ivar *devi = SPIBUS_IVAR(child);
 
