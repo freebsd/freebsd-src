@@ -1745,7 +1745,7 @@ vtruncbuf(struct vnode *vp, struct ucred *cred, off_t length, int blksize)
 	/*
 	 * Round up to the *next* lbn.
 	 */
-	trunclbn = (length + blksize - 1) / blksize;
+	trunclbn = howmany(length, blksize);
 
 	ASSERT_VOP_LOCKED(vp, "vtruncbuf");
 restart:
