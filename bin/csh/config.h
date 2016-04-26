@@ -99,9 +99,7 @@
 #define HAVE_PATHS_H 1
 
 /* Define to 1 if you have the `sbrk' function. */
-#ifndef __CHERI_PURE_CAPABILITY__
-#define HAVE_SBRK 1
-#endif
+/* #undef HAVE_SBRK 1 */
 
 /* Define to 1 if you have the `setpgid' function. */
 #define HAVE_SETPGID 1
