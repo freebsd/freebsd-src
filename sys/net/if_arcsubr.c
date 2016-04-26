@@ -274,7 +274,7 @@ arc_frag_next(struct ifnet *ifp)
 			return m;
 
 		++ac->ac_seqid;		/* make the seqid unique */
-		tfrags = (m->m_pkthdr.len + ARC_MAX_DATA - 1) / ARC_MAX_DATA;
+		tfrags = howmany(m->m_pkthdr.len, ARC_MAX_DATA);
 		ac->fsflag = 2 * tfrags - 3;
 		ac->sflag = 0;
 		ac->rsflag = ac->fsflag;
