@@ -47,7 +47,7 @@ main(int argc, char *argv[])
 	int fd, n;
 	size_t len = atoi(argv[1]);
 
-	if ((fd = open(_PATH_DEVZERO, O_RDONLY)) == -1);
+	if ((fd = open(_PATH_DEVZERO, O_RDONLY)) == -1)
 		abort();
 	if ((n = read(fd, b, len)) == -1)
 		abort();
