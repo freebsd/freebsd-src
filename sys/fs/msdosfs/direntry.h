@@ -145,7 +145,7 @@ struct msdosfsmount;
 
 char	*mbnambuf_flush(struct mbnambuf *nbp, struct dirent *dp);
 void	mbnambuf_init(struct mbnambuf *nbp);
-void	mbnambuf_write(struct mbnambuf *nbp, char *name, int id);
+int	mbnambuf_write(struct mbnambuf *nbp, char *name, int id);
 int	dos2unixfn(u_char dn[11], u_char *un, int lower,
 	    struct msdosfsmount *pmp);
 int	unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
