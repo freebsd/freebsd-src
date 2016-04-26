@@ -357,6 +357,7 @@ storvsc_handle_sc_creation(void *context)
 static void
 storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
 {
+	struct hv_vmbus_channel **subchan;
 	struct storvsc_softc *sc;
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;	
@@ -412,6 +413,12 @@ storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
 		    vstor_packet->operation, vstor_packet->status);
 		return;
 	}
+
+	/*
+	 * Wait for sub-channels setup to complete.
+	 */
+	subchan = vmbus_get_subchan(dev->channel, request_channels_cnt);
+	vmbus_rel_subchan(subchan, request_channels_cnt);
 
 	if (bootverbose)
 		printf("Storvsc create multi-channel success!\n");
