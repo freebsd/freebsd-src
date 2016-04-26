@@ -2664,7 +2664,7 @@ jme_rxintr(struct jme_softc *sc, int count)
 		 * sure whether this check is needed.
 		 */
 		pktlen = JME_RX_BYTES(le32toh(desc->buflen));
-		if (nsegs != ((pktlen + (MCLBYTES - 1)) / MCLBYTES))
+		if (nsegs != howmany(pktlen, MCLBYTES))
 			break;
 		prog++;
 		/* Received a frame. */

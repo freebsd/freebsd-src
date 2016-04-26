@@ -2437,7 +2437,7 @@ ohci_xfer_setup(struct usb_setup_params *parm)
 		usbd_transfer_setup_sub(parm);
 
 		nitd = ((xfer->max_data_length / OHCI_PAGE_SIZE) +
-		    ((xfer->nframes + OHCI_ITD_NOFFSET - 1) / OHCI_ITD_NOFFSET) +
+		    howmany(xfer->nframes, OHCI_ITD_NOFFSET) +
 		    1 /* EXTRA */ );
 		ntd = 0;
 		nqh = 1;

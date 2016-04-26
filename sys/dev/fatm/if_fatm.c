@@ -1085,7 +1085,7 @@ fatm_supply_small_buffers(struct fatm_softc *sc)
 	nbufs = min(nbufs, SMALL_POOL_SIZE);
 	nbufs -= sc->small_cnt;
 
-	nblocks = (nbufs + SMALL_SUPPLY_BLKSIZE - 1) / SMALL_SUPPLY_BLKSIZE;
+	nblocks = howmany(nbufs, SMALL_SUPPLY_BLKSIZE);
 	for (cnt = 0; cnt < nblocks; cnt++) {
 		q = GET_QUEUE(sc->s1queue, struct supqueue, sc->s1queue.head);
 
@@ -1174,7 +1174,7 @@ fatm_supply_large_buffers(struct fatm_softc *sc)
 	nbufs = min(nbufs, LARGE_POOL_SIZE);
 	nbufs -= sc->large_cnt;
 
-	nblocks = (nbufs + LARGE_SUPPLY_BLKSIZE - 1) / LARGE_SUPPLY_BLKSIZE;
+	nblocks = howmany(nbufs, LARGE_SUPPLY_BLKSIZE);
 
 	for (cnt = 0; cnt < nblocks; cnt++) {
 		q = GET_QUEUE(sc->l1queue, struct supqueue, sc->l1queue.head);

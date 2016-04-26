@@ -1931,7 +1931,7 @@ xnb_mbufc2pkt(const struct mbuf *mbufc, struct xnb_pkt *pkt,
 		 * into responses so that each response but the last uses all
 		 * PAGE_SIZE bytes.
 		 */
-		pkt->list_len = (pkt->size + PAGE_SIZE - 1) / PAGE_SIZE;
+		pkt->list_len = howmany(pkt->size, PAGE_SIZE);
 
 		if (pkt->list_len > 1) {
 			pkt->flags |= NETRXF_more_data;

@@ -1173,8 +1173,8 @@ uaudio_get_buffer_size(struct uaudio_chan *ch, uint8_t alt)
 {
 	struct uaudio_chan_alt *chan_alt = &ch->usb_alt[alt];
 	/* We use 2 times 8ms of buffer */
-	uint32_t buf_size = (((chan_alt->sample_rate * (UAUDIO_NFRAMES / 8)) +
-	    1000 - 1) / 1000) * chan_alt->sample_size;
+	uint32_t buf_size = chan_alt->sample_size *
+	    howmany(chan_alt->sample_rate * (UAUDIO_NFRAMES / 8), 1000);
 	return (buf_size);
 }
 
@@ -1292,8 +1292,8 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 	/* bytes per frame should not be zero */
 	chan->bytes_per_frame[0] =
 	    ((chan_alt->sample_rate / fps) * chan_alt->sample_size);
-	chan->bytes_per_frame[1] =
-	    (((chan_alt->sample_rate + fps - 1) / fps) * chan_alt->sample_size);
+	chan->bytes_per_frame[1] = howmany(chan_alt->sample_rate, fps) *
+	    chan_alt->sample_size;
 
 	/* setup data rate dithering, if any */
 	chan->frames_per_second = fps;
