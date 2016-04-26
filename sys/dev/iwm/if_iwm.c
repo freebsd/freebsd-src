@@ -4934,6 +4934,8 @@ iwm_init_task(void *arg1)
 static int
 iwm_resume(device_t dev)
 {
+	struct iwm_softc *sc = device_get_softc(dev);
+	int do_reinit = 0;
 	uint16_t reg;
 
 	/* Clear device-specific "PCI retry timeout" register (41h). */
@@ -4941,17 +4943,33 @@ iwm_resume(device_t dev)
 	pci_write_config(dev, 0x40, reg & ~0xff00, sizeof(reg));
 	iwm_init_task(device_get_softc(dev));
 
+	IWM_LOCK(sc);
+	if (sc->sc_flags & IWM_FLAG_DORESUME) {
+		sc->sc_flags &= ~IWM_FLAG_DORESUME;
+		do_reinit = 1;
+	}
+	IWM_UNLOCK(sc);
+
+	if (do_reinit)
+		ieee80211_resume_all(&sc->sc_ic);
+
 	return 0;
 }
 
 static int
 iwm_suspend(device_t dev)
 {
+	int do_stop = 0;
 	struct iwm_softc *sc = device_get_softc(dev);
 
-	if (sc->sc_ic.ic_nrunning > 0) {
+	do_stop = !! (sc->sc_ic.ic_nrunning > 0);
+
+	ieee80211_suspend_all(&sc->sc_ic);
+
+	if (do_stop) {
 		IWM_LOCK(sc);
 		iwm_stop(sc);
+		sc->sc_flags |= IWM_FLAG_DORESUME;
 		IWM_UNLOCK(sc);
 	}
 
