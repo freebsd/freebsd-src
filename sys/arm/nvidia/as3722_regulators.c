@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_AS3722_REG, "AS3722 regulator", "AS3722 power regulator");
 
-#define	DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
+#define	DIV_ROUND_UP(n,d) howmany(n, d)
 
 enum as3722_reg_id {
 	AS3722_REG_ID_SD0,
