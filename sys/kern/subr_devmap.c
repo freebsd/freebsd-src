@@ -27,45 +27,34 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/*
- * Routines for mapping device memory.
- *
- * This is used on both arm and arm64.
- */
+/* Routines for mapping device memory. */
 
 #include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/devmap.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #ifdef __arm__
 #include <machine/acle-compat.h>
 #endif
-#include <machine/armreg.h>
-#include <machine/devmap.h>
 #include <machine/vmparam.h>
 
-static const struct arm_devmap_entry *devmap_table;
+static const struct devmap_entry *devmap_table;
 static boolean_t devmap_bootstrap_done = false;
-
-#if defined(__aarch64__)
-#define	MAX_VADDR	VM_MAX_KERNEL_ADDRESS
-#elif defined(__arm__)
-#define	MAX_VADDR	ARM_VECTORS_HIGH
-#endif
 
 /*
  * The allocated-kva (akva) devmap table and metadata.  Platforms can call
- * arm_devmap_add_entry() to add static device mappings to this table using
+ * devmap_add_entry() to add static device mappings to this table using
  * automatically allocated virtual addresses carved out of the top of kva space.
  * Allocation begins immediately below the ARM_VECTORS_HIGH address.
  */
 #define	AKVA_DEVMAP_MAX_ENTRIES	32
-static struct arm_devmap_entry	akva_devmap_entries[AKVA_DEVMAP_MAX_ENTRIES];
+static struct devmap_entry	akva_devmap_entries[AKVA_DEVMAP_MAX_ENTRIES];
 static u_int			akva_devmap_idx;
-static vm_offset_t		akva_devmap_vaddr = MAX_VADDR;
+static vm_offset_t		akva_devmap_vaddr = DEVMAP_MAX_VADDR;
 
 #ifdef __aarch64__
 extern int early_boot;
@@ -78,7 +67,7 @@ extern int early_boot;
 static void
 devmap_dump_table(int (*prfunc)(const char *, ...))
 {
-	const struct arm_devmap_entry *pd;
+	const struct devmap_entry *pd;
 
 	if (devmap_table == NULL || devmap_table[0].pd_size == 0) {
 		prfunc("No static device mappings.\n");
@@ -96,7 +85,7 @@ devmap_dump_table(int (*prfunc)(const char *, ...))
  * Print the contents of the static mapping table.  Used for bootverbose.
  */
 void
-arm_devmap_print_table()
+devmap_print_table()
 {
 	devmap_dump_table(printf);
 }
@@ -107,15 +96,15 @@ arm_devmap_print_table()
  * the first unusable byte of KVA.
  */
 vm_offset_t
-arm_devmap_lastaddr()
+devmap_lastaddr()
 {
-	const struct arm_devmap_entry *pd;
+	const struct devmap_entry *pd;
 	vm_offset_t lowaddr;
 
 	if (akva_devmap_idx > 0)
 		return (akva_devmap_vaddr);
 
-	lowaddr = MAX_VADDR;
+	lowaddr = DEVMAP_MAX_VADDR;
 	for (pd = devmap_table; pd != NULL && pd->pd_size != 0; ++pd) {
 		if (lowaddr > pd->pd_va)
 			lowaddr = pd->pd_va;
@@ -129,22 +118,22 @@ arm_devmap_lastaddr()
  * physical address and size and a virtual address allocated from the top of
  * kva.  This automatically registers the akva table on the first call, so all a
  * platform has to do is call this routine to install as many mappings as it
- * needs and when initarm() calls arm_devmap_bootstrap() it will pick up all the
+ * needs and when initarm() calls devmap_bootstrap() it will pick up all the
  * entries in the akva table automatically.
  */
 void
-arm_devmap_add_entry(vm_paddr_t pa, vm_size_t sz)
+devmap_add_entry(vm_paddr_t pa, vm_size_t sz)
 {
-	struct arm_devmap_entry *m;
+	struct devmap_entry *m;
 
 	if (devmap_bootstrap_done)
-		panic("arm_devmap_add_entry() after arm_devmap_bootstrap()");
+		panic("devmap_add_entry() after devmap_bootstrap()");
 
 	if (akva_devmap_idx == (AKVA_DEVMAP_MAX_ENTRIES - 1))
 		panic("AKVA_DEVMAP_MAX_ENTRIES is too small");
 
 	if (akva_devmap_idx == 0)
-		arm_devmap_register_table(akva_devmap_entries);
+		devmap_register_table(akva_devmap_entries);
 
 	/*
 	 * Allocate virtual address space from the top of kva downwards.  If the
@@ -167,10 +156,10 @@ arm_devmap_add_entry(vm_paddr_t pa, vm_size_t sz)
 }
 
 /*
- * Register the given table as the one to use in arm_devmap_bootstrap().
+ * Register the given table as the one to use in devmap_bootstrap().
  */
 void
-arm_devmap_register_table(const struct arm_devmap_entry *table)
+devmap_register_table(const struct devmap_entry *table)
 {
 
 	devmap_table = table;
@@ -183,13 +172,13 @@ arm_devmap_register_table(const struct arm_devmap_entry *table)
  * If a non-NULL table pointer is given it is used unconditionally, otherwise
  * the previously-registered table is used.  This smooths transition from legacy
  * code that fills in a local table then calls this function passing that table,
- * and newer code that uses arm_devmap_register_table() in platform-specific
+ * and newer code that uses devmap_register_table() in platform-specific
  * code, then lets the common initarm() call this function with a NULL pointer.
  */
 void
-arm_devmap_bootstrap(vm_offset_t l1pt, const struct arm_devmap_entry *table)
+devmap_bootstrap(vm_offset_t l1pt, const struct devmap_entry *table)
 {
-	const struct arm_devmap_entry *pd;
+	const struct devmap_entry *pd;
 
 	devmap_bootstrap_done = true;
 
@@ -222,9 +211,9 @@ arm_devmap_bootstrap(vm_offset_t l1pt, const struct arm_devmap_entry *table)
  * corresponding virtual address, or NULL if not found.
  */
 void *
-arm_devmap_ptov(vm_paddr_t pa, vm_size_t size)
+devmap_ptov(vm_paddr_t pa, vm_size_t size)
 {
-	const struct arm_devmap_entry *pd;
+	const struct devmap_entry *pd;
 
 	if (devmap_table == NULL)
 		return (NULL);
@@ -242,9 +231,9 @@ arm_devmap_ptov(vm_paddr_t pa, vm_size_t size)
  * corresponding physical address, or DEVMAP_PADDR_NOTFOUND if not found.
  */
 vm_paddr_t
-arm_devmap_vtop(void * vpva, vm_size_t size)
+devmap_vtop(void * vpva, vm_size_t size)
 {
-	const struct arm_devmap_entry *pd;
+	const struct devmap_entry *pd;
 	vm_offset_t va;
 
 	if (devmap_table == NULL)
@@ -277,7 +266,7 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 	void * rva;
 
 	/* First look in the static mapping table. */
-	if ((rva = arm_devmap_ptov(pa, size)) != NULL)
+	if ((rva = devmap_ptov(pa, size)) != NULL)
 		return (rva);
 
 	offset = pa & PAGE_MASK;
@@ -310,7 +299,7 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 	vm_offset_t offset;
 
 	/* Nothing to do if we find the mapping in the static table. */
-	if (arm_devmap_vtop((void*)va, size) != DEVMAP_PADDR_NOTFOUND)
+	if (devmap_vtop((void*)va, size) != DEVMAP_PADDR_NOTFOUND)
 		return;
 
 	offset = va & PAGE_MASK;

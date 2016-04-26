@@ -46,12 +46,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/devmap.h>
 #include <machine/machdep.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
@@ -66,7 +66,7 @@ static vm_offset_t
 bcm2835_lastaddr(platform_t plat)
 {
 
-	return (arm_devmap_lastaddr());
+	return (devmap_lastaddr());
 }
 
 static void
@@ -98,7 +98,7 @@ static int
 bcm2835_devmap_init(platform_t plat)
 {
 
-	arm_devmap_add_entry(0x20000000, 0x01000000);
+	devmap_add_entry(0x20000000, 0x01000000);
 	return (0);
 }
 #endif
@@ -108,7 +108,7 @@ static int
 bcm2836_devmap_init(platform_t plat)
 {
 
-	arm_devmap_add_entry(0x3f000000, 0x01000000);
+	devmap_add_entry(0x3f000000, 0x01000000);
 	return (0);
 }
 #endif
