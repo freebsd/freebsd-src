@@ -402,7 +402,7 @@ netvsc_probe(device_t dev)
 
 	p = vmbus_get_type(dev);
 	if (!memcmp(p, &g_net_vsc_device_type.data, sizeof(hv_guid))) {
-		device_set_desc(dev, "Synthetic Network Interface");
+		device_set_desc(dev, "Hyper-V Network Interface");
 		if (bootverbose)
 			printf("Netvsc probe... DONE \n");
 
