@@ -566,8 +566,8 @@ nexus_hinted_child(device_t bus, const char *dname, int dunit)
 		    __func__, device_get_nameunit(child),
 		    (void *)(intptr_t)maddr, msize);
 
-		result = bus_set_resource(child, SYS_RES_MEMORY, 0, maddr, 
-		    msize);
+		result = bus_set_resource(child, SYS_RES_MEMORY, 0,
+		    (u_long) maddr, msize);
 		if (result != 0) {
 			device_printf(bus, 
 			    "warning: bus_set_resource() failed\n");
