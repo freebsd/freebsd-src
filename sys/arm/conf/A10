@@ -23,6 +23,8 @@ ident		A10
 include 	"std.armv6"
 include 	"../allwinner/std.a10"
 
+options 	INTRNG
+
 options 	SOC_ALLWINNER_A10
 
 options 	HZ=100
