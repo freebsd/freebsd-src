@@ -152,8 +152,11 @@ a10_mmc_attach(device_t dev)
 	struct a10_mmc_softc *sc;
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid_list *tree;
+	uint32_t bus_width;
+	phandle_t node;
 	int error;
 
+	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
 	sc->a10_dev = dev;
 	sc->a10_req = NULL;
@@ -251,11 +254,18 @@ a10_mmc_attach(device_t dev)
 		device_printf(sc->a10_dev, "DMA status: %s\n",
 		    a10_mmc_pio_mode ? "disabled" : "enabled");
 
+	if (OF_getencprop(node, "bus-width", &bus_width, sizeof(uint32_t)) <= 0)
+		bus_width = 1;
+
 	sc->a10_host.f_min = 400000;
-	sc->a10_host.f_max = 52000000;
+	sc->a10_host.f_max = 50000000;
 	sc->a10_host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
-	sc->a10_host.caps = MMC_CAP_4_BIT_DATA | MMC_CAP_HSPEED;
 	sc->a10_host.mode = mode_sd;
+	sc->a10_host.caps = MMC_CAP_HSPEED;
+	if (bus_width >= 4)
+		sc->a10_host.caps |= MMC_CAP_4_BIT_DATA;
+	if (bus_width >= 8)
+		sc->a10_host.caps |= MMC_CAP_8_BIT_DATA;
 
 	child = device_add_child(dev, "mmc", -1);
 	if (child == NULL) {
