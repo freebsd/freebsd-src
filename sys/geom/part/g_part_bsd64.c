@@ -509,7 +509,8 @@ g_part_bsd64_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	dlp = (struct disklabel64 *)buf;
 	basetable->gpt_entries = le32toh(dlp->d_npartitions);
-	if (basetable->gpt_entries > MAXPARTITIONS64)
+	if (basetable->gpt_entries > MAXPARTITIONS64 ||
+	    basetable->gpt_entries < 1)
 		goto invalid_label;
 	v32 = le32toh(dlp->d_crc);
 	dlp->d_crc = 0;
