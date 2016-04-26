@@ -678,7 +678,7 @@ allocpages(vm_paddr_t *firstaddr, int n)
 CTASSERT(powerof2(NDMPML4E));
 
 /* number of kernel PDP slots */
-#define	NKPDPE(ptpgs)		howmany((ptpgs), NPDEPG)
+#define	NKPDPE(ptpgs)		howmany(ptpgs, NPDEPG)
 
 static void
 nkpt_init(vm_paddr_t addr)
