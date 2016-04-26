@@ -1361,14 +1361,16 @@ tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
  * has to revalidate that the connection is still valid for the socket
  * option.
  */
-#define INP_WLOCK_RECHECK(inp) do {					\
+#define INP_WLOCK_RECHECK_CLEANUP(inp, cleanup) do {			\
 	INP_WLOCK(inp);							\
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {		\
 		INP_WUNLOCK(inp);					\
+		cleanup;						\
 		return (ECONNRESET);					\
 	}								\
 	tp = intotcpcb(inp);						\
 } while(0)
+#define INP_WLOCK_RECHECK(inp) INP_WLOCK_RECHECK_CLEANUP((inp), /* noop */)
 
 int
 tcp_ctloutput(struct socket *so, struct sockopt *sopt)
@@ -1497,7 +1499,7 @@ tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp
 			free(pbuf, M_TEMP);
 			return (error);
 		}
-		INP_WLOCK_RECHECK(inp);
+		INP_WLOCK_RECHECK_CLEANUP(inp, free(pbuf, M_TEMP));
 		if (CC_ALGO(tp)->ctl_output != NULL)
 			error = CC_ALGO(tp)->ctl_output(tp->ccv, sopt, pbuf);
 		else
@@ -1838,6 +1840,7 @@ unlock_and_done:
 	return (error);
 }
 #undef INP_WLOCK_RECHECK
+#undef INP_WLOCK_RECHECK_CLEANUP
 
 /*
  * Attach TCP protocol to socket, allocating
