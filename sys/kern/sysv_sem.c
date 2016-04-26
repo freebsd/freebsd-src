@@ -260,7 +260,7 @@ static int
 seminit(void)
 {
 	struct prison *pr;
-	void *rsv;
+	void **rsv;
 	int i, error;
 	osd_method_t methods[PR_MAXMETHOD] = {
 	    [PR_METHOD_CHECK] =		sem_prison_check,
