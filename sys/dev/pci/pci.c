@@ -3691,6 +3691,7 @@ pci_add_resources_ea(device_t bus, device_t dev, int alloc_iov)
 		case PCIM_EA_P_MEM_PREFETCH:
 		case PCIM_EA_P_VF_MEM_PREFETCH:
 			flags = RF_PREFETCHABLE;
+			/* FALLTHROUGH */
 		case PCIM_EA_P_VF_MEM:
 		case PCIM_EA_P_MEM:
 			type = SYS_RES_MEMORY;
