@@ -140,7 +140,6 @@ struct storvsc_softc {
 	uint32_t			hs_num_out_reqs;
 	boolean_t			hs_destroy;
 	boolean_t			hs_drain_notify;
-	boolean_t			hs_open_multi_channel;
 	struct sema 			hs_drain_sema;	
 	struct hv_storvsc_request	hs_init_req;
 	struct hv_storvsc_request	hs_reset_req;
@@ -336,9 +335,6 @@ storvsc_handle_sc_creation(void *context)
 	if (sc == NULL)
 		return;
 
-	if (FALSE == sc->hs_open_multi_channel)
-		return;
-	
 	memset(&props, 0, sizeof(props));
 
 	ret = hv_vmbus_channel_open(new_channel,
@@ -416,8 +412,6 @@ storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
 		    vstor_packet->operation, vstor_packet->status);
 		return;
 	}
-
-	sc->hs_open_multi_channel = TRUE;
 
 	if (bootverbose)
 		printf("Storvsc create multi-channel success!\n");
@@ -1034,7 +1028,6 @@ storvsc_attach(device_t dev)
 
 	sc->hs_destroy = FALSE;
 	sc->hs_drain_notify = FALSE;
-	sc->hs_open_multi_channel = FALSE;
 	sema_init(&sc->hs_drain_sema, 0, "Store Drain Sema");
 
 	ret = hv_storvsc_connect_vsp(hv_dev);
