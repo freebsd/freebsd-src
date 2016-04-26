@@ -124,7 +124,7 @@ alloc_toepcb(struct port_info *pi, int txqid, int rxqid, int flags)
 	 * units of 16 byte.  Calculate the maximum work requests possible.
 	 */
 	txsd_total = tx_credits /
-	    howmany((sizeof(struct fw_ofld_tx_data_wr) + 1), 16);
+	    howmany(sizeof(struct fw_ofld_tx_data_wr) + 1, 16);
 
 	if (txqid < 0)
 		txqid = (arc4random() % pi->nofldtxq) + pi->first_ofld_txq;
