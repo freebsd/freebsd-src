@@ -563,8 +563,6 @@ g_part_bsd64_read(struct g_part_table *basetable, struct g_consumer *cp)
 		le_uuid_dec(&dlp->d_partitions[index].p_stor_uuid,
 		    &entry->stor_uuid);
 		entry->fstype = dlp->d_partitions[index].p_fstype;
-		if (index == RAW_PART)
-			baseentry->gpe_internal = 1;
 	}
 	bcopy(dlp->d_reserved0, table->d_reserved0,
 	    sizeof(table->d_reserved0));
