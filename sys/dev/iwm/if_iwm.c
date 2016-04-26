@@ -4377,7 +4377,7 @@ iwm_intr(void *arg)
 		device_printf(sc->sc_dev,
 		    "  rx ring: cur=%d\n", sc->rxq.cur);
 		device_printf(sc->sc_dev,
-		    "  802.11 state %d\n", vap->iv_state);
+		    "  802.11 state %d\n", (vap == NULL) ? -1 : vap->iv_state);
 
 		/* Don't stop the device; just do a VAP restart */
 		IWM_UNLOCK(sc);
