@@ -587,7 +587,7 @@ emu_getcard(device_t dev)
 		}
 	}
 
-	for (i = 0; i < nitems(emu_cards); i++) {
+	for (i = 0; i < nitems(emu_bad_cards); i++) {
 		if (device == emu_bad_cards[i].device) {
 			if (subdevice == emu_bad_cards[i].subdevice) {
 				thiscard = 0;
