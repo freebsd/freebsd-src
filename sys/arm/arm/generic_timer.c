@@ -221,7 +221,8 @@ arm_tmr_get_timecount(struct timecounter *tc)
 }
 
 static int
-arm_tmr_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
+arm_tmr_start(struct eventtimer *et, sbintime_t first,
+    sbintime_t period __unused)
 {
 	struct arm_tmr_softc *sc;
 	int counts, ctrl;
