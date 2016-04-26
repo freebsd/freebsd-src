@@ -2405,7 +2405,6 @@ sys_jail_attach(struct thread *td, struct jail_attach_args *uap)
 static int
 do_jail_attach(struct thread *td, struct prison *pr)
 {
-	struct prison *ppr;
 	struct proc *p;
 	struct ucred *newcred, *oldcred;
 	int error;
@@ -2433,7 +2432,6 @@ do_jail_attach(struct thread *td, struct prison *pr)
 	/*
 	 * Reparent the newly attached process to this jail.
 	 */
-	ppr = td->td_ucred->cr_prison;
 	p = td->td_proc;
 	error = cpuset_setproc_update_set(p, pr->pr_cpuset);
 	if (error)
@@ -2452,23 +2450,23 @@ do_jail_attach(struct thread *td, struct prison *pr)
 
 	newcred = crget();
 	PROC_LOCK(p);
-	oldcred = p->p_ucred;
-	setsugid(p);
-	crcopy(newcred, oldcred);
+	oldcred = crcopysafe(p, newcred);
 	newcred->cr_prison = pr;
 	proc_set_cred(p, newcred);
+	setsugid(p);
 	PROC_UNLOCK(p);
 #ifdef RACCT
 	racct_proc_ucred_changed(p, oldcred, newcred);
 #endif
+	prison_deref(oldcred->cr_prison, PD_DEREF | PD_DEUREF);
 	crfree(oldcred);
-	prison_deref(ppr, PD_DEREF | PD_DEUREF);
 	return (0);
+
  e_unlock:
 	VOP_UNLOCK(pr->pr_root, 0);
  e_revert_osd:
 	/* Tell modules this thread is still in its old jail after all. */
-	(void)osd_jail_call(ppr, PR_METHOD_ATTACH, td);
+	(void)osd_jail_call(td->td_ucred->cr_prison, PR_METHOD_ATTACH, td);
 	prison_deref(pr, PD_DEREF | PD_DEUREF);
 	return (error);
 }
