@@ -206,7 +206,7 @@ static int
 msginit()
 {
 	struct prison *pr;
-	void *rsv;
+	void **rsv;
 	int i, error;
 	osd_method_t methods[PR_MAXMETHOD] = {
 	    [PR_METHOD_CHECK] =		msg_prison_check,
