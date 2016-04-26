@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/racct.h>
-#include <sys/sbuf.h>
 #include <sys/sem.h>
 #include <sys/sx.h>
 #include <sys/syscall.h>
@@ -220,7 +219,8 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, semvmx, CTLFLAG_RWTUN, &seminfo.semvmx, 0,
     "Semaphore maximum value");
 SYSCTL_INT(_kern_ipc, OID_AUTO, semaem, CTLFLAG_RWTUN, &seminfo.semaem, 0,
     "Adjust on exit max value");
-SYSCTL_PROC(_kern_ipc, OID_AUTO, sema, CTLTYPE_OPAQUE | CTLFLAG_RD,
+SYSCTL_PROC(_kern_ipc, OID_AUTO, sema,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE,
     NULL, 0, sysctl_sema, "", "Semaphore id pool");
 
 static struct syscall_helper_data sem_syscalls[] = {
@@ -1465,38 +1465,28 @@ semexit_myhook(void *arg, struct proc *p)
 static int
 sysctl_sema(SYSCTL_HANDLER_ARGS)
 {
-	struct prison *rpr;
-	struct sbuf sb;
-	struct semid_kernel tmp, empty;
-	struct semid_kernel *semakptr;
+	struct prison *pr, *rpr;
+	struct semid_kernel tsemak;
 	int error, i;
 
-	error = sysctl_wire_old_buffer(req, 0);
-	if (error != 0)
-		goto done;
+	pr = req->td->td_ucred->cr_prison;
 	rpr = sem_find_prison(req->td->td_ucred);
-	sbuf_new_for_sysctl(&sb, NULL, sizeof(struct semid_kernel) *
-	    seminfo.semmni, req);
-
-	bzero(&empty, sizeof(empty));
+	error = 0;
 	for (i = 0; i < seminfo.semmni; i++) {
-		semakptr = &sema[i];
-		if ((semakptr->u.sem_perm.mode & SEM_ALLOC) == 0 ||
-		    rpr == NULL || sem_prison_cansee(rpr, semakptr) != 0) {
-			semakptr = &empty;
-		} else if (req->td->td_ucred->cr_prison !=
-		    semakptr->cred->cr_prison) {
-			bcopy(semakptr, &tmp, sizeof(tmp));
-			semakptr = &tmp;
-			semakptr->u.sem_perm.key = IPC_PRIVATE;
+		mtx_lock(&sema_mtx[i]);
+		if ((sema[i].u.sem_perm.mode & SEM_ALLOC) == 0 ||
+		    rpr == NULL || sem_prison_cansee(rpr, &sema[i]) != 0)
+			bzero(&tsemak, sizeof(tsemak));
+		else {
+			tsemak = sema[i];
+			if (tsemak.cred->cr_prison != pr)
+				tsemak.u.sem_perm.key = IPC_PRIVATE;
 		}
-
-		sbuf_bcat(&sb, semakptr, sizeof(*semakptr));
+		mtx_unlock(&sema_mtx[i]);
+		error = SYSCTL_OUT(req, &tsemak, sizeof(tsemak));
+		if (error != 0)
+			break;
 	}
-	error = sbuf_finish(&sb);
-	sbuf_delete(&sb);
-
-done:
 	return (error);
 }
 
