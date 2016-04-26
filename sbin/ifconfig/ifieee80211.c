@@ -1697,13 +1697,28 @@ set80211ampdu(const char *val, int d, int s, const struct afswtch *rafp)
 	int ampdu;
 
 	if (get80211val(s, IEEE80211_IOC_AMPDU, &ampdu) < 0)
-		errx(-1, "cannot get AMPDU setting");
+		errx(-1, "cannot set AMPDU setting");
 	if (d < 0) {
 		d = -d;
 		ampdu &= ~d;
 	} else
 		ampdu |= d;
 	set80211(s, IEEE80211_IOC_AMPDU, ampdu, 0, NULL);
+}
+
+static void
+set80211stbc(const char *val, int d, int s, const struct afswtch *rafp)
+{
+	int stbc;
+
+	if (get80211val(s, IEEE80211_IOC_STBC, &stbc) < 0)
+		errx(-1, "cannot set STBC setting");
+	if (d < 0) {
+		d = -d;
+		stbc &= ~d;
+	} else
+		stbc |= d;
+	set80211(s, IEEE80211_IOC_STBC, stbc, 0, NULL);
 }
 
 static
@@ -4828,6 +4843,23 @@ end:
 			else if (verbose)
 				LINE_CHECK("-rifs");
 		}
+		if (get80211val(s, IEEE80211_IOC_STBC, &val) != -1) {
+			switch (val) {
+			case 0:
+				LINE_CHECK("-stbc");
+				break;
+			case 1:
+				LINE_CHECK("stbctx -stbcrx");
+				break;
+			case 2:
+				LINE_CHECK("-stbctx stbcrx");
+				break;
+			case 3:
+				if (verbose)
+					LINE_CHECK("stbc");
+				break;
+			}
+		}
 	}
 
 	if (get80211val(s, IEEE80211_IOC_WME, &wme) != -1) {
@@ -5324,6 +5356,12 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD("amsdu",	3,	set80211amsdu),		/* NB: tx+rx */
 	DEF_CMD("-amsdu",	-3,	set80211amsdu),
 	DEF_CMD_ARG("amsdulimit",	set80211amsdulimit),
+	DEF_CMD("stbcrx",	2,	set80211stbc),
+	DEF_CMD("-stbcrx",	-2,	set80211stbc),
+	DEF_CMD("stbctx",	1,	set80211stbc),
+	DEF_CMD("-stbctx",	-1,	set80211stbc),
+	DEF_CMD("stbc",		3,	set80211stbc),		/* NB: tx+rx */
+	DEF_CMD("-ampdu",	-3,	set80211stbc),
 	DEF_CMD("puren",	1,	set80211puren),
 	DEF_CMD("-puren",	0,	set80211puren),
 	DEF_CMD("doth",		1,	set80211doth),
