@@ -2410,6 +2410,17 @@ iwm_mvm_rx_tx_cmd_single(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 	KASSERT(tx_resp->frame_count == 1, ("too many frames"));
 
 	/* Update rate control statistics. */
+	IWM_DPRINTF(sc, IWM_DEBUG_XMIT, "%s: status=0x%04x, seq=%d, fc=%d, btc=%d, frts=%d, ff=%d, irate=%08x, wmt=%d\n",
+	    __func__,
+	    (int) le16toh(tx_resp->status.status),
+	    (int) le16toh(tx_resp->status.sequence),
+	    tx_resp->frame_count,
+	    tx_resp->bt_kill_count,
+	    tx_resp->failure_rts,
+	    tx_resp->failure_frame,
+	    le32toh(tx_resp->initial_rate),
+	    (int) le16toh(tx_resp->wireless_media_time));
+
 	if (status != IWM_TX_STATUS_SUCCESS &&
 	    status != IWM_TX_STATUS_DIRECT_DONE) {
 		ieee80211_ratectl_tx_complete(vap, ni,
@@ -2802,8 +2813,12 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 	KASSERT(data->in != NULL, ("node is NULL"));
 
 	IWM_DPRINTF(sc, IWM_DEBUG_XMIT,
-	    "sending data: qid=%d idx=%d len=%d nsegs=%d\n",
-	    ring->qid, ring->cur, totlen, nsegs);
+	    "sending data: qid=%d idx=%d len=%d nsegs=%d txflags=0x%08x rate_n_flags=0x%08x rateidx=%d\n",
+	    ring->qid, ring->cur, totlen, nsegs,
+	    le32toh(tx->tx_flags),
+	    le32toh(tx->rate_n_flags),
+	    (int) tx->initial_rate_index
+	    );
 
 	/* Fill TX descriptor. */
 	desc->num_tbs = 2 + nsegs;
