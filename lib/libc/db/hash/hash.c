@@ -160,8 +160,7 @@ __hash_open(const char *file, int flags, int mode,
 		 * maximum bucket number, so the number of buckets is
 		 * max_bucket + 1.
 		 */
-		nsegs = (hashp->MAX_BUCKET + 1 + hashp->SGSIZE - 1) /
-			 hashp->SGSIZE;
+		nsegs = howmany(hashp->MAX_BUCKET + 1, hashp->SGSIZE);
 		if (alloc_segs(hashp, nsegs))
 			/*
 			 * If alloc_segs fails, table will have been destroyed
