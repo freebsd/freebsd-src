@@ -1128,6 +1128,13 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 			ireq->i_val =
 			    (vap->iv_flags_ht & IEEE80211_FHT_RIFS) != 0;
 		break;
+	case IEEE80211_IOC_STBC:
+		ireq->i_val = 0;
+		if (vap->iv_flags_ht & IEEE80211_FHT_STBC_TX)
+			ireq->i_val |= 1;
+		if (vap->iv_flags_ht & IEEE80211_FHT_STBC_RX)
+			ireq->i_val |= 2;
+		break;
 	default:
 		error = ieee80211_ioctl_getdefault(vap, ireq);
 		break;
@@ -3262,6 +3269,31 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		} else
 			vap->iv_flags_ht &= ~IEEE80211_FHT_RIFS;
 		/* NB: if not operating in 11n this can wait */
+		if (isvapht(vap))
+			error = ERESTART;
+		break;
+	case IEEE80211_IOC_STBC:
+		/* Check if we can do STBC TX/RX before changing the setting */
+		if ((ireq->i_val & 1) &&
+		    ((vap->iv_htcaps & IEEE80211_HTCAP_TXSTBC) == 0))
+			return EOPNOTSUPP;
+		if ((ireq->i_val & 2) &&
+		    ((vap->iv_htcaps & IEEE80211_HTCAP_RXSTBC) == 0))
+			return EOPNOTSUPP;
+
+		/* TX */
+		if (ireq->i_val & 1)
+			vap->iv_flags_ht |= IEEE80211_FHT_STBC_TX;
+		else
+			vap->iv_flags_ht &= ~IEEE80211_FHT_STBC_TX;
+
+		/* RX */
+		if (ireq->i_val & 2)
+			vap->iv_flags_ht |= IEEE80211_FHT_STBC_RX;
+		else
+			vap->iv_flags_ht &= ~IEEE80211_FHT_STBC_RX;
+
+		/* NB: reset only if we're operating on an 11n channel */
 		if (isvapht(vap))
 			error = ERESTART;
 		break;
