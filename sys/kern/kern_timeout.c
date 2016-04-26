@@ -1464,11 +1464,11 @@ adjust_timeout_calltodo(struct timeval *time_change)
 	if (time_change->tv_sec < 0)
 		return;
 	else if (time_change->tv_sec <= LONG_MAX / 1000000)
-		delta_ticks = (time_change->tv_sec * 1000000 +
-			       time_change->tv_usec + (tick - 1)) / tick + 1;
+		delta_ticks = howmany(time_change->tv_sec * 1000000 +
+		    time_change->tv_usec, tick) + 1;
 	else if (time_change->tv_sec <= LONG_MAX / hz)
 		delta_ticks = time_change->tv_sec * hz +
-			      (time_change->tv_usec + (tick - 1)) / tick + 1;
+		    howmany(time_change->tv_usec, tick) + 1;
 	else
 		delta_ticks = LONG_MAX;
 
