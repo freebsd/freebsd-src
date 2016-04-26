@@ -1,5 +1,4 @@
 # $FreeBSD$
-arm/arm/devmap.c		standard
 arm/arm/generic_timer.c		standard
 arm/arm/pmu.c			standard
 arm64/acpica/acpi_machdep.c	optional	acpi
@@ -84,6 +83,7 @@ dev/vnic/thunder_mdio_fdt.c	optional	vnic fdt
 dev/vnic/thunder_mdio.c		optional	vnic
 dev/vnic/lmac_if.m		optional	vnic
 kern/kern_clocksource.c		standard
+kern/subr_devmap.c		standard
 libkern/bcmp.c			standard
 libkern/ffs.c			standard
 libkern/ffsl.c			standard

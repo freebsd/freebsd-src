@@ -239,4 +239,6 @@ extern vm_offset_t init_pt_va;
 
 #define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
 
+#define	DEVMAP_MAX_VADDR	VM_MAX_KERNEL_ADDRESS
+
 #endif /* !_MACHINE_VMPARAM_H_ */

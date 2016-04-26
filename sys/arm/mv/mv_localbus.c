@@ -36,10 +36,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <sys/malloc.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 
-#include <machine/devmap.h>
 #include <machine/fdt.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -384,7 +384,7 @@ localbus_get_devinfo(device_t bus, device_t child)
 }
 
 int
-fdt_localbus_devmap(phandle_t dt_node, struct arm_devmap_entry *fdt_devmap,
+fdt_localbus_devmap(phandle_t dt_node, struct devmap_entry *fdt_devmap,
     int banks_max_num, int *banks_added)
 {
 	pcell_t ranges[MV_LOCALBUS_MAX_BANKS * MV_LOCALBUS_MAX_BANK_CELLS];

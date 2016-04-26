@@ -34,11 +34,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/reboot.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 
 #include <machine/bus.h>
-#include <machine/devmap.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
 #include <machine/machdep.h>
@@ -84,7 +84,7 @@ static vm_offset_t
 tegra124_lastaddr(platform_t plat)
 {
 
-	return (arm_devmap_lastaddr());
+	return (devmap_lastaddr());
 }
 
 static int
@@ -108,7 +108,7 @@ static int
 tegra124_devmap_init(platform_t plat)
 {
 
-	arm_devmap_add_entry(0x70000000, 0x01000000);
+	devmap_add_entry(0x70000000, 0x01000000);
 	return (0);
 }
 

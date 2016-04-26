@@ -33,11 +33,11 @@ __FBSDID("$FreeBSD$");
 #define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 
 #include <machine/bus.h>
-#include <machine/devmap.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 
@@ -70,7 +70,7 @@ static vm_offset_t
 virt_lastaddr(platform_t plat)
 {
 
-	return (arm_devmap_lastaddr());
+	return (devmap_lastaddr());
 }
 
 /*
@@ -80,7 +80,7 @@ static int
 virt_devmap_init(platform_t plat)
 {
 
-	arm_devmap_add_entry(0x09000000, 0x100000); /* Uart */
+	devmap_add_entry(0x09000000, 0x100000); /* Uart */
 	return (0);
 }
 

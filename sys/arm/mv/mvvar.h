@@ -135,10 +135,10 @@ uint32_t mv_drbl_get_msg(int mnr, int dir, int unit);
 
 int	mv_msi_data(int irq, uint64_t *addr, uint32_t *data);
 
-struct arm_devmap_entry;
+struct devmap_entry;
 
-int mv_pci_devmap(phandle_t, struct arm_devmap_entry *, vm_offset_t,
+int mv_pci_devmap(phandle_t, struct devmap_entry *, vm_offset_t,
     vm_offset_t);
-int fdt_localbus_devmap(phandle_t, struct arm_devmap_entry *, int, int *);
+int fdt_localbus_devmap(phandle_t, struct devmap_entry *, int, int *);
 
 #endif /* _MVVAR_H_ */
