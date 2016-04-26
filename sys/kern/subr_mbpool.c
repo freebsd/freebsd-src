@@ -210,16 +210,13 @@ mbp_alloc_page(struct mbpool *p)
 	pg = &p->pages[p->npages];
 
 	error = bus_dmamem_alloc(p->dmat, &pg->va, BUS_DMA_NOWAIT, &pg->map);
-	if (error != 0) {
-		free(pg, M_MBPOOL);
+	if (error != 0)
 		return;
-	}
 
 	error = bus_dmamap_load(p->dmat, pg->map, pg->va, p->page_size,
 	    mbp_callback, &pg->phy, 0);
 	if (error != 0) {
 		bus_dmamem_free(p->dmat, pg->va, pg->map);
-		free(pg, M_MBPOOL);
 		return;
 	}
 
