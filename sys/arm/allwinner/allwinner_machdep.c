@@ -39,12 +39,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/devmap.h>
 #include <machine/machdep.h>
 #include <machine/platformvar.h>
 
@@ -98,7 +98,7 @@ static vm_offset_t
 allwinner_lastaddr(platform_t plat)
 {
 
-	return (arm_devmap_lastaddr());
+	return (devmap_lastaddr());
 }
 
 /*
@@ -115,7 +115,7 @@ static int
 allwinner_devmap_init(platform_t plat)
 {
 
-	arm_devmap_add_entry(0x01C00000, 0x00400000); /* 4MB */
+	devmap_add_entry(0x01C00000, 0x00400000); /* 4MB */
 
 	return (0);
 }

@@ -26,14 +26,18 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_DEVMAP_H_
-#define	_MACHINE_DEVMAP_H_
+#ifndef	_SYS_DEVMAP_H_
+#define	_SYS_DEVMAP_H_
+
+#ifndef _KERNEL
+#error "no user-servicable parts inside"
+#endif
 
 /*
  * This structure is used by MD code to describe static mappings of devices
  * which are established as part of bringing up the MMU early in the boot.
  */
-struct arm_devmap_entry {
+struct devmap_entry {
 	vm_offset_t	pd_va;		/* virtual address */
 	vm_paddr_t	pd_pa;		/* physical address */
 	vm_size_t	pd_size;	/* size of region */
@@ -42,34 +46,34 @@ struct arm_devmap_entry {
 /*
  * Return the lowest KVA address used in any entry in the registered devmap
  * table.  This works with whatever table is registered, including the internal
- * table used by arm_devmap_add_entry() if that routine was used. Platforms can
- * implement initarm_lastaddr() by calling this if static device mappings are
+ * table used by devmap_add_entry() if that routine was used. Platforms can
+ * implement platform_lastaddr() by calling this if static device mappings are
  * their only use of high KVA space.
  */
-vm_offset_t arm_devmap_lastaddr(void);
+vm_offset_t devmap_lastaddr(void);
 
 /*
  * Automatically allocate KVA (from the top of the address space downwards) and
  * make static device mapping entries in an internal table.  The internal table
  * is automatically registered on the first call to this.
  */
-void arm_devmap_add_entry(vm_paddr_t pa, vm_size_t sz);
+void devmap_add_entry(vm_paddr_t pa, vm_size_t sz);
 
 /*
  * Register a platform-local table to be bootstrapped by the generic
  * initarm() in arm/machdep.c.  This is used by newer code that allocates and
  * fills in its own local table but does not have its own initarm() routine.
  */
-void arm_devmap_register_table(const struct arm_devmap_entry * _table);
+void devmap_register_table(const struct devmap_entry * _table);
 
 /*
  * Establish mappings for all the entries in the table.  This is called
  * automatically from the common initarm() in arm/machdep.c, and also from the
  * custom initarm() routines in older code.  If the table pointer is NULL, this
- * will use the table installed previously by arm_devmap_register_table().
+ * will use the table installed previously by devmap_register_table().
  */
-void arm_devmap_bootstrap(vm_offset_t _l1pt,
-    const struct arm_devmap_entry *_table);
+void devmap_bootstrap(vm_offset_t _l1pt,
+    const struct devmap_entry *_table);
 
 /*
  * Translate between virtual and physical addresses within a region that is
@@ -82,10 +86,10 @@ void arm_devmap_bootstrap(vm_offset_t _l1pt,
  */
 #define	DEVMAP_PADDR_NOTFOUND	((vm_paddr_t)(-1))
 
-void *     arm_devmap_ptov(vm_paddr_t _pa, vm_size_t _sz);
-vm_paddr_t arm_devmap_vtop(void * _va, vm_size_t _sz);
+void *     devmap_ptov(vm_paddr_t _pa, vm_size_t _sz);
+vm_paddr_t devmap_vtop(void * _va, vm_size_t _sz);
 
 /* Print the static mapping table; used for bootverbose output. */
-void arm_devmap_print_table(void);
+void devmap_print_table(void);
 
-#endif
+#endif /* !_SYS_DEVMAP_H_ */
