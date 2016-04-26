@@ -738,7 +738,7 @@ prepare_to_send(struct sbni_softc *sc)
 		len = SBNI_MIN_LEN;
 
 	sc->pktlen	= len;
-	sc->tx_frameno	= (len + sc->maxframe - 1) / sc->maxframe;
+	sc->tx_frameno	= howmany(len, sc->maxframe);
 	sc->framelen	= min(len, sc->maxframe);
 
 	sbni_outb(sc, CSR0, sbni_inb(sc, CSR0) | TR_REQ);

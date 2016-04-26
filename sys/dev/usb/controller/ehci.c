@@ -1659,8 +1659,7 @@ restart:
 
 				/* update data toggle */
 
-				if (((average + temp->max_frame_size - 1) /
-				    temp->max_frame_size) & 1) {
+				if (howmany(average, temp->max_frame_size) & 1) {
 					temp->qtd_status ^=
 					    htohc32(temp->sc, EHCI_QTD_TOGGLE_MASK);
 				}
