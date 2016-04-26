@@ -272,17 +272,16 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 			 * can receive (at least) 1 stream STBC, AND it's
 			 * MCS 0-7, AND we have at least two chains enabled,
 			 * enable STBC.
+			 *
+			 * XXX TODO: .. and the rate is an 11n rate?
 			 */
 			if (ic->ic_htcaps & IEEE80211_HTCAP_TXSTBC &&
+			    ni->ni_vap->iv_flags_ht & IEEE80211_FHT_STBC_TX &&
 			    ni->ni_htcap & IEEE80211_HTCAP_RXSTBC_1STREAM &&
 			    (sc->sc_cur_txchainmask > 1) &&
 			    HT_RC_2_STREAMS(rate) == 1) {
 				rc[i].flags |= ATH_RC_STBC_FLAG;
 			}
-
-			/*
-			 * XXX TODO: LDPC
-			 */
 
 			/*
 			 * Dual / Triple stream rate?
@@ -563,6 +562,12 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 			if (rc[i].flags & ATH_RC_STBC_FLAG)
 				series[i].RateFlags |= HAL_RATESERIES_STBC;
 		}
+
+		/*
+		 * TODO: If we're all doing 11n rates then we can set LDPC.
+		 * If we've been asked to /do/ LDPC but we are handed a
+		 * legacy rate, then we should complain.  Loudly.
+		 */
 
 		/*
 		 * PktDuration doesn't include slot, ACK, RTS, etc timing -
