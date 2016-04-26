@@ -237,8 +237,6 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 				    new_channel, new_channel->primary_channel);
 
 			new_channel->state = HV_CHANNEL_OPEN_STATE;
-			if (channel->sc_creation_callback != NULL)
-				channel->sc_creation_callback(new_channel);
 
 			/*
 			 * Bump up sub-channel count and notify anyone that is
