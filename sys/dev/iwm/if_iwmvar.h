@@ -405,6 +405,7 @@ struct iwm_softc {
 #define IWM_FLAG_STOPPED	(1 << 2)
 #define IWM_FLAG_RFKILL		(1 << 3)
 #define IWM_FLAG_BUSY		(1 << 4)
+#define	IWM_FLAG_DORESUME	(1 << 5)
 
 	struct intr_config_hook sc_preinit_hook;
 	struct callout		sc_watchdog_to;
