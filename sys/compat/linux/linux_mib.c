@@ -192,7 +192,7 @@ linux_alloc_prison(struct prison *pr, struct linux_prison **lprp)
 {
 	struct prison *ppr;
 	struct linux_prison *lpr, *nlpr;
-	void *rsv;
+	void **rsv;
 
 	/* If this prison already has Linux info, return that. */
 	lpr = linux_find_prison(pr, &ppr);

@@ -900,7 +900,7 @@ static int
 shminit(void)
 {
 	struct prison *pr;
-	void *rsv;
+	void **rsv;
 	int i, error;
 	osd_method_t methods[PR_MAXMETHOD] = {
 	    [PR_METHOD_CHECK] =		shm_prison_check,

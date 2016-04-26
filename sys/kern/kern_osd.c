@@ -202,7 +202,7 @@ osd_set(u_int type, struct osd *osd, u_int slot, void *value)
 	return (osd_set_reserved(type, osd, slot, NULL, value));
 }
 
-void *
+void **
 osd_reserve(u_int slot)
 {
 
@@ -213,7 +213,7 @@ osd_reserve(u_int slot)
 }
 
 int
-osd_set_reserved(u_int type, struct osd *osd, u_int slot, void *rsv,
+osd_set_reserved(u_int type, struct osd *osd, u_int slot, void **rsv,
     void *value)
 {
 	struct rm_priotracker tracker;
@@ -224,7 +224,7 @@ osd_set_reserved(u_int type, struct osd *osd, u_int slot, void *rsv,
 
 	rm_rlock(&osdm[type].osd_object_lock, &tracker);
 	if (slot > osd->osd_nslots) {
-		void *newptr;
+		void **newptr;
 
 		if (value == NULL) {
 			OSD_DEBUG(
@@ -283,7 +283,7 @@ osd_set_reserved(u_int type, struct osd *osd, u_int slot, void *rsv,
 }
 
 void
-osd_free_reserved(void *rsv)
+osd_free_reserved(void **rsv)
 {
 
 	OSD_DEBUG("Discarding reserved slot array.");
