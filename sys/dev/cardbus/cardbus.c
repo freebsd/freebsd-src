@@ -346,7 +346,7 @@ static device_method_t cardbus_methods[] = {
 	DEVMETHOD(bus_get_dma_tag,	bus_generic_get_dma_tag),
 	DEVMETHOD(bus_read_ivar,	cardbus_read_ivar),
 	DEVMETHOD(bus_driver_added,	cardbus_driver_added),
-	DEVMETHOD(bus_rescan,		kobj_error_method),
+	DEVMETHOD(bus_rescan,		bus_null_rescan),
 
 	/* Card Interface */
 	DEVMETHOD(card_attach_card,	cardbus_attach_card),
