@@ -727,7 +727,7 @@ command(void)
 		if (vrbose) {
                         if ((bp = el_gets(el, &num)) == NULL || num == 0)
                                 exit(0);
-                        len = (num > MAXLINE) ? MAXLINE : num;
+                        len = MIN(MAXLINE, num);
                         memcpy(line, bp, len);
                         line[len] = '\0';
                         history(hist, &he, H_ENTER, bp);
