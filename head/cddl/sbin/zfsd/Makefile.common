@@ -10,7 +10,7 @@ SRCS=		callout.cc		\
 		zpool_list.cc		\
 		zfsd_main.cc
 
-MK_MAN=		no
+MAN=
 
 WARNS?=		3
 
