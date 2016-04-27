@@ -149,7 +149,6 @@ struct prison_racct;
  *   (p) locked by pr_mtx
  *   (c) set only during creation before the structure is shared, no mutex
  *       required to read
- *   (d) set only during destruction of jail, no mutex needed
  */
 struct prison {
 	TAILQ_ENTRY(prison) pr_list;			/* (a) all prisons */
@@ -161,7 +160,7 @@ struct prison {
 	LIST_ENTRY(prison) pr_sibling;			/* (a) next in parent's list */
 	struct prison	*pr_parent;			/* (c) containing jail */
 	struct mtx	 pr_mtx;
-	struct task	 pr_task;			/* (d) destroy task */
+	struct task	 pr_task;			/* (c) destroy task */
 	struct osd	 pr_osd;			/* (p) additional data */
 	struct cpuset	*pr_cpuset;			/* (p) cpuset */
 	struct vnet	*pr_vnet;			/* (c) network stack */
