@@ -217,7 +217,7 @@ static void
 closedisk(const char *devnam)
 {
 	struct csum *cgsum;
-	u_int i;
+	uint32_t i;
 
 	/*
 	 * Recompute the fs summary info from correct cs summaries.
@@ -2252,7 +2252,7 @@ suj_build(void)
 	struct suj_seg *seg;
 	union jrec *rec;
 	int off;
-	u_int i;
+	int i;
 
 	TAILQ_FOREACH(seg, &allsegs, ss_next) {
 		if (debug)
@@ -2540,7 +2540,7 @@ suj_read(void)
 	struct jsegrec *rec;
 	ufs2_daddr_t blk;
 	int readsize;
-	u_int blocks;
+	int blocks;
 	int recsize;
 	int size;
 	u_int i;
