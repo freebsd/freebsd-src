@@ -1004,6 +1004,7 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 		netvsc_dev *net_dev = txr->hn_sc->net_dev;
 		uint32_t send_buf_section_idx;
 
+		txr->hn_tx_chimney_tried++;
 		send_buf_section_idx =
 		    hv_nv_get_next_send_section(net_dev);
 		if (send_buf_section_idx !=
@@ -2595,6 +2596,10 @@ hn_create_tx_data(struct hn_softc *sc, int ring_cnt)
 	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
 	    __offsetof(struct hn_tx_ring, hn_tx_chimney),
 	    hn_tx_stat_ulong_sysctl, "LU", "# of chimney send");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_chimney_tried",
+	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, sc,
+	    __offsetof(struct hn_tx_ring, hn_tx_chimney_tried),
+	    hn_tx_stat_ulong_sysctl, "LU", "# of chimney send tries");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "txdesc_cnt",
 	    CTLFLAG_RD, &sc->hn_tx_ring[0].hn_txdesc_cnt, 0,
 	    "# of total TX descs");
