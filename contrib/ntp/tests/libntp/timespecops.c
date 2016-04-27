@@ -63,8 +63,6 @@ void test_FromLFPrelNeg(void);
 void test_LFProundtrip(void);
 void test_ToString(void);
 
-typedef int bool;
-
 const bool	timespec_isValid(struct timespec V);
 struct timespec timespec_init(time_t hi, long lo);
 l_fp		l_fp_init(int32 i, u_int32 f);
