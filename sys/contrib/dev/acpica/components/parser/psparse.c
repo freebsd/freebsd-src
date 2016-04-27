@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -200,8 +200,8 @@ AcpiPsCompleteThisOp (
              * These opcodes contain TermArg operands. The current
              * op must be replaced by a placeholder return op
              */
-            ReplacementOp = AcpiPsAllocOp (AML_INT_RETURN_VALUE_OP,
-                                Op->Common.Aml);
+            ReplacementOp = AcpiPsAllocOp (
+                AML_INT_RETURN_VALUE_OP, Op->Common.Aml);
             if (!ReplacementOp)
             {
                 Status = AE_NO_MEMORY;
@@ -220,8 +220,8 @@ AcpiPsCompleteThisOp (
                 (Op->Common.Parent->Common.AmlOpcode == AML_BANK_FIELD_OP)   ||
                 (Op->Common.Parent->Common.AmlOpcode == AML_VAR_PACKAGE_OP))
             {
-                ReplacementOp = AcpiPsAllocOp (AML_INT_RETURN_VALUE_OP,
-                                    Op->Common.Aml);
+                ReplacementOp = AcpiPsAllocOp (
+                    AML_INT_RETURN_VALUE_OP, Op->Common.Aml);
                 if (!ReplacementOp)
                 {
                     Status = AE_NO_MEMORY;
@@ -235,7 +235,7 @@ AcpiPsCompleteThisOp (
                     (Op->Common.AmlOpcode == AML_VAR_PACKAGE_OP))
                 {
                     ReplacementOp = AcpiPsAllocOp (Op->Common.AmlOpcode,
-                                        Op->Common.Aml);
+                        Op->Common.Aml);
                     if (!ReplacementOp)
                     {
                         Status = AE_NO_MEMORY;
@@ -251,8 +251,8 @@ AcpiPsCompleteThisOp (
 
         default:
 
-            ReplacementOp = AcpiPsAllocOp (AML_INT_RETURN_VALUE_OP,
-                                Op->Common.Aml);
+            ReplacementOp = AcpiPsAllocOp (
+                AML_INT_RETURN_VALUE_OP, Op->Common.Aml);
             if (!ReplacementOp)
             {
                 Status = AE_NO_MEMORY;
@@ -267,11 +267,11 @@ AcpiPsCompleteThisOp (
 
             if (ReplacementOp)
             {
-                ReplacementOp->Common.Parent        = Op->Common.Parent;
-                ReplacementOp->Common.Value.Arg     = NULL;
-                ReplacementOp->Common.Node          = Op->Common.Node;
+                ReplacementOp->Common.Parent = Op->Common.Parent;
+                ReplacementOp->Common.Value.Arg = NULL;
+                ReplacementOp->Common.Node = Op->Common.Node;
                 Op->Common.Parent->Common.Value.Arg = ReplacementOp;
-                ReplacementOp->Common.Next          = Op->Common.Next;
+                ReplacementOp->Common.Next = Op->Common.Next;
             }
             else
             {
@@ -290,11 +290,11 @@ AcpiPsCompleteThisOp (
             {
                 if (ReplacementOp)
                 {
-                    ReplacementOp->Common.Parent    = Op->Common.Parent;
+                    ReplacementOp->Common.Parent = Op->Common.Parent;
                     ReplacementOp->Common.Value.Arg = NULL;
-                    ReplacementOp->Common.Node      = Op->Common.Node;
-                    Prev->Common.Next               = ReplacementOp;
-                    ReplacementOp->Common.Next      = Op->Common.Next;
+                    ReplacementOp->Common.Node = Op->Common.Node;
+                    Prev->Common.Next = ReplacementOp;
+                    ReplacementOp->Common.Next = Op->Common.Next;
                     Next = NULL;
                 }
                 else
@@ -494,7 +494,8 @@ AcpiPsParseAml (
      */
     if (WalkState->MethodDesc)
     {
-        WalkState->Thread->CurrentSyncLevel = WalkState->MethodDesc->Method.SyncLevel;
+        WalkState->Thread->CurrentSyncLevel =
+            WalkState->MethodDesc->Method.SyncLevel;
     }
 
     AcpiDsPushWalkState (WalkState, Thread);
@@ -540,8 +541,8 @@ AcpiPsParseAml (
             }
 
             /*
-             * If the transfer to the new method method call worked, a new walk
-             * state was created -- get it
+             * If the transfer to the new method method call worked
+             *, a new walk state was created -- get it
              */
             WalkState = AcpiDsGetCurrentWalkState (Thread);
             continue;
@@ -560,7 +561,8 @@ AcpiPsParseAml (
             /* Check for possible multi-thread reentrancy problem */
 
             if ((Status == AE_ALREADY_EXISTS) &&
-                (!(WalkState->MethodDesc->Method.InfoFlags & ACPI_METHOD_SERIALIZED)))
+                (!(WalkState->MethodDesc->Method.InfoFlags &
+                    ACPI_METHOD_SERIALIZED)))
             {
                 /*
                  * Method is not serialized and tried to create an object
@@ -586,7 +588,8 @@ AcpiPsParseAml (
          * encountered an error during the method parse phase, there's lots of
          * cleanup to do
          */
-        if (((WalkState->ParseFlags & ACPI_PARSE_MODE_MASK) == ACPI_PARSE_EXECUTE) ||
+        if (((WalkState->ParseFlags & ACPI_PARSE_MODE_MASK) ==
+            ACPI_PARSE_EXECUTE) ||
             (ACPI_FAILURE (Status)))
         {
             AcpiDsTerminateControlMethod (WalkState->MethodDesc, WalkState);
@@ -633,7 +636,7 @@ AcpiPsParseAml (
                     /* Restart the calling control method */
 
                     Status = AcpiDsRestartControlMethod (WalkState,
-                                PreviousWalkState->ImplicitReturnObj);
+                        PreviousWalkState->ImplicitReturnObj);
                 }
                 else
                 {
@@ -644,7 +647,7 @@ AcpiPsParseAml (
                     AcpiDsClearImplicitReturn (PreviousWalkState);
 
                     Status = AcpiDsRestartControlMethod (WalkState,
-                                PreviousWalkState->ReturnDesc);
+                        PreviousWalkState->ReturnDesc);
                 }
                 if (ACPI_SUCCESS (Status))
                 {

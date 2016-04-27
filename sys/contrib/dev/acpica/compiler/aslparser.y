@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,7 +58,7 @@
  * each list element and possibly overflow on very large lists (>4000 items).
  * This dramatically reduces use of the parse stack overall.
  *
- *      ArgList, TermList, Objectlist, ByteList, DWordList, PackageList,
+ *      ArgList, TermList, ByteList, DWordList, PackageList,
  *      ResourceMacroList, and FieldUnitList
  */
 
@@ -99,7 +99,7 @@ AslLocalAllocate (
  * These shift/reduce conflicts are expected. There should be zero
  * reduce/reduce conflicts.
  */
-%expect 89
+%expect 101
 
 /*! [Begin] no source code translation */
 
@@ -122,6 +122,8 @@ m4_include(asltypes.y)
 /* Production rules */
 
 m4_include(aslrules.y)
+m4_include(aslcstyle.y)
+m4_include(aslresources.y)
 %%
 
 /*! [End] no source code translation !*/

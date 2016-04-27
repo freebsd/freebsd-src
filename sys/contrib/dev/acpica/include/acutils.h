@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -175,6 +175,25 @@ typedef struct acpi_pkg_info
 
 
 /*
+ * utascii - ASCII utilities
+ */
+BOOLEAN
+AcpiUtValidNameseg (
+    char                    *Signature);
+
+BOOLEAN
+AcpiUtValidNameChar (
+    char                    Character,
+    UINT32                  Position);
+
+void
+AcpiUtCheckAndRepairAscii (
+    UINT8                   *Name,
+    char                    *RepairedName,
+    UINT32                  Count);
+
+
+/*
  * utnonansi - Non-ANSI C library functions
  */
 void
@@ -194,7 +213,13 @@ ACPI_STATUS
 AcpiUtStrtoul64 (
     char                    *String,
     UINT32                  Base,
+    UINT32                  MaxIntegerByteWidth,
     UINT64                  *RetInteger);
+
+/* Values for MaxIntegerByteWidth above */
+
+#define ACPI_MAX32_BYTE_WIDTH       4
+#define ACPI_MAX64_BYTE_WIDTH       8
 
 
 /*
@@ -206,7 +231,7 @@ AcpiUtInitGlobals (
 
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
-char *
+const char *
 AcpiUtGetMutexName (
     UINT32                  MutexId);
 
@@ -216,15 +241,15 @@ AcpiUtGetNotifyName (
     ACPI_OBJECT_TYPE        Type);
 #endif
 
-char *
+const char *
 AcpiUtGetTypeName (
     ACPI_OBJECT_TYPE        Type);
 
-char *
+const char *
 AcpiUtGetNodeName (
     void                    *Object);
 
-char *
+const char *
 AcpiUtGetDescriptorName (
     void                    *Object);
 
@@ -232,15 +257,15 @@ const char *
 AcpiUtGetReferenceName (
     ACPI_OPERAND_OBJECT     *Object);
 
-char *
+const char *
 AcpiUtGetObjectTypeName (
     ACPI_OPERAND_OBJECT     *ObjDesc);
 
-char *
+const char *
 AcpiUtGetRegionName (
     UINT8                   SpaceId);
 
-char *
+const char *
 AcpiUtGetEventName (
     UINT32                  EventId);
 
@@ -341,7 +366,7 @@ AcpiUtTracePtr (
     const char              *FunctionName,
     const char              *ModuleName,
     UINT32                  ComponentId,
-    void                    *Pointer);
+    const void              *Pointer);
 
 void
 AcpiUtTraceU32 (
@@ -357,7 +382,7 @@ AcpiUtTraceStr (
     const char              *FunctionName,
     const char              *ModuleName,
     UINT32                  ComponentId,
-    char                    *String);
+    const char              *String);
 
 void
 AcpiUtExit (
@@ -389,6 +414,14 @@ AcpiUtPtrExit (
     const char              *ModuleName,
     UINT32                  ComponentId,
     UINT8                   *Ptr);
+
+void
+AcpiUtStrExit (
+    UINT32                  LineNumber,
+    const char              *FunctionName,
+    const char              *ModuleName,
+    UINT32                  ComponentId,
+    const char              *String);
 
 void
 AcpiUtDebugDumpBuffer (
@@ -460,13 +493,13 @@ AcpiUtDeleteInternalObjectList (
 ACPI_STATUS
 AcpiUtEvaluateObject (
     ACPI_NAMESPACE_NODE     *PrefixNode,
-    char                    *Path,
+    const char              *Path,
     UINT32                  ExpectedReturnBtypes,
     ACPI_OPERAND_OBJECT     **ReturnDesc);
 
 ACPI_STATUS
 AcpiUtEvaluateNumericObject (
-    char                    *ObjectName,
+    const char              *ObjectName,
     ACPI_NAMESPACE_NODE     *DeviceNode,
     UINT64                  *Value);
 
@@ -484,17 +517,6 @@ AcpiUtExecutePowerMethods (
 
 
 /*
- * utfileio - file operations
- */
-#ifdef ACPI_APPLICATION
-ACPI_STATUS
-AcpiUtReadTableFromFile (
-    char                    *Filename,
-    ACPI_TABLE_HEADER       **Table);
-#endif
-
-
-/*
  * utids - device ID support
  */
 ACPI_STATUS
@@ -504,11 +526,6 @@ AcpiUtExecute_HID (
 
 ACPI_STATUS
 AcpiUtExecute_UID (
-    ACPI_NAMESPACE_NODE     *DeviceNode,
-    ACPI_PNP_DEVICE_ID      **ReturnId);
-
-ACPI_STATUS
-AcpiUtExecute_SUB (
     ACPI_NAMESPACE_NODE     *DeviceNode,
     ACPI_PNP_DEVICE_ID      **ReturnId);
 
@@ -773,7 +790,7 @@ void
 AcpiUtDisplayInitPathname (
     UINT8                   Type,
     ACPI_NAMESPACE_NODE     *ObjHandle,
-    char                    *Path);
+    const char              *Path);
 #endif
 
 
@@ -842,15 +859,6 @@ UtConvertBackslashes (
     char                    *Pathname);
 #endif
 
-BOOLEAN
-AcpiUtValidAcpiName (
-    char                    *Name);
-
-BOOLEAN
-AcpiUtValidAcpiChar (
-    char                    Character,
-    UINT32                  Position);
-
 void
 AcpiUtRepairName (
     char                    *Name);
@@ -867,6 +875,13 @@ AcpiUtSafeStrcat (
     char                    *Dest,
     ACPI_SIZE               DestSize,
     char                    *Source);
+
+BOOLEAN
+AcpiUtSafeStrncat (
+    char                    *Dest,
+    ACPI_SIZE               DestSize,
+    char                    *Source,
+    ACPI_SIZE               MaxTransferLength);
 #endif
 
 
@@ -943,7 +958,7 @@ AcpiUtDumpAllocations (
 
 ACPI_STATUS
 AcpiUtCreateList (
-    char                    *ListName,
+    const char              *ListName,
     UINT16                  ObjectSize,
     ACPI_MEMORY_LIST        **ReturnCache);
 
