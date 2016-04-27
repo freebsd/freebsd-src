@@ -10,7 +10,7 @@ SRCS=		callout.cc		\
 		zpool_list.cc		\
 		zfsd_main.cc
 
-NO_MAN=		YES
+MK_MAN=		no
 
 WARNS?=		3
 
@@ -36,7 +36,7 @@ CFLAGS= -g -DNEED_SOLARIS_BOOLEAN ${INCFLAGS}
 
 DPADD=  ${LIBDEVDCTL} ${LIBZFS} ${LIBZFS_CORE} ${LIBUTIL} ${LIBGEOM} \
 	${LIBBSDXML} ${LIBSBUF} ${LIBNVPAIR} ${LIBUUTIL}
-LDADD=  -ldevdctl -lzfs -lzfs_core -lutil -lgeom -lbsdxml -lsbuf -lnvpair -luutil
+LIBADD=  devdctl zfs zfs_core util geom bsdxml sbuf nvpair uutil
 
 cscope:
 	find ${.CURDIR} -type f -a \( -name "*.[ch]" -o -name "*.cc" \) \

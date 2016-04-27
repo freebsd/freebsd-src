@@ -82,6 +82,7 @@ _LIBRARIES=	\
 		cuse \
 		cxxrt \
 		devctl \
+		devdctl \
 		devinfo \
 		devstat \
 		dialog \
