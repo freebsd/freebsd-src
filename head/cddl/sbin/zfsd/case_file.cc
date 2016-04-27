@@ -442,11 +442,12 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 	} else if (event.Value("class") == "resource.fs.zfs.statechange") {
 		RefreshVdevState();
 		/*
-		 * If this vdev is DEGRADED or FAULTED, try to activate a
-		 * hotspare.  Otherwise, ignore the event
+		 * If this vdev is DEGRADED, FAULTED, or UNAVAIL, try to
+		 * activate a hotspare.  Otherwise, ignore the event
 		 */
 		if (VdevState() == VDEV_STATE_FAULTED ||
-		    VdevState() == VDEV_STATE_DEGRADED)
+		    VdevState() == VDEV_STATE_DEGRADED ||
+		    VdevState() == VDEV_STATE_CANT_OPEN)
 			(void) ActivateSpare();
 		consumed = true;
 	}
