@@ -2236,7 +2236,10 @@ create_objects_compat(struct ip_fw_chain *ch, ipfw_insn *cmd,
 		KASSERT(rw != NULL, ("Unable to find handler for op %d",
 		    (cmd + p->off)->opcode));
 
-		error = rw->create_object(ch, ti, &kidx);
+		if (rw->create_object == NULL)
+			error = EOPNOTSUPP;
+		else
+			error = rw->create_object(ch, ti, &kidx);
 		if (error == 0) {
 			p->kidx = kidx;
 			continue;

@@ -151,20 +151,14 @@ eaction_findbykidx(struct ip_fw_chain *ch, uint16_t idx)
 	return (ipfw_objhash_lookup_kidx(CHAIN_TO_SRV(ch), idx));
 }
 
-static int
-eaction_create_compat(struct ip_fw_chain *ch, struct tid_info *ti,
-    uint16_t *pkidx)
-{
-
-	return (EOPNOTSUPP);
-}
-
 static struct opcode_obj_rewrite eaction_opcodes[] = {
 	{
-		O_EXTERNAL_ACTION, IPFW_TLV_EACTION,
-		eaction_classify, eaction_update,
-		eaction_findbyname, eaction_findbykidx,
-		eaction_create_compat
+		.opcode = O_EXTERNAL_ACTION,
+		.etlv = IPFW_TLV_EACTION,
+		.classifier = eaction_classify,
+		.update = eaction_update,
+		.find_byname = eaction_findbyname,
+		.find_bykidx = eaction_findbykidx,
 	},
 };
 
