@@ -154,6 +154,7 @@ static device_method_t xlp_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		xlp_pci_probe),
 	DEVMETHOD(device_attach,	xlp_pci_attach),
+	DEVMETHOD(bus_rescan,		kobj_error_method),
 	DEVMETHOD_END
 };
 
