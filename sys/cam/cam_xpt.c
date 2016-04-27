@@ -1182,7 +1182,7 @@ xptbusmatch(struct dev_match_pattern *patterns, u_int num_patterns,
 	    struct cam_eb *bus)
 {
 	dev_match_ret retval;
-	int i;
+	u_int i;
 
 	retval = DM_RET_NONE;
 
@@ -1294,7 +1294,7 @@ xptdevicematch(struct dev_match_pattern *patterns, u_int num_patterns,
 	       struct cam_ed *device)
 {
 	dev_match_ret retval;
-	int i;
+	u_int i;
 
 	retval = DM_RET_NONE;
 
@@ -1417,7 +1417,7 @@ xptperiphmatch(struct dev_match_pattern *patterns, u_int num_patterns,
 	       struct cam_periph *periph)
 {
 	dev_match_ret retval;
-	int i;
+	u_int i;
 
 	/*
 	 * If we aren't given something to match against, that's an error.
