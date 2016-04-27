@@ -365,24 +365,14 @@
 			<File
 				RelativePath="..\ntpd\ntp_iocompletionport.c"
 				>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="..\ntpd\ntp_iocplmem.c"
+				>
+			</File>
+			<File
+				RelativePath="..\ntpd\ntp_iocpltypes.c"
+				>
 			</File>
 			<File
 				RelativePath="..\..\..\ntpd\ntp_leapsec.c"

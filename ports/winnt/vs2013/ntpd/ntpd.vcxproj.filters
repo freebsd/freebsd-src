@@ -291,6 +291,12 @@
     <ClCompile Include="..\..\..\..\ntpd\rc_cmdlength.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\ntpd\ntp_iocplmem.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ntpd\ntp_iocpltypes.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\include\ascii.h">
@@ -519,6 +525,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\int.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ntp_iocplmem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ntp_iocpltypes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

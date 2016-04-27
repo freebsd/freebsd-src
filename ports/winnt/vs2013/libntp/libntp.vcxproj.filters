@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Source Files">
@@ -299,6 +299,9 @@
     <ClCompile Include="..\..\..\..\libntp\timevalops.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\tsmemcmp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\uglydate.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -321,6 +324,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\ymd2yd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\is_ip_address.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

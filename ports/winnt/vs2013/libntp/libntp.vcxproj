@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="DebugXP|Win32">
@@ -238,6 +238,7 @@
     <ClCompile Include="..\..\..\..\libntp\humandate.c" />
     <ClCompile Include="..\..\..\..\libntp\icom.c" />
     <ClCompile Include="..\..\..\..\libntp\iosignal.c" />
+    <ClCompile Include="..\..\..\..\libntp\is_ip_address.c" />
     <ClCompile Include="..\..\..\..\libntp\lib_strbuf.c" />
     <ClCompile Include="..\..\..\..\libntp\machines.c" />
     <ClCompile Include="..\..\..\..\libntp\mktime.c" />
@@ -295,6 +296,7 @@
     <ClCompile Include="..\..\..\..\lib\isc\sha1.c" />
     <ClCompile Include="..\..\..\..\lib\isc\sockaddr.c" />
     <ClCompile Include="..\..\..\..\lib\isc\task.c" />
+    <ClCompile Include="..\..\..\..\lib\isc\tsmemcmp.c" />
     <ClCompile Include="..\..\..\..\lib\isc\win32\condition.c" />
     <ClCompile Include="..\..\..\..\lib\isc\win32\interfaceiter.c" />
     <ClCompile Include="..\..\..\..\lib\isc\win32\net.c" />

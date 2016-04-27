@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="9.00"
 	Name="libntp"
 	ProjectGUID="{400FBFCB-462E-40D0-B06B-3B74E3FFFD00}"
 	TargetFrameworkVersion="0"
@@ -428,6 +428,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\..\libntp\is_ip_address.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\..\lib\isc\lib.c"
 				>
 			</File>
@@ -645,6 +649,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\..\libntp\timevalops.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\..\lib\isc\tsmemcmp.c"
 				>
 			</File>
 			<File
