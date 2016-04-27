@@ -35,6 +35,13 @@
 # define	FALSE	0
 #endif
 
+#ifdef HAVE_STDBOOL_H
+# include <stdbool.h>
+#else
+typedef int bool;	/* Can't use enum TRUE/FALSE because of above */
+#endif
+
+
 /*
  * This is another naming conflict.
  * On NetBSD for MAC the macro "mac" is defined as 1
