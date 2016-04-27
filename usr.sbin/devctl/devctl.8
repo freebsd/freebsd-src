@@ -59,6 +59,10 @@
 .Nm
 .Cm rescan
 .Ar device
+.Nm
+.Cm delete
+.Op Fl f
+.Ar device
 .Sh DESCRIPTION
 The
 .Nm
@@ -132,6 +136,18 @@ the device will not be changed.
 .It Cm rescan Ar device
 Rescan a bus device checking for devices that have been added or
 removed.
+.It Xo Cm delete
+.Op Fl
+.Ar device
+.Xc
+Delete the device from the device tree.
+If the
+.Fl f
+flag is specified,
+the device will be deleted even if it is physically present.
+This command should be used with care as a device that is deleted but present
+can no longer be used unless the parent bus device rediscovers the device via
+a rescan request.
 .El
 .Sh SEE ALSO
 .Xr devctl 3 ,

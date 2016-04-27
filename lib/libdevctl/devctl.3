@@ -31,6 +31,7 @@
 .Sh NAME
 .Nm devctl ,
 .Nm devctl_attach ,
+.Nm devctl_delete ,
 .Nm devctl_detach ,
 .Nm devctl_disable ,
 .Nm devctl_enable ,
@@ -45,6 +46,8 @@
 .In devctl.h
 .Ft int
 .Fn devctl_attach "const char *device"
+.Ft int
+.Fn devctl_delete "const char *device" "bool force"
 .Ft int
 .Fn devctl_detach "const char *device" "bool force"
 .Ft int
@@ -110,6 +113,15 @@ is true,
 the current device driver will be detached even if the device is busy.
 .Pp
 The
+.Fn devctl_delete
+function deletes a device from the device tree.
+No
+If
+.Fa force
+is true,
+the device is deleted even if the device is physically present.
+.Pp
+The
 .Fn devctl_disable
 function disables a device.
 If the device is currently attached to a device driver,
@@ -158,8 +170,8 @@ The
 function rescans a bus device checking for devices that have been added or
 removed.
 .Sh RETURN VALUES
-.Rv -std devctl_attach devctl_detach devctl_disable devctl_enable \
-devctl_suspend devctl_rescan devctl_resume devctl_set_driver
+.Rv -std devctl_attach devctl_delete devctl_detach devctl_disable \
+devctl_enable devctl_suspend devctl_rescan devctl_resume devctl_set_driver
 .Sh ERRORS
 In addition to specific errors noted below,
 all of the
@@ -297,6 +309,19 @@ function may fail if:
 The device is not attached to a driver.
 .It Bq Er ENXIO
 The bus driver does not support rescanning.
+.El
+.Pp
+The
+.Fn devctl_delete
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er EBUSY
+The device is physically present and
+.Fa force
+is false.
+.It Bq Er EINVAL
+.Fa dev
+is the root device of the device tree.
 .El
 .Sh SEE ALSO
 .Xr devinfo 3 ,
