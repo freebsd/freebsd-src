@@ -35,7 +35,7 @@
 void	acpi_pci_link_add_reference(device_t dev, int index, device_t pcib,
     int slot, int pin);
 int	acpi_pci_link_route_interrupt(device_t dev, int index);
-int	acpi_pcib_attach(device_t bus, ACPI_BUFFER *prt, int busno);
+void	acpi_pcib_fetch_prt(device_t bus, ACPI_BUFFER *prt);
 int	acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     ACPI_BUFFER *prtbuf);
 int	acpi_pcib_power_for_sleep(device_t pcib, device_t dev,

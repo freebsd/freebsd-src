@@ -101,6 +101,7 @@ struct pcib_secbus {
 struct pcib_softc 
 {
     device_t	dev;
+    device_t	child;
     uint32_t	flags;		/* flags */
 #define	PCIB_SUBTRACTIVE	0x1
 #define	PCIB_DISABLE_MSI	0x2
@@ -144,6 +145,7 @@ void		pcib_setup_secbus(device_t dev, struct pcib_secbus *bus,
     int min_count);
 #endif
 int		pcib_attach(device_t dev);
+int		pcib_attach_child(device_t dev);
 void		pcib_attach_common(device_t dev);
 void		pcib_bridge_init(device_t dev);	
 #ifdef NEW_PCIB
