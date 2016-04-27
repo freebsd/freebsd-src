@@ -345,7 +345,7 @@ vmspace_free(struct vmspace *vm)
 {
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-	    "vmspace_free() called with non-sleepable lock held");
+	    "vmspace_free() called");
 
 	if (vm->vm_refcnt == 0)
 		panic("vmspace_free: attempt to free already freed vmspace");
