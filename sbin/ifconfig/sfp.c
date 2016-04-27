@@ -738,7 +738,7 @@ read_i2c(struct i2c_info *ii, uint8_t addr, uint8_t off, uint8_t len,
 	req.len = len;
 
 	while (len > 0) {
-		l = (len > sizeof(req.data)) ? sizeof(req.data) : len;
+		l = MIN(sizeof(req.data), len);
 		req.len = l;
 		if (ioctl(ii->fd, SIOCGI2C, ii->ifr) != 0) {
 			ii->error = errno;
@@ -762,7 +762,7 @@ dump_i2c_data(struct i2c_info *ii, uint8_t addr, uint8_t off, uint8_t len)
 
 	while (len > 0) {
 		memset(buf, 0, sizeof(buf));
-		read = (len > sizeof(buf)) ? sizeof(buf) : len;
+		read = MIN(sizeof(buf), len);
 		read_i2c(ii, addr, off, read, buf);
 		if (ii->error != 0) {
 			fprintf(stderr, "Error reading i2c info\n");
