@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2016
+.Dd April 27, 2016
 .Dt DEVCTL 3
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Nm devctl_detach ,
 .Nm devctl_disable ,
 .Nm devctl_enable ,
+.Nm devctl_rescan ,
 .Nm devctl_resume ,
 .Nm devctl_set_driver ,
 .Nm devctl_suspend
@@ -50,6 +51,8 @@
 .Fn devctl_disable "const char *device" "bool force_detach"
 .Ft int
 .Fn devctl_enable "const char *device"
+.Ft int
+.Fn devctl_rescan "const char *device"
 .Ft int
 .Fn devctl_resume "const char *device"
 .Ft int
@@ -149,9 +152,14 @@ If the device is already attached and
 is true,
 the device will be detached from its current device driver before it is
 attached to the new device driver.
+.Pp
+The
+.Fn devctl_rescan
+function rescans a bus device checking for devices that have been added or
+removed.
 .Sh RETURN VALUES
 .Rv -std devctl_attach devctl_detach devctl_disable devctl_enable \
-devctl_suspend devctl_resume devctl_set_driver
+devctl_suspend devctl_rescan devctl_resume devctl_set_driver
 .Sh ERRORS
 In addition to specific errors noted below,
 all of the
@@ -279,6 +287,16 @@ An internal memory allocation request failed.
 The device is disabled.
 .It Bq Er ENXIO
 The new device driver failed to attach.
+.El
+.Pp
+The
+.Fn devctl_rescan
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er ENXIO
+The device is not attached to a driver.
+.It Bq Er ENXIO
+The bus driver does not support rescanning.
 .El
 .Sh SEE ALSO
 .Xr devinfo 3 ,

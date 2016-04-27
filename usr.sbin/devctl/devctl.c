@@ -259,6 +259,18 @@ set_driver(int ac, char **av)
 }
 DEVCTL_COMMAND(set, driver, set_driver);
 
+static int
+rescan(int ac, char **av)
+{
+
+	if (ac != 2)
+		usage();
+	if (devctl_rescan(av[1]) < 0)
+		err(1, "Failed to rescan %s", av[1]);
+	return (0);
+}
+DEVCTL_COMMAND(top, rescan, rescan);
+
 int
 main(int ac, char *av[])
 {
