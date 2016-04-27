@@ -489,6 +489,7 @@
 #define return_VOID                     return
 #define return_ACPI_STATUS(s)           return(s)
 #define return_PTR(s)                   return(s)
+#define return_STR(s)                   return(s)
 #define return_VALUE(s)                 return(s)
 #define return_UINT8(s)                 return(s)
 #define return_UINT32(s)                return(s)
