@@ -4150,8 +4150,8 @@ pci_detach(device_t dev)
 	error = bus_generic_detach(dev);
 	if (error)
 		return (error);
-	sc = device_get_softc(dev);
 #ifdef PCI_RES_BUS
+	sc = device_get_softc(dev);
 	error = bus_release_resource(dev, PCI_RES_BUS, 0, sc->sc_bus);
 	if (error)
 		return (error);
