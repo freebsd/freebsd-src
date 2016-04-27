@@ -32,7 +32,7 @@
 .\"     @(#)fs.5	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd October 31, 2006
+.Dd April 23, 2016
 .Dt FS 5
 .Os
 .Sh NAME
@@ -266,7 +266,7 @@ however severe performance degradations will be observed if the
 file system is run at greater than 90% full; thus the default
 value of
 .Fa fs_minfree
-is 10%.
+is 8%.
 .Pp
 Empirically the best trade-off between block fragmentation and
 overall disk utilization at a loading of 90% comes with a
@@ -278,10 +278,10 @@ The element
 specifies whether the file system should try to minimize the time spent
 allocating blocks, or if it should attempt to minimize the space
 fragmentation on the disk.
-If the value of fs_minfree (see above) is less than 10%,
+If the value of fs_minfree (see above) is less than 8%,
 then the file system defaults to optimizing for space to avoid
 running out of full sized blocks.
-If the value of minfree is greater than or equal to 10%,
+If the value of minfree is greater than or equal to 8%,
 fragmentation is unlikely to be problematical, and
 the file system defaults to optimizing for time.
 .Pp
