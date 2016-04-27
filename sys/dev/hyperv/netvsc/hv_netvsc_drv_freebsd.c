@@ -998,8 +998,6 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 
 	/*
 	 * Chimney send, if the packet could fit into one chimney buffer.
-	 *
-	 * TODO: vRSS, chimney buffer should be per-channel.
 	 */
 	if (packet->tot_data_buf_len < txr->hn_tx_chimney_size) {
 		netvsc_dev *net_dev = txr->hn_sc->net_dev;
