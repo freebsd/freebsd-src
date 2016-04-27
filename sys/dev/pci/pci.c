@@ -97,9 +97,7 @@ static int		pci_add_map(device_t bus, device_t dev, int reg,
 			    struct resource_list *rl, int force, int prefetch);
 static int		pci_probe(device_t dev);
 static int		pci_attach(device_t dev);
-#ifdef PCI_RES_BUS
 static int		pci_detach(device_t dev);
-#endif
 static void		pci_load_vendor_data(void);
 static int		pci_describe_parse_line(char **ptr, int *vendor,
 			    int *device, char **desc);
@@ -133,11 +131,7 @@ static device_method_t pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pci_probe),
 	DEVMETHOD(device_attach,	pci_attach),
-#ifdef PCI_RES_BUS
 	DEVMETHOD(device_detach,	pci_detach),
-#else
-	DEVMETHOD(device_detach,	bus_generic_detach),
-#endif
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	pci_resume),
@@ -4145,20 +4139,25 @@ pci_attach(device_t dev)
 	return (bus_generic_attach(dev));
 }
 
-#ifdef PCI_RES_BUS
 static int
 pci_detach(device_t dev)
 {
+#ifdef PCI_RES_BUS
 	struct pci_softc *sc;
+#endif
 	int error;
 
 	error = bus_generic_detach(dev);
 	if (error)
 		return (error);
 	sc = device_get_softc(dev);
-	return (bus_release_resource(dev, PCI_RES_BUS, 0, sc->sc_bus));
-}
+#ifdef PCI_RES_BUS
+	error = bus_release_resource(dev, PCI_RES_BUS, 0, sc->sc_bus);
+	if (error)
+		return (error);
 #endif
+	return (device_delete_children(dev));
+}
 
 static void
 pci_set_power_child(device_t dev, device_t child, int state)
