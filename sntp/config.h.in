@@ -719,6 +719,9 @@
 /* Does the target support multicast IP? */
 #undef MCAST
 
+/* having to fork the DNS worker early when doing chroot? */
+#undef NEED_EARLY_FORK
+
 /* pthread_init() required? */
 #undef NEED_PTHREAD_INIT
 

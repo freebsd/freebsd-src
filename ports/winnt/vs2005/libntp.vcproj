@@ -533,6 +533,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\isc\tsmemcmp.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\libntp\uglydate.c"
 				>
 			</File>

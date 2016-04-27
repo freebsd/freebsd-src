@@ -340,6 +340,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\ntpd\ntp_iocplmem.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\ntpd\ntp_iocpltypes.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\..\ntpd\ntp_leapsec.c"
 				>
 			</File>
@@ -546,6 +554,14 @@
 			</File>
 			<File
 				RelativePath="..\..\include\ntp_iocompletionport.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\include\ntp_iocplmem.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\include\ntp_iocpltypes.h"
 				>
 			</File>
 			<File

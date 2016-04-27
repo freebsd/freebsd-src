@@ -229,6 +229,11 @@ ServiceControl(
 	DWORD dwCtrlCode
 	) 
 {
+	static const char * const msg_tab[2] = {
+		"explicit stop",
+		"system shutdown"
+	};
+
 	switch (dwCtrlCode) {
 
 	case SERVICE_CONTROL_SHUTDOWN:
@@ -237,19 +242,24 @@ ServiceControl(
 
 	case SERVICE_CONTROL_STOP:
 		if (WaitableExitEventHandle != NULL) {
-			SetEvent(WaitableExitEventHandle);
+			msyslog(LOG_INFO, "SCM requests stop (%s)",
+				msg_tab[!!computer_shutting_down]);
 			UpdateSCM(SERVICE_STOP_PENDING);
+			SetEvent(WaitableExitEventHandle);
 			Sleep(100);  //##++
+			break;
 		}
-		return;
+		msyslog(LOG_ERR, "SCM requests stop (%s), but have no exit event!",
+			msg_tab[!!computer_shutting_down]);
+		/* FALLTHROUGH */
 
 	case SERVICE_CONTROL_PAUSE:
 	case SERVICE_CONTROL_CONTINUE:
 	case SERVICE_CONTROL_INTERROGATE:
 	default:
+		UpdateSCM(SERVICE_RUNNING);
 		break;
 	}
-	UpdateSCM(SERVICE_RUNNING);
 }
 
 /*

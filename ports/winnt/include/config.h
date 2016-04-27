@@ -546,6 +546,12 @@ typedef unsigned long uintptr_t;
 #undef STRINGIZE
 
 #define  SIOCGIFFLAGS SIO_GET_INTERFACE_LIST /* used in ntp_io.c */
+
+/* Bug 2978 mitigation -- unless defined elsewhere, do it here*/
+#ifndef DYNAMIC_INTERLEAVE
+# define DYNAMIC_INTERLEAVE 0
+#endif
+
 /*
  * Below this line are includes which must happen after the bulk of
  * config.h is processed.  If you need to add another #include to this

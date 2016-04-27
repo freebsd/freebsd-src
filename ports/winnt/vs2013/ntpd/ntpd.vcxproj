@@ -330,8 +330,12 @@
     <ClCompile Include="..\..\..\..\ntpd\refclock_wwv.c" />
     <ClCompile Include="..\..\..\..\ntpd\refclock_wwvb.c" />
     <ClCompile Include="..\..\..\..\ntpd\refclock_zyfer.c" />
+    <ClInclude Include="..\..\include\ntp_iocplmem.h" />
+    <ClInclude Include="..\..\include\ntp_iocpltypes.h" />
     <ClCompile Include="..\..\ntpd\hopf_PCI_io.c" />
     <ClCompile Include="..\..\ntpd\ntp_iocompletionport.c" />
+    <ClCompile Include="..\..\ntpd\ntp_iocplmem.c" />
+    <ClCompile Include="..\..\ntpd\ntp_iocpltypes.c" />
     <ClCompile Include="..\..\ntpd\ntservice.c" />
     <ClCompile Include="..\..\ntpd\nt_clockstuff.c" />
     <ClCompile Include="version.c" />
