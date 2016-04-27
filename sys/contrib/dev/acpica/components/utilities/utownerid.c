@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,7 +81,8 @@ AcpiUtAllocateOwnerId (
 
     if (*OwnerId)
     {
-        ACPI_ERROR ((AE_INFO, "Owner ID [0x%2.2X] already exists", *OwnerId));
+        ACPI_ERROR ((AE_INFO,
+            "Owner ID [0x%2.2X] already exists", *OwnerId));
         return_ACPI_STATUS (AE_ALREADY_EXISTS);
     }
 
@@ -95,8 +96,8 @@ AcpiUtAllocateOwnerId (
 
     /*
      * Find a free owner ID, cycle through all possible IDs on repeated
-     * allocations. (ACPI_NUM_OWNERID_MASKS + 1) because first index may have
-     * to be scanned twice.
+     * allocations. (ACPI_NUM_OWNERID_MASKS + 1) because first index
+     * may have to be scanned twice.
      */
     for (i = 0, j = AcpiGbl_LastOwnerIdIndex;
          i < (ACPI_NUM_OWNERID_MASKS + 1);
@@ -152,8 +153,8 @@ AcpiUtAllocateOwnerId (
      * they are released when a table is unloaded or a method completes
      * execution.
      *
-     * If this error happens, there may be very deep nesting of invoked control
-     * methods, or there may be a bug where the IDs are not released.
+     * If this error happens, there may be very deep nesting of invoked
+     * control methods, or there may be a bug where the IDs are not released.
      */
     Status = AE_OWNER_ID_LIMIT;
     ACPI_ERROR ((AE_INFO,

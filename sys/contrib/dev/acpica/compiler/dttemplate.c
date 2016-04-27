@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,13 +57,26 @@ AcpiUtIsSpecialTable (
     char                    *Signature);
 
 static ACPI_STATUS
+DtCreateOneTemplateFile (
+    char                    *Signature,
+    UINT32                  TableCount);
+
+static ACPI_STATUS
 DtCreateOneTemplate (
     char                    *Signature,
+    UINT32                  TableCount,
     const ACPI_DMTABLE_DATA *TableData);
 
 static ACPI_STATUS
 DtCreateAllTemplates (
     void);
+
+static int
+DtEmitDefinitionBlock (
+    FILE                    *File,
+    char                    *Filename,
+    char                    *Signature,
+    UINT32                  Instance);
 
 
 /*******************************************************************************
@@ -101,7 +114,7 @@ AcpiUtIsSpecialTable (
  *
  * FUNCTION:    DtCreateTemplates
  *
- * PARAMETERS:  Signature           - ACPI table signature
+ * PARAMETERS:  argv                - Standard command line arguments
  *
  * RETURN:      Status
  *
@@ -111,31 +124,114 @@ AcpiUtIsSpecialTable (
 
 ACPI_STATUS
 DtCreateTemplates (
-    char                    *Signature)
+    char                    **argv)
 {
-    const ACPI_DMTABLE_DATA *TableData;
-    ACPI_STATUS             Status;
+    char                    *Signature;
+    char                    *End;
+    unsigned long           TableCount;
+    ACPI_STATUS             Status = AE_OK;
 
 
     AslInitializeGlobals ();
 
-    /* Default (no signature) is DSDT */
-
-    if (!Signature)
+    Status = AdInitialize ();
+    if (ACPI_FAILURE (Status))
     {
-        Signature = "DSDT";
-        goto GetTemplate;
+        return (Status);
     }
 
+    /*
+     * Special cases for DSDT, ALL, and '*'
+     */
+
+    /* Default (no signature option) is DSDT */
+
+    if (AcpiGbl_Optind < 3)
+    {
+        Status = DtCreateOneTemplateFile (ACPI_SIG_DSDT, 0);
+        goto Exit;
+    }
+
+    AcpiGbl_Optind--;
+    Signature = argv[AcpiGbl_Optind];
     AcpiUtStrupr (Signature);
-    if (!strcmp (Signature, "ALL") ||
-        !strcmp (Signature, "*"))
+
+    /*
+     * Multiple SSDT support (-T <ssdt count>)
+     */
+    TableCount = strtoul (Signature, &End, 0);
+    if (Signature != End)
+    {
+        /* The count is used for table ID and method name - max is 254(+1) */
+
+        if (TableCount > 254)
+        {
+            fprintf (stderr, "%u SSDTs requested, maximum is 254\n",
+                (unsigned int) TableCount);
+
+            Status = AE_LIMIT;
+            goto Exit;
+        }
+
+        Status = DtCreateOneTemplateFile (ACPI_SIG_DSDT, TableCount);
+        goto Exit;
+    }
+
+    if (!strcmp (Signature, "ALL"))
     {
         /* Create all available/known templates */
 
         Status = DtCreateAllTemplates ();
-        return (Status);
+        goto Exit;
     }
+
+    /*
+     * Normal case: Create template for each signature
+     */
+    while (argv[AcpiGbl_Optind])
+    {
+        Signature = argv[AcpiGbl_Optind];
+        AcpiUtStrupr (Signature);
+
+        Status = DtCreateOneTemplateFile (Signature, 0);
+        if (ACPI_FAILURE (Status))
+        {
+            goto Exit;
+        }
+
+        AcpiGbl_Optind++;
+    }
+
+
+Exit:
+    /* Shutdown ACPICA subsystem */
+
+    (void) AcpiTerminate ();
+    CmDeleteCaches ();
+    return (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    DtCreateOneTemplateFile
+ *
+ * PARAMETERS:  Signature           - ACPI table signature
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Create one template file of the requested signature.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+DtCreateOneTemplateFile (
+    char                    *Signature,
+    UINT32                  TableCount)
+{
+    const ACPI_DMTABLE_DATA *TableData;
+    ACPI_STATUS             Status;
+
 
     /*
      * Validate signature and get the template data:
@@ -146,8 +242,8 @@ DtCreateTemplates (
     if (strlen (Signature) != ACPI_NAME_SIZE)
     {
         fprintf (stderr,
-            "%s: Invalid ACPI table signature (length must be 4 characters)\n",
-            Signature);
+            "%s: Invalid ACPI table signature "
+            "(length must be 4 characters)\n", Signature);
         return (AE_ERROR);
     }
 
@@ -164,7 +260,8 @@ DtCreateTemplates (
         Signature = "FACP";
     }
 
-GetTemplate:
+    /* TableData will point to the template */
+
     TableData = AcpiDmGetTableData (Signature);
     if (TableData)
     {
@@ -181,19 +278,7 @@ GetTemplate:
         return (AE_ERROR);
     }
 
-    Status = AdInitialize ();
-    if (ACPI_FAILURE (Status))
-    {
-        return (Status);
-    }
-
-    Status = DtCreateOneTemplate (Signature, TableData);
-
-
-    /* Shutdown ACPICA subsystem */
-
-    (void) AcpiTerminate ();
-    CmDeleteCaches ();
+    Status = DtCreateOneTemplate (Signature, TableCount, TableData);
     return (Status);
 }
 
@@ -218,12 +303,6 @@ DtCreateAllTemplates (
     ACPI_STATUS             Status;
 
 
-    Status = AdInitialize ();
-    if (ACPI_FAILURE (Status))
-    {
-        return (Status);
-    }
-
     fprintf (stderr, "Creating all supported Template files\n");
 
     /* Walk entire ACPI table data structure */
@@ -235,7 +314,7 @@ DtCreateAllTemplates (
         if (TableData->Template)
         {
             Status = DtCreateOneTemplate (TableData->Signature,
-                        TableData);
+                0, TableData);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -248,25 +327,31 @@ DtCreateAllTemplates (
      * 1) DSDT/SSDT are AML tables, not data tables
      * 2) FACS and RSDP have non-standard headers
      */
-    Status = DtCreateOneTemplate (ACPI_SIG_DSDT, NULL);
+    Status = DtCreateOneTemplate (ACPI_SIG_DSDT, 0, NULL);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
     }
 
-    Status = DtCreateOneTemplate (ACPI_SIG_SSDT, NULL);
+    Status = DtCreateOneTemplate (ACPI_SIG_SSDT, 0, NULL);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
     }
 
-    Status = DtCreateOneTemplate (ACPI_SIG_FACS, NULL);
+    Status = DtCreateOneTemplate (ACPI_SIG_OSDT, 0, NULL);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
     }
 
-    Status = DtCreateOneTemplate (ACPI_RSDP_NAME, NULL);
+    Status = DtCreateOneTemplate (ACPI_SIG_FACS, 0, NULL);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    Status = DtCreateOneTemplate (ACPI_RSDP_NAME, 0, NULL);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -281,6 +366,7 @@ DtCreateAllTemplates (
  * FUNCTION:    DtCreateOneTemplate
  *
  * PARAMETERS:  Signature           - ACPI signature, NULL terminated.
+ *              TableCount          - Used for SSDTs in same file as DSDT
  *              TableData           - Entry in ACPI table data structure.
  *                                    NULL if a special ACPI table.
  *
@@ -293,12 +379,14 @@ DtCreateAllTemplates (
 static ACPI_STATUS
 DtCreateOneTemplate (
     char                    *Signature,
+    UINT32                  TableCount,
     const ACPI_DMTABLE_DATA  *TableData)
 {
     char                    *DisasmFilename;
     FILE                    *File;
     ACPI_STATUS             Status = AE_OK;
-    ACPI_SIZE               Actual;
+    int                     Actual;
+    UINT32                  i;
 
 
     /* New file will have a .asl suffix */
@@ -311,13 +399,17 @@ DtCreateOneTemplate (
         return (AE_ERROR);
     }
 
-    /* Probably should prompt to overwrite the file */
-
     AcpiUtStrlwr (DisasmFilename);
+    if (!UtQueryForOverwrite (DisasmFilename))
+    {
+        return (AE_ERROR);
+    }
+
     File = fopen (DisasmFilename, "w+");
     if (!File)
     {
-        fprintf (stderr, "Could not open output file %s\n", DisasmFilename);
+        fprintf (stderr, "Could not open output file %s\n",
+            DisasmFilename);
         return (AE_ERROR);
     }
 
@@ -328,8 +420,16 @@ DtCreateOneTemplate (
     AcpiOsPrintf ("/*\n");
     AcpiOsPrintf (ACPI_COMMON_HEADER ("iASL Compiler/Disassembler", " * "));
 
-    AcpiOsPrintf (" * Template for [%4.4s] ACPI Table",
-        Signature);
+    if (TableCount == 0)
+    {
+        AcpiOsPrintf (" * Template for [%4.4s] ACPI Table",
+            Signature);
+    }
+    else
+    {
+        AcpiOsPrintf (" * Template for [%4.4s] and %u [SSDT] ACPI Tables",
+            Signature, TableCount);
+    }
 
     /* Dump the actual ACPI table */
 
@@ -355,45 +455,55 @@ DtCreateOneTemplate (
     }
     else
     {
-        /* Special ACPI tables - DSDT, SSDT, OSDT, FADT, RSDP */
+        /* Special ACPI tables - DSDT, SSDT, OSDT, FACS, RSDP */
 
         AcpiOsPrintf (" (AML byte code table)\n");
-
         AcpiOsPrintf (" */\n");
+
         if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_DSDT))
         {
-            Actual = fwrite (TemplateDsdt, 1, sizeof (TemplateDsdt) -1, File);
-            if (Actual != sizeof (TemplateDsdt) -1)
+            Actual = DtEmitDefinitionBlock (
+                File, DisasmFilename, ACPI_SIG_DSDT, 1);
+            if (Actual < 0)
             {
-                fprintf (stderr,
-                    "Could not write to output file %s\n", DisasmFilename);
                 Status = AE_ERROR;
                 goto Cleanup;
+            }
+
+            /* Emit any requested SSDTs into the same file */
+
+            for (i = 1; i <= TableCount; i++)
+            {
+                Actual = DtEmitDefinitionBlock (
+                    File, DisasmFilename, ACPI_SIG_SSDT, i + 1);
+                if (Actual < 0)
+                {
+                    Status = AE_ERROR;
+                    goto Cleanup;
+                }
             }
         }
         else if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_SSDT))
         {
-            Actual = fwrite (TemplateSsdt, 1, sizeof (TemplateSsdt) -1, File);
-            if (Actual != sizeof (TemplateSsdt) -1)
+            Actual = DtEmitDefinitionBlock (
+                File, DisasmFilename, ACPI_SIG_SSDT, 1);
+            if (Actual < 0)
             {
-                fprintf (stderr,
-                    "Could not write to output file %s\n", DisasmFilename);
                 Status = AE_ERROR;
                 goto Cleanup;
             }
         }
         else if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_OSDT))
         {
-            Actual = fwrite (TemplateOsdt, 1, sizeof (TemplateOsdt) -1, File);
-            if (Actual != sizeof (TemplateOsdt) -1)
+            Actual = DtEmitDefinitionBlock (
+                File, DisasmFilename, ACPI_SIG_OSDT, 1);
+            if (Actual < 0)
             {
-                fprintf (stderr,
-                    "Could not write to output file %s\n", DisasmFilename);
                 Status = AE_ERROR;
                 goto Cleanup;
             }
         }
-        else if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_FACS)) /* FADT */
+        else if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_FACS))
         {
             AcpiDmDumpDataTable (ACPI_CAST_PTR (ACPI_TABLE_HEADER,
                 TemplateFacs));
@@ -412,12 +522,72 @@ DtCreateOneTemplate (
         }
     }
 
-    fprintf (stderr,
-        "Created ACPI table template for [%4.4s], written to \"%s\"\n",
-        Signature, DisasmFilename);
+    if (TableCount == 0)
+    {
+        fprintf (stderr,
+            "Created ACPI table template for [%4.4s], "
+            "written to \"%s\"\n",
+            Signature, DisasmFilename);
+    }
+    else
+    {
+        fprintf (stderr,
+            "Created ACPI table templates for [%4.4s] "
+            "and %u [SSDT], written to \"%s\"\n",
+            Signature, TableCount, DisasmFilename);
+    }
 
 Cleanup:
     fclose (File);
     AcpiOsRedirectOutput (stdout);
+    return (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    DtEmitDefinitionBlock
+ *
+ * PARAMETERS:  File                - An open file for the block
+ *              Filename            - Filename for same, for error msg(s)
+ *              Signature           - ACPI signature for the block
+ *              Instance            - Used for multiple SSDTs in the same file
+ *
+ * RETURN:      Status from fprintf
+ *
+ * DESCRIPTION: Emit the raw ASL for a complete Definition Block (DSDT or SSDT)
+ *
+ * Note: The AMLFileName parameter for DefinitionBlock is left as a NULL
+ * string. This allows the compiler to create the output AML filename from
+ * the input filename.
+ *
+ ******************************************************************************/
+
+static int
+DtEmitDefinitionBlock (
+    FILE                    *File,
+    char                    *Filename,
+    char                    *Signature,
+    UINT32                  Instance)
+{
+    int                     Status;
+
+
+    Status = fprintf (File,
+        "DefinitionBlock (\"\", \"%4.4s\", 2, \"Intel\", \"_%4.4s_%.2X\", 0x00000001)\n"
+        "{\n"
+        "    Method (%2.2s%.2X)\n"
+        "    {\n"
+        "    }\n"
+        "}\n\n",
+        Signature, Signature, Instance, Signature, Instance);
+
+    if (Status < 0)
+    {
+        fprintf (stderr,
+            "Could not write %4.4s to output file %s\n",
+            Signature, Filename);
+    }
+
     return (Status);
 }

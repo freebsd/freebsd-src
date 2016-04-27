@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -980,7 +980,8 @@ AcpiDbEvaluateAllPredefinedNames (
         ACPI_UINT32_MAX, AcpiDbEvaluateOnePredefinedName, NULL,
         (void *) &Info, NULL);
 
-    AcpiOsPrintf ("Evaluated %u predefined names in the namespace\n", Info.Count);
+    AcpiOsPrintf (
+        "Evaluated %u predefined names in the namespace\n", Info.Count);
 }
 
 
@@ -1033,7 +1034,7 @@ AcpiDbEvaluateOnePredefinedName (
         return (AE_OK);
     }
 
-    Pathname = AcpiNsGetExternalPathname (Node);
+    Pathname = AcpiNsGetNormalizedPathname (Node, TRUE);
     if (!Pathname)
     {
         return (AE_OK);

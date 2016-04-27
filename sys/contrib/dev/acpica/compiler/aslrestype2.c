@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -147,6 +147,7 @@ RsDoGeneralRegisterDescriptor (
 
         InitializerOp = RsCompleteNodeAndGetNext (InitializerOp);
     }
+
     return (Rnode);
 }
 
@@ -213,7 +214,7 @@ RsDoInterruptDescriptor (
         1 + OptionIndex + StringLength);
 
     Descriptor = Rnode->Buffer;
-    Descriptor->ExtendedIrq.DescriptorType  = ACPI_RESOURCE_NAME_EXTENDED_IRQ;
+    Descriptor->ExtendedIrq.DescriptorType = ACPI_RESOURCE_NAME_EXTENDED_IRQ;
 
     /*
      * Initial descriptor length -- may be enlarged if there are
@@ -223,7 +224,7 @@ RsDoInterruptDescriptor (
     Descriptor->ExtendedIrq.InterruptCount  = 0;
 
     Rover = ACPI_CAST_PTR (AML_RESOURCE,
-                (&(Descriptor->ExtendedIrq.Interrupts[0])));
+        (&(Descriptor->ExtendedIrq.Interrupts[0])));
 
     /* Process all child initialization nodes */
 
@@ -382,9 +383,10 @@ RsDoInterruptDescriptor (
             (Descriptor->ExtendedIrq.ResourceLength + StringLength);
     }
 
-    Rnode->BufferLength = (ASL_RESDESC_OFFSET (ExtendedIrq.Interrupts[0]) -
-                           ASL_RESDESC_OFFSET (ExtendedIrq.DescriptorType))
-                           + OptionIndex + StringLength;
+    Rnode->BufferLength =
+        (ASL_RESDESC_OFFSET (ExtendedIrq.Interrupts[0]) -
+        ASL_RESDESC_OFFSET (ExtendedIrq.DescriptorType))
+        + OptionIndex + StringLength;
     return (Rnode);
 }
 
@@ -431,7 +433,7 @@ RsDoVendorLargeDescriptor (
     Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_VENDOR_LARGE) + i);
 
     Descriptor = Rnode->Buffer;
-    Descriptor->VendorLarge.DescriptorType  = ACPI_RESOURCE_NAME_VENDOR_LARGE;
+    Descriptor->VendorLarge.DescriptorType = ACPI_RESOURCE_NAME_VENDOR_LARGE;
     Descriptor->VendorLarge.ResourceLength = (UINT16) i;
 
     /* Point to end-of-descriptor for vendor data */
