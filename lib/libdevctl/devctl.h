@@ -39,5 +39,6 @@ int	devctl_suspend(const char *device);
 int	devctl_resume(const char *device);
 int	devctl_set_driver(const char *device, const char *driver, bool force);
 int	devctl_rescan(const char *device);
+int	devctl_delete(const char *device, bool force);
 
 #endif /* !__DEVCTL_H__ */
