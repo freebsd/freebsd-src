@@ -1185,7 +1185,8 @@ struct hn_tx_ring {
 #endif
 	int		hn_txdesc_cnt;
 	int		hn_txdesc_avail;
-	int		hn_has_txeof;
+	u_short		hn_has_txeof;
+	u_short		hn_txdone_cnt;
 
 	int		hn_sched_tx;
 	void		(*hn_txeof)(struct hn_tx_ring *);
