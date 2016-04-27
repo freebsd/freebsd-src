@@ -33,7 +33,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#dir">(dir)</a>
 <p>This document describes the configuration file for the NTP Project's
 <code>ntpd</code> program.
 
-  <p>This document applies to version 4.2.8p6 of <code>ntp.conf</code>.
+  <p>This document applies to version 4.2.8p7 of <code>ntp.conf</code>.
 
   <div class="shortcontents">
 <h2>Short Contents</h2>
@@ -296,7 +296,9 @@ described in
 instead of the usual one. 
 The packet spacing is normally 2 s;
 however, the spacing between the first and second packets
-can be changed with the calldelay command to allow
+can be changed with the
+<code>calldelay</code>
+command to allow
 additional time for a modem or ISDN call to complete. 
 This is designed to improve timekeeping quality
 with the
@@ -306,7 +308,9 @@ command and s addresses.
 instead of the usual one. 
 The packet spacing is normally 2 s;
 however, the spacing between the first two packets can be
-changed with the calldelay command to allow
+changed with the
+<code>calldelay</code>
+command to allow
 additional time for a modem or ISDN call to complete. 
 This is designed to speed the initial synchronization
 acquisition with the
@@ -335,6 +339,8 @@ the
 option to a lower limit of 4 (16 s). 
 <br><dt><code>noselect</code><dd>Marks the server as unused, except for display purposes. 
 The server is discarded by the selection algroithm. 
+<br><dt><code>preempt</code><dd>Says the association can be preempted. 
+<br><dt><code>true</code><dd>Marks the server as a truechimer. 
 <br><dt><code>prefer</code><dd>Marks the server as preferred. 
 All other things being equal,
 this host will be chosen for synchronization among a set of
@@ -362,6 +368,11 @@ network administrator.
 packets. 
 Versions 1-4 are the choices, with version 4 the
 default. 
+<br><dt><code>xleave</code><dd>Valid in
+<code>peer</code>
+and
+<code>broadcast</code>
+modes only, this flag enables interleave mode. 
 </dl>
 
 <h5 class="subsubsection">Auxiliary Commands</h5>
@@ -1369,7 +1380,9 @@ Source address based restrictions are easily circumvented
 by a determined cracker.
 
   <p>Clients can be denied service because they are explicitly
-included in the restrict list created by the restrict command
+included in the restrict list created by the
+<code>restrict</code>
+command
 or implicitly as the result of cryptographic or rate limit
 violations. 
 Cryptographic violations include certificate
@@ -1438,7 +1451,9 @@ Packets that violate these minima are discarded
 and a kiss-o'-death packet returned if enabled. 
 The default
 minimum average and minimum are 5 and 2, respectively. 
-The monitor subcommand specifies the probability of discard
+The
+<code>monitor</code>
+subcommand specifies the probability of discard
 for packets that overflow the rate-control window. 
 <br><dt><code>restrict</code> <code>address</code> <code>[mask </code><kbd>mask</kbd><code>]</code> <code>[</code><kbd>flag</kbd> <kbd>...</kbd><code>]</code><dd>The
 <kbd>address</kbd>
@@ -1490,7 +1505,9 @@ per second.
 If another KoD packet occurs within one second after the
 last one, the packet is dropped. 
 <br><dt><code>limited</code><dd>Deny service if the packet spacing violates the lower limits specified
-in the discard command. 
+in the
+<code>discard</code>
+command. 
 A history of clients is kept using the
 monitoring capability of
 <code>ntpd(1ntpdmdoc)</code>. 
@@ -1615,8 +1632,11 @@ The library can also be used with other NTPv4 modes
 as well and is highly recommended, especially for broadcast modes.
 
   <p>A persistent manycast client association is configured
-using the manycastclient command, which is similar to the
-server command but with a multicast (IPv4 class
+using the
+<code>manycastclient</code>
+command, which is similar to the
+<code>server</code>
+command but with a multicast (IPv4 class
 <code>D</code>
 or IPv6 prefix
 <code>FF</code>)
@@ -1686,7 +1706,9 @@ command and, under normal circumstances, increments to the
 <code>maxpolll</code>
 value specified in this command. 
 Initially, the TTL is
-set at the minimum hops specified by the ttl command. 
+set at the minimum hops specified by the
+<code>ttl</code>
+command. 
 At each retransmission the TTL is increased until reaching
 the maximum hops specified by this command or a sufficient
 number client associations have been found. 
@@ -2503,7 +2525,9 @@ peers, system events and so on is suppressed.
 be used instead of the default system
 <code>syslog(3)</code>
 facility. 
-This is the same operation as the -l command line option. 
+This is the same operation as the
+<code>-l</code>
+command line option. 
 <br><dt><code>setvar</code> <kbd>variable</kbd> <code>[default]</code><dd>This command adds an additional system variable. 
 These
 variables can be used to distribute additional information such as

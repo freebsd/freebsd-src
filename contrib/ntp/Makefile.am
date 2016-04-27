@@ -36,6 +36,7 @@ EXTRA_DIST =			\
 	README.hackers		\
 	README.leapsmear	\
 	README.patches		\
+	README.pullrequests	\
 	README.refclocks	\
 	README.versions		\
 	TODO			\

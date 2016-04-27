@@ -1,7 +1,7 @@
 /*
  *  EDIT THIS FILE WITH CAUTION  (ntpq-opts.h)
  *
- *  It has been AutoGen-ed  January 20, 2016 at 04:18:42 AM by AutoGen 5.18.5
+ *  It has been AutoGen-ed  April 26, 2016 at 08:29:10 PM by AutoGen 5.18.5
  *  From the definitions    ntpq-opts.def
  *  and the template file   options
  *
@@ -73,19 +73,20 @@ typedef enum {
     INDEX_OPT_NUMERIC          =  6,
     INDEX_OPT_OLD_RV           =  7,
     INDEX_OPT_PEERS            =  8,
-    INDEX_OPT_WIDE             =  9,
-    INDEX_OPT_VERSION          = 10,
-    INDEX_OPT_HELP             = 11,
-    INDEX_OPT_MORE_HELP        = 12,
-    INDEX_OPT_SAVE_OPTS        = 13,
-    INDEX_OPT_LOAD_OPTS        = 14
+    INDEX_OPT_REFID            =  9,
+    INDEX_OPT_WIDE             = 10,
+    INDEX_OPT_VERSION          = 11,
+    INDEX_OPT_HELP             = 12,
+    INDEX_OPT_MORE_HELP        = 13,
+    INDEX_OPT_SAVE_OPTS        = 14,
+    INDEX_OPT_LOAD_OPTS        = 15
 } teOptIndex;
 /** count of all options for ntpq */
-#define OPTION_CT    15
+#define OPTION_CT    16
 /** ntpq version */
-#define NTPQ_VERSION       "4.2.8p6"
+#define NTPQ_VERSION       "4.2.8p7"
 /** Full ntpq version text */
-#define NTPQ_FULL_VERSION  "ntpq 4.2.8p6"
+#define NTPQ_FULL_VERSION  "ntpq 4.2.8p7"
 
 /**
  *  Interface defines for all options.  Replace "n" with the UPPER_CASED
@@ -174,6 +175,10 @@ typedef enum {
 #  warning undefining PEERS due to option name conflict
 #  undef   PEERS
 # endif
+# ifdef    REFID
+#  warning undefining REFID due to option name conflict
+#  undef   REFID
+# endif
 # ifdef    WIDE
 #  warning undefining WIDE due to option name conflict
 #  undef   WIDE
@@ -188,6 +193,7 @@ typedef enum {
 # undef NUMERIC
 # undef OLD_RV
 # undef PEERS
+# undef REFID
 # undef WIDE
 #endif  /*  NO_OPTION_NAME_WARNINGS */
 
@@ -206,6 +212,13 @@ typedef enum {
 #define VALUE_OPT_NUMERIC        'n'
 #define VALUE_OPT_OLD_RV         0x1001
 #define VALUE_OPT_PEERS          'p'
+#define VALUE_OPT_REFID          'r'
+
+typedef enum {
+    REFID_HASH, REFID_IPV4
+} te_Refid;
+#define OPT_REFID_VAL2STR(_v)    optionKeywordName(&DESC(REFID), (_v))
+#define OPT_VALUE_REFID          (DESC(REFID).optArg.argEnum)
 #define VALUE_OPT_WIDE           'w'
 /** option flag (value) for help-value option */
 #define VALUE_OPT_HELP          '?'

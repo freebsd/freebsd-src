@@ -119,11 +119,11 @@ typedef struct blocking_child_tag {
 	int			resp_write_pipe;	/* child */
 	int			ispipe;
 	void *			resp_read_ctx;		/* child */
-	volatile u_int		resp_ready_seen;	/* signal/scan */
-	volatile u_int		resp_ready_done;	/* consumer/mainloop */
 #else
 	sem_ref			responses_pending;	/* signalling */
 #endif
+	volatile u_int		resp_ready_seen;	/* signal/scan */
+	volatile u_int		resp_ready_done;	/* consumer/mainloop */
 	sema_type		sem_table[4];
 	thread_type		thr_table[1];
 } blocking_child;
@@ -170,6 +170,8 @@ extern	void	close_all_beyond(int);
 extern	void	close_all_except(int);
 extern	void	kill_asyncio	(int);
 #endif
+
+extern void worker_global_lock(int inOrOut);
 
 # ifdef WORK_PIPE
 typedef	void	(*addremove_io_fd_func)(int, int, int);

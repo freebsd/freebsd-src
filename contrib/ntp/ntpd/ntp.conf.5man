@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntp.conf 5man "20 Jan 2016" "4.2.8p6" "File Formats"
+.TH ntp.conf 5man "26 Apr 2016" "4.2.8p7" "File Formats"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-gsaOxR/ag-XsaGwR)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-ana4jE/ag-QnaWiE)
 .\"
-.\" It has been AutoGen-ed January 20, 2016 at 04:17:45 AM by AutoGen 5.18.5
+.\" It has been AutoGen-ed April 26, 2016 at 08:28:14 PM by AutoGen 5.18.5
 .\" From the definitions ntp.conf.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -133,8 +133,14 @@ in some weird and even destructive behavior.
 If the Basic Socket Interface Extensions for IPv6 (RFC-2553)
 is detected, support for the IPv6 address family is generated
 in addition to the default support of the IPv4 address family.
-In a few cases, including the reslist billboard generated
-by ntpdc, IPv6 addresses are automatically generated.
+In a few cases, including the
+\f\*[B-Font]reslist\f[]
+billboard generated
+by
+\fCntpq\f[]\fR(1ntpqmdoc)\f[]
+or
+\fCntpdc\f[]\fR(1ntpdcmdoc)\f[],
+IPv6 addresses are automatically generated.
 IPv6 addresses can be identified by the presence of colons
 \*[Lq]\&:\*[Rq]
 in the address field.
@@ -157,11 +163,11 @@ equivalent classes for that address family.
 .TP 7
 .NOP \f\*[B-Font]pool\f[] \f\*[I-Font]address\f[] [\f\*[B-Font]burst\f[]] [\f\*[B-Font]iburst\f[]] [\f\*[B-Font]version\f[] \f\*[I-Font]version\f[]] [\f\*[B-Font]prefer\f[]] [\f\*[B-Font]minpoll\f[] \f\*[I-Font]minpoll\f[]] [\f\*[B-Font]maxpoll\f[] \f\*[I-Font]maxpoll\f[]]
 .TP 7
-.NOP \f\*[B-Font]server\f[] \f\*[I-Font]address\f[] [\f\*[B-Font]key\f[] \f\*[I-Font]key\f[] \f\*[I-Font]\&|\f[] \f\*[B-Font]autokey\f[]] [\f\*[B-Font]burst\f[]] [\f\*[B-Font]iburst\f[]] [\f\*[B-Font]version\f[] \f\*[I-Font]version\f[]] [\f\*[B-Font]prefer\f[]] [\f\*[B-Font]minpoll\f[] \f\*[I-Font]minpoll\f[]] [\f\*[B-Font]maxpoll\f[] \f\*[I-Font]maxpoll\f[]]
+.NOP \f\*[B-Font]server\f[] \f\*[I-Font]address\f[] [\f\*[B-Font]key\f[] \f\*[I-Font]key\f[] \f\*[I-Font]\&|\f[] \f\*[B-Font]autokey\f[]] [\f\*[B-Font]burst\f[]] [\f\*[B-Font]iburst\f[]] [\f\*[B-Font]version\f[] \f\*[I-Font]version\f[]] [\f\*[B-Font]prefer\f[]] [\f\*[B-Font]minpoll\f[] \f\*[I-Font]minpoll\f[]] [\f\*[B-Font]maxpoll\f[] \f\*[I-Font]maxpoll\f[]] [\f\*[B-Font]true\f[]]
 .TP 7
-.NOP \f\*[B-Font]peer\f[] \f\*[I-Font]address\f[] [\f\*[B-Font]key\f[] \f\*[I-Font]key\f[] \f\*[I-Font]\&|\f[] \f\*[B-Font]autokey\f[]] [\f\*[B-Font]version\f[] \f\*[I-Font]version\f[]] [\f\*[B-Font]prefer\f[]] [\f\*[B-Font]minpoll\f[] \f\*[I-Font]minpoll\f[]] [\f\*[B-Font]maxpoll\f[] \f\*[I-Font]maxpoll\f[]]
+.NOP \f\*[B-Font]peer\f[] \f\*[I-Font]address\f[] [\f\*[B-Font]key\f[] \f\*[I-Font]key\f[] \f\*[I-Font]\&|\f[] \f\*[B-Font]autokey\f[]] [\f\*[B-Font]version\f[] \f\*[I-Font]version\f[]] [\f\*[B-Font]prefer\f[]] [\f\*[B-Font]minpoll\f[] \f\*[I-Font]minpoll\f[]] [\f\*[B-Font]maxpoll\f[] \f\*[I-Font]maxpoll\f[]] [\f\*[B-Font]true\f[]] [\f\*[B-Font]xleave\f[]]
 .TP 7
-.NOP \f\*[B-Font]broadcast\f[] \f\*[I-Font]address\f[] [\f\*[B-Font]key\f[] \f\*[I-Font]key\f[] \f\*[I-Font]\&|\f[] \f\*[B-Font]autokey\f[]] [\f\*[B-Font]version\f[] \f\*[I-Font]version\f[]] [\f\*[B-Font]prefer\f[]] [\f\*[B-Font]minpoll\f[] \f\*[I-Font]minpoll\f[]] [\f\*[B-Font]ttl\f[] \f\*[I-Font]ttl\f[]]
+.NOP \f\*[B-Font]broadcast\f[] \f\*[I-Font]address\f[] [\f\*[B-Font]key\f[] \f\*[I-Font]key\f[] \f\*[I-Font]\&|\f[] \f\*[B-Font]autokey\f[]] [\f\*[B-Font]version\f[] \f\*[I-Font]version\f[]] [\f\*[B-Font]prefer\f[]] [\f\*[B-Font]minpoll\f[] \f\*[I-Font]minpoll\f[]] [\f\*[B-Font]ttl\f[] \f\*[I-Font]ttl\f[]] [\f\*[B-Font]xleave\f[]]
 .TP 7
 .NOP \f\*[B-Font]manycastclient\f[] \f\*[I-Font]address\f[] [\f\*[B-Font]key\f[] \f\*[I-Font]key\f[] \f\*[I-Font]\&|\f[] \f\*[B-Font]autokey\f[]] [\f\*[B-Font]version\f[] \f\*[I-Font]version\f[]] [\f\*[B-Font]prefer\f[]] [\f\*[B-Font]minpoll\f[] \f\*[I-Font]minpoll\f[]] [\f\*[B-Font]maxpoll\f[] \f\*[I-Font]maxpoll\f[]] [\f\*[B-Font]ttl\f[] \f\*[I-Font]ttl\f[]]
 .PP
@@ -289,7 +295,9 @@ when the server is reachable, send a burst of eight packets
 instead of the usual one.
 The packet spacing is normally 2 s;
 however, the spacing between the first and second packets
-can be changed with the calldelay command to allow
+can be changed with the
+\f\*[B-Font]calldelay\f[]
+command to allow
 additional time for a modem or ISDN call to complete.
 This is designed to improve timekeeping quality
 with the
@@ -301,7 +309,9 @@ When the server is unreachable, send a burst of eight packets
 instead of the usual one.
 The packet spacing is normally 2 s;
 however, the spacing between the first two packets can be
-changed with the calldelay command to allow
+changed with the
+\f\*[B-Font]calldelay\f[]
+command to allow
 additional time for a modem or ISDN call to complete.
 This is designed to speed the initial synchronization
 acquisition with the
@@ -339,6 +349,13 @@ option to a lower limit of 4 (16 s).
 Marks the server as unused, except for display purposes.
 The server is discarded by the selection algroithm.
 .TP 7
+.NOP \f\*[B-Font]preempt\f[]
+Says the association can be preempted.
+.TP 7
+.NOP \f\*[B-Font]true\f[]
+Marks the server as a truechimer.
+Use this option only for testing.
+.TP 7
 .NOP \f\*[B-Font]prefer\f[]
 Marks the server as preferred.
 All other things being equal,
@@ -351,6 +368,12 @@ page
 provided in
 \fI/usr/share/doc/ntp\f[])
 for further information.
+.TP 7
+.NOP \f\*[B-Font]true\f[]
+Forces the association to always survive the selection and clustering algorithms.
+This option should almost certainly
+\fIonly\f[]
+be used while testing an association.
 .TP 7
 .NOP \f\*[B-Font]ttl\f[] \f\*[I-Font]ttl\f[]
 This option is used only with broadcast server and manycast
@@ -371,6 +394,13 @@ Specifies the version number to be used for outgoing NTP
 packets.
 Versions 1-4 are the choices, with version 4 the
 default.
+.TP 7
+.NOP \f\*[B-Font]xleave\f[]
+Valid in
+\f\*[B-Font]peer\f[]
+and
+\f\*[B-Font]broadcast\f[]
+modes only, this flag enables interleave mode.
 .PP
 .SS Auxiliary Commands
 .TP 7
@@ -529,7 +559,7 @@ and
 commands and also by remote
 configuration commands sent by a
 \fCntpdc\f[]\fR(1ntpdcmdoc)\f[]
-program running in
+program running on
 another machine.
 If this flag is enabled, which is the default
 case, new broadcast client and symmetric passive associations and
@@ -735,7 +765,7 @@ using the host name, network address and public keys,
 all of which are bound together by the protocol specifically
 to deflect masquerade attacks.
 For this reason Autokey
-includes the source and destinatino IP addresses in message digest
+includes the source and destination IP addresses in message digest
 computations and so the same addresses must be available
 at both the server and client.
 For this reason operation
@@ -942,8 +972,8 @@ the link
 in the keys directory.
 .TP 7
 .NOP \f\*[B-Font]iffpar\f[] \f\*[I-Font]file\f[]
-Specifies the location of the optional IFF parameters file.This
-overrides the link
+Specifies the location of the optional IFF parameters file.
+This overrides the link
 \fIntpkey_iff_\f[]\f\*[I-Font]hostname\f[]
 in the keys directory.
 .TP 7
@@ -955,8 +985,7 @@ in the keys directory.
 .TP 7
 .NOP \f\*[B-Font]mvpar\f[] \f\*[I-Font]file\f[]
 Specifies the location of the optional MV parameters file.
-This
-overrides the link
+This overrides the link
 \fIntpkey_mv_\f[]\f\*[I-Font]hostname\f[]
 in the keys directory.
 .TP 7
@@ -1118,7 +1147,7 @@ supported.
 Statistic files are managed using file generation sets
 and scripts in the
 \fI./scripts\f[]
-directory of this distribution.
+directory of the source code distribution.
 Using
 these facilities and
 UNIX
@@ -1511,7 +1540,9 @@ When there is already a file with this name and
 the number of links of this file is one, it is renamed appending a
 dot, the letter
 \f\*[B-Font]C\f[],
-and the pid of the ntpd server process.
+and the pid of the
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
+server process.
 When the
 number of links is greater than one, the file is unlinked.
 This
@@ -1559,7 +1590,9 @@ by a determined cracker.
 .ne 2
 
 Clients can be denied service because they are explicitly
-included in the restrict list created by the restrict command
+included in the restrict list created by the
+\f\*[B-Font]restrict\f[]
+command
 or implicitly as the result of cryptographic or rate limit
 violations.
 Cryptographic violations include certificate
@@ -1569,9 +1602,9 @@ at abusive rates.
 Some violations cause denied service
 only for the offending packet, others cause denied service
 for a timed period and others cause the denied service for
-an indefinate period.
+an indefinite period.
 When a client or network is denied access
-for an indefinate period, the only way at present to remove
+for an indefinite period, the only way at present to remove
 the restrictions is by restarting the server.
 .SS The Kiss-of-Death Packet
 Ordinarily, packets denied service are simply dropped with no
@@ -1627,7 +1660,9 @@ Packets that violate these minima are discarded
 and a kiss-o'-death packet returned if enabled.
 The default
 minimum average and minimum are 5 and 2, respectively.
-The monitor subcommand specifies the probability of discard
+The
+\f\*[B-Font]monitor\f[]
+subcommand specifies the probability of discard
 for packets that overflow the rate-control window.
 .TP 7
 .NOP \f\*[B-Font]restrict\f[] \f\*[B-Font]address\f[] [\f\*[B-Font]mask\f[] \f\*[I-Font]mask\f[]] [\f\*[I-Font]flag\f[] \f\*[I-Font]...\f[]]
@@ -1687,7 +1722,9 @@ last one, the packet is dropped.
 .TP 7
 .NOP \f\*[B-Font]limited\f[]
 Deny service if the packet spacing violates the lower limits specified
-in the discard command.
+in the
+\f\*[B-Font]discard\f[]
+command.
 A history of clients is kept using the
 monitoring capability of
 \fCntpd\f[]\fR(1ntpdmdoc)\f[].
@@ -1754,7 +1791,9 @@ queries.
 .NOP \f\*[B-Font]notrap\f[]
 Decline to provide mode 6 control message trap service to matching
 hosts.
-The trap service is a subsystem of the ntpdq control message
+The trap service is a subsystem of the
+\fCntpq\f[]\fR(1ntpqmdoc)\f[]
+control message
 protocol which is intended for use by remote event logging programs.
 .TP 7
 .NOP \f\*[B-Font]notrust\f[]
@@ -1832,8 +1871,11 @@ as well and is highly recommended, especially for broadcast modes.
 .ne 2
 
 A persistent manycast client association is configured
-using the manycastclient command, which is similar to the
-server command but with a multicast (IPv4 class
+using the
+\f\*[B-Font]manycastclient\f[]
+command, which is similar to the
+\f\*[B-Font]server\f[]
+command but with a multicast (IPv4 class
 \f\*[B-Font]D\f[]
 or IPv6 prefix
 \f\*[B-Font]FF\f[])
@@ -1909,7 +1951,9 @@ command and, under normal circumstances, increments to the
 \f\*[B-Font]maxpolll\f[]
 value specified in this command.
 Initially, the TTL is
-set at the minimum hops specified by the ttl command.
+set at the minimum hops specified by the
+\f\*[B-Font]ttl\f[]
+command.
 At each retransmission the TTL is increased until reaching
 the maximum hops specified by this command or a sufficient
 number client associations have been found.
@@ -2571,7 +2615,8 @@ otherwise, should be avoided.
 .TP 7
 .NOP \f\*[B-Font]dscp\f[] \f\*[I-Font]value\f[]
 This option specifies the Differentiated Services Control Point (DSCP) value,
-a 6-bit code.  The default value is 46, signifying Expedited Forwarding.
+a 6-bit code.
+The default value is 46, signifying Expedited Forwarding.
 .TP 7
 .NOP \f\*[B-Font]enable\f[] [\f\*[B-Font]auth\f[] | \f\*[B-Font]bclient\f[] | \f\*[B-Font]calibrate\f[] | \f\*[B-Font]kernel\f[] | \f\*[B-Font]mode7\f[] | \f\*[B-Font]monitor\f[] | \f\*[B-Font]ntp\f[] | \f\*[B-Font]stats\f[] | \f\*[B-Font]unpeer_crypto_early\f[] | \f\*[B-Font]unpeer_crypto_nak_early\f[] | \f\*[B-Font]unpeer_digest_early\f[]]
 .TP 7
@@ -2798,7 +2843,8 @@ A
 message class may also be followed by the
 \f\*[B-Font]all\f[]
 keyword to enable/disable all
-messages of the respective message class.Thus, a minimal log configuration
+messages of the respective message class.
+Thus, a minimal log configuration
 could look like this:
 .br
 .in +4
@@ -2833,7 +2879,9 @@ This command specifies the location of an alternate log file to
 be used instead of the default system
 \fCsyslog\f[]\fR(3)\f[]
 facility.
-This is the same operation as the \-l command line option.
+This is the same operation as the
+\f\*[B-Font]\-l\f[]
+command line option.
 .TP 7
 .NOP \f\*[B-Font]setvar\f[] \f\*[I-Font]variable\f[] [\f\*[B-Font]default\f[]]
 This command adds an additional system variable.
@@ -2978,7 +3026,8 @@ function.
 Defaults to 50 4k pages (200 4k pages in OpenBSD).
 .TP 7
 .NOP \f\*[B-Font]filenum\f[] \f\*[I-Font]Nfiledescriptors\f[]
-Specifies the maximum number of file descriptors ntpd may have open at once. Defaults to the system default.
+Specifies the maximum number of file descriptors ntpd may have open at once.
+Defaults to the system default.
 .RE
 .TP 7
 .NOP \f\*[B-Font]trap\f[] \f\*[I-Font]host_address\f[] [\f\*[B-Font]port\f[] \f\*[I-Font]port_number\f[]] [\f\*[B-Font]interface\f[] \f\*[I-Font]interface_address\f[]]

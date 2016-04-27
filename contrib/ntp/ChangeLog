@@ -1,4 +1,65 @@
 ---
+(4.2.8p7) 2016/04/26 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 2901] KoD packets must have non-zero transmit timestamps.  HStenn.
+* [Sec 2936] Skeleton Key: Any system knowing the trusted key can serve
+  time. Include passive servers in this check. HStenn.
+* [Sec 2945] Additional KoD packet checks.  HStenn.
+* [Sec 2978] Interleave can be partially triggered.  HStenn.
+* [Sec 3007] Validate crypto-NAKs.  Danny Mayer.
+* [Sec 3008] Always check the return value of ctl_getitem().
+  - initial work by HStenn
+  - Additional cleanup of ctl_getitem by perlinger@ntp.org
+* [Sec 3009] Crafted addpeer with hmode > 7 causes OOB error. perlinger@ntp.org
+   - added more stringent checks on packet content
+* [Sec 3010] remote configuration trustedkey/requestkey values
+  are not properly validated. perlinger@ntp.org
+  - sidekick: Ignore keys that have an unsupported MAC algorithm
+    but are otherwise well-formed
+* [Sec 3011] Duplicate IPs on unconfig directives will cause an assertion botch
+  - graciously accept the same IP multiple times. perlinger@ntp.org
+* [Sec 3020] Refclock impersonation.  HStenn.
+* [Bug 2831]  Segmentation Fault in DNS lookup during startup. perlinger@ntp.org
+  - fixed yet another race condition in the threaded resolver code.
+* [Bug 2858] bool support.  Use stdbool.h when available.  HStenn.
+* [Bug 2879] Improve NTP security against timing attacks. perlinger@ntp.org
+  - integrated patches by Loganaden Velvidron <logan@ntp.org>
+    with some modifications & unit tests
+* [Bug 2952] Symmetric active/passive mode is broken.  HStenn.
+* [Bug 2960] async name resolution fixes for chroot() environments.
+  Reinhard Max.
+* [Bug 2994] Systems with HAVE_SIGNALED_IO fail to compile. perlinger@ntp.org
+* [Bug 2995] Fixes to compile on Windows
+* [Bug 2999] out-of-bounds access in 'is_safe_filename()'. perlinger@ntp.org
+* [Bug 3013] Fix for ssl_init.c SHA1 test. perlinger@ntp.org
+  - Patch provided by Ch. Weisgerber
+* [Bug 3015] ntpq: config-from-file: "request contains an unprintable character"
+  - A change related to [Bug 2853] forbids trailing white space in
+    remote config commands. perlinger@ntp.org
+* [Bug 3019] NTPD stops processing packets after ERROR_HOST_UNREACHABLE
+  - report and patch from Aleksandr Kostikov.
+  - Overhaul of Windows IO completion port handling. perlinger@ntp.org
+* [Bug 3022] authkeys.c should be refactored. perlinger@ntp.org
+  - fixed memory leak in access list (auth[read]keys.c)
+  - refactored handling of key access lists (auth[read]keys.c)
+  - reduced number of error branches (authreadkeys.c)
+* [Bug 3023] ntpdate cannot correct dates in the future. perlinger@ntp.org
+* [Bug 3030] ntpq needs a general way to specify refid output format.  HStenn.
+* [Bug 3031] ntp broadcastclient unable to synchronize to an server
+             when the time of server changed. perlinger@ntp.org
+  - Check the initial delay calculation and reject/unpeer the broadcast
+    server if the delay exceeds 50ms. Retry again after the next
+    broadcast packet.
+* [Bug 3036] autokey trips an INSIST in authistrustedip().  Harlan Stenn.
+* Document ntp.key's optional IP list in authenetic.html.  Harlan Stenn.
+* Update html/xleave.html documentation.  Harlan Stenn.
+* Update ntp.conf documentation.  Harlan Stenn.
+* Fix some Credit: attributions in the NEWS file.  Harlan Stenn.
+* Fix typo in html/monopt.html.  Harlan Stenn.
+* Add README.pullrequests.  Harlan Stenn.
+* Cleanup to include/ntp.h.  Harlan Stenn.
+
+---
 (4.2.8p6) 2016/01/20 Released by Harlan Stenn <stenn@ntp.org>
 
 * [Sec 2935] Deja Vu: Replay attack on authenticated broadcast mode. HStenn.
@@ -92,6 +153,7 @@
 * Update scripts/calc_tickadj/Makefile.am.  Harlan Stenn.
 
 ---
+(4.2.8p4) 2015/10/21 Released by Harlan Stenn <stenn@ntp.org>
 
 * [Sec 2899] CVE-2014-9297  perlinger@ntp.org
 * [Sec 2901] Drop invalid packet before checking KoD. Check for all KoD's.

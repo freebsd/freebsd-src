@@ -175,6 +175,7 @@ typedef struct interface endpt;
 struct interface {
 	endpt *		elink;		/* endpt list link */
 	endpt *		mclink;		/* per-AF_* multicast list */
+	void *		ioreg_ctx;	/* IO registration context */
 	SOCKET		fd;		/* socket descriptor */
 	SOCKET		bfd;		/* for receiving broadcasts */
 	u_int32		ifnum;		/* endpt instance count */
@@ -240,6 +241,13 @@ struct interface {
 #define TEST12		0x0800	/* peer synchronization loop */
 #define TEST13		0x1000	/* peer unreacable */
 #define	PEER_TEST_MASK	(TEST10 | TEST11 | TEST12 | TEST13)
+
+/*
+ * Unused flags
+ */
+#define TEST14		0x2000
+#define TEST15		0x4000
+#define TEST16		0x8000
 
 /*
  * The peer structure. Holds state information relating to the guys
@@ -391,6 +399,7 @@ struct peer {
 	u_long	received;	/* packets received */
 	u_long	processed;	/* packets processed */
 	u_long	badauth;	/* bad authentication (TEST5) */
+	u_long	badNAK;		/* invalid crypto-NAK */
 	u_long	bogusorg;	/* bogus origin (TEST2, TEST3) */
 	u_long	oldpkt;		/* old duplicate (TEST1) */
 	u_long	seldisptoolarge; /* bad header (TEST6, TEST7) */
@@ -545,6 +554,7 @@ struct pkt {
 	l_fp	rec;		/* receive time stamp */
 	l_fp	xmt;		/* transmit time stamp */
 
+#define	MIN_V4_PKT_LEN	(12 * sizeof(u_int32)) /* min header length */
 #define	LEN_PKT_NOMAC	(12 * sizeof(u_int32)) /* min header length */
 #define MIN_MAC_LEN	(1 * sizeof(u_int32))	/* crypto_NAK */
 #define MAX_MD5_LEN	(5 * sizeof(u_int32))	/* MD5 */

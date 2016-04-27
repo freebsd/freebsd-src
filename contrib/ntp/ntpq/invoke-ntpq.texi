@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntpq.texi)
 #
-# It has been AutoGen-ed  January 20, 2016 at 04:19:10 AM by AutoGen 5.18.5
+# It has been AutoGen-ed  April 26, 2016 at 08:29:39 PM by AutoGen 5.18.5
 # From the definitions    ntpq-opts.def
 # and the template file   agtexi-cmd.tpl
 @end ignore
@@ -826,6 +826,7 @@ This software is released under the NTP license, <http://ntp.org/license>.
 * ntpq numeric::                numeric option (-n)
 * ntpq old-rv::                 old-rv option
 * ntpq peers::                  peers option (-p)
+* ntpq refid::                  refid option (-r)
 * ntpq wide::                   wide option (-w)
 * ntpq config::                 presetting/configuring ntpq
 * ntpq exit status::            exit status
@@ -847,7 +848,7 @@ with a status code of 0.
 
 @exampleindent 0
 @example
-ntpq - standard NTP query program - Ver. 4.2.8p6
+ntpq - standard NTP query program - Ver. 4.2.8p7
 Usage:  ntpq [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... [ host ...]
   Flg Arg Option-Name    Description
    -4 no  ipv4           Force IPv4 DNS name resolution
@@ -868,6 +869,7 @@ Usage:  ntpq [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... [ host ...]
       no  old-rv         Always output status line with readvar
    -p no  peers          Print a list of the peers
                                 - prohibits the option 'interactive'
+   -r KWd refid          Set default display type for S2+ refids
    -w no  wide           Display the full 'remote' value
       opt version        output version information and exit
    -? no  help           display extended usage information and exit
@@ -884,6 +886,10 @@ The following option preset mechanisms are supported:
  - reading file $HOME/.ntprc
  - reading file ./.ntprc
  - examining environment variables named NTPQ_*
+
+The valid "refid" option keywords are:
+  hash ipv4
+  or an integer from 0 through 1
 
 Please send bug reports to:  <http://bugs.ntp.org, bugs@@ntp.org>
 @end example
@@ -992,6 +998,27 @@ interactive.
 
 Print a list of the peers known to the server as well as a summary
 of their state. This is equivalent to the 'peers' interactive command.
+@node ntpq refid
+@subsection refid option (-r)
+@cindex ntpq-refid
+
+This is the ``set default display type for s2+ refids'' option.
+This option takes a keyword argument.
+
+@noindent
+This option has some usage constraints.  It:
+@itemize @bullet
+@item
+This option takes a keyword as its argument.
+The argument sets an enumeration value that can be tested by comparing the option value macro (OPT_VALUE_REFID).
+The available keywords are:
+@example
+    hash ipv4
+@end example
+
+or their numeric equivalent.@end itemize
+
+Set the default display format for S2+ refids.
 @node ntpq wide
 @subsection wide option (-w)
 @cindex ntpq-wide

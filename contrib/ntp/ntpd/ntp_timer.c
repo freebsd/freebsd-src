@@ -276,6 +276,12 @@ intres_timeout_req(
 	u_int	seconds		/* 0 cancels */
 	)
 {
+#if defined(HAVE_DROPROOT) && defined(NEED_EARLY_FORK)
+	if (droproot) {
+		worker_idle_timer = 0;
+		return;
+	}
+#endif
 	if (0 == seconds) {
 		worker_idle_timer = 0;
 		return;

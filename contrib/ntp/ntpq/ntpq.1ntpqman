@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntpq 1ntpqman "20 Jan 2016" "4.2.8p6" "User Commands"
+.TH ntpq 1ntpqman "26 Apr 2016" "4.2.8p7" "User Commands"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-Z7aWRV/ag-_7aOQV)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-11aqEI/ag-c2aiDI)
 .\"
-.\" It has been AutoGen-ed January 20, 2016 at 04:19:06 AM by AutoGen 5.18.5
+.\" It has been AutoGen-ed April 26, 2016 at 08:29:35 PM by AutoGen 5.18.5
 .\" From the definitions ntpq-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -1346,6 +1346,27 @@ interactive.
 .sp
 Print a list of the peers known to the server as well as a summary
 of their state. This is equivalent to the 'peers' interactive command.
+.TP
+.NOP \f\*[B-Font]\-r\f[] \f\*[I-Font]keyword\f[], \f\*[B-Font]\-\-refid\f[]=\f\*[I-Font]keyword\f[]
+Set default display type for S2+ refids.
+This option takes a keyword as its argument.  The argument sets an enumeration value that can
+be tested by comparing them against the option value macro.
+The available keywords are:
+.in +4
+.nf
+.na
+hash ipv4
+.fi
+or their numeric equivalent.
+.in -4
+.sp
+The default
+\f\*[I-Font]keyword\f[]
+for this option is:
+.ti +4
+ ipv4
+.sp
+Set the default display format for S2+ refids.
 .TP
 .NOP \f\*[B-Font]\-w\f[], \f\*[B-Font]\-\-wide\f[]
 Display the full 'remote' value.
