@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -156,7 +156,9 @@ AcpiUtInitializeInterfaces (
 
     /* Link the static list of supported interfaces */
 
-    for (i = 0; i < (ACPI_ARRAY_LENGTH (AcpiDefaultSupportedInterfaces) - 1); i++)
+    for (i = 0;
+        i < (ACPI_ARRAY_LENGTH (AcpiDefaultSupportedInterfaces) - 1);
+        i++)
     {
         AcpiDefaultSupportedInterfaces[i].Next =
             &AcpiDefaultSupportedInterfaces[(ACPI_SIZE) i + 1];
@@ -300,8 +302,10 @@ AcpiUtRemoveInterface (
     {
         if (!strcmp (InterfaceName, NextInterface->Name))
         {
-            /* Found: name is in either the static list or was added at runtime */
-
+            /*
+             * Found: name is in either the static list
+             * or was added at runtime
+             */
             if (NextInterface->Flags & ACPI_OSI_DYNAMIC)
             {
                 /* Interface was added dynamically, remove and free it */
@@ -321,8 +325,8 @@ AcpiUtRemoveInterface (
             else
             {
                 /*
-                 * Interface is in static list. If marked invalid, then it
-                 * does not actually exist. Else, mark it invalid.
+                 * Interface is in static list. If marked invalid, then
+                 * it does not actually exist. Else, mark it invalid.
                  */
                 if (NextInterface->Flags & ACPI_OSI_INVALID)
                 {

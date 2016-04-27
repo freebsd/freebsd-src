@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -155,15 +155,15 @@ AcpiPsDisplayObjectPathname (
         /* Node not defined in this scope, look it up */
 
         Status = AcpiNsLookup (WalkState->ScopeInfo, Op->Common.Value.String,
-                    ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT,
-                    WalkState, &(Node));
+            ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT,
+            WalkState, &(Node));
 
         if (ACPI_FAILURE (Status))
         {
             /*
-             * We can't get the pathname since the object
-             * is not in the namespace. This can happen during single
-             * stepping where a dynamic named object is *about* to be created.
+             * We can't get the pathname since the object is not in the
+             * namespace. This can happen during single stepping
+             * where a dynamic named object is *about* to be created.
              */
             AcpiOsPrintf ("  [Path not found]");
             goto Exit;
@@ -269,6 +269,7 @@ AcpiDmNamestring (
 
             AcpiOsPrintf (".");
         }
+
         Name += ACPI_NAME_SIZE;
     }
 }
@@ -332,7 +333,6 @@ AcpiDmDisplayPath (
     }
 
     Prev = NULL;            /* Start with Root Node */
-
     while (Prev != Op)
     {
         /* Search upwards in the tree to find scope with "prev" as its parent */
@@ -390,6 +390,7 @@ AcpiDmDisplayPath (
                 DoDot = TRUE;
             }
         }
+
         Prev = Search;
     }
 }

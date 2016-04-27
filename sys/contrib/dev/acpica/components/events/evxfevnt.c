@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,7 +76,7 @@ AcpiEnable (
 
     /* ACPI tables must be present */
 
-    if (!AcpiTbTablesLoaded ())
+    if (AcpiGbl_FadtIndex == ACPI_INVALID_TABLE_INDEX)
     {
         return_ACPI_STATUS (AE_NO_ACPI_TABLES);
     }
@@ -92,7 +92,8 @@ AcpiEnable (
 
     if (AcpiHwGetMode() == ACPI_SYS_MODE_ACPI)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "System is already in ACPI mode\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INIT,
+            "System is already in ACPI mode\n"));
     }
     else
     {
@@ -162,7 +163,8 @@ AcpiDisable (
             return_ACPI_STATUS (Status);
         }
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "ACPI mode disabled\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INIT,
+            "ACPI mode disabled\n"));
     }
 
     return_ACPI_STATUS (Status);
@@ -208,8 +210,8 @@ AcpiEnableEvent (
      * register bit)
      */
     Status = AcpiWriteBitRegister (
-                AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
-                ACPI_ENABLE_EVENT);
+        AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
+        ACPI_ENABLE_EVENT);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -218,7 +220,7 @@ AcpiEnableEvent (
     /* Make sure that the hardware responded */
 
     Status = AcpiReadBitRegister (
-                AcpiGbl_FixedEventInfo[Event].EnableRegisterId, &Value);
+        AcpiGbl_FixedEventInfo[Event].EnableRegisterId, &Value);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -274,15 +276,15 @@ AcpiDisableEvent (
      * register bit)
      */
     Status = AcpiWriteBitRegister (
-                AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
-                ACPI_DISABLE_EVENT);
+        AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
+        ACPI_DISABLE_EVENT);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
 
     Status = AcpiReadBitRegister (
-                AcpiGbl_FixedEventInfo[Event].EnableRegisterId, &Value);
+        AcpiGbl_FixedEventInfo[Event].EnableRegisterId, &Value);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -335,8 +337,8 @@ AcpiClearEvent (
      * register bit)
      */
     Status = AcpiWriteBitRegister (
-                AcpiGbl_FixedEventInfo[Event].StatusRegisterId,
-                ACPI_CLEAR_STATUS);
+        AcpiGbl_FixedEventInfo[Event].StatusRegisterId,
+        ACPI_CLEAR_STATUS);
 
     return_ACPI_STATUS (Status);
 }
@@ -393,7 +395,7 @@ AcpiGetEventStatus (
     /* Fixed event currently enabled? */
 
     Status = AcpiReadBitRegister (
-                AcpiGbl_FixedEventInfo[Event].EnableRegisterId, &InByte);
+        AcpiGbl_FixedEventInfo[Event].EnableRegisterId, &InByte);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -408,7 +410,7 @@ AcpiGetEventStatus (
     /* Fixed event currently active? */
 
     Status = AcpiReadBitRegister (
-                AcpiGbl_FixedEventInfo[Event].StatusRegisterId, &InByte);
+        AcpiGbl_FixedEventInfo[Event].StatusRegisterId, &InByte);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);

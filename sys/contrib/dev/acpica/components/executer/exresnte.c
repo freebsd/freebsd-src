@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -98,9 +98,9 @@ AcpiExResolveNodeToValue (
      * The stack pointer points to a ACPI_NAMESPACE_NODE (Node). Get the
      * object that is attached to the Node.
      */
-    Node       = *ObjectPtr;
+    Node = *ObjectPtr;
     SourceDesc = AcpiNsGetAttachedObject (Node);
-    EntryType  = AcpiNsGetType ((ACPI_HANDLE) Node);
+    EntryType = AcpiNsGetType ((ACPI_HANDLE) Node);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Entry=%p SourceDesc=%p [%s]\n",
          Node, SourceDesc, AcpiUtGetTypeName (EntryType)));
@@ -110,15 +110,15 @@ AcpiExResolveNodeToValue (
     {
         /* There is always exactly one level of indirection */
 
-        Node       = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, Node->Object);
+        Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, Node->Object);
         SourceDesc = AcpiNsGetAttachedObject (Node);
-        EntryType  = AcpiNsGetType ((ACPI_HANDLE) Node);
+        EntryType = AcpiNsGetType ((ACPI_HANDLE) Node);
         *ObjectPtr = Node;
     }
 
     /*
      * Several object types require no further processing:
-     * 1) Device/Thermal objects don't have a "real" subobject, return the Node
+     * 1) Device/Thermal objects don't have a "real" subobject, return Node
      * 2) Method locals and arguments have a pseudo-Node
      * 3) 10/2007: Added method type to assist with Package construction.
      */

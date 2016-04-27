@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1002,8 +1002,8 @@ AcpiInstallGpeHandler (
     ACPI_FUNCTION_TRACE (AcpiInstallGpeHandler);
 
 
-    Status = AcpiEvInstallGpeHandler (GpeDevice, GpeNumber, Type, FALSE,
-                Address, Context);
+    Status = AcpiEvInstallGpeHandler (GpeDevice, GpeNumber, Type,
+        FALSE, Address, Context);
 
     return_ACPI_STATUS (Status);
 }
@@ -1043,8 +1043,8 @@ AcpiInstallGpeRawHandler (
     ACPI_FUNCTION_TRACE (AcpiInstallGpeRawHandler);
 
 
-    Status = AcpiEvInstallGpeHandler (GpeDevice, GpeNumber, Type, TRUE,
-                Address, Context);
+    Status = AcpiEvInstallGpeHandler (GpeDevice, GpeNumber, Type,
+        TRUE, Address, Context);
 
     return_ACPI_STATUS (Status);
 }
@@ -1210,7 +1210,7 @@ AcpiAcquireGlobalLock (
     AcpiExEnterInterpreter ();
 
     Status = AcpiExAcquireMutexObject (Timeout,
-                AcpiGbl_GlobalLockMutex, AcpiOsGetThreadId ());
+        AcpiGbl_GlobalLockMutex, AcpiOsGetThreadId ());
 
     if (ACPI_SUCCESS (Status))
     {

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -122,7 +122,7 @@ AcpiTbAcquireTable (
     case ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL:
 
         Table = ACPI_CAST_PTR (ACPI_TABLE_HEADER,
-                    ACPI_PHYSADDR_TO_PTR (TableDesc->Address));
+            ACPI_PHYSADDR_TO_PTR (TableDesc->Address));
         break;
 
     default:
@@ -229,7 +229,7 @@ AcpiTbAcquireTempTable (
     case ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL:
 
         TableHeader = ACPI_CAST_PTR (ACPI_TABLE_HEADER,
-                        ACPI_PHYSADDR_TO_PTR (Address));
+            ACPI_PHYSADDR_TO_PTR (Address));
         if (!TableHeader)
         {
             return (AE_NO_MEMORY);
@@ -303,7 +303,7 @@ AcpiTbValidateTable (
     if (!TableDesc->Pointer)
     {
         Status = AcpiTbAcquireTable (TableDesc, &TableDesc->Pointer,
-                    &TableDesc->Length, &TableDesc->Flags);
+            &TableDesc->Length, &TableDesc->Flags);
         if (!TableDesc->Pointer)
         {
             Status = AE_NO_MEMORY;
@@ -441,9 +441,10 @@ AcpiTbVerifyTempTable (
             ACPI_EXCEPTION ((AE_INFO, AE_NO_MEMORY,
                 "%4.4s 0x%8.8X%8.8X"
                 " Attempted table install failed",
-                AcpiUtValidAcpiName (TableDesc->Signature.Ascii) ?
+                AcpiUtValidNameseg (TableDesc->Signature.Ascii) ?
                     TableDesc->Signature.Ascii : "????",
                 ACPI_FORMAT_UINT64 (TableDesc->Address)));
+
             goto InvalidateAndExit;
         }
     }
@@ -721,7 +722,7 @@ AcpiTbAllocateOwnerId (
     if (TableIndex < AcpiGbl_RootTableList.CurrentTableCount)
     {
         Status = AcpiUtAllocateOwnerId (
-                    &(AcpiGbl_RootTableList.Tables[TableIndex].OwnerId));
+            &(AcpiGbl_RootTableList.Tables[TableIndex].OwnerId));
     }
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);

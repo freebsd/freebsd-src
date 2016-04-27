@@ -297,7 +297,6 @@ contrib/dev/acpica/components/debugger/dbcmds.c		optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbconvert.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbdisply.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbexec.c		optional acpi acpi_debug
-contrib/dev/acpica/components/debugger/dbfileio.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbhistry.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbinput.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbmethod.c	optional acpi acpi_debug
@@ -348,6 +347,7 @@ contrib/dev/acpica/components/events/evxface.c		optional acpi
 contrib/dev/acpica/components/events/evxfevnt.c		optional acpi
 contrib/dev/acpica/components/events/evxfgpe.c		optional acpi
 contrib/dev/acpica/components/events/evxfregn.c		optional acpi
+contrib/dev/acpica/components/executer/exconcat.c	optional acpi
 contrib/dev/acpica/components/executer/exconfig.c	optional acpi
 contrib/dev/acpica/components/executer/exconvrt.c	optional acpi
 contrib/dev/acpica/components/executer/excreate.c	optional acpi
@@ -371,6 +371,7 @@ contrib/dev/acpica/components/executer/exstore.c	optional acpi
 contrib/dev/acpica/components/executer/exstoren.c	optional acpi
 contrib/dev/acpica/components/executer/exstorob.c	optional acpi
 contrib/dev/acpica/components/executer/exsystem.c	optional acpi
+contrib/dev/acpica/components/executer/extrace.c	optional acpi
 contrib/dev/acpica/components/executer/exutils.c	optional acpi
 contrib/dev/acpica/components/hardware/hwacpi.c		optional acpi
 contrib/dev/acpica/components/hardware/hwesleep.c	optional acpi
@@ -439,6 +440,7 @@ contrib/dev/acpica/components/tables/tbxfload.c		optional acpi
 contrib/dev/acpica/components/tables/tbxfroot.c		optional acpi
 contrib/dev/acpica/components/utilities/utaddress.c	optional acpi
 contrib/dev/acpica/components/utilities/utalloc.c	optional acpi
+contrib/dev/acpica/components/utilities/utascii.c	optional acpi
 contrib/dev/acpica/components/utilities/utbuffer.c	optional acpi
 contrib/dev/acpica/components/utilities/utcache.c	optional acpi
 contrib/dev/acpica/components/utilities/utcopy.c	optional acpi
@@ -3423,6 +3425,7 @@ libkern/strndup.c		standard
 libkern/strlcat.c		standard
 libkern/strlcpy.c		standard
 libkern/strlen.c		standard
+libkern/strncat.c		standard
 libkern/strncmp.c		standard
 libkern/strncpy.c		standard
 libkern/strnlen.c		standard

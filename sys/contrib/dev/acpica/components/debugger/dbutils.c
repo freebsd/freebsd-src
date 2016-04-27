@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,8 +63,6 @@ AcpiDbDumpBuffer (
     UINT32                  Address);
 #endif
 
-static char                 *Gbl_HexToAscii = "0123456789ABCDEF";
-
 
 /*******************************************************************************
  *
@@ -94,7 +92,9 @@ AcpiDbMatchArgument (
 
     for (i = 0; Arguments[i].Name; i++)
     {
-        if (strstr (Arguments[i].Name, UserArgument) == Arguments[i].Name)
+        if (strstr (
+            ACPI_CAST_PTR (char, Arguments[i].Name),
+            ACPI_CAST_PTR (char, UserArgument)) == Arguments[i].Name)
         {
             return (i);
         }
@@ -199,6 +199,7 @@ AcpiDbDumpExternalObject (
             {
                 AcpiOsPrintf ("\n");
             }
+
             AcpiUtDebugDumpBuffer (
                 ACPI_CAST_PTR (UINT8, ObjDesc->Buffer.Pointer),
                 ObjDesc->Buffer.Length, DB_BYTE_DISPLAY, _COMPONENT);
@@ -385,7 +386,7 @@ AcpiDbUint32ToHexString (
 
     for (i = 7; i >= 0; i--)
     {
-        Buffer[i] = Gbl_HexToAscii [Value & 0x0F];
+        Buffer[i] = AcpiGbl_UpperHexDigits [Value & 0x0F];
         Value = Value >> 4;
     }
 }

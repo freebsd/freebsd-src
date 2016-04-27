@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -171,7 +171,8 @@ AcpiDmFixedDmaDescriptor (
     }
     else
     {
-        AcpiOsPrintf ("%X /* INVALID DMA WIDTH */, ", Resource->FixedDma.Width);
+        AcpiOsPrintf ("%X /* INVALID DMA WIDTH */, ",
+            Resource->FixedDma.Width);
     }
 
     /* Insert a descriptor name */

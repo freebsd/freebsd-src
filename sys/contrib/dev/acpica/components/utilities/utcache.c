@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,9 +93,9 @@ AcpiOsCreateCache (
     /* Populate the cache object and return it */
 
     memset (Cache, 0, sizeof (ACPI_MEMORY_LIST));
-    Cache->ListName   = CacheName;
+    Cache->ListName = CacheName;
     Cache->ObjectSize = ObjectSize;
-    Cache->MaxDepth   = MaxDepth;
+    Cache->MaxDepth = MaxDepth;
 
     *ReturnCache = Cache;
     return (AE_OK);
@@ -279,7 +279,7 @@ AcpiOsAcquireObject (
     void                    *Object;
 
 
-    ACPI_FUNCTION_NAME (OsAcquireObject);
+    ACPI_FUNCTION_TRACE (OsAcquireObject);
 
 
     if (!Cache)

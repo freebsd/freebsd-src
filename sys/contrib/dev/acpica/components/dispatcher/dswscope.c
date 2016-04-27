@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -82,6 +82,7 @@ AcpiDsScopeStackClear (
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
             "Popped object type (%s)\n",
             AcpiUtGetTypeName (ScopeInfo->Common.Value)));
+
         AcpiUtDeleteGenericState (ScopeInfo);
     }
 }

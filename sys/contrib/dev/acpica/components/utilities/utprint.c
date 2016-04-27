@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,12 +86,6 @@ AcpiUtPutNumber (
     UINT64                  Number,
     UINT8                   Base,
     BOOLEAN                 Upper);
-
-
-/* Module globals */
-
-static const char           AcpiGbl_LowerHexDigits[] = "0123456789abcdef";
-static const char           AcpiGbl_UpperHexDigits[] = "0123456789ABCDEF";
 
 
 /*******************************************************************************
@@ -390,8 +384,8 @@ AcpiUtFormatNumber (
         String = AcpiUtBoundStringOutput (String, End, '0');
         if (Base == 16)
         {
-            String = AcpiUtBoundStringOutput (String, End,
-                        Upper ? 'X' : 'x');
+            String = AcpiUtBoundStringOutput (
+                String, End, Upper ? 'X' : 'x');
         }
     }
     if (!(Type & ACPI_FORMAT_LEFT))
@@ -500,6 +494,7 @@ AcpiUtVsnprintf (
             {
                 break;
             }
+
         } while (1);
 
         /* Process width */
@@ -537,6 +532,7 @@ AcpiUtVsnprintf (
                 ++Format;
                 Precision = va_arg (Args, int);
             }
+
             if (Precision < 0)
             {
                 Precision = 0;
@@ -599,11 +595,13 @@ AcpiUtVsnprintf (
                     Pos = AcpiUtBoundStringOutput (Pos, End, ' ');
                 }
             }
+
             for (i = 0; i < Length; ++i)
             {
                 Pos = AcpiUtBoundStringOutput (Pos, End, *s);
                 ++s;
             }
+
             while (Length < Width--)
             {
                 Pos = AcpiUtBoundStringOutput (Pos, End, ' ');
@@ -642,8 +640,8 @@ AcpiUtVsnprintf (
             }
 
             p = va_arg (Args, void *);
-            Pos = AcpiUtFormatNumber (Pos, End,
-                    ACPI_TO_INTEGER (p), 16, Width, Precision, Type);
+            Pos = AcpiUtFormatNumber (
+                Pos, End, ACPI_TO_INTEGER (p), 16, Width, Precision, Type);
             continue;
 
         default:
@@ -694,7 +692,7 @@ AcpiUtVsnprintf (
         }
 
         Pos = AcpiUtFormatNumber (Pos, End, Number, Base,
-                Width, Precision, Type);
+            Width, Precision, Type);
     }
 
     if (Size > 0)
@@ -773,7 +771,7 @@ AcpiUtFileVprintf (
 
     Flags = AcpiOsAcquireLock (AcpiGbl_PrintLock);
     Length = AcpiUtVsnprintf (AcpiGbl_PrintBuffer,
-                sizeof (AcpiGbl_PrintBuffer), Format, Args);
+        sizeof (AcpiGbl_PrintBuffer), Format, Args);
 
     (void) AcpiOsWriteFile (File, AcpiGbl_PrintBuffer, Length, 1);
     AcpiOsReleaseLock (AcpiGbl_PrintLock, Flags);
