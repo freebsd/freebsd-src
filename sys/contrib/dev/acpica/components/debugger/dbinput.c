@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,9 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acdebug.h>
 
+#ifdef ACPI_APPLICATION
+#include <contrib/dev/acpica/include/acapps.h>
+#endif
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbinput")
@@ -66,7 +69,7 @@ AcpiDbSingleThread (
 
 static void
 AcpiDbDisplayCommandInfo (
-    char                    *Command,
+    const char              *Command,
     BOOLEAN                 DisplayAll);
 
 static void
@@ -75,7 +78,7 @@ AcpiDbDisplayHelp (
 
 static BOOLEAN
 AcpiDbMatchCommandHelp (
-    char                        *Command,
+    const char                  *Command,
     const ACPI_DB_COMMAND_HELP  *Help);
 
 
@@ -123,6 +126,7 @@ enum AcpiExDebuggerCommands
     CMD_OSI,
     CMD_OWNER,
     CMD_PATHS,
+    CMD_PREDEFINED,
     CMD_PREFIX,
     CMD_QUIT,
     CMD_REFERENCES,
@@ -152,7 +156,6 @@ enum AcpiExDebuggerCommands
     CMD_TERMINATE,
     CMD_THREADS,
 
-    CMD_PREDEFINED,
     CMD_TEST,
 #endif
 };
@@ -201,6 +204,7 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"OSI",          0},
     {"OWNER",        1},
     {"PATHS",        0},
+    {"PREDEFINED",   0},
     {"PREFIX",       0},
     {"QUIT",         0},
     {"REFERENCES",   1},
@@ -230,7 +234,6 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"TERMINATE",    0},
     {"THREADS",      3},
 
-    {"PREDEFINED",   0},
     {"TEST",         1},
 #endif
     {NULL,           0}
@@ -355,7 +358,7 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
 
 static BOOLEAN
 AcpiDbMatchCommandHelp (
-    char                        *Command,
+    const char                  *Command,
     const ACPI_DB_COMMAND_HELP  *Help)
 {
     char                    *Invocation = Help->Invocation;
@@ -417,7 +420,7 @@ AcpiDbMatchCommandHelp (
 
 static void
 AcpiDbDisplayCommandInfo (
-    char                    *Command,
+    const char              *Command,
     BOOLEAN                 DisplayAll)
 {
     const ACPI_DB_COMMAND_HELP  *Next;
@@ -679,10 +682,7 @@ AcpiDbGetLine (
 
     /* Uppercase the actual command */
 
-    if (AcpiGbl_DbArgs[0])
-    {
-        AcpiUtStrupr (AcpiGbl_DbArgs[0]);
-    }
+    AcpiUtStrupr (AcpiGbl_DbArgs[0]);
 
     Count = i;
     if (Count)
@@ -720,7 +720,8 @@ AcpiDbMatchCommand (
 
     for (i = CMD_FIRST_VALID; AcpiGbl_DbCommands[i].Name; i++)
     {
-        if (strstr (AcpiGbl_DbCommands[i].Name, UserCommand) ==
+        if (strstr (
+            ACPI_CAST_PTR (char, AcpiGbl_DbCommands[i].Name), UserCommand) ==
             AcpiGbl_DbCommands[i].Name)
         {
             return (i);
@@ -762,7 +763,7 @@ AcpiDbCommandDispatch (
 
     /* If AcpiTerminate has been called, terminate this thread */
 
-    if (AcpiGbl_DbTerminateThreads)
+    if (AcpiGbl_DbTerminateLoop)
     {
         return (AE_CTRL_TERMINATE);
     }
@@ -942,8 +943,8 @@ AcpiDbCommandDispatch (
         else if (ParamCount == 2)
         {
             Temp = AcpiGbl_DbConsoleDebugLevel;
-            AcpiGbl_DbConsoleDebugLevel = strtoul (AcpiGbl_DbArgs[1],
-                                            NULL, 16);
+            AcpiGbl_DbConsoleDebugLevel =
+                strtoul (AcpiGbl_DbArgs[1], NULL, 16);
             AcpiOsPrintf (
                 "Debug Level for console output was %8.8lX, now %8.8lX\n",
                 Temp, AcpiGbl_DbConsoleDebugLevel);
@@ -1119,8 +1120,16 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_LOAD:
+        {
+            ACPI_NEW_TABLE_DESC     *ListHead = NULL;
 
-        Status = AcpiDbGetTableFromFile (AcpiGbl_DbArgs[1], NULL, FALSE);
+            Status = AcGetAllTablesFromFile (AcpiGbl_DbArgs[1],
+                ACPI_GET_ALL_TABLES, &ListHead);
+            if (ACPI_SUCCESS (Status))
+            {
+                AcpiDbLoadTables (ListHead);
+            }
+        }
         break;
 
     case CMD_OPEN:
@@ -1140,6 +1149,7 @@ AcpiDbCommandDispatch (
          * re-creating the semaphores!
          */
 
+        AcpiGbl_DbTerminateLoop = TRUE;
         /*  AcpiInitialize (NULL);  */
         break;
 
@@ -1184,7 +1194,7 @@ AcpiDbCommandDispatch (
 #ifdef ACPI_APPLICATION
         AcpiDbCloseDebugFile ();
 #endif
-        AcpiGbl_DbTerminateThreads = TRUE;
+        AcpiGbl_DbTerminateLoop = TRUE;
         return (AE_CTRL_TERMINATE);
 
     case CMD_NOT_FOUND:
@@ -1224,12 +1234,13 @@ AcpiDbExecuteThread (
     ACPI_STATUS             MStatus;
 
 
-    while (Status != AE_CTRL_TERMINATE)
+    while (Status != AE_CTRL_TERMINATE && !AcpiGbl_DbTerminateLoop)
     {
         AcpiGbl_MethodExecuting = FALSE;
         AcpiGbl_StepToNextCall = FALSE;
 
-        MStatus = AcpiUtAcquireMutex (ACPI_MTX_DEBUG_CMD_READY);
+        MStatus = AcpiOsAcquireMutex (AcpiGbl_DbCommandReady,
+            ACPI_WAIT_FOREVER);
         if (ACPI_FAILURE (MStatus))
         {
             return;
@@ -1237,12 +1248,9 @@ AcpiDbExecuteThread (
 
         Status = AcpiDbCommandDispatch (AcpiGbl_DbLineBuf, NULL, NULL);
 
-        MStatus = AcpiUtReleaseMutex (ACPI_MTX_DEBUG_CMD_COMPLETE);
-        if (ACPI_FAILURE (MStatus))
-        {
-            return;
-        }
+        AcpiOsReleaseMutex (AcpiGbl_DbCommandComplete);
     }
+    AcpiGbl_DbThreadsTerminated = TRUE;
 }
 
 
@@ -1297,7 +1305,7 @@ AcpiDbUserCommands (
 
     /* TBD: [Restructure] Need a separate command line buffer for step mode */
 
-    while (!AcpiGbl_DbTerminateThreads)
+    while (!AcpiGbl_DbTerminateLoop)
     {
         /* Force output to console until a command is entered */
 
@@ -1332,13 +1340,10 @@ AcpiDbUserCommands (
              * Signal the debug thread that we have a command to execute,
              * and wait for the command to complete.
              */
-            Status = AcpiUtReleaseMutex (ACPI_MTX_DEBUG_CMD_READY);
-            if (ACPI_FAILURE (Status))
-            {
-                return (Status);
-            }
+            AcpiOsReleaseMutex (AcpiGbl_DbCommandReady);
 
-            Status = AcpiUtAcquireMutex (ACPI_MTX_DEBUG_CMD_COMPLETE);
+            Status = AcpiOsAcquireMutex (AcpiGbl_DbCommandComplete,
+                ACPI_WAIT_FOREVER);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -1352,14 +1357,5 @@ AcpiDbUserCommands (
         }
     }
 
-    /* Shut down the debugger */
-
-    AcpiTerminateDebugger ();
-
-    /*
-     * Only this thread (the original thread) should actually terminate the
-     * subsystem, because all the semaphores are deleted during termination
-     */
-    Status = AcpiTerminate ();
     return (Status);
 }

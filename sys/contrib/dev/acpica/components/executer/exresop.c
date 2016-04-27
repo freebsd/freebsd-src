@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -99,7 +99,8 @@ AcpiExCheckObjectType (
          * specification, a store to a constant is a noop.)
          */
         if ((ThisType == ACPI_TYPE_INTEGER) &&
-            (((ACPI_OPERAND_OBJECT *) Object)->Common.Flags & AOPOBJ_AML_CONSTANT))
+            (((ACPI_OPERAND_OBJECT *) Object)->Common.Flags &
+                AOPOBJ_AML_CONSTANT))
         {
             return (AE_OK);
         }
@@ -216,7 +217,8 @@ AcpiExResolveOperands (
              */
             if (ObjectType == ACPI_TYPE_LOCAL_ALIAS)
             {
-                ObjDesc = AcpiNsGetAttachedObject ((ACPI_NAMESPACE_NODE *) ObjDesc);
+                ObjDesc = AcpiNsGetAttachedObject (
+                    (ACPI_NAMESPACE_NODE *) ObjDesc);
                 *StackPtr = ObjDesc;
                 ObjectType = ((ACPI_NAMESPACE_NODE *) ObjDesc)->Type;
             }
@@ -297,7 +299,8 @@ AcpiExResolveOperands (
         {
         case ARGI_REF_OR_STRING:        /* Can be a String or Reference */
 
-            if ((ACPI_GET_DESCRIPTOR_TYPE (ObjDesc) == ACPI_DESC_TYPE_OPERAND) &&
+            if ((ACPI_GET_DESCRIPTOR_TYPE (ObjDesc) ==
+                ACPI_DESC_TYPE_OPERAND) &&
                 (ObjDesc->Common.Type == ACPI_TYPE_STRING))
             {
                 /*
@@ -320,6 +323,8 @@ AcpiExResolveOperands (
         case ARGI_TARGETREF:     /* Allows implicit conversion rules before store */
         case ARGI_FIXED_TARGET:  /* No implicit conversion before store to target */
         case ARGI_SIMPLE_TARGET: /* Name, Local, or Arg - no implicit conversion  */
+        case ARGI_STORE_TARGET:
+
             /*
              * Need an operand of type ACPI_TYPE_LOCAL_REFERENCE
              * A Namespace Node is OK as-is
@@ -329,8 +334,8 @@ AcpiExResolveOperands (
                 goto NextOperand;
             }
 
-            Status = AcpiExCheckObjectType (ACPI_TYPE_LOCAL_REFERENCE,
-                            ObjectType, ObjDesc);
+            Status = AcpiExCheckObjectType (
+                ACPI_TYPE_LOCAL_REFERENCE, ObjectType, ObjDesc);
             if (ACPI_FAILURE (Status))
             {
                 return_ACPI_STATUS (Status);
@@ -481,8 +486,8 @@ AcpiExResolveOperands (
              * But we can implicitly convert from a BUFFER or INTEGER
              * Aka - "Implicit Source Operand Conversion"
              */
-            Status = AcpiExConvertToString (ObjDesc, StackPtr,
-                        ACPI_IMPLICIT_CONVERT_HEX);
+            Status = AcpiExConvertToString (
+                ObjDesc, StackPtr, ACPI_IMPLICIT_CONVERT_HEX);
             if (ACPI_FAILURE (Status))
             {
                 if (Status == AE_TYPE)
@@ -615,8 +620,10 @@ AcpiExResolveOperands (
 
         case ARGI_REGION_OR_BUFFER: /* Used by Load() only */
 
-            /* Need an operand of type REGION or a BUFFER (which could be a resolved region field) */
-
+            /*
+             * Need an operand of type REGION or a BUFFER
+             * (which could be a resolved region field)
+             */
             switch (ObjDesc->Common.Type)
             {
             case ACPI_TYPE_BUFFER:
@@ -660,9 +667,9 @@ AcpiExResolveOperands (
                 if (AcpiGbl_EnableInterpreterSlack)
                 {
                     /*
-                     * Enable original behavior of Store(), allowing any and all
-                     * objects as the source operand. The ACPI spec does not
-                     * allow this, however.
+                     * Enable original behavior of Store(), allowing any
+                     * and all objects as the source operand. The ACPI
+                     * spec does not allow this, however.
                      */
                     break;
                 }
@@ -675,7 +682,8 @@ AcpiExResolveOperands (
                 }
 
                 ACPI_ERROR ((AE_INFO,
-                    "Needed Integer/Buffer/String/Package/Ref/Ddb], found [%s] %p",
+                    "Needed Integer/Buffer/String/Package/Ref/Ddb]"
+                    ", found [%s] %p",
                     AcpiUtGetObjectTypeName (ObjDesc), ObjDesc));
 
                 return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
@@ -697,8 +705,8 @@ AcpiExResolveOperands (
          * Make sure that the original object was resolved to the
          * required object type (Simple cases only).
          */
-        Status = AcpiExCheckObjectType (TypeNeeded,
-                        (*StackPtr)->Common.Type, *StackPtr);
+        Status = AcpiExCheckObjectType (
+            TypeNeeded, (*StackPtr)->Common.Type, *StackPtr);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
