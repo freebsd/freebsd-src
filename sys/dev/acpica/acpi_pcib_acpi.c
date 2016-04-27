@@ -502,7 +502,13 @@ acpi_pcib_acpi_attach(device_t dev)
     if (sc->ap_segment == 0 && sc->ap_bus == 0)
 	    bus0_seen = 1;
 
-    return (acpi_pcib_attach(dev, &sc->ap_prt, sc->ap_bus));
+    acpi_pcib_fetch_prt(dev, &sc->ap_prt);
+
+    if (device_add_child(dev, "pci", -1) == NULL) {
+	device_printf(device_get_parent(dev), "couldn't attach pci bus\n");
+	return (ENXIO);
+    }
+    return (bus_generic_attach(dev));
 }
 
 /*

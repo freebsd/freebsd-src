@@ -1075,21 +1075,26 @@ pcib_attach_common(device_t dev)
 }
 
 int
+pcib_attach_child(device_t dev)
+{
+	struct pcib_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->bus.sec == 0) {
+		/* no secondary bus; we should have fixed this */
+		return(0);
+	}
+
+	sc->child = device_add_child(dev, "pci", -1);
+	return (bus_generic_attach(dev));
+}
+
+int
 pcib_attach(device_t dev)
 {
-    struct pcib_softc	*sc;
-    device_t		child;
 
     pcib_attach_common(dev);
-    sc = device_get_softc(dev);
-    if (sc->bus.sec != 0) {
-	child = device_add_child(dev, "pci", -1);
-	if (child != NULL)
-	    return(bus_generic_attach(dev));
-    }
-
-    /* no secondary bus; we should have fixed this */
-    return(0);
+    return (pcib_attach_child(dev));
 }
 
 int
