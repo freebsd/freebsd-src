@@ -105,7 +105,8 @@ struct refclockio {
 	int	active;		/* nonzero when in use */
 
 #ifdef HAVE_IO_COMPLETION_PORT
-	void *	device_context;	/* device-related data for i/o subsystem */
+	void *	ioreg_ctx;	/* IO registration context */
+	void *	device_ctx;	/* device-related data for i/o subsystem */
 #endif
 };
 
