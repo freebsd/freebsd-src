@@ -2543,7 +2543,7 @@ suj_read(void)
 	int blocks;
 	int recsize;
 	int size;
-	u_int i;
+	int i;
 
 	/*
 	 * Read records until we exhaust the journal space.  If we find
