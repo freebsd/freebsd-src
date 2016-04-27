@@ -276,7 +276,7 @@ display(void)
 			c = '|';
 		dellave = avenrun[0];
 		wmove(wload, 0, 0); wclrtoeol(wload);
-		for (i = (j > 50) ? 50 : j; i > 0; i--)
+		for (i = MIN(j, 50); i > 0; i--)
 			waddch(wload, c);
 		if (j > 50)
 			wprintw(wload, " %4.1f", avenrun[0]);
