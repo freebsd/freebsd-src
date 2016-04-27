@@ -81,6 +81,7 @@ static device_method_t ofw_pcibus_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_child_deleted,	ofw_pcibus_child_deleted),
 	DEVMETHOD(bus_child_pnpinfo_str, ofw_pcibus_pnpinfo_str),
+	DEVMETHOD(bus_rescan,		kobj_error_method),
 
 	/* PCI interface */
 	DEVMETHOD(pci_alloc_devinfo,	ofw_pcibus_alloc_devinfo),
