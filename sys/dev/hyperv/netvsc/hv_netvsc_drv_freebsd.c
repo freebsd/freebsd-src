@@ -155,6 +155,8 @@ __FBSDID("$FreeBSD$");
 
 #define HN_DIRECT_TX_SIZE_DEF		128
 
+#define HN_EARLY_TXEOF_THRESH		8
+
 struct hn_txdesc {
 #ifndef HN_USE_TXDESC_BUFRING
 	SLIST_ENTRY(hn_txdesc) link;
@@ -793,6 +795,13 @@ hn_txdesc_hold(struct hn_txdesc *txd)
 	atomic_add_int(&txd->refs, 1);
 }
 
+static __inline void
+hn_txeof(struct hn_tx_ring *txr)
+{
+	txr->hn_has_txeof = 0;
+	txr->hn_txeof(txr);
+}
+
 static void
 hn_tx_done(struct hv_vmbus_channel *chan, void *xpkt)
 {
@@ -811,6 +820,13 @@ hn_tx_done(struct hv_vmbus_channel *chan, void *xpkt)
 
 	txr->hn_has_txeof = 1;
 	hn_txdesc_put(txr, txd);
+
+	++txr->hn_txdone_cnt;
+	if (txr->hn_txdone_cnt >= HN_EARLY_TXEOF_THRESH) {
+		txr->hn_txdone_cnt = 0;
+		if (txr->hn_oactive)
+			hn_txeof(txr);
+	}
 }
 
 void
@@ -831,8 +847,8 @@ netvsc_channel_rollup(struct hv_vmbus_channel *chan)
 	if (txr == NULL || !txr->hn_has_txeof)
 		return;
 
-	txr->hn_has_txeof = 0;
-	txr->hn_txeof(txr);
+	txr->hn_txdone_cnt = 0;
+	hn_txeof(txr);
 }
 
 /*
