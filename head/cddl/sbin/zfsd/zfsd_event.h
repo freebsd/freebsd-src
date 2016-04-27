@@ -149,4 +149,20 @@ protected:
 	static VdevCallback_t TryDetach;
 };
 
+class GeomEvent : public DevdCtl::GeomEvent
+{
+public:
+	static BuildMethod Builder;
+
+	virtual DevdCtl::Event *DeepCopy() const; 
+
+	virtual bool Process()		  const;
+
+protected:
+	/** DeepCopy Constructor. */
+	GeomEvent(const GeomEvent &src);
+
+	/** Constructor */
+	GeomEvent(Type, DevdCtl::NVPairMap &, const string &);
+};
 #endif /*_ZFSD_EVENT_H_ */

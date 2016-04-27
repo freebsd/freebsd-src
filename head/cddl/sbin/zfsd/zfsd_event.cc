@@ -226,6 +226,79 @@ DevfsEvent::DevfsEvent(const DevfsEvent &src)
 {
 }
 
+/*-------------------------------- GeomEvent --------------------------------*/
+
+//- GeomEvent Static Public Methods -------------------------------------------
+Event *
+GeomEvent::Builder(Event::Type type,
+		   NVPairMap &nvPairs,
+		   const string &eventString)
+{
+	return (new GeomEvent(type, nvPairs, eventString));
+}
+
+//- GeomEvent Virtual Public Methods ------------------------------------------
+Event *
+GeomEvent::DeepCopy() const
+{
+	return (new GeomEvent(*this));
+}
+ 
+bool
+GeomEvent::Process() const
+{
+	/*
+	 * We are only concerned with physical path changes, because those can
+	 * be used to satisfy autoreplace operations
+	 */
+	if (Value("type") != "GEOM::physpath" || !IsDiskDev())
+		return (false);
+
+	/* Log the event since it is of interest. */
+	Log(LOG_INFO);
+
+	string devPath;
+	if (!DevPath(devPath))
+		return (false);
+
+	string physPath;
+        bool havePhysPath(PhysicalPath(physPath));
+
+	string devName;
+	DevName(devName);
+
+	if (havePhysPath) {
+		/* 
+		 * TODO: attempt to resolve events using every casefile
+		 * that matches this physpath
+		 */
+		CaseFile *caseFile(CaseFile::Find(physPath));
+		if (caseFile != NULL) {
+			syslog(LOG_INFO,
+			       "Found CaseFile(%s:%s:%s) - ReEvaluating\n",
+			       caseFile->PoolGUIDString().c_str(),
+			       caseFile->VdevGUIDString().c_str(),
+			       zpool_state_to_name(caseFile->VdevState(),
+						   VDEV_AUX_NONE));
+			caseFile->ReEvaluate(devPath, physPath, /*vdev*/NULL);
+		}
+	}
+	return (false);
+}
+
+//- GeomEvent Protected Methods -----------------------------------------------
+GeomEvent::GeomEvent(Event::Type type, NVPairMap &nvpairs,
+			       const string &eventString)
+ : DevdCtl::GeomEvent(type, nvpairs, eventString)
+{
+}
+
+GeomEvent::GeomEvent(const GeomEvent &src)
+ : DevdCtl::GeomEvent::GeomEvent(src)
+{
+}
+
+
 /*--------------------------------- ZfsEvent ---------------------------------*/
 //- ZfsEvent Static Public Methods ---------------------------------------------
 DevdCtl::Event *

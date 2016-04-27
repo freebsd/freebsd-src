@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011, 2012, 2013 Spectra Logic Corporation
+ * Copyright (c) 2011, 2012, 2013, 2016 Spectra Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -99,6 +99,36 @@ public:
 
 	static Event *CreateEvent(const EventFactory &factory,
 				  const std::string &eventString);
+
+	/**
+	 * Returns the devname, if any, associated with the event
+	 *
+	 * \param name	Devname, returned by reference
+	 * \return	True iff the event contained a devname
+	 */
+	virtual bool DevName(std::string &name)	const;
+
+	/**
+	 * Returns the absolute pathname of the device associated with this
+	 * event.
+	 *
+	 * \param name	Devname, returned by reference
+	 * \return	True iff the event contained a devname
+	 */
+	bool DevPath(std::string &path)		const;
+
+	/**
+	 * Returns true iff this event refers to a disk device
+	 */
+	bool IsDiskDev()			const;
+
+	/** Returns the physical path of the device, if any
+	 *
+	 * \param path	Physical path, returned by reference
+	 * \return	True iff the event contains a device with a physical
+	 * 		path
+	 */
+	bool PhysicalPath(std::string &path)	const;
 
 	/**
 	 * Provide a user friendly string representation of an
@@ -298,21 +328,10 @@ public:
 	 */
 	virtual bool Process()			const;
 
-	bool IsDiskDev()			const;
 	bool IsWholeDev()			const;
-	bool DevName(std::string &name)		const;
-	bool DevPath(std::string &path)		const;
-	bool PhysicalPath(std::string &path)	const;
+	virtual bool DevName(std::string &name)	const;
 
 protected:
-	/**
-	 * Determine if the given device name references a potential
-	 * disk device.
-	 *
-	 * \param devName  The device name to test.
-	 */
-	static bool IsDiskDev(const std::string &devName);
-
 	/**
 	 * Given the device name of a disk, determine if the device
 	 * represents the whole device, not just a partition.
@@ -331,6 +350,29 @@ protected:
 	DevfsEvent(Type, NVPairMap &, const std::string &);
 };
 
+/*--------------------------------- GeomEvent --------------------------------*/
+class GeomEvent : public Event
+{
+public:
+	/** Specialized Event object factory for GEOM events. */
+	static BuildMethod Builder;
+
+	virtual Event *DeepCopy()	const;
+
+	virtual bool DevName(std::string &name)	const;
+
+	const std::string &DeviceName()	const;
+
+protected:
+	/** Constructor */
+	GeomEvent(Type, NVPairMap &, const std::string &);
+
+	/** Deep copy constructor. */
+	GeomEvent(const GeomEvent &src);
+
+	std::string m_devname;
+};
+
 /*--------------------------------- ZfsEvent ---------------------------------*/
 class ZfsEvent : public Event
 {
@@ -339,6 +381,8 @@ public:
 	static BuildMethod Builder;
 
 	virtual Event *DeepCopy()	const;
+
+	virtual bool DevName(std::string &name)	const;
 
 	const std::string &PoolName()	const;
 	Guid		   PoolGUID()	const;

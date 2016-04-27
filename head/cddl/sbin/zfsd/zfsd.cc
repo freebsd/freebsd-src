@@ -99,6 +99,7 @@ bool		     ZfsDaemon::s_systemRescanRequested(false);
 EventFactory::Record ZfsDaemon::s_registryEntries[] =
 {
 	{ Event::NOTIFY, "DEVFS", &DevfsEvent::Builder },
+	{ Event::NOTIFY, "GEOM",  &GeomEvent::Builder },
 	{ Event::NOTIFY, "ZFS",   &ZfsEvent::Builder }
 };
 

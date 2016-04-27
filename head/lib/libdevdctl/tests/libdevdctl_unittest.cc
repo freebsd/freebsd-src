@@ -44,13 +44,21 @@ using namespace DevdCtl;
 using namespace std;
 using namespace testing;
 
-#define	NUM_ELEMENTS(x) (sizeof(x) / sizeof(*x))
+#define REGISTRY_SIZE 2
 
-class IsDiskDevTest : public TestWithParam<pair<bool, const char*> >{
+struct DevNameTestParams
+{
+	const char* evs;
+	bool is_disk;
+	const char* devname;
+};
+
+class DevNameTest : public TestWithParam<DevNameTestParams>{
 protected:
 	virtual void SetUp()
 	{
 		m_factory = new EventFactory();
+		m_factory->UpdateRegistry(s_registry, REGISTRY_SIZE);
 	}
 
 	virtual void TearDown()
@@ -61,53 +69,68 @@ protected:
 
 	EventFactory *m_factory;
 	Event *m_ev;
-	static EventFactory::Record s_registry[];
+	static EventFactory::Record s_registry[REGISTRY_SIZE];
 };
 
-DevdCtl::EventFactory::Record IsDiskDevTest::s_registry[] = {
-	{ Event::NOTIFY, "DEVFS", &DevfsEvent::Builder }
+DevdCtl::EventFactory::Record DevNameTest::s_registry[REGISTRY_SIZE] = {
+	{ Event::NOTIFY, "DEVFS", &DevfsEvent::Builder },
+	{ Event::NOTIFY, "GEOM", &GeomEvent::Builder }
 };
 
-TEST_P(IsDiskDevTest, TestIsDiskDev) {
-	pair<bool, const char*> param = GetParam();
-	DevfsEvent *devfs_ev;
-
-	m_factory->UpdateRegistry(s_registry, NUM_ELEMENTS(s_registry));
-	string evString(param.second);
+TEST_P(DevNameTest, TestDevname) {
+	std::string devname;
+	DevNameTestParams param = GetParam();
+	
+	string evString(param.evs);
 	m_ev = Event::CreateEvent(*m_factory, evString);
-	devfs_ev = dynamic_cast<DevfsEvent*>(m_ev);
-	ASSERT_NE(nullptr, devfs_ev);
-	EXPECT_EQ(param.first, devfs_ev->IsDiskDev());
+	m_ev->DevName(devname);
+	EXPECT_STREQ(param.devname, devname.c_str());
 }
 
-INSTANTIATE_TEST_CASE_P(IsDiskDevTestInstantiation, IsDiskDevTest, Values(
-	pair<bool, const char*>(true,
-		"!system=DEVFS subsystem=CDEV type=CREATE cdev=da6\n"),
-	pair<bool, const char*>(false,
-		"!system=DEVFS subsystem=CDEV type=CREATE cdev=cuau0\n"),
-	pair<bool, const char*>(true,
-		"!system=DEVFS subsystem=CDEV type=CREATE cdev=ada6\n"),
-	pair<bool, const char*>(true,
-		"!system=DEVFS subsystem=CDEV type=CREATE cdev=da6p1\n"),
-	pair<bool, const char*>(true,
-		"!system=DEVFS subsystem=CDEV type=CREATE cdev=ada6p1\n"),
-	pair<bool, const char*>(true,
-		"!system=DEVFS subsystem=CDEV type=CREATE cdev=da6s0p1\n"),
-	pair<bool, const char*>(true,
-		"!system=DEVFS subsystem=CDEV type=CREATE cdev=ada6s0p1\n"),
+TEST_P(DevNameTest, TestIsDiskDev) {
+	DevNameTestParams param = GetParam();
+
+	string evString(param.evs);
+	m_ev = Event::CreateEvent(*m_factory, evString);
+	EXPECT_EQ(param.is_disk, m_ev->IsDiskDev());
+}
+
+/* TODO: clean this up using C++-11 uniform initializers */
+INSTANTIATE_TEST_CASE_P(IsDiskDevTestInstantiation, DevNameTest, Values(
+	(DevNameTestParams){
+		.evs = "!system=DEVFS subsystem=CDEV type=CREATE cdev=da6\n",
+		.is_disk = true, .devname = "da6"},
+	(DevNameTestParams){.is_disk = false, .devname = "cuau0",
+		.evs = "!system=DEVFS subsystem=CDEV type=CREATE cdev=cuau0\n"},
+	(DevNameTestParams){.is_disk = true, .devname = "ada6",
+		.evs = "!system=DEVFS subsystem=CDEV type=CREATE cdev=ada6\n"},
+	(DevNameTestParams){.is_disk = true, .devname = "da6p1",
+		.evs = "!system=DEVFS subsystem=CDEV type=CREATE cdev=da6p1\n"},
+	(DevNameTestParams){.is_disk = true, .devname = "ada6p1",
+		.evs = "!system=DEVFS subsystem=CDEV type=CREATE cdev=ada6p1\n"},
+	(DevNameTestParams){.is_disk = true, .devname = "da6s0p1",
+		.evs = "!system=DEVFS subsystem=CDEV type=CREATE cdev=da6s0p1\n"},
+	(DevNameTestParams){.is_disk = true, .devname = "ada6s0p1",
+		.evs = "!system=DEVFS subsystem=CDEV type=CREATE cdev=ada6s0p1\n"},
 	/* 
 	 * Test physical path nodes.  These are currently all set to false since
 	 * physical path nodes are implemented with symlinks, and most CAM and
 	 * ZFS operations can't use symlinked device nodes
 	 */
 	/* A SpectraBSD-style physical path node*/
-	pair<bool, const char*>(false,
-		"!system=DEVFS subsystem=CDEV type=CREATE cdev=enc@50030480019f53fd/elmtype@array_device/slot@18/da\n"),
-	pair<bool, const char*>(false,
-		"!system=DEVFS subsystem=CDEV type=CREATE cdev=enc@50030480019f53fd/elmtype@array_device/slot@18/pass\n"),
+	(DevNameTestParams){.is_disk = false, .devname = "enc@50030480019f53fd/elmtype@array_device/slot@18/da",
+		.evs = "!system=DEVFS subsystem=CDEV type=CREATE cdev=enc@50030480019f53fd/elmtype@array_device/slot@18/da\n"},
+	(DevNameTestParams){.is_disk = false, .devname = "enc@50030480019f53fd/elmtype@array_device/slot@18/pass",
+		.evs = "!system=DEVFS subsystem=CDEV type=CREATE cdev=enc@50030480019f53fd/elmtype@array_device/slot@18/pass\n"},
 	/* A FreeBSD-style physical path node */
-	pair<bool, const char*>(true,
-		"!system=DEVFS subsystem=CDEV type=CREATE cdev=enc@n50030480019f53fd/type@0/slot@18/elmdesc@ArrayDevice18/da6\n"),
-	pair<bool, const char*>(false,
-		"!system=DEVFS subsystem=CDEV type=CREATE cdev=enc@n50030480019f53fd/type@0/slot@18/elmdesc@ArrayDevice18/pass6\n"));
+	(DevNameTestParams){.is_disk = true, .devname = "enc@n50030480019f53fd/type@0/slot@18/elmdesc@ArrayDevice18/da6",
+		.evs = "!system=DEVFS subsystem=CDEV type=CREATE cdev=enc@n50030480019f53fd/type@0/slot@18/elmdesc@ArrayDevice18/da6\n"},
+	(DevNameTestParams){.is_disk = false, .devname = "enc@n50030480019f53fd/type@0/slot@18/elmdesc@ArrayDevice18/pass6",
+		.evs = "!system=DEVFS subsystem=CDEV type=CREATE cdev=enc@n50030480019f53fd/type@0/slot@18/elmdesc@ArrayDevice18/pass6\n"},
+	
+	/*
+	 * Test some GEOM events
+	 */
+	(DevNameTestParams){.is_disk = true, .devname = "da5",
+		.evs = "!system=GEOM subsystem=disk type=GEOM::physpath devname=da5\n"})
 );

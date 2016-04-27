@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011, 2012, 2013 Spectra Logic Corporation
+ * Copyright (c) 2011, 2012, 2013, 2016 Spectra Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,9 @@ __FBSDID("$FreeBSD$");
 #define NUM_ELEMENTS(x) (sizeof(x) / sizeof(*x))
 
 /*============================ Namespace Control =============================*/
+using std::begin;
 using std::cout;
+using std::end;
 using std::endl;
 using std::string;
 using std::stringstream;
@@ -121,6 +123,50 @@ Event::CreateEvent(const EventFactory &factory, const string &eventString)
 		nvpairs["system"] = "none";
 
 	return (factory.Build(type, nvpairs, eventString));
+}
+
+bool
+Event::DevName(std::string &name) const
+{
+	return (false);
+}
+
+/* TODO: simplify this function with C++-11 <regex> methods */
+bool
+Event::IsDiskDev() const
+{
+	static const char *diskDevNames[] =
+	{
+		"da",
+		"ada"
+	};
+	const char **dName;
+	string devName;
+
+	if (! DevName(devName))
+		return false;
+
+	size_t find_start = devName.rfind('/');
+	if (find_start == string::npos) {
+		find_start = 0;
+	} else {
+		/* Just after the last '/'. */
+		find_start++;
+	}
+
+	for (dName = begin(diskDevNames); dName <= end(diskDevNames); dName++) {
+
+		size_t loc(devName.find(*dName, find_start));
+		if (loc == find_start) {
+			size_t prefixLen(strlen(*dName));
+
+			if (devName.length() - find_start >= prefixLen
+			 && isdigit(devName[find_start + prefixLen]))
+				return (true);
+		}
+	}
+
+	return (false);
 }
 
 const char *
@@ -228,6 +274,48 @@ Event::GetTimestamp() const
 	return (tv_timestamp);
 }
 
+bool
+Event::DevPath(std::string &path) const
+{
+	string devName;
+
+	if (!DevName(devName))
+		return (false);
+
+	string devPath(_PATH_DEV + devName);
+	int devFd(open(devPath.c_str(), O_RDONLY));
+	if (devFd == -1)
+		return (false);
+
+	/* Normalize the device name in case the DEVFS event is for a link. */
+	devName = fdevname(devFd);
+	path = _PATH_DEV + devName;
+
+	close(devFd);
+
+	return (true);
+}
+
+bool
+Event::PhysicalPath(std::string &path) const
+{
+	string devPath;
+
+	if (!DevPath(devPath))
+		return (false);
+
+	int devFd(open(devPath.c_str(), O_RDONLY));
+	if (devFd == -1)
+		return (false);
+	
+	char physPath[MAXPATHLEN];
+	physPath[0] = '\0';
+	bool result(ioctl(devFd, DIOCGPHYSPATH, physPath) == 0);
+	close(devFd);
+	if (result)
+		path = physPath;
+	return (result);
+}
 
 //- Event Protected Methods ----------------------------------------------------
 Event::Event(Type type, NVPairMap &map, const string &eventString)
@@ -366,41 +454,6 @@ DevfsEvent::Builder(Event::Type type, NVPairMap &nvPairs,
 
 //- DevfsEvent Static Protected Methods ----------------------------------------
 bool
-DevfsEvent::IsDiskDev(const string &devName)
-{
-	static const char *diskDevNames[] =
-	{
-		"da",
-		"ada"
-	};
-
-	const char **diskName(diskDevNames);
-	const char **lastDiskName(diskDevNames
-				+ NUM_ELEMENTS(diskDevNames) - 1);
-	size_t find_start = devName.rfind('/');
-	if (find_start == string::npos) {
-		find_start = 0;
-	} else {
-		/* Just after the last '/'. */
-		find_start++;
-	}
-
-	for (; diskName <= lastDiskName; diskName++) {
-
-		size_t loc(devName.find(*diskName, find_start));
-		if (loc == find_start) {
-			size_t prefixLen(strlen(*diskName));
-
-			if (devName.length() - find_start >= prefixLen
-			 && isdigit(devName[find_start + prefixLen]))
-				return (true);
-		}
-	}
-
-	return (false);
-}
-
-bool
 DevfsEvent::IsWholeDev(const string &devName)
 {
 	string::const_iterator i(devName.begin());
@@ -442,14 +495,6 @@ DevfsEvent::Process() const
 
 //- DevfsEvent Public Methods --------------------------------------------------
 bool
-DevfsEvent::IsDiskDev() const
-{
-	string devName;
-
-	return (DevName(devName) && IsDiskDev(devName));
-}
-
-bool
 DevfsEvent::IsWholeDev() const
 {
 	string devName;
@@ -467,49 +512,6 @@ DevfsEvent::DevName(std::string &name) const
 	return (!name.empty());
 }
 
-bool
-DevfsEvent::DevPath(std::string &path) const
-{
-	string devName;
-
-	if (!DevName(devName))
-		return (false);
-
-	string devPath(_PATH_DEV + devName);
-	int devFd(open(devPath.c_str(), O_RDONLY));
-	if (devFd == -1)
-		return (false);
-
-	/* Normalize the device name in case the DEVFS event is for a link. */
-	devName = fdevname(devFd);
-	path = _PATH_DEV + devName;
-
-	close(devFd);
-
-	return (true);
-}
-
-bool
-DevfsEvent::PhysicalPath(std::string &path) const
-{
-	string devPath;
-
-	if (!DevPath(devPath))
-		return (false);
-
-	int devFd(open(devPath.c_str(), O_RDONLY));
-	if (devFd == -1)
-		return (false);
-	
-	char physPath[MAXPATHLEN];
-	physPath[0] = '\0';
-	bool result(ioctl(devFd, DIOCGPHYSPATH, physPath) == 0);
-	close(devFd);
-	if (result)
-		path = physPath;
-	return (result);
-}
-
 //- DevfsEvent Protected Methods -----------------------------------------------
 DevfsEvent::DevfsEvent(Event::Type type, NVPairMap &nvpairs,
 		       const string &eventString)
@@ -519,6 +521,44 @@ DevfsEvent::DevfsEvent(Event::Type type, NVPairMap &nvpairs,
 
 DevfsEvent::DevfsEvent(const DevfsEvent &src)
  : Event(src)
+{
+}
+
+/*--------------------------------- GeomEvent --------------------------------*/
+//- GeomEvent Static Public Methods --------------------------------------------
+Event *
+GeomEvent::Builder(Event::Type type, NVPairMap &nvpairs,
+		   const string &eventString)
+{
+	return (new GeomEvent(type, nvpairs, eventString));
+}
+
+//- GeomEvent Virtual Public Methods -------------------------------------------
+Event *
+GeomEvent::DeepCopy() const
+{
+	return (new GeomEvent(*this));
+}
+
+bool
+GeomEvent::DevName(std::string &name) const
+{
+	name = Value("devname");
+	return (!name.empty());
+}
+
+
+//- GeomEvent Protected Methods ------------------------------------------------
+GeomEvent::GeomEvent(Event::Type type, NVPairMap &nvpairs,
+		     const string &eventString)
+ : Event(type, nvpairs, eventString),
+   m_devname(Value("devname"))
+{
+}
+
+GeomEvent::GeomEvent(const GeomEvent &src)
+ : Event(src),
+   m_devname(src.m_devname)
 {
 }
 
@@ -536,6 +576,12 @@ Event *
 ZfsEvent::DeepCopy() const
 {
 	return (new ZfsEvent(*this));
+}
+
+bool
+ZfsEvent::DevName(std::string &name) const
+{
+	return (false);
 }
 
 //- ZfsEvent Protected Methods -------------------------------------------------
