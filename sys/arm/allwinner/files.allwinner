@@ -10,6 +10,7 @@ arm/allwinner/aw_usbphy.c		optional	ehci
 arm/allwinner/a10_gpio.c		optional	gpio
 arm/allwinner/a10_mmc.c			optional	mmc
 arm/allwinner/a10_sramc.c		standard
+arm/allwinner/aw_nmi.c			optional	intrng
 arm/allwinner/aw_if_dwc.c		optional	dwc
 arm/allwinner/aw_rtc.c			standard
 arm/allwinner/aw_wdog.c			standard
