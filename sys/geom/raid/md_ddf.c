@@ -257,7 +257,7 @@ g_raid_md_ddf_print(struct ddf_meta *meta)
 	printf("BBM Log              %u:%u\n", GET32(meta, hdr->bbmlog_section), GET32(meta, hdr->bbmlog_length));
 	printf("Diagnostic Space     %u:%u\n", GET32(meta, hdr->Diagnostic_Space), GET32(meta, hdr->Diagnostic_Space_Length));
 	printf("Vendor_Specific_Logs %u:%u\n", GET32(meta, hdr->Vendor_Specific_Logs), GET32(meta, hdr->Vendor_Specific_Logs_Length));
-	printf("**** Controler Data ****\n");
+	printf("**** Controller Data ****\n");
 	printf("Controller_GUID      ");
 	print_guid(meta->cdr->Controller_GUID);
 	printf("\n");
