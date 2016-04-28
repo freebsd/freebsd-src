@@ -58,6 +58,7 @@ static int	hw_clflush_disable = -1;
 static void
 init_amd(void)
 {
+	uint64_t msr;
 
 	/*
 	 * Work around Erratum 721 for Family 10h and 12h processors.
