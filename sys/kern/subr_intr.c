@@ -596,6 +596,27 @@ intr_fdt_map_irq(phandle_t node, pcell_t *cells, u_int ncells)
 }
 #endif
 
+/*
+ *  Store GPIO interrupt decription in framework and return unique interrupt
+ *  number (resource handle) associated with it.
+ */
+u_int
+intr_gpio_map_irq(device_t dev, u_int pin_num, u_int pin_flags, u_int intr_mode)
+{
+	struct intr_dev_data *ddata;
+
+	ddata = intr_ddata_alloc(0);
+	if (ddata == NULL)
+		return (0xFFFFFFFF);	/* no space left */
+
+	ddata->idd_dev = dev;
+	ddata->idd_data.type = INTR_MAP_DATA_GPIO;
+	ddata->idd_data.gpio.gpio_pin_num = pin_num;
+	ddata->idd_data.gpio.gpio_pin_flags = pin_flags;
+	ddata->idd_data.gpio.gpio_intr_mode = intr_mode;
+	return (ddata->idd_irq);
+}
+
 #ifdef INTR_SOLO
 /*
  *  Setup filter into interrupt source.
