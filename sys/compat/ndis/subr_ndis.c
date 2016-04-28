@@ -2670,7 +2670,7 @@ ndis_find_sym(lf, filename, suffix, sym)
 {
 	char			*fullsym;
 	char			*suf;
-	size_t			i;
+	u_int			i;
 
 	fullsym = ExAllocatePoolWithTag(NonPagedPool, MAXPATHLEN, 0);
 	if (fullsym == NULL)
