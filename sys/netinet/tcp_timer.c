@@ -927,7 +927,6 @@ void
 tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 {
 	struct callout *t_callout;
-	timeout_t *f_callout;
 	uint32_t f_reset;
 
 	tp->t_timers->tt_flags |= TT_STOPPED;
@@ -935,27 +934,22 @@ tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 	switch (timer_type) {
 		case TT_DELACK:
 			t_callout = &tp->t_timers->tt_delack;
-			f_callout = tcp_timer_delack_discard;
 			f_reset = TT_DELACK_RST;
 			break;
 		case TT_REXMT:
 			t_callout = &tp->t_timers->tt_rexmt;
-			f_callout = tcp_timer_rexmt_discard;
 			f_reset = TT_REXMT_RST;
 			break;
 		case TT_PERSIST:
 			t_callout = &tp->t_timers->tt_persist;
-			f_callout = tcp_timer_persist_discard;
 			f_reset = TT_PERSIST_RST;
 			break;
 		case TT_KEEP:
 			t_callout = &tp->t_timers->tt_keep;
-			f_callout = tcp_timer_keep_discard;
 			f_reset = TT_KEEP_RST;
 			break;
 		case TT_2MSL:
 			t_callout = &tp->t_timers->tt_2msl;
-			f_callout = tcp_timer_2msl_discard;
 			f_reset = TT_2MSL_RST;
 			break;
 		default:
@@ -971,21 +965,13 @@ tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 		}
 
 	if (tp->t_timers->tt_flags & timer_type) {
-		if ((callout_stop(t_callout) > 0) &&
-		    (tp->t_timers->tt_flags & f_reset)) {
-			tp->t_timers->tt_flags &= ~(timer_type | f_reset);
-		} else {
+		if (callout_async_drain(t_callout, tcp_timer_discard) == 0) {
 			/*
 			 * Can't stop the callout, defer tcpcb actual deletion
-			 * to the last tcp timer discard callout.
-			 * The TT_STOPPED flag will ensure that no tcp timer
-			 * callouts can be restarted on our behalf, and
-			 * past this point currently running callouts waiting
-			 * on inp lock will return right away after the
-			 * classical check for callout reset/stop events:
-			 * callout_pending() || !callout_active()
+			 * to the last one. We do this using the async drain
+			 * function and incrementing the count in 
 			 */
-			callout_reset(t_callout, 1, f_callout, tp);
+			tp->t_timers->tt_draincnt++;
 		}
 	}
 }
