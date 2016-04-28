@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 28, 2003
+.Dd April 28, 2016
 .Dt BUS_ACTIVATE_RESOURCE 9
 .Os
 .Sh NAME
@@ -65,6 +65,8 @@ The type of resource you want to allocate.
 It is one of:
 .Pp
 .Bl -tag -width ".Dv SYS_RES_MEMORY" -compact
+.It Dv PCI_RES_BUS
+for PCI bus numbers
 .It Dv SYS_RES_IRQ
 for IRQs
 .It Dv SYS_RES_DRQ
