@@ -471,7 +471,6 @@ jail_start()
 			if _jid=$($jail_jls -j $_j jid); then
 				echo "$_jid" > /var/run/jail_${_j}.id
 			else
-				rm -f /var/run/jail_${_j}.id
 				echo " cannot start jail " \
 				    "\"${_hostname:-${_j}}\": "
 			fi
@@ -495,7 +494,6 @@ jail_start()
 				_jid=$($jail_jls -j $_j jid)
 				echo $_jid > /var/run/jail_${_j}.id
 			else
-				rm -f /var/run/jail_${_j}.id
 				echo " cannot start jail " \
 				    "\"${_hostname:-${_j}}\": "
 				cat $_tmp
