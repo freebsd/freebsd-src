@@ -5505,7 +5505,7 @@ scsi_calc_syncsrate(u_int period_factor)
 }
 
 /*
- * Return the SCSI sync parameter that corresponsd to
+ * Return the SCSI sync parameter that corresponds to
  * the passed in period in 10ths of ns.
  */
 u_int
@@ -5956,7 +5956,7 @@ scsi_parse_transportid_64bit(int proto_id, char *id_str,
 		break;
 	default:
 		if (error_str != NULL) {
-			snprintf(error_str, error_str_len, "%s: unsupoprted "
+			snprintf(error_str, error_str_len, "%s: unsupported "
 				 "protocol %d", __func__, proto_id);
 		}
 		retval = 1;
