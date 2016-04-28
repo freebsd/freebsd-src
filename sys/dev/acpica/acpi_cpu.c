@@ -429,7 +429,8 @@ acpi_cpu_postattach(void *unused __unused)
     }
     attached = 0;
     for (i = 0; i < n; i++)
-	if (device_is_attached(devices[i]))
+	if (device_is_attached(devices[i]) &&
+	    device_get_driver(devices[i]) == &acpi_cpu_driver)
 	    attached = 1;
     for (i = 0; i < n; i++)
 	bus_generic_probe(devices[i]);
