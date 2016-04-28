@@ -90,7 +90,7 @@ gpio_alloc_intr_resource(device_t consumer_dev, int *rid, u_int alloc_flags,
 	 * into it.
 	 */
 	irqnum = intr_gpio_map_irq(pin->dev, pin->pin, pin->flags, intr_mode);
-	if (irqnum == 0xFFFFFFFF)
+	if (irqnum == INTR_IRQ_INVALID)
 		return (NULL);
 
 	return (bus_alloc_resource(consumer_dev, SYS_RES_IRQ, rid,
