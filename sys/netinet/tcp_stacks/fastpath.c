@@ -2386,7 +2386,6 @@ struct tcp_function_block __tcp_fastslow = {
 	NULL,
 	NULL,
 	NULL,
-	NULL,
 	0,
 	0
 
@@ -2397,7 +2396,6 @@ struct tcp_function_block __tcp_fastack = {
 	tcp_output,
 	tcp_do_segment_fastack,
 	tcp_default_ctloutput,
-	NULL,
 	NULL,
 	NULL,
 	NULL,
