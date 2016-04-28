@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <vis.h>
 
 #include "jailp.h"
 
@@ -445,8 +446,14 @@ run_command(struct cfjail *j)
 		strcpy(comcs, comstring->s);
 		argc = 0;
 		for (cs = strtok(comcs, " \t\f\v\r\n"); cs && argc < 4;
-		     cs = strtok(NULL, " \t\f\v\r\n"))
+		     cs = strtok(NULL, " \t\f\v\r\n")) {
+			if (argc <= 1 && strunvis(cs, cs) < 0) {
+				jail_warnx(j, "%s: %s: fstab parse error",
+				    j->intparams[comparam]->name, comstring->s);
+				return -1;
+			}
 			argv[argc++] = cs;
+		}
 		if (argc == 0)
 			return 0;
 		if (argc < 3) {
