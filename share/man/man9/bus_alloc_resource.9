@@ -95,6 +95,8 @@ Before allocation, the resource is owned by the parent bus.
 is the type of resource you want to allocate.
 It is one of:
 .Bl -tag -width SYS_RES_MEMORY
+.It Dv PCI_RES_BUS
+for PCI bus numbers
 .It Dv SYS_RES_IRQ
 for IRQs
 .It Dv SYS_RES_DRQ
@@ -111,7 +113,7 @@ For ISA this is an index into an array of resources that have been setup
 for this device by either the PnP mechanism, or via the hints mechanism.
 For PCCARD, this is an index into the array of resources described by the PC Card's
 CIS entry.
-For PCI, the offset into pci config space which has the BAR to use to access
+For PCI, the offset into PCI config space which has the BAR to use to access
 the resource.
 The bus methods are free to change the RIDs that they are given as a parameter.
 You must not depend on the value you gave it earlier.
