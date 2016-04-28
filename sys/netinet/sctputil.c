@@ -6945,7 +6945,7 @@ sctp_over_udp_start(void)
 	}
 	/* Call the special UDP hook. */
 	if ((ret = udp_set_kernel_tunneling(SCTP_BASE_INFO(udp4_tun_socket),
-	    sctp_recv_udp_tunneled_packet, NULL))) {
+	    sctp_recv_udp_tunneled_packet, NULL, NULL))) {
 		sctp_over_udp_stop();
 		return (ret);
 	}
@@ -6969,7 +6969,7 @@ sctp_over_udp_start(void)
 	}
 	/* Call the special UDP hook. */
 	if ((ret = udp_set_kernel_tunneling(SCTP_BASE_INFO(udp6_tun_socket),
-	    sctp_recv_udp_tunneled_packet, NULL))) {
+	    sctp_recv_udp_tunneled_packet, NULL, NULL))) {
 		sctp_over_udp_stop();
 		return (ret);
 	}
