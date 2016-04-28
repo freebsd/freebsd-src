@@ -32,6 +32,8 @@
 
 #include <sys/systm.h>
 
+#define	INTR_IRQ_INVALID	0xFFFFFFFF
+
 enum intr_map_data_type {
 	INTR_MAP_DATA_ACPI,
 	INTR_MAP_DATA_FDT,
