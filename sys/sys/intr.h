@@ -35,6 +35,7 @@
 enum intr_map_data_type {
 	INTR_MAP_DATA_ACPI,
 	INTR_MAP_DATA_FDT,
+	INTR_MAP_DATA_GPIO,
 };
 
 #ifdef DEV_ACPI
@@ -51,6 +52,12 @@ struct intr_map_data_fdt {
 };
 #endif
 
+struct intr_map_data_gpio {
+	u_int			gpio_pin_num;
+	u_int			gpio_pin_flags;
+	u_int		 	gpio_intr_mode;
+};
+
 struct intr_map_data {
 	enum intr_map_data_type	type;
 	union {
@@ -60,6 +67,7 @@ struct intr_map_data {
 #ifdef FDT
 		struct intr_map_data_fdt	fdt;
 #endif
+		struct intr_map_data_gpio	gpio;
 	};
 };
 
@@ -130,6 +138,8 @@ u_int intr_acpi_map_irq(device_t, u_int, enum intr_polarity,
 #ifdef FDT
 u_int intr_fdt_map_irq(phandle_t, pcell_t *, u_int);
 #endif
+u_int intr_gpio_map_irq(device_t dev, u_int pin_num, u_int pin_flags,
+    u_int intr_mode);
 
 #ifdef SMP
 int intr_bind_irq(device_t, struct resource *, int);

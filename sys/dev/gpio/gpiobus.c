@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/gpio.h>
+#include <sys/intr.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -71,6 +72,31 @@ static int gpiobus_pin_getcaps(device_t, device_t, uint32_t, uint32_t*);
 static int gpiobus_pin_set(device_t, device_t, uint32_t, unsigned int);
 static int gpiobus_pin_get(device_t, device_t, uint32_t, unsigned int*);
 static int gpiobus_pin_toggle(device_t, device_t, uint32_t);
+
+/*
+ * XXX -> Move me to better place - gpio_subr.c?
+ * Also, this function must be changed when interrupt configuration
+ * data will be moved into struct resource.
+ */
+#ifdef INTRNG
+struct resource *
+gpio_alloc_intr_resource(device_t consumer_dev, int *rid, u_int alloc_flags,
+    gpio_pin_t pin, uint32_t intr_mode)
+{
+	u_int irqnum;
+
+	/*
+	 * Allocate new fictitious interrupt number and store configuration
+	 * into it.
+	 */
+	irqnum = intr_gpio_map_irq(pin->dev, pin->pin, pin->flags, intr_mode);
+	if (irqnum == 0xFFFFFFFF)
+		return (NULL);
+
+	return (bus_alloc_resource(consumer_dev, SYS_RES_IRQ, rid,
+	    irqnum, irqnum, 1, alloc_flags));
+}
+#endif
 
 int
 gpio_check_flags(uint32_t caps, uint32_t flags)
