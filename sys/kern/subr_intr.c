@@ -109,8 +109,6 @@ static struct mtx isrc_table_lock;
 static struct intr_irqsrc *irq_sources[NIRQ];
 u_int irq_next_free;
 
-#define IRQ_INVALID	nitems(irq_sources)
-
 /*
  *  XXX - All stuff around struct intr_dev_data is considered as temporary
  *  until better place for storing struct intr_map_data will be find.
@@ -138,7 +136,7 @@ static struct intr_dev_data *intr_ddata_tab[2 * NIRQ];
 static u_int intr_ddata_first_unused;
 
 #define IRQ_DDATA_BASE	10000
-CTASSERT(IRQ_DDATA_BASE > IRQ_INVALID);
+CTASSERT(IRQ_DDATA_BASE > nitems(irq_sources));
 
 #ifdef SMP
 static boolean_t irq_assign_cpu = FALSE;
@@ -399,7 +397,7 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 		return (EINVAL);
 
 	irq_sources[isrc->isrc_irq] = NULL;
-	isrc->isrc_irq = IRQ_INVALID;	/* just to be safe */
+	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
 	return (0);
 }
 
@@ -427,7 +425,7 @@ intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
 
 	bzero(isrc, sizeof(struct intr_irqsrc));
 	isrc->isrc_dev = dev;
-	isrc->isrc_irq = IRQ_INVALID;	/* just to be safe */
+	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
 	isrc->isrc_flags = flags;
 
 	va_start(ap, fmt);
@@ -560,7 +558,7 @@ intr_acpi_map_irq(device_t dev, u_int irq, enum intr_polarity pol,
 
 	ddata = intr_ddata_alloc(0);
 	if (ddata == NULL)
-		return (0xFFFFFFFF);	/* no space left */
+		return (INTR_IRQ_INVALID);	/* no space left */
 
 	ddata->idd_dev = dev;
 	ddata->idd_data.type = INTR_MAP_DATA_ACPI;
@@ -585,7 +583,7 @@ intr_fdt_map_irq(phandle_t node, pcell_t *cells, u_int ncells)
 	cellsize = ncells * sizeof(*cells);
 	ddata = intr_ddata_alloc(cellsize);
 	if (ddata == NULL)
-		return (0xFFFFFFFF);	/* no space left */
+		return (INTR_IRQ_INVALID);	/* no space left */
 
 	ddata->idd_xref = (intptr_t)node;
 	ddata->idd_data.type = INTR_MAP_DATA_FDT;
@@ -607,7 +605,7 @@ intr_gpio_map_irq(device_t dev, u_int pin_num, u_int pin_flags, u_int intr_mode)
 
 	ddata = intr_ddata_alloc(0);
 	if (ddata == NULL)
-		return (0xFFFFFFFF);	/* no space left */
+		return (INTR_IRQ_INVALID);	/* no space left */
 
 	ddata->idd_dev = dev;
 	ddata->idd_data.type = INTR_MAP_DATA_GPIO;
