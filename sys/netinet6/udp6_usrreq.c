@@ -553,6 +553,29 @@ udp6_common_ctlinput(int cmd, struct sockaddr *sa, void *d,
 		bzero(&uh, sizeof(uh));
 		m_copydata(m, off, sizeof(*uhp), (caddr_t)&uh);
 
+		if (!PRC_IS_REDIRECT(cmd)) {
+			/* Check to see if its tunneled */
+			struct inpcb *inp;
+			inp = in6_pcblookup_mbuf(pcbinfo, &ip6->ip6_src,
+			    uh.uh_sport, &ip6->ip6_dst, uh.uh_dport,
+			    INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB,
+			    m->m_pkthdr.rcvif, m);
+			if (inp != NULL) {
+				struct udpcb *up;
+				
+				up = intoudpcb(inp);
+				if (up->u_icmp_func) {
+					/* Yes it is. */
+					INP_RUNLOCK(inp);	
+					(*up->u_icmp_func)(cmd, (struct sockaddr *)ip6cp->ip6c_src,
+					      d, up->u_tun_ctx);
+					return;
+				} else {
+					/* Can't find it. */
+					INP_RUNLOCK(inp);
+				}
+			}
+		}
 		(void)in6_pcbnotify(pcbinfo, sa, uh.uh_dport,
 		    (struct sockaddr *)ip6cp->ip6c_src, uh.uh_sport, cmd,
 		    cmdarg, notify);
