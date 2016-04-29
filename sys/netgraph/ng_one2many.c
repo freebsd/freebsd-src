@@ -44,7 +44,7 @@
  * ng_one2many(4) netgraph node type
  *
  * Packets received on the "one" hook are sent out each of the
- * "many" hooks accoring to an algorithm. Packets received on any
+ * "many" hooks according to an algorithm. Packets received on any
  * "many" hook are always delivered to the "one" hook.
  */
 
