@@ -512,7 +512,7 @@ soaio_kproc_create(void *context, int pending)
 	mtx_unlock(&soaio_jobs_lock);
 }
 
-static void
+void
 soaio_enqueue(struct task *task)
 {
 
