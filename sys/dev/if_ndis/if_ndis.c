@@ -725,7 +725,7 @@ ndis_80211attach(struct ndis_softc *sc)
 	struct ndis_80211_nettype_list *ntl;
 	uint32_t		arg;
 	int			mode, i, r, len, nonettypes = 1;
-	uint8_t			bands[howmany(IEEE80211_MODE_MAX, 8)] = { 0 };
+	uint8_t			bands[IEEE80211_MODE_BYTES] = { 0 };
 
 	callout_init(&sc->ndis_scan_callout, 1);
 

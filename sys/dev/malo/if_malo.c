@@ -174,7 +174,7 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	struct ieee80211com *ic = &sc->malo_ic;
 	struct malo_hal *mh;
 	int error;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t bands[IEEE80211_MODE_BYTES];
 
 	MALO_LOCK_INIT(sc);
 	callout_init_mtx(&sc->malo_watchdog_timer, &sc->malo_mtx, 0);
