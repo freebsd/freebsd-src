@@ -356,7 +356,7 @@ bwi_attach(struct bwi_softc *sc)
 	device_t dev = sc->sc_dev;
 	struct bwi_mac *mac;
 	struct bwi_phy *phy;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t bands[IEEE80211_MODE_BYTES];
 	int i, error;
 
 	BWI_LOCK_INIT(sc);
