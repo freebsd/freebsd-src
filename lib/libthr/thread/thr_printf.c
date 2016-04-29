@@ -53,12 +53,14 @@ _thread_printf(int fd, const char *fmt, ...)
 {
 	static const char digits[16] = "0123456789abcdef";
 	va_list	 ap;
-	char buf[20];
+	/* XXX_AR: we should print capabilities not vaddr_t -> increase size */
+	char buf[40];
 	char *s;
-	unsigned long r, u;
+	uint64_t r, u;
 	int c;
-	long d;
+	int64_t d;
 	int islong;
+	int isptr = 0;
 
 	va_start(ap, fmt);
 	while ((c = *fmt++)) {
@@ -78,7 +80,7 @@ next:			c = *fmt++;
 				islong = 1;
 				goto next;
 			case 'p':
-				islong = 1;
+				isptr = 1;
 			case 'd':
 			case 'u':
 			case 'x':
@@ -90,11 +92,13 @@ next:			c = *fmt++;
 						d = va_arg(ap, unsigned);
 					if (d < 0) {
 						pchar(fd, '-');
-						u = (unsigned long)(d * -1);
+						u = (uintptr_t)(d * -1);
 					} else
-						u = (unsigned long)d;
+						u = (uintptr_t)d;
 				} else {
-					if (islong)
+					if (isptr)
+						u = (vaddr_t)(uintptr_t)va_arg(ap, void*);
+					else if (islong)
 						u = va_arg(ap, unsigned long);
 					else
 						u = va_arg(ap, unsigned);

@@ -155,9 +155,10 @@ _thread_cleanupspecific(void)
 	    pthread_specific_elem));
 	curthread->specific = NULL;
 	if (curthread->specific_data_count > 0) {
-		stderr_debug("Thread %p has exited with leftover "
+		/* XXX-AR: fix %p in __CHERI_PURE_CAPABILITY__ mode */
+		stderr_debug("Thread %lx has exited with leftover "
 		    "thread-specific data after %d destructor iterations\n",
-		    curthread, PTHREAD_DESTRUCTOR_ITERATIONS);
+		    (vaddr_t)curthread, PTHREAD_DESTRUCTOR_ITERATIONS);
 	}
 }
 
