@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2016
+.Dd April 29, 2016
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3511,6 +3511,12 @@ to not run
 at boot time when
 .Va dumpdir
 is set.
+.It Va savecore_enable
+.Pq Vt bool
+If set to
+.Dq Li NO ,
+disable automatic extraction of the crash dump from the
+.Va dumpdev .
 .It Va savecore_flags
 .Pq Vt str
 If crash dumps are enabled, these are the flags to pass to the
