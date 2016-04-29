@@ -13,7 +13,6 @@ SUBDIR= ${_binutils} \
 	grep \
 	${_groff} \
 	${_rcs} \
-	sdiff \
 	${_tests}
 
 SUBDIR_DEPEND_gdb= ${_binutils}
