@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  */
 /* Functions to encode or decode struct sun_disklabel into a bytestream
- * of correct endianess and packing.
+ * of correct endianness and packing.
  *
  * NB!  This file must be usable both in kernel and userland.
  */

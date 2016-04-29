@@ -201,7 +201,7 @@ METHOD int setunset {
 };
 
 # type() - return a string representation of the partition type.
-# Preferrably, the alias names.
+# Preferably, the alias names.
 METHOD const char * type {
         struct g_part_table *table;
         struct g_part_entry *entry;

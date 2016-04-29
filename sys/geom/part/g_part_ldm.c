@@ -1220,7 +1220,7 @@ ldm_gpt_probe(struct g_part_table *basetable, struct g_consumer *cp)
 	int error;
 
 	/*
-	 * XXX: We use some knowlege about GEOM_PART_GPT internal
+	 * XXX: We use some knowledge about GEOM_PART_GPT internal
 	 * structures, but it is easier than parse GPT by himself.
 	 */
 	g_topology_lock();

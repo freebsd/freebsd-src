@@ -520,7 +520,7 @@ g_journal_write_header(struct g_journal_softc *sc)
 /*
  * Every journal record has a header and data following it.
  * Functions below are used to decode the header before storing it to
- * little endian and to encode it after reading to system endianess.
+ * little endian and to encode it after reading to system endianness.
  */
 static void
 g_journal_record_header_encode(struct g_journal_record_header *hdr,
@@ -581,7 +581,7 @@ g_journal_record_header_decode(const u_char *data,
 
 /*
  * Function reads metadata from a provider (via the given consumer), decodes
- * it to system endianess and verifies its correctness.
+ * it to system endianness and verifies its correctness.
  */
 static int
 g_journal_metadata_read(struct g_consumer *cp, struct g_journal_metadata *md)
@@ -1846,7 +1846,7 @@ g_journal_sync(struct g_journal_softc *sc)
 	for (;;) {
 		/*
 		 * If the biggest record won't fit, look for a record header or
-		 * journal header from the begining.
+		 * journal header from the beginning.
 		 */
 		GJ_VALIDATE_OFFSET(offset, sc);
 		error = g_journal_sync_read(cp, bp, offset, buf);

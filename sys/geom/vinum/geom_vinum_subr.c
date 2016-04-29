@@ -72,7 +72,7 @@ gv_parse_config(struct gv_softc *sc, char *buf, struct gv_drive *d)
 		bptr = aptr;
 		cptr = aptr;
 
-		/* Seperate input lines. */
+		/* Separate input lines. */
 		while (*bptr != '\n')
 			bptr++;
 		*bptr = '\0';
