@@ -1231,7 +1231,7 @@ ffs_dirpref(pip)
 	 * backwards or even to alternate looking forward and backward,
 	 * this approach fails badly when the filesystem is nearly full.
 	 * Specifically, we first search all the areas that have no space
-	 * and finally try the one preceeding that. We repeat this on
+	 * and finally try the one preceding that. We repeat this on
 	 * every request and in the case of the final block end up
 	 * searching the entire filesystem. By jumping to the front
 	 * of the filesystem, our future forward searches always look
@@ -1351,7 +1351,7 @@ ffs_blkpref_ufs1(ip, lbn, indx, bap)
 	/*
 	 * If we are at the beginning of a file, or we have already allocated
 	 * the maximum number of blocks per cylinder group, or we do not
-	 * have a block allocated immediately preceeding us, then we need
+	 * have a block allocated immediately preceding us, then we need
 	 * to decide where to start allocating new blocks.
 	 */
 	if (indx % fs->fs_maxbpg == 0 || bap[indx - 1] == 0) {
@@ -1456,7 +1456,7 @@ ffs_blkpref_ufs2(ip, lbn, indx, bap)
 	/*
 	 * If we are at the beginning of a file, or we have already allocated
 	 * the maximum number of blocks per cylinder group, or we do not
-	 * have a block allocated immediately preceeding us, then we need
+	 * have a block allocated immediately preceding us, then we need
 	 * to decide where to start allocating new blocks.
 	 */
 	if (indx % fs->fs_maxbpg == 0 || bap[indx - 1] == 0) {
