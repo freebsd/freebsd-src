@@ -466,7 +466,7 @@ copyout_map(struct thread *td, vm_offset_t *addr, size_t sz)
 	*addr = round_page((vm_offset_t)vms->vm_daddr +
 	    lim_max(td, RLIMIT_DATA));
 
-	/* round size up to page boundry */
+	/* round size up to page boundary */
 	size = (vm_size_t)round_page(sz);
 
 	error = vm_mmap(&vms->vm_map, addr, size, VM_PROT_READ | VM_PROT_WRITE,
