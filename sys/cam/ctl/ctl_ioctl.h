@@ -313,7 +313,7 @@ typedef enum {
  *
  * namelen:	Length of the name field, including the terminating NUL.
  *
- * name:	Name of the paramter.  This must be NUL-terminated.
+ * name:	Name of the parameter.  This must be NUL-terminated.
  *
  * flags:	Flags for the parameter, see above for values.
  *
@@ -485,7 +485,7 @@ struct ctl_lun_req {
  * NEED_MORE_SPACE:	The allocated length of the entries field is too
  * 			small for the available data.
  *
- * ERROR:		An error occured, look at the error string for a
+ * ERROR:		An error occurred, look at the error string for a
  *			description of the error.
  */
 typedef enum {
@@ -573,7 +573,7 @@ struct ctl_req {
  *
  * OK:			Request completed successfully.
  *
- * ERROR:		An error occured, look at the error string for a
+ * ERROR:		An error occurred, look at the error string for a
  *			description of the error.
  *
  * CTL_ISCSI_LIST_NEED_MORE_SPACE:
