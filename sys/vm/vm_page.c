@@ -1283,7 +1283,7 @@ vm_page_next(vm_page_t m)
 {
 	vm_page_t next;
 
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	VM_OBJECT_ASSERT_LOCKED(m->object);
 	if ((next = TAILQ_NEXT(m, listq)) != NULL &&
 	    next->pindex != m->pindex + 1)
 		next = NULL;
@@ -1301,7 +1301,7 @@ vm_page_prev(vm_page_t m)
 {
 	vm_page_t prev;
 
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	VM_OBJECT_ASSERT_LOCKED(m->object);
 	if ((prev = TAILQ_PREV(m, pglist, listq)) != NULL &&
 	    prev->pindex != m->pindex - 1)
 		prev = NULL;
