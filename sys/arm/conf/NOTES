@@ -82,9 +82,7 @@ nodevice	star_saver
 nodevice	warp_saver
 
 nodevice	cxgbe
-nodevice	pcii
 nodevice	snd_cmi
-nodevice	tnt4882
 
 #
 # Enable the kernel DTrace hooks which are required to load the DTrace
