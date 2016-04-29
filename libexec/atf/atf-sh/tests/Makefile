@@ -2,8 +2,9 @@
 
 .include <bsd.init.mk>
 
+FILESGROUPS=	FILES
 PACKAGE=	tests
-FILESGROUPS=	TESTS
+FILESGROUPS+=	TESTS
 TESTSPACKAGE=	${PACKAGE}
 TESTS+=		Kyuafile
 
