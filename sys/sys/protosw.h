@@ -34,6 +34,7 @@
 #define _SYS_PROTOSW_H_
 
 /* Forward declare these structures referenced from prototypes below. */
+struct kaiocb;
 struct mbuf;
 struct thread;
 struct sockaddr;
@@ -228,12 +229,14 @@ struct pr_usrreqs {
 		    struct thread *td);
 	int	(*pru_connectat)(int fd, struct socket *so,
 		    struct sockaddr *nam, struct thread *td);
+	int	(*pru_aio_queue)(struct socket *so, struct kaiocb *job);
 };
 
 /*
  * All nonvoid pru_*() functions below return EOPNOTSUPP.
  */
 int	pru_accept_notsupp(struct socket *so, struct sockaddr **nam);
+int	pru_aio_queue_notsupp(struct socket *so, struct kaiocb *job);
 int	pru_attach_notsupp(struct socket *so, int proto, struct thread *td);
 int	pru_bind_notsupp(struct socket *so, struct sockaddr *nam,
 	    struct thread *td);
