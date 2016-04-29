@@ -237,6 +237,7 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 	 * It's a global flag, not a per-try flag, so we clear
 	 * it if any of the rate entries aren't 11n.
 	 */
+	do_ldpc = 0;
 	if ((ni->ni_vap->iv_htcaps & IEEE80211_HTCAP_LDPC) &&
 	    (ni->ni_htcap & IEEE80211_HTCAP_LDPC))
 		do_ldpc = 1;
