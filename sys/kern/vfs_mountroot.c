@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
  *
  * If the environment variable vfs.root.mountfrom is a space separated list,
  * each list element is tried in turn and the root filesystem will be mounted
- * from the first one that suceeds.
+ * from the first one that succeeds.
  *
  * The environment variable vfs.root.mountfrom.options is a comma delimited
  * set of string mount options.  These mount options must be parseable

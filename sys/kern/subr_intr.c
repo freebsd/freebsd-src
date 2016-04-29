@@ -705,7 +705,7 @@ intr_isrc_assign_cpu(void *arg, int cpu)
 	 * In NOCPU case, it's up to PIC to either leave ISRC on same CPU or
 	 * re-balance it to another CPU or enable it on more CPUs. However,
 	 * PIC is expected to change isrc_cpu appropriately to keep us well
-	 * informed if the call is successfull.
+	 * informed if the call is successful.
 	 */
 	if (irq_assign_cpu) {
 		error = PIC_BIND_INTR(isrc->isrc_dev, isrc);
@@ -1032,7 +1032,7 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 
 #ifdef INTR_SOLO
 	/*
-	 * Standard handling is done thru MI interrupt framework. However,
+	 * Standard handling is done through MI interrupt framework. However,
 	 * some interrupts could request solely own special handling. This
 	 * non standard handling can be used for interrupt controllers without
 	 * handler (filter only), so in case that interrupt controllers are
