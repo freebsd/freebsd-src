@@ -58,7 +58,7 @@ FEATURE(geom_part_bsd64, "GEOM partitioning class for 64-bit BSD disklabels");
 struct disklabel64 {
 	char	  d_reserved0[512];	/* reserved or unused */
 	u_int32_t d_magic;		/* the magic number */
-	u_int32_t d_crc;		/* crc32() d_magic thru last part */
+	u_int32_t d_crc;		/* crc32() d_magic through last part */
 	u_int32_t d_align;		/* partition alignment requirement */
 	u_int32_t d_npartitions;	/* number of partitions */
 	struct uuid d_stor_uuid;	/* unique uuid for label */
