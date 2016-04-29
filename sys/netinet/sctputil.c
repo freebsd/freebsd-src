@@ -6972,8 +6972,8 @@ sctp_recv_icmp_tunneled_packet(int cmd, struct sockaddr *sa, void *vip, void *ct
 		}
 		type = icmp->icmp_type;
 		code = icmp->icmp_code;
-		if ((type = ICMP_UNREACH) &&
-		    (code = ICMP_UNREACH_PORT)) {
+		if ((type == ICMP_UNREACH) &&
+		    (code == ICMP_UNREACH_PORT)) {
 			code = ICMP_UNREACH_PROTOCOL;
 		}
 		sctp_notify(inp, stcb, net, type, code,
