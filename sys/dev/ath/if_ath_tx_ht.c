@@ -227,6 +227,20 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 	struct ath_rc_series *rc = bf->bf_state.bfs_rc;
 	uint8_t rate;
 	int i;
+	int do_ldpc;
+	int do_stbc;
+
+	/*
+	 * We only do LDPC if the rate is 11n, both we and the
+	 * receiver support LDPC and it's enabled.
+	 *
+	 * It's a global flag, not a per-try flag, so we clear
+	 * it if any of the rate entries aren't 11n.
+	 */
+	if ((ni->ni_vap->iv_htcaps & IEEE80211_HTCAP_LDPC) &&
+	    (ni->ni_htcap & IEEE80211_HTCAP_LDPC))
+		do_ldpc = 1;
+	do_stbc = 0;
 
 	for (i = 0; i < ATH_RC_NUM; i++) {
 		rc[i].flags = 0;
@@ -249,6 +263,12 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 		if (bf->bf_state.bfs_txflags &
 		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))
 			rc[i].flags |= ATH_RC_RTSCTS_FLAG;
+
+		/*
+		 * If we can't do LDPC, don't.
+		 */
+		if (! IS_HT_RATE(rate))
+			do_ldpc = 0;
 
 		/* Only enable shortgi, 2040, dual-stream if HT is set */
 		if (IS_HT_RATE(rate)) {
@@ -281,6 +301,7 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 			    (sc->sc_cur_txchainmask > 1) &&
 			    HT_RC_2_STREAMS(rate) == 1) {
 				rc[i].flags |= ATH_RC_STBC_FLAG;
+				do_stbc = 1;
 			}
 
 			/*
@@ -323,6 +344,18 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 		DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 		    "%s: i=%d, rate=0x%x, flags=0x%x, max4ms=%d\n",
 		    __func__, i, rate, rc[i].flags, rc[i].max4msframelen);
+	}
+
+	/*
+	 * LDPC is a global flag, so ...
+	 */
+	if (do_ldpc) {
+		bf->bf_state.bfs_txflags |= HAL_TXDESC_LDPC;
+		sc->sc_stats.ast_tx_ldpc++;
+	}
+
+	if (do_stbc) {
+		sc->sc_stats.ast_tx_stbc++;
 	}
 }
 
