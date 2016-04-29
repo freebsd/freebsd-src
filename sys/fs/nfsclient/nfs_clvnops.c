@@ -2414,7 +2414,7 @@ nfs_sillyrename(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 
 	/* 
 	 * Fudge together a funny name.
-	 * Changing the format of the funny name to accomodate more 
+	 * Changing the format of the funny name to accommodate more 
 	 * sillynames per directory.
 	 * The name is now changed to .nfs.<ticks>.<pid>.4, where ticks is 
 	 * CPU ticks since boot.

@@ -1701,7 +1701,7 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 				commit = fxdr_unsigned(int, *tl++);
 
 				/*
-				 * Return the lowest committment level
+				 * Return the lowest commitment level
 				 * obtained by any of the RPCs.
 				 */
 				if (committed == NFSWRITE_FILESYNC)
@@ -2676,7 +2676,7 @@ nfsrpc_rmdir(vnode_t dvp, char *name, int namelen, struct ucred *cred,
  * 2 - pass the opaque directory offset cookies up into userland
  *     and let the libc functions deal with them, via the system call
  * 3 - return them to userland in the "struct dirent", so future versions
- *     of libc can use them and do whatever is necessary to amke things work
+ *     of libc can use them and do whatever is necessary to make things work
  *     above these rpc calls, in the meantime
  * For now, I do #3 by "hiding" the directory offset cookies after the
  * d_name field in struct dirent. This is space inside d_reclen that
@@ -2927,7 +2927,7 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 		if (!more_dirs)
 			tryformoredirs = 0;
 	
-		/* loop thru the dir entries, doctoring them to 4bsd form */
+		/* loop through the dir entries, doctoring them to 4bsd form */
 		while (more_dirs && bigenough) {
 			if (nd->nd_flag & ND_NFSV4) {
 				NFSM_DISSECT(tl, u_int32_t *, 3*NFSX_UNSIGNED);
@@ -3342,7 +3342,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 		if (!more_dirs)
 			tryformoredirs = 0;
 	
-		/* loop thru the dir entries, doctoring them to 4bsd form */
+		/* loop through the dir entries, doctoring them to 4bsd form */
 		while (more_dirs && bigenough) {
 			NFSM_DISSECT(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 			if (nd->nd_flag & ND_NFSV4) {
@@ -5782,7 +5782,7 @@ nfsrpc_writeds(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		commit = fxdr_unsigned(int, *tl++);
 
 		/*
-		 * Return the lowest committment level
+		 * Return the lowest commitment level
 		 * obtained by any of the RPCs.
 		 */
 		if (committed == NFSWRITE_FILESYNC)
