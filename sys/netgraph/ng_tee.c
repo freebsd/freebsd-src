@@ -168,7 +168,7 @@ ng_tee_newhook(node_p node, hook_p hook, const char *name)
 	sc_p	privdata = NG_NODE_PRIVATE(node);
 	hi_p	hinfo;
 
-	/* Precalculate internal pathes. */
+	/* Precalculate internal paths. */
 	if (strcmp(name, NG_TEE_HOOK_RIGHT) == 0) {
 		hinfo = &privdata->right;
 		if (privdata->left.dest)
@@ -371,7 +371,7 @@ ng_tee_disconnect(hook_p hook)
 	KASSERT(hinfo != NULL, ("%s: null info", __func__));
 	hinfo->hook = NULL;
 
-	/* Recalculate internal pathes. */
+	/* Recalculate internal paths. */
 	if (sc->left.dest == hinfo) {
 		sc->left.dest = sc->left.dup;
 		sc->left.dup = NULL;

@@ -429,7 +429,7 @@ ngauto_state_machine(sc_p sc)
 		break;
 	}
 
-	/* send an inquirey encoded appropriatly */
+	/* send an inquirey encoded appropriately */
 	nglmi_inquire(sc, 0);
 	sc->poll_count--;
 }
@@ -585,7 +585,7 @@ nglmi_rcvdata(hook_p hook, item_p item)
 
 	/* Now check if there is a 'locking shift'. This is only seen in
 	 * Annex D frames. don't bother checking, we already did that. Don't
-	 * increment immediatly as it might not be there. */
+	 * increment immediately as it might not be there. */
 	if (ANNEXD(sc))
 		STEPBY(1);
 

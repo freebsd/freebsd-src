@@ -190,7 +190,7 @@ ngt_newhook(node_p node, hook_p hook, const char *name)
 
 /*
  * Set the hook into queueing mode (for outgoing packets),
- * so that we wont deliver mbuf thru the whole graph holding
+ * so that we wont deliver mbuf through the whole graph holding
  * tty locks.
  */
 static int

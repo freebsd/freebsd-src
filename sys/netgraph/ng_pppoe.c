@@ -788,7 +788,7 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 
 			/*
-			 * PPPOE_SERVICE advertisments are set up
+			 * PPPOE_SERVICE advertisements are set up
 			 * on sessions that are in PRIMED state.
 			 */
 			if (msg->header.cmd == NGM_PPPOE_SERVICE)
@@ -1729,7 +1729,7 @@ ng_pppoe_rcvdata_debug(hook_p hook, item_p item)
 
 /*
  * Do local shutdown processing..
- * If we are a persistant device, we might refuse to go away, and
+ * If we are a persistent device, we might refuse to go away, and
  * we'd only remove our links and reset ourself.
  */
 static int

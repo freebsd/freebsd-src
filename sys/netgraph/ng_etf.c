@@ -228,7 +228,7 @@ ng_etf_newhook(node_p node, hook_p hook, const char *name)
 
 /*
  * Get a netgraph control message.
- * We actually recieve a queue item that has a pointer to the message.
+ * We actually receive a queue item that has a pointer to the message.
  * If we free the item, the message will be freed too, unless we remove
  * it from the item using NGI_GET_MSG();
  * The return address is also stored in the item, as an ng_ID_t,
