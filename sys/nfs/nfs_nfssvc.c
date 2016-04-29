@@ -70,7 +70,7 @@ int (*nfsd_call_nfscl)(struct thread *, struct nfssvc_args *) = NULL;
 int (*nfsd_call_nfsd)(struct thread *, struct nfssvc_args *) = NULL;
 
 /*
- * Nfs server psuedo system call for the nfsd's
+ * Nfs server pseudo system call for the nfsd's
  */
 int
 sys_nfssvc(struct thread *td, struct nfssvc_args *uap)
