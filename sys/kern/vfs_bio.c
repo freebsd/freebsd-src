@@ -1162,8 +1162,7 @@ vfs_buf_check_unmapped(struct buf *bp)
 static int
 isbufbusy(struct buf *bp)
 {
-	if (((bp->b_flags & (B_INVAL | B_PERSISTENT)) == 0 &&
-	    BUF_ISLOCKED(bp)) ||
+	if (((bp->b_flags & B_INVAL) == 0 && BUF_ISLOCKED(bp)) ||
 	    ((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI))
 		return (1);
 	return (0);

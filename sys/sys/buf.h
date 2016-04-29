@@ -200,7 +200,7 @@ struct buf {
 #define	B_CACHE		0x00000020	/* Bread found us in the cache. */
 #define	B_VALIDSUSPWRT	0x00000040	/* Valid write during suspension. */
 #define	B_DELWRI	0x00000080	/* Delay I/O until buffer reused. */
-#define	B_PERSISTENT	0x00000100	/* Perm. ref'ed while EXT2FS mounted. */
+#define	B_00000100	0x00000100	/* Available flag. */
 #define	B_DONE		0x00000200	/* I/O completed. */
 #define	B_EINTR		0x00000400	/* I/O was interrupted */
 #define	B_NOREUSE	0x00000800	/* Contents not reused once released. */
@@ -213,7 +213,7 @@ struct buf {
 #define	B_00040000	0x00040000	/* Available flag. */
 #define	B_00080000	0x00080000	/* Available flag. */
 #define	B_00100000	0x00100000	/* Available flag. */
-#define	B_DIRTY		0x00200000	/* Needs writing later (in EXT2FS). */
+#define	B_00200000	0x00200000	/* Available flag. */
 #define	B_RELBUF	0x00400000	/* Release VMIO buffer. */
 #define	B_FS_FLAG1	0x00800000	/* Available flag for FS use. */
 #define	B_NOCOPY	0x01000000	/* Don't copy-on-write this buf. */
