@@ -107,7 +107,7 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 	if (sc == NULL || (dp = sc->dp) == NULL || dp->d_destroyed) {
 		/*
 		 * Allow decreasing access count even if disk is not
-		 * avaliable anymore.
+		 * available anymore.
 		 */
 		if (r <= 0 && w <= 0 && e <= 0)
 			return (0);

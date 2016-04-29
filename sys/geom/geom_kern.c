@@ -76,7 +76,7 @@ int g_notaste;
  * part of I/O prioritization by deciding which bios/bioqs to service
  * in what order.
  *
- * We have only one thread in each direction, it is belived that until
+ * We have only one thread in each direction, it is believed that until
  * a very non-trivial workload in the UP/DOWN path this will be enough,
  * but more than one can actually be run without problems.
  *
