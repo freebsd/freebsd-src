@@ -3146,7 +3146,7 @@ struct scsi_sense_info
 
 /*
  * Command-specific information depends on the command for which the
- * reported condition occured.
+ * reported condition occurred.
  *
  * Note that any changes to the field names or positions in this structure,
  * even reserved fields, should be accompanied by an examination of the
@@ -3381,7 +3381,7 @@ struct scsi_sense_forwarded
 
 /*
  * Vendor-specific sense descriptor.  The desc_type field will be in the
- * range bewteen MIN and MAX inclusive.
+ * range between MIN and MAX inclusive.
  */
 struct scsi_sense_vendor
 {
