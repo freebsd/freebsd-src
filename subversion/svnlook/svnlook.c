@@ -674,7 +674,8 @@ dump_contents(svn_stream_t *stream,
    non-textual data -- in this case, the *IS_BINARY flag is set and no
    temporary files are created.
 
-   Use POOL for all that allocation goodness. */
+   TMPFILE1 and TMPFILE2 will be removed when RESULT_POOL is destroyed.
+ */
 static svn_error_t *
 prepare_tmpfiles(const char **tmpfile1,
                  const char **tmpfile2,
@@ -683,8 +684,8 @@ prepare_tmpfiles(const char **tmpfile1,
                  const char *path1,
                  svn_fs_root_t *root2,
                  const char *path2,
-                 const char *tmpdir,
-                 apr_pool_t *pool)
+                 apr_pool_t *result_pool,
+                 apr_pool_t *scratch_pool)
 {
   svn_string_t *mimetype;
   svn_stream_t *stream;
@@ -701,7 +702,7 @@ prepare_tmpfiles(const char **tmpfile1,
   if (root1)
     {
       SVN_ERR(svn_fs_node_prop(&mimetype, root1, path1,
-                               SVN_PROP_MIME_TYPE, pool));
+                               SVN_PROP_MIME_TYPE, scratch_pool));
       if (mimetype && svn_mime_type_is_binary(mimetype->data))
         {
           *is_binary = TRUE;
@@ -711,7 +712,7 @@ prepare_tmpfiles(const char **tmpfile1,
   if (root2)
     {
       SVN_ERR(svn_fs_node_prop(&mimetype, root2, path2,
-                               SVN_PROP_MIME_TYPE, pool));
+                               SVN_PROP_MIME_TYPE, scratch_pool));
       if (mimetype && svn_mime_type_is_binary(mimetype->data))
         {
           *is_binary = TRUE;
@@ -721,17 +722,15 @@ prepare_tmpfiles(const char **tmpfile1,
 
   /* Now, prepare the two temporary files, each of which will either
      be empty, or will have real contents.  */
-  SVN_ERR(svn_stream_open_unique(&stream, tmpfile1,
-                                 tmpdir,
-                                 svn_io_file_del_none,
-                                 pool, pool));
-  SVN_ERR(dump_contents(stream, root1, path1, pool));
+  SVN_ERR(svn_stream_open_unique(&stream, tmpfile1, NULL,
+                                 svn_io_file_del_on_pool_cleanup,
+                                 result_pool, scratch_pool));
+  SVN_ERR(dump_contents(stream, root1, path1, scratch_pool));
 
-  SVN_ERR(svn_stream_open_unique(&stream, tmpfile2,
-                                 tmpdir,
-                                 svn_io_file_del_none,
-                                 pool, pool));
-  SVN_ERR(dump_contents(stream, root2, path2, pool));
+  SVN_ERR(svn_stream_open_unique(&stream, tmpfile2, NULL,
+                                 svn_io_file_del_on_pool_cleanup,
+                                 result_pool, scratch_pool));
+  SVN_ERR(dump_contents(stream, root2, path2, scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -830,7 +829,6 @@ print_diff_tree(svn_stream_t *out_stream,
                 const char *path /* UTF-8! */,
                 const char *base_path /* UTF-8! */,
                 const svnlook_ctxt_t *c,
-                const char *tmpdir,
                 apr_pool_t *pool)
 {
   const char *orig_path = NULL, *new_path = NULL;
@@ -839,7 +837,7 @@ print_diff_tree(svn_stream_t *out_stream,
   svn_boolean_t is_copy = FALSE;
   svn_boolean_t binary = FALSE;
   svn_boolean_t diff_header_printed = FALSE;
-  apr_pool_t *subpool;
+  apr_pool_t *iterpool;
   svn_stringbuf_t *header;
 
   SVN_ERR(check_cancel(NULL));
@@ -900,7 +898,7 @@ print_diff_tree(svn_stream_t *out_stream,
           do_diff = TRUE;
           SVN_ERR(prepare_tmpfiles(&orig_path, &new_path, &binary,
                                    base_root, base_path, root, path,
-                                   tmpdir, pool));
+                                   pool, pool));
         }
       else if (c->diff_copy_from && node->action == 'A' && is_copy)
         {
@@ -909,7 +907,7 @@ print_diff_tree(svn_stream_t *out_stream,
               do_diff = TRUE;
               SVN_ERR(prepare_tmpfiles(&orig_path, &new_path, &binary,
                                        base_root, base_path, root, path,
-                                       tmpdir, pool));
+                                       pool, pool));
             }
         }
       else if (! c->no_diff_added && node->action == 'A')
@@ -918,14 +916,14 @@ print_diff_tree(svn_stream_t *out_stream,
           orig_empty = TRUE;
           SVN_ERR(prepare_tmpfiles(&orig_path, &new_path, &binary,
                                    NULL, base_path, root, path,
-                                   tmpdir, pool));
+                                   pool, pool));
         }
       else if (! c->no_diff_deleted && node->action == 'D')
         {
           do_diff = TRUE;
           SVN_ERR(prepare_tmpfiles(&orig_path, &new_path, &binary,
                                    base_root, base_path, NULL, path,
-                                   tmpdir, pool));
+                                   pool, pool));
         }
 
       /* The header for the copy case has already been created, and we don't
@@ -1091,12 +1089,6 @@ print_diff_tree(svn_stream_t *out_stream,
         }
     }
 
-  /* Make sure we delete any temporary files. */
-  if (orig_path)
-    SVN_ERR(svn_io_remove_file2(orig_path, FALSE, pool));
-  if (new_path)
-    SVN_ERR(svn_io_remove_file2(new_path, FALSE, pool));
-
   /*** Now handle property diffs ***/
   if ((node->prop_mod) && (node->action != 'D') && (! c->ignore_properties))
     {
@@ -1143,26 +1135,21 @@ print_diff_tree(svn_stream_t *out_stream,
     }
 
   /* Return here if the node has no children. */
-  node = node->child;
-  if (! node)
+  if (! node->child)
     return SVN_NO_ERROR;
 
   /* Recursively handle the node's children. */
-  subpool = svn_pool_create(pool);
-  SVN_ERR(print_diff_tree(out_stream, encoding, root, base_root, node,
-                          svn_dirent_join(path, node->name, subpool),
-                          svn_dirent_join(base_path, node->name, subpool),
-                          c, tmpdir, subpool));
-  while (node->sibling)
+  iterpool = svn_pool_create(pool);
+  for (node = node->child; node; node = node->sibling)
     {
-      svn_pool_clear(subpool);
-      node = node->sibling;
+      svn_pool_clear(iterpool);
+
       SVN_ERR(print_diff_tree(out_stream, encoding, root, base_root, node,
-                              svn_dirent_join(path, node->name, subpool),
-                              svn_dirent_join(base_path, node->name, subpool),
-                              c, tmpdir, subpool));
+                              svn_dirent_join(path, node->name, iterpool),
+                              svn_dirent_join(base_path, node->name, iterpool),
+                              c, iterpool));
     }
-  svn_pool_destroy(subpool);
+  svn_pool_destroy(iterpool);
 
   return SVN_NO_ERROR;
 }
@@ -1525,12 +1512,10 @@ do_diff(svnlook_ctxt_t *c, apr_pool_t *pool)
   SVN_ERR(generate_delta_tree(&tree, c->repos, root, base_rev_id, pool));
   if (tree)
     {
-      const char *tmpdir;
       svn_stream_t *out_stream;
       const char *encoding = svn_cmdline_output_encoding(pool);
 
       SVN_ERR(svn_fs_revision_root(&base_root, c->fs, base_rev_id, pool));
-      SVN_ERR(svn_io_temp_dir(&tmpdir, pool));
 
       /* This fflush() might seem odd, but it was added to deal
          with this bug report:
@@ -1559,7 +1544,7 @@ do_diff(svnlook_ctxt_t *c, apr_pool_t *pool)
       SVN_ERR(svn_stream_for_stdout(&out_stream, pool));
 
       SVN_ERR(print_diff_tree(out_stream, encoding, root, base_root, tree,
-                              "", "", c, tmpdir, pool));
+                              "", "", c, pool));
     }
   return SVN_NO_ERROR;
 }
