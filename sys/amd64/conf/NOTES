@@ -177,11 +177,6 @@ options 	MAXMEM=(128*1024)
 #options 	BROKEN_KEYBOARD_RESET
 
 #
-# PCI bus & PCI options:
-#
-device		pci
-
-#
 # AGP GART support
 device		agp
 

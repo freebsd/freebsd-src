@@ -52,7 +52,6 @@ options 	SC_OFWFB		# OFW frame buffer
 device		cpufreq
 
 # Standard busses
-device		pci
 device		agp
 
 device		bm		# Apple BMAC (Big Mac Ethernet)
