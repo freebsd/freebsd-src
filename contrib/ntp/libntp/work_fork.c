@@ -451,7 +451,7 @@ fork_blocking_child(
 		}
 	}
 
-#ifdef HAVE_DROPROOT
+#if defined(HAVE_DROPROOT) && !defined(NEED_EARLY_FORK)
 	/* defer the fork until after root is dropped */
 	if (droproot && !root_dropped)
 		return;
@@ -539,6 +539,11 @@ fork_blocking_child(
 	exit_worker(blocking_child_common(c));
 }
 
+
+void worker_global_lock(int inOrOut)
+{
+	(void)inOrOut;
+}
 
 #else	/* !WORK_FORK follows */
 char work_fork_nonempty_compilation_unit;
