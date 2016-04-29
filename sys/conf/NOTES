@@ -1411,6 +1411,7 @@ options 	MSGBUF_SIZE=40960
 # PCI bus & PCI options:
 #
 device		pci
+options 	PCI_IOV			# PCI SR-IOV support
 
 
 #####################################################################
