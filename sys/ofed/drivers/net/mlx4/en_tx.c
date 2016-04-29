@@ -458,7 +458,7 @@ void mlx4_en_tx_irq(struct mlx4_cq *mcq)
 	struct mlx4_en_priv *priv = netdev_priv(cq->dev);
 	struct mlx4_en_tx_ring *ring = priv->tx_ring[cq->ring];
 
-	if (!spin_trylock(&ring->comp_lock))
+	if (priv->port_up == 0 || !spin_trylock(&ring->comp_lock))
 		return;
 	mlx4_en_process_tx_cq(cq->dev, cq);
 	mod_timer(&cq->timer, jiffies + 1);
@@ -474,6 +474,8 @@ void mlx4_en_poll_tx_cq(unsigned long data)
 
 	INC_PERF_COUNTER(priv->pstats.tx_poll);
 
+	if (priv->port_up == 0)
+		return;
 	if (!spin_trylock(&ring->comp_lock)) {
 		mod_timer(&cq->timer, jiffies + MLX4_EN_TX_POLL_TIMEOUT);
 		return;
@@ -494,6 +496,9 @@ static inline void mlx4_en_xmit_poll(struct mlx4_en_priv *priv, int tx_ind)
 {
 	struct mlx4_en_cq *cq = priv->tx_cq[tx_ind];
 	struct mlx4_en_tx_ring *ring = priv->tx_ring[tx_ind];
+
+	if (priv->port_up == 0)
+		return;
 
 	/* If we don't have a pending timer, set one up to catch our recent
 	   post in case the interface becomes idle */
@@ -1038,7 +1043,9 @@ mlx4_en_tx_que(void *context, int pending)
 	priv = dev->if_softc;
 	tx_ind = cq->ring;
 	ring = priv->tx_ring[tx_ind];
-        if (dev->if_drv_flags & IFF_DRV_RUNNING) {
+
+	if (priv->port_up != 0 &&
+	    (dev->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 		mlx4_en_xmit_poll(priv, tx_ind);
 		spin_lock(&ring->tx_lock);
                 if (!drbr_empty(dev, ring->br))
@@ -1054,6 +1061,11 @@ mlx4_en_transmit(struct ifnet *dev, struct mbuf *m)
 	struct mlx4_en_tx_ring *ring;
 	struct mlx4_en_cq *cq;
 	int i, err = 0;
+
+	if (priv->port_up == 0) {
+		m_freem(m);
+		return (ENETDOWN);
+	}
 
 	/* Compute which queue to use */
 	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
@@ -1087,6 +1099,9 @@ mlx4_en_qflush(struct ifnet *dev)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_tx_ring *ring;
 	struct mbuf *m;
+
+	if (priv->port_up == 0)
+		return;
 
 	for (int i = 0; i < priv->tx_ring_num; i++) {
 		ring = priv->tx_ring[i];
