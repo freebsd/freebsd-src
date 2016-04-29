@@ -1412,9 +1412,18 @@ wpi_read_eeprom_band(struct wpi_softc *sc, uint8_t n, int maxchans,
 {
 	struct wpi_eeprom_chan *channels = sc->eeprom_channels[n];
 	const struct wpi_chan_band *band = &wpi_bands[n];
-	struct ieee80211_channel *c;
 	uint32_t nflags;
+	uint8_t bands[IEEE80211_MODE_BYTES];
 	uint8_t chan, i;
+	int error;
+
+	memset(bands, 0, sizeof(bands));
+
+	if (n == 0) {
+		setbit(bands, IEEE80211_MODE_11B);
+		setbit(bands, IEEE80211_MODE_11G);
+	} else
+		setbit(bands, IEEE80211_MODE_11A);
 
 	for (i = 0; i < band->nchan; i++) {
 		if (!(channels[i].flags & WPI_EEPROM_CHAN_VALID)) {
@@ -1424,45 +1433,19 @@ wpi_read_eeprom_band(struct wpi_softc *sc, uint8_t n, int maxchans,
 			continue;
 		}
 
-		if (*nchans >= maxchans)
-			break;
-
 		chan = band->chan[i];
 		nflags = wpi_eeprom_channel_flags(&channels[i]);
-
-		c = &chans[(*nchans)++];
-		c->ic_ieee = chan;
-		c->ic_maxregpower = channels[i].maxpwr;
-		c->ic_maxpower = 2*c->ic_maxregpower;
-
-		if (n == 0) {	/* 2GHz band */
-			c->ic_freq = ieee80211_ieee2mhz(chan,
-			    IEEE80211_CHAN_G);
-
-			/* G =>'s B is supported */
-			c->ic_flags = IEEE80211_CHAN_B | nflags;
-
-			if (*nchans >= maxchans)
-				break;
-
-			c = &chans[(*nchans)++];
-			c[0] = c[-1];
-			c->ic_flags = IEEE80211_CHAN_G | nflags;
-		} else {	/* 5GHz band */
-			c->ic_freq = ieee80211_ieee2mhz(chan,
-			    IEEE80211_CHAN_A);
-
-			c->ic_flags = IEEE80211_CHAN_A | nflags;
-		}
+		error = ieee80211_add_channel(chans, maxchans, nchans,
+		    chan, 0, channels[i].maxpwr, nflags, bands);
+		if (error != 0)
+			break;
 
 		/* Save maximum allowed TX power for this channel. */
 		sc->maxpwr[chan] = channels[i].maxpwr;
 
 		DPRINTF(sc, WPI_DEBUG_EEPROM,
-		    "adding chan %d (%dMHz) flags=0x%x maxpwr=%d passive=%d,"
-		    " offset %d\n", chan, c->ic_freq,
-		    channels[i].flags, sc->maxpwr[chan],
-		    IEEE80211_IS_CHAN_PASSIVE(c), *nchans);
+		    "adding chan %d flags=0x%x maxpwr=%d, offset %d\n",
+		    chan, channels[i].flags, sc->maxpwr[chan], *nchans);
 	}
 }
 
