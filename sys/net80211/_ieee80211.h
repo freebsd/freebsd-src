@@ -70,6 +70,7 @@ enum ieee80211_phymode {
 	IEEE80211_MODE_QUARTER	= 11,	/* OFDM, 1/4x clock */
 };
 #define	IEEE80211_MODE_MAX	(IEEE80211_MODE_QUARTER+1)
+#define	IEEE80211_MODE_BYTES	2	/* howmany(IEEE80211_MODE_MAX, NBBY) */
 
 /*
  * Operating mode.  Devices do not necessarily support
