@@ -16,6 +16,10 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20150429	p1	FreeBSD-SA-16:16.ntp
+
+	Fix multiple vulnerabilities of ntp.
+
 20160329:
 	10.3-RELEASE.
 

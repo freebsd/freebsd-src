@@ -38,7 +38,6 @@
 #include <ssl_applink.c>
 
 #include "ntp_libopts.h"
-#include "ntpq-opts.h"
 #include "safecast.h"
 
 #ifdef SYS_VXWORKS		/* vxWorks needs mode flag -casey*/
@@ -67,6 +66,11 @@ const char *prompt = "ntpq> ";	/* prompt to ask him about */
  */
 int	old_rv = 1;
 
+/*
+ * How should we display the refid?
+ * REFID_HASH, REFID_IPV4
+ */
+te_Refid drefid = -1;
 
 /*
  * for get_systime()
@@ -198,6 +202,7 @@ static	void	passwd		(struct parse *, FILE *);
 static	void	hostnames	(struct parse *, FILE *);
 static	void	setdebug	(struct parse *, FILE *);
 static	void	quit		(struct parse *, FILE *);
+static	void	showdrefid	(struct parse *, FILE *);
 static	void	version		(struct parse *, FILE *);
 static	void	raw		(struct parse *, FILE *);
 static	void	cooked		(struct parse *, FILE *);
@@ -269,6 +274,9 @@ struct xcmd builtins[] = {
 	{ "keyid",	keyid,		{ OPT|NTP_UINT, NO, NO, NO },
 	  { "key#", "", "", "" },
 	  "set keyid to use for authenticated requests" },
+	{ "drefid",	showdrefid,	{ OPT|NTP_STR, NO, NO, NO },
+	  { "hash|ipv4", "", "", "" },
+	  "display refid's as IPv4 or hash" },
 	{ "version",	version,	{ NO, NO, NO, NO },
 	  { "", "", "", "" },
 	  "print version number" },
@@ -531,6 +539,8 @@ ntpqmain(
 		wideremote = 1;
 
 	old_rv = HAVE_OPT(OLD_RV);
+
+	drefid = OPT_VALUE_REFID;
 
 	if (0 == argc) {
 		ADDHOST(DEFHOST);
@@ -1327,7 +1337,7 @@ show_error_msg(
 	if (numhosts > 1)
 		fprintf(stderr, "server=%s ", currenthost);
 
-	switch(m6resp) {
+	switch (m6resp) {
 
 	case CERR_BADFMT:
 		fprintf(stderr,
@@ -2437,6 +2447,47 @@ ntp_poll(
 	)
 {
 	(void) fprintf(fp, "poll not implemented yet\n");
+}
+
+
+/*
+ * showdrefid2str - return a string explanation of the value of drefid
+ */
+static char *
+showdrefid2str(void)
+{
+	switch (drefid) {
+	    case REFID_HASH:
+	    	return "hash";
+	    case REFID_IPV4:
+	    	return "ipv4";
+	    default:
+	    	return "Unknown";
+	}
+}
+
+
+/*
+ * drefid - display/change "display hash" 
+ */
+static void
+showdrefid(
+	struct parse *pcmd,
+	FILE *fp
+	)
+{
+	if (pcmd->nargs == 0) {
+		(void) fprintf(fp, "drefid value is %s\n", showdrefid2str());
+		return;
+	} else if (STREQ(pcmd->argval[0].string, "hash")) {
+		drefid = REFID_HASH;
+	} else if (STREQ(pcmd->argval[0].string, "ipv4")) {
+		drefid = REFID_IPV4;
+	} else {
+		(void) fprintf(fp, "What?\n");
+		return;
+	}
+	(void) fprintf(fp, "drefid value set to %s\n", showdrefid2str());
 }
 
 
