@@ -36,6 +36,7 @@ CFLAGS+=	-O2 -ftls-model=local-exec
 _CHERI_CC+=	-cheri-linker
 CFLAGS+=	-Wno-error
 .endif
+ALLOW_SHARED_TEXTREL=	yes
 .endif
 
 .if ${WANT_CHERI} == "pure" && defined(__BSD_PROG_MK)
