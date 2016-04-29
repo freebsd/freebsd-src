@@ -1244,10 +1244,6 @@ int mlx4_en_start_port(struct net_device *dev)
 	/* Calculate Rx buf size */
 	dev->if_mtu = min(dev->if_mtu, priv->max_mtu);
         mlx4_en_calc_rx_buf(dev);
-	priv->rx_alloc_size = max_t(int, 2 * roundup_pow_of_two(priv->rx_mb_size),
-				    PAGE_SIZE);
-	priv->rx_alloc_order = get_order(priv->rx_alloc_size);
-	priv->rx_buf_size = roundup_pow_of_two(priv->rx_mb_size);
 	en_dbg(DRV, priv, "Rx buf size:%d\n", priv->rx_mb_size);
 
 	/* Configure rx cq's and rings */
