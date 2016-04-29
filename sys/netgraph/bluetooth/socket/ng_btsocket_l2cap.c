@@ -2076,7 +2076,7 @@ ng_btsocket_l2cap_attach(struct socket *so, int proto, struct thread *td)
 	 * This is totally FUBAR. We could get here in two cases:
 	 *
 	 * 1) When user calls socket()
-	 * 2) When we need to accept new incomming connection and call 
+	 * 2) When we need to accept new incoming connection and call 
 	 *    sonewconn()
 	 *
 	 * In the first case we must acquire ng_btsocket_l2cap_sockets_mtx.
@@ -2610,7 +2610,7 @@ ng_btsocket_l2cap_send(struct socket *so, int flags, struct mbuf *m,
 		goto drop;
 	}
 
-	/* Check packet size agains outgoing (peer's incoming) MTU) */
+	/* Check packet size against outgoing (peer's incoming) MTU) */
 	if (m->m_pkthdr.len > pcb->omtu) {
 		NG_BTSOCKET_L2CAP_ERR(
 "%s: Packet too big, len=%d, omtu=%d\n", __func__, m->m_pkthdr.len, pcb->omtu);
@@ -2690,7 +2690,7 @@ ng_btsocket_l2cap_send2(ng_btsocket_l2cap_pcb_p pcb)
 		hdr->token, pcb->state);
 
 	/*
-	 * If we got here than we have successfuly creates new L2CAP 
+	 * If we got here than we have successfully creates new L2CAP 
 	 * data packet and now we can send it to the L2CAP layer
 	 */
 
