@@ -4363,8 +4363,9 @@ iwm_intr(void *arg)
 		struct ieee80211com *ic = &sc->sc_ic;
 		struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
+#ifdef IWM_DEBUG
 		iwm_nic_error(sc);
-
+#endif
 		/* Dump driver status (TX and RX rings) while we're here. */
 		device_printf(sc->sc_dev, "driver status:\n");
 		for (i = 0; i < IWM_MVM_MAX_QUEUES; i++) {
