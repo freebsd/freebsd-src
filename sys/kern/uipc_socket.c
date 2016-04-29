@@ -3103,6 +3103,13 @@ pru_accept_notsupp(struct socket *so, struct sockaddr **nam)
 }
 
 int
+pru_aio_queue_notsupp(struct socket *so, struct kaiocb *job)
+{
+
+	return EOPNOTSUPP;
+}
+
+int
 pru_attach_notsupp(struct socket *so, int proto, struct thread *td)
 {
 
