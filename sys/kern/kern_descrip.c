@@ -1530,7 +1530,7 @@ fdgrowtable_exp(struct filedesc *fdp, int nfd)
 }
 
 /*
- * Grow the file table to accomodate (at least) nfd descriptors.
+ * Grow the file table to accommodate (at least) nfd descriptors.
  */
 static void
 fdgrowtable(struct filedesc *fdp, int nfd)
@@ -1544,7 +1544,7 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 
 	/*
 	 * If lastfile is -1 this struct filedesc was just allocated and we are
-	 * growing it to accomodate for the one we are going to copy from. There
+	 * growing it to accommodate for the one we are going to copy from. There
 	 * is no need to have a lock on this one as it's not visible to anyone.
 	 */
 	if (fdp->fd_lastfile != -1)
@@ -1709,7 +1709,7 @@ fdallocn(struct thread *td, int minfd, int *fds, int n)
 }
 
 /*
- * Create a new open file structure and allocate a file decriptor for the
+ * Create a new open file structure and allocate a file descriptor for the
  * process that refers to it.  We add one reference to the file for the
  * descriptor table and one reference for resultfp. This is to prevent us
  * being preempted and the entry in the descriptor table closed after we
@@ -2535,7 +2535,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
  *
  * File's rights will be checked against the capability rights mask.
  *
- * If an error occured the non-zero error is returned and *fpp is set to
+ * If an error occurred the non-zero error is returned and *fpp is set to
  * NULL.  Otherwise *fpp is held and set and zero is returned.  Caller is
  * responsible for fdrop().
  */

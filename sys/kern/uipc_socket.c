@@ -194,7 +194,7 @@ VNET_DEFINE(struct hhook_head *, socket_hhh[HHOOK_SOCKET_LAST + 1]);
 /*
  * Limit on the number of connections in the listen queue waiting
  * for accept(2).
- * NB: The orginal sysctl somaxconn is still available but hidden
+ * NB: The original sysctl somaxconn is still available but hidden
  * to prevent confusion about the actual purpose of this number.
  */
 static u_int somaxconn = SOMAXCONN;
@@ -1164,7 +1164,7 @@ sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	}
 	/*
 	 * XXX all the SBS_CANTSENDMORE checks previously done could be out
-	 * of date.  We could have recieved a reset packet in an interrupt or
+	 * of date.  We could have received a reset packet in an interrupt or
 	 * maybe we slept while doing page faults in uiomove() etc.  We could
 	 * probably recheck again inside the locking protection here, but
 	 * there are probably other places that this also happens.  We must
@@ -1347,7 +1347,7 @@ restart:
 			}
 			/*
 			 * XXX all the SBS_CANTSENDMORE checks previously
-			 * done could be out of date.  We could have recieved
+			 * done could be out of date.  We could have received
 			 * a reset packet in an interrupt or maybe we slept
 			 * while doing page faults in uiomove() etc.  We
 			 * could probably recheck again inside the locking
