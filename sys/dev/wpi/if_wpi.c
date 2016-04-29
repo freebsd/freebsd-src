@@ -2074,7 +2074,6 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	struct mbuf *m;
 	struct ieee80211_node *ni;
 	struct ieee80211vap *vap;
-	struct ieee80211com *ic;
 	uint32_t status = le32toh(stat->status);
 	int ackfailcnt = stat->ackfailcnt / WPI_NTRIES_DEFAULT;
 
@@ -2094,7 +2093,6 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	m = data->m, data->m = NULL;
 	ni = data->ni, data->ni = NULL;
 	vap = ni->ni_vap;
-	ic = vap->iv_ic;
 
 	/*
 	 * Update rate control statistics for the node.
