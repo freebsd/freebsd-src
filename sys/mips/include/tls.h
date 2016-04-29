@@ -43,7 +43,11 @@
 #define TLS_TP_OFFSET	0x7000
 #define TLS_DTP_OFFSET	0x8000
 
-#ifdef __mips_n64
+
+/* XXX-AR: #define TLS_TCB_SIZE	(2 * sizeof(void*)) for all ABIs? */
+#ifdef __CHERI_PURE_CAPABILITY__
+#define TLS_TCB_SIZE	(2 * CHERICAP_SIZE)
+#elif defined(__mips_n64)
 #define TLS_TCB_SIZE	16
 #ifdef COMPAT_FREEBSD32
 #define TLS_TCB_SIZE32	8

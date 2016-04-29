@@ -43,6 +43,12 @@
 
 #define	CPU_SPINWAIT
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
+#ifdef __CHERI_PURE_CAPABILITY__
+#define TCB_ALIGN (CHERICAP_SIZE)
+#else
+#define TCB_ALIGN (16)
+#endif
+
 
 /*
  * Variant I tcb. The structure layout is fixed, don't blindly
@@ -51,7 +57,7 @@
 struct tcb {
 	void			*tcb_dtv;
 	struct pthread		*tcb_thread;
-};
+} __packed __aligned(TCB_ALIGN);
 
 /* Called from the thread to set its private data. */
 static __inline void
