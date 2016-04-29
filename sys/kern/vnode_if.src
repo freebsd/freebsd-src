@@ -35,7 +35,7 @@
 # is a specification of the locking protocol used by each vop call.
 # The first column is the name of the variable, the remaining three
 # columns are in, out and error respectively.  The "in" column defines
-# the lock state on input, the "out" column defines the state on succesful
+# the lock state on input, the "out" column defines the state on successful
 # return, and the "error" column defines the locking state on error exit.
 #
 # The locking value can take the following values:
