@@ -1182,7 +1182,7 @@ const instable_t dis_op0F38[256] = {
 /*  [78]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [7C]  */	INVALID,		INVALID,		INVALID,		INVALID,
 
-/*  [80]  */	TNSy("invept", RM_66r),	TNSy("invvpid", RM_66r),INVALID,		INVALID,
+/*  [80]  */	TNSy("invept", RM_66r),	TNSy("invvpid", RM_66r),TNSy("invpcid", RM_66r),INVALID,
 /*  [84]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [88]  */	INVALID,		INVALID,		INVALID,		INVALID,
 /*  [8C]  */	INVALID,		INVALID,		INVALID,		INVALID,
