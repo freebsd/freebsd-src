@@ -556,8 +556,8 @@ udp6_common_ctlinput(int cmd, struct sockaddr *sa, void *d,
 		if (!PRC_IS_REDIRECT(cmd)) {
 			/* Check to see if its tunneled */
 			struct inpcb *inp;
-			inp = in6_pcblookup_mbuf(pcbinfo, &ip6->ip6_src,
-			    uh.uh_sport, &ip6->ip6_dst, uh.uh_dport,
+			inp = in6_pcblookup_mbuf(pcbinfo, &ip6->ip6_dst,
+			    uh.uh_dport, &ip6->ip6_src, uh.uh_sport,
 			    INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB,
 			    m->m_pkthdr.rcvif, m);
 			if (inp != NULL) {
@@ -566,7 +566,7 @@ udp6_common_ctlinput(int cmd, struct sockaddr *sa, void *d,
 				up = intoudpcb(inp);
 				if (up->u_icmp_func) {
 					/* Yes it is. */
-					INP_RUNLOCK(inp);	
+					INP_RUNLOCK(inp);
 					(*up->u_icmp_func)(cmd, (struct sockaddr *)ip6cp->ip6c_src,
 					      d, up->u_tun_ctx);
 					return;
