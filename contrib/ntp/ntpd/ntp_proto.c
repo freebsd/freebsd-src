@@ -25,6 +25,11 @@
 #include <unistd.h>
 #endif
 
+/* [Bug 3031] define automatic broadcastdelay cutoff preset */
+#ifndef BDELAY_DEFAULT
+# define BDELAY_DEFAULT (-0.050)
+#endif
+
 /*
  * This macro defines the authentication state. If x is 1 authentication
  * is required; othewise it is optional.
@@ -48,6 +53,12 @@ enum kiss_codes {
 	RSTRKISS,			/* Restricted Kiss */
 	XKISS,				/* Experimental Kiss */
 	UNKNOWNKISS			/* Unknown Kiss Code */
+};
+
+enum nak_error_codes {
+	NONAK,				/* No NAK seen */
+	INVALIDNAK,			/* NAK cannot be used */
+	VALIDNAK			/* NAK is valid */
 };
 
 /*
@@ -166,7 +177,10 @@ int unpeer_crypto_early		= 1;	/* bad crypto (TEST9) */
 int unpeer_crypto_nak_early	= 1;	/* crypto_NAK (TEST5) */
 int unpeer_digest_early		= 1;	/* bad digest (TEST5) */
 
-static int kiss_code_check(u_char hisleap, u_char hisstratum, u_char hismode, u_int32 refid);
+int dynamic_interleave = DYNAMIC_INTERLEAVE;	/* Bug 2978 mitigation */
+
+int kiss_code_check(u_char hisleap, u_char hisstratum, u_char hismode, u_int32 refid);
+enum nak_error_codes valid_NAK(struct peer *peer, struct recvbuf *rbufp, u_char hismode);
 static	double	root_distance	(struct peer *);
 static	void	clock_combine	(peer_select *, int, int);
 static	void	peer_xmit	(struct peer *);
@@ -249,6 +263,68 @@ kiss_code_check(
 		}
 	} else {
 		return (NOKISS);
+	}
+}
+
+
+/* 
+ * Check that NAK is valid
+ */
+enum nak_error_codes
+valid_NAK(
+	  struct peer *peer,
+	  struct recvbuf *rbufp,
+	  u_char hismode
+	  )
+{
+	int base_packet_length = MIN_V4_PKT_LEN;
+	int remainder_size;
+	struct pkt *rpkt;
+	int keyid;
+
+	/*
+	 * Check to see if there is something beyond the basic packet
+	 */
+	if (rbufp->recv_length == base_packet_length) {
+		return NONAK;
+	}
+
+	remainder_size = rbufp->recv_length - base_packet_length;
+	/*
+	 * Is this a potential NAK?
+	 */
+	if (remainder_size != 4) {
+		return NONAK;
+	}
+
+	/*
+	 * Only server responses can contain NAK's
+	 */
+
+	if (hismode != MODE_SERVER &&
+	    hismode != MODE_ACTIVE &&
+	    hismode != MODE_PASSIVE
+	    ) {
+		return (INVALIDNAK);
+	}
+
+	/* 
+	 * Make sure that the extra field in the packet is all zeros
+	 */
+	rpkt = &rbufp->recv_pkt;
+	keyid = ntohl(((u_int32 *)rpkt)[base_packet_length / 4]);
+	if (keyid != 0) {
+		return (INVALIDNAK);
+	}
+
+	/* 
+	 * Only valid if peer uses a key
+	 */
+	if (peer->keyid > 0 || peer->flags & FLAG_SKEY) {
+		return (VALIDNAK);
+	}
+	else {
+		return (INVALIDNAK);
 	}
 }
 
@@ -493,6 +569,7 @@ receive(
 	int	has_mac;		/* length of MAC field */
 	int	authlen;		/* offset of MAC field */
 	int	is_authentic = 0;	/* cryptosum ok */
+	int	crypto_nak_test;	/* result of crypto-NAK check */
 	int	retcode = AM_NOMATCH;	/* match code */
 	keyid_t	skeyid = 0;		/* key IDs */
 	u_int32	opcode = 0;		/* extension field opcode */
@@ -617,6 +694,7 @@ receive(
 	 * extension field is present, so we subtract the length of the
 	 * field and go around again.
 	 */
+
 	authlen = LEN_PKT_NOMAC;
 	has_mac = rbufp->recv_length - authlen;
 	while (has_mac > 0) {
@@ -767,6 +845,20 @@ receive(
 	 * is zero, acceptable outcomes of y are NONE and OK. If x is
 	 * one, the only acceptable outcome of y is OK.
 	 */
+	crypto_nak_test = valid_NAK(peer, rbufp, hismode);
+
+	/*
+	 * Drop any invalid crypto-NAKs
+	 */
+	if (crypto_nak_test == INVALIDNAK) {
+		report_event(PEVNT_AUTH, peer, "Invalid_NAK");
+		if (0 != peer) {
+			peer->badNAK++;
+		}
+		msyslog(LOG_ERR, "Invalid-NAK error at %ld %s<-%s", 
+			current_time, stoa(dstadr_sin), stoa(&rbufp->recv_srcadr));
+		return;
+	}
 
 	if (has_mac == 0) {
 		restrict_mask &= ~RES_MSSNTP;
@@ -777,7 +869,7 @@ receive(
 			    authlen,
 			    ntohl(pkt->org.l_ui), ntohl(pkt->org.l_uf),
 			    ntohl(pkt->xmt.l_ui), ntohl(pkt->xmt.l_uf)));
-	} else if (has_mac == 4) {
+	} else if (crypto_nak_test == VALIDNAK) {
 		restrict_mask &= ~RES_MSSNTP;
 		is_authentic = AUTH_CRYPTO; /* crypto-NAK */
 		DPRINTF(2, ("receive: at %ld %s<-%s mode %d/%s:%s keyid %08x len %d auth %d org %#010x.%08x xmt %#010x.%08x MAC4\n",
@@ -1144,7 +1236,7 @@ receive(
 		/*
 		 * Determine whether to execute the initial volley.
 		 */
-		if (sys_bdelay != 0) {
+		if (sys_bdelay > 0.0) {
 #ifdef AUTOKEY
 			/*
 			 * If a two-way exchange is not possible,
@@ -1303,9 +1395,9 @@ receive(
 #endif /* AUTOKEY */
 
 		if (MODE_BROADCAST == hismode) {
-			u_char poll;
-			int bail = 0;
-			l_fp tdiff;
+			int	bail = 0;
+			l_fp	tdiff;
+			u_long	deadband;
 
 			DPRINTF(2, ("receive: PROCPKT/BROADCAST: prev pkt %ld seconds ago, ppoll: %d, %d secs\n",
 				    (current_time - peer->timelastrec),
@@ -1327,27 +1419,28 @@ receive(
 					peer->ppoll, pkt->ppoll);
 			}
 
-			poll = min(peer->maxpoll,
-				   max(peer->minpoll, pkt->ppoll));
-
 			/* This is error-worthy */
-			if (pkt->ppoll != poll) {
+			if (pkt->ppoll < peer->minpoll ||
+			    pkt->ppoll > peer->maxpoll  ) {
 				msyslog(LOG_INFO, "receive: broadcast poll of %ud from %s is out-of-range (%d to %d)!",
 					pkt->ppoll, stoa(&rbufp->recv_srcadr),
 					peer->minpoll, peer->maxpoll);
 				++bail;
 			}
 
-			if (  (current_time - peer->timelastrec)
-			    < (1 << pkt->ppoll)) {
-				msyslog(LOG_INFO, "receive: broadcast packet from %s arrived after %ld, not %d seconds!",
+			/* too early? worth an error, too! */
+			deadband = (1u << pkt->ppoll);
+			if (FLAG_BC_VOL & peer->flags)
+				deadband -= 3;	/* allow greater fuzz after volley */
+			if ((current_time - peer->timelastrec) < deadband) {
+				msyslog(LOG_INFO, "receive: broadcast packet from %s arrived after %lu, not %lu seconds!",
 					stoa(&rbufp->recv_srcadr),
 					(current_time - peer->timelastrec),
-					(1 << pkt->ppoll)
-					);
+					deadband);
 				++bail;
 			}
 
+			/* Alert if time from the server is non-monotonic */
 			tdiff = p_xmt;
 			L_SUB(&tdiff, &peer->bxmt);
 			if (tdiff.l_i < 0) {
@@ -1401,6 +1494,7 @@ receive(
 		return;
 	}
 #endif	/* AUTOKEY */
+
 	peer->received++;
 	peer->flash &= ~PKT_TEST_MASK;
 	if (peer->flags & FLAG_XBOGUS) {
@@ -1412,12 +1506,22 @@ receive(
 	 * Next comes a rigorous schedule of timestamp checking. If the
 	 * transmit timestamp is zero, the server has not initialized in
 	 * interleaved modes or is horribly broken.
+	 *
+	 * A KoD packet we pay attention to cannot have a 0 transmit
+	 * timestamp.
 	 */
 	if (L_ISZERO(&p_xmt)) {
 		peer->flash |= TEST3;			/* unsynch */
+		if (0 == hisstratum) {			/* KoD packet */
+			peer->bogusorg++;		/* for TEST2 or TEST3 */
+			msyslog(LOG_INFO,
+				"receive: Unexpected zero transmit timestamp in KoD from %s",
+				ntoa(&peer->srcadr));
+			return;
+		}
 
 	/*
-	 * If the transmit timestamp duplicates a previous one, the
+	 * If the transmit timestamp duplicates our previous one, the
 	 * packet is a replay. This prevents the bad guys from replaying
 	 * the most recent packet, authenticated or not.
 	 */
@@ -1442,14 +1546,66 @@ receive(
 		}
 
 	/*
+	 * Basic KoD validation checking:
+	 *
+	 * KoD packets are a mixed-blessing.  Forged KoD packets
+	 * are DoS attacks.  There are rare situations where we might
+	 * get a valid KoD response, though.  Since KoD packets are
+	 * a special case that complicate the checks we do next, we
+	 * handle the basic KoD checks here.
+	 *
+	 * Note that we expect the incoming KoD packet to have its
+	 * (nonzero) org, rec, and xmt timestamps set to the xmt timestamp
+	 * that we have previously sent out.  Watch interleave mode.
+	 */
+	} else if (0 == hisstratum) {
+		DEBUG_INSIST(!L_ISZERO(&p_xmt));
+		if (   L_ISZERO(&p_org)		/* We checked p_xmt above */
+		    || L_ISZERO(&p_rec)) {
+			peer->bogusorg++;
+			msyslog(LOG_INFO,
+				"receive: KoD packet from %s has a zero org or rec timestamp.  Ignoring.",
+				ntoa(&peer->srcadr));
+			return;
+		}
+
+		if (   !L_ISEQU(&p_xmt, &p_org)
+		    || !L_ISEQU(&p_xmt, &p_rec)) {
+			peer->bogusorg++;
+			msyslog(LOG_INFO,
+				"receive: KoD packet from %s has inconsistent xmt/org/rec timestamps.  Ignoring.",
+				ntoa(&peer->srcadr));
+			return;
+		}
+
+		/* Be conservative */
+		if (peer->flip == 0 && !L_ISEQU(&p_org, &peer->aorg)) {
+			peer->bogusorg++;
+			msyslog(LOG_INFO,
+				"receive: flip 0 KoD origin timestamp %#010x.%08x from %s does not match %#010x.%08x - ignoring.",
+				p_org.l_ui, p_org.l_uf,
+				ntoa(&peer->srcadr),
+				peer->aorg.l_ui, peer->aorg.l_uf);
+			return;
+		} else if (peer->flip == 1 && !L_ISEQU(&p_org, &peer->borg)) {
+			peer->bogusorg++;
+			msyslog(LOG_INFO,
+				"receive: flip 1 KoD origin timestamp %#010x.%08x from %s does not match interleave %#010x.%08x - ignoring.",
+				p_org.l_ui, p_org.l_uf,
+				ntoa(&peer->srcadr),
+				peer->borg.l_ui, peer->borg.l_uf);
+			return;
+		}
+	
+	/*
 	 * Basic mode checks:
 	 *
 	 * If there is no origin timestamp, it's either an initial packet
 	 * or we've already received a response to our query.  Of course,
 	 * should 'aorg' be all-zero because this really was the original
-	 * transmit timestamp, we'll drop the reply.  There is a window of
-	 * one nanosecond once every 136 years' time where this is possible.
-	 * We currently ignore this situation.
+	 * transmit timestamp, we'll ignore this reply.  There is a window
+	 * of one nanosecond once every 136 years' time where this is
+	 * possible.  We currently ignore this situation.
 	 *
 	 * Otherwise, check for bogus packet in basic mode.
 	 * If it is bogus, switch to interleaved mode and resynchronize,
@@ -1460,24 +1616,37 @@ receive(
 	 * be from us, attempting to cause our server to KoD us.
 	 */
 	} else if (peer->flip == 0) {
-		if (0 < hisstratum && L_ISZERO(&p_org)) {
+		INSIST(0 != hisstratum);
+		if (0) {
+		} else if (L_ISZERO(&p_org)) {
+			msyslog(LOG_INFO,
+				"receive: Got 0 origin timestamp from %s@%s xmt %#010x.%08x",
+				hm_str, ntoa(&peer->srcadr),
+				ntohl(pkt->xmt.l_ui), ntohl(pkt->xmt.l_uf));
 			L_CLR(&peer->aorg);
-		} else if (    L_ISZERO(&peer->aorg)
-			   || !L_ISEQU(&p_org, &peer->aorg)) {
+		} else if (!L_ISEQU(&p_org, &peer->aorg)) {
+			/* are there cases here where we should bail? */
+			/* Should we set TEST2 if we decide to try xleave? */
 			peer->bogusorg++;
 			peer->flash |= TEST2;	/* bogus */
 			msyslog(LOG_INFO,
-				"receive: Unexpected origin timestamp %#010x.%08x from %s xmt %#010x.%08x",
+				"receive: Unexpected origin timestamp %#010x.%08x does not match aorg %#010x.%08x from %s@%s xmt %#010x.%08x",
 				ntohl(pkt->org.l_ui), ntohl(pkt->org.l_uf),
-				ntoa(&peer->srcadr),
+				peer->aorg.l_ui, peer->aorg.l_uf,
+				hm_str, ntoa(&peer->srcadr),
 				ntohl(pkt->xmt.l_ui), ntohl(pkt->xmt.l_uf));
 			if (  !L_ISZERO(&peer->dst)
 			    && L_ISEQU(&p_org, &peer->dst)) {
 				/* Might be the start of an interleave */
-				peer->flip = 1;
-				report_event(PEVNT_XLEAVE, peer, NULL);
+				if (dynamic_interleave) {
+					peer->flip = 1;
+					report_event(PEVNT_XLEAVE, peer, NULL);
+				} else {
+					msyslog(LOG_INFO,
+						"receive: Dynamic interleave from %s@%s denied",
+						hm_str, ntoa(&peer->srcadr));
+				}
 			}
-			return; /* Bogus or possible interleave packet */
 		} else {
 			L_CLR(&peer->aorg);
 		}
@@ -1507,7 +1676,7 @@ receive(
 	 * client packet. The server might have just changed keys. Clear
 	 * the association and restart the protocol.
 	 */
-	if (is_authentic == AUTH_CRYPTO) {
+	if (crypto_nak_test == VALIDNAK) {
 		report_event(PEVNT_AUTH, peer, "crypto_NAK");
 		peer->flash |= TEST5;		/* bad auth */
 		peer->badauth++;
@@ -1600,17 +1769,22 @@ receive(
 	/*
 	 * If:
 	 *	- this is a *cast (uni-, broad-, or m-) server packet
-	 *	- and it's authenticated
+	 *	- and it's symmetric-key authenticated
 	 * then see if the sender's IP is trusted for this keyid.
 	 * If it is, great - nothing special to do here.
 	 * Otherwise, we should report and bail.
+	 *
+	 * Autokey-authenticated packets are accepted.
 	 */
 
 	switch (hismode) {
 	    case MODE_SERVER:		/* server mode */
 	    case MODE_BROADCAST:	/* broadcast mode */
 	    case MODE_ACTIVE:		/* symmetric active mode */
+	    case MODE_PASSIVE:		/* symmetric passive mode */
 		if (   is_authentic == AUTH_OK
+		    && skeyid
+		    && skeyid <= NTP_MAXKEY
 		    && !authistrustedip(skeyid, &peer->srcadr)) {
 			report_event(PEVNT_AUTH, peer, "authIP");
 			peer->badauth++;
@@ -1618,8 +1792,6 @@ receive(
 		}
 	    	break;
 
-	    case MODE_UNSPEC:		/* unspecified (old version) */
-	    case MODE_PASSIVE:		/* symmetric passive mode */
 	    case MODE_CLIENT:		/* client mode */
 #if 0		/* At this point, MODE_CONTROL is overloaded by MODE_BCLIENT */
 	    case MODE_CONTROL:		/* control mode */
@@ -1627,7 +1799,12 @@ receive(
 	    case MODE_PRIVATE:		/* private mode */
 	    case MODE_BCLIENT:		/* broadcast client mode */
 	    	break;
+
+	    case MODE_UNSPEC:		/* unspecified (old version) */
 	    default:
+		msyslog(LOG_INFO,
+			"receive: Unexpected mode (%d) in packet from %s",
+			hismode, ntoa(&peer->srcadr));
 	    	break;
 	}
 
@@ -1958,6 +2135,9 @@ process_packet(
 			peer->aorg = p_xmt;
 			peer->borg = peer->dst;
 			if (t34 < 0 || t34 > 1.) {
+				/* drop all if in the initial volley */
+				if (FLAG_BC_VOL & peer->flags)
+					goto bcc_init_volley_fail;
 				snprintf(statstr, sizeof(statstr),
 				    "offset %.6f delay %.6f", t21, t34);
 				report_event(PEVNT_XERR, peer, statstr);
@@ -1983,11 +2163,23 @@ process_packet(
 		 * between the unicast timestamp and the broadcast
 		 * timestamp. This works for both basic and interleaved
 		 * modes.
+		 * [Bug 3031] Don't keep this peer when the delay 
+		 * calculation gives reason to suspect clock steps.
+		 * This is assumed for delays > 50ms.
 		 */
 		if (FLAG_BC_VOL & peer->flags) {
 			peer->flags &= ~FLAG_BC_VOL;
 			peer->delay = fabs(peer->offset - p_offset) * 2;
+			DPRINTF(2, ("broadcast volley: initial delay=%.6f\n",
+				peer->delay));
+			if (peer->delay > fabs(sys_bdelay)) {
+		bcc_init_volley_fail:
+				DPRINTF(2, ("%s", "broadcast volley: initial delay exceeds limit\n"));
+				unpeer(peer);
+				return;
+			}
 		}
+		peer->nextdate = current_time + (1u << peer->ppoll) - 2u;
 		p_del = peer->delay;
 		p_offset += p_del / 2;
 
@@ -4018,6 +4210,7 @@ group_test(
 }
 #endif /* AUTOKEY */
 
+
 #ifdef WORKER
 void
 pool_name_resolved(
@@ -4333,7 +4526,7 @@ init_proto(void)
 	sys_survivors = 0;
 	sys_manycastserver = 0;
 	sys_bclient = 0;
-	sys_bdelay = 0;
+	sys_bdelay = BDELAY_DEFAULT;	/*[Bug 3031] delay cutoff */
 	sys_authenticate = 1;
 	sys_stattime = current_time;
 	orphwait = current_time + sys_orphwait;
@@ -4426,7 +4619,7 @@ proto_config(
 		break;
 
 	case PROTO_BROADDELAY:	/* default broadcast delay (bdelay) */
-		sys_bdelay = dvalue;
+		sys_bdelay = (dvalue ? dvalue : BDELAY_DEFAULT);
 		break;
 
 	case PROTO_CEILING:	/* stratum ceiling (ceiling) */

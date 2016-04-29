@@ -302,7 +302,9 @@ AC_CHECK_HEADER(
 AC_CHECK_HEADERS([fcntl.h fnmatch.h ieeefp.h inttypes.h kvm.h math.h])
 
 AC_CHECK_HEADERS([memory.h netdb.h poll.h])
-AC_CHECK_HEADERS([sgtty.h stdatomic.h stdlib.h string.h termio.h])
+AC_CHECK_HEADERS([sgtty.h stdatomic.h])
+AC_HEADER_STDBOOL
+AC_CHECK_HEADERS([stdlib.h string.h termio.h])
 AC_CHECK_HEADERS([termios.h timepps.h timex.h unistd.h])
 
 case "$host" in
@@ -4158,6 +4160,24 @@ case "$ans" in
 esac
 
 
+AC_MSG_CHECKING([if we want the explicit 127.0.0.0/8 martian filter])
+AC_ARG_ENABLE(
+    [bug3020-fix],
+    [AS_HELP_STRING(
+	[--enable-bug3020-fix],
+	[+ Provide the explicit 127.0.0.0/8 martian filter]
+    )],
+    [ans=$enableval],
+    [ans=yes]
+)
+AC_MSG_RESULT([$ans])
+case "$ans" in
+ yes)
+    AC_DEFINE([ENABLE_BUG3020_FIX], [1],
+	[Provide the explicit 127.0.0.0/8 martian filter?])
+esac
+
+
 AC_MSG_CHECKING([if we should use the IRIG sawtooth filter])
 
 case "$host" in
@@ -4320,6 +4340,28 @@ case "$ntp_ok" in
     HAVE_LEAPSMEARINTERVAL="leapsmearinterval 0"
     ;;
 esac
+AC_MSG_RESULT([$ntp_ok])
+
+###
+
+AC_MSG_CHECKING([if we want dynamic interleave support])
+AC_ARG_ENABLE(
+    [dynamic-interleave],
+    [AS_HELP_STRING(
+	[--enable-dynamic-interleave],
+	[- dynamic interleave support]
+    )],
+    [ntp_ok=$enableval],
+    [ntp_ok=no]
+)
+ntp_dynamic_interleave=0
+case "$ntp_ok" in
+ yes)
+    ntp_dynamic_interleave=1
+    ;;
+esac
+AC_DEFINE_UNQUOTED([DYNAMIC_INTERLEAVE], [$ntp_dynamic_interleave],
+    [support dynamic interleave?])
 AC_MSG_RESULT([$ntp_ok])
 
 NTP_UNITYBUILD
