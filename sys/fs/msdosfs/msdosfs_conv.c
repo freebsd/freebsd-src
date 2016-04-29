@@ -759,7 +759,7 @@ winSlotCnt(const u_char *un, size_t unlen, struct msdosfsmount *pmp)
 }
 
 /*
- * Determine the number of bytes neccessary for Win95 names
+ * Determine the number of bytes necessary for Win95 names
  */
 size_t
 winLenFixup(const u_char *un, size_t unlen)

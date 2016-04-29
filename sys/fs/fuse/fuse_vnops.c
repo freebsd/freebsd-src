@@ -1027,7 +1027,7 @@ out:
 				 * soon as we get those attrs... There is
 				 * one bit of info though not given us by
 				 * the daemon: whether his response is
-				 * authorative or not... His response should
+				 * authoritative or not... His response should
 				 * be ignored if something is mounted over
 				 * the dir in question. But that can be
 				 * known only by having the vnode...
@@ -1774,7 +1774,7 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 
 	/*
 	 * We use only the kva address for the buffer, but this is extremely
-	 * convienient and fast.
+	 * convenient and fast.
 	 */
 	bp = getpbuf(&fuse_pbuf_freecnt);
 
@@ -1835,7 +1835,7 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 			    ("fuse_getpages: page %p is dirty", m));
 		} else {
 			/*
-			 * Read operation was short.  If no error occured
+			 * Read operation was short.  If no error occurred
 			 * we may have hit a zero-fill section.   We simply
 			 * leave valid set to 0.
 			 */
@@ -1908,7 +1908,7 @@ fuse_vnop_putpages(struct vop_putpages_args *ap)
 	}
 	/*
 	 * We use only the kva address for the buffer, but this is extremely
-	 * convienient and fast.
+	 * convenient and fast.
 	 */
 	bp = getpbuf(&fuse_pbuf_freecnt);
 

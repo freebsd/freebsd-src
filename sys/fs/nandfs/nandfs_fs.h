@@ -343,7 +343,7 @@ struct nandfs_segment_summary {
 /*
  * Structure of DAT/inode file.
  *
- * A DAT file is devided into groups. The maximum number of groups is the
+ * A DAT file is divided into groups. The maximum number of groups is the
  * number of block group descriptors that fit into one block; this descriptor
  * only gives the number of free entries in the associated group.
  *
