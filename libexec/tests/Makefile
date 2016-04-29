@@ -2,10 +2,11 @@
 
 .include <bsd.own.mk>
 
+FILESGROUPS=	FILES
 PACKAGE=	tests
-FILESGROUPS=	TESTS
+FILESGROUPS+=	TESTS
 TESTSPACKAGE=	${PACKAGE}
-TEST+=		Kyuafile
+TESTS+=		Kyuafile
 
 .PATH:		${SRCTOP}/tests
 KYUAFILE=	yes
