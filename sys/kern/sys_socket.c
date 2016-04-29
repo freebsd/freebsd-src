@@ -734,8 +734,13 @@ soo_aio_queue(struct file *fp, struct kaiocb *job)
 {
 	struct socket *so;
 	struct sockbuf *sb;
+	int error;
 
 	so = fp->f_data;
+	error = (*so->so_proto->pr_usrreqs->pru_aio_queue)(so, job);
+	if (error == 0)
+		return (0);
+
 	switch (job->uaiocb.aio_lio_opcode) {
 	case LIO_READ:
 		sb = &so->so_rcv;
