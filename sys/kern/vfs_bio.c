@@ -224,7 +224,7 @@ SYSCTL_INT(_vfs, OID_AUTO, getnewbufcalls, CTLFLAG_RW, &getnewbufcalls, 0,
    "Number of calls to getnewbuf");
 static int getnewbufrestarts;
 SYSCTL_INT(_vfs, OID_AUTO, getnewbufrestarts, CTLFLAG_RW, &getnewbufrestarts, 0,
-    "Number of times getnewbuf has had to restart a buffer aquisition");
+    "Number of times getnewbuf has had to restart a buffer acquisition");
 static int mappingrestarts;
 SYSCTL_INT(_vfs, OID_AUTO, mappingrestarts, CTLFLAG_RW, &mappingrestarts, 0,
     "Number of times getblk has had to restart a buffer mapping for "
@@ -975,7 +975,7 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 		else
 			bio_transient_maxcnt = biotmap_sz / MAXPHYS;
 		/*
-		 * Artifically limit to 1024 simultaneous in-flight I/Os
+		 * Artificially limit to 1024 simultaneous in-flight I/Os
 		 * using the transient mapping.
 		 */
 		if (bio_transient_maxcnt > 1024)
@@ -1084,7 +1084,7 @@ bufinit(void)
 	maxbufmallocspace = hibufspace / 20;
 
 	/*
-	 * Reduce the chance of a deadlock occuring by limiting the number
+	 * Reduce the chance of a deadlock occurring by limiting the number
 	 * of delayed-write dirty buffers we allow to stack up.
 	 */
 	hidirtybuffers = nbuf / 4 + 20;
@@ -3470,7 +3470,7 @@ has_addr:
  *	to clear B_INVAL.  If the caller does this without issuing an I/O, 
  *	the caller should set B_CACHE ( as an optimization ), else the caller
  *	should issue the I/O and biodone() will set B_CACHE if the I/O was
- *	a write attempt or if it was a successfull read.  If the caller 
+ *	a write attempt or if it was a successful read.  If the caller 
  *	intends to issue a READ, the caller must clear B_INVAL and BIO_ERROR
  *	prior to issuing the READ.  biodone() will *not* clear B_INVAL.
  */
@@ -3582,7 +3582,7 @@ loop:
 		bp_unmapped_get_kva(bp, blkno, size, flags);
 
 		/*
-		 * If the size is inconsistant in the VMIO case, we can resize
+		 * If the size is inconsistent in the VMIO case, we can resize
 		 * the buffer.  This might lead to B_CACHE getting set or
 		 * cleared.  If the size has not changed, B_CACHE remains
 		 * unchanged from its previous state.
@@ -3844,7 +3844,7 @@ vfs_nonvmio_extend(struct buf *bp, int newbsize)
  * resize a buffer up or down.
  *
  * Note that this code is tricky, and has many complications to resolve
- * deadlock or inconsistant data situations.  Tread lightly!!! 
+ * deadlock or inconsistent data situations.  Tread lightly!!! 
  * There are B_CACHE and B_DELWRI interactions that must be dealt with by 
  * the caller.  Calling this code willy nilly can result in the loss of data.
  *
@@ -4004,11 +4004,11 @@ bufwait(struct buf *bp)
  *	assuming B_INVAL is clear.
  *
  *	For the VMIO case, we set B_CACHE if the op was a read and no
- *	read error occured, or if the op was a write.  B_CACHE is never
+ *	read error occurred, or if the op was a write.  B_CACHE is never
  *	set if the buffer is invalid or otherwise uncacheable.
  *
  *	biodone does not mess with B_INVAL, allowing the I/O routine or the
- *	initiator to leave B_INVAL set to brelse the buffer out of existance
+ *	initiator to leave B_INVAL set to brelse the buffer out of existence
  *	in the biodone routine.
  */
 void
@@ -4053,7 +4053,7 @@ bufdone_finish(struct buf *bp)
 	if (bp->b_flags & B_VMIO) {
 		/*
 		 * Set B_CACHE if the op was a normal read and no error
-		 * occured.  B_CACHE is set for writes in the b*write()
+		 * occurred.  B_CACHE is set for writes in the b*write()
 		 * routines.
 		 */
 		if (bp->b_iocmd == BIO_READ &&
@@ -4081,7 +4081,7 @@ bufdone_finish(struct buf *bp)
 /*
  * This routine is called in lieu of iodone in the case of
  * incomplete I/O.  This keeps the busy status for pages
- * consistant.
+ * consistent.
  */
 void
 vfs_unbusy_pages(struct buf *bp)
@@ -4160,7 +4160,7 @@ vfs_page_set_validclean(struct buf *bp, vm_ooffset_t off, vm_page_t m)
 
 	/*
 	 * Start and end offsets in buffer.  eoff - soff may not cross a
-	 * page boundry or cross the end of the buffer.  The end of the
+	 * page boundary or cross the end of the buffer.  The end of the
 	 * buffer, in this case, is our file EOF, not the allocation size
 	 * of the buffer.
 	 */
@@ -4217,10 +4217,10 @@ vfs_drain_busy_pages(struct buf *bp)
  * progress, and treat the pages associated with the buffer
  * almost as being exclusive busy.  Also the object paging_in_progress
  * flag is handled to make sure that the object doesn't become
- * inconsistant.
+ * inconsistent.
  *
  * Since I/O has not been initiated yet, certain buffer flags
- * such as BIO_ERROR or B_INVAL may be in an inconsistant state
+ * such as BIO_ERROR or B_INVAL may be in an inconsistent state
  * and should be ignored.
  */
 void
