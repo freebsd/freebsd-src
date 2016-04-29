@@ -831,9 +831,8 @@ plaintext_prompt_helper(svn_boolean_t *may_save_plaintext,
         {
           if (err->apr_err == SVN_ERR_CANCELLED)
             {
-              svn_error_clear(err);
               *may_save_plaintext = FALSE;
-              return SVN_NO_ERROR;
+              return err;
             }
           else
             return err;
