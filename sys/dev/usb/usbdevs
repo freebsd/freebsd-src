@@ -1509,6 +1509,7 @@ product COREGA FETHER_USB_TXC	0x9601	FEther USB-TXC
 /* Corsair products */
 product CORSAIR K60		0x0a60	Corsair Vengeance K60 keyboard
 product CORSAIR K70		0x1b09	Corsair Vengeance K70 keyboard
+product CORSAIR STRAFE		0x1b15	Cossair STRAFE Gaming keyboard
 
 /* Creative products */
 product CREATIVE NOMAD_II	0x1002	Nomad II MP3 player
@@ -2265,6 +2266,9 @@ product HIDGLOBAL CM6020	0x1784	Omnikey Cardman 6020
 /* Hitachi, Ltd. products */
 product HITACHI DVDCAM_DZ_MV100A	0x0004	DVD-CAM DZ-MV100A Camcorder
 product HITACHI DVDCAM_USB	0x001e	DVDCAM USB HS Interface
+
+/* Holtek products */
+product HOLTEK F85		0xa030	Holtek USB gaming keyboard
 
 /* HP products */
 product HP 895C			0x0004	DeskJet 895C
