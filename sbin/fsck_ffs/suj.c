@@ -217,7 +217,7 @@ static void
 closedisk(const char *devnam)
 {
 	struct csum *cgsum;
-	int i;
+	uint32_t i;
 
 	/*
 	 * Recompute the fs summary info from correct cs summaries.
