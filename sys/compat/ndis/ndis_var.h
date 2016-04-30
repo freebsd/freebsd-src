@@ -1042,7 +1042,7 @@ struct ndis_request {
 			uint32_t	nr_bytesneeded;
 		} ndis_set_information;
 	} ndis_data;
-	/* NDIS 5.0 extentions */
+	/* NDIS 5.0 extensions */
 	uint8_t			nr_ndis_rsvd[9 * sizeof(void *)];
 	union {
 		uint8_t		nr_callmgr_rsvd[2 * sizeof(void *)];
@@ -1444,7 +1444,7 @@ struct ndis_miniport_characteristics {
 	void *			nmc_setinfo_func;
 	void *			nmc_transferdata_func;
 
-	/* NDIS 4.0 extentions */
+	/* NDIS 4.0 extensions */
 
 	void *			nmc_return_packet_func;
 	void *			nmc_sendmulti_func;
@@ -1459,7 +1459,7 @@ struct ndis_miniport_characteristics {
 	void *			nmc_comultisend_func;
 	void *			nmc_corequest_func;
 
-	/* NDIS 5.1 extentions */
+	/* NDIS 5.1 extensions */
 
 	void *			nmc_canceltxpkts_handler;
 	void *			nmc_pnpevent_handler;
