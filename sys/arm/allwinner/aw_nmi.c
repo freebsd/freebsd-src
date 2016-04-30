@@ -277,8 +277,11 @@ aw_nmi_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 static void
 aw_nmi_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
+	struct aw_nmi_softc *sc;
 
+	sc = device_get_softc(dev);
 	aw_nmi_disable_intr(dev, isrc);
+	SC_NMI_WRITE(sc, NMI_IRQ_PENDING_REG, NMI_IRQ_ACK);
 }
 
 static void
