@@ -170,4 +170,4 @@ static platform_method_t tegra124_methods[] = {
 	PLATFORMMETHOD_END,
 };
 
-FDT_PLATFORM_DEF(tegra124, "Nvidia Jetson-TK1", 0, "nvidia,jetson-tk1");
+FDT_PLATFORM_DEF(tegra124, "Nvidia Jetson-TK1", 0, "nvidia,jetson-tk1", 0);

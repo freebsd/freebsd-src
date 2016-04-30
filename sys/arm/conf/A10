@@ -30,6 +30,7 @@ options 	SOC_ALLWINNER_A10
 options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PLATFORM
+options 	MULTIDELAY
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols

@@ -57,6 +57,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/md_var.h>
 
+#ifdef MULTIDELAY
+#include <machine/machdep.h> /* For arm_set_delay */
+#endif
+
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
@@ -126,6 +130,7 @@ static struct timecounter arm_tmr_timecount = {
 
 static uint32_t arm_tmr_fill_vdso_timehands(struct vdso_timehands *vdso_th,
     struct timecounter *tc);
+static void arm_tmr_do_delay(int usec, void *);
 
 static int
 get_freq(void)
@@ -419,6 +424,10 @@ arm_tmr_attach(device_t dev)
 	sc->et.et_priv = sc;
 	et_register(&sc->et);
 
+#ifdef MULTIDELAY
+	arm_set_delay(arm_tmr_do_delay, sc);
+#endif
+
 	return (0);
 }
 
@@ -463,26 +472,12 @@ EARLY_DRIVER_MODULE(timer, acpi, arm_tmr_acpi_driver, arm_tmr_acpi_devclass,
     0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 #endif
 
-void
-DELAY(int usec)
+static void
+arm_tmr_do_delay(int usec, void *arg)
 {
+	struct arm_tmr_softc *sc = arg;
 	int32_t counts, counts_per_usec;
 	uint32_t first, last;
-
-	/*
-	 * Check the timers are setup, if not just
-	 * use a for loop for the meantime
-	 */
-	if (arm_tmr_sc == NULL) {
-		for (; usec > 0; usec--)
-			for (counts = 200; counts > 0; counts--)
-				/*
-				 * Prevent the compiler from optimizing
-				 * out the loop
-				 */
-				cpufunc_nullop();
-		return;
-	}
 
 	/* Get the number of times to count */
 	counts_per_usec = ((arm_tmr_timecount.tc_frequency / 1000000) + 1);
@@ -498,14 +493,37 @@ DELAY(int usec)
 	else
 		counts = usec * counts_per_usec;
 
-	first = get_cntxct(arm_tmr_sc->physical);
+	first = get_cntxct(sc->physical);
 
 	while (counts > 0) {
-		last = get_cntxct(arm_tmr_sc->physical);
+		last = get_cntxct(sc->physical);
 		counts -= (int32_t)(last - first);
 		first = last;
 	}
 }
+
+#ifndef MULTIDELAY
+void
+DELAY(int usec)
+{
+	int32_t counts;
+
+	/*
+	 * Check the timers are setup, if not just
+	 * use a for loop for the meantime
+	 */
+	if (arm_tmr_sc == NULL) {
+		for (; usec > 0; usec--)
+			for (counts = 200; counts > 0; counts--)
+				/*
+				 * Prevent the compiler from optimizing
+				 * out the loop
+				 */
+				cpufunc_nullop();
+	} else
+		arm_tmr_do_delay(usec, arm_tmr_sc);
+}
+#endif
 
 static uint32_t
 arm_tmr_fill_vdso_timehands(struct vdso_timehands *vdso_th,
