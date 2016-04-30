@@ -472,7 +472,7 @@ getaddrinfo(const char *hostname, const char *servname,
 	/*
 	 * RFC 3493: AI_ALL and AI_V4MAPPED are effective only against
 	 * AF_INET6 query.  They need to be ignored if specified in other
-	 * occassions.
+	 * occasions.
 	 */
 	switch (pai->ai_flags & (AI_ALL | AI_V4MAPPED)) {
 	case AI_V4MAPPED:

@@ -51,7 +51,7 @@ typedef void (fp_ldst64_fn)(u_int64_t *);
 /*
  * These are the functions that are actually used in the fpu emulation code to
  * access the fp registers. They are usually not used more than once, so
- * cacheing needs not be done here.
+ * caching needs not be done here.
  */
 static __inline u_int32_t
 __fpu_getreg(int r)

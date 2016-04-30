@@ -49,7 +49,7 @@
  * One approach for thread safety is to provide discrete versions of the
  * library: one thread safe, the other not.  The disadvantage of this is
  * that libc is rather large, and two copies of a library which are 99%+
- * identical is not an efficent use of resources.
+ * identical is not an efficient use of resources.
  * 
  * Another approach is to provide a single thread safe library.  However,
  * it should not add significant run time or code size overhead to non-

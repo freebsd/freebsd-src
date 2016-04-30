@@ -405,7 +405,7 @@ endnetconfig(void *handlep)
     }
 
     /*
-     * Noone needs these entries anymore, then frees them.
+     * No one needs these entries anymore, then frees them.
      * Make sure all info in netconfig_info structure has been reinitialized.
      */
     q = ni.head;

@@ -28,7 +28,7 @@
  */
 
 /*
- * This file defines compatiblity symbol versions for old system calls.  It
+ * This file defines compatibility symbol versions for old system calls.  It
  * is included in all generated system call files.
  */
 
