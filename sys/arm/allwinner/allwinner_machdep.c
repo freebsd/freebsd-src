@@ -148,7 +148,7 @@ static platform_method_t a10_methods[] = {
 
 	PLATFORMMETHOD_END,
 };
-FDT_PLATFORM_DEF(a10, "a10", 0, "allwinner,sun4i-a10");
+FDT_PLATFORM_DEF(a10, "a10", 0, "allwinner,sun4i-a10", 200);
 #endif
 
 #if defined(SOC_ALLWINNER_A20)
@@ -163,7 +163,7 @@ static platform_method_t a20_methods[] = {
 #endif
 	PLATFORMMETHOD_END,
 };
-FDT_PLATFORM_DEF(a20, "a20", 0, "allwinner,sun7i-a20");
+FDT_PLATFORM_DEF(a20, "a20", 0, "allwinner,sun7i-a20", 200);
 #endif
 
 #if defined(SOC_ALLWINNER_A31)
@@ -178,7 +178,7 @@ static platform_method_t a31_methods[] = {
 #endif
 	PLATFORMMETHOD_END,
 };
-FDT_PLATFORM_DEF(a31, "a31", 0, "allwinner,sun6i-a31");
+FDT_PLATFORM_DEF(a31, "a31", 0, "allwinner,sun6i-a31", 200);
 #endif
 
 #if defined(SOC_ALLWINNER_A31S)
@@ -193,7 +193,7 @@ static platform_method_t a31s_methods[] = {
 #endif
 	PLATFORMMETHOD_END,
 };
-FDT_PLATFORM_DEF(a31s, "a31s", 0, "allwinner,sun6i-a31s");
+FDT_PLATFORM_DEF(a31s, "a31s", 0, "allwinner,sun6i-a31s", 200);
 #endif
 
 u_int
