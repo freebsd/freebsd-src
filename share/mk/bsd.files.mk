@@ -9,7 +9,7 @@ __<bsd.files.mk>__:
 
 FILESGROUPS?=	FILES
 
-_FILESGROUPS=	${FILESGROUPS:C,[/*],_,g}
+_FILESGROUPS=	${FILESGROUPS:C,[/*],_,g:u}
 
 .for group in ${_FILESGROUPS}
 # Add in foo.yes and remove duplicates from all the groups
