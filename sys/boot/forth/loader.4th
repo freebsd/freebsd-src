@@ -136,7 +136,7 @@ only forth definitions also support-functions
 \ ***** start
 \
 \       Initializes support.4th global variables, sets loader_conf_files,
-\       processes conf files, and, if any one such file was succesfully
+\       processes conf files, and, if any one such file was successfully
 \       read to the end, loads kernel and modules.
 
 : start  ( -- ) ( throws: abort & user-defined )
@@ -144,7 +144,7 @@ only forth definitions also support-functions
   include_conf_files
   include_nextboot_file
   \ Will *NOT* try to load kernel and modules if no configuration file
-  \ was succesfully loaded!
+  \ was successfully loaded!
   any_conf_read? if
     s" loader_delay" getenv -1 = if
       load_xen_throw
