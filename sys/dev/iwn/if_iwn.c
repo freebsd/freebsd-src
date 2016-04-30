@@ -6335,7 +6335,7 @@ iwn_set_pslevel(struct iwn_softc *sc, int dtim, int level, int async)
 		if (max == (uint32_t)-1)
 			max = dtim * (skip_dtim + 1);
 		else if (max > dtim)
-			max = (max / dtim) * dtim;
+			max = rounddown(max, dtim);
 	} else
 		max = dtim;
 	for (i = 0; i < 5; i++)

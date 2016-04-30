@@ -912,7 +912,7 @@ vga_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 	uint8_t pattern_2colors;
 
 	/* Align coordinates with the 8-pxels grid. */
-	x1 = x / VT_VGA_PIXELS_BLOCK * VT_VGA_PIXELS_BLOCK;
+	x1 = rounddown(x, VT_VGA_PIXELS_BLOCK);
 	y1 = y;
 
 	x2 = roundup(x + width, VT_VGA_PIXELS_BLOCK);
