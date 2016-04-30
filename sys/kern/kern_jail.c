@@ -1234,7 +1234,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			}
 		created = 1;
 		mtx_lock(&ppr->pr_mtx);
-		if (ppr->pr_ref == 0 || (ppr->pr_flags & PR_REMOVE)) {
+		if (ppr->pr_ref == 0) {
 			mtx_unlock(&ppr->pr_mtx);
 			error = ENOENT;
 			vfs_opterror(opts, "parent jail went away!");
@@ -2290,7 +2290,6 @@ sys_jail_remove(struct thread *td, struct jail_remove_args *uap)
 
 	/* Remove all descendants of this prison, then remove this prison. */
 	pr->pr_ref++;
-	pr->pr_flags |= PR_REMOVE;
 	if (!LIST_EMPTY(&pr->pr_children)) {
 		mtx_unlock(&pr->pr_mtx);
 		lpr = NULL;
@@ -2299,7 +2298,6 @@ sys_jail_remove(struct thread *td, struct jail_remove_args *uap)
 			if (cpr->pr_ref > 0) {
 				tpr = cpr;
 				cpr->pr_ref++;
-				cpr->pr_flags |= PR_REMOVE;
 			} else {
 				/* Already removed - do not do it again. */
 				tpr = NULL;
