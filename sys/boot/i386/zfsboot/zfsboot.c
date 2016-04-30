@@ -451,7 +451,7 @@ probe_drive(struct dsk *dsk)
     }
 
     /*
-     * Probe all GPT partitions for the presense of ZFS pools. We
+     * Probe all GPT partitions for the presence of ZFS pools. We
      * return the spa_t for the first we find (if requested). This
      * will have the effect of booting from the first pool on the
      * disk.

@@ -157,7 +157,7 @@ fdt_platform_fixups(void)
 
 			if (n != 0) {
 				/*
-				 * Find the lenght of the interface id by
+				 * Find the length of the interface id by
 				 * taking in to account the first 3 and
 				 * last 4 characters.
 				 */

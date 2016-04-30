@@ -238,7 +238,7 @@ typedef uint64_t   UINTN;
 #else // EFI_NT_EMULATOR 
 
 //
-// When build similiar to FW, then link everything together as
+// When building similar to FW, link everything together as
 // one big module.
 //
 
