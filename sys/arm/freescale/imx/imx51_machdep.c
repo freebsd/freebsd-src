@@ -101,4 +101,4 @@ static platform_method_t imx51_methods[] = {
 	PLATFORMMETHOD_END,
 };
 
-FDT_PLATFORM_DEF(imx51, "i.MX51", 0, "fsl,imx51");
+FDT_PLATFORM_DEF(imx51, "i.MX51", 0, "fsl,imx51", 0);
