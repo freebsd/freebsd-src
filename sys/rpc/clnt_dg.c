@@ -219,8 +219,8 @@ clnt_dg_create(
 	/*
 	 * Should be multiple of 4 for XDR.
 	 */
-	sendsz = ((sendsz + 3) / 4) * 4;
-	recvsz = ((recvsz + 3) / 4) * 4;
+	sendsz = rounddown(sendsz + 3, 4);
+	recvsz = rounddown(recvsz + 3, 4);
 	cu = mem_alloc(sizeof (*cu));
 	cu->cu_threads = 0;
 	cu->cu_closing = FALSE;

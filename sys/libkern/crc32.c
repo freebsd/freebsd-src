@@ -684,7 +684,7 @@ crc32c_sb8_64_bit(uint32_t crc,
 	uint32_t running_length;
 	uint32_t end_bytes;
 
-	running_length = ((length - init_bytes) / 8) * 8;
+	running_length = rounddown(length - init_bytes, 8);
 	end_bytes = length - init_bytes - running_length;
 
 	for (li = 0; li < init_bytes; li++)

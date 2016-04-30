@@ -1033,7 +1033,8 @@ acpi_hp_hex_decode(char* buffer)
 	UINT8	*uin;
 	UINT8	uout;
 
-	if (((int)length/2)*2 == length || length < 10) return;
+	if (rounddown((int)length, 2) == length || length < 10)
+		return;
 
 	for (i = 0; i<length; ++i) {
 		if (!((i+1)%3)) {

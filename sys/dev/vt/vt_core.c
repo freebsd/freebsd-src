@@ -640,9 +640,9 @@ vt_compute_drawable_area(struct vt_window *vw)
 	if (vt_draw_logo_cpus)
 		vw->vw_draw_area.tr_begin.tp_row += vt_logo_sprite_height;
 	vw->vw_draw_area.tr_end.tp_col = vw->vw_draw_area.tr_begin.tp_col +
-	    vd->vd_width / vf->vf_width * vf->vf_width;
+	    rounddown(vd->vd_width, vf->vf_width);
 	vw->vw_draw_area.tr_end.tp_row = vw->vw_draw_area.tr_begin.tp_row +
-	    height / vf->vf_height * vf->vf_height;
+	    rounddown(height, vf->vf_height);
 }
 
 static void

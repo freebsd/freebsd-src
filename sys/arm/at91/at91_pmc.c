@@ -506,7 +506,7 @@ at91_pmc_sense_main_clock(void)
 	 * AT91C_MAIN_CLOCK in the kernel config file.
 	 */
 	if (ckgr_val >= 21000000)
-		return ((ckgr_val + 250) / 500 * 500);
+		return (rounddown(ckgr_val + 250, 500));
 
 	/*
 	 * Try to find the standard frequency that match best.
