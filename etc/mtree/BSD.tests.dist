@@ -608,6 +608,8 @@
         ..
         printf
         ..
+        sdiff
+        ..
         sed
             regress.multitest.out
             ..
