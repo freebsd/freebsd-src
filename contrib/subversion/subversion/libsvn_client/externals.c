@@ -231,6 +231,42 @@ switch_dir_external(const char *local_abspath,
 
       if (node_url)
         {
+          svn_boolean_t is_wcroot;
+
+          SVN_ERR(svn_wc__is_wcroot(&is_wcroot, ctx->wc_ctx, local_abspath,
+                                    pool));
+
+          if (! is_wcroot)
+          {
+            /* This can't be a directory external! */
+
+            err = svn_wc__external_remove(ctx->wc_ctx, defining_abspath,
+                                          local_abspath,
+                                          TRUE /* declaration_only */,
+                                          ctx->cancel_func, ctx->cancel_baton,
+                                          pool);
+
+            if (err && err->apr_err == SVN_ERR_WC_PATH_NOT_FOUND)
+              {
+                /* New external... No problem that we can't remove it */
+                svn_error_clear(err);
+                err = NULL;
+              }
+            else if (err)
+              return svn_error_trace(err);
+
+            return svn_error_createf(SVN_ERR_WC_PATH_UNEXPECTED_STATUS, NULL,
+                                     _("The external '%s' defined in %s at '%s' "
+                                       "cannot be checked out because '%s' is "
+                                       "already a versioned path."),
+                                     url_from_externals_definition,
+                                     SVN_PROP_EXTERNALS,
+                                     svn_dirent_local_style(defining_abspath,
+                                                            pool),
+                                     svn_dirent_local_style(local_abspath,
+                                                            pool));
+          }
+
           /* If we have what appears to be a version controlled
              subdir, and its top-level URL matches that of our
              externals definition, perform an update. */

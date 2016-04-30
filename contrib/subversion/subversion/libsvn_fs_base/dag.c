@@ -1657,8 +1657,14 @@ svn_fs_base__things_different(svn_boolean_t *props_changed,
 
   /* Compare contents keys and their (optional) uniquifiers. */
   if (contents_changed != NULL)
-    *contents_changed = (! svn_fs_base__same_keys(noderev1->data_key,
-                                                  noderev2->data_key));
+    *contents_changed =
+      (! (svn_fs_base__same_keys(noderev1->data_key,
+                                 noderev2->data_key)
+          /* Technically, these uniquifiers aren't used and "keys",
+             but keys are base-36 stringified numbers, so we'll take
+             this liberty. */
+          && (svn_fs_base__same_keys(noderev1->data_key_uniquifier,
+                                     noderev2->data_key_uniquifier))));
 
   return SVN_NO_ERROR;
 }

@@ -944,6 +944,7 @@ static svn_error_t *read_string(svn_ra_svn_conn_t *conn, apr_pool_t *pool,
   apr_size_t len = (apr_size_t)len64;
   apr_size_t readbuf_len;
   char *dest;
+  apr_size_t buflen;
 
   /* We can't store strings longer than the maximum size of apr_size_t,
    * so check for wrapping */
@@ -951,8 +952,9 @@ static svn_error_t *read_string(svn_ra_svn_conn_t *conn, apr_pool_t *pool,
     return svn_error_create(SVN_ERR_RA_SVN_MALFORMED_DATA, NULL,
                             _("String length larger than maximum"));
 
+  buflen = conn->read_end - conn->read_ptr;
   /* Shorter strings can be copied directly from the read buffer. */
-  if (conn->read_ptr + len <= conn->read_end)
+  if (len <= buflen)
     {
       item->kind = SVN_RA_SVN_STRING;
       item->u.string = svn_string_ncreate(conn->read_ptr, len, pool);

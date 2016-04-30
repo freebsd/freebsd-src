@@ -1949,3 +1949,29 @@ svn_ra_serf__create_handler(svn_ra_serf__session_t *session,
   return handler;
 }
 
+svn_error_t *
+svn_ra_serf__uri_parse(apr_uri_t *uri,
+                       const char *url_str,
+                       apr_pool_t *result_pool)
+{
+  apr_status_t status;
+
+  status = apr_uri_parse(result_pool, url_str, uri);
+  if (status)
+    {
+      /* Do not use returned error status in error message because currently
+         apr_uri_parse() returns APR_EGENERAL for all parsing errors. */
+      return svn_error_createf(SVN_ERR_RA_ILLEGAL_URL, NULL,
+                               _("Illegal URL '%s'"),
+                               url_str);
+    }
+
+  /* Depending the version of apr-util in use, for root paths uri.path
+     will be NULL or "", where serf requires "/". */
+  if (uri->path == NULL || uri->path[0] == '\0')
+    {
+      uri->path = apr_pstrdup(result_pool, "/");
+    }
+
+  return SVN_NO_ERROR;
+}

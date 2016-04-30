@@ -1,3 +1,91 @@
+Version 1.9.4
+(28 Apr 2016, from /branches/1.9.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.9.4
+
+ User-visible changes:
+  - Client-side bugfixes:
+    * diff: support '--summarize --ignore-properties' (part of issue #4567)
+    * checkout: fix performance regression on NFS (r1710167)
+    * gpg-agent: properly handle passwords with percent characters (issue #4611)
+    * svn-graph.pl: fix assertion about a non-canonical path (r1729060 et al)
+    * hot-backup.py: better input validation (r1721174, r1721175)
+    * commit: abort on Ctrl-C in plaintext password prompt (issue #4624)
+    * diff: produce proper forward binary diffs with --git (r1704292, r1704573)
+    * ra_serf: fix deleting directories with many files (issue #4557)
+
+  - Server-side bugfixes:
+    * improve documentation for AuthzSVNGroupsFile and groups-db (r1730856)
+    * fsfs: reduce peak memory usage when listing large directories (r1725180)
+    * fsfs: fix a rare source of incomplete dump files and reports (r1717876)
+
+  - Client-side and server-side bugfixes:
+    * update INSTALL documentation file (r1703470 et al)
+    * fix potential memory access bugs (r1722860 et al)
+    * fix potential out of bounds read in svn_repos_get_logs5() (r1738259)
+
+  - Bindings bugfixes:
+    * ignore absent nodes in javahl version of svn status -u (r1720643)
+
+ Developer-visible changes:
+  - General:
+    * fix ruby test suite to work with test-unit gem (r1714790)
+    * allow building against KDE4 without conflict with KDE5 (r1734926)
+    * fix update_tests.py#76 with SVNPathAuthz short_circuit (r1736432)
+    * build system tweaks:
+    * tweak how symbolic error names in maintainer mode (r1735179)
+    * fix inconsistent behavior of inherited property API (r1717874 et al)
+
+  - API changes:
+    * properly interpret parameters in svn_wc_get_diff_editor6() (r1728308)
+
+
+Version 1.9.3
+(15 Dec 2015, from /branches/1.9.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.9.3
+
+ User-visible changes:
+  - Client-side bugfixes:
+    * svn: fix possible crash in auth credentials cache (r1705328)
+    * cleanup: avoid unneeded memory growth during pristine cleanup (r1706241)
+    * diff: fix crash when repository is on server root (r1705060 et al)
+    * fix translations for commit notifications (r1709389, r1709562)
+    * ra_serf: fix crash in multistatus parser (r1706323, r1706324)
+    * svn: report lock/unlock errors as failures (r1701598 et al)
+    * svn: cleanup user deleted external registrations (r1705843, r1710558)
+    * svn: allow simple resolving of binary file text conflicts (r1703581)
+    * svnlook: properly remove tempfiles on diff errors (r1711346)
+    * ra_serf: report built- and run-time versions of libserf (r1704847)
+    * ra_serf: set Content-Type header in outgoing requests (r1715224 et al)
+    * svn: fix merging deletes of svn:eol-style CRLF/CR files (r1703689 et al)
+    * ra_local: disable zero-copy code path (r1718167)
+
+  - Server-side bugfixes:
+    * mod_dav_svn: fix heap overflow with skel-encoded requests (CVE-2015-5343)
+    * mod_authz_svn: fix authz with mod_auth_kerb/mod_auth_ntlm (issue #4602)
+    * mod_dav_svn: fix display of process ID in cache statistics (r1709553)
+    * mod_dav_svn: use LimitXMLRequestBody for skel-encoded requests (r1687812)
+    * svnadmin dump: preserve no-op changes (r1709388 et al, issue #4598)
+    * fsfs: avoid unneeded I/O when opening transactions (r1715793)
+
+  - Client-side and server-side bugfixes:
+    * fix heap overflow in svn:// protocol parser (CVE-2015-5259)
+
+  - Bindings bugfixes:
+    * javahl: fix ABI incompatibilty with 1.8 (r1710104)
+    * javahl: allow non-absolute paths in SVNClient.vacuum (r1710215, r1710290)
+
+ Developer-visible changes:
+  - General:
+    * fix patch filter invocation in svn_client_patch() (r1706783)
+    * add @since information to config defines (r1706983, r1706999)
+    * fix running the tests in compatibility mode (r1706375)
+    * clarify documentation of svn_fs_node_created_rev() (r1717154)
+
+  - API changes:
+    * fix overflow detection in svn_stringbuf_remove and _replace (r1714358)
+    * don't ignore some of the parameters to svn_ra_svn_create_conn3 (r1714314)
+
+
 Version 1.9.2
 (30 Sep 2015, from /branches/1.9.x)
 http://svn.apache.org/repos/asf/subversion/tags/1.9.2
@@ -118,7 +206,7 @@ http://svn.apache.org/repos/asf/subversion/tags/1.9.0
     * fsfs: enable dir and prop deltas by default for formats that support
       it (r1555286)
     * fsfs: avoid out of date errors from files in a directory changing when
-      you change a property on the directory (r1558224)
+      you change a property on the directory (issue #2118)
     * fsfs: temporary transaction properties are preserved when commit is
       interrupted (r1549907 et al)
     * fsfs: speed up transaction creation (r1544719)
@@ -792,6 +880,51 @@ http://svn.apache.org/repos/asf/subversion/tags/1.9.0
     * javahl: requires Java 1.6 (r1677003)
     * javahl: on OS X use /usr/libexec/java_home to find the JDK (r1675774)
     * javahl: allow compiling with a C++11 compiler (r1684412)
+
+
+Version 1.8.16
+(28 Apr 2016, from /branches/1.8.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.8.16
+
+ User-visible changes:
+  - Server-side bugfixes:
+    * mod_authz_svn: fix authz with mod_auth_kerb/mod_auth_ntlm (issue #4602)
+    * dump: don't write broken dump files in some ambiguously encoded fsfs
+      repositories (issue #4554)
+
+  - Client-side and server-side bugfixes:
+    * update INSTALL documentation file (r1703470, r1703475)
+
+ Developer-visible changes:
+  - General:
+    * fix javahl test suite to work on a symlinked RAM disk (r1539230)
+    * fix ruby test suite to work with test-unit gem (r1714790)
+
+
+Version 1.8.15
+(15 Dec 2015, from /branches/1.8.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.8.15
+
+ User-visible changes:
+  - Client-side bugfixes:
+    * gpg-agent: fix crash with non-canonical $HOME (r1691928, issue #4584)
+
+  - Client-side and server-side bugfixes:
+    * fix a segfault with old style text delta (r1618472 et al)
+
+  - Server-side bugfixes:
+    * mod_dav_svn: fix heap overflow with skel-encoded requests (CVE-2015-5343)
+    * fsfs: reduce memory allocation with Apache (r1591005 et al)
+    * mod_dav_svn: emit first log items as soon as possible (r1666965 et al)
+    * mod_dav_svn: use LimitXMLRequestBody for skel-encoded requests (r1687812)
+
+  - Bindings bugfixes:
+    * swig: fix memory corruption in svn_client_copy_source_t (r1694929)
+
+ Developer-visible changes:
+  - General:
+    * better configure-time detection of httpd authz fix (r1687304 et al)
+    * fix compilation with apr 1.2.x (r1701237)
 
 
 Version 1.8.14

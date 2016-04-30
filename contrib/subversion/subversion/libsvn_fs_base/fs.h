@@ -195,11 +195,7 @@ typedef struct node_revision_t
      only because one or both of us decided to pick up a shared
      representation after-the-fact."  May be NULL (if this node
      revision isn't using a shared rep, or isn't the original
-     "assignee" of a shared rep).
-
-     This is no longer used by the 1.9 code but we have to keep
-     reading and writing it to remain compatible with 1.8, and
-     earlier, that require it. */
+     "assignee" of a shared rep). */
   const char *data_key_uniquifier;
 
   /* representation key for this node's text-data-in-progess (files

@@ -80,6 +80,29 @@ get_comment(const char **comment, svn_client_ctx_t *ctx,
   return SVN_NO_ERROR;
 }
 
+/* Baton for notify_lock_handler */
+struct notify_lock_baton_t
+{
+  void *inner_baton;
+  svn_wc_notify_func2_t inner_notify;
+  svn_boolean_t had_failure;
+};
+
+/* Implements svn_wc_notify_func2_t for svn_cl__lock */
+static void
+notify_lock_handler(void *baton,
+                    const svn_wc_notify_t *notify,
+                    apr_pool_t *scratch_pool)
+{
+  struct notify_lock_baton_t *nlb = baton;
+
+  if (notify->action == svn_wc_notify_failed_lock)
+    nlb->had_failure = TRUE;
+
+  if (nlb->inner_notify)
+    nlb->inner_notify(nlb->inner_baton, notify, scratch_pool);
+}
+
 /* This implements the `svn_opt_subcommand_t' interface. */
 svn_error_t *
 svn_cl__lock(apr_getopt_t *os,
@@ -90,6 +113,7 @@ svn_cl__lock(apr_getopt_t *os,
   svn_client_ctx_t *ctx = ((svn_cl__cmd_baton_t *) baton)->ctx;
   apr_array_header_t *targets;
   const char *comment;
+  struct notify_lock_baton_t nlb;
 
   SVN_ERR(svn_cl__args_to_target_array_print_reserved(&targets, os,
                                                       opt_state->targets,
@@ -106,5 +130,18 @@ svn_cl__lock(apr_getopt_t *os,
 
   SVN_ERR(svn_cl__eat_peg_revisions(&targets, targets, pool));
 
-  return svn_client_lock(targets, comment, opt_state->force, ctx, pool);
+  nlb.inner_notify = ctx->notify_func2;
+  nlb.inner_baton = ctx->notify_baton2;
+  nlb.had_failure = FALSE;
+
+  ctx->notify_func2 = notify_lock_handler;
+  ctx->notify_baton2 = &nlb;
+
+  SVN_ERR(svn_client_lock(targets, comment, opt_state->force, ctx, pool));
+
+  if (nlb.had_failure)
+    return svn_error_create(SVN_ERR_ILLEGAL_TARGET, NULL,
+                            _("One or more locks could not be obtained"));
+
+  return SVN_NO_ERROR;
 }
