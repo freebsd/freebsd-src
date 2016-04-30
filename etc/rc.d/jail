@@ -517,7 +517,11 @@ jail_stop()
 		command=$jail_program
 		rc_flags=$jail_flags
 		command_args="-f $jail_conf -r"
-		$jail_jls name | while read _j; do
+		if checkyesno jail_reverse_stop; then
+			$jail_jls name | tail -r
+		else
+			$jail_jls name
+		fi | while read _j; do
 			echo -n " $_j"
 			_tmp=`mktemp -t jail` || exit 3
 			$command $rc_flags $command_args $_j >> $_tmp 2>&1
@@ -532,6 +536,7 @@ jail_stop()
 		return
 	;;
 	esac
+	checkyesno jail_reverse_stop && set -- $(reverse_list $@)
 	for _j in $@; do
 		_j=$(echo $_j | tr /. _)
 		_jv=$(echo -n $_j | tr -c '[:alnum:]' _)
@@ -567,5 +572,6 @@ jail_warn()
 load_rc_config $name
 case $# in
 1)	run_rc_command $@ ${jail_list:-_ALL} ;;
-*)	run_rc_command $@ ;;
+*)	jail_reverse_stop="no"
+	run_rc_command $@ ;;
 esac
