@@ -144,7 +144,7 @@ static u_int32_t net_mask(struct in_addr);
  * there will have precedence.  Otherwise, the server address is set to
  * INADDR_ANY and the default domain name comes from the gethostname().
  *
- * An interrim version of this code (BIND 4.9, pre-4.4BSD) used 127.0.0.1
+ * An interim version of this code (BIND 4.9, pre-4.4BSD) used 127.0.0.1
  * rather than INADDR_ANY ("0.0.0.0") as the default name server address
  * since it was noted that INADDR_ANY actually meant ``the first interface
  * you "ifconfig"'d at boot time'' and if this was a SLIP or PPP interface,
@@ -167,7 +167,7 @@ res_ninit(res_state statp) {
 	return (__res_vinit(statp, 0));
 }
 
-/*% This function has to be reachable by res_data.c but not publically. */
+/*% This function has to be reachable by res_data.c but not publicly. */
 int
 __res_vinit(res_state statp, int preinit) {
 	FILE *fp;
