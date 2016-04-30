@@ -1581,7 +1581,7 @@ vesa_set_origin(video_adapter_t *adp, off_t offset)
 	regs.R_DX = offset / adp->va_window_gran;
 	x86bios_intr(&regs, 0x10);
 
-	adp->va_window_orig = (offset/adp->va_window_gran)*adp->va_window_gran;
+	adp->va_window_orig = rounddown(offset, adp->va_window_gran);
 	return (0);			/* XXX */
 }
 

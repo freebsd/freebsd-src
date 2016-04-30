@@ -1252,7 +1252,7 @@ set_line_length(video_adapter_t *adp, int pixel)
 	break;
     case V_INFO_MM_PACKED:
 	count = (pixel + 7)/8;
-	bpl = ((pixel + 7)/8)*8;
+	bpl = rounddown(pixel + 7, 8);
 	break;
     case V_INFO_MM_TEXT:
 	count = (pixel + 7)/8;			/* columns */
