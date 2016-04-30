@@ -1900,13 +1900,13 @@ merge(svn_stringbuf_t *conflict_p,
     /* Now compare the prop-keys of the skels.  Note that just because
        the keys are different -doesn't- mean the proplists have
        different contents. */
-    SVN_ERR(svn_fs_fs__prop_rep_equal(&same, fs, src_nr, anc_nr, TRUE, pool));
+    SVN_ERR(svn_fs_fs__prop_rep_equal(&same, fs, src_nr, anc_nr, pool));
     if (! same)
       return conflict_err(conflict_p, target_path);
 
     /* The directory entries got changed in the repository but the directory
        properties did not. */
-    SVN_ERR(svn_fs_fs__prop_rep_equal(&same, fs, tgt_nr, anc_nr, TRUE, pool));
+    SVN_ERR(svn_fs_fs__prop_rep_equal(&same, fs, tgt_nr, anc_nr, pool));
     if (! same)
       {
         /* There is an incoming prop change for this directory.
