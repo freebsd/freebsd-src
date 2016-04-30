@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2016
+.Dd April 30, 2016
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3868,6 +3868,9 @@ The names specified in this list control the jail startup order.
 instances missing from
 .Va jail_list
 must be started manually.
+Note that a jail's
+.Va depend
+parameter in the configuration file may override this list.
 .It Va jail_reverse_stop
 .Pq Vt bool
 When set to
