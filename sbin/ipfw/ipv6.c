@@ -325,7 +325,7 @@ lookup_host6 (char *host, struct in6_addr *ip6addr)
  *     any     matches any IP6. Actually returns an empty instruction.
  *     me      returns O_IP6_*_ME
  *
- *     03f1::234:123:0342		single IP6 addres
+ *     03f1::234:123:0342		single IP6 address
  *     03f1::234:123:0342/24	    address/mask
  *     03f1::234:123:0342/24,03f1::234:123:0343/	       List of address
  *
