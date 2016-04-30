@@ -96,4 +96,4 @@ static platform_method_t virt_methods[] = {
 	PLATFORMMETHOD_END,
 };
 
-FDT_PLATFORM_DEF(virt, "virt", 0, "linux,dummy-virt");
+FDT_PLATFORM_DEF(virt, "virt", 0, "linux,dummy-virt", 1);

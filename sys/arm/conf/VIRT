@@ -28,6 +28,7 @@ options 	SCHED_ULE		# 4BSD scheduler
 options 	PLATFORM
 options 	PLATFORM_SMP
 options 	SMP			# Enable multiple cores
+options 	MULTIDELAY
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
