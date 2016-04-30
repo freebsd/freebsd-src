@@ -6173,7 +6173,7 @@ rt_tableid_max(void)
 	/*
 	 * As the OpenBSD code only compares > and not >= we need to adjust
 	 * here given we only accept values of 0..n and want to avoid #ifdefs
-	 * in the grammer.
+	 * in the grammar.
 	 */
 	return (fibs - 1);
 #else

@@ -82,7 +82,7 @@ int ipfw_socket = -1;
  * Check if we have enough space in cmd buffer. Note that since
  * first 8? u32 words are reserved by reserved header, full cmd
  * buffer can't be used, so we need to protect from buffer overrun
- * only. At the beginnig, cblen is less than actual buffer size by
+ * only. At the beginning, cblen is less than actual buffer size by
  * size of ipfw_insn_u32 instruction + 1 u32 work. This eliminates need
  * for checking small instructions fitting in given range.
  * We also (ab)use the fact that ipfw_insn is always the first field
@@ -4929,7 +4929,7 @@ table_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx)
  * Rules in reply are modified to store their actual ruleset number.
  *
  * (*1) TLVs inside IPFW_TLV_TBL_LIST needs to be sorted ascending
- * accoring to their idx field and there has to be no duplicates.
+ * according to their idx field and there has to be no duplicates.
  * (*2) Numbered rules inside IPFW_TLV_RULE_LIST needs to be sorted ascending.
  * (*3) Each ip_fw structure needs to be aligned to u64 boundary.
  */
