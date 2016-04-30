@@ -74,7 +74,7 @@ static void efi_zfs_probe(void);
 
 /*
  * Need this because EFI uses UTF-16 unicode string constants, but we
- * use UTF-8. We can't use printf due to the possiblity of \0 and we
+ * use UTF-8. We can't use printf due to the possibility of \0 and we
  * don't support support wide characters either.
  */
 static void

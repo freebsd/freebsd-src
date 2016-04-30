@@ -33,7 +33,7 @@
 
 	#
 	# Display string with Shift-JIS support
-	# %si: addres of string, %di: T-VRAM address, %cx: count
+	# %si: address of string, %di: T-VRAM address, %cx: count
 	#
 
 	# Absolute address of putssjis_entry must be 0x1243.

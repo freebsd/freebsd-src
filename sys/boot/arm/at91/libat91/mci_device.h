@@ -106,15 +106,15 @@ typedef struct _AT91S_MciDevice
 ///////////////////////////////////////////////////////////////////////////////
 #define AT91C_CMD_SEND_OK		0		// Command ok
 #define AT91C_CMD_SEND_ERROR		-1		// Command failed
-#define AT91C_INIT_OK			2		// Init Successfull
+#define	AT91C_INIT_OK			2		// Init Successful
 #define AT91C_INIT_ERROR		3		// Init Failed
-#define AT91C_READ_OK			4		// Read Successfull
+#define	AT91C_READ_OK			4		// Read Successful
 #define AT91C_READ_ERROR		5		// Read Failed
-#define AT91C_WRITE_OK			6		// Write Successfull
+#define	AT91C_WRITE_OK			6		// Write Successful
 #define AT91C_WRITE_ERROR		7		// Write Failed
-#define AT91C_ERASE_OK			8		// Erase Successfull
+#define	AT91C_ERASE_OK			8		// Erase Successful
 #define AT91C_ERASE_ERROR		9		// Erase Failed
-#define AT91C_CARD_SELECTED_OK		10		// Card Selection Successfull
+#define	AT91C_CARD_SELECTED_OK		10		// Card Selection Successful
 #define AT91C_CARD_SELECTED_ERROR	11		// Card Selection Failed
 
 #define AT91C_MCI_SR_ERROR (AT91C_MCI_UNRE | AT91C_MCI_OVRE | AT91C_MCI_DTOE | \

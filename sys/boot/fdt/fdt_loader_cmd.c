@@ -158,7 +158,7 @@ fdt_find_static_dtb()
 	}
 
 	/*
-	 * The most efficent way to find a symbol would be to calculate a
+	 * The most efficient way to find a symbol would be to calculate a
 	 * hash, find proper bucket and chain, and thus find a symbol.
 	 * However, that would involve code duplication (e.g. for hash
 	 * function). So we're using simpler and a bit slower way: we're
@@ -652,7 +652,7 @@ fdt_fixup_memory(struct fdt_mem_region *region, size_t num)
 			if (fdt_get_mem_rsv(fdtp, i, &rstart, &rsize))
 				break;
 			if (rsize) {
-				/* Ensure endianess, and put cells into a buffer */
+				/* Ensure endianness, and put cells into a buffer */
 				if (addr_cells == 2)
 					*(uint64_t *)buf =
 					    cpu_to_fdt64(rstart);
@@ -701,7 +701,7 @@ fdt_fixup_memory(struct fdt_mem_region *region, size_t num)
 	for (i = 0; i < num; i++) {
 		curmr = &region[i];
 		if (curmr->size != 0) {
-			/* Ensure endianess, and put cells into a buffer */
+			/* Ensure endianness, and put cells into a buffer */
 			if (addr_cells == 2)
 				*(uint64_t *)buf =
 				    cpu_to_fdt64(curmr->start);
