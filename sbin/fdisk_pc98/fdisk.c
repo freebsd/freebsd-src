@@ -63,8 +63,6 @@ static char lbuf[LBUF];
 #define Decimal(str, ans, tmp) if (decimal(str, &tmp, ans)) ans = tmp
 #define String(str, ans, len) {char *z = ans; char **dflt = &z; if (string(str, dflt)) strncpy(ans, *dflt, len); }
 
-#define RoundCyl(x) ((((x) + cylsecs - 1) / cylsecs) * cylsecs)
-
 #define MAX_SEC_SIZE 2048	/* maximum section size that is supported */
 #define MIN_SEC_SIZE 512	/* the sector size to start sensing at */
 static int secsize = 0;		/* the sensed sector size */
