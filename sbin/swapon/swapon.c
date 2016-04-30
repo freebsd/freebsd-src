@@ -428,7 +428,7 @@ swap_on_off_geli(const char *name, char *mntops, int doingall)
 		free(args);
 
 		if (error) {
-			/* error occured during creation. */
+			/* error occurred during creation. */
 			if (qflag == 0)
 				warnx("%s: Invalid parameters", name);
 			return (NULL);
