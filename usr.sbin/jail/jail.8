@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2016
+.Dd April 30, 2016
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -838,13 +838,14 @@ Allow making changes to a
 jail.
 .It Va depend
 Specify a jail (or jails) that this jail depends on.
-Any such jails must be fully created, up to the last
+When this jail is to be created, any jail(s) it depends on must already exist.
+If not, they will be created automatically, up to the completion of the last
 .Va exec.poststart
 command, before any action will taken to create this jail.
 When jails are removed the opposite is true:
-this jail must be fully removed, up to the last
+this jail will be removed, up to the last
 .Va exec.poststop
-command, before the jail(s) it depends on are stopped.
+command, before any jail(s) it depends on are stopped.
 .El
 .Sh EXAMPLES
 Jails are typically set up using one of two philosophies: either to
