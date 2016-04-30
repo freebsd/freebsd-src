@@ -96,7 +96,7 @@ kbd_realloc_array(void)
 	int s;
 
 	s = spltty();
-	newsize = ((keyboards + ARRAY_DELTA)/ARRAY_DELTA)*ARRAY_DELTA;
+	newsize = rounddown(keyboards + ARRAY_DELTA, ARRAY_DELTA);
 	new_kbd = malloc(sizeof(*new_kbd)*newsize, M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (new_kbd == NULL) {
 		splx(s);
