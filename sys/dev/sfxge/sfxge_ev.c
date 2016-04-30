@@ -79,6 +79,21 @@ sfxge_ev_qcomplete(struct sfxge_evq *evq, boolean_t eop)
 		sfxge_rx_qcomplete(rxq, eop);
 }
 
+static struct sfxge_rxq *
+sfxge_get_rxq_by_label(struct sfxge_evq *evq, uint32_t label)
+{
+	struct sfxge_rxq *rxq;
+
+	KASSERT(label == 0, ("unexpected rxq label != 0"));
+
+	rxq = evq->sc->rxq[evq->index];
+
+	KASSERT(rxq != NULL, ("rxq == NULL"));
+	KASSERT(evq->index == rxq->index, ("evq->index != rxq->index"));
+
+	return (rxq);
+}
+
 static boolean_t
 sfxge_ev_rx(void *arg, uint32_t label, uint32_t id, uint32_t size,
 	    uint16_t flags)
@@ -98,11 +113,7 @@ sfxge_ev_rx(void *arg, uint32_t label, uint32_t id, uint32_t size,
 	if (evq->exception)
 		goto done;
 
-	rxq = sc->rxq[label];
-	KASSERT(rxq != NULL, ("rxq == NULL"));
-	KASSERT(evq->index == rxq->index,
-	    ("evq->index != rxq->index"));
-
+	rxq = sfxge_get_rxq_by_label(evq, label);
 	if (__predict_false(rxq->init_state != SFXGE_RXQ_STARTED))
 		goto done;
 
@@ -211,7 +222,7 @@ sfxge_ev_rxq_flush_done(void *arg, uint32_t rxq_index)
 
 	evq = sc->evq[index];
 
-	label = rxq_index;
+	label = 0;
 	KASSERT((label & SFXGE_MAGIC_DMAQ_LABEL_MASK) == label,
 	    ("(label & SFXGE_MAGIC_DMAQ_LABEL_MASK) != level"));
 	magic = SFXGE_MAGIC_RX_QFLUSH_DONE | label;
@@ -245,7 +256,7 @@ sfxge_ev_rxq_flush_failed(void *arg, uint32_t rxq_index)
 	index = rxq->index;
 	evq = sc->evq[index];
 
-	label = rxq_index;
+	label = 0;
 	KASSERT((label & SFXGE_MAGIC_DMAQ_LABEL_MASK) == label,
 	    ("(label & SFXGE_MAGIC_DMAQ_LABEL_MASK) != label"));
 	magic = SFXGE_MAGIC_RX_QFLUSH_FAILED | label;
@@ -364,36 +375,18 @@ sfxge_ev_software(void *arg, uint16_t magic)
 	magic &= ~SFXGE_MAGIC_DMAQ_LABEL_MASK;
 
 	switch (magic) {
-	case SFXGE_MAGIC_RX_QFLUSH_DONE: {
-		struct sfxge_rxq *rxq = sc->rxq[label];
-
-		KASSERT(rxq != NULL, ("rxq == NULL"));
-		KASSERT(evq->index == rxq->index,
-		    ("evq->index != rxq->index"));
-
-		sfxge_rx_qflush_done(rxq);
+	case SFXGE_MAGIC_RX_QFLUSH_DONE:
+		sfxge_rx_qflush_done(sfxge_get_rxq_by_label(evq, label));
 		break;
-	}
-	case SFXGE_MAGIC_RX_QFLUSH_FAILED: {
-		struct sfxge_rxq *rxq = sc->rxq[label];
 
-		KASSERT(rxq != NULL, ("rxq == NULL"));
-		KASSERT(evq->index == rxq->index,
-		    ("evq->index != rxq->index"));
-
-		sfxge_rx_qflush_failed(rxq);
+	case SFXGE_MAGIC_RX_QFLUSH_FAILED:
+		sfxge_rx_qflush_failed(sfxge_get_rxq_by_label(evq, label));
 		break;
-	}
-	case SFXGE_MAGIC_RX_QREFILL: {
-		struct sfxge_rxq *rxq = sc->rxq[label];
 
-		KASSERT(rxq != NULL, ("rxq == NULL"));
-		KASSERT(evq->index == rxq->index,
-		    ("evq->index != rxq->index"));
-
-		sfxge_rx_qrefill(rxq);
+	case SFXGE_MAGIC_RX_QREFILL:
+		sfxge_rx_qrefill(sfxge_get_rxq_by_label(evq, label));
 		break;
-	}
+
 	case SFXGE_MAGIC_TX_QFLUSH_DONE: {
 		struct sfxge_txq *txq = sfxge_get_txq_by_label(evq, label);
 
