@@ -2718,7 +2718,8 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	 */
 	if (netl == NULL) {
 		/* TSNH! Huh, why do I need to add this address here? */
-		if (sctp_add_remote_addr(*stcb, to, NULL, SCTP_DONOT_SETSCOPE, SCTP_IN_COOKIE_PROC)) {
+		if (sctp_add_remote_addr(*stcb, to, NULL, (*stcb)->asoc.port,
+		    SCTP_DONOT_SETSCOPE, SCTP_IN_COOKIE_PROC)) {
 			return (NULL);
 		}
 		netl = sctp_findnet(*stcb, to);
