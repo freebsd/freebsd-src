@@ -535,9 +535,8 @@ initsymtable(char *filename)
 	vprintf(stdout, "Initialize symbol table.\n");
 	if (filename == NULL) {
 		entrytblsize = maxino / HASHFACTOR;
-		entry = (struct entry **)
-			calloc((unsigned)entrytblsize, sizeof(struct entry *));
-		if (entry == (struct entry **)NULL)
+		entry = calloc((unsigned)entrytblsize, sizeof(struct entry *));
+		if (entry == NULL)
 			panic("no memory for entry table\n");
 		ep = addentry(".", ROOTINO, NODE);
 		ep->e_flags |= NEW;
