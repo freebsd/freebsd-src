@@ -505,7 +505,7 @@ main(int argc, char **argv)
 					    (rlen = matches[1].rm_eo - 
 					     matches[1].rm_so) > 0) {
 						/*
-						 * man -w found formated
+						 * man -w found formatted
 						 * page, need to pick up
 						 * source page name.
 						 */
