@@ -85,7 +85,7 @@ struct modeinfo {
 	mode_t mode;
 	uid_t uid;
 	gid_t gid;
-	int flags;
+	u_int flags;
 	int extsize;
 };
 
@@ -115,8 +115,8 @@ static struct inotab	*allocinotab(struct context *, long);
 static void		 flushent(void);
 static struct inotab	*inotablookup(ino_t);
 static RST_DIR		*opendirfile(const char *);
-static void		 putdir(char *, long);
-static void		 putdirattrs(char *, long);
+static void		 putdir(char *, size_t);
+static void		 putdirattrs(char *, size_t);
 static void		 putent(struct direct *);
 static void		 rst_seekdir(RST_DIR *, long, long);
 static long		 rst_telldir(RST_DIR *);
@@ -323,10 +323,10 @@ searchdir(ino_t	inum, char *name)
  * Put the directory entries in the directory file
  */
 static void
-putdir(char *buf, long size)
+putdir(char *buf, size_t size)
 {
 	struct direct *dp;
-	long loc, i;
+	size_t loc, i;
 
 	for (loc = 0; loc < size; ) {
 		dp = (struct direct *)(buf + loc);
@@ -356,12 +356,12 @@ putdir(char *buf, long size)
 				   "reclen not multiple of 4 ");
 			if (dp->d_reclen < DIRSIZ(0, dp))
 				vprintf(stdout,
-				   "reclen less than DIRSIZ (%d < %zu) ",
+				   "reclen less than DIRSIZ (%u < %zu) ",
 				   dp->d_reclen, DIRSIZ(0, dp));
 #if NAME_MAX < 255
 			if (dp->d_namlen > NAME_MAX)
 				vprintf(stdout,
-				   "reclen name too big (%d > %d) ",
+				   "reclen name too big (%u > %u) ",
 				   dp->d_namlen, NAME_MAX);
 #endif
 			vprintf(stdout, "\n");
@@ -418,7 +418,7 @@ flushent(void)
  * Save extended attributes for a directory entry to a file.
  */
 static void
-putdirattrs(char *buf, long size)
+putdirattrs(char *buf, size_t size)
 {
 
 	if (mf != NULL && fwrite(buf, size, 1, mf) != 1)
