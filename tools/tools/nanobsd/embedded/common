@@ -38,7 +38,7 @@
 # Missing in base:
 # o mkimg setting active partition
 # o mkimg starting at arbitrary offset (needed for A10, et al)
-# o mtools still needed becuase we have no makefs -t msdos
+# o mtools still needed because we have no makefs -t msdos
 # o nanobsd doesn't record changes to WORLDTEMP in customization
 #   scripts yet, so we have kludge to pick up all files
 # o easy way for pkg to grab files from other repos and put that

@@ -97,7 +97,7 @@ NANO_CUSTOMIZE=""
 # Late customize commands.
 NANO_LATE_CUSTOMIZE=""
 
-# Newfs paramters to use
+# Newfs parameters to use
 NANO_NEWFS="-b 4096 -f 512 -i 8192 -U"
 
 # The drive name of the media at runtime
@@ -348,7 +348,7 @@ build_kernel ( ) (
 
 	# Note: We intentionally build all modules, not only the ones in
 	# NANO_MODULES so the built world can be reused by multiple images.
-	# Although MODULES_OVERRIDE can be defined in the kenrel config
+	# Although MODULES_OVERRIDE can be defined in the kernel config
 	# file to override this behavior. Just set NANO_MODULES=default.
 	set -o xtrace
 	cd "${NANO_SRC}"

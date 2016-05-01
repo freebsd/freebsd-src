@@ -110,7 +110,7 @@ main(int argc, const char* argv[])
 		link_op(&l);
 		break;
 	default:
-		printf("wtap ioctl: unkown command '%c'\n", *argv[1]);
+		printf("wtap ioctl: unknown command '%c'\n", *argv[1]);
 		exit(1);
 	}
 	exit(0);
