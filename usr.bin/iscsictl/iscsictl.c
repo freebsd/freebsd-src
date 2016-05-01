@@ -771,7 +771,7 @@ main(int argc, char **argv)
 		xo_errx(1, "at most one of -A, -M, -R, or -L may be specified");
 
 	/*
-	 * Note that we ignore unneccessary/inapplicable "-c" flag; so that
+	 * Note that we ignore unnecessary/inapplicable "-c" flag; so that
 	 * people can do something like "alias ISCSICTL="iscsictl -c path"
 	 * in shell scripts.
 	 */
