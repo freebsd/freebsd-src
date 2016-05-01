@@ -227,7 +227,7 @@ main(int argc, char **argv)
 	argv++;
 
 	if (!foreground) {
-		/* Aquire a reaper */
+		/* Acquire a reaper */
 		if (procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, NULL) == -1)
 			err(EX_OSERR, "Fail to acquire the reaper");
 	}
