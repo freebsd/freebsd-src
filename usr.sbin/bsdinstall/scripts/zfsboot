@@ -1321,7 +1321,7 @@ zfs_create_boot()
 	# MBR boot loader touch-up
 	if [ "$ZFSBOOT_PARTITION_SCHEME" = "MBR" ]; then
 		f_dprintf "$funcname: Updating MBR boot loader on disks..."
-		# Stick the ZFS boot loader in the "convienient hole" after
+		# Stick the ZFS boot loader in the "convenient hole" after
 		# the ZFS internal metadata
 		for disk in $disks; do
 			f_eval_catch $funcname dd "$DD_WITH_OPTIONS" \

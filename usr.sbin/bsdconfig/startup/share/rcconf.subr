@@ -124,7 +124,7 @@ f_startup_rcconf_map()
 	#
 
 	#
-	# Calculate digest used to determine if the on-disk global persistant
+	# Calculate digest used to determine if the on-disk global persistent
 	# cache file (containing this digest on the first line) is valid and
 	# can be used to quickly populate the cache value for immediate return.
 	#
@@ -132,7 +132,7 @@ f_startup_rcconf_map()
 	__rc_defaults_digest=$( exec 2> /dev/null; md5 < "$RC_DEFAULTS" )
 
 	#
-	# Check to see if the global persistant cache file exists
+	# Check to see if the global persistent cache file exists
 	#
 	if [ -f "$STARTUP_RCCONF_MAP_CACHEFILE" ]; then
 		#
@@ -176,7 +176,7 @@ f_startup_rcconf_map()
 
 	#
 	# If we reach this point, we need to generate the data from scratch
-	# (and after we do, we'll attempt to create the global persistant
+	# (and after we do, we'll attempt to create the global persistent
 	# cache file to speed up future executions).
 	#
 
@@ -215,7 +215,7 @@ f_startup_rcconf_map()
 	fi
 
 	#
-	# Attempt to create the persistant global cache
+	# Attempt to create the persistent global cache
 	#
 
 	# Create a new temporary file to write to
