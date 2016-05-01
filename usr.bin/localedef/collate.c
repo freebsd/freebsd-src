@@ -1120,7 +1120,7 @@ dump_collate(void)
 	collate_chain_t		*chain;
 
 	/*
-	 * We have to run throught a preliminary pass to identify all the
+	 * We have to run through a preliminary pass to identify all the
 	 * weights that we use for each sorting level.
 	 */
 	for (i = 0; i < NUM_WT; i++) {
