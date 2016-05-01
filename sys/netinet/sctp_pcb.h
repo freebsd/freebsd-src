@@ -585,7 +585,7 @@ void sctp_inpcb_free(struct sctp_inpcb *, int, int);
 
 struct sctp_tcb *
 sctp_aloc_assoc(struct sctp_inpcb *, struct sockaddr *,
-    int *, uint32_t, uint32_t, uint16_t, struct thread *);
+    int *, uint32_t, uint32_t, uint16_t, uint16_t, struct thread *);
 
 int sctp_free_assoc(struct sctp_inpcb *, struct sctp_tcb *, int, int);
 
@@ -616,7 +616,7 @@ void sctp_del_local_addr_restricted(struct sctp_tcb *, struct sctp_ifa *);
 
 int
 sctp_load_addresses_from_init(struct sctp_tcb *, struct mbuf *, int, int,
-    struct sockaddr *, struct sockaddr *, struct sockaddr *);
+    struct sockaddr *, struct sockaddr *, struct sockaddr *, uint16_t);
 
 int
 sctp_set_primary_addr(struct sctp_tcb *, struct sockaddr *,
