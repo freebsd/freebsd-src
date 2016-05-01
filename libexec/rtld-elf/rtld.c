@@ -822,7 +822,7 @@ origin_subst_one(Obj_Entry *obj, char *real, const char *kw,
 	kw_len = strlen(kw);
 
 	/*
-	 * First, count the number of the keyword occurences, to
+	 * First, count the number of the keyword occurrences, to
 	 * preallocate the final string.
 	 */
 	for (p = real, subst_count = 0;; p = p1 + kw_len, subst_count++) {
