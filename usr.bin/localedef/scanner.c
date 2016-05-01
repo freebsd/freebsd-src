@@ -181,7 +181,7 @@ static struct token {
 
 	/*
 	 * These are keywords used in the charmap file.  Note that
-	 * Solaris orginally used angle brackets to wrap some of them,
+	 * Solaris originally used angle brackets to wrap some of them,
 	 * but we removed that to simplify our parser.  The first of these
 	 * items are "global items."
 	 */
