@@ -321,6 +321,15 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t offset,
 	if (size == 0 || (size % 512) != 0)
 		return (EIO);
 
+	off = blk * 512;
+	/* make sure we don't read past disk end */
+	if ((off + size) / blkio->Media->BlockSize - 1 >
+	    blkio->Media->LastBlock) {
+		size = blkio->Media->LastBlock + 1 -
+		    off / blkio->Media->BlockSize;
+		size = size * blkio->Media->BlockSize;
+	}
+
 	if (rsize != NULL)
 		*rsize = size;
 
@@ -335,7 +344,6 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t offset,
 		return (ENOMEM);
 
 	error = 0;
-	off = blk * 512;
 	blk = off / blkio->Media->BlockSize;
 	blkoff = off % blkio->Media->BlockSize;
 	blksz = blkio->Media->BlockSize - blkoff;

@@ -272,20 +272,43 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
     for (i = 0; i < p_size; i++) {
 	bcache_invalidate(bc, p_blk + i);
     }
+
     r_size = 0;
+    /*
+     * with read-ahead, it may happen we are attempting to read past
+     * disk end, as bcache has no information about disk size.
+     * in such case we should get partial read if some blocks can be
+     * read or error, if no blocks can be read.
+     * in either case we should return the data in bcache and only
+     * return error if there is no data.
+     */
     result = dd->dv_strategy(dd->dv_devdata, rw, p_blk, 0,
 	p_size * bcache_blksize, p_buf, &r_size);
-
-    if (result)
-	goto done;
 
     r_size /= bcache_blksize;
     for (i = 0; i < r_size; i++)
 	bcache_insert(bc, p_blk + i);
 
-    bcache_rablks += ra;
-    bcopy(bc->bcache_data + (bcache_blksize * BHASH(bc, blk)) + offset, buf,
-	size);
+    /* update ra statistics */
+    if (r_size != 0) {
+	if (r_size < p_size)
+	    bcache_rablks += (p_size - r_size);
+	else
+	    bcache_rablks += ra;
+    }
+
+    /* check how much data can we copy */
+    for (i = 0; i < nblk; i++) {
+	if (BCACHE_LOOKUP(bc, (daddr_t)(blk + i)))
+	    break;
+    }
+
+    size = i * bcache_blksize;
+    if (size != 0) {
+	bcopy(bc->bcache_data + (bcache_blksize * BHASH(bc, blk)) + offset,
+	    buf, size);
+	result = 0;
+    }
 
  done:
     if ((result == 0) && (rsize != NULL))
@@ -349,8 +372,16 @@ bcache_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
 
 	    ret = read_strategy(devdata, rw, blk, offset,
 		csize, buf+total, &isize);
-	    if (ret != 0)
-		return (ret);
+
+	    /*
+	     * we may have error from read ahead, if we have read some data
+	     * return partial read.
+	     */
+	    if (ret != 0 || isize == 0) {
+		if (total != 0)
+		    ret = 0;
+		break;
+	    }
 	    blk += (offset+isize) / bcache_blksize;
 	    offset = 0;
 	    total += isize;

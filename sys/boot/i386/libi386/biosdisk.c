@@ -508,6 +508,18 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
     if (rsize)
 	*rsize = 0;
 
+    if (dblk >= BD(dev).bd_sectors) {
+	DEBUG("IO past disk end %llu", (unsigned long long)dblk);
+	return (EIO);
+    }
+
+    if (dblk + blks > BD(dev).bd_sectors) {
+	/* perform partial read */
+	blks = BD(dev).bd_sectors - dblk;
+	size = blks * BD(dev).bd_sectorsize;
+	DEBUG("short read %d", blks);
+    }
+
     switch(rw){
     case F_READ:
 	DEBUG("read %d from %lld to %p", blks, dblk, buf);
