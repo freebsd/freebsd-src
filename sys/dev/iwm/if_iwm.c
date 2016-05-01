@@ -166,11 +166,14 @@ const uint8_t iwm_nvm_channels[] = {
 	/* 2.4 GHz */
 	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
 	/* 5 GHz */
-	36, 40, 44 , 48, 52, 56, 60, 64,
+	36, 40, 44, 48, 52, 56, 60, 64,
 	100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144,
 	149, 153, 157, 161, 165
 };
 #define IWM_NUM_2GHZ_CHANNELS	14
+
+_Static_assert(nitems(iwm_nvm_channels) <= IWM_NUM_CHANNELS,
+    "IWM_NUM_CHANNELS is too small");
 
 /*
  * XXX For now, there's simply a fixed set of rate table entries
@@ -241,8 +244,12 @@ static int	iwm_nvm_read_chunk(struct iwm_softc *, uint16_t, uint16_t,
                                    uint16_t, uint8_t *, uint16_t *);
 static int	iwm_nvm_read_section(struct iwm_softc *, uint16_t, uint8_t *,
 				     uint16_t *);
-static void	iwm_init_channel_map(struct iwm_softc *,
-                                     const uint16_t * const);
+static uint32_t	iwm_eeprom_channel_flags(uint16_t);
+static void	iwm_add_channel_band(struct iwm_softc *,
+		    struct ieee80211_channel[], int, int *, int, int,
+		    const uint8_t[]);
+static void	iwm_init_channel_map(struct ieee80211com *, int, int *,
+		    struct ieee80211_channel[]);
 static int	iwm_parse_nvm_data(struct iwm_softc *, const uint16_t *,
 			           const uint16_t *, const uint16_t *, uint8_t,
 				   uint8_t);
@@ -1634,6 +1641,7 @@ enum nvm_sku_bits {
  * @IWM_NVM_CHANNEL_IBSS: usable as an IBSS channel
  * @IWM_NVM_CHANNEL_ACTIVE: active scanning allowed
  * @IWM_NVM_CHANNEL_RADAR: radar detection required
+ * XXX cannot find this (DFS) flag in iwl-nvm-parse.c
  * @IWM_NVM_CHANNEL_DFS: dynamic freq selection candidate
  * @IWM_NVM_CHANNEL_WIDE: 20 MHz channel okay (?)
  * @IWM_NVM_CHANNEL_40MHZ: 40 MHz channel okay (?)
@@ -1653,97 +1661,91 @@ enum iwm_nvm_channel_flags {
 };
 
 /*
- * Add a channel to the net80211 channel list.
- *
- * ieee is the ieee channel number
- * ch_idx is channel index.
- * mode is the channel mode - CHAN_A, CHAN_B, CHAN_G.
- * ch_flags is the iwm channel flags.
- *
- * Return 0 on OK, < 0 on error.
+ * Translate EEPROM flags to net80211.
  */
-static int
-iwm_init_net80211_channel(struct iwm_softc *sc, int ieee, int ch_idx,
-    int mode, uint16_t ch_flags)
+static uint32_t
+iwm_eeprom_channel_flags(uint16_t ch_flags)
 {
-	/* XXX for now, no overflow checking! */
-	struct ieee80211com *ic = &sc->sc_ic;
-	int is_5ghz, flags;
-	struct ieee80211_channel *channel;
+	uint32_t nflags;
 
-	channel = &ic->ic_channels[ic->ic_nchans++];
-	channel->ic_ieee = ieee;
-
-	is_5ghz = ch_idx >= IWM_NUM_2GHZ_CHANNELS;
-	if (!is_5ghz) {
-		flags = IEEE80211_CHAN_2GHZ;
-		channel->ic_flags = mode;
-	} else {
-		flags = IEEE80211_CHAN_5GHZ;
-		channel->ic_flags = mode;
+	nflags = 0;
+	if ((ch_flags & IWM_NVM_CHANNEL_ACTIVE) == 0)
+		nflags |= IEEE80211_CHAN_PASSIVE;
+	if ((ch_flags & IWM_NVM_CHANNEL_IBSS) == 0)
+		nflags |= IEEE80211_CHAN_NOADHOC;
+	if (ch_flags & IWM_NVM_CHANNEL_RADAR) {
+		nflags |= IEEE80211_CHAN_DFS;
+		/* Just in case. */
+		nflags |= IEEE80211_CHAN_NOADHOC;
 	}
-	channel->ic_freq = ieee80211_ieee2mhz(ieee, flags);
 
-	if (!(ch_flags & IWM_NVM_CHANNEL_ACTIVE))
-		channel->ic_flags |= IEEE80211_CHAN_PASSIVE;
-	return (0);
+	return (nflags);
 }
 
 static void
-iwm_init_channel_map(struct iwm_softc *sc, const uint16_t * const nvm_ch_flags)
+iwm_add_channel_band(struct iwm_softc *sc, struct ieee80211_channel chans[],
+    int maxchans, int *nchans, int ch_idx, int ch_num, const uint8_t bands[])
 {
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct iwm_nvm_data *data = &sc->sc_nvm;
-	int ch_idx;
+	const uint16_t * const nvm_ch_flags = sc->sc_nvm.nvm_ch_flags;
+	uint32_t nflags;
 	uint16_t ch_flags;
-	int hw_value;
+	uint8_t ieee;
+	int error;
 
-	for (ch_idx = 0; ch_idx < nitems(iwm_nvm_channels); ch_idx++) {
+	for (; ch_idx < ch_num; ch_idx++) {
 		ch_flags = le16_to_cpup(nvm_ch_flags + ch_idx);
-
-		if (ch_idx >= IWM_NUM_2GHZ_CHANNELS &&
-		    !data->sku_cap_band_52GHz_enable)
-			ch_flags &= ~IWM_NVM_CHANNEL_VALID;
+		ieee = iwm_nvm_channels[ch_idx];
 
 		if (!(ch_flags & IWM_NVM_CHANNEL_VALID)) {
 			IWM_DPRINTF(sc, IWM_DEBUG_EEPROM,
 			    "Ch. %d Flags %x [%sGHz] - No traffic\n",
-			    iwm_nvm_channels[ch_idx],
-			    ch_flags,
+			    ieee, ch_flags,
 			    (ch_idx >= IWM_NUM_2GHZ_CHANNELS) ?
 			    "5.2" : "2.4");
 			continue;
 		}
 
-		hw_value = iwm_nvm_channels[ch_idx];
-
-		/* 5GHz? */
-		if (ch_idx >= IWM_NUM_2GHZ_CHANNELS) {
-			(void) iwm_init_net80211_channel(sc, hw_value,
-			    ch_idx,
-			    IEEE80211_CHAN_A,
-			    ch_flags);
-		} else {
-			(void) iwm_init_net80211_channel(sc, hw_value,
-			    ch_idx,
-			    IEEE80211_CHAN_B,
-			    ch_flags);
-			/* If it's not channel 13, also add 11g */
-			if (hw_value != 13)
-				(void) iwm_init_net80211_channel(sc, hw_value,
-				    ch_idx,
-				    IEEE80211_CHAN_G,
-				    ch_flags);
-		}
+		nflags = iwm_eeprom_channel_flags(ch_flags);
+		error = ieee80211_add_channel(chans, maxchans, nchans,
+		    ieee, 0, 0, nflags, bands);
+		if (error != 0)
+			break;
 
 		IWM_DPRINTF(sc, IWM_DEBUG_EEPROM,
 		    "Ch. %d Flags %x [%sGHz] - Added\n",
-		    iwm_nvm_channels[ch_idx],
-		    ch_flags,
+		    ieee, ch_flags,
 		    (ch_idx >= IWM_NUM_2GHZ_CHANNELS) ?
 		    "5.2" : "2.4");
 	}
-	ieee80211_sort_channels(ic->ic_channels, ic->ic_nchans);
+}
+
+static void
+iwm_init_channel_map(struct ieee80211com *ic, int maxchans, int *nchans,
+    struct ieee80211_channel chans[])
+{
+	struct iwm_softc *sc = ic->ic_softc;
+	struct iwm_nvm_data *data = &sc->sc_nvm;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+
+	memset(bands, 0, sizeof(bands));
+	/* 1-13: 11b/g channels. */
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	iwm_add_channel_band(sc, chans, maxchans, nchans, 0,
+	    IWM_NUM_2GHZ_CHANNELS - 1, bands);
+
+	/* 14: 11b channel only. */
+	clrbit(bands, IEEE80211_MODE_11G);
+	iwm_add_channel_band(sc, chans, maxchans, nchans,
+	    IWM_NUM_2GHZ_CHANNELS - 1, 1, bands);
+
+	if (data->sku_cap_band_52GHz_enable) {
+		memset(bands, 0, sizeof(bands));
+		setbit(bands, IEEE80211_MODE_11A);
+		iwm_add_channel_band(sc, chans, maxchans, nchans,
+		    IWM_NUM_2GHZ_CHANNELS,
+		    nitems(iwm_nvm_channels) - IWM_NUM_2GHZ_CHANNELS, bands);
+	}
 }
 
 static int
@@ -1792,7 +1794,8 @@ iwm_parse_nvm_data(struct iwm_softc *sc,
 	data->hw_addr[4] = hw_addr[5];
 	data->hw_addr[5] = hw_addr[4];
 
-	iwm_init_channel_map(sc, &nvm_sw[IWM_NVM_CHANNELS]);
+	memcpy(data->nvm_ch_flags, &nvm_sw[IWM_NVM_CHANNELS],
+	    sizeof(data->nvm_ch_flags));
 	data->calib_version = 255;   /* TODO:
 					this value will prevent some checks from
 					failing, we need to check if this
@@ -4778,6 +4781,9 @@ iwm_preinit(void *arg)
 		    sizeof(ic->ic_sup_rates[IEEE80211_MODE_11A]));
 	IWM_UNLOCK(sc);
 
+	iwm_init_channel_map(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
+
 	/*
 	 * At this point we've committed - if we fail to do setup,
 	 * we now also have to tear down the net80211 state.
@@ -4790,6 +4796,7 @@ iwm_preinit(void *arg)
 	ic->ic_scan_start = iwm_scan_start;
 	ic->ic_scan_end = iwm_scan_end;
 	ic->ic_update_mcast = iwm_update_mcast;
+	ic->ic_getradiocaps = iwm_init_channel_map;
 	ic->ic_set_channel = iwm_set_channel;
 	ic->ic_scan_curchan = iwm_scan_curchan;
 	ic->ic_scan_mindwell = iwm_scan_mindwell;
