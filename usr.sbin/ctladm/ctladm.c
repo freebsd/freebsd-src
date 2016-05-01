@@ -2922,7 +2922,7 @@ cctl_islist_end_element(void *user_data, const char *name)
 		/* Nothing. */
 	} else {
 		/*
-		 * Unknown element; ignore it for forward compatiblity.
+		 * Unknown element; ignore it for forward compatibility.
 		 */
 	}
 
