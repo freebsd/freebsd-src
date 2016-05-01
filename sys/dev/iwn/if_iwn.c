@@ -2381,11 +2381,23 @@ iwn_read_eeprom_band(struct iwn_softc *sc, int n, int maxchans, int *nchans,
 {
 	struct iwn_eeprom_chan *channels = sc->eeprom_channels[n];
 	const struct iwn_chan_band *band = &iwn_bands[n];
-	struct ieee80211_channel *c;
+	uint8_t bands[IEEE80211_MODE_BYTES];
 	uint8_t chan;
-	int i, nflags;
+	int i, error, nflags;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
+
+	memset(bands, 0, sizeof(bands));
+	if (n == 0) {
+		setbit(bands, IEEE80211_MODE_11B);
+		setbit(bands, IEEE80211_MODE_11G);
+		if (sc->sc_flags & IWN_FLAG_HAS_11N)
+			setbit(bands, IEEE80211_MODE_11NG);
+	} else {
+		setbit(bands, IEEE80211_MODE_11A);
+		if (sc->sc_flags & IWN_FLAG_HAS_11N)
+			setbit(bands, IEEE80211_MODE_11NA);
+	}
 
 	for (i = 0; i < band->nchan; i++) {
 		if (!(channels[i].flags & IWN_EEPROM_CHAN_VALID)) {
@@ -2396,49 +2408,20 @@ iwn_read_eeprom_band(struct iwn_softc *sc, int n, int maxchans, int *nchans,
 			continue;
 		}
 
-		if (*nchans >= maxchans)
-			break;
-
 		chan = band->chan[i];
 		nflags = iwn_eeprom_channel_flags(&channels[i]);
-
-		c = &chans[(*nchans)++];
-		c->ic_ieee = chan;
-		c->ic_maxregpower = channels[i].maxpwr;
-		c->ic_maxpower = 2*c->ic_maxregpower;
-
-		if (n == 0) {	/* 2GHz band */
-			c->ic_freq = ieee80211_ieee2mhz(chan, IEEE80211_CHAN_G);
-			/* G =>'s B is supported */
-			c->ic_flags = IEEE80211_CHAN_B | nflags;
-
-			if (*nchans >= maxchans)
-				break;
-
-			c = &chans[(*nchans)++];
-			c[0] = c[-1];
-			c->ic_flags = IEEE80211_CHAN_G | nflags;
-		} else {	/* 5GHz band */
-			c->ic_freq = ieee80211_ieee2mhz(chan, IEEE80211_CHAN_A);
-			c->ic_flags = IEEE80211_CHAN_A | nflags;
-		}
+		error = ieee80211_add_channel(chans, maxchans, nchans,
+		    chan, 0, channels[i].maxpwr, nflags, bands);
+		if (error != 0)
+			break;
 
 		/* Save maximum allowed TX power for this channel. */
+		/* XXX wrong */
 		sc->maxpwr[chan] = channels[i].maxpwr;
 
 		DPRINTF(sc, IWN_DEBUG_RESET,
 		    "add chan %d flags 0x%x maxpwr %d\n", chan,
 		    channels[i].flags, channels[i].maxpwr);
-
-		if (sc->sc_flags & IWN_FLAG_HAS_11N) {
-			if (*nchans >= maxchans)
-				break;
-
-			/* add HT20, HT40 added separately */
-			c = &chans[(*nchans)++];
-			c[0] = c[-1];
-			c->ic_flags |= IEEE80211_CHAN_HT20;
-		}
 	}
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s end\n", __func__);
@@ -2449,12 +2432,10 @@ static void
 iwn_read_eeprom_ht40(struct iwn_softc *sc, int n, int maxchans, int *nchans,
     struct ieee80211_channel chans[])
 {
-	struct ieee80211com *ic = &sc->sc_ic;
 	struct iwn_eeprom_chan *channels = sc->eeprom_channels[n];
 	const struct iwn_chan_band *band = &iwn_bands[n];
-	struct ieee80211_channel *c, *cent, *extc;
 	uint8_t chan;
-	int i, nflags;
+	int i, error, nflags;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s start\n", __func__);
 
@@ -2472,46 +2453,33 @@ iwn_read_eeprom_ht40(struct iwn_softc *sc, int n, int maxchans, int *nchans,
 			continue;
 		}
 
-		if (*nchans + 1 >= maxchans)
-			break;
-
 		chan = band->chan[i];
 		nflags = iwn_eeprom_channel_flags(&channels[i]);
-
-		/*
-		 * Each entry defines an HT40 channel pair; find the
-		 * center channel, then the extension channel above.
-		 */
-		cent = ieee80211_find_channel_byieee(ic, chan,
-		    (n == 5 ? IEEE80211_CHAN_G : IEEE80211_CHAN_A));
-		if (cent == NULL) {	/* XXX shouldn't happen */
+		nflags |= (n == 5 ? IEEE80211_CHAN_G : IEEE80211_CHAN_A);
+		error = ieee80211_add_channel_ht40(chans, maxchans, nchans,
+		    chan, channels[i].maxpwr, nflags);
+		switch (error) {
+		case EINVAL:
 			device_printf(sc->sc_dev,
 			    "%s: no entry for channel %d\n", __func__, chan);
 			continue;
-		}
-		extc = ieee80211_find_channel(ic, cent->ic_freq+20,
-		    (n == 5 ? IEEE80211_CHAN_G : IEEE80211_CHAN_A));
-		if (extc == NULL) {
+		case ENOENT:
 			DPRINTF(sc, IWN_DEBUG_RESET,
 			    "%s: skip chan %d, extension channel not found\n",
 			    __func__, chan);
 			continue;
+		case ENOBUFS:
+			device_printf(sc->sc_dev,
+			    "%s: channel table is full!\n", __func__);
+			break;
+		case 0:
+			DPRINTF(sc, IWN_DEBUG_RESET,
+			    "add ht40 chan %d flags 0x%x maxpwr %d\n",
+			    chan, channels[i].flags, channels[i].maxpwr);
+			/* FALLTHROUGH */
+		default:
+			break;
 		}
-
-		DPRINTF(sc, IWN_DEBUG_RESET,
-		    "add ht40 chan %d flags 0x%x maxpwr %d\n",
-		    chan, channels[i].flags, channels[i].maxpwr);
-
-		c = &chans[(*nchans)++];
-		c[0] = cent[0];
-		c->ic_extieee = extc->ic_ieee;
-		c->ic_flags &= ~IEEE80211_CHAN_HT;
-		c->ic_flags |= IEEE80211_CHAN_HT40U | nflags;
-		c = &chans[(*nchans)++];
-		c[0] = extc[0];
-		c->ic_extieee = cent->ic_ieee;
-		c->ic_flags &= ~IEEE80211_CHAN_HT;
-		c->ic_flags |= IEEE80211_CHAN_HT40D | nflags;
 	}
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s end\n", __func__);
