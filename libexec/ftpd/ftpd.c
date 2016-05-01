@@ -2048,7 +2048,7 @@ pdata_err:
 	} while (0)
 
 /*
- * Tranfer the contents of "instr" to "outstr" peer using the appropriate
+ * Transfer the contents of "instr" to "outstr" peer using the appropriate
  * encapsulation of the data subject to Mode, Structure, and Type.
  *
  * NB: Form isn't handled.

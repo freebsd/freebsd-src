@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #define	MAXGLOBARGS	1000
 
 /*
- * Special version of popen which avoids call to shell.  This ensures noone
+ * Special version of popen which avoids call to shell.  This ensures no one
  * may create a pipe to a hidden program as a side effect of a list or dir
  * command.
  */
