@@ -911,7 +911,7 @@ ino_isat(ino_t parent, off_t diroff, ino_t child, int *mode, int *isdot)
 	 * certain we hit a valid record and not some junk in the middle
 	 * of a file name.  Stop when we reach or pass the expected offset.
 	 */
-	dpoff = (doff / DIRBLKSIZ) * DIRBLKSIZ;
+	dpoff = rounddown(doff, DIRBLKSIZ);
 	do {
 		dp = (struct direct *)&block[dpoff];
 		if (dpoff == doff)
