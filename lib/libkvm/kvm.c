@@ -237,7 +237,7 @@ _kvm_is_minidump(kvm_t *kd)
  * header from the core before treating it as an ELF header.
  *
  * We can add that here if we can get a change to libelf to support
- * an inital offset into the file.  Alternatively we could patch
+ * an initial offset into the file.  Alternatively we could patch
  * savecore to extract cores from a regular file instead.
  */
 int
@@ -756,7 +756,7 @@ kvm_nlist2(kvm_t *kd, struct kvm_nlist *nl)
 {
 
 	/*
-	 * If called via the public interface, permit intialization of
+	 * If called via the public interface, permit initialization of
 	 * further virtualized modules on demand.
 	 */
 	return (_kvm_nlist(kd, nl, 1));
