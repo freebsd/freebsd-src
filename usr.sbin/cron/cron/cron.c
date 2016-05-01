@@ -228,7 +228,7 @@ cron_tick(cron_db *db, int secres)
 	register user		*u;
 	register entry		*e;
 
-	/* make 0-based values out of these so we can use them as indicies
+	/* make 0-based values out of these so we can use them as indices
 	 */
 	second = (secres == 0) ? 0 : tm->tm_sec -FIRST_SECOND;
 	minute = tm->tm_min -FIRST_MINUTE;
@@ -289,7 +289,7 @@ cron_tick(cron_db *db, int secres)
 			time_t difftime = TargetTime + tm->tm_gmtoff - diff;
 			gmtime_r(&difftime, &otztm);
 
-			/* make 0-based values out of these so we can use them as indicies
+			/* make 0-based values out of these so we can use them as indices
 			 */
 			otzsecond = (secres == 0) ? 0 : otztm.tm_sec -FIRST_SECOND;
 			otzminute = otztm.tm_min -FIRST_MINUTE;

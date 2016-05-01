@@ -640,7 +640,7 @@ trstat_write(struct printer *pp, tr_sendrecv sendrecv, size_t bytecnt,
 	 *		     a host as it receives a datafile.
 	 *   user=<userid> - user who sent the job (if known)
 	 *   secs=<n>      - seconds it took to transfer the file
-	 *   bytes=<n>     - number of bytes transfered (ie, "bytecount")
+	 *   bytes=<n>     - number of bytes transferred (ie, "bytecount")
 	 *   bps=<n.n>e<n> - Bytes/sec (if the transfer was "big enough"
 	 *		     for this to be useful)
 	 * ! top=<str>     - type of printer (if the type is defined in
