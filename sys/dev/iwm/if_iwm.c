@@ -2572,9 +2572,7 @@ iwm_tx_rateidx_lookup(struct iwm_softc *sc, struct iwm_node *in,
 }
 
 /*
- * Fill in various bit for management frames, and leave them
- * unfilled for data frames (firmware takes care of that).
- * Return the selected TX rate.
+ * Fill in the rate related information for a transmit command.
  */
 static const struct iwm_rate *
 iwm_tx_fill_cmd(struct iwm_softc *sc, struct iwm_node *in,
@@ -2606,28 +2604,28 @@ iwm_tx_fill_cmd(struct iwm_softc *sc, struct iwm_node *in,
 		IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,
 		    "%s: start with i=%d, txrate %d\n",
 		    __func__, i, iwm_rates[ridx].rate);
-		/* XXX no rate_n_flags? */
-		return &iwm_rates[ridx];
-	}
-
-	/*
-	 * For non-data, use the lowest supported rate for the given
-	 * operational mode.
-	 *
-	 * Note: there may not be any rate control information available.
-	 * This driver currently assumes if we're transmitting data
-	 * frames, use the rate control table.  Grr.
-	 *
-	 * XXX TODO: use the configured rate for the traffic type!
-	 */
-	if (ic->ic_curmode == IEEE80211_MODE_11A) {
-		/*
-		 * XXX this assumes the mode is either 11a or not 11a;
-		 * definitely won't work for 11n.
-		 */
-		ridx = IWM_RIDX_OFDM;
 	} else {
-		ridx = IWM_RIDX_CCK;
+		/*
+		 * For non-data, use the lowest supported rate for the given
+		 * operational mode.
+		 *
+		 * Note: there may not be any rate control information available.
+		 * This driver currently assumes if we're transmitting data
+		 * frames, use the rate control table.  Grr.
+		 *
+		 * XXX TODO: use the configured rate for the traffic type!
+		 * XXX TODO: this should be per-vap, not curmode; as we later
+		 * on we'll want to handle off-channel stuff (eg TDLS).
+		 */
+		if (ic->ic_curmode == IEEE80211_MODE_11A) {
+			/*
+			 * XXX this assumes the mode is either 11a or not 11a;
+			 * definitely won't work for 11n.
+			 */
+			ridx = IWM_RIDX_OFDM;
+		} else {
+			ridx = IWM_RIDX_CCK;
+		}
 	}
 
 	rinfo = &iwm_rates[ridx];
@@ -2642,7 +2640,6 @@ iwm_tx_fill_cmd(struct iwm_softc *sc, struct iwm_node *in,
 	rate_flags = 1 << IWM_RATE_MCS_ANT_POS;
 	if (IWM_RIDX_IS_CCK(ridx))
 		rate_flags |= IWM_RATE_MCS_CCK_MSK;
-	/* XXX hard-coded tx rate */
 	tx->rate_n_flags = htole32(rate_flags | rinfo->plcp);
 
 	return rinfo;
