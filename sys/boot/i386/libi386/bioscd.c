@@ -271,14 +271,25 @@ bc_realstrategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
 
 	if (rsize)
 		*rsize = 0;
-	if (blks && bc_read(unit, dblk, blks, buf)) {
+	if ((blks = bc_read(unit, dblk, blks, buf)) < 0) {
 		DEBUG("read error");
 		return (EIO);
+	} else {
+		if (size / BIOSCD_SECSIZE > blks) {
+			if (rsize)
+				*rsize = blks * BIOSCD_SECSIZE;
+			return (0);
+		}
 	}
 #ifdef BD_SUPPORT_FRAGS
 	DEBUG("frag read %d from %lld+%d to %p", 
 	    fragsize, dblk, blks, buf + (blks * BIOSCD_SECSIZE));
-	if (fragsize && bc_read(unit, dblk + blks, 1, fragbuf)) {
+	if (fragsize && bc_read(unit, dblk + blks, 1, fragbuf) != 1) {
+		if (blks) {
+			if (rsize)
+				*rsize = blks * BIOSCD_SECSIZE;
+			return (0);
+		}
 		DEBUG("frag read error");
 		return(EIO);
 	}
@@ -292,6 +303,7 @@ bc_realstrategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
 /* Max number of sectors to bounce-buffer at a time. */
 #define	CD_BOUNCEBUF	8
 
+/* return negative value for an error, otherwise blocks read */
 static int
 bc_read(int unit, daddr_t dblk, int blks, caddr_t dest)
 {
@@ -368,6 +380,8 @@ bc_read(int unit, daddr_t dblk, int blks, caddr_t dest)
 			result = V86_CY(v86.efl);
 			if (result == 0)
 				break;
+			/* fall back to 1 sector read */
+			x = 1;
 		}
 	
 #ifdef DISK_DEBUG
@@ -376,6 +390,11 @@ bc_read(int unit, daddr_t dblk, int blks, caddr_t dest)
 		DEBUG("%d sectors from %lld to %p (0x%x) %s", x, dblk, p,
 		    VTOP(p), result ? "failed" : "ok");
 		DEBUG("unit %d  status 0x%x", unit, error);
+
+		/* still an error? break off */
+		if (result != 0)
+			break;
+
 		if (bbuf != NULL)
 			bcopy(bbuf, p, x * BIOSCD_SECSIZE);
 		p += (x * BIOSCD_SECSIZE);
@@ -384,7 +403,11 @@ bc_read(int unit, daddr_t dblk, int blks, caddr_t dest)
 	}
 	
 /*	hexdump(dest, (blks * BIOSCD_SECSIZE)); */
-	return(0);
+
+	if (blks - resid == 0)
+		return (-1);		/* read failed */
+
+	return (blks - resid);
 }
 
 /*
