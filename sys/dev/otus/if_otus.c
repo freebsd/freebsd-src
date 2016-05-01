@@ -132,6 +132,8 @@ static device_detach_t otus_detach;
 
 static int	otus_attachhook(struct otus_softc *);
 void		otus_get_chanlist(struct otus_softc *);
+static void	otus_getradiocaps(struct ieee80211com *, int, int *,
+		    struct ieee80211_channel[]);
 int		otus_load_firmware(struct otus_softc *, const char *,
 		    uint32_t);
 int		otus_open_pipes(struct otus_softc *);
@@ -624,7 +626,6 @@ otus_attachhook(struct otus_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	usb_device_request_t req;
 	uint32_t in, out;
-	uint8_t bands[IEEE80211_MODE_BYTES];
 	int error;
 
 	/* Not locked */
@@ -742,20 +743,8 @@ otus_attachhook(struct otus_softc *sc)
 	/* Build the list of supported channels. */
 	otus_get_chanlist(sc);
 #else
-	/* Set supported .11b and .11g rates. */
-	memset(bands, 0, sizeof(bands));
-	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11G) {
-		setbit(bands, IEEE80211_MODE_11B);
-		setbit(bands, IEEE80211_MODE_11G);
-	}
-	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11A) {
-		setbit(bands, IEEE80211_MODE_11A);
-	}
-#if 0
-	if (sc->sc_ht)
-		setbit(bands, IEEE80211_MODE_11NG);
-#endif
-	ieee80211_init_channels(ic, NULL, bands);
+	otus_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 #endif
 
 	ieee80211_ifattach(ic);
@@ -763,6 +752,7 @@ otus_attachhook(struct otus_softc *sc)
 	ic->ic_scan_start = otus_scan_start;
 	ic->ic_scan_end = otus_scan_end;
 	ic->ic_set_channel = otus_set_channel;
+	ic->ic_getradiocaps = otus_getradiocaps;
 	ic->ic_vap_create = otus_vap_create;
 	ic->ic_vap_delete = otus_vap_delete;
 	ic->ic_update_mcast = otus_update_mcast;
@@ -817,6 +807,32 @@ otus_get_chanlist(struct otus_softc *sc)
 			    ieee80211_ieee2mhz(chan, IEEE80211_CHAN_5GHZ);
 			ic->ic_channels[chan].ic_flags = IEEE80211_CHAN_A;
 		}
+	}
+}
+
+static void
+otus_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	struct otus_softc *sc = ic->ic_softc;
+	uint8_t bands[IEEE80211_MODE_BYTES];
+
+	/* Set supported .11b and .11g rates. */
+	memset(bands, 0, sizeof(bands));
+	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11G) {
+		setbit(bands, IEEE80211_MODE_11B);
+		setbit(bands, IEEE80211_MODE_11G);
+#if 0
+		if (sc->sc_ht)
+			setbit(bands, IEEE80211_MODE_11NG);
+#endif
+		ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
+		    ar_chans, 14, bands, 0);
+	}
+	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11A) {
+		setbit(bands, IEEE80211_MODE_11A);
+		ieee80211_add_channel_list_5ghz(chans, maxchans, nchans,
+                    &ar_chans[14], nitems(ar_chans) - 14, bands, 0);
 	}
 }
 
