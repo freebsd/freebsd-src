@@ -293,7 +293,7 @@ ginode(ino_t inumber)
 		if (pbp != NULL)
 			pbp->b_flags &= ~B_INUSE;
 		pbp = getdatablk(iblk, sblock.fs_bsize, BT_INODES);
-		startinum = (inumber / INOPB(&sblock)) * INOPB(&sblock);
+		startinum = rounddown(inumber, INOPB(&sblock));
 	}
 	if (sblock.fs_magic == FS_UFS1_MAGIC)
 		return ((union dinode *)
