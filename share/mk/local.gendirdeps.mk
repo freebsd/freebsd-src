@@ -3,7 +3,7 @@
 # we need a keyword, this noise is to prevent it being expanded
 GENDIRDEPS_HEADER= echo '\# ${FreeBSD:L:@v@$$$v$$ @:M*F*}';
 
-# supress optional/auto dependecies
+# suppress optional/auto dependencies
 # local.dirdeps.mk will put them in if necessary
 GENDIRDEPS_FILTER+= \
 	Nbin/cat.host \

@@ -1036,11 +1036,11 @@ In  this  case,  the server is running no services.  Infact,
 it's not a server, it's a client.  And this  client  doesn't
 want  unauthorized  packets  entering  its  IP stack at all.
 However, the client wants full access to  the  internet  and
-the  reply packets that such privledge entails.  This simple
+the reply packets that such privilege entails.  This simple
 ruleset creates state entries for  every  new  outgoing  TCP
 session.   Again,  since a state entry is created, these new
 TCP sessions are free to talk back and forth as they  please
-without  the  hinderance or inspection of the firewall rule-
+without the hindrance or inspection of the firewall rule-
 set.  We mentioned that this also works for UDP and ICMP:
 
     block in  quick on tun0 all
@@ -1271,7 +1271,7 @@ forgeries and allow fragments:
 This  works  because  every  packet  that  should be allowed
 through makes it into the state table  before  the  blocking
 rules  are reached. The only scan this won't detect is a SYN
-scan itself.  If you're truely worried about that, you might
+scan itself.  If you're truly worried about that, you might
 even want to log all initial SYN packets.
 
 3.6.  Responding To a Blocked Packet
