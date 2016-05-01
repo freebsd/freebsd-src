@@ -12765,8 +12765,8 @@ sctp_lower_sosend(struct socket *so,
 #endif
 			stcb = sctp_aloc_assoc(inp, addr, &error, 0, vrf_id,
 			    inp->sctp_ep.pre_open_stream_count,
-			    p
-			    );
+			    inp->sctp_ep.port,
+			    p);
 			if (stcb == NULL) {
 				/* Error is setup for us in the call */
 				goto out_unlocked;
