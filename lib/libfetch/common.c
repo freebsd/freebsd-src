@@ -471,7 +471,7 @@ fetch_ssl_hname_match(const char *h, size_t hlen, const char *m,
 	if (!fetch_ssl_hname_equal(hdot - delta, delta,
 	    mdot1 - delta, delta))
 		return (0);
-	/* all tests succeded, it's a match */
+	/* all tests succeeded, it's a match */
 	return (1);
 }
 
@@ -1349,7 +1349,7 @@ fetch_netrc_auth(struct url *url)
  * which the proxy should not be consulted; the contents is a comma-,
  * or space-separated list of domain names.  A single asterisk will
  * override all proxy variables and no transactions will be proxied
- * (for compatability with lynx and curl, see the discussion at
+ * (for compatibility with lynx and curl, see the discussion at
  * <http://curl.haxx.se/mail/archive_pre_oct_99/0009.html>).
  */
 int
