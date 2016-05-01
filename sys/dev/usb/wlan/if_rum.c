@@ -269,6 +269,8 @@ static int		rum_raw_xmit(struct ieee80211_node *, struct mbuf *,
 static void		rum_scan_start(struct ieee80211com *);
 static void		rum_scan_end(struct ieee80211com *);
 static void		rum_set_channel(struct ieee80211com *);
+static void		rum_getradiocaps(struct ieee80211com *, int, int *,
+			    struct ieee80211_channel[]);
 static int		rum_get_rssi(struct rum_softc *, uint8_t);
 static void		rum_ratectl_start(struct rum_softc *,
 			    struct ieee80211_node *);
@@ -335,6 +337,14 @@ static const struct {
 	{ 102, 0x16 },
 	{ 107, 0x04 }
 };
+
+static const uint8_t rum_chan_2ghz[] =
+	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+
+static const uint8_t rum_chan_5ghz[] =
+	{ 34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64,
+	  100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140,
+	  149, 153, 157, 161, 165 };
 
 static const struct rfprog {
 	uint8_t		chan;
@@ -477,7 +487,6 @@ rum_attach(device_t self)
 	struct rum_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t tmp;
-	uint8_t bands[IEEE80211_MODE_BYTES];
 	uint8_t iface_index;
 	int error, ntries;
 
@@ -548,12 +557,8 @@ rum_attach(device_t self)
 	    IEEE80211_CRYPTO_TKIPMIC |
 	    IEEE80211_CRYPTO_TKIP;
 
-	memset(bands, 0, sizeof(bands));
-	setbit(bands, IEEE80211_MODE_11B);
-	setbit(bands, IEEE80211_MODE_11G);
-	if (sc->rf_rev == RT2573_RF_5225 || sc->rf_rev == RT2573_RF_5226)
-		setbit(bands, IEEE80211_MODE_11A);
-	ieee80211_init_channels(ic, NULL, bands);
+	rum_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 
 	ieee80211_ifattach(ic);
 	ic->ic_update_promisc = rum_update_promisc;
@@ -561,6 +566,7 @@ rum_attach(device_t self)
 	ic->ic_scan_start = rum_scan_start;
 	ic->ic_scan_end = rum_scan_end;
 	ic->ic_set_channel = rum_set_channel;
+	ic->ic_getradiocaps = rum_getradiocaps;
 	ic->ic_transmit = rum_transmit;
 	ic->ic_parent = rum_parent;
 	ic->ic_vap_create = rum_vap_create;
@@ -3163,6 +3169,26 @@ rum_set_channel(struct ieee80211com *ic)
 	RUM_LOCK(sc);
 	rum_set_chan(sc, ic->ic_curchan);
 	RUM_UNLOCK(sc);
+}
+
+static void
+rum_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	struct rum_softc *sc = ic->ic_softc;
+	uint8_t bands[IEEE80211_MODE_BYTES];
+
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
+	    rum_chan_2ghz, nitems(rum_chan_2ghz), bands, 0);
+
+	if (sc->rf_rev == RT2573_RF_5225 || sc->rf_rev == RT2573_RF_5226) {
+		setbit(bands, IEEE80211_MODE_11A);
+		ieee80211_add_channel_list_5ghz(chans, maxchans, nchans,
+		    rum_chan_5ghz, nitems(rum_chan_5ghz), bands, 0);
+	}
 }
 
 static int
