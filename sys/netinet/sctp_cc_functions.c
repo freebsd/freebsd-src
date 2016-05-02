@@ -242,7 +242,7 @@ sctp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 }
 
 /* Defines for instantaneous bw decisions */
-#define SCTP_INST_LOOSING 1	/* Loosing to other flows */
+#define SCTP_INST_LOOSING 1	/* Losing to other flows */
 #define SCTP_INST_NEUTRAL 2	/* Neutral, no indication */
 #define SCTP_INST_GAINING 3	/* Gaining, step down possible */
 
@@ -563,7 +563,7 @@ cc_bw_increase(struct sctp_tcb *stcb, struct sctp_nets *net, uint64_t nbw, uint6
 	return (0);
 }
 
-/* RTCC Algoritm to limit growth of cwnd, return
+/* RTCC Algorithm to limit growth of cwnd, return
  * true if you want to NOT allow cwnd growth
  */
 static int
@@ -1110,7 +1110,7 @@ sctp_cwnd_update_after_ecn_echo_common(struct sctp_tcb *stcb, struct sctp_nets *
 		} else {
 			/*
 			 * Further tuning down required over the drastic
-			 * orginal cut
+			 * original cut
 			 */
 			net->ssthresh -= (net->mtu * num_pkt_lost);
 			net->cwnd -= (net->mtu * num_pkt_lost);
@@ -1290,7 +1290,7 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
     int accum_moved, int reneged_all, int will_exit)
 {
-	/* Passing a zero argument in last disables the rtcc algoritm */
+	/* Passing a zero argument in last disables the rtcc algorithm */
 	sctp_cwnd_update_after_sack_common(stcb, asoc, accum_moved, reneged_all, will_exit, 0);
 }
 
@@ -1298,13 +1298,13 @@ static void
 sctp_cwnd_update_after_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *net,
     int in_window, int num_pkt_lost)
 {
-	/* Passing a zero argument in last disables the rtcc algoritm */
+	/* Passing a zero argument in last disables the rtcc algorithm */
 	sctp_cwnd_update_after_ecn_echo_common(stcb, net, in_window, num_pkt_lost, 0);
 }
 
 /* Here starts the RTCCVAR type CC invented by RRS which
  * is a slight mod to RFC2581. We reuse a common routine or
- * two since these algoritms are so close and need to
+ * two since these algorithms are so close and need to
  * remain the same.
  */
 static void
@@ -1510,7 +1510,7 @@ sctp_cwnd_update_rtcc_after_sack(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
     int accum_moved, int reneged_all, int will_exit)
 {
-	/* Passing a one argument at the last enables the rtcc algoritm */
+	/* Passing a one argument at the last enables the rtcc algorithm */
 	sctp_cwnd_update_after_sack_common(stcb, asoc, accum_moved, reneged_all, will_exit, 1);
 }
 
