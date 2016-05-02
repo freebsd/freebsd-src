@@ -77,7 +77,7 @@ static devclass_t xentimer_devclass;
 
 /* Xen timers may fire up to 100us off */
 #define	XENTIMER_MIN_PERIOD_IN_NSEC	100*NSEC_IN_USEC
-#define	XENCLOCK_RESOLUTION		10000000
+#define	XENCLOCK_RESOLUTION		1000001 /* ATRTC resolution + 1 */
 
 #define	XENTIMER_QUALITY	950
 
@@ -471,9 +471,6 @@ xentimer_resume(device_t dev)
 
 	/* Reset the last uptime value */
 	pvclock_resume();
-
-	/* Reset the RTC clock */
-	inittodr(time_second);
 
 	/* Kick the timers on all CPUs */
 	smp_rendezvous(NULL, xentimer_percpu_resume, NULL, dev);
