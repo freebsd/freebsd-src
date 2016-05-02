@@ -37,6 +37,7 @@
 #define _DEV_MWL_MVVAR_H
 
 #include <sys/endian.h>
+#include <sys/bus.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <dev/mwl/mwlhal.h>
 #include <dev/mwl/mwlreg.h>
