@@ -754,7 +754,7 @@ wb_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	KASSERT(sc->ext_cfg_enter_f != NULL && sc->ext_cfg_exit_f != NULL,
-	    ("%s: successfull probe result but not setup correctly", __func__));
+	    ("%s: successful probe result but not setup correctly", __func__));
 
 	/* Watchdog is configured as part of LDN 8 (GPIO Port2, Watchdog). */
 	write_reg(sc, WB_LDN_REG, WB_LDN_REG_LDN8);
