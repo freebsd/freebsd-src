@@ -353,8 +353,7 @@ dumpcg(void)
 		for (i = 1; i < afs.fs_contigsumsize; i++) {
 			if ((i - 1) % 8 == 0)
 				printf("\nclusters %d-%d:", i,
-				    afs.fs_contigsumsize - 1 < i + 7 ?
-				    afs.fs_contigsumsize - 1 : i + 7);
+				    MIN(afs.fs_contigsumsize - 1, i + 7));
 			printf("\t%d", cg_clustersum(&acg)[i]);
 		}
 		printf("\nclusters size %d and over: %d\n",
