@@ -3171,7 +3171,7 @@ makemask(struct sockaddr_storage *ssp, int bitlen)
 		return (-1);
 
 	for (i = 0; i < len; i++) {
-		bits = (bitlen > CHAR_BIT) ? CHAR_BIT : bitlen;
+		bits = MIN(CHAR_BIT, bitlen);
 		*p++ = (u_char)~0 << (CHAR_BIT - bits);
 		bitlen -= bits;
 	}
