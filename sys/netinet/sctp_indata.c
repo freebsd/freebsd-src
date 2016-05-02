@@ -3651,7 +3651,7 @@ static int
 sctp_fs_audit(struct sctp_association *asoc)
 {
 	struct sctp_tmit_chunk *chk;
-	int inflight = 0, resend = 0, between = 0, acked = 0, above = 0;
+	int inflight = 0, resend = 0, inbetween = 0, acked = 0, above = 0;
 	int ret;
 
 #ifndef INVARIANTS
