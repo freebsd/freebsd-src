@@ -90,5 +90,6 @@ DEFINE_CLASS_1(bhnd_pcib, bhnd_pcib_driver, bhnd_pcib_methods, sizeof(struct bhn
 DRIVER_MODULE(bhnd_pcib, bhnd, bhnd_pcib_driver, bhnd_hostb_devclass, 0, 0);
 
 MODULE_VERSION(bhnd_pcib, 1);
+MODULE_DEPEND(bhnd_pcib, bhnd, 1, 1, 1);
+MODULE_DEPEND(bhnd_pcib, bhnd_pci, 1, 1, 1);
 MODULE_DEPEND(bhnd_pcib, pci, 1, 1, 1);
-MODULE_DEPEND(bhnd_pcib, bhnd_pci_mdio, 1, 1, 1);
