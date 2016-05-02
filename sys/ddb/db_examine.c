@@ -89,15 +89,6 @@ db_examine(db_addr_t addr, char *fmt, int count)
 		    case 'g':
 			size = 8;
 			break;
-		    case 'a':	/* address */
-			size = sizeof(void *);
-			/* always forces a new line */
-			if (db_print_position() != 0)
-			    db_printf("\n");
-			db_prev = addr;
-			db_printsym(addr, DB_STGY_ANY);
-			db_printf(":\t");
-			break;
 		    default:
 			if (db_print_position() == 0) {
 			    /* Print the address. */
@@ -108,6 +99,18 @@ db_examine(db_addr_t addr, char *fmt, int count)
 
 			width = size * 4;
 			switch (c) {
+			    case 'a':	/* address */
+				size = sizeof(void *);
+				value = db_get_value(addr, size, TRUE);
+				addr += size;
+				db_printsym(value, DB_STGY_ANY);
+				break;
+			    case 'p':
+				size = sizeof(void *);
+				value = db_get_value(addr, size, TRUE);
+				addr += size;
+				db_printf("%p", (void *)value);
+				break;
 			    case 'r':	/* signed, current radix */
 				value = db_get_value(addr, size, true);
 				addr += size;
@@ -173,7 +176,7 @@ db_examine(db_addr_t addr, char *fmt, int count)
 			    default:
 				break;
 			}
-			if (db_print_position() != 0)
+			if (db_print_position() != 0 || c == 'a' || c == 'p')
 			    db_end_line(1);
 			break;
 		}
