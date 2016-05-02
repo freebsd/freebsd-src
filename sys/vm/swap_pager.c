@@ -989,7 +989,7 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 	/*
 	 * Free left over swap blocks in source.
 	 *
-	 * We have to revert the type to OBJT_DEFAULT so we do not accidently
+	 * We have to revert the type to OBJT_DEFAULT so we do not accidentally
 	 * double-remove the object from the swap queues.
 	 */
 	if (destroysource) {
@@ -2763,7 +2763,7 @@ swapongeom_ev(void *arg, int flags)
 	cp->flags |=  G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	g_attach(cp, pp);
 	/*
-	 * XXX: Everytime you think you can improve the margin for
+	 * XXX: Every time you think you can improve the margin for
 	 * footshooting, somebody depends on the ability to do so:
 	 * savecore(8) wants to write to our swapdev so we cannot
 	 * set an exclusive count :-(

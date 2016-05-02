@@ -2123,7 +2123,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 
 		/*
 		 * If prev_object was charged, then this mapping,
-		 * althought not charged now, may become writable
+		 * although not charged now, may become writable
 		 * later. Non-NULL cred in the object would prevent
 		 * swap reservation during enabling of the write
 		 * access, so reserve swap now. Failed reservation

@@ -3624,7 +3624,7 @@ vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 		return (KERN_NO_SPACE);
 
 	/*
-	 * If we can't accomodate max_ssize in the current mapping, no go.
+	 * If we can't accommodate max_ssize in the current mapping, no go.
 	 * However, we need to be aware that subsequent user mappings might
 	 * map into the space we have reserved for stack, and currently this
 	 * space is not protected.
