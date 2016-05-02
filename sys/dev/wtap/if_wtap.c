@@ -131,7 +131,7 @@ wtap_node_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 
 	switch(cmd) {
 	default:
-		DWTAP_PRINTF("Unkown WTAP IOCTL\n");
+		DWTAP_PRINTF("Unknown WTAP IOCTL\n");
 		error = EINVAL;
 	}
 	return error;
