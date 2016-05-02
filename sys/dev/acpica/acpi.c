@@ -211,6 +211,7 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
     DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
     DEVMETHOD(bus_hint_device_unit,	acpi_hint_device_unit),
+    DEVMETHOD(bus_get_cpus,		acpi_get_cpus),
     DEVMETHOD(bus_get_domain,		acpi_get_domain),
 
     /* ACPI bus */
@@ -1077,52 +1078,79 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 }
 
 /*
- * Fetch the VM domain for the given device 'dev'.
- *
- * Return 1 + domain if there's a domain, 0 if not found;
- * -1 upon an error.
+ * Fetch the NUMA domain for a device by mapping the value returned by
+ * _PXM to a NUMA domain.  If the device does not have a _PXM method,
+ * -2 is returned.  If any other error occurs, -1 is returned.
  */
-int
-acpi_parse_pxm(device_t dev, int *domain)
+static int
+acpi_parse_pxm(device_t dev)
 {
 #ifdef DEVICE_NUMA
-	ACPI_HANDLE h;
-	int d, pxm;
+	ACPI_HANDLE handle;
+	ACPI_STATUS status;
+	int pxm;
 
-	h = acpi_get_handle(dev);
-	if ((h != NULL) &&
-	    ACPI_SUCCESS(acpi_GetInteger(h, "_PXM", &pxm))) {
-		d = acpi_map_pxm_to_vm_domainid(pxm);
-		if (d < 0)
-			return (-1);
-		*domain = d;
-		return (1);
-	}
+	handle = acpi_get_handle(dev);
+	if (handle == NULL)
+		return (-2);
+	status = acpi_GetInteger(handle, "_PXM", &pxm);
+	if (ACPI_SUCCESS(status))
+		return (acpi_map_pxm_to_vm_domainid(pxm));
+	if (status == AE_NOT_FOUND)
+		return (-2);
 #endif
+	return (-1);
+}
 
-	return (0);
+int
+acpi_get_cpus(device_t dev, device_t child, enum cpu_sets op, size_t setsize,
+    cpuset_t *cpuset)
+{
+	int d, error;
+
+	d = acpi_parse_pxm(child);
+	if (d < 0)
+		return (bus_generic_get_cpus(dev, child, op, setsize, cpuset));
+
+	switch (op) {
+	case LOCAL_CPUS:
+		if (setsize != sizeof(cpuset_t))
+			return (EINVAL);
+		*cpuset = cpuset_domain[d];
+		return (0);
+	case INTR_CPUS:
+		error = bus_generic_get_cpus(dev, child, op, setsize, cpuset);
+		if (error != 0)
+			return (error);
+		if (setsize != sizeof(cpuset_t))
+			return (EINVAL);
+		CPU_AND(cpuset, &cpuset_domain[d]);
+		return (0);
+	default:
+		return (bus_generic_get_cpus(dev, child, op, setsize, cpuset));
+	}
 }
 
 /*
- * Fetch the NUMA domain for the given device.
+ * Fetch the NUMA domain for the given device 'dev'.
  *
  * If a device has a _PXM method, map that to a NUMA domain.
- *
- * If none is found, then it'll call the parent method.
- * If there's no domain, return ENOENT.
+ * Otherwise, pass the request up to the parent.
+ * If there's no matching domain or the domain cannot be
+ * determined, return ENOENT.
  */
 int
 acpi_get_domain(device_t dev, device_t child, int *domain)
 {
-	int ret;
+	int d;
 
-	ret = acpi_parse_pxm(child, domain);
-	/* Error */
-	if (ret == -1)
-		return (ENOENT);
-	/* Found */
-	if (ret == 1)
+	d = acpi_parse_pxm(child);
+	if (d >= 0) {
+		*domain = d;
 		return (0);
+	}
+	if (d == -1)
+		return (ENOENT);
 
 	/* No _PXM node; go up a level */
 	return (bus_generic_get_domain(dev, child, domain));
