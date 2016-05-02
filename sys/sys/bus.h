@@ -32,6 +32,7 @@
 #include <machine/_limits.h>
 #include <machine/_bus.h>
 #include <sys/_bus_dma.h>
+#include <sys/_cpuset.h>
 #include <sys/ioccom.h>
 
 /**
@@ -302,6 +303,16 @@ enum intr_polarity {
 	INTR_POLARITY_LOW = 2
 };
 
+/**
+ * CPU sets supported by bus_get_cpus().  Note that not all sets may be
+ * supported for a given device.  If a request is not supported by a
+ * device (or its parents), then bus_get_cpus() will fail with EINVAL.
+ */
+enum cpu_sets {
+	LOCAL_CPUS = 0,
+	INTR_CPUS
+};
+
 typedef int (*devop_t)(void);
 
 /**
@@ -418,6 +429,8 @@ int	bus_generic_deactivate_resource(device_t dev, device_t child, int type,
 					int rid, struct resource *r);
 int	bus_generic_detach(device_t dev);
 void	bus_generic_driver_added(device_t dev, driver_t *driver);
+int	bus_generic_get_cpus(device_t dev, device_t child, enum cpu_sets op,
+			     size_t setsize, cpuset_t *cpuset);
 bus_dma_tag_t
 	bus_generic_get_dma_tag(device_t dev, device_t child);
 bus_space_tag_t
@@ -487,6 +500,8 @@ int	bus_activate_resource(device_t dev, int type, int rid,
 			      struct resource *r);
 int	bus_deactivate_resource(device_t dev, int type, int rid,
 				struct resource *r);
+int	bus_get_cpus(device_t dev, enum cpu_sets op, size_t setsize,
+		     cpuset_t *cpuset);
 bus_dma_tag_t bus_get_dma_tag(device_t dev);
 bus_space_tag_t bus_get_bus_tag(device_t dev);
 int	bus_get_domain(device_t dev, int *domain);
