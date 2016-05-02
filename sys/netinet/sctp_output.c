@@ -3071,7 +3071,7 @@ bound_all_plan_b:
 		    ifn, num_preferred);
 		if (num_preferred == 0) {
 			/* None on this interface. */
-			SCTPDBG(SCTP_DEBUG_OUTPUT2, "No prefered -- skipping to next\n");
+			SCTPDBG(SCTP_DEBUG_OUTPUT2, "No preferred -- skipping to next\n");
 			continue;
 		}
 		SCTPDBG(SCTP_DEBUG_OUTPUT2,
@@ -3156,7 +3156,7 @@ again_with_private_addresses_allowed:
 				 * It is restricted for some reason..
 				 * probably not yet added.
 				 */
-				SCTPDBG(SCTP_DEBUG_OUTPUT2, "Its resticted\n");
+				SCTPDBG(SCTP_DEBUG_OUTPUT2, "Its restricted\n");
 				sifa = NULL;
 				continue;
 			}
@@ -5390,7 +5390,7 @@ sctp_are_there_new_addresses(struct sctp_association *asoc,
 			}
 		}
 		if (fnd == 0) {
-			/* New address added! no need to look futher. */
+			/* New address added! no need to look further. */
 			return (1);
 		}
 	}
@@ -5631,7 +5631,7 @@ do_a_abort:
 	stc.peerport = sh->src_port;
 
 	/*
-	 * If we wanted to honor cookie life extentions, we would add to
+	 * If we wanted to honor cookie life extensions, we would add to
 	 * stc.cookie_life. For now we should NOT honor any extension
 	 */
 	stc.site_scope = stc.local_scope = stc.loopback_scope = 0;
@@ -6206,7 +6206,7 @@ sctp_prune_prsctp(struct sctp_tcb *stcb,
 							return;
 						}
 					}	/* if chunk was present */
-				}	/* if of sufficent priority */
+				}	/* if of sufficient priority */
 			}	/* if chunk has enabled */
 		}		/* tailqforeach */
 
@@ -6564,7 +6564,7 @@ error_out:
 			}
 		}
 		/*
-		 * save off the end and update the end-chain postion
+		 * save off the end and update the end-chain position
 		 */
 		m = appendchain;
 		while (m) {
@@ -6576,7 +6576,7 @@ error_out:
 		}
 		return (outchain);
 	} else {
-		/* save off the end and update the end-chain postion */
+		/* save off the end and update the end-chain position */
 		m = appendchain;
 		while (m) {
 			if (SCTP_BUF_NEXT(m) == NULL) {
@@ -6810,7 +6810,7 @@ sctp_sendall_completes(void *ptr, uint32_t val SCTP_UNUSED)
 	/*
 	 * Do a notify here? Kacheong suggests that the notify be done at
 	 * the send time.. so you would push up a notification if any send
-	 * failed. Don't know if this is feasable since the only failures we
+	 * failed. Don't know if this is feasible since the only failures we
 	 * have is "memory" related and if you cannot get an mbuf to send
 	 * the data you surely can't get an mbuf to send up to notify the
 	 * user you can't send the data :->
@@ -7468,7 +7468,7 @@ dont_do_it:
 		chk->copy_by_ref = 0;
 	}
 	/*
-	 * get last_mbuf and counts of mb useage This is ugly but hopefully
+	 * get last_mbuf and counts of mb usage This is ugly but hopefully
 	 * its only one mbuf.
 	 */
 	if (chk->last_mbuf == NULL) {
@@ -9537,7 +9537,7 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 	cnt_thru = 0;
 	/* do we have control chunks to retransmit? */
 	if (m != NULL) {
-		/* Start a timer no matter if we suceed or fail */
+		/* Start a timer no matter if we succeed or fail */
 		if (chk->rec.chunk_id.id == SCTP_COOKIE_ECHO) {
 			sctp_timer_start(SCTP_TIMER_TYPE_COOKIE, inp, stcb, chk->whoTo);
 		} else if (chk->rec.chunk_id.id == SCTP_ASCONF)
@@ -9802,7 +9802,7 @@ one_chunk_around:
 		/* Is there something to send for this destination? */
 		if (m) {
 			/*
-			 * No matter if we fail/or suceed we should start a
+			 * No matter if we fail/or succeed we should start a
 			 * timer. A failure is like a lost IP packet :-)
 			 */
 			if (!SCTP_OS_TIMER_PENDING(&net->rxt_timer.timer)) {
