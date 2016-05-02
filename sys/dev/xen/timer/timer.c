@@ -76,8 +76,6 @@ static devclass_t xentimer_devclass;
 #define	XENTIMER_MIN_PERIOD_IN_NSEC	100*NSEC_IN_USEC
 #define	XENCLOCK_RESOLUTION		10000000
 
-#define	ETIME	62	/* Xen "bad time" error */
-
 #define	XENTIMER_QUALITY	950
 
 struct xentimer_pcpu_data {
@@ -295,7 +293,7 @@ static int
 xentimer_et_start(struct eventtimer *et,
     sbintime_t first, sbintime_t period)
 {
-	int error = 0, i = 0;
+	int error;
 	struct xentimer_softc *sc = et->et_priv;
 	int cpu = PCPU_GET(vcpu_id);
 	struct xentimer_pcpu_data *pcpu = DPCPU_PTR(xentimer_pcpu);
@@ -312,21 +310,8 @@ xentimer_et_start(struct eventtimer *et,
 	first_in_ns = (((first >> 32) * NSEC_IN_SEC) +
 	               (((uint64_t)NSEC_IN_SEC * (uint32_t)first) >> 32));
 
-	/*
-	 * Retry any timer scheduling failures, where the hypervisor
-	 * returns -ETIME.  Sometimes even a 100us timer period isn't large
-	 * enough, but larger period instances are relatively uncommon.
-	 *
-	 * XXX Remove the panics once et_start() and its consumers are
-	 *     equipped to deal with start failures.
-	 */
-	do {
-		if (++i == 60)
-			panic("can't schedule timer");
-		next_time = xen_fetch_vcpu_time(vcpu) + first_in_ns;
-		error = xentimer_vcpu_start_timer(cpu, next_time);
-	} while (error == -ETIME);
-
+	next_time = xen_fetch_vcpu_time(vcpu) + first_in_ns;
+	error = xentimer_vcpu_start_timer(cpu, next_time);
 	if (error)
 		panic("%s: Error %d setting singleshot timer to %"PRIu64"\n",
 		    device_get_nameunit(sc->dev), error, next_time);
