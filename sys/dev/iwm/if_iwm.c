@@ -1737,14 +1737,13 @@ iwm_init_channel_map(struct ieee80211com *ic, int maxchans, int *nchans,
 	/* 14: 11b channel only. */
 	clrbit(bands, IEEE80211_MODE_11G);
 	iwm_add_channel_band(sc, chans, maxchans, nchans,
-	    IWM_NUM_2GHZ_CHANNELS - 1, 1, bands);
+	    IWM_NUM_2GHZ_CHANNELS - 1, IWM_NUM_2GHZ_CHANNELS, bands);
 
 	if (data->sku_cap_band_52GHz_enable) {
 		memset(bands, 0, sizeof(bands));
 		setbit(bands, IEEE80211_MODE_11A);
 		iwm_add_channel_band(sc, chans, maxchans, nchans,
-		    IWM_NUM_2GHZ_CHANNELS,
-		    nitems(iwm_nvm_channels) - IWM_NUM_2GHZ_CHANNELS, bands);
+		    IWM_NUM_2GHZ_CHANNELS, nitems(iwm_nvm_channels), bands);
 	}
 }
 
