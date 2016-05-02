@@ -508,8 +508,7 @@ binexec(char *diffprog, char *f1, char *f2)
 static int
 istextfile(FILE *f)
 {
-	int	i;
-	char ch;
+	int	ch, i;
 
 	if (f == NULL)
 		return (1);
