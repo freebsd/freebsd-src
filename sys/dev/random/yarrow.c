@@ -96,7 +96,7 @@ static struct yarrow_state {
 	u_int ys_slowoverthresh;	/* slow pool overthreshhold reseed count */
 	struct ys_pool {
 		u_int ysp_source_bits[ENTROPYSOURCE];	/* estimated bits of entropy per source */
-		u_int ysp_thresh;	/* pool reseed threshhold */
+		u_int ysp_thresh;	/* pool reseed threshold */
 		struct randomdev_hash ysp_hash;	/* accumulated entropy */
 	} ys_pool[RANDOM_YARROW_NPOOLS];/* pool[0] is fast, pool[1] is slow */
 	bool ys_seeded;
@@ -240,8 +240,8 @@ random_yarrow_process_event(struct harvest_event *event)
 		}
 	}
 	/*
-	 * If enough slow sources are over threshhold, then slow reseed
-	 * else if any fast source over threshhold, then fast reseed.
+	 * If enough slow sources are over threshold, then slow reseed
+	 * else if any fast source over threshold, then fast reseed.
 	 */
 	if (overthreshhold[RANDOM_YARROW_SLOW] >= yarrow_state.ys_slowoverthresh)
 		random_yarrow_reseed_internal(RANDOM_YARROW_SLOW);
