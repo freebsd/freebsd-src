@@ -122,6 +122,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/eventhandler.h>
+#include <sys/timetc.h>
 
 #include <geom/geom.h>
 
@@ -197,6 +198,8 @@ xctrl_suspend()
 #endif
 	int suspend_cancelled;
 
+	EVENTHANDLER_INVOKE(power_suspend_early);
+	stop_all_proc();
 	EVENTHANDLER_INVOKE(power_suspend);
 
 	if (smp_started) {
@@ -222,7 +225,6 @@ xctrl_suspend()
 		printf("%s: device_suspend failed\n", __func__);
 		return;
 	}
-	mtx_unlock(&Giant);
 
 #ifdef SMP
 	CPU_ZERO(&cpu_suspend_map);	/* silence gcc */
@@ -273,15 +275,23 @@ xctrl_suspend()
 	 * FreeBSD really needs to add DEVICE_SUSPEND_CANCEL or
 	 * similar.
 	 */
-	mtx_lock(&Giant);
 	DEVICE_RESUME(root_bus);
 	mtx_unlock(&Giant);
+
+	/*
+	 * Warm up timecounter again and reset system clock.
+	 */
+	timecounter->tc_get_timecount(timecounter);
+	timecounter->tc_get_timecount(timecounter);
+	inittodr(time_second);
 
 	if (smp_started) {
 		thread_lock(curthread);
 		sched_unbind(curthread);
 		thread_unlock(curthread);
 	}
+
+	resume_all_proc();
 
 	EVENTHANDLER_INVOKE(power_resume);
 
