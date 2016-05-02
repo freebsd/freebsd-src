@@ -2852,7 +2852,8 @@ iwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		sc->calib.state = IWN_CALIB_STATE_INIT;
 
 		/* Wait until we hear a beacon before we transmit */
-		sc->sc_beacon_wait = 1;
+		if (IEEE80211_IS_CHAN_PASSIVE(ic->ic_curchan))
+			sc->sc_beacon_wait = 1;
 
 		if ((error = iwn_auth(sc, vap)) != 0) {
 			device_printf(sc->sc_dev,
@@ -2870,7 +2871,8 @@ iwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		}
 
 		/* Wait until we hear a beacon before we transmit */
-		sc->sc_beacon_wait = 1;
+		if (IEEE80211_IS_CHAN_PASSIVE(ic->ic_curchan))
+			sc->sc_beacon_wait = 1;
 
 		/*
 		 * !RUN -> RUN requires setting the association id
