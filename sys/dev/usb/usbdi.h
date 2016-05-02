@@ -241,7 +241,7 @@ struct usb_config {
 /*
  * Use these macro when defining USB device ID arrays if you want to
  * have your driver module automatically loaded in host, device or
- * both modes respectivly:
+ * both modes respectively:
  */
 #if USB_HAVE_ID_SECTION
 #define	STRUCT_USB_HOST_ID \
