@@ -144,7 +144,19 @@ struct asmc_softc {
 				  "Northbridge Point 2", "Heatsink 1", \
 				  "Heatsink 2", "Memory Bank A", }
 
-#define ASMC_MBP_TEMPS		{ "TB0T", "Th0H", "Th1H", "Tm0P", \
+#define ASMC_MB31_TEMPS		{ "TB0T", "TN0P",  "Th0H", "Th1H", \
+				  "TM0P", NULL }
+
+#define ASMC_MB31_TEMPNAMES	{ "enclosure", "northbridge1", \
+				  "heatsink1", "heatsink2", \
+				  "memory", }
+
+#define ASMC_MB31_TEMPDESCS	{ "Enclosure Bottomside", \
+				  "Northbridge Point 1", \
+				  "Heatsink 1","Heatsink 2" \
+				  "Memory Bank A", } 
+
+#define ASMC_MBP_TEMPS		{ "TB0T", "Th0H", "Th1H", "Tm0P",	\
 				  "TG0H", "TG0P", "TG0T", NULL }
 
 #define ASMC_MBP_TEMPNAMES	{ "enclosure", "heatsink1", \
@@ -337,3 +349,24 @@ struct asmc_softc {
 
 #define	ASMC_MBA3_TEMPDESCS	{ "Enclosure Bottom", "TB1T", "TB2T", \
 				  "TC0D", "TC0E", "TC0P" }
+
+#define	ASMC_MBA5_TEMPS		{ "TB0T", "TB1T", "TB2T", "TC0C", \
+                         	  "TC0D", "TC0E", "TC0F", "TC0P", \
+	                          "TC1C", "TC2C", "TCGC", "TCSA", \
+	                          "TCXC", "THSP", "TM0P", "TPCD", \
+	                          "Ta0P", "Th1H", "Tm0P", "Tm1P", \
+	                          "Ts0P", "Ts0S", NULL }
+
+#define	ASMC_MBA5_TEMPNAMES	{ "enclosure1", "enclosure2", "enclosure3", "TC0C", \
+	                          "cpudiode", "cputemp1", "cputemp2", "cpuproximity", \
+	                          "cpucore1", "cpucore2", "cpupeci", "pecisa", \
+	                          "TCXC", "THSP", "memorybank", "pchdie", \
+	                          "Ta0P", "heatpipe", "mainboardproximity1", "mainboardproximity2", \
+	                          "palmrest", "memoryproximity" }
+
+#define	ASMC_MBA5_TEMPDESCS	{ "Enclosure Bottom 1", "Enclosure Bottom 2", "Enclosure Bottom 3", "TC0C",\
+	                          "CPU Diode", "CPU Temp 1", "CPU Temp 2", "CPU Proximity", \
+	                          "CPU Core 1", "CPU Core 2", "CPU Peci Core", "PECI SA", \
+	                          "TCXC", "THSP", "Memory Bank A", "PCH Die", \
+	                          "Ta0P", "Heatpipe", "Mainboard Proximity 1", "Mainboard Proximity 2", \
+	                          "Palm Rest", "Memory Proximity" }
