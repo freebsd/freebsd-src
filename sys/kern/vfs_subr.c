@@ -4650,10 +4650,26 @@ void
 vop_rename_post(void *ap, int rc)
 {
 	struct vop_rename_args *a = ap;
+	long hint;
 
 	if (!rc) {
-		VFS_KNOTE_UNLOCKED(a->a_fdvp, NOTE_WRITE);
-		VFS_KNOTE_UNLOCKED(a->a_tdvp, NOTE_WRITE);
+		hint = NOTE_WRITE;
+		if (a->a_fdvp == a->a_tdvp) {
+			if (a->a_tvp != NULL && a->a_tvp->v_type == VDIR)
+				hint |= NOTE_LINK;
+			VFS_KNOTE_UNLOCKED(a->a_fdvp, hint);
+			VFS_KNOTE_UNLOCKED(a->a_tdvp, hint);
+		} else {
+			if (a->a_fvp->v_type == VDIR)
+				hint |= NOTE_LINK;
+			VFS_KNOTE_UNLOCKED(a->a_fdvp, hint);
+
+			if (a->a_fvp->v_type == VDIR && a->a_tvp != NULL &&
+			    a->a_tvp->v_type == VDIR)
+				hint &= ~NOTE_LINK;
+			VFS_KNOTE_UNLOCKED(a->a_tdvp, hint);
+		}
+
 		VFS_KNOTE_UNLOCKED(a->a_fvp, NOTE_RENAME);
 		if (a->a_tvp)
 			VFS_KNOTE_UNLOCKED(a->a_tvp, NOTE_DELETE);
