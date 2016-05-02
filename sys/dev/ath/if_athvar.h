@@ -126,7 +126,7 @@ struct ath_tid {
 	TAILQ_HEAD(,ath_buf)	tid_q;		/* pending buffers */
 	struct ath_node		*an;		/* pointer to parent */
 	int			tid;		/* tid */
-	int			ac;		/* which AC gets this trafic */
+	int			ac;		/* which AC gets this traffic */
 	int			hwq_depth;	/* how many buffers are on HW */
 	u_int			axq_depth;	/* SW queue depth */
 

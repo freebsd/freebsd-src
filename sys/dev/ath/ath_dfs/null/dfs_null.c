@@ -181,7 +181,7 @@ ath_dfs_process_phy_err(struct ath_softc *sc, struct mbuf *m,
 }
 
 /*
- * Process the radar events and determine whether a DFS event has occured.
+ * Process the radar events and determine whether a DFS event has occurred.
  *
  * This is designed to run outside of the RX processing path.
  * The RX path will call ath_dfs_tasklet_needed() to see whether

@@ -807,7 +807,7 @@ ar5416ProcTxDesc(struct ath_hal *ah,
 	}
 
 	/*
-	 * These fields are not used. Zero these to preserve compatability
+	 * These fields are not used. Zero these to preserve compatibility
 	 * with existing drivers.
 	 */
 	ts->ts_virtcol = MS(ads->ds_ctl1, AR_VirtRetryCnt);

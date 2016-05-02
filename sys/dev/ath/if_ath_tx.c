@@ -3125,7 +3125,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * If we're not doing A-MPDU, be prepared to direct dispatch
 	 * up to both limits if possible.  This particular corner
 	 * case may end up with packet starvation between aggregate
-	 * traffic and non-aggregate traffic: we wnat to ensure
+	 * traffic and non-aggregate traffic: we want to ensure
 	 * that non-aggregate stations get a few frames queued to the
 	 * hardware before the aggregate station(s) get their chance.
 	 *
@@ -3949,7 +3949,7 @@ ath_tx_tid_reset(struct ath_softc *sc, struct ath_tid *tid)
 	 * XXX TODO: it may just be enough to walk the HWQs and mark
 	 * frames for that node as non-aggregate; or mark the ath_node
 	 * with something that indicates that aggregation is no longer
-	 * occuring.  Then we can just toss the BAW complaints and
+	 * occurring.  Then we can just toss the BAW complaints and
 	 * do a complete hard reset of state here - no pause, no
 	 * complete counter, etc.
 	 */

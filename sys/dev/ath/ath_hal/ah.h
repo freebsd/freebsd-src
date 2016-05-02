@@ -414,7 +414,7 @@ typedef enum {
 						/* Allow all mcast/bcast frames */
 
 	/*
-	 * Magic RX filter flags that aren't targetting hardware bits
+	 * Magic RX filter flags that aren't targeting hardware bits
 	 * but instead the HAL sets individual bits - eg PHYERR will result
 	 * in OFDM/CCK timing error frames being received.
 	 */
@@ -1224,7 +1224,7 @@ typedef struct {
 	/*
 	 * slotted mode only. rx_clear and bt_ant decision
 	 * will be held the entire time that BT_ACTIVE is asserted,
-	 * otherwise the decision is made before every slot boundry.
+	 * otherwise the decision is made before every slot boundary.
 	 */
 	HAL_BOOL	bt_hold_rxclear;
 } HAL_BT_COEX_CONFIG;
