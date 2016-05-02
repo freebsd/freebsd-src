@@ -107,7 +107,7 @@ struct sctp_ifa {
 				 * that we MUST lock appropriate locks. This
 				 * is for V6. */
 	union sctp_sockstore address;
-	uint32_t refcount;	/* number of folks refering to this */
+	uint32_t refcount;	/* number of folks referring to this */
 	uint32_t flags;
 	uint32_t localifa_flags;
 	uint32_t vrf_id;	/* vrf_id of this addr (for deleting) */
@@ -360,7 +360,7 @@ struct sctp_pcbtsn_rlog {
 struct sctp_inpcb {
 	/*-
 	 * put an inpcb in front of it all, kind of a waste but we need to
-	 * for compatability with all the other stuff.
+	 * for compatibility with all the other stuff.
 	 */
 	union {
 		struct inpcb inp;

@@ -1616,7 +1616,7 @@ sctp_timeout_handler(void *t)
 			return;
 		}
 	}
-	/* record in stopped what t-o occured */
+	/* record in stopped what t-o occurred */
 	tmr->stopped_from = type;
 
 	/* mark as being serviced now */
