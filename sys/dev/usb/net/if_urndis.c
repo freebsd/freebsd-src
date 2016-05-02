@@ -709,7 +709,7 @@ urndis_ctrl_halt(struct urndis_softc *sc)
 }
 
 /*
- * NB: Querying a device has the requirment of using an input buffer the size
+ * NB: Querying a device has the requirement of using an input buffer the size
  *     of the expected reply or larger, except for variably sized replies.
  */
 static uint32_t

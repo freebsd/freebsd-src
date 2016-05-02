@@ -2995,7 +2995,7 @@ struct usb_device_descriptor ehci_devd =
 	UDPROTO_HSHUBSTT,		/* protocol */
 	64,				/* max packet */
 	{0}, {0}, {0x00, 0x01},		/* device id */
-	1, 2, 0,			/* string indicies */
+	1, 2, 0,			/* string indexes */
 	1				/* # of configurations */
 };
 

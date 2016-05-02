@@ -1030,7 +1030,7 @@ run_vap_delete(struct ieee80211vap *vap)
  * There are numbers of functions need to be called in context thread.
  * Rather than creating taskqueue event for each of those functions,
  * here is all-for-one taskqueue callback function. This function
- * gurantees deferred functions are executed in the same order they
+ * guarantees deferred functions are executed in the same order they
  * were enqueued.
  * '& RUN_CMDQ_MASQ' is to loop cmdq[].
  */
@@ -3372,7 +3372,7 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		/*
 		 * Unlike PCI based devices, we don't get any interrupt from
 		 * USB devices, so we simulate FIFO-is-full interrupt here.
-		 * Ralink recomends to drain FIFO stats every 100 ms, but 16 slots
+		 * Ralink recommends to drain FIFO stats every 100 ms, but 16 slots
 		 * quickly get fulled. To prevent overflow, increment a counter on
 		 * every FIFO stat request, so we know how many slots are left.
 		 * We do this only in HOSTAP or multiple vap mode since FIFO stats
@@ -4884,7 +4884,7 @@ run_update_beacon_cb(void *arg)
 
 	/*
 	 * No need to call ieee80211_beacon_update(), run_update_beacon()
-	 * is taking care of apropriate calls.
+	 * is taking care of appropriate calls.
 	 */
 	if (rvp->beacon_mbuf == NULL) {
 		rvp->beacon_mbuf = ieee80211_beacon_alloc(ni);

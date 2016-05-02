@@ -615,7 +615,7 @@ usbd_transfer_setup_sub(struct usb_setup_params *parm)
 	/*
 	 * NOTE: we do not allow "max_packet_size" or "max_frame_size"
 	 * to be equal to zero when setting up USB transfers, hence
-	 * this leads to alot of extra code in the USB kernel.
+	 * this leads to a lot of extra code in the USB kernel.
 	 */
 
 	if ((xfer->max_frame_size == 0) ||
@@ -2448,7 +2448,7 @@ done:
  *
  * This function is called when the DMA delay has been exectuded, and
  * will make sure that the callback is called to complete the USB
- * transfer. This code path is ususally only used when there is an USB
+ * transfer. This code path is usually only used when there is an USB
  * error like USB_ERR_CANCELLED.
  *------------------------------------------------------------------------*/
 void

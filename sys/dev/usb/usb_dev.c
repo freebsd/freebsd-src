@@ -179,7 +179,7 @@ usb_loc_fill(struct usb_fs_privdata* pd, struct usb_cdev_privdata *cpd)
  *
  * This function is used to atomically refer an USB device by its
  * device location. If this function returns success the USB device
- * will not dissappear until the USB device is unreferenced.
+ * will not disappear until the USB device is unreferenced.
  *
  * Return values:
  *  0: Success, refcount incremented on the given USB device.

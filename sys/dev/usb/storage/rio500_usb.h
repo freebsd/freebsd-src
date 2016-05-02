@@ -5,7 +5,7 @@
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted under any licence of your choise which
-    meets the open source licence definiton
+    meets the open source licence definition
     http://www.opensource.org/opd.html such as the GNU licence or the
     BSD licence.
 

@@ -1040,7 +1040,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				if (sc->o_ntouch != ntouch)
 					dx = dy = 0;
 
-				/* Ignore unexpeted movment when typing */
+				/* Ignore unexpeted movement when typing */
 				if (ntouch == 1 && sc->index[0]->tool_major > 1200)
 					dx = dy = 0;
 

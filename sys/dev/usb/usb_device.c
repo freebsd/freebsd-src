@@ -190,7 +190,7 @@ usbd_get_ep_by_addr(struct usb_device *udev, uint8_t ea_val)
 	ea_val &= EA_MASK;
 
 	/*
-	 * Iterate accross all the USB endpoints searching for a match
+	 * Iterate across all the USB endpoints searching for a match
 	 * based on the endpoint address:
 	 */
 	for (; ep != ep_end; ep++) {
@@ -300,7 +300,7 @@ usbd_get_endpoint(struct usb_device *udev, uint8_t iface_index,
 	}
 
 	/*
-	 * Iterate accross all the USB endpoints searching for a match
+	 * Iterate across all the USB endpoints searching for a match
 	 * based on the endpoint address. Note that we are searching
 	 * the endpoints from the beginning of the "udev->endpoints" array.
 	 */
