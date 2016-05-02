@@ -267,7 +267,8 @@ xentimer_vcpu_start_timer(int vcpu, uint64_t next_time)
 	struct vcpu_set_singleshot_timer single;
 
 	single.timeout_abs_ns = next_time;
-	single.flags          = VCPU_SSHOTTMR_future;
+	/* Get an event anyway, even if the timeout is already expired */
+	single.flags          = 0;
 	return (HYPERVISOR_vcpu_op(VCPUOP_set_singleshot_timer, vcpu, &single));
 }
 
