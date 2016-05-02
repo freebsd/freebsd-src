@@ -2698,7 +2698,7 @@ ath_txrx_start(struct ath_softc *sc)
 }
 
 /*
- * Grab the reset lock, and wait around until noone else
+ * Grab the reset lock, and wait around until no one else
  * is trying to do anything with it.
  *
  * This is totally horrible but we can't hold this lock for
@@ -2782,7 +2782,7 @@ ath_reset(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 	ATH_PCU_UNLOCK_ASSERT(sc);
 	ATH_UNLOCK_ASSERT(sc);
 
-	/* Try to (stop any further TX/RX from occuring */
+	/* Try to (stop any further TX/RX from occurring */
 	taskqueue_block(sc->sc_tq);
 
 	/*
@@ -2826,7 +2826,7 @@ ath_reset(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 
 	/*
 	 * Should now wait for pending TX/RX to complete
-	 * and block future ones from occuring. This needs to be
+	 * and block future ones from occurring. This needs to be
 	 * done before the TX queue is drained.
 	 */
 	ath_draintxq(sc, reset_type);	/* stop xmit side */
@@ -3676,7 +3676,7 @@ ath_bstuck_proc(void *arg, int pending)
 	sc->sc_stats.ast_bstuck++;
 	/*
 	 * This assumes that there's no simultaneous channel mode change
-	 * occuring.
+	 * occurring.
 	 */
 	ath_reset(sc, ATH_RESET_NOLOSS);
 }
@@ -4737,7 +4737,7 @@ ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf, int status)
 	/*
 	 * Make sure that we only sync/unload if there's an mbuf.
 	 * If not (eg we cloned a buffer), the unload will have already
-	 * occured.
+	 * occurred.
 	 */
 	if (bf->bf_m != NULL) {
 		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
@@ -5076,7 +5076,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 	ATH_PCU_UNLOCK_ASSERT(sc);
 	ATH_UNLOCK_ASSERT(sc);
 
-	/* (Try to) stop TX/RX from occuring */
+	/* (Try to) stop TX/RX from occurring */
 	taskqueue_block(sc->sc_tq);
 
 	ATH_PCU_LOCK(sc);
@@ -5857,7 +5857,7 @@ ath_newassoc(struct ieee80211_node *ni, int isnew)
 	 * If we're reassociating, make sure that any paused queues
 	 * get unpaused.
 	 *
-	 * Now, we may hvae frames in the hardware queue for this node.
+	 * Now, we may have frames in the hardware queue for this node.
 	 * So if we are reassociating and there are frames in the queue,
 	 * we need to go through the cleanup path to ensure that they're
 	 * marked as non-aggregate.
@@ -6068,7 +6068,7 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 	sc->sc_currates = rt;
 	sc->sc_curmode = mode;
 	/*
-	 * All protection frames are transmited at 2Mb/s for
+	 * All protection frames are transmitted at 2Mb/s for
 	 * 11g, otherwise at 1Mb/s.
 	 */
 	if (mode == IEEE80211_MODE_11G)
