@@ -4,7 +4,7 @@
 
 KMOD=	bhnd
 SRCS=	bhnd.c bhnd_subr.c \
-	bhnd_bus_if.c bhnd_bus_if.h
+	bhnd_bus_if.c bhnd_bus_if.h bhnd_nvram_if.h
 
 SRCS+=	device_if.h bus_if.h
 
