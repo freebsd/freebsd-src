@@ -465,7 +465,7 @@ cacheino(union dinode *dp, ino_t inumber)
 	inp->i_number = inumber;
 	inp->i_isize = DIP(dp, di_size);
 	inp->i_numblks = blks;
-	for (i = 0; i < (blks < NDADDR ? blks : NDADDR); i++)
+	for (i = 0; i < MIN(blks, NDADDR); i++)
 		inp->i_blks[i] = DIP(dp, di_db[i]);
 	if (blks > NDADDR)
 		for (i = 0; i < NIADDR; i++)
