@@ -3382,8 +3382,18 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		IEEE80211_UNLOCK(ic);
 		/* Wait for parent ioctl handler if it was queued */
-		if (wait)
+		if (wait) {
 			ieee80211_waitfor_parent(ic);
+
+			/*
+			 * Check if the MAC address was changed
+			 * via SIOCSIFLLADDR ioctl.
+			 */
+			if ((ifp->if_flags & IFF_UP) == 0 &&
+			    !IEEE80211_ADDR_EQ(vap->iv_myaddr, IF_LLADDR(ifp)))
+				IEEE80211_ADDR_COPY(vap->iv_myaddr,
+				    IF_LLADDR(ifp));
+		}
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
