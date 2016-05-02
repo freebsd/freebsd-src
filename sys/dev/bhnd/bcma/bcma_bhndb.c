@@ -180,4 +180,5 @@ DRIVER_MODULE(bcma_bhndb, bhndb, bcma_bhndb_driver, bhnd_devclass, NULL, NULL);
  
 MODULE_VERSION(bcma_bhndb, 1);
 MODULE_DEPEND(bcma_bhndb, bcma, 1, 1, 1);
+MODULE_DEPEND(bcma_bhndb, bhnd, 1, 1, 1);
 MODULE_DEPEND(bcma_bhndb, bhndb, 1, 1, 1);
