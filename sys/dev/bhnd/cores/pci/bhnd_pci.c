@@ -546,3 +546,4 @@ DEFINE_CLASS_0(bhnd_pci, bhnd_pci_driver, bhnd_pci_methods, sizeof(struct bhnd_p
 
 MODULE_VERSION(bhnd_pci, 1);
 MODULE_DEPEND(bhnd_pci, pci, 1, 1, 1);
+MODULE_DEPEND(bhnd_pci, bhnd, 1, 1, 1);

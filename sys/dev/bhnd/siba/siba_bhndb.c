@@ -179,4 +179,5 @@ DRIVER_MODULE(siba_bhndb, bhndb, siba_bhndb_driver, bhnd_devclass, NULL, NULL);
  
 MODULE_VERSION(siba_bhndb, 1);
 MODULE_DEPEND(siba_bhndb, siba, 1, 1, 1);
+MODULE_DEPEND(siba_bhndb, bhnd, 1, 1, 1);
 MODULE_DEPEND(siba_bhndb, bhndb, 1, 1, 1);
