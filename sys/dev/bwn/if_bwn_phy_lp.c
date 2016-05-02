@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/bwn/if_bwnreg.h>
 #include <dev/bwn/if_bwnvar.h>
 
+#include <dev/bwn/if_bwn_debug.h>
 #include <dev/bwn/if_bwn_misc.h>
 #include <dev/bwn/if_bwn_phy_lp.h>
 
@@ -367,16 +368,6 @@ static const uint16_t bwn_tabl_iqlocal_tbl[] = {
 	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 };
-
-#if 0
-static const uint16_t bwn_tab_noise_g1[] = BWN_TAB_NOISE_G1;
-static const uint16_t bwn_tab_noise_g2[] = BWN_TAB_NOISE_G2;
-static const uint16_t bwn_tab_noisescale_g1[] = BWN_TAB_NOISESCALE_G1;
-static const uint16_t bwn_tab_noisescale_g2[] = BWN_TAB_NOISESCALE_G2;
-static const uint16_t bwn_tab_noisescale_g3[] = BWN_TAB_NOISESCALE_G3;
-const uint8_t bwn_bitrev_table[256] = BWN_BITREV_TABLE;
-
-#endif
 
 void
 bwn_phy_lp_init_pre(struct bwn_mac *mac)
