@@ -330,7 +330,7 @@ sctp_mark_ifa_addr_down(uint32_t vrf_id, struct sockaddr *addr,
 		goto out;
 	}
 	if (sctp_ifap->ifn_p == NULL) {
-		SCTPDBG(SCTP_DEBUG_PCB4, "IFA has no IFN - can't mark unuseable\n");
+		SCTPDBG(SCTP_DEBUG_PCB4, "IFA has no IFN - can't mark unusable\n");
 		goto out;
 	}
 	if (if_name) {
@@ -374,7 +374,7 @@ sctp_mark_ifa_addr_up(uint32_t vrf_id, struct sockaddr *addr,
 		goto out;
 	}
 	if (sctp_ifap->ifn_p == NULL) {
-		SCTPDBG(SCTP_DEBUG_PCB4, "IFA has no IFN - can't mark unuseable\n");
+		SCTPDBG(SCTP_DEBUG_PCB4, "IFA has no IFN - can't mark unusable\n");
 		goto out;
 	}
 	if (if_name) {
@@ -5772,7 +5772,7 @@ sctp_pcb_init()
 {
 	/*
 	 * SCTP initialization for the PCB structures should be called by
-	 * the sctp_init() funciton.
+	 * the sctp_init() function.
 	 */
 	int i;
 	struct timeval tv;
