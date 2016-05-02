@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 1, 2016
+.Dd May 2, 2016
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -376,7 +376,13 @@ was called on the file referenced by the descriptor.
 .It Dv NOTE_WRITE
 A write occurred on the file referenced by the descriptor.
 .It Dv NOTE_EXTEND
-The file referenced by the descriptor was extended.
+For regular file, the file referenced by the descriptor was extended.
+.Pp
+For directory, reports that a directory entry was added or removed,
+as the result of rename operation.
+The
+.Dv NOTE_EXTEND
+event is not reported when a name is changed inside the directory.
 .It Dv NOTE_ATTRIB
 The file referenced by the descriptor had its attributes changed.
 .It Dv NOTE_LINK

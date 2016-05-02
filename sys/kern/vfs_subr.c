@@ -4660,6 +4660,7 @@ vop_rename_post(void *ap, int rc)
 			VFS_KNOTE_UNLOCKED(a->a_fdvp, hint);
 			VFS_KNOTE_UNLOCKED(a->a_tdvp, hint);
 		} else {
+			hint |= NOTE_EXTEND;
 			if (a->a_fvp->v_type == VDIR)
 				hint |= NOTE_LINK;
 			VFS_KNOTE_UNLOCKED(a->a_fdvp, hint);
