@@ -141,7 +141,7 @@ struct vm_page {
 	vm_object_t object;		/* which object am I in (O,P) */
 	vm_pindex_t pindex;		/* offset into object (O,P) */
 	vm_paddr_t phys_addr;		/* physical address of page */
-	struct md_page md;		/* machine dependant stuff */
+	struct md_page md;		/* machine dependent stuff */
 	u_int wire_count;		/* wired down maps refs (P) */
 	volatile u_int busy_lock;	/* busy owners lock */
 	uint16_t hold_count;		/* page hold count (P) */
