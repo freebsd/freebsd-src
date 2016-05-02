@@ -340,7 +340,7 @@ cbb_pci_attach(device_t brdev)
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "memory",
 	    CTLFLAG_RD, &sc->subbus, 0, "Memory window open");
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "premem",
-	    CTLFLAG_RD, &sc->subbus, 0, "Prefetch memroy window open");
+	    CTLFLAG_RD, &sc->subbus, 0, "Prefetch memory window open");
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "io1",
 	    CTLFLAG_RD, &sc->subbus, 0, "io range 1 open");
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "io2",
@@ -448,7 +448,7 @@ cbb_chipinit(struct cbb_softc *sc)
 	if (pci_read_config(sc->dev, PCIR_LATTIMER, 1) < 0x20)
 		pci_write_config(sc->dev, PCIR_LATTIMER, 0x20, 1);
 
-	/* Enable DMA, memory access for this card and I/O acces for children */
+	/* Enable DMA, memory access for this card and I/O access for children */
 	pci_enable_busmaster(sc->dev);
 	pci_enable_io(sc->dev, SYS_RES_IOPORT);
 	pci_enable_io(sc->dev, SYS_RES_MEMORY);
