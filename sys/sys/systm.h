@@ -189,6 +189,8 @@ void	*hashinit_flags(int count, struct malloc_type *type,
 #define	HASH_WAITOK	0x00000002
 
 void	*phashinit(int count, struct malloc_type *type, u_long *nentries);
+void	*phashinit_flags(int count, struct malloc_type *type, u_long *nentries,
+    int flags);
 void	g_waitidle(void);
 
 void	panic(const char *, ...) __dead2 __printflike(1, 2);
