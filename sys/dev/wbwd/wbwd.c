@@ -505,19 +505,10 @@ wb_set_watchdog(struct wb_softc *sc, unsigned int timeout)
 	/* Watchdog is configured as part of LDN 8 (GPIO Port2, Watchdog) */
 	write_reg(sc, WB_LDN_REG, WB_LDN_REG_LDN8);
 
-	/* Disable and validate or arm/reset watchdog. */
 	if (timeout == 0) {
 		/* Disable watchdog. */
-		write_reg(sc, sc->time_reg, 0x00);
-		sc->reg_timeout = read_reg(sc, sc->time_reg);
-		(*sc->ext_cfg_exit_f)(sc, 0);
-
-		/* Re-check. */
-		if (sc->reg_timeout != 0x00) {
-			device_printf(sc->dev, "Failed to disable watchdog: "
-			    "0x%02x.\n", sc->reg_timeout);
-			return (EIO);
-		}
+		sc->reg_timeout = 0;
+		write_reg(sc, sc->time_reg, sc->reg_timeout);
 
 	} else {
 		/* Read current scaling factor. */
@@ -547,12 +538,12 @@ wb_set_watchdog(struct wb_softc *sc, unsigned int timeout)
 
 		/* Set timer and arm/reset the watchdog. */
 		write_reg(sc, sc->time_reg, sc->reg_timeout);
-		(*sc->ext_cfg_exit_f)(sc, 0);
 	}
+
+	(*sc->ext_cfg_exit_f)(sc, 0);
 
 	if (sc->debug_verbose)
 		wb_print_state(sc, "After watchdog counter (re)load");
-
 	return (0);
 }
 
