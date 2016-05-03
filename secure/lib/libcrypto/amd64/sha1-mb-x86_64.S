@@ -2600,10 +2600,10 @@ _shaext_shortcut:
 	punpcklqdq	%xmm5,%xmm0
 	punpckhqdq	%xmm5,%xmm8
 
-	pshufd	$0b00111111,%xmm7,%xmm1
-	pshufd	$0b01111111,%xmm7,%xmm9
-	pshufd	$0b00011011,%xmm0,%xmm0
-	pshufd	$0b00011011,%xmm8,%xmm8
+	pshufd	$63,%xmm7,%xmm1
+	pshufd	$127,%xmm7,%xmm9
+	pshufd	$27,%xmm0,%xmm0
+	pshufd	$27,%xmm8,%xmm8
 	jmp	.Loop_shaext
 
 .align	32
@@ -2889,8 +2889,8 @@ _shaext_shortcut:
 
 	movl	280(%rsp),%edx
 
-	pshufd	$0b00011011,%xmm0,%xmm0
-	pshufd	$0b00011011,%xmm8,%xmm8
+	pshufd	$27,%xmm0,%xmm0
+	pshufd	$27,%xmm8,%xmm8
 
 	movdqa	%xmm0,%xmm6
 	punpckldq	%xmm8,%xmm0
