@@ -19,6 +19,10 @@ SUBDIR:=
 SUBDIR:=	${SUBDIR:Nlibgssapi_krb5:Nlibgssapi_ntlm:Nlibgssapi_spnego:Nlibhx509}
 # missing krb_err.h
 SUBDIR:=	${SUBDIR:Nlibkafs5}
+.if ${MK_CHERI_SHARED} == "yes"
+# symbol version issues
+SUBDIR:=	${SUBDIR:Nlibasn1:Nlibhdb:Nlibheimntlm:Nlibkadm5clnt:Nlibkadm5srv:Nlibkrb5:Nlibkdc}
+.endif
 .endif
 .endif
 .endif

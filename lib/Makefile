@@ -351,6 +351,10 @@ SUBDIR:=	csu \
 .else
 # No C++ support in cheri clang
 SUBDIR:=	${SUBDIR:Nlibc++:Nlibcxxrt}
+.if ${MK_CHERI_SHARED} == "yes"
+# symbol verison issues
+SUBDIR:=	${SUBDIR:Nlibdpv:Nlibpam}
+.endif
 .endif
 SUBDIR+=	libmalloc_simple
 .endif
