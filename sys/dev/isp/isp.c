@@ -2802,12 +2802,13 @@ isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb)
 		isp_prt(isp, ISP_LOGERR, sacq);
 		return (-1);
 	}
-	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, sizeof (un), chan);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, sizeof(un), chan);
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		FC_SCRATCH_RELEASE(isp, chan);
 		return (mbs.param[0] | (mbs.param[1] << 16));
 	}
+	MEMORYBARRIER(isp, SYNC_SFORCPU, 0, sizeof(un), chan);
 	if (IS_24XX(isp)) {
 		isp_get_pdb_24xx(isp, fcp->isp_scratch, &un.bill);
 		pdb->handle = un.bill.pdb_handle;
@@ -2875,6 +2876,7 @@ isp_gethandles(ispsoftc_t *isp, int chan, uint16_t *handles, int *num, int loop)
 		FC_SCRATCH_RELEASE(isp, chan);
 		return (mbs.param[0] | (mbs.param[1] << 16));
 	}
+	MEMORYBARRIER(isp, SYNC_SFORCPU, 0, ISP_FC_SCRLEN, chan);
 	elp1 = fcp->isp_scratch;
 	elp3 = fcp->isp_scratch;
 	elp4 = fcp->isp_scratch;
