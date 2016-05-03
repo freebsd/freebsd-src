@@ -333,7 +333,7 @@ SYSCTL_INT(_hw_pci, OID_AUTO, do_power_nodriver, CTLFLAG_RWTUN,
     &pci_do_power_nodriver, 0,
   "Place a function into D3 state when no driver attaches to it.  0 means\n\
 disable.  1 means conservatively place devices into D3 state.  2 means\n\
-agressively place devices into D3 state.  3 means put absolutely everything\n\
+aggressively place devices into D3 state.  3 means put absolutely everything\n\
 in D3 state.");
 
 int pci_do_power_resume = 1;
@@ -4128,7 +4128,7 @@ pci_attach(device_t dev)
 		return (error);
 
 	/*
-	 * Since there can be multiple independantly numbered PCI
+	 * Since there can be multiple independently numbered PCI
 	 * busses on systems with multiple PCI domains, we can't use
 	 * the unit number to decide which bus we are probing. We ask
 	 * the parent pcib what our domain and bus numbers are.
@@ -5774,7 +5774,7 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 			if (cls == PCIC_STORAGE)
 				return;
 			/*FALLTHROUGH*/
-		case 2:		/* Agressive about what to power down */
+		case 2:		/* Aggressive about what to power down */
 			if (cls == PCIC_DISPLAY || cls == PCIC_MEMORY ||
 			    cls == PCIC_BASEPERIPH)
 				return;

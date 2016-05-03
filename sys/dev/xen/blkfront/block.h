@@ -160,7 +160,7 @@ typedef enum {
 	XBDF_CM_SHORTAGE  = 1 << 4, /* Free cm resource shortage active. */
 	XBDF_GNT_SHORTAGE = 1 << 5, /* Grant ref resource shortage active */
 	XBDF_WAIT_IDLE	  = 1 << 6,  /*
-				     * No new work until oustanding work
+				     * No new work until outstanding work
 				     * completes.
 				     */
 	XBDF_DISCARD	  = 1 << 7, /* backend supports discard */

@@ -292,7 +292,7 @@ esp_pci_attach(device_t dev)
 	}
 	error = bus_dmamap_create(esc->sc_xferdmat, 0, &esc->sc_xferdmam);
 	if (error != 0) {
-		device_printf(dev, "cannnot create transfer DMA map\n");
+		device_printf(dev, "cannot create transfer DMA map\n");
 		goto fail_xferdmat;
 	}
 

@@ -613,7 +613,7 @@ int radeon_fence_wait_any(struct radeon_device *rdev,
 		}
 
 		if (fences[i]->seq == RADEON_FENCE_SIGNALED_SEQ) {
-			/* something was allready signaled */
+			/* something was already signaled */
 			return 0;
 		}
 
@@ -644,7 +644,7 @@ int radeon_fence_wait_next_locked(struct radeon_device *rdev, int ring)
 	seq = atomic64_read(&rdev->fence_drv[ring].last_seq) + 1ULL;
 	if (seq >= rdev->fence_drv[ring].sync_seq[ring]) {
 		/* nothing to wait for, last_seq is
-		   already the last emited fence */
+		   already the last emitted fence */
 		return -ENOENT;
 	}
 	return radeon_fence_wait_seq(rdev, seq, ring, false, false);

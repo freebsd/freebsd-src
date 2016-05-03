@@ -3547,7 +3547,7 @@ ring_fl_db(struct adapter *sc, struct sge_fl *fl)
 }
 
 /*
- * Fills up the freelist by allocating upto 'n' buffers.  Buffers that are
+ * Fills up the freelist by allocating up to 'n' buffers.  Buffers that are
  * recycled do not count towards this allocation budget.
  *
  * Returns non-zero to indicate that this freelist should be added to the list
@@ -3569,7 +3569,7 @@ refill_fl(struct adapter *sc, struct sge_fl *fl, int n)
 	FL_LOCK_ASSERT_OWNED(fl);
 
 	/*
-	 * We always stop at the begining of the hardware descriptor that's just
+	 * We always stop at the beginning of the hardware descriptor that's just
 	 * before the one with the hw cidx.  This is to avoid hw pidx = hw cidx,
 	 * which would mean an empty freelist to the chip.
 	 */

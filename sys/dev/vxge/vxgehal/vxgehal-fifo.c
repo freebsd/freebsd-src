@@ -384,7 +384,7 @@ __hal_fifo_create(
 	 * demand with the size which will fit into one memory block.
 	 * One memory block may contain more than one TxDL. In simple case
 	 * memory block size can be equal to CPU page size. On more
-	 * sophisticated OS's memory block can be contigious across
+	 * sophisticated OS's memory block can be contiguous across
 	 * several pages.
 	 *
 	 * During "reserve" operations more memory can be allocated on demand
@@ -1191,7 +1191,7 @@ vxge_hal_fifo_txdl_buffer_append(
  * @txdlh: Descriptor handle.
  * @frag_idx: Index of the data buffer in the Txdl list.
  *
- * This API in conjuction with vxge_hal_fifo_txdl_buffer_append() prepares
+ * This API in conjunction with vxge_hal_fifo_txdl_buffer_append() prepares
  * a descriptor that consists of a single physically contiguous buffer
  * which inturn contains the contents of one or more virtually contiguous
  * buffers received from the upper layer.

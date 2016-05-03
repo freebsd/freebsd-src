@@ -650,7 +650,7 @@ asmc_init(device_t dev)
 		goto nosms;
 
 	/*
-	 * We are ready to recieve interrupts from the SMS.
+	 * We are ready to receive interrupts from the SMS.
 	 */
 	buf[0] = 0x01;
 	ASMC_DPRINTF(("intok key\n"));

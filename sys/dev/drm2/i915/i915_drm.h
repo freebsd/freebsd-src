@@ -735,7 +735,7 @@ struct drm_i915_gem_caching {
 	__u32 handle;
 
 	/**
-	 * Cacheing level to apply or return value
+	 * Caching level to apply or return value
 	 *
 	 * bits0-15 are for generic caching control (i.e. the above defined
 	 * values). bits16-31 are reserved for platform-specific variations

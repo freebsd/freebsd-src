@@ -8188,7 +8188,7 @@ union fcoe_kcqe_params
 struct fcoe_kcqe
 {
 	uint32_t fcoe_conn_id /* Drivers connection ID (only 16 bits are used) */;
-	uint32_t completion_status /* 0=command completed succesfuly, 1=command failed */;
+	uint32_t completion_status /* 0=command completed successfully, 1=command failed */;
 	uint32_t fcoe_conn_context_id /* Context ID of the FCoE connection */;
 	union fcoe_kcqe_params params /* command-specific parameters */;
 	uint16_t qe_self_seq /* Self identifying sequence number */;
@@ -9464,7 +9464,7 @@ union iscsi_kcqe_params
 struct iscsi_kcqe
 {
 	uint32_t iscsi_conn_id /* Drivers connection ID (only 16 bits are used) */;
-	uint32_t completion_status /* 0=command completed succesfuly, 1=command failed */;
+	uint32_t completion_status /* 0=command completed successfully, 1=command failed */;
 	uint32_t iscsi_conn_context_id /* Context ID of the iSCSI connection */;
 	union iscsi_kcqe_params params /* command-specific parameters */;
 #if defined(__BIG_ENDIAN)
@@ -10241,7 +10241,7 @@ struct tstorm_tcp_st_context_section
 	uint16_t mid_mac_address /* TX source MAC MID-16 */;
 	uint16_t msb_mac_address /* TX source MAC MSB-16 */;
 #endif
-	uint32_t rightmost_received_seq /* The maximum sequence ever recieved - used for The New Patent */;
+	uint32_t rightmost_received_seq /* The maximum sequence ever received - used for The New Patent */;
 };
 
 /*
@@ -11694,7 +11694,7 @@ struct flow_control_configuration
 struct function_start_data
 {
 	uint8_t function_mode /* the function mode */;
-	uint8_t allow_npar_tx_switching /* If set, inter-pf tx switching is allowed in Switch Independant function mode. (E2/E3 Only) */;
+	uint8_t allow_npar_tx_switching /* If set, inter-pf tx switching is allowed in Switch Independent function mode. (E2/E3 Only) */;
 	uint16_t sd_vlan_tag /* value of Vlan in case of switch depended multi-function mode */;
 	uint16_t vif_id /* value of VIF id in case of NIV multi-function mode */;
 	uint8_t path_id;
@@ -11712,7 +11712,7 @@ struct function_start_data
 	uint8_t sd_accept_mf_clss_fail /* If set, accept packets that fail Multi-Function Switch-Dependent classification. Only one VNIC on the port can have this set to 1 */;
 	uint8_t sd_accept_mf_clss_fail_match_ethtype /* If set, accepted packets must match the ethertype of sd_clss_fail_ethtype */;
 	uint16_t sd_accept_mf_clss_fail_ethtype /* Ethertype to match in the case of sd_accept_mf_clss_fail_match_ethtype */;
-	uint16_t sd_vlan_eth_type /* Value of ether-type to use in the case of switch dependant multi-function mode. Setting this to 0 uses the default value of 0x8100 */;
+	uint16_t sd_vlan_eth_type /* Value of ether-type to use in the case of switch dependent multi-function mode. Setting this to 0 uses the default value of 0x8100 */;
 	uint8_t sd_vlan_force_pri_flg /* If set, the SD Vlan Priority is forced to the value of the sd_vlan_pri_force_val field regardless of the DCB or inband VLAN priority. */;
 	uint8_t sd_vlan_force_pri_val /* value to force SD Vlan Priority if sd_vlan_pri_force_flg is set */;
 	uint8_t c2s_pri_tt_valid /* When set, c2s_pri_trans_table is valid */;
@@ -11754,7 +11754,7 @@ struct function_update_data
 	uint8_t sd_vlan_eth_type_change_flg /* If set, the SD VLAN Ethertype is changed according to the field sd_vlan_eth_type */;
 	uint8_t reserved1;
 	uint16_t sd_vlan_tag /* New value of Outer Vlan in case of switch depended multi-function mode */;
-	uint16_t sd_vlan_eth_type /* New value of ether-type in the case of switch dependant multi-function mode. Setting this to 0 restores the default value of 0x8100 */;
+	uint16_t sd_vlan_eth_type /* New value of ether-type in the case of switch dependent multi-function mode. Setting this to 0 restores the default value of 0x8100 */;
 	uint16_t reserved0;
 	uint32_t reserved2;
 };
@@ -12564,7 +12564,7 @@ struct ustorm_toe_prefetched_bd
 	uint32_t __addr_hi /* receive payload base address  - Single continuous buffer (page) pointer */;
 #if defined(__BIG_ENDIAN)
 	uint16_t flags;
-		#define __USTORM_TOE_PREFETCHED_BD_START                                             (0x1<<0) /* BitField flagsbd command flags	this bd is the begining of an application buffer */
+		#define __USTORM_TOE_PREFETCHED_BD_START                                             (0x1<<0) /* BitField flagsbd command flags	this bd is the beginning of an application buffer */
 		#define __USTORM_TOE_PREFETCHED_BD_START_SHIFT                                       0
 		#define __USTORM_TOE_PREFETCHED_BD_END                                               (0x1<<1) /* BitField flagsbd command flags	this bd is the end of an application buffer */
 		#define __USTORM_TOE_PREFETCHED_BD_END_SHIFT                                         1
@@ -12578,7 +12578,7 @@ struct ustorm_toe_prefetched_bd
 #elif defined(__LITTLE_ENDIAN)
 	uint16_t __buf_un_used /* Number of bytes left for placement in the pre fetched  application/grq bd   0 size for buffer is not valid */;
 	uint16_t flags;
-		#define __USTORM_TOE_PREFETCHED_BD_START                                             (0x1<<0) /* BitField flagsbd command flags	this bd is the begining of an application buffer */
+		#define __USTORM_TOE_PREFETCHED_BD_START                                             (0x1<<0) /* BitField flagsbd command flags	this bd is the beginning of an application buffer */
 		#define __USTORM_TOE_PREFETCHED_BD_START_SHIFT                                       0
 		#define __USTORM_TOE_PREFETCHED_BD_END                                               (0x1<<1) /* BitField flagsbd command flags	this bd is the end of an application buffer */
 		#define __USTORM_TOE_PREFETCHED_BD_END_SHIFT                                         1
@@ -12609,9 +12609,9 @@ struct ustorm_toe_st_context
 		#define USTORM_TOE_ST_CONTEXT_RESERVED0                                              (0x1F<<3) /* BitField flags2various state flags	 */
 		#define USTORM_TOE_ST_CONTEXT_RESERVED0_SHIFT                                        3
 	uint8_t __indirection_shift /* Offset in bits of the cupid of this connection on the 64Bits fetched from internal memoy */;
-	uint16_t indirection_ram_offset /* address offset in internal memory  from the begining of the table  consisting the cpu id of this connection (Only 12 bits are used) */;
+	uint16_t indirection_ram_offset /* address offset in internal memory  from the beginning of the table  consisting the cpu id of this connection (Only 12 bits are used) */;
 #elif defined(__LITTLE_ENDIAN)
-	uint16_t indirection_ram_offset /* address offset in internal memory  from the begining of the table  consisting the cpu id of this connection (Only 12 bits are used) */;
+	uint16_t indirection_ram_offset /* address offset in internal memory  from the beginning of the table  consisting the cpu id of this connection (Only 12 bits are used) */;
 	uint8_t __indirection_shift /* Offset in bits of the cupid of this connection on the 64Bits fetched from internal memoy */;
 	uint8_t flags2;
 		#define USTORM_TOE_ST_CONTEXT_IGNORE_GRQ_PUSH                                        (0x1<<0) /* BitField flags2various state flags	we will ignore grq push unless it is ping pong test */
@@ -12637,8 +12637,8 @@ struct ustorm_toe_st_context
 	uint32_t initial_rcv_wnd /* the maximal advertized window */;
 	uint32_t __bytes_cons /* the last rq_available_bytes producer that was read from host - used to know how many bytes were added */;
 	uint32_t __prev_consumed_grq_bytes /* the last rq_available_bytes producer that was read from host - used to know how many bytes were added */;
-	uint32_t prev_rcv_win_right_edge /* siquence of the last bytes that can be recieved - used to know how many bytes were added */;
-	uint32_t rcv_nxt /* Receive sequence: next expected - of the right most recieved packet */;
+	uint32_t prev_rcv_win_right_edge /* siquence of the last bytes that can be received - used to know how many bytes were added */;
+	uint32_t rcv_nxt /* Receive sequence: next expected - of the right most received packet */;
 	struct ustorm_toe_prefetched_isle_bd __isle_bd /* prefetched bd for the isle */;
 	struct ustorm_toe_ring_params pen_ring_params /* peninsula ring params */;
 	struct ustorm_toe_prefetched_bd __pen_bd_0 /* peninsula prefetched bd for the peninsula */;
@@ -12839,7 +12839,7 @@ struct toe_rx_bd
 	uint32_t addr_hi /* receive payload base address  - Single continuous buffer (page) pointer */;
 #if defined(__BIG_ENDIAN)
 	uint16_t flags;
-		#define TOE_RX_BD_START                                                              (0x1<<0) /* BitField flagsbd command flags	this bd is the begining of an application buffer */
+		#define TOE_RX_BD_START                                                              (0x1<<0) /* BitField flagsbd command flags	this bd is the beginning of an application buffer */
 		#define TOE_RX_BD_START_SHIFT                                                        0
 		#define TOE_RX_BD_END                                                                (0x1<<1) /* BitField flagsbd command flags	this bd is the end of an application buffer */
 		#define TOE_RX_BD_END_SHIFT                                                          1
@@ -12853,7 +12853,7 @@ struct toe_rx_bd
 #elif defined(__LITTLE_ENDIAN)
 	uint16_t size /* Size of the buffer pointed by the BD */;
 	uint16_t flags;
-		#define TOE_RX_BD_START                                                              (0x1<<0) /* BitField flagsbd command flags	this bd is the begining of an application buffer */
+		#define TOE_RX_BD_START                                                              (0x1<<0) /* BitField flagsbd command flags	this bd is the beginning of an application buffer */
 		#define TOE_RX_BD_START_SHIFT                                                        0
 		#define TOE_RX_BD_END                                                                (0x1<<1) /* BitField flagsbd command flags	this bd is the end of an application buffer */
 		#define TOE_RX_BD_END_SHIFT                                                          1
@@ -12935,7 +12935,7 @@ struct toe_rx_cqe
  */
 struct toe_rx_db_data
 {
-	uint32_t rcv_win_right_edge /* siquence of the last bytes that can be recieved */;
+	uint32_t rcv_win_right_edge /* siquence of the last bytes that can be received */;
 	uint32_t bytes_prod /* cyclic counter of posted bytes */;
 #if defined(__BIG_ENDIAN)
 	uint8_t reserved1 /* reserved */;

@@ -276,7 +276,7 @@ struct an_reply {
 #define AN_EV_ALLOC		0x0008	/* async alloc/reclaim completed */
 #define AN_EV_TX_CPY		0x0400
 #define AN_EV_TX_EXC		0x0004	/* async xmit completed with failure */
-#define AN_EV_TX		0x0002	/* async xmit completed succesfully */
+#define	AN_EV_TX		0x0002	/* async xmit completed successfully */
 #define AN_EV_RX		0x0001	/* async rx completed */
 
 #define AN_INTRS(x)	\
