@@ -188,6 +188,34 @@ struct asmc_softc {
 				  "Unknown", "Unknown", \
 				  "Wireless Module", } 
 
+#define ASMC_MBP5_TEMPS		{ "TB0T", "TB1T", "TB2T", "TB3T", "TC0D", \
+				  "TC0F", "TC0P", "TG0D", "TG0F", "TG0H", \
+				  "TG0P", "TG0T", "TG1H", "TN0D", "TN0P", \
+				  "TTF0", "Th2H", "Tm0P", "Ts0P", "Ts0S", \
+				  NULL } 
+
+#define ASMC_MBP5_TEMPNAMES	{ "enclosure_bottom_0", "enclosure_bottom_1", \
+				  "enclosure_bottom_2", "enclosure_bottom_3", \
+				  "cpu_diode", "cpu", \
+				  "cpu_pin", "gpu_diode", \
+				  "gpu", "gpu_heatsink", \
+				  "gpu_pin", "gpu_transistor", \
+				  "gpu_2_heatsink", "northbridge_diode", \
+				  "northbridge_pin", "unknown", \
+				  "heatsink_2", "memory_controller", \
+				  "pci_express_slot_pin", "pci_express_slot_unk" } 
+
+#define ASMC_MBP5_TEMPDESCS	{ "Enclosure Bottom 0", "Enclosure Bottom 1", \
+				  "Enclosure Bottom 2", "Enclosure Bottom 3", \
+				  "CPU Diode", "CPU ???", \
+				  "CPU Pin", "GPU Diode", \
+				  "GPU ???", "GPU Heatsink", \
+				  "GPU Pin", "GPU Transistor", \
+				  "GPU 2 Heatsink", "Northbridge Diode", \
+				  "Northbridge Pin", "Unknown", \
+				  "Heatsink 2", "Memory Controller", \
+				  "PCI Express Slot Pin", "PCI Express Slot (unk)" } 
+
 #define ASMC_MBP8_TEMPS		{ "TB0T", "TB1T", "TB2T", "TC0C", "TC0D", \
 				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
 				  "TC3C", "TC4C", "TCFC", "TCGC", "TCSA", \
