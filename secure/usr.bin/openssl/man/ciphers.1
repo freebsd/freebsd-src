@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CIPHERS 1"
-.TH CIPHERS 1 "2016-03-01" "1.0.1s" "OpenSSL"
+.TH CIPHERS 1 "2016-05-03" "1.0.1t" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -227,7 +227,7 @@ The following is a list of all permitted cipher strings and their meanings.
 .IX Item "DEFAULT"
 The default cipher list.
 This is determined at compile time and is normally
-\&\fB\s-1ALL:\s0!EXPORT:!aNULL:!eNULL:!SSLv2\fR.
+\&\fB\s-1ALL:\s0!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2\fR.
 When used, this must be the first cipherstring specified.
 .IP "\fB\s-1COMPLEMENTOFDEFAULT\s0\fR" 4
 .IX Item "COMPLEMENTOFDEFAULT"
