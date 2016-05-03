@@ -93,6 +93,8 @@ static const struct {
 	{ HDA_INTEL_WELLS2,  "Intel Wellsburg",	0, 0 },
 	{ HDA_INTEL_LPTLP1,  "Intel Lynx Point-LP",	0, 0 },
 	{ HDA_INTEL_LPTLP2,  "Intel Lynx Point-LP",	0, 0 },
+	{ HDA_INTEL_SRPTLP,  "Intel Sunrise Point-LP",	0, 0 },
+	{ HDA_INTEL_SRPT,    "Intel Sunrise Point",	0, 0 },
 	{ HDA_INTEL_82801F,  "Intel 82801F",	0, 0 },
 	{ HDA_INTEL_63XXESB, "Intel 631x/632xESB",	0, 0 },
 	{ HDA_INTEL_82801G,  "Intel 82801G",	0, 0 },
