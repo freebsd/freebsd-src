@@ -160,7 +160,7 @@ int linker_file_function_listall(linker_file_t,
 				 linker_function_nameval_callback_t, void *);
 
 /*
- * Functions soley for use by the linker class handlers.
+ * Functions solely for use by the linker class handlers.
  */
 int linker_add_class(linker_class_t _cls);
 int linker_file_unload(linker_file_t _file, int flags);
