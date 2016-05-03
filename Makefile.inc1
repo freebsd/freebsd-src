@@ -832,7 +832,7 @@ buildcheri:
 	    ${_t}
 .endfor
 .endfor
-.for _lib in lib ${LOCAL_LIB_DIRS} cddl/lib gnu/lib secure/lib kerberos5/lib
+.for _lib in lib/csu lib ${LOCAL_LIB_DIRS} cddl/lib gnu/lib secure/lib kerberos5/lib
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_lib} && \
 		${LIBCHERIWMAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj && \
