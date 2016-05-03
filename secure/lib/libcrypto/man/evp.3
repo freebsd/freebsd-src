@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "evp 3"
-.TH evp 3 "2016-03-01" "1.0.1s" "OpenSSL"
+.TH evp 3 "2016-05-03" "1.0.1t" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -162,6 +162,10 @@ functions.  The \fBEVP_Digest\fR\fI...\fR functions provide message digests.
 The \fB\s-1EVP_PKEY\s0\fR\fI...\fR functions provide a high level interface to
 asymmetric algorithms.
 .PP
+The \fBEVP_Encode\fR\fI...\fR and
+\&\fBEVP_Decode\fR\fI...\fR functions implement base 64 encoding
+and decoding.
+.PP
 Algorithms are loaded with \fIOpenSSL_add_all_algorithms\fR\|(3).
 .PP
 All the symmetric algorithms (ciphers), digests and asymmetric algorithms
@@ -185,5 +189,6 @@ using the high level interface.
 \&\fIEVP_SealInit\fR\|(3),
 \&\fIEVP_SignInit\fR\|(3),
 \&\fIEVP_VerifyInit\fR\|(3),
+\&\fIEVP_EncodeInit\fR\|(3),
 \&\fIOpenSSL_add_all_algorithms\fR\|(3),
 \&\fIengine\fR\|(3)
