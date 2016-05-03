@@ -4667,31 +4667,25 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			tmf->tmf_tidlo = lp->portid;
 			tmf->tmf_tidhi = lp->portid >> 16;
 			tmf->tmf_vpidx = ISP_GET_VPIDX(isp, chan);
+			isp_put_24xx_tmf(isp, tmf, isp->isp_iocb);
+			MEMORYBARRIER(isp, SYNC_IFORDEV, 0, QENTRY_LEN, chan);
+			fcp->sendmarker = 1;
+
 			isp_prt(isp, ISP_LOGALL, "Chan %d Reset N-Port Handle 0x%04x @ Port 0x%06x", chan, lp->handle, lp->portid);
 			MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL,
 			    MBCMD_DEFAULT_TIMEOUT + tmf->tmf_timeout * 1000000);
 			mbs.param[1] = QENTRY_LEN;
-			mbs.param[2] = DMA_WD1(fcp->isp_scdma);
-			mbs.param[3] = DMA_WD0(fcp->isp_scdma);
-			mbs.param[6] = DMA_WD3(fcp->isp_scdma);
-			mbs.param[7] = DMA_WD2(fcp->isp_scdma);
-
-			if (FC_SCRATCH_ACQUIRE(isp, chan)) {
-				isp_prt(isp, ISP_LOGERR, sacq);
-				break;
-			}
-			isp_put_24xx_tmf(isp, tmf, fcp->isp_scratch);
-			MEMORYBARRIER(isp, SYNC_SFORDEV, 0, QENTRY_LEN, chan);
-			fcp->sendmarker = 1;
+			mbs.param[2] = DMA_WD1(isp->isp_iocb_dma);
+			mbs.param[3] = DMA_WD0(isp->isp_iocb_dma);
+			mbs.param[6] = DMA_WD3(isp->isp_iocb_dma);
+			mbs.param[7] = DMA_WD2(isp->isp_iocb_dma);
 			isp_mboxcmd(isp, &mbs);
-			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-				FC_SCRATCH_RELEASE(isp, chan);
+			if (mbs.param[0] != MBOX_COMMAND_COMPLETE)
 				break;
-			}
-			MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
+
+			MEMORYBARRIER(isp, SYNC_IFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
 			sp = (isp24xx_statusreq_t *) local;
-			isp_get_24xx_response(isp, &((isp24xx_statusreq_t *)fcp->isp_scratch)[1], sp);
-			FC_SCRATCH_RELEASE(isp, chan);
+			isp_get_24xx_response(isp, &((isp24xx_statusreq_t *)isp->isp_iocb)[1], sp);
 			if (sp->req_completion_status == 0) {
 				return (0);
 			}
@@ -4731,7 +4725,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			break;
 		}
 		if (IS_24XX(isp)) {
-			isp24xx_abrt_t local, *ab = &local, *ab2;
+			isp24xx_abrt_t local, *ab = &local;
 			fcparam *fcp;
 			fcportdb_t *lp;
 
@@ -4755,31 +4749,23 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			ab->abrt_tidlo = lp->portid;
 			ab->abrt_tidhi = lp->portid >> 16;
 			ab->abrt_vpidx = ISP_GET_VPIDX(isp, chan);
+			isp_put_24xx_abrt(isp, ab, isp->isp_iocb);
+			MEMORYBARRIER(isp, SYNC_IFORDEV, 0, 2 * QENTRY_LEN, chan);
 
 			ISP_MEMZERO(&mbs, sizeof (mbs));
 			MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 5000000);
 			mbs.param[1] = QENTRY_LEN;
-			mbs.param[2] = DMA_WD1(fcp->isp_scdma);
-			mbs.param[3] = DMA_WD0(fcp->isp_scdma);
-			mbs.param[6] = DMA_WD3(fcp->isp_scdma);
-			mbs.param[7] = DMA_WD2(fcp->isp_scdma);
+			mbs.param[2] = DMA_WD1(isp->isp_iocb_dma);
+			mbs.param[3] = DMA_WD0(isp->isp_iocb_dma);
+			mbs.param[6] = DMA_WD3(isp->isp_iocb_dma);
+			mbs.param[7] = DMA_WD2(isp->isp_iocb_dma);
 
-			if (FC_SCRATCH_ACQUIRE(isp, chan)) {
-				isp_prt(isp, ISP_LOGERR, sacq);
-				break;
-			}
-			isp_put_24xx_abrt(isp, ab, fcp->isp_scratch);
-			ab2 = (isp24xx_abrt_t *) &((uint8_t *)fcp->isp_scratch)[QENTRY_LEN];
-			ab2->abrt_nphdl = 0xdeaf;
-			MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN, chan);
 			isp_mboxcmd(isp, &mbs);
-			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-				FC_SCRATCH_RELEASE(isp, chan);
+			if (mbs.param[0] != MBOX_COMMAND_COMPLETE)
 				break;
-			}
-			MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
-			isp_get_24xx_abrt(isp, ab2, ab);
-			FC_SCRATCH_RELEASE(isp, chan);
+
+			MEMORYBARRIER(isp, SYNC_IFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
+			isp_get_24xx_abrt(isp, &((isp24xx_abrt_t *)isp->isp_iocb)[1], ab);
 			if (ab->abrt_nphdl == ISP24XX_ABRT_OKAY) {
 				return (0);
 			}
