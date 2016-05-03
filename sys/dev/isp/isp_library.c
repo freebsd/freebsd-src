@@ -532,6 +532,7 @@ isp_fc_loop_statename(int state)
 	switch (state) {
 	case LOOP_NIL:                  return "NIL";
 	case LOOP_HAVE_LINK:            return "Have Link";
+	case LOOP_HAVE_ADDR:            return "Have Address";
 	case LOOP_TESTING_LINK:         return "Testing Link";
 	case LOOP_LTEST_DONE:           return "Link Test Done";
 	case LOOP_SCANNING_LOOP:        return "Scanning Loop";
@@ -548,7 +549,7 @@ const char *
 isp_fc_toponame(fcparam *fcp)
 {
 
-	if (fcp->isp_loopstate < LOOP_LTEST_DONE) {
+	if (fcp->isp_loopstate < LOOP_HAVE_ADDR) {
 		return "Unavailable";
 	}
 	switch (fcp->isp_topo) {
@@ -2329,7 +2330,7 @@ isp_find_chan_by_did(ispsoftc_t *isp, uint32_t did, uint16_t *cp)
 	for (chan = 0; chan < isp->isp_nchan; chan++) {
 		fcparam *fcp = FCPARAM(isp, chan);
 		if ((fcp->role & ISP_ROLE_TARGET) == 0 ||
-		    fcp->isp_loopstate < LOOP_LTEST_DONE) {
+		    fcp->isp_loopstate < LOOP_HAVE_ADDR) {
 			continue;
 		}
 		if (fcp->isp_portid == did) {
