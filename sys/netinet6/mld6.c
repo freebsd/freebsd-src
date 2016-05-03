@@ -971,9 +971,9 @@ out_locked:
 }
 
 /*
- * Process a recieved MLDv2 group-specific or group-and-source-specific
+ * Process a received MLDv2 group-specific or group-and-source-specific
  * query.
- * Return <0 if any error occured. Currently this is ignored.
+ * Return <0 if any error occurred. Currently this is ignored.
  */
 static int
 mld_v2_process_group_query(struct in6_multi *inm, struct mld_ifsoftc *mli,

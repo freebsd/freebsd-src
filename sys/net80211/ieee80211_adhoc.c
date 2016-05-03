@@ -775,7 +775,7 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			 *
 			 * Since there's no (current) way to inform
 			 * the driver that a channel width change has
-			 * occured for a single node, just stub this
+			 * occurred for a single node, just stub this
 			 * out.
 			 */
 #if 0
