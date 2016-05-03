@@ -395,6 +395,8 @@ ahci_pci_attach(device_t dev)
 	    pci_get_subvendor(dev) == 0x1043 &&
 	    pci_get_subdevice(dev) == 0x81e4)
 		ctlr->quirks |= AHCI_Q_SATA1_UNIT0;
+	resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "quirks", &ctlr->quirks);
 	ctlr->vendorid = pci_get_vendor(dev);
 	ctlr->deviceid = pci_get_device(dev);
 	ctlr->subvendorid = pci_get_subvendor(dev);
