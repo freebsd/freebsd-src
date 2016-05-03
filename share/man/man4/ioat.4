@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2016
+.Dd May 3, 2016
 .Dt IOAT 4
 .Os
 .Sh NAME
@@ -94,6 +94,29 @@ In
 .Fa "bus_addr_t dst2"
 .Fa "bus_addr_t src1"
 .Fa "bus_addr_t src2"
+.Fa "bus_dmaengine_callback_t callback_fn"
+.Fa "void *callback_arg"
+.Fa "uint32_t flags"
+.Fc
+.Ft struct bus_dmadesc *
+.Fo ioat_copy_crc
+.Fa "bus_dmaengine_t dmaengine"
+.Fa "bus_addr_t dst"
+.Fa "bus_addr_t src"
+.Fa "bus_size_t len"
+.Fa "uint32_t *initialseed"
+.Fa "bus_addr_t crcptr"
+.Fa "bus_dmaengine_callback_t callback_fn"
+.Fa "void *callback_arg"
+.Fa "uint32_t flags"
+.Fc
+.Ft struct bus_dmadesc *
+.Fo ioat_crc
+.Fa "bus_dmaengine_t dmaengine"
+.Fa "bus_addr_t src"
+.Fa "bus_size_t len"
+.Fa "uint32_t *initialseed"
+.Fa "bus_addr_t crcptr"
 .Fa "bus_dmaengine_callback_t callback_fn"
 .Fa "void *callback_arg"
 .Fa "uint32_t flags"
@@ -183,6 +206,43 @@ from.
 It is invalid to attempt to submit new DMA operations in a
 .Fa bus_dmaengine_callback_t
 context.
+.Pp
+The CRC operations have three distinct modes.
+The default mode is to accumulate.
+By accumulating over multiple descriptors, a user may gather a CRC over several
+chunks of memory and only write out the result once.
+.Pp
+The
+.Ar DMA_CRC_STORE
+flag causes the operation to emit the CRC32C result.
+If
+.Ar DMA_CRC_INLINE
+is set, the result is written inline with the destination data (or source in
+.Fn ioat_crc
+mode).
+If
+.Ar DMA_CRC_INLINE
+is not set, the result is written to the provided
+.Fa crcptr .
+.Pp
+Similarly, the
+.Ar DMA_CRC_TEST
+flag causes the operation to compare the CRC32C result to an existing checksum.
+If
+.Ar DMA_CRC_INLINE
+is set, the result is compared against the inline four bytes trailing the
+source data.
+If it is not set, the result is compared against the value pointed to by
+.Fa crcptr .
+.Pp
+.Fn ioat_copy_crc
+calculates a CRC32C while copying data.
+.Fn ioat_crc
+only computes a CRC32C of some data.
+If the
+.Fa initialseed
+argument to either routine is non-NULL, the CRC32C engine is initialized with
+the value it points to.
 .Sh USAGE
 A typical user will lookup the DMA engine object for a given channel with
 .Fn ioat_get_dmaengine .
@@ -199,9 +259,13 @@ If
 succeeds, there is guaranteed to be room for
 .Fa N
 new operations in the internal ring buffer.
+.Pp
 Then, they will submit one or more operations using
 .Fn ioat_blockfill ,
 .Fn ioat_copy ,
+.Fn ioat_copy_8k_aligned ,
+.Fn ioat_copy_crc ,
+.Fn ioat_crc ,
 or
 .Fn ioat_null .
 After queuing one or more individual DMA operations, they will
