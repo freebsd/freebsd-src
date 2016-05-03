@@ -3011,7 +3011,6 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 		return (0);
 
 	isp_prt(isp, ISP_LOG_SANCFG, "Chan %d FC link test", chan);
-	fcp->isp_loopstate = LOOP_TESTING_LINK;
 
 	/*
 	 * Wait up to N microseconds for F/W to go to a ready state.
@@ -3022,7 +3021,7 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 		if (fcp->isp_fwstate == FW_READY) {
 			break;
 		}
-		if (fcp->isp_loopstate < LOOP_TESTING_LINK)
+		if (fcp->isp_loopstate < LOOP_HAVE_LINK)
 			goto abort;
 		GET_NANOTIME(&hrb);
 		if ((NANOTIME_SUB(&hrb, &hra) / 1000 + 1000 >= usdelay))
@@ -3076,6 +3075,11 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 		if (alpa_map[i])
 			fcp->isp_loopid = i;
 	}
+
+#if 0
+	fcp->isp_loopstate = LOOP_HAVE_ADDR;
+#endif
+	fcp->isp_loopstate = LOOP_TESTING_LINK;
 
 	if (fcp->isp_topo == TOPO_F_PORT || fcp->isp_topo == TOPO_FL_PORT) {
 		nphdl = IS_24XX(isp) ? NPH_FL_ID : FL_ID;
@@ -6138,7 +6142,7 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 {
 	isp_ridacq_t rid;
 	int chan, c;
-	uint32_t hdl;
+	uint32_t hdl, portid;
 	void *ptr;
 
 	switch (type) {
@@ -6150,6 +6154,8 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 		return (1);
 	case RQSTYPE_RPT_ID_ACQ:
 		isp_get_ridacq(isp, (isp_ridacq_t *)hp, &rid);
+		portid = (uint32_t)rid.ridacq_vp_port_hi << 16 |
+		    rid.ridacq_vp_port_lo;
 		if (rid.ridacq_format == 0) {
 			for (chan = 0; chan < isp->isp_nchan; chan++) {
 				fcparam *fcp = FCPARAM(isp, chan);
@@ -6171,7 +6177,9 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 			fcparam *fcp = FCPARAM(isp, rid.ridacq_vp_index);
 			if (rid.ridacq_vp_status == RIDACQ_STS_COMPLETE ||
 			    rid.ridacq_vp_status == RIDACQ_STS_CHANGED) {
-				fcp->isp_loopstate = LOOP_HAVE_LINK;
+				fcp->isp_topo = (rid.ridacq_map[0] >> 9) & 0x7;
+				fcp->isp_portid = portid;
+				fcp->isp_loopstate = LOOP_HAVE_ADDR;
 				isp_async(isp, ISPASYNC_CHANGE_NOTIFY,
 				    rid.ridacq_vp_index, ISPASYNC_CHANGE_OTHER);
 			} else {
