@@ -1452,7 +1452,7 @@ ieee80211_parse_rsn(struct ieee80211vap *vap, const uint8_t *frm,
 }
 
 /*
- * WPA/802.11i assocation request processing.
+ * WPA/802.11i association request processing.
  */
 static int
 wpa_assocreq(struct ieee80211_node *ni, struct ieee80211_rsnparms *rsnparms,

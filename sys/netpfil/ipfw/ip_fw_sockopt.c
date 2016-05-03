@@ -2467,7 +2467,7 @@ ref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule,
 		if (error != 0)
 			break;
 		/*
-		 * Compability stuff for old clients:
+		 * Compatibility stuff for old clients:
 		 * prepare to automaitcally create non-existing objects.
 		 */
 		if (unresolved != 0) {
@@ -2579,7 +2579,7 @@ free:
  * Rules in reply are modified to store their actual ruleset number.
  *
  * (*1) TLVs inside IPFW_TLV_TBL_LIST needs to be sorted ascending
- * accoring to their idx field and there has to be no duplicates.
+ * according to their idx field and there has to be no duplicates.
  * (*2) Numbered rules inside IPFW_TLV_RULE_LIST needs to be sorted ascending.
  * (*3) Each ip_fw structure needs to be aligned to u64 boundary.
  *
@@ -3279,7 +3279,7 @@ ipfw_flush_sopt_data(struct sockopt_data *sd)
 }
 
 /*
- * Ensures that @sd buffer has contigious @neeeded number of
+ * Ensures that @sd buffer has contiguous @neeeded number of
  * bytes.
  *
  * Returns pointer to requested space or NULL.
@@ -3307,7 +3307,7 @@ ipfw_get_sopt_space(struct sockopt_data *sd, size_t needed)
 }
 
 /*
- * Requests @needed contigious bytes from @sd buffer.
+ * Requests @needed contiguous bytes from @sd buffer.
  * Function is used to notify subsystem that we are
  * interesed in first @needed bytes (request header)
  * and the rest buffer can be safely zeroed.
@@ -3396,7 +3396,7 @@ ipfw_ctl3(struct sockopt *sopt)
 		/*
 		 * Determine opcode type/buffer size:
 		 * allocate sliding-window buf for data export or
-		 * contigious buffer for special ops.
+		 * contiguous buffer for special ops.
 		 */
 		if ((h.dir & HDIR_SET) != 0) {
 			/* Set request. Allocate contigous buffer. */

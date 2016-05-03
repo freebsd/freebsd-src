@@ -933,7 +933,7 @@ key_do_allocsa_policy(struct secashead *sah, u_int state)
 {
 	struct secasvar *sav, *nextsav, *candidate, *d;
 
-	/* initilize */
+	/* initialize */
 	candidate = NULL;
 
 	SAHTREE_LOCK();
@@ -1058,7 +1058,7 @@ key_do_allocsa_policy(struct secashead *sah, u_int state)
  * allocating a usable SA entry for a *INBOUND* packet.
  * Must call key_freesav() later.
  * OUT: positive:	pointer to a usable sav (i.e. MATURE or DYING state).
- *	NULL:		not found, or error occured.
+ *	NULL:		not found, or error occurred.
  *
  * In the comparison, no source address is used--for RFC2401 conformance.
  * To quote, from section 4.1:
@@ -2335,7 +2335,7 @@ key_spdget(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
  * send
  *   <base, policy(*)>
  * to KMD, and expect to receive
- *   <base> with SADB_X_SPDACQUIRE if error occured,
+ *   <base> with SADB_X_SPDACQUIRE if error occurred,
  * or
  *   <base, policy>
  * with SADB_X_SPDUPDATE from KMD by PF_KEY.
@@ -6153,7 +6153,7 @@ key_getprop(const struct secasindex *saidx)
  *   <base, SA, address(SD), (address(P)), x_policy,
  *       (identity(SD),) (sensitivity,) proposal>
  * to KMD, and expect to receive
- *   <base> with SADB_ACQUIRE if error occured,
+ *   <base> with SADB_ACQUIRE if error occurred,
  * or
  *   <base, src address, dst address, (SPI range)> with SADB_GETSPI
  * from KMD by PF_KEY.
@@ -6517,9 +6517,9 @@ key_acquire2(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 
 	/*
 	 * Error message from KMd.
-	 * We assume that if error was occured in IKEd, the length of PFKEY
+	 * We assume that if error was occurred in IKEd, the length of PFKEY
 	 * message is equal to the size of sadb_msg structure.
-	 * We do not raise error even if error occured in this function.
+	 * We do not raise error even if error occurred in this function.
 	 */
 	if (mhp->msg->sadb_msg_len == PFKEY_UNIT64(sizeof(struct sadb_msg))) {
 		struct secacq *acq;

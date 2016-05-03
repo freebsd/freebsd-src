@@ -589,7 +589,7 @@ ipsec4_process_packet(struct mbuf *m, struct ipsecrequest *isr)
 	 * packet will be returned for transmission after crypto
 	 * processing, etc. are completed.
 	 *
-	 * NB: m & sav are ``passed to caller'' who's reponsible for
+	 * NB: m & sav are ``passed to caller'' who's responsible for
 	 *     for reclaiming their resources.
 	 */
 	switch(dst->sa.sa_family) {

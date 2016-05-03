@@ -365,7 +365,7 @@ cc_conn_init(struct tcpcb *tp)
 		/*
 		 * There's some sort of gateway or interface
 		 * buffer limit on the path.  Use this to set
-		 * the slow start threshhold, but set the
+		 * the slow start threshold, but set the
 		 * threshold to no less than 2*mss.
 		 */
 		tp->snd_ssthresh = max(2 * maxseg, metrics.rmx_ssthresh);
@@ -2533,7 +2533,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 * change and FIN isn't set),
 				 * the ack is the biggest we've
 				 * seen and we've seen exactly our rexmt
-				 * threshhold of them, assume a packet
+				 * threshold of them, assume a packet
 				 * has been dropped and retransmit it.
 				 * Kludge snd_nxt & the congestion
 				 * window so we send only this one

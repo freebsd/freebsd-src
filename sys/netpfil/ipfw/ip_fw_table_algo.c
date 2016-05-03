@@ -181,7 +181,7 @@ __FBSDID("$FreeBSD$");
  *  OPTIONAL, locked (UH). (M_NOWAIT). Returns 0 on success.
  *
  *  Finds entry specified by given key.
- *  * Caller is requred to do the following:
+ *  * Caller is required to do the following:
  *    entry found: returns 0, export entry to @tent
  *    entry not found: returns ENOENT
  *
@@ -263,7 +263,7 @@ __FBSDID("$FreeBSD$");
  * Dumps entry @e to @tent.
  *
  *
- * -print_config: prints custom algoritm options into buffer.
+ * -print_config: prints custom algorithm options into buffer.
  *  typedef void (ta_print_config)(void *ta_state, struct table_info *ti,
  *      char *buf, size_t bufsize);
  * OPTIONAL. locked(UH). (M_NOWAIT).

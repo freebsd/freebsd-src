@@ -558,7 +558,7 @@ ifq_delete(struct ifaltq *ifq)
 }
 
 /*
- * Perform generic interface initalization tasks and attach the interface
+ * Perform generic interface initialization tasks and attach the interface
  * to the list of "active" interfaces.  If vmove flag is set on entry
  * to if_attach_internal(), perform only a limited subset of initialization
  * tasks, given that we are moving from one vnet to another an ifnet which

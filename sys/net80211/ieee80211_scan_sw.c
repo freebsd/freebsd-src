@@ -771,7 +771,7 @@ scan_end(struct ieee80211_scan_state *ss, int scandone)
 	/* XXX scan state can change! Re-validate scan state! */
 
 	/*
-	 * Since a cancellation may have occured during one of the
+	 * Since a cancellation may have occurred during one of the
 	 * driver calls (whilst unlocked), update scandone.
 	 */
 	if (scandone == 0 && (ss_priv->ss_iflags & ISCAN_CANCEL) != 0) {
@@ -818,7 +818,7 @@ scan_end(struct ieee80211_scan_state *ss, int scandone)
 		    "[ticks %u, dwell min %lu scanend %lu]\n",
 		    __func__,
 		    ticks, ss->ss_mindwell, ss_priv->ss_scanend);
-		ss->ss_next = 0;	/* reset to begining */
+		ss->ss_next = 0;	/* reset to beginning */
 		if (ss->ss_flags & IEEE80211_SCAN_ACTIVE)
 			vap->iv_stats.is_scan_active++;
 		else
@@ -840,7 +840,7 @@ scan_end(struct ieee80211_scan_state *ss, int scandone)
 	    ticks, ss->ss_mindwell, ss_priv->ss_scanend);
 
 	/*
-	 * Since a cancellation may have occured during one of the
+	 * Since a cancellation may have occurred during one of the
 	 * driver calls (whilst unlocked), update scandone.
 	 */
 	if (scandone == 0 && (ss_priv->ss_iflags & ISCAN_CANCEL) != 0) {

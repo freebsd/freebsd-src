@@ -522,7 +522,7 @@ tcp_timer_persist(void *xtp)
 	KASSERT((tp->t_timers->tt_flags & TT_PERSIST) != 0,
 		("%s: tp %p persist callout should be running", __func__, tp));
 	/*
-	 * Persistance timer into zero window.
+	 * Persistence timer into zero window.
 	 * Force a byte to be output, if possible.
 	 */
 	TCPSTAT_INC(tcps_persisttimeo);

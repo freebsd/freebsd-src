@@ -345,7 +345,7 @@ arc_frag_next(struct ifnet *ifp)
 
 /*
  * Defragmenter. Returns mbuf if last packet found, else
- * NULL. frees imcoming mbuf as necessary.
+ * NULL. frees incoming mbuf as necessary.
  */
 
 static __inline struct mbuf *

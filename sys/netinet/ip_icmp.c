@@ -223,7 +223,7 @@ icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 	/*
 	 * Calculate length to quote from original packet and
 	 * prevent the ICMP mbuf from overflowing.
-	 * Unfortunatly this is non-trivial since ip_forward()
+	 * Unfortunately this is non-trivial since ip_forward()
 	 * sends us truncated packets.
 	 */
 	nlen = m_length(n, NULL);

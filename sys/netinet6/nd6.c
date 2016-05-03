@@ -479,7 +479,7 @@ nd6_options(union nd_opts *ndopts)
 		default:
 			/*
 			 * Unknown options must be silently ignored,
-			 * to accomodate future extension to the protocol.
+			 * to accommodate future extension to the protocol.
 			 */
 			nd6log((LOG_DEBUG,
 			    "nd6_options: unsupported option %d - "
@@ -1604,7 +1604,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	case SIOCSIFINFO_IN6:
 		/*
 		 * used to change host variables from userland.
-		 * intented for a use on router to reflect RA configurations.
+		 * intended for a use on router to reflect RA configurations.
 		 */
 		/* 0 means 'unspecified' */
 		if (ND.linkmtu != 0) {

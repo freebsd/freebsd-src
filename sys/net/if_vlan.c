@@ -700,7 +700,7 @@ vlan_devat(struct ifnet *ifp, uint16_t vid)
  * VLAN support can be loaded as a module.  The only place in the
  * system that's intimately aware of this is ether_input.  We hook
  * into this code through vlan_input_p which is defined there and
- * set here.  Noone else in the system should be aware of this so
+ * set here.  No one else in the system should be aware of this so
  * we use an explicit reference here.
  */
 extern	void (*vlan_input_p)(struct ifnet *, struct mbuf *);
@@ -873,7 +873,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	 * o specify no parameters and get an unattached device that
 	 *   must be configured separately.
 	 * The first technique is preferred; the latter two are
-	 * supported for backwards compatibilty.
+	 * supported for backwards compatibility.
 	 *
 	 * XXXRW: Note historic use of the word "tag" here.  New ioctls may be
 	 * called for.

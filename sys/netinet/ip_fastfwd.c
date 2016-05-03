@@ -205,7 +205,7 @@ ip_tryforward(struct mbuf *m)
 	 *
 	 * XXX: Probably some of these checks could be direct drop
 	 * conditions.  However it is not clear whether there are some
-	 * hacks or obscure behaviours which make it neccessary to
+	 * hacks or obscure behaviours which make it necessary to
 	 * let ip_input handle it.  We play safe here and let ip_input
 	 * deal with it until it is proven that we can directly drop it.
 	 */

@@ -440,7 +440,7 @@ htcp_recalc_beta(struct cc_var *ccv)
 	/*
 	 * TCPTV_SRTTBASE is the initialised value of each connection's SRTT, so
 	 * we only calc beta if the connection's SRTT has been changed from its
-	 * inital value. beta is bounded to ensure it is always between
+	 * initial value. beta is bounded to ensure it is always between
 	 * HTCP_MINBETA and HTCP_MAXBETA.
 	 */
 	if (V_htcp_adaptive_backoff && htcp_data->minrtt != TCPTV_SRTTBASE &&

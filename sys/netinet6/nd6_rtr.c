@@ -482,7 +482,7 @@ nd6_rtmsg(int cmd, struct rtentry *rt)
 }
 
 /*
- * default router list proccessing sub routines
+ * default router list processing sub routines
  */
 
 static void

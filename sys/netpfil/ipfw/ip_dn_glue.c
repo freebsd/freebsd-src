@@ -778,7 +778,7 @@ ip_dummynet_compat(struct sockopt *sopt)
 	void *v = NULL;
 	struct dn_id oid;
 
-	/* Lenght of data, used to found ipfw version... */
+	/* Length of data, used to found ipfw version... */
 	int len = sopt->sopt_valsize;
 
 	/* len can be 0 if command was dummynet_flush */

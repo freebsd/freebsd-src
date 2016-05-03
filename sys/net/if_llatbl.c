@@ -409,7 +409,7 @@ lltable_update_ifaddr(struct lltable *llt)
 
 /*
  *
- * Performes generic cleanup routines and frees lle.
+ * Performs generic cleanup routines and frees lle.
  *
  * Called for non-linked entries, with callouts and
  * other AF-specific cleanups performed.

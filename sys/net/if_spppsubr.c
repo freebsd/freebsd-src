@@ -2962,7 +2962,7 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			 * since our algorithm always uses the
 			 * original option to NAK it with new values,
 			 * things would become more complicated.  In
-			 * pratice, the only commonly implemented IP
+			 * practice, the only commonly implemented IP
 			 * compression option is VJ anyway, so the
 			 * difference is negligible.
 			 */
@@ -4295,7 +4295,7 @@ sppp_chap_tlu(struct sppp *sp)
 		if ((sp->hisauth.flags & AUTHFLAG_NORECHALLENGE) == 0)
 			log(-1, "next re-challenge in %d seconds\n", i);
 		else
-			log(-1, "re-challenging supressed\n");
+			log(-1, "re-challenging suppressed\n");
 	}
 
 	SPPP_LOCK(sp);

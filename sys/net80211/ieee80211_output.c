@@ -2894,7 +2894,7 @@ ieee80211_tx_mgt_cb(struct ieee80211_node *ni, void *arg, int status)
 
 	/*
 	 * Frame transmit completed; arrange timer callback.  If
-	 * transmit was successfuly we wait for response.  Otherwise
+	 * transmit was successfully we wait for response.  Otherwise
 	 * we arrange an immediate callback instead of doing the
 	 * callback directly since we don't know what state the driver
 	 * is in (e.g. what locks it is holding).  This work should
@@ -3231,10 +3231,10 @@ ieee80211_beacon_update(struct ieee80211_node *ni, struct mbuf *m, int mcast)
 		struct ieee80211_wme_state *wme = &ic->ic_wme;
 
 		/*
-		 * Check for agressive mode change.  When there is
+		 * Check for aggressive mode change.  When there is
 		 * significant high priority traffic in the BSS
 		 * throttle back BE traffic by using conservative
-		 * parameters.  Otherwise BE uses agressive params
+		 * parameters.  Otherwise BE uses aggressive params
 		 * to optimize performance of legacy/non-QoS traffic.
 		 */
 		if (wme->wme_flags & WME_F_AGGRMODE) {

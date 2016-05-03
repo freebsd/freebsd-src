@@ -500,7 +500,7 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts)
 	count = ts->count;
 	for (i = 0; i < count; i++) {
 		ptei = &tei[i];
-		ptei->value = 0; /* Ensure value is always 0 in the beginnig */
+		ptei->value = 0; /* Ensure value is always 0 in the beginning */
 		mask_table_value(ptei->pvalue, &tval, ts->vmask);
 		ptv = (struct table_val_link *)ipfw_objhash_lookup_name(vi, 0,
 		    (char *)&tval);
@@ -603,7 +603,7 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts)
 }
 
 /*
- * Compability function used to import data from old
+ * Compatibility function used to import data from old
  * IP_FW_TABLE_ADD / IP_FW_TABLE_XADD opcodes.
  */
 void

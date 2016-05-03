@@ -1419,7 +1419,7 @@ skip_alloc:
 			 * With the default maxsockbuf of 256K, a scale factor
 			 * of 3 will be chosen by this algorithm.  Those who
 			 * choose a larger maxsockbuf should watch out
-			 * for the compatiblity problems mentioned above.
+			 * for the compatibility problems mentioned above.
 			 *
 			 * RFC1323: The Window field in a SYN (i.e., a <SYN>
 			 * or <SYN,ACK>) segment itself is never scaled.
@@ -1746,7 +1746,7 @@ syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked,
  * with the latter taking over when the former is exhausted.  When matching
  * syncache entry is found the syncookie is ignored.
  *
- * The only reliable information persisting the 3WHS is our inital sequence
+ * The only reliable information persisting the 3WHS is our initial sequence
  * number ISS of 32 bits.  Syncookies embed a cryptographically sufficient
  * strong hash (MAC) value and a few bits of TCP SYN options in the ISS
  * of our SYN|ACK.  The MAC can be recomputed when the ACK to our SYN|ACK

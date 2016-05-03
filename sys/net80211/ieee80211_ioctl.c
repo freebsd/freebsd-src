@@ -3428,10 +3428,10 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFADDR:
 		/*
-		 * XXX Handle this directly so we can supress if_init calls.
+		 * XXX Handle this directly so we can suppress if_init calls.
 		 * XXX This should be done in ether_ioctl but for the moment
 		 * XXX there are too many other parts of the system that
-		 * XXX set IFF_UP and so supress if_init being called when
+		 * XXX set IFF_UP and so suppress if_init being called when
 		 * XXX it should be.
 		 */
 		ifa = (struct ifaddr *) data;

@@ -936,7 +936,7 @@ ipfw_chk(struct ip_fw_args *args)
 	 *	offset == 0 means that (if this is an IPv4 packet)
 	 *	this is the first or only fragment.
 	 *	For IPv6 offset|ip6f_mf == 0 means there is no Fragment Header
-	 *	or there is a single packet fragement (fragement header added
+	 *	or there is a single packet fragment (fragment header added
 	 *	without needed).  We will treat a single packet fragment as if
 	 *	there was no fragment header (or log/block depending on the
 	 *	V_fw_permit_single_frag6 sysctl setting).
@@ -1999,7 +1999,7 @@ do {								\
 				 * certainly be inp_user_cookie?
 				 */
 
-				/* For incomming packet, lookup up the 
+				/* For incoming packet, lookup up the 
 				inpcb using the src/dest ip/port tuple */
 				if (inp == NULL) {
 					inp = in_pcblookup(pi, 

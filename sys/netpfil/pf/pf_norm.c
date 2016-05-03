@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 struct pf_frent {
 	TAILQ_ENTRY(pf_frent)	fr_next;
 	struct mbuf	*fe_m;
-	uint16_t	fe_hdrlen;	/* ipv4 header lenght with ip options
+	uint16_t	fe_hdrlen;	/* ipv4 header length with ip options
 					   ipv6, extension, fragment header */
 	uint16_t	fe_extoff;	/* last extension header offset or 0 */
 	uint16_t	fe_len;		/* fragment length */
