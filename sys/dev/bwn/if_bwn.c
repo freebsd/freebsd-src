@@ -3540,9 +3540,12 @@ bwn_dummy_transmission(struct bwn_mac *mac, int ofdm, int paon)
 	BWN_WRITE_2(mac, 0x0568, 0x0000);
 	BWN_WRITE_2(mac, 0x07c0,
 	    (siba_get_revid(sc->sc_dev) < 11) ? 0x0000 : 0x0100);
-	value = ((phy->type == BWN_PHYTYPE_A) ? 0x41 : 0x40);
+
+	value = (ofdm ? 0x41 : 0x40);
 	BWN_WRITE_2(mac, 0x050c, value);
-	if (phy->type == BWN_PHYTYPE_LP)
+
+	if (phy->type == BWN_PHYTYPE_N || phy->type == BWN_PHYTYPE_LP ||
+	    phy->type == BWN_PHYTYPE_LCN)
 		BWN_WRITE_2(mac, 0x0514, 0x1a02);
 	BWN_WRITE_2(mac, 0x0508, 0x0000);
 	BWN_WRITE_2(mac, 0x050a, 0x0000);
@@ -3550,10 +3553,24 @@ bwn_dummy_transmission(struct bwn_mac *mac, int ofdm, int paon)
 	BWN_WRITE_2(mac, 0x056a, 0x0014);
 	BWN_WRITE_2(mac, 0x0568, 0x0826);
 	BWN_WRITE_2(mac, 0x0500, 0x0000);
-	if (phy->type == BWN_PHYTYPE_LP)
+
+	/* XXX TODO: n phy pa override? */
+
+	switch (phy->type) {
+	case BWN_PHYTYPE_N:
+	case BWN_PHYTYPE_LCN:
+		BWN_WRITE_2(mac, 0x0502, 0x00d0);
+		break;
+	case BWN_PHYTYPE_LP:
 		BWN_WRITE_2(mac, 0x0502, 0x0050);
-	else
+		break;
+	default:
 		BWN_WRITE_2(mac, 0x0502, 0x0030);
+		break;
+	}
+
+	/* flush */
+	BWN_READ_2(mac, 0x0502);
 
 	if (phy->rf_ver == 0x2050 && phy->rf_rev <= 0x5)
 		BWN_RF_WRITE(mac, 0x0051, 0x0017);
