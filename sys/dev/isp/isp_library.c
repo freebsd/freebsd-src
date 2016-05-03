@@ -1988,6 +1988,17 @@ isp_put_rft_id(ispsoftc_t *isp, rft_id_t *src, rft_id_t *dst)
 }
 
 void
+isp_put_rspn_id(ispsoftc_t *isp, rspn_id_t *src, rspn_id_t *dst)
+{
+/*	int i;*/
+	isp_put_ct_hdr(isp, &src->rspnid_hdr, &dst->rspnid_hdr);
+	ISP_IOZPUT_8(isp, src->rspnid_reserved, &dst->rspnid_reserved);
+	ISP_IOZPUT_8(isp, src->rspnid_length, &dst->rspnid_length);
+/*	for (i = 0; i < src->rspnid_length; i++)
+		ISP_IOZPUT_8(isp, src->rspnid_name[i], &dst->rspnid_name[i]);*/
+}
+
+void
 isp_put_rff_id(ispsoftc_t *isp, rff_id_t *src, rff_id_t *dst)
 {
 	int i;
@@ -1999,6 +2010,18 @@ isp_put_rff_id(ispsoftc_t *isp, rff_id_t *src, rff_id_t *dst)
 	ISP_IOZPUT_16(isp, src->rffid_reserved2, &dst->rffid_reserved2);
 	ISP_IOZPUT_8(isp, src->rffid_fc4features, &dst->rffid_fc4features);
 	ISP_IOZPUT_8(isp, src->rffid_fc4type, &dst->rffid_fc4type);
+}
+
+void
+isp_put_rsnn_nn(ispsoftc_t *isp, rsnn_nn_t *src, rsnn_nn_t *dst)
+{
+	int i;
+	isp_put_ct_hdr(isp, &src->rsnnnn_hdr, &dst->rsnnnn_hdr);
+	for (i = 0; i < 8; i++)
+		ISP_IOZPUT_8(isp, src->rsnnnn_nodename[i], &dst->rsnnnn_nodename[i]);
+	ISP_IOZPUT_8(isp, src->rsnnnn_length, &dst->rsnnnn_length);
+/*	for (i = 0; i < src->rsnnnn_length; i++)
+		ISP_IOZPUT_8(isp, src->rsnnnn_name[i], &dst->rsnnnn_name[i]);*/
 }
 
 void
