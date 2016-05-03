@@ -449,6 +449,7 @@ typedef struct {
 	uint16_t		isp_lasthdl;		/* only valid for channel 0 */
 	uint16_t		isp_maxalloc;
 	uint16_t		isp_fabric_params;
+	uint16_t		isp_login_hdl;		/* Logging in handle */
 	uint8_t			isp_retry_delay;
 	uint8_t			isp_retry_count;
 
