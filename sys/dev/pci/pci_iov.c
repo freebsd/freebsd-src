@@ -770,6 +770,29 @@ out:
 	return (error);
 }
 
+void
+pci_iov_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
+{
+	struct pcicfg_iov *iov;
+
+	iov = dinfo->cfg.iov;
+
+	IOV_WRITE(dinfo, PCIR_SRIOV_PAGE_SIZE, iov->iov_page_size, 4);
+	IOV_WRITE(dinfo, PCIR_SRIOV_NUM_VFS, iov->iov_num_vfs, 2);
+	IOV_WRITE(dinfo, PCIR_SRIOV_CTL, iov->iov_ctl, 2);
+}
+
+void
+pci_iov_cfg_save(device_t dev, struct pci_devinfo *dinfo)
+{
+	struct pcicfg_iov *iov;
+
+	iov = dinfo->cfg.iov;
+
+	iov->iov_page_size = IOV_READ(dinfo, PCIR_SRIOV_PAGE_SIZE, 4);
+	iov->iov_ctl = IOV_READ(dinfo, PCIR_SRIOV_CTL, 2);
+}
+
 /* Return true if child is a VF of the given PF. */
 static int
 pci_iov_is_child_vf(struct pcicfg_iov *pf, device_t child)
