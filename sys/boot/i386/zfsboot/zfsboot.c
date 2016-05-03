@@ -224,21 +224,18 @@ vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 
 	while (bytes > 0) {
 		nb = bytes / DEV_BSIZE;
-		if (nb > READ_BUF_SIZE / DEV_BSIZE)
-			nb = READ_BUF_SIZE / DEV_BSIZE;
 		/*
 		 * Ensure that the read size plus the leading offset does not
 		 * exceed the size of the read buffer.
 		 */
-		if (nb * DEV_BSIZE + diff > READ_BUF_SIZE)
-		    nb -= diff / DEV_BSIZE;
+		if (nb > (READ_BUF_SIZE - diff) / DEV_BSIZE)
+			nb = (READ_BUF_SIZE - diff) / DEV_BSIZE;
 		/*
 		 * Round the number of blocks to read up to the nearest multiple
 		 * of DEV_GELIBOOT_BSIZE.
 		 */
-		alignnb = nb + (diff / DEV_BSIZE) +
-		    (DEV_GELIBOOT_BSIZE / DEV_BSIZE - 1) & ~
-		    (unsigned int)(DEV_GELIBOOT_BSIZE / DEV_BSIZE - 1);
+		alignnb = roundup2(nb * DEV_BSIZE + diff, DEV_GELIBOOT_BSIZE)
+		    / DEV_BSIZE;
 
 		if (drvread(dsk, dmadat->rdbuf, alignlba, alignnb))
 			return -1;
