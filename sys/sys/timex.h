@@ -105,7 +105,7 @@
 #define TIME_INS	1		/* insert leap second warning */
 #define TIME_DEL	2		/* delete leap second warning */
 #define TIME_OOP	3		/* leap second in progress */
-#define TIME_WAIT	4		/* leap second has occured */
+#define TIME_WAIT	4		/* leap second has occurred */
 #define TIME_ERROR	5		/* error (see status word) */
 
 /*
