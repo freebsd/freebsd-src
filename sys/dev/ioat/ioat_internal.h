@@ -211,6 +211,85 @@ struct ioat_fill_hw_descriptor {
 	uint64_t user2;
 };
 
+struct ioat_crc32_hw_descriptor {
+	uint32_t size;
+	union {
+		uint32_t control_raw;
+		struct generic_dma_control control_generic;
+		struct {
+			uint32_t int_enable:1;
+			uint32_t src_snoop_disable:1;
+			uint32_t dest_snoop_disable:1;
+			uint32_t completion_update:1;
+			uint32_t fence:1;
+			uint32_t reserved1:3;
+			uint32_t bundle:1;
+			uint32_t dest_dca:1;
+			uint32_t hint:1;
+			uint32_t use_seed:1;
+			/*
+			 * crc_location:
+			 * For IOAT_OP_MOVECRC_TEST and IOAT_OP_CRC_TEST:
+			 * 0: comparison value is pointed to by CRC Address
+			 *    field.
+			 * 1: comparison value follows data in wire format
+			 *    ("inverted reflected bit order") in the 4 bytes
+			 *    following the source data.
+			 *
+			 * For IOAT_OP_CRC_STORE:
+			 * 0: Result will be stored at location pointed to by
+			 *    CRC Address field (in wire format).
+			 * 1: Result will be stored directly following the
+			 *    source data.
+			 *
+			 * For IOAT_OP_MOVECRC_STORE:
+			 * 0: Result will be stored at location pointed to by
+			 *    CRC Address field (in wire format).
+			 * 1: Result will be stored directly following the
+			 *    *destination* data.
+			 */
+			uint32_t crc_location:1;
+			uint32_t reserved2:11;
+			/*
+			 * MOVECRC - Move data in the same way as standard copy
+			 * operation, but also compute CRC32.
+			 *
+			 * CRC - Only compute CRC on source data.
+			 *
+			 * There is a CRC accumulator register in the hardware.
+			 * If 'initial' is set, it is initialized to the value
+			 * in 'seed.'
+			 *
+			 * In all modes, these operators accumulate size bytes
+			 * at src_addr into the running CRC32C.
+			 *
+			 * Store mode emits the accumulated CRC, in wire
+			 * format, as specified by the crc_location bit above.
+			 *
+			 * Test mode compares the accumulated CRC against the
+			 * reference CRC, as described in crc_location above.
+			 * On failure, halts the DMA engine with a CRC error
+			 * status.
+			 */
+			#define	IOAT_OP_MOVECRC		0x41
+			#define	IOAT_OP_MOVECRC_TEST	0x42
+			#define	IOAT_OP_MOVECRC_STORE	0x43
+			#define	IOAT_OP_CRC		0x81
+			#define	IOAT_OP_CRC_TEST	0x82
+			#define	IOAT_OP_CRC_STORE	0x83
+			uint32_t op:8;
+		} control;
+	} u;
+	uint64_t src_addr;
+	uint64_t dest_addr;
+	uint64_t next;
+	uint64_t next_src_addr;
+	uint64_t next_dest_addr;
+	uint32_t seed;
+	uint32_t reserved;
+	uint64_t crc_address;
+};
+
 struct ioat_xor_hw_descriptor {
 	uint32_t size;
 	union {
@@ -338,6 +417,7 @@ struct ioat_descriptor {
 		struct ioat_generic_hw_descriptor	*generic;
 		struct ioat_dma_hw_descriptor		*dma;
 		struct ioat_fill_hw_descriptor		*fill;
+		struct ioat_crc32_hw_descriptor		*crc32;
 		struct ioat_xor_hw_descriptor		*xor;
 		struct ioat_xor_ext_hw_descriptor	*xor_ext;
 		struct ioat_pq_hw_descriptor		*pq;
@@ -348,13 +428,7 @@ struct ioat_descriptor {
 	bus_addr_t		hw_desc_bus_addr;
 };
 
-/* Unsupported by this driver at this time. */
-#define	IOAT_OP_MOVECRC		0x41
-#define	IOAT_OP_MOVECRC_TEST	0x42
-#define	IOAT_OP_MOVECRC_STORE	0x43
-#define	IOAT_OP_CRC		0x81
-#define	IOAT_OP_CRC_TEST	0x82
-#define	IOAT_OP_CRC_STORE	0x83
+/* Unused by this driver at this time. */
 #define	IOAT_OP_MARKER		0x84
 
 /*
