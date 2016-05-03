@@ -450,7 +450,7 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 				if (dev) {
 					/*
 					 * This is an optional device
-					 * indentifier string. Skipt it
+					 * identifier string. Skip it
 					 * for now.
 					 */
 					continue;
