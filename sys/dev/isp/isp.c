@@ -126,6 +126,8 @@ static int isp_send_change_request(ispsoftc_t *, int);
 static int isp_register_fc4_type(ispsoftc_t *, int);
 static int isp_register_fc4_type_24xx(ispsoftc_t *, int);
 static int isp_register_fc4_features_24xx(ispsoftc_t *, int);
+static int isp_register_port_name_24xx(ispsoftc_t *, int);
+static int isp_register_node_name_24xx(ispsoftc_t *, int);
 static uint16_t isp_next_handle(ispsoftc_t *, uint16_t *);
 static int isp_fw_state(ispsoftc_t *, int);
 static void isp_mboxcmd_qnw(ispsoftc_t *, mbreg_t *, int);
@@ -3073,6 +3075,8 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 			r = isp_register_fc4_type_24xx(isp, chan);
 			if (r == 0)
 				isp_register_fc4_features_24xx(isp, chan);
+			isp_register_port_name_24xx(isp, chan);
+			isp_register_node_name_24xx(isp, chan);
 		} else {
 			fcp->isp_sns_hdl = SNS_ID;
 			r = isp_register_fc4_type(isp, chan);
@@ -3577,8 +3581,6 @@ isp_gid_ft_ct_passthru(ispsoftc_t *isp, int chan)
 
 	/*
 	 * Build the CT header and command in memory.
-	 *
-	 * Note that the CT header has to end up as Big Endian format in memory.
 	 */
 	ISP_MEMZERO(&ct, sizeof (ct));
 	ct.ct_revision = CT_REVISION;
@@ -3982,8 +3984,6 @@ isp_register_fc4_type_24xx(ispsoftc_t *isp, int chan)
 
 	/*
 	 * Build the CT header and command in memory.
-	 *
-	 * Note that the CT header has to end up as Big Endian format in memory.
 	 */
 	ISP_MEMZERO(&rp, sizeof(rp));
 	ct = &rp.rftid_hdr;
@@ -4034,8 +4034,6 @@ isp_register_fc4_features_24xx(ispsoftc_t *isp, int chan)
 
 	/*
 	 * Build the CT header and command in memory.
-	 *
-	 * Note that the CT header has to end up as Big Endian format in memory.
 	 */
 	ISP_MEMZERO(&rp, sizeof(rp));
 	ct = &rp.rffid_hdr;
@@ -4074,6 +4072,130 @@ isp_register_fc4_features_24xx(ispsoftc_t *isp, int chan)
 	} else {
 		isp_prt(isp, ISP_LOGWARN,
 		    "Chan %d Register FC4 Features: 0x%x", chan, ct->ct_cmd_resp);
+		return (-1);
+	}
+	return (0);
+}
+
+static int
+isp_register_port_name_24xx(ispsoftc_t *isp, int chan)
+{
+	fcparam *fcp = FCPARAM(isp, chan);
+	ct_hdr_t *ct;
+	rspn_id_t rp;
+	uint8_t *scp = fcp->isp_scratch;
+	int len;
+
+	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
+		isp_prt(isp, ISP_LOGERR, sacq);
+		return (-1);
+	}
+
+	/*
+	 * Build the CT header and command in memory.
+	 */
+	ISP_MEMZERO(&rp, sizeof(rp));
+	ct = &rp.rspnid_hdr;
+	ct->ct_revision = CT_REVISION;
+	ct->ct_fcs_type = CT_FC_TYPE_FC;
+	ct->ct_fcs_subtype = CT_FC_SUBTYPE_NS;
+	ct->ct_cmd_resp = SNS_RSPN_ID;
+	rp.rspnid_portid[0] = fcp->isp_portid >> 16;
+	rp.rspnid_portid[1] = fcp->isp_portid >> 8;
+	rp.rspnid_portid[2] = fcp->isp_portid;
+	rp.rspnid_length = 0;
+	len = offsetof(rspn_id_t, rspnid_name);
+	mtx_lock(&prison0.pr_mtx);
+	rp.rspnid_length += sprintf(&scp[XTXOFF + len + rp.rspnid_length],
+	    "%s", prison0.pr_hostname[0] ? prison0.pr_hostname : "FreeBSD");
+	mtx_unlock(&prison0.pr_mtx);
+	rp.rspnid_length += sprintf(&scp[XTXOFF + len + rp.rspnid_length],
+	    ":%s", device_get_nameunit(isp->isp_dev));
+	if (chan != 0) {
+		rp.rspnid_length += sprintf(&scp[XTXOFF + len +
+		    rp.rspnid_length], "/%d", chan);
+	}
+	len += rp.rspnid_length;
+	ct->ct_bcnt_resid = (len - sizeof(ct_hdr_t)) >> 2;
+	isp_put_rspn_id(isp, &rp, (rspn_id_t *)&scp[XTXOFF]);
+	if (isp->isp_dblev & ISP_LOGDEBUG1)
+		isp_print_bytes(isp, "CT request", len, &scp[XTXOFF]);
+
+	if (isp_ct_passthru(isp, chan, len, sizeof(ct_hdr_t))) {
+		FC_SCRATCH_RELEASE(isp, chan);
+		return (-1);
+	}
+
+	isp_get_ct_hdr(isp, (ct_hdr_t *) scp, ct);
+	FC_SCRATCH_RELEASE(isp, chan);
+	if (ct->ct_cmd_resp == LS_RJT) {
+		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOG_WARN1,
+		    "Chan %d Register Symbolic Port Name rejected", chan);
+		return (-1);
+	} else if (ct->ct_cmd_resp == LS_ACC) {
+		isp_prt(isp, ISP_LOG_SANCFG,
+		    "Chan %d Register Symbolic Port Name accepted", chan);
+	} else {
+		isp_prt(isp, ISP_LOGWARN,
+		    "Chan %d Register Symbolic Port Name: 0x%x", chan, ct->ct_cmd_resp);
+		return (-1);
+	}
+	return (0);
+}
+
+static int
+isp_register_node_name_24xx(ispsoftc_t *isp, int chan)
+{
+	fcparam *fcp = FCPARAM(isp, chan);
+	ct_hdr_t *ct;
+	rsnn_nn_t rp;
+	uint8_t *scp = fcp->isp_scratch;
+	int len;
+
+	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
+		isp_prt(isp, ISP_LOGERR, sacq);
+		return (-1);
+	}
+
+	/*
+	 * Build the CT header and command in memory.
+	 */
+	ISP_MEMZERO(&rp, sizeof(rp));
+	ct = &rp.rsnnnn_hdr;
+	ct->ct_revision = CT_REVISION;
+	ct->ct_fcs_type = CT_FC_TYPE_FC;
+	ct->ct_fcs_subtype = CT_FC_SUBTYPE_NS;
+	ct->ct_cmd_resp = SNS_RSNN_NN;
+	MAKE_NODE_NAME_FROM_WWN(rp.rsnnnn_nodename, fcp->isp_wwnn);
+	rp.rsnnnn_length = 0;
+	len = offsetof(rsnn_nn_t, rsnnnn_name);
+	mtx_lock(&prison0.pr_mtx);
+	rp.rsnnnn_length += sprintf(&scp[XTXOFF + len + rp.rsnnnn_length],
+	    "%s", prison0.pr_hostname[0] ? prison0.pr_hostname : "FreeBSD");
+	mtx_unlock(&prison0.pr_mtx);
+	len += rp.rsnnnn_length;
+	ct->ct_bcnt_resid = (len - sizeof(ct_hdr_t)) >> 2;
+	isp_put_rsnn_nn(isp, &rp, (rsnn_nn_t *)&scp[XTXOFF]);
+	if (isp->isp_dblev & ISP_LOGDEBUG1)
+		isp_print_bytes(isp, "CT request", len, &scp[XTXOFF]);
+
+	if (isp_ct_passthru(isp, chan, len, sizeof(ct_hdr_t))) {
+		FC_SCRATCH_RELEASE(isp, chan);
+		return (-1);
+	}
+
+	isp_get_ct_hdr(isp, (ct_hdr_t *) scp, ct);
+	FC_SCRATCH_RELEASE(isp, chan);
+	if (ct->ct_cmd_resp == LS_RJT) {
+		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOG_WARN1,
+		    "Chan %d Register Symbolic Node Name rejected", chan);
+		return (-1);
+	} else if (ct->ct_cmd_resp == LS_ACC) {
+		isp_prt(isp, ISP_LOG_SANCFG,
+		    "Chan %d Register Symbolic Node Name accepted", chan);
+	} else {
+		isp_prt(isp, ISP_LOGWARN,
+		    "Chan %d Register Symbolic Node Name: 0x%x", chan, ct->ct_cmd_resp);
 		return (-1);
 	}
 	return (0);
