@@ -426,9 +426,6 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 	return ((ifp->if_transmit)(ifp, m));
 }
 
-#if defined(INET) || defined(INET6)
-#endif
-
 /*
  * Process a received Ethernet packet; the packet is in the
  * mbuf chain m with the ethernet header at the front.
