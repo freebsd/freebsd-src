@@ -4665,7 +4665,7 @@ mwl_txq_dump(&sc->sc_txq[0]);/*XXX*/
  * Diagnostic interface to the HAL.  This is used by various
  * tools to do things like retrieve register contents for
  * debugging.  The mechanism is intentionally opaque so that
- * it can change frequently w/o concern for compatiblity.
+ * it can change frequently w/o concern for compatibility.
  */
 static int
 mwl_ioctl_diag(struct mwl_softc *sc, struct mwl_diag *md)

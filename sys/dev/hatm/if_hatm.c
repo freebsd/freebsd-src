@@ -557,7 +557,7 @@ hatm_init_bus_width(struct hatm_softc *sc)
 }
 
 /*
- * 4.6 Set Host Endianess
+ * 4.6 Set Host Endianness
  */
 static void
 hatm_init_endianess(struct hatm_softc *sc)

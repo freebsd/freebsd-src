@@ -668,7 +668,7 @@ SCI_STATUS scif_sas_remote_device_default_complete_task_handler(
  *        such a notification isn't supported.
  *
  * @param[in]  remote_device This parameter specifies the remote device object
- *             for which the completion notification has occured.
+ *             for which the completion notification has occurred.
  * @param[in]  completion_status This parameter specifies the status
  *             of the completion operation.
  *
@@ -694,7 +694,7 @@ void scif_sas_remote_device_default_start_complete_handler(
  *        such a notification isn't supported.
  *
  * @param[in]  remote_device This parameter specifies the remote device object
- *             for which the completion notification has occured.
+ *             for which the completion notification has occurred.
  * @param[in]  completion_status This parameter specifies the status
  *             of the completion operation.
  *
@@ -720,7 +720,7 @@ void scif_sas_remote_device_default_stop_complete_handler(
  *        notification isn't supported.
  *
  * @param[in]  remote_device This parameter specifies the remote device object
- *             for which the notification has occured.
+ *             for which the notification has occurred.
  *
  * @return none.
  */
@@ -743,7 +743,7 @@ void scif_sas_remote_device_default_ready_handler(
  *        notification isn't supported.
  *
  * @param[in]  remote_device This parameter specifies the remote device object
- *             for which the notification has occured.
+ *             for which the notification has occurred.
  *
  * @return none.
  */

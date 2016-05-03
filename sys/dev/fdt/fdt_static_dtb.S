@@ -38,7 +38,7 @@
 /*
  * The device tree blob must be aligned at 8-bytes boundary. Use
  * gas-specific 'balign' extension to ensure the same alignment behaviour on
- * all archs (the .align directive meaning can vary accross gas arch
+ * all archs (the .align directive meaning can vary across gas arch
  * variations).
  */
 .balign 8

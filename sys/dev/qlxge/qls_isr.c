@@ -204,7 +204,7 @@ qls_rx_comp(qla_host_t *ha, uint32_t rxr_idx, uint32_t cq_idx, q81_rx_t *cq_e)
 			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 			if (lro->lro_cnt && (tcp_lro_rx(lro, mp, 0) == 0)) {
-				/* LRO packet has been successfuly queued */
+				/* LRO packet has been successfully queued */
 			} else {
 				(*ifp->if_input)(ifp, mp);
 			}

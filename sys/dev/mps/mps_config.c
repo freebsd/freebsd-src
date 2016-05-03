@@ -366,7 +366,7 @@ mps_base_static_config_pages(struct mps_softc *sc)
 
 /**
  * mps_wd_config_pages - get info required to support WarpDrive.  This needs to
- *    be called after discovery is complete to guarentee that IR info is there.
+ *    be called after discovery is complete to guarantee that IR info is there.
  * @sc: per adapter object
  *
  * Return nothing.

@@ -805,7 +805,7 @@ e6000sw_setup(device_t dev, e6000sw_softc_t *sc)
 	e6000sw_writereg(sc, REG_GLOBAL2, MGMT_EN_2x, MGMT_EN_ALL);
 	e6000sw_writereg(sc, REG_GLOBAL2, MGMT_EN_0x, MGMT_EN_ALL);
 
-	/* Disable Remote Managment */
+	/* Disable Remote Management */
 	e6000sw_writereg(sc, REG_GLOBAL, SWITCH_GLOBAL_CONTROL2, 0);
 
 	/* Disable loopback filter and flow control messages */

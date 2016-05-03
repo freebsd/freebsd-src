@@ -83,7 +83,7 @@ typedef struct SCIC_SDS_STP_REQUEST
       struct
       {
          /**
-          * Total transfer for the entire PIO request recorded at request constuction
+          * Total transfer for the entire PIO request recorded at request construction
           * time.
           *
           * @todo Should we just decrement this value for each byte of data transitted

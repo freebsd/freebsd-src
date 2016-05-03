@@ -1069,7 +1069,7 @@ WriteLoop:
 				 * (not scsi bus!), we should check
 				 * the scsi device sends us request
 				 * signals, which means the scsi device
-				 * is ready to recieve data without
+				 * is ready to receive data without
 				 * heavy delays. 
 				 */
 				if ((slp->sl_scp.scp_datalen % suspendio) == 0)

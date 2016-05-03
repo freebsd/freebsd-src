@@ -221,7 +221,7 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 		return;
 	}
 
-	/* if a timeout occured, no sense */
+	/* if a timeout occurred, no sense */
 	if (vpo->vpo_error) {
 		if (vpo->vpo_error != VP0_ESELECT_TIMEOUT)
 			device_printf(vpo->vpo_dev, "VP0 error/timeout (%d)\n",

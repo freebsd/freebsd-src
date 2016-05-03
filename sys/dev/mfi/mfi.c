@@ -539,7 +539,7 @@ mfi_attach(struct mfi_softc *sc)
 
 		/*
 		  Allocate DMA memory mapping for MPI2 IOC Init descriptor,
-		  we are taking it diffrent from what we have allocated for Request
+		  we are taking it different from what we have allocated for Request
 		  and reply descriptors to avoid confusion later
 		*/
 		tb_mem_size = sizeof(struct MPI2_IOC_INIT_REQUEST);
@@ -2351,7 +2351,7 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	/*
 	 * We need to check if we have the lock as this is async
 	 * callback so even though our caller mfi_mapcmd asserts
-	 * it has the lock, there is no garantee that hasn't been
+	 * it has the lock, there is no guarantee that hasn't been
 	 * dropped if bus_dmamap_load returned prior to our
 	 * completion.
 	 */

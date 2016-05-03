@@ -2060,7 +2060,7 @@ adv_reset_bus(struct adv_softc *adv, int initiate_bus_reset)
 				 /*offset*/0, ADV_TRANS_CUR);
 	ADV_OUTW(adv, ADV_REG_PROG_COUNTER, ADV_MCODE_START_ADDR);
 
-	/* Tell the XPT layer that a bus reset occured */
+	/* Tell the XPT layer that a bus reset occurred */
 	if (adv->path != NULL)
 		xpt_async(AC_BUS_RESET, adv->path, NULL);
 

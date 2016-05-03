@@ -515,7 +515,7 @@ fsl_nfc_start_command(device_t dev)
 	if (fcm->status)
 		sc->fcm.reg_mdr = LBC_READ(MDR);
 
-	/* Even if timeout occured, we should perform steps below */
+	/* Even if timeout occurred, we should perform steps below */
 	LBC_WRITE(LTESR, ltesr_v);
 	LBC_WRITE(LTEATR, 0);
 

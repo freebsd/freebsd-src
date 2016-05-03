@@ -950,7 +950,7 @@ static void radeon_cp_dispatch_clear(struct drm_device * dev,
 	}
 
 	/* hyper z clear */
-	/* no docs available, based on reverse engeneering by Stephane Marchesin */
+	/* no docs available, based on reverse engineering by Stephane Marchesin */
 	if ((flags & (RADEON_DEPTH | RADEON_STENCIL))
 	    && (flags & RADEON_CLEAR_FASTZ)) {
 
@@ -1064,7 +1064,7 @@ static void radeon_cp_dispatch_clear(struct drm_device * dev,
 					/* judging by the first tile offset needed, could possibly
 					   directly address/clear 4x4 tiles instead of 8x2 * 4x4
 					   macro tiles, though would still need clear mask for
-					   right/bottom if truely 4x4 granularity is desired ? */
+					   right/bottom if truly 4x4 granularity is desired ? */
 					OUT_RING(tileoffset * 16);
 					/* the number of tiles to clear */
 					OUT_RING(nrtilesx + 1);

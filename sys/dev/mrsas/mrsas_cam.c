@@ -362,7 +362,7 @@ mrsas_action(struct cam_sim *sim, union ccb *ccb)
  *
  * This function will execute after timeout value provided by ccb header from
  * CAM layer, if timer expires. Driver will run timer for all DCDM and LDIO
- * comming from CAM layer. This function is callback function for IO timeout
+ * coming from CAM layer. This function is callback function for IO timeout
  * and it runs in no-sleep context. Set do_timedout_reset in Adapter context
  * so that it will execute OCR/Kill adpter from ocr_thread context.
  */

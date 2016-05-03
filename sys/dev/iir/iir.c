@@ -30,7 +30,7 @@
  */
 
 /*
- * iir.c: SCSI dependant code for the Intel Integrated RAID Controller driver
+ * iir.c: SCSI dependent code for the Intel Integrated RAID Controller driver
  *
  * Written by: Achim Leubner <achim_leubner@adaptec.com>
  * Fixes/Additions: Boji Tony Kannanthanam <boji.t.kannanthanam@intel.com>

@@ -1278,7 +1278,7 @@ machfb_pci_attach(device_t dev)
 	 * Test whether the aperture is byte swapped or not, set
 	 * va_window and va_window_size as appropriate.  Note that
 	 * the aperture could be mapped either big or little endian
-	 * independently of the endianess of the host so this has
+	 * independently of the endianness of the host so this has
 	 * to be a runtime test.
 	 */
 	p32 = (uint32_t *)adp->va_buffer;

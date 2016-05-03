@@ -2451,7 +2451,7 @@ void vxge_hal_fifo_txdl_cksum_set_bits(
 /*
  * vxge_hal_fifo_txdl_interrupt_type_set - Set the interrupt type for the txdl
  * @txdlh: Descriptor handle.
- * @interrupt_type: utiliz based interupt or List interrupt
+ * @interrupt_type: utiliz based interrupt or List interrupt
  *
  * vxge_hal_fifo_txdl_interrupt_type_set is used to set the interrupt type for
  * each xmit txdl dynamically
@@ -2639,7 +2639,7 @@ vxge_hal_fifo_txdl_buffer_append(
  * @txdlh: Descriptor handle.
  * @frag_idx: Index of the data buffer in the Txdl list.
  *
- * This API in conjuction with vxge_hal_fifo_txdl_buffer_append() prepares
+ * This API in conjunction with vxge_hal_fifo_txdl_buffer_append() prepares
  * a descriptor that consists of a single physically contiguous buffer
  * which inturn contains the contents of one or more virtually contiguous
  * buffers received from the upper layer.
@@ -3950,7 +3950,7 @@ void
  * @read_length: Size of the valid data in the buffer.
  *
  * Read  HAL trace buffer contents starting from the offset
- * upto the size of the buffer or till EOF is reached.
+ * up to the size of the buffer or till EOF is reached.
  *
  * Returns: VXGE_HAL_OK - success.
  * VXGE_HAL_EOF_TRACE_BUF - No more data in the trace buffer.
@@ -5109,7 +5109,7 @@ vxge_hal_vpath_rts_rth_get(
  *
  * @vpath_handle: Virtual Path ahandle.
  * @KeySize: Number of 64-bit words
- * @Key: upto 40-byte array of 64-bit values
+ * @Key: up to 40-byte array of 64-bit values
  * This function configures the 40-byte secret which is used for hash
  * calculation.
  *
@@ -5633,7 +5633,7 @@ vxge_hal_vpath_rpa_set(
  * vxge_hal_vpath_poll_rx - Poll Rx	od Virtual Path	for completed
  *			 descriptors and process the same.
  * @vpath_handle: Virtual Path ahandle.
- * @got_rx: Buffer to return the flag set if receive interrupt is occured
+ * @got_rx: Buffer to return the flag set if receive interrupt is occurred
  *
  * The function	polls the Rx for the completed	descriptors and	calls
  * the upper-layer driver (ULD)	via supplied completion	callback.
@@ -5653,7 +5653,7 @@ vxge_hal_vpath_poll_rx(
  * vxge_hal_vpath_poll_tx - Poll Tx	for completed descriptors and process
  *			 the same.
  * @vpath_handle: Virtual Path ahandle.
- * @got_tx: Buffer to return the flag set if transmit interrupt is occured
+ * @got_tx: Buffer to return the flag set if transmit interrupt is occurred
  *
  * The function	polls the Tx for the completed	descriptors and	calls
  * the upper-layer driver (ULD)	via supplied completion callback.

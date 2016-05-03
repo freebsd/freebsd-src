@@ -722,7 +722,7 @@ cbb_o2micro_power_hack(struct cbb_softc *sc)
 
 /*
  * Restore the damage that cbb_o2micro_power_hack does to EXCA_INTR so
- * we don't have an interrupt storm on power on.  This has the efect of
+ * we don't have an interrupt storm on power on.  This has the effect of
  * disabling card status change interrupts for the duration of poweron.
  */
 static void

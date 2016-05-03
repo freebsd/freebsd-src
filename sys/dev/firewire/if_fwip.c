@@ -739,7 +739,7 @@ fwip_stream_input(struct fw_xferq *xferq)
 		/*
 		 * We must have a GASP header - leave the
 		 * encapsulation sanity checks to the generic
-		 * code. Remeber that we also have the firewire async
+		 * code. Remember that we also have the firewire async
 		 * stream header even though that isn't accounted for
 		 * in mode.stream.len.
 		 */

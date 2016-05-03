@@ -780,7 +780,7 @@ rt2560_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				return error;
 		}
 
-		/* turn assocation led on */
+		/* turn association led on */
 		rt2560_update_led(sc, 1, 0);
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR)
@@ -1096,7 +1096,7 @@ rt2560_decryption_intr(struct rt2560_softc *sc)
 	int hw, error;
 	int8_t rssi, nf;
 
-	/* retrieve last decriptor index processed by cipher engine */
+	/* retrieve last descriptor index processed by cipher engine */
 	hw = RAL_READ(sc, RT2560_SECCSR0) - sc->rxq.physaddr;
 	hw /= RT2560_RX_DESC_SIZE;
 

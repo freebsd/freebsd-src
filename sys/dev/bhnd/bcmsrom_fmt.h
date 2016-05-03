@@ -311,7 +311,7 @@
 /* SISO PA parameters are in the path0 spaces */
 #define	SROM8_SISO		96
 
-/* Legacy names for SISO PA paramters */
+/* Legacy names for SISO PA parameters */
 #define	SROM8_W0_ITTMAXP	(SROM8_SISO + SROM8_2G_ITT_MAXP)
 #define	SROM8_W0_PAB0		(SROM8_SISO + SROM8_2G_PA)
 #define	SROM8_W0_PAB1		(SROM8_SISO + SROM8_2G_PA + 1)

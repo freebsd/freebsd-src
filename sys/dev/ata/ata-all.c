@@ -426,7 +426,7 @@ ata_default_registers(device_t dev)
 void
 ata_udelay(int interval)
 {
-    /* for now just use DELAY, the timer/sleep subsytems are not there yet */
+    /* for now just use DELAY, the timer/sleep subsystems are not there yet */
     if (1 || interval < (1000000/hz) || ata_delayed_attach)
 	DELAY(interval);
     else

@@ -103,7 +103,7 @@ typedef void (*vxge_queued_f) (void *data, u32 event_type);
  *	   produce/consume operations.
  * @tail_ptr: Points to the tail of the queue. It gets changed during queue
  *	   produce/consume operations.
- * @lock: Lock for queue operations(syncronization purpose).
+ * @lock: Lock for queue operations(synchronization purpose).
  * @pages_initial:Number of pages to be initially allocated at the time
  *		 of queue creation.
  * @pages_max: Max number of pages that can be allocated in the queue.
@@ -235,7 +235,7 @@ vxge_queue_produce(vxge_queue_h queueh,
  * Returns: VXGE_QUEUE_OK - success.
  * VXGE_QUEUE_IS_EMPTY - Queue is empty.
  * VXGE_QUEUE_NOT_ENOUGH_SPACE - Requested item size(@data_max_size)
- * is too small to accomodate an item from the queue.
+ * is too small to accommodate an item from the queue.
  *
  * See also: vxge_queue_item_t {}, vxge_queue_produce().
  */
@@ -261,7 +261,7 @@ vxge_queue_produce_context(vxge_queue_h queueh,
  * Returns: VXGE_QUEUE_OK - success.
  * VXGE_QUEUE_IS_EMPTY - Queue is empty.
  * VXGE_QUEUE_NOT_ENOUGH_SPACE - Requested item size(@data_max_size)
- * is too small to accomodate an item from the queue.
+ * is too small to accommodate an item from the queue.
  *
  * See also: vxge_queue_item_t {}, vxge_queue_produce().
  */
@@ -285,7 +285,7 @@ vxge_queue_flush(vxge_queue_h queueh);
  * @queueh: Queue handle.
  *
  * This function is called in the case of no slot avaialble in the queue
- * to accomodate the newly received event.
+ * to accommodate the newly received event.
  * Note that queue cannot grow beyond the max size specified for the
  * queue.
  *

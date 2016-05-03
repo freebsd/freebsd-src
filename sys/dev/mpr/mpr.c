@@ -2671,7 +2671,7 @@ mpr_request_polled(struct mpr_softc *sc, struct mpr_command *cm)
 
 /*
  * The MPT driver had a verbose interface for config pages.  In this driver,
- * reduce it to much simplier terms, similar to the Linux driver.
+ * reduce it to much simpler terms, similar to the Linux driver.
  */
 int
 mpr_read_config_page(struct mpr_softc *sc, struct mpr_config_params *params)

@@ -793,7 +793,7 @@ struct ed_ring	{
 #define ED_3COM_PSPR		1
 
 /*
- *	Drq Timer Register. Determines number of bytes to be transfered during
+ *	Drq Timer Register. Determines number of bytes to be transferred during
  *		a DMA burst.
  */
 #define ED_3COM_DQTR		2

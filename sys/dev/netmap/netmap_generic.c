@@ -332,7 +332,7 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 
 	} else if (na->tx_rings[0].tx_pool) {
 		/* Disable netmap mode. We enter here only if the previous
-		   generic_netmap_register(na, 1) was successfull.
+		   generic_netmap_register(na, 1) was successful.
 		   If it was not, na->tx_rings[0].tx_pool was set to NULL by the
 		   error handling code below. */
 		rtnl_lock();

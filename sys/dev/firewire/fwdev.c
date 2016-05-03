@@ -349,7 +349,7 @@ readloop:
 		}
 	}
 	if (ir->stproc == NULL) {
-		/* no data avaliable */
+		/* no data available */
 		if (slept == 0) {
 			slept = 1;
 			ir->flag |= FWXFERQ_WAKEUP;

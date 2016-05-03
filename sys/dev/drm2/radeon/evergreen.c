@@ -105,7 +105,7 @@ void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev)
 	v = (ctl & PCIEM_CTL_MAX_READ_REQUEST) >> 12;
 
 	/* if bios or OS sets MAX_READ_REQUEST_SIZE to an invalid value, fix it
-	 * to avoid hangs or perfomance issues
+	 * to avoid hangs or performance issues
 	 */
 	if ((v == 0) || (v == 6) || (v == 7)) {
 		ctl &= ~PCIEM_CTL_MAX_READ_REQUEST;

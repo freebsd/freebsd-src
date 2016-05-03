@@ -406,7 +406,7 @@ cardbus_read_tuple_conf(device_t cbdev, device_t child, uint32_t start,
 }
 
 /*
- * Read the CIS data out of memroy.  We indirect through the bus space
+ * Read the CIS data out of memory.  We indirect through the bus space
  * routines to ensure proper byte ordering conversions when necessary.
  */
 static int

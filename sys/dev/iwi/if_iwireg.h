@@ -481,7 +481,7 @@ struct iwi_scan {
 #define IWI_SCAN_TYPES			5
 
 /* scan result codes */
-#define IWI_SCAN_COMPLETED		1 /* scan compeleted sucessfully */
+#define	IWI_SCAN_COMPLETED		1 /* scan compeleted successfully */
 #define IWI_SCAN_ABORTED		2 /* scan was aborted by the driver */
 
 /* structure for command IWI_CMD_SCAN_EXT */

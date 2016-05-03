@@ -35,7 +35,7 @@
  ********************************/
 
 enum fw_retval {
-	FW_SUCCESS		= 0,	/* completed sucessfully */
+	FW_SUCCESS		= 0,	/* completed successfully */
 	FW_EPERM		= 1,	/* operation not permitted */
 	FW_ENOENT		= 2,	/* no such file or directory */
 	FW_EIO			= 5,	/* input/output error; hw bad */
@@ -8635,7 +8635,7 @@ enum pcie_fw_eval {
  **********************************************/
 
 /*
- *	this register is available as 32-bit of persistent storage (accross
+ *	this register is available as 32-bit of persistent storage (across
  *	PL_RST based chip-reset) for boot drivers (i.e. firmware and driver
  *	will not write it)
  */

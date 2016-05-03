@@ -72,7 +72,7 @@ cmx_pccard_probe(device_t dev)
 }
 
 /*
- * Attach to the pccard, and call bus independant attach and
+ * Attach to the pccard, and call bus independent attach and
  * resource allocation routines.
  */
 static int

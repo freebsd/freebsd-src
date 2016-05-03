@@ -214,7 +214,7 @@ typedef struct SCIC_SDS_PORT
    SCU_PORT_PE_CONFIGURATION_REGISTER_T *port_pe_configuration_register;
 
    /**
-    * This field is the VIIT register space for ths port object.
+    * This field is the VIIT register space for this port object.
     */
    SCU_VIIT_ENTRY_T *viit_registers;
 

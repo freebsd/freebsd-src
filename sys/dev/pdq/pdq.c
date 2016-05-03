@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 static const char * const pdq_halt_codes[] = {
     "Selftest Timeout", "Host Bus Parity Error", "Host Directed Fault",
     "Software Fault", "Hardware Fault", "PC Trace Path Test",
-    "DMA Error", "Image CRC Error", "Adapter Processer Error"
+    "DMA Error", "Image CRC Error", "Adapter Processor Error"
 };
 
 static const char * const pdq_adapter_states[] = {

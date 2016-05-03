@@ -496,7 +496,7 @@ intsmb_stop(struct intsmb_softc *sc)
 	/* Timeout Procedure. */
 	sc->isbusy = 0;
 
-	/* Re-enable supressed interrupt from slave part. */
+	/* Re-enable suppressed interrupt from slave part. */
 	bus_write_1(sc->io_res, PIIX4_SMBSLVCNT, PIIX4_SMBSLVCNT_ALTEN);
 	if (error == EWOULDBLOCK)
 		return (SMB_ETIMEOUT);

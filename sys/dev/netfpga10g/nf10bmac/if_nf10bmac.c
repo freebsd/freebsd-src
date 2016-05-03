@@ -355,7 +355,7 @@ nf10bmac_rx_locked(struct nf10bmac_softc *sc)
 	/*
 	 * General problem here in case we need to sync ourselves to the
 	 * beginning of a packet.  Length will only be set for the first
-	 * read, and together with strb we can detect the begining (or
+	 * read, and together with strb we can detect the beginning (or
 	 * skip to tlast).
 	 */
 

@@ -659,7 +659,7 @@ ig4iic_smb_callback(device_t dev, int index, void *data)
 /*
  * Quick command.  i.e. START + cmd + R/W + STOP and no data.  It is
  * unclear to me how I could implement this with the intel i2c controller
- * because the controler sends STARTs and STOPs automatically with data.
+ * because the controller sends STARTs and STOPs automatically with data.
  */
 int
 ig4iic_smb_quick(device_t dev, u_char slave, int how)

@@ -289,7 +289,7 @@ icintr(device_t dev, int event, char *ptr)
 
 	case INTR_STOP:
 
-		/* if any error occured during transfert,
+		/* if any error occurred during transfert,
 		 * drop the packet */
 		sc->ic_flags &= ~IC_IFBUF_BUSY;
 		if ((sc->ic_flags & (IC_BUFFERS_BUSY | IC_BUFFER_WAITER)) ==

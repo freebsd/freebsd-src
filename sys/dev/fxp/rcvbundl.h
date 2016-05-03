@@ -62,7 +62,7 @@ rcvbundl.h file given above).
 *  driver can change algorithm.
 *
 *  CPUSAVER_DWORD - This is the location of the instruction that loads
-*    the dead-man timer with its inital value.  By writing a 16-bit
+*    the dead-man timer with its initial value.  By writing a 16-bit
 *    value to the low word of this instruction, the driver can change
 *    the timer value.  The current default is either x600 or x800;
 *    experiments show that the value probably should stay within the

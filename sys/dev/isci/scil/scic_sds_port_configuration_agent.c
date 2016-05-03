@@ -772,7 +772,7 @@ void scic_sds_apc_agent_configure_ports(
 
    // Check to see if the start timer operations should instead map to an
    // add phy operation.  This is caused because we have been waiting to
-   // add a phy to a port but could not becuase the automatic port
+   // add a phy to a port but could not because the automatic port
    // configuration engine had a choice of possible ports for the phy.
    // Since we have gone through a timeout we are going to restrict the
    // choice to the smallest possible port.
@@ -849,7 +849,7 @@ void scic_sds_apc_agent_link_up(
       //the phy is already the part of the port
 
       //if the PORT'S state is resetting then the link up is from port hard reset
-      //in this case, we need to tell the port that link up is recieved
+      //in this case, we need to tell the port that link up is received
       if (  SCI_BASE_PORT_STATE_RESETTING
             == port->parent.state_machine.current_state_id
          )

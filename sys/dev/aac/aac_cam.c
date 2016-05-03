@@ -555,7 +555,7 @@ aac_cam_fix_inquiry(struct aac_softc *sc, union ccb *ccb)
 			/*
 			 * Some aac(4) adapters will always report that a direct
 			 * access device is offline in response to a INQUIRY
-			 * command that does not retreive vital product data.
+			 * command that does not retrieve vital product data.
 			 * Force the qualifier to connected so that upper layers
 			 * correctly recognize that a disk is present.
 			 */
@@ -590,7 +590,7 @@ aac_cam_complete(struct aac_command *cm)
 	} else {
 		/*
 		 * The SRB error codes just happen to match the CAM error
-		 * codes.  How convienient!
+		 * codes.  How convenient!
 		 */
 		ccb->ccb_h.status = srbr->srb_status;
 

@@ -948,7 +948,7 @@ probe_adapters(void)
 
     /* 
      * Locate display adapters. 
-     * The AT architecture supports upto two adapters. `syscons' allows
+     * The AT architecture supports up to two adapters. `syscons' allows
      * the following combinations of adapters: 
      *     1) MDA + CGA
      *     2) MDA + EGA/VGA color 
@@ -1134,7 +1134,7 @@ probe_adapters(void)
 		case COMP_DIFFERENT:
 		default:
 		    /*
-		     * Don't use the paramter table in BIOS. It doesn't
+		     * Don't use the parameter table in BIOS. It doesn't
 		     * look familiar to us. Video mode switching is allowed
 		     * only if the new mode is the same as or based on
 		     * the initial mode. 

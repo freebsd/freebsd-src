@@ -130,7 +130,7 @@ const struct bhndb_hw_priority bhndb_bcma_priority_table[] = {
 	/*
 	 * Default Core Behavior
 	 * 
-	 * All other cores are assumed to require effecient runtime access to
+	 * All other cores are assumed to require efficient runtime access to
 	 * the default device port, and if supported by the bus, an agent port.
 	 */
 	BHNDB_CLASS_PRIO(INVALID,	-1,	DEFAULT,
@@ -183,7 +183,7 @@ const struct bhndb_hw_priority bhndb_siba_priority_table[] = {
 	/*
 	 * Default Core Behavior
 	 * 
-	 * All other cores are assumed to require effecient runtime access to
+	 * All other cores are assumed to require efficient runtime access to
 	 * the device port.
 	 */
 	BHNDB_CLASS_PRIO(INVALID,	-1,	DEFAULT,

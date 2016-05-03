@@ -1074,7 +1074,7 @@ lge_intr(arg)
 	ifp = sc->lge_ifp;
 	LGE_LOCK(sc);
 
-	/* Supress unwanted interrupts */
+	/* Suppress unwanted interrupts */
 	if (!(ifp->if_flags & IFF_UP)) {
 		lge_stop(sc);
 		LGE_UNLOCK(sc);

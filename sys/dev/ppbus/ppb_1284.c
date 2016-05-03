@@ -103,14 +103,14 @@ ppb_1284_get_state(device_t bus)
 /*
  * ppb_1284_set_state()
  *
- * Change IEEE1284 state if no error occured
+ * Change IEEE1284 state if no error occurred
  */
 int
 ppb_1284_set_state(device_t bus, int state)
 {
 	struct ppb_data *ppb = DEVTOSOFTC(bus);
 
-	/* call ppb_1284_reset_error() if you absolutly want to change
+	/* call ppb_1284_reset_error() if you absolutely want to change
 	 * the state from PPB_ERROR to another */
 	mtx_assert(ppb->ppc_lock, MA_OWNED);
 	if ((ppb->state != PPB_ERROR) &&
@@ -191,7 +191,7 @@ ppb_request_mode(int mode, int options)
 /*
  * ppb_peripheral_negociate()
  *
- * Negociate the peripheral side
+ * Negotiate the peripheral side
  */
 int
 ppb_peripheral_negociate(device_t bus, int mode, int options)
@@ -249,7 +249,7 @@ ppb_peripheral_negociate(device_t bus, int mode, int options)
 #ifdef DEBUG_1284
 			printf("A");
 #endif
-			/* negociation succeeds */
+			/* negotiation succeeds */
 		}
 	} else {
 		/* Event 5 - mode not supported */
@@ -648,11 +648,11 @@ ppb_1284_read(device_t bus, int mode, char *buffer,
 /*
  * ppb_1284_negociate()
  *
- * IEEE1284 negociation phase
+ * IEEE1284 negotiation phase
  *
  * Normal nibble mode or request device id mode (see ppb_1284.h)
  *
- * After negociation, nFAULT is low if data is available
+ * After negotiation, nFAULT is low if data is available
  */
 int
 ppb_1284_negociate(device_t bus, int mode, int options)
@@ -677,7 +677,7 @@ ppb_1284_negociate(device_t bus, int mode, int options)
 	/* ensure the host is in compatible mode */
 	ppb_set_mode(bus, PPB_COMPATIBLE);
 
-	/* reset error to catch the actual negociation error */
+	/* reset error to catch the actual negotiation error */
 	ppb_1284_reset_error(bus, PPB_FORWARD_IDLE);
 
 	/* calculate ext. value */
@@ -687,7 +687,7 @@ ppb_1284_negociate(device_t bus, int mode, int options)
 	ppb_wctr(bus, (nINIT | SELECTIN) & ~(STROBE | AUTOFEED));
 	DELAY(1);
 
-	/* enter negociation phase */
+	/* enter negotiation phase */
 	ppb_1284_set_state(bus, PPB_NEGOCIATION);
 
 	/* Event 0 - put the exten. value on the data lines */
@@ -769,7 +769,7 @@ ppb_1284_negociate(device_t bus, int mode, int options)
 		ppb_1284_set_state(bus, PPB_REVERSE_IDLE);
 		break;
 	case PPB_ECP:
-		/* negociation ok, now setup the communication */
+		/* negotiation ok, now setup the communication */
 		ppb_1284_set_state(bus, PPB_SETUP);
 		ppb_wctr(bus, (nINIT | AUTOFEED) & ~(SELECTIN | STROBE));
 
@@ -825,7 +825,7 @@ ppb_1284_terminate(device_t bus)
 #endif
 
 	/* do not reset error here to keep the error that
-	 * may occured before the ppb_1284_terminate() call */
+	 * may occurred before the ppb_1284_terminate() call */
 	ppb_1284_set_state(bus, PPB_TERMINATION);
 
 #ifdef PERIPH_1284

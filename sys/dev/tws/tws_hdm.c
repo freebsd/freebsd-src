@@ -312,7 +312,7 @@ tws_submit_command(struct tws_softc *sc, struct tws_request *req)
         TWS_TRACE_DEBUG(sc, "inbound fifo empty", mfa, 0);
 
         /* 
-         * Generaly we should not get here.
+         * Generally we should not get here.
          * If the fifo was empty we can't do any thing much 
          * retry later 
          */
@@ -428,7 +428,7 @@ tws_turn_on_interrupts(struct tws_softc *sc)
 {
 
     TWS_TRACE_DEBUG(sc, "entry", 0, 0);
-    /* turn on responce and db interrupt only */
+    /* turn on response and db interrupt only */
     tws_write_reg(sc, TWS_I2O0_HIMASK, TWS_BIT0, 4);
 
 }

@@ -342,7 +342,7 @@ siena_nvram_get_dynamic_cfg(
 	    != SIENA_MC_DYNAMIC_CONFIG_MAGIC)
 		goto invalid1;
 
-	/* All future versions of the structure must be backwards compatable */
+	/* All future versions of the structure must be backwards compatible */
 	EFX_STATIC_ASSERT(SIENA_MC_DYNAMIC_CONFIG_VERSION == 0);
 
 	hdr_length = EFX_WORD_FIELD(dcfg->length, EFX_WORD_0);

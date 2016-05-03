@@ -80,7 +80,7 @@ siena_vpd_get_static(
 		goto fail4;
 	}
 
-	/* All future versions of the structure must be backwards compatable */
+	/* All future versions of the structure must be backwards compatible */
 	EFX_STATIC_ASSERT(SIENA_MC_STATIC_CONFIG_VERSION == 0);
 
 	hdr_length = EFX_WORD_FIELD(scfg->length, EFX_WORD_0);

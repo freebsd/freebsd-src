@@ -5871,7 +5871,7 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			}
 #endif
 			/*
-			 * We've had problems with data corruption occuring on
+			 * We've had problems with data corruption occurring on
 			 * commands that complete (with no apparent error) after
 			 * we receive a LIP. This has been observed mostly on
 			 * Local Loop topologies. To be safe, let's just mark
@@ -6455,7 +6455,7 @@ isp_parse_status(ispsoftc_t *isp, ispstatusreq_t *sp, XS_T *xs, long *rp)
 		 * isn't an error, per se.
 		 *
 		 * Unfortunately, some QLogic f/w writers have, in
-		 * some cases, ommitted to *set* status to QFULL.
+		 * some cases, omitted to *set* status to QFULL.
 		 */
 #if	0
 		if (*XS_STSP(xs) != SCSI_GOOD && XS_NOERR(xs)) {

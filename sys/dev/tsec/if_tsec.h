@@ -60,12 +60,12 @@ struct tsec_softc {
 	bus_dma_tag_t	tsec_tx_dtag;	/* TX descriptors tag */
 	bus_dmamap_t	tsec_tx_dmap;	/* TX descriptors map */
 	struct tsec_desc *tsec_tx_vaddr;/* vadress of TX descriptors */
-	uint32_t	tsec_tx_raddr;	/* real adress of TX descriptors */
+	uint32_t	tsec_tx_raddr;	/* real address of TX descriptors */
 
 	bus_dma_tag_t	tsec_rx_dtag;	/* RX descriptors tag */
 	bus_dmamap_t	tsec_rx_dmap;	/* RX descriptors map */
 	struct tsec_desc *tsec_rx_vaddr; /* vadress of RX descriptors */
-	uint32_t	tsec_rx_raddr;	/* real adress of RX descriptors */
+	uint32_t	tsec_rx_raddr;	/* real address of RX descriptors */
 
 	bus_dma_tag_t	tsec_tx_mtag;	/* TX mbufs tag */
 	bus_dma_tag_t	tsec_rx_mtag;	/* TX mbufs tag */
@@ -73,7 +73,7 @@ struct tsec_softc {
 	struct rx_data_type {
 		bus_dmamap_t	map;	/* mbuf map */
 		struct mbuf	*mbuf;
-		uint32_t	paddr;	/* DMA addres of buffer */
+		uint32_t	paddr;	/* DMA address of buffer */
 	} rx_data[TSEC_RX_NUM_DESC];
 
 	uint32_t	tx_cur_desc_cnt;

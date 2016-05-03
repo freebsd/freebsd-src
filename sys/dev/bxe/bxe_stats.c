@@ -1670,7 +1670,7 @@ bxe_stats_init(struct bxe_softc *sc)
         bxe_port_stats_base_init(sc);
     }
 
-    /* mark the end of statistics initializiation */
+    /* mark the end of statistics initialization */
     sc->stats_init = FALSE;
 }
 

@@ -211,7 +211,7 @@ typedef struct snc_softc {
 
 /*
  * Accessing SONIC data structures and registers as 32 bit values
- * makes code endianess independent.  The SONIC is however always in
+ * makes code endianness independent.  The SONIC is however always in
  * bigendian mode so it is necessary to ensure that data structures shared
  * between the CPU and the SONIC are always in bigendian order.
  */

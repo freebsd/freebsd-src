@@ -284,7 +284,7 @@ cesa_free_request(struct cesa_softc *sc, struct cesa_request *cr)
 	STAILQ_CONCAT(&sc->sc_free_sdesc, &cr->cr_sdesc);
 	CESA_UNLOCK(sc, sdesc);
 
-	/* Unload DMA memory asociated with request */
+	/* Unload DMA memory associated with request */
 	if (cr->cr_dmap_loaded) {
 		bus_dmamap_unload(sc->sc_data_dtag, cr->cr_dmap);
 		cr->cr_dmap_loaded = 0;
@@ -705,7 +705,7 @@ cesa_create_chain_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			/*
 			 * Fill in current packet with data. Break if there is
 			 * no more data in current DMA segment or an error
-			 * occured.
+			 * occurred.
 			 */
 			size = cesa_fill_packet(sc, &cp, &seg);
 			if (size <= 0) {
@@ -1260,7 +1260,7 @@ cesa_detach(device_t dev)
 	/* Relase I/O and IRQ resources */
 	bus_release_resources(dev, cesa_res_spec, sc->sc_res);
 
-	/* Destory mutexes */
+	/* Destroy mutexes */
 	mtx_destroy(&sc->sc_sessions_lock);
 	mtx_destroy(&sc->sc_requests_lock);
 	mtx_destroy(&sc->sc_sdesc_lock);

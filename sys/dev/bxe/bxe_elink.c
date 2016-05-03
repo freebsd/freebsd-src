@@ -1294,7 +1294,7 @@ static void elink_ets_e3b0_set_credit_upper_bound_nig(
 *	Will return the NIG ETS registers to init values.Except
 *	credit_upper_bound.
 *	That isn't used in this configuration (No WFQ is enabled) and will be
-*	configured acording to spec
+*	configured according to spec.
 *.
 ******************************************************************************/
 static void elink_ets_e3b0_nig_disabled(const struct elink_params *params,
@@ -1411,7 +1411,7 @@ static void elink_ets_e3b0_set_credit_upper_bound_pbf(
 *	Will return the PBF ETS registers to init values.Except
 *	credit_upper_bound.
 *	That isn't used in this configuration (No WFQ is enabled) and will be
-*	configured acording to spec
+*	configured according to spec.
 *.
 ******************************************************************************/
 static void elink_ets_e3b0_pbf_disabled(const struct elink_params *params)
@@ -1469,7 +1469,7 @@ static void elink_ets_e3b0_pbf_disabled(const struct elink_params *params)
 }
 /******************************************************************************
 * Description:
-*	E3B0 disable will return basicly the values to init values.
+*	E3B0 disable will return basically the values to init values.
 *.
 ******************************************************************************/
 static elink_status_t elink_ets_e3b0_disabled(const struct elink_params *params,
@@ -1492,7 +1492,7 @@ static elink_status_t elink_ets_e3b0_disabled(const struct elink_params *params,
 
 /******************************************************************************
 * Description:
-*	Disable will return basicly the values to init values.
+*	Disable will return basically the values to init values.
 *
 ******************************************************************************/
 elink_status_t elink_ets_disabled(struct elink_params *params,
@@ -3762,7 +3762,7 @@ static elink_status_t elink_eee_initial_config(struct elink_params *params,
 {
 	vars->eee_status |= ((uint32_t) mode) << SHMEM_EEE_SUPPORTED_SHIFT;
 
-	/* Propogate params' bits --> vars (for migration exposure) */
+	/* Propagate params' bits --> vars (for migration exposure) */
 	if (params->eee_mode & ELINK_EEE_MODE_ENABLE_LPI)
 		vars->eee_status |= SHMEM_EEE_LPI_REQUESTED_BIT;
 	else
@@ -14632,7 +14632,7 @@ static void elink_check_over_curr(struct elink_params *params,
 		vars->phy_flags &= ~PHY_OVER_CURRENT_FLAG;
 }
 
-/* Returns 0 if no change occured since last check; 1 otherwise. */
+/* Returns 0 if no change occurred since last check; 1 otherwise. */
 static uint8_t elink_analyze_link_error(struct elink_params *params,
 				    struct elink_vars *vars, uint32_t status,
 				    uint32_t phy_flag, uint32_t link_flag, uint8_t notify)

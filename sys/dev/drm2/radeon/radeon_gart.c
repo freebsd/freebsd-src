@@ -698,7 +698,7 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 	if (vm->fence && vm->fence == rdev->vm_manager.active[vm->id])
 		return NULL;
 
-	/* we definately need to flush */
+	/* we definitely need to flush */
 	radeon_fence_unref(&vm->last_flush);
 
 	/* skip over VMID 0, since it is the system VM */

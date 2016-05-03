@@ -107,7 +107,7 @@ static void ips_cmd_dmaload(void *cmdptr, bus_dma_segment_t *segments,int segnum
 
 }
 
-/* is locking needed? what locking guarentees are there on removal? */
+/* is locking needed? what locking guarantees are there on removal? */
 static int ips_cmdqueue_free(ips_softc_t *sc)
 {
 	int i, error = -1;

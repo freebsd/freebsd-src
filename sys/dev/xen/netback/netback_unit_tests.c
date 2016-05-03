@@ -98,7 +98,7 @@ struct test_fixture {
 	/** Will be run if setup succeeds */
 	testcase_t *test;
 
-	/** Cleans up test data whether or not the setup suceeded*/
+	/** Cleans up test data whether or not the setup succeeded */
 	teardown_t *teardown;
 };
 

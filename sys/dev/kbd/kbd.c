@@ -283,7 +283,7 @@ kbd_unregister(keyboard_t *kbd)
 	return (0);
 }
 
-/* find a funciton table by the driver name */
+/* find a function table by the driver name */
 keyboard_switch_t
 *kbd_get_switch(char *driver)
 {
