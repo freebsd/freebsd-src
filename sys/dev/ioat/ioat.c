@@ -52,6 +52,9 @@ __FBSDID("$FreeBSD$");
 #include "ioat_hw.h"
 #include "ioat_internal.h"
 
+#ifndef	BUS_SPACE_MAXADDR_40BIT
+#define	BUS_SPACE_MAXADDR_40BIT	0xFFFFFFFFFFULL
+#endif
 #define	IOAT_INTR_TIMO	(hz / 10)
 #define	IOAT_REFLK	(&ioat->submit_lock)
 
@@ -454,7 +457,7 @@ ioat3_attach(device_t device)
 	num_descriptors = 1 << ioat->ring_size_order;
 
 	bus_dma_tag_create(bus_get_dma_tag(ioat->device), 0x40, 0x0,
-	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BUS_SPACE_MAXADDR_40BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct ioat_dma_hw_descriptor), 1,
 	    sizeof(struct ioat_dma_hw_descriptor), 0, NULL, NULL,
 	    &ioat->hw_desc_tag);
