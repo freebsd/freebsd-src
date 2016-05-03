@@ -98,7 +98,7 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 
 	/*
 	 * If there are other enqueues in progress
-	 * that preceeded us, we need to wait for them
+	 * that preceded us, we need to wait for them
 	 * to complete 
 	 */   
 	while (br->br_prod_tail != prod_head)
@@ -135,7 +135,7 @@ buf_ring_dequeue_mc(struct buf_ring *br)
 #endif
 	/*
 	 * If there are other dequeues in progress
-	 * that preceeded us, we need to wait for them
+	 * that preceded us, we need to wait for them
 	 * to complete 
 	 */   
 	while (br->br_cons_tail != cons_head)
