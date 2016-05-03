@@ -829,7 +829,7 @@ sfxge_rx_qcomplete(struct sfxge_rxq *rxq, boolean_t eop)
 		if (rx_desc->flags & (EFX_ADDR_MISMATCH | EFX_DISCARD))
 			goto discard;
 
-		/* Read the length from the psuedo header if required */
+		/* Read the length from the pseudo header if required */
 		if (rx_desc->flags & EFX_PKT_PREFIX_LEN) {
 			uint16_t tmp_size;
 			int rc;

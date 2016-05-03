@@ -390,7 +390,7 @@ efx_nic_create(
 	case EFX_FAMILY_MEDFORD:
 		enp->en_enop = (efx_nic_ops_t *)&__efx_nic_medford_ops;
 		/*
-		 * FW_ASSISTED_TSO ommitted as Medford only supports firmware
+		 * FW_ASSISTED_TSO omitted as Medford only supports firmware
 		 * assisted TSO version 2, not the v1 scheme used on Huntington.
 		 */
 		enp->en_features =

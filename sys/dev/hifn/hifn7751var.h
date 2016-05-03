@@ -128,7 +128,7 @@ struct hifn_session {
 struct hifn_softc {
 	device_t		sc_dev;		/* device backpointer */
 	struct mtx		sc_mtx;		/* per-instance lock */
-	bus_dma_tag_t		sc_dmat;	/* parent DMA tag decriptor */
+	bus_dma_tag_t		sc_dmat;	/* parent DMA tag descriptor */
 	struct resource		*sc_bar0res;
 	bus_space_handle_t	sc_sh0;		/* bar0 bus space handle */
 	bus_space_tag_t		sc_st0;		/* bar0 bus space tag */

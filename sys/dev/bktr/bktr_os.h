@@ -6,7 +6,7 @@
  * chipset.
  * Copyright Roger Hardiman and Amancio Hasty.
  *
- * bktr_os : This has all the Operating System dependant code.
+ * bktr_os : This has all the Operating System dependent code.
  *
  */
 

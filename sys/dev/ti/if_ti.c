@@ -2513,7 +2513,7 @@ ti_attach(device_t dev)
 		/*
 		 * Copper cards allow manual 10/100 mode selection,
 		 * but not manual 1000baseTX mode selection. Why?
-		 * Becuase currently there's no way to specify the
+		 * Because currently there's no way to specify the
 		 * master/slave setting through the firmware interface,
 		 * so Alteon decided to just bag it and handle it
 		 * via autonegotiation.
@@ -2747,7 +2747,7 @@ ti_discard_jumbo(struct ti_softc *sc, int i)
  * Note: we have to be able to handle three possibilities here:
  * 1) the frame is from the mini receive ring (can only happen)
  *    on Tigon 2 boards)
- * 2) the frame is from the jumbo recieve ring
+ * 2) the frame is from the jumbo receive ring
  * 3) the frame is from the standard receive ring
  */
 
@@ -2987,7 +2987,7 @@ ti_intr(void *xsc)
 		return;
 	}
 
-	/* Ack interrupt and stop others from occuring. */
+	/* Ack interrupt and stop others from occurring. */
 	CSR_WRITE_4(sc, TI_MB_HOSTINTR, 1);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
@@ -3379,7 +3379,7 @@ ti_ifmedia_upd_locked(struct ti_softc *sc)
 
 		/*
 		 * Transmit flow control can also cause problems on the
-		 * Tigon 2, apparantly with both the copper and fiber
+		 * Tigon 2, apparently with both the copper and fiber
 		 * boards.  The symptom is that the interface will just
 		 * hang.  This was reproduced with Alteon 180 switches.
 		 */

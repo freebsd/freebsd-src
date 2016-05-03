@@ -449,7 +449,7 @@ bhnd_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
  * BHND_BUS_ALLOC_RESOURCE.
  * 
  * @retval 0 success
- * @retval non-zero an error occured while activating the resource.
+ * @retval non-zero an error occurred while activating the resource.
  */
 static inline int
 bhnd_activate_resource(device_t dev, int type, int rid,
@@ -469,7 +469,7 @@ bhnd_activate_resource(device_t dev, int type, int rid,
  * BHND_BUS_ALLOC_RESOURCE.
  * 
  * @retval 0 success
- * @retval non-zero an error occured while activating the resource.
+ * @retval non-zero an error occurred while activating the resource.
  */
 static inline int
 bhnd_deactivate_resource(device_t dev, int type, int rid,
@@ -489,7 +489,7 @@ bhnd_deactivate_resource(device_t dev, int type, int rid,
  * BHND_ALLOC_RESOURCE.
  * 
  * @retval 0 success
- * @retval non-zero an error occured while activating the resource.
+ * @retval non-zero an error occurred while activating the resource.
  */
 static inline int
 bhnd_release_resource(device_t dev, int type, int rid,

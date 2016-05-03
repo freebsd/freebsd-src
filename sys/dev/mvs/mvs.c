@@ -475,7 +475,7 @@ mvs_setup_edma_queues(device_t dev)
 	ATA_OUTL(ch->r_mem, EDMA_REQQOP, work & 0xffffffff);
 	bus_dmamap_sync(ch->dma.workrq_tag, ch->dma.workrq_map,
 	    BUS_DMASYNC_PREWRITE);
-	/* Reponses queue. */
+	/* Responses queue. */
 	memset(ch->dma.workrp, 0xff, MVS_WORKRP_SIZE);
 	work = ch->dma.workrp_bus;
 	ATA_OUTL(ch->r_mem, EDMA_RESQBAH, work >> 32);
@@ -1042,7 +1042,7 @@ mvs_crbq_intr(device_t dev)
 		slot = le16toh(crpb->id) & MVS_CRPB_TAG_MASK;
 		flags = le16toh(crpb->rspflg);
 		/*
-		 * Handle only successfull completions here.
+		 * Handle only successful completions here.
 		 * Errors will be handled by main intr handler.
 		 */
 #if defined(__i386__) || defined(__amd64__)

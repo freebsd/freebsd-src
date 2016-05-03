@@ -754,7 +754,7 @@
 #define	FCDI_EVENT_PORT_CONFIG_DATA_WIDTH 32
 
 /* FCDI_EXTENDED_EVENT_PPS structuredef: Extended FCDI event to send PPS events
- * to the MC. Note that this structure | is overlayed over a normal FCDI event
+ * to the MC. Note that this structure | is overlaid over a normal FCDI event
  * such that bits 32-63 containing | event code, level, source etc remain the
  * same. In this case the data | field of the header is defined to be the
  * number of timestamps
@@ -11469,7 +11469,7 @@
 #define	MC_CMD_DUMP_BUFTBL_ENTRIES_OUT_LENMIN 12
 #define	MC_CMD_DUMP_BUFTBL_ENTRIES_OUT_LENMAX 252
 #define	MC_CMD_DUMP_BUFTBL_ENTRIES_OUT_LEN(num) (0+12*(num))
-/* Raw buffer table entries, layed out as BUFTBL_ENTRY. */
+/* Raw buffer table entries, laid out as BUFTBL_ENTRY. */
 #define	MC_CMD_DUMP_BUFTBL_ENTRIES_OUT_ENTRY_OFST 0
 #define	MC_CMD_DUMP_BUFTBL_ENTRIES_OUT_ENTRY_LEN 12
 #define	MC_CMD_DUMP_BUFTBL_ENTRIES_OUT_ENTRY_MINNUM 1
@@ -13322,7 +13322,7 @@
 #define	MC_CMD_PRIVILEGE_MASK_IN_GRP_ALL_MULTICAST     0x200 /* enum */
 #define	MC_CMD_PRIVILEGE_MASK_IN_GRP_PROMISCUOUS       0x400 /* enum */
 /* enum: Allows to set the TX packets' source MAC address to any arbitrary MAC
- * adress.
+ * address.
  */
 #define	MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING_TX   0x800
 /* enum: Privilege that allows a Function to change the MAC address configured

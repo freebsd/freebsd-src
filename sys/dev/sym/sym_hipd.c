@@ -4001,7 +4001,7 @@ static void sym_recover_scsi_int (hcb_p np, u_char hsts)
 
 	/*
 	 *  If we haven't been interrupted inside the SCRIPTS
-	 *  critical pathes, we can safely restart the SCRIPTS
+	 *  critical paths, we can safely restart the SCRIPTS
 	 *  and trust the DSA value if it matches a CCB.
 	 */
 	if ((!(dsp > SCRIPTA_BA (np, getjob_begin) &&
@@ -5185,7 +5185,7 @@ static void sym_sir_task_recovery(hcb_p np, int num)
 
 		/*
 		 *  Otherwise, check for the LUN and TASK(s)
-		 *  concerned by the cancelation.
+		 *  concerned by the cancellation.
 		 *  If it is not ABORT_TAG then it is CLEAR_QUEUE
 		 *  or an ABORT message :-)
 		 */
@@ -6134,7 +6134,7 @@ static void sym_int_sir (hcb_p np)
 		}
 		goto out;
 	/*
-	 *  The device wants us to tranfer more data than
+	 *  The device wants us to transfer more data than
 	 *  expected or in the wrong direction.
 	 *  The number of extra bytes is in scratcha.
 	 *  It is a data overrun condition.

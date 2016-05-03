@@ -214,7 +214,7 @@ t4_ddp_set_map(struct cxgbei_data *ci, void *iccp,
 
 	/*
 	 * on T4, if we use a mix of IMMD and DSGL with ULP_MEM_WRITE,
-	 * the order would not be garanteed, so we will stick with IMMD
+	 * the order would not be guaranteed, so we will stick with IMMD
 	 */
 	gl->tid = toep->tid;
 	gl->port_id = toep->vi->pi->port_id;

@@ -783,7 +783,7 @@ typedef struct hv_vmbus_channel {
 
 	/*
 	 * From Win8, this field specifies the target virtual process
-	 * on which to deliver the interupt from the host to guest.
+	 * on which to deliver the interrupt from the host to guest.
 	 * Before Win8, all channel interrupts would only be
 	 * delivered on cpu 0. Setting this value to 0 would preserve
 	 * the earlier behavior.

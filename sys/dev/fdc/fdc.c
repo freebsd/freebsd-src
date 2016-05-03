@@ -2202,7 +2202,7 @@ fd_probe(device_t dev)
 				/* anything responding? */
 				if (fdc_sense_int(fdc, &st0, NULL) == 0 &&
 				    (st0 & NE7_ST0_EC) == 0)
-					break; /* already probed succesfully */
+					break; /* already probed successfully */
 			}
 		}
 	}

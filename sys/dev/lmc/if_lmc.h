@@ -236,14 +236,14 @@
 
 /* T3   GPIO bits */
 #define GPIO_T3_DAC		0x04	/* DAC chip select                 */
-#define GPIO_T3_INTEN		0x08	/* Framer Interupt enable          */
+#define	GPIO_T3_INTEN		0x08	/* Framer Interrupt enable          */
 
 /* SSI  GPIO bits */
 #define GPIO_SSI_SYNTH		0x04	/* Synth osc chip select           */
 #define GPIO_SSI_DCE		0x08	/* provide clock on TXCLOCK output */
 
 /* T1E1 GPIO bits */
-#define GPIO_T1_INTEN		0x08	/* Framer Interupt enable          */
+#define	GPIO_T1_INTEN		0x08	/* Framer Interrupt enable          */
 
 /* MII register 16 bits common to all cards */
 /* NB: LEDs  for HSSI & SSI are in DIFFERENT bits than for T1E1 & T3; oops */
