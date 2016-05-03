@@ -905,7 +905,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	WITH_ICONV has been split into two feature sets.  WITH_ICONV now
 	enables just the iconv* functionality and is now on by default.
 	WITH_LIBICONV_COMPAT enables the libiconv api and link time
-	compatability.  Set WITHOUT_ICONV to build the old way.
+	compatibility.  Set WITHOUT_ICONV to build the old way.
 	If you have been using WITH_ICONV before, you will very likely
 	need to turn on WITH_LIBICONV_COMPAT.
 

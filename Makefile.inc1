@@ -1037,7 +1037,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 .for dist in base ${EXTRA_DISTRIBUTIONS}
 	@# For each file that exists in this dist, print the corresponding
 	@# line from the METALOG.  This relies on the fact that
-	@# a line containing only the filename will sort immediatly before
+	@# a line containing only the filename will sort immediately before
 	@# the relevant mtree line.
 	cd ${DESTDIR}/${DISTDIR}; \
 	find ./${dist} | sort -u ${METALOG} - | \
@@ -1047,7 +1047,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 .for dist in ${DEBUG_DISTRIBUTIONS}
 	@# For each file that exists in this dist, print the corresponding
 	@# line from the METALOG.  This relies on the fact that
-	@# a line containing only the filename will sort immediatly before
+	@# a line containing only the filename will sort immediately before
 	@# the relevant mtree line.
 	cd ${DESTDIR}/${DISTDIR}; \
 	find ./${dist}/usr/lib/debug | sort -u ${METALOG} - | \
