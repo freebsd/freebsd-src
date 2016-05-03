@@ -619,7 +619,7 @@ struct xbb_softc {
 	 * There are situations where the back and front ends can
 	 * have a different, native abi (e.g. intel x86_64 and
 	 * 32bit x86 domains on the same machine).  The back-end
-	 * always accomodates the front-end's native abi.  That
+	 * always accommodates the front-end's native abi.  That
 	 * value is pulled from the XenStore and recorded here.
 	 */
 	int			  abi;
@@ -788,13 +788,13 @@ struct xbb_softc {
 	/** Number of requests we completed with an error status*/
 	uint64_t		  reqs_completed_with_error;
 
-	/** How many forced dispatches (i.e. without coalescing) have happend */
+	/** How many forced dispatches (i.e. without coalescing) have happened */
 	uint64_t		  forced_dispatch;
 
-	/** How many normal dispatches have happend */
+	/** How many normal dispatches have happened */
 	uint64_t		  normal_dispatch;
 
-	/** How many total dispatches have happend */
+	/** How many total dispatches have happened */
 	uint64_t		  total_dispatch;
 
 	/** How many times we have run out of KVA */
@@ -1957,7 +1957,7 @@ xbb_run_queue(void *context, int pending)
 			 * we've already consumed all necessary data out
 			 * of the version of the request in the ring buffer
 			 * (for native mode).  We must update the consumer
-			 * index  before issueing back-end I/O so there is
+			 * index  before issuing back-end I/O so there is
 			 * no possibility that it will complete and a
 			 * response be generated before we make room in 
 			 * the queue for that response.
@@ -3062,7 +3062,7 @@ xbb_collect_frontend_info(struct xbb_softc *xbb)
 	 * and the new value is outside of its allowed range.
 	 *
 	 * \note xs_gather() returns on the first encountered error, so
-	 *       we must use independant calls in order to guarantee
+	 *       we must use independent calls in order to guarantee
 	 *       we don't miss information in a sparsly populated front-end
 	 *       tree.
 	 *
@@ -3739,7 +3739,7 @@ xbb_attach(device_t dev)
  * 
  * \note A block back device may be detached at any time in its life-cycle,
  *       including part way through the attach process.  For this reason,
- *       initialization order and the intialization state checks in this
+ *       initialization order and the initialization state checks in this
  *       routine must be carefully coupled so that attach time failures
  *       are gracefully handled.
  */

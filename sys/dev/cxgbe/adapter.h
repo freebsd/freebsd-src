@@ -621,7 +621,7 @@ struct sge_wrq {
 
 	/*
 	 * Scratch space for work requests that wrap around after reaching the
-	 * status page, and some infomation about the last WR that used it.
+	 * status page, and some information about the last WR that used it.
 	 */
 	uint16_t ss_pidx;
 	uint16_t ss_len;

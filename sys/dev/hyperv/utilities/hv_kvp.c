@@ -118,7 +118,7 @@ typedef struct hv_kvp_sc {
 	struct hv_util_sc	util_sc;
 
 	/* Unless specified the pending mutex should be
-	 * used to alter the values of the following paramters:
+	 * used to alter the values of the following parameters:
 	 * 1. req_in_progress
 	 * 2. req_timed_out
 	 */
@@ -778,7 +778,7 @@ hv_kvp_dev_daemon_read(struct cdev *dev, struct uio *uio, int ioflag __unused)
 
 /*
  * hv_kvp_daemon write invokes this function
- * acts as a recieve from daemon
+ * acts as a receive from daemon
  */
 static int
 hv_kvp_dev_daemon_write(struct cdev *dev, struct uio *uio, int ioflag __unused)

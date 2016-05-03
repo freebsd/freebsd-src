@@ -607,7 +607,7 @@ upload_data(struct sbni_softc *sc, u_int framelen, u_int frameno,
 
 		/*
 		 * if CRC is right but framelen incorrect then transmitter
-		 * error was occured... drop entire packet
+		 * error was occurred... drop entire packet
 		 */
 		} else if ((frame_ok = skip_tail(sc, framelen, crc)) != 0) {
 			sc->wait_frameno = 0;

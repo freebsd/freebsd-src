@@ -420,7 +420,7 @@ siba_register_addrspaces(device_t dev, struct siba_devinfo *di,
 
 	/* Region numbers must be assigned in order, but our siba address
 	 * space IDs may be sparsely allocated; thus, we track
-	 * the region index seperately. */
+	 * the region index separately. */
 	region_num = 0;
 
 	/* Register the device address space entries */

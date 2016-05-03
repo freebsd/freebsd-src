@@ -633,7 +633,7 @@ struct t3_swrq {
  * A T3 WQ implements both the SQ and RQ.
  */
 struct t3_wq {
-	union t3_wr *queue;		/* DMA accessable memory */
+	union t3_wr *queue;		/* DMA accessible memory */
 	bus_addr_t dma_addr;		/* DMA address for HW */
 	u32 error;			/* 1 once we go to ERROR */
 	u32 qpid;

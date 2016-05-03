@@ -17,7 +17,7 @@
 # finite.  This requires balancing the configuration/operation needs of
 # device drivers across OSes and a large number of customer application.
 #
-# Some of the more important resources to allocate and their constaints are:
+# Some of the more important resources to allocate and their constraints are:
 #  1. Virtual Interfaces: 128.
 #  2. Ingress Queues with Free Lists: 1024.  PCI-E SR-IOV Virtual Functions
 #     must use a power of 2 Ingress Queues.
@@ -292,7 +292,7 @@
 # to directly select the type of Physical Function to which they wish to be
 # attached.
 #
-# Note that the actual values used for the PCI-E Intelectual Property will be
+# Note that the actual values used for the PCI-E Intellectual Property will be
 # 1 less than those below since that's the way it "counts" things.  For
 # readability, we use the number we actually mean ...
 #

@@ -633,7 +633,7 @@
 #define PHY_BMSR		0x01	/* Basic Mode Status Register */
 #define	PHY_ID1			0x02	/* PHY ID 1 */
 #define	PHY_ID2			0x03	/* PHY ID 2 */
-#define PHY_ANAR		0x04	/* Auto-Negotiation Advertisment Register */
+#define	PHY_ANAR		0x04	/* Auto-Negotiation Advertisement Register */
 #define PHY_LPAR		0x05	/* Auto-Negotiation Link Partner Ability Register */
 #define PHY_ANER		0x06	/* Auto-Negotiation Expansion Register */
 

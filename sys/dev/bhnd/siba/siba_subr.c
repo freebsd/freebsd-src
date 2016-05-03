@@ -337,7 +337,7 @@ siba_admatch_offset(uint8_t addrspace)
  * @param[out] size The parsed size.
  * 
  * @retval 0 success
- * @retval non-zero a parse error occured.
+ * @retval non-zero a parse error occurred.
  */
 int
 siba_parse_admatch(uint32_t am, uint32_t *addr, uint32_t *size)

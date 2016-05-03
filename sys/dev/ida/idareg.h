@@ -295,7 +295,7 @@ struct ida_phys_drv_info {
 	u_int8_t	scsi_lun;
 	u_int8_t	ympd_flags;	/* yet more physical drive flags */
 #define	YMPDF_DRIVE_WCE_SET	0x40	/* WCE currently set */
-#define	YMPDF_DRIVE_WCE_CHNG	0x80	/* WCE changable */
+#define	YMPDF_DRIVE_WCE_CHNG	0x80	/* WCE changeable */
 	u_int8_t	reserved;
 	u_int32_t	spi_speed_rules;
 	u_int8_t	phys_con[2];	/* Physical Connector */

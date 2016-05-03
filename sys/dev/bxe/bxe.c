@@ -2221,7 +2221,7 @@ storm_memset_eq_prod(struct bxe_softc *sc,
 /*
  * Post a slowpath command.
  *
- * A slowpath command is used to propogate a configuration change through
+ * A slowpath command is used to propagate a configuration change through
  * the controller in a controlled manner, allowing each STORM processor and
  * other H/W blocks to phase in the change.  The commands sent on the
  * slowpath are referred to as ramrods.  Depending on the ramrod used the
@@ -4248,7 +4248,7 @@ bxe_nic_unload(struct bxe_softc *sc,
 
     /*
      * Nothing to do during unload if previous bxe_nic_load()
-     * did not completed succesfully - all resourses are released.
+     * did not completed successfully - all resourses are released.
      */
     if ((sc->state == BXE_STATE_CLOSED) ||
         (sc->state == BXE_STATE_ERROR)) {
@@ -4762,7 +4762,7 @@ bxe_dump_mbuf(struct bxe_softc *sc,
  * Checks to ensure the 13 bd sliding window is >= MSS for TSO.
  * Check that (13 total bds - 3 bds) = 10 bd window >= MSS.
  * The window: 3 bds are = 1 for headers BD + 2 for parse BD and last BD
- * The headers comes in a seperate bd in FreeBSD so 13-3=10.
+ * The headers comes in a separate bd in FreeBSD so 13-3=10.
  * Returns: 0 if OK to send, 1 if packet needs further defragmentation
  */
 static int
@@ -7990,7 +7990,7 @@ bxe_attn_int_deasserted2(struct bxe_softc *sc,
             mask1 = REG_RD(sc, PXP2_REG_PXP2_INT_MASK_1);
             val0 = REG_RD(sc, PXP2_REG_PXP2_INT_STS_0);
             /*
-             * If the olny PXP2_EOP_ERROR_BIT is set in
+             * If the only PXP2_EOP_ERROR_BIT is set in
              * STS0 and STS1 - clear it
              *
              * probably we lose additional attentions between
@@ -10627,7 +10627,7 @@ bxe_set_234_gates(struct bxe_softc *sc,
                (!close) ? (val | HC_CONFIG_0_REG_BLOCK_DISABLE_0) :
                (val & ~(uint32_t)HC_CONFIG_0_REG_BLOCK_DISABLE_0));
     } else {
-        /* Prevent incomming interrupts in IGU */
+        /* Prevent incoming interrupts in IGU */
         val = REG_RD(sc, IGU_REG_BLOCK_CONFIGURATION);
 
         REG_WR(sc, IGU_REG_BLOCK_CONFIGURATION,

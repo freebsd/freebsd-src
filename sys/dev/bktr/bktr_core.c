@@ -256,7 +256,7 @@ typedef u_char bool_t;
  */
 
 #define MAX_VBI_LINES	      16   /* Maximum for all vidoe formats */
-#define VBI_LINE_SIZE         2048 /* Store upto 2048 bytes per line */
+#define	VBI_LINE_SIZE         2048 /* Store up to 2048 bytes per line */
 #define VBI_BUFFER_ITEMS      20   /* Number of frames we buffer */
 #define VBI_DATA_SIZE         (VBI_LINE_SIZE * MAX_VBI_LINES * 2)
 #define VBI_BUFFER_SIZE       (VBI_DATA_SIZE * VBI_BUFFER_ITEMS)
@@ -626,7 +626,7 @@ bktr_store_address(unit, BKTR_MEM_BUF,          buf);
 	init_audio_devices( bktr );
 
 #ifdef BKTR_NEW_MSP34XX_DRIVER
-	/* setup the kenrel thread */
+	/* setup the kernel thread */
 	err = msp_attach( bktr );
 	if ( err != 0 ) /* error doing kernel thread stuff, disable msp3400c */
 		bktr->card.msp3400c = 0;
@@ -1786,7 +1786,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct thr
 			    && bktr->video.addr == 0) {
 
 /*****************************/
-/* *** OS Dependant code *** */
+/* *** OS Dependent code *** */
 /*****************************/
 #if defined(__NetBSD__) || defined(__OpenBSD__)
                                 bus_dmamap_t dmamap;
@@ -2369,7 +2369,7 @@ common_ioctl( bktr_ptr_t bktr, ioctl_cmd_t cmd, caddr_t arg )
 		/*   Tuner is MUX0, RCA is MUX1, S-Video is MUX2 */
 		/* On the Hauppauge bt878 boards, */
 		/*   Tuner is MUX0, RCA is MUX3 */
-		/* Unfortunatly Meteor driver codes DEV_RCA as DEV_0, so we */
+		/* Unfortunately Meteor driver codes DEV_RCA as DEV_0, so we */
 		/* stick with this system in our Meteor Emulation */
 
 		switch(*(unsigned long *)arg & METEOR_DEV_MASK) {

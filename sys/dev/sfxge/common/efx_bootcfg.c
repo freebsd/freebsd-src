@@ -73,7 +73,7 @@ efx_bootcfg_verify(
 	size_t used = 0;
 	efx_rc_t rc;
 
-	/* Start parsing tags immediatly after the checksum */
+	/* Start parsing tags immediately after the checksum */
 	for (offset = 1; offset < size; ) {
 		uint8_t tag;
 		uint8_t length;
