@@ -223,7 +223,7 @@ static int
 canpromote(int i, int from, int to)
 {
 	const struct ieee80211_channel *fc = &chaninfo->ic_chans[i];
-	int j;
+	u_int j;
 
 	if ((fc->ic_flags & from) != from)
 		return i;
@@ -302,7 +302,7 @@ promote(int i)
 static void
 mapfreq(struct ieee80211_channel *chan, int freq, int flags)
 {
-	int i;
+	u_int i;
 
 	for (i = 0; i < chaninfo->ic_nchans; i++) {
 		const struct ieee80211_channel *c = &chaninfo->ic_chans[i];
@@ -322,7 +322,7 @@ mapfreq(struct ieee80211_channel *chan, int freq, int flags)
 static void
 mapchan(struct ieee80211_channel *chan, int ieee, int flags)
 {
-	int i;
+	u_int i;
 
 	for (i = 0; i < chaninfo->ic_nchans; i++) {
 		const struct ieee80211_channel *c = &chaninfo->ic_chans[i];
@@ -2939,7 +2939,7 @@ copy_essid(char buf[], size_t bufsize, const u_int8_t *essid, size_t essid_len)
 {
 	const u_int8_t *p; 
 	size_t maxlen;
-	int i;
+	u_int i;
 
 	if (essid_len > bufsize)
 		maxlen = bufsize;
@@ -4133,7 +4133,7 @@ static void
 printkey(const struct ieee80211req_key *ik)
 {
 	static const uint8_t zerodata[IEEE80211_KEYBUF_SIZE];
-	int keylen = ik->ik_keylen;
+	u_int keylen = ik->ik_keylen;
 	int printcontents;
 
 	printcontents = printkeys &&
@@ -4170,7 +4170,7 @@ printkey(const struct ieee80211req_key *ik)
 		break;
 	}
 	if (printcontents) {
-		int i;
+		u_int i;
 
 		printf(" <");
 		for (i = 0; i < keylen; i++)
