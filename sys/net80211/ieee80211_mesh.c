@@ -1155,7 +1155,7 @@ mesh_forward(struct ieee80211vap *vap, struct mbuf *m,
 	IEEE80211_TX_UNLOCK_ASSERT(ic);
 
 	/*
-	 * mesh ttl of 1 means we are the last one receving it,
+	 * mesh ttl of 1 means we are the last one receiving it,
 	 * according to amendment we decrement and then check if
 	 * 0, if so we dont forward.
 	 */

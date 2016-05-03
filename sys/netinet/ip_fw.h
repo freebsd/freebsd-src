@@ -861,9 +861,9 @@ typedef struct	_ipfw_obj_tentry {
 #define	IPFW_CTF_ATOMIC	0x01		/* Perform atomic operation	*/
 /* Operation results */
 #define	IPFW_TR_IGNORED		0	/* Entry was ignored (rollback)	*/
-#define	IPFW_TR_ADDED		1	/* Entry was succesfully added	*/
-#define	IPFW_TR_UPDATED		2	/* Entry was succesfully updated*/
-#define	IPFW_TR_DELETED		3	/* Entry was succesfully deleted*/
+#define	IPFW_TR_ADDED		1	/* Entry was successfully added	*/
+#define	IPFW_TR_UPDATED		2	/* Entry was successfully updated*/
+#define	IPFW_TR_DELETED		3	/* Entry was successfully deleted*/
 #define	IPFW_TR_LIMIT		4	/* Entry was ignored (limit)	*/
 #define	IPFW_TR_NOTFOUND	5	/* Entry was not found		*/
 #define	IPFW_TR_EXISTS		6	/* Entry already exists		*/
