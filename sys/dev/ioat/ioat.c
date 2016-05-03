@@ -135,7 +135,7 @@ static device_method_t ioat_pci_methods[] = {
 	DEVMETHOD(device_probe,     ioat_probe),
 	DEVMETHOD(device_attach,    ioat_attach),
 	DEVMETHOD(device_detach,    ioat_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ioat_pci_driver = {
