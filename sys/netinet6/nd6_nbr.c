@@ -623,7 +623,6 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6,
 		RTFREE(ro.ro_rt);
 	}
 	m_freem(m);
-	return;
 }
 
 #ifndef BURN_BRIDGES
@@ -901,12 +900,6 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 
 			in6 = &L3_ADDR_SIN6(ln)->sin6_addr;
 
-			/*
-			 * Lock to protect the default router list.
-			 * XXX: this might be unnecessary, since this function
-			 * is only called under the network software interrupt
-			 * context.  However, we keep it just for safety.
-			 */
 			dr = defrouter_lookup(in6, ln->lle_tbl->llt_ifp);
 			if (dr)
 				defrtrlist_del(dr);
@@ -1127,7 +1120,6 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		RTFREE(ro.ro_rt);
 	}
 	m_freem(m);
-	return;
 }
 
 #ifndef BURN_BRIDGES
