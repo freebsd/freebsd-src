@@ -67,6 +67,12 @@
 #define	BWN_PHYTYPE_G			0x02
 #define	BWN_PHYTYPE_N			0x04
 #define	BWN_PHYTYPE_LP			0x05
+#define	BWN_PHYTYPE_SSLPN		0x06
+#define	BWN_PHYTYPE_HT			0x07
+#define	BWN_PHYTYPE_LCN			0x08
+#define	BWN_PHYTYPE_LCNXN		0x09
+#define	BWN_PHYTYPE_LCN40		0x0a
+#define	BWN_PHYTYPE_AC			0x0b
 
 #define	BWN_DMA0_REASON			0x20
 #define	BWN_DMA0_INTR_MASK		0x24
