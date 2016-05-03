@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2016
+.Dd May 3, 2016
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -367,14 +367,28 @@ Takes a file descriptor as the identifier and the events to watch for in
 .Va fflags ,
 and returns when one or more of the requested events occurs on the descriptor.
 The events to monitor are:
-.Bl -tag -width "Dv NOTE_RENAME"
+.Bl -tag -width "Dv NOTE_CLOSE_WRITE"
+.It Dv NOTE_ATTRIB
+The file referenced by the descriptor had its attributes changed.
+.It Dv NOTE_CLOSE
+A file descriptor referencing the monitored file, was closed.
+The closed file descriptor did not possesed write access.
+.It Dv NOTE_CLOSE_WRITE
+A file descriptor referencing the monitored file, was closed.
+The closed file descriptor has write access.
+.Pp
+This note, as well as
+.Dv NOTE_CLOSE ,
+are not activated when files are closed forcibly by
+.Xr unmount 2 or
+.Xr revoke 2 .
+Instead,
+.Dv NOTE_REVOKE
+is sent for such events.
 .It Dv NOTE_DELETE
 The
 .Fn unlink
-system call
-was called on the file referenced by the descriptor.
-.It Dv NOTE_WRITE
-A write occurred on the file referenced by the descriptor.
+system call was called on the file referenced by the descriptor.
 .It Dv NOTE_EXTEND
 For regular file, the file referenced by the descriptor was extended.
 .Pp
@@ -383,20 +397,24 @@ as the result of rename operation.
 The
 .Dv NOTE_EXTEND
 event is not reported when a name is changed inside the directory.
-.It Dv NOTE_ATTRIB
-The file referenced by the descriptor had its attributes changed.
 .It Dv NOTE_LINK
 The link count on the file changed.
 In particular, the
 .Dv NOTE_LINK
 event is reported if a subdirectory was created or deleted inside
 the directory referenced by the descriptor.
+.It Dv NOTE_OPEN
+The file referenced by the descriptor was opened.
+.It Dv NOTE_READ
+A read occurred on the file referenced by the descriptor.
 .It Dv NOTE_RENAME
 The file referenced by the descriptor was renamed.
 .It Dv NOTE_REVOKE
 Access to the file was revoked via
 .Xr revoke 2
 or the underlying file system was unmounted.
+.It Dv NOTE_WRITE
+A write occurred on the file referenced by the descriptor.
 .El
 .Pp
 On return,
