@@ -442,6 +442,7 @@ pci_iov_set_ari(device_t bus)
 			}
 		}
 	}
+	free(devlist, M_TEMP);
 
 	/*
 	 * If we called this function some device must have the SR-IOV
@@ -451,10 +452,14 @@ pci_iov_set_ari(device_t bus)
 	    ("Could not find child of %s with SR-IOV capability",
 	    device_get_nameunit(bus)));
 
-	iov_ctl = pci_read_config(lowest, iov_pos + PCIR_SRIOV_CTL, 2);
+	iov_ctl = pci_read_config(lowest, lowest_pos + PCIR_SRIOV_CTL, 2);
 	iov_ctl |= PCIM_SRIOV_ARI_EN;
-	pci_write_config(lowest, iov_pos + PCIR_SRIOV_CTL, iov_ctl, 2);
-	free(devlist, M_TEMP);
+	pci_write_config(lowest, lowest_pos + PCIR_SRIOV_CTL, iov_ctl, 2);
+	if ((pci_read_config(lowest, lowest_pos + PCIR_SRIOV_CTL, 2) &
+	    PCIM_SRIOV_ARI_EN) == 0) {
+		device_printf(lowest, "failed to enable ARI\n");
+		return (ENXIO);
+	}
 	return (0);
 }
 
