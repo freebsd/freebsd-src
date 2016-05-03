@@ -46,6 +46,7 @@
 #include <cddl/dev/dtrace/dtrace_cddl.h>
 #include <sys/types.h>
 #include <sys/proc.h>
+#include <sys/rmlock.h>
 #include <sys/dtrace_bsd.h>
 #include <cddl/dev/dtrace/x86/regset.h>
 #include <machine/segments.h>
@@ -749,11 +750,13 @@ fasttrap_return_common(struct reg *rp, uintptr_t pc, pid_t pid,
 	fasttrap_id_t *id;
 #ifdef illumos
 	kmutex_t *pid_mtx;
-#endif
 
-#ifdef illumos
 	pid_mtx = &cpu_core[CPU->cpu_id].cpuc_pid_lock;
 	mutex_enter(pid_mtx);
+#else
+	struct rm_priotracker tracker;
+
+	rm_rlock(&fasttrap_tp_lock, &tracker);
 #endif
 	bucket = &fasttrap_tpoints.fth_table[FASTTRAP_TPOINTS_INDEX(pid, pc)];
 
@@ -771,6 +774,8 @@ fasttrap_return_common(struct reg *rp, uintptr_t pc, pid_t pid,
 	if (tp == NULL) {
 #ifdef illumos
 		mutex_exit(pid_mtx);
+#else
+		rm_runlock(&fasttrap_tp_lock, &tracker);
 #endif
 		return;
 	}
@@ -794,6 +799,8 @@ fasttrap_return_common(struct reg *rp, uintptr_t pc, pid_t pid,
 
 #ifdef illumos
 	mutex_exit(pid_mtx);
+#else
+	rm_runlock(&fasttrap_tp_lock, &tracker);
 #endif
 }
 
@@ -1002,6 +1009,7 @@ fasttrap_pid_probe(struct reg *rp)
 {
 	proc_t *p = curproc;
 #ifndef illumos
+	struct rm_priotracker tracker;
 	proc_t *pp;
 #endif
 	uintptr_t pc = rp->r_rip - 1;
@@ -1061,8 +1069,7 @@ fasttrap_pid_probe(struct reg *rp)
 	sx_sunlock(&proctree_lock);
 	pp = NULL;
 
-	PROC_LOCK(p);
-	_PHOLD(p);
+	rm_rlock(&fasttrap_tp_lock, &tracker);
 #endif
 
 	bucket = &fasttrap_tpoints.fth_table[FASTTRAP_TPOINTS_INDEX(pid, pc)];
@@ -1085,8 +1092,7 @@ fasttrap_pid_probe(struct reg *rp)
 #ifdef illumos
 		mutex_exit(pid_mtx);
 #else
-		_PRELE(p);
-		PROC_UNLOCK(p);
+		rm_runlock(&fasttrap_tp_lock, &tracker);
 #endif
 		return (-1);
 	}
@@ -1212,7 +1218,7 @@ fasttrap_pid_probe(struct reg *rp)
 #ifdef illumos
 	mutex_exit(pid_mtx);
 #else
-	PROC_UNLOCK(p);
+	rm_runlock(&fasttrap_tp_lock, &tracker);
 #endif
 	tp = &tp_local;
 
@@ -1825,7 +1831,6 @@ done:
 #ifndef illumos
 	PROC_LOCK(p);
 	proc_write_regs(curthread, rp);
-	_PRELE(p);
 	PROC_UNLOCK(p);
 #endif
 
