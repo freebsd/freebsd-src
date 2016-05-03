@@ -1833,7 +1833,7 @@ ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode m
 		{   6 | IFM_IEEE80211_11A, IFM_IEEE80211_OFDM3 },
 		{   9 | IFM_IEEE80211_11A, IFM_IEEE80211_OFDM4 },
 		{  54 | IFM_IEEE80211_11A, IFM_IEEE80211_OFDM27 },
-		/* NB: OFDM72 doesn't realy exist so we don't handle it */
+		/* NB: OFDM72 doesn't really exist so we don't handle it */
 	};
 	static const struct ratemedia htrates[] = {
 		{   0, IFM_IEEE80211_MCS },

@@ -2217,7 +2217,7 @@ ieee80211_node_timeout(void *arg)
 	 * Defer timeout processing if a channel switch is pending.
 	 * We typically need to be mute so not doing things that
 	 * might generate frames is good to handle in one place.
-	 * Supressing the station timeout processing may extend the
+	 * Suppressing the station timeout processing may extend the
 	 * lifetime of inactive stations (by not decrementing their
 	 * idle counters) but this should be ok unless the CSA is
 	 * active for an unusually long time.

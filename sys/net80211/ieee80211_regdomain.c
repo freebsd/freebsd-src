@@ -266,7 +266,7 @@ ieee80211_alloc_countryie(struct ieee80211com *ic)
 	 * Indoor/Outdoor portion of country string:
 	 *     'I' indoor only
 	 *     'O' outdoor only
-	 *     ' ' all enviroments
+	 *     ' ' all environments
 	 */
 	ie->cc[2] = (rd->location == 'I' ? 'I' :
 		     rd->location == 'O' ? 'O' : ' ');

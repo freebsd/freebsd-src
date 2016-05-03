@@ -1376,7 +1376,7 @@ tcp_discardcb(struct tcpcb *tp)
 		 * Update the ssthresh always when the conditions below
 		 * are satisfied. This gives us better new start value
 		 * for the congestion avoidance for new connections.
-		 * ssthresh is only set if packet loss occured on a session.
+		 * ssthresh is only set if packet loss occurred on a session.
 		 *
 		 * XXXRW: 'so' may be NULL here, and/or socket buffer may be
 		 * being torn down.  Ideally this code would not use 'so'.

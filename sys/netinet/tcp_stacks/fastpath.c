@@ -185,7 +185,7 @@ tcp_do_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	short ostate = 0;
 #endif
         /*
-	 * The following if statment will be true if
+	 * The following if statement will be true if
 	 * we are doing the win_up_in_fp <and>
 	 * - We have more new data (SEQ_LT(tp->snd_wl1, th->th_seq)) <or>
 	 * - No more new data, but we have an ack for new data
@@ -1061,7 +1061,7 @@ tcp_do_slowpath(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 * change and FIN isn't set),
 				 * the ack is the biggest we've
 				 * seen and we've seen exactly our rexmt
-				 * threshhold of them, assume a packet
+				 * threshold of them, assume a packet
 				 * has been dropped and retransmit it.
 				 * Kludge snd_nxt & the congestion
 				 * window so we send only this one
