@@ -116,7 +116,7 @@ void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
 void	fill_based_sd(struct segment_descriptor *sdp, uint32_t base);
 void	initializecpu(void);
 void	initializecpucache(void);
-bool	intel_fix_cpuid(void);
+bool	fix_cpuid(void);
 void	i686_pagezero(void *addr);
 void	sse2_pagezero(void *addr);
 void	init_AMD_Elan_sc520(void);
