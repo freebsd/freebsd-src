@@ -344,7 +344,6 @@ static void	iwn_scan_end(struct ieee80211com *);
 static void	iwn_set_channel(struct ieee80211com *);
 static void	iwn_scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static void	iwn_scan_mindwell(struct ieee80211_scan_state *);
-static void	iwn_hw_reset(void *, int);
 #ifdef	IWN_DEBUG
 static char	*iwn_get_csr_string(int);
 static void	iwn_debug_register(struct iwn_softc *);
@@ -677,7 +676,6 @@ iwn_attach(device_t dev)
 
 	callout_init_mtx(&sc->calib_to, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->watchdog_to, &sc->sc_mtx, 0);
-	TASK_INIT(&sc->sc_reinit_task, 0, iwn_hw_reset, sc);
 	TASK_INIT(&sc->sc_radioon_task, 0, iwn_radio_on, sc);
 	TASK_INIT(&sc->sc_radiooff_task, 0, iwn_radio_off, sc);
 	TASK_INIT(&sc->sc_panic_task, 0, iwn_panicked, sc);
@@ -1400,7 +1398,6 @@ iwn_detach(device_t dev)
 		iwn_xmit_queue_drain(sc);
 		IWN_UNLOCK(sc);
 
-		ieee80211_draintask(&sc->sc_ic, &sc->sc_reinit_task);
 		ieee80211_draintask(&sc->sc_ic, &sc->sc_radioon_task);
 		ieee80211_draintask(&sc->sc_ic, &sc->sc_radiooff_task);
 		iwn_stop(sc);
@@ -4972,7 +4969,7 @@ iwn_watchdog(void *arg)
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
 			ic_printf(ic, "device timeout\n");
-			ieee80211_runtask(ic, &sc->sc_reinit_task);
+			ieee80211_restart_all(ic);
 			return;
 		}
 	}
@@ -8906,19 +8903,6 @@ static void
 iwn_scan_mindwell(struct ieee80211_scan_state *ss)
 {
 	/* NB: don't try to abort scan; wait for firmware to finish */
-}
-
-static void
-iwn_hw_reset(void *arg0, int pending)
-{
-	struct iwn_softc *sc = arg0;
-	struct ieee80211com *ic = &sc->sc_ic;
-
-	DPRINTF(sc, IWN_DEBUG_TRACE, "->Doing %s\n", __func__);
-
-	iwn_stop(sc);
-	iwn_init(sc);
-	ieee80211_notify_radio(ic, 1);
 }
 #ifdef	IWN_DEBUG
 #define	IWN_DESC(x) case x:	return #x

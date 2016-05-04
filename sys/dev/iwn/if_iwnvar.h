@@ -304,7 +304,6 @@ struct iwn_softc {
 	int			sc_cap_off;	/* PCIe Capabilities. */
 
 	/* Tasks used by the driver */
-	struct task		sc_reinit_task;
 	struct task		sc_radioon_task;
 	struct task		sc_radiooff_task;
 	struct task		sc_panic_task;
