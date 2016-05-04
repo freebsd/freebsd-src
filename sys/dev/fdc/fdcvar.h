@@ -66,7 +66,7 @@ struct fdc_data {
 	bus_space_handle_t ioh[FDC_MAXREG];
 	int	ioff[FDC_MAXREG];
 	void	*fdc_intr;
-	struct	device *fdc_dev;
+	device_t fdc_dev;
 	struct mtx fdc_mtx;
 	struct proc *fdc_thread;
 };
