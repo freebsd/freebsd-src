@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <x86/apicreg.h>
+#include <machine/clock.h>
 #include <machine/cputypes.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
@@ -158,6 +159,9 @@ volatile lapic_t *lapic;
 vm_paddr_t lapic_paddr;
 static u_long lapic_timer_divisor;
 static struct eventtimer lapic_et;
+#ifdef SMP
+static uint64_t lapic_ipi_wait_mult;
+#endif
 
 static void	lapic_enable(void);
 static void	lapic_resume(struct pic *pic, bool suspend_cancelled);
@@ -221,6 +225,9 @@ lvt_mode(struct lapic *la, u_int pin, uint32_t value)
 void
 lapic_init(vm_paddr_t addr)
 {
+#ifdef SMP
+	uint64_t r, r1, r2, rx;
+#endif
 	u_int regs[4];
 	int i, arat;
 
@@ -275,6 +282,38 @@ lapic_init(vm_paddr_t addr)
 		lapic_et.et_priv = NULL;
 		et_register(&lapic_et);
 	}
+
+#ifdef SMP
+#define	LOOPS	1000000
+	/*
+	 * Calibrate the busy loop waiting for IPI ack in xAPIC mode.
+	 * lapic_ipi_wait_mult contains the number of iterations which
+	 * approximately delay execution for 1 microsecond (the
+	 * argument to native_lapic_ipi_wait() is in microseconds).
+	 *
+	 * We assume that TSC is present and already measured.
+	 * Possible TSC frequency jumps are irrelevant to the
+	 * calibration loop below, the CPU clock management code is
+	 * not yet started, and we do not enter sleep states.
+	 */
+	KASSERT((cpu_feature & CPUID_TSC) != 0 && tsc_freq != 0,
+	    ("TSC not initialized"));
+	r = rdtsc();
+	for (rx = 0; rx < LOOPS; rx++) {
+		(void)lapic->icr_lo;
+		ia32_pause();
+	}
+	r = rdtsc() - r;
+	r1 = tsc_freq * LOOPS;
+	r2 = r * 1000000;
+	lapic_ipi_wait_mult = r1 >= r2 ? r1 / r2 : 1;
+	if (bootverbose) {
+		printf("LAPIC: ipi_wait() us multiplier %ju (r %ju tsc %ju)\n",
+		    (uintmax_t)lapic_ipi_wait_mult, (uintmax_t)r,
+		    (uintmax_t)tsc_freq);
+	}
+#undef LOOPS
+#endif /* SMP */
 }
 
 /*
@@ -1381,25 +1420,20 @@ SYSINIT(apic_setup_io, SI_SUB_INTR, SI_ORDER_SECOND, apic_setup_io, NULL);
  * private to the MD code.  The public interface for the rest of the
  * kernel is defined in mp_machdep.c.
  */
+
+/*
+ * Wait delay microseconds for IPI to be sent.  If delay is -1, we
+ * wait forever.
+ */
 int
 lapic_ipi_wait(int delay)
 {
-	int x;
+	uint64_t rx;
 
-	/*
-	 * Wait delay microseconds for IPI to be sent.  If delay is
-	 * -1, we wait forever.
-	 */
-	if (delay == -1) {
-		while ((lapic->icr_lo & APIC_DELSTAT_MASK) != APIC_DELSTAT_IDLE)
-			ia32_pause();
-		return (1);
-	}
-
-	for (x = 0; x < delay; x += 5) {
+	for (rx = 0; delay == -1 || rx < lapic_ipi_wait_mult * delay; rx++) {
 		if ((lapic->icr_lo & APIC_DELSTAT_MASK) == APIC_DELSTAT_IDLE)
 			return (1);
-		DELAY(5);
+		ia32_pause();
 	}
 	return (0);
 }

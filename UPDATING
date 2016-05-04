@@ -16,7 +16,20 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
-20150429	p1	FreeBSD-SA-16:16.ntp
+20160504	p2	FreeBSD-SA-16:17.openssl
+			FreeBSD-EN-16:06.libc
+			FreeBSD-EN-16:07.ipi
+			FreeBSD-EN-16:08.zfs
+
+	Fix multiple OpenSSL vulnerabilitites. [SA-16:17]
+
+	Fix performance regression in libc hash(3). [EN-16:06]
+
+	Fix excessive latency in x86 IPI delivery. [EN-16:07]
+
+	Fix memory leak in ZFS. [EN-16:08]
+
+20160429	p1	FreeBSD-SA-16:16.ntp
 
 	Fix multiple vulnerabilities of ntp.
 
