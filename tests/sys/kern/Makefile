@@ -1,8 +1,5 @@
 # $FreeBSD$
 
-PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/kernel
 .PATH:		${SRCTOP}/sys/kern
 

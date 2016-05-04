@@ -1,11 +1,5 @@
 # $FreeBSD$
 
-.include <bsd.init.mk>
-
-PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
-
 ATF=		${SRCTOP}/contrib/atf
 .PATH:		${ATF}/atf-sh
 

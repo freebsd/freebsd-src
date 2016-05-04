@@ -2,10 +2,6 @@
 
 .include <bsd.own.mk>
 
-PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
-
 # TODO: ptm_test
 NETBSD_ATF_TESTS_C=	ttyio_test
 

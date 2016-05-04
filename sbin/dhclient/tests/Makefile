@@ -1,10 +1,6 @@
 # $FreeBSD$
 
-PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
-
-.PATH:	${.CURDIR}/..
+.PATH:	${.CURDIR:H}
 
 PLAIN_TESTS_C=				option-domain-search_test
 SRCS.option-domain-search_test=		alloc.c convert.c hash.c options.c \
