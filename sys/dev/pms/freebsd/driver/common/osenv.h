@@ -28,7 +28,7 @@ Version Control Information:
 $RCSfile: osenv.h,v $
 $Revision: 114125 $
 
-Note:  This file defines the working enviornment of the system.  All
+Note:  This file defines the working environment of the system.  All
        defines listed in this file could also be compiler flags.
        I am listing all the defines (even if used as a compiler flag)
        so that they can be seen and documented.
@@ -41,7 +41,7 @@ Note:  This file defines the working enviornment of the system.  All
 /* 
 ** Define the protocols to compile with.  Currently, these defines are
 ** only for this header file and are used further down to define the protocol
-** specific enviornment:
+** specific environment:
 **
 **      #define AG_PROTOCOL_ISCSI
 **      #define AG_PROTOCOL_FC
@@ -87,12 +87,12 @@ Note:  This file defines the working enviornment of the system.  All
 #endif
 
 /***************************************************************************
-iSCSI enviornment - The following is used for compiling the iSCSI
+iSCSI environment - The following is used for compiling the iSCSI
                      protocol.
 **************************************************************************/
 
 /*
-** Define the existance of an external bus swapper using on of the
+** Define the existence of an external bus swapper using on of the
 ** following: 
 **
 **      #define AG_SWAPPING_BUS
@@ -109,7 +109,7 @@ iSCSI enviornment - The following is used for compiling the iSCSI
 /* #define AG_CACHED_MSG_SYSTEM */
 
 /***************************************************************************
-FC enviornment - The following is used for compiling the FC protocol.
+FC environment - The following is used for compiling the FC protocol.
 **************************************************************************/
 
 /*
