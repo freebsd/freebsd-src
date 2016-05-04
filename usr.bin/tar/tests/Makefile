@@ -1,8 +1,6 @@
 # $FreeBSD$
 
 PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
 
 _LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
@@ -91,20 +89,20 @@ list.h: ${TESTS_SRCS} Makefile
 
 CLEANFILES+=	list.h list.h.tmp
 
-FILES+=	test_extract.tar.Z.uu
-FILES+=	test_extract.tar.bz2.uu
-FILES+=	test_extract.tar.grz.uu
-FILES+=	test_extract.tar.gz.uu
-FILES+=	test_extract.tar.lrz.uu
-FILES+=	test_extract.tar.lz.uu
-FILES+=	test_extract.tar.lzma.uu
-FILES+=	test_extract.tar.lzo.uu
-FILES+=	test_extract.tar.xz.uu
-FILES+=	test_option_keep_newer_files.tar.Z.uu
-FILES+=	test_option_s.tar.Z.uu
-FILES+=	test_patterns_2.tar.uu
-FILES+=	test_patterns_3.tar.uu
-FILES+=	test_patterns_4.tar.uu
-FILES+=	test_print_longpath.tar.Z.uu
+${PACKAGE}FILES+=	test_extract.tar.Z.uu
+${PACKAGE}FILES+=	test_extract.tar.bz2.uu
+${PACKAGE}FILES+=	test_extract.tar.grz.uu
+${PACKAGE}FILES+=	test_extract.tar.gz.uu
+${PACKAGE}FILES+=	test_extract.tar.lrz.uu
+${PACKAGE}FILES+=	test_extract.tar.lz.uu
+${PACKAGE}FILES+=	test_extract.tar.lzma.uu
+${PACKAGE}FILES+=	test_extract.tar.lzo.uu
+${PACKAGE}FILES+=	test_extract.tar.xz.uu
+${PACKAGE}FILES+=	test_option_keep_newer_files.tar.Z.uu
+${PACKAGE}FILES+=	test_option_s.tar.Z.uu
+${PACKAGE}FILES+=	test_patterns_2.tar.uu
+${PACKAGE}FILES+=	test_patterns_3.tar.uu
+${PACKAGE}FILES+=	test_patterns_4.tar.uu
+${PACKAGE}FILES+=	test_print_longpath.tar.Z.uu
 
 .include <bsd.test.mk>

@@ -1,17 +1,16 @@
 # $FreeBSD$
 
 PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
+
 TESTSDIR=	${TESTSBASE}/sys/acl
 
 BINDIR=		${TESTSDIR}
 
-FILES+=		tools-crossfs.test
-FILES+=		tools-nfs4.test
-FILES+=		tools-nfs4-psarc.test
-FILES+=		tools-nfs4-trivial.test
-FILES+=		tools-posix.test
+${PACKAGE}FILES+=	tools-crossfs.test
+${PACKAGE}FILES+=	tools-nfs4.test
+${PACKAGE}FILES+=	tools-nfs4-psarc.test
+${PACKAGE}FILES+=	tools-nfs4-trivial.test
+${PACKAGE}FILES+=	tools-posix.test
 
 SCRIPTS+=	run
 

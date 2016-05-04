@@ -2,10 +2,6 @@
 
 .include <src.opts.mk>
 
-PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
-
 .PATH:	${.CURDIR}/..
 
 ATF_TESTS_C=	addrmerge_test

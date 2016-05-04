@@ -2,10 +2,6 @@
 
 .include <bsd.own.mk>
 
-PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
-
 BINDIR=		${TESTSDIR}
 
 NETBSD_ATF_TESTS_C=	fileactions_test

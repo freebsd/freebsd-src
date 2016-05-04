@@ -6,9 +6,6 @@
 # libkqueue and test suite by Mark Heily <mark@heily.com>
 #
 
-PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
 TAP_TESTS_SH=	kqueue_test
 
 TESTSDIR=	${TESTSBASE}/sys/kqueue

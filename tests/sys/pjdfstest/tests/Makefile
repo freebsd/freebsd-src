@@ -1,17 +1,14 @@
 # $FreeBSD$
 
 PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
 PJDFSTEST_SRCDIR=	${SRCTOP}/contrib/pjdfstest
 
 TESTSDIR=	${TESTSBASE}/sys/pjdfstest
 
 .PATH: ${.CURDIR}
 
-FILESDIR=	${TESTSDIR}
-FILES=		conf
-FILES+=		misc.sh
+${PACKAGE}FILES+=	conf
+${PACKAGE}FILES+=	misc.sh
 CLEANFILES+=	misc.sh misc.sh.tmp
 
 misc.sh: ${PJDFSTEST_SRCDIR}/tests/misc.sh

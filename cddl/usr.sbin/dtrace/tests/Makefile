@@ -5,7 +5,7 @@
 TESTS_SUBDIRS+=	common
 
 .PATH:		${SRCTOP}/tests
-KYUAFILE=	YES
+KYUAFILE=	yes
 
 .PATH:		${.CURDIR}/tools
 SCRIPTSDIR=	${TESTSDIR}

@@ -3,8 +3,6 @@
 .include <bsd.init.mk>
 
 PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
 
 TESTS_SUBDIRS=	detail
 
@@ -20,9 +18,8 @@ CFLAGS+=	-I${ATF}
 # TODO(jmmv): Remove this workaround once we do that update.
 CFLAGS.clang+=	-Wno-duplicate-decl-specifier
 
-FILESDIR=	${TESTSDIR}
-FILES=		macros_h_test.c
-FILES+=		unused_test.c
+${PACKAGE}FILES+=	macros_h_test.c
+${PACKAGE}FILES+=	unused_test.c
 
 .for _T in	atf_c_test \
 		build_test \

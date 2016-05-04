@@ -1,16 +1,12 @@
 # $FreeBSD$
 
 PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
 
 BINDIR=		${TESTSDIR}
 
 PROGS=		h_db
 
-FILESDIR=	${TESTSDIR}
-
-FILES=		README
+${PACKAGE}FILES+=		README
 
 .if ${MACHINE_CPUARCH} != "mips"
 # XXX: consumes a large amount of space in /tmp (200MB isn't enough)

@@ -46,8 +46,8 @@ KYUAFILE?= auto
 #TEST_METADATA.<test-program>+= key="value"
 
 .if ${KYUAFILE:tl} != "no"
-FILES+=	Kyuafile
-FILESDIR_Kyuafile= ${TESTSDIR}
+${PACKAGE}FILES+=	Kyuafile
+${PACKAGE}FILESDIR_Kyuafile=	${TESTSDIR}
 .endif
 
 .for _T in ${_TESTS}
