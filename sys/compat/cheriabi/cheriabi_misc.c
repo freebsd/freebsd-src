@@ -182,10 +182,13 @@ cheriabi_sigaltstack(struct thread *td,
 		error = copyincap(uap->ss, &s_c, sizeof(s_c));
 		if (error)
 			return (error);
-		/* XXX-BD: check that s_c.ss_sp's length is >= s_c.ss_size */
-		PTRIN_CP(s_c, ss, ss_sp);
 		CP(s_c, ss, ss_size);
 		CP(s_c, ss, ss_flags);
+		/* XXX-BD: what perms to enforce? */
+		error = cheriabi_cap_to_ptr((caddr_t *)&ss.ss_sp, &s_c.ss_sp,
+		    s_c.ss_size, CHERI_PERM_GLOBAL, 1);
+		if (error)
+			return (error);
 		ssp = &ss;
 	} else
 		ssp = NULL;
@@ -204,7 +207,7 @@ cheriabi_sigaltstack(struct thread *td,
 			cheriabi_get_signal_stack_capability(td, &s_c.ss_sp);
 			CP(oss, s_c, ss_size);
 			CP(oss, s_c, ss_flags);
-			error = copyout(&s_c, uap->oss, sizeof(s_c));
+			error = copyoutcap(&s_c, uap->oss, sizeof(s_c));
 		}
 	}
 	return (error);
@@ -221,7 +224,7 @@ cheriabi_exec_copyin_args(struct image_args *args, char *fname,
 	char *argp, *envp;
 	struct chericap *pcap, arg;
 	size_t length;
-	int error, tagged;
+	int error, tag;
 
 	bzero(args, sizeof(*args));
 	if (argv == NULL)
@@ -261,10 +264,13 @@ cheriabi_exec_copyin_args(struct image_args *args, char *fname,
 		if (error)
 			goto err_exit;
 		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &arg, 0);
-		CHERI_CGETTAG(tagged, CHERI_CR_CTEMP0);
-		if (!tagged)
+		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+		if (!tag)
 			break;
-		argp = PTRIN(arg);
+		error = cheriabi_strcap_to_ptr((const char **)&argp,
+		    &arg, 0);
+		if (error)
+			goto err_exit;
 		/* Lose any stray caps in arg strings. */
 		error = copyinstr(argp, args->endp, args->stringspace, &length);
 		if (error) {
@@ -289,10 +295,13 @@ cheriabi_exec_copyin_args(struct image_args *args, char *fname,
 			if (error)
 				goto err_exit;
 			CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &arg, 0);
-			CHERI_CGETTAG(tagged, CHERI_CR_CTEMP0);
-			if (!tagged)
+			CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+			if (!tag)
 				break;
-			envp = PTRIN(arg);
+			error = cheriabi_strcap_to_ptr((const char **)&envp,
+			    &arg, 0);
+			if (error)
+				goto err_exit;
 			/* Lose any stray caps in env strings. */
 			error = copyinstr(envp, args->endp, args->stringspace,
 			    &length);
@@ -393,7 +402,7 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 {
 	struct cheriabi_kevent_args *uap;
 	struct kevent_c	ks_c[KQ_NEVENTS];
-	int i, error = 0;
+	int error, i, tag;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
 	uap = (struct cheriabi_kevent_args *)arg;
@@ -404,7 +413,16 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 	uap->changelist += count;
 
 	for (i = 0; i < count; i++) {
-		kevp[i].ident = (uintptr_t)PTRIN(ks_c[i].ident);
+		/*
+		 * XXX-BD: this is quite awkward.  ident could be anything.
+		 * If it's a capabilty, we'll hang on to it in udata.
+		 */
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &ks_c[i].ident, 0);
+		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+		if (!tag)
+			CHERI_CTOINT(kevp[i].ident, CHERI_CR_CTEMP0);
+		else
+			CHERI_CTOPTR(kevp[i].ident, CHERI_CR_CTEMP0, CHERI_CR_KDC);
 		CP(ks_c[i], kevp[i], filter);
 		CP(ks_c[i], kevp[i], flags);
 		CP(ks_c[i], kevp[i], fflags);
@@ -470,8 +488,14 @@ cheriabi_copyinuio(struct iovec_c *iovp, u_int iovcnt, struct uio **uiop)
 			free(uio, M_IOV);
 			return (error);
 		}
-		iov[i].iov_base = PTRIN(iov_c.iov_base);
 		iov[i].iov_len = iov_c.iov_len;
+		error = cheriabi_cap_to_ptr((caddr_t *)&iov[i].iov_base,
+		    &iov_c.iov_base, iov[i].iov_len,
+		    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 0);
+		if (error) {
+			free(uio, M_IOV);
+			return (error);
+		}
 	}
 	uio->uio_iov = iov;
 	uio->uio_iovcnt = iovcnt;
@@ -566,15 +590,21 @@ cheriabi_copyiniov(struct iovec_c *iovp_c, u_int iovcnt, struct iovec **iovp,
 			free(iov, M_IOV);
 			return (error);
 		}
-		iov[i].iov_base = PTRIN(iov_c.iov_base);
 		iov[i].iov_len = iov_c.iov_len;
+		error = cheriabi_cap_to_ptr((caddr_t *)&iov[i].iov_base,
+		    &iov_c.iov_base, iov[i].iov_len,
+		    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 0);
+		if (error) {
+			free(iov, M_IOV);
+			return (error);
+		}
 	}
 	*iovp = iov;
 	return (0);
 }
 
 static int
-cheriabi_copyinmsghdr(struct msghdr_c *msg_cp, struct msghdr *msg)
+cheriabi_copyinmsghdr(struct msghdr_c *msg_cp, struct msghdr *msg, int out)
 {
 	struct msghdr_c msg_c;
 	int error;
@@ -582,11 +612,22 @@ cheriabi_copyinmsghdr(struct msghdr_c *msg_cp, struct msghdr *msg)
 	error = copyincap(msg_cp, &msg_c, sizeof(msg_c));
 	if (error)
 		return (error);
-	msg->msg_name = PTRIN(msg_c.msg_name);
+	error = cheriabi_cap_to_ptr((caddr_t *)&msg->msg_name, &msg_c.msg_name,
+	    msg_c.msg_namelen, CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 1);
+	if (error)
+		return (error);
 	msg->msg_namelen = msg_c.msg_namelen;
-	msg->msg_iov = PTRIN(msg_c.msg_iov);
+	error = cheriabi_cap_to_ptr((caddr_t *)&msg->msg_iov, &msg_c.msg_iov,
+	    sizeof(struct iovec_c) * msg_c.msg_iovlen,
+	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP, 0);
+	if (error)
+		return (error);
 	msg->msg_iovlen = msg_c.msg_iovlen;
-	msg->msg_control = PTRIN(msg_c.msg_control);
+	error = cheriabi_cap_to_ptr((caddr_t *)&msg->msg_control,
+	    &msg_c.msg_control, msg_c.msg_controllen,
+	    CHERI_PERM_GLOBAL | (out ? CHERI_PERM_STORE : CHERI_PERM_LOAD), 1);
+	if (error)
+		return (error);
 	msg->msg_controllen = msg_c.msg_controllen;
 	msg->msg_flags = msg_c.msg_flags;
 	return (0);
@@ -627,7 +668,7 @@ cheriabi_recvmsg(struct thread *td,
 
 	int error;
 
-	error = cheriabi_copyinmsghdr(uap->msg, &msg);
+	error = cheriabi_copyinmsghdr(uap->msg, &msg, 1);
 	if (error)
 		return (error);
 	error = cheriabi_copyiniov((struct iovec_c *)msg.msg_iov, msg.msg_iovlen,
@@ -663,7 +704,7 @@ cheriabi_sendmsg(struct thread *td,
 	struct sockaddr *to = NULL;
 	int error;
 
-	error = cheriabi_copyinmsghdr(uap->msg, &msg);
+	error = cheriabi_copyinmsghdr(uap->msg, &msg, 0);
 	if (error)
 		return (error);
 	error = cheriabi_copyiniov((struct iovec_c *)msg.msg_iov, msg.msg_iovlen,
@@ -721,13 +762,14 @@ cheriabi_do_sendfile(struct thread *td,
     struct cheriabi_sendfile_args *uap, int compat)
 {
 	struct sf_hdtr_c hdtr_c;
-	struct sf_hdtr hdtr;
+	struct iovec_c *headers, *trailers;
 	struct uio *hdr_uio, *trl_uio;
 	struct file *fp;
 	cap_rights_t rights;
-	struct iovec_c *iov_cp;
 	off_t offset, sbytes;
 	int error;
+	static register_t reqperms = CHERI_PERM_GLOBAL |
+	    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP;
 
 	offset = uap->offset;
 	if (offset < 0)
@@ -739,22 +781,26 @@ cheriabi_do_sendfile(struct thread *td,
 		error = copyincap(uap->hdtr, &hdtr_c, sizeof(hdtr_c));
 		if (error)
 			goto out;
-		PTRIN_CP(hdtr_c, hdtr, headers);
-		CP(hdtr_c, hdtr, hdr_cnt);
-		PTRIN_CP(hdtr_c, hdtr, trailers);
-		CP(hdtr_c, hdtr, trl_cnt);
+		error = cheriabi_cap_to_ptr((caddr_t *)&headers,
+		    &hdtr_c.headers, sizeof(struct iovec_c) * hdtr_c.hdr_cnt,
+		    reqperms, 1);
+		if (error)
+			goto out;
+		error = cheriabi_cap_to_ptr((caddr_t *)&trailers,
+		    &hdtr_c.trailers, sizeof(struct iovec_c) * hdtr_c.trl_cnt,
+		    reqperms, 1);
+		if (error)
+			goto out;
 
-		if (hdtr.headers != NULL) {
-			iov_cp = PTRIN(hdtr_c.headers);
-			error = cheriabi_copyinuio(iov_cp,
-			    hdtr.hdr_cnt, &hdr_uio);
+		if (headers != NULL) {
+			error = cheriabi_copyinuio(headers, hdtr_c.hdr_cnt,
+			    &hdr_uio);
 			if (error)
 				goto out;
 		}
-		if (hdtr.trailers != NULL) {
-			iov_cp = PTRIN(hdtr_c.trailers);
-			error = cheriabi_copyinuio(iov_cp,
-			    hdtr.trl_cnt, &trl_uio);
+		if (trailers != NULL) {
+			error = cheriabi_copyinuio(trailers, hdtr_c.trl_cnt,
+			    &trl_uio);
 			if (error)
 				goto out;
 		}
@@ -814,13 +860,23 @@ cheriabi_jail(struct thread *td, struct cheriabi_jail_args *uap)
 		if (error)
 			return (error);
 		CP(j_c, j, version);
-		PTRIN_CP(j_c, j, path);
-		PTRIN_CP(j_c, j, hostname);
-		PTRIN_CP(j_c, j, jailname);
+		cheriabi_strcap_to_ptr((const char **)&j.path, &j_c.path, 1);
+		cheriabi_strcap_to_ptr((const char **)&j.hostname,
+		    &j_c.hostname, 1);
+		cheriabi_strcap_to_ptr((const char **)&j.jailname,
+		    &j_c.jailname, 1);
 		CP(j_c, j, ip4s);
 		CP(j_c, j, ip6s);
-		PTRIN_CP(j_c, j, ip4);
-		PTRIN_CP(j_c, j, ip6);
+		error = cheriabi_cap_to_ptr((caddr_t *)&j.ip4, &j_c.ip4,
+		    sizeof(*j.ip4) * j.ip4s,
+		    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 1);
+		if (error)
+			return (error);
+		error = cheriabi_cap_to_ptr((caddr_t *)&j.ip6, &j_c.ip6,
+		    sizeof(*j.ip6) * j.ip6s,
+		    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 1);
+		if (error)
+			return (error);
 		break;
 	}
 
@@ -890,33 +946,35 @@ cheriabi_sigaction(struct thread *td, struct cheriabi_sigaction_args *uap)
 	struct sigaction sa, osa, *sap;
 	struct chericap cap;
 
-	int error, perms, tagged;
+	int error, tag;
 
 	if (uap->act) {
 		error = copyincap(uap->act, &sa_c, sizeof(sa_c));
 		if (error)
 			return (error);
-		sa.sa_handler = PTRIN(sa_c.sa_u);
-		if (sa.sa_handler != SIG_DFL && sa.sa_handler != SIG_IGN) {
-			/*
-			 * If not one of the defaults, make sure this is
-			 * a valid function pointer.
-			 */
-			cheri_capability_load(CHERI_CR_CTEMP0, &sa_c.sa_u);
-			CHERI_CGETTAG(tagged, CHERI_CR_CTEMP0);
-			CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-			if (!tagged || !(perms & CHERI_PERM_EXECUTE))
-				return (EINVAL);
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &sa_c.sa_u, 0);
+		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+		if (!tag) {
+			CHERI_CTOINT(sa.sa_handler, CHERI_CR_CTEMP0);
+			if (sa.sa_handler != SIG_DFL && sa.sa_handler != SIG_IGN)
+				return (EPROT);
+		} else {
+			error = cheriabi_cap_to_ptr((caddr_t *)&sa.sa_handler,
+			    &sa_c.sa_u,
+			    8 /* XXX-BD: at least two instructions */,
+		            CHERI_PERM_LOAD | CHERI_PERM_EXECUTE, 0);
+			if (error)
+				return (error);
 		}
 		CP(sa_c, sa, sa_flags);
 		CP(sa_c, sa, sa_mask);
 		sap = &sa;
-		cheri_memcpy(&cap, &sa_c.sa_u, sizeof(cap));
+		cheri_capability_copy(&cap, &sa_c.sa_u);
 	} else
 		sap = NULL;
 	error = kern_sigaction_cap(td, uap->sig, sap, &osa, 0, &cap);
 	if (error == 0 && uap->oact != NULL) {
-		cheri_memcpy(&sa_c.sa_u, &cap, sizeof(cap));
+		cheri_capability_copy(&sa_c.sa_u, &cap);
 		CP(osa, sa_c, sa_flags);
 		CP(osa, sa_c, sa_mask);
 		error = copyoutcap(&sa_c, uap->oact, sizeof(sa_c));
@@ -1390,14 +1448,9 @@ cheriabi_copyout_strings(struct image_params *imgp)
 int
 convert_sigevent_c(struct sigevent_c *sig_c, struct sigevent *sig)
 {
+	int error;
 
 	CP(*sig_c, *sig, sigev_notify);
-	/*
-	 * XXXBD: not all members of the union are covered.
-	 * since (unlike freebsd32) the union should be the same size,
-	 * it might make more sense to copyincap the whole amount of
-	 * storage.
-	 */
 	switch (sig->sigev_notify) {
 	case SIGEV_NONE:
 		break;
@@ -1406,12 +1459,27 @@ convert_sigevent_c(struct sigevent_c *sig_c, struct sigevent *sig)
 		/* FALLTHROUGH */
 	case SIGEV_SIGNAL:
 		CP(*sig_c, *sig, sigev_signo);
-		PTRIN_CP(*sig_c, *sig, sigev_value.sival_ptr);
+		/*
+		 * XXX-BD: this conversion follows the freebsd32 pattern,
+		 * but seems likely to be wrong.  I think sigev should be
+		 * opaque to the kernel and current code is lazily assuming
+		 * it can be copied to avoid allocations.
+		 */
+		error = cheriabi_cap_to_ptr(
+		    (caddr_t *)&sig->sigev_value.sival_ptr,
+		    &sig_c->sigev_value.sival_ptr, 0, CHERI_PERM_GLOBAL, 1);
+		if (error)
+			return (error);
 		break;
 	case SIGEV_KEVENT:
 		CP(*sig_c, *sig, sigev_notify_kqueue);
 		CP(*sig_c, *sig, sigev_notify_kevent_flags);
-		PTRIN_CP(*sig_c, *sig, sigev_value.sival_ptr);
+		/* XXX-BD: see comment above */
+		error = cheriabi_cap_to_ptr(
+		    (caddr_t *)&sig->sigev_value.sival_ptr,
+		    &sig_c->sigev_value.sival_ptr, 0, CHERI_PERM_GLOBAL, 1);
+		if (error)
+			return (error);
 		break;
 	default:
 		return (EINVAL);
@@ -1506,7 +1574,7 @@ int
 cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 {
 	int flags = uap->flags;
-	int tagged;
+	int tag;
 	size_t cap_len, cap_offset;
 	struct chericap addr_cap;
 	register_t perms, reqperms;
@@ -1611,9 +1679,9 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 		cheriabi_fetch_syscall_arg(td, &addr_cap,
 		    CHERIABI_SYS_cheriabi_mmap, 0);
 		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &addr_cap, 0);
-		CHERI_CGETTAG(tagged, CHERI_CR_CTEMP0);
+		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
 
-		if (tagged) {
+		if (tag) {
 			CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &addr_cap, 0);
 			CHERI_CGETLEN(cap_len, CHERI_CR_CTEMP0);
 			CHERI_CGETOFFSET(cap_offset, CHERI_CR_CTEMP0);

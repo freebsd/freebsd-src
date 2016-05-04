@@ -51,8 +51,8 @@ struct sigevent_c {
 	union {
 		__lwpid_t	_threadid;
 		struct {
-			void (*_function)(union sigval);
-			struct chericap	*_attribute;
+			struct chericap _function;	/* void (*)(union sigval); */
+			struct chericap	*_attribute;	/* void * */
 		} _sigev_thread;
 		unsigned short _kevent_flags;
 		long __spare__[8];

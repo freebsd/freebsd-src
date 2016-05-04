@@ -49,13 +49,11 @@ __cheri_cap_to_ptr(struct chericap *c)
 
 /*
  * XXX-BD: We should check lengths and permissions at each invocation of
- * PTRIN and PTRIN_CP.
+ * PTRIN.
  */
 #define PTRIN(v)        __cheri_cap_to_ptr(&v)
 
 #define CP(src,dst,fld) do { (dst).fld = (src).fld; } while (0)
-#define PTRIN_CP(src,dst,fld) \
-	do { (dst).fld = PTRIN((src).fld); } while (0)
 
 /*
  * Take a capability and check that it has the expected pointer
