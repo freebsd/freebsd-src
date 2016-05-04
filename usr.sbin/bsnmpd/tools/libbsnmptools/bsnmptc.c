@@ -338,8 +338,9 @@ static char *
 snmp_date2asn_oid(char *str, struct asn_oid *oid)
 {
 	char *endptr, *ptr;
-	uint32_t v;
+	static const char UTC[3] = "UTC";
 	int32_t saved_errno;
+	uint32_t v;
 
 	if (snmp_suboid_append(oid, (asn_subid_t) SNMP_DATETIME_OCTETS) < 0)
 		return (NULL);
@@ -440,8 +441,8 @@ snmp_date2asn_oid(char *str, struct asn_oid *oid)
 
 	/* 'UTC' - optional */
 	ptr = endptr + 1;
-	if (*ptr == 'U' && *(ptr + 1) == 'T' && *(ptr + 1) == 'C')
-		ptr += 3;
+	if (strncmp(ptr, UTC, sizeof(UTC)) == 0)
+		ptr += sizeof(UTC);
 
 	/* '+/-' */
 	if (*ptr == '-' || *ptr == '+') {
