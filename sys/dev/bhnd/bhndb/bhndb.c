@@ -536,8 +536,7 @@ bhndb_attach(device_t dev, bhnd_devclass_t bridge_devclass)
 	}
 
 	/* Attach our bridged bus device */
-	sc->bus_dev = BUS_ADD_CHILD(dev, 0, devclass_get_name(bhnd_devclass),
-	    -1);
+	sc->bus_dev = BUS_ADD_CHILD(dev, 0, "bhnd", -1);
 	if (sc->bus_dev == NULL) {
 		error = ENXIO;
 		goto failed;

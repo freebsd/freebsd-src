@@ -32,6 +32,8 @@
 #ifndef	__IF_BWN_DEBUG_H__
 #define	__IF_BWN_DEBUG_H__
 
+#define	BWN_DEBUG
+
 enum {
 	BWN_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
 	BWN_DEBUG_RECV		= 0x00000002,	/* basic recv operation */
