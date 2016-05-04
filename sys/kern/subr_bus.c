@@ -5207,7 +5207,7 @@ find_device(struct devreq *req, device_t *devp)
 }
 
 static bool
-driver_exists(struct device *bus, const char *driver)
+driver_exists(device_t bus, const char *driver)
 {
 	devclass_t dc;
 
