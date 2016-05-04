@@ -1092,7 +1092,7 @@ struct softc
 #endif
 
   struct callout callout;	/* watchdog needs this                  */
-  struct device	*dev;		/* base device pointer                     */
+  device_t	dev;		/* base device pointer                     */
   bus_space_tag_t csr_tag;	/* bus_space needs this                    */
   bus_space_handle_t csr_handle;/* bus_space_needs this                    */
   void		*irq_cookie;	/* bus_teardown_intr needs this            */
