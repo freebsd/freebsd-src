@@ -48,7 +48,6 @@ runtest(const char *fname1, const char *mode1, const char *fname2,
 	    "fopen(\"%s\", \"%s\") failed; errno=%d", fname1, mode1, errno);
 	fp2 = freopen(fname2, mode2, fp1);
 	if (fp2 == NULL) {
-		fclose(fp1);
 		ATF_REQUIRE_MSG(success == false,
 		    "freopen(\"%s\", \"%s\", fopen(\"%s\", \"%s\")) succeeded "
 		    "unexpectedly", fname2_print, mode2, fname1, mode1);
