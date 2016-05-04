@@ -1241,7 +1241,7 @@ static int hptiop_post_ioctl_command_mv(struct hpt_iop_hba *hba,
 	req->header.result = IOP_RESULT_PENDING;
 	req->header.flags = IOP_REQUEST_FLAG_OUTPUT_CONTEXT;
 	size = req->header.size >> 8;
-	size = size > 3 ? 3 : size;
+	size = imin(3, size);
 	req_phy = hba->ctlcfgcmd_phy | MVIOP_MU_QUEUE_ADDR_HOST_BIT | size;
 	hptiop_mv_inbound_write(req_phy, hba);
 
@@ -2561,7 +2561,7 @@ static void hptiop_post_req_mv(struct hpt_iop_hba *hba,
 	size = req->header.size >> 8;
 	hptiop_mv_inbound_write(req_phy
 			| MVIOP_MU_QUEUE_ADDR_HOST_BIT
-			| (size > 3 ? 3 : size), hba);
+			| imin(3, size), hba);
 }
 
 static void hptiop_post_req_mvfrey(struct hpt_iop_hba *hba,
