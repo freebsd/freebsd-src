@@ -11,7 +11,14 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
-20150429	p40	FreeBSD-SA-16:16.ntp
+20160504	p41	FreeBSD-SA-16:17.openssl
+			FreeBSD-EN-16:08.zfs
+
+	Fix multiple OpenSSL vulnerabilitites. [SA-16:17]
+
+	Fix memory leak in ZFS. [EN-16:08]
+
+20160429	p40	FreeBSD-SA-16:16.ntp
 
 	Fix multiple vulnerabilities of ntp.
 
