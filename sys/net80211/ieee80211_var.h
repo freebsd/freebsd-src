@@ -148,7 +148,8 @@ struct ieee80211com {
 	uint32_t		ic_htcaps;	/* HT capabilities */
 	uint32_t		ic_htextcaps;	/* HT extended capabilities */
 	uint32_t		ic_cryptocaps;	/* crypto capabilities */
-	uint8_t			ic_modecaps[2];	/* set of mode capabilities */
+						/* set of mode capabilities */
+	uint8_t			ic_modecaps[IEEE80211_MODE_BYTES];
 	uint8_t			ic_promisc;	/* vap's needing promisc mode */
 	uint8_t			ic_allmulti;	/* vap's needing all multicast*/
 	uint8_t			ic_nrunning;	/* vap's marked running */
