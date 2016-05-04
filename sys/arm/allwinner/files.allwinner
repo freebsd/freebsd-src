@@ -18,6 +18,7 @@ arm/allwinner/a20/a20_cpu_cfg.c 	standard
 arm/allwinner/allwinner_machdep.c	standard
 arm/allwinner/aw_mp.c			optional	smp
 arm/allwinner/axp209.c			optional	axp209
+arm/allwinner/if_awg.c			optional	awg
 arm/allwinner/if_emac.c			optional	emac
 arm/allwinner/sunxi_dma_if.m		standard
 dev/iicbus/twsi/a10_twsi.c		optional	twsi
