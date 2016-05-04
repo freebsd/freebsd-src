@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Machine dependant functions for kernel setup
+ * Machine dependent functions for kernel setup
  *
  * Created      : 17/09/94
  * Updated	: 18/04/01 updated for new wscons

@@ -39,9 +39,9 @@
 #define	AT91_PA_BASE		0xf0000000
 
 /* A few things that we count on being the same
- * throught the whole family of SOCs */
+ * throughout the whole family of SOCs */
 
-/* SYSC System Controler */
+/* SYSC System Controller */
 /* System Registers */
 #define	AT91_SYS_BASE	0xffff000
 #define	AT91_SYS_SIZE	0x1000

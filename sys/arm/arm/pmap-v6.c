@@ -705,7 +705,7 @@ pmap_preboot_get_pages(u_int num)
 }
 
 /*
- *	The fundamental initalization of PMAP stuff.
+ *	The fundamental initialization of PMAP stuff.
  *
  *  Some things already happened in locore.S and some things could happen
  *  before pmap_bootstrap_prepare() is called, so let's recall what is done:
@@ -1210,7 +1210,7 @@ pmap_bootstrap(vm_offset_t firstaddr)
 
 	/*
 	 * Note that in very short time in initarm(), we are going to
-	 * initialize phys_avail[] array and no futher page allocation
+	 * initialize phys_avail[] array and no further page allocation
 	 * can happen after that until vm subsystem will be initialized.
 	 */
 	kernel_vm_end_new = kernel_vm_end;
