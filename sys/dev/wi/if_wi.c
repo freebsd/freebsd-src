@@ -337,7 +337,7 @@ wi_attach(device_t dev)
 	 */
 	buflen = sizeof(val);
 	if (wi_read_rid(sc, WI_RID_CHANNEL_LIST, &val, &buflen) != 0)
-		val = htole16(0x1fff);	/* assume 1-11 */
+		val = htole16(0x1fff);	/* assume 1-13 */
 	KASSERT(val != 0, ("wi_attach: no available channels listed!"));
 
 	val <<= 1;			/* shift for base 1 indices */
