@@ -41,6 +41,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 
+static __inline int
+hash_mflags(int flags)
+{
+
+	return ((flags & HASH_NOWAIT) ? M_NOWAIT : M_WAITOK);
+}
+
 /*
  * General routine to allocate a hash table with control of memory flags.
  */
@@ -61,13 +68,8 @@ hashinit_flags(int elements, struct malloc_type *type, u_long *hashmask,
 		continue;
 	hashsize >>= 1;
 
-	if (flags & HASH_NOWAIT)
-		hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl),
-		    type, M_NOWAIT);
-	else
-		hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl),
-		    type, M_WAITOK);
-
+	hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl), type,
+	    hash_mflags(flags));
 	if (hashtbl != NULL) {
 		for (i = 0; i < hashsize; i++)
 			LIST_INIT(&hashtbl[i]);
@@ -112,7 +114,7 @@ phashinit_flags(int elements, struct malloc_type *type, u_long *nentries, int fl
 {
 	long hashsize;
 	LIST_HEAD(generic, generic) *hashtbl;
-	int i, m_flags;
+	int i;
 
 	KASSERT(elements > 0, ("%s: bad elements", __func__));
 	/* Exactly one of HASH_WAITOK and HASH_NOWAIT must be set. */
@@ -127,8 +129,8 @@ phashinit_flags(int elements, struct malloc_type *type, u_long *nentries, int fl
 	}
 	hashsize = primes[i - 1];
 
-	m_flags = (flags & HASH_NOWAIT) ? M_NOWAIT : M_WAITOK;
-	hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl), type, m_flags);
+	hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl), type,
+	    hash_mflags(flags));
 	if (hashtbl == NULL)
 		return (NULL);
 
