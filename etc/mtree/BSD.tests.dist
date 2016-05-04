@@ -460,6 +460,8 @@
         ..
         posixshm
         ..
+        sys
+        ..
         vfs
         ..
         vm
