@@ -35,14 +35,16 @@
 #define _BLUETOOTH_H_
 
 #include <sys/types.h>
-#include <sys/bitstring.h>
 #include <sys/endian.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <sys/un.h>
+
 #include <errno.h>
 #include <netdb.h>
+#include <bitstring.h>
+
 #include <netgraph/ng_message.h>
 #include <netgraph/bluetooth/include/ng_hci.h>
 #include <netgraph/bluetooth/include/ng_l2cap.h>

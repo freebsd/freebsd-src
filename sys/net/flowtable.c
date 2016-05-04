@@ -741,10 +741,6 @@ flowtable_lookup_common(struct flowtable *ft, uint32_t *key, int keylen,
 	return (flowtable_insert(ft, hash, key, keylen, fibnum));
 }
 
-/*
- * used by the bit_alloc macro
- */
-#define calloc(count, size) malloc((count)*(size), M_FTABLE, M_WAITOK | M_ZERO)
 static void
 flowtable_alloc(struct flowtable *ft)
 {
@@ -759,11 +755,10 @@ flowtable_alloc(struct flowtable *ft)
 		bitstr_t **b;
 
 		b = zpcpu_get_cpu(ft->ft_masks, i);
-		*b = bit_alloc(ft->ft_size);
+		*b = bit_alloc(ft->ft_size, M_FTABLE, M_WAITOK);
 	}
-	ft->ft_tmpmask = bit_alloc(ft->ft_size);
+	ft->ft_tmpmask = bit_alloc(ft->ft_size, M_FTABLE, M_WAITOK);
 }
-#undef calloc
 
 static void
 flowtable_free_stale(struct flowtable *ft, struct rtentry *rt, int maxidle)

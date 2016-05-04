@@ -977,8 +977,8 @@ xbb_get_gntaddr(struct xbb_xen_reqlist *reqlist, int pagenr, int sector)
 static uint8_t *
 xbb_get_kva(struct xbb_softc *xbb, int nr_pages)
 {
-	intptr_t first_clear;
-	intptr_t num_clear;
+	int first_clear;
+	int num_clear;
 	uint8_t *free_kva;
 	int      i;
 
@@ -1027,7 +1027,7 @@ xbb_get_kva(struct xbb_softc *xbb, int nr_pages)
 				 first_clear + nr_pages - 1);
 
 			free_kva = xbb->kva +
-				(uint8_t *)(first_clear * PAGE_SIZE);
+				(uint8_t *)((intptr_t)first_clear * PAGE_SIZE);
 
 			KASSERT(free_kva >= (uint8_t *)xbb->kva &&
 				free_kva + (nr_pages * PAGE_SIZE) <=
@@ -2967,10 +2967,6 @@ xbb_connect_ring(struct xbb_softc *xbb)
 	return 0;
 }
 
-/* Needed to make bit_alloc() macro work */
-#define	calloc(count, size) malloc((count)*(size), M_XENBLOCKBACK,	\
-				   M_NOWAIT|M_ZERO);
-
 /**
  * Size KVA and pseudo-physical address allocations based on negotiated
  * values for the size and number of I/O requests, and the size of our
@@ -2989,7 +2985,7 @@ xbb_alloc_communication_mem(struct xbb_softc *xbb)
 	xbb->kva_size = xbb->reqlist_kva_size +
 			(xbb->ring_config.ring_pages * PAGE_SIZE);
 
-	xbb->kva_free = bit_alloc(xbb->reqlist_kva_pages);
+	xbb->kva_free = bit_alloc(xbb->reqlist_kva_pages, M_XENBLOCKBACK, M_NOWAIT);
 	if (xbb->kva_free == NULL)
 		return (ENOMEM);
 
