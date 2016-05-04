@@ -1,9 +1,5 @@
 # $FreeBSD$
 
-PACKAGE=tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
-
 ATF_TESTS_C+= crypt_tests
 
 NETBSD_ATF_TESTS_C+= crypt_test

@@ -1,14 +1,11 @@
 # $FreeBSD$
 
 PACKAGE=	tests
-FILEGROUPS=	TESTS
-TESTPACKAGE=	${PACKAGE}
-TESTDIR=	${TESTSBASE}/usr.bin/sdiff
 
 ATF_TESTS_SH=	sdiff
 
-FILESDIR=	${TESTDIR}
-FILES=	d_dot.in \
+${PACKAGE}FILES+=	\
+	d_dot.in \
 	d_flags_l.out \
 	d_flags_s.out \
 	d_flags_w.out \
