@@ -1254,7 +1254,7 @@ buildkernel: .MAKE .PHONY
 	@echo "--------------------------------------------------------------"
 .endfor
 
-NO_INSTALLEXTRAKERNELS?=		no
+NO_INSTALLEXTRAKERNELS?=	yes
 
 #
 # installkernel, etc.
