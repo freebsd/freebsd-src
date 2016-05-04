@@ -5958,10 +5958,16 @@ bwn_antenna_sanitize(struct bwn_mac *mac, uint8_t n)
 	return (n);
 }
 
+/*
+ * Return a fallback rate for the given rate.
+ *
+ * Note: Don't fall back from OFDM to CCK.
+ */
 static uint8_t
 bwn_get_fbrate(uint8_t bitrate)
 {
 	switch (bitrate) {
+	/* CCK */
 	case BWN_CCK_RATE_1MB:
 		return (BWN_CCK_RATE_1MB);
 	case BWN_CCK_RATE_2MB:
@@ -5970,8 +5976,10 @@ bwn_get_fbrate(uint8_t bitrate)
 		return (BWN_CCK_RATE_2MB);
 	case BWN_CCK_RATE_11MB:
 		return (BWN_CCK_RATE_5MB);
+
+	/* OFDM */
 	case BWN_OFDM_RATE_6MB:
-		return (BWN_CCK_RATE_5MB);
+		return (BWN_OFDM_RATE_6MB);
 	case BWN_OFDM_RATE_9MB:
 		return (BWN_OFDM_RATE_6MB);
 	case BWN_OFDM_RATE_12MB:
