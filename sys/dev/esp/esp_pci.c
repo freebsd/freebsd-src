@@ -97,7 +97,7 @@ __FBSDID("$FreeBSD$");
 
 struct esp_pci_softc {
 	struct ncr53c9x_softc	sc_ncr53c9x;	/* glue to MI code */
-	struct device		*sc_dev;
+	device_t		sc_dev;
 
 	struct resource *sc_res[2];
 #define	ESP_PCI_RES_INTR	0
