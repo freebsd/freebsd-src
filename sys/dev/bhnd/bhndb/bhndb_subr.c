@@ -52,8 +52,7 @@ bhndb_attach_bridge(device_t parent, device_t *bhndb, int unit)
 {
 	int error;
 
-	*bhndb = device_add_child(parent, devclass_get_name(bhndb_devclass),
-	    unit);
+	*bhndb = device_add_child(parent, "bhndb", unit);
 	if (*bhndb == NULL)
 		return (ENXIO);
 

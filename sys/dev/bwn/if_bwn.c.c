@@ -4942,12 +4942,6 @@ bwn_intr_txeof(struct bwn_mac *mac)
 			break;
 		stat1 = BWN_READ_4(mac, BWN_XMITSTAT_1);
 
-		DPRINTF(mac->mac_sc, BWN_DEBUG_XMIT,
-		    "%s: stat0=0x%08x, stat1=0x%08x\n",
-		    __func__,
-		    stat0,
-		    stat1);
-
 		stat.cookie = (stat0 >> 16);
 		stat.seq = (stat1 & 0x0000ffff);
 		stat.phy_stat = ((stat1 & 0x00ff0000) >> 16);
@@ -5523,8 +5517,11 @@ bwn_dma_handle_txeof(struct bwn_mac *mac,
 			KASSERT(meta->mt_m != NULL,
 			    ("%s:%d: fail", __func__, __LINE__));
 
-			/* Just count full frame retries for now */
-			retrycnt = status->framecnt - 1;
+			/* XXX */
+			if (status->ack == 0)
+				retrycnt = 1;
+			else
+				retrycnt = 0;
 			ieee80211_ratectl_tx_complete(meta->mt_ni->ni_vap, meta->mt_ni,
 			    status->ack ?
 			      IEEE80211_RATECTL_TX_SUCCESS :
@@ -5574,8 +5571,11 @@ bwn_pio_handle_txeof(struct bwn_mac *mac,
 		 * be done before releasing the node reference.
 		 */
 
-		/* Just count full frame retries for now */
-		retrycnt = status->framecnt - 1;
+		/* XXX */
+		if (status->ack == 0)
+			retrycnt = 1;
+		else
+			retrycnt = 0;
 		ieee80211_ratectl_tx_complete(tp->tp_ni->ni_vap, tp->tp_ni,
 		    status->ack ?
 		      IEEE80211_RATECTL_TX_SUCCESS :
@@ -6879,4 +6879,3 @@ MODULE_DEPEND(bwn, siba_bwn, 1, 1, 1);
 MODULE_DEPEND(bwn, wlan, 1, 1, 1);		/* 802.11 media layer */
 MODULE_DEPEND(bwn, firmware, 1, 1, 1);		/* firmware support */
 MODULE_DEPEND(bwn, wlan_amrr, 1, 1, 1);
-MODULE_VERSION(bwn, 1);

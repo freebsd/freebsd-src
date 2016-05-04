@@ -1120,9 +1120,34 @@ dev/ath/ath_rate/sample/sample.c	optional ath_rate_sample \
 dev/ath/ath_dfs/null/dfs_null.c	optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 #
-dev/bce/if_bce.c		optional bce
-dev/bfe/if_bfe.c		optional bfe
-dev/bge/if_bge.c		optional bge
+dev/bce/if_bce.c			optional bce
+dev/bfe/if_bfe.c			optional bfe
+dev/bge/if_bge.c			optional bge
+dev/bhnd/bhnd.c				optional bhndbus | bhnd
+dev/bhnd/bhnd_subr.c			optional bhndbus | bhnd
+dev/bhnd/bhnd_bus_if.m			optional bhndbus | bhnd
+dev/bhnd/bhndb/bhndb.c			optional bhndbus | bhndb
+dev/bhnd/bhndb/bhndb_bus_if.m		optional bhndbus | bhndb
+dev/bhnd/bhndb/bhndb_hwdata.c		optional bhndbus | bhndb
+dev/bhnd/bhndb/bhndb_if.m		optional bhndbus | bhndb
+dev/bhnd/bhndb/bhndb_pci.c		optional bhndbus pci | bhndb pci
+dev/bhnd/bhndb/bhndb_pci_hwdata.c 	optional bhndbus pci | bhndb pci
+dev/bhnd/bhndb/bhndb_subr.c		optional bhndbus pci | bhndb
+dev/bhnd/bcma/bcma.c			optional bhndbus | bcma
+dev/bhnd/bcma/bcma_bhndb.c		optional bhndbus | bcma bhndb
+dev/bhnd/bcma/bcma_erom.c		optional bhndbus | bcma
+dev/bhnd/bcma/bcma_subr.c		optional bhndbus | bcma
+dev/bhnd/cores/chipc/chipc.c		optional bhndbus | bhnd
+dev/bhnd/cores/chipc/bhnd_chipc_if.m	optional bhndbus | bhnd
+dev/bhnd/cores/pci/bhnd_pci.c		optional bhndbus pci | bhnd pci
+dev/bhnd/cores/pci/bhnd_pci_hostb.c	optional bhndbus pci | bhndb pci
+dev/bhnd/cores/pci/bhnd_pcib.c		optional bhnd_pcib bhnd pci
+dev/bhnd/nvram/bhnd_nvram_if.m		optional bhndbus | bhnd
+dev/bhnd/siba/siba.c			optional bhndbus | siba
+dev/bhnd/siba/siba_bhndb.c		optional bhndbus | siba bhndb
+dev/bhnd/siba/siba_nexus.c		optional siba_nexus siba
+dev/bhnd/siba/siba_subr.c		optional bhndbus | siba
+#
 dev/bktr/bktr_audio.c		optional bktr pci
 dev/bktr/bktr_card.c		optional bktr pci
 dev/bktr/bktr_core.c		optional bktr pci
@@ -1143,10 +1168,12 @@ dev/bwi/if_bwi_pci.c		optional bwi pci
 # XXX Work around clang warning, until maintainer approves fix.
 dev/bwn/if_bwn.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
+dev/bwn/if_bwn_pci.c		optional bwn pci bhnd | bwn pci bhndbus
 dev/bwn/if_bwn_phy_g.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
 dev/bwn/if_bwn_phy_lp.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
+dev/bwn/bwn_mac.c		optional bwn bhnd | bwn bhndbus
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
@@ -2411,11 +2438,11 @@ dev/si/si3_t225.c		optional si
 dev/si/si_eisa.c		optional si eisa
 dev/si/si_isa.c			optional si isa
 dev/si/si_pci.c			optional si pci
-dev/siba/siba.c			optional siba
+dev/siba/siba.c			optional siba !bhnd !bhndbus
 dev/siba/siba_bwn.c		optional siba_bwn pci
-dev/siba/siba_cc.c		optional siba
+dev/siba/siba_cc.c		optional siba !bhnd !bhndbus
 dev/siba/siba_core.c		optional siba | siba_bwn pci
-dev/siba/siba_pcib.c		optional siba pci
+dev/siba/siba_pcib.c		optional siba pci !bhnd !bhndbus
 dev/siis/siis.c			optional siis pci
 dev/sis/if_sis.c		optional sis pci
 dev/sk/if_sk.c			optional sk pci

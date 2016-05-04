@@ -71,10 +71,13 @@ MAN=	aac.4 \
 	axe.4 \
 	axge.4 \
 	bce.4 \
+	bcma.4 \
 	berirom.4 \
 	bfe.4 \
 	bge.4 \
 	${_bhyve.4} \
+	bhnd.4 \
+	bhndb.4 \
 	bktr.4 \
 	blackhole.4 \
 	bpf.4 \
