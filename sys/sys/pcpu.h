@@ -160,7 +160,7 @@ struct pcpu {
 	struct lock_list_entry *pc_spinlocks;
 	struct vmmeter	pc_cnt;			/* VM stats counters */
 	long		pc_cp_time[CPUSTATES];	/* statclock ticks */
-	struct device	*pc_device;
+	device_t	pc_device;
 	void		*pc_netisr;		/* netisr SWI cookie */
 	int		pc_unused1;		/* unused field */
 	int		pc_domain;		/* Memory domain. */
