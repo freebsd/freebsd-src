@@ -77,7 +77,12 @@ static devclass_t xentimer_devclass;
 
 /* Xen timers may fire up to 100us off */
 #define	XENTIMER_MIN_PERIOD_IN_NSEC	100*NSEC_IN_USEC
-#define	XENCLOCK_RESOLUTION		1000001 /* ATRTC resolution + 1 */
+
+/*
+ * The real resolution of the PV clock is 1ns, but the highest
+ * resolution that FreeBSD supports is 1us, so just use that.
+ */
+#define	XENCLOCK_RESOLUTION		1
 
 #define	XENTIMER_QUALITY	950
 
