@@ -97,3 +97,20 @@ static platform_method_t virt_methods[] = {
 };
 
 FDT_PLATFORM_DEF(virt, "virt", 0, "linux,dummy-virt", 1);
+
+static int
+gem5_devmap_init(platform_t plat)
+{
+
+	devmap_add_entry(0x1c090000, 0x100000); /* Uart */
+	return (0);
+}
+
+static platform_method_t gem5_methods[] = {
+	PLATFORMMETHOD(platform_devmap_init,	gem5_devmap_init),
+	PLATFORMMETHOD(platform_lastaddr,	virt_lastaddr),
+
+	PLATFORMMETHOD_END,
+};
+
+FDT_PLATFORM_DEF(gem5, "gem5", 0, "arm,vexpress", 1);
