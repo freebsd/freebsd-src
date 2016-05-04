@@ -43,9 +43,22 @@ hex_head() {
 }
 hex_body() {
 	touch foo
-	atf_check -s exit:0 -o empty setextattr user myattr1 XYZ foo
+	atf_check -s exit:0 -o empty setextattr user myattr XYZ foo
 	atf_check -s exit:0 -o inline:"58 59 5a\n" \
-		getextattr -qx user myattr1 foo
+		getextattr -qx user myattr foo
+}	
+
+atf_test_case hex_nonascii
+hex_nonascii_head() {
+	atf_set "descr" "Get binary attribute values in hexadecimal"
+}
+hex_nonascii_body() {
+	touch foo
+	BINSTUFF=`echo $'\x20\x30\x40\x55\x66\x70\x81\xa2\xb3\xee\xff'`
+	atf_check -s exit:0 -o empty setextattr user myattr "$BINSTUFF" foo
+	getextattr user myattr foo
+	atf_check -s exit:0 -o inline:"20 30 40 55 66 70 81 a2 b3 ee ff\n" \
+		getextattr -qx user myattr foo
 }	
 
 atf_test_case long_name
@@ -299,9 +312,9 @@ unprivileged_user_cannot_set_system_attr_body() {
 
 
 atf_init_test_cases() {
-	# TODO: add test cases for verbose output (without -q)
 	atf_add_test_case bad_namespace
 	atf_add_test_case hex
+	atf_add_test_case hex_nonascii
 	atf_add_test_case long_name
 	atf_add_test_case loud
 	atf_add_test_case noattrs

@@ -294,7 +294,8 @@ main(int argc, char *argv[])
 				printf("\"%s\"", visbuf);
 			} else if (flag_hex) {
 				for (i = 0; i < ret; i++)
-					printf("%s%02x", i ? " " : "", buf[i]);
+					printf("%s%02x", i ? " " : "",
+							(unsigned char)buf[i]);
 			} else {
 				fwrite(buf, ret, 1, stdout);
 			}
