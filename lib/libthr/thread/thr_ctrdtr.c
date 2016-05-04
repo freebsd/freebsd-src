@@ -51,8 +51,8 @@ _tcb_ctor(struct pthread *thread, int initial)
 	if (initial)
 		tcb = _tcb_get();
 	else
-	if (tcb)
 		tcb = _rtld_allocate_tls(NULL, sizeof(struct tcb), TCB_ALIGN);
+	if (tcb)
 		tcb->tcb_thread = thread;
 	return (tcb);
 }
