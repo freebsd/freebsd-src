@@ -296,7 +296,7 @@ ENTRY(cpu_switch)
 	beq	.Lcs_context_switched	/* yes! */
 
 	/*
-	 * Definately need to flush the cache.
+	 * Definitely need to flush the cache.
 	 */
 
 	ldr	r1, .Lcpufuncs

@@ -1231,7 +1231,7 @@ arm_gic_next_irq(struct arm_gic_softc *sc, int last_irq)
 	active_irq = gic_c_read_4(sc, GICC_IAR);
 
 	/*
-	 * Immediatly EOIR the SGIs, because doing so requires the other
+	 * Immediately EOIR the SGIs, because doing so requires the other
 	 * bits (ie CPU number), not just the IRQ number, and we do not
 	 * have this information later.
 	 */

@@ -126,7 +126,7 @@
  *
  * pmap.c
  *
- * Machine dependant vm stuff
+ * Machine dependent vm stuff
  *
  * Created      : 20/09/94
  */
@@ -1386,9 +1386,9 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 				 *
 				 * Don't turn caching on again if this is a
 				 * modified emulation. This would be
-				 * inconsitent with the settings created by
+				 * inconsistent with the settings created by
 				 * pmap_fix_cache(). Otherwise, it's safe
-				 * to re-enable cacheing.
+				 * to re-enable caching.
 				 *
 				 * There's no need to call pmap_fix_cache()
 				 * here: all pages are losing their write

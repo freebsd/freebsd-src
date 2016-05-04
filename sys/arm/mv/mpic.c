@@ -564,7 +564,7 @@ mv_msi_data(int irq, uint64_t *addr, uint32_t *data)
 
 	node = ofw_bus_get_node(mv_mpic_sc->sc_dev);
 
-	/* Get physical addres of register space */
+	/* Get physical address of register space */
 	error = fdt_get_range(OF_parent(node), 0, &phys, &size);
 	if (error) {
 		printf("%s: Cannot get register physical address, err:%d",

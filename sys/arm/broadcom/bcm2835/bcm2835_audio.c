@@ -828,7 +828,7 @@ bcm2835_audio_attach(device_t dev)
 
 	/* 
 	 * We need interrupts enabled for VCHI to work properly,
-	 * so delay intialization until it happens
+	 * so delay initialization until it happens.
 	 */
 	sc->intr_hook.ich_func = bcm2835_audio_delayed_init;
 	sc->intr_hook.ich_arg = sc;

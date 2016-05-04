@@ -1329,7 +1329,7 @@ omap4_clk_hsusbhost_accessible(struct ti_clock_dev *clkdev)
  *	Inherits the locks from the omap_prcm driver, no internal locking.
  *
  *	RETURNS:
- *	Returns 0 if sucessful otherwise a negative error code on failure.
+ *	Returns 0 if successful otherwise a negative error code on failure.
  */
 static int
 omap4_clk_hsusbhost_set_source(struct ti_clock_dev *clkdev,

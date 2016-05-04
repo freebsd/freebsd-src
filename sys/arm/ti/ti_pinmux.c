@@ -394,7 +394,7 @@ ti_pinmux_probe(device_t dev)
  *	@dev: new device
  *
  *	RETURNS
- *	Zero on sucess or ENXIO if an error occuried.
+ *	Zero on success or ENXIO if an error occuried.
  */
 static int
 ti_pinmux_attach(device_t dev)

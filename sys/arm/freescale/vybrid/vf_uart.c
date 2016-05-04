@@ -205,7 +205,7 @@ uart_reinit(struct uart_softc *sc, int clkspeed, int baud)
 
 	bas = &sc->sc_bas;
 	if (!bas) {
-		printf("Error: cant reconfigure bas\n");
+		printf("Error: can't reconfigure bas\n");
 		return;
 	}
 
