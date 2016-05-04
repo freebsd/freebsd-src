@@ -66,6 +66,23 @@ long_name_body() {
 	atf_check -s exit:0 -o empty lsextattr -q user foo
 }	
 
+atf_test_case loud
+loud_head() {
+	atf_set "descr" "Loud (non -q) output for each command"
+}
+loud_body() {
+	touch foo
+	# setextattr(8) and friends print hard tabs.  Use printf to convert
+	# them to spaces before checking the output.
+	atf_check -s exit:0 -o empty setextattr user myattr myvalue foo
+	atf_check -s exit:0 -o inline:"foo myattr" \
+		printf "%s %s" $(lsextattr user foo)
+	atf_check -s exit:0 -o inline:"foo myvalue" \
+		printf "%s %s" $(getextattr user myattr foo)
+	atf_check -s exit:0 -o empty rmextattr user myattr foo
+	atf_check -s exit:0 -o inline:"foo" printf %s $(lsextattr user foo)
+}	
+
 atf_test_case noattrs
 noattrs_head() {
 	atf_set "descr" "A file with no extended attributes"
@@ -125,6 +142,19 @@ one_system_attr_body() {
 	atf_check -s exit:0 -o inline:"myvalue\n" getextattr -q system myattr foo
 	atf_check -s exit:0 -o empty rmextattr system myattr foo
 	atf_check -s exit:0 -o empty lsextattr -q system foo
+}	
+
+atf_test_case stdin
+stdin_head() {
+	atf_set "descr" "Set attribute value from stdin"
+}
+stdin_body() {
+	dd if=/dev/random of=infile bs=1k count=8
+	touch foo
+	setextattr -i user myattr foo < infile || atf_fail "setextattr failed"
+	atf_check -s exit:0 -o inline:"myattr\n" lsextattr -q user foo
+	getextattr -qq user myattr foo > outfile || atf_fail "getextattr failed"
+	atf_check -s exit:0 cmp -s infile outfile
 }	
 
 atf_test_case stringify
@@ -273,12 +303,14 @@ atf_init_test_cases() {
 	atf_add_test_case bad_namespace
 	atf_add_test_case hex
 	atf_add_test_case long_name
+	atf_add_test_case loud
 	atf_add_test_case noattrs
 	atf_add_test_case nonexistent_file
 	atf_add_test_case null
 	atf_add_test_case symlink_nofollow
 	atf_add_test_case one_user_attr
 	atf_add_test_case one_system_attr
+	atf_add_test_case stdin
 	atf_add_test_case stringify
 	atf_add_test_case symlink
 	atf_add_test_case symlink_nofollow
