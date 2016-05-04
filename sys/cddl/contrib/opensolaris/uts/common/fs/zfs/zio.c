@@ -133,10 +133,12 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, sync_pass_rewrite, CTLFLAG_RDTUN,
 
 boolean_t	zio_requeue_io_start_cut_in_line = B_TRUE;
 
+#ifdef illumos
 #ifdef ZFS_DEBUG
 int zio_buf_debug_limit = 16384;
 #else
 int zio_buf_debug_limit = 0;
+#endif
 #endif
 
 void
@@ -159,7 +161,7 @@ zio_init(void)
 		size_t size = (c + 1) << SPA_MINBLOCKSHIFT;
 		size_t p2 = size;
 		size_t align = 0;
-		size_t cflags = (size > zio_buf_debug_limit) ? KMC_NODEBUG : 0;
+		int cflags = zio_exclude_metadata ? KMC_NODEBUG : 0;
 
 		while (!ISP2(p2))
 			p2 &= p2 - 1;
