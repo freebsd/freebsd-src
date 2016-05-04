@@ -1,12 +1,10 @@
 # $FreeBSD$
 
 PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
-TESTSDIR=	${TESTSBASE}/sys/mac/portacl
-BINDIR=		${TESTSDIR}
 
-FILES+=		misc.sh
+TESTSDIR=	${TESTSBASE}/sys/mac/portacl
+
+${PACKAGE}FILES+=	misc.sh
 
 TAP_TESTS_SH+=	nobody_test
 TAP_TESTS_SH+=	root_test
