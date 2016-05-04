@@ -56,6 +56,11 @@ ATF_TC_BODY(connect_low_port, tc)
 	slist = socket(AF_INET, SOCK_STREAM, 0);
 	sd = socket(AF_INET, SOCK_STREAM, 0);
 
+#ifdef __FreeBSD__
+	ATF_REQUIRE(sd > 0);
+	ATF_REQUIRE(slist > 0);
+#endif
+
 	/* bind listening socket */
 	memset(&sinlist, 0, sizeof(sinlist));
 	sinlist.sin_family = AF_INET;
@@ -92,6 +97,9 @@ ATF_TC_BODY(connect_low_port, tc)
 	ATF_REQUIRE(ntohs(sin.sin_port) <= IPPORT_RESERVEDMAX);
 
 	close(sd);
+#ifdef __FreeBSD__
+	close(slist);
+#endif
 }
 
 ATF_TP_ADD_TCS(tp)
