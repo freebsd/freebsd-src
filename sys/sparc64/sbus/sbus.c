@@ -341,7 +341,7 @@ sbus_attach(device_t dev)
 		sc->sc_burst =
 		    (SBUS_BURST64_DEF << SBUS_BURST64_SHIFT) | SBUS_BURST_DEF;
 
-	/* initalise the IOMMU */
+	/* initialise the IOMMU */
 
 	/* punch in our copies */
 	sc->sc_is.is_pmaxaddr = IOMMU_MAXADDR(SBUS_IOMMU_BITS);
