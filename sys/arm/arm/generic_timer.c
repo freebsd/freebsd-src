@@ -417,7 +417,7 @@ arm_tmr_attach(device_t dev)
 	sc->et.et_quality = 1000;
 
 	sc->et.et_frequency = sc->clkfreq;
-	sc->et.et_min_period = (0x00000002LLU << 32) / sc->et.et_frequency;
+	sc->et.et_min_period = (0x00000010LLU << 32) / sc->et.et_frequency;
 	sc->et.et_max_period = (0xfffffffeLLU << 32) / sc->et.et_frequency;
 	sc->et.et_start = arm_tmr_start;
 	sc->et.et_stop = arm_tmr_stop;
