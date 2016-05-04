@@ -60,11 +60,13 @@ _thread_printf(int fd, const char *fmt, ...)
 	int c;
 	int64_t d;
 	int islong;
-	int isptr = 0;
+	int isptr;
+	void* pointer;
 
 	va_start(ap, fmt);
 	while ((c = *fmt++)) {
 		islong = 0;
+		isptr = 0;
 		if (c == '%') {
 next:			c = *fmt++;
 			if (c == '\0')
@@ -87,21 +89,33 @@ next:			c = *fmt++;
 				r = ((c == 'u') || (c == 'd')) ? 10 : 16;
 				if (c == 'd') {
 					if (islong)
-						d = va_arg(ap, unsigned long);
+						d = va_arg(ap, int64_t);
 					else
-						d = va_arg(ap, unsigned);
+						d = va_arg(ap, int);
 					if (d < 0) {
 						pchar(fd, '-');
-						u = (uintptr_t)(d * -1);
+						u = (uint64_t)(d * -1);
 					} else
-						u = (uintptr_t)d;
+						u = (uint64_t)d;
 				} else {
-					if (isptr)
-						u = (vaddr_t)(uintptr_t)va_arg(ap, void*);
-					else if (islong)
-						u = va_arg(ap, unsigned long);
-					else
+					/*
+					 * XXX-AR: Is this ifdef needed?
+					 * Doesn't casting to vaddr_t always work?
+					 * (Code is based on the libc printf)
+					 */
+					if (isptr) {
+						pointer = va_arg(ap, void*);
+#ifdef __CHERI_PURE_CAPABILITY__
+						u = cheri_getbase(pointer) +
+						    cheri_getoffset(pointer);
+#else
+						u = (vaddr_t)pointer;
+#endif
+					} else if (islong) {
+						u = va_arg(ap, uint64_t);
+					} else {
 						u = va_arg(ap, unsigned);
+					}
 				}
 				s = buf;
 				do {
