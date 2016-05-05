@@ -3987,6 +3987,33 @@ bwn_fw_loaducode(struct bwn_mac *mac)
 		error = EOPNOTSUPP;
 		goto error;
 	}
+
+	/*
+	 * Determine firmware header version; needed for TX/RX packet
+	 * handling.
+	 */
+	if (mac->mac_fw.rev >= 598)
+		mac->mac_fw.fw_hdr_format = BWN_FW_HDR_598;
+	else if (mac->mac_fw.rev >= 410)
+		mac->mac_fw.fw_hdr_format = BWN_FW_HDR_410;
+	else
+		mac->mac_fw.fw_hdr_format = BWN_FW_HDR_351;
+
+	/*
+	 * We don't support rev 598 or later; that requires
+	 * another round of changes to the TX/RX descriptor
+	 * and status layout.
+	 *
+	 * So, complain this is the case and exit out, rather
+	 * than attaching and then failing.
+	 */
+	if (mac->mac_fw.fw_hdr_format == BWN_FW_HDR_598) {
+		device_printf(sc->sc_dev,
+		    "firmware is too new (>=598); not supported\n");
+		error = EOPNOTSUPP;
+		goto error;
+	}
+
 	mac->mac_fw.patch = bwn_shm_read_2(mac, BWN_SHARED,
 	    BWN_SHARED_UCODE_PATCH);
 	date = bwn_shm_read_2(mac, BWN_SHARED, BWN_SHARED_UCODE_DATE);
@@ -5401,6 +5428,63 @@ bwn_hwrate2ieeerate(int rate)
 	}
 }
 
+/*
+ * Post process the RX provided RSSI.
+ *
+ * Valid for A, B, G, LP PHYs.
+ */
+static int8_t
+bwn_rx_rssi_calc(struct bwn_mac *mac, int8_t in_rssi,
+    int ofdm, int adjust_2053, int adjust_2050)
+{
+	struct bwn_phy *phy = &mac->mac_phy;
+	struct bwn_phy_g *gphy = &phy->phy_g;
+	int tmp;
+
+	switch (phy->rf_ver) {
+	case 0x2050:
+		if (ofdm) {
+			tmp = in_rssi;
+			if (tmp > 127)
+				tmp -= 256;
+			tmp = tmp * 73 / 64;
+			if (adjust_2050)
+				tmp += 25;
+			else
+				tmp -= 3;
+		} else {
+			if (siba_sprom_get_bf_lo(mac->mac_sc->sc_dev)
+			    & BWN_BFL_RSSI) {
+				if (in_rssi > 63)
+					in_rssi = 63;
+				tmp = gphy->pg_nrssi_lt[in_rssi];
+				tmp = (31 - tmp) * -131 / 128 - 57;
+			} else {
+				tmp = in_rssi;
+				tmp = (31 - tmp) * -149 / 128 - 68;
+			}
+			if (phy->type == BWN_PHYTYPE_G && adjust_2050)
+				tmp += 25;
+		}
+		break;
+	case 0x2060:
+		if (in_rssi > 127)
+			tmp = in_rssi - 256;
+		else
+			tmp = in_rssi;
+		break;
+	default:
+		tmp = in_rssi;
+		tmp = (tmp - 11) * 103 / 64;
+		if (adjust_2053)
+			tmp -= 109;
+		else
+			tmp -= 83;
+	}
+
+	return (tmp);
+}
+
 static void
 bwn_rxeof(struct bwn_mac *mac, struct mbuf *m, const void *_rxhdr)
 {
@@ -5420,8 +5504,11 @@ bwn_rxeof(struct bwn_mac *mac, struct mbuf *m, const void *_rxhdr)
 
 	phystat0 = le16toh(rxhdr->phy_status0);
 	phystat3 = le16toh(rxhdr->phy_status3);
+
+	/* XXX Note: mactime, macstat, chanstat need fixing for fw 598 */
 	macstat = le32toh(rxhdr->mac_status);
 	chanstat = le16toh(rxhdr->channel);
+
 	phytype = chanstat & BWN_RX_CHAN_PHYTYPE;
 
 	if (macstat & BWN_RX_MAC_FCSERR)
@@ -5452,8 +5539,6 @@ bwn_rxeof(struct bwn_mac *mac, struct mbuf *m, const void *_rxhdr)
 		    BWN_ISOLDFMT(mac),
 		    (macstat & BWN_RX_MAC_KEYIDX) >> BWN_RX_MAC_KEYIDX_SHIFT);
 
-	/* XXX calculating RSSI & noise & antenna */
-
 	if (phystat0 & BWN_RX_PHYST0_OFDM)
 		rate = bwn_plcp_get_ofdmrate(mac, plcp,
 		    phytype == BWN_PHYTYPE_A);
@@ -5465,13 +5550,28 @@ bwn_rxeof(struct bwn_mac *mac, struct mbuf *m, const void *_rxhdr)
 	}
 	sc->sc_rx_rate = bwn_hwrate2ieeerate(rate);
 
+	/* rssi/noise */
+	switch (phytype) {
+	case BWN_PHYTYPE_A:
+	case BWN_PHYTYPE_B:
+	case BWN_PHYTYPE_G:
+	case BWN_PHYTYPE_LP:
+		rssi = bwn_rx_rssi_calc(mac, rxhdr->phy.abg.rssi,
+		    !! (phystat0 & BWN_RX_PHYST0_OFDM),
+		    !! (phystat0 & BWN_RX_PHYST0_GAINCTL),
+		    !! (phystat3 & BWN_RX_PHYST3_TRSTATE));
+		break;
+	default:
+		/* XXX TODO: implement rssi for other PHYs */
+		break;
+	}
+
+	noise = mac->mac_stats.link_noise;
+
 	/* RX radio tap */
 	if (ieee80211_radiotap_active(ic))
 		bwn_rx_radiotap(mac, m, rxhdr, plcp, rate, rssi, noise);
 	m_adj(m, -IEEE80211_CRC_LEN);
-
-	rssi = rxhdr->phy.abg.rssi;	/* XXX incorrect RSSI calculation? */
-	noise = mac->mac_stats.link_noise;
 
 	BWN_UNLOCK(sc);
 
