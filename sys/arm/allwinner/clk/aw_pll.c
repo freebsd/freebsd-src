@@ -124,6 +124,12 @@ __FBSDID("$FreeBSD$");
 #define	A31_PLL6_DEFAULT_K		0x1
 #define	A31_PLL6_TIMEOUT		10
 
+#define	A80_PLL4_CLK_OUT_EN		(1 << 20)
+#define	A80_PLL4_PLL_DIV2		(1 << 18)
+#define	A80_PLL4_PLL_DIV1		(1 << 16)
+#define	A80_PLL4_FACTOR_N		(0xff << 8)
+#define	A80_PLL4_FACTOR_N_SHIFT		8
+
 #define	CLKID_A10_PLL3_1X		0
 #define	CLKID_A10_PLL3_2X		1
 
@@ -146,6 +152,7 @@ enum aw_pll_type {
 	AWPLL_A10_PLL6,
 	AWPLL_A31_PLL1,
 	AWPLL_A31_PLL6,
+	AWPLL_A80_PLL4,
 };
 
 struct aw_pll_sc {
@@ -524,6 +531,24 @@ a31_pll6_recalc(struct aw_pll_sc *sc, uint64_t *freq)
 	return (0);
 }
 
+static int
+a80_pll4_recalc(struct aw_pll_sc *sc, uint64_t *freq)
+{
+	uint32_t val, n, div1, div2;
+
+	DEVICE_LOCK(sc);
+	PLL_READ(sc, &val);
+	DEVICE_UNLOCK(sc);
+
+	n = (val & A80_PLL4_FACTOR_N) >> A80_PLL4_FACTOR_N_SHIFT;
+	div1 = (val & A80_PLL4_PLL_DIV1) == 0 ? 1 : 2;
+	div2 = (val & A80_PLL4_PLL_DIV2) == 0 ? 1 : 2;
+
+	*freq = (*freq * n) / div1 / div2;
+
+	return (0);
+}
+
 #define	PLL(_type, _recalc, _set_freq, _init)	\
 	[(_type)] = {				\
 		.recalc = (_recalc),		\
@@ -539,6 +564,7 @@ static struct aw_pll_funcs aw_pll_func[] = {
 	PLL(AWPLL_A10_PLL6, a10_pll6_recalc, a10_pll6_set_freq, a10_pll6_init),
 	PLL(AWPLL_A31_PLL1, a31_pll1_recalc, NULL, NULL),
 	PLL(AWPLL_A31_PLL6, a31_pll6_recalc, NULL, a31_pll6_init),
+	PLL(AWPLL_A80_PLL4, a80_pll4_recalc, NULL, NULL),
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -549,6 +575,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10-pll6-clk",	AWPLL_A10_PLL6 },
 	{ "allwinner,sun6i-a31-pll1-clk",	AWPLL_A31_PLL1 },
 	{ "allwinner,sun6i-a31-pll6-clk",	AWPLL_A31_PLL6 },
+	{ "allwinner,sun9i-a80-pll4-clk",	AWPLL_A80_PLL4 },
 	{ NULL, 0 }
 };
 
