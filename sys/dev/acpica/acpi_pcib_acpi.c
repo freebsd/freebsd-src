@@ -29,6 +29,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
+#include "opt_pci.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -311,6 +313,11 @@ acpi_pcib_osc(struct acpi_hpcib_softc *sc)
 
 	/* Control Field */
 	cap_set[2] = 0;
+
+#ifdef PCI_HP
+	/* Control Field: PCI Express Native Hot Plug */
+	cap_set[2] |= 0x1;
+#endif
 
 	status = acpi_EvaluateOSC(sc->ap_handle, pci_host_bridge_uuid, 1,
 	    nitems(cap_set), cap_set, cap_set, false);
