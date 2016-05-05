@@ -1078,14 +1078,16 @@ bcm_gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
 {
 	int error;
 	u_int irq;
+	struct intr_map_data_fdt *daf;
 	struct bcm_gpio_softc *sc;
 
 	if (data->type != INTR_MAP_DATA_FDT)
 		return (ENOTSUP);
 
 	sc = device_get_softc(dev);
-	error = bcm_gpio_pic_map_fdt(sc, data->fdt.ncells, data->fdt.cells,
-	    &irq, NULL);
+	daf = (struct intr_map_data_fdt *)data;
+
+	error = bcm_gpio_pic_map_fdt(sc, daf->ncells, daf->cells, &irq, NULL);
 	if (error == 0)
 		*isrcp = &sc->sc_isrcs[irq].bgi_isrc;
 	return (error);
@@ -1127,15 +1129,17 @@ bcm_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	uint32_t bank, reg;
 	struct bcm_gpio_softc *sc;
 	struct bcm_gpio_irqsrc *bgi;
+	struct intr_map_data_fdt *daf;
 
 	if (data == NULL || data->type != INTR_MAP_DATA_FDT)
 		return (ENOTSUP);
 
 	sc = device_get_softc(dev);
 	bgi = (struct bcm_gpio_irqsrc *)isrc;
+	daf = (struct intr_map_data_fdt *)data;
 
 	/* Get and check config for an interrupt. */
-	if (bcm_gpio_pic_map_fdt(sc, data->fdt.ncells, data->fdt.cells, &irq,
+	if (bcm_gpio_pic_map_fdt(sc, daf->ncells, daf->cells, &irq,
 	    &reg) != 0 || bgi->bgi_irq != irq)
 		return (EINVAL);
 

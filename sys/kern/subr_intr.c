@@ -128,7 +128,7 @@ struct intr_dev_data {
 	device_t		idd_dev;
 	intptr_t		idd_xref;
 	u_int			idd_irq;
-	struct intr_map_data	idd_data;
+	struct intr_map_data *	idd_data;
 	struct intr_irqsrc *	idd_isrc;
 };
 
@@ -495,8 +495,10 @@ static struct intr_dev_data *
 intr_ddata_alloc(u_int extsize)
 {
 	struct intr_dev_data *ddata;
+	size_t size;
 
-	ddata = malloc(sizeof(*ddata) + extsize, M_INTRNG, M_WAITOK | M_ZERO);
+	size = sizeof(*ddata);
+	ddata = malloc(size + extsize, M_INTRNG, M_WAITOK | M_ZERO);
 
 	mtx_lock(&isrc_table_lock);
 	if (intr_ddata_first_unused >= nitems(intr_ddata_tab)) {
@@ -507,6 +509,9 @@ intr_ddata_alloc(u_int extsize)
 	intr_ddata_tab[intr_ddata_first_unused] = ddata;
 	ddata->idd_irq = IRQ_DDATA_BASE + intr_ddata_first_unused++;
 	mtx_unlock(&isrc_table_lock);
+
+	ddata->idd_data = (struct intr_map_data *)((uintptr_t)ddata + size);
+	ddata->idd_data->size = size;
 	return (ddata);
 }
 
@@ -534,13 +539,13 @@ intr_ddata_lookup(u_int irq, struct intr_map_data **datap)
 	ddata = intr_ddata_tab[irq];
 	if (ddata->idd_isrc == NULL) {
 		error = intr_map_irq(ddata->idd_dev, ddata->idd_xref,
-		    &ddata->idd_data, &irq);
+		    ddata->idd_data, &irq);
 		if (error != 0)
 			return (NULL);
 		ddata->idd_isrc = isrc_lookup(irq);
 	}
 	if (datap != NULL)
-		*datap = &ddata->idd_data;
+		*datap = ddata->idd_data;
 	return (ddata->idd_isrc);
 }
 
@@ -554,17 +559,21 @@ u_int
 intr_acpi_map_irq(device_t dev, u_int irq, enum intr_polarity pol,
     enum intr_trigger trig)
 {
+	struct intr_map_data_acpi *daa;
 	struct intr_dev_data *ddata;
 
-	ddata = intr_ddata_alloc(0);
+	ddata = intr_ddata_alloc(sizeof(struct intr_map_data_acpi));
 	if (ddata == NULL)
 		return (INTR_IRQ_INVALID);	/* no space left */
 
 	ddata->idd_dev = dev;
-	ddata->idd_data.type = INTR_MAP_DATA_ACPI;
-	ddata->idd_data.acpi.irq = irq;
-	ddata->idd_data.acpi.pol = pol;
-	ddata->idd_data.acpi.trig = trig;
+	ddata->idd_data->type = INTR_MAP_DATA_ACPI;
+
+	daa = (struct intr_map_data_acpi *)ddata->idd_data;
+	daa->irq = irq;
+	daa->pol = pol;
+	daa->trig = trig;
+
 	return (ddata->idd_irq);
 }
 #endif
@@ -577,19 +586,21 @@ intr_acpi_map_irq(device_t dev, u_int irq, enum intr_polarity pol,
 u_int
 intr_fdt_map_irq(phandle_t node, pcell_t *cells, u_int ncells)
 {
+	size_t cellsize;
 	struct intr_dev_data *ddata;
-	u_int cellsize;
+	struct intr_map_data_fdt *daf;
 
 	cellsize = ncells * sizeof(*cells);
-	ddata = intr_ddata_alloc(cellsize);
+	ddata = intr_ddata_alloc(sizeof(struct intr_map_data_fdt) + cellsize);
 	if (ddata == NULL)
 		return (INTR_IRQ_INVALID);	/* no space left */
 
 	ddata->idd_xref = (intptr_t)node;
-	ddata->idd_data.type = INTR_MAP_DATA_FDT;
-	ddata->idd_data.fdt.ncells = ncells;
-	ddata->idd_data.fdt.cells = (pcell_t *)(ddata + 1);
-	memcpy(ddata->idd_data.fdt.cells, cells, cellsize);
+	ddata->idd_data->type = INTR_MAP_DATA_FDT;
+
+	daf = (struct intr_map_data_fdt *)ddata->idd_data;
+	daf->ncells = ncells;
+	memcpy(daf->cells, cells, cellsize);
 	return (ddata->idd_irq);
 }
 #endif
@@ -602,16 +613,19 @@ u_int
 intr_gpio_map_irq(device_t dev, u_int pin_num, u_int pin_flags, u_int intr_mode)
 {
 	struct intr_dev_data *ddata;
+	struct intr_map_data_gpio *dag;
 
-	ddata = intr_ddata_alloc(0);
+	ddata = intr_ddata_alloc(sizeof(struct intr_map_data_gpio));
 	if (ddata == NULL)
 		return (INTR_IRQ_INVALID);	/* no space left */
 
 	ddata->idd_dev = dev;
-	ddata->idd_data.type = INTR_MAP_DATA_GPIO;
-	ddata->idd_data.gpio.gpio_pin_num = pin_num;
-	ddata->idd_data.gpio.gpio_pin_flags = pin_flags;
-	ddata->idd_data.gpio.gpio_intr_mode = intr_mode;
+	ddata->idd_data->type = INTR_MAP_DATA_GPIO;
+
+	dag = (struct intr_map_data_gpio *)ddata->idd_data;
+	dag->gpio_pin_num = pin_num;
+	dag->gpio_pin_flags = pin_flags;
+	dag->gpio_intr_mode = intr_mode;
 	return (ddata->idd_irq);
 }
 

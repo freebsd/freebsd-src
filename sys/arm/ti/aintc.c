@@ -178,14 +178,18 @@ static int
 ti_aintc_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
+	struct intr_map_data_fdt *daf;
 	struct ti_aintc_softc *sc;
 
-	if (data->type != INTR_MAP_DATA_FDT || data->fdt.ncells != 1 ||
-	    data->fdt.cells[0] >= INTC_NIRQS)
+	if (data->type != INTR_MAP_DATA_FDT)
+		return (ENOTSUP);
+
+	daf = (struct intr_map_data_fdt *)data;
+	if (daf->ncells != 1 || daf->cells[0] >= INTC_NIRQS)
 		return (EINVAL);
 
 	sc = device_get_softc(dev);
-	*isrcp = &sc->aintc_isrcs[data->fdt.cells[0]].tai_isrc;
+	*isrcp = &sc->aintc_isrcs[daf->cells[0]].tai_isrc;
 	return (0);
 }
 
