@@ -14,7 +14,15 @@ fcrypt_body:
 
 	xorl	%edi,%edi
 	xorl	%esi,%esi
+#ifdef PIC
+	calll	.L1
+.L1:
+	popl	%edx
+	addl	$_GLOBAL_OFFSET_TABLE_+(.-.L1), %edx
+	movl	DES_SPtrans@GOT(%edx), %edx
+#else
 	leal	DES_SPtrans,%edx
+#endif
 	pushl	%edx
 	movl	28(%esp),%ebp
 	pushl	$25
