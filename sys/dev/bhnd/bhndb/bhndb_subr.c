@@ -873,19 +873,19 @@ bhndb_regwin_find_core(const struct bhndb_regwin *table, bhnd_devclass_t class,
 		if (rw->win_type != BHNDB_REGWIN_T_CORE)
 			continue;
 
-		if (rw->core.class != class)
+		if (rw->d.core.class != class)
 			continue;
 		
-		if (unit != -1 && rw->core.unit != unit)
+		if (unit != -1 && rw->d.core.unit != unit)
 			continue;
 
-		if (rw->core.port_type != port_type)
+		if (rw->d.core.port_type != port_type)
 			continue;
 
-		if (rw->core.port != port)
+		if (rw->d.core.port != port)
 			continue;
 		
-		if (rw->core.region != region)
+		if (rw->d.core.region != region)
 			continue;
 
 		return (rw);
@@ -944,16 +944,16 @@ bhndb_regwin_matches_device(const struct bhndb_regwin *regw, device_t dev)
 		return (false);
 
 	/* Device class must match */
-	if (bhnd_get_class(dev) != regw->core.class)
+	if (bhnd_get_class(dev) != regw->d.core.class)
 		return (false);
 
 	/* Device unit must match */
-	if (bhnd_get_core_unit(dev) != regw->core.unit)
+	if (bhnd_get_core_unit(dev) != regw->d.core.unit)
 		return (false);
 	
 	/* The regwin port/region must be defined. */
-	if (!bhnd_is_region_valid(dev, regw->core.port_type, regw->core.port,
-	    regw->core.region))
+	if (!bhnd_is_region_valid(dev, regw->d.core.port_type, regw->d.core.port,
+	    regw->d.core.region))
 	{
 		return (false);
 	}
