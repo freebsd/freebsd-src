@@ -751,6 +751,12 @@ struct bwn_fwinitvals {
 	} __packed data;
 } __packed;
 
+enum bwn_fw_hdr_format {
+	BWN_FW_HDR_598,
+	BWN_FW_HDR_410,
+	BWN_FW_HDR_351,
+};
+
 enum bwn_fwtype {
 	BWN_FWTYPE_DEFAULT,
 	BWN_FWTYPE_OPENSOURCE,
@@ -773,6 +779,7 @@ struct bwn_fw {
 	struct bwn_fwfile		pcm;
 	struct bwn_fwfile		initvals;
 	struct bwn_fwfile		initvals_band;
+	enum bwn_fw_hdr_format		fw_hdr_format;
 
 	uint16_t			rev;
 	uint16_t			patch;
