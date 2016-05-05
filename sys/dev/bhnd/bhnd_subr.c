@@ -184,6 +184,8 @@ bhnd_port_type_name(bhnd_port_type port_type)
 		return ("bridge");
 	case BHND_PORT_AGENT:
 		return ("agent");
+	default:
+		return "unknown";
 	}
 }
 
