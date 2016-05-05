@@ -416,7 +416,7 @@ sa6_recoverscope(struct sockaddr_in6 *sin6)
 			    zoneid != sin6->sin6_scope_id) {
 				log(LOG_NOTICE,
 				    "%s: embedded scope mismatch: %s%%%d. "
-				    "sin6_scope_id was overridden.", __func__,
+				    "sin6_scope_id was overridden\n", __func__,
 				    ip6_sprintf(ip6buf, &sin6->sin6_addr),
 				    sin6->sin6_scope_id);
 			}
