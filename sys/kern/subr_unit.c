@@ -1026,7 +1026,7 @@ main(int argc, char **argv)
 	printf("sizeof(struct unr) %zu\n", sizeof(struct unr));
 	printf("sizeof(struct unrb) %zu\n", sizeof(struct unrb));
 	printf("sizeof(struct unrhdr) %zu\n", sizeof(struct unrhdr));
-	printf("NBITS %lu\n", NBITS);
+	printf("NBITS %lu\n", (unsigned long)NBITS);
 	x = 1;
 	for (m = 0; m < count * reps; m++) {
 		j = random();
