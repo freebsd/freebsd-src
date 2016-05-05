@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
  * PCI:PCI bridge support.
  */
 
+#include "opt_pci.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -43,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/taskqueue.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -67,6 +70,11 @@ static int		pcib_try_enable_ari(device_t pcib, device_t dev);
 static int		pcib_ari_enabled(device_t pcib);
 static void		pcib_ari_decode_rid(device_t pcib, uint16_t rid,
 			    int *bus, int *slot, int *func);
+#ifdef PCI_HP
+static void		pcib_pcie_ab_timeout(void *arg);
+static void		pcib_pcie_cc_timeout(void *arg);
+static void		pcib_pcie_dll_timeout(void *arg);
+#endif
 
 static device_method_t pcib_methods[] = {
     /* Device interface */
@@ -78,6 +86,7 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(device_resume,		pcib_resume),
 
     /* Bus interface */
+    DEVMETHOD(bus_child_present,	pcib_child_present),
     DEVMETHOD(bus_read_ivar,		pcib_read_ivar),
     DEVMETHOD(bus_write_ivar,		pcib_write_ivar),
     DEVMETHOD(bus_alloc_resource,	pcib_alloc_resource),
@@ -839,6 +848,466 @@ pcib_set_mem_decode(struct pcib_softc *sc)
 }
 #endif
 
+#ifdef PCI_HP
+/*
+ * PCI-express HotPlug support.
+ */
+static void
+pcib_probe_hotplug(struct pcib_softc *sc)
+{
+	device_t dev;
+
+	dev = sc->dev;
+	if (pci_find_cap(dev, PCIY_EXPRESS, NULL) != 0)
+		return;
+
+	if (!(pcie_read_config(dev, PCIER_FLAGS, 2) & PCIEM_FLAGS_SLOT))
+		return;
+
+	sc->pcie_link_cap = pcie_read_config(dev, PCIER_LINK_CAP, 4);
+	sc->pcie_slot_cap = pcie_read_config(dev, PCIER_SLOT_CAP, 4);
+
+	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_HPC)
+		sc->flags |= PCIB_HOTPLUG;
+}
+
+/*
+ * Send a HotPlug command to the slot control register.  If this slot
+ * uses command completion interrupts, these updates will be buffered
+ * while a previous command is completing.
+ */
+static void
+pcib_pcie_hotplug_command(struct pcib_softc *sc, uint16_t val, uint16_t mask)
+{
+	device_t dev;
+	uint16_t ctl, new;
+
+	dev = sc->dev;
+	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_NCCS) {
+		ctl = pcie_read_config(dev, PCIER_SLOT_CTL, 2);
+		new = (ctl & ~mask) | val;
+		if (new != ctl)
+			pcie_write_config(dev, PCIER_SLOT_CTL, new, 2);
+		return;
+	}
+
+	if (sc->flags & PCIB_HOTPLUG_CMD_PENDING) {
+		sc->pcie_pending_link_ctl_val &= ~mask;
+		sc->pcie_pending_link_ctl_val |= val;
+		sc->pcie_pending_link_ctl_mask |= mask;
+	} else {
+		ctl = pcie_read_config(dev, PCIER_SLOT_CTL, 2);
+		new = (ctl & ~mask) | val;
+		if (new != ctl) {
+			pcie_write_config(dev, PCIER_SLOT_CTL, ctl, 2);
+			sc->flags |= PCIB_HOTPLUG_CMD_PENDING;
+			if (!cold)
+				callout_reset(&sc->pcie_cc_timer, hz,
+				    pcib_pcie_cc_timeout, sc);
+		}
+	}
+}
+
+static void
+pcib_pcie_hotplug_command_completed(struct pcib_softc *sc)
+{
+	device_t dev;
+	uint16_t ctl, new;
+
+	dev = sc->dev;
+
+	if (bootverbose)
+		device_printf(dev, "Command Completed\n");
+	if (!(sc->flags & PCIB_HOTPLUG_CMD_PENDING))
+		return;
+	if (sc->pcie_pending_link_ctl_mask != 0) {
+		ctl = pcie_read_config(dev, PCIER_SLOT_CTL, 2);
+		new = ctl & ~sc->pcie_pending_link_ctl_mask;
+		new |= sc->pcie_pending_link_ctl_val;
+		if (new != ctl) {
+			pcie_write_config(dev, PCIER_SLOT_CTL, ctl, 2);
+			if (!cold)
+				callout_reset(&sc->pcie_cc_timer, hz,
+				    pcib_pcie_cc_timeout, sc);
+		} else
+			sc->flags &= ~PCIB_HOTPLUG_CMD_PENDING;
+		sc->pcie_pending_link_ctl_mask = 0;
+		sc->pcie_pending_link_ctl_val = 0;
+	} else {
+		callout_stop(&sc->pcie_cc_timer);
+		sc->flags &= ~PCIB_HOTPLUG_CMD_PENDING;
+	}
+}
+
+/*
+ * Returns true if a card is fully inserted from the user's
+ * perspective.  It may not yet be ready for access, but the driver
+ * can now start enabling access if necessary.
+ */
+static bool
+pcib_hotplug_inserted(struct pcib_softc *sc)
+{
+
+	/* Pretend the card isn't present if a detach is forced. */
+	if (sc->flags & PCIB_DETACHING)
+		return (false);
+
+	/* Card must be present in the slot. */
+	if ((sc->pcie_slot_sta & PCIEM_SLOT_STA_PDS) == 0)
+		return (false);
+
+	/* A power fault implicitly turns off power to the slot. */
+	if (sc->pcie_slot_sta & PCIEM_SLOT_STA_PFD)
+		return (false);
+
+	/* If the MRL is disengaged, the slot is powered off. */
+	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_MRLSP &&
+	    (sc->pcie_slot_sta & PCIEM_SLOT_STA_MRLSS) != 0)
+		return (false);
+
+	return (true);
+}
+
+/*
+ * Returns -1 if the card is fully inserted, powered, and ready for
+ * access.  Otherwise, returns 0.
+ */
+static int
+pcib_hotplug_present(struct pcib_softc *sc)
+{
+	device_t dev;
+
+	dev = sc->dev;
+
+	/* Card must be inserted. */
+	if (!pcib_hotplug_inserted(sc))
+		return (0);
+
+	/*
+	 * Require the Electromechanical Interlock to be engaged if
+	 * present.
+	 */
+	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_EIP &&
+	    (sc->pcie_slot_sta & PCIEM_SLOT_STA_EIS) == 0)
+		return (0);
+
+	/* Require the Data Link Layer to be active. */
+	if (sc->pcie_link_cap & PCIEM_LINK_CAP_DL_ACTIVE) {
+		if (!(sc->pcie_link_sta & PCIEM_LINK_STA_DL_ACTIVE))
+			return (0);
+	}
+
+	return (-1);
+}
+
+static void
+pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
+    bool schedule_task)
+{
+	bool card_inserted;
+
+	/* Clear DETACHING if Present Detect has cleared. */
+	if ((sc->pcie_slot_sta & (PCIEM_SLOT_STA_PDC | PCIEM_SLOT_STA_PDS)) ==
+	    PCIEM_SLOT_STA_PDC)
+		sc->flags &= ~PCIB_DETACHING;
+
+	card_inserted = pcib_hotplug_inserted(sc);
+
+	/* Turn the power indicator on if a card is inserted. */
+	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_PIP) {
+		mask |= PCIEM_SLOT_CTL_PIC;
+		if (card_inserted)
+			val |= PCIEM_SLOT_CTL_PI_ON;
+		else if (sc->flags & PCIB_DETACH_PENDING)
+			val |= PCIEM_SLOT_CTL_PI_BLINK;
+		else
+			val |= PCIEM_SLOT_CTL_PI_OFF;
+	}
+
+	/* Turn the power on via the Power Controller if a card is inserted. */
+	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_PCP) {
+		mask |= PCIEM_SLOT_CTL_PCC;
+		if (card_inserted)
+			val |= PCIEM_SLOT_CTL_PC_ON;
+		else
+			val |= PCIEM_SLOT_CTL_PC_OFF;
+	}
+
+	/*
+	 * If a card is inserted, enable the Electromechanical
+	 * Interlock.  If a card is not inserted (or we are in the
+	 * process of detaching), disable the Electromechanical
+	 * Interlock.
+	 */
+	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_EIP) {
+		if (card_inserted !=
+		    !(sc->pcie_slot_sta & PCIEM_SLOT_STA_EIS)) {
+			mask |= PCIEM_SLOT_CTL_EIC;
+			val |= PCIEM_SLOT_CTL_EIC;
+		}
+	}
+
+	/*
+	 * Start a timer to see if the Data Link Layer times out.
+	 * Note that we only start the timer if Presence Detect
+	 * changed on this interrupt.  Stop any scheduled timer if
+	 * the Data Link Layer is active.
+	 */
+	if (sc->pcie_link_cap & PCIEM_LINK_CAP_DL_ACTIVE) {
+		if (card_inserted &&
+		    !(sc->pcie_link_sta & PCIEM_LINK_STA_DL_ACTIVE) &&
+		    sc->pcie_slot_sta & PCIEM_SLOT_STA_PDC) {
+			if (cold)
+				device_printf(sc->dev,
+				    "Data Link Layer inactive\n");
+			else
+				callout_reset(&sc->pcie_dll_timer, hz,
+				    pcib_pcie_dll_timeout, sc);
+		} else if (sc->pcie_link_sta & PCIEM_LINK_STA_DL_ACTIVE)
+			callout_stop(&sc->pcie_dll_timer);
+	}
+
+	pcib_pcie_hotplug_command(sc, val, mask);
+
+	/*
+	 * During attach the child "pci" device is added sychronously;
+	 * otherwise, the task is scheduled to manage the child
+	 * device.
+	 */
+	if (schedule_task &&
+	    (pcib_hotplug_present(sc) != 0) != (sc->child != NULL))
+		taskqueue_enqueue(taskqueue_thread, &sc->pcie_hp_task);
+}
+
+static void
+pcib_pcie_intr(void *arg)
+{
+	struct pcib_softc *sc;
+	device_t dev;
+
+	sc = arg;
+	dev = sc->dev;
+	sc->pcie_slot_sta = pcie_read_config(dev, PCIER_SLOT_STA, 2);
+
+	/* Clear the events just reported. */
+	pcie_write_config(dev, PCIER_SLOT_STA, sc->pcie_slot_sta, 2);
+
+	if (sc->pcie_slot_sta & PCIEM_SLOT_STA_ABP) {
+		if (sc->flags & PCIB_DETACH_PENDING) {	
+			device_printf(dev,
+			    "Attention Button Pressed: Detach Cancelled\n");
+			sc->flags &= ~PCIB_DETACH_PENDING;
+			callout_stop(&sc->pcie_ab_timer);
+		} else {
+			device_printf(dev,
+		    "Attention Button Pressed: Detaching in 5 seconds\n");
+			sc->flags |= PCIB_DETACH_PENDING;
+			callout_reset(&sc->pcie_ab_timer, 5 * hz,
+			    pcib_pcie_ab_timeout, sc);
+		}
+	}
+	if (sc->pcie_slot_sta & PCIEM_SLOT_STA_PFD)
+		device_printf(dev, "Power Fault Detected\n");
+	if (sc->pcie_slot_sta & PCIEM_SLOT_STA_MRLSC)
+		device_printf(dev, "MRL Sensor Changed to %s\n",
+		    sc->pcie_slot_sta & PCIEM_SLOT_STA_MRLSS ? "open" :
+		    "closed");
+	if (bootverbose && sc->pcie_slot_sta & PCIEM_SLOT_STA_PDC)
+		device_printf(dev, "Present Detect Changed to %s\n",
+		    sc->pcie_slot_sta & PCIEM_SLOT_STA_PDS ? "card present" :
+		    "empty");
+	if (sc->pcie_slot_sta & PCIEM_SLOT_STA_CC)
+		pcib_pcie_hotplug_command_completed(sc);
+	if (sc->pcie_slot_sta & PCIEM_SLOT_STA_DLLSC) {
+		sc->pcie_link_sta = pcie_read_config(dev, PCIER_LINK_STA, 2);
+		if (bootverbose)
+			device_printf(dev,
+			    "Data Link Layer State Changed to %s\n",
+			    sc->pcie_link_sta & PCIEM_LINK_STA_DL_ACTIVE ?
+			    "active" : "inactive");
+	}
+
+	pcib_pcie_hotplug_update(sc, 0, 0, true);
+}
+
+static void
+pcib_pcie_hotplug_task(void *context, int pending)
+{
+	struct pcib_softc *sc;
+	device_t dev;
+
+	sc = context;
+	mtx_lock(&Giant);
+	dev = sc->dev;
+	if (pcib_hotplug_present(sc) != 0) {
+		if (sc->child == NULL) {
+			sc->child = device_add_child(dev, "pci", -1);
+			bus_generic_attach(dev);
+		}
+	} else {
+		if (sc->child != NULL) {
+			if (device_delete_child(dev, sc->child) == 0)
+				sc->child = NULL;
+		}
+	}
+	mtx_unlock(&Giant);
+}
+
+static void
+pcib_pcie_ab_timeout(void *arg)
+{
+	struct pcib_softc *sc;
+	device_t dev;
+
+	sc = arg;
+	dev = sc->dev;
+	mtx_assert(&Giant, MA_OWNED);
+	if (sc->flags & PCIB_DETACH_PENDING) {
+		sc->flags |= PCIB_DETACHING;
+		sc->flags &= ~PCIB_DETACH_PENDING;
+		pcib_pcie_hotplug_update(sc, 0, 0, true);
+	}
+}
+
+static void
+pcib_pcie_cc_timeout(void *arg)
+{
+	struct pcib_softc *sc;
+	device_t dev;
+
+	sc = arg;
+	dev = sc->dev;
+	mtx_assert(&Giant, MA_OWNED);
+	if (sc->flags & PCIB_HOTPLUG_CMD_PENDING) {
+		device_printf(dev,
+		    "Hotplug Command Timed Out - forcing detach\n");
+		sc->flags &= ~(PCIB_HOTPLUG_CMD_PENDING | PCIB_DETACH_PENDING);
+		sc->flags |= PCIB_DETACHING;
+		pcib_pcie_hotplug_update(sc, 0, 0, true);
+	}
+}
+
+static void
+pcib_pcie_dll_timeout(void *arg)
+{
+	struct pcib_softc *sc;
+	device_t dev;
+	uint16_t sta;
+
+	sc = arg;
+	dev = sc->dev;
+	mtx_assert(&Giant, MA_OWNED);
+	sta = pcie_read_config(dev, PCIER_LINK_STA, 2);
+	if (!(sta & PCIEM_LINK_STA_DL_ACTIVE)) {
+		device_printf(dev,
+		    "Timed out waiting for Data Link Layer Active\n");
+		sc->flags |= PCIB_DETACHING;
+		pcib_pcie_hotplug_update(sc, 0, 0, true);
+	} else if (sta != sc->pcie_link_sta) {
+		device_printf(dev,
+		    "Missed HotPlug interrupt waiting for DLL Active\n");
+		pcib_pcie_intr(sc);
+	}
+}
+
+static int
+pcib_alloc_pcie_irq(struct pcib_softc *sc)
+{
+	device_t dev;
+	int count, error, rid;
+
+	rid = -1;
+	dev = sc->dev;
+
+	/*
+	 * For simplicity, only use MSI-X if there is a single message.
+	 * To support a device with multiple messages we would have to
+	 * use remap intr if the MSI number is not 0.
+	 */
+	count = pci_msix_count(dev);
+	if (count == 1) {
+		error = pci_alloc_msix(dev, &count);
+		if (error == 0)
+			rid = 1;
+	}
+
+	if (rid < 0 && pci_msi_count(dev) > 0) {
+		count = 1;
+		error = pci_alloc_msi(dev, &count);
+		if (error == 0)
+			rid = 1;
+	}
+
+	if (rid < 0)
+		rid = 0;
+
+	sc->pcie_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE);
+	if (sc->pcie_irq == NULL) {
+		device_printf(dev,
+		    "Failed to allocate interrupt for PCI-e events\n");
+		if (rid > 0)
+			pci_release_msi(dev);
+		return (ENXIO);
+	}
+
+	error = bus_setup_intr(dev, sc->pcie_irq, INTR_TYPE_MISC,
+	    NULL, pcib_pcie_intr, sc, &sc->pcie_ihand);
+	if (error) {
+		device_printf(dev, "Failed to setup PCI-e interrupt handler\n");
+		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->pcie_irq);
+		if (rid > 0)
+			pci_release_msi(dev);
+		return (error);
+	}
+	return (0);
+}
+
+static void
+pcib_setup_hotplug(struct pcib_softc *sc)
+{
+	device_t dev;
+	uint16_t mask, val;
+
+	dev = sc->dev;
+	callout_init(&sc->pcie_ab_timer, 0);
+	callout_init(&sc->pcie_cc_timer, 0);
+	callout_init(&sc->pcie_dll_timer, 0);
+	TASK_INIT(&sc->pcie_hp_task, 0, pcib_pcie_hotplug_task, sc);
+
+	/* Allocate IRQ. */
+	if (pcib_alloc_pcie_irq(sc) != 0)
+		return;
+
+	sc->pcie_link_sta = pcie_read_config(dev, PCIER_LINK_STA, 2);
+	sc->pcie_slot_sta = pcie_read_config(dev, PCIER_SLOT_STA, 2);
+
+	/* Enable HotPlug events. */
+	mask = PCIEM_SLOT_CTL_DLLSCE | PCIEM_SLOT_CTL_HPIE |
+	    PCIEM_SLOT_CTL_CCIE | PCIEM_SLOT_CTL_PDCE | PCIEM_SLOT_CTL_MRLSCE |
+	    PCIEM_SLOT_CTL_PFDE | PCIEM_SLOT_CTL_ABPE;
+	val = PCIEM_SLOT_CTL_PDCE | PCIEM_SLOT_CTL_HPIE;
+	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_APB)
+		val |= PCIEM_SLOT_CTL_ABPE;
+	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_PCP)
+		val |= PCIEM_SLOT_CTL_PFDE;
+	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_MRLSP)
+		val |= PCIEM_SLOT_CTL_MRLSCE;
+	if (!(sc->pcie_slot_cap & PCIEM_SLOT_CAP_NCCS))
+		val |= PCIEM_SLOT_CTL_CCIE;
+	if (sc->pcie_link_cap & PCIEM_LINK_CAP_DL_ACTIVE)
+		val |= PCIEM_SLOT_CTL_DLLSCE;
+
+	/* Turn the attention indicator off. */
+	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_AIP) {
+		mask |= PCIEM_SLOT_CTL_AIC;
+		val |= PCIEM_SLOT_CTL_AI_OFF;
+	}
+
+	pcib_pcie_hotplug_update(sc, val, mask, false);
+}
+#endif
+
 /*
  * Get current bridge configuration.
  */
@@ -1017,11 +1486,18 @@ pcib_attach_common(device_t dev)
       pci_read_config(dev, PCIR_PROGIF, 1) == PCIP_BRIDGE_PCI_SUBTRACTIVE)
 	sc->flags |= PCIB_SUBTRACTIVE;
 
+#ifdef PCI_HP
+    pcib_probe_hotplug(sc);
+#endif
 #ifdef NEW_PCIB
 #ifdef PCI_RES_BUS
     pcib_setup_secbus(dev, &sc->bus, 1);
 #endif
     pcib_probe_windows(sc);
+#endif
+#ifdef PCI_HP
+    if (sc->flags & PCIB_HOTPLUG)
+	    pcib_setup_hotplug(sc);
 #endif
     if (bootverbose) {
 	device_printf(dev, "  domain            %d\n", sc->domain);
@@ -1074,6 +1550,17 @@ pcib_attach_common(device_t dev)
     pci_enable_busmaster(dev);
 }
 
+#ifdef PCI_HP
+static int
+pcib_present(struct pcib_softc *sc)
+{
+
+	if (sc->flags & PCIB_HOTPLUG)
+		return (pcib_hotplug_present(sc) != 0);
+	return (1);
+}
+#endif
+
 int
 pcib_attach_child(device_t dev)
 {
@@ -1084,6 +1571,13 @@ pcib_attach_child(device_t dev)
 		/* no secondary bus; we should have fixed this */
 		return(0);
 	}
+
+#ifdef PCI_HP
+	if (!pcib_present(sc)) {
+		/* An empty HotPlug slot, so don't add a PCI bus yet. */
+		return (0);
+	}
+#endif
 
 	sc->child = device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
@@ -1126,6 +1620,22 @@ pcib_bridge_init(device_t dev)
 	pci_write_config(dev, PCIR_PMBASEH_1, 0xffffffff, 4);
 	pci_write_config(dev, PCIR_PMLIMITL_1, 0, 2);
 	pci_write_config(dev, PCIR_PMLIMITH_1, 0, 4);
+}
+
+int
+pcib_child_present(device_t dev, device_t child)
+{
+#ifdef PCI_HP
+	struct pcib_softc *sc = device_get_softc(dev);
+	int retval;
+
+	retval = bus_child_present(dev);
+	if (retval != 0 && sc->flags & PCIB_HOTPLUG)
+		retval = pcib_hotplug_present(sc);
+	return (retval);
+#else
+	return (bus_child_present(dev));
+#endif
 }
 
 int
@@ -1909,7 +2419,21 @@ pcib_ari_decode_rid(device_t pcib, uint16_t rid, int *bus, int *slot,
 static uint32_t
 pcib_read_config(device_t dev, u_int b, u_int s, u_int f, u_int reg, int width)
 {
+#ifdef PCI_HP
+	struct pcib_softc *sc;
 
+	sc = device_get_softc(dev);
+	if (!pcib_present(sc)) {
+		switch (width) {
+		case 2:
+			return (0xffff);
+		case 1:
+			return (0xff);
+		default:
+			return (0xffffffff);
+		}
+	}
+#endif
 	pcib_xlate_ari(dev, b, &s, &f);
 	return(PCIB_READ_CONFIG(device_get_parent(device_get_parent(dev)), b, s,
 	    f, reg, width));
@@ -1918,7 +2442,13 @@ pcib_read_config(device_t dev, u_int b, u_int s, u_int f, u_int reg, int width)
 static void
 pcib_write_config(device_t dev, u_int b, u_int s, u_int f, u_int reg, uint32_t val, int width)
 {
+#ifdef PCI_HP
+	struct pcib_softc *sc;
 
+	sc = device_get_softc(dev);
+	if (!pcib_present(sc))
+		return;
+#endif
 	pcib_xlate_ari(dev, b, &s, &f);
 	PCIB_WRITE_CONFIG(device_get_parent(device_get_parent(dev)), b, s, f,
 	    reg, val, width);

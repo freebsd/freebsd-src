@@ -33,6 +33,9 @@
 #ifndef __PCIB_PRIVATE_H__
 #define	__PCIB_PRIVATE_H__
 
+#include <sys/_callout.h>
+#include <sys/_task.h>
+
 #ifdef NEW_PCIB
 /*
  * Data structure and routines that Host to PCI bridge drivers can use
@@ -107,6 +110,10 @@ struct pcib_softc
 #define	PCIB_DISABLE_MSI	0x2
 #define	PCIB_DISABLE_MSIX	0x4
 #define	PCIB_ENABLE_ARI		0x8
+#define	PCIB_HOTPLUG		0x10
+#define	PCIB_HOTPLUG_CMD_PENDING 0x20
+#define	PCIB_DETACH_PENDING	0x40
+#define	PCIB_DETACHING		0x80
     u_int	domain;		/* domain number */
     u_int	pribus;		/* primary bus number */
     struct pcib_secbus bus;	/* secondary bus numbers */
@@ -123,6 +130,18 @@ struct pcib_softc
     uint32_t	iolimit;	/* topmost address of port window */
 #endif
     uint16_t	bridgectl;	/* bridge control register */
+    uint16_t	pcie_link_sta;
+    uint16_t	pcie_slot_sta;
+    uint32_t	pcie_link_cap;
+    uint32_t	pcie_slot_cap;
+    uint16_t	pcie_pending_link_ctl_mask;
+    uint16_t	pcie_pending_link_ctl_val;
+    struct resource *pcie_irq;
+    void	*pcie_ihand;
+    struct task	pcie_hp_task;
+    struct callout pcie_ab_timer;
+    struct callout pcie_cc_timer;
+    struct callout pcie_dll_timer;
 };
 
 #define	PCIB_SUPPORTED_ARI_VER	1
@@ -151,6 +170,7 @@ void		pcib_bridge_init(device_t dev);
 #ifdef NEW_PCIB
 const char	*pcib_child_name(device_t child);
 #endif
+int		pcib_child_present(device_t dev, device_t child);
 int		pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
 int		pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value);
 struct resource *pcib_alloc_resource(device_t dev, device_t child, int type, int *rid, 
