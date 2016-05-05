@@ -342,7 +342,7 @@ s/\$//g
 		else
 			may_be_null = "1"
 
-		reqperms = "CHERI_PERM_GLOBAL"
+		reqperms = "";
 		if (annotation ~ /^_In/) {
 			reqperms = reqperms "|CHERI_PERM_LOAD"
 			if (a_saltype ~ /_c \*/)
@@ -354,6 +354,7 @@ s/\$//g
 			if (a_saltype ~ /_c \*/)
 				reqperms = reqperms "|CHERI_PERM_STORE_CAP"
 		}
+		gsub(/^\|/, "", reqperms);
 		printf("\t\tregister_t reqperms = (%s);\n",
 		    reqperms) > cheriabi_fill_uap
 
@@ -452,7 +453,7 @@ s/\$//g
 		printf("\t\tcheriabi_fetch_syscall_arg(td, &tmpcap, %s%s, %d);\n",
 		    syscallprefix, funcalias, i-1) > cheriabi_fill_uap
 		printf("\t\terror = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->%s),\n", a_name) > cheriabi_fill_uap
-		printf("\t\t    &tmpcap, %s, CHERI_PERM_GLOBAL, %s);\n",
+		printf("\t\t    &tmpcap, %s, 0, %s);\n",
 		    reqspace, may_be_null) > cheriabi_fill_uap
 		printf("\t\tif (error != 0)\n\t\t\treturn (error);\n") > cheriabi_fill_uap
 		printf("\t}\n") > cheriabi_fill_uap

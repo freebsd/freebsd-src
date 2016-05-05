@@ -403,6 +403,7 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 	struct cheriabi_kevent_args *uap;
 	struct kevent_c	ks_c[KQ_NEVENTS];
 	int error, i, tag;
+	register_t perms;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
 	uap = (struct cheriabi_kevent_args *)arg;
@@ -421,8 +422,12 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
 		if (!tag)
 			CHERI_CTOINT(kevp[i].ident, CHERI_CR_CTEMP0);
-		else
+		else {
+			CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+			if (!(perms | CHERI_PERM_GLOBAL))
+				return (EPROT);
 			CHERI_CTOPTR(kevp[i].ident, CHERI_CR_CTEMP0, CHERI_CR_KDC);
+		}
 		CP(ks_c[i], kevp[i], filter);
 		CP(ks_c[i], kevp[i], flags);
 		CP(ks_c[i], kevp[i], fflags);
@@ -430,6 +435,14 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 
 		if (ks_c[i].flags & EV_DELETE)
 			continue;
+
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &ks_c[i].udata, 0);
+		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+		if (tag) {
+			CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+			if (!(perms & CHERI_PERM_GLOBAL))
+				return (EPROT);
+		}
 		/*
 		 * We stash the real ident and udata capabilities in
 		 * a malloced array in udata.

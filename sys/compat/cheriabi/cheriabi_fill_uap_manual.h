@@ -57,7 +57,7 @@ CHERIABI_SYS_cheriabi_ioctl_fill_uap(struct thread *td,
 		else
 			return (EPROT);
 	} else {
-		reqperms = (CHERI_PERM_GLOBAL);
+		reqperms = 0;
 		if (uap->com & IOC_IN)
 			reqperms |= CHERI_PERM_LOAD;
 		if (uap->com & IOC_OUT)
@@ -111,7 +111,7 @@ CHERIABI_SYS_mincore_fill_uap(struct thread *td,
 			return (EPROT);
 
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-		reqperms = (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD);
+		reqperms = CHERI_PERM_LOAD;
 		if ((perms & reqperms) != reqperms)
 			return (EPROT);
 
@@ -142,7 +142,7 @@ CHERIABI_SYS_mincore_fill_uap(struct thread *td,
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mincore, 2);
 	error = cheriabi_cap_to_ptr((caddr_t *)&uap->vec, &tmpcap,
 	    roundup2(uap->len + addr_adjust, PAGE_SIZE) / PAGE_SIZE,
-	    CHERI_PERM_GLOBAL|CHERI_PERM_STORE, 0);
+	    CHERI_PERM_STORE, 0);
 	if (error != 0)
 		return (error);
 
@@ -199,8 +199,7 @@ CHERIABI_SYS_fcntl_fill_uap(struct thread *td,
 	case F_SETLKW:
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_fcntl, 2);
 		error = cheriabi_cap_to_ptr((caddr_t *)&uap->arg,
-		    &tmpcap, sizeof(struct flock),
-		    (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD), 0);
+		    &tmpcap, sizeof(struct flock), CHERI_PERM_LOAD, 0);
 		if (error != 0)
 			return (error);
 		break;
@@ -274,7 +273,7 @@ CHERIABI_SYS_cheriabi_shmat_fill_uap(struct thread *td,
 		 * outbound path.
 		 */
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-		reqperms = (CHERI_PERM_GLOBAL);
+		reqperms = CHERI_PERM_GLOBAL;
 		if ((perms & reqperms) != reqperms)
 			return (EPROT);
 
@@ -319,7 +318,7 @@ CHERIABI_SYS_cheriabi_shmdt_fill_uap(struct thread *td,
 		 * Don't check for any particular permissions beyond global.
 		 */
 		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-		reqperms = (CHERI_PERM_GLOBAL);
+		reqperms = CHERI_PERM_GLOBAL;
 		if ((perms & reqperms) != reqperms)
 			return (EPROT);
 
@@ -418,7 +417,7 @@ CHERIABI_SYS_auditon_fill_uap(struct thread *td,
 	 * cases.  In a few cases, this may be excessive, but it seem
 	 * unlikely to break real programs.
 	 */
-	reqperms = (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD);
+	reqperms = CHERI_PERM_LOAD;
 	switch (uap->cmd) {
 	case A_SETPOLICY:
 	case A_SETKAUDIT:
@@ -487,7 +486,7 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 	CHERI_CTOINT(uap->val, CHERI_CR_CTEMP0);
 
 	/* [0] void * obj */
-	reqperms = CHERI_PERM_GLOBAL;
+	reqperms = 0;
 	switch (uap->op) {
 	case UMTX_OP_WAIT:			/* __umtx_op_wait */
 	case UMTX_OP_WAKE:			/* __umtx_op_wake */
@@ -620,7 +619,7 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 		 */
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS__umtx_op, 3);
 		error = cheriabi_cap_to_ptr((caddr_t *)&uap->uaddr1, &tmpcap,
-		    sizeof(uint32_t), (CHERI_PERM_GLOBAL|CHERI_PERM_STORE), 1);
+		    sizeof(uint32_t), CHERI_PERM_STORE, 1);
 		if (error != 0)
 			return (error);
 		/* uaddr2 is ignored */
@@ -631,8 +630,7 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS__umtx_op, 3);
 		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 		error = cheriabi_cap_to_ptr((caddr_t *)&uap->uaddr1, &tmpcap,
-		    sizeof(struct umutex),
-		    (CHERI_PERM_GLOBAL|CHERI_PERM_STORE), 0);
+		    sizeof(struct umutex), CHERI_PERM_STORE, 0);
 		if (error != 0)
 			return (error);
 		/* uaddr2 is a struct timespec or NULL */
@@ -656,7 +654,7 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 				return (EPROT);
 
 			CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-			reqperms = (CHERI_PERM_GLOBAL);
+			reqperms = CHERI_PERM_GLOBAL;
 			if ((perms & reqperms) != reqperms)
 				return (EPROT);
 
@@ -805,7 +803,7 @@ CHERIABI_SYS_cheriabi___semctl_fill_uap(struct thread *td,
 	CHERI_CTOINT(uap->cmd, CHERI_CR_CTEMP0);
 
 	/* [3] _In_opt_ union semun_c * arg */
-	reqperms = (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD);
+	reqperms = CHERI_PERM_LOAD;
 	switch (uap->cmd) {
 	case IPC_STAT:
 	case IPC_SET:
@@ -855,7 +853,7 @@ CHERIABI_SYS_cheriabi_procctl_fill_uap(struct thread *td,
 	cheriabi_fetch_syscall_arg(td, &tmpcap,
 	    CHERIABI_SYS_cheriabi_procctl, 3);
 	reqsize = SIZE_MAX;	/* Catch unhandled, non-NULL commands */
-	reqperms = (CHERI_PERM_GLOBAL);
+	reqperms = 0;
 	switch(uap->com) {
 	case PROC_REAP_STATUS:
 		reqsize = sizeof(struct procctl_reaper_status);

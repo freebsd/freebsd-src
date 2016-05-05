@@ -151,7 +151,7 @@ cheriabi_strcap_to_ptr(const char **strp, struct chericap *cap, int may_be_null)
 	 * requires pushing the length down to the copyinstr().
 	 */
 	return (cheriabi_cap_to_ptr(__DECONST(caddr_t *, strp), cap, 1,
-	    (CHERI_PERM_GLOBAL|CHERI_PERM_LOAD), may_be_null));
+	    CHERI_PERM_LOAD, may_be_null));
 }
 
 struct kevent_c {
