@@ -1879,7 +1879,6 @@ create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 /*
  * Creates new table based on @ti and @aname.
  *
- * Relies on table name checking inside find_name_tlv()
  * Assume @aname to be checked and valid.
  * Stores allocated table kidx inside @pkidx (if non-NULL).
  * Reference created table if @compat is non-zero.
@@ -2927,44 +2926,6 @@ check_table_name(const char *name)
 }
 
 /*
- * Find tablename TLV by @uid.
- * Check @tlvs for valid data inside.
- *
- * Returns pointer to found TLV or NULL.
- */
-static ipfw_obj_ntlv *
-find_name_tlv(void *tlvs, int len, uint16_t uidx)
-{
-	ipfw_obj_ntlv *ntlv;
-	uintptr_t pa, pe;
-	int l;
-
-	pa = (uintptr_t)tlvs;
-	pe = pa + len;
-	l = 0;
-	for (; pa < pe; pa += l) {
-		ntlv = (ipfw_obj_ntlv *)pa;
-		l = ntlv->head.length;
-
-		if (l != sizeof(*ntlv))
-			return (NULL);
-
-		if (ntlv->head.type != IPFW_TLV_TBL_NAME)
-			continue;
-
-		if (ntlv->idx != uidx)
-			continue;
-
-		if (check_table_name(ntlv->name) != 0)
-			return (NULL);
-		
-		return (ntlv);
-	}
-
-	return (NULL);
-}
-
-/*
  * Finds table config based on either legacy index
  * or name in ntlv.
  * Note @ti structure contains unchecked data from userland.
@@ -2981,7 +2942,8 @@ find_table_err(struct namedobj_instance *ni, struct tid_info *ti,
 	uint32_t set;
 
 	if (ti->tlvs != NULL) {
-		ntlv = find_name_tlv(ti->tlvs, ti->tlen, ti->uidx);
+		ntlv = ipfw_find_name_tlv_type(ti->tlvs, ti->tlen, ti->uidx,
+		    IPFW_TLV_TBL_NAME);
 		if (ntlv == NULL)
 			return (EINVAL);
 		name = ntlv->name;
@@ -3039,7 +3001,8 @@ alloc_table_config(struct ip_fw_chain *ch, struct tid_info *ti,
 	uint32_t set;
 
 	if (ti->tlvs != NULL) {
-		ntlv = find_name_tlv(ti->tlvs, ti->tlen, ti->uidx);
+		ntlv = ipfw_find_name_tlv_type(ti->tlvs, ti->tlen, ti->uidx,
+		    IPFW_TLV_TBL_NAME);
 		if (ntlv == NULL)
 			return (NULL);
 		name = ntlv->name;

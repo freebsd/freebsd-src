@@ -4089,8 +4089,8 @@ ipfw_objhash_lookup_name(struct namedobj_instance *ni, uint32_t set, char *name)
  *
  * Returns pointer to found TLV or NULL.
  */
-static ipfw_obj_ntlv *
-find_name_tlv_type(void *tlvs, int len, uint16_t uidx, uint32_t etlv)
+ipfw_obj_ntlv *
+ipfw_find_name_tlv_type(void *tlvs, int len, uint16_t uidx, uint32_t etlv)
 {
 	ipfw_obj_ntlv *ntlv;
 	uintptr_t pa, pe;
@@ -4145,7 +4145,7 @@ ipfw_objhash_find_type(struct namedobj_instance *ni, struct tid_info *ti,
 	if (ti->tlvs == NULL)
 		return (EINVAL);
 
-	ntlv = find_name_tlv_type(ti->tlvs, ti->tlen, ti->uidx, etlv);
+	ntlv = ipfw_find_name_tlv_type(ti->tlvs, ti->tlen, ti->uidx, etlv);
 	if (ntlv == NULL)
 		return (EINVAL);
 	name = ntlv->name;

@@ -684,6 +684,8 @@ void ipfw_objhash_set_funcs(struct namedobj_instance *ni,
 int ipfw_objhash_find_type(struct namedobj_instance *ni, struct tid_info *ti,
     uint32_t etlv, struct named_object **pno);
 void ipfw_export_obj_ntlv(struct named_object *no, ipfw_obj_ntlv *ntlv);
+ipfw_obj_ntlv *ipfw_find_name_tlv_type(void *tlvs, int len, uint16_t uidx,
+    uint32_t etlv);
 void ipfw_init_obj_rewriter(void);
 void ipfw_destroy_obj_rewriter(void);
 void ipfw_add_obj_rewriter(struct opcode_obj_rewrite *rw, size_t count);
