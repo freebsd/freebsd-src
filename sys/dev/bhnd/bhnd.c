@@ -351,6 +351,8 @@ bhnd_generic_get_probe_order(device_t dev, device_t child)
 			return (BHND_PROBE_ROOT + BHND_PROBE_ORDER_EARLY);
 
 		return (BHND_PROBE_DEFAULT);
+	default:
+		return (BHND_PROBE_DEFAULT);
 	}
 }
 
