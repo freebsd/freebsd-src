@@ -259,9 +259,9 @@ bhndb_initialize_region_cfg(struct bhndb_softc *sc, device_t *devs, int ndevs,
 				continue;
 			
 			/* Fetch the base address of the mapped port. */
-			error = bhnd_get_region_addr(child, 
-			    regw->core.port_type, regw->core.port, 
-			    regw->core.region, &addr, &size);
+			error = bhnd_get_region_addr(child,
+			    regw->d.core.port_type, regw->d.core.port,
+			    regw->d.core.region, &addr, &size);
 			if (error)
 			    return (error);
 
