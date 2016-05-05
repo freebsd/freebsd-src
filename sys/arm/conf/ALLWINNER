@@ -28,6 +28,7 @@ options 	INTRNG
 options 	SOC_ALLWINNER_A20
 options 	SOC_ALLWINNER_A31
 options 	SOC_ALLWINNER_A31S
+options 	SOC_ALLWINNER_A83T
 
 options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
@@ -121,6 +122,7 @@ device		bpf
 
 #device		emac			# 10/100 integrated EMAC controller
 device		dwc			# 10/100/1000 integrated GMAC controller
+device		awg			# 10/100/1000 integrated EMAC controller
 
 # USB ethernet support, requires miibus
 device		miibus

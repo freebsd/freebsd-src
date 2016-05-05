@@ -63,16 +63,35 @@ __FBSDID("$FreeBSD$");
 #define	A31_AHB1_CLK_SRC_SEL_MAX	3
 #define	A31_AHB1_CLK_SRC_SEL_SHIFT	12
 
+#define	A83T_AHB1_CLK_SRC_SEL		(0x3 << 12)
+#define	A83T_AHB1_CLK_SRC_SEL_ISPLL(x)	((x) & 0x2)
+#define	A83T_AHB1_CLK_SRC_SEL_MAX	3
+#define	A83T_AHB1_CLK_SRC_SEL_SHIFT	12
+#define	A83T_AHB1_PRE_DIV		(0x3 << 6)
+#define	A83T_AHB1_PRE_DIV_SHIFT		6
+#define	A83T_AHB1_CLK_DIV_RATIO		(0x3 << 4)
+#define	A83T_AHB1_CLK_DIV_RATIO_SHIFT	4
+
+#define	H3_AHB2_CLK_CFG			(0x3 << 0)
+#define	H3_AHB2_CLK_CFG_SHIFT		0
+#define	H3_AHB2_CLK_CFG_AHB1		0
+#define	H3_AHB2_CLK_CFG_PLL_PERIPH_DIV2	1
+#define	H3_AHB2_CLK_CFG_MAX		1
+
 enum aw_ahbclk_type {
 	AW_A10_AHB = 1,
 	AW_A13_AHB,
 	AW_A31_AHB1,
+	AW_A83T_AHB1,
+	AW_H3_AHB2,
 };
 
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10-ahb-clk",	AW_A10_AHB },
 	{ "allwinner,sun5i-a13-ahb-clk",	AW_A13_AHB },
 	{ "allwinner,sun6i-a31-ahb1-clk",	AW_A31_AHB1 },
+	{ "allwinner,sun8i-a83t-ahb1-clk",	AW_A83T_AHB1 },
+	{ "allwinner,sun8i-h3-ahb2-clk",	AW_H3_AHB2 },
 	{ NULL, 0 }
 };
 
@@ -113,6 +132,19 @@ aw_ahbclk_init(struct clknode *clk, device_t dev)
 		index = (val & A31_AHB1_CLK_SRC_SEL) >>
 		    A31_AHB1_CLK_SRC_SEL_SHIFT;
 		break;
+	case AW_A83T_AHB1:
+		DEVICE_LOCK(sc);
+		AHBCLK_READ(sc, &val);
+		DEVICE_UNLOCK(sc);
+		index = (val & A83T_AHB1_CLK_SRC_SEL) >>
+		    A83T_AHB1_CLK_SRC_SEL_SHIFT;
+		break;
+	case AW_H3_AHB2:
+		DEVICE_LOCK(sc);
+		AHBCLK_READ(sc, &val);
+		DEVICE_UNLOCK(sc);
+		index = (val & H3_AHB2_CLK_CFG) >> H3_AHB2_CLK_CFG_SHIFT;
+		break;
 	default:
 		return (ENXIO);
 	}
@@ -133,11 +165,10 @@ aw_ahbclk_recalc_freq(struct clknode *clk, uint64_t *freq)
 	AHBCLK_READ(sc, &val);
 	DEVICE_UNLOCK(sc);
 
-	div = 1 << ((val & A10_AHB_CLK_DIV_RATIO) >>
-	    A10_AHB_CLK_DIV_RATIO_SHIFT);
-
 	switch (sc->type) {
 	case AW_A31_AHB1:
+		div = 1 << ((val & A10_AHB_CLK_DIV_RATIO) >>
+		    A10_AHB_CLK_DIV_RATIO_SHIFT);
 		src_sel = (val & A31_AHB1_CLK_SRC_SEL) >>
 		    A31_AHB1_CLK_SRC_SEL_SHIFT;
 		if (src_sel == A31_AHB1_CLK_SRC_SEL_PLL6)
@@ -146,7 +177,28 @@ aw_ahbclk_recalc_freq(struct clknode *clk, uint64_t *freq)
 		else
 			pre_div = 1;
 		break;
+	case AW_A83T_AHB1:
+		div = 1 << ((val & A83T_AHB1_CLK_DIV_RATIO) >>
+		    A83T_AHB1_CLK_DIV_RATIO_SHIFT);
+		src_sel = (val & A83T_AHB1_CLK_SRC_SEL) >>
+		    A83T_AHB1_CLK_SRC_SEL_SHIFT;
+		if (A83T_AHB1_CLK_SRC_SEL_ISPLL(src_sel))
+			pre_div = ((val & A83T_AHB1_PRE_DIV) >>
+			    A83T_AHB1_PRE_DIV_SHIFT) + 1;
+		else
+			pre_div = 1;
+		break;
+	case AW_H3_AHB2:
+		src_sel = (val & H3_AHB2_CLK_CFG) >> H3_AHB2_CLK_CFG_SHIFT;
+		if (src_sel == H3_AHB2_CLK_CFG_PLL_PERIPH_DIV2)
+			div = 2;
+		else
+			div = 1;
+		pre_div = 1;
+		break;
 	default:
+		div = 1 << ((val & A10_AHB_CLK_DIV_RATIO) >>
+		    A10_AHB_CLK_DIV_RATIO_SHIFT);
 		pre_div = 1;
 		break;
 	}
@@ -176,6 +228,26 @@ aw_ahbclk_set_mux(struct clknode *clk, int index)
 		AHBCLK_READ(sc, &val);
 		val &= ~A13_AHB_CLK_SRC_SEL;
 		val |= (index << A13_AHB_CLK_SRC_SEL_SHIFT);
+		AHBCLK_WRITE(sc, val);
+		DEVICE_UNLOCK(sc);
+		break;
+	case AW_A83T_AHB1:
+		if (index < 0 || index > A83T_AHB1_CLK_SRC_SEL_MAX)
+			return (ERANGE);
+		DEVICE_LOCK(sc);
+		AHBCLK_READ(sc, &val);
+		val &= ~A83T_AHB1_CLK_SRC_SEL;
+		val |= (index << A83T_AHB1_CLK_SRC_SEL_SHIFT);
+		AHBCLK_WRITE(sc, val);
+		DEVICE_UNLOCK(sc);
+		break;
+	case AW_H3_AHB2:
+		if (index < 0 || index > H3_AHB2_CLK_CFG)
+			return (ERANGE);
+		DEVICE_LOCK(sc);
+		AHBCLK_READ(sc, &val);
+		val &= ~H3_AHB2_CLK_CFG;
+		val |= (index << H3_AHB2_CLK_CFG_SHIFT);
 		AHBCLK_WRITE(sc, val);
 		DEVICE_UNLOCK(sc);
 		break;

@@ -55,6 +55,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun5i-a13-usb-phy",	1 },
 	{ "allwinner,sun6i-a31-usb-phy",	1 },
 	{ "allwinner,sun7i-a20-usb-phy",	1 },
+	{ "allwinner,sun8i-a83t-usb-phy",	1 },
 	{ NULL,					0 }
 };
 
