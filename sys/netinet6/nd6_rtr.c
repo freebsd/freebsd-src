@@ -270,7 +270,7 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 
 	bzero(&dr0, sizeof(dr0));
 	dr0.rtaddr = saddr6;
-	dr0.flags  = nd_ra->nd_ra_flags_reserved;
+	dr0.raflags = nd_ra->nd_ra_flags_reserved;
 	/*
 	 * Effectively-disable routes from RA messages when
 	 * ND6_IFF_NO_RADR enabled on the receiving interface or
@@ -708,7 +708,7 @@ defrouter_select(void)
 static int
 rtpref(struct nd_defrouter *dr)
 {
-	switch (dr->flags & ND_RA_FLAG_RTPREF_MASK) {
+	switch (dr->raflags & ND_RA_FLAG_RTPREF_MASK) {
 	case ND_RA_FLAG_RTPREF_HIGH:
 		return (RTPREF_HIGH);
 	case ND_RA_FLAG_RTPREF_MEDIUM:
@@ -722,7 +722,7 @@ rtpref(struct nd_defrouter *dr)
 		 * serious bug of kernel internal.  We thus always bark here.
 		 * Or, can we even panic?
 		 */
-		log(LOG_ERR, "rtpref: impossible RA flag %x\n", dr->flags);
+		log(LOG_ERR, "rtpref: impossible RA flag %x\n", dr->raflags);
 		return (RTPREF_INVALID);
 	}
 	/* NOTREACHED */
@@ -744,7 +744,7 @@ defrtrlist_update(struct nd_defrouter *new)
 		oldpref = rtpref(dr);
 
 		/* override */
-		dr->flags = new->flags; /* xxx flag check */
+		dr->raflags = new->raflags; /* XXX flag check */
 		dr->rtlifetime = new->rtlifetime;
 		dr->expire = new->expire;
 
@@ -937,9 +937,9 @@ prelist_remove(struct nd_prefix *pr)
 	/* unlink ndpr_entry from nd_prefix list */
 	LIST_REMOVE(pr, ndpr_entry);
 
-	/* free list of routers that adversed the prefix */
+	/* free list of routers that advertised the prefix */
 	LIST_FOREACH_SAFE(pfr, &pr->ndpr_advrtrs, pfr_entry, next) {
-		free(pfr, M_IP6NDP);
+		pfxrtr_del(pfr);
 	}
 	free(pr, M_IP6NDP);
 

@@ -1315,9 +1315,10 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	}
 	if ((dp = nd6_dad_find(ifa, NULL)) != NULL) {
 		/*
-		 * DAD already in progress.  Let the existing entry
-		 * to finish it.
+		 * DAD is already in progress.  Let the existing entry
+		 * finish it.
 		 */
+		nd6_dad_rele(dp);
 		return;
 	}
 

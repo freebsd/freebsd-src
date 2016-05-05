@@ -235,13 +235,13 @@ struct	in6_ndifreq {
 		((MAX_RANDOM_FACTOR - MIN_RANDOM_FACTOR) * (x >> 10)))) /1000)
 
 TAILQ_HEAD(nd_drhead, nd_defrouter);
-struct	nd_defrouter {
+struct nd_defrouter {
 	TAILQ_ENTRY(nd_defrouter) dr_entry;
-	struct	in6_addr rtaddr;
-	u_char	flags;		/* flags on RA message */
+	struct in6_addr rtaddr;
+	u_char	raflags;	/* flags on RA message */
 	u_short	rtlifetime;
 	u_long	expire;
-	struct  ifnet *ifp;
+	struct ifnet *ifp;
 	int	installed;	/* is installed into kernel routing table */
 };
 
@@ -445,7 +445,6 @@ void nd6_dad_stop(struct ifaddr *);
 /* nd6_rtr.c */
 void nd6_rs_input(struct mbuf *, int, int);
 void nd6_ra_input(struct mbuf *, int, int);
-void prelist_del(struct nd_prefix *);
 void defrouter_reset(void);
 void defrouter_select(void);
 void defrtrlist_del(struct nd_defrouter *);
