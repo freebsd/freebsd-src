@@ -971,7 +971,7 @@ intr_map_irq(device_t dev, intptr_t xref, struct intr_map_data *data,
 		return (EINVAL);
 
 	pic = pic_lookup(dev, xref);
-	if (pic == NULL || pic->pic_dev == NULL)
+	if (pic == NULL)
 		return (ESRCH);
 
 	error = PIC_MAP_INTR(pic->pic_dev, data, &isrc);
