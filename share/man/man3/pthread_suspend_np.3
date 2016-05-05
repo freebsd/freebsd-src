@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2003
+.Dd May 5, 2016
 .Dt PTHREAD_SUSPEND_NP 3
 .Os
 .Sh NAME
@@ -40,6 +40,13 @@
 The
 .Fn pthread_suspend_np
 function, called on an active thread, causes it to suspend.
+.Pp
+It is not safe for the caller of the
+.Fn pthread_suspend_np
+function to use any non-async signal safe functions, except
+.Xr pthread_resume_np 3 ,
+until suspended thread is resumed, unless measures are taken to ensure
+that the thread is suspended at a safe point.
 .Sh RETURN VALUES
 If successful,
 .Fn pthread_suspend_np
@@ -56,7 +63,7 @@ An attempt was made to suspend the current thread.
 The value specified by the
 .Fa tid
 argument is invalid.
-.It Bq ESRC
+.It Bq Er ESRC
 No thread could be found corresponding to the thread ID specified by the
 .Fa tid
 argument.
