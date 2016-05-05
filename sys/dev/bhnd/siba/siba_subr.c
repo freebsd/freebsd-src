@@ -187,6 +187,11 @@ siba_dinfo_get_port(struct siba_devinfo *dinfo, bhnd_port_type port_type,
 		return (NULL);
 	case BHND_PORT_AGENT:
 		return (NULL);
+	default:
+		printf("%s: unknown port_type (%d)\n",
+		    __func__,
+		    port_type);
+		return (NULL);
 	}
 }
 
