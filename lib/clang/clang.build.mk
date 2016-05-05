@@ -221,13 +221,14 @@ Diagnostic${hdr}Kinds.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 .endfor
 
 # XXX: Atrocious hack, need to clean this up later
-.if defined(LIB) && ${LIB} == "llvmlibdriver"
+.if ${LIB:U} == llvmlibdriver
 Options.inc.h: ${LLVM_SRCS}/lib/LibDriver/Options.td
 	${LLVM_TBLGEN} -gen-opt-parser-defs \
 	    -I ${LLVM_SRCS}/include \
 	    -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${LLVM_SRCS}/lib/LibDriver/Options.td
-.else
+.elif ${LIB:U} == clangdriver || ${LIB:U} == clangfrontend || \
+    ${LIB:U} == clangfrontendtool || ${PROG_CXX:U} == clang
 Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/Options.td
 	${LLVM_TBLGEN} -gen-opt-parser-defs \
 	    -I ${LLVM_SRCS}/include -I ${CLANG_SRCS}/include/clang/Driver \
