@@ -867,6 +867,9 @@ bhndb_get_rman(struct bhndb_softc *sc, device_t child, int type)
 			return (NULL);
 		};
 	}
+
+	/* Quieten gcc */
+	return (NULL);
 }
 
 /**
