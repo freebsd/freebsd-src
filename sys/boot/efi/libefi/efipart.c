@@ -65,14 +65,12 @@ struct devsw efipart_dev = {
 /*
  * info structure to support bcache
  */
-#define	MAXPDDEV	31	/* see MAXDEV in libi386.h */
-
-static struct pdinfo
-{
+struct pdinfo {
 	int	pd_unit;	/* unit number */
 	int	pd_open;	/* reference counter */
 	void	*pd_bcache;	/* buffer cache data */
-} pdinfo [MAXPDDEV];
+};
+static struct pdinfo *pdinfo;
 static int npdinfo = 0;
 
 #define PD(dev)         (pdinfo[(dev)->d_unit])
@@ -109,6 +107,9 @@ efipart_init(void)
 	nout = 0;
 
 	bzero(aliases, nin * sizeof(EFI_HANDLE));
+	pdinfo = malloc(nin * sizeof(*pdinfo));
+	if (pdinfo == NULL)
+		return (ENOMEM);
 
 	for (n = 0; n < nin; n++) {
 		status = BS->HandleProtocol(hin[n], &devpath_guid,
