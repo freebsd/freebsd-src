@@ -101,7 +101,7 @@ cam_freeccb(union ccb *ccb)
  * /dev/foo0
  * foo0
  * nfoo0
- * 
+ *
  * Some peripheral drivers create separate device nodes with 'n' prefix for
  * non-rewind operations.  Currently only sa(4) tape driver has this feature.
  * We extract pure peripheral name as device name for this special case.
@@ -193,7 +193,7 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 
 	/*
 	 * At this point, if the last character of the string isn't a
-	 * number, we know the user either didn't give us a device number, 
+	 * number, we know the user either didn't give us a device number,
 	 * or he gave us a device name/number format we don't recognize.
 	 */
 	if (!isdigit(tmpstr[strlen(tmpstr) - 1])) {
@@ -274,7 +274,7 @@ cam_open_btl(path_id_t path_id, target_id_t target_id, lun_id_t target_lun,
 	int fd, bufsize;
 
 	if ((fd = open(XPT_DEVICE, O_RDWR)) < 0) {
-		snprintf(cam_errbuf, CAM_ERRBUF_SIZE, 
+		snprintf(cam_errbuf, CAM_ERRBUF_SIZE,
 			 "%s: couldn't open %s\n%s: %s", func_name, XPT_DEVICE,
 			 func_name, strerror(errno));
 		return(NULL);
@@ -291,7 +291,7 @@ cam_open_btl(path_id_t path_id, target_id_t target_id, lun_id_t target_lun,
 	ccb.cdm.match_buf_len = bufsize;
 	ccb.cdm.matches = (struct dev_match_result *)malloc(bufsize);
 	if (ccb.cdm.matches == NULL) {
-		snprintf(cam_errbuf, CAM_ERRBUF_SIZE, 
+		snprintf(cam_errbuf, CAM_ERRBUF_SIZE,
 			 "%s: couldn't malloc match buffer", func_name);
 		close(fd);
 		return(NULL);
@@ -304,14 +304,14 @@ cam_open_btl(path_id_t path_id, target_id_t target_id, lun_id_t target_lun,
 	ccb.cdm.patterns = (struct dev_match_pattern *)malloc(
 		sizeof(struct dev_match_pattern));
 	if (ccb.cdm.patterns == NULL) {
-		snprintf(cam_errbuf, CAM_ERRBUF_SIZE, 
+		snprintf(cam_errbuf, CAM_ERRBUF_SIZE,
 			 "%s: couldn't malloc pattern buffer", func_name);
 		free(ccb.cdm.matches);
 		close(fd);
 		return(NULL);
 	}
 	ccb.cdm.patterns[0].type = DEV_MATCH_PERIPH;
-	match_pat = &ccb.cdm.patterns[0].pattern.periph_pattern; 
+	match_pat = &ccb.cdm.patterns[0].pattern.periph_pattern;
 
 	/*
 	 * We're looking for the passthrough device associated with this
@@ -420,7 +420,7 @@ cam_lookup_pass(const char *dev_name, int unit, int flags,
 	 * passthrough device.
 	 */
 	if ((fd = open(XPT_DEVICE, O_RDWR)) < 0) {
-		snprintf(cam_errbuf, CAM_ERRBUF_SIZE, 
+		snprintf(cam_errbuf, CAM_ERRBUF_SIZE,
 			 "%s: couldn't open %s\n%s: %s", func_name, XPT_DEVICE,
 			 func_name, strerror(errno));
 		return(NULL);
@@ -434,7 +434,7 @@ cam_lookup_pass(const char *dev_name, int unit, int flags,
 	ccb.cgdl.unit_number = unit;
 
 	/*
-	 * Attempt to get the passthrough device.  This ioctl will fail if 
+	 * Attempt to get the passthrough device.  This ioctl will fail if
 	 * the device name is null, if the device doesn't exist, or if the
 	 * passthrough driver isn't in the kernel.
 	 */
@@ -511,7 +511,7 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 		}
 		device->fd = -1;
 		malloced_device = 1;
-	} 
+	}
 
 	/*
 	 * If the user passed in a path, save it for him.
@@ -550,7 +550,7 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 	 * we don't have to set any fields.
 	 */
 	ccb.ccb_h.func_code = XPT_GDEVLIST;
-	
+
 	/*
 	 * We're only doing this to get some information on the device in
 	 * question.  Otherwise, we'd have to pass in yet another
@@ -610,7 +610,7 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 		goto crod_bailout;
 	}
 	device->pd_type = SID_TYPE(&ccb.cgd.inq_data);
-	bcopy(&ccb.cgd.inq_data, &device->inq_data, 
+	bcopy(&ccb.cgd.inq_data, &device->inq_data,
 	      sizeof(struct scsi_inquiry_data));
 	device->serial_num_len = ccb.cgd.serial_num_len;
 	bcopy(&ccb.cgd.serial_num, &device->serial_num, device->serial_num_len);
@@ -718,7 +718,7 @@ cam_device_dup(struct cam_device *device)
 
 	newdev = malloc(sizeof(struct cam_device));
 	if (newdev == NULL) {
-		snprintf(cam_errbuf, CAM_ERRBUF_SIZE, 
+		snprintf(cam_errbuf, CAM_ERRBUF_SIZE,
 			"%s: couldn't malloc CAM device structure", func_name);
 		return(NULL);
 	}
