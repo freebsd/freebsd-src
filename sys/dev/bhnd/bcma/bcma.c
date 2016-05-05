@@ -251,6 +251,11 @@ bcma_get_port_count(device_t dev, device_t child, bhnd_port_type type)
 		return (dinfo->corecfg->num_bridge_ports);
 	case BHND_PORT_AGENT:
 		return (dinfo->corecfg->num_wrapper_ports);
+	default:
+		device_printf(dev, "%s: unknown type (%d)\n",
+		    __func__,
+		    type);
+		return (0);
 	}
 }
 
