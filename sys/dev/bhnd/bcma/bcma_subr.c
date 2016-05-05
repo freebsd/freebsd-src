@@ -134,6 +134,8 @@ bcma_corecfg_get_port_list(struct bcma_corecfg *cfg, bhnd_port_type type)
 	case BHND_PORT_AGENT:
 		return (&cfg->wrapper_ports);
 		break;
+	default:
+		return (NULL);
 	}
 }
 
