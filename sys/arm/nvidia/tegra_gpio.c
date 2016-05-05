@@ -579,14 +579,19 @@ tegra_gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
 
 	sc = device_get_softc(dev);
 
-	if (data->type == INTR_MAP_DATA_FDT)
-		rv = tegra_gpio_pic_map_fdt(sc, data->fdt.ncells,
-		    data->fdt.cells, &irq, NULL);
-	else if (data->type == INTR_MAP_DATA_GPIO)
-		rv = tegra_gpio_pic_map_gpio(sc, data->gpio.gpio_pin_num,
-		   data->gpio.gpio_pin_flags, data->gpio.gpio_intr_mode,
-		       &irq, NULL);
-	else
+	if (data->type == INTR_MAP_DATA_FDT) {
+		struct intr_map_data_fdt *daf;
+
+		daf = (struct intr_map_data_fdt *)data;
+		rv = tegra_gpio_pic_map_fdt(sc, daf->ncells, daf->cells, &irq,
+		    NULL);
+	} else if (data->type == INTR_MAP_DATA_GPIO) {
+		struct intr_map_data_gpio *dag;
+
+		dag = (struct intr_map_data_gpio *)data;
+		rv = tegra_gpio_pic_map_gpio(sc, dag->gpio_pin_num,
+		   dag->gpio_pin_flags, dag->gpio_intr_mode, &irq, NULL);
+	} else
 		return (ENOTSUP);
 
 	if (rv == 0)
@@ -648,14 +653,19 @@ tegra_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 		return (ENOTSUP);
 
 	/* Get and check config for an interrupt. */
-	if (data->type == INTR_MAP_DATA_FDT)
-		rv = tegra_gpio_pic_map_fdt(sc, data->fdt.ncells,
-		    data->fdt.cells, &irq, &cfgreg);
-	else if (data->type == INTR_MAP_DATA_GPIO)
-		rv = tegra_gpio_pic_map_gpio(sc, data->gpio.gpio_pin_num,
-		   data->gpio.gpio_pin_flags, data->gpio.gpio_intr_mode,
-		       &irq, &cfgreg);
-	else
+	if (data->type == INTR_MAP_DATA_FDT) {
+		struct intr_map_data_fdt *daf;
+
+		daf = (struct intr_map_data_fdt *)data;
+		rv = tegra_gpio_pic_map_fdt(sc, daf->ncells, daf->cells, &irq,
+		    &cfgreg);
+	} else if (data->type == INTR_MAP_DATA_GPIO) {
+		struct intr_map_data_gpio *dag;
+
+		dag = (struct intr_map_data_gpio *)data;
+		rv = tegra_gpio_pic_map_gpio(sc, dag->gpio_pin_num,
+		   dag->gpio_pin_flags, dag->gpio_intr_mode, &irq, &cfgreg);
+	} else
 		return (ENOTSUP);
 	if (rv != 0)
 		return (EINVAL);

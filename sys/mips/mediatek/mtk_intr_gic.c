@@ -265,18 +265,22 @@ mtk_gic_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
 #ifdef FDT
+	struct intr_map_data_fdt *daf;
 	struct mtk_gic_softc *sc;
 
-	sc = device_get_softc(dev);
+	if (data->type != INTR_MAP_DATA_FDT)
+		return (ENOTSUP);
 
-	if (data == NULL || data->type != INTR_MAP_DATA_FDT ||
-	    data->fdt.ncells != 3 || data->fdt.cells[1] >= sc->nirqs)
+	sc = device_get_softc(dev);
+	daf = (struct intr_map_data_fdt *)data;
+
+	if (daf->ncells != 3 || daf->cells[1] >= sc->nirqs)
 		return (EINVAL);
 
-	*isrcp = GIC_INTR_ISRC(sc, data->fdt.cells[1]);
+	*isrcp = GIC_INTR_ISRC(sc, daf->cells[1]);
 	return (0);
 #else
-	return (EINVAL);
+	return (ENOTSUP);
 #endif
 }
 

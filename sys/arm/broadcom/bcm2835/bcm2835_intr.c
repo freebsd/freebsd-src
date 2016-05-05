@@ -268,14 +268,17 @@ bcm_intc_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
 	u_int irq;
+	struct intr_map_data_fdt *daf;
 	struct bcm_intc_softc *sc;
 
 	if (data->type != INTR_MAP_DATA_FDT)
 		return (ENOTSUP);
-	if (data->fdt.ncells == 1)
-		irq = data->fdt.cells[0];
-	else if (data->fdt.ncells == 2)
-		irq = data->fdt.cells[0] * 32 + data->fdt.cells[1];
+
+	daf = (struct intr_map_data_fdt *)data;
+	if (daf->ncells == 1)
+		irq = daf->cells[0];
+	else if (daf->ncells == 2)
+		irq = daf->cells[0] * 32 + daf->cells[1];
 	else
 		return (EINVAL);
 

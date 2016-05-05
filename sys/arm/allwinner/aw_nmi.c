@@ -188,16 +188,18 @@ static int
 aw_nmi_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
+	struct intr_map_data_fdt *daf;
 	struct aw_nmi_softc *sc;
 	int error;
 	u_int irq;
 
-	sc = device_get_softc(dev);
 	if (data->type != INTR_MAP_DATA_FDT)
 		return (ENOTSUP);
 
-	error = aw_nmi_map_fdt(dev, data->fdt.ncells, data->fdt.cells, &irq,
-	    NULL, NULL);
+	sc = device_get_softc(dev);
+	daf = (struct intr_map_data_fdt *)data;
+
+	error = aw_nmi_map_fdt(dev, daf->ncells, daf->cells, &irq, NULL, NULL);
 	if (error == 0)
 		*isrcp = &sc->intr.isrc;
 
@@ -208,6 +210,7 @@ static int
 aw_nmi_setup_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
+	struct intr_map_data_fdt *daf;
 	struct aw_nmi_softc *sc;
 	struct aw_nmi_intr *nmi_intr;
 	int error, icfg;
@@ -215,14 +218,15 @@ aw_nmi_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	enum intr_trigger trig;
 	enum intr_polarity pol;
 
-	sc = device_get_softc(dev);
-	nmi_intr = (struct aw_nmi_intr *)isrc;
-
 	/* Get config for interrupt. */
 	if (data == NULL || data->type != INTR_MAP_DATA_FDT)
 		return (ENOTSUP);
-	error = aw_nmi_map_fdt(dev, data->fdt.ncells, data->fdt.cells, &irq,
-	    &pol, &trig);
+
+	sc = device_get_softc(dev);
+	nmi_intr = (struct aw_nmi_intr *)isrc;
+	daf = (struct intr_map_data_fdt *)data;
+
+	error = aw_nmi_map_fdt(dev, daf->ncells, daf->cells, &irq, &pol, &trig);
 	if (error != 0)
 		return (error);
 	if (nmi_intr->irq != irq)

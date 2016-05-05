@@ -461,15 +461,18 @@ static int
 bcm_lintc_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
+	struct intr_map_data_fdt *daf;
 	struct bcm_lintc_softc *sc;
 
 	if (data->type != INTR_MAP_DATA_FDT)
 		return (ENOTSUP);
-	if (data->fdt.ncells != 1 || data->fdt.cells[0] >= BCM_LINTC_NIRQS)
+
+	daf = (struct intr_map_data_fdt *)data;
+	if (daf->ncells != 1 || daf->cells[0] >= BCM_LINTC_NIRQS)
 		return (EINVAL);
 
 	sc = device_get_softc(dev);
-	*isrcp = &sc->bls_isrcs[data->fdt.cells[0]].bli_isrc;
+	*isrcp = &sc->bls_isrcs[daf->cells[0]].bli_isrc;
 	return (0);
 }
 

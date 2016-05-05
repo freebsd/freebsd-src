@@ -1006,18 +1006,22 @@ gic_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
 	enum intr_polarity pol;
 	enum intr_trigger trig;
 	struct arm_gic_softc *sc;
+#ifdef FDT
+	struct intr_map_data_fdt *daf;
+#endif
 
 	sc = device_get_softc(dev);
 	switch (data->type) {
 #ifdef FDT
 	case INTR_MAP_DATA_FDT:
-		if (gic_map_fdt(dev, data->fdt.ncells, data->fdt.cells, &irq,
-		    &pol, &trig) != 0)
+		daf = (struct intr_map_data_fdt *)data;
+		if (gic_map_fdt(dev, daf->ncells, daf->cells, &irq, &pol,
+		    &trig) != 0)
 			return (EINVAL);
 		break;
 #endif
 	default:
-		return (EINVAL);
+		return (ENOTSUP);
 	}
 
 	if (irq >= sc->nirqs)

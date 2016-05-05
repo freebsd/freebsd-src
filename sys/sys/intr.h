@@ -40,8 +40,14 @@ enum intr_map_data_type {
 	INTR_MAP_DATA_GPIO,
 };
 
+struct intr_map_data {
+	enum intr_map_data_type	type;
+	size_t			size;
+};
+
 #ifdef DEV_ACPI
 struct intr_map_data_acpi {
+	struct intr_map_data	hdr;
 	u_int			irq;
 	enum intr_polarity	pol;
 	enum intr_trigger	trig;
@@ -49,28 +55,17 @@ struct intr_map_data_acpi {
 #endif
 #ifdef FDT
 struct intr_map_data_fdt {
-	u_int	ncells;
-	pcell_t	*cells;
+	struct intr_map_data	hdr;
+	u_int			ncells;
+	pcell_t			cells[0];
 };
 #endif
 
 struct intr_map_data_gpio {
+	struct intr_map_data	hdr;
 	u_int			gpio_pin_num;
 	u_int			gpio_pin_flags;
 	u_int		 	gpio_intr_mode;
-};
-
-struct intr_map_data {
-	enum intr_map_data_type	type;
-	union {
-#ifdef DEV_ACPI
-		struct intr_map_data_acpi	acpi;
-#endif
-#ifdef FDT
-		struct intr_map_data_fdt	fdt;
-#endif
-		struct intr_map_data_gpio	gpio;
-	};
 };
 
 #ifdef notyet
