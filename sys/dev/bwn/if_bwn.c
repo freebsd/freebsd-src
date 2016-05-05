@@ -5434,7 +5434,7 @@ bwn_hwrate2ieeerate(int rate)
  * Valid for A, B, G, LP PHYs.
  */
 static int8_t
-bwn_rx_rssi_calc(struct bwn_mac *mac, int8_t in_rssi,
+bwn_rx_rssi_calc(struct bwn_mac *mac, uint8_t in_rssi,
     int ofdm, int adjust_2053, int adjust_2050)
 {
 	struct bwn_phy *phy = &mac->mac_phy;
