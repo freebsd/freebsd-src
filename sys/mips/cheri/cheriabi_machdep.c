@@ -841,6 +841,7 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	csigp = &td->td_pcb->pcb_cherisignal;
 	cheri_capability_set(&csigp->csig_c11, CHERI_CAP_USER_DATA_PERMS,
 	    CHERI_CAP_USER_DATA_OTYPE, (void *)stackbase, stacklen, 0);
+	/* XXX: set sp for signal stack! */
 
 	td->td_md.md_flags &= ~MDTD_FPUSED;
 	if (PCPU_GET(fpcurthread) == td)
@@ -849,6 +850,82 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 
 	td->td_md.md_tls_tcb_offset = TLS_TP_OFFSET + TLS_TCB_SIZE_C;
 }
+
+/*
+ * The CheriABI equivalent of cpu_set_upcall_kse().
+ */
+void
+cheriabi_set_threadregs(struct thread *td, struct thr_param_c *param)
+{
+	struct cheri_frame *cfp;
+
+	cfp = &td->td_pcb->pcb_cheriframe;
+
+	bzero((caddr_t)td->td_frame, sizeof(struct trapframe));
+
+	/*
+	 * Keep interrupt mask
+	 *
+	 * XXX-BD: See XXXRW comment in cpu_set_upcall_kse().
+	 */
+	td->td_frame->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | MIPS_SR_INT_IE |
+	    (mips_rd_status() & MIPS_SR_INT_MASK) |
+	    MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_COP_2_BIT;
+
+	/*
+	 * We don't perform valiation on the new pcc or stack capabilities
+	 * and just let the caller fail on return if they are bogus.
+	 */
+	cheri_capability_copy(&cfp->cf_c11, &param->stack_base);
+	td->td_frame->sp = param->stack_size;
+	/*
+	 * XXX-BD: cpu_set_upcall() copies the cheri_signal struct.  Do we
+	 * want to point it at our stack instead?
+	 */
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &param->start_func, 0);
+	CHERI_CGETOFFSET(td->td_frame->pc, CHERI_CR_CTEMP0);
+	cheri_capability_copy(&cfp->cf_pcc, &param->start_func);
+	cheri_capability_copy(&cfp->cf_c12, &param->start_func);
+	cheri_capability_copy(&cfp->cf_c3, &param->arg);
+}
+
+int
+cheriabi_set_user_tls(struct thread *td, struct chericap *tls_base)
+{
+	int error;
+
+	/*
+	 * Don't require any particular permissions or size and allow NULL.
+	 * If the caller passes nonsense, they just get nonsense results.
+	 */
+	error = cheriabi_cap_to_ptr((caddr_t *)&td->td_md.md_tls, tls_base,
+	    0, 0, 1);
+	if (error)
+		return (error);
+	cheri_capability_copy(&td->td_md.md_tls_cap, tls_base);
+
+	/* XXX: should support a crdhwr version */
+	if (cpuinfo.userlocal_reg == true) {
+		/*
+		 * If there is an user local register implementation
+		 * (ULRI) update it as well.  Add the TLS and TCB
+		 * offsets so the value in this register is
+		 * adjusted like in the case of the rdhwr trap()
+		 * instruction handler.
+		 *
+		 * The user local register needs the TLS and TCB
+		 * offsets because the compiler simply generates a
+		 * 'rdhwr reg, $29' instruction to access thread local
+		 * storage (i.e., variables with the '_thread'
+		 * attribute).
+		 */
+		mips_wr_userlocal((unsigned long)((caddr_t)td->td_md.md_tls +
+		    td->td_md.md_tls_tcb_offset));
+	}
+
+	return (0);
+}
+
 
 void
 cheriabi_get_signal_stack_capability(struct thread *td, struct chericap *csig)
@@ -888,11 +965,6 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 	 */
 	switch (uap->op) {
 	case MIPS_SET_TLS:
-		/*
-		 * XXX-BD: not exactly clear what perms and size this
-		 * should have, presumably somewhat flexible, at least in
-		 * theory.
-		 */
 		reqsize = 0;
 		reqperms = 0;
 		break;
@@ -928,36 +1000,14 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 	}
 	if (parms_from_cap) {
 		error = cheriabi_cap_to_ptr(&uap->parms, &capreg->cf_c3,
-		    reqsize, CHERI_PERM_GLOBAL | reqperms, 0);
+		    reqsize, reqperms, 0);
 		if (error != 0)
 			return (error);
 	}
 
 	switch (uap->op) {
 	case MIPS_SET_TLS:
-		cheri_capability_copy(&td->td_md.md_tls_cap, &capreg->cf_c3);
-		td->td_md.md_tls = uap->parms;
-
-		/* XXX: should support a crdhwr version */
-		if (cpuinfo.userlocal_reg == true) {
-			/*
-			 * If there is an user local register implementation
-			 * (ULRI) update it as well.  Add the TLS and TCB
-			 * offsets so the value in this register is
-			 * adjusted like in the case of the rdhwr trap()
-			 * instruction handler.
-			 *
-			 * The user local register needs the TLS and TCB
-			 * offsets because the compiler simply generates a
-			 * 'rdhwr reg, $29' instruction to access thread local
-			 * storage (i.e., variables with the '_thread'
-			 * attribute).
-			 */
-			mips_wr_userlocal((unsigned long)(uap->parms +
-			    td->td_md.md_tls_tcb_offset));
-		}
-
-		return (0);
+		return (cheriabi_set_user_tls(td, &capreg->cf_c3));
 
 	case MIPS_GET_TLS:
 		error = copyoutcap(&td->td_md.md_tls_cap, uap->parms,

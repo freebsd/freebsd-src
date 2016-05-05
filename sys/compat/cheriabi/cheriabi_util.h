@@ -140,4 +140,7 @@ void	cheriabi_fetch_syscall_arg(struct thread *td, struct chericap *arg,
 void	cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 	    struct chericap *addr, size_t len, int prot, int flags);
 
+void	cheriabi_set_threadregs(struct thread *td, struct thr_param_c *param);
+int	cheriabi_set_user_tls(struct thread *td, struct chericap *tls_base);
+
 #endif /* !_COMPAT_CHERIABI_CHERIABI_UTIL_H_ */

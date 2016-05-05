@@ -109,8 +109,8 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
-#include <compat/cheriabi/cheriabi_util.h>
 #include <compat/cheriabi/cheriabi.h>
+#include <compat/cheriabi/cheriabi_util.h>
 #if 0
 #include <compat/cheriabi/cheriabi_ipc.h>
 #include <compat/cheriabi/cheriabi_misc.h>
@@ -1027,37 +1027,57 @@ cheriabi_thr_create(struct thread *td, struct cheriabi_thr_create_args *uap)
 	return (ENOSYS);
 }
 
-int
-cheriabi_thr_new(struct thread *td,
-		  struct cheriabi_thr_new_args *uap)
+static int
+cheriabi_thr_new_initthr(struct thread *td, void *thunk)
 {
-	struct thr_param_c param_c;
-	struct thr_param param;
+	struct thr_param_c *param;
+	long *child_tidp, *parent_tidp;
 	int error;
 
-	if (uap->param_size < 0 ||
-	    uap->param_size > sizeof(struct thr_param_c))
+	param = thunk;
+	error = cheriabi_cap_to_ptr((caddr_t *)&child_tidp,
+	    &param->child_tid, sizeof(*child_tidp),
+	    CHERI_PERM_GLOBAL | CHERI_PERM_STORE, 1);
+	if (error)
+		return (error);
+	error = cheriabi_cap_to_ptr((caddr_t *)&parent_tidp,
+	    &param->parent_tid, sizeof(*parent_tidp),
+	    CHERI_PERM_GLOBAL | CHERI_PERM_STORE, 1);
+	if (error)
+		return (error);
+	if ((child_tidp != NULL && suword(child_tidp, td->td_tid)) ||
+	    (parent_tidp != NULL && suword(parent_tidp, td->td_tid)))
+		return (EFAULT);
+	cheriabi_set_threadregs(td, param);
+	return (cheriabi_set_user_tls(td, &param->tls_base));
+}
+
+int
+cheriabi_thr_new(struct thread *td, struct cheriabi_thr_new_args *uap)
+{
+	struct thr_param_c param_c;
+	struct rtprio rtp, *rtpp, *rtpup;
+	int error;
+
+	if (uap->param_size != sizeof(struct thr_param_c))
 		return (EINVAL);
-	bzero(&param, sizeof(param));
-	bzero(&param_c, sizeof(param_c));
+
 	error = copyincap(uap->param, &param_c, uap->param_size);
 	if (error != 0)
 		return (error);
-	param.start_func = (void *)param_c.start_func;	/* Bogus cast */
-	param.arg = PTRIN(param_c.arg);
-	param.stack_base = PTRIN(param_c.stack_base);
-	param.stack_size = param_c.stack_size;
-	param.tls_base = PTRIN(param_c.tls_base);
-	param.tls_size = param_c.tls_size;
-	param.child_tid = PTRIN(param_c.child_tid);
-	param.parent_tid = PTRIN(param_c.parent_tid);
-	param.flags = param_c.flags;
-	param.rtp = PTRIN(param_c.rtp);
-	param.spare[0] = PTRIN(param_c.spare[0]);
-	param.spare[1] = PTRIN(param_c.spare[1]);
-	param.spare[2] = PTRIN(param_c.spare[2]);
 
-	return (kern_thr_new(td, &param));
+	rtpp = NULL;
+	error = cheriabi_cap_to_ptr((caddr_t *)&rtpup, &param_c.rtp,
+	    sizeof(rtp), CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 1);
+	if (error)
+		return (error);
+	if (rtpup != 0) {
+		error = copyin(rtpup, &rtp, sizeof(struct rtprio));
+		if (error)
+			return (error);
+		rtpp = &rtp;
+	}
+	return (thread_create(td, rtpp, cheriabi_thr_new_initthr, &param_c));
 }
 
 int

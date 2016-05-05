@@ -36,23 +36,6 @@
 
 #include <machine/cheri.h>
 
-static inline void *
-__cheri_cap_to_ptr(struct chericap *c)
-{
-	void *ptr;
-
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, c, 0);
-	CHERI_CTOPTR(ptr, CHERI_CR_CTEMP0, CHERI_CR_KDC);
-
-	return (ptr);
-}
-
-/*
- * XXX-BD: We should check lengths and permissions at each invocation of
- * PTRIN.
- */
-#define PTRIN(v)        __cheri_cap_to_ptr(&v)
-
 #define CP(src,dst,fld) do { (dst).fld = (src).fld; } while (0)
 
 /*
@@ -213,7 +196,7 @@ struct sigaction_c {
 };
 
 struct thr_param_c {
-	uintptr_t	start_func;
+	struct chericap	start_func;
 	struct chericap	arg;
 	struct chericap	stack_base;
 	size_t		stack_size;
