@@ -304,13 +304,17 @@ static pthread_key_t eh_key;
 static void exception_cleanup(_Unwind_Reason_Code reason, 
                               struct _Unwind_Exception *ex)
 {
-	__cxa_free_exception(static_cast<void*>(ex));
+	// Exception layout:
+	// [__cxa_exception [_Unwind_Exception]] [exception object]
+	//
+	// __cxa_free_exception expects a pointer to the exception object
+	__cxa_free_exception(static_cast<void*>(ex + 1));
 }
 static void dependent_exception_cleanup(_Unwind_Reason_Code reason, 
                               struct _Unwind_Exception *ex)
 {
 
-	__cxa_free_dependent_exception(static_cast<void*>(ex));
+	__cxa_free_dependent_exception(static_cast<void*>(ex + 1));
 }
 
 /**
@@ -340,7 +344,8 @@ static void thread_cleanup(void* thread_info)
 		if (info->foreign_exception_state != __cxa_thread_info::none)
 		{
 			_Unwind_Exception *e = reinterpret_cast<_Unwind_Exception*>(info->globals.caughtExceptions);
-			e->exception_cleanup(_URC_FOREIGN_EXCEPTION_CAUGHT, e);
+			if (e->exception_cleanup)
+				e->exception_cleanup(_URC_FOREIGN_EXCEPTION_CAUGHT, e);
 		}
 		else
 		{
@@ -516,7 +521,7 @@ static void emergency_malloc_free(char *ptr)
 			break;
 		}
 	}
-	assert(buffer > 0 &&
+	assert(buffer >= 0 &&
 	       "Trying to free something that is not an emergency buffer!");
 	// emergency_malloc() is expected to return 0-initialized data.  We don't
 	// zero the buffer when allocating it, because the static buffers will
@@ -556,7 +561,7 @@ static void free_exception(char *e)
 {
 	// If this allocation is within the address range of the emergency buffer,
 	// don't call free() because it was not allocated with malloc()
-	if ((e > emergency_buffer) &&
+	if ((e >= emergency_buffer) &&
 	    (e < (emergency_buffer + sizeof(emergency_buffer))))
 	{
 		emergency_malloc_free(e);
@@ -1280,12 +1285,13 @@ extern "C" void __cxa_end_catch()
 	
 	if (ti->foreign_exception_state != __cxa_thread_info::none)
 	{
-		globals->caughtExceptions = 0;
 		if (ti->foreign_exception_state != __cxa_thread_info::rethrown)
 		{
 			_Unwind_Exception *e = reinterpret_cast<_Unwind_Exception*>(ti->globals.caughtExceptions);
-			e->exception_cleanup(_URC_FOREIGN_EXCEPTION_CAUGHT, e);
+			if (e->exception_cleanup)
+				e->exception_cleanup(_URC_FOREIGN_EXCEPTION_CAUGHT, e);
 		}
+		globals->caughtExceptions = 0;
 		ti->foreign_exception_state = __cxa_thread_info::none;
 		return;
 	}
@@ -1470,6 +1476,15 @@ namespace std
 	{
 		__cxa_thread_info *info = thread_info();
 		return info->globals.uncaughtExceptions != 0;
+	}
+	/**
+	 * Returns the number of exceptions currently being thrown that have not
+	 * been caught.  This can occur inside a nested catch statement.
+	 */
+	int uncaught_exceptions() throw()
+	{
+		__cxa_thread_info *info = thread_info();
+		return info->globals.uncaughtExceptions;
 	}
 	/**
 	 * Returns the current unexpected handler.
