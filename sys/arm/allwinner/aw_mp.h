@@ -31,5 +31,6 @@
 void aw_mp_setmaxid(platform_t plat);
 void a20_mp_start_ap(platform_t plat);
 void a31_mp_start_ap(platform_t plat);
+void a83t_mp_start_ap(platform_t plat);
 
 #endif /* _AW_MP_H_ */
