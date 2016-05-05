@@ -852,7 +852,7 @@ lpi_alloc_chunk(struct gic_v3_its_softc *sc, struct lpi_chunk *lpic,
 {
 	u_int *col_ids;
 	int fclr; /* First cleared bit */
-	uint8_t *bitmap;
+	bitstr_t *bitmap;
 	size_t nb, i;
 
 	col_ids = malloc(sizeof(*col_ids) * nvecs, M_GIC_V3_ITS,
@@ -861,7 +861,7 @@ lpi_alloc_chunk(struct gic_v3_its_softc *sc, struct lpi_chunk *lpic,
 		return (ENOMEM);
 
 	mtx_lock_spin(&sc->its_dev_lock);
-	bitmap = (uint8_t *)sc->its_lpi_bitmap;
+	bitmap = sc->its_lpi_bitmap;
 
 	fclr = 0;
 retry:
@@ -901,9 +901,6 @@ static void
 lpi_free_chunk(struct gic_v3_its_softc *sc, struct lpi_chunk *lpic)
 {
 	int start, end;
-	uint8_t *bitmap;
-
-	bitmap = (uint8_t *)sc->its_lpi_bitmap;
 
 	KASSERT((lpic->lpi_free == lpic->lpi_num),
 	    ("Trying to free LPI chunk that is still in use.\n"));
@@ -915,7 +912,7 @@ lpi_free_chunk(struct gic_v3_its_softc *sc, struct lpi_chunk *lpic)
 	end = start + lpic->lpi_num - 1;
 
 	/* Finally free this chunk */
-	bit_nclear(bitmap, start, end);
+	bit_nclear(sc->its_lpi_bitmap, start, end);
 	mtx_unlock_spin(&sc->its_dev_lock);
 
 	free(lpic->lpi_col_ids, M_GIC_V3_ITS);
