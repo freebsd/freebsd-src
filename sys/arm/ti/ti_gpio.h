@@ -49,7 +49,7 @@ struct ti_gpio_irqsrc {
 	struct intr_irqsrc	tgi_isrc;
 	u_int			tgi_irq;
 	uint32_t		tgi_mask;
-	uint32_t		tgi_cfgreg;
+	uint32_t		tgi_mode;
 };
 #endif
 
