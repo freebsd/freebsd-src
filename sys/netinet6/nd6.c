@@ -290,8 +290,19 @@ nd6_ifattach(struct ifnet *ifp)
 }
 
 void
-nd6_ifdetach(struct nd_ifinfo *nd)
+nd6_ifdetach(struct ifnet *ifp, struct nd_ifinfo *nd)
 {
+	struct ifaddr *ifa, *next;
+
+	IF_ADDR_RLOCK(ifp);
+	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
+		if (ifa->ifa_addr->sa_family != AF_INET6)
+			continue;
+
+		/* stop DAD processing */
+		nd6_dad_stop(ifa);
+	}
+	IF_ADDR_RUNLOCK(ifp);
 
 	free(nd, M_IP6NDP);
 }
@@ -894,9 +905,6 @@ nd6_timer(void *arg)
 	struct nd_prefix *pr, *npr;
 	struct in6_ifaddr *ia6, *nia6;
 
-	callout_reset(&V_nd6_timer_ch, V_nd6_prune * hz,
-	    nd6_timer, curvnet);
-
 	TAILQ_INIT(&drq);
 
 	/* expire default router list */
@@ -1023,6 +1031,10 @@ nd6_timer(void *arg)
 			prelist_remove(pr);
 		}
 	}
+
+	callout_reset(&V_nd6_timer_ch, V_nd6_prune * hz,
+	    nd6_timer, curvnet);
+
 	CURVNET_RESTORE();
 }
 

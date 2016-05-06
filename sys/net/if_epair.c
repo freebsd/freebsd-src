@@ -959,7 +959,7 @@ vnet_epair_init(const void *unused __unused)
 
 	V_epair_cloner = if_clone_advanced(epairname, 0,
 	    epair_clone_match, epair_clone_create, epair_clone_destroy);
-	netisr_register(&epair_nh);
+	netisr_register_vnet(&epair_nh);
 }
 VNET_SYSINIT(vnet_epair_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_epair_init, NULL);
@@ -968,7 +968,7 @@ static void
 vnet_epair_uninit(const void *unused __unused)
 {
 
-	netisr_unregister(&epair_nh);
+	netisr_unregister_vnet(&epair_nh);
 	if_clone_detach(V_epair_cloner);
 }
 VNET_SYSUNINIT(vnet_epair_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
@@ -986,10 +986,12 @@ epair_modevent(module_t mod, int type, void *data)
 		epair_nh.nh_qlimit = 42 * ifqmaxlen; /* 42 shall be the number. */
 		if (TUNABLE_INT_FETCH("net.link.epair.netisr_maxqlen", &qlimit))
 		    epair_nh.nh_qlimit = qlimit;
+		netisr_register(&epair_nh);
 		if (bootverbose)
 			printf("%s initialized.\n", epairname);
 		break;
 	case MOD_UNLOAD:
+		netisr_unregister(&epair_nh);
 		epair_dpcpu_detach();
 		if (bootverbose)
 			printf("%s unloaded.\n", epairname);

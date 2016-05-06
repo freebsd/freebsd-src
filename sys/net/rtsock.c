@@ -191,20 +191,16 @@ SYSCTL_PROC(_net_route, OID_AUTO, netisr_maxqlen, CTLTYPE_INT|CTLFLAG_RW,
     "maximum routing socket dispatch queue length");
 
 static void
-rts_init(void)
+vnet_rts_init(void)
 {
 	int tmp;
 
-	if (TUNABLE_INT_FETCH("net.route.netisr_maxqlen", &tmp))
-		rtsock_nh.nh_qlimit = tmp;
-}
-SYSINIT(rtsock, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rts_init, 0);
-
-static void
-vnet_rts_init(void)
-{
-
-	netisr_register(&rtsock_nh);
+	if (IS_DEFAULT_VNET(curvnet)) {
+		if (TUNABLE_INT_FETCH("net.route.netisr_maxqlen", &tmp))
+			rtsock_nh.nh_qlimit = tmp;
+		netisr_register(&rtsock_nh);
+	} else
+		netisr_register_vnet(&rtsock_nh);
 }
 VNET_SYSINIT(vnet_rtsock, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
     vnet_rts_init, 0);
@@ -213,7 +209,7 @@ static void
 vnet_rts_uninit(void)
 {
 
-	netisr_unregister(&rtsock_nh);
+	netisr_unregister_vnet(&rtsock_nh);
 }
 VNET_SYSUNINIT(vnet_rts_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
     vnet_rts_uninit, 0);

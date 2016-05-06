@@ -309,7 +309,7 @@ SYSINIT(vnet_init_prelink, SI_SUB_VNET_PRELINK, SI_ORDER_FIRST,
     vnet_init_prelink, NULL);
 
 static void
-vnet0_init(void *arg)
+vnet0_init(void *arg __unused)
 {
 
 	/* Warn people before take off - in case we crash early. */
@@ -326,12 +326,12 @@ vnet0_init(void *arg)
 SYSINIT(vnet0_init, SI_SUB_VNET, SI_ORDER_FIRST, vnet0_init, NULL);
 
 static void
-vnet_init_done(void *unused)
+vnet_init_done(void *unused __unused)
 {
 
 	curvnet = NULL;
 }
-SYSINIT(vnet_init_done, SI_SUB_VNET_DONE, SI_ORDER_FIRST, vnet_init_done,
+SYSINIT(vnet_init_done, SI_SUB_VNET_DONE, SI_ORDER_ANY, vnet_init_done,
     NULL);
 
 /*
@@ -349,6 +349,16 @@ vnet_data_startup(void *dummy __unused)
 	sx_init(&vnet_data_free_lock, "vnet_data alloc lock");
 }
 SYSINIT(vnet_data, SI_SUB_KLD, SI_ORDER_FIRST, vnet_data_startup, 0);
+
+/* Dummy VNET_SYSINIT to make sure we reach the final end state. */
+static void
+vnet_sysinit_done(void *unused __unused)
+{
+
+	return;
+}
+VNET_SYSINIT(vnet_sysinit_done, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+    vnet_sysinit_done, NULL);
 
 /*
  * When a module is loaded and requires storage for a virtualized global
@@ -698,7 +708,7 @@ db_vnet_print(struct vnet *vnet)
 	db_printf(" vnet_data_mem  = %p\n", vnet->vnet_data_mem);
 	db_printf(" vnet_data_base = 0x%jx\n",
 	    (uintmax_t)vnet->vnet_data_base);
-	db_printf(" vnet_state     = %#x\n", vnet->vnet_state);
+	db_printf(" vnet_state     = %#08x\n", vnet->vnet_state);
 	db_printf("\n");
 }
 
@@ -747,7 +757,7 @@ db_show_vnet_print_vs(struct vnet_sysinit *vs, int ddb)
 	sym = db_search_symbol((vm_offset_t)vs->func, DB_STGY_PROC, &offset);
 	db_symbol_values(sym, &funcname, NULL);
 	xprint("%s(%p)\n", (vsname != NULL) ? vsname : "", vs);
-	xprint("  0x%08x 0x%08x\n", vs->subsystem, vs->order);
+	xprint("  %#08x %#08x\n", vs->subsystem, vs->order);
 	xprint("  %p(%s)(%p)\n",
 	    vs->func, (funcname != NULL) ? funcname : "", vs->arg);
 #undef xprint

@@ -218,8 +218,13 @@ ip6_init(void)
 	V_ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
 
 	/* Skip global initialization stuff for non-default instances. */
-	if (!IS_DEFAULT_VNET(curvnet))
-		goto out;
+	if (!IS_DEFAULT_VNET(curvnet)) {
+		netisr_register_vnet(&ip6_nh);
+#ifdef RSS
+		netisr_register_vnet(&ip6_direct_nh);
+#endif
+		return;
+	}
 
 	pr = pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
 	if (pr == NULL)
@@ -241,7 +246,6 @@ ip6_init(void)
 				ip6_protox[pr->pr_protocol] = pr - inet6sw;
 		}
 
-out:
 	netisr_register(&ip6_nh);
 #ifdef RSS
 	netisr_register(&ip6_direct_nh);
@@ -315,9 +319,9 @@ ip6_destroy(void *unused __unused)
 	int error;
 
 #ifdef RSS
-	netisr_unregister(&ip6_direct_nh);
+	netisr_unregister_vnet(&ip6_direct_nh);
 #endif
-	netisr_unregister(&ip6_nh);
+	netisr_unregister_vnet(&ip6_nh);
 
 	if ((error = pfil_head_unregister(&V_inet6_pfil_hook)) != 0)
 		printf("%s: WARNING: unable to unregister pfil hook, "
