@@ -101,7 +101,7 @@ xdr_float(XDR *xdrs, float *fp)
 	struct ieee_single is;
 	struct vax_single vs, *vsp;
 	struct sgl_limits *lim;
-	int i;
+	u_int i;
 #endif
 	switch (xdrs->x_op) {
 
@@ -203,7 +203,7 @@ xdr_double(XDR *xdrs, double *dp)
 	struct	ieee_double id;
 	struct	vax_double vd;
 	struct dbl_limits *lim;
-	int i;
+	u_int i;
 #endif
 
 	switch (xdrs->x_op) {
