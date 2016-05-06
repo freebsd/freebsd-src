@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2015
+.Dd May 6, 2016
 .Dt ISCSI.CONF 5
 .Os
 .Sh NAME
@@ -129,6 +129,14 @@ returned by SendTargets iSCSI discovery with the defined
 Name of selected iSCSI hardware offload driver.
 Default is
 .Qq Ar None .
+.It Cm Protocol
+Name of selected protocol.
+It can be either
+.Qq Ar iSER ,
+for iSCSI over RDMA, or
+.Qq Ar iSCSI .
+Default is
+.Qq Ar iSCSI .
 .El
 .Sh FILES
 .Bl -tag -width indent
