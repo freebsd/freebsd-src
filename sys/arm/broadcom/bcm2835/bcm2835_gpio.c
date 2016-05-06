@@ -1093,7 +1093,7 @@ bcm_gpio_pic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static int
-bcm_gpio_pic_map_fdt(struct bcm_gpio_softc *sc, u_int ncells, pcell_t *cells,
+bcm_gpio_pic_map_fdt(struct bcm_gpio_softc *sc, struct intr_map_data_fdt *daf,
     u_int *irqp, uint32_t *modep)
 {
 	u_int irq;
@@ -1108,24 +1108,24 @@ bcm_gpio_pic_map_fdt(struct bcm_gpio_softc *sc, u_int ncells, pcell_t *cells,
 	 *		4 = active high level-sensitive.
 	 *		8 = active low level-sensitive.
 	 */
-	if (ncells != 2)
+	if (daf->ncells != 2)
 		return (EINVAL);
 
-	irq = cells[0];
+	irq = daf->cells[0];
 	if (irq >= BCM_GPIO_PINS || bcm_gpio_pin_is_ro(sc, irq))
 		return (EINVAL);
 
 	/* Only reasonable modes are supported. */
 	bank = BCM_GPIO_BANK(irq);
-	if (cells[1] == 1)
+	if (daf->cells[1] == 1)
 		mode = GPIO_INTR_EDGE_RISING;
-	else if (cells[1] == 2)
+	else if (daf->cells[1] == 2)
 		mode = GPIO_INTR_EDGE_FALLING;
-	else if (cells[1] == 3)
+	else if (daf->cells[1] == 3)
 		mode = GPIO_INTR_EDGE_BOTH;
-	else if (cells[1] == 4)
+	else if (daf->cells[1] == 4)
 		mode = GPIO_INTR_LEVEL_HIGH;
-	else if (cells[1] == 8)
+	else if (daf->cells[1] == 8)
 		mode = GPIO_INTR_LEVEL_LOW;
 	else
 		return (EINVAL);
@@ -1137,21 +1137,54 @@ bcm_gpio_pic_map_fdt(struct bcm_gpio_softc *sc, u_int ncells, pcell_t *cells,
 }
 
 static int
+bcm_gpio_pic_map_gpio(struct bcm_gpio_softc *sc, struct intr_map_data_gpio *dag,
+    u_int *irqp, uint32_t *modep)
+{
+	u_int irq;
+	uint32_t mode;
+
+	irq = dag->gpio_pin_num;
+	if (irq >= BCM_GPIO_PINS || bcm_gpio_pin_is_ro(sc, irq))
+		return (EINVAL);
+
+	mode = dag->gpio_intr_mode;
+	if (mode != GPIO_INTR_LEVEL_LOW && mode != GPIO_INTR_LEVEL_HIGH &&
+	    mode != GPIO_INTR_EDGE_RISING && mode != GPIO_INTR_EDGE_FALLING &&
+	    mode != GPIO_INTR_EDGE_BOTH)
+		return (EINVAL);
+
+	*irqp = irq;
+	if (modep != NULL)
+		*modep = mode;
+	return (0);
+}
+
+static int
+bcm_gpio_pic_map(struct bcm_gpio_softc *sc, struct intr_map_data *data,
+    u_int *irqp, uint32_t *modep)
+{
+
+	switch (data->type) {
+	case INTR_MAP_DATA_FDT:
+		return (bcm_gpio_pic_map_fdt(sc,
+		    (struct intr_map_data_fdt *)data, irqp, modep));
+	case INTR_MAP_DATA_GPIO:
+		return (bcm_gpio_pic_map_gpio(sc,
+		    (struct intr_map_data_gpio *)data, irqp, modep));
+	default:
+		return (ENOTSUP);
+	}
+}
+
+static int
 bcm_gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
 	int error;
 	u_int irq;
-	struct intr_map_data_fdt *daf;
-	struct bcm_gpio_softc *sc;
+	struct bcm_gpio_softc *sc = device_get_softc(dev);
 
-	if (data->type != INTR_MAP_DATA_FDT)
-		return (ENOTSUP);
-
-	sc = device_get_softc(dev);
-	daf = (struct intr_map_data_fdt *)data;
-
-	error = bcm_gpio_pic_map_fdt(sc, daf->ncells, daf->cells, &irq, NULL);
+	error = bcm_gpio_pic_map(sc, data, &irq, NULL);
 	if (error == 0)
 		*isrcp = &sc->sc_isrcs[irq].bgi_isrc;
 	return (error);
@@ -1193,18 +1226,15 @@ bcm_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	uint32_t mode;
 	struct bcm_gpio_softc *sc;
 	struct bcm_gpio_irqsrc *bgi;
-	struct intr_map_data_fdt *daf;
 
-	if (data == NULL || data->type != INTR_MAP_DATA_FDT)
+	if (data == NULL)
 		return (ENOTSUP);
 
 	sc = device_get_softc(dev);
 	bgi = (struct bcm_gpio_irqsrc *)isrc;
-	daf = (struct intr_map_data_fdt *)data;
 
 	/* Get and check config for an interrupt. */
-	if (bcm_gpio_pic_map_fdt(sc, daf->ncells, daf->cells, &irq,
-	    &mode) != 0 || bgi->bgi_irq != irq)
+	if (bcm_gpio_pic_map(sc, data, &irq, &mode) != 0 || bgi->bgi_irq != irq)
 		return (EINVAL);
 
 	/*
