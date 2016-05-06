@@ -5998,6 +5998,13 @@ OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-NETGRAPH.txt
 .endif
 
 .if ${MK_NIS} == no
+OLD_FILES+=etc/rc.d/nisdomain
+OLD_FILES+=etc/rc.d/ypbind
+OLD_FILES+=etc/rc.d/yppasswdd
+OLD_FILES+=etc/rc.d/ypserv
+OLD_FILES+=etc/rc.d/ypset
+OLD_FILES+=etc/rc.d/ypupdated
+OLD_FILES+=etc/rc.d/ypxfrd
 OLD_FILES+=usr/bin/ypcat
 OLD_FILES+=usr/bin/ypchfn
 OLD_FILES+=usr/bin/ypchpass
@@ -6040,6 +6047,10 @@ OLD_FILES+=usr/share/man/man5/netid.5.gz
 OLD_FILES+=usr/share/man/man8/mknetid.8.gz
 OLD_FILES+=usr/share/man/man8/rpc.yppasswdd.8.gz
 OLD_FILES+=usr/share/man/man8/rpc.ypxfrd.8.gz
+OLD_FILES+=usr/share/man/man8/NIS.8.gz
+OLD_FILES+=usr/share/man/man8/YP.8.gz
+OLD_FILES+=usr/share/man/man8/yp.8.gz
+OLD_FILES+=usr/share/man/man8/nis.8.gz
 OLD_FILES+=usr/share/man/man8/yp_mkdb.8.gz
 OLD_FILES+=usr/share/man/man8/ypbind.8.gz
 OLD_FILES+=usr/share/man/man8/ypinit.8.gz
