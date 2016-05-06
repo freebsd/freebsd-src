@@ -440,7 +440,7 @@ xprt_inactive(SVCXPRT *xprt)
 
 /*
  * Variant of xprt_inactive() for use only when sure that port is
- * assigned to thread. For example, withing receive handlers.
+ * assigned to thread. For example, within receive handlers.
  */
 void
 xprt_inactive_self(SVCXPRT *xprt)
