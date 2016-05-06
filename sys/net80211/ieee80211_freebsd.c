@@ -851,6 +851,7 @@ ieee80211_load_module(const char *modname)
 }
 
 static eventhandler_tag wlan_bpfevent;
+static eventhandler_tag wlan_ifllevent;
 
 static void
 bpf_track(void *arg, struct ifnet *ifp, int dlt, int attach)
@@ -879,6 +880,21 @@ bpf_track(void *arg, struct ifnet *ifp, int dlt, int attach)
 }
 
 /*
+ * Change MAC address on the vap (if was not started).
+ */
+static void
+wlan_iflladdr(void *arg __unused, struct ifnet *ifp)
+{
+	/* NB: identify vap's by if_init */
+	if (ifp->if_init == ieee80211_init &&
+	    (ifp->if_flags & IFF_UP) == 0) {
+		struct ieee80211vap *vap = ifp->if_softc;
+
+		IEEE80211_ADDR_COPY(vap->iv_myaddr, IF_LLADDR(ifp));
+	}
+}
+
+/*
  * Module glue.
  *
  * NB: the module name is "wlan" for compatibility with NetBSD.
@@ -892,12 +908,15 @@ wlan_modevent(module_t mod, int type, void *unused)
 			printf("wlan: <802.11 Link Layer>\n");
 		wlan_bpfevent = EVENTHANDLER_REGISTER(bpf_track,
 		    bpf_track, 0, EVENTHANDLER_PRI_ANY);
+		wlan_ifllevent = EVENTHANDLER_REGISTER(iflladdr_event,
+		    wlan_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
 		wlan_cloner = if_clone_simple(wlanname, wlan_clone_create,
 		    wlan_clone_destroy, 0);
 		return 0;
 	case MOD_UNLOAD:
 		if_clone_detach(wlan_cloner);
 		EVENTHANDLER_DEREGISTER(bpf_track, wlan_bpfevent);
+		EVENTHANDLER_DEREGISTER(iflladdr_event, wlan_ifllevent);
 		return 0;
 	}
 	return EINVAL;
