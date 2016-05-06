@@ -89,7 +89,7 @@ Display a human-readable summary of the nvme0 IDENTIFY_CONTROLLER data.
 .Pp
 .Dl nvmecontrol identify -x -v nvme0ns1
 .Pp
-Display a hexadecimal dump of the nvme0 IDENTIFY_NAMESPACE data for namespace
+Display an hexadecimal dump of the nvme0 IDENTIFY_NAMESPACE data for namespace
 1.
 .Pp
 .Dl nvmecontrol perftest -n 32 -o read -s 512 -t 30 nvme0ns1
@@ -110,7 +110,7 @@ SMART/Health Information Log (ID=2), and Firmware Slot Log (ID=3).
 .Pp
 .Dl nvmecontrol logpage -p 1 -x nvme0
 .Pp
-Display a hexidecimal dump of the nvme0 controller's Error Information Log.
+Display a hexadecimal dump of the nvme0 controller's Error Information Log.
 .Pp
 .Dl nvmecontrol firmware -s 2 -f /tmp/nvme_firmware nvme0
 .Pp
