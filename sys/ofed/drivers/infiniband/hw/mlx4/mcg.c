@@ -689,7 +689,7 @@ static void mlx4_ib_mcg_work_handler(struct work_struct *work)
 			cur_join_state = group->rec.scope_join_state & 7;
 
 			if (method == IB_MGMT_METHOD_GET_RESP) {
-				/* successfull join */
+				/* successful join */
 				if (!cur_join_state && resp_join_state)
 					--rc;
 			} else if (!resp_join_state)
