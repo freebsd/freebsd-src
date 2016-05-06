@@ -290,7 +290,7 @@ mtk_gpio_attach(device_t dev)
 	else
 		sc->num_pins = MTK_GPIO_PINS;
 
-	for (i = 0; i < num_pins; i++) {
+	for (i = 0; i < sc->num_pins; i++) {
 		sc->pins[i].pin_caps |= GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |
 		    GPIO_PIN_INVIN | GPIO_PIN_INVOUT;
 		sc->pins[i].intr_polarity = INTR_POLARITY_HIGH;
@@ -444,18 +444,12 @@ mtk_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 		return (EINVAL);
 
 	MTK_GPIO_LOCK(sc);
-	if(!(sc->pins[pin].pin_flags & GPIO_PIN_OUTPUT)) {
-		ret = EINVAL;
-		goto out;
-	}
-
 	if (value)
 		MTK_WRITE_4(sc, GPIO_PIOSET, (1u << pin));
 	else
 		MTK_WRITE_4(sc, GPIO_PIORESET, (1u << pin));
-
-out:
 	MTK_GPIO_UNLOCK(sc);
+
 	return (ret);
 }
 
@@ -473,15 +467,10 @@ mtk_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 		return (EINVAL);
 
 	MTK_GPIO_LOCK(sc);
-	if(!(sc->pins[pin].pin_flags & GPIO_PIN_INPUT)) {
-		ret = EINVAL;
-		goto out;
-	}
 	data = MTK_READ_4(sc, GPIO_PIODATA);
 	*val = (data & (1u << pin)) ? 1 : 0;
-
-out:
 	MTK_GPIO_UNLOCK(sc);
+
 	return (ret);
 }
 
@@ -491,11 +480,11 @@ mtk_gpio_pin_toggle(device_t dev, uint32_t pin)
 	struct mtk_gpio_softc *sc;
 	int ret;
 
-	if (pin >= sc->num_pins)
-		return (EINVAL);
-
 	sc = device_get_softc(dev);
 	ret = 0;
+
+	if (pin >= sc->num_pins)
+		return (EINVAL);
 
 	MTK_GPIO_LOCK(sc);
 	if (!(sc->pins[pin].pin_flags & GPIO_PIN_OUTPUT)) {
