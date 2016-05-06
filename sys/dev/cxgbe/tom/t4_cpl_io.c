@@ -267,6 +267,7 @@ make_established(struct toepcb *toep, uint32_t snd_isn, uint32_t rcv_isn,
 	uint16_t tcpopt = be16toh(opt);
 	struct flowc_tx_params ftxp;
 
+	CURVNET_SET(so->so_vnet);
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(tp->t_state == TCPS_SYN_SENT ||
 	    tp->t_state == TCPS_SYN_RECEIVED,
@@ -317,6 +318,7 @@ make_established(struct toepcb *toep, uint32_t snd_isn, uint32_t rcv_isn,
 	send_flowc_wr(toep, &ftxp);
 
 	soisconnected(so);
+	CURVNET_RESTORE();
 }
 
 static int
@@ -1429,6 +1431,7 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	/* receive buffer autosize */
+	CURVNET_SET(so->so_vnet);
 	if (sb->sb_flags & SB_AUTOSIZE &&
 	    V_tcp_do_autorcvbuf &&
 	    sb->sb_hiwat < V_tcp_autorcvbuf_max &&
@@ -1517,6 +1520,7 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	SOCKBUF_UNLOCK_ASSERT(sb);
 
 	INP_WUNLOCK(inp);
+	CURVNET_RESTORE();
 	return (0);
 }
 
