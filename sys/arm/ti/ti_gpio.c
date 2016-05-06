@@ -946,7 +946,7 @@ ti_gpio_pic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static int
-ti_gpio_pic_map_fdt(struct ti_gpio_softc *sc, u_int ncells, pcell_t *cells,
+ti_gpio_pic_map_fdt(struct ti_gpio_softc *sc, struct intr_map_data_fdt *daf,
     u_int *irqp, uint32_t *modep)
 {
 	uint32_t mode;
@@ -960,27 +960,65 @@ ti_gpio_pic_map_fdt(struct ti_gpio_softc *sc, u_int ncells, pcell_t *cells,
 	 *		4 = active high level-sensitive.
 	 *		8 = active low level-sensitive.
 	 */
-	if (ncells != 2 || cells[0] >= sc->sc_maxpin)
+	if (daf->ncells != 2 || daf->cells[0] >= sc->sc_maxpin)
 		return (EINVAL);
 
 	/* Only reasonable modes are supported. */
-	if (cells[1] == 1)
+	if (daf->cells[1] == 1)
 		mode = GPIO_INTR_EDGE_RISING;
-	else if (cells[1] == 2)
+	else if (daf->cells[1] == 2)
 		mode = GPIO_INTR_EDGE_FALLING;
-	else if (cells[1] == 3)
+	else if (daf->cells[1] == 3)
 		mode = GPIO_INTR_EDGE_BOTH;
-	else if (cells[1] == 4)
+	else if (daf->cells[1] == 4)
 		mode = GPIO_INTR_LEVEL_HIGH;
-	else if (cells[1] == 8)
+	else if (daf->cells[1] == 8)
 		mode = GPIO_INTR_LEVEL_LOW;
 	else
 		return (EINVAL);
 
-	*irqp = cells[0];
+	*irqp = daf->cells[0];
 	if (modep != NULL)
 		*modep = mode;
 	return (0);
+}
+
+static int
+ti_gpio_pic_map_gpio(struct ti_gpio_softc *sc, struct intr_map_data_gpio *dag,
+    u_int *irqp, uint32_t *modep)
+{
+	uint32_t mode;
+
+	if (dag->gpio_pin_num >= sc->sc_maxpin)
+		return (EINVAL);
+
+	mode = dag->gpio_intr_mode;
+	if (mode != GPIO_INTR_LEVEL_LOW && mode != GPIO_INTR_LEVEL_HIGH &&
+	    mode != GPIO_INTR_EDGE_RISING && mode != GPIO_INTR_EDGE_FALLING &&
+	    mode != GPIO_INTR_EDGE_BOTH)
+		return (EINVAL);
+
+	*irqp = dag->gpio_pin_num;
+	if (modep != NULL)
+		*modep = mode;
+	return (0);
+}
+
+static int
+ti_gpio_pic_map(struct ti_gpio_softc *sc, struct intr_map_data *data,
+    u_int *irqp, uint32_t *modep)
+{
+
+	switch (data->type) {
+	case INTR_MAP_DATA_FDT:
+		return (ti_gpio_pic_map_fdt(sc,
+		    (struct intr_map_data_fdt *)data, irqp, modep));
+	case INTR_MAP_DATA_GPIO:
+		return (ti_gpio_pic_map_gpio(sc,
+		    (struct intr_map_data_gpio *)data, irqp, modep));
+	default:
+		return (ENOTSUP);
+	}
 }
 
 static int
@@ -989,16 +1027,9 @@ ti_gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
 {
 	int error;
 	u_int irq;
-	struct ti_gpio_softc *sc;
-	struct intr_map_data_fdt *daf;
+	struct ti_gpio_softc *sc = device_get_softc(dev);
 
-	if (data->type != INTR_MAP_DATA_FDT)
-		return (ENOTSUP);
-
-	sc = device_get_softc(dev);
-	daf = (struct intr_map_data_fdt *)data;
-
-	error = ti_gpio_pic_map_fdt(sc, daf->ncells, daf->cells, &irq, NULL);
+	error = ti_gpio_pic_map(sc, data, &irq, NULL);
 	if (error == 0)
 		*isrcp = &sc->sc_isrcs[irq].tgi_isrc;
 	return (error);
@@ -1040,18 +1071,15 @@ ti_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	uint32_t mode;
 	struct ti_gpio_softc *sc;
 	struct ti_gpio_irqsrc *tgi;
-	struct intr_map_data_fdt *daf;
 
-	if (data == NULL || data->type != INTR_MAP_DATA_FDT)
+	if (data == NULL)
 		return (ENOTSUP);
 
 	sc = device_get_softc(dev);
 	tgi = (struct ti_gpio_irqsrc *)isrc;
-	daf = (struct intr_map_data_fdt *)data;
 
 	/* Get and check config for an interrupt. */
-	if (ti_gpio_pic_map_fdt(sc, daf->ncells, daf->cells, &irq,
-	    &mode) != 0 || tgi->tgi_irq != irq)
+	if (ti_gpio_pic_map(sc, data, &irq, &mode) != 0 || tgi->tgi_irq != irq)
 		return (EINVAL);
 
 	/*
