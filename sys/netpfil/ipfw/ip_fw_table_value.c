@@ -147,7 +147,7 @@ get_value_ptrs(struct ip_fw_chain *ch, struct table_config *tc, int vshared,
 /*
  * Update pointers to real vaues after @pval change.
  */
-static void
+static int
 update_tvalue(struct namedobj_instance *ni, struct named_object *no, void *arg)
 {
 	struct vdump_args *da;
@@ -160,7 +160,7 @@ update_tvalue(struct namedobj_instance *ni, struct named_object *no, void *arg)
 	pval = da->pval;
 	ptv->pval = &pval[ptv->no.kidx];
 	ptv->no.name = (char *)&pval[ptv->no.kidx];
-
+	return (0);
 }
 
 /*
@@ -693,7 +693,7 @@ ipfw_export_table_value_v1(struct table_value *v, ipfw_table_value *piv)
  * Exports real value data into ipfw_table_value structure.
  * Utilizes "spare1" field to store kernel index.
  */
-static void
+static int
 dump_tvalue(struct namedobj_instance *ni, struct named_object *no, void *arg)
 {
 	struct vdump_args *da;
@@ -707,11 +707,12 @@ dump_tvalue(struct namedobj_instance *ni, struct named_object *no, void *arg)
 	/* Out of memory, returning */
 	if (v == NULL) {
 		da->error = ENOMEM;
-		return;
+		return (ENOMEM);
 	}
 
 	memcpy(v, ptv->pval, sizeof(*v));
 	v->spare1 = ptv->no.kidx;
+	return (0);
 }
 
 /*
@@ -785,12 +786,13 @@ ipfw_table_value_init(struct ip_fw_chain *ch, int first)
 	IPFW_ADD_SOPT_HANDLER(first, scodes);
 }
 
-static void
+static int
 destroy_value(struct namedobj_instance *ni, struct named_object *no,
     void *arg)
 {
 
 	free(no, M_IPFW);
+	return (0);
 }
 
 void

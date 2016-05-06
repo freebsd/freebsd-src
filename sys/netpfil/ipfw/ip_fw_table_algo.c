@@ -1941,7 +1941,7 @@ static int ta_lookup_ifidx(struct table_info *ti, void *key, uint32_t keylen,
 static int ta_init_ifidx(struct ip_fw_chain *ch, void **ta_state,
     struct table_info *ti, char *data, uint8_t tflags);
 static void ta_change_ti_ifidx(void *ta_state, struct table_info *ti);
-static void destroy_ifidx_locked(struct namedobj_instance *ii,
+static int destroy_ifidx_locked(struct namedobj_instance *ii,
     struct named_object *no, void *arg);
 static void ta_destroy_ifidx(void *ta_state, struct table_info *ti);
 static void ta_dump_ifidx_tinfo(void *ta_state, struct table_info *ti,
@@ -1969,7 +1969,7 @@ static int ta_dump_ifidx_tentry(void *ta_state, struct table_info *ti, void *e,
     ipfw_obj_tentry *tent);
 static int ta_find_ifidx_tentry(void *ta_state, struct table_info *ti,
     ipfw_obj_tentry *tent);
-static void foreach_ifidx(struct namedobj_instance *ii, struct named_object *no,
+static int foreach_ifidx(struct namedobj_instance *ii, struct named_object *no,
     void *arg);
 static void ta_foreach_ifidx(void *ta_state, struct table_info *ti,
     ta_foreach_f *f, void *arg);
@@ -2126,7 +2126,7 @@ ta_change_ti_ifidx(void *ta_state, struct table_info *ti)
 	icfg->ti = ti;
 }
 
-static void
+static int
 destroy_ifidx_locked(struct namedobj_instance *ii, struct named_object *no,
     void *arg)
 {
@@ -2139,6 +2139,7 @@ destroy_ifidx_locked(struct namedobj_instance *ii, struct named_object *no,
 	ipfw_iface_del_notify(ch, &ife->ic);
 	ipfw_iface_unref(ch, &ife->ic);
 	free(ife, M_IPFW_TBL);
+	return (0);
 }
 
 
@@ -2560,7 +2561,7 @@ struct wa_ifidx {
 	void		*arg;
 };
 
-static void
+static int
 foreach_ifidx(struct namedobj_instance *ii, struct named_object *no,
     void *arg)
 {
@@ -2571,6 +2572,7 @@ foreach_ifidx(struct namedobj_instance *ii, struct named_object *no,
 	wa = (struct wa_ifidx *)arg;
 
 	wa->f(ife, wa->arg);
+	return (0);
 }
 
 static void
