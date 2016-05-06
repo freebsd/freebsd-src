@@ -109,8 +109,6 @@ static struct mtx isrc_table_lock;
 static struct intr_irqsrc *irq_sources[NIRQ];
 u_int irq_next_free;
 
-#define IRQ_INVALID	nitems(irq_sources)
-
 /*
  *  XXX - All stuff around struct intr_dev_data is considered as temporary
  *  until better place for storing struct intr_map_data will be find.
@@ -130,7 +128,7 @@ struct intr_dev_data {
 	device_t		idd_dev;
 	intptr_t		idd_xref;
 	u_int			idd_irq;
-	struct intr_map_data	idd_data;
+	struct intr_map_data *	idd_data;
 	struct intr_irqsrc *	idd_isrc;
 };
 
@@ -138,7 +136,7 @@ static struct intr_dev_data *intr_ddata_tab[2 * NIRQ];
 static u_int intr_ddata_first_unused;
 
 #define IRQ_DDATA_BASE	10000
-CTASSERT(IRQ_DDATA_BASE > IRQ_INVALID);
+CTASSERT(IRQ_DDATA_BASE > nitems(irq_sources));
 
 #ifdef SMP
 static boolean_t irq_assign_cpu = FALSE;
@@ -399,7 +397,7 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 		return (EINVAL);
 
 	irq_sources[isrc->isrc_irq] = NULL;
-	isrc->isrc_irq = IRQ_INVALID;	/* just to be safe */
+	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
 	return (0);
 }
 
@@ -427,7 +425,7 @@ intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
 
 	bzero(isrc, sizeof(struct intr_irqsrc));
 	isrc->isrc_dev = dev;
-	isrc->isrc_irq = IRQ_INVALID;	/* just to be safe */
+	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
 	isrc->isrc_flags = flags;
 
 	va_start(ap, fmt);
@@ -497,8 +495,10 @@ static struct intr_dev_data *
 intr_ddata_alloc(u_int extsize)
 {
 	struct intr_dev_data *ddata;
+	size_t size;
 
-	ddata = malloc(sizeof(*ddata) + extsize, M_INTRNG, M_WAITOK | M_ZERO);
+	size = sizeof(*ddata);
+	ddata = malloc(size + extsize, M_INTRNG, M_WAITOK | M_ZERO);
 
 	mtx_lock(&isrc_table_lock);
 	if (intr_ddata_first_unused >= nitems(intr_ddata_tab)) {
@@ -509,6 +509,9 @@ intr_ddata_alloc(u_int extsize)
 	intr_ddata_tab[intr_ddata_first_unused] = ddata;
 	ddata->idd_irq = IRQ_DDATA_BASE + intr_ddata_first_unused++;
 	mtx_unlock(&isrc_table_lock);
+
+	ddata->idd_data = (struct intr_map_data *)((uintptr_t)ddata + size);
+	ddata->idd_data->size = extsize;
 	return (ddata);
 }
 
@@ -536,13 +539,13 @@ intr_ddata_lookup(u_int irq, struct intr_map_data **datap)
 	ddata = intr_ddata_tab[irq];
 	if (ddata->idd_isrc == NULL) {
 		error = intr_map_irq(ddata->idd_dev, ddata->idd_xref,
-		    &ddata->idd_data, &irq);
+		    ddata->idd_data, &irq);
 		if (error != 0)
 			return (NULL);
 		ddata->idd_isrc = isrc_lookup(irq);
 	}
 	if (datap != NULL)
-		*datap = &ddata->idd_data;
+		*datap = ddata->idd_data;
 	return (ddata->idd_isrc);
 }
 
@@ -556,17 +559,21 @@ u_int
 intr_acpi_map_irq(device_t dev, u_int irq, enum intr_polarity pol,
     enum intr_trigger trig)
 {
+	struct intr_map_data_acpi *daa;
 	struct intr_dev_data *ddata;
 
-	ddata = intr_ddata_alloc(0);
+	ddata = intr_ddata_alloc(sizeof(struct intr_map_data_acpi));
 	if (ddata == NULL)
-		return (0xFFFFFFFF);	/* no space left */
+		return (INTR_IRQ_INVALID);	/* no space left */
 
 	ddata->idd_dev = dev;
-	ddata->idd_data.type = INTR_MAP_DATA_ACPI;
-	ddata->idd_data.acpi.irq = irq;
-	ddata->idd_data.acpi.pol = pol;
-	ddata->idd_data.acpi.trig = trig;
+	ddata->idd_data->type = INTR_MAP_DATA_ACPI;
+
+	daa = (struct intr_map_data_acpi *)ddata->idd_data;
+	daa->irq = irq;
+	daa->pol = pol;
+	daa->trig = trig;
+
 	return (ddata->idd_irq);
 }
 #endif
@@ -579,22 +586,48 @@ intr_acpi_map_irq(device_t dev, u_int irq, enum intr_polarity pol,
 u_int
 intr_fdt_map_irq(phandle_t node, pcell_t *cells, u_int ncells)
 {
+	size_t cellsize;
 	struct intr_dev_data *ddata;
-	u_int cellsize;
+	struct intr_map_data_fdt *daf;
 
 	cellsize = ncells * sizeof(*cells);
-	ddata = intr_ddata_alloc(cellsize);
+	ddata = intr_ddata_alloc(sizeof(struct intr_map_data_fdt) + cellsize);
 	if (ddata == NULL)
-		return (0xFFFFFFFF);	/* no space left */
+		return (INTR_IRQ_INVALID);	/* no space left */
 
 	ddata->idd_xref = (intptr_t)node;
-	ddata->idd_data.type = INTR_MAP_DATA_FDT;
-	ddata->idd_data.fdt.ncells = ncells;
-	ddata->idd_data.fdt.cells = (pcell_t *)(ddata + 1);
-	memcpy(ddata->idd_data.fdt.cells, cells, cellsize);
+	ddata->idd_data->type = INTR_MAP_DATA_FDT;
+
+	daf = (struct intr_map_data_fdt *)ddata->idd_data;
+	daf->ncells = ncells;
+	memcpy(daf->cells, cells, cellsize);
 	return (ddata->idd_irq);
 }
 #endif
+
+/*
+ *  Store GPIO interrupt decription in framework and return unique interrupt
+ *  number (resource handle) associated with it.
+ */
+u_int
+intr_gpio_map_irq(device_t dev, u_int pin_num, u_int pin_flags, u_int intr_mode)
+{
+	struct intr_dev_data *ddata;
+	struct intr_map_data_gpio *dag;
+
+	ddata = intr_ddata_alloc(sizeof(struct intr_map_data_gpio));
+	if (ddata == NULL)
+		return (INTR_IRQ_INVALID);	/* no space left */
+
+	ddata->idd_dev = dev;
+	ddata->idd_data->type = INTR_MAP_DATA_GPIO;
+
+	dag = (struct intr_map_data_gpio *)ddata->idd_data;
+	dag->gpio_pin_num = pin_num;
+	dag->gpio_pin_flags = pin_flags;
+	dag->gpio_intr_mode = intr_mode;
+	return (ddata->idd_irq);
+}
 
 #ifdef INTR_SOLO
 /*
@@ -686,7 +719,7 @@ intr_isrc_assign_cpu(void *arg, int cpu)
 	 * In NOCPU case, it's up to PIC to either leave ISRC on same CPU or
 	 * re-balance it to another CPU or enable it on more CPUs. However,
 	 * PIC is expected to change isrc_cpu appropriately to keep us well
-	 * informed if the call is successfull.
+	 * informed if the call is successful.
 	 */
 	if (irq_assign_cpu) {
 		error = PIC_BIND_INTR(isrc->isrc_dev, isrc);
@@ -952,7 +985,7 @@ intr_map_irq(device_t dev, intptr_t xref, struct intr_map_data *data,
 		return (EINVAL);
 
 	pic = pic_lookup(dev, xref);
-	if (pic == NULL || pic->pic_dev == NULL)
+	if (pic == NULL)
 		return (ESRCH);
 
 	error = PIC_MAP_INTR(pic->pic_dev, data, &isrc);
@@ -1013,7 +1046,7 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 
 #ifdef INTR_SOLO
 	/*
-	 * Standard handling is done thru MI interrupt framework. However,
+	 * Standard handling is done through MI interrupt framework. However,
 	 * some interrupts could request solely own special handling. This
 	 * non standard handling can be used for interrupt controllers without
 	 * handler (filter only), so in case that interrupt controllers are

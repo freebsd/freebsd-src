@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2015
+.Dd April 18, 2016
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -288,6 +288,27 @@ Disable MPtable generation.
 Alphanumeric name of the guest.
 This should be the same as that created by
 .Xr bhyveload 8 .
+.El
+.Sh SIGNAL HANDLING
+.Nm
+deals with the following signals:
+.Pp
+.Bl -tag -width indent -compact
+.It SIGTERM
+Trigger ACPI poweroff for a VM
+.El
+.Sh EXIT STATUS
+Exit status indicates how the VM was terminated:
+.Pp
+.Bl -tag -width indent -compact
+.It 0
+rebooted
+.It 1
+powered off
+.It 2
+halted
+.It 3
+triple fault
 .El
 .Sh EXAMPLES
 The guest operating system must have been loaded with

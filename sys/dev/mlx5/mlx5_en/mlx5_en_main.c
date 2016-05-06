@@ -2559,9 +2559,15 @@ out:
 		if (error) {
 			if_printf(ifp, "Query module num failed, eeprom "
 			    "reading is not supported\n");
+			error = EINVAL;
 			goto err_i2c;
 		}
-
+		/* Check if module is present before doing an access */
+		if (mlx5_query_module_status(priv->mdev, module_num) !=
+		    MLX5_MODULE_STATUS_PLUGGED) {
+			error = EINVAL;
+			goto err_i2c;
+		}
 		/*
 		 * Currently 0XA0 and 0xA2 are the only addresses permitted.
 		 * The internal conversion is as follows:
@@ -2583,6 +2589,7 @@ out:
 		if (error) {
 			if_printf(ifp, "Query eeprom failed, eeprom "
 			    "reading is not supported\n");
+			error = EINVAL;
 			goto err_i2c;
 		}
 
@@ -2596,6 +2603,7 @@ out:
 		if (error) {
 			if_printf(ifp, "Query eeprom failed, eeprom "
 			    "reading is not supported\n");
+			error = EINVAL;
 			goto err_i2c;
 		}
 

@@ -176,6 +176,15 @@ static const struct {
 	{0x9c078086, 0x00, "Intel Lynx Point-LP (RAID)",	0},
 	{0x9c0e8086, 0x00, "Intel Lynx Point-LP (RAID)",	0},
 	{0x9c0f8086, 0x00, "Intel Lynx Point-LP (RAID)",	0},
+	{0x9d038086, 0x00, "Intel Sunrise Point-LP",	0},
+	{0x9d058086, 0x00, "Intel Sunrise Point-LP (RAID)",	0},
+	{0x9d078086, 0x00, "Intel Sunrise Point-LP (RAID)",	0},
+	{0xa1028086, 0x00, "Intel Sunrise Point",	0},
+	{0xa1038086, 0x00, "Intel Sunrise Point",	0},
+	{0xa1058086, 0x00, "Intel Sunrise Point (RAID)",	0},
+	{0xa1068086, 0x00, "Intel Sunrise Point (RAID)",	0},
+	{0xa1078086, 0x00, "Intel Sunrise Point (RAID)",	0},
+	{0xa10f8086, 0x00, "Intel Sunrise Point (RAID)",	0},
 	{0x23238086, 0x00, "Intel DH89xxCC",	0},
 	{0x2360197b, 0x00, "JMicron JMB360",	0},
 	{0x2361197b, 0x00, "JMicron JMB361",	AHCI_Q_NOFORCE},
@@ -423,6 +432,8 @@ ahci_pci_attach(device_t dev)
 	    pci_get_subvendor(dev) == 0x1043 &&
 	    pci_get_subdevice(dev) == 0x81e4)
 		ctlr->quirks |= AHCI_Q_SATA1_UNIT0;
+	resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "quirks", &ctlr->quirks);
 	ctlr->vendorid = pci_get_vendor(dev);
 	ctlr->deviceid = pci_get_device(dev);
 	ctlr->subvendorid = pci_get_subvendor(dev);
@@ -491,7 +502,7 @@ ahci_pci_attach(device_t dev)
 	if ((error = ahci_pci_ctlr_reset(dev)) != 0) {
 		ahci_free_mem(dev);
 		return (error);
-	};
+	}
 
 	/* Setup interrupts. */
 

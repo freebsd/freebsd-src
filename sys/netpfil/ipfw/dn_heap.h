@@ -83,7 +83,7 @@ enum {
  * heap_insert() adds a key-pointer pair to the heap
  *
  * HEAP_TOP() returns a pointer to the top element of the heap,
- *	but makes no checks on its existance (XXX should we change ?)
+ *	but makes no checks on its existence (XXX should we change ?)
  *
  * heap_extract() removes the entry at the top, returing the pointer.
  *	(the key should have been read before).
@@ -146,7 +146,7 @@ int heap_scan(struct dn_heap *, int (*)(void *, uintptr_t), uintptr_t);
  * of the dn_ht_find(), and of the callbacks:
  *
  * DNHT_KEY_IS_OBJ	means the key is the object pointer.
- *	It is usally of interest for the hash and match functions.
+ *	It is usually of interest for the hash and match functions.
  *
  * DNHT_MATCH_PTR	during a lookup, match pointers instead
  *	of calling match(). Normally used when removing specific

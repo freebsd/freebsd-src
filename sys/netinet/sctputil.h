@@ -108,7 +108,12 @@ void
      sctp_mtu_size_reset(struct sctp_inpcb *, struct sctp_association *, uint32_t);
 
 void
-     sctp_wakeup_the_read_socket(struct sctp_inpcb *inp);
+sctp_wakeup_the_read_socket(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
+    int so_locked
+#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
+    SCTP_UNUSED
+#endif
+);
 
 void
 sctp_add_to_readq(struct sctp_inpcb *inp,
@@ -122,16 +127,6 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
     SCTP_UNUSED
 #endif
 );
-
-int
-sctp_append_to_readq(struct sctp_inpcb *inp,
-    struct sctp_tcb *stcb,
-    struct sctp_queued_to_read *control,
-    struct mbuf *m,
-    int end,
-    int new_cumack,
-    struct sockbuf *sb);
-
 
 void sctp_iterator_worker(void);
 

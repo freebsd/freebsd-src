@@ -12,6 +12,7 @@
 . /etc/rc.subr
 
 name="virecover"
+desc="Recover crashed vi sessions"
 rcvar="virecover_enable"
 stop_cmd=":"
 start_cmd="virecover_start"

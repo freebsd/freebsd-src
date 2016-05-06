@@ -357,10 +357,10 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	fs->e2fs_ipb = fs->e2fs_bsize / EXT2_INODE_SIZE(fs);
 	fs->e2fs_itpg = fs->e2fs_ipg / fs->e2fs_ipb;
 	/* s_resuid / s_resgid ? */
-	fs->e2fs_gcount = (es->e2fs_bcount - es->e2fs_first_dblock +
-	    EXT2_BLOCKS_PER_GROUP(fs) - 1) / EXT2_BLOCKS_PER_GROUP(fs);
+	fs->e2fs_gcount = howmany(es->e2fs_bcount - es->e2fs_first_dblock,
+	    EXT2_BLOCKS_PER_GROUP(fs));
 	e2fs_descpb = fs->e2fs_bsize / sizeof(struct ext2_gd);
-	db_count = (fs->e2fs_gcount + e2fs_descpb - 1) / e2fs_descpb;
+	db_count = howmany(fs->e2fs_gcount, e2fs_descpb);
 	fs->e2fs_gdbcount = db_count;
 	fs->e2fs_gd = malloc(db_count * fs->e2fs_bsize,
 	    M_EXT2MNT, M_WAITOK);
@@ -970,7 +970,7 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	 */
 	if (!(ip->i_flag & IN_E4EXTENTS) &&
 	    (S_ISDIR(ip->i_mode) || S_ISREG(ip->i_mode))) {
-		used_blocks = (ip->i_size+fs->e2fs_bsize-1) / fs->e2fs_bsize;
+		used_blocks = howmany(ip->i_size, fs->e2fs_bsize);
 		for (i = used_blocks; i < EXT2_NDIR_BLOCKS; i++)
 			ip->i_db[i] = 0;
 	}

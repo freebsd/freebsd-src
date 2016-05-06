@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 
@@ -785,7 +786,7 @@ maxrate(const struct ieee80211_scan_entry *se)
 		} else
 			for (i = 31; i >= 0 && isclr(htcap->hc_mcsset, i); i--);
 		if (i >= 0) {
-			caps = LE_READ_2(&htcap->hc_cap);
+			caps = le16dec(&htcap->hc_cap);
 			if ((caps & IEEE80211_HTCAP_CHWIDTH40) &&
 			    (caps & IEEE80211_HTCAP_SHORTGI40))
 				rmax = ieee80211_htrates[i].ht40_rate_400ns;

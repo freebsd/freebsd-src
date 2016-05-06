@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
  * allows you to connect two systems using a PCI-e link.
  *
  * This module contains the hardware abstraction layer for the NTB. It allows
- * you to send and recieve interrupts, map the memory windows and send and
+ * you to send and receive interrupts, map the memory windows and send and
  * receive messages in the scratch-pad registers.
  *
  * NOTE: Much of the code in this module is shared with Linux. Any patches may
@@ -3192,7 +3192,7 @@ ntb_peer_db_set(struct ntb_softc *ntb, uint64_t bit)
  * ring to its memory window write.
  *
  * Note that writing the peer doorbell via a memory window will *not* generate
- * an interrupt on the remote host; that must be done seperately.
+ * an interrupt on the remote host; that must be done separately.
  */
 bus_addr_t
 ntb_get_peer_db_addr(struct ntb_softc *ntb, vm_size_t *sz_out)

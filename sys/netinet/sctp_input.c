@@ -465,7 +465,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 	/* load all addresses */
 	if ((retval = sctp_load_addresses_from_init(stcb, m,
 	    (offset + sizeof(struct sctp_init_chunk)), initack_limit,
-	    src, dst, NULL))) {
+	    src, dst, NULL, stcb->asoc.port))) {
 		op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 		    "Problem with address parameters");
 		SCTPDBG(SCTP_DEBUG_INPUT1,
@@ -616,7 +616,7 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 			if (f_net != r_net) {
 				/*
 				 * first one on the list is NOT the primary
-				 * sctp_cmpaddr() is much more efficent if
+				 * sctp_cmpaddr() is much more efficient if
 				 * the primary is the first on the list,
 				 * make it so.
 				 */
@@ -900,17 +900,14 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 				/* Ordered */
 				TAILQ_REMOVE(&strm->inqueue, asoc->control_pdapi, next_instrm);
 				asoc->control_pdapi->on_strm_q = 0;
+#ifdef INVARIANTS
 			} else {
 				panic("Unknown state on ctrl:%p on_strm_q:%d",
 				    asoc->control_pdapi,
 				    asoc->control_pdapi->on_strm_q);
+#endif
 			}
 		}
-		printf("%s:%d End added to ctl:%p (%d)\n",
-		    __FUNCTION__,
-		    __LINE__,
-		    asoc->control_pdapi,
-		    asoc->control_pdapi->on_strm_q);
 		asoc->control_pdapi->end_added = 1;
 		asoc->control_pdapi->pdapi_aborted = 1;
 		asoc->control_pdapi = NULL;
@@ -1026,11 +1023,6 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp SCTP_UNUSED,
 		 * With a normal shutdown we assume the end of last record.
 		 */
 		SCTP_INP_READ_LOCK(stcb->sctp_ep);
-		printf("%s:%d End added to ctl:%p (%d)\n",
-		    __FUNCTION__,
-		    __LINE__,
-		    asoc->control_pdapi,
-		    asoc->control_pdapi->on_strm_q);
 		asoc->control_pdapi->end_added = 1;
 		asoc->control_pdapi->pdapi_aborted = 1;
 		asoc->control_pdapi = NULL;
@@ -1090,7 +1082,7 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp SCTP_UNUSED,
 
 /*
  * Skip past the param header and then we will find the chunk that caused the
- * problem. There are two possiblities ASCONF or FWD-TSN other than that and
+ * problem. There are two possibilities ASCONF or FWD-TSN other than that and
  * our peer must be broken.
  */
 static void
@@ -1264,7 +1256,7 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 			 * (or IPv4 for that matter) it does not matter. If
 			 * they don't support that type of address, they can
 			 * NOT possibly get that packet type... i.e. with no
-			 * IPv6 you can't recieve a IPv6 packet. so we can
+			 * IPv6 you can't receive a IPv6 packet. so we can
 			 * safely ignore this one. If we ever added support
 			 * for HOSTNAME Addresses, then we would need to do
 			 * something here.
@@ -1680,7 +1672,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		 */
 		if (sctp_load_addresses_from_init(stcb, m,
 		    init_offset + sizeof(struct sctp_init_chunk),
-		    initack_offset, src, dst, init_src)) {
+		    initack_offset, src, dst, init_src, stcb->asoc.port)) {
 			if (how_indx < sizeof(asoc->cookie_how))
 				asoc->cookie_how[how_indx] = 4;
 			return (NULL);
@@ -1807,7 +1799,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		}
 		if (sctp_load_addresses_from_init(stcb, m,
 		    init_offset + sizeof(struct sctp_init_chunk),
-		    initack_offset, src, dst, init_src)) {
+		    initack_offset, src, dst, init_src, stcb->asoc.port)) {
 			if (how_indx < sizeof(asoc->cookie_how))
 				asoc->cookie_how[how_indx] = 10;
 			return (NULL);
@@ -2019,7 +2011,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 
 		if (sctp_load_addresses_from_init(stcb, m,
 		    init_offset + sizeof(struct sctp_init_chunk),
-		    initack_offset, src, dst, init_src)) {
+		    initack_offset, src, dst, init_src, stcb->asoc.port)) {
 			if (how_indx < sizeof(asoc->cookie_how))
 				asoc->cookie_how[how_indx] = 14;
 
@@ -2131,6 +2123,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	stcb = sctp_aloc_assoc(inp, init_src, &error,
 	    ntohl(initack_cp->init.initiate_tag), vrf_id,
 	    ntohs(initack_cp->init.num_outbound_streams),
+	    port,
 	    (struct thread *)NULL
 	    );
 	if (stcb == NULL) {
@@ -2220,7 +2213,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	/* load all addresses */
 	if (sctp_load_addresses_from_init(stcb, m,
 	    init_offset + sizeof(struct sctp_init_chunk), initack_offset,
-	    src, dst, init_src)) {
+	    src, dst, init_src, port)) {
 		atomic_add_int(&stcb->asoc.refcnt, 1);
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		SCTP_TCB_UNLOCK(stcb);
@@ -2379,12 +2372,6 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		(*netp)->RTO = sctp_calculate_rto(stcb, asoc, *netp,
 		    &cookie->time_entered, sctp_align_unsafe_makecopy,
 		    SCTP_RTT_FROM_NON_DATA);
-#if defined(INET) || defined(INET6)
-		if (((*netp)->port == 0) && (port != 0)) {
-			sctp_pathmtu_adjustment(stcb, (uint16_t) ((*netp)->mtu - sizeof(struct udphdr)));
-		}
-		(*netp)->port = port;
-#endif
 	}
 	/* respond with a COOKIE-ACK */
 	sctp_send_cookie_ack(stcb);
@@ -2726,7 +2713,8 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	 */
 	if (netl == NULL) {
 		/* TSNH! Huh, why do I need to add this address here? */
-		if (sctp_add_remote_addr(*stcb, to, NULL, SCTP_DONOT_SETSCOPE, SCTP_IN_COOKIE_PROC)) {
+		if (sctp_add_remote_addr(*stcb, to, NULL, port,
+		    SCTP_DONOT_SETSCOPE, SCTP_IN_COOKIE_PROC)) {
 			return (NULL);
 		}
 		netl = sctp_findnet(*stcb, to);
@@ -4482,7 +4470,7 @@ sctp_handle_packet_dropped(struct sctp_pktdrop_chunk *cp,
 	    (stcb->asoc.sat_t3_loss_recovery == 0) &&
 	    (stcb->asoc.sat_network)) {
 		/*
-		 * This is debateable but for sat networks it makes sense
+		 * This is debatable but for sat networks it makes sense
 		 * Note if a T3 timer has went off, we will prohibit any
 		 * changes to cwnd until we exit the t3 loss recovery.
 		 */

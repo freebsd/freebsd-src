@@ -567,7 +567,7 @@ bcma_erom_get_core_info(struct bcma_erom *erom,
 		for (u_int j = 0; j < i; j++) {
 			if (buffer[i].vendor == buffer[j].vendor &&
 			    buffer[i].device == buffer[j].device)
-				buffer[i].unit++;;
+				buffer[i].unit++;
 		}
 	}
 
@@ -625,7 +625,7 @@ erom_corecfg_fill_port_regions(struct bcma_erom *erom,
 			EROM_LOG(erom, "unsupported region type %hhx\n",
 			    region_type);
 			return (EINVAL);
-	};
+	}
 
 	/* Fetch the list to be populated */
 	sports = bcma_corecfg_get_port_list(corecfg, port_type);

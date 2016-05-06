@@ -2361,7 +2361,7 @@ bce_nvram_erase_page(struct bce_softc *sc, u32 offset)
 	    BCE_NVM_COMMAND_DOIT;
 
 	/*
-	 * Clear the DONE bit separately, set the NVRAM adress to erase,
+	 * Clear the DONE bit separately, set the NVRAM address to erase,
 	 * and issue the erase command.
 	 */
 	REG_WR(sc, BCE_NVM_COMMAND, BCE_NVM_COMMAND_DONE);
@@ -3047,7 +3047,7 @@ bce_get_rx_buffer_sizes(struct bce_softc *sc, int mtu)
 		sc->rx_bd_mbuf_alloc_size = MHLEN;
 		/* Make sure offset is 16 byte aligned for hardware. */
 		sc->rx_bd_mbuf_align_pad =
-			roundup2((MSIZE - MHLEN), 16) - (MSIZE - MHLEN);
+			roundup2(MSIZE - MHLEN, 16) - (MSIZE - MHLEN);
 		sc->rx_bd_mbuf_data_len = sc->rx_bd_mbuf_alloc_size -
 			sc->rx_bd_mbuf_align_pad;
 	} else {
@@ -7957,7 +7957,7 @@ bce_intr(void *xsc)
 		goto bce_intr_exit;
 	}
 
-	/* Ack the interrupt and stop others from occuring. */
+	/* Ack the interrupt and stop others from occurring. */
 	REG_WR(sc, BCE_PCICFG_INT_ACK_CMD,
 	    BCE_PCICFG_INT_ACK_CMD_USE_INT_HC_PARAM |
 	    BCE_PCICFG_INT_ACK_CMD_MASK_INT);

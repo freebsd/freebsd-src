@@ -111,7 +111,7 @@ ti_scm_probe(device_t dev)
  *	globally and registers both the timecount and eventtimer objects.
  *
  *	RETURNS
- *	Zero on sucess or ENXIO if an error occuried.
+ *	Zero on success or ENXIO if an error occuried.
  */
 static int
 ti_scm_attach(device_t dev)

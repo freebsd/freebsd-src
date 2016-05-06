@@ -45,12 +45,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/devmap.h>
 #include <machine/fdt.h>
 #include <machine/machdep.h>
 #include <machine/platform.h> 
@@ -270,12 +270,12 @@ platform_late_init(void)
 }
 
 #define FDT_DEVMAP_MAX	(MV_WIN_CPU_MAX + 2)
-static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
+static struct devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
 	{ 0, 0, 0, }
 };
 
 static int
-platform_sram_devmap(struct arm_devmap_entry *map)
+platform_sram_devmap(struct devmap_entry *map)
 {
 #if !defined(SOC_MV_ARMADAXP)
 	phandle_t child, root;
@@ -318,10 +318,10 @@ out:
  * real implementation of this function in arm/mv/mv_pci.c overrides the weak
  * alias defined here.
  */
-int mv_default_fdt_pci_devmap(phandle_t node, struct arm_devmap_entry *devmap,
+int mv_default_fdt_pci_devmap(phandle_t node, struct devmap_entry *devmap,
     vm_offset_t io_va, vm_offset_t mem_va);
 int
-mv_default_fdt_pci_devmap(phandle_t node, struct arm_devmap_entry *devmap,
+mv_default_fdt_pci_devmap(phandle_t node, struct devmap_entry *devmap,
     vm_offset_t io_va, vm_offset_t mem_va)
 {
 
@@ -345,7 +345,7 @@ platform_devmap_init(void)
 	int i, num_mapped;
 
 	i = 0;
-	arm_devmap_register_table(&fdt_devmap[0]);
+	devmap_register_table(&fdt_devmap[0]);
 
 #ifdef SOC_MV_ARMADAXP
 	vm_paddr_t cur_immr_pa;

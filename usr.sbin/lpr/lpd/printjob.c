@@ -673,7 +673,7 @@ print(struct printer *pp, int format, char *file)
 			av[i++] = "-L";
 			av[i++] = *locale ? locale : "C";
 			av[i++] = "-F";
-			av[i] = 0;
+			av[i] = NULL;
 			fo = ofd;
 			goto start;
 		}
@@ -795,7 +795,7 @@ print(struct printer *pp, int format, char *file)
 	av[n++] = "-h";
 	av[n++] = origin_host;
 	av[n++] = pp->acct_file;
-	av[n] = 0;
+	av[n] = NULL;
 	fo = pfd;
 	if (of_pid > 0) {		/* stop output filter */
 		write(ofd, "\031\1", 2);
@@ -1737,7 +1737,7 @@ init(struct printer *pp)
 	sprintf(&length[2], "%ld", pp->page_length);
 	sprintf(&pxwidth[2], "%ld", pp->page_pwidth);
 	sprintf(&pxlength[2], "%ld", pp->page_plength);
-	if ((s = checkremote(pp)) != 0) {
+	if ((s = checkremote(pp)) != NULL) {
 		syslog(LOG_WARNING, "%s", s);
 		free(s);
 	}

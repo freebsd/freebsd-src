@@ -121,7 +121,7 @@ METHOD void probe_nomatch {
  * @param _child	the child device whose instance variable is
  *			being read
  * @param _index	the instance variable to read
- * @param _result	a loction to recieve the instance variable
+ * @param _result	a location to receive the instance variable
  *			value
  * 
  * @retval 0		success
@@ -230,6 +230,19 @@ METHOD device_t add_child {
 	const char *_name;
 	int _unit;
 } DEFAULT null_add_child;
+
+/**
+ * @brief Rescan the bus
+ *
+ * This method is called by a parent bridge or devctl to trigger a bus
+ * rescan.  The rescan should delete devices no longer present and
+ * enumerate devices that have newly arrived.
+ *
+ * @param _dev		the bus device
+ */
+METHOD int rescan {
+	device_t _dev;
+}
 
 /**
  * @brief Allocate a system resource
@@ -376,7 +389,7 @@ METHOD int release_resource {
  *			triggers
  * @param _arg		a value to use as the single argument in calls
  *			to @p _intr
- * @param _cookiep	a pointer to a location to recieve a cookie
+ * @param _cookiep	a pointer to a location to receive a cookie
  *			value that may be used to remove the interrupt
  *			handler
  */
@@ -447,9 +460,9 @@ METHOD int set_resource {
  * @param _child	the device which owns the resource
  * @param _type		the type of resource
  * @param _rid		the resource identifier
- * @param _start	the address of a location to recieve the start
+ * @param _start	the address of a location to receive the start
  *			index of the resource range
- * @param _count	the address of a location to recieve the size
+ * @param _count	the address of a location to receive the size
  *			of the resource range
  */
 METHOD int get_resource {

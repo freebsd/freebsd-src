@@ -836,9 +836,9 @@ disasm_fields(const struct opcode *popcode, instr_t instr, vm_offset_t loc,
 			reg = "tbu";
 			break;
 		default:
-			reg = 0;
+			reg = NULL;
 		}
-		if (reg == 0)
+		if (reg == NULL)
 			pstr += sprintf(pstr, ", [unknown tbr %d ]", tbr);
 		else
 			pstr += sprintf(pstr, ", %s", reg);

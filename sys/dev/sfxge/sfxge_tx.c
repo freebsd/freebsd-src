@@ -207,7 +207,7 @@ sfxge_tx_qcomplete(struct sfxge_txq *txq, struct sfxge_evq *evq)
 static unsigned int
 sfxge_is_mbuf_non_tcp(struct mbuf *mbuf)
 {
-	/* Absense of TCP checksum flags does not mean that it is non-TCP
+	/* Absence of TCP checksum flags does not mean that it is non-TCP
 	 * but it should be true if user wants to achieve high throughput.
 	 */
 	return (!(mbuf->m_pkthdr.csum_flags & (CSUM_IP_TCP | CSUM_IP6_TCP)));
@@ -906,7 +906,7 @@ static const struct tcphdr *tso_tcph(const struct sfxge_tso_state *tso)
 #define	TSOH_COUNT(_txq_entries)	((_txq_entries) / 2u)
 #define	TSOH_PER_PAGE	(PAGE_SIZE / TSOH_STD_SIZE)
 #define	TSOH_PAGE_COUNT(_txq_entries)	\
-	((TSOH_COUNT(_txq_entries) + TSOH_PER_PAGE - 1) / TSOH_PER_PAGE)
+	howmany(TSOH_COUNT(_txq_entries), TSOH_PER_PAGE)
 
 static int tso_init(struct sfxge_txq *txq)
 {

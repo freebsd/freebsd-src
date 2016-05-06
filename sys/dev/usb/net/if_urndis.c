@@ -235,7 +235,7 @@ urndis_attach(device_t dev)
 
 	cmd = usbd_find_descriptor(uaa->device, NULL, uaa->info.bIfaceIndex,
 	    UDESC_CS_INTERFACE, 0xFF, UDESCSUB_CDC_CM, 0xFF);
-	if (cmd != 0) {
+	if (cmd != NULL) {
 		DPRINTF("Call Mode Descriptor found, dataif=%d\n", cmd->bDataInterface);
 		iface_index[0] = cmd->bDataInterface;
 	}
@@ -709,7 +709,7 @@ urndis_ctrl_halt(struct urndis_softc *sc)
 }
 
 /*
- * NB: Querying a device has the requirment of using an input buffer the size
+ * NB: Querying a device has the requirement of using an input buffer the size
  *     of the expected reply or larger, except for variably sized replies.
  */
 static uint32_t

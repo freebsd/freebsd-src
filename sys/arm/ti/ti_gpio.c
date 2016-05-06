@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 #include "ti_gpio_if.h"
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #include "pic_if.h"
 #endif
 
@@ -121,7 +121,7 @@ __FBSDID("$FreeBSD$");
 static int ti_gpio_intr(void *arg);
 static int ti_gpio_detach(device_t);
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static int ti_gpio_pic_attach(struct ti_gpio_softc *sc);
 static int ti_gpio_pic_detach(struct ti_gpio_softc *sc);
 #endif
@@ -546,7 +546,7 @@ ti_gpio_pin_toggle(device_t dev, uint32_t pin)
 	return (0);
 }
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 /**
  *	ti_gpio_intr - ISR for all GPIO modules
  *	@arg: the soft context pointer
@@ -655,7 +655,7 @@ static int
 ti_gpio_attach(device_t dev)
 {
 	struct ti_gpio_softc *sc;
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 	unsigned int i;
 #endif
 	int err;
@@ -696,7 +696,7 @@ ti_gpio_attach(device_t dev)
 		return (ENXIO);
 	}
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	if (ti_gpio_pic_attach(sc) != 0) {
 		device_printf(dev, "WARNING: unable to attach PIC\n");
 		ti_gpio_detach(dev);
@@ -771,7 +771,7 @@ ti_gpio_detach(device_t dev)
 	if (sc->sc_mem_res != NULL)
 		ti_gpio_intr_clr(sc, 0xffffffff);
 	gpiobus_detach_bus(dev);
-#ifdef	ARM_INTRNG
+#ifdef	INTRNG
 	if (sc->sc_isrcs != NULL)
 		ti_gpio_pic_detach(sc);
 #else
@@ -798,19 +798,15 @@ ti_gpio_detach(device_t dev)
 	return (0);
 }
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static inline void
-ti_gpio_rwreg_set(struct ti_gpio_softc *sc, uint32_t reg, uint32_t mask)
+ti_gpio_rwreg_modify(struct ti_gpio_softc *sc, uint32_t reg, uint32_t mask,
+    bool set_bits)
 {
+	uint32_t value;
 
-	ti_gpio_write_4(sc, reg, ti_gpio_read_4(sc, reg) | mask);
-}
-
-static inline void
-ti_gpio_rwreg_clr(struct ti_gpio_softc *sc, uint32_t reg, uint32_t mask)
-{
-
-	ti_gpio_write_4(sc, reg, ti_gpio_read_4(sc, reg) & ~mask);
+	value = ti_gpio_read_4(sc, reg);
+	ti_gpio_write_4(sc, reg, set_bits ? value | mask : value & ~mask);
 }
 
 static inline void
@@ -841,8 +837,8 @@ static inline bool
 ti_gpio_isrc_is_level(struct ti_gpio_irqsrc *tgi)
 {
 
-	return (tgi->tgi_cfgreg == TI_GPIO_LEVELDETECT0 ||
-	    tgi->tgi_cfgreg == TI_GPIO_LEVELDETECT1);
+	return (tgi->tgi_mode == GPIO_INTR_LEVEL_LOW ||
+	    tgi->tgi_mode == GPIO_INTR_LEVEL_HIGH);
 }
 
 static int
@@ -889,7 +885,7 @@ ti_gpio_pic_attach(struct ti_gpio_softc *sc)
 	for (irq = 0; irq < sc->sc_maxpin; irq++) {
 		sc->sc_isrcs[irq].tgi_irq = irq;
 		sc->sc_isrcs[irq].tgi_mask = TI_GPIO_MASK(irq);
-		sc->sc_isrcs[irq].tgi_cfgreg = 0;
+		sc->sc_isrcs[irq].tgi_mode = GPIO_INTR_CONFORM;
 
 		error = intr_isrc_register(&sc->sc_isrcs[irq].tgi_isrc,
 		    sc->sc_dev, 0, "%s,%u", name, irq);
@@ -913,6 +909,24 @@ ti_gpio_pic_detach(struct ti_gpio_softc *sc)
 }
 
 static void
+ti_gpio_pic_config_intr(struct ti_gpio_softc *sc, struct ti_gpio_irqsrc *tgi,
+    uint32_t mode)
+{
+
+	TI_GPIO_LOCK(sc);
+	ti_gpio_rwreg_modify(sc, TI_GPIO_RISINGDETECT, tgi->tgi_mask,
+	    mode == GPIO_INTR_EDGE_RISING || mode == GPIO_INTR_EDGE_BOTH);
+	ti_gpio_rwreg_modify(sc, TI_GPIO_FALLINGDETECT, tgi->tgi_mask,
+	    mode == GPIO_INTR_EDGE_FALLING || mode == GPIO_INTR_EDGE_BOTH);
+	ti_gpio_rwreg_modify(sc, TI_GPIO_LEVELDETECT1, tgi->tgi_mask,
+	    mode == GPIO_INTR_LEVEL_HIGH);
+	ti_gpio_rwreg_modify(sc, TI_GPIO_LEVELDETECT0, tgi->tgi_mask,
+	    mode == GPIO_INTR_LEVEL_LOW);
+	tgi->tgi_mode = mode;
+	TI_GPIO_UNLOCK(sc);
+}
+
+static void
 ti_gpio_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct ti_gpio_softc *sc = device_get_softc(dev);
@@ -932,10 +946,10 @@ ti_gpio_pic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static int
-ti_gpio_pic_map_fdt(struct ti_gpio_softc *sc, u_int ncells, pcell_t *cells,
-    u_int *irqp, uint32_t *regp)
+ti_gpio_pic_map_fdt(struct ti_gpio_softc *sc, struct intr_map_data_fdt *daf,
+    u_int *irqp, uint32_t *modep)
 {
-	uint32_t reg;
+	uint32_t mode;
 
 	/*
 	 * The first cell is the interrupt number.
@@ -946,30 +960,65 @@ ti_gpio_pic_map_fdt(struct ti_gpio_softc *sc, u_int ncells, pcell_t *cells,
 	 *		4 = active high level-sensitive.
 	 *		8 = active low level-sensitive.
 	 */
-	if (ncells != 2 || cells[0] >= sc->sc_maxpin)
+	if (daf->ncells != 2 || daf->cells[0] >= sc->sc_maxpin)
 		return (EINVAL);
 
-	/*
-	 * All interrupt types could be set for an interrupt at one moment.
-	 * At least, the combination of 'low-to-high' and 'high-to-low' edge
-	 * triggered interrupt types can make a sense. However, no combo is
-	 * supported now.
-	 */
-	if (cells[1] == 1)
-		reg = TI_GPIO_RISINGDETECT;
-	else if (cells[1] == 2)
-		reg = TI_GPIO_FALLINGDETECT;
-	else if (cells[1] == 4)
-		reg = TI_GPIO_LEVELDETECT1;
-	else if (cells[1] == 8)
-		reg = TI_GPIO_LEVELDETECT0;
+	/* Only reasonable modes are supported. */
+	if (daf->cells[1] == 1)
+		mode = GPIO_INTR_EDGE_RISING;
+	else if (daf->cells[1] == 2)
+		mode = GPIO_INTR_EDGE_FALLING;
+	else if (daf->cells[1] == 3)
+		mode = GPIO_INTR_EDGE_BOTH;
+	else if (daf->cells[1] == 4)
+		mode = GPIO_INTR_LEVEL_HIGH;
+	else if (daf->cells[1] == 8)
+		mode = GPIO_INTR_LEVEL_LOW;
 	else
 		return (EINVAL);
 
-	*irqp = cells[0];
-	if (regp != NULL)
-		*regp = reg;
+	*irqp = daf->cells[0];
+	if (modep != NULL)
+		*modep = mode;
 	return (0);
+}
+
+static int
+ti_gpio_pic_map_gpio(struct ti_gpio_softc *sc, struct intr_map_data_gpio *dag,
+    u_int *irqp, uint32_t *modep)
+{
+	uint32_t mode;
+
+	if (dag->gpio_pin_num >= sc->sc_maxpin)
+		return (EINVAL);
+
+	mode = dag->gpio_intr_mode;
+	if (mode != GPIO_INTR_LEVEL_LOW && mode != GPIO_INTR_LEVEL_HIGH &&
+	    mode != GPIO_INTR_EDGE_RISING && mode != GPIO_INTR_EDGE_FALLING &&
+	    mode != GPIO_INTR_EDGE_BOTH)
+		return (EINVAL);
+
+	*irqp = dag->gpio_pin_num;
+	if (modep != NULL)
+		*modep = mode;
+	return (0);
+}
+
+static int
+ti_gpio_pic_map(struct ti_gpio_softc *sc, struct intr_map_data *data,
+    u_int *irqp, uint32_t *modep)
+{
+
+	switch (data->type) {
+	case INTR_MAP_DATA_FDT:
+		return (ti_gpio_pic_map_fdt(sc,
+		    (struct intr_map_data_fdt *)data, irqp, modep));
+	case INTR_MAP_DATA_GPIO:
+		return (ti_gpio_pic_map_gpio(sc,
+		    (struct intr_map_data_gpio *)data, irqp, modep));
+	default:
+		return (ENOTSUP);
+	}
 }
 
 static int
@@ -978,14 +1027,9 @@ ti_gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
 {
 	int error;
 	u_int irq;
-	struct ti_gpio_softc *sc;
+	struct ti_gpio_softc *sc = device_get_softc(dev);
 
-	if (data->type != INTR_MAP_DATA_FDT)
-		return (ENOTSUP);
-
-	sc = device_get_softc(dev);
-	error = ti_gpio_pic_map_fdt(sc, data->fdt.ncells, data->fdt.cells, &irq,
-	    NULL);
+	error = ti_gpio_pic_map(sc, data, &irq, NULL);
 	if (error == 0)
 		*isrcp = &sc->sc_isrcs[irq].tgi_isrc;
 	return (error);
@@ -1024,19 +1068,18 @@ ti_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
 	u_int irq;
-	uint32_t cfgreg;
+	uint32_t mode;
 	struct ti_gpio_softc *sc;
 	struct ti_gpio_irqsrc *tgi;
 
-	if (data == NULL || data->type != INTR_MAP_DATA_FDT)
+	if (data == NULL)
 		return (ENOTSUP);
 
 	sc = device_get_softc(dev);
 	tgi = (struct ti_gpio_irqsrc *)isrc;
 
 	/* Get and check config for an interrupt. */
-	if (ti_gpio_pic_map_fdt(sc, data->fdt.ncells, data->fdt.cells, &irq,
-	    &cfgreg) != 0 || tgi->tgi_irq != irq)
+	if (ti_gpio_pic_map(sc, data, &irq, &mode) != 0 || tgi->tgi_irq != irq)
 		return (EINVAL);
 
 	/*
@@ -1044,16 +1087,9 @@ ti_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	 * only check that its configuration match.
 	 */
 	if (isrc->isrc_handlers != 0)
-		return (tgi->tgi_cfgreg == cfgreg ? 0 : EINVAL);
+		return (tgi->tgi_mode == mode ? 0 : EINVAL);
 
-	TI_GPIO_LOCK(sc);
-	ti_gpio_rwreg_clr(sc, TI_GPIO_RISINGDETECT, tgi->tgi_mask);
-	ti_gpio_rwreg_clr(sc, TI_GPIO_FALLINGDETECT, tgi->tgi_mask);
-	ti_gpio_rwreg_clr(sc, TI_GPIO_LEVELDETECT1, tgi->tgi_mask);
-	ti_gpio_rwreg_clr(sc, TI_GPIO_LEVELDETECT0, tgi->tgi_mask);
-	tgi->tgi_cfgreg = cfgreg;
-	ti_gpio_rwreg_set(sc, cfgreg, tgi->tgi_mask);
-	TI_GPIO_UNLOCK(sc);
+	ti_gpio_pic_config_intr(sc, tgi, mode);
 	return (0);
 }
 
@@ -1064,12 +1100,8 @@ ti_gpio_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 	struct ti_gpio_softc *sc = device_get_softc(dev);
 	struct ti_gpio_irqsrc *tgi = (struct ti_gpio_irqsrc *)isrc;
 
-	if (isrc->isrc_handlers == 0) {
-		TI_GPIO_LOCK(sc);
-		ti_gpio_rwreg_clr(sc, tgi->tgi_cfgreg, tgi->tgi_mask);
-		tgi->tgi_cfgreg = 0;
-		TI_GPIO_UNLOCK(sc);
-	}
+	if (isrc->isrc_handlers == 0)
+		ti_gpio_pic_config_intr(sc, tgi, GPIO_INTR_CONFORM);
 	return (0);
 }
 
@@ -1300,7 +1332,7 @@ static device_method_t ti_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_set, ti_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle, ti_gpio_pin_toggle),
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	ti_gpio_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	ti_gpio_pic_enable_intr),

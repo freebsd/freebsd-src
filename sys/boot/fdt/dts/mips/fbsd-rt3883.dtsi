@@ -1,0 +1,37 @@
+/* $FreeBSD$ */
+
+/ {
+	/* Specify alias for serial0 so we have a working console */
+	aliases {
+		serial0 = "/palmbus@10000000/uartlite@c00";
+	};
+
+	/*
+	 * OpenWRT doesn't define a clock controller, but we currently need one
+	 */
+	clkctrl: cltctrl {
+		compatible = "ralink,rt2880-clock";
+		#clock-cells = <1>;
+	};
+
+	/* Specify the clocks node for the usbphy */
+	usbphy: usbphy {
+		clocks = <&clkctrl 22 &clkctrl 25>;
+		clock-names = "host", "device";
+	};
+
+	pci@10140000 {
+		#address-cells = <3>;
+		#size-cells = <2>;
+		ranges = <
+			0x02000000 0 0x00000000 0x20000000 0 0x10000000
+			0x01000000 0 0x00000000 0x10160000 0 0x00010000
+		>;
+
+		interrupt-parent = <&cpuintc>;
+		interrupts = <4>;
+
+		resets = <&rstctrl 23>;
+		clocks = <&clkctrl 21>;
+	};
+};

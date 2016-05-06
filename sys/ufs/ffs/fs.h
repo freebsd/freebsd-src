@@ -401,8 +401,8 @@ CTASSERT(sizeof(struct fs) == 1376);
  * flag to enforce that inconsistent filesystems be mounted read-only.
  * The FS_INDEXDIRS flag when set indicates that the kernel maintains
  * on-disk auxiliary indexes (such as B-trees) for speeding directory
- * accesses. Kernels that do not support auxiliary indicies clear the
- * flag to indicate that the indicies need to be rebuilt (by fsck) before
+ * accesses. Kernels that do not support auxiliary indices clear the
+ * flag to indicate that the indices need to be rebuilt (by fsck) before
  * they can be used.
  *
  * FS_ACLS indicates that POSIX.1e ACLs are administratively enabled

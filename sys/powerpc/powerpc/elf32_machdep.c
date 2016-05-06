@@ -257,7 +257,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 void
 elf_reloc_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 {
-	Elf_Rela *rela = 0, *relalim;
+	Elf_Rela *rela = NULL, *relalim;
 	Elf_Addr relasz = 0;
 	Elf_Addr *where;
 

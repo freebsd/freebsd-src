@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016 Microsoft Corp.
  * Copyright (c) 2010-2012 Citrix Inc.
  * Copyright (c) 2012 NetApp Inc.
  * All rights reserved.
@@ -1185,7 +1185,8 @@ struct hn_tx_ring {
 #endif
 	int		hn_txdesc_cnt;
 	int		hn_txdesc_avail;
-	int		hn_has_txeof;
+	u_short		hn_has_txeof;
+	u_short		hn_txdone_cnt;
 
 	int		hn_sched_tx;
 	void		(*hn_txeof)(struct hn_tx_ring *);
@@ -1210,6 +1211,7 @@ struct hn_tx_ring {
 	u_long		hn_send_failed;
 	u_long		hn_txdma_failed;
 	u_long		hn_tx_collapsed;
+	u_long		hn_tx_chimney_tried;
 	u_long		hn_tx_chimney;
 	u_long		hn_pkts;
 
@@ -1266,6 +1268,7 @@ int hv_nv_on_device_remove(struct hv_device *device,
     boolean_t destroy_channel);
 int hv_nv_on_send(struct hv_vmbus_channel *chan, netvsc_packet *pkt);
 int hv_nv_get_next_send_section(netvsc_dev *net_dev);
+void hv_nv_subchan_attach(struct hv_vmbus_channel *chan);
 
 #endif  /* __HV_NET_VSC_H__ */
 

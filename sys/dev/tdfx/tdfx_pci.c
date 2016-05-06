@@ -127,7 +127,7 @@ tdfx_probe(device_t dev)
 	case PCI_DEVICE_3DFX_VOODOO1:
 		device_set_desc(dev, "3DFX Voodoo Graphics 3D Accelerator");
 		return BUS_PROBE_DEFAULT;
-	};
+	}
 
 	return ENXIO;
 }

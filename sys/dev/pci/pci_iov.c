@@ -442,6 +442,7 @@ pci_iov_set_ari(device_t bus)
 			}
 		}
 	}
+	free(devlist, M_TEMP);
 
 	/*
 	 * If we called this function some device must have the SR-IOV
@@ -451,10 +452,14 @@ pci_iov_set_ari(device_t bus)
 	    ("Could not find child of %s with SR-IOV capability",
 	    device_get_nameunit(bus)));
 
-	iov_ctl = pci_read_config(lowest, iov_pos + PCIR_SRIOV_CTL, 2);
+	iov_ctl = pci_read_config(lowest, lowest_pos + PCIR_SRIOV_CTL, 2);
 	iov_ctl |= PCIM_SRIOV_ARI_EN;
-	pci_write_config(lowest, iov_pos + PCIR_SRIOV_CTL, iov_ctl, 2);
-	free(devlist, M_TEMP);
+	pci_write_config(lowest, lowest_pos + PCIR_SRIOV_CTL, iov_ctl, 2);
+	if ((pci_read_config(lowest, lowest_pos + PCIR_SRIOV_CTL, 2) &
+	    PCIM_SRIOV_ARI_EN) == 0) {
+		device_printf(lowest, "failed to enable ARI\n");
+		return (ENXIO);
+	}
 	return (0);
 }
 
@@ -600,14 +605,12 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 	device_t bus, dev, vf;
 	struct pcicfg_iov *iov;
 	struct pci_devinfo *vfinfo;
-	size_t size;
 	int i, error;
 	uint16_t vid, did, next_rid;
 
 	iov = dinfo->cfg.iov;
 	dev = dinfo->cfg.dev;
 	bus = device_get_parent(dev);
-	size = dinfo->cfg.devinfo_size;
 	next_rid = first_rid;
 	vid = pci_get_vendor(dev);
 	did = IOV_READ(dinfo, PCIR_SRIOV_VF_DID, 2);
@@ -765,6 +768,29 @@ out:
 	iov->iov_flags &= ~IOV_BUSY;
 	mtx_unlock(&Giant);
 	return (error);
+}
+
+void
+pci_iov_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
+{
+	struct pcicfg_iov *iov;
+
+	iov = dinfo->cfg.iov;
+
+	IOV_WRITE(dinfo, PCIR_SRIOV_PAGE_SIZE, iov->iov_page_size, 4);
+	IOV_WRITE(dinfo, PCIR_SRIOV_NUM_VFS, iov->iov_num_vfs, 2);
+	IOV_WRITE(dinfo, PCIR_SRIOV_CTL, iov->iov_ctl, 2);
+}
+
+void
+pci_iov_cfg_save(device_t dev, struct pci_devinfo *dinfo)
+{
+	struct pcicfg_iov *iov;
+
+	iov = dinfo->cfg.iov;
+
+	iov->iov_page_size = IOV_READ(dinfo, PCIR_SRIOV_PAGE_SIZE, 4);
+	iov->iov_ctl = IOV_READ(dinfo, PCIR_SRIOV_CTL, 2);
 }
 
 /* Return true if child is a VF of the given PF. */

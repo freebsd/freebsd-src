@@ -855,7 +855,7 @@ fill_kinfo_aggregate(struct proc *p, struct kinfo_proc *kp)
 	FOREACH_THREAD_IN_PROC(p, td) {
 		thread_lock(td);
 		kp->ki_pctcpu += sched_pctcpu(td);
-		kp->ki_estcpu += td->td_estcpu;
+		kp->ki_estcpu += sched_estcpu(td);
 		thread_unlock(td);
 	}
 }
@@ -1101,7 +1101,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 		rufetchtd(td, &kp->ki_rusage);
 		kp->ki_runtime = cputick2usec(td->td_rux.rux_runtime);
 		kp->ki_pctcpu = sched_pctcpu(td);
-		kp->ki_estcpu = td->td_estcpu;
+		kp->ki_estcpu = sched_estcpu(td);
 		kp->ki_cow = td->td_cow;
 	}
 
@@ -1444,7 +1444,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			p = LIST_FIRST(&allproc);
 		else
 			p = LIST_FIRST(&zombproc);
-		for (; p != 0; p = LIST_NEXT(p, p_list)) {
+		for (; p != NULL; p = LIST_NEXT(p, p_list)) {
 			/*
 			 * Skip embryonic processes.
 			 */
@@ -2534,10 +2534,8 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 	st = stack_create();
 
 	lwpidarray = NULL;
-	numthreads = 0;
 	PROC_LOCK(p);
-repeat:
-	if (numthreads < p->p_numthreads) {
+	do {
 		if (lwpidarray != NULL) {
 			free(lwpidarray, M_TEMP);
 			lwpidarray = NULL;
@@ -2547,9 +2545,7 @@ repeat:
 		lwpidarray = malloc(sizeof(*lwpidarray) * numthreads, M_TEMP,
 		    M_WAITOK | M_ZERO);
 		PROC_LOCK(p);
-		goto repeat;
-	}
-	i = 0;
+	} while (numthreads < p->p_numthreads);
 
 	/*
 	 * XXXRW: During the below loop, execve(2) and countless other sorts
@@ -2560,6 +2556,7 @@ repeat:
 	 * have changed, in which case the right to extract debug info might
 	 * no longer be assured.
 	 */
+	i = 0;
 	FOREACH_THREAD_IN_PROC(p, td) {
 		KASSERT(i < numthreads,
 		    ("sysctl_kern_proc_kstack: numthreads"));

@@ -22,97 +22,107 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <err.h>
-#include <md5.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #if defined(MKUZ_DEBUG)
+# include <assert.h>
 # include <stdio.h>
 #endif
 
 #include "mkuz_blockcache.h"
+#include "mkuz_blk.h"
 
-struct mkuz_blkcache {
-    struct mkuz_blkcache_hit hit;
-    off_t data_offset;
-    unsigned char digest[16];
-    struct mkuz_blkcache *next;
+struct mkuz_blkcache_itm {
+    struct mkuz_blk_info hit;
+    struct mkuz_blkcache_itm *next;
 };
 
-static struct mkuz_blkcache blkcache;
+static struct mkuz_blkcache {
+    struct mkuz_blkcache_itm first[256];
+} blkcache;
 
 static int
-verify_match(int fd, off_t data_offset, void *data, ssize_t len,
-  struct mkuz_blkcache *bcep)
+verify_match(int fd, const struct mkuz_blk *cbp, struct mkuz_blkcache_itm *bcep)
 {
     void *vbuf;
     ssize_t rlen;
     int rval;
 
     rval = -1;
-    vbuf = malloc(len);
+    vbuf = malloc(cbp->info.len);
     if (vbuf == NULL) {
         goto e0;
     }
-    if (lseek(fd, bcep->data_offset, SEEK_SET) < 0) {
+    if (lseek(fd, bcep->hit.offset, SEEK_SET) < 0) {
         goto e1;
     }
-    rlen = read(fd, vbuf, len);
-    if (rlen != len) {
+    rlen = read(fd, vbuf, cbp->info.len);
+    if (rlen < 0 || (unsigned)rlen != cbp->info.len) {
         goto e2;
     }
-    rval = (memcmp(data, vbuf, len) == 0) ? 1 : 0;
+    rval = (memcmp(cbp->data, vbuf, cbp->info.len) == 0) ? 1 : 0;
 e2:
-    lseek(fd, data_offset, SEEK_SET);
+    lseek(fd, cbp->info.offset, SEEK_SET);
 e1:
     free(vbuf);
 e0:
     return (rval);
 }
 
-struct mkuz_blkcache_hit *
-mkuz_blkcache_regblock(int fd, uint32_t blkno, off_t offset, ssize_t len,
-  void *data)
-{
-    struct mkuz_blkcache *bcep;
-    MD5_CTX mcontext;
-    off_t data_offset;
-    unsigned char mdigest[16];
-    int rval;
+#define I2J(x)	((intmax_t)(x))
+#define U2J(x)	((uintmax_t)(x))
 
-    data_offset = lseek(fd, 0, SEEK_CUR);
-    if (data_offset < 0) {
-        return (NULL);
+static unsigned char
+digest_fold(const unsigned char *mdigest)
+{
+    int i;
+    unsigned char rval;
+
+    rval = mdigest[0];
+    for (i = 1; i < 16; i++) {
+        rval = rval ^ mdigest[i];
     }
-    MD5Init(&mcontext);
-    MD5Update(&mcontext, data, len);
-    MD5Final(mdigest, &mcontext);
-    if (blkcache.hit.len == 0) {
-        bcep = &blkcache;
+    return (rval);
+}
+
+struct mkuz_blk_info *
+mkuz_blkcache_regblock(int fd, const struct mkuz_blk *bp)
+{
+    struct mkuz_blkcache_itm *bcep;
+    int rval;
+    unsigned char h;
+
+#if defined(MKUZ_DEBUG)
+    assert((unsigned)lseek(fd, 0, SEEK_CUR) == bp->info.offset);
+#endif
+    h = digest_fold(bp->info.digest);
+    if (blkcache.first[h].hit.len == 0) {
+        bcep = &blkcache.first[h];
     } else {
-        for (bcep = &blkcache; bcep != NULL; bcep = bcep->next) {
-            if (bcep->hit.len != len)
+        for (bcep = &blkcache.first[h]; bcep != NULL; bcep = bcep->next) {
+            if (bcep->hit.len != bp->info.len)
                 continue;
-            if (memcmp(mdigest, bcep->digest, sizeof(mdigest)) == 0) {
+            if (memcmp(bp->info.digest, bcep->hit.digest,
+              sizeof(bp->info.digest)) == 0) {
                 break;
             }
         }
         if (bcep != NULL) {
-            rval = verify_match(fd, data_offset, data, len, bcep);
+            rval = verify_match(fd, bp, bcep);
             if (rval == 1) {
 #if defined(MKUZ_DEBUG)
-                fprintf(stderr, "cache hit %d, %d, %d\n",
-                  (int)bcep->hit.offset, (int)data_offset, (int)len);
+                fprintf(stderr, "cache hit %jd, %jd, %jd, %jd\n",
+                  I2J(bcep->hit.blkno), I2J(bcep->hit.offset),
+                  I2J(bp->info.offset), I2J(bp->info.len));
 #endif
                 return (&bcep->hit);
             }
@@ -126,17 +136,13 @@ mkuz_blkcache_regblock(int fd, uint32_t blkno, off_t offset, ssize_t len,
             warn("verify_match");
             return (NULL);
         }
-        bcep = malloc(sizeof(struct mkuz_blkcache));
+        bcep = malloc(sizeof(struct mkuz_blkcache_itm));
         if (bcep == NULL)
             return (NULL);
-        memset(bcep, '\0', sizeof(struct mkuz_blkcache));
-        bcep->next = blkcache.next;
-        blkcache.next = bcep;
+        memset(bcep, '\0', sizeof(struct mkuz_blkcache_itm));
+        bcep->next = blkcache.first[h].next;
+        blkcache.first[h].next = bcep;
     }
-    memcpy(bcep->digest, mdigest, sizeof(mdigest));
-    bcep->data_offset = data_offset;
-    bcep->hit.offset = offset;
-    bcep->hit.len = len;
-    bcep->hit.blkno = blkno;
+    bcep->hit = bp->info;
     return (NULL);
 }

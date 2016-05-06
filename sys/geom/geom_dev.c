@@ -630,8 +630,8 @@ g_dev_strategy(struct bio *bp)
 
 	for (;;) {
 		/*
-		 * XXX: This is not an ideal solution, but I belive it to
-		 * XXX: deadlock safe, all things considered.
+		 * XXX: This is not an ideal solution, but I believe it to
+		 * XXX: deadlock safely, all things considered.
 		 */
 		bp2 = g_clone_bio(bp);
 		if (bp2 != NULL)
@@ -686,7 +686,7 @@ g_dev_callback(void *arg)
  * - Clear any dump settings.
  * - Request asynchronous device destruction to prevent any more requests
  *   from coming in.  The provider is already marked with an error, so
- *   anything which comes in in the interrim will be returned immediately.
+ *   anything which comes in the interim will be returned immediately.
  */
 
 static void

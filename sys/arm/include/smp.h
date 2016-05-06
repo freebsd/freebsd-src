@@ -6,7 +6,7 @@
 #include <sys/_cpuset.h>
 #include <machine/pcb.h>
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 enum {
 	IPI_AST,
 	IPI_PREEMPT,
@@ -37,7 +37,7 @@ void	ipi_cpu(int cpu, u_int ipi);
 void	ipi_selected(cpuset_t cpus, u_int ipi);
 
 /* PIC interface */
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 void	pic_ipi_send(cpuset_t cpus, u_int ipi);
 void	pic_ipi_clear(int ipi);
 int	pic_ipi_read(int arg);

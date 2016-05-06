@@ -11,3 +11,4 @@ CFLAGS+= -I${DMA_SOURCES} \
 	-DDMA_ROOT_USER='"mailnull"' \
 	-DDMA_GROUP='"mail"'
 BINGRP=	mail
+PACKAGE=	dma

@@ -138,8 +138,8 @@ struct devsw {
     const char	dv_name[8];
     int		dv_type;		/* opaque type constant, arch-dependant */
     int		(*dv_init)(void);	/* early probe call */
-    int		(*dv_strategy)(void *devdata, int rw, daddr_t blk, size_t size,
-			       char *buf, size_t *rsize);
+    int		(*dv_strategy)(void *devdata, int rw, daddr_t blk,
+			size_t offset, size_t size, char *buf, size_t *rsize);
     int		(*dv_open)(struct open_file *f, ...);
     int		(*dv_close)(struct open_file *f);
     int		(*dv_ioctl)(struct open_file *f, u_long cmd, void *data);
@@ -153,6 +153,24 @@ struct devsw {
 extern struct devsw netdev;
 
 extern int errno;
+
+/*
+ * Generic device specifier; architecture-dependent
+ * versions may be larger, but should be allowed to
+ * overlap.
+ */
+struct devdesc
+{
+    struct devsw	*d_dev;
+    int			d_type;
+#define DEVT_NONE	0
+#define DEVT_DISK	1
+#define DEVT_NET	2
+#define DEVT_CD		3
+#define DEVT_ZFS	4
+    int			d_unit;
+    void		*d_opendata;
+};
 
 struct open_file {
     int			f_flags;	/* see F_* below */

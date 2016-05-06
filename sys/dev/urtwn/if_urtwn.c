@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 
 #include <net80211/ieee80211_var.h>
-#include <net80211/ieee80211_input.h>
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_ratectl.h>
@@ -360,10 +359,10 @@ static void		urtwn_update_aifs(struct urtwn_softc *, uint8_t);
 static void		urtwn_set_promisc(struct urtwn_softc *);
 static void		urtwn_update_promisc(struct ieee80211com *);
 static void		urtwn_update_mcast(struct ieee80211com *);
-static struct ieee80211_node *urtwn_r88e_node_alloc(struct ieee80211vap *,
+static struct ieee80211_node *urtwn_node_alloc(struct ieee80211vap *,
 			    const uint8_t mac[IEEE80211_ADDR_LEN]);
-static void		urtwn_r88e_newassoc(struct ieee80211_node *, int);
-static void		urtwn_r88e_node_free(struct ieee80211_node *);
+static void		urtwn_newassoc(struct ieee80211_node *, int);
+static void		urtwn_node_free(struct ieee80211_node *);
 static void		urtwn_set_chan(struct urtwn_softc *,
 		    	    struct ieee80211_channel *,
 			    struct ieee80211_channel *);
@@ -491,7 +490,7 @@ urtwn_attach(device_t self)
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct urtwn_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t bands[IEEE80211_MODE_BYTES];
 	int error;
 
 	device_set_usb_desc(self);
@@ -628,10 +627,10 @@ urtwn_attach(device_t self)
 	ic->ic_update_promisc = urtwn_update_promisc;
 	ic->ic_update_mcast = urtwn_update_mcast;
 	if (sc->chip & URTWN_CHIP_88E) {
-		ic->ic_node_alloc = urtwn_r88e_node_alloc;
-		ic->ic_newassoc = urtwn_r88e_newassoc;
+		ic->ic_node_alloc = urtwn_node_alloc;
+		ic->ic_newassoc = urtwn_newassoc;
 		sc->sc_node_free = ic->ic_node_free;
-		ic->ic_node_free = urtwn_r88e_node_free;
+		ic->ic_node_free = urtwn_node_free;
 	}
 	ic->ic_update_chw = urtwn_update_chw;
 	ic->ic_ampdu_enable = urtwn_ampdu_enable;
@@ -791,6 +790,11 @@ urtwn_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	vap->iv_key_alloc = urtwn_key_alloc;
 	vap->iv_key_set = urtwn_key_set;
 	vap->iv_key_delete = urtwn_key_delete;
+
+	/* 802.11n parameters */
+	vap->iv_ampdu_density = IEEE80211_HTCAP_MPDUDENSITY_16;
+	vap->iv_ampdu_rxmax = IEEE80211_HTCAP_MAXRXAMPDU_64K;
+
 	if (opmode == IEEE80211_M_IBSS) {
 		uvp->recv_mgmt = vap->iv_recv_mgmt;
 		vap->iv_recv_mgmt = urtwn_ibss_recv_mgmt;
@@ -1025,7 +1029,7 @@ urtwn_rx_frame(struct urtwn_softc *sc, struct mbuf *m, int8_t *rssi_p)
 	struct r92c_rx_stat *stat;
 	uint32_t rxdw0, rxdw3;
 	uint8_t rate, cipher;
-	int8_t rssi = URTWN_NOISE_FLOOR + 1;
+	int8_t rssi = -127;
 	int infosz;
 
 	stat = mtod(m, struct r92c_rx_stat *);
@@ -1042,6 +1046,7 @@ urtwn_rx_frame(struct urtwn_softc *sc, struct mbuf *m, int8_t *rssi_p)
 			rssi = urtwn_r88e_get_rssi(sc, rate, &stat[1]);
 		else
 			rssi = urtwn_get_rssi(sc, rate, &stat[1]);
+		URTWN_DPRINTF(sc, URTWN_DEBUG_RSSI, "%s: rssi=%d\n", __func__, rssi);
 		/* Update our average RSSI. */
 		urtwn_update_avgrssi(sc, rate, rssi);
 	}
@@ -1070,6 +1075,8 @@ urtwn_rx_frame(struct urtwn_softc *sc, struct mbuf *m, int8_t *rssi_p)
 			/* Bit 7 set means HT MCS instead of rate. */
 			tap->wr_rate = 0x80 | (rate - 12);
 		}
+
+		/* XXX TODO: this isn't right; should use the last good RSSI */
 		tap->wr_dbm_antsignal = rssi;
 		tap->wr_dbm_antnoise = URTWN_NOISE_FLOOR;
 	}
@@ -1135,17 +1142,26 @@ tr_setup:
 			m->m_next = NULL;
 
 			ni = urtwn_rx_frame(sc, m, &rssi);
+
+			/* Store a global last-good RSSI */
+			if (rssi != -127)
+				sc->last_rssi = rssi;
+
 			URTWN_UNLOCK(sc);
 
 			nf = URTWN_NOISE_FLOOR;
 			if (ni != NULL) {
+				if (rssi != -127)
+					URTWN_NODE(ni)->last_rssi = rssi;
 				if (ni->ni_flags & IEEE80211_NODE_HT)
 					m->m_flags |= M_AMPDU;
-				(void)ieee80211_input(ni, m, rssi - nf, nf);
+				(void)ieee80211_input(ni, m,
+				    URTWN_NODE(ni)->last_rssi - nf, nf);
 				ieee80211_free_node(ni);
 			} else {
-				(void)ieee80211_input_all(ic, m, rssi - nf,
-				    nf);
+				/* Use last good global RSSI */
+				(void)ieee80211_input_all(ic, m,
+				    sc->last_rssi - nf, nf);
 			}
 			URTWN_LOCK(sc);
 			m = next;
@@ -1928,6 +1944,32 @@ urtwn_r88e_read_rom(struct urtwn_softc *sc)
 	return (0);
 }
 
+static __inline uint8_t
+rate2ridx(uint8_t rate)
+{
+	if (rate & IEEE80211_RATE_MCS) {
+		/* 11n rates start at idx 12 */
+		return ((rate & 0xf) + 12);
+	}
+	switch (rate) {
+	/* 11g */
+	case 12:	return 4;
+	case 18:	return 5;
+	case 24:	return 6;
+	case 36:	return 7;
+	case 48:	return 8;
+	case 72:	return 9;
+	case 96:	return 10;
+	case 108:	return 11;
+	/* 11b */
+	case 2:		return 0;
+	case 4:		return 1;
+	case 11:	return 2;
+	case 22:	return 3;
+	default:	return URTWN_RIDX_UNKNOWN;
+	}
+}
+
 /*
  * Initialize rate adaptation in firmware.
  */
@@ -1940,8 +1982,8 @@ urtwn_ra_init(struct urtwn_softc *sc)
 	struct ieee80211_rateset *rs, *rs_ht;
 	struct r92c_fw_cmd_macid_cfg cmd;
 	uint32_t rates, basicrates;
-	uint8_t mode;
-	int maxrate, maxbasicrate, error, i, j;
+	uint8_t mode, ridx;
+	int maxrate, maxbasicrate, error, i;
 
 	ni = ieee80211_ref_node(vap->iv_bss);
 	rs = &ni->ni_rates;
@@ -1954,19 +1996,16 @@ urtwn_ra_init(struct urtwn_softc *sc)
 	/* This is for 11bg */
 	for (i = 0; i < rs->rs_nrates; i++) {
 		/* Convert 802.11 rate to HW rate index. */
-		for (j = 0; j < nitems(ridx2rate); j++)
-			if ((rs->rs_rates[i] & IEEE80211_RATE_VAL) ==
-			    ridx2rate[j])
-				break;
-		if (j == nitems(ridx2rate))	/* Unknown rate, skip. */
+		ridx = rate2ridx(IEEE80211_RV(rs->rs_rates[i]));
+		if (ridx == URTWN_RIDX_UNKNOWN)	/* Unknown rate, skip. */
 			continue;
-		rates |= 1 << j;
-		if (j > maxrate)
-			maxrate = j;
+		rates |= 1 << ridx;
+		if (ridx > maxrate)
+			maxrate = ridx;
 		if (rs->rs_rates[i] & IEEE80211_RATE_BASIC) {
-			basicrates |= 1 << j;
-			if (j > maxbasicrate)
-				maxbasicrate = j;
+			basicrates |= 1 << ridx;
+			if (ridx > maxbasicrate)
+				maxbasicrate = ridx;
 		}
 	}
 
@@ -1976,12 +2015,12 @@ urtwn_ra_init(struct urtwn_softc *sc)
 			if ((rs_ht->rs_rates[i] & 0x7f) > 0xf)
 				continue;
 			/* 11n rates start at index 12 */
-			j = ((rs_ht->rs_rates[i]) & 0xf) + 12;
-			rates |= (1 << j);
+			ridx = ((rs_ht->rs_rates[i]) & 0xf) + 12;
+			rates |= (1 << ridx);
 
 			/* Guard against the rate table being oddly ordered */
-			if (j > maxrate)
-				maxrate = j;
+			if (ridx > maxrate)
+				maxrate = ridx;
 		}
 	}
 
@@ -2249,20 +2288,20 @@ urtwn_key_set_cb(struct urtwn_softc *sc, union sec_param *data)
 	/* Write key. */
 	for (i = 0; i < 4; i++) {
 		error = urtwn_cam_write(sc, R92C_CAM_KEY(k->wk_keyix, i),
-		    LE_READ_4(&k->wk_key[i * 4]));
+		    le32dec(&k->wk_key[i * 4]));
 		if (error != 0)
 			goto fail;
 	}
 
 	/* Write CTL0 last since that will validate the CAM entry. */
 	error = urtwn_cam_write(sc, R92C_CAM_CTL1(k->wk_keyix),
-	    LE_READ_4(&k->wk_macaddr[2]));
+	    le32dec(&k->wk_macaddr[2]));
 	if (error != 0)
 		goto fail;
 	error = urtwn_cam_write(sc, R92C_CAM_CTL0(k->wk_keyix),
 	    SM(R92C_CAM_ALGO, algo) |
 	    SM(R92C_CAM_KEYID, keyid) |
-	    SM(R92C_CAM_MACLO, LE_READ_2(&k->wk_macaddr[0])) |
+	    SM(R92C_CAM_MACLO, le16dec(&k->wk_macaddr[0])) |
 	    R92C_CAM_VALID);
 	if (error != 0)
 		goto fail;
@@ -2562,8 +2601,8 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		urtwn_set_mode(sc, mode);
 
 		/* Set BSSID. */
-		urtwn_write_4(sc, R92C_BSSID + 0, LE_READ_4(&ni->ni_bssid[0]));
-		urtwn_write_4(sc, R92C_BSSID + 4, LE_READ_2(&ni->ni_bssid[4]));
+		urtwn_write_4(sc, R92C_BSSID + 0, le32dec(&ni->ni_bssid[0]));
+		urtwn_write_4(sc, R92C_BSSID + 4, le16dec(&ni->ni_bssid[4]));
 
 		if (ic->ic_curmode == IEEE80211_MODE_11B)
 			urtwn_write_1(sc, R92C_INIRTS_RATE_SEL, 0);
@@ -2784,32 +2823,6 @@ urtwn_r88e_get_rssi(struct urtwn_softc *sc, int rate, void *physt)
 		rssi = ((le32toh(phy->phydw1) >> 1) & 0x7f) - 110;
 	}
 	return (rssi);
-}
-
-static __inline uint8_t
-rate2ridx(uint8_t rate)
-{
-	if (rate & IEEE80211_RATE_MCS) {
-		/* 11n rates start at idx 12 */
-		return ((rate & 0xf) + 12);
-	}
-	switch (rate) {
-	/* 11g */
-	case 12:	return 4;
-	case 18:	return 5;
-	case 24:	return 6;
-	case 36:	return 7;
-	case 48:	return 8;
-	case 72:	return 9;
-	case 96:	return 10;
-	case 108:	return 11;
-	/* 11b */
-	case 2:		return 0;
-	case 4:		return 1;
-	case 11:	return 2;
-	case 22:	return 3;
-	default:	return 0;
-	}
 }
 
 static int
@@ -4868,7 +4881,7 @@ urtwn_update_mcast(struct ieee80211com *ic)
 }
 
 static struct ieee80211_node *
-urtwn_r88e_node_alloc(struct ieee80211vap *vap,
+urtwn_node_alloc(struct ieee80211vap *vap,
     const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct urtwn_node *un;
@@ -4885,11 +4898,15 @@ urtwn_r88e_node_alloc(struct ieee80211vap *vap,
 }
 
 static void
-urtwn_r88e_newassoc(struct ieee80211_node *ni, int isnew)
+urtwn_newassoc(struct ieee80211_node *ni, int isnew)
 {
 	struct urtwn_softc *sc = ni->ni_ic->ic_softc;
 	struct urtwn_node *un = URTWN_NODE(ni);
 	uint8_t id;
+
+	/* Only do this bit for R88E chips */
+	if (! (sc->chip & URTWN_CHIP_88E))
+		return;
 
 	if (!isnew)
 		return;
@@ -4911,7 +4928,7 @@ urtwn_r88e_newassoc(struct ieee80211_node *ni, int isnew)
 }
 
 static void
-urtwn_r88e_node_free(struct ieee80211_node *ni)
+urtwn_node_free(struct ieee80211_node *ni)
 {
 	struct urtwn_softc *sc = ni->ni_ic->ic_softc;
 	struct urtwn_node *un = URTWN_NODE(ni);

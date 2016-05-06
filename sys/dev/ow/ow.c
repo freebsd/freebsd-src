@@ -413,7 +413,7 @@ again:
 		foundfp(dev, probed);
 		last_mask = probed;
 		prior = last;
-	};
+	}
 	ow_release_bus(dev, dev);
 
 	return (0);

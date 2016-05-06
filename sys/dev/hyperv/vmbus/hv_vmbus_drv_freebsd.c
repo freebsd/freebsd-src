@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016 Microsoft Corp.
  * Copyright (c) 2012 NetApp Inc.
  * Copyright (c) 2012 Citrix Inc.
  * All rights reserved.
@@ -145,7 +145,6 @@ hv_vmbus_isr(struct trapframe *frame)
 {
 	int				cpu;
 	hv_vmbus_message*		msg;
-	hv_vmbus_synic_event_flags*	event;
 	void*				page_addr;
 
 	cpu = PCPU_GET(cpuid);
@@ -156,26 +155,7 @@ hv_vmbus_isr(struct trapframe *frame)
 	 * in Windows when running as a guest in Hyper-V
 	 */
 
-	page_addr = hv_vmbus_g_context.syn_ic_event_page[cpu];
-	event = (hv_vmbus_synic_event_flags*)
-		    page_addr + HV_VMBUS_MESSAGE_SINT;
-
-	if ((hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008) ||
-	    (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7)) {
-		/* Since we are a child, we only need to check bit 0 */
-		if (synch_test_and_clear_bit(0, &event->flags32[0])) {
-			hv_vmbus_on_events(cpu);
-		}
-	} else {
-		/*
-		 * On host with Win8 or above, we can directly look at
-		 * the event page. If bit n is set, we have an interrupt 
-		 * on the channel with id n.
-		 * Directly schedule the event software interrupt on
-		 * current cpu.
-		 */
-		hv_vmbus_on_events(cpu);
-	}
+	hv_vmbus_on_events(cpu);
 
 	/* Check if there are actual msgs to be process */
 	page_addr = hv_vmbus_g_context.syn_ic_msg_page[cpu];
@@ -297,6 +277,9 @@ vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
 	char guidbuf[40];
 	struct hv_device *dev_ctx = device_get_ivars(child);
 
+	if (dev_ctx == NULL)
+		return (0);
+
 	strlcat(buf, "classid=", buflen);
 	snprintf_hv_guid(guidbuf, sizeof(guidbuf), &dev_ctx->class_id);
 	strlcat(buf, guidbuf, buflen);
@@ -346,7 +329,6 @@ int
 hv_vmbus_child_device_register(struct hv_device *child_dev)
 {
 	device_t child;
-	int ret = 0;
 
 	if (bootverbose) {
 		char name[40];
@@ -357,10 +339,6 @@ hv_vmbus_child_device_register(struct hv_device *child_dev)
 	child = device_add_child(vmbus_devp, NULL, -1);
 	child_dev->device = child;
 	device_set_ivars(child, child_dev);
-
-	mtx_lock(&Giant);
-	ret = device_probe_and_attach(child);
-	mtx_unlock(&Giant);
 
 	return (0);
 }
@@ -390,9 +368,7 @@ vmbus_probe(device_t dev) {
 	return (BUS_PROBE_DEFAULT);
 }
 
-#ifdef HYPERV
 extern inthand_t IDTVEC(hv_vmbus_callback);
-#endif
 
 /**
  * @brief Main vmbus driver initialization routine.
@@ -426,14 +402,10 @@ vmbus_bus_init(void)
 		return (ret);
 	}
 
-#ifdef HYPERV
 	/*
 	 * Find a free IDT slot for vmbus callback.
 	 */
 	hv_vmbus_g_context.hv_cb_vector = lapic_ipi_alloc(IDTVEC(hv_vmbus_callback));
-#else
-	hv_vmbus_g_context.hv_cb_vector = -1;
-#endif
 	if (hv_vmbus_g_context.hv_cb_vector < 0) {
 		if(bootverbose)
 			printf("Error VMBUS: Cannot find free IDT slot for "
@@ -507,6 +479,11 @@ vmbus_bus_init(void)
 		goto cleanup1;
 
 	hv_vmbus_request_channel_offers();
+
+	vmbus_scan();
+	bus_generic_attach(vmbus_devp);
+	device_printf(vmbus_devp, "device scan, probe and attach done\n");
+
 	return (ret);
 
 	cleanup1:
@@ -551,6 +528,7 @@ vmbus_attach(device_t dev)
 	if (!cold)
 		vmbus_bus_init();
 
+	bus_generic_probe(dev);
 	return (0);
 }
 
@@ -581,7 +559,7 @@ vmbus_bus_exit(void)
 	smp_rendezvous(NULL, hv_vmbus_synic_cleanup, NULL, NULL);
 
 	for(i = 0; i < 2 * MAXCPU; i++) {
-		if (setup_args.page_buffers[i] != 0)
+		if (setup_args.page_buffers[i] != NULL)
 			free(setup_args.page_buffers[i], M_DEVBUF);
 	}
 

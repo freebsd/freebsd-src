@@ -224,7 +224,7 @@ malloc(nbytes)
 	 * Record allocated size of block and
 	 * bound space with magic numbers.
 	 */
-	op->ov_size = (nbytes + RSLOP - 1) & ~(RSLOP - 1);
+	op->ov_size = roundup2(nbytes, RSLOP);
 	op->ov_rmagic = RMAGIC;
   	*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
 #endif
@@ -328,7 +328,7 @@ free(cp)
  * old malloc man page, it realloc's an already freed block.  Usually
  * this is the last block it freed; occasionally it might be farther
  * back.  We have to search all the free lists for the block in order
- * to determine its bucket: 1st we make one pass thru the lists
+ * to determine its bucket: 1st we make one pass through the lists
  * checking only the first block in each; if that fails we search
  * ``realloc_srchlen'' blocks in each list for a match (the variable
  * is extern so the caller can modify it).  If that fails we just copy
@@ -388,7 +388,7 @@ realloc(cp, nbytes)
 		}
 		if (nbytes <= onb && nbytes > (size_t)i) {
 #ifdef RCHECK
-			op->ov_size = (nbytes + RSLOP - 1) & ~(RSLOP - 1);
+			op->ov_size = roundup2(nbytes, RSLOP);
 			*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
 #endif
 			return(cp);

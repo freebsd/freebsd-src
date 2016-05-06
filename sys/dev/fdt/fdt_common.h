@@ -45,7 +45,7 @@ struct fdt_sense_level {
 	enum intr_polarity	pol;
 };
 
-#if defined(__arm__) && !defined(ARM_INTRNG)
+#if defined(__arm__) && !defined(INTRNG)
 typedef int (*fdt_pic_decode_t)(phandle_t, pcell_t *, int *, int *, int *);
 extern fdt_pic_decode_t fdt_pic_table[];
 #endif

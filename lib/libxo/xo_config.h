@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* libxo/xo_config.h.  Generated from xo_config.h.in by configure.  */
 /* libxo/xo_config.h.in.  Generated from configure.ac by autoheader.  */
 
@@ -86,6 +87,9 @@
 
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
+
+/* Define to 1 if you have the <monitor.h> header file. */
+/* #undef HAVE_MONITOR_H */
 
 /* Support printflike */
 /* #undef HAVE_PRINTFLIKE */
@@ -179,16 +183,16 @@
 /* #undef LIBXO_TEXT_ONLY */
 
 /* Version number as dotted value */
-#define LIBXO_VERSION "0.4.3"
+#define LIBXO_VERSION "0.6.1"
 
 /* Version number extra information */
 #define LIBXO_VERSION_EXTRA ""
 
 /* Version number as a number */
-#define LIBXO_VERSION_NUMBER 4003
+#define LIBXO_VERSION_NUMBER 6001
 
 /* Version number as string */
-#define LIBXO_VERSION_STRING "4003"
+#define LIBXO_VERSION_STRING "6001"
 
 /* Enable local wcwidth implementation */
 #define LIBXO_WCWIDTH 1
@@ -206,7 +210,7 @@
 #define PACKAGE_NAME "libxo"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "libxo 0.4.3"
+#define PACKAGE_STRING "libxo 0.6.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "libxo"
@@ -215,7 +219,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.4.3"
+#define PACKAGE_VERSION "0.6.1"
 
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
@@ -229,7 +233,10 @@
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "0.4.3"
+#define VERSION "0.6.1"
+
+/* Retain hash bucket size */
+/* #undef XO_RETAIN_SIZE */
 
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */

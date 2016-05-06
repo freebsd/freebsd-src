@@ -166,7 +166,7 @@ struct mod_pnp_match_info
 
 /**
  * Generic macros to create pnp info hints that modules may export
- * to allow external tools to parse their intenral device tables
+ * to allow external tools to parse their internal device tables
  * to make an informed guess about what driver(s) to load.
  */
 #define	MODULE_PNP_INFO(d, b, unique, t, l, n)				\

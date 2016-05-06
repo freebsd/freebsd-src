@@ -344,7 +344,6 @@ static void	iwn_scan_end(struct ieee80211com *);
 static void	iwn_set_channel(struct ieee80211com *);
 static void	iwn_scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static void	iwn_scan_mindwell(struct ieee80211_scan_state *);
-static void	iwn_hw_reset(void *, int);
 #ifdef	IWN_DEBUG
 static char	*iwn_get_csr_string(int);
 static void	iwn_debug_register(struct iwn_softc *);
@@ -677,7 +676,6 @@ iwn_attach(device_t dev)
 
 	callout_init_mtx(&sc->calib_to, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->watchdog_to, &sc->sc_mtx, 0);
-	TASK_INIT(&sc->sc_reinit_task, 0, iwn_hw_reset, sc);
 	TASK_INIT(&sc->sc_radioon_task, 0, iwn_radio_on, sc);
 	TASK_INIT(&sc->sc_radiooff_task, 0, iwn_radio_off, sc);
 	TASK_INIT(&sc->sc_panic_task, 0, iwn_panicked, sc);
@@ -1400,7 +1398,6 @@ iwn_detach(device_t dev)
 		iwn_xmit_queue_drain(sc);
 		IWN_UNLOCK(sc);
 
-		ieee80211_draintask(&sc->sc_ic, &sc->sc_reinit_task);
 		ieee80211_draintask(&sc->sc_ic, &sc->sc_radioon_task);
 		ieee80211_draintask(&sc->sc_ic, &sc->sc_radiooff_task);
 		iwn_stop(sc);
@@ -2381,11 +2378,23 @@ iwn_read_eeprom_band(struct iwn_softc *sc, int n, int maxchans, int *nchans,
 {
 	struct iwn_eeprom_chan *channels = sc->eeprom_channels[n];
 	const struct iwn_chan_band *band = &iwn_bands[n];
-	struct ieee80211_channel *c;
+	uint8_t bands[IEEE80211_MODE_BYTES];
 	uint8_t chan;
-	int i, nflags;
+	int i, error, nflags;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
+
+	memset(bands, 0, sizeof(bands));
+	if (n == 0) {
+		setbit(bands, IEEE80211_MODE_11B);
+		setbit(bands, IEEE80211_MODE_11G);
+		if (sc->sc_flags & IWN_FLAG_HAS_11N)
+			setbit(bands, IEEE80211_MODE_11NG);
+	} else {
+		setbit(bands, IEEE80211_MODE_11A);
+		if (sc->sc_flags & IWN_FLAG_HAS_11N)
+			setbit(bands, IEEE80211_MODE_11NA);
+	}
 
 	for (i = 0; i < band->nchan; i++) {
 		if (!(channels[i].flags & IWN_EEPROM_CHAN_VALID)) {
@@ -2396,49 +2405,20 @@ iwn_read_eeprom_band(struct iwn_softc *sc, int n, int maxchans, int *nchans,
 			continue;
 		}
 
-		if (*nchans >= maxchans)
-			break;
-
 		chan = band->chan[i];
 		nflags = iwn_eeprom_channel_flags(&channels[i]);
-
-		c = &chans[(*nchans)++];
-		c->ic_ieee = chan;
-		c->ic_maxregpower = channels[i].maxpwr;
-		c->ic_maxpower = 2*c->ic_maxregpower;
-
-		if (n == 0) {	/* 2GHz band */
-			c->ic_freq = ieee80211_ieee2mhz(chan, IEEE80211_CHAN_G);
-			/* G =>'s B is supported */
-			c->ic_flags = IEEE80211_CHAN_B | nflags;
-
-			if (*nchans >= maxchans)
-				break;
-
-			c = &chans[(*nchans)++];
-			c[0] = c[-1];
-			c->ic_flags = IEEE80211_CHAN_G | nflags;
-		} else {	/* 5GHz band */
-			c->ic_freq = ieee80211_ieee2mhz(chan, IEEE80211_CHAN_A);
-			c->ic_flags = IEEE80211_CHAN_A | nflags;
-		}
+		error = ieee80211_add_channel(chans, maxchans, nchans,
+		    chan, 0, channels[i].maxpwr, nflags, bands);
+		if (error != 0)
+			break;
 
 		/* Save maximum allowed TX power for this channel. */
+		/* XXX wrong */
 		sc->maxpwr[chan] = channels[i].maxpwr;
 
 		DPRINTF(sc, IWN_DEBUG_RESET,
 		    "add chan %d flags 0x%x maxpwr %d\n", chan,
 		    channels[i].flags, channels[i].maxpwr);
-
-		if (sc->sc_flags & IWN_FLAG_HAS_11N) {
-			if (*nchans >= maxchans)
-				break;
-
-			/* add HT20, HT40 added separately */
-			c = &chans[(*nchans)++];
-			c[0] = c[-1];
-			c->ic_flags |= IEEE80211_CHAN_HT20;
-		}
 	}
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s end\n", __func__);
@@ -2449,12 +2429,10 @@ static void
 iwn_read_eeprom_ht40(struct iwn_softc *sc, int n, int maxchans, int *nchans,
     struct ieee80211_channel chans[])
 {
-	struct ieee80211com *ic = &sc->sc_ic;
 	struct iwn_eeprom_chan *channels = sc->eeprom_channels[n];
 	const struct iwn_chan_band *band = &iwn_bands[n];
-	struct ieee80211_channel *c, *cent, *extc;
 	uint8_t chan;
-	int i, nflags;
+	int i, error, nflags;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s start\n", __func__);
 
@@ -2472,46 +2450,33 @@ iwn_read_eeprom_ht40(struct iwn_softc *sc, int n, int maxchans, int *nchans,
 			continue;
 		}
 
-		if (*nchans + 1 >= maxchans)
-			break;
-
 		chan = band->chan[i];
 		nflags = iwn_eeprom_channel_flags(&channels[i]);
-
-		/*
-		 * Each entry defines an HT40 channel pair; find the
-		 * center channel, then the extension channel above.
-		 */
-		cent = ieee80211_find_channel_byieee(ic, chan,
-		    (n == 5 ? IEEE80211_CHAN_G : IEEE80211_CHAN_A));
-		if (cent == NULL) {	/* XXX shouldn't happen */
+		nflags |= (n == 5 ? IEEE80211_CHAN_G : IEEE80211_CHAN_A);
+		error = ieee80211_add_channel_ht40(chans, maxchans, nchans,
+		    chan, channels[i].maxpwr, nflags);
+		switch (error) {
+		case EINVAL:
 			device_printf(sc->sc_dev,
 			    "%s: no entry for channel %d\n", __func__, chan);
 			continue;
-		}
-		extc = ieee80211_find_channel(ic, cent->ic_freq+20,
-		    (n == 5 ? IEEE80211_CHAN_G : IEEE80211_CHAN_A));
-		if (extc == NULL) {
+		case ENOENT:
 			DPRINTF(sc, IWN_DEBUG_RESET,
 			    "%s: skip chan %d, extension channel not found\n",
 			    __func__, chan);
 			continue;
+		case ENOBUFS:
+			device_printf(sc->sc_dev,
+			    "%s: channel table is full!\n", __func__);
+			break;
+		case 0:
+			DPRINTF(sc, IWN_DEBUG_RESET,
+			    "add ht40 chan %d flags 0x%x maxpwr %d\n",
+			    chan, channels[i].flags, channels[i].maxpwr);
+			/* FALLTHROUGH */
+		default:
+			break;
 		}
-
-		DPRINTF(sc, IWN_DEBUG_RESET,
-		    "add ht40 chan %d flags 0x%x maxpwr %d\n",
-		    chan, channels[i].flags, channels[i].maxpwr);
-
-		c = &chans[(*nchans)++];
-		c[0] = cent[0];
-		c->ic_extieee = extc->ic_ieee;
-		c->ic_flags &= ~IEEE80211_CHAN_HT;
-		c->ic_flags |= IEEE80211_CHAN_HT40U | nflags;
-		c = &chans[(*nchans)++];
-		c[0] = extc[0];
-		c->ic_extieee = cent->ic_ieee;
-		c->ic_flags &= ~IEEE80211_CHAN_HT;
-		c->ic_flags |= IEEE80211_CHAN_HT40D | nflags;
 	}
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s end\n", __func__);
@@ -2884,7 +2849,8 @@ iwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		sc->calib.state = IWN_CALIB_STATE_INIT;
 
 		/* Wait until we hear a beacon before we transmit */
-		sc->sc_beacon_wait = 1;
+		if (IEEE80211_IS_CHAN_PASSIVE(ic->ic_curchan))
+			sc->sc_beacon_wait = 1;
 
 		if ((error = iwn_auth(sc, vap)) != 0) {
 			device_printf(sc->sc_dev,
@@ -2902,7 +2868,8 @@ iwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		}
 
 		/* Wait until we hear a beacon before we transmit */
-		sc->sc_beacon_wait = 1;
+		if (IEEE80211_IS_CHAN_PASSIVE(ic->ic_curchan))
+			sc->sc_beacon_wait = 1;
 
 		/*
 		 * !RUN -> RUN requires setting the association id
@@ -5002,7 +4969,7 @@ iwn_watchdog(void *arg)
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
 			ic_printf(ic, "device timeout\n");
-			ieee80211_runtask(ic, &sc->sc_reinit_task);
+			ieee80211_restart_all(ic);
 			return;
 		}
 	}
@@ -5281,7 +5248,7 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 		 * will not be using MIMO.
 		 *
 		 * Since we're filling linkq from 0..15 and we're filling
-		 * from the higest MCS rates to the lowest rates, if we
+		 * from the highest MCS rates to the lowest rates, if we
 		 * _are_ doing a dual-stream rate, set mimo to idx+1 (ie,
 		 * the next entry.)  That way if the next entry is a non-MIMO
 		 * entry, we're already pointing at it.
@@ -6335,7 +6302,7 @@ iwn_set_pslevel(struct iwn_softc *sc, int dtim, int level, int async)
 		if (max == (uint32_t)-1)
 			max = dtim * (skip_dtim + 1);
 		else if (max > dtim)
-			max = (max / dtim) * dtim;
+			max = rounddown(max, dtim);
 	} else
 		max = dtim;
 	for (i = 0; i < 5; i++)
@@ -8936,19 +8903,6 @@ static void
 iwn_scan_mindwell(struct ieee80211_scan_state *ss)
 {
 	/* NB: don't try to abort scan; wait for firmware to finish */
-}
-
-static void
-iwn_hw_reset(void *arg0, int pending)
-{
-	struct iwn_softc *sc = arg0;
-	struct ieee80211com *ic = &sc->sc_ic;
-
-	DPRINTF(sc, IWN_DEBUG_TRACE, "->Doing %s\n", __func__);
-
-	iwn_stop(sc);
-	iwn_init(sc);
-	ieee80211_notify_radio(ic, 1);
 }
 #ifdef	IWN_DEBUG
 #define	IWN_DESC(x) case x:	return #x

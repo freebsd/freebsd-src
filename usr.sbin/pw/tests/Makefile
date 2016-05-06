@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+
 ATF_TESTS_SH=	pw_etcdir \
 		pw_lock \
 		pw_config \
@@ -15,8 +17,10 @@ ATF_TESTS_SH=	pw_etcdir \
 TEST_METADATA.${tp}+=	required_user="root"
 .endfor
 
-FILES=		group helper_functions.shin master.passwd pw.conf \
-		pw-modified.conf
-FILESDIR=       ${TESTSDIR}
+${PACKAGE}FILES+=	group
+${PACKAGE}FILES+=	helper_functions.shin
+${PACKAGE}FILES+=	master.passwd
+${PACKAGE}FILES+=	pw.conf
+${PACKAGE}FILES+=	pw-modified.conf
 
 .include <bsd.test.mk>

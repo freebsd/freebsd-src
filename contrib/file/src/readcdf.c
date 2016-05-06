@@ -26,7 +26,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: readcdf.c,v 1.53 2015/04/09 20:01:41 christos Exp $")
+FILE_RCSID("@(#)$File: readcdf.c,v 1.56 2016/03/03 22:20:03 christos Exp $")
 #endif
 
 #include <assert.h>
@@ -60,12 +60,16 @@ static const struct nv {
 	{ "Windows Installer",		"vnd.ms-msi",		},
 	{ NULL,				NULL,			},
 }, name2mime[] = {
+	{ "Book",			"vnd.ms-excel",		},
+	{ "Workbook",			"vnd.ms-excel",		},
 	{ "WordDocument",		"msword",		},
 	{ "PowerPoint",			"vnd.ms-powerpoint",	},
 	{ "DigitalSignature",		"vnd.ms-msi",		},
 	{ NULL,				NULL,			},
 }, name2desc[] = {
-	{ "WordDocument",		"Microsoft Office Word",},
+	{ "Book",			"Microsoft Excel",	},
+	{ "Workbook",			"Microsoft Excel",	},
+	{ "WordDocument",		"Microsoft Word",	},
 	{ "PowerPoint",			"Microsoft PowerPoint",	},
 	{ "DigitalSignature",		"Microsoft Installer",	},
 	{ NULL,				NULL,			},
@@ -119,6 +123,8 @@ cdf_app_to_mime(const char *vbuf, const struct nv *nv)
 	assert(c_lc_ctype != NULL);
 	old_lc_ctype = uselocale(c_lc_ctype);
 	assert(old_lc_ctype != NULL);
+#else
+	char *old_lc_ctype = setlocale(LC_CTYPE, "C");
 #endif
 	for (i = 0; nv[i].pattern != NULL; i++)
 		if (strcasestr(vbuf, nv[i].pattern) != NULL) {
@@ -131,6 +137,8 @@ cdf_app_to_mime(const char *vbuf, const struct nv *nv)
 #ifdef USE_C_LOCALE
 	(void)uselocale(old_lc_ctype);
 	freelocale(c_lc_ctype);
+#else
+	setlocale(LC_CTYPE, old_lc_ctype);
 #endif
 	return rv;
 }

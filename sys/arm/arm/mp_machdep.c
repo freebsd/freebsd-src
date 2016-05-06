@@ -74,7 +74,7 @@ volatile int mp_naps;
 /* Set to 1 once we're ready to let the APs out of the pen. */
 volatile int aps_ready = 0;
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 static int ipi_handler(void *arg);
 #endif
 void set_stackptrs(int cpu);
@@ -152,7 +152,7 @@ init_secondary(int cpu)
 {
 	struct pcpu *pc;
 	uint32_t loop_counter;
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 	int start = 0, end = 0;
 #endif
 	uint32_t actlr_mask, actlr_set;
@@ -207,7 +207,7 @@ init_secondary(int cpu)
 
 	mtx_unlock_spin(&ap_boot_mtx);
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 	/* Enable ipi */
 #ifdef IPI_IRQ_START
 	start = IPI_IRQ_START;
@@ -243,7 +243,7 @@ init_secondary(int cpu)
 	/* NOTREACHED */
 }
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static void
 ipi_rendezvous(void *dummy __unused)
 {
@@ -421,14 +421,14 @@ static void
 release_aps(void *dummy __unused)
 {
 	uint32_t loop_counter;
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 	int start = 0, end = 0;
 #endif
 
 	if (mp_ncpus == 1)
 		return;
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	intr_pic_ipi_setup(IPI_RENDEZVOUS, "rendezvous", ipi_rendezvous, NULL);
 	intr_pic_ipi_setup(IPI_AST, "ast", ipi_ast, NULL);
 	intr_pic_ipi_setup(IPI_STOP, "stop", ipi_stop, NULL);
@@ -501,7 +501,7 @@ ipi_all_but_self(u_int ipi)
 	other_cpus = all_cpus;
 	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	intr_ipi_send(other_cpus, ipi);
 #else
 	pic_ipi_send(other_cpus, ipi);
@@ -517,7 +517,7 @@ ipi_cpu(int cpu, u_int ipi)
 	CPU_SET(cpu, &cpus);
 
 	CTR3(KTR_SMP, "%s: cpu: %d, ipi: %x", __func__, cpu, ipi);
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	intr_ipi_send(cpus, ipi);
 #else
 	pic_ipi_send(cpus, ipi);
@@ -529,7 +529,7 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 {
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	intr_ipi_send(cpus, ipi);
 #else
 	pic_ipi_send(cpus, ipi);

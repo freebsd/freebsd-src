@@ -39,7 +39,7 @@ gss_verify_mic(OM_uint32 *minor_status,
     gss_qop_t *qop_state)
 {
 	struct _gss_context *ctx = (struct _gss_context *) context_handle;
-	struct _gss_mech_switch *m = ctx->gc_mech;
+	struct _gss_mech_switch *m;
 
 	if (qop_state)
 		*qop_state = 0;
@@ -47,6 +47,7 @@ gss_verify_mic(OM_uint32 *minor_status,
 		*minor_status = 0;
 		return (GSS_S_NO_CONTEXT);
 	}
+	m = ctx->gc_mech;
 
 	return (m->gm_verify_mic(minor_status, ctx->gc_ctx,
 		    message_buffer, token_buffer, qop_state));

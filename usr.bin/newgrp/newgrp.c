@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
-#include <libgen.h>
 #include <limits.h>
 #include <login_cap.h>
 #include <paths.h>
@@ -290,7 +289,7 @@ loginshell(void)
 	if (ticket != NULL)
 		setenv("KRBTKFILE", ticket, 1);
 
-	if (asprintf(args, "-%s", basename(shell)) < 0)
+	if (asprintf(args, "-%s", shell) < 0)
 		err(1, "asprintf");
 	args[1] = NULL;
 
@@ -306,6 +305,6 @@ doshell(void)
 	shell = pwd->pw_shell;
 	if (*shell == '\0')
 		shell = _PATH_BSHELL;
-	execl(shell, basename(shell), (char *)NULL);
+	execl(shell, shell, (char *)NULL);
 	err(1, "%s", shell);
 }

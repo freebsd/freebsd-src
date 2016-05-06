@@ -291,21 +291,21 @@ ess_release_resources(struct ess_info *sc, device_t dev)
     		if (sc->ih)
 			bus_teardown_intr(dev, sc->irq, sc->ih);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
-		sc->irq = 0;
+		sc->irq = NULL;
     	}
     	if (sc->drq1) {
 		isa_dma_release(rman_get_start(sc->drq1));
 		bus_release_resource(dev, SYS_RES_DRQ, 0, sc->drq1);
-		sc->drq1 = 0;
+		sc->drq1 = NULL;
     	}
     	if (sc->drq2) {
 		isa_dma_release(rman_get_start(sc->drq2));
 		bus_release_resource(dev, SYS_RES_DRQ, 1, sc->drq2);
-		sc->drq2 = 0;
+		sc->drq2 = NULL;
     	}
     	if (sc->io_base) {
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->io_base);
-		sc->io_base = 0;
+		sc->io_base = NULL;
     	}
     	if (sc->parent_dmat) {
 		bus_dma_tag_destroy(sc->parent_dmat);

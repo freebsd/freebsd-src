@@ -99,13 +99,15 @@ __FBSDID("$FreeBSD$");
 #ifdef FDT
 /* more specific and new models should go first */
 static const struct ofw_compat_data rt_compat_data[] = {
-	{ "ralink,rt3050-eth",	RT_CHIPID_RT3050 },
-	{ "ralink,rt3352-eth",	RT_CHIPID_RT3050 },
-	{ "ralink,rt3883-eth",	RT_CHIPID_RT3050 },
-	{ "ralink,rt5350-eth",	RT_CHIPID_RT5350 },
-	{ "ralink,mt7620a-eth",	RT_CHIPID_MT7620 },
-	{ "ralink,mt7621-eth",	RT_CHIPID_MT7621 },
-	{ NULL,			0 }
+	{ "ralink,rt3050-eth",		RT_CHIPID_RT3050 },
+	{ "ralink,rt3352-eth",		RT_CHIPID_RT3050 },
+	{ "ralink,rt3883-eth",		RT_CHIPID_RT3050 },
+	{ "ralink,rt5350-eth",		RT_CHIPID_RT5350 },
+	{ "ralink,mt7620a-eth",		RT_CHIPID_MT7620 },
+	{ "mediatek,mt7620-eth",	RT_CHIPID_MT7620 },
+	{ "ralink,mt7621-eth",		RT_CHIPID_MT7621 },
+	{ "mediatek,mt7621-eth",	RT_CHIPID_MT7621 },
+	{ NULL,				0 }
 };
 #endif
 
@@ -460,7 +462,7 @@ rt_attach(device_t dev)
 		sc->rx_drx_idx[0]=PDMA_BASE+RX_DRX_IDX0;
 		sc->int_rx_done_mask=INT_RX_DONE;
 		sc->int_tx_done_mask=INT_TXQ0_DONE;
-	};
+	}
 
 	/* allocate Tx and Rx rings */
 	for (i = 0; i < RT_SOFTC_TX_RING_COUNT; i++) {

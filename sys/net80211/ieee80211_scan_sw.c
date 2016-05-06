@@ -476,8 +476,9 @@ ieee80211_swscan_cancel_anyscan(struct ieee80211vap *vap)
 }
 
 /*
- * Public access to scan_next for drivers that manage
- * scanning themselves (e.g. for firmware-based devices).
+ * Manually switch to the next channel in the channel list.
+ * Provided for drivers that manage scanning themselves
+ * (e.g. for firmware-based devices).
  */
 static void
 ieee80211_swscan_scan_next(struct ieee80211vap *vap)
@@ -491,8 +492,9 @@ ieee80211_swscan_scan_next(struct ieee80211vap *vap)
 }
 
 /*
- * Public access to scan_next for drivers that are not able to scan single
- * channels (e.g. for firmware-based devices).
+ * Manually stop a scan that is currently running.
+ * Provided for drivers that are not able to scan single channels
+ * (e.g. for firmware-based devices).
  */
 static void
 ieee80211_swscan_scan_done(struct ieee80211vap *vap)
@@ -506,7 +508,7 @@ ieee80211_swscan_scan_done(struct ieee80211vap *vap)
 }
 
 /*
- * Probe the curent channel, if allowed, while scanning.
+ * Probe the current channel, if allowed, while scanning.
  * If the channel is not marked passive-only then send
  * a probe request immediately.  Otherwise mark state and
  * listen for beacons on the channel; if we receive something
@@ -736,8 +738,11 @@ end:
 	/* clear mindwell lock and initial channel change flush */
 	ss_priv->ss_iflags &= ~ISCAN_REP;
 
-	if (ss_priv->ss_iflags & (ISCAN_CANCEL|ISCAN_ABORT))
+	if (ss_priv->ss_iflags & (ISCAN_CANCEL|ISCAN_ABORT)) {
+		taskqueue_cancel_timeout(ic->ic_tq, &ss_priv->ss_scan_curchan,
+		    NULL);
 		goto end;
+	}
 
 	IEEE80211_DPRINTF(ss->ss_vap, IEEE80211_MSG_SCAN, "%s: waiting\n",
 	    __func__);
@@ -766,7 +771,7 @@ scan_end(struct ieee80211_scan_state *ss, int scandone)
 	/* XXX scan state can change! Re-validate scan state! */
 
 	/*
-	 * Since a cancellation may have occured during one of the
+	 * Since a cancellation may have occurred during one of the
 	 * driver calls (whilst unlocked), update scandone.
 	 */
 	if (scandone == 0 && (ss_priv->ss_iflags & ISCAN_CANCEL) != 0) {
@@ -813,7 +818,7 @@ scan_end(struct ieee80211_scan_state *ss, int scandone)
 		    "[ticks %u, dwell min %lu scanend %lu]\n",
 		    __func__,
 		    ticks, ss->ss_mindwell, ss_priv->ss_scanend);
-		ss->ss_next = 0;	/* reset to begining */
+		ss->ss_next = 0;	/* reset to beginning */
 		if (ss->ss_flags & IEEE80211_SCAN_ACTIVE)
 			vap->iv_stats.is_scan_active++;
 		else
@@ -835,7 +840,7 @@ scan_end(struct ieee80211_scan_state *ss, int scandone)
 	    ticks, ss->ss_mindwell, ss_priv->ss_scanend);
 
 	/*
-	 * Since a cancellation may have occured during one of the
+	 * Since a cancellation may have occurred during one of the
 	 * driver calls (whilst unlocked), update scandone.
 	 */
 	if (scandone == 0 && (ss_priv->ss_iflags & ISCAN_CANCEL) != 0) {

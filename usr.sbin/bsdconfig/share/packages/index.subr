@@ -123,7 +123,7 @@ f_index_initialize()
 	#
 
 	#
-	# Calculate digest used to determine if the on-disk persistant cache
+	# Calculate digest used to determine if the on-disk persistent cache
 	# INDEX (containing this digest on the first line) is valid and can be
 	# used to quickly populate the environment.
 	#
@@ -135,7 +135,7 @@ f_index_initialize()
 	fi
 
 	#
-	# Check to see if the persistant cache INDEX file exists
+	# Check to see if the persistent cache INDEX file exists
 	#
 	if [ -f "$PACKAGES_INDEX_CACHEFILE" ]; then
 		#
@@ -184,7 +184,7 @@ f_index_initialize()
 	) | sort )'
 
 	#
-	# Attempt to create the persistant on-disk cache
+	# Attempt to create the persistent on-disk cache
 	#
 
 	# Create a new temporary file to write to

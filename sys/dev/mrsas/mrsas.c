@@ -1069,7 +1069,7 @@ mrsas_free_mem(struct mrsas_softc *sc)
 	}
 
 	/*
-	 * Free version buffer memroy
+	 * Free version buffer memory
 	 */
 	if (sc->verbuf_phys_addr)
 		bus_dmamap_unload(sc->verbuf_tag, sc->verbuf_dmamap);
@@ -2687,7 +2687,7 @@ mrsas_reset_reply_desc(struct mrsas_softc *sc)
  * command Controller is in working state, so skip OCR. Otherwise, do
  * OCR/kill Adapter based on flag disableOnlineCtrlReset. 4. Start of the
  * OCR, return all SCSI command back to CAM layer which has ccb_ptr. 5. Post
- * OCR, Re-fire Managment command and move Controller to Operation state.
+ * OCR, Re-fire Management command and move Controller to Operation state.
  */
 int
 mrsas_reset_ctrl(struct mrsas_softc *sc)

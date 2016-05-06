@@ -128,10 +128,12 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, sync_pass_rewrite, CTLFLAG_RDTUN,
 
 boolean_t	zio_requeue_io_start_cut_in_line = B_TRUE;
 
+#ifdef illumos
 #ifdef ZFS_DEBUG
 int zio_buf_debug_limit = 16384;
 #else
 int zio_buf_debug_limit = 0;
+#endif
 #endif
 
 void
@@ -154,7 +156,7 @@ zio_init(void)
 		size_t size = (c + 1) << SPA_MINBLOCKSHIFT;
 		size_t p2 = size;
 		size_t align = 0;
-		size_t cflags = (size > zio_buf_debug_limit) ? KMC_NODEBUG : 0;
+		int cflags = zio_exclude_metadata ? KMC_NODEBUG : 0;
 
 		while (!ISP2(p2))
 			p2 &= p2 - 1;
@@ -2775,19 +2777,10 @@ zio_vdev_io_start(zio_t *zio)
 			(void) atomic_cas_64(&spa->spa_last_io, old, new);
 	}
 
-#ifdef illumos
 	align = 1ULL << vd->vdev_top->vdev_ashift;
 
 	if (!(zio->io_flags & ZIO_FLAG_PHYSICAL) &&
 	    P2PHASE(zio->io_size, align) != 0) {
-#else
-	if (zio->io_flags & ZIO_FLAG_PHYSICAL)
-		align = 1ULL << vd->vdev_top->vdev_logical_ashift;
-	else
-		align = 1ULL << vd->vdev_top->vdev_ashift;
-
-	if (P2PHASE(zio->io_size, align) != 0) {
-#endif
 		/* Transform logical writes to be a full physical block size. */
 		uint64_t asize = P2ROUNDUP(zio->io_size, align);
 		char *abuf = NULL;
@@ -2803,7 +2796,6 @@ zio_vdev_io_start(zio_t *zio)
 		    zio_subblock);
 	}
 
-#ifdef illumos
 	/*
 	 * If this is not a physical io, make sure that it is properly aligned
 	 * before proceeding.
@@ -2813,16 +2805,14 @@ zio_vdev_io_start(zio_t *zio)
 		ASSERT0(P2PHASE(zio->io_size, align));
 	} else {
 		/*
-		 * For physical writes, we allow 512b aligned writes and assume
-		 * the device will perform a read-modify-write as necessary.
+		 * For the physical io we allow alignment
+		 * to a logical block size.
 		 */
-		ASSERT0(P2PHASE(zio->io_offset, SPA_MINBLOCKSIZE));
-		ASSERT0(P2PHASE(zio->io_size, SPA_MINBLOCKSIZE));
+		uint64_t log_align =
+		    1ULL << vd->vdev_top->vdev_logical_ashift;
+		ASSERT0(P2PHASE(zio->io_offset, log_align));
+		ASSERT0(P2PHASE(zio->io_size, log_align));
 	}
-#else
-	ASSERT0(P2PHASE(zio->io_offset, align));
-	ASSERT0(P2PHASE(zio->io_size, align));
-#endif
 
 	VERIFY(zio->io_type == ZIO_TYPE_READ || spa_writeable(spa));
 

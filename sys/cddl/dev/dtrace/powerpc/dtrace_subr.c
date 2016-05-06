@@ -51,32 +51,32 @@ extern int (*dtrace_invop_jump_addr)(struct trapframe *);
 
 extern void dtrace_getnanotime(struct timespec *tsp);
 
-int dtrace_invop(uintptr_t, uintptr_t *, uintptr_t);
+int dtrace_invop(uintptr_t, struct trapframe *, uintptr_t);
 void dtrace_invop_init(void);
 void dtrace_invop_uninit(void);
 
 typedef struct dtrace_invop_hdlr {
-	int (*dtih_func)(uintptr_t, uintptr_t *, uintptr_t);
+	int (*dtih_func)(uintptr_t, struct trapframe *, uintptr_t);
 	struct dtrace_invop_hdlr *dtih_next;
 } dtrace_invop_hdlr_t;
 
 dtrace_invop_hdlr_t *dtrace_invop_hdlr;
 
 int
-dtrace_invop(uintptr_t addr, uintptr_t *stack, uintptr_t arg0)
+dtrace_invop(uintptr_t addr, struct trapframe *frame, uintptr_t arg0)
 {
 	dtrace_invop_hdlr_t *hdlr;
 	int rval;
 
 	for (hdlr = dtrace_invop_hdlr; hdlr != NULL; hdlr = hdlr->dtih_next)
-		if ((rval = hdlr->dtih_func(addr, stack, arg0)) != 0)
+		if ((rval = hdlr->dtih_func(addr, frame, arg0)) != 0)
 			return (rval);
 
 	return (0);
 }
 
 void
-dtrace_invop_add(int (*func)(uintptr_t, uintptr_t *, uintptr_t))
+dtrace_invop_add(int (*func)(uintptr_t, struct trapframe *, uintptr_t))
 {
 	dtrace_invop_hdlr_t *hdlr;
 
@@ -87,7 +87,7 @@ dtrace_invop_add(int (*func)(uintptr_t, uintptr_t *, uintptr_t))
 }
 
 void
-dtrace_invop_remove(int (*func)(uintptr_t, uintptr_t *, uintptr_t))
+dtrace_invop_remove(int (*func)(uintptr_t, struct trapframe *, uintptr_t))
 {
 	dtrace_invop_hdlr_t *hdlr = dtrace_invop_hdlr, *prev = NULL;
 
@@ -326,7 +326,8 @@ dtrace_probe_error(dtrace_state_t *state, dtrace_epid_t epid, int which,
 static int
 dtrace_invop_start(struct trapframe *frame)
 {
-	switch (dtrace_invop(frame->srr0, (uintptr_t *)frame, frame->fixreg[3])) {
+
+	switch (dtrace_invop(frame->srr0, frame, frame->fixreg[3])) {
 	case DTRACE_INVOP_JUMP:
 		break;
 	case DTRACE_INVOP_BCTR:
@@ -341,9 +342,7 @@ dtrace_invop_start(struct trapframe *frame)
 		break;
 	default:
 		return (-1);
-		break;
 	}
-
 	return (0);
 }
 

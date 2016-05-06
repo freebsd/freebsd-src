@@ -141,9 +141,9 @@ main(void)
     cons_probe();
 
     /*
-     * Initialise the block cache
+     * Initialise the block cache. Set the upper limit.
      */
-    bcache_init(32, 512);	/* 16k cache XXX tune this */
+    bcache_init(32768, 512);
 
     /*
      * Special handling for PXE and CD booting.

@@ -13,6 +13,7 @@
 . /etc/network.subr
 
 name="routing"
+desc="Routing setup"
 start_cmd="routing_start doall"
 stop_cmd="routing_stop"
 extra_commands="options static"

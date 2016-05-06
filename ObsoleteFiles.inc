@@ -22,7 +22,7 @@
 # grep '+=' /usr/src/tools/build/mk/OptionalObsoleteFiles.inc | sort -u) | \
 # sort | uniq -d
 #
-# To find regular duplicates not dependant on optional components, you can
+# To find regular duplicates not dependent on optional components, you can
 # also use something that will not give you false positives, e.g.:
 # for t in `make -V TARGETS universe`; do
 #   __MAKE_CONF=/dev/null make -f Makefile.inc1 TARGET=$t \
@@ -38,6 +38,28 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160430: kvm_getfiles(3) removed from kvm(3)
+OLD_LIBS+=usr/lib/libkvm.so.6
+OLD_FILES+=usr/share/man/man3/kvm_getfiles.3.gz
+# 20160423: remove mroute6d
+OLD_FILES+=etc/rc.d/mroute6d
+# 20160419: rename units.lib -> definitions.units
+OLD_FILES+=usr/share/misc/units.lib
+# 20160419: remove Big5HKSCS locales
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_COLLATE
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_CTYPE
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_MONETARY
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_NUMERIC
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_TIME
+OLD_DIRS+=usr/share/locale/zh_HK.Big5HKSCS
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_COLLATE
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_CTYPE
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_MONETARY
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_NUMERIC
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_TIME
+OLD_DIRS+=usr/share/locale/zh_Hant_HK.Big5HKSCS
 # 20160317: rman_res_t size bump to uintmax_t
 OLD_LIBS+=usr/lib/libdevinfo.so.5
 OLD_LIBS+=usr/lib32/libdevinfo.so.5
@@ -1732,7 +1754,6 @@ OLD_FILES+=usr/share/man/man4/lindev.4.gz
 # 20140425
 OLD_FILES+=usr/lib/libssp_p.a
 OLD_FILES+=usr/lib/libstand_p.a
-OLD_FILES+=usr/lib32/libc_pic.a
 OLD_FILES+=usr/lib32/libssp_p.a
 OLD_FILES+=usr/lib32/libstand_p.a
 # 20140314: AppleTalk
@@ -3752,7 +3773,7 @@ OLD_FILES+=usr/include/sys/_elf_solaris.h
 OLD_FILES+=usr/share/man/man3/pmc_x86_get_msr.3.gz
 # 20071108: Removed very crunch OLDCARD support file
 OLD_FILES+=etc/defaults/pccard.conf
-# 20071025: rc.d/nfslocking superceeded by rc.d/lockd and rc.d/statd
+# 20071025: rc.d/nfslocking superseded by rc.d/lockd and rc.d/statd
 OLD_FILES+=etc/rc.d/nfslocking
 # 20070930: rename of cached to nscd
 OLD_FILES+=etc/cached.conf

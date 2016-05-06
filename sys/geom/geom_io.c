@@ -504,11 +504,11 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	cmd = bp->bio_cmd;
 	if (cmd == BIO_READ || cmd == BIO_WRITE || cmd == BIO_GETATTR) {
 		KASSERT(bp->bio_data != NULL,
-		    ("NULL bp->data in g_io_request(cmd=%hhu)", bp->bio_cmd));
+		    ("NULL bp->data in g_io_request(cmd=%hu)", bp->bio_cmd));
 	}
 	if (cmd == BIO_DELETE || cmd == BIO_FLUSH) {
 		KASSERT(bp->bio_data == NULL,
-		    ("non-NULL bp->data in g_io_request(cmd=%hhu)",
+		    ("non-NULL bp->data in g_io_request(cmd=%hu)",
 		    bp->bio_cmd));
 	}
 	if (cmd == BIO_READ || cmd == BIO_WRITE || cmd == BIO_DELETE) {

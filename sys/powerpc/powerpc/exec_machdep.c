@@ -162,7 +162,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		code = siginfo32.si_code;
 		sfp = (caddr_t)&sf32;
 		sfpsize = sizeof(sf32);
-		rndfsize = ((sizeof(sf32) + 15) / 16) * 16;
+		rndfsize = roundup(sizeof(sf32), 16);
 
 		/*
 		 * Save user context
@@ -189,9 +189,9 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		 * 64-bit PPC defines a 288 byte scratch region
 		 * below the stack.
 		 */
-		rndfsize = 288 + ((sizeof(sf) + 47) / 48) * 48;
+		rndfsize = 288 + roundup(sizeof(sf), 48);
 		#else
-		rndfsize = ((sizeof(sf) + 15) / 16) * 16;
+		rndfsize = roundup(sizeof(sf), 16);
 		#endif
 
 		/*

@@ -77,10 +77,10 @@ typedef void bio_task_t(void *);
  * The bio structure describes an I/O operation in the kernel.
  */
 struct bio {
-	uint8_t	bio_cmd;		/* I/O operation. */
-	uint8_t	bio_flags;		/* General flags. */
-	uint8_t	bio_cflags;		/* Private use by the consumer. */
-	uint8_t	bio_pflags;		/* Private use by the provider. */
+	uint16_t bio_cmd;		/* I/O operation. */
+	uint16_t bio_flags;		/* General flags. */
+	uint16_t bio_cflags;		/* Private use by the consumer. */
+	uint16_t bio_pflags;		/* Private use by the provider. */
 	struct cdev *bio_dev;		/* Device to do I/O on. */
 	struct disk *bio_disk;		/* Valid below geom_disk.c only */
 	off_t	bio_offset;		/* Offset into file. */

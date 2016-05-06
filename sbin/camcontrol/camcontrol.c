@@ -814,9 +814,6 @@ scsidoinquiry(struct cam_device *device, int argc, char **argv,
 	if (arglist & CAM_ARG_GET_SERIAL)
 		scsiserial(device, retry_count, timeout);
 
-	if (error != 0)
-		return(error);
-
 	if (arglist & CAM_ARG_GET_XFERRATE)
 		error = camxferrate(device);
 

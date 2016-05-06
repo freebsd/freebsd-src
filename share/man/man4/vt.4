@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2014
+.Dd April 17, 2016
 .Dt "VIRTUAL TERMINALS" 4
 .Os
 .Sh NAME
@@ -56,6 +56,7 @@ In
 .Cd kern.vt.kbd_reboot=1
 .Cd kern.vt.kbd_debug=1
 .Cd kern.vt.kbd_panic=0
+.Cd kern.vt.enable_bell=1
 .Sh DESCRIPTION
 The
 .Nm
@@ -122,7 +123,7 @@ driver.
 .Bl -tag -width MAXCONS
 .It Dv TERMINAL_NORM_ATTR= Ns Pa attribute
 .It Dv TERMINAL_KERN_ATTR= Ns Pa attribute
-These options allow changing the default colors used for normal and kernel
+These options change the default colors used for normal and kernel
 text.
 Available colors are defined in
 .In sys/terminal.h .
@@ -212,14 +213,15 @@ backend.
 The mode is applied to all output connectors.
 This is currently only supported by the
 .Cm vt_fb
-backend when it's paired with a KMS video driver.
+backend when it is paired with a KMS video driver.
 .It Va kern.vt.fb.modes. Ns Pa connector_name
 Set this value to a graphic mode to override the default mode picked by the
 .Nm
 backend.
 This mode is applied to the output connector
 .Pa connector_name
-only. It has precedence over
+only.
+It has precedence over
 .Va kern.vt.fb.default_mode .
 The names of available connector names can be found in
 .Xr dmesg 8
@@ -227,7 +229,7 @@ after loading the KMS driver.
 It will contain a list of connectors and their associated tunables.
 This is currently only supported by the
 .Cm vt_fb
-backend when it's paired with a KMS video driver.
+backend when it is paired with a KMS video driver.
 .El
 .Sh KEYBOARD SYSCTL TUNABLES
 These settings control whether certain special key combinations are enabled or
@@ -254,6 +256,17 @@ Enable reboot key combination, usually Ctrl+Alt+Del.
 Enable debug request key combination, usually Ctrl+Alt+Esc.
 .It Va kern.vt.kbd_panic
 Enable panic key combination.
+.El
+.Sh OTHER SYSCTL TUNABLES
+These settings can be entered at the
+.Xr loader 8
+prompt, set in
+.Xr loader.conf 5 ,
+or changed at runtime with
+.Xr sysctl 8 .
+.Bl -tag -width indent
+.It Va kern.vt.enable_bell
+Enable the terminal bell.
 .El
 .Sh FILES
 .Bl -tag -width /usr/share/vt/keymaps/* -compact

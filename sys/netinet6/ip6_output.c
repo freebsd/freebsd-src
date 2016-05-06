@@ -256,7 +256,7 @@ ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
 			ip6f->ip6f_offlg |= IP6F_MORE_FRAG;
 		mhip6->ip6_plen = htons((u_short)(mtu + hlen +
 		    sizeof(*ip6f) - sizeof(struct ip6_hdr)));
-		if ((m_frgpart = m_copy(m0, off, mtu)) == 0) {
+		if ((m_frgpart = m_copy(m0, off, mtu)) == NULL) {
 			IP6STAT_INC(ip6s_odropped);
 			return (ENOBUFS);
 		}
@@ -503,7 +503,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	/*
 	 * Route packet.
 	 */
-	if (ro == 0) {
+	if (ro == NULL) {
 		ro = &ip6route;
 		bzero((caddr_t)ro, sizeof(*ro));
 	}
@@ -1116,7 +1116,7 @@ ip6_insert_jumboopt(struct ip6_exthdrs *exthdrs, u_int32_t plen)
 	 * jumbo payload option, allocate a cluster to store the whole options.
 	 * Otherwise, use it to store the options.
 	 */
-	if (exthdrs->ip6e_hbh == 0) {
+	if (exthdrs->ip6e_hbh == NULL) {
 		mopt = m_get(M_NOWAIT, MT_DATA);
 		if (mopt == NULL)
 			return (ENOBUFS);
@@ -1198,7 +1198,7 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
 	if (hlen > sizeof(struct ip6_hdr)) {
 		n = m_copym(m0, sizeof(struct ip6_hdr),
 		    hlen - sizeof(struct ip6_hdr), M_NOWAIT);
-		if (n == 0)
+		if (n == NULL)
 			return (ENOBUFS);
 		m->m_next = n;
 	} else
@@ -2515,7 +2515,7 @@ int
 ip6_setpktopts(struct mbuf *control, struct ip6_pktopts *opt,
     struct ip6_pktopts *stickyopt, struct ucred *cred, int uproto)
 {
-	struct cmsghdr *cm = 0;
+	struct cmsghdr *cm = NULL;
 
 	if (control == NULL || opt == NULL)
 		return (EINVAL);

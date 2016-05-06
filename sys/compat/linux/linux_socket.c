@@ -1703,7 +1703,7 @@ static const unsigned char lxs_args[] = {
 	LINUX_AL(4) /* sendmmsg */
 };
 
-#define	LINUX_AL_SIZE	sizeof(lxs_args) / sizeof(lxs_args[0]) - 1
+#define	LINUX_AL_SIZE	(nitems(lxs_args) - 1)
 
 int
 linux_socketcall(struct thread *td, struct linux_socketcall_args *args)

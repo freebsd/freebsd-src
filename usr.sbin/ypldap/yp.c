@@ -597,14 +597,14 @@ ypproc_maplist_2_svc(domainname *arg, struct svc_req *req)
 		{ "netid.byname",		YPMAP_NETID_BYNAME },
 	};
 	static ypresp_maplist	 res;
-	static struct ypmaplist	 maps[sizeof(mapnames) / sizeof(mapnames[0])];
+	static struct ypmaplist	 maps[nitems(mapnames)];
 	
 	if (yp_valid_domain(*arg, (struct ypresp_val *)&res) == -1)
 		return (&res);
 
 	res.stat = YP_TRUE;
 	res.maps = NULL;
-	for (i = 0; i < sizeof(mapnames) / sizeof(mapnames[0]); i++) {
+	for (i = 0; i < nitems(mapnames); i++) {
 		if (!(env->sc_flags & mapnames[i].cond))
 			continue;
 		maps[i].map = mapnames[i].name;

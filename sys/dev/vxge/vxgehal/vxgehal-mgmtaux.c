@@ -82,7 +82,7 @@
  *
  * Returns: VXGE_HAL_OK - success.
  * VXGE_HAL_ERR_INVALID_DEVICE - Device is not valid.
- * VXGE_HAL_ERR_VERSION_CONFLICT - Version it not maching.
+ * VXGE_HAL_ERR_VERSION_CONFLICT - Version it not matching.
  * VXGE_HAL_FAIL - Failed to retrieve the information.
  *
  * See also: vxge_hal_mgmt_about(), vxge_hal_aux_device_dump().
@@ -132,7 +132,7 @@ vxge_hal_aux_about_read(vxge_hal_device_h devh, int bufsize,
  * Read driver configuration,
  *
  * Returns: VXGE_HAL_OK - success.
- * VXGE_HAL_ERR_VERSION_CONFLICT - Version it not maching.
+ * VXGE_HAL_ERR_VERSION_CONFLICT - Version it not matching.
  *
  * See also: vxge_hal_aux_device_config_read().
  */
@@ -169,7 +169,7 @@ vxge_hal_aux_driver_config_read(int bufsize, char *retbuf, int *retsize)
  *
  * Returns: VXGE_HAL_OK - success.
  * VXGE_HAL_ERR_INVALID_DEVICE - Device is not valid.
- * VXGE_HAL_ERR_VERSION_CONFLICT - Version it not maching.
+ * VXGE_HAL_ERR_VERSION_CONFLICT - Version it not matching.
  *
  * See also: vxge_hal_mgmt_pci_config(), vxge_hal_aux_device_dump().
  */
@@ -463,7 +463,7 @@ vxge_hal_aux_pci_config_read(
  *
  * Returns: VXGE_HAL_OK - success.
  * VXGE_HAL_ERR_INVALID_DEVICE - Device is not valid.
- * VXGE_HAL_ERR_VERSION_CONFLICT - Version it not maching.
+ * VXGE_HAL_ERR_VERSION_CONFLICT - Version it not matching.
  *
  * See also: vxge_hal_aux_driver_config_read().
  */

@@ -1605,13 +1605,22 @@ bandwidth	: STRING {
 
 			bps = strtod($1, &cp);
 			if (cp != NULL) {
+				if (strlen(cp) > 1) {
+					char *cu = cp + 1;
+					if (!strcmp(cu, "Bit") ||
+					    !strcmp(cu, "B") ||
+					    !strcmp(cu, "bit") ||
+					    !strcmp(cu, "b")) {
+						*cu = 0;
+					}
+				}
 				if (!strcmp(cp, "b"))
 					; /* nothing */
-				else if (!strcmp(cp, "Kb"))
+				else if (!strcmp(cp, "K"))
 					bps *= 1000;
-				else if (!strcmp(cp, "Mb"))
+				else if (!strcmp(cp, "M"))
 					bps *= 1000 * 1000;
-				else if (!strcmp(cp, "Gb"))
+				else if (!strcmp(cp, "G"))
 					bps *= 1000 * 1000 * 1000;
 				else if (!strcmp(cp, "%")) {
 					if (bps < 0 || bps > 100) {
@@ -6164,7 +6173,7 @@ rt_tableid_max(void)
 	/*
 	 * As the OpenBSD code only compares > and not >= we need to adjust
 	 * here given we only accept values of 0..n and want to avoid #ifdefs
-	 * in the grammer.
+	 * in the grammar.
 	 */
 	return (fibs - 1);
 #else

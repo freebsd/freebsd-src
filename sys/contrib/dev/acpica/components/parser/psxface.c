@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -183,7 +183,7 @@ AcpiPsExecuteMethod (
 
     Info->PassNumber = ACPI_IMODE_EXECUTE;
     WalkState = AcpiDsCreateWalkState (
-                    Info->ObjDesc->Method.OwnerId, NULL, NULL, NULL);
+        Info->ObjDesc->Method.OwnerId, NULL, NULL, NULL);
     if (!WalkState)
     {
         Status = AE_NO_MEMORY;
@@ -191,8 +191,8 @@ AcpiPsExecuteMethod (
     }
 
     Status = AcpiDsInitAmlWalk (WalkState, Op, Info->Node,
-                Info->ObjDesc->Method.AmlStart,
-                Info->ObjDesc->Method.AmlLength, Info, Info->PassNumber);
+        Info->ObjDesc->Method.AmlStart,
+        Info->ObjDesc->Method.AmlLength, Info, Info->PassNumber);
     if (ACPI_FAILURE (Status))
     {
         AcpiDsDeleteWalkState (WalkState);
@@ -303,7 +303,8 @@ AcpiPsUpdateParameterList (
         {
             /* Ignore errors, just do them all */
 
-            (void) AcpiUtUpdateObjectReference (Info->Parameters[i], Action);
+            (void) AcpiUtUpdateObjectReference (
+                Info->Parameters[i], Action);
         }
     }
 }

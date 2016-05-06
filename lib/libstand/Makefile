@@ -6,6 +6,7 @@
 #   quite large.
 #
 
+PACKAGE=lib${LIB}
 MK_PROFILE=	no
 MK_SSP=		no
 

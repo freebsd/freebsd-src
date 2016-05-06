@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #include "pic_if.h"
 #endif
 
@@ -91,7 +91,7 @@ __FBSDID("$FreeBSD$");
 #define	DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
 #define	NGPIO		32
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 struct gpio_irqsrc {
 	struct intr_irqsrc	gi_isrc;
 	u_int			gi_irq;
@@ -110,7 +110,7 @@ struct imx51_gpio_softc {
 	bus_space_handle_t	sc_ioh;
 	int			gpio_npins;
 	struct gpio_pin		gpio_pins[NGPIO];
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	struct gpio_irqsrc 	gpio_pic_irqsrc[NGPIO];
 #endif
 };
@@ -155,7 +155,7 @@ static int imx51_gpio_pin_set(device_t, uint32_t, unsigned int);
 static int imx51_gpio_pin_get(device_t, uint32_t, unsigned int *);
 static int imx51_gpio_pin_toggle(device_t, uint32_t pin);
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 static int
 gpio_pic_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
     enum intr_polarity *polp, enum intr_trigger *trigp)
@@ -225,13 +225,15 @@ gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
 {
 	int error;
 	u_int irq;
+	struct intr_map_data_fdt *daf;
 	struct imx51_gpio_softc *sc;
 
 	if (data->type != INTR_MAP_DATA_FDT)
 		return (ENOTSUP);
 
-	error = gpio_pic_map_fdt(dev, data->fdt.ncells, data->fdt.cells, &irq,
-	    NULL, NULL);
+	daf = (struct intr_map_data_fdt *)data;
+	error = gpio_pic_map_fdt(dev, daf->ncells, daf->cells, &irq, NULL,
+	    NULL);
 	if (error == 0) {
 		sc = device_get_softc(dev);
 		*isrcp = &sc->gpio_pic_irqsrc[irq].gi_isrc;
@@ -265,6 +267,7 @@ static int
 gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
+	struct intr_map_data_fdt *daf;
 	struct imx51_gpio_softc *sc;
 	struct gpio_irqsrc *gi;
 	int error, icfg;
@@ -278,8 +281,9 @@ gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	/* Get config for interrupt. */
 	if (data == NULL || data->type != INTR_MAP_DATA_FDT)
 		return (ENOTSUP);
-	error = gpio_pic_map_fdt(dev, data->fdt.ncells, data->fdt.cells, &irq,
-	    &pol, &trig);
+	daf = (struct intr_map_data_fdt *)data;
+	error = gpio_pic_map_fdt(dev, daf->ncells, daf->cells, &irq, &pol,
+	    &trig);
 	if (error != 0)
 		return (error);
 	if (gi->gi_irq != irq)
@@ -653,7 +657,7 @@ imx51_gpio_attach(device_t dev)
 	 */
 	WRITE4(sc, IMX_GPIO_IMR_REG, 0);
 	for (irq = 0; irq < 2; irq++) {
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 		if ((bus_setup_intr(dev, sc->sc_res[1 + irq], INTR_TYPE_CLK,
 		    gpio_pic_filter, NULL, sc, &sc->gpio_ih[irq]))) {
 			device_printf(dev,
@@ -675,7 +679,7 @@ imx51_gpio_attach(device_t dev)
  		    "imx_gpio%d.%d", unit, i);
 	}
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	gpio_pic_register_isrcs(sc);
 	intr_pic_register(dev, OF_xref_from_node(ofw_bus_get_node(dev)));
 #endif
@@ -713,7 +717,7 @@ static device_method_t imx51_gpio_methods[] = {
 	DEVMETHOD(device_attach,	imx51_gpio_attach),
 	DEVMETHOD(device_detach,	imx51_gpio_detach),
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	gpio_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	gpio_pic_enable_intr),

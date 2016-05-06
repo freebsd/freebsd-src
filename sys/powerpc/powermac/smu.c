@@ -888,7 +888,7 @@ smu_fanrpm_sysctl(SYSCTL_HANDLER_ARGS)
 		default:
 			/* This should never happen */
 			return (EINVAL);
-		};
+		}
 	}
 	/* We can only read the RPM from a PWM controlled fan, so return. */
 	if ((arg2 & 0xff00) == SMU_PWM_SYSCTL_RPM)

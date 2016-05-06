@@ -454,7 +454,7 @@ add_type(int len, const char *type)
 	{
 		typ_list_t->next = ptr;
 		typ_list_t = ptr;
-	};
+	}
 }
 
 
@@ -470,7 +470,7 @@ find_type(const char *type)
 			return (ptr);
 		else
 			ptr = ptr->next;
-	};
+	}
 	return (NULL);
 }
 

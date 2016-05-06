@@ -332,7 +332,7 @@ rmremote(const struct printer *pp)
 	else
 		niov = 4 + requests + 1;
 	iov = malloc(niov * sizeof *iov);
-	if (iov == 0)
+	if (iov == NULL)
 		fatal(pp, "out of memory in rmremote()");
 	iov[0].iov_base = "\5";
 	iov[1].iov_base = pp->remote_queue;

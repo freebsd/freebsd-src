@@ -137,7 +137,7 @@ nandfs_alloc_segment(struct nandfs_device *fsdev, uint64_t *seg)
 		rest = (fsdev->nd_blocksize - offset) / seg_size;
 		/* Go through all su usage in block */
 		while (rest) {
-			/* When last check start from beggining */
+			/* When last check start from beginning */
 			if (i == nsegments)
 				break;
 

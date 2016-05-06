@@ -344,8 +344,8 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 	uint64_t tsf_beacon_target;
 	int tsf_intval;
 
-	tsf_beacon_old = ((uint64_t) LE_READ_4(ni->ni_tstamp.data + 4)) << 32;
-	tsf_beacon_old |= LE_READ_4(ni->ni_tstamp.data);
+	tsf_beacon_old = ((uint64_t) le32dec(ni->ni_tstamp.data + 4)) << 32;
+	tsf_beacon_old |= le32dec(ni->ni_tstamp.data);
 
 #define	TU_TO_TSF(_tu)	(((u_int64_t)(_tu)) << 10)
 	tsf_intval = 1;
@@ -378,8 +378,8 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 			ATH_RSSI_LPF(sc->sc_halstats.ns_avgbrssi, rssi);
 
 
-			tsf_beacon = ((uint64_t) LE_READ_4(ni->ni_tstamp.data + 4)) << 32;
-			tsf_beacon |= LE_READ_4(ni->ni_tstamp.data);
+			tsf_beacon = ((uint64_t) le32dec(ni->ni_tstamp.data + 4)) << 32;
+			tsf_beacon |= le32dec(ni->ni_tstamp.data);
 
 			nexttbtt = ath_hal_getnexttbtt(sc->sc_ah);
 
@@ -802,7 +802,7 @@ rx_accept:
 	 * This code should be removed once the actual
 	 * root cause of the issue has been identified.
 	 * For example, it may be that the rs_antenna
-	 * field is only valid for the lsat frame of
+	 * field is only valid for the last frame of
 	 * an aggregate and it just happens that it is
 	 * "mostly" right. (This is a general statement -
 	 * the majority of the statistics are only valid

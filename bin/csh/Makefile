@@ -8,6 +8,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
 TCSHDIR= ${.CURDIR}/../../contrib/tcsh
 .PATH: ${TCSHDIR}
 
@@ -109,7 +110,7 @@ csh.1: tcsh.man
 
 build-tools: gethost
 
-gethost: gethost.c sh.err.h tc.const.h sh.h
+gethost: gethost.c sh.err.h tc.const.h sh.h ${BUILD_TOOLS_META}
 	@rm -f ${.TARGET}
 	${CC} -o gethost ${LDFLAGS} ${CFLAGS:C/-DHAVE_ICONV//} \
 	    ${TCSHDIR}/gethost.c

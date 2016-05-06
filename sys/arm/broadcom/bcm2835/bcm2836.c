@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_bus.h>
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #include "pic_if.h"
 #else
 #include <arm/broadcom/bcm2835/bcm2836.h>
@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #define	MAILBOX0_IRQEN			(1 << 0)
 #endif
 
-#ifdef ARM_INTRNG
+#ifdef INTRNG
 #define	BCM_LINTC_CONTROL_REG		0x00
 #define	BCM_LINTC_PRESCALER_REG		0x08
 #define	BCM_LINTC_GPU_ROUTING_REG	0x0c
@@ -461,15 +461,18 @@ static int
 bcm_lintc_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
+	struct intr_map_data_fdt *daf;
 	struct bcm_lintc_softc *sc;
 
 	if (data->type != INTR_MAP_DATA_FDT)
 		return (ENOTSUP);
-	if (data->fdt.ncells != 1 || data->fdt.cells[0] >= BCM_LINTC_NIRQS)
+
+	daf = (struct intr_map_data_fdt *)data;
+	if (daf->ncells != 1 || daf->cells[0] >= BCM_LINTC_NIRQS)
 		return (EINVAL);
 
 	sc = device_get_softc(dev);
-	*isrcp = &sc->bls_isrcs[data->fdt.cells[0]].bli_isrc;
+	*isrcp = &sc->bls_isrcs[daf->cells[0]].bli_isrc;
 	return (0);
 }
 

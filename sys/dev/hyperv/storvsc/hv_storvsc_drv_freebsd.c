@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016 Microsoft Corp.
  * Copyright (c) 2012 NetApp Inc.
  * Copyright (c) 2012 Citrix Inc.
  * All rights reserved.
@@ -140,7 +140,6 @@ struct storvsc_softc {
 	uint32_t			hs_num_out_reqs;
 	boolean_t			hs_destroy;
 	boolean_t			hs_drain_notify;
-	boolean_t			hs_open_multi_channel;
 	struct sema 			hs_drain_sema;	
 	struct hv_storvsc_request	hs_init_req;
 	struct hv_storvsc_request	hs_reset_req;
@@ -293,9 +292,6 @@ get_stor_device(struct hv_device *device,
 	struct storvsc_softc *sc;
 
 	sc = device_get_softc(device->device);
-	if (sc == NULL) {
-		return NULL;
-	}
 
 	if (outbound) {
 		/*
@@ -319,29 +315,19 @@ get_stor_device(struct hv_device *device,
 	return sc;
 }
 
-/**
- * @brief Callback handler, will be invoked when receive mutil-channel offer
- *
- * @param context  new multi-channel
- */
 static void
-storvsc_handle_sc_creation(void *context)
+storvsc_subchan_attach(struct hv_vmbus_channel *new_channel)
 {
-	hv_vmbus_channel *new_channel;
 	struct hv_device *device;
 	struct storvsc_softc *sc;
 	struct vmstor_chan_props props;
 	int ret = 0;
 
-	new_channel = (hv_vmbus_channel *)context;
 	device = new_channel->device;
 	sc = get_stor_device(device, TRUE);
 	if (sc == NULL)
 		return;
 
-	if (FALSE == sc->hs_open_multi_channel)
-		return;
-	
 	memset(&props, 0, sizeof(props));
 
 	ret = hv_vmbus_channel_open(new_channel,
@@ -364,11 +350,12 @@ storvsc_handle_sc_creation(void *context)
 static void
 storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
 {
+	struct hv_vmbus_channel **subchan;
 	struct storvsc_softc *sc;
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;	
 	int request_channels_cnt = 0;
-	int ret;
+	int ret, i;
 
 	/* get multichannels count that need to create */
 	request_channels_cnt = MIN(max_chans, mp_ncpus);
@@ -381,9 +368,6 @@ storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
 	}
 
 	request = &sc->hs_init_req;
-
-	/* Establish a handler for multi-channel */
-	dev->channel->sc_creation_callback = storvsc_handle_sc_creation;
 
 	/* request the host to create multi-channel */
 	memset(request, 0, sizeof(struct hv_storvsc_request));
@@ -420,7 +404,15 @@ storvsc_send_multichannel_request(struct hv_device *dev, int max_chans)
 		return;
 	}
 
-	sc->hs_open_multi_channel = TRUE;
+	/* Wait for sub-channels setup to complete. */
+	subchan = vmbus_get_subchan(dev->channel, request_channels_cnt);
+
+	/* Attach the sub-channels. */
+	for (i = 0; i < request_channels_cnt; ++i)
+		storvsc_subchan_attach(subchan[i]);
+
+	/* Release the sub-channels. */
+	vmbus_rel_subchan(subchan, request_channels_cnt);
 
 	if (bootverbose)
 		printf("Storvsc create multi-channel success!\n");
@@ -932,6 +924,7 @@ storvsc_probe(device_t dev)
 			if(bootverbose)
 				device_printf(dev,
 					"Enlightened ATA/IDE detected\n");
+			device_set_desc(dev, g_drv_props_table[DRIVER_BLKVSC].drv_desc);
 			ret = BUS_PROBE_DEFAULT;
 		} else if(bootverbose)
 			device_printf(dev, "Emulated ATA/IDE set (hw.ata.disk_enable set)\n");
@@ -939,6 +932,7 @@ storvsc_probe(device_t dev)
 	case DRIVER_STORVSC:
 		if(bootverbose)
 			device_printf(dev, "Enlightened SCSI device detected\n");
+		device_set_desc(dev, g_drv_props_table[DRIVER_STORVSC].drv_desc);
 		ret = BUS_PROBE_DEFAULT;
 		break;
 	default:
@@ -976,10 +970,6 @@ storvsc_attach(device_t dev)
 	root_mount_token = root_mount_hold("storvsc");
 
 	sc = device_get_softc(dev);
-	if (sc == NULL) {
-		ret = ENOMEM;
-		goto cleanup;
-	}
 
 	stor_type = storvsc_get_storage_type(dev);
 
@@ -988,15 +978,12 @@ storvsc_attach(device_t dev)
 		goto cleanup;
 	}
 
-	bzero(sc, sizeof(struct storvsc_softc));
-
 	/* fill in driver specific properties */
 	sc->hs_drv_props = &g_drv_props_table[stor_type];
 
 	/* fill in device specific properties */
 	sc->hs_unit	= device_get_unit(dev);
 	sc->hs_dev	= hv_dev;
-	device_set_desc(dev, g_drv_props_table[stor_type].drv_desc);
 
 	LIST_INIT(&sc->hs_free_list);
 	mtx_init(&sc->hs_lock, "hvslck", NULL, MTX_DEF);
@@ -1043,7 +1030,6 @@ storvsc_attach(device_t dev)
 
 	sc->hs_destroy = FALSE;
 	sc->hs_drain_notify = FALSE;
-	sc->hs_open_multi_channel = FALSE;
 	sema_init(&sc->hs_drain_sema, 0, "Store Drain Sema");
 
 	ret = hv_storvsc_connect_vsp(hv_dev);
@@ -1266,6 +1252,7 @@ storvsc_timeout_test(struct hv_storvsc_request *reqp,
 }
 #endif /* HVS_TIMEOUT_TEST */
 
+#ifdef notyet
 /**
  * @brief timeout handler for requests
  *
@@ -1313,6 +1300,7 @@ storvsc_timeout(void *arg)
 	storvsc_timeout_test(reqp, MODE_SELECT_10, 1);
 #endif
 }
+#endif
 
 /**
  * @brief StorVSC device poll function
@@ -1465,6 +1453,7 @@ storvsc_action(struct cam_sim *sim, union ccb *ccb)
 			return;
 		}
 
+#ifdef notyet
 		if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
 			callout_init(&reqp->callout, 1);
 			callout_reset_sbt(&reqp->callout,
@@ -1484,6 +1473,7 @@ storvsc_action(struct cam_sim *sim, union ccb *ccb)
 			}
 #endif /* HVS_TIMEOUT_TEST */
 		}
+#endif
 
 		if ((res = hv_storvsc_io_request(sc->hs_dev, reqp)) != 0) {
 			xpt_print(ccb->ccb_h.path,
@@ -2031,6 +2021,7 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 		mtx_unlock(&sc->hs_lock);
 	}
 
+#ifdef notyet
 	/*
 	 * callout_drain() will wait for the timer handler to finish
 	 * if it is running. So we don't need any lock to synchronize
@@ -2041,6 +2032,7 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
 		callout_drain(&reqp->callout);
 	}
+#endif
 
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
@@ -2094,8 +2086,9 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 		reqp->softc->hs_frozen = 0;
 	}
 	storvsc_free_request(sc, reqp);
-	xpt_done(ccb);
 	mtx_unlock(&sc->hs_lock);
+
+	xpt_done_direct(ccb);
 }
 
 /**

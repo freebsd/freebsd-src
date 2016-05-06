@@ -53,7 +53,7 @@ options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, require
 
 # Interrupt controller
 device		gic
-options 	ARM_INTRNG
+options 	INTRNG
 
 # ARM MPCore timer
 device		mpcore_timer

@@ -459,7 +459,7 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 		m = m->m_next;
 	}
 	np = &top;
-	top = 0;
+	top = NULL;
 	while (len > 0) {
 		if (m == NULL) {
 			KASSERT(len == M_COPYALL,

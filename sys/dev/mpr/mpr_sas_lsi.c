@@ -717,7 +717,7 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate){
 			parent_devinfo = le32toh(parent_config_page.DeviceInfo);
 		}
 	}
-	/* TODO Check proper endianess */
+	/* TODO Check proper endianness */
 	sas_address = config_page.SASAddress.High;
 	sas_address = (sas_address << 32) | config_page.SASAddress.Low;
 	mpr_dprint(sc, MPR_INFO, "SAS Address from SAS device page0 = %jx\n",

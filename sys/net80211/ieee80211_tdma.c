@@ -343,8 +343,7 @@ tdma_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			 */
 			IEEE80211_DISCARD(vap,
 			    IEEE80211_MSG_ELEMID | IEEE80211_MSG_INPUT,
-			    wh, ieee80211_mgt_subtype_name[subtype >>
-				IEEE80211_FC0_SUBTYPE_SHIFT],
+			    wh, ieee80211_mgt_subtype_name(subtype),
 			    "%s", "no TDMA ie");
 			vap->iv_stats.is_rx_mgtdiscard++;
 			return;

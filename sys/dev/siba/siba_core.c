@@ -1058,8 +1058,8 @@ siba_cc_powerup_delay(struct siba_cc *scc)
 
 	min = siba_cc_clockfreq(scc, 0);
 	scc->scc_powerup_delay =
-	    (((SIBA_CC_READ32(scc, SIBA_CC_PLLONDELAY) + 2) * 1000000) +
-	    (min - 1)) / min;
+	    howmany((SIBA_CC_READ32(scc, SIBA_CC_PLLONDELAY) + 2) * 1000000,
+	    min);
 }
 
 static int

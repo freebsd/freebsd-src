@@ -10,6 +10,13 @@ INCSGROUPS?=	INCS
 
 _INCSGROUPS=	${INCSGROUPS:C,[/*],_,g}
 
+.if defined(NO_ROOT)
+.if !defined(TAGS) || ! ${TAGS:Mpackage=*}
+TAGS+=		package=${PACKAGE:Uruntime}
+.endif
+TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
+.endif
+
 .if !target(buildincludes)
 .for group in ${_INCSGROUPS}
 buildincludes: ${${group}}
@@ -70,10 +77,10 @@ stage_includes: stage_files.${group}
 installincludes: _${group}INS
 _${group}INS: ${_${group}INCS}
 .if defined(${group}NAME)
-	${INSTALL} -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},development} -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
 	    ${.ALLSRC} ${DESTDIR}${${group}DIR}/${${group}NAME}
 .else
-	${INSTALL} -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},development} -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
 	    ${.ALLSRC} ${DESTDIR}${${group}DIR}/
 .endif
 .endif
@@ -84,7 +91,8 @@ _${group}INS: ${_${group}INCS}
 .if defined(INCSLINKS) && !empty(INCSLINKS)
 installincludes:
 .for s t in ${INCSLINKS}
-	${INSTALL_SYMLINK} ${s} ${DESTDIR}${t}
+	@${ECHO} "${DESTDIR}${t} -> ${s}" ; \
+	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${s} ${DESTDIR}${t}
 .endfor
 .endif
 .endif # !target(installincludes)

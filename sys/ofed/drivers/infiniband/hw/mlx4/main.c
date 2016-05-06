@@ -1297,7 +1297,7 @@ static int del_gid_entry(struct ib_qp *ibqp, union ib_gid *gid)
 		pr_warn("could not find mgid entry\n");
 
 	mutex_unlock(&mqp->mutex);
-	return ge != 0 ? 0 : -EINVAL;
+	return ge != NULL ? 0 : -EINVAL;
 }
 
 static int _mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid,
@@ -1618,6 +1618,12 @@ static void update_gids_task(struct work_struct *work)
 	mlx4_free_cmd_mailbox(dev, mailbox);
 free:
 	kfree(gw);
+}
+
+static struct net_device *mlx4_ib_get_netdev(struct ib_device *device, u8 port_num)
+{
+	struct mlx4_ib_dev *ibdev = to_mdev(device);
+	return mlx4_get_protocol_dev(ibdev->dev, MLX4_PROT_ETH, port_num);
 }
 
 static void reset_gids_task(struct work_struct *work)
@@ -2353,6 +2359,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.attach_mcast	= mlx4_ib_mcg_attach;
 	ibdev->ib_dev.detach_mcast	= mlx4_ib_mcg_detach;
 	ibdev->ib_dev.process_mad	= mlx4_ib_process_mad;
+	ibdev->ib_dev.get_netdev	= mlx4_ib_get_netdev;
 	ibdev->ib_dev.ioctl		= mlx4_ib_ioctl;
 	ibdev->ib_dev.query_values	= mlx4_ib_query_values;
 

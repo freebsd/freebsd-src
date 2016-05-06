@@ -277,7 +277,7 @@ mss_release_resources(struct mss_info *mss, device_t dev)
 			bus_teardown_intr(dev, mss->irq, mss->ih);
  		bus_release_resource(dev, SYS_RES_IRQ, mss->irq_rid,
 				     mss->irq);
-		mss->irq = 0;
+		mss->irq = NULL;
     	}
     	if (mss->drq2) {
 		if (mss->drq2 != mss->drq1) {
@@ -285,28 +285,28 @@ mss_release_resources(struct mss_info *mss, device_t dev)
 			bus_release_resource(dev, SYS_RES_DRQ, mss->drq2_rid,
 				     	mss->drq2);
 		}
-		mss->drq2 = 0;
+		mss->drq2 = NULL;
     	}
      	if (mss->drq1) {
 		isa_dma_release(rman_get_start(mss->drq1));
 		bus_release_resource(dev, SYS_RES_DRQ, mss->drq1_rid,
 				     mss->drq1);
-		mss->drq1 = 0;
+		mss->drq1 = NULL;
     	}
    	if (mss->io_base) {
 		bus_release_resource(dev, SYS_RES_IOPORT, mss->io_rid,
 				     mss->io_base);
-		mss->io_base = 0;
+		mss->io_base = NULL;
     	}
     	if (mss->conf_base) {
 		bus_release_resource(dev, SYS_RES_IOPORT, mss->conf_rid,
 				     mss->conf_base);
-		mss->conf_base = 0;
+		mss->conf_base = NULL;
     	}
 	if (mss->indir) {
 		bus_release_resource(dev, SYS_RES_IOPORT, mss->indir_rid,
 				     mss->indir);
-		mss->indir = 0;
+		mss->indir = NULL;
 	}
     	if (mss->parent_dmat) {
 		bus_dma_tag_destroy(mss->parent_dmat);
@@ -1686,7 +1686,7 @@ ymf_test(device_t dev, struct mss_info *mss)
 			/* PC98 need this. I don't know reason why. */
 			bus_delete_resource(dev, SYS_RES_IOPORT, mss->conf_rid);
 #endif
-	    		mss->conf_base = 0;
+	    		mss->conf_base = NULL;
 	    		continue;
 		}
 		version = conf_rd(mss, OPL3SAx_MISC) & 0x07;

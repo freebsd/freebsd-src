@@ -3,10 +3,15 @@
 
 .include <bsd.own.mk>
 
+PACKAGE=vi
 V=	${.CURDIR}/../../../contrib/nvi
 
+FILESGROUPS+=VICAT
 CAT=	dutch english french german polish ru_RU.KOI8-R spanish swedish \
 	uk_UA.KOI8-U zh_CN.GB2312
+VICAT=		${CAT}
+VICATDIR=	${FILESDIR}
+VICATPACKAGE=	${PACKAGE}
 
 SCAN=	${V}/cl/*.c ${V}/common/*.c ${V}/ex/*.c ${V}/vi/*.c
 
@@ -100,7 +105,7 @@ english.base: dump ${SCAN} #Makefile
 	sort -nu > $@
 
 
-dump: dump.c
+dump: dump.c ${BUILD_TOOLS_META}
 	${CC} -o ${.TARGET} ${.ALLSRC}
 
 CLEANFILES+= dump ${CAT} english.base *.check __ck1 __ck2

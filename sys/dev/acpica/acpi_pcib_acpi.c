@@ -29,6 +29,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
+#include "opt_pci.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -295,6 +297,44 @@ first_decoded_bus(struct acpi_hpcib_softc *sc, rman_res_t *startp)
 }
 #endif
 
+static void
+acpi_pcib_osc(struct acpi_hpcib_softc *sc)
+{
+	ACPI_STATUS status;
+	uint32_t cap_set[3];
+
+	static uint8_t pci_host_bridge_uuid[ACPI_UUID_LENGTH] = {
+		0x5b, 0x4d, 0xdb, 0x33, 0xf7, 0x1f, 0x1c, 0x40,
+		0x96, 0x57, 0x74, 0x41, 0xc0, 0x3d, 0xd7, 0x66
+	};
+
+	/* Support Field: Extended PCI Config Space, MSI */
+	cap_set[1] = 0x11;
+
+	/* Control Field */
+	cap_set[2] = 0;
+
+#ifdef PCI_HP
+	/* Control Field: PCI Express Native Hot Plug */
+	cap_set[2] |= 0x1;
+#endif
+
+	status = acpi_EvaluateOSC(sc->ap_handle, pci_host_bridge_uuid, 1,
+	    nitems(cap_set), cap_set, cap_set, false);
+	if (ACPI_FAILURE(status)) {
+		if (status == AE_NOT_FOUND)
+			return;
+		device_printf(sc->ap_dev, "_OSC failed: %s\n",
+		    AcpiFormatException(status));
+		return;
+	}
+
+	if (cap_set[0] != 0) {
+		device_printf(sc->ap_dev, "_OSC returned error %#x\n",
+		    cap_set[0]);
+	}
+}
+
 static int
 acpi_pcib_acpi_attach(device_t dev)
 {
@@ -320,6 +360,8 @@ acpi_pcib_acpi_attach(device_t dev)
      */
     if (!acpi_DeviceIsPresent(dev))
 	return (ENXIO);
+
+    acpi_pcib_osc(sc);
 
     /*
      * Get our segment number by evaluating _SEG.
@@ -467,7 +509,13 @@ acpi_pcib_acpi_attach(device_t dev)
     if (sc->ap_segment == 0 && sc->ap_bus == 0)
 	    bus0_seen = 1;
 
-    return (acpi_pcib_attach(dev, &sc->ap_prt, sc->ap_bus));
+    acpi_pcib_fetch_prt(dev, &sc->ap_prt);
+
+    if (device_add_child(dev, "pci", -1) == NULL) {
+	device_printf(device_get_parent(dev), "couldn't attach pci bus\n");
+	return (ENXIO);
+    }
+    return (bus_generic_attach(dev));
 }
 
 /*

@@ -56,7 +56,7 @@ static uint8_t b_bios_probed;
 /*
  * The minimum amount of memory to reserve in bios_extmem for the heap.
  */
-#define	HEAP_MIN	(3 * 1024 * 1024)
+#define	HEAP_MIN	(64 * 1024 * 1024)
 
 /*
  * Products in this list need quirks to detect

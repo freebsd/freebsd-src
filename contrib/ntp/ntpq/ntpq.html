@@ -44,7 +44,7 @@ monitor the operational status
 and determine the performance of
 <code>ntpd</code>, the NTP daemon.
 
-  <p>This document applies to version 4.2.8p6 of <code>ntpq</code>.
+  <p>This document applies to version 4.2.8p7 of <code>ntpq</code>.
 
 <ul class="menu">
 <li><a accesskey="1" href="#ntpq-Description">ntpq Description</a>
@@ -744,7 +744,8 @@ This software is released under the NTP license, &lt;http://ntp.org/license&gt;.
 <li><a accesskey="6" href="#ntpq-numeric">ntpq numeric</a>:                 numeric option (-n)
 <li><a accesskey="7" href="#ntpq-old_002drv">ntpq old-rv</a>:                  old-rv option
 <li><a accesskey="8" href="#ntpq-peers">ntpq peers</a>:                   peers option (-p)
-<li><a accesskey="9" href="#ntpq-wide">ntpq wide</a>:                    wide option (-w)
+<li><a accesskey="9" href="#ntpq-refid">ntpq refid</a>:                   refid option (-r)
+<li><a href="#ntpq-wide">ntpq wide</a>:                    wide option (-w)
 <li><a href="#ntpq-config">ntpq config</a>:                  presetting/configuring ntpq
 <li><a href="#ntpq-exit-status">ntpq exit status</a>:             exit status
 </ul>
@@ -769,7 +770,7 @@ the usage text by passing it through a pager program.
 used to select the program, defaulting to <span class="file">more</span>.  Both will exit
 with a status code of 0.
 
-<pre class="example">ntpq - standard NTP query program - Ver. 4.2.8p5
+<pre class="example">ntpq - standard NTP query program - Ver. 4.2.8p6
 Usage:  ntpq [ -&lt;flag&gt; [&lt;val&gt;] | --&lt;name&gt;[{=| }&lt;val&gt;] ]... [ host ...]
   Flg Arg Option-Name    Description
    -4 no  ipv4           Force IPv4 DNS name resolution
@@ -790,6 +791,7 @@ Usage:  ntpq [ -&lt;flag&gt; [&lt;val&gt;] | --&lt;name&gt;[{=| }&lt;val&gt;] ].
       no  old-rv         Always output status line with readvar
    -p no  peers          Print a list of the peers
                                 - prohibits the option 'interactive'
+   -r KWd refid          Set default display type for S2+ refids
    -w no  wide           Display the full 'remote' value
       opt version        output version information and exit
    -? no  help           display extended usage information and exit
@@ -806,6 +808,10 @@ The following option preset mechanisms are supported:
  - reading file $HOME/.ntprc
  - reading file ./.ntprc
  - examining environment variables named NTPQ_*
+
+The valid "refid" option keywords are:
+  hash ipv4
+  or an integer from 0 through 1
 
 Please send bug reports to:  &lt;http://bugs.ntp.org, bugs@ntp.org&gt;
 </pre>
@@ -932,7 +938,7 @@ preset this option in a script will enable both older and
 newer <code>ntpq</code> to behave identically in this regard. 
 <div class="node">
 <p><hr>
-<a name="ntpq-peers"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpq-wide">ntpq wide</a>,
+<a name="ntpq-peers"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpq-refid">ntpq refid</a>,
 Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpq-old_002drv">ntpq old-rv</a>,
 Up:&nbsp;<a rel="up" accesskey="u" href="#ntpq-Invocation">ntpq Invocation</a>
 <br>
@@ -953,15 +959,39 @@ interactive.
 of their state. This is equivalent to the 'peers' interactive command. 
 <div class="node">
 <p><hr>
-<a name="ntpq-wide"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpq-config">ntpq config</a>,
+<a name="ntpq-refid"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpq-wide">ntpq wide</a>,
 Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpq-peers">ntpq peers</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="#ntpq-Invocation">ntpq Invocation</a>
+<br>
+</div>
+
+<h4 class="subsection">refid option (-r)</h4>
+
+<p><a name="index-ntpq_002drefid-11"></a>
+This is the &ldquo;set default display type for s2+ refids&rdquo; option. 
+This option takes a keyword argument.
+
+<p class="noindent">This option has some usage constraints.  It:
+     <ul>
+<li>This option takes a keyword as its argument. 
+The argument sets an enumeration value that can be tested by comparing the option value macro (OPT_VALUE_REFID). 
+The available keywords are:
+     <pre class="example">             hash ipv4
+    </pre>
+     <p>or their numeric equivalent.</ul>
+
+  <p>Set the default display format for S2+ refids. 
+<div class="node">
+<p><hr>
+<a name="ntpq-wide"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpq-config">ntpq config</a>,
+Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpq-refid">ntpq refid</a>,
 Up:&nbsp;<a rel="up" accesskey="u" href="#ntpq-Invocation">ntpq Invocation</a>
 <br>
 </div>
 
 <h4 class="subsection">wide option (-w)</h4>
 
-<p><a name="index-ntpq_002dwide-11"></a>
+<p><a name="index-ntpq_002dwide-12"></a>
 This is the &ldquo;display the full 'remote' value&rdquo; option. 
 Display the full value of the 'remote' value.  If this requires
 more than 15 characters, display the full value, emit a newline,

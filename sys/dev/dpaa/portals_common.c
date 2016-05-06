@@ -75,8 +75,6 @@ dpaa_portal_alloc_res(device_t dev, struct dpaa_portals_devinfo *di, int cpu)
 		sc->sc_rres[0] = bus_alloc_resource(dev,
 		    SYS_RES_MEMORY, &sc->sc_rrid[0], rle->start + sc->sc_dp_pa,
 		    rle->end + sc->sc_dp_pa, rle->count, RF_ACTIVE);
-		pmap_change_attr((vm_offset_t)rman_get_bushandle(sc->sc_rres[0]),
-		    rle->count, VM_MEMATTR_CACHEABLE);
 		if (sc->sc_rres[0] == NULL) {
 			device_printf(dev, "Could not allocate memory.\n");
 			return (ENXIO);

@@ -96,8 +96,12 @@ static struct bdinfo
     int		bd_flags;
     int		bd_type;		/* BIOS 'drive type' (floppy only) */
     int		bd_da_unit;		/* kernel unit number for da */
+    int		bd_open;		/* reference counter */
+    void	*bd_bcache;		/* buffer cache data */
 } bdinfo [MAXBDDEV];
 static int nbdinfo = 0;
+
+#define	BD(dev)	(bdinfo[(dev)->d_unit])
 
 static int	bd_getgeom(struct open_disk *od);
 static int	bd_read(struct open_disk *od, daddr_t dblk, int blks,
@@ -114,9 +118,9 @@ static void	bd_printbsdslice(struct open_disk *od, daddr_t offset,
 
 static int	bd_init(void);
 static int	bd_strategy(void *devdata, int flag, daddr_t dblk,
-		    size_t size, char *buf, size_t *rsize);
+		    size_t offset, size_t size, char *buf, size_t *rsize);
 static int	bd_realstrategy(void *devdata, int flag, daddr_t dblk,
-		    size_t size, char *buf, size_t *rsize);
+		    size_t offset, size_t size, char *buf, size_t *rsize);
 static int	bd_open(struct open_file *f, ...);
 static int	bd_close(struct open_file *f);
 static void	bd_print(int verbose);
@@ -176,6 +180,8 @@ bd_init(void)
     /* sequence 0x90, 0x80, 0xa0 */
     for (base = 0x90; base <= 0xa0; base += n, n += 0x30) {
 	for (unit = base; (nbdinfo < MAXBDDEV) || ((unit & 0x0f) < 4); unit++) {
+	    bdinfo[nbdinfo].bd_open = 0;
+	    bdinfo[nbdinfo].bd_bcache = NULL;
 	    bdinfo[nbdinfo].bd_unit = unit;
 	    bdinfo[nbdinfo].bd_flags = (unit & 0xf0) == 0x90 ? BD_FLOPPY : 0;
 
@@ -205,6 +211,7 @@ bd_init(void)
 	    nbdinfo++;
 	}
     }
+    bcache_add_dev(nbdinfo);
     return(0);
 }
 
@@ -427,6 +434,10 @@ bd_open(struct open_file *f, ...)
     if ((error = bd_opendisk(&od, dev)))
 	return(error);
     
+    BD(dev).bd_open++;
+    if (BD(dev).bd_bcache == NULL)
+	BD(dev).bd_bcache = bcache_allocate();
+
     /*
      * Save our context
      */
@@ -696,7 +707,14 @@ bd_bestslice(struct open_disk *od)
 static int 
 bd_close(struct open_file *f)
 {
-    struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)(f->f_devdata))->d_kind.biosdisk.data);
+    struct i386_devdesc		*dev = f->f_devdata;
+    struct open_disk	*od = (struct open_disk *)(dev->d_kind.biosdisk.data);
+
+    BD(dev).bd_open--;
+    if (BD(dev).bd_open == 0) {
+	bcache_free(BD(dev).bd_bcache);
+	BD(dev).bd_bcache = NULL;
+    }
 
     bd_closedisk(od);
     return(0);
@@ -715,18 +733,23 @@ bd_closedisk(struct open_disk *od)
 }
 
 static int 
-bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, size_t *rsize)
+bd_strategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
+    char *buf, size_t *rsize)
 {
     struct bcache_devdata	bcd;
-    struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)devdata)->d_kind.biosdisk.data);
+    struct i386_devdesc		*dev = devdata;
+    struct open_disk	*od = (struct open_disk *)(dev->d_kind.biosdisk.data);
 
     bcd.dv_strategy = bd_realstrategy;
     bcd.dv_devdata = devdata;
-    return(bcache_strategy(&bcd, od->od_unit, rw, dblk+od->od_boff, size, buf, rsize));
+    bcd.dv_cache = BD(dev).bd_bcache;
+    return(bcache_strategy(&bcd, rw, dblk+od->od_boff, offset,
+	size, buf, rsize));
 }
 
 static int 
-bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, size_t *rsize)
+bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t offset,
+    size_t size, char *buf, size_t *rsize)
 {
     struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)devdata)->d_kind.biosdisk.data);
     int			blks;

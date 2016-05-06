@@ -1,7 +1,9 @@
 # $FreeBSD$
 
+PACKAGE=	clibs
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
+CCDIR=	${.CURDIR}/../../usr.bin/cc
 COMPILERRTDIR=	${.CURDIR}/../../../contrib/compiler-rt
 UNWINDINCDIR=	${.CURDIR}/../../../contrib/llvm/projects/libunwind/include
 UNWINDSRCDIR=	${.CURDIR}/../../../contrib/llvm/projects/libunwind/src
@@ -16,7 +18,8 @@ SHLIBDIR?=	/lib
 #
 MK_SSP=	no
 
-.include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
+.include "${CCDIR}/Makefile.tgt"
+.include "${CCDIR}/cc_tools/Makefile.hdrs"
 
 .if ${TARGET_CPUARCH} == "arm"
 CFLAGS+=	-DTARGET_ARM_EABI
@@ -28,7 +31,7 @@ CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 		-DHAVE_GTHR_DEFAULT \
 		-I${GCCLIB}/include \
 		-I${GCCDIR}/config -I${GCCDIR} -I. \
-		-I${.CURDIR}/../../usr.bin/cc/cc_tools
+		-I${CCDIR}/cc_tools
 
 LDFLAGS+=	-nodefaultlibs
 LIBADD+=	c
@@ -338,13 +341,6 @@ ${_src:R:S/$/.So/}: ${_src} ${COMMONHDRS}
 	${CC_S} ${EH_CFLAGS} -o ${.TARGET} ${.IMPSRC}
 .endfor
 
-
-#-----------------------------------------------------------------------
-#
-# Generated headers
-#
-${COMMONHDRS}: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
-	(cd ${.CURDIR}; ${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET})
 
 CLEANFILES += ${COMMONHDRS}
 CLEANFILES += cs-*.h option*

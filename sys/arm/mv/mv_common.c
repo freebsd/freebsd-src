@@ -381,7 +381,7 @@ soc_id(uint32_t *dev, uint32_t *rev)
 	 * Notice: system identifiers are available in the registers range of
 	 * PCIE controller, so using this function is only allowed (and
 	 * possible) after the internal registers range has been mapped in via
-	 * arm_devmap_bootstrap().
+	 * devmap_bootstrap().
 	 */
 	*dev = bus_space_read_4(fdtbus_bs_tag, MV_PCIE_BASE, 0) >> 16;
 	*rev = bus_space_read_4(fdtbus_bs_tag, MV_PCIE_BASE, 8) & 0xff;
@@ -823,7 +823,7 @@ decode_win_cpu_valid(void)
 			continue;
 		}
 
-		if (b != (b & ~(s - 1))) {
+		if (b != rounddown2(b, s)) {
 			printf("CPU window#%d: address 0x%08x is not aligned "
 			    "to 0x%08x\n", i, b, s);
 			rv = 0;
@@ -1398,7 +1398,7 @@ decode_win_pcie_setup(u_long base)
 
 	/*
 	 * Upper 16 bits in BAR register is interpreted as BAR size
-	 * (in 64 kB units) plus 64kB, so substract 0x10000
+	 * (in 64 kB units) plus 64kB, so subtract 0x10000
 	 * form value passed to register to get correct value.
 	 */
 	size -= 0x10000;
@@ -2282,7 +2282,7 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 static int
 fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
     int *pol)

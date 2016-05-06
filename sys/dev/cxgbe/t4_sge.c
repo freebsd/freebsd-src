@@ -1726,7 +1726,8 @@ drain_wrq_wr_list(struct adapter *sc, struct sge_wrq *wrq)
 	MPASS(TAILQ_EMPTY(&wrq->incomplete_wrs));
 	wr = STAILQ_FIRST(&wrq->wr_list);
 	MPASS(wr != NULL);	/* Must be called with something useful to do */
-	dbdiff = IDXDIFF(eq->pidx, eq->dbidx, eq->sidx);
+	MPASS(eq->pidx == eq->dbidx);
+	dbdiff = 0;
 
 	do {
 		eq->cidx = read_hw_cidx(eq);
@@ -1738,7 +1739,7 @@ drain_wrq_wr_list(struct adapter *sc, struct sge_wrq *wrq)
 		MPASS(wr->wrq == wrq);
 		n = howmany(wr->wr_len, EQ_ESIZE);
 		if (available < n)
-			return;
+			break;
 
 		dst = (void *)&eq->desc[eq->pidx];
 		if (__predict_true(eq->sidx - eq->pidx > n)) {
@@ -3546,7 +3547,7 @@ ring_fl_db(struct adapter *sc, struct sge_fl *fl)
 }
 
 /*
- * Fills up the freelist by allocating upto 'n' buffers.  Buffers that are
+ * Fills up the freelist by allocating up to 'n' buffers.  Buffers that are
  * recycled do not count towards this allocation budget.
  *
  * Returns non-zero to indicate that this freelist should be added to the list
@@ -3568,7 +3569,7 @@ refill_fl(struct adapter *sc, struct sge_fl *fl, int n)
 	FL_LOCK_ASSERT_OWNED(fl);
 
 	/*
-	 * We always stop at the begining of the hardware descriptor that's just
+	 * We always stop at the beginning of the hardware descriptor that's just
 	 * before the one with the hw cidx.  This is to avoid hw pidx = hw cidx,
 	 * which would mean an empty freelist to the chip.
 	 */

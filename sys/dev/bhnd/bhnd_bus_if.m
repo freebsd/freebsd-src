@@ -52,7 +52,25 @@ CODE {
 	static struct bhnd_chipid *
 	bhnd_bus_null_get_chipid(device_t dev, device_t child)
 	{
-		panic("bhnd_get_chipid unimplemented");
+		panic("bhnd_bus_get_chipid unimplemented");
+	}
+	
+	static bool
+	bhnd_bus_null_is_hostb_device(device_t dev, device_t child)
+	{
+		panic("bhnd_bus_is_hostb_device unimplemented");
+	}
+
+	static bool
+	bhnd_bus_null_is_hw_disabled(device_t dev, device_t child)
+	{
+		panic("bhnd_bus_is_hw_disabled unimplemented");
+	}
+	
+	static int
+	bhnd_bus_null_get_probe_order(device_t dev, device_t child)
+	{
+		panic("bhnd_bus_get_probe_order unimplemented");
 	}
 
 	static int
@@ -68,7 +86,7 @@ CODE {
 	{
 		return (ENOENT);
 	}
-	
+
 	static int
 	bhnd_bus_null_get_region_addr(device_t dev, device_t child, 
 	    bhnd_port_type type, u_int port, u_int region, bhnd_addr_t *addr,
@@ -83,6 +101,7 @@ CODE {
 	{
 		return (ENOENT);
 	}
+
 }
 
 /**
@@ -98,7 +117,7 @@ CODE {
 METHOD bool is_hostb_device {
 	device_t dev;
 	device_t child;
-} DEFAULT bhnd_generic_is_hostb_device;
+} DEFAULT bhnd_bus_null_is_hostb_device;
 
 /**
  * Return true if the hardware components required by @p child are unpopulated
@@ -115,7 +134,7 @@ METHOD bool is_hostb_device {
 METHOD bool is_hw_disabled {
 	device_t dev;
 	device_t child;
-} DEFAULT bhnd_generic_is_hw_disabled;
+} DEFAULT bhnd_bus_null_is_hw_disabled;
 
 /**
  * Return the probe (and attach) order for @p child. 
@@ -147,7 +166,7 @@ METHOD bool is_hw_disabled {
 METHOD int get_probe_order {
 	device_t dev;
 	device_t child;
-} DEFAULT bhnd_generic_get_probe_order;
+} DEFAULT bhnd_bus_null_get_probe_order;
 
 /**
  * Return the BHND chip identification for the parent bus.
@@ -205,7 +224,7 @@ METHOD struct bhnd_resource * alloc_resource {
 	rman_res_t end;
 	rman_res_t count;
 	u_int flags;
-} DEFAULT bhnd_generic_alloc_bhnd_resource;
+} DEFAULT bhnd_bus_generic_alloc_resource;
 
 /**
  * Release a bhnd resource.
@@ -219,7 +238,7 @@ METHOD int release_resource {
 	int type;
 	int rid;
 	struct bhnd_resource *res;
-} DEFAULT bhnd_generic_release_bhnd_resource;
+} DEFAULT bhnd_bus_generic_release_resource;
 
 /**
  * Activate a bhnd resource.
@@ -233,7 +252,7 @@ METHOD int activate_resource {
 	int type;
         int rid;
         struct bhnd_resource *r;
-} DEFAULT bhnd_generic_activate_bhnd_resource;
+} DEFAULT bhnd_bus_generic_activate_resource;
 
 /**
  * Deactivate a bhnd resource.
@@ -247,7 +266,7 @@ METHOD int deactivate_resource {
         int type;
 	int rid;
         struct bhnd_resource *r;
-} DEFAULT bhnd_generic_deactivate_bhnd_resource;
+} DEFAULT bhnd_bus_generic_deactivate_resource;
 
 /**
  * Return true if @p region_num is a valid region on @p port_num of
@@ -259,13 +278,13 @@ METHOD int deactivate_resource {
  * @param port_num The port number being queried.
  * @param region_num The region number being queried.
  */
-METHOD u_int is_region_valid {
+METHOD bool is_region_valid {
 	device_t dev;
 	device_t child;
 	bhnd_port_type type;
 	u_int port_num;
 	u_int region_num;
-} DEFAULT bhnd_generic_is_region_valid;
+};
 
 /**
  * Return the number of ports of type @p type attached to @p child.
@@ -278,7 +297,7 @@ METHOD u_int get_port_count {
 	device_t dev;
 	device_t child;
 	bhnd_port_type type;
-}
+};
 
 /**
  * Return the number of memory regions mapped to @p child @p port of
@@ -294,7 +313,7 @@ METHOD u_int get_region_count {
 	device_t child;
 	bhnd_port_type type;
 	u_int port;
-}
+};
 
 /**
  * Return the SYS_RES_MEMORY resource-ID for a port/region pair attached to

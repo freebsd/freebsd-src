@@ -664,7 +664,7 @@ static int
 nm_pci_attach(device_t dev)
 {
 	struct sc_info *sc;
-	struct ac97_info *codec = 0;
+	struct ac97_info *codec = NULL;
 	char 		status[SND_STATUSLEN];
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);

@@ -80,7 +80,6 @@ struct cdevsw firewire_cdevsw = {
 	.d_mmap =	fw_mmap,
 	.d_strategy =	fw_strategy,
 	.d_name =	"fw",
-	.d_flags =	D_MEM
 };
 
 struct fw_drv1 {
@@ -350,7 +349,7 @@ readloop:
 		}
 	}
 	if (ir->stproc == NULL) {
-		/* no data avaliable */
+		/* no data available */
 		if (slept == 0) {
 			slept = 1;
 			ir->flag |= FWXFERQ_WAKEUP;

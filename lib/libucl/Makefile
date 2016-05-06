@@ -2,6 +2,7 @@
 
 LIBUCL=	${.CURDIR}/../../contrib/libucl
 
+PACKAGE=lib${LIB}
 LIB=		ucl
 PRIVATELIB=	true
 SHLIB_MAJOR=	1

@@ -1283,7 +1283,7 @@ vm_page_next(vm_page_t m)
 {
 	vm_page_t next;
 
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	VM_OBJECT_ASSERT_LOCKED(m->object);
 	if ((next = TAILQ_NEXT(m, listq)) != NULL &&
 	    next->pindex != m->pindex + 1)
 		next = NULL;
@@ -1301,7 +1301,7 @@ vm_page_prev(vm_page_t m)
 {
 	vm_page_t prev;
 
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	VM_OBJECT_ASSERT_LOCKED(m->object);
 	if ((prev = TAILQ_PREV(m, pglist, listq)) != NULL &&
 	    prev->pindex != m->pindex - 1)
 		prev = NULL;
@@ -2157,8 +2157,8 @@ vm_page_scan_contig(u_long npages, vm_page_t m_start, vm_page_t m_end,
 				m_inc = atop(roundup2(pa, alignment) - pa);
 				continue;
 			}
-			if (((pa ^ (pa + ptoa(npages) - 1)) & ~(boundary -
-			    1)) != 0) {
+			if (rounddown2(pa ^ (pa + ptoa(npages) - 1),
+			    boundary) != 0) {
 				m_inc = atop(roundup2(pa, boundary) - pa);
 				continue;
 			}
@@ -3495,7 +3495,7 @@ vm_page_set_valid_range(vm_page_t m, int base, int size)
 	 * bit is clear, we have to zero out a portion of the
 	 * first block.
 	 */
-	if ((frag = base & ~(DEV_BSIZE - 1)) != base &&
+	if ((frag = rounddown2(base, DEV_BSIZE)) != base &&
 	    (m->valid & (1 << (base >> DEV_BSHIFT))) == 0)
 		pmap_zero_page_area(m, frag, base - frag);
 
@@ -3505,7 +3505,7 @@ vm_page_set_valid_range(vm_page_t m, int base, int size)
 	 * the last block.
 	 */
 	endoff = base + size;
-	if ((frag = endoff & ~(DEV_BSIZE - 1)) != endoff &&
+	if ((frag = rounddown2(endoff, DEV_BSIZE)) != endoff &&
 	    (m->valid & (1 << (endoff >> DEV_BSHIFT))) == 0)
 		pmap_zero_page_area(m, endoff,
 		    DEV_BSIZE - (endoff & (DEV_BSIZE - 1)));
@@ -3602,7 +3602,7 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	 * bit is clear, we have to zero out a portion of the
 	 * first block.
 	 */
-	if ((frag = base & ~(DEV_BSIZE - 1)) != base &&
+	if ((frag = rounddown2(base, DEV_BSIZE)) != base &&
 	    (m->valid & ((vm_page_bits_t)1 << (base >> DEV_BSHIFT))) == 0)
 		pmap_zero_page_area(m, frag, base - frag);
 
@@ -3612,7 +3612,7 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	 * the last block.
 	 */
 	endoff = base + size;
-	if ((frag = endoff & ~(DEV_BSIZE - 1)) != endoff &&
+	if ((frag = rounddown2(endoff, DEV_BSIZE)) != endoff &&
 	    (m->valid & ((vm_page_bits_t)1 << (endoff >> DEV_BSHIFT))) == 0)
 		pmap_zero_page_area(m, endoff,
 		    DEV_BSIZE - (endoff & (DEV_BSIZE - 1)));

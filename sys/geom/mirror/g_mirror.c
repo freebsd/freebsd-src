@@ -1048,7 +1048,7 @@ g_mirror_kernel_dump(struct bio *bp)
 	/*
 	 * We configure dumping to the first component, because this component
 	 * will be used for reading with 'prefer' balance algorithm.
-	 * If the component with the higest priority is currently disconnected
+	 * If the component with the highest priority is currently disconnected
 	 * we will not be able to read the dump after the reboot if it will be
 	 * connected and synchronized later. Can we do something better?
 	 */
@@ -1160,7 +1160,7 @@ g_mirror_sync_collision(struct g_mirror_softc *sc, struct bio *bp)
 	struct g_mirror_disk *disk;
 	struct bio *sbp;
 	off_t rstart, rend, sstart, send;
-	int i;
+	u_int i;
 
 	if (sc->sc_sync.ds_ndisks == 0)
 		return (0);
@@ -1277,7 +1277,7 @@ g_mirror_sync_release(struct g_mirror_softc *sc)
  * Handle synchronization requests.
  * Every synchronization request is two-steps process: first, READ request is
  * send to active provider and then WRITE request (with read data) to the provider
- * beeing synchronized. When WRITE is finished, new synchronization request is
+ * being synchronized. When WRITE is finished, new synchronization request is
  * send.
  */
 static void
@@ -1905,7 +1905,7 @@ g_mirror_worker(void *arg)
 				g_mirror_sync_request(bp);	/* WRITE */
 			else {
 				KASSERT(0,
-				    ("Invalid request cflags=0x%hhx to=%s.",
+				    ("Invalid request cflags=0x%hx to=%s.",
 				    bp->bio_cflags, bp->bio_to->name));
 			}
 		} else {

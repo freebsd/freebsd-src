@@ -68,7 +68,7 @@ netfinger(char *name)
 	static struct addrinfo hint;
 
 	host = strrchr(name, '@');
-	if (host == 0)
+	if (host == NULL)
 		return;
 	*host++ = '\0';
 	signal(SIGALRM, cleanup);
@@ -92,7 +92,7 @@ netfinger(char *name)
 	else
 		printf("[%s]\n", ai0->ai_canonname);
 
-	for (ai = ai0; ai != 0; ai = ai->ai_next) {
+	for (ai = ai0; ai != NULL; ai = ai->ai_next) {
 		if (multi)
 			trying(ai);
 

@@ -285,12 +285,12 @@ setup_merge_headers(serf_bucket_t *headers,
   return SVN_NO_ERROR;
 }
 
-static void
-merge_lock_token_list(apr_hash_t *lock_tokens,
-                      const char *parent,
-                      serf_bucket_t *body,
-                      serf_bucket_alloc_t *alloc,
-                      apr_pool_t *pool)
+void
+svn_ra_serf__merge_lock_token_list(apr_hash_t *lock_tokens,
+                                   const char *parent,
+                                   serf_bucket_t *body,
+                                   serf_bucket_alloc_t *alloc,
+                                   apr_pool_t *pool)
 {
   apr_hash_index_t *hi;
 
@@ -378,7 +378,8 @@ create_merge_body(serf_bucket_t **bkt,
                                      "D:creator-displayname", SVN_VA_NULL);
   svn_ra_serf__add_close_tag_buckets(body_bkt, alloc, "D:prop");
 
-  merge_lock_token_list(ctx->lock_tokens, NULL, body_bkt, alloc, pool);
+  svn_ra_serf__merge_lock_token_list(ctx->lock_tokens, NULL, body_bkt,
+                                     alloc, pool);
 
   svn_ra_serf__add_close_tag_buckets(body_bkt, alloc, "D:merge");
 
@@ -426,6 +427,7 @@ svn_ra_serf__run_merge(const svn_commit_info_t **commit_info,
   handler->path = merge_ctx->merge_url;
   handler->body_delegate = create_merge_body;
   handler->body_delegate_baton = merge_ctx;
+  handler->body_type = "text/xml";
 
   handler->header_delegate = setup_merge_headers;
   handler->header_delegate_baton = merge_ctx;

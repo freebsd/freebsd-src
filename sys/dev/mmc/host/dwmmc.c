@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #define	WRITE4(_sc, _reg, _val) \
 	bus_write_4((_sc)->res[0], _reg, _val)
 
-#define	DIV_ROUND_UP(n, d)		(((n) + (d) - 1) / (d))
+#define	DIV_ROUND_UP(n, d)		howmany(n, d)
 
 #define	DWMMC_LOCK(_sc)			mtx_lock(&(_sc)->sc_mtx)
 #define	DWMMC_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
@@ -191,7 +191,7 @@ dwmmc_ctrl_reset(struct dwmmc_softc *sc, int reset_bits)
 		if (!(READ4(sc, SDMMC_CTRL) & reset_bits))
 			return (0);
 		DELAY(10);
-	};
+	}
 
 	device_printf(sc->dev, "Reset failed\n");
 

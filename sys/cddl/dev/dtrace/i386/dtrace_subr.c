@@ -49,30 +49,30 @@ extern uintptr_t 	kernelbase;
 
 extern void dtrace_getnanotime(struct timespec *tsp);
 
-int dtrace_invop(uintptr_t, uintptr_t *, uintptr_t);
+int dtrace_invop(uintptr_t, struct trapframe *, uintptr_t);
 
 typedef struct dtrace_invop_hdlr {
-	int (*dtih_func)(uintptr_t, uintptr_t *, uintptr_t);
+	int (*dtih_func)(uintptr_t, struct trapframe *, uintptr_t);
 	struct dtrace_invop_hdlr *dtih_next;
 } dtrace_invop_hdlr_t;
 
 dtrace_invop_hdlr_t *dtrace_invop_hdlr;
 
 int
-dtrace_invop(uintptr_t addr, uintptr_t *stack, uintptr_t eax)
+dtrace_invop(uintptr_t addr, struct trapframe *frame, uintptr_t eax)
 {
 	dtrace_invop_hdlr_t *hdlr;
 	int rval;
 
 	for (hdlr = dtrace_invop_hdlr; hdlr != NULL; hdlr = hdlr->dtih_next)
-		if ((rval = hdlr->dtih_func(addr, stack, eax)) != 0)
+		if ((rval = hdlr->dtih_func(addr, frame, eax)) != 0)
 			return (rval);
 
 	return (0);
 }
 
 void
-dtrace_invop_add(int (*func)(uintptr_t, uintptr_t *, uintptr_t))
+dtrace_invop_add(int (*func)(uintptr_t, struct trapframe *, uintptr_t))
 {
 	dtrace_invop_hdlr_t *hdlr;
 
@@ -83,7 +83,7 @@ dtrace_invop_add(int (*func)(uintptr_t, uintptr_t *, uintptr_t))
 }
 
 void
-dtrace_invop_remove(int (*func)(uintptr_t, uintptr_t *, uintptr_t))
+dtrace_invop_remove(int (*func)(uintptr_t, struct trapframe *, uintptr_t))
 {
 	dtrace_invop_hdlr_t *hdlr = dtrace_invop_hdlr, *prev = NULL;
 
@@ -248,6 +248,46 @@ static uint64_t	nsec_scale;
 /* See below for the explanation of this macro. */
 #define SCALE_SHIFT	28
 
+/*
+ * Get the frequency and scale factor as early as possible so that they can be
+ * used for boot-time tracing.
+ */
+static void
+dtrace_gethrtime_init_early(void *arg)
+{
+	uint64_t tsc_f;
+
+	/*
+	 * Get TSC frequency known at this moment.
+	 * This should be constant if TSC is invariant.
+	 * Otherwise tick->time conversion will be inaccurate, but
+	 * will preserve monotonic property of TSC.
+	 */
+	tsc_f = atomic_load_acq_64(&tsc_freq);
+
+	/*
+	 * The following line checks that nsec_scale calculated below
+	 * doesn't overflow 32-bit unsigned integer, so that it can multiply
+	 * another 32-bit integer without overflowing 64-bit.
+	 * Thus minimum supported TSC frequency is 62.5MHz.
+	 */
+	KASSERT(tsc_f > (NANOSEC >> (32 - SCALE_SHIFT)),
+	    ("TSC frequency is too low"));
+
+	/*
+	 * We scale up NANOSEC/tsc_f ratio to preserve as much precision
+	 * as possible.
+	 * 2^28 factor was chosen quite arbitrarily from practical
+	 * considerations:
+	 * - it supports TSC frequencies as low as 62.5MHz (see above);
+	 * - it provides quite good precision (e < 0.01%) up to THz
+	 *   (terahertz) values;
+	 */
+	nsec_scale = ((uint64_t)NANOSEC << SCALE_SHIFT) / tsc_f;
+}
+SYSINIT(dtrace_gethrtime_init_early, SI_SUB_CPU, SI_ORDER_ANY,
+    dtrace_gethrtime_init_early, NULL);
+
 static void
 dtrace_gethrtime_init_cpu(void *arg)
 {
@@ -264,35 +304,7 @@ dtrace_gethrtime_init(void *arg)
 {
 	cpuset_t map;
 	struct pcpu *pc;
-	uint64_t tsc_f;
 	int i;
-
-	/*
-	 * Get TSC frequency known at this moment.
-	 * This should be constant if TSC is invariant.
-	 * Otherwise tick->time conversion will be inaccurate, but
-	 * will preserve monotonic property of TSC.
-	 */
-	tsc_f = atomic_load_acq_64(&tsc_freq);
-
-	/*
-	 * The following line checks that nsec_scale calculated below
-	 * doesn't overflow 32-bit unsigned integer, so that it can multiply
-	 * another 32-bit integer without overflowing 64-bit.
-	 * Thus minimum supported TSC frequency is 62.5MHz.
-	 */
-	KASSERT(tsc_f > (NANOSEC >> (32 - SCALE_SHIFT)), ("TSC frequency is too low"));
-
-	/*
-	 * We scale up NANOSEC/tsc_f ratio to preserve as much precision
-	 * as possible.
-	 * 2^28 factor was chosen quite arbitrarily from practical
-	 * considerations:
-	 * - it supports TSC frequencies as low as 62.5MHz (see above);
-	 * - it provides quite good precision (e < 0.01%) up to THz
-	 *   (terahertz) values;
-	 */
-	nsec_scale = ((uint64_t)NANOSEC << SCALE_SHIFT) / tsc_f;
 
 	/* The current CPU is the reference one. */
 	sched_pin();
@@ -313,8 +325,8 @@ dtrace_gethrtime_init(void *arg)
 	}
 	sched_unpin();
 }
-
-SYSINIT(dtrace_gethrtime_init, SI_SUB_SMP, SI_ORDER_ANY, dtrace_gethrtime_init, NULL);
+SYSINIT(dtrace_gethrtime_init, SI_SUB_SMP, SI_ORDER_ANY, dtrace_gethrtime_init,
+    NULL);
 
 /*
  * DTrace needs a high resolution time function which can

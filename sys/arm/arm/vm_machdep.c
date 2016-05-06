@@ -148,7 +148,7 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
-	td2->td_md.md_saved_cspr = PSR_SVC32_MODE;;
+	td2->td_md.md_saved_cspr = PSR_SVC32_MODE;
 #if __ARM_ARCH >= 6
 	td2->td_md.md_tp = td1->td_md.md_tp;
 #else

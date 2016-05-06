@@ -779,7 +779,7 @@ hdaa_sense_init(struct hdaa_devinfo *devinfo)
 					    (w->unsol < 0) ? "polling" :
 					    "unsolicited responses");
 				);
-			};
+			}
 		}
 		hdaa_presence_handler(w);
 		if (!HDA_PARAM_PIN_CAP_DP(w->wclass.pin.cap) &&
@@ -847,7 +847,7 @@ hdaa_widget_pin_patch(uint32_t config, const char *str)
 			if (bad[0] == 0) {
 				config |= ((ival << HDA_CONFIG_DEFAULTCONF_COLOR_SHIFT) &
 				    HDA_CONFIG_DEFAULTCONF_COLOR_MASK);
-			};
+			}
 			for (i = 0; i < 16; i++) {
 				if (strcasecmp(HDA_COLORS[i], value) == 0) {
 					config |= (i << HDA_CONFIG_DEFAULTCONF_COLOR_SHIFT);
@@ -872,7 +872,7 @@ hdaa_widget_pin_patch(uint32_t config, const char *str)
 				config |= ((ival << HDA_CONFIG_DEFAULTCONF_DEVICE_SHIFT) &
 				    HDA_CONFIG_DEFAULTCONF_DEVICE_MASK);
 				continue;
-			};
+			}
 			for (i = 0; i < 16; i++) {
 				if (strcasecmp(HDA_DEVS[i], value) == 0) {
 					config |= (i << HDA_CONFIG_DEFAULTCONF_DEVICE_SHIFT);
@@ -898,7 +898,7 @@ hdaa_widget_pin_patch(uint32_t config, const char *str)
 				config |= ((ival << HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_SHIFT) &
 				    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
 				continue;
-			};
+			}
 			for (i = 0; i < 4; i++) {
 				if (strcasecmp(HDA_CONNS[i], value) == 0) {
 					config |= (i << HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_SHIFT);

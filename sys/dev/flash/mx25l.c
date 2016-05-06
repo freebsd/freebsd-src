@@ -189,7 +189,7 @@ mx25l_get_device_ident(struct mx25l_softc *sc)
 	dev_id = (rxBuf[2] << 8) | (rxBuf[3]);
 
 	for (i = 0; 
-	    i < sizeof(flash_devices)/sizeof(struct mx25l_flash_ident); i++) {
+	    i < nitems(flash_devices); i++) {
 		if ((flash_devices[i].manufacturer_id == manufacturer_id) &&
 		    (flash_devices[i].device_id == dev_id))
 			return &flash_devices[i];
@@ -432,15 +432,37 @@ mx25l_set_4b_mode(device_t dev, uint8_t command)
 	return (err);
 }
 
+#ifdef	FDT
+static struct ofw_compat_data compat_data[] = {
+	{ "st,m25p",		1 },
+	{ "jedec,spi-nor",	1 },
+	{ NULL,			0 },
+};
+#endif
+
 static int
 mx25l_probe(device_t dev)
 {
-
 #ifdef FDT
+	int i;
+
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
-	if (!ofw_bus_is_compatible(dev, "st,m25p"))
-		return (ENXIO);
+
+	/* First try to match the compatible property to the compat_data */
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 1)
+		goto found;
+
+	/*
+	 * Next, try to find a compatible device using the names in the
+	 * flash_devices structure
+	 */
+	for (i = 0; i < nitems(flash_devices); i++)
+		if (ofw_bus_is_compatible(dev, flash_devices[i].name))
+			goto found;
+
+	return (ENXIO);
+found:
 #endif
 	device_set_desc(dev, "M25Pxx Flash Family");
 

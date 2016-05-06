@@ -381,7 +381,7 @@ printf("emsgsize\n");
 			break;
 		default:
 			stat = RPC_CANTRECV;
-		};
+		}
 		errp->re_status = stat;
 		goto out;
 	} else {
@@ -431,7 +431,7 @@ got_reply:
 			}
 		}		/* end successful completion */
 		/*
-		 * If unsuccesful AND error is an authentication error
+		 * If unsuccessful AND error is an authentication error
 		 * then refresh credentials and try again, else break
 		 */
 		else if (stat == RPC_AUTHERROR)

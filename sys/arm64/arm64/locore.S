@@ -37,6 +37,7 @@
 #include <machine/vmparam.h>
 
 #define	VIRT_BITS	48
+#define	DMAP_TABLES	((DMAP_MAX_ADDRESS - DMAP_MIN_ADDRESS) >> L0_SHIFT)
 
 	.globl	kernbase
 	.set	kernbase, KERNBASE
@@ -322,10 +323,12 @@ virt_map:
  * TODO: This is out of date.
  *  There are at least 5 pages before that address for the page tables
  *   The pages used are:
- *    - The identity (PA = VA) table (TTBR0)
- *    - The Kernel L1 table          (TTBR1)(not yet)
- *    -  The PA != VA L2 table to jump into (not yet)
- *    -  The FDT L2 table                   (not yet)
+ *    - The Kernel L2 table
+ *    - The Kernel L1 table
+ *    - The Kernel L0 table             (TTBR1)
+ *    - The identity (PA = VA) L1 table
+ *    - The identity (PA = VA) L0 table (TTBR0)
+ *    - The DMAP L1 tables
  */
 create_pagetables:
 	/* Save the Link register */
@@ -379,6 +382,12 @@ create_pagetables:
 	mov	x9, x6
 	mov	x6, x24
 	mov	x10, #1
+	bl	link_l0_pagetable
+
+	/* Link the DMAP tables */
+	ldr	x8, =DMAP_MIN_ADDRESS
+	adr	x9, pagetable_dmap;
+	mov	x10, #DMAP_TABLES
 	bl	link_l0_pagetable
 
 	/*
@@ -644,6 +653,10 @@ pagetable_l1_ttbr0:
 	.space	PAGE_SIZE
 pagetable_l0_ttbr0:
 	.space	PAGE_SIZE
+
+	.globl pagetable_dmap
+pagetable_dmap:
+	.space	PAGE_SIZE * DMAP_TABLES
 pagetable_end:
 
 el2_pagetable:

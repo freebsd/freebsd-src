@@ -36,7 +36,7 @@
  *
  * machdep.c
  *
- * Machine dependant functions for kernel setup
+ * Machine dependent functions for kernel setup
  *
  * This file needs a lot of work.
  *
@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/kdb.h>
 #include <sys/msgbuf.h>
+#include <sys/devmap.h>
 #include <machine/physmem.h>
 #include <machine/reg.h>
 #include <machine/cpu.h>
@@ -81,7 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
-#include <machine/devmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
@@ -117,7 +117,7 @@ __FBSDID("$FreeBSD$");
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 /* Static device mappings. */
-const struct arm_devmap_entry at91_devmap[] = {
+const struct devmap_entry at91_devmap[] = {
 	/*
 	 * Map the critical on-board devices. The interrupt vector at
 	 * 0xffff0000 makes it impossible to map them PA == VA, so we map all
@@ -515,9 +515,9 @@ initarm(struct arm_boot_params *abp)
 		pmap_link_l2pt(l1pagetable, KERNBASE + i * L1_S_SIZE,
 		    &kernel_pt_table[KERNEL_PT_KERN + i]);
 	pmap_map_chunk(l1pagetable, KERNBASE, PHYSADDR,
-	   (((uint32_t)lastaddr - KERNBASE) + PAGE_SIZE) & ~(PAGE_SIZE - 1),
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	afterkern = round_page((lastaddr + L1_S_SIZE) & ~(L1_S_SIZE - 1));
+	   rounddown2(((uint32_t)lastaddr - KERNBASE) + PAGE_SIZE, PAGE_SIZE),
+	   VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+	afterkern = round_page(rounddown2(lastaddr + L1_S_SIZE, L1_S_SIZE));
 	for (i = 0; i < KERNEL_PT_AFKERNEL_NUM; i++) {
 		pmap_link_l2pt(l1pagetable, afterkern + i * L1_S_SIZE,
 		    &kernel_pt_table[KERNEL_PT_AFKERNEL + i]);
@@ -552,7 +552,7 @@ initarm(struct arm_boot_params *abp)
 		    VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 	}
 
-	arm_devmap_bootstrap(l1pagetable, at91_devmap);
+	devmap_bootstrap(l1pagetable, at91_devmap);
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	cpu_setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();

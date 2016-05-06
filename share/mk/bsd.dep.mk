@@ -54,6 +54,9 @@ HTAGSFLAGS?=
 .MAKE.DEPENDFILE= ${DEPENDFILE}
 .endif
 CLEANDEPENDFILES+=	${DEPENDFILE} ${DEPENDFILE}.*
+.if ${MK_META_MODE} == "yes"
+CLEANDEPENDFILES+=	*.meta
+.endif
 
 # Keep `tags' here, before SRCS are mangled below for `depend'.
 .if !target(tags) && defined(SRCS) && !defined(NO_TAGS)
@@ -174,7 +177,7 @@ DEPEND_CFLAGS+=	-MT${.TARGET}
 .if defined(.PARSEDIR)
 # Only add in DEPEND_CFLAGS for CFLAGS on files we expect from DEPENDOBJS
 # as those are the only ones we will include.
-DEPEND_CFLAGS_CONDITION= !empty(DEPENDOBJS:M${.TARGET:${DEPEND_FILTER}})
+DEPEND_CFLAGS_CONDITION= "${DEPENDOBJS:M${.TARGET:${DEPEND_FILTER}}}" != ""
 CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
 .else
 CFLAGS+=	${DEPEND_CFLAGS}
@@ -235,7 +238,7 @@ DPSRCS+= ${SRCS}
 # beforedepend/_EXTRADEPEND/afterdepend.  The target is kept
 # to allow 'make depend' to generate files.
 ${DEPENDFILE}: ${DPSRCS}
-.if exists(${.OBJDIR}/${DEPENDFILE})
+.if !empty(.MAKE.MODE:Mmeta) || exists(${.OBJDIR}/${DEPENDFILE})
 	rm -f ${DEPENDFILE}
 .endif
 .if target(_EXTRADEPEND)

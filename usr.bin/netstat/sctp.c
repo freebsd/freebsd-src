@@ -128,7 +128,7 @@ inetname(struct in_addr *inp)
 			if (np)
 				cp = np->n_name;
 		}
-		if (cp == 0) {
+		if (cp == NULL) {
 			hp = gethostbyaddr((char *)inp, sizeof (*inp), AF_INET);
 			if (hp) {
 				cp = hp->h_name;
@@ -349,7 +349,7 @@ sctp_process_tcb(struct xsctp_tcb *xstcb,
 	xo_open_list("address");
 	xl = LIST_FIRST(&xladdr_head);
 	xr = LIST_FIRST(&xraddr_head);
-	x_max = (xl_total > xr_total) ? xl_total : xr_total;
+	x_max = MAX(xl_total, xr_total);
 	for (i = 0; i < x_max; i++) {
 		xo_open_instance("address");
 
@@ -586,7 +586,7 @@ sctp_protopr(u_long off __unused,
 			xo_warn("sysctl: %s", mibvar);
 		return;
 	}
-	if ((buf = malloc(len)) == 0) {
+	if ((buf = malloc(len)) == NULL) {
 		xo_warnx("malloc %lu bytes", (u_long)len);
 		return;
 	}

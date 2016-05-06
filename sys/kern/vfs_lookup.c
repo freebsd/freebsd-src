@@ -486,7 +486,7 @@ int
 lookup(struct nameidata *ndp)
 {
 	char *cp;		/* pointer into pathname argument */
-	struct vnode *dp = 0;	/* the directory we are searching */
+	struct vnode *dp = NULL;	/* the directory we are searching */
 	struct vnode *tdp;		/* saved dp */
 	struct mount *mp;		/* mount table entry */
 	struct prison *pr;
@@ -949,7 +949,7 @@ bad:
 int
 relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 {
-	struct vnode *dp = 0;		/* the directory we are searching */
+	struct vnode *dp = NULL;		/* the directory we are searching */
 	int wantparent;			/* 1 => wantparent or lockparent flag */
 	int rdonly;			/* lookup read-only flag bit */
 	int error = 0;
@@ -1154,7 +1154,7 @@ NDFREE(struct nameidata *ndp, const u_int flags)
  * Determine if there is a suitable alternate filename under the specified
  * prefix for the specified path.  If the create flag is set, then the
  * alternate prefix will be used so long as the parent directory exists.
- * This is used by the various compatiblity ABIs so that Linux binaries prefer
+ * This is used by the various compatibility ABIs so that Linux binaries prefer
  * files under /compat/linux for example.  The chosen path (whether under
  * the prefix or under /) is returned in a kernel malloc'd buffer pointed
  * to by pathbuf.  The caller is responsible for free'ing the buffer from

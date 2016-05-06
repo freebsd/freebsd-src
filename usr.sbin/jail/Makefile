@@ -8,6 +8,8 @@ SRCS=	jail.c command.c config.c state.c jailp.h jaillex.l jailparse.y y.tab.h
 
 LIBADD=	jail kvm util l
 
+PACKAGE=jail
+
 NO_WMISSING_VARIABLE_DECLARATIONS=
 
 YFLAGS+=-v

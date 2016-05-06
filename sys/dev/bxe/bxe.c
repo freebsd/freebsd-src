@@ -487,7 +487,9 @@ static const struct {
     { STATS_OFFSET32(mbuf_alloc_sge),
                 4, STATS_FLAGS_FUNC, "mbuf_alloc_sge"},
     { STATS_OFFSET32(mbuf_alloc_tpa),
-                4, STATS_FLAGS_FUNC, "mbuf_alloc_tpa"}
+                4, STATS_FLAGS_FUNC, "mbuf_alloc_tpa"},
+    { STATS_OFFSET32(tx_queue_full_return),
+                4, STATS_FLAGS_FUNC, "tx_queue_full_return"}
 };
 
 static const struct {
@@ -598,7 +600,9 @@ static const struct {
     { Q_STATS_OFFSET32(mbuf_alloc_sge),
                 4, "mbuf_alloc_sge"},
     { Q_STATS_OFFSET32(mbuf_alloc_tpa),
-                4, "mbuf_alloc_tpa"}
+                4, "mbuf_alloc_tpa"},
+    { Q_STATS_OFFSET32(tx_queue_full_return),
+                4, "tx_queue_full_return"}
 };
 
 #define BXE_NUM_ETH_STATS   ARRAY_SIZE(bxe_eth_stats_arr)
@@ -668,7 +672,6 @@ static void bxe_handle_fp_tq(void *context, int pending);
 
 static int bxe_add_cdev(struct bxe_softc *sc);
 static void bxe_del_cdev(struct bxe_softc *sc);
-static int bxe_grc_dump(struct bxe_softc *sc);
 static int bxe_alloc_buf_rings(struct bxe_softc *sc);
 static void bxe_free_buf_rings(struct bxe_softc *sc);
 
@@ -1620,7 +1623,7 @@ bxe_read_dmae(struct bxe_softc *sc,
     /* issue the command and wait for completion */
     if ((rc = bxe_issue_dmae_with_comp(sc, &dmae)) != 0) {
         bxe_panic(sc, ("DMAE failed (%d)\n", rc));
-    };
+    }
 }
 
 void
@@ -2218,7 +2221,7 @@ storm_memset_eq_prod(struct bxe_softc *sc,
 /*
  * Post a slowpath command.
  *
- * A slowpath command is used to propogate a configuration change through
+ * A slowpath command is used to propagate a configuration change through
  * the controller in a controlled manner, allowing each STORM processor and
  * other H/W blocks to phase in the change.  The commands sent on the
  * slowpath are referred to as ramrods.  Depending on the ramrod used the
@@ -3445,6 +3448,10 @@ bxe_watchdog(struct bxe_softc    *sc,
     }
 
     BLOGE(sc, "TX watchdog timeout on fp[%02d], resetting!\n", fp->index);
+    if(sc->trigger_grcdump) {
+         /* taking grcdump */
+         bxe_grc_dump(sc);
+    }
 
     BXE_FP_TX_UNLOCK(fp);
 
@@ -4241,7 +4248,7 @@ bxe_nic_unload(struct bxe_softc *sc,
 
     /*
      * Nothing to do during unload if previous bxe_nic_load()
-     * did not completed succesfully - all resourses are released.
+     * did not completed successfully - all resourses are released.
      */
     if ((sc->state == BXE_STATE_CLOSED) ||
         (sc->state == BXE_STATE_ERROR)) {
@@ -4422,115 +4429,6 @@ bxe_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
     }
 }
 
-static int
-bxe_ioctl_nvram(struct bxe_softc *sc,
-                uint32_t         priv_op,
-                struct ifreq     *ifr)
-{
-    struct bxe_nvram_data nvdata_base;
-    struct bxe_nvram_data *nvdata;
-    int len;
-    int error = 0;
-
-    copyin(ifr->ifr_data, &nvdata_base, sizeof(nvdata_base));
-
-    len = (sizeof(struct bxe_nvram_data) +
-           nvdata_base.len -
-           sizeof(uint32_t));
-
-    if (len > sizeof(struct bxe_nvram_data)) {
-        if ((nvdata = (struct bxe_nvram_data *)
-                 malloc(len, M_DEVBUF,
-                        (M_NOWAIT | M_ZERO))) == NULL) {
-            BLOGE(sc, "BXE_IOC_RD_NVRAM malloc failed priv_op 0x%x "
-                " len = 0x%x\n", priv_op, len);
-            return (1);
-        }
-        memcpy(nvdata, &nvdata_base, sizeof(struct bxe_nvram_data));
-    } else {
-        nvdata = &nvdata_base;
-    }
-
-    if (priv_op == BXE_IOC_RD_NVRAM) {
-        BLOGD(sc, DBG_IOCTL, "IOC_RD_NVRAM 0x%x %d\n",
-              nvdata->offset, nvdata->len);
-        error = bxe_nvram_read(sc,
-                               nvdata->offset,
-                               (uint8_t *)nvdata->value,
-                               nvdata->len);
-        copyout(nvdata, ifr->ifr_data, len);
-    } else { /* BXE_IOC_WR_NVRAM */
-        BLOGD(sc, DBG_IOCTL, "IOC_WR_NVRAM 0x%x %d\n",
-              nvdata->offset, nvdata->len);
-        copyin(ifr->ifr_data, nvdata, len);
-        error = bxe_nvram_write(sc,
-                                nvdata->offset,
-                                (uint8_t *)nvdata->value,
-                                nvdata->len);
-    }
-
-    if (len > sizeof(struct bxe_nvram_data)) {
-        free(nvdata, M_DEVBUF);
-    }
-
-    return (error);
-}
-
-static int
-bxe_ioctl_stats_show(struct bxe_softc *sc,
-                     uint32_t         priv_op,
-                     struct ifreq     *ifr)
-{
-    const size_t str_size   = (BXE_NUM_ETH_STATS * STAT_NAME_LEN);
-    const size_t stats_size = (BXE_NUM_ETH_STATS * sizeof(uint64_t));
-    caddr_t p_tmp;
-    uint32_t *offset;
-    int i;
-
-    switch (priv_op)
-    {
-    case BXE_IOC_STATS_SHOW_NUM:
-        memset(ifr->ifr_data, 0, sizeof(union bxe_stats_show_data));
-        ((union bxe_stats_show_data *)ifr->ifr_data)->desc.num =
-            BXE_NUM_ETH_STATS;
-        ((union bxe_stats_show_data *)ifr->ifr_data)->desc.len =
-            STAT_NAME_LEN;
-        return (0);
-
-    case BXE_IOC_STATS_SHOW_STR:
-        memset(ifr->ifr_data, 0, str_size);
-        p_tmp = ifr->ifr_data;
-        for (i = 0; i < BXE_NUM_ETH_STATS; i++) {
-            strcpy(p_tmp, bxe_eth_stats_arr[i].string);
-            p_tmp += STAT_NAME_LEN;
-        }
-        return (0);
-
-    case BXE_IOC_STATS_SHOW_CNT:
-        memset(ifr->ifr_data, 0, stats_size);
-        p_tmp = ifr->ifr_data;
-        for (i = 0; i < BXE_NUM_ETH_STATS; i++) {
-            offset = ((uint32_t *)&sc->eth_stats +
-                      bxe_eth_stats_arr[i].offset);
-            switch (bxe_eth_stats_arr[i].size) {
-            case 4:
-                *((uint64_t *)p_tmp) = (uint64_t)*offset;
-                break;
-            case 8:
-                *((uint64_t *)p_tmp) = HILO_U64(*offset, *(offset + 1));
-                break;
-            default:
-                *((uint64_t *)p_tmp) = 0;
-            }
-            p_tmp += sizeof(uint64_t);
-        }
-        return (0);
-
-    default:
-        return (-1);
-    }
-}
-
 static void
 bxe_handle_chip_tq(void *context,
                    int  pending)
@@ -4571,8 +4469,6 @@ bxe_ioctl(if_t ifp,
 {
     struct bxe_softc *sc = if_getsoftc(ifp);
     struct ifreq *ifr = (struct ifreq *)data;
-    struct bxe_nvram_data *nvdata;
-    uint32_t priv_op;
     int mask = 0;
     int reinit = 0;
     int error = 0;
@@ -4619,7 +4515,7 @@ bxe_ioctl(if_t ifp,
             if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
                 /* set the receive mode flags */
                 bxe_set_rx_mode(sc);
-            } else {
+            } else if(sc->state != BXE_STATE_DISABLED) {
 		bxe_init_locked(sc);
             }
         } else {
@@ -4761,36 +4657,6 @@ bxe_ioctl(if_t ifp,
         error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, command);
         break;
 
-    case SIOCGPRIVATE_0:
-        copyin(ifr->ifr_data, &priv_op, sizeof(priv_op));
-
-        switch (priv_op)
-        {
-        case BXE_IOC_RD_NVRAM:
-        case BXE_IOC_WR_NVRAM:
-            nvdata = (struct bxe_nvram_data *)ifr->ifr_data;
-            BLOGD(sc, DBG_IOCTL,
-                  "Received Private NVRAM ioctl addr=0x%x size=%u\n",
-                  nvdata->offset, nvdata->len);
-            error = bxe_ioctl_nvram(sc, priv_op, ifr);
-            break;
-
-        case BXE_IOC_STATS_SHOW_NUM:
-        case BXE_IOC_STATS_SHOW_STR:
-        case BXE_IOC_STATS_SHOW_CNT:
-            BLOGD(sc, DBG_IOCTL, "Received Private Stats ioctl (%d)\n",
-                  priv_op);
-            error = bxe_ioctl_stats_show(sc, priv_op, ifr);
-            break;
-
-        default:
-            BLOGW(sc, "Received Private Unknown ioctl (%d)\n", priv_op);
-            error = EINVAL;
-            break;
-        }
-
-        break;
-
     default:
         BLOGD(sc, DBG_IOCTL, "Received Unknown Ioctl (cmd=%lu)\n",
               (command & 0xff));
@@ -4896,7 +4762,7 @@ bxe_dump_mbuf(struct bxe_softc *sc,
  * Checks to ensure the 13 bd sliding window is >= MSS for TSO.
  * Check that (13 total bds - 3 bds) = 10 bd window >= MSS.
  * The window: 3 bds are = 1 for headers BD + 2 for parse BD and last BD
- * The headers comes in a seperate bd in FreeBSD so 13-3=10.
+ * The headers comes in a separate bd in FreeBSD so 13-3=10.
  * Returns: 0 if OK to send, 1 if packet needs further defragmentation
  */
 static int
@@ -5723,17 +5589,17 @@ bxe_tx_start(if_t ifp)
         return;
     }
 
-    if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE) {
-        BLOGW(sc, "Interface TX queue is full, ignoring transmit request\n");
-        return;
-    }
-
     if (!sc->link_vars.link_up) {
         BLOGW(sc, "Interface link is down, ignoring transmit request\n");
         return;
     }
 
     fp = &sc->fp[0];
+
+    if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+        fp->eth_q_stats.tx_queue_full_return++;
+        return;
+    }
 
     BXE_FP_TX_LOCK(fp);
     bxe_tx_start_locked(sc, ifp, fp);
@@ -8124,7 +7990,7 @@ bxe_attn_int_deasserted2(struct bxe_softc *sc,
             mask1 = REG_RD(sc, PXP2_REG_PXP2_INT_MASK_1);
             val0 = REG_RD(sc, PXP2_REG_PXP2_INT_STS_0);
             /*
-             * If the olny PXP2_EOP_ERROR_BIT is set in
+             * If the only PXP2_EOP_ERROR_BIT is set in
              * STS0 and STS1 - clear it
              *
              * probably we lose additional attentions between
@@ -9936,21 +9802,6 @@ bxe_init_internal_common(struct bxe_softc *sc)
 {
     int i;
 
-    if (IS_MF_SI(sc)) {
-        /*
-         * In switch independent mode, the TSTORM needs to accept
-         * packets that failed classification, since approximate match
-         * mac addresses aren't written to NIG LLH.
-         */
-        REG_WR8(sc,
-                (BAR_TSTRORM_INTMEM + TSTORM_ACCEPT_CLASSIFY_FAILED_OFFSET),
-                2);
-    } else if (!CHIP_IS_E1(sc)) { /* 57710 doesn't support MF */
-        REG_WR8(sc,
-                (BAR_TSTRORM_INTMEM + TSTORM_ACCEPT_CLASSIFY_FAILED_OFFSET),
-                0);
-    }
-
     /*
      * Zero this manually as its initialization is currently missing
      * in the initTool.
@@ -10776,7 +10627,7 @@ bxe_set_234_gates(struct bxe_softc *sc,
                (!close) ? (val | HC_CONFIG_0_REG_BLOCK_DISABLE_0) :
                (val & ~(uint32_t)HC_CONFIG_0_REG_BLOCK_DISABLE_0));
     } else {
-        /* Prevent incomming interrupts in IGU */
+        /* Prevent incoming interrupts in IGU */
         val = REG_RD(sc, IGU_REG_BLOCK_CONFIGURATION);
 
         REG_WR(sc, IGU_REG_BLOCK_CONFIGURATION,
@@ -12269,6 +12120,8 @@ static void
 bxe_periodic_callout_func(void *xsc)
 {
     struct bxe_softc *sc = (struct bxe_softc *)xsc;
+    struct bxe_fastpath *fp;
+    uint16_t tx_bd_avail;
     int i;
 
     if (!BXE_CORE_TRYLOCK(sc)) {
@@ -12290,6 +12143,48 @@ bxe_periodic_callout_func(void *xsc)
         BXE_CORE_UNLOCK(sc);
         return;
     }
+
+#if __FreeBSD_version >= 800000
+
+    FOR_EACH_QUEUE(sc, i) {
+        fp = &sc->fp[i];
+
+        if (BXE_FP_TX_TRYLOCK(fp)) {
+            if_t ifp = sc->ifp;
+            /*
+             * If interface was stopped due to unavailable
+             * bds, try to process some tx completions
+             */
+            (void) bxe_txeof(sc, fp);
+           
+            tx_bd_avail = bxe_tx_avail(sc, fp);
+            if (tx_bd_avail >= BXE_TX_CLEANUP_THRESHOLD) {
+                bxe_tx_mq_start_locked(sc, ifp, fp, NULL);
+            }
+            BXE_FP_TX_UNLOCK(fp);
+        }
+    }
+
+#else
+
+    fp = &sc->fp[0];
+    if (BXE_FP_TX_TRYLOCK(fp)) {
+        struct ifnet *ifp = sc->ifnet;
+        /*
+         * If interface was stopped due to unavailable
+         * bds, try to process some tx completions
+         */
+        (void) bxe_txeof(sc, fp);
+           
+        tx_bd_avail = bxe_tx_avail(sc, fp);
+        if (tx_bd_avail >= BXE_TX_CLEANUP_THRESHOLD) {
+            bxe_tx_start_locked(sc, ifp, fp);
+        }
+ 
+        BXE_FP_TX_UNLOCK(fp);
+    }
+
+#endif /* #if __FreeBSD_version >= 800000 */
 
     /* Check for TX timeouts on any fastpath. */
     FOR_EACH_QUEUE(sc, i) {
@@ -13620,49 +13515,60 @@ bxe_get_tunable_params(struct bxe_softc *sc)
           sc->udp_rss);
 }
 
-static void
+static int
 bxe_media_detect(struct bxe_softc *sc)
 {
+    int port_type;
     uint32_t phy_idx = bxe_get_cur_phy_idx(sc);
+
     switch (sc->link_params.phy[phy_idx].media_type) {
     case ELINK_ETH_PHY_SFPP_10G_FIBER:
     case ELINK_ETH_PHY_XFP_FIBER:
         BLOGI(sc, "Found 10Gb Fiber media.\n");
         sc->media = IFM_10G_SR;
+        port_type = PORT_FIBRE;
         break;
     case ELINK_ETH_PHY_SFP_1G_FIBER:
         BLOGI(sc, "Found 1Gb Fiber media.\n");
         sc->media = IFM_1000_SX;
+        port_type = PORT_FIBRE;
         break;
     case ELINK_ETH_PHY_KR:
     case ELINK_ETH_PHY_CX4:
         BLOGI(sc, "Found 10GBase-CX4 media.\n");
         sc->media = IFM_10G_CX4;
+        port_type = PORT_FIBRE;
         break;
     case ELINK_ETH_PHY_DA_TWINAX:
         BLOGI(sc, "Found 10Gb Twinax media.\n");
         sc->media = IFM_10G_TWINAX;
+        port_type = PORT_DA;
         break;
     case ELINK_ETH_PHY_BASE_T:
         if (sc->link_params.speed_cap_mask[0] &
             PORT_HW_CFG_SPEED_CAPABILITY_D0_10G) {
             BLOGI(sc, "Found 10GBase-T media.\n");
             sc->media = IFM_10G_T;
+            port_type = PORT_TP;
         } else {
             BLOGI(sc, "Found 1000Base-T media.\n");
             sc->media = IFM_1000_T;
+            port_type = PORT_TP;
         }
         break;
     case ELINK_ETH_PHY_NOT_PRESENT:
         BLOGI(sc, "Media not present.\n");
         sc->media = 0;
+        port_type = PORT_OTHER;
         break;
     case ELINK_ETH_PHY_UNSPECIFIED:
     default:
         BLOGI(sc, "Unknown media!\n");
         sc->media = 0;
+        port_type = PORT_OTHER;
         break;
     }
+    return port_type;
 }
 
 #define GET_FIELD(value, fname)                     \
@@ -15593,30 +15499,6 @@ bxe_sysctl_state(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-bxe_sysctl_trigger_grcdump(SYSCTL_HANDLER_ARGS)
-{
-    struct bxe_softc *sc;
-    int error, result;
-
-    result = 0;
-    error = sysctl_handle_int(oidp, &result, 0, req);
-
-    if (error || !req->newptr) {
-        return (error);
-    }
-
-    if (result == 1) {
-        sc = (struct bxe_softc *)arg1;
-
-        BLOGI(sc, "... grcdump start ...\n");
-        bxe_grc_dump(sc);
-        BLOGI(sc, "... grcdump done ...\n");
-    }
-
-    return (error);
-}
-
-static int
 bxe_sysctl_eth_stat(SYSCTL_HANDLER_ARGS)
 {
     struct bxe_softc *sc = (struct bxe_softc *)arg1;
@@ -15767,14 +15649,16 @@ bxe_add_sysctls(struct bxe_softc *sc)
                     "debug logging mode");
 #endif /* #if __FreeBSD_version >= 900000 */
 
-    SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "trigger_grcdump",
-                    CTLTYPE_UINT | CTLFLAG_RW, sc, 0,
-                    bxe_sysctl_trigger_grcdump, "IU",
-                    "set by driver when a grcdump is needed");
+    sc->trigger_grcdump = 0;
+    SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "trigger_grcdump",
+                   CTLFLAG_RW, &sc->trigger_grcdump, 0,
+                   "trigger grcdump should be invoked"
+                   "  before collecting grcdump");
 
+    sc->grcdump_started = 0;
     sc->grcdump_done = 0;
     SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "grcdump_done",
-                   CTLFLAG_RW, &sc->grcdump_done, 0,
+                   CTLFLAG_RD, &sc->grcdump_done, 0,
                    "set by driver when grcdump is done");
 
     sc->rx_budget = bxe_rx_budget;
@@ -16137,6 +16021,7 @@ bxe_detach(device_t dev)
     if (sc->state != BXE_STATE_CLOSED) {
         BXE_CORE_LOCK(sc);
         bxe_nic_unload(sc, UNLOAD_CLOSE, TRUE);
+        sc->state = BXE_STATE_DISABLED;
         BXE_CORE_UNLOCK(sc);
     }
 
@@ -18605,7 +18490,7 @@ bxe_get_preset_regs(struct bxe_softc *sc, uint32_t *p, uint32_t preset)
     return 0;
 }
 
-static int
+int
 bxe_grc_dump(struct bxe_softc *sc)
 {
     int rval = 0;
@@ -18613,11 +18498,52 @@ bxe_grc_dump(struct bxe_softc *sc)
     uint8_t *buf;
     uint32_t size;
     struct  dump_header *d_hdr;
+    uint32_t i;
+    uint32_t reg_val;
+    uint32_t reg_addr;
+    uint32_t cmd_offset;
+    int context_size;
+    int allocated;
+    struct ecore_ilt *ilt = SC_ILT(sc);
+    struct bxe_fastpath *fp;
+    struct ilt_client_info *ilt_cli;
+    int grc_dump_size;
 
-    if (sc->grcdump_done)
+
+    if (sc->grcdump_done || sc->grcdump_started)
 	return (rval);
     
+    sc->grcdump_started = 1;
+    BLOGI(sc, "Started collecting grcdump\n");
+
+    grc_dump_size = (bxe_get_total_regs_len32(sc) * sizeof(uint32_t)) +
+                sizeof(struct  dump_header);
+
+    sc->grc_dump = malloc(grc_dump_size, M_DEVBUF, M_NOWAIT);
+
+    if (sc->grc_dump == NULL) {
+        BLOGW(sc, "Unable to allocate memory for grcdump collection\n");
+        return(ENOMEM);
+    }
+
+
+
+    /* Disable parity attentions as long as following dump may
+     * cause false alarms by reading never written registers. We
+     * will re-enable parity attentions right after the dump.
+     */
+
+    /* Disable parity on path 0 */
+    bxe_pretend_func(sc, 0);
+
     ecore_disable_blocks_parity(sc);
+
+    /* Disable parity on path 1 */
+    bxe_pretend_func(sc, 1);
+    ecore_disable_blocks_parity(sc);
+
+    /* Return to current function */
+    bxe_pretend_func(sc, SC_ABS_FUNC(sc));
 
     buf = sc->grc_dump;
     d_hdr = sc->grc_dump;
@@ -18650,7 +18576,7 @@ bxe_grc_dump(struct bxe_softc *sc)
             (preset_idx == 11))
             continue;
 
-        rval = bxe_get_preset_regs(sc, sc->grc_dump, preset_idx);
+        rval = bxe_get_preset_regs(sc, (uint32_t *)buf, preset_idx);
 
 	if (rval)
             break;
@@ -18660,9 +18586,81 @@ bxe_grc_dump(struct bxe_softc *sc)
         buf += size;
     }
 
+    bxe_pretend_func(sc, 0);
     ecore_clear_blocks_parity(sc);
     ecore_enable_blocks_parity(sc);
 
+    bxe_pretend_func(sc, 1);
+    ecore_clear_blocks_parity(sc);
+    ecore_enable_blocks_parity(sc);
+
+    /* Return to current function */
+    bxe_pretend_func(sc, SC_ABS_FUNC(sc));
+
+
+    context_size = (sizeof(union cdu_context) * BXE_L2_CID_COUNT(sc));
+    for (i = 0, allocated = 0; allocated < context_size; i++) {
+
+        BLOGI(sc, "cdu_context i %d paddr %#jx vaddr %p size 0x%zx\n", i,
+            (uintmax_t)sc->context[i].vcxt_dma.paddr,
+            sc->context[i].vcxt_dma.vaddr,
+            sc->context[i].size);
+        allocated += sc->context[i].size;
+    }
+    BLOGI(sc, "fw stats start_paddr %#jx end_paddr %#jx vaddr %p size 0x%x\n",
+        (uintmax_t)sc->fw_stats_req_mapping,
+        (uintmax_t)sc->fw_stats_data_mapping,
+        sc->fw_stats_req, (sc->fw_stats_req_size + sc->fw_stats_data_size));
+    BLOGI(sc, "def_status_block paddr %p vaddr %p size 0x%zx\n",
+        (void *)sc->def_sb_dma.paddr, sc->def_sb,
+        sizeof(struct host_sp_status_block));
+    BLOGI(sc, "event_queue paddr %#jx vaddr %p size 0x%x\n",
+        (uintmax_t)sc->eq_dma.paddr, sc->eq_dma.vaddr, BCM_PAGE_SIZE);
+    BLOGI(sc, "slow path paddr %#jx vaddr %p size 0x%zx\n",
+        (uintmax_t)sc->sp_dma.paddr, sc->sp_dma.vaddr,
+        sizeof(struct bxe_slowpath));
+    BLOGI(sc, "slow path queue paddr %#jx vaddr %p size 0x%x\n",
+        (uintmax_t)sc->spq_dma.paddr, sc->spq_dma.vaddr, BCM_PAGE_SIZE);
+    BLOGI(sc, "fw_buf paddr %#jx vaddr %p size 0x%x\n",
+        (uintmax_t)sc->gz_buf_dma.paddr, sc->gz_buf_dma.vaddr,
+        FW_BUF_SIZE);
+    for (i = 0; i < sc->num_queues; i++) {
+        fp = &sc->fp[i];
+        BLOGI(sc, "FP status block fp %d paddr %#jx vaddr %p size 0x%zx\n", i,
+            (uintmax_t)fp->sb_dma.paddr, fp->sb_dma.vaddr,
+            sizeof(union bxe_host_hc_status_block));
+        BLOGI(sc, "TX BD CHAIN fp %d paddr %#jx vaddr %p size 0x%x\n", i,
+            (uintmax_t)fp->tx_dma.paddr, fp->tx_dma.vaddr,
+            (BCM_PAGE_SIZE * TX_BD_NUM_PAGES));
+        BLOGI(sc, "RX BD CHAIN fp %d paddr %#jx vaddr %p size 0x%x\n", i,
+            (uintmax_t)fp->rx_dma.paddr, fp->rx_dma.vaddr,
+            (BCM_PAGE_SIZE * RX_BD_NUM_PAGES));
+        BLOGI(sc, "RX RCQ CHAIN fp %d paddr %#jx vaddr %p size 0x%zx\n", i,
+            (uintmax_t)fp->rcq_dma.paddr, fp->rcq_dma.vaddr,
+            (BCM_PAGE_SIZE * RCQ_NUM_PAGES));
+        BLOGI(sc, "RX SGE CHAIN fp %d paddr %#jx vaddr %p size 0x%x\n", i,
+            (uintmax_t)fp->rx_sge_dma.paddr, fp->rx_sge_dma.vaddr,
+            (BCM_PAGE_SIZE * RX_SGE_NUM_PAGES));
+    }
+
+    ilt_cli = &ilt->clients[1];
+    for (i = ilt_cli->start; i <= ilt_cli->end; i++) {
+        BLOGI(sc, "ECORE_ILT paddr %#jx vaddr %p size 0x%x\n",
+            (uintmax_t)(((struct bxe_dma *)((&ilt->lines[i])->page))->paddr),
+            ((struct bxe_dma *)((&ilt->lines[i])->page))->vaddr, BCM_PAGE_SIZE);
+    }
+
+
+    cmd_offset = DMAE_REG_CMD_MEM;
+    for (i = 0; i < 224; i++) {
+        reg_addr = (cmd_offset +(i * 4));
+        reg_val = REG_RD(sc, reg_addr);
+        BLOGI(sc, "DMAE_REG_CMD_MEM i=%d reg_addr 0x%x reg_val 0x%08x\n",i,
+            reg_addr, reg_val);
+    }
+
+
+    BLOGI(sc, "Collection of grcdump done\n");
     sc->grcdump_done = 1;
     return(rval);
 }
@@ -18670,15 +18668,12 @@ bxe_grc_dump(struct bxe_softc *sc)
 static int
 bxe_add_cdev(struct bxe_softc *sc)
 {
-    int grc_dump_size;
+    sc->eeprom = malloc(BXE_EEPROM_MAX_DATA_LEN, M_DEVBUF, M_NOWAIT);
 
-    grc_dump_size = (bxe_get_total_regs_len32(sc) * sizeof(uint32_t)) +
-				sizeof(struct  dump_header);
-
-    sc->grc_dump = malloc(grc_dump_size, M_DEVBUF, M_NOWAIT);
-
-    if (sc->grc_dump == NULL)
+    if (sc->eeprom == NULL) {
+        BLOGW(sc, "Unable to alloc for eeprom size buffer\n");
         return (-1);
+    }
 
     sc->ioctl_dev = make_dev(&bxe_cdevsw,
                             sc->ifp->if_dunit,
@@ -18689,9 +18684,8 @@ bxe_add_cdev(struct bxe_softc *sc)
                             if_name(sc->ifp));
 
     if (sc->ioctl_dev == NULL) {
-
-        free(sc->grc_dump, M_DEVBUF);
-
+        free(sc->eeprom, M_DEVBUF);
+        sc->eeprom = NULL;
         return (-1);
     }
 
@@ -18706,10 +18700,148 @@ bxe_del_cdev(struct bxe_softc *sc)
     if (sc->ioctl_dev != NULL)
         destroy_dev(sc->ioctl_dev);
 
-    if (sc->grc_dump == NULL)
-        free(sc->grc_dump, M_DEVBUF);
+    if (sc->eeprom != NULL) {
+        free(sc->eeprom, M_DEVBUF);
+        sc->eeprom = NULL;
+    }
+    sc->ioctl_dev = NULL;
 
     return;
+}
+
+static bool bxe_is_nvram_accessible(struct bxe_softc *sc)
+{
+
+    if ((if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) == 0)
+        return FALSE;
+
+    return TRUE;
+}
+
+
+static int
+bxe_wr_eeprom(struct bxe_softc *sc, void *data, uint32_t offset, uint32_t len)
+{
+    int rval = 0;
+
+    if(!bxe_is_nvram_accessible(sc)) {
+        BLOGW(sc, "Cannot access eeprom when interface is down\n");
+        return (-EAGAIN);
+    }
+    rval = bxe_nvram_write(sc, offset, (uint8_t *)data, len);
+
+
+   return (rval);
+}
+
+static int
+bxe_rd_eeprom(struct bxe_softc *sc, void *data, uint32_t offset, uint32_t len)
+{
+    int rval = 0;
+
+    if(!bxe_is_nvram_accessible(sc)) {
+        BLOGW(sc, "Cannot access eeprom when interface is down\n");
+        return (-EAGAIN);
+    }
+    rval = bxe_nvram_read(sc, offset, (uint8_t *)data, len);
+
+   return (rval);
+}
+
+static int
+bxe_eeprom_rd_wr(struct bxe_softc *sc, bxe_eeprom_t *eeprom)
+{
+    int rval = 0;
+
+    switch (eeprom->eeprom_cmd) {
+
+    case BXE_EEPROM_CMD_SET_EEPROM:
+
+        rval = copyin(eeprom->eeprom_data, sc->eeprom,
+                       eeprom->eeprom_data_len);
+
+        if (rval)
+            break;
+
+        rval = bxe_wr_eeprom(sc, sc->eeprom, eeprom->eeprom_offset,
+                       eeprom->eeprom_data_len);
+        break;
+
+    case BXE_EEPROM_CMD_GET_EEPROM:
+
+        rval = bxe_rd_eeprom(sc, sc->eeprom, eeprom->eeprom_offset,
+                       eeprom->eeprom_data_len);
+
+        if (rval) {
+            break;
+        }
+
+        rval = copyout(sc->eeprom, eeprom->eeprom_data,
+                       eeprom->eeprom_data_len);
+        break;
+
+    default:
+            rval = EINVAL;
+            break;
+    }
+
+    if (rval) {
+        BLOGW(sc, "ioctl cmd %d  failed rval %d\n", eeprom->eeprom_cmd, rval);
+    }
+
+    return (rval);
+}
+
+static int
+bxe_get_settings(struct bxe_softc *sc, bxe_dev_setting_t *dev_p)
+{
+    uint32_t ext_phy_config;
+    int port = SC_PORT(sc);
+    int cfg_idx = bxe_get_link_cfg_idx(sc);
+
+    dev_p->supported = sc->port.supported[cfg_idx] |
+            (sc->port.supported[cfg_idx ^ 1] &
+            (ELINK_SUPPORTED_TP | ELINK_SUPPORTED_FIBRE));
+    dev_p->advertising = sc->port.advertising[cfg_idx];
+    if(sc->link_params.phy[bxe_get_cur_phy_idx(sc)].media_type ==
+        ELINK_ETH_PHY_SFP_1G_FIBER) {
+        dev_p->supported = ~(ELINK_SUPPORTED_10000baseT_Full);
+        dev_p->advertising &= ~(ADVERTISED_10000baseT_Full);
+    }
+    if ((sc->state == BXE_STATE_OPEN) && sc->link_vars.link_up &&
+        !(sc->flags & BXE_MF_FUNC_DIS)) {
+        dev_p->duplex = sc->link_vars.duplex;
+        if (IS_MF(sc) && !BXE_NOMCP(sc))
+            dev_p->speed = bxe_get_mf_speed(sc);
+        else
+            dev_p->speed = sc->link_vars.line_speed;
+    } else {
+        dev_p->duplex = DUPLEX_UNKNOWN;
+        dev_p->speed = SPEED_UNKNOWN;
+    }
+
+    dev_p->port = bxe_media_detect(sc);
+
+    ext_phy_config = SHMEM_RD(sc,
+                         dev_info.port_hw_config[port].external_phy_config);
+    if((ext_phy_config & PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK) ==
+        PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT)
+        dev_p->phy_address =  sc->port.phy_addr;
+    else if(((ext_phy_config & PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK) !=
+            PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE) &&
+        ((ext_phy_config & PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK) !=
+            PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN))
+        dev_p->phy_address = ELINK_XGXS_EXT_PHY_ADDR(ext_phy_config);
+    else
+        dev_p->phy_address = 0;
+
+    if(sc->link_params.req_line_speed[cfg_idx] == ELINK_SPEED_AUTO_NEG)
+        dev_p->autoneg = AUTONEG_ENABLE;
+    else
+       dev_p->autoneg = AUTONEG_DISABLE;
+
+
+    return 0;
 }
 
 static int
@@ -18721,6 +18853,14 @@ bxe_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     device_t            pci_dev;
     bxe_grcdump_t       *dump = NULL;
     int grc_dump_size;
+    bxe_drvinfo_t   *drv_infop = NULL;
+    bxe_dev_setting_t  *dev_p;
+    bxe_dev_setting_t  dev_set;
+    bxe_get_regs_t  *reg_p;
+    bxe_reg_rdw_t *reg_rdw_p;
+    bxe_pcicfg_rdw_t *cfg_rdw_p;
+    bxe_perm_mac_addr_t *mac_addr_p;
+
 
     if ((sc = (struct bxe_softc *)dev->si_drv1) == NULL)
         return ENXIO;
@@ -18733,25 +18873,124 @@ bxe_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 
         case BXE_GRC_DUMP_SIZE:
             dump->pci_func = sc->pcie_func;
-            dump->grcdump_size = (bxe_get_total_regs_len32(sc) * sizeof(uint32_t)) +
-					sizeof(struct  dump_header);
+            dump->grcdump_size =
+                (bxe_get_total_regs_len32(sc) * sizeof(uint32_t)) +
+                     sizeof(struct  dump_header);
             break;
 
         case BXE_GRC_DUMP:
             
             grc_dump_size = (bxe_get_total_regs_len32(sc) * sizeof(uint32_t)) +
-				sizeof(struct  dump_header);
-
-            if ((sc->grc_dump == NULL) || (dump->grcdump == NULL) ||
-                (dump->grcdump_size < grc_dump_size) || (!sc->grcdump_done)) {
+                                sizeof(struct  dump_header);
+            if ((!sc->trigger_grcdump) || (dump->grcdump == NULL) ||
+                (dump->grcdump_size < grc_dump_size)) {
                 rval = EINVAL;
                 break;
             }
-	    dump->grcdump_dwords = grc_dump_size >> 2;
-            rval = copyout(sc->grc_dump, dump->grcdump, grc_dump_size);
-            sc->grcdump_done = 0;
+
+            if((sc->trigger_grcdump) && (!sc->grcdump_done) &&
+                (!sc->grcdump_started)) {
+                rval =  bxe_grc_dump(sc);
+            }
+
+            if((!rval) && (sc->grcdump_done) && (sc->grcdump_started) &&
+                (sc->grc_dump != NULL))  {
+                dump->grcdump_dwords = grc_dump_size >> 2;
+                rval = copyout(sc->grc_dump, dump->grcdump, grc_dump_size);
+                free(sc->grc_dump, M_DEVBUF);
+                sc->grc_dump = NULL;
+                sc->grcdump_started = 0;
+                sc->grcdump_done = 0;
+            }
 
             break;
+
+        case BXE_DRV_INFO:
+            drv_infop = (bxe_drvinfo_t *)data;
+            snprintf(drv_infop->drv_name, BXE_DRV_NAME_LENGTH, "%s", "bxe");
+            snprintf(drv_infop->drv_version, BXE_DRV_VERSION_LENGTH, "v:%s",
+                BXE_DRIVER_VERSION);
+            snprintf(drv_infop->mfw_version, BXE_MFW_VERSION_LENGTH, "%s",
+                sc->devinfo.bc_ver_str);
+            snprintf(drv_infop->stormfw_version, BXE_STORMFW_VERSION_LENGTH,
+                "%s", sc->fw_ver_str);
+            drv_infop->eeprom_dump_len = sc->devinfo.flash_size;
+            drv_infop->reg_dump_len =
+                (bxe_get_total_regs_len32(sc) * sizeof(uint32_t))
+                    + sizeof(struct  dump_header);
+            snprintf(drv_infop->bus_info, BXE_BUS_INFO_LENGTH, "%d:%d:%d",
+                sc->pcie_bus, sc->pcie_device, sc->pcie_func);
+            break;
+
+        case BXE_DEV_SETTING:
+            dev_p = (bxe_dev_setting_t *)data;
+            bxe_get_settings(sc, &dev_set);
+            dev_p->supported = dev_set.supported;
+            dev_p->advertising = dev_set.advertising;
+            dev_p->speed = dev_set.speed;
+            dev_p->duplex = dev_set.duplex;
+            dev_p->port = dev_set.port;
+            dev_p->phy_address = dev_set.phy_address;
+            dev_p->autoneg = dev_set.autoneg;
+
+            break;
+
+        case BXE_GET_REGS:
+
+            reg_p = (bxe_get_regs_t *)data;
+            grc_dump_size = reg_p->reg_buf_len;
+
+            if((!sc->grcdump_done) && (!sc->grcdump_started)) {
+                bxe_grc_dump(sc);
+            }
+            if((sc->grcdump_done) && (sc->grcdump_started) &&
+                (sc->grc_dump != NULL))  {
+                rval = copyout(sc->grc_dump, reg_p->reg_buf, grc_dump_size);
+                free(sc->grc_dump, M_DEVBUF);
+                sc->grc_dump = NULL;
+                sc->grcdump_started = 0;
+                sc->grcdump_done = 0;
+            }
+
+            break;
+
+        case BXE_RDW_REG:
+            reg_rdw_p = (bxe_reg_rdw_t *)data;
+            if((reg_rdw_p->reg_cmd == BXE_READ_REG_CMD) &&
+                (reg_rdw_p->reg_access_type == BXE_REG_ACCESS_DIRECT))
+                reg_rdw_p->reg_val = REG_RD(sc, reg_rdw_p->reg_id);
+
+            if((reg_rdw_p->reg_cmd == BXE_WRITE_REG_CMD) &&
+                (reg_rdw_p->reg_access_type == BXE_REG_ACCESS_DIRECT))
+                REG_WR(sc, reg_rdw_p->reg_id, reg_rdw_p->reg_val);
+
+            break;
+
+        case BXE_RDW_PCICFG:
+            cfg_rdw_p = (bxe_pcicfg_rdw_t *)data;
+            if(cfg_rdw_p->cfg_cmd == BXE_READ_PCICFG) {
+
+                cfg_rdw_p->cfg_val = pci_read_config(sc->dev, cfg_rdw_p->cfg_id,
+                                         cfg_rdw_p->cfg_width);
+
+            } else if(cfg_rdw_p->cfg_cmd == BXE_WRITE_PCICFG) {
+                pci_write_config(sc->dev, cfg_rdw_p->cfg_id, cfg_rdw_p->cfg_val,
+                            cfg_rdw_p->cfg_width);
+            } else {
+                BLOGW(sc, "BXE_RDW_PCICFG ioctl wrong cmd passed\n");
+            }
+            break;
+
+        case BXE_MAC_ADDR:
+            mac_addr_p = (bxe_perm_mac_addr_t *)data;
+            snprintf(mac_addr_p->mac_addr_str, sizeof(sc->mac_addr_str), "%s",
+                sc->mac_addr_str);
+            break;
+
+        case BXE_EEPROM:
+            rval = bxe_eeprom_rd_wr(sc, (bxe_eeprom_t *)data);
+            break;
+
 
         default:
             break;

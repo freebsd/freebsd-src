@@ -416,7 +416,7 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 
 	sx_xunlock(&xprt->xp_lock);
 
-	sa = 0;
+	sa = NULL;
 	error = soaccept(so, &sa);
 
 	if (error) {

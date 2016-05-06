@@ -2084,13 +2084,13 @@ dump_cachefile(const char *cachefile)
 	nvlist_t *config;
 
 	if ((fd = open64(cachefile, O_RDONLY)) < 0) {
-		(void) printf("cannot open '%s': %s\n", cachefile,
+		(void) fprintf(stderr, "cannot open '%s': %s\n", cachefile,
 		    strerror(errno));
 		exit(1);
 	}
 
 	if (fstat64(fd, &statbuf) != 0) {
-		(void) printf("failed to stat '%s': %s\n", cachefile,
+		(void) fprintf(stderr, "failed to stat '%s': %s\n", cachefile,
 		    strerror(errno));
 		exit(1);
 	}
@@ -2156,10 +2156,11 @@ dump_label(const char *dev)
 	uint64_t psize, ashift;
 	int len = strlen(dev) + 1;
 
-	if (strncmp(dev, "/dev/dsk/", 9) == 0) {
+	if (strncmp(dev, ZFS_DISK_ROOTD, strlen(ZFS_DISK_ROOTD)) == 0) {
 		len++;
 		path = malloc(len);
-		(void) snprintf(path, len, "%s%s", "/dev/rdsk/", dev + 9);
+		(void) snprintf(path, len, "%s%s", ZFS_RDISK_ROOTD,
+		    dev + strlen(ZFS_DISK_ROOTD));
 	} else {
 		path = strdup(dev);
 	}

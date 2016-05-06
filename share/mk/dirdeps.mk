@@ -122,6 +122,26 @@ _DIRDEP_USE_LEVEL?= 0
 # and non-specific Makefile.depend*
 
 .if !target(_DIRDEP_USE)
+
+.if ${MAKEFILE:T} == ${.PARSEFILE} && empty(DIRDEPS) && ${.TARGETS:Uall:M*/*} != ""
+# This little trick let's us do
+#
+# mk -f dirdeps.mk some/dir.${TARGET_SPEC}
+#
+all:
+${.TARGETS:Nall}: all
+DIRDEPS := ${.TARGETS:M*[/.]*}
+# so that -DNO_DIRDEPS works
+DEP_RELDIR := ${DIRDEPS:[1]:R}
+# this will become DEP_MACHINE below
+TARGET_MACHINE := ${DIRDEPS:[1]:E:C/,.*//}
+.if ${TARGET_MACHINE:N*/*} == ""
+TARGET_MACHINE := ${MACHINE}
+.endif
+# disable DIRDEPS_CACHE as it does not like this trick
+MK_DIRDEPS_CACHE = no
+.endif
+
 # make sure we get the behavior we expect
 .MAKE.SAVE_DOLLARS = no
 
@@ -245,20 +265,6 @@ DEP_${TARGET_SPEC_VARS:[$i]} := ${_tspec:[$i]}
 DEP_MACHINE := ${_DEP_TARGET_SPEC}
 .endif
 
-.if ${MAKEFILE:T} == ${.PARSEFILE} && empty(DIRDEPS) && ${.TARGETS:Uall:M*/*} != ""
-# This little trick let's us do
-#
-# mk -f dirdeps.mk some/dir.${TARGET_SPEC}
-#
-all:
-${.TARGETS:Nall}: all
-DIRDEPS := ${.TARGETS:M*/*}
-# so that -DNO_DIRDEPS works
-DEP_RELDIR := ${DIRDEPS:R:[1]}
-# disable DIRDEPS_CACHE as it does not like this trick
-MK_DIRDEPS_CACHE = no
-.endif
-
 # reset each time through
 _build_all_dirs =
 
@@ -285,7 +291,7 @@ _DEP_RELDIR := ${DEP_RELDIR}
 # pickup customizations
 # as below you can use !target(_DIRDEP_USE) to protect things
 # which should only be done once.
-.-include "local.dirdeps.mk"
+.-include <local.dirdeps.mk>
 
 .if !target(_DIRDEP_USE)
 # things we skip for host tools
@@ -305,7 +311,13 @@ DEP_SKIP_DIR = ${SKIP_DIR} \
 
 NSkipDir = ${DEP_SKIP_DIR:${M_ListToSkip}}
 
-.if defined(NO_DIRDEPS) || defined(NODIRDEPS) || defined(WITHOUT_DIRDEPS)
+.if defined(NODIRDEPS) || defined(WITHOUT_DIRDEPS)
+NO_DIRDEPS =
+.elif defined(WITHOUT_DIRDEPS_BELOW)
+NO_DIRDEPS_BELOW =
+.endif
+
+.if defined(NO_DIRDEPS)
 # confine ourselves to the original dir and below.
 DIRDEPS_FILTER += M${_DEP_RELDIR}*
 .elif defined(NO_DIRDEPS_BELOW)
@@ -371,7 +383,7 @@ MK_DIRDEPS_CACHE ?= no
 BUILD_DIRDEPS_CACHE ?= no
 BUILD_DIRDEPS ?= yes
 
-.if !defined(NO_DIRDEPS)
+.if !defined(NO_DIRDEPS) && !defined(NO_DIRDEPS_BELOW)
 .if ${MK_DIRDEPS_CACHE} == "yes"
 # this is where we will cache all our work
 DIRDEPS_CACHE?= ${_OBJDIR}/dirdeps.cache${.TARGETS:Nall:O:u:ts-:S,/,_,g:S,^,.,:N.}
@@ -453,7 +465,7 @@ _this_dir := ${SRCTOP}/${DEP_RELDIR}
 
 # on rare occasions, there can be a need for extra help
 _dep_hack := ${_this_dir}/${.MAKE.DEPENDFILE_PREFIX}.inc
-.-include "${_dep_hack}"
+.-include <${_dep_hack}>
 
 .if ${DEP_RELDIR} != ${_DEP_RELDIR} || ${DEP_TARGET_SPEC} != ${TARGET_SPEC}
 # this should be all

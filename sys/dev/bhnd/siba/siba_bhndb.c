@@ -45,6 +45,17 @@ __FBSDID("$FreeBSD$");
  * Supports attachment of siba(4) bus devices via a bhndb bridge.
  */
 
+//
+// TODO: PCI rev < 6 interrupt handling
+//
+// On early PCI cores (rev < 6) interrupt masking is handled via interconnect
+// configuration registers (SBINTVEC), rather than the PCI_INT_MASK
+// config register.
+//
+// On those devices, we should handle interrupts locally using SBINTVEC, rather
+// than delegating to our parent bhndb device.
+//
+
 static int
 siba_bhndb_probe(device_t dev)
 {
@@ -168,4 +179,5 @@ DRIVER_MODULE(siba_bhndb, bhndb, siba_bhndb_driver, bhnd_devclass, NULL, NULL);
  
 MODULE_VERSION(siba_bhndb, 1);
 MODULE_DEPEND(siba_bhndb, siba, 1, 1, 1);
+MODULE_DEPEND(siba_bhndb, bhnd, 1, 1, 1);
 MODULE_DEPEND(siba_bhndb, bhndb, 1, 1, 1);

@@ -126,6 +126,11 @@ static int thunder_pem_adjust_resource(device_t, device_t, int,
     struct resource *, rman_res_t, rman_res_t);
 static struct resource * thunder_pem_alloc_resource(device_t, device_t, int,
     int *, rman_res_t, rman_res_t, rman_res_t, u_int);
+static int thunder_pem_alloc_msi(device_t, device_t, int, int, int *);
+static int thunder_pem_release_msi(device_t, device_t, int, int *);
+static int thunder_pem_map_msi(device_t, device_t, int, uint64_t *, uint32_t *);
+static int thunder_pem_alloc_msix(device_t, device_t, int *);
+static int thunder_pem_release_msix(device_t, device_t, int);
 static int thunder_pem_attach(device_t);
 static int thunder_pem_deactivate_resource(device_t, device_t, int, int,
     struct resource *);
@@ -156,9 +161,8 @@ static device_method_t thunder_pem_methods[] = {
 	DEVMETHOD(device_probe,			thunder_pem_probe),
 	DEVMETHOD(device_attach,		thunder_pem_attach),
 	DEVMETHOD(device_detach,		thunder_pem_detach),
-	DEVMETHOD(pcib_maxslots,		thunder_pem_maxslots),
-	DEVMETHOD(pcib_read_config,		thunder_pem_read_config),
-	DEVMETHOD(pcib_write_config,		thunder_pem_write_config),
+
+	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,		thunder_pem_read_ivar),
 	DEVMETHOD(bus_write_ivar,		thunder_pem_write_ivar),
 	DEVMETHOD(bus_alloc_resource,		thunder_pem_alloc_resource),
@@ -169,11 +173,16 @@ static device_method_t thunder_pem_methods[] = {
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
 
-	DEVMETHOD(pcib_map_msi,			arm_map_msi),
-	DEVMETHOD(pcib_alloc_msix,		arm_alloc_msix),
-	DEVMETHOD(pcib_release_msix,		arm_release_msix),
-	DEVMETHOD(pcib_alloc_msi,		arm_alloc_msi),
-	DEVMETHOD(pcib_release_msi,		arm_release_msi),
+	/* pcib interface */
+	DEVMETHOD(pcib_maxslots,		thunder_pem_maxslots),
+	DEVMETHOD(pcib_read_config,		thunder_pem_read_config),
+	DEVMETHOD(pcib_write_config,		thunder_pem_write_config),
+	DEVMETHOD(pcib_map_msi,			thunder_pem_map_msi),
+	DEVMETHOD(pcib_alloc_msix,		thunder_pem_alloc_msix),
+	DEVMETHOD(pcib_release_msix,		thunder_pem_release_msix),
+	DEVMETHOD(pcib_alloc_msi,		thunder_pem_alloc_msi),
+	DEVMETHOD(pcib_release_msi,		thunder_pem_release_msi),
+
 	DEVMETHOD_END
 };
 
@@ -312,6 +321,43 @@ thunder_pem_adjust_resource(device_t dev, device_t child, int type,
 		 */
 		return (EINVAL);
 	return (rman_adjust_resource(res, start, end));
+}
+
+static int
+thunder_pem_alloc_msi(device_t pci, device_t child, int count, int maxcount,
+    int *irqs)
+{
+
+	return (arm_alloc_msi(pci, child, count, maxcount, irqs));
+}
+
+static int
+thunder_pem_release_msi(device_t pci, device_t child, int count, int *irqs)
+{
+
+	return (arm_release_msi(pci, child, count, irqs));
+}
+
+static int
+thunder_pem_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
+    uint32_t *data)
+{
+
+	return (arm_map_msi(pci, child, irq, addr, data));
+}
+
+static int
+thunder_pem_alloc_msix(device_t pci, device_t child, int *irq)
+{
+
+	return (arm_alloc_msix(pci, child, irq));
+}
+
+static int
+thunder_pem_release_msix(device_t pci, device_t child, int irq)
+{
+
+	return (arm_release_msix(pci, child, irq));
 }
 
 static int
@@ -530,7 +576,7 @@ thunder_pem_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		parent_dev = device_get_parent(device_get_parent(dev));
 		return (BUS_ALLOC_RESOURCE(parent_dev, dev, type, rid, start,
 		    end, count, flags));
-	};
+	}
 
 
 	if (!RMAN_IS_DEFAULT_RANGE(start, end)) {

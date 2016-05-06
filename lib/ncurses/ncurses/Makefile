@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=	clibs
 SHLIBDIR?=	/lib
 
 .if !defined(ENABLE_WIDEC)
@@ -389,10 +390,10 @@ keys.list: MKkeys_list.sh Caps
 # Build tools
 build-tools: make_hash make_keys
 
-make_keys: make_keys.c names.c ncurses_def.h ${HEADERS}
+make_keys: make_keys.c names.c ncurses_def.h ${HEADERS} ${BUILD_TOOLS_META}
 	${CC} -o $@ ${CFLAGS} ${NCURSES_DIR}/ncurses/tinfo/make_keys.c
 
-make_hash: make_hash.c hashsize.h ncurses_def.h ${HEADERS}
+make_hash: make_hash.c hashsize.h ncurses_def.h ${HEADERS} ${BUILD_TOOLS_META}
 	${CC} -o $@ ${CFLAGS} -DMAIN_PROGRAM \
 		${NCURSES_DIR}/ncurses/tinfo/make_hash.c
 

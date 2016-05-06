@@ -40,7 +40,7 @@ uint32_t	bios_basemem, bios_extmem, high_heap_size;
 /*
  * The minimum amount of memory to reserve in bios_extmem for the heap.
  */
-#define	HEAP_MIN	(3 * 1024 * 1024)
+#define	HEAP_MIN	(64 * 1024 * 1024)
 
 void
 bios_getmem(void)

@@ -370,7 +370,7 @@ ebus_pci_attach(device_t dev)
 		eri = &sc->sc_rinfo[i];
 		if (i < rnum)
 			rman_fini(&eri->eri_rman);
-		if (eri->eri_res != 0) {
+		if (eri->eri_res != NULL) {
 			bus_release_resource(dev, eri->eri_rtype,
 			    PCIR_BAR(rnum), eri->eri_res);
 		}
