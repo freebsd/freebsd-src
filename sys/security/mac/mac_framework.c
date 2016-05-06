@@ -437,7 +437,7 @@ mac_policy_register(struct mac_policy_conf *mpc)
 	 * Per-policy initialization.  Currently, this takes place under the
 	 * exclusive lock, so policies must not sleep in their init method.
 	 * In the future, we may want to separate "init" from "start", with
-	 * "init" occuring without the lock held.  Likewise, on tear-down,
+	 * "init" occurring without the lock held.  Likewise, on tear-down,
 	 * breaking out "stop" from "destroy".
 	 */
 	if (mpc->mpc_ops->mpo_init != NULL)
