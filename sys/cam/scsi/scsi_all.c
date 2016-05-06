@@ -957,7 +957,7 @@ static struct scsi_sense_quirk_entry sense_quirk_table[] = {
 	}
 };
 
-const int sense_quirk_table_size = nitems(sense_quirk_table);
+const u_int sense_quirk_table_size = nitems(sense_quirk_table);
 
 static struct asc_table_entry asc_table[] = {
 	/*
@@ -3193,7 +3193,7 @@ static struct asc_table_entry asc_table[] = {
 	    "Security conflict in translated device") }
 };
 
-const int asc_table_size = nitems(asc_table);
+const u_int asc_table_size = nitems(asc_table);
 
 struct asc_key
 {
@@ -4700,7 +4700,7 @@ scsi_sense_desc_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 		     struct scsi_inquiry_data *inq_data,
 		     struct scsi_sense_desc_header *header)
 {
-	int i;
+	u_int i;
 
 	for (i = 0; i < nitems(scsi_sense_printers); i++) {
 		struct scsi_sense_desc_printer *printer;
@@ -5475,8 +5475,8 @@ static struct {
 u_int
 scsi_calc_syncsrate(u_int period_factor)
 {
-	int i;
-	int num_syncrates;
+	u_int i;
+	u_int num_syncrates;
 
 	/*
 	 * It's a bug if period is zero, but if it is anyway, don't
@@ -5511,8 +5511,8 @@ scsi_calc_syncsrate(u_int period_factor)
 u_int
 scsi_calc_syncparam(u_int period)
 {
-	int i;
-	int num_syncrates;
+	u_int i;
+	u_int num_syncrates;
 
 	if (period == 0)
 		return (~0);	/* Async */
@@ -6545,7 +6545,8 @@ scsi_parse_transportid(char *transportid_str,
 {
 	char *tmpstr;
 	scsi_nv_status status;
-	int retval, num_proto_entries, table_entry;
+	u_int num_proto_entries;
+	int retval, table_entry;
 
 	retval = 0;
 	table_entry = 0;
