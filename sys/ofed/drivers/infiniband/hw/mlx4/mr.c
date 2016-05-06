@@ -341,8 +341,8 @@ int mlx4_ib_umem_calc_optimal_mtt_size(struct ib_umem *umem,
 			    address for the start of the MR.
 			*/
 			/* umem_get aligned the start_va to a page
-			   boundry. Therefore, we need to align the
-			   start va to the same boundry */
+			   boundary. Therefore, we need to align the
+			   start va to the same boundary */
 			/* misalignment_bits is needed to handle the
 			   case of a single memory region. In this
 			   case, the rest of the logic will not reduce

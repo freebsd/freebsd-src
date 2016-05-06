@@ -328,7 +328,7 @@ sdp_poll_tx(struct sdp_sock *ssk)
 		SDPSTATS_COUNTER_INC(tx_poll_hit);
 
 	inflight = (u32) tx_ring_posted(ssk);
-	sdp_prf1(ssk->socket, NULL, "finished tx proccessing. inflight = %d",
+	sdp_prf1(ssk->socket, NULL, "finished tx processing. inflight = %d",
 	    inflight);
 
 	/* If there are still packets in flight and the timer has not already
