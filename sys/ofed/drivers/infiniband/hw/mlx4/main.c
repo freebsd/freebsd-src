@@ -799,7 +799,7 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	unsigned long  command = vma->vm_pgoff & MLX4_IB_MMAP_CMD_MASK;
 
 	if (command < MLX4_IB_MMAP_GET_CONTIGUOUS_PAGES) {
-		/* compatability handling for commands 0 & 1*/
+		/* compatibility handling for commands 0 & 1*/
 		if (vma->vm_end - vma->vm_start != PAGE_SIZE)
 			return -EINVAL;
 	}
