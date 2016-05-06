@@ -137,7 +137,7 @@ SRCS+=	cbc_cksm.c cbc_enc.c cfb64ede.c cfb64enc.c cfb_enc.c des_old.c \
 	fcrypt.c ofb64ede.c ofb64enc.c ofb_enc.c pcbc_enc.c qud_cksm.c \
 	rand_key.c read2pwd.c rpc_enc.c set_key.c str2key.c xcbc_enc.c
 .if ${MACHINE_CPUARCH} == "i386"
-SRCS+=	crypt586.S des-586.s
+SRCS+=	crypt586.s des-586.s
 .else
 SRCS+=	des_enc.c fcrypt_b.c
 .endif
