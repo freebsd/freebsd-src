@@ -199,4 +199,10 @@
 #define	BITSET_FSET(n)							\
 	[ 0 ... ((n) - 1) ] = (-1L)
 
+/*
+ * Dynamically allocate a bitset.
+ */
+#define BITSET_ALLOC(_s, mt, mf)					\
+	malloc(__bitset_words(_s) * sizeof(long), mt, (mf))
+
 #endif /* !_SYS_BITSET_H_ */
