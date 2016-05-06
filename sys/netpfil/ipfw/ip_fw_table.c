@@ -2119,7 +2119,7 @@ struct dump_table_args {
 	struct sockopt_data *sd;
 };
 
-static void
+static int
 export_table_internal(struct namedobj_instance *ni, struct named_object *no,
     void *arg)
 {
@@ -2132,6 +2132,7 @@ export_table_internal(struct namedobj_instance *ni, struct named_object *no,
 	KASSERT(i != NULL, ("previously checked buffer is not enough"));
 
 	export_table_info(dta->ch, (struct table_config *)no, i);
+	return (0);
 }
 
 /*
@@ -3123,7 +3124,7 @@ struct swap_table_args {
  * Ensure we dispatch each table once by setting/checking ochange
  * fields.
  */
-static void
+static int
 swap_table_set(struct namedobj_instance *ni, struct named_object *no,
     void *arg)
 {
@@ -3134,10 +3135,10 @@ swap_table_set(struct namedobj_instance *ni, struct named_object *no,
 	sta = (struct swap_table_args *)arg;
 
 	if (no->set != sta->set && (no->set != sta->new_set || sta->mv != 0))
-		return;
+		return (0);
 
 	if (tc->ochanged != 0)
-		return;
+		return (0);
 
 	tc->ochanged = 1;
 	ipfw_objhash_del(ni, no);
@@ -3146,12 +3147,13 @@ swap_table_set(struct namedobj_instance *ni, struct named_object *no,
 	else
 		no->set = sta->set;
 	ipfw_objhash_add(ni, no);
+	return (0);
 }
 
 /*
  * Cleans up ochange field for all tables.
  */
-static void
+static int
 clean_table_set_data(struct namedobj_instance *ni, struct named_object *no,
     void *arg)
 {
@@ -3162,6 +3164,7 @@ clean_table_set_data(struct namedobj_instance *ni, struct named_object *no,
 	sta = (struct swap_table_args *)arg;
 
 	tc->ochanged = 0;
+	return (0);
 }
 
 /*
@@ -3318,7 +3321,7 @@ static struct ipfw_sopt_handler	scodes[] = {
 	{ IP_FW_TABLE_XGETSIZE,	0,	HDIR_GET,	get_table_size },
 };
 
-static void
+static int
 destroy_table_locked(struct namedobj_instance *ni, struct named_object *no,
     void *arg)
 {
@@ -3328,6 +3331,7 @@ destroy_table_locked(struct namedobj_instance *ni, struct named_object *no,
 		printf("Error unlinking kidx %d from table %s\n",
 		    no->kidx, no->name);
 	free_table_config(ni, (struct table_config *)no);
+	return (0);
 }
 
 /*

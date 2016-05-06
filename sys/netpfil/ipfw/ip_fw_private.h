@@ -649,7 +649,7 @@ caddr_t ipfw_get_sopt_header(struct sockopt_data *sd, size_t needed);
 	} while(0)
 
 struct namedobj_instance;
-typedef void (objhash_cb_t)(struct namedobj_instance *ni, struct named_object *,
+typedef int (objhash_cb_t)(struct namedobj_instance *ni, struct named_object *,
     void *arg);
 typedef uint32_t (objhash_hash_f)(struct namedobj_instance *ni, const void *key,
     uint32_t kopt);
@@ -675,7 +675,7 @@ int ipfw_objhash_same_name(struct namedobj_instance *ni, struct named_object *a,
 void ipfw_objhash_add(struct namedobj_instance *ni, struct named_object *no);
 void ipfw_objhash_del(struct namedobj_instance *ni, struct named_object *no);
 uint32_t ipfw_objhash_count(struct namedobj_instance *ni);
-void ipfw_objhash_foreach(struct namedobj_instance *ni, objhash_cb_t *f,
+int ipfw_objhash_foreach(struct namedobj_instance *ni, objhash_cb_t *f,
     void *arg);
 int ipfw_objhash_free_idx(struct namedobj_instance *ni, uint16_t idx);
 int ipfw_objhash_alloc_idx(void *n, uint16_t *pidx);
