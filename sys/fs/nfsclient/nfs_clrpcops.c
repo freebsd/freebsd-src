@@ -1731,7 +1731,7 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 		}
 		if (error)
 			goto nfsmout;
-		NFSWRITERPC_SETTIME(wccflag, np, (nd->nd_flag & ND_NFSV4));
+		NFSWRITERPC_SETTIME(wccflag, np, nap, (nd->nd_flag & ND_NFSV4));
 		mbuf_freem(nd->nd_mrep);
 		nd->nd_mrep = NULL;
 		tsiz -= len;
