@@ -5222,7 +5222,7 @@ run_rssi2dbm(struct run_softc *sc, uint8_t rssi, uint8_t rxchain)
 static void
 run_rt5390_bbp_init(struct run_softc *sc)
 {
-	int i;
+	u_int i;
 	uint8_t bbp;
 
 	/* Apply maximum likelihood detection for 2 stream case. */
@@ -5332,7 +5332,7 @@ run_rt3070_rf_init(struct run_softc *sc)
 {
 	uint32_t tmp;
 	uint8_t bbp4, mingain, rf, target;
-	int i;
+	u_int i;
 
 	run_rt3070_rf_read(sc, 30, &rf);
 	/* toggle RF R30 bit 7 */
@@ -5476,7 +5476,7 @@ run_rt3593_rf_init(struct run_softc *sc)
 {
 	uint32_t tmp;
 	uint8_t rf;
-	int i;
+	u_int i;
 
 	/* Disable the GPIO bits 4 and 7 for LNA PE control. */
 	run_read(sc, RT3070_GPIO_SWITCH, &tmp);
@@ -5525,7 +5525,7 @@ run_rt5390_rf_init(struct run_softc *sc)
 {
 	uint32_t tmp;
 	uint8_t rf;
-	int i;
+	u_int i;
 
 	/* Toggle RF R2 to initiate calibration. */
 	if (sc->mac_ver == 0x5390) {

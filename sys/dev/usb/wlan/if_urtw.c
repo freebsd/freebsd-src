@@ -1910,7 +1910,7 @@ fail:
 static uint16_t
 urtw_rate2rtl(uint32_t rate)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < nitems(urtw_ratetable); i++) {
 		if (rate == urtw_ratetable[i].reg)
@@ -1923,7 +1923,7 @@ urtw_rate2rtl(uint32_t rate)
 static uint16_t
 urtw_rtl2rate(uint32_t rate)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < nitems(urtw_ratetable); i++) {
 		if (rate == urtw_ratetable[i].val)
@@ -2450,7 +2450,7 @@ fail:
 static usb_error_t
 urtw_8225_rf_init(struct urtw_softc *sc)
 {
-	int i;
+	unsigned int i;
 	uint16_t data;
 	usb_error_t error;
 
@@ -2831,7 +2831,7 @@ fail:
 static usb_error_t
 urtw_8225v2_rf_init(struct urtw_softc *sc)
 {
-	int i;
+	unsigned int i;
 	uint16_t data;
 	uint32_t data32;
 	usb_error_t error;
@@ -3164,7 +3164,7 @@ static usb_error_t
 urtw_8225v2b_rf_init(struct urtw_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	int i;
+	unsigned int i;
 	uint8_t data8;
 	usb_error_t error;
 
