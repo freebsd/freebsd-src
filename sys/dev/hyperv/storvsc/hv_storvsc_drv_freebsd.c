@@ -1273,6 +1273,7 @@ storvsc_timeout_test(struct hv_storvsc_request *reqp,
 }
 #endif /* HVS_TIMEOUT_TEST */
 
+#ifdef notyet
 /**
  * @brief timeout handler for requests
  *
@@ -1320,6 +1321,7 @@ storvsc_timeout(void *arg)
 	storvsc_timeout_test(reqp, MODE_SELECT_10, 1);
 #endif
 }
+#endif
 
 /**
  * @brief StorVSC device poll function
@@ -1472,6 +1474,7 @@ storvsc_action(struct cam_sim *sim, union ccb *ccb)
 			return;
 		}
 
+#ifdef notyet
 		if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
 			callout_init(&reqp->callout, CALLOUT_MPSAFE);
 			callout_reset_sbt(&reqp->callout,
@@ -1491,6 +1494,7 @@ storvsc_action(struct cam_sim *sim, union ccb *ccb)
 			}
 #endif /* HVS_TIMEOUT_TEST */
 		}
+#endif
 
 		if ((res = hv_storvsc_io_request(sc->hs_dev, reqp)) != 0) {
 			xpt_print(ccb->ccb_h.path,
@@ -2039,6 +2043,7 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 		mtx_unlock(&sc->hs_lock);
 	}
 
+#ifdef notyet
 	/*
 	 * callout_drain() will wait for the timer handler to finish
 	 * if it is running. So we don't need any lock to synchronize
@@ -2049,6 +2054,7 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
 		callout_drain(&reqp->callout);
 	}
+#endif
 
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
