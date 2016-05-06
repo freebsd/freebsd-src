@@ -683,7 +683,8 @@ checked_strdup(const char *s)
 int
 main(int argc, char **argv)
 {
-	int Aflag = 0, Mflag = 0, Rflag = 0, Lflag = 0, aflag = 0, vflag = 0;
+	int Aflag = 0, Mflag = 0, Rflag = 0, Lflag = 0, aflag = 0,
+	    rflag = 0, vflag = 0;
 	const char *conf_path = DEFAULT_CONFIG_PATH;
 	char *nickname = NULL, *discovery_host = NULL, *portal = NULL,
 	     *target = NULL, *user = NULL, *secret = NULL;
@@ -698,7 +699,7 @@ main(int argc, char **argv)
 	argc = xo_parse_args(argc, argv);
 	xo_open_container("iscsictl");
 
-	while ((ch = getopt(argc, argv, "AMRLac:d:i:n:p:t:u:s:vw:")) != -1) {
+	while ((ch = getopt(argc, argv, "AMRLac:d:i:n:p:rt:u:s:vw:")) != -1) {
 		switch (ch) {
 		case 'A':
 			Aflag = 1;
@@ -736,6 +737,9 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			portal = optarg;
+			break;
+		case 'r':
+			rflag = 1;
 			break;
 		case 't':
 			target = optarg;
@@ -789,6 +793,8 @@ main(int argc, char **argv)
 				xo_errx(1, "-a and -n and mutually exclusive");
 			if (discovery_host != NULL)
 				xo_errx(1, "-a and -d and mutually exclusive");
+			if (rflag != 0)
+				xo_errx(1, "-a and -r and mutually exclusive");
 		} else if (nickname != NULL) {
 			if (portal != NULL)
 				xo_errx(1, "-n and -p and mutually exclusive");
@@ -800,6 +806,8 @@ main(int argc, char **argv)
 				xo_errx(1, "-n and -s and mutually exclusive");
 			if (discovery_host != NULL)
 				xo_errx(1, "-n and -d and mutually exclusive");
+			if (rflag != 0)
+				xo_errx(1, "-n and -r and mutually exclusive");
 		} else if (discovery_host != NULL) {
 			if (portal != NULL)
 				xo_errx(1, "-d and -p and mutually exclusive");
@@ -844,6 +852,8 @@ main(int argc, char **argv)
 				xo_errx(1, "-n and -s and mutually exclusive");
 		}
 
+		if (rflag != 0)
+			xo_errx(1, "-r cannot be used with -M");
 		if (vflag != 0)
 			xo_errx(1, "-v cannot be used with -M");
 		if (timeout != -1)
@@ -875,6 +885,8 @@ main(int argc, char **argv)
 
 		if (session_id != -1)
 			xo_errx(1, "-i cannot be used with -R");
+		if (rflag != 0)
+			xo_errx(1, "-r cannot be used with -R");
 		if (vflag != 0)
 			xo_errx(1, "-v cannot be used with -R");
 		if (timeout != -1)
@@ -895,6 +907,8 @@ main(int argc, char **argv)
 			xo_errx(1, "-L and -n and mutually exclusive");
 		if (discovery_host != NULL)
 			xo_errx(1, "-L and -d and mutually exclusive");
+		if (rflag != 0)
+			xo_errx(1, "-L and -r and mutually exclusive");
 
 		if (session_id != -1)
 			xo_errx(1, "-i cannot be used with -L");
@@ -953,6 +967,8 @@ main(int argc, char **argv)
 			targ->t_session_type = SESSION_TYPE_NORMAL;
 			targ->t_address = portal;
 		}
+		if (rflag != 0)
+			targ->t_protocol = PROTOCOL_ISER;
 		targ->t_user = user;
 		targ->t_secret = secret;
 
