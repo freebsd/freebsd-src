@@ -2099,7 +2099,7 @@ retry:
 		txr->tx_tso = FALSE;
 	}
 
-        if (nsegs > (txr->tx_avail - EM_MAX_SCATTER)) {
+        if (txr->tx_avail < (nsegs + EM_MAX_SCATTER)) {
                 txr->no_desc_avail++;
 		bus_dmamap_unload(txr->txtag, map);
 		return (ENOBUFS);
