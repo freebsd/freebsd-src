@@ -40,7 +40,7 @@ static const uint8_t nib_rev[] = {
 	0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf,
 };
 
-/* calulate v * 2 */
+/* calculate v * 2 */
 static inline struct gf128
 gf128_mulalpha(struct gf128 v)
 {
