@@ -1264,7 +1264,7 @@ cdgetpage(struct cd_mode_params *mode_params)
 static int
 cdgetpagesize(int page_num)
 {
-	int i;
+	u_int i;
 
 	for (i = 0; i < nitems(cd_page_size_table); i++) {
 		if (cd_page_size_table[i].page == page_num)
