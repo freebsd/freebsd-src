@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <geom/uzip/g_uzip_lzma.h>
 #include <geom/uzip/g_uzip_wrkthr.h>
 
+#include "opt_geom.h"
+
 MALLOC_DEFINE(M_GEOM_UZIP, "geom_uzip", "GEOM UZIP data structures");
 
 FEATURE(geom_uzip, "GEOM read-only compressed disks support");
@@ -576,8 +578,8 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	struct g_provider *pp2;
 	struct g_uzip_softc *sc;
 	enum {
-		GEOM_UZIP = 1,
-		GEOM_ULZMA
+		G_UZIP = 1,
+		G_ULZMA
 	} type;
 
 	g_trace(G_T_TOPOLOGY, "%s(%s,%s)", __func__, mp->name, pp->name);
@@ -621,7 +623,7 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	switch (header->magic[CLOOP_OFS_COMPR]) {
 	case CLOOP_COMP_LZMA:
 	case CLOOP_COMP_LZMA_DDP:
-		type = GEOM_ULZMA;
+		type = G_ULZMA;
 		if (header->magic[CLOOP_OFS_VERSN] < CLOOP_MINVER_LZMA) {
 			DPRINTF(GUZ_DBG_ERR, ("%s: image version too old\n",
 			    gp->name));
@@ -632,7 +634,7 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		break;
 	case CLOOP_COMP_LIBZ:
 	case CLOOP_COMP_LIBZ_DDP:
-		type = GEOM_UZIP;
+		type = G_UZIP;
 		if (header->magic[CLOOP_OFS_VERSN] < CLOOP_MINVER_ZLIB) {
 			DPRINTF(GUZ_DBG_ERR, ("%s: image version too old\n",
 			    gp->name));
@@ -728,7 +730,7 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	sc->req_total = 0;
 	sc->req_cached = 0;
 
-	if (type == GEOM_UZIP) {
+	if (type == G_UZIP) {
 		sc->dcp = g_uzip_zlib_ctor(sc->blksz);
 	} else {
 		sc->dcp = g_uzip_lzma_ctor(sc->blksz);
