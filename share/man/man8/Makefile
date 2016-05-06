@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PACKAGE=runtime-manuals
 
 MAN=	crash.8 \
@@ -25,7 +27,7 @@ MLINKS= \
 	rc.8 rc.serial.8 \
 	rc.8 rc.shutdown.8
 
-.if ${MK_NIS!= "no"
+.if ${MK_NIS} != "no"
 MAN+=	yp.8
 
 MLINKS+=yp.8 NIS.8 \
