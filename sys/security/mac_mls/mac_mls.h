@@ -54,7 +54,7 @@
 					 * MAC_MLS_TYPE_LABEL. */
 #define	MAC_MLS_TYPE_HIGH	3	/* Dominates any
 					 * MAC_MLS_TYPE_LABEL. */
-#define	MAC_MLS_TYPE_EQUAL	4	/* Equivilent to any
+#define	MAC_MLS_TYPE_EQUAL	4	/* Equivalent to any
 					 * MAC_MLS_TYPE_LABEL. */
 
 /*

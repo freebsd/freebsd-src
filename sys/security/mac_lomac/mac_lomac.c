@@ -1472,7 +1472,7 @@ lomac_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 
 	dest = SLOT(mlabel);
 
-	/* XXX: where is the label for the firewall really comming from? */
+	/* XXX: where is the label for the firewall really coming from? */
 	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
 }
 
