@@ -35,6 +35,10 @@
 #ifndef _IF_IGB_H_
 #define _IF_IGB_H_
 
+#ifdef ALTQ
+#define IGB_LEGACY_TX
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #ifndef IGB_LEGACY_TX
