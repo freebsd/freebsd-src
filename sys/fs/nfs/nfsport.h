@@ -787,12 +787,14 @@ MALLOC_DECLARE(M_NEWNFSDSESSION);
 /*
  * Set the n_time in the client write rpc, as required.
  */
-#define	NFSWRITERPC_SETTIME(w, n, v4)					\
+#define	NFSWRITERPC_SETTIME(w, n, a, v4)				\
 	do {								\
 		if (w) {						\
-			(n)->n_mtime = (n)->n_vattr.na_vattr.va_mtime; \
+			mtx_lock(&((n)->n_mtx));			\
+			(n)->n_mtime = (a)->na_mtime;			\
 			if (v4)						\
-			    (n)->n_change = (n)->n_vattr.na_vattr.va_filerev; \
+				(n)->n_change = (a)->na_filerev;	\
+			mtx_unlock(&((n)->n_mtx));			\
 		}							\
 	} while (0)
 
