@@ -3009,7 +3009,7 @@ ipfw_del_obj_rewriter(struct opcode_obj_rewrite *rw, size_t count)
 	return (0);
 }
 
-static void
+static int
 export_objhash_ntlv_internal(struct namedobj_instance *ni,
     struct named_object *no, void *arg)
 {
@@ -3019,8 +3019,9 @@ export_objhash_ntlv_internal(struct namedobj_instance *ni,
 	sd = (struct sockopt_data *)arg;
 	ntlv = (ipfw_obj_ntlv *)ipfw_get_sopt_space(sd, sizeof(*ntlv));
 	if (ntlv == NULL)
-		return;
+		return (ENOMEM);
 	ipfw_export_obj_ntlv(no, ntlv);
+	return (0);
 }
 
 /*
@@ -4249,16 +4250,20 @@ ipfw_objhash_count(struct namedobj_instance *ni)
  * Runs @func for each found named object.
  * It is safe to delete objects from callback
  */
-void
+int
 ipfw_objhash_foreach(struct namedobj_instance *ni, objhash_cb_t *f, void *arg)
 {
 	struct named_object *no, *no_tmp;
-	int i;
+	int i, ret;
 
 	for (i = 0; i < ni->nn_size; i++) {
-		TAILQ_FOREACH_SAFE(no, &ni->names[i], nn_next, no_tmp)
-			f(ni, no, arg);
+		TAILQ_FOREACH_SAFE(no, &ni->names[i], nn_next, no_tmp) {
+			ret = f(ni, no, arg);
+			if (ret != 0)
+				return (ret);
+		}
 	}
+	return (0);
 }
 
 /*
