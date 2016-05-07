@@ -40,10 +40,7 @@ editit(const char *pathname)
 	int saved_errno, st, ret = -1;
 	const char *ed;
 
-	ed = getenv("VISUAL");
-	if (ed == NULL)
-		ed = getenv("EDITOR");
-	if (ed == NULL)
+	if ((ed = getenv("EDITOR")) == NULL)
 		ed = _PATH_VI;
 
 	sighup = signal(SIGHUP, SIG_IGN);

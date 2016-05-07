@@ -4,7 +4,7 @@
 .\" Written by Raymond Lai <ray@cyth.net>.
 .\" Public domain.
 .\"
-.Dd $Mdocdate: July 5 2012 $
+.Dd May 7, 2016
 .Dt SDIFF 1
 .Os
 .Sh NAME
@@ -50,8 +50,6 @@ into
 In this mode, the user is prompted for each set of differences.
 See
 .Ev EDITOR
-and
-.Ev VISUAL ,
 below,
 for details of which editor, if any, is invoked.
 .Pp
@@ -133,22 +131,10 @@ Change the size of tabs (default is 8.)
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width Ds
-.It Ev EDITOR , VISUAL
+.It Ev EDITOR
 Specifies an editor to use with the
 .Fl o
 option.
-If both
-.Ev EDITOR
-and
-.Ev VISUAL
-are set,
-.Ev VISUAL
-takes precedence.
-If neither
-.Ev EDITOR
-nor
-.Ev VISUAL
-are set,
 the default is
 .Xr vi 1 .
 .It Ev TMPDIR
