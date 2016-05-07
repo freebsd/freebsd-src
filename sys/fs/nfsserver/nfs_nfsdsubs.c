@@ -1130,6 +1130,7 @@ static short nfsv4err_setclientid[] = {
 	NFSERR_INVAL,
 	NFSERR_RESOURCE,
 	NFSERR_SERVERFAULT,
+	NFSERR_WRONGSEC,
 	0,
 };
 
