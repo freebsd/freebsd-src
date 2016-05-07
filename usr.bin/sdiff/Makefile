@@ -12,4 +12,4 @@ MAN1=	sdiff.1
 SUBDIR+= tests
 .endif
 
-.include <bsd.progs.mk>
+.include <bsd.prog.mk>
