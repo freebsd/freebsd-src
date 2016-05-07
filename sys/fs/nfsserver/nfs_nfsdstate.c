@@ -629,13 +629,13 @@ nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
 			NFSBCOPY(sessid, nsep->sess_cbsess.nfsess_sessionid,
 			    NFSX_V4SESSIONID);
 			shp = NFSSESSIONHASH(nsep->sess_sessionid);
+			NFSLOCKSTATE();
 			NFSLOCKSESSION(shp);
 			LIST_INSERT_HEAD(&shp->list, nsep, sess_hash);
-			NFSLOCKSTATE();
 			LIST_INSERT_HEAD(&clp->lc_session, nsep, sess_list);
 			nsep->sess_clp = clp;
-			NFSUNLOCKSTATE();
 			NFSUNLOCKSESSION(shp);
+			NFSUNLOCKSTATE();
 		    }
 		}
 	} else if (clp->lc_flags & LCL_NEEDSCONFIRM) {
@@ -5915,6 +5915,7 @@ nfsrv_freesession(struct nfsdsession *sep, uint8_t *sessionid)
 	struct nfssessionhash *shp;
 	int i;
 
+	NFSLOCKSTATE();
 	if (sep == NULL) {
 		shp = NFSSESSIONHASH(sessionid);
 		NFSLOCKSESSION(shp);
@@ -5924,18 +5925,17 @@ nfsrv_freesession(struct nfsdsession *sep, uint8_t *sessionid)
 		NFSLOCKSESSION(shp);
 	}
 	if (sep != NULL) {
-		NFSLOCKSTATE();
 		sep->sess_refcnt--;
 		if (sep->sess_refcnt > 0) {
-			NFSUNLOCKSTATE();
 			NFSUNLOCKSESSION(shp);
+			NFSUNLOCKSTATE();
 			return (0);
 		}
 		LIST_REMOVE(sep, sess_hash);
 		LIST_REMOVE(sep, sess_list);
-		NFSUNLOCKSTATE();
 	}
 	NFSUNLOCKSESSION(shp);
+	NFSUNLOCKSTATE();
 	if (sep == NULL)
 		return (NFSERR_BADSESSION);
 	for (i = 0; i < NFSV4_SLOTS; i++)
