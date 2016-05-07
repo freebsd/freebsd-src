@@ -35,19 +35,16 @@ int editit(const char *);
 int
 editit(const char *pathname)
 {
-	char *argp[] = {"sh", "-c", NULL, NULL}, *ed, *p;
 	sig_t sighup, sigint, sigquit, sigchld;
 	pid_t pid;
 	int saved_errno, st, ret = -1;
+	const char *ed;
 
 	ed = getenv("VISUAL");
-	if (ed == NULL || ed[0] == '\0')
+	if (ed == NULL)
 		ed = getenv("EDITOR");
-	if (ed == NULL || ed[0] == '\0')
+	if (ed == NULL)
 		ed = _PATH_VI;
-	if (asprintf(&p, "%s %s", ed, pathname) == -1)
-		return (-1);
-	argp[2] = p;
 
 	sighup = signal(SIGHUP, SIG_IGN);
 	sigint = signal(SIGINT, SIG_IGN);
@@ -56,7 +53,7 @@ editit(const char *pathname)
 	if ((pid = fork()) == -1)
 		goto fail;
 	if (pid == 0) {
-		execv(_PATH_BSHELL, argp);
+		execlp(ed, ed, pathname, (char *)NULL);
 		_exit(127);
 	}
 	while (waitpid(pid, &st, 0) == -1)
@@ -73,7 +70,6 @@ editit(const char *pathname)
 	(void)signal(SIGINT, sigint);
 	(void)signal(SIGQUIT, sigquit);
 	(void)signal(SIGCHLD, sigchld);
-	free(p);
 	errno = saved_errno;
 	return (ret);
 }
