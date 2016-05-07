@@ -22,11 +22,11 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <paths.h>
 #include <stdint.h>
+#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <libutil.h>
 
 #include "common.h"
 #include "extern.h"
@@ -693,19 +693,22 @@ println(const char *s1, const char div, const char *s2)
 static char *
 xfgets(FILE *file)
 {
-	const char delim[3] = {'\0', '\0', '\0'};
+	size_t linecap;
+	ssize_t l;
 	char *s;
 
-	/* XXX - Is this necessary? */
 	clearerr(file);
+	linecap = 0;
+	s = NULL;
 
-	if (!(s = fparseln(file, NULL, NULL, delim, 0)) &&
-	    ferror(file))
-		err(2, "error reading file");
-
-	if (!s) {
+	if ((l = getline(&s, &linecap, file)) == -1) {
+		if (ferror(file))
+			err(2, "error reading file");
 		return (NULL);
 	}
+
+	if (s[l-1] == '\n')
+		s[l-1] = '\0';
 
 	return (s);
 }
