@@ -993,11 +993,9 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 	new->ndpr_flags = pr->ndpr_flags;
 	if ((error = in6_init_prefix_ltimes(new)) != 0) {
 		free(new, M_IP6NDP);
-		return(error);
+		return (error);
 	}
 	new->ndpr_lastupdate = time_uptime;
-	if (newp != NULL)
-		*newp = new;
 
 	/* initialization */
 	LIST_INIT(&new->ndpr_advrtrs);
@@ -1021,10 +1019,11 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 		}
 	}
 
-	if (dr)
+	if (dr != NULL)
 		pfxrtr_add(new, dr);
-
-	return 0;
+	if (newp != NULL)
+		*newp = new;
+	return (0);
 }
 
 void
@@ -1144,13 +1143,11 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 			goto end;
 
 		error = nd6_prelist_add(new, dr, &pr);
-		if (error != 0 || pr == NULL) {
+		if (error != 0) {
 			nd6log((LOG_NOTICE, "prelist_update: "
-			    "nd6_prelist_add failed for %s/%d on %s "
-			    "errno=%d, returnpr=%p\n",
+			    "nd6_prelist_add failed for %s/%d on %s errno=%d\n",
 			    ip6_sprintf(ip6buf, &new->ndpr_prefix.sin6_addr),
-			    new->ndpr_plen, if_name(new->ndpr_ifp),
-			    error, pr));
+			    new->ndpr_plen, if_name(new->ndpr_ifp), error));
 			goto end; /* we should just give up in this case. */
 		}
 
