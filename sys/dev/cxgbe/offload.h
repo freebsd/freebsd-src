@@ -145,8 +145,6 @@ struct uld_info {
 struct tom_tunables {
 	int sndbuf;
 	int ddp;
-	int indsz;
-	int ddp_thres;
 	int rx_coalesce;
 	int tx_align;
 };

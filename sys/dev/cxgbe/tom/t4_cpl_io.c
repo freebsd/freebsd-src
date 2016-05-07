@@ -343,7 +343,7 @@ send_rx_credits(struct adapter *sc, struct toepcb *toep, int credits)
 }
 
 void
-t4_rcvd(struct toedev *tod, struct tcpcb *tp)
+t4_rcvd_locked(struct toedev *tod, struct tcpcb *tp)
 {
 	struct adapter *sc = tod->tod_softc;
 	struct inpcb *inp = tp->t_inpcb;
@@ -354,7 +354,7 @@ t4_rcvd(struct toedev *tod, struct tcpcb *tp)
 
 	INP_WLOCK_ASSERT(inp);
 
-	SOCKBUF_LOCK(sb);
+	SOCKBUF_LOCK_ASSERT(sb);
 	KASSERT(toep->sb_cc >= sbused(sb),
 	    ("%s: sb %p has more data (%d) than last time (%d).",
 	    __func__, sb, sbused(sb), toep->sb_cc));
@@ -372,6 +372,17 @@ t4_rcvd(struct toedev *tod, struct tcpcb *tp)
 		tp->rcv_wnd += credits;
 		tp->rcv_adv += credits;
 	}
+}
+
+void
+t4_rcvd(struct toedev *tod, struct tcpcb *tp)
+{
+	struct inpcb *inp = tp->t_inpcb;
+	struct socket *so = inp->inp_socket;
+	struct sockbuf *sb = &so->so_rcv;
+
+	SOCKBUF_LOCK(sb);
+	t4_rcvd_locked(tod, tp);
 	SOCKBUF_UNLOCK(sb);
 }
 
@@ -1042,7 +1053,6 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct inpcb *inp = toep->inp;
 	struct tcpcb *tp = NULL;
 	struct socket *so;
-	struct sockbuf *sb;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
 #endif
@@ -1088,12 +1098,14 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	tp->rcv_nxt++;	/* FIN */
 
 	so = inp->inp_socket;
-	sb = &so->so_rcv;
-	SOCKBUF_LOCK(sb);
-	if (__predict_false(toep->ddp_flags & (DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE))) {
-		handle_ddp_close(toep, tp, sb, cpl->rcv_nxt);
+	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
+		DDP_LOCK(toep);
+		if (__predict_false(toep->ddp_flags &
+		    (DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE)))
+			handle_ddp_close(toep, tp, cpl->rcv_nxt);
+		DDP_UNLOCK(toep);
 	}
-	socantrcvmore_locked(so);	/* unlocks the sockbuf */
+	socantrcvmore(so);
 
 	if (toep->ulp_mode != ULP_MODE_RDMA) {
 		KASSERT(tp->rcv_nxt == be32toh(cpl->rcv_nxt),
@@ -1409,6 +1421,8 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	tp->rcv_wnd -= len;
 	tp->t_rcvtime = ticks;
 
+	if (toep->ulp_mode == ULP_MODE_TCPDDP)
+		DDP_LOCK(toep);
 	so = inp_inpcbtosocket(inp);
 	sb = &so->so_rcv;
 	SOCKBUF_LOCK(sb);
@@ -1418,6 +1432,8 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		    __func__, tid, len);
 		m_freem(m);
 		SOCKBUF_UNLOCK(sb);
+		if (toep->ulp_mode == ULP_MODE_TCPDDP)
+			DDP_UNLOCK(toep);
 		INP_WUNLOCK(inp);
 
 		INP_INFO_RLOCK(&V_tcbinfo);
@@ -1446,6 +1462,10 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 			toep->rx_credits += newsize - hiwat;
 	}
 
+	if (toep->ddp_waiting_count != 0 || toep->ddp_active_count != 0)
+		CTR3(KTR_CXGBE, "%s: tid %u, non-ddp rx (%d bytes)", __func__,
+		    tid, len);
+
 	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
 		int changed = !(toep->ddp_flags & DDP_ON) ^ cpl->ddp_off;
 
@@ -1458,47 +1478,22 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 				    __func__));
 
 				/* Fell out of DDP mode */
-				toep->ddp_flags &= ~(DDP_ON | DDP_BUF0_ACTIVE |
-				    DDP_BUF1_ACTIVE);
+				toep->ddp_flags &= ~DDP_ON;
+				CTR1(KTR_CXGBE, "%s: fell out of DDP mode",
+				    __func__);
 
-				if (ddp_placed)
-					insert_ddp_data(toep, ddp_placed);
+				insert_ddp_data(toep, ddp_placed);
 			}
 		}
 
-		if ((toep->ddp_flags & DDP_OK) == 0 &&
-		    time_uptime >= toep->ddp_disabled + DDP_RETRY_WAIT) {
-			toep->ddp_score = DDP_LOW_SCORE;
-			toep->ddp_flags |= DDP_OK;
-			CTR3(KTR_CXGBE, "%s: tid %u DDP_OK @ %u",
-			    __func__, tid, time_uptime);
-		}
-
 		if (toep->ddp_flags & DDP_ON) {
-
 			/*
-			 * CPL_RX_DATA with DDP on can only be an indicate.  Ask
-			 * soreceive to post a buffer or disable DDP.  The
-			 * payload that arrived in this indicate is appended to
-			 * the socket buffer as usual.
+			 * CPL_RX_DATA with DDP on can only be an indicate.
+			 * Start posting queued AIO requests via DDP.  The
+			 * payload that arrived in this indicate is appended
+			 * to the socket buffer as usual.
 			 */
-
-#if 0
-			CTR5(KTR_CXGBE,
-			    "%s: tid %u (0x%x) DDP indicate (seq 0x%x, len %d)",
-			    __func__, tid, toep->flags, be32toh(cpl->seq), len);
-#endif
-			sb->sb_flags |= SB_DDP_INDICATE;
-		} else if ((toep->ddp_flags & (DDP_OK|DDP_SC_REQ)) == DDP_OK &&
-		    tp->rcv_wnd > DDP_RSVD_WIN && len >= sc->tt.ddp_thres) {
-
-			/*
-			 * DDP allowed but isn't on (and a request to switch it
-			 * on isn't pending either), and conditions are ripe for
-			 * it to work.  Switch it on.
-			 */
-
-			enable_ddp(sc, toep);
+			handle_ddp_indicate(toep);
 		}
 	}
 
@@ -1516,8 +1511,16 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		tp->rcv_wnd += credits;
 		tp->rcv_adv += credits;
 	}
+
+	if (toep->ddp_waiting_count > 0 && sbavail(sb) != 0) {
+		CTR2(KTR_CXGBE, "%s: tid %u queueing AIO task", __func__,
+		    tid);
+		ddp_queue_toep(toep);
+	}
 	sorwakeup_locked(so);
 	SOCKBUF_UNLOCK_ASSERT(sb);
+	if (toep->ulp_mode == ULP_MODE_TCPDDP)
+		DDP_UNLOCK(toep);
 
 	INP_WUNLOCK(inp);
 	CURVNET_RESTORE();
@@ -1680,6 +1683,7 @@ do_set_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct adapter *sc = iq->adapter;
 	const struct cpl_set_tcb_rpl *cpl = (const void *)(rss + 1);
 	unsigned int tid = GET_TID(cpl);
+	struct toepcb *toep;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
 #endif
@@ -1690,6 +1694,12 @@ do_set_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	if (is_ftid(sc, tid))
 		return (t4_filter_rpl(iq, rss, m)); /* TCB is a filter */
+
+	toep = lookup_tid(sc, tid);
+	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
+		handle_ddp_tcb_rpl(toep, cpl);
+		return (0);
+	}
 
 	/*
 	 * TOM and/or other ULPs don't request replies for CPL_SET_TCB or
@@ -1725,6 +1735,31 @@ t4_set_tcb_field(struct adapter *sc, struct toepcb *toep, int ctrl,
 	req->reply_ctrl = htobe16(V_NO_REPLY(1) |
 	    V_QUEUENO(toep->ofld_rxq->iq.abs_id));
 	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(0));
+	req->mask = htobe64(mask);
+	req->val = htobe64(val);
+
+	t4_wrq_tx(sc, wr);
+}
+
+void
+t4_set_tcb_field_rpl(struct adapter *sc, struct toepcb *toep, int ctrl,
+    uint16_t word, uint64_t mask, uint64_t val, uint8_t cookie)
+{
+	struct wrqe *wr;
+	struct cpl_set_tcb_field *req;
+
+	KASSERT((cookie & ~M_COOKIE) == 0, ("%s: invalid cookie %#x", __func__,
+	    cookie));
+	wr = alloc_wrqe(sizeof(*req), ctrl ? toep->ctrlq : toep->ofld_txq);
+	if (wr == NULL) {
+		/* XXX */
+		panic("%s: allocation failure.", __func__);
+	}
+	req = wrtod(wr);
+
+	INIT_TP_WR_MIT_CPL(req, CPL_SET_TCB_FIELD, toep->tid);
+	req->reply_ctrl = htobe16(V_QUEUENO(toep->ofld_rxq->iq.abs_id));
+	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(cookie));
 	req->mask = htobe64(mask);
 	req->val = htobe64(val);
 
