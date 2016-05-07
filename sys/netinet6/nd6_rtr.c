@@ -1081,7 +1081,6 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 	struct ifnet *ifp = new->ndpr_ifp;
 	struct nd_prefix *pr;
 	int error = 0;
-	int newprefix = 0;
 	int auth;
 	struct in6_addrlifetime lt6_tmp;
 	char ip6buf[INET6_ADDRSTRLEN];
@@ -1139,23 +1138,19 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		if (dr && pfxrtr_lookup(pr, dr) == NULL)
 			pfxrtr_add(pr, dr);
 	} else {
-		struct nd_prefix *newpr = NULL;
-
-		newprefix = 1;
-
 		if (new->ndpr_vltime == 0)
 			goto end;
 		if (new->ndpr_raf_onlink == 0 && new->ndpr_raf_auto == 0)
 			goto end;
 
-		error = nd6_prelist_add(new, dr, &newpr);
-		if (error != 0 || newpr == NULL) {
+		error = nd6_prelist_add(new, dr, &pr);
+		if (error != 0 || pr == NULL) {
 			nd6log((LOG_NOTICE, "prelist_update: "
 			    "nd6_prelist_add failed for %s/%d on %s "
 			    "errno=%d, returnpr=%p\n",
 			    ip6_sprintf(ip6buf, &new->ndpr_prefix.sin6_addr),
 			    new->ndpr_plen, if_name(new->ndpr_ifp),
-			    error, newpr));
+			    error, pr));
 			goto end; /* we should just give up in this case. */
 		}
 
@@ -1166,13 +1161,11 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		 * addresses.  Thus, we explicitly make sure that the prefix
 		 * itself expires now.
 		 */
-		if (newpr->ndpr_raf_onlink == 0) {
-			newpr->ndpr_vltime = 0;
-			newpr->ndpr_pltime = 0;
-			in6_init_prefix_ltimes(newpr);
+		if (pr->ndpr_raf_onlink == 0) {
+			pr->ndpr_vltime = 0;
+			pr->ndpr_pltime = 0;
+			in6_init_prefix_ltimes(pr);
 		}
-
-		pr = newpr;
 	}
 
 	/*
