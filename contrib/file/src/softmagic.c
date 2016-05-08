@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: softmagic.c,v 1.229 2016/03/21 23:04:40 christos Exp $")
+FILE_RCSID("@(#)$File: softmagic.c,v 1.230 2016/04/18 15:10:34 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -186,11 +186,11 @@ match(struct magic_set *ms, struct magic *magic, uint32_t nmagic,
 		     ((text && (m->str_flags & FLT) == STRING_BINTEST) ||
 		      (!text && (m->str_flags & FLT) == STRING_TEXTTEST))) ||
 		    (m->flag & mode) != mode) {
+flush:
 			/* Skip sub-tests */
-			while (magindex + 1 < nmagic &&
-                               magic[magindex + 1].cont_level != 0 &&
-			       ++magindex)
-				continue;
+			while (magindex < nmagic - 1 &&
+			    magic[magindex + 1].cont_level != 0)
+				magindex++;
 			continue; /* Skip to next top-level test*/
 		}
 
@@ -227,10 +227,7 @@ match(struct magic_set *ms, struct magic *magic, uint32_t nmagic,
 			 * main entry didn't match,
 			 * flush its continuations
 			 */
-			while (magindex < nmagic - 1 &&
-			    magic[magindex + 1].cont_level != 0)
-				magindex++;
-			continue;
+			goto flush;
 		}
 
 		if ((e = handle_annotation(ms, m)) != 0) {
@@ -255,8 +252,13 @@ match(struct magic_set *ms, struct magic *magic, uint32_t nmagic,
 		if (print && mprint(ms, m) == -1)
 			return -1;
 
-		if (moffset(ms, m, nbytes, &ms->c.li[cont_level].off) == -1)
-			return -1;
+		switch (moffset(ms, m, nbytes, &ms->c.li[cont_level].off)) {
+		case -1:
+		case 0:
+			goto flush;
+		default:
+			break;
+		}
 
 		/* and any continuations that match */
 		if (file_check_mem(ms, ++cont_level) == -1)
@@ -362,9 +364,15 @@ match(struct magic_set *ms, struct magic *magic, uint32_t nmagic,
 				if (print && mprint(ms, m) == -1)
 					return -1;
 
-				if (moffset(ms, m, nbytes,
-				    &ms->c.li[cont_level].off) == -1)
-					return -1;
+				switch (moffset(ms, m, nbytes,
+				    &ms->c.li[cont_level].off)) {
+				case -1:
+				case 0:
+					flush = 1;
+					break;
+				default:
+					break;
+				}
 
 				if (*m->desc)
 					*need_separator = 1;
@@ -813,9 +821,13 @@ moffset(struct magic_set *ms, struct magic *m, size_t nbytes, int32_t *op)
 	case FILE_DER:
 		{
 			o = der_offs(ms, m, nbytes);
-			if (o == -1) {
-				file_error(ms, 0, "EOF computing DER offset");
-				return -1;
+			if (o == -1 || (size_t)o > nbytes) {
+				if ((ms->flags & MAGIC_DEBUG) != 0) {
+					(void)fprintf(stderr,
+					    "Bad DER offset %d nbytes=%zu",
+					    o, nbytes);
+				}
+				return 0;
 			}
 			break;
 		}
@@ -825,12 +837,15 @@ moffset(struct magic_set *ms, struct magic *m, size_t nbytes, int32_t *op)
 		break;
 	}
 
-	if ((size_t)o >= nbytes) {
-		file_error(ms, 0, "Offset out of range");
+	if ((size_t)o > nbytes) {
+#if 0
+		file_error(ms, 0, "Offset out of range %zu > %zu",
+		    (size_t)o, nbytes);
+#endif
 		return -1;
 	}
 	*op = o;
-	return 0;
+	return 1;
 }
 
 private uint32_t
@@ -2107,8 +2122,13 @@ magiccheck(struct magic_set *ms, struct magic *m)
 		return 1;
 	case FILE_DER:
 		matched = der_cmp(ms, m);
-		if (matched == -1)
-			file_error(ms, 0, "EOF comparing DER entries");
+		if (matched == -1) {
+			if ((ms->flags & MAGIC_DEBUG) != 0) {
+				(void) fprintf(stderr,
+				    "EOF comparing DER entries");
+			}
+			return 0;
+		}
 		return matched;
 	default:
 		file_magerror(ms, "invalid type %d in magiccheck()", m->type);
