@@ -328,6 +328,7 @@
 #define	BHND_CHIPID_BCM43428		43428		/* 43228 chipcommon chipid (OTP, RBBU) */
 #define	BHND_CHIPID_BCM43431		43431		/* 4331  chipcommon chipid (OTP, RBBU) */
 #define	BHND_CHIPID_BCM43460		43460		/* 4360  chipcommon chipid (OTP, RBBU) */
+#define	BHND_CHIPID_BCM43462		0xA9C6		/* 43462 chipcommon chipid */
 #define	BHND_CHIPID_BCM4325		0x4325		/* 4325 chip id */
 #define	BHND_CHIPID_BCM4328		0x4328		/* 4328 chip id */
 #define	BHND_CHIPID_BCM4329		0x4329		/* 4329 chipcommon chipid */
@@ -345,6 +346,7 @@
 #define	BHND_CHIPID_BCM4334		0x4334		/* 4334 chipcommon chipid */
 #define	BHND_CHIPID_BCM4335		0x4335		/* 4335 chipcommon chipid */
 #define	BHND_CHIPID_BCM4360		0x4360          /* 4360 chipcommon chipid */
+#define	BHND_CHIPID_BCM43602		0xaa52          /* 43602 chipcommon chipid */
 #define	BHND_CHIPID_BCM4352		0x4352          /* 4352 chipcommon chipid */
 #define	BHND_CHIPID_BCM43526		0xAA06
 #define	BHND_CHIPID_BCM43341		43341		/* 43341 chipcommon chipid */
@@ -432,7 +434,6 @@
 #define	BHND_PKGID_BCM4335_WLBGA	(0x2)		/* WLBGA COB/Mobile SDIO/HSIC. */
 #define	BHND_PKGID_BCM4335_FCBGAD	(0x3)		/* FCBGA Debug Debug/Dev All if's. */
 #define	BHND_PKGID_PKG_MASK_BCM4335	(0x3)
-
 
 /* Broadcom Core IDs */
 #define	BHND_COREID_INVALID		0x700		/* Invalid coreid */
