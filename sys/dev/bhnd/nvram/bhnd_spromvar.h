@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,31 +29,30 @@
  * $FreeBSD$
  */
 
-#ifndef _BHND_BHNDB_PCIVAR_H_
-#define _BHND_BHNDB_PCIVAR_H_
+#ifndef _BHND_NVRAM_BHND_SPROM_H_
+#define _BHND_NVRAM_BHND_SPROM_H_
 
-#include "bhndbvar.h"
+struct bhnd_sprom {
+	device_t		 dev;		/**< sprom parent device */
 
-/*
- * bhndb(4) PCI driver subclass.
- */
+	uint8_t			 sp_rev;	/**< sprom revision */
+	
+	struct bhnd_resource	*sp_res;	/**< sprom resource. */
+	bus_size_t		 sp_res_off;	/**< offset to sprom image */
 
-DECLARE_CLASS(bhndb_pci_driver);
-
-struct bhndb_pci_softc;
-
-/*
- * An interconnect-specific function implementing BHNDB_SET_WINDOW_ADDR
- */
-typedef int (*bhndb_pci_set_regwin_t)(struct bhndb_pci_softc *sc,
-	         const struct bhndb_regwin *rw, bhnd_addr_t addr);
-
-struct bhndb_pci_softc {
-	struct bhndb_softc	bhndb;		/**< parent softc */
-	device_t		dev;		/**< bridge device */
-	device_t		parent;		/**< parent PCI device */
-	bhnd_devclass_t		pci_devclass;	/**< PCI core's devclass */
-	bhndb_pci_set_regwin_t	set_regwin;	/**< regwin handler */
+	uint8_t			*sp_shadow;	/**< sprom shadow */
+	bus_size_t		 sp_size_max;	/**< maximum possible sprom length */
+	size_t			 sp_size;	/**< shadow size */
+	size_t			 sp_capacity;	/**< shadow buffer capacity */
 };
 
-#endif /* _BHND_BHNDB_PCIVAR_H_ */
+int	bhnd_sprom_init(struct bhnd_sprom *sprom, struct bhnd_resource *r,
+	    bus_size_t offset);
+void	bhnd_sprom_fini(struct bhnd_sprom *sprom);
+
+int	bhnd_sprom_getvar(struct bhnd_sprom *sc, const char *name, void *buf,
+	    size_t *len);
+int	bhnd_sprom_setvar(struct bhnd_sprom *sc, const char *name,
+	    const void *buf, size_t len);
+
+#endif /* _BHND_NVRAM_BHND_SPROM_H_ */

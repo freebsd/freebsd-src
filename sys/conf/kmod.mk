@@ -411,6 +411,26 @@ ${_i}devs.h: ${SYSDIR}/tools/${_i}devs2h.awk ${SYSDIR}/dev/${_i}/${_i}devs
 .endif
 .endfor # _i
 
+.if !empty(SRCS:Mbhnd_nvram_map.h)
+CLEANFILES+=	bhnd_nvram_map.h
+bhnd_nvram_map.h: ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.awk \
+    ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
+    ${SYSDIR}/dev/bhnd/nvram/nvram_map
+bhnd_nvram_map.h:
+	${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
+	    ${SYSDIR}/dev/bhnd/nvram/nvram_map -h
+.endif
+
+.if !empty(SRCS:Mbhnd_nvram_map_data.h)
+CLEANFILES+=	bhnd_nvram_map_data.h
+bhnd_nvram_map_data.h: ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.awk \
+    ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
+    ${SYSDIR}/dev/bhnd/nvram/nvram_map
+bhnd_nvram_map_data.h:
+	${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
+	    ${SYSDIR}/dev/bhnd/nvram/nvram_map -d
+.endif
+
 .if !empty(SRCS:Musbdevs.h)
 CLEANFILES+=	usbdevs.h
 usbdevs.h: ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs

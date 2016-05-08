@@ -36,26 +36,12 @@
 #define	CHIPC_GET_ATTR(_entry, _attr) \
 	((_entry & CHIPC_ ## _attr ## _MASK) >> CHIPC_ ## _attr ## _SHIFT)
 
-#define	CHIPC_ID		0x0
-#define	CHIPC_CAPABILITIES	0x04
-#define	CHIPC_CHIPST		0x2c
-#define	CHIPC_EROMPTR		0xfc		/**< 32-bit EROM base address
-						  *  on BCMA devices */
 
-/** chipid */
-#define	CHIPC_ID		0x0		/**< identification register */
-#define	CHIPC_ID_CHIP_MASK	0x0000FFFF	/**< chip id */
-#define	CHIPC_ID_CHIP_SHIFT	0
-#define	CHIPC_ID_REV_MASK	0x000F0000	/**< chip revision */
-#define	CHIPC_ID_REV_SHIFT	16
-#define	CHIPC_ID_PKG_MASK	0x00F00000	/**< physical package ID */
-#define	CHIPC_ID_PKG_SHIFT	20
-#define	CHIPC_ID_NUMCORE_MASK	0x0F000000	/**< number of cores on chip (rev >= 4) */
-#define	CHIPC_ID_NUMCORE_SHIFT	24
-#define	CHIPC_ID_BUS_MASK	0xF0000000	/**< chip/interconnect type (BHND_CHIPTYPE_*) */
-#define	CHIPC_ID_BUS_SHIFT	28
-
+#define	CHIPC_ID			0x0
+#define	CHIPC_CAPABILITIES		0x04
 #define	CHIPC_OTPST			0x10
+#define	CHIPC_CHIPCTRL			0x28	/**< chip control */
+#define	CHIPC_CHIPST			0x2c	/**< chip status */
 #define	CHIPC_JTAGCMD			0x30
 #define	CHIPC_JTAGIR			0x34
 #define	CHIPC_JTAGDR			0x38
@@ -76,6 +62,8 @@
 #define	CHIPC_CLKC_M3			0xa0
 #define	CHIPC_CLKDIV			0xa4
 #define	CHIPC_SYS_CLK_CTL		0xc0
+#define	CHIPC_EROMPTR			0xfc	/**< 32-bit EROM base address
+						  *  on BCMA devices */
 #define	CHIPC_SPROM_CTRL		0x190	/**< SPROM interface (rev >= 32) */
 #define	CHIPC_SPROM_ADDR		0x194
 #define	CHIPC_SPROM_DATA		0x198
@@ -94,6 +82,19 @@
 #define	CHIPC_PMU_PLL_CONTROL_ADDR 	0x660
 #define	CHIPC_PMU_PLL_CONTROL_DATA 	0x664
 #define	CHIPC_SPROM_OTP			0x800	/* SPROM/OTP address space */
+
+/** chipid */
+#define	CHIPC_ID		0x0		/**< identification register */
+#define	CHIPC_ID_CHIP_MASK	0x0000FFFF	/**< chip id */
+#define	CHIPC_ID_CHIP_SHIFT	0
+#define	CHIPC_ID_REV_MASK	0x000F0000	/**< chip revision */
+#define	CHIPC_ID_REV_SHIFT	16
+#define	CHIPC_ID_PKG_MASK	0x00F00000	/**< physical package ID */
+#define	CHIPC_ID_PKG_SHIFT	20
+#define	CHIPC_ID_NUMCORE_MASK	0x0F000000	/**< number of cores on chip (rev >= 4) */
+#define	CHIPC_ID_NUMCORE_SHIFT	24
+#define	CHIPC_ID_BUS_MASK	0xF0000000	/**< chip/interconnect type (BHND_CHIPTYPE_*) */
+#define	CHIPC_ID_BUS_SHIFT	28
 
 /* capabilities */
 #define	CHIPC_CAP_UARTS_MASK		0x00000003	/* Number of UARTs */
@@ -1124,6 +1125,7 @@ enum {
 #define	CHIPC_CCTRL4331_OVR_PIPEAUXPWRDOWN	(1<<9)	/* override core control on pipe_AuxPowerDown */
 #define	CHIPC_CCTRL4331_PCIE_AUXCLKEN		(1<<10)	/* pcie_auxclkenable */
 #define	CHIPC_CCTRL4331_PCIE_PIPE_PLLDOWN	(1<<11)	/* pcie_pipe_pllpowerdown */
+#define	CHIPC_CCTRL4331_EXTPA_EN2		(1<<12)	/* 0 ext pa2 disable, 1 ext pa2 enabled */
 #define	CHIPC_CCTRL4331_BT_SHD0_ON_GPIO4	(1<<16)	/* enable bt_shd0 at gpio4 */
 #define	CHIPC_CCTRL4331_BT_SHD1_ON_GPIO5	(1<<17)	/* enable bt_shd1 at gpio5 */
 
