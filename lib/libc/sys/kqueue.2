@@ -373,6 +373,10 @@ The file referenced by the descriptor was extended.
 The file referenced by the descriptor had its attributes changed.
 .It Dv NOTE_LINK
 The link count on the file changed.
+In particular, the
+.Dv NOTE_LINK
+event is reported if a subdirectory was created or deleted inside
+the directory referenced by the descriptor.
 .It Dv NOTE_RENAME
 The file referenced by the descriptor was renamed.
 .It Dv NOTE_REVOKE
