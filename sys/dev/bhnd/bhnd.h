@@ -464,6 +464,55 @@ bhnd_get_chipid(device_t dev) {
 	return (BHND_BUS_GET_CHIPID(device_get_parent(dev), dev));
 };
 
+/**
+ * Determine an NVRAM variable's expected size.
+ *
+ * @param 	dev	A bhnd bus child device.
+ * @param	name	The variable name.
+ * @param[out]	len	On success, the variable's size, in bytes.
+ *
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+static inline int
+bhnd_nvram_getvarlen(device_t dev, const char *name, size_t *len)
+{
+	return (BHND_BUS_GET_NVRAM_VAR(device_get_parent(dev), dev, name, NULL,
+	    len));
+}
+
+/**
+ * Read an NVRAM variable.
+ *
+ * @param 	dev	A bhnd bus child device.
+ * @param	name	The NVRAM variable name.
+ * @param	buf	A buffer large enough to hold @p len bytes. On success,
+ * 			the requested value will be written to this buffer.
+ * @param	len	The required variable length.
+ *
+ * @retval 0		success
+ * @retval ENOENT	The requested variable was not found.
+ * @retval EINVAL	If @p len does not match the actual variable size.
+ * @retval non-zero	If reading @p name otherwise fails, a regular unix
+ *			error code will be returned.
+ */
+static inline int
+bhnd_nvram_getvar(device_t dev, const char *name, void *buf, size_t len)
+{
+	size_t	var_len;
+	int	error;
+
+	if ((error = bhnd_nvram_getvarlen(dev, name, &var_len)))
+		return (error);
+
+	if (len != var_len)
+		return (EINVAL);
+
+	return (BHND_BUS_GET_NVRAM_VAR(device_get_parent(dev), dev, name, buf,
+	    &len));
+}
 
 /**
  * Allocate a resource from a device's parent bhnd(4) bus.

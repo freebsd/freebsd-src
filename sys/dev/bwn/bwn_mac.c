@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/bhnd/bhnd.h>
 #include <dev/bhnd/bhnd_ids.h>
 
+#include "bhnd_nvram_map.h"
+
 static const struct resource_spec bwn_rspec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ -1, -1, 0 }
@@ -96,6 +98,14 @@ bwn_attach(device_t dev)
 	// XXX TODO
 	r = sc->res[0];
 	device_printf(dev, "got rid=%d res=%p\n", sc->rspec[0].rid, r);
+
+	uint8_t	macaddr[6];
+	error = bhnd_nvram_getvar(dev, BHND_NVAR_MACADDR, macaddr,
+	    sizeof(macaddr));
+	if (error)
+		return (error);
+
+	device_printf(dev, "got macaddr %6D\n", macaddr, ":");
 
 	return (0);
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
+ * Copyright (c) 2016 Landon Fuller <landon@landonf.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,31 +29,35 @@
  * $FreeBSD$
  */
 
-#ifndef _BHND_BHNDB_PCIVAR_H_
-#define _BHND_BHNDB_PCIVAR_H_
+#ifndef	_BHND_NVRAM_SPROMREG_H_
+#define	_BHND_NVRAM_SPROMREG_H_
 
-#include "bhndbvar.h"
+#define	SPROM_SZ_R1_3		128	/**< SPROM image size (rev 1-3) */
+#define	SPROM_SZ_R4_8_9		440	/**< SPROM image size (rev 4, 8-9) */
+#define	SPROM_SZ_R10		460	/**< SPROM image size (rev 10) */ 
+#define	SPROM_SZ_R11		468	/**< SPROM image size (rev 11) */
 
-/*
- * bhndb(4) PCI driver subclass.
- */
+/** Maximum supported SPROM image size */
+#define	SPROM_SZ_MAX		SPROM_SZ_R11
 
-DECLARE_CLASS(bhndb_pci_driver);
+#define	SPROM_SIG_NONE		0x0
+#define	SPROM_SIG_NONE_OFF	0x0
 
-struct bhndb_pci_softc;
+/** SPROM signature (rev 4) */
+#define	SPROM_SIG_R4		0x5372			
+#define	SPROM_SIG_R4_OFF	64	/**< SPROM signature offset (rev 4) */
 
-/*
- * An interconnect-specific function implementing BHNDB_SET_WINDOW_ADDR
- */
-typedef int (*bhndb_pci_set_regwin_t)(struct bhndb_pci_softc *sc,
-	         const struct bhndb_regwin *rw, bhnd_addr_t addr);
+/** SPROM signature (rev 8, 9) */
+#define	SPROM_SIG_R8_9		SPROM_SIG_R4
+#define	SPROM_SIG_R8_9_OFF	128	/**< SPROM signature offset (rev 8-9) */
 
-struct bhndb_pci_softc {
-	struct bhndb_softc	bhndb;		/**< parent softc */
-	device_t		dev;		/**< bridge device */
-	device_t		parent;		/**< parent PCI device */
-	bhnd_devclass_t		pci_devclass;	/**< PCI core's devclass */
-	bhndb_pci_set_regwin_t	set_regwin;	/**< regwin handler */
-};
+/** SPROM signature (rev 10) */
+#define	SPROM_SIG_R10		SPROM_SIG_R4
+#define	SPROM_SIG_R10_OFF	438	/**< SPROM signature offset (rev 10) */
 
-#endif /* _BHND_BHNDB_PCIVAR_H_ */
+/** SPROM signature (rev 11) */
+#define	SPROM_SIG_R11		0x0634
+#define	SPROM_SIG_R11_OFF	128	/**< SPROM signature offset (rev 11) */
+
+
+#endif /* _BHND_NVRAM_SPROMREG_H_ */

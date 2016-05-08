@@ -32,6 +32,8 @@
 #ifndef _BHND_CORES_CHIPC_CHIPCVAR_H_
 #define _BHND_CORES_CHIPC_CHIPCVAR_H_
 
+#include <dev/bhnd/nvram/bhnd_spromvar.h>
+
 #include "chipc.h"
 
 DECLARE_CLASS(bhnd_chipc);
@@ -45,37 +47,64 @@ extern devclass_t bhnd_chipc_devclass;
  */
 enum {
 	/** No quirks */
-	CHIPC_QUIRK_NONE		= 0,
+	CHIPC_QUIRK_NONE			= 0,
 	
 	/**
-	 * The device always provides an external SROM.
+	 * ChipCommon-controlled SPROM/OTP is supported, along with the
+	 * CHIPC_CAP_SPROM capability flag.
 	 */
-	CHIPC_QUIRK_ALWAYS_HAS_SPROM	= (1<<1),
-	
-	
-	/**
-	 * SROM availability must be determined through chip-specific
-	 * ChipStatus flags.
-	 */
-	CHIPC_QUIRK_SPROM_CHECK_CHIPST	= (1<<3),
-
-	/**
-	 * Use the rev22 chipstatus register format when determining SPROM
-	 * availability.
-	 */
-	CHIPC_QUIRK_SPROM_CHECK_CST_R22	= (1<<4)|CHIPC_QUIRK_SPROM_CHECK_CHIPST,
-	
-	/**
-	 * Use the rev23 chipstatus register format when determining SPROM
-	 * availability.
-	 */
-	CHIPC_QUIRK_SPROM_CHECK_CST_R23	= (1<<5)|CHIPC_QUIRK_SPROM_CHECK_CHIPST,
+	CHIPC_QUIRK_SUPPORTS_SPROM		= (1<<1),
 
 	/**
 	 * External NAND NVRAM is supported, along with the CHIPC_CAP_NFLASH
 	 * capability flag.
 	 */
-	CHIPC_QUIRK_SUPPORTS_NFLASH	= (1<<6),
+	CHIPC_QUIRK_SUPPORTS_NFLASH		= (1<<2),
+
+	/**
+	 * The SPROM is attached via muxed pins. The pins must be switched
+	 * to allow reading/writing.
+	 */
+	CHIPC_QUIRK_MUX_SPROM			= (1<<3),
+	
+	/**
+	 * Access to the SPROM uses pins shared with the 802.11a external PA.
+	 * 
+	 * On modules using these 4331 packages, the CCTRL4331_EXTPA_EN flag
+	 * must be cleared to allow SPROM access.
+	 */
+	CHIPC_QUIRK_4331_EXTPA_MUX_SPROM	= (1<<4) |
+	    CHIPC_QUIRK_MUX_SPROM,
+
+	/**
+	 * Access to the SPROM uses pins shared with the 802.11a external PA.
+	 * 
+	 * On modules using these 4331 chip packages, the external PA is
+	 * attached via GPIO 2, 5, and sprom_dout pins.
+	 * 
+	 * When enabling and disabling EXTPA to allow SPROM access, the
+	 * CCTRL4331_EXTPA_ON_GPIO2_5 flag must also be set or cleared,
+	 * respectively.
+	 */
+	CHIPC_QUIRK_4331_GPIO2_5_MUX_SPROM	= (1<<5) |
+	    CHIPC_QUIRK_4331_EXTPA_MUX_SPROM,
+
+	/**
+	 * Access to the SPROM uses pins shared with two 802.11a external PAs.
+	 * 
+	 * When enabling and disabling EXTPA, the CCTRL4331_EXTPA_EN2 must also
+	 * be cleared to allow SPROM access.
+	 */
+	CHIPC_QUIRK_4331_EXTPA2_MUX_SPROM	= (1<<6) |
+	    CHIPC_QUIRK_4331_EXTPA_MUX_SPROM,
+	
+
+	/**
+	 * SPROM pins are muxed with the FEM control lines on this 4360-family
+	 * device. The muxed pins must be switched to allow reading/writing
+	 * the SPROM.
+	 */
+	CHIPC_QUIRK_4360_FEM_MUX_SPROM	= (1<<5) | CHIPC_QUIRK_MUX_SPROM
 };
 
 struct chipc_softc {
@@ -89,6 +118,19 @@ struct chipc_softc {
 	uint32_t		 quirks;	/**< CHIPC_QUIRK_* quirk flags */
 	uint32_t		 caps;		/**< CHIPC_CAP_* capability register flags */
 	uint32_t		 cst;		/**< CHIPC_CST* status register flags */
+	bhnd_nvram_src_t	 nvram_src;	/**< NVRAM source */
+	
+	struct mtx		 mtx;		/**< state mutex. */
+
+	struct bhnd_sprom	 sprom;		/**< OTP/SPROM shadow, if any */
 };
+
+#define	CHIPC_LOCK_INIT(sc) \
+	mtx_init(&(sc)->mtx, device_get_nameunit((sc)->dev), \
+	    "BHND chipc driver lock", MTX_DEF)
+#define	CHIPC_LOCK(sc)				mtx_lock(&(sc)->mtx)
+#define	CHIPC_UNLOCK(sc)			mtx_unlock(&(sc)->mtx)
+#define	CHIPC_LOCK_ASSERT(sc, what)		mtx_assert(&(sc)->mtx, what)
+#define	CHIPC_LOCK_DESTROY(sc)			mtx_destroy(&(sc)->mtx)
 
 #endif /* _BHND_CORES_CHIPC_CHIPCVAR_H_ */

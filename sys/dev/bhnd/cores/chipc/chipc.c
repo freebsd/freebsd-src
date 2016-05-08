@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/bhnd/bhnd.h>
 
+#include "bhnd_nvram_if.h"
+
 #include "chipcreg.h"
 #include "chipcvar.h"
 
@@ -73,11 +75,42 @@ static const struct bhnd_device chipc_devices[] = {
 
 /* Device quirks table */
 static struct bhnd_device_quirk chipc_quirks[] = {
-	{ BHND_HWREV_RANGE	(0,	21),	CHIPC_QUIRK_ALWAYS_HAS_SPROM },
-	{ BHND_HWREV_EQ		(22),		CHIPC_QUIRK_SPROM_CHECK_CST_R22 },
-	{ BHND_HWREV_RANGE	(23,	31),	CHIPC_QUIRK_SPROM_CHECK_CST_R23 },
-	{ BHND_HWREV_GTE	(35),		CHIPC_QUIRK_SUPPORTS_NFLASH },
+	{ BHND_HWREV_GTE	(32),	CHIPC_QUIRK_SUPPORTS_SPROM },
+	{ BHND_HWREV_GTE	(35),	CHIPC_QUIRK_SUPPORTS_NFLASH },
 	BHND_DEVICE_QUIRK_END
+};
+
+/* Chip-specific quirks table */
+static struct bhnd_chip_quirk chipc_chip_quirks[] = {
+	/* 4331 12x9 packages */
+	{{ BHND_CHIP_IP(4331, 4331TN) },
+		CHIPC_QUIRK_4331_GPIO2_5_MUX_SPROM
+	},
+	{{ BHND_CHIP_IP(4331, 4331TNA0) },
+		CHIPC_QUIRK_4331_GPIO2_5_MUX_SPROM
+	},
+
+	/* 4331 12x12 packages */
+	{{ BHND_CHIP_IPR(4331, 4331TT, HWREV_GTE(1)) },
+		CHIPC_QUIRK_4331_EXTPA2_MUX_SPROM
+	},
+
+	/* 4331 (all packages/revisions) */
+	{{ BHND_CHIP_ID(4331) },
+		CHIPC_QUIRK_4331_EXTPA_MUX_SPROM
+	},
+
+	/* 4360 family (all revs <= 2) */
+	{{ BHND_CHIP_IR(4352, HWREV_LTE(2)) },
+		CHIPC_QUIRK_4360_FEM_MUX_SPROM },
+	{{ BHND_CHIP_IR(43460, HWREV_LTE(2)) },
+		CHIPC_QUIRK_4360_FEM_MUX_SPROM },
+	{{ BHND_CHIP_IR(43462, HWREV_LTE(2)) },
+		CHIPC_QUIRK_4360_FEM_MUX_SPROM },
+	{{ BHND_CHIP_IR(43602, HWREV_LTE(2)) },
+		CHIPC_QUIRK_4360_FEM_MUX_SPROM },
+
+	BHND_CHIP_QUIRK_END
 };
 
 /* quirk and capability flag convenience macros */
@@ -91,7 +124,13 @@ static struct bhnd_device_quirk chipc_quirks[] = {
     KASSERT(CHIPC_QUIRK((_sc), name), ("quirk " __STRING(_name) " not set"))
 
 #define	CHIPC_ASSERT_CAP(_sc, name)	\
-    KASSERT(CHIPC_CAP((_sc), name), ("capability " __STRING(_name) " not set"))    
+    KASSERT(CHIPC_CAP((_sc), name), ("capability " __STRING(_name) " not set"))
+
+static bhnd_nvram_src_t	chipc_nvram_identify(struct chipc_softc *sc);
+static int		chipc_sprom_init(struct chipc_softc *);
+static int		chipc_enable_sprom_pins(struct chipc_softc *);
+static int		chipc_disable_sprom_pins(struct chipc_softc *);
+
 
 static int
 chipc_probe(device_t dev)
@@ -119,6 +158,9 @@ chipc_attach(device_t dev)
 	sc->dev = dev;
 	sc->quirks = bhnd_device_quirks(dev, chipc_devices,
 	    sizeof(chipc_devices[0]));
+	sc->quirks |= bhnd_chip_quirks(dev, chipc_chip_quirks);
+	
+	CHIPC_LOCK_INIT(sc);
 
 	/* Allocate bus resources */
 	memcpy(sc->rspec, chipc_rspec, sizeof(sc->rspec));
@@ -152,22 +194,28 @@ chipc_attach(device_t dev)
 	sc->caps = bhnd_bus_read_4(sc->core, CHIPC_CAPABILITIES);
 	sc->cst = bhnd_bus_read_4(sc->core, CHIPC_CHIPST);
 
-	// TODO
-	switch (bhnd_chipc_nvram_src(dev)) {
-	case BHND_NVRAM_SRC_CIS:
-		device_printf(dev, "NVRAM source: CIS\n");
-		break;
-	case BHND_NVRAM_SRC_SPROM:
-		device_printf(dev, "NVRAM source: SPROM\n");
-		break;
+	/* Identify NVRAM source */
+	sc->nvram_src = chipc_nvram_identify(sc);
+
+	/* Read NVRAM data */
+	switch (sc->nvram_src) {
 	case BHND_NVRAM_SRC_OTP:
-		device_printf(dev, "NVRAM source: OTP\n");
+		// TODO (requires access to OTP hardware)
+		device_printf(sc->dev, "NVRAM-OTP unsupported\n");
 		break;
+
 	case BHND_NVRAM_SRC_NFLASH:
-		device_printf(dev, "NVRAM source: NFLASH\n");
+		// TODO (requires access to NFLASH hardware)
+		device_printf(sc->dev, "NVRAM-NFLASH unsupported\n");
 		break;
-	case BHND_NVRAM_SRC_NONE:
-		device_printf(dev, "NVRAM source: NONE\n");
+
+	case BHND_NVRAM_SRC_SPROM:
+		if ((error = chipc_sprom_init(sc)))
+			goto cleanup;
+		break;
+
+	case BHND_NVRAM_SRC_UNKNOWN:
+		/* Handled externally */
 		break;
 	}
 
@@ -175,6 +223,7 @@ chipc_attach(device_t dev)
 	
 cleanup:
 	bhnd_release_resources(dev, sc->rspec, sc->res);
+	CHIPC_LOCK_DESTROY(sc);
 	return (error);
 }
 
@@ -185,6 +234,9 @@ chipc_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 	bhnd_release_resources(dev, sc->rspec, sc->res);
+	bhnd_sprom_fini(&sc->sprom);
+
+	CHIPC_LOCK_DESTROY(sc);
 
 	return (0);
 }
@@ -202,68 +254,64 @@ chipc_resume(device_t dev)
 }
 
 /**
- * Use device-specific ChipStatus flags to determine the preferred NVRAM
- * data source.
+ * Initialize local SPROM shadow, if required.
+ * 
+ * @param sc chipc driver state.
  */
-static bhnd_nvram_src_t
-chipc_nvram_src_chipst(struct chipc_softc *sc)
+static int
+chipc_sprom_init(struct chipc_softc *sc)
 {
-	uint8_t		nvram_sel;
+	int	error;
 
-	CHIPC_ASSERT_QUIRK(sc, SPROM_CHECK_CHIPST);
+	KASSERT(sc->nvram_src == BHND_NVRAM_SRC_SPROM,
+	    ("non-SPROM source (%u)\n", sc->nvram_src));
 
-	if (CHIPC_QUIRK(sc, SPROM_CHECK_CST_R22)) {
-		// TODO: On these devices, the official driver code always
-		// assumes SPROM availability if CHIPC_CST_OTP_SEL is not
-		// set; we must review against the actual behavior of our
-		// BCM4312 hardware
-		nvram_sel = CHIPC_GET_ATTR(sc->cst, CST_SPROM_OTP_SEL_R22);
-	} else if (CHIPC_QUIRK(sc, SPROM_CHECK_CST_R23)) {
-		nvram_sel = CHIPC_GET_ATTR(sc->cst, CST_SPROM_OTP_SEL_R23);
-	} else {
-		panic("invalid CST OTP/SPROM chipc quirk flags");
+	/* Enable access to the SPROM */
+	CHIPC_LOCK(sc);
+	if ((error = chipc_enable_sprom_pins(sc)))
+		goto failed;
+
+	/* Initialize SPROM parser */
+	error = bhnd_sprom_init(&sc->sprom, sc->core, CHIPC_SPROM_OTP);
+	if (error) {
+		device_printf(sc->dev, "SPROM identification failed: %d\n",
+			error);
+
+		chipc_disable_sprom_pins(sc);
+		goto failed;
 	}
-	device_printf(sc->dev, "querying chipst for 0x%x, 0x%x\n", sc->ccid.chip_id, sc->cst);
 
-	switch (nvram_sel) {
-	case CHIPC_CST_DEFCIS_SEL:
-		return (BHND_NVRAM_SRC_CIS);
-
-	case CHIPC_CST_SPROM_SEL:
-	case CHIPC_CST_OTP_PWRDN:
-		return (BHND_NVRAM_SRC_SPROM);
-
-	case CHIPC_CST_OTP_SEL:
-		return (BHND_NVRAM_SRC_OTP);
-
-	default:
-		device_printf(sc->dev, "unrecognized OTP/SPROM type 0x%hhx",
-		    nvram_sel);
-		return (BHND_NVRAM_SRC_NONE);
+	/* Drop access to the SPROM lines */
+	if ((error = chipc_disable_sprom_pins(sc))) {
+		bhnd_sprom_fini(&sc->sprom);
+		goto failed;
 	}
+	CHIPC_UNLOCK(sc);
+
+	return (0);
+
+failed:
+	CHIPC_UNLOCK(sc);
+	return (error);
 }
 
 /**
- * Determine the preferred NVRAM data source.
+ * Determine the NVRAM data source for this device.
+ *
+ * @param sc chipc driver state.
  */
 static bhnd_nvram_src_t
-chipc_nvram_src(device_t dev)
+chipc_nvram_identify(struct chipc_softc *sc)
 {
-	struct chipc_softc	*sc;
 	uint32_t		 srom_ctrl;
 
-	sc = device_get_softc(dev);
-
-	/* Very early devices always included a SPROM */
-	if (CHIPC_QUIRK(sc, ALWAYS_HAS_SPROM))
-		return (BHND_NVRAM_SRC_SPROM);
-
-	/* Most other early devices require checking ChipStatus flags */
-	if (CHIPC_QUIRK(sc, SPROM_CHECK_CHIPST))
-		return (chipc_nvram_src_chipst(sc));
+	/* Very early devices vend SPROM/OTP/CIS (if at all) via the
+	 * host bridge interface instead of ChipCommon. */
+	if (!CHIPC_QUIRK(sc, SUPPORTS_SPROM))
+		return (BHND_NVRAM_SRC_UNKNOWN);
 
 	/*
-	 * Later chipset revisions standardized the NVRAM capability flags and
+	 * Later chipset revisions standardized the SPROM capability flags and
 	 * register interfaces.
 	 * 
 	 * We check for hardware presence in order of precedence. For example,
@@ -287,7 +335,158 @@ chipc_nvram_src(device_t dev)
 		return (BHND_NVRAM_SRC_NFLASH);
 
 	/* No NVRAM hardware capability declared */
-	return (BHND_NVRAM_SRC_NONE);
+	return (BHND_NVRAM_SRC_UNKNOWN);
+}
+
+
+/**
+ * If required by this device, enable access to the SPROM.
+ * 
+ * @param sc chipc driver state.
+ */
+static int
+chipc_enable_sprom_pins(struct chipc_softc *sc)
+{
+	uint32_t cctrl;
+	
+	CHIPC_LOCK_ASSERT(sc, MA_OWNED);
+
+	/* Nothing to do? */
+	if (!CHIPC_QUIRK(sc, MUX_SPROM))
+		return (0);
+
+	cctrl = bhnd_bus_read_4(sc->core, CHIPC_CHIPCTRL);
+
+	/* 4331 devices */
+	if (CHIPC_QUIRK(sc, 4331_EXTPA_MUX_SPROM)) {
+		cctrl &= ~CHIPC_CCTRL4331_EXTPA_EN;
+
+		if (CHIPC_QUIRK(sc, 4331_GPIO2_5_MUX_SPROM))
+			cctrl &= ~CHIPC_CCTRL4331_EXTPA_ON_GPIO2_5;
+
+		if (CHIPC_QUIRK(sc, 4331_EXTPA2_MUX_SPROM))
+			cctrl &= ~CHIPC_CCTRL4331_EXTPA_EN2;
+
+		bhnd_bus_write_4(sc->core, CHIPC_CHIPCTRL, cctrl);
+		return (0);
+	}
+
+	/* 4360 devices */
+	if (CHIPC_QUIRK(sc, 4360_FEM_MUX_SPROM)) {
+		/* Unimplemented */
+	}
+
+	/* Refuse to proceed on unsupported devices with muxed SPROM pins */
+	device_printf(sc->dev, "muxed sprom lines on unrecognized device\n");
+	return (ENXIO);
+}
+
+/**
+ * If required by this device, revert any GPIO/pin configuration applied
+ * to allow SPROM access.
+ * 
+ * @param sc chipc driver state.
+ */
+static int
+chipc_disable_sprom_pins(struct chipc_softc *sc)
+{
+	uint32_t cctrl;
+
+	CHIPC_LOCK_ASSERT(sc, MA_OWNED);
+
+	/* Nothing to do? */
+	if (!CHIPC_QUIRK(sc, MUX_SPROM))
+		return (0);
+
+	cctrl = bhnd_bus_read_4(sc->core, CHIPC_CHIPCTRL);
+
+	/* 4331 devices */
+	if (CHIPC_QUIRK(sc, 4331_EXTPA_MUX_SPROM)) {
+		cctrl |= CHIPC_CCTRL4331_EXTPA_EN;
+
+		if (CHIPC_QUIRK(sc, 4331_GPIO2_5_MUX_SPROM))
+			cctrl |= CHIPC_CCTRL4331_EXTPA_ON_GPIO2_5;
+
+		if (CHIPC_QUIRK(sc, 4331_EXTPA2_MUX_SPROM))
+			cctrl |= CHIPC_CCTRL4331_EXTPA_EN2;
+
+		bhnd_bus_write_4(sc->core, CHIPC_CHIPCTRL, cctrl);
+		return (0);
+	}
+
+	/* 4360 devices */
+	if (CHIPC_QUIRK(sc, 4360_FEM_MUX_SPROM)) {
+		/* Unimplemented */
+	}
+	
+	/* Refuse to proceed on unsupported devices with muxed SPROM pins */
+	device_printf(sc->dev, "muxed sprom lines on unrecognized device\n");
+	return (ENXIO);
+}
+
+static bhnd_nvram_src_t
+chipc_nvram_src(device_t dev)
+{
+	struct chipc_softc *sc = device_get_softc(dev);
+	return (sc->nvram_src);
+}
+
+static int
+chipc_nvram_getvar(device_t dev, const char *name, void *buf, size_t *len)
+{
+	struct chipc_softc	*sc;
+	int			 error;
+
+	sc = device_get_softc(dev);
+
+	switch (sc->nvram_src) {
+	case BHND_NVRAM_SRC_SPROM:
+		CHIPC_LOCK(sc);
+		error = bhnd_sprom_getvar(&sc->sprom, name, buf, len);
+		CHIPC_UNLOCK(sc);
+		return (error);
+
+	case BHND_NVRAM_SRC_OTP:
+	case BHND_NVRAM_SRC_NFLASH:
+		/* Currently unsupported */
+		return (ENXIO);
+
+	case BHND_NVRAM_SRC_UNKNOWN:
+		return (ENODEV);
+	}
+
+	/* Unknown NVRAM source */
+	return (ENODEV);
+}
+
+static int
+chipc_nvram_setvar(device_t dev, const char *name, const void *buf,
+    size_t len)
+{
+	struct chipc_softc	*sc;
+	int			 error;
+
+	sc = device_get_softc(dev);
+
+	switch (sc->nvram_src) {
+	case BHND_NVRAM_SRC_SPROM:
+		CHIPC_LOCK(sc);
+		error = bhnd_sprom_setvar(&sc->sprom, name, buf, len);
+		CHIPC_UNLOCK(sc);
+		return (error);
+
+	case BHND_NVRAM_SRC_OTP:
+	case BHND_NVRAM_SRC_NFLASH:
+		/* Currently unsupported */
+		return (ENXIO);
+
+	case BHND_NVRAM_SRC_UNKNOWN:
+	default:
+		return (ENODEV);
+	}
+
+	/* Unknown NVRAM source */
+	return (ENODEV);
 }
 
 static device_method_t chipc_methods[] = {
@@ -300,6 +499,10 @@ static device_method_t chipc_methods[] = {
 	
 	/* ChipCommon interface */
 	DEVMETHOD(bhnd_chipc_nvram_src,	chipc_nvram_src),
+
+	/* NVRAM interface */
+	DEVMETHOD(bhnd_nvram_getvar,	chipc_nvram_getvar),
+	DEVMETHOD(bhnd_nvram_setvar,	chipc_nvram_setvar),
 
 	DEVMETHOD_END
 };
