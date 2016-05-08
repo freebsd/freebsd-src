@@ -335,8 +335,6 @@ void				 bhnd_set_custom_core_desc(device_t dev,
 void				 bhnd_set_default_core_desc(device_t dev);
 
 
-bool				 bhnd_bus_generic_is_hostb_device(device_t dev,
-				     device_t child);
 bool				 bhnd_bus_generic_is_hw_disabled(device_t dev,
 				     device_t child);
 bool				 bhnd_bus_generic_is_region_valid(device_t dev,
@@ -364,14 +362,14 @@ int				 bhnd_bus_generic_deactivate_resource (device_t dev,
 
 
 /**
- * Return true if @p dev is serving as a host bridge for its parent bhnd
- * bus.
+ * Return the active host bridge core for the bhnd bus, if any, or NULL if
+ * not found.
  *
- * @param dev A bhnd bus child device.
+ * @param dev A bhnd bus device.
  */
-static inline bool
-bhnd_is_hostb_device(device_t dev) {
-	return (BHND_BUS_IS_HOSTB_DEVICE(device_get_parent(dev), dev));
+static inline device_t
+bhnd_find_hostb_device(device_t dev) {
+	return (BHND_BUS_FIND_HOSTB_DEVICE(dev));
 }
 
 /**

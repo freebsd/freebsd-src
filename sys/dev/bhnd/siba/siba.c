@@ -216,6 +216,15 @@ siba_get_resource_list(device_t dev, device_t child)
 	return (&dinfo->resources);
 }
 
+static device_t
+siba_find_hostb_device(device_t dev)
+{
+	struct siba_softc *sc = device_get_softc(dev);
+
+	/* This is set (or not) by the concrete siba driver subclass. */
+	return (sc->hostb_dev);
+}
+
 static int
 siba_reset_core(device_t dev, device_t child, uint16_t flags)
 {
@@ -662,6 +671,7 @@ static device_method_t siba_methods[] = {
 	DEVMETHOD(bus_get_resource_list,	siba_get_resource_list),
 
 	/* BHND interface */
+	DEVMETHOD(bhnd_bus_find_hostb_device,	siba_find_hostb_device),
 	DEVMETHOD(bhnd_bus_reset_core,		siba_reset_core),
 	DEVMETHOD(bhnd_bus_suspend_core,	siba_suspend_core),
 	DEVMETHOD(bhnd_bus_get_port_count,	siba_get_port_count),

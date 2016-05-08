@@ -55,10 +55,10 @@ CODE {
 		panic("bhnd_bus_get_chipid unimplemented");
 	}
 	
-	static bool
-	bhnd_bus_null_is_hostb_device(device_t dev, device_t child)
+	static device_t
+	bhnd_bus_null_find_hostb_device(device_t dev)
 	{
-		panic("bhnd_bus_is_hostb_device unimplemented");
+		panic("bhnd_bus_find_hostb_device unimplemented");
 	}
 
 	static bool
@@ -105,19 +105,16 @@ CODE {
 }
 
 /**
- * Returns true if @p child is serving as a host bridge for the bhnd
- * bus.
+ * Return the active host bridge core for the bhnd bus, if any.
  *
- * The default implementation will walk the parent device tree until
- * the root node is hit, returning false.
+ * @param dev The bhnd bus device.
  *
- * @param dev The device whose child is being examined.
- * @param child The child device.
+ * @retval device_t if a hostb device exists
+ * @retval NULL if no hostb device is found.
  */
-METHOD bool is_hostb_device {
+METHOD device_t find_hostb_device {
 	device_t dev;
-	device_t child;
-} DEFAULT bhnd_bus_null_is_hostb_device;
+} DEFAULT bhnd_bus_null_find_hostb_device;
 
 /**
  * Return true if the hardware components required by @p child are unpopulated

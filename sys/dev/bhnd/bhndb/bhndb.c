@@ -589,18 +589,12 @@ bhndb_generic_init_full_config(device_t dev, device_t child,
 	sc = device_get_softc(dev);
 	hostb = NULL;
 
-	/* Fetch the full set of attached devices */
+	/* Fetch the full set of bhnd-attached cores */
 	if ((error = device_get_children(sc->bus_dev, &devs, &ndevs)))
 		return (error);
 
 	/* Find our host bridge device */
-	for (int i = 0; i < ndevs; i++) {
-		if (bhnd_is_hostb_device(devs[i])) {
-			hostb = devs[i];
-			break;
-		}
-	}
-
+	hostb = BHNDB_FIND_HOSTB_DEVICE(dev, child);
 	if (hostb == NULL) {
 		device_printf(sc->dev, "no host bridge core found\n");
 		error = ENODEV;
@@ -950,13 +944,13 @@ bhndb_is_hw_disabled(device_t dev, device_t child) {
 	/* Otherwise, we treat bridge-capable cores as unpopulated if they're
 	 * not the configured host bridge */
 	if (BHND_DEVCLASS_SUPPORTS_HOSTB(bhnd_core_class(&core)))
-		return (!BHND_BUS_IS_HOSTB_DEVICE(dev, child));
+		return (BHNDB_FIND_HOSTB_DEVICE(dev, sc->bus_dev) != child);
 
 	/* Otherwise, assume the core is populated */
 	return (false);
 }
 
-/* ascending core index comparison used by bhndb_is_hostb_device() */ 
+/* ascending core index comparison used by bhndb_find_hostb_device() */ 
 static int
 compare_core_index(const void *lhs, const void *rhs)
 {
@@ -972,7 +966,7 @@ compare_core_index(const void *lhs, const void *rhs)
 }
 
 /**
- * Default bhndb(4) implementation of BHND_BUS_IS_HOSTB_DEVICE().
+ * Default bhndb(4) implementation of BHND_BUS_FIND_HOSTB_DEVICE().
  * 
  * This function uses a heuristic valid on all known PCI/PCIe/PCMCIA-bridged
  * bhnd(4) devices to determine the hostb core:
@@ -982,26 +976,18 @@ compare_core_index(const void *lhs, const void *rhs)
  * - The core must be the first device on the bus with the bridged device
  *   class.
  * 
- * @param sc The bridge device state.
- * @param cores The table of bridge-enumerated cores.
- * @param num_cores The length of @p cores.
- * @param core The core to check.
+ * @param dev The bhndb device
+ * @param child The requesting bhnd bus.
  */
-static bool
-bhndb_is_hostb_device(device_t dev, device_t child)
+static device_t
+bhndb_find_hostb_device(device_t dev, device_t child)
 {
 	struct bhndb_softc	*sc;
 	struct bhnd_core_match	 md;
 	device_t		 hostb_dev, *devlist;
 	int                      devcnt, error;
 
-	
 	sc = device_get_softc(dev);
-
-	/* Requestor must be attached to the bhnd bus */
-	if (device_get_parent(child) != sc->bus_dev)
-		return (BHND_BUS_IS_HOSTB_DEVICE(device_get_parent(dev),
-		    child));
 
 	/* Determine required device class and set up a match descriptor. */
 	md = (struct bhnd_core_match) {
@@ -1011,19 +997,15 @@ bhndb_is_hostb_device(device_t dev, device_t child)
 		.class = sc->bridge_class,
 		.unit = 0
 	};
-
-	/* Pre-screen the device before searching over the full device list. */
-	if (!bhnd_device_matches(child, &md))
-		return (false);
 	
 	/* Must be the absolute first matching device on the bus. */
-	if ((error = device_get_children(sc->bus_dev, &devlist, &devcnt)))
+	if ((error = device_get_children(child, &devlist, &devcnt)))
 		return (false);
 
 	/* Sort by core index value, ascending */
 	qsort(devlist, devcnt, sizeof(*devlist), compare_core_index);
 
-	/* Find the actual hostb device */
+	/* Find the hostb device */
 	hostb_dev = NULL;
 	for (int i = 0; i < devcnt; i++) {
 		if (bhnd_device_matches(devlist[i], &md)) {
@@ -1035,7 +1017,7 @@ bhndb_is_hostb_device(device_t dev, device_t child)
 	/* Clean up */
 	free(devlist, M_TEMP);
 
-	return (child == hostb_dev);
+	return (hostb_dev);
 }
 
 /**
@@ -1922,12 +1904,12 @@ static device_method_t bhndb_methods[] = {
 	/* BHNDB interface */
 	DEVMETHOD(bhndb_get_chipid,		bhndb_get_chipid),
 	DEVMETHOD(bhndb_init_full_config,	bhndb_generic_init_full_config),
+	DEVMETHOD(bhndb_find_hostb_device,	bhndb_find_hostb_device),
 	DEVMETHOD(bhndb_suspend_resource,	bhndb_suspend_resource),
 	DEVMETHOD(bhndb_resume_resource,	bhndb_resume_resource),
 
 	/* BHND interface */
 	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhndb_is_hw_disabled),
-	DEVMETHOD(bhnd_bus_is_hostb_device,	bhndb_is_hostb_device),
 	DEVMETHOD(bhnd_bus_get_chipid,		bhndb_get_chipid),
 	DEVMETHOD(bhnd_bus_activate_resource,	bhndb_activate_bhnd_resource),
 	DEVMETHOD(bhnd_bus_deactivate_resource,	bhndb_deactivate_bhnd_resource),

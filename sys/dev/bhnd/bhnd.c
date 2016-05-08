@@ -347,7 +347,7 @@ bhnd_generic_get_probe_order(device_t dev, device_t child)
 	case BHND_DEVCLASS_EROM:
 	case BHND_DEVCLASS_OTHER:
 	case BHND_DEVCLASS_INVALID:
-		if (bhnd_is_hostb_device(child))
+		if (bhnd_find_hostb_device(dev) == child)
 			return (BHND_PROBE_ROOT + BHND_PROBE_ORDER_EARLY);
 
 		return (BHND_PROBE_DEFAULT);
@@ -676,7 +676,6 @@ static device_method_t bhnd_methods[] = {
 	DEVMETHOD(bhnd_bus_get_chipid,		bhnd_bus_generic_get_chipid),
 	DEVMETHOD(bhnd_bus_get_probe_order,	bhnd_generic_get_probe_order),
 	DEVMETHOD(bhnd_bus_is_region_valid,	bhnd_generic_is_region_valid),
-	DEVMETHOD(bhnd_bus_is_hostb_device,	bhnd_bus_generic_is_hostb_device),
 	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhnd_bus_generic_is_hw_disabled),
 	DEVMETHOD(bhnd_bus_read_nvram_var,	bhnd_generic_read_nvram_var),
 	DEVMETHOD(bhnd_bus_read_1,		bhnd_read_1),

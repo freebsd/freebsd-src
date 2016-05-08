@@ -73,8 +73,11 @@ siba_bhndb_probe(device_t dev)
 static int
 siba_bhndb_attach(device_t dev)
 {
+	struct siba_softc		*sc;
 	const struct bhnd_chipid	*chipid;
 	int				 error;
+
+	sc = device_get_softc(dev);
 
 	/* Enumerate our children. */
 	chipid = BHNDB_GET_CHIPID(device_get_parent(dev), dev);
@@ -86,6 +89,9 @@ siba_bhndb_attach(device_t dev)
 	    bhndb_siba_priority_table);
 	if (error)
 		return (error);
+
+	/* Ask our parent bridge to find the corresponding bridge core */
+	sc->hostb_dev = BHNDB_FIND_HOSTB_DEVICE(device_get_parent(dev), dev);
 
 	/* Call our superclass' implementation */
 	return (siba_attach(dev));
