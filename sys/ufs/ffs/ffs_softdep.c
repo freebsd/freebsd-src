@@ -13187,7 +13187,7 @@ softdep_request_cleanup(fs, vp, cred, resource)
 	 *
 	 * Additionally, if we are unpriviledged and allocating space,
 	 * we need to ensure that we clean up enough blocks to get the
-	 * needed number of blocks over the threshhold of the minimum
+	 * needed number of blocks over the threshold of the minimum
 	 * number of blocks required to be kept free by the filesystem
 	 * (fs_minfree).
 	 */
@@ -13594,7 +13594,7 @@ clear_inodedeps(mp)
 	/*
 	 * Find the last inode in the block with dependencies.
 	 */
-	firstino = inodedep->id_ino & ~(INOPB(fs) - 1);
+	firstino = rounddown2(inodedep->id_ino, INOPB(fs));
 	for (lastino = firstino + INOPB(fs) - 1; lastino > firstino; lastino--)
 		if (inodedep_lookup(mp, lastino, 0, &inodedep) != 0)
 			break;
@@ -13888,7 +13888,7 @@ getdirtybuf(bp, lock, waitfor)
 		error = BUF_LOCK(bp,
 		    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK, lock);
 		/*
-		 * Even if we sucessfully acquire bp here, we have dropped
+		 * Even if we successfully acquire bp here, we have dropped
 		 * lock, which may violates our guarantee.
 		 */
 		if (error == 0)

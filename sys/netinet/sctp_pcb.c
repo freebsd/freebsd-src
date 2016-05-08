@@ -330,7 +330,7 @@ sctp_mark_ifa_addr_down(uint32_t vrf_id, struct sockaddr *addr,
 		goto out;
 	}
 	if (sctp_ifap->ifn_p == NULL) {
-		SCTPDBG(SCTP_DEBUG_PCB4, "IFA has no IFN - can't mark unuseable\n");
+		SCTPDBG(SCTP_DEBUG_PCB4, "IFA has no IFN - can't mark unusable\n");
 		goto out;
 	}
 	if (if_name) {
@@ -374,7 +374,7 @@ sctp_mark_ifa_addr_up(uint32_t vrf_id, struct sockaddr *addr,
 		goto out;
 	}
 	if (sctp_ifap->ifn_p == NULL) {
-		SCTPDBG(SCTP_DEBUG_PCB4, "IFA has no IFN - can't mark unuseable\n");
+		SCTPDBG(SCTP_DEBUG_PCB4, "IFA has no IFN - can't mark unusable\n");
 		goto out;
 	}
 	if (if_name) {
@@ -3766,7 +3766,7 @@ sctp_is_address_on_local_host(struct sockaddr *addr, uint32_t vrf_id)
  */
 int
 sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
-    struct sctp_nets **netp, int set_scope, int from)
+    struct sctp_nets **netp, uint16_t port, int set_scope, int from)
 {
 	/*
 	 * The following is redundant to the same lines in the
@@ -3944,7 +3944,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 	stcb->asoc.numnets++;
 	net->ref_count = 1;
 	net->cwr_window_tsn = net->last_cwr_tsn = stcb->asoc.sending_seq - 1;
-	net->port = stcb->asoc.port;
+	net->port = port;
 	net->dscp = stcb->asoc.default_dscp;
 #ifdef INET6
 	net->flowlabel = stcb->asoc.default_flowlabel;
@@ -4045,7 +4045,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		stcb->asoc.smallest_mtu = net->mtu;
 	}
 	if (stcb->asoc.smallest_mtu > net->mtu) {
-		stcb->asoc.smallest_mtu = net->mtu;
+		sctp_pathmtu_adjustment(stcb, net->mtu);
 	}
 #ifdef INET6
 	if (newaddr->sa_family == AF_INET6) {
@@ -4191,7 +4191,7 @@ try_again:
 struct sctp_tcb *
 sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
     int *error, uint32_t override_tag, uint32_t vrf_id,
-    uint16_t o_streams,
+    uint16_t o_streams, uint16_t port,
     struct thread *p
 )
 {
@@ -4384,7 +4384,7 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 	LIST_INSERT_HEAD(head, stcb, sctp_asocs);
 	SCTP_INP_INFO_WUNLOCK();
 
-	if ((err = sctp_add_remote_addr(stcb, firstaddr, NULL, SCTP_DO_SETSCOPE, SCTP_ALLOC_ASOC))) {
+	if ((err = sctp_add_remote_addr(stcb, firstaddr, NULL, port, SCTP_DO_SETSCOPE, SCTP_ALLOC_ASOC))) {
 		/* failure.. memory error? */
 		if (asoc->strmout) {
 			SCTP_FREE(asoc->strmout, SCTP_M_STRMO);
@@ -5772,7 +5772,7 @@ sctp_pcb_init()
 {
 	/*
 	 * SCTP initialization for the PCB structures should be called by
-	 * the sctp_init() funciton.
+	 * the sctp_init() function.
 	 */
 	int i;
 	struct timeval tv;
@@ -6068,7 +6068,7 @@ int
 sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
     int offset, int limit,
     struct sockaddr *src, struct sockaddr *dst,
-    struct sockaddr *altsa)
+    struct sockaddr *altsa, uint16_t port)
 {
 	/*
 	 * grub through the INIT pulling addresses and loading them to the
@@ -6159,7 +6159,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 #ifdef INET
 		case AF_INET:
 			if (stcb->asoc.scope.ipv4_addr_legal) {
-				if (sctp_add_remote_addr(stcb, sa, NULL, SCTP_DONOT_SETSCOPE, SCTP_LOAD_ADDR_2)) {
+				if (sctp_add_remote_addr(stcb, sa, NULL, port, SCTP_DONOT_SETSCOPE, SCTP_LOAD_ADDR_2)) {
 					return (-1);
 				}
 			}
@@ -6168,7 +6168,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 #ifdef INET6
 		case AF_INET6:
 			if (stcb->asoc.scope.ipv6_addr_legal) {
-				if (sctp_add_remote_addr(stcb, sa, NULL, SCTP_DONOT_SETSCOPE, SCTP_LOAD_ADDR_3)) {
+				if (sctp_add_remote_addr(stcb, sa, NULL, port, SCTP_DONOT_SETSCOPE, SCTP_LOAD_ADDR_3)) {
 					return (-2);
 				}
 			}
@@ -6253,7 +6253,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 						/* the assoc was freed? */
 						return (-7);
 					}
-					if (sctp_add_remote_addr(stcb, sa, NULL, SCTP_DONOT_SETSCOPE, SCTP_LOAD_ADDR_4)) {
+					if (sctp_add_remote_addr(stcb, sa, NULL, port, SCTP_DONOT_SETSCOPE, SCTP_LOAD_ADDR_4)) {
 						return (-8);
 					}
 				} else if (stcb_tmp == stcb) {
@@ -6348,7 +6348,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 					 * we must add the address, no scope
 					 * set
 					 */
-					if (sctp_add_remote_addr(stcb, sa, NULL, SCTP_DONOT_SETSCOPE, SCTP_LOAD_ADDR_5)) {
+					if (sctp_add_remote_addr(stcb, sa, NULL, port, SCTP_DONOT_SETSCOPE, SCTP_LOAD_ADDR_5)) {
 						return (-17);
 					}
 				} else if (stcb_tmp == stcb) {

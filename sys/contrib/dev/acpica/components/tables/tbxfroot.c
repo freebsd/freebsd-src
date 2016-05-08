@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -171,8 +171,8 @@ AcpiFindRootPointer (
     /* 1a) Get the location of the Extended BIOS Data Area (EBDA) */
 
     TablePtr = AcpiOsMapMemory (
-                (ACPI_PHYSICAL_ADDRESS) ACPI_EBDA_PTR_LOCATION,
-                ACPI_EBDA_PTR_LENGTH);
+        (ACPI_PHYSICAL_ADDRESS) ACPI_EBDA_PTR_LOCATION,
+        ACPI_EBDA_PTR_LENGTH);
     if (!TablePtr)
     {
         ACPI_ERROR ((AE_INFO,
@@ -198,8 +198,8 @@ AcpiFindRootPointer (
          *     minimum of 1K length)
          */
         TablePtr = AcpiOsMapMemory (
-                    (ACPI_PHYSICAL_ADDRESS) PhysicalAddress,
-                    ACPI_EBDA_WINDOW_SIZE);
+            (ACPI_PHYSICAL_ADDRESS) PhysicalAddress,
+            ACPI_EBDA_WINDOW_SIZE);
         if (!TablePtr)
         {
             ACPI_ERROR ((AE_INFO,
@@ -209,14 +209,16 @@ AcpiFindRootPointer (
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
 
-        MemRover = AcpiTbScanMemoryForRsdp (TablePtr, ACPI_EBDA_WINDOW_SIZE);
+        MemRover = AcpiTbScanMemoryForRsdp (
+            TablePtr, ACPI_EBDA_WINDOW_SIZE);
         AcpiOsUnmapMemory (TablePtr, ACPI_EBDA_WINDOW_SIZE);
 
         if (MemRover)
         {
             /* Return the physical address */
 
-            PhysicalAddress += (UINT32) ACPI_PTR_DIFF (MemRover, TablePtr);
+            PhysicalAddress +=
+                (UINT32) ACPI_PTR_DIFF (MemRover, TablePtr);
 
             *TableAddress = (ACPI_PHYSICAL_ADDRESS) PhysicalAddress;
             return_ACPI_STATUS (AE_OK);
@@ -227,8 +229,8 @@ AcpiFindRootPointer (
      * 2) Search upper memory: 16-byte boundaries in E0000h-FFFFFh
      */
     TablePtr = AcpiOsMapMemory (
-                (ACPI_PHYSICAL_ADDRESS) ACPI_HI_RSDP_WINDOW_BASE,
-                ACPI_HI_RSDP_WINDOW_SIZE);
+        (ACPI_PHYSICAL_ADDRESS) ACPI_HI_RSDP_WINDOW_BASE,
+        ACPI_HI_RSDP_WINDOW_SIZE);
 
     if (!TablePtr)
     {
@@ -239,7 +241,8 @@ AcpiFindRootPointer (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    MemRover = AcpiTbScanMemoryForRsdp (TablePtr, ACPI_HI_RSDP_WINDOW_SIZE);
+    MemRover = AcpiTbScanMemoryForRsdp (
+        TablePtr, ACPI_HI_RSDP_WINDOW_SIZE);
     AcpiOsUnmapMemory (TablePtr, ACPI_HI_RSDP_WINDOW_SIZE);
 
     if (MemRover)
@@ -297,7 +300,8 @@ AcpiTbScanMemoryForRsdp (
     {
         /* The RSDP signature and checksum must both be correct */
 
-        Status = AcpiTbValidateRsdp (ACPI_CAST_PTR (ACPI_TABLE_RSDP, MemRover));
+        Status = AcpiTbValidateRsdp (
+            ACPI_CAST_PTR (ACPI_TABLE_RSDP, MemRover));
         if (ACPI_SUCCESS (Status))
         {
             /* Sig and checksum valid, we have found a real RSDP */

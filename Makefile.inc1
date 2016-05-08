@@ -185,28 +185,33 @@ OSRELDATE=	0
 .endif
 
 # Set VERSION for CTFMERGE to use via the default CTFFLAGS=-L VERSION.
-.if !defined(VERSION)
-REVISION!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V REVISION
-BRANCH!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V BRANCH
+.if !defined(_REVISION)
+_REVISION!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V REVISION
+.export _REVISION
+.endif
+.if !defined(_BRANCH)
+_BRANCH!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V BRANCH
+.export _BRANCH
+.endif
+.if !defined(SRCRELDATE)
 SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 		${SRCDIR}/sys/sys/param.h
-VERSION=	FreeBSD ${REVISION}-${BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE}
+.export SRCRELDATE
+.endif
+.if !defined(VERSION)
+VERSION=	FreeBSD ${_REVISION}-${_BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE}
 .export VERSION
 .endif
 
 .if !defined(PKG_VERSION)
-REVISION!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V REVISION
-BRANCH!=	MK_AUTO_OBJ=no ${MAKE} -C ${SRCDIR}/release -V BRANCH
-SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
-		${SRCDIR}/sys/sys/param.h
-.if ${BRANCH:MSTABLE*} || ${BRANCH:MCURRENT*}
+.if ${_BRANCH:MSTABLE*} || ${_BRANCH:MCURRENT*}
 TIMENOW=	%Y%m%d%H%M%S
 EXTRA_REVISION=	.s${TIMENOW:gmtime}
 .endif
-.if ${BRANCH:M*-p*}
-EXTRA_REVISION=	_${BRANCH:C/.*-p([0-9]+$)/\1/}
+.if ${_BRANCH:M*-p*}
+EXTRA_REVISION=	_${_BRANCH:C/.*-p([0-9]+$)/\1/}
 .endif
-PKG_VERSION=	${REVISION}${EXTRA_REVISION}
+PKG_VERSION=	${_REVISION}${EXTRA_REVISION}
 .endif
 
 KNOWN_ARCHES?=	aarch64/arm64 \
@@ -526,6 +531,11 @@ IMAKE_MTREE=	MTREE_CMD="mtree ${MTREEFLAGS}"
 # kernel stage
 KMAKEENV=	${WMAKEENV}
 KMAKE=		${KMAKEENV} ${MAKE} ${.MAKEFLAGS} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
+.if ${MK_META_MODE} == "yes"
+# meta mode normally is disallowed when building from curdir==objdir, but we
+# want to allow it for the kernel build.
+KMAKE+=	.MAKE.MODE="${.MAKE.MODE} curdirOk=yes"
+.endif
 
 #
 # buildworld
@@ -664,7 +674,7 @@ _libraries:
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG MK_HTML=no -DNO_LINT MK_MAN=no \
 	    MK_PROFILE=no MK_TESTS=no MK_TESTS_SUPPORT=${MK_TESTS} libraries
-everything:
+everything: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.3: building everything"
@@ -683,7 +693,7 @@ WMAKE_TGTS+=	everything
 WMAKE_TGTS+=	build${libcompat}
 .endif
 
-buildworld: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue
+buildworld: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue .PHONY
 .ORDER: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue
 
 buildworld_prologue: .PHONY
@@ -721,17 +731,17 @@ buildenv: .PHONY
 	    || true
 
 TOOLCHAIN_TGTS=	${WMAKE_TGTS:Neverything:Nbuild${libcompat}}
-toolchain: ${TOOLCHAIN_TGTS}
-kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
+toolchain: ${TOOLCHAIN_TGTS} .PHONY
+kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries} .PHONY
 
 #
 # installcheck
 #
 # Checks to be sure system is ready for installworld/installkernel.
 #
-installcheck: _installcheck_world _installcheck_kernel
-_installcheck_world:
-_installcheck_kernel:
+installcheck: _installcheck_world _installcheck_kernel .PHONY
+_installcheck_world: .PHONY
+_installcheck_kernel: .PHONY
 
 #
 # Require DESTDIR to be set if installing for a different architecture or
@@ -742,7 +752,7 @@ _installcheck_kernel:
 .if !make(distributeworld)
 _installcheck_world: __installcheck_DESTDIR
 _installcheck_kernel: __installcheck_DESTDIR
-__installcheck_DESTDIR:
+__installcheck_DESTDIR: .PHONY
 .if !defined(DESTDIR) || empty(DESTDIR)
 	@echo "ERROR: Please set DESTDIR!"; \
 	false
@@ -769,7 +779,7 @@ CHECK_UIDS+=	unbound
 CHECK_GIDS+=	unbound
 .endif
 _installcheck_world: __installcheck_UGID
-__installcheck_UGID:
+__installcheck_UGID: .PHONY
 .for uid in ${CHECK_UIDS}
 	@if ! `id -u ${uid} >/dev/null 2>&1`; then \
 		echo "ERROR: Required ${uid} user is missing, see /usr/src/UPDATING."; \
@@ -828,7 +838,7 @@ DEBUG_DISTRIBUTIONS+=	base ${EXTRA_DISTRIBUTIONS:S,doc,,:S,tests,,}
 
 MTREE_MAGIC?=	mtree 2.0
 
-distributeworld installworld stageworld: _installcheck_world
+distributeworld installworld stageworld: _installcheck_world .PHONY
 	mkdir -p ${INSTALLTMP}
 	progs=$$(for prog in ${ITOOLS}; do \
 		if progpath=`which $$prog`; then \
@@ -913,7 +923,7 @@ distributeworld installworld stageworld: _installcheck_world
 .for dist in base ${EXTRA_DISTRIBUTIONS}
 	@# For each file that exists in this dist, print the corresponding
 	@# line from the METALOG.  This relies on the fact that
-	@# a line containing only the filename will sort immediatly before
+	@# a line containing only the filename will sort immediately before
 	@# the relevant mtree line.
 	cd ${DESTDIR}/${DISTDIR}; \
 	find ./${dist} | sort -u ${METALOG} - | \
@@ -923,7 +933,7 @@ distributeworld installworld stageworld: _installcheck_world
 .for dist in ${DEBUG_DISTRIBUTIONS}
 	@# For each file that exists in this dist, print the corresponding
 	@# line from the METALOG.  This relies on the fact that
-	@# a line containing only the filename will sort immediatly before
+	@# a line containing only the filename will sort immediately before
 	@# the relevant mtree line.
 	cd ${DESTDIR}/${DISTDIR}; \
 	find ./${dist}/usr/lib/debug | sort -u ${METALOG} - | \
@@ -933,7 +943,7 @@ distributeworld installworld stageworld: _installcheck_world
 .endif
 .endif
 
-packageworld:
+packageworld: .PHONY
 .for dist in base ${EXTRA_DISTRIBUTIONS}
 .if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
@@ -1123,13 +1133,15 @@ buildkernel: .MAKE .PHONY
 	@echo "--------------------------------------------------------------"
 .endfor
 
+NO_INSTALLEXTRAKERNELS?=	yes
+
 #
 # installkernel, etc.
 #
 # Install the kernel defined by INSTALLKERNEL
 #
 installkernel installkernel.debug \
-reinstallkernel reinstallkernel.debug: _installcheck_kernel
+reinstallkernel reinstallkernel.debug: _installcheck_kernel .PHONY
 .if !defined(NO_INSTALLKERNEL)
 .if empty(INSTALLKERNEL)
 	@echo "ERROR: No kernel \"${KERNCONF}\" to install."; \
@@ -1142,7 +1154,7 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel
 	    ${CROSSENV} PATH=${TMPPATH} \
 	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
 .endif
-.if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
+.if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing kernel ${_kernel}"
@@ -1153,7 +1165,7 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel
 .endfor
 .endif
 
-distributekernel distributekernel.debug:
+distributekernel distributekernel.debug: .PHONY
 .if !defined(NO_INSTALLKERNEL)
 .if empty(INSTALLKERNEL)
 	@echo "ERROR: No kernel \"${KERNCONF}\" to install."; \
@@ -1173,7 +1185,7 @@ distributekernel distributekernel.debug:
 	    ${DESTDIR}/${DISTDIR}/kernel.meta
 .endif
 .endif
-.if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
+.if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 .if defined(NO_ROOT)
 	@echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
@@ -1192,7 +1204,7 @@ distributekernel distributekernel.debug:
 .endfor
 .endif
 
-packagekernel:
+packagekernel: .PHONY
 .if defined(NO_ROOT)
 .if !defined(NO_INSTALLKERNEL)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
@@ -1204,7 +1216,7 @@ packagekernel:
 	    tar cvf - --include '*/*/*.debug' \
 	    @${DESTDIR}/${DISTDIR}/kernel.meta | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel-dbg.txz
-.if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
+.if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - --exclude '*.debug' \
@@ -1225,7 +1237,7 @@ packagekernel:
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvf - --include '*/*/*.debug' $$(eval find .) | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel-dbg.txz
-.if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
+.if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - --exclude '*.debug' . | \
@@ -1237,8 +1249,8 @@ packagekernel:
 .endif
 .endif
 
-stagekernel:
-	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} distributekernel
+stagekernel: .PHONY
+	${_+_}${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} distributekernel
 
 PORTSDIR?=	/usr/ports
 WSTAGEDIR?=	${MAKEOBJDIRPREFIX}${.CURDIR}/${TARGET}.${TARGET_ARCH}/worldstage
@@ -1251,29 +1263,29 @@ PKGSIGNKEY?=	# empty
 .ORDER:		create-packages create-kernel-packages
 .ORDER:		create-packages sign-packages
 
-_pkgbootstrap:
+_pkgbootstrap: .PHONY
 .if !exists(${LOCALBASE}/sbin/pkg)
 	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
 .endif
 
-packages:
-	${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} real-packages
+packages: .PHONY
+	${_+_}${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} real-packages
 
-package-pkg:
+package-pkg: .PHONY
 	rm -rf /tmp/ports.${TARGET} || :
-	env ${WMAKEENV:Q} SRCDIR=${.CURDIR} PORTSDIR=${PORTSDIR} REVISION=${REVISION} \
+	env ${WMAKEENV:Q} SRCDIR=${.CURDIR} PORTSDIR=${PORTSDIR} REVISION=${_REVISION} \
 		PKG_VERSION=${PKG_VERSION} REPODIR=${REPODIR} WSTAGEDIR=${WSTAGEDIR} \
 		sh ${.CURDIR}/release/scripts/make-pkg-package.sh
 
-real-packages:	stage-packages create-packages sign-packages
+real-packages:	stage-packages create-packages sign-packages .PHONY
 
-stage-packages:
+stage-packages: .PHONY
 	@mkdir -p ${REPODIR} ${WSTAGEDIR} ${KSTAGEDIR}
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} DESTDIR=${WSTAGEDIR} -DNO_ROOT -B stageworld ; \
 		${MAKE} DESTDIR=${KSTAGEDIR} -DNO_ROOT -B stagekernel
 
-create-packages:	_pkgbootstrap
+create-packages:	_pkgbootstrap .PHONY
 	@mkdir -p ${REPODIR}
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} DESTDIR=${WSTAGEDIR} \
@@ -1282,7 +1294,7 @@ create-packages:	_pkgbootstrap
 			PKG_VERSION=${PKG_VERSION} DISTDIR=kernel \
 			create-kernel-packages
 
-create-world-packages:	_pkgbootstrap
+create-world-packages:	_pkgbootstrap .PHONY
 	@rm -f ${WSTAGEDIR}/*.plist 2>/dev/null || :
 	@cd ${WSTAGEDIR} ; \
 		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
@@ -1307,7 +1319,7 @@ create-world-packages:	_pkgbootstrap
 			-o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} ; \
 	done
 
-create-kernel-packages:	_pkgbootstrap
+create-kernel-packages:	_pkgbootstrap .PHONY
 .if exists(${KSTAGEDIR}/kernel.meta)
 .for flavor in "" -debug
 	@cd ${KSTAGEDIR}/${DISTDIR} ; \
@@ -1335,7 +1347,7 @@ create-kernel-packages:	_pkgbootstrap
 		-o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
 .endfor
 .endif
-.if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
+.if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 .if exists(${KSTAGEDIR}/kernel.${_kernel}.meta)
 .for flavor in "" -debug
@@ -1367,7 +1379,7 @@ create-kernel-packages:	_pkgbootstrap
 .endfor
 .endif
 
-sign-packages:	_pkgbootstrap
+sign-packages:	_pkgbootstrap .PHONY
 	@[ -L "${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest" ] && \
 		unlink ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest ; \
 	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
@@ -1409,7 +1421,7 @@ doxygen: .PHONY
 # Update the source tree(s), by running svn/svnup to update to the
 # latest copy.
 #
-update:
+update: .PHONY
 .if defined(SVN_UPDATE)
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Updating ${.CURDIR} using Subversion"
@@ -1441,7 +1453,7 @@ update:
 _elftoolchain_libs= lib/libelf lib/libdwarf
 .endif
 
-legacy:
+legacy: .PHONY
 .if ${BOOTSTRAPPING} < 800107 && ${BOOTSTRAPPING} != 0
 	@echo "ERROR: Source upgrades from versions prior to 8.0 are not supported."; \
 	false
@@ -1520,8 +1532,9 @@ _crunch=	usr.sbin/crunch
 _awk=		usr.bin/awk
 .endif
 
-# r296926 -P keymap search path
-.if ${BOOTSTRAPPING} < 1100103
+# r296926 -P keymap search path, MFC to stable/10 in r298297
+.if ${BOOTSTRAPPING} < 1003501 || \
+	(${BOOTSTRAPPING} >= 1100000 && ${BOOTSTRAPPING} < 1100103)
 _kbdcontrol=	usr.sbin/kbdcontrol
 .endif
 
@@ -1664,7 +1677,7 @@ build-tools: build-tools_${_tool}
 #
 # kernel-tools: Build kernel-building tools
 #
-kernel-tools:
+kernel-tools: .PHONY
 	mkdir -p ${MAKEOBJDIRPREFIX}/usr
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${MAKEOBJDIRPREFIX}/usr >/dev/null
@@ -2143,7 +2156,7 @@ RM_I=-i
 RM_I=-v
 .endif
 
-delete-old-files:
+delete-old-files: .PHONY
 	@echo ">>> Removing old files (only deletes safe to delete libs)"
 # Ask for every old file if the user really wants to remove it.
 # It's annoying, but better safe than sorry.
@@ -2179,7 +2192,7 @@ delete-old-files:
 	done
 	@echo ">>> Old files removed"
 
-check-old-files:
+check-old-files: .PHONY
 	@echo ">>> Checking for old files"
 	@cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
@@ -2204,7 +2217,7 @@ check-old-files:
 	        fi; \
 	done
 
-delete-old-libs:
+delete-old-libs: .PHONY
 	@echo ">>> Removing old libraries"
 	@echo "${OLD_LIBS_MESSAGE}" | fmt
 	@exec 3<&0; \
@@ -2226,7 +2239,7 @@ delete-old-libs:
 	done
 	@echo ">>> Old libraries removed"
 
-check-old-libs:
+check-old-libs: .PHONY
 	@echo ">>> Checking for old libraries"
 	@cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
@@ -2242,7 +2255,7 @@ check-old-libs:
 		done; \
 	done
 
-delete-old-dirs:
+delete-old-dirs: .PHONY
 	@echo ">>> Removing old directories"
 	@cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
@@ -2256,7 +2269,7 @@ delete-old-dirs:
 	done
 	@echo ">>> Old directories removed"
 
-check-old-dirs:
+check-old-dirs: .PHONY
 	@echo ">>> Checking for old directories"
 	@cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
@@ -2269,10 +2282,10 @@ check-old-dirs:
 		fi; \
 	done
 
-delete-old: delete-old-files delete-old-dirs
+delete-old: delete-old-files delete-old-dirs .PHONY
 	@echo "To remove old libraries run '${MAKE} delete-old-libs'."
 
-check-old: check-old-files check-old-libs check-old-dirs
+check-old: check-old-files check-old-libs check-old-dirs .PHONY
 	@echo "To remove old files and directories run '${MAKE} delete-old'."
 	@echo "To remove old libraries run '${MAKE} delete-old-libs'."
 
@@ -2281,7 +2294,7 @@ check-old: check-old-files check-old-libs check-old-dirs
 #
 # showconfig - show build configuration.
 #
-showconfig:
+showconfig: .PHONY
 	@(${MAKE} -n -f ${.CURDIR}/sys/conf/kern.opts.mk -V dummy -dg1; \
 	  ${MAKE} -n -f ${.CURDIR}/share/mk/src.opts.mk -V dummy -dg1) 2>&1 | grep ^MK_ | sort -u
 
@@ -2304,7 +2317,7 @@ DTBOUTPUTPATH= ${.CURDIR}
 #
 # Build 'standalone' Device Tree Blob
 #
-builddtb:
+builddtb: .PHONY
 	@PATH=${TMPPATH} MACHINE=${TARGET} \
 	${.CURDIR}/sys/tools/fdt/make_dtb.sh ${.CURDIR}/sys \
 	    "${FDT_DTS_FILE}" ${DTBOUTPUTPATH}
@@ -2377,10 +2390,10 @@ OSREL!= uname -r | sed -e 's/[-(].*//'
 .endif
 
 .ORDER: xdev-build xdev-install xdev-links
-xdev: xdev-build xdev-install
+xdev: xdev-build xdev-install .PHONY
 
 .ORDER: _xb-worldtmp _xb-bootstrap-tools _xb-build-tools _xb-cross-tools
-xdev-build: _xb-worldtmp _xb-bootstrap-tools _xb-build-tools _xb-cross-tools
+xdev-build: _xb-worldtmp _xb-bootstrap-tools _xb-build-tools _xb-cross-tools .PHONY
 
 _xb-worldtmp: .PHONY
 	mkdir -p ${CDTMP}/usr
@@ -2436,7 +2449,7 @@ _xi-mtree: .PHONY
 .endif
 
 .ORDER: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries
-xdev-install: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries
+xdev-install: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries .PHONY
 
 _xi-cross-tools: .PHONY
 	@echo "_xi-cross-tools"
@@ -2470,6 +2483,6 @@ xdev-links: .PHONY
 			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
 		done
 .else
-xdev xdev-build xdev-install xdev-links:
+xdev xdev-build xdev-install xdev-links: .PHONY
 	@echo "*** Error: Both TARGET and TARGET_ARCH must be defined for \"${.TARGET}\" target"
 .endif

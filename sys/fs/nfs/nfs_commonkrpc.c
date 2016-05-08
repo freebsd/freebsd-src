@@ -1053,7 +1053,7 @@ nfs_sig_pending(sigset_t set)
 {
 	int i;
 	
-	for (i = 0 ; i < sizeof(newnfs_sig_set)/sizeof(int) ; i++)
+	for (i = 0 ; i < nitems(newnfs_sig_set); i++)
 		if (SIGISMEMBER(set, newnfs_sig_set[i]))
 			return (1);
 	return (0);
@@ -1078,7 +1078,7 @@ newnfs_set_sigmask(struct thread *td, sigset_t *oldset)
 	/* Remove the NFS set of signals from newset */
 	PROC_LOCK(p);
 	mtx_lock(&p->p_sigacts->ps_mtx);
-	for (i = 0 ; i < sizeof(newnfs_sig_set)/sizeof(int) ; i++) {
+	for (i = 0 ; i < nitems(newnfs_sig_set); i++) {
 		/*
 		 * But make sure we leave the ones already masked
 		 * by the process, ie. remove the signal from the

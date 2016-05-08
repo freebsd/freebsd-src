@@ -549,7 +549,7 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 			break;
 		case IEEE80211_ELEMID_FHPARMS:
 			if (ic->ic_phytype == IEEE80211_T_FH) {
-				scan->fhdwell = LE_READ_2(&frm[2]);
+				scan->fhdwell = le16dec(&frm[2]);
 				scan->chan = IEEE80211_FH_CHAN(frm[4], frm[5]);
 				scan->fhindex = frm[6];
 			}
@@ -930,12 +930,8 @@ ieee80211_discard_frame(const struct ieee80211vap *vap,
 
 	if_printf(vap->iv_ifp, "[%s] discard ",
 		ether_sprintf(ieee80211_getbssid(vap, wh)));
-	if (type == NULL) {
-		printf("%s frame, ", ieee80211_mgt_subtype_name[
-			(wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) >>
-			IEEE80211_FC0_SUBTYPE_SHIFT]);
-	} else
-		printf("%s frame, ", type);
+	printf("%s frame, ", type != NULL ? type :
+	    ieee80211_mgt_subtype_name(wh->i_fc[0]));
 	va_start(ap, fmt);
 	vprintf(fmt, ap);
 	va_end(ap);

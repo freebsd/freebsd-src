@@ -1079,10 +1079,9 @@ snmp_oid2asn_oid(struct snmp_toolinfo *snmptoolctx, char *str,
 		strlcpy(string, str, i + 1);
 		string[i] = '\0';
 		if (snmp_lookup_enumoid(snmptoolctx, &obj, string) < 0) {
-			warnx("Unknown string - %s",string);
+			warnx("Unknown string - %s", string);
 			return (NULL);
 		}
-		free(string);
 	}
 
 	asn_append_oid(oid, &(obj.val.var));

@@ -72,7 +72,6 @@ FILES=	DAEMON \
 	mdconfig \
 	mdconfig2 \
 	mountd \
-	mroute6d \
 	msgs \
 	natd \
 	netif \
@@ -99,7 +98,6 @@ FILES=	DAEMON \
 	rarpd \
 	rctl \
 	resolv \
-	rfcomm_pppd_server \
 	root \
 	route6d \
 	routing \
@@ -107,7 +105,6 @@ FILES=	DAEMON \
 	rtadvd \
 	rtsold \
 	savecore \
-	sdpd \
 	securelevel \
 	serial \
 	sppp \
@@ -181,6 +178,8 @@ FILES+=		autounmountd
 _bluetooth=	bluetooth
 _bthidd=	bthidd
 _hcsecd=	hcsecd
+FILES+=		rfcomm_pppd_server
+FILES+=		sdpd
 _ubthidhci=	ubthidhci
 .endif
 
@@ -296,7 +295,7 @@ FILESGROUPS+=	SMRCD
 SMRCD=		sendmail
 .endif
 SMRCDDIR=	/etc/rc.d
-SMRCDDIRMODE=	${BINMODE}
+SMRCDMODE=	${BINMODE}
 SMRCDPACKAGE=	sendmail
 
 .if ${MK_TIMED} != "no"

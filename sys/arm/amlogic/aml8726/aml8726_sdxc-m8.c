@@ -484,7 +484,7 @@ aml8726_sdxc_finish_command(struct aml8726_sdxc_softc *sc, int mmc_error)
 	if (stop_cmd != NULL) {
 
 		/*
-		 * If the original command executed successfuly, then
+		 * If the original command executed successfully, then
 		 * the hardware will also have automatically executed
 		 * a stop command so don't bother with the one supplied
 		 * with the original request.

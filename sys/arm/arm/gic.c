@@ -131,8 +131,8 @@ static int arm_gic_intr(void *);
 static int arm_gic_bind_intr(device_t dev, struct intr_irqsrc *isrc);
 
 #ifdef SMP
-u_int sgi_to_ipi[GIC_LAST_SGI - GIC_FIRST_SGI + 1];
-u_int sgi_first_unused = GIC_FIRST_SGI;
+static u_int sgi_to_ipi[GIC_LAST_SGI - GIC_FIRST_SGI + 1];
+static u_int sgi_first_unused = GIC_FIRST_SGI;
 #endif
 #endif
 
@@ -1006,18 +1006,22 @@ gic_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
 	enum intr_polarity pol;
 	enum intr_trigger trig;
 	struct arm_gic_softc *sc;
+#ifdef FDT
+	struct intr_map_data_fdt *daf;
+#endif
 
 	sc = device_get_softc(dev);
 	switch (data->type) {
 #ifdef FDT
 	case INTR_MAP_DATA_FDT:
-		if (gic_map_fdt(dev, data->fdt.ncells, data->fdt.cells, &irq,
-		    &pol, &trig) != 0)
+		daf = (struct intr_map_data_fdt *)data;
+		if (gic_map_fdt(dev, daf->ncells, daf->cells, &irq, &pol,
+		    &trig) != 0)
 			return (EINVAL);
 		break;
 #endif
 	default:
-		return (EINVAL);
+		return (ENOTSUP);
 	}
 
 	if (irq >= sc->nirqs)
@@ -1231,7 +1235,7 @@ arm_gic_next_irq(struct arm_gic_softc *sc, int last_irq)
 	active_irq = gic_c_read_4(sc, GICC_IAR);
 
 	/*
-	 * Immediatly EOIR the SGIs, because doing so requires the other
+	 * Immediately EOIR the SGIs, because doing so requires the other
 	 * bits (ie CPU number), not just the IRQ number, and we do not
 	 * have this information later.
 	 */

@@ -16,7 +16,7 @@
 #
 # SUBDIR	A list of subdirectories that should be built as well.
 #		Each of the targets will execute the same target in the
-#		subdirectories. SUBDIR.yes is automatically appeneded
+#		subdirectories. SUBDIR.yes is automatically appended
 #		to this list.
 #
 # +++ targets +++

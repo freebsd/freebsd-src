@@ -331,4 +331,4 @@
 	};
 };
 
-#include <fbsd-rt5350.dtsi>
+/include/ "fbsd-rt5350.dtsi"

@@ -782,7 +782,7 @@ icl_receive_thread(void *arg)
 		/*
 		 * Set the low watermark, to be checked by
 		 * soreadable() in icl_soupcall_receive()
-		 * to avoid unneccessary wakeups until there
+		 * to avoid unnecessary wakeups until there
 		 * is enough data received to read the PDU.
 		 */
 		SOCKBUF_LOCK(&so->so_rcv);
@@ -908,7 +908,7 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 			/*
 			 * Set the low watermark, to be checked by
 			 * sowriteable() in icl_soupcall_send()
-			 * to avoid unneccessary wakeups until there
+			 * to avoid unnecessary wakeups until there
 			 * is enough space for the PDU to fit.
 			 */
 			SOCKBUF_LOCK(&so->so_snd);

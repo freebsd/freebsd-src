@@ -374,8 +374,7 @@ check_suspend(struct pthread *curthread)
 	 */
 	curthread->critical_count++;
 	THR_UMUTEX_LOCK(curthread, &(curthread)->lock);
-	while ((curthread->flags & (THR_FLAGS_NEED_SUSPEND |
-		THR_FLAGS_SUSPENDED)) == THR_FLAGS_NEED_SUSPEND) {
+	while ((curthread->flags & THR_FLAGS_NEED_SUSPEND) != 0) {
 		curthread->cycle++;
 		cycle = curthread->cycle;
 
@@ -392,7 +391,6 @@ check_suspend(struct pthread *curthread)
 		THR_UMUTEX_UNLOCK(curthread, &(curthread)->lock);
 		_thr_umtx_wait_uint(&curthread->cycle, cycle, NULL, 0);
 		THR_UMUTEX_LOCK(curthread, &(curthread)->lock);
-		curthread->flags &= ~THR_FLAGS_SUSPENDED;
 	}
 	THR_UMUTEX_UNLOCK(curthread, &(curthread)->lock);
 	curthread->critical_count--;

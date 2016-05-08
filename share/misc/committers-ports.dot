@@ -110,6 +110,7 @@ gerald [label="Gerald Pfeifer\ngerald@FreeBSD.org\n2002/04/03"]
 gjb [label="Glen Barber\ngjb@FreeBSD.org\n2012/06/19"]
 glarkin [label="Greg Larkin\nglarkin@FreeBSD.org\n2008/07/17"]
 glewis [label="Greg Lewis\nglewis@FreeBSD.org\n2002/04/08"]
+gordon [label="Gordon Tetlow\ngordon@FreeBSD.org\n2014/10/14"]
 grembo [label="Michael Gmelin\ngrembo@FreeBSD.org\n2014/01/21"]
 gnn [label="George Neville-Neil\ngnn@FreeBSD.org\n2013/09/04"]
 hq [label="Herve Quiroz\nhq@FreeBSD.org\n2004/08/05"]
@@ -347,6 +348,7 @@ eik -> trhodes
 erwin -> brix
 erwin -> clement
 erwin -> gabor
+erwin -> gordon
 erwin -> lbr
 erwin -> lth
 erwin -> simon
@@ -456,6 +458,7 @@ makc -> rakuco
 
 mat -> bmah
 mat -> dvl
+mat -> gordon
 mat -> thierry
 
 mezz -> tmclaugh

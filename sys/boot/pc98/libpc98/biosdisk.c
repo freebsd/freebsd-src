@@ -737,13 +737,13 @@ bd_strategy(void *devdata, int rw, daddr_t dblk, size_t offset, size_t size,
     char *buf, size_t *rsize)
 {
     struct bcache_devdata	bcd;
-    struct i386_devdesc		*dev = f->f_devdata;
+    struct i386_devdesc		*dev = devdata;
     struct open_disk	*od = (struct open_disk *)(dev->d_kind.biosdisk.data);
 
     bcd.dv_strategy = bd_realstrategy;
     bcd.dv_devdata = devdata;
     bcd.dv_cache = BD(dev).bd_bcache;
-    return(bcache_strategy(&bcd, od->od_unit, rw, dblk+od->od_boff, offset,
+    return(bcache_strategy(&bcd, rw, dblk+od->od_boff, offset,
 	size, buf, rsize));
 }
 

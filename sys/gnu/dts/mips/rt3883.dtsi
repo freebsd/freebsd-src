@@ -402,4 +402,4 @@
 	};
 };
 
-#include <fbsd-rt3883.dtsi>
+/include/ "fbsd-rt3883.dtsi"

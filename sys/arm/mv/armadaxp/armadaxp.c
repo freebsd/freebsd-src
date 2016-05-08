@@ -150,13 +150,13 @@ count_l2clk(void)
 	sar_fab_freq = FAB_FREQ_FIELD(sar_reg);
 
 	/* Check if CPU frequency field has correct value */
-	array_size = sizeof(cpu_clock_table) / sizeof(cpu_clock_table[0]);
+	array_size = nitems(cpu_clock_table);
 	if (sar_cpu_freq >= array_size)
 		panic("Reserved value in cpu frequency configuration field: "
 		    "%d", sar_cpu_freq);
 
 	/* Check if fabric frequency field has correct value */
-	array_size = sizeof(freq_conf_table) / sizeof(freq_conf_table[0]);
+	array_size = nitems(freq_conf_table);
 	if (sar_fab_freq >= array_size)
 		panic("Reserved value in fabric frequency configuration field: "
 		    "%d", sar_fab_freq);

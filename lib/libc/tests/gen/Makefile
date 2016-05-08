@@ -2,10 +2,6 @@
 
 .include <bsd.own.mk>
 
-PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
-
 ATF_TESTS_C+=		arc4random_test
 ATF_TESTS_C+=		fmtcheck2_test
 ATF_TESTS_C+=		fmtmsg_test

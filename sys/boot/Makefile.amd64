@@ -3,8 +3,11 @@
 SUBDIR+=		efi
 SUBDIR+=		libstand32
 SUBDIR+=		zfs
-SUBDIR+=		geli
 SUBDIR+=		userboot
+
+.if !defined(LOADER_NO_GELI_SUPPORT)
+SUBDIR+=		geli
+.endif
 
 .if ${MK_FORTH} != "no"
 SUBDIR+=		ficl32

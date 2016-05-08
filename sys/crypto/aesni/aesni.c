@@ -534,6 +534,7 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 	if (buf == NULL)
 		return (ENOMEM);
 
+	error = 0;
 	authbuf = NULL;
 	authallocated = 0;
 	if (authcrd != NULL) {

@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-//#include <machine/pmap.h>
 
 #include <dev/spibus/spi.h>
 #include <dev/spibus/spibusvar.h>
@@ -157,8 +156,6 @@ mtk_spi_detach(device_t dev)
 {
 	struct mtk_spi_softc *sc = device_get_softc(dev);
 
-	//SPI_SET_BITS(sc, MTK_SPICTL, HIZSMOSI | CS_HIGH);
-
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 
@@ -168,7 +165,6 @@ mtk_spi_detach(device_t dev)
 static void
 mtk_spi_chip_activate(struct mtk_spi_softc *sc)
 {
-//        printf("%s\n", __func__);
         mtk_spi_wait(sc);
 	/*
 	 * Put all CSx to low
@@ -179,7 +175,6 @@ mtk_spi_chip_activate(struct mtk_spi_softc *sc)
 static void
 mtk_spi_chip_deactivate(struct mtk_spi_softc *sc)
 {
-//        printf("%s\n", __func__);
         mtk_spi_wait(sc);
 	/*
 	 * Put all CSx to high
@@ -197,7 +192,6 @@ mtk_spi_wait(struct mtk_spi_softc *sc)
 			break;
 	}
 	if (i == 0) {
-		//printf("busy\n");
 		return (1);
 	}
 

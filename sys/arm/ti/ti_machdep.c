@@ -44,12 +44,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/devmap.h>
 #include <machine/machdep.h>
 #include <machine/platformvar.h>
 
@@ -63,7 +63,7 @@ static vm_offset_t
 ti_lastaddr(platform_t plat)
 {
 
-	return (arm_devmap_lastaddr());
+	return (devmap_lastaddr());
 }
 
 /*
@@ -74,8 +74,8 @@ ti_lastaddr(platform_t plat)
 static int
 ti_omap4_devmap_init(platform_t plat)
 {
-	arm_devmap_add_entry(0x48000000, 0x01000000); /*16mb L4_PER devices */
-	arm_devmap_add_entry(0x4A000000, 0x01000000); /*16mb L4_CFG devices */
+	devmap_add_entry(0x48000000, 0x01000000); /*16mb L4_PER devices */
+	devmap_add_entry(0x4A000000, 0x01000000); /*16mb L4_CFG devices */
 	return (0);
 }
 #endif
@@ -85,13 +85,13 @@ static int
 ti_am335x_devmap_init(platform_t plat)
 {
 
-	arm_devmap_add_entry(0x44C00000, 0x00400000); /* 4mb L4_WKUP devices*/
-	arm_devmap_add_entry(0x47400000, 0x00100000); /* 1mb USB            */
-	arm_devmap_add_entry(0x47800000, 0x00100000); /* 1mb mmchs2         */
-	arm_devmap_add_entry(0x48000000, 0x01000000); /*16mb L4_PER devices */
-	arm_devmap_add_entry(0x49000000, 0x00100000); /* 1mb edma3          */
-	arm_devmap_add_entry(0x49800000, 0x00300000); /* 3mb edma3          */
-	arm_devmap_add_entry(0x4A000000, 0x01000000); /*16mb L4_FAST devices*/
+	devmap_add_entry(0x44C00000, 0x00400000); /* 4mb L4_WKUP devices*/
+	devmap_add_entry(0x47400000, 0x00100000); /* 1mb USB            */
+	devmap_add_entry(0x47800000, 0x00100000); /* 1mb mmchs2         */
+	devmap_add_entry(0x48000000, 0x01000000); /*16mb L4_PER devices */
+	devmap_add_entry(0x49000000, 0x00100000); /* 1mb edma3          */
+	devmap_add_entry(0x49800000, 0x00300000); /* 3mb edma3          */
+	devmap_add_entry(0x4A000000, 0x01000000); /*16mb L4_FAST devices*/
 	return (0);
 }
 #endif
@@ -128,7 +128,7 @@ static platform_method_t omap4_methods[] = {
 
 	PLATFORMMETHOD_END,
 };
-FDT_PLATFORM_DEF(omap4, "omap4", 0, "ti,omap4430");
+FDT_PLATFORM_DEF(omap4, "omap4", 0, "ti,omap4430", 0);
 #endif
 
 #if defined(SOC_TI_AM335X)
@@ -139,5 +139,5 @@ static platform_method_t am335x_methods[] = {
 	PLATFORMMETHOD_END,
 };
 
-FDT_PLATFORM_DEF(am335x, "am335x", 0, "ti,am335x");
+FDT_PLATFORM_DEF(am335x, "am335x", 0, "ti,am335x", 0);
 #endif

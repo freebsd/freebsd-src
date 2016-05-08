@@ -65,14 +65,12 @@ struct devsw efipart_dev = {
 /*
  * info structure to support bcache
  */
-#define	MAXPDDEV	31	/* see MAXDEV in libi386.h */
-
-static struct pdinfo
-{
+struct pdinfo {
 	int	pd_unit;	/* unit number */
 	int	pd_open;	/* reference counter */
 	void	*pd_bcache;	/* buffer cache data */
-} pdinfo [MAXPDDEV];
+};
+static struct pdinfo *pdinfo;
 static int npdinfo = 0;
 
 #define PD(dev)         (pdinfo[(dev)->d_unit])
@@ -109,6 +107,9 @@ efipart_init(void)
 	nout = 0;
 
 	bzero(aliases, nin * sizeof(EFI_HANDLE));
+	pdinfo = malloc(nin * sizeof(*pdinfo));
+	if (pdinfo == NULL)
+		return (ENOMEM);
 
 	for (n = 0; n < nin; n++) {
 		status = BS->HandleProtocol(hin[n], &devpath_guid,
@@ -321,6 +322,15 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t offset,
 	if (size == 0 || (size % 512) != 0)
 		return (EIO);
 
+	off = blk * 512;
+	/* make sure we don't read past disk end */
+	if ((off + size) / blkio->Media->BlockSize - 1 >
+	    blkio->Media->LastBlock) {
+		size = blkio->Media->LastBlock + 1 -
+		    off / blkio->Media->BlockSize;
+		size = size * blkio->Media->BlockSize;
+	}
+
 	if (rsize != NULL)
 		*rsize = size;
 
@@ -335,7 +345,6 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t offset,
 		return (ENOMEM);
 
 	error = 0;
-	off = blk * 512;
 	blk = off / blkio->Media->BlockSize;
 	blkoff = off % blkio->Media->BlockSize;
 	blksz = blkio->Media->BlockSize - blkoff;

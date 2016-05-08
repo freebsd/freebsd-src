@@ -309,7 +309,7 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
  *            handle.
  * @param[in] io_request This parameter is the io request object handle
  *            for which the physical address is being requested.
- * @param[in] virtual_address This paramter is the virtual address which
+ * @param[in] virtual_address This parameter is the virtual address which
  *            is to be returned as a physical address.
  * @param[out] physical_address The physical address for the supplied virtual
  *             address.
@@ -540,14 +540,14 @@ scif_cb_io_request_get_virtual_address_from_sgl(void * scif_user_io_request,
 
 /**
  * @brief This callback method asks the user to provide the number of
- *        bytes to be transfered as part of this request.
+ *        bytes to be transferred as part of this request.
  *
  * @param[in] scif_user_io_request This parameter points to the user's
  *            IO request object.  It is a cookie that allows the user to
  *            provide the necessary information for this callback.
  *
  * @return This method returns the number of payload data bytes to be
- *         transfered for this IO request.
+ *         transferred for this IO request.
  */
 uint32_t
 scif_cb_io_request_get_transfer_length(void * scif_user_io_request)

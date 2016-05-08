@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016 Microsoft Corp.
  * Copyright (c) 2012 NetApp Inc.
  * Copyright (c) 2012 Citrix Inc.
  * All rights reserved.
@@ -171,8 +171,6 @@ hv_vmbus_init(void)
 
 	hv_vmbus_g_context.hypercall_page = virt_addr;
 
-	hv_et_init();
-	
 	return (0);
 
 	cleanup:

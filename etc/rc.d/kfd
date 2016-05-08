@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name=kfd
+desc="Receive forwarded tickets"
 rcvar=${name}_enable
 start_precmd=${name}_start_precmd
 

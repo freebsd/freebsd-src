@@ -339,15 +339,19 @@ static int
 mpic_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
+	struct intr_map_data_fdt *daf;
 	struct mv_mpic_softc *sc;
 
-	sc = device_get_softc(dev);
+	if (data->type != INTR_MAP_DATA_FDT)
+		return (ENOTSUP);
 
-	if (data->type != INTR_MAP_DATA_FDT || data->fdt.ncells !=1 ||
-	    data->fdt.cells[0] >= sc->nirqs)
+	sc = device_get_softc(dev);
+	daf = (struct intr_map_data_fdt *)data;
+
+	if (daf->ncells !=1 || daf->cells[0] >= sc->nirqs)
 		return (EINVAL);
 
-	*isrcp = &sc->mpic_isrcs[data->fdt.cells[0]].mmi_isrc;
+	*isrcp = &sc->mpic_isrcs[daf->cells[0]].mmi_isrc;
 	return (0);
 }
 
@@ -564,7 +568,7 @@ mv_msi_data(int irq, uint64_t *addr, uint32_t *data)
 
 	node = ofw_bus_get_node(mv_mpic_sc->sc_dev);
 
-	/* Get physical addres of register space */
+	/* Get physical address of register space */
 	error = fdt_get_range(OF_parent(node), 0, &phys, &size);
 	if (error) {
 		printf("%s: Cannot get register physical address, err:%d",

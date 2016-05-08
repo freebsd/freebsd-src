@@ -134,7 +134,7 @@
 #define	PRIV_JAIL_REMOVE	112	/* Remove a jail. */
 
 /*
- * Kernel environment priveleges.
+ * Kernel environment privileges.
  */
 #define	PRIV_KENV_SET		120	/* Set kernel env. variables. */
 #define	PRIV_KENV_UNSET		121	/* Unset kernel env. variables. */

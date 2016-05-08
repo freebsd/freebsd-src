@@ -872,7 +872,7 @@ text_status(node_p node, char *arg, u_int len)
 	sbuf_new(&sbuf, arg, len, SBUF_FIXEDLEN);
 	sbuf_printf(&sbuf, "interface: %s\n", priv->ifp->if_xname);
 
-	if (mib->device >= sizeof(devices) / sizeof(devices[0]))
+	if (mib->device >= nitems(devices))
 		sbuf_printf(&sbuf, "device=unknown\nvendor=unknown\n");
 	else
 		sbuf_printf(&sbuf, "device=%s\nvendor=%s\n",
@@ -1343,7 +1343,7 @@ ng_atm_shutdown(node_p node)
 	}
 #else
 	/*
-	 * We are persistant - reinitialize
+	 * We are persistent - reinitialize.
 	 */
 	NG_NODE_REVIVE(node);
 #endif

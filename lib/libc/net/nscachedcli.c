@@ -95,7 +95,7 @@ safe_write(struct cached_connection_ *connection, const void *data,
 
 /*
  * safe_read reads data from connection and tries to do it in the very safe
- * and stable way. It uses kevent to ensure, that the data are availabe for
+ * and stable way. It uses kevent to ensure, that the data are available for
  * reading. If the amount of data to be read is too large, then they would
  * be splitted.
  */

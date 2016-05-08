@@ -840,8 +840,8 @@ rebuild_round_done:
 		 * disk, remapping the bad sector.  Do we need to do that by
 		 * queueing a request to the main worker thread?  It doesn't
 		 * affect the return code of this current read, and can be
-		 * done at our liesure.  However, to make the code simpler, it
-		 * is done syncrhonously.
+		 * done at our leisure.  However, to make the code simpler, it
+		 * is done synchronously.
 		 */
 		G_RAID_LOGREQ(3, bp, "Recovered data from other drive");
 		cbp = g_clone_bio(pbp);
@@ -858,7 +858,7 @@ rebuild_round_done:
 	if (pbp->bio_pflags & G_RAID_BIO_FLAG_LOCKED) {
 		/*
 		 * We're done with a recovery, mark the range as unlocked.
-		 * For any write errors, we agressively fail the disk since
+		 * For any write errors, we aggressively fail the disk since
 		 * there was both a READ and a WRITE error at this location.
 		 * Both types of errors generally indicates the drive is on
 		 * the verge of total failure anyway.  Better to stop trusting

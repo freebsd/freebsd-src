@@ -52,6 +52,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <sys/proc.h>
+#ifdef INET6
+#include <netinet/icmp6.h>
+#endif
 
 
 #ifndef KTR_SCTP
@@ -1613,7 +1616,7 @@ sctp_timeout_handler(void *t)
 			return;
 		}
 	}
-	/* record in stopped what t-o occured */
+	/* record in stopped what t-o occurred */
 	tmr->stopped_from = type;
 
 	/* mark as being serviced now */
@@ -4594,159 +4597,6 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 	}
 }
 
-
-int
-sctp_append_to_readq(struct sctp_inpcb *inp,
-    struct sctp_tcb *stcb,
-    struct sctp_queued_to_read *control,
-    struct mbuf *m,
-    int end,
-    int ctls_cumack,
-    struct sockbuf *sb)
-{
-	/*
-	 * A partial delivery API event is underway. OR we are appending on
-	 * the reassembly queue.
-	 * 
-	 * If PDAPI this means we need to add m to the end of the data.
-	 * Increase the length in the control AND increment the sb_cc.
-	 * Otherwise sb is NULL and all we need to do is put it at the end
-	 * of the mbuf chain.
-	 */
-	int len = 0;
-	struct mbuf *mm, *tail = NULL, *prev = NULL;
-
-	if (inp) {
-		SCTP_INP_READ_LOCK(inp);
-	}
-	if (control == NULL) {
-get_out:
-		if (inp) {
-			SCTP_INP_READ_UNLOCK(inp);
-		}
-		return (-1);
-	}
-	if (inp && (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_CANT_READ)) {
-		SCTP_INP_READ_UNLOCK(inp);
-		return (0);
-	}
-	if (control->end_added) {
-		/* huh this one is complete? */
-		goto get_out;
-	}
-	mm = m;
-	if (mm == NULL) {
-		goto get_out;
-	}
-	while (mm) {
-		if (SCTP_BUF_LEN(mm) == 0) {
-			/* Skip mbufs with NO lenght */
-			if (prev == NULL) {
-				/* First one */
-				m = sctp_m_free(mm);
-				mm = m;
-			} else {
-				SCTP_BUF_NEXT(prev) = sctp_m_free(mm);
-				mm = SCTP_BUF_NEXT(prev);
-			}
-			continue;
-		}
-		prev = mm;
-		len += SCTP_BUF_LEN(mm);
-		if (sb) {
-			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
-				sctp_sblog(sb, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBALLOC, SCTP_BUF_LEN(mm));
-			}
-			sctp_sballoc(stcb, sb, mm);
-			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
-				sctp_sblog(sb, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBRESULT, 0);
-			}
-		}
-		mm = SCTP_BUF_NEXT(mm);
-	}
-	if (prev) {
-		tail = prev;
-	} else {
-		/* Really there should always be a prev */
-		if (m == NULL) {
-			/* Huh nothing left? */
-#ifdef INVARIANTS
-			panic("Nothing left to add?");
-#else
-			goto get_out;
-#endif
-		}
-		tail = m;
-	}
-	if (control->tail_mbuf) {
-		/* append */
-		SCTP_BUF_NEXT(control->tail_mbuf) = m;
-		control->tail_mbuf = tail;
-	} else {
-		/* nothing there */
-#ifdef INVARIANTS
-		if (control->data != NULL) {
-			panic("This should NOT happen");
-		}
-#endif
-		control->data = m;
-		control->tail_mbuf = tail;
-	}
-	atomic_add_int(&control->length, len);
-	if (end) {
-		/* message is complete */
-		if (stcb && (control == stcb->asoc.control_pdapi)) {
-			stcb->asoc.control_pdapi = NULL;
-		}
-		control->held_length = 0;
-		control->end_added = 1;
-	}
-	if (stcb == NULL) {
-		control->do_not_ref_stcb = 1;
-	}
-	/*
-	 * When we are appending in partial delivery, the cum-ack is used
-	 * for the actual pd-api highest tsn on this mbuf. The true cum-ack
-	 * is populated in the outbound sinfo structure from the true cumack
-	 * if the association exists...
-	 */
-	control->sinfo_tsn = control->sinfo_cumtsn = ctls_cumack;
-	if (inp) {
-		SCTP_INP_READ_UNLOCK(inp);
-	}
-	if (inp && inp->sctp_socket) {
-		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE)) {
-			SCTP_ZERO_COPY_EVENT(inp, inp->sctp_socket);
-		} else {
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			struct socket *so;
-
-			so = SCTP_INP_SO(inp);
-			if (stcb) {
-				atomic_add_int(&stcb->asoc.refcnt, 1);
-				SCTP_TCB_UNLOCK(stcb);
-			}
-			SCTP_SOCKET_LOCK(so, 1);
-			if (stcb) {
-				SCTP_TCB_LOCK(stcb);
-				atomic_subtract_int(&stcb->asoc.refcnt, 1);
-			}
-			if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
-				SCTP_SOCKET_UNLOCK(so, 1);
-				return (0);
-			}
-#endif
-			sctp_sorwakeup(inp, inp->sctp_socket);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			SCTP_SOCKET_UNLOCK(so, 1);
-#endif
-		}
-	}
-	return (0);
-}
-
-
-
 /*************HOLD THIS COMMENT FOR PATCH FILE OF
  *************ALTERNATE ROUTING CODE
  */
@@ -6427,7 +6277,9 @@ sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr,
 				*error = EINVAL;
 				goto out_now;
 			}
-			if (sctp_add_remote_addr(stcb, sa, NULL, SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
+			if (sctp_add_remote_addr(stcb, sa, NULL, stcb->asoc.port,
+			    SCTP_DONOT_SETSCOPE,
+			    SCTP_ADDR_IS_CONFIRMED)) {
 				/* assoc gone no un-lock */
 				SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, ENOBUFS);
 				(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
@@ -6450,7 +6302,9 @@ sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr,
 				*error = EINVAL;
 				goto out_now;
 			}
-			if (sctp_add_remote_addr(stcb, sa, NULL, SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
+			if (sctp_add_remote_addr(stcb, sa, NULL, stcb->asoc.port,
+			    SCTP_DONOT_SETSCOPE,
+			    SCTP_ADDR_IS_CONFIRMED)) {
 				/* assoc gone no un-lock */
 				SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, ENOBUFS);
 				(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
@@ -7033,6 +6887,261 @@ out:
 	m_freem(m);
 }
 
+#ifdef INET
+static void
+sctp_recv_icmp_tunneled_packet(int cmd, struct sockaddr *sa, void *vip, void *ctx SCTP_UNUSED)
+{
+	struct ip *outer_ip, *inner_ip;
+	struct sctphdr *sh;
+	struct icmp *icmp;
+	struct udphdr *udp;
+	struct sctp_inpcb *inp;
+	struct sctp_tcb *stcb;
+	struct sctp_nets *net;
+	struct sctp_init_chunk *ch;
+	struct sockaddr_in src, dst;
+	uint8_t type, code;
+
+	inner_ip = (struct ip *)vip;
+	icmp = (struct icmp *)((caddr_t)inner_ip -
+	    (sizeof(struct icmp) - sizeof(struct ip)));
+	outer_ip = (struct ip *)((caddr_t)icmp - sizeof(struct ip));
+	if (ntohs(outer_ip->ip_len) <
+	    sizeof(struct ip) + 8 + (inner_ip->ip_hl << 2) + sizeof(struct udphdr) + 8) {
+		return;
+	}
+	udp = (struct udphdr *)((caddr_t)inner_ip + (inner_ip->ip_hl << 2));
+	sh = (struct sctphdr *)(udp + 1);
+	memset(&src, 0, sizeof(struct sockaddr_in));
+	src.sin_family = AF_INET;
+	src.sin_len = sizeof(struct sockaddr_in);
+	src.sin_port = sh->src_port;
+	src.sin_addr = inner_ip->ip_src;
+	memset(&dst, 0, sizeof(struct sockaddr_in));
+	dst.sin_family = AF_INET;
+	dst.sin_len = sizeof(struct sockaddr_in);
+	dst.sin_port = sh->dest_port;
+	dst.sin_addr = inner_ip->ip_dst;
+	/*
+	 * 'dst' holds the dest of the packet that failed to be sent. 'src'
+	 * holds our local endpoint address. Thus we reverse the dst and the
+	 * src in the lookup.
+	 */
+	inp = NULL;
+	net = NULL;
+	stcb = sctp_findassociation_addr_sa((struct sockaddr *)&dst,
+	    (struct sockaddr *)&src,
+	    &inp, &net, 1,
+	    SCTP_DEFAULT_VRFID);
+	if ((stcb != NULL) &&
+	    (net != NULL) &&
+	    (inp != NULL) &&
+	    (inp->sctp_socket != NULL)) {
+		/* Check the UDP port numbers */
+		if ((udp->uh_dport != net->port) ||
+		    (udp->uh_sport != htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)))) {
+			SCTP_TCB_UNLOCK(stcb);
+			return;
+		}
+		/* Check the verification tag */
+		if (ntohl(sh->v_tag) != 0) {
+			/*
+			 * This must be the verification tag used for
+			 * sending out packets. We don't consider packets
+			 * reflecting the verification tag.
+			 */
+			if (ntohl(sh->v_tag) != stcb->asoc.peer_vtag) {
+				SCTP_TCB_UNLOCK(stcb);
+				return;
+			}
+		} else {
+			if (ntohs(outer_ip->ip_len) >=
+			    sizeof(struct ip) +
+			    8 + (inner_ip->ip_hl << 2) + 8 + 20) {
+				/*
+				 * In this case we can check if we got an
+				 * INIT chunk and if the initiate tag
+				 * matches.
+				 */
+				ch = (struct sctp_init_chunk *)(sh + 1);
+				if ((ch->ch.chunk_type != SCTP_INITIATION) ||
+				    (ntohl(ch->init.initiate_tag) != stcb->asoc.my_vtag)) {
+					SCTP_TCB_UNLOCK(stcb);
+					return;
+				}
+			} else {
+				SCTP_TCB_UNLOCK(stcb);
+				return;
+			}
+		}
+		type = icmp->icmp_type;
+		code = icmp->icmp_code;
+		if ((type == ICMP_UNREACH) &&
+		    (code == ICMP_UNREACH_PORT)) {
+			code = ICMP_UNREACH_PROTOCOL;
+		}
+		sctp_notify(inp, stcb, net, type, code,
+		    ntohs(inner_ip->ip_len),
+		    ntohs(icmp->icmp_nextmtu));
+	} else {
+		if ((stcb == NULL) && (inp != NULL)) {
+			/* reduce ref-count */
+			SCTP_INP_WLOCK(inp);
+			SCTP_INP_DECR_REF(inp);
+			SCTP_INP_WUNLOCK(inp);
+		}
+		if (stcb) {
+			SCTP_TCB_UNLOCK(stcb);
+		}
+	}
+	return;
+}
+
+#endif
+
+#ifdef INET6
+static void
+sctp_recv_icmp6_tunneled_packet(int cmd, struct sockaddr *sa, void *d, void *ctx SCTP_UNUSED)
+{
+	struct ip6ctlparam *ip6cp;
+	struct sctp_inpcb *inp;
+	struct sctp_tcb *stcb;
+	struct sctp_nets *net;
+	struct sctphdr sh;
+	struct udphdr udp;
+	struct sockaddr_in6 src, dst;
+	uint8_t type, code;
+
+	ip6cp = (struct ip6ctlparam *)d;
+	/*
+	 * XXX: We assume that when IPV6 is non NULL, M and OFF are valid.
+	 */
+	if (ip6cp->ip6c_m == NULL) {
+		return;
+	}
+	/*
+	 * Check if we can safely examine the ports and the verification tag
+	 * of the SCTP common header.
+	 */
+	if (ip6cp->ip6c_m->m_pkthdr.len <
+	    ip6cp->ip6c_off + sizeof(struct udphdr) + offsetof(struct sctphdr, checksum)) {
+		return;
+	}
+	/* Copy out the UDP header. */
+	memset(&udp, 0, sizeof(struct udphdr));
+	m_copydata(ip6cp->ip6c_m,
+	    ip6cp->ip6c_off,
+	    sizeof(struct udphdr),
+	    (caddr_t)&udp);
+	/* Copy out the port numbers and the verification tag. */
+	memset(&sh, 0, sizeof(struct sctphdr));
+	m_copydata(ip6cp->ip6c_m,
+	    ip6cp->ip6c_off + sizeof(struct udphdr),
+	    sizeof(uint16_t) + sizeof(uint16_t) + sizeof(uint32_t),
+	    (caddr_t)&sh);
+	memset(&src, 0, sizeof(struct sockaddr_in6));
+	src.sin6_family = AF_INET6;
+	src.sin6_len = sizeof(struct sockaddr_in6);
+	src.sin6_port = sh.src_port;
+	src.sin6_addr = ip6cp->ip6c_ip6->ip6_src;
+	if (in6_setscope(&src.sin6_addr, ip6cp->ip6c_m->m_pkthdr.rcvif, NULL) != 0) {
+		return;
+	}
+	memset(&dst, 0, sizeof(struct sockaddr_in6));
+	dst.sin6_family = AF_INET6;
+	dst.sin6_len = sizeof(struct sockaddr_in6);
+	dst.sin6_port = sh.dest_port;
+	dst.sin6_addr = ip6cp->ip6c_ip6->ip6_dst;
+	if (in6_setscope(&dst.sin6_addr, ip6cp->ip6c_m->m_pkthdr.rcvif, NULL) != 0) {
+		return;
+	}
+	inp = NULL;
+	net = NULL;
+	stcb = sctp_findassociation_addr_sa((struct sockaddr *)&dst,
+	    (struct sockaddr *)&src,
+	    &inp, &net, 1, SCTP_DEFAULT_VRFID);
+	if ((stcb != NULL) &&
+	    (net != NULL) &&
+	    (inp != NULL) &&
+	    (inp->sctp_socket != NULL)) {
+		/* Check the UDP port numbers */
+		if ((udp.uh_dport != net->port) ||
+		    (udp.uh_sport != htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)))) {
+			SCTP_TCB_UNLOCK(stcb);
+			return;
+		}
+		/* Check the verification tag */
+		if (ntohl(sh.v_tag) != 0) {
+			/*
+			 * This must be the verification tag used for
+			 * sending out packets. We don't consider packets
+			 * reflecting the verification tag.
+			 */
+			if (ntohl(sh.v_tag) != stcb->asoc.peer_vtag) {
+				SCTP_TCB_UNLOCK(stcb);
+				return;
+			}
+		} else {
+			if (ip6cp->ip6c_m->m_pkthdr.len >=
+			    ip6cp->ip6c_off + sizeof(struct udphdr) +
+			    sizeof(struct sctphdr) +
+			    sizeof(struct sctp_chunkhdr) +
+			    offsetof(struct sctp_init, a_rwnd)) {
+				/*
+				 * In this case we can check if we got an
+				 * INIT chunk and if the initiate tag
+				 * matches.
+				 */
+				uint32_t initiate_tag;
+				uint8_t chunk_type;
+
+				m_copydata(ip6cp->ip6c_m,
+				    ip6cp->ip6c_off +
+				    sizeof(struct udphdr) +
+				    sizeof(struct sctphdr),
+				    sizeof(uint8_t),
+				    (caddr_t)&chunk_type);
+				m_copydata(ip6cp->ip6c_m,
+				    ip6cp->ip6c_off +
+				    sizeof(struct udphdr) +
+				    sizeof(struct sctphdr) +
+				    sizeof(struct sctp_chunkhdr),
+				    sizeof(uint32_t),
+				    (caddr_t)&initiate_tag);
+				if ((chunk_type != SCTP_INITIATION) ||
+				    (ntohl(initiate_tag) != stcb->asoc.my_vtag)) {
+					SCTP_TCB_UNLOCK(stcb);
+					return;
+				}
+			} else {
+				SCTP_TCB_UNLOCK(stcb);
+				return;
+			}
+		}
+		type = ip6cp->ip6c_icmp6->icmp6_type;
+		code = ip6cp->ip6c_icmp6->icmp6_code;
+		if ((type == ICMP6_DST_UNREACH) &&
+		    (code == ICMP6_DST_UNREACH_NOPORT)) {
+			type = ICMP6_PARAM_PROB;
+			code = ICMP6_PARAMPROB_NEXTHEADER;
+		}
+		sctp6_notify(inp, stcb, net, type, code,
+		    (uint16_t) ntohl(ip6cp->ip6c_icmp6->icmp6_mtu));
+	} else {
+		if ((stcb == NULL) && (inp != NULL)) {
+			/* reduce inp's ref-count */
+			SCTP_INP_WLOCK(inp);
+			SCTP_INP_DECR_REF(inp);
+			SCTP_INP_WUNLOCK(inp);
+		}
+		if (stcb) {
+			SCTP_TCB_UNLOCK(stcb);
+		}
+	}
+}
+
+#endif
+
 void
 sctp_over_udp_stop(void)
 {
@@ -7098,7 +7207,9 @@ sctp_over_udp_start(void)
 	}
 	/* Call the special UDP hook. */
 	if ((ret = udp_set_kernel_tunneling(SCTP_BASE_INFO(udp4_tun_socket),
-	    sctp_recv_udp_tunneled_packet, NULL))) {
+	    sctp_recv_udp_tunneled_packet,
+	    sctp_recv_icmp_tunneled_packet,
+	    NULL))) {
 		sctp_over_udp_stop();
 		return (ret);
 	}
@@ -7122,7 +7233,9 @@ sctp_over_udp_start(void)
 	}
 	/* Call the special UDP hook. */
 	if ((ret = udp_set_kernel_tunneling(SCTP_BASE_INFO(udp6_tun_socket),
-	    sctp_recv_udp_tunneled_packet, NULL))) {
+	    sctp_recv_udp_tunneled_packet,
+	    sctp_recv_icmp6_tunneled_packet,
+	    NULL))) {
 		sctp_over_udp_stop();
 		return (ret);
 	}

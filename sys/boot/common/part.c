@@ -104,7 +104,7 @@ parttype2str(enum partition_type type)
 {
 	size_t i;
 
-	for (i = 0; i < sizeof(ptypes) / sizeof(ptypes[0]); i++)
+	for (i = 0; i < nitems(ptypes); i++)
 		if (ptypes[i].type == type)
 			return (ptypes[i].desc);
 	return (ptypes[0].desc);
@@ -257,8 +257,9 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 	    table->sectorsize);
 	if (phdr != NULL) {
 		/* Read the primary GPT table. */
-		size = MIN(MAXTBLSZ, (phdr->hdr_entries * phdr->hdr_entsz +
-		    table->sectorsize - 1) / table->sectorsize);
+		size = MIN(MAXTBLSZ,
+		    howmany(phdr->hdr_entries * phdr->hdr_entsz,
+		        table->sectorsize));
 		if (dread(dev, tbl, size, phdr->hdr_lba_table) == 0 &&
 		    gpt_checktbl(phdr, tbl, size * table->sectorsize,
 		    table->sectors - 1) == 0) {
@@ -290,9 +291,9 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 		    hdr.hdr_entsz != phdr->hdr_entsz ||
 		    hdr.hdr_crc_table != phdr->hdr_crc_table) {
 			/* Read the backup GPT table. */
-			size = MIN(MAXTBLSZ, (phdr->hdr_entries *
-			    phdr->hdr_entsz + table->sectorsize - 1) /
-			    table->sectorsize);
+			size = MIN(MAXTBLSZ,
+				   howmany(phdr->hdr_entries * phdr->hdr_entsz,
+				       table->sectorsize));
 			if (dread(dev, tbl, size, phdr->hdr_lba_table) == 0 &&
 			    gpt_checktbl(phdr, tbl, size * table->sectorsize,
 			    table->sectors - 1) == 0) {

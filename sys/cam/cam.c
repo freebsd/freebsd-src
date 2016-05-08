@@ -105,9 +105,6 @@ const struct cam_status_entry cam_status_table[] = {
 	{ CAM_SCSI_BUSY,	 "SCSI Bus Busy"			     },
 };
 
-const int num_cam_status_entries =
-    sizeof(cam_status_table)/sizeof(*cam_status_table);
-
 #ifdef _KERNEL
 SYSCTL_NODE(_kern, OID_AUTO, cam, CTLFLAG_RD, 0, "CAM Subsystem");
 
@@ -256,7 +253,7 @@ cam_fetch_status_entry(cam_status status)
 {
 	status &= CAM_STATUS_MASK;
 	return (bsearch(&status, &cam_status_table,
-			num_cam_status_entries,
+			nitems(cam_status_table),
 			sizeof(*cam_status_table),
 			camstatusentrycomp));
 }

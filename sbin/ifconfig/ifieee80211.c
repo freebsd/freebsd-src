@@ -225,7 +225,7 @@ static int
 canpromote(int i, int from, int to)
 {
 	const struct ieee80211_channel *fc = &chaninfo->ic_chans[i];
-	int j;
+	u_int j;
 
 	if ((fc->ic_flags & from) != from)
 		return i;
@@ -304,7 +304,7 @@ promote(int i)
 static void
 mapfreq(struct ieee80211_channel *chan, int freq, int flags)
 {
-	int i;
+	u_int i;
 
 	for (i = 0; i < chaninfo->ic_nchans; i++) {
 		const struct ieee80211_channel *c = &chaninfo->ic_chans[i];
@@ -324,7 +324,7 @@ mapfreq(struct ieee80211_channel *chan, int freq, int flags)
 static void
 mapchan(struct ieee80211_channel *chan, int ieee, int flags)
 {
-	int i;
+	u_int i;
 
 	for (i = 0; i < chaninfo->ic_nchans; i++) {
 		const struct ieee80211_channel *c = &chaninfo->ic_chans[i];
@@ -1697,13 +1697,28 @@ set80211ampdu(const char *val, int d, int s, const struct afswtch *rafp)
 	int ampdu;
 
 	if (get80211val(s, IEEE80211_IOC_AMPDU, &ampdu) < 0)
-		errx(-1, "cannot get AMPDU setting");
+		errx(-1, "cannot set AMPDU setting");
 	if (d < 0) {
 		d = -d;
 		ampdu &= ~d;
 	} else
 		ampdu |= d;
 	set80211(s, IEEE80211_IOC_AMPDU, ampdu, 0, NULL);
+}
+
+static void
+set80211stbc(const char *val, int d, int s, const struct afswtch *rafp)
+{
+	int stbc;
+
+	if (get80211val(s, IEEE80211_IOC_STBC, &stbc) < 0)
+		errx(-1, "cannot set STBC setting");
+	if (d < 0) {
+		d = -d;
+		stbc &= ~d;
+	} else
+		stbc |= d;
+	set80211(s, IEEE80211_IOC_STBC, stbc, 0, NULL);
 }
 
 static
@@ -3047,7 +3062,7 @@ copy_essid(char buf[], size_t bufsize, const u_int8_t *essid, size_t essid_len)
 {
 	const u_int8_t *p; 
 	size_t maxlen;
-	int i;
+	u_int i;
 
 	if (essid_len > bufsize)
 		maxlen = bufsize;
@@ -4251,7 +4266,7 @@ static void
 printkey(const struct ieee80211req_key *ik)
 {
 	static const uint8_t zerodata[IEEE80211_KEYBUF_SIZE];
-	int keylen = ik->ik_keylen;
+	u_int keylen = ik->ik_keylen;
 	int printcontents;
 
 	printcontents = printkeys &&
@@ -4288,7 +4303,7 @@ printkey(const struct ieee80211req_key *ik)
 		break;
 	}
 	if (printcontents) {
-		int i;
+		u_int i;
 
 		printf(" <");
 		for (i = 0; i < keylen; i++)
@@ -4828,6 +4843,23 @@ end:
 			else if (verbose)
 				LINE_CHECK("-rifs");
 		}
+		if (get80211val(s, IEEE80211_IOC_STBC, &val) != -1) {
+			switch (val) {
+			case 0:
+				LINE_CHECK("-stbc");
+				break;
+			case 1:
+				LINE_CHECK("stbctx -stbcrx");
+				break;
+			case 2:
+				LINE_CHECK("-stbctx stbcrx");
+				break;
+			case 3:
+				if (verbose)
+					LINE_CHECK("stbc");
+				break;
+			}
+		}
 	}
 
 	if (get80211val(s, IEEE80211_IOC_WME, &wme) != -1) {
@@ -5324,6 +5356,12 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD("amsdu",	3,	set80211amsdu),		/* NB: tx+rx */
 	DEF_CMD("-amsdu",	-3,	set80211amsdu),
 	DEF_CMD_ARG("amsdulimit",	set80211amsdulimit),
+	DEF_CMD("stbcrx",	2,	set80211stbc),
+	DEF_CMD("-stbcrx",	-2,	set80211stbc),
+	DEF_CMD("stbctx",	1,	set80211stbc),
+	DEF_CMD("-stbctx",	-1,	set80211stbc),
+	DEF_CMD("stbc",		3,	set80211stbc),		/* NB: tx+rx */
+	DEF_CMD("-ampdu",	-3,	set80211stbc),
 	DEF_CMD("puren",	1,	set80211puren),
 	DEF_CMD("-puren",	0,	set80211puren),
 	DEF_CMD("doth",		1,	set80211doth),

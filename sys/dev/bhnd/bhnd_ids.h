@@ -328,6 +328,7 @@
 #define	BHND_CHIPID_BCM43428		43428		/* 43228 chipcommon chipid (OTP, RBBU) */
 #define	BHND_CHIPID_BCM43431		43431		/* 4331  chipcommon chipid (OTP, RBBU) */
 #define	BHND_CHIPID_BCM43460		43460		/* 4360  chipcommon chipid (OTP, RBBU) */
+#define	BHND_CHIPID_BCM43462		0xA9C6		/* 43462 chipcommon chipid */
 #define	BHND_CHIPID_BCM4325		0x4325		/* 4325 chip id */
 #define	BHND_CHIPID_BCM4328		0x4328		/* 4328 chip id */
 #define	BHND_CHIPID_BCM4329		0x4329		/* 4329 chipcommon chipid */
@@ -345,6 +346,7 @@
 #define	BHND_CHIPID_BCM4334		0x4334		/* 4334 chipcommon chipid */
 #define	BHND_CHIPID_BCM4335		0x4335		/* 4335 chipcommon chipid */
 #define	BHND_CHIPID_BCM4360		0x4360          /* 4360 chipcommon chipid */
+#define	BHND_CHIPID_BCM43602		0xaa52          /* 43602 chipcommon chipid */
 #define	BHND_CHIPID_BCM4352		0x4352          /* 4352 chipcommon chipid */
 #define	BHND_CHIPID_BCM43526		0xAA06
 #define	BHND_CHIPID_BCM43341		43341		/* 43341 chipcommon chipid */
@@ -421,18 +423,17 @@
 #define	BHND_PKGID_BCM4314PCIE		(8 | 2)		/* 4314 QFN PCI (ARM-less) package id */
 #define	BHND_PKGID_BCM4314SDIO_ARM	(8 | 3)		/* 4314 QFN SDIO (ARM-less) package id */
 #define	BHND_PKGID_BCM4314SDIO_FPBGA	(8 | 4)		/* 4314 FpBGA SDIO package id */
-#define	BHND_PKGID_BCM4314DEV		(8 | 6)		/* 4314 Developement package id */
+#define	BHND_PKGID_BCM4314DEV		(8 | 6)		/* 4314 Development package id */
 
 #define	BHND_PKGID_BCM4707		1		/* 4707 package id */
 #define	BHND_PKGID_BCM4708		2		/* 4708 package id */
 #define	BHND_PKGID_BCM4709		0		/* 4709 package id */
 
 #define	BHND_PKGID_BCM4335_WLCSP	(0x0)		/* WLCSP Module/Mobile SDIO/HSIC. */
-#define	BHND_PKGID_BCM4335_FCBGA	(0x1)		/* FCBGA PC/Embeded/Media PCIE/SDIO */
+#define	BHND_PKGID_BCM4335_FCBGA	(0x1)		/* FCBGA PC/Embedded/Media PCIE/SDIO */
 #define	BHND_PKGID_BCM4335_WLBGA	(0x2)		/* WLBGA COB/Mobile SDIO/HSIC. */
 #define	BHND_PKGID_BCM4335_FCBGAD	(0x3)		/* FCBGA Debug Debug/Dev All if's. */
 #define	BHND_PKGID_PKG_MASK_BCM4335	(0x3)
-
 
 /* Broadcom Core IDs */
 #define	BHND_COREID_INVALID		0x700		/* Invalid coreid */
@@ -645,8 +646,8 @@
 #define	BHND_BFL3_RCAL_WAR			0x00000008	/* acphy, rcal war active on this board (4335a0) */
 #define	BHND_BFL3_TXGAINTBLID			0x00000070	/* acphy, txgain table id */
 #define	BHND_BFL3_TXGAINTBLID_SHIFT		0x4		/* acphy, txgain table id shift bit */
-#define	BHND_BFL3_TSSI_DIV_WAR			0x00000080	/* acphy, Seperate paparam for 20/40/80 */
-#define	BHND_BFL3_TSSI_DIV_WAR_SHIFT		0x7		/* acphy, Seperate paparam for 20/40/80 shift bit */
+#define	BHND_BFL3_TSSI_DIV_WAR			0x00000080	/* acphy, Separate paparam for 20/40/80 */
+#define	BHND_BFL3_TSSI_DIV_WAR_SHIFT		0x7		/* acphy, Separate paparam for 20/40/80 shift bit */
 #define	BHND_BFL3_FEMTBL_FROM_NVRAM		0x00000100	/* acphy, femctrl table is read from nvram */
 #define	BHND_BFL3_FEMTBL_FROM_NVRAM_SHIFT	0x8		/* acphy, femctrl table is read from nvram */
 #define	BHND_BFL3_AGC_CFG_2G			0x00000200	/* acphy, gain control configuration for 2G */

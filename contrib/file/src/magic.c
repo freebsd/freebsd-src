@@ -346,7 +346,7 @@ private void
 close_and_restore(const struct magic_set *ms, const char *name, int fd,
     const struct stat *sb)
 {
-	if (name == NULL)
+	if (fd == STDIN_FILENO || name == NULL)
 		return;
 	(void) close(fd);
 

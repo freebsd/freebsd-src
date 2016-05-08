@@ -121,7 +121,7 @@ CTASSERT(offsetof(struct bpf_if, bif_ext) == 0);
 #include <sys/mount.h>
 #include <compat/freebsd32/freebsd32.h>
 #define BPF_ALIGNMENT32 sizeof(int32_t)
-#define BPF_WORDALIGN32(x) (((x)+(BPF_ALIGNMENT32-1))&~(BPF_ALIGNMENT32-1))
+#define	BPF_WORDALIGN32(x) roundup2(x, BPF_ALIGNMENT32)
 
 #ifndef BURN_BRIDGES
 /*
@@ -2739,7 +2739,7 @@ again:
 	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		if (bp->bif_ifp != ifp)
 			continue;
-		if (n > n1) {
+		if (n >= n1) {
 			free(lst, M_TEMP);
 			goto again;
 		}

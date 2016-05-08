@@ -134,6 +134,7 @@ SUBDIR=	alias \
 	rusers \
 	rwall \
 	script \
+	sdiff \
 	sed \
 	send-pr \
 	seq \

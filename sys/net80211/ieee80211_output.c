@@ -77,18 +77,6 @@ __FBSDID("$FreeBSD$");
 #define	ETHER_HEADER_COPY(dst, src) \
 	memcpy(dst, src, sizeof(struct ether_header))
 
-/* unalligned little endian access */     
-#define LE_WRITE_2(p, v) do {				\
-	((uint8_t *)(p))[0] = (v) & 0xff;		\
-	((uint8_t *)(p))[1] = ((v) >> 8) & 0xff;	\
-} while (0)
-#define LE_WRITE_4(p, v) do {				\
-	((uint8_t *)(p))[0] = (v) & 0xff;		\
-	((uint8_t *)(p))[1] = ((v) >> 8) & 0xff;	\
-	((uint8_t *)(p))[2] = ((v) >> 16) & 0xff;	\
-	((uint8_t *)(p))[3] = ((v) >> 24) & 0xff;	\
-} while (0)
-
 static int ieee80211_fragment(struct ieee80211vap *, struct mbuf *,
 	u_int hdrsize, u_int ciphdrsize, u_int mtu);
 static	void ieee80211_tx_mgt_cb(struct ieee80211_node *, void *, int);
@@ -816,9 +804,7 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 	if (vap->iv_state == IEEE80211_S_CAC) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_OUTPUT | IEEE80211_MSG_DOTH,
 		    ni, "block %s frame in CAC state",
-			ieee80211_mgt_subtype_name[
-			    (type & IEEE80211_FC0_SUBTYPE_MASK) >>
-				IEEE80211_FC0_SUBTYPE_SHIFT]);
+			ieee80211_mgt_subtype_name(type));
 		vap->iv_stats.is_tx_badstate++;
 		ieee80211_free_node(ni);
 		m_freem(m);
@@ -853,9 +839,7 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 	    ieee80211_msg_dumppkts(vap)) {
 		printf("[%s] send %s on channel %u\n",
 		    ether_sprintf(wh->i_addr1),
-		    ieee80211_mgt_subtype_name[
-			(type & IEEE80211_FC0_SUBTYPE_MASK) >>
-				IEEE80211_FC0_SUBTYPE_SHIFT],
+		    ieee80211_mgt_subtype_name(type),
 		    ieee80211_chan2ieee(ic, ic->ic_curchan));
 	}
 #endif
@@ -1518,7 +1502,7 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		}
 		mc->mc_ttl = ms->ms_ttl;
 		ms->ms_seq++;
-		LE_WRITE_4(mc->mc_seq, ms->ms_seq);
+		le32enc(mc->mc_seq, ms->ms_seq);
 		break;
 #endif
 	case IEEE80211_M_WDS:		/* NB: is4addr should always be true */
@@ -1843,7 +1827,7 @@ static uint8_t *
 ieee80211_add_cfparms(uint8_t *frm, struct ieee80211com *ic)
 {
 #define	ADDSHORT(frm, v) do {	\
-	LE_WRITE_2(frm, v);	\
+	le16enc(frm, v);	\
 	frm += 2;		\
 } while (0)
 	*frm++ = IEEE80211_ELEMID_CFPARMS;
@@ -1898,7 +1882,7 @@ ieee80211_add_wme_param(uint8_t *frm, struct ieee80211_wme_state *wme)
 {
 #define	SM(_v, _f)	(((_v) << _f##_S) & _f)
 #define	ADDSHORT(frm, v) do {	\
-	LE_WRITE_2(frm, v);	\
+	le16enc(frm, v);	\
 	frm += 2;		\
 } while (0)
 	/* NB: this works 'cuz a param has an info at the front */
@@ -2329,7 +2313,8 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 
 	case IEEE80211_FC0_SUBTYPE_DEAUTH:
 		IEEE80211_NOTE(vap, IEEE80211_MSG_AUTH, ni,
-		    "send station deauthenticate (reason %d)", arg);
+		    "send station deauthenticate (reason: %d (%s))", arg,
+		    ieee80211_reason_to_string(arg));
 		m = ieee80211_getmgtframe(&frm,
 			ic->ic_headroom + sizeof(struct ieee80211_frame),
 			sizeof(uint16_t));
@@ -2549,7 +2534,8 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 
 	case IEEE80211_FC0_SUBTYPE_DISASSOC:
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ASSOC, ni,
-		    "send station disassociate (reason %d)", arg);
+		    "send station disassociate (reason: %d (%s))", arg,
+		    ieee80211_reason_to_string(arg));
 		m = ieee80211_getmgtframe(&frm,
 			ic->ic_headroom + sizeof(struct ieee80211_frame),
 			sizeof(uint16_t));
@@ -2908,7 +2894,7 @@ ieee80211_tx_mgt_cb(struct ieee80211_node *ni, void *arg, int status)
 
 	/*
 	 * Frame transmit completed; arrange timer callback.  If
-	 * transmit was successfuly we wait for response.  Otherwise
+	 * transmit was successfully we wait for response.  Otherwise
 	 * we arrange an immediate callback instead of doing the
 	 * callback directly since we don't know what state the driver
 	 * is in (e.g. what locks it is holding).  This work should
@@ -3245,10 +3231,10 @@ ieee80211_beacon_update(struct ieee80211_node *ni, struct mbuf *m, int mcast)
 		struct ieee80211_wme_state *wme = &ic->ic_wme;
 
 		/*
-		 * Check for agressive mode change.  When there is
+		 * Check for aggressive mode change.  When there is
 		 * significant high priority traffic in the BSS
 		 * throttle back BE traffic by using conservative
-		 * parameters.  Otherwise BE uses agressive params
+		 * parameters.  Otherwise BE uses aggressive params
 		 * to optimize performance of legacy/non-QoS traffic.
 		 */
 		if (wme->wme_flags & WME_F_AGGRMODE) {

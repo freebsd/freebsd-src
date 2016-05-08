@@ -151,7 +151,7 @@ typedef struct SATI_DEVICE
    U8 unit_attention_ascq;
 
    /**
-    * This field indicates the ATA standby timer value set throught the
+    * This field indicates the ATA standby timer value set through the
     * ATA IDLE and ATA Standby commands
     */
    U8 ata_standby_timer;

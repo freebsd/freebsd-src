@@ -1604,7 +1604,7 @@ sense_error_done:
 
 /*
  * Generic error handler.  Peripheral drivers usually filter
- * out the errors that they handle in a unique mannor, then
+ * out the errors that they handle in a unique manner, then
  * call this function.
  */
 int
@@ -1876,6 +1876,7 @@ cam_periph_devctl_notify(union ccb *ccb)
 
 		if (cgd->ccb_h.status == CAM_REQ_CMP)
 			sbuf_bcat(&sb, cgd->serial_num, cgd->serial_num_len);
+		xpt_free_ccb((union ccb *)cgd);
 	}
 	sbuf_printf(&sb, "\" ");
 	sbuf_printf(&sb, "cam_status=\"0x%x\" ", ccb->ccb_h.status);

@@ -148,7 +148,8 @@ struct ieee80211com {
 	uint32_t		ic_htcaps;	/* HT capabilities */
 	uint32_t		ic_htextcaps;	/* HT extended capabilities */
 	uint32_t		ic_cryptocaps;	/* crypto capabilities */
-	uint8_t			ic_modecaps[2];	/* set of mode capabilities */
+						/* set of mode capabilities */
+	uint8_t			ic_modecaps[IEEE80211_MODE_BYTES];
 	uint8_t			ic_promisc;	/* vap's needing promisc mode */
 	uint8_t			ic_allmulti;	/* vap's needing all multicast*/
 	uint8_t			ic_nrunning;	/* vap's marked running */
@@ -723,6 +724,14 @@ int	ieee80211_mhz2ieee(u_int, u_int);
 int	ieee80211_chan2ieee(struct ieee80211com *,
 		const struct ieee80211_channel *);
 u_int	ieee80211_ieee2mhz(u_int, u_int);
+int	ieee80211_add_channel(struct ieee80211_channel[], int, int *,
+	    uint8_t, uint16_t, int8_t, uint32_t, const uint8_t[]);
+int	ieee80211_add_channel_ht40(struct ieee80211_channel[], int, int *,
+	    uint8_t, int8_t, uint32_t);
+int	ieee80211_add_channel_list_2ghz(struct ieee80211_channel[], int, int *,
+	    const uint8_t[], int, const uint8_t[], int);
+int	ieee80211_add_channel_list_5ghz(struct ieee80211_channel[], int, int *,
+	    const uint8_t[], int, const uint8_t[], int);
 struct ieee80211_channel *ieee80211_find_channel(struct ieee80211com *,
 		int freq, int flags);
 struct ieee80211_channel *ieee80211_find_channel_byieee(struct ieee80211com *,

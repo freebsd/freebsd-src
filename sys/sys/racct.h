@@ -99,7 +99,8 @@ extern int racct_enable;
  * visible to the userland.  It gets fixed up when retrieving resource
  * usage or adding rules.
  */
-#define	RACCT_IS_IN_MILLIONS(X)	(racct_types[X] & RACCT_IN_MILLIONS)
+#define	RACCT_IS_IN_MILLIONS(X)	\
+    ((X) != RACCT_UNDEFINED && (racct_types[(X)] & RACCT_IN_MILLIONS) != 0)
 
 /*
  * Resource usage can drop, as opposed to only grow.  When the process
@@ -154,6 +155,12 @@ struct racct {
 SYSCTL_DECL(_kern_racct);
 
 #ifdef RACCT
+
+extern struct mtx racct_lock;
+
+#define RACCT_LOCK()		mtx_lock(&racct_lock)
+#define RACCT_UNLOCK()		mtx_unlock(&racct_lock)
+#define RACCT_LOCK_ASSERT()	mtx_assert(&racct_lock, MA_OWNED)
 
 int	racct_add(struct proc *p, int resource, uint64_t amount);
 void	racct_add_cred(struct ucred *cred, int resource, uint64_t amount);

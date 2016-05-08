@@ -1303,7 +1303,7 @@ ahci_ch_intr_main(struct ahci_channel *ch, uint32_t istatus)
 		err = 0;
 		port = -1;
 	}
-	/* Complete all successfull commands. */
+	/* Complete all successful commands. */
 	ok = ch->rslots & ~cstatus;
 	for (i = 0; i < ch->numslots; i++) {
 		if ((ok >> i) & 1)

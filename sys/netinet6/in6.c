@@ -669,14 +669,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 					(*carp_detach_p)(&ia->ia_ifa);
 				goto out;
 			}
-			if (pr == NULL) {
-				if (carp_attached)
-					(*carp_detach_p)(&ia->ia_ifa);
-				log(LOG_ERR, "nd6_prelist_add succeeded but "
-				    "no prefix\n");
-				error = EINVAL;
-				goto out;
-			}
 		}
 
 		/* relate the address to the prefix */
@@ -1955,7 +1947,7 @@ in6if_do_dad(struct ifnet *ifp)
 	/*
 	 * Our DAD routine requires the interface up and running.
 	 * However, some interfaces can be up before the RUNNING
-	 * status.  Additionaly, users may try to assign addresses
+	 * status.  Additionally, users may try to assign addresses
 	 * before the interface becomes up (or running).
 	 * This function returns EAGAIN in that case.
 	 * The caller should mark "tentative" on the address instead of
@@ -2056,6 +2048,17 @@ struct in6_llentry {
 
 /*
  * Do actual deallocation of @lle.
+ */
+static void
+in6_lltable_destroy_lle_unlocked(struct llentry *lle)
+{
+
+	LLE_LOCK_DESTROY(lle);
+	LLE_REQ_DESTROY(lle);
+	free(lle, M_LLTABLE);
+}
+
+/*
  * Called by LLE_FREE_LOCKED when number of references
  * drops to zero.
  */
@@ -2064,9 +2067,7 @@ in6_lltable_destroy_lle(struct llentry *lle)
 {
 
 	LLE_WUNLOCK(lle);
-	LLE_LOCK_DESTROY(lle);
-	LLE_REQ_DESTROY(lle);
-	free(lle, M_LLTABLE);
+	in6_lltable_destroy_lle_unlocked(lle);
 }
 
 static struct llentry *
@@ -2270,8 +2271,10 @@ in6_lltable_alloc(struct lltable *llt, u_int flags,
 	if ((flags & LLE_IFADDR) == LLE_IFADDR) {
 		linkhdrsize = LLE_MAX_LINKHDR;
 		if (lltable_calc_llheader(ifp, AF_INET6, IF_LLADDR(ifp),
-		    linkhdr, &linkhdrsize, &lladdr_off) != 0)
+		    linkhdr, &linkhdrsize, &lladdr_off) != 0) {
+			in6_lltable_destroy_lle_unlocked(lle);
 			return (NULL);
+		}
 		lltable_set_entry_addr(ifp, lle, linkhdr, linkhdrsize,
 		    lladdr_off);
 		lle->la_flags |= LLE_STATIC;

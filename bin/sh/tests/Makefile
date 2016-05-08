@@ -2,10 +2,6 @@
 
 .include <bsd.own.mk>
 
-PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
-
 TESTS_SUBDIRS+=	builtins
 TESTS_SUBDIRS+=	errors
 TESTS_SUBDIRS+=	execution

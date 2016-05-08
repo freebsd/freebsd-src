@@ -154,11 +154,6 @@ struct mqfs_node {
 #define	FPTOMQ(fp)	((struct mqueue *)(((struct mqfs_node *) \
 				(fp)->f_data)->mn_data))
 
-struct mqfs_osd {
-	struct task	mo_task;
-	const void	*mo_pr_root;
-};
-
 TAILQ_HEAD(msgq, mqueue_msg);
 
 struct mqueue;
@@ -244,9 +239,7 @@ static int	mqfs_destroy(struct mqfs_node *mn);
 static void	mqfs_fileno_alloc(struct mqfs_info *mi, struct mqfs_node *mn);
 static void	mqfs_fileno_free(struct mqfs_info *mi, struct mqfs_node *mn);
 static int	mqfs_allocv(struct mount *mp, struct vnode **vpp, struct mqfs_node *pn);
-static int	mqfs_prison_create(void *obj, void *data);
-static void	mqfs_prison_destructor(void *data);
-static void	mqfs_prison_remove_task(void *context, int pending);
+static int	mqfs_prison_remove(void *obj, void *data);
 
 /*
  * Message queue construction and maniplation
@@ -656,9 +649,8 @@ mqfs_init(struct vfsconf *vfc)
 {
 	struct mqfs_node *root;
 	struct mqfs_info *mi;
-	struct prison *pr;
 	osd_method_t methods[PR_MAXMETHOD] = {
-	    [PR_METHOD_CREATE] = mqfs_prison_create,
+	    [PR_METHOD_REMOVE] = mqfs_prison_remove,
 	};
 
 	mqnode_zone = uma_zcreate("mqnode", sizeof(struct mqfs_node),
@@ -686,13 +678,7 @@ mqfs_init(struct vfsconf *vfc)
 	    EVENTHANDLER_PRI_ANY);
 	mq_fdclose = mqueue_fdclose;
 	p31b_setcfg(CTL_P1003_1B_MESSAGE_PASSING, _POSIX_MESSAGE_PASSING);
-
-	/* Note current jails. */
-	mqfs_osd_jail_slot = osd_jail_register(mqfs_prison_destructor, methods);
-	sx_slock(&allprison_lock);
-	TAILQ_FOREACH(pr, &allprison, pr_list)
-		(void)mqfs_prison_create(pr, NULL);
-	sx_sunlock(&allprison_lock);
+	mqfs_osd_jail_slot = osd_jail_register(NULL, methods);
 	return (0);
 }
 
@@ -702,14 +688,11 @@ mqfs_init(struct vfsconf *vfc)
 static int
 mqfs_uninit(struct vfsconf *vfc)
 {
-	unsigned slot;
 	struct mqfs_info *mi;
 
 	if (!unloadable)
 		return (EOPNOTSUPP);
-	slot = mqfs_osd_jail_slot;
-	mqfs_osd_jail_slot = 0;
-	osd_jail_deregister(slot);
+	osd_jail_deregister(mqfs_osd_jail_slot);
 	EVENTHANDLER_DEREGISTER(process_exit, exit_tag);
 	mi = &mqfs_data;
 	mqfs_destroy(mi->mi_root);
@@ -1563,64 +1546,22 @@ mqfs_rmdir(struct vop_rmdir_args *ap)
 
 #endif /* notyet */
 
-
 /*
- * Set a destructor task with the prison's root
+ * See if this prison root is obsolete, and clean up associated queues if it is.
  */
 static int
-mqfs_prison_create(void *obj, void *data __unused)
+mqfs_prison_remove(void *obj, void *data __unused)
 {
-	struct prison *pr = obj;
-	struct mqfs_osd *mo;
-	void *rsv;
-
-	if (pr->pr_root == pr->pr_parent->pr_root)
-		return(0);
-
-	mo = malloc(sizeof(struct mqfs_osd), M_PRISON, M_WAITOK);
-	rsv = osd_reserve(mqfs_osd_jail_slot);
-	TASK_INIT(&mo->mo_task, 0, mqfs_prison_remove_task, mo);
-	mtx_lock(&pr->pr_mtx);
-	mo->mo_pr_root = pr->pr_root;
-	(void)osd_jail_set_reserved(pr, mqfs_osd_jail_slot, rsv, mo);
-	mtx_unlock(&pr->pr_mtx);
-	return (0);
-}
-
-/*
- * Queue the task for after jail/OSD locks are released
- */
-static void
-mqfs_prison_destructor(void *data)
-{
-	struct mqfs_osd *mo = data;
-
-	if (mqfs_osd_jail_slot != 0)
-		taskqueue_enqueue(taskqueue_thread, &mo->mo_task);
-	else
-		free(mo, M_PRISON);
-}
-
-/*
- * See if this prison root is obsolete, and clean up associated queues if it is
- */
-static void
-mqfs_prison_remove_task(void *context, int pending)
-{
-	struct mqfs_osd *mo = context;
+	const struct prison *pr = obj;
+	const struct prison *tpr;
 	struct mqfs_node *pn, *tpn;
-	const struct prison *pr;
-	const void *pr_root;
 	int found;
 
-	pr_root = mo->mo_pr_root;
 	found = 0;
-	sx_slock(&allprison_lock);
-	TAILQ_FOREACH(pr, &allprison, pr_list) {
-		if (pr->pr_root == pr_root)
+	TAILQ_FOREACH(tpr, &allprison, pr_list) {
+		if (tpr->pr_root == pr->pr_root && tpr != pr && tpr->pr_ref > 0)
 			found = 1;
 	}
-	sx_sunlock(&allprison_lock);
 	if (!found) {
 		/*
 		 * No jails are rooted in this directory anymore,
@@ -1629,14 +1570,13 @@ mqfs_prison_remove_task(void *context, int pending)
 		sx_xlock(&mqfs_data.mi_lock);
 		LIST_FOREACH_SAFE(pn, &mqfs_data.mi_root->mn_children,
 		    mn_sibling, tpn) {
-			if (pn->mn_pr_root == pr_root)
+			if (pn->mn_pr_root == pr->pr_root)
 				(void)do_unlink(pn, curthread->td_ucred);
 		}
 		sx_xunlock(&mqfs_data.mi_lock);
 	}
-	free(mo, M_PRISON);
+	return (0);
 }
-
 
 /*
  * Allocate a message queue

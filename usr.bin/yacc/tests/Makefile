@@ -2,11 +2,6 @@
 
 .include <bsd.own.mk>
 
-PACKAGE=	tests
-FILESGROUPS=	TESTS
-TESTSPACKAGE=	${PACKAGE}
-PACKAGE=	tests
-
 TEST_DIR=	${SRCTOP}/contrib/byacc/test
 
 .PATH: ${TEST_DIR} ${TEST_DIR}/yacc
@@ -22,8 +17,7 @@ SCRIPTSDIR=	${TESTSDIR}
 
 CLEANFILES=	run_test
 
-FILESGROUPS+=	FILES FILEStest FILEStest_yacc
-FILESPACKAGE=	${PACKAGE}
+FILESGROUPS+=	FILEStest FILEStest_yacc
 FILEStestPACKAGE=${PACKAGE}
 FILEStest_yaccPACKAGE=${PACKAGE}
 

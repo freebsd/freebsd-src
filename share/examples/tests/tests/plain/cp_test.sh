@@ -57,17 +57,16 @@ verify_copy() {
 }
 
 simple_test() {
-	echo 'File 1' >file1
+	cp "$(dirname "${0}")/file1" .
 	cp file1 file2 || err "cp failed"
 	verify_copy file1 file2
 }
 
 force_test() {
-	echo 'File 1' >file1
-	echo 'File 2' >file2
-	chmod 400 file2
-	cp -f file1 file2 || err "cp failed"
-	verify_copy file1 file2
+	echo 'File 3' >file3
+	chmod 400 file3
+	cp -f file1 file3 || err "cp failed"
+	verify_copy file1 file3
 }
 
 # If you have read the cp_test.sh counterpart in the atf/ directory, you

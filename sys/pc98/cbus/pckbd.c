@@ -446,8 +446,7 @@ pckbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		keymap = &default_keymap;
 		accmap = &default_accentmap;
 		fkeymap = default_fkeytab;
-		fkeymap_size =
-			sizeof(default_fkeytab)/sizeof(default_fkeytab[0]);
+		fkeymap_size = nitems(default_fkeytab);
 
 		state->kbdc = kbdc_open(data[0]);
 		if (state->kbdc == NULL)

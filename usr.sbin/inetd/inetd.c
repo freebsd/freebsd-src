@@ -1934,7 +1934,7 @@ more:
 		if (sep->se_bi && sep->se_bi->bi_maxchild >= 0)
 			sep->se_maxchild = sep->se_bi->bi_maxchild;
 		else if (sep->se_accept) 
-			sep->se_maxchild = maxchild > 0 ? maxchild : 0;
+			sep->se_maxchild = MAX(maxchild, 0);
 		else
 			sep->se_maxchild = 1;
 	}

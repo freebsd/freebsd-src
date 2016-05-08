@@ -22,7 +22,7 @@
 # grep '+=' /usr/src/tools/build/mk/OptionalObsoleteFiles.inc | sort -u) | \
 # sort | uniq -d
 #
-# To find regular duplicates not dependant on optional components, you can
+# To find regular duplicates not dependent on optional components, you can
 # also use something that will not give you false positives, e.g.:
 # for t in `make -V TARGETS universe`; do
 #   __MAKE_CONF=/dev/null make -f Makefile.inc1 TARGET=$t \
@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160430: kvm_getfiles(3) removed from kvm(3)
+OLD_LIBS+=usr/lib/libkvm.so.6
+OLD_FILES+=usr/share/man/man3/kvm_getfiles.3.gz
+# 20160423: remove mroute6d
+OLD_FILES+=etc/rc.d/mroute6d
 # 20160419: rename units.lib -> definitions.units
 OLD_FILES+=usr/share/misc/units.lib
 # 20160419: remove Big5HKSCS locales
@@ -3768,7 +3773,7 @@ OLD_FILES+=usr/include/sys/_elf_solaris.h
 OLD_FILES+=usr/share/man/man3/pmc_x86_get_msr.3.gz
 # 20071108: Removed very crunch OLDCARD support file
 OLD_FILES+=etc/defaults/pccard.conf
-# 20071025: rc.d/nfslocking superceeded by rc.d/lockd and rc.d/statd
+# 20071025: rc.d/nfslocking superseded by rc.d/lockd and rc.d/statd
 OLD_FILES+=etc/rc.d/nfslocking
 # 20070930: rename of cached to nscd
 OLD_FILES+=etc/cached.conf

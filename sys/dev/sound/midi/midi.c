@@ -1401,7 +1401,7 @@ midi_destroy(struct snd_midi *m, int midiuninit)
  */
 
 static int
-midi_load()
+midi_load(void)
 {
 	mtx_init(&midistat_lock, "midistat lock", NULL, 0);
 	TAILQ_INIT(&midi_devs);		/* Initialize the queue. */
@@ -1414,9 +1414,9 @@ midi_load()
 }
 
 static int
-midi_unload()
+midi_unload(void)
 {
-	struct snd_midi *m;
+	struct snd_midi *m, *tmp;
 	int retval;
 
 	MIDI_DEBUG(1, printf("midi_unload()\n"));
@@ -1425,7 +1425,7 @@ midi_unload()
 	if (midistat_isopen)
 		goto exit0;
 
-	TAILQ_FOREACH(m, &midi_devs, link) {
+	TAILQ_FOREACH_SAFE(m, &midi_devs, link, tmp) {
 		mtx_lock(&m->lock);
 		if (m->busy)
 			retval = EBUSY;

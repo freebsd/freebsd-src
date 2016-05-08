@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 static int gethostbyname_internal(const char *, int, struct hostent *, char *,
     size_t, struct hostent **, int *, res_state);
 
-/* Host lookup order if nsswitch.conf is broken or nonexistant */
+/* Host lookup order if nsswitch.conf is broken or nonexistent */
 static const ns_src default_src[] = {
 	{ NSSRC_FILES, NS_SUCCESS },
 	{ NSSRC_DNS, NS_SUCCESS },

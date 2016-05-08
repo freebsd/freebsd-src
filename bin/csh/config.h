@@ -99,7 +99,7 @@
 #define HAVE_PATHS_H 1
 
 /* Define to 1 if you have the `sbrk' function. */
-#define HAVE_SBRK 1
+/* #undef HAVE_SBRK 1 */
 
 /* Define to 1 if you have the `setpgid' function. */
 #define HAVE_SETPGID 1

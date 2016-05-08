@@ -11,6 +11,7 @@
 . /etc/network.subr
 
 name="ipfw"
+desc="Firewall, traffic shaper, packet scheduler, in-kernel NAT"
 rcvar="firewall_enable"
 start_cmd="ipfw_start"
 start_precmd="ipfw_prestart"

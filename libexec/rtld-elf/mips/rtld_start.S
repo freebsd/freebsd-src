@@ -133,8 +133,9 @@ _rtld_bind_start:
 					/* .got = $gp - 0x7ff0		*/
 					/* Simple math as you can see.	*/
 #if defined(__mips_n64)
-	ld	a0, 8(a0)		/* object = pltgot[1] */
-	and	a0, a0, 0x7fffffffffffffff
+	not	t0, zero
+	srl	t0, 1
+	and	a0, a0, t0
 #else
 	lw	a0, 4(a0)		/* object = pltgot[1] & 0x7fffffff */
 	and	a0, a0, 0x7fffffff

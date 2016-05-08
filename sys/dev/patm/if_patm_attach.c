@@ -675,7 +675,7 @@ patm_read_eeprom(struct patm_softc *sc)
 	gp = patm_nor_read(sc, IDT_NOR_GP);
 	gp &= ~(IDT_GP_EESCLK | IDT_GP_EECS | IDT_GP_EEDO);
 
-	for (i = 0; i < sizeof(tab) / sizeof(tab[0]); i++) {
+	for (i = 0; i < nitems(tab); i++) {
 		patm_nor_write(sc, IDT_NOR_GP, gp | tab[i]);
 		DELAY(40);
 	}

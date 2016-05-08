@@ -453,7 +453,7 @@ kern_clock_getres(struct thread *td, clockid_t clock_id, struct timespec *ts)
 	case CLOCK_VIRTUAL:
 	case CLOCK_PROF:
 		/* Accurately round up here because we can do so cheaply. */
-		ts->tv_nsec = (1000000000 + hz - 1) / hz;
+		ts->tv_nsec = howmany(1000000000, hz);
 		break;
 	case CLOCK_SECOND:
 		ts->tv_sec = 1;

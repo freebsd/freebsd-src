@@ -227,7 +227,7 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
 	  if(ccg->block_size == 0 ||
 	     (ccg->volume_size < ccg->block_size)) {
 	       // print error message  ...
-	       /* XXX: what error is appropiate? */
+	       /* XXX: what error is appropriate? */
 	       break;
 	  } 
 	  else {

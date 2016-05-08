@@ -1753,14 +1753,7 @@ mwl_mode_init(struct mwl_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct mwl_hal *mh = sc->sc_mh;
 
-	/*
-	 * NB: Ignore promisc in hostap mode; it's set by the
-	 * bridge.  This is wrong but we have no way to
-	 * identify internal requests (from the bridge)
-	 * versus external requests such as for tcpdump.
-	 */
-	mwl_hal_setpromisc(mh, ic->ic_promisc > 0 &&
-	    ic->ic_opmode != IEEE80211_M_HOSTAP);
+	mwl_hal_setpromisc(mh, ic->ic_promisc > 0);
 	mwl_setmcastfilter(sc);
 
 	return 0;
@@ -4672,7 +4665,7 @@ mwl_txq_dump(&sc->sc_txq[0]);/*XXX*/
  * Diagnostic interface to the HAL.  This is used by various
  * tools to do things like retrieve register contents for
  * debugging.  The mechanism is intentionally opaque so that
- * it can change frequently w/o concern for compatiblity.
+ * it can change frequently w/o concern for compatibility.
  */
 static int
 mwl_ioctl_diag(struct mwl_softc *sc, struct mwl_diag *md)

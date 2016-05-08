@@ -38,7 +38,7 @@
  *
  * machdep.c
  *
- * Machine dependant functions for kernel setup
+ * Machine dependent functions for kernel setup
  *
  * This file needs a lot of work.
  *
@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/kdb.h>
 #include <sys/msgbuf.h>
+#include <sys/devmap.h>
 #include <machine/reg.h>
 #include <machine/cpu.h>
 
@@ -80,7 +81,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
-#include <machine/devmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
@@ -120,7 +120,7 @@ struct pv_addr abtstack;
 struct pv_addr kernelstack;
 
 /* Static device mappings. */
-static const struct arm_devmap_entry iq81342_devmap[] = {
+static const struct devmap_entry iq81342_devmap[] = {
 	    {
 		    IOP34X_VADDR,
 		    IOP34X_HWADDR,
@@ -131,8 +131,8 @@ static const struct arm_devmap_entry iq81342_devmap[] = {
 		     * Cheat and map a whole section, this will bring
 		     * both PCI-X and PCI-E outbound I/O
 		     */
-		    IOP34X_PCIX_OIOBAR_VADDR &~ (0x100000 - 1),
-		    IOP34X_PCIX_OIOBAR &~ (0x100000 - 1),
+		    rounddown2(IOP34X_PCIX_OIOBAR_VADDR, 0x100000),
+		    rounddown2(IOP34X_PCIX_OIOBAR, 0x100000),
 		    0x100000,
 	    },
 	    {
@@ -227,8 +227,8 @@ initarm(struct arm_boot_params *abp)
 	l1pagetable = kernel_l1pt.pv_va;
 
 	/* Map the L2 pages tables in the L1 page table */
-	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH & ~(0x00100000 - 1),
-	    &kernel_pt_table[KERNEL_PT_SYS]);
+	pmap_link_l2pt(l1pagetable, rounddown2(ARM_VECTORS_HIGH, 0x00100000),
+		       &kernel_pt_table[KERNEL_PT_SYS]);
 	pmap_map_chunk(l1pagetable, KERNBASE, SDRAM_START, 0x100000,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
@@ -236,11 +236,10 @@ initarm(struct arm_boot_params *abp)
 	    0x100000, VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 
 	pmap_map_chunk(l1pagetable, KERNBASE + 0x200000, SDRAM_START + 0x200000,
-	   (((uint32_t)(lastaddr) - KERNBASE - 0x200000) + L1_S_SIZE) & ~(L1_S_SIZE - 1),
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	freemem_after = ((int)lastaddr + PAGE_SIZE) & ~(PAGE_SIZE - 1);
-	afterkern = round_page(((vm_offset_t)lastaddr + L1_S_SIZE) & ~(L1_S_SIZE
-	    - 1));
+	   rounddown2(((uint32_t)(lastaddr) - KERNBASE - 0x200000) + L1_S_SIZE, L1_S_SIZE),
+	   VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+	freemem_after = rounddown2((int)lastaddr + PAGE_SIZE, PAGE_SIZE);
+	afterkern = round_page(rounddown2((vm_offset_t)lastaddr + L1_S_SIZE, L1_S_SIZE));
 	for (i = 0; i < KERNEL_PT_AFKERNEL_NUM; i++) {
 		pmap_link_l2pt(l1pagetable, afterkern + i * 0x00100000,
 		    &kernel_pt_table[KERNEL_PT_AFKERNEL + i]);
@@ -250,7 +249,7 @@ initarm(struct arm_boot_params *abp)
 	/* Map the vector page. */
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	arm_devmap_bootstrap(l1pagetable, iq81342_devmap);
+	devmap_bootstrap(l1pagetable, iq81342_devmap);
 	/*
 	 * Give the XScale global cache clean code an appropriately
 	 * sized chunk of unmapped VA space starting at 0xff000000

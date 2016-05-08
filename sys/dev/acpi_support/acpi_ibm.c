@@ -839,7 +839,7 @@ acpi_ibm_sysctl_init(struct acpi_ibm_softc *sc, int method)
 	case ACPI_IBM_METHOD_BRIGHTNESS:
 	case ACPI_IBM_METHOD_VOLUME:
 	case ACPI_IBM_METHOD_MUTE:
-		/* EC is required here, which was aready checked before */
+		/* EC is required here, which was already checked before */
 		return (TRUE);
 
 	case ACPI_IBM_METHOD_THINKLIGHT:

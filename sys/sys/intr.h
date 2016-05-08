@@ -32,13 +32,22 @@
 
 #include <sys/systm.h>
 
+#define	INTR_IRQ_INVALID	0xFFFFFFFF
+
 enum intr_map_data_type {
 	INTR_MAP_DATA_ACPI,
 	INTR_MAP_DATA_FDT,
+	INTR_MAP_DATA_GPIO,
+};
+
+struct intr_map_data {
+	enum intr_map_data_type	type;
+	size_t			size;
 };
 
 #ifdef DEV_ACPI
 struct intr_map_data_acpi {
+	struct intr_map_data	hdr;
 	u_int			irq;
 	enum intr_polarity	pol;
 	enum intr_trigger	trig;
@@ -46,21 +55,17 @@ struct intr_map_data_acpi {
 #endif
 #ifdef FDT
 struct intr_map_data_fdt {
-	u_int	ncells;
-	pcell_t	*cells;
+	struct intr_map_data	hdr;
+	u_int			ncells;
+	pcell_t			cells[0];
 };
 #endif
 
-struct intr_map_data {
-	enum intr_map_data_type	type;
-	union {
-#ifdef DEV_ACPI
-		struct intr_map_data_acpi	acpi;
-#endif
-#ifdef FDT
-		struct intr_map_data_fdt	fdt;
-#endif
-	};
+struct intr_map_data_gpio {
+	struct intr_map_data	hdr;
+	u_int			gpio_pin_num;
+	u_int			gpio_pin_flags;
+	u_int		 	gpio_intr_mode;
 };
 
 #ifdef notyet
@@ -130,6 +135,8 @@ u_int intr_acpi_map_irq(device_t, u_int, enum intr_polarity,
 #ifdef FDT
 u_int intr_fdt_map_irq(phandle_t, pcell_t *, u_int);
 #endif
+u_int intr_gpio_map_irq(device_t dev, u_int pin_num, u_int pin_flags,
+    u_int intr_mode);
 
 #ifdef SMP
 int intr_bind_irq(device_t, struct resource *, int);

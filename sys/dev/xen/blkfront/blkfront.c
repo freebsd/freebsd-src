@@ -571,7 +571,7 @@ xbd_quiesce(struct xbd_softc *sc)
 	while (xbd_queue_length(sc, XBD_Q_BUSY) != 0) {
 		RING_FINAL_CHECK_FOR_RESPONSES(&sc->xbd_ring, mtd);
 		if (mtd) {
-			/* Recieved request completions, update queue. */
+			/* Received request completions, update queue. */
 			xbd_int(sc);
 		}
 		if (xbd_queue_length(sc, XBD_Q_BUSY) != 0) {
@@ -1118,7 +1118,7 @@ xbd_initialize(struct xbd_softc *sc)
 	 * Protocol negotiation.
 	 *
 	 * \note xs_gather() returns on the first encountered error, so
-	 *       we must use independant calls in order to guarantee
+	 *       we must use independent calls in order to guarantee
 	 *       we don't miss information in a sparsly populated back-end
 	 *       tree.
 	 *

@@ -193,4 +193,4 @@
 	};
 };
 
-#include <fbsd-rt2880.dtsi>
+/include/ "fbsd-rt2880.dtsi"

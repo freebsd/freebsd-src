@@ -201,8 +201,12 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			    "enabled" : "disabled");
 		if (!(cpu->Flags & ACPI_SRAT_CPU_ENABLED))
 			break;
-		KASSERT(!cpus[cpu->ApicId].enabled,
-		    ("Duplicate local APIC ID %u", cpu->ApicId));
+		if (cpus[cpu->ApicId].enabled) {
+			printf("SRAT: Duplicate local APIC ID %u\n",
+			    cpu->ApicId);
+			*(int *)arg = ENXIO;
+			break;
+		}
 		cpus[cpu->ApicId].domain = domain;
 		cpus[cpu->ApicId].enabled = 1;
 		break;
@@ -355,17 +359,18 @@ renumber_domains(void)
 		if (j < ndomain && domain_pxm[j] == mem_info[i].domain)
 			continue;
 
+		if (ndomain >= MAXMEMDOM) {
+			ndomain = 1;
+			printf("SRAT: Too many memory domains\n");
+			return (EFBIG);
+		}
+
 		/* Insert the new domain at slot 'j'. */
 		slot = j;
 		for (j = ndomain; j > slot; j--)
 			domain_pxm[j] = domain_pxm[j - 1];
 		domain_pxm[slot] = mem_info[i].domain;
 		ndomain++;
-		if (ndomain > MAXMEMDOM) {
-			ndomain = 1;
-			printf("SRAT: Too many memory domains\n");
-			return (EFBIG);
-		}
 	}
 
 	/* Renumber each domain to its index in the sorted 'domain_pxm' list. */

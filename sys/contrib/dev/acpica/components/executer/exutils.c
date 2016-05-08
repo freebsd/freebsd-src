@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -187,8 +187,8 @@ AcpiExTruncateFor32bitTable (
         (ObjDesc->Integer.Value > (UINT64) ACPI_UINT32_MAX))
     {
         /*
-         * We are executing in a 32-bit ACPI table.
-         * Truncate the value to 32 bits by zeroing out the upper 32-bit field
+         * We are executing in a 32-bit ACPI table. Truncate
+         * the value to 32 bits by zeroing out the upper 32-bit field
          */
         ObjDesc->Integer.Value &= (UINT64) ACPI_UINT32_MAX;
         return (TRUE);
@@ -232,7 +232,7 @@ AcpiExAcquireGlobalLock (
     /* Attempt to get the global lock, wait forever */
 
     Status = AcpiExAcquireMutexObject (ACPI_WAIT_FOREVER,
-                AcpiGbl_GlobalLockMutex, AcpiOsGetThreadId ());
+        AcpiGbl_GlobalLockMutex, AcpiOsGetThreadId ());
 
     if (ACPI_FAILURE (Status))
     {
@@ -341,8 +341,8 @@ AcpiExDigitsNeeded (
  *
  * FUNCTION:    AcpiExEisaIdToString
  *
- * PARAMETERS:  CompressedId    - EISAID to be converted
- *              OutString       - Where to put the converted string (8 bytes)
+ * PARAMETERS:  OutString       - Where to put the converted string (8 bytes)
+ *              CompressedId    - EISAID to be converted
  *
  * RETURN:      None
  *
@@ -369,7 +369,8 @@ AcpiExEisaIdToString (
     if (CompressedId > ACPI_UINT32_MAX)
     {
         ACPI_WARNING ((AE_INFO,
-            "Expected EISAID is larger than 32 bits: 0x%8.8X%8.8X, truncating",
+            "Expected EISAID is larger than 32 bits: "
+            "0x%8.8X%8.8X, truncating",
             ACPI_FORMAT_UINT64 (CompressedId)));
     }
 
@@ -399,7 +400,7 @@ AcpiExEisaIdToString (
  *                                possible 64-bit integer.
  *              Value           - Value to be converted
  *
- * RETURN:      None, string
+ * RETURN:      Converted string in OutString
  *
  * DESCRIPTION: Convert a 64-bit integer to decimal string representation.
  *              Assumes string buffer is large enough to hold the string. The
@@ -436,9 +437,9 @@ AcpiExIntegerToString (
  * FUNCTION:    AcpiExPciClsToString
  *
  * PARAMETERS:  OutString       - Where to put the converted string (7 bytes)
- * PARAMETERS:  ClassCode       - PCI class code to be converted (3 bytes)
+ *              ClassCode       - PCI class code to be converted (3 bytes)
  *
- * RETURN:      None
+ * RETURN:      Converted string in OutString
  *
  * DESCRIPTION: Convert 3-bytes PCI class code to string representation.
  *              Return buffer must be large enough to hold the string. The
@@ -474,7 +475,7 @@ AcpiExPciClsToString (
  *
  * PARAMETERS:  SpaceId             - ID to be validated
  *
- * RETURN:      TRUE if valid/supported ID.
+ * RETURN:      TRUE if SpaceId is a valid/supported ID.
  *
  * DESCRIPTION: Validate an operation region SpaceID.
  *
@@ -495,6 +496,5 @@ AcpiIsValidSpaceId (
 
     return (TRUE);
 }
-
 
 #endif

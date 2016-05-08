@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -137,7 +137,8 @@ AcpiNsCheckAcpiCompliance (
 
     /* Get the ACPI-required arg count from the predefined info table */
 
-    RequiredParamCount = METHOD_GET_ARG_COUNT (Predefined->Info.ArgumentList);
+    RequiredParamCount =
+        METHOD_GET_ARG_COUNT (Predefined->Info.ArgumentList);
 
     /*
      * If this object is not a control method, we can check if the ACPI
@@ -283,7 +284,8 @@ AcpiNsCheckArgumentCount (
      * Some methods are allowed to have a "minimum" number of args (_SCP)
      * because their definition in ACPI has changed over time.
      */
-    RequiredParamCount = METHOD_GET_ARG_COUNT (Predefined->Info.ArgumentList);
+    RequiredParamCount =
+        METHOD_GET_ARG_COUNT (Predefined->Info.ArgumentList);
 
     if (UserParamCount < RequiredParamCount)
     {

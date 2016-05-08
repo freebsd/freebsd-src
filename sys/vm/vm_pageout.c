@@ -447,7 +447,7 @@ more:
 		++pageout_count;
 		++ib;
 		/*
-		 * alignment boundry, stop here and switch directions.  Do
+		 * alignment boundary, stop here and switch directions.  Do
 		 * not clear ib.
 		 */
 		if ((pindex - (ib - 1)) % vm_pageout_page_count == 0)
@@ -477,7 +477,7 @@ more:
 
 	/*
 	 * If we exhausted our forward scan, continue with the reverse scan
-	 * when possible, even past a page boundry.  This catches boundry
+	 * when possible, even past a page boundary.  This catches boundary
 	 * conditions.
 	 */
 	if (ib && pageout_count < vm_pageout_page_count)

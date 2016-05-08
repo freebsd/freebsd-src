@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,6 +68,7 @@ AcpiHwWriteMultiple (
 
 #endif /* !ACPI_REDUCED_HARDWARE */
 
+
 /******************************************************************************
  *
  * FUNCTION:    AcpiHwValidateRegister
@@ -90,6 +91,10 @@ AcpiHwValidateRegister (
     UINT8                   MaxBitWidth,
     UINT64                  *Address)
 {
+    UINT8                   BitWidth;
+    UINT8                   BitEnd;
+    UINT8                   AccessWidth;
+
 
     /* Must have a valid pointer to a GAS structure */
 
@@ -119,24 +124,28 @@ AcpiHwValidateRegister (
         return (AE_SUPPORT);
     }
 
-    /* Validate the BitWidth */
+    /* Validate the AccessWidth */
 
-    if ((Reg->BitWidth != 8) &&
-        (Reg->BitWidth != 16) &&
-        (Reg->BitWidth != 32) &&
-        (Reg->BitWidth != MaxBitWidth))
+    if (Reg->AccessWidth > 4)
     {
         ACPI_ERROR ((AE_INFO,
-            "Unsupported register bit width: 0x%X", Reg->BitWidth));
+            "Unsupported register access width: 0x%X", Reg->AccessWidth));
         return (AE_SUPPORT);
     }
 
-    /* Validate the BitOffset. Just a warning for now. */
+    /* Validate the BitWidth, convert AccessWidth into number of bits */
 
-    if (Reg->BitOffset != 0)
+    BitEnd = Reg->BitOffset + Reg->BitWidth;
+    AccessWidth = Reg->AccessWidth ? Reg->AccessWidth : 1;
+    AccessWidth = 1 << (AccessWidth + 2);
+    BitWidth = ACPI_ROUND_UP (BitEnd, AccessWidth) -
+        ACPI_ROUND_DOWN (Reg->BitOffset, AccessWidth);
+    if (MaxBitWidth < BitWidth)
     {
         ACPI_WARNING ((AE_INFO,
-            "Unsupported register bit offset: 0x%X", Reg->BitOffset));
+            "Requested bit width 0x%X is smaller than register bit width 0x%X",
+            MaxBitWidth, BitWidth));
+        return (AE_SUPPORT);
     }
 
     return (AE_OK);
@@ -196,14 +205,14 @@ AcpiHwRead (
     if (Reg->SpaceId == ACPI_ADR_SPACE_SYSTEM_MEMORY)
     {
         Status = AcpiOsReadMemory ((ACPI_PHYSICAL_ADDRESS)
-                    Address, &Value64, Reg->BitWidth);
+            Address, &Value64, Reg->BitWidth);
 
         *Value = (UINT32) Value64;
     }
     else /* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
     {
         Status = AcpiHwReadPort ((ACPI_IO_ADDRESS)
-                    Address, Value, Reg->BitWidth);
+            Address, Value, Reg->BitWidth);
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_IO,
@@ -257,12 +266,12 @@ AcpiHwWrite (
     if (Reg->SpaceId == ACPI_ADR_SPACE_SYSTEM_MEMORY)
     {
         Status = AcpiOsWriteMemory ((ACPI_PHYSICAL_ADDRESS)
-                    Address, (UINT64) Value, Reg->BitWidth);
+            Address, (UINT64) Value, Reg->BitWidth);
     }
     else /* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
     {
         Status = AcpiHwWritePort ((ACPI_IO_ADDRESS)
-                    Address, Value, Reg->BitWidth);
+            Address, Value, Reg->BitWidth);
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_IO,
@@ -307,7 +316,7 @@ AcpiHwClearAcpiStatus (
     /* Clear the fixed events in PM1 A/B */
 
     Status = AcpiHwRegisterWrite (ACPI_REGISTER_PM1_STATUS,
-                ACPI_BITMASK_ALL_FIXED_STATUS);
+        ACPI_BITMASK_ALL_FIXED_STATUS);
 
     AcpiOsReleaseLock (AcpiGbl_HardwareLock, LockFlags);
 
@@ -426,22 +435,22 @@ AcpiHwRegisterRead (
     case ACPI_REGISTER_PM1_STATUS:           /* PM1 A/B: 16-bit access each */
 
         Status = AcpiHwReadMultiple (&Value,
-                    &AcpiGbl_XPm1aStatus,
-                    &AcpiGbl_XPm1bStatus);
+            &AcpiGbl_XPm1aStatus,
+            &AcpiGbl_XPm1bStatus);
         break;
 
     case ACPI_REGISTER_PM1_ENABLE:           /* PM1 A/B: 16-bit access each */
 
         Status = AcpiHwReadMultiple (&Value,
-                    &AcpiGbl_XPm1aEnable,
-                    &AcpiGbl_XPm1bEnable);
+            &AcpiGbl_XPm1aEnable,
+            &AcpiGbl_XPm1bEnable);
         break;
 
     case ACPI_REGISTER_PM1_CONTROL:          /* PM1 A/B: 16-bit access each */
 
         Status = AcpiHwReadMultiple (&Value,
-                    &AcpiGbl_FADT.XPm1aControlBlock,
-                    &AcpiGbl_FADT.XPm1bControlBlock);
+            &AcpiGbl_FADT.XPm1aControlBlock,
+            &AcpiGbl_FADT.XPm1bControlBlock);
 
         /*
          * Zero the write-only bits. From the ACPI specification, "Hardware
@@ -537,15 +546,15 @@ AcpiHwRegisterWrite (
         Value &= ~ACPI_PM1_STATUS_PRESERVED_BITS;
 
         Status = AcpiHwWriteMultiple (Value,
-                    &AcpiGbl_XPm1aStatus,
-                    &AcpiGbl_XPm1bStatus);
+            &AcpiGbl_XPm1aStatus,
+            &AcpiGbl_XPm1bStatus);
         break;
 
     case ACPI_REGISTER_PM1_ENABLE:           /* PM1 A/B: 16-bit access each */
 
         Status = AcpiHwWriteMultiple (Value,
-                    &AcpiGbl_XPm1aEnable,
-                    &AcpiGbl_XPm1bEnable);
+            &AcpiGbl_XPm1aEnable,
+            &AcpiGbl_XPm1bEnable);
         break;
 
     case ACPI_REGISTER_PM1_CONTROL:          /* PM1 A/B: 16-bit access each */
@@ -554,8 +563,8 @@ AcpiHwRegisterWrite (
          * Note: This includes SCI_EN, we never want to change this bit
          */
         Status = AcpiHwReadMultiple (&ReadValue,
-                    &AcpiGbl_FADT.XPm1aControlBlock,
-                    &AcpiGbl_FADT.XPm1bControlBlock);
+            &AcpiGbl_FADT.XPm1aControlBlock,
+            &AcpiGbl_FADT.XPm1bControlBlock);
         if (ACPI_FAILURE (Status))
         {
             goto Exit;
@@ -568,8 +577,8 @@ AcpiHwRegisterWrite (
         /* Now we can write the data */
 
         Status = AcpiHwWriteMultiple (Value,
-                    &AcpiGbl_FADT.XPm1aControlBlock,
-                    &AcpiGbl_FADT.XPm1bControlBlock);
+            &AcpiGbl_FADT.XPm1aControlBlock,
+            &AcpiGbl_FADT.XPm1bControlBlock);
         break;
 
     case ACPI_REGISTER_PM2_CONTROL:          /* 8-bit access */

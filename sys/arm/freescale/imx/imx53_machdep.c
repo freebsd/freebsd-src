@@ -33,11 +33,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/reboot.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 
 #include <machine/bus.h>
-#include <machine/devmap.h>
 #include <machine/machdep.h>
 #include <machine/platformvar.h> 
 
@@ -49,7 +49,7 @@ static vm_offset_t
 imx53_lastaddr(platform_t plat)
 {
 
-	return (arm_devmap_lastaddr());
+	return (devmap_lastaddr());
 }
 
 static int
@@ -74,9 +74,9 @@ static int
 imx53_devmap_init(platform_t plat)
 {
 
-	arm_devmap_add_entry(0x50000000, 0x00100000);
-	arm_devmap_add_entry(0x53f00000, 0x00100000);
-	arm_devmap_add_entry(0x63f00000, 0x00100000);
+	devmap_add_entry(0x50000000, 0x00100000);
+	devmap_add_entry(0x53f00000, 0x00100000);
+	devmap_add_entry(0x63f00000, 0x00100000);
 
 	return (0);
 }
@@ -101,5 +101,5 @@ static platform_method_t imx53_methods[] = {
 	PLATFORMMETHOD_END,
 };
 
-FDT_PLATFORM_DEF(imx53, "i.MX53", 0, "fsl,imx53");
+FDT_PLATFORM_DEF(imx53, "i.MX53", 0, "fsl,imx53", 0);
 

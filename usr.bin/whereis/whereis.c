@@ -207,7 +207,7 @@ decolonify(char *s, ccharp **cppp, int *ip)
 			*cp = '\0';
 		if (strlen(s) && !contains(*cppp, s)) {
 			*cppp = realloc(*cppp, (*ip + 2) * sizeof(char *));
-			if (cppp == NULL)
+			if (*cppp == NULL)
 				abort();
 			(*cppp)[*ip] = s;
 			(*cppp)[*ip + 1] = NULL;
@@ -505,7 +505,7 @@ main(int argc, char **argv)
 					    (rlen = matches[1].rm_eo - 
 					     matches[1].rm_so) > 0) {
 						/*
-						 * man -w found formated
+						 * man -w found formatted
 						 * page, need to pick up
 						 * source page name.
 						 */

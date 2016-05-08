@@ -66,7 +66,7 @@ static const struct {
 	const char *	desc;
 } services[] = {
 	{ "PANU", SDP_SERVICE_CLASS_PANU, "Personal Area Networking User" },
-	{ "NAP",  SDP_SERVICE_CLASS_NAP,  "Network Acess Point"		  },
+	{ "NAP",  SDP_SERVICE_CLASS_NAP,  "Network Access Point"		  },
 	{ "GN",	  SDP_SERVICE_CLASS_GN,   "Group Network"		  },
 };
 

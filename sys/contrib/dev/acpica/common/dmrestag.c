@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -279,6 +279,7 @@ static const ACPI_RESOURCE_TAG      AcpiDmGpioIoTags[] =
 static const ACPI_RESOURCE_TAG      AcpiDmI2cSerialBusTags[] =
 {
     {( 6 * 8) + 0,  ACPI_RESTAG_SLAVEMODE},
+    {( 6 * 8) + 2,  ACPI_RESTAG_INTERRUPTSHARE},    /* V2 - ACPI 6.0 */
     {( 7 * 8) + 0,  ACPI_RESTAG_MODE},
     {(12 * 8),      ACPI_RESTAG_SPEED},
     {(16 * 8),      ACPI_RESTAG_ADDRESS},
@@ -288,6 +289,7 @@ static const ACPI_RESOURCE_TAG      AcpiDmI2cSerialBusTags[] =
 static const ACPI_RESOURCE_TAG      AcpiDmSpiSerialBusTags[] =
 {
     {( 6 * 8) + 0,  ACPI_RESTAG_SLAVEMODE},
+    {( 6 * 8) + 2,  ACPI_RESTAG_INTERRUPTSHARE},    /* V2 - ACPI 6.0 */
     {( 7 * 8) + 0,  ACPI_RESTAG_MODE},
     {( 7 * 8) + 1,  ACPI_RESTAG_DEVICEPOLARITY},
     {(12 * 8),      ACPI_RESTAG_SPEED},
@@ -300,7 +302,8 @@ static const ACPI_RESOURCE_TAG      AcpiDmSpiSerialBusTags[] =
 
 static const ACPI_RESOURCE_TAG      AcpiDmUartSerialBusTags[] =
 {
-    {( 6 * 8) + 0,  ACPI_RESTAG_SLAVEMODE}, /* Note: not part of original macro */
+    {( 6 * 8) + 0,  ACPI_RESTAG_SLAVEMODE},         /* Note: not part of original macro */
+    {( 6 * 8) + 2,  ACPI_RESTAG_INTERRUPTSHARE},    /* V2 - ACPI 6.0 */
     {( 7 * 8) + 0,  ACPI_RESTAG_FLOWCONTROL},
     {( 7 * 8) + 2,  ACPI_RESTAG_STOPBITS},
     {( 7 * 8) + 4,  ACPI_RESTAG_LENGTH},
@@ -498,9 +501,9 @@ AcpiDmCheckResourceReference (
     /* Lookup the buffer in the namespace */
 
     Status = AcpiNsLookup (WalkState->ScopeInfo,
-                BufferNameOp->Common.Value.String, ACPI_TYPE_BUFFER,
-                ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT, WalkState,
-                &BufferNode);
+        BufferNameOp->Common.Value.String, ACPI_TYPE_BUFFER,
+        ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT, WalkState,
+        &BufferNode);
     if (ACPI_FAILURE (Status))
     {
         return;
@@ -621,8 +624,8 @@ AcpiGetTagPathname (
 
     /* Get the individual resource descriptor and validate it */
 
-    Aml = ACPI_CAST_PTR (AML_RESOURCE,
-            &Op->Named.Data[ResourceNode->Value]);
+    Aml = ACPI_CAST_PTR (
+        AML_RESOURCE, &Op->Named.Data[ResourceNode->Value]);
 
     Status = AcpiUtValidateResource (NULL, Aml, &ResourceTableIndex);
     if (ACPI_FAILURE (Status))
@@ -663,7 +666,7 @@ AcpiGetTagPathname (
     }
 
     (void) AcpiNsBuildNormalizedPath (BufferNode, Pathname,
-            RequiredSize, FALSE);
+        RequiredSize, FALSE);
 
     /*
      * Create the full path to the resource and tag by: remove the buffer name,
@@ -742,6 +745,7 @@ AcpiDmUpdateResourceName (
     {
         AcpiGbl_NextResourceId = 0;
         AcpiGbl_NextPrefix++;
+
         if (AcpiGbl_NextPrefix > ACPI_NUM_RES_PREFIX)
         {
             AcpiGbl_NextPrefix = 0;
@@ -1028,9 +1032,9 @@ AcpiDmAddResourceToNamespace (
 
     ScopeInfo.Scope.Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, Context);
     Status = AcpiNsLookup (&ScopeInfo, "_TMP", ACPI_TYPE_LOCAL_RESOURCE,
-                ACPI_IMODE_LOAD_PASS2,
-                ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE | ACPI_NS_PREFIX_IS_SCOPE,
-                NULL, &Node);
+        ACPI_IMODE_LOAD_PASS2,
+        ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE | ACPI_NS_PREFIX_IS_SCOPE,
+        NULL, &Node);
     if (ACPI_FAILURE (Status))
     {
         return (AE_OK);

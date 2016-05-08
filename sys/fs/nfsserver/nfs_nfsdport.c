@@ -1305,7 +1305,7 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
 		daddr_t lblkno;
 
 		/*
-		 * Align to iosize boundry, super-align to page boundry.
+		 * Align to iosize boundary, super-align to page boundary.
 		 */
 		if (off & iomask) {
 			cnt += off & iomask;
@@ -2800,7 +2800,7 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
 	/*
 	 * Personally, I've never seen any point in requiring a
 	 * reserved port#, since only in the rare case where the
-	 * clients are all boxes with secure system priviledges,
+	 * clients are all boxes with secure system privileges,
 	 * does it provide any enhanced security, but... some people
 	 * believe it to be useful and keep putting this code back in.
 	 * (There is also some "security checker" out there that
@@ -3066,7 +3066,7 @@ out:
 }
 
 /*
- * Nfs server psuedo system call for the nfsd's
+ * Nfs server pseudo system call for the nfsd's
  */
 /*
  * MPSAFE

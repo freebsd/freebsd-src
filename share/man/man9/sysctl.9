@@ -616,14 +616,14 @@ flags to be set indicating the read and write disposition of the sysctl:
 This is a read-only sysctl.
 .It Dv CTLFLAG_RDTUN
 This is a read-only sysctl and tunable which is tried fetched once
-from the system enviroment early during module load or system boot.
+from the system environment early during module load or system boot.
 .It Dv CTLFLAG_WR
 This is a writable sysctl.
 .It Dv CTLFLAG_RW
 This sysctl is readable and writable.
 .It Dv CTLFLAG_RWTUN
 This is a readable and writeable sysctl and tunable which is tried
-fetched once from the system enviroment early during module load or
+fetched once from the system environment early during module load or
 system boot.
 .It Dv CTLFLAG_NOFETCH
 In case the node is marked as a tunable using the CTLFLAG_[XX]TUN,
@@ -647,7 +647,7 @@ When iterating the sysctl name space, do not list this sysctl.
 .It Dv CTLFLAG_TUN
 Advisory flag that a system tunable also exists for this variable.
 The initial sysctl value is tried fetched once from the system
-enviroment early during module load or system boot.
+environment early during module load or system boot.
 .It Dv CTLFLAG_DYN
 Dynamically created OIDs automatically get this flag set.
 .It Dv CTLFLAG_VNET
@@ -697,7 +697,7 @@ SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile, CTLFLAG_RW,
  * the variable pointer and size are provided, as well as a format
  * string for sysctl(8).
  */
-static l_fp pps_freq;	/* scaled frequence offset (ns/s) */
+static l_fp pps_freq;	/* scaled frequency offset (ns/s) */
 SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, pps_freq, CTLFLAG_RD,
     &pps_freq, sizeof(pps_freq), "I", "");
 

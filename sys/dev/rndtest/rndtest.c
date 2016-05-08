@@ -68,7 +68,7 @@ static const struct rndtest_testfunc {
 	{ rndtest_longruns },
 };
 
-#define	RNDTEST_NTESTS	(sizeof(rndtest_funcs)/sizeof(rndtest_funcs[0]))
+#define	RNDTEST_NTESTS	nitems(rndtest_funcs)
 
 static SYSCTL_NODE(_kern, OID_AUTO, rndtest, CTLFLAG_RD, 0,
 	    "RNG test parameters");

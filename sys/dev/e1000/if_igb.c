@@ -304,7 +304,7 @@ SYSCTL_INT(_hw_igb, OID_AUTO, buf_ring_size, CTLFLAG_RDTUN,
 
 /*
 ** Header split causes the packet header to
-** be dma'd to a seperate mbuf from the payload.
+** be dma'd to a separate mbuf from the payload.
 ** this can have memory alignment benefits. But
 ** another plus is that small packets often fit
 ** into the header and thus use no cluster. Its
@@ -659,7 +659,8 @@ igb_attach(device_t dev)
 	return (0);
 
 err_late:
-	igb_detach(dev);
+	if (igb_detach(dev) == 0) /* igb_detach() already did the cleanup */
+		return(error);
 	igb_free_transmit_structures(adapter);
 	igb_free_receive_structures(adapter);
 	igb_release_hw_control(adapter);
@@ -4482,7 +4483,7 @@ skip_head:
 	** Now set up the LRO interface, we
 	** also only do head split when LRO
 	** is enabled, since so often they
-	** are undesireable in similar setups.
+	** are undesirable in similar setups.
 	*/
 	if (ifp->if_capenable & IFCAP_LRO) {
 		error = tcp_lro_init(lro);
