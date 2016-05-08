@@ -65,14 +65,16 @@ bcma_bhndb_probe(device_t dev)
 static int
 bcma_bhndb_attach(device_t dev)
 {
+	struct bcma_softc		*sc;
 	const struct bhnd_chipid	*cid;
 	struct resource			*erom_res;
 	int				 error;
 	int				 rid;
 
-	cid = BHNDB_GET_CHIPID(device_get_parent(dev), dev);
+	sc = device_get_softc(dev);
 
 	/* Map the EROM resource and enumerate our children. */
+	cid = BHNDB_GET_CHIPID(device_get_parent(dev), dev);
 	rid = 0;
 	erom_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, cid->enum_addr,
 		cid->enum_addr + BCMA_EROM_TABLE_SIZE, BCMA_EROM_TABLE_SIZE,
@@ -94,6 +96,9 @@ bcma_bhndb_attach(device_t dev)
 	    bhndb_bcma_priority_table);
 	if (error)
 		return (error);
+
+	/* Ask our parent bridge to find the corresponding bridge core */
+	sc->hostb_dev = BHNDB_FIND_HOSTB_DEVICE(device_get_parent(dev), dev);
 
 	/* Call our superclass' implementation */
 	return (bcma_attach(dev));

@@ -145,6 +145,7 @@ struct siba_devinfo {
 /** siba(4) per-instance state */
 struct siba_softc {
 	struct bhnd_softc	bhnd_sc;	/**< bhnd state */
+	device_t		hostb_dev;	/**< host bridge core, or NULL */
 };
 
 #endif /* _SIBA_SIBAVAR_H_ */
