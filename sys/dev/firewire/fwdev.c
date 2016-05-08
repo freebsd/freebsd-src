@@ -98,7 +98,6 @@ struct cdevsw firewire_cdevsw = {
 	.d_mmap =	fw_mmap,
 	.d_strategy =	fw_strategy,
 	.d_name =	"fw",
-	.d_flags =	D_MEM
 #else
 #define CDEV_MAJOR 127
 	fw_open, fw_close, fw_read, fw_write, fw_ioctl,
