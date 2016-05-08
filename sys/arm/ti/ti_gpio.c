@@ -290,7 +290,7 @@ ti_gpio_valid_pin(struct ti_gpio_softc *sc, int pin)
 }
 
 /**
- *	ti_gpio_pin_getcaps - Gets the capabilties of a given pin
+ *	ti_gpio_pin_getcaps - Gets the capabilities of a given pin
  *	@dev: gpio device handle
  *	@pin: the number of the pin
  *	@caps: pointer to a value that upon return will contain the capabilities
@@ -300,6 +300,11 @@ ti_gpio_valid_pin(struct ti_gpio_softc *sc, int pin)
  *	  - GPIO_PIN_OUTPUT
  *	  - GPIO_PIN_PULLUP
  *	  - GPIO_PIN_PULLDOWN
+ *	  - GPIO_INTR_LEVEL_LOW
+ *	  - GPIO_INTR_LEVEL_HIGH
+ *	  - GPIO_INTR_EDGE_RISING
+ *	  - GPIO_INTR_EDGE_FALLING
+ *	  - GPIO_INTR_EDGE_BOTH
  *
  *	LOCKING:
  *	No locking required, returns static data.
@@ -316,8 +321,15 @@ ti_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 	if (ti_gpio_valid_pin(sc, pin) != 0)
 		return (EINVAL);
 
+#ifdef INTRNG
+	*caps = (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT | GPIO_PIN_PULLUP |
+	    GPIO_PIN_PULLDOWN | GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH |
+	    GPIO_INTR_EDGE_RISING | GPIO_INTR_EDGE_FALLING |
+	    GPIO_INTR_EDGE_BOTH);
+#else
 	*caps = (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT | GPIO_PIN_PULLUP |
 	    GPIO_PIN_PULLDOWN);
+#endif
 
 	return (0);
 }
