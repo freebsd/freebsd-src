@@ -634,6 +634,8 @@
         ..
         xargs
         ..
+        xinstall
+        ..
         xo
         ..
         yacc
