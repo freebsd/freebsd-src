@@ -50,8 +50,8 @@ macro () {
 		echo -n ", (${i})"
 	done
 	echo ") : \\"
-	echo -n "	BHND_BUS_${bus_n}("
-	echo "device_get_parent(rman_get_device((r)->res)),	\\"
+	echo "	BHND_BUS_${bus_n}( \\"
+	echo "	    device_get_parent(rman_get_device((r)->res)),	\\"
 	echo -n "	    rman_get_device((r)->res), (r)"
 	for i
 	do
@@ -70,15 +70,15 @@ do
 	# macro copy_region_$w so dh do c
 	# macro copy_region_stream_$w ?
 	# macro peek_$w
-	for s in "" #stream_
+	for s in "" stream_
 	do
 		macro read_$s$w o
-#		macro read_multi_$s$w o d c
+		macro read_multi_$s$w o d c
 #		macro read_region_$s$w o d c
 #		macro set_multi_$s$w o v c
 #		macro set_region_$s$w o v c
 		macro write_$s$w o v
-#		macro write_multi_$s$w o d c
+		macro write_multi_$s$w o d c
 #		macro write_region_$s$w o d c
 	done
 done
