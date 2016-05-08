@@ -2307,7 +2307,7 @@ fdcloseexec(struct thread *td)
 			FILEDESC_XLOCK(fdp);
 			fdfree(fdp, i);
 			(void) closefp(fdp, i, fp, td, 0);
-			/* closefp() drops the FILEDESC lock. */
+			FILEDESC_UNLOCK_ASSERT(fdp);
 		}
 	}
 }
