@@ -486,7 +486,11 @@ const struct bhnd_device *
 bhnd_device_lookup(device_t dev, const struct bhnd_device *table,
     size_t entry_size)
 {
-	const struct bhnd_device *entry;
+	const struct bhnd_device	*entry;
+	device_t			 hostb, parent;
+
+	parent = device_get_parent(dev);
+	hostb = bhnd_find_hostb_device(parent);
 
 	for (entry = table; entry->desc != NULL; entry =
 	    (const struct bhnd_device *) ((const char *) entry + entry_size))
@@ -496,8 +500,8 @@ bhnd_device_lookup(device_t dev, const struct bhnd_device *table,
 			continue;
 
 		/* match device flags */
-		if (entry->device_flags & BHND_DF_HOSTB) {
-			if (!bhnd_is_hostb_device(dev))
+		if (entry->device_flags & BHND_DF_HOSTB) {			
+			if (dev != hostb)
 				continue;
 		}
 
@@ -735,24 +739,6 @@ void
 bhnd_set_default_core_desc(device_t dev)
 {
 	bhnd_set_custom_core_desc(dev, bhnd_get_device_name(dev));
-}
-
-/**
- * Helper function for implementing BHND_BUS_IS_HOSTB_DEVICE().
- * 
- * If a parent device is available, this implementation delegates the
- * request to the BHND_BUS_IS_HOSTB_DEVICE() method on the parent of @p dev.
- * 
- * If no parent device is available (i.e. on a the bus root), false
- * is returned.
- */
-bool
-bhnd_bus_generic_is_hostb_device(device_t dev, device_t child) {
-	if (device_get_parent(dev) != NULL)
-		return (BHND_BUS_IS_HOSTB_DEVICE(device_get_parent(dev),
-		    child));
-
-	return (false);
 }
 
 /**
