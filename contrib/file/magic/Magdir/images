@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: images,v 1.116 2016/03/23 15:29:20 christos Exp $
+# $File: images,v 1.107 2015/07/11 14:40:10 christos Exp $
 # images:  file(1) magic for image formats (see also "iff", and "c-lang" for
 # XPM bitmaps)
 #
@@ -12,155 +12,26 @@
 
 # Targa - matches `povray', `ppmtotga' and `xv' outputs
 # by Philippe De Muyter <phdm@macqel.be>
-# URL: http://justsolve.archiveteam.org/wiki/TGA
-# Reference: http://www.dca.fee.unicamp.br/~martino/disciplinas/ea978/tgaffs.pdf
-# Update: Joerg Jenderek
 # at 2, byte ImgType must be 1, 2, 3, 9, 10 or 11
-#	,32 or 33 (both not observed)
 # at 1, byte CoMapType must be 1 if ImgType is 1 or 9, 0 otherwise
-#	or theoretically 2-128 reserved for use by Truevision or 128-255 may be used for developer applications
 # at 3, leshort Index is 0 for povray, ppmtotga and xv outputs
 # `xv' recognizes only a subset of the following (RGB with pixelsize = 24)
 # `tgatoppm' recognizes a superset (Index may be anything)
-#
-# test of Color Map Type 0~no 1~color map
-# and Image Type 1 2 3 9 10 11 32 33
-# and Color Map Entry Size 0 15 16 24 32
-0	ubequad&0x00FeC400000000C0	0	
-# skip more garbage by looking for positive image type
->2	ubyte			>0		
-# skip some compiled terminfo by looking for image type less equal 33
->>2	ubyte			<34		
-# skip arches.3200 , Finder.Root , Slp.1 by looking for low pixel sizes 15 16 24 32
->>>16	ubyte			<33		
-# skip more by looking for pixel size 0Fh 10h 18h 20h
->>>>16	ubyte&0xC0		0x00	
-# skip 260-16.ico by looking for no color map
->>>>>1	ubyte			0	
-# implies no first map entry
->>>>>>3	uleshort		0	
->>>>>>>0	use		tga-image
-# Color Map
->>>>>1	ubyte			>0	
->>>>>>0		use		tga-image
-#	display tga bitmap image information
-0	name				tga-image
->2	ubyte		<34		Targa image data
-!:mime	image/x-tga
-!:apple	????TPIC
-# normal extension .tga but some Truevision products used others:
-# tpic (Apple),icb (Image Capture Board),vda (Video Display Adapter),vst (NuVista),win (UNSURE about that)
-!:ext	tga/tpic/icb/vda/vst
-# image type 1 2 3 9 10 11 32 33
->2	ubyte&0xF7	1		- Map
->2	ubyte&0xF7	2		- RGB
-# alpha channel
->>17	ubyte&0x0F	>0		\bA
->2	ubyte&0xF7	3		- Mono
-# type not found, but by http://www.fileformat.info/format/tga/corion.htm
-# Compressed color-mapped data, using Huffman, Delta, and runlength encoding
->2	ubyte		32		- Color
-# Compressed color-mapped data, using Huffman, Delta, and RLE. 4-pass quadtree- type process
->2	ubyte		33		- Color
-# Color Map Type 0~no 1~color map
->1	ubyte		1		(
-# first color map entry, 0 normal
->>3	uleshort	>0		\b%d-
-# color map length 0 2 1dh 3bh d9h 100h
->>5	uleshort	x		\b%d)
-# 8~run length encoding bit
->2	ubyte&0x08	8		- RLE
-# gimp can create big pictures!
->12	uleshort	>0		%d x
->12	uleshort	=0		65536 x
-# image height. 0 interpreted as 65536
->14	uleshort	>0		%d
->14	uleshort	=0		65536
-# Image Pixel Size 15 16 24 32
->16	ubyte		x		x %d
-# X origin of image. 0 normal 
->8	uleshort	>0		+%d
-# Y origin of image. 0 normal; positive for top
->10	uleshort	>0		+%d
-# Image descriptor: bits 3-0 give the alpha channel depth, bits 5-4 give direction
->17	ubyte&0x0F	>0		- %d-bit alpha
-# bits 5-4 give direction. normal bottom left
->17	ubyte		&0x20		- top
-#>17	ubyte		^0x20		- bottom
->17	ubyte		&0x10		- right
-#>17	ubyte		^0x10		- left
-# some info say other bits 6-7 should be zero
-# but data storage interleave by http://www.fileformat.info/format/tga/corion.htm 
-# 00 - no interleave;01 - even/odd interleave; 10 - four way interleave; 11 - reserved
-#>17	ubyte&0xC0	0x00		- no interleave
->17	ubyte&0xC0	0x40		- interleave
->17	ubyte&0xC0	0x80		- four way interleave
->17	ubyte&0xC0	0xC0		- reserved
-# positive length implies identification field 
->0	ubyte		>0		
->>18	string		x		"%s"
-# last 18 bytes of newer tga file footer signature
->18	search/4261301/s	TRUEVISION-XFILE.\0	
-# extension area offset if not 0
->>&-8		ulelong			>0			
-# length of the extension area. normal 495 for version 2.0
->>>(&-4.l)	uleshort		0x01EF		
-# AuthorName[41]
->>>>&0		string			>\0		- author "%-.40s"
-# Comment[324]=4 * 80 null terminated
->>>>&41		string			>\0		- comment "%-.80s"
-# date
->>>>&365	ubequad&0xffffFFFFffff0000	!0		
-# Day
->>>>>&-6		uleshort		x		%d
-# Month
->>>>>&-8		uleshort		x		\b-%d
-# Year
->>>>>&-4		uleshort		x		\b-%d
-# time
->>>>&371	ubequad&0xffffFFFFffff0000	!0		
-# hour
->>>>>&-8		uleshort		x		%d
-# minutes
->>>>>&-6		uleshort		x		\b:%.2d
-# second
->>>>>&-4		uleshort		x		\b:%.2d
-# JobName[41]
->>>>&377		string			>\0		- job "%-.40s"
-# JobHour Jobminute Jobsecond
->>>>&418	ubequad&0xffffFFFFffff0000	!0		
->>>>>&-8		uleshort		x		%d
->>>>>&-6		uleshort		x		\b:%.2d
->>>>>&-4		uleshort		x		\b:%.2d
-# SoftwareId[41]
->>>>&424		string			>\0		- %-.40s
-# SoftwareVersionNumber
->>>>&424	ubyte				>0		
->>>>>&40		uleshort/100		x		%d
->>>>>&40		uleshort%100		x		\b.%d
-# VersionLetter
->>>>>&42		ubyte			>0x20		\b%c
-# KeyColor
->>>>&468		ulelong			>0		- keycolor 0x%8.8x
-# Denominator of Pixel ratio. 0~no pixel aspect
->>>>&474	uleshort			>0			
-# Numerator
->>>>>&-4		uleshort		>0		- aspect %d
->>>>>&-2		uleshort		x		\b/%d
-# Denominator of Gamma ratio. 0~no Gamma value
->>>>&478	uleshort			>0		
-# Numerator
->>>>>&-4		uleshort		>0		- gamma %d
->>>>>&-2		uleshort		x		\b/%d
-# ColorOffset 
-#>>>>&480	ulelong			x		- col offset 0x%8.8x
-# StampOffset
-#>>>>&484	ulelong			x		- stamp offset 0x%8.8x
-# ScanOffset
-#>>>>&488	ulelong			x		- scan offset 0x%8.8x
-# AttributesType
-#>>>>&492	ubyte			x		- Attributes 0x%x
-## EndOfTGA
+1	belong&0xfff7ffff	0x01010000	Targa image data - Map
+!:strength + 2
+>2	byte&8			8		- RLE
+>12	leshort			>0		%d x
+>14	leshort			>0		%d
+1	belong&0xfff7ffff	0x00020000	Targa image data - RGB
+!:strength + 2
+>2	byte&8			8		- RLE
+>12	leshort			>0		%d x
+>14	leshort			>0		%d
+1	belong&0xfff7ffff	0x00030000	Targa image data - Mono
+!:strength + 2
+>2	byte&8			8		- RLE
+>12	leshort			>0		%d x
+>14	leshort			>0		%d
 
 # PBMPLUS images
 # The next byte following the magic is always whitespace.
@@ -674,12 +545,8 @@
 0	beshort		0x1010		PEX Binary Archive
 
 # DICOM medical imaging data
-# URL:		https://en.wikipedia.org/wiki/DICOM#Data_format
-# Note:		"dcm" is the official file name extension
-# 		XnView mention also "dc3" and "acr" as file name extension
 128	string	DICM			DICOM medical imaging data
 !:mime	application/dicom
-!:ext dcm/dicom/dic
 
 # XWD - X Window Dump file.
 #   As described in /usr/X11R6/include/X11/XWDFile.h
@@ -819,7 +686,6 @@
 
 # GEM Image: Version 1, Headerlen 8 (Wolfram Kleff)
 # Format variations from: Bernd Nuernberger <bernd.nuernberger@web.de>
-# Update: Joerg Jenderek
 # See http://fileformats.archiveteam.org/wiki/GEM_Raster
 # For variations, also see:
 #    http://www.seasip.info/Gem/ff_img.html (Ventura) 
@@ -827,59 +693,23 @@
 #    http://www.fileformat.info/format/gemraster/spec/index.htm (XIMG, STTT)
 #    http://sylvana.net/1stguide/1STGUIDE.ENG (TIMG)
 0       beshort     0x0001
-# header_size
->2      beshort     0x0008      
+>2      beshort     0x0008      GEM Image data
 >>0     use gem_info
->2      beshort     0x0009      
+>2      beshort     0x0009      GEM Image data (Ventura)
 >>0     use gem_info
-# no example for NOSIG
->2      beshort     24      
->>0     use gem_info
-# no example for HYPERPAINT
->2      beshort     25      
->>0     use gem_info
-16      string      XIMG\0      
+16      string      XIMG\0      GEM XIMG Image data
 >0      use gem_info
-# no example
-16      string      STTT\0\x10  
+16      string      STTT\0\x10  GEM STTT Image data 
 >0      use gem_info
-# no example or description
-16      string      TIMG\0      
+16      string      TIMG\0      GEM TIMG Image data
 >0      use gem_info
 
 0   name        gem_info
-# version is 2 for some XIMG and 1 for all others
->0	beshort		<0x0003		GEM
-# http://www.snowstone.org.uk/riscos/mimeman/mimemap.txt
-!:mime	image/x-gem
-# header_size 24 25 27 59 779 words for colored bitmaps
->>2	beshort		>9		
->>>16	string		STTT\0\x10	STTT
->>>16	string		TIMG\0		TIMG
-# HYPERPAINT or NOSIG variant
->>>16	string		\0\x80		
->>>>2	beshort		=24		NOSIG
->>>>2	beshort		!24		HYPERPAINT
-# NOSIG or XIMG variant
->>>16	default		x		
->>>>16	string		!XIMG\0		NOSIG
->>16	string		=XIMG\0		XIMG Image data
-!:ext	img/ximg
-# to avoid Warning: Current entry does not yet have a description for adding a EXTENSION type
->>16	string		!XIMG\0		Image data
-!:ext	img
-# header_size is 9 for Ventura files and 8 for other GEM Paint files
->>2	beshort		9		(Ventura)
-#>>2	beshort		8		(Paint)
->>12	beshort		x		%d x
->>14	beshort		x		%d,
-# 1 4 8
->>4	beshort		x		%d planes,
-# in tenths of a millimetre
->>8	beshort		x		%d x
->>10	beshort		x		%d pixelsize
-# pattern_size 1-8. 2 for GEM Paint
->>6	beshort		!2		\b, pattern size %d
+>12	beshort		x		%d x
+>14	beshort		x		%d,
+>4	beshort		x		%d planes,
+>8	beshort		x		%d x
+>10	beshort		x		%d pixelsize
 
 # GEM Metafile (Wolfram Kleff)
 0	lelong		0x0018FFFF	GEM Metafile data
@@ -1168,22 +998,7 @@
 !:mime	image/x-polar-monitor-bitmap
 
 # From: Rick Richardson <rickrich@gmail.com>
-# updated by: Joerg Jenderek
-# URL: http://techmods.net/nuvi/
 0	string	GARMIN\ BITMAP\ 01	Garmin Bitmap file
-# extension is also used for 
-# Sony SRF raw image (image/x-sony-srf)
-# SRF map
-# Terragen Surface Map (http://www.planetside.co.uk/terragen)
-# FileLocator Pro search criteria file (http://www.mythicsoft.com/filelocatorpro)
-!:ext srf
-#!:mime	image/x-garmin-srf
-# version 1.00,2.00,2.10,2.40,2.50
->0x2f	string		>0		\b, version %4.4s
-# width (2880,2881,3240)
->0x55	uleshort	>0		\b, %dx
-# height (80,90)
->>0x53	uleshort	x		\b%d
 
 # Type:	Ulead Photo Explorer5 (.pe5)
 # URL:	http://www.jisyo.com/cgibin/view.cgi?EXT=pe5 (Japanese)
@@ -1305,143 +1120,3 @@
 #
 0	string	\x42\x50\x47\xFB	BPG (Better Portable Graphics)
 !:mime  image/bpg
-
-# From: Joerg Jenderek
-# URL: https://en.wikipedia.org/wiki/Apple_Icon_Image_format
-0	string		icns		Mac OS X icon
-!:mime	image/x-icns
-!:apple	????icns
-!:ext icns
->4	ubelong		>0		
-# file size
->>4	ubelong		x		\b, %d bytes
-# icon type
->>8	string		x		\b, "%4.4s" type
-
-# TIM images
-0		lelong		0x00000010	TIM image,
->4		lelong  	0x8		4-Bit,
->4		lelong  	0x9		8-Bit,
->4		lelong  	0x2		15-Bit,
->4		lelong  	0x3		24-Bit,
->4		lelong 		&8
->>(8.l+12)	leshort		x		Pixel at (%d,
->>(8.l+14)	leshort		x		\b%d)
->>(8.l+16)	leshort		x		Size=%dx
->>(8.l+18)	leshort		x		\b%d,
->>4		lelong 		0x8		16 CLUT Entries at
->>4		lelong 		0x9		256 CLUT Entries at
->>12		leshort		x		(%d,
->>14		leshort		x		\b%d)
->4		lelong		^8
->>12		leshort		x		Pixel at (%d,
->>14		leshort		x		\b%d)
->>16		leshort		x		Size=%dx
->>18		leshort		x		\b%d
-
-# MDEC streams
-0		lelong		0x80010160	MDEC video stream,
->16		leshort		x		%dx
->18		leshort		x		\b%d
-#>8		lelong		x		%d frames
-#>4		leshort		x		secCount=%d;
-#>6		leshort		x		nSectors=%d;
-#>12		lelong		x		frameSize=%d;
-
-# BS encoded bitstreams
-2		leshort		0x3800		BS image,
->6		leshort		x		Version %d,
->4		leshort		x		Quantization %d,
->0		leshort		x		(Decompresses to %d words)
-
-# Type: farbfeld image.
-# Url: http://tools.suckless.org/farbfeld/
-# From: Ian D. Scott <ian@iandouglasscott.com>
-#
-0		string		farbfeld	farbfeld image data,
->8		ubelong		x		%dx
->12		ubelong		x		\b%d
-
-# Type: Sega PVR image.
-# From: David Korth <gerbilsoft@gerbilsoft.com>
-# References:
-# - http://fabiensanglard.net/Mykaruga/tools/segaPVRFormat.txt
-# - https://github.com/yazgoo/pvrx2png
-# - https://github.com/nickworonekin/puyotools
-
-# Sega PVR header.
-0	name	sega-pvr-image-header
->0x0C	leshort	x	%d x
->0x0E	leshort	x	%d
-# Image format.
->0x08	byte	0	\b, ARGB1555
->0x08	byte	1	\b, RGB565
->0x08	byte	2	\b, ARGB4444
->0x08	byte	3	\b, YUV442
->0x08	byte	4	\b, Bump
->0x08	byte	5	\b, 4bpp
->0x08	byte	6	\b, 8bpp
-# Image data type.
->0x09	byte	0x01	\b, square twiddled
->0x09	byte	0x02	\b, square twiddled & mipmap
->0x09	byte	0x03	\b, VQ
->0x09	byte	0x04	\b, VQ & mipmap
->0x09	byte	0x05	\b, 8-bit CLUT twiddled
->0x09	byte	0x06	\b, 4-bit CLUT twiddled
->0x09	byte	0x07	\b, 8-bit direct twiddled
->0x09	byte	0x08	\b, 4-bit direct twiddled
->0x09	byte	0x09	\b, rectangle
->0x09	byte	0x0B	\b, rectangular stride
->0x09	byte	0x0D	\b, rectangular twiddled
->0x09	byte	0x10	\b, small VQ
->0x09	byte	0x11	\b, small VQ & mipmap
->0x09	byte	0x12	\b, square twiddled & mipmap
-
-# Sega PVR (Xbox) image header.
-# Contains an embedded DirectDraw surface instead of PVR data.
-0	name	sega-pvr-xbox-dds-header
->16	lelong	x	%d x
->12	lelong	x	%d,
->84	string	x	%.4s
-
-# Sega PVR image.
-0	string	PVRT
->0x10	string	DDS\040\174\000\000\000 Sega PVR (Xbox) image:
->>0x20	use	sega-pvr-xbox-dds-header
->0x10	belong	!0x44445320		Sega PVR image:
->>0	use	sega-pvr-image-header
-
-# Sega PVR image with GBIX.
-0	string	GBIX
->0x10	string	PVRT
->>0x10	string	DDS\040\174\000\000\000 Sega PVR (Xbox) image:
->>>0x20	use	sega-pvr-xbox-dds-header
->>0x10	belong	!0x44445320		Sega PVR image:
->>>0x10	use	sega-pvr-image-header
->>0x08	lelong	x	\b, global index = %u
-
-# Sega GVR header.
-0	name	sega-gvr-image-header
->0x0C	beshort	x	%d x
->0x0E	beshort	x	%d
-# Image data format.
->0x0B	byte	0	\b, I4
->0x0B	byte	1	\b, I8
->0x0B	byte	2	\b, IA4
->0x0B	byte	3	\b, IA8
->0x0B	byte	4	\b, RGB565
->0x0B	byte	5	\b, RGB5A3
->0x0B	byte	6	\b, ARGB8888
->0x0B	byte	8	\b, CI4
->0x0B	byte	9	\b, CI8
->0x0B	byte	14	\b, DXT1
-
-# Sega GVR image.
-0	string	GVRT	Sega GVR image:
->0x10	use	sega-gvr-image-header
-
-# Sega GVR image with GBIX.
-0	string	GBIX
->0x10	string	GVRT	Sega GVR image:
->>0x10	use	sega-gvr-image-header
->>0x08	belong	x	\b, global index = %u

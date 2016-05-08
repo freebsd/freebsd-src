@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: database,v 1.48 2016/04/14 20:34:28 christos Exp $
+# $File: database,v 1.45 2015/09/09 16:25:29 christos Exp $
 # database:  file(1) magic for various databases
 #
 # extracted from header/code files by Graeme Wilford (eep2gw@ee.surrey.ac.uk)
@@ -377,10 +377,7 @@
 >>>>>>>>>>>>0	use		dbase3-memo-print
 # dBASE IV DBT with positive block size
 >>>>>>>20	uleshort	>0		
-# dBASE IV DBT with valid block length like 512, 1024 
-# multiple of 2 in between 16 and 16 K ,implies upper and lower bits are zero
->>>>>>>>20	uleshort&0x800f	0		
->>>>>>>>>0	use		dbase4-memo-print
+>>>>>>>>0	use		dbase4-memo-print
 
 #		Print the information of dBase III DBT memo file 
 0	name				dbase3-memo-print
@@ -398,8 +395,6 @@
 #		Print the information of dBase IV DBT memo file 
 0	name				dbase4-memo-print
 >0		lelong		x		dBase IV DBT
-!:mime	application/x-dbt
-!:ext dbt
 # 8 character shorted main name of coresponding dBASE IV DBF file
 >8		ubelong		>0x20000000	
 # skip unusual like for angest.dbt
@@ -459,52 +454,6 @@
 !:mime	application/x-msaccess
 4	string	Standard\ ACE\ DB	Microsoft Access Database
 !:mime	application/x-msaccess
-
-# From: Joerg Jenderek
-# URL: http://fileformats.archiveteam.org/wiki/Extensible_Storage_Engine
-# Reference: https://github.com/libyal/libesedb/archive/master.zip
-#	libesedb-master/documentation/
-#	Extensible Storage Engine (ESE) Database File (EDB) format.asciidoc
-# Note: also known as "JET Blue". Used by numerous Windows components such as 
-# Windows Search, Mail, Exchange and Active Directory.
-4	ubelong		0xefcdab89	
-# unknown1
->132	ubelong		0		Extensible storage engine
-!:mime	application/x-ms-ese
-# file_type 0~database 1~stream
->>12	ulelong		0		DataBase
-# Security DataBase (sdb)
-!:ext	edb/sdb
->>12	ulelong		1		STreaMing
-!:ext	stm
-# format_version 620h
->>8	uleshort	x		\b, version 0x%x
->>10	uleshort	>0		revision 0x%4.4x
->>0	ubelong		x	 	\b, checksum 0x%8.8x
-# Page size 4096 8192 32768
->>236	ulequad		x		\b, page size %lld
-# database_state
->>52	ulelong		1		\b, JustCreated
->>52	ulelong		2		\b, DirtyShutdown
-#>>52	ulelong		3		\b, CleanShutdown
->>52	ulelong		4		\b, BeingConverted
->>52	ulelong		5		\b, ForceDetach
-# Windows NT major version when the databases indexes were updated.
->>216	ulelong		x		\b, Windows version %d
-# Windows NT minor version
->>220	ulelong		x		\b.%d
-
-# From: Joerg Jenderek
-# URL: http://forensicswiki.org/wiki/Windows_Application_Compatibility
-# Note: files contain application compatibility fixes, application compatibility modes and application help messages.
-8	string		sdbf		
->7	ubyte		0		
-# TAG_TYPE_LIST+TAG_INDEXES
->>12	uleshort	0x7802		Windows application compatibility Shim DataBase
-# version? 2 3
-#>>>0	ulelong		x		\b, version %d
-!:mime	application/x-ms-sdb
-!:ext	sdb
 
 # TDB database from Samba et al - Martin Pool <mbp@samba.org>
 0	string	TDB\ file		TDB database
@@ -596,18 +545,3 @@
 # Hopper (reverse engineering tool) http://www.hopperapp.com/
 0	string		hopperdb	Hopper database
 
-# URL: https://en.wikipedia.org/wiki/Panorama_(database_engine)
-# Reference: http://www.provue.com/Panorama/
-# From: Joerg Jenderek
-# NOTE: test only versions 4 and 6.0 with Windows
-# length of Panorama database name 
-5	ubyte				>0		
-# look after database name for "some" null bits
->(5.B+7)	ubelong&0xF3ffF000	0		
-# look for first keyword
->>&1		search/2		DESIGN		Panorama database
-#!:mime	application/x-panorama-database
-!:apple	KASXZEPD
-!:ext	pan
-# database name
->>>5	pstring				x		\b, "%s"

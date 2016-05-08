@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------
-# $File: android,v 1.9 2016/01/11 21:19:18 christos Exp $
+# $File: android,v 1.8 2015/03/19 18:04:37 christos Exp $
 # Various android related magic entries
 #------------------------------------------------------------
 
@@ -128,7 +128,7 @@
 # partition size in blocks ?
 #>>>>0x22	ulelong				x			\b*%d
 
-# Android sparse img format
+# Android bootimg format
 # From https://android.googlesource.com/\
 # platform/system/core/+/master/libsparse/sparse_format.h
 0		lelong	0xed26ff3a		Android sparse image

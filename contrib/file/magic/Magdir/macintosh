@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: macintosh,v 1.26 2015/11/25 00:36:02 christos Exp $
+# $File: macintosh,v 1.25 2014/09/03 13:34:16 christos Exp $
 # macintosh description
 #
 # BinHex is the Macintosh ASCII-encoded file format (see also "apple")
@@ -297,14 +297,11 @@
 >0x40e	ubeshort		0x0003		
 # maximal length of volume name is 27
 >>0x424		ubyte			<28	Macintosh HFS data
+#!:mime	application/octet-stream
+# these mime and apple types are not sure
 !:mime	application/x-apple-diskimage
 #!:apple	hfsdINIT
 #!:apple	MACSdisk
-# http://www.macdisk.com/macsigen.php
-#!:apple	ddskdevi
-!:apple	????devi
-# https://en.wikipedia.org/wiki/Apple_Disk_Image
-!:ext hfs/dmg
 >>>0		beshort			0x4C4B	(bootable)
 #>>>0		beshort			0x0000	(not bootable)
 >>>0x40a	beshort			&0x8000	(locked)

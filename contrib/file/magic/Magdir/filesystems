@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: filesystems,v 1.113 2016/02/14 14:38:24 christos Exp $
+# $File: filesystems,v 1.111 2015/09/09 16:26:54 christos Exp $
 # filesystems:  file(1) magic for different filesystems
 #
 0	name	partid  
@@ -1738,30 +1738,28 @@
 >0x402	beshort		< 100
 >0x402	beshort		> -1		Minix filesystem, V1, 30 char names (big endian), %d zones
 >0x1e	string		minix		\b, bootable
-# Weak Magic: this is $x
-#0x410	leshort		0x2468
-#>0x402	beshort		< 100
-#>>0x402	beshort		> -1		Minix filesystem, V2, 14 char names
-#>0x1e	string		minix		\b, bootable
-#0x410	beshort		0x2468
-#>0x402	beshort		< 100
-#>0x402	beshort		> -1		Minix filesystem, V2 (big endian)
-#>0x1e	string		minix		\b, bootable
-#0x410	leshort		0x2478
-#>0x402	beshort		< 100
-#>0x402	beshort		> -1		Minix filesystem, V2, 30 char names
-#>0x1e	string		minix		\b, bootable
-#0x410	leshort		0x2478
-#>0x402	beshort		< 100
-#>0x402	beshort		> -1		Minix filesystem, V2, 30 char names
-#>0x1e	string		minix		\b, bootable
-#0x410	beshort		0x2478
-#>0x402	beshort		!0		Minix filesystem, V2, 30 char names (big endian)
-#>0x1e	string		minix		\b, bootable
-# Weak Magic! this is MD
-#0x418	leshort		0x4d5a
-#>0x402	beshort		<100
-#>>0x402	beshort		> -1		Minix filesystem, V3, 60 char names
+0x410	leshort		0x2468
+>0x402	beshort		< 100
+>>0x402	beshort		> -1		Minix filesystem, V2, 14 char names
+>0x1e	string		minix		\b, bootable
+0x410	beshort		0x2468
+>0x402	beshort		< 100
+>0x402	beshort		> -1		Minix filesystem, V2 (big endian)
+>0x1e	string		minix		\b, bootable
+0x410	leshort		0x2478
+>0x402	beshort		< 100
+>0x402	beshort		> -1		Minix filesystem, V2, 30 char names
+>0x1e	string		minix		\b, bootable
+0x410	leshort		0x2478
+>0x402	beshort		< 100
+>0x402	beshort		> -1		Minix filesystem, V2, 30 char names
+>0x1e	string		minix		\b, bootable
+0x410	beshort		0x2478
+>0x402	beshort		!0		Minix filesystem, V2, 30 char names (big endian)
+>0x1e	string		minix		\b, bootable
+0x418	leshort		0x4d5a
+>0x402	beshort		<100
+>>0x402	beshort		> -1		Minix filesystem, V3, 60 char names
 
 # SGI disk labels - Nathan Scott <nathans@debian.org>
 0	belong		0x0BE5A941	SGI disk label (volume header)
@@ -2216,12 +2214,12 @@
 >0x10090	lelong	x		sectorsize %d,
 >0x10094	lelong	x		nodesize %d,
 >0x10098	lelong	x		leafsize %d,
->0x10020	belong	x		UUID=%08x-
->0x10024	beshort	x		\b%04x-
->0x10026	beshort	x		\b%04x-
->0x10028	beshort	x		\b%04x-
->0x1002a	beshort	x		\b%04x
->0x1002c	belong	x		\b%08x,
+>0x10020	belong	x		UUID=%8x-
+>0x10024	beshort	x		\b%4x-
+>0x10026	beshort	x		\b%4x-
+>0x10028	beshort	x		\b%4x-
+>0x1002a	beshort	x		\b%4x
+>0x1002c	belong	x		\b%8x,
 >0x10078	lequad	x		%lld/
 >0x10070	lequad	x		\b%lld bytes used,
 >0x10088	lequad	x		%lld devices

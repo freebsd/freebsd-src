@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: animation,v 1.57 2015/11/29 22:11:07 christos Exp $
+# $File: animation,v 1.56 2014/10/23 23:12:51 christos Exp $
 # animation:  file(1) magic for animation/movie formats
 #
 # animation formats
@@ -76,8 +76,6 @@
 >8	string		da2b		\b, DMB MAF, ext da2a, with 3GPP timed text, DID, TVA, REL, IPMP
 >8	string		da3a		\b, DMB MAF aud with HE-AAC aud, JPG/PNG/MNG images
 >8	string		da3b		\b, DMB MAF, ext da3a w/ BIFS, 3GPP, DID, TVA, REL, IPMP
->8	string		dash		\b, MPEG v4 system, Dynamic Adaptive Streaming over HTTP
-!:mime	video/mp4
 >8	string		dmb1		\b, DMB MAF supporting all the components defined in the spec
 >8	string		dmpf		\b, Digital Media Project
 >8	string		drc1		\b, Dirac (wavelet compression), encap in ISO base media (MP4)

@@ -1,5 +1,5 @@
-.\" $File: file.man,v 1.120 2016/03/31 17:51:12 christos Exp $
-.Dd March 13, 2016
+.\" $File: file.man,v 1.118 2015/09/11 17:24:09 christos Exp $
+.Dd September 11, 2015
 .Dt FILE __CSECTION__
 .Os
 .Sh NAME
@@ -317,7 +317,6 @@ Set various parameter limits.
 .It Li elf_phnum Ta 128 Ta max ELF program sections processed
 .It Li elf_shnum Ta 32768 Ta max ELF sections processed
 .It Li regex Ta 8192 Ta length limit for regex searches
-.It Li bytes Ta 1048576 Ta max number of bytes to read from file
 .El
 .It Fl r , Fl Fl raw
 Don't translate unprintable characters to \eooo.
@@ -359,11 +358,6 @@ Nice to
 .Xr cut 1
 the output.
 This does not affect the separator, which is still printed.
-.Pp
-If this option is repeated more than once, then 
-.Nm
-prints just the filename followed by a NUL followed by the description
-(or ERROR: text) followed by a second NUL for each entry.
 .It Fl -help
 Print a help message and exit.
 .El
