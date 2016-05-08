@@ -1,6 +1,6 @@
 ## README for file(1) Command ##
 
-    @(#) $File: README,v 1.50 2016/04/16 22:40:54 christos Exp $
+    @(#) $File: README,v 1.49 2015/01/02 20:23:04 christos Exp $
 
 Mailing List: file@mx.gw.com  
 Mailing List archives: http://mx.gw.com/pipermail/file/  
@@ -67,41 +67,17 @@ in magic(5) format please, to the maintainer, Christos Zoulas.
 COPYING - read this first.  
 README - read this second (you are currently reading this file).  
 INSTALL - read on how to install
-src/localtime_r.c
-src/magic.c
-src/magic.h
-src/mygetopt.h
-src/newtest2.c
-src/newtest3.c
-src/pread.c
-src/print.c
-src/readcdf.c
-src/readelf.c
-src/readelf.h
-src/regex.c
-src/regex2.c
-src/softmagic.c
-src/strcasestr.c
-src/strlcat.c
-src/strlcpy.c
-src/strndup.c
-src/tar.h
-src/teststrchr.c
-src/vasprintf.c
-src/x.c
 src/apprentice.c - parses /etc/magic to learn magic  
-src/apptype.c - used for OS/2 specific application type magic  
-src/ascmagic.c - third & last set of tests, based on hardwired assumptions.  
 src/asctime_r.c - replacement for OS's that don't have it.  
+src/apptype.c - used for OS/2 specific application type magic  
 src/asprintf.c - replacement for OS's that don't have it.  
+src/ascmagic.c - third & last set of tests, based on hardwired assumptions.  
 src/asctime_r.c - replacement for OS's that don't have it.  
 src/asprintf.c - replacement for OS's that don't have it.  
 src/cdf.[ch] - parser for Microsoft Compound Document Files  
 src/cdf_time.c - time converter for CDF.  
 src/compress.c - handles decompressing files to look inside.  
 src/ctime_r.c - replacement for OS's that don't have it.  
-src/der.[ch] - parser for Distinguished Encoding Rules
-src/dprintf.c - replacement for OS's that don't have it.
 src/elfclass.h - common code for elf 32/64.
 src/encoding.c - handles unicode encodings  
 src/file.c - the main program  
@@ -112,13 +88,10 @@ src/fsmagic.c - first set of tests the program runs, based on filesystem info
 src/funcs.c - utilility functions  
 src/getline.c - replacement for OS's that don't have it.  
 src/getopt_long.c - replacement for OS's that don't have it.  
-src/gmtime_r.c - replacement for OS's that don't have it.  
-src/is_tar.c, tar.h - knows about Tape ARchive format (courtesy John Gilmore).  
-src/localtime_r.c - replacement for OS's that don't have it.  
-src/magic.h.in - source file for magic.h
-src/mygetopt.h - replacement for OS's that don't have it.  
-src/magic.c - the libmagic api  
+src/is_tar.c, tar.h - knows about tarchives (courtesy John Gilmore).  
 src/names.h - header file for ascmagic.c  
+src/magic.h.in - source file for magic.h
+src/magic.c - the libmagic api  
 src/pread.c - replacement for OS's that don't have it.  
 src/print.c - print results, errors, warnings.  
 src/readcdf.c - CDF wrapper.  

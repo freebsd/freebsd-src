@@ -54,42 +54,6 @@ typedef uint8_t		Elf64_Char;
 #define	EI_NIDENT	16
 
 typedef struct {
-	Elf32_Word	a_type;		/* 32-bit id */
-	Elf32_Word	a_v;		/* 32-bit id */
-} Aux32Info;
-
-typedef struct {
-	Elf64_Xword	a_type;		/* 64-bit id */
-	Elf64_Xword	a_v;		/* 64-bit id */
-} Aux64Info;
-
-#define AT_NULL   0     /* end of vector */
-#define AT_IGNORE 1     /* entry should be ignored */
-#define AT_EXECFD 2     /* file descriptor of program */
-#define AT_PHDR   3     /* program headers for program */
-#define AT_PHENT  4     /* size of program header entry */
-#define AT_PHNUM  5     /* number of program headers */
-#define AT_PAGESZ 6     /* system page size */
-#define AT_BASE   7     /* base address of interpreter */
-#define AT_FLAGS  8     /* flags */
-#define AT_ENTRY  9     /* entry point of program */
-#define AT_LINUX_NOTELF 10    /* program is not ELF */
-#define AT_LINUX_UID    11    /* real uid */
-#define AT_LINUX_EUID   12    /* effective uid */
-#define AT_LINUX_GID    13    /* real gid */
-#define AT_LINUX_EGID   14    /* effective gid */
-#define AT_LINUX_PLATFORM 15  /* string identifying CPU for optimizations */
-#define AT_LINUX_HWCAP  16    /* arch dependent hints at CPU capabilities */
-#define AT_LINUX_CLKTCK 17    /* frequency at which times() increments */
-/* AT_* values 18 through 22 are reserved */
-#define AT_LINUX_SECURE 23   /* secure mode boolean */
-#define AT_LINUX_BASE_PLATFORM 24     /* string identifying real platform, may
-                                 * differ from AT_PLATFORM. */
-#define AT_LINUX_RANDOM 25    /* address of 16 random bytes */
-#define AT_LINUX_HWCAP2 26    /* extension of AT_HWCAP */
-#define AT_LINUX_EXECFN 31   /* filename of program */
-
-typedef struct {
     Elf32_Char	e_ident[EI_NIDENT];
     Elf32_Half	e_type;
     Elf32_Half	e_machine;

@@ -1,5 +1,5 @@
 #
-# $File: Makefile.am,v 1.113 2016/02/26 15:52:45 christos Exp $
+# $File: Makefile.am,v 1.103 2015/03/17 15:15:12 christos Exp $
 #
 MAGIC_FRAGMENT_BASE = Magdir
 MAGIC_DIR = $(top_srcdir)/magic
@@ -30,7 +30,6 @@ $(MAGIC_FRAGMENT_DIR)/att3b \
 $(MAGIC_FRAGMENT_DIR)/audio \
 $(MAGIC_FRAGMENT_DIR)/basis \
 $(MAGIC_FRAGMENT_DIR)/bflt \
-$(MAGIC_FRAGMENT_DIR)/bioinformatics \
 $(MAGIC_FRAGMENT_DIR)/blackberry \
 $(MAGIC_FRAGMENT_DIR)/blcr \
 $(MAGIC_FRAGMENT_DIR)/blender \
@@ -51,7 +50,6 @@ $(MAGIC_FRAGMENT_DIR)/citrus \
 $(MAGIC_FRAGMENT_DIR)/clarion \
 $(MAGIC_FRAGMENT_DIR)/claris \
 $(MAGIC_FRAGMENT_DIR)/clipper \
-$(MAGIC_FRAGMENT_DIR)/coff \
 $(MAGIC_FRAGMENT_DIR)/commands \
 $(MAGIC_FRAGMENT_DIR)/communications \
 $(MAGIC_FRAGMENT_DIR)/compress \
@@ -64,7 +62,6 @@ $(MAGIC_FRAGMENT_DIR)/cubemap \
 $(MAGIC_FRAGMENT_DIR)/cups \
 $(MAGIC_FRAGMENT_DIR)/dact \
 $(MAGIC_FRAGMENT_DIR)/database \
-$(MAGIC_FRAGMENT_DIR)/der \
 $(MAGIC_FRAGMENT_DIR)/diamond \
 $(MAGIC_FRAGMENT_DIR)/diff \
 $(MAGIC_FRAGMENT_DIR)/digital \
@@ -81,9 +78,7 @@ $(MAGIC_FRAGMENT_DIR)/erlang \
 $(MAGIC_FRAGMENT_DIR)/esri \
 $(MAGIC_FRAGMENT_DIR)/fcs \
 $(MAGIC_FRAGMENT_DIR)/filesystems \
-$(MAGIC_FRAGMENT_DIR)/finger \
 $(MAGIC_FRAGMENT_DIR)/flash \
-$(MAGIC_FRAGMENT_DIR)/flif \
 $(MAGIC_FRAGMENT_DIR)/fonts \
 $(MAGIC_FRAGMENT_DIR)/fortran \
 $(MAGIC_FRAGMENT_DIR)/frame \
@@ -150,7 +145,6 @@ $(MAGIC_FRAGMENT_DIR)/mcrypt \
 $(MAGIC_FRAGMENT_DIR)/mercurial \
 $(MAGIC_FRAGMENT_DIR)/metastore \
 $(MAGIC_FRAGMENT_DIR)/meteorological \
-$(MAGIC_FRAGMENT_DIR)/microfocus \
 $(MAGIC_FRAGMENT_DIR)/mime \
 $(MAGIC_FRAGMENT_DIR)/mips \
 $(MAGIC_FRAGMENT_DIR)/mirage \
@@ -199,7 +193,6 @@ $(MAGIC_FRAGMENT_DIR)/pgp \
 $(MAGIC_FRAGMENT_DIR)/pkgadd \
 $(MAGIC_FRAGMENT_DIR)/plan9 \
 $(MAGIC_FRAGMENT_DIR)/plus5 \
-$(MAGIC_FRAGMENT_DIR)/polyml \
 $(MAGIC_FRAGMENT_DIR)/printer \
 $(MAGIC_FRAGMENT_DIR)/project \
 $(MAGIC_FRAGMENT_DIR)/psdbms \
@@ -254,7 +247,6 @@ $(MAGIC_FRAGMENT_DIR)/unknown \
 $(MAGIC_FRAGMENT_DIR)/uterus \
 $(MAGIC_FRAGMENT_DIR)/uuencode \
 $(MAGIC_FRAGMENT_DIR)/varied.out \
-$(MAGIC_FRAGMENT_DIR)/vacuum-cleaner \
 $(MAGIC_FRAGMENT_DIR)/varied.script \
 $(MAGIC_FRAGMENT_DIR)/vax \
 $(MAGIC_FRAGMENT_DIR)/vicar \
@@ -299,7 +291,7 @@ ${MAGIC}: $(EXTRA_DIST) $(FILE_COMPILE_DEP)
 	@(if expr "${FILE_COMPILE}" : '.*/.*' > /dev/null; then \
 	    echo "Using ${FILE_COMPILE} to generate ${MAGIC}" > /dev/null; \
 	  else \
-	    v=$$(${FILE_COMPILE} --version | sed -e s/file-// -e q); \
+	    v=$$(file --version | sed -e s/file-// -e q); \
 	    if [ "$$v" != "${PACKAGE_VERSION}" ]; then \
 		echo "Cannot use the installed version of file ($$v) to"; \
 		echo "cross-compile file ${PACKAGE_VERSION}"; \

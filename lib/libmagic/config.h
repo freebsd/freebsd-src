@@ -43,9 +43,6 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
-/* Define to 1 if you have the `dprintf' function. */
-#define HAVE_DPRINTF 1
-
 /* Define to 1 if you have the <err.h> header file. */
 #define HAVE_ERR_H 1
 
@@ -293,7 +290,7 @@
 #define PACKAGE_NAME "file"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "file 5.26"
+#define PACKAGE_STRING "file 5.25"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "file"
@@ -302,7 +299,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "5.26"
+#define PACKAGE_VERSION "5.25"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
@@ -333,7 +330,7 @@
 
 
 /* Version number of package */
-#define VERSION "5.26"
+#define VERSION "5.25"
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */

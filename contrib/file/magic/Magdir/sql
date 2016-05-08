@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sql,v 1.18 2015/12/04 20:38:43 christos Exp $
+# $File: sql,v 1.15 2014/04/30 21:41:02 christos Exp $
 # sql:  file(1) magic for SQL files
 #
 # From: "Marty Leisner" <mleisner@eng.mc.xerox.com>
@@ -54,32 +54,21 @@
 # at offset 68 that is preferred over "user version" for indicating the
 # associated application.
 #
-0   string  SQLite\ format\ 3	SQLite 3.x database
-!:mime	application/x-sqlite3
-# seldom found extension sqlite3 like in SyncData.sqlite3
-# db
-# Avira Antivir use extension "dbe" like in avevtdb.dbe, avguard_tchk.dbe
-# Unfortunately extension sqlite also used for other databases starting with string
-# "TTCONTAINER" like in tracks.sqlite contentconsumer.sqlite contentproducerrepository.sqlite
-# and with string "ZV-zlib" in like extra.sqlite
-!:ext sqlite/sqlite3/db/dbe
->60 belong  =0x5f4d544e  (Monotone source repository)
->68 belong  =0x0f055112  (Fossil checkout)
->68 belong  =0x0f055113  (Fossil global configuration)
->68 belong  =0x0f055111  (Fossil repository)
->68 belong  =0x42654462  (Bentley Systems BeSQLite Database)
->68 belong  =0x42654c6e  (Bentley Systems Localization File)
->68 belong  =0x47504b47  (OGC GeoPackage file)
->68 default x
+0   string  SQLite\ format\ 3
+>60 belong  =0x5f4d544e  Monotone source repository - SQLite3 database
+>68 belong  =0x0f055112  Fossil checkout - SQLite3 database
+>68 belong  =0x0f055113  Fossil global configuration - SQLite3 database
+>68 belong  =0x0f055111  Fossil repository - SQLite3 database
+>68 belong  =0x42654462  Bentley Systems BeSQLite Database - SQLite3 database
+>68 belong  =0x42654c6e  Bentley Systems Localization File - SQLite3 database
+>68 belong  =0x47504b47  OGC GeoPackage file - SQLite3 database
+>68 default x            SQLite 3.x database
 >>68 belong  !0          \b, application id %u
 >>60 belong  !0          \b, user version %d
->96 belong  x            \b, last written using SQLite version %d
-
 
 # SQLite Write-Ahead Log from SQLite version >= 3.7.0
 # http://www.sqlite.org/fileformat.html#walformat
 0	belong&0xfffffffe	0x377f0682	SQLite Write-Ahead Log,
-!:ext sqlite-wal/db-wal
 >4	belong	x	version %d
 
 # SQLite Rollback Journal
@@ -87,10 +76,8 @@
 0	string	\xd9\xd5\x05\xf9\x20\xa1\x63\xd7	SQLite Rollback Journal
 
 # Panasonic channel list database svl.bin or svl.db added by Joerg Jenderek
-# https://github.com/PredatH0r/ChanSort
-0	string		PSDB\0			Panasonic channel list DataBase
-!:ext db/bin
-#!:mime	application/x-db-svl-panasonic
+# http://www.ullrich.es/job/service-menue/panasonic/panasonic-sendersortierung-sat-am-pc/
+# pceditor_V2003.jar
+0	string		PSDB\0			Panasonic channel list database
 >126	string		SQLite\ format\ 3	
-#!:mime	application/x-panasonic-sqlite3
 >>&-15	indirect	x			\b; contains 

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: cafebabe,v 1.21 2015/10/15 20:56:51 christos Exp $
+# $File: cafebabe,v 1.20 2015/05/29 14:21:58 christos Exp $
 # Cafe Babes unite!
 #
 # Since Java bytecode and Mach-O universal binaries have the same magic number,
@@ -58,15 +58,12 @@
 >>4	belong		<20		Mach-O universal binary with %d architectures:
 !:mime application/x-mach-binary
 >>>8	use		mach-o		\b
->>4	belong		2
 >>>28	use		mach-o		\b
->>4	belong		3
+>>4	belong		2
 >>>48	use		mach-o		\b
->>4	belong		4
+>>4	belong		3
 >>>68	use		mach-o		\b
->>4	belong		5
+>>4	belong		4
 >>>88	use		mach-o		\b
->>4	belong		6
->>>108	use		mach-o		\b
 
 ### MACH-O END ###

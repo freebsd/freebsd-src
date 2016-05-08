@@ -7,20 +7,20 @@
 ############## MSX Music file formats ##############
 
 # Gigamix MGSDRV music file
-0	string/b		MGS	MSX Gigamix MGSDRV3 music file, 
+0	string		MGS	MSX Gigamix MGSDRV3 music file, 
 >6	ubeshort	0x0D0A
 >>3	byte		x	\bv%c
 >>4	byte		x	\b.%c
 >>5	byte		x	\b%c
 >>8	string		>\0	\b, title: %s
 
-1	string/b		mgs2\ 	MSX Gigamix MGSDRV2 music file
+1	string		mgs2\ 	MSX Gigamix MGSDRV2 music file
 >6	uleshort	0x80
 >>0x2E	uleshort	0
 >>>0x30	string		>\0	\b, title: %s
 
 # KSS music file
-0	string/b		KSCC	KSS music file v1.03
+0	string		KSCC	KSS music file v1.03
 >0xE	byte		0
 >>0xF	byte&0x02	0	\b, soundchips: AY-3-8910, SCC(+)
 >>0xF	byte&0x02	2	\b, soundchip(s): SN76489
@@ -28,7 +28,7 @@
 >>0xF	byte&0x01	1	\b, YM2413
 >>0xF	byte&0x08	8	\b, Y8950
 
-0	string/b		KSSX	KSS music file v1.20
+0	string		KSSX	KSS music file v1.20
 >0xE	byte&0xEF	0
 >>0xF	byte&0x40	0x00	\b, 60Hz
 >>0xF	byte&0x40	0x40	\b, 50Hz
@@ -42,11 +42,11 @@
 >>0xF	byte&0x18	0x10	\b, Majyutsushi DAC
 
 # Moonblaster for Moonsound
-0	string/b		MBMS
+0	string		MBMS
 >4	byte		0x10	MSX Moonblaster for MoonSound music
 
 # Music Player K-kaz
-0	string/b		MPK	MSX Music Player K-kaz song
+0	string		MPK	MSX Music Player K-kaz song
 >6	ubeshort	0x0D0A
 >>3	byte		x	v%c
 >>4	byte		x	\b.%c
@@ -70,7 +70,7 @@
 >>>>>0	string		>\32		\b, title: %s
 
 # SCMD music file
-0x8B	string/b		SCMD
+0x8B	string		SCMD
 >0xCE	uleshort	0	MSX SCMD Music file
 #>>-2	uleshort	0x6a71	; The file must end with this value. How to code this here?
 >>0x8F	string		>\0		\b, title: %s
@@ -100,7 +100,7 @@
 >>>3	uleshort	>0x013D		MSX Graph Saurus compressed image
 
 # Maki-chan Graphic format
-0	string/b		MAKI02\ \ 	Maki-chan image,
+0	string		MAKI02\ \ 	Maki-chan image,
 >8	byte		x		system ID: %c
 >9	byte		x		\b%c
 >10	byte		x		\b%c
@@ -124,11 +124,11 @@
 >>&3	ubyte&0x01	1		\b, 2:1 dot aspect ratio
 
 # Japanese PIC file
-0	string/b		PIC\x1A
+0	string		PIC\x1A
 >4	lelong		0		Japanese PIC image file
 
 # MSX G9B image file
-0	string/b		G9B
+0	string		G9B
 >1	uleshort	11
 >>3	uleshort	>10
 >>>5	ubyte		>0		MSX G9B image, depth=%d
@@ -147,7 +147,7 @@
 ############## Other MSX file formats ##############
 
 # MSX ROMs
-0	string/b		AB
+0	string		AB
 >2	uleshort	0x0010			MSX ROM
 >>2	uleshort	x			\b, init=0x%4x
 >>4	uleshort	>0			\b, stat=0x%4x
@@ -164,7 +164,7 @@
 >>6	uleshort	>0			\b, dev=0x%04x
 >>8	uleshort	>0			\b, bas=0x%04x
 
-0	string/b		AB
+0	string		AB
 #>2	string		5JSuperLAYDOCK		MSX Super Laydock ROM
 #>3	string		@HYDLIDE3MSX		MSX Hydlide-3 ROM
 #>3	string		@3\x80IA862		Golvellius MSX1 ROM
@@ -188,7 +188,7 @@
 >>>6	uleshort	0
 >>>>8	uleshort	>0			MSX BASIC program in ROM, bas=0x%04x
 
-0x4000	string/b		AB
+0x4000	string		AB
 >0x4002	uleshort	>0x4010
 >>0x400A	string		\0\0\0\0\0\0	MSX MegaROM with nonstandard page order
 >>0x4002	uleshort	x			\b, init=0x%04x
@@ -196,7 +196,7 @@
 >>0x4006	uleshort	>0			\b, dev=0x%04x
 >>0x4008	uleshort	>0			\b, bas=0x%04x
 
-0x8000	string/b		AB
+0x8000	string		AB
 >0x8002	uleshort	>0x4010
 >>0x800A	string		\0\0\0\0\0\0	MSX MegaROM with nonstandard page order
 >>0x8002	uleshort	x			\b, init=0x%04x
@@ -206,7 +206,7 @@
 
 
 0x3C000	string		AB
->0x3C008	string/b		\0\0\0\0\0\0\0\0	MSX MegaROM with nonstandard page order
+>0x3C008	string		\0\0\0\0\0\0\0\0	MSX MegaROM with nonstandard page order
 >>0x3C002	uleshort	x			\b, init=0x%04x
 >>0x3C004	uleshort	>0			\b, stat=0x%04x
 >>0x3C006	uleshort	>0			\b, dev=0x%04x

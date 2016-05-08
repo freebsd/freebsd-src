@@ -1,4 +1,4 @@
-#------------------------------------------------------------------------------ # $File: sgml,v 1.33 2015/11/29 22:14:49 christos Exp $
+#------------------------------------------------------------------------------ # $File: sgml,v 1.32 2015/07/11 15:08:53 christos Exp $
 # Type:	SVG Vectorial Graphics
 # From:	Noel Torres <tecnico@ejerciciosresueltos.com>
 0	string		\<?xml\ version="
@@ -88,25 +88,25 @@
 # Extensible markup language (XML), a subset of SGML
 # from Marc Prud'hommeaux (marc@apocalypse.org)
 0	search/1/cwt	\<?xml			XML document text
-!:mime	text/xml
+!:mime	application/xml
 !:strength + 5
 0	string/t		\<?xml\ version\ "	XML
-!:mime	text/xml
+!:mime	application/xml
 !:strength + 5
 0	string/t		\<?xml\ version="	XML
-!:mime	text/xml
+!:mime	application/xml
 !:strength + 5
 >15	string/t	>\0			%.3s document text
 >>23	search/1	\<xsl:stylesheet	(XSL stylesheet)
 >>24	search/1	\<xsl:stylesheet	(XSL stylesheet)
 0	string		\<?xml\ version='	XML
-!:mime	text/xml
+!:mime	application/xml
 !:strength + 5
 >15	string/t	>\0			%.3s document text
 >>23	search/1	\<xsl:stylesheet	(XSL stylesheet)
 >>24	search/1	\<xsl:stylesheet	(XSL stylesheet)
 0	search/1/wt	\<?XML			broken XML document text
-!:mime	text/xml
+!:mime	application/xml
 !:strength - 10
 
 
