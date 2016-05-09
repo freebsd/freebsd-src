@@ -78,6 +78,7 @@ static device_method_t acpi_pcib_pci_methods[] = {
 
     /* Bus interface */
     DEVMETHOD(bus_read_ivar,		acpi_pcib_read_ivar),
+    DEVMETHOD(bus_get_cpus,		acpi_pcib_get_cpus),
 
     /* pcib interface */
     DEVMETHOD(pcib_route_interrupt,	acpi_pcib_pci_route_interrupt),
