@@ -856,6 +856,9 @@ AH_AR5416_INTERRUPT_MITIGATION	opt_ah.h
 BWI_DEBUG		opt_bwi.h
 BWI_DEBUG_VERBOSE	opt_bwi.h
 
+# options for the Brodacom BCM43xx driver (bwn)
+BWI_DEBUG		opt_bwn.h
+
 # options for the Marvell 8335 wireless driver
 MALO_DEBUG		opt_malo.h
 MALO_TXBUF		opt_malo.h
