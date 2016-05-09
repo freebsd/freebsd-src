@@ -61,8 +61,6 @@
 #define	EFSYS_OPT_NVRAM_SFT9001			(0)
 #define	EFSYS_OPT_NVRAM_SFX7101			(0)
 
-#define	EFSYS_OPT_PCIE_TUNE			(0)
-
 #define	EFSYS_OPT_PHY_NULL			(0)
 #define	EFSYS_OPT_PHY_QT2022C2			(0)
 #define	EFSYS_OPT_PHY_QT2025C			(0)
@@ -280,12 +278,9 @@
 # endif
 #endif /* EFSYS_OPT_NVRAM_SFX7101 */
 
-/* Support PCIe interface tuning */
-#if EFSYS_OPT_PCIE_TUNE
-# if !EFSYS_OPT_FALCON
-#  error "PCIE_TUNE requires FALCON"
-# endif
-#endif /* EFSYS_OPT_PCIE_TUNE */
+#ifdef EFSYS_OPT_PCIE_TUNE
+# error "PCIE_TUNE is obsolete and is not supported."
+#endif
 
 /* Obsolete option */
 #ifdef EFSYS_OPT_PHY_BIST
