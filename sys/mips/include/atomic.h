@@ -527,7 +527,7 @@ atomic_cmpset_32(__volatile uint32_t* p, uint32_t cmpval, uint32_t newval)
 #else
 	__asm __volatile (
 		"1:\n\t"
-		"cllw	%0, %4\n\t"		/* load old value */
+		"cllw	%0, %1\n\t"		/* load old value */
 		"bne	%0, %2, 2f\n\t"		/* compare */
 		"move	%0, %3\n\t"		/* value to store */
 		"cscw	%0, %0, %1\n\t"		/* attempt to store */
@@ -536,8 +536,8 @@ atomic_cmpset_32(__volatile uint32_t* p, uint32_t cmpval, uint32_t newval)
 		"2:\n\t"
 		"li	%0, 0\n\t"
 		"3:\n"
-		: "=&r" (ret), "=C" (p)
-		: "r" (cmpval), "r" (newval), "C" (p)
+		: "=&r" (ret), "+C" (p)
+		: "r" (cmpval), "r" (newval)
 		: "memory");
 #endif
 
