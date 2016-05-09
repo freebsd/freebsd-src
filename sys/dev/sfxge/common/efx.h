@@ -34,6 +34,7 @@
 #define	_SYS_EFX_H
 
 #include "efsys.h"
+#include "efx_check.h"
 #include "efx_phy_ids.h"
 
 #ifdef	__cplusplus

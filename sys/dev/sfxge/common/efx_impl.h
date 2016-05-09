@@ -34,6 +34,7 @@
 #define	_SYS_EFX_IMPL_H
 
 #include "efsys.h"
+#include "efx_check.h"
 #include "efx.h"
 #include "efx_regs.h"
 #include "efx_regs_ef10.h"
@@ -42,8 +43,6 @@
 #ifndef	ESE_DZ_EV_CODE_DRV_GEN_EV
 #define	ESE_DZ_EV_CODE_DRV_GEN_EV FSE_AZ_EV_CODE_DRV_GEN_EV
 #endif
-
-#include "efx_check.h"
 
 
 #if EFSYS_OPT_FALCON
