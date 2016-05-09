@@ -1984,10 +1984,6 @@ checkchan(const struct ieee80211req_chaninfo *avail, int freq, int flags)
 	 * everything below is to deal with channels that we
 	 * want to include but that are not explicitly listed.
 	 */
-	if (flags & IEEE80211_CHAN_HT40) {
-		/* NB: we use an HT40 channel center that matches HT20 */
-		flags = (flags &~ IEEE80211_CHAN_HT40) | IEEE80211_CHAN_HT20;
-	}
 	if (chanlookup(avail->ic_chans, avail->ic_nchans, freq, flags) != NULL)
 		return 1;
 	if (flags & IEEE80211_CHAN_GSM) {
