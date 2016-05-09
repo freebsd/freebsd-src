@@ -441,6 +441,8 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 	    (saved_facts.IOCCapabilities != sc->facts->IOCCapabilities) ||
 	    (saved_facts.IOCRequestFrameSize !=
 	    sc->facts->IOCRequestFrameSize) ||
+	    (saved_facts.IOCMaxChainSegmentSize !=
+	    sc->facts->IOCMaxChainSegmentSize) ||
 	    (saved_facts.MaxTargets != sc->facts->MaxTargets) ||
 	    (saved_facts.MaxSasExpanders != sc->facts->MaxSasExpanders) ||
 	    (saved_facts.MaxEnclosures != sc->facts->MaxEnclosures) ||
@@ -1188,7 +1190,28 @@ mpr_alloc_requests(struct mpr_softc *sc)
         bus_dmamap_load(sc->req_dmat, sc->req_map, sc->req_frames, rsize,
 	    mpr_memaddr_cb, &sc->req_busaddr, 0);
 
-	rsize = sc->facts->IOCRequestFrameSize * sc->max_chains * 4;
+	/*
+	 * Gen3 and beyond uses the IOCMaxChainSegmentSize from IOC Facts to
+	 * get the size of a Chain Frame.  Previous versions use the size as a
+	 * Request Frame for the Chain Frame size.  If IOCMaxChainSegmentSize
+	 * is 0, use the default value.  The IOCMaxChainSegmentSize is the
+	 * number of 16-byte elelements that can fit in a Chain Frame, which is
+	 * the size of an IEEE Simple SGE.
+	 */
+	if (sc->facts->MsgVersion >= MPI2_VERSION_02_05) {
+		sc->chain_seg_size =
+		    htole16(sc->facts->IOCMaxChainSegmentSize);
+		if (sc->chain_seg_size == 0) {
+			sc->chain_frame_size = MPR_DEFAULT_CHAIN_SEG_SIZE *
+			    MPR_MAX_CHAIN_ELEMENT_SIZE;
+		} else {
+			sc->chain_frame_size = sc->chain_seg_size *
+			    MPR_MAX_CHAIN_ELEMENT_SIZE;
+		}
+	} else {
+		sc->chain_frame_size = sc->facts->IOCRequestFrameSize * 4;
+	}
+	rsize = sc->chain_frame_size * sc->max_chains;
         if (bus_dma_tag_create( sc->mpr_parent_dmat,    /* parent */
 				16, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
@@ -1246,9 +1269,9 @@ mpr_alloc_requests(struct mpr_softc *sc)
 	for (i = 0; i < sc->max_chains; i++) {
 		chain = &sc->chains[i];
 		chain->chain = (MPI2_SGE_IO_UNION *)(sc->chain_frames +
-		    i * sc->facts->IOCRequestFrameSize * 4);
+		    i * sc->chain_frame_size);
 		chain->chain_busaddr = sc->chain_busaddr +
-		    i * sc->facts->IOCRequestFrameSize * 4;
+		    i * sc->chain_frame_size;
 		mpr_free_chain(sc, chain);
 		sc->chain_free_lowwater++;
 	}
@@ -2169,7 +2192,7 @@ mpr_add_chain(struct mpr_command *cm, int segsleft)
 	MPI2_REQUEST_HEADER *req;
 	MPI25_IEEE_SGE_CHAIN64 *ieee_sgc;
 	struct mpr_chain *chain;
-	int space, sgc_size, current_segs, rem_segs, segs_per_frame;
+	int sgc_size, current_segs, rem_segs, segs_per_frame;
 	uint8_t next_chain_offset = 0;
 
 	/*
@@ -2190,8 +2213,6 @@ mpr_add_chain(struct mpr_command *cm, int segsleft)
 	chain = mpr_alloc_chain(cm->cm_sc);
 	if (chain == NULL)
 		return (ENOBUFS);
-
-	space = (int)cm->cm_sc->facts->IOCRequestFrameSize * 4;
 
 	/*
 	 * Note: a double-linked list is used to make it easier to walk for
@@ -2218,13 +2239,14 @@ mpr_add_chain(struct mpr_command *cm, int segsleft)
 		 */
 		current_segs = (cm->cm_sglsize / sgc_size) - 1;
 		rem_segs = segsleft - current_segs;
-		segs_per_frame = space / sgc_size;
+		segs_per_frame = sc->chain_frame_size / sgc_size;
 		if (rem_segs > segs_per_frame) {
 			next_chain_offset = segs_per_frame - 1;
 		}
 	}
 	ieee_sgc = &((MPI25_SGE_IO_UNION *)cm->cm_sge)->IeeeChain;
-	ieee_sgc->Length = next_chain_offset ? htole32((uint32_t)space) :
+	ieee_sgc->Length = next_chain_offset ?
+	    htole32((uint32_t)sc->chain_frame_size) :
 	    htole32((uint32_t)rem_segs * (uint32_t)sgc_size);
 	ieee_sgc->NextChainOffset = next_chain_offset;
 	ieee_sgc->Flags = (MPI2_IEEE_SGE_FLAGS_CHAIN_ELEMENT |
@@ -2233,10 +2255,9 @@ mpr_add_chain(struct mpr_command *cm, int segsleft)
 	ieee_sgc->Address.High = htole32(chain->chain_busaddr >> 32);
 	cm->cm_sge = &((MPI25_SGE_IO_UNION *)chain->chain)->IeeeSimple;
 	req = (MPI2_REQUEST_HEADER *)cm->cm_req;
-	req->ChainOffset = ((sc->facts->IOCRequestFrameSize * 4) -
-	    sgc_size) >> 4;
+	req->ChainOffset = (sc->chain_frame_size - sgc_size) >> 4;
 
-	cm->cm_sglsize = space;
+	cm->cm_sglsize = sc->chain_frame_size;
 	return (0);
 }
 
