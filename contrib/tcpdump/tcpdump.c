@@ -2756,7 +2756,7 @@ print_usage(void)
 #endif
 	(void)fprintf(stderr, "[ -T type ] [ --version ] [ -V file ]\n");
 	(void)fprintf(stderr,
-"\t\t[ -w file ] [ -W filecount ] [ -y datalinktype ] [ -z command ]\n");
+"\t\t[ -w file ] [ -W filecount ] [ -y datalinktype ] [ -z postrotate-command ]\n");
 	(void)fprintf(stderr,
 "\t\t[ -Z user ] [ expression ]\n");
 }
