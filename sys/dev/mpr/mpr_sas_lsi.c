@@ -645,6 +645,23 @@ skip_fp_send:
 		}
 		break;
 	}
+	case MPI2_EVENT_ACTIVE_CABLE_EXCEPTION:
+	{
+		pMpi26EventDataActiveCableExcept_t	ace_event_data;
+		ace_event_data =
+		    (pMpi26EventDataActiveCableExcept_t)fw_event->event_data;
+
+		if (ace_event_data->ReasonCode ==
+		    MPI26_EVENT_ACTIVE_CABLE_INSUFFICIENT_POWER) {
+			mpr_printf(sc, "Currently an active cable with "
+			    "ReceptacleID %d cannot be powered and device "
+			    "connected to this active cable will not be seen. "
+			    "This active cable requires %d mW of power.\n",
+			    ace_event_data->ReceptacleID,
+			    ace_event_data->ActiveCablePowerRequirement);
+		}
+		break;
+	}
 	case MPI2_EVENT_SAS_DEVICE_STATUS_CHANGE:
 	case MPI2_EVENT_SAS_BROADCAST_PRIMITIVE:
 	default:
