@@ -278,7 +278,17 @@ enum siba_sprom_vars {
 	SIBA_SPROMVAR_BF_LO,
 	SIBA_SPROMVAR_BF_HI,
 	SIBA_SPROMVAR_BF2_LO,
-	SIBA_SPROMVAR_BF2_HI
+	SIBA_SPROMVAR_BF2_HI,
+	SIBA_SPROMVAR_FEM_2GHZ_TSSIPOS,
+	SIBA_SPROMVAR_FEM_2GHZ_EXTPAGAIN,
+	SIBA_SPROMVAR_FEM_2GHZ_PDET_RANGE,
+	SIBA_SPROMVAR_FEM_2GHZ_TR_ISO,
+	SIBA_SPROMVAR_FEM_2GHZ_ANTSWLUT,
+	SIBA_SPROMVAR_FEM_5GHZ_TSSIPOS,
+	SIBA_SPROMVAR_FEM_5GHZ_EXTPAGAIN,
+	SIBA_SPROMVAR_FEM_5GHZ_PDET_RANGE,
+	SIBA_SPROMVAR_FEM_5GHZ_TR_ISO,
+	SIBA_SPROMVAR_FEM_5GHZ_ANTSWLUT,
 };
 
 int		siba_read_sprom(device_t, device_t, int, uintptr_t *);
@@ -364,6 +374,18 @@ SIBA_SPROM_ACCESSOR(bf_lo,	BF_LO,		uint16_t);
 SIBA_SPROM_ACCESSOR(bf_hi,	BF_HI,		uint16_t);
 SIBA_SPROM_ACCESSOR(bf2_lo,	BF2_LO,		uint16_t);
 SIBA_SPROM_ACCESSOR(bf2_hi,	BF2_HI,		uint16_t);
+/* 2GHz FEM */
+SIBA_SPROM_ACCESSOR(fem_2ghz_tssipos, FEM_2GHZ_TSSIPOS, uint8_t);
+SIBA_SPROM_ACCESSOR(fem_2ghz_extpa_gain, FEM_2GHZ_EXTPAGAIN, uint8_t);
+SIBA_SPROM_ACCESSOR(fem_2ghz_pdet_range, FEM_2GHZ_PDET_RANGE, uint8_t);
+SIBA_SPROM_ACCESSOR(fem_2ghz_tr_iso, FEM_2GHZ_TR_ISO, uint8_t);
+SIBA_SPROM_ACCESSOR(fem_2ghz_antswlut, FEM_2GHZ_ANTSWLUT, uint8_t);
+/* 5GHz FEM */
+SIBA_SPROM_ACCESSOR(fem_5ghz_tssipos, FEM_5GHZ_TSSIPOS, uint8_t);
+SIBA_SPROM_ACCESSOR(fem_5ghz_extpa_gain, FEM_5GHZ_EXTPAGAIN, uint8_t);
+SIBA_SPROM_ACCESSOR(fem_5ghz_pdet_range, FEM_5GHZ_PDET_RANGE, uint8_t);
+SIBA_SPROM_ACCESSOR(fem_5ghz_tr_iso, FEM_5GHZ_TR_ISO, uint8_t);
+SIBA_SPROM_ACCESSOR(fem_5ghz_antswlut, FEM_5GHZ_ANTSWLUT, uint8_t);
 
 #undef SIBA_SPROM_ACCESSOR
 
@@ -434,6 +456,17 @@ struct siba_sprom {
 			int8_t a0, a1, a2, a3;
 		} ghz5;
 	} again;	/* antenna gain */
+
+	struct {
+		struct {
+			uint8_t tssipos, extpa_gain, pdet_range, tr_iso;
+			uint8_t antswlut;
+		} ghz2;
+		struct {
+			uint8_t tssipos, extpa_gain, pdet_range, tr_iso;
+			uint8_t antswlut;
+		} ghz5;
+	} fem;
 };
 
 #define	SIBA_LDO_PAREF			0

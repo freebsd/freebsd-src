@@ -1689,6 +1689,29 @@ siba_sprom_r8(struct siba_sprom *out, const uint16_t *in)
 	SIBA_SHIFTOUT(again.ghz24.a2, SIBA_SPROM8_AGAIN23, SIBA_SPROM8_AGAIN2);
 	SIBA_SHIFTOUT(again.ghz24.a3, SIBA_SPROM8_AGAIN23, SIBA_SPROM8_AGAIN3);
 	bcopy(&out->again.ghz24, &out->again.ghz5, sizeof(out->again.ghz5));
+
+	/* FEM */
+	SIBA_SHIFTOUT(fem.ghz2.tssipos, SIBA_SPROM8_FEM2G,
+	    SSB_SROM8_FEM_TSSIPOS);
+	SIBA_SHIFTOUT(fem.ghz2.extpa_gain, SIBA_SPROM8_FEM2G,
+	    SSB_SROM8_FEM_EXTPA_GAIN);
+	SIBA_SHIFTOUT(fem.ghz2.pdet_range, SIBA_SPROM8_FEM2G,
+	    SSB_SROM8_FEM_PDET_RANGE);
+	SIBA_SHIFTOUT(fem.ghz2.tr_iso, SIBA_SPROM8_FEM2G,
+	    SSB_SROM8_FEM_TR_ISO);
+	SIBA_SHIFTOUT(fem.ghz2.antswlut, SIBA_SPROM8_FEM2G,
+	    SSB_SROM8_FEM_ANTSWLUT);
+
+	SIBA_SHIFTOUT(fem.ghz5.tssipos, SIBA_SPROM8_FEM5G,
+	    SSB_SROM8_FEM_TSSIPOS);
+	SIBA_SHIFTOUT(fem.ghz5.extpa_gain, SIBA_SPROM8_FEM5G,
+	    SSB_SROM8_FEM_EXTPA_GAIN);
+	SIBA_SHIFTOUT(fem.ghz5.pdet_range, SIBA_SPROM8_FEM5G,
+	    SSB_SROM8_FEM_PDET_RANGE);
+	SIBA_SHIFTOUT(fem.ghz5.tr_iso, SIBA_SPROM8_FEM5G,
+	    SSB_SROM8_FEM_TR_ISO);
+	SIBA_SHIFTOUT(fem.ghz5.antswlut, SIBA_SPROM8_FEM5G,
+	    SSB_SROM8_FEM_ANTSWLUT);
 }
 
 static int8_t
@@ -2337,6 +2360,36 @@ siba_read_sprom(device_t dev, device_t child, int which, uintptr_t *result)
 		break;
 	case SIBA_SPROMVAR_BF2_HI:
 		*result = siba->siba_sprom.bf2_hi;
+		break;
+	case SIBA_SPROMVAR_FEM_2GHZ_TSSIPOS:
+		*result = siba->siba_sprom.fem.ghz2.tssipos;
+		break;
+	case SIBA_SPROMVAR_FEM_2GHZ_EXTPAGAIN:
+		*result = siba->siba_sprom.fem.ghz2.extpa_gain;
+		break;
+	case SIBA_SPROMVAR_FEM_2GHZ_PDET_RANGE:
+		*result = siba->siba_sprom.fem.ghz2.pdet_range;
+		break;
+	case SIBA_SPROMVAR_FEM_2GHZ_TR_ISO:
+		*result = siba->siba_sprom.fem.ghz2.tr_iso;
+		break;
+	case SIBA_SPROMVAR_FEM_2GHZ_ANTSWLUT:
+		*result = siba->siba_sprom.fem.ghz2.antswlut;
+		break;
+	case SIBA_SPROMVAR_FEM_5GHZ_TSSIPOS:
+		*result = siba->siba_sprom.fem.ghz5.tssipos;
+		break;
+	case SIBA_SPROMVAR_FEM_5GHZ_EXTPAGAIN:
+		*result = siba->siba_sprom.fem.ghz5.extpa_gain;
+		break;
+	case SIBA_SPROMVAR_FEM_5GHZ_PDET_RANGE:
+		*result = siba->siba_sprom.fem.ghz5.pdet_range;
+		break;
+	case SIBA_SPROMVAR_FEM_5GHZ_TR_ISO:
+		*result = siba->siba_sprom.fem.ghz5.tr_iso;
+		break;
+	case SIBA_SPROMVAR_FEM_5GHZ_ANTSWLUT:
+		*result = siba->siba_sprom.fem.ghz5.antswlut;
 		break;
 	default:
 		return (ENOENT);
