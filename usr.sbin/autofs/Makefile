@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=autofs
 PROG=	automountd
 SRCS=	automount.c
 SRCS+=	automountd.c

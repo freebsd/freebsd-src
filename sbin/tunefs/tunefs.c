@@ -316,7 +316,7 @@ main(int argc, char *argv[])
 	}
 	if (Lflag) {
 		name = "volume label";
-		strlcpy(sblock.fs_volname, Lvalue, MAXVOLLEN);
+		strncpy(sblock.fs_volname, Lvalue, MAXVOLLEN);
 	}
 	if (aflag) {
 		name = "POSIX.1e ACLs";

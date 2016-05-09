@@ -34,7 +34,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/uio.h>
 
-#include <compat/cloudabi64/cloudabi64_syscalldefs.h>
+#include <contrib/cloudabi/cloudabi64_types.h>
+
 #include <compat/cloudabi64/cloudabi64_proto.h>
 
 /* Copies in 64-bit iovec structures from userspace. */

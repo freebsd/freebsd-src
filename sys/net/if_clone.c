@@ -484,7 +484,7 @@ if_clone_list(struct if_clonereq *ifcr)
 	 * below, but that's not a major problem.  Not caping our
 	 * allocation to the number of cloners actually in the system
 	 * could be because that would let arbitrary users cause us to
-	 * allocate abritrary amounts of kernel memory.
+	 * allocate arbitrary amounts of kernel memory.
 	 */
 	buf_count = (V_if_cloners_count < ifcr->ifcr_count) ?
 	    V_if_cloners_count : ifcr->ifcr_count;

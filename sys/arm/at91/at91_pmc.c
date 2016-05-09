@@ -320,7 +320,7 @@ at91_pmc_clock_add(const char *name, uint32_t irq,
 	else
 		clk->parent = parent;
 
-	for (i = 0; i < sizeof(clock_list) / sizeof(clock_list[0]); i++) {
+	for (i = 0; i < nitems(clock_list); i++) {
 		if (clock_list[i] == NULL) {
 			clock_list[i] = clk;
 			return (clk);
@@ -358,7 +358,7 @@ at91_pmc_clock_ref(const char *name)
 {
 	int i;
 
-	for (i = 0; i < sizeof(clock_list) / sizeof(clock_list[0]); i++) {
+	for (i = 0; i < nitems(clock_list); i++) {
 		if (clock_list[i] == NULL)
 		    break;
 		if (strcmp(name, clock_list[i]->name) == 0)
@@ -484,7 +484,7 @@ static const unsigned int at91_main_clock_tbl[] = {
 	12000000, 12288000, 13560000, 14318180, 14745600,
 	16000000, 17344700, 18432000, 20000000
 };
-#define	MAIN_CLOCK_TBL_LEN	(sizeof(at91_main_clock_tbl) / sizeof(*at91_main_clock_tbl))
+#define	MAIN_CLOCK_TBL_LEN	nitems(at91_main_clock_tbl)
 #endif
 
 static unsigned int
@@ -506,7 +506,7 @@ at91_pmc_sense_main_clock(void)
 	 * AT91C_MAIN_CLOCK in the kernel config file.
 	 */
 	if (ckgr_val >= 21000000)
-		return ((ckgr_val + 250) / 500 * 500);
+		return (rounddown(ckgr_val + 250, 500));
 
 	/*
 	 * Try to find the standard frequency that match best.
@@ -636,7 +636,7 @@ at91_pmc_deactivate(device_t dev)
 	if (sc->mem_res)
 		bus_release_resource(dev, SYS_RES_IOPORT,
 		    rman_get_rid(sc->mem_res), sc->mem_res);
-	sc->mem_res = 0;
+	sc->mem_res = NULL;
 }
 
 static int

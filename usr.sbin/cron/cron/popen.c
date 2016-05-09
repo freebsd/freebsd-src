@@ -47,7 +47,7 @@ static const char rcsid[] =
 #define WANT_GLOBBING 0
 
 /*
- * Special version of popen which avoids call to shell.  This insures noone
+ * Special version of popen which avoids call to shell.  This insures no one
  * may create a pipe to a hidden program as a side effect of a list or dir
  * command.
  */

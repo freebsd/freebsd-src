@@ -540,7 +540,7 @@ generic_pcie_alloc_resource_pcie(device_t dev, device_t child, int type, int *ri
 
 	if (bootverbose) {
 		device_printf(dev,
-		    "rman_reserve_resource: start=%#lx, end=%#lx, count=%#lx\n",
+		    "rman_reserve_resource: start=%#jx, end=%#jx, count=%#jx\n",
 		    start, end, count);
 	}
 
@@ -560,7 +560,7 @@ generic_pcie_alloc_resource_pcie(device_t dev, device_t child, int type, int *ri
 
 fail:
 	device_printf(dev, "%s FAIL: type=%d, rid=%d, "
-	    "start=%016lx, end=%016lx, count=%016lx, flags=%x\n",
+	    "start=%016jx, end=%016jx, count=%016jx, flags=%x\n",
 	    __func__, type, *rid, start, end, count, flags);
 
 	return (NULL);
@@ -656,6 +656,63 @@ generic_pcie_deactivate_resource(device_t dev, device_t child, int type, int rid
 	return (res);
 }
 
+static int
+generic_pcie_alloc_msi(device_t pci, device_t child, int count, int maxcount,
+    int *irqs)
+{
+
+#if defined(__aarch64__)
+	return (arm_alloc_msi(pci, child, count, maxcount, irqs));
+#else
+	return (ENXIO);
+#endif
+}
+
+static int
+generic_pcie_release_msi(device_t pci, device_t child, int count, int *irqs)
+{
+
+#if defined(__aarch64__)
+	return (arm_release_msi(pci, child, count, irqs));
+#else
+	return (ENXIO);
+#endif
+}
+
+static int
+generic_pcie_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
+    uint32_t *data)
+{
+
+#if defined(__aarch64__)
+	return (arm_map_msi(pci, child, irq, addr, data));
+#else
+	return (ENXIO);
+#endif
+}
+
+static int
+generic_pcie_alloc_msix(device_t pci, device_t child, int *irq)
+{
+
+#if defined(__aarch64__)
+	return (arm_alloc_msix(pci, child, irq));
+#else
+	return (ENXIO);
+#endif
+}
+
+static int
+generic_pcie_release_msix(device_t pci, device_t child, int irq)
+{
+
+#if defined(__aarch64__)
+	return (arm_release_msix(pci, child, irq));
+#else
+	return (ENXIO);
+#endif
+}
+
 static device_method_t generic_pcie_methods[] = {
 	DEVMETHOD(device_probe,			generic_pcie_probe),
 	DEVMETHOD(device_attach,		pci_host_generic_attach),
@@ -674,13 +731,11 @@ static device_method_t generic_pcie_methods[] = {
 	DEVMETHOD(pcib_route_interrupt,		generic_pcie_route_interrupt),
 	DEVMETHOD(pcib_read_config,		generic_pcie_read_config),
 	DEVMETHOD(pcib_write_config,		generic_pcie_write_config),
-#if defined(__aarch64__)
-	DEVMETHOD(pcib_alloc_msi,		arm_alloc_msi),
-	DEVMETHOD(pcib_release_msi,		arm_release_msi),
-	DEVMETHOD(pcib_alloc_msix,		arm_alloc_msix),
-	DEVMETHOD(pcib_release_msix,		arm_release_msix),
-	DEVMETHOD(pcib_map_msi,			arm_map_msi),
-#endif
+	DEVMETHOD(pcib_alloc_msi,		generic_pcie_alloc_msi),
+	DEVMETHOD(pcib_release_msi,		generic_pcie_release_msi),
+	DEVMETHOD(pcib_alloc_msix,		generic_pcie_alloc_msix),
+	DEVMETHOD(pcib_release_msix,		generic_pcie_release_msix),
+	DEVMETHOD(pcib_map_msi,			generic_pcie_map_msi),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,		generic_pcie_ofw_get_devinfo),
@@ -744,7 +799,7 @@ generic_pcie_alloc_resource_ofw(device_t bus, device_t child, int type, int *rid
 
 		if (i == MAX_RANGES_TUPLES) {
 			device_printf(bus, "Could not map resource "
-			    "%#lx-%#lx\n", start, end);
+			    "%#jx-%#jx\n", start, end);
 			return (NULL);
 		}
 	}

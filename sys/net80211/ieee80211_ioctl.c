@@ -1020,6 +1020,10 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP)
 			ireq->i_val = vap->iv_ampdu_rxmax;
 		else if (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP)
+			/*
+			 * XXX TODO: this isn't completely correct, as we've
+			 * negotiated the higher of the two.
+			 */
 			ireq->i_val = MS(vap->iv_bss->ni_htparam,
 			    IEEE80211_HTCAP_MAXRXAMPDU);
 		else
@@ -1028,6 +1032,10 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 	case IEEE80211_IOC_AMPDU_DENSITY:
 		if (vap->iv_opmode == IEEE80211_M_STA &&
 		    (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP))
+			/*
+			 * XXX TODO: this isn't completely correct, as we've
+			 * negotiated the higher of the two.
+			 */
 			ireq->i_val = MS(vap->iv_bss->ni_htparam,
 			    IEEE80211_HTCAP_MPDUDENSITY);
 		else
@@ -1119,6 +1127,13 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		else
 			ireq->i_val =
 			    (vap->iv_flags_ht & IEEE80211_FHT_RIFS) != 0;
+		break;
+	case IEEE80211_IOC_STBC:
+		ireq->i_val = 0;
+		if (vap->iv_flags_ht & IEEE80211_FHT_STBC_TX)
+			ireq->i_val |= 1;
+		if (vap->iv_flags_ht & IEEE80211_FHT_STBC_RX)
+			ireq->i_val |= 2;
 		break;
 	default:
 		error = ieee80211_ioctl_getdefault(vap, ireq);
@@ -1273,18 +1288,20 @@ mlmedebug(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 	if (op == IEEE80211_MLME_AUTH) {
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_IOCTL |
 		    IEEE80211_MSG_STATE | IEEE80211_MSG_AUTH, mac,
-		    "station authenticate %s via MLME (reason %d)",
+		    "station authenticate %s via MLME (reason: %d (%s))",
 		    reason == IEEE80211_STATUS_SUCCESS ? "ACCEPT" : "REJECT",
-		    reason);
+		    reason, ieee80211_reason_to_string(reason));
 	} else if (!(IEEE80211_MLME_ASSOC <= op && op <= IEEE80211_MLME_AUTH)) {
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_ANY, mac,
-		    "unknown MLME request %d (reason %d)", op, reason);
+		    "unknown MLME request %d (reason: %d (%s))", op, reason,
+		    ieee80211_reason_to_string(reason));
 	} else if (reason == IEEE80211_STATUS_SUCCESS) {
 		IEEE80211_NOTE_MAC(vap, ops[op].mask, mac,
 		    "station %s via MLME", ops[op].opstr);
 	} else {
 		IEEE80211_NOTE_MAC(vap, ops[op].mask, mac,
-		    "station %s via MLME (reason %d)", ops[op].opstr, reason);
+		    "station %s via MLME (reason: %d (%s))", ops[op].opstr,
+		    reason, ieee80211_reason_to_string(reason));
 	}
 #endif /* IEEE80211_DEBUG */
 }
@@ -3255,6 +3272,31 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		if (isvapht(vap))
 			error = ERESTART;
 		break;
+	case IEEE80211_IOC_STBC:
+		/* Check if we can do STBC TX/RX before changing the setting */
+		if ((ireq->i_val & 1) &&
+		    ((vap->iv_htcaps & IEEE80211_HTCAP_TXSTBC) == 0))
+			return EOPNOTSUPP;
+		if ((ireq->i_val & 2) &&
+		    ((vap->iv_htcaps & IEEE80211_HTCAP_RXSTBC) == 0))
+			return EOPNOTSUPP;
+
+		/* TX */
+		if (ireq->i_val & 1)
+			vap->iv_flags_ht |= IEEE80211_FHT_STBC_TX;
+		else
+			vap->iv_flags_ht &= ~IEEE80211_FHT_STBC_TX;
+
+		/* RX */
+		if (ireq->i_val & 2)
+			vap->iv_flags_ht |= IEEE80211_FHT_STBC_RX;
+		else
+			vap->iv_flags_ht &= ~IEEE80211_FHT_STBC_RX;
+
+		/* NB: reset only if we're operating on an 11n channel */
+		if (isvapht(vap))
+			error = ERESTART;
+		break;
 	default:
 		error = ieee80211_ioctl_setdefault(vap, ireq);
 		break;
@@ -3296,11 +3338,27 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		IEEE80211_LOCK(ic);
-		if ((ifp->if_flags ^ vap->iv_ifflags) & IFF_PROMISC)
-			ieee80211_promisc(vap, ifp->if_flags & IFF_PROMISC);
-		if ((ifp->if_flags ^ vap->iv_ifflags) & IFF_ALLMULTI)
+		if ((ifp->if_flags ^ vap->iv_ifflags) & IFF_PROMISC) {
+			/*
+			 * Enable promiscuous mode when:
+			 * 1. Interface is not a member of bridge, or
+			 * 2. Requested by user, or
+			 * 3. In monitor (or adhoc-demo) mode.
+			 */
+			if (ifp->if_bridge == NULL ||
+			    (ifp->if_flags & IFF_PPROMISC) != 0 ||
+			    vap->iv_opmode == IEEE80211_M_MONITOR ||
+			    (vap->iv_opmode == IEEE80211_M_AHDEMO &&
+			    (vap->iv_caps & IEEE80211_C_TDMA) == 0)) {
+				ieee80211_promisc(vap,
+				    ifp->if_flags & IFF_PROMISC);
+				vap->iv_ifflags ^= IFF_PROMISC;
+			}
+		}
+		if ((ifp->if_flags ^ vap->iv_ifflags) & IFF_ALLMULTI) {
 			ieee80211_allmulti(vap, ifp->if_flags & IFF_ALLMULTI);
-		vap->iv_ifflags = ifp->if_flags;
+			vap->iv_ifflags ^= IFF_ALLMULTI;
+		}
 		if (ifp->if_flags & IFF_UP) {
 			/*
 			 * Bring ourself up unless we're already operational.
@@ -3324,8 +3382,18 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		IEEE80211_UNLOCK(ic);
 		/* Wait for parent ioctl handler if it was queued */
-		if (wait)
+		if (wait) {
 			ieee80211_waitfor_parent(ic);
+
+			/*
+			 * Check if the MAC address was changed
+			 * via SIOCSIFLLADDR ioctl.
+			 */
+			if ((ifp->if_flags & IFF_UP) == 0 &&
+			    !IEEE80211_ADDR_EQ(vap->iv_myaddr, IF_LLADDR(ifp)))
+				IEEE80211_ADDR_COPY(vap->iv_myaddr,
+				    IF_LLADDR(ifp));
+		}
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -3360,10 +3428,10 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFADDR:
 		/*
-		 * XXX Handle this directly so we can supress if_init calls.
+		 * XXX Handle this directly so we can suppress if_init calls.
 		 * XXX This should be done in ether_ioctl but for the moment
 		 * XXX there are too many other parts of the system that
-		 * XXX set IFF_UP and so supress if_init being called when
+		 * XXX set IFF_UP and so suppress if_init being called when
 		 * XXX it should be.
 		 */
 		ifa = (struct ifaddr *) data;

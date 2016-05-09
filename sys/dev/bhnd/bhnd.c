@@ -58,10 +58,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/resource.h>
 
+#include "nvram/bhnd_nvram.h"
+
+#include "bhnd_chipc_if.h"
+#include "bhnd_nvram_if.h"
+
 #include "bhnd.h"
 #include "bhndvar.h"
-
-#include "bhnd_nvram_if.h"
 
 MALLOC_DEFINE(M_BHND, "bhnd", "bhnd bus data structures");
 
@@ -90,11 +93,10 @@ static int	compare_descending_probe_order(const void *lhs,
 		    const void *rhs);
 
 /**
- * Helper function for implementing DEVICE_ATTACH().
- * 
- * This function can be used to implement DEVICE_ATTACH() for bhnd(4)
- * bus implementations. It calls device_probe_and_attach() for each
- * of the device's children, in order.
+ * Default bhnd(4) bus driver implementation of DEVICE_ATTACH().
+ *
+ * This implementation calls device_probe_and_attach() for each of the device's
+ * children, in bhnd probe order.
  */
 int
 bhnd_generic_attach(device_t dev)
@@ -120,12 +122,11 @@ bhnd_generic_attach(device_t dev)
 }
 
 /**
- * Helper function for implementing DEVICE_DETACH().
- * 
- * This function can be used to implement DEVICE_DETACH() for bhnd(4)
- * bus implementations. It calls device_detach() for each
- * of the device's children, in reverse order, terminating if
- * any call to device_detach() fails.
+ * Default bhnd(4) bus driver implementation of DEVICE_DETACH().
+ *
+ * This implementation calls device_detach() for each of the the device's
+ * children, in reverse bhnd probe order, terminating if any call to
+ * device_detach() fails.
  */
 int
 bhnd_generic_detach(device_t dev)
@@ -156,12 +157,11 @@ cleanup:
 }
 
 /**
- * Helper function for implementing DEVICE_SHUTDOWN().
+ * Default bhnd(4) bus driver implementation of DEVICE_SHUTDOWN().
  * 
- * This function can be used to implement DEVICE_SHUTDOWN() for bhnd(4)
- * bus implementations. It calls device_shutdown() for each
- * of the device's children, in reverse order, terminating if
- * any call to device_shutdown() fails.
+ * This implementation calls device_shutdown() for each of the device's
+ * children, in reverse bhnd probe order, terminating if any call to
+ * device_shutdown() fails.
  */
 int
 bhnd_generic_shutdown(device_t dev)
@@ -192,12 +192,11 @@ cleanup:
 }
 
 /**
- * Helper function for implementing DEVICE_RESUME().
- * 
- * This function can be used to implement DEVICE_RESUME() for bhnd(4)
- * bus implementations. It calls BUS_RESUME_CHILD() for each
- * of the device's children, in order, terminating if
- * any call to BUS_RESUME_CHILD() fails.
+ * Default bhnd(4) bus driver implementation of DEVICE_RESUME().
+ *
+ * This implementation calls BUS_RESUME_CHILD() for each of the device's
+ * children in bhnd probe order, terminating if any call to BUS_RESUME_CHILD()
+ * fails.
  */
 int
 bhnd_generic_resume(device_t dev)
@@ -227,14 +226,13 @@ cleanup:
 }
 
 /**
- * Helper function for implementing DEVICE_SUSPEND().
- * 
- * This function can be used to implement DEVICE_SUSPEND() for bhnd(4)
- * bus implementations. It calls BUS_SUSPEND_CHILD() for each
- * of the device's children, in reverse order. If any call to
- * BUS_SUSPEND_CHILD() fails, the suspend operation is terminated and
- * any devices that were suspended are resumed immediately by calling
- * their BUS_RESUME_CHILD() methods.
+ * Default bhnd(4) bus driver implementation of DEVICE_SUSPEND().
+ *
+ * This implementation calls BUS_SUSPEND_CHILD() for each of the device's
+ * children in reverse bhnd probe order. If any call to BUS_SUSPEND_CHILD()
+ * fails, the suspend operation is terminated and any devices that were
+ * suspended are resumed immediately by calling their BUS_RESUME_CHILD()
+ * methods.
  */
 int
 bhnd_generic_suspend(device_t dev)
@@ -305,8 +303,8 @@ compare_descending_probe_order(const void *lhs, const void *rhs)
 }
 
 /**
- * Helper function for implementing BHND_BUS_GET_PROBE_ORDER().
- * 
+ * Default bhnd(4) bus driver implementation of BHND_BUS_GET_PROBE_ORDER().
+ *
  * This implementation determines probe ordering based on the device's class
  * and other properties, including whether the device is serving as a host
  * bridge.
@@ -352,22 +350,24 @@ bhnd_generic_get_probe_order(device_t dev, device_t child)
 	case BHND_DEVCLASS_EROM:
 	case BHND_DEVCLASS_OTHER:
 	case BHND_DEVCLASS_INVALID:
-		if (bhnd_is_hostb_device(child))
+		if (bhnd_find_hostb_device(dev) == child)
 			return (BHND_PROBE_ROOT + BHND_PROBE_ORDER_EARLY);
 
+		return (BHND_PROBE_DEFAULT);
+	default:
 		return (BHND_PROBE_DEFAULT);
 	}
 }
 
 /**
- * Helper function for implementing BHND_BUS_IS_REGION_VALID().
+ * Default bhnd(4) bus driver implementation of BHND_BUS_IS_REGION_VALID().
  * 
  * This implementation assumes that port and region numbers are 0-indexed and
  * are allocated non-sparsely, using BHND_BUS_GET_PORT_COUNT() and
  * BHND_BUS_GET_REGION_COUNT() to determine if @p port and @p region fall
  * within the defined range.
  */
-bool
+static bool
 bhnd_generic_is_region_valid(device_t dev, device_t child,
     bhnd_port_type type, u_int port, u_int region)
 {
@@ -389,23 +389,27 @@ bhnd_generic_is_region_valid(device_t dev, device_t child,
 static device_t
 find_nvram_child(device_t dev)
 {
-	device_t chipc, nvram;
+	device_t	chipc, nvram;
 
 	/* Look for a directly-attached NVRAM child */
-	nvram = device_find_child(dev, devclass_get_name(bhnd_nvram_devclass),
-	    -1);
-	if (nvram == NULL)
-		return (NULL);
+	nvram = device_find_child(dev, "bhnd_nvram", 0);
+	if (nvram != NULL)
+		return (nvram);
 
-	/* Further checks require a bhnd(4) bus */
+	/* Remaining checks are only applicable when searching a bhnd(4)
+	 * bus. */
 	if (device_get_devclass(dev) != bhnd_devclass)
 		return (NULL);
 
-	/* Look for a ChipCommon-attached OTP device */
+	/* Look for a ChipCommon device */
 	if ((chipc = bhnd_find_child(dev, BHND_DEVCLASS_CC, -1)) != NULL) {
-		/* Recursively search the ChipCommon device */
-		if ((nvram = find_nvram_child(chipc)) != NULL)
-			return (nvram);
+		bhnd_nvram_src_t src;
+
+		/* Query the NVRAM source and determine whether it's
+		 * accessible via the ChipCommon device */
+		src = BHND_CHIPC_NVRAM_SRC(chipc);
+		if (BHND_NVRAM_SRC_CC(src))
+			return (chipc);
 	}
 
 	/* Not found */
@@ -413,29 +417,33 @@ find_nvram_child(device_t dev)
 }
 
 /**
- * Helper function for implementing BHND_BUS_READ_NVRAM_VAR().
+ * Default bhnd(4) bus driver implementation of BHND_BUS_GET_NVRAM_VAR().
  * 
- * This implementation searches @p dev for a valid NVRAM device. If no NVRAM
- * child device is found on @p dev, the request is delegated to the
- * BHND_BUS_READ_NVRAM_VAR() method on the parent
- * of @p dev.
+ * This implementation searches @p dev for a usable NVRAM child device:
+ * - The first child device implementing the bhnd_nvram devclass is
+ *   returned, otherwise
+ * - If @p dev is a bhnd(4) bus, a ChipCommon core that advertises an
+ *   attached NVRAM source.
+ * 
+ * If no usable child device is found on @p dev, the request is delegated to
+ * the BHND_BUS_GET_NVRAM_VAR() method on the parent of @p dev.
  */
-int
-bhnd_generic_read_nvram_var(device_t dev, device_t child, const char *name,
+static int
+bhnd_generic_get_nvram_var(device_t dev, device_t child, const char *name,
     void *buf, size_t *size)
 {
 	device_t nvram;
 
 	/* Try to find an NVRAM device applicable to @p child */
 	if ((nvram = find_nvram_child(dev)) == NULL)
-		return (BHND_BUS_READ_NVRAM_VAR(device_get_parent(dev), child,
+		return (BHND_BUS_GET_NVRAM_VAR(device_get_parent(dev), child,
 		    name, buf, size));
 
 	return BHND_NVRAM_GETVAR(nvram, name, buf, size);
 }
 
 /**
- * Helper function for implementing BUS_PRINT_CHILD().
+ * Default bhnd(4) bus driver implementation of BUS_PRINT_CHILD().
  * 
  * This implementation requests the device's struct resource_list via
  * BUS_GET_RESOURCE_LIST.
@@ -451,7 +459,7 @@ bhnd_generic_print_child(device_t dev, device_t child)
 	rl = BUS_GET_RESOURCE_LIST(dev, child);
 	if (rl != NULL) {
 		retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY,
-		    "%#lx");
+		    "%#jx");
 	}
 
 	retval += printf(" at core %u", bhnd_get_core_index(child));
@@ -463,7 +471,7 @@ bhnd_generic_print_child(device_t dev, device_t child)
 }
 
 /**
- * Helper function for implementing BUS_PRINT_CHILD().
+ * Default bhnd(4) bus driver implementation of BUS_PROBE_NOMATCH().
  * 
  * This implementation requests the device's struct resource_list via
  * BUS_GET_RESOURCE_LIST.
@@ -499,7 +507,7 @@ bhnd_generic_probe_nomatch(device_t dev, device_t child)
 
 	rl = BUS_GET_RESOURCE_LIST(dev, child);
 	if (rl != NULL)
-		resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
+		resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
 
 	printf(" at core %u (no driver attached)\n",
 	    bhnd_get_core_index(child));
@@ -525,7 +533,7 @@ bhnd_child_pnpinfo_str(device_t dev, device_t child, char *buf,
 }
 
 /**
- * Default implementation of implementing BUS_PRINT_CHILD().
+ * Default implementation of BUS_CHILD_LOCATION_STR().
  */
 static int
 bhnd_child_location_str(device_t dev, device_t child, char *buf,
@@ -585,262 +593,58 @@ bhnd_generic_resume_child(device_t dev, device_t child)
 	return bus_generic_resume_child(dev, child);
 }
 
-/**
- * Helper function for implementing BHND_BUS_IS_HOSTB_DEVICE().
- * 
- * If a parent device is available, this implementation delegates the
- * request to the BHND_BUS_IS_HOSTB_DEVICE() method on the parent of @p dev.
- * 
- * If no parent device is available (i.e. on a the bus root), false
- * is returned.
- */
-bool
-bhnd_generic_is_hostb_device(device_t dev, device_t child) {
-	if (device_get_parent(dev) != NULL)
-		return (BHND_BUS_IS_HOSTB_DEVICE(device_get_parent(dev),
-		    child));
-
-	return (false);
-}
-
-/**
- * Helper function for implementing BHND_BUS_IS_HW_DISABLED().
- * 
- * If a parent device is available, this implementation delegates the
- * request to the BHND_BUS_IS_HW_DISABLED() method on the parent of @p dev.
- * 
- * If no parent device is available (i.e. on a the bus root), the hardware
- * is assumed to be usable and false is returned.
- */
-bool
-bhnd_generic_is_hw_disabled(device_t dev, device_t child)
-{
-	if (device_get_parent(dev) != NULL)
-		return (BHND_BUS_IS_HW_DISABLED(device_get_parent(dev), child));
-
-	return (false);
-}
-
-/**
- * Helper function for implementing BHND_BUS_GET_CHIPID().
- * 
- * This implementation delegates the request to the BHND_BUS_GET_CHIPID()
- * method on the parent of @p dev.
- */
-const struct bhnd_chipid *
-bhnd_generic_get_chipid(device_t dev, device_t child) {
-	return (BHND_BUS_GET_CHIPID(device_get_parent(dev), child));
-}
-
-/**
- * Helper function for implementing BHND_BUS_ALLOC_RESOURCE().
- * 
- * This simple implementation of BHND_BUS_ALLOC_RESOURCE() determines
- * any default values via BUS_GET_RESOURCE_LIST(), and calls
- * BHND_BUS_ALLOC_RESOURCE() method of the parent of @p dev.
- * 
- * If no parent device is available, the request is instead delegated to
- * BUS_ALLOC_RESOURCE().
- */
-struct bhnd_resource *
-bhnd_generic_alloc_bhnd_resource(device_t dev, device_t child, int type,
-	int *rid, rman_res_t start, rman_res_t end, rman_res_t count,
-	u_int flags)
-{
-	struct bhnd_resource		*r;
-	struct resource_list		*rl;
-	struct resource_list_entry	*rle;
-	bool				 isdefault;
-	bool				 passthrough;
-
-	passthrough = (device_get_parent(child) != dev);
-	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
-
-	/* the default RID must always be the first device port/region. */
-	if (!passthrough && *rid == 0) {
-		int rid0 = bhnd_get_port_rid(child, BHND_PORT_DEVICE, 0, 0);
-		KASSERT(*rid == rid0,
-		    ("rid 0 does not map to the first device port (%d)", rid0));
-	}
-
-	/* Determine locally-known defaults before delegating the request. */
-	if (!passthrough && isdefault) {
-		/* fetch resource list from child's bus */
-		rl = BUS_GET_RESOURCE_LIST(dev, child);
-		if (rl == NULL)
-			return (NULL); /* no resource list */
-
-		/* look for matching type/rid pair */
-		rle = resource_list_find(BUS_GET_RESOURCE_LIST(dev, child),
-		    type, *rid);
-		if (rle == NULL)
-			return (NULL);
-
-		/* set default values */
-		start = rle->start;
-		end = rle->end;
-		count = ulmax(count, rle->count);
-	}
-
-	/* Try to delegate to our parent. */
-	if (device_get_parent(dev) != NULL) {
-		return (BHND_BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-		    type, rid, start, end, count, flags));
-	}
-
-	/* If this is the bus root, use a real bus-allocated resource */
-	r = malloc(sizeof(struct bhnd_resource), M_BHND, M_NOWAIT);
-	if (r == NULL)
-		return NULL;
-
-	/* Allocate the bus resource, marking it as 'direct' (not requiring
-	 * any bus window remapping to perform I/O) */
-	r->direct = true;
-	r->res = BUS_ALLOC_RESOURCE(dev, child, type, rid, start, end,
-	    count, flags);
-
-	if (r->res == NULL) {
-		free(r, M_BHND);
-		return NULL;
-	}
-
-	return (r);
-}
-
-/**
- * Helper function for implementing BHND_BUS_RELEASE_RESOURCE().
- * 
- * This simple implementation of BHND_BUS_RELEASE_RESOURCE() simply calls the
- * BHND_BUS_RELEASE_RESOURCE() method of the parent of @p dev.
- * 
- * If no parent device is available, the request is delegated to
- * BUS_RELEASE_RESOURCE().
- */
-int
-bhnd_generic_release_bhnd_resource(device_t dev, device_t child, int type,
-    int rid, struct bhnd_resource *r)
-{
-	int error;
-
-	/* Try to delegate to the parent. */
-	if (device_get_parent(dev) != NULL)
-		return (BHND_BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
-		    type, rid, r));
-
-	/* Release the resource directly */
-	if (!r->direct) {
-		panic("bhnd indirect resource released without "
-		    "bhnd parent bus");
-	}
-
-	error = BUS_RELEASE_RESOURCE(dev, child, type, rid, r->res);
-	if (error)
-		return (error);
-
-	free(r, M_BHND);
-	return (0);
-}
-
-/**
- * Helper function for implementing BHND_BUS_ACTIVATE_RESOURCE().
- * 
- * This simple implementation of BHND_BUS_ACTIVATE_RESOURCE() simply calls the
- * BHND_BUS_ACTIVATE_RESOURCE() method of the parent of @p dev.
- * 
- * If no parent device is available, the request is delegated to
- * BUS_ACTIVATE_RESOURCE().
- */
-int
-bhnd_generic_activate_bhnd_resource(device_t dev, device_t child, int type,
-	int rid, struct bhnd_resource *r)
-{
-	/* Try to delegate to the parent */
-	if (device_get_parent(dev) != NULL)
-		return (BHND_BUS_ACTIVATE_RESOURCE(device_get_parent(dev),
-		    child, type, rid, r));
-
-	/* Activate the resource directly */
-	if (!r->direct) {
-		panic("bhnd indirect resource released without "
-		    "bhnd parent bus");
-	}
-
-	return (BUS_ACTIVATE_RESOURCE(dev, child, type, rid, r->res));
-};
-
-/**
- * Helper function for implementing BHND_BUS_DEACTIVATE_RESOURCE().
- * 
- * This simple implementation of BHND_BUS_ACTIVATE_RESOURCE() simply calls the
- * BHND_BUS_ACTIVATE_RESOURCE() method of the parent of @p dev.
- * 
- * If no parent device is available, the request is delegated to
- * BUS_DEACTIVATE_RESOURCE().
- */
-int
-bhnd_generic_deactivate_bhnd_resource(device_t dev, device_t child, int type,
-	int rid, struct bhnd_resource *r)
-{
-	if (device_get_parent(dev) != NULL)
-		return (BHND_BUS_DEACTIVATE_RESOURCE(device_get_parent(dev),
-		    child, type, rid, r));
-
-	/* De-activate the resource directly */
-	if (!r->direct) {
-		panic("bhnd indirect resource released without "
-		    "bhnd parent bus");
-	}
-
-	return (BUS_DEACTIVATE_RESOURCE(dev, child, type, rid, r->res));
-};
-
 /*
  * Delegate all indirect I/O to the parent device. When inherited by
  * non-bridged bus implementations, resources will never be marked as
  * indirect, and these methods should never be called.
  */
-
-static uint8_t
-bhnd_read_1(device_t dev, device_t child, struct bhnd_resource *r,
-    bus_size_t offset)
-{
-	return (BHND_BUS_READ_1(device_get_parent(dev), child, r, offset));
+#define	BHND_IO_READ(_type, _name, _method)			\
+static _type							\
+bhnd_read_ ## _name (device_t dev, device_t child,		\
+    struct bhnd_resource *r, bus_size_t offset)			\
+{								\
+	return (BHND_BUS_READ_ ## _method(			\
+		    device_get_parent(dev), child, r, offset));	\
 }
 
-static uint16_t 
-bhnd_read_2(device_t dev, device_t child, struct bhnd_resource *r,
-    bus_size_t offset)
-{
-	return (BHND_BUS_READ_2(device_get_parent(dev), child, r, offset));
+#define	BHND_IO_WRITE(_type, _name, _method)			\
+static void							\
+bhnd_write_ ## _name (device_t dev, device_t child,		\
+    struct bhnd_resource *r, bus_size_t offset, _type value)	\
+{								\
+	return (BHND_BUS_WRITE_ ## _method(			\
+		    device_get_parent(dev), child, r, offset,	\
+		    value));	\
 }
 
-static uint32_t 
-bhnd_read_4(device_t dev, device_t child, struct bhnd_resource *r,
-    bus_size_t offset)
-{
-	return (BHND_BUS_READ_4(device_get_parent(dev), child, r, offset));
+#define	BHND_IO_MULTI(_type, _rw, _name, _method)			\
+static void								\
+bhnd_ ## _rw ## _multi_ ## _name (device_t dev, device_t child,	\
+    struct bhnd_resource *r, bus_size_t offset, _type *datap,		\
+    bus_size_t count)							\
+{									\
+	BHND_BUS_ ## _method(device_get_parent(dev), child, r,		\
+	    offset, datap, count);					\
 }
 
-static void
-bhnd_write_1(device_t dev, device_t child, struct bhnd_resource *r,
-    bus_size_t offset, uint8_t value)
-{
-	BHND_BUS_WRITE_1(device_get_parent(dev), child, r, offset, value);
-}
+#define	BHND_IO_METHODS(_type, _size)					\
+	BHND_IO_READ(_type, _size, _size)				\
+	BHND_IO_WRITE(_type, _size, _size)				\
+									\
+	BHND_IO_READ(_type, stream_ ## _size, STREAM_ ## _size)		\
+	BHND_IO_WRITE(_type, stream_ ## _size, STREAM_ ## _size)	\
+									\
+	BHND_IO_MULTI(_type, read, _size, READ_MULTI_ ## _size)		\
+	BHND_IO_MULTI(_type, write, _size, WRITE_MULTI_ ## _size)	\
+									\
+	BHND_IO_MULTI(_type, read, stream_ ## _size,			\
+	   READ_MULTI_STREAM_ ## _size)					\
+	BHND_IO_MULTI(_type, write, stream_ ## _size,			\
+	   WRITE_MULTI_STREAM_ ## _size)				\
 
-static void
-bhnd_write_2(device_t dev, device_t child, struct bhnd_resource *r,
-    bus_size_t offset, uint16_t value)
-{
-	BHND_BUS_WRITE_2(device_get_parent(dev), child, r, offset, value);
-}
-
-static void 
-bhnd_write_4(device_t dev, device_t child, struct bhnd_resource *r,
-    bus_size_t offset, uint32_t value)
-{
-	BHND_BUS_WRITE_4(device_get_parent(dev), child, r, offset, value);
-}
+BHND_IO_METHODS(uint8_t, 1);
+BHND_IO_METHODS(uint16_t, 2);
+BHND_IO_METHODS(uint32_t, 4);
 
 static void 
 bhnd_barrier(device_t dev, device_t child, struct bhnd_resource *r,
@@ -885,18 +689,38 @@ static device_method_t bhnd_methods[] = {
 	DEVMETHOD(bus_get_dma_tag,		bus_generic_get_dma_tag),
 
 	/* BHND interface */
-	DEVMETHOD(bhnd_bus_alloc_resource,	bhnd_generic_alloc_bhnd_resource),
-	DEVMETHOD(bhnd_bus_release_resource,	bhnd_generic_release_bhnd_resource),
-	DEVMETHOD(bhnd_bus_activate_resource,	bhnd_generic_activate_bhnd_resource),
-	DEVMETHOD(bhnd_bus_activate_resource,	bhnd_generic_deactivate_bhnd_resource),
-	DEVMETHOD(bhnd_bus_get_chipid,		bhnd_generic_get_chipid),
+	DEVMETHOD(bhnd_bus_get_chipid,		bhnd_bus_generic_get_chipid),
 	DEVMETHOD(bhnd_bus_get_probe_order,	bhnd_generic_get_probe_order),
+	DEVMETHOD(bhnd_bus_is_region_valid,	bhnd_generic_is_region_valid),
+	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhnd_bus_generic_is_hw_disabled),
+	DEVMETHOD(bhnd_bus_get_nvram_var,	bhnd_generic_get_nvram_var),
 	DEVMETHOD(bhnd_bus_read_1,		bhnd_read_1),
 	DEVMETHOD(bhnd_bus_read_2,		bhnd_read_2),
 	DEVMETHOD(bhnd_bus_read_4,		bhnd_read_4),
 	DEVMETHOD(bhnd_bus_write_1,		bhnd_write_1),
 	DEVMETHOD(bhnd_bus_write_2,		bhnd_write_2),
 	DEVMETHOD(bhnd_bus_write_4,		bhnd_write_4),
+	DEVMETHOD(bhnd_bus_read_stream_1,	bhnd_read_stream_1),
+	DEVMETHOD(bhnd_bus_read_stream_2,	bhnd_read_stream_2),
+	DEVMETHOD(bhnd_bus_read_stream_4,	bhnd_read_stream_4),
+	DEVMETHOD(bhnd_bus_write_stream_1,	bhnd_write_stream_1),
+	DEVMETHOD(bhnd_bus_write_stream_2,	bhnd_write_stream_2),
+	DEVMETHOD(bhnd_bus_write_stream_4,	bhnd_write_stream_4),
+
+	DEVMETHOD(bhnd_bus_read_multi_1,	bhnd_read_multi_1),
+	DEVMETHOD(bhnd_bus_read_multi_2,	bhnd_read_multi_2),
+	DEVMETHOD(bhnd_bus_read_multi_4,	bhnd_read_multi_4),
+	DEVMETHOD(bhnd_bus_write_multi_1,	bhnd_write_multi_1),
+	DEVMETHOD(bhnd_bus_write_multi_2,	bhnd_write_multi_2),
+	DEVMETHOD(bhnd_bus_write_multi_4,	bhnd_write_multi_4),
+	
+	DEVMETHOD(bhnd_bus_read_multi_stream_1,	bhnd_read_multi_stream_1),
+	DEVMETHOD(bhnd_bus_read_multi_stream_2,	bhnd_read_multi_stream_2),
+	DEVMETHOD(bhnd_bus_read_multi_stream_4,	bhnd_read_multi_stream_4),
+	DEVMETHOD(bhnd_bus_write_multi_stream_1,bhnd_write_multi_stream_1),
+	DEVMETHOD(bhnd_bus_write_multi_stream_2,bhnd_write_multi_stream_2),
+	DEVMETHOD(bhnd_bus_write_multi_stream_4,bhnd_write_multi_stream_4),
+
 	DEVMETHOD(bhnd_bus_barrier,		bhnd_barrier),
 
 	DEVMETHOD_END

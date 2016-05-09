@@ -56,8 +56,6 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_regs_values.h"
 
 extern int fl_pad;	/* XXXNM */
-extern int spg_len;	/* XXXNM */
-extern int fl_pktshift;	/* XXXNM */
 
 SYSCTL_NODE(_hw, OID_AUTO, cxgbe, CTLFLAG_RD, 0, "cxgbe netmap parameters");
 
@@ -285,6 +283,7 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 	int rc, cntxt_id, i;
 	__be32 v;
 	struct adapter *sc = vi->pi->adapter;
+	struct sge_params *sp = &sc->params.sge;
 	struct netmap_adapter *na = NA(vi->ifp);
 	struct fw_iq_cmd c;
 
@@ -293,7 +292,7 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 	MPASS(nm_rxq->fl_desc != NULL);
 
 	bzero(nm_rxq->iq_desc, vi->qsize_rxq * IQ_ESIZE);
-	bzero(nm_rxq->fl_desc, na->num_rx_desc * EQ_ESIZE + spg_len);
+	bzero(nm_rxq->fl_desc, na->num_rx_desc * EQ_ESIZE + sp->spg_len);
 
 	bzero(&c, sizeof(c));
 	c.op_to_vfn = htobe32(V_FW_CMD_OP(FW_IQ_CMD) | F_FW_CMD_REQUEST |
@@ -334,7 +333,7 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 	c.fl0dcaen_to_fl0cidxfthresh =
 	    htobe16(V_FW_IQ_CMD_FL0FBMIN(X_FETCHBURSTMIN_128B) |
 		V_FW_IQ_CMD_FL0FBMAX(X_FETCHBURSTMAX_512B));
-	c.fl0size = htobe16(na->num_rx_desc / 8 + spg_len / EQ_ESIZE);
+	c.fl0size = htobe16(na->num_rx_desc / 8 + sp->spg_len / EQ_ESIZE);
 	c.fl0addr = htobe64(nm_rxq->fl_ba);
 
 	rc = -t4_wr_mbox(sc, sc->mbox, &c, sizeof(c), &c);
@@ -345,7 +344,7 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 	}
 
 	nm_rxq->iq_cidx = 0;
-	MPASS(nm_rxq->iq_sidx == vi->qsize_rxq - spg_len / IQ_ESIZE);
+	MPASS(nm_rxq->iq_sidx == vi->qsize_rxq - sp->spg_len / IQ_ESIZE);
 	nm_rxq->iq_gen = F_RSPD_GEN;
 	nm_rxq->iq_cntxt_id = be16toh(c.iqid);
 	nm_rxq->iq_abs_id = be16toh(c.physiqid);
@@ -366,9 +365,8 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 	}
 	sc->sge.eqmap[cntxt_id] = (void *)nm_rxq;
 
-	nm_rxq->fl_db_val = F_DBPRIO | V_QID(nm_rxq->fl_cntxt_id) | V_PIDX(0);
-	if (is_t5(sc))
-		nm_rxq->fl_db_val |= F_DBTYPE;
+	nm_rxq->fl_db_val = V_QID(nm_rxq->fl_cntxt_id) |
+	    sc->chip_params->sge_fl_db;
 
 	if (is_t5(sc) && cong >= 0) {
 		uint32_t param, val;
@@ -431,7 +429,7 @@ alloc_nm_txq_hwq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
 	MPASS(na != NULL);
 	MPASS(nm_txq->desc != NULL);
 
-	len = na->num_tx_desc * EQ_ESIZE + spg_len;
+	len = na->num_tx_desc * EQ_ESIZE + sc->params.sge.spg_len;
 	bzero(nm_txq->desc, len);
 
 	bzero(&c, sizeof(c));
@@ -473,7 +471,7 @@ alloc_nm_txq_hwq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
 	if (isset(&nm_txq->doorbells, DOORBELL_UDB) ||
 	    isset(&nm_txq->doorbells, DOORBELL_UDBWC) ||
 	    isset(&nm_txq->doorbells, DOORBELL_WCWR)) {
-		uint32_t s_qpp = sc->sge.eq_s_qpp;
+		uint32_t s_qpp = sc->params.sge.eq_s_qpp;
 		uint32_t mask = (1 << s_qpp) - 1;
 		volatile uint8_t *udb;
 
@@ -1113,7 +1111,7 @@ ncxgbe_attach(device_t dev)
 	na.na_flags = NAF_BDG_MAYSLEEP;
 
 	/* Netmap doesn't know about the space reserved for the status page. */
-	na.num_tx_desc = vi->qsize_txq - spg_len / EQ_ESIZE;
+	na.num_tx_desc = vi->qsize_txq - sc->params.sge.spg_len / EQ_ESIZE;
 
 	/*
 	 * The freelist's cidx/pidx drives netmap's rx cidx/pidx.  So
@@ -1121,7 +1119,7 @@ ncxgbe_attach(device_t dev)
 	 * freelist, and not the number of entries in the iq.  (These two are
 	 * not exactly the same due to the space taken up by the status page).
 	 */
-	na.num_rx_desc = (vi->qsize_rxq / 8) * 8;
+	na.num_rx_desc = rounddown(vi->qsize_rxq, 8);
 	na.nm_txsync = cxgbe_netmap_txsync;
 	na.nm_rxsync = cxgbe_netmap_rxsync;
 	na.nm_register = cxgbe_netmap_reg;
@@ -1221,7 +1219,8 @@ t4_nm_intr(void *arg)
 				    (const void *)&d->cpl[0]);
 				break;
 			case CPL_RX_PKT:
-				ring->slot[fl_cidx].len = G_RSPD_LEN(lq) - fl_pktshift;
+				ring->slot[fl_cidx].len = G_RSPD_LEN(lq) -
+				    sc->params.sge.fl_pktshift;
 				ring->slot[fl_cidx].flags = kring->nkr_slot_flags;
 				fl_cidx += (lq & F_RSPD_NEWBUF) ? 1 : 0;
 				fl_credits += (lq & F_RSPD_NEWBUF) ? 1 : 0;

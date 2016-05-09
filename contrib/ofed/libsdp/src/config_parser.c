@@ -88,7 +88,8 @@
      FILENAME = 269,
      NAME = 270,
      LEVEL = 271,
-     LINE = 272
+     LINE = 272,
+     SUBNET = 273
    };
 #endif
 /* Tokens.  */
@@ -107,6 +108,7 @@
 #define NAME 270
 #define LEVEL 271
 #define LINE 272
+#define SUBNET 273
 
 
 
@@ -147,16 +149,49 @@ int __sdp_config_empty(
            (__sdp_servers_family_rules_head == NULL) );
 }
 
-/* define the address by 4 integers */
-static void __sdp_set_ipv4_addr(short a0, short a1, short a2, short a3)
+static void __sdp_set_ip_addr(char *addr)
 {
-  char buf[16];
-  sprintf(buf,"%d.%d.%d.%d", a0, a1, a2, a3);
-  if (!inet_aton(buf, &( __sdp_rule.ipv4 )))
-  {
-    parse_err = 1;
-    yyerror("provided address is not legal");
-  }
+	int rc;
+	char *addrlen;
+	struct sockaddr_in *addr4 = (struct sockaddr_in *)(&__sdp_rule.ip);
+	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)(&__sdp_rule.ip);
+    	int prefixlen = 0;
+
+	addrlen = strrchr(addr, '/');
+	if (addrlen) {
+    		prefixlen = atoi(addrlen + 1);
+		*addrlen = '\0';
+	}
+
+	rc = inet_pton(AF_INET, addr, &addr4->sin_addr);
+	if (rc > 0) {
+		addr4->sin_family = AF_INET;
+		__sdp_rule.prefixlen = prefixlen ?: 32;
+		return;
+	}
+
+	rc = inet_pton(AF_INET6, addr, &addr6->sin6_addr);
+	if (rc > 0) {
+		addr6->sin6_family = AF_INET6;
+		__sdp_rule.prefixlen = prefixlen ?: 128;
+		return;
+	}
+
+    	parse_err = 1;
+    	yyerror("provided address is not legal");
+}
+
+static const char *addr2str(struct sockaddr_storage *src)
+{
+	static char dst[INET6_ADDRSTRLEN];
+	int af = src->ss_family;
+	const struct sockaddr_in *addr4 = (const struct sockaddr_in *)src;
+	const struct sockaddr_in6 *addr6 = (const struct sockaddr_in6 *)src;
+
+	if (af == AF_INET6)
+		return inet_ntop(af, &addr6->sin6_addr, dst, INET6_ADDRSTRLEN);
+
+	return inet_ntop(af, &addr4->sin_addr, dst, INET6_ADDRSTRLEN);
 }
 
 static void __sdp_set_prog_name_expr(char *prog_name_expr)
@@ -184,11 +219,8 @@ static void  __sdp_dump_config_state() {
           __sdp_get_role_str( current_role ),
           __sdp_rule.prog_name_expr);
   if (__sdp_rule.match_by_addr) {
-    if ( __sdp_rule.prefixlen != 32 )
       sprintf(buf+strlen(buf), " %s/%d", 
-              inet_ntoa( __sdp_rule.ipv4 ), __sdp_rule.prefixlen);
-    else
-      sprintf(buf+strlen(buf), " %s", inet_ntoa( __sdp_rule.ipv4 ));
+              addr2str(&__sdp_rule.ip), __sdp_rule.prefixlen);
   } else {
     sprintf(buf+strlen(buf), " *");
   }
@@ -260,13 +292,13 @@ static void __sdp_add_rule() {
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 167 "./config_parser.y"
+#line 197 "./config_parser.y"
 {
   int        ival;
   char      *sval;
 }
 /* Line 193 of yacc.c.  */
-#line 270 "y.tab.c"
+#line 302 "y.tab.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -276,13 +308,13 @@ typedef union YYSTYPE
 
 
 /* Copy the second part of user declarations.  */
-#line 192 "./config_parser.y"
+#line 223 "./config_parser.y"
 
   long __sdp_config_line_num;
 
 
 /* Line 216 of yacc.c.  */
-#line 286 "y.tab.c"
+#line 318 "y.tab.c"
 
 #ifdef short
 # undef short
@@ -497,20 +529,20 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  7
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   36
+#define YYLAST   31
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  23
+#define YYNTOKENS  22
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  17
+#define YYNNTS  16
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  33
+#define YYNRULES  31
 /* YYNRULES -- Number of states.  */
-#define YYNSTATES  53
+#define YYNSTATES  44
 
 /* YYTRANSLATE(YYLEX) -- Bison symbol number corresponding to YYLEX.  */
 #define YYUNDEFTOK  2
-#define YYMAXUTOK   272
+#define YYMAXUTOK   273
 
 #define YYTRANSLATE(YYX)						\
   ((unsigned int) (YYX) <= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
@@ -522,8 +554,8 @@ static const yytype_uint8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,    19,     2,     2,    22,    21,    20,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,    18,     2,
+       2,     2,    20,     2,     2,    21,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,    19,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -545,7 +577,7 @@ static const yytype_uint8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     1,     2,     3,     4,
        5,     6,     7,     8,     9,    10,    11,    12,    13,    14,
-      15,    16,    17
+      15,    16,    17,    18
 };
 
 #if YYDEBUG
@@ -555,32 +587,31 @@ static const yytype_uint8 yyprhs[] =
 {
        0,     0,     3,     5,     8,     9,    11,    14,    15,    18,
       20,    22,    26,    27,    30,    33,    36,    39,    43,    46,
-      55,    57,    59,    61,    63,    65,    67,    69,    71,    75,
-      77,    85,    87,    91
+      55,    57,    59,    61,    63,    65,    67,    69,    71,    73,
+      75,    79
 };
 
 /* YYRHS -- A `-1'-separated list of the rules' RHS.  */
 static const yytype_int8 yyrhs[] =
 {
-      26,     0,    -1,    17,    -1,    24,    17,    -1,    -1,    24,
-      -1,    25,    27,    -1,    -1,    27,    28,    -1,    29,    -1,
-      33,    -1,    10,    30,    24,    -1,    -1,    30,    31,    -1,
-      30,    32,    -1,    11,    12,    -1,    11,    13,    -1,    11,
-      14,    15,    -1,    16,     9,    -1,     3,    34,    35,    36,
-      37,    18,    39,    24,    -1,     6,    -1,     7,    -1,     8,
-      -1,     5,    -1,     4,    -1,    15,    -1,    19,    -1,    38,
-      -1,    38,    20,     9,    -1,    19,    -1,     9,    21,     9,
-      21,     9,    21,     9,    -1,     9,    -1,     9,    22,     9,
-      -1,    19,    -1
+      25,     0,    -1,    17,    -1,    23,    17,    -1,    -1,    23,
+      -1,    24,    26,    -1,    -1,    26,    27,    -1,    28,    -1,
+      32,    -1,    10,    29,    23,    -1,    -1,    29,    30,    -1,
+      29,    31,    -1,    11,    12,    -1,    11,    13,    -1,    11,
+      14,    15,    -1,    16,     9,    -1,     3,    33,    34,    35,
+      36,    19,    37,    23,    -1,     6,    -1,     7,    -1,     8,
+      -1,     5,    -1,     4,    -1,    15,    -1,    20,    -1,    18,
+      -1,    20,    -1,     9,    -1,     9,    21,     9,    -1,    20,
+      -1
 };
 
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   198,   198,   199,   201,   202,   205,   208,   209,   213,
-     214,   218,   221,   222,   223,   227,   228,   229,   233,   237,
-     241,   242,   243,   247,   248,   252,   253,   257,   258,   259,
-     263,   267,   268,   269
+       0,   229,   229,   230,   232,   233,   236,   239,   240,   244,
+     245,   249,   252,   253,   254,   258,   259,   260,   264,   268,
+     272,   273,   274,   278,   279,   283,   284,   288,   289,   293,
+     294,   295
 };
 #endif
 
@@ -593,10 +624,10 @@ static const char *const yytname[] =
   "\"server or listen\"", "\"tcp\"", "\"sdp\"", "\"both\"",
   "\"integer value\"", "\"log statement\"", "\"destination\"",
   "\"stderr\"", "\"syslog\"", "\"file\"", "\"a name\"", "\"min-level\"",
-  "\"new line\"", "':'", "'*'", "'/'", "'.'", "'-'", "$accept", "NL",
+  "\"new line\"", "\"ip address\"", "':'", "'*'", "'-'", "$accept", "NL",
   "ONL", "config", "statements", "statement", "log_statement", "log_opts",
   "log_dest", "verbosity", "socket_statement", "family", "role", "program",
-  "address", "ipv4", "ports", 0
+  "address", "ports", 0
 };
 #endif
 
@@ -606,18 +637,18 @@ static const char *const yytname[] =
 static const yytype_uint16 yytoknum[] =
 {
        0,   256,   257,   258,   259,   260,   261,   262,   263,   264,
-     265,   266,   267,   268,   269,   270,   271,   272,    58,    42,
-      47,    46,    45
+     265,   266,   267,   268,   269,   270,   271,   272,   273,    58,
+      42,    45
 };
 # endif
 
 /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_uint8 yyr1[] =
 {
-       0,    23,    24,    24,    25,    25,    26,    27,    27,    28,
-      28,    29,    30,    30,    30,    31,    31,    31,    32,    33,
-      34,    34,    34,    35,    35,    36,    36,    37,    37,    37,
-      38,    39,    39,    39
+       0,    22,    23,    23,    24,    24,    25,    26,    26,    27,
+      27,    28,    29,    29,    29,    30,    30,    30,    31,    32,
+      33,    33,    33,    34,    34,    35,    35,    36,    36,    37,
+      37,    37
 };
 
 /* YYR2[YYN] -- Number of symbols composing right hand side of rule YYN.  */
@@ -625,8 +656,8 @@ static const yytype_uint8 yyr2[] =
 {
        0,     2,     1,     2,     0,     1,     2,     0,     2,     1,
        1,     3,     0,     2,     2,     2,     2,     3,     2,     8,
-       1,     1,     1,     1,     1,     1,     1,     1,     3,     1,
-       7,     1,     3,     1
+       1,     1,     1,     1,     1,     1,     1,     1,     1,     1,
+       3,     1
 };
 
 /* YYDEFACT[STATE-NAME] -- Default rule to reduce with in state
@@ -637,16 +668,15 @@ static const yytype_uint8 yydefact[] =
        4,     2,     5,     7,     0,     3,     6,     1,     0,    12,
        8,     9,    10,    20,    21,    22,     0,     0,    24,    23,
        0,     0,     0,    11,    13,    14,    25,    26,     0,    15,
-      16,     0,    18,     0,    29,     0,    27,    17,     0,     0,
-       0,     0,    31,    33,     0,    28,     0,     0,    19,     0,
-      32,     0,    30
+      16,     0,    18,    27,    28,     0,    17,     0,    29,    31,
+       0,     0,    19,    30
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
       -1,     2,     3,     4,     6,    10,    11,    17,    24,    25,
-      12,    16,    20,    28,    35,    36,    44
+      12,    16,    20,    28,    35,    40
 };
 
 /* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
@@ -654,19 +684,18 @@ static const yytype_int8 yydefgoto[] =
 #define YYPACT_NINF -18
 static const yytype_int8 yypact[] =
 {
-     -13,   -18,     4,   -18,    22,   -18,     0,   -18,     9,   -18,
-     -18,   -18,   -18,   -18,   -18,   -18,     2,    -3,   -18,   -18,
-     -10,     6,    14,     4,   -18,   -18,   -18,   -18,    -8,   -18,
-     -18,    10,   -18,     3,   -18,     8,    11,   -18,    19,    -7,
-      20,    12,    13,   -18,   -13,   -18,    21,    23,     4,    15,
-     -18,    25,   -18
+     -10,   -18,     5,   -18,    21,   -18,    -1,   -18,     7,   -18,
+     -18,   -18,   -18,   -18,   -18,   -18,    15,    -6,   -18,   -18,
+     -12,     4,    16,     5,   -18,   -18,   -18,   -18,   -14,   -18,
+     -18,     9,   -18,   -18,   -18,     8,   -18,    -8,    10,   -18,
+     -10,    17,     5,   -18
 };
 
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
      -18,   -17,   -18,   -18,   -18,   -18,   -18,   -18,   -18,   -18,
-     -18,   -18,   -18,   -18,   -18,   -18,   -18
+     -18,   -18,   -18,   -18,   -18,   -18
 };
 
 /* YYTABLE[YYPACT[STATE-NUM]].  What to do in state STATE-NUM.  If
@@ -676,30 +705,29 @@ static const yytype_int8 yypgoto[] =
 #define YYTABLE_NINF -1
 static const yytype_uint8 yytable[] =
 {
-      23,    33,    42,     8,     1,    26,    18,    19,    21,    27,
-       9,    34,    43,    22,     1,    13,    14,    15,    29,    30,
-      31,     5,     7,    32,    38,    37,    39,    48,    41,    45,
-      49,    40,    50,    46,    52,    47,    51
+      23,    38,     8,    26,    33,    21,    34,     1,    27,     9,
+      22,     1,    39,    13,    14,    15,    29,    30,    31,    18,
+      19,     7,     5,    42,    36,    32,    43,    37,     0,     0,
+       0,    41
 };
 
-static const yytype_uint8 yycheck[] =
+static const yytype_int8 yycheck[] =
 {
-      17,     9,     9,     3,    17,    15,     4,     5,    11,    19,
-      10,    19,    19,    16,    17,     6,     7,     8,    12,    13,
-      14,    17,     0,     9,    21,    15,    18,    44,     9,     9,
-       9,    20,     9,    21,     9,    22,    21
+      17,     9,     3,    15,    18,    11,    20,    17,    20,    10,
+      16,    17,    20,     6,     7,     8,    12,    13,    14,     4,
+       5,     0,    17,    40,    15,     9,     9,    19,    -1,    -1,
+      -1,    21
 };
 
 /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
    symbol of state STATE-NUM.  */
 static const yytype_uint8 yystos[] =
 {
-       0,    17,    24,    25,    26,    17,    27,     0,     3,    10,
-      28,    29,    33,     6,     7,     8,    34,    30,     4,     5,
-      35,    11,    16,    24,    31,    32,    15,    19,    36,    12,
-      13,    14,     9,     9,    19,    37,    38,    15,    21,    18,
-      20,     9,     9,    19,    39,     9,    21,    22,    24,     9,
-       9,    21,     9
+       0,    17,    23,    24,    25,    17,    26,     0,     3,    10,
+      27,    28,    32,     6,     7,     8,    33,    29,     4,     5,
+      34,    11,    16,    23,    30,    31,    15,    20,    35,    12,
+      13,    14,     9,    18,    20,    36,    15,    19,     9,    20,
+      37,    21,    23,     9
 };
 
 #define yyerrok		(yyerrstatus = 0)
@@ -1514,103 +1542,93 @@ yyreduce:
   switch (yyn)
     {
         case 15:
-#line 227 "./config_parser.y"
+#line 258 "./config_parser.y"
     { __sdp_log_set_log_stderr(); }
     break;
 
   case 16:
-#line 228 "./config_parser.y"
+#line 259 "./config_parser.y"
     { __sdp_log_set_log_syslog(); }
     break;
 
   case 17:
-#line 229 "./config_parser.y"
+#line 260 "./config_parser.y"
     { __sdp_log_set_log_file((yyvsp[(3) - (3)].sval)); }
     break;
 
   case 18:
-#line 233 "./config_parser.y"
+#line 264 "./config_parser.y"
     { __sdp_log_set_min_level((yyvsp[(2) - (2)].ival)); }
     break;
 
   case 19:
-#line 237 "./config_parser.y"
+#line 268 "./config_parser.y"
     { __sdp_add_rule(); }
     break;
 
   case 20:
-#line 241 "./config_parser.y"
+#line 272 "./config_parser.y"
     { __sdp_rule.target_family = USE_TCP; }
     break;
 
   case 21:
-#line 242 "./config_parser.y"
+#line 273 "./config_parser.y"
     { __sdp_rule.target_family = USE_SDP; }
     break;
 
   case 22:
-#line 243 "./config_parser.y"
+#line 274 "./config_parser.y"
     { __sdp_rule.target_family = USE_BOTH; }
     break;
 
   case 23:
-#line 247 "./config_parser.y"
+#line 278 "./config_parser.y"
     { current_role = 1; }
     break;
 
   case 24:
-#line 248 "./config_parser.y"
+#line 279 "./config_parser.y"
     { current_role = 2; }
     break;
 
   case 25:
-#line 252 "./config_parser.y"
+#line 283 "./config_parser.y"
     { __sdp_set_prog_name_expr((yyvsp[(1) - (1)].sval)); }
     break;
 
   case 26:
-#line 253 "./config_parser.y"
+#line 284 "./config_parser.y"
     { __sdp_set_prog_name_expr("*"); }
     break;
 
   case 27:
-#line 257 "./config_parser.y"
-    { __sdp_rule.match_by_addr = 1; __sdp_rule.prefixlen = 32; }
+#line 288 "./config_parser.y"
+    { __sdp_rule.match_by_addr = 1; __sdp_set_ip_addr((yyvsp[(1) - (1)].sval)); }
     break;
 
   case 28:
-#line 258 "./config_parser.y"
-    { __sdp_rule.match_by_addr = 1; __sdp_rule.prefixlen = (yyvsp[(3) - (3)].ival); }
-    break;
-
-  case 29:
-#line 259 "./config_parser.y"
+#line 289 "./config_parser.y"
     { __sdp_rule.match_by_addr = 0; __sdp_rule.prefixlen = 32; }
     break;
 
-  case 30:
-#line 263 "./config_parser.y"
-    { __sdp_set_ipv4_addr((yyvsp[(1) - (7)].ival),(yyvsp[(3) - (7)].ival),(yyvsp[(5) - (7)].ival),(yyvsp[(7) - (7)].ival)); }
-    break;
-
-  case 31:
-#line 267 "./config_parser.y"
+  case 29:
+#line 293 "./config_parser.y"
     { __sdp_rule.match_by_port = 1; __sdp_rule.sport= (yyvsp[(1) - (1)].ival); __sdp_rule.eport= (yyvsp[(1) - (1)].ival); }
     break;
 
-  case 32:
-#line 268 "./config_parser.y"
+  case 30:
+#line 294 "./config_parser.y"
     { __sdp_rule.match_by_port = 1; __sdp_rule.sport= (yyvsp[(1) - (3)].ival); __sdp_rule.eport= (yyvsp[(3) - (3)].ival); }
     break;
 
-  case 33:
-#line 269 "./config_parser.y"
+  case 31:
+#line 295 "./config_parser.y"
     { __sdp_rule.match_by_port = 0; __sdp_rule.sport= 0 ; __sdp_rule.eport= 0; }
     break;
 
 
 /* Line 1267 of yacc.c.  */
-#line 1614 "y.tab.c"
+#line 1632 "y.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1824,7 +1842,7 @@ yyreturn:
 }
 
 
-#line 272 "./config_parser.y"
+#line 298 "./config_parser.y"
 
 
 int yyerror(char *msg)

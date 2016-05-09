@@ -22,7 +22,7 @@
 # grep '+=' /usr/src/tools/build/mk/OptionalObsoleteFiles.inc | sort -u) | \
 # sort | uniq -d
 #
-# To find regular duplicates not dependant on optional components, you can
+# To find regular duplicates not dependent on optional components, you can
 # also use something that will not give you false positives, e.g.:
 # for t in `make -V TARGETS universe`; do
 #   __MAKE_CONF=/dev/null make -f Makefile.inc1 TARGET=$t \
@@ -38,6 +38,116 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160430: kvm_getfiles(3) removed from kvm(3)
+OLD_LIBS+=usr/lib/libkvm.so.6
+OLD_FILES+=usr/share/man/man3/kvm_getfiles.3.gz
+# 20160423: remove mroute6d
+OLD_FILES+=etc/rc.d/mroute6d
+# 20160419: rename units.lib -> definitions.units
+OLD_FILES+=usr/share/misc/units.lib
+# 20160419: remove Big5HKSCS locales
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_COLLATE
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_CTYPE
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_MONETARY
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_NUMERIC
+OLD_FILES+=usr/share/locale/zh_HK.Big5HKSCS/LC_TIME
+OLD_DIRS+=usr/share/locale/zh_HK.Big5HKSCS
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_COLLATE
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_CTYPE
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_MONETARY
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_NUMERIC
+OLD_FILES+=usr/share/locale/zh_Hant_HK.Big5HKSCS/LC_TIME
+OLD_DIRS+=usr/share/locale/zh_Hant_HK.Big5HKSCS
+# 20160317: rman_res_t size bump to uintmax_t
+OLD_LIBS+=usr/lib/libdevinfo.so.5
+OLD_LIBS+=usr/lib32/libdevinfo.so.5
+# 20160305: new clang import which bumps version from 3.7.1 to 3.8.0.
+OLD_FILES+=usr/bin/macho-dump
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/allocator_interface.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/asan_interface.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/common_interface_defs.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/coverage_interface.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/dfsan_interface.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/linux_syscall_hooks.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/lsan_interface.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/msan_interface.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/tsan_interface_atomic.h
+OLD_DIRS+=usr/lib/clang/3.7.1/include/sanitizer
+OLD_FILES+=usr/lib/clang/3.7.1/include/__stddef_max_align_t.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/__wmmintrin_aes.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/__wmmintrin_pclmul.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/adxintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/altivec.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/ammintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/arm_acle.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/arm_neon.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx2intrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx512bwintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx512cdintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx512dqintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx512erintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx512fintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx512vlbwintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx512vldqintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avx512vlintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/avxintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/bmi2intrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/bmiintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/cpuid.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/cuda_builtin_vars.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/emmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/f16cintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/fma4intrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/fmaintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/fxsrintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/htmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/htmxlintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/ia32intrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/immintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/lzcntintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/mm3dnow.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/mm_malloc.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/mmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/module.modulemap
+OLD_FILES+=usr/lib/clang/3.7.1/include/nmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/pmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/popcntintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/prfchwintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/rdseedintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/rtmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/s390intrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/shaintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/smmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/tbmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/tmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/vadefs.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/vecintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/wmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/x86intrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/xmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/xopintrin.h
+OLD_FILES+=usr/lib/clang/3.7.1/include/xtestintrin.h
+OLD_DIRS+=usr/lib/clang/3.7.1/include
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.asan-i386.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.asan-preinit-i386.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.asan-preinit-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.asan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.asan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.profile-arm.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.profile-i386.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.profile-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.safestack-i386.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.safestack-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.ubsan_standalone-i386.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.ubsan_standalone-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.ubsan_standalone_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_64.a
+OLD_DIRS+=usr/lib/clang/3.7.1/lib/freebsd
+OLD_DIRS+=usr/lib/clang/3.7.1/lib
+OLD_DIRS+=usr/lib/clang/3.7.1
 # 20160301: Remove taskqueue_enqueue_fast
 OLD_FILES+=usr/share/man/man9/taskqueue_enqueue_fast.9.gz
 # 20160225: Remove casperd and libcapsicum.
@@ -59,6 +169,21 @@ OLD_FILES+=libexec/casper/grp
 OLD_FILES+=libexec/casper/pwd
 OLD_FILES+=libexec/casper/random
 OLD_FILES+=libexec/casper/sysctl
+OLD_FILES+=libexec/casper/.debug/random.debug
+OLD_FILES+=libexec/casper/.debug/dns.debug
+OLD_FILES+=libexec/casper/.debug/sysctl.debug
+OLD_FILES+=libexec/casper/.debug/pwd.debug
+OLD_FILES+=libexec/casper/.debug/grp.debug
+OLD_DIRS+=libexec/casper/.debug
+OLD_DIRS+=libexec/casper
+OLD_FILES+=usr/lib/libcapsicum.a
+OLD_FILES+=usr/lib/libcapsicum.so
+OLD_LIBS+=lib/libcapsicum.so.0
+OLD_FILES+=usr/lib/libcapsicum_p.a
+OLD_FILES+=usr/lib32/libcapsicum.a
+OLD_FILES+=usr/lib32/libcapsicum.so
+OLD_LIBS+=usr/lib32/libcapsicum.so.0
+OLD_FILES+=usr/lib32/libcapsicum_p.a
 # 20160223: functionality from mkulzma(1) merged into mkuzip(1)
 OLD_FILES+=usr/bin/mkulzma
 # 20160211: Remove obsolete unbound-control-setup
@@ -1629,7 +1754,6 @@ OLD_FILES+=usr/share/man/man4/lindev.4.gz
 # 20140425
 OLD_FILES+=usr/lib/libssp_p.a
 OLD_FILES+=usr/lib/libstand_p.a
-OLD_FILES+=usr/lib32/libc_pic.a
 OLD_FILES+=usr/lib32/libssp_p.a
 OLD_FILES+=usr/lib32/libstand_p.a
 # 20140314: AppleTalk
@@ -3649,7 +3773,7 @@ OLD_FILES+=usr/include/sys/_elf_solaris.h
 OLD_FILES+=usr/share/man/man3/pmc_x86_get_msr.3.gz
 # 20071108: Removed very crunch OLDCARD support file
 OLD_FILES+=etc/defaults/pccard.conf
-# 20071025: rc.d/nfslocking superceeded by rc.d/lockd and rc.d/statd
+# 20071025: rc.d/nfslocking superseded by rc.d/lockd and rc.d/statd
 OLD_FILES+=etc/rc.d/nfslocking
 # 20070930: rename of cached to nscd
 OLD_FILES+=etc/cached.conf
@@ -7749,22 +7873,6 @@ OLD_FILES+=usr/share/bsnmp/mibs/FOKUS-MIB.txt
 OLD_FILES+=usr/share/bsnmp/mibs/BEGEMOT-MIB.txt
 OLD_FILES+=usr/share/bsnmp/mibs/BEGEMOT-SNMPD.txt
 OLD_FILES+=usr/share/bsnmp/mibs/BEGEMOT-NETGRAPH.txt
-OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.x
-OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xbn
-OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xn
-OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xr
-OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xs
-OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xu
-OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xc
-OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xsc
-OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.x
-OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xbn
-OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xn
-OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xr
-OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xs
-OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xu
-OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xc
-OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xsc
 OLD_FILES+=usr/libdata/msdosfs/iso22dos
 OLD_FILES+=usr/libdata/msdosfs/iso72dos
 OLD_FILES+=usr/libdata/msdosfs/koi2dos

@@ -47,7 +47,7 @@ gss_encapsulate_token(const gss_buffer_t input_token, gss_OID oid,
 	 * First time around, we calculate the size, second time, we
 	 * encode the token.
 	 */
-	p = 0;
+	p = NULL;
 	for (i = 0; i < 2; i++) {
 		len = 0;
 

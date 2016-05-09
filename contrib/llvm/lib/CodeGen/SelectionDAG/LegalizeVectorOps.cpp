@@ -105,6 +105,8 @@ class VectorLegalizer {
   SDValue ExpandLoad(SDValue Op);
   SDValue ExpandStore(SDValue Op);
   SDValue ExpandFNEG(SDValue Op);
+  SDValue ExpandBITREVERSE(SDValue Op);
+  SDValue ExpandCTLZ_CTTZ_ZERO_UNDEF(SDValue Op);
 
   /// \brief Implements vector promotion.
   ///
@@ -159,7 +161,7 @@ bool VectorLegalizer::Run() {
   DAG.AssignTopologicalOrder();
   for (SelectionDAG::allnodes_iterator I = DAG.allnodes_begin(),
        E = std::prev(DAG.allnodes_end()); I != std::next(E); ++I)
-    LegalizeOp(SDValue(I, 0));
+    LegalizeOp(SDValue(&*I, 0));
 
   // Finally, it's possible the root changed.  Get the new root.
   SDValue OldRoot = DAG.getRoot();
@@ -218,9 +220,8 @@ SDValue VectorLegalizer::LegalizeOp(SDValue Op) {
             assert(Result.getValue(1).use_empty() &&
                    "There are still live users of the old chain!");
             return LegalizeOp(Lowered);
-          } else {
-            return TranslateLegalizeResults(Op, Lowered);
           }
+          return TranslateLegalizeResults(Op, Lowered);
         }
       case TargetLowering::Expand:
         Changed = true;
@@ -231,7 +232,7 @@ SDValue VectorLegalizer::LegalizeOp(SDValue Op) {
     EVT StVT = ST->getMemoryVT();
     MVT ValVT = ST->getValue().getSimpleValueType();
     if (StVT.isVector() && ST->isTruncatingStore())
-      switch (TLI.getTruncStoreAction(ValVT, StVT.getSimpleVT())) {
+      switch (TLI.getTruncStoreAction(ValVT, StVT)) {
       default: llvm_unreachable("This action is not supported yet!");
       case TargetLowering::Legal:
         return TranslateLegalizeResults(Op, Result);
@@ -244,7 +245,7 @@ SDValue VectorLegalizer::LegalizeOp(SDValue Op) {
         Changed = true;
         return LegalizeOp(ExpandStore(Op));
       }
-  } else if (Op.getOpcode() == ISD::MSCATTER)
+  } else if (Op.getOpcode() == ISD::MSCATTER || Op.getOpcode() == ISD::MSTORE)
     HasVectorValue = true;
 
   for (SDNode::value_iterator J = Node->value_begin(), E = Node->value_end();
@@ -265,6 +266,8 @@ SDValue VectorLegalizer::LegalizeOp(SDValue Op) {
   case ISD::UDIV:
   case ISD::SREM:
   case ISD::UREM:
+  case ISD::SDIVREM:
+  case ISD::UDIVREM:
   case ISD::FADD:
   case ISD::FSUB:
   case ISD::FMUL:
@@ -279,6 +282,7 @@ SDValue VectorLegalizer::LegalizeOp(SDValue Op) {
   case ISD::ROTL:
   case ISD::ROTR:
   case ISD::BSWAP:
+  case ISD::BITREVERSE:
   case ISD::CTLZ:
   case ISD::CTTZ:
   case ISD::CTLZ_ZERO_UNDEF:
@@ -298,6 +302,8 @@ SDValue VectorLegalizer::LegalizeOp(SDValue Op) {
   case ISD::FABS:
   case ISD::FMINNUM:
   case ISD::FMAXNUM:
+  case ISD::FMINNAN:
+  case ISD::FMAXNAN:
   case ISD::FCOPYSIGN:
   case ISD::FSQRT:
   case ISD::FSIN:
@@ -338,9 +344,13 @@ SDValue VectorLegalizer::LegalizeOp(SDValue Op) {
   case ISD::MSCATTER:
     QueryType = cast<MaskedScatterSDNode>(Node)->getValue().getValueType();
     break;
+  case ISD::MSTORE:
+    QueryType = cast<MaskedStoreSDNode>(Node)->getValue().getValueType();
+    break;
   }
 
   switch (TLI.getOperationAction(Node->getOpcode(), QueryType)) {
+  default: llvm_unreachable("This action is not supported yet!");
   case TargetLowering::Promote:
     Result = Promote(Op);
     Changed = true;
@@ -411,7 +421,7 @@ SDValue VectorLegalizer::Promote(SDValue Op) {
       Operands[j] = Op.getOperand(j);
   }
 
-  Op = DAG.getNode(Op.getOpcode(), dl, NVT, Operands);
+  Op = DAG.getNode(Op.getOpcode(), dl, NVT, Operands, Op.getNode()->getFlags());
   if ((VT.isFloatingPoint() && NVT.isFloatingPoint()) ||
       (VT.isVector() && VT.getVectorElementType().isFloatingPoint() &&
        NVT.isVector() && NVT.getVectorElementType().isFloatingPoint()))
@@ -708,6 +718,11 @@ SDValue VectorLegalizer::Expand(SDValue Op) {
     return ExpandFNEG(Op);
   case ISD::SETCC:
     return UnrollVSETCC(Op);
+  case ISD::BITREVERSE:
+    return ExpandBITREVERSE(Op);
+  case ISD::CTLZ_ZERO_UNDEF:
+  case ISD::CTTZ_ZERO_UNDEF:
+    return ExpandCTLZ_CTTZ_ZERO_UNDEF(Op);
   default:
     return DAG.UnrollVectorOp(Op.getNode());
   }
@@ -893,6 +908,25 @@ SDValue VectorLegalizer::ExpandBSWAP(SDValue Op) {
   return DAG.getNode(ISD::BITCAST, DL, VT, Op);
 }
 
+SDValue VectorLegalizer::ExpandBITREVERSE(SDValue Op) {
+  EVT VT = Op.getValueType();
+
+  // If we have the scalar operation, it's probably cheaper to unroll it.
+  if (TLI.isOperationLegalOrCustom(ISD::BITREVERSE, VT.getScalarType()))
+    return DAG.UnrollVectorOp(Op.getNode());
+
+  // If we have the appropriate vector bit operations, it is better to use them
+  // than unrolling and expanding each component.
+  if (!TLI.isOperationLegalOrCustom(ISD::SHL, VT) ||
+      !TLI.isOperationLegalOrCustom(ISD::SRL, VT) ||
+      !TLI.isOperationLegalOrCustom(ISD::AND, VT) ||
+      !TLI.isOperationLegalOrCustom(ISD::OR, VT))
+    return DAG.UnrollVectorOp(Op.getNode());
+
+  // Let LegalizeDAG handle this later.
+  return Op;
+}
+
 SDValue VectorLegalizer::ExpandVSELECT(SDValue Op) {
   // Implement VSELECT in terms of XOR, AND, OR
   // on platforms which do not support blend natively.
@@ -971,6 +1005,7 @@ SDValue VectorLegalizer::ExpandUINT_TO_FLOAT(SDValue Op) {
 
   // Convert hi and lo to floats
   // Convert the hi part back to the upper values
+  // TODO: Can any fast-math-flags be set on these nodes?
   SDValue fHI = DAG.getNode(ISD::SINT_TO_FP, DL, Op.getValueType(), HI);
           fHI = DAG.getNode(ISD::FMUL, DL, Op.getValueType(), fHI, TWOHW);
   SDValue fLO = DAG.getNode(ISD::SINT_TO_FP, DL, Op.getValueType(), LO);
@@ -984,9 +1019,20 @@ SDValue VectorLegalizer::ExpandFNEG(SDValue Op) {
   if (TLI.isOperationLegalOrCustom(ISD::FSUB, Op.getValueType())) {
     SDLoc DL(Op);
     SDValue Zero = DAG.getConstantFP(-0.0, DL, Op.getValueType());
+    // TODO: If FNEG had fast-math-flags, they'd get propagated to this FSUB.
     return DAG.getNode(ISD::FSUB, DL, Op.getValueType(),
                        Zero, Op.getOperand(0));
   }
+  return DAG.UnrollVectorOp(Op.getNode());
+}
+
+SDValue VectorLegalizer::ExpandCTLZ_CTTZ_ZERO_UNDEF(SDValue Op) {
+  // If the non-ZERO_UNDEF version is supported we can let LegalizeDAG handle.
+  unsigned Opc = Op.getOpcode() == ISD::CTLZ_ZERO_UNDEF ? ISD::CTLZ : ISD::CTTZ;
+  if (TLI.isOperationLegalOrCustom(Opc, Op.getValueType()))
+    return Op;
+
+  // Otherwise go ahead and unroll.
   return DAG.UnrollVectorOp(Op.getNode());
 }
 

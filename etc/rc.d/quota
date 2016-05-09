@@ -13,6 +13,7 @@
 . /etc/rc.subr
 
 name="quota"
+desc="Enable/check the quotas"
 rcvar="quota_enable"
 load_rc_config $name
 start_cmd="quota_start"

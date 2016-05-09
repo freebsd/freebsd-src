@@ -558,7 +558,7 @@ ifq_delete(struct ifaltq *ifq)
 }
 
 /*
- * Perform generic interface initalization tasks and attach the interface
+ * Perform generic interface initialization tasks and attach the interface
  * to the list of "active" interfaces.  If vmove flag is set on entry
  * to if_attach_internal(), perform only a limited subset of initialization
  * tasks, given that we are moving from one vnet to another an ifnet which
@@ -1021,7 +1021,15 @@ void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
 	struct if_clone *ifc;
+	u_int bif_dlt, bif_hdrlen;
 	int rc;
+
+ 	/*
+	 * if_detach_internal() will call the eventhandler to notify
+	 * interface departure.  That will detach if_bpf.  We need to
+	 * safe the dlt and hdrlen so we can re-attach it later.
+	 */
+	bpf_get_bp_params(ifp->if_bpf, &bif_dlt, &bif_hdrlen);
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
@@ -1061,6 +1069,9 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	IFNET_WUNLOCK();
 
 	if_attach_internal(ifp, 1, ifc);
+
+	if (ifp->if_bpf == NULL)
+		bpfattach(ifp, bif_dlt, bif_hdrlen);
 
 	CURVNET_RESTORE();
 }
@@ -1937,8 +1948,8 @@ link_rtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 	struct sockaddr *dst;
 	struct ifnet *ifp;
 
-	if (cmd != RTM_ADD || ((ifa = rt->rt_ifa) == 0) ||
-	    ((ifp = ifa->ifa_ifp) == 0) || ((dst = rt_key(rt)) == 0))
+	if (cmd != RTM_ADD || ((ifa = rt->rt_ifa) == NULL) ||
+	    ((ifp = ifa->ifa_ifp) == NULL) || ((dst = rt_key(rt)) == NULL))
 		return;
 	ifa = ifaof_ifpforaddr(dst, ifp);
 	if (ifa) {
@@ -2128,7 +2139,7 @@ if_qflush(struct ifnet *ifp)
 		ALTQ_PURGE(ifq);
 #endif
 	n = ifq->ifq_head;
-	while ((m = n) != 0) {
+	while ((m = n) != NULL) {
 		n = m->m_nextpkt;
 		m_freem(m);
 	}

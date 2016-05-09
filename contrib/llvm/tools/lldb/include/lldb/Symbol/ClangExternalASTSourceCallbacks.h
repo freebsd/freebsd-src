@@ -11,18 +11,17 @@
 #define liblldb_ClangExternalASTSourceCallbacks_h_
 
 // C Includes
-// C++ Includes
-#include <string>
-#include <vector>
 #include <stdint.h>
 
+// C++ Includes
 // Other libraries and framework includes
+#include "llvm/ADT/DenseMap.h"
 #include "clang/AST/CharUnits.h"
 
 // Project includes
 #include "lldb/lldb-enumerations.h"
 #include "lldb/Core/ClangForward.h"
-#include "lldb/Symbol/ClangASTType.h"
+#include "lldb/Symbol/CompilerType.h"
 #include "lldb/Symbol/ClangExternalASTSourceCommon.h"
 
 namespace lldb_private {
@@ -30,7 +29,6 @@ namespace lldb_private {
 class ClangExternalASTSourceCallbacks : public ClangExternalASTSourceCommon
 {
 public:
-
     typedef void (*CompleteTagDeclCallback)(void *baton, clang::TagDecl *);
     typedef void (*CompleteObjCInterfaceDeclCallback)(void *baton, clang::ObjCInterfaceDecl *);
     typedef void (*FindExternalVisibleDeclsByNameCallback)(void *baton, const clang::DeclContext *DC, clang::DeclarationName Name, llvm::SmallVectorImpl <clang::NamedDecl *> *results);
@@ -62,7 +60,7 @@ public:
     {
         // This method only needs to be implemented if the AST source ever
         // passes back decl sets as VisibleDeclaration objects.
-        return 0; 
+        return nullptr;
     }
 
     clang::Stmt *
@@ -71,7 +69,7 @@ public:
         // This operation is meant to be used via a LazyOffsetPtr.  It only
         // needs to be implemented if the AST source uses methods like
         // FunctionDecl::setLazyBody when building decls.
-        return 0; 
+        return nullptr;
     }
 
     clang::Selector
@@ -91,23 +89,18 @@ public:
     clang::CXXBaseSpecifier *
     GetExternalCXXBaseSpecifiers(uint64_t Offset) override
     {
-        return NULL; 
+        return nullptr;
     }
 	
     virtual void 
     MaterializeVisibleDecls (const clang::DeclContext *decl_ctx)
     {
-        return;
     }
 
-    clang::ExternalLoadResult
-    FindExternalLexicalDecls(const clang::DeclContext *decl_ctx, bool (*isKindWeWant)(clang::Decl::Kind),
-                             llvm::SmallVectorImpl<clang::Decl *> &decls) override
-    {
-        // This is used to support iterating through an entire lexical context,
-        // which isn't something the debugger should ever need to do.
-        return clang::ELR_Failure;
-    }
+    void
+    FindExternalLexicalDecls(const clang::DeclContext *DC,
+                             llvm::function_ref<bool(clang::Decl::Kind)> IsKindWeWant,
+                             llvm::SmallVectorImpl<clang::Decl *> &Result) override;
 
     bool FindExternalVisibleDeclsByName(const clang::DeclContext *decl_ctx, clang::DeclarationName decl_name) override;
 
@@ -119,6 +112,7 @@ public:
                           llvm::DenseMap<const clang::FieldDecl *, uint64_t> &FieldOffsets,
                           llvm::DenseMap<const clang::CXXRecordDecl *, clang::CharUnits> &BaseOffsets,
                           llvm::DenseMap<const clang::CXXRecordDecl *, clang::CharUnits> &VirtualBaseOffsets) override;
+
     void
     SetExternalSourceCallbacks (CompleteTagDeclCallback tag_decl_callback,
                                 CompleteObjCInterfaceDeclCallback objc_decl_callback,
@@ -138,10 +132,10 @@ public:
     {
         if (callback_baton == m_callback_baton)
         {
-            m_callback_tag_decl = NULL;
-            m_callback_objc_decl = NULL;
-            m_callback_find_by_name = NULL;
-            m_callback_layout_record_type = NULL;
+            m_callback_tag_decl = nullptr;
+            m_callback_objc_decl = nullptr;
+            m_callback_find_by_name = nullptr;
+            m_callback_layout_record_type = nullptr;
         }
     }
 
@@ -158,4 +152,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif  // liblldb_ClangExternalASTSourceCallbacks_h_
+#endif // liblldb_ClangExternalASTSourceCallbacks_h_

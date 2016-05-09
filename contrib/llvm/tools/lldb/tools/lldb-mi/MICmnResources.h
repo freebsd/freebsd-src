@@ -50,7 +50,6 @@ enum
     IDS_LOG_MEDIUM_ERR_INIT,
     IDS_LOG_MEDIUM_ERR_WRITE_ANY,
     IDS_LOG_MEDIUM_ERR_WRITE_MEDIUMFAIL,
-    IDE_MEDIUMFILE_ERR_GET_FILE_PATHNAME_SYS,
 
     IDS_MEDIUMFILE_NAME,
     IDS_MEDIUMFILE_ERR_INVALID_PATH,
@@ -153,7 +152,6 @@ enum
     IDS_LLDBOUTOFBAND_ERR_SETNEWDRIVERSTATE,
     IDS_LLDBOUTOFBAND_ERR_BRKPT_CNT_EXCEEDED,
 
-    IDS_DBGSESSION_ERR_SHARED_DATA_RELEASE,
     IDS_DBGSESSION_ERR_SHARED_DATA_ADD,
 
     IDS_MI_SHTDWN_ERR_LOG,
@@ -279,9 +277,6 @@ enum
 // Details: MI common code implementation class. Handle application resources
 //          and locality.
 //          Singleton class.
-// Gotchas: None.
-// Authors: Illya Rudkin 29/01/2014.
-// Changes: None.
 //--
 class CMICmnResources : public CMICmnBase, public MI::ISingleton<CMICmnResources>
 {
@@ -289,8 +284,8 @@ class CMICmnResources : public CMICmnBase, public MI::ISingleton<CMICmnResources
 
     // Methods:
   public:
-    bool Initialize(void) override;
-    bool Shutdown(void) override;
+    bool Initialize() override;
+    bool Shutdown() override;
 
     CMIUtilString GetString(const MIuint vResourceId) const;
     bool HasString(const MIuint vResourceId) const;
@@ -317,17 +312,17 @@ class CMICmnResources : public CMICmnBase, public MI::ISingleton<CMICmnResources
 
     // Methods:
   private:
-    /* ctor */ CMICmnResources(void);
+    /* ctor */ CMICmnResources();
     /* ctor */ CMICmnResources(const CMICmnResources &);
     void operator=(const CMICmnResources &);
 
     bool GetStringFromResource(const MIuint vResourceId, CMIUtilString &vrwResourceString) const;
-    bool ReadResourceStringData(void);
+    bool ReadResourceStringData();
 
     // Overridden:
   private:
     // From CMICmnBase
-    /* dtor */ ~CMICmnResources(void) override;
+    /* dtor */ ~CMICmnResources() override;
 
     // Attributes:
   private:

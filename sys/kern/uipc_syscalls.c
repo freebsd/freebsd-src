@@ -430,7 +430,7 @@ kern_accept4(struct thread *td, int s, struct sockaddr **name,
 	(void) fo_ioctl(nfp, FIONBIO, &tmp, td->td_ucred, td);
 	tmp = fflag & FASYNC;
 	(void) fo_ioctl(nfp, FIOASYNC, &tmp, td->td_ucred, td);
-	sa = 0;
+	sa = NULL;
 	error = soaccept(so, &sa);
 	if (error != 0)
 		goto noconnection;

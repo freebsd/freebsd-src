@@ -83,7 +83,7 @@
 
 #ifndef LOCORE
 
-typedef void inthand_t(u_int cs, u_int ef, u_int esp, u_int ss);
+typedef void inthand_t(void);
 
 #define	IDTVEC(name)	__CONCAT(X,name)
 

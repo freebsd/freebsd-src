@@ -155,6 +155,7 @@ static struct fd_type fd_searchlist_12m[] = {
 	{ FDF_5_1230 | FL_AUTO },
 #else
 	{ FDF_5_1200 | FL_AUTO },
+	{ FDF_5_400 | FL_AUTO },
 	{ FDF_5_360 | FL_2STEP | FL_AUTO},
 #endif
 	{ 0 }
@@ -941,7 +942,7 @@ fdc_worker(struct fdc_data *fdc)
 	/* Disable ISADMA if we bailed while it was active */
 	if (fd != NULL && (fd->flags & FD_ISADMA)) {
 		isa_dmadone(
-		    bp->bio_cmd & BIO_READ ? ISADMA_READ : ISADMA_WRITE,
+		    bp->bio_cmd == BIO_READ ? ISADMA_READ : ISADMA_WRITE,
 		    fd->fd_ioptr, fd->fd_iosize, fdc->dmachan);
 		mtx_lock(&fdc->fdc_mtx);
 		fd->flags &= ~FD_ISADMA;
@@ -952,7 +953,10 @@ fdc_worker(struct fdc_data *fdc)
 	if (fdc->flags & FDC_NEEDS_RESET) {
 		fdc->flags &= ~FDC_NEEDS_RESET;
 		fdc_reset(fdc);
-		tsleep(fdc, PRIBIO, "fdcrst", hz);
+		if (cold)
+			DELAY(1000000);
+		else
+			tsleep(fdc, PRIBIO, "fdcrst", hz);
 		/* Discard results */
 		for (i = 0; i < 4; i++)
 			fdc_sense_int(fdc, &st0, &cyl);
@@ -967,7 +971,7 @@ fdc_worker(struct fdc_data *fdc)
 			fdc->bp = bioq_takefirst(&fdc->head);
 			if (fdc->bp == NULL)
 				msleep(&fdc->head, &fdc->fdc_mtx,
-				    PRIBIO, "-", hz);
+				    PRIBIO, "-", 0);
 		} while (fdc->bp == NULL &&
 		    (fdc->flags & FDC_KTHREAD_EXIT) == 0);
 		mtx_unlock(&fdc->fdc_mtx);
@@ -983,7 +987,7 @@ fdc_worker(struct fdc_data *fdc)
 		fd = fdc->fd = bp->bio_driver1;
 		fdc->retry = 0;
 		fd->fd_ioptr = bp->bio_data;
-		if (bp->bio_cmd & BIO_FMT) {
+		if (bp->bio_cmd == BIO_FMT) {
 			i = offsetof(struct fd_formb, fd_formb_cylno(0));
 			fd->fd_ioptr += i;
 			fd->fd_iosize = bp->bio_length - i;
@@ -1021,7 +1025,7 @@ fdc_worker(struct fdc_data *fdc)
 		fdctl_wr(fdc, fd->ft->trans);
 #endif
 
-	if (bp->bio_cmd & BIO_PROBE) {
+	if (bp->bio_cmd == BIO_PROBE) {
 		if ((!(device_get_flags(fd->dev) & FD_NO_CHLINE) &&
 #ifndef PC98
 		    !(fdin_rd(fdc) & FDI_DCHG) &&
@@ -1059,7 +1063,7 @@ fdc_worker(struct fdc_data *fdc)
 #endif
 
 	/* Check if the floppy is write-protected */
-	if (bp->bio_cmd & (BIO_FMT | BIO_WRITE)) {
+	if (bp->bio_cmd == BIO_FMT || bp->bio_cmd == BIO_WRITE) {
 		retry_line = __LINE__;
 		if(fdc_sense_drive(fdc, &st3) != 0)
 			return (1);
@@ -1078,10 +1082,11 @@ fdc_worker(struct fdc_data *fdc)
 	sec = sec % fd->ft->sectrac + 1;
 
 	/* If everything is going swimmingly, use multisector xfer */
-	if (fdc->retry == 0 && bp->bio_cmd & (BIO_READ|BIO_WRITE)) {
+	if (fdc->retry == 0 &&
+	    (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE)) {
 		fd->fd_iosize = imin(nsect * fd->sectorsize, bp->bio_resid);
 		nsect = fd->fd_iosize / fd->sectorsize;
-	} else if (bp->bio_cmd & (BIO_READ|BIO_WRITE)) {
+	} else if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
 		fd->fd_iosize = fd->sectorsize;
 		nsect = 1;
 	}
@@ -1141,10 +1146,12 @@ fdc_worker(struct fdc_data *fdc)
 		    fd->fd_ioptr, fdc->retry);
 
 	/* Setup ISADMA if we need it and have it */
-	if ((bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_FMT))
+	if ((bp->bio_cmd == BIO_READ ||
+		bp->bio_cmd == BIO_WRITE ||
+		bp->bio_cmd == BIO_FMT)
 	     && !(fdc->flags & FDC_NODMA)) {
 		isa_dmastart(
-		    bp->bio_cmd & BIO_READ ? ISADMA_READ : ISADMA_WRITE,
+		    bp->bio_cmd == BIO_READ ? ISADMA_READ : ISADMA_WRITE,
 		    fd->fd_ioptr, fd->fd_iosize, fdc->dmachan);
 		mtx_lock(&fdc->fdc_mtx);
 		fd->flags |= FD_ISADMA;
@@ -1153,9 +1160,12 @@ fdc_worker(struct fdc_data *fdc)
 
 	/* Do PIO if we have to */
 	if (fdc->flags & FDC_NODMA) {
-		if (bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_FMT))
+		if (bp->bio_cmd == BIO_READ ||
+		    bp->bio_cmd == BIO_WRITE ||
+		    bp->bio_cmd == BIO_FMT)
 			fdbcdr_wr(fdc, 1, fd->fd_iosize);
-		if (bp->bio_cmd & (BIO_WRITE|BIO_FMT))
+		if (bp->bio_cmd == BIO_WRITE ||
+		    bp->bio_cmd == BIO_FMT)
 			fdc_pio(fdc);
 	}
 
@@ -1218,13 +1228,13 @@ fdc_worker(struct fdc_data *fdc)
 	i = tsleep(fdc, PRIBIO, "fddata", hz);
 
 	/* PIO if the read looks good */
-	if (i == 0 && (fdc->flags & FDC_NODMA) && (bp->bio_cmd & BIO_READ))
+	if (i == 0 && (fdc->flags & FDC_NODMA) && (bp->bio_cmd == BIO_READ))
 		fdc_pio(fdc);
 
 	/* Finish DMA */
 	if (fd->flags & FD_ISADMA) {
 		isa_dmadone(
-		    bp->bio_cmd & BIO_READ ? ISADMA_READ : ISADMA_WRITE,
+		    bp->bio_cmd == BIO_READ ? ISADMA_READ : ISADMA_WRITE,
 		    fd->fd_ioptr, fd->fd_iosize, fdc->dmachan);
 		mtx_lock(&fdc->fdc_mtx);
 		fd->flags &= ~FD_ISADMA;
@@ -1668,7 +1678,7 @@ fd_start(struct bio *bp)
 	fd = bp->bio_to->geom->softc;
 	fdc = fd->fdc;
 	bp->bio_driver1 = fd;
-	if (bp->bio_cmd & BIO_GETATTR) {
+	if (bp->bio_cmd == BIO_GETATTR) {
 		if (g_handleattr_int(bp, "GEOM::fwsectors", fd->ft->sectrac))
 			return;
 		if (g_handleattr_int(bp, "GEOM::fwheads", fd->ft->heads))
@@ -1676,7 +1686,7 @@ fd_start(struct bio *bp)
 		g_io_deliver(bp, ENOIOCTL);
 		return;
 	}
-	if (!(bp->bio_cmd & (BIO_READ|BIO_WRITE))) {
+	if (!(bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE)) {
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
 	}
@@ -2048,12 +2058,19 @@ fdc_attach(device_t dev)
 #endif
 	bioq_init(&fdc->head);
 
-	kproc_create(fdc_thread, fdc, &fdc->fdc_thread, 0, 0,
-	    "fdc%d", device_get_unit(dev));
-
 	settle = hz / 8;
 
 	return (0);
+}
+
+void
+fdc_start_worker(device_t dev)
+{
+	struct	fdc_data *fdc;
+
+	fdc = device_get_softc(dev);
+	kproc_create(fdc_thread, fdc, &fdc->fdc_thread, 0, 0,
+	    "fdc%d", device_get_unit(dev));
 }
 
 int
@@ -2148,9 +2165,8 @@ fd_probe(device_t dev)
 		return (ENXIO);
 
 #ifndef PC98
-/*
 	mtx_lock(&fdc->fdc_mtx);
-*/
+
 	/* select it */
 	fd_select(fd);
 	fd_motor(fd, 1);
@@ -2186,16 +2202,14 @@ fd_probe(device_t dev)
 				/* anything responding? */
 				if (fdc_sense_int(fdc, &st0, NULL) == 0 &&
 				    (st0 & NE7_ST0_EC) == 0)
-					break; /* already probed succesfully */
+					break; /* already probed successfully */
 			}
 		}
 	}
 
 	fd_motor(fd, 0);
 	fdc->fd = NULL;
-/*
 	mtx_unlock(&fdc->fdc_mtx);
-*/
 
 	if ((flags & FD_NO_PROBE) == 0 &&
 	    (st0 & NE7_ST0_EC) != 0) /* no track 0 -> no drive present */

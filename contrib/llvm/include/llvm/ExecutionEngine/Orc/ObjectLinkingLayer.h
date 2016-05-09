@@ -39,9 +39,12 @@ protected:
     void operator=(const LinkedObjectSet&) = delete;
   public:
     LinkedObjectSet(RuntimeDyld::MemoryManager &MemMgr,
-                    RuntimeDyld::SymbolResolver &Resolver)
+                    RuntimeDyld::SymbolResolver &Resolver,
+                    bool ProcessAllSections)
         : RTDyld(llvm::make_unique<RuntimeDyld>(MemMgr, Resolver)),
-          State(Raw) {}
+          State(Raw) {
+      RTDyld->setProcessAllSections(ProcessAllSections);
+    }
 
     virtual ~LinkedObjectSet() {}
 
@@ -64,18 +67,9 @@ protected:
       RTDyld->mapSectionAddress(LocalAddress, TargetAddr);
     }
 
-    void takeOwnershipOfBuffer(std::unique_ptr<MemoryBuffer> B) {
-      OwnedBuffers.push_back(std::move(B));
-    }
-
   protected:
     std::unique_ptr<RuntimeDyld> RTDyld;
     enum { Raw, Finalizing, Finalized } State;
-
-    // FIXME: This ownership hack only exists because RuntimeDyldELF still
-    //        wants to be able to inspect the original object when resolving
-    //        relocations. As soon as that can be fixed this should be removed.
-    std::vector<std::unique_ptr<MemoryBuffer>> OwnedBuffers;
   };
 
   typedef std::list<std::unique_ptr<LinkedObjectSet>> LinkedObjectSetListT;
@@ -83,16 +77,6 @@ protected:
 public:
   /// @brief Handle to a set of loaded objects.
   typedef LinkedObjectSetListT::iterator ObjSetHandleT;
-
-  // Ownership hack.
-  // FIXME: Remove this as soon as RuntimeDyldELF can apply relocations without
-  //        referencing the original object.
-  template <typename OwningMBSet>
-  void takeOwnershipOfBuffers(ObjSetHandleT H, OwningMBSet MBs) {
-    for (auto &MB : MBs)
-      (*H)->takeOwnershipOfBuffer(std::move(MB));
-  }
-
 };
 
 /// @brief Default (no-op) action to perform when loading objects.
@@ -117,16 +101,14 @@ private:
   class ConcreteLinkedObjectSet : public LinkedObjectSet {
   public:
     ConcreteLinkedObjectSet(MemoryManagerPtrT MemMgr,
-                            SymbolResolverPtrT Resolver)
-      : LinkedObjectSet(*MemMgr, *Resolver), MemMgr(std::move(MemMgr)),
-        Resolver(std::move(Resolver)) { }
+                            SymbolResolverPtrT Resolver,
+                            bool ProcessAllSections)
+      : LinkedObjectSet(*MemMgr, *Resolver, ProcessAllSections),
+        MemMgr(std::move(MemMgr)), Resolver(std::move(Resolver)) { }
 
     void Finalize() override {
       State = Finalizing;
-      RTDyld->resolveRelocations();
-      RTDyld->registerEHFrames();
-      MemMgr->finalizeMemory();
-      OwnedBuffers.clear();
+      RTDyld->finalizeWithMemoryManagerLocking();
       State = Finalized;
     }
 
@@ -137,9 +119,11 @@ private:
 
   template <typename MemoryManagerPtrT, typename SymbolResolverPtrT>
   std::unique_ptr<LinkedObjectSet>
-  createLinkedObjectSet(MemoryManagerPtrT MemMgr, SymbolResolverPtrT Resolver) {
+  createLinkedObjectSet(MemoryManagerPtrT MemMgr, SymbolResolverPtrT Resolver,
+                        bool ProcessAllSections) {
     typedef ConcreteLinkedObjectSet<MemoryManagerPtrT, SymbolResolverPtrT> LOS;
-    return llvm::make_unique<LOS>(std::move(MemMgr), std::move(Resolver));
+    return llvm::make_unique<LOS>(std::move(MemMgr), std::move(Resolver),
+                                  ProcessAllSections);
   }
 
 public:
@@ -158,7 +142,18 @@ public:
       NotifyLoadedFtor NotifyLoaded = NotifyLoadedFtor(),
       NotifyFinalizedFtor NotifyFinalized = NotifyFinalizedFtor())
       : NotifyLoaded(std::move(NotifyLoaded)),
-        NotifyFinalized(std::move(NotifyFinalized)) {}
+        NotifyFinalized(std::move(NotifyFinalized)),
+        ProcessAllSections(false) {}
+
+  /// @brief Set the 'ProcessAllSections' flag.
+  ///
+  /// If set to true, all sections in each object file will be allocated using
+  /// the memory manager, rather than just the sections required for execution.
+  ///
+  /// This is kludgy, and may be removed in the future.
+  void setProcessAllSections(bool ProcessAllSections) {
+    this->ProcessAllSections = ProcessAllSections;
+  }
 
   /// @brief Add a set of objects (or archives) that will be treated as a unit
   ///        for the purposes of symbol lookup and memory management.
@@ -180,7 +175,8 @@ public:
     ObjSetHandleT Handle =
       LinkedObjSetList.insert(
         LinkedObjSetList.end(),
-        createLinkedObjectSet(std::move(MemMgr), std::move(Resolver)));
+        createLinkedObjectSet(std::move(MemMgr), std::move(Resolver),
+                              ProcessAllSections));
 
     LinkedObjectSet &LOS = **Handle;
     LoadedObjInfoList LoadedObjInfos;
@@ -276,6 +272,7 @@ private:
   LinkedObjectSetListT LinkedObjSetList;
   NotifyLoadedFtor NotifyLoaded;
   NotifyFinalizedFtor NotifyFinalized;
+  bool ProcessAllSections;
 };
 
 } // End namespace orc.

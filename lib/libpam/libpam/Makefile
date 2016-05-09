@@ -35,10 +35,15 @@
 #
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 OPENPAM=	${.CURDIR}/../../../contrib/openpam
 .PATH: ${OPENPAM}/include ${OPENPAM}/lib/libpam ${OPENPAM}/doc/man
 
-LIB=	pam
+# static_libpam will build libpam.a
+.if !defined(LIB)
+SHLIB=	pam
+.endif
+
 MK_PROFILE=no
 
 SRCS=	openpam_asprintf.c \
@@ -98,7 +103,7 @@ SRCS=	openpam_asprintf.c \
 # Local additions
 SRCS+=	pam_debug_log.c
 
-MAN=	openpam.3 \
+MAN?=	openpam.3 \
 	openpam_borrow_cred.3 \
 	openpam_free_data.3 \
 	openpam_free_envlist.3 \
@@ -150,10 +155,10 @@ MAN=	openpam.3 \
 	pam_vprompt.3 \
 	pam.conf.5
 
-MLINKS=	pam.conf.5 pam.d.5
+MLINKS?=	pam.conf.5 pam.d.5
 
 CSTD?= c99
-CFLAGS+= -I${.CURDIR} -I${OPENPAM}/include
+CFLAGS+= -I${OPENPAM}/include
 CFLAGS+= -DLIB_MAJ=${SHLIB_MAJOR}
 CFLAGS+= -DHAVE_DLFUNC=1
 CFLAGS+= -DHAVE_FDLOPEN=1
@@ -172,7 +177,7 @@ HEADERS=	security/openpam.h \
 ADD_HEADERS=	security/pam_mod_misc.h
 
 # Headers
-INCS=		${HEADERS} ${ADD_HEADERS}
+INCS?=		${HEADERS} ${ADD_HEADERS}
 INCSDIR=	${INCLUDEDIR}/security
 
 .include <src.opts.mk>

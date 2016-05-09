@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
  */
 
 /*
@@ -217,11 +218,11 @@ out:
 }
 
 int
-lzc_create(const char *fsname, dmu_objset_type_t type, nvlist_t *props)
+lzc_create(const char *fsname, enum lzc_dataset_type type, nvlist_t *props)
 {
 	int error;
 	nvlist_t *args = fnvlist_alloc();
-	fnvlist_add_int32(args, "type", type);
+	fnvlist_add_int32(args, "type", (dmu_objset_type_t)type);
 	if (props != NULL)
 		fnvlist_add_nvlist(args, "props", props);
 	error = lzc_ioctl(ZFS_IOC_CREATE, fsname, args, NULL);

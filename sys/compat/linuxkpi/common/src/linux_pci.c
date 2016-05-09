@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2015-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -209,8 +209,11 @@ linux_pci_shutdown(device_t dev)
 	struct pci_dev *pdev;
 
 	pdev = device_get_softc(dev);
-	if (pdev->pdrv->shutdown != NULL)
+	if (pdev->pdrv->shutdown != NULL) {
+		DROP_GIANT();
 		pdev->pdrv->shutdown(pdev);
+		PICKUP_GIANT();
+	}
 	return (0);
 }
 

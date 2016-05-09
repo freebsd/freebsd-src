@@ -169,6 +169,15 @@ cardbus_device_setup_regs(pcicfgregs *cfg)
 	pci_write_config(dev, PCIR_MAXLAT, 0x14, 1);
 }
 
+static struct pci_devinfo *
+cardbus_alloc_devinfo(device_t dev)
+{
+	struct cardbus_devinfo *dinfo;
+
+	dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
+	return (&dinfo->pci);
+}
+
 static int
 cardbus_attach_card(device_t cbdev)
 {
@@ -191,8 +200,7 @@ cardbus_attach_card(device_t cbdev)
 		struct cardbus_devinfo *dinfo;
 
 		dinfo = (struct cardbus_devinfo *)
-		    pci_read_device(brdev, domain, bus, slot, func,
-			sizeof(struct cardbus_devinfo));
+		    pci_read_device(brdev, cbdev, domain, bus, slot, func);
 		if (dinfo == NULL)
 			continue;
 		if (dinfo->pci.cfg.mfdev)
@@ -226,31 +234,30 @@ cardbus_attach_card(device_t cbdev)
 	return (ENOENT);
 }
 
+static void
+cardbus_child_deleted(device_t cbdev, device_t child)
+{
+	struct cardbus_devinfo *dinfo = device_get_ivars(child);
+
+	if (dinfo->pci.cfg.dev != child)
+		device_printf(cbdev, "devinfo dev mismatch\n");
+	cardbus_device_destroy(dinfo);
+	pci_child_deleted(cbdev, child);
+}
+
 static int
 cardbus_detach_card(device_t cbdev)
 {
-	int numdevs;
-	device_t *devlist;
-	int tmp;
 	int err = 0;
 
-	if (device_get_children(cbdev, &devlist, &numdevs) != 0)
-		return (ENOENT);
-	if (numdevs == 0) {
-		free(devlist, M_TEMP);
-		return (ENOENT);
-	}
+	err = bus_generic_detach(cbdev);
+	if (err)
+		return (err);
+	err = device_delete_children(cbdev);
+	if (err)
+		return (err);
 
-	for (tmp = 0; tmp < numdevs; tmp++) {
-		struct cardbus_devinfo *dinfo = device_get_ivars(devlist[tmp]);
-
-		if (dinfo->pci.cfg.dev != devlist[tmp])
-			device_printf(cbdev, "devinfo dev mismatch\n");
-		cardbus_device_destroy(dinfo);
-		pci_delete_child(cbdev, devlist[tmp]);
-	}
 	POWER_DISABLE_SOCKET(device_get_parent(cbdev), cbdev);
-	free(devlist, M_TEMP);
 	return (err);
 }
 
@@ -335,13 +342,18 @@ static device_method_t cardbus_methods[] = {
 	DEVMETHOD(device_resume,	cardbus_resume),
 
 	/* Bus interface */
+	DEVMETHOD(bus_child_deleted,	cardbus_child_deleted),
 	DEVMETHOD(bus_get_dma_tag,	bus_generic_get_dma_tag),
 	DEVMETHOD(bus_read_ivar,	cardbus_read_ivar),
 	DEVMETHOD(bus_driver_added,	cardbus_driver_added),
+	DEVMETHOD(bus_rescan,		bus_null_rescan),
 
 	/* Card Interface */
 	DEVMETHOD(card_attach_card,	cardbus_attach_card),
 	DEVMETHOD(card_detach_card,	cardbus_detach_card),
+
+	/* PCI interface */
+	DEVMETHOD(pci_alloc_devinfo,	cardbus_alloc_devinfo),
 
 	{0,0}
 };

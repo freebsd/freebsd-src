@@ -46,7 +46,6 @@ SRCS=	sanitizer_allocator.cc\
 	sanitizer_stoptheworld_linux_libcdep.cc\
 	sanitizer_symbolizer_libcdep.cc\
 	sanitizer_symbolizer_posix_libcdep.cc\
-	sanitizer_symbolizer_process_libcdep.cc\
 	sanitizer_unwind_linux_libcdep.cc\
 	ubsan_diag.cc\
 	ubsan_init.cc\

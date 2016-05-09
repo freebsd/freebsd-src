@@ -1,9 +1,13 @@
 #	@(#)Makefile	8.2 (Berkeley) 2/3/94
 # $FreeBSD$
 
+PACKAGE=	clibs
 SHLIBDIR?= /lib
 
 .include <src.opts.mk>
+
+# Force building of libc_pic.a
+MK_TOOLCHAIN=	yes
 
 LIBC_SRCTOP?= ${.CURDIR}
 

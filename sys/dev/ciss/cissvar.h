@@ -58,7 +58,7 @@ typedef STAILQ_HEAD(, ciss_request)	cr_qhead_t;
 
 /*
  * Interrupt reduction can be controlled by tuning the interrupt
- * coalesce delay and count paramters.  The delay (in microseconds)
+ * coalesce delay and count parameters.  The delay (in microseconds)
  * defers delivery of interrupts to increase the chance of there being
  * more than one completed command ready when the interrupt is
  * delivered.  The count expedites the delivery of the interrupt when

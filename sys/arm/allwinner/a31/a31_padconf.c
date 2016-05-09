@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/allwinner/allwinner_pinctrl.h>
 
+#ifdef SOC_ALLWINNER_A31
+
 const static struct allwinner_pins a31_pins[] = {
 	{"PA0",  0, 0,  {"gpio_in", "gpio_out", "gmac", "lcd1", "uart1", NULL, NULL, NULL}},
 	{"PA1",  0, 1,  {"gpio_in", "gpio_out", "gmac", "lcd1", "uart1", NULL, NULL, NULL}},
@@ -51,19 +53,19 @@ const static struct allwinner_pins a31_pins[] = {
 	{"PA12", 0, 12, {"gpio_in", "gpio_out", "gmac", "lcd1", "mmc3", "mmc2", NULL, NULL}},
 	{"PA13", 0, 13, {"gpio_in", "gpio_out", "gmac", "lcd1", "mmc3", "mmc2", NULL, NULL}},
 	{"PA14", 0, 14, {"gpio_in", "gpio_out", "gmac", "lcd1", "mmc3", "mmc2", NULL, NULL}},
-	{"PA15", 0, 15, {"gpio_in", "gpio_out", "gmac", "lcd1", "dmic", NULL, NULL, NULL}},
+	{"PA15", 0, 15, {"gpio_in", "gpio_out", "gmac", "lcd1", "clk_out_a", NULL, NULL, NULL}},
 	{"PA16", 0, 16, {"gpio_in", "gpio_out", "gmac", "lcd1", "dmic", NULL, NULL, NULL}},
-	{"PA17", 0, 17, {"gpio_in", "gpio_out", "gmac", "lcd1", "clk_out_b", NULL, NULL, NULL}},
-	{"PA18", 0, 17, {"gpio_in", "gpio_out", "gmac", "lcd1", "pwm3", NULL, NULL, NULL}},
-	{"PA19", 0, 17, {"gpio_in", "gpio_out", "gmac", "lcd1", "pwm3", NULL, NULL, NULL}},
-	{"PA20", 0, 17, {"gpio_in", "gpio_out", "gmac", "lcd1", "spi3", NULL, NULL, NULL}},
-	{"PA21", 0, 17, {"gpio_in", "gpio_out", "gmac", "lcd1", "spi3", NULL, NULL, NULL}},
-	{"PA22", 0, 17, {"gpio_in", "gpio_out", "gmac", "lcd1", "spi3", NULL, NULL, NULL}},
-	{"PA23", 0, 17, {"gpio_in", "gpio_out", "gmac", "lcd1", "spi3", NULL, NULL, NULL}},
-	{"PA24", 0, 17, {"gpio_in", "gpio_out", "gmac", "lcd1", "spi3", NULL, NULL, NULL}},
-	{"PA25", 0, 17, {"gpio_in", "gpio_out", "gmac", "lcd1", "spi3", NULL, NULL, NULL}},
-	{"PA26", 0, 17, {"gpio_in", "gpio_out", "gmac", "lcd1", "clk_out_c", NULL, NULL, NULL}},
-	{"PA27", 0, 17, {"gpio_in", "gpio_out", "gmac", "lcd1", NULL, NULL, NULL, NULL}},
+	{"PA17", 0, 17, {"gpio_in", "gpio_out", "gmac", "lcd1", "dmic", NULL, NULL, NULL}},
+	{"PA18", 0, 18, {"gpio_in", "gpio_out", "gmac", "lcd1", "clk_out_b", NULL, NULL, NULL}},
+	{"PA19", 0, 19, {"gpio_in", "gpio_out", "gmac", "lcd1", "pwm3", NULL, NULL, NULL}},
+	{"PA20", 0, 20, {"gpio_in", "gpio_out", "gmac", "lcd1", "pwm3", NULL, NULL, NULL}},
+	{"PA21", 0, 21, {"gpio_in", "gpio_out", "gmac", "lcd1", "spi3", NULL, NULL, NULL}},
+	{"PA22", 0, 22, {"gpio_in", "gpio_out", "gmac", "lcd1", "spi3", NULL, NULL, NULL}},
+	{"PA23", 0, 23, {"gpio_in", "gpio_out", "gmac", "lcd1", "spi3", NULL, NULL, NULL}},
+	{"PA24", 0, 24, {"gpio_in", "gpio_out", "gmac", "lcd1", "spi3", NULL, NULL, NULL}},
+	{"PA25", 0, 25, {"gpio_in", "gpio_out", "gmac", "lcd1", "spi3", NULL, NULL, NULL}},
+	{"PA26", 0, 26, {"gpio_in", "gpio_out", "gmac", "lcd1", "clk_out_c", NULL, NULL, NULL}},
+	{"PA27", 0, 27, {"gpio_in", "gpio_out", "gmac", "lcd1", NULL, NULL, NULL, NULL}},
 
 	{"PB0",  1, 0,  {"gpio_in", "gpio_out", "i2s0", "uart3", "csi", NULL, NULL, NULL}},
 	{"PB1",  1, 1,  {"gpio_in", "gpio_out", "i2s0", NULL, NULL, NULL, NULL, NULL}},
@@ -144,11 +146,11 @@ const static struct allwinner_pins a31_pins[] = {
 	{"PE9",  4, 9,  {"gpio_in", "gpio_out", "csi", "ts", NULL, NULL, NULL, NULL}},
 	{"PE10", 4, 10, {"gpio_in", "gpio_out", "csi", "ts", NULL, NULL, NULL, NULL}},
 	{"PE11", 4, 11, {"gpio_in", "gpio_out", "csi", "ts", NULL, NULL, NULL, NULL}},
-	{"PE12", 4, 11, {"gpio_in", "gpio_out", "csi", "ts", NULL, NULL, NULL, NULL}},
-	{"PE13", 4, 11, {"gpio_in", "gpio_out", "csi", "ts", NULL, NULL, NULL, NULL}},
-	{"PE14", 4, 11, {"gpio_in", "gpio_out", "csi", "ts", NULL, NULL, NULL, NULL}},
-	{"PE15", 4, 11, {"gpio_in", "gpio_out", "csi", "ts", NULL, NULL, NULL, NULL}},
-	{"PE16", 4, 11, {"gpio_in", "gpio_out", "csi", NULL, NULL, NULL, NULL, NULL}},
+	{"PE12", 4, 12, {"gpio_in", "gpio_out", "csi", "ts", NULL, NULL, NULL, NULL}},
+	{"PE13", 4, 13, {"gpio_in", "gpio_out", "csi", "ts", NULL, NULL, NULL, NULL}},
+	{"PE14", 4, 14, {"gpio_in", "gpio_out", "csi", "ts", NULL, NULL, NULL, NULL}},
+	{"PE15", 4, 15, {"gpio_in", "gpio_out", "csi", "ts", NULL, NULL, NULL, NULL}},
+	{"PE16", 4, 16, {"gpio_in", "gpio_out", "csi", NULL, NULL, NULL, NULL, NULL}},
 
 	{"PF0",  5, 0,  {"gpio_in", "gpio_out", "mmc0", NULL, "jtag", NULL, NULL, NULL}},
 	{"PF1",  5, 1,  {"gpio_in", "gpio_out", "mmc0", NULL, "jtag", NULL, NULL, NULL}},
@@ -205,12 +207,14 @@ const static struct allwinner_pins a31_pins[] = {
 	{"PH25", 7, 25, {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, NULL, NULL}},
 	{"PH26", 7, 26, {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, NULL, NULL}},
 	{"PH27", 7, 27, {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, NULL, NULL}},
-	{"PH28", 7, 27, {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, NULL, NULL}},
-	{"PH29", 7, 27, {"gpio_in", "gpio_out", "nand1", NULL, NULL, NULL, NULL, NULL}},
-	{"PH30", 7, 27, {"gpio_in", "gpio_out", "nand1", NULL, NULL, NULL, NULL, NULL}},
+	{"PH28", 7, 28, {"gpio_in", "gpio_out", NULL, NULL, NULL, NULL, NULL, NULL}},
+	{"PH29", 7, 29, {"gpio_in", "gpio_out", "nand1", NULL, NULL, NULL, NULL, NULL}},
+	{"PH30", 7, 30, {"gpio_in", "gpio_out", "nand1", NULL, NULL, NULL, NULL, NULL}},
 };
 
 const struct allwinner_padconf a31_padconf = {
 	.npins = nitems(a31_pins),
 	.pins = a31_pins,
 };
+
+#endif /* SOC_ALLWINNER_A31 */

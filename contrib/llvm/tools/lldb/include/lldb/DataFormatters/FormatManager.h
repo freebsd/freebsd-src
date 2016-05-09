@@ -1,4 +1,4 @@
-//===-- FormatManager.h -------------------------------------------*- C++ -*-===//
+//===-- FormatManager.h -----------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,6 +12,10 @@
 
 // C Includes
 // C++ Includes
+#include <atomic>
+#include <initializer_list>
+#include <map>
+#include <vector>
 
 // Other libraries and framework includes
 // Project includes
@@ -21,11 +25,9 @@
 #include "lldb/DataFormatters/FormatCache.h"
 #include "lldb/DataFormatters/FormatClasses.h"
 #include "lldb/DataFormatters/FormattersContainer.h"
+#include "lldb/DataFormatters/LanguageCategory.h"
 #include "lldb/DataFormatters/TypeCategory.h"
 #include "lldb/DataFormatters/TypeCategoryMap.h"
-
-#include <atomic>
-#include <functional>
 
 namespace lldb_private {
     
@@ -39,19 +41,12 @@ class FormatManager : public IFormatChangeListener
     typedef FormatMap<ConstString, TypeSummaryImpl> NamedSummariesMap;
     typedef TypeCategoryMap::MapType::iterator CategoryMapIterator;
 public:
+    typedef std::map<lldb::LanguageType, LanguageCategory::UniquePointer> LanguageCategories;
     
-    template <typename FormatterType>
-    using HardcodedFormatterFinder = std::function<typename FormatterType::SharedPointer (lldb_private::ValueObject&,
-                                                                                          lldb::DynamicValueType,
-                                                                                          FormatManager&)>;
+    FormatManager();
     
-    template <typename FormatterType>
-    using HardcodedFormatterFinders = std::vector<HardcodedFormatterFinder<FormatterType>>;
-    
-    typedef TypeCategoryMap::CallbackType CategoryCallback;
-    
-    FormatManager ();
-    
+    ~FormatManager() override = default;
+
     NamedSummariesMap&
     GetNamedSummaryContainer ()
     {
@@ -62,8 +57,34 @@ public:
     EnableCategory (const ConstString& category_name,
                     TypeCategoryMap::Position pos = TypeCategoryMap::Default)
     {
-        m_categories_map.Enable(category_name,
-                                pos);
+        EnableCategory(category_name,
+                       pos,
+                       std::initializer_list<lldb::LanguageType>());
+    }
+
+    void
+    EnableCategory (const ConstString& category_name,
+                    TypeCategoryMap::Position pos,
+                    lldb::LanguageType lang)
+    {
+        std::initializer_list<lldb::LanguageType> langs = {lang};
+        EnableCategory(category_name,
+                       pos,
+                       langs);
+    }
+    
+    void
+    EnableCategory (const ConstString& category_name,
+                    TypeCategoryMap::Position pos = TypeCategoryMap::Default,
+                    std::initializer_list<lldb::LanguageType> langs = {})
+    {
+        TypeCategoryMap::ValueSP category_sp;
+        if (m_categories_map.Get(category_name, category_sp) && category_sp)
+        {
+            m_categories_map.Enable(category_sp, pos);
+            for (const lldb::LanguageType lang : langs)
+                category_sp->AddLanguage(lang);
+        }
     }
     
     void
@@ -87,16 +108,10 @@ public:
     }
     
     void
-    EnableAllCategories ()
-    {
-        m_categories_map.EnableAllCategories ();
-    }
+    EnableAllCategories ();
     
     void
-    DisableAllCategories ()
-    {
-        m_categories_map.DisableAllCategories ();
-    }
+    DisableAllCategories ();
     
     bool
     DeleteCategory (const ConstString& category_name)
@@ -123,14 +138,11 @@ public:
     }
     
     void
-    LoopThroughCategories (CategoryCallback callback, void* param)
-    {
-        m_categories_map.LoopThrough(callback, param);
-    }
+    ForEachCategory (TypeCategoryMap::ForEachCallback callback);
     
     lldb::TypeCategoryImplSP
-    GetCategory (const char* category_name = NULL,
-                 bool can_create = true)
+    GetCategory(const char* category_name = nullptr,
+                bool can_create = true)
     {
         if (!category_name)
             return GetCategory(m_default_category_name);
@@ -182,11 +194,11 @@ public:
                   lldb::DynamicValueType use_dynamic);
     
     bool
-    AnyMatches (ConstString type_name,
-                TypeCategoryImpl::FormatCategoryItems items = TypeCategoryImpl::ALL_ITEM_TYPES,
-                bool only_enabled = true,
-                const char** matching_category = NULL,
-                TypeCategoryImpl::FormatCategoryItems* matching_type = NULL)
+    AnyMatches(ConstString type_name,
+               TypeCategoryImpl::FormatCategoryItems items = TypeCategoryImpl::ALL_ITEM_TYPES,
+               bool only_enabled = true,
+               const char** matching_category = nullptr,
+               TypeCategoryImpl::FormatCategoryItems* matching_type = nullptr)
     {
         return m_categories_map.AnyMatches(type_name,
                                            items,
@@ -226,29 +238,21 @@ public:
     ShouldPrintAsOneLiner (ValueObject& valobj);
     
     void
-    Changed ()
-    {
-        ++m_last_revision;
-        m_format_cache.Clear ();
-    }
+    Changed () override;
     
     uint32_t
-    GetCurrentRevision ()
+    GetCurrentRevision () override
     {
         return m_last_revision;
     }
-    
-    ~FormatManager ()
-    {
-    }
-    
+
     static FormattersMatchVector
     GetPossibleMatches (ValueObject& valobj,
                         lldb::DynamicValueType use_dynamic)
     {
         FormattersMatchVector matches;
         GetPossibleMatches (valobj,
-                            valobj.GetClangType(),
+                            valobj.GetCompilerType(),
                             lldb_private::eFormatterChoiceCriterionDirectChoice,
                             use_dynamic,
                             matches,
@@ -258,12 +262,23 @@ public:
                             true);
         return matches;
     }
+    
+    static ConstString
+    GetTypeForCache (ValueObject&, lldb::DynamicValueType);
+    
+    LanguageCategory*
+    GetCategoryForLanguage (lldb::LanguageType lang_type);
+
+    static std::vector<lldb::LanguageType>
+    GetCandidateLanguages (lldb::LanguageType lang_type);
 
 private:
+    static std::vector<lldb::LanguageType>
+    GetCandidateLanguages (ValueObject& valobj);
     
     static void
     GetPossibleMatches (ValueObject& valobj,
-                        ClangASTType clang_type,
+                        CompilerType compiler_type,
                         uint32_t reason,
                         lldb::DynamicValueType use_dynamic,
                         FormattersMatchVector& entries,
@@ -271,40 +286,29 @@ private:
                         bool did_strip_ref,
                         bool did_strip_typedef,
                         bool root_level = false);
-    
-    FormatCache m_format_cache;
-    NamedSummariesMap m_named_summaries_map;
+
     std::atomic<uint32_t> m_last_revision;
+    FormatCache m_format_cache;
+    Mutex m_language_categories_mutex;
+    LanguageCategories m_language_categories_map;
+    NamedSummariesMap m_named_summaries_map;
     TypeCategoryMap m_categories_map;
     
     ConstString m_default_category_name;
     ConstString m_system_category_name;
-    ConstString m_gnu_cpp_category_name;
-    ConstString m_libcxx_category_name;
-    ConstString m_objc_category_name;
-    ConstString m_corefoundation_category_name;
-    ConstString m_coregraphics_category_name;
-    ConstString m_coreservices_category_name;
     ConstString m_vectortypes_category_name;
-    ConstString m_appkit_category_name;
-    ConstString m_coremedia_category_name;
-    
-    HardcodedFormatterFinders<TypeFormatImpl> m_hardcoded_formats;
-    HardcodedFormatterFinders<TypeSummaryImpl> m_hardcoded_summaries;
-    HardcodedFormatterFinders<SyntheticChildren> m_hardcoded_synthetics;
-    HardcodedFormatterFinders<TypeValidatorImpl> m_hardcoded_validators;
     
     lldb::TypeFormatImplSP
-    GetHardcodedFormat (ValueObject&,lldb::DynamicValueType);
+    GetHardcodedFormat (FormattersMatchData&);
     
     lldb::TypeSummaryImplSP
-    GetHardcodedSummaryFormat (ValueObject&,lldb::DynamicValueType);
+    GetHardcodedSummaryFormat (FormattersMatchData&);
 
     lldb::SyntheticChildrenSP
-    GetHardcodedSyntheticChildren (ValueObject&,lldb::DynamicValueType);
+    GetHardcodedSyntheticChildren (FormattersMatchData&);
     
     lldb::TypeValidatorImplSP
-    GetHardcodedValidator (ValueObject&,lldb::DynamicValueType);
+    GetHardcodedValidator (FormattersMatchData&);
     
     TypeCategoryMap&
     GetCategories ()
@@ -312,29 +316,20 @@ private:
         return m_categories_map;
     }
     
-    // WARNING: these are temporary functions that setup formatters
-    // while a few of these actually should be globally available and setup by LLDB itself
-    // most would actually belong to the users' lldbinit file or to some other form of configurable
-    // storage
-    void
-    LoadLibStdcppFormatters ();
-    
-    void
-    LoadLibcxxFormatters ();
-    
+    // These functions are meant to initialize formatters that are very low-level/global in nature
+    // and do not naturally belong in any language. The intent is that most formatters go in
+    // language-specific categories. Eventually, the runtimes should also be allowed to vend their
+    // own formatters, and then one could put formatters that depend on specific library load events
+    // in the language runtimes, on an as-needed basis
     void
     LoadSystemFormatters ();
     
     void
-    LoadObjCFormatters ();
-
-    void
-    LoadCoreMediaFormatters ();
+    LoadVectorFormatters ();
     
-    void
-    LoadHardcodedFormatters ();
+    friend class FormattersMatchData;
 };
     
 } // namespace lldb_private
     
-#endif	// lldb_FormatManager_h_
+#endif // lldb_FormatManager_h_

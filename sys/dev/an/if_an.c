@@ -426,7 +426,7 @@ int an_alloc_memory(device_t dev, int rid, int size)
 }
 
 /*
- * Allocate a auxilary memory resource with the given resource id.
+ * Allocate a auxiliary memory resource with the given resource id.
  */
 int an_alloc_aux_memory(device_t dev, int rid, int size)
 {

@@ -1,4 +1,4 @@
-# $Id: meta.sys.mk,v 1.26 2015/11/14 21:16:13 sjg Exp $
+# $Id: meta.sys.mk,v 1.27 2016/02/22 22:44:58 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -102,7 +102,7 @@ META_COOKIE_TOUCH=
 # some targets need to be .PHONY in non-meta mode
 META_NOPHONY= .PHONY
 # Are we, after all, in meta mode?
-.if ${.MAKE.MODE:Mmeta*} != ""
+.if ${.MAKE.MODE:Uno:Mmeta*} != ""
 MKDEP_MK = meta.autodep.mk
 
 .if ${.MAKE.MAKEFILES:M*sys.dependfile.mk} == ""

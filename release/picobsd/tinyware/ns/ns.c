@@ -700,7 +700,7 @@ stats(char *proto)
 		return 0;
 	if (pflag) {
 		if (proto == NULL) {
-			fprintf(stderr, "Option '-p' requires paramter.\n");
+			fprintf(stderr, "Option '-p' requires parameter.\n");
 			usage();
 			exit(-1);
 		}

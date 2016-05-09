@@ -722,3 +722,16 @@ fdt_get_unit(device_t dev)
 
 	return (strtol(name,NULL,0));
 }
+
+int
+fdt_get_chosen_bootargs(char *bootargs, size_t max_size)
+{
+	phandle_t chosen;
+
+	chosen = OF_finddevice("/chosen");
+	if (chosen == -1)
+		return (ENXIO);
+	if (OF_getprop(chosen, "bootargs", bootargs, max_size) == -1)
+		return (ENXIO);
+	return (0);
+}

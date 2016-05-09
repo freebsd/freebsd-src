@@ -73,7 +73,7 @@ struct current_syscall {
 
 struct threadinfo
 {
-	SLIST_ENTRY(threadinfo) entries;
+	LIST_ENTRY(threadinfo) entries;
 	struct procinfo *proc;
 	lwpid_t tid;
 	int in_syscall;
@@ -87,7 +87,7 @@ struct procinfo {
 	pid_t pid;
 	struct procabi *abi;
 
-	SLIST_HEAD(, threadinfo) threadlist;
+	LIST_HEAD(, threadinfo) threadlist;
 };
 
 struct trussinfo

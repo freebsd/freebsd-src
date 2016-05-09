@@ -43,20 +43,20 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include "un-namespace.h"
 
-static char *default_domain = 0;
+static char *default_domain;
 
 static char *
 get_default_domain(void)
 {
 	char temp[256];
 
-	if (default_domain)
+	if (default_domain != NULL)
 		return (default_domain);
 	if (getdomainname(temp, sizeof(temp)) < 0)
 		return (0);
 	if ((int) strlen(temp) > 0) {
-		default_domain = (char *)malloc((strlen(temp)+(unsigned)1));
-		if (default_domain == 0)
+		default_domain = malloc((strlen(temp) + (unsigned)1));
+		if (default_domain == NULL)
 			return (0);
 		(void) strcpy(default_domain, temp);
 		return (default_domain);
@@ -73,7 +73,7 @@ get_default_domain(void)
 int
 __rpc_get_default_domain(char **domain)
 {
-	if ((*domain = get_default_domain()) != 0)
+	if ((*domain = get_default_domain()) != NULL)
 		return (0);
 	return (-1);
 }

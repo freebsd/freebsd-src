@@ -10,11 +10,10 @@ KERN_CONFDIR= ${SRCTOP}/sys/${TARGET}/conf
 
 CONFIG= ${STAGE_HOST_OBJTOP}/usr/sbin/config
 
-${KERNCONF}.config: .MAKE .META
+${KERNCONF}.config: .MAKE ${META_DEPS}
 	mkdir -p ${KERN_OBJDIR:H}
 	(cd ${KERN_CONFDIR} && \
 	${CONFIG} ${CONFIGARGS} -d ${KERN_OBJDIR} ${KERNCONF})
-	@touch $@
 
 # we need to pass curdirOk=yes to meta mode, since we want .meta files
 # in ${KERN_OBJDIR}

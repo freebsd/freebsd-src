@@ -7,12 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/Target/ThreadPlanStepOverRange.h"
-
 // C Includes
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
+#include "lldb/Target/ThreadPlanStepOverRange.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Stream.h"
 #include "lldb/Symbol/Block.h"
@@ -52,9 +51,7 @@ ThreadPlanStepOverRange::ThreadPlanStepOverRange
     SetupAvoidNoDebug(step_out_avoids_code_without_debug_info);
 }
 
-ThreadPlanStepOverRange::~ThreadPlanStepOverRange ()
-{
-}
+ThreadPlanStepOverRange::~ThreadPlanStepOverRange() = default;
 
 void
 ThreadPlanStepOverRange::GetDescription (Stream *s, lldb::DescriptionLevel level)
@@ -111,7 +108,6 @@ ThreadPlanStepOverRange::SetupAvoidNoDebug(LazyBool step_out_avoids_code_without
 bool
 ThreadPlanStepOverRange::IsEquivalentContext(const SymbolContext &context)
 {
-
     // Match as much as is specified in the m_addr_context:
     // This is a fairly loose sanity check.  Note, sometimes the target doesn't get filled
     // in so I left out the target check.  And sometimes the module comes in as the .o file from the
@@ -150,14 +146,8 @@ ThreadPlanStepOverRange::ShouldStop (Event *event_ptr)
     // If we're out of the range but in the same frame or in our caller's frame
     // then we should stop.
     // When stepping out we only stop others if we are forcing running one thread.
-    bool stop_others;
-    if (m_stop_others == lldb::eOnlyThisThread)
-        stop_others = true;
-    else 
-        stop_others = false;
-
+    bool stop_others = (m_stop_others == lldb::eOnlyThisThread);
     ThreadPlanSP new_plan_sp;
-    
     FrameComparison frame_order = CompareCurrentFrameToStartFrame();
     
     if (frame_order == eFrameCompareOlder)
@@ -189,13 +179,14 @@ ThreadPlanStepOverRange::ShouldStop (Event *event_ptr)
             const SymbolContext &older_context = older_frame_sp->GetSymbolContext(eSymbolContextEverything);
             if (IsEquivalentContext(older_context))
             {
-                new_plan_sp = m_thread.QueueThreadPlanForStepOutNoShouldStop (false,
-                                                                              NULL,
-                                                                              true,
-                                                                              stop_others,
-                                                                              eVoteNo,
-                                                                              eVoteNoOpinion,
-                                                                              0);
+                new_plan_sp = m_thread.QueueThreadPlanForStepOutNoShouldStop(false,
+                                                                             nullptr,
+                                                                             true,
+                                                                             stop_others,
+                                                                             eVoteNo,
+                                                                             eVoteNoOpinion,
+                                                                             0,
+                                                                             true);
                 break;
             }
             else
@@ -215,7 +206,6 @@ ThreadPlanStepOverRange::ShouldStop (Event *event_ptr)
             SetNextBranchBreakpoint();
             return false;
         }
-
 
         if (!InSymbol())
         {
@@ -283,7 +273,6 @@ ThreadPlanStepOverRange::ShouldStop (Event *event_ptr)
                                                     
                                                     step_past_remaining_inline = true;
                                                 }
-                                                
                                             }
                                         }
                                     }
@@ -303,10 +292,14 @@ ThreadPlanStepOverRange::ShouldStop (Event *event_ptr)
                                         if (next_line_entry.file == m_addr_context.line_entry.file)
                                         {
                                             const bool abort_other_plans = false;
-                                            const bool stop_other_threads = false;
-                                            new_plan_sp = m_thread.QueueThreadPlanForRunToAddress(abort_other_plans,
-                                                                                               next_line_address,
-                                                                                               stop_other_threads);
+                                            const RunMode stop_other_threads = RunMode::eAllThreads;
+                                            lldb::addr_t cur_pc = m_thread.GetStackFrameAtIndex(0)->GetRegisterContext()->GetPC();
+                                            AddressRange step_range(cur_pc, next_line_address.GetLoadAddress(&GetTarget()) - cur_pc);
+                                            
+                                            new_plan_sp = m_thread.QueueThreadPlanForStepOverRange (abort_other_plans,
+                                                                                                    step_range,
+                                                                                                    sc,
+                                                                                                    stop_other_threads);
                                             break;
                                         }
                                         look_ahead_step++;
@@ -368,27 +361,19 @@ ThreadPlanStepOverRange::DoPlanExplainsStop (Event *event_ptr)
     {
         StopReason reason = stop_info_sp->GetStopReason();
 
-        switch (reason)
+        if (reason == eStopReasonTrace)
         {
-        case eStopReasonTrace:
             return_value = true;
-            break;
-        case eStopReasonBreakpoint:
-            if (NextRangeBreakpointExplainsStop(stop_info_sp))
-                return_value = true;
-            else
-                return_value = false;
-            break;
-        case eStopReasonWatchpoint:
-        case eStopReasonSignal:
-        case eStopReasonException:
-        case eStopReasonExec:
-        case eStopReasonThreadExiting:
-        default:
+        }
+        else if (reason == eStopReasonBreakpoint)
+        {
+            return_value = NextRangeBreakpointExplainsStop(stop_info_sp);
+        }
+        else
+        {
             if (log)
                 log->PutCString ("ThreadPlanStepInRange got asked if it explains the stop for some reason other than step.");
             return_value = false;
-            break;
         }
     }
     else
@@ -447,4 +432,3 @@ ThreadPlanStepOverRange::DoWillResume (lldb::StateType resume_state, bool curren
     
     return true;
 }
-

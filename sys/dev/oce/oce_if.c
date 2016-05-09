@@ -1497,16 +1497,12 @@ static void
 oce_rx_flush_lro(struct oce_rq *rq)
 {
 	struct lro_ctrl	*lro = &rq->lro;
-	struct lro_entry *queued;
 	POCE_SOFTC sc = (POCE_SOFTC) rq->parent;
 
 	if (!IF_LRO_ENABLED(sc))
 		return;
 
-	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
-		SLIST_REMOVE_HEAD(&lro->lro_active, next);
-		tcp_lro_flush(lro, queued);
-	}
+	tcp_lro_flush_all(lro);
 	rq->lro_pkts_queued = 0;
 	
 	return;

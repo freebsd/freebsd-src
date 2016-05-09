@@ -1,4 +1,4 @@
-//===-- DynamicLoaderWindowsDYLDh ----------------------------------*- C++ -*-===//
+//===-- DynamicLoaderWindowsDYLD.h ------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,9 +7,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_Plugins_Process_Windows_DynamicLoaderWindowsDYLD_H_
-#define liblldb_Plugins_Process_Windows_DynamicLoaderWindowsDYLD_H_
+#ifndef liblldb_Plugins_Process_Windows_DynamicLoaderWindowsDYLD_h_
+#define liblldb_Plugins_Process_Windows_DynamicLoaderWindowsDYLD_h_
 
+// C Includes
+// C++ Includes
+// Other libraries and framework includes
+// Project includes
 #include "lldb/lldb-forward.h"
 #include "lldb/Target/DynamicLoader.h"
 
@@ -18,9 +22,10 @@ namespace lldb_private
 
 class DynamicLoaderWindowsDYLD : public DynamicLoader
 {
-  public:
+public:
     DynamicLoaderWindowsDYLD(Process *process);
-    virtual ~DynamicLoaderWindowsDYLD();
+
+    ~DynamicLoaderWindowsDYLD() override;
 
     static void Initialize();
     static void Terminate();
@@ -29,15 +34,15 @@ class DynamicLoaderWindowsDYLD : public DynamicLoader
 
     static DynamicLoader *CreateInstance(Process *process, bool force);
 
-    void DidAttach () override;
-    void DidLaunch () override;
-    Error CanLoadImage () override;
+    void DidAttach() override;
+    void DidLaunch() override;
+    Error CanLoadImage() override;
     lldb::ThreadPlanSP GetStepThroughTrampolinePlan(Thread &thread, bool stop) override;
 
     ConstString GetPluginName() override;
     uint32_t GetPluginVersion() override;
 };
 
-}
+} // namespace lldb_private
 
-#endif
+#endif // liblldb_Plugins_Process_Windows_DynamicLoaderWindowsDYLD_h_

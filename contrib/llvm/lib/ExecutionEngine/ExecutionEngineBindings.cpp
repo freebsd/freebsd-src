@@ -29,7 +29,7 @@ using namespace llvm;
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(GenericValue, LLVMGenericValueRef)
 
 
-inline LLVMTargetMachineRef wrap(const TargetMachine *P) {
+static LLVMTargetMachineRef wrap(const TargetMachine *P) {
   return
   reinterpret_cast<LLVMTargetMachineRef>(const_cast<TargetMachine*>(P));
 }
@@ -210,35 +210,6 @@ LLVMBool LLVMCreateMCJITCompilerForModule(
   return 1;
 }
 
-LLVMBool LLVMCreateExecutionEngine(LLVMExecutionEngineRef *OutEE,
-                                   LLVMModuleProviderRef MP,
-                                   char **OutError) {
-  /* The module provider is now actually a module. */
-  return LLVMCreateExecutionEngineForModule(OutEE,
-                                            reinterpret_cast<LLVMModuleRef>(MP),
-                                            OutError);
-}
-
-LLVMBool LLVMCreateInterpreter(LLVMExecutionEngineRef *OutInterp,
-                               LLVMModuleProviderRef MP,
-                               char **OutError) {
-  /* The module provider is now actually a module. */
-  return LLVMCreateInterpreterForModule(OutInterp,
-                                        reinterpret_cast<LLVMModuleRef>(MP),
-                                        OutError);
-}
-
-LLVMBool LLVMCreateJITCompiler(LLVMExecutionEngineRef *OutJIT,
-                               LLVMModuleProviderRef MP,
-                               unsigned OptLevel,
-                               char **OutError) {
-  /* The module provider is now actually a module. */
-  return LLVMCreateJITCompilerForModule(OutJIT,
-                                        reinterpret_cast<LLVMModuleRef>(MP),
-                                        OptLevel, OutError);
-}
-
-
 void LLVMDisposeExecutionEngine(LLVMExecutionEngineRef EE) {
   delete unwrap(EE);
 }
@@ -282,25 +253,12 @@ void LLVMAddModule(LLVMExecutionEngineRef EE, LLVMModuleRef M){
   unwrap(EE)->addModule(std::unique_ptr<Module>(unwrap(M)));
 }
 
-void LLVMAddModuleProvider(LLVMExecutionEngineRef EE, LLVMModuleProviderRef MP){
-  /* The module provider is now actually a module. */
-  LLVMAddModule(EE, reinterpret_cast<LLVMModuleRef>(MP));
-}
-
 LLVMBool LLVMRemoveModule(LLVMExecutionEngineRef EE, LLVMModuleRef M,
                           LLVMModuleRef *OutMod, char **OutError) {
   Module *Mod = unwrap(M);
   unwrap(EE)->removeModule(Mod);
   *OutMod = wrap(Mod);
   return 0;
-}
-
-LLVMBool LLVMRemoveModuleProvider(LLVMExecutionEngineRef EE,
-                                  LLVMModuleProviderRef MP,
-                                  LLVMModuleRef *OutMod, char **OutError) {
-  /* The module provider is now actually a module. */
-  return LLVMRemoveModule(EE, reinterpret_cast<LLVMModuleRef>(MP), OutMod,
-                          OutError);
 }
 
 LLVMBool LLVMFindFunction(LLVMExecutionEngineRef EE, const char *Name,
@@ -318,7 +276,7 @@ void *LLVMRecompileAndRelinkFunction(LLVMExecutionEngineRef EE,
 }
 
 LLVMTargetDataRef LLVMGetExecutionEngineTargetData(LLVMExecutionEngineRef EE) {
-  return wrap(unwrap(EE)->getDataLayout());
+  return wrap(&unwrap(EE)->getDataLayout());
 }
 
 LLVMTargetMachineRef

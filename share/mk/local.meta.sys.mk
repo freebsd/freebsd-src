@@ -6,12 +6,11 @@
 
 # we need this until there is an alternative
 MK_INSTALL_AS_USER= yes
-MK_FAST_DEPEND= yes
 
 _default_makeobjdir=$${.CURDIR:S,^$${SRCTOP},$${OBJTOP},}
 
 .if empty(OBJROOT) || ${.MAKE.LEVEL} == 0
-.if defined(MAKEOBJDIRPREFIX)
+.if defined(MAKEOBJDIRPREFIX) && !empty(MAKEOBJDIRPREFIX)
 # put things approximately where they want
 OBJROOT:=${MAKEOBJDIRPREFIX}${SRCTOP}/
 MAKEOBJDIRPREFIX=
@@ -132,6 +131,16 @@ PYTHON ?= /usr/local/bin/python
 .export PYTHON
 # this works best if share/mk is ready for it.
 BUILD_AT_LEVEL0= no
+# _SKIP_BUILD is not 100% as it requires wrapping all 'all:' targets to avoid
+# building in MAKELEVEL0.  Just prohibit 'all' entirely in this case to avoid
+# problems.
+.if ${MK_DIRDEPS_BUILD} == "yes" && \
+    ${.MAKE.LEVEL} == 0 && ${BUILD_AT_LEVEL0:Uyes:tl} == "no"
+.MAIN: dirdeps
+.if make(all)
+.error DIRDEPS_BUILD: Please run '${MAKE}' instead of '${MAKE} all'.
+.endif
+.endif
 
 # we want to end up with a singe stage tree for all machines
 .if ${MK_STAGING} == "yes"
@@ -170,7 +179,7 @@ STAGE_INCSDIR= ${STAGE_OBJTOP}${INCSDIR:U/include}
 # the target is usually an absolute path
 STAGE_SYMLINKS_DIR= ${STAGE_OBJTOP}
 
-LDFLAGS_LAST+= -Wl,-rpath-link -Wl,${STAGE_LIBDIR}
+LDFLAGS_LAST+= -Wl,-rpath-link,${STAGE_LIBDIR}
 .if ${MK_SYSROOT} == "yes"
 SYSROOT?= ${STAGE_OBJTOP}
 .else
@@ -205,15 +214,18 @@ CSU_DIR := ${CSU_DIR.${MACHINE_ARCH}}
 .if !empty(TIME_STAMP)
 TRACER= ${TIME_STAMP} ${:U}
 .endif
+.if !defined(_RECURSING_PROGS)
 WITH_META_STATS= t
+.endif
 
 # toolchains can be a pain - especially bootstrappping them
 .if ${MACHINE} == "host"
 MK_SHARED_TOOLCHAIN= no
 .endif
 TOOLCHAIN_VARS=	AS AR CC CLANG_TBLGEN CXX CPP LD NM OBJDUMP OBJCOPY RANLIB \
-		STRINGS SIZE TBLGEN
+		STRINGS SIZE LLVM_TBLGEN
 _toolchain_bin_CLANG_TBLGEN=	/usr/bin/clang-tblgen
+_toolchain_bin_LLVM_TBLGEN=	/usr/bin/llvm-tblgen
 _toolchain_bin_CXX=		/usr/bin/c++
 .ifdef WITH_TOOLSDIR
 TOOLSDIR?= ${HOST_OBJTOP}/tools
@@ -233,8 +245,7 @@ PATH:= ${TOOLSDIR}${dir}:${PATH}
 _toolchain_bin.${var}=	${TOOLSDIR}${_toolchain_bin_${var}:U/usr/bin/${var:tl}}
 .if exists(${_toolchain_bin.${var}})
 HOST_${var}?=	${_toolchain_bin.${var}}
-${var}?=	${HOST_${var}}
-.export		HOST_${var} ${var}
+.export		HOST_${var}
 .endif
 .endfor
 .endif

@@ -18,4 +18,3 @@ LDFLAGS=-e start -Ttext ${LOADER_ADDRESS} -Wl,-N,-S,--oformat,binary
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 CFLAGS.btxldr.S=	${CLANG_NO_IAS}
-CFLAGS+=		${CFLAGS.${.IMPSRC:T}}

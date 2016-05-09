@@ -12,9 +12,11 @@ DIRDEPS = \
 	lib/clang/libllvmbitreader \
 	lib/clang/libllvmbitwriter \
 	lib/clang/libllvmcore \
-	lib/clang/libllvmipa \
 	lib/clang/libllvmirreader \
 	lib/clang/libllvmlinker \
+	lib/clang/libllvmmc \
+	lib/clang/libllvmmcparser \
+	lib/clang/libllvmobject \
 	lib/clang/libllvmsupport \
 	lib/clang/libllvmtransformutils \
 	lib/libc \
@@ -23,6 +25,7 @@ DIRDEPS = \
 	lib/libthr \
 	lib/msun \
 	lib/ncurses/ncursesw \
+	usr.bin/clang/llvm-tblgen.host \
 
 
 .include <dirdeps.mk>

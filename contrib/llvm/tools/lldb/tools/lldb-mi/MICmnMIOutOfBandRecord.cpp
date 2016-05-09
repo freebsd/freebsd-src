@@ -1,4 +1,4 @@
-//===-- MICmnMIOutOfBandRecord.cpp --------------------------------------------*- C++ -*-===//
+//===-- MICmnMIOutOfBandRecord.cpp ------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,43 +7,106 @@
 //
 //===----------------------------------------------------------------------===//
 
+// Third Party Headers:
+#include <assert.h>
+
 // In-house headers:
 #include "MICmnMIOutOfBandRecord.h"
 #include "MICmnResources.h"
 
 // Instantiations:
-CMICmnMIOutOfBandRecord::MapOutOfBandToOutOfBandText_t ms_MapOutOfBandToOutOfBandText = {
-    {CMICmnMIOutOfBandRecord::eOutOfBand_Running, "running"},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_Stopped, "stopped"},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_BreakPointCreated, "breakpoint-created"},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_BreakPointModified, "breakpoint-modified"},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_Thread, ""}, // "" Meant to be empty
-    {CMICmnMIOutOfBandRecord::eOutOfBand_ThreadGroupAdded, "thread-group-added"},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_ThreadGroupExited, "thread-group-exited"},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_ThreadGroupRemoved, "thread-group-removed"},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_ThreadGroupStarted, "thread-group-started"},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_ThreadCreated, "thread-created"},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_ThreadExited, "thread-exited"},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_ThreadSelected, "thread-selected"},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_TargetModuleLoaded, "library-loaded"},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_TargetModuleUnloaded, "library-unloaded"},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_TargetStreamOutput, ""}};
-CMICmnMIOutOfBandRecord::MapOutOfBandToOutOfBandText_t ms_constMapAsyncRecordTextToToken = {
-    {CMICmnMIOutOfBandRecord::eOutOfBand_Running, "*"},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_Stopped, "*"},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_BreakPointCreated, "="},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_BreakPointModified, "="},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_Thread, "@"},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_ThreadGroupAdded, "="},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_ThreadGroupExited, "="},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_ThreadGroupRemoved, "="},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_ThreadGroupStarted, "="},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_ThreadCreated, "="},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_ThreadExited, "="},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_ThreadSelected, "="},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_TargetModuleLoaded, "="},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_TargetModuleUnloaded, "="},
-    {CMICmnMIOutOfBandRecord::eOutOfBand_TargetStreamOutput, "@"}};
+static const char *
+MapOutOfBandToText(CMICmnMIOutOfBandRecord::OutOfBand_e veType)
+{
+    switch (veType)
+    {
+        case CMICmnMIOutOfBandRecord::eOutOfBand_Running:
+            return "running";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_Stopped:
+            return "stopped";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_BreakPointCreated:
+            return "breakpoint-created";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_BreakPointModified:
+            return "breakpoint-modified";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_Thread:
+            return ""; // "" Meant to be empty
+        case CMICmnMIOutOfBandRecord::eOutOfBand_ThreadGroupAdded:
+            return "thread-group-added";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_ThreadGroupExited:
+            return "thread-group-exited";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_ThreadGroupRemoved:
+            return "thread-group-removed";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_ThreadGroupStarted:
+            return "thread-group-started";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_ThreadCreated:
+            return "thread-created";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_ThreadExited:
+            return "thread-exited";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_ThreadSelected:
+            return "thread-selected";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_TargetModuleLoaded:
+            return "library-loaded";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_TargetModuleUnloaded:
+            return "library-unloaded";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_TargetStreamOutput:
+            return "";
+    }
+    assert(false && "unknown CMICmnMIOutofBandRecord::OutOfBand_e");
+    return NULL;
+}
+
+static const char *
+MapOutOfBandToToken(CMICmnMIOutOfBandRecord::OutOfBand_e veType)
+{
+    switch (veType)
+    {
+        case CMICmnMIOutOfBandRecord::eOutOfBand_Running:
+            return "*";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_Stopped:
+            return "*";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_BreakPointCreated:
+            return "=";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_BreakPointModified:
+            return "=";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_Thread:
+            return "@";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_ThreadGroupAdded:
+            return "=";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_ThreadGroupExited:
+            return "=";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_ThreadGroupRemoved:
+            return "=";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_ThreadGroupStarted:
+            return "=";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_ThreadCreated:
+            return "=";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_ThreadExited:
+            return "=";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_ThreadSelected:
+            return "=";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_TargetModuleLoaded:
+            return "=";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_TargetModuleUnloaded:
+            return "=";
+        case CMICmnMIOutOfBandRecord::eOutOfBand_TargetStreamOutput:
+            return "@";
+    }
+    assert(false && "unknown CMICmnMIOutofBandRecord::OutOfBand_e");
+    return NULL;
+}
+
+//++ ------------------------------------------------------------------------------------
+// Details: Build the Out-of-band record's mandatory data part. The part up to the first
+//          (additional) result i.e. async-record ==>  "*" type.
+// Args:    veType      - (R) A MI Out-of-Band enumeration.
+// Return:  CMIUtilString - The async record text.
+// Throws:  None.
+//--
+static CMIUtilString
+BuildAsyncRecord(CMICmnMIOutOfBandRecord::OutOfBand_e veType)
+{
+    return CMIUtilString::Format("%s%s", MapOutOfBandToToken(veType), MapOutOfBandToText(veType));
+}
 
 //++ ------------------------------------------------------------------------------------
 // Details: CMICmnMIOutOfBandRecord constructor.
@@ -52,7 +115,7 @@ CMICmnMIOutOfBandRecord::MapOutOfBandToOutOfBandText_t ms_constMapAsyncRecordTex
 // Return:  None.
 // Throws:  None.
 //--
-CMICmnMIOutOfBandRecord::CMICmnMIOutOfBandRecord(void)
+CMICmnMIOutOfBandRecord::CMICmnMIOutOfBandRecord()
     : m_strAsyncRecord(MIRSRC(IDS_CMD_ERR_EVENT_HANDLED_BUT_NO_ACTION))
 {
 }
@@ -64,11 +127,9 @@ CMICmnMIOutOfBandRecord::CMICmnMIOutOfBandRecord(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmnMIOutOfBandRecord::CMICmnMIOutOfBandRecord(const OutOfBand_e veType)
-    : m_eResultAsyncRecordClass(veType)
-    , m_strAsyncRecord(MIRSRC(IDS_CMD_ERR_EVENT_HANDLED_BUT_NO_ACTION))
+CMICmnMIOutOfBandRecord::CMICmnMIOutOfBandRecord(OutOfBand_e veType)
+    : m_strAsyncRecord(BuildAsyncRecord(veType))
 {
-    BuildAsyncRecord();
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -79,11 +140,9 @@ CMICmnMIOutOfBandRecord::CMICmnMIOutOfBandRecord(const OutOfBand_e veType)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmnMIOutOfBandRecord::CMICmnMIOutOfBandRecord(const OutOfBand_e veType, const CMICmnMIValueConst &vConst)
-    : m_eResultAsyncRecordClass(veType)
-    , m_strAsyncRecord(MIRSRC(IDS_CMD_ERR_EVENT_HANDLED_BUT_NO_ACTION))
+CMICmnMIOutOfBandRecord::CMICmnMIOutOfBandRecord(OutOfBand_e veType, const CMICmnMIValueConst &vConst)
+    : m_strAsyncRecord(BuildAsyncRecord(veType))
 {
-    BuildAsyncRecord();
     m_strAsyncRecord += vConst.GetString();
 }
 
@@ -95,13 +154,10 @@ CMICmnMIOutOfBandRecord::CMICmnMIOutOfBandRecord(const OutOfBand_e veType, const
 // Return:  None.
 // Throws:  None.
 //--
-CMICmnMIOutOfBandRecord::CMICmnMIOutOfBandRecord(const OutOfBand_e veType, const CMICmnMIValueResult &vResult)
-    : m_eResultAsyncRecordClass(veType)
-    , m_strAsyncRecord(MIRSRC(IDS_CMD_ERR_EVENT_HANDLED_BUT_NO_ACTION))
-    , m_partResult(vResult)
+CMICmnMIOutOfBandRecord::CMICmnMIOutOfBandRecord(OutOfBand_e veType, const CMICmnMIValueResult &vResult)
+    : m_strAsyncRecord(BuildAsyncRecord(veType))
 {
-    BuildAsyncRecord();
-    Add(m_partResult);
+    Add(vResult);
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -111,7 +167,7 @@ CMICmnMIOutOfBandRecord::CMICmnMIOutOfBandRecord(const OutOfBand_e veType, const
 // Return:  None.
 // Throws:  None.
 //--
-CMICmnMIOutOfBandRecord::~CMICmnMIOutOfBandRecord(void)
+CMICmnMIOutOfBandRecord::~CMICmnMIOutOfBandRecord()
 {
 }
 
@@ -126,44 +182,21 @@ CMICmnMIOutOfBandRecord::~CMICmnMIOutOfBandRecord(void)
 // Throws:  None.
 //--
 const CMIUtilString &
-CMICmnMIOutOfBandRecord::GetString(void) const
+CMICmnMIOutOfBandRecord::GetString() const
 {
     return m_strAsyncRecord;
-}
-
-//++ ------------------------------------------------------------------------------------
-// Details: Build the Out-of-band record's mandatory data part. The part up to the first
-//          (additional) result i.e. async-record ==>  "*" type.
-// Type:    Method.
-// Args:    None.
-// Return:  MIstatus::success - Functional succeeded.
-//          MIstatus::failure - Functional failed.
-// Throws:  None.
-//--
-bool
-CMICmnMIOutOfBandRecord::BuildAsyncRecord(void)
-{
-    const char *pFormat = "%s%s";
-    const CMIUtilString &rStrAsyncRecord(ms_MapOutOfBandToOutOfBandText[m_eResultAsyncRecordClass]);
-    const CMIUtilString &rStrToken(ms_constMapAsyncRecordTextToToken[m_eResultAsyncRecordClass]);
-    m_strAsyncRecord = CMIUtilString::Format(pFormat, rStrToken.c_str(), rStrAsyncRecord.c_str());
-
-    return MIstatus::success;
 }
 
 //++ ------------------------------------------------------------------------------------
 // Details: Add to *this Out-of-band record additional information.
 // Type:    Method.
 // Args:    vResult           - (R) A MI result object.
-// Return:  MIstatus::success - Functional succeeded.
-//          MIstatus::failure - Functional failed.
+// Return:  None.
 // Throws:  None.
 //--
-bool
+void
 CMICmnMIOutOfBandRecord::Add(const CMICmnMIValueResult &vResult)
 {
     m_strAsyncRecord += ",";
     m_strAsyncRecord += vResult.GetString();
-
-    return MIstatus::success;
 }

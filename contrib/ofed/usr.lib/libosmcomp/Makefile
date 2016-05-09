@@ -16,6 +16,8 @@ SRCS+=	cl_log.c cl_map.c cl_pool.c cl_ptr_vector.c cl_spinlock.c
 SRCS+=	cl_statustext.c cl_thread.c cl_threadpool.c cl_timer.c cl_vector.c
 SRCS+=	ib_statustext.c cl_nodenamemap.c
 
+LIBADD=	pthread
+
 VERSION_MAP= ${COMPLIBDIR}/libosmcomp.map
 
 .include <bsd.lib.mk>

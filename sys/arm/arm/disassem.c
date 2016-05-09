@@ -523,7 +523,7 @@ disasm(const disasm_interface_t *di, vm_offset_t loc, int altfmt)
 			else
 				di->di_printf(", ");
 		}
-	};
+	}
 
 	di->di_printf("\n");
 

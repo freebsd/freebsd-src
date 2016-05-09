@@ -38,59 +38,55 @@
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "exec-run".
-// Gotchas: None.
-// Authors: Illya Rudkin 07/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdExecRun : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdExecRun(void);
+    /* ctor */ CMICmdCmdExecRun();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdExecRun(void) override;
+    /* dtor */ ~CMICmdCmdExecRun() override;
 
     // Attributes:
   private:
+    const CMIUtilString m_constStrArgStart; // StopAtEntry - run to first instruction or main() if specified
     lldb::SBCommandReturnObject m_lldbResult;
 };
 
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "exec-continue".
-// Gotchas: None.
-// Authors: Illya Rudkin 07/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdExecContinue : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdExecContinue(void);
+    /* ctor */ CMICmdCmdExecContinue();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdExecContinue(void) override;
+    /* dtor */ ~CMICmdCmdExecContinue() override;
 
     // Attributes:
   private:
@@ -100,171 +96,150 @@ class CMICmdCmdExecContinue : public CMICmdBase
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "exec-next".
-// Gotchas: None.
-// Authors: Illya Rudkin 25/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdExecNext : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdExecNext(void);
+    /* ctor */ CMICmdCmdExecNext();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdExecNext(void) override;
+    /* dtor */ ~CMICmdCmdExecNext() override;
 
     // Attributes:
   private:
     lldb::SBCommandReturnObject m_lldbResult;
-    const CMIUtilString m_constStrArgThread; // Not specified in MI spec but Eclipse gives this option
     const CMIUtilString m_constStrArgNumber; // Not specified in MI spec but Eclipse gives this option
 };
 
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "exec-step".
-// Gotchas: None.
-// Authors: Illya Rudkin 25/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdExecStep : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdExecStep(void);
+    /* ctor */ CMICmdCmdExecStep();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdExecStep(void) override;
+    /* dtor */ ~CMICmdCmdExecStep() override;
 
     // Attributes:
   private:
     lldb::SBCommandReturnObject m_lldbResult;
-    const CMIUtilString m_constStrArgThread; // Not specified in MI spec but Eclipse gives this option
     const CMIUtilString m_constStrArgNumber; // Not specified in MI spec but Eclipse gives this option
 };
 
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "exec-next-instruction".
-// Gotchas: None.
-// Authors: Illya Rudkin 25/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdExecNextInstruction : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdExecNextInstruction(void);
+    /* ctor */ CMICmdCmdExecNextInstruction();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdExecNextInstruction(void) override;
+    /* dtor */ ~CMICmdCmdExecNextInstruction() override;
 
     // Attributes:
   private:
     lldb::SBCommandReturnObject m_lldbResult;
-    const CMIUtilString m_constStrArgThread; // Not specified in MI spec but Eclipse gives this option
     const CMIUtilString m_constStrArgNumber; // Not specified in MI spec but Eclipse gives this option
 };
 
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "exec-step-instruction".
-// Gotchas: None.
-// Authors: Illya Rudkin 25/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdExecStepInstruction : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdExecStepInstruction(void);
+    /* ctor */ CMICmdCmdExecStepInstruction();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdExecStepInstruction(void) override;
+    /* dtor */ ~CMICmdCmdExecStepInstruction() override;
 
     // Attributes:
   private:
     lldb::SBCommandReturnObject m_lldbResult;
-    const CMIUtilString m_constStrArgThread; // Not specified in MI spec but Eclipse gives this option
     const CMIUtilString m_constStrArgNumber; // Not specified in MI spec but Eclipse gives this option
 };
 
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "exec-finish".
-// Gotchas: None.
-// Authors: Illya Rudkin 25/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdExecFinish : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdExecFinish(void);
+    /* ctor */ CMICmdCmdExecFinish();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdExecFinish(void) override;
+    /* dtor */ ~CMICmdCmdExecFinish() override;
 
     // Attributes:
   private:
     lldb::SBCommandReturnObject m_lldbResult;
-    const CMIUtilString m_constStrArgThread; // Not specified in MI spec but Eclipse gives this option
-    const CMIUtilString m_constStrArgFrame;  // Not specified in MI spec but Eclipse gives this option
 };
 
 // CODETAG_DEBUG_SESSION_RUNNING_PROG_RECEIVED_SIGINT_PAUSE_PROGRAM
@@ -273,27 +248,25 @@ class CMICmdCmdExecFinish : public CMICmdBase
 //          *this class implements MI command "exec-interrupt".
 // Gotchas: Using Eclipse this command is injected into the command system when a
 //          SIGINT signal is received while running an inferior program.
-// Authors: Illya Rudkin 03/06/2014.
-// Changes: None.
 //--
 class CMICmdCmdExecInterrupt : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdExecInterrupt(void);
+    /* ctor */ CMICmdCmdExecInterrupt();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdExecInterrupt(void) override;
+    /* dtor */ ~CMICmdCmdExecInterrupt() override;
 
     // Attributes:
   private:
@@ -303,29 +276,26 @@ class CMICmdCmdExecInterrupt : public CMICmdBase
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "exec-arguments".
-// Gotchas: None.
-// Authors: Ilia Kirianovskii 25/11/2014.
-// Changes: None.
 //--
 class CMICmdCmdExecArguments : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdExecArguments(void);
+    /* ctor */ CMICmdCmdExecArguments();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdExecArguments(void) override;
+    /* dtor */ ~CMICmdCmdExecArguments() override;
 
     // Attributes:
   private:
@@ -341,17 +311,17 @@ class CMICmdCmdExecAbort : public CMICmdBase
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdExecAbort(void);
+    /* ctor */ CMICmdCmdExecAbort();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdExecAbort(void) override;
+    /* dtor */ ~CMICmdCmdExecAbort() override;
 };

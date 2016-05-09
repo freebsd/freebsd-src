@@ -38,6 +38,7 @@ __RCSID("$NetBSD: h_read.c,v 1.1 2010/12/27 02:04:19 pgoyette Exp $");
 
 #ifdef __FreeBSD__
 #include <fcntl.h>
+#include <paths.h>
 
 int
 main(int argc, char *argv[])
@@ -46,7 +47,8 @@ main(int argc, char *argv[])
 	int fd, n;
 	size_t len = atoi(argv[1]);
 
-	fd = open("/dev/zero", O_RDONLY);
+	if ((fd = open(_PATH_DEVZERO, O_RDONLY)) == -1)
+		abort();
 	if ((n = read(fd, b, len)) == -1)
 		abort();
 	(void)printf("%s\n", b);

@@ -139,6 +139,19 @@ typedef struct {
 } rft_id_t;
 
 /*
+ * RSPN_ID Requet CT_IU
+ *
+ * Source: INCITS 463-2010 Generic Services 6 Section 5.2.5.32
+ */
+typedef struct {
+	ct_hdr_t	rspnid_hdr;
+	uint8_t		rspnid_reserved;
+	uint8_t		rspnid_portid[3];
+	uint8_t		rspnid_length;
+	uint8_t		rspnid_name[0];
+} rspn_id_t;
+
+/*
  * RFF_ID Requet CT_IU
  *
  * Source: INCITS 463-2010 Generic Services 6 Section 5.2.5.34
@@ -151,6 +164,18 @@ typedef struct {
 	uint8_t		rffid_fc4features;
 	uint8_t		rffid_fc4type;
 } rff_id_t;
+
+/*
+ * RSNN_NN Requet CT_IU
+ *
+ * Source: INCITS 463-2010 Generic Services 6 Section 5.2.5.35
+ */
+typedef struct {
+	ct_hdr_t	rsnnnn_hdr;
+	uint8_t		rsnnnn_nodename[8];
+	uint8_t		rsnnnn_length;
+	uint8_t		rsnnnn_name[0];
+} rsnn_nn_t;
 
 /*
  * FCP Response IU and bits of interest

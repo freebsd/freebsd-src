@@ -1,4 +1,4 @@
-//===-- ValueObjectSyntheticFilter.h -------------------------------*- C++ -*-===//
+//===-- ValueObjectSyntheticFilter.h ----------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,7 +12,8 @@
 
 // C Includes
 // C++ Includes
-#include <vector>
+#include <memory>
+
 // Other libraries and framework includes
 // Project includes
 #include "lldb/Core/ThreadSafeSTLMap.h"
@@ -30,140 +31,142 @@ namespace lldb_private {
 class ValueObjectSynthetic : public ValueObject
 {
 public:
-    virtual
-    ~ValueObjectSynthetic();
+    ~ValueObjectSynthetic() override;
 
-    virtual uint64_t
-    GetByteSize();
+    uint64_t
+    GetByteSize() override;
     
-    virtual ConstString
-    GetTypeName();
+    ConstString
+    GetTypeName() override;
     
-    virtual ConstString
-    GetQualifiedTypeName();
+    ConstString
+    GetQualifiedTypeName() override;
     
-    virtual ConstString
-    GetDisplayTypeName();
+    ConstString
+    GetDisplayTypeName() override;
 
-    virtual bool
-    MightHaveChildren();
+    bool
+    MightHaveChildren() override;
 
-    virtual size_t
-    CalculateNumChildren();
+    size_t
+    CalculateNumChildren(uint32_t max) override;
 
-    virtual lldb::ValueType
-    GetValueType() const;
+    lldb::ValueType
+    GetValueType() const override;
     
-    virtual lldb::ValueObjectSP
-    GetChildAtIndex (size_t idx, bool can_create);
+    lldb::ValueObjectSP
+    GetChildAtIndex(size_t idx, bool can_create) override;
     
-    virtual lldb::ValueObjectSP
-    GetChildMemberWithName (const ConstString &name, bool can_create);
+    lldb::ValueObjectSP
+    GetChildMemberWithName(const ConstString &name, bool can_create) override;
     
-    virtual size_t
-    GetIndexOfChildWithName (const ConstString &name);
+    size_t
+    GetIndexOfChildWithName(const ConstString &name) override;
 
-    virtual lldb::ValueObjectSP
-    GetDynamicValue (lldb::DynamicValueType valueType);
+    lldb::ValueObjectSP
+    GetDynamicValue(lldb::DynamicValueType valueType) override;
     
-    virtual bool
-    IsInScope ();
+    bool
+    IsInScope() override;
     
-    virtual bool
-    HasSyntheticValue()
+    bool
+    HasSyntheticValue() override
     {
         return false;
     }
     
-    virtual bool
-    IsSynthetic() { return true; }
+    bool
+    IsSynthetic() override
+    {
+        return true;
+    }
     
-    virtual void
-    CalculateSyntheticValue (bool use_synthetic)
+    void
+    CalculateSyntheticValue(bool use_synthetic) override
     {
     }
     
-    virtual bool
-    IsDynamic ()
+    bool
+    IsDynamic() override
     {
-        if (m_parent)
-            return m_parent->IsDynamic();
-        else
-            return false;
+        return ((m_parent != nullptr) ? m_parent->IsDynamic() : false);
     }
     
-    virtual lldb::ValueObjectSP
-    GetStaticValue ()
+    lldb::ValueObjectSP
+    GetStaticValue() override
     {
-        if (m_parent)
-            return m_parent->GetStaticValue();
-        else
-            return GetSP();
+        return ((m_parent != nullptr) ? m_parent->GetStaticValue() : GetSP());
     }
     
     virtual lldb::DynamicValueType
     GetDynamicValueType ()
     {
-        if (m_parent)
-            return m_parent->GetDynamicValueType();
-        else
-            return lldb::eNoDynamicValues;
+        return ((m_parent != nullptr) ? m_parent->GetDynamicValueType() : lldb::eNoDynamicValues);
     }
 
-    virtual ValueObject *
-    GetParent()
+    ValueObject *
+    GetParent() override
     {
-        if (m_parent)
-            return m_parent->GetParent();
-        else
-            return NULL;
+        return ((m_parent != nullptr) ? m_parent->GetParent() : nullptr);
     }
 
-    virtual const ValueObject *
-    GetParent() const
+    const ValueObject *
+    GetParent() const override
     {
-        if (m_parent)
-            return m_parent->GetParent();
-        else
-            return NULL;
+        return ((m_parent != nullptr) ? m_parent->GetParent() : nullptr);
     }
     
-    virtual lldb::ValueObjectSP
-    GetNonSyntheticValue ();
+    lldb::ValueObjectSP
+    GetNonSyntheticValue() override;
     
-    virtual bool
-    CanProvideValue ();
+    bool
+    CanProvideValue() override;
     
-    virtual bool
-    DoesProvideSyntheticValue ()
+    bool
+    DoesProvideSyntheticValue() override
     {
         return (UpdateValueIfNeeded(), m_provides_value == eLazyBoolYes);
     }
     
-    virtual bool
-    GetIsConstant () const
+    bool
+    GetIsConstant() const override
     {
         return false;
     }
 
-    virtual bool
-    SetValueFromCString (const char *value_str, Error& error);
+    bool
+    SetValueFromCString(const char *value_str, Error& error) override;
     
-    virtual void
-    SetFormat (lldb::Format format);
+    void
+    SetFormat(lldb::Format format) override;
+    
+    lldb::LanguageType
+    GetPreferredDisplayLanguage() override;
+    
+    void
+    SetPreferredDisplayLanguage (lldb::LanguageType);
+    
+    bool
+    GetDeclaration(Declaration &decl) override;
+
+    uint64_t
+    GetLanguageFlags () override;
+    
+    void
+    SetLanguageFlags (uint64_t flags) override;
     
 protected:
-    virtual bool
-    UpdateValue ();
+    bool
+    UpdateValue() override;
     
-    virtual bool
-    CanUpdateWithInvalidExecutionContext ()
+    LazyBool
+    CanUpdateWithInvalidExecutionContext() override
     {
-        return true;
+        return eLazyBoolYes;
     }
     
-    virtual ClangASTType
-    GetClangTypeImpl ();
+    CompilerType
+    GetCompilerTypeImpl() override;
     
     virtual void
     CreateSynthFilter ();
@@ -195,12 +198,9 @@ private:
     void
     CopyValueData (ValueObject *source);
     
-    //------------------------------------------------------------------
-    // For ValueObject only
-    //------------------------------------------------------------------
     DISALLOW_COPY_AND_ASSIGN (ValueObjectSynthetic);
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_ValueObjectSyntheticFilter_h_
+#endif // liblldb_ValueObjectSyntheticFilter_h_

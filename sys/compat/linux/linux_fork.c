@@ -163,7 +163,7 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 		ff |= RFSIGSHARE;
 	/*
 	 * XXX: In Linux, sharing of fs info (chroot/cwd/umask)
-	 * and open files is independant.  In FreeBSD, its in one
+	 * and open files is independent.  In FreeBSD, its in one
 	 * structure but in reality it does not cause any problems
 	 * because both of these flags are usually set together.
 	 */
@@ -221,6 +221,18 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 
 	if (args->flags & LINUX_CLONE_SETTLS)
 		linux_set_cloned_tls(td2, args->tls);
+
+	/*
+	 * If CLONE_PARENT is set, then the parent of the new process will be 
+	 * the same as that of the calling process.
+	 */
+	if (args->flags & LINUX_CLONE_PARENT) {
+		sx_xlock(&proctree_lock);
+		PROC_LOCK(p2);
+		proc_reparent(p2, td->td_proc->p_pptr);
+		PROC_UNLOCK(p2);
+		sx_xunlock(&proctree_lock);
+	}
 
 #ifdef DEBUG
 	if (ldebug(clone))

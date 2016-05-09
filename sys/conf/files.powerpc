@@ -57,6 +57,7 @@ dev/ofw/ofw_console.c		optional	aim
 dev/ofw/ofw_disk.c		optional	ofwd aim
 dev/ofw/ofw_iicbus.c		optional	iicbus aim
 dev/ofw/ofwbus.c		optional	aim | fdt
+dev/ofw/ofwpci.c		optional 	pci
 dev/ofw/ofw_standard.c		optional	aim powerpc
 dev/ofw/ofw_subr.c		optional	aim powerpc
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
@@ -145,7 +146,6 @@ powerpc/mpc85xx/pci_mpc85xx.c	optional	pci mpc85xx | pci qoriq_dpaa
 powerpc/mpc85xx/pci_mpc85xx_pcib.c	optional	pci mpc85xx | pci qoriq_dpaa
 powerpc/mpc85xx/qoriq_gpio.c	optional	mpc85xx gpio | qoriq_dpaa gpio
 powerpc/ofw/ofw_machdep.c	standard
-powerpc/ofw/ofw_pci.c		optional	pci
 powerpc/ofw/ofw_pcibus.c	optional	pci
 powerpc/ofw/ofw_pcib_pci.c	optional	pci
 powerpc/ofw/ofw_real.c		optional	aim

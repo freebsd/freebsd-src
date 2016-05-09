@@ -335,106 +335,7 @@ bool llvm::getAlign(const CallInst &I, unsigned index, unsigned &align) {
   return false;
 }
 
-bool llvm::isBarrierIntrinsic(Intrinsic::ID id) {
-  if ((id == Intrinsic::nvvm_barrier0) ||
-      (id == Intrinsic::nvvm_barrier0_popc) ||
-      (id == Intrinsic::nvvm_barrier0_and) ||
-      (id == Intrinsic::nvvm_barrier0_or) ||
-      (id == Intrinsic::cuda_syncthreads))
-    return true;
-  return false;
-}
-
-// Interface for checking all memory space transfer related intrinsics
-bool llvm::isMemorySpaceTransferIntrinsic(Intrinsic::ID id) {
-  if (id == Intrinsic::nvvm_ptr_local_to_gen ||
-      id == Intrinsic::nvvm_ptr_shared_to_gen ||
-      id == Intrinsic::nvvm_ptr_global_to_gen ||
-      id == Intrinsic::nvvm_ptr_constant_to_gen ||
-      id == Intrinsic::nvvm_ptr_gen_to_global ||
-      id == Intrinsic::nvvm_ptr_gen_to_shared ||
-      id == Intrinsic::nvvm_ptr_gen_to_local ||
-      id == Intrinsic::nvvm_ptr_gen_to_constant ||
-      id == Intrinsic::nvvm_ptr_gen_to_param) {
-    return true;
-  }
-
-  return false;
-}
-
-// consider several special intrinsics in striping pointer casts, and
-// provide an option to ignore GEP indicies for find out the base address only
-// which could be used in simple alias disambigurate.
-const Value *
-llvm::skipPointerTransfer(const Value *V, bool ignore_GEP_indices) {
-  V = V->stripPointerCasts();
-  while (true) {
-    if (const IntrinsicInst *IS = dyn_cast<IntrinsicInst>(V)) {
-      if (isMemorySpaceTransferIntrinsic(IS->getIntrinsicID())) {
-        V = IS->getArgOperand(0)->stripPointerCasts();
-        continue;
-      }
-    } else if (ignore_GEP_indices)
-      if (const GEPOperator *GEP = dyn_cast<GEPOperator>(V)) {
-        V = GEP->getPointerOperand()->stripPointerCasts();
-        continue;
-      }
-    break;
-  }
-  return V;
-}
-
-// consider several special intrinsics in striping pointer casts, and
-// - ignore GEP indicies for find out the base address only, and
-// - tracking PHINode
-// which could be used in simple alias disambigurate.
-const Value *
-llvm::skipPointerTransfer(const Value *V, std::set<const Value *> &processed) {
-  if (processed.find(V) != processed.end())
-    return nullptr;
-  processed.insert(V);
-
-  const Value *V2 = V->stripPointerCasts();
-  if (V2 != V && processed.find(V2) != processed.end())
-    return nullptr;
-  processed.insert(V2);
-
-  V = V2;
-
-  while (true) {
-    if (const IntrinsicInst *IS = dyn_cast<IntrinsicInst>(V)) {
-      if (isMemorySpaceTransferIntrinsic(IS->getIntrinsicID())) {
-        V = IS->getArgOperand(0)->stripPointerCasts();
-        continue;
-      }
-    } else if (const GEPOperator *GEP = dyn_cast<GEPOperator>(V)) {
-      V = GEP->getPointerOperand()->stripPointerCasts();
-      continue;
-    } else if (const PHINode *PN = dyn_cast<PHINode>(V)) {
-      if (V != V2 && processed.find(V) != processed.end())
-        return nullptr;
-      processed.insert(PN);
-      const Value *common = nullptr;
-      for (unsigned i = 0; i != PN->getNumIncomingValues(); ++i) {
-        const Value *pv = PN->getIncomingValue(i);
-        const Value *base = skipPointerTransfer(pv, processed);
-        if (base) {
-          if (!common)
-            common = base;
-          else if (common != base)
-            return PN;
-        }
-      }
-      if (!common)
-        return PN;
-      V = common;
-    }
-    break;
-  }
-  return V;
-}
-
-// The following are some useful utilities for debuggung
+// The following are some useful utilities for debugging
 
 BasicBlock *llvm::getParentBlock(Value *v) {
   if (BasicBlock *B = dyn_cast<BasicBlock>(v))
@@ -466,7 +367,7 @@ void llvm::dumpBlock(Value *v, char *blockName) {
     return;
 
   for (Function::iterator it = F->begin(), ie = F->end(); it != ie; ++it) {
-    BasicBlock *B = it;
+    BasicBlock *B = &*it;
     if (strcmp(B->getName().data(), blockName) == 0) {
       B->dump();
       return;
@@ -490,7 +391,7 @@ Instruction *llvm::getInst(Value *base, char *instName) {
   return nullptr;
 }
 
-// Dump an instruction by nane
+// Dump an instruction by name
 void llvm::dumpInst(Value *base, char *instName) {
   Instruction *I = getInst(base, instName);
   if (I)

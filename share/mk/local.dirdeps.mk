@@ -9,15 +9,6 @@
 # DEP_MACHINE is set before we get here, this may not be.
 DEP_RELDIR ?= ${RELDIR}
 
-.if ${.TARGETS:Uall:M*/*} && empty(DIRDEPS)
-# This little trick let's us do
-#
-# mk -f dirdeps.mk some/dir.i386,bsd
-#
-DIRDEPS := ${.TARGETS:M*/*}
-${.TARGETS:Nall}: all
-.endif
-
 # making universe is special
 .if defined(UNIVERSE_GUARD)
 # these should be done by now
@@ -51,6 +42,7 @@ DIRDEPS_FILTER.host = \
 	Nlib/[mn]* \
 	Ngnu/lib/csu* \
 	Ngnu/lib/lib[a-r]* \
+	Nsecure/lib* \
 	Nusr.bin/xinstall* \
 
 
@@ -90,7 +82,8 @@ DIRDEPS += \
 # used will be added in and handled via [local.]gendirdeps.mk.  This is not
 # done for MACHINE=host builds.
 # XXX: Include this in local.autodep.mk as well for gendirdeps without filemon.
-.if ${RELDIR} == ${DEP_RELDIR} # Only do this for main build target
+# Only do this for main build target
+.if ${RELDIR} == ${DEP_RELDIR} && !defined(_RECURSING_PROGS)
 .for _depfile in ${.MAKE.DEPENDFILE_PREFERENCE:T}
 .if !defined(_have_depfile) && exists(${.CURDIR}/${_depfile})
 _have_depfile=
@@ -99,22 +92,60 @@ _have_depfile=
 .if !defined(_have_depfile)
 # KMOD does not use any stdlibs.
 .if !defined(KMOD)
+# Gather PROGS dependencies first
+.if !empty(PROGS)
+_PROGS_LIBADD=
+_PROGS_DPADD=
+_PROGS_SRCS=
+.for _prog in ${PROGS}
+.for s in . _
+.if !empty(LIBADD${s}${_prog})
+_PROGS_LIBADD+=	${LIBADD${s}${_prog}}
+.endif
+.if !empty(DPADD${s}${_prog})
+_PROGS_DPADD+=	${DPADD${s}${_prog}}
+.endif
+.if !empty(SRCS${s}${_prog})
+_PROGS_SRCS+=	${SRCS${s}${_prog}}
+.endif
+.endfor	# .for s in . _
+# Add in assumed source (bsd.prog.mk)
+.if !target(${_prog})
+.if defined(PROG_CXX)
+_PROGS_SRCS+=	${_prog}.cc
+.else
+_PROGS_SRCS+=	${_prog}.c
+.endif
+.endif	# !target(${_prog})
+.endfor	# .for _prog in ${PROGS}
+.endif	# !empty(PROGS)
+_SRCS= ${SRCS} ${_PROGS_SRCS}
+
 # Has C files. The C_DIRDEPS are shared with C++ files as well.
 C_DIRDEPS= \
 	gnu/lib/csu \
 	gnu/lib/libgcc \
 	include \
+	include/arpa \
+	include/protocols \
+	include/rpc  \
+	include/rpcsvc \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
 
-.if !empty(SRCS:M*.c)
+
+.if ${MK_GSSAPI} != "no"
+C_DIRDEPS+=  include/gssapi
+.endif
+
+.if !empty(_SRCS:M*.c)
 DIRDEPS+= ${C_DIRDEPS}
 .endif
 # Has C++ files
-.if !empty(SRCS:M*.cc) || !empty(SRCS:M*.C) || !empty(SRCS:M*.cpp) || \
-    !empty(SRCS:M*.cxx)
+.if !empty(_SRCS:M*.cc) || !empty(_SRCS:M*.C) || !empty(_SRCS:M*.cpp) || \
+    !empty(_SRCS:M*.cxx)
 DIRDEPS+= ${C_DIRDEPS}
 .if ${MK_CLANG} == "yes"
 DIRDEPS+= lib/libc++ lib/libcxxrt
@@ -126,28 +157,15 @@ DIRDEPS+= lib/msun
 .endif	# CXX
 .endif	# !defined(KMOD)
 # Has yacc files.
-.if !empty(SRCS:M*.y)
+.if !empty(_SRCS:M*.y)
 DIRDEPS+=	usr.bin/yacc.host
 .endif
-# Gather PROGS dependencies
-.if !empty(PROGS)
-_PROGS_LIBADD=
-_PROGS_DPADD=
-.for _prog in ${PROGS}
-.if !empty(LIBADD.${_prog})
-_PROGS_LIBADD+=	${LIBADD.${_prog}}
-.endif
-.if !empty(DPADD.${_prog})
-_PROGS_DPADD+=	${DPADD.${_prog}}
-.endif
-.endfor
-.endif	# !empty(PROGS)
-.if !empty(DPADD)
+_DPADD= ${DPADD} ${_PROGS_DPADD}
+.if !empty(_DPADD)
 # Taken from meta.autodep.mk (where it only does something with
 # BUILD_AT_LEVEL0, which we don't use).
 # This only works for DPADD with full OBJ/SRC paths, which is mostly just
 # _INTERNALLIBS.
-_DPADD= ${DPADD} ${_PROGS_DPADD}
 _DP_DIRDEPS= \
 	${_DPADD:O:u:M${OBJTOP}*:H:N.:tA:C,${OBJTOP}[^/]*/,,:N.:O:u} \
 	${_DPADD:O:u:M${OBJROOT}*:N${OBJTOP}*:N${STAGE_ROOT}/*:H:S,${OBJROOT},,:C,^([^/]+)/(.*),\2.\1,:S,${HOST_TARGET}$,host,:N.*:O:u}
@@ -156,9 +174,9 @@ _DP_DIRDEPS= \
 DIRDEPS+= ${_DP_DIRDEPS:C,^,${SRCTOP}/,:tA:C,^${SRCTOP}/,,}
 .endif
 .endif	# !empty(DPADD)
-.if !empty(LIBADD)
-# Also handle LIBADD for non-internal libraries.
 _ALL_LIBADD= ${LIBADD} ${_PROGS_LIBADD}
+.if !empty(_ALL_LIBADD)
+# Also handle LIBADD for non-internal libraries.
 .for _lib in ${_ALL_LIBADD:O:u}
 _lib${_lib}reldir= ${LIB${_lib:tu}DIR:C,${OBJTOP}/,,}
 .if defined(LIB${_lib:tu}DIR) && ${DIRDEPS:M${_lib${_lib}reldir}} == "" && \

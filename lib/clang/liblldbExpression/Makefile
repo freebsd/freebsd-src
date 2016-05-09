@@ -5,28 +5,23 @@
 LIB=	lldbExpression
 
 SRCDIR=	tools/lldb/source/Expression
-SRCS=	ASTDumper.cpp \
-	ASTResultSynthesizer.cpp \
-	ASTStructExtractor.cpp \
-	ClangASTSource.cpp \
-	ClangExpressionDeclMap.cpp \
-	ClangExpressionParser.cpp \
-	ClangExpressionVariable.cpp \
-	ClangFunction.cpp \
-	ClangModulesDeclVendor.cpp \
-	ClangPersistentVariables.cpp \
-	ClangUserExpression.cpp \
-	ClangUtilityFunction.cpp \
-	DWARFExpression.cpp \
+SRCS=	DWARFExpression.cpp \
+	Expression.cpp \
 	ExpressionSourceCode.cpp \
+	ExpressionVariable.cpp \
+	FunctionCaller.cpp \
 	IRDynamicChecks.cpp \
 	IRExecutionUnit.cpp \
-	IRForTarget.cpp \
 	IRInterpreter.cpp \
 	IRMemoryMap.cpp \
-	Materializer.cpp
+	LLVMUserExpression.cpp \
+	Materializer.cpp \
+	REPL.cpp \
+	UserExpression.cpp \
+	UtilityFunction.cpp
 
-TGHDRS=	DiagnosticCommonKinds \
+TGHDRS=	Attributes \
+	DiagnosticCommonKinds \
 	DeclNodes \
 	StmtNodes \
 	CommentCommandList \

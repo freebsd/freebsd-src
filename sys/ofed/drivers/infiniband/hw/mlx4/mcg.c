@@ -135,8 +135,8 @@ struct mcast_req {
 
 
 #define safe_atomic_dec(ref) \
-        do {\
-                if (atomic_dec_and_test(ref)) \
+	do {\
+		if (atomic_dec_and_test(ref)) \
 			mcg_warn_group(group, "did not expect to reach zero\n"); \
 	} while (0)
 
@@ -570,7 +570,7 @@ static void mlx4_ib_mcg_timeout_handler(struct work_struct *work)
 	group->state = MCAST_IDLE;
 	atomic_inc(&group->refcount);
 	if (!queue_work(group->demux->mcg_wq, &group->work))
-        safe_atomic_dec(&group->refcount);
+		safe_atomic_dec(&group->refcount);
 
 	mutex_unlock(&group->lock);
 }
@@ -689,7 +689,7 @@ static void mlx4_ib_mcg_work_handler(struct work_struct *work)
 			cur_join_state = group->rec.scope_join_state & 7;
 
 			if (method == IB_MGMT_METHOD_GET_RESP) {
-				/* successfull join */
+				/* successful join */
 				if (!cur_join_state && resp_join_state)
 					--rc;
 			} else if (!resp_join_state)
@@ -877,7 +877,7 @@ static void queue_req(struct mcast_req *req)
 	list_add_tail(&req->func_list, &group->func[req->func].pending);
 	/* calls mlx4_ib_mcg_work_handler */
 	if (!queue_work(group->demux->mcg_wq, &group->work))
-        safe_atomic_dec(&group->refcount);
+		safe_atomic_dec(&group->refcount);
 }
 
 int mlx4_ib_mcg_demux_handler(struct ib_device *ibdev, int port, int slave,
@@ -913,7 +913,7 @@ int mlx4_ib_mcg_demux_handler(struct ib_device *ibdev, int port, int slave,
 		/* calls mlx4_ib_mcg_work_handler */
 		atomic_inc(&group->refcount);
 		if (!queue_work(ctx->mcg_wq, &group->work))
-                safe_atomic_dec(&group->refcount);
+			safe_atomic_dec(&group->refcount);
 		mutex_unlock(&group->lock);
 		release_group(group, 0);
 		return 1; /* consumed */

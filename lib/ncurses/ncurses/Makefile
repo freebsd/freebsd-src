@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=	clibs
 SHLIBDIR?=	/lib
 
 .if !defined(ENABLE_WIDEC)
@@ -331,7 +332,7 @@ codes.c: MKcodes.awk
 	${AWK} -f ${NCURSES_DIR}/ncurses/tinfo/MKcodes.awk bigstrings=${USE_BIG_STRINGS} ${NCURSES_DIR}/include/Caps > codes.c
 
 lib_gen.c: MKlib_gen.sh curses.h
-	LC_ALL=C sh ${NCURSES_DIR}/ncurses/base/MKlib_gen.sh "${CC} -E ${CFLAGS}" \
+	LC_ALL=C sh ${NCURSES_DIR}/ncurses/base/MKlib_gen.sh "${CC:N${CCACHE_BIN}} -E ${CFLAGS}" \
 	    "${AWK}" generated < curses.h >$@
 
 lib_keyname.c: keys.list MKkeyname.awk
@@ -346,14 +347,14 @@ comp_captab.c: MKcaptab.sh MKcaptab.awk Caps make_hash
 	    ${NCURSES_DIR}/include/Caps > comp_captab.c
 
 expanded.c: MKexpanded.sh
-	sh ${NCURSES_DIR}/ncurses/tty/MKexpanded.sh "${CC} -E" ${CFLAGS} >expanded.c
+	sh ${NCURSES_DIR}/ncurses/tty/MKexpanded.sh "${CC:N${CCACHE_BIN}} -E" ${CFLAGS} >expanded.c
 
 fallback.c: MKfallback.sh
 	sh ${NCURSES_DIR}/ncurses/tinfo/MKfallback.sh > fallback.c
 
 # Generated headers
 nomacros.h: MKlib_gen.sh curses.h
-	LC_ALL=C sh ${NCURSES_DIR}/ncurses/base/MKlib_gen.sh "${CC} -E ${CFLAGS}" \
+	LC_ALL=C sh ${NCURSES_DIR}/ncurses/base/MKlib_gen.sh "${CC:N${CCACHE_BIN}} -E ${CFLAGS}" \
 	    "${AWK}" generated < curses.h | fgrep undef > $@
 
 init_keytry.h: keys.list make_keys
@@ -389,10 +390,10 @@ keys.list: MKkeys_list.sh Caps
 # Build tools
 build-tools: make_hash make_keys
 
-make_keys: make_keys.c names.c ncurses_def.h ${HEADERS}
+make_keys: make_keys.c names.c ncurses_def.h ${HEADERS} ${BUILD_TOOLS_META}
 	${CC} -o $@ ${CFLAGS} ${NCURSES_DIR}/ncurses/tinfo/make_keys.c
 
-make_hash: make_hash.c hashsize.h ncurses_def.h ${HEADERS}
+make_hash: make_hash.c hashsize.h ncurses_def.h ${HEADERS} ${BUILD_TOOLS_META}
 	${CC} -o $@ ${CFLAGS} -DMAIN_PROGRAM \
 		${NCURSES_DIR}/ncurses/tinfo/make_hash.c
 

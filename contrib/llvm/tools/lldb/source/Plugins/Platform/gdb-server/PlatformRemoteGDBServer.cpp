@@ -21,6 +21,7 @@
 #include "lldb/Core/ModuleList.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
+#include "lldb/Core/StreamFile.h"
 #include "lldb/Core/StreamString.h"
 #include "lldb/Host/ConnectionFileDescriptor.h"
 #include "lldb/Host/FileSpec.h"
@@ -39,23 +40,6 @@ using namespace lldb_private;
 using namespace lldb_private::platform_gdb_server;
 
 static bool g_initialized = false;
-
-static std::string MakeGdbServerUrl(
-        const std::string &platform_scheme,
-        const std::string &platform_hostname,
-        uint16_t port)
-{
-    const char *override_scheme = getenv("LLDB_PLATFORM_REMOTE_GDB_SERVER_SCHEME");
-    const char *override_hostname = getenv("LLDB_PLATFORM_REMOTE_GDB_SERVER_HOSTNAME");
-    const char *port_offset_c_str = getenv("LLDB_PLATFORM_REMOTE_GDB_SERVER_PORT_OFFSET");
-    int port_offset = port_offset_c_str ? ::atoi(port_offset_c_str) : 0;
-    StreamString result;
-    result.Printf("%s://%s:%u",
-            override_scheme ? override_scheme : platform_scheme.c_str(),
-            override_hostname ? override_hostname : platform_hostname.c_str(),
-            port + port_offset);
-    return result.GetString();
-}
 
 void
 PlatformRemoteGDBServer::Initialize ()
@@ -590,9 +574,8 @@ PlatformRemoteGDBServer::DebugProcess (ProcessLaunchInfo &launch_info,
         if (IsConnected())
         {
             lldb::pid_t debugserver_pid = LLDB_INVALID_PROCESS_ID;
-            uint16_t port = LaunchGDBserverAndGetPort(debugserver_pid);
-
-            if (port == 0)
+            std::string connect_url;
+            if (!LaunchGDBServer(debugserver_pid, connect_url))
             {
                 error.SetErrorStringWithFormat ("unable to launch a GDB server on '%s'", GetHostname ());
             }
@@ -623,8 +606,6 @@ PlatformRemoteGDBServer::DebugProcess (ProcessLaunchInfo &launch_info,
                     
                     if (process_sp)
                     {
-                        std::string connect_url =
-                            MakeGdbServerUrl(m_platform_scheme, m_platform_hostname, port);
                         error = process_sp->ConnectRemote (nullptr, connect_url.c_str());
                         // Retry the connect remote one time...
                         if (error.Fail())
@@ -649,23 +630,36 @@ PlatformRemoteGDBServer::DebugProcess (ProcessLaunchInfo &launch_info,
 
 }
 
-uint16_t
-PlatformRemoteGDBServer::LaunchGDBserverAndGetPort (lldb::pid_t &pid)
+bool
+PlatformRemoteGDBServer::LaunchGDBServer (lldb::pid_t &pid, std::string &connect_url)
 {
     ArchSpec remote_arch = GetRemoteSystemArchitecture ();
     llvm::Triple &remote_triple = remote_arch.GetTriple ();
+
+    uint16_t port = 0;
+    std::string socket_name;
+    bool launch_result = false;
     if (remote_triple.getVendor () == llvm::Triple::Apple && remote_triple.getOS () == llvm::Triple::IOS)
     {
         // When remote debugging to iOS, we use a USB mux that always talks
         // to localhost, so we will need the remote debugserver to accept connections
         // only from localhost, no matter what our current hostname is
-        return m_gdb_client.LaunchGDBserverAndGetPort (pid, "127.0.0.1");
+        launch_result = m_gdb_client.LaunchGDBServer ("127.0.0.1", pid, port, socket_name);
     }
     else
     {
         // All other hosts should use their actual hostname
-        return m_gdb_client.LaunchGDBserverAndGetPort (pid, NULL);
+        launch_result = m_gdb_client.LaunchGDBServer (nullptr, pid, port, socket_name);
     }
+
+    if (!launch_result)
+        return false;
+
+    connect_url = MakeGdbServerUrl(m_platform_scheme,
+                                   m_platform_hostname,
+                                   port,
+                                   (socket_name.empty()) ? nullptr : socket_name.c_str());
+    return true;
 }
 
 bool
@@ -686,9 +680,8 @@ PlatformRemoteGDBServer::Attach (ProcessAttachInfo &attach_info,
         if (IsConnected())
         {
             lldb::pid_t debugserver_pid = LLDB_INVALID_PROCESS_ID;
-            uint16_t port = LaunchGDBserverAndGetPort(debugserver_pid);
-
-            if (port == 0)
+            std::string connect_url;
+            if (!LaunchGDBServer(debugserver_pid, connect_url))
             {
                 error.SetErrorStringWithFormat ("unable to launch a GDB server on '%s'", GetHostname ());
             }
@@ -716,11 +709,8 @@ PlatformRemoteGDBServer::Attach (ProcessAttachInfo &attach_info,
                     // The darwin always currently uses the GDB remote debugger plug-in
                     // so even when debugging locally we are debugging remotely!
                     process_sp = target->CreateProcess (attach_info.GetListenerForProcess(debugger), "gdb-remote", NULL);
-                    
                     if (process_sp)
                     {
-                        std::string connect_url =
-                            MakeGdbServerUrl(m_platform_scheme, m_platform_hostname, port);
                         error = process_sp->ConnectRemote(nullptr, connect_url.c_str());
                         if (error.Success())
                         {
@@ -931,13 +921,8 @@ PlatformRemoteGDBServer::GetRemoteUnixSignals()
                 return false;
 
             // We can live without short_name, description, etc.
-            std::string short_name{""};
-            auto object_sp = dict->GetValueForKey("short_name");
-            if (object_sp && object_sp->IsValid())
-                short_name = object_sp->GetStringValue();
-
             bool suppress{false};
-            object_sp = dict->GetValueForKey("suppress");
+            auto object_sp = dict->GetValueForKey("suppress");
             if (object_sp && object_sp->IsValid())
                 suppress = object_sp->GetBooleanValue();
 
@@ -958,7 +943,6 @@ PlatformRemoteGDBServer::GetRemoteUnixSignals()
 
             remote_signals_sp->AddSignal(signo,
                                          name.c_str(),
-                                         short_name.c_str(),
                                          suppress, stop, notify,
                                          description.c_str());
             return true;
@@ -968,4 +952,67 @@ PlatformRemoteGDBServer::GetRemoteUnixSignals()
         m_remote_signals_sp = std::move(remote_signals_sp);
 
     return m_remote_signals_sp;
+}
+
+std::string
+PlatformRemoteGDBServer::MakeGdbServerUrl(const std::string &platform_scheme,
+                                          const std::string &platform_hostname,
+                                          uint16_t port,
+                                          const char* socket_name)
+{
+    const char *override_scheme = getenv("LLDB_PLATFORM_REMOTE_GDB_SERVER_SCHEME");
+    const char *override_hostname = getenv("LLDB_PLATFORM_REMOTE_GDB_SERVER_HOSTNAME");
+    const char *port_offset_c_str = getenv("LLDB_PLATFORM_REMOTE_GDB_SERVER_PORT_OFFSET");
+    int port_offset = port_offset_c_str ? ::atoi(port_offset_c_str) : 0;
+
+    return MakeUrl(override_scheme ? override_scheme : platform_scheme.c_str(),
+                   override_hostname ? override_hostname : platform_hostname.c_str(),
+                   port + port_offset,
+                   socket_name);
+}
+
+std::string
+PlatformRemoteGDBServer::MakeUrl(const char* scheme,
+                                 const char* hostname,
+                                 uint16_t port,
+                                 const char* path)
+{
+    StreamString result;
+    result.Printf("%s://%s", scheme, hostname);
+    if (port != 0)
+        result.Printf(":%u", port);
+    if (path)
+        result.Write(path, strlen(path));
+    return result.GetString();
+}
+
+lldb::ProcessSP
+PlatformRemoteGDBServer::ConnectProcess(const char* connect_url,
+                                        const char* plugin_name,
+                                        lldb_private::Debugger &debugger,
+                                        lldb_private::Target *target,
+                                        lldb_private::Error &error)
+{
+    if (!IsRemote() || !IsConnected())
+    {
+        error.SetErrorString("Not connected to remote gdb server");
+        return nullptr;
+    }
+    return Platform::ConnectProcess(connect_url, plugin_name, debugger, target, error);
+}
+
+size_t
+PlatformRemoteGDBServer::GetPendingGdbServerList(std::vector<std::string>& connection_urls)
+{
+    std::vector<std::pair<uint16_t, std::string>> remote_servers;
+    m_gdb_client.QueryGDBServer(remote_servers);
+    for (const auto& gdbserver : remote_servers)
+    {
+        const char* socket_name_cstr = gdbserver.second.empty() ? nullptr : gdbserver.second.c_str();
+        connection_urls.emplace_back(MakeGdbServerUrl(m_platform_scheme,
+                                                      m_platform_hostname,
+                                                      gdbserver.first,
+                                                      socket_name_cstr));
+    }
+    return connection_urls.size();
 }

@@ -440,7 +440,7 @@ key_net_put_2_svc_prog(uid, arg)
 			arg->st_netname, (int)sizeof (arg->st_pub_key),
 			arg->st_pub_key, (int)sizeof (arg->st_priv_key),
 			arg->st_priv_key);
-	};
+	}
 
 	status = pk_netput(uid, arg);
 

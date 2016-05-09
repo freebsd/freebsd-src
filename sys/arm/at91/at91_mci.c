@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
  * speed is 25MHz and the next highest speed is 15MHz or less.  This appears
  * to work on virtually all SD cards, since it is what this driver has been
  * doing prior to the introduction of this option, where the overclocking vs
- * underclocking decision was automaticly "overclock".  Modern SD cards can
+ * underclocking decision was automatically "overclock".  Modern SD cards can
  * run at 45mhz/1-bit in standard mode (high speed mode enable commands not
  * sent) without problems.
  *
@@ -212,7 +212,7 @@ at91_bswap_buf(struct at91_mci_softc *sc, void * dptr, void * sptr, uint32_t mem
 	/*
 	 * If the hardware doesn't need byte-swapping, let bcopy() do the
 	 * work.  Use bounce buffer even if we don't need byteswap, since
-	 * buffer may straddle a page boundry, and we don't handle
+	 * buffer may straddle a page boundary, and we don't handle
 	 * multi-segment transfers in hardware.  Seen from 'bsdlabel -w' which
 	 * uses raw geom access to the volume.  Greg Ansley (gja (at)
 	 * ansley.com)
@@ -526,16 +526,16 @@ at91_mci_deactivate(device_t dev)
 	sc = device_get_softc(dev);
 	if (sc->intrhand)
 		bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
-	sc->intrhand = 0;
+	sc->intrhand = NULL;
 	bus_generic_detach(sc->dev);
 	if (sc->mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->mem_res), sc->mem_res);
-	sc->mem_res = 0;
+	sc->mem_res = NULL;
 	if (sc->irq_res)
 		bus_release_resource(dev, SYS_RES_IRQ,
 		    rman_get_rid(sc->irq_res), sc->irq_res);
-	sc->irq_res = 0;
+	sc->irq_res = NULL;
 	return;
 }
 
@@ -1412,3 +1412,4 @@ DRIVER_MODULE(at91_mci, atmelarm, at91_mci_driver, at91_mci_devclass, NULL,
     NULL);
 #endif
 DRIVER_MODULE(mmc, at91_mci, mmc_driver, mmc_devclass, NULL, NULL);
+MODULE_DEPEND(at91_mci, mmc, 1, 1, 1);

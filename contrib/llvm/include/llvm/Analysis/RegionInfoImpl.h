@@ -236,7 +236,7 @@ std::string RegionBase<Tr>::getNameStr() const {
 template <class Tr>
 void RegionBase<Tr>::verifyBBInRegion(BlockT *BB) const {
   if (!contains(BB))
-    llvm_unreachable("Broken region found!");
+    llvm_unreachable("Broken region found: enumerated BB not in region!");
 
   BlockT *entry = getEntry(), *exit = getExit();
 
@@ -244,7 +244,8 @@ void RegionBase<Tr>::verifyBBInRegion(BlockT *BB) const {
                   SE = BlockTraits::child_end(BB);
        SI != SE; ++SI) {
     if (!contains(*SI) && exit != *SI)
-      llvm_unreachable("Broken region found!");
+      llvm_unreachable("Broken region found: edges leaving the region must go "
+                       "to the exit node!");
   }
 
   if (entry != BB) {
@@ -252,7 +253,8 @@ void RegionBase<Tr>::verifyBBInRegion(BlockT *BB) const {
                     SE = InvBlockTraits::child_end(BB);
          SI != SE; ++SI) {
       if (!contains(*SI))
-        llvm_unreachable("Broken region found!");
+        llvm_unreachable("Broken region found: edges entering the region must "
+                         "go to the entry node!");
     }
   }
 }
@@ -442,16 +444,14 @@ typename Tr::RegionT *RegionBase<Tr>::getExpandedRegion() const {
   if (NumSuccessors == 0)
     return nullptr;
 
-  for (PredIterTy PI = InvBlockTraits::child_begin(getExit()),
-                  PE = InvBlockTraits::child_end(getExit());
-       PI != PE; ++PI) {
-    if (!DT->dominates(getEntry(), *PI))
-      return nullptr;
-  }
-
   RegionT *R = RI->getRegionFor(exit);
 
   if (R->getEntry() != exit) {
+    for (PredIterTy PI = InvBlockTraits::child_begin(getExit()),
+                    PE = InvBlockTraits::child_end(getExit());
+         PI != PE; ++PI)
+      if (!contains(*PI))
+        return nullptr;
     if (Tr::getNumSuccessors(exit) == 1)
       return new RegionT(getEntry(), *BlockTraits::child_begin(exit), RI, DT);
     return nullptr;
@@ -460,13 +460,11 @@ typename Tr::RegionT *RegionBase<Tr>::getExpandedRegion() const {
   while (R->getParent() && R->getParent()->getEntry() == exit)
     R = R->getParent();
 
-  if (!DT->dominates(getEntry(), R->getExit())) {
-    for (PredIterTy PI = InvBlockTraits::child_begin(getExit()),
-                    PE = InvBlockTraits::child_end(getExit());
-         PI != PE; ++PI) {
-      if (!DT->dominates(R->getExit(), *PI))
-        return nullptr;
-    }
+  for (PredIterTy PI = InvBlockTraits::child_begin(getExit()),
+                  PE = InvBlockTraits::child_end(getExit());
+       PI != PE; ++PI) {
+    if (!(contains(*PI) || R->contains(*PI)))
+      return nullptr;
   }
 
   return new RegionT(getEntry(), R->getExit(), RI, DT);
@@ -539,6 +537,21 @@ RegionInfoBase<Tr>::RegionInfoBase()
 template <class Tr>
 RegionInfoBase<Tr>::~RegionInfoBase() {
   releaseMemory();
+}
+
+template <class Tr>
+void RegionInfoBase<Tr>::verifyBBMap(const RegionT *R) const {
+  assert(R && "Re must be non-null");
+  for (auto I = R->element_begin(), E = R->element_end(); I != E; ++I) {
+    if (I->isSubRegion()) {
+      const RegionT *SR = I->template getNodeAs<RegionT>();
+      verifyBBMap(SR);
+    } else {
+      BlockT *BB = I->template getNodeAs<BlockT>();
+      if (getRegionFor(BB) != R)
+        llvm_unreachable("BB map does not match region nesting");
+    }
+  }
 }
 
 template <class Tr>
@@ -786,7 +799,14 @@ void RegionInfoBase<Tr>::releaseMemory() {
 
 template <class Tr>
 void RegionInfoBase<Tr>::verifyAnalysis() const {
+  // Do only verify regions if explicitely activated using XDEBUG or
+  // -verify-region-info
+  if (!RegionInfoBase<Tr>::VerifyRegionInfo)
+    return;
+
   TopLevelRegion->verifyRegionNest();
+
+  verifyBBMap(TopLevelRegion);
 }
 
 // Region pass manager support.
@@ -884,20 +904,6 @@ RegionInfoBase<Tr>::getCommonRegion(SmallVectorImpl<BlockT *> &BBs) const {
     ret = getCommonRegion(ret, getRegionFor(BB));
 
   return ret;
-}
-
-template <class Tr>
-void RegionInfoBase<Tr>::splitBlock(BlockT *NewBB, BlockT *OldBB) {
-  RegionT *R = getRegionFor(OldBB);
-
-  setRegionFor(NewBB, R);
-
-  while (R->getEntry() == OldBB && !R->isTopLevelRegion()) {
-    R->replaceEntry(NewBB);
-    R = R->getParent();
-  }
-
-  setRegionFor(OldBB, R);
 }
 
 template <class Tr>

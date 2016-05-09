@@ -19,15 +19,14 @@
 #include <vector>
 
 namespace llvm {
-/// NVPTXSection - Represents a section in PTX
-/// PTX does not have sections. We create this class in order to use
-/// the ASMPrint interface.
+/// Represents a section in PTX PTX does not have sections. We create this class
+/// in order to use the ASMPrint interface.
 ///
-class NVPTXSection : public MCSection {
+class NVPTXSection final : public MCSection {
   virtual void anchor();
 public:
   NVPTXSection(SectionVariant V, SectionKind K) : MCSection(V, K, nullptr) {}
-  virtual ~NVPTXSection() {}
+  ~NVPTXSection() {}
 
   /// Override this as NVPTX has its own way of printing switching
   /// to a section.

@@ -52,8 +52,7 @@ bhndb_attach_bridge(device_t parent, device_t *bhndb, int unit)
 {
 	int error;
 
-	*bhndb = device_add_child(parent, devclass_get_name(bhndb_devclass),
-	    unit);
+	*bhndb = device_add_child(parent, "bhndb", unit);
 	if (*bhndb == NULL)
 		return (ENXIO);
 
@@ -183,6 +182,39 @@ bhnd_generic_br_resume_child(device_t dev, device_t child)
 }
 
 /**
+ * Find a SYS_RES_MEMORY resource containing the given address range.
+ * 
+ * @param br The bhndb resource state to search.
+ * @param start The start address of the range to search for.
+ * @param count The size of the range to search for.
+ * 
+ * @retval resource the host resource containing the requested range.
+ * @retval NULL if no resource containing the requested range can be found.
+ */
+struct resource *
+bhndb_find_resource_range(struct bhndb_resources *br, rman_res_t start,
+     rman_res_t count)
+{
+	for (u_int i = 0; br->res_spec[i].type != -1; i++) {
+		struct resource *r = br->res[i];
+
+		if (br->res_spec->type != SYS_RES_MEMORY)
+			continue;
+
+		/* Verify range */
+		if (rman_get_start(r) > start)
+			continue;
+		
+		if (rman_get_end(r) < (start + count - 1))
+			continue;
+
+		return (r);
+	}
+
+	return (NULL);
+}
+
+/**
  * Find the resource containing @p win.
  * 
  * @param br The bhndb resource state to search.
@@ -235,8 +267,11 @@ bhndb_alloc_resources(device_t dev, device_t parent_dev,
 	u_int				 rnid;
 	int				 error;
 	bool				 free_parent_res;
+	bool				 free_ht_mem, free_br_mem;
 
 	free_parent_res = false;
+	free_ht_mem = false;
+	free_br_mem = false;
 
 	r = malloc(sizeof(*r), M_BHND, M_NOWAIT|M_ZERO);
 	if (r == NULL)
@@ -249,6 +284,37 @@ bhndb_alloc_resources(device_t dev, device_t parent_dev,
 	r->min_prio = BHNDB_PRIORITY_NONE;
 	STAILQ_INIT(&r->bus_regions);
 	
+	/* Initialize host address space resource manager. */
+	r->ht_mem_rman.rm_start = 0;
+	r->ht_mem_rman.rm_end = ~0;
+	r->ht_mem_rman.rm_type = RMAN_ARRAY;
+	r->ht_mem_rman.rm_descr = "BHNDB host memory";
+	if ((error = rman_init(&r->ht_mem_rman))) {
+		device_printf(r->dev, "could not initialize ht_mem_rman\n");
+		goto failed;
+	}
+	free_ht_mem = true;
+
+
+	/* Initialize resource manager for the bridged address space. */
+	r->br_mem_rman.rm_start = 0;
+	r->br_mem_rman.rm_end = BUS_SPACE_MAXADDR_32BIT;
+	r->br_mem_rman.rm_type = RMAN_ARRAY;
+	r->br_mem_rman.rm_descr = "BHNDB bridged memory";
+
+	if ((error = rman_init(&r->br_mem_rman))) {
+		device_printf(r->dev, "could not initialize br_mem_rman\n");
+		goto failed;
+	}
+	free_br_mem = true;
+
+	error = rman_manage_region(&r->br_mem_rman, 0, BUS_SPACE_MAXADDR_32BIT);
+	if (error) {
+		device_printf(r->dev, "could not configure br_mem_rman\n");
+		goto failed;
+	}
+
+
 	/* Determine our bridge resource count from the hardware config. */
 	res_num = 0;
 	for (size_t i = 0; cfg->resource_specs[i].type != -1; i++)
@@ -282,6 +348,26 @@ bhndb_alloc_resources(device_t dev, device_t parent_dev,
 		goto failed;
 	} else {
 		free_parent_res = true;
+	}
+
+	/* Add allocated memory resources to our host memory resource manager */
+	for (u_int i = 0; r->res_spec[i].type != -1; i++) {
+		struct resource *res;
+		
+		/* skip non-memory resources */
+		if (r->res_spec[i].type != SYS_RES_MEMORY)
+			continue;
+
+		/* add host resource to set of managed regions */
+		res = r->res[i];
+		error = rman_manage_region(&r->ht_mem_rman, rman_get_start(res),
+		    rman_get_end(res));
+		if (error) {
+			device_printf(r->dev,
+			    "could not register host memory region with "
+			    "ht_mem_rman: %d\n", error);
+			goto failed;
+		}
 	}
 
 	/* Fetch the dynamic regwin count and verify that it does not exceed
@@ -371,6 +457,12 @@ bhndb_alloc_resources(device_t dev, device_t parent_dev,
 failed:
 	if (free_parent_res)
 		bus_release_resources(r->parent_dev, r->res_spec, r->res);
+	
+	if (free_ht_mem)
+		rman_fini(&r->ht_mem_rman);
+
+	if (free_br_mem)
+		rman_fini(&r->br_mem_rman);
 
 	if (r->res != NULL)
 		free(r->res, M_BHND);
@@ -422,6 +514,10 @@ bhndb_free_resources(struct bhndb_resources *br)
 		STAILQ_REMOVE(&br->bus_regions, region, bhndb_region, link);
 		free(region, M_BHND);
 	}
+
+	/* Release our resource managers */
+	rman_fini(&br->ht_mem_rman);
+	rman_fini(&br->br_mem_rman);
 
 	/* Free backing resource state structures */
 	free(br->res, M_BHND);
@@ -777,19 +873,19 @@ bhndb_regwin_find_core(const struct bhndb_regwin *table, bhnd_devclass_t class,
 		if (rw->win_type != BHNDB_REGWIN_T_CORE)
 			continue;
 
-		if (rw->core.class != class)
+		if (rw->d.core.class != class)
 			continue;
 		
-		if (unit != -1 && rw->core.unit != unit)
+		if (unit != -1 && rw->d.core.unit != unit)
 			continue;
 
-		if (rw->core.port_type != port_type)
+		if (rw->d.core.port_type != port_type)
 			continue;
 
-		if (rw->core.port != port)
+		if (rw->d.core.port != port)
 			continue;
 		
-		if (rw->core.region != region)
+		if (rw->d.core.region != region)
 			continue;
 
 		return (rw);
@@ -848,16 +944,16 @@ bhndb_regwin_matches_device(const struct bhndb_regwin *regw, device_t dev)
 		return (false);
 
 	/* Device class must match */
-	if (bhnd_get_class(dev) != regw->core.class)
+	if (bhnd_get_class(dev) != regw->d.core.class)
 		return (false);
 
 	/* Device unit must match */
-	if (bhnd_get_core_unit(dev) != regw->core.unit)
+	if (bhnd_get_core_unit(dev) != regw->d.core.unit)
 		return (false);
 	
 	/* The regwin port/region must be defined. */
-	if (!bhnd_is_region_valid(dev, regw->core.port_type, regw->core.port,
-	    regw->core.region))
+	if (!bhnd_is_region_valid(dev, regw->d.core.port_type, regw->d.core.port,
+	    regw->d.core.region))
 	{
 		return (false);
 	}

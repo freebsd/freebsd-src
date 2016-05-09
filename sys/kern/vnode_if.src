@@ -35,7 +35,7 @@
 # is a specification of the locking protocol used by each vop call.
 # The first column is the name of the variable, the remaining three
 # columns are in, out and error respectively.  The "in" column defines
-# the lock state on input, the "out" column defines the state on succesful
+# the lock state on input, the "out" column defines the state on successful
 # return, and the "error" column defines the locking state on error exit.
 #
 # The locking value can take the following values:
@@ -121,6 +121,7 @@ vop_mknod {
 
 
 %% open		vp	L L L
+%! open		post	vop_open_post
 
 vop_open {
 	IN struct vnode *vp;
@@ -132,6 +133,7 @@ vop_open {
 
 
 %% close	vp	L L L
+%! close	post	vop_close_post
 
 vop_close {
 	IN struct vnode *vp;
@@ -186,6 +188,7 @@ vop_markatime {
 };
 
 %% read		vp	L L L
+%! read		post	vop_read_post
 
 vop_read {
 	IN struct vnode *vp;
@@ -326,6 +329,7 @@ vop_symlink {
 
 
 %% readdir	vp	L L L
+%! readdir	post	vop_readdir_post
 
 vop_readdir {
 	IN struct vnode *vp;

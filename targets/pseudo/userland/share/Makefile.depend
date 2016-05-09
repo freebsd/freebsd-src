@@ -85,6 +85,7 @@ DIRDEPS = \
 	share/doc/usd/title \
 	share/dtrace \
 	share/dtrace/toolkit \
+	share/examples \
 	share/examples/atf \
 	share/examples/ipfilter \
 	share/examples/pf \

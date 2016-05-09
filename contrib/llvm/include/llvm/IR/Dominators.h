@@ -64,11 +64,30 @@ public:
 
 /// \brief Concrete subclass of DominatorTreeBase that is used to compute a
 /// normal dominator tree.
+///
+/// Definition: A block is said to be forward statically reachable if there is
+/// a path from the entry of the function to the block.  A statically reachable
+/// block may become statically unreachable during optimization.
+///
+/// A forward unreachable block may appear in the dominator tree, or it may
+/// not.  If it does, dominance queries will return results as if all reachable
+/// blocks dominate it.  When asking for a Node corresponding to a potentially
+/// unreachable block, calling code must handle the case where the block was
+/// unreachable and the result of getNode() is nullptr.
+///
+/// Generally, a block known to be unreachable when the dominator tree is
+/// constructed will not be in the tree.  One which becomes unreachable after
+/// the dominator tree is initially constructed may still exist in the tree,
+/// even if the tree is properly updated. Calling code should not rely on the
+/// preceding statements; this is stated only to assist human understanding.
 class DominatorTree : public DominatorTreeBase<BasicBlock> {
 public:
   typedef DominatorTreeBase<BasicBlock> Base;
 
   DominatorTree() : DominatorTreeBase<BasicBlock>(false) {}
+  explicit DominatorTree(Function &F) : DominatorTreeBase<BasicBlock>(false) {
+    recalculate(F);
+  }
 
   DominatorTree(DominatorTree &&Arg)
       : Base(std::move(static_cast<Base &>(Arg))) {}
@@ -122,30 +141,34 @@ public:
 // DominatorTree GraphTraits specializations so the DominatorTree can be
 // iterable by generic graph iterators.
 
-template <> struct GraphTraits<DomTreeNode*> {
-  typedef DomTreeNode NodeType;
-  typedef NodeType::iterator  ChildIteratorType;
+template <class Node, class ChildIterator> struct DomTreeGraphTraitsBase {
+  typedef Node NodeType;
+  typedef ChildIterator ChildIteratorType;
+  typedef df_iterator<Node *, SmallPtrSet<NodeType *, 8>> nodes_iterator;
 
-  static NodeType *getEntryNode(NodeType *N) {
-    return N;
-  }
+  static NodeType *getEntryNode(NodeType *N) { return N; }
   static inline ChildIteratorType child_begin(NodeType *N) {
     return N->begin();
   }
-  static inline ChildIteratorType child_end(NodeType *N) {
-    return N->end();
-  }
+  static inline ChildIteratorType child_end(NodeType *N) { return N->end(); }
 
-  typedef df_iterator<DomTreeNode*> nodes_iterator;
-
-  static nodes_iterator nodes_begin(DomTreeNode *N) {
+  static nodes_iterator nodes_begin(NodeType *N) {
     return df_begin(getEntryNode(N));
   }
 
-  static nodes_iterator nodes_end(DomTreeNode *N) {
+  static nodes_iterator nodes_end(NodeType *N) {
     return df_end(getEntryNode(N));
   }
 };
+
+template <>
+struct GraphTraits<DomTreeNode *>
+    : public DomTreeGraphTraitsBase<DomTreeNode, DomTreeNode::iterator> {};
+
+template <>
+struct GraphTraits<const DomTreeNode *>
+    : public DomTreeGraphTraitsBase<const DomTreeNode,
+                                    DomTreeNode::const_iterator> {};
 
 template <> struct GraphTraits<DominatorTree*>
   : public GraphTraits<DomTreeNode*> {

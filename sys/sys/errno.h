@@ -190,6 +190,7 @@ __END_DECLS
 #define	EJUSTRETURN	(-2)		/* don't modify regs, just return */
 #define	ENOIOCTL	(-3)		/* ioctl not handled by this layer */
 #define	EDIRIOCTL	(-4)		/* do direct ioctl in GEOM */
+#define	ERELOOKUP	(-5)		/* retry the directory lookup */
 #endif
 
 #endif

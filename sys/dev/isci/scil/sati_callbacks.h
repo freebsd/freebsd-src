@@ -173,7 +173,7 @@ U8 sati_cb_get_task_function(
  *        response IU buffer.
  *
  * @param[in]  scsi_io This parameter specifies the user's SCSI IO request
- *             for which to retreive the location of the response buffer to
+ *             for which to retrieve the location of the response buffer to
  *             be written.
  *
  * @return This method returns the address of the response data buffer.
@@ -189,7 +189,7 @@ void * sati_cb_get_response_iu_address(
  *        buffer.
  *
  * @param[in]  scsi_io This parameter specifies the user's SCSI IO request
- *             for which to retreive the location of the sense buffer to
+ *             for which to retrieve the location of the sense buffer to
  *             be written.
  *
  * @return This method returns the address of the sense data buffer.
@@ -203,7 +203,7 @@ U8* sati_cb_get_sense_data_address(
  *        buffer.
  *
  * @param[in]  scsi_io This parameter specifies the user's SCSI IO request
- *             for which to retreive the location of the sense buffer to
+ *             for which to retrieve the location of the sense buffer to
  *             be written.
  *
  * @return This method returns the length of the sense data buffer.
@@ -246,7 +246,7 @@ U8 * sati_cb_get_h2d_register_fis_address(
 
 /**
  * @brief This method retrieves the ATA task file (register FIS) relating to
- *        the device to host reponse values.
+ *        the device to host response values.
  *
  * @param[in] ata_io This parameter specifies the user's ATA IO request
  *            from which to retrieve the d2h register FIS address.
@@ -374,7 +374,7 @@ BOOL sati_cb_do_translate_response(
  *        associated device is contained in a SAS Domain.
  *
  * @param[in]  scsi_io This parameter specifies the user's SCSI IO request
- *             for which to retreive the SAS address of the device.
+ *             for which to retrieve the SAS address of the device.
  * @param[out] sas_address This parameter specifies the SAS address memory
  *             to be contain the retrieved value.
  *

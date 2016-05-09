@@ -39,8 +39,6 @@ do { \
 void	 packet_close(void);
 u_int	 packet_get_char(void);
 u_int	 packet_get_int(void);
-void	 packet_backup_state(void);
-void	 packet_restore_state(void);
 void     packet_set_connection(int, int);
 int	 packet_read_seqnr(u_int32_t *);
 int	 packet_read_poll_seqnr(u_int32_t *);
@@ -127,8 +125,6 @@ void	packet_disconnect(const char *, ...)
 	sshpkt_add_padding(active_state, (pad))
 #define packet_send_ignore(nbytes) \
 	ssh_packet_send_ignore(active_state, (nbytes))
-#define packet_need_rekeying() \
-	ssh_packet_need_rekeying(active_state)
 #define packet_set_server() \
 	ssh_packet_set_server(active_state)
 #define packet_set_authenticated() \

@@ -30,9 +30,6 @@ options 	SOC_IMX51
 options 	SCHED_4BSD		# 4BSD scheduler
 #options 	MD_ROOT			# MD is a potential root device
 #options 	NFSD			# Network Filesystem Server
-#options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
-#options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
-#options 	COMPAT_FREEBSD7		# Compatible with FreeBSD7
 options 	PLATFORM
 options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 

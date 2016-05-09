@@ -27,9 +27,11 @@ extern "C" {
   // descriptor. Returns -1 on failure, or if coverage dumping is disabled.
   // This is intended for use by sandboxing code.
   intptr_t __sanitizer_maybe_open_cov_file(const char *name);
-  // Get the number of total unique covered entities (blocks, edges, calls).
+  // Get the number of unique covered blocks (or edges).
   // This can be useful for coverage-directed in-process fuzzers.
   uintptr_t __sanitizer_get_total_unique_coverage();
+  // Get the number of unique indirect caller-callee pairs.
+  uintptr_t __sanitizer_get_total_unique_caller_callee_pairs();
 
   // Reset the basic-block (edge) coverage to the initial state.
   // Useful for in-process fuzzing to start collecting coverage from scratch.
@@ -38,6 +40,13 @@ extern "C" {
   // Set *data to the array of covered PCs and return the size of that array.
   // Some of the entries in *data will be zero.
   uintptr_t __sanitizer_get_coverage_guards(uintptr_t **data);
+
+  // Set *data to the growing buffer with covered PCs and return the size
+  // of the buffer. The entries are never zero.
+  // When only unique pcs are collected, the size is equal to
+  // __sanitizer_get_total_unique_coverage.
+  // WARNING: EXPERIMENTAL API.
+  uintptr_t __sanitizer_get_coverage_pc_buffer(uintptr_t **data);
 
   // The coverage instrumentation may optionally provide imprecise counters.
   // Rather than exposing the counter values to the user we instead map

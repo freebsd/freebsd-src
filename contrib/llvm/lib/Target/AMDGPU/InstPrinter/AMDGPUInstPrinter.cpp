@@ -16,6 +16,7 @@
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
@@ -283,8 +284,13 @@ void AMDGPUInstPrinter::printImmediate64(uint64_t Imm, raw_ostream &O) {
     O << "4.0";
   else if (Imm == DoubleToBits(-4.0))
     O << "-4.0";
-  else
-    llvm_unreachable("64-bit literal constants not supported");
+  else {
+    assert(isUInt<32>(Imm));
+
+    // In rare situations, we will have a 32-bit literal in a 64-bit
+    // operand. This is technically allowed for the encoding of s_mov_b64.
+    O << formatHex(static_cast<uint64_t>(Imm));
+  }
 }
 
 void AMDGPUInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
@@ -592,11 +598,11 @@ void AMDGPUInstPrinter::printSendMsg(const MCInst *MI, unsigned OpNo,
     } else {
       unsigned Stream = (SImm16 >> 8) & 0x3;
       if (Op == 1)
-	O << "cut";
+        O << "cut";
       else if (Op == 2)
-	O << "emit";
+        O << "emit";
       else if (Op == 3)
-	O << "emit-cut";
+        O << "emit-cut";
       O << " stream " << Stream;
     }
     O << "), [m0] ";

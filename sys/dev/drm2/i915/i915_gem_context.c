@@ -115,11 +115,9 @@ static int get_context_size(struct drm_device *dev)
 		break;
 	case 7:
 		reg = I915_READ(GEN7_CXT_SIZE);
-#ifdef FREEBSD_WIP
 		if (IS_HASWELL(dev))
 			ret = HSW_CXT_TOTAL_SIZE(reg) * 64;
 		else
-#endif
 			ret = GEN7_CXT_TOTAL_SIZE(reg) * 64;
 		break;
 	default:
@@ -140,7 +138,7 @@ static void do_destroy(struct i915_hw_context *ctx)
 	if (ctx->file_priv)
 		drm_gem_names_remove(&ctx->file_priv->context_idr, ctx->id);
 	else
-		KASSERT(ctx == dev_priv->rings[RCS].default_context,
+		KASSERT(ctx == dev_priv->ring[RCS].default_context,
 		    ("i915_gem_context: ctx != default_context"));
 
 	drm_gem_object_unreference(&ctx->obj->base);
@@ -178,7 +176,7 @@ create_hw_context(struct drm_device *dev,
 	 * object tracking code. We give an initial ring value simple to pass an
 	 * assertion in the context switch code.
 	 */
-	ctx->ring = &dev_priv->rings[RCS];
+	ctx->ring = &dev_priv->ring[RCS];
 
 	/* Default context will never have a file_priv */
 	if (file_priv == NULL) {
@@ -234,8 +232,8 @@ static int create_default_context(struct drm_i915_private *dev_priv)
 	 * may not be available. To avoid this we always pin the
 	 * default context.
 	 */
-	dev_priv->rings[RCS].default_context = ctx;
-	ret = i915_gem_object_pin(ctx->obj, CONTEXT_ALIGN, false);
+	dev_priv->ring[RCS].default_context = ctx;
+	ret = i915_gem_object_pin(ctx->obj, CONTEXT_ALIGN, false, false);
 	if (ret)
 		goto err_destroy;
 
@@ -265,12 +263,12 @@ void i915_gem_context_init(struct drm_device *dev)
 
 	/* If called from reset, or thaw... we've been here already */
 	if (dev_priv->hw_contexts_disabled ||
-	    dev_priv->rings[RCS].default_context)
+	    dev_priv->ring[RCS].default_context)
 		return;
 
 	ctx_size = get_context_size(dev);
 	dev_priv->hw_context_size = get_context_size(dev);
-	dev_priv->hw_context_size = roundup(dev_priv->hw_context_size, 4096);
+	dev_priv->hw_context_size = round_up(dev_priv->hw_context_size, 4096);
 
 	if (ctx_size <= 0 || ctx_size > (1<<20)) {
 		dev_priv->hw_contexts_disabled = true;
@@ -297,9 +295,17 @@ void i915_gem_context_fini(struct drm_device *dev)
 	 * other code, leading to spurious errors. */
 	intel_gpu_reset(dev);
 
-	i915_gem_object_unpin(dev_priv->rings[RCS].default_context->obj);
+	i915_gem_object_unpin(dev_priv->ring[RCS].default_context->obj);
 
-	do_destroy(dev_priv->rings[RCS].default_context);
+	/* When default context is created and switched to, base object refcount
+	 * will be 2 (+1 from object creation and +1 from do_switch()).
+	 * i915_gem_context_fini() will be called after gpu_idle() has switched
+	 * to default context. So we need to unreference the base object once
+	 * to offset the do_switch part, so that i915_gem_context_unreference()
+	 * can then free the base object correctly. */
+	drm_gem_object_unreference(&dev_priv->ring[RCS].default_context->obj->base);
+
+	do_destroy(dev_priv->ring[RCS].default_context);
 }
 
 static int context_idr_cleanup(uint32_t id, void *p, void *data)
@@ -389,7 +395,7 @@ static int do_switch(struct i915_hw_context *to)
 	if (from_obj == to->obj)
 		return 0;
 
-	ret = i915_gem_object_pin(to->obj, CONTEXT_ALIGN, false);
+	ret = i915_gem_object_pin(to->obj, CONTEXT_ALIGN, false, false);
 	if (ret)
 		return ret;
 
@@ -426,8 +432,7 @@ static int do_switch(struct i915_hw_context *to)
 	 */
 	if (from_obj != NULL) {
 		from_obj->base.read_domains = I915_GEM_DOMAIN_INSTRUCTION;
-		i915_gem_object_move_to_active(from_obj, ring,
-		    i915_gem_next_request_seqno(ring));
+		i915_gem_object_move_to_active(from_obj, ring);
 		/* As long as MI_SET_CONTEXT is serializing, ie. it flushes the
 		 * whole damn pipeline, we don't need to explicitly mark the
 		 * object dirty. The only exception is that the context must be
@@ -472,7 +477,7 @@ int i915_switch_context(struct intel_ring_buffer *ring,
 	if (dev_priv->hw_contexts_disabled)
 		return 0;
 
-	if (ring != &dev_priv->rings[RCS])
+	if (ring != &dev_priv->ring[RCS])
 		return 0;
 
 	if (to_id == DEFAULT_CONTEXT_ID) {

@@ -124,9 +124,12 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	installworld kernel-toolchain libraries lint maninstall \
 	obj objlink rerelease showconfig tags toolchain update \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
-	_build-tools _cross-tools _includes _libraries _depend \
-	build32 builddtb distribute32 install32 xdev xdev-build xdev-install \
-	xdev-links native-xtools installconfig \
+	_build-tools _cross-tools _includes _libraries \
+	build32 distribute32 install32 buildsoft distributesoft installsoft \
+	builddtb xdev xdev-build xdev-install \
+	xdev-links native-xtools stageworld stagekernel stage-packages \
+	create-world-packages create-kernel-packages create-packages \
+	packages installconfig real-packages sign-packages package-pkg
 
 TGTS+=	${SUBDIR_TARGETS}
 
@@ -146,7 +149,7 @@ TGTS+=	${BITGTS}
 
 PATH=	/sbin:/bin:/usr/sbin:/usr/bin
 MAKEOBJDIRPREFIX?=	/usr/obj
-_MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} ${MAKE} \
+_MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} MK_AUTO_OBJ=no ${MAKE} \
     ${.MAKEFLAGS:MMAKEOBJDIRPREFIX=*} __MAKE_CONF=${__MAKE_CONF} \
     -f /dev/null -V MAKEOBJDIRPREFIX dummy
 .if !empty(_MAKEOBJDIRPREFIX)
@@ -159,6 +162,8 @@ _MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} ${MAKE} \
 # We cannot blindly use a make which may not be the one we want
 # so be exlicit - until all choice is removed.
 WANT_MAKE=	bmake
+# 20160220 - support .dinclude for FAST_DEPEND.
+WANT_MAKE_VERSION= 20160220
 MYMAKE=		${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE}/${WANT_MAKE}
 .if defined(.PARSEDIR)
 HAVE_MAKE=	bmake
@@ -177,6 +182,15 @@ SUB_MAKE= ${MAKE} -m ${.CURDIR}/share/mk
 .endif
 
 _MAKE=	PATH=${PATH} ${SUB_MAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
+
+# Must disable META_MODE when installing to avoid missing anything.  The
+# main problem is that buildworld will create cookies for install targets
+# since they are being installed into WORLDTMP.  This avoids unneeded and
+# redundant restaging but is dangerous for user install targets.
+.if make(distrib*) || make(*install*)
+_MAKE+=	MK_META_MODE=no
+.unexport META_MODE
+.endif
 
 # Guess machine architecture from machine type, and vice versa.
 .if !defined(TARGET_ARCH) && defined(TARGET)
@@ -301,7 +315,7 @@ kernel: buildkernel installkernel
 upgrade_checks:
 .if ${HAVE_MAKE} != ${WANT_MAKE} || \
     (defined(WANT_MAKE_VERSION) && ${MAKE_VERSION} < ${WANT_MAKE_VERSION})
-	@(cd ${.CURDIR} && ${MAKE} ${WANT_MAKE:S,^f,,})
+	@${_+_}(cd ${.CURDIR} && ${MAKE} ${WANT_MAKE:S,^f,,})
 .endif
 
 #
@@ -313,9 +327,9 @@ MMAKEENV=	MAKEOBJDIRPREFIX=${MYMAKE:H} \
 		DESTDIR= \
 		INSTALL="sh ${.CURDIR}/tools/install.sh"
 MMAKE=		${MMAKEENV} ${MAKE} \
-		-DNO_MAN -DNO_SHARED \
+		MAN= -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WERROR \
-		MK_TESTS=no \
+		-DNO_SUBDIR \
 		DESTDIR= PROGNAME=${MYMAKE:T}
 
 bmake: .PHONY
@@ -403,7 +417,7 @@ MAKEFAIL=cat
 
 universe_prologue:  upgrade_checks
 universe: universe_prologue
-universe_prologue:
+universe_prologue: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
@@ -489,7 +503,7 @@ universe_kernconf_${TARGET}_${kernel}: .MAKE
 	    "check _.${TARGET}.${kernel} for details"| ${MAKEFAIL}))
 .endfor
 universe: universe_epilogue
-universe_epilogue:
+universe_epilogue: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe completed on `LC_ALL=C date`"
 	@echo "                      (started ${STARTTIME})"

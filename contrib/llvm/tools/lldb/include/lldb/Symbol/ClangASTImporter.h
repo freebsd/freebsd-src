@@ -10,14 +10,21 @@
 #ifndef liblldb_ClangASTImporter_h_
 #define liblldb_ClangASTImporter_h_
 
+// C Includes
+// C++ Includes
 #include <map>
+#include <memory>
 #include <set>
+#include <vector>
 
-#include "lldb/lldb-types.h"
+// Other libraries and framework includes
 #include "clang/AST/ASTImporter.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/FileSystemOptions.h"
-#include "lldb/Symbol/ClangNamespaceDecl.h"
+
+// Project includes
+#include "lldb/lldb-types.h"
+#include "lldb/Symbol/CompilerDeclContext.h"
 
 namespace lldb_private {
     
@@ -96,20 +103,24 @@ public:
               clang::ASTContext *src_ctx,
               clang::QualType type);
     
-    lldb::clang_type_t
+    lldb::opaque_compiler_type_t
     CopyType (clang::ASTContext *dst_ctx,
               clang::ASTContext *src_ctx,
-              lldb::clang_type_t type);
-    
+              lldb::opaque_compiler_type_t type);
+
+    CompilerType
+    CopyType (ClangASTContext &dst,
+              const CompilerType &src_type);
+
     clang::Decl *
     CopyDecl (clang::ASTContext *dst_ctx,
               clang::ASTContext *src_ctx,
               clang::Decl *decl);
     
-    lldb::clang_type_t
+    lldb::opaque_compiler_type_t
     DeportType (clang::ASTContext *dst_ctx,
                 clang::ASTContext *src_ctx,
-                lldb::clang_type_t type);
+                lldb::opaque_compiler_type_t type);
     
     clang::Decl *
     DeportDecl (clang::ASTContext *dst_ctx,
@@ -127,7 +138,10 @@ public:
     
     bool
     CompleteObjCInterfaceDecl (clang::ObjCInterfaceDecl *interface_decl);
-    
+
+    bool
+    CompleteAndFetchChildren (clang::QualType type);
+
     bool
     RequireCompleteType (clang::QualType type);
     
@@ -155,7 +169,7 @@ public:
     // Namespace maps
     //
     
-    typedef std::vector < std::pair<lldb::ModuleSP, ClangNamespaceDecl> > NamespaceMap;
+    typedef std::vector < std::pair<lldb::ModuleSP, CompilerDeclContext> > NamespaceMap;
     typedef std::shared_ptr<NamespaceMap> NamespaceMapSP;
     
     void RegisterNamespaceMap (const clang::NamespaceDecl *decl, 
@@ -199,12 +213,13 @@ public:
     
     void ForgetDestination (clang::ASTContext *dst_ctx);
     void ForgetSource (clang::ASTContext *dst_ctx, clang::ASTContext *src_ctx);
+
 private:
     struct DeclOrigin 
     {
         DeclOrigin () :
-            ctx(NULL),
-            decl(NULL)
+            ctx(nullptr),
+            decl(nullptr)
         {
         }
         
@@ -230,7 +245,7 @@ private:
         bool 
         Valid ()
         {
-            return (ctx != NULL || decl != NULL);
+            return (ctx != nullptr || decl != nullptr);
         }
         
         clang::ASTContext  *ctx;
@@ -250,8 +265,8 @@ private:
                                *source_ctx,
                                master.m_file_manager,
                                true /*minimal*/),
-            m_decls_to_deport(NULL),
-            m_decls_already_deported(NULL),
+            m_decls_to_deport(nullptr),
+            m_decls_already_deported(nullptr),
             m_master(master),
             m_source_ctx(source_ctx)
         {
@@ -276,9 +291,9 @@ private:
         
         void ImportDefinitionTo (clang::Decl *to, clang::Decl *from);
         
-        clang::Decl *Imported (clang::Decl *from, clang::Decl *to);
+        clang::Decl *Imported(clang::Decl *from, clang::Decl *to) override;
         
-        clang::Decl *GetOriginalDecl (clang::Decl *To);
+        clang::Decl *GetOriginalDecl(clang::Decl *To) override;
         
         std::set<clang::NamedDecl *>   *m_decls_to_deport;
         std::set<clang::NamedDecl *>   *m_decls_already_deported;
@@ -297,7 +312,7 @@ private:
             m_minions (),
             m_origins (),
             m_namespace_maps (),
-            m_map_completer (NULL)
+            m_map_completer (nullptr)
         {
         }
         
@@ -368,6 +383,6 @@ private:
     clang::FileManager      m_file_manager;
 };
     
-}
+} // namespace lldb_private
 
-#endif
+#endif // liblldb_ClangASTImporter_h_

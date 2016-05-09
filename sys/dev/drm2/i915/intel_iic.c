@@ -25,49 +25,19 @@
  * Authors:
  *	Eric Anholt <eric@anholt.net>
  *	Chris Wilson <chris@chris-wilson.co.uk>
- *
- * Copyright (c) 2011 The FreeBSD Foundation
- * All rights reserved.
- *
- * This software was developed by Konstantin Belousov under sponsorship from
- * the FreeBSD Foundation.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drmP.h>
-#include <dev/drm2/drm.h>
+#include <dev/drm2/i915/intel_drv.h>
 #include <dev/drm2/i915/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
-#include <dev/drm2/i915/intel_drv.h>
 #include <dev/iicbus/iic.h>
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
 #include "iicbus_if.h"
 #include "iicbb_if.h"
-
-static void intel_teardown_gmbus_m(struct drm_device *dev, int m);
 
 struct gmbus_port {
 	const char *name;
@@ -87,17 +57,37 @@ static const struct gmbus_port gmbus_ports[] = {
 
 #define I2C_RISEFALL_TIME 10
 
+/*
+ * FIXME Linux<->FreeBSD: dvo_ns2501.C wants the struct intel_gmbus
+ * below but it just has the device_t at hand. It still uses
+ * device_get_softc(), thus expects struct intel_gmbus to remain the
+ * first member.
+ */
 struct intel_iic_softc {
-	struct drm_device *drm_dev;
+	struct intel_gmbus *bus;
 	device_t iic_dev;
-	bool force_bit_dev;
 	char name[32];
-	uint32_t reg;
-	uint32_t reg0;
 };
 
+static inline struct intel_gmbus *
+to_intel_gmbus(device_t i2c)
+{
+	struct intel_iic_softc *sc;
+
+	sc = device_get_softc(i2c);
+	return sc->bus;
+}
+
+bool intel_gmbus_is_forced_bit(device_t adapter)
+{
+	struct intel_iic_softc *sc = device_get_softc(adapter);
+	struct intel_gmbus *bus = sc->bus;
+
+	return bus->force_bit;
+}
+
 void
-intel_iic_reset(struct drm_device *dev)
+intel_i2c_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	I915_WRITE(dev_priv->gpio_mmio_base + GMBUS0, 0);
@@ -110,9 +100,9 @@ intel_iicbus_reset(device_t idev, u_char speed, u_char addr, u_char *oldaddr)
 	struct drm_device *dev;
 
 	sc = device_get_softc(idev);
-	dev = sc->drm_dev;
+	dev = sc->bus->dev_priv->dev;
 
-	intel_iic_reset(dev);
+	intel_i2c_reset(dev);
 	return (0);
 }
 
@@ -132,15 +122,15 @@ static void intel_i2c_quirk_set(struct drm_i915_private *dev_priv, bool enable)
 	I915_WRITE(DSPCLK_GATE_D, val);
 }
 
-static u32 get_reserved(device_t idev)
+static u32 get_reserved(struct intel_gmbus *bus)
 {
-	struct intel_iic_softc *sc = device_get_softc(idev);
-	struct drm_device *dev = sc->drm_dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+	struct drm_device *dev = dev_priv->dev;
 	u32 reserved = 0;
 
+	/* On most chips, these bits must be preserved in software. */
 	if (!IS_I830(dev) && !IS_845G(dev))
-		reserved = I915_READ_NOTRACE(sc->reg) &
+		reserved = I915_READ_NOTRACE(bus->gpio_reg) &
 					     (GPIO_DATA_PULLUP_DISABLE |
 					      GPIO_CLOCK_PULLUP_DISABLE);
 
@@ -150,28 +140,31 @@ static u32 get_reserved(device_t idev)
 static int get_clock(device_t adapter)
 {
 	struct intel_iic_softc *sc = device_get_softc(adapter);
-	struct drm_i915_private *dev_priv = sc->drm_dev->dev_private;
-	u32 reserved = get_reserved(adapter);
-	I915_WRITE_NOTRACE(sc->reg, reserved | GPIO_CLOCK_DIR_MASK);
-	I915_WRITE_NOTRACE(sc->reg, reserved);
-	return ((I915_READ_NOTRACE(sc->reg) & GPIO_CLOCK_VAL_IN) != 0);
+	struct intel_gmbus *bus = sc->bus;
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+	u32 reserved = get_reserved(bus);
+	I915_WRITE_NOTRACE(bus->gpio_reg, reserved | GPIO_CLOCK_DIR_MASK);
+	I915_WRITE_NOTRACE(bus->gpio_reg, reserved);
+	return (I915_READ_NOTRACE(bus->gpio_reg) & GPIO_CLOCK_VAL_IN) != 0;
 }
 
 static int get_data(device_t adapter)
 {
 	struct intel_iic_softc *sc = device_get_softc(adapter);
-	struct drm_i915_private *dev_priv = sc->drm_dev->dev_private;
-	u32 reserved = get_reserved(adapter);
-	I915_WRITE_NOTRACE(sc->reg, reserved | GPIO_DATA_DIR_MASK);
-	I915_WRITE_NOTRACE(sc->reg, reserved);
-	return ((I915_READ_NOTRACE(sc->reg) & GPIO_DATA_VAL_IN) != 0);
+	struct intel_gmbus *bus = sc->bus;
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+	u32 reserved = get_reserved(bus);
+	I915_WRITE_NOTRACE(bus->gpio_reg, reserved | GPIO_DATA_DIR_MASK);
+	I915_WRITE_NOTRACE(bus->gpio_reg, reserved);
+	return (I915_READ_NOTRACE(bus->gpio_reg) & GPIO_DATA_VAL_IN) != 0;
 }
 
 static void set_clock(device_t adapter, int state_high)
 {
 	struct intel_iic_softc *sc = device_get_softc(adapter);
-	struct drm_i915_private *dev_priv = sc->drm_dev->dev_private;
-	u32 reserved = get_reserved(adapter);
+	struct intel_gmbus *bus = sc->bus;
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+	u32 reserved = get_reserved(bus);
 	u32 clock_bits;
 
 	if (state_high)
@@ -180,15 +173,16 @@ static void set_clock(device_t adapter, int state_high)
 		clock_bits = GPIO_CLOCK_DIR_OUT | GPIO_CLOCK_DIR_MASK |
 			GPIO_CLOCK_VAL_MASK;
 
-	I915_WRITE_NOTRACE(sc->reg, reserved | clock_bits);
-	POSTING_READ(sc->reg);
+	I915_WRITE_NOTRACE(bus->gpio_reg, reserved | clock_bits);
+	POSTING_READ(bus->gpio_reg);
 }
 
 static void set_data(device_t adapter, int state_high)
 {
 	struct intel_iic_softc *sc = device_get_softc(adapter);
-	struct drm_i915_private *dev_priv = sc->drm_dev->dev_private;
-	u32 reserved = get_reserved(adapter);
+	struct intel_gmbus *bus = sc->bus;
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+	u32 reserved = get_reserved(bus);
 	u32 data_bits;
 
 	if (state_high)
@@ -197,21 +191,22 @@ static void set_data(device_t adapter, int state_high)
 		data_bits = GPIO_DATA_DIR_OUT | GPIO_DATA_DIR_MASK |
 			GPIO_DATA_VAL_MASK;
 
-	I915_WRITE_NOTRACE(sc->reg, reserved | data_bits);
-	POSTING_READ(sc->reg);
+	I915_WRITE_NOTRACE(bus->gpio_reg, reserved | data_bits);
+	POSTING_READ(bus->gpio_reg);
 }
 
 static int
 intel_gpio_pre_xfer(device_t adapter)
 {
 	struct intel_iic_softc *sc = device_get_softc(adapter);
-	struct drm_i915_private *dev_priv = sc->drm_dev->dev_private;
+	struct intel_gmbus *bus = sc->bus;
+	struct drm_i915_private *dev_priv = bus->dev_priv;
 
-	intel_iic_reset(sc->drm_dev);
+	intel_i2c_reset(dev_priv->dev);
 	intel_i2c_quirk_set(dev_priv, true);
 	IICBB_SETSDA(adapter, 1);
 	IICBB_SETSCL(adapter, 1);
-	DELAY(I2C_RISEFALL_TIME);
+	udelay(I2C_RISEFALL_TIME);
 	return 0;
 }
 
@@ -219,11 +214,21 @@ static void
 intel_gpio_post_xfer(device_t adapter)
 {
 	struct intel_iic_softc *sc = device_get_softc(adapter);
-	struct drm_i915_private *dev_priv = sc->drm_dev->dev_private;
+	struct intel_gmbus *bus = sc->bus;
+	struct drm_i915_private *dev_priv = bus->dev_priv;
 
 	IICBB_SETSDA(adapter, 1);
 	IICBB_SETSCL(adapter, 1);
 	intel_i2c_quirk_set(dev_priv, false);
+}
+
+static void
+intel_gpio_setup(struct intel_gmbus *bus, u32 pin)
+{
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+
+	/* -1 to map pin pair to gmbus index */
+	bus->gpio_reg = dev_priv->gpio_mmio_base + gmbus_ports[pin - 1].reg;
 }
 
 static int
@@ -245,10 +250,9 @@ gmbus_xfer_read(struct drm_i915_private *dev_priv, struct iic_msg *msg,
 		u32 val, loop = 0;
 		u32 gmbus2;
 
-		ret = _intel_wait_for(sc->drm_dev,
-			       ((gmbus2 = I915_READ(GMBUS2 + reg_offset)) &
-			       (GMBUS_SATOER | GMBUS_HW_RDY)),
-			       50, 1, "915gbr");
+		ret = wait_for((gmbus2 = I915_READ(GMBUS2 + reg_offset)) &
+			       (GMBUS_SATOER | GMBUS_HW_RDY),
+			       50);
 		if (ret)
 			return -ETIMEDOUT;
 		if (gmbus2 & GMBUS_SATOER)
@@ -295,10 +299,9 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct iic_msg *msg)
 
 		I915_WRITE(GMBUS3 + reg_offset, val);
 
-		ret = _intel_wait_for(sc->drm_dev,
-			       ((gmbus2 = I915_READ(GMBUS2 + reg_offset)) &
-			       (GMBUS_SATOER | GMBUS_HW_RDY)),
-			       50, 1, "915gbw");
+		ret = wait_for((gmbus2 = I915_READ(GMBUS2 + reg_offset)) &
+			       (GMBUS_SATOER | GMBUS_HW_RDY),
+			       50);
 		if (ret)
 			return -ETIMEDOUT;
 		if (gmbus2 & GMBUS_SATOER)
@@ -315,8 +318,8 @@ static bool
 gmbus_is_index_read(struct iic_msg *msgs, int i, int num)
 {
 	return (i + 1 < num &&
-		!(msgs[i].flags & IIC_M_RD) && msgs[i].len <= 2 &&
-		(msgs[i + 1].flags & IIC_M_RD));
+		!(msgs[i].flags & I2C_M_RD) && msgs[i].len <= 2 &&
+		(msgs[i + 1].flags & I2C_M_RD));
 }
 
 static int
@@ -353,43 +356,42 @@ gmbus_xfer(device_t adapter,
 	   uint32_t num)
 {
 	struct intel_iic_softc *sc = device_get_softc(adapter);
-	struct drm_i915_private *dev_priv = sc->drm_dev->dev_private;
-	int error, i, ret, reg_offset, unit;
+	struct intel_gmbus *bus = sc->bus;
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+	int i, reg_offset;
+	int ret = 0;
 
-	error = 0;
-	unit = device_get_unit(adapter);
+	sx_xlock(&dev_priv->gmbus_mutex);
 
-	sx_xlock(&dev_priv->gmbus_sx);
-	if (sc->force_bit_dev) {
-		error = -IICBUS_TRANSFER(dev_priv->bbbus[unit], msgs, num);
+	if (bus->force_bit) {
+		ret = -IICBUS_TRANSFER(bus->bbbus, msgs, num);
 		goto out;
 	}
 
 	reg_offset = dev_priv->gpio_mmio_base;
 
-	I915_WRITE(GMBUS0 + reg_offset, sc->reg0);
+	I915_WRITE(GMBUS0 + reg_offset, bus->reg0);
 
 	for (i = 0; i < num; i++) {
 		u32 gmbus2;
 
 		if (gmbus_is_index_read(msgs, i, num)) {
-			error = gmbus_xfer_index_read(dev_priv, &msgs[i]);
+			ret = gmbus_xfer_index_read(dev_priv, &msgs[i]);
 			i += 1;  /* set i to the index of the read xfer */
-		} else if (msgs[i].flags & IIC_M_RD) {
-			error = gmbus_xfer_read(dev_priv, &msgs[i], 0);
+		} else if (msgs[i].flags & I2C_M_RD) {
+			ret = gmbus_xfer_read(dev_priv, &msgs[i], 0);
 		} else {
-			error = gmbus_xfer_write(dev_priv, &msgs[i]);
+			ret = gmbus_xfer_write(dev_priv, &msgs[i]);
 		}
 
-		if (error == -ETIMEDOUT)
+		if (ret == -ETIMEDOUT)
 			goto timeout;
-		if (error == -ENXIO)
+		if (ret == -ENXIO)
 			goto clear_err;
 
-		ret = _intel_wait_for(sc->drm_dev,
-		    ((gmbus2 = I915_READ(GMBUS2 + reg_offset)) &
-		    (GMBUS_SATOER | GMBUS_HW_WAIT_PHASE)),
-		    50, 1, "915gbh");
+		ret = wait_for((gmbus2 = I915_READ(GMBUS2 + reg_offset)) &
+			       (GMBUS_SATOER | GMBUS_HW_WAIT_PHASE),
+			       50);
 		if (ret)
 			goto timeout;
 		if (gmbus2 & GMBUS_SATOER)
@@ -406,12 +408,11 @@ gmbus_xfer(device_t adapter,
 	 * We will re-enable it at the start of the next xfer,
 	 * till then let it sleep.
 	 */
-	if (_intel_wait_for(dev,
-	    (I915_READ(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0,
-	    10, 1, "915gbu")) {
+	if (wait_for((I915_READ(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0,
+		     10)) {
 		DRM_DEBUG_KMS("GMBUS [%s] timed out waiting for idle\n",
-			 sc->name);
-		error = -ETIMEDOUT;
+			 device_get_desc(adapter));
+		ret = -ETIMEDOUT;
 	}
 	I915_WRITE(GMBUS0 + reg_offset, 0);
 	goto out;
@@ -421,11 +422,22 @@ clear_err:
 	 * Wait for bus to IDLE before clearing NAK.
 	 * If we clear the NAK while bus is still active, then it will stay
 	 * active and the next transaction may fail.
+	 *
+	 * If no ACK is received during the address phase of a transaction, the
+	 * adapter must report -ENXIO. It is not clear what to return if no ACK
+	 * is received at other times. But we have to be careful to not return
+	 * spurious -ENXIO because that will prevent i2c and drm edid functions
+	 * from retrying. So return -ENXIO only when gmbus properly quiescents -
+	 * timing out seems to happen when there _is_ a ddc chip present, but
+	 * it's slow responding and only answers on the 2nd retry.
 	 */
-	if (_intel_wait_for(dev,
-	    (I915_READ(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0,
-	    10, 1, "915gbu"))
-		DRM_DEBUG_KMS("GMBUS [%s] timed out after NAK\n", sc->name);
+	ret = -ENXIO;
+	if (wait_for((I915_READ(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0,
+		     10)) {
+		DRM_DEBUG_KMS("GMBUS [%s] timed out after NAK\n",
+			      device_get_desc(adapter));
+		ret = -ETIMEDOUT;
+	}
 
 	/* Toggle the Software Clear Interrupt bit. This has the effect
 	 * of resetting the GMBUS controller and so clearing the
@@ -436,31 +448,23 @@ clear_err:
 	I915_WRITE(GMBUS0 + reg_offset, 0);
 
 	DRM_DEBUG_KMS("GMBUS [%s] NAK for addr: %04x %c(%d)\n",
-			 sc->name, msgs[i].slave,
-			 (msgs[i].flags & IIC_M_RD) ? 'r' : 'w', msgs[i].len);
+			 device_get_desc(adapter), msgs[i].slave >> 1,
+			 (msgs[i].flags & I2C_M_RD) ? 'r' : 'w', msgs[i].len);
 
-	/*
-	 * If no ACK is received during the address phase of a transaction,
-	 * the adapter must report -ENXIO.
-	 * It is not clear what to return if no ACK is received at other times.
-	 * So, we always return -ENXIO in all NAK cases, to ensure we send
-	 * it at least during the one case that is specified.
-	 */
-	error = -ENXIO;
 	goto out;
 
 timeout:
 	DRM_INFO("GMBUS [%s] timed out, falling back to bit banging on pin %d\n",
-		 sc->name, sc->reg0 & 0xff);
+		 device_get_desc(adapter), bus->reg0 & 0xff);
 	I915_WRITE(GMBUS0 + reg_offset, 0);
 
 	/* Hardware may not support GMBUS over these pins? Try GPIO bitbanging instead. */
-	sc->force_bit_dev = true;
-	error = -IICBUS_TRANSFER(dev_priv->bbbus[unit], msgs, num);
+	bus->force_bit = 1;
+	ret = -IICBUS_TRANSFER(bus->bbbus, msgs, num);
 
 out:
-	sx_xunlock(&dev_priv->gmbus_sx);
-	return -error;
+	sx_xunlock(&dev_priv->gmbus_mutex);
+	return -ret;
 }
 
 static int
@@ -473,32 +477,23 @@ intel_gmbus_probe(device_t dev)
 static int
 intel_gmbus_attach(device_t idev)
 {
-	struct drm_i915_private *dev_priv;
 	struct intel_iic_softc *sc;
+	struct drm_device *dev;
+	struct drm_i915_private *dev_priv;
 	int pin, port;
 
 	sc = device_get_softc(idev);
-	sc->drm_dev = device_get_softc(device_get_parent(idev));
-	dev_priv = sc->drm_dev->dev_private;
 	pin = device_get_unit(idev);
-	port = pin + 1;
+	port = pin + 1; /* +1 to map gmbus index to pin pair */
 
-	snprintf(sc->name, sizeof(sc->name), "gmbus %s",
+	snprintf(sc->name, sizeof(sc->name), "i915 gmbus %s",
 	    intel_gmbus_is_port_valid(port) ? gmbus_ports[pin].name :
 	    "reserved");
 	device_set_desc(idev, sc->name);
 
-	/* By default use a conservative clock rate */
-	sc->reg0 = port | GMBUS_RATE_100KHZ;
-
-	/* gmbus seems to be broken on i830 */
-	if (IS_I830(sc->drm_dev))
-		sc->force_bit_dev = true;
-#if 0
-	if (IS_GEN2(sc->drm_dev)) {
-		sc->force_bit_dev = true;
-	}
-#endif
+	dev = device_get_softc(device_get_parent(idev));
+	dev_priv = dev->dev_private;
+	sc->bus = &dev_priv->gmbus[pin];
 
 	/* add bus interface device */
 	sc->iic_dev = device_add_child(idev, "iicbus", -1);
@@ -513,75 +508,10 @@ intel_gmbus_attach(device_t idev)
 static int
 intel_gmbus_detach(device_t idev)
 {
-	struct intel_iic_softc *sc;
-	struct drm_i915_private *dev_priv;
-	device_t child;
-	int u;
 
-	sc = device_get_softc(idev);
-	u = device_get_unit(idev);
-	dev_priv = sc->drm_dev->dev_private;
-
-	child = sc->iic_dev;
 	bus_generic_detach(idev);
-	if (child != NULL)
-		device_delete_child(idev, child);
+	device_delete_children(idev);
 
-	return (0);
-}
-
-static int
-intel_iicbb_probe(device_t dev)
-{
-
-	return (BUS_PROBE_DEFAULT);
-}
-
-static int
-intel_iicbb_attach(device_t idev)
-{
-	struct intel_iic_softc *sc;
-	struct drm_i915_private *dev_priv;
-	int pin, port;
-
-	sc = device_get_softc(idev);
-	sc->drm_dev = device_get_softc(device_get_parent(idev));
-	dev_priv = sc->drm_dev->dev_private;
-	pin = device_get_unit(idev);
-	port = pin + 1;
-
-	snprintf(sc->name, sizeof(sc->name), "i915 iicbb %s",
-	    intel_gmbus_is_port_valid(port) ? gmbus_ports[pin].name :
-	    "reserved");
-	device_set_desc(idev, sc->name);
-
-	if (!intel_gmbus_is_port_valid(port))
-		pin = 1 ; /* GPIOA, VGA */
-	sc->reg0 = pin | GMBUS_RATE_100KHZ;
-	sc->reg = dev_priv->gpio_mmio_base + gmbus_ports[pin].reg;
-
-	/* add generic bit-banging code */
-	sc->iic_dev = device_add_child(idev, "iicbb", -1);
-	if (sc->iic_dev == NULL)
-		return (ENXIO);
-	device_quiet(sc->iic_dev);
-	bus_generic_attach(idev);
-	iicbus_set_nostop(idev, true);
-
-	return (0);
-}
-
-static int
-intel_iicbb_detach(device_t idev)
-{
-	struct intel_iic_softc *sc;
-	device_t child;
-
-	sc = device_get_softc(idev);
-	child = sc->iic_dev;
-	bus_generic_detach(idev);
-	if (child)
-		device_delete_child(idev, child);
 	return (0);
 }
 
@@ -602,6 +532,55 @@ static devclass_t intel_gmbus_devclass;
 DRIVER_MODULE_ORDERED(intel_gmbus, drmn, intel_gmbus_driver,
     intel_gmbus_devclass, 0, 0, SI_ORDER_FIRST);
 DRIVER_MODULE(iicbus, intel_gmbus, iicbus_driver, iicbus_devclass, 0, 0);
+
+static int
+intel_iicbb_probe(device_t dev)
+{
+
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+intel_iicbb_attach(device_t idev)
+{
+	struct intel_iic_softc *sc;
+	struct drm_device *dev;
+	struct drm_i915_private *dev_priv;
+	int pin, port;
+
+	sc = device_get_softc(idev);
+	pin = device_get_unit(idev);
+	port = pin + 1;
+
+	snprintf(sc->name, sizeof(sc->name), "i915 iicbb %s",
+	    intel_gmbus_is_port_valid(port) ? gmbus_ports[pin].name :
+	    "reserved");
+	device_set_desc(idev, sc->name);
+
+	dev = device_get_softc(device_get_parent(idev));
+	dev_priv = dev->dev_private;
+	sc->bus = &dev_priv->gmbus[pin];
+
+	/* add generic bit-banging code */
+	sc->iic_dev = device_add_child(idev, "iicbb", -1);
+	if (sc->iic_dev == NULL)
+		return (ENXIO);
+	device_quiet(sc->iic_dev);
+	bus_generic_attach(idev);
+	iicbus_set_nostop(idev, true);
+
+	return (0);
+}
+
+static int
+intel_iicbb_detach(device_t idev)
+{
+
+	bus_generic_detach(idev);
+	device_delete_children(idev);
+
+	return (0);
+}
 
 static device_method_t intel_iicbb_methods[] =	{
 	DEVMETHOD(device_probe,		intel_iicbb_probe),
@@ -631,6 +610,10 @@ DRIVER_MODULE_ORDERED(intel_iicbb, drmn, intel_iicbb_driver,
     intel_iicbb_devclass, 0, 0, SI_ORDER_FIRST);
 DRIVER_MODULE(iicbb, intel_iicbb, iicbb_driver, iicbb_devclass, 0, 0);
 
+/**
+ * intel_gmbus_setup - instantiate all Intel i2c GMBuses
+ * @dev: DRM device
+ */
 int intel_setup_gmbus(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -642,7 +625,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 	else
 		dev_priv->gpio_mmio_base = 0;
 
-	sx_init(&dev_priv->gmbus_sx, "gmbus");
+	sx_init(&dev_priv->gmbus_mutex, "gmbus");
 
 	/*
 	 * The Giant there is recursed, most likely.  Normally, the
@@ -650,29 +633,46 @@ int intel_setup_gmbus(struct drm_device *dev)
 	 * driver.
 	 */
 	mtx_lock(&Giant);
-	for (i = 0; i <= GMBUS_NUM_PORTS; i++) {
+	for (i = 0; i < GMBUS_NUM_PORTS; i++) {
+		struct intel_gmbus *bus = &dev_priv->gmbus[i];
+		u32 port = i + 1; /* +1 to map gmbus index to pin pair */
+
+		bus->dev_priv = dev_priv;
+
+		/* By default use a conservative clock rate */
+		bus->reg0 = port | GMBUS_RATE_100KHZ;
+
+		/* gmbus seems to be broken on i830 */
+		if (IS_I830(dev))
+			bus->force_bit = 1;
+
+		intel_gpio_setup(bus, port);
+
 		/*
+		 * bbbus_bridge
+		 *
 		 * Initialized bbbus_bridge before gmbus_bridge, since
 		 * gmbus may decide to force quirk transfer in the
 		 * attachment code.
 		 */
-		dev_priv->bbbus_bridge[i] = device_add_child(dev->dev,
+		bus->bbbus_bridge = device_add_child(dev->dev,
 		    "intel_iicbb", i);
-		if (dev_priv->bbbus_bridge[i] == NULL) {
+		if (bus->bbbus_bridge == NULL) {
 			DRM_ERROR("bbbus bridge %d creation failed\n", i);
 			ret = -ENXIO;
 			goto err;
 		}
-		device_quiet(dev_priv->bbbus_bridge[i]);
-		ret = -device_probe_and_attach(dev_priv->bbbus_bridge[i]);
+		device_quiet(bus->bbbus_bridge);
+		ret = -device_probe_and_attach(bus->bbbus_bridge);
 		if (ret != 0) {
 			DRM_ERROR("bbbus bridge %d attach failed, %d\n", i,
 			    ret);
 			goto err;
 		}
 
-		iic_dev = device_find_child(dev_priv->bbbus_bridge[i], "iicbb",
-		    -1);
+		/* bbbus */
+		iic_dev = device_find_child(bus->bbbus_bridge,
+		    "iicbb", -1);
 		if (iic_dev == NULL) {
 			DRM_ERROR("bbbus bridge doesn't have iicbb child\n");
 			goto err;
@@ -684,17 +684,18 @@ int intel_setup_gmbus(struct drm_device *dev)
 			goto err;
 		}
 
-		dev_priv->bbbus[i] = iic_dev;
+		bus->bbbus = iic_dev;
 
-		dev_priv->gmbus_bridge[i] = device_add_child(dev->dev,
+		/* gmbus_bridge */
+		bus->gmbus_bridge = device_add_child(dev->dev,
 		    "intel_gmbus", i);
-		if (dev_priv->gmbus_bridge[i] == NULL) {
+		if (bus->gmbus_bridge == NULL) {
 			DRM_ERROR("gmbus bridge %d creation failed\n", i);
 			ret = -ENXIO;
 			goto err;
 		}
-		device_quiet(dev_priv->gmbus_bridge[i]);
-		ret = -device_probe_and_attach(dev_priv->gmbus_bridge[i]);
+		device_quiet(bus->gmbus_bridge);
+		ret = -device_probe_and_attach(bus->gmbus_bridge);
 		if (ret != 0) {
 			DRM_ERROR("gmbus bridge %d attach failed, %d\n", i,
 			    ret);
@@ -702,67 +703,84 @@ int intel_setup_gmbus(struct drm_device *dev)
 			goto err;
 		}
 
-		iic_dev = device_find_child(dev_priv->gmbus_bridge[i],
+		/* gmbus */
+		iic_dev = device_find_child(bus->gmbus_bridge,
 		    "iicbus", -1);
 		if (iic_dev == NULL) {
 			DRM_ERROR("gmbus bridge doesn't have iicbus child\n");
 			goto err;
 		}
-		dev_priv->gmbus[i] = iic_dev;
 
-		intel_iic_reset(dev);
+		bus->gmbus = iic_dev;
 	}
 	mtx_unlock(&Giant);
+
+	intel_i2c_reset(dev_priv->dev);
 
 	return 0;
 
 err:
-	intel_teardown_gmbus_m(dev, i);
+	while (--i) {
+		struct intel_gmbus *bus = &dev_priv->gmbus[i];
+		if (bus->gmbus_bridge != NULL)
+			device_delete_child(dev->dev, bus->gmbus_bridge);
+		if (bus->bbbus_bridge != NULL)
+			device_delete_child(dev->dev, bus->bbbus_bridge);
+	}
 	mtx_unlock(&Giant);
+	sx_destroy(&dev_priv->gmbus_mutex);
 	return ret;
 }
 
 device_t intel_gmbus_get_adapter(struct drm_i915_private *dev_priv,
 					    unsigned port)
 {
-
-	if (!intel_gmbus_is_port_valid(port))
-		DRM_ERROR("GMBUS get adapter %d: invalid port\n", port);
-	return (intel_gmbus_is_port_valid(port) ? dev_priv->gmbus[port - 1] :
-	    NULL);
+	WARN_ON(!intel_gmbus_is_port_valid(port));
+	/* -1 to map pin pair to gmbus index */
+	return (intel_gmbus_is_port_valid(port)) ?
+		dev_priv->gmbus[port - 1].gmbus : NULL;
 }
 
 void intel_gmbus_set_speed(device_t adapter, int speed)
 {
-	struct intel_iic_softc *sc;
+	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 
-	sc = device_get_softc(device_get_parent(adapter));
-
-	sc->reg0 = (sc->reg0 & ~(0x3 << 8)) | speed;
+	bus->reg0 = (bus->reg0 & ~(0x3 << 8)) | speed;
 }
 
 void intel_gmbus_force_bit(device_t adapter, bool force_bit)
 {
-	struct intel_iic_softc *sc;
+	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 
-	sc = device_get_softc(device_get_parent(adapter));
-	sc->force_bit_dev = force_bit;
-}
-
-static void
-intel_teardown_gmbus_m(struct drm_device *dev, int m)
-{
-	struct drm_i915_private *dev_priv;
-
-	dev_priv = dev->dev_private;
-
-	sx_destroy(&dev_priv->gmbus_sx);
+	bus->force_bit += force_bit ? 1 : -1;
+	DRM_DEBUG_KMS("%sabling bit-banging on %s. force bit now %d\n",
+		      force_bit ? "en" : "dis", device_get_desc(adapter),
+		      bus->force_bit);
 }
 
 void intel_teardown_gmbus(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int i;
+	int ret;
 
-	mtx_lock(&Giant);
-	intel_teardown_gmbus_m(dev, GMBUS_NUM_PORTS);
-	mtx_unlock(&Giant);
+	for (i = 0; i < GMBUS_NUM_PORTS; i++) {
+		struct intel_gmbus *bus = &dev_priv->gmbus[i];
+
+		mtx_lock(&Giant);
+		ret = device_delete_child(dev->dev, bus->gmbus_bridge);
+		mtx_unlock(&Giant);
+
+		KASSERT(ret == 0, ("unable to detach iic gmbus %s: %d",
+		    device_get_desc(bus->gmbus_bridge), ret));
+
+		mtx_lock(&Giant);
+		ret = device_delete_child(dev->dev, bus->bbbus_bridge);
+		mtx_unlock(&Giant);
+
+		KASSERT(ret == 0, ("unable to detach iic bbbus %s: %d",
+		    device_get_desc(bus->bbbus_bridge), ret));
+	}
+
+	sx_destroy(&dev_priv->gmbus_mutex);
 }

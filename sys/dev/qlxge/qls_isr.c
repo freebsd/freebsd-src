@@ -204,7 +204,7 @@ qls_rx_comp(qla_host_t *ha, uint32_t rxr_idx, uint32_t cq_idx, q81_rx_t *cq_e)
 			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 			if (lro->lro_cnt && (tcp_lro_rx(lro, mp, 0) == 0)) {
-				/* LRO packet has been successfuly queued */
+				/* LRO packet has been successfully queued */
 			} else {
 				(*ifp->if_input)(ifp, mp);
 			}
@@ -232,7 +232,6 @@ qls_cq_isr(qla_host_t *ha, uint32_t cq_idx)
 	uint32_t i, cq_comp_idx;
 	int ret = 0, tx_comp_done = 0;
 	struct lro_ctrl	*lro;
-	struct lro_entry *queued;
 
 	cq_b = ha->rx_ring[cq_idx].cq_base_vaddr;
 	lro = &ha->rx_ring[cq_idx].lro;
@@ -287,11 +286,7 @@ qls_cq_isr(qla_host_t *ha, uint32_t cq_idx)
                 }
 	}
 
-        while((!SLIST_EMPTY(&lro->lro_active))) {
-                queued = SLIST_FIRST(&lro->lro_active);
-                SLIST_REMOVE_HEAD(&lro->lro_active, next);
-                tcp_lro_flush(lro, queued);
-        }
+	tcp_lro_flush_all(lro);
 
 	ha->rx_ring[cq_idx].cq_next = cq_comp_idx;
 

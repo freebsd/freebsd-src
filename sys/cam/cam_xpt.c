@@ -863,7 +863,7 @@ xpt_init(void *dummy)
 	xsoftc.boot_delay = CAM_BOOT_DELAY;
 #endif
 	/*
-	 * The xpt layer is, itself, the equivelent of a SIM.
+	 * The xpt layer is, itself, the equivalent of a SIM.
 	 * Allow 16 ccbs in the ccb pool for it.  This should
 	 * give decent parallelism when we probe busses and
 	 * perform other XPT functions.
@@ -892,7 +892,7 @@ xpt_init(void *dummy)
 
 	/*
 	 * Looking at the XPT from the SIM layer, the XPT is
-	 * the equivelent of a peripheral driver.  Allocate
+	 * the equivalent of a peripheral driver.  Allocate
 	 * a peripheral driver entry for us.
 	 */
 	if ((status = xpt_create_path(&path, NULL, CAM_XPT_PATH_ID,
@@ -1182,7 +1182,7 @@ xptbusmatch(struct dev_match_pattern *patterns, u_int num_patterns,
 	    struct cam_eb *bus)
 {
 	dev_match_ret retval;
-	int i;
+	u_int i;
 
 	retval = DM_RET_NONE;
 
@@ -1294,7 +1294,7 @@ xptdevicematch(struct dev_match_pattern *patterns, u_int num_patterns,
 	       struct cam_ed *device)
 {
 	dev_match_ret retval;
-	int i;
+	u_int i;
 
 	retval = DM_RET_NONE;
 
@@ -1417,7 +1417,7 @@ xptperiphmatch(struct dev_match_pattern *patterns, u_int num_patterns,
 	       struct cam_periph *periph)
 {
 	dev_match_ret retval;
-	int i;
+	u_int i;
 
 	/*
 	 * If we aren't given something to match against, that's an error.
@@ -2610,6 +2610,7 @@ xpt_action_default(union ccb *start_ccb)
 	case XPT_RESET_BUS:
 	case XPT_IMMEDIATE_NOTIFY:
 	case XPT_NOTIFY_ACKNOWLEDGE:
+	case XPT_GET_SIM_KNOB_OLD:
 	case XPT_GET_SIM_KNOB:
 	case XPT_SET_SIM_KNOB:
 	case XPT_GET_TRAN_SETTINGS:
@@ -3310,6 +3311,7 @@ xpt_run_devq(struct cam_devq *devq)
 		lock = (mtx_owned(sim->mtx) == 0);
 		if (lock)
 			CAM_SIM_LOCK(sim);
+		work_ccb->ccb_h.qos.sim_data = sbinuptime(); // xxx uintprt_t too small 32bit platforms
 		(*(sim->sim_action))(sim, work_ccb);
 		if (lock)
 			CAM_SIM_UNLOCK(sim);
@@ -4438,6 +4440,8 @@ xpt_done(union ccb *done_ccb)
 	if ((done_ccb->ccb_h.func_code & XPT_FC_QUEUED) == 0)
 		return;
 
+	/* Store the time the ccb was in the sim */
+	done_ccb->ccb_h.qos.sim_data = sbinuptime() - done_ccb->ccb_h.qos.sim_data;
 	hash = (done_ccb->ccb_h.path_id + done_ccb->ccb_h.target_id +
 	    done_ccb->ccb_h.target_lun) % cam_num_doneqs;
 	queue = &cam_doneqs[hash];
@@ -4458,6 +4462,8 @@ xpt_done_direct(union ccb *done_ccb)
 	if ((done_ccb->ccb_h.func_code & XPT_FC_QUEUED) == 0)
 		return;
 
+	/* Store the time the ccb was in the sim */
+	done_ccb->ccb_h.qos.sim_data = sbinuptime() - done_ccb->ccb_h.qos.sim_data;
 	xpt_done_process(&done_ccb->ccb_h);
 }
 

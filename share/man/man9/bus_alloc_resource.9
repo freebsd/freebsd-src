@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2000
+.Dd April 28, 2016
 .Dt BUS_ALLOC_RESOURCE 9
 .Os
 .Sh NAME
@@ -50,10 +50,10 @@
 .Fc
 .Ft struct resource *
 .Fn bus_alloc_resource_any "device_t dev" "int type" "int *rid" "u_int flags"
-.Fc
 .Ft struct resource *
-.Fn bus_alloc_resource_anywhere
+.Fo bus_alloc_resource_anywhere
 .Fa "device_t dev" "int type" "int *rid" "rman_res_t count" "u_int flags"
+.Fc
 .Sh DESCRIPTION
 This is an easy interface to the resource-management functions.
 It hides the indirection through the parent's method table.
@@ -95,6 +95,8 @@ Before allocation, the resource is owned by the parent bus.
 is the type of resource you want to allocate.
 It is one of:
 .Bl -tag -width SYS_RES_MEMORY
+.It Dv PCI_RES_BUS
+for PCI bus numbers
 .It Dv SYS_RES_IRQ
 for IRQs
 .It Dv SYS_RES_DRQ
@@ -111,7 +113,7 @@ For ISA this is an index into an array of resources that have been setup
 for this device by either the PnP mechanism, or via the hints mechanism.
 For PCCARD, this is an index into the array of resources described by the PC Card's
 CIS entry.
-For PCI, the offset into pci config space which has the BAR to use to access
+For PCI, the offset into PCI config space which has the BAR to use to access
 the resource.
 The bus methods are free to change the RIDs that they are given as a parameter.
 You must not depend on the value you gave it earlier.
@@ -152,6 +154,8 @@ The resource still needs to be activated with
 .Xr bus_activate_resource 9 .
 .It Dv RF_ACTIVE
 activate resource atomically.
+.It Dv RF_PREFETCHABLE
+resource is prefetchable.
 .It Dv RF_SHAREABLE
 resource permits contemporaneous sharing.
 It should always be set unless you know that the resource cannot be shared.
@@ -162,8 +166,6 @@ For example,
 cannot share IRQs while
 .Xr cardbus 4
 can.
-.It Dv RF_TIMESHARE
-resource permits time-division sharing.
 .El
 .El
 .Sh RETURN VALUES

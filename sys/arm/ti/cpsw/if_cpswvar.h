@@ -29,19 +29,21 @@
 #ifndef	_IF_CPSWVAR_H
 #define	_IF_CPSWVAR_H
 
-#define CPSW_INTR_COUNT		4
+#define	CPSW_PORTS		2
+#define	CPSW_INTR_COUNT		4
 
 /* MII BUS  */
-#define CPSW_MIIBUS_RETRIES	5
-#define CPSW_MIIBUS_DELAY	1000
+#define	CPSW_MIIBUS_RETRIES	5
+#define	CPSW_MIIBUS_DELAY	1000
 
-#define CPSW_MAX_ALE_ENTRIES	1024
+#define	CPSW_MAX_ALE_ENTRIES	1024
 
-#define CPSW_SYSCTL_COUNT 34
+#define	CPSW_SYSCTL_COUNT	34
 
 struct cpsw_slot {
 	uint32_t bd_offset;  /* Offset of corresponding BD within CPPI RAM. */
 	bus_dmamap_t dmamap;
+	struct ifnet *ifp;
 	struct mbuf *mbuf;
 	STAILQ_ENTRY(cpsw_slot) next;
 };
@@ -64,51 +66,42 @@ struct cpsw_queue {
 	int		hdp_offset;
 };
 
-struct cpsw_softc {
-	struct ifnet	*ifp;
-	phandle_t	node;
+struct cpsw_port {
 	device_t	dev;
+	int		phy;
+	int		vlan;
+};
+
+struct cpsw_softc {
+	device_t	dev;
+	int		active_slave;
+	int		debug;
+	int		dualemac;
+	phandle_t	node;
 	struct bintime	attach_uptime; /* system uptime when attach happened. */
-	struct bintime	init_uptime; /* system uptime when init happened. */
+	struct cpsw_port port[2];
 
-	/* TODO: We should set up a child structure for each port;
-	   store mac, phy information, etc, in that structure. */
-	uint8_t		mac_addr[ETHER_ADDR_LEN];
+	/* RX and TX buffer tracking */
+	struct cpsw_queue rx, tx;
 
-	device_t	miibus;
-	struct mii_data	*mii;
 	/* We expect 1 memory resource and 4 interrupts from the device tree. */
-	struct resource	*mem_res;
 	int		mem_rid;
+	struct resource	*mem_res;
 	struct resource	*irq_res[CPSW_INTR_COUNT];
-
-	/* Interrupts get recorded here as we initialize them. */
-	/* Interrupt teardown just walks this list. */
-	struct {
-		struct resource *res;
-		void		*ih_cookie;
-		const char *description;
-	} interrupts[CPSW_INTR_COUNT];
-	int		interrupt_count;
-
-	uint32_t	cpsw_if_flags;
-	int		cpsw_media_status;
-
-	struct {
-		int resets;
-		int timer;
-		struct callout	callout;
-	} watchdog;
-
-	bus_dma_tag_t	mbuf_dtag;
+	void		*ih_cookie[CPSW_INTR_COUNT];
 
 	/* An mbuf full of nulls for TX padding. */
 	bus_dmamap_t null_mbuf_dmamap;
 	struct mbuf *null_mbuf;
 	bus_addr_t null_mbuf_paddr;
 
-	/* RX and TX buffer tracking */
-	struct cpsw_queue rx, tx;
+	bus_dma_tag_t	mbuf_dtag;
+
+	struct {
+		int resets;
+		int timer;
+		struct callout  callout;
+	} watchdog;
 
 	/* 64-bit versions of 32-bit hardware statistics counters */
 	uint64_t shadow_stats[CPSW_SYSCTL_COUNT];
@@ -121,6 +114,25 @@ struct cpsw_softc {
 	   is to calculate it from the memory size in the device tree. */
 	struct cpsw_slot _slots[CPSW_CPPI_RAM_SIZE / sizeof(struct cpsw_cpdma_bd)];
 	struct cpsw_slots avail;
+};
+
+struct cpswp_softc {
+	device_t	dev;
+	device_t	miibus;
+	device_t	pdev;
+	int		media_status;
+	int		unit;
+	int		vlan;
+	struct bintime	init_uptime; /* system uptime when init happened. */
+	struct callout	mii_callout;
+	struct cpsw_softc *swsc;
+	struct ifnet	*ifp;
+	struct mii_data	*mii;
+	struct mtx	lock;
+	uint32_t	if_flags;
+	uint32_t	phy;
+	uint32_t	phyaccess;
+	uint32_t	physel;
 };
 
 #endif /*_IF_CPSWVAR_H */

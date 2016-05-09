@@ -33,17 +33,25 @@ namespace tooling {
 /// \brief A JSON based compilation database.
 ///
 /// JSON compilation database files must contain a list of JSON objects which
-/// provide the command lines in the attributes 'directory', 'command' and
-/// 'file':
+/// provide the command lines in the attributes 'directory', 'command',
+/// 'arguments' and 'file':
 /// [
 ///   { "directory": "<working directory of the compile>",
 ///     "command": "<compile command line>",
+///     "file": "<path to source file>"
+///   },
+///   { "directory": "<working directory of the compile>",
+///     "arguments": ["<raw>", "<command>" "<line>" "<parameters>"],
 ///     "file": "<path to source file>"
 ///   },
 ///   ...
 /// ]
 /// Each object entry defines one compile action. The specified file is
 /// considered to be the main source file for the translation unit.
+///
+/// 'command' is a full command line that will be unescaped.
+///
+/// 'arguments' is a list of command line arguments that will not be unescaped.
 ///
 /// JSON compilation databases can for example be generated in CMake projects
 /// by setting the flag -DCMAKE_EXPORT_COMPILE_COMMANDS.
@@ -91,17 +99,26 @@ private:
   /// failed.
   bool parse(std::string &ErrorMessage);
 
-  // Tuple (directory, commandline) where 'commandline' pointing to the
-  // corresponding nodes in the YAML stream.
-  typedef std::pair<llvm::yaml::ScalarNode*,
-                    llvm::yaml::ScalarNode*> CompileCommandRef;
+  // Tuple (directory, filename, commandline) where 'commandline' points to the
+  // corresponding scalar nodes in the YAML stream.
+  // If the command line contains a single argument, it is a shell-escaped
+  // command line.
+  // Otherwise, each entry in the command line vector is a literal
+  // argument to the compiler.
+  typedef std::tuple<llvm::yaml::ScalarNode *,
+                     llvm::yaml::ScalarNode *,
+                    std::vector<llvm::yaml::ScalarNode *>> CompileCommandRef;
 
   /// \brief Converts the given array of CompileCommandRefs to CompileCommands.
   void getCommands(ArrayRef<CompileCommandRef> CommandsRef,
                    std::vector<CompileCommand> &Commands) const;
 
   // Maps file paths to the compile command lines for that file.
-  llvm::StringMap< std::vector<CompileCommandRef> > IndexByFile;
+  llvm::StringMap<std::vector<CompileCommandRef>> IndexByFile;
+
+  /// All the compile commands in the order that they were provided in the
+  /// JSON stream.
+  std::vector<CompileCommandRef> AllCommands;
 
   FileMatchTrie MatchTrie;
 

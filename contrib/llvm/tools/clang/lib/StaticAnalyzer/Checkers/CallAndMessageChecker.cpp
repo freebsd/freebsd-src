@@ -40,6 +40,7 @@ class CallAndMessageChecker
   : public Checker< check::PreStmt<CallExpr>,
                     check::PreStmt<CXXDeleteExpr>,
                     check::PreObjCMessage,
+                    check::ObjCMessageNil,
                     check::PreCall > {
   mutable std::unique_ptr<BugType> BT_call_null;
   mutable std::unique_ptr<BugType> BT_call_undef;
@@ -60,6 +61,12 @@ public:
   void checkPreStmt(const CallExpr *CE, CheckerContext &C) const;
   void checkPreStmt(const CXXDeleteExpr *DE, CheckerContext &C) const;
   void checkPreObjCMessage(const ObjCMethodCall &msg, CheckerContext &C) const;
+
+  /// Fill in the return value that results from messaging nil based on the
+  /// return type and architecture and diagnose if the return value will be
+  /// garbage.
+  void checkObjCMessageNil(const ObjCMethodCall &msg, CheckerContext &C) const;
+
   void checkPreCall(const CallEvent &Call, CheckerContext &C) const;
 
 private:
@@ -82,7 +89,7 @@ private:
       BT.reset(new BuiltinBug(this, desc));
   }
   bool uninitRefOrPointer(CheckerContext &C, const SVal &V,
-                          const SourceRange &ArgRange,
+                          SourceRange ArgRange,
                           const Expr *ArgEx, std::unique_ptr<BugType> &BT,
                           const ParmVarDecl *ParamDecl, const char *BD) const;
 };
@@ -90,7 +97,7 @@ private:
 
 void CallAndMessageChecker::emitBadCall(BugType *BT, CheckerContext &C,
                                         const Expr *BadE) {
-  ExplodedNode *N = C.generateSink();
+  ExplodedNode *N = C.generateErrorNode();
   if (!N)
     return;
 
@@ -131,7 +138,7 @@ static StringRef describeUninitializedArgumentInCall(const CallEvent &Call,
 
 bool CallAndMessageChecker::uninitRefOrPointer(CheckerContext &C,
                                                const SVal &V,
-                                               const SourceRange &ArgRange,
+                                               SourceRange ArgRange,
                                                const Expr *ArgEx,
                                                std::unique_ptr<BugType> &BT,
                                                const ParmVarDecl *ParamDecl,
@@ -162,7 +169,7 @@ bool CallAndMessageChecker::uninitRefOrPointer(CheckerContext &C,
     const ProgramStateRef State = C.getState();
     const SVal PSV = State->getSVal(SValMemRegion);
     if (PSV.isUndef()) {
-      if (ExplodedNode *N = C.generateSink()) {
+      if (ExplodedNode *N = C.generateErrorNode()) {
         LazyInit_BT(BD, BT);
         auto R = llvm::make_unique<BugReport>(*BT, Message, N);
         R->addRange(ArgRange);
@@ -193,7 +200,7 @@ bool CallAndMessageChecker::PreVisitProcessArg(CheckerContext &C,
     return true;
 
   if (V.isUndef()) {
-    if (ExplodedNode *N = C.generateSink()) {
+    if (ExplodedNode *N = C.generateErrorNode()) {
       LazyInit_BT(BD, BT);
 
       // Generate a report for this bug.
@@ -258,7 +265,7 @@ bool CallAndMessageChecker::PreVisitProcessArg(CheckerContext &C,
                              D->getStore());
 
     if (F.Find(D->getRegion())) {
-      if (ExplodedNode *N = C.generateSink()) {
+      if (ExplodedNode *N = C.generateErrorNode()) {
         LazyInit_BT(BD, BT);
         SmallString<512> Str;
         llvm::raw_svector_ostream os(Str);
@@ -331,7 +338,7 @@ void CallAndMessageChecker::checkPreStmt(const CXXDeleteExpr *DE,
   SVal Arg = C.getSVal(DE->getArgument());
   if (Arg.isUndef()) {
     StringRef Desc;
-    ExplodedNode *N = C.generateSink();
+    ExplodedNode *N = C.generateErrorNode();
     if (!N)
       return;
     if (!BT_cxx_delete_undef)
@@ -388,7 +395,7 @@ void CallAndMessageChecker::checkPreCall(const CallEvent &Call,
     // the function.
     unsigned Params = FD->getNumParams();
     if (Call.getNumArgs() < Params) {
-      ExplodedNode *N = C.generateSink();
+      ExplodedNode *N = C.generateErrorNode();
       if (!N)
         return;
 
@@ -436,7 +443,7 @@ void CallAndMessageChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
                                                 CheckerContext &C) const {
   SVal recVal = msg.getReceiverSVal();
   if (recVal.isUndef()) {
-    if (ExplodedNode *N = C.generateSink()) {
+    if (ExplodedNode *N = C.generateErrorNode()) {
       BugType *BT = nullptr;
       switch (msg.getMessageKind()) {
       case OCM_Message:
@@ -471,20 +478,12 @@ void CallAndMessageChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
       C.emitReport(std::move(R));
     }
     return;
-  } else {
-    // Bifurcate the state into nil and non-nil ones.
-    DefinedOrUnknownSVal receiverVal = recVal.castAs<DefinedOrUnknownSVal>();
-
-    ProgramStateRef state = C.getState();
-    ProgramStateRef notNilState, nilState;
-    std::tie(notNilState, nilState) = state->assume(receiverVal);
-
-    // Handle receiver must be nil.
-    if (nilState && !notNilState) {
-      HandleNilReceiver(C, state, msg);
-      return;
-    }
   }
+}
+
+void CallAndMessageChecker::checkObjCMessageNil(const ObjCMethodCall &msg,
+                                                CheckerContext &C) const {
+  HandleNilReceiver(C, C.getState(), msg);
 }
 
 void CallAndMessageChecker::emitNilReceiverBug(CheckerContext &C,
@@ -523,7 +522,8 @@ void CallAndMessageChecker::emitNilReceiverBug(CheckerContext &C,
 
 static bool supportsNilWithFloatRet(const llvm::Triple &triple) {
   return (triple.getVendor() == llvm::Triple::Apple &&
-          (triple.isiOS() || !triple.isMacOSXVersionLT(10,5)));
+          (triple.isiOS() || triple.isWatchOS() ||
+           !triple.isMacOSXVersionLT(10,5)));
 }
 
 void CallAndMessageChecker::HandleNilReceiver(CheckerContext &C,
@@ -560,7 +560,7 @@ void CallAndMessageChecker::HandleNilReceiver(CheckerContext &C,
             Ctx.LongDoubleTy == CanRetTy ||
             Ctx.LongLongTy == CanRetTy ||
             Ctx.UnsignedLongLongTy == CanRetTy)))) {
-      if (ExplodedNode *N = C.generateSink(state, nullptr, &Tag))
+      if (ExplodedNode *N = C.generateErrorNode(state, &Tag))
         emitNilReceiverBug(C, Msg, N);
       return;
     }

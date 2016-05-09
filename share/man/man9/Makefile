@@ -2,6 +2,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime-manuals
+
 MAN=	accept_filter.9 \
 	accf_data.9 \
 	accf_dns.9 \
@@ -44,6 +46,7 @@ MAN=	accept_filter.9 \
 	BUS_NEW_PASS.9 \
 	BUS_PRINT_CHILD.9 \
 	BUS_READ_IVAR.9 \
+	BUS_RESCAN.9 \
 	bus_release_resource.9 \
 	bus_set_pass.9 \
 	bus_set_resource.9 \
@@ -639,7 +642,11 @@ MLINKS+=counter.9 counter_u64_alloc.9 \
 	counter.9 counter_exit.9 \
 	counter.9 counter_u64_add_protected.9 \
 	counter.9 counter_u64_fetch.9 \
-	counter.9 counter_u64_zero.9
+	counter.9 counter_u64_zero.9 \
+	counter.9 SYSCTL_COUNTER_U64.9 \
+	counter.9 SYSCTL_ADD_COUNTER_U64.9 \
+	counter.9 SYSCTL_COUNTER_U64_ARRAY.9 \
+	counter.9 SYSCTL_ADD_COUNTER_U64_ARRAY.9
 MLINKS+=cpuset.9 CPUSET_T_INITIALIZER.9 \
 	cpuset.9 CPUSET_FSET.9 \
 	cpuset.9 CPU_CLR.9 \

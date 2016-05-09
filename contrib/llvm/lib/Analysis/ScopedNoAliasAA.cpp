@@ -26,28 +26,29 @@
 // ... = load %ptr2, !alias.scope !{ !scope1, !scope2 }, !noalias !{ !scope1 }
 //
 // When evaluating an aliasing query, if one of the instructions is associated
-// has a set of noalias scopes in some domain that is superset of the alias
+// has a set of noalias scopes in some domain that is a superset of the alias
 // scopes in that domain of some other instruction, then the two memory
 // accesses are assumed not to alias.
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Analysis/ScopedNoAliasAA.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/Passes.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
+
 using namespace llvm;
 
 // A handy option for disabling scoped no-alias functionality. The same effect
 // can also be achieved by stripping the associated metadata tags from IR, but
 // this option is sometimes more convenient.
-static cl::opt<bool>
-EnableScopedNoAlias("enable-scoped-noalias", cl::init(true));
+static cl::opt<bool> EnableScopedNoAlias("enable-scoped-noalias",
+                                         cl::init(true));
 
 namespace {
 /// AliasScopeNode - This is a simple wrapper around an MDNode which provides
@@ -57,7 +58,7 @@ class AliasScopeNode {
   const MDNode *Node;
 
 public:
-  AliasScopeNode() : Node(0) {}
+  AliasScopeNode() : Node(nullptr) {}
   explicit AliasScopeNode(const MDNode *N) : Node(N) {}
 
   /// getNode - Get the MDNode for this AliasScopeNode.
@@ -70,79 +71,74 @@ public:
     return dyn_cast_or_null<MDNode>(Node->getOperand(1));
   }
 };
+} // end of anonymous namespace
 
-/// ScopedNoAliasAA - This is a simple alias analysis
-/// implementation that uses scoped-noalias metadata to answer queries.
-class ScopedNoAliasAA : public ImmutablePass, public AliasAnalysis {
-public:
-  static char ID; // Class identification, replacement for typeinfo
-  ScopedNoAliasAA() : ImmutablePass(ID) {
-    initializeScopedNoAliasAAPass(*PassRegistry::getPassRegistry());
-  }
+AliasResult ScopedNoAliasAAResult::alias(const MemoryLocation &LocA,
+                                         const MemoryLocation &LocB) {
+  if (!EnableScopedNoAlias)
+    return AAResultBase::alias(LocA, LocB);
 
-  bool doInitialization(Module &M) override;
+  // Get the attached MDNodes.
+  const MDNode *AScopes = LocA.AATags.Scope, *BScopes = LocB.AATags.Scope;
 
-  /// getAdjustedAnalysisPointer - This method is used when a pass implements
-  /// an analysis interface through multiple inheritance.  If needed, it
-  /// should override this to adjust the this pointer as needed for the
-  /// specified pass info.
-  void *getAdjustedAnalysisPointer(const void *PI) override {
-    if (PI == &AliasAnalysis::ID)
-      return (AliasAnalysis*)this;
-    return this;
-  }
+  const MDNode *ANoAlias = LocA.AATags.NoAlias, *BNoAlias = LocB.AATags.NoAlias;
 
-protected:
-  bool mayAliasInScopes(const MDNode *Scopes, const MDNode *NoAlias) const;
-  void collectMDInDomain(const MDNode *List, const MDNode *Domain,
-                         SmallPtrSetImpl<const MDNode *> &Nodes) const;
+  if (!mayAliasInScopes(AScopes, BNoAlias))
+    return NoAlias;
 
-private:
-  void getAnalysisUsage(AnalysisUsage &AU) const override;
-  AliasResult alias(const MemoryLocation &LocA,
-                    const MemoryLocation &LocB) override;
-  bool pointsToConstantMemory(const MemoryLocation &Loc, bool OrLocal) override;
-  ModRefBehavior getModRefBehavior(ImmutableCallSite CS) override;
-  ModRefBehavior getModRefBehavior(const Function *F) override;
-  ModRefResult getModRefInfo(ImmutableCallSite CS,
-                             const MemoryLocation &Loc) override;
-  ModRefResult getModRefInfo(ImmutableCallSite CS1,
-                             ImmutableCallSite CS2) override;
-};
-}  // End of anonymous namespace
+  if (!mayAliasInScopes(BScopes, ANoAlias))
+    return NoAlias;
 
-// Register this pass...
-char ScopedNoAliasAA::ID = 0;
-INITIALIZE_AG_PASS(ScopedNoAliasAA, AliasAnalysis, "scoped-noalias",
-                   "Scoped NoAlias Alias Analysis", false, true, false)
-
-ImmutablePass *llvm::createScopedNoAliasAAPass() {
-  return new ScopedNoAliasAA();
+  // If they may alias, chain to the next AliasAnalysis.
+  return AAResultBase::alias(LocA, LocB);
 }
 
-bool ScopedNoAliasAA::doInitialization(Module &M) {
-  InitializeAliasAnalysis(this, &M.getDataLayout());
-  return true;
+ModRefInfo ScopedNoAliasAAResult::getModRefInfo(ImmutableCallSite CS,
+                                                const MemoryLocation &Loc) {
+  if (!EnableScopedNoAlias)
+    return AAResultBase::getModRefInfo(CS, Loc);
+
+  if (!mayAliasInScopes(Loc.AATags.Scope, CS.getInstruction()->getMetadata(
+                                              LLVMContext::MD_noalias)))
+    return MRI_NoModRef;
+
+  if (!mayAliasInScopes(
+          CS.getInstruction()->getMetadata(LLVMContext::MD_alias_scope),
+          Loc.AATags.NoAlias))
+    return MRI_NoModRef;
+
+  return AAResultBase::getModRefInfo(CS, Loc);
 }
 
-void
-ScopedNoAliasAA::getAnalysisUsage(AnalysisUsage &AU) const {
-  AU.setPreservesAll();
-  AliasAnalysis::getAnalysisUsage(AU);
+ModRefInfo ScopedNoAliasAAResult::getModRefInfo(ImmutableCallSite CS1,
+                                                ImmutableCallSite CS2) {
+  if (!EnableScopedNoAlias)
+    return AAResultBase::getModRefInfo(CS1, CS2);
+
+  if (!mayAliasInScopes(
+          CS1.getInstruction()->getMetadata(LLVMContext::MD_alias_scope),
+          CS2.getInstruction()->getMetadata(LLVMContext::MD_noalias)))
+    return MRI_NoModRef;
+
+  if (!mayAliasInScopes(
+          CS2.getInstruction()->getMetadata(LLVMContext::MD_alias_scope),
+          CS1.getInstruction()->getMetadata(LLVMContext::MD_noalias)))
+    return MRI_NoModRef;
+
+  return AAResultBase::getModRefInfo(CS1, CS2);
 }
 
-void
-ScopedNoAliasAA::collectMDInDomain(const MDNode *List, const MDNode *Domain,
-                   SmallPtrSetImpl<const MDNode *> &Nodes) const {
+void ScopedNoAliasAAResult::collectMDInDomain(
+    const MDNode *List, const MDNode *Domain,
+    SmallPtrSetImpl<const MDNode *> &Nodes) const {
   for (unsigned i = 0, ie = List->getNumOperands(); i != ie; ++i)
     if (const MDNode *MD = dyn_cast<MDNode>(List->getOperand(i)))
       if (AliasScopeNode(MD).getDomain() == Domain)
         Nodes.insert(MD);
 }
 
-bool
-ScopedNoAliasAA::mayAliasInScopes(const MDNode *Scopes,
-                                  const MDNode *NoAlias) const {
+bool ScopedNoAliasAAResult::mayAliasInScopes(const MDNode *Scopes,
+                                             const MDNode *NoAlias) const {
   if (!Scopes || !NoAlias)
     return true;
 
@@ -177,76 +173,40 @@ ScopedNoAliasAA::mayAliasInScopes(const MDNode *Scopes,
   return true;
 }
 
-AliasResult ScopedNoAliasAA::alias(const MemoryLocation &LocA,
-                                   const MemoryLocation &LocB) {
-  if (!EnableScopedNoAlias)
-    return AliasAnalysis::alias(LocA, LocB);
-
-  // Get the attached MDNodes.
-  const MDNode *AScopes = LocA.AATags.Scope,
-               *BScopes = LocB.AATags.Scope;
-
-  const MDNode *ANoAlias = LocA.AATags.NoAlias,
-               *BNoAlias = LocB.AATags.NoAlias;
-
-  if (!mayAliasInScopes(AScopes, BNoAlias))
-    return NoAlias;
-
-  if (!mayAliasInScopes(BScopes, ANoAlias))
-    return NoAlias;
-
-  // If they may alias, chain to the next AliasAnalysis.
-  return AliasAnalysis::alias(LocA, LocB);
+ScopedNoAliasAAResult ScopedNoAliasAA::run(Function &F,
+                                           AnalysisManager<Function> *AM) {
+  return ScopedNoAliasAAResult(AM->getResult<TargetLibraryAnalysis>(F));
 }
 
-bool ScopedNoAliasAA::pointsToConstantMemory(const MemoryLocation &Loc,
-                                             bool OrLocal) {
-  return AliasAnalysis::pointsToConstantMemory(Loc, OrLocal);
+char ScopedNoAliasAA::PassID;
+
+char ScopedNoAliasAAWrapperPass::ID = 0;
+INITIALIZE_PASS_BEGIN(ScopedNoAliasAAWrapperPass, "scoped-noalias",
+                      "Scoped NoAlias Alias Analysis", false, true)
+INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
+INITIALIZE_PASS_END(ScopedNoAliasAAWrapperPass, "scoped-noalias",
+                    "Scoped NoAlias Alias Analysis", false, true)
+
+ImmutablePass *llvm::createScopedNoAliasAAWrapperPass() {
+  return new ScopedNoAliasAAWrapperPass();
 }
 
-AliasAnalysis::ModRefBehavior
-ScopedNoAliasAA::getModRefBehavior(ImmutableCallSite CS) {
-  return AliasAnalysis::getModRefBehavior(CS);
+ScopedNoAliasAAWrapperPass::ScopedNoAliasAAWrapperPass() : ImmutablePass(ID) {
+  initializeScopedNoAliasAAWrapperPassPass(*PassRegistry::getPassRegistry());
 }
 
-AliasAnalysis::ModRefBehavior
-ScopedNoAliasAA::getModRefBehavior(const Function *F) {
-  return AliasAnalysis::getModRefBehavior(F);
+bool ScopedNoAliasAAWrapperPass::doInitialization(Module &M) {
+  Result.reset(new ScopedNoAliasAAResult(
+      getAnalysis<TargetLibraryInfoWrapperPass>().getTLI()));
+  return false;
 }
 
-AliasAnalysis::ModRefResult
-ScopedNoAliasAA::getModRefInfo(ImmutableCallSite CS,
-                               const MemoryLocation &Loc) {
-  if (!EnableScopedNoAlias)
-    return AliasAnalysis::getModRefInfo(CS, Loc);
-
-  if (!mayAliasInScopes(Loc.AATags.Scope, CS.getInstruction()->getMetadata(
-                                              LLVMContext::MD_noalias)))
-    return NoModRef;
-
-  if (!mayAliasInScopes(
-          CS.getInstruction()->getMetadata(LLVMContext::MD_alias_scope),
-          Loc.AATags.NoAlias))
-    return NoModRef;
-
-  return AliasAnalysis::getModRefInfo(CS, Loc);
+bool ScopedNoAliasAAWrapperPass::doFinalization(Module &M) {
+  Result.reset();
+  return false;
 }
 
-AliasAnalysis::ModRefResult
-ScopedNoAliasAA::getModRefInfo(ImmutableCallSite CS1, ImmutableCallSite CS2) {
-  if (!EnableScopedNoAlias)
-    return AliasAnalysis::getModRefInfo(CS1, CS2);
-
-  if (!mayAliasInScopes(
-          CS1.getInstruction()->getMetadata(LLVMContext::MD_alias_scope),
-          CS2.getInstruction()->getMetadata(LLVMContext::MD_noalias)))
-    return NoModRef;
-
-  if (!mayAliasInScopes(
-          CS2.getInstruction()->getMetadata(LLVMContext::MD_alias_scope),
-          CS1.getInstruction()->getMetadata(LLVMContext::MD_noalias)))
-    return NoModRef;
-
-  return AliasAnalysis::getModRefInfo(CS1, CS2);
+void ScopedNoAliasAAWrapperPass::getAnalysisUsage(AnalysisUsage &AU) const {
+  AU.setPreservesAll();
+  AU.addRequired<TargetLibraryInfoWrapperPass>();
 }
-

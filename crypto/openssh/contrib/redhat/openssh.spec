@@ -1,4 +1,4 @@
-%define ver 7.1p2
+%define ver 7.2p2
 %define rel 1
 
 # OpenSSH privilege separation requires a user & group ID
@@ -89,7 +89,7 @@ Requires: initscripts >= 5.20
 BuildRequires: perl, openssl-devel
 BuildRequires: /bin/login
 %if ! %{build6x}
-BuildPreReq: glibc-devel, pam
+BuildRequires: glibc-devel, pam
 %else
 BuildRequires: /usr/include/security/pam_appl.h
 %endif
@@ -184,7 +184,7 @@ CFLAGS="$RPM_OPT_FLAGS -Os"; export CFLAGS
 %endif
 
 %if %{kerberos5}
-K5DIR=`rpm -ql krb5-devel | grep include/krb5.h | sed 's,\/include\/krb5.h,,'`
+K5DIR=`rpm -ql krb5-devel | grep 'include/krb5\.h' | sed 's,\/include\/krb5.h,,'`
 echo K5DIR=$K5DIR
 %endif
 
@@ -192,7 +192,6 @@ echo K5DIR=$K5DIR
 	--sysconfdir=%{_sysconfdir}/ssh \
 	--libexecdir=%{_libexecdir}/openssh \
 	--datadir=%{_datadir}/openssh \
-	--with-rsh=%{_bindir}/rsh \
 	--with-default-path=/usr/local/bin:/bin:/usr/bin \
 	--with-superuser-path=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin \
 	--with-privsep-path=%{_var}/empty/sshd \

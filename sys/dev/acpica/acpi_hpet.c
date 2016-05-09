@@ -453,7 +453,7 @@ hpet_attach(device_t dev)
 
 	/* Validate that we can access the whole region. */
 	if (rman_get_size(sc->mem_res) < HPET_MEM_WIDTH) {
-		device_printf(dev, "memory region width %ld too small\n",
+		device_printf(dev, "memory region width %jd too small\n",
 		    rman_get_size(sc->mem_res));
 		bus_free_resource(dev, SYS_RES_MEMORY, sc->mem_res);
 		return (ENXIO);

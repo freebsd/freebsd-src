@@ -704,7 +704,7 @@ run_attach(device_t self)
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t ver;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t bands[IEEE80211_MODE_BYTES];
 	uint8_t iface_index;
 	int ntries, error;
 
@@ -1030,7 +1030,7 @@ run_vap_delete(struct ieee80211vap *vap)
  * There are numbers of functions need to be called in context thread.
  * Rather than creating taskqueue event for each of those functions,
  * here is all-for-one taskqueue callback function. This function
- * gurantees deferred functions are executed in the same order they
+ * guarantees deferred functions are executed in the same order they
  * were enqueued.
  * '& RUN_CMDQ_MASQ' is to loop cmdq[].
  */
@@ -2141,8 +2141,8 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			run_set_txpreamble(sc);
 			run_set_basicrates(sc);
 			ni = ieee80211_ref_node(vap->iv_bss);
-			IEEE80211_ADDR_COPY(ic->ic_macaddr, ni->ni_bssid);
-			run_set_bssid(sc, ni->ni_bssid);
+			IEEE80211_ADDR_COPY(sc->sc_bssid, ni->ni_bssid);
+			run_set_bssid(sc, sc->sc_bssid);
 			ieee80211_free_node(ni);
 			run_enable_tsf_sync(sc);
 
@@ -3372,7 +3372,7 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		/*
 		 * Unlike PCI based devices, we don't get any interrupt from
 		 * USB devices, so we simulate FIFO-is-full interrupt here.
-		 * Ralink recomends to drain FIFO stats every 100 ms, but 16 slots
+		 * Ralink recommends to drain FIFO stats every 100 ms, but 16 slots
 		 * quickly get fulled. To prevent overflow, increment a counter on
 		 * every FIFO stat request, so we know how many slots are left.
 		 * We do this only in HOSTAP or multiple vap mode since FIFO stats
@@ -4811,8 +4811,7 @@ run_scan_end(struct ieee80211com *ic)
 	RUN_LOCK(sc);
 
 	run_enable_tsf_sync(sc);
-	/* XXX keep local copy */
-	run_set_bssid(sc, ic->ic_macaddr);
+	run_set_bssid(sc, sc->sc_bssid);
 
 	RUN_UNLOCK(sc);
 
@@ -4885,7 +4884,7 @@ run_update_beacon_cb(void *arg)
 
 	/*
 	 * No need to call ieee80211_beacon_update(), run_update_beacon()
-	 * is taking care of apropriate calls.
+	 * is taking care of appropriate calls.
 	 */
 	if (rvp->beacon_mbuf == NULL) {
 		rvp->beacon_mbuf = ieee80211_beacon_alloc(ni);
@@ -5223,7 +5222,7 @@ run_rssi2dbm(struct run_softc *sc, uint8_t rssi, uint8_t rxchain)
 static void
 run_rt5390_bbp_init(struct run_softc *sc)
 {
-	int i;
+	u_int i;
 	uint8_t bbp;
 
 	/* Apply maximum likelihood detection for 2 stream case. */
@@ -5333,7 +5332,7 @@ run_rt3070_rf_init(struct run_softc *sc)
 {
 	uint32_t tmp;
 	uint8_t bbp4, mingain, rf, target;
-	int i;
+	u_int i;
 
 	run_rt3070_rf_read(sc, 30, &rf);
 	/* toggle RF R30 bit 7 */
@@ -5477,7 +5476,7 @@ run_rt3593_rf_init(struct run_softc *sc)
 {
 	uint32_t tmp;
 	uint8_t rf;
-	int i;
+	u_int i;
 
 	/* Disable the GPIO bits 4 and 7 for LNA PE control. */
 	run_read(sc, RT3070_GPIO_SWITCH, &tmp);
@@ -5526,7 +5525,7 @@ run_rt5390_rf_init(struct run_softc *sc)
 {
 	uint32_t tmp;
 	uint8_t rf;
-	int i;
+	u_int i;
 
 	/* Toggle RF R2 to initiate calibration. */
 	if (sc->mac_ver == 0x5390) {

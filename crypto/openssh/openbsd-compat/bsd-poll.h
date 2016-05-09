@@ -42,11 +42,11 @@ typedef unsigned int	nfds_t;
 #define	POLLIN		0x0001
 #define	POLLOUT		0x0004
 #define	POLLERR		0x0008
+#define	POLLHUP		0x0010
+#define	POLLNVAL	0x0020
 #if 0
 /* the following are currently not implemented */
 #define	POLLPRI		0x0002
-#define	POLLHUP		0x0010
-#define	POLLNVAL	0x0020
 #define	POLLRDNORM	0x0040
 #define POLLNORM	POLLRDNORM
 #define POLLWRNORM      POLLOUT

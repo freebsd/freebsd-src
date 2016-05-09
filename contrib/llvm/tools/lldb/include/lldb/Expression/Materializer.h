@@ -7,17 +7,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef lldb_Materializer_h
-#define lldb_Materializer_h
+#ifndef liblldb_Materializer_h
+#define liblldb_Materializer_h
 
+// C Includes
+// C++ Includes
+#include <memory>
+#include <vector>
+
+// Other libraries and framework includes
+// Project includes
 #include "lldb/lldb-private-types.h"
 #include "lldb/Core/Error.h"
 #include "lldb/Expression/IRMemoryMap.h"
-#include "lldb/Host/Mutex.h"
-#include "lldb/Symbol/SymbolContext.h"
+#include "lldb/Symbol/TaggedASTType.h"
 #include "lldb/Target/StackFrame.h"
-
-#include <vector>
 
 namespace lldb_private
 {
@@ -32,8 +36,8 @@ public:
     {
     public:
         Dematerializer () :
-            m_materializer(NULL),
-            m_map(NULL),
+            m_materializer(nullptr),
+            m_map(nullptr),
             m_process_address(LLDB_INVALID_ADDRESS)
         {
         }
@@ -44,7 +48,6 @@ public:
         }
         
         void Dematerialize (Error &err,
-                            lldb::ClangExpressionVariableSP &result_sp,
                             lldb::addr_t frame_top,
                             lldb::addr_t frame_bottom);
         
@@ -54,6 +57,7 @@ public:
         {
             return m_materializer && m_map && (m_process_address != LLDB_INVALID_ADDRESS);
         }
+
     private:
         friend class Materializer;
 
@@ -84,11 +88,28 @@ public:
     
     DematerializerSP Materialize (lldb::StackFrameSP &frame_sp, IRMemoryMap &map, lldb::addr_t process_address, Error &err);
     
-    uint32_t AddPersistentVariable (lldb::ClangExpressionVariableSP &persistent_variable_sp, Error &err);
-    uint32_t AddVariable (lldb::VariableSP &variable_sp, Error &err);
-    uint32_t AddResultVariable (const TypeFromUser &type, bool is_lvalue, bool keep_in_memory, Error &err);
-    uint32_t AddSymbol (const Symbol &symbol_sp, Error &err);
-    uint32_t AddRegister (const RegisterInfo &register_info, Error &err);
+    class PersistentVariableDelegate
+    {
+    public:
+        virtual ~PersistentVariableDelegate();
+        virtual ConstString GetName() = 0;
+        virtual void DidDematerialize(lldb::ExpressionVariableSP &variable) = 0;
+    };
+
+    uint32_t AddPersistentVariable (lldb::ExpressionVariableSP &persistent_variable_sp,
+                                    PersistentVariableDelegate *delegate,
+                                    Error &err);
+    uint32_t AddVariable (lldb::VariableSP &variable_sp,
+                          Error &err);
+    uint32_t AddResultVariable (const CompilerType &type,
+                                bool is_lvalue,
+                                bool keep_in_memory,
+                                PersistentVariableDelegate *delegate,
+                                Error &err);
+    uint32_t AddSymbol (const Symbol &symbol_sp,
+                        Error &err);
+    uint32_t AddRegister (const RegisterInfo &register_info,
+                          Error &err);
     
     uint32_t GetStructAlignment ()
     {
@@ -100,14 +121,6 @@ public:
         return m_current_offset;
     }
     
-    uint32_t GetResultOffset ()
-    {
-        if (m_result_entity)
-            return m_result_entity->GetOffset();
-        else
-            return UINT32_MAX;
-    }
-    
     class Entity
     {
     public:
@@ -117,11 +130,9 @@ public:
             m_offset(0)
         {
         }
-        
-        virtual ~Entity ()
-        {
-        }
-        
+
+        virtual ~Entity() = default;
+
         virtual void Materialize (lldb::StackFrameSP &frame_sp, IRMemoryMap &map, lldb::addr_t process_address, Error &err) = 0;
         virtual void Dematerialize (lldb::StackFrameSP &frame_sp, IRMemoryMap &map, lldb::addr_t process_address,
                                     lldb::addr_t frame_top, lldb::addr_t frame_bottom, Error &err) = 0;
@@ -147,8 +158,9 @@ public:
         {
             m_offset = offset;
         }
+
     protected:
-        void SetSizeAndAlignmentFromType (ClangASTType &type);
+        void SetSizeAndAlignmentFromType (CompilerType &type);
         
         uint32_t    m_alignment;
         uint32_t    m_size;
@@ -163,11 +175,10 @@ private:
     
     DematerializerWP                m_dematerializer_wp;
     EntityVector                    m_entities;
-    Entity                         *m_result_entity;
     uint32_t                        m_current_offset;
     uint32_t                        m_struct_alignment;
 };
     
-}
+} // namespace lldb_private
 
-#endif
+#endif // liblldb_Materializer_h

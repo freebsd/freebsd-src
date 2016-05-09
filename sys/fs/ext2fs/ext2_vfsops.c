@@ -308,8 +308,8 @@ ext2_check_sb_compat(struct ext2fs *es, struct cdev *dev, int ronly)
 }
 
 /*
- * This computes the fields of the  ext2_sb_info structure from the
- * data in the ext2_super_block structure read in.
+ * This computes the fields of the m_ext2fs structure from the
+ * data in the ext2fs structure read in.
  */
 static int
 compute_sb_data(struct vnode *devvp, struct ext2fs *es,
@@ -357,10 +357,10 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	fs->e2fs_ipb = fs->e2fs_bsize / EXT2_INODE_SIZE(fs);
 	fs->e2fs_itpg = fs->e2fs_ipg / fs->e2fs_ipb;
 	/* s_resuid / s_resgid ? */
-	fs->e2fs_gcount = (es->e2fs_bcount - es->e2fs_first_dblock +
-	    EXT2_BLOCKS_PER_GROUP(fs) - 1) / EXT2_BLOCKS_PER_GROUP(fs);
+	fs->e2fs_gcount = howmany(es->e2fs_bcount - es->e2fs_first_dblock,
+	    EXT2_BLOCKS_PER_GROUP(fs));
 	e2fs_descpb = fs->e2fs_bsize / sizeof(struct ext2_gd);
-	db_count = (fs->e2fs_gcount + e2fs_descpb - 1) / e2fs_descpb;
+	db_count = howmany(fs->e2fs_gcount, e2fs_descpb);
 	fs->e2fs_gdbcount = db_count;
 	fs->e2fs_gd = malloc(db_count * fs->e2fs_bsize,
 	    M_EXT2MNT, M_WAITOK);
@@ -600,7 +600,7 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 
 	/*
 	 * I don't know whether this is the right strategy. Note that
-	 * we dynamically allocate both an ext2_sb_info and an ext2_super_block
+	 * we dynamically allocate both an m_ext2fs and an ext2fs
 	 * while Linux keeps the super block in a locked buffer.
 	 */
 	ump->um_e2fs = malloc(sizeof(struct m_ext2fs),
@@ -970,7 +970,7 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	 */
 	if (!(ip->i_flag & IN_E4EXTENTS) &&
 	    (S_ISDIR(ip->i_mode) || S_ISREG(ip->i_mode))) {
-		used_blocks = (ip->i_size+fs->e2fs_bsize-1) / fs->e2fs_bsize;
+		used_blocks = howmany(ip->i_size, fs->e2fs_bsize);
 		for (i = used_blocks; i < EXT2_NDIR_BLOCKS; i++)
 			ip->i_db[i] = 0;
 	}

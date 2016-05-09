@@ -349,7 +349,6 @@ class SystemZAsmParser : public MCTargetAsmParser {
 #include "SystemZGenAsmMatcher.inc"
 
 private:
-  MCSubtargetInfo &STI;
   MCAsmParser &Parser;
   enum RegisterGroup {
     RegGR,
@@ -386,14 +385,14 @@ private:
   bool parseOperand(OperandVector &Operands, StringRef Mnemonic);
 
 public:
-  SystemZAsmParser(MCSubtargetInfo &sti, MCAsmParser &parser,
+  SystemZAsmParser(const MCSubtargetInfo &sti, MCAsmParser &parser,
                    const MCInstrInfo &MII,
                    const MCTargetOptions &Options)
-      : MCTargetAsmParser(), STI(sti), Parser(parser) {
+    : MCTargetAsmParser(Options, sti), Parser(parser) {
     MCAsmParserExtension::Initialize(Parser);
 
     // Initialize the set of available features.
-    setAvailableFeatures(ComputeAvailableFeatures(STI.getFeatureBits()));
+    setAvailableFeatures(ComputeAvailableFeatures(getSTI().getFeatureBits()));
   }
 
   // Override MCTargetAsmParser.
@@ -533,14 +532,16 @@ bool SystemZAsmParser::parseRegister(Register &Reg) {
 }
 
 // Parse a register of group Group.  If Regs is nonnull, use it to map
-// the raw register number to LLVM numbering, with zero entries indicating
-// an invalid register.  IsAddress says whether the register appears in an
-// address context.
+// the raw register number to LLVM numbering, with zero entries
+// indicating an invalid register.  IsAddress says whether the
+// register appears in an address context. Allow FP Group if expecting
+// RegV Group, since the f-prefix yields the FP group even while used
+// with vector instructions.
 bool SystemZAsmParser::parseRegister(Register &Reg, RegisterGroup Group,
                                      const unsigned *Regs, bool IsAddress) {
   if (parseRegister(Reg))
     return true;
-  if (Reg.Group != Group)
+  if (Reg.Group != Group && !(Reg.Group == RegFP && Group == RegV))
     return Error(Reg.StartLoc, "invalid operand for instruction");
   if (Regs && Regs[Reg.Num] == 0)
     return Error(Reg.StartLoc, "invalid register pair");
@@ -791,7 +792,7 @@ bool SystemZAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
   switch (MatchResult) {
   case Match_Success:
     Inst.setLoc(IDLoc);
-    Out.EmitInstruction(Inst, STI);
+    Out.EmitInstruction(Inst, getSTI());
     return false;
 
   case Match_MissingFeature: {

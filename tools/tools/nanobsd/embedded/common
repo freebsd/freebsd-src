@@ -38,7 +38,7 @@
 # Missing in base:
 # o mkimg setting active partition
 # o mkimg starting at arbitrary offset (needed for A10, et al)
-# o mtools still needed becuase we have no makefs -t msdos
+# o mtools still needed because we have no makefs -t msdos
 # o nanobsd doesn't record changes to WORLDTEMP in customization
 #   scripts yet, so we have kludge to pick up all files
 # o easy way for pkg to grab files from other repos and put that
@@ -167,6 +167,8 @@ WITHOUT_SHAREDOCS=true
 WITHOUT_SYSCONS=true
 WITHOUT_LIB32=true
 WITHOUT_TESTS=true
+WITHOUT_DEBUG_FILES=t
+WITHOUT_KERNEL_SYMBOLS=t
 "
 CONF_INSTALL="$CONF_BUILD
 INSTALL_NODEBUG=t
@@ -320,6 +322,7 @@ create_diskimage_mbr ( ) (
 			-o ${out}
 		;;
 	esac
+	rm -f ${out}.xz
 	xz -9 --keep ${out}
 	) > ${NANO_LOG}/_.di 2>&1
 )

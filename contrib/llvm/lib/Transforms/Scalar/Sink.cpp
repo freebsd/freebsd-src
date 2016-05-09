@@ -48,7 +48,7 @@ namespace {
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesCFG();
       FunctionPass::getAnalysisUsage(AU);
-      AU.addRequired<AliasAnalysis>();
+      AU.addRequired<AAResultsWrapperPass>();
       AU.addRequired<DominatorTreeWrapperPass>();
       AU.addRequired<LoopInfoWrapperPass>();
       AU.addPreserved<DominatorTreeWrapperPass>();
@@ -66,7 +66,7 @@ char Sinking::ID = 0;
 INITIALIZE_PASS_BEGIN(Sinking, "sink", "Code sinking", false, false)
 INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
-INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
+INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
 INITIALIZE_PASS_END(Sinking, "sink", "Code sinking", false, false)
 
 FunctionPass *llvm::createSinkingPass() { return new Sinking(); }
@@ -99,7 +99,7 @@ bool Sinking::AllUsesDominatedByBlock(Instruction *Inst,
 bool Sinking::runOnFunction(Function &F) {
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
   LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-  AA = &getAnalysis<AliasAnalysis>();
+  AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
 
   bool MadeChange, EverMadeChange = false;
 
@@ -119,7 +119,7 @@ bool Sinking::runOnFunction(Function &F) {
 
 bool Sinking::ProcessBlock(BasicBlock &BB) {
   // Can't sink anything out of a block that has less than two successors.
-  if (BB.getTerminator()->getNumSuccessors() <= 1 || BB.empty()) return false;
+  if (BB.getTerminator()->getNumSuccessors() <= 1) return false;
 
   // Don't bother sinking code out of unreachable blocks. In addition to being
   // unprofitable, it can also lead to infinite looping, because in an
@@ -134,7 +134,7 @@ bool Sinking::ProcessBlock(BasicBlock &BB) {
   bool ProcessedBegin = false;
   SmallPtrSet<Instruction *, 8> Stores;
   do {
-    Instruction *Inst = I;  // The instruction to sink.
+    Instruction *Inst = &*I; // The instruction to sink.
 
     // Predecrement I (if it's not begin) so that it isn't invalidated by
     // sinking.
@@ -165,14 +165,16 @@ static bool isSafeToMove(Instruction *Inst, AliasAnalysis *AA,
   if (LoadInst *L = dyn_cast<LoadInst>(Inst)) {
     MemoryLocation Loc = MemoryLocation::get(L);
     for (Instruction *S : Stores)
-      if (AA->getModRefInfo(S, Loc) & AliasAnalysis::Mod)
+      if (AA->getModRefInfo(S, Loc) & MRI_Mod)
         return false;
   }
 
-  if (isa<TerminatorInst>(Inst) || isa<PHINode>(Inst))
+  if (isa<TerminatorInst>(Inst) || isa<PHINode>(Inst) || Inst->isEHPad() ||
+      Inst->mayThrow())
     return false;
 
-  // Convergent operations can only be moved to control equivalent blocks.
+  // Convergent operations cannot be made control-dependent on additional
+  // values.
   if (auto CS = CallSite(Inst)) {
     if (CS.hasFnAttr(Attribute::Convergent))
       return false;
@@ -191,6 +193,11 @@ bool Sinking::IsAcceptableTarget(Instruction *Inst,
   // It is not possible to sink an instruction into its own block.  This can
   // happen with loops.
   if (Inst->getParent() == SuccToSinkTo)
+    return false;
+
+  // It's never legal to sink an instruction into a block which terminates in an
+  // EH-pad.
+  if (SuccToSinkTo->getTerminator()->isExceptional())
     return false;
 
   // If the block has multiple predecessors, this would introduce computation
@@ -278,6 +285,6 @@ bool Sinking::SinkInstruction(Instruction *Inst,
         dbgs() << ")\n");
 
   // Move the instruction.
-  Inst->moveBefore(SuccToSinkTo->getFirstInsertionPt());
+  Inst->moveBefore(&*SuccToSinkTo->getFirstInsertionPt());
   return true;
 }

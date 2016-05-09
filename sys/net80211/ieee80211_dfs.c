@@ -245,7 +245,7 @@ dfs_timeout(void *arg)
 	for (i = 0; i < ic->ic_nchans; i++) {
 		c = &ic->ic_channels[i];
 		if (IEEE80211_IS_CHAN_RADAR(c)) {
-			if (time_after_eq(now, dfs->nol_event[i]+NOL_TIMEOUT)) {
+			if (ieee80211_time_after_eq(now, dfs->nol_event[i]+NOL_TIMEOUT)) {
 				c->ic_state &= ~IEEE80211_CHANSTATE_RADAR;
 				if (c->ic_state & IEEE80211_CHANSTATE_NORADAR) {
 					/*

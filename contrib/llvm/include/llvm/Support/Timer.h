@@ -30,26 +30,25 @@ class TimeRecord {
   ssize_t MemUsed;       // Memory allocated (in bytes)
 public:
   TimeRecord() : WallTime(0), UserTime(0), SystemTime(0), MemUsed(0) {}
-  
+
   /// getCurrentTime - Get the current time and memory usage.  If Start is true
   /// we get the memory usage before the time, otherwise we get time before
   /// memory usage.  This matters if the time to get the memory usage is
   /// significant and shouldn't be counted as part of a duration.
   static TimeRecord getCurrentTime(bool Start = true);
-  
-  double getProcessTime() const { return UserTime+SystemTime; }
+
+  double getProcessTime() const { return UserTime + SystemTime; }
   double getUserTime() const { return UserTime; }
   double getSystemTime() const { return SystemTime; }
   double getWallTime() const { return WallTime; }
   ssize_t getMemUsed() const { return MemUsed; }
-  
-  
+
   // operator< - Allow sorting.
   bool operator<(const TimeRecord &T) const {
     // Sort by Wall Time elapsed, as it is the only thing really accurate
     return WallTime < T.WallTime;
   }
-  
+
   void operator+=(const TimeRecord &RHS) {
     WallTime   += RHS.WallTime;
     UserTime   += RHS.UserTime;
@@ -62,12 +61,12 @@ public:
     SystemTime -= RHS.SystemTime;
     MemUsed    -= RHS.MemUsed;
   }
-  
-  /// print - Print the current timer to standard error, and reset the "Started"
-  /// flag.
+
+  /// Print the current time record to \p OS, with a breakdown showing
+  /// contributions to the \p Total time record.
   void print(const TimeRecord &Total, raw_ostream &OS) const;
 };
-  
+
 /// Timer - This class is used to track the amount of time spent between
 /// invocations of its startTimer()/stopTimer() methods.  Given appropriate OS
 /// support it can also keep track of the RSS of the program at various points.
@@ -77,11 +76,13 @@ public:
 /// if they are never started.
 ///
 class Timer {
-  TimeRecord Time;
+  TimeRecord Time;       // The total time captured
+  TimeRecord StartTime;  // The time startTimer() was last called
   std::string Name;      // The name of this time variable.
-  bool Started;          // Has this time variable ever been started?
+  bool Running;          // Is the timer currently running?
+  bool Triggered;        // Has the timer ever been triggered?
   TimerGroup *TG;        // The TimerGroup this Timer is in.
-  
+
   Timer **Prev, *Next;   // Doubly linked list of timers in the group.
 public:
   explicit Timer(StringRef N) : TG(nullptr) { init(N); }
@@ -99,24 +100,30 @@ public:
   explicit Timer() : TG(nullptr) {}
   void init(StringRef N);
   void init(StringRef N, TimerGroup &tg);
-  
+
   const std::string &getName() const { return Name; }
   bool isInitialized() const { return TG != nullptr; }
-  
-  /// startTimer - Start the timer running.  Time between calls to
-  /// startTimer/stopTimer is counted by the Timer class.  Note that these calls
-  /// must be correctly paired.
-  ///
+
+  /// Check if startTimer() has ever been called on this timer.
+  bool hasTriggered() const { return Triggered; }
+
+  /// Start the timer running.  Time between calls to startTimer/stopTimer is
+  /// counted by the Timer class.  Note that these calls must be correctly
+  /// paired.
   void startTimer();
 
-  /// stopTimer - Stop the timer.
-  ///
+  /// Stop the timer.
   void stopTimer();
+
+  /// Clear the timer state.
+  void clear();
+
+  /// Return the duration for which this timer has been running.
+  TimeRecord getTotalTime() const { return Time; }
 
 private:
   friend class TimerGroup;
 };
-
 
 /// The TimeRegion class is used as a helper class to call the startTimer() and
 /// stopTimer() methods of the Timer class.  When the object is constructed, it
@@ -126,6 +133,7 @@ private:
 class TimeRegion {
   Timer *T;
   TimeRegion(const TimeRegion &) = delete;
+
 public:
   explicit TimeRegion(Timer &t) : T(&t) {
     T->startTimer();
@@ -137,7 +145,6 @@ public:
     if (T) T->stopTimer();
   }
 };
-
 
 /// NamedRegionTimer - This class is basically a combination of TimeRegion and
 /// Timer.  It allows you to declare a new timer, AND specify the region to
@@ -151,7 +158,6 @@ struct NamedRegionTimer : public TimeRegion {
                             bool Enabled = true);
 };
 
-
 /// The TimerGroup class is used to group together related timers into a single
 /// report that is printed when the TimerGroup is destroyed.  It is illegal to
 /// destroy a TimerGroup object before all of the Timers in it are gone.  A
@@ -160,11 +166,12 @@ struct NamedRegionTimer : public TimeRegion {
 class TimerGroup {
   std::string Name;
   Timer *FirstTimer;   // First timer in the group.
-  std::vector<std::pair<TimeRecord, std::string> > TimersToPrint;
-  
+  std::vector<std::pair<TimeRecord, std::string>> TimersToPrint;
+
   TimerGroup **Prev, *Next; // Doubly linked list of TimerGroup's.
   TimerGroup(const TimerGroup &TG) = delete;
   void operator=(const TimerGroup &TG) = delete;
+
 public:
   explicit TimerGroup(StringRef name);
   ~TimerGroup();
@@ -173,10 +180,10 @@ public:
 
   /// print - Print any started timers in this group and zero them.
   void print(raw_ostream &OS);
-  
+
   /// printAll - This static method prints all timers and clears them all out.
   static void printAll(raw_ostream &OS);
-  
+
 private:
   friend class Timer;
   void addTimer(Timer &T);

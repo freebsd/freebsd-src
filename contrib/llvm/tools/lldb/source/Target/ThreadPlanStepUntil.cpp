@@ -6,17 +6,12 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-//m_should_stop
-
-//
-//===----------------------------------------------------------------------===//
-
-#include "lldb/Target/ThreadPlanStepUntil.h"
 
 // C Includes
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
+#include "lldb/Target/ThreadPlanStepUntil.h"
 #include "lldb/Breakpoint/Breakpoint.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Target/Process.h"
@@ -68,7 +63,7 @@ ThreadPlanStepUntil::ThreadPlanStepUntil
             // TODO: add inline functionality
             m_return_addr = return_frame_sp->GetStackID().GetPC();
             Breakpoint *return_bp = target_sp->CreateBreakpoint (m_return_addr, true, false).get();
-            if (return_bp != NULL)
+            if (return_bp != nullptr)
             {
                 return_bp->SetThreadID(thread_id);
                 m_return_bp_id = return_bp->GetID();
@@ -82,7 +77,7 @@ ThreadPlanStepUntil::ThreadPlanStepUntil
         for (size_t i = 0; i < num_addresses; i++)
         {
             Breakpoint *until_bp = target_sp->CreateBreakpoint (address_list[i], true, false).get();
-            if (until_bp != NULL)
+            if (until_bp != nullptr)
             {
                 until_bp->SetThreadID(thread_id);
                 m_until_points[address_list[i]] = until_bp->GetID();
@@ -183,122 +178,111 @@ ThreadPlanStepUntil::AnalyzeStop()
     {
         StopReason reason = stop_info_sp->GetStopReason();
 
-        switch (reason)
+        if (reason == eStopReasonBreakpoint)
         {
-            case eStopReasonBreakpoint:
+            // If this is OUR breakpoint, we're fine, otherwise we don't know why this happened...
+            BreakpointSiteSP this_site = m_thread.GetProcess()->GetBreakpointSiteList().FindByID (stop_info_sp->GetValue());
+            if (!this_site)
             {
-                // If this is OUR breakpoint, we're fine, otherwise we don't know why this happened...
-                BreakpointSiteSP this_site = m_thread.GetProcess()->GetBreakpointSiteList().FindByID (stop_info_sp->GetValue());
-                if (!this_site)
-                {
-                    m_explains_stop = false;
-                    return;
-                }
-
-                if (this_site->IsBreakpointAtThisSite (m_return_bp_id))
-                {
-                    // If we are at our "step out" breakpoint, and the stack depth has shrunk, then
-                    // this is indeed our stop.
-                    // If the stack depth has grown, then we've hit our step out breakpoint recursively.
-                    // If we are the only breakpoint at that location, then we do explain the stop, and
-                    // we'll just continue.
-                    // If there was another breakpoint here, then we don't explain the stop, but we won't
-                    // mark ourselves Completed, because maybe that breakpoint will continue, and then
-                    // we'll finish the "until".
-                    bool done;
-                    StackID cur_frame_zero_id;
-                    
-                    if (m_stack_id < cur_frame_zero_id)
-                        done = true;
-                    else 
-                        done = false;
-                    
-                    if (done)
-                    {
-                        m_stepped_out = true;
-                        SetPlanComplete();
-                    }
-                    else
-                        m_should_stop = false;
-
-                    if (this_site->GetNumberOfOwners() == 1)
-                        m_explains_stop = true;
-                    else
-                        m_explains_stop = false;
-                    return;
-                }
-                else
-                {
-                    // Check if we've hit one of our "until" breakpoints.
-                    until_collection::iterator pos, end = m_until_points.end();
-                    for (pos = m_until_points.begin(); pos != end; pos++)
-                    {
-                        if (this_site->IsBreakpointAtThisSite ((*pos).second))
-                        {
-                            // If we're at the right stack depth, then we're done.
-                            
-                            bool done;
-                            StackID frame_zero_id = m_thread.GetStackFrameAtIndex(0)->GetStackID();
-                            
-                            if (frame_zero_id == m_stack_id)
-                                done = true;
-                            else if (frame_zero_id < m_stack_id)
-                                done = false;
-                            else
-                            {
-                                StackFrameSP older_frame_sp = m_thread.GetStackFrameAtIndex(1);
-        
-                                // But if we can't even unwind one frame we should just get out of here & stop...
-                                if (older_frame_sp)
-                                {
-                                    const SymbolContext &older_context 
-                                        = older_frame_sp->GetSymbolContext(eSymbolContextEverything);
-                                    SymbolContext stack_context;
-                                    m_stack_id.GetSymbolContextScope()->CalculateSymbolContext(&stack_context);
-                                    
-                                    if (older_context == stack_context)
-                                        done = true;
-                                    else
-                                        done = false;
-                                }
-                                else
-                                    done = false;
-                            }
-                            
-                            if (done)
-                                SetPlanComplete();
-                            else
-                                m_should_stop = false;
-
-                            // Otherwise we've hit this breakpoint recursively.  If we're the
-                            // only breakpoint here, then we do explain the stop, and we'll continue.
-                            // If not then we should let higher plans handle this stop.
-                            if (this_site->GetNumberOfOwners() == 1)
-                                m_explains_stop = true;
-                            else
-                            {
-                                m_should_stop = true;
-                                m_explains_stop = false;
-                            }
-                            return;
-                        }
-                    }
-                }
-                // If we get here we haven't hit any of our breakpoints, so let the higher
-                // plans take care of the stop.
                 m_explains_stop = false;
                 return;
             }
-            case eStopReasonWatchpoint:
-            case eStopReasonSignal:
-            case eStopReasonException:
-            case eStopReasonExec:
-            case eStopReasonThreadExiting:
-                m_explains_stop = false;
-                break;
-            default:
-                m_explains_stop = true;
-                break;
+
+            if (this_site->IsBreakpointAtThisSite (m_return_bp_id))
+            {
+                // If we are at our "step out" breakpoint, and the stack depth has shrunk, then
+                // this is indeed our stop.
+                // If the stack depth has grown, then we've hit our step out breakpoint recursively.
+                // If we are the only breakpoint at that location, then we do explain the stop, and
+                // we'll just continue.
+                // If there was another breakpoint here, then we don't explain the stop, but we won't
+                // mark ourselves Completed, because maybe that breakpoint will continue, and then
+                // we'll finish the "until".
+                bool done;
+                StackID cur_frame_zero_id;
+                
+                done = (m_stack_id < cur_frame_zero_id);
+                
+                if (done)
+                {
+                    m_stepped_out = true;
+                    SetPlanComplete();
+                }
+                else
+                    m_should_stop = false;
+
+                if (this_site->GetNumberOfOwners() == 1)
+                    m_explains_stop = true;
+                else
+                    m_explains_stop = false;
+                return;
+            }
+            else
+            {
+                // Check if we've hit one of our "until" breakpoints.
+                until_collection::iterator pos, end = m_until_points.end();
+                for (pos = m_until_points.begin(); pos != end; pos++)
+                {
+                    if (this_site->IsBreakpointAtThisSite ((*pos).second))
+                    {
+                        // If we're at the right stack depth, then we're done.
+                        
+                        bool done;
+                        StackID frame_zero_id = m_thread.GetStackFrameAtIndex(0)->GetStackID();
+                        
+                        if (frame_zero_id == m_stack_id)
+                            done = true;
+                        else if (frame_zero_id < m_stack_id)
+                            done = false;
+                        else
+                        {
+                            StackFrameSP older_frame_sp = m_thread.GetStackFrameAtIndex(1);
+    
+                            // But if we can't even unwind one frame we should just get out of here & stop...
+                            if (older_frame_sp)
+                            {
+                                const SymbolContext &older_context 
+                                    = older_frame_sp->GetSymbolContext(eSymbolContextEverything);
+                                SymbolContext stack_context;
+                                m_stack_id.GetSymbolContextScope()->CalculateSymbolContext(&stack_context);
+                                
+                                done = (older_context == stack_context);
+                            }
+                            else
+                                done = false;
+                        }
+                        
+                        if (done)
+                            SetPlanComplete();
+                        else
+                            m_should_stop = false;
+
+                        // Otherwise we've hit this breakpoint recursively.  If we're the
+                        // only breakpoint here, then we do explain the stop, and we'll continue.
+                        // If not then we should let higher plans handle this stop.
+                        if (this_site->GetNumberOfOwners() == 1)
+                            m_explains_stop = true;
+                        else
+                        {
+                            m_should_stop = true;
+                            m_explains_stop = false;
+                        }
+                        return;
+                    }
+                }
+            }
+            // If we get here we haven't hit any of our breakpoints, so let the higher
+            // plans take care of the stop.
+            m_explains_stop = false;
+            return;
+        }
+        else if (IsUsuallyUnexplainedStopReason(reason))
+        {
+            m_explains_stop = false;
+        }
+        else
+        {
+            m_explains_stop = true;
         }
     }
 }
@@ -348,14 +332,14 @@ ThreadPlanStepUntil::DoWillResume (StateType resume_state, bool current_plan)
         if (target_sp)
         {
             Breakpoint *return_bp = target_sp->GetBreakpointByID(m_return_bp_id).get();
-            if (return_bp != NULL)
+            if (return_bp != nullptr)
                 return_bp->SetEnabled (true);
 
             until_collection::iterator pos, end = m_until_points.end();
             for (pos = m_until_points.begin(); pos != end; pos++)
             {
                 Breakpoint *until_bp = target_sp->GetBreakpointByID((*pos).second).get();
-                if (until_bp != NULL)
+                if (until_bp != nullptr)
                     until_bp->SetEnabled (true);
             }
         }
@@ -374,14 +358,14 @@ ThreadPlanStepUntil::WillStop ()
     if (target_sp)
     {
         Breakpoint *return_bp = target_sp->GetBreakpointByID(m_return_bp_id).get();
-        if (return_bp != NULL)
+        if (return_bp != nullptr)
             return_bp->SetEnabled (false);
 
         until_collection::iterator pos, end = m_until_points.end();
         for (pos = m_until_points.begin(); pos != end; pos++)
         {
             Breakpoint *until_bp = target_sp->GetBreakpointByID((*pos).second).get();
-            if (until_bp != NULL)
+            if (until_bp != nullptr)
                 until_bp->SetEnabled (false);
         }
     }
@@ -391,7 +375,6 @@ ThreadPlanStepUntil::WillStop ()
 bool
 ThreadPlanStepUntil::MischiefManaged ()
 {
-
     // I'm letting "PlanExplainsStop" do all the work, and just reporting that here.
     bool done = false;
     if (IsPlanComplete())
@@ -407,6 +390,4 @@ ThreadPlanStepUntil::MischiefManaged ()
         ThreadPlan::MischiefManaged ();
 
     return done;
-
 }
-

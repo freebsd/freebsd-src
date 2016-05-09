@@ -68,7 +68,7 @@ blockcheck(char *origname)
 	newname = origname;
 	if (stat(newname, &stblock) < 0) {
 		cp = strrchr(newname, '/');
-		if (cp == 0) {
+		if (cp == NULL) {
 			(void)snprintf(device, sizeof(device), "%s%s",
 				_PATH_DEV, newname);
 			newname = device;

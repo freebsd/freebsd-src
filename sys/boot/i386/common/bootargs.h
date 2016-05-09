@@ -64,6 +64,12 @@ struct bootargs
 	 */
 };
 
+struct geli_boot_args
+{
+    uint32_t		size;
+    char		gelipw[256];
+};
+
 #endif /*__ASSEMBLER__*/
 
 #endif	/* !_BOOT_I386_ARGS_H_ */

@@ -105,6 +105,12 @@ struct t4_i2c_data {
 #define T4_FILTER_MPS_HIT_TYPE	0x4000	/* MPS match type */
 #define T4_FILTER_IP_FRAGMENT	0x8000	/* IP fragment */
 
+#define T4_FILTER_IC_VNIC	0x80000000	/* TP Ingress Config's F_VNIC
+						   bit.  It indicates whether
+						   T4_FILTER_VNIC bit means VNIC
+						   id (PF/VF) or outer VLAN.
+						   0 = oVLAN, 1 = VNIC */
+
 /* Filter action */
 enum {
 	FILTER_PASS = 0,	/* default */
@@ -150,11 +156,11 @@ struct t4_filter_tuple {
 	uint16_t dport;		/* destination port */
 
 	/*
-	 * A combination of these (upto 36 bits) is available.  TP_VLAN_PRI_MAP
+	 * A combination of these (up to 36 bits) is available.  TP_VLAN_PRI_MAP
 	 * is used to select the global mode and all filters are limited to the
 	 * set of fields allowed by the global mode.
 	 */
-	uint16_t vnic;		/* VNIC id or outer VLAN tag */
+	uint16_t vnic;		/* VNIC id (PF/VF) or outer VLAN tag */
 	uint16_t vlan;		/* VLAN tag */
 	uint16_t ethtype;	/* Ethernet type */
 	uint8_t  tos;		/* TOS/Traffic Type */
@@ -165,7 +171,8 @@ struct t4_filter_tuple {
 	uint32_t frag:1;	/* fragmentation extension header */
 	uint32_t macidx:9;	/* exact match MAC index */
 	uint32_t vlan_vld:1;	/* VLAN valid */
-	uint32_t vnic_vld:1;	/* VNIC id/outer VLAN tag valid */
+	uint32_t ovlan_vld:1;	/* outer VLAN tag valid, value in "vnic" */
+	uint32_t pfvf_vld:1;	/* VNIC id (PF/VF) valid, value in "vnic" */
 };
 
 struct t4_filter_specification {

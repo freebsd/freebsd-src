@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -119,9 +119,7 @@ fdesc_mount(struct mount *mp)
 }
 
 static int
-fdesc_unmount(mp, mntflags)
-	struct mount *mp;
-	int mntflags;
+fdesc_unmount(struct mount *mp, int mntflags)
 {
 	struct fdescmount *fmp;
 	caddr_t data;
@@ -162,10 +160,7 @@ fdesc_unmount(mp, mntflags)
 }
 
 static int
-fdesc_root(mp, flags, vpp)
-	struct mount *mp;
-	int flags;
-	struct vnode **vpp;
+fdesc_root(struct mount *mp, int flags, struct vnode **vpp)
 {
 	struct vnode *vp;
 
@@ -179,9 +174,7 @@ fdesc_root(mp, flags, vpp)
 }
 
 static int
-fdesc_statfs(mp, sbp)
-	struct mount *mp;
-	struct statfs *sbp;
+fdesc_statfs(struct mount *mp, struct statfs *sbp)
 {
 	struct thread *td;
 	struct filedesc *fdp;

@@ -311,7 +311,7 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	disk->d_delmaxsize = (off_t)nvme_ns_get_size(ns);
 	if (disk->d_delmaxsize > nvd_delete_max)
 		disk->d_delmaxsize = nvd_delete_max;
-	disk->d_stripesize = nvme_ns_get_optimal_sector_size(ns);
+	disk->d_stripesize = nvme_ns_get_stripesize(ns);
 
 	if (TAILQ_EMPTY(&disk_head))
 		disk->d_unit = 0;

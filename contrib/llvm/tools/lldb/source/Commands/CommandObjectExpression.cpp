@@ -16,16 +16,16 @@
 #include "lldb/Core/Value.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/DataFormatters/ValueObjectPrinter.h"
-#include "lldb/Expression/ClangExpressionVariable.h"
-#include "lldb/Expression/ClangUserExpression.h"
-#include "lldb/Expression/ClangFunction.h"
+#include "Plugins/ExpressionParser/Clang/ClangExpressionVariable.h"
+#include "lldb/Expression/UserExpression.h"
 #include "lldb/Expression/DWARFExpression.h"
+#include "lldb/Expression/REPL.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/StringConvert.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
-#include "lldb/Target/ObjCLanguageRuntime.h"
+#include "lldb/Target/Language.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/Variable.h"
 #include "lldb/Target/Process.h"
@@ -63,6 +63,7 @@ CommandObjectExpression::CommandOptions::g_option_table[] =
     { LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "timeout",            't', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeUnsignedInteger,  "Timeout value (in microseconds) for running the expression."},
     { LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "unwind-on-error",    'u', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeBoolean,    "Clean up program state if the expression causes a crash, or raises a signal.  Note, unlike gdb hitting a breakpoint is controlled by another option (-i)."},
     { LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "debug",              'g', OptionParser::eNoArgument      , NULL, NULL, 0, eArgTypeNone,       "When specified, debug the JIT code by setting a breakpoint on the first instruction and forcing breakpoints to not be ignored (-i0) and no unwinding to happen on error (-u0)."},
+    { LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "language",           'l', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeLanguage,   "Specifies the Language to use when parsing the expression.  If not set the target.language setting is used." },
     { LLDB_OPT_SET_1, false, "description-verbosity", 'v', OptionParser::eOptionalArgument, NULL, g_description_verbosity_type, 0, eArgTypeDescriptionVerbosity,        "How verbose should the output of this expression be, if the object description is asked for."},
 };
 
@@ -84,12 +85,11 @@ CommandObjectExpression::CommandOptions::SetOptionValue (CommandInterpreter &int
 
     switch (short_option)
     {
-      //case 'l':
-      //if (language.SetLanguageFromCString (option_arg) == false)
-      //{
-      //    error.SetErrorStringWithFormat("invalid language option argument '%s'", option_arg);
-      //}
-      //break;
+    case 'l':
+        language = Language::GetLanguageTypeFromString (option_arg);
+        if (language == eLanguageTypeUnknown)
+            error.SetErrorStringWithFormat ("unknown language type: '%s' for expression", option_arg);
+        break;
 
     case 'a':
         {
@@ -180,6 +180,7 @@ CommandObjectExpression::CommandOptions::OptionParsingStarting (CommandInterpret
     try_all_threads = true;
     timeout = 0;
     debug = false;
+    language = eLanguageTypeUnknown;
     m_verbosity = eLanguageRuntimeDescriptionDisplayVerbosityCompact;
 }
 
@@ -192,12 +193,13 @@ CommandObjectExpression::CommandOptions::GetDefinitions ()
 CommandObjectExpression::CommandObjectExpression (CommandInterpreter &interpreter) :
     CommandObjectRaw (interpreter,
                       "expression",
-                      "Evaluate a C/ObjC/C++ expression in the current program context, using user defined variables and variables currently in scope.",
+                      "Evaluate an expression in the current program context, using user defined variables and variables currently in scope.",
                       NULL,
                       eCommandProcessMustBePaused | eCommandTryTargetAPILock),
     IOHandlerDelegate (IOHandlerDelegate::Completion::Expression),
     m_option_group (interpreter),
     m_format_options (eFormatDefault),
+    m_repl_option (LLDB_OPT_SET_1, false, "repl", 'r', "Drop into REPL", false, true),
     m_command_options (),
     m_expr_line_count (0),
     m_expr_lines ()
@@ -253,6 +255,7 @@ Examples:
     m_option_group.Append (&m_format_options, OptionGroupFormat::OPTION_GROUP_FORMAT | OptionGroupFormat::OPTION_GROUP_GDB_FMT, LLDB_OPT_SET_1);
     m_option_group.Append (&m_command_options);
     m_option_group.Append (&m_varobj_options, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1 | LLDB_OPT_SET_2);
+    m_option_group.Append (&m_repl_option, LLDB_OPT_SET_ALL, LLDB_OPT_SET_3);
     m_option_group.Finalize();
 }
 
@@ -288,8 +291,8 @@ CommandObjectExpression::EvaluateExpression
     if (target)
     {
         lldb::ValueObjectSP result_valobj_sp;
-
         bool keep_in_memory = true;
+        StackFrame *frame = exe_ctx.GetFramePtr();
 
         EvaluateExpressionOptions options;
         options.SetCoerceToId(m_varobj_options.use_objc);
@@ -299,7 +302,8 @@ CommandObjectExpression::EvaluateExpression
         options.SetUseDynamic(m_varobj_options.use_dynamic);
         options.SetTryAllThreads(m_command_options.try_all_threads);
         options.SetDebug(m_command_options.debug);
-        
+        options.SetLanguage(m_command_options.language);
+
         // If there is any chance we are going to stop and want to see
         // what went wrong with our expression, we should generate debug info
         if (!m_command_options.ignore_breakpoints ||
@@ -311,8 +315,7 @@ CommandObjectExpression::EvaluateExpression
         else
             options.SetTimeoutUsec(0);
 
-        target->EvaluateExpression(expr, exe_ctx.GetFramePtr(),
-                                   result_valobj_sp, options);
+        target->EvaluateExpression(expr, frame, result_valobj_sp, options);
 
         if (result_valobj_sp)
         {
@@ -326,6 +329,7 @@ CommandObjectExpression::EvaluateExpression
                         result_valobj_sp->SetFormat (format);
 
                     DumpValueObjectOptions options(m_varobj_options.GetAsDumpOptions(m_command_options.m_verbosity,format));
+                    options.SetVariableFormatDisplayLanguage(result_valobj_sp->GetPreferredDisplayLanguage());
 
                     result_valobj_sp->Dump(*output_stream,options);
                     
@@ -335,7 +339,7 @@ CommandObjectExpression::EvaluateExpression
             }
             else
             {
-                if (result_valobj_sp->GetError().GetError() == ClangUserExpression::kNoResult)
+                if (result_valobj_sp->GetError().GetError() == UserExpression::kNoResult)
                 {
                     if (format != eFormatVoid && m_interpreter.GetDebugger().GetNotifyVoid())
                     {
@@ -501,8 +505,70 @@ CommandObjectExpression::DoExecute
                 return false;
             }
             
+            if (m_repl_option.GetOptionValue().GetCurrentValue())
+            {
+                Target *target = m_interpreter.GetExecutionContext().GetTargetPtr();
+                if (target)
+                {
+                    // Drop into REPL
+                    m_expr_lines.clear();
+                    m_expr_line_count = 0;
+                    
+                    Debugger &debugger = target->GetDebugger();
+                    
+                    // Check if the LLDB command interpreter is sitting on top of a REPL that
+                    // launched it...
+                    if (debugger.CheckTopIOHandlerTypes(IOHandler::Type::CommandInterpreter, IOHandler::Type::REPL))
+                    {
+                        // the LLDB command interpreter is sitting on top of a REPL that launched it,
+                        // so just say the command interpreter is done and fall back to the existing REPL
+                        m_interpreter.GetIOHandler(false)->SetIsDone(true);
+                    }
+                    else
+                    {
+                        // We are launching the REPL on top of the current LLDB command interpreter,
+                        // so just push one
+                        bool initialize = false;
+                        Error repl_error;
+                        REPLSP repl_sp (target->GetREPL(repl_error, m_command_options.language, nullptr, false));
+                        
+                        if (!repl_sp)
+                        {
+                            initialize = true;
+                            repl_sp = target->GetREPL(repl_error, m_command_options.language, nullptr, true);
+                            if (!repl_error.Success())
+                            {
+                                result.SetError(repl_error);
+                                return result.Succeeded();
+                            }
+                        }
+                        
+                        if (repl_sp)
+                        {
+                            if (initialize)
+                            {
+                                repl_sp->SetCommandOptions(m_command_options);
+                                repl_sp->SetFormatOptions(m_format_options);
+                                repl_sp->SetValueObjectDisplayOptions(m_varobj_options);
+                            }
+                            
+                            IOHandlerSP io_handler_sp (repl_sp->GetIOHandler());
+                            
+                            io_handler_sp->SetIsDone(false);
+                            
+                            debugger.PushIOHandler(io_handler_sp);
+                        }
+                        else
+                        {
+                            repl_error.SetErrorStringWithFormat("Couldn't create a REPL for %s", Language::GetNameForLanguageType(m_command_options.language));
+                            result.SetError(repl_error);
+                            return result.Succeeded();
+                        }
+                    }
+                }
+            }
             // No expression following options
-            if (expr == NULL || expr[0] == '\0')
+            else if (expr == NULL || expr[0] == '\0')
             {
                 GetMultilineExpression ();
                 return result.Succeeded();

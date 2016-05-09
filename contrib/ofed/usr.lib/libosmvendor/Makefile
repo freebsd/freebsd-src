@@ -13,6 +13,7 @@ MK_PROFILE=	no
 
 SRCS=	osm_vendor_ibumad.c osm_vendor_ibumad_sa.c
 
+LIBADD=	ibumad opensm osmcomp pthread
 CFLAGS+= -DOSM_VENDOR_INTF_OPENIB
 
 VERSION_MAP= ${VENDORLIBDIR}/libosmvendor.map

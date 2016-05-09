@@ -100,7 +100,6 @@ public:
 
     typedef void (*ReadThreadBytesReceived) (void *baton, const void *src, size_t src_len);
 
-
     //------------------------------------------------------------------
     /// Construct the Communication object with the specified name for
     /// the Broadcaster that this object inherits from.
@@ -118,8 +117,7 @@ public:
     ///
     /// The destructor is virtual since this class gets subclassed.
     //------------------------------------------------------------------
-    virtual
-    ~Communication();
+    ~Communication() override;
 
     void
     Clear ();
@@ -157,7 +155,7 @@ public:
     /// @see bool Connection::Disconnect ();
     //------------------------------------------------------------------
     lldb::ConnectionStatus
-    Disconnect (Error *error_ptr = NULL);
+    Disconnect(Error *error_ptr = nullptr);
 
     //------------------------------------------------------------------
     /// Check if the connection is valid.
@@ -177,6 +175,7 @@ public:
     {
         return m_connection_sp.get();
     }
+
     //------------------------------------------------------------------
     /// Read bytes from the current connection.
     ///
@@ -278,7 +277,7 @@ public:
     /// @see void Communication::AppendBytesToCache (const uint8_t * bytes, size_t len, bool broadcast);
     //------------------------------------------------------------------
     virtual bool
-    StartReadThread (Error *error_ptr = NULL);
+    StartReadThread(Error *error_ptr = nullptr);
 
     //------------------------------------------------------------------
     /// Stops the read thread by cancelling it.
@@ -288,10 +287,10 @@ public:
     ///     false otherwise.
     //------------------------------------------------------------------
     virtual bool
-    StopReadThread (Error *error_ptr = NULL);
+    StopReadThread(Error *error_ptr = nullptr);
 
     virtual bool
-    JoinReadThread (Error *error_ptr = NULL);
+    JoinReadThread(Error *error_ptr = nullptr);
     //------------------------------------------------------------------
     /// Checks if there is a currently running read thread.
     ///
@@ -323,7 +322,6 @@ public:
     SetReadThreadBytesReceivedCallback (ReadThreadBytesReceived callback,
                                         void *callback_baton);
 
-
     //------------------------------------------------------------------
     /// Wait for the read thread to process all outstanding data.
     ///
@@ -350,17 +348,10 @@ public:
 
     static ConstString &GetStaticBroadcasterClass ();
 
-    virtual ConstString &GetBroadcasterClass() const
+    ConstString &GetBroadcasterClass() const override
     {
         return GetStaticBroadcasterClass();
     }
-
-private:
-    //------------------------------------------------------------------
-    // For Communication only
-    //------------------------------------------------------------------
-    DISALLOW_COPY_AND_ASSIGN (Communication);
-
 
 protected:
     lldb::ConnectionSP m_connection_sp; ///< The connection that is current in use by this communications class.
@@ -381,6 +372,7 @@ protected:
                         uint32_t timeout_usec,
                         lldb::ConnectionStatus &status, 
                         Error *error_ptr);
+
     //------------------------------------------------------------------
     /// Append new bytes that get read from the read thread into the
     /// internal object byte cache. This will cause a \b
@@ -424,8 +416,11 @@ protected:
     //------------------------------------------------------------------
     size_t
     GetCachedBytes (void *dst, size_t dst_len);
+
+private:
+    DISALLOW_COPY_AND_ASSIGN (Communication);
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_Communication_h_
+#endif // liblldb_Communication_h_

@@ -37,30 +37,31 @@ void NVPTXInstrInfo::copyPhysReg(
   const TargetRegisterClass *DestRC = MRI.getRegClass(DestReg);
   const TargetRegisterClass *SrcRC = MRI.getRegClass(SrcReg);
 
-  if (DestRC != SrcRC)
-    report_fatal_error("Attempted to created cross-class register copy");
+  if (DestRC->getSize() != SrcRC->getSize())
+    report_fatal_error("Copy one register into another with a different width");
 
-  if (DestRC == &NVPTX::Int32RegsRegClass)
-    BuildMI(MBB, I, DL, get(NVPTX::IMOV32rr), DestReg)
-      .addReg(SrcReg, getKillRegState(KillSrc));
-  else if (DestRC == &NVPTX::Int1RegsRegClass)
-    BuildMI(MBB, I, DL, get(NVPTX::IMOV1rr), DestReg)
-      .addReg(SrcReg, getKillRegState(KillSrc));
-  else if (DestRC == &NVPTX::Float32RegsRegClass)
-    BuildMI(MBB, I, DL, get(NVPTX::FMOV32rr), DestReg)
-      .addReg(SrcReg, getKillRegState(KillSrc));
-  else if (DestRC == &NVPTX::Int16RegsRegClass)
-    BuildMI(MBB, I, DL, get(NVPTX::IMOV16rr), DestReg)
-      .addReg(SrcReg, getKillRegState(KillSrc));
-  else if (DestRC == &NVPTX::Int64RegsRegClass)
-    BuildMI(MBB, I, DL, get(NVPTX::IMOV64rr), DestReg)
-      .addReg(SrcReg, getKillRegState(KillSrc));
-  else if (DestRC == &NVPTX::Float64RegsRegClass)
-    BuildMI(MBB, I, DL, get(NVPTX::FMOV64rr), DestReg)
-      .addReg(SrcReg, getKillRegState(KillSrc));
-  else {
+  unsigned Op;
+  if (DestRC == &NVPTX::Int1RegsRegClass) {
+    Op = NVPTX::IMOV1rr;
+  } else if (DestRC == &NVPTX::Int16RegsRegClass) {
+    Op = NVPTX::IMOV16rr;
+  } else if (DestRC == &NVPTX::Int32RegsRegClass) {
+    Op = (SrcRC == &NVPTX::Int32RegsRegClass ? NVPTX::IMOV32rr
+                                             : NVPTX::BITCONVERT_32_F2I);
+  } else if (DestRC == &NVPTX::Int64RegsRegClass) {
+    Op = (SrcRC == &NVPTX::Int64RegsRegClass ? NVPTX::IMOV64rr
+                                             : NVPTX::BITCONVERT_64_F2I);
+  } else if (DestRC == &NVPTX::Float32RegsRegClass) {
+    Op = (SrcRC == &NVPTX::Float32RegsRegClass ? NVPTX::FMOV32rr
+                                               : NVPTX::BITCONVERT_32_I2F);
+  } else if (DestRC == &NVPTX::Float64RegsRegClass) {
+    Op = (SrcRC == &NVPTX::Float64RegsRegClass ? NVPTX::FMOV64rr
+                                               : NVPTX::BITCONVERT_64_I2F);
+  } else {
     llvm_unreachable("Bad register copy");
   }
+  BuildMI(MBB, I, DL, get(Op), DestReg)
+      .addReg(SrcReg, getKillRegState(KillSrc));
 }
 
 bool NVPTXInstrInfo::isMoveInstr(const MachineInstr &MI, unsigned &SrcReg,
@@ -84,27 +85,6 @@ bool NVPTXInstrInfo::isMoveInstr(const MachineInstr &MI, unsigned &SrcReg,
   }
 
   return false;
-}
-
-bool NVPTXInstrInfo::isReadSpecialReg(MachineInstr &MI) const {
-  switch (MI.getOpcode()) {
-  default:
-    return false;
-  case NVPTX::INT_PTX_SREG_NTID_X:
-  case NVPTX::INT_PTX_SREG_NTID_Y:
-  case NVPTX::INT_PTX_SREG_NTID_Z:
-  case NVPTX::INT_PTX_SREG_TID_X:
-  case NVPTX::INT_PTX_SREG_TID_Y:
-  case NVPTX::INT_PTX_SREG_TID_Z:
-  case NVPTX::INT_PTX_SREG_CTAID_X:
-  case NVPTX::INT_PTX_SREG_CTAID_Y:
-  case NVPTX::INT_PTX_SREG_CTAID_Z:
-  case NVPTX::INT_PTX_SREG_NCTAID_X:
-  case NVPTX::INT_PTX_SREG_NCTAID_Y:
-  case NVPTX::INT_PTX_SREG_NCTAID_Z:
-  case NVPTX::INT_PTX_SREG_WARPSIZE:
-    return true;
-  }
 }
 
 bool NVPTXInstrInfo::isLoadInstr(const MachineInstr &MI,

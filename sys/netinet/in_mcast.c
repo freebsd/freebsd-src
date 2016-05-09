@@ -619,7 +619,7 @@ inm_clear_recorded(struct in_multi *inm)
  *
  * Return 0 if the source didn't exist or was already marked as recorded.
  * Return 1 if the source was marked as recorded by this function.
- * Return <0 if any error occured (negated errno code).
+ * Return <0 if any error occurred (negated errno code).
  */
 int
 inm_record_source(struct in_multi *inm, const in_addr_t naddr)
@@ -1810,7 +1810,7 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 		break;
 
 	case IP_MULTICAST_TTL:
-		if (imo == 0)
+		if (imo == NULL)
 			optval = coptval = IP_DEFAULT_MULTICAST_TTL;
 		else
 			optval = coptval = imo->imo_multicast_ttl;
@@ -1822,7 +1822,7 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 		break;
 
 	case IP_MULTICAST_LOOP:
-		if (imo == 0)
+		if (imo == NULL)
 			optval = coptval = IP_DEFAULT_MULTICAST_LOOP;
 		else
 			optval = coptval = imo->imo_multicast_loop;

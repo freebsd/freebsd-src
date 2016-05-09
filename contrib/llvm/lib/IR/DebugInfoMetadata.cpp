@@ -295,8 +295,7 @@ DISubroutineType *DISubroutineType::getImpl(LLVMContext &Context,
                                             StorageType Storage,
                                             bool ShouldCreate) {
   DEFINE_GETIMPL_LOOKUP(DISubroutineType, (Flags, TypeArray));
-  Metadata *Ops[] = {nullptr,   nullptr, nullptr, nullptr,
-                     TypeArray, nullptr, nullptr, nullptr};
+  Metadata *Ops[] = {nullptr, nullptr, nullptr, TypeArray};
   DEFINE_GETIMPL_STORE(DISubroutineType, (Flags), Ops);
 }
 
@@ -316,22 +315,20 @@ DICompileUnit *DICompileUnit::getImpl(
     unsigned RuntimeVersion, MDString *SplitDebugFilename,
     unsigned EmissionKind, Metadata *EnumTypes, Metadata *RetainedTypes,
     Metadata *Subprograms, Metadata *GlobalVariables,
-    Metadata *ImportedEntities, uint64_t DWOId,
+    Metadata *ImportedEntities, Metadata *Macros, uint64_t DWOId,
     StorageType Storage, bool ShouldCreate) {
+  assert(Storage != Uniqued && "Cannot unique DICompileUnit");
   assert(isCanonical(Producer) && "Expected canonical MDString");
   assert(isCanonical(Flags) && "Expected canonical MDString");
   assert(isCanonical(SplitDebugFilename) && "Expected canonical MDString");
-  DEFINE_GETIMPL_LOOKUP(
-      DICompileUnit,
-      (SourceLanguage, File, getString(Producer), IsOptimized, getString(Flags),
-       RuntimeVersion, getString(SplitDebugFilename), EmissionKind, EnumTypes,
-       RetainedTypes, Subprograms, GlobalVariables, ImportedEntities, DWOId));
+
   Metadata *Ops[] = {File, Producer, Flags, SplitDebugFilename, EnumTypes,
                      RetainedTypes, Subprograms, GlobalVariables,
-                     ImportedEntities};
-  DEFINE_GETIMPL_STORE(
-      DICompileUnit,
-      (SourceLanguage, IsOptimized, RuntimeVersion, EmissionKind, DWOId), Ops);
+                     ImportedEntities, Macros};
+  return storeImpl(new (ArrayRef<Metadata *>(Ops).size()) DICompileUnit(
+                       Context, Storage, SourceLanguage, IsOptimized,
+                       RuntimeVersion, EmissionKind, DWOId, Ops),
+                   Storage);
 }
 
 DISubprogram *DILocalScope::getSubprogram() const {
@@ -345,34 +342,28 @@ DISubprogram *DISubprogram::getImpl(
     MDString *LinkageName, Metadata *File, unsigned Line, Metadata *Type,
     bool IsLocalToUnit, bool IsDefinition, unsigned ScopeLine,
     Metadata *ContainingType, unsigned Virtuality, unsigned VirtualIndex,
-    unsigned Flags, bool IsOptimized, Metadata *Function,
-    Metadata *TemplateParams, Metadata *Declaration, Metadata *Variables,
-    StorageType Storage, bool ShouldCreate) {
+    unsigned Flags, bool IsOptimized, Metadata *TemplateParams,
+    Metadata *Declaration, Metadata *Variables, StorageType Storage,
+    bool ShouldCreate) {
   assert(isCanonical(Name) && "Expected canonical MDString");
   assert(isCanonical(LinkageName) && "Expected canonical MDString");
   DEFINE_GETIMPL_LOOKUP(DISubprogram,
                         (Scope, getString(Name), getString(LinkageName), File,
                          Line, Type, IsLocalToUnit, IsDefinition, ScopeLine,
                          ContainingType, Virtuality, VirtualIndex, Flags,
-                         IsOptimized, Function, TemplateParams, Declaration,
-                         Variables));
-  Metadata *Ops[] = {File,           Scope,       Name,           Name,
-                     LinkageName,    Type,        ContainingType, Function,
-                     TemplateParams, Declaration, Variables};
+                         IsOptimized, TemplateParams, Declaration, Variables));
+  Metadata *Ops[] = {File,        Scope,    Name,           Name,
+                     LinkageName, Type,     ContainingType, TemplateParams,
+                     Declaration, Variables};
   DEFINE_GETIMPL_STORE(DISubprogram,
                        (Line, ScopeLine, Virtuality, VirtualIndex, Flags,
                         IsLocalToUnit, IsDefinition, IsOptimized),
                        Ops);
 }
 
-Function *DISubprogram::getFunction() const {
-  // FIXME: Should this be looking through bitcasts?
-  return dyn_cast_or_null<Function>(getFunctionConstant());
-}
-
 bool DISubprogram::describes(const Function *F) const {
   assert(F && "Invalid function");
-  if (F == getFunction())
+  if (F->getSubprogram() == this)
     return true;
   StringRef Name = getLinkageName();
   if (Name.empty())
@@ -380,15 +371,13 @@ bool DISubprogram::describes(const Function *F) const {
   return F->getName() == Name;
 }
 
-void DISubprogram::replaceFunction(Function *F) {
-  replaceFunction(F ? ConstantAsMetadata::get(F)
-                    : static_cast<ConstantAsMetadata *>(nullptr));
-}
-
 DILexicalBlock *DILexicalBlock::getImpl(LLVMContext &Context, Metadata *Scope,
                                         Metadata *File, unsigned Line,
                                         unsigned Column, StorageType Storage,
                                         bool ShouldCreate) {
+  // Fixup column.
+  adjustColumn(Column);
+
   assert(Scope && "Expected scope");
   DEFINE_GETIMPL_LOOKUP(DILexicalBlock, (Scope, File, Line, Column));
   Metadata *Ops[] = {File, Scope};
@@ -467,21 +456,21 @@ DIGlobalVariable::getImpl(LLVMContext &Context, Metadata *Scope, MDString *Name,
                        Ops);
 }
 
-DILocalVariable *DILocalVariable::getImpl(LLVMContext &Context, unsigned Tag,
-                                          Metadata *Scope, MDString *Name,
-                                          Metadata *File, unsigned Line,
-                                          Metadata *Type, unsigned Arg,
-                                          unsigned Flags, StorageType Storage,
+DILocalVariable *DILocalVariable::getImpl(LLVMContext &Context, Metadata *Scope,
+                                          MDString *Name, Metadata *File,
+                                          unsigned Line, Metadata *Type,
+                                          unsigned Arg, unsigned Flags,
+                                          StorageType Storage,
                                           bool ShouldCreate) {
   // 64K ought to be enough for any frontend.
   assert(Arg <= UINT16_MAX && "Expected argument number to fit in 16-bits");
 
   assert(Scope && "Expected scope");
   assert(isCanonical(Name) && "Expected canonical MDString");
-  DEFINE_GETIMPL_LOOKUP(DILocalVariable, (Tag, Scope, getString(Name), File,
-                                          Line, Type, Arg, Flags));
+  DEFINE_GETIMPL_LOOKUP(DILocalVariable,
+                        (Scope, getString(Name), File, Line, Type, Arg, Flags));
   Metadata *Ops[] = {Scope, Name, File, Type};
-  DEFINE_GETIMPL_STORE(DILocalVariable, (Tag, Line, Arg, Flags), Ops);
+  DEFINE_GETIMPL_STORE(DILocalVariable, (Line, Arg, Flags), Ops);
 }
 
 DIExpression *DIExpression::getImpl(LLVMContext &Context,
@@ -496,6 +485,7 @@ unsigned DIExpression::ExprOperand::getSize() const {
   case dwarf::DW_OP_bit_piece:
     return 3;
   case dwarf::DW_OP_plus:
+  case dwarf::DW_OP_minus:
     return 2;
   default:
     return 1;
@@ -516,6 +506,7 @@ bool DIExpression::isValid() const {
       // Piece expressions must be at the end.
       return I->get() + I->getSize() == E->get();
     case dwarf::DW_OP_plus:
+    case dwarf::DW_OP_minus:
     case dwarf::DW_OP_deref:
       break;
     }
@@ -566,3 +557,24 @@ DIImportedEntity *DIImportedEntity::getImpl(LLVMContext &Context, unsigned Tag,
   Metadata *Ops[] = {Scope, Entity, Name};
   DEFINE_GETIMPL_STORE(DIImportedEntity, (Tag, Line), Ops);
 }
+
+DIMacro *DIMacro::getImpl(LLVMContext &Context, unsigned MIType,
+                          unsigned Line, MDString *Name, MDString *Value,
+                          StorageType Storage, bool ShouldCreate) {
+  assert(isCanonical(Name) && "Expected canonical MDString");
+  DEFINE_GETIMPL_LOOKUP(DIMacro,
+                        (MIType, Line, getString(Name), getString(Value)));
+  Metadata *Ops[] = { Name, Value };
+  DEFINE_GETIMPL_STORE(DIMacro, (MIType, Line), Ops);
+}
+
+DIMacroFile *DIMacroFile::getImpl(LLVMContext &Context, unsigned MIType,
+                                  unsigned Line, Metadata *File,
+                                  Metadata *Elements, StorageType Storage,
+                                  bool ShouldCreate) {
+  DEFINE_GETIMPL_LOOKUP(DIMacroFile,
+                        (MIType, Line, File, Elements));
+  Metadata *Ops[] = { File, Elements };
+  DEFINE_GETIMPL_STORE(DIMacroFile, (MIType, Line), Ops);
+}
+

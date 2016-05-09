@@ -201,6 +201,16 @@ rt_tables_get_rnh(int table, int fam)
 	return (*rt_tables_get_rnh_ptr(table, fam));
 }
 
+u_int
+rt_tables_get_gen(int table, int fam)
+{
+	struct rib_head *rnh;
+
+	rnh = *rt_tables_get_rnh_ptr(table, fam);
+	return (rnh->rnh_gen);
+}
+
+
 /*
  * route initialization must occur before ip6_init2(), which happenas at
  * SI_ORDER_MIDDLE.
@@ -1754,6 +1764,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			*ret_nrt = rt;
 			RT_ADDREF(rt);
 		}
+		rnh->rnh_gen++;		/* Routing table updated */
 		RT_UNLOCK(rt);
 		break;
 	case RTM_CHANGE:

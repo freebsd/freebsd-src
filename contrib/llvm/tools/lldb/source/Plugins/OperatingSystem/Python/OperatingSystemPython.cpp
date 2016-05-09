@@ -24,7 +24,6 @@
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/ScriptInterpreter.h"
-#include "lldb/Symbol/ClangNamespaceDecl.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/VariableList.h"
 #include "lldb/Target/Process.h"
@@ -43,9 +42,7 @@ using namespace lldb_private;
 void
 OperatingSystemPython::Initialize()
 {
-    PluginManager::RegisterPlugin (GetPluginNameStatic(),
-                                   GetPluginDescriptionStatic(),
-                                   CreateInstance);
+    PluginManager::RegisterPlugin(GetPluginNameStatic(), GetPluginDescriptionStatic(), CreateInstance, nullptr);
 }
 
 void

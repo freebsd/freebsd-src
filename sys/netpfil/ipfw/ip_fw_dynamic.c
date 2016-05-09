@@ -505,7 +505,7 @@ resize_dynamic_table(struct ip_fw_chain *chain, int nbuckets)
 	    V_curr_dyn_buckets, nbuckets);
 
 	/* Allocate and initialize new hash */
-	dyn_v = malloc(nbuckets * sizeof(ipfw_dyn_rule), M_IPFW,
+	dyn_v = malloc(nbuckets * sizeof(*dyn_v), M_IPFW,
 	    M_WAITOK | M_ZERO);
 
 	for (i = 0 ; i < nbuckets; i++)
@@ -989,7 +989,7 @@ ipfw_dyn_send_ka(struct mbuf **mtailp, ipfw_dyn_rule *q)
 }
 
 /*
- * This procedure is used to perform various maintance
+ * This procedure is used to perform various maintenance
  * on dynamic hash list. Currently it is called every second.
  */
 static void
@@ -1021,7 +1021,7 @@ ipfw_dyn_tick(void * vnetx)
 
 
 /*
- * Walk thru all dynamic states doing generic maintance:
+ * Walk through all dynamic states doing generic maintenance:
  * 1) free expired states
  * 2) free all states based on deleted rule / set
  * 3) send keepalives for states if needed

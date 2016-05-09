@@ -969,5 +969,5 @@ static moduledata_t alq_mod =
 	NULL
 };
 
-DECLARE_MODULE(alq, alq_mod, SI_SUB_SMP, SI_ORDER_ANY);
+DECLARE_MODULE(alq, alq_mod, SI_SUB_LAST, SI_ORDER_ANY);
 MODULE_VERSION(alq, 1);

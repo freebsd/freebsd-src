@@ -288,6 +288,8 @@ iscsi_session_terminate_task(struct iscsi_session *is,
     struct iscsi_outstanding *io, bool requeue)
 {
 
+	ISCSI_SESSION_LOCK_ASSERT(is);
+
 	if (io->io_ccb != NULL) {
 		io->io_ccb->ccb_h.status &= ~(CAM_SIM_QUEUED | CAM_STATUS_MASK);
 		if (requeue)
@@ -2220,6 +2222,7 @@ iscsi_action_scsiio(struct iscsi_session *is, union ccb *ccb)
 
 		error = icl_pdu_append_data(request, csio->data_ptr, len, M_NOWAIT);
 		if (error != 0) {
+			iscsi_outstanding_remove(is, io);
 			icl_pdu_free(request);
 			if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
 				xpt_freeze_devq(ccb->ccb_h.path, 1);

@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <openssl/evp.h>
 
+#define __bounded__(x, y, z)
 #include "key.h"
 #include "buffer.h"
 #include "authfd.h"
@@ -84,7 +85,9 @@ static const char *pam_ssh_keyfiles[] = {
 };
 
 static const char *pam_ssh_agent = "/usr/bin/ssh-agent";
-static char *const pam_ssh_agent_argv[] = { "ssh_agent", "-s", NULL };
+static char str_ssh_agent[] = "ssh-agent";
+static char str_dash_s[] = "-s";
+static char *const pam_ssh_agent_argv[] = { str_ssh_agent, str_dash_s, NULL };
 static char *const pam_ssh_agent_envp[] = { NULL };
 
 /*

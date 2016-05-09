@@ -94,10 +94,8 @@ extern "C" {
 #include <sys/sunddi.h>
 #ifdef illumos
 #include <sys/cyclic.h>
-#include <sys/callo.h>
-#else	/* FreeBSD */
-#include <sys/callout.h>
 #endif
+#include <sys/callo.h>
 #include <sys/disp.h>
 #include <machine/stdarg.h>
 

@@ -98,8 +98,8 @@ NEWVERSWHAT=	"EFI loader" ${MACHINE}
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../../efi/loader/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
+NM?=		nm
 OBJCOPY?=	objcopy
-OBJDUMP?=	objdump
 
 .if ${MACHINE_CPUARCH} == "amd64"
 EFI_TARGET=	efi-app-x86_64
@@ -110,8 +110,8 @@ EFI_TARGET=	binary
 .endif
 
 loader.efi: ${PROG}
-	if [ `${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*' | wc -l` != 0 ]; then \
-		${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*'; \
+	if ${NM} ${.ALLSRC} | grep ' U '; then \
+		echo "Undefined symbols in ${.ALLSRC}"; \
 		exit 1; \
 	fi
 	${OBJCOPY} -j .peheader -j .text -j .sdata -j .data \
@@ -131,13 +131,13 @@ beforedepend ${OBJS}: machine
 
 CLEANFILES+=   machine
 
-machine:
+machine: .NOMETA
 	ln -sf ${.CURDIR}/../../../${MACHINE}/include machine
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 beforedepend ${OBJS}: x86
 CLEANFILES+=   x86
 
-x86:
+x86: .NOMETA
 	ln -sf ${.CURDIR}/../../../x86/include x86
 .endif

@@ -35,7 +35,6 @@ YFLAGS+=-p_nsyy
 LFLAGS+=-P_nsyy
 
 CFLAGS.nslexer.c= -DYY_BUF_SIZE=1024
-CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
 
 MAN+=	byteorder.3 ethers.3 eui64.3 \
 	getaddrinfo.3 gai_strerror.3 gethostbyname.3 \

@@ -184,7 +184,7 @@
 #define ATU_IATVR2	0x005c /* Inbound ATU Translate Value Register 2 */
 #define ATU_IAUTVR2	0x0060 /* Inbound ATU Upper Translate Value Register 2*/
 #define ATU_ERLR	0x0064 /* Expansion ROM Limit Register */
-#define ATU_ERTVR	0x0068 /* Expansion ROM Translater Value Register */
+#define ATU_ERTVR	0x0068 /* Expansion ROM Translator Value Register */
 #define ATU_ERUTVR	0x006c /* Expansion ROM Upper Translate Value Register*/
 #define ATU_CR		0x0070 /* ATU Configuration Register */
 #define ATU_CR_OUT_EN	(1 << 1)

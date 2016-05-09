@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-SUBDIR=	clang clang-tblgen tblgen
+SUBDIR=	clang clang-tblgen llvm-tblgen
 
 .if !defined(TOOLS_PREFIX)
 .if ${MK_CLANG_EXTRAS} != "no"
@@ -27,7 +27,6 @@ SUBDIR+=bugpoint \
 	llvm-profdata \
 	llvm-rtdyld \
 	llvm-symbolizer \
-	macho-dump \
 	opt
 .endif
 

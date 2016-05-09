@@ -5,6 +5,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
+TAGS+=	development
 CLEANFILES= osreldate.h version
 SUBDIR= arpa protocols rpcsvc rpc xlocale
 SUBDIR_PARALLEL=
@@ -128,32 +130,8 @@ _MARCHS=	${MACHINE_CPUARCH}
 _MARCHS+=	x86
 .endif
 
-.if ${MK_STAGING} == "yes"
-# tell bsd.incs.mk that we have it covered
-NO_STAGE_INCLUDES=
-.endif
-
-.include <bsd.prog.mk>
-
-.if ${MK_STAGING} != "no" && !defined(_SKIP_BUILD)
-.if make(all)
-DESTDIR= ${STAGE_OBJTOP}
-
-all:	stage_include
-installincludes: buildincludes
-buildincludes: stage_prep
-
-stage_prep:
-	@mkdir -p ${DESTDIR}${INCLUDEDIR}
-	@touch $@
-
-stage_include: .dirdep installincludes
-	@touch $@
-.endif
-.endif
-
-installincludes: ${SHARED}
-${SHARED}: compat
+META_TARGETS+=	compat copies symlinks
+stage_includes: ${SHARED}
 
 # Take care of stale directory-level symlinks.
 compat:
@@ -165,9 +143,6 @@ compat:
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}${INCLUDEDIR} > /dev/null
-.if ${MK_DIRDEPS_BUILD} == "yes"
-	@touch ${.TARGET}
-.endif
 
 copies:
 .for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} crypto machine machine/pc \
@@ -181,181 +156,178 @@ copies:
 .endfor
 .for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/nand:Ndev/pci} ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${DESTDIR}${INCLUDEDIR}/$i
 .endfor
 	cd ${.CURDIR}/../sys/dev/acpica; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 acpiio.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 acpiio.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/acpica; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 acpi_hpet.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 acpi_hpet.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/acpica
 	cd ${.CURDIR}/../sys/dev/agp; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 agpreg.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 agpreg.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/agp
 	cd ${.CURDIR}/../sys/dev/bktr; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ioctl_*.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 ioctl_*.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/bktr
 .if ${MK_NAND} != "no"
 	cd ${.CURDIR}/../sys/dev/nand; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 nandsim.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 nandsim.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/nand; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 nand_dev.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 nand_dev.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/nand
 .endif
 	cd ${.CURDIR}/../sys/dev/pci; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 pcireg.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 pcireg.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/pci
 	cd ${.CURDIR}/../sys/fs/cd9660/; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/isofs/cd9660
 .if ${MK_IPFILTER} != "no"
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/netinet
 .endif
 .if ${MK_PF} != "no"
 	cd ${.CURDIR}/../sys/netpfil/pf; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/netpfil/pf
 .endif
 	cd ${.CURDIR}/../sys/crypto; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 rijndael/rijndael.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 rijndael/rijndael.h \
 	    ${DESTDIR}${INCLUDEDIR}/crypto
 	cd ${.CURDIR}/../sys/opencrypto; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/crypto
 	cd ${.CURDIR}/../sys/${MACHINE}/include; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/machine
 .if exists(${.CURDIR}/../sys/${MACHINE}/include/pc)
 	cd ${.CURDIR}/../sys/${MACHINE}/include/pc; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/machine/pc
 .endif
 .for _MARCH in ${_MARCHS}
 .if exists(${.CURDIR}/../sys/${_MARCH}/include)
-	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
+	${INSTALL} -d ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}; \
 	cd ${.CURDIR}/../sys/${_MARCH}/include; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}
 .if exists(${.CURDIR}/../sys/${_MARCH}/include/pc)
-	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
+	${INSTALL} -d ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}/pc; \
 	cd ${.CURDIR}/../sys/${_MARCH}/include/pc; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}/pc
 .endif
 .endif
 .endfor
 	cd ${.CURDIR}/../sys/rpc; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 types.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 types.h \
 	    ${DESTDIR}${INCLUDEDIR}/rpc
 	cd ${.CURDIR}/../sys/teken; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
 	    ${DESTDIR}${INCLUDEDIR}/teken
-.if ${MK_DIRDEPS_BUILD} == "yes"
-	@touch ${.OBJDIR}/${.TARGET}
-.endif
 
 symlinks:
 	@${ECHO} "Setting up symlinks to kernel source tree..."
 .for i in ${LDIRS}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
 .for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/nand:Ndev/pci}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
 	cd ${.CURDIR}/../sys/dev/acpica; \
 	for h in acpiio.h acpi_hpet.h; do \
-		${INSTALL_SYMLINK} ../../../../sys/dev/acpica/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/acpica/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/acpica; \
 	done
 	cd ${.CURDIR}/../sys/dev/agp; \
 	for h in agpreg.h; do \
-		${INSTALL_SYMLINK} ../../../../sys/dev/agp/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/agp/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/agp; \
 	done
 	cd ${.CURDIR}/../sys/dev/bktr; \
 	for h in ioctl_*.h; do \
-		${INSTALL_SYMLINK} ../../../../sys/dev/bktr/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/bktr/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/bktr; \
 	done
 .if ${MK_NAND} != "no"
 	cd ${.CURDIR}/../sys/dev/nand; \
 	for h in nandsim.h nand_dev.h; do \
-		${INSTALL_SYMLINK} ../../../../sys/dev/nand/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/nand/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/nand; \
 	done
 .endif
 	cd ${.CURDIR}/../sys/dev/pci; \
 	for h in pcireg.h; do \
-		${INSTALL_SYMLINK} ../../../../sys/dev/pci/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/pci/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/pci; \
 	done
 .for i in ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ../../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
 .if ${MK_IPFILTER} != "no"
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ../../../sys/contrib/ipfilter/netinet/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/contrib/ipfilter/netinet/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/netinet; \
 	done
 .endif
 .if ${MK_PF} != "no"
 	cd ${.CURDIR}/../sys/netpfil/pf; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ../../../../sys/netpfil/pf/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/netpfil/pf/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/netpfil/pf; \
 	done
 .endif
 	cd ${.CURDIR}/../sys/crypto; \
 	for h in rijndael/rijndael.h; do \
-		${INSTALL_SYMLINK} ../../../sys/crypto/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/crypto/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/crypto; \
 	done
 	cd ${.CURDIR}/../sys/opencrypto; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ../../../sys/opencrypto/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/opencrypto/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/crypto; \
 	done
 	cd ${.CURDIR}/../sys/${MACHINE}/include; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ../../../sys/${MACHINE}/include/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/${MACHINE}/include/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/machine; \
 	done
 .if exists(${.CURDIR}/../sys/${MACHINE}/include/pc)
 	cd ${.CURDIR}/../sys/${MACHINE}/include/pc; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ../../../../sys/${MACHINE}/include/pc/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/${MACHINE}/include/pc/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/machine/pc; \
 	done
 .endif
 .for _MARCH in ${_MARCHS}
 .if exists(${.CURDIR}/../sys/${_MARCH}/include)
-	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
+	${INSTALL} -d ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}; \
 	cd ${.CURDIR}/../sys/${_MARCH}/include; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ../../../sys/${_MARCH}/include/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/${_MARCH}/include/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/${_MARCH}; \
 	done
 .if exists(${.CURDIR}/../sys/${_MARCH}/include/pc)
-	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
+	${INSTALL} -d ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}/pc; \
 	cd ${.CURDIR}/../sys/${_MARCH}/include/pc; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ../../../../sys/${_MARCH}/include/pc/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/${_MARCH}/include/pc/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/${_MARCH}/pc; \
 	done
 .endif
@@ -363,17 +335,19 @@ symlinks:
 .endfor
 	cd ${.CURDIR}/../sys/fs/cd9660; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ../../../../sys/fs/cd9660/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/fs/cd9660/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/isofs/cd9660; \
 	done
 	cd ${.CURDIR}/../sys/rpc; \
 	for h in types.h; do \
-		${INSTALL_SYMLINK} ../../../sys/rpc/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/rpc/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/rpc; \
 	done
-.if ${MK_DIRDEPS_BUILD} == "yes"
-	@touch ${.OBJDIR}/${.TARGET}
-.endif
+
+.include <bsd.prog.mk>
+
+installincludes: ${SHARED}
+${SHARED}: compat
 
 .if ${MACHINE} == "host" && !defined(_SKIP_BUILD)
 # we're here because we are building a sysroot...

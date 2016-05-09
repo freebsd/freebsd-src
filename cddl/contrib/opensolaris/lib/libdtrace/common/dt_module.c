@@ -24,6 +24,7 @@
  */
 /*
  * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
+ * Copyright (c) 2016, Pedro Giffuni.  All rights reserved.
  */
 
 #include <sys/types.h>
@@ -710,6 +711,7 @@ dt_module_load_proc(dtrace_hdl_t *dtp, dt_module_t *dmp)
 	arg.dpa_count = 0;
 	if (Pobject_iter_resolved(p, dt_module_load_proc_count, &arg) != 0) {
 		dt_dprintf("failed to iterate objects\n");
+		dt_proc_unlock(dtp, p);
 		dt_proc_release(dtp, p);
 		return (dt_set_errno(dtp, EDT_CANTLOAD));
 	}
@@ -721,22 +723,20 @@ dt_module_load_proc(dtrace_hdl_t *dtp, dt_module_t *dmp)
 		return (dt_set_errno(dtp, EDT_CANTLOAD));
 	}
 
-	dmp->dm_libctfp = malloc(sizeof (ctf_file_t *) * arg.dpa_count);
+	dmp->dm_libctfp = calloc(arg.dpa_count, sizeof (ctf_file_t *));
 	if (dmp->dm_libctfp == NULL) {
 		dt_proc_unlock(dtp, p);
 		dt_proc_release(dtp, p);
 		return (dt_set_errno(dtp, EDT_NOMEM));
 	}
-	bzero(dmp->dm_libctfp, sizeof (ctf_file_t *) * arg.dpa_count);
 
-	dmp->dm_libctfn = malloc(sizeof (char *) * arg.dpa_count);
+	dmp->dm_libctfn = calloc(arg.dpa_count, sizeof (char *));
 	if (dmp->dm_libctfn == NULL) {
 		free(dmp->dm_libctfp);
 		dt_proc_unlock(dtp, p);
 		dt_proc_release(dtp, p);
 		return (dt_set_errno(dtp, EDT_NOMEM));
 	}
-	bzero(dmp->dm_libctfn, sizeof (char *) * arg.dpa_count);
 
 	dmp->dm_nctflibs = arg.dpa_count;
 
@@ -817,16 +817,13 @@ dt_module_load(dtrace_hdl_t *dtp, dt_module_t *dmp)
 	dmp->dm_nsymbuckets = _dtrace_strbuckets;
 	dmp->dm_symfree = 1;		/* first free element is index 1 */
 
-	dmp->dm_symbuckets = malloc(sizeof (uint_t) * dmp->dm_nsymbuckets);
-	dmp->dm_symchains = malloc(sizeof (dt_sym_t) * dmp->dm_nsymelems + 1);
+	dmp->dm_symbuckets = calloc(dmp->dm_nsymbuckets, sizeof (uint_t));
+	dmp->dm_symchains = calloc(dmp->dm_nsymelems + 1, sizeof (dt_sym_t));
 
 	if (dmp->dm_symbuckets == NULL || dmp->dm_symchains == NULL) {
 		dt_module_unload(dtp, dmp);
 		return (dt_set_errno(dtp, EDT_NOMEM));
 	}
-
-	bzero(dmp->dm_symbuckets, sizeof (uint_t) * dmp->dm_nsymbuckets);
-	bzero(dmp->dm_symchains, sizeof (dt_sym_t) * dmp->dm_nsymelems + 1);
 
 	/*
 	 * Iterate over the symbol table data buffer and insert each symbol

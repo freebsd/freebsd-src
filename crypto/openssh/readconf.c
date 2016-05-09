@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.239 2015/07/30 00:01:34 djm Exp $ */
+/* $OpenBSD: readconf.c,v 1.250 2016/02/08 23:40:12 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -139,6 +139,7 @@ typedef enum {
 	oPasswordAuthentication, oRSAAuthentication,
 	oChallengeResponseAuthentication, oXAuthLocation,
 	oIdentityFile, oHostName, oPort, oCipher, oRemoteForward, oLocalForward,
+	oCertificateFile, oAddKeysToAgent,
 	oUser, oEscapeChar, oRhostsRSAAuthentication, oProxyCommand,
 	oGlobalKnownHostsFile, oUserKnownHostsFile, oConnectionAttempts,
 	oBatchMode, oCheckHostIP, oStrictHostKeyChecking, oCompression,
@@ -155,7 +156,7 @@ typedef enum {
 	oSendEnv, oControlPath, oControlMaster, oControlPersist,
 	oHashKnownHosts,
 	oTunnel, oTunnelDevice, oLocalCommand, oPermitLocalCommand,
-	oVisualHostKey, oUseRoaming,
+	oVisualHostKey,
 	oKexAlgorithms, oIPQoS, oRequestTTY, oIgnoreUnknown, oProxyUseFdpass,
 	oCanonicalDomains, oCanonicalizeHostname, oCanonicalizeMaxDots,
 	oCanonicalizeFallbackLocal, oCanonicalizePermittedCNAMEs,
@@ -206,6 +207,8 @@ static struct {
 	{ "identityfile", oIdentityFile },
 	{ "identityfile2", oIdentityFile },			/* obsolete */
 	{ "identitiesonly", oIdentitiesOnly },
+	{ "certificatefile", oCertificateFile },
+	{ "addkeystoagent", oAddKeysToAgent },
 	{ "hostname", oHostName },
 	{ "hostkeyalias", oHostKeyAlias },
 	{ "proxycommand", oProxyCommand },
@@ -264,7 +267,7 @@ static struct {
 	{ "localcommand", oLocalCommand },
 	{ "permitlocalcommand", oPermitLocalCommand },
 	{ "visualhostkey", oVisualHostKey },
-	{ "useroaming", oUseRoaming },
+	{ "useroaming", oDeprecated },
 	{ "kexalgorithms", oKexAlgorithms },
 	{ "ipqos", oIPQoS },
 	{ "requesttty", oRequestTTY },
@@ -390,6 +393,30 @@ clear_forwardings(Options *options)
 }
 
 void
+add_certificate_file(Options *options, const char *path, int userprovided)
+{
+	int i;
+
+	if (options->num_certificate_files >= SSH_MAX_CERTIFICATE_FILES)
+		fatal("Too many certificate files specified (max %d)",
+		    SSH_MAX_CERTIFICATE_FILES);
+
+	/* Avoid registering duplicates */
+	for (i = 0; i < options->num_certificate_files; i++) {
+		if (options->certificate_file_userprovided[i] == userprovided &&
+		    strcmp(options->certificate_files[i], path) == 0) {
+			debug2("%s: ignoring duplicate key %s", __func__, path);
+			return;
+		}
+	}
+
+	options->certificate_file_userprovided[options->num_certificate_files] =
+	    userprovided;
+	options->certificate_files[options->num_certificate_files++] =
+	    xstrdup(path);
+}
+
+void
 add_identity_file(Options *options, const char *dir, const char *filename,
     int userprovided)
 {
@@ -440,19 +467,13 @@ default_ssh_port(void)
 static int
 execute_in_shell(const char *cmd)
 {
-	char *shell, *command_string;
+	char *shell;
 	pid_t pid;
 	int devnull, status;
 	extern uid_t original_real_uid;
 
 	if ((shell = getenv("SHELL")) == NULL)
 		shell = _PATH_BSHELL;
-
-	/*
-	 * Use "exec" to avoid "sh -c" processes on some platforms
-	 * (e.g. Solaris)
-	 */
-	xasprintf(&command_string, "exec %s", cmd);
 
 	/* Need this to redirect subprocess stdin/out */
 	if ((devnull = open(_PATH_DEVNULL, O_RDWR)) == -1)
@@ -478,7 +499,7 @@ execute_in_shell(const char *cmd)
 
 		argv[0] = shell;
 		argv[1] = "-c";
-		argv[2] = command_string;
+		argv[2] = xstrdup(cmd);
 		argv[3] = NULL;
 
 		execv(argv[0], argv);
@@ -493,7 +514,6 @@ execute_in_shell(const char *cmd)
 		fatal("%s: fork: %.100s", __func__, strerror(errno));
 
 	close(devnull);
-	free(command_string);
 
 	while (waitpid(pid, &status, 0) == -1) {
 		if (errno != EINTR && errno != EAGAIN)
@@ -526,12 +546,15 @@ match_cfg_line(Options *options, char **condition, struct passwd *pw,
 	 */
 	port = options->port <= 0 ? default_ssh_port() : options->port;
 	ruser = options->user == NULL ? pw->pw_name : options->user;
-	if (options->hostname != NULL) {
+	if (post_canon) {
+		host = xstrdup(options->hostname);
+	} else if (options->hostname != NULL) {
 		/* NB. Please keep in sync with ssh.c:main() */
 		host = percent_expand(options->hostname,
 		    "h", host_arg, (char *)NULL);
-	} else
+	} else {
 		host = xstrdup(host_arg);
+	}
 
 	debug2("checking match for '%s' host %s originally %s",
 	    cp, host, original_host);
@@ -715,6 +738,15 @@ static const struct multistate multistate_yesnoask[] = {
 	{ "yes",			1 },
 	{ "no",				0 },
 	{ "ask",			2 },
+	{ NULL, -1 }
+};
+static const struct multistate multistate_yesnoaskconfirm[] = {
+	{ "true",			1 },
+	{ "false",			0 },
+	{ "yes",			1 },
+	{ "no",				0 },
+	{ "ask",			2 },
+	{ "confirm",			3 },
 	{ NULL, -1 }
 };
 static const struct multistate multistate_addressfamily[] = {
@@ -971,16 +1003,12 @@ parse_time:
 			if (scan_scaled(arg, &val64) == -1)
 				fatal("%.200s line %d: Bad number '%s': %s",
 				    filename, linenum, arg, strerror(errno));
-			/* check for too-large or too-small limits */
-			if (val64 > UINT_MAX)
-				fatal("%.200s line %d: RekeyLimit too large",
-				    filename, linenum);
 			if (val64 != 0 && val64 < 16)
 				fatal("%.200s line %d: RekeyLimit too small",
 				    filename, linenum);
 		}
 		if (*activep && options->rekey_limit == -1)
-			options->rekey_limit = (u_int32_t)val64;
+			options->rekey_limit = val64;
 		if (s != NULL) { /* optional rekey interval present */
 			if (strcmp(s, "none") == 0) {
 				(void)strdelim(&s);	/* discard */
@@ -1002,6 +1030,24 @@ parse_time:
 				    filename, linenum, SSH_MAX_IDENTITY_FILES);
 			add_identity_file(options, NULL,
 			    arg, flags & SSHCONF_USERCONF);
+		}
+		break;
+
+	case oCertificateFile:
+		arg = strdelim(&s);
+		if (!arg || *arg == '\0')
+			fatal("%.200s line %d: Missing argument.",
+			    filename, linenum);
+		if (*activep) {
+			intptr = &options->num_certificate_files;
+			if (*intptr >= SSH_MAX_CERTIFICATE_FILES) {
+				fatal("%.200s line %d: Too many certificate "
+				    "files specified (max %d).",
+				    filename, linenum,
+				    SSH_MAX_CERTIFICATE_FILES);
+			}
+			add_certificate_file(options, arg,
+			    flags & SSHCONF_USERCONF);
 		}
 		break;
 
@@ -1402,10 +1448,6 @@ parse_keytypes:
 		}
 		break;
 
-	case oUseRoaming:
-		intptr = &options->use_roaming;
-		goto parse_flag;
-
 	case oRequestTTY:
 		intptr = &options->request_tty;
 		multistate_ptr = multistate_requesttty;
@@ -1535,6 +1577,11 @@ parse_keytypes:
 	case oPubkeyAcceptedKeyTypes:
 		charptr = &options->pubkey_key_types;
 		goto parse_keytypes;
+
+	case oAddKeysToAgent:
+		intptr = &options->add_keys_to_agent;
+		multistate_ptr = multistate_yesnoaskconfirm;
+		goto parse_multistate;
 
 	case oDeprecated:
 		debug("%s line %d: Deprecated option \"%s\"",
@@ -1666,6 +1713,7 @@ initialize_options(Options * options)
 	options->hostkeyalgorithms = NULL;
 	options->protocol = SSH_PROTO_UNKNOWN;
 	options->num_identity_files = 0;
+	options->num_certificate_files = 0;
 	options->hostname = NULL;
 	options->host_key_alias = NULL;
 	options->proxy_command = NULL;
@@ -1701,7 +1749,7 @@ initialize_options(Options * options)
 	options->tun_remote = -1;
 	options->local_command = NULL;
 	options->permit_local_command = -1;
-	options->use_roaming = 0;
+	options->add_keys_to_agent = -1;
 	options->visual_host_key = -1;
 	options->ip_qos_interactive = -1;
 	options->ip_qos_bulk = -1;
@@ -1806,6 +1854,8 @@ fill_default_options(Options * options)
 	/* options->hostkeyalgorithms, default set in myproposals.h */
 	if (options->protocol == SSH_PROTO_UNKNOWN)
 		options->protocol = SSH_PROTO_2;
+	if (options->add_keys_to_agent == -1)
+		options->add_keys_to_agent = 0;
 	if (options->num_identity_files == 0) {
 		if (options->protocol & SSH_PROTO_1) {
 			add_identity_file(options, "~/",
@@ -1880,7 +1930,6 @@ fill_default_options(Options * options)
 		options->tun_remote = SSH_TUNID_ANY;
 	if (options->permit_local_command == -1)
 		options->permit_local_command = 0;
-	options->use_roaming = 0;
 	if (options->visual_host_key == -1)
 		options->visual_host_key = 0;
 	if (options->ip_qos_interactive == -1)
@@ -2291,6 +2340,10 @@ dump_client_config(Options *o, const char *host)
 	int i;
 	char vbuf[5];
 
+	/* This is normally prepared in ssh_kex2 */
+	if (kex_assemble_names(KEX_DEFAULT_PK_ALG, &o->hostkeyalgorithms) != 0)
+		fatal("%s: kex_assemble_names failed", __func__);
+
 	/* Most interesting options first: user, host, port */
 	dump_cfg_string(oUser, o->user);
 	dump_cfg_string(oHostName, host);
@@ -2351,7 +2404,7 @@ dump_client_config(Options *o, const char *host)
 	dump_cfg_string(oBindAddress, o->bind_address);
 	dump_cfg_string(oCiphers, o->ciphers ? o->ciphers : KEX_CLIENT_ENCRYPT);
 	dump_cfg_string(oControlPath, o->control_path);
-	dump_cfg_string(oHostKeyAlgorithms, o->hostkeyalgorithms ? o->hostkeyalgorithms : KEX_DEFAULT_PK_ALG);
+	dump_cfg_string(oHostKeyAlgorithms, o->hostkeyalgorithms);
 	dump_cfg_string(oHostKeyAlias, o->host_key_alias);
 	dump_cfg_string(oHostbasedKeyTypes, o->hostbased_key_types);
 	dump_cfg_string(oKbdInteractiveDevices, o->kbd_interactive_devices);
@@ -2362,6 +2415,7 @@ dump_client_config(Options *o, const char *host)
 	dump_cfg_string(oPKCS11Provider, o->pkcs11_provider);
 	dump_cfg_string(oPreferredAuthentications, o->preferred_authentications);
 	dump_cfg_string(oProxyCommand, o->proxy_command);
+	dump_cfg_string(oPubkeyAcceptedKeyTypes, o->pubkey_key_types);
 	dump_cfg_string(oRevokedHostKeys, o->revoked_host_keys);
 	dump_cfg_string(oXAuthLocation, o->xauth_location);
 
@@ -2430,8 +2484,8 @@ dump_client_config(Options *o, const char *host)
 	printf("%s\n", iptos2str(o->ip_qos_bulk));
 
 	/* oRekeyLimit */
-	printf("rekeylimit %lld %d\n",
-	    (long long)o->rekey_limit, o->rekey_interval);
+	printf("rekeylimit %llu %d\n",
+	    (unsigned long long)o->rekey_limit, o->rekey_interval);
 
 	/* oStreamLocalBindMask */
 	printf("streamlocalbindmask 0%o\n",

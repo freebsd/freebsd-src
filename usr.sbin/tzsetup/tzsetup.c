@@ -344,7 +344,7 @@ read_iso3166_table(void)
 		err(1, "%s", path_iso3166);
 	lineno = 0;
 
-	while ((s = fgetln(fp, &len)) != 0) {
+	while ((s = fgetln(fp, &len)) != NULL) {
 		lineno++;
 		if (s[len - 1] != '\n')
 			errx(1, "%s:%d: invalid format", path_iso3166, lineno);
@@ -354,7 +354,7 @@ read_iso3166_table(void)
 
 		/* Isolate the two-letter code. */
 		t = strsep(&s, "\t");
-		if (t == 0 || strlen(t) != 2)
+		if (t == NULL || strlen(t) != 2)
 			errx(1, "%s:%d: invalid format", path_iso3166, lineno);
 		if (t[0] < 'A' || t[0] > 'Z' || t[1] < 'A' || t[1] > 'Z')
 			errx(1, "%s:%d: invalid code `%s'", path_iso3166,
@@ -362,10 +362,10 @@ read_iso3166_table(void)
 
 		/* Now skip past the three-letter and numeric codes. */
 		name = strsep(&s, "\t");	/* 3-let */
-		if (name == 0 || strlen(name) != 3)
+		if (name == NULL || strlen(name) != 3)
 			errx(1, "%s:%d: invalid format", path_iso3166, lineno);
 		name = strsep(&s, "\t");	/* numeric */
-		if (name == 0 || strlen(name) != 3)
+		if (name == NULL || strlen(name) != 3)
 			errx(1, "%s:%d: invalid format", path_iso3166, lineno);
 
 		name = s;
@@ -407,7 +407,7 @@ add_zone_to_country(int lineno, const char *tlc, const char *descr,
 			    path_zonetab, lineno);
 
 		zp = malloc(sizeof(*zp));
-		if (zp == 0)
+		if (zp == NULL)
 			errx(1, "malloc(%zu)", sizeof(*zp));
 
 		if (cp->nzones == 0)
@@ -483,7 +483,7 @@ read_zones(void)
 		err(1, "%s", path_zonetab);
 	lineno = 0;
 
-	while ((line = fgetln(fp, &len)) != 0) {
+	while ((line = fgetln(fp, &len)) != NULL) {
 		lineno++;
 		if (line[len - 1] != '\n')
 			errx(1, "%s:%d: invalid format", path_zonetab, lineno);
@@ -498,7 +498,7 @@ read_zones(void)
 		/* coord = */ strsep(&line, "\t");	 /* Unused */
 		file = strsep(&line, "\t");
 		p = strchr(file, '/');
-		if (p == 0)
+		if (p == NULL)
 			errx(1, "%s:%d: invalid zone name `%s'", path_zonetab,
 			    lineno, file);
 		contbuf[0] = '\0';
@@ -558,7 +558,7 @@ make_menus(void)
 		continent_names[i].continent->menu =
 		    malloc(sizeof(dialogMenuItem) *
 		    continent_names[i].continent->nitems);
-		if (continent_names[i].continent->menu == 0)
+		if (continent_names[i].continent->menu == NULL)
 			errx(1, "malloc for continent menu");
 		continent_names[i].continent->nitems = 0;
 		continents[i].prompt = continent_items[i].prompt;

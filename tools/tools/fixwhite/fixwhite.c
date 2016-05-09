@@ -95,7 +95,7 @@ savewhite(char c, bool leading)
 		savebyte(' ');
 		break;
 	case '\t':
-		/* Convert preceeding spaces to tabs. */
+		/* Convert preceding spaces to tabs. */
 		ncolumn = (column / 8 + 1) * 8;
 		while (peekbyte(1, ' ')) {
 			queuelen--;

@@ -29,9 +29,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/types.h>
@@ -108,7 +109,6 @@ struct pthread_cond_attr _pthread_condattr_default = {
 	.c_clockid = CLOCK_REALTIME
 };
 
-pid_t		_thr_pid;
 int		_thr_is_smp = 0;
 size_t		_thr_guard_default;
 size_t		_thr_stack_default = THR_STACK_DEFAULT;
@@ -305,7 +305,7 @@ _thread_init_hack(void)
 void
 _libpthread_init(struct pthread *curthread)
 {
-	int fd, first, dlopened;
+	int first, dlopened;
 
 	/* Check if this function has already been called: */
 	if ((_thr_initial != NULL) && (curthread == NULL))
@@ -320,27 +320,6 @@ _libpthread_init(struct pthread *curthread)
 		PANIC("Thread jump table not properly initialized");
 	memcpy(__thr_jtable, jmp_table, sizeof(jmp_table));
 	__thr_interpose_libc();
-
-	/*
-	 * Check for the special case of this process running as
-	 * or in place of init as pid = 1:
-	 */
-	if ((_thr_pid = getpid()) == 1) {
-		/*
-		 * Setup a new session for this process which is
-		 * assumed to be running as root.
-		 */
-		if (setsid() == -1)
-			PANIC("Can't set session ID");
-		if (revoke(_PATH_CONSOLE) != 0)
-			PANIC("Can't revoke console");
-		if ((fd = __sys_openat(AT_FDCWD, _PATH_CONSOLE, O_RDWR)) < 0)
-			PANIC("Can't open console");
-		if (setlogin("root") == -1)
-			PANIC("Can't set login to root");
-		if (_ioctl(fd, TIOCSCTTY, (char *) NULL) == -1)
-			PANIC("Can't set controlling terminal");
-	}
 
 	/* Initialize pthread private data. */
 	init_private();
@@ -466,7 +445,6 @@ init_private(void)
 	_thr_once_init();
 	_thr_spinlock_init();
 	_thr_list_init();
-	__thr_pshared_init();
 	_thr_wake_addr_init();
 	_sleepq_init();
 	_single_thread = NULL;
@@ -477,6 +455,7 @@ init_private(void)
 	 * e.g. after a fork().
 	 */
 	if (init_once == 0) {
+		__thr_pshared_init();
 		/* Find the stack top */
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_USRSTACK;

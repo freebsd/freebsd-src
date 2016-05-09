@@ -54,7 +54,7 @@ public:
   const std::string &nameSpace() const { return NS; }
   bool knownToGCC() const { return K; }
 };
-} // namespace
+} // end anonymous namespace
 
 static std::vector<FlattenedSpelling>
 GetFlattenedSpellings(const Record &Attr) {
@@ -166,17 +166,18 @@ namespace {
     std::string lowerName, upperName;
     StringRef attrName;
     bool isOpt;
+    bool Fake;
 
   public:
     Argument(const Record &Arg, StringRef Attr)
       : lowerName(Arg.getValueAsString("Name")), upperName(lowerName),
-        attrName(Attr), isOpt(false) {
+        attrName(Attr), isOpt(false), Fake(false) {
       if (!lowerName.empty()) {
         lowerName[0] = std::tolower(lowerName[0]);
         upperName[0] = std::toupper(upperName[0]);
       }
     }
-    virtual ~Argument() {}
+    virtual ~Argument() = default;
 
     StringRef getLowerName() const { return lowerName; }
     StringRef getUpperName() const { return upperName; }
@@ -184,6 +185,9 @@ namespace {
 
     bool isOptional() const { return isOpt; }
     void setOptional(bool set) { isOpt = set; }
+
+    bool isFake() const { return Fake; }
+    void setFake(bool fake) { Fake = fake; }
 
     // These functions print the argument contents formatted in different ways.
     virtual void writeAccessors(raw_ostream &OS) const = 0;
@@ -275,6 +279,8 @@ namespace {
         OS << "    OS << \" \";\n";
         OS << "    dumpBareDeclRef(SA->get" << getUpperName() << "());\n"; 
       } else if (type == "IdentifierInfo *") {
+        if (isOptional())
+          OS << "    if (SA->get" << getUpperName() << "())\n  ";
         OS << "    OS << \" \" << SA->get" << getUpperName()
            << "()->getName();\n";
       } else if (type == "TypeSourceInfo *") {
@@ -348,7 +354,7 @@ namespace {
          << "Length])";
     }
     void writeCtorDefaultInitializers(raw_ostream &OS) const override {
-      OS << getLowerName() << "Length(0)," << getLowerName() << "(0)";
+      OS << getLowerName() << "Length(0)," << getLowerName() << "(nullptr)";
     }
     void writeCtorParameters(raw_ostream &OS) const override {
       OS << "llvm::StringRef " << getUpperName();
@@ -491,7 +497,7 @@ namespace {
       // The aligned attribute argument expression is optional.
       OS << "    if (is" << getLowerName() << "Expr && "
          << getLowerName() << "Expr)\n";
-      OS << "      " << getLowerName() << "Expr->printPretty(OS, 0, Policy);\n";
+      OS << "      " << getLowerName() << "Expr->printPretty(OS, nullptr, Policy);\n";
       OS << "    OS << \"";
     }
     void writeDump(raw_ostream &OS) const override {
@@ -613,7 +619,7 @@ namespace {
     std::vector<std::string> uniques;
     std::set<std::string> unique_set(enums.begin(), enums.end());
     for (const auto &i : enums) {
-      std::set<std::string>::iterator set_i = unique_set.find(i);
+      auto set_i = unique_set.find(i);
       if (set_i != unique_set.end()) {
         uniques.push_back(i);
         unique_set.erase(set_i);
@@ -659,8 +665,7 @@ namespace {
       OS << type << " " << getUpperName();
     }
     void writeDeclarations(raw_ostream &OS) const override {
-      std::vector<std::string>::const_iterator i = uniques.begin(),
-                                               e = uniques.end();
+      auto i = uniques.cbegin(), e = uniques.cend();
       // The last one needs to not have a comma.
       --e;
 
@@ -765,8 +770,7 @@ namespace {
     bool isVariadicEnumArg() const override { return true; }
     
     void writeDeclarations(raw_ostream &OS) const override {
-      std::vector<std::string>::const_iterator i = uniques.begin(),
-                                               e = uniques.end();
+      auto i = uniques.cbegin(), e = uniques.cend();
       // The last one needs to not have a comma.
       --e;
 
@@ -952,7 +956,7 @@ namespace {
     }
 
     void writeTemplateInstantiation(raw_ostream &OS) const override {
-      OS << "      " << getType() << " *tempInst" << getUpperName()
+      OS << "      auto *tempInst" << getUpperName()
          << " = new (C, 16) " << getType()
          << "[A->" << getLowerName() << "_size()];\n";
       OS << "      {\n";
@@ -1018,7 +1022,7 @@ namespace {
           getType(), "SA->get" + std::string(getUpperName()) + "Loc()");
     }
   };
-}
+} // end anonymous namespace
 
 static std::unique_ptr<Argument>
 createArgument(const Record &Arg, StringRef Attr,
@@ -1077,6 +1081,9 @@ createArgument(const Record &Arg, StringRef Attr,
 
   if (Ptr && Arg.getValueAsBit("Optional"))
     Ptr->setOptional(true);
+
+  if (Ptr && Arg.getValueAsBit("Fake"))
+    Ptr->setFake(true);
 
   return Ptr;
 }
@@ -1180,9 +1187,18 @@ writePrettyPrintFunction(Record &R,
     if (Variety == "Pragma") {
       OS << " \";\n";
       OS << "    printPrettyPragma(OS, Policy);\n";
+      OS << "    OS << \"\\n\";";
       OS << "    break;\n";
       OS << "  }\n";
       continue;
+    }
+
+    // Fake arguments aren't part of the parsed form and should not be
+    // pretty-printed.
+    bool hasNonFakeArgs = false;
+    for (const auto &arg : Args) {
+      if (arg->isFake()) continue;
+      hasNonFakeArgs = true;
     }
 
     // FIXME: always printing the parenthesis isn't the correct behavior for
@@ -1190,18 +1206,20 @@ writePrettyPrintFunction(Record &R,
     // instance: __attribute__((aligned)) will be pretty printed as
     // __attribute__((aligned())). The logic should check whether there is only
     // a single argument, and if it is optional, whether it has been provided.
-    if (!Args.empty())
+    if (hasNonFakeArgs)
       OS << "(";
     if (Spelling == "availability") {
       writeAvailabilityValue(OS);
     } else {
-      for (auto I = Args.begin(), E = Args.end(); I != E; ++ I) {
-        if (I != Args.begin()) OS << ", ";
-        (*I)->writeValue(OS);
+      unsigned index = 0;
+      for (const auto &arg : Args) {
+        if (arg->isFake()) continue;
+        if (index++) OS << ", ";
+        arg->writeValue(OS);
       }
     }
 
-    if (!Args.empty())
+    if (hasNonFakeArgs)
       OS << ")";
     OS << Suffix + "\";\n";
 
@@ -1473,10 +1491,19 @@ void EmitClangAttrClass(RecordKeeper &Records, raw_ostream &OS) {
     std::vector<std::unique_ptr<Argument>> Args;
     Args.reserve(ArgRecords.size());
 
+    bool HasOptArg = false;
+    bool HasFakeArg = false;
     for (const auto *ArgRecord : ArgRecords) {
       Args.emplace_back(createArgument(*ArgRecord, R.getName()));
       Args.back()->writeDeclarations(OS);
       OS << "\n\n";
+
+      // For these purposes, fake takes priority over optional.
+      if (Args.back()->isFake()) {
+        HasFakeArg = true;
+      } else if (Args.back()->isOptional()) {
+        HasOptArg = true;
+      }
     }
 
     OS << "\npublic:\n";
@@ -1495,69 +1522,53 @@ void EmitClangAttrClass(RecordKeeper &Records, raw_ostream &OS) {
     if (!ElideSpelling)
       OS << CreateSemanticSpellings(Spellings, SemanticToSyntacticMap);
 
-    OS << "  static " << R.getName() << "Attr *CreateImplicit(";
-    OS << "ASTContext &Ctx";
-    if (!ElideSpelling)
-      OS << ", Spelling S";
-    for (auto const &ai : Args) {
-      OS << ", ";
-      ai->writeCtorParameters(OS);
-    }
-    OS << ", SourceRange Loc = SourceRange()";
-    OS << ") {\n";
-    OS << "    " << R.getName() << "Attr *A = new (Ctx) " << R.getName();
-    OS << "Attr(Loc, Ctx, ";
-    for (auto const &ai : Args) {
-      ai->writeImplicitCtorArgs(OS);
-      OS << ", ";
-    }
-    OS << (ElideSpelling ? "0" : "S") << ");\n";
-    OS << "    A->setImplicit(true);\n";
-    OS << "    return A;\n  }\n\n";
+    // Emit CreateImplicit factory methods.
+    auto emitCreateImplicit = [&](bool emitFake) {
+      OS << "  static " << R.getName() << "Attr *CreateImplicit(";
+      OS << "ASTContext &Ctx";
+      if (!ElideSpelling)
+        OS << ", Spelling S";
+      for (auto const &ai : Args) {
+        if (ai->isFake() && !emitFake) continue;
+        OS << ", ";
+        ai->writeCtorParameters(OS);
+      }
+      OS << ", SourceRange Loc = SourceRange()";
+      OS << ") {\n";
+      OS << "    auto *A = new (Ctx) " << R.getName();
+      OS << "Attr(Loc, Ctx, ";
+      for (auto const &ai : Args) {
+        if (ai->isFake() && !emitFake) continue;
+        ai->writeImplicitCtorArgs(OS);
+        OS << ", ";
+      }
+      OS << (ElideSpelling ? "0" : "S") << ");\n";
+      OS << "    A->setImplicit(true);\n";
+      OS << "    return A;\n  }\n\n";
+    };
 
-    OS << "  " << R.getName() << "Attr(SourceRange R, ASTContext &Ctx\n";
-    
-    bool HasOpt = false;
-    for (auto const &ai : Args) {
-      OS << "              , ";
-      ai->writeCtorParameters(OS);
-      OS << "\n";
-      if (ai->isOptional())
-        HasOpt = true;
-    }
+    // Emit a CreateImplicit that takes all the arguments.
+    emitCreateImplicit(true);
 
-    OS << "              , ";
-    OS << "unsigned SI\n";
-
-    OS << "             )\n";
-    OS << "    : " << SuperName << "(attr::" << R.getName() << ", R, SI, "
-       << R.getValueAsBit("LateParsed") << ", "
-       << R.getValueAsBit("DuplicatesAllowedWhileMerging") << ")\n";
-
-    for (auto const &ai : Args) {
-      OS << "              , ";
-      ai->writeCtorInitializers(OS);
-      OS << "\n";
+    // Emit a CreateImplicit that takes all the non-fake arguments.
+    if (HasFakeArg) {
+      emitCreateImplicit(false);
     }
 
-    OS << "  {\n";
-  
-    for (auto const &ai : Args) {
-      ai->writeCtorBody(OS);
-      OS << "\n";
-    }
-    OS << "  }\n\n";
+    // Emit constructors.
+    auto emitCtor = [&](bool emitOpt, bool emitFake) {
+      auto shouldEmitArg = [=](const std::unique_ptr<Argument> &arg) {
+        if (arg->isFake()) return emitFake;
+        if (arg->isOptional()) return emitOpt;
+        return true;
+      };
 
-    // If there are optional arguments, write out a constructor that elides the
-    // optional arguments as well.
-    if (HasOpt) {
       OS << "  " << R.getName() << "Attr(SourceRange R, ASTContext &Ctx\n";
       for (auto const &ai : Args) {
-        if (!ai->isOptional()) {
-          OS << "              , ";
-          ai->writeCtorParameters(OS);
-          OS << "\n";
-        }
+        if (!shouldEmitArg(ai)) continue;
+        OS << "              , ";
+        ai->writeCtorParameters(OS);
+        OS << "\n";
       }
 
       OS << "              , ";
@@ -1570,19 +1581,37 @@ void EmitClangAttrClass(RecordKeeper &Records, raw_ostream &OS) {
 
       for (auto const &ai : Args) {
         OS << "              , ";
-        ai->writeCtorDefaultInitializers(OS);
+        if (!shouldEmitArg(ai)) {
+          ai->writeCtorDefaultInitializers(OS);
+        } else {
+          ai->writeCtorInitializers(OS);
+        }
         OS << "\n";
       }
 
       OS << "  {\n";
   
       for (auto const &ai : Args) {
-        if (!ai->isOptional()) {
-          ai->writeCtorBody(OS);
-          OS << "\n";
-        }
+        if (!shouldEmitArg(ai)) continue;
+        ai->writeCtorBody(OS);
+        OS << "\n";
       }
       OS << "  }\n\n";
+
+    };
+
+    // Emit a constructor that includes all the arguments.
+    // This is necessary for cloning.
+    emitCtor(true, true);
+
+    // Emit a constructor that takes all the non-fake arguments.
+    if (HasFakeArg) {
+      emitCtor(true, false);
+    }
+ 
+    // Emit a constructor that takes all the non-fake, non-optional arguments.
+    if (HasOptArg) {
+      emitCtor(false, false);
     }
 
     OS << "  " << R.getName() << "Attr *clone(ASTContext &C) const;\n";
@@ -1604,6 +1633,9 @@ void EmitClangAttrClass(RecordKeeper &Records, raw_ostream &OS) {
       ai->writeAccessors(OS);
       OS << "\n\n";
 
+      // Don't write conversion routines for fake arguments.
+      if (ai->isFake()) continue;
+
       if (ai->isEnumArg())
         static_cast<const EnumArgument *>(ai.get())->writeConversion(OS);
       else if (ai->isVariadicEnumArg())
@@ -1620,7 +1652,7 @@ void EmitClangAttrClass(RecordKeeper &Records, raw_ostream &OS) {
     OS << "};\n\n";
   }
 
-  OS << "#endif\n";
+  OS << "#endif // LLVM_CLANG_ATTR_CLASSES_INC\n";
 }
 
 // Emits the class method definitions for attributes.
@@ -1695,7 +1727,7 @@ void EmitClangAttrImpl(RecordKeeper &Records, raw_ostream &OS) {
 
 static void EmitAttrList(raw_ostream &OS, StringRef Class,
                          const std::vector<Record*> &AttrList) {
-  std::vector<Record*>::const_iterator i = AttrList.begin(), e = AttrList.end();
+  auto i = AttrList.cbegin(), e = AttrList.cend();
 
   if (i != e) {
     // Move the end iterator back to emit the last attribute.
@@ -1847,7 +1879,7 @@ void EmitClangAttrPCHWrite(RecordKeeper &Records, raw_ostream &OS) {
     OS << "  case attr::" << R.getName() << ": {\n";
     Args = R.getValueAsListOfDefs("Args");
     if (R.isSubClassOf(InhClass) || !Args.empty())
-      OS << "    const " << R.getName() << "Attr *SA = cast<" << R.getName()
+      OS << "    const auto *SA = cast<" << R.getName()
          << "Attr>(A);\n";
     if (R.isSubClassOf(InhClass))
       OS << "    Record.push_back(SA->isInherited());\n";
@@ -1860,6 +1892,65 @@ void EmitClangAttrPCHWrite(RecordKeeper &Records, raw_ostream &OS) {
     OS << "  }\n";
   }
   OS << "  }\n";
+}
+
+// Generate a conditional expression to check if the current target satisfies
+// the conditions for a TargetSpecificAttr record, and append the code for
+// those checks to the Test string. If the FnName string pointer is non-null,
+// append a unique suffix to distinguish this set of target checks from other
+// TargetSpecificAttr records.
+static void GenerateTargetSpecificAttrChecks(const Record *R,
+                                             std::vector<std::string> &Arches,
+                                             std::string &Test,
+                                             std::string *FnName) {
+  // It is assumed that there will be an llvm::Triple object
+  // named "T" and a TargetInfo object named "Target" within
+  // scope that can be used to determine whether the attribute exists in
+  // a given target.
+  Test += "(";
+
+  for (auto I = Arches.begin(), E = Arches.end(); I != E; ++I) {
+    std::string Part = *I;
+    Test += "T.getArch() == llvm::Triple::" + Part;
+    if (I + 1 != E)
+      Test += " || ";
+    if (FnName)
+      *FnName += Part;
+  }
+  Test += ")";
+
+  // If the attribute is specific to particular OSes, check those.
+  if (!R->isValueUnset("OSes")) {
+    // We know that there was at least one arch test, so we need to and in the
+    // OS tests.
+    Test += " && (";
+    std::vector<std::string> OSes = R->getValueAsListOfStrings("OSes");
+    for (auto I = OSes.begin(), E = OSes.end(); I != E; ++I) {
+      std::string Part = *I;
+
+      Test += "T.getOS() == llvm::Triple::" + Part;
+      if (I + 1 != E)
+        Test += " || ";
+      if (FnName)
+        *FnName += Part;
+    }
+    Test += ")";
+  }
+
+  // If one or more CXX ABIs are specified, check those as well.
+  if (!R->isValueUnset("CXXABIs")) {
+    Test += " && (";
+    std::vector<std::string> CXXABIs = R->getValueAsListOfStrings("CXXABIs");
+    for (auto I = CXXABIs.begin(), E = CXXABIs.end(); I != E; ++I) {
+      std::string Part = *I;
+      Test += "Target.getCXXABI().getKind() == TargetCXXABI::" + Part;
+      if (I + 1 != E)
+        Test += " || ";
+      if (FnName)
+        *FnName += Part;
+    }
+    Test += ")";
+  }
 }
 
 static void GenerateHasAttrSpellingStringSwitch(
@@ -1887,37 +1978,12 @@ static void GenerateHasAttrSpellingStringSwitch(
       }
     }
 
-    // It is assumed that there will be an llvm::Triple object named T within
-    // scope that can be used to determine whether the attribute exists in
-    // a given target.
     std::string Test;
     if (Attr->isSubClassOf("TargetSpecificAttr")) {
       const Record *R = Attr->getValueAsDef("Target");
       std::vector<std::string> Arches = R->getValueAsListOfStrings("Arches");
+      GenerateTargetSpecificAttrChecks(R, Arches, Test, nullptr);
 
-      Test += "(";
-      for (auto AI = Arches.begin(), AE = Arches.end(); AI != AE; ++AI) {
-        std::string Part = *AI;
-        Test += "T.getArch() == llvm::Triple::" + Part;
-        if (AI + 1 != AE)
-          Test += " || ";
-      }
-      Test += ")";
-
-      std::vector<std::string> OSes;
-      if (!R->isValueUnset("OSes")) {
-        Test += " && (";
-        std::vector<std::string> OSes = R->getValueAsListOfStrings("OSes");
-        for (auto AI = OSes.begin(), AE = OSes.end(); AI != AE; ++AI) {
-          std::string Part = *AI;
-
-          Test += "T.getOS() == llvm::Triple::" + Part;
-          if (AI + 1 != AE)
-            Test += " || ";
-        }
-        Test += ")";
-      }
-      
       // If this is the C++11 variety, also add in the LangOpts test.
       if (Variety == "CXX11")
         Test += " && LangOpts.CPlusPlus11";
@@ -1964,6 +2030,7 @@ void EmitClangAttrHasAttrImpl(RecordKeeper &Records, raw_ostream &OS) {
     }
   }
 
+  OS << "const llvm::Triple &T = Target.getTriple();\n";
   OS << "switch (Syntax) {\n";
   OS << "case AttrSyntax::GNU:\n";
   OS << "  return llvm::StringSwitch<int>(Name)\n";
@@ -1976,9 +2043,7 @@ void EmitClangAttrHasAttrImpl(RecordKeeper &Records, raw_ostream &OS) {
   GenerateHasAttrSpellingStringSwitch(Pragma, OS, "Pragma");
   OS << "case AttrSyntax::CXX: {\n";
   // C++11-style attributes are further split out based on the Scope.
-  for (std::map<std::string, std::vector<Record *>>::iterator I = CXX.begin(),
-                                                              E = CXX.end();
-       I != E; ++I) {
+  for (auto I = CXX.cbegin(), E = CXX.cend(); I != E; ++I) {
     if (I != CXX.begin())
       OS << " else ";
     if (I->first.empty())
@@ -2049,7 +2114,7 @@ void EmitClangAttrASTVisitor(RecordKeeper &Records, raw_ostream &OS) {
     OS << "  bool Visit"
        << R.getName() << "Attr(" << R.getName() << "Attr *A) {\n"
        << "    return true; \n"
-       << "  };\n";
+       << "  }\n";
   }
   OS << "\n#else // ATTR_VISITOR_DECLS_ONLY\n\n";
 
@@ -2123,12 +2188,12 @@ void EmitClangAttrTemplateInstantiate(RecordKeeper &Records, raw_ostream &OS) {
     bool ShouldClone = R.getValueAsBit("Clone");
 
     if (!ShouldClone) {
-      OS << "      return NULL;\n";
+      OS << "      return nullptr;\n";
       OS << "    }\n";
       continue;
     }
 
-    OS << "      const " << R.getName() << "Attr *A = cast<"
+    OS << "      const auto *A = cast<"
        << R.getName() << "Attr>(At);\n";
     bool TDependent = R.getValueAsBit("TemplateDependent");
 
@@ -2157,7 +2222,7 @@ void EmitClangAttrTemplateInstantiate(RecordKeeper &Records, raw_ostream &OS) {
   }
   OS << "  } // end switch\n"
      << "  llvm_unreachable(\"Unknown attribute!\");\n"
-     << "  return 0;\n"
+     << "  return nullptr;\n"
      << "}\n\n"
      << "} // end namespace sema\n"
      << "} // end namespace clang\n";
@@ -2328,6 +2393,7 @@ static std::string GetSubjectWithSuffix(const Record *R) {
     return "Decl";
   return B + "Decl";
 }
+
 static std::string GenerateCustomAppertainsTo(const Record &Subject,
                                               raw_ostream &OS) {
   std::string FnName = "is" + Subject.getName();
@@ -2335,7 +2401,7 @@ static std::string GenerateCustomAppertainsTo(const Record &Subject,
   // If this code has already been generated, simply return the previous
   // instance of it.
   static std::set<std::string> CustomSubjectSet;
-  std::set<std::string>::iterator I = CustomSubjectSet.find(FnName);
+  auto I = CustomSubjectSet.find(FnName);
   if (I != CustomSubjectSet.end())
     return *I;
 
@@ -2349,7 +2415,7 @@ static std::string GenerateCustomAppertainsTo(const Record &Subject,
   }
 
   OS << "static bool " << FnName << "(const Decl *D) {\n";
-  OS << "  if (const " << GetSubjectWithSuffix(Base) << " *S = dyn_cast<";
+  OS << "  if (const auto *S = dyn_cast<";
   OS << GetSubjectWithSuffix(Base);
   OS << ">(D))\n";
   OS << "    return " << Subject.getValueAsString("CheckCode") << ";\n";
@@ -2449,7 +2515,7 @@ static std::string GenerateLangOptRequirements(const Record &R,
   // If this code has already been generated, simply return the previous
   // instance of it.
   static std::set<std::string> CustomLangOptsSet;
-  std::set<std::string>::iterator I = CustomLangOptsSet.find(FnName);
+  auto I = CustomLangOptsSet.find(FnName);
   if (I != CustomLangOptsSet.end())
     return *I;
 
@@ -2466,7 +2532,7 @@ static std::string GenerateLangOptRequirements(const Record &R,
 }
 
 static void GenerateDefaultTargetRequirements(raw_ostream &OS) {
-  OS << "static bool defaultTargetRequirements(const llvm::Triple &) {\n";
+  OS << "static bool defaultTargetRequirements(const TargetInfo &) {\n";
   OS << "  return true;\n";
   OS << "}\n\n";
 }
@@ -2505,47 +2571,19 @@ static std::string GenerateTargetRequirements(const Record &Attr,
     }
   }
 
-  std::string FnName = "isTarget", Test = "(";
-  for (auto I = Arches.begin(), E = Arches.end(); I != E; ++I) {
-    std::string Part = *I;
-    Test += "Arch == llvm::Triple::" + Part;
-    if (I + 1 != E)
-      Test += " || ";
-    FnName += Part;
-  }
-  Test += ")";
-
-  // If the target also requires OS testing, generate those tests as well.
-  bool UsesOS = false;
-  if (!R->isValueUnset("OSes")) {
-    UsesOS = true;
-    
-    // We know that there was at least one arch test, so we need to and in the
-    // OS tests.
-    Test += " && (";
-    std::vector<std::string> OSes = R->getValueAsListOfStrings("OSes");
-    for (auto I = OSes.begin(), E = OSes.end(); I != E; ++I) {
-      std::string Part = *I;
-
-      Test += "OS == llvm::Triple::" + Part;
-      if (I + 1 != E)
-        Test += " || ";
-      FnName += Part;
-    }
-    Test += ")";
-  }
+  std::string FnName = "isTarget";
+  std::string Test;
+  GenerateTargetSpecificAttrChecks(R, Arches, Test, &FnName);
 
   // If this code has already been generated, simply return the previous
   // instance of it.
   static std::set<std::string> CustomTargetSet;
-  std::set<std::string>::iterator I = CustomTargetSet.find(FnName);
+  auto I = CustomTargetSet.find(FnName);
   if (I != CustomTargetSet.end())
     return *I;
 
-  OS << "static bool " << FnName << "(const llvm::Triple &T) {\n";
-  OS << "  llvm::Triple::ArchType Arch = T.getArch();\n";
-  if (UsesOS)
-    OS << "  llvm::Triple::OSType OS = T.getOS();\n";
+  OS << "static bool " << FnName << "(const TargetInfo &Target) {\n";
+  OS << "  const llvm::Triple &T = Target.getTriple();\n";
   OS << "  return " << Test << ";\n";
   OS << "}\n\n";
 
@@ -2758,13 +2796,13 @@ void EmitClangAttrDump(RecordKeeper &Records, raw_ostream &OS) {
 
     Args = R.getValueAsListOfDefs("Args");
     if (!Args.empty()) {
-      OS << "    const " << R.getName() << "Attr *SA = cast<" << R.getName()
+      OS << "    const auto *SA = cast<" << R.getName()
          << "Attr>(A);\n";
       for (const auto *Arg : Args)
         createArgument(*Arg, R.getName())->writeDump(OS);
 
-      for (auto AI = Args.begin(), AE = Args.end(); AI != AE; ++AI)
-        createArgument(**AI, R.getName())->writeDumpChildren(OS);
+      for (const auto *AI : Args)
+        createArgument(*AI, R.getName())->writeDumpChildren(OS);
     }
     OS <<
       "    break;\n"

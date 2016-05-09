@@ -2819,11 +2819,7 @@ mxge_clean_rx_done(struct mxge_slice_state *ss)
 			break;
 	}
 #if defined(INET)  || defined (INET6)
-	while (!SLIST_EMPTY(&ss->lc.lro_active)) {
-		struct lro_entry *lro = SLIST_FIRST(&ss->lc.lro_active);
-		SLIST_REMOVE_HEAD(&ss->lc.lro_active, next);
-		tcp_lro_flush(&ss->lc, lro);
-	}
+	tcp_lro_flush_all(&ss->lc);
 #endif
 }
 
@@ -2998,16 +2994,14 @@ mxge_media_probe(mxge_softc_t *sc)
 		/* -R is XFP */
 		mxge_media_types = mxge_xfp_media_types;
 		mxge_media_type_entries =
-			sizeof (mxge_xfp_media_types) /
-			sizeof (mxge_xfp_media_types[0]);
+			nitems(mxge_xfp_media_types);
 		byte = MXGE_XFP_COMPLIANCE_BYTE;
 		cage_type = "XFP";
 	} else 	if (sc->connector == MXGE_SFP) {
 		/* -S or -2S is SFP+ */
 		mxge_media_types = mxge_sfp_media_types;
 		mxge_media_type_entries =
-			sizeof (mxge_sfp_media_types) /
-			sizeof (mxge_sfp_media_types[0]);
+			nitems(mxge_sfp_media_types);
 		cage_type = "SFP+";
 		byte = 3;
 	} else {
@@ -4612,7 +4606,7 @@ mxge_add_msix_irqs(mxge_softc_t *sc)
 		device_printf(sc->dev, "using %d msix IRQs:",
 			      sc->num_slices);
 		for (i = 0; i < sc->num_slices; i++)
-			printf(" %ld",  rman_get_start(sc->msix_irq_res[i]));
+			printf(" %jd", rman_get_start(sc->msix_irq_res[i]));
 		printf("\n");
 	}
 	return (0);
@@ -4668,7 +4662,7 @@ mxge_add_single_irq(mxge_softc_t *sc)
 		return ENXIO;
 	}
 	if (mxge_verbose)
-		device_printf(sc->dev, "using %s irq %ld\n",
+		device_printf(sc->dev, "using %s irq %jd\n",
 			      sc->legacy_irq ? "INTx" : "MSI",
 			      rman_get_start(sc->irq_res));
 	err = bus_setup_intr(sc->dev, sc->irq_res,
@@ -4823,7 +4817,7 @@ mxge_attach(device_t dev)
 	sc->sram = rman_get_virtual(sc->mem_res);
 	sc->sram_size = 2*1024*1024 - (2*(48*1024)+(32*1024)) - 0x100;
 	if (sc->sram_size > rman_get_size(sc->mem_res)) {
-		device_printf(dev, "impossible memory region size %ld\n",
+		device_printf(dev, "impossible memory region size %jd\n",
 			      rman_get_size(sc->mem_res));
 		err = ENXIO;
 		goto abort_with_mem_res;

@@ -341,7 +341,7 @@ sbus_attach(device_t dev)
 		sc->sc_burst =
 		    (SBUS_BURST64_DEF << SBUS_BURST64_SHIFT) | SBUS_BURST_DEF;
 
-	/* initalise the IOMMU */
+	/* initialise the IOMMU */
 
 	/* punch in our copies */
 	sc->sc_is.is_pmaxaddr = IOMMU_MAXADDR(SBUS_IOMMU_BITS);
@@ -929,8 +929,8 @@ sbus_print_res(struct sbus_devinfo *sdi)
 
 	rv = 0;
 	rv += resource_list_print_type(&sdi->sdi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx");
+	    "%#jx");
 	rv += resource_list_print_type(&sdi->sdi_rl, "irq", SYS_RES_IRQ,
-	    "%ld");
+	    "%jd");
 	return (rv);
 }

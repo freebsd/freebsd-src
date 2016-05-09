@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: lisp,v 1.23 2009/09/19 16:28:10 christos Exp $
+# $File: lisp,v 1.24 2015/11/30 20:54:26 christos Exp $
 # lisp:  file(1) magic for lisp programs
 #
 # various lisp types, from Daniel Quinlan (quinlan@yggdrasil.com)
@@ -26,16 +26,39 @@
 0	search/4096	(custom-set-variables\ 	Lisp/Scheme program text
 !:mime	text/x-lisp
 
+# URL: https://en.wikipedia.org/wiki/Emacs_Lisp
+# Reference: http://ftp.gnu.org/old-gnu/emacs/elisp-manual-18-1.03.tar.gz
+# Update: Joerg Jenderek 
 # Emacs 18 - this is always correct, but not very magical.
-0	string	\012(			Emacs v18 byte-compiled Lisp data
+0	string	\012(			
+# look for emacs lisp keywords
+# GRR: split regex because it is too long or get error like
+# lisp, 36: Warning: cannot get string from `^(defun|defvar|defconst|defmacro|setq|fset|put|provide|require|'
+>&0	regex	\^(defun|defvar|defconst|defmacro|setq|fset)	Emacs v18 byte-compiled Lisp data
 !:mime	application/x-elc
+# https://searchcode.com/codesearch/view/2173420/
+# not really pure text
+!:apple	EMAxTEXT
+!:ext elc
+# remaining regex
+>&0	regex	\^(put|provide|require|random)	Emacs v18 byte-compiled Lisp data
+!:mime	application/x-elc
+!:apple	EMAxTEXT
+!:ext elc
+# missed cl.elc dbx.elc simple.elc look like normal lisp starting with ;;;
+
 # Emacs 19+ - ver. recognition added by Ian Springer
 # Also applies to XEmacs 19+ .elc files; could tell them apart with regexs
 # - Chris Chittleborough <cchittleborough@yahoo.com.au>
+# Update: Joerg Jenderek 
 0	string	;ELC	
->4	byte	>18			
->4	byte    <32			Emacs/XEmacs v%d byte-compiled Lisp data
+# version\0\0\0
+>4	byte	>18			Emacs/XEmacs v%d byte-compiled Lisp data
+# why less than 32 ? does not make sense to me. GNU Emacs version is 24.5 at April 2015
+#>4	byte    <32			Emacs/XEmacs v%d byte-compiled Lisp data
 !:mime	application/x-elc		
+!:apple	EMAxTEXT
+!:ext elc
 
 # Files produced by CLISP Common Lisp From: Bruno Haible <haible@ilog.fr>
 0	string	(SYSTEM::VERSION\040'	CLISP byte-compiled Lisp program (pre 2004-03-27)

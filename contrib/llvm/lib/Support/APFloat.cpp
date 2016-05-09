@@ -768,6 +768,15 @@ APFloat::isLargest() const {
 }
 
 bool
+APFloat::isInteger() const {
+  // This could be made more efficient; I'm going for obviously correct.
+  if (!isFinite()) return false;
+  APFloat truncated = *this;
+  truncated.roundToIntegral(rmTowardZero);
+  return compare(truncated) == cmpEqual;
+}
+
+bool
 APFloat::bitwiseIsEqual(const APFloat &rhs) const {
   if (this == &rhs)
     return true;
@@ -777,18 +786,12 @@ APFloat::bitwiseIsEqual(const APFloat &rhs) const {
     return false;
   if (category==fcZero || category==fcInfinity)
     return true;
-  else if (isFiniteNonZero() && exponent!=rhs.exponent)
+
+  if (isFiniteNonZero() && exponent != rhs.exponent)
     return false;
-  else {
-    int i= partCount();
-    const integerPart* p=significandParts();
-    const integerPart* q=rhs.significandParts();
-    for (; i>0; i--, p++, q++) {
-      if (*p != *q)
-        return false;
-    }
-    return true;
-  }
+
+  return std::equal(significandParts(), significandParts() + partCount(),
+                    rhs.significandParts());
 }
 
 APFloat::APFloat(const fltSemantics &ourSemantics, integerPart value) {
@@ -846,6 +849,21 @@ unsigned int
 APFloat::semanticsPrecision(const fltSemantics &semantics)
 {
   return semantics.precision;
+}
+APFloat::ExponentType
+APFloat::semanticsMaxExponent(const fltSemantics &semantics)
+{
+  return semantics.maxExponent;
+}
+APFloat::ExponentType
+APFloat::semanticsMinExponent(const fltSemantics &semantics)
+{
+  return semantics.minExponent;
+}
+unsigned int
+APFloat::semanticsSizeInBits(const fltSemantics &semantics)
+{
+  return semantics.sizeInBits;
 }
 
 const integerPart *
@@ -1762,7 +1780,7 @@ APFloat::remainder(const APFloat &rhs)
 /* Normalized llvm frem (C fmod).
    This is not currently correct in all cases.  */
 APFloat::opStatus
-APFloat::mod(const APFloat &rhs, roundingMode rounding_mode)
+APFloat::mod(const APFloat &rhs)
 {
   opStatus fs;
   fs = modSpecials(rhs);
@@ -1787,10 +1805,10 @@ APFloat::mod(const APFloat &rhs, roundingMode rounding_mode)
                                           rmNearestTiesToEven);
     assert(fs==opOK);   // should always work
 
-    fs = V.multiply(rhs, rounding_mode);
+    fs = V.multiply(rhs, rmNearestTiesToEven);
     assert(fs==opOK || fs==opInexact);   // should not overflow or underflow
 
-    fs = subtract(V, rounding_mode);
+    fs = subtract(V, rmNearestTiesToEven);
     assert(fs==opOK || fs==opInexact);   // likewise
 
     if (isZero())

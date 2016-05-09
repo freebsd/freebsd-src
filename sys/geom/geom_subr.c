@@ -1508,8 +1508,8 @@ DB_SHOW_COMMAND(bio, db_show_bio)
 		db_printf("BIO %p\n", bp);
 		db_print_bio_cmd(bp);
 		db_print_bio_flags(bp);
-		db_printf("  cflags: 0x%hhx\n", bp->bio_cflags);
-		db_printf("  pflags: 0x%hhx\n", bp->bio_pflags);
+		db_printf("  cflags: 0x%hx\n", bp->bio_cflags);
+		db_printf("  pflags: 0x%hx\n", bp->bio_pflags);
 		db_printf("  offset: %jd\n", (intmax_t)bp->bio_offset);
 		db_printf("  length: %jd\n", (intmax_t)bp->bio_length);
 		db_printf("  bcount: %ld\n", bp->bio_bcount);

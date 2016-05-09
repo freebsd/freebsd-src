@@ -617,7 +617,7 @@ Weekly counterpart of
 Set to
 .Dq Li YES
 if you want to use
-.Xr pkg_version 1
+.Xr pkg-version 8
 to list installed packages which are out of date.
 .It Va pkg_version
 .Pq Vt str
@@ -628,7 +628,7 @@ is set to
 this variable specifies the program that is used to determine the out of
 date packages.
 If unset, the
-.Xr pkg_version 1
+.Xr pkg-version 8
 program is used.
 As an example, this variable might be set to
 .Dq Li portversion
@@ -642,7 +642,7 @@ This variable specifies the
 file from
 .Pa /usr/ports
 that should be used by
-.Xr pkg_version 1 .
+.Xr pkg-version 8 .
 Because the dependency tree may be substantially different between versions of
 .Fx ,
 there may be more than one
@@ -975,7 +975,6 @@ is shared or distributed.
 .Xr msgs 1 ,
 .Xr netstat 1 ,
 .Xr nice 1 ,
-.Xr pkg_version 1 ,
 .Xr login.conf 5 ,
 .Xr rc.conf 5 ,
 .Xr ac 8 ,
@@ -983,6 +982,7 @@ is shared or distributed.
 .Xr dump 8 ,
 .Xr newsyslog 8 ,
 .Xr periodic 8 ,
+.Xr pkg-version 8 ,
 .Xr sendmail 8
 .Sh HISTORY
 The

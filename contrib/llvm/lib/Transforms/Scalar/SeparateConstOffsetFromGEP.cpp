@@ -156,6 +156,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/MemoryBuiltins.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Constants.h"
@@ -164,6 +168,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/PatternMatch.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
@@ -174,6 +179,7 @@
 #include "llvm/IR/IRBuilder.h"
 
 using namespace llvm;
+using namespace llvm::PatternMatch;
 
 static cl::opt<bool> DisableSeparateConstOffsetFromGEP(
     "disable-separate-const-offset-from-gep", cl::init(false),
@@ -319,8 +325,11 @@ public:
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<DominatorTreeWrapperPass>();
+    AU.addRequired<ScalarEvolutionWrapperPass>();
     AU.addRequired<TargetTransformInfoWrapperPass>();
+    AU.addRequired<LoopInfoWrapperPass>();
     AU.setPreservesCFG();
+    AU.addRequired<TargetLibraryInfoWrapperPass>();
   }
 
   bool doInitialization(Module &M) override {
@@ -373,15 +382,42 @@ private:
   ///
   /// Verified in @i32_add in split-gep.ll
   bool canonicalizeArrayIndicesToPointerSize(GetElementPtrInst *GEP);
+  /// Optimize sext(a)+sext(b) to sext(a+b) when a+b can't sign overflow.
+  /// SeparateConstOffsetFromGEP distributes a sext to leaves before extracting
+  /// the constant offset. After extraction, it becomes desirable to reunion the
+  /// distributed sexts. For example,
+  ///
+  ///                              &a[sext(i +nsw (j +nsw 5)]
+  ///   => distribute              &a[sext(i) +nsw (sext(j) +nsw 5)]
+  ///   => constant extraction     &a[sext(i) + sext(j)] + 5
+  ///   => reunion                 &a[sext(i +nsw j)] + 5
+  bool reuniteExts(Function &F);
+  /// A helper that reunites sexts in an instruction.
+  bool reuniteExts(Instruction *I);
+  /// Find the closest dominator of <Dominatee> that is equivalent to <Key>.
+  Instruction *findClosestMatchingDominator(const SCEV *Key,
+                                            Instruction *Dominatee);
   /// Verify F is free of dead code.
   void verifyNoDeadCode(Function &F);
 
+  bool hasMoreThanOneUseInLoop(Value *v, Loop *L);
+  // Swap the index operand of two GEP.
+  void swapGEPOperand(GetElementPtrInst *First, GetElementPtrInst *Second);
+  // Check if it is safe to swap operand of two GEP.
+  bool isLegalToSwapOperand(GetElementPtrInst *First, GetElementPtrInst *Second,
+                            Loop *CurLoop);
+
   const DataLayout *DL;
-  const DominatorTree *DT;
+  DominatorTree *DT;
+  ScalarEvolution *SE;
   const TargetMachine *TM;
+
+  LoopInfo *LI;
+  TargetLibraryInfo *TLI;
   /// Whether to lower a GEP with multiple indices into arithmetic operations or
   /// multiple GEPs with a single index.
   bool LowerGEP;
+  DenseMap<const SCEV *, SmallVector<Instruction *, 2>> DominatingExprs;
 };
 }  // anonymous namespace
 
@@ -391,7 +427,10 @@ INITIALIZE_PASS_BEGIN(
     "Split GEPs to a variadic base and a constant offset for better CSE", false,
     false)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(ScalarEvolutionWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(TargetTransformInfoWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
 INITIALIZE_PASS_END(
     SeparateConstOffsetFromGEP, "separate-const-offset-from-gep",
     "Split GEPs to a variadic base and a constant offset for better CSE", false,
@@ -734,6 +773,13 @@ void SeparateConstOffsetFromGEP::lowerToSingleIndexGEPs(
   Type *I8PtrTy =
       Builder.getInt8PtrTy(Variadic->getType()->getPointerAddressSpace());
   Value *ResultPtr = Variadic->getOperand(0);
+  Loop *L = LI->getLoopFor(Variadic->getParent());
+  // Check if the base is not loop invariant or used more than once.
+  bool isSwapCandidate =
+      L && L->isLoopInvariant(ResultPtr) &&
+      !hasMoreThanOneUseInLoop(ResultPtr, L);
+  Value *FirstResult = nullptr;
+
   if (ResultPtr->getType() != I8PtrTy)
     ResultPtr = Builder.CreateBitCast(ResultPtr, I8PtrTy);
 
@@ -762,6 +808,8 @@ void SeparateConstOffsetFromGEP::lowerToSingleIndexGEPs(
       // Create an ugly GEP with a single index for each index.
       ResultPtr =
           Builder.CreateGEP(Builder.getInt8Ty(), ResultPtr, Idx, "uglygep");
+      if (FirstResult == nullptr)
+        FirstResult = ResultPtr;
     }
   }
 
@@ -770,7 +818,17 @@ void SeparateConstOffsetFromGEP::lowerToSingleIndexGEPs(
     Value *Offset = ConstantInt::get(IntPtrTy, AccumulativeByteOffset);
     ResultPtr =
         Builder.CreateGEP(Builder.getInt8Ty(), ResultPtr, Offset, "uglygep");
-  }
+  } else
+    isSwapCandidate = false;
+
+  // If we created a GEP with constant index, and the base is loop invariant,
+  // then we swap the first one with it, so LICM can move constant GEP out
+  // later.
+  GetElementPtrInst *FirstGEP = dyn_cast<GetElementPtrInst>(FirstResult);
+  GetElementPtrInst *SecondGEP = dyn_cast<GetElementPtrInst>(ResultPtr);
+  if (isSwapCandidate && isLegalToSwapOperand(FirstGEP, SecondGEP, L))
+    swapGEPOperand(FirstGEP, SecondGEP);
+
   if (ResultPtr->getType() != Variadic->getType())
     ResultPtr = Builder.CreateBitCast(ResultPtr, Variadic->getType());
 
@@ -891,13 +949,13 @@ bool SeparateConstOffsetFromGEP::splitGEP(GetElementPtrInst *GEP) {
   // Clear the inbounds attribute because the new index may be off-bound.
   // e.g.,
   //
-  // b = add i64 a, 5
-  // addr = gep inbounds float* p, i64 b
+  //   b     = add i64 a, 5
+  //   addr  = gep inbounds float, float* p, i64 b
   //
   // is transformed to:
   //
-  // addr2 = gep float* p, i64 a
-  // addr = gep float* addr2, i64 5
+  //   addr2 = gep float, float* p, i64 a ; inbounds removed
+  //   addr  = gep inbounds float, float* addr2, i64 5
   //
   // If a is -4, although the old index b is in bounds, the new index a is
   // off-bound. http://llvm.org/docs/LangRef.html#id181 says "if the
@@ -907,6 +965,7 @@ bool SeparateConstOffsetFromGEP::splitGEP(GetElementPtrInst *GEP) {
   //
   // TODO(jingyue): do some range analysis to keep as many inbounds as
   // possible. GEPs with inbounds are more friendly to alias analysis.
+  bool GEPWasInBounds = GEP->isInBounds();
   GEP->setIsInBounds(false);
 
   // Lowers a GEP to either GEPs with a single index or arithmetic operations.
@@ -968,6 +1027,8 @@ bool SeparateConstOffsetFromGEP::splitGEP(GetElementPtrInst *GEP) {
     NewGEP = GetElementPtrInst::Create(GEP->getResultElementType(), NewGEP,
                                        ConstantInt::get(IntPtrTy, Index, true),
                                        GEP->getName(), GEP);
+    // Inherit the inbounds attribute of the original GEP.
+    cast<GetElementPtrInst>(NewGEP)->setIsInBounds(GEPWasInBounds);
   } else {
     // Unlikely but possible. For example,
     // #pragma pack(1)
@@ -990,6 +1051,8 @@ bool SeparateConstOffsetFromGEP::splitGEP(GetElementPtrInst *GEP) {
         Type::getInt8Ty(GEP->getContext()), NewGEP,
         ConstantInt::get(IntPtrTy, AccumulativeByteOffset, true), "uglygep",
         GEP);
+    // Inherit the inbounds attribute of the original GEP.
+    cast<GetElementPtrInst>(NewGEP)->setIsInBounds(GEPWasInBounds);
     if (GEP->getType() != I8PtrTy)
       NewGEP = new BitCastInst(NewGEP, GEP->getType(), GEP->getName(), GEP);
   }
@@ -1008,21 +1071,93 @@ bool SeparateConstOffsetFromGEP::runOnFunction(Function &F) {
     return false;
 
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-
+  SE = &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
+  LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
+  TLI = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
   bool Changed = false;
   for (Function::iterator B = F.begin(), BE = F.end(); B != BE; ++B) {
-    for (BasicBlock::iterator I = B->begin(), IE = B->end(); I != IE; ) {
-      if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(I++)) {
+    for (BasicBlock::iterator I = B->begin(), IE = B->end(); I != IE;)
+      if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(I++))
         Changed |= splitGEP(GEP);
-      }
-      // No need to split GEP ConstantExprs because all its indices are constant
-      // already.
-    }
+    // No need to split GEP ConstantExprs because all its indices are constant
+    // already.
   }
+
+  Changed |= reuniteExts(F);
 
   if (VerifyNoDeadCode)
     verifyNoDeadCode(F);
 
+  return Changed;
+}
+
+Instruction *SeparateConstOffsetFromGEP::findClosestMatchingDominator(
+    const SCEV *Key, Instruction *Dominatee) {
+  auto Pos = DominatingExprs.find(Key);
+  if (Pos == DominatingExprs.end())
+    return nullptr;
+
+  auto &Candidates = Pos->second;
+  // Because we process the basic blocks in pre-order of the dominator tree, a
+  // candidate that doesn't dominate the current instruction won't dominate any
+  // future instruction either. Therefore, we pop it out of the stack. This
+  // optimization makes the algorithm O(n).
+  while (!Candidates.empty()) {
+    Instruction *Candidate = Candidates.back();
+    if (DT->dominates(Candidate, Dominatee))
+      return Candidate;
+    Candidates.pop_back();
+  }
+  return nullptr;
+}
+
+bool SeparateConstOffsetFromGEP::reuniteExts(Instruction *I) {
+  if (!SE->isSCEVable(I->getType()))
+    return false;
+
+  //   Dom: LHS+RHS
+  //   I: sext(LHS)+sext(RHS)
+  // If Dom can't sign overflow and Dom dominates I, optimize I to sext(Dom).
+  // TODO: handle zext
+  Value *LHS = nullptr, *RHS = nullptr;
+  if (match(I, m_Add(m_SExt(m_Value(LHS)), m_SExt(m_Value(RHS)))) ||
+      match(I, m_Sub(m_SExt(m_Value(LHS)), m_SExt(m_Value(RHS))))) {
+    if (LHS->getType() == RHS->getType()) {
+      const SCEV *Key =
+          SE->getAddExpr(SE->getUnknown(LHS), SE->getUnknown(RHS));
+      if (auto *Dom = findClosestMatchingDominator(Key, I)) {
+        Instruction *NewSExt = new SExtInst(Dom, I->getType(), "", I);
+        NewSExt->takeName(I);
+        I->replaceAllUsesWith(NewSExt);
+        RecursivelyDeleteTriviallyDeadInstructions(I);
+        return true;
+      }
+    }
+  }
+
+  // Add I to DominatingExprs if it's an add/sub that can't sign overflow.
+  if (match(I, m_NSWAdd(m_Value(LHS), m_Value(RHS))) ||
+      match(I, m_NSWSub(m_Value(LHS), m_Value(RHS)))) {
+    if (isKnownNotFullPoison(I)) {
+      const SCEV *Key =
+          SE->getAddExpr(SE->getUnknown(LHS), SE->getUnknown(RHS));
+      DominatingExprs[Key].push_back(I);
+    }
+  }
+  return false;
+}
+
+bool SeparateConstOffsetFromGEP::reuniteExts(Function &F) {
+  bool Changed = false;
+  DominatingExprs.clear();
+  for (auto Node = GraphTraits<DominatorTree *>::nodes_begin(DT);
+       Node != GraphTraits<DominatorTree *>::nodes_end(DT); ++Node) {
+    BasicBlock *BB = Node->getBlock();
+    for (auto I = BB->begin(); I != BB->end(); ) {
+      Instruction *Cur = &*I++;
+      Changed |= reuniteExts(Cur);
+    }
+  }
   return Changed;
 }
 
@@ -1037,4 +1172,94 @@ void SeparateConstOffsetFromGEP::verifyNoDeadCode(Function &F) {
       }
     }
   }
+}
+
+bool SeparateConstOffsetFromGEP::isLegalToSwapOperand(
+    GetElementPtrInst *FirstGEP, GetElementPtrInst *SecondGEP, Loop *CurLoop) {
+  if (!FirstGEP || !FirstGEP->hasOneUse())
+    return false;
+
+  if (!SecondGEP || FirstGEP->getParent() != SecondGEP->getParent())
+    return false;
+
+  if (FirstGEP == SecondGEP)
+    return false;
+
+  unsigned FirstNum = FirstGEP->getNumOperands();
+  unsigned SecondNum = SecondGEP->getNumOperands();
+  // Give up if the number of operands are not 2.
+  if (FirstNum != SecondNum || FirstNum != 2)
+    return false;
+
+  Value *FirstBase = FirstGEP->getOperand(0);
+  Value *SecondBase = SecondGEP->getOperand(0);
+  Value *FirstOffset = FirstGEP->getOperand(1);
+  // Give up if the index of the first GEP is loop invariant.
+  if (CurLoop->isLoopInvariant(FirstOffset))
+    return false;
+
+  // Give up if base doesn't have same type.
+  if (FirstBase->getType() != SecondBase->getType())
+    return false;
+
+  Instruction *FirstOffsetDef = dyn_cast<Instruction>(FirstOffset);
+
+  // Check if the second operand of first GEP has constant coefficient.
+  // For an example, for the following code,  we won't gain anything by
+  // hoisting the second GEP out because the second GEP can be folded away.
+  //   %scevgep.sum.ur159 = add i64 %idxprom48.ur, 256
+  //   %67 = shl i64 %scevgep.sum.ur159, 2
+  //   %uglygep160 = getelementptr i8* %65, i64 %67
+  //   %uglygep161 = getelementptr i8* %uglygep160, i64 -1024
+
+  // Skip constant shift instruction which may be generated by Splitting GEPs.
+  if (FirstOffsetDef && FirstOffsetDef->isShift() &&
+      isa<ConstantInt>(FirstOffsetDef->getOperand(1)))
+    FirstOffsetDef = dyn_cast<Instruction>(FirstOffsetDef->getOperand(0));
+
+  // Give up if FirstOffsetDef is an Add or Sub with constant.
+  // Because it may not profitable at all due to constant folding.
+  if (FirstOffsetDef)
+    if (BinaryOperator *BO = dyn_cast<BinaryOperator>(FirstOffsetDef)) {
+      unsigned opc = BO->getOpcode();
+      if ((opc == Instruction::Add || opc == Instruction::Sub) &&
+          (isa<ConstantInt>(BO->getOperand(0)) ||
+           isa<ConstantInt>(BO->getOperand(1))))
+        return false;
+    }
+  return true;
+}
+
+bool SeparateConstOffsetFromGEP::hasMoreThanOneUseInLoop(Value *V, Loop *L) {
+  int UsesInLoop = 0;
+  for (User *U : V->users()) {
+    if (Instruction *User = dyn_cast<Instruction>(U))
+      if (L->contains(User))
+        if (++UsesInLoop > 1)
+          return true;
+  }
+  return false;
+}
+
+void SeparateConstOffsetFromGEP::swapGEPOperand(GetElementPtrInst *First,
+                                                GetElementPtrInst *Second) {
+  Value *Offset1 = First->getOperand(1);
+  Value *Offset2 = Second->getOperand(1);
+  First->setOperand(1, Offset2);
+  Second->setOperand(1, Offset1);
+
+  // We changed p+o+c to p+c+o, p+c may not be inbound anymore.
+  const DataLayout &DAL = First->getModule()->getDataLayout();
+  APInt Offset(DAL.getPointerSizeInBits(
+                   cast<PointerType>(First->getType())->getAddressSpace()),
+               0);
+  Value *NewBase =
+      First->stripAndAccumulateInBoundsConstantOffsets(DAL, Offset);
+  uint64_t ObjectSize;
+  if (!getObjectSize(NewBase, ObjectSize, DAL, TLI) ||
+     Offset.ugt(ObjectSize)) {
+    First->setIsInBounds(false);
+    Second->setIsInBounds(false);
+  } else
+    First->setIsInBounds(true);
 }

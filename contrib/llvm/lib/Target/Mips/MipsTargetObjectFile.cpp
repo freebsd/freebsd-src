@@ -76,7 +76,7 @@ bool MipsTargetObjectFile::
 IsGlobalInSmallSection(const GlobalValue *GV, const TargetMachine &TM,
                        SectionKind Kind) const {
   return (IsGlobalInSmallSectionImpl(GV, TM) &&
-          (Kind.isDataRel() || Kind.isBSS() || Kind.isCommon()));
+          (Kind.isData() || Kind.isBSS() || Kind.isCommon()));
 }
 
 /// Return true if this global address should be placed into small data/bss
@@ -107,7 +107,8 @@ IsGlobalInSmallSectionImpl(const GlobalValue *GV,
     return false;
 
   Type *Ty = GV->getType()->getElementType();
-  return IsInSmallSection(TM.getDataLayout()->getTypeAllocSize(Ty));
+  return IsInSmallSection(
+      GV->getParent()->getDataLayout().getTypeAllocSize(Ty));
 }
 
 MCSection *
@@ -120,7 +121,7 @@ MipsTargetObjectFile::SelectSectionForGlobal(const GlobalValue *GV,
   // Handle Small Section classification here.
   if (Kind.isBSS() && IsGlobalInSmallSection(GV, TM, Kind))
     return SmallBSSSection;
-  if (Kind.isDataRel() && IsGlobalInSmallSection(GV, TM, Kind))
+  if (Kind.isData() && IsGlobalInSmallSection(GV, TM, Kind))
     return SmallDataSection;
 
   // Otherwise, we work the same as ELF.
@@ -128,21 +129,20 @@ MipsTargetObjectFile::SelectSectionForGlobal(const GlobalValue *GV,
 }
 
 /// Return true if this constant should be placed into small data section.
-bool MipsTargetObjectFile::
-IsConstantInSmallSection(const Constant *CN, const TargetMachine &TM) const {
+bool MipsTargetObjectFile::IsConstantInSmallSection(
+    const DataLayout &DL, const Constant *CN, const TargetMachine &TM) const {
   return (static_cast<const MipsTargetMachine &>(TM)
               .getSubtargetImpl()
               ->useSmallSection() &&
-          LocalSData && IsInSmallSection(TM.getDataLayout()->getTypeAllocSize(
-                            CN->getType())));
+          LocalSData && IsInSmallSection(DL.getTypeAllocSize(CN->getType())));
 }
 
-MCSection *
-MipsTargetObjectFile::getSectionForConstant(SectionKind Kind,
-                                            const Constant *C) const {
-  if (IsConstantInSmallSection(C, *TM))
+/// Return true if this constant should be placed into small data section.
+MCSection *MipsTargetObjectFile::getSectionForConstant(
+    const DataLayout &DL, SectionKind Kind, const Constant *C) const {
+  if (IsConstantInSmallSection(DL, C, *TM))
     return SmallDataSection;
 
   // Otherwise, we work the same as ELF.
-  return TargetLoweringObjectFileELF::getSectionForConstant(Kind, C);
+  return TargetLoweringObjectFileELF::getSectionForConstant(DL, Kind, C);
 }

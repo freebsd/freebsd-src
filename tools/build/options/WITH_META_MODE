@@ -1,3 +1,41 @@
 .\" $FreeBSD$
-Create meta files when not doing DIRDEPS_BUILD.
-The meta files can be useful for debugging.
+Creates
+.Xr make 1
+meta files when building, which can provide a reliable incremental build when
+using
+.Xr filemon 4 .
+The meta file is created in the OBJDIR as
+.Pa target.meta .
+These meta files track the command ran, its output, and the current directory.
+When the
+.Xr filemon 4
+module is loaded, any files used by the commands executed will be tracked as
+dependencies for the target in its meta file.
+The target will be considered out-of-date and rebuilt if any of the following
+are true compared to the last build:
+.Bl -bullet -compact
+.It
+The command to execute changes.
+.It
+The current working directory changes.
+.It
+The target's meta file is missing.
+.It
+[requires
+.Xr filemon 4 ]
+Files read, executed or linked to are newer than the target.
+.It
+[requires
+.Xr filemon 4 ]
+Files read, written, executed or linked are missing.
+.El
+The meta files can also be useful for debugging.
+.Pp
+The build will hide commands ran unless
+.Va NO_SILENT
+is defined.
+.Pp
+The build operates as it normally would otherwise.
+This option originally invoked a different build system but that was renamed
+to
+.Va WITH_DIRDEPS_BUILD .

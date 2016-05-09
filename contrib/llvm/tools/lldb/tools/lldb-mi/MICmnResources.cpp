@@ -45,7 +45,6 @@ const CMICmnResources::SRsrcTextData CMICmnResources::ms_pResourceId2TextData[] 
     {IDS_MEDIUMFILE_ERR_INVALID_PATH, "<Invalid - not set>"},
     {IDS_MEDIUMFILE_ERR_FILE_HEADER, "<Invalid - header not set>"},
     {IDS_MEDIUMFILE_NAME_LOG, "File medium. %s"},
-    {IDE_MEDIUMFILE_ERR_GET_FILE_PATHNAME_SYS, "File Medium. Failed to retrieve the system/executable path for the Log file"},
     {IDE_OS_ERR_UNKNOWN, "Unknown OS error"},
     {IDE_OS_ERR_RETRIEVING, "Unabled to retrieve OS error message"},
     {IDS_DRIVERMGR_DRIVER_ERR_INIT, "Driver Manager. Driver '%s' (ID:'%s') initialise failed. %s"},
@@ -142,8 +141,6 @@ const CMICmnResources::SRsrcTextData CMICmnResources::ms_pResourceId2TextData[] 
      "LLDB Out-of-band. %s. Event handler tried to set new MI Driver running state and failed. %s"},
     {IDS_LLDBOUTOFBAND_ERR_BRKPT_CNT_EXCEEDED,
      "LLDB Out-of-band. '%s'. Number of valid breakpoint exceeded %d. Cannot create new breakpoint with ID %d"},
-    {IDS_DBGSESSION_ERR_SHARED_DATA_RELEASE,
-     "LLDB debug session info. Release some or all of the data shared across command instances failed"},
     {IDS_DBGSESSION_ERR_SHARED_DATA_ADD, "LLDB debug session info. Failed to add '%s' data to the shared data command container"},
     {IDS_MI_SHTDWN_ERR_LOG, "Log. Error occurred during shutdown. %s"},
     {IDS_MI_SHUTDOWN_ERR, "Server shutdown failure. %s"},
@@ -265,7 +262,7 @@ const CMICmnResources::SRsrcTextData CMICmnResources::ms_pResourceId2TextData[] 
 // Return:  None.
 // Throws:  None.
 //--
-CMICmnResources::CMICmnResources(void)
+CMICmnResources::CMICmnResources()
     : m_nResourceId2TextDataSize(0)
 {
     // Do not use this constructor, use Initialize()
@@ -278,7 +275,7 @@ CMICmnResources::CMICmnResources(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmnResources::~CMICmnResources(void)
+CMICmnResources::~CMICmnResources()
 {
     // Do not use this destructor, use Shutdown()
 }
@@ -292,7 +289,7 @@ CMICmnResources::~CMICmnResources(void)
 // Throws:  None.
 //--
 bool
-CMICmnResources::Initialize(void)
+CMICmnResources::Initialize()
 {
     m_clientUsageRefCnt++;
 
@@ -313,7 +310,7 @@ CMICmnResources::Initialize(void)
 // Throws:  None.
 //--
 bool
-CMICmnResources::Shutdown(void)
+CMICmnResources::Shutdown()
 {
     if (--m_clientUsageRefCnt > 0)
         return MIstatus::success;
@@ -338,7 +335,7 @@ CMICmnResources::Shutdown(void)
 // Throws:  None.
 //--
 bool
-CMICmnResources::ReadResourceStringData(void)
+CMICmnResources::ReadResourceStringData()
 {
     m_nResourceId2TextDataSize = sizeof ms_pResourceId2TextData / sizeof ms_pResourceId2TextData[0];
     for (MIuint i = 0; i < m_nResourceId2TextDataSize; i++)

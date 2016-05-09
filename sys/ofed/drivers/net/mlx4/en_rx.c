@@ -55,7 +55,7 @@ static void mlx4_en_init_rx_desc(struct mlx4_en_priv *priv,
 	int i;
 
 	/* Set size and memtype fields */
-	rx_desc->data[0].byte_count = cpu_to_be32(priv->rx_mb_size);
+	rx_desc->data[0].byte_count = cpu_to_be32(priv->rx_mb_size - MLX4_NET_IP_ALIGN);
 	rx_desc->data[0].lkey = cpu_to_be32(priv->mdev->mr.key);
 
 	/*
@@ -87,7 +87,10 @@ mlx4_en_alloc_buf(struct mlx4_en_rx_ring *ring,
 		if (unlikely(mb == NULL))
 			return (-ENOMEM);
 		/* setup correct length */
-		mb->m_len = ring->rx_mb_size;
+		mb->m_pkthdr.len = mb->m_len = ring->rx_mb_size;
+
+		/* make sure IP header gets aligned */
+		m_adj(mb, MLX4_NET_IP_ALIGN);
 
 		/* load spare mbuf into BUSDMA */
 		err = -bus_dmamap_load_mbuf_sg(ring->dma_tag, ring->spare.dma_map,
@@ -117,7 +120,10 @@ mlx4_en_alloc_buf(struct mlx4_en_rx_ring *ring,
 		goto use_spare;
 
 	/* setup correct length */
-	mb->m_len = ring->rx_mb_size;
+	mb->m_pkthdr.len = mb->m_len = ring->rx_mb_size;
+
+	/* make sure IP header gets aligned */
+	m_adj(mb, MLX4_NET_IP_ALIGN);
 
 	err = -bus_dmamap_load_mbuf_sg(ring->dma_tag, mb_list->dma_map,
 	    mb, segs, &nsegs, BUS_DMA_NOWAIT);
@@ -249,7 +255,8 @@ static void mlx4_en_free_rx_buf(struct mlx4_en_priv *priv,
 void mlx4_en_calc_rx_buf(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	int eff_mtu = dev->if_mtu + ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN;
+	int eff_mtu = dev->if_mtu + ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN +
+	    MLX4_NET_IP_ALIGN;
 
 	if (eff_mtu > MJUM16BYTES) {
 		en_err(priv, "MTU(%d) is too big\n", dev->if_mtu);
@@ -384,9 +391,6 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 		ring->cons = 0;
 		ring->actual_size = 0;
 		ring->cqn = priv->rx_cq[ring_ind]->mcq.cqn;
-		ring->rx_alloc_order = priv->rx_alloc_order;
-		ring->rx_alloc_size = priv->rx_alloc_size;
-		ring->rx_buf_size = priv->rx_buf_size;
                 ring->rx_mb_size = priv->rx_mb_size;
 
 		ring->stride = stride;
@@ -548,7 +552,7 @@ mlx4_en_rx_mb(struct mlx4_en_priv *priv, struct mlx4_en_rx_ring *ring,
 /* For cpu arch with cache line of 64B the performance is better when cqe size==64B
  * To enlarge cqe size from 32B to 64B --> 32B of garbage (i.e. 0xccccccc)
  * was added in the beginning of each cqe (the real data is in the corresponding 32B).
- * The following calc ensures that when factor==1, it means we are alligned to 64B
+ * The following calc ensures that when factor==1, it means we are aligned to 64B
  * and we get the real cqe data*/
 #define CQE_FACTOR_INDEX(index, factor) ((index << factor) + factor)
 int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int budget)
@@ -561,9 +565,6 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	struct mbuf *mb;
 	struct mlx4_cq *mcq = &cq->mcq;
 	struct mlx4_cqe *buf = cq->buf;
-#ifdef INET
-	struct lro_entry *queued;
-#endif
 	int index;
 	unsigned int length;
 	int polled = 0;
@@ -616,7 +617,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			goto next;
 		}
 
-		mb->m_pkthdr.flowid = cq->ring;
+		/* forward Toeplitz compatible hash value */
+		mb->m_pkthdr.flowid = be32_to_cpu(cqe->immed_rss_invalid);
 		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE);
 		mb->m_pkthdr.rcvif = dev;
 		if (be32_to_cpu(cqe->vlan_my_qpn) &
@@ -668,10 +670,7 @@ next:
 	/* Flush all pending IP reassembly sessions */
 out:
 #ifdef INET
-	while ((queued = SLIST_FIRST(&ring->lro.lro_active)) != NULL) {
-		SLIST_REMOVE_HEAD(&ring->lro.lro_active, next);
-		tcp_lro_flush(&ring->lro, queued);
-	}
+	tcp_lro_flush_all(&ring->lro);
 #endif
 	AVG_PERF_COUNTER(priv->pstats.rx_coal_avg, polled);
 	mcq->cons_index = cons_index;

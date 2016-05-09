@@ -1344,9 +1344,7 @@ public:
   /// \brief If this class is an instantiation of a member class of a
   /// class template specialization, retrieves the member specialization
   /// information.
-  MemberSpecializationInfo *getMemberSpecializationInfo() const {
-    return TemplateOrInstantiation.dyn_cast<MemberSpecializationInfo *>();
-  }
+  MemberSpecializationInfo *getMemberSpecializationInfo() const;
 
   /// \brief Specify that this record is an instantiation of the
   /// member class \p RD.
@@ -1364,13 +1362,9 @@ public:
   /// CXXRecordDecl that from a ClassTemplateDecl, while
   /// getDescribedClassTemplate() retrieves the ClassTemplateDecl from
   /// a CXXRecordDecl.
-  ClassTemplateDecl *getDescribedClassTemplate() const {
-    return TemplateOrInstantiation.dyn_cast<ClassTemplateDecl*>();
-  }
+  ClassTemplateDecl *getDescribedClassTemplate() const;
 
-  void setDescribedClassTemplate(ClassTemplateDecl *Template) {
-    TemplateOrInstantiation = Template;
-  }
+  void setDescribedClassTemplate(ClassTemplateDecl *Template);
 
   /// \brief Determine whether this particular class is a specialization or
   /// instantiation of a class template or member class of a class template,
@@ -1468,8 +1462,8 @@ public:
   /// \param BaseDefinition the definition of the base class
   ///
   /// \returns true if this base matched the search criteria
-  typedef bool ForallBasesCallback(const CXXRecordDecl *BaseDefinition,
-                                   void *UserData);
+  typedef llvm::function_ref<bool(const CXXRecordDecl *BaseDefinition)>
+      ForallBasesCallback;
 
   /// \brief Determines if the given callback holds for all the direct
   /// or indirect base classes of this type.
@@ -1481,13 +1475,10 @@ public:
   /// class of this type, or if \p AllowShortCircuit is true then until a call
   /// returns false.
   ///
-  /// \param UserData Passed as the second argument of every call to
-  /// \p BaseMatches.
-  ///
   /// \param AllowShortCircuit if false, forces the callback to be called
   /// for every base class, even if a dependent or non-matching base was
   /// found.
-  bool forallBases(ForallBasesCallback *BaseMatches, void *UserData,
+  bool forallBases(ForallBasesCallback BaseMatches,
                    bool AllowShortCircuit = true) const;
 
   /// \brief Function type used by lookupInBases() to determine whether a
@@ -1499,13 +1490,9 @@ public:
   /// \param Path the current path, from the most-derived class down to the
   /// base named by the \p Specifier.
   ///
-  /// \param UserData a single pointer to user-specified data, provided to
-  /// lookupInBases().
-  ///
   /// \returns true if this base matched the search criteria, false otherwise.
-  typedef bool BaseMatchesCallback(const CXXBaseSpecifier *Specifier,
-                                   CXXBasePath &Path,
-                                   void *UserData);
+  typedef llvm::function_ref<bool(const CXXBaseSpecifier *Specifier,
+                                  CXXBasePath &Path)> BaseMatchesCallback;
 
   /// \brief Look for entities within the base classes of this C++ class,
   /// transitively searching all base class subobjects.
@@ -1520,14 +1507,12 @@ public:
   /// \param BaseMatches callback function used to determine whether a given
   /// base matches the user-defined search criteria.
   ///
-  /// \param UserData user data pointer that will be provided to \p BaseMatches.
-  ///
   /// \param Paths used to record the paths from this class to its base class
   /// subobjects that match the search criteria.
   ///
   /// \returns true if there exists any path from this class to a base class
   /// subobject that matches the search criteria.
-  bool lookupInBases(BaseMatchesCallback *BaseMatches, void *UserData,
+  bool lookupInBases(BaseMatchesCallback BaseMatches,
                      CXXBasePaths &Paths) const;
 
   /// \brief Base-class lookup callback that determines whether the given
@@ -1535,10 +1520,10 @@ public:
   ///
   /// This callback can be used with \c lookupInBases() to determine whether
   /// a given derived class has is a base class subobject of a particular type.
-  /// The user data pointer should refer to the canonical CXXRecordDecl of the
+  /// The base record pointer should refer to the canonical CXXRecordDecl of the
   /// base class that we are searching for.
   static bool FindBaseClass(const CXXBaseSpecifier *Specifier,
-                            CXXBasePath &Path, void *BaseRecord);
+                            CXXBasePath &Path, const CXXRecordDecl *BaseRecord);
 
   /// \brief Base-class lookup callback that determines whether the
   /// given base class specifier refers to a specific class
@@ -1546,39 +1531,38 @@ public:
   ///
   /// This callback can be used with \c lookupInBases() to determine
   /// whether a given derived class has is a virtual base class
-  /// subobject of a particular type.  The user data pointer should
+  /// subobject of a particular type.  The base record pointer should
   /// refer to the canonical CXXRecordDecl of the base class that we
   /// are searching for.
   static bool FindVirtualBaseClass(const CXXBaseSpecifier *Specifier,
-                                   CXXBasePath &Path, void *BaseRecord);
+                                   CXXBasePath &Path,
+                                   const CXXRecordDecl *BaseRecord);
 
   /// \brief Base-class lookup callback that determines whether there exists
   /// a tag with the given name.
   ///
   /// This callback can be used with \c lookupInBases() to find tag members
-  /// of the given name within a C++ class hierarchy. The user data pointer
-  /// is an opaque \c DeclarationName pointer.
+  /// of the given name within a C++ class hierarchy.
   static bool FindTagMember(const CXXBaseSpecifier *Specifier,
-                            CXXBasePath &Path, void *Name);
+                            CXXBasePath &Path, DeclarationName Name);
 
   /// \brief Base-class lookup callback that determines whether there exists
   /// a member with the given name.
   ///
   /// This callback can be used with \c lookupInBases() to find members
-  /// of the given name within a C++ class hierarchy. The user data pointer
-  /// is an opaque \c DeclarationName pointer.
+  /// of the given name within a C++ class hierarchy.
   static bool FindOrdinaryMember(const CXXBaseSpecifier *Specifier,
-                                 CXXBasePath &Path, void *Name);
+                                 CXXBasePath &Path, DeclarationName Name);
 
   /// \brief Base-class lookup callback that determines whether there exists
   /// a member with the given name that can be used in a nested-name-specifier.
   ///
-  /// This callback can be used with \c lookupInBases() to find membes of
+  /// This callback can be used with \c lookupInBases() to find members of
   /// the given name within a C++ class hierarchy that can occur within
   /// nested-name-specifiers.
   static bool FindNestedNameSpecifierMember(const CXXBaseSpecifier *Specifier,
                                             CXXBasePath &Path,
-                                            void *UserData);
+                                            DeclarationName Name);
 
   /// \brief Retrieve the final overriders for each virtual member
   /// function in the class hierarchy where this class is the
@@ -1898,7 +1882,8 @@ public:
 ///   B(A& a) : A(a), f(3.14159) { }
 /// };
 /// \endcode
-class CXXCtorInitializer {
+class CXXCtorInitializer final
+    : private llvm::TrailingObjects<CXXCtorInitializer, VarDecl *> {
   /// \brief Either the base class name/delegating constructor type (stored as
   /// a TypeSourceInfo*), an normal field (FieldDecl), or an anonymous field
   /// (IndirectFieldDecl*) being initialized.
@@ -2114,24 +2099,26 @@ public:
   /// describe an array member initialization.
   VarDecl *getArrayIndex(unsigned I) {
     assert(I < getNumArrayIndices() && "Out of bounds member array index");
-    return reinterpret_cast<VarDecl **>(this + 1)[I];
+    return getTrailingObjects<VarDecl *>()[I];
   }
   const VarDecl *getArrayIndex(unsigned I) const {
     assert(I < getNumArrayIndices() && "Out of bounds member array index");
-    return reinterpret_cast<const VarDecl * const *>(this + 1)[I];
+    return getTrailingObjects<VarDecl *>()[I];
   }
   void setArrayIndex(unsigned I, VarDecl *Index) {
     assert(I < getNumArrayIndices() && "Out of bounds member array index");
-    reinterpret_cast<VarDecl **>(this + 1)[I] = Index;
+    getTrailingObjects<VarDecl *>()[I] = Index;
   }
   ArrayRef<VarDecl *> getArrayIndexes() {
     assert(getNumArrayIndices() != 0 && "Getting indexes for non-array init");
-    return llvm::makeArrayRef(reinterpret_cast<VarDecl **>(this + 1),
+    return llvm::makeArrayRef(getTrailingObjects<VarDecl *>(),
                               getNumArrayIndices());
   }
 
   /// \brief Get the initializer.
   Expr *getInit() const { return static_cast<Expr*>(Init); }
+
+  friend TrailingObjects;
 };
 
 /// \brief Represents a C++ constructor within a class.
@@ -2289,14 +2276,14 @@ public:
   }
 
   /// \brief Determine whether this constructor is a move constructor
-  /// (C++0x [class.copy]p3), which can be used to move values of the class.
+  /// (C++11 [class.copy]p3), which can be used to move values of the class.
   ///
   /// \param TypeQuals If this constructor is a move constructor, will be set
   /// to the type qualifiers on the referent of the first parameter's type.
   bool isMoveConstructor(unsigned &TypeQuals) const;
 
   /// \brief Determine whether this constructor is a move constructor
-  /// (C++0x [class.copy]p3), which can be used to move values of the class.
+  /// (C++11 [class.copy]p3), which can be used to move values of the class.
   bool isMoveConstructor() const {
     unsigned TypeQuals = 0;
     return isMoveConstructor(TypeQuals);
@@ -2406,7 +2393,7 @@ class CXXConversionDecl : public CXXMethodDecl {
   void anchor() override;
   /// Whether this conversion function declaration is marked
   /// "explicit", meaning that it can only be applied when the user
-  /// explicitly wrote a cast. This is a C++0x feature.
+  /// explicitly wrote a cast. This is a C++11 feature.
   bool IsExplicitSpecified : 1;
 
   CXXConversionDecl(ASTContext &C, CXXRecordDecl *RD, SourceLocation StartLoc,

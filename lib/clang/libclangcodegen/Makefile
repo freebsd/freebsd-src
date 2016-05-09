@@ -56,6 +56,7 @@ SRCS=	BackendUtil.cpp \
 TGHDRS=	AttrList \
 	AttrParsedAttrList \
 	AttrVisitor \
+	Attributes \
 	Attrs \
 	CommentCommandList \
 	CommentNodes \

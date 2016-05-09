@@ -24,6 +24,7 @@
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/Symbol.h"
 #include "lldb/Symbol/SymbolContextScope.h"
+#include "lldb/Symbol/Type.h"
 #include "lldb/Symbol/VariableList.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Process.h"
@@ -259,7 +260,7 @@ StackFrame::GetFrameCodeAddress()
             TargetSP target_sp (thread_sp->CalculateTarget());
             if (target_sp)
             {
-                if (m_frame_code_addr.SetOpcodeLoadAddress (m_frame_code_addr.GetOffset(), target_sp.get()))
+                if (m_frame_code_addr.SetOpcodeLoadAddress (m_frame_code_addr.GetOffset(), target_sp.get(), eAddressClassCode))
                 {
                     ModuleSP module_sp (m_frame_code_addr.GetModule());
                     if (module_sp)
@@ -659,7 +660,7 @@ StackFrame::GetValueForVariableExpressionPath (const char *var_expr_cstr,
             else
                 name_const_string.SetCStringWithLength (var_path.c_str(), separator_idx);
 
-            var_sp = variable_list->FindVariable(name_const_string);
+            var_sp = variable_list->FindVariable(name_const_string, false);
             
             bool synthetically_added_instance_object = false;
 
@@ -667,7 +668,8 @@ StackFrame::GetValueForVariableExpressionPath (const char *var_expr_cstr,
             {
                 var_path.erase (0, name_const_string.GetLength ());
             }
-            else if (options & eExpressionPathOptionsAllowDirectIVarAccess)
+            
+            if (!var_sp && (options & eExpressionPathOptionsAllowDirectIVarAccess))
             {
                 // Check for direct ivars access which helps us with implicit
                 // access to ivars with the "this->" or "self->"
@@ -689,13 +691,43 @@ StackFrame::GetValueForVariableExpressionPath (const char *var_expr_cstr,
                     }
                 }
             }
+            
+            if (!var_sp && (options & eExpressionPathOptionsInspectAnonymousUnions))
+            {
+                // Check if any anonymous unions are there which contain a variable with the name we need
+                for (size_t i = 0;
+                     i < variable_list->GetSize();
+                     i++)
+                {
+                    if (VariableSP variable_sp = variable_list->GetVariableAtIndex(i))
+                    {
+                        if (variable_sp->GetName().IsEmpty())
+                        {
+                            if (Type *var_type = variable_sp->GetType())
+                            {
+                                if (var_type->GetForwardCompilerType().IsAnonymousType())
+                                {
+                                    valobj_sp = GetValueObjectForFrameVariable (variable_sp, use_dynamic);
+                                    if (!valobj_sp)
+                                        return valobj_sp;
+                                    valobj_sp = valobj_sp->GetChildMemberWithName(name_const_string, true);
+                                    if (valobj_sp)
+                                        break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
-            if (var_sp)
+            if (var_sp && !valobj_sp)
             {
                 valobj_sp = GetValueObjectForFrameVariable (var_sp, use_dynamic);
                 if (!valobj_sp)
                     return valobj_sp;
-                    
+            }
+            if (valobj_sp)
+            {
                 // We are dumping at least one child
                 while (separator_idx != std::string::npos)
                 {
@@ -713,7 +745,7 @@ StackFrame::GetValueForVariableExpressionPath (const char *var_expr_cstr,
                         {
                             // Make sure we aren't trying to deref an objective
                             // C ivar if this is not allowed
-                            const uint32_t pointer_type_flags = valobj_sp->GetClangType().GetTypeInfo (NULL);
+                            const uint32_t pointer_type_flags = valobj_sp->GetCompilerType().GetTypeInfo (NULL);
                             if ((pointer_type_flags & eTypeIsObjC) &&
                                 (pointer_type_flags & eTypeIsPointer))
                             {
@@ -827,7 +859,7 @@ StackFrame::GetValueForVariableExpressionPath (const char *var_expr_cstr,
                             if (end && *end == ']'
                                 && *(end-1) != '[') // this code forces an error in the case of arr[]. as bitfield[] is not a good syntax we're good to go
                             {
-                                if (valobj_sp->GetClangType().IsPointerToScalarType() && deref)
+                                if (valobj_sp->GetCompilerType().IsPointerToScalarType() && deref)
                                 {
                                     // what we have is *ptr[low]. the most similar C++ syntax is to deref ptr
                                     // and extract bit low out of it. reading array item low
@@ -845,7 +877,7 @@ StackFrame::GetValueForVariableExpressionPath (const char *var_expr_cstr,
                                     valobj_sp = temp;
                                     deref = false;
                                 }
-                                else if (valobj_sp->GetClangType().IsArrayOfScalarType() && deref)
+                                else if (valobj_sp->GetCompilerType().IsArrayOfScalarType() && deref)
                                 {
                                     // what we have is *arr[low]. the most similar C++ syntax is to get arr[0]
                                     // (an operation that is equivalent to deref-ing arr)
@@ -870,9 +902,9 @@ StackFrame::GetValueForVariableExpressionPath (const char *var_expr_cstr,
                                 {
                                     bool is_objc_pointer = true;
                                     
-                                    if (valobj_sp->GetClangType().GetMinimumLanguage() != eLanguageTypeObjC)
+                                    if (valobj_sp->GetCompilerType().GetMinimumLanguage() != eLanguageTypeObjC)
                                         is_objc_pointer = false;
-                                    else if (!valobj_sp->GetClangType().IsPointerType())
+                                    else if (!valobj_sp->GetCompilerType().IsPointerType())
                                         is_objc_pointer = false;
 
                                     if (no_synth_child && is_objc_pointer)
@@ -929,7 +961,7 @@ StackFrame::GetValueForVariableExpressionPath (const char *var_expr_cstr,
                                         }
                                     }
                                 }
-                                else if (valobj_sp->GetClangType().IsArrayType (NULL, NULL, &is_incomplete_array))
+                                else if (valobj_sp->GetCompilerType().IsArrayType (NULL, NULL, &is_incomplete_array))
                                 {
                                     // Pass false to dynamic_value here so we can tell the difference between
                                     // no dynamic value and no member of this type...
@@ -946,7 +978,7 @@ StackFrame::GetValueForVariableExpressionPath (const char *var_expr_cstr,
                                                                         var_expr_path_strm.GetString().c_str());
                                     }
                                 }
-                                else if (valobj_sp->GetClangType().IsScalarType())
+                                else if (valobj_sp->GetCompilerType().IsScalarType())
                                 {
                                     // this is a bitfield asking to display just one bit
                                     child_valobj_sp = valobj_sp->GetSyntheticBitFieldChild(child_index, child_index, true);
@@ -1029,7 +1061,7 @@ StackFrame::GetValueForVariableExpressionPath (const char *var_expr_cstr,
                                         final_index = temp;
                                     }
                                     
-                                    if (valobj_sp->GetClangType().IsPointerToScalarType() && deref)
+                                    if (valobj_sp->GetCompilerType().IsPointerToScalarType() && deref)
                                     {
                                         // what we have is *ptr[low-high]. the most similar C++ syntax is to deref ptr
                                         // and extract bits low thru high out of it. reading array items low thru high
@@ -1047,7 +1079,7 @@ StackFrame::GetValueForVariableExpressionPath (const char *var_expr_cstr,
                                         valobj_sp = temp;
                                         deref = false;
                                     }
-                                    else if (valobj_sp->GetClangType().IsArrayOfScalarType() && deref)
+                                    else if (valobj_sp->GetCompilerType().IsArrayOfScalarType() && deref)
                                     {
                                         // what we have is *arr[low-high]. the most similar C++ syntax is to get arr[0]
                                         // (an operation that is equivalent to deref-ing arr)
@@ -1316,6 +1348,15 @@ StackFrame::IsInlined ()
     return false;
 }
 
+lldb::LanguageType
+StackFrame::GetLanguage ()
+{
+    CompileUnit *cu = GetSymbolContext(eSymbolContextCompUnit).comp_unit;
+    if (cu)
+        return cu->GetLanguage();
+    return lldb::eLanguageTypeUnknown;
+}
+
 TargetSP
 StackFrame::CalculateTarget ()
 {
@@ -1478,7 +1519,7 @@ StackFrame::GetStatus (Stream& strm,
     if (show_source)
     {
         ExecutionContext exe_ctx (shared_from_this());
-        bool have_source = false;
+        bool have_source = false, have_debuginfo = false;
         Debugger::StopDisassemblyType disasm_display = Debugger::eStopDisassemblyTypeNever;
         Target *target = exe_ctx.GetTargetPtr();
         if (target)
@@ -1491,26 +1532,35 @@ StackFrame::GetStatus (Stream& strm,
             GetSymbolContext(eSymbolContextCompUnit | eSymbolContextLineEntry);
             if (m_sc.comp_unit && m_sc.line_entry.IsValid())
             {
-                have_source = true;
+                have_debuginfo = true;
                 if (source_lines_before > 0 || source_lines_after > 0)
                 {
-                    target->GetSourceManager().DisplaySourceLinesWithLineNumbers (m_sc.line_entry.file,
+                    size_t num_lines = target->GetSourceManager().DisplaySourceLinesWithLineNumbers (m_sc.line_entry.file,
                                                                                       m_sc.line_entry.line,
                                                                                       source_lines_before,
                                                                                       source_lines_after,
                                                                                       "->",
                                                                                       &strm);
+                    if (num_lines != 0)
+                        have_source = true;
+                    // TODO: Give here a one time warning if source file is missing.
                 }
             }
             switch (disasm_display)
             {
             case Debugger::eStopDisassemblyTypeNever:
                 break;
-                
+
+            case Debugger::eStopDisassemblyTypeNoDebugInfo:
+                if (have_debuginfo)
+                    break;
+                // Fall through to next case
+
             case Debugger::eStopDisassemblyTypeNoSource:
                 if (have_source)
                     break;
                 // Fall through to next case
+
             case Debugger::eStopDisassemblyTypeAlways:
                 if (target)
                 {

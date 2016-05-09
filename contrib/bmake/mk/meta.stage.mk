@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.41 2015/11/13 17:34:04 sjg Exp $
+# $Id: meta.stage.mk,v 1.44 2016/03/16 18:21:23 sjg Exp $
 #
 #	@(#) Copyright (c) 2011, Simon J. Gerraty
 #
@@ -26,7 +26,7 @@ _dirdep = ${RELDIR}
 CLEANFILES+= .dirdep
 
 # this allows us to trace dependencies back to their src dir
-.dirdep:
+.dirdep:	.NOPATH
 	@echo '${_dirdep}' > $@
 
 .if defined(NO_POSIX_SHELL) || ${type printf:L:sh:Mbuiltin} == ""
@@ -58,7 +58,7 @@ GENDIRDEPS_FILTER += Nnot-empty-is-important \
 
 LN_CP_SCRIPT = LnCp() { \
   rm -f $$2 2> /dev/null; \
-  ln $$1 $$2 2> /dev/null || \
+  { [ -z "$$mode" ] && ln $$1 $$2 2> /dev/null; } || \
   cp -p $$1 $$2; }
 
 # a staging conflict should cause an error
@@ -241,7 +241,7 @@ CLEANFILES += ${STAGE_TARGETS} stage_incs stage_includes
 # for non-jobs mode the order here matters
 staging: ${STAGE_TARGETS:N*_links} ${STAGE_TARGETS:M*_links}
 
-.if ${.MAKE.JOBS:U0} > 0 && ${STAGE_TARGETS:M*_links} != ""
+.if ${.MAKE.JOBS:U0} > 0 && ${STAGE_TARGETS:U:M*_links} != ""
 # the above isn't sufficient
 .for t in ${STAGE_TARGETS:N*links:O:u}
 .ORDER: $t stage_links

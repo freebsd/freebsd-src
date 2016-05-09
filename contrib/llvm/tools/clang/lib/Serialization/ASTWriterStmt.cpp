@@ -40,7 +40,8 @@ namespace clang {
     ASTStmtWriter(ASTWriter &Writer, ASTWriter::RecordData &Record)
       : Writer(Writer), Record(Record) { }
 
-    void AddTemplateKWAndArgsInfo(const ASTTemplateKWAndArgsInfo &Args);
+    void AddTemplateKWAndArgsInfo(const ASTTemplateKWAndArgsInfo &ArgInfo,
+                                  const TemplateArgumentLoc *Args);
 
     void VisitStmt(Stmt *S);
 #define STMT(Type, Base) \
@@ -49,13 +50,13 @@ namespace clang {
   };
 }
 
-void ASTStmtWriter::
-AddTemplateKWAndArgsInfo(const ASTTemplateKWAndArgsInfo &Args) {
-  Writer.AddSourceLocation(Args.getTemplateKeywordLoc(), Record);
-  Writer.AddSourceLocation(Args.LAngleLoc, Record);
-  Writer.AddSourceLocation(Args.RAngleLoc, Record);
-  for (unsigned i=0; i != Args.NumTemplateArgs; ++i)
-    Writer.AddTemplateArgumentLoc(Args.getTemplateArgs()[i], Record);
+void ASTStmtWriter::AddTemplateKWAndArgsInfo(
+    const ASTTemplateKWAndArgsInfo &ArgInfo, const TemplateArgumentLoc *Args) {
+  Writer.AddSourceLocation(ArgInfo.TemplateKWLoc, Record);
+  Writer.AddSourceLocation(ArgInfo.LAngleLoc, Record);
+  Writer.AddSourceLocation(ArgInfo.RAngleLoc, Record);
+  for (unsigned i = 0; i != ArgInfo.NumTemplateArgs; ++i)
+    Writer.AddTemplateArgumentLoc(Args[i], Record);
 }
 
 void ASTStmtWriter::VisitStmt(Stmt *S) {
@@ -287,6 +288,26 @@ void ASTStmtWriter::VisitMSAsmStmt(MSAsmStmt *S) {
   Code = serialization::STMT_MSASM;
 }
 
+void ASTStmtWriter::VisitCoroutineBodyStmt(CoroutineBodyStmt *S) {
+  // FIXME: Implement coroutine serialization.
+  llvm_unreachable("unimplemented");
+}
+
+void ASTStmtWriter::VisitCoreturnStmt(CoreturnStmt *S) {
+  // FIXME: Implement coroutine serialization.
+  llvm_unreachable("unimplemented");
+}
+
+void ASTStmtWriter::VisitCoawaitExpr(CoawaitExpr *S) {
+  // FIXME: Implement coroutine serialization.
+  llvm_unreachable("unimplemented");
+}
+
+void ASTStmtWriter::VisitCoyieldExpr(CoyieldExpr *S) {
+  // FIXME: Implement coroutine serialization.
+  llvm_unreachable("unimplemented");
+}
+
 void ASTStmtWriter::VisitCapturedStmt(CapturedStmt *S) {
   VisitStmt(S);
   // NumCaptures
@@ -366,7 +387,8 @@ void ASTStmtWriter::VisitDeclRefExpr(DeclRefExpr *E) {
     Writer.AddDeclRef(E->getFoundDecl(), Record);
 
   if (E->hasTemplateKWAndArgsInfo())
-    AddTemplateKWAndArgsInfo(*E->getTemplateKWAndArgsInfo());
+    AddTemplateKWAndArgsInfo(*E->getTrailingObjects<ASTTemplateKWAndArgsInfo>(),
+                             E->getTrailingObjects<TemplateArgumentLoc>());
 
   Writer.AddDeclRef(E->getDecl(), Record);
   Writer.AddSourceLocation(E->getLocation(), Record);
@@ -462,24 +484,24 @@ void ASTStmtWriter::VisitOffsetOfExpr(OffsetOfExpr *E) {
   Writer.AddSourceLocation(E->getRParenLoc(), Record);
   Writer.AddTypeSourceInfo(E->getTypeSourceInfo(), Record);
   for (unsigned I = 0, N = E->getNumComponents(); I != N; ++I) {
-    const OffsetOfExpr::OffsetOfNode &ON = E->getComponent(I);
+    const OffsetOfNode &ON = E->getComponent(I);
     Record.push_back(ON.getKind()); // FIXME: Stable encoding
     Writer.AddSourceLocation(ON.getSourceRange().getBegin(), Record);
     Writer.AddSourceLocation(ON.getSourceRange().getEnd(), Record);
     switch (ON.getKind()) {
-    case OffsetOfExpr::OffsetOfNode::Array:
+    case OffsetOfNode::Array:
       Record.push_back(ON.getArrayExprIndex());
       break;
-        
-    case OffsetOfExpr::OffsetOfNode::Field:
+
+    case OffsetOfNode::Field:
       Writer.AddDeclRef(ON.getField(), Record);
       break;
-        
-    case OffsetOfExpr::OffsetOfNode::Identifier:
+
+    case OffsetOfNode::Identifier:
       Writer.AddIdentifierRef(ON.getFieldName(), Record);
       break;
-        
-    case OffsetOfExpr::OffsetOfNode::Base:
+
+    case OffsetOfNode::Base:
       Writer.AddCXXBaseSpecifier(*ON.getBase(), Record);
       break;
     }
@@ -509,6 +531,16 @@ void ASTStmtWriter::VisitArraySubscriptExpr(ArraySubscriptExpr *E) {
   Writer.AddStmt(E->getRHS());
   Writer.AddSourceLocation(E->getRBracketLoc(), Record);
   Code = serialization::EXPR_ARRAY_SUBSCRIPT;
+}
+
+void ASTStmtWriter::VisitOMPArraySectionExpr(OMPArraySectionExpr *E) {
+  VisitExpr(E);
+  Writer.AddStmt(E->getBase());
+  Writer.AddStmt(E->getLowerBound());
+  Writer.AddStmt(E->getLength());
+  Writer.AddSourceLocation(E->getColonLoc(), Record);
+  Writer.AddSourceLocation(E->getRBracketLoc(), Record);
+  Code = serialization::EXPR_OMP_ARRAY_SECTION;
 }
 
 void ASTStmtWriter::VisitCallExpr(CallExpr *E) {
@@ -761,6 +793,7 @@ void ASTStmtWriter::VisitVAArgExpr(VAArgExpr *E) {
   Writer.AddTypeSourceInfo(E->getWrittenTypeInfo(), Record);
   Writer.AddSourceLocation(E->getBuiltinLoc(), Record);
   Writer.AddSourceLocation(E->getRParenLoc(), Record);
+  Record.push_back(E->isMicrosoftABI());
   Code = serialization::EXPR_VA_ARG;
 }
 
@@ -1124,6 +1157,7 @@ void ASTStmtWriter::VisitCXXTryStmt(CXXTryStmt *S) {
 void ASTStmtWriter::VisitCXXForRangeStmt(CXXForRangeStmt *S) {
   VisitStmt(S);
   Writer.AddSourceLocation(S->getForLoc(), Record);
+  Writer.AddSourceLocation(S->getCoawaitLoc(), Record);
   Writer.AddSourceLocation(S->getColonLoc(), Record);
   Writer.AddSourceLocation(S->getRParenLoc(), Record);
   Writer.AddStmt(S->getRangeStmt());
@@ -1302,15 +1336,8 @@ void ASTStmtWriter::VisitCXXThrowExpr(CXXThrowExpr *E) {
 
 void ASTStmtWriter::VisitCXXDefaultArgExpr(CXXDefaultArgExpr *E) {
   VisitExpr(E);
-
-  bool HasOtherExprStored = E->Param.getInt();
-  // Store these first, the reader reads them before creation.
-  Record.push_back(HasOtherExprStored);
-  if (HasOtherExprStored)
-    Writer.AddStmt(E->getExpr());
   Writer.AddDeclRef(E->getParam(), Record);
   Writer.AddSourceLocation(E->getUsedLocation(), Record);
-
   Code = serialization::EXPR_CXX_DEFAULT_ARG;
 }
 
@@ -1408,9 +1435,11 @@ ASTStmtWriter::VisitCXXDependentScopeMemberExpr(CXXDependentScopeMemberExpr *E){
 
   Record.push_back(E->HasTemplateKWAndArgsInfo);
   if (E->HasTemplateKWAndArgsInfo) {
-    const ASTTemplateKWAndArgsInfo &Args = *E->getTemplateKWAndArgsInfo();
-    Record.push_back(Args.NumTemplateArgs);
-    AddTemplateKWAndArgsInfo(Args);
+    const ASTTemplateKWAndArgsInfo &ArgInfo =
+        *E->getTrailingObjects<ASTTemplateKWAndArgsInfo>();
+    Record.push_back(ArgInfo.NumTemplateArgs);
+    AddTemplateKWAndArgsInfo(ArgInfo,
+                             E->getTrailingObjects<TemplateArgumentLoc>());
   }
 
   if (!E->isImplicitAccess())
@@ -1435,9 +1464,11 @@ ASTStmtWriter::VisitDependentScopeDeclRefExpr(DependentScopeDeclRefExpr *E) {
 
   Record.push_back(E->HasTemplateKWAndArgsInfo);
   if (E->HasTemplateKWAndArgsInfo) {
-    const ASTTemplateKWAndArgsInfo &Args = *E->getTemplateKWAndArgsInfo();
-    Record.push_back(Args.NumTemplateArgs);
-    AddTemplateKWAndArgsInfo(Args);
+    const ASTTemplateKWAndArgsInfo &ArgInfo =
+        *E->getTrailingObjects<ASTTemplateKWAndArgsInfo>();
+    Record.push_back(ArgInfo.NumTemplateArgs);
+    AddTemplateKWAndArgsInfo(ArgInfo,
+                             E->getTrailingObjects<TemplateArgumentLoc>());
   }
 
   Writer.AddNestedNameSpecifierLoc(E->getQualifierLoc(), Record);
@@ -1466,9 +1497,10 @@ void ASTStmtWriter::VisitOverloadExpr(OverloadExpr *E) {
 
   Record.push_back(E->HasTemplateKWAndArgsInfo);
   if (E->HasTemplateKWAndArgsInfo) {
-    const ASTTemplateKWAndArgsInfo &Args = *E->getTemplateKWAndArgsInfo();
-    Record.push_back(Args.NumTemplateArgs);
-    AddTemplateKWAndArgsInfo(Args);
+    const ASTTemplateKWAndArgsInfo &ArgInfo =
+        *E->getTrailingASTTemplateKWAndArgsInfo();
+    Record.push_back(ArgInfo.NumTemplateArgs);
+    AddTemplateKWAndArgsInfo(ArgInfo, E->getTrailingTemplateArgumentLoc());
   }
 
   Record.push_back(E->getNumDecls());
@@ -1547,11 +1579,18 @@ void ASTStmtWriter::VisitPackExpansionExpr(PackExpansionExpr *E) {
 
 void ASTStmtWriter::VisitSizeOfPackExpr(SizeOfPackExpr *E) {
   VisitExpr(E);
+  Record.push_back(E->isPartiallySubstituted() ? E->getPartialArguments().size()
+                                               : 0);
   Writer.AddSourceLocation(E->OperatorLoc, Record);
   Writer.AddSourceLocation(E->PackLoc, Record);
   Writer.AddSourceLocation(E->RParenLoc, Record);
-  Record.push_back(E->Length);
   Writer.AddDeclRef(E->Pack, Record);
+  if (E->isPartiallySubstituted()) {
+    for (const auto &TA : E->getPartialArguments())
+      Writer.AddTemplateArgument(TA, Record);
+  } else if (!E->isValueDependent()) {
+    Record.push_back(E->getPackLength());
+  }
   Code = serialization::EXPR_SIZEOF_PACK;
 }
 
@@ -1650,6 +1689,14 @@ void ASTStmtWriter::VisitMSPropertyRefExpr(MSPropertyRefExpr *E) {
   Code = serialization::EXPR_CXX_PROPERTY_REF_EXPR;
 }
 
+void ASTStmtWriter::VisitMSPropertySubscriptExpr(MSPropertySubscriptExpr *E) {
+  VisitExpr(E);
+  Writer.AddStmt(E->getBase());
+  Writer.AddStmt(E->getIdx());
+  Writer.AddSourceLocation(E->getRBracketLoc(), Record);
+  Code = serialization::EXPR_CXX_PROPERTY_SUBSCRIPT_EXPR;
+}
+
 void ASTStmtWriter::VisitCXXUuidofExpr(CXXUuidofExpr *E) {
   VisitExpr(E);
   Writer.AddSourceRange(E->getSourceRange(), Record);
@@ -1718,6 +1765,9 @@ void OMPClauseWriter::writeClause(OMPClause *C) {
 }
 
 void OMPClauseWriter::VisitOMPIfClause(OMPIfClause *C) {
+  Record.push_back(C->getNameModifier());
+  Writer->Writer.AddSourceLocation(C->getNameModifierLoc(), Record);
+  Writer->Writer.AddSourceLocation(C->getColonLoc(), Record);
   Writer->Writer.AddStmt(C->getCondition());
   Writer->Writer.AddSourceLocation(C->getLParenLoc(), Record);
 }
@@ -1734,6 +1784,11 @@ void OMPClauseWriter::VisitOMPNumThreadsClause(OMPNumThreadsClause *C) {
 
 void OMPClauseWriter::VisitOMPSafelenClause(OMPSafelenClause *C) {
   Writer->Writer.AddStmt(C->getSafelen());
+  Writer->Writer.AddSourceLocation(C->getLParenLoc(), Record);
+}
+
+void OMPClauseWriter::VisitOMPSimdlenClause(OMPSimdlenClause *C) {
+  Writer->Writer.AddStmt(C->getSimdlen());
   Writer->Writer.AddSourceLocation(C->getLParenLoc(), Record);
 }
 
@@ -1756,14 +1811,21 @@ void OMPClauseWriter::VisitOMPProcBindClause(OMPProcBindClause *C) {
 
 void OMPClauseWriter::VisitOMPScheduleClause(OMPScheduleClause *C) {
   Record.push_back(C->getScheduleKind());
+  Record.push_back(C->getFirstScheduleModifier());
+  Record.push_back(C->getSecondScheduleModifier());
   Writer->Writer.AddStmt(C->getChunkSize());
   Writer->Writer.AddStmt(C->getHelperChunkSize());
   Writer->Writer.AddSourceLocation(C->getLParenLoc(), Record);
+  Writer->Writer.AddSourceLocation(C->getFirstScheduleModifierLoc(), Record);
+  Writer->Writer.AddSourceLocation(C->getSecondScheduleModifierLoc(), Record);
   Writer->Writer.AddSourceLocation(C->getScheduleKindLoc(), Record);
   Writer->Writer.AddSourceLocation(C->getCommaLoc(), Record);
 }
 
-void OMPClauseWriter::VisitOMPOrderedClause(OMPOrderedClause *) {}
+void OMPClauseWriter::VisitOMPOrderedClause(OMPOrderedClause *C) {
+  Writer->Writer.AddStmt(C->getNumForLoops());
+  Writer->Writer.AddSourceLocation(C->getLParenLoc(), Record);
+}
 
 void OMPClauseWriter::VisitOMPNowaitClause(OMPNowaitClause *) {}
 
@@ -1780,6 +1842,12 @@ void OMPClauseWriter::VisitOMPUpdateClause(OMPUpdateClause *) {}
 void OMPClauseWriter::VisitOMPCaptureClause(OMPCaptureClause *) {}
 
 void OMPClauseWriter::VisitOMPSeqCstClause(OMPSeqCstClause *) {}
+
+void OMPClauseWriter::VisitOMPThreadsClause(OMPThreadsClause *) {}
+
+void OMPClauseWriter::VisitOMPSIMDClause(OMPSIMDClause *) {}
+
+void OMPClauseWriter::VisitOMPNogroupClause(OMPNogroupClause *) {}
 
 void OMPClauseWriter::VisitOMPPrivateClause(OMPPrivateClause *C) {
   Record.push_back(C->varlist_size());
@@ -1836,6 +1904,8 @@ void OMPClauseWriter::VisitOMPReductionClause(OMPReductionClause *C) {
   Writer->Writer.AddDeclarationNameInfo(C->getNameInfo(), Record);
   for (auto *VE : C->varlists())
     Writer->Writer.AddStmt(VE);
+  for (auto *VE : C->privates())
+    Writer->Writer.AddStmt(VE);
   for (auto *E : C->lhs_exprs())
     Writer->Writer.AddStmt(E);
   for (auto *E : C->rhs_exprs())
@@ -1848,7 +1918,12 @@ void OMPClauseWriter::VisitOMPLinearClause(OMPLinearClause *C) {
   Record.push_back(C->varlist_size());
   Writer->Writer.AddSourceLocation(C->getLParenLoc(), Record);
   Writer->Writer.AddSourceLocation(C->getColonLoc(), Record);
+  Record.push_back(C->getModifier());
+  Writer->Writer.AddSourceLocation(C->getModifierLoc(), Record);
   for (auto *VE : C->varlists()) {
+    Writer->Writer.AddStmt(VE);
+  }
+  for (auto *VE : C->privates()) {
     Writer->Writer.AddStmt(VE);
   }
   for (auto *VE : C->inits()) {
@@ -1916,6 +1991,52 @@ void OMPClauseWriter::VisitOMPDependClause(OMPDependClause *C) {
     Writer->Writer.AddStmt(VE);
 }
 
+void OMPClauseWriter::VisitOMPDeviceClause(OMPDeviceClause *C) {
+  Writer->Writer.AddStmt(C->getDevice());
+  Writer->Writer.AddSourceLocation(C->getLParenLoc(), Record);
+}
+
+void OMPClauseWriter::VisitOMPMapClause(OMPMapClause *C) {
+  Record.push_back(C->varlist_size());
+  Writer->Writer.AddSourceLocation(C->getLParenLoc(), Record);
+  Record.push_back(C->getMapTypeModifier());
+  Record.push_back(C->getMapType());
+  Writer->Writer.AddSourceLocation(C->getMapLoc(), Record);
+  Writer->Writer.AddSourceLocation(C->getColonLoc(), Record);
+  for (auto *VE : C->varlists())
+    Writer->Writer.AddStmt(VE);
+}
+
+void OMPClauseWriter::VisitOMPNumTeamsClause(OMPNumTeamsClause *C) {
+  Writer->Writer.AddStmt(C->getNumTeams());
+  Writer->Writer.AddSourceLocation(C->getLParenLoc(), Record);
+}
+
+void OMPClauseWriter::VisitOMPThreadLimitClause(OMPThreadLimitClause *C) {
+  Writer->Writer.AddStmt(C->getThreadLimit());
+  Writer->Writer.AddSourceLocation(C->getLParenLoc(), Record);
+}
+
+void OMPClauseWriter::VisitOMPPriorityClause(OMPPriorityClause *C) {
+  Writer->Writer.AddStmt(C->getPriority());
+  Writer->Writer.AddSourceLocation(C->getLParenLoc(), Record);
+}
+
+void OMPClauseWriter::VisitOMPGrainsizeClause(OMPGrainsizeClause *C) {
+  Writer->Writer.AddStmt(C->getGrainsize());
+  Writer->Writer.AddSourceLocation(C->getLParenLoc(), Record);
+}
+
+void OMPClauseWriter::VisitOMPNumTasksClause(OMPNumTasksClause *C) {
+  Writer->Writer.AddStmt(C->getNumTasks());
+  Writer->Writer.AddSourceLocation(C->getLParenLoc(), Record);
+}
+
+void OMPClauseWriter::VisitOMPHintClause(OMPHintClause *C) {
+  Writer->Writer.AddStmt(C->getHint());
+  Writer->Writer.AddSourceLocation(C->getLParenLoc(), Record);
+}
+
 //===----------------------------------------------------------------------===//
 // OpenMP Directives.
 //===----------------------------------------------------------------------===//
@@ -1954,6 +2075,9 @@ void ASTStmtWriter::VisitOMPLoopDirective(OMPLoopDirective *D) {
   for (auto I : D->counters()) {
     Writer.AddStmt(I);
   }
+  for (auto I : D->private_counters()) {
+    Writer.AddStmt(I);
+  }
   for (auto I : D->inits()) {
     Writer.AddStmt(I);
   }
@@ -1969,6 +2093,7 @@ void ASTStmtWriter::VisitOMPParallelDirective(OMPParallelDirective *D) {
   VisitStmt(D);
   Record.push_back(D->getNumClauses());
   VisitOMPExecutableDirective(D);
+  Record.push_back(D->hasCancel() ? 1 : 0);
   Code = serialization::STMT_OMP_PARALLEL_DIRECTIVE;
 }
 
@@ -1979,6 +2104,7 @@ void ASTStmtWriter::VisitOMPSimdDirective(OMPSimdDirective *D) {
 
 void ASTStmtWriter::VisitOMPForDirective(OMPForDirective *D) {
   VisitOMPLoopDirective(D);
+  Record.push_back(D->hasCancel() ? 1 : 0);
   Code = serialization::STMT_OMP_FOR_DIRECTIVE;
 }
 
@@ -1991,12 +2117,14 @@ void ASTStmtWriter::VisitOMPSectionsDirective(OMPSectionsDirective *D) {
   VisitStmt(D);
   Record.push_back(D->getNumClauses());
   VisitOMPExecutableDirective(D);
+  Record.push_back(D->hasCancel() ? 1 : 0);
   Code = serialization::STMT_OMP_SECTIONS_DIRECTIVE;
 }
 
 void ASTStmtWriter::VisitOMPSectionDirective(OMPSectionDirective *D) {
   VisitStmt(D);
   VisitOMPExecutableDirective(D);
+  Record.push_back(D->hasCancel() ? 1 : 0);
   Code = serialization::STMT_OMP_SECTION_DIRECTIVE;
 }
 
@@ -2015,6 +2143,7 @@ void ASTStmtWriter::VisitOMPMasterDirective(OMPMasterDirective *D) {
 
 void ASTStmtWriter::VisitOMPCriticalDirective(OMPCriticalDirective *D) {
   VisitStmt(D);
+  Record.push_back(D->getNumClauses());
   VisitOMPExecutableDirective(D);
   Writer.AddDeclarationNameInfo(D->getDirectiveName(), Record);
   Code = serialization::STMT_OMP_CRITICAL_DIRECTIVE;
@@ -2022,6 +2151,7 @@ void ASTStmtWriter::VisitOMPCriticalDirective(OMPCriticalDirective *D) {
 
 void ASTStmtWriter::VisitOMPParallelForDirective(OMPParallelForDirective *D) {
   VisitOMPLoopDirective(D);
+  Record.push_back(D->hasCancel() ? 1 : 0);
   Code = serialization::STMT_OMP_PARALLEL_FOR_DIRECTIVE;
 }
 
@@ -2036,6 +2166,7 @@ void ASTStmtWriter::VisitOMPParallelSectionsDirective(
   VisitStmt(D);
   Record.push_back(D->getNumClauses());
   VisitOMPExecutableDirective(D);
+  Record.push_back(D->hasCancel() ? 1 : 0);
   Code = serialization::STMT_OMP_PARALLEL_SECTIONS_DIRECTIVE;
 }
 
@@ -2043,6 +2174,7 @@ void ASTStmtWriter::VisitOMPTaskDirective(OMPTaskDirective *D) {
   VisitStmt(D);
   Record.push_back(D->getNumClauses());
   VisitOMPExecutableDirective(D);
+  Record.push_back(D->hasCancel() ? 1 : 0);
   Code = serialization::STMT_OMP_TASK_DIRECTIVE;
 }
 
@@ -2064,6 +2196,13 @@ void ASTStmtWriter::VisitOMPTargetDirective(OMPTargetDirective *D) {
   Record.push_back(D->getNumClauses());
   VisitOMPExecutableDirective(D);
   Code = serialization::STMT_OMP_TARGET_DIRECTIVE;
+}
+
+void ASTStmtWriter::VisitOMPTargetDataDirective(OMPTargetDataDirective *D) {
+  VisitStmt(D);
+  Record.push_back(D->getNumClauses());
+  VisitOMPExecutableDirective(D);
+  Code = serialization::STMT_OMP_TARGET_DATA_DIRECTIVE;
 }
 
 void ASTStmtWriter::VisitOMPTaskyieldDirective(OMPTaskyieldDirective *D) {
@@ -2099,6 +2238,7 @@ void ASTStmtWriter::VisitOMPFlushDirective(OMPFlushDirective *D) {
 
 void ASTStmtWriter::VisitOMPOrderedDirective(OMPOrderedDirective *D) {
   VisitStmt(D);
+  Record.push_back(D->getNumClauses());
   VisitOMPExecutableDirective(D);
   Code = serialization::STMT_OMP_ORDERED_DIRECTIVE;
 }
@@ -2120,9 +2260,25 @@ void ASTStmtWriter::VisitOMPCancellationPointDirective(
 
 void ASTStmtWriter::VisitOMPCancelDirective(OMPCancelDirective *D) {
   VisitStmt(D);
+  Record.push_back(D->getNumClauses());
   VisitOMPExecutableDirective(D);
   Record.push_back(D->getCancelRegion());
   Code = serialization::STMT_OMP_CANCEL_DIRECTIVE;
+}
+
+void ASTStmtWriter::VisitOMPTaskLoopDirective(OMPTaskLoopDirective *D) {
+  VisitOMPLoopDirective(D);
+  Code = serialization::STMT_OMP_TASKLOOP_DIRECTIVE;
+}
+
+void ASTStmtWriter::VisitOMPTaskLoopSimdDirective(OMPTaskLoopSimdDirective *D) {
+  VisitOMPLoopDirective(D);
+  Code = serialization::STMT_OMP_TASKLOOP_SIMD_DIRECTIVE;
+}
+
+void ASTStmtWriter::VisitOMPDistributeDirective(OMPDistributeDirective *D) {
+  VisitOMPLoopDirective(D);
+  Code = serialization::STMT_OMP_DISTRIBUTE_DIRECTIVE;
 }
 
 //===----------------------------------------------------------------------===//

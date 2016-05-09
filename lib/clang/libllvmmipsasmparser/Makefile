@@ -8,7 +8,8 @@ SRCDIR=	lib/Target/Mips/AsmParser
 INCDIR=	lib/Target/Mips
 SRCS=	MipsAsmParser.cpp
 
-TGHDRS=	MipsGenAsmMatcher \
+TGHDRS=	Attributes \
+	MipsGenAsmMatcher \
 	MipsGenInstrInfo \
 	MipsGenRegisterInfo \
 	MipsGenSubtargetInfo

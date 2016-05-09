@@ -450,7 +450,7 @@
 267	AUE_NULL	STD	{ int linux_clock_nanosleep(clockid_t which, int flags, \
 					struct l_timespec *rqtp, struct l_timespec *rmtp); }
 268	AUE_STATFS	STD	{ int linux_statfs64(char *path, size_t bufsize, struct l_statfs64_buf *buf); }
-269	AUE_FSTATFS	STD	{ int linux_fstatfs64(void); }
+269	AUE_FSTATFS	STD	{ int linux_fstatfs64(l_uint fd, size_t bufsize, struct l_statfs64_buf *buf); }
 270	AUE_NULL	STD	{ int linux_tgkill(int tgid, int pid, int sig); }
 271	AUE_UTIMES	STD	{ int linux_utimes(char *fname, \
 					struct l_timeval *tptr); }

@@ -316,7 +316,7 @@ cpu_initclocks(void)
 	cpu_initclocks_bsp();
 }
 
-struct msgbuf *msgbufp=0;
+struct msgbuf *msgbufp = NULL;
 
 /*
  * Initialize the hardware exception vectors, and the jump table used to

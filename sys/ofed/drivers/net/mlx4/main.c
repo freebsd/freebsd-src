@@ -159,7 +159,7 @@ MODULE_PARM_DESC(high_rate_steer, "Enable steering mode for higher packet rate"
 static int fast_drop;
 module_param_named(fast_drop, fast_drop, int, 0444);
 MODULE_PARM_DESC(fast_drop,
-		 "Enable fast packet drop when no recieve WQEs are posted");
+		 "Enable fast packet drop when no receive WQEs are posted");
 
 int mlx4_enable_64b_cqe_eqe = 1;
 module_param_named(enable_64b_cqe_eqe, mlx4_enable_64b_cqe_eqe, int, 0644);
@@ -2452,7 +2452,7 @@ EXPORT_SYMBOL_GPL(mlx4_counter_alloc);
 
 void __mlx4_counter_free(struct mlx4_dev *dev, int slave, int port, u32 idx)
 {
-	/* check if native or slave and deletes acordingly */
+	/* check if native or slave and deletes accordingly */
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct counter_index *pf, *tmp_pf;
 	struct counter_index *vf, *tmp_vf;

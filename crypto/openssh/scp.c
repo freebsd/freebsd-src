@@ -1,4 +1,4 @@
-/* $OpenBSD: scp.c,v 1.182 2015/04/24 01:36:00 deraadt Exp $ */
+/* $OpenBSD: scp.c,v 1.184 2015/11/27 00:49:31 deraadt Exp $ */
 /*
  * scp - secure remote copy.  This is basically patched BSD rcp which
  * uses ssh to do the data transfer (instead of using rcmd).
@@ -484,6 +484,16 @@ main(int argc, char **argv)
 	if (!isatty(STDOUT_FILENO))
 		showprogress = 0;
 
+	if (pflag) {
+		/* Cannot pledge: -p allows setuid/setgid files... */
+	} else {
+		if (pledge("stdio rpath wpath cpath fattr tty proc exec",
+		    NULL) == -1) {
+			perror("pledge");
+			exit(1);
+		}
+	}
+
 	remin = STDIN_FILENO;
 	remout = STDOUT_FILENO;
 
@@ -866,7 +876,7 @@ rsource(char *name, struct stat *statp)
 		return;
 	}
 	last = strrchr(name, '/');
-	if (last == 0)
+	if (last == NULL)
 		last = name;
 	else
 		last++;

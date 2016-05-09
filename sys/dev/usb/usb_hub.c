@@ -1766,7 +1766,7 @@ done:
  * The USB Transaction Translator:
  * ===============================
  *
- * When doing LOW- and FULL-speed USB transfers accross a HIGH-speed
+ * When doing LOW- and FULL-speed USB transfers across a HIGH-speed
  * USB HUB, bandwidth must be allocated for ISOCHRONOUS and INTERRUPT
  * USB transfers. To utilize bandwidth dynamically the "scatter and
  * gather" principle must be applied. This means that bandwidth must
@@ -1838,7 +1838,7 @@ usb_intr_find_best_slot(usb_size_t *ptr, uint8_t start,
 /*------------------------------------------------------------------------*
  *	usb_hs_bandwidth_adjust
  *
- * This function will update the bandwith usage for the microframe
+ * This function will update the bandwidth usage for the microframe
  * having index "slot" by "len" bytes. "len" can be negative.  If the
  * "slot" argument is greater or equal to "USB_HS_MICRO_FRAMES_MAX"
  * the "slot" argument will be replaced by the slot having least used
@@ -2310,7 +2310,7 @@ usb_needs_explore_all(void)
 		return;
 	}
 	/*
-	 * Explore all USB busses in parallell.
+	 * Explore all USB busses in parallel.
 	 */
 	max = devclass_get_maxunit(dc);
 	while (max >= 0) {

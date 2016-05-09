@@ -35,6 +35,8 @@ public:
 
   /// Code Generation virtual methods...
   const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
+  const MCPhysReg *
+  getCalleeSavedRegsViaCopy(const MachineFunction *MF) const override;
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,
                                        CallingConv::ID) const override;
 
@@ -93,9 +95,6 @@ public:
 
   unsigned getRegPressureLimit(const TargetRegisterClass *RC,
                                MachineFunction &MF) const override;
-  // Base pointer (stack realignment) support.
-  bool canRealignStack(const MachineFunction &MF) const;
-  bool needsStackRealignment(const MachineFunction &MF) const override;
 };
 
 } // end namespace llvm

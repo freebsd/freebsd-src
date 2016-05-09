@@ -390,7 +390,7 @@ efx_nic_create(
 	case EFX_FAMILY_MEDFORD:
 		enp->en_enop = (efx_nic_ops_t *)&__efx_nic_medford_ops;
 		/*
-		 * FW_ASSISTED_TSO ommitted as Medford only supports firmware
+		 * FW_ASSISTED_TSO omitted as Medford only supports firmware
 		 * assisted TSO version 2, not the v1 scheme used on Huntington.
 		 */
 		enp->en_features =
@@ -466,42 +466,6 @@ fail1:
 
 	return (rc);
 }
-
-#if EFSYS_OPT_PCIE_TUNE
-
-	__checkReturn	efx_rc_t
-efx_nic_pcie_tune(
-	__in		efx_nic_t *enp,
-	unsigned int	nlanes)
-{
-	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
-	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
-	EFSYS_ASSERT(!(enp->en_mod_flags & EFX_MOD_NIC));
-
-#if EFSYS_OPT_FALCON
-	if (enp->en_family == EFX_FAMILY_FALCON)
-		return (falcon_nic_pcie_tune(enp, nlanes));
-#endif
-	return (ENOTSUP);
-}
-
-	__checkReturn	efx_rc_t
-efx_nic_pcie_extended_sync(
-	__in		efx_nic_t *enp)
-{
-	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
-	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
-	EFSYS_ASSERT(!(enp->en_mod_flags & EFX_MOD_NIC));
-
-#if EFSYS_OPT_SIENA
-	if (enp->en_family == EFX_FAMILY_SIENA)
-		return (siena_nic_pcie_extended_sync(enp));
-#endif
-
-	return (ENOTSUP);
-}
-
-#endif	/* EFSYS_OPT_PCIE_TUNE */
 
 	__checkReturn	efx_rc_t
 efx_nic_set_drv_limits(

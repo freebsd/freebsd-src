@@ -28,7 +28,7 @@ MCObjectStreamer::MCObjectStreamer(MCContext &Context, MCAsmBackend &TAB,
                                    MCCodeEmitter *Emitter_)
     : MCStreamer(Context),
       Assembler(new MCAssembler(Context, TAB, *Emitter_,
-                                *TAB.createObjectWriter(OS), OS)),
+                                *TAB.createObjectWriter(OS))),
       EmitEHFrame(true), EmitDebugFrame(false) {}
 
 MCObjectStreamer::~MCObjectStreamer() {
@@ -39,32 +39,31 @@ MCObjectStreamer::~MCObjectStreamer() {
 }
 
 void MCObjectStreamer::flushPendingLabels(MCFragment *F, uint64_t FOffset) {
-  if (PendingLabels.size()) {
-    if (!F) {
-      F = new MCDataFragment();
-      MCSection *CurSection = getCurrentSectionOnly();
-      CurSection->getFragmentList().insert(CurInsertionPoint, F);
-      F->setParent(CurSection);
-    }
-    for (MCSymbol *Sym : PendingLabels) {
-      Sym->setFragment(F);
-      Sym->setOffset(FOffset);
-    }
-    PendingLabels.clear();
+  if (PendingLabels.empty())
+    return;
+  if (!F) {
+    F = new MCDataFragment();
+    MCSection *CurSection = getCurrentSectionOnly();
+    CurSection->getFragmentList().insert(CurInsertionPoint, F);
+    F->setParent(CurSection);
   }
+  for (MCSymbol *Sym : PendingLabels) {
+    Sym->setFragment(F);
+    Sym->setOffset(FOffset);
+  }
+  PendingLabels.clear();
 }
 
 void MCObjectStreamer::emitAbsoluteSymbolDiff(const MCSymbol *Hi,
                                               const MCSymbol *Lo,
                                               unsigned Size) {
   // If not assigned to the same (valid) fragment, fallback.
-  if (!Hi->getFragment() || Hi->getFragment() != Lo->getFragment()) {
+  if (!Hi->getFragment() || Hi->getFragment() != Lo->getFragment() ||
+      Hi->isVariable() || Lo->isVariable()) {
     MCStreamer::emitAbsoluteSymbolDiff(Hi, Lo, Size);
     return;
   }
 
-  assert(Hi->getOffset() >= Lo->getOffset() &&
-         "Expected Hi to be greater than Lo");
   EmitIntValue(Hi->getOffset() - Lo->getOffset(), Size);
 }
 
@@ -93,7 +92,7 @@ MCFragment *MCObjectStreamer::getCurrentFragment() const {
   assert(getCurrentSectionOnly() && "No current section!");
 
   if (CurInsertionPoint != getCurrentSectionOnly()->getFragmentList().begin())
-    return std::prev(CurInsertionPoint);
+    return &*std::prev(CurInsertionPoint);
 
   return nullptr;
 }
@@ -121,7 +120,7 @@ void MCObjectStreamer::EmitCFISections(bool EH, bool Debug) {
 }
 
 void MCObjectStreamer::EmitValueImpl(const MCExpr *Value, unsigned Size,
-                                     const SMLoc &Loc) {
+                                     SMLoc Loc) {
   MCStreamer::EmitValueImpl(Value, Size, Loc);
   MCDataFragment *DF = getOrCreateDataFragment();
   flushPendingLabels(DF, DF->getContents().size());
@@ -155,7 +154,6 @@ void MCObjectStreamer::EmitLabel(MCSymbol *Symbol) {
   MCStreamer::EmitLabel(Symbol);
 
   getAssembler().registerSymbol(*Symbol);
-  assert(!Symbol->getFragment() && "Unexpected fragment on symbol data!");
 
   // If there is a current fragment, mark the symbol as pointing into it.
   // Otherwise queue the label and set its fragment pointer when we emit the
@@ -276,7 +274,6 @@ void MCObjectStreamer::EmitInstToFragment(const MCInst &Inst,
   raw_svector_ostream VecOS(Code);
   getAssembler().getEmitter().encodeInstruction(Inst, VecOS, IF->getFixups(),
                                                 STI);
-  VecOS.flush();
   IF->getContents().append(Code.begin(), Code.end());
 }
 
@@ -321,8 +318,10 @@ static const MCExpr *buildSymbolDiff(MCObjectStreamer &OS, const MCSymbol *A,
   return AddrDelta;
 }
 
-static void emitDwarfSetLineAddr(MCObjectStreamer &OS, int64_t LineDelta,
-                                 const MCSymbol *Label, int PointerSize) {
+static void emitDwarfSetLineAddr(MCObjectStreamer &OS,
+                                 MCDwarfLineTableParams Params,
+                                 int64_t LineDelta, const MCSymbol *Label,
+                                 int PointerSize) {
   // emit the sequence to set the address
   OS.EmitIntValue(dwarf::DW_LNS_extended_op, 1);
   OS.EmitULEB128IntValue(PointerSize + 1);
@@ -330,7 +329,7 @@ static void emitDwarfSetLineAddr(MCObjectStreamer &OS, int64_t LineDelta,
   OS.EmitSymbolValue(Label, PointerSize);
 
   // emit the sequence for the LineDelta (from 1) and a zero address delta.
-  MCDwarfLineAddr::Emit(&OS, LineDelta, 0);
+  MCDwarfLineAddr::Emit(&OS, Params, LineDelta, 0);
 }
 
 void MCObjectStreamer::EmitDwarfAdvanceLineAddr(int64_t LineDelta,
@@ -338,13 +337,15 @@ void MCObjectStreamer::EmitDwarfAdvanceLineAddr(int64_t LineDelta,
                                                 const MCSymbol *Label,
                                                 unsigned PointerSize) {
   if (!LastLabel) {
-    emitDwarfSetLineAddr(*this, LineDelta, Label, PointerSize);
+    emitDwarfSetLineAddr(*this, Assembler->getDWARFLinetableParams(), LineDelta,
+                         Label, PointerSize);
     return;
   }
   const MCExpr *AddrDelta = buildSymbolDiff(*this, Label, LastLabel);
   int64_t Res;
   if (AddrDelta->evaluateAsAbsolute(Res, getAssembler())) {
-    MCDwarfLineAddr::Emit(this, LineDelta, Res);
+    MCDwarfLineAddr::Emit(this, Assembler->getDWARFLinetableParams(), LineDelta,
+                          Res);
     return;
   }
   insert(new MCDwarfLineAddrFragment(LineDelta, *AddrDelta));
@@ -388,26 +389,9 @@ void MCObjectStreamer::EmitCodeAlignment(unsigned ByteAlignment,
   cast<MCAlignFragment>(getCurrentFragment())->setEmitNops(true);
 }
 
-bool MCObjectStreamer::EmitValueToOffset(const MCExpr *Offset,
+void MCObjectStreamer::emitValueToOffset(const MCExpr *Offset,
                                          unsigned char Value) {
-  int64_t Res;
-  if (Offset->evaluateAsAbsolute(Res, getAssembler())) {
-    insert(new MCOrgFragment(*Offset, Value));
-    return false;
-  }
-
-  MCSymbol *CurrentPos = getContext().createTempSymbol();
-  EmitLabel(CurrentPos);
-  MCSymbolRefExpr::VariantKind Variant = MCSymbolRefExpr::VK_None;
-  const MCExpr *Ref =
-    MCSymbolRefExpr::create(CurrentPos, Variant, getContext());
-  const MCExpr *Delta =
-    MCBinaryExpr::create(MCBinaryExpr::Sub, Offset, Ref, getContext());
-
-  if (!Delta->evaluateAsAbsolute(Res, getAssembler()))
-    return true;
-  EmitFill(Res, Value);
-  return false;
+  insert(new MCOrgFragment(*Offset, Value));
 }
 
 // Associate GPRel32 fixup with data and resize data area
@@ -430,19 +414,31 @@ void MCObjectStreamer::EmitGPRel64Value(const MCExpr *Value) {
   DF->getContents().resize(DF->getContents().size() + 8, 0);
 }
 
-void MCObjectStreamer::EmitFill(uint64_t NumBytes, uint8_t FillValue) {
-  // FIXME: A MCFillFragment would be more memory efficient but MCExpr has
-  //        problems evaluating expressions across multiple fragments.
+bool MCObjectStreamer::EmitRelocDirective(const MCExpr &Offset, StringRef Name,
+                                          const MCExpr *Expr, SMLoc Loc) {
+  int64_t OffsetValue;
+  if (!Offset.evaluateAsAbsolute(OffsetValue))
+    llvm_unreachable("Offset is not absolute");
+
   MCDataFragment *DF = getOrCreateDataFragment();
   flushPendingLabels(DF, DF->getContents().size());
-  DF->getContents().append(NumBytes, FillValue);
+
+  MCFixupKind Kind;
+  if (!Assembler->getBackend().getFixupKind(Name, Kind))
+    return true;
+
+  if (Expr == nullptr)
+    Expr =
+        MCSymbolRefExpr::create(getContext().createTempSymbol(), getContext());
+  DF->getFixups().push_back(MCFixup::create(OffsetValue, Expr, Kind, Loc));
+  return false;
 }
 
-void MCObjectStreamer::EmitZeros(uint64_t NumBytes) {
+void MCObjectStreamer::EmitFill(uint64_t NumBytes, uint8_t FillValue) {
   const MCSection *Sec = getCurrentSection().first;
   assert(Sec && "need a section");
   unsigned ItemSize = Sec->isVirtualSection() ? 0 : 1;
-  insert(new MCFillFragment(0, ItemSize, NumBytes));
+  insert(new MCFillFragment(FillValue, ItemSize, NumBytes));
 }
 
 void MCObjectStreamer::FinishImpl() {
@@ -451,7 +447,7 @@ void MCObjectStreamer::FinishImpl() {
     MCGenDwarfInfo::Emit(this);
 
   // Dump out the dwarf file & directory tables and line tables.
-  MCDwarfLineTable::Emit(this);
+  MCDwarfLineTable::Emit(this, getAssembler().getDWARFLinetableParams());
 
   flushPendingLabels(nullptr);
   getAssembler().Finish();

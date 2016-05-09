@@ -356,7 +356,7 @@ bwi_attach(struct bwi_softc *sc)
 	device_t dev = sc->sc_dev;
 	struct bwi_mac *mac;
 	struct bwi_phy *phy;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t bands[IEEE80211_MODE_BYTES];
 	int i, error;
 
 	BWI_LOCK_INIT(sc);
@@ -3747,7 +3747,7 @@ bwi_rx_radiotap(struct bwi_softc *sc, struct mbuf *m,
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED)
 		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_WEP;
 
-	sc->sc_rx_th.wr_tsf = hdr->rxh_tsf; /* No endian convertion */
+	sc->sc_rx_th.wr_tsf = hdr->rxh_tsf; /* No endian conversion */
 	sc->sc_rx_th.wr_rate = rate;
 	sc->sc_rx_th.wr_antsignal = rssi;
 	sc->sc_rx_th.wr_antnoise = noise;

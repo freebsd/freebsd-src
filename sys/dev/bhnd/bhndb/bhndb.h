@@ -98,7 +98,7 @@ struct bhndb_regwin {
 		struct {
 			bus_size_t	cfg_offset;	/**< window address config offset. */
 		} dyn;
-        };
+	} d;
 };
 
 #define	BHNDB_REGWIN_TABLE_END	{ BHNDB_REGWIN_T_INVALID, 0, 0, { 0, 0 } }

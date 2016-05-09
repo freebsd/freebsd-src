@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
 PROG=	ifconfig
 
 SRCS=	ifconfig.c		# base support

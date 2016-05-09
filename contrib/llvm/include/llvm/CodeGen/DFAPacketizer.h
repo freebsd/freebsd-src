@@ -40,28 +40,63 @@ class InstrItineraryData;
 class DefaultVLIWScheduler;
 class SUnit;
 
+// --------------------------------------------------------------------
+// Definitions shared between DFAPacketizer.cpp and DFAPacketizerEmitter.cpp
+
+// DFA_MAX_RESTERMS * DFA_MAX_RESOURCES must fit within sizeof DFAInput.
+// This is verified in DFAPacketizer.cpp:DFAPacketizer::DFAPacketizer.
+//
+// e.g. terms x resource bit combinations that fit in uint32_t:
+//      4 terms x 8  bits = 32 bits
+//      3 terms x 10 bits = 30 bits
+//      2 terms x 16 bits = 32 bits
+//
+// e.g. terms x resource bit combinations that fit in uint64_t:
+//      8 terms x 8  bits = 64 bits
+//      7 terms x 9  bits = 63 bits
+//      6 terms x 10 bits = 60 bits
+//      5 terms x 12 bits = 60 bits
+//      4 terms x 16 bits = 64 bits <--- current
+//      3 terms x 21 bits = 63 bits
+//      2 terms x 32 bits = 64 bits
+//
+#define DFA_MAX_RESTERMS        4   // The max # of AND'ed resource terms.
+#define DFA_MAX_RESOURCES       16  // The max # of resource bits in one term.
+
+typedef uint64_t                DFAInput;
+typedef int64_t                 DFAStateInput;
+#define DFA_TBLTYPE             "int64_t" // For generating DFAStateInputTable.
+// --------------------------------------------------------------------
+
 class DFAPacketizer {
 private:
-  typedef std::pair<unsigned, unsigned> UnsignPair;
+  typedef std::pair<unsigned, DFAInput> UnsignPair;
+
   const InstrItineraryData *InstrItins;
   int CurrentState;
-  const int (*DFAStateInputTable)[2];
+  const DFAStateInput (*DFAStateInputTable)[2];
   const unsigned *DFAStateEntryTable;
 
   // CachedTable is a map from <FromState, Input> to ToState.
   DenseMap<UnsignPair, unsigned> CachedTable;
 
   // ReadTable - Read the DFA transition table and update CachedTable.
-  void ReadTable(unsigned int state);
+  void ReadTable(unsigned state);
 
 public:
-  DFAPacketizer(const InstrItineraryData *I, const int (*SIT)[2],
+  DFAPacketizer(const InstrItineraryData *I, const DFAStateInput (*SIT)[2],
                 const unsigned *SET);
 
   // Reset the current state to make all resources available.
   void clearResources() {
     CurrentState = 0;
   }
+
+  // getInsnInput - Return the DFAInput for an instruction class.
+  DFAInput getInsnInput(unsigned InsnClass);
+
+  // getInsnInput - Return the DFAInput for an instruction class input vector.
+  static DFAInput getInsnInput(const std::vector<unsigned> &InsnClass);
 
   // canReserveResources - Check if the resources occupied by a MCInstrDesc
   // are available in the current state.
@@ -93,6 +128,7 @@ class VLIWPacketizerList {
 protected:
   MachineFunction &MF;
   const TargetInstrInfo *TII;
+  AliasAnalysis *AA;
 
   // The VLIW Scheduler.
   DefaultVLIWScheduler *VLIWScheduler;
@@ -106,7 +142,9 @@ protected:
   std::map<MachineInstr*, SUnit*> MIToSUnit;
 
 public:
-  VLIWPacketizerList(MachineFunction &MF, MachineLoopInfo &MLI, bool IsPostRA);
+  // The AliasAnalysis parameter can be nullptr.
+  VLIWPacketizerList(MachineFunction &MF, MachineLoopInfo &MLI,
+                     AliasAnalysis *AA);
 
   virtual ~VLIWPacketizerList();
 
@@ -126,8 +164,10 @@ public:
     return MII;
   }
 
-  // endPacket - End the current packet.
-  void endPacket(MachineBasicBlock *MBB, MachineInstr *MI);
+  // End the current packet and reset the state of the packetizer.
+  // Overriding this function allows the target-specific packetizer
+  // to perform custom finalization.
+  virtual void endPacket(MachineBasicBlock *MBB, MachineInstr *MI);
 
   // initPacketizerState - perform initialization before packetizing
   // an instruction. This function is supposed to be overrided by
@@ -135,14 +175,24 @@ public:
   virtual void initPacketizerState() { return; }
 
   // ignorePseudoInstruction - Ignore bundling of pseudo instructions.
-  virtual bool ignorePseudoInstruction(MachineInstr *I,
-                                       MachineBasicBlock *MBB) {
+  virtual bool ignorePseudoInstruction(const MachineInstr *I,
+                                       const MachineBasicBlock *MBB) {
     return false;
   }
 
   // isSoloInstruction - return true if instruction MI can not be packetized
   // with any other instruction, which means that MI itself is a packet.
-  virtual bool isSoloInstruction(MachineInstr *MI) {
+  virtual bool isSoloInstruction(const MachineInstr *MI) {
+    return true;
+  }
+
+  // Check if the packetizer should try to add the given instruction to
+  // the current packet. One reasons for which it may not be desirable
+  // to include an instruction in the current packet could be that it
+  // would cause a stall.
+  // If this function returns "false", the current packet will be ended,
+  // and the instruction will be added to the next packet.
+  virtual bool shouldAddToPacket(const MachineInstr *MI) {
     return true;
   }
 

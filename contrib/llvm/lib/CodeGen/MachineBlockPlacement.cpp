@@ -51,7 +51,7 @@ using namespace llvm;
 #define DEBUG_TYPE "block-placement"
 
 STATISTIC(NumCondBranches, "Number of conditional branches");
-STATISTIC(NumUncondBranches, "Number of uncondittional branches");
+STATISTIC(NumUncondBranches, "Number of unconditional branches");
 STATISTIC(CondBranchTakenFreq,
           "Potential frequency of taking conditional branches");
 STATISTIC(UncondBranchTakenFreq,
@@ -61,6 +61,11 @@ static cl::opt<unsigned> AlignAllBlock("align-all-blocks",
                                        cl::desc("Force the alignment of all "
                                                 "blocks in the function."),
                                        cl::init(0), cl::Hidden);
+
+static cl::opt<unsigned>
+    AlignAllLoops("align-all-loops",
+                  cl::desc("Force the alignment of all loops in the function."),
+                  cl::init(0), cl::Hidden);
 
 // FIXME: Find a good default for this flag and remove the flag.
 static cl::opt<unsigned> ExitBlockBias(
@@ -80,6 +85,29 @@ static cl::opt<unsigned> OutlineOptionalThreshold(
     cl::desc("Don't outline optional branches that are a single block with an "
              "instruction count below this threshold"),
     cl::init(4), cl::Hidden);
+
+static cl::opt<unsigned> LoopToColdBlockRatio(
+    "loop-to-cold-block-ratio",
+    cl::desc("Outline loop blocks from loop chain if (frequency of loop) / "
+             "(frequency of block) is greater than this ratio"),
+    cl::init(5), cl::Hidden);
+
+static cl::opt<bool>
+    PreciseRotationCost("precise-rotation-cost",
+                        cl::desc("Model the cost of loop rotation more "
+                                 "precisely by using profile data."),
+                        cl::init(false), cl::Hidden);
+
+static cl::opt<unsigned> MisfetchCost(
+    "misfetch-cost",
+    cl::desc("Cost that models the probablistic risk of an instruction "
+             "misfetch due to a jump comparing to falling through, whose cost "
+             "is zero."),
+    cl::init(1), cl::Hidden);
+
+static cl::opt<unsigned> JumpInstCost("jump-inst-cost",
+                                      cl::desc("Cost of jump instructions."),
+                                      cl::init(1), cl::Hidden);
 
 namespace {
 class BlockChain;
@@ -246,9 +274,12 @@ class MachineBlockPlacement : public MachineFunctionPass {
                                      const BlockFilterSet &LoopBlockSet);
   MachineBasicBlock *findBestLoopExit(MachineFunction &F, MachineLoop &L,
                                       const BlockFilterSet &LoopBlockSet);
+  BlockFilterSet collectLoopBlockSet(MachineFunction &F, MachineLoop &L);
   void buildLoopChains(MachineFunction &F, MachineLoop &L);
   void rotateLoop(BlockChain &LoopChain, MachineBasicBlock *ExitingBB,
                   const BlockFilterSet &LoopBlockSet);
+  void rotateLoopWithProfile(BlockChain &LoopChain, MachineLoop &L,
+                             const BlockFilterSet &LoopBlockSet);
   void buildCFGChains(MachineFunction &F);
 
 public:
@@ -354,31 +385,56 @@ MachineBlockPlacement::selectBestSuccessor(MachineBasicBlock *BB,
   const BranchProbability HotProb(4, 5); // 80%
 
   MachineBasicBlock *BestSucc = nullptr;
-  // FIXME: Due to the performance of the probability and weight routines in
-  // the MBPI analysis, we manually compute probabilities using the edge
-  // weights. This is suboptimal as it means that the somewhat subtle
-  // definition of edge weight semantics is encoded here as well. We should
-  // improve the MBPI interface to efficiently support query patterns such as
-  // this.
-  uint32_t BestWeight = 0;
-  uint32_t WeightScale = 0;
-  uint32_t SumWeight = MBPI->getSumForBlock(BB, WeightScale);
-  DEBUG(dbgs() << "Attempting merge from: " << getBlockName(BB) << "\n");
-  for (MachineBasicBlock *Succ : BB->successors()) {
-    if (BlockFilter && !BlockFilter->count(Succ))
-      continue;
-    BlockChain &SuccChain = *BlockToChain[Succ];
-    if (&SuccChain == &Chain) {
-      DEBUG(dbgs() << "    " << getBlockName(Succ) << " -> Already merged!\n");
-      continue;
-    }
-    if (Succ != *SuccChain.begin()) {
-      DEBUG(dbgs() << "    " << getBlockName(Succ) << " -> Mid chain!\n");
-      continue;
-    }
+  auto BestProb = BranchProbability::getZero();
 
-    uint32_t SuccWeight = MBPI->getEdgeWeight(BB, Succ);
-    BranchProbability SuccProb(SuccWeight / WeightScale, SumWeight);
+  // Adjust edge probabilities by excluding edges pointing to blocks that is
+  // either not in BlockFilter or is already in the current chain. Consider the
+  // following CFG:
+  //
+  //     --->A
+  //     |  / \
+  //     | B   C
+  //     |  \ / \
+  //     ----D   E
+  //
+  // Assume A->C is very hot (>90%), and C->D has a 50% probability, then after
+  // A->C is chosen as a fall-through, D won't be selected as a successor of C
+  // due to CFG constraint (the probability of C->D is not greater than
+  // HotProb). If we exclude E that is not in BlockFilter when calculating the
+  // probability of C->D, D will be selected and we will get A C D B as the
+  // layout of this loop.
+  auto AdjustedSumProb = BranchProbability::getOne();
+  SmallVector<MachineBasicBlock *, 4> Successors;
+  for (MachineBasicBlock *Succ : BB->successors()) {
+    bool SkipSucc = false;
+    if (BlockFilter && !BlockFilter->count(Succ)) {
+      SkipSucc = true;
+    } else {
+      BlockChain *SuccChain = BlockToChain[Succ];
+      if (SuccChain == &Chain) {
+        DEBUG(dbgs() << "    " << getBlockName(Succ)
+                     << " -> Already merged!\n");
+        SkipSucc = true;
+      } else if (Succ != *SuccChain->begin()) {
+        DEBUG(dbgs() << "    " << getBlockName(Succ) << " -> Mid chain!\n");
+        continue;
+      }
+    }
+    if (SkipSucc)
+      AdjustedSumProb -= MBPI->getEdgeProbability(BB, Succ);
+    else
+      Successors.push_back(Succ);
+  }
+
+  DEBUG(dbgs() << "Attempting merge from: " << getBlockName(BB) << "\n");
+  for (MachineBasicBlock *Succ : Successors) {
+    BranchProbability SuccProb;
+    uint32_t SuccProbN = MBPI->getEdgeProbability(BB, Succ).getNumerator();
+    uint32_t SuccProbD = AdjustedSumProb.getNumerator();
+    if (SuccProbN >= SuccProbD)
+      SuccProb = BranchProbability::getOne();
+    else
+      SuccProb = BranchProbability(SuccProbN, SuccProbD);
 
     // If we outline optional branches, look whether Succ is unavoidable, i.e.
     // dominates all terminators of the MachineFunction. If it does, other
@@ -406,6 +462,7 @@ MachineBlockPlacement::selectBestSuccessor(MachineBasicBlock *BB,
 
     // Only consider successors which are either "hot", or wouldn't violate
     // any CFG constraints.
+    BlockChain &SuccChain = *BlockToChain[Succ];
     if (SuccChain.LoopPredecessors != 0) {
       if (SuccProb < HotProb) {
         DEBUG(dbgs() << "    " << getBlockName(Succ) << " -> " << SuccProb
@@ -415,8 +472,9 @@ MachineBlockPlacement::selectBestSuccessor(MachineBasicBlock *BB,
 
       // Make sure that a hot successor doesn't have a globally more
       // important predecessor.
+      auto RealSuccProb = MBPI->getEdgeProbability(BB, Succ);
       BlockFrequency CandidateEdgeFreq =
-          MBFI->getBlockFreq(BB) * SuccProb * HotProb.getCompl();
+          MBFI->getBlockFreq(BB) * RealSuccProb * HotProb.getCompl();
       bool BadCFGConflict = false;
       for (MachineBasicBlock *Pred : Succ->predecessors()) {
         if (Pred == Succ || (BlockFilter && !BlockFilter->count(Pred)) ||
@@ -440,10 +498,10 @@ MachineBlockPlacement::selectBestSuccessor(MachineBasicBlock *BB,
                  << " (prob)"
                  << (SuccChain.LoopPredecessors != 0 ? " (CFG break)" : "")
                  << "\n");
-    if (BestSucc && BestWeight >= SuccWeight)
+    if (BestSucc && BestProb >= SuccProb)
       continue;
     BestSucc = Succ;
-    BestWeight = SuccWeight;
+    BestProb = SuccProb;
   }
   return BestSucc;
 }
@@ -505,14 +563,14 @@ MachineBasicBlock *MachineBlockPlacement::getFirstUnplacedBlock(
     const BlockFilterSet *BlockFilter) {
   for (MachineFunction::iterator I = PrevUnplacedBlockIt, E = F.end(); I != E;
        ++I) {
-    if (BlockFilter && !BlockFilter->count(I))
+    if (BlockFilter && !BlockFilter->count(&*I))
       continue;
-    if (BlockToChain[I] != &PlacedChain) {
+    if (BlockToChain[&*I] != &PlacedChain) {
       PrevUnplacedBlockIt = I;
       // Now select the head of the chain to which the unplaced block belongs
       // as the block to place. This will force the entire chain to be placed,
       // and satisfies the requirements of merging chains.
-      return *BlockToChain[I]->begin();
+      return *BlockToChain[&*I]->begin();
     }
   }
   return nullptr;
@@ -672,13 +730,8 @@ MachineBlockPlacement::findBestLoopExit(MachineFunction &F, MachineLoop &L,
     MachineBasicBlock *OldExitingBB = ExitingBB;
     BlockFrequency OldBestExitEdgeFreq = BestExitEdgeFreq;
     bool HasLoopingSucc = false;
-    // FIXME: Due to the performance of the probability and weight routines in
-    // the MBPI analysis, we use the internal weights and manually compute the
-    // probabilities to avoid quadratic behavior.
-    uint32_t WeightScale = 0;
-    uint32_t SumWeight = MBPI->getSumForBlock(MBB, WeightScale);
     for (MachineBasicBlock *Succ : MBB->successors()) {
-      if (Succ->isLandingPad())
+      if (Succ->isEHPad())
         continue;
       if (Succ == MBB)
         continue;
@@ -690,10 +743,10 @@ MachineBlockPlacement::findBestLoopExit(MachineFunction &F, MachineLoop &L,
         continue;
       }
 
-      uint32_t SuccWeight = MBPI->getEdgeWeight(MBB, Succ);
+      auto SuccProb = MBPI->getEdgeProbability(MBB, Succ);
       if (LoopBlockSet.count(Succ)) {
         DEBUG(dbgs() << "    looping: " << getBlockName(MBB) << " -> "
-                     << getBlockName(Succ) << " (" << SuccWeight << ")\n");
+                     << getBlockName(Succ) << " (" << SuccProb << ")\n");
         HasLoopingSucc = true;
         continue;
       }
@@ -705,7 +758,6 @@ MachineBlockPlacement::findBestLoopExit(MachineFunction &F, MachineLoop &L,
           BlocksExitingToOuterLoop.insert(MBB);
       }
 
-      BranchProbability SuccProb(SuccWeight / WeightScale, SumWeight);
       BlockFrequency ExitEdgeFreq = MBFI->getBlockFreq(MBB) * SuccProb;
       DEBUG(dbgs() << "    exiting: " << getBlockName(MBB) << " -> "
                    << getBlockName(Succ) << " [L:" << SuccLoopDepth << "] (";
@@ -791,6 +843,188 @@ void MachineBlockPlacement::rotateLoop(BlockChain &LoopChain,
   std::rotate(LoopChain.begin(), std::next(ExitIt), LoopChain.end());
 }
 
+/// \brief Attempt to rotate a loop based on profile data to reduce branch cost.
+///
+/// With profile data, we can determine the cost in terms of missed fall through
+/// opportunities when rotating a loop chain and select the best rotation.
+/// Basically, there are three kinds of cost to consider for each rotation:
+///    1. The possibly missed fall through edge (if it exists) from BB out of
+///    the loop to the loop header.
+///    2. The possibly missed fall through edges (if they exist) from the loop
+///    exits to BB out of the loop.
+///    3. The missed fall through edge (if it exists) from the last BB to the
+///    first BB in the loop chain.
+///  Therefore, the cost for a given rotation is the sum of costs listed above.
+///  We select the best rotation with the smallest cost.
+void MachineBlockPlacement::rotateLoopWithProfile(
+    BlockChain &LoopChain, MachineLoop &L, const BlockFilterSet &LoopBlockSet) {
+  auto HeaderBB = L.getHeader();
+  auto HeaderIter = std::find(LoopChain.begin(), LoopChain.end(), HeaderBB);
+  auto RotationPos = LoopChain.end();
+
+  BlockFrequency SmallestRotationCost = BlockFrequency::getMaxFrequency();
+
+  // A utility lambda that scales up a block frequency by dividing it by a
+  // branch probability which is the reciprocal of the scale.
+  auto ScaleBlockFrequency = [](BlockFrequency Freq,
+                                unsigned Scale) -> BlockFrequency {
+    if (Scale == 0)
+      return 0;
+    // Use operator / between BlockFrequency and BranchProbability to implement
+    // saturating multiplication.
+    return Freq / BranchProbability(1, Scale);
+  };
+
+  // Compute the cost of the missed fall-through edge to the loop header if the
+  // chain head is not the loop header. As we only consider natural loops with
+  // single header, this computation can be done only once.
+  BlockFrequency HeaderFallThroughCost(0);
+  for (auto *Pred : HeaderBB->predecessors()) {
+    BlockChain *PredChain = BlockToChain[Pred];
+    if (!LoopBlockSet.count(Pred) &&
+        (!PredChain || Pred == *std::prev(PredChain->end()))) {
+      auto EdgeFreq =
+          MBFI->getBlockFreq(Pred) * MBPI->getEdgeProbability(Pred, HeaderBB);
+      auto FallThruCost = ScaleBlockFrequency(EdgeFreq, MisfetchCost);
+      // If the predecessor has only an unconditional jump to the header, we
+      // need to consider the cost of this jump.
+      if (Pred->succ_size() == 1)
+        FallThruCost += ScaleBlockFrequency(EdgeFreq, JumpInstCost);
+      HeaderFallThroughCost = std::max(HeaderFallThroughCost, FallThruCost);
+    }
+  }
+
+  // Here we collect all exit blocks in the loop, and for each exit we find out
+  // its hottest exit edge. For each loop rotation, we define the loop exit cost
+  // as the sum of frequencies of exit edges we collect here, excluding the exit
+  // edge from the tail of the loop chain.
+  SmallVector<std::pair<MachineBasicBlock *, BlockFrequency>, 4> ExitsWithFreq;
+  for (auto BB : LoopChain) {
+    auto LargestExitEdgeProb = BranchProbability::getZero();
+    for (auto *Succ : BB->successors()) {
+      BlockChain *SuccChain = BlockToChain[Succ];
+      if (!LoopBlockSet.count(Succ) &&
+          (!SuccChain || Succ == *SuccChain->begin())) {
+        auto SuccProb = MBPI->getEdgeProbability(BB, Succ);
+        LargestExitEdgeProb = std::max(LargestExitEdgeProb, SuccProb);
+      }
+    }
+    if (LargestExitEdgeProb > BranchProbability::getZero()) {
+      auto ExitFreq = MBFI->getBlockFreq(BB) * LargestExitEdgeProb;
+      ExitsWithFreq.emplace_back(BB, ExitFreq);
+    }
+  }
+
+  // In this loop we iterate every block in the loop chain and calculate the
+  // cost assuming the block is the head of the loop chain. When the loop ends,
+  // we should have found the best candidate as the loop chain's head.
+  for (auto Iter = LoopChain.begin(), TailIter = std::prev(LoopChain.end()),
+            EndIter = LoopChain.end();
+       Iter != EndIter; Iter++, TailIter++) {
+    // TailIter is used to track the tail of the loop chain if the block we are
+    // checking (pointed by Iter) is the head of the chain.
+    if (TailIter == LoopChain.end())
+      TailIter = LoopChain.begin();
+
+    auto TailBB = *TailIter;
+
+    // Calculate the cost by putting this BB to the top.
+    BlockFrequency Cost = 0;
+
+    // If the current BB is the loop header, we need to take into account the
+    // cost of the missed fall through edge from outside of the loop to the
+    // header.
+    if (Iter != HeaderIter)
+      Cost += HeaderFallThroughCost;
+
+    // Collect the loop exit cost by summing up frequencies of all exit edges
+    // except the one from the chain tail.
+    for (auto &ExitWithFreq : ExitsWithFreq)
+      if (TailBB != ExitWithFreq.first)
+        Cost += ExitWithFreq.second;
+
+    // The cost of breaking the once fall-through edge from the tail to the top
+    // of the loop chain. Here we need to consider three cases:
+    // 1. If the tail node has only one successor, then we will get an
+    //    additional jmp instruction. So the cost here is (MisfetchCost +
+    //    JumpInstCost) * tail node frequency.
+    // 2. If the tail node has two successors, then we may still get an
+    //    additional jmp instruction if the layout successor after the loop
+    //    chain is not its CFG successor. Note that the more frequently executed
+    //    jmp instruction will be put ahead of the other one. Assume the
+    //    frequency of those two branches are x and y, where x is the frequency
+    //    of the edge to the chain head, then the cost will be
+    //    (x * MisfetechCost + min(x, y) * JumpInstCost) * tail node frequency.
+    // 3. If the tail node has more than two successors (this rarely happens),
+    //    we won't consider any additional cost.
+    if (TailBB->isSuccessor(*Iter)) {
+      auto TailBBFreq = MBFI->getBlockFreq(TailBB);
+      if (TailBB->succ_size() == 1)
+        Cost += ScaleBlockFrequency(TailBBFreq.getFrequency(),
+                                    MisfetchCost + JumpInstCost);
+      else if (TailBB->succ_size() == 2) {
+        auto TailToHeadProb = MBPI->getEdgeProbability(TailBB, *Iter);
+        auto TailToHeadFreq = TailBBFreq * TailToHeadProb;
+        auto ColderEdgeFreq = TailToHeadProb > BranchProbability(1, 2)
+                                  ? TailBBFreq * TailToHeadProb.getCompl()
+                                  : TailToHeadFreq;
+        Cost += ScaleBlockFrequency(TailToHeadFreq, MisfetchCost) +
+                ScaleBlockFrequency(ColderEdgeFreq, JumpInstCost);
+      }
+    }
+
+    DEBUG(dbgs() << "The cost of loop rotation by making " << getBlockNum(*Iter)
+                 << " to the top: " << Cost.getFrequency() << "\n");
+
+    if (Cost < SmallestRotationCost) {
+      SmallestRotationCost = Cost;
+      RotationPos = Iter;
+    }
+  }
+
+  if (RotationPos != LoopChain.end()) {
+    DEBUG(dbgs() << "Rotate loop by making " << getBlockNum(*RotationPos)
+                 << " to the top\n");
+    std::rotate(LoopChain.begin(), RotationPos, LoopChain.end());
+  }
+}
+
+/// \brief Collect blocks in the given loop that are to be placed.
+///
+/// When profile data is available, exclude cold blocks from the returned set;
+/// otherwise, collect all blocks in the loop.
+MachineBlockPlacement::BlockFilterSet
+MachineBlockPlacement::collectLoopBlockSet(MachineFunction &F, MachineLoop &L) {
+  BlockFilterSet LoopBlockSet;
+
+  // Filter cold blocks off from LoopBlockSet when profile data is available.
+  // Collect the sum of frequencies of incoming edges to the loop header from
+  // outside. If we treat the loop as a super block, this is the frequency of
+  // the loop. Then for each block in the loop, we calculate the ratio between
+  // its frequency and the frequency of the loop block. When it is too small,
+  // don't add it to the loop chain. If there are outer loops, then this block
+  // will be merged into the first outer loop chain for which this block is not
+  // cold anymore. This needs precise profile data and we only do this when
+  // profile data is available.
+  if (F.getFunction()->getEntryCount()) {
+    BlockFrequency LoopFreq(0);
+    for (auto LoopPred : L.getHeader()->predecessors())
+      if (!L.contains(LoopPred))
+        LoopFreq += MBFI->getBlockFreq(LoopPred) *
+                    MBPI->getEdgeProbability(LoopPred, L.getHeader());
+
+    for (MachineBasicBlock *LoopBB : L.getBlocks()) {
+      auto Freq = MBFI->getBlockFreq(LoopBB).getFrequency();
+      if (Freq == 0 || LoopFreq.getFrequency() / Freq > LoopToColdBlockRatio)
+        continue;
+      LoopBlockSet.insert(LoopBB);
+    }
+  } else
+    LoopBlockSet.insert(L.block_begin(), L.block_end());
+
+  return LoopBlockSet;
+}
+
 /// \brief Forms basic block chains from the natural loop structures.
 ///
 /// These chains are designed to preserve the existing *structure* of the code
@@ -805,19 +1039,27 @@ void MachineBlockPlacement::buildLoopChains(MachineFunction &F,
     buildLoopChains(F, *InnerLoop);
 
   SmallVector<MachineBasicBlock *, 16> BlockWorkList;
-  BlockFilterSet LoopBlockSet(L.block_begin(), L.block_end());
+  BlockFilterSet LoopBlockSet = collectLoopBlockSet(F, L);
+
+  // Check if we have profile data for this function. If yes, we will rotate
+  // this loop by modeling costs more precisely which requires the profile data
+  // for better layout.
+  bool RotateLoopWithProfile =
+      PreciseRotationCost && F.getFunction()->getEntryCount();
 
   // First check to see if there is an obviously preferable top block for the
   // loop. This will default to the header, but may end up as one of the
   // predecessors to the header if there is one which will result in strictly
   // fewer branches in the loop body.
-  MachineBasicBlock *LoopTop = findBestLoopTop(L, LoopBlockSet);
+  // When we use profile data to rotate the loop, this is unnecessary.
+  MachineBasicBlock *LoopTop =
+      RotateLoopWithProfile ? L.getHeader() : findBestLoopTop(L, LoopBlockSet);
 
   // If we selected just the header for the loop top, look for a potentially
   // profitable exit block in the event that rotating the loop can eliminate
   // branches by placing an exit edge at the bottom.
   MachineBasicBlock *ExitingBB = nullptr;
-  if (LoopTop == L.getHeader())
+  if (!RotateLoopWithProfile && LoopTop == L.getHeader())
     ExitingBB = findBestLoopExit(F, L, LoopBlockSet);
 
   BlockChain &LoopChain = *BlockToChain[LoopTop];
@@ -828,7 +1070,8 @@ void MachineBlockPlacement::buildLoopChains(MachineFunction &F,
   SmallPtrSet<BlockChain *, 4> UpdatedPreds;
   assert(LoopChain.LoopPredecessors == 0);
   UpdatedPreds.insert(&LoopChain);
-  for (MachineBasicBlock *LoopBB : L.getBlocks()) {
+
+  for (MachineBasicBlock *LoopBB : LoopBlockSet) {
     BlockChain &Chain = *BlockToChain[LoopBB];
     if (!UpdatedPreds.insert(&Chain).second)
       continue;
@@ -848,7 +1091,11 @@ void MachineBlockPlacement::buildLoopChains(MachineFunction &F,
   }
 
   buildChain(LoopTop, LoopChain, BlockWorkList, &LoopBlockSet);
-  rotateLoop(LoopChain, ExitingBB, LoopBlockSet);
+
+  if (RotateLoopWithProfile)
+    rotateLoopWithProfile(LoopChain, L, LoopBlockSet);
+  else
+    rotateLoop(LoopChain, ExitingBB, LoopBlockSet);
 
   DEBUG({
     // Crash at the end so we get all of the debugging output first.
@@ -889,7 +1136,7 @@ void MachineBlockPlacement::buildCFGChains(MachineFunction &F) {
   // the assumptions of the remaining algorithm.
   SmallVector<MachineOperand, 4> Cond; // For AnalyzeBranch.
   for (MachineFunction::iterator FI = F.begin(), FE = F.end(); FI != FE; ++FI) {
-    MachineBasicBlock *BB = FI;
+    MachineBasicBlock *BB = &*FI;
     BlockChain *Chain =
         new (ChainAllocator.Allocate()) BlockChain(BlockToChain, BB);
     // Also, merge any blocks which we cannot reason about and must preserve
@@ -900,8 +1147,8 @@ void MachineBlockPlacement::buildCFGChains(MachineFunction &F) {
       if (!TII->AnalyzeBranch(*BB, TBB, FBB, Cond) || !FI->canFallThrough())
         break;
 
-      MachineFunction::iterator NextFI(std::next(FI));
-      MachineBasicBlock *NextBB = NextFI;
+      MachineFunction::iterator NextFI = std::next(FI);
+      MachineBasicBlock *NextBB = &*NextFI;
       // Ensure that the layout successor is a viable block, as we know that
       // fallthrough is a possibility.
       assert(NextFI != FE && "Can't fallthrough past the last block.");
@@ -1004,7 +1251,7 @@ void MachineBlockPlacement::buildCFGChains(MachineFunction &F) {
     // Update the terminator of the previous block.
     if (ChainBB == *FunctionChain.begin())
       continue;
-    MachineBasicBlock *PrevBB = std::prev(MachineFunction::iterator(ChainBB));
+    MachineBasicBlock *PrevBB = &*std::prev(MachineFunction::iterator(ChainBB));
 
     // FIXME: It would be awesome of updateTerminator would just return rather
     // than assert when the branch cannot be analyzed in order to remove this
@@ -1035,14 +1282,16 @@ void MachineBlockPlacement::buildCFGChains(MachineFunction &F) {
       }
 
       // If PrevBB has a two-way branch, try to re-order the branches
-      // such that we branch to the successor with higher weight first.
+      // such that we branch to the successor with higher probability first.
       if (TBB && !Cond.empty() && FBB &&
-          MBPI->getEdgeWeight(PrevBB, FBB) > MBPI->getEdgeWeight(PrevBB, TBB) &&
+          MBPI->getEdgeProbability(PrevBB, FBB) >
+              MBPI->getEdgeProbability(PrevBB, TBB) &&
           !TII->ReverseBranchCondition(Cond)) {
         DEBUG(dbgs() << "Reverse order of the two branches: "
                      << getBlockName(PrevBB) << "\n");
-        DEBUG(dbgs() << "    Edge weight: " << MBPI->getEdgeWeight(PrevBB, FBB)
-                     << " vs " << MBPI->getEdgeWeight(PrevBB, TBB) << "\n");
+        DEBUG(dbgs() << "    Edge probability: "
+                     << MBPI->getEdgeProbability(PrevBB, FBB) << " vs "
+                     << MBPI->getEdgeProbability(PrevBB, TBB) << "\n");
         DebugLoc dl; // FIXME: this is nowhere
         TII->RemoveBranch(*PrevBB);
         TII->InsertBranch(*PrevBB, FBB, TBB, Cond, dl);
@@ -1064,13 +1313,14 @@ void MachineBlockPlacement::buildCFGChains(MachineFunction &F) {
   // exclusively on the loop info here so that we can align backedges in
   // unnatural CFGs and backedges that were introduced purely because of the
   // loop rotations done during this layout pass.
+  // FIXME: Use Function::optForSize().
   if (F.getFunction()->hasFnAttribute(Attribute::OptimizeForSize))
     return;
   if (FunctionChain.begin() == FunctionChain.end())
     return; // Empty chain.
 
   const BranchProbability ColdProb(1, 5); // 20%
-  BlockFrequency EntryFreq = MBFI->getBlockFreq(F.begin());
+  BlockFrequency EntryFreq = MBFI->getBlockFreq(&F.front());
   BlockFrequency WeightedEntryFreq = EntryFreq * ColdProb;
   for (MachineBasicBlock *ChainBB : FunctionChain) {
     if (ChainBB == *FunctionChain.begin())
@@ -1083,6 +1333,11 @@ void MachineBlockPlacement::buildCFGChains(MachineFunction &F) {
     MachineLoop *L = MLI->getLoopFor(ChainBB);
     if (!L)
       continue;
+
+    if (AlignAllLoops) {
+      ChainBB->setAlignment(AlignAllLoops);
+      continue;
+    }
 
     unsigned Align = TLI->getPrefLoopAlignment(L);
     if (!Align)
@@ -1224,4 +1479,3 @@ bool MachineBlockPlacementStats::runOnMachineFunction(MachineFunction &F) {
 
   return false;
 }
-

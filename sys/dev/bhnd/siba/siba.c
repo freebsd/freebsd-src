@@ -126,7 +126,7 @@ siba_attach(device_t dev)
 			     error = ENXIO;
 			     goto cleanup;
 			}
-		};
+		}
 	}
 
 cleanup:
@@ -214,6 +214,15 @@ siba_get_resource_list(device_t dev, device_t child)
 {
 	struct siba_devinfo *dinfo = device_get_ivars(child);
 	return (&dinfo->resources);
+}
+
+static device_t
+siba_find_hostb_device(device_t dev)
+{
+	struct siba_softc *sc = device_get_softc(dev);
+
+	/* This is set (or not) by the concrete siba driver subclass. */
+	return (sc->hostb_dev);
 }
 
 static int
@@ -420,7 +429,7 @@ siba_register_addrspaces(device_t dev, struct siba_devinfo *di,
 
 	/* Region numbers must be assigned in order, but our siba address
 	 * space IDs may be sparsely allocated; thus, we track
-	 * the region index seperately. */
+	 * the region index separately. */
 	region_num = 0;
 
 	/* Register the device address space entries */
@@ -662,6 +671,7 @@ static device_method_t siba_methods[] = {
 	DEVMETHOD(bus_get_resource_list,	siba_get_resource_list),
 
 	/* BHND interface */
+	DEVMETHOD(bhnd_bus_find_hostb_device,	siba_find_hostb_device),
 	DEVMETHOD(bhnd_bus_reset_core,		siba_reset_core),
 	DEVMETHOD(bhnd_bus_suspend_core,	siba_suspend_core),
 	DEVMETHOD(bhnd_bus_get_port_count,	siba_get_port_count),

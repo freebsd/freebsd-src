@@ -1,4 +1,4 @@
-//===-- FormattersContainer.h ----------------------------------------*- C++ -*-===//
+//===-- FormattersContainer.h -----------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,53 +12,38 @@
 
 // C Includes
 // C++ Includes
+#include <functional>
+#include <map>
+#include <memory>
+#include <string>
 
 // Other libraries and framework includes
-#include "clang/AST/DeclCXX.h"
-#include "clang/AST/Type.h"
-#include "clang/AST/DeclObjC.h"
-
 // Project includes
 #include "lldb/lldb-public.h"
 
-#include "lldb/Core/Log.h"
 #include "lldb/Core/RegularExpression.h"
 #include "lldb/Core/ValueObject.h"
-
 #include "lldb/DataFormatters/FormatClasses.h"
 #include "lldb/DataFormatters/TypeFormat.h"
 #include "lldb/DataFormatters/TypeSummary.h"
 #include "lldb/DataFormatters/TypeSynthetic.h"
 #include "lldb/DataFormatters/TypeValidator.h"
-
-#include "lldb/Symbol/ClangASTContext.h"
-#include "lldb/Symbol/ClangASTType.h"
-
-#include "lldb/Target/ObjCLanguageRuntime.h"
-#include "lldb/Target/Process.h"
-#include "lldb/Target/StackFrame.h"
-#include "lldb/Target/TargetList.h"
-
+#include "lldb/Symbol/CompilerType.h"
 #include "lldb/Utility/StringLexer.h"
 
 namespace lldb_private {
     
-// this file (and its. cpp) contain the low-level implementation of LLDB Data Visualization
-// class DataVisualization is the high-level front-end of this feature
-// clients should refer to that class as the entry-point into the data formatters
-// unless they have a good reason to bypass it and prefer to use this file's objects directly
 class IFormatChangeListener
 {
 public:
+    virtual
+    ~IFormatChangeListener() = default;
+
     virtual void
     Changed () = 0;
-    
-    virtual
-    ~IFormatChangeListener () {}
-    
+
     virtual uint32_t
     GetCurrentRevision () = 0;
-    
 };
     
 // if the user tries to add formatters for, say, "struct Foo"
@@ -92,11 +77,10 @@ template<typename KeyType, typename ValueType>
 class FormatMap
 {
 public:
-
     typedef typename ValueType::SharedPointer ValueSP;
     typedef std::map<KeyType, ValueSP> MapType;
     typedef typename MapType::iterator MapIterator;
-    typedef bool(*CallbackType)(void*, KeyType, const ValueSP&);
+    typedef std::function<bool(KeyType, const ValueSP&)> ForEachCallback;
     
     FormatMap(IFormatChangeListener* lst) :
     m_map(),
@@ -155,7 +139,7 @@ public:
     }
     
     void
-    LoopThrough (CallbackType callback, void* param)
+    ForEach (ForEachCallback callback)
     {
         if (callback)
         {
@@ -164,7 +148,7 @@ public:
             for (pos = m_map.begin(); pos != end; pos++)
             {
                 KeyType type = pos->first;
-                if (!callback(param, type, pos->second))
+                if (!callback(type, pos->second))
                     break;
             }
         }
@@ -227,7 +211,6 @@ protected:
     
     friend class FormattersContainer<KeyType, ValueType>;
     friend class FormatManager;
-    
 };
     
 template<typename KeyType, typename ValueType>
@@ -241,7 +224,7 @@ public:
     typedef typename MapType::iterator MapIterator;
     typedef typename MapType::key_type MapKeyType;
     typedef typename MapType::mapped_type MapValueType;
-    typedef typename BackEndType::CallbackType CallbackType;
+    typedef typename BackEndType::ForEachCallback ForEachCallback;
     typedef typename std::shared_ptr<FormattersContainer<KeyType, ValueType> > SharedPointer;
     
     friend class TypeCategoryImpl;
@@ -256,23 +239,23 @@ public:
     void
     Add (const MapKeyType &type, const MapValueType& entry)
     {
-        Add_Impl(type, entry, (KeyType*)NULL);
+        Add_Impl(type, entry, static_cast<KeyType*>(nullptr));
     }
     
     bool
     Delete (ConstString type)
     {
-        return Delete_Impl(type, (KeyType*)NULL);
+        return Delete_Impl(type, static_cast<KeyType*>(nullptr));
     }
         
     bool
     Get(ValueObject& valobj,
         MapValueType& entry,
         lldb::DynamicValueType use_dynamic,
-        uint32_t* why = NULL)
+        uint32_t* why = nullptr)
     {
         uint32_t value = lldb_private::eFormatterChoiceCriterionDirectChoice;
-        ClangASTType ast_type(valobj.GetClangType());
+        CompilerType ast_type(valobj.GetCompilerType());
         bool ret = Get(valobj, ast_type, entry, use_dynamic, value);
         if (ret)
             entry = MapValueType(entry);
@@ -286,13 +269,13 @@ public:
     bool
     Get (ConstString type, MapValueType& entry)
     {
-        return Get_Impl(type, entry, (KeyType*)NULL);
+        return Get_Impl(type, entry, static_cast<KeyType*>(nullptr));
     }
     
     bool
     GetExact (ConstString type, MapValueType& entry)
     {
-        return GetExact_Impl(type, entry, (KeyType*)NULL);
+        return GetExact_Impl(type, entry, static_cast<KeyType*>(nullptr));
     }
     
     MapValueType
@@ -304,7 +287,7 @@ public:
     lldb::TypeNameSpecifierImplSP
     GetTypeNameSpecifierAtIndex (size_t index)
     {
-        return GetTypeNameSpecifierAtIndex_Impl(index, (KeyType*)NULL);
+        return GetTypeNameSpecifierAtIndex_Impl(index, static_cast<KeyType*>(nullptr));
     }
     
     void
@@ -314,9 +297,9 @@ public:
     }
     
     void
-    LoopThrough (CallbackType callback, void* param)
+    ForEach (ForEachCallback callback)
     {
-        m_format_map.LoopThrough(callback,param);
+        m_format_map.ForEach(callback);
     }
     
     uint32_t
@@ -377,7 +360,7 @@ protected:
     bool
     GetExact_Impl (ConstString type, MapValueType& entry, ConstString *dummy)
     {
-        return Get_Impl(type,entry, (KeyType*)0);
+        return Get_Impl(type, entry, static_cast<KeyType*>(nullptr));
     }
     
     lldb::TypeNameSpecifierImplSP
@@ -395,7 +378,7 @@ protected:
     GetTypeNameSpecifierAtIndex_Impl (size_t index, lldb::RegularExpressionSP *dummy)
     {
         lldb::RegularExpressionSP regex = m_format_map.GetKeyAtIndex(index);
-        if (regex.get() == NULL)
+        if (regex.get() == nullptr)
             return lldb::TypeNameSpecifierImplSP();
         return lldb::TypeNameSpecifierImplSP(new TypeNameSpecifierImpl(regex->GetText(),
                                                                        true));
@@ -447,7 +430,6 @@ protected:
     {
         for (const FormattersMatchCandidate& candidate : candidates)
         {
-            // FIXME: could we do the IsMatch() check first?
             if (Get(candidate.GetTypeName(),entry))
             {
                 if (candidate.IsMatch(entry) == false)
@@ -469,4 +451,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif	// lldb_FormattersContainer_h_
+#endif // lldb_FormattersContainer_h_

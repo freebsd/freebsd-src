@@ -53,7 +53,7 @@ softcore.c: ${SOFTWORDS} softcore.awk
 #
 #beforedepend ${OBJS}: machine
 #
-#machine:
+#machine: .NOMETA
 #	ln -sf ${.CURDIR}/../../i386/include machine
 #
 #CLEANFILES+=	machine

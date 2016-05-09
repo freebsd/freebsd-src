@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 4, 2011
+.Dd March 9, 2016
 .Dt MDMFS 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 driver
 .Sh SYNOPSIS
 .Nm
-.Op Fl DLlMNPStUX
+.Op Fl DLlMNnPStTUX
 .Op Fl a Ar maxcontig
 .Op Fl b Ar block-size
 .Op Fl c Ar blocks-per-cylinder-group
@@ -47,11 +47,11 @@ driver
 .Op Fl f Ar frag-size
 .Op Fl i Ar bytes
 .Op Fl m Ar percent-free
-.Op Fl n Ar rotational-positions
 .Op Fl O Ar optimization
 .Op Fl o Ar mount-options
 .Op Fl p Ar permissions
 .Op Fl s Ar size
+.Op Fl T Ar fstype
 .Op Fl v Ar version
 .Op Fl w Ar user : Ns Ar group
 .Ar md-device
@@ -167,8 +167,10 @@ The percentage of space reserved for the superuser.
 Do not actually run the helper programs.
 This is most useful in conjunction with
 .Fl X .
-.It Fl n Ar rotational-positions
-The default number of rotational positions to distinguish.
+.It Fl n
+Do not create a
+.Pa .snap
+directory on the new file system.
 .It Fl O Ar optimization
 Select the optimization preference;
 valid choices are
@@ -227,10 +229,19 @@ backed disks
 .It Fl t
 Turn on the TRIM enable flag for
 .Xr newfs 8 .
-The
+When used with a file system that issue BIO_DELETE bio requests,
 .Xr md 4
-device supports the BIO_DELETE command, enabling the TRIM on created
-filesystem allows return of freed memory to the system pool.
+returns deleted blocks to the system memory pool.
+.It Fl T Ar fstype
+Specify a file system type for a vnode-backed memory disk.
+Any file system supported by
+.Xr mount 8
+command can be specified.
+This option only makes sense when
+.Fl F
+and
+.Fl P
+are used.
 .It Fl U
 Enable soft-updates on the file system.
 This is the default, and is accepted only
@@ -282,8 +293,8 @@ and
 .Fl n
 options are passed to
 .Xr newfs 8
-with the same letter;
-the
+with the same letter.
+The
 .Fl O
 option is passed to
 .Xr newfs 8
@@ -294,6 +305,12 @@ The
 option is passed to
 .Xr mount 8
 with the same letter.
+The
+.Fl T
+option is passed to
+.Xr mount 8
+as
+.Fl t .
 See the programs that the options are passed to for more information
 on their semantics.
 .Sh EXAMPLES
@@ -334,6 +351,10 @@ Configure a vnode-backed file system and mount its first partition,
 using automatic device numbering:
 .Pp
 .Dl "mdmfs -P -F foo.img mds1a /tmp/"
+.Pp
+Mount a vnode-backed cd9660 file system using automatic device numbering:
+.Pp
+.Dl "mdmfs -T cd9660 -P -F foo.iso md /tmp"
 .Sh COMPATIBILITY
 The
 .Nm

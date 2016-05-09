@@ -85,7 +85,7 @@ static struct ae_dev {
 	{ VENDORID_ATTANSIC, DEVICEID_ATTANSIC_L2,
 		"Attansic Technology Corp, L2 FastEthernet" },
 };
-#define	AE_DEVS_COUNT (sizeof(ae_devs) / sizeof(*ae_devs))
+#define	AE_DEVS_COUNT nitems(ae_devs)
 
 static struct resource_spec ae_res_spec_mem[] = {
 	{ SYS_RES_MEMORY,       PCIR_BAR(0),    RF_ACTIVE },

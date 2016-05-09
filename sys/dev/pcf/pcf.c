@@ -466,7 +466,7 @@ pcf_read(device_t dev, char *buf, int len, int *read, int last,
 
 		len --;
 		bytes ++;
-	};
+	}
 
 error:
 	*read = bytes;

@@ -73,7 +73,8 @@ static int stor_readdev(struct disk_devdesc *, daddr_t, size_t, char *);
 
 /* devsw I/F */
 static int stor_init(void);
-static int stor_strategy(void *, int, daddr_t, size_t, char *, size_t *);
+static int stor_strategy(void *, int, daddr_t, size_t, size_t, char *,
+    size_t *);
 static int stor_open(struct open_file *, ...);
 static int stor_close(struct open_file *);
 static int stor_ioctl(struct open_file *f, u_long cmd, void *data);
@@ -143,8 +144,8 @@ stor_cleanup(void)
 }
 
 static int
-stor_strategy(void *devdata, int rw, daddr_t blk, size_t size, char *buf,
-    size_t *rsize)
+stor_strategy(void *devdata, int rw, daddr_t blk, size_t offset, size_t size,
+    char *buf, size_t *rsize)
 {
 	struct disk_devdesc *dev = (struct disk_devdesc *)devdata;
 	daddr_t bcount;

@@ -104,11 +104,6 @@ DynamicLoaderHexagonDYLD::GetPluginDescriptionStatic()
            "loads/unloads in Hexagon processes.";
 }
 
-void
-DynamicLoaderHexagonDYLD::GetPluginCommandHelp(const char *command, Stream *strm)
-{
-}
-
 uint32_t
 DynamicLoaderHexagonDYLD::GetPluginVersion()
 {
@@ -177,7 +172,7 @@ DynamicLoaderHexagonDYLD::DidAttach()
 
     // Map the loaded sections of this executable
     if ( load_offset != LLDB_INVALID_ADDRESS )
-        UpdateLoadedSections(executable, LLDB_INVALID_ADDRESS, load_offset);
+        UpdateLoadedSections(executable, LLDB_INVALID_ADDRESS, load_offset, true);
 
     // AD: confirm this?
     // Load into LLDB all of the currently loaded executables in the stub
@@ -248,18 +243,6 @@ DynamicLoaderHexagonDYLD::GetTargetExecutable()
     return executable;
 }
 
-Error
-DynamicLoaderHexagonDYLD::ExecutePluginCommand(Args &command, Stream *strm)
-{
-    return Error();
-}
-
-Log *
-DynamicLoaderHexagonDYLD::EnablePluginLogging(Stream *strm, Args &command)
-{
-    return NULL;
-}
-
 //AD: Needs to be updated?
 Error
 DynamicLoaderHexagonDYLD::CanLoadImage()
@@ -268,7 +251,10 @@ DynamicLoaderHexagonDYLD::CanLoadImage()
 }
 
 void
-DynamicLoaderHexagonDYLD::UpdateLoadedSections(ModuleSP module, addr_t link_map_addr, addr_t base_addr)
+DynamicLoaderHexagonDYLD::UpdateLoadedSections(ModuleSP module,
+                                               addr_t link_map_addr,
+                                               addr_t base_addr,
+                                               bool base_addr_is_offset)
 {
     Target &target = m_process->GetTarget();
     const SectionList *sections = GetSectionListFromModule(module);
@@ -442,7 +428,7 @@ DynamicLoaderHexagonDYLD::RefreshModules()
         for (I = m_rendezvous.loaded_begin(); I != E; ++I)
         {
             FileSpec file(I->path.c_str(), true);
-            ModuleSP module_sp = LoadModuleAtAddress(file, I->link_addr, I->base_addr);
+            ModuleSP module_sp = LoadModuleAtAddress(file, I->link_addr, I->base_addr, true);
             if (module_sp.get())
             {
                 loaded_modules.AppendIfNeeded( module_sp );
@@ -571,7 +557,7 @@ DynamicLoaderHexagonDYLD::LoadAllCurrentModules()
     {
         const char *module_path = I->path.c_str();
         FileSpec file(module_path, false);
-        ModuleSP module_sp = LoadModuleAtAddress(file, I->link_addr, I->base_addr);
+        ModuleSP module_sp = LoadModuleAtAddress(file, I->link_addr, I->base_addr, true);
         if (module_sp.get())
         {
             module_list.Append(module_sp);
@@ -591,7 +577,10 @@ DynamicLoaderHexagonDYLD::LoadAllCurrentModules()
 /// Helper for the entry breakpoint callback.  Resolves the load addresses
 /// of all dependent modules.
 ModuleSP
-DynamicLoaderHexagonDYLD::LoadModuleAtAddress(const FileSpec &file, addr_t link_map_addr, addr_t base_addr)
+DynamicLoaderHexagonDYLD::LoadModuleAtAddress(const FileSpec &file,
+                                              addr_t link_map_addr,
+                                              addr_t base_addr,
+                                              bool base_addr_is_offset)
 {
     Target &target = m_process->GetTarget();
     ModuleList &modules = target.GetImages();
@@ -602,12 +591,12 @@ DynamicLoaderHexagonDYLD::LoadModuleAtAddress(const FileSpec &file, addr_t link_
     // check if module is currently loaded
     if ((module_sp = modules.FindFirstModule (module_spec))) 
     {
-        UpdateLoadedSections(module_sp, link_map_addr, base_addr);
+        UpdateLoadedSections(module_sp, link_map_addr, base_addr, true);
     }
     // try to load this module from disk
     else if ((module_sp = target.GetSharedModule(module_spec))) 
     {
-        UpdateLoadedSections(module_sp, link_map_addr, base_addr);
+        UpdateLoadedSections(module_sp, link_map_addr, base_addr, true);
     }
 
     return module_sp;

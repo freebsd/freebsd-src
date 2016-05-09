@@ -49,7 +49,6 @@ void MCWinCOFFStreamer::EmitInstToData(const MCInst &Inst,
   SmallString<256> Code;
   raw_svector_ostream VecOS(Code);
   getAssembler().getEmitter().encodeInstruction(Inst, VecOS, Fixups, STI);
-  VecOS.flush();
 
   // Add the fixups and data.
   for (unsigned i = 0, e = Fixups.size(); i != e; ++i) {
@@ -123,29 +122,37 @@ void MCWinCOFFStreamer::BeginCOFFSymbolDef(MCSymbol const *Symbol) {
          "Got non-COFF section in the COFF backend!");
 
   if (CurSymbol)
-    FatalError("starting a new symbol definition without completing the "
-               "previous one");
+    Error("starting a new symbol definition without completing the "
+          "previous one");
   CurSymbol = Symbol;
 }
 
 void MCWinCOFFStreamer::EmitCOFFSymbolStorageClass(int StorageClass) {
-  if (!CurSymbol)
-    FatalError("storage class specified outside of symbol definition");
+  if (!CurSymbol) {
+    Error("storage class specified outside of symbol definition");
+    return;
+  }
 
-  if (StorageClass & ~COFF::SSC_Invalid)
-    FatalError("storage class value '" + Twine(StorageClass) +
+  if (StorageClass & ~COFF::SSC_Invalid) {
+    Error("storage class value '" + Twine(StorageClass) +
                "' out of range");
+    return;
+  }
 
   getAssembler().registerSymbol(*CurSymbol);
   cast<MCSymbolCOFF>(CurSymbol)->setClass((uint16_t)StorageClass);
 }
 
 void MCWinCOFFStreamer::EmitCOFFSymbolType(int Type) {
-  if (!CurSymbol)
-    FatalError("symbol type specified outside of a symbol definition");
+  if (!CurSymbol) {
+    Error("symbol type specified outside of a symbol definition");
+    return;
+  }
 
-  if (Type & ~0xffff)
-    FatalError("type value '" + Twine(Type) + "' out of range");
+  if (Type & ~0xffff) {
+    Error("type value '" + Twine(Type) + "' out of range");
+    return;
+  }
 
   getAssembler().registerSymbol(*CurSymbol);
   cast<MCSymbolCOFF>(CurSymbol)->setType((uint16_t)Type);
@@ -153,7 +160,7 @@ void MCWinCOFFStreamer::EmitCOFFSymbolType(int Type) {
 
 void MCWinCOFFStreamer::EndCOFFSymbolDef() {
   if (!CurSymbol)
-    FatalError("ending symbol definition without starting one");
+    Error("ending symbol definition without starting one");
   CurSymbol = nullptr;
 }
 
@@ -215,8 +222,6 @@ void MCWinCOFFStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
     Size = std::max(Size, static_cast<uint64_t>(ByteAlignment));
   }
 
-  AssignSection(Symbol, nullptr);
-
   getAssembler().registerSymbol(*Symbol);
   Symbol->setExternal(true);
   Symbol->setCommon(Size, ByteAlignment);
@@ -228,7 +233,6 @@ void MCWinCOFFStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
 
     OS << " -aligncomm:\"" << Symbol->getName() << "\","
        << Log2_32_Ceil(ByteAlignment);
-    OS.flush();
 
     PushSection();
     SwitchSection(MFI->getDrectveSection());
@@ -248,8 +252,6 @@ void MCWinCOFFStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
 
   getAssembler().registerSymbol(*Symbol);
   Symbol->setExternal(false);
-
-  AssignSection(Symbol, Section);
 
   if (ByteAlignment != 1)
     new MCAlignFragment(ByteAlignment, /*Value=*/0, /*ValueSize=*/0,
@@ -287,9 +289,8 @@ void MCWinCOFFStreamer::FinishImpl() {
   MCObjectStreamer::FinishImpl();
 }
 
-LLVM_ATTRIBUTE_NORETURN
-void MCWinCOFFStreamer::FatalError(const Twine &Msg) const {
-  getContext().reportFatalError(SMLoc(), Msg);
+void MCWinCOFFStreamer::Error(const Twine &Msg) const {
+  getContext().reportError(SMLoc(), Msg);
 }
 }
 

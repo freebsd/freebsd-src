@@ -67,13 +67,13 @@ __sdp_get_family_str(
 struct use_family_rule
 {
 	struct use_family_rule *prev, *next;
-	int match_by_addr;			  /* if 0 ignore address match        */
-	struct in_addr ipv4;			  /* IPv4 address for mapping         */
-	unsigned char prefixlen;	  /* length of CIDR prefix (ie /24)   */
-	int match_by_port;			  /* if 0 ignore port match           */
-	unsigned short sport, eport; /* start port - end port, inclusive */
-	use_family_t target_family;  /* if match - use this family       */
-	char *prog_name_expr;		  /* expression for program name      */
+	int match_by_addr;		/* if 0 ignore address match        */
+	struct sockaddr_storage ip;	/* IPv4/6 address for mapping       */
+	unsigned char prefixlen;	/* length of CIDR prefix (ie /24)   */
+	int match_by_port;		/* if 0 ignore port match           */
+	unsigned short sport, eport; 	/* start port - end port, inclusive */
+	use_family_t target_family;  	/* if match - use this family       */
+	char *prog_name_expr;		/* expression for program name      */
 };
 
 extern struct use_family_rule *__sdp_clients_family_rules_head;
@@ -122,10 +122,3 @@ int __sdp_log_set_log_syslog(
 
 int __sdp_log_set_log_file(
 	char *filename );
-
-/* port.c */
-int __sdp_sockaddr_to_sdp(
-	const struct sockaddr *addr_in,
-	socklen_t addrlen,
-	struct sockaddr_in *addr_out,
-	int *was_ipv6 );

@@ -257,17 +257,15 @@ delete_all_gpart()
   # Destroy the disk geom
   rc_nohalt "gpart destroy ${DISK}"
 
-  # Make sure we clear any hidden gpt tables
-  clear_backup_gpt_table "${DISK}"
-
-  # Wipe out front of disk
-  rc_nohalt "dd if=/dev/zero of=${DISK} count=3000"
-
+  wipe_metadata "${DISK}"
 };
 
 # Function to export all zpools before starting an install
 stop_all_zfs()
 {
+  if [ ! -c /dev/zfs ]; then
+    return;
+  fi
   local DISK="`echo ${1} | sed 's|/dev/||g'`"
 
   # Export any zpools using this device so we can overwrite
@@ -283,6 +281,9 @@ stop_all_zfs()
 # Function which stops all gmirrors before doing any disk manipulation
 stop_all_gmirror()
 {
+  if [ ! -d /dev/mirror ]; then
+    return;
+  fi
   local DISK="`echo ${1} | sed 's|/dev/||g'`"
   GPROV="`gmirror list | grep ". Name: mirror/" | cut -d '/' -f 2`"
   for gprov in $GPROV 
@@ -292,7 +293,7 @@ stop_all_gmirror()
     then
       echo_log "Stopping mirror $gprov $DISK"
       rc_nohalt "gmirror remove $gprov $DISK"
-      rc_nohalt "dd if=/dev/zero of=/dev/${DISK} count=4096"
+      wipe_metadata "${DISK}"
     fi
   done
 };
@@ -611,12 +612,17 @@ stop_gjournal()
 } ;
 
 
-# Function to wipe the potential backup gpt table from a disk
-clear_backup_gpt_table()
+# Function to wipe the potential metadata from a disk
+wipe_metadata()
 {
-  echo_log "Clearing gpt backup table location on disk"
-  rc_nohalt "dd if=/dev/zero of=${1} bs=1m count=1"
-  rc_nohalt "dd if=/dev/zero of=${1} bs=1m oseek=`diskinfo ${1} | awk '{print int($3 / (1024*1024)) - 4;}'`"
+  echo_log "Wiping possible metadata on ${1}"
+  local SIZE="`diskinfo ${1} | awk '{print int($3/(1024*1024)) }'`"
+  if [ "$SIZE" -gt "5" ]  ; then
+    rc_halt "dd if=/dev/zero of=${1} bs=1m count=1"
+    rc_nohalt "dd if=/dev/zero of=${1} bs=1m oseek=$((SIZE-4))"
+  else
+    rc_nohalt "dd if=/dev/zero of=${1} bs=128k"
+  fi
 } ;
 
 # Function which runs gpart and creates a single large APM partition scheme
@@ -696,8 +702,7 @@ init_mbr_full_disk()
   rc_halt "gpart add -a 4k -t freebsd -i 1 ${_intDISK}"
   sleep 2
   
-  echo_log "Cleaning up ${_intDISK}s1"
-  rc_halt "dd if=/dev/zero of=${_intDISK}s1 count=1024"
+  wipe_metadata "${_intDISK}s1"
   
   # Make the partition active
   rc_halt "gpart set -a active -i 1 ${_intDISK}"
@@ -770,9 +775,7 @@ run_gpart_gpt_part()
   rc_halt "gpart modify -t freebsd -i ${slicenum} ${DISK}"
   sleep 2
 
-  # Clean up old partition
-  echo_log "Cleaning up $slice"
-  rc_halt "dd if=/dev/zero of=${DISK}p${slicenum} count=1024"
+  wipe_metadata "${slice}"
 
   sleep 4
 
@@ -830,9 +833,7 @@ run_gpart_slice()
   rc_halt "gpart modify -t freebsd -i ${slicenum} ${DISK}"
   sleep 2
 
-  # Clean up old partition
-  echo_log "Cleaning up $slice"
-  rc_halt "dd if=/dev/zero of=${DISK}s${slicenum} count=1024"
+  wipe_metadata "${slice}"
 
   sleep 1
 
@@ -883,9 +884,8 @@ run_gpart_free()
   echo_log "Running gpart on ${DISK}"
   rc_halt "gpart add -a 4k -t freebsd -i ${slicenum} ${DISK}"
   sleep 2
-  
-  echo_log "Cleaning up $slice"
-  rc_halt "dd if=/dev/zero of=${slice} count=1024"
+
+  wipe_metadata "${slice}"
 
   sleep 1
 

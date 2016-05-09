@@ -2813,7 +2813,7 @@ usm_new_user(uint8_t *eid, uint32_t elen, char *uname)
 	if ((uuser = (struct usm_user *)malloc(sizeof(*uuser))) == NULL)
 		return (NULL);
 
-	memset(uuser, 0, sizeof(struct usm_user));
+	memset(uuser, 0, sizeof(*uuser));
 	strlcpy(uuser->suser.sec_name, uname, SNMP_ADM_STR32_SIZ);
 	memcpy(uuser->user_engine_id, eid, elen);
 	uuser->user_engine_len = elen;

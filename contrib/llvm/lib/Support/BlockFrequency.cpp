@@ -11,37 +11,35 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Support/BranchProbability.h"
 #include "llvm/Support/BlockFrequency.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
 
 using namespace llvm;
 
-BlockFrequency &BlockFrequency::operator*=(const BranchProbability &Prob) {
+BlockFrequency &BlockFrequency::operator*=(BranchProbability Prob) {
   Frequency = Prob.scale(Frequency);
   return *this;
 }
 
-const BlockFrequency
-BlockFrequency::operator*(const BranchProbability &Prob) const {
+BlockFrequency BlockFrequency::operator*(BranchProbability Prob) const {
   BlockFrequency Freq(Frequency);
   Freq *= Prob;
   return Freq;
 }
 
-BlockFrequency &BlockFrequency::operator/=(const BranchProbability &Prob) {
+BlockFrequency &BlockFrequency::operator/=(BranchProbability Prob) {
   Frequency = Prob.scaleByInverse(Frequency);
   return *this;
 }
 
-BlockFrequency BlockFrequency::operator/(const BranchProbability &Prob) const {
+BlockFrequency BlockFrequency::operator/(BranchProbability Prob) const {
   BlockFrequency Freq(Frequency);
   Freq /= Prob;
   return Freq;
 }
 
-BlockFrequency &BlockFrequency::operator+=(const BlockFrequency &Freq) {
+BlockFrequency &BlockFrequency::operator+=(BlockFrequency Freq) {
   uint64_t Before = Freq.Frequency;
   Frequency += Freq.Frequency;
 
@@ -52,11 +50,25 @@ BlockFrequency &BlockFrequency::operator+=(const BlockFrequency &Freq) {
   return *this;
 }
 
-const BlockFrequency
-BlockFrequency::operator+(const BlockFrequency &Prob) const {
-  BlockFrequency Freq(Frequency);
-  Freq += Prob;
-  return Freq;
+BlockFrequency BlockFrequency::operator+(BlockFrequency Freq) const {
+  BlockFrequency NewFreq(Frequency);
+  NewFreq += Freq;
+  return NewFreq;
+}
+
+BlockFrequency &BlockFrequency::operator-=(BlockFrequency Freq) {
+  // If underflow, set frequency to 0.
+  if (Frequency <= Freq.Frequency)
+    Frequency = 0;
+  else
+    Frequency -= Freq.Frequency;
+  return *this;
+}
+
+BlockFrequency BlockFrequency::operator-(BlockFrequency Freq) const {
+  BlockFrequency NewFreq(Frequency);
+  NewFreq -= Freq;
+  return NewFreq;
 }
 
 BlockFrequency &BlockFrequency::operator>>=(const unsigned count) {

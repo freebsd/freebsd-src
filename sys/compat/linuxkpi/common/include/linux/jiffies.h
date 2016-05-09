@@ -95,4 +95,14 @@ get_jiffies_64(void)
 	return ((u64)(unsigned)ticks);
 }
 
+static inline int
+linux_timer_jiffies_until(unsigned long expires)
+{
+	int delta = expires - jiffies;
+	/* guard against already expired values */
+	if (delta < 1)
+		delta = 1;
+	return (delta);
+}
+
 #endif	/* _LINUX_JIFFIES_H_ */

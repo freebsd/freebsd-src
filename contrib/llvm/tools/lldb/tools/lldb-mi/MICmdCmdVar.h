@@ -41,32 +41,29 @@ class CMICmnLLDBDebugSessionInfoVarObj;
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "var-create".
-// Gotchas: None.
-// Authors: Illya Rudkin 24/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdVarCreate : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdVarCreate(void);
+    /* ctor */ CMICmdCmdVarCreate();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
 
     // Overridden:
   public:
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdVarCreate(void) override;
+    /* dtor */ ~CMICmdCmdVarCreate() override;
 
     // Methods:
   private:
@@ -81,9 +78,6 @@ class CMICmdCmdVarCreate : public CMICmdBase
     bool m_bValid; // True = Variable is valid, false = not valid
     CMIUtilString m_strExpression;
     CMIUtilString m_strValue;
-    const CMIUtilString m_constStrArgThread;      // Not specified in MI spec but Eclipse gives this option
-    const CMIUtilString m_constStrArgThreadGroup; // Not specified in MI spec but Eclipse gives this option
-    const CMIUtilString m_constStrArgFrame;       // Not specified in MI spec but Eclipse gives this option
     const CMIUtilString m_constStrArgName;
     const CMIUtilString m_constStrArgFrameAddr;
     const CMIUtilString m_constStrArgExpression;
@@ -92,37 +86,34 @@ class CMICmdCmdVarCreate : public CMICmdBase
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "var-update".
-// Gotchas: None.
-// Authors: Illya Rudkin 25/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdVarUpdate : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdVarUpdate(void);
+    /* ctor */ CMICmdCmdVarUpdate();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
 
     // Overridden:
   public:
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdVarUpdate(void) override;
+    /* dtor */ ~CMICmdCmdVarUpdate() override;
 
     // Methods:
   private:
     bool ExamineSBValueForChange(lldb::SBValue &vrwValue, bool &vrwbChanged);
-    bool MIFormResponse(const CMIUtilString &vrStrVarName, const char *const vpValue, const CMIUtilString &vrStrScope);
+    void MIFormResponse(const CMIUtilString &vrStrVarName, const char *const vpValue, const CMIUtilString &vrStrScope);
 
     // Attribute:
   private:
@@ -135,29 +126,26 @@ class CMICmdCmdVarUpdate : public CMICmdBase
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "var-delete".
-// Gotchas: None.
-// Authors: Illya Rudkin 25/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdVarDelete : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdVarDelete(void);
+    /* ctor */ CMICmdCmdVarDelete();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdVarDelete(void) override;
+    /* dtor */ ~CMICmdCmdVarDelete() override;
 
     // Attribute:
   private:
@@ -167,29 +155,26 @@ class CMICmdCmdVarDelete : public CMICmdBase
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "var-assign".
-// Gotchas: None.
-// Authors: Illya Rudkin 25/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdVarAssign : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdVarAssign(void);
+    /* ctor */ CMICmdCmdVarAssign();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdVarAssign(void) override;
+    /* dtor */ ~CMICmdCmdVarAssign() override;
 
     // Attributes:
   private:
@@ -202,29 +187,26 @@ class CMICmdCmdVarAssign : public CMICmdBase
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "var-set-format".
-// Gotchas: None.
-// Authors: Illya Rudkin 26/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdVarSetFormat : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdVarSetFormat(void);
+    /* ctor */ CMICmdCmdVarSetFormat();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdVarSetFormat(void) override;
+    /* dtor */ ~CMICmdCmdVarSetFormat() override;
 
     // Attributes:
   private:
@@ -236,29 +218,26 @@ class CMICmdCmdVarSetFormat : public CMICmdBase
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "var-list-children".
-// Gotchas: None.
-// Authors: Illya Rudkin 26/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdVarListChildren : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdVarListChildren(void);
+    /* ctor */ CMICmdCmdVarListChildren();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdVarListChildren(void) override;
+    /* dtor */ ~CMICmdCmdVarListChildren() override;
 
     // Attributes:
   private:
@@ -275,29 +254,26 @@ class CMICmdCmdVarListChildren : public CMICmdBase
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "var-evaluate-expression".
-// Gotchas: None.
-// Authors: Illya Rudkin 26/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdVarEvaluateExpression : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdVarEvaluateExpression(void);
+    /* ctor */ CMICmdCmdVarEvaluateExpression();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdVarEvaluateExpression(void) override;
+    /* dtor */ ~CMICmdCmdVarEvaluateExpression() override;
 
     // Attributes:
   private:
@@ -310,29 +286,26 @@ class CMICmdCmdVarEvaluateExpression : public CMICmdBase
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "var-info-path-expression".
-// Gotchas: None.
-// Authors: Illya Rudkin 26/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdVarInfoPathExpression : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdVarInfoPathExpression(void);
+    /* ctor */ CMICmdCmdVarInfoPathExpression();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdVarInfoPathExpression(void) override;
+    /* dtor */ ~CMICmdCmdVarInfoPathExpression() override;
 
     // Attributes:
   private:
@@ -344,29 +317,26 @@ class CMICmdCmdVarInfoPathExpression : public CMICmdBase
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "var-show-attributes".
-// Gotchas: None.
-// Authors: Illya Rudkin 19/05/2014.
-// Changes: None.
 //--
 class CMICmdCmdVarShowAttributes : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdVarShowAttributes(void);
+    /* ctor */ CMICmdCmdVarShowAttributes();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdVarShowAttributes(void) override;
+    /* dtor */ ~CMICmdCmdVarShowAttributes() override;
 
     // Attributes:
   private:

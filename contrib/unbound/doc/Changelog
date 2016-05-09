@@ -1,3 +1,102 @@
+24 February 2016: Wouter
+	- Fix OpenBSD asynclook lock free that gets used later (fix test code).
+	- Fix that NSEC3 negative cache is used when there is no salt.
+
+23 February 2016: Wouter
+	- ub_ctx_set_stub() function for libunbound to config stub zones.
+	- sorted ubsyms.def file with exported libunbound functions.
+
+19 February 2016: Wouter
+	- Print understandable debug log when unusable DS record is seen.
+	- load gost algorithm if digest is seen before key algorithm.
+	- iana portlist update.
+
+17 February 2016: Wouter
+	- Fix that "make install" fails due to "text file busy" error.
+
+16 February 2016: Wouter
+	- Set IPPROTO_IP6 for ipv6 sockets otherwise invalid argument error.
+
+15 February 2016: Wouter
+	- ip-transparent option for FreeBSD with IP_BINDANY socket option.
+	- wait for sendto to drain socket buffers when they are full.
+
+9 February 2016: Wouter
+	- Test for type OPENPGPKEY.
+	- insecure-lan-zones: yesno config option, patch from Dag-Erling
+	  Smørgrav.
+
+8 February 2016: Wouter
+	- Fix patch typo in prevuous commit for 734 from Adi Prasaja.
+	- RR Type CSYNC support RFC 7477, in debug printout and config input.
+	- RR Type OPENPGPKEY support (draft-ietf-dane-openpgpkey-07).
+
+29 January 2016: Wouter
+	- Neater cmdline_verbose increment patch from Edgar Pettijohn.
+
+27 January 2016: Wouter
+	- Made netbsd sendmsg test nonfatal, in case of false positives.
+	- Fix #741: log message for dnstap socket connection is more clear.
+
+26 January 2016: Wouter
+	- Fix #734: chown the pidfile if it resides inside the chroot.
+	- Use arc4random instead of random in tests (because it is
+	  available, possibly as compat, anyway).
+	- Fix cmsg alignment for argument to sendmsg on NetBSD.
+	- Fix that unbound complains about unimplemented IP_PKTINFO for
+	  sendmsg on NetBSD (for interface-automatic).
+
+25 January 2016: Wouter
+	- Fix #738: Swig should not be invoked with CPPFLAGS.
+
+19 January 2016: Wouter
+	- Squelch 'cannot assign requested address' log messages unless
+	  verbosity is high, it was spammed after network down.
+
+14 January 2016: Wouter
+	- Fix to simplify empty string checking from Michael McConville.
+	- iana portlist update.
+
+12 January 2016: Wouter
+	- Fix #734: Do not log an error when the PID file cannot be chown'ed.
+	  Patch from Simon Deziel.
+
+11 January 2016: Wouter
+	- Fix test if -pthreads unused to use better grep for portability.
+
+06 January 2016: Wouter
+	- Fix mingw crosscompile for recent mingw.
+	- Update aclocal, autoconf output with new versions (1.15, 2.4.6).
+
+05 January 2016: Wouter
+	- #731: tcp-mss, outgoing-tcp-mss options for unbound.conf, patch
+	  from Daisuke Higashi.
+	- Support RFC7686: handle ".onion" Special-Use Domain. It is blocked
+	  by default, and can be unblocked with "nodefault" localzone config.
+
+04 January 2016: Wouter
+	- Define DEFAULT_SOURCE together with BSD_SOURCE when that is defined,
+	  for Linux glibc 2.20.
+	- Fixup contrib/aaaa-filter-iterator.patch for moved contents in the
+	  source code, so it applies cleanly again.  Removed unused variable
+	  warnings.
+
+15 December 2015: Ralph
+	- Fix #729: omit use of escape sequences in echo since they are not 
+	  portable (unbound-control-setup).
+
+11 December 2015: Wouter
+	- remove NULL-checks before free, patch from Michael McConville.
+	- updated ax_pthread.m4 to version 21 with clang support, this
+	  removes a warning from compilation.
+	- OSX portability, detect if sbrk is deprecated.
+	- OSX clang, stop -pthread unused during link stage warnings.
+	- OSX clang new flto check.
+
+10 December 2015: Wouter
+	- 1.5.7 release
+	- trunk has 1.5.8 in development.
+
 8 December 2015: Wouter
 	- Fixup 724 for unbound-control.
 

@@ -50,9 +50,8 @@ int getPosixProtectionFlags(unsigned Flags) {
     return PROT_READ | PROT_WRITE;
   case llvm::sys::Memory::MF_READ|llvm::sys::Memory::MF_EXEC:
     return PROT_READ | PROT_EXEC;
-  case llvm::sys::Memory::MF_READ |
-	 llvm::sys::Memory::MF_WRITE |
-	 llvm::sys::Memory::MF_EXEC:
+  case llvm::sys::Memory::MF_READ | llvm::sys::Memory::MF_WRITE |
+      llvm::sys::Memory::MF_EXEC:
     return PROT_READ | PROT_WRITE | PROT_EXEC;
   case llvm::sys::Memory::MF_EXEC:
 #if defined(__FreeBSD__)
@@ -153,6 +152,7 @@ Memory::releaseMappedMemory(MemoryBlock &M) {
 
 std::error_code
 Memory::protectMappedMemory(const MemoryBlock &M, unsigned Flags) {
+  static const size_t PageSize = Process::getPageSize();
   if (M.Address == nullptr || M.Size == 0)
     return std::error_code();
 
@@ -161,7 +161,7 @@ Memory::protectMappedMemory(const MemoryBlock &M, unsigned Flags) {
 
   int Protect = getPosixProtectionFlags(Flags);
 
-  int Result = ::mprotect(M.Address, M.Size, Protect);
+  int Result = ::mprotect((void*)((uintptr_t)M.Address & ~(PageSize-1)), PageSize*((M.Size+PageSize-1)/PageSize), Protect);
   if (Result != 0)
     return std::error_code(errno, std::generic_category());
 
@@ -181,7 +181,7 @@ Memory::AllocateRWX(size_t NumBytes, const MemoryBlock* NearBlock,
                     std::string *ErrMsg) {
   if (NumBytes == 0) return MemoryBlock();
 
-  size_t PageSize = Process::getPageSize();
+  static const size_t PageSize = Process::getPageSize();
   size_t NumPages = (NumBytes+PageSize-1)/PageSize;
 
   int fd = -1;
@@ -265,15 +265,12 @@ bool Memory::setWritable (MemoryBlock &M, std::string *ErrMsg) {
 }
 
 bool Memory::setExecutable (MemoryBlock &M, std::string *ErrMsg) {
-#if defined(__APPLE__) && (defined(__arm__) || defined(__arm64__))
   if (M.Address == 0 || M.Size == 0) return false;
   Memory::InvalidateInstructionCache(M.Address, M.Size);
+#if defined(__APPLE__) && (defined(__arm__) || defined(__arm64__))
   kern_return_t kr = vm_protect(mach_task_self(), (vm_address_t)M.Address,
     (vm_size_t)M.Size, 0, VM_PROT_READ | VM_PROT_EXECUTE | VM_PROT_COPY);
   return KERN_SUCCESS == kr;
-#elif defined(__arm__) || defined(__aarch64__)
-  Memory::InvalidateInstructionCache(M.Address, M.Size);
-  return true;
 #else
   return true;
 #endif

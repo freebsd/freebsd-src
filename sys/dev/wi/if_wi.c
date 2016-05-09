@@ -46,7 +46,7 @@
  * without an NDA (if at all). What they do release is an API library
  * called the HCF (Hardware Control Functions) which is supposed to
  * do the device-specific operations of a device driver for you. The
- * publically available version of the HCF library (the 'HCF Light') is 
+ * publicly available version of the HCF library (the 'HCF Light') is 
  * a) extremely gross, b) lacks certain features, particularly support
  * for 802.11 frames, and c) is contaminated by the GNU Public License.
  *
@@ -337,7 +337,7 @@ wi_attach(device_t dev)
 	 */
 	buflen = sizeof(val);
 	if (wi_read_rid(sc, WI_RID_CHANNEL_LIST, &val, &buflen) != 0)
-		val = htole16(0x1fff);	/* assume 1-11 */
+		val = htole16(0x1fff);	/* assume 1-13 */
 	KASSERT(val != 0, ("wi_attach: no available channels listed!"));
 
 	val <<= 1;			/* shift for base 1 indices */

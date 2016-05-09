@@ -10,10 +10,16 @@
 #ifndef liblldb_IOHandler_h_
 #define liblldb_IOHandler_h_
 
+// C Includes
 #include <string.h>
 
-#include <stack>
+// C++ Includes
+#include <memory>
+#include <string>
+#include <vector>
 
+// Other libraries and framework includes
+// Project includes
 #include "lldb/lldb-public.h"
 #include "lldb/lldb-enumerations.h"
 #include "lldb/Core/ConstString.h"
@@ -29,7 +35,7 @@ namespace curses
 {
     class Application;
     typedef std::unique_ptr<Application> ApplicationAP;
-}
+} // namespace curses
 
 namespace lldb_private {
 
@@ -42,6 +48,7 @@ namespace lldb_private {
             Confirm,
             Curses,
             Expression,
+            REPL,
             ProcessIO,
             PythonInterpreter,
             PythonCode,
@@ -123,7 +130,7 @@ namespace lldb_private {
         GetPrompt ()
         {
             // Prompt support isn't mandatory
-            return NULL;
+            return nullptr;
         }
         
         virtual bool
@@ -142,13 +149,13 @@ namespace lldb_private {
         virtual const char *
         GetCommandPrefix ()
         {
-            return NULL;
+            return nullptr;
         }
         
         virtual const char *
         GetHelpPrologue()
         {
-            return NULL;
+            return nullptr;
         }
 
         int
@@ -257,7 +264,6 @@ namespace lldb_private {
     private:
         DISALLOW_COPY_AND_ASSIGN (IOHandler);
     };
-
     
     //------------------------------------------------------------------
     /// A delegate class for use with IOHandler subclasses.
@@ -283,9 +289,7 @@ namespace lldb_private {
         }
         
         virtual
-        ~IOHandlerDelegate()
-        {
-        }
+        ~IOHandlerDelegate() = default;
         
         virtual void
         IOHandlerActivated (IOHandler &io_handler)
@@ -309,7 +313,7 @@ namespace lldb_private {
         virtual const char *
         IOHandlerGetFixIndentationCharacters ()
         {
-            return NULL;
+            return nullptr;
         }
         
         //------------------------------------------------------------------
@@ -395,13 +399,13 @@ namespace lldb_private {
         virtual const char *
         IOHandlerGetCommandPrefix ()
         {
-            return NULL;
+            return nullptr;
         }
 
         virtual const char *
         IOHandlerGetHelpPrologue ()
         {
-            return NULL;
+            return nullptr;
         }
 
         //------------------------------------------------------------------
@@ -415,6 +419,7 @@ namespace lldb_private {
         {
             return false;
         }
+
     protected:
         Completion m_completion; // Support for common builtin completions
         bool m_io_handler_done;
@@ -438,10 +443,7 @@ namespace lldb_private {
         {
         }
         
-        virtual
-        ~IOHandlerDelegateMultiline ()
-        {
-        }
+        ~IOHandlerDelegateMultiline() override = default;
         
         ConstString
         IOHandlerGetControlSequence (char ch) override
@@ -467,10 +469,10 @@ namespace lldb_private {
             }
             return false;
         }
+
     protected:
         const std::string m_end_line;
     };
-    
     
     class IOHandlerEditline : public IOHandler
     {
@@ -499,8 +501,7 @@ namespace lldb_private {
                            uint32_t line_number_start, // If non-zero show line numbers starting at 'line_number_start'
                            IOHandlerDelegate &delegate);
         
-        virtual
-        ~IOHandlerEditline ();
+        ~IOHandlerEditline() override;
         
         void
         Run () override;
@@ -632,8 +633,7 @@ namespace lldb_private {
                           const char *prompt,
                           bool default_response);
         
-        virtual
-        ~IOHandlerConfirm ();
+        ~IOHandlerConfirm() override;
                 
         bool
         GetResponse () const
@@ -694,14 +694,14 @@ namespace lldb_private {
     public:
         IOHandlerCursesValueObjectList (Debugger &debugger, ValueObjectList &valobj_list);
         
-        virtual
-        ~IOHandlerCursesValueObjectList ();
+        ~IOHandlerCursesValueObjectList() override;
         
         void
         Run () override;
         
         void
         GotEOF() override;
+
     protected:
         ValueObjectList m_valobj_list;
     };
@@ -709,17 +709,14 @@ namespace lldb_private {
     class IOHandlerStack
     {
     public:
-        
         IOHandlerStack () :
             m_stack(),
             m_mutex(Mutex::eMutexTypeRecursive),
-            m_top (NULL)
+            m_top (nullptr)
         {
         }
         
-        ~IOHandlerStack ()
-        {
-        }
+        ~IOHandlerStack() = default;
         
         size_t
         GetSize () const
@@ -771,10 +768,8 @@ namespace lldb_private {
                 sp->SetPopped (true);
             }
             // Set m_top the non-locking IsTop() call
-            if (m_stack.empty())
-                m_top = NULL;
-            else
-                m_top = m_stack.back().get();
+
+            m_top = (m_stack.empty() ? nullptr : m_stack.back().get());
         }
 
         Mutex &
@@ -794,53 +789,42 @@ namespace lldb_private {
         {
             Mutex::Locker locker (m_mutex);
             const size_t num_io_handlers = m_stack.size();
-            if (num_io_handlers >= 2 &&
-                m_stack[num_io_handlers-1]->GetType() == top_type &&
-                m_stack[num_io_handlers-2]->GetType() == second_top_type)
-            {
-                return true;
-            }
-            return false;
+            return (num_io_handlers >= 2 &&
+                    m_stack[num_io_handlers-1]->GetType() == top_type &&
+                    m_stack[num_io_handlers-2]->GetType() == second_top_type);
         }
+
         ConstString
         GetTopIOHandlerControlSequence (char ch)
         {
-            if (m_top)
-                return m_top->GetControlSequence(ch);
-            return ConstString();
+            return ((m_top != nullptr) ? m_top->GetControlSequence(ch) : ConstString());
         }
 
         const char *
         GetTopIOHandlerCommandPrefix()
         {
-            if (m_top)
-                return m_top->GetCommandPrefix();
-            return NULL;
+            return ((m_top != nullptr) ? m_top->GetCommandPrefix() : nullptr);
         }
         
         const char *
         GetTopIOHandlerHelpPrologue()
         {
-            if (m_top)
-                return m_top->GetHelpPrologue();
-            return NULL;
+            return ((m_top != nullptr) ? m_top->GetHelpPrologue() : nullptr);
         }
 
         void
         PrintAsync (Stream *stream, const char *s, size_t len);
 
     protected:
-        
         typedef std::vector<lldb::IOHandlerSP> collection;
         collection m_stack;
         mutable Mutex m_mutex;
         IOHandler *m_top;
         
     private:
-        
         DISALLOW_COPY_AND_ASSIGN (IOHandlerStack);
     };
 
 } // namespace lldb_private
 
-#endif // #ifndef liblldb_IOHandler_h_
+#endif // liblldb_IOHandler_h_

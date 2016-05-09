@@ -176,7 +176,7 @@ int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
 
 /*
  * Translate the GLA range [gla,gla+len) into GPA segments in 'iov'.
- * The 'iovcnt' should be big enough to accomodate all GPA segments.
+ * The 'iovcnt' should be big enough to accommodate all GPA segments.
  *
  * retval	fault		Interpretation
  *   0		  0		Success

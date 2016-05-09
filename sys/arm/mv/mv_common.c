@@ -79,6 +79,7 @@ static int win_eth_can_remap(int i);
 static int decode_win_cpu_valid(void);
 #endif
 static int decode_win_usb_valid(void);
+static int decode_win_usb3_valid(void);
 static int decode_win_eth_valid(void);
 static int decode_win_pcie_valid(void);
 static int decode_win_sata_valid(void);
@@ -93,6 +94,7 @@ static void decode_win_cpu_setup(void);
 static int decode_win_sdram_fixup(void);
 #endif
 static void decode_win_usb_setup(u_long);
+static void decode_win_usb3_setup(u_long);
 static void decode_win_eth_setup(u_long);
 static void decode_win_sata_setup(u_long);
 
@@ -100,6 +102,7 @@ static void decode_win_idma_setup(u_long);
 static void decode_win_xor_setup(u_long);
 
 static void decode_win_usb_dump(u_long);
+static void decode_win_usb3_dump(u_long);
 static void decode_win_eth_dump(u_long base);
 static void decode_win_idma_dump(u_long base);
 static void decode_win_xor_dump(u_long base);
@@ -134,6 +137,7 @@ struct soc_node_spec {
 static struct soc_node_spec soc_nodes[] = {
 	{ "mrvl,ge", &decode_win_eth_setup, &decode_win_eth_dump },
 	{ "mrvl,usb-ehci", &decode_win_usb_setup, &decode_win_usb_dump },
+	{ "marvell,armada-380-xhci", &decode_win_usb3_setup, &decode_win_usb3_dump },
 	{ "mrvl,sata", &decode_win_sata_setup, NULL },
 	{ "mrvl,xor", &decode_win_xor_setup, &decode_win_xor_dump },
 	{ "mrvl,idma", &decode_win_idma_setup, &decode_win_idma_dump },
@@ -377,7 +381,7 @@ soc_id(uint32_t *dev, uint32_t *rev)
 	 * Notice: system identifiers are available in the registers range of
 	 * PCIE controller, so using this function is only allowed (and
 	 * possible) after the internal registers range has been mapped in via
-	 * arm_devmap_bootstrap().
+	 * devmap_bootstrap().
 	 */
 	*dev = bus_space_read_4(fdtbus_bs_tag, MV_PCIE_BASE, 0) >> 16;
 	*rev = bus_space_read_4(fdtbus_bs_tag, MV_PCIE_BASE, 8) & 0xff;
@@ -559,7 +563,7 @@ soc_decode_win(void)
 	if (!decode_win_cpu_valid() || !decode_win_usb_valid() ||
 	    !decode_win_eth_valid() || !decode_win_idma_valid() ||
 	    !decode_win_pcie_valid() || !decode_win_sata_valid() ||
-	    !decode_win_xor_valid())
+	    !decode_win_xor_valid() || !decode_win_usb3_valid())
 		return (EINVAL);
 
 	decode_win_cpu_setup();
@@ -567,7 +571,7 @@ soc_decode_win(void)
 	if (!decode_win_usb_valid() ||
 	    !decode_win_eth_valid() || !decode_win_idma_valid() ||
 	    !decode_win_pcie_valid() || !decode_win_sata_valid() ||
-	    !decode_win_xor_valid())
+	    !decode_win_xor_valid() || !decode_win_usb3_valid())
 		return (EINVAL);
 #endif
 	if (MV_DUMP_WIN)
@@ -599,6 +603,13 @@ WIN_REG_BASE_IDX_RD(win_usb, cr, MV_WIN_USB_CTRL)
 WIN_REG_BASE_IDX_RD(win_usb, br, MV_WIN_USB_BASE)
 WIN_REG_BASE_IDX_WR(win_usb, cr, MV_WIN_USB_CTRL)
 WIN_REG_BASE_IDX_WR(win_usb, br, MV_WIN_USB_BASE)
+
+#ifdef SOC_MV_ARMADA38X
+WIN_REG_BASE_IDX_RD(win_usb3, cr, MV_WIN_USB3_CTRL)
+WIN_REG_BASE_IDX_RD(win_usb3, br, MV_WIN_USB3_BASE)
+WIN_REG_BASE_IDX_WR(win_usb3, cr, MV_WIN_USB3_CTRL)
+WIN_REG_BASE_IDX_WR(win_usb3, br, MV_WIN_USB3_BASE)
+#endif
 
 WIN_REG_BASE_IDX_RD(win_eth, br, MV_WIN_ETH_BASE)
 WIN_REG_BASE_IDX_RD(win_eth, sz, MV_WIN_ETH_SIZE)
@@ -812,7 +823,7 @@ decode_win_cpu_valid(void)
 			continue;
 		}
 
-		if (b != (b & ~(s - 1))) {
+		if (b != rounddown2(b, s)) {
 			printf("CPU window#%d: address 0x%08x is not aligned "
 			    "to 0x%08x\n", i, b, s);
 			rv = 0;
@@ -1118,6 +1129,85 @@ decode_win_usb_setup(u_long base)
 }
 
 /**************************************************************************
+ * USB3 windows routines
+ **************************************************************************/
+#ifdef SOC_MV_ARMADA38X
+static int
+decode_win_usb3_valid(void)
+{
+
+	return (decode_win_can_cover_ddr(MV_WIN_USB3_MAX));
+}
+
+static void
+decode_win_usb3_dump(u_long base)
+{
+	int i;
+
+	for (i = 0; i < MV_WIN_USB3_MAX; i++)
+		printf("USB3.0 window#%d: c 0x%08x, b 0x%08x\n", i,
+		    win_usb3_cr_read(base, i), win_usb3_br_read(base, i));
+}
+
+/*
+ * Set USB3 decode windows
+ */
+static void
+decode_win_usb3_setup(u_long base)
+{
+	uint32_t br, cr;
+	int i, j;
+
+	for (i = 0; i < MV_WIN_USB3_MAX; i++) {
+		win_usb3_cr_write(base, i, 0);
+		win_usb3_br_write(base, i, 0);
+	}
+
+	/* Only access to active DRAM banks is required */
+	for (i = 0; i < MV_WIN_DDR_MAX; i++) {
+		if (ddr_is_active(i)) {
+			br = ddr_base(i);
+			cr = (((ddr_size(i) - 1) &
+			    (IO_WIN_SIZE_MASK << IO_WIN_SIZE_SHIFT)) |
+			    (ddr_attr(i) << IO_WIN_ATTR_SHIFT) |
+			    (ddr_target(i) << IO_WIN_TGT_SHIFT) |
+			    IO_WIN_ENA_MASK);
+
+			/* Set the first free USB3.0 window */
+			for (j = 0; j < MV_WIN_USB3_MAX; j++) {
+				if (win_usb3_cr_read(base, j) & IO_WIN_ENA_MASK)
+					continue;
+
+				win_usb3_br_write(base, j, br);
+				win_usb3_cr_write(base, j, cr);
+				break;
+			}
+		}
+	}
+}
+#else
+/*
+ * Provide dummy functions to satisfy the build
+ * for SoCs not equipped with USB3
+ */
+static int
+decode_win_usb3_valid(void)
+{
+
+	return (1);
+}
+
+static void
+decode_win_usb3_setup(u_long base)
+{
+}
+
+static void
+decode_win_usb3_dump(u_long base)
+{
+}
+#endif
+/**************************************************************************
  * ETH windows routines
  **************************************************************************/
 
@@ -1308,7 +1398,7 @@ decode_win_pcie_setup(u_long base)
 
 	/*
 	 * Upper 16 bits in BAR register is interpreted as BAR size
-	 * (in 64 kB units) plus 64kB, so substract 0x10000
+	 * (in 64 kB units) plus 64kB, so subtract 0x10000
 	 * form value passed to register to get correct value.
 	 */
 	size -= 0x10000;
@@ -2077,6 +2167,17 @@ fdt_win_setup(void)
 				return (ENXIO);
 			child = OF_child(node);
 		}
+		/*
+		 * Next, move one more level down to internal-regs node (if
+		 * it is present) and its children. This node also have
+		 * "simple-bus" compatible.
+		 */
+		if ((child == 0) && (node == OF_finddevice("simple-bus"))) {
+			node = fdt_find_compatible(node, "simple-bus", 0);
+			if (node == 0)
+				return (0);
+			child = OF_child(node);
+		}
 	}
 
 	return (0);
@@ -2181,7 +2282,7 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
-#ifndef ARM_INTRNG
+#ifndef INTRNG
 static int
 fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
     int *pol)

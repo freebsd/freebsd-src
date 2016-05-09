@@ -1414,46 +1414,42 @@ svn_fs_fs__file_length(svn_filesize_t *length,
   return SVN_NO_ERROR;
 }
 
+svn_boolean_t
+svn_fs_fs__noderev_same_rep_key(representation_t *a,
+                                representation_t *b)
+{
+  if (a == b)
+    return TRUE;
+
+  if (a == NULL || b == NULL)
+    return FALSE;
+
+  if (a->item_index != b->item_index)
+    return FALSE;
+
+  if (a->revision != b->revision)
+    return FALSE;
+
+  return memcmp(&a->uniquifier, &b->uniquifier, sizeof(a->uniquifier)) == 0;
+}
+
 svn_error_t *
 svn_fs_fs__file_text_rep_equal(svn_boolean_t *equal,
                                svn_fs_t *fs,
                                node_revision_t *a,
                                node_revision_t *b,
-                               svn_boolean_t strict,
                                apr_pool_t *scratch_pool)
 {
   svn_stream_t *contents_a, *contents_b;
   representation_t *rep_a = a->data_rep;
   representation_t *rep_b = b->data_rep;
-  svn_boolean_t a_empty = !rep_a || rep_a->expanded_size == 0;
-  svn_boolean_t b_empty = !rep_b || rep_b->expanded_size == 0;
+  svn_boolean_t a_empty = !rep_a;
+  svn_boolean_t b_empty = !rep_b;
 
   /* This makes sure that neither rep will be NULL later on */
   if (a_empty && b_empty)
     {
       *equal = TRUE;
-      return SVN_NO_ERROR;
-    }
-
-  if (a_empty != b_empty)
-    {
-      *equal = FALSE;
-      return SVN_NO_ERROR;
-    }
-
-  /* File text representations always know their checksums - even in a txn. */
-  if (memcmp(rep_a->md5_digest, rep_b->md5_digest, sizeof(rep_a->md5_digest)))
-    {
-      *equal = FALSE;
-      return SVN_NO_ERROR;
-    }
-
-  /* Paranoia. Compare SHA1 checksums because that's the level of
-     confidence we require for e.g. the working copy. */
-  if (rep_a->has_sha1 && rep_b->has_sha1)
-    {
-      *equal = memcmp(rep_a->sha1_digest, rep_b->sha1_digest,
-                      sizeof(rep_a->sha1_digest)) == 0;
       return SVN_NO_ERROR;
     }
 
@@ -1464,17 +1460,28 @@ svn_fs_fs__file_text_rep_equal(svn_boolean_t *equal,
       return SVN_NO_ERROR;
     }
 
-  /* Old repositories may not have the SHA1 checksum handy.
-     This check becomes expensive.  Skip it unless explicitly required.
-
-     We already have seen that the ID is different, so produce a likely
-     false negative as allowed by the API description - even though the
-     MD5 matched, there is an extremely slim chance that the SHA1 wouldn't.
-   */
-  if (!strict)
+  /* Beware of the combination NULL rep and possibly empty rep.
+   * Due to EXPANDED_SIZE not being reliable, we can't easily detect empty
+   * reps. So, we can only take further shortcuts if both reps are given. */
+  if (!a_empty && !b_empty)
     {
-      *equal = FALSE;
-      return SVN_NO_ERROR;
+      /* File text representations always know their checksums -
+       * even in a txn. */
+      if (memcmp(rep_a->md5_digest, rep_b->md5_digest,
+                 sizeof(rep_a->md5_digest)))
+        {
+          *equal = FALSE;
+          return SVN_NO_ERROR;
+        }
+
+      /* Paranoia. Compare SHA1 checksums because that's the level of
+         confidence we require for e.g. the working copy. */
+      if (rep_a->has_sha1 && rep_b->has_sha1)
+        {
+          *equal = memcmp(rep_a->sha1_digest, rep_b->sha1_digest,
+                          sizeof(rep_a->sha1_digest)) == 0;
+          return SVN_NO_ERROR;
+        }
     }
 
   SVN_ERR(svn_fs_fs__get_contents(&contents_a, fs, rep_a, TRUE,
@@ -1492,7 +1499,6 @@ svn_fs_fs__prop_rep_equal(svn_boolean_t *equal,
                           svn_fs_t *fs,
                           node_revision_t *a,
                           node_revision_t *b,
-                          svn_boolean_t strict,
                           apr_pool_t *scratch_pool)
 {
   representation_t *rep_a = a->prop_rep;
@@ -1523,14 +1529,6 @@ svn_fs_fs__prop_rep_equal(svn_boolean_t *equal,
   if (svn_fs_fs__id_eq(a->id, b->id))
     {
       *equal = TRUE;
-      return SVN_NO_ERROR;
-    }
-
-  /* Skip the expensive bits unless we are in strict mode.
-     Simply assume that there is a difference. */
-  if (!strict)
-    {
-      *equal = FALSE;
       return SVN_NO_ERROR;
     }
 

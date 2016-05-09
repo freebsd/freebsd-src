@@ -28,6 +28,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <map>
+#include <unordered_set>
 using namespace llvm;
 using namespace llvm::legacy;
 
@@ -83,6 +84,13 @@ PrintAfterAll("print-after-all",
               llvm::cl::desc("Print IR after each pass"),
               cl::init(false));
 
+static cl::list<std::string>
+    PrintFuncsList("filter-print-funcs", cl::value_desc("function names"),
+                   cl::desc("Only print IR for functions whose name "
+                            "match this for all print-[before|after][-all] "
+                            "options"),
+                   cl::CommaSeparated);
+
 /// This is a helper to determine whether to print IR before or
 /// after a pass.
 
@@ -109,6 +117,11 @@ static bool ShouldPrintAfterPass(const PassInfo *PI) {
   return PrintAfterAll || ShouldPrintBeforeOrAfterPass(PI, PrintAfter);
 }
 
+bool llvm::isFunctionInPrintList(StringRef FunctionName) {
+  static std::unordered_set<std::string> PrintFuncNames(PrintFuncsList.begin(),
+                                                        PrintFuncsList.end());
+  return PrintFuncNames.empty() || PrintFuncNames.count(FunctionName);
+}
 /// isPassDebuggingExecutionsOrMore - Return true if -debug-pass=Executions
 /// or higher is specified.
 bool PMDataManager::isPassDebuggingExecutionsOrMore() const {
@@ -569,13 +582,33 @@ void PMTopLevelManager::collectLastUses(SmallVectorImpl<Pass *> &LastUses,
 
 AnalysisUsage *PMTopLevelManager::findAnalysisUsage(Pass *P) {
   AnalysisUsage *AnUsage = nullptr;
-  DenseMap<Pass *, AnalysisUsage *>::iterator DMI = AnUsageMap.find(P);
+  auto DMI = AnUsageMap.find(P);
   if (DMI != AnUsageMap.end())
     AnUsage = DMI->second;
   else {
-    AnUsage = new AnalysisUsage();
-    P->getAnalysisUsage(*AnUsage);
-    AnUsageMap[P] = AnUsage;
+    // Look up the analysis usage from the pass instance (different instances
+    // of the same pass can produce different results), but unique the
+    // resulting object to reduce memory usage.  This helps to greatly reduce
+    // memory usage when we have many instances of only a few pass types
+    // (e.g. instcombine, simplifycfg, etc...) which tend to share a fixed set
+    // of dependencies.
+    AnalysisUsage AU;
+    P->getAnalysisUsage(AU);
+    
+    AUFoldingSetNode* Node = nullptr;
+    FoldingSetNodeID ID;
+    AUFoldingSetNode::Profile(ID, AU);
+    void *IP = nullptr;
+    if (auto *N = UniqueAnalysisUsages.FindNodeOrInsertPos(ID, IP))
+      Node = N;
+    else {
+      Node = new (AUFoldingSetNodeAllocator.Allocate()) AUFoldingSetNode(AU);
+      UniqueAnalysisUsages.InsertNode(Node, IP);
+    }
+    assert(Node && "cached analysis usage must be non null");
+
+    AnUsageMap[P] = &Node->AU;
+    AnUsage = &Node->AU;;
   }
   return AnUsage;
 }
@@ -686,6 +719,10 @@ void PMTopLevelManager::schedulePass(Pass *P) {
 /// passes and all pass managers. If desired pass is not found
 /// then return NULL.
 Pass *PMTopLevelManager::findAnalysisPass(AnalysisID AID) {
+  // For immutable passes we have a direct mapping from ID to pass, so check
+  // that first.
+  if (Pass *P = ImmutablePassMap.lookup(AID))
+    return P;
 
   // Check pass managers
   for (PMDataManager *PassManager : PassManagers)
@@ -696,24 +733,6 @@ Pass *PMTopLevelManager::findAnalysisPass(AnalysisID AID) {
   for (PMDataManager *IndirectPassManager : IndirectPassManagers)
     if (Pass *P = IndirectPassManager->findAnalysisPass(AID, false))
       return P;
-
-  // Check the immutable passes. Iterate in reverse order so that we find
-  // the most recently registered passes first.
-  for (auto I = ImmutablePasses.rbegin(), E = ImmutablePasses.rend(); I != E;
-       ++I) {
-    AnalysisID PI = (*I)->getPassID();
-    if (PI == AID)
-      return *I;
-
-    // If Pass not found then check the interfaces implemented by Immutable Pass
-    const PassInfo *PassInf = findAnalysisPassInfo(PI);
-    assert(PassInf && "Expected all immutable passes to be initialized");
-    const std::vector<const PassInfo*> &ImmPI =
-      PassInf->getInterfacesImplemented();
-    for (const PassInfo *PI : ImmPI)
-      if (PI->getTypeInfo() == AID)
-        return *I;
-  }
 
   return nullptr;
 }
@@ -727,6 +746,24 @@ const PassInfo *PMTopLevelManager::findAnalysisPassInfo(AnalysisID AID) const {
            "The pass info pointer changed for an analysis ID!");
 
   return PI;
+}
+
+void PMTopLevelManager::addImmutablePass(ImmutablePass *P) {
+  P->initializePass();
+  ImmutablePasses.push_back(P);
+
+  // Add this pass to the map from its analysis ID. We clobber any prior runs
+  // of the pass in the map so that the last one added is the one found when
+  // doing lookups.
+  AnalysisID AID = P->getPassID();
+  ImmutablePassMap[AID] = P;
+
+  // Also add any interfaces implemented by the immutable pass to the map for
+  // fast lookup.
+  const PassInfo *PassInf = findAnalysisPassInfo(AID);
+  assert(PassInf && "Expected all immutable passes to be initialized");
+  for (const PassInfo *ImmPI : PassInf->getInterfacesImplemented())
+    ImmutablePassMap[ImmPI->getTypeInfo()] = P;
 }
 
 // Print passes managed by this top level manager.
@@ -780,15 +817,8 @@ void PMTopLevelManager::initializeAllAnalysisInfo() {
 
   for (DenseMap<Pass *, Pass *>::iterator DMI = LastUser.begin(),
         DME = LastUser.end(); DMI != DME; ++DMI) {
-    DenseMap<Pass *, SmallPtrSet<Pass *, 8> >::iterator InvDMI =
-      InversedLastUser.find(DMI->second);
-    if (InvDMI != InversedLastUser.end()) {
-      SmallPtrSet<Pass *, 8> &L = InvDMI->second;
-      L.insert(DMI->first);
-    } else {
-      SmallPtrSet<Pass *, 8> L; L.insert(DMI->first);
-      InversedLastUser[DMI->second] = L;
-    }
+    SmallPtrSet<Pass *, 8> &L = InversedLastUser[DMI->second];
+    L.insert(DMI->first);
   }
 }
 
@@ -801,10 +831,6 @@ PMTopLevelManager::~PMTopLevelManager() {
   for (SmallVectorImpl<ImmutablePass *>::iterator
          I = ImmutablePasses.begin(), E = ImmutablePasses.end(); I != E; ++I)
     delete *I;
-
-  for (DenseMap<Pass *, AnalysisUsage *>::iterator DMI = AnUsageMap.begin(),
-         DME = AnUsageMap.end(); DMI != DME; ++DMI)
-    delete DMI->second;
 }
 
 //===----------------------------------------------------------------------===//
@@ -989,31 +1015,28 @@ void PMDataManager::add(Pass *P, bool ProcessAnalysis) {
 
   // At the moment, this pass is the last user of all required passes.
   SmallVector<Pass *, 12> LastUses;
-  SmallVector<Pass *, 8> RequiredPasses;
+  SmallVector<Pass *, 8> UsedPasses;
   SmallVector<AnalysisID, 8> ReqAnalysisNotAvailable;
 
   unsigned PDepth = this->getDepth();
 
-  collectRequiredAnalysis(RequiredPasses,
-                          ReqAnalysisNotAvailable, P);
-  for (SmallVectorImpl<Pass *>::iterator I = RequiredPasses.begin(),
-         E = RequiredPasses.end(); I != E; ++I) {
-    Pass *PRequired = *I;
+  collectRequiredAndUsedAnalyses(UsedPasses, ReqAnalysisNotAvailable, P);
+  for (Pass *PUsed : UsedPasses) {
     unsigned RDepth = 0;
 
-    assert(PRequired->getResolver() && "Analysis Resolver is not set");
-    PMDataManager &DM = PRequired->getResolver()->getPMDataManager();
+    assert(PUsed->getResolver() && "Analysis Resolver is not set");
+    PMDataManager &DM = PUsed->getResolver()->getPMDataManager();
     RDepth = DM.getDepth();
 
     if (PDepth == RDepth)
-      LastUses.push_back(PRequired);
+      LastUses.push_back(PUsed);
     else if (PDepth > RDepth) {
       // Let the parent claim responsibility of last use
-      TransferLastUses.push_back(PRequired);
+      TransferLastUses.push_back(PUsed);
       // Keep track of higher level analysis used by this manager.
-      HigherLevelAnalysis.push_back(PRequired);
+      HigherLevelAnalysis.push_back(PUsed);
     } else
-      llvm_unreachable("Unable to accommodate Required Pass");
+      llvm_unreachable("Unable to accommodate Used Pass");
   }
 
   // Set P as P's last user until someone starts using P.
@@ -1030,10 +1053,8 @@ void PMDataManager::add(Pass *P, bool ProcessAnalysis) {
   }
 
   // Now, take care of required analyses that are not available.
-  for (SmallVectorImpl<AnalysisID>::iterator
-         I = ReqAnalysisNotAvailable.begin(),
-         E = ReqAnalysisNotAvailable.end() ;I != E; ++I) {
-    const PassInfo *PI = TPM->findAnalysisPassInfo(*I);
+  for (AnalysisID ID : ReqAnalysisNotAvailable) {
+    const PassInfo *PI = TPM->findAnalysisPassInfo(ID);
     Pass *AnalysisPass = PI->createPass();
     this->addLowerLevelRequiredPass(P, AnalysisPass);
   }
@@ -1048,30 +1069,29 @@ void PMDataManager::add(Pass *P, bool ProcessAnalysis) {
 }
 
 
-/// Populate RP with analysis pass that are required by
+/// Populate UP with analysis pass that are used or required by
 /// pass P and are available. Populate RP_NotAvail with analysis
 /// pass that are required by pass P but are not available.
-void PMDataManager::collectRequiredAnalysis(SmallVectorImpl<Pass *> &RP,
-                                       SmallVectorImpl<AnalysisID> &RP_NotAvail,
-                                            Pass *P) {
+void PMDataManager::collectRequiredAndUsedAnalyses(
+    SmallVectorImpl<Pass *> &UP, SmallVectorImpl<AnalysisID> &RP_NotAvail,
+    Pass *P) {
   AnalysisUsage *AnUsage = TPM->findAnalysisUsage(P);
-  const AnalysisUsage::VectorType &RequiredSet = AnUsage->getRequiredSet();
-  for (AnalysisUsage::VectorType::const_iterator
-         I = RequiredSet.begin(), E = RequiredSet.end(); I != E; ++I) {
-    if (Pass *AnalysisPass = findAnalysisPass(*I, true))
-      RP.push_back(AnalysisPass);
-    else
-      RP_NotAvail.push_back(*I);
-  }
 
-  const AnalysisUsage::VectorType &IDs = AnUsage->getRequiredTransitiveSet();
-  for (AnalysisUsage::VectorType::const_iterator I = IDs.begin(),
-         E = IDs.end(); I != E; ++I) {
-    if (Pass *AnalysisPass = findAnalysisPass(*I, true))
-      RP.push_back(AnalysisPass);
+  for (const auto &UsedID : AnUsage->getUsedSet())
+    if (Pass *AnalysisPass = findAnalysisPass(UsedID, true))
+      UP.push_back(AnalysisPass);
+
+  for (const auto &RequiredID : AnUsage->getRequiredSet())
+    if (Pass *AnalysisPass = findAnalysisPass(RequiredID, true))
+      UP.push_back(AnalysisPass);
     else
-      RP_NotAvail.push_back(*I);
-  }
+      RP_NotAvail.push_back(RequiredID);
+
+  for (const auto &RequiredID : AnUsage->getRequiredTransitiveSet())
+    if (Pass *AnalysisPass = findAnalysisPass(RequiredID, true))
+      UP.push_back(AnalysisPass);
+    else
+      RP_NotAvail.push_back(RequiredID);
 }
 
 // All Required analyses should be available to the pass as it runs!  Here
@@ -1206,6 +1226,15 @@ void PMDataManager::dumpPreservedSet(const Pass *P) const {
   dumpAnalysisUsage("Preserved", P, analysisUsage.getPreservedSet());
 }
 
+void PMDataManager::dumpUsedSet(const Pass *P) const {
+  if (PassDebugging < Details)
+    return;
+
+  AnalysisUsage analysisUsage;
+  P->getAnalysisUsage(analysisUsage);
+  dumpAnalysisUsage("Used", P, analysisUsage.getUsedSet());
+}
+
 void PMDataManager::dumpAnalysisUsage(StringRef Msg, const Pass *P,
                                    const AnalysisUsage::VectorType &Set) const {
   assert(PassDebugging >= Details);
@@ -1310,6 +1339,7 @@ bool BBPassManager::runOnFunction(Function &F) {
         dumpPassInfo(BP, MODIFICATION_MSG, ON_BASICBLOCK_MSG,
                      I->getName());
       dumpPreservedSet(BP);
+      dumpUsedSet(BP);
 
       verifyPreservedAnalysis(BP);
       removeNotPreservedAnalysis(BP);
@@ -1524,6 +1554,7 @@ bool FPPassManager::runOnFunction(Function &F) {
     if (LocalChanged)
       dumpPassInfo(FP, MODIFICATION_MSG, ON_FUNCTION_MSG, F.getName());
     dumpPreservedSet(FP);
+    dumpUsedSet(FP);
 
     verifyPreservedAnalysis(FP);
     removeNotPreservedAnalysis(FP);
@@ -1601,6 +1632,7 @@ MPPassManager::runOnModule(Module &M) {
       dumpPassInfo(MP, MODIFICATION_MSG, ON_MODULE_MSG,
                    M.getModuleIdentifier());
     dumpPreservedSet(MP);
+    dumpUsedSet(MP);
 
     verifyPreservedAnalysis(MP);
     removeNotPreservedAnalysis(MP);

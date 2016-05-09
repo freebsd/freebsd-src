@@ -41,13 +41,16 @@ namespace llvm {
   FunctionPass *createPPCVSXCopyPass();
   FunctionPass *createPPCVSXFMAMutatePass();
   FunctionPass *createPPCVSXSwapRemovalPass();
+  FunctionPass *createPPCMIPeepholePass();
   FunctionPass *createPPCBranchSelectionPass();
   FunctionPass *createPPCISelDag(PPCTargetMachine &TM);
   FunctionPass *createPPCTLSDynamicCallPass();
+  FunctionPass *createPPCBoolRetToIntPass();
   void LowerPPCMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI,
                                     AsmPrinter &AP, bool isDarwin);
 
   void initializePPCVSXFMAMutatePass(PassRegistry&);
+  void initializePPCBoolRetToIntPass(PassRegistry&);
   extern char &PPCVSXFMAMutateID;
 
   namespace PPCII {

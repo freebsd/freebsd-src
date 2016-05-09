@@ -164,7 +164,8 @@ protected:
 
   /// \brief Used to specify non-argument regions that will be invalidated as a
   /// result of this call.
-  virtual void getExtraInvalidatedValues(ValueList &Values) const {}
+  virtual void getExtraInvalidatedValues(ValueList &Values,
+                 RegionAndSymbolInvalidationTraits *ETraits) const {}
 
 public:
   virtual ~CallEvent() {}
@@ -253,8 +254,15 @@ public:
   /// which the return value has already been bound to the origin expression.
   SVal getReturnValue() const;
 
+  /// \brief Returns true if the type of any of the non-null arguments satisfies
+  /// the condition.
+  bool hasNonNullArgumentsWithType(bool (*Condition)(QualType)) const;
+
   /// \brief Returns true if any of the arguments appear to represent callbacks.
   bool hasNonZeroCallbackArg() const;
+
+  /// \brief Returns true if any of the arguments is void*.
+  bool hasVoidPointerToNonConstArg() const;
 
   /// \brief Returns true if any of the arguments are known to escape to long-
   /// term storage, even if this method will not modify them.
@@ -472,7 +480,8 @@ protected:
   BlockCall(const BlockCall &Other) : CallEvent(Other) {}
   void cloneTo(void *Dest) const override { new (Dest) BlockCall(*this); }
 
-  void getExtraInvalidatedValues(ValueList &Values) const override;
+  void getExtraInvalidatedValues(ValueList &Values,
+         RegionAndSymbolInvalidationTraits *ETraits) const override;
 
 public:
   virtual const CallExpr *getOriginExpr() const {
@@ -497,8 +506,55 @@ public:
     return BR->getDecl();
   }
 
+  bool isConversionFromLambda() const {
+    const BlockDecl *BD = getDecl();
+    if (!BD)
+      return false;
+
+    return BD->isConversionFromLambda();
+  }
+
+  /// \brief For a block converted from a C++ lambda, returns the block
+  /// VarRegion for the variable holding the captured C++ lambda record.
+  const VarRegion *getRegionStoringCapturedLambda() const {
+    assert(isConversionFromLambda());
+    const BlockDataRegion *BR = getBlockRegion();
+    assert(BR && "Block converted from lambda must have a block region");
+
+    auto I = BR->referenced_vars_begin();
+    assert(I != BR->referenced_vars_end());
+
+    return I.getCapturedRegion();
+  }
+
   RuntimeDefinition getRuntimeDefinition() const override {
-    return RuntimeDefinition(getDecl());
+    if (!isConversionFromLambda())
+      return RuntimeDefinition(getDecl());
+
+    // Clang converts lambdas to blocks with an implicit user-defined
+    // conversion operator method on the lambda record that looks (roughly)
+    // like:
+    //
+    // typedef R(^block_type)(P1, P2, ...);
+    // operator block_type() const {
+    //   auto Lambda = *this;
+    //   return ^(P1 p1, P2 p2, ...){
+    //     /* return Lambda(p1, p2, ...); */
+    //   };
+    // }
+    //
+    // Here R is the return type of the lambda and P1, P2, ... are
+    // its parameter types. 'Lambda' is a fake VarDecl captured by the block
+    // that is initialized to a copy of the lambda.
+    //
+    // Sema leaves the body of a lambda-converted block empty (it is
+    // produced by CodeGen), so we can't analyze it directly. Instead, we skip
+    // the block body and analyze the operator() method on the captured lambda.
+    const VarDecl *LambdaVD = getRegionStoringCapturedLambda()->getDecl();
+    const CXXRecordDecl *LambdaDecl = LambdaVD->getType()->getAsCXXRecordDecl();
+    CXXMethodDecl* LambdaCallOperator = LambdaDecl->getLambdaCallOperator();
+
+    return RuntimeDefinition(LambdaCallOperator);
   }
 
   bool argumentsMayEscape() const override {
@@ -521,7 +577,8 @@ public:
 /// it is written.
 class CXXInstanceCall : public AnyFunctionCall {
 protected:
-  void getExtraInvalidatedValues(ValueList &Values) const override;
+  void getExtraInvalidatedValues(ValueList &Values, 
+         RegionAndSymbolInvalidationTraits *ETraits) const override;
 
   CXXInstanceCall(const CallExpr *CE, ProgramStateRef St,
                   const LocationContext *LCtx)
@@ -704,7 +761,8 @@ protected:
   CXXConstructorCall(const CXXConstructorCall &Other) : AnyFunctionCall(Other){}
   void cloneTo(void *Dest) const override { new (Dest) CXXConstructorCall(*this); }
 
-  void getExtraInvalidatedValues(ValueList &Values) const override;
+  void getExtraInvalidatedValues(ValueList &Values,
+         RegionAndSymbolInvalidationTraits *ETraits) const override;
 
 public:
   virtual const CXXConstructExpr *getOriginExpr() const {
@@ -803,7 +861,8 @@ protected:
   ObjCMethodCall(const ObjCMethodCall &Other) : CallEvent(Other) {}
   void cloneTo(void *Dest) const override { new (Dest) ObjCMethodCall(*this); }
 
-  void getExtraInvalidatedValues(ValueList &Values) const override;
+  void getExtraInvalidatedValues(ValueList &Values,
+         RegionAndSymbolInvalidationTraits *ETraits) const override;
 
   /// Check if the selector may have multiple definitions (may have overrides).
   virtual bool canBeOverridenInSubclass(ObjCInterfaceDecl *IDecl,

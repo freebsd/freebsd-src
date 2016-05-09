@@ -97,11 +97,19 @@ extern struct pr_usrreqs sctp_usrreqs;
  * an mbuf cache as well so it is not really worth doing, at least
  * right now :-D
  */
-
+#ifdef INVARIANTS
+#define sctp_free_a_readq(_stcb, _readq) { \
+	if ((_readq)->on_strm_q) \
+		panic("On strm q stcb:%p readq:%p", (_stcb), (_readq)); \
+	SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_readq), (_readq)); \
+	SCTP_DECR_READQ_COUNT(); \
+}
+#else
 #define sctp_free_a_readq(_stcb, _readq) { \
 	SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_readq), (_readq)); \
 	SCTP_DECR_READQ_COUNT(); \
 }
+#endif
 
 #define sctp_alloc_a_readq(_stcb, _readq) { \
 	(_readq) = SCTP_ZONE_GET(SCTP_BASE_INFO(ipi_zone_readq), struct sctp_queued_to_read); \
@@ -211,7 +219,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 	atomic_add_int(&(sb)->sb_cc,SCTP_BUF_LEN((m))); \
 	atomic_add_int(&(sb)->sb_mbcnt, MSIZE); \
 	if (stcb) { \
-		atomic_add_int(&(stcb)->asoc.sb_cc,SCTP_BUF_LEN((m))); \
+		atomic_add_int(&(stcb)->asoc.sb_cc, SCTP_BUF_LEN((m))); \
 		atomic_add_int(&(stcb)->asoc.my_rwnd_control_len, MSIZE); \
 	} \
 	if (SCTP_BUF_TYPE(m) != MT_DATA && SCTP_BUF_TYPE(m) != MT_HEADER && \
@@ -333,13 +341,12 @@ int sctp_input(struct mbuf **, int *, int);
 void sctp_pathmtu_adjustment(struct sctp_tcb *, uint16_t);
 void sctp_drain(void);
 void sctp_init(void);
+void 
+sctp_notify(struct sctp_inpcb *, struct sctp_tcb *, struct sctp_nets *,
+    uint8_t, uint8_t, uint16_t, uint16_t);
 void sctp_finish(void);
 int sctp_flush(struct socket *, int);
 int sctp_shutdown(struct socket *);
-void 
-sctp_notify(struct sctp_inpcb *, struct ip *ip, struct sctphdr *,
-    struct sockaddr *, struct sctp_tcb *,
-    struct sctp_nets *);
 int 
 sctp_bindx(struct socket *, int, struct sockaddr_storage *,
     int, int, struct proc *);

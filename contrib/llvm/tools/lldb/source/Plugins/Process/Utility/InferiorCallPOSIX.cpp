@@ -72,6 +72,7 @@ lldb_private::InferiorCallMmap (Process *process,
             options.SetTryAllThreads(true);
             options.SetDebug (false);
             options.SetTimeoutUsec(500000);
+            options.SetTrapExceptions(false);
 
             addr_t prot_arg, flags_arg = 0;
             if (prot == eMmapProtNone)
@@ -93,7 +94,7 @@ lldb_private::InferiorCallMmap (Process *process,
             if (sc.GetAddressRange(range_scope, 0, use_inline_block_range, mmap_range))
             {
                 ClangASTContext *clang_ast_context = process->GetTarget().GetScratchClangASTContext();
-                ClangASTType clang_void_ptr_type = clang_ast_context->GetBasicType(eBasicTypeVoid).GetPointerType();
+                CompilerType clang_void_ptr_type = clang_ast_context->GetBasicType(eBasicTypeVoid).GetPointerType();
                 lldb::addr_t args[] = { addr, length, prot_arg, flags_arg, fd, offset };
                 lldb::ThreadPlanSP call_plan_sp (new ThreadPlanCallFunction (*thread,
                                                                              mmap_range.GetBaseAddress(),
@@ -103,9 +104,6 @@ lldb_private::InferiorCallMmap (Process *process,
                 if (call_plan_sp)
                 {
                     StreamFile error_strm;
-                    // This plan is a utility plan, so set it to discard itself when done.
-                    call_plan_sp->SetIsMasterPlan (true);
-                    call_plan_sp->SetOkayToDiscard(true);
                     
                     StackFrame *frame = thread->GetStackFrameAtIndex (0).get();
                     if (frame)
@@ -175,6 +173,7 @@ lldb_private::InferiorCallMunmap (Process *process,
             options.SetTryAllThreads(true);
             options.SetDebug (false);
             options.SetTimeoutUsec(500000);
+            options.SetTrapExceptions(false);
            
             AddressRange munmap_range;
             if (sc.GetAddressRange(range_scope, 0, use_inline_block_range, munmap_range))
@@ -182,15 +181,12 @@ lldb_private::InferiorCallMunmap (Process *process,
                 lldb::addr_t args[] = { addr, length };
                 lldb::ThreadPlanSP call_plan_sp (new ThreadPlanCallFunction (*thread,
                                                                             munmap_range.GetBaseAddress(),
-                                                                            ClangASTType(),
+                                                                            CompilerType(),
                                                                             args,
                                                                             options));
                 if (call_plan_sp)
                 {
                     StreamFile error_strm;
-                    // This plan is a utility plan, so set it to discard itself when done.
-                    call_plan_sp->SetIsMasterPlan (true);
-                    call_plan_sp->SetOkayToDiscard(true);
                    
                     StackFrame *frame = thread->GetStackFrameAtIndex (0).get();
                     if (frame)
@@ -220,7 +216,8 @@ lldb_private::InferiorCallMunmap (Process *process,
 bool
 lldb_private::InferiorCall (Process *process,
                             const Address *address,
-                            addr_t &returned_func)
+                            addr_t &returned_func,
+                            bool trap_exceptions)
 {
     Thread *thread = process->GetThreadList().GetSelectedThread().get();
     if (thread == NULL || address == NULL)
@@ -233,9 +230,10 @@ lldb_private::InferiorCall (Process *process,
     options.SetTryAllThreads(true);
     options.SetDebug (false);
     options.SetTimeoutUsec(500000);
+    options.SetTrapExceptions(trap_exceptions);
 
     ClangASTContext *clang_ast_context = process->GetTarget().GetScratchClangASTContext();
-    ClangASTType clang_void_ptr_type = clang_ast_context->GetBasicType(eBasicTypeVoid).GetPointerType();
+    CompilerType clang_void_ptr_type = clang_ast_context->GetBasicType(eBasicTypeVoid).GetPointerType();
     lldb::ThreadPlanSP call_plan_sp (new ThreadPlanCallFunction (*thread,
                                                                  *address,
                                                                  clang_void_ptr_type,
@@ -244,9 +242,6 @@ lldb_private::InferiorCall (Process *process,
     if (call_plan_sp)
     {
         StreamString error_strm;
-        // This plan is a utility plan, so set it to discard itself when done.
-        call_plan_sp->SetIsMasterPlan (true);
-        call_plan_sp->SetOkayToDiscard(true);
 
         StackFrame *frame = thread->GetStackFrameAtIndex (0).get();
         if (frame)

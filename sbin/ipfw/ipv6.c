@@ -71,14 +71,14 @@ fill_unreach6_code(u_short *codep, char *str)
 }
 
 void
-print_unreach6_code(uint16_t code)
+print_unreach6_code(struct buf_pr *bp, uint16_t code)
 {
 	char const *s = match_value(icmp6codes, code);
 
 	if (s != NULL)
-		printf("unreach6 %s", s);
+		bprintf(bp, "unreach6 %s", s);
 	else
-		printf("unreach6 %u", code);
+		bprintf(bp, "unreach6 %u", code);
 }
 
 /*
@@ -325,7 +325,7 @@ lookup_host6 (char *host, struct in6_addr *ip6addr)
  *     any     matches any IP6. Actually returns an empty instruction.
  *     me      returns O_IP6_*_ME
  *
- *     03f1::234:123:0342		single IP6 addres
+ *     03f1::234:123:0342		single IP6 address
  *     03f1::234:123:0342/24	    address/mask
  *     03f1::234:123:0342/24,03f1::234:123:0343/	       List of address
  *

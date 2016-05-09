@@ -31,6 +31,79 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160414:
+	The CAM I/O scheduler has been committed to the kernel. There should be
+	no user visible impact. This does enable NCQ Trim on ada SSDs. While the
+	list of known rogues that claim support for this but actually corrupt
+	data is believed to be complete, be on the lookout for data
+	corruption. The known rogue list is believed to be complete:
+
+		o Crucial MX100, M550 drives with MU01 firmware.
+		o Micron M510 and M550 drives with MU01 firmware.
+		o Micron M500 prior to MU07 firmware
+		o Samsung 830, 840, and 850 all firmwares
+		o FCCT M500 all firmwares
+
+	Crucial has firmware http://www.crucial.com/usa/en/support-ssd-firmware
+	with working NCQ TRIM. For Micron branded drives, see your sales rep for
+	updated firmware. Black listed drives will work correctly because these
+	drives work correctly so long as no NCQ TRIMs are sent to them. Given
+	this list is the same as found in Linux, it's believed there are no
+	other rogues in the market place. All other models from the above
+	vendors work.
+
+	To be safe, if you are at all concerned, you can quirk each of your
+	drives to prevent NCQ from being sent by setting:
+		kern.cam.ada.X.quirks="0x2"
+	in loader.conf. If the drive requires the 4k sector quirk, set the
+	quirks entry to 0x3.
+
+20160330:
+	The FAST_DEPEND build option has been removed and its functionality is
+	now the one true way.  The old mkdep(1) style of 'make depend' has
+	been removed.  See 20160311 for further details.
+
+20160317:
+	Resource range types have grown from unsigned long to uintmax_t.  All
+	drivers, and anything using libdevinfo, need to be recompiled.
+
+20160311:
+	WITH_FAST_DEPEND is now enabled by default for in-tree and out-of-tree
+	builds.  It no longer runs mkdep(1) during 'make depend', and the
+	'make depend' stage can safely be skipped now as it is auto ran
+	when building 'make all' and will generate all SRCS and DPSRCS before
+	building anything else.  Dependencies are gathered at compile time with
+	-MF flags kept in separate .depend files per object file.  Users should
+	run 'make cleandepend' once if using -DNO_CLEAN to clean out older
+	stale .depend files.
+
+20160306:
+	On amd64, clang 3.8.0 can now insert sections of type AMD64_UNWIND into
+	kernel modules.  Therefore, if you load any kernel modules at boot time,
+	please install the boot loaders after you install the kernel, but before
+	rebooting, e.g.:
+
+	make buildworld
+	make kernel KERNCONF=YOUR_KERNEL_HERE
+	make -C sys/boot install
+	<reboot in single user>
+
+	Then follow the usual steps, described in the General Notes section,
+	below.
+
+20160305:
+	Clang, llvm, lldb and compiler-rt have been upgraded to 3.8.0.  Please
+	see the 20141231 entry below for information about prerequisites and
+	upgrading, if you are not already using clang 3.5.0 or higher.
+
+20160301:
+	The AIO subsystem is now a standard part of the kernel.  The
+	VFS_AIO kernel option and aio.ko kernel module have been removed.
+	Due to stability concerns, asynchronous I/O requests are only
+	permitted on sockets and raw disks by default.  To enable
+	asynchronous I/O requests on all file types, set the
+	vfs.aio.enable_unsafe sysctl to a non-zero value.
+
 20160226:
 	The ELF object manipulation tool objcopy is now provided by the
 	ELF Tool Chain project rather than by GNU binutils. It should be a
@@ -832,7 +905,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	WITH_ICONV has been split into two feature sets.  WITH_ICONV now
 	enables just the iconv* functionality and is now on by default.
 	WITH_LIBICONV_COMPAT enables the libiconv api and link time
-	compatability.  Set WITHOUT_ICONV to build the old way.
+	compatibility.  Set WITHOUT_ICONV to build the old way.
 	If you have been using WITH_ICONV before, you will very likely
 	need to turn on WITH_LIBICONV_COMPAT.
 

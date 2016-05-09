@@ -67,9 +67,11 @@ TZBUILDSUBDIRS=	\
 		Pacific \
 		SystemV
 
+.if !defined(_SKIP_BUILD)
 all: zoneinfo
+.endif
+META_TARGETS+=	zoneinfo install-zoneinfo
 
-.PHONY: zoneinfo
 zoneinfo: yearistype ${TDATA}
 	mkdir -p ${TZBUILDDIR}
 	cd ${TZBUILDDIR}; mkdir -p ${TZBUILDSUBDIRS}
@@ -77,7 +79,8 @@ zoneinfo: yearistype ${TDATA}
 	zic -D -d ${TZBUILDDIR} -p ${POSIXRULES} -m ${NOBINMODE} \
 	    ${LEAPFILE} -y ${.OBJDIR}/yearistype ${TZFILES}
 
-beforeinstall:
+beforeinstall: install-zoneinfo
+install-zoneinfo:
 	cd ${TZBUILDDIR} && \
 	    find -s * -type f -print -exec ${INSTALL} \
 	    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \

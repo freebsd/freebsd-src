@@ -529,12 +529,11 @@ abidump(struct ktr_header *kth)
 		break;
 	}
 
-	if (flags != 0) {
-		if (flags & SV_LP64)
-			arch = "64";
-		else
-			arch = "32";
-	} else
+	if (flags & SV_LP64)
+		arch = "64";
+	else if (flags & SV_ILP32)
+		arch = "32";
+	else
 		arch = "00";
 
 	printf("%s%s  ", abi, arch);
@@ -807,6 +806,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 			case SYS_chmod:
 			case SYS_fchmod:
 			case SYS_lchmod:
+			case SYS_fchmodat:
 				print_number(ip, narg, c);
 				putchar(',');
 				modename(*ip);

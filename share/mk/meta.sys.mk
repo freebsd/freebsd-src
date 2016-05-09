@@ -111,7 +111,7 @@ _metaError: .NOMETA .NOTMAIN
 .endif
 
 # Are we, after all, in meta mode?
-.if ${.MAKE.MODE:Mmeta*} != ""
+.if ${.MAKE.MODE:Uno:Mmeta*} != ""
 MKDEP_MK = meta.autodep.mk
 
 # if we think we are updating dependencies, 

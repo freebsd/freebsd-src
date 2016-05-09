@@ -158,8 +158,7 @@ div_init(void)
 	 * place for hashbase == NULL.
 	 */
 	in_pcbinfo_init(&V_divcbinfo, "div", &V_divcb, 1, 1, "divcb",
-	    div_inpcb_init, div_inpcb_fini, UMA_ZONE_NOFREE,
-	    IPI_HASHFIELDS_NONE);
+	    div_inpcb_init, div_inpcb_fini, 0, IPI_HASHFIELDS_NONE);
 }
 
 static void
@@ -206,7 +205,7 @@ divert_packet(struct mbuf *m, int incoming)
 	}
 	/* Assure header */
 	if (m->m_len < sizeof(struct ip) &&
-	    (m = m_pullup(m, sizeof(struct ip))) == 0)
+	    (m = m_pullup(m, sizeof(struct ip))) == NULL)
 		return;
 	ip = mtod(m, struct ip *);
 
@@ -601,7 +600,7 @@ div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 
 	/* Packet must have a header (but that's about it) */
 	if (m->m_len < sizeof (struct ip) &&
-	    (m = m_pullup(m, sizeof (struct ip))) == 0) {
+	    (m = m_pullup(m, sizeof (struct ip))) == NULL) {
 		KMOD_IPSTAT_INC(ips_toosmall);
 		m_freem(m);
 		return EINVAL;
@@ -667,7 +666,7 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 		return error;
 
 	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
-	if (inp_list == 0)
+	if (inp_list == NULL)
 		return ENOMEM;
 	
 	INP_INFO_RLOCK(&V_divcbinfo);
@@ -766,9 +765,6 @@ static int
 div_modevent(module_t mod, int type, void *unused)
 {
 	int err = 0;
-#ifndef VIMAGE
-	int n;
-#endif
 
 	switch (type) {
 	case MOD_LOAD:
@@ -809,8 +805,7 @@ div_modevent(module_t mod, int type, void *unused)
 		 * we destroy the lock.
 		 */
 		INP_INFO_WLOCK(&V_divcbinfo);
-		n = V_divcbinfo.ipi_count;
-		if (n != 0) {
+		if (V_divcbinfo.ipi_count != 0) {
 			err = EBUSY;
 			INP_INFO_WUNLOCK(&V_divcbinfo);
 			break;

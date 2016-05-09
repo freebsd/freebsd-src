@@ -409,7 +409,7 @@ dma_print_res(struct dma_devinfo *ddi)
 
 	rv = 0;
 	rv += resource_list_print_type(&ddi->ddi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx");
-	rv += resource_list_print_type(&ddi->ddi_rl, "irq", SYS_RES_IRQ, "%ld");
+	    "%#jx");
+	rv += resource_list_print_type(&ddi->ddi_rl, "irq", SYS_RES_IRQ, "%jd");
 	return (rv);
 }

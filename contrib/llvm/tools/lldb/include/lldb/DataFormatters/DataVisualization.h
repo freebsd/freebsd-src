@@ -1,4 +1,4 @@
-//===-- DataVisualization.h ----------------------------------------*- C++ -*-===//
+//===-- DataVisualization.h -------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -28,7 +28,6 @@ namespace lldb_private {
 class DataVisualization
 {
 public:
-    
     // use this call to force the FM to consider itself updated even when there is no apparent reason for that
     static void
     ForceUpdate();
@@ -83,8 +82,8 @@ public:
     AnyMatches(ConstString type_name,
                TypeCategoryImpl::FormatCategoryItems items = TypeCategoryImpl::ALL_ITEM_TYPES,
                bool only_enabled = true,
-               const char** matching_category = NULL,
-               TypeCategoryImpl::FormatCategoryItems* matching_type = NULL);
+               const char** matching_category = nullptr,
+               TypeCategoryImpl::FormatCategoryItems* matching_type = nullptr);
     
     class NamedSummaryFormats
     {
@@ -102,7 +101,7 @@ public:
         Clear ();
         
         static void
-        LoopThrough (TypeSummaryImpl::SummaryCallback callback, void* callback_baton);
+        ForEach (std::function<bool(ConstString, const lldb::TypeSummaryImplSP&)> callback);
         
         static uint32_t
         GetCount ();
@@ -111,12 +110,15 @@ public:
     class Categories
     {
     public:
-        
         static bool
         GetCategory (const ConstString &category,
                      lldb::TypeCategoryImplSP &entry,
                      bool allow_create = true);
 
+        static bool
+        GetCategory (lldb::LanguageType language,
+                     lldb::TypeCategoryImplSP &entry);
+        
         static void
         Add (const ConstString &category);
         
@@ -134,7 +136,13 @@ public:
                 TypeCategoryMap::Position = TypeCategoryMap::Default);
         
         static void
+        Enable (lldb::LanguageType lang_type);
+        
+        static void
         Disable (const ConstString& category);
+        
+        static void
+        Disable (lldb::LanguageType lang_type);
 
         static void
         Enable (const lldb::TypeCategoryImplSP& category,
@@ -150,7 +158,7 @@ public:
         DisableStar ();
         
         static void
-        LoopThrough (FormatManager::CategoryCallback callback, void* callback_baton);
+        ForEach (TypeCategoryMap::ForEachCallback callback);
         
         static uint32_t
         GetCount ();
@@ -160,7 +168,6 @@ public:
     };
 };
 
-    
 } // namespace lldb_private
 
-#endif	// lldb_DataVisualization_h_
+#endif// lldb_DataVisualization_h_

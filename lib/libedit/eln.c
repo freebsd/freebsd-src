@@ -1,4 +1,4 @@
-/*	$NetBSD: eln.c,v 1.28 2016/02/28 23:02:24 christos Exp $	*/
+/*	$NetBSD: eln.c,v 1.19 2015/05/18 15:07:04 christos Exp $	*/
 
 /*-
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -12,6 +12,13 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *        This product includes software developed by the NetBSD
+ *        Foundation, Inc. and its contributors.
+ * 4. Neither the name of The NetBSD Foundation nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -27,17 +34,17 @@
  */
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: eln.c,v 1.28 2016/02/28 23:02:24 christos Exp $");
+__RCSID("$NetBSD: eln.c,v 1.19 2015/05/18 15:07:04 christos Exp $");
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <errno.h>
+#include "histedit.h"
+#include "el.h"
+#include "read.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "el.h"
 
 public int
 el_getc(EditLine *el, char *cp)
@@ -45,22 +52,18 @@ el_getc(EditLine *el, char *cp)
 	int num_read;
 	wchar_t wc = 0;
 
-	num_read = el_wgetc(el, &wc);
-	*cp = '\0';
-	if (num_read <= 0)
-		return num_read;
-	num_read = ct_wctob(wc);
-	if (num_read == EOF) {
-		errno = ERANGE;
-		return -1;
-	} else {
-		*cp = (char)num_read;
-		return 1;
-	}
+	if (!(el->el_flags & CHARSET_IS_UTF8))
+		el->el_flags |= IGNORE_EXTCHARS;
+	num_read = el_wgetc (el, &wc);
+	if (!(el->el_flags & CHARSET_IS_UTF8))
+		el->el_flags &= ~IGNORE_EXTCHARS;
+
+	if (num_read > 0)
+		*cp = (char)wc;
+	return num_read;
 }
 
 
-#ifdef WIDECHAR
 public void
 el_push(EditLine *el, const char *str)
 {
@@ -75,15 +78,17 @@ el_gets(EditLine *el, int *nread)
 {
 	const wchar_t *tmp;
 
+	if (!(el->el_flags & CHARSET_IS_UTF8))
+		el->el_flags |= IGNORE_EXTCHARS;
 	tmp = el_wgets(el, nread);
 	if (tmp != NULL) {
-	    int i;
 	    size_t nwread = 0;
-
-	    for (i = 0; i < *nread; i++)
+	    for (int i = 0; i < *nread; i++)
 		nwread += ct_enc_width(tmp[i]);
 	    *nread = (int)nwread;
 	}
+	if (!(el->el_flags & CHARSET_IS_UTF8))
+		el->el_flags &= ~IGNORE_EXTCHARS;
 	return ct_encode_string(tmp, &el->el_lgcyconv);
 }
 
@@ -228,7 +233,7 @@ el_set(EditLine *el, int op, ...)
 		    ret = -1;
 		    goto out;
 		}
-		/* XXX: The two strdup's leak */
+		// XXX: The two strdup's leak
 		ret = map_addfunc(el, Strdup(wargv[0]), Strdup(wargv[1]),
 		    func);
 		ct_free_argv(wargv);
@@ -242,8 +247,10 @@ el_set(EditLine *el, int op, ...)
 		break;
 	}
 
+	/* XXX: do we need to change el_rfunc_t? */
 	case EL_GETCFN:         /* el_rfunc_t */
 		ret = el_wset(el, op, va_arg(ap, el_rfunc_t));
+		el->el_flags |= NARROW_READ;
 		break;
 
 	case EL_CLIENTDATA:     /* void * */
@@ -337,6 +344,7 @@ el_get(EditLine *el, int op, ...)
 		break;
 	}
 
+	/* XXX: do we need to change el_rfunc_t? */
 	case EL_GETCFN:         /* el_rfunc_t */
 		ret = el_wget(el, op, va_arg(ap, el_rfunc_t *));
 		break;
@@ -391,4 +399,3 @@ el_insertstr(EditLine *el, const char *str)
 {
 	return el_winsertstr(el, ct_decode_string(str, &el->el_lgcyconv));
 }
-#endif /* WIDECHAR */

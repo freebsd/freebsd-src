@@ -13,6 +13,11 @@ include "clang/StaticAnalyzer/Checkers/CheckerBase.td"
 // Packages.
 //===----------------------------------------------------------------------===//
 
+// The Alpha package is for checkers that have too many false positives to be
+// turned on by default. The hierarchy under Alpha should be organized in the
+// hierarchy checkers would have had if they were truly at the top level.
+// (For example, a Cocoa-specific checker that is alpha should be in
+// alpha.osx.cocoa).
 def Alpha : Package<"alpha">;
 
 def Core : Package<"core">;
@@ -20,16 +25,33 @@ def CoreBuiltin : Package<"builtin">, InPackage<Core>;
 def CoreUninitialized  : Package<"uninitialized">, InPackage<Core>;
 def CoreAlpha : Package<"core">, InPackage<Alpha>, Hidden;
 
+// The OptIn package is for checkers that are not alpha and that would normally
+// be on by default but where the driver does not have enough information to
+// determine when they are applicable. For example, localizability checkers fit
+// this criterion because the driver cannot determine whether a project is
+// localized or not -- this is best determined at the IDE or build-system level.
+//
+// The checker hierarchy under OptIn should mirror that in Alpha: checkers
+// should be organized as if they were at the top level.
+//
+// Note: OptIn is *not* intended for checkers that are too noisy to be on by
+// default. Such checkers belong in the alpha package.
+def OptIn : Package<"optin">;
+
+def Nullability : Package<"nullability">;
+
 def Cplusplus : Package<"cplusplus">;
 def CplusplusAlpha : Package<"cplusplus">, InPackage<Alpha>, Hidden;
 
 def DeadCode : Package<"deadcode">;
 def DeadCodeAlpha : Package<"deadcode">, InPackage<Alpha>, Hidden;
 
+def Performance : Package<"performance">, InPackage<OptIn>;
+
 def Security : Package <"security">;
 def InsecureAPI : Package<"insecureAPI">, InPackage<Security>;
 def SecurityAlpha : Package<"security">, InPackage<Alpha>, Hidden;
-def Taint : Package<"taint">, InPackage<SecurityAlpha>, Hidden;  
+def Taint : Package<"taint">, InPackage<SecurityAlpha>, Hidden;
 
 def Unix : Package<"unix">;
 def UnixAlpha : Package<"unix">, InPackage<Alpha>, Hidden;
@@ -38,10 +60,17 @@ def CStringAlpha : Package<"cstring">, InPackage<UnixAlpha>, Hidden;
 
 def OSX : Package<"osx">;
 def OSXAlpha : Package<"osx">, InPackage<Alpha>, Hidden;
+def OSXOptIn : Package<"osx">, InPackage<OptIn>;
+
 def Cocoa : Package<"cocoa">, InPackage<OSX>;
 def CocoaAlpha : Package<"cocoa">, InPackage<OSXAlpha>, Hidden;
+def CocoaOptIn : Package<"cocoa">, InPackage<OSXOptIn>;
+
 def CoreFoundation : Package<"coreFoundation">, InPackage<OSX>;
 def Containers : Package<"containers">, InPackage<CoreFoundation>;
+
+def LocalizabilityAlpha : Package<"localizability">, InPackage<CocoaAlpha>;
+def LocalizabilityOptIn : Package<"localizability">, InPackage<CocoaOptIn>;
 
 def LLVM : Package<"llvm">;
 def Debug : Package<"debug">;
@@ -128,7 +157,35 @@ def TestAfterDivZeroChecker : Checker<"TestAfterDivZero">,
   HelpText<"Check for division by variable that is later compared against 0. Either the comparison is useless or there is division by zero.">,
   DescFile<"TestAfterDivZeroChecker.cpp">;
 
+def DynamicTypeChecker : Checker<"DynamicTypeChecker">,
+  HelpText<"Check for cases where the dynamic and the static type of an object are unrelated.">,
+  DescFile<"DynamicTypeChecker.cpp">;
+
 } // end "alpha.core"
+
+let ParentPackage = Nullability in {
+
+def NullPassedToNonnullChecker : Checker<"NullPassedToNonnull">,
+  HelpText<"Warns when a null pointer is passed to a pointer which has a _Nonnull type.">,
+  DescFile<"NullabilityChecker.cpp">;
+
+def NullReturnedFromNonnullChecker : Checker<"NullReturnedFromNonnull">,
+  HelpText<"Warns when a null pointer is returned from a function that has _Nonnull return type.">,
+  DescFile<"NullabilityChecker.cpp">;
+
+def NullableDereferencedChecker : Checker<"NullableDereferenced">,
+  HelpText<"Warns when a nullable pointer is dereferenced.">,
+  DescFile<"NullabilityChecker.cpp">;
+
+def NullablePassedToNonnullChecker : Checker<"NullablePassedToNonnull">,
+  HelpText<"Warns when a nullable pointer is passed to a pointer which has a _Nonnull type.">,
+  DescFile<"NullabilityChecker.cpp">;
+
+def NullableReturnedFromNonnullChecker : Checker<"NullablePassedToNonnull">,
+  HelpText<"Warns when a nullable pointer is returned from a function that has _Nonnull return type.">,
+  DescFile<"NullabilityChecker.cpp">;
+
+} // end "nullability"
 
 //===----------------------------------------------------------------------===//
 // Evaluate "builtin" functions.
@@ -167,7 +224,7 @@ def UndefBranchChecker : Checker<"Branch">,
 def UndefCapturedBlockVarChecker : Checker<"CapturedBlockVariable">,
   HelpText<"Check for blocks that capture uninitialized values">,
   DescFile<"UndefCapturedBlockVarChecker.cpp">;
-  
+
 def ReturnUndefChecker : Checker<"UndefReturn">,
   HelpText<"Check for uninitialized values being returned to the caller">,
   DescFile<"ReturnUndefChecker.cpp">;
@@ -181,11 +238,11 @@ def ReturnUndefChecker : Checker<"UndefReturn">,
 let ParentPackage = Cplusplus in {
 
 def NewDeleteChecker : Checker<"NewDelete">,
-  HelpText<"Check for double-free and use-after-free problems. Traces memory managed by new/delete.">, 
+  HelpText<"Check for double-free and use-after-free problems. Traces memory managed by new/delete.">,
   DescFile<"MallocChecker.cpp">;
 
 def NewDeleteLeaksChecker : Checker<"NewDeleteLeaks">,
-  HelpText<"Check for memory leaks. Traces memory managed by new/delete.">, 
+  HelpText<"Check for memory leaks. Traces memory managed by new/delete.">,
   DescFile<"MallocChecker.cpp">;
 
 } // end: "cplusplus"
@@ -193,7 +250,7 @@ def NewDeleteLeaksChecker : Checker<"NewDeleteLeaks">,
 let ParentPackage = CplusplusAlpha in {
 
 def VirtualCallChecker : Checker<"VirtualCall">,
-  HelpText<"Check virtual function calls during construction or destruction">, 
+  HelpText<"Check virtual function calls during construction or destruction">,
   DescFile<"VirtualCallChecker.cpp">;
 
 } // end: "alpha.cplusplus"
@@ -216,6 +273,18 @@ def UnreachableCodeChecker : Checker<"UnreachableCode">,
   DescFile<"UnreachableCodeChecker.cpp">;
 
 } // end "alpha.deadcode"
+
+//===----------------------------------------------------------------------===//
+// Performance checkers.
+//===----------------------------------------------------------------------===//
+
+let ParentPackage = Performance in {
+
+def PaddingChecker : Checker<"Padding">,
+  HelpText<"Check for excessively padded structs.">,
+  DescFile<"PaddingChecker.cpp">;
+
+} // end: "padding"
 
 //===----------------------------------------------------------------------===//
 // Security checkers.
@@ -257,7 +326,7 @@ let ParentPackage = SecurityAlpha in {
 
 def ArrayBoundChecker : Checker<"ArrayBound">,
   HelpText<"Warn about buffer overflows (older checker)">,
-  DescFile<"ArrayBoundChecker.cpp">;  
+  DescFile<"ArrayBoundChecker.cpp">;
 
 def ArrayBoundCheckerV2 : Checker<"ArrayBoundV2">,
   HelpText<"Warn about buffer overflows (newer checker)">,
@@ -298,7 +367,7 @@ def UnixAPIChecker : Checker<"API">,
 def MallocChecker: Checker<"Malloc">,
   HelpText<"Check for memory leaks, double free, and use-after-free problems. Traces memory managed by malloc()/free().">,
   DescFile<"MallocChecker.cpp">;
-  
+
 def MallocSizeofChecker : Checker<"MallocSizeof">,
   HelpText<"Check for dubious malloc arguments involving sizeof">,
   DescFile<"MallocSizeofChecker.cpp">;
@@ -306,7 +375,11 @@ def MallocSizeofChecker : Checker<"MallocSizeof">,
 def MismatchedDeallocatorChecker : Checker<"MismatchedDeallocator">,
   HelpText<"Check for mismatched deallocators.">,
   DescFile<"MallocChecker.cpp">;
-  
+
+def VforkChecker : Checker<"Vfork">,
+  HelpText<"Check for proper usage of vfork">,
+  DescFile<"VforkChecker.cpp">;
+
 } // end "unix"
 
 let ParentPackage = UnixAlpha in {
@@ -337,7 +410,7 @@ def CStringNullArg : Checker<"NullArg">,
 
 def CStringSyntaxChecker : Checker<"BadSizeArg">,
   HelpText<"Check the size argument passed into C string functions for common erroneous patterns">,
-  DescFile<"CStringSyntaxChecker.cpp">;  
+  DescFile<"CStringSyntaxChecker.cpp">;
 }
 
 let ParentPackage = CStringAlpha in {
@@ -428,6 +501,10 @@ def RetainCountChecker : Checker<"RetainCount">,
   HelpText<"Check for leaks and improper reference count management">,
   DescFile<"RetainCountChecker.cpp">;
 
+def ObjCGenericsChecker : Checker<"ObjCGenerics">,
+  HelpText<"Check for type errors when using Objective-C generics">,
+  DescFile<"DynamicTypePropagation.cpp">;
+
 } // end "osx.cocoa"
 
 let ParentPackage = CocoaAlpha in {
@@ -477,8 +554,25 @@ def ObjCContainersASTChecker : Checker<"PointerSizedValues">,
 def ObjCContainersChecker : Checker<"OutOfBounds">,
   HelpText<"Checks for index out-of-bounds when using 'CFArray' API">,
   DescFile<"ObjCContainersChecker.cpp">;
-    
+
 }
+
+let ParentPackage = LocalizabilityOptIn in {
+def NonLocalizedStringChecker : Checker<"NonLocalizedStringChecker">,
+  HelpText<"Warns about uses of non-localized NSStrings passed to UI methods expecting localized NSStrings">,
+  DescFile<"LocalizationChecker.cpp">;
+
+def EmptyLocalizationContextChecker : Checker<"EmptyLocalizationContextChecker">,
+  HelpText<"Check that NSLocalizedString macros include a comment for context">,
+  DescFile<"LocalizationChecker.cpp">;
+}
+
+let ParentPackage = LocalizabilityAlpha in {
+def PluralMisuseChecker : Checker<"PluralMisuseChecker">,
+  HelpText<"Warns against using one vs. many plural pattern in code when generating localized strings.">,
+  DescFile<"LocalizationChecker.cpp">;
+}
+
 //===----------------------------------------------------------------------===//
 // Checkers for LLVM development.
 //===----------------------------------------------------------------------===//
@@ -544,6 +638,10 @@ def ExprInspectionChecker : Checker<"ExprInspection">,
 
 def ExplodedGraphViewer : Checker<"ViewExplodedGraph">,
   HelpText<"View Exploded Graphs using GraphViz">,
+  DescFile<"DebugCheckers.cpp">;
+
+def BugHashDumper : Checker<"DumpBugHash">,
+  HelpText<"Dump the bug hash for all statements.">,
   DescFile<"DebugCheckers.cpp">;
 
 } // end "debug"

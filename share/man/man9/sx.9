@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 13, 2014
+.Dd March 28, 2016
 .Dt SX 9
 .Os
 .Sh NAME
@@ -124,12 +124,10 @@ specifies a set of optional flags to alter the behavior of
 It contains one or more of the following flags:
 .Bl -tag -width SX_NOADAPTIVE
 .It Dv SX_NOADAPTIVE
-If the kernel is not compiled with
-.Cd "options NO_ADAPTIVE_SX" ,
-then lock operations for
-.Fa sx
-will spin instead of sleeping while an exclusive lock holder is executing on
-another CPU.
+Disable adaptive spinning, rather than sleeping, for lock operations
+while an exclusive lock holder is executing on another CPU.
+Adaptive spinning is the default unless the kernel is compiled with
+.Cd "options NO_ADAPTIVE_SX" .
 .It Dv SX_DUPOK
 Witness should not log messages about duplicate locks being acquired.
 .It Dv SX_NOWITNESS
@@ -322,16 +320,16 @@ end up sleeping while holding a mutex, which is not allowed.
 .Xr rwlock 9 ,
 .Xr sema 9
 .Sh BUGS
-Currently there is no way to assert that a lock is not held.
-This is not possible in the
-.No non- Ns Dv WITNESS
-case for asserting that this thread
-does not hold a shared lock.
-In the
-.No non- Ns Dv WITNESS
-case, the
+A kernel without
+.Dv WITNESS
+cannot assert whether the current thread does or does not hold a shared lock.
 .Dv SA_LOCKED
 and
 .Dv SA_SLOCKED
-assertions merely check that some thread holds a shared lock.
-They do not ensure that the current thread holds a shared lock.
+can only assert that
+.Em any
+thread holds a shared lock.
+They cannot ensure that the current thread holds a shared lock.
+Further,
+.Dv SA_UNLOCKED
+can only assert that the current thread does not hold an exclusive lock.

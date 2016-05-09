@@ -34,6 +34,7 @@
 #define	_SYS_EFX_IMPL_H
 
 #include "efsys.h"
+#include "efx_check.h"
 #include "efx.h"
 #include "efx_regs.h"
 #include "efx_regs_ef10.h"
@@ -42,8 +43,6 @@
 #ifndef	ESE_DZ_EV_CODE_DRV_GEN_EV
 #define	ESE_DZ_EV_CODE_DRV_GEN_EV FSE_AZ_EV_CODE_DRV_GEN_EV
 #endif
-
-#include "efx_check.h"
 
 
 #if EFSYS_OPT_FALCON
@@ -668,9 +667,6 @@ struct efx_nic_s {
 			const uint8_t		*enu_forced_cfg;
 #endif	/* EFSYS_OPT_FALCON_NIC_CFG_OVERRIDE */
 			uint8_t			enu_mon_devid;
-#if EFSYS_OPT_PCIE_TUNE
-			unsigned int 		enu_nlanes;
-#endif	/* EFSYS_OPT_PCIE_TUNE */
 			uint16_t		enu_board_rev;
 			boolean_t		enu_internal_sram;
 			uint8_t			enu_sram_num_bank;

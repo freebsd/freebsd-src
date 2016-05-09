@@ -19,7 +19,7 @@ ${SCRMAPS}: ${.TARGET:R}.mk
 	uuencode ${.TARGET:R}.tmp ${.TARGET:R} > ${.TARGET}
 	rm -f ${.TARGET:R}.tmp
 
-${SCRMAPS_MK}: ${.TARGET:R} mkscrfil.c
+${SCRMAPS_MK}: ${.TARGET:R} mkscrfil.c ${BUILD_TOOLS_META}
 	${CC} ${CFLAGS} -I${.CURDIR} -DFIL=\"${.TARGET:R}\" ${LDFLAGS} \
 	    -o ${.TARGET} ${.CURDIR}/mkscrfil.c
 

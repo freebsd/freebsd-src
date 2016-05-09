@@ -113,13 +113,6 @@ protected:
   DwarfUnit(unsigned UID, dwarf::Tag, const DICompileUnit *CU, AsmPrinter *A,
             DwarfDebug *DW, DwarfFile *DWU);
 
-  /// Add a string attribute data and value.
-  ///
-  /// This is guaranteed to be in the local string pool instead of indirected.
-  void addLocalString(DIE &Die, dwarf::Attribute Attribute, StringRef Str);
-
-  void addIndexedString(DIE &Die, dwarf::Attribute Attribute, StringRef Str);
-
   bool applySubprogramDefinitionAttributes(const DISubprogram *SP, DIE &SPDie);
 
 public:
@@ -162,9 +155,6 @@ public:
   virtual void addGlobalType(const DIType *Ty, const DIE &Die,
                              const DIScope *Context) {}
 
-  /// Add a new name to the namespace accelerator table.
-  void addAccelNamespace(StringRef Name, const DIE &Die);
-
   /// Returns the DIE map slot for the specified debug variable.
   ///
   /// We delegate the request to DwarfDebug when the MDNode can be part of the
@@ -186,14 +176,14 @@ public:
   void addFlag(DIE &Die, dwarf::Attribute Attribute);
 
   /// Add an unsigned integer attribute data and value.
-  void addUInt(DIE &Die, dwarf::Attribute Attribute, Optional<dwarf::Form> Form,
-               uint64_t Integer);
+  void addUInt(DIEValueList &Die, dwarf::Attribute Attribute,
+               Optional<dwarf::Form> Form, uint64_t Integer);
 
-  void addUInt(DIE &Block, dwarf::Form Form, uint64_t Integer);
+  void addUInt(DIEValueList &Block, dwarf::Form Form, uint64_t Integer);
 
   /// Add an signed integer attribute data and value.
-  void addSInt(DIE &Die, dwarf::Attribute Attribute, Optional<dwarf::Form> Form,
-               int64_t Integer);
+  void addSInt(DIEValueList &Die, dwarf::Attribute Attribute,
+               Optional<dwarf::Form> Form, int64_t Integer);
 
   void addSInt(DIELoc &Die, Optional<dwarf::Form> Form, int64_t Integer);
 
@@ -206,8 +196,10 @@ public:
   void addString(DIE &Die, dwarf::Attribute Attribute, StringRef Str);
 
   /// Add a Dwarf label attribute data and value.
-  DIE::value_iterator addLabel(DIE &Die, dwarf::Attribute Attribute,
-                               dwarf::Form Form, const MCSymbol *Label);
+  DIEValueList::value_iterator addLabel(DIEValueList &Die,
+                                        dwarf::Attribute Attribute,
+                                        dwarf::Form Form,
+                                        const MCSymbol *Label);
 
   void addLabel(DIELoc &Die, dwarf::Form Form, const MCSymbol *Label);
 
@@ -228,7 +220,11 @@ public:
   /// Add a DIE attribute data and value.
   void addDIEEntry(DIE &Die, dwarf::Attribute Attribute, DIEEntry Entry);
 
+  /// Add a type's DW_AT_signature and set the  declaration flag.
   void addDIETypeSignature(DIE &Die, const DwarfTypeUnit &Type);
+  /// Add an attribute containing the type signature for a unique identifier.
+  void addDIETypeSignature(DIE &Die, dwarf::Attribute Attribute,
+                           StringRef Identifier);
 
   /// Add block data.
   void addBlock(DIE &Die, dwarf::Attribute Attribute, DIELoc *Block);

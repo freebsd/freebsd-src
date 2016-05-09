@@ -10,8 +10,8 @@ if [ $# -eq 0 ]; then
 	exit 0
 fi
 
-out=`showmount -e "$1"`
+out=`showmount -E "$1"`
 [ $? -eq 0 ] || exit 1
 echo "$out" | awk -v host="$1" \
-    'NR > 1 { printf "%s\t%s:%s ", $1, host, $1 } END { printf "\n" }'
+    '{ printf "\"%s\"\t\"%s:%s\" ", $0, host, $0 } END { printf "\n" }'
 

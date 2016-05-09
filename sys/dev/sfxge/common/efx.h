@@ -34,6 +34,7 @@
 #define	_SYS_EFX_H
 
 #include "efsys.h"
+#include "efx_check.h"
 #include "efx_phy_ids.h"
 
 #ifdef	__cplusplus
@@ -147,19 +148,6 @@ efx_nic_create(
 extern	__checkReturn	efx_rc_t
 efx_nic_probe(
 	__in		efx_nic_t *enp);
-
-#if EFSYS_OPT_PCIE_TUNE
-
-extern	__checkReturn	efx_rc_t
-efx_nic_pcie_tune(
-	__in		efx_nic_t *enp,
-	unsigned int	nlanes);
-
-extern	__checkReturn	efx_rc_t
-efx_nic_pcie_extended_sync(
-	__in		efx_nic_t *enp);
-
-#endif	/* EFSYS_OPT_PCIE_TUNE */
 
 extern	__checkReturn	efx_rc_t
 efx_nic_init(

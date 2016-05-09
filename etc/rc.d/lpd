@@ -11,6 +11,7 @@
 . /etc/rc.subr
 
 name="lpd"
+desc="Line printer spooler daemon"
 rcvar="lpd_enable"
 command="/usr/sbin/${name}"
 required_files="/etc/printcap"

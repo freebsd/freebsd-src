@@ -3,3 +3,7 @@
 SUBDIR+=		efi
 SUBDIR+=		libstand32
 SUBDIR+=		zfs
+
+.if !defined(LOADER_NO_GELI_SUPPORT)
+SUBDIR+=		geli
+.endif

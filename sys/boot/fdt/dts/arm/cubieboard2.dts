@@ -32,13 +32,6 @@
 
 / {
 	soc@01c00000 {
-		ccm@01c20000 {
-			compatible = "allwinner,sun4i-ccm";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			reg = < 0x01c20000 0x400 >;
-		};
-
 		hdmi@01c16000 {
 			status = "okay";
 		};

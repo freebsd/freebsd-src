@@ -19,12 +19,14 @@
 #include "tsan_flags.h"
 
 // May be overriden by front-end.
-extern "C" void WEAK __sanitizer_malloc_hook(void *ptr, uptr size) {
+SANITIZER_WEAK_DEFAULT_IMPL
+void __sanitizer_malloc_hook(void *ptr, uptr size) {
   (void)ptr;
   (void)size;
 }
 
-extern "C" void WEAK __sanitizer_free_hook(void *ptr) {
+SANITIZER_WEAK_DEFAULT_IMPL
+void __sanitizer_free_hook(void *ptr) {
   (void)ptr;
 }
 
@@ -80,17 +82,17 @@ void AllocatorPrintStats() {
 }
 
 static void SignalUnsafeCall(ThreadState *thr, uptr pc) {
-  if (atomic_load(&thr->in_signal_handler, memory_order_relaxed) == 0 ||
+  if (atomic_load_relaxed(&thr->in_signal_handler) == 0 ||
       !flags()->report_signal_unsafe)
     return;
   VarSizeStackTrace stack;
   ObtainCurrentStack(thr, pc, &stack);
+  if (IsFiredSuppression(ctx, ReportTypeSignalUnsafe, stack))
+    return;
   ThreadRegistryLock l(ctx->thread_registry);
   ScopedReport rep(ReportTypeSignalUnsafe);
-  if (!IsFiredSuppression(ctx, rep, stack)) {
-    rep.AddStack(stack, true);
-    OutputReport(thr, rep);
-  }
+  rep.AddStack(stack, true);
+  OutputReport(thr, rep);
 }
 
 void *user_alloc(ThreadState *thr, uptr pc, uptr sz, uptr align, bool signal) {

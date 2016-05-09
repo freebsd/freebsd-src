@@ -221,8 +221,8 @@ vm_paddr_t phys_avail[PHYSMAP_SIZE + 2];
 vm_paddr_t dump_avail[PHYSMAP_SIZE + 2];
 
 /* must be 2 less so 0 0 can signal end of chunks */
-#define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(phys_avail[0])) - 2)
-#define DUMP_AVAIL_ARRAY_END ((sizeof(dump_avail) / sizeof(dump_avail[0])) - 2)
+#define	PHYS_AVAIL_ARRAY_END (nitems(phys_avail) - 2)
+#define	DUMP_AVAIL_ARRAY_END (nitems(dump_avail) - 2)
 
 struct kva_md_info kmi;
 
@@ -2517,7 +2517,7 @@ init386(first)
 	/* make ldt memory segments */
 	ldt_segs[LUCODE_SEL].ssd_limit = atop(0 - 1);
 	ldt_segs[LUDATA_SEL].ssd_limit = atop(0 - 1);
-	for (x = 0; x < sizeof ldt_segs / sizeof ldt_segs[0]; x++)
+	for (x = 0; x < nitems(ldt_segs); x++)
 		ssdtosd(&ldt_segs[x], &ldt[x].sd);
 
 	_default_ldt = GSEL(GLDT_SEL, SEL_KPL);

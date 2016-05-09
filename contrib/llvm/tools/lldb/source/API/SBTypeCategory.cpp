@@ -79,6 +79,29 @@ SBTypeCategory::GetName()
     return m_opaque_sp->GetName();
 }
 
+lldb::LanguageType
+SBTypeCategory::GetLanguageAtIndex (uint32_t idx)
+{
+    if (IsValid())
+        return m_opaque_sp->GetLanguageAtIndex(idx);
+    return lldb::eLanguageTypeUnknown;
+}
+
+uint32_t
+SBTypeCategory::GetNumLanguages ()
+{
+    if (IsValid())
+        return m_opaque_sp->GetNumLanguages();
+    return 0;
+}
+
+void
+SBTypeCategory::AddLanguage (lldb::LanguageType language)
+{
+    if (IsValid())
+        m_opaque_sp->AddLanguage(language);
+}
+
 uint32_t
 SBTypeCategory::GetNumFormats ()
 {
@@ -157,7 +180,7 @@ SBTypeCategory::GetFilterForType (SBTypeNameSpecifier spec)
     if (!spec.IsValid())
         return SBTypeFilter();
     
-    lldb::SyntheticChildrenSP children_sp;
+    lldb::TypeFilterImplSP children_sp;
     
     if (spec.IsRegex())
         m_opaque_sp->GetRegexTypeFiltersContainer()->GetExact(ConstString(spec.GetName()), children_sp);

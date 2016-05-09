@@ -79,10 +79,10 @@ options 	SMP
 # options 	ROOTDEVNAME=\"ufs:/dev/md0\"
 
 # Debugging support.  Always need this:
-# options 	KDB			# Enable kernel debugger support.
-# options 	KDB_TRACE		# Print a stack trace for a panic.
+options 	KDB			# Enable kernel debugger support.
+options 	KDB_TRACE		# Print a stack trace for a panic.
 # For full debugger support use (turn off in stable branch):
-# options 	DDB			# Support DDB.
+options 	DDB			# Support DDB.
 # options 	GDB			# Support remote GDB.
 options 	DEADLKRES		# Enable the deadlock resolver
 options 	INVARIANTS		# Enable calls of extra sanity checking
@@ -90,8 +90,6 @@ options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, require
 # options 	WITNESS			# Enable checks to detect deadlocks and cycles
 # options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
-
-options 	ROOTDEVNAME=\"ufs:/dev/htif_blk0\"
 # options 	EARLY_PRINTF
 
 # Pseudo devices.

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -69,7 +70,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#ifdef EXT_RESOURCES
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/hwreset/hwreset.h>
+#endif
+
 #include "if_dwc_if.h"
+#include "gpio_if.h"
 #include "miibus_if.h"
 
 #define	READ4(_sc, _reg) \
@@ -1010,6 +1017,92 @@ dwc_get_hwaddr(struct dwc_softc *sc, uint8_t *hwaddr)
 	return (0);
 }
 
+#define	GPIO_ACTIVE_LOW 1
+
+static int
+dwc_reset(device_t dev)
+{
+	pcell_t gpio_prop[4];
+	pcell_t delay_prop[3];
+	phandle_t node, gpio_node;
+	device_t gpio;
+	uint32_t pin, flags;
+	uint32_t pin_value;
+
+	node = ofw_bus_get_node(dev);
+	if (OF_getencprop(node, "snps,reset-gpio",
+	    gpio_prop, sizeof(gpio_prop)) <= 0)
+		return (0);
+
+	if (OF_getencprop(node, "snps,reset-delays-us",
+	    delay_prop, sizeof(delay_prop)) <= 0) {
+		device_printf(dev,
+		    "Wrong property for snps,reset-delays-us");
+		return (ENXIO);
+	}
+
+	gpio_node = OF_node_from_xref(gpio_prop[0]);
+	if ((gpio = OF_device_from_xref(gpio_prop[0])) == NULL) {
+		device_printf(dev,
+		    "Can't find gpio controller for phy reset\n");
+		return (ENXIO);
+	}
+
+	if (GPIO_MAP_GPIOS(gpio, node, gpio_node,
+	    nitems(gpio_prop) - 1,
+	    gpio_prop + 1, &pin, &flags) != 0) {
+		device_printf(dev, "Can't map gpio for phy reset\n");
+		return (ENXIO);
+	}
+
+	pin_value = GPIO_PIN_LOW;
+	if (OF_hasprop(node, "snps,reset-active-low"))
+		pin_value = GPIO_PIN_HIGH;
+
+	if (flags & GPIO_ACTIVE_LOW)
+		pin_value = !pin_value;
+
+	GPIO_PIN_SETFLAGS(gpio, pin, GPIO_PIN_OUTPUT);
+	GPIO_PIN_SET(gpio, pin, pin_value);
+	DELAY(delay_prop[0]);
+	GPIO_PIN_SET(gpio, pin, !pin_value);
+	DELAY(delay_prop[1]);
+	GPIO_PIN_SET(gpio, pin, pin_value);
+	DELAY(delay_prop[2]);
+
+	return (0);
+}
+
+#ifdef EXT_RESOURCES
+static int
+dwc_clock_init(device_t dev)
+{
+	hwreset_t rst;
+	clk_t clk;
+	int error;
+
+	/* Enable clock */
+	if (clk_get_by_ofw_name(dev, "stmmaceth", &clk) == 0) {
+		error = clk_enable(clk);
+		if (error != 0) {
+			device_printf(dev, "could not enable main clock\n");
+			return (error);
+		}
+	}
+
+	/* De-assert reset */
+	if (hwreset_get_by_ofw_name(dev, "stmmaceth", &rst) == 0) {
+		error = hwreset_deassert(rst);
+		if (error != 0) {
+			device_printf(dev, "could not de-assert reset\n");
+			return (error);
+		}
+	}
+
+	return (0);
+}
+#endif
+
 static int
 dwc_probe(device_t dev)
 {
@@ -1043,6 +1136,11 @@ dwc_attach(device_t dev)
 	if (IF_DWC_INIT(dev) != 0)
 		return (ENXIO);
 
+#ifdef EXT_RESOURCES
+	if (dwc_clock_init(dev) != 0)
+		return (ENXIO);
+#endif
+
 	if (bus_alloc_resources(dev, dwc_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
@@ -1055,6 +1153,12 @@ dwc_attach(device_t dev)
 	/* Read MAC before reset */
 	if (dwc_get_hwaddr(sc, macaddr)) {
 		device_printf(sc->dev, "can't get mac\n");
+		return (ENXIO);
+	}
+
+	/* Reset the PHY if needed */
+	if (dwc_reset(dev) != 0) {
+		device_printf(dev, "Can't reset the PHY\n");
 		return (ENXIO);
 	}
 

@@ -33,39 +33,50 @@ bool DlAddrSymbolizer::SymbolizePC(uptr addr, SymbolizedStack *stack) {
   int result = dladdr((const void *)addr, &info);
   if (!result) return false;
   const char *demangled = DemangleCXXABI(info.dli_sname);
-  stack->info.function = internal_strdup(demangled);
+  stack->info.function = demangled ? internal_strdup(demangled) : nullptr;
   return true;
 }
 
-bool DlAddrSymbolizer::SymbolizeData(uptr addr, DataInfo *info) {
-  return false;
+bool DlAddrSymbolizer::SymbolizeData(uptr addr, DataInfo *datainfo) {
+  Dl_info info;
+  int result = dladdr((const void *)addr, &info);
+  if (!result) return false;
+  const char *demangled = DemangleCXXABI(info.dli_sname);
+  datainfo->name = internal_strdup(demangled);
+  datainfo->start = (uptr)info.dli_saddr;
+  return true;
 }
 
 class AtosSymbolizerProcess : public SymbolizerProcess {
  public:
   explicit AtosSymbolizerProcess(const char *path, pid_t parent_pid)
-      : SymbolizerProcess(path, /*use_forkpty*/ true),
-        parent_pid_(parent_pid) {}
+      : SymbolizerProcess(path, /*use_forkpty*/ true) {
+    // Put the string command line argument in the object so that it outlives
+    // the call to GetArgV.
+    internal_snprintf(pid_str_, sizeof(pid_str_), "%d", parent_pid);
+  }
 
  private:
   bool ReachedEndOfOutput(const char *buffer, uptr length) const override {
     return (length >= 1 && buffer[length - 1] == '\n');
   }
 
-  void ExecuteWithDefaultArgs(const char *path_to_binary) const override {
-    char pid_str[16];
-    internal_snprintf(pid_str, sizeof(pid_str), "%d", parent_pid_);
+  void GetArgV(const char *path_to_binary,
+               const char *(&argv)[kArgVMax]) const override {
+    int i = 0;
+    argv[i++] = path_to_binary;
+    argv[i++] = "-p";
+    argv[i++] = &pid_str_[0];
     if (GetMacosVersion() == MACOS_VERSION_MAVERICKS) {
       // On Mavericks atos prints a deprecation warning which we suppress by
       // passing -d. The warning isn't present on other OSX versions, even the
       // newer ones.
-      execl(path_to_binary, path_to_binary, "-p", pid_str, "-d", (char *)0);
-    } else {
-      execl(path_to_binary, path_to_binary, "-p", pid_str, (char *)0);
+      argv[i++] = "-d";
     }
+    argv[i++] = nullptr;
   }
 
-  pid_t parent_pid_;
+  char pid_str_[16];
 };
 
 static const char *kAtosErrorMessages[] = {
@@ -85,7 +96,9 @@ static bool IsAtosErrorMessage(const char *str) {
   return false;
 }
 
-static bool ParseCommandOutput(const char *str, SymbolizedStack *res) {
+static bool ParseCommandOutput(const char *str, uptr addr, char **out_name,
+                               char **out_module, char **out_file, uptr *line,
+                               uptr *start_address) {
   // Trim ending newlines.
   char *trim;
   ExtractTokenUpToDelimiter(str, "\n", &trim);
@@ -93,7 +106,9 @@ static bool ParseCommandOutput(const char *str, SymbolizedStack *res) {
   // The line from `atos` is in one of these formats:
   //   myfunction (in library.dylib) (sourcefile.c:17)
   //   myfunction (in library.dylib) + 0x1fe
+  //   myfunction (in library.dylib) + 15
   //   0xdeadbeef (in library.dylib) + 0x1fe
+  //   0xdeadbeef (in library.dylib) + 15
   //   0xdeadbeef (in library.dylib)
   //   0xdeadbeef
 
@@ -104,21 +119,33 @@ static bool ParseCommandOutput(const char *str, SymbolizedStack *res) {
   }
 
   const char *rest = trim;
-  char *function_name;
-  rest = ExtractTokenUpToDelimiter(rest, " (in ", &function_name);
-  if (internal_strncmp(function_name, "0x", 2) != 0)
-    res->info.function = function_name;
+  char *symbol_name;
+  rest = ExtractTokenUpToDelimiter(rest, " (in ", &symbol_name);
+  if (rest[0] == '\0') {
+    InternalFree(symbol_name);
+    InternalFree(trim);
+    return false;
+  }
+
+  if (internal_strncmp(symbol_name, "0x", 2) != 0)
+    *out_name = symbol_name;
   else
-    InternalFree(function_name);
-  rest = ExtractTokenUpToDelimiter(rest, ") ", &res->info.module);
+    InternalFree(symbol_name);
+  rest = ExtractTokenUpToDelimiter(rest, ") ", out_module);
 
   if (rest[0] == '(') {
-    rest++;
-    rest = ExtractTokenUpToDelimiter(rest, ":", &res->info.file);
-    char *extracted_line_number;
-    rest = ExtractTokenUpToDelimiter(rest, ")", &extracted_line_number);
-    res->info.line = internal_atoll(extracted_line_number);
-    InternalFree(extracted_line_number);
+    if (out_file) {
+      rest++;
+      rest = ExtractTokenUpToDelimiter(rest, ":", out_file);
+      char *extracted_line_number;
+      rest = ExtractTokenUpToDelimiter(rest, ")", &extracted_line_number);
+      if (line) *line = (uptr)internal_atoll(extracted_line_number);
+      InternalFree(extracted_line_number);
+    }
+  } else if (rest[0] == '+') {
+    rest += 2;
+    uptr offset = internal_atoll(rest);
+    if (start_address) *start_address = addr - offset;
   }
 
   InternalFree(trim);
@@ -134,14 +161,29 @@ bool AtosSymbolizer::SymbolizePC(uptr addr, SymbolizedStack *stack) {
   internal_snprintf(command, sizeof(command), "0x%zx\n", addr);
   const char *buf = process_->SendCommand(command);
   if (!buf) return false;
-  if (!ParseCommandOutput(buf, stack)) {
+  uptr line;
+  if (!ParseCommandOutput(buf, addr, &stack->info.function, &stack->info.module,
+                          &stack->info.file, &line, nullptr)) {
+    process_ = nullptr;
+    return false;
+  }
+  stack->info.line = (int)line;
+  return true;
+}
+
+bool AtosSymbolizer::SymbolizeData(uptr addr, DataInfo *info) {
+  if (!process_) return false;
+  char command[32];
+  internal_snprintf(command, sizeof(command), "0x%zx\n", addr);
+  const char *buf = process_->SendCommand(command);
+  if (!buf) return false;
+  if (!ParseCommandOutput(buf, addr, &info->name, &info->module, nullptr,
+                          nullptr, &info->start)) {
     process_ = nullptr;
     return false;
   }
   return true;
 }
-
-bool AtosSymbolizer::SymbolizeData(uptr addr, DataInfo *info) { return false; }
 
 }  // namespace __sanitizer
 

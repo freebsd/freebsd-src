@@ -718,8 +718,8 @@ lbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	res = rman_reserve_resource(rm, start, end, count, flags, child);
 	if (res == NULL) {
-		device_printf(bus, "failed to reserve resource %#lx - %#lx "
-		    "(%#lx)\n", start, end, count);
+		device_printf(bus, "failed to reserve resource %#jx - %#jx "
+		    "(%#jx)\n", start, end, count);
 		return (NULL);
 	}
 
@@ -749,8 +749,8 @@ lbc_print_child(device_t dev, device_t child)
 
 	rv = 0;
 	rv += bus_print_child_header(dev, child);
-	rv += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-	rv += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	rv += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+	rv += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 	rv += bus_print_child_footer(dev, child);
 
 	return (rv);

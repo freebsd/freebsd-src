@@ -16,11 +16,8 @@ SRCS	+= visibility.c
 
 SRCS	+= opt_global.h
 
-.if defined(KERNBUILDDIR)
-MKDEP=          -include ${KERNBUILDDIR}/opt_global.h
-.else
+.if !defined(KERNBUILDDIR)
 CFLAGS+=        -include opt_global.h
-MKDEP=          -include opt_global.h
 
 opt_global.h:
 	echo "#define VIMAGE 1" > ${.TARGET}

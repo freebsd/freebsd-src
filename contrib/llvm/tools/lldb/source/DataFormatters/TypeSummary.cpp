@@ -7,6 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "lldb/DataFormatters/TypeSummary.h"
+
 // C Includes
 
 // C++ Includes
@@ -19,15 +21,12 @@
 
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/StreamString.h"
-#include "lldb/Core/Timer.h"
-#include "lldb/DataFormatters/TypeSummary.h"
+#include "lldb/Core/ValueObject.h"
 #include "lldb/DataFormatters/ValueObjectPrinter.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
-#include "lldb/Symbol/ClangASTType.h"
+#include "lldb/Symbol/CompilerType.h"
 #include "lldb/Target/StackFrame.h"
 #include "lldb/Target/Target.h"
-
-#include "lldb/Host/Host.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -76,15 +75,17 @@ TypeSummaryOptions::SetCapping (lldb::TypeSummaryCapping cap)
     return *this;
 }
 
-TypeSummaryImpl::TypeSummaryImpl (const TypeSummaryImpl::Flags& flags) :
-m_flags(flags)
+TypeSummaryImpl::TypeSummaryImpl (Kind kind,
+                                  const TypeSummaryImpl::Flags& flags) :
+    m_flags(flags),
+    m_kind(kind)
 {
 }
 
 
 StringSummaryFormat::StringSummaryFormat (const TypeSummaryImpl::Flags& flags,
                                           const char *format_cstr) :
-    TypeSummaryImpl(flags),
+    TypeSummaryImpl(Kind::eSummaryString,flags),
     m_format_str()
 {
     SetSummaryString (format_cstr);
@@ -170,7 +171,7 @@ StringSummaryFormat::GetDescription ()
 CXXFunctionSummaryFormat::CXXFunctionSummaryFormat (const TypeSummaryImpl::Flags& flags,
                                                     Callback impl,
                                                     const char* description) :
-TypeSummaryImpl(flags),
+    TypeSummaryImpl(Kind::eCallback,flags),
     m_impl(impl),
     m_description(description ? description : "")
 {
@@ -193,28 +194,25 @@ std::string
 CXXFunctionSummaryFormat::GetDescription ()
 {
     StreamString sstr;
-    sstr.Printf ("`%s (%p) `%s%s%s%s%s%s%s", m_description.c_str(),
-                 static_cast<void*>(&m_impl),
+    sstr.Printf ("%s%s%s%s%s%s%s %s",
                  Cascades() ? "" : " (not cascading)",
                  !DoesPrintChildren(nullptr) ? "" : " (show children)",
                  !DoesPrintValue(nullptr) ? " (hide value)" : "",
                  IsOneLiner() ? " (one-line printout)" : "",
                  SkipsPointers() ? " (skip pointers)" : "",
                  SkipsReferences() ? " (skip references)" : "",
-                 HideNames(nullptr) ? " (hide member names)" : "");
+                 HideNames(nullptr) ? " (hide member names)" : "",
+                 m_description.c_str());
     return sstr.GetString();
 }
-
-#ifndef LLDB_DISABLE_PYTHON
-
 
 ScriptSummaryFormat::ScriptSummaryFormat (const TypeSummaryImpl::Flags& flags,
                                           const char * function_name,
                                           const char * python_script) :
-TypeSummaryImpl(flags),
-m_function_name(),
-m_python_script(),
-m_script_function_sp()
+    TypeSummaryImpl(Kind::eScript,flags),
+    m_function_name(),
+    m_python_script(),
+    m_script_function_sp()
 {
     if (function_name)
         m_function_name.assign(function_name);
@@ -227,15 +225,9 @@ ScriptSummaryFormat::FormatObject (ValueObject *valobj,
                                    std::string& retval,
                                    const TypeSummaryOptions& options)
 {
-    Timer scoped_timer (__PRETTY_FUNCTION__, __PRETTY_FUNCTION__);
-    
     if (!valobj)
         return false;
     
-    Host::SetCrashDescriptionWithFormat("[Python summary] Name: %s - Function: %s",
-                                        valobj->GetName().AsCString("unknown"),
-                                        m_function_name.c_str());
-
     TargetSP target_sp(valobj->GetTargetSP());
     
     if (!target_sp)
@@ -275,5 +267,3 @@ ScriptSummaryFormat::GetDescription ()
     return sstr.GetString();
     
 }
-
-#endif // #ifndef LLDB_DISABLE_PYTHON

@@ -78,7 +78,7 @@ struct sauth {
 
 /*
  * Don't change the order of this.  Ordering the phases this way allows
- * for a comparision of ``pp_phase >= PHASE_AUTHENTICATE'' in order to
+ * for a comparison of ``pp_phase >= PHASE_AUTHENTICATE'' in order to
  * know whether LCP is up.
  */
 enum ppp_phase {

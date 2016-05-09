@@ -12,6 +12,7 @@
 . /etc/network.subr
 
 name="netoptions"
+desc="Network options setup"
 start_cmd="netoptions_start"
 stop_cmd=:
 

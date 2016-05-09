@@ -15,7 +15,7 @@
 // Other libraries and framework includes
 // Project includes
 #include "lldb/Core/ValueObject.h"
-#include "lldb/Symbol/ClangASTType.h"
+#include "lldb/Symbol/CompilerType.h"
 
 namespace lldb_private {
 
@@ -26,6 +26,8 @@ namespace lldb_private {
 class ValueObjectMemory : public ValueObject
 {
 public:
+    ~ValueObjectMemory() override;
+
     static lldb::ValueObjectSP
     Create (ExecutionContextScope *exe_scope, 
             const char *name,
@@ -36,42 +38,39 @@ public:
     Create (ExecutionContextScope *exe_scope, 
             const char *name,
             const Address &address, 
-            const ClangASTType &ast_type);
+            const CompilerType &ast_type);
 
-    virtual
-    ~ValueObjectMemory();
+    uint64_t
+    GetByteSize() override;
 
-    virtual uint64_t
-    GetByteSize();
+    ConstString
+    GetTypeName() override;
 
-    virtual ConstString
-    GetTypeName();
-
-    virtual ConstString
-    GetDisplayTypeName();
+    ConstString
+    GetDisplayTypeName() override;
     
-    virtual size_t
-    CalculateNumChildren();
+    size_t
+    CalculateNumChildren(uint32_t max) override;
 
-    virtual lldb::ValueType
-    GetValueType() const;
+    lldb::ValueType
+    GetValueType() const override;
 
-    virtual bool
-    IsInScope ();
+    bool
+    IsInScope() override;
 
-    virtual lldb::ModuleSP
-    GetModule();
+    lldb::ModuleSP
+    GetModule() override;
 
 protected:
-    virtual bool
-    UpdateValue ();
+    bool
+    UpdateValue() override;
     
-    virtual ClangASTType
-    GetClangTypeImpl ();
+    CompilerType
+    GetCompilerTypeImpl() override;
 
     Address  m_address;  ///< The variable that this value object is based upon
     lldb::TypeSP m_type_sp;
-    ClangASTType m_clang_type;
+    CompilerType m_compiler_type;
 
 private:
     ValueObjectMemory (ExecutionContextScope *exe_scope, 
@@ -82,7 +81,7 @@ private:
     ValueObjectMemory (ExecutionContextScope *exe_scope,
                        const char *name, 
                        const Address &address,
-                       const ClangASTType &ast_type);
+                       const CompilerType &ast_type);
     //------------------------------------------------------------------
     // For ValueObject only
     //------------------------------------------------------------------
@@ -91,4 +90,4 @@ private:
 
 } // namespace lldb_private
 
-#endif  // liblldb_ValueObjectMemory_h_
+#endif // liblldb_ValueObjectMemory_h_

@@ -70,14 +70,6 @@ namespace __asan {
 
 void InitializePlatformInterceptors() {}
 
-void DisableReexec() {
-  // No need to re-exec on Linux.
-}
-
-void MaybeReexec() {
-  // No need to re-exec on Linux.
-}
-
 void *AsanDoesNotSupportStaticLinkage() {
   // This will fail to link with -static.
   return &_DYNAMIC;  // defined in link.h
@@ -117,7 +109,7 @@ void AsanCheckDynamicRTPrereqs() {
     return;
 
   // Ensure that dynamic RT is the first DSO in the list
-  const char *first_dso_name = 0;
+  const char *first_dso_name = nullptr;
   dl_iterate_phdr(FindFirstDSOCallback, &first_dso_name);
   if (first_dso_name && !IsDynamicRTName(first_dso_name)) {
     Report("ASan runtime does not come first in initial library list; "
@@ -142,7 +134,8 @@ void AsanCheckIncompatibleRT() {
       // system libraries, causing crashes later in ASan initialization.
       MemoryMappingLayout proc_maps(/*cache_enabled*/true);
       char filename[128];
-      while (proc_maps.Next(0, 0, 0, filename, sizeof(filename), 0)) {
+      while (proc_maps.Next(nullptr, nullptr, nullptr, filename,
+                            sizeof(filename), nullptr)) {
         if (IsDynamicRTName(filename)) {
           Report("Your application is linked against "
                  "incompatible ASan runtimes.\n");
@@ -155,11 +148,7 @@ void AsanCheckIncompatibleRT() {
     }
   }
 }
-#endif  // SANITIZER_ANDROID
-
-void AsanPlatformThreadInit() {
-  // Nothing here for now.
-}
+#endif // SANITIZER_ANDROID
 
 #if !SANITIZER_ANDROID
 void ReadContextStack(void *context, uptr *stack, uptr *ssize) {
@@ -177,6 +166,6 @@ void *AsanDlSymNext(const char *sym) {
   return dlsym(RTLD_NEXT, sym);
 }
 
-}  // namespace __asan
+} // namespace __asan
 
-#endif  // SANITIZER_FREEBSD || SANITIZER_LINUX
+#endif // SANITIZER_FREEBSD || SANITIZER_LINUX

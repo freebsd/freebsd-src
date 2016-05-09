@@ -65,7 +65,7 @@
 #include <vendor/osm_vendor_ibumad.h>
 #elif defined( OSM_VENDOR_INTF_AL )
 #include <vendor/osm_vendor_al.h>
-#elif
+#else
 #error No MAD Interface selected!
 #error Choose an interface in osm_config.h
 #endif

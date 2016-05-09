@@ -39,6 +39,14 @@ CFLAGS=	-DBOOTPROG=\"gptboot\" \
 
 CFLAGS.gcc+=	--param max-inline-insns-single=100
 
+.if !defined(LOADER_NO_GELI_SUPPORT)
+CFLAGS+=	-DLOADER_GELI_SUPPORT
+CFLAGS+=	-I${.CURDIR}/../../geli
+LIBGELIBOOT=	${.OBJDIR}/../../geli/libgeliboot.a
+.PATH:		${.CURDIR}/../../../opencrypto
+OPENCRYPTO_XTS=	xform_aes_xts.o
+.endif
+
 LD_FLAGS=-static -N --gc-sections
 
 LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
@@ -60,21 +68,21 @@ gptldr.bin: gptldr.out
 gptldr.out: gptldr.o
 	${LD} ${LD_FLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} gptldr.o
 
-CLEANFILES+=	gptboot.bin gptboot.out gptboot.o sio.o gpt.o crc32.o drv.o \
-		cons.o util.o
+CLEANFILES+=	gptboot.bin gptboot.out gptboot.o sio.o crc32.o drv.o \
+		cons.o util.o ${OPENCRYPTO_XTS}
 
 gptboot.bin: gptboot.out
 	${OBJCOPY} -S -O binary gptboot.out ${.TARGET}
 
-gptboot.out: ${BTXCRT} gptboot.o sio.o gpt.o crc32.o drv.o cons.o util.o
-	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSTAND}
+gptboot.out: ${BTXCRT} gptboot.o sio.o crc32.o drv.o cons.o util.o ${OPENCRYPTO_XTS}
+	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSTAND} ${LIBGELIBOOT}
 
 gptboot.o: ${.CURDIR}/../../common/ufsread.c
 
 .if ${MACHINE_CPUARCH} == "amd64"
 beforedepend gptboot.o: machine
 CLEANFILES+=	machine
-machine:
+machine: .NOMETA
 	ln -sf ${.CURDIR}/../../../i386/include machine
 .endif
 
@@ -82,4 +90,3 @@ machine:
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 CFLAGS.gptldr.S=	${CLANG_NO_IAS}
-CFLAGS+=		${CFLAGS.${.IMPSRC:T}}

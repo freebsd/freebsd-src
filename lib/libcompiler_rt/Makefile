@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=lib${LIB}
 LIB=	compiler_rt
 NO_PIC=
 WARNS?=	2
@@ -44,6 +45,7 @@ SRCF=	absvdi2 \
 	divmoddi4 \
 	divmodsi4 \
 	divsc3 \
+	divtc3 \
 	divti3 \
 	divxc3 \
 	enable_execute_stack \

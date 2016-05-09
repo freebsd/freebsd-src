@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
  *	Check whether a name belongs to a domain.
  *
  * Inputs:
- *\li	a - the domain whose ancestory is being verified
+ *\li	a - the domain whose ancestry is being verified
  *\li	b - the potential ancestor we're checking against
  *
  * Return:

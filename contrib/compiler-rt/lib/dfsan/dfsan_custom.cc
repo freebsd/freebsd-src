@@ -43,6 +43,14 @@
 
 using namespace __dfsan;
 
+#define CALL_WEAK_INTERCEPTOR_HOOK(f, ...)                                     \
+  do {                                                                         \
+    if (f)                                                                     \
+      f(__VA_ARGS__);                                                          \
+  } while (false)
+#define DECLARE_WEAK_INTERCEPTOR_HOOK(f, ...) \
+SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE void f(__VA_ARGS__);
+
 extern "C" {
 SANITIZER_INTERFACE_ATTRIBUTE int
 __dfsw_stat(const char *path, struct stat *buf, dfsan_label path_label,
@@ -77,25 +85,23 @@ SANITIZER_INTERFACE_ATTRIBUTE char *__dfsw_strchr(const char *s, int c,
         *ret_label = dfsan_union(dfsan_read_label(s, i + 1),
                                  dfsan_union(s_label, c_label));
       }
-      return s[i] == 0 ? 0 : const_cast<char *>(s+i);
+      return s[i] == 0 ? nullptr : const_cast<char *>(s+i);
     }
   }
 }
 
-SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
-void
-dfsan_weak_hook_memcmp(uptr caller_pc, const void *s1, const void *s2, size_t n,
-                       dfsan_label s1_label, dfsan_label s2_label,
-                       dfsan_label n_label);
+DECLARE_WEAK_INTERCEPTOR_HOOK(dfsan_weak_hook_memcmp, uptr caller_pc,
+                              const void *s1, const void *s2, size_t n,
+                              dfsan_label s1_label, dfsan_label s2_label,
+                              dfsan_label n_label)
 
 SANITIZER_INTERFACE_ATTRIBUTE int __dfsw_memcmp(const void *s1, const void *s2,
                                                 size_t n, dfsan_label s1_label,
                                                 dfsan_label s2_label,
                                                 dfsan_label n_label,
                                                 dfsan_label *ret_label) {
-  if (dfsan_weak_hook_memcmp)
-    dfsan_weak_hook_memcmp(GET_CALLER_PC(), s1, s2, n, s1_label, s2_label,
-                           n_label);
+  CALL_WEAK_INTERCEPTOR_HOOK(dfsan_weak_hook_memcmp, GET_CALLER_PC(), s1, s2, n,
+                             s1_label, s2_label, n_label);
   const char *cs1 = (const char *) s1, *cs2 = (const char *) s2;
   for (size_t i = 0; i != n; ++i) {
     if (cs1[i] != cs2[i]) {
@@ -118,10 +124,16 @@ SANITIZER_INTERFACE_ATTRIBUTE int __dfsw_memcmp(const void *s1, const void *s2,
   return 0;
 }
 
+DECLARE_WEAK_INTERCEPTOR_HOOK(dfsan_weak_hook_strcmp, uptr caller_pc,
+                              const char *s1, const char *s2,
+                              dfsan_label s1_label, dfsan_label s2_label)
+
 SANITIZER_INTERFACE_ATTRIBUTE int __dfsw_strcmp(const char *s1, const char *s2,
                                                 dfsan_label s1_label,
                                                 dfsan_label s2_label,
                                                 dfsan_label *ret_label) {
+  CALL_WEAK_INTERCEPTOR_HOOK(dfsan_weak_hook_strcmp, GET_CALLER_PC(), s1, s2,
+                             s1_label, s2_label);
   for (size_t i = 0;; ++i) {
     if (s1[i] != s2[i] || s1[i] == 0 || s2[i] == 0) {
       if (flags().strict_data_dependencies) {
@@ -153,6 +165,11 @@ __dfsw_strcasecmp(const char *s1, const char *s2, dfsan_label s1_label,
   return 0;
 }
 
+DECLARE_WEAK_INTERCEPTOR_HOOK(dfsan_weak_hook_strncmp, uptr caller_pc,
+                              const char *s1, const char *s2, size_t n,
+                              dfsan_label s1_label, dfsan_label s2_label,
+                              dfsan_label n_label)
+
 SANITIZER_INTERFACE_ATTRIBUTE int __dfsw_strncmp(const char *s1, const char *s2,
                                                  size_t n, dfsan_label s1_label,
                                                  dfsan_label s2_label,
@@ -162,6 +179,9 @@ SANITIZER_INTERFACE_ATTRIBUTE int __dfsw_strncmp(const char *s1, const char *s2,
     *ret_label = 0;
     return 0;
   }
+
+  CALL_WEAK_INTERCEPTOR_HOOK(dfsan_weak_hook_strncmp, GET_CALLER_PC(), s1, s2,
+                             n, s1_label, s2_label, n_label);
 
   for (size_t i = 0;; ++i) {
     if (s1[i] != s2[i] || s1[i] == 0 || s2[i] == 0 || i == n - 1) {
@@ -828,8 +848,8 @@ typedef void (*write_trampoline_t)(
 // Calls to dfsan_set_write_callback() set the values in this struct.
 // Calls to the custom version of write() read (and invoke) them.
 static struct {
-  write_trampoline_t write_callback_trampoline = NULL;
-  void *write_callback = NULL;
+  write_trampoline_t write_callback_trampoline = nullptr;
+  void *write_callback = nullptr;
 } write_callback_info;
 
 SANITIZER_INTERFACE_ATTRIBUTE void
@@ -846,7 +866,7 @@ SANITIZER_INTERFACE_ATTRIBUTE int
 __dfsw_write(int fd, const void *buf, size_t count,
              dfsan_label fd_label, dfsan_label buf_label,
              dfsan_label count_label, dfsan_label *ret_label) {
-  if (write_callback_info.write_callback != NULL) {
+  if (write_callback_info.write_callback) {
     write_callback_info.write_callback_trampoline(
         write_callback_info.write_callback,
         fd, buf, count,
@@ -856,7 +876,7 @@ __dfsw_write(int fd, const void *buf, size_t count,
   *ret_label = 0;
   return write(fd, buf, count);
 }
-}
+} // namespace __dfsan
 
 // Type used to extract a dfsan_label with va_arg()
 typedef int dfsan_label_va;
@@ -1112,4 +1132,4 @@ int __dfsw_snprintf(char *str, size_t size, const char *format,
   va_end(ap);
   return ret;
 }
-}
+} // extern "C"

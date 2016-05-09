@@ -48,14 +48,17 @@ __FBSDID("$FreeBSD$");
 #include "clock_if.h"
 
 #define	LOSC_CTRL_REG			0x00
-#define	RTC_DATE_REG			0x04
-#define	RTC_TIME_REG			0x08
+#define	A10_RTC_DATE_REG		0x04
+#define	A10_RTC_TIME_REG		0x08
+#define	A31_LOSC_AUTO_SWT_STA		0x04
+#define	A31_RTC_DATE_REG		0x10
+#define	A31_RTC_TIME_REG		0x14
 
 #define	TIME_MASK			0x001f3f3f
 
-#define	LOSC_OSC_SRC			0x00000001
-#define	LOSC_GSM			0x00000008
-#define	LOSC_AUTO_SW_EN			0x00004000
+#define	LOSC_OSC_SRC			(1 << 0)
+#define	LOSC_GSM			(1 << 3)
+#define	LOSC_AUTO_SW_EN			(1 << 14)
 #define	LOSC_MAGIC			0x16aa0000
 #define	LOSC_BUSY_MASK			0x00000380
 
@@ -92,15 +95,21 @@ __FBSDID("$FreeBSD$");
 #define	IS_LEAP_YEAR(y) \
 	(((y) % 400) == 0 || (((y) % 100) != 0 && ((y) % 4) == 0))
 
+#define	A10_RTC	1
+#define	A20_RTC	2
+#define	A31_RTC	3
 
 static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun4i-a10-rtc", true },
-	{ "allwinner,sun7i-a20-rtc", true },
-	{ NULL, false }
+	{ "allwinner,sun4i-a10-rtc", A10_RTC },
+	{ "allwinner,sun7i-a20-rtc", A20_RTC },
+	{ "allwinner,sun6i-a31-rtc", A31_RTC },
+	{ NULL, 0 }
 };
 
 struct aw_rtc_softc {
-	struct resource			*res;
+	struct resource		*res;
+	bus_size_t		rtc_date;
+	bus_size_t		rtc_time;
 };
 
 static int aw_rtc_probe(device_t dev);
@@ -151,6 +160,7 @@ static int
 aw_rtc_attach(device_t dev)
 {
 	struct aw_rtc_softc *sc  = device_get_softc(dev);
+	bus_size_t rtc_losc_sta;
 	uint32_t val;
 	int rid = 0;
 
@@ -160,20 +170,34 @@ aw_rtc_attach(device_t dev)
 		return (ENXIO);
 	}
 	
+	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data) {
+	case A10_RTC:
+	case A20_RTC:
+		sc->rtc_date = A10_RTC_DATE_REG;
+		sc->rtc_time = A10_RTC_TIME_REG;
+		rtc_losc_sta = LOSC_CTRL_REG;
+		break;
+	case A31_RTC:
+		sc->rtc_date = A31_RTC_DATE_REG;
+		sc->rtc_time = A31_RTC_TIME_REG;
+		rtc_losc_sta = A31_LOSC_AUTO_SWT_STA;
+		break;
+	}
 	val = RTC_READ(sc, LOSC_CTRL_REG);
-	val &= ~LOSC_AUTO_SW_EN;
+	val |= LOSC_AUTO_SW_EN;
 	val |= LOSC_MAGIC | LOSC_GSM | LOSC_OSC_SRC;
 	RTC_WRITE(sc, LOSC_CTRL_REG, val);
-	
+
 	DELAY(100);
-	
-	val = RTC_READ(sc, LOSC_CTRL_REG);
-	if ((val & LOSC_OSC_SRC) == 0) {
-		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->res);
-		device_printf(dev, "set LOSC to external failed\n");
-		return (ENXIO);
+
+	if (bootverbose) {
+		val = RTC_READ(sc, rtc_losc_sta);
+		if ((val & LOSC_OSC_SRC) == 0)
+			device_printf(dev, "Using internal oscillator\n");
+		else
+			device_printf(dev, "Using external oscillator\n");
 	}
-	
+
 	clock_register(dev, RTC_RES_US);
 	
 	return (0);
@@ -193,11 +217,11 @@ aw_rtc_gettime(device_t dev, struct timespec *ts)
 	struct clocktime ct;
 	uint32_t rdate, rtime;
 
-	rdate = RTC_READ(sc, RTC_DATE_REG);
-	rtime = RTC_READ(sc, RTC_TIME_REG);
+	rdate = RTC_READ(sc, sc->rtc_date);
+	rtime = RTC_READ(sc, sc->rtc_time);
 	
 	if ((rtime & TIME_MASK) == 0)
-		rdate = RTC_READ(sc, RTC_DATE_REG);
+		rdate = RTC_READ(sc, sc->rtc_date);
 
 	ct.sec = GET_SEC_VALUE(rtime);
 	ct.min = GET_MIN_VALUE(rtime);
@@ -239,7 +263,7 @@ aw_rtc_settime(device_t dev, struct timespec *ts)
 		DELAY(1);
 	}
 	/* reset time register to avoid unexpected date increment */
-	RTC_WRITE(sc, RTC_TIME_REG, 0);
+	RTC_WRITE(sc, sc->rtc_time, 0);
 
 	rdate = SET_DAY_VALUE(ct.day) | SET_MON_VALUE(ct.mon) |
 		SET_YEAR_VALUE(ct.year - YEAR_OFFSET) | 
@@ -255,7 +279,7 @@ aw_rtc_settime(device_t dev, struct timespec *ts)
 		}
 		DELAY(1);
 	}
-	RTC_WRITE(sc, RTC_DATE_REG, rdate);
+	RTC_WRITE(sc, sc->rtc_date, rdate);
 
 	for (clk = 0; RTC_READ(sc, LOSC_CTRL_REG) & LOSC_BUSY_MASK; clk++) {
 		if (clk > RTC_TIMEOUT) {
@@ -264,7 +288,7 @@ aw_rtc_settime(device_t dev, struct timespec *ts)
 		}
 		DELAY(1);
 	}
-	RTC_WRITE(sc, RTC_TIME_REG, rtime);
+	RTC_WRITE(sc, sc->rtc_time, rtime);
 
 	DELAY(RTC_TIMEOUT);
 

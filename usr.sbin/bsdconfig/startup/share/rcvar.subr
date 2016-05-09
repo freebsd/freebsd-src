@@ -121,7 +121,7 @@ f_startup_rcvar_map()
 	#
 	# Calculate a digest given the checksums of all dependencies (scripts
 	# and the defaults file). This digest will be used to determine if an
-	# on-disk global persistant cache file (containg this digest on the
+	# on-disk global persistent cache file (containg this digest on the
 	# first line) is valid and can be used to quickly populate the cache
 	# value for immediate return.
 	#
@@ -130,7 +130,7 @@ f_startup_rcvar_map()
 		cksum "$RC_DEFAULTS" $__rc_script_list 2> /dev/null | md5 )
 
 	#
-	# Check to see if the global persistant cache file exists
+	# Check to see if the global persistent cache file exists
 	#
 	if [ -f "$STARTUP_RCVAR_MAP_CACHEFILE" ]; then
 		#
@@ -174,7 +174,7 @@ f_startup_rcvar_map()
 
 	#
 	# If we reach this point, we need to generate the data from scratch
-	# (and after we do, we'll attempt to create the global persistant
+	# (and after we do, we'll attempt to create the global persistent
 	# cache file to speed up future executions).
 	#
 
@@ -208,7 +208,7 @@ f_startup_rcvar_map()
 	fi
 
 	#
-	# Attempt to create/update the persistant global cache
+	# Attempt to create/update the persistent global cache
 	#
 
 	# Create a new temporary file to write to

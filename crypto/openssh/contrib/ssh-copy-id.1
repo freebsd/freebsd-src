@@ -29,6 +29,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .Nd use locally available keys to authorise logins on a remote machine
 .Sh SYNOPSIS
 .Nm
+.Op Fl f
 .Op Fl n
 .Op Fl i Op Ar identity_file
 .Op Fl p Ar port
@@ -76,6 +77,10 @@ is used.
 Note that this can be used to ensure that the keys copied have the
 comment one prefers and/or extra options applied, by ensuring that the
 key file has these set as preferred before the copy is attempted.
+.It Fl f
+Forced mode: doesn't check if the keys are present on the remote server.
+This means that it does not need the private key.  Of course, this can result
+in more than one copy of the key being installed on the remote system.
 .It Fl n
 do a dry-run.  Instead of installing keys on the remote system simply
 prints the key(s) that would have been installed.

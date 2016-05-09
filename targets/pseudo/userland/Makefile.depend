@@ -894,6 +894,27 @@ DIRDEPS.powerpc= \
 DIRDEPS+= usr.bin/dtc
 .endif
 
+.if ${MK_OFED} != "no"
+DIRDEPS+= \
+	  contrib/ofed/usr.bin/ibaddr \
+	  contrib/ofed/usr.bin/ibnetdiscover \
+	  contrib/ofed/usr.bin/ibping \
+	  contrib/ofed/usr.bin/ibportstate \
+	  contrib/ofed/usr.bin/ibroute \
+	  contrib/ofed/usr.bin/ibsendtrap \
+	  contrib/ofed/usr.bin/ibstat \
+	  contrib/ofed/usr.bin/ibsysstat \
+	  contrib/ofed/usr.bin/ibtracert \
+	  contrib/ofed/usr.bin/opensm \
+	  contrib/ofed/usr.bin/osmtest \
+	  contrib/ofed/usr.bin/perfquery \
+	  contrib/ofed/usr.bin/saquery \
+	  contrib/ofed/usr.bin/sminfo \
+	  contrib/ofed/usr.bin/smpdump \
+	  contrib/ofed/usr.bin/smpquery \
+	  contrib/ofed/usr.bin/vendstat
+.endif
+
 DIRDEPS+= ${DIRDEPS.${MACHINE}:U}
 
 

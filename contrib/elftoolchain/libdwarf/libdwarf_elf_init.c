@@ -51,7 +51,8 @@ static const char *debug_name[] = {
 
 static void
 _dwarf_elf_write_reloc(Dwarf_Debug dbg, Elf_Data *symtab_data, int endian,
-    void *buf, uint64_t offset, GElf_Xword r_info, GElf_Sxword r_addend)
+    void *buf, uint64_t offset, GElf_Xword r_info, GElf_Sxword r_addend,
+    int is_rel)
 {
 	GElf_Sym sym;
 	int size;
@@ -60,6 +61,14 @@ _dwarf_elf_write_reloc(Dwarf_Debug dbg, Elf_Data *symtab_data, int endian,
 		return;
 	if ((size = _dwarf_get_reloc_size(dbg, GELF_R_TYPE(r_info))) == 0)
 		return; /* Unknown or non-absolute relocation. */
+	if (is_rel) {
+		uint64_t roffset = offset;
+
+		if (endian == ELFDATA2MSB)
+			r_addend = _dwarf_read_msb(buf, &roffset, size);
+		else
+			r_addend = _dwarf_read_lsb(buf, &roffset, size);
+	}
 	if (endian == ELFDATA2MSB)
 		_dwarf_write_msb(buf, &offset, sym.st_value + r_addend, size);
 	else
@@ -76,7 +85,7 @@ _dwarf_elf_apply_rel_reloc(Dwarf_Debug dbg, void *buf, Elf_Data *rel_data,
 	j = 0;
 	while (gelf_getrel(rel_data, j++, &rel) != NULL)
 		_dwarf_elf_write_reloc(dbg, symtab_data, endian, buf,
-		     rel.r_offset, rel.r_info, 0);
+		     rel.r_offset, rel.r_info, 0, 1);
 }
 
 static void
@@ -89,7 +98,7 @@ _dwarf_elf_apply_rela_reloc(Dwarf_Debug dbg, void *buf, Elf_Data *rel_data,
 	j = 0;
 	while (gelf_getrela(rel_data, j++, &rela) != NULL)
 		_dwarf_elf_write_reloc(dbg, symtab_data, endian, buf,
-		    rela.r_offset, rela.r_info, rela.r_addend);
+		    rela.r_offset, rela.r_info, rela.r_addend, 0);
 }
 
 static int

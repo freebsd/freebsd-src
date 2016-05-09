@@ -490,21 +490,21 @@ ad1816_release_resources(struct ad1816_info *ad1816, device_t dev)
    		if (ad1816->ih)
 			bus_teardown_intr(dev, ad1816->irq, ad1816->ih);
 		bus_release_resource(dev, SYS_RES_IRQ, ad1816->irq_rid, ad1816->irq);
-		ad1816->irq = 0;
+		ad1816->irq = NULL;
     	}
     	if (ad1816->drq1) {
 		isa_dma_release(rman_get_start(ad1816->drq1));
 		bus_release_resource(dev, SYS_RES_DRQ, ad1816->drq1_rid, ad1816->drq1);
-		ad1816->drq1 = 0;
+		ad1816->drq1 = NULL;
     	}
     	if (ad1816->drq2) {
 		isa_dma_release(rman_get_start(ad1816->drq2));
 		bus_release_resource(dev, SYS_RES_DRQ, ad1816->drq2_rid, ad1816->drq2);
-		ad1816->drq2 = 0;
+		ad1816->drq2 = NULL;
     	}
     	if (ad1816->io_base) {
 		bus_release_resource(dev, SYS_RES_IOPORT, ad1816->io_rid, ad1816->io_base);
-		ad1816->io_base = 0;
+		ad1816->io_base = NULL;
     	}
     	if (ad1816->parent_dmat) {
 		bus_dma_tag_destroy(ad1816->parent_dmat);
@@ -624,11 +624,11 @@ ad1816_attach(device_t dev)
 		goto no;
     	}
     	if (ad1816->drq2)
-		snprintf(status2, SND_STATUSLEN, ":%ld", rman_get_start(ad1816->drq2));
+		snprintf(status2, SND_STATUSLEN, ":%jd", rman_get_start(ad1816->drq2));
 	else
 		status2[0] = '\0';
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld%s bufsz %u %s",
+    	snprintf(status, SND_STATUSLEN, "at io 0x%jx irq %jd drq %jd%s bufsz %u %s",
     	     	rman_get_start(ad1816->io_base),
 		rman_get_start(ad1816->irq),
 		rman_get_start(ad1816->drq1),

@@ -24,9 +24,6 @@ when using an external compiler.
 The
 .Sy CCACHE_CPP2
 option is used for Clang but not GCC.
-ccache works best when combined with the
-.Sy WITH_FAST_DEPEND
-option.
 .Pp
 Sharing a cache between multiple work directories requires using a layout
 similar to

@@ -126,7 +126,7 @@ static devclass_t fsl_sdhc_devclass;
 
 DRIVER_MODULE(sdhci_fsl, simplebus, fsl_sdhc_driver, fsl_sdhc_devclass, 0, 0);
 DRIVER_MODULE(mmc, sdhci_fsl, mmc_driver, mmc_devclass, NULL, NULL);
-
+MODULE_DEPEND(sdhci_fsl, mmc, 1, 1, 1);
 
 /*****************************************************************************
  * Private methods
@@ -271,7 +271,7 @@ set_clock(struct fsl_sdhc_softc *sc, uint32_t clock)
 	 * divisor = ceil(base_clock / clock)
 	 * TODO: Reconsider symmetric rounding here instead of ceiling.
 	 */
-	divisor = (base_clock + clock - 1) / clock;
+	divisor = howmany(base_clock, clock);
 
 	while (divisor > 16) {
 		round = divisor & 0x1;

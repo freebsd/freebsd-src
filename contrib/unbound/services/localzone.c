@@ -595,9 +595,9 @@ lz_enter_defaults(struct local_zones* zones, struct config_file* cfg)
 	struct local_zone* z;
 	const char** zstr;
 
-	/* this list of zones is from RFC 6303 */
+	/* this list of zones is from RFC 6303 and RFC 7686 */
 
-	/* block localhost level zones, first, later the LAN zones */
+	/* block localhost level zones first, then onion and later the LAN zones */
 
 	/* localhost. zone */
 	if(!lz_exists(zones, "localhost.") &&
@@ -649,6 +649,22 @@ lz_enter_defaults(struct local_zones* zones, struct config_file* cfg)
 			"nobody.invalid. 1 3600 1200 604800 10800") ||
 		   !lz_enter_rr_into_zone(z,
 			"1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa. 10800 IN PTR localhost.")) {
+			log_err("out of memory adding default zone");
+			if(z) { lock_rw_unlock(&z->lock); }
+			return 0;
+		}
+		lock_rw_unlock(&z->lock);
+	}
+	/* onion. zone (RFC 7686) */
+	if(!lz_exists(zones, "onion.") &&
+		!lz_nodefault(cfg, "onion.")) {
+		if(!(z=lz_enter_zone(zones, "onion.", "static", 
+			LDNS_RR_CLASS_IN)) ||
+		   !lz_enter_rr_into_zone(z,
+			"onion. 10800 IN NS localhost.") ||
+		   !lz_enter_rr_into_zone(z,
+			"onion. 10800 IN SOA localhost. nobody.invalid. "
+			"1 3600 1200 604800 10800")) {
 			log_err("out of memory adding default zone");
 			if(z) { lock_rw_unlock(&z->lock); }
 			return 0;

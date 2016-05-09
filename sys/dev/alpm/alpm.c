@@ -202,7 +202,7 @@ alpm_attach(device_t dev)
 			printf(" 55K");
 			break;
 		default:
-			printf("unkown");
+			printf("unknown");
 			break;
 		}
 		printf("\n");

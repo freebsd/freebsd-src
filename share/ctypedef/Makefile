@@ -39,8 +39,9 @@ LOCALES+=	zh_Hans_CN.GB18030
 LOCALES+=	zh_Hans_CN.GB2312
 LOCALES+=	zh_Hans_CN.GBK
 LOCALES+=	zh_Hans_CN.eucCN
-LOCALES+=	zh_Hant_HK.Big5HKSCS
 LOCALES+=	zh_Hant_TW.Big5
+
+
 
 SAME+=		en_US.UTF-8 ru_RU.UTF-8
 SAME+=		en_US.UTF-8 zh_Hant_TW.UTF-8
@@ -228,7 +229,6 @@ SYMPAIRS+=	uk_UA.CP1251.src uk_UA.KOI8-U.src
 SYMPAIRS+=	zh_Hans_CN.eucCN.src zh_Hans_CN.GB18030.src
 SYMPAIRS+=	zh_Hans_CN.eucCN.src zh_Hans_CN.GB2312.src
 SYMPAIRS+=	zh_Hans_CN.eucCN.src zh_Hans_CN.GBK.src
-SYMPAIRS+=	zh_Hant_HK.Big5HKSCS.src zh_Hant_TW.Big5.src
 SYMPAIRS+=	en_US.ISO8859-1.src en_US.ISO8859-15.src
 SYMPAIRS+=	en_US.ISO8859-1.src en_US.US-ASCII.src
 SYMPAIRS+=	en_US.ISO8859-1.src lv_LV.ISO8859-13.src

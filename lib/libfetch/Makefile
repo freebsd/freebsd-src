@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=lib${LIB}
 LIB=		fetch
 CFLAGS+=	-I.
 SRCS=		fetch.c common.c ftp.c http.c file.c \

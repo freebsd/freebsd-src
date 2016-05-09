@@ -61,9 +61,15 @@ public:
   const WebAssemblyTargetLowering *getTargetLowering() const override {
     return &TLInfo;
   }
+  const WebAssemblyInstrInfo *getInstrInfo() const override {
+    return &InstrInfo;
+  }
+  const WebAssemblyRegisterInfo *getRegisterInfo() const override {
+    return &getInstrInfo()->getRegisterInfo();
+  }
   const Triple &getTargetTriple() const { return TargetTriple; }
   bool enableMachineScheduler() const override;
-  bool useAA() const override { return true; }
+  bool useAA() const override;
 
   // Predicates used by WebAssemblyInstrInfo.td.
   bool hasAddr64() const { return TargetTriple.isArch64Bit(); }

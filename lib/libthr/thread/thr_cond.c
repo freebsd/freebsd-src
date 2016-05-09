@@ -26,9 +26,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <stdlib.h>
@@ -39,6 +40,9 @@
 #include "un-namespace.h"
 
 #include "thr_private.h"
+
+_Static_assert(sizeof(struct pthread_cond) <= PAGE_SIZE,
+    "pthread_cond too large");
 
 /*
  * Prototypes

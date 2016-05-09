@@ -25,7 +25,7 @@
 // Return:  None.
 // Throws:  None.
 //--
-CMIUtilString::CMIUtilString(void)
+CMIUtilString::CMIUtilString()
     : std::string()
 {
 }
@@ -45,12 +45,12 @@ CMIUtilString::CMIUtilString(const char *vpData)
 //++ ------------------------------------------------------------------------------------
 // Details: CMIUtilString constructor.
 // Type:    Method.
-// Args:    vpData  - Pointer to UTF8 text data.
+// Args:    vpStr  - Text data.
 // Return:  None.
 // Throws:  None.
 //--
-CMIUtilString::CMIUtilString(const char *const *vpData)
-    : std::string((const char *)vpData)
+CMIUtilString::CMIUtilString(const std::string& vrStr)
+    : std::string(vrStr)
 {
 }
 
@@ -63,14 +63,7 @@ CMIUtilString::CMIUtilString(const char *const *vpData)
 //--
 CMIUtilString &CMIUtilString::operator=(const char *vpRhs)
 {
-    if (*this == vpRhs)
-        return *this;
-
-    if (vpRhs != nullptr)
-    {
-        assign(vpRhs);
-    }
-
+    assign(vpRhs);
     return *this;
 }
 
@@ -83,11 +76,7 @@ CMIUtilString &CMIUtilString::operator=(const char *vpRhs)
 //--
 CMIUtilString &CMIUtilString::operator=(const std::string &vrRhs)
 {
-    if (*this == vrRhs)
-        return *this;
-
     assign(vrRhs);
-
     return *this;
 }
 
@@ -98,7 +87,7 @@ CMIUtilString &CMIUtilString::operator=(const std::string &vrRhs)
 // Return:  None.
 // Throws:  None.
 //--
-CMIUtilString::~CMIUtilString(void)
+CMIUtilString::~CMIUtilString()
 {
 }
 
@@ -230,7 +219,7 @@ CMIUtilString::Split(const CMIUtilString &vDelimiter, VecString_t &vwVecSplits) 
         // Extract string between delimiters
         const size_t nSectionLen(nNextDelimiterPos - nSectionPos);
         const std::string strSection(substr(nSectionPos, nSectionLen));
-        vwVecSplits.push_back(strSection.c_str());
+        vwVecSplits.push_back(strSection);
 
         // Next
         nOffset = nNextDelimiterPos + 1;
@@ -286,7 +275,7 @@ CMIUtilString::SplitConsiderQuotes(const CMIUtilString &vDelimiter, VecString_t 
         // Extract string between delimiters
         const size_t nSectionLen(nNextDelimiterPos - nSectionPos);
         const std::string strSection(substr(nSectionPos, nSectionLen));
-        vwVecSplits.push_back(strSection.c_str());
+        vwVecSplits.push_back(strSection);
 
         // Next
         nOffset = nNextDelimiterPos + 1;
@@ -318,13 +307,13 @@ CMIUtilString::SplitLines(VecString_t &vwVecSplits) const
 // Throws:  None.
 //--
 CMIUtilString
-CMIUtilString::StripCREndOfLine(void) const
+CMIUtilString::StripCREndOfLine() const
 {
     const size_t nPos = rfind('\n');
     if (nPos == std::string::npos)
         return *this;
 
-    const CMIUtilString strNew(substr(0, nPos).c_str());
+    const CMIUtilString strNew(substr(0, nPos));
 
     return strNew;
 }
@@ -338,7 +327,7 @@ CMIUtilString::StripCREndOfLine(void) const
 // Throws:  None.
 //--
 CMIUtilString
-CMIUtilString::StripCRAll(void) const
+CMIUtilString::StripCRAll() const
 {
     return FindAndReplace("\n", " ");
 }
@@ -381,7 +370,7 @@ CMIUtilString::FindAndReplace(const CMIUtilString &vFind, const CMIUtilString &v
 // Throws:  None.
 //--
 bool
-CMIUtilString::IsNumber(void) const
+CMIUtilString::IsNumber() const
 {
     if (empty())
         return false;
@@ -404,7 +393,7 @@ CMIUtilString::IsNumber(void) const
 // Throws:  None.
 //--
 bool
-CMIUtilString::IsHexadecimalNumber(void) const
+CMIUtilString::IsHexadecimalNumber() const
 {
     // Compare '0x..' prefix
     if ((strncmp(c_str(), "0x", 2) != 0) && (strncmp(c_str(), "0X", 2) != 0))
@@ -522,19 +511,19 @@ CMIUtilString::Compare(const CMIUtilString &vrLhs, const CMIUtilString &vrRhs)
 // Throws:  None.
 //--
 CMIUtilString
-CMIUtilString::Trim(void) const
+CMIUtilString::Trim() const
 {
     CMIUtilString strNew(*this);
     const char *pWhiteSpace = " \t\n\v\f\r";
     const size_t nPos = find_last_not_of(pWhiteSpace);
     if (nPos != std::string::npos)
     {
-        strNew = substr(0, nPos + 1).c_str();
+        strNew = substr(0, nPos + 1);
     }
     const size_t nPos2 = strNew.find_first_not_of(pWhiteSpace);
     if (nPos2 != std::string::npos)
     {
-        strNew = strNew.substr(nPos2).c_str();
+        strNew = strNew.substr(nPos2);
     }
 
     return strNew;
@@ -555,7 +544,7 @@ CMIUtilString::Trim(const char vChar) const
     if (nLen > 1)
     {
         if ((strNew[0] == vChar) && (strNew[nLen - 1] == vChar))
-            strNew = strNew.substr(1, nLen - 2).c_str();
+            strNew = strNew.substr(1, nLen - 2);
     }
 
     return strNew;
@@ -652,7 +641,7 @@ CMIUtilString::RemoveRepeatedCharacters(size_t vnPos, const char vChar)
 // Throws:  None.
 //--
 bool
-CMIUtilString::IsQuoted(void) const
+CMIUtilString::IsQuoted() const
 {
     const char cQuote = '"';
 
@@ -819,7 +808,7 @@ CMIUtilString::Escape(bool vbEscapeQuotes /* = false */) const
 // Throws:  None.
 //--
 CMIUtilString
-CMIUtilString::AddSlashes(void) const
+CMIUtilString::AddSlashes() const
 {
     const char cBckSlash('\\');
     const size_t nLen(length());
@@ -856,7 +845,7 @@ CMIUtilString::AddSlashes(void) const
 // Throws:  None.
 //--
 CMIUtilString
-CMIUtilString::StripSlashes(void) const
+CMIUtilString::StripSlashes() const
 {
     const char cBckSlash('\\');
     const size_t nLen(length());
@@ -895,7 +884,7 @@ CMIUtilString::StripSlashes(void) const
 }
 
 CMIUtilString
-CMIUtilString::ConvertToPrintableASCII(const char vChar)
+CMIUtilString::ConvertToPrintableASCII(const char vChar, bool bEscapeQuotes)
 {
     switch (vChar)
     {
@@ -917,6 +906,10 @@ CMIUtilString::ConvertToPrintableASCII(const char vChar)
             return "\\e";
         case '\\':
             return "\\\\";
+        case '"':
+            if (bEscapeQuotes)
+                return "\\\"";
+            // fall thru
         default:
             if (::isprint(vChar))
                 return Format("%c", vChar);
@@ -926,24 +919,65 @@ CMIUtilString::ConvertToPrintableASCII(const char vChar)
 }
 
 CMIUtilString
-CMIUtilString::ConvertToPrintableASCII(const char16_t vChar16)
+CMIUtilString::ConvertCharValueToPrintableASCII(char vChar, bool bEscapeQuotes)
 {
-    if (vChar16 == (char16_t)(char)vChar16 && ::isprint(vChar16))
+    switch (vChar)
+    {
+        case '\a':
+            return "\\a";
+        case '\b':
+            return "\\b";
+        case '\t':
+            return "\\t";
+        case '\n':
+            return "\\n";
+        case '\v':
+            return "\\v";
+        case '\f':
+            return "\\f";
+        case '\r':
+            return "\\r";
+        case '\033':
+            return "\\e";
+        case '\\':
+            return "\\\\";
+        case '"':
+            if (bEscapeQuotes)
+                return "\\\"";
+            // fall thru
+        default:
+            if (::isprint(vChar))
+                return Format("%c", vChar);
+            else
+                return CMIUtilString();
+    }
+}
+
+CMIUtilString
+CMIUtilString::ConvertToPrintableASCII(const char16_t vChar16, bool bEscapeQuotes)
+{
+    if (vChar16 == (char16_t)(char)vChar16)
+    {
         // Convert char16_t to char (if possible)
-        return Format("%c", vChar16);
-    else
-        return Format("\\u%02" PRIx8 "%02" PRIx8,
+        CMIUtilString str = ConvertCharValueToPrintableASCII((char)vChar16, bEscapeQuotes);
+        if (str.length() > 0)
+            return str;
+    }
+    return Format("\\u%02" PRIx8 "%02" PRIx8,
                       (vChar16 >> 8) & 0xff, vChar16 & 0xff);
 }
 
 CMIUtilString
-CMIUtilString::ConvertToPrintableASCII(const char32_t vChar32)
+CMIUtilString::ConvertToPrintableASCII(const char32_t vChar32, bool bEscapeQuotes)
 {
-    if (vChar32 == (char32_t)(char)vChar32 && ::isprint(vChar32))
+    if (vChar32 == (char32_t)(char)vChar32)
+    {
         // Convert char32_t to char (if possible)
-        return Format("%c", vChar32);
-    else
-        return Format("\\U%02" PRIx8 "%02" PRIx8 "%02" PRIx8 "%02" PRIx8,
+        CMIUtilString str = ConvertCharValueToPrintableASCII((char)vChar32, bEscapeQuotes);
+        if (str.length() > 0)
+            return str;
+    }
+    return Format("\\U%02" PRIx8 "%02" PRIx8 "%02" PRIx8 "%02" PRIx8,
                       (vChar32 >> 24) & 0xff, (vChar32 >> 16) & 0xff,
                       (vChar32 >> 8) & 0xff, vChar32 & 0xff);
 }

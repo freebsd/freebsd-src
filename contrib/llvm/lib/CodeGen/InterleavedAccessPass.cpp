@@ -52,7 +52,7 @@ using namespace llvm;
 static cl::opt<bool> LowerInterleavedAccesses(
     "lower-interleaved-accesses",
     cl::desc("Enable lowering interleaved accesses to intrinsics"),
-    cl::init(false), cl::Hidden);
+    cl::init(true), cl::Hidden);
 
 static unsigned MaxFactor; // The maximum supported interleave factor.
 
@@ -271,7 +271,7 @@ bool InterleavedAccess::runOnFunction(Function &F) {
   SmallVector<Instruction *, 32> DeadInsts;
   bool Changed = false;
 
-  for (auto &I : inst_range(F)) {
+  for (auto &I : instructions(F)) {
     if (LoadInst *LI = dyn_cast<LoadInst>(&I))
       Changed |= lowerInterleavedLoad(LI, DeadInsts);
 

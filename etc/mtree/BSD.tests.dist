@@ -283,6 +283,8 @@
             ..
             ssp
             ..
+            setjmp
+            ..
             stdio
             ..
             stdlib
@@ -458,6 +460,8 @@
         ..
         posixshm
         ..
+        sys
+        ..
         vfs
         ..
         vm
@@ -606,6 +610,8 @@
         ..
         printf
         ..
+        sdiff
+        ..
         sed
             regress.multitest.out
             ..
@@ -628,6 +634,8 @@
         ..
         xargs
         ..
+        xinstall
+        ..
         xo
         ..
         yacc
@@ -637,6 +645,8 @@
     ..
     usr.sbin
         etcupdate
+        ..
+        extattr
         ..
         fstyp
         ..

@@ -590,7 +590,7 @@ static const uint16_t ht40_bps[32] = {
 #define	HT_STF		4
 #define	HT_LTF(n)	((n) * 4)
 
-#define	HT_RC_2_MCS(_rc)	((_rc) & 0xf)
+#define	HT_RC_2_MCS(_rc)	((_rc) & 0x1f)
 #define	HT_RC_2_STREAMS(_rc)	((((_rc) & 0x78) >> 3) + 1)
 #define	IS_HT_RATE(_rc)		( (_rc) & IEEE80211_RATE_MCS)
 

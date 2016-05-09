@@ -2,6 +2,8 @@
 
 .include <bsd.init.mk>
 
+PACKAGE=	tests
+
 TESTS_SUBDIRS=	detail
 
 ATF=		${SRCTOP}/contrib/atf
@@ -12,9 +14,8 @@ CFLAGS+=	-DATF_C_TESTS_BASE='"${TESTSBASE}/lib/atf/libatf-c"'
 CFLAGS+=	-DATF_INCLUDEDIR='"${INCLUDEDIR}"'
 CFLAGS+=	-I${ATF}
 
-FILESDIR=	${TESTSDIR}
-FILES=		macros_hpp_test.cpp
-FILES+=		unused_test.cpp
+${PACKAGE}FILES+=	macros_hpp_test.cpp
+${PACKAGE}FILES+=	unused_test.cpp
 
 .for _T in	atf_c++_test \
 		build_test \

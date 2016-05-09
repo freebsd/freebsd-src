@@ -38,12 +38,20 @@ struct ucl_emitter_streamline_stack {
 
 struct ucl_emitter_context_streamline {
 	/* Inherited from the main context */
+	/** Name of emitter (e.g. json, compact_json) */
 	const char *name;
+	/** Unique id (e.g. UCL_EMIT_JSON for standard emitters */
 	int id;
+	/** A set of output functions */
 	const struct ucl_emitter_functions *func;
+	/** A set of output operations */
 	const struct ucl_emitter_operations *ops;
-	unsigned int ident;
+	/** Current amount of indent tabs */
+	unsigned int indent;
+	/** Top level object */
 	const ucl_object_t *top;
+	/** Optional comments */
+	const ucl_object_t *comments;
 
 	/* Streamline specific fields */
 	struct ucl_emitter_streamline_stack *containers;

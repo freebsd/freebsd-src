@@ -822,7 +822,7 @@ default_again:
 	return (strq);
 }
 
-struct sctp_ss_functions sctp_ss_functions[] = {
+const struct sctp_ss_functions sctp_ss_functions[] = {
 /* SCTP_SS_DEFAULT */
 	{
 		.sctp_ss_init = sctp_ss_default_init,

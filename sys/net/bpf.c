@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_bpf.h"
 #include "opt_compat.h"
+#include "opt_ddb.h"
 #include "opt_netgraph.h"
 
 #include <sys/types.h>
@@ -66,6 +67,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 
 #include <sys/socket.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -116,7 +121,7 @@ CTASSERT(offsetof(struct bpf_if, bif_ext) == 0);
 #include <sys/mount.h>
 #include <compat/freebsd32/freebsd32.h>
 #define BPF_ALIGNMENT32 sizeof(int32_t)
-#define BPF_WORDALIGN32(x) (((x)+(BPF_ALIGNMENT32-1))&~(BPF_ALIGNMENT32-1))
+#define	BPF_WORDALIGN32(x) roundup2(x, BPF_ALIGNMENT32)
 
 #ifndef BURN_BRIDGES
 /*
@@ -2569,6 +2574,32 @@ bpfattach2(struct ifnet *ifp, u_int dlt, u_int hdrlen, struct bpf_if **driverp)
 		if_printf(ifp, "bpf attached\n");
 }
 
+#ifdef VIMAGE
+/*
+ * When moving interfaces between vnet instances we need a way to
+ * query the dlt and hdrlen before detach so we can re-attch the if_bpf
+ * after the vmove.  We unfortunately have no device driver infrastructure
+ * to query the interface for these values after creation/attach, thus
+ * add this as a workaround.
+ */
+int
+bpf_get_bp_params(struct bpf_if *bp, u_int *bif_dlt, u_int *bif_hdrlen)
+{
+
+	if (bp == NULL)
+		return (ENXIO);
+	if (bif_dlt == NULL && bif_hdrlen == NULL)
+		return (0);
+
+	if (bif_dlt != NULL)
+		*bif_dlt = bp->bif_dlt;
+	if (bif_hdrlen != NULL)
+		*bif_hdrlen = bp->bif_hdrlen;
+
+	return (0);
+}
+#endif
+
 /*
  * Detach bpf from an interface. This involves detaching each descriptor
  * associated with the interface. Notify each descriptor as it's detached
@@ -2708,7 +2739,7 @@ again:
 	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
 		if (bp->bif_ifp != ifp)
 			continue;
-		if (n > n1) {
+		if (n >= n1) {
 			free(lst, M_TEMP);
 			goto again;
 		}
@@ -2977,3 +3008,34 @@ bpf_validate(const struct bpf_insn *f, int len)
 }
 
 #endif /* !DEV_BPF && !NETGRAPH_BPF */
+
+#ifdef DDB
+static void
+bpf_show_bpf_if(struct bpf_if *bpf_if)
+{
+
+	if (bpf_if == NULL)
+		return;
+	db_printf("%p:\n", bpf_if);
+#define	BPF_DB_PRINTF(f, e)	db_printf("   %s = " f "\n", #e, bpf_if->e);
+	/* bif_ext.bif_next */
+	/* bif_ext.bif_dlist */
+	BPF_DB_PRINTF("%#x", bif_dlt);
+	BPF_DB_PRINTF("%u", bif_hdrlen);
+	BPF_DB_PRINTF("%p", bif_ifp);
+	/* bif_lock */
+	/* bif_wlist */
+	BPF_DB_PRINTF("%#x", bif_flags);
+}
+
+DB_SHOW_COMMAND(bpf_if, db_show_bpf_if)
+{
+
+	if (!have_addr) {
+		db_printf("usage: show bpf_if <struct bpf_if *>\n");
+		return;
+	}
+
+	bpf_show_bpf_if((struct bpf_if *)addr);
+}
+#endif

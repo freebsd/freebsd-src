@@ -34,8 +34,10 @@
 #include <machine/hypervisor.h>
 #include <machine/param.h>
 #include <machine/pte.h>
+#include <machine/vmparam.h>
 
-#define	VIRT_BITS	39
+#define	VIRT_BITS	48
+#define	DMAP_TABLES	((DMAP_MAX_ADDRESS - DMAP_MIN_ADDRESS) >> L0_SHIFT)
 
 	.globl	kernbase
 	.set	kernbase, KERNBASE
@@ -89,7 +91,8 @@ _start:
 	/*
 	 * At this point:
 	 * x27 = TTBR0 table
-	 * x26 = TTBR1 table
+	 * x26 = Kernel L1 table
+	 * x24 = TTBR1 table
 	 */
 
 	/* Enable the mmu */
@@ -100,16 +103,6 @@ _start:
 	br	x15
 
 virtdone:
-	/*
-	 * Now that we are in virtual address space,
-	 * we don't need the identity mapping in TTBR0 and
-	 * can set the TCR to a more useful value.
-	 */
-	ldr	x2, tcr
-	mrs	x3, id_aa64mmfr0_el1
-	bfi	x2, x3, #32, #3
-	msr	tcr_el1, x2
-
 	/* Set up the stack */
 	adr	x25, initstack_end
 	mov	sp, x25
@@ -128,6 +121,7 @@ virtdone:
 
 	/* Make the page table base a virtual address */
 	sub	x26, x26, x29
+	sub	x24, x24, x29
 
 	sub	sp, sp, #(64 * 4)
 	mov	x0, sp
@@ -139,6 +133,7 @@ virtdone:
 	str	x26, [x0, 8]	/* kern_l1pt */
 	str	x29, [x0, 16]	/* kern_delta */
 	str	x25, [x0, 24]	/* kern_stack */
+	str	x24, [x0, 32]	/* kern_l0pt */
 
 	/* trace back starts here */
 	mov	fp, #0
@@ -175,7 +170,7 @@ ENTRY(mpentry)
 	msr	contextidr_el1, x1
 
 	/* Load the kernel page table */
-	adr	x26, pagetable_l1_ttbr1
+	adr	x24, pagetable_l0_ttbr1
 	/* Load the identity page table */
 	adr	x27, pagetable_l0_ttbr0
 
@@ -187,16 +182,6 @@ ENTRY(mpentry)
 	br	x15
 
 mp_virtdone:
-	/*
-	 * Now that we are in virtual address space,
-	 * we don't need the identity mapping in TTBR0 and
-	 * can set the TCR to a more useful value.
-	 */
-	ldr	x2, tcr
-	mrs	x3, id_aa64mmfr0_el1
-	bfi	x2, x3, #32, #3
-	msr	tcr_el1, x2
-
 	ldr	x4, =secondary_stacks
 	mov	x5, #(PAGE_SIZE * KSTACK_PAGES)
 	mul	x5, x0, x5
@@ -338,10 +323,12 @@ virt_map:
  * TODO: This is out of date.
  *  There are at least 5 pages before that address for the page tables
  *   The pages used are:
- *    - The identity (PA = VA) table (TTBR0)
- *    - The Kernel L1 table          (TTBR1)(not yet)
- *    -  The PA != VA L2 table to jump into (not yet)
- *    -  The FDT L2 table                   (not yet)
+ *    - The Kernel L2 table
+ *    - The Kernel L1 table
+ *    - The Kernel L0 table             (TTBR1)
+ *    - The identity (PA = VA) L1 table
+ *    - The identity (PA = VA) L0 table (TTBR0)
+ *    - The DMAP L1 tables
  */
 create_pagetables:
 	/* Save the Link register */
@@ -388,11 +375,25 @@ create_pagetables:
 	mov	x6, x26
 	bl	link_l1_pagetable
 
+	/* Move to the l0 table */
+	add	x24, x26, #PAGE_SIZE
+
+	/* Link the l0 -> l1 table */
+	mov	x9, x6
+	mov	x6, x24
+	mov	x10, #1
+	bl	link_l0_pagetable
+
+	/* Link the DMAP tables */
+	ldr	x8, =DMAP_MIN_ADDRESS
+	adr	x9, pagetable_dmap;
+	mov	x10, #DMAP_TABLES
+	bl	link_l0_pagetable
 
 	/*
 	 * Build the TTBR0 maps.
 	 */
-	add	x27, x26, #PAGE_SIZE
+	add	x27, x24, #PAGE_SIZE
 
 	mov	x6, x27		/* The initial page table */
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
@@ -417,6 +418,7 @@ create_pagetables:
 	/* Link the l0 -> l1 table */
 	mov	x9, x6
 	mov	x6, x27
+	mov	x10, #1
 	bl	link_l0_pagetable
 
 	/* Restore the Link register */
@@ -432,6 +434,7 @@ create_pagetables:
  *  x6  = L0 table
  *  x8  = Virtual Address
  *  x9  = L1 PA (trashed)
+ *  x10 = Entry count
  *  x11, x12 and x13 are trashed
  */
 link_l0_pagetable:
@@ -440,17 +443,22 @@ link_l0_pagetable:
 	 */
 	/* Find the table index */
 	lsr	x11, x8, #L0_SHIFT
-	and	x11, x11, #Ln_ADDR_MASK
+	and	x11, x11, #L0_ADDR_MASK
 
 	/* Build the L0 block entry */
 	mov	x12, #L0_TABLE
 
 	/* Only use the output address bits */
-	lsr	x9, x9, #12
-	orr	x12, x12, x9, lsl #12
+	lsr	x9, x9, #PAGE_SHIFT
+1:	orr	x13, x12, x9, lsl #PAGE_SHIFT
 
 	/* Store the entry */
-	str	x12, [x6, x11, lsl #3]
+	str	x13, [x6, x11, lsl #3]
+
+	sub	x10, x10, #1
+	add	x11, x11, #1
+	add	x9, x9, #1
+	cbnz	x10, 1b
 
 	ret
 
@@ -477,11 +485,11 @@ link_l1_pagetable:
 	mov	x12, #L1_TABLE
 
 	/* Only use the output address bits */
-	lsr	x9, x9, #12
-	orr	x12, x12, x9, lsl #12
+	lsr	x9, x9, #PAGE_SHIFT
+	orr	x13, x12, x9, lsl #PAGE_SHIFT
 
 	/* Store the entry */
-	str	x12, [x6, x11, lsl #3]
+	str	x13, [x6, x11, lsl #3]
 
 	ret
 
@@ -491,7 +499,7 @@ link_l1_pagetable:
  *  x7  = Type (0 = Device, 1 = Normal)
  *  x8  = VA start
  *  x9  = PA start (trashed)
- *  x10 = Entry count (TODO)
+ *  x10 = Entry count
  *  x11, x12 and x13 are trashed
  */
 build_l1_block_pagetable:
@@ -514,20 +522,17 @@ build_l1_block_pagetable:
 	lsr	x9, x9, #L1_SHIFT
 
 	/* Set the physical address for this virtual address */
-1:	orr	x12, x12, x9, lsl #L1_SHIFT
+1:	orr	x13, x12, x9, lsl #L1_SHIFT
 
 	/* Store the entry */
-	str	x12, [x6, x11, lsl #3]
-
-	/* Clear the address bits */
-	and	x12, x12, #ATTR_MASK_L
+	str	x13, [x6, x11, lsl #3]
 
 	sub	x10, x10, #1
 	add	x11, x11, #1
 	add	x9, x9, #1
 	cbnz	x10, 1b
 
-2:	ret
+	ret
 
 /*
  * Builds count 2 MiB page table entry
@@ -535,7 +540,7 @@ build_l1_block_pagetable:
  *  x7  = Type (0 = Device, 1 = Normal)
  *  x8  = VA start
  *  x9  = PA start (trashed)
- *  x10 = Entry count (TODO)
+ *  x10 = Entry count
  *  x11, x12 and x13 are trashed
  */
 build_l2_block_pagetable:
@@ -558,20 +563,17 @@ build_l2_block_pagetable:
 	lsr	x9, x9, #L2_SHIFT
 
 	/* Set the physical address for this virtual address */
-1:	orr	x12, x12, x9, lsl #L2_SHIFT
+1:	orr	x13, x12, x9, lsl #L2_SHIFT
 
 	/* Store the entry */
-	str	x12, [x6, x11, lsl #3]
-
-	/* Clear the address bits */
-	and	x12, x12, #ATTR_MASK_L
+	str	x13, [x6, x11, lsl #3]
 
 	sub	x10, x10, #1
 	add	x11, x11, #1
 	add	x9, x9, #1
 	cbnz	x10, 1b
 
-2:	ret
+	ret
 
 start_mmu:
 	dsb	sy
@@ -582,7 +584,7 @@ start_mmu:
 
 	/* Load ttbr0 and ttbr1 */
 	msr	ttbr0_el1, x27
-	msr	ttbr1_el1, x26
+	msr	ttbr1_el1, x24
 	isb
 
 	/* Clear the Monitor Debug System control register */
@@ -596,11 +598,8 @@ start_mmu:
 
 	/*
 	 * Setup TCR according to PARange bits from ID_AA64MMFR0_EL1.
-	 * Some machines have physical memory mapped >512GiB, which can not
-	 * be identity-mapped using the default 39 VA bits. Thus, use
-	 * 48 VA bits for now and switch back to 39 after the VA jump.
 	 */
-	ldr	x2, tcr_early
+	ldr	x2, tcr
 	mrs	x3, id_aa64mmfr0_el1
 	bfi	x2, x3, #32, #3
 	msr	tcr_el1, x2
@@ -623,9 +622,6 @@ mair:
 tcr:
 	.quad (TCR_TxSZ(64 - VIRT_BITS) | TCR_ASID_16 | TCR_TG1_4K | \
 	    TCR_CACHE_ATTRS | TCR_SMP_ATTRS)
-tcr_early:
-	.quad (TCR_T1SZ(64 - VIRT_BITS) | TCR_T0SZ(64 - 48) | \
-	    TCR_ASID_16 | TCR_TG1_4K | TCR_CACHE_ATTRS | TCR_SMP_ATTRS)
 sctlr_set:
 	/* Bits to set */
 	.quad (SCTLR_UCI | SCTLR_nTWE | SCTLR_nTWI | SCTLR_UCT | SCTLR_DZE | \
@@ -651,10 +647,16 @@ pagetable:
 	.space	PAGE_SIZE
 pagetable_l1_ttbr1:
 	.space	PAGE_SIZE
+pagetable_l0_ttbr1:
+	.space	PAGE_SIZE
 pagetable_l1_ttbr0:
 	.space	PAGE_SIZE
 pagetable_l0_ttbr0:
 	.space	PAGE_SIZE
+
+	.globl pagetable_dmap
+pagetable_dmap:
+	.space	PAGE_SIZE * DMAP_TABLES
 pagetable_end:
 
 el2_pagetable:

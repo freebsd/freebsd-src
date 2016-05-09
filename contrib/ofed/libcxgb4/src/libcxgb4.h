@@ -69,6 +69,11 @@ static inline int dev_is_t5(struct c4iw_dev *dev)
 	return dev->chip_version == CHELSIO_T5;
 }
 
+static inline int dev_is_t4(struct c4iw_dev *dev)
+{
+	return dev->chip_version == CHELSIO_T4;
+}
+
 struct c4iw_context {
 	struct ibv_context ibv_ctx;
 	struct t4_dev_status_page *status_page;

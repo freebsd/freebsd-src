@@ -139,8 +139,8 @@ SYSCTL_INT(_kern_elf32, OID_AUTO, read_exec, CTLFLAG_RW, &i386_read_exec, 0,
 
 static Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
 
-#define	trunc_page_ps(va, ps)	((va) & ~(ps - 1))
-#define	round_page_ps(va, ps)	(((va) + (ps - 1)) & ~(ps - 1))
+#define	trunc_page_ps(va, ps)	rounddown2(va, ps)
+#define	round_page_ps(va, ps)	roundup2(va, ps)
 #define	aligned(a, t)	(trunc_page_ps((u_long)(a), sizeof(t)) == (u_long)(a))
 
 static const char FREEBSD_ABI_VENDOR[] = "FreeBSD";
@@ -1370,10 +1370,6 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	 * and write it out following the notes.
 	 */
 	hdr = malloc(hdrsize, M_TEMP, M_WAITOK);
-	if (hdr == NULL) {
-		error = EINVAL;
-		goto done;
-	}
 	error = __elfN(corehdr)(&params, seginfo.count, hdr, hdrsize, &notelst,
 	    notesz);
 

@@ -5,7 +5,7 @@
 
 PROG=   ibsendtrap
 SRCS=   ibsendtrap.c ibdiag_common.c
-LIBADD= ibumad ibcommon ibmad
+LIBADD= ibmad
 CFLAGS+= -I${DIAGPATH}/include
 MAN=
 

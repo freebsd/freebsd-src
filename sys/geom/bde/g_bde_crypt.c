@@ -311,7 +311,7 @@ g_bde_map_sector(struct g_bde_work *wp)
 	/* Compensate for lock sectors */
 	for (u = 0; u < G_BDE_MAXKEYS; u++) {
 		/* Find the start of this lock sector */
-		ko = kp->lsector[u] & ~((uint64_t)kp->sectorsize - 1);
+		ko = rounddown2(kp->lsector[u], (uint64_t)kp->sectorsize);
 
 		if (wp->kso >= ko)
 			wp->kso += kp->sectorsize;

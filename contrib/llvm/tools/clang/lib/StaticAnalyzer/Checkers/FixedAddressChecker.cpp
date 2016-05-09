@@ -23,7 +23,7 @@ using namespace clang;
 using namespace ento;
 
 namespace {
-class FixedAddressChecker 
+class FixedAddressChecker
   : public Checker< check::PreStmt<BinaryOperator> > {
   mutable std::unique_ptr<BuiltinBug> BT;
 
@@ -50,7 +50,7 @@ void FixedAddressChecker::checkPreStmt(const BinaryOperator *B,
   if (!RV.isConstant() || RV.isZeroConstant())
     return;
 
-  if (ExplodedNode *N = C.addTransition()) {
+  if (ExplodedNode *N = C.generateNonFatalErrorNode()) {
     if (!BT)
       BT.reset(
           new BuiltinBug(this, "Use fixed address",

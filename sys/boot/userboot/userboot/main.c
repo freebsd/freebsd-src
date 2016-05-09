@@ -131,6 +131,10 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 #endif
 
 	/*
+	 * Initialise the block cache. Set the upper limit.
+	 */
+	bcache_init(32768, 512);
+	/*
 	 * March through the device switch probing for things.
 	 */
 	for (i = 0; devsw[i] != NULL; i++)

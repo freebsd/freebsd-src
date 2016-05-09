@@ -475,9 +475,9 @@
 				    u_int nfds, int timeout); }
 253	AUE_ISSETUGID	STD	{ int issetugid(void); }
 254	AUE_LCHOWN	STD	{ int lchown(char *path, int uid, int gid); }
-255	AUE_NULL	NOSTD	{ int aio_read(struct aiocb *aiocbp); }
-256	AUE_NULL	NOSTD	{ int aio_write(struct aiocb *aiocbp); }
-257	AUE_NULL	NOSTD	{ int lio_listio(int mode, \
+255	AUE_NULL	STD	{ int aio_read(struct aiocb *aiocbp); }
+256	AUE_NULL	STD	{ int aio_write(struct aiocb *aiocbp); }
+257	AUE_NULL	STD	{ int lio_listio(int mode, \
 				    struct aiocb * const *acb_list, \
 				    int nent, struct sigevent *sig); }
 258	AUE_NULL	UNIMPL	nosys
@@ -554,16 +554,16 @@
 312	AUE_SETRESGID	STD	{ int setresgid(gid_t rgid, gid_t egid, \
 				    gid_t sgid); }
 313	AUE_NULL	OBSOL	signanosleep
-314	AUE_NULL	NOSTD	{ int aio_return(struct aiocb *aiocbp); }
-315	AUE_NULL	NOSTD	{ int aio_suspend( \
+314	AUE_NULL	STD	{ ssize_t aio_return(struct aiocb *aiocbp); }
+315	AUE_NULL	STD	{ int aio_suspend( \
 				    struct aiocb * const * aiocbp, int nent, \
 				    const struct timespec *timeout); }
-316	AUE_NULL	NOSTD	{ int aio_cancel(int fd, \
+316	AUE_NULL	STD	{ int aio_cancel(int fd, \
 				    struct aiocb *aiocbp); }
-317	AUE_NULL	NOSTD	{ int aio_error(struct aiocb *aiocbp); }
-318	AUE_NULL	NOSTD	{ int oaio_read(struct oaiocb *aiocbp); }
-319	AUE_NULL	NOSTD	{ int oaio_write(struct oaiocb *aiocbp); }
-320	AUE_NULL	NOSTD	{ int olio_listio(int mode, \
+317	AUE_NULL	STD	{ int aio_error(struct aiocb *aiocbp); }
+318	AUE_NULL	COMPAT6	{ int aio_read(struct oaiocb *aiocbp); }
+319	AUE_NULL	COMPAT6	{ int aio_write(struct oaiocb *aiocbp); }
+320	AUE_NULL	COMPAT6	{ int lio_listio(int mode, \
 				    struct oaiocb * const *acb_list, \
 				    int nent, struct osigevent *sig); }
 321	AUE_NULL	STD	{ int yield(void); }
@@ -643,7 +643,7 @@
 358	AUE_EXTATTR_DELETE_FILE	STD	{ int extattr_delete_file(const char *path, \
 				    int attrnamespace, \
 				    const char *attrname); }
-359	AUE_NULL	NOSTD	{ int aio_waitcomplete( \
+359	AUE_NULL	STD	{ ssize_t aio_waitcomplete( \
 				    struct aiocb **aiocbp, \
 				    struct timespec *timeout); }
 360	AUE_GETRESUID	STD	{ int getresuid(uid_t *ruid, uid_t *euid, \
@@ -830,7 +830,7 @@
 462	AUE_NULL	NOSTD	{ int kmq_unlink(const char *path); }
 463	AUE_NULL	STD	{ int abort2(const char *why, int nargs, void **args); }
 464	AUE_NULL	STD	{ int thr_set_name(long id, const char *name); }
-465	AUE_NULL	NOSTD	{ int aio_fsync(int op, struct aiocb *aiocbp); }
+465	AUE_NULL	STD	{ int aio_fsync(int op, struct aiocb *aiocbp); }
 466	AUE_RTPRIO	STD	{ int rtprio_thread(int function, \
 				    lwpid_t lwpid, struct rtprio *rtp); }
 467	AUE_NULL	UNIMPL	nosys
@@ -977,7 +977,7 @@
 				    __socklen_t * __restrict anamelen, \
 				    int flags); }
 542	AUE_PIPE	STD	{ int pipe2(int *fildes, int flags); }
-543	AUE_NULL	NOSTD	{ int aio_mlock(struct aiocb *aiocbp); }
+543	AUE_NULL	STD	{ int aio_mlock(struct aiocb *aiocbp); }
 544	AUE_NULL	STD	{ int procctl(idtype_t idtype, id_t id, \
 				    int com, void *data); }
 545	AUE_POLL	STD	{ int ppoll(struct pollfd *fds, u_int nfds, \
