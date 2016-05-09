@@ -1791,7 +1791,7 @@ mpr_sas_log_info(struct mpr_softc *sc , u32 log_info)
 		break;
 	}
  
-	mpr_dprint(sc, MPR_INFO, "log_info(0x%08x): originator(%s), "
+	mpr_dprint(sc, MPR_LOG, "log_info(0x%08x): originator(%s), "
 	    "code(0x%02x), sub_code(0x%04x)\n", log_info, originator_str,
 	    sas_loginfo.dw.code, sas_loginfo.dw.subcode);
 }
