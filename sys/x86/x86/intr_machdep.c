@@ -490,7 +490,7 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
  * allocate CPUs round-robin.
  */
 
-static cpuset_t intr_cpus = CPUSET_T_INITIALIZER(0x1);
+cpuset_t intr_cpus = CPUSET_T_INITIALIZER(0x1);
 static int current_cpu;
 
 /*
