@@ -232,6 +232,8 @@ TOOLSDIR?= ${HOST_OBJTOP}/tools
 .elif defined(STAGE_HOST_OBJTOP)
 TOOLSDIR?= ${STAGE_HOST_OBJTOP}
 .endif
+BTOOLSPATH= ${HOST_OBJTOP}/tools${.CURDIR}
+
 # Don't use the bootstrap tools logic on itself.
 .if ${.TARGETS:Mbootstrap-tools} == "" && \
     !make(showconfig) && \

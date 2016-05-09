@@ -98,7 +98,7 @@ ${c}.check: ${c}.base
 .endfor
 
 english.base: dump ${SCAN} #Makefile
-	./dump ${SCAN} |\
+	${BTOOLSPATH:U.}/dump ${SCAN} |\
 	sed -e '/|/!d' \
 	    -e 's/|/ "/' \
 	    -e 's/^"//' |\
