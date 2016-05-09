@@ -1881,7 +1881,7 @@ kqueue_wakeup(struct kqueue *kq)
 
 	if ((kq->kq_state & KQ_SLEEP) == KQ_SLEEP) {
 		kq->kq_state &= ~KQ_SLEEP;
-		wakeup(kq);
+		wakeup_one(kq);
 	}
 	if ((kq->kq_state & KQ_SEL) == KQ_SEL) {
 		selwakeuppri(&kq->kq_sel, PSOCK);
