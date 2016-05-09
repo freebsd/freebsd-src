@@ -871,6 +871,10 @@ pic_create(device_t dev, intptr_t xref)
 		return (pic);
 	}
 	pic = malloc(sizeof(*pic), M_INTRNG, M_NOWAIT | M_ZERO);
+	if (pic == NULL) {
+		mtx_unlock(&pic_list_lock);
+		return (NULL);
+	}
 	pic->pic_xref = xref;
 	pic->pic_dev = dev;
 	SLIST_INSERT_HEAD(&pic_list, pic, pic_next);
