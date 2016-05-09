@@ -29,6 +29,7 @@ NON_GPROF_ENTRY(linux_rt_sigcode)
 	movq	$LINUX_SYS_linux_rt_sigreturn,%rax   /* linux_rt_sigreturn() */
 	syscall					/* enter kernel with args */
 	hlt
+.endrtsigcode:
 0:	jmp	0b
 
 NON_GPROF_ENTRY(__vdso_clock_gettime)
@@ -74,3 +75,34 @@ NON_GPROF_ENTRY(__vdso_getcpu)
 	.balign 4
 	.previous
 #endif
+
+	.section .eh_frame,"a",@progbits
+.LSTARTFRAMEDLSI0:
+	.long .LENDCIEDLSI0-.LSTARTCIEDLSI0
+.LSTARTCIEDLSI0:
+	.long 0					/* CIE ID */
+	.byte 1					/* Version number */
+	.string "zR"				/* NULL-terminated
+						 * augmentation string
+						 */
+	.uleb128 1				/* Code alignment factor */
+	.sleb128 -4				/* Data alignment factor */
+	.byte 8					/* Return address register column */
+	.uleb128 1				/* Augmentation value length */
+	.byte 0x1b				/* DW_EH_PE_pcrel|DW_EH_PE_sdata4. */
+	.byte 0x0c				/* DW_CFA_def_cfa */
+	.uleb128 4
+	.uleb128 4
+	.byte 0x88				/* DW_CFA_offset, column 0x8 */
+	.uleb128 1
+	.align 4
+.LENDCIEDLSI0:
+	.long .LENDFDEDLSI0-.LSTARTFDEDLSI0	/* Length FDE */
+.LSTARTFDEDLSI0:
+	.long .LSTARTFDEDLSI0-.LSTARTFRAMEDLSI0	/* CIE pointer */
+	.long .startrtsigcode-.			/* PC-relative start address */
+	.long .endrtsigcode-.startrtsigcode
+	.uleb128 0
+	.align 4
+.LENDFDEDLSI0:
+	.previous
