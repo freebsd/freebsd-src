@@ -243,6 +243,8 @@ mprsas_alloc_tm(struct mpr_softc *sc)
 void
 mprsas_free_tm(struct mpr_softc *sc, struct mpr_command *tm)
 {
+	int target_id = 0xFFFFFFFF;
+
 	MPR_FUNCTRACE(sc);
 	if (tm == NULL)
 		return;
@@ -254,10 +256,11 @@ mprsas_free_tm(struct mpr_softc *sc, struct mpr_command *tm)
 	 */
 	if (tm->cm_targ != NULL) {
 		tm->cm_targ->flags &= ~MPRSAS_TARGET_INRESET;
+		target_id = tm->cm_targ->tid;
 	}
 	if (tm->cm_ccb) {
 		mpr_dprint(sc, MPR_INFO, "Unfreezing devq for target ID %d\n",
-		    tm->cm_targ->tid);
+		    target_id);
 		xpt_release_devq(tm->cm_ccb->ccb_h.path, 1, TRUE);
 		xpt_free_path(tm->cm_ccb->ccb_h.path);
 		xpt_free_ccb(tm->cm_ccb);
