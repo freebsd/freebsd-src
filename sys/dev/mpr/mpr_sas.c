@@ -372,15 +372,16 @@ mprsas_remove_volume(struct mpr_softc *sc, struct mpr_command *tm)
 		return;
 	}
 
-	if (reply->IOCStatus != MPI2_IOCSTATUS_SUCCESS) {
+	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
+	    MPI2_IOCSTATUS_SUCCESS) {
 		mpr_dprint(sc, MPR_FAULT, "IOCStatus = 0x%x while resetting "
-		    "device 0x%x\n", reply->IOCStatus, handle);
+		    "device 0x%x\n", le16toh(reply->IOCStatus), handle);
 		mprsas_free_tm(sc, tm);
 		return;
 	}
 
 	mpr_dprint(sc, MPR_XINFO, "Reset aborted %u commands\n",
-	    reply->TerminationCount);
+	    le32toh(reply->TerminationCount));
 	mpr_free_reply(sc, tm->cm_reply_data);
 	tm->cm_reply = NULL;	/* Ensures the reply won't get re-freed */
 
@@ -393,7 +394,8 @@ mprsas_remove_volume(struct mpr_softc *sc, struct mpr_command *tm)
 	 * this target id if possible, and so we can assign the same target id
 	 * to this device if it comes back in the future.
 	 */
-	if (reply->IOCStatus == MPI2_IOCSTATUS_SUCCESS) {
+	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) ==
+	    MPI2_IOCSTATUS_SUCCESS) {
 		targ = tm->cm_targ;
 		targ->handle = 0x0;
 		targ->encl_handle = 0x0;
@@ -573,7 +575,8 @@ mprsas_remove_device(struct mpr_softc *sc, struct mpr_command *tm)
 		return;
 	}
 
-	if (le16toh(reply->IOCStatus) != MPI2_IOCSTATUS_SUCCESS) {
+	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
+	    MPI2_IOCSTATUS_SUCCESS) {
 		mpr_dprint(sc, MPR_FAULT, "IOCStatus = 0x%x while resetting "
 		    "device 0x%x\n", le16toh(reply->IOCStatus), handle);
 		mprsas_free_tm(sc, tm);
@@ -658,7 +661,8 @@ mprsas_remove_complete(struct mpr_softc *sc, struct mpr_command *tm)
 	 * this target id if possible, and so we can assign the same target id
 	 * to this device if it comes back in the future.
 	 */
-	if (le16toh(reply->IOCStatus) == MPI2_IOCSTATUS_SUCCESS) {
+	if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) ==
+	    MPI2_IOCSTATUS_SUCCESS) {
 		targ = tm->cm_targ;
 		targ->handle = 0x0;
 		targ->encl_handle = 0x0;
