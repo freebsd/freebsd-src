@@ -931,7 +931,6 @@ mpr_detach_sas(struct mpr_softc *sc)
 		cam_sim_free(sassc->sim, FALSE);
 	}
 
-	sassc->flags |= MPRSAS_SHUTDOWN;
 	mpr_unlock(sc);
 
 	if (sassc->devq != NULL)
