@@ -2559,6 +2559,7 @@ out:
 		if (error) {
 			if_printf(ifp, "Query module num failed, eeprom "
 			    "reading is not supported\n");
+			error = EINVAL;
 			goto err_i2c;
 		}
 		/* Check if module is present before doing an access */
@@ -2588,6 +2589,7 @@ out:
 		if (error) {
 			if_printf(ifp, "Query eeprom failed, eeprom "
 			    "reading is not supported\n");
+			error = EINVAL;
 			goto err_i2c;
 		}
 
@@ -2601,6 +2603,7 @@ out:
 		if (error) {
 			if_printf(ifp, "Query eeprom failed, eeprom "
 			    "reading is not supported\n");
+			error = EINVAL;
 			goto err_i2c;
 		}
 
