@@ -33,7 +33,7 @@
 #ifndef _MPRVAR_H
 #define _MPRVAR_H
 
-#define MPR_DRIVER_VERSION	"09.255.01.00-fbsd"
+#define MPR_DRIVER_VERSION	"13.00.00.00-fbsd"
 
 #define MPR_DB_MAX_WAIT		2500
 
