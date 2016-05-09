@@ -73,7 +73,7 @@ static void		bhndb_init_sromless_pci_config(
 			    struct bhndb_pci_softc *sc);
 
 static bus_addr_t	bhndb_pci_sprom_addr(struct bhndb_pci_softc *sc);
-static size_t		bhndb_pci_sprom_size(struct bhndb_pci_softc *sc);
+static bus_size_t	bhndb_pci_sprom_size(struct bhndb_pci_softc *sc);
 
 /** 
  * Default bhndb_pci implementation of device_probe().
@@ -167,7 +167,8 @@ bhndb_pci_init_full_config(device_t dev, device_t child,
 		const char		*dname;
 
 		if (bootverbose) {
-			device_printf(dev, "found SPROM (%zu bytes)\n", nv_sz);
+			device_printf(dev, "found SPROM (%u bytes)\n",
+			    (unsigned int) nv_sz);
 		}
 
 		/* Add sprom device */
