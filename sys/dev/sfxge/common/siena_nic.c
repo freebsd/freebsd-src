@@ -78,28 +78,6 @@ fail1:
 	return (rc);
 }
 
-#if EFSYS_OPT_PCIE_TUNE
-
-	__checkReturn	efx_rc_t
-siena_nic_pcie_extended_sync(
-	__in		efx_nic_t *enp)
-{
-	efx_rc_t rc;
-
-	if ((rc = efx_mcdi_set_workaround(enp, MC_CMD_WORKAROUND_BUG17230,
-		    B_TRUE, NULL) != 0))
-		goto fail1;
-
-	return (0);
-
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
-}
-
-#endif	/* EFSYS_OPT_PCIE_TUNE */
-
 static	__checkReturn	efx_rc_t
 siena_board_cfg(
 	__in		efx_nic_t *enp)

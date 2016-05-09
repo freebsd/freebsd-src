@@ -59,14 +59,6 @@ extern	__checkReturn	efx_rc_t
 siena_nic_probe(
 	__in		efx_nic_t *enp);
 
-#if EFSYS_OPT_PCIE_TUNE
-
-extern	__checkReturn	efx_rc_t
-siena_nic_pcie_extended_sync(
-	__in		efx_nic_t *enp);
-
-#endif
-
 extern	__checkReturn	efx_rc_t
 siena_nic_reset(
 	__in		efx_nic_t *enp);

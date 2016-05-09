@@ -485,22 +485,6 @@ efx_nic_pcie_tune(
 	return (ENOTSUP);
 }
 
-	__checkReturn	efx_rc_t
-efx_nic_pcie_extended_sync(
-	__in		efx_nic_t *enp)
-{
-	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
-	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
-	EFSYS_ASSERT(!(enp->en_mod_flags & EFX_MOD_NIC));
-
-#if EFSYS_OPT_SIENA
-	if (enp->en_family == EFX_FAMILY_SIENA)
-		return (siena_nic_pcie_extended_sync(enp));
-#endif
-
-	return (ENOTSUP);
-}
-
 #endif	/* EFSYS_OPT_PCIE_TUNE */
 
 	__checkReturn	efx_rc_t
