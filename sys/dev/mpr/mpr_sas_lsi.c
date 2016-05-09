@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2011-2015 LSI Corp.
- * Copyright (c) 2013-2015 Avago Technologies
+ * Copyright (c) 2013-2016 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* Communications core for LSI MPT3 */
+/* Communications core for Avago Technologies (LSI) MPT3 */
 
 /* TODO Move headers to mprvar */
 #include <sys/types.h>
@@ -252,8 +252,7 @@ mprsas_fw_work(struct mpr_softc *sc, struct mpr_fw_event_work *fw_event)
 		data = (MPI2_EVENT_DATA_SAS_DISCOVERY *)fw_event->event_data;
 
 		if (data->ReasonCode & MPI2_EVENT_SAS_DISC_RC_STARTED)
-			mpr_dprint(sc, MPR_TRACE,"SAS discovery start "
-			    "event\n");
+			mpr_dprint(sc, MPR_TRACE,"SAS discovery start event\n");
 		if (data->ReasonCode & MPI2_EVENT_SAS_DISC_RC_COMPLETED) {
 			mpr_dprint(sc, MPR_TRACE,"SAS discovery stop event\n");
 			sassc->flags &= ~MPRSAS_IN_DISCOVERY;
@@ -839,8 +838,8 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate){
 				    MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET);
 			} else {
 				mpr_dprint(sc, MPR_ERROR, "Failed to allocate "
-				    "tm for Target Reset after SATA ID "
-				    "command timed out (cm %p)\n", cm);
+				    "tm for Target Reset after SATA ID command "
+				    "timed out (cm %p)\n", cm);
 			}
 			/*
 			 * No need to check for more since the target is
@@ -901,9 +900,8 @@ mprsas_get_sas_address_for_sata_disk(struct mpr_softc *sc,
 			}
 		}
 	} while (((rc && (rc != EWOULDBLOCK)) ||
-	         (ioc_status &&
-		  (ioc_status != MPI2_IOCSTATUS_SCSI_PROTOCOL_ERROR))
-	       || sas_status) && (try_count < 5));
+	    (ioc_status && (ioc_status != MPI2_IOCSTATUS_SCSI_PROTOCOL_ERROR))
+	    || sas_status) && (try_count < 5));
 
 	if (rc == 0 && !ioc_status && !sas_status) {
 		mpr_dprint(sc, MPR_MAPPING, "%s: got SATA identify "
@@ -1059,8 +1057,8 @@ mprsas_ata_id_timeout(void *data)
 	    __func__, cm, sc);
 	if ((callout_pending(&cm->cm_callout)) ||
 	    (!callout_active(&cm->cm_callout))) {
-		mpr_dprint(sc, MPR_INFO, "%s ATA ID command almost timed "
-		    "out\n", __func__);
+		mpr_dprint(sc, MPR_INFO, "%s ATA ID command almost timed out\n",
+		    __func__);
 		return;
 	}
 	callout_deactivate(&cm->cm_callout);
@@ -1072,21 +1070,21 @@ mprsas_ata_id_timeout(void *data)
 	 */
 	mpr_intr_locked(sc);
 	if (cm->cm_state == MPR_CM_STATE_FREE) {
-		mpr_dprint(sc, MPR_INFO, "%s ATA ID command almost timed "
-		    "out\n", __func__);
+		mpr_dprint(sc, MPR_INFO, "%s ATA ID command almost timed out\n",
+		    __func__);
 		return;
 	}
 
 	mpr_dprint(sc, MPR_INFO, "ATA ID command timeout cm %p\n", cm);
 
 	/*
-	 * Send wakeup() to the sleeping thread that issued this ATA ID
-	 * command. wakeup() will cause msleep to return a 0 (not EWOULDBLOCK),
-	 * and this will keep reinit() from being called. This way, an Abort
-	 * Task TM can be issued so that the timed out command can be cleared.
-	 * The Abort Task cannot be sent from here because the driver has not
-	 * completed setting up targets.  Instead, the command is flagged so
-	 * that special handling will be used to send the abort.
+	 * Send wakeup() to the sleeping thread that issued this ATA ID command.
+	 * wakeup() will cause msleep to return a 0 (not EWOULDBLOCK), and this
+	 * will keep reinit() from being called. This way, an Abort Task TM can
+	 * be issued so that the timed out command can be cleared. The Abort
+	 * Task cannot be sent from here because the driver has not completed
+	 * setting up targets.  Instead, the command is flagged so that special
+	 * handling will be used to send the abort.
 	 */
 	cm->cm_flags |= MPR_CM_FLAGS_SATA_ID_TIMEOUT;
 	wakeup(cm);

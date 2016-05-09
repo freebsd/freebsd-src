@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2009 Yahoo! Inc.
  * Copyright (c) 2011-2015 LSI Corp.
- * Copyright (c) 2013-2015 Avago Technologies
+ * Copyright (c) 2013-2016 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -585,13 +585,13 @@ do {							\
 
 #define mpr_dprint(sc, level, msg, args...)		\
 do {							\
-	if ((sc)->mpr_debug & level)			\
+	if ((sc)->mpr_debug & (level))			\
 		device_printf((sc)->mpr_dev, msg, ##args);	\
 } while (0)
 
 #define mpr_dprint_field(sc, level, msg, args...)		\
 do {								\
-	if ((sc)->mpr_debug & level)				\
+	if ((sc)->mpr_debug & (level))				\
 		printf("\t" msg, ##args);			\
 } while (0)
 
@@ -653,8 +653,7 @@ void mpr_intr_locked(void *);
 int mpr_register_events(struct mpr_softc *, uint8_t *, mpr_evt_callback_t *,
     void *, struct mpr_event_handle **);
 int mpr_restart(struct mpr_softc *);
-int mpr_update_events(struct mpr_softc *, struct mpr_event_handle *,
-    uint8_t *);
+int mpr_update_events(struct mpr_softc *, struct mpr_event_handle *, uint8_t *);
 int mpr_deregister_events(struct mpr_softc *, struct mpr_event_handle *);
 int mpr_push_sge(struct mpr_command *, MPI2_SGE_SIMPLE64 *, size_t, int);
 int mpr_push_ieee_sge(struct mpr_command *, void *, int);
@@ -671,8 +670,8 @@ void mprsas_record_event(struct mpr_softc *sc,
     MPI2_EVENT_NOTIFICATION_REPLY *event_reply);
 
 int mpr_map_command(struct mpr_softc *sc, struct mpr_command *cm);
-int mpr_wait_command(struct mpr_softc *sc, struct mpr_command *cm,
-    int timeout, int sleep_flag);
+int mpr_wait_command(struct mpr_softc *sc, struct mpr_command *cm, int timeout,
+    int sleep_flag);
 int mpr_request_polled(struct mpr_softc *sc, struct mpr_command *cm);
 
 int mpr_config_get_bios_pg3(struct mpr_softc *sc, Mpi2ConfigReply_t
@@ -727,11 +726,10 @@ void mpr_mapping_ir_config_change_event(struct mpr_softc *sc,
 void mprsas_evt_handler(struct mpr_softc *sc, uintptr_t data,
     MPI2_EVENT_NOTIFICATION_REPLY *event);
 void mprsas_prepare_remove(struct mprsas_softc *sassc, uint16_t handle);
-void mprsas_prepare_volume_remove(struct mprsas_softc *sassc,
-    uint16_t handle);
+void mprsas_prepare_volume_remove(struct mprsas_softc *sassc, uint16_t handle);
 int mprsas_startup(struct mpr_softc *sc);
-struct mprsas_target * mprsas_find_target_by_handle(struct mprsas_softc *,
-    int, uint16_t);
+struct mprsas_target * mprsas_find_target_by_handle(struct mprsas_softc *, int,
+    uint16_t);
 void mprsas_realloc_targets(struct mpr_softc *sc, int maxtargets);
 struct mpr_command * mprsas_alloc_tm(struct mpr_softc *sc);
 void mprsas_free_tm(struct mpr_softc *sc, struct mpr_command *tm);

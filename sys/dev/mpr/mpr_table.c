@@ -342,9 +342,8 @@ mpr_print_evt_sas(struct mpr_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
 			    "PHY[%d].LinkRate: %s (0x%x)\n", phynum,
 			    mpr_describe_table(mpr_linkrate_names,
 			    (phy->LinkRate >> 4) & 0xf), phy->LinkRate);
-			mpr_dprint_field(sc,MPR_EVENT,"PHY[%d].PhyStatus: "
-			    "%s\n", phynum,
-			    mpr_describe_table(mpr_phystatus_names,
+			mpr_dprint_field(sc,MPR_EVENT,"PHY[%d].PhyStatus: %s\n",
+			    phynum, mpr_describe_table(mpr_phystatus_names,
 			    phy->PhyStatus));
 		}
 		break;
