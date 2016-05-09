@@ -671,7 +671,7 @@ linux_file_poll(struct file *file, int events, struct ucred *active_cred,
 	else
 		revents = 0;
 
-	return (0);
+	return (revents);
 }
 
 static int
