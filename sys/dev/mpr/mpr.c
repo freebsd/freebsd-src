@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2009 Yahoo! Inc.
  * Copyright (c) 2011-2015 LSI Corp.
- * Copyright (c) 2013-2015 Avago Technologies
+ * Copyright (c) 2013-2016 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -92,14 +92,11 @@ static __inline void mpr_complete_command(struct mpr_softc *sc,
     struct mpr_command *cm);
 static void mpr_dispatch_event(struct mpr_softc *sc, uintptr_t data,
     MPI2_EVENT_NOTIFICATION_REPLY *reply);
-static void mpr_config_complete(struct mpr_softc *sc,
-    struct mpr_command *cm);
+static void mpr_config_complete(struct mpr_softc *sc, struct mpr_command *cm);
 static void mpr_periodic(void *);
 static int mpr_reregister_events(struct mpr_softc *sc);
-static void mpr_enqueue_request(struct mpr_softc *sc,
-    struct mpr_command *cm);
-static int mpr_get_iocfacts(struct mpr_softc *sc,
-    MPI2_IOC_FACTS_REPLY *facts);
+static void mpr_enqueue_request(struct mpr_softc *sc, struct mpr_command *cm);
+static int mpr_get_iocfacts(struct mpr_softc *sc, MPI2_IOC_FACTS_REPLY *facts);
 static int mpr_wait_db_ack(struct mpr_softc *sc, int timeout, int sleep_flag);
 SYSCTL_NODE(_hw, OID_AUTO, mpr, CTLFLAG_RD, 0, "MPR Driver Parameters");
 
@@ -550,8 +547,8 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 	error = mpr_transition_operational(sc);
 	if (error != 0) {
 		if (attaching) {
-			mpr_printf(sc, "%s failed to transition to "
-			    "operational with error %d\n", __func__, error);
+			mpr_printf(sc, "%s failed to transition to operational "
+			    "with error %d\n", __func__, error);
 			mpr_free(sc);
 			return (error);
 		} else {
@@ -685,7 +682,7 @@ mpr_reinit(struct mpr_softc *sc)
 
 	if (sc->mpr_flags & MPR_FLAGS_DIAGRESET) {
 		mpr_dprint(sc, MPR_INIT, "%s reset already in progress\n",
-			   __func__);
+		    __func__);
 		return 0;
 	}
 
@@ -1712,9 +1709,9 @@ mpr_complete_command(struct mpr_softc *sc, struct mpr_command *cm)
 
 	if (cm->cm_complete != NULL) {
 		mpr_dprint(sc, MPR_TRACE,
-			   "%s cm %p calling cm_complete %p data %p reply %p\n",
-			   __func__, cm, cm->cm_complete, cm->cm_complete_data,
-			   cm->cm_reply);
+		    "%s cm %p calling cm_complete %p data %p reply %p\n",
+		    __func__, cm, cm->cm_complete, cm->cm_complete_data,
+		    cm->cm_reply);
 		cm->cm_complete(sc, cm);
 	}
 
@@ -1772,9 +1769,8 @@ mpr_sas_log_info(struct mpr_softc *sc , u32 log_info)
 	}
  
 	mpr_dprint(sc, MPR_INFO, "log_info(0x%08x): originator(%s), "
-	    "code(0x%02x), sub_code(0x%04x)\n", log_info,
-	    originator_str, sas_loginfo.dw.code,
-	    sas_loginfo.dw.subcode);
+	    "code(0x%02x), sub_code(0x%04x)\n", log_info, originator_str,
+	    sas_loginfo.dw.code, sas_loginfo.dw.subcode);
 }
 
 static void
@@ -2463,10 +2459,9 @@ mpr_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	 * user they did the wrong thing.
 	 */
 	if ((cm->cm_max_segs != 0) && (nsegs > cm->cm_max_segs)) {
-		mpr_dprint(sc, MPR_ERROR,
-			   "%s: warning: busdma returned %d segments, "
-			   "more than the %d allowed\n", __func__, nsegs,
-			   cm->cm_max_segs);
+		mpr_dprint(sc, MPR_ERROR, "%s: warning: busdma returned %d "
+		    "segments, more than the %d allowed\n", __func__, nsegs,
+		    cm->cm_max_segs);
 	}
 
 	/*
@@ -2663,8 +2658,8 @@ mpr_request_polled(struct mpr_softc *sc, struct mpr_command *cm)
 	if (error) {
 		mpr_dprint(sc, MPR_FAULT, "Calling Reinit from %s\n", __func__);
 		rc = mpr_reinit(sc);
-		mpr_dprint(sc, MPR_FAULT, "Reinit %s\n", (rc == 0) ?
-		    "success" : "failed");
+		mpr_dprint(sc, MPR_FAULT, "Reinit %s\n", (rc == 0) ? "success" :
+		    "failed");
 	}
 	return (error);
 }
