@@ -46,6 +46,8 @@
 #define MPR_SGE64_SIZE		12
 #define MPR_SGE32_SIZE		8
 #define MPR_SGC_SIZE		8
+#define MPR_DEFAULT_CHAIN_SEG_SIZE	8
+#define MPR_MAX_CHAIN_ELEMENT_SIZE	16
 
 #define MPR_FUNCTRACE(sc)			\
 	mpr_dprint((sc), MPR_TRACE, "%s\n", __func__)
@@ -263,6 +265,8 @@ struct mpr_softc {
 	int				chain_free;
 	int				max_chains;
 	int				chain_free_lowwater;
+	uint32_t			chain_frame_size;
+	uint16_t			chain_seg_size;
 	u_int				enable_ssu;
 	int				spinup_wait_time;
 	uint64_t			chain_alloc_fail;
