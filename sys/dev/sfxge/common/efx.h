@@ -155,10 +155,6 @@ efx_nic_pcie_tune(
 	__in		efx_nic_t *enp,
 	unsigned int	nlanes);
 
-extern	__checkReturn	efx_rc_t
-efx_nic_pcie_extended_sync(
-	__in		efx_nic_t *enp);
-
 #endif	/* EFSYS_OPT_PCIE_TUNE */
 
 extern	__checkReturn	efx_rc_t
