@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 28, 2016
+.Dd May 10, 2016
 .Dt BUS_ACTIVATE_RESOURCE 9
 .Os
 .Sh NAME
@@ -90,7 +90,7 @@ returned by
 .El
 .Ss Resource Mapping
 Resources which can be mapped for CPU access by a
-.Xr bus_space
+.Xr bus_space 9
 tag and handle will create a mapping of the entire resource when activated.
 The tag and handle for this mapping are stored in
 .Fa r
@@ -133,6 +133,7 @@ resource:
 Zero is returned on success, otherwise an error is returned.
 .Sh SEE ALSO
 .Xr bus_alloc_resource 9 ,
+.Xr bus_space 9 ,
 .Xr device 9 ,
 .Xr driver 9
 .Sh AUTHORS
