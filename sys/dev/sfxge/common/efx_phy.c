@@ -34,10 +34,6 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-#if EFSYS_OPT_PHY_NULL
-#include "nullphy.h"
-#endif
-
 #if EFSYS_OPT_PHY_QT2022C2
 #include "qt2022c2.h"
 #endif
@@ -57,34 +53,6 @@ __FBSDID("$FreeBSD$");
 #if EFSYS_OPT_PHY_QT2025C
 #include "qt2025c.h"
 #endif
-
-#if EFSYS_OPT_PHY_NULL
-static efx_phy_ops_t	__efx_phy_null_ops = {
-	NULL,				/* epo_power */
-	nullphy_reset,			/* epo_reset */
-	nullphy_reconfigure,		/* epo_reconfigure */
-	nullphy_verify,			/* epo_verify */
-	NULL,				/* epo_uplink_check */
-	nullphy_downlink_check,		/* epo_downlink_check */
-	nullphy_oui_get,		/* epo_oui_get */
-#if EFSYS_OPT_PHY_STATS
-	nullphy_stats_update,		/* epo_stats_update */
-#endif	/* EFSYS_OPT_PHY_STATS */
-#if EFSYS_OPT_PHY_PROPS
-#if EFSYS_OPT_NAMES
-	nullphy_prop_name,		/* epo_prop_name */
-#endif
-	nullphy_prop_get,		/* epo_prop_get */
-	nullphy_prop_set,		/* epo_prop_set */
-#endif	/* EFSYS_OPT_PHY_PROPS */
-#if EFSYS_OPT_BIST
-	NULL,				/* epo_bist_enable_offline */
-	NULL,				/* epo_bist_start */
-	NULL,				/* epo_bist_poll */
-	NULL,				/* epo_bist_stop */
-#endif	/* EFSYS_OPT_BIST */
-};
-#endif	/* EFSYS_OPT_PHY_NULL */
 
 #if EFSYS_OPT_PHY_QT2022C2
 static efx_phy_ops_t	__efx_phy_qt2022c2_ops = {
