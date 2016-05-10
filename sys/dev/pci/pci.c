@@ -4925,7 +4925,8 @@ pci_child_location_str_method(device_t dev, device_t child, char *buf,
     size_t buflen)
 {
 
-	snprintf(buf, buflen, "pci%d:%d:%d:%d", pci_get_domain(child),
+	snprintf(buf, buflen, "slot=%d function=%d dbsf=pci%d:%d:%d:%d",
+	    pci_get_slot(child), pci_get_function(child), pci_get_domain(child),
 	    pci_get_bus(child), pci_get_slot(child), pci_get_function(child));
 	return (0);
 }
