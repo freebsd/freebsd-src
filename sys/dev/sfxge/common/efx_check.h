@@ -47,7 +47,6 @@
 # error "FALCON is obsolete and is not supported."
 #else
 /* FIXME: remove this after Falcon support has been removed */
-#define	EFSYS_OPT_PHY_SFX7101			(0)
 #define	EFSYS_OPT_PHY_TXC43128			(0)
 #endif
 
@@ -267,12 +266,9 @@
 # error "PHY_SFT9001 is obsolete and is not supported."
 #endif
 
-/* Support SFX7101 PHY (SFE4001 NIC) */
-#if EFSYS_OPT_PHY_SFX7101
-# if !EFSYS_OPT_FALCON
-#  error "PHY_SFX7101 requires FALCON"
-# endif
-#endif /* EFSYS_OPT_PHY_SFX7101 */
+#ifdef EFSYS_OPT_PHY_SFX7101
+# error "PHY_SFX7101 is obsolete and is not supported."
+#endif
 
 /* Support PHY statistics */
 #if EFSYS_OPT_PHY_STATS
