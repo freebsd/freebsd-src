@@ -38,10 +38,6 @@ __FBSDID("$FreeBSD$");
 #include "nullmon.h"
 #endif
 
-#if EFSYS_OPT_MON_MAX6647
-#include "max6647.h"
-#endif
-
 #if EFSYS_OPT_MON_MCDI
 #include "mcdi_mon.h"
 #endif
@@ -83,16 +79,6 @@ static efx_mon_ops_t	__efx_mon_null_ops = {
 };
 #endif
 
-#if EFSYS_OPT_MON_MAX6647
-static efx_mon_ops_t	__efx_mon_max6647_ops = {
-	max6647_reset,			/* emo_reset */
-	max6647_reconfigure,		/* emo_reconfigure */
-#if EFSYS_OPT_MON_STATS
-	max6647_stats_update		/* emo_stats_update */
-#endif	/* EFSYS_OPT_MON_STATS */
-};
-#endif
-
 #if EFSYS_OPT_MON_MCDI
 static efx_mon_ops_t	__efx_mon_mcdi_ops = {
 	NULL,				/* emo_reset */
@@ -130,11 +116,6 @@ efx_mon_init(
 #if EFSYS_OPT_MON_NULL
 	case EFX_MON_NULL:
 		emop = &__efx_mon_null_ops;
-		break;
-#endif
-#if EFSYS_OPT_MON_MAX6647
-	case EFX_MON_MAX6647:
-		emop = &__efx_mon_max6647_ops;
 		break;
 #endif
 #if EFSYS_OPT_MON_MCDI
