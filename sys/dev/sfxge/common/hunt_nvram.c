@@ -472,7 +472,7 @@ fail1:
 
 /* Validate TLV formatted partition contents (before writing to flash) */
 	__checkReturn		efx_rc_t
-efx_nvram_tlv_validate(
+ef10_nvram_buffer_validate(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
 	__in_bcount(partn_size)	caddr_t partn_data,
