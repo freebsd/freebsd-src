@@ -47,8 +47,6 @@
 # error "FALCON is obsolete and is not supported."
 #else
 /* FIXME: remove this after Falcon support has been removed */
-#define	EFSYS_OPT_MON_NULL			(0)
-
 #define	EFSYS_OPT_NVRAM_FALCON_BOOTROM		(0)
 #define	EFSYS_OPT_NVRAM_SFT9001			(0)
 #define	EFSYS_OPT_NVRAM_SFX7101			(0)
@@ -170,12 +168,9 @@
 # error "MON_MAX6647 is obsolete and is not supported."
 #endif
 
-/* Support null monitor */
-#if EFSYS_OPT_MON_NULL
-# if !EFSYS_OPT_FALCON
-#  error "MON_NULL requires FALCON"
-# endif
-#endif /* EFSYS_OPT_MON_NULL */
+#ifdef EFSYS_OPT_MON_NULL
+# error "MON_NULL is obsolete and is not supported."
+#endif
 
 /* Obsolete option */
 #ifdef EFSYS_OPT_MON_SIENA
