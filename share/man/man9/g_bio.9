@@ -31,7 +31,8 @@
 .Nm g_new_bio ,
 .Nm g_clone_bio ,
 .Nm g_destroy_bio ,
-.Nm g_print_bio
+.Nm g_print_bio ,
+.Nm g_reset_bio
 .Nd "GEOM bio controlling functions"
 .Sh SYNOPSIS
 .In sys/bio.h
@@ -48,6 +49,8 @@
 .Fn g_destroy_bio "struct bio *bp"
 .Ft void
 .Fn g_print_bio "struct bio *bp"
+.Ft void
+.Fn g_reset_bio "struct bio *bp"
 .Sh DESCRIPTION
 A
 .Vt "struct bio"
@@ -205,6 +208,32 @@ The
 function prints information about the given
 .Vt bio
 structure (for debugging purposes).
+.Pp
+The
+.Fn g_reset_bio
+function resets the given
+.Vt bio
+for reuse.
+Prior to
+.Fx 11
+a
+.Vt bio
+was reset for reuse with
+.Xr bzero 3 .
+.Fn g_reset_bio
+preserves internal data structures, while resetting all
+user visible values.
+Its use is required for any
+.Vt bio
+that has been returned by
+.Fn g_new_bio ,
+.Fn g_alloc_bio ,
+.Fn g_clone_bio ,
+or
+.Fn g_duplicate_bio .
+It may be used for a
+.Vt bio
+created in another way, but that is not required.
 .Sh RETURN VALUES
 The
 .Fn g_new_bio
