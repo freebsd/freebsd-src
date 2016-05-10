@@ -685,11 +685,6 @@ mpr_user_command(struct mpr_softc *sc, struct mpr_usr_command *cmd)
 
 	if (cmd->len > 0) {
 		buf = malloc(cmd->len, M_MPRUSER, M_WAITOK|M_ZERO);
-		if (!buf) {
-			mpr_printf(sc, "Cannot allocate memory %s %d\n",
-			    __func__, __LINE__);
-			return (ENOMEM);
-		}
 		cm->cm_data = buf;
 		cm->cm_length = cmd->len;
 	} else {
@@ -916,25 +911,20 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 	if (cm->cm_length != 0) {
 		cm->cm_data = malloc(cm->cm_length, M_MPRUSER, M_WAITOK |
 		    M_ZERO);
-		if (cm->cm_data == NULL) {
-			mpr_dprint(sc, MPR_FAULT, "%s: alloc failed for IOCTL "
-			    "passthru length %d\n", __func__, cm->cm_length);
-		} else {
-			cm->cm_flags = MPR_CM_FLAGS_DATAIN;
-			if (data->DataOutSize) {
-				cm->cm_flags |= MPR_CM_FLAGS_DATAOUT;
-				err = copyin(PTRIN(data->PtrDataOut),
-				    cm->cm_data, data->DataOutSize);
-			} else if (data->DataDirection ==
-			    MPR_PASS_THRU_DIRECTION_WRITE) {
-				cm->cm_flags = MPR_CM_FLAGS_DATAOUT;
-				err = copyin(PTRIN(data->PtrData),
-				    cm->cm_data, data->DataSize);
-			}
-			if (err != 0)
-				mpr_dprint(sc, MPR_FAULT, "%s: failed to copy "
-				    "IOCTL data from user space\n", __func__);
+		cm->cm_flags = MPR_CM_FLAGS_DATAIN;
+		if (data->DataOutSize) {
+			cm->cm_flags |= MPR_CM_FLAGS_DATAOUT;
+			err = copyin(PTRIN(data->PtrDataOut),
+			    cm->cm_data, data->DataOutSize);
+		} else if (data->DataDirection ==
+		    MPR_PASS_THRU_DIRECTION_WRITE) {
+			cm->cm_flags = MPR_CM_FLAGS_DATAOUT;
+			err = copyin(PTRIN(data->PtrData),
+			    cm->cm_data, data->DataSize);
 		}
+		if (err != 0)
+			mpr_dprint(sc, MPR_FAULT, "%s: failed to copy "
+			    "IOCTL data from user space\n", __func__);
 	}
 	/*
 	 * Set this flag only if processing a command that does not need an
@@ -2118,11 +2108,6 @@ mpr_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 		break;
 	case MPRIO_READ_CFG_PAGE:
 		mpr_page = malloc(page_req->len, M_MPRUSER, M_WAITOK | M_ZERO);
-		if (!mpr_page) {
-			mpr_printf(sc, "Cannot allocate memory %s %d\n",
-			    __func__, __LINE__);
-			return (ENOMEM);
-		}
 		error = copyin(page_req->buf, mpr_page,
 		    sizeof(MPI2_CONFIG_PAGE_HEADER));
 		if (error)
@@ -2142,11 +2127,6 @@ mpr_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 	case MPRIO_READ_EXT_CFG_PAGE:
 		mpr_page = malloc(ext_page_req->len, M_MPRUSER,
 		    M_WAITOK | M_ZERO);
-		if (!mpr_page) {
-			mpr_printf(sc, "Cannot allocate memory %s %d\n",
-			    __func__, __LINE__);
-			return (ENOMEM);
-		}
 		error = copyin(ext_page_req->buf, mpr_page,
 		    sizeof(MPI2_CONFIG_EXTENDED_PAGE_HEADER));
 		if (error)
@@ -2160,11 +2140,6 @@ mpr_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 		break;
 	case MPRIO_WRITE_CFG_PAGE:
 		mpr_page = malloc(page_req->len, M_MPRUSER, M_WAITOK|M_ZERO);
-		if (!mpr_page) {
-			mpr_printf(sc, "Cannot allocate memory %s %d\n",
-			    __func__, __LINE__);
-			return (ENOMEM);
-		}
 		error = copyin(page_req->buf, mpr_page, page_req->len);
 		if (error)
 			break;
