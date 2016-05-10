@@ -878,7 +878,26 @@ bcma_erom_parse_corecfg(struct bcma_erom *erom, struct bcma_corecfg **result)
 	for (uint8_t i = 0; i < core.num_swrap; i++) {
 		/* Slave wrapper ports are not numbered distinctly from master
 		 * wrapper ports. */
-		uint8_t sp_num = core.num_mwrap + i;
+
+		/* 
+		 * Broadcom DDR1/DDR2 Memory Controller
+		 * (cid=82e, rev=1, unit=0, d/mw/sw = 2/0/1 ) ->
+		 * bhnd0: erom[0xdc]: core6 agent0.0: mismatch got: 0x1 (0x2)
+		 *
+		 * ARM BP135 AMBA3 AXI to APB Bridge
+		 * (cid=135, rev=0, unit=0, d/mw/sw = 1/0/1 ) ->
+		 * bhnd0: erom[0x124]: core9 agent1.0: mismatch got: 0x0 (0x2)
+		 *
+		 * core.num_mwrap
+		 * ===>
+		 * (core.num_mwrap > 0) ?
+		 *           core.num_mwrap :
+		 *           ((core.vendor == BHND_MFGID_BCM) ? 1 : 0)
+		 */
+		uint8_t sp_num;
+		sp_num = (core.num_mwrap > 0) ?
+				core.num_mwrap :
+				((core.vendor == BHND_MFGID_BCM) ? 1 : 0) + i;
 		error = erom_corecfg_fill_port_regions(erom, cfg, sp_num,
 		    BCMA_EROM_REGION_TYPE_SWRAP);
 
