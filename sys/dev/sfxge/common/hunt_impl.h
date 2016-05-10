@@ -458,6 +458,14 @@ ef10_nvram_partn_set_version(
 	__in			uint32_t partn,
 	__in_ecount(4)		uint16_t version[4]);
 
+extern	__checkReturn		efx_rc_t
+ef10_nvram_buffer_validate(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size);
+
 #endif	/* EFSYS_OPT_NVRAM */
 
 
