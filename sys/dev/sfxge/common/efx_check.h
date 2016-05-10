@@ -47,7 +47,6 @@
 # error "FALCON is obsolete and is not supported."
 #else
 /* FIXME: remove this after Falcon support has been removed */
-#define	EFSYS_OPT_NVRAM_SFT9001			(0)
 #define	EFSYS_OPT_NVRAM_SFX7101			(0)
 
 #define	EFSYS_OPT_PHY_NULL			(0)
@@ -215,15 +214,9 @@
 # error "NVRAM_FALCON_BOOTROM is obsolete and is not supported."
 #endif
 
-/* Support NVRAM config for SFT9001 */
-#if EFSYS_OPT_NVRAM_SFT9001
-# if !EFSYS_OPT_NVRAM
-#  error "NVRAM_SFT9001 requires NVRAM"
-# endif
-# if !EFSYS_OPT_FALCON
-#  error "NVRAM_SFT9001 requires FALCON"
-# endif
-#endif /* EFSYS_OPT_NVRAM_SFT9001 */
+#ifdef EFSYS_OPT_NVRAM_SFT9001
+# error "NVRAM_SFT9001 is obsolete and is not supported."
+#endif
 
 /* Support NVRAM config for SFX7101 */
 #if EFSYS_OPT_NVRAM_SFX7101
