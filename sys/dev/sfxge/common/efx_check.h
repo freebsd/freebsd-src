@@ -47,8 +47,6 @@
 # error "FALCON is obsolete and is not supported."
 #else
 /* FIXME: remove this after Falcon support has been removed */
-#define	EFSYS_OPT_FALCON_NIC_CFG_OVERRIDE	(0)
-
 #define	EFSYS_OPT_MAC_FALCON_GMAC		(0)
 #define	EFSYS_OPT_MAC_FALCON_XMAC		(0)
 
@@ -103,12 +101,9 @@
 # endif
 #endif /* EFSYS_OPT_EV_PREFETCH */
 
-/* Support overriding the NVRAM and VPD configuration */
-#if EFSYS_OPT_FALCON_NIC_CFG_OVERRIDE
-# if !EFSYS_OPT_FALCON
-#  error "FALCON_NIC_CFG_OVERRIDE requires FALCON"
-# endif
-#endif /* EFSYS_OPT_FALCON_NIC_CFG_OVERRIDE */
+#ifdef EFSYS_OPT_FALCON_NIC_CFG_OVERRIDE
+# error "FALCON_NIC_CFG_OVERRIDE is obsolete and is not supported."
+#endif
 
 /* Support hardware packet filters */
 #if EFSYS_OPT_FILTER
