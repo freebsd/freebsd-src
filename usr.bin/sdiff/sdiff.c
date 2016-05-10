@@ -430,7 +430,8 @@ main(int argc, char **argv)
 		/* Close open files and pipe, delete temps */
 		fclose(file1);
 		fclose(file2);
-		fclose(diffpipe);
+		if (diffpipe != NULL)
+			fclose(diffpipe);
 		if (tmp1)
 			if (unlink(tmp1))
 				warn("Error deleting %s.", tmp1);
