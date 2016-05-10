@@ -1303,11 +1303,11 @@ syscallcheri_helper_unregister(struct syscall_helper_data *sd)
 }
 #endif
 
-#define sucap(uaddr, base, length, perms)				\
+#define sucap(uaddr, base, offset, length, perms)			\
 	do {								\
 		struct chericap	_tmpcap;				\
 		cheri_capability_set(&_tmpcap, (perms), NULL, (base),	\
-		    (length), 0);					\
+		    (length), (offset));				\
 		copyoutcap(&_tmpcap, uaddr, sizeof(_tmpcap));		\
 	} while(0)
 
@@ -1426,7 +1426,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
-	sucap(&arginfo->ps_argvstr, vectp, argc * sizeof(struct chericap),
+	sucap(&arginfo->ps_argvstr, vectp, 0, argc * sizeof(struct chericap),
 	    CHERI_CAP_USER_DATA_PERMS);
 	suword32(&arginfo->ps_nargvstr, argc);
 
@@ -1436,7 +1436,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	cheri_capability_set(&ce.ce_argv, CHERI_CAP_USER_DATA_PERMS, NULL,
 	    vectp, (argc + 1) * sizeof(struct chericap), 0);
 	for (; argc > 0; --argc) {
-		sucap(vectp++, (void *)destp, strlen(stringp) + 1,
+		sucap(vectp++, (void *)destp, 0, strlen(stringp) + 1,
 		    CHERI_CAP_USER_DATA_PERMS);
 		while (*stringp++ != 0)
 			destp++;
@@ -1447,7 +1447,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	/* XXX: suword clears the tag */
 	suword(vectp++, 0);
 
-	sucap(&arginfo->ps_envstr, vectp,
+	sucap(&arginfo->ps_envstr, vectp, 0,
 	    arginfo->ps_nenvstr * sizeof(struct chericap),
 	    CHERI_CAP_USER_DATA_PERMS);
 	suword32(&arginfo->ps_nenvstr, envc);
@@ -1458,7 +1458,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	cheri_capability_set(&ce.ce_envp, CHERI_CAP_USER_DATA_PERMS, NULL,
 	    vectp, (envc + 1) * sizeof(struct chericap), 0);
 	for (; envc > 0; --envc) {
-		sucap(vectp++, (void *)destp, strlen(stringp) + 1,
+		sucap(vectp++, (void *)destp, 0, strlen(stringp) + 1,
 		    CHERI_CAP_USER_DATA_PERMS);
 		while (*stringp++ != 0)
 			destp++;
@@ -1520,8 +1520,11 @@ convert_sigevent_c(struct sigevent_c *sig_c, struct sigevent *sig)
 	return (0);
 }
 
-#define	AUXARGS_ENTRY_CAP(pos, id, base, len, perm)	\
-		{suword(pos++, id); sucap(pos++, (void *)(intptr_t)base, len, perm);}
+#define	AUXARGS_ENTRY_CAP(pos, id, base, offset, len, perm)		\
+	do {								\
+		suword(pos++, id); sucap(pos++, (void *)(intptr_t)base,	\
+		    offset, len, perm);					\
+	} while(0)
 
 /*
  * Write out ELF auxilery arguments.  In CheriABI, Elf64_Auxinfo pads out to:
@@ -1545,37 +1548,45 @@ cheriabi_set_auxargs(struct chericap *pos, struct image_params *imgp)
 
 	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
-	AUXARGS_ENTRY_CAP(pos, AT_PHDR, args->phdr, args->phent * args->phnum,
-	    CHERI_CAP_USER_DATA_PERMS);
+	AUXARGS_ENTRY_CAP(pos, AT_PHDR, args->phdr, 0,
+	    args->phent * args->phnum, CHERI_CAP_USER_DATA_PERMS);
 	AUXARGS_ENTRY(pos, AT_PHENT, args->phent);
 	AUXARGS_ENTRY(pos, AT_PHNUM, args->phnum);
 	AUXARGS_ENTRY(pos, AT_PAGESZ, args->pagesz);
 	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
-	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);	/* XXX: pcc relative? */
-	AUXARGS_ENTRY(pos, AT_BASE, args->base);	/* XXX: cap? */
+	CTASSERT(CHERI_CAP_USER_CODE_BASE == 0);
+	/*
+	 * XXX-BD: the should be bounded to the mapping, but for now
+	 * they aren't as struct image_params doesn't contain the
+	 * mapping and we're not ensuring a representable capability.
+	 */
+	AUXARGS_ENTRY_CAP(pos, AT_ENTRY, CHERI_CAP_USER_CODE_BASE, args->entry,
+	    CHERI_CAP_USER_CODE_LENGTH, CHERI_CAP_USER_CODE_PERMS);
+	AUXARGS_ENTRY_CAP(pos, AT_BASE, CHERI_CAP_USER_DATA_BASE, args->base,
+	    CHERI_CAP_USER_DATA_LENGTH, CHERI_CAP_USER_DATA_PERMS);
 #ifdef AT_EHDRFLAGS
 	AUXARGS_ENTRY(pos, AT_EHDRFLAGS, args->hdr_eflags);
 #endif
 	if (imgp->execpathp != 0)
-		AUXARGS_ENTRY_CAP(pos, AT_EXECPATH, imgp->execpathp,
+		AUXARGS_ENTRY_CAP(pos, AT_EXECPATH, imgp->execpathp, 0,
 		    strlen(imgp->execpath) + 1,
 		    CHERI_CAP_USER_DATA_PERMS);
 	AUXARGS_ENTRY(pos, AT_OSRELDATE,
 	    imgp->proc->p_ucred->cr_prison->pr_osreldate);
 	if (imgp->canary != 0) {
-		AUXARGS_ENTRY_CAP(pos, AT_CANARY, imgp->canary,
+		AUXARGS_ENTRY_CAP(pos, AT_CANARY, imgp->canary, 0,
 		    imgp->canarylen, CHERI_CAP_USER_DATA_PERMS);
 		AUXARGS_ENTRY(pos, AT_CANARYLEN, imgp->canarylen);
 	}
 	AUXARGS_ENTRY(pos, AT_NCPUS, mp_ncpus);
 	if (imgp->pagesizes != 0) {
-		AUXARGS_ENTRY_CAP(pos, AT_PAGESIZES, imgp->pagesizes,
+		AUXARGS_ENTRY_CAP(pos, AT_PAGESIZES, imgp->pagesizes, 0,
 		   imgp->pagesizeslen, CHERI_CAP_USER_DATA_PERMS);
 		AUXARGS_ENTRY(pos, AT_PAGESIZESLEN, imgp->pagesizeslen);
 	}
 	if (imgp->sysent->sv_timekeep_base != 0) {
 		AUXARGS_ENTRY_CAP(pos, AT_TIMEKEEP,
-		    imgp->sysent->sv_timekeep_base,
+		    imgp->sysent->sv_timekeep_base, 0,
 		    sizeof(struct vdso_timekeep) +
 		    sizeof(struct vdso_timehands) * VDSO_TH_NUM,
 		    CHERI_CAP_USER_DATA_PERMS); /* XXX: readonly? */
