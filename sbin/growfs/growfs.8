@@ -37,7 +37,7 @@
 .\" $TSHeader: src/sbin/growfs/growfs.8,v 1.3 2000/12/12 19:31:00 tomsoft Exp $
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2014
+.Dd May 10, 2016
 .Dt GROWFS 8
 .Os
 .Sh NAME
@@ -99,16 +99,15 @@ will enlarge the file system to the size of the entire partition).
 Expand root file system to fill up available space:
 .Dl growfs /
 .Pp
-Resize
-.Pa /dev/ada0p1
-partition to 2GB and expand the file system:
-.Dl gpart resize -i 1 -s 2G ada0
-.Dl growfs -s 2G /dev/ada0p1
+Refresh the LUN size, resize the partition to use all available
+capacity, and expand the filesystem accordingly:
+.Dl camcontrol reprobe da0
+.Dl gpart recover da0
+.Dl gpart resize -i 1 da0
+.Dl growfs /dev/da0p1
 .Sh SEE ALSO
-.Xr dumpfs 8 ,
-.Xr ffsinfo 8 ,
+.Xr camcontrol 8 ,
 .Xr fsck 8 ,
-.Xr fsdb 8 ,
 .Xr gpart 8 ,
 .Xr newfs 8 ,
 .Xr tunefs 8
