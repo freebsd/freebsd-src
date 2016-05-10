@@ -1233,7 +1233,7 @@ zfs_create_boot()
 	#
 	# Create the gmirror(8) GEOMS for swap
 	#
-	if [ "$ZFSBOOT_SWAP_MIRROR" ]; then
+	if [ ${swapsize:-0} -gt 0 -a "$ZFSBOOT_SWAP_MIRROR" ]; then
 		for disk in $disks; do
 			swap_devs="$swap_devs $disk$swappart"
 		done
