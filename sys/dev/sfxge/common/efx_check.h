@@ -160,15 +160,13 @@
 # error "MON_NULL is obsolete and is not supported."
 #endif
 
-/* Obsolete option */
 #ifdef EFSYS_OPT_MON_SIENA
 #  error "MON_SIENA is obsolete (replaced by MON_MCDI)."
-#endif /* EFSYS_OPT_MON_SIENA*/
+#endif
 
-/* Obsolete option */
 #ifdef EFSYS_OPT_MON_HUNTINGTON
 #  error "MON_HUNTINGTON is obsolete (replaced by MON_MCDI)."
-#endif /* EFSYS_OPT_MON_HUNTINGTON*/
+#endif
 
 /* Support monitor statistics (voltage/temperature) */
 #if EFSYS_OPT_MON_STATS
@@ -216,7 +214,6 @@
 # error "PCIE_TUNE is obsolete and is not supported."
 #endif
 
-/* Obsolete option */
 #ifdef EFSYS_OPT_PHY_BIST
 # error "PHY_BIST is obsolete (replaced by BIST)."
 #endif
@@ -239,7 +236,6 @@
 # error "PHY_NULL is obsolete and is not supported."
 #endif
 
-/* Obsolete option */
 #ifdef EFSYS_OPT_PHY_PM8358
 # error "EFSYS_OPT_PHY_PM8358 is obsolete and is not supported."
 #endif
@@ -285,10 +281,9 @@
 # endif
 #endif /* EFSYS_OPT_QSTATS */
 
-/* Obsolete option */
 #ifdef EFSYS_OPT_RX_HDR_SPLIT
 # error "RX_HDR_SPLIT is obsolete and is not supported"
-#endif /* EFSYS_OPT_RX_HDR_SPLIT */
+#endif
 
 /* Support receive scaling (RSS) */
 #if EFSYS_OPT_RX_SCALE
@@ -304,7 +299,6 @@
 # endif
 #endif /* EFSYS_OPT_RX_SCATTER */
 
-/* Obsolete option */
 #ifdef EFSYS_OPT_STAT_NAME
 # error "STAT_NAME is obsolete (replaced by NAMES)."
 #endif
@@ -323,10 +317,9 @@
 # endif
 #endif /* EFSYS_OPT_WOL */
 
-/* Obsolete option */
 #ifdef EFSYS_OPT_MCAST_FILTER_LIST
 #  error "MCAST_FILTER_LIST is obsolete and is not supported"
-#endif /* EFSYS_OPT_MCAST_FILTER_LIST */
+#endif
 
 /* Support BIST */
 #if EFSYS_OPT_BIST
