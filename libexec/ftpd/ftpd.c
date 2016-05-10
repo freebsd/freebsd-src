@@ -2820,7 +2820,7 @@ myoob(void)
 		return (0);
 	}
 	cp = tmpline;
-	ret = getline(cp, 7, stdin);
+	ret = get_line(cp, 7, stdin);
 	if (ret == -1) {
 		reply(221, "You could at least say goodbye.");
 		dologout(0);
