@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 
 
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
 falconsiena_ev_init(
@@ -106,22 +106,7 @@ falconsiena_ev_qstats_update(
 
 #endif
 
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
-
-#if EFSYS_OPT_FALCON
-static efx_ev_ops_t	__efx_ev_falcon_ops = {
-	falconsiena_ev_init,			/* eevo_init */
-	falconsiena_ev_fini,			/* eevo_fini */
-	falconsiena_ev_qcreate,			/* eevo_qcreate */
-	falconsiena_ev_qdestroy,		/* eevo_qdestroy */
-	falconsiena_ev_qprime,			/* eevo_qprime */
-	falconsiena_ev_qpost,			/* eevo_qpost */
-	falconsiena_ev_qmoderate,		/* eevo_qmoderate */
-#if EFSYS_OPT_QSTATS
-	falconsiena_ev_qstats_update,		/* eevo_qstats_update */
-#endif
-};
-#endif /* EFSYS_OPT_FALCON */
+#endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_SIENA
 static efx_ev_ops_t	__efx_ev_siena_ops = {
@@ -170,12 +155,6 @@ efx_ev_init(
 	}
 
 	switch (enp->en_family) {
-#if EFSYS_OPT_FALCON
-	case EFX_FAMILY_FALCON:
-		eevop = (efx_ev_ops_t *)&__efx_ev_falcon_ops;
-		break;
-#endif /* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
 		eevop = (efx_ev_ops_t *)&__efx_ev_siena_ops;
@@ -451,7 +430,7 @@ efx_ev_qstats_update(
 
 #endif	/* EFSYS_OPT_QSTATS */
 
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
 falconsiena_ev_init(
@@ -1362,7 +1341,7 @@ fail1:
 	return (rc);
 }
 
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+#endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_QSTATS
 #if EFSYS_OPT_NAMES
@@ -1421,7 +1400,7 @@ efx_ev_qstat_name(
 #endif	/* EFSYS_OPT_NAMES */
 #endif	/* EFSYS_OPT_QSTATS */
 
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 
 #if EFSYS_OPT_QSTATS
 static					void
@@ -1467,4 +1446,4 @@ falconsiena_ev_fini(
 	_NOTE(ARGUNUSED(enp))
 }
 
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+#endif /* EFSYS_OPT_SIENA */

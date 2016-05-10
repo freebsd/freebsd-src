@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "efx_impl.h"
 
 
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
 falconsiena_intr_init(
@@ -85,22 +85,8 @@ falconsiena_intr_check_fatal(
 	__in		efx_nic_t *enp);
 
 
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+#endif /* EFSYS_OPT_SIENA */
 
-
-#if EFSYS_OPT_FALCON
-static efx_intr_ops_t	__efx_intr_falcon_ops = {
-	falconsiena_intr_init,			/* eio_init */
-	falconsiena_intr_enable,		/* eio_enable */
-	falconsiena_intr_disable,		/* eio_disable */
-	falconsiena_intr_disable_unlocked,	/* eio_disable_unlocked */
-	falconsiena_intr_trigger,		/* eio_trigger */
-	falconsiena_intr_status_line,		/* eio_status_line */
-	falconsiena_intr_status_message,	/* eio_status_message */
-	falconsiena_intr_fatal,			/* eio_fatal */
-	falconsiena_intr_fini,			/* eio_fini */
-};
-#endif	/* EFSYS_OPT_FALCON */
 
 #if EFSYS_OPT_SIENA
 static efx_intr_ops_t	__efx_intr_siena_ops = {
@@ -155,12 +141,6 @@ efx_intr_init(
 	enp->en_mod_flags |= EFX_MOD_INTR;
 
 	switch (enp->en_family) {
-#if EFSYS_OPT_FALCON
-	case EFX_FAMILY_FALCON:
-		eiop = (efx_intr_ops_t *)&__efx_intr_falcon_ops;
-		break;
-#endif	/* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
 		eiop = (efx_intr_ops_t *)&__efx_intr_siena_ops;
@@ -320,7 +300,7 @@ efx_intr_fatal(
 /* ************************************************************************* */
 /* ************************************************************************* */
 
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
 falconsiena_intr_init(
@@ -607,4 +587,4 @@ falconsiena_intr_fini(
 	EFX_BAR_WRITEO(enp, FR_AZ_INT_ADR_REG_KER, &oword);
 }
 
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+#endif /* EFSYS_OPT_SIENA */

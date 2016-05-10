@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "efx_impl.h"
 
 
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
 falconsiena_rx_init(
@@ -125,31 +125,8 @@ static			void
 falconsiena_rx_qdestroy(
 	__in		efx_rxq_t *erp);
 
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+#endif /* EFSYS_OPT_SIENA */
 
-
-#if EFSYS_OPT_FALCON
-static efx_rx_ops_t __efx_rx_falcon_ops = {
-	falconsiena_rx_init,			/* erxo_init */
-	falconsiena_rx_fini,			/* erxo_fini */
-#if EFSYS_OPT_RX_SCATTER
-	falconsiena_rx_scatter_enable,		/* erxo_scatter_enable */
-#endif
-#if EFSYS_OPT_RX_SCALE
-	falconsiena_rx_scale_mode_set,		/* erxo_scale_mode_set */
-	falconsiena_rx_scale_key_set,		/* erxo_scale_key_set */
-	falconsiena_rx_scale_tbl_set,		/* erxo_scale_tbl_set */
-	falconsiena_rx_prefix_hash,		/* erxo_prefix_hash */
-#endif
-	falconsiena_rx_prefix_pktlen,		/* erxo_prefix_pktlen */
-	falconsiena_rx_qpost,			/* erxo_qpost */
-	falconsiena_rx_qpush,			/* erxo_qpush */
-	falconsiena_rx_qflush,			/* erxo_qflush */
-	falconsiena_rx_qenable,			/* erxo_qenable */
-	falconsiena_rx_qcreate,			/* erxo_qcreate */
-	falconsiena_rx_qdestroy,		/* erxo_qdestroy */
-};
-#endif	/* EFSYS_OPT_FALCON */
 
 #if EFSYS_OPT_SIENA
 static efx_rx_ops_t __efx_rx_siena_ops = {
@@ -219,12 +196,6 @@ efx_rx_init(
 	}
 
 	switch (enp->en_family) {
-#if EFSYS_OPT_FALCON
-	case EFX_FAMILY_FALCON:
-		erxop = (efx_rx_ops_t *)&__efx_rx_falcon_ops;
-		break;
-#endif /* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
 		erxop = (efx_rx_ops_t *)&__efx_rx_siena_ops;
@@ -593,7 +564,7 @@ efx_psuedo_hdr_hash_get(
 }
 #endif	/* EFSYS_OPT_RX_SCALE */
 
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
 falconsiena_rx_init(
@@ -1255,4 +1226,4 @@ falconsiena_rx_fini(
 	_NOTE(ARGUNUSED(enp))
 }
 
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+#endif /* EFSYS_OPT_SIENA */

@@ -42,12 +42,6 @@ efx_family(
 {
 	if (venid == EFX_PCI_VENID_SFC) {
 		switch (devid) {
-#if EFSYS_OPT_FALCON
-		case EFX_PCI_DEVID_FALCON:
-			*efp = EFX_FAMILY_FALCON;
-			return (0);
-#endif /* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 		case EFX_PCI_DEVID_SIENA_F1_UNINIT:
 			/*
@@ -101,6 +95,7 @@ efx_family(
 			return (0);
 #endif /* EFSYS_OPT_MEDFORD */
 
+		case EFX_PCI_DEVID_FALCON:	/* Obsolete, not supported */
 		default:
 			break;
 		}
@@ -146,11 +141,6 @@ efx_infer_family(
 			 * Assume Huntington, as Medford is very similar.
 			 */
 			family = EFX_FAMILY_HUNTINGTON;
-			goto out;
-#endif
-		} else {
-#if EFSYS_OPT_FALCON
-			family = EFX_FAMILY_FALCON;
 			goto out;
 #endif
 		}
@@ -240,26 +230,6 @@ fail1:
 	return (rc);
 }
 
-#if EFSYS_OPT_FALCON
-
-static efx_nic_ops_t	__efx_nic_falcon_ops = {
-	falcon_nic_probe,		/* eno_probe */
-	NULL,				/* eno_board_cfg */
-	NULL,				/* eno_set_drv_limits */
-	falcon_nic_reset,		/* eno_reset */
-	falcon_nic_init,		/* eno_init */
-	NULL,				/* eno_get_vi_pool */
-	NULL,				/* eno_get_bar_region */
-#if EFSYS_OPT_DIAG
-	falcon_sram_test,		/* eno_sram_test */
-	falcon_nic_register_test,	/* eno_register_test */
-#endif	/* EFSYS_OPT_DIAG */
-	falcon_nic_fini,		/* eno_fini */
-	falcon_nic_unprobe,		/* eno_unprobe */
-};
-
-#endif	/* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 
 static efx_nic_ops_t	__efx_nic_siena_ops = {
@@ -346,13 +316,6 @@ efx_nic_create(
 	enp->en_magic = EFX_NIC_MAGIC;
 
 	switch (family) {
-#if EFSYS_OPT_FALCON
-	case EFX_FAMILY_FALCON:
-		enp->en_enop = (efx_nic_ops_t *)&__efx_nic_falcon_ops;
-		enp->en_features = 0;
-		break;
-#endif	/* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
 		enp->en_enop = (efx_nic_ops_t *)&__efx_nic_siena_ops;

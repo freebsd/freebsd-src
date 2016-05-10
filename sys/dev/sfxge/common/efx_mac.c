@@ -42,13 +42,13 @@ __FBSDID("$FreeBSD$");
 #include "falcon_xmac.h"
 #endif
 
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
 falconsiena_mac_multicast_list_set(
 	__in		efx_nic_t *enp);
 
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+#endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_MAC_FALCON_GMAC
 static efx_mac_ops_t	__efx_falcon_gmac_ops = {
@@ -812,45 +812,6 @@ efx_mac_select(
 	}
 #endif
 
-#if EFSYS_OPT_FALCON
-	switch (epp->ep_link_mode) {
-#if EFSYS_OPT_MAC_FALCON_GMAC
-	case EFX_LINK_100HDX:
-	case EFX_LINK_100FDX:
-	case EFX_LINK_1000HDX:
-	case EFX_LINK_1000FDX:
-		type = EFX_MAC_FALCON_GMAC;
-		goto chosen;
-#endif	/* EFSYS_OPT_FALCON_GMAC */
-
-#if EFSYS_OPT_MAC_FALCON_XMAC
-	case EFX_LINK_10000FDX:
-		type = EFX_MAC_FALCON_XMAC;
-		goto chosen;
-#endif	/* EFSYS_OPT_FALCON_XMAC */
-
-	default:
-#if EFSYS_OPT_MAC_FALCON_GMAC && EFSYS_OPT_MAC_FALCON_XMAC
-		/* Only initialise a MAC supported by the PHY */
-		if (epp->ep_phy_cap_mask &
-		    ((1 << EFX_PHY_CAP_1000FDX) |
-		    (1 << EFX_PHY_CAP_1000HDX) |
-		    (1 << EFX_PHY_CAP_100FDX) |
-		    (1 << EFX_PHY_CAP_100HDX) |
-		    (1 << EFX_PHY_CAP_10FDX) |
-		    (1 << EFX_PHY_CAP_10FDX)))
-			type = EFX_MAC_FALCON_GMAC;
-		else
-			type = EFX_MAC_FALCON_XMAC;
-#elif EFSYS_OPT_MAC_FALCON_GMAC
-		type = EFX_MAC_FALCON_GMAC;
-#else
-		type = EFX_MAC_FALCON_XMAC;
-#endif
-		goto chosen;
-	}
-#endif	/* EFSYS_OPT_FALCON */
-
 chosen:
 	EFSYS_ASSERT(type != EFX_MAC_INVALID);
 	EFSYS_ASSERT3U(type, <, EFX_MAC_NTYPES);
@@ -876,7 +837,7 @@ fail1:
 }
 
 
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 
 #define	EFX_MAC_HASH_BITS	(1 << 8)
 
@@ -943,4 +904,4 @@ fail1:
 	return (rc);
 }
 
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+#endif /* EFSYS_OPT_SIENA */

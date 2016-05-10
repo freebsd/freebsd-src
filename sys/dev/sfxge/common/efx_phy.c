@@ -33,10 +33,6 @@ __FBSDID("$FreeBSD$");
 
 #include "efx.h"
 #include "efx_impl.h"
-#if EFSYS_OPT_FALCON
-#include "falcon_nvram.h"
-#endif
-
 #if EFSYS_OPT_MAC_FALCON_XMAC
 #include "falcon_xmac.h"
 #endif
@@ -310,46 +306,6 @@ efx_phy_probe(
 
 	/* Hook in operations structure */
 	switch (enp->en_family) {
-#if EFSYS_OPT_FALCON
-	case EFX_FAMILY_FALCON:
-		switch (epp->ep_phy_type) {
-#if EFSYS_OPT_PHY_NULL
-		case PHY_TYPE_NONE_DECODE:
-			epop = (efx_phy_ops_t *)&__efx_phy_null_ops;
-			break;
-#endif
-#if EFSYS_OPT_PHY_QT2022C2
-		case PHY_TYPE_QT2022C2_DECODE:
-			epop = (efx_phy_ops_t *)&__efx_phy_qt2022c2_ops;
-			break;
-#endif
-#if EFSYS_OPT_PHY_SFX7101
-		case PHY_TYPE_SFX7101_DECODE:
-			epop = (efx_phy_ops_t *)&__efx_phy_sfx7101_ops;
-			break;
-#endif
-#if EFSYS_OPT_PHY_TXC43128
-		case PHY_TYPE_TXC43128_DECODE:
-			epop = (efx_phy_ops_t *)&__efx_phy_txc43128_ops;
-			break;
-#endif
-#if EFSYS_OPT_PHY_SFT9001
-		case PHY_TYPE_SFT9001A_DECODE:
-		case PHY_TYPE_SFT9001B_DECODE:
-			epop = (efx_phy_ops_t *)&__efx_phy_sft9001_ops;
-			break;
-#endif
-#if EFSYS_OPT_PHY_QT2025C
-		case EFX_PHY_QT2025C:
-			epop = (efx_phy_ops_t *)&__efx_phy_qt2025c_ops;
-			break;
-#endif
-		default:
-			rc = ENOTSUP;
-			goto fail1;
-		}
-		break;
-#endif	/* EFSYS_OPT_FALCON */
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
 		epop = (efx_phy_ops_t *)&__efx_phy_siena_ops;
