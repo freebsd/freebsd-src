@@ -45,10 +45,6 @@
 #endif
 
 
-#if EFSYS_OPT_FALCON
-#include "falcon_impl.h"
-#endif	/* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 #include "siena_impl.h"
 #endif	/* EFSYS_OPT_SIENA */
@@ -443,9 +439,9 @@ typedef struct falconsiena_filter_s {
 } falconsiena_filter_t;
 
 typedef struct efx_filter_s {
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 	falconsiena_filter_t	*ef_falconsiena_filter;
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+#endif /* EFSYS_OPT_SIENA */
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 	ef10_filter_table_t	*ef_ef10_filter_table;
 #endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
@@ -668,21 +664,6 @@ struct efx_nic_s {
 	efx_lic_ops_t		*en_elop;
 #endif
 	union {
-#if EFSYS_OPT_FALCON
-		struct {
-			falcon_spi_dev_t	enu_fsd[FALCON_SPI_NTYPES];
-			falcon_i2c_t		enu_fip;
-			boolean_t		enu_i2c_locked;
-#if EFSYS_OPT_FALCON_NIC_CFG_OVERRIDE
-			const uint8_t		*enu_forced_cfg;
-#endif	/* EFSYS_OPT_FALCON_NIC_CFG_OVERRIDE */
-			uint8_t			enu_mon_devid;
-			uint16_t		enu_board_rev;
-			boolean_t		enu_internal_sram;
-			uint8_t			enu_sram_num_bank;
-			uint8_t			enu_sram_bank_size;
-		} falcon;
-#endif	/* EFSYS_OPT_FALCON */
 #if EFSYS_OPT_SIENA
 		struct {
 #if EFSYS_OPT_NVRAM || EFSYS_OPT_VPD
