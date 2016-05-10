@@ -48,14 +48,34 @@ typedef struct tlv_cursor_s {
 	uint32_t	*limit;			/* Last dword of data block */
 } tlv_cursor_t;
 
+typedef struct nvram_partition_s {
+	uint16_t type;
+	uint8_t chip_select;
+	uint8_t flags;
+	/*
+	 * The full length of the NVRAM partition.
+	 * This is different from tlv_partition_header.total_length,
+	 *  which can be smaller.
+	 */
+	uint32_t length;
+	uint32_t erase_size;
+	uint32_t *data;
+	tlv_cursor_t tlv_cursor;
+} nvram_partition_t;
+
+
 static	__checkReturn		efx_rc_t
 tlv_validate_state(
-	__in			tlv_cursor_t *cursor);
+	__inout			tlv_cursor_t *cursor);
 
 
-/*
- * Operations on TLV formatted partition data.
- */
+static				void
+tlv_init_block(
+	__out	uint32_t	*block)
+{
+	*block = __CPU_TO_LE_32(TLV_TAG_END);
+}
+
 static				uint32_t
 tlv_tag(
 	__in	tlv_cursor_t	*cursor)
@@ -122,9 +142,9 @@ tlv_next_item_ptr(
 	return (cursor->current + TLV_DWORD_COUNT(length));
 }
 
-static				efx_rc_t
+static	__checkReturn		efx_rc_t
 tlv_advance(
-	__in	tlv_cursor_t	*cursor)
+	__inout	tlv_cursor_t	*cursor)
 {
 	efx_rc_t rc;
 
@@ -177,7 +197,7 @@ fail1:
 
 static				efx_rc_t
 tlv_find(
-	__in	tlv_cursor_t	*cursor,
+	__inout	tlv_cursor_t	*cursor,
 	__in	uint32_t	tag)
 {
 	efx_rc_t rc;
@@ -194,7 +214,7 @@ tlv_find(
 
 static	__checkReturn		efx_rc_t
 tlv_validate_state(
-	__in	tlv_cursor_t	*cursor)
+	__inout	tlv_cursor_t	*cursor)
 {
 	efx_rc_t rc;
 
@@ -242,31 +262,49 @@ static				efx_rc_t
 tlv_init_cursor(
 	__out	tlv_cursor_t	*cursor,
 	__in	uint32_t	*block,
-	__in	uint32_t	*limit)
+	__in	uint32_t	*limit,
+	__in	uint32_t	*current)
 {
 	cursor->block	= block;
 	cursor->limit	= limit;
 
-	cursor->current	= cursor->block;
+	cursor->current	= current;
 	cursor->end	= NULL;
 
 	return (tlv_validate_state(cursor));
 }
 
-static				efx_rc_t
+static	__checkReturn		efx_rc_t
 tlv_init_cursor_from_size(
 	__out	tlv_cursor_t	*cursor,
-	__in	uint8_t	*block,
+	__in_bcount(size)
+		uint8_t		*block,
 	__in	size_t		size)
 {
 	uint32_t *limit;
 	limit = (uint32_t *)(block + size - sizeof (uint32_t));
-	return (tlv_init_cursor(cursor, (uint32_t *)block, limit));
+	return (tlv_init_cursor(cursor, (uint32_t *)block,
+		limit, (uint32_t *)block));
 }
 
-static				efx_rc_t
+static	__checkReturn		efx_rc_t
+tlv_init_cursor_at_offset(
+	__out	tlv_cursor_t	*cursor,
+	__in_bcount(size)
+		uint8_t		*block,
+	__in	size_t		size,
+	__in	size_t		offset)
+{
+	uint32_t *limit;
+	uint32_t *current;
+	limit = (uint32_t *)(block + size - sizeof (uint32_t));
+	current = (uint32_t *)(block + offset);
+	return (tlv_init_cursor(cursor, (uint32_t *)block, limit, current));
+}
+
+static	__checkReturn		efx_rc_t
 tlv_require_end(
-	__in	tlv_cursor_t	*cursor)
+	__inout	tlv_cursor_t	*cursor)
 {
 	uint32_t *pos;
 	efx_rc_t rc;
@@ -290,7 +328,7 @@ fail1:
 
 static				size_t
 tlv_block_length_used(
-	__in	tlv_cursor_t	*cursor)
+	__inout	tlv_cursor_t	*cursor)
 {
 	efx_rc_t rc;
 
@@ -311,8 +349,34 @@ fail1:
 	return (0);
 }
 
+static		uint32_t *
+tlv_last_segment_end(
+	__in	tlv_cursor_t *cursor)
+{
+	tlv_cursor_t segment_cursor;
+	uint32_t *last_segment_end = cursor->block;
+	uint32_t *segment_start = cursor->block;
 
-static	__checkReturn		uint32_t *
+	/*
+	 * Go through each segment and check that it has an end tag. If there
+	 * is no end tag then the previous segment was the last valid one,
+	 * so return the pointer to its end tag.
+	 */
+	while (1) {
+		if (tlv_init_cursor(&segment_cursor, segment_start,
+		    cursor->limit, segment_start) != 0)
+			break;
+		if (tlv_require_end(&segment_cursor) != 0)
+			break;
+		last_segment_end = segment_cursor.end;
+		segment_start = segment_cursor.end + 1;
+	}
+
+	return (last_segment_end);
+}
+
+
+static				uint32_t *
 tlv_write(
 	__in			tlv_cursor_t *cursor,
 	__in			uint32_t tag,
@@ -338,12 +402,14 @@ tlv_write(
 
 static	__checkReturn		efx_rc_t
 tlv_insert(
-	__in	tlv_cursor_t	*cursor,
+	__inout	tlv_cursor_t	*cursor,
 	__in	uint32_t	tag,
-	__in	uint8_t		*data,
+	__in_bcount(size)
+		uint8_t		*data,
 	__in	size_t		size)
 {
 	unsigned int delta;
+	uint32_t *last_segment_end;
 	efx_rc_t rc;
 
 	if ((rc = tlv_validate_state(cursor)) != 0)
@@ -357,15 +423,17 @@ tlv_insert(
 		goto fail3;
 	}
 
+	last_segment_end = tlv_last_segment_end(cursor);
+
 	delta = TLV_DWORD_COUNT(size);
-	if (cursor->end + 1 + delta > cursor->limit) {
+	if (last_segment_end + 1 + delta > cursor->limit) {
 		rc = ENOSPC;
 		goto fail4;
 	}
 
 	/* Move data up: new space at cursor->current */
 	memmove(cursor->current + delta, cursor->current,
-	    (cursor->end + 1 - cursor->current) * sizeof (uint32_t));
+	    (last_segment_end + 1 - cursor->current) * sizeof (uint32_t));
 
 	/* Adjust the end pointer */
 	cursor->end += delta;
@@ -388,16 +456,61 @@ fail1:
 }
 
 static	__checkReturn		efx_rc_t
+tlv_delete(
+	__inout	tlv_cursor_t	*cursor)
+{
+	unsigned int delta;
+	uint32_t *last_segment_end;
+	efx_rc_t rc;
+
+	if ((rc = tlv_validate_state(cursor)) != 0)
+		goto fail1;
+
+	if (tlv_tag(cursor) == TLV_TAG_END) {
+		rc = EINVAL;
+		goto fail2;
+	}
+
+	delta = TLV_DWORD_COUNT(tlv_length(cursor));
+
+	if ((rc = tlv_require_end(cursor)) != 0)
+		goto fail3;
+
+	last_segment_end = tlv_last_segment_end(cursor);
+
+	/* Shuffle things down, destroying the item at cursor->current */
+	memmove(cursor->current, cursor->current + delta,
+	    (last_segment_end + 1 - cursor->current) * sizeof (uint32_t));
+	/* Zero the new space at the end of the TLV chain */
+	memset(last_segment_end + 1 - delta, 0, delta * sizeof (uint32_t));
+	/* Adjust the end pointer */
+	cursor->end -= delta;
+
+	return (0);
+
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+static	__checkReturn		efx_rc_t
 tlv_modify(
-	__in	tlv_cursor_t	*cursor,
+	__inout	tlv_cursor_t	*cursor,
 	__in	uint32_t	tag,
-	__in	uint8_t		*data,
+	__in_bcount(size)
+		uint8_t		*data,
 	__in	size_t		size)
 {
 	uint32_t *pos;
 	unsigned int old_ndwords;
 	unsigned int new_ndwords;
 	unsigned int delta;
+	uint32_t *last_segment_end;
 	efx_rc_t rc;
 
 	if ((rc = tlv_validate_state(cursor)) != 0)
@@ -418,19 +531,21 @@ tlv_modify(
 	if ((rc = tlv_require_end(cursor)) != 0)
 		goto fail4;
 
+	last_segment_end = tlv_last_segment_end(cursor);
+
 	if (new_ndwords > old_ndwords) {
 		/* Expand space used for TLV item */
 		delta = new_ndwords - old_ndwords;
 		pos = cursor->current + old_ndwords;
 
-		if (cursor->end + 1 + delta > cursor->limit) {
+		if (last_segment_end + 1 + delta > cursor->limit) {
 			rc = ENOSPC;
 			goto fail5;
 		}
 
 		/* Move up: new space at (cursor->current + old_ndwords) */
 		memmove(pos + delta, pos,
-		    (cursor->end + 1 - pos) * sizeof (uint32_t));
+		    (last_segment_end + 1 - pos) * sizeof (uint32_t));
 
 		/* Adjust the end pointer */
 		cursor->end += delta;
@@ -442,10 +557,11 @@ tlv_modify(
 
 		/* Move down: remove words at (cursor->current + new_ndwords) */
 		memmove(pos, pos + delta,
-		    (cursor->end + 1 - pos) * sizeof (uint32_t));
+		    (last_segment_end + 1 - pos) * sizeof (uint32_t));
 
 		/* Zero the new space at the end of the TLV chain */
-		memset(cursor->end + 1 - delta, 0, delta * sizeof (uint32_t));
+		memset(last_segment_end + 1 - delta, 0,
+		    delta * sizeof (uint32_t));
 
 		/* Adjust the end pointer */
 		cursor->end -= delta;
@@ -470,7 +586,80 @@ fail1:
 	return (rc);
 }
 
-/* Validate TLV formatted partition contents (before writing to flash) */
+static uint32_t checksum_tlv_partition(
+	__in	nvram_partition_t *partition)
+{
+	tlv_cursor_t *cursor;
+	uint32_t *ptr;
+	uint32_t *end;
+	uint32_t csum;
+	size_t len;
+
+	cursor = &partition->tlv_cursor;
+	len = tlv_block_length_used(cursor);
+	EFSYS_ASSERT3U((len & 3), ==, 0);
+
+	csum = 0;
+	ptr = partition->data;
+	end = &ptr[len >> 2];
+
+	while (ptr < end)
+		csum += __LE_TO_CPU_32(*ptr++);
+
+	return (csum);
+}
+
+static	__checkReturn		efx_rc_t
+tlv_update_partition_len_and_cks(
+	__in	tlv_cursor_t *cursor)
+{
+	efx_rc_t rc;
+	nvram_partition_t partition;
+	struct tlv_partition_header *header;
+	struct tlv_partition_trailer *trailer;
+	size_t new_len;
+
+	/*
+	 * We just modified the partition, so the total length may not be
+	 * valid. Don't use tlv_find(), which performs some sanity checks
+	 * that may fail here.
+	 */
+	partition.data = cursor->block;
+	memcpy(&partition.tlv_cursor, cursor, sizeof (*cursor));
+	header = (struct tlv_partition_header *)partition.data;
+	/* Sanity check. */
+	if (__LE_TO_CPU_32(header->tag) != TLV_TAG_PARTITION_HEADER) {
+		rc = EFAULT;
+		goto fail1;
+	}
+	new_len =  tlv_block_length_used(&partition.tlv_cursor);
+	if (new_len == 0) {
+		rc = EFAULT;
+		goto fail2;
+	}
+	header->total_length = __CPU_TO_LE_32(new_len);
+	/* Ensure the modified partition always has a new generation count. */
+	header->generation = __CPU_TO_LE_32(
+	    __LE_TO_CPU_32(header->generation) + 1);
+
+	trailer = (struct tlv_partition_trailer *)((uint8_t *)header +
+	    new_len - sizeof (*trailer) - sizeof (uint32_t));
+	trailer->generation = header->generation;
+	trailer->checksum = __CPU_TO_LE_32(
+	    __LE_TO_CPU_32(trailer->checksum) -
+	    checksum_tlv_partition(&partition));
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+/* Validate buffer contents (before writing to flash) */
 	__checkReturn		efx_rc_t
 ef10_nvram_buffer_validate(
 	__in			efx_nic_t *enp,
