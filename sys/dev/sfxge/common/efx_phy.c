@@ -42,10 +42,6 @@ __FBSDID("$FreeBSD$");
 #include "txc43128.h"
 #endif
 
-#if EFSYS_OPT_PHY_SFT9001
-#include "sft9001.h"
-#endif
-
 #if EFSYS_OPT_PHY_SFX7101
 static efx_phy_ops_t	__efx_phy_sfx7101_ops = {
 	sfx7101_power,			/* epo_power */
@@ -101,34 +97,6 @@ static efx_phy_ops_t	__efx_phy_txc43128_ops = {
 #endif	/* EFSYS_OPT_BIST */
 };
 #endif	/* EFSYS_OPT_PHY_TXC43128 */
-
-#if EFSYS_OPT_PHY_SFT9001
-static efx_phy_ops_t	__efx_phy_sft9001_ops = {
-	NULL,				/* epo_power */
-	sft9001_reset,			/* epo_reset */
-	sft9001_reconfigure,		/* epo_reconfigure */
-	sft9001_verify,			/* epo_verify */
-	sft9001_uplink_check,		/* epo_uplink_check */
-	sft9001_downlink_check,		/* epo_downlink_check */
-	sft9001_oui_get,		/* epo_oui_get */
-#if EFSYS_OPT_PHY_STATS
-	sft9001_stats_update,		/* epo_stats_update */
-#endif	/* EFSYS_OPT_PHY_STATS */
-#if EFSYS_OPT_PHY_PROPS
-#if EFSYS_OPT_NAMES
-	sft9001_prop_name,		/* epo_prop_name */
-#endif
-	sft9001_prop_get,		/* epo_prop_get */
-	sft9001_prop_set,		/* epo_prop_set */
-#endif	/* EFSYS_OPT_PHY_PROPS */
-#if EFSYS_OPT_BIST
-	NULL,				/* epo_bist_enable_offline */
-	sft9001_bist_start,		/* epo_bist_start */
-	sft9001_bist_poll,		/* epo_bist_poll */
-	sft9001_bist_stop,		/* epo_bist_stop */
-#endif	/* EFSYS_OPT_BIST */
-};
-#endif	/* EFSYS_OPT_PHY_SFT9001 */
 
 #if EFSYS_OPT_SIENA
 static efx_phy_ops_t	__efx_phy_siena_ops = {
