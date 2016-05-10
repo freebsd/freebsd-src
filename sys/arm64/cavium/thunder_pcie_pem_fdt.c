@@ -51,14 +51,31 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcib_private.h>
 #include <dev/pci/pci_host_generic.h>
 
+#include <machine/intr.h>
+
 #include "thunder_pcie_common.h"
 #include "thunder_pcie_pem.h"
 
+#include "pcib_if.h"
+
 static int thunder_pem_fdt_probe(device_t);
+static int thunder_pem_fdt_alloc_msix(device_t, device_t, int *);
+static int thunder_pem_fdt_release_msix(device_t, device_t, int);
+static int thunder_pem_fdt_alloc_msi(device_t, device_t, int, int, int *);
+static int thunder_pem_fdt_release_msi(device_t, device_t, int, int *);
+static int thunder_pem_fdt_map_msi(device_t, device_t, int, uint64_t *,
+    uint32_t *);
 
 static device_method_t thunder_pem_fdt_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		thunder_pem_fdt_probe),
+
+	/* pcib interface */
+	DEVMETHOD(pcib_alloc_msix,	thunder_pem_fdt_alloc_msix),
+	DEVMETHOD(pcib_release_msix,	thunder_pem_fdt_release_msix),
+	DEVMETHOD(pcib_alloc_msi,	thunder_pem_fdt_alloc_msi),
+	DEVMETHOD(pcib_release_msi,	thunder_pem_fdt_release_msi),
+	DEVMETHOD(pcib_map_msi,		thunder_pem_fdt_map_msi),
 
 	/* End */
 	DEVMETHOD_END
@@ -87,4 +104,41 @@ thunder_pem_fdt_probe(device_t dev)
 	}
 
 	return (ENXIO);
+}
+
+static int
+thunder_pem_fdt_alloc_msi(device_t pci, device_t child, int count, int maxcount,
+    int *irqs)
+{
+
+	return (arm_alloc_msi(pci, child, count, maxcount, irqs));
+}
+
+static int
+thunder_pem_fdt_release_msi(device_t pci, device_t child, int count, int *irqs)
+{
+
+	return (arm_release_msi(pci, child, count, irqs));
+}
+
+static int
+thunder_pem_fdt_alloc_msix(device_t pci, device_t child, int *irq)
+{
+
+	return (arm_alloc_msix(pci, child, irq));
+}
+
+static int
+thunder_pem_fdt_release_msix(device_t pci, device_t child, int irq)
+{
+
+	return (arm_release_msix(pci, child, irq));
+}
+
+static int
+thunder_pem_fdt_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
+    uint32_t *data)
+{
+
+	return (arm_map_msi(pci, child, irq, addr, data));
 }
