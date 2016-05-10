@@ -1247,10 +1247,6 @@ fwohci_db_init(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 	db_tr = (struct fwohcidb_tr *)
 		malloc(sizeof(struct fwohcidb_tr) * dbch->ndb,
 		M_FW, M_WAITOK | M_ZERO);
-	if (db_tr == NULL) {
-		printf("fwohci_db_init: malloc(1) failed\n");
-		return;
-	}
 
 #define DB_SIZE(x) (sizeof(struct fwohcidb) * (x)->ndesc)
 	dbch->am = fwdma_malloc_multiseg(&sc->fc, sizeof(struct fwohcidb),
