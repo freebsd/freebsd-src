@@ -47,7 +47,6 @@
 # error "FALCON is obsolete and is not supported."
 #else
 /* FIXME: remove this after Falcon support has been removed */
-#define	EFSYS_OPT_MAC_FALCON_GMAC		(0)
 #define	EFSYS_OPT_MAC_FALCON_XMAC		(0)
 
 #define	EFSYS_OPT_MON_LM87			(0)
@@ -125,12 +124,9 @@
 # endif
 #endif /* EFSYS_OPT_LOOPBACK */
 
-/* Support Falcon GMAC */
-#if EFSYS_OPT_MAC_FALCON_GMAC
-# if !EFSYS_OPT_FALCON
-#  error "MAC_FALCON_GMAC requires FALCON"
-# endif
-#endif /* EFSYS_OPT_MAC_FALCON_GMAC */
+#ifdef EFSYS_OPT_MAC_FALCON_GMAC
+# error "MAC_FALCON_GMAC is obsolete and is not supported."
+#endif
 
 /* Support Falcon XMAC */
 #if EFSYS_OPT_MAC_FALCON_XMAC
