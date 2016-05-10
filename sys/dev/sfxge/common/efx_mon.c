@@ -34,10 +34,6 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-#if EFSYS_OPT_MON_NULL
-#include "nullmon.h"
-#endif
-
 #if EFSYS_OPT_MON_MCDI
 #include "mcdi_mon.h"
 #endif
@@ -68,16 +64,6 @@ efx_mon_name(
 }
 
 #endif	/* EFSYS_OPT_NAMES */
-
-#if EFSYS_OPT_MON_NULL
-static efx_mon_ops_t	__efx_mon_null_ops = {
-	nullmon_reset,			/* emo_reset */
-	nullmon_reconfigure,		/* emo_reconfigure */
-#if EFSYS_OPT_MON_STATS
-	nullmon_stats_update		/* emo_stats_update */
-#endif	/* EFSYS_OPT_MON_STATS */
-};
-#endif
 
 #if EFSYS_OPT_MON_MCDI
 static efx_mon_ops_t	__efx_mon_mcdi_ops = {
@@ -113,11 +99,6 @@ efx_mon_init(
 
 	EFSYS_ASSERT(encp->enc_mon_type != EFX_MON_INVALID);
 	switch (emp->em_type) {
-#if EFSYS_OPT_MON_NULL
-	case EFX_MON_NULL:
-		emop = &__efx_mon_null_ops;
-		break;
-#endif
 #if EFSYS_OPT_MON_MCDI
 	case EFX_MON_SFC90X0:
 	case EFX_MON_SFC91X0:
