@@ -1370,11 +1370,10 @@ efx_nvram_set_version(
 	__in			efx_nvram_type_t type,
 	__in_ecount(4)		uint16_t version[4]);
 
-/* Validate contents of TLV formatted partition */
 extern	__checkReturn		efx_rc_t
-efx_nvram_tlv_validate(
+efx_nvram_validate(
 	__in			efx_nic_t *enp,
-	__in			uint32_t partn,
+	__in			efx_nvram_type_t type,
 	__in_bcount(partn_size)	caddr_t partn_data,
 	__in			size_t partn_size);
 
