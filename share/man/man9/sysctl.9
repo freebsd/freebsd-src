@@ -238,7 +238,7 @@ SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile, CTLFLAG_RW,
  * the variable pointer and size are provided, as well as a format
  * string for sysctl(8).
  */
-static l_fp pps_freq;	/* scaled frequence offset (ns/s) */
+static l_fp pps_freq;	/* scaled frequency offset (ns/s) */
 SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, pps_freq, CTLFLAG_RD,
     &pps_freq, sizeof(pps_freq), "I", "");
 
