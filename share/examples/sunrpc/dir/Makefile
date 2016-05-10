@@ -1,6 +1,10 @@
 #
 # @(#)Makefile	2.1 88/08/02 4.0 RPCSRC
 #
+# $FreeBSD$
+#
+PACKAGE=examples
+FILESDIR=${SHAREDIR}/examples/sunrpc/dir
 BIN = dir_svc rls
 GEN = dir_clnt.c dir_svc.c dir_xdr.c dir.h
 LIB = -lrpclib
