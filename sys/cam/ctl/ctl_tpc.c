@@ -1916,7 +1916,7 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 	struct ctl_port *port;
 	struct tpc_list *list, *tlist;
 	struct tpc_token *token;
-	int len, lendesc;
+	int len, lendata, lendesc;
 
 	CTL_DEBUG_PRINT(("ctl_populate_token\n"));
 
@@ -1953,10 +1953,19 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 	}
 
 	data = (struct scsi_populate_token_data *)ctsio->kern_data_ptr;
-	lendesc = scsi_2btoul(data->range_descriptor_length);
-	if (len < sizeof(struct scsi_populate_token_data) + lendesc) {
+	lendata = scsi_2btoul(data->length);
+	if (lendata < sizeof(struct scsi_populate_token_data) - 2 +
+	    sizeof(struct scsi_range_desc)) {
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1, /*command*/ 0,
-		    /*field*/ 2, /*bit_valid*/ 0, /*bit*/ 0);
+		    /*field*/ 0, /*bit_valid*/ 0, /*bit*/ 0);
+		goto done;
+	}
+	lendesc = scsi_2btoul(data->range_descriptor_length);
+	if (lendesc < sizeof(struct scsi_range_desc) ||
+	    len < sizeof(struct scsi_populate_token_data) + lendesc ||
+	    lendata < sizeof(struct scsi_populate_token_data) - 2 + lendesc) {
+		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1, /*command*/ 0,
+		    /*field*/ 14, /*bit_valid*/ 0, /*bit*/ 0);
 		goto done;
 	}
 /*
@@ -1966,6 +1975,16 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 	    scsi_4btoul(data->rod_type),
 	    scsi_2btoul(data->range_descriptor_length));
 */
+
+	/* Validate INACTIVITY TIMEOUT field */
+	if (scsi_4btoul(data->inactivity_timeout) > TPC_MAX_TOKEN_TIMEOUT) {
+		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
+		    /*command*/ 0, /*field*/ 4, /*bit_valid*/ 0,
+		    /*bit*/ 0);
+		goto done;
+	}
+
+	/* Validate ROD TYPE field */
 	if ((data->flags & EC_PT_RTV) &&
 	    scsi_4btoul(data->rod_type) != ROD_TYPE_AUR) {
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1, /*command*/ 0,
@@ -2016,11 +2035,6 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 		token->timeout = TPC_DFL_TOKEN_TIMEOUT;
 	else if (token->timeout < TPC_MIN_TOKEN_TIMEOUT)
 		token->timeout = TPC_MIN_TOKEN_TIMEOUT;
-	else if (token->timeout > TPC_MAX_TOKEN_TIMEOUT) {
-		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
-		    /*command*/ 0, /*field*/ 4, /*bit_valid*/ 0,
-		    /*bit*/ 0);
-	}
 	memcpy(list->res_token, token->token, sizeof(list->res_token));
 	list->res_token_valid = 1;
 	list->curseg = 0;
