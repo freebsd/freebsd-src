@@ -183,6 +183,8 @@ void *_ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr);
     _ioremap_attr((addr), (size), VM_MEMATTR_WRITE_COMBINING)
 #define	ioremap_wb(addr, size)						\
     _ioremap_attr((addr), (size), VM_MEMATTR_WRITE_BACK)
+#define	ioremap_wt(addr, size)						\
+    _ioremap_attr((addr), (size), VM_MEMATTR_WRITE_THROUGH)
 #define	ioremap(addr, size)						\
     _ioremap_attr((addr), (size), VM_MEMATTR_UNCACHEABLE)
 void iounmap(void *addr);
@@ -227,7 +229,7 @@ memremap(resource_size_t offset, size_t size, unsigned long flags)
 	    (addr = ioremap_wb(offset, size)) != NULL)
 		goto done;
 	if ((flags & MEMREMAP_WT) &&
-	    (addr = ioremap_nocache(offset, size)) != NULL)
+	    (addr = ioremap_wt(offset, size)) != NULL)
 		goto done;
 	if ((flags & MEMREMAP_WC) &&
 	    (addr = ioremap_wc(offset, size)) != NULL)
