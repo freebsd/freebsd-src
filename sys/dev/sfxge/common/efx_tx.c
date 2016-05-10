@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #define	EFX_TX_QSTAT_INCR(_etp, _stat)
 #endif
 
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
 falconsiena_tx_init(
@@ -121,34 +121,8 @@ falconsiena_tx_qstats_update(
 	__inout_ecount(TX_NQSTATS)	efsys_stat_t *stat);
 #endif
 
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+#endif /* EFSYS_OPT_SIENA */
 
-
-#if EFSYS_OPT_FALCON
-static efx_tx_ops_t	__efx_tx_falcon_ops = {
-	falconsiena_tx_init,			/* etxo_init */
-	falconsiena_tx_fini,			/* etxo_fini */
-	falconsiena_tx_qcreate,			/* etxo_qcreate */
-	falconsiena_tx_qdestroy,		/* etxo_qdestroy */
-	falconsiena_tx_qpost,			/* etxo_qpost */
-	falconsiena_tx_qpush,			/* etxo_qpush */
-	falconsiena_tx_qpace,			/* etxo_qpace */
-	falconsiena_tx_qflush,			/* etxo_qflush */
-	falconsiena_tx_qenable,			/* etxo_qenable */
-	NULL,					/* etxo_qpio_enable */
-	NULL,					/* etxo_qpio_disable */
-	NULL,					/* etxo_qpio_write */
-	NULL,					/* etxo_qpio_post */
-	falconsiena_tx_qdesc_post,		/* etxo_qdesc_post */
-	falconsiena_tx_qdesc_dma_create,	/* etxo_qdesc_dma_create */
-	NULL,					/* etxo_qdesc_tso_create */
-	NULL,					/* etxo_qdesc_tso2_create */
-	NULL,					/* etxo_qdesc_vlantci_create */
-#if EFSYS_OPT_QSTATS
-	falconsiena_tx_qstats_update,		/* etxo_qstats_update */
-#endif
-};
-#endif /* EFSYS_OPT_FALCON */
 
 #if EFSYS_OPT_SIENA
 static efx_tx_ops_t	__efx_tx_siena_ops = {
@@ -249,12 +223,6 @@ efx_tx_init(
 	}
 
 	switch (enp->en_family) {
-#if EFSYS_OPT_FALCON
-	case EFX_FAMILY_FALCON:
-		etxop = (efx_tx_ops_t *)&__efx_tx_falcon_ops;
-		break;
-#endif /* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
 		etxop = (efx_tx_ops_t *)&__efx_tx_siena_ops;
@@ -694,7 +662,7 @@ efx_tx_qstats_update(
 #endif
 
 
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
 falconsiena_tx_init(
@@ -1055,7 +1023,7 @@ falconsiena_tx_qdesc_dma_create(
 			    (uint32_t)(addr >> 32));
 }
 
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+#endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_QSTATS
 #if EFSYS_OPT_NAMES
@@ -1080,7 +1048,7 @@ efx_tx_qstat_name(
 #endif	/* EFSYS_OPT_NAMES */
 #endif /* EFSYS_OPT_QSTATS */
 
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+#if EFSYS_OPT_SIENA
 
 #if EFSYS_OPT_QSTATS
 static					void
@@ -1120,4 +1088,4 @@ falconsiena_tx_fini(
 	_NOTE(ARGUNUSED(enp))
 }
 
-#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+#endif /* EFSYS_OPT_SIENA */
