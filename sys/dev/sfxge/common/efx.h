@@ -72,10 +72,6 @@ efx_family(
 	__in		uint16_t devid,
 	__out		efx_family_t *efp);
 
-extern	__checkReturn	efx_rc_t
-efx_infer_family(
-	__in		efsys_bar_t *esbp,
-	__out		efx_family_t *efp);
 
 #define	EFX_PCI_VENID_SFC			0x1924
 
