@@ -1104,6 +1104,26 @@ tpc_ranges_length(struct scsi_range_desc *range, int nrange)
 }
 
 static int
+tpc_check_ranges(struct scsi_range_desc *range, int nrange)
+{
+	uint64_t b1, b2;
+	uint32_t l1, l2;
+	int i, j;
+
+	for (i = 0; i < nrange - 1; i++) {
+		b1 = scsi_8btou64(range[i].lba);
+		l1 = scsi_4btoul(range[i].length);
+		for (j = i + 1; j < nrange; j++) {
+			b2 = scsi_8btou64(range[j].lba);
+			l2 = scsi_4btoul(range[j].length);
+			if (b1 + l1 > b2 && b2 + l2 > b1)
+				return (-1);
+		}
+	}
+	return (0);
+}
+
+static int
 tpc_skip_ranges(struct scsi_range_desc *range, int nrange, off_t skip,
     int *srange, off_t *soffset)
 {
@@ -1992,6 +2012,16 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 		goto done;
 	}
 
+	/* Validate list of ranges */
+	if (tpc_check_ranges(&data->desc[0],
+	    scsi_2btoul(data->range_descriptor_length) /
+	    sizeof(struct scsi_range_desc))) {
+		ctl_set_invalid_field(ctsio, /*sks_valid*/ 0,
+		    /*command*/ 0, /*field*/ 0, /*bit_valid*/ 0,
+		    /*bit*/ 0);
+		goto done;
+	}
+
 	list = malloc(sizeof(struct tpc_list), M_CTL, M_WAITOK | M_ZERO);
 	list->service_action = cdb->service_action;
 	list->init_port = ctsio->io_hdr.nexus.targ_port;
@@ -2065,7 +2095,7 @@ ctl_write_using_token(struct ctl_scsiio *ctsio)
 	struct ctl_lun *lun;
 	struct tpc_list *list, *tlist;
 	struct tpc_token *token;
-	int len, lendesc;
+	int len, lendata, lendesc;
 
 	CTL_DEBUG_PRINT(("ctl_write_using_token\n"));
 
@@ -2074,8 +2104,8 @@ ctl_write_using_token(struct ctl_scsiio *ctsio)
 	cdb = (struct scsi_write_using_token *)ctsio->cdb;
 	len = scsi_4btoul(cdb->length);
 
-	if (len < sizeof(struct scsi_populate_token_data) ||
-	    len > sizeof(struct scsi_populate_token_data) +
+	if (len < sizeof(struct scsi_write_using_token_data) ||
+	    len > sizeof(struct scsi_write_using_token_data) +
 	     TPC_MAX_SEGS * sizeof(struct scsi_range_desc)) {
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1, /*command*/ 1,
 		    /*field*/ 9, /*bit_valid*/ 0, /*bit*/ 0);
@@ -2101,10 +2131,19 @@ ctl_write_using_token(struct ctl_scsiio *ctsio)
 	}
 
 	data = (struct scsi_write_using_token_data *)ctsio->kern_data_ptr;
-	lendesc = scsi_2btoul(data->range_descriptor_length);
-	if (len < sizeof(struct scsi_populate_token_data) + lendesc) {
+	lendata = scsi_2btoul(data->length);
+	if (lendata < sizeof(struct scsi_write_using_token_data) - 2 +
+	    sizeof(struct scsi_range_desc)) {
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1, /*command*/ 0,
-		    /*field*/ 2, /*bit_valid*/ 0, /*bit*/ 0);
+		    /*field*/ 0, /*bit_valid*/ 0, /*bit*/ 0);
+		goto done;
+	}
+	lendesc = scsi_2btoul(data->range_descriptor_length);
+	if (lendesc < sizeof(struct scsi_range_desc) ||
+	    len < sizeof(struct scsi_write_using_token_data) + lendesc ||
+	    lendata < sizeof(struct scsi_write_using_token_data) - 2 + lendesc) {
+		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1, /*command*/ 0,
+		    /*field*/ 534, /*bit_valid*/ 0, /*bit*/ 0);
 		goto done;
 	}
 /*
@@ -2113,6 +2152,17 @@ ctl_write_using_token(struct ctl_scsiio *ctsio)
 	    data->flags, scsi_8btou64(data->offset_into_rod),
 	    scsi_2btoul(data->range_descriptor_length));
 */
+
+	/* Validate list of ranges */
+	if (tpc_check_ranges(&data->desc[0],
+	    scsi_2btoul(data->range_descriptor_length) /
+	    sizeof(struct scsi_range_desc))) {
+		ctl_set_invalid_field(ctsio, /*sks_valid*/ 0,
+		    /*command*/ 0, /*field*/ 0, /*bit_valid*/ 0,
+		    /*bit*/ 0);
+		goto done;
+	}
+
 	list = malloc(sizeof(struct tpc_list), M_CTL, M_WAITOK | M_ZERO);
 	list->service_action = cdb->service_action;
 	list->init_port = ctsio->io_hdr.nexus.targ_port;
