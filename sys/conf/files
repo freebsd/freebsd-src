@@ -2452,10 +2452,10 @@ dev/si/si_eisa.c		optional si eisa
 dev/si/si_isa.c			optional si isa
 dev/si/si_pci.c			optional si pci
 dev/siba/siba_bwn.c		optional siba_bwn pci
-dev/siba/siba_cc.c		optional siba !bhnd !bhndbus
-dev/siba/siba_core.c		optional siba | siba_bwn pci
-dev/siba/siba_mips.c		optional siba !bhnd !bhndbus
-dev/siba/siba_pcib.c		optional siba pci !bhnd !bhndbus
+dev/siba/siba_cc.c		optional siba_s5 !bhnd !bhndbus
+dev/siba/siba_core.c		optional siba_s5 | siba_bwn pci
+dev/siba/siba_mips.c		optional siba_s5 !bhnd !bhndbus
+dev/siba/siba_pcib.c		optional siba_s5 pci !bhnd !bhndbus
 dev/siis/siis.c			optional siis pci
 dev/sis/if_sis.c		optional sis pci
 dev/sk/if_sk.c			optional sk pci
