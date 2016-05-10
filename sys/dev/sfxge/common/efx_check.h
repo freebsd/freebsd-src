@@ -47,7 +47,6 @@
 # error "FALCON is obsolete and is not supported."
 #else
 /* FIXME: remove this after Falcon support has been removed */
-#define	EFSYS_OPT_MON_LM87			(0)
 #define	EFSYS_OPT_MON_MAX6647			(0)
 #define	EFSYS_OPT_MON_NULL			(0)
 
@@ -164,12 +163,9 @@
 # endif
 #endif /* EFSYS_OPT_MCDI_PROXY_AUTH */
 
-/* Support LM87 monitor */
-#if EFSYS_OPT_MON_LM87
-# if !EFSYS_OPT_FALCON
-#  error "MON_LM87 requires FALCON"
-# endif
-#endif /* EFSYS_OPT_MON_LM87 */
+#ifdef EFSYS_OPT_MON_LM87
+# error "MON_LM87 is obsolete and is not supported."
+#endif
 
 /* Support MAX6647 monitor */
 #if EFSYS_OPT_MON_MAX6647
