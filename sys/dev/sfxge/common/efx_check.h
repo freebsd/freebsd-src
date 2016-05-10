@@ -45,9 +45,6 @@
 
 #ifdef EFSYS_OPT_FALCON
 # error "FALCON is obsolete and is not supported."
-#else
-/* FIXME: remove this after Falcon support has been removed */
-#define	EFSYS_OPT_PHY_TXC43128			(0)
 #endif
 
 /* Support NVRAM based boot config */
@@ -277,12 +274,9 @@
 # endif
 #endif /* EFSYS_OPT_PHY_STATS */
 
-/* Support TXC43128 PHY (SFE4003 NIC) */
-#if EFSYS_OPT_PHY_TXC43128
-# if !EFSYS_OPT_FALCON
-#  error "PHY_TXC43128 requires FALCON"
-# endif
-#endif /* EFSYS_OPT_PHY_TXC43128 */
+#ifdef EFSYS_OPT_PHY_TXC43128
+# error "PHY_TXC43128 is obsolete and is not supported."
+#endif
 
 /* Support EVQ/RXQ/TXQ statistics */
 #if EFSYS_OPT_QSTATS
