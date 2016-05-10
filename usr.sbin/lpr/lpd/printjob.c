@@ -447,12 +447,12 @@ printit(struct printer *pp, char *file)
 	 *		M -- "mail" to user when done printing
 	 *              Z -- "locale" for pr
 	 *
-	 *      getline reads a line and expands tabs to blanks
+	 *      get_line reads a line and expands tabs to blanks
 	 */
 
 	/* pass 1 */
 
-	while (getline(cfp))
+	while (get_line(cfp))
 		switch (line[0]) {
 		case 'H':
 			strlcpy(origin_host, line + 1, sizeof(origin_host));
@@ -577,7 +577,7 @@ printit(struct printer *pp, char *file)
 
 pass2:
 	fseek(cfp, 0L, 0);
-	while (getline(cfp))
+	while (get_line(cfp))
 		switch (line[0]) {
 		case 'L':	/* identification line */
 			if (!pp->no_header && pp->header_last)
@@ -922,7 +922,7 @@ sendit(struct printer *pp, char *file)
 	 * pass 1
 	 */
 	err = OK;
-	while (getline(cfp)) {
+	while (get_line(cfp)) {
 	again:
 		if (line[0] == 'S') {
 			cp = line+1;
@@ -954,7 +954,7 @@ sendit(struct printer *pp, char *file)
 		} else if (line[0] >= 'a' && line[0] <= 'z') {
 			dfcopies = 1;
 			strcpy(last, line);
-			while ((i = getline(cfp)) != 0) {
+			while ((i = get_line(cfp)) != 0) {
 				if (strcmp(last, line) != 0)
 					break;
 				dfcopies++;
@@ -983,7 +983,7 @@ sendit(struct printer *pp, char *file)
 	 * pass 2
 	 */
 	fseek(cfp, 0L, 0);
-	while (getline(cfp))
+	while (get_line(cfp))
 		if (line[0] == 'U' && !strchr(line+1, '/'))
 			(void) unlink(line+1);
 	/*
