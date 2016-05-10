@@ -54,23 +54,6 @@ __FBSDID("$FreeBSD$");
 #define	TAG_NAME_VPD_R_DECODE 0x10
 #define	TAG_NAME_VPD_W_DECODE 0x11
 
-#if EFSYS_OPT_FALCON
-
-static efx_vpd_ops_t	__efx_vpd_falcon_ops = {
-	NULL,			/* evpdo_init */
-	falcon_vpd_size,	/* evpdo_size */
-	falcon_vpd_read,	/* evpdo_read */
-	falcon_vpd_verify,	/* evpdo_verify */
-	NULL,			/* evpdo_reinit */
-	falcon_vpd_get,		/* evpdo_get */
-	falcon_vpd_set,		/* evpdo_set */
-	falcon_vpd_next,	/* evpdo_next */
-	falcon_vpd_write,	/* evpdo_write */
-	NULL,			/* evpdo_fini */
-};
-
-#endif	/* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 
 static efx_vpd_ops_t	__efx_vpd_siena_ops = {
@@ -117,12 +100,6 @@ efx_vpd_init(
 	EFSYS_ASSERT(!(enp->en_mod_flags & EFX_MOD_VPD));
 
 	switch (enp->en_family) {
-#if EFSYS_OPT_FALCON
-	case EFX_FAMILY_FALCON:
-		evpdop = (efx_vpd_ops_t *)&__efx_vpd_falcon_ops;
-		break;
-#endif	/* EFSYS_OPT_FALCON */
-
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
 		evpdop = (efx_vpd_ops_t *)&__efx_vpd_siena_ops;
