@@ -74,7 +74,7 @@ ef10_vpd_init(
 	    tag, &svpd, &svpd_size);
 	if (rc != 0) {
 		if (rc == EACCES) {
-			/* Unpriviledged functions cannot access VPD */
+			/* Unprivileged functions cannot access VPD */
 			goto out;
 		}
 		goto fail1;
