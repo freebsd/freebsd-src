@@ -14,6 +14,5 @@ SRCS	+= bxe.c               \
            57712_init_values.c
 
 CFLAGS += -I${BXE}
-#CFLAGS += -Wno-shift-negative-value
 
 .include <bsd.kmod.mk>
