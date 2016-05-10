@@ -34,10 +34,6 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-#if EFSYS_OPT_MAC_FALCON_XMAC
-#include "falcon_xmac.h"
-#endif
-
 #if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
@@ -45,28 +41,6 @@ falconsiena_mac_multicast_list_set(
 	__in		efx_nic_t *enp);
 
 #endif /* EFSYS_OPT_SIENA */
-
-#if EFSYS_OPT_MAC_FALCON_XMAC
-static efx_mac_ops_t	__efx_falcon_xmac_ops = {
-	falcon_xmac_reset,			/* emo_reset */
-	falcon_mac_poll,			/* emo_poll */
-	falcon_mac_up,				/* emo_up */
-	falcon_xmac_reconfigure,		/* emo_addr_set */
-	falcon_xmac_reconfigure,		/* emo_pdu_set */
-	falcon_xmac_reconfigure,		/* emo_reconfigure */
-	falconsiena_mac_multicast_list_set,	/* emo_multicast_list_set */
-	NULL,					/* emo_filter_set_default_rxq */
-	NULL,				/* emo_filter_default_rxq_clear */
-#if EFSYS_OPT_LOOPBACK
-	falcon_mac_loopback_set,		/* emo_loopback_set */
-#endif	/* EFSYS_OPT_LOOPBACK */
-#if EFSYS_OPT_MAC_STATS
-	falcon_mac_stats_upload,		/* emo_stats_upload */
-	NULL,					/* emo_stats_periodic */
-	falcon_xmac_stats_update		/* emo_stats_update */
-#endif	/* EFSYS_OPT_MAC_STATS */
-};
-#endif	/* EFSYS_OPT_MAC_FALCON_XMAC */
 
 #if EFSYS_OPT_SIENA
 static efx_mac_ops_t	__efx_siena_mac_ops = {
@@ -119,11 +93,7 @@ static efx_mac_ops_t	*__efx_mac_ops[] = {
 	/* [EFX_MAC_FALCON_GMAC] */
 	NULL,
 	/* [EFX_MAC_FALCON_XMAC] */
-#if EFSYS_OPT_MAC_FALCON_XMAC
-	&__efx_falcon_xmac_ops,
-#else
 	NULL,
-#endif
 	/* [EFX_MAC_SIENA] */
 #if EFSYS_OPT_SIENA
 	&__efx_siena_mac_ops,
