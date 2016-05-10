@@ -34,41 +34,9 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-#if EFSYS_OPT_PHY_SFX7101
-#include "sfx7101.h"
-#endif
-
 #if EFSYS_OPT_PHY_TXC43128
 #include "txc43128.h"
 #endif
-
-#if EFSYS_OPT_PHY_SFX7101
-static efx_phy_ops_t	__efx_phy_sfx7101_ops = {
-	sfx7101_power,			/* epo_power */
-	sfx7101_reset,			/* epo_reset */
-	sfx7101_reconfigure,		/* epo_reconfigure */
-	sfx7101_verify,			/* epo_verify */
-	sfx7101_uplink_check,		/* epo_uplink_check */
-	sfx7101_downlink_check,		/* epo_downlink_check */
-	sfx7101_oui_get,		/* epo_oui_get */
-#if EFSYS_OPT_PHY_STATS
-	sfx7101_stats_update,		/* epo_stats_update */
-#endif	/* EFSYS_OPT_PHY_STATS */
-#if EFSYS_OPT_PHY_PROPS
-#if EFSYS_OPT_NAMES
-	sfx7101_prop_name,		/* epo_prop_name */
-#endif
-	sfx7101_prop_get,		/* epo_prop_get */
-	sfx7101_prop_set,		/* epo_prop_set */
-#endif	/* EFSYS_OPT_PHY_PROPS */
-#if EFSYS_OPT_BIST
-	NULL,				/* epo_bist_enable_offline */
-	NULL,				/* epo_bist_start */
-	NULL,				/* epo_bist_poll */
-	NULL,				/* epo_bist_stop */
-#endif	/* EFSYS_OPT_BIST */
-};
-#endif	/* EFSYS_OPT_PHY_SFX7101 */
 
 #if EFSYS_OPT_PHY_TXC43128
 static efx_phy_ops_t	__efx_phy_txc43128_ops = {
