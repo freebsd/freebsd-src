@@ -301,13 +301,6 @@ typedef struct efx_port_s {
 	uint32_t		ep_lp_cap_mask;
 	uint32_t		ep_default_adv_cap_mask;
 	uint32_t		ep_phy_cap_mask;
-#if EFSYS_OPT_PHY_TXC43128
-	union {
-		struct {
-			unsigned int	bug10934_count;
-		} ep_txc43128;
-	};
-#endif
 	boolean_t		ep_mac_poll_needed; /* falcon only */
 	boolean_t		ep_mac_up; /* falcon only */
 	uint32_t		ep_fwver; /* falcon only */
