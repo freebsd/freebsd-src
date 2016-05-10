@@ -32,6 +32,8 @@
 # mjacob@feral.com
 #
 
+PACKAGE=examples
+FILESDIR=${SHAREDIR}/examples/ses
 UNUSED	= getobjmap getnobj getobjstat
 SUBDIR	= getencstat setencstat setobjstat sesd
 

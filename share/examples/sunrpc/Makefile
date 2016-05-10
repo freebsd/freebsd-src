@@ -4,6 +4,11 @@
 #
 #   Build all demo services
 #
+# $FreeBSD$
+#
+
+PACKAGE=examples
+FILESDIR=${SHAREDIR}/examples/sunrpc
 MAKE = make
 LIB=
 

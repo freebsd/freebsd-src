@@ -67,6 +67,8 @@
 #	$FreeBSD$
 #
 
+PACKAGE=examples
+FILESDIR=${SHAREDIR}/examples/kld
 SUBDIR=	cdev dyn_sysctl firmware khelp random_adaptor syscall
 
 .include <bsd.subdir.mk>
