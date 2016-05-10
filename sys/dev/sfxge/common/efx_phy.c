@@ -46,10 +46,6 @@ __FBSDID("$FreeBSD$");
 #include "sft9001.h"
 #endif
 
-#if EFSYS_OPT_PHY_QT2025C
-#include "qt2025c.h"
-#endif
-
 #if EFSYS_OPT_PHY_SFX7101
 static efx_phy_ops_t	__efx_phy_sfx7101_ops = {
 	sfx7101_power,			/* epo_power */
@@ -133,34 +129,6 @@ static efx_phy_ops_t	__efx_phy_sft9001_ops = {
 #endif	/* EFSYS_OPT_BIST */
 };
 #endif	/* EFSYS_OPT_PHY_SFT9001 */
-
-#if EFSYS_OPT_PHY_QT2025C
-static efx_phy_ops_t	__efx_phy_qt2025c_ops = {
-	NULL,				/* epo_power */
-	qt2025c_reset,			/* epo_reset */
-	qt2025c_reconfigure,		/* epo_reconfigure */
-	qt2025c_verify,			/* epo_verify */
-	qt2025c_uplink_check,		/* epo_uplink_check */
-	qt2025c_downlink_check,		/* epo_downlink_check */
-	qt2025c_oui_get,		/* epo_oui_get */
-#if EFSYS_OPT_PHY_STATS
-	qt2025c_stats_update,		/* epo_stats_update */
-#endif	/* EFSYS_OPT_PHY_STATS */
-#if EFSYS_OPT_PHY_PROPS
-#if EFSYS_OPT_NAMES
-	qt2025c_prop_name,		/* epo_prop_name */
-#endif
-	qt2025c_prop_get,		/* epo_prop_get */
-	qt2025c_prop_set,		/* epo_prop_set */
-#endif	/* EFSYS_OPT_PHY_PROPS */
-#if EFSYS_OPT_BIST
-	NULL,				/* epo_bist_enable_offline */
-	NULL,				/* epo_bist_start */
-	NULL,				/* epo_bist_poll */
-	NULL,				/* epo_bist_stop */
-#endif	/* EFSYS_OPT_BIST */
-};
-#endif	/* EFSYS_OPT_PHY_QT2025C */
 
 #if EFSYS_OPT_SIENA
 static efx_phy_ops_t	__efx_phy_siena_ops = {

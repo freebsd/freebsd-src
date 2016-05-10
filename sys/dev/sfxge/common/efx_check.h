@@ -47,7 +47,6 @@
 # error "FALCON is obsolete and is not supported."
 #else
 /* FIXME: remove this after Falcon support has been removed */
-#define	EFSYS_OPT_PHY_QT2025C			(0)
 #define	EFSYS_OPT_PHY_SFT9001			(0)
 #define	EFSYS_OPT_PHY_SFX7101			(0)
 #define	EFSYS_OPT_PHY_TXC43128			(0)
@@ -261,12 +260,9 @@
 # error "PHY_QT2022C2 is obsolete and is not supported."
 #endif
 
-/* Support QT2025C PHY (Wakefield NIC) */
-#if EFSYS_OPT_PHY_QT2025C
-# if !EFSYS_OPT_FALCON
-#  error "PHY_QT2025C requires FALCON"
-# endif
-#endif /* EFSYS_OPT_PHY_QT2025C */
+#ifdef EFSYS_OPT_PHY_QT2025C
+# error "PHY_QT2025C is obsolete and is not supported."
+#endif
 
 /* Support SFT9001 PHY (Starbolt NIC) */
 #if EFSYS_OPT_PHY_SFT9001
