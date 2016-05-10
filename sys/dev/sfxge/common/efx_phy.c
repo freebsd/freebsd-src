@@ -37,10 +37,6 @@ __FBSDID("$FreeBSD$");
 #include "falcon_xmac.h"
 #endif
 
-#if EFSYS_OPT_MAC_FALCON_GMAC
-#include "falcon_gmac.h"
-#endif
-
 #if EFSYS_OPT_PHY_NULL
 #include "nullphy.h"
 #endif
