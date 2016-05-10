@@ -116,10 +116,12 @@ void ofw_gpiobus_register_provider(device_t);
 void ofw_gpiobus_unregister_provider(device_t);
 
 /* Consumers interface. */
-int gpio_pin_get_by_ofw_name(device_t consumer, char *name, gpio_pin_t *gpio);
-int gpio_pin_get_by_ofw_idx(device_t consumer, int idx, gpio_pin_t *gpio);
-int gpio_pin_get_by_ofw_property(device_t consumer, char *name,
-    gpio_pin_t *gpio);
+int gpio_pin_get_by_ofw_name(device_t consumer, phandle_t node,
+    char *name, gpio_pin_t *gpio);
+int gpio_pin_get_by_ofw_idx(device_t consumer, phandle_t node,
+    int idx, gpio_pin_t *gpio);
+int gpio_pin_get_by_ofw_property(device_t consumer, phandle_t node,
+    char *name, gpio_pin_t *gpio);
 void gpio_pin_release(gpio_pin_t gpio);
 int gpio_pin_is_active(gpio_pin_t pin, bool *active);
 int gpio_pin_set_active(gpio_pin_t pin, bool active);
