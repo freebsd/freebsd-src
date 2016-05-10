@@ -47,7 +47,6 @@
 # error "FALCON is obsolete and is not supported."
 #else
 /* FIXME: remove this after Falcon support has been removed */
-#define	EFSYS_OPT_PHY_NULL			(0)
 #define	EFSYS_OPT_PHY_QT2022C2			(0)
 #define	EFSYS_OPT_PHY_QT2025C			(0)
 #define	EFSYS_OPT_PHY_SFT9001			(0)
@@ -243,12 +242,9 @@
 # endif
 #endif /* EFSYS_OPT_PHY_LED_CONTROL */
 
-/* Support NULL PHY */
-#if EFSYS_OPT_PHY_NULL
-# if !EFSYS_OPT_FALCON
-#  error "PHY_NULL requires FALCON"
-# endif
-#endif /* EFSYS_OPT_PHY_NULL */
+#ifdef EFSYS_OPT_PHY_NULL
+# error "PHY_NULL is obsolete and is not supported."
+#endif
 
 /* Obsolete option */
 #ifdef EFSYS_OPT_PHY_PM8358
