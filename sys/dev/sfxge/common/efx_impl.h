@@ -33,8 +33,6 @@
 #ifndef	_SYS_EFX_IMPL_H
 #define	_SYS_EFX_IMPL_H
 
-#include "efsys.h"
-#include "efx_check.h"
 #include "efx.h"
 #include "efx_regs.h"
 #include "efx_regs_ef10.h"

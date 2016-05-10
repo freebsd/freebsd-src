@@ -33,11 +33,9 @@ __FBSDID("$FreeBSD$");
 
 #include "efx.h"
 #include "efx_impl.h"
-#include "mcdi_mon.h"
+
 
 #if EFSYS_OPT_MEDFORD
-
-#include "ef10_tlv_layout.h"
 
 static	__checkReturn	efx_rc_t
 efx_mcdi_get_rxdp_config(
