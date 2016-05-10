@@ -301,14 +301,11 @@ typedef struct efx_port_s {
 	uint32_t		ep_lp_cap_mask;
 	uint32_t		ep_default_adv_cap_mask;
 	uint32_t		ep_phy_cap_mask;
-#if EFSYS_OPT_PHY_TXC43128 || EFSYS_OPT_PHY_QT2025C
+#if EFSYS_OPT_PHY_TXC43128
 	union {
 		struct {
 			unsigned int	bug10934_count;
 		} ep_txc43128;
-		struct {
-			unsigned int	bug17190_count;
-		} ep_qt2025c;
 	};
 #endif
 	boolean_t		ep_mac_poll_needed; /* falcon only */
