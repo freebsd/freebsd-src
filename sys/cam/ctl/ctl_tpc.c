@@ -1104,12 +1104,18 @@ tpc_ranges_length(struct scsi_range_desc *range, int nrange)
 }
 
 static int
-tpc_check_ranges(struct scsi_range_desc *range, int nrange)
+tpc_check_ranges(struct scsi_range_desc *range, int nrange, uint64_t maxlba)
 {
 	uint64_t b1, b2;
 	uint32_t l1, l2;
 	int i, j;
 
+	for (i = 0; i < nrange; i++) {
+		b1 = scsi_8btou64(range[i].lba);
+		l1 = scsi_4btoul(range[i].length);
+		if (b1 + l1 < b1 || b1 + l1 > maxlba + 1)
+			return (-1);
+	}
 	for (i = 0; i < nrange - 1; i++) {
 		b1 = scsi_8btou64(range[i].lba);
 		l1 = scsi_4btoul(range[i].length);
@@ -2015,7 +2021,8 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 	/* Validate list of ranges */
 	if (tpc_check_ranges(&data->desc[0],
 	    scsi_2btoul(data->range_descriptor_length) /
-	    sizeof(struct scsi_range_desc))) {
+	    sizeof(struct scsi_range_desc),
+	    lun->be_lun->maxlba) != 0) {
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 0,
 		    /*command*/ 0, /*field*/ 0, /*bit_valid*/ 0,
 		    /*bit*/ 0);
@@ -2156,7 +2163,8 @@ ctl_write_using_token(struct ctl_scsiio *ctsio)
 	/* Validate list of ranges */
 	if (tpc_check_ranges(&data->desc[0],
 	    scsi_2btoul(data->range_descriptor_length) /
-	    sizeof(struct scsi_range_desc))) {
+	    sizeof(struct scsi_range_desc),
+	    lun->be_lun->maxlba) != 0) {
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 0,
 		    /*command*/ 0, /*field*/ 0, /*bit_valid*/ 0,
 		    /*bit*/ 0);
