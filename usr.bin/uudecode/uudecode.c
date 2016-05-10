@@ -300,7 +300,7 @@ decode2(void)
 }
 
 static int
-getline(char *buf, size_t size)
+get_line(char *buf, size_t size)
 {
 
 	if (fgets(buf, size, infp) != NULL)
@@ -338,7 +338,7 @@ uu_decode(void)
 
 	/* for each input line */
 	for (;;) {
-		switch (getline(buf, sizeof(buf))) {
+		switch (get_line(buf, sizeof(buf))) {
 		case 0:
 			return (0);
 		case 1:
@@ -397,7 +397,7 @@ uu_decode(void)
 				}
 			}
 	}
-	switch (getline(buf, sizeof(buf))) {
+	switch (get_line(buf, sizeof(buf))) {
 	case 0:
 		return (0);
 	case 1:
@@ -418,7 +418,7 @@ base64_decode(void)
 	leftover[0] = '\0';
 	for (;;) {
 		strcpy(inbuf, leftover);
-		switch (getline(inbuf + strlen(inbuf),
+		switch (get_line(inbuf + strlen(inbuf),
 		    sizeof(inbuf) - strlen(inbuf))) {
 		case 0:
 			return (0);

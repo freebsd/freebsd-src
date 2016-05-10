@@ -1158,10 +1158,10 @@ lookup(struct tab *p, char *cmd)
 #include <arpa/telnet.h>
 
 /*
- * getline - a hacked up version of fgets to ignore TELNET escape codes.
+ * get_line - a hacked up version of fgets to ignore TELNET escape codes.
  */
 int
-getline(char *s, int n, FILE *iop)
+get_line(char *s, int n, FILE *iop)
 {
 	int c;
 	register char *cs;
@@ -1280,7 +1280,7 @@ yylex(void)
 		case CMD:
 			(void) signal(SIGALRM, toolong);
 			(void) alarm(timeout);
-			n = getline(cbuf, sizeof(cbuf)-1, stdin);
+			n = get_line(cbuf, sizeof(cbuf)-1, stdin);
 			if (n == -1) {
 				reply(221, "You could at least say goodbye.");
 				dologout(0);
