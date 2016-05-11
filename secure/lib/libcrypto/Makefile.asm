@@ -66,10 +66,10 @@ CLEANFILES=	${ASM} ${SHA_ASM:S/$/.s/}
 .pl.S:
 	( echo '# $$'FreeBSD'$$' ;\
 	echo '# Do not modify. This file is auto-generated from ${.IMPSRC:T}.' ;\
-	perl ${.IMPSRC} elf ) > ${.TARGET}
+	env CC=cc perl ${.IMPSRC} elf ) > ${.TARGET}
 
 ${SHA_TMP}: ${SHA_SRC}
-	perl ${.ALLSRC} elf ${.TARGET}
+	env CC=cc perl ${.ALLSRC} elf ${.TARGET}
 
 .for s in ${SHA_ASM}
 ${s}.S: ${s}.s
@@ -146,9 +146,9 @@ CLEANFILES=	${ASM}
 	( echo '# $$'FreeBSD'$$' ;\
 	echo '# Do not modify. This file is auto-generated from ${.IMPSRC:T}.' ;\
 	echo '#ifdef PIC' ;\
-	perl ${PERLPATH} ${.IMPSRC} elf ${CFLAGS} -fpic -DPIC ;\
+	env CC=cc perl ${PERLPATH} ${.IMPSRC} elf ${CFLAGS} -fpic -DPIC ;\
 	echo '#else' ;\
-	perl ${PERLPATH} ${.IMPSRC} elf ${CFLAGS} ;\
+	env CC=cc perl ${PERLPATH} ${.IMPSRC} elf ${CFLAGS} ;\
 	echo '#endif') |\
 	sed -E 's|(\.file[[:blank:]]+)".*"|\1"${.TARGET}"|' > ${.TARGET}
 .endif
