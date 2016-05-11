@@ -138,6 +138,7 @@ static int nicvf_allocate_misc_interrupt(struct nicvf *);
 static int nicvf_enable_misc_interrupt(struct nicvf *);
 static int nicvf_allocate_net_interrupts(struct nicvf *);
 static void nicvf_release_all_interrupts(struct nicvf *);
+static int nicvf_update_hw_max_frs(struct nicvf *, int);
 static int nicvf_hw_set_mac_addr(struct nicvf *, uint8_t *);
 static void nicvf_config_cpi(struct nicvf *);
 static int nicvf_rss_init(struct nicvf *);
@@ -362,7 +363,7 @@ nicvf_setup_ifnet(struct nicvf *nic)
 	if_setcapabilities(ifp, 0);
 
 	/* Set the default values */
-	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU | IFCAP_JUMBO_MTU, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_LRO, 0);
 	if (nic->hw_tso) {
 		/* TSO */
@@ -465,11 +466,16 @@ nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		err = ether_ioctl(ifp, cmd, data);
 		break;
 	case SIOCSIFMTU:
-		/*
-		 * ARM64TODO: Needs to be implemented.
-		 * Currently ETHERMTU is set by default.
-		 */
-		err = ether_ioctl(ifp, cmd, data);
+		if (ifr->ifr_mtu < NIC_HW_MIN_FRS ||
+		    ifr->ifr_mtu > NIC_HW_MAX_FRS) {
+			err = EINVAL;
+		} else {
+			NICVF_CORE_LOCK(nic);
+			err = nicvf_update_hw_max_frs(nic, ifr->ifr_mtu);
+			if (err == 0)
+				if_setmtu(ifp, ifr->ifr_mtu);
+			NICVF_CORE_UNLOCK(nic);
+		}
 		break;
 	case SIOCSIFFLAGS:
 		NICVF_CORE_LOCK(nic);
@@ -971,6 +977,18 @@ nicvf_handle_mbx_intr(struct nicvf *nic)
 		break;
 	}
 	nicvf_clear_intr(nic, NICVF_INTR_MBOX, 0);
+}
+
+static int
+nicvf_update_hw_max_frs(struct nicvf *nic, int mtu)
+{
+	union nic_mbx mbx = {};
+
+	mbx.frs.msg = NIC_MBOX_MSG_SET_MAX_FRS;
+	mbx.frs.max_frs = mtu;
+	mbx.frs.vf_id = nic->vf_id;
+
+	return nicvf_send_msg_to_pf(nic, &mbx);
 }
 
 static int
