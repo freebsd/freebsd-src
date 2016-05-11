@@ -27,7 +27,6 @@
 #
 
 #include <sys/bus.h>
-#include <dev/pci/pcivar.h>
 
 INTERFACE pci;
 
@@ -209,11 +208,9 @@ METHOD int msix_table_bar {
 	device_t	child;
 } DEFAULT null_msix_bar;
 
-METHOD int get_id {
+METHOD uint16_t get_rid {
 	device_t	dev;
 	device_t	child;
-	enum pci_id_type type;
-	uintptr_t	*id;
 };
 
 METHOD struct pci_devinfo * alloc_devinfo {
