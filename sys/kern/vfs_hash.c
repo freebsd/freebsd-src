@@ -70,7 +70,8 @@ vfs_hash_bucket(const struct mount *mp, u_int hash)
 }
 
 int
-vfs_hash_get(const struct mount *mp, u_int hash, int flags, struct thread *td, struct vnode **vpp, vfs_hash_cmp_t *fn, void *arg)
+vfs_hash_get(const struct mount *mp, u_int hash, int flags, struct thread *td,
+    struct vnode **vpp, vfs_hash_cmp_t *fn, void *arg)
 {
 	struct vnode *vp;
 	int error;
@@ -112,7 +113,8 @@ vfs_hash_remove(struct vnode *vp)
 }
 
 int
-vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, struct vnode **vpp, vfs_hash_cmp_t *fn, void *arg)
+vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td,
+    struct vnode **vpp, vfs_hash_cmp_t *fn, void *arg)
 {
 	struct vnode *vp2;
 	int error;
