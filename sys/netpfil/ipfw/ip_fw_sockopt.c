@@ -2751,7 +2751,7 @@ add_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	if ((error = commit_rules(chain, cbuf, rtlv->count)) != 0) {
 		/* Free allocate krules */
 		for (i = 0, ci = cbuf; i < rtlv->count; i++, ci++)
-			free(ci->krule, M_IPFW);
+			free_rule(ci->krule);
 	}
 
 	if (cbuf != NULL && cbuf != &rci)
@@ -3574,7 +3574,9 @@ ipfw_ctl(struct sockopt *sopt)
 			ci.krule = krule;
 			import_rule0(&ci);
 			error = commit_rules(chain, &ci, 1);
-			if (!error && sopt->sopt_dir == SOPT_GET) {
+			if (error != 0)
+				free_rule(ci.krule);
+			else if (sopt->sopt_dir == SOPT_GET) {
 				if (is7) {
 					error = convert_rule_to_7(rule);
 					size = RULESIZE7(rule);
