@@ -727,10 +727,10 @@ cpsw_get_fdt_data(struct cpsw_softc *sc, int port)
 		if (OF_getprop_alloc(child, "name", 1, (void **)&name) < 0)
 			continue;
 		if (sscanf(name, "slave@%x", &mdio_child_addr) != 1) {
-			free(name, M_OFWPROP);
+			OF_prop_free(name);
 			continue;
 		}
-		free(name, M_OFWPROP);
+		OF_prop_free(name);
 		if (mdio_child_addr != slave_mdio_addr[port])
 			continue;
 
