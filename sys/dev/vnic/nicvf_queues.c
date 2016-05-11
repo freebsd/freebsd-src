@@ -1611,8 +1611,7 @@ nicvf_set_qset_resources(struct nicvf *nic)
 
 	/* Set count of each queue */
 	qs->rbdr_cnt = RBDR_CNT;
-	/* With no RSS we stay with single RQ */
-	qs->rq_cnt = 1;
+	qs->rq_cnt = RCV_QUEUE_CNT;
 
 	qs->sq_cnt = SND_QUEUE_CNT;
 	qs->cq_cnt = CMP_QUEUE_CNT;
