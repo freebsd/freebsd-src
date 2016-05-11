@@ -593,15 +593,11 @@ idr_for_each_layer(struct idr_layer *il, int layer,
 	return (0);
 }
 
+/* NOTE: It is not allowed to modify the IDR tree while it is being iterated */
 int
 idr_for_each(struct idr *idp, int (*f)(int id, void *p, void *data), void *data)
 {
-	int err;
-
-	mtx_lock(&idp->lock);
-	err = idr_for_each_layer(idp->top, idp->layers - 1, f, data);
-	mtx_unlock(&idp->lock);
-	return (err);
+	return (idr_for_each_layer(idp->top, idp->layers - 1, f, data));
 }
 
 int
