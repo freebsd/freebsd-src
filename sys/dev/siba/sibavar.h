@@ -389,6 +389,12 @@ SIBA_SPROM_ACCESSOR(fem_5ghz_antswlut, FEM_5GHZ_ANTSWLUT, uint8_t);
 
 #undef SIBA_SPROM_ACCESSOR
 
+struct siba_sprom_core_pwr_info {
+	uint8_t itssi_2g, itssi_5g;
+	uint8_t maxpwr_2g, maxpwr_5gl, maxpwr_5g, maxpwr_5gh;
+	uint8_t pa_2g[4], pa_5gl[4], pa_5g[4], pa_5gh[4];
+};
+
 struct siba_sprom {
 	uint8_t			rev;		/* revision */
 	uint8_t			mac_80211bg[6];	/* address for 802.11b/g */
@@ -447,6 +453,8 @@ struct siba_sprom {
 	uint16_t		bf_hi;		/* boardflags */
 	uint16_t		bf2_lo;
 	uint16_t		bf2_hi;
+
+	struct siba_sprom_core_pwr_info core_pwr_info[4];
 
 	struct {
 		struct {
@@ -601,5 +609,7 @@ void		siba_cc_pmu_set_ldoparef(device_t, uint8_t);
 void		siba_gpio_set(device_t, uint32_t);
 uint32_t	siba_gpio_get(device_t);
 void		siba_fix_imcfglobug(device_t);
+int		siba_sprom_get_core_power_info(device_t, int,
+		    struct siba_sprom_core_pwr_info *);
 
 #endif /* _SIBA_SIBAVAR_H_ */
