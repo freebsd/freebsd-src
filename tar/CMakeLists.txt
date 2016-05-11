@@ -20,6 +20,8 @@ IF(ENABLE_TAR)
     ../libarchive_fe/lafe_platform.h
     ../libarchive_fe/line_reader.c
     ../libarchive_fe/line_reader.h
+    ../libarchive_fe/passphrase.c
+    ../libarchive_fe/passphrase.h
   )
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/../libarchive_fe)
   IF(WIN32 AND NOT CYGWIN)
@@ -39,7 +41,6 @@ IF(ENABLE_TAR)
     SET_TARGET_PROPERTIES(bsdtar PROPERTIES COMPILE_DEFINITIONS
     				 LIBARCHIVE_STATIC)
   ENDIF(ENABLE_TAR_SHARED)
-  GET_TARGET_PROPERTY(BSDTAR bsdtar LOCATION)
 
   # Installation rules
   INSTALL(TARGETS bsdtar RUNTIME DESTINATION bin)

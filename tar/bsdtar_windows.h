@@ -29,11 +29,15 @@
 #define	BSDTAR_WINDOWS_H 1
 #include <direct.h>
 #include <windows.h>
+#include <io.h>
+#include <fcntl.h>
 
 #ifndef PRId64
 #define	PRId64 "I64"
 #endif
 #define	geteuid()	0
+
+#ifndef __WATCOMC__
 
 #ifndef S_IFIFO
 #define	S_IFIFO	0010000 /* pipe */
@@ -55,6 +59,8 @@ int __tar_chdir(const char *);
 #endif
 #ifndef S_ISBLK
 #define	S_ISBLK(a)	(0)
+#endif
+
 #endif
 
 #endif /* BSDTAR_WINDOWS_H */

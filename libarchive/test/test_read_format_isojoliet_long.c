@@ -91,6 +91,8 @@ DEFINE_TEST(test_read_format_isojoliet_long)
 	assertEqualIntA(a, ARCHIVE_EOF,
 	    archive_read_data_block(a, &p, &size, &offset));
 	assertEqualInt((int)size, 0);
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* A directory. */
 	pathname[100] = 'd';
@@ -103,6 +105,8 @@ DEFINE_TEST(test_read_format_isojoliet_long)
 	assertEqualInt(2048, archive_entry_size(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(86401, archive_entry_atime(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* A regular file with two names (pathname gets returned
 	 * first, so it's not marked as a hardlink). */
@@ -119,6 +123,8 @@ DEFINE_TEST(test_read_format_isojoliet_long)
 	assertEqualInt(6, (int)size);
 	assertEqualInt(0, offset);
 	assertEqualMem(p, "hello\n", 6);
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Second name for the same regular file (this happens to be
 	 * returned second, so does get marked as a hardlink). */
@@ -127,6 +133,8 @@ DEFINE_TEST(test_read_format_isojoliet_long)
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
 	assertEqualString("hardlink", archive_entry_hardlink(ae));
 	assert(!archive_entry_size_is_set(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* End of archive. */
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));

@@ -30,7 +30,7 @@ static int
 is_hex(const char *p, size_t l)
 {
 	while (l > 0) {
-		if (*p >= 0 && *p <= '9') {
+		if (*p >= '0' && *p <= '9') {
 			/* Ascii digit */
 		} else if (*p >= 'a' && *p <= 'f') {
 			/* lowercase letter a-f */

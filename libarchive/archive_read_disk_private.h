@@ -39,6 +39,9 @@ struct archive_entry;
 struct archive_read_disk {
 	struct archive	archive;
 
+	/* Reused by archive_read_next_header() */
+	struct archive_entry *entry;
+
 	/*
 	 * Symlink mode is one of 'L'ogical, 'P'hysical, or 'H'ybrid,
 	 * following an old BSD convention.  'L' follows all symlinks,
@@ -68,6 +71,8 @@ struct archive_read_disk {
 	int		 enable_copyfile;
 	/* Set 1 if users request to traverse mount points. */
 	int		 traverse_mount_points;
+	/* Set 1 if users want to suppress xattr information. */
+	int		 suppress_xattr;
 
 	const char * (*lookup_gname)(void *private, int64_t gid);
 	void	(*cleanup_gname)(void *private);

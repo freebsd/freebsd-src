@@ -27,11 +27,13 @@ __FBSDID("$FreeBSD$");
 
 #include <time.h>
 
+#define __LIBARCHIVE_BUILD 1
+#include "archive_getdate.h"
+
 /*
  * Verify that the getdate() function works.
  */
 
-time_t __archive_get_date(time_t, const char *);
 #define get_date __archive_get_date
 
 DEFINE_TEST(test_archive_getdate)
@@ -43,6 +45,12 @@ DEFINE_TEST(test_archive_getdate)
 	assertEqualInt(get_date(now, "2004/01/29 513 mest"), 1075345980);
 	assertEqualInt(get_date(now, "99/02/17 7pm utc"), 919278000);
 	assertEqualInt(get_date(now, "02/17/99 7:11am est"), 919253460);
+	assertEqualInt(get_date(now, "now - 2 hours"),
+	    get_date(now, "2 hours ago"));
+	assertEqualInt(get_date(now, "2 hours ago"),
+	    get_date(now, "+2 hours ago"));
+	assertEqualInt(get_date(now, "now - 2 hours"),
+	    get_date(now, "-2 hours"));
 	/* It's important that we handle ctime() format. */
 	assertEqualInt(get_date(now, "Sun Feb 22 17:38:26 PST 2009"),
 	    1235353106);

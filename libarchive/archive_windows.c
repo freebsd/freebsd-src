@@ -301,7 +301,7 @@ __la_open(const char *path, int flags, ...)
 	ws = NULL;
 	if ((flags & ~O_BINARY) == O_RDONLY) {
 		/*
-		 * When we open a directory, _open function returns 
+		 * When we open a directory, _open function returns
 		 * "Permission denied" error.
 		 */
 		attr = GetFileAttributesA(path);
@@ -515,9 +515,9 @@ __hstat(HANDLE handle, struct ustat *st)
 	else
 		mode |= S_IFREG;
 	st->st_mode = mode;
-	
+
 	fileTimeToUTC(&info.ftLastAccessTime, &t, &ns);
-	st->st_atime = t; 
+	st->st_atime = t;
 	st->st_atime_nsec = ns;
 	fileTimeToUTC(&info.ftLastWriteTime, &t, &ns);
 	st->st_mtime = t;
@@ -525,7 +525,7 @@ __hstat(HANDLE handle, struct ustat *st)
 	fileTimeToUTC(&info.ftCreationTime, &t, &ns);
 	st->st_ctime = t;
 	st->st_ctime_nsec = ns;
-	st->st_size = 
+	st->st_size =
 	    ((int64_t)(info.nFileSizeHigh) * ((int64_t)MAXDWORD + 1))
 		+ (int64_t)(info.nFileSizeLow);
 #ifdef SIMULATE_WIN_STAT
@@ -599,7 +599,7 @@ __la_stat(const char *path, struct stat *st)
 	struct ustat u;
 	int ret;
 
-	handle = la_CreateFile(path, 0, 0, NULL, OPEN_EXISTING,
+	handle = la_CreateFile(path, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
 		FILE_FLAG_BACKUP_SEMANTICS,
 		NULL);
 	if (handle == INVALID_HANDLE_VALUE) {

@@ -62,8 +62,10 @@ rm -f build/autoconf/ltsugar.m4
 rm -f build/autoconf/ltversion.m4
 rm -f build/autoconf/lt~obsolete.m4
 rm -f build/autoconf/missing
+rm -f build/autoconf/test-driver
 rm -f build/pkgconfig/libarchive.pc
 rm -f build/version.old
+rm -f cat/test/list.h
 rm -f config.h
 rm -f config.h.in
 rm -f config.log
