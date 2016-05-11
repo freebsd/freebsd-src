@@ -1166,7 +1166,7 @@ g_mirror_sync_collision(struct g_mirror_softc *sc, struct bio *bp)
 	struct g_mirror_disk *disk;
 	struct bio *sbp;
 	off_t rstart, rend, sstart, send;
-	int i;
+	u_int i;
 
 	if (sc->sc_sync.ds_ndisks == 0)
 		return (0);
