@@ -1,4 +1,5 @@
-	# $FreeBSD$
+# $FreeBSD$
+# Do not modify. This file is auto-generated from bf-686.pl.
 #ifdef PIC
 .file	"bf-686.S"
 .text

@@ -1,4 +1,5 @@
-	# $FreeBSD$
+# $FreeBSD$
+# Do not modify. This file is auto-generated from cmll-x86.pl.
 #ifdef PIC
 .file	"cmll-x86.S"
 .text

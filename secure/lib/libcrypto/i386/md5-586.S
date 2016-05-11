@@ -1,4 +1,5 @@
-	# $FreeBSD$
+# $FreeBSD$
+# Do not modify. This file is auto-generated from md5-586.pl.
 #ifdef PIC
 .file	"md5-586.S"
 .text

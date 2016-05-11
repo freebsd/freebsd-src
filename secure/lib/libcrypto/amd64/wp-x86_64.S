@@ -1,4 +1,5 @@
-	# $FreeBSD$
+# $FreeBSD$
+# Do not modify. This file is auto-generated from wp-x86_64.pl.
 .text	
 
 .globl	whirlpool_block

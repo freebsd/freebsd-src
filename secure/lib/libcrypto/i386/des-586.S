@@ -1,4 +1,5 @@
-	# $FreeBSD$
+# $FreeBSD$
+# Do not modify. This file is auto-generated from des-586.pl.
 #ifdef PIC
 .file	"des-586.S"
 .text

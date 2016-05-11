@@ -1,4 +1,5 @@
-	# $FreeBSD$
+# $FreeBSD$
+# Do not modify. This file is auto-generated from rc4-586.pl.
 #ifdef PIC
 .file	"rc4-586.S"
 .text
