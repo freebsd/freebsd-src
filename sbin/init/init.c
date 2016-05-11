@@ -779,9 +779,11 @@ reroot(void)
 
 	/*
 	 * Make sure nobody can interfere with our scheme.
+	 * Ignore ESRCH, which can apparently happen when
+	 * there are no processes to kill.
 	 */
 	error = kill(-1, SIGKILL);
-	if (error != 0) {
+	if (error != 0 && errno != ESRCH) {
 		emergency("kill(2) failed: %s", strerror(errno));
 		goto out;
 	}
