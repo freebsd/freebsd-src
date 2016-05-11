@@ -982,18 +982,14 @@ fail1:
 }
 
 static	__checkReturn	efx_rc_t
-ef10_filter_unicast_refresh(
+ef10_filter_insert_unicast(
 	__in				efx_nic_t *enp,
 	__in_ecount(6)			uint8_t const *addr,
-	__in				boolean_t all_unicst,
 	__in				efx_filter_flag_t filter_flags)
 {
 	ef10_filter_table_t *eftp = enp->en_filter.ef_ef10_filter_table;
 	efx_filter_spec_t spec;
 	efx_rc_t rc;
-
-	if (all_unicst == B_TRUE)
-		goto use_uc_def;
 
 	/* Insert the filter for the local station address */
 	efx_filter_spec_init_rx(&spec, EFX_FILTER_PRI_AUTO,
@@ -1002,43 +998,48 @@ ef10_filter_unicast_refresh(
 	efx_filter_spec_set_eth_local(&spec, EFX_FILTER_SPEC_VID_UNSPEC, addr);
 
 	rc = ef10_filter_add_internal(enp, &spec, B_TRUE,
-	    &eftp->eft_unicst_filter_index);
-	if (rc != 0) {
-		/*
-		 * Fall back to an unknown filter. We may be able to subscribe
-		 * to it even if we couldn't insert the unicast filter.
-		 */
-		goto use_uc_def;
-	}
-	eftp->eft_unicst_filter_set = B_TRUE;
+	    &eftp->eft_unicst_filter_indexes[eftp->eft_unicst_filter_count]);
+	if (rc != 0)
+		goto fail1;
+
+	eftp->eft_unicst_filter_count++;
+	EFSYS_ASSERT(eftp->eft_unicst_filter_count <=
+		    EFX_EF10_FILTER_UNICAST_FILTERS_MAX);
 
 	return (0);
 
-use_uc_def:
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+	return (rc);
+}
+
+static	__checkReturn	efx_rc_t
+ef10_filter_insert_all_unicast(
+	__in				efx_nic_t *enp,
+	__in				efx_filter_flag_t filter_flags)
+{
+	ef10_filter_table_t *eftp = enp->en_filter.ef_ef10_filter_table;
+	efx_filter_spec_t spec;
+	efx_rc_t rc;
+
 	/* Insert the unknown unicast filter */
 	efx_filter_spec_init_rx(&spec, EFX_FILTER_PRI_AUTO,
 	    filter_flags,
 	    eftp->eft_default_rxq);
 	efx_filter_spec_set_uc_def(&spec);
 	rc = ef10_filter_add_internal(enp, &spec, B_TRUE,
-	    &eftp->eft_unicst_filter_index);
+	    &eftp->eft_unicst_filter_indexes[eftp->eft_unicst_filter_count]);
 	if (rc != 0)
 		goto fail1;
 
-	eftp->eft_unicst_filter_set = B_TRUE;
+	eftp->eft_unicst_filter_count++;
+	EFSYS_ASSERT(eftp->eft_unicst_filter_count <=
+		    EFX_EF10_FILTER_UNICAST_FILTERS_MAX);
 
 	return (0);
 
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	if (eftp->eft_unicst_filter_set != B_FALSE) {
-		(void) ef10_filter_delete_internal(enp,
-		    eftp->eft_unicst_filter_index);
-
-		eftp->eft_unicst_filter_set = B_FALSE;
-	}
-
 	return (rc);
 }
 
@@ -1207,7 +1208,7 @@ ef10_filter_reconfigure(
 	ef10_filter_table_t *table = enp->en_filter.ef_ef10_filter_table;
 	efx_filter_flag_t filter_flags;
 	unsigned i;
-	int all_unicst_rc;
+	int all_unicst_rc = 0;
 	int all_mulcst_rc;
 	efx_rc_t rc;
 
@@ -1218,11 +1219,12 @@ ef10_filter_reconfigure(
 		 * filters must be removed (ignore errors in case the MC
 		 * has rebooted, which removes hardware filters).
 		 */
-		if (table->eft_unicst_filter_set != B_FALSE) {
+		for (i = 0; i < table->eft_unicst_filter_count; i++) {
 			(void) ef10_filter_delete_internal(enp,
-						table->eft_unicst_filter_index);
-			table->eft_unicst_filter_set = B_FALSE;
+					table->eft_unicst_filter_indexes[i]);
 		}
+		table->eft_unicst_filter_count = 0;
+
 		for (i = 0; i < table->eft_mulcst_filter_count; i++) {
 			(void) ef10_filter_delete_internal(enp,
 					table->eft_mulcst_filter_indexes[i]);
@@ -1238,27 +1240,39 @@ ef10_filter_reconfigure(
 		filter_flags = 0;
 
 	/* Mark old filters which may need to be removed */
-	if (table->eft_unicst_filter_set != B_FALSE) {
+	for (i = 0; i < table->eft_unicst_filter_count; i++) {
 		ef10_filter_set_entry_auto_old(table,
-					    table->eft_unicst_filter_index);
+					table->eft_unicst_filter_indexes[i]);
 	}
 	for (i = 0; i < table->eft_mulcst_filter_count; i++) {
 		ef10_filter_set_entry_auto_old(table,
 					table->eft_mulcst_filter_indexes[i]);
 	}
 
-	/* Insert or renew unicast filters */
-	if ((all_unicst_rc = ef10_filter_unicast_refresh(enp, mac_addr,
-		    all_unicst, filter_flags)) !=  0) {
-		if (all_unicst == B_FALSE) {
-			rc = all_unicst_rc;
+	/*
+	 * Insert or renew unicast filters.
+	 *
+	 * Frimware does not perform chaining on unicast filters. As traffic is
+	 * therefore only delivered to the first matching filter, we should
+	 * always insert the specific filter for our MAC address, to try and
+	 * ensure we get that traffic.
+	 *
+	 * (If the filter for our MAC address has already been inserted by
+	 * another function, we won't receive traffic sent to us, even if we
+	 * insert a unicast mismatch filter. To prevent traffic stealing, this
+	 * therefore relies on the privilege model only allowing functions to
+	 * insert filters for their own MAC address unless explicitly given
+	 * additional privileges by the user. This also means that, even on a
+	 * priviliged function, inserting a unicast mismatch filter may not
+	 * catch all traffic in multi PCI function scenarios.)
+	 */
+	table->eft_unicst_filter_count = 0;
+	rc = ef10_filter_insert_unicast(enp, mac_addr, filter_flags);
+	if (all_unicst || (rc != 0)) {
+		all_unicst_rc = ef10_filter_insert_all_unicast(enp,
+						    filter_flags);
+		if ((rc != 0) && (all_unicst_rc != 0))
 			goto fail1;
-		}
-		/* Retry without all_unicast flag */
-		rc = ef10_filter_unicast_refresh(enp, mac_addr,
-			B_FALSE, filter_flags);
-		if (rc != 0)
-			goto fail2;
 	}
 
 	/*
@@ -1278,7 +1292,7 @@ ef10_filter_reconfigure(
 	 * FIXME: On Medford multicast chaining should always be on.
 	 */
 	if ((rc = hunt_filter_get_workarounds(enp)) != 0)
-		goto fail3;
+		goto fail2;
 
 	/* Insert or renew multicast filters */
 	if ((all_mulcst_rc = ef10_filter_multicast_refresh(enp, mulcst,
@@ -1286,14 +1300,14 @@ ef10_filter_reconfigure(
 				addrs, count, filter_flags)) != 0) {
 		if (all_mulcst == B_FALSE) {
 			rc = all_mulcst_rc;
-			goto fail4;
+			goto fail3;
 		}
 		/* Retry without all_mulcast flag */
 		rc = ef10_filter_multicast_refresh(enp, mulcst,
 						B_FALSE, brdcst,
 						addrs, count, filter_flags);
 		if (rc != 0)
-			goto fail5;
+			goto fail4;
 	}
 
 	/* Remove old filters which were not renewed */
@@ -1311,8 +1325,6 @@ ef10_filter_reconfigure(
 
 	return (rc);
 
-fail5:
-	EFSYS_PROBE(fail5);
 fail4:
 	EFSYS_PROBE(fail4);
 fail3:
