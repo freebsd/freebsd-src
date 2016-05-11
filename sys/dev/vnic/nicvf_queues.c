@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
+#include <sys/stdatomic.h>
 #include <sys/cpuset.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -691,7 +692,7 @@ nicvf_rcv_pkt_handler(struct nicvf *nic, struct cmp_queue *cq,
 	return (0);
 }
 
-static int
+static void
 nicvf_snd_pkt_handler(struct nicvf *nic, struct cmp_queue *cq,
     struct cqe_send_t *cqe_tx, int cqe_type)
 {
@@ -702,15 +703,10 @@ nicvf_snd_pkt_handler(struct nicvf *nic, struct cmp_queue *cq,
 
 	mbuf = NULL;
 	sq = &nic->qs->sq[cqe_tx->sq_idx];
-	/* Avoid blocking here since we hold a non-sleepable NICVF_CMP_LOCK */
-	if (NICVF_TX_TRYLOCK(sq) == 0)
-		return (EAGAIN);
 
 	hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, cqe_tx->sqe_ptr);
-	if (hdr->subdesc_type != SQ_DESC_TYPE_HEADER) {
-		NICVF_TX_UNLOCK(sq);
-		return (0);
-	}
+	if (hdr->subdesc_type != SQ_DESC_TYPE_HEADER)
+		return;
 
 	dprintf(nic->dev,
 	    "%s Qset #%d SQ #%d SQ ptr #%d subdesc count %d\n",
@@ -728,9 +724,6 @@ nicvf_snd_pkt_handler(struct nicvf *nic, struct cmp_queue *cq,
 	}
 
 	nicvf_check_cqe_tx_errs(nic, cq, cqe_tx);
-
-	NICVF_TX_UNLOCK(sq);
-	return (0);
 }
 
 static int
@@ -788,16 +781,8 @@ nicvf_cq_intr_handler(struct nicvf *nic, uint8_t cq_idx)
 			work_done++;
 			break;
 		case CQE_TYPE_SEND:
-			cmp_err = nicvf_snd_pkt_handler(nic, cq,
-			    (void *)cq_desc, CQE_TYPE_SEND);
-			if (__predict_false(cmp_err != 0)) {
-				/*
-				 * Ups. Cannot finish now.
-				 * Let's try again later.
-				 */
-				goto done;
-			}
-
+			nicvf_snd_pkt_handler(nic, cq, (void *)cq_desc,
+			    CQE_TYPE_SEND);
 			tx_done++;
 			break;
 		case CQE_TYPE_INVALID:
@@ -1085,7 +1070,7 @@ nicvf_init_snd_queue(struct nicvf *nic, struct snd_queue *sq, int q_len,
 
 	sq->desc = sq->dmem.base;
 	sq->head = sq->tail = 0;
-	sq->free_cnt = q_len - 1;
+	atomic_store_rel_int(&sq->free_cnt, q_len - 1);
 	sq->thresh = SND_QUEUE_THRESH;
 	sq->idx = qidx;
 	sq->nic = nic;
@@ -1676,7 +1661,7 @@ nicvf_get_sq_desc(struct snd_queue *sq, int desc_cnt)
 	int qentry;
 
 	qentry = sq->tail;
-	sq->free_cnt -= desc_cnt;
+	atomic_subtract_int(&sq->free_cnt, desc_cnt);
 	sq->tail += desc_cnt;
 	sq->tail &= (sq->dmem.q_len - 1);
 
@@ -1688,7 +1673,7 @@ static void
 nicvf_put_sq_desc(struct snd_queue *sq, int desc_cnt)
 {
 
-	sq->free_cnt += desc_cnt;
+	atomic_add_int(&sq->free_cnt, desc_cnt);
 	sq->head += desc_cnt;
 	sq->head &= (sq->dmem.q_len - 1);
 }
