@@ -108,8 +108,12 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			    "enabled" : "disabled");
 		if (!(cpu->Flags & ACPI_SRAT_CPU_ENABLED))
 			break;
-		KASSERT(!cpus[cpu->ApicId].enabled,
-		    ("Duplicate local APIC ID %u", cpu->ApicId));
+		if (cpus[cpu->ApicId].enabled) {
+			printf("SRAT: Duplicate local APIC ID %u\n",
+			    cpu->ApicId);
+			*(int *)arg = ENXIO;
+			break;
+		}
 		cpus[cpu->ApicId].domain = domain;
 		cpus[cpu->ApicId].enabled = 1;
 		break;
