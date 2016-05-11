@@ -135,7 +135,7 @@ gctl_copyin(struct gctl_req *req)
 {
 	struct gctl_req_arg *ap;
 	char *p;
-	int i;
+	u_int i;
 
 	ap = geom_alloc_copyin(req, req->arg, req->narg * sizeof(*ap));
 	if (ap == NULL) {
@@ -212,7 +212,7 @@ gctl_copyout(struct gctl_req *req)
 static void
 gctl_free(struct gctl_req *req)
 {
-	int i;
+	u_int i;
 
 	sbuf_delete(req->serror);
 	if (req->arg == NULL)
@@ -270,7 +270,7 @@ int
 gctl_set_param(struct gctl_req *req, const char *param, void const *ptr,
     int len)
 {
-	int i;
+	u_int i;
 	struct gctl_req_arg *ap;
 
 	for (i = 0; i < req->narg; i++) {
@@ -311,7 +311,7 @@ gctl_set_param_err(struct gctl_req *req, const char *param, void const *ptr,
 void *
 gctl_get_param(struct gctl_req *req, const char *param, int *len)
 {
-	int i;
+	u_int i;
 	void *p;
 	struct gctl_req_arg *ap;
 
@@ -332,7 +332,7 @@ gctl_get_param(struct gctl_req *req, const char *param, int *len)
 char const *
 gctl_get_asciiparam(struct gctl_req *req, const char *param)
 {
-	int i;
+	u_int i;
 	char const *p;
 	struct gctl_req_arg *ap;
 

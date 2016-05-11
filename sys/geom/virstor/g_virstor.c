@@ -475,7 +475,7 @@ static void
 update_metadata(struct g_virstor_softc *sc)
 {
 	struct g_virstor_metadata md;
-	int n;
+	u_int n;
 
 	if (virstor_valid_components(sc) != sc->n_components)
 		return; /* Incomplete device */
@@ -932,7 +932,7 @@ virstor_geom_destroy(struct g_virstor_softc *sc, boolean_t force,
 {
 	struct g_provider *pp;
 	struct g_geom *gp;
-	int n;
+	u_int n;
 
 	g_topology_assert();
 
