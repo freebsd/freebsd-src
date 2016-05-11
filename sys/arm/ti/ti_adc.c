@@ -747,11 +747,11 @@ ti_adc_attach(device_t dev)
 			device_printf(sc->sc_dev,
 			    "invalid nubmer of ti,wire-config: %d (should be %d)\n",
 			    nwire_configs, sc->sc_tsc_wires);
-			free(wire_configs, M_OFWPROP);
+			OF_prop_free(wire_configs);
 			return (EINVAL);
 		}
 		err = ti_adc_config_wires(sc, wire_configs, nwire_configs);
-		free(wire_configs, M_OFWPROP);
+		OF_prop_free(wire_configs);
 		if (err)
 			return (EINVAL);
 	}
@@ -764,7 +764,7 @@ ti_adc_attach(device_t dev)
 		if (sc->sc_adc_nchannels > 0) {
 			for (i = 0; i < sc->sc_adc_nchannels; i++)
 				sc->sc_adc_channels[i] = channels[i];
-			free(channels, M_OFWPROP);
+			OF_prop_free(channels);
 		}
 	}
 

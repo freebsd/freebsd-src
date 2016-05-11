@@ -76,21 +76,21 @@ gpio_pin_get_by_ofw_impl(device_t consumer, phandle_t cnode,
 	/* Translate provider to device. */
 	pin.dev = OF_device_from_xref(xref);
 	if (pin.dev == NULL) {
-		free(cells, M_OFWPROP);
+		OF_prop_free(cells);
 		return (ENODEV);
 	}
 
 	/* Test if GPIO bus already exist. */
 	busdev = GPIO_GET_BUS(pin.dev);
 	if (busdev == NULL) {
-		free(cells, M_OFWPROP);
+		OF_prop_free(cells);
 		return (ENODEV);
 	}
 
 	/* Map GPIO pin. */
 	rv = gpio_map_gpios(pin.dev, cnode, OF_node_from_xref(xref), ncells,
 	    cells, &pin.pin, &pin.flags);
-	free(cells, M_OFWPROP);
+	OF_prop_free(cells);
 	if (rv != 0)
 		return (ENXIO);
 
@@ -379,7 +379,7 @@ ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
 		    sizeof(gpiocells)) < 0) {
 			device_printf(consumer,
 			    "gpio reference is not a gpio-controller.\n");
-			free(gpios, M_OFWPROP);
+			OF_prop_free(gpios);
 			return (-1);
 		}
 		if (ncells - i < gpiocells + 1) {
@@ -394,13 +394,13 @@ ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
 		if (npins == 0)
 			device_printf(consumer, "no pin specified in %s.\n",
 			    pname);
-		free(gpios, M_OFWPROP);
+		OF_prop_free(gpios);
 		return (npins);
 	}
 	*pins = malloc(sizeof(struct gpiobus_pin) * npins, M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
 	if (*pins == NULL) {
-		free(gpios, M_OFWPROP);
+		OF_prop_free(gpios);
 		return (-1);
 	}
 	/* Decode the gpio specifier on the second pass. */
@@ -455,12 +455,12 @@ ofw_gpiobus_parse_gpios_impl(device_t consumer, phandle_t cnode, char *pname,
 		j++;
 		i += gpiocells + 1;
 	}
-	free(gpios, M_OFWPROP);
+	OF_prop_free(gpios);
 
 	return (npins);
 
 fail:
-	free(gpios, M_OFWPROP);
+	OF_prop_free(gpios);
 	free(*pins, M_DEVBUF);
 	return (-1);
 }

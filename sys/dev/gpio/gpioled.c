@@ -151,7 +151,7 @@ gpioled_probe(device_t dev)
 		if (strcasecmp(compat, "gpio-leds") == 0)
 			match = 1;
 
-		free(compat, M_OFWPROP);
+		OF_prop_free(compat);
 	}
 
 	if (match == 0)
@@ -198,7 +198,7 @@ gpioled_attach(device_t dev)
 			device_printf(dev,
 			    "unknown value for default-state in FDT\n");
 		}
-		free(default_state, M_OFWPROP);
+		OF_prop_free(default_state);
 	}
 
 	name = NULL;
@@ -214,7 +214,7 @@ gpioled_attach(device_t dev)
 	    device_get_nameunit(dev), state);
 #ifdef FDT
 	if (name != NULL)
-		free(name, M_OFWPROP);
+		OF_prop_free(name);
 #endif
 
 	return (0);
