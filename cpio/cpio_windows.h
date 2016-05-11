@@ -26,6 +26,7 @@
  */
 #ifndef CPIO_WINDOWS_H
 #define CPIO_WINDOWS_H 1
+#include <windows.h>
 
 #include <io.h>
 #include <string.h>
@@ -35,8 +36,10 @@
 #define getpwnam(name)	NULL
 #define getpwuid(id)	NULL
 
-#ifdef _MSC_VER
-#define snprintf	sprintf_s
+#if defined(_MSC_VER)
+ #if _MSC_VER < 1900
+ #define snprintf	sprintf_s
+ #endif // _MSC_VER < 1900
 #define strdup		_strdup
 #define open	_open
 #define read	_read

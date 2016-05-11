@@ -93,14 +93,44 @@ function breakline() {
   linecmd("<br>")
 }
 
+function crossref(name, sect, other) {
+  if (name == "cpio" && sect == 1) {
+    n = "ManPageBsdcpio1"
+  } else if (name == "cpio" && sect == 5) {
+    n = "ManPageCpio5"
+  } else if (name == "mtree" && sect == 5) {
+    n = "ManPageMtree5"
+  } else if (name == "tar" && sect == 1) {
+    n = "ManPageBsdtar1"
+  } else if (name == "tar" && sect == 5) {
+    n = "ManPageTar5"
+  } else if (!match(name, "^archive") && !match(name, "^libarchive")) {
+    n = name "(" sect ")|http://www.freebsd.org/cgi/man.cgi?query=" name "&sektion=" sect
+  } else {
+    n = "ManPage"
+    numbits = split(name, namebits, "[_-]")
+    for (i = 1; i <= numbits; ++i) {
+      p = namebits[i]
+      n = n toupper(substr(p, 0, 1)) substr(p, 2)
+    }
+    n = n sect
+  }
+  n = "[[" n "]]"
+  if (length other > 0)
+    n = n other
+  return n
+}
+
 # Start an indented display
 function dispstart() {
-  linecmd("```text")
+  endline()
+  print "```text"
 }
 
 # End an indented display
 function dispend() {
-  linecmd("```")
+  endline()
+  print "```"
 }
 
 # Collect rest of input line
@@ -123,22 +153,22 @@ function splitwords(l, dest, n, o, w) {
       l = substr(l, 2)
       o = index(l, "\"")
       if (o > 0) {
-	w = substr(l, 1, o-1)
-	l = substr(l, o+1)
-	dest[n++] = w
+        w = substr(l, 1, o-1)
+        l = substr(l, o+1)
+        dest[n++] = w
       } else {
-	dest[n++] = l
-	l = ""
+        dest[n++] = l
+        l = ""
       }
     } else {
       o = match(l, "[ \t]")
       if (o > 0) {
-	w = substr(l, 1, o-1)
-	l = substr(l, o+1)
-	dest[n++] = w
+        w = substr(l, 1, o-1)
+        l = substr(l, o+1)
+        dest[n++] = w
       } else {
-	dest[n++] = l
-	l = ""
+        dest[n++] = l
+        l = ""
       }
     }
   }
@@ -154,6 +184,7 @@ function splitwords(l, dest, n, o, w) {
 /^\.\\"/ { next }
 
 {
+  gsub("\\\\e", "\\")
   sub("^\\.","")
   nwords=splitwords($0, words)
   # TODO: Instead of iterating 'w' over the array, have a separate
@@ -170,8 +201,8 @@ function splitwords(l, dest, n, o, w) {
       STATE = PRETAG_STATE
       if(match(words[w+1],"-literal")) {
         dispstart()
-	displaylines=10000
-	w=nwords
+        displaylines=10000
+        w=nwords
       }
     } else if(match(words[w],"^Ed$")) { # End display
       displaylines = 0
@@ -185,7 +216,7 @@ function splitwords(l, dest, n, o, w) {
       addopen("\"")
       add(words[++w])
       while(w<nwords&&!match(words[w+1],"^[\\.,]"))
-	add(words[++w])
+        add(words[++w])
       addclose("\"")
     } else if(match(words[w],"^Do$")) {
       addopen("\"")
@@ -241,16 +272,17 @@ function splitwords(l, dest, n, o, w) {
       section=wtail()
       linecmd("== " section " ==")
     } else if(match(words[w],"^Xr$")) {
-      add("'''" words[++w] "'''(" words[++w] ")" words[++w])
+      add(crossref(words[w+1], words[w+2], words[w+3]))
+      w = w + 3
     } else if(match(words[w],"^Nm$")) {
       if(match(section,"SYNOPSIS"))
         breakline()
       if(w >= nwords)
-	n=name
+        n=name
       else if (match(words[w+1], "^[A-Z][a-z]$"))
-	n=name
+        n=name
       else if (match(words[w+1], "^[.,;:]$"))
-	n=name
+        n=name
       else {
         n=words[++w]
         if(!length(name))
@@ -259,27 +291,30 @@ function splitwords(l, dest, n, o, w) {
       if(!length(n))
         n=name
       if (displaylines == 0)
-	add("'''" n "'''")
+        add("'''" n "'''")
       else
-	add(n)
+        add(n)
     } else if(match(words[w],"^Nd$")) {
       add("- " wtail())
     } else if(match(words[w],"^Fl$")) {
       addopen("-")
     } else if(match(words[w],"^Ar$")) {
       if(w==nwords)
-	add("''file ...''")
+        add("''file ...''")
       else {
-	++w
-	gsub("<", "&lt;", words[w])
-	add("''" words[w] "''")
+        ++w
+        gsub("<", "\\&lt;", words[w])
+        if (displaylines > 0)
+          add(words[w])
+        else
+          add("''" words[w] "''")
       }
     } else if(match(words[w],"^Cm$")) {
       ++w
       if (displaylines == 0) {
-	add("'''" words[w] "'''")
+        add("'''" words[w] "'''")
       } else
-	add(words[w])
+        add(words[w])
     } else if(match(words[w],"^Op$")) {
       addopen("<nowiki>[</nowiki>")
       option=1
@@ -290,36 +325,36 @@ function splitwords(l, dest, n, o, w) {
       print ""
     } else if(match(words[w],"^An$")) {
       if (match(words[w+1],"-nosplit"))
-	++w
+        ++w
       endline()
     } else if(match(words[w],"^Ss$")) {
       add("===")
       trailer="==="
     } else if(match(words[w],"^Ft$")) {
       if (match(section, "SYNOPSIS")) {
-	breakline()
+        breakline()
       }
       l = wtail()
-      add("'''" l "'''")
+      add("''" l "''")
       if (match(section, "SYNOPSIS")) {
-	breakline()
+        breakline()
       }
     } else if(match(words[w],"^Fn$")) {
       ++w
       F = "'''" words[w] "'''("
       Fsep = ""
       while(w<nwords) {
-	++w
-	if (match(words[w], "^[.,:]$")) {
-	  --w
-	  break
-	}
-	F = F Fsep "''"  words[w] "''"
-	Fsep = ", "
+        ++w
+        if (match(words[w], "^[.,:]$")) {
+          --w
+          break
+        }
+        F = F Fsep "''"  words[w] "''"
+        Fsep = ", "
       }
       add(F ")")
       if (match(section, "SYNOPSIS")) {
-	addclose(";")
+        addclose(";")
       }
     } else if(match(words[w],"^Fo$")) {
       w++
@@ -332,7 +367,7 @@ function splitwords(l, dest, n, o, w) {
     } else if(match(words[w],"^Fc$")) {
       add(F ")")
       if (match(section, "SYNOPSIS")) {
-	addclose(";")
+        addclose(";")
       }
     } else if(match(words[w],"^Va$")) {
       w++
@@ -343,11 +378,11 @@ function splitwords(l, dest, n, o, w) {
     } else if(match(words[w],"^Pa$")) {
       w++
 #      if(match(words[w],"^\\."))
-#	add("\\&")
+#       add("\\&")
       if (displaylines == 0)
-	add("''" words[w] "''")
+        add("''" words[w] "''")
       else
-	add(words[w])
+        add(words[w])
     } else if(match(words[w],"^Dv$")) {
       linecmd()
     } else if(match(words[w],"^Em|Ev$")) {
@@ -373,22 +408,22 @@ function splitwords(l, dest, n, o, w) {
       ++listdepth
       listnext[listdepth]=""
       if(match(words[w+1],"-bullet")) {
-	optlist[listdepth]=1
-	addopen("<ul>")
-	listclose[listdepth]="</ul>"
+        optlist[listdepth]=1
+        addopen("<ul>")
+        listclose[listdepth]="</ul>"
       } else if(match(words[w+1],"-enum")) {
-	optlist[listdepth]=2
-	enum=0
-	addopen("<ol>")
-	listclose[listdepth]="</ol>"
+        optlist[listdepth]=2
+        enum=0
+        addopen("<ol>")
+        listclose[listdepth]="</ol>"
       } else if(match(words[w+1],"-tag")) {
-	optlist[listdepth]=3
-	addopen("<dl>")
-	listclose[listdepth]="</dl>"
+        optlist[listdepth]=3
+        addopen("<dl>")
+        listclose[listdepth]="</dl>"
       } else if(match(words[w+1],"-item")) {
-	optlist[listdepth]=4
-	addopen("<ul>")
-	listclose[listdepth]="</ul>"
+        optlist[listdepth]=4
+        addopen("<ul>")
+        listclose[listdepth]="</ul>"
       }
       w=nwords
     } else if(match(words[w],"^El$")) {
@@ -399,28 +434,30 @@ function splitwords(l, dest, n, o, w) {
     } else if(match(words[w],"^It$")) {
       addclose(listnext[listdepth])
       if(optlist[listdepth]==1) {
-	addpunct("<li>")
-	listnext[listdepth] = "</li>"
+        addpunct("<li>")
+        listnext[listdepth] = "</li>"
       } else if(optlist[listdepth]==2) {
-	addpunct("<li>")
-	listnext[listdepth] = "</li>"
+        addpunct("<li>")
+        listnext[listdepth] = "</li>"
       } else if(optlist[listdepth]==3) {
-	addpunct("<dt>")
-	listnext[listdepth] = "</dt>"
-	if(match(words[w+1],"^Xo$")) {
-	  # Suppress trailer
-	  w++
-	} else if(match(words[w+1],"^Pa$|^Ev$")) {
-	  addopen("'''")
-	  w++
-	  add(words[++w] "'''")
-	} else {
-	  trailer = listnext[listdepth] "<dd>" trailer
-	  listnext[listdepth] = "</dd>"
-	}
+        addpunct("<dt>")
+        listnext[listdepth] = "</dt>"
+        if(match(words[w+1],"^Xo$")) {
+          # Suppress trailer
+          w++
+        } else if(match(words[w+1],"^Pa$|^Ev$")) {
+          addopen("'''")
+          w++
+          add(words[++w] "'''")
+          trailer = listnext[listdepth] "<dd>" trailer
+          listnext[listdepth] = "</dd>"
+        } else {
+          trailer = listnext[listdepth] "<dd>" trailer
+          listnext[listdepth] = "</dd>"
+        }
       } else if(optlist[listdepth]==4) {
-	addpunct("<li>")
-	listnext[listdepth] = "</li>"
+        addpunct("<li>")
+        listnext[listdepth] = "</li>"
       }
     } else if(match(words[w], "^Vt$")) {
       w++
@@ -430,9 +467,9 @@ function splitwords(l, dest, n, o, w) {
     } else if(match(words[w],"^Xc$")) {
       # TODO: Figure out how to handle this
       if (optlist[listdepth] == 3) {
-	addclose(listnext[listdepth])
-	addopen("<dd>")
-	listnext[listdepth] = "</dd>"
+        addclose(listnext[listdepth])
+        addopen("<dd>")
+        listnext[listdepth] = "</dd>"
       }
     } else if(match(words[w],"^[=]$")) {
       addpunct(words[w])

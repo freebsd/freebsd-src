@@ -330,8 +330,6 @@ file_information(struct archive_write_disk *a, wchar_t *path,
 				break;
 			case L'C': case L'c':
 				if (((p[2] == L'M' || p[2] == L'm' ) &&
-				    (p[3] == L'D' || p[3] == L'd' )) ||
-				    ((p[2] == L'M' || p[2] == L'm' ) &&
 				    (p[3] == L'D' || p[3] == L'd' )))
 					*mode |= S_IXUSR | S_IXGRP | S_IXOTH;
 				break;
@@ -525,7 +523,7 @@ la_GetFunctionKernel32(const char *name)
 	static int set;
 	if (!set) {
 		set = 1;
-		lib = LoadLibrary("kernel32.dll");
+		lib = LoadLibrary(TEXT("kernel32.dll"));
 	}
 	if (lib == NULL) {
 		fprintf(stderr, "Can't load kernel32.dll?!\n");
@@ -1011,7 +1009,11 @@ _archive_write_disk_data_block(struct archive *_a,
 		    "Write request too large");
 		return (ARCHIVE_WARN);
 	}
+#if ARCHIVE_VERSION_NUMBER < 3999000
 	return (ARCHIVE_OK);
+#else
+	return (size);
+#endif
 }
 
 static ssize_t

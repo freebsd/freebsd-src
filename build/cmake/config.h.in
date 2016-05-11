@@ -63,7 +63,7 @@ typedef long long int64_t;
  * Similarly for int32_t
  */
 #if !defined(HAVE_INT32_T) && SIZE_OF_INT == 4
-typedef long int32_t;
+typedef int int32_t;
 #define HAVE_INT32_T
 #endif
 
@@ -170,8 +170,6 @@ typedef unsigned char uint8_t;
 /* Define intmax_t and uintmax_t if they are not already defined. */
 #if !defined(HAVE_INTMAX_T)
 typedef int64_t intmax_t;
-#define INTMAX_MIN INT64_MIN
-#define INTMAX_MAX INT64_MAX
 #endif
 
 #if !defined(HAVE_UINTMAX_T)
@@ -289,6 +287,9 @@ typedef uint64_t uintmax_t;
 /* Version number of bsdtar */
 #cmakedefine BSDTAR_VERSION_STRING "${BSDTAR_VERSION_STRING}"
 
+/* Version number of bsdcat */
+#cmakedefine BSDCAT_VERSION_STRING "${BSDCAT_VERSION_STRING}"
+
 /* Define to 1 if you have the `acl_create_entry' function. */
 #cmakedefine HAVE_ACL_CREATE_ENTRY 1
 
@@ -325,8 +326,14 @@ typedef uint64_t uintmax_t;
 /* True for systems with POSIX ACL support */
 #cmakedefine HAVE_ACL_USER 1
 
+/* Define to 1 if you have the `arc4random_buf' function. */
+#cmakedefine HAVE_ARC4RANDOM_BUF 1
+
 /* Define to 1 if you have the <attr/xattr.h> header file. */
 #cmakedefine HAVE_ATTR_XATTR_H 1
+
+/* Define to 1 if you have the <Bcrypt.h> header file. */
+#cmakedefine HAVE_BCRYPT_H 1
 
 /* Define to 1 if you have the <bsdxml.h> header file. */
 #cmakedefine HAVE_BSDXML_H 1
@@ -355,6 +362,14 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `cygwin_conv_path' function. */
 #cmakedefine HAVE_CYGWIN_CONV_PATH 1
 
+/* Define to 1 if you have the declaration of `INT32_MAX', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_INT32_MAX 1
+
+/* Define to 1 if you have the declaration of `INT32_MIN', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_INT32_MIN 1
+
 /* Define to 1 if you have the declaration of `INT64_MAX', and to 0 if you
    don't. */
 #cmakedefine HAVE_DECL_INT64_MAX 1
@@ -362,6 +377,14 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the declaration of `INT64_MIN', and to 0 if you
    don't. */
 #cmakedefine HAVE_DECL_INT64_MIN 1
+
+/* Define to 1 if you have the declaration of `INTMAX_MAX', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_INTMAX_MAX 1
+
+/* Define to 1 if you have the declaration of `INTMAX_MIN', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_INTMAX_MIN 1
 
 /* Define to 1 if you have the declaration of `SIZE_MAX', and to 0 if you
    don't. */
@@ -382,6 +405,10 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the declaration of `UINT64_MAX', and to 0 if you
    don't. */
 #cmakedefine HAVE_DECL_UINT64_MAX 1
+
+/* Define to 1 if you have the declaration of `UINTMAX_MAX', and to 0 if you
+   don't. */
+#cmakedefine HAVE_DECL_UINTMAX_MAX 1
 
 /* Define to 1 if you have the <direct.h> header file. */
 #cmakedefine HAVE_DIRECT_H 1
@@ -576,11 +603,20 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `bz2' library (-lbz2). */
 #cmakedefine HAVE_LIBBZ2 1
 
+/* Define to 1 if you have the `charset' library (-lcharset). */
+#cmakedefine HAVE_LIBCHARSET 1
+
+/* Define to 1 if you have the `crypto' library (-lcrypto). */
+#cmakedefine HAVE_LIBCRYPTO 1
+
 /* Define to 1 if you have the `expat' library (-lexpat). */
 #cmakedefine HAVE_LIBEXPAT 1
 
 /* Define to 1 if you have the `gcc' library (-lgcc). */
 #cmakedefine HAVE_LIBGCC 1
+
+/* Define to 1 if you have the `lz4' library (-llz4). */
+#cmakedefine HAVE_LIBLZ4 1
 
 /* Define to 1 if you have the `lzma' library (-llzma). */
 #cmakedefine HAVE_LIBLZMA 1
@@ -673,6 +709,12 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `lutimes' function. */
 #cmakedefine HAVE_LUTIMES 1
 
+/* Define to 1 if you have the <lz4hc.h> header file. */
+#cmakedefine HAVE_LZ4HC_H 1
+
+/* Define to 1 if you have the <lz4.h> header file. */
+#cmakedefine HAVE_LZ4_H 1
+
 /* Define to 1 if you have the <lzmadec.h> header file. */
 #cmakedefine HAVE_LZMADEC_H 1
 
@@ -709,8 +751,17 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #cmakedefine HAVE_NDIR_H 1
 
+/* Define to 1 if you have the <nettle/aes.h> header file. */
+#cmakedefine HAVE_NETTLE_AES_H 1
+
+/* Define to 1 if you have the <nettle/hmac.h> header file. */
+#cmakedefine HAVE_NETTLE_HMAC_H 1
+
 /* Define to 1 if you have the <nettle/md5.h> header file. */
 #cmakedefine HAVE_NETTLE_MD5_H 1
+
+/* Define to 1 if you have the <nettle/pbkdf2.h> header file. */
+#cmakedefine HAVE_NETTLE_PBKDF2_H 1
 
 /* Define to 1 if you have the <nettle/ripemd160.h> header file. */
 #cmakedefine HAVE_NETTLE_RIPEMD160_H 1
@@ -733,6 +784,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `pipe' function. */
 #cmakedefine HAVE_PIPE 1
 
+/* Define to 1 if you have the `PKCS5_PBKDF2_HMAC_SHA1' function. */
+#cmakedefine HAVE_PKCS5_PBKDF2_HMAC_SHA1 1
+
 /* Define to 1 if you have the `poll' function. */
 #cmakedefine HAVE_POLL 1
 
@@ -745,6 +799,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <process.h> header file. */
 #cmakedefine HAVE_PROCESS_H 1
 
+/* Define to 1 if you have the <pthread.h> header file. */
+#cmakedefine HAVE_PTHREAD_H 1
+
 /* Define to 1 if you have the <pwd.h> header file. */
 #cmakedefine HAVE_PWD_H 1
 
@@ -756,6 +813,12 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the `readlinkat' function. */
 #cmakedefine HAVE_READLINKAT 1
+
+/* Define to 1 if you have the `readpassphrase' function. */
+#cmakedefine HAVE_READPASSPHRASE 1
+
+/* Define to 1 if you have the <readpassphrase.h> header file. */
+#cmakedefine HAVE_READPASSPHRASE_H 1
 
 /* Define to 1 if you have the <regex.h> header file. */
 #cmakedefine HAVE_REGEX_H 1
@@ -1012,6 +1075,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `wmemcpy' function. */
 #cmakedefine HAVE_WMEMCPY 1
 
+/* Define to 1 if you have the `wmemmove' function. */
+#cmakedefine HAVE_WMEMMOVE 1
+
 /* Define to 1 if you have a working EXT2_IOC_GETFLAGS */
 #cmakedefine HAVE_WORKING_EXT2_IOC_GETFLAGS 1
 
@@ -1105,9 +1171,18 @@ typedef uint64_t uintmax_t;
 /* Define for large files, on AIX-style hosts. */
 #cmakedefine _LARGE_FILES ${_LARGE_FILES}
 
-/* Define for Windows to use Windows 2000+ APIs. */
+/* Define to control Windows SDK version */
+#ifndef NTDDI_VERSION
+#cmakedefine NTDDI_VERSION ${NTDDI_VERSION}
+#endif // NTDDI_VERSION
+
+#ifndef _WIN32_WINNT
 #cmakedefine _WIN32_WINNT ${_WIN32_WINNT}
+#endif // _WIN32_WINNT
+
+#ifndef WINVER
 #cmakedefine WINVER ${WINVER}
+#endif // WINVER
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #cmakedefine const ${const}

@@ -8,13 +8,19 @@ CFLAGS=				\
 	-I../../libarchive	\
 	-g
 
+#
+# You may need to add additional libraries or link options here
+# For example, many Linux systems require -lacl
+#
+LIBS= -lz -lbz2
+
 # How to link against libarchive.
 LIBARCHIVE=	../../libarchive/libarchive.a
 
 all: minitar
 
 minitar: minitar.o
-	cc -g -o minitar minitar.o $(LIBARCHIVE) -lz -lbz2
+	cc -g -o minitar minitar.o $(LIBARCHIVE) $(LIBS)
 	strip minitar
 	ls -l minitar
 

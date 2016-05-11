@@ -15,7 +15,10 @@ IF(ENABLE_CPIO)
     ../libarchive_fe/lafe_platform.h
     ../libarchive_fe/line_reader.c
     ../libarchive_fe/line_reader.h
+    ../libarchive_fe/passphrase.c
+    ../libarchive_fe/passphrase.h
   )
+  INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/test_utils)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/../libarchive_fe)
   IF(WIN32 AND NOT CYGWIN)
     LIST(APPEND bsdcpio_SOURCES cpio_windows.c)
@@ -34,8 +37,6 @@ IF(ENABLE_CPIO)
     SET_TARGET_PROPERTIES(bsdcpio PROPERTIES COMPILE_DEFINITIONS
     				  LIBARCHIVE_STATIC)
   ENDIF(ENABLE_CPIO_SHARED)
-  # Full path to the compiled executable (used by test suite)
-  GET_TARGET_PROPERTY(BSDCPIO bsdcpio LOCATION)
 
   # Installation rules
   INSTALL(TARGETS bsdcpio RUNTIME DESTINATION bin)

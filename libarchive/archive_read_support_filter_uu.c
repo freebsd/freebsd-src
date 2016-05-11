@@ -509,7 +509,7 @@ read_more:
 			return (ARCHIVE_FATAL);
 		}
 		llen = len;
-		if (nl == 0) {
+		if ((nl == 0) && (uudecode->state != ST_UUEND)) {
 			/*
 			 * Save remaining data which does not contain
 			 * NL('\n','\r').
@@ -527,6 +527,7 @@ read_more:
 				    self->upstream, ravail);
 				goto read_more;
 			}
+			used += len;
 			break;
 		}
 		switch (uudecode->state) {

@@ -43,7 +43,7 @@ cd ..
 # Substitute the versions into Libarchive's archive.h and archive_entry.h
 perl -p -i -e "s/^(#define\tARCHIVE_VERSION_NUMBER).*/\$1 $VN/" libarchive/archive.h
 perl -p -i -e "s/^(#define\tARCHIVE_VERSION_NUMBER).*/\$1 $VN/" libarchive/archive_entry.h
-perl -p -i -e "s/^(#define\tARCHIVE_VERSION_STRING).*/\$1 \"libarchive $VS\"/" libarchive/archive.h
+perl -p -i -e "s/^(#define\tARCHIVE_VERSION_ONLY_STRING).*/\$1 \"$VS\"/" libarchive/archive.h
 # Substitute versions into configure.ac as well
 perl -p -i -e 's/(m4_define\(\[LIBARCHIVE_VERSION_S\]),.*\)/$1,['"$VS"'])/' configure.ac
 perl -p -i -e 's/(m4_define\(\[LIBARCHIVE_VERSION_N\]),.*\)/$1,['"$VN"'])/' configure.ac

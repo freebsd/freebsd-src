@@ -28,7 +28,7 @@
 .\"     From: @(#)mtree.8       8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2008
+.Dd September 4, 2013
 .Dt MTREE 5
 .Os
 .Sh NAME
@@ -56,14 +56,6 @@ corresponding character.
 .Pp
 Each line is interpreted independently as one of the following types:
 .Bl -tag -width Cm
-.It Signature
-The first line of any mtree file must begin with
-.Dq #mtree .
-If a file contains any full path entries, the first line should
-begin with
-.Dq #mtree v2.0 ,
-otherwise, the first line should begin with
-.Dq #mtree v1.0 .
 .It Blank
 Blank lines are ignored.
 .It Comment
@@ -134,6 +126,52 @@ The checksum of the file using the default algorithm specified by
 the
 .Xr cksum 1
 utility.
+.It Cm device
+The device number for
+.Sy block
+or
+.Sy char
+file types.
+The value must be one of the following forms:
+.Pp
+.Bl -tag -width 4n
+.It Ar format , Ns Ar major , Ns Ar minor Ns Bo , Ns Ar subunit Bc
+A device with
+.Ar major , minor
+and optional
+.Ar subunit
+fields.
+Their meaning is specified by the operating's system
+.Ar format .
+See below for valid formats.
+.It Ar number
+Opaque number (as stored on the file system).
+.El
+.Pp
+The following values for
+.Ar format
+are recognized:
+.Sy native ,
+.Sy 386bsd ,
+.Sy 4bsd ,
+.Sy bsdos ,
+.Sy freebsd ,
+.Sy hpux ,
+.Sy isc ,
+.Sy linux ,
+.Sy netbsd ,
+.Sy osf1 ,
+.Sy sco ,
+.Sy solaris ,
+.Sy sunos ,
+.Sy svr3 ,
+.Sy svr4 ,  
+and 
+.Sy ultrix .
+.Pp
+See
+.Xr mknod 8
+for more details.
 .It Cm contents
 The full pathname of a file that holds the contents of this file.
 .It Cm flags
@@ -150,6 +188,8 @@ The file group as a numeric value.
 The file group as a symbolic name.
 .It Cm ignore
 Ignore any file hierarchy below this file.
+.It Cm inode
+The inode number.
 .It Cm link
 The target of the symbolic link when type=link.
 .It Cm md5
@@ -164,6 +204,16 @@ value.
 The number of hard links the file is expected to have.
 .It Cm nochange
 Make sure this file or directory exists but otherwise ignore all attributes.
+.It Cm optional
+The file is optional; do not complain about the file if it is not in
+the file hierarchy.
+.It Cm resdevice
+The
+.Dq resident
+device number of the file, e.g. the ID of the device that
+contains the file.
+Its format is the same as the one for
+.Cm device .
 .It Cm ripemd160digest
 The
 .Tn RIPEMD160
@@ -192,6 +242,24 @@ message digest of the file.
 .It Cm sha256digest
 A synonym for
 .Cm sha256 .
+.It Cm sha384
+The
+.Tn FIPS
+180-2
+.Pq Dq Tn SHA-384
+message digest of the file.
+.It Cm sha384digest
+A synonym for
+.Cm sha384 .
+.It Cm sha512
+The
+.Tn FIPS
+180-2
+.Pq Dq Tn SHA-512
+message digest of the file.
+.It Cm sha512digest
+A synonym for
+.Cm sha512 .
 .It Cm size
 The size, in bytes, of the file.
 .It Cm time
@@ -226,16 +294,6 @@ The file owner as a symbolic name.
 .Xr find 1 ,
 .Xr mtree 8
 .Sh BUGS
-The
-.Fx
-implementation of mtree does not currently support
-the
-.Nm
-2.0
-format.
-The requirement for a
-.Dq #mtree
-signature line is new and not yet widely implemented.
 .Sh HISTORY
 The
 .Nm

@@ -89,7 +89,7 @@
 
 /* Alias the Windows _function to the POSIX equivalent. */
 #define	close		_close
-#define	fcntl(fd, cmd, flg)	/* No operation. */		
+#define	fcntl(fd, cmd, flg)	/* No operation. */
 #ifndef fileno
 #define	fileno		_fileno
 #endif
@@ -109,13 +109,14 @@
 #define	lstat		__la_stat
 #define	open		__la_open
 #define	read		__la_read
-#if !defined(__BORLANDC__)
+#if !defined(__BORLANDC__) && !defined(__WATCOMC__)
 #define setmode		_setmode
 #endif
 #ifdef stat
 #undef stat
 #endif
 #define	stat(path,stref)		__la_stat(path,stref)
+#if !defined(__WATCOMC__)
 #if !defined(__BORLANDC__)
 #define	strdup		_strdup
 #endif
@@ -123,8 +124,11 @@
 #if !defined(__BORLANDC__)
 #define	umask		_umask
 #endif
+#endif
 #define	waitpid		__la_waitpid
 #define	write		__la_write
+
+#if !defined(__WATCOMC__)
 
 #ifndef O_RDONLY
 #define	O_RDONLY	_O_RDONLY
@@ -203,7 +207,7 @@
 #define	_S_IXGRP        (_S_IXUSR >> 3) /* read permission, group */
 #define	_S_IWGRP        (_S_IWUSR >> 3) /* write permission, group */
 #define	_S_IRGRP        (_S_IRUSR >> 3) /* execute/search permission, group */
-#define	_S_IRWXO        (_S_IRWXG >> 3) 
+#define	_S_IRWXO        (_S_IRWXG >> 3)
 #define	_S_IXOTH        (_S_IXGRP >> 3) /* read permission, other */
 #define	_S_IWOTH        (_S_IWGRP >> 3) /* write permission, other */
 #define	_S_IROTH        (_S_IRGRP  >> 3) /* execute/search permission, other */
@@ -217,11 +221,15 @@
 #define	S_IRWXG        _S_IRWXG
 #define	S_IXGRP        _S_IXGRP
 #define	S_IWGRP        _S_IWGRP
+#ifndef S_IRGRP
 #define	S_IRGRP        _S_IRGRP
+#endif
 #define	S_IRWXO        _S_IRWXO
 #define	S_IXOTH        _S_IXOTH
 #define	S_IWOTH        _S_IWOTH
 #define	S_IROTH        _S_IROTH
+
+#endif
 
 #define	F_DUPFD	  	0	/* Duplicate file descriptor.  */
 #define	F_GETFD		1	/* Get file descriptor flags.  */

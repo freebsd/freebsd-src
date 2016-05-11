@@ -38,9 +38,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_data_large.c 201247 2009-
 #define close _close
 #endif
 
-char buff1[11000000];
-char buff2[10000000];
-char buff3[10000000];
+static char buff1[11000000];
+static char buff2[10000000];
+static char buff3[10000000];
 
 DEFINE_TEST(test_read_data_large)
 {

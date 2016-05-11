@@ -1,5 +1,5 @@
 More complete build documentation is available on the libarchive
-Wiki:  http://libarchive.googlecode.com/
+Wiki:  https://github.com/libarchive/libarchive/wiki
 
 On most Unix-like systems, you should be able to install libarchive,
 bsdtar, and bsdcpio using the following common steps:

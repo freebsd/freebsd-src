@@ -53,7 +53,6 @@
  */
 
 #include <sys/types.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
 
@@ -191,6 +190,9 @@ extract(const char *filename, int do_extract, int flags)
 	}
 	archive_read_close(a);
 	archive_read_free(a);
+	
+	archive_write_close(ext);
+  	archive_write_free(ext);
 	exit(0);
 }
 
@@ -200,7 +202,7 @@ copy_data(struct archive *ar, struct archive *aw)
 	int r;
 	const void *buff;
 	size_t size;
-#if ARCHIVE_VERSION >= 3000000
+#if ARCHIVE_VERSION_NUMBER >= 3000000
 	int64_t offset;
 #else
 	off_t offset;

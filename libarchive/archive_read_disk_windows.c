@@ -288,6 +288,8 @@ static int	_archive_read_free(struct archive *);
 static int	_archive_read_close(struct archive *);
 static int	_archive_read_data_block(struct archive *,
 		    const void **, size_t *, int64_t *);
+static int	_archive_read_next_header(struct archive *,
+		    struct archive_entry **);
 static int	_archive_read_next_header2(struct archive *,
 		    struct archive_entry *);
 static const char *trivial_lookup_gname(void *, int64_t gid);
@@ -310,6 +312,7 @@ archive_read_disk_vtable(void)
 		av.archive_free = _archive_read_free;
 		av.archive_close = _archive_read_close;
 		av.archive_read_data_block = _archive_read_data_block;
+		av.archive_read_next_header = _archive_read_next_header;
 		av.archive_read_next_header2 = _archive_read_next_header2;
 		inited = 1;
 	}
@@ -393,6 +396,7 @@ archive_read_disk_new(void)
 	a->archive.magic = ARCHIVE_READ_DISK_MAGIC;
 	a->archive.state = ARCHIVE_STATE_NEW;
 	a->archive.vtable = archive_read_disk_vtable();
+	a->entry = archive_entry_new2(&a->archive);
 	a->lookup_uname = trivial_lookup_uname;
 	a->lookup_gname = trivial_lookup_gname;
 	a->enable_copyfile = 1;
@@ -422,6 +426,7 @@ _archive_read_free(struct archive *_a)
 	if (a->cleanup_uname != NULL && a->lookup_uname_data != NULL)
 		(a->cleanup_uname)(a->lookup_uname_data);
 	archive_string_free(&a->archive.error_string);
+	archive_entry_free(a->entry);
 	a->archive.magic = 0;
 	free(a);
 	return (r);
@@ -929,7 +934,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 		else
 			flags |= FILE_FLAG_SEQUENTIAL_SCAN;
 		t->entry_fh = CreateFileW(tree_current_access_path(t),
-		    GENERIC_READ, 0, NULL, OPEN_EXISTING, flags, NULL);
+		    GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, flags, NULL);
 		if (t->entry_fh == INVALID_HANDLE_VALUE) {
 			archive_set_error(&a->archive, errno,
 			    "Couldn't open %ls", tree_current_path(a->tree));
@@ -942,6 +947,17 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 			r = setup_sparse_from_disk(a, entry, t->entry_fh);
 	}
 	return (r);
+}
+
+static int
+_archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
+{
+       int ret;
+       struct archive_read_disk *a = (struct archive_read_disk *)_a;
+       *entryp = NULL;
+       ret = _archive_read_next_header2(_a, a->entry);
+       *entryp = a->entry;
+       return ret;
 }
 
 static int
@@ -1000,6 +1016,7 @@ _archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 		break;
 	}
 
+	__archive_reset_read_data(&a->archive);
 	return (r);
 }
 
@@ -1569,7 +1586,7 @@ tree_reopen(struct tree *t, const wchar_t *path, int restore_time)
 	t->stack->flags = needsFirstVisit;
 	/*
 	 * Debug flag for Direct IO(No buffering) or Async IO.
-	 * Those dependant on environment variable switches
+	 * Those dependent on environment variable switches
 	 * will be removed until next release.
 	 */
 	{
@@ -1851,8 +1868,6 @@ entry_copy_bhfi(struct archive_entry *entry, const wchar_t *path,
 				break;
 			case L'C': case L'c':
 				if (((p[2] == L'M' || p[2] == L'm' ) &&
-				    (p[3] == L'D' || p[3] == L'd' )) ||
-				    ((p[2] == L'M' || p[2] == L'm' ) &&
 				    (p[3] == L'D' || p[3] == L'd' )))
 					mode |= S_IXUSR | S_IXGRP | S_IXOTH;
 				break;
@@ -1886,7 +1901,7 @@ tree_current_file_information(struct tree *t, BY_HANDLE_FILE_INFORMATION *st,
 	
 	if (sim_lstat && tree_current_is_physical_link(t))
 		flag |= FILE_FLAG_OPEN_REPARSE_POINT;
-	h = CreateFileW(tree_current_access_path(t), 0, 0, NULL,
+	h = CreateFileW(tree_current_access_path(t), 0, FILE_SHARE_READ, NULL,
 	    OPEN_EXISTING, flag, NULL);
 	if (h == INVALID_HANDLE_VALUE) {
 		la_dosmaperr(GetLastError());
@@ -2115,7 +2130,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 			} else
 				desiredAccess = GENERIC_READ;
 
-			h = CreateFileW(path, desiredAccess, 0, NULL,
+			h = CreateFileW(path, desiredAccess, FILE_SHARE_READ, NULL,
 			    OPEN_EXISTING, flag, NULL);
 			if (h == INVALID_HANDLE_VALUE) {
 				la_dosmaperr(GetLastError());
@@ -2162,7 +2177,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		if (fd >= 0) {
 			h = (HANDLE)_get_osfhandle(fd);
 		} else {
-			h = CreateFileW(path, GENERIC_READ, 0, NULL,
+			h = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL,
 			    OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
 			if (h == INVALID_HANDLE_VALUE) {
 				la_dosmaperr(GetLastError());
