@@ -55,7 +55,6 @@ efx_port_init(
 
 	epp->ep_mac_type = EFX_MAC_INVALID;
 	epp->ep_link_mode = EFX_LINK_UNKNOWN;
-	epp->ep_mac_poll_needed = B_TRUE;
 	epp->ep_mac_drain = B_TRUE;
 
 	/* Configure the MAC */
@@ -247,7 +246,6 @@ efx_port_fini(
 	epp->ep_emop = NULL;
 	epp->ep_mac_type = EFX_MAC_INVALID;
 	epp->ep_mac_drain = B_FALSE;
-	epp->ep_mac_poll_needed = B_FALSE;
 
 	/* Turn off the PHY */
 	if (epop->epo_power != NULL)
