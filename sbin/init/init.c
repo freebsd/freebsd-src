@@ -138,6 +138,7 @@ static int Reboot = FALSE;
 static int howto = RB_AUTOBOOT;
 
 static int devfs;
+static char *init_path_argv0;
 
 static void transition(state_t);
 static state_t requested_transition;
@@ -246,6 +247,11 @@ invalid:
 #endif
 			errx(1, "already running");
 	}
+
+	init_path_argv0 = strdup(argv[0]);
+	if (init_path_argv0 == NULL)
+		err(1, "strdup");
+
 	/*
 	 * Note that this does NOT open a file...
 	 * Does 'init' deserve its own facility number?
@@ -755,24 +761,11 @@ static state_func_t
 reroot(void)
 {
 	void *buf;
-	char init_path[PATH_MAX];
-	size_t bufsize, init_path_len;
-	int error, name[4];
+	size_t bufsize;
+	int error;
 
 	buf = NULL;
 	bufsize = 0;
-
-	name[0] = CTL_KERN;
-	name[1] = KERN_PROC;
-	name[2] = KERN_PROC_PATHNAME;
-	name[3] = -1;
-	init_path_len = sizeof(init_path);
-	error = sysctl(name, 4, init_path, &init_path_len, NULL, 0);
-	if (error != 0) {
-		emergency("failed to get kern.proc.pathname: %s",
-		    strerror(errno));
-		goto out;
-	}
 
 	revoke_ttys();
 	runshutdown();
@@ -792,7 +785,7 @@ reroot(void)
 	 * Copy the init binary into tmpfs, so that we can unmount
 	 * the old rootfs without committing suicide.
 	 */
-	error = read_file(init_path, &buf, &bufsize);
+	error = read_file(init_path_argv0, &buf, &bufsize);
 	if (error != 0)
 		goto out;
 	error = mount_tmpfs(_PATH_REROOT);
