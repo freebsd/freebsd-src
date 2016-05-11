@@ -87,6 +87,7 @@ idr_destroy(struct idr *idr)
 		free(il, M_IDR);
 	}
 	mtx_unlock(&idr->lock);
+	mtx_destroy(&idr->lock);
 }
 
 static void
