@@ -260,14 +260,14 @@ xctrl_suspend()
 	gnttab_resume(NULL);
 
 #ifdef SMP
-	/* Send an IPI_BITMAP in case there are pending bitmap IPIs. */
-	lapic_ipi_vectored(IPI_BITMAP_VECTOR, APIC_IPI_DEST_ALL);
 	if (!CPU_EMPTY(&cpu_suspend_map)) {
 		/*
 		 * Now that event channels have been initialized,
 		 * resume CPUs.
 		 */
 		resume_cpus(cpu_suspend_map);
+		/* Send an IPI_BITMAP in case there are pending bitmap IPIs. */
+		lapic_ipi_vectored(IPI_BITMAP_VECTOR, APIC_IPI_DEST_ALL);
 	}
 #endif
 
