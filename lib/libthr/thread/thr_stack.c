@@ -271,16 +271,18 @@ _thr_stack_alloc(struct pthread_attr *attr)
 
 		/* Map the stack and guard page together, and split guard
 		   page from allocated space: */
-		if ((stackaddr = mmap(stackaddr, stacksize + guardsize,
-		     _rtld_get_stack_prot(), MAP_STACK,
-		     -1, 0)) != MAP_FAILED &&
-		    (guardsize == 0 ||
-		     mprotect(stackaddr, guardsize, PROT_NONE) == 0)) {
-			stackaddr += guardsize;
-		} else {
-			if (stackaddr != MAP_FAILED)
-				munmap(stackaddr, stacksize + guardsize);
+		stackaddr = mmap(stackaddr, stacksize + guardsize,
+		     _rtld_get_stack_prot(), MAP_STACK, -1, 0);
+		if (stackaddr == MAP_FAILED) {
 			stackaddr = NULL;
+		} else if (guardsize > 0) {
+			if (mprotect(stackaddr, guardsize, PROT_NONE) == 0) {
+				stackaddr += guardsize;
+			} else {
+				/* XXX-AR: add munmup return value check? */
+				munmap(stackaddr, stacksize + guardsize);
+				stackaddr = NULL;
+			}
 		}
 		attr->stackaddr_attr = stackaddr;
 	}
