@@ -487,9 +487,9 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
+	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
-		panic("linux_dev_read: uio %p iovcnt %d",
-		    uio, uio->uio_iovcnt);
+		return (EOPNOTSUPP);
 	if (filp->f_op->read) {
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
@@ -522,9 +522,9 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
+	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
-		panic("linux_dev_write: uio %p iovcnt %d",
-		    uio, uio->uio_iovcnt);
+		return (EOPNOTSUPP);
 	if (filp->f_op->write) {
 		bytes = filp->f_op->write(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
@@ -638,9 +638,9 @@ linux_file_read(struct file *file, struct uio *uio, struct ucred *active_cred,
 	error = 0;
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
+	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
-		panic("linux_file_read: uio %p iovcnt %d",
-		    uio, uio->uio_iovcnt);
+		return (EOPNOTSUPP);
 	if (filp->f_op->read) {
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
