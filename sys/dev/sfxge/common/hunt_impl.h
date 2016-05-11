@@ -466,6 +466,82 @@ ef10_nvram_buffer_validate(
 				caddr_t bufferp,
 	__in			size_t buffer_size);
 
+extern	__checkReturn		efx_rc_t
+ef10_nvram_buffer_create(
+	__in			efx_nic_t *enp,
+	__in			uint16_t partn_type,
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size);
+
+extern	__checkReturn		efx_rc_t
+ef10_nvram_buffer_find_item_start(
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__out			uint32_t *startp
+	);
+
+extern	__checkReturn		efx_rc_t
+ef10_nvram_buffer_find_end(
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *endp
+	);
+
+extern	__checkReturn	__success(return != B_FALSE)	boolean_t
+ef10_nvram_buffer_find_item(
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__out			uint32_t *startp,
+	__out			uint32_t *lengthp
+	);
+
+extern	__checkReturn		efx_rc_t
+ef10_nvram_buffer_get_item(
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__out_bcount_part(item_max_size, *lengthp)
+				caddr_t itemp,
+	__in			size_t item_max_size,
+	__out			uint32_t *lengthp
+	);
+
+extern	__checkReturn		efx_rc_t
+ef10_nvram_buffer_insert_item(
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in_bcount(length)	caddr_t keyp,
+	__in			uint32_t length,
+	__out			uint32_t *lengthp
+	);
+
+extern	__checkReturn		efx_rc_t
+ef10_nvram_buffer_delete_item(
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size,
+	__in			uint32_t offset,
+	__in			uint32_t length,
+	__in			uint32_t end
+	);
+
+extern	__checkReturn		efx_rc_t
+ef10_nvram_buffer_finish(
+	__in_bcount(buffer_size)
+				caddr_t bufferp,
+	__in			size_t buffer_size
+	);
+
 #endif	/* EFSYS_OPT_NVRAM */
 
 
