@@ -360,7 +360,7 @@ op_usm_users(struct snmp_context *ctx, struct snmp_value *val,
 		case LEAF_usmUserPrivKeyChange:
 		case LEAF_usmUserOwnPrivKeyChange:
 			memcpy(uuser->suser.priv_key, ctx->scratch->ptr1,
-			    SNMP_AUTH_KEY_SIZ);
+			    SNMP_PRIV_KEY_SIZ);
 			free(ctx->scratch->ptr1);
 			break;
 		case LEAF_usmUserPublic:
