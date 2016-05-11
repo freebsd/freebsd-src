@@ -135,7 +135,8 @@ ffs_dinode1_swap(struct ufs1_dinode *o, struct ufs1_dinode *n)
 	n->di_mtimensec = bswap32(o->di_mtimensec);
 	n->di_ctime = bswap32(o->di_ctime);
 	n->di_ctimensec = bswap32(o->di_ctimensec);
-	memcpy(n->di_db, o->di_db, (NDADDR + NIADDR) * sizeof(u_int32_t));
+	memcpy(n->di_db, o->di_db, sizeof(n->di_db));
+	memcpy(n->di_ib, o->di_ib, sizeof(n->di_ib));
 	n->di_flags = bswap32(o->di_flags);
 	n->di_blocks = bswap32(o->di_blocks);
 	n->di_gen = bswap32(o->di_gen);
@@ -165,7 +166,9 @@ ffs_dinode2_swap(struct ufs2_dinode *o, struct ufs2_dinode *n)
 	n->di_kernflags = bswap32(o->di_kernflags);
 	n->di_flags = bswap32(o->di_flags);
 	n->di_extsize = bswap32(o->di_extsize);
-	memcpy(n->di_extb, o->di_extb, (NXADDR + NDADDR + NIADDR) * 8);
+	memcpy(n->di_extb, o->di_extb, sizeof(n->di_extb));
+	memcpy(n->di_db, o->di_db, sizeof(n->di_db));
+	memcpy(n->di_ib, o->di_ib, sizeof(n->di_ib));
 }
 
 void
