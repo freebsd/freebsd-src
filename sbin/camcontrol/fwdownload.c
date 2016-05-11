@@ -488,6 +488,7 @@ fw_validate_ibm(struct cam_device *dev, int retry_count, int timeout, int fd,
 				CAM_EPF_ALL, stderr);
 
 		cam_freeccb(ccb);
+		ccb = NULL;
 		goto bailout;
 	}
 
@@ -549,7 +550,8 @@ fw_validate_ibm(struct cam_device *dev, int retry_count, int timeout, int fd,
 		fprintf(stdout, "Firmware file is valid for this drive.\n");
 	retval = 0;
 bailout:
-	cam_freeccb(ccb);
+	if (ccb != NULL)
+		cam_freeccb(ccb);
 
 	return (retval);
 }
