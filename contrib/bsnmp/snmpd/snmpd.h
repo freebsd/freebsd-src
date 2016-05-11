@@ -307,7 +307,7 @@ struct trapsink {
 	struct asn_oid	index;
 	u_int		status;
 	int		socket;
-	u_char		comm[SNMP_COMMUNITY_MAXLEN];
+	u_char		comm[SNMP_COMMUNITY_MAXLEN + 1];
 	int		version;
 };
 enum {
