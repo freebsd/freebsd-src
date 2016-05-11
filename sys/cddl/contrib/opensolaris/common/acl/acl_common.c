@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2014 Nexenta Systems, Inc.  All rights reserved.
  */
 
 #include <sys/types.h>
@@ -1580,7 +1580,8 @@ acl_trivial_access_masks(mode_t mode, boolean_t isdir, trivial_acl_t *masks)
 	uint32_t write_mask = ACE_WRITE_DATA|ACE_APPEND_DATA;
 	uint32_t execute_mask = ACE_EXECUTE;
 
-	(void) isdir;	/* will need this later */
+	if (isdir)
+		write_mask |= ACE_DELETE_CHILD;
 
 	masks->deny1 = 0;
 	if (!(mode & S_IRUSR) && (mode & (S_IRGRP|S_IROTH)))
@@ -1724,10 +1725,17 @@ ace_trivial_common(void *acep, int aclcnt,
 			return (1);
 
 		/*
-		 * Delete permissions are never set by default
+		 * Delete permission is never set by default
 		 */
-		if (mask & (ACE_DELETE|ACE_DELETE_CHILD))
+		if (mask & ACE_DELETE)
 			return (1);
+
+		/*
+		 * Child delete permission should be accompanied by write
+		 */
+		if ((mask & ACE_DELETE_CHILD) && !(mask & ACE_WRITE_DATA))
+			return (1);
+
 		/*
 		 * only allow owner@ to have
 		 * write_acl/write_owner/write_attributes/write_xattr/
