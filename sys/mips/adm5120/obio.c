@@ -486,10 +486,6 @@ obio_add_child(device_t bus, u_int order, const char *name, int unit)
 	struct obio_ivar	*ivar;
 
 	ivar = malloc(sizeof(struct obio_ivar), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (ivar == NULL) {
-		printf("Failed to allocate ivar\n");
-		return (0);
-	}
 	resource_list_init(&ivar->resources);
 
 	child = device_add_child_ordered(bus, order, name, unit);
