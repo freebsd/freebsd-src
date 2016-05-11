@@ -245,7 +245,7 @@ static device_method_t gpioled_methods[] = {
 	DEVMETHOD(device_attach,	gpioled_attach),
 	DEVMETHOD(device_detach,	gpioled_detach),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t gpioled_driver = {

@@ -272,7 +272,7 @@ static device_method_t gpioiic_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	gpioiic_get_node),
 #endif
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t gpioiic_driver = {
