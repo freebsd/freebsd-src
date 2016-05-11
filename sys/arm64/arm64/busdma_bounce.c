@@ -770,8 +770,11 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 	struct bounce_page *bpage;
 	vm_offset_t datavaddr, tempvaddr;
 
-	if (map == NULL || (bpage = STAILQ_FIRST(&map->bpages)) == NULL)
+	if (map == NULL || (bpage = STAILQ_FIRST(&map->bpages)) == NULL) {
+		/* Wait for any memory access to complete */
+		dsb(sy);
 		return;
+	}
 
 	/*
 	 * XXX ARM64TODO:
@@ -801,9 +804,19 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 			bpage = STAILQ_NEXT(bpage, links);
 		}
 		dmat->bounce_zone->total_bounced++;
+
+		/*
+		 * Wait for the bcopy to complete before any DMA operations.
+		 */
+		dsb(sy);
 	}
 
 	if ((op & BUS_DMASYNC_POSTREAD) != 0) {
+		/*
+		 * Wait for any DMA operations to complete before the bcopy.
+		 */
+		dsb(sy);
+
 		while (bpage != NULL) {
 			tempvaddr = 0;
 			datavaddr = bpage->datavaddr;
