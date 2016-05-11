@@ -175,12 +175,10 @@ METHOD int power_for_sleep {
 #
 # Return the PCI Routing Identifier (RID) for the device.
 #
-METHOD int get_id {
+METHOD uint16_t get_rid {
 	device_t	pcib;
 	device_t	dev;
-	enum pci_id_type type;
-	uintptr_t	*id;
-} DEFAULT pcib_get_id;
+} DEFAULT pcib_get_rid;
 
 #
 # Enable Alternative RID Interpretation if both the downstream port (pcib)
