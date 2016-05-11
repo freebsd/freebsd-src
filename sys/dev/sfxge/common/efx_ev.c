@@ -748,23 +748,11 @@ falconsiena_ev_global(
 	__in		const efx_ev_callbacks_t *eecp,
 	__in_opt	void *arg)
 {
-	efx_nic_t *enp = eep->ee_enp;
-	efx_port_t *epp = &(enp->en_port);
-	boolean_t should_abort;
+	_NOTE(ARGUNUSED(eqp, eecp, arg))
 
 	EFX_EV_QSTAT_INCR(eep, EV_GLOBAL);
-	should_abort = B_FALSE;
 
-	/* Check for a link management event */
-	if (EFX_QWORD_FIELD(*eqp, FSF_BZ_GLB_EV_XG_MNT_INTR) != 0) {
-		EFX_EV_QSTAT_INCR(eep, EV_GLOBAL_MNT);
-
-		EFSYS_PROBE(xg_mgt);
-
-		epp->ep_mac_poll_needed = B_TRUE;
-	}
-
-	return (should_abort);
+	return (B_FALSE);
 }
 
 static	__checkReturn	boolean_t
