@@ -788,10 +788,6 @@ struct efx_txq_s {
 		char rev;						\
 									\
 		switch ((_enp)->en_family) {				\
-		case EFX_FAMILY_FALCON:					\
-			rev = 'B';					\
-			break;						\
-									\
 		case EFX_FAMILY_SIENA:					\
 			rev = 'C';					\
 			break;						\

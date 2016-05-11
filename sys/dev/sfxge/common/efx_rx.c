@@ -692,11 +692,6 @@ fail1:
 	do {								\
 		efx_oword_t oword;					\
 									\
-		if ((_enp)->en_family == EFX_FAMILY_FALCON) {		\
-			(_rc) = ((_ip) || (_tcp)) ? ENOTSUP : 0;	\
-			break;						\
-		}							\
-									\
 		EFX_BAR_READO((_enp), FR_CZ_RX_RSS_IPV6_REG3, &oword);	\
 		EFX_SET_OWORD_FIELD(oword,				\
 		    FRF_CZ_RX_RSS_IPV6_THASH_ENABLE, 1);		\
@@ -798,8 +793,6 @@ falconsiena_rx_scale_key_set(
 
 	if ((enp->en_features & EFX_FEATURE_IPV6) == 0)
 		goto done;
-
-	EFSYS_ASSERT3U(enp->en_family, !=, EFX_FAMILY_FALCON);
 
 	byte = 0;
 
