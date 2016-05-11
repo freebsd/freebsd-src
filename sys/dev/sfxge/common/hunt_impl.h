@@ -1030,6 +1030,9 @@ typedef struct ef10_filter_entry_s {
  */
 #define	EFX_EF10_FILTER_TBL_ROWS 8192
 
+/* Only need to allow for one directed and one unknown unicast filter */
+#define	EFX_EF10_FILTER_UNICAST_FILTERS_MAX	2
+
 /* Allow for the broadcast address to be added to the multicast list */
 #define	EFX_EF10_FILTER_MULTICAST_FILTERS_MAX	(EFX_MAC_MULTICAST_LIST_MAX + 1)
 
@@ -1037,8 +1040,9 @@ typedef struct ef10_filter_table_s {
 	ef10_filter_entry_t	eft_entry[EFX_EF10_FILTER_TBL_ROWS];
 	efx_rxq_t *		eft_default_rxq;
 	boolean_t 		eft_using_rss;
-	uint32_t 		eft_unicst_filter_index;
-	boolean_t 		eft_unicst_filter_set;
+	uint32_t 		eft_unicst_filter_indexes[
+	    EFX_EF10_FILTER_UNICAST_FILTERS_MAX];
+	boolean_t		eft_unicst_filter_count;
 	uint32_t 		eft_mulcst_filter_indexes[
 	    EFX_EF10_FILTER_MULTICAST_FILTERS_MAX];
 	uint32_t 		eft_mulcst_filter_count;
