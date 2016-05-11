@@ -444,6 +444,8 @@ hv_rf_receive_data(rndis_device *device, rndis_msg *message,
 	ndis_8021q_info *rppi_vlan_info;
 	uint32_t data_offset;
 	rndis_tcp_ip_csum_info *csum_info = NULL;
+	const struct rndis_hash_info *hash_info;
+	const struct rndis_hash_value *hash_value;
 	device_t dev = device->net_dev->dev->device;
 
 	rndis_pkt = &message->msg.packet;
@@ -476,7 +478,9 @@ hv_rf_receive_data(rndis_device *device, rndis_msg *message,
 	}
 
 	csum_info = hv_get_ppi_data(rndis_pkt, tcpip_chksum_info);
-	netvsc_recv(chan, pkt, csum_info);
+	hash_value = hv_get_ppi_data(rndis_pkt, nbl_hash_value);
+	hash_info = hv_get_ppi_data(rndis_pkt, nbl_hash_info);
+	netvsc_recv(chan, pkt, csum_info, hash_info, hash_value);
 }
 
 /*
