@@ -246,7 +246,7 @@ typedef struct efx_filter_ops_s {
 	efx_rc_t	(*efo_supported_filters)(efx_nic_t *, uint32_t *, size_t *);
 	efx_rc_t	(*efo_reconfigure)(efx_nic_t *, uint8_t const *, boolean_t,
 				   boolean_t, boolean_t, boolean_t,
-				   uint8_t const *, int);
+				   uint8_t const *, uint32_t);
 } efx_filter_ops_t;
 
 extern	__checkReturn	efx_rc_t
@@ -258,7 +258,7 @@ efx_filter_reconfigure(
 	__in				boolean_t all_mulcst,
 	__in				boolean_t brdcst,
 	__in_ecount(6*count)		uint8_t const *addrs,
-	__in				int count);
+	__in				uint32_t count);
 
 #endif /* EFSYS_OPT_FILTER */
 

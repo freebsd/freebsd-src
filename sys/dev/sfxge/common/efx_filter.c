@@ -248,7 +248,7 @@ efx_filter_reconfigure(
 	__in				boolean_t all_mulcst,
 	__in				boolean_t brdcst,
 	__in_ecount(6*count)		uint8_t const *addrs,
-	__in				int count)
+	__in				uint32_t count)
 {
 	efx_rc_t rc;
 
