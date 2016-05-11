@@ -1,0 +1,136 @@
+ODP: [Bug-tar] GNU tar, star and BSD tar speed comparison +new script
+
+Jan Psota
+Thu, 25 Oct 2007 06:51:13 -0700
+
+Latest TCP script at the bottom (3180 bytes).
+4 tests: 64bit dual core Athlon tmpfs / disk (reiserfs) - 60MB/s,
+        32bit Athlon tmpfs / disk (reiserfs) - 55MB/s
+Both machines were idle -- used for testing only.
+Tarball and extracted files were on different physical devices.
+Test data: linux 2.6.22/3 kernel sources for memory operations,
+for the other data average file size should bring enough info.
+
+2 x [...] processor means 1 processor with 2 cores (2 entries in cpuinfo).
+Archive format is set to pax (Joerg).
+Let's end with it. I only wanted to send You a new version of TCP script :-).
+
+--
+Jan Psota
+
+TCP, version 2007-10-25
+Linux 2.6.22-suspend2-r2 / Gentoo Base System release 2.0.0_rc5
+2012MB of memory, 2 x AMD Athlon(tm) 64 X2 Dual Core Processor 4200+ 2211.348 
+512 KB 4426.24 bmips
+gcc (GCC) 4.2.2 (Gentoo 4.2.2 p1.0)
+CFLAGS="-O2 -march=k8 -pipe"
+
+bsdtar: bsdtar 2.3.4 - libarchive 2.3.4
+gnutar: tar (GNU tar) 1.19
+star:   star: star 1.5a85 (x86_64-unknown-linux-gnu)
+
+best time of 5 repetitions,
+        src=linux-2.6.23, 291M in 23867 files, avg 13KB/file,
+        archive=/tmp/tcp.tar, extract to /tmp/tcptmp
+program operation       real    user    system  %CPU         speed
+bsdtar  create          0.764   0.232   0.532   99.96       370308 KB/s
+gnutar  create          0.743   0.200   0.512   95.87       380775 KB/s
+star    create          0.587   0.040   0.820   100.00      441247 KB/s
+
+bsdtar  list            0.164   0.096   0.068   99.84      1579341 KB/s
+gnutar  list            0.218   0.064   0.152   98.92      1188128 KB/s
+star    list            0.359   0.044   0.240   79.09       721481 KB/s
+
+bsdtar  extract         0.733   0.200   0.504   96.02       353358 KB/s
+gnutar  extract         0.625   0.092   0.508   96.02       414419 KB/s
+star    extract         0.875   0.096   0.980   100.00      296013 KB/s
+
+bsdtar  compare         0.001   0.000   0.000   0.00     259012000 KB/s
+gnutar  compare         0.719   0.288   0.400   95.66       360239 KB/s
+star    compare         0.695   0.224   0.636   100.00      372679 KB/s
+
+[...]
+best time of 3 repetitions,
+        src=/home, 3.2G in 7447 files, avg 554KB/file,
+        archive=/var/tcp.tar, extract to /mnt/a/tcptmp
+program operation       real    user    system  %CPU         speed
+bsdtar  create          184.680 0.552   13.365  7.53         17958 KB/s
+gnutar  create          159.240 0.256   12.417  7.95         20827 KB/s
+star    create          181.779 0.140   14.789  8.21         18203 KB/s
+
+bsdtar  list            0.053   0.032   0.016   91.41     62435471 KB/s
+gnutar  list            56.535  0.136   3.764   6.89         58531 KB/s
+star    list            56.652  0.080   5.236   9.38         58410 KB/s
+
+bsdtar  extract         78.914  0.820   15.149  20.23        41932 KB/s
+gnutar  extract         78.480  0.196   14.197  18.33        42164 KB/s
+star    extract         79.439  0.132   12.973  16.49        41655 KB/s
+
+bsdtar  compare         0.001   0.000   0.000   0.00    3309080000 KB/s
+gnutar  compare         61.771  3.464   8.905   20.02        53570 KB/s
+star    compare         57.561  1.728   9.897   20.19        57488 KB/s
+
+
+Linux 2.6.22-suspend2-smp / Gentoo Base System release 2.0.0_rc5
+504MB of memory, 1 x AMD Athlon(tm) Processor 1500.033 256 KB 3002.55 bmips
+gcc (GCC) 4.2.2 (Gentoo 4.2.2 p1.0)
+CFLAGS="-O2 -march=athlon-xp -mfpmath=sse -frename-registers -pipe"
+
+bsdtar: bsdtar 2.3.4 - libarchive 2.3.4
+gnutar: tar (GNU tar) 1.19
+star:   star: star 1.5a85 (i686-pc-linux-gnu)
+
+best time of 3 repetitions,
+        src=/usr/src/linux-2.6.22-suspend2/drivers, 119M in 5900 files,
+        avg 21KB/file, archive=/tmp/tcp.tar, extract to /tmp/tcptmp
+program operation       real    user    system  %CPU         speed
+bsdtar  create          1.329   0.192   1.132   99.63        89784 KB/s
+gnutar  create          1.223   0.124   1.092   99.46        97566 KB/s
+star    create          1.848   0.036   1.708   94.36        61372 KB/s
+
+bsdtar  list            0.167   0.060   0.108   100.00      679137 KB/s
+gnutar  list            0.161   0.040   0.124   100.00      704447 KB/s
+star    list            0.859   0.044   0.716   88.51       132032 KB/s
+
+bsdtar  extract         1.186   0.172   1.012   99.87        95629 KB/s
+gnutar  extract         1.064   0.056   1.004   99.63       106593 KB/s
+star    extract         1.920   0.088   1.724   94.40        59070 KB/s
+
+bsdtar  compare         0.002   0.000   0.000   0.00      56708000 KB/s
+gnutar  compare         0.925   0.232   0.692   99.90       122611 KB/s
+star    compare         1.569   0.376   1.096   93.79        72285 KB/s
+
+[...]
+best time of 3 repetitions,
+        src=/home/jasiu, 2.1G in 8416 files, avg 277KB/file,
+        archive=/home/j2/tcp.tar, extract to /mnt/a/tar/tcptmp
+program operation       real    user    system  %CPU         speed
+bsdtar  create          182.171 1.692   29.130  16.91        11584 KB/s
+gnutar  create          174.999 0.632   27.450  16.04        12059 KB/s
+star    create          180.004 0.360   41.795  23.41        11677 KB/s
+
+bsdtar  list            0.214   0.076   0.136   99.04      9822294 KB/s
+gnutar  list            0.210   0.076   0.136   100.00    10009385 KB/s
+star    list            43.462  0.148   18.109  42.00        48363 KB/s
+
+bsdtar  extract         94.912  4.476   31.574  37.98        22146 KB/s
+gnutar  extract         94.657  0.396   29.462  31.54        22206 KB/s
+star    extract         100.814 0.400   39.906  39.98        20849 KB/s
+
+bsdtar  compare         0.003   0.000   0.004   100.00   700657000 KB/s
+gnutar  compare         80.174  3.932   20.365  30.30        26217 KB/s
+star    compare         73.911  8.341   27.670  48.72        28439 KB/s
+
+=============================================================
+
+Note by Tim Kientzle:  The "bsdtar compare" results here are
+invalid since bsdtar does not support that operation.
+For the list numbers, note that libarchive automatically optimizes
+list operations on uncompressed tar archives on disk by using lseek()
+to skip over the bodies of entries.  GNU tar added an option to
+provide the same feature.
+
+The biggest problem with these tests is that they only
+cover uncompressed archives stored on disk.  The results for
+compressed archives and/or archives stored on tape are
+likely quite different.

@@ -1,0 +1,4 @@
+.git*            export-ignore
+
+*.sh             crlf=input
+config.rpath     crlf=input
