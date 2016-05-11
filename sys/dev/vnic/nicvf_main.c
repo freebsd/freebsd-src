@@ -1296,6 +1296,7 @@ nicvf_release_net_interrupts(struct nicvf *nic)
 static int
 nicvf_allocate_net_interrupts(struct nicvf *nic)
 {
+	u_int cpuid;
 	int irq, rid;
 	int qidx;
 	int ret = 0;
@@ -1332,6 +1333,20 @@ nicvf_allocate_net_interrupts(struct nicvf *nic)
 			    (irq - NICVF_INTR_ID_CQ), device_get_unit(nic->dev));
 			goto error;
 		}
+		cpuid = (device_get_unit(nic->dev) * CMP_QUEUE_CNT) + qidx;
+		cpuid %= mp_ncpus;
+		/*
+		 * Save CPU ID for later use when system-wide RSS is enabled.
+		 * It will be used to pit the CQ task to the same CPU that got
+		 * interrupted.
+		 */
+		nic->qs->cq[qidx].cmp_cpuid = cpuid;
+		if (bootverbose) {
+			device_printf(nic->dev, "bind CQ%d IRQ to CPU%d\n",
+			    qidx, cpuid);
+		}
+		/* Bind interrupts to the given CPU */
+		bus_bind_intr(nic->dev, nic->msix_entries[irq].irq_res, cpuid);
 	}
 
 	/* Register RBDR interrupt */

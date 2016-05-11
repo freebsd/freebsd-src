@@ -296,6 +296,7 @@ struct cmp_queue {
 
 	struct task		cmp_task;
 	struct taskqueue	*cmp_taskq;
+	u_int			cmp_cpuid; /* CPU to which bind the CQ task */
 
 	void			*desc;
 	struct q_desc_mem	dmem;
