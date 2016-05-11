@@ -309,7 +309,7 @@ gpiokeys_attach_key(struct gpiokeys_softc *sc, phandle_t node,
 	if (err) {
 		device_printf(sc->sc_dev, "<%s> failed to map pin\n", key_name);
 		if (name)
-			free(name, M_OFWPROP);
+			OF_prop_free(name);
 		return;
 	}
 
@@ -320,7 +320,7 @@ gpiokeys_attach_key(struct gpiokeys_softc *sc, phandle_t node,
 		gpio_pin_release(key->pin);
 		key->pin = NULL;
 		if (name)
-			free(name, M_OFWPROP);
+			OF_prop_free(name);
 		return;
 	}
 
@@ -334,7 +334,7 @@ gpiokeys_attach_key(struct gpiokeys_softc *sc, phandle_t node,
 		key->pin = NULL;
 		key->irq_res = NULL;
 		if (name)
-			free(name, M_OFWPROP);
+			OF_prop_free(name);
 		return;
 	}
 
@@ -344,7 +344,7 @@ gpiokeys_attach_key(struct gpiokeys_softc *sc, phandle_t node,
 		    key->autorepeat, key->repeat, key->repeat_delay);
 
 	if (name)
-		free(name, M_OFWPROP);
+		OF_prop_free(name);
 }
 
 static void

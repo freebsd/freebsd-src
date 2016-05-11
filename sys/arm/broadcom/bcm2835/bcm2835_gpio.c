@@ -632,7 +632,7 @@ bcm_gpio_get_ro_pins(struct bcm_gpio_softc *sc, phandle_t node,
 	if (npins < 0)
 		return (-1);
 	if (npins == 0) {
-		free(pins, M_OFWPROP);
+		OF_prop_free(pins);
 		return (0);
 	}
 	for (i = 0; i < npins; i++)
@@ -660,7 +660,7 @@ bcm_gpio_get_ro_pins(struct bcm_gpio_softc *sc, phandle_t node,
 		printf("%d-%d.\n", range_start, range_stop);
 	else
 		printf("%d.\n", range_start);
-	free(pins, M_OFWPROP);
+	OF_prop_free(pins);
 
 	return (0);
 }
@@ -686,7 +686,7 @@ bcm_gpio_get_reserved_pins(struct bcm_gpio_softc *sc)
 			return (-1);
 		if (strcmp(name, "reserved") == 0)
 			reserved = node;
-		free(name, M_OFWPROP);
+		OF_prop_free(name);
 		node = OF_peer(node);
 	}
 	if (reserved == 0)
