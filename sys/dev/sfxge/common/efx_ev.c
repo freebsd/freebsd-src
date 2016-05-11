@@ -547,7 +547,6 @@ falconsiena_ev_rx(
 	__in		const efx_ev_callbacks_t *eecp,
 	__in_opt	void *arg)
 {
-	efx_nic_t *enp = eep->ee_enp;
 	uint32_t id;
 	uint32_t size;
 	uint32_t label;
@@ -577,8 +576,7 @@ falconsiena_ev_rx(
 
 	hdr_type = EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_HDR_TYPE);
 
-	is_v6 = (enp->en_family != EFX_FAMILY_FALCON &&
-		    EFX_QWORD_FIELD(*eqp, FSF_CZ_RX_EV_IPV6_PKT) != 0);
+	is_v6 = (EFX_QWORD_FIELD(*eqp, FSF_CZ_RX_EV_IPV6_PKT) != 0);
 
 	/*
 	 * If packet is marked as OK and packet type is TCP/IP or
@@ -671,7 +669,7 @@ falconsiena_ev_rx(
 	 * (which clears PKT_OK). If this is set, then don't trust
 	 * the PKT_TYPE field.
 	 */
-	if (enp->en_family != EFX_FAMILY_FALCON && !ok) {
+	if (!ok) {
 		uint32_t parse_err;
 
 		parse_err = EFX_QWORD_FIELD(*eqp, FSF_CZ_RX_EV_PKT_NOT_PARSED);
@@ -1222,14 +1220,9 @@ falconsiena_ev_qmoderate(
 
 	/* If the value is zero then disable the timer */
 	if (us == 0) {
-		if (enp->en_family == EFX_FAMILY_FALCON)
-			EFX_POPULATE_DWORD_2(dword,
-			    FRF_AB_TC_TIMER_MODE, FFE_AB_TIMER_MODE_DIS,
-			    FRF_AB_TC_TIMER_VAL, 0);
-		else
-			EFX_POPULATE_DWORD_2(dword,
-			    FRF_CZ_TC_TIMER_MODE, FFE_CZ_TIMER_MODE_DIS,
-			    FRF_CZ_TC_TIMER_VAL, 0);
+		EFX_POPULATE_DWORD_2(dword,
+		    FRF_CZ_TC_TIMER_MODE, FFE_CZ_TIMER_MODE_DIS,
+		    FRF_CZ_TC_TIMER_VAL, 0);
 	} else {
 		uint32_t timer_val;
 
@@ -1240,14 +1233,9 @@ falconsiena_ev_qmoderate(
 		if (timer_val > 0)
 			timer_val--;
 
-		if (enp->en_family == EFX_FAMILY_FALCON)
-			EFX_POPULATE_DWORD_2(dword,
-			    FRF_AB_TC_TIMER_MODE, FFE_AB_TIMER_MODE_INT_HLDOFF,
-			    FRF_AB_TIMER_VAL, timer_val);
-		else
-			EFX_POPULATE_DWORD_2(dword,
-			    FRF_CZ_TC_TIMER_MODE, FFE_CZ_TIMER_MODE_INT_HLDOFF,
-			    FRF_CZ_TC_TIMER_VAL, timer_val);
+		EFX_POPULATE_DWORD_2(dword,
+		    FRF_CZ_TC_TIMER_MODE, FFE_CZ_TIMER_MODE_INT_HLDOFF,
+		    FRF_CZ_TC_TIMER_VAL, timer_val);
 	}
 
 	locked = (eep->ee_index == 0) ? 1 : 0;
@@ -1315,10 +1303,8 @@ falconsiena_ev_qcreate(
 #endif	/* EFSYS_OPT_MCDI */
 
 	/* Set up the new event queue */
-	if (enp->en_family != EFX_FAMILY_FALCON) {
-		EFX_POPULATE_OWORD_1(oword, FRF_CZ_TIMER_Q_EN, 1);
-		EFX_BAR_TBL_WRITEO(enp, FR_AZ_TIMER_TBL, index, &oword, B_TRUE);
-	}
+	EFX_POPULATE_OWORD_1(oword, FRF_CZ_TIMER_Q_EN, 1);
+	EFX_BAR_TBL_WRITEO(enp, FR_AZ_TIMER_TBL, index, &oword, B_TRUE);
 
 	EFX_POPULATE_OWORD_3(oword, FRF_AZ_EVQ_EN, 1, FRF_AZ_EVQ_SIZE, size,
 	    FRF_AZ_EVQ_BUF_BASE_ID, id);
@@ -1432,11 +1418,8 @@ falconsiena_ev_qdestroy(
 	EFX_BAR_TBL_WRITEO(enp, FR_AZ_EVQ_PTR_TBL,
 	    eep->ee_index, &oword, B_TRUE);
 
-	if (enp->en_family != EFX_FAMILY_FALCON) {
-		EFX_ZERO_OWORD(oword);
-		EFX_BAR_TBL_WRITEO(enp, FR_AZ_TIMER_TBL,
-		    eep->ee_index, &oword, B_TRUE);
-	}
+	EFX_ZERO_OWORD(oword);
+	EFX_BAR_TBL_WRITEO(enp, FR_AZ_TIMER_TBL, eep->ee_index, &oword, B_TRUE);
 }
 
 static		void
