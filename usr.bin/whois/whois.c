@@ -316,6 +316,11 @@ connect_to_any_host(struct addrinfo *hostres)
 				fds[i].fd = s;
 				fds[i].events = POLLERR | POLLHUP |
 						POLLIN | POLLOUT;
+				/*
+				 * From here until a socket connects, the
+				 * socket fd is owned by the fds[] poll array.
+				 */
+				s = -1;
 				count++;
 				i++;
 			} else {
@@ -357,7 +362,7 @@ connect_to_any_host(struct addrinfo *hostres)
 				 * after a new host have been added.
 				 */
 				if (timeout >= 3)
-					timeout <<= 1;
+					timeout >>= 1;
 
 				break;
 			} else if (n < 0) {
@@ -377,7 +382,7 @@ connect_to_any_host(struct addrinfo *hostres)
 				    fds[j].revents == 0)
 					continue;
 				if (fds[j].revents & ~(POLLIN | POLLOUT)) {
-					close(s);
+					close(fds[j].fd);
 					fds[j].fd = -1;
 					fds[j].events = 0;
 					count--;
@@ -385,6 +390,7 @@ connect_to_any_host(struct addrinfo *hostres)
 				} else if (fds[j].revents & (POLLIN | POLLOUT)) {
 					/* Connect succeeded. */
 					s = fds[j].fd;
+					fds[j].fd = -1;
 
 					goto done;
 				}
@@ -401,7 +407,7 @@ connect_to_any_host(struct addrinfo *hostres)
 done:
 	/* Close all watched fds except the succeeded one */
 	for (j = 0; j < i; j++)
-		if (fds[j].fd != s && fds[j].fd != -1)
+		if (fds[j].fd != -1)
 			close(fds[j].fd);
 	free(fds);
 	return (s);
