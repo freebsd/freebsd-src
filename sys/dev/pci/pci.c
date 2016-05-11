@@ -122,7 +122,8 @@ static void		pci_resume_msix(device_t dev);
 static int		pci_remap_intr_method(device_t bus, device_t dev,
 			    u_int irq);
 
-static uint16_t		pci_get_rid_method(device_t dev, device_t child);
+static int		pci_get_id_method(device_t dev, device_t child,
+			    enum pci_id_type type, uintptr_t *rid);
 
 static struct pci_devinfo * pci_fill_devinfo(device_t pcib, device_t bus, int d,
     int b, int s, int f, uint16_t vid, uint16_t did);
@@ -190,7 +191,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_msix_count,	pci_msix_count_method),
 	DEVMETHOD(pci_msix_pba_bar,	pci_msix_pba_bar_method),
 	DEVMETHOD(pci_msix_table_bar,	pci_msix_table_bar_method),
-	DEVMETHOD(pci_get_rid,		pci_get_rid_method),
+	DEVMETHOD(pci_get_id,		pci_get_id_method),
 	DEVMETHOD(pci_alloc_devinfo,	pci_alloc_devinfo_method),
 	DEVMETHOD(pci_child_added,	pci_child_added_method),
 #ifdef PCI_IOV
@@ -5823,11 +5824,12 @@ pci_restore_state(device_t dev)
 	pci_cfg_restore(dev, dinfo);
 }
 
-static uint16_t
-pci_get_rid_method(device_t dev, device_t child)
+static int
+pci_get_id_method(device_t dev, device_t child, enum pci_id_type type,
+    uintptr_t *id)
 {
 
-	return (PCIB_GET_RID(device_get_parent(dev), child));
+	return (PCIB_GET_ID(device_get_parent(dev), child, type, id));
 }
 
 /* Find the upstream port of a given PCI device in a root complex. */
