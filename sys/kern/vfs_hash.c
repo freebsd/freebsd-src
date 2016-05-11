@@ -104,6 +104,36 @@ vfs_hash_get(const struct mount *mp, u_int hash, int flags, struct thread *td,
 }
 
 void
+vfs_hash_ref(const struct mount *mp, u_int hash, struct thread *td,
+    struct vnode **vpp, vfs_hash_cmp_t *fn, void *arg)
+{
+	struct vnode *vp;
+
+	while (1) {
+		rw_rlock(&vfs_hash_lock);
+		LIST_FOREACH(vp, vfs_hash_bucket(mp, hash), v_hashlist) {
+			if (vp->v_hash != hash)
+				continue;
+			if (vp->v_mount != mp)
+				continue;
+			if (fn != NULL && fn(vp, arg))
+				continue;
+			vhold(vp);
+			rw_runlock(&vfs_hash_lock);
+			vref(vp);
+			vdrop(vp);
+			*vpp = vp;
+			return;
+		}
+		if (vp == NULL) {
+			rw_runlock(&vfs_hash_lock);
+			*vpp = NULL;
+			return;
+		}
+	}
+}
+
+void
 vfs_hash_remove(struct vnode *vp)
 {
 
