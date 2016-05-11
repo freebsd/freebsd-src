@@ -908,8 +908,10 @@ dbuf_free_range(dnode_t *dn, uint64_t start_blkid, uint64_t end_blkid,
 	dmu_buf_impl_t *db, *db_next;
 	uint64_t txg = tx->tx_txg;
 	avl_index_t where;
+	boolean_t freespill =
+	    (start_blkid == DMU_SPILL_BLKID || end_blkid == DMU_SPILL_BLKID);
 
-	if (end_blkid > dn->dn_maxblkid && (end_blkid != DMU_SPILL_BLKID))
+	if (end_blkid > dn->dn_maxblkid && !freespill)
 		end_blkid = dn->dn_maxblkid;
 	dprintf_dnode(dn, "start=%llu end=%llu\n", start_blkid, end_blkid);
 
@@ -918,7 +920,7 @@ dbuf_free_range(dnode_t *dn, uint64_t start_blkid, uint64_t end_blkid,
 	db_search.db_state = DB_SEARCH;
 
 	mutex_enter(&dn->dn_dbufs_mtx);
-	if (start_blkid >= dn->dn_unlisted_l0_blkid) {
+	if (start_blkid >= dn->dn_unlisted_l0_blkid && !freespill) {
 		/* There can't be any dbufs in this range; no need to search. */
 #ifdef DEBUG
 		db = avl_find(&dn->dn_dbufs, &db_search, &where);
