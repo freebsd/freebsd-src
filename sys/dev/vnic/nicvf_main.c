@@ -140,6 +140,7 @@ static int nicvf_allocate_net_interrupts(struct nicvf *);
 static void nicvf_release_all_interrupts(struct nicvf *);
 static int nicvf_hw_set_mac_addr(struct nicvf *, uint8_t *);
 static void nicvf_config_cpi(struct nicvf *);
+static int nicvf_rss_init(struct nicvf *);
 static int nicvf_init_resources(struct nicvf *);
 
 static int nicvf_setup_ifnet(struct nicvf *);
@@ -245,6 +246,9 @@ nicvf_attach(device_t dev)
 	nic->cpi_alg = CPI_ALG_NONE;
 	NICVF_CORE_LOCK(nic);
 	nicvf_config_cpi(nic);
+	/* Configure receive side scaling */
+	if (nic->qs->rq_cnt > 1)
+		nicvf_rss_init(nic);
 	NICVF_CORE_UNLOCK(nic);
 
 	err = nicvf_setup_ifnet(nic);
@@ -940,6 +944,10 @@ nicvf_handle_mbx_intr(struct nicvf *nic)
 	case NIC_MBOX_MSG_NACK:
 		nic->pf_nacked = TRUE;
 		break;
+	case NIC_MBOX_MSG_RSS_SIZE:
+		nic->rss_info.rss_size = mbx.rss_size.ind_tbl_size;
+		nic->pf_acked = TRUE;
+		break;
 	case NIC_MBOX_MSG_BGX_STATS:
 		nicvf_read_bgx_stats(nic, &mbx.bgx_stats);
 		nic->pf_acked = TRUE;
@@ -988,6 +996,100 @@ nicvf_config_cpi(struct nicvf *nic)
 	mbx.cpi_cfg.rq_cnt = nic->qs->rq_cnt;
 
 	nicvf_send_msg_to_pf(nic, &mbx);
+}
+
+static void
+nicvf_get_rss_size(struct nicvf *nic)
+{
+	union nic_mbx mbx = {};
+
+	mbx.rss_size.msg = NIC_MBOX_MSG_RSS_SIZE;
+	mbx.rss_size.vf_id = nic->vf_id;
+	nicvf_send_msg_to_pf(nic, &mbx);
+}
+
+static void
+nicvf_config_rss(struct nicvf *nic)
+{
+	union nic_mbx mbx = {};
+	struct nicvf_rss_info *rss;
+	int ind_tbl_len;
+	int i, nextq;
+
+	rss = &nic->rss_info;
+	ind_tbl_len = rss->rss_size;
+	nextq = 0;
+
+	mbx.rss_cfg.vf_id = nic->vf_id;
+	mbx.rss_cfg.hash_bits = rss->hash_bits;
+	while (ind_tbl_len != 0) {
+		mbx.rss_cfg.tbl_offset = nextq;
+		mbx.rss_cfg.tbl_len = MIN(ind_tbl_len,
+		    RSS_IND_TBL_LEN_PER_MBX_MSG);
+		mbx.rss_cfg.msg = mbx.rss_cfg.tbl_offset ?
+		    NIC_MBOX_MSG_RSS_CFG_CONT : NIC_MBOX_MSG_RSS_CFG;
+
+		for (i = 0; i < mbx.rss_cfg.tbl_len; i++)
+			mbx.rss_cfg.ind_tbl[i] = rss->ind_tbl[nextq++];
+
+		nicvf_send_msg_to_pf(nic, &mbx);
+
+		ind_tbl_len -= mbx.rss_cfg.tbl_len;
+	}
+}
+
+static void
+nicvf_set_rss_key(struct nicvf *nic)
+{
+	struct nicvf_rss_info *rss;
+	uint64_t key_addr;
+	int idx;
+
+	rss = &nic->rss_info;
+	key_addr = NIC_VNIC_RSS_KEY_0_4;
+
+	for (idx = 0; idx < RSS_HASH_KEY_SIZE; idx++) {
+		nicvf_reg_write(nic, key_addr, rss->key[idx]);
+		key_addr += sizeof(uint64_t);
+	}
+}
+
+static int
+nicvf_rss_init(struct nicvf *nic)
+{
+	struct nicvf_rss_info *rss;
+	int idx;
+
+	nicvf_get_rss_size(nic);
+
+	rss = &nic->rss_info;
+	if (nic->cpi_alg != CPI_ALG_NONE) {
+		rss->enable = FALSE;
+		rss->hash_bits = 0;
+		return (ENXIO);
+	}
+
+	rss->enable = TRUE;
+
+	/* Using the HW reset value for now */
+	rss->key[0] = 0xFEED0BADFEED0BADUL;
+	rss->key[1] = 0xFEED0BADFEED0BADUL;
+	rss->key[2] = 0xFEED0BADFEED0BADUL;
+	rss->key[3] = 0xFEED0BADFEED0BADUL;
+	rss->key[4] = 0xFEED0BADFEED0BADUL;
+
+	nicvf_set_rss_key(nic);
+
+	rss->cfg = RSS_IP_HASH_ENA | RSS_TCP_HASH_ENA | RSS_UDP_HASH_ENA;
+	nicvf_reg_write(nic, NIC_VNIC_RSS_CFG, rss->cfg);
+
+	rss->hash_bits = fls(rss->rss_size) - 1;
+	for (idx = 0; idx < rss->rss_size; idx++)
+		rss->ind_tbl[idx] = idx % nic->rx_queues;
+
+	nicvf_config_rss(nic);
+
+	return (0);
 }
 
 static int

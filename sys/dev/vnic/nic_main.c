@@ -103,6 +103,7 @@ struct nicpf {
 	uint8_t			duplex[MAX_LMAC];
 	uint32_t		speed[MAX_LMAC];
 	uint16_t		cpi_base[MAX_NUM_VFS_SUPPORTED];
+	uint16_t		rssi_base[MAX_NUM_VFS_SUPPORTED];
 	uint16_t		rss_ind_tbl_size;
 
 	/* MSI-X */
@@ -744,6 +745,58 @@ nic_config_cpi(struct nicpf *nic, struct cpi_cfg_msg *cfg)
 			rssi = ((cpi - cpi_base) & 0x38) >> 3;
 	}
 	nic->cpi_base[cfg->vf_id] = cpi_base;
+	nic->rssi_base[cfg->vf_id] = rssi_base;
+}
+
+/* Responsds to VF with its RSS indirection table size */
+static void
+nic_send_rss_size(struct nicpf *nic, int vf)
+{
+	union nic_mbx mbx = {};
+	uint64_t  *msg;
+
+	msg = (uint64_t *)&mbx;
+
+	mbx.rss_size.msg = NIC_MBOX_MSG_RSS_SIZE;
+	mbx.rss_size.ind_tbl_size = nic->rss_ind_tbl_size;
+	nic_send_msg_to_vf(nic, vf, &mbx);
+}
+
+/*
+ * Receive side scaling configuration
+ * configure:
+ * - RSS index
+ * - indir table i.e hash::RQ mapping
+ * - no of hash bits to consider
+ */
+static void
+nic_config_rss(struct nicpf *nic, struct rss_cfg_msg *cfg)
+{
+	uint8_t qset, idx;
+	uint64_t cpi_cfg, cpi_base, rssi_base, rssi;
+	uint64_t idx_addr;
+
+	idx = 0;
+	rssi_base = nic->rssi_base[cfg->vf_id] + cfg->tbl_offset;
+
+	rssi = rssi_base;
+	qset = cfg->vf_id;
+
+	for (; rssi < (rssi_base + cfg->tbl_len); rssi++) {
+		nic_reg_write(nic, NIC_PF_RSSI_0_4097_RQ | (rssi << 3),
+		    (qset << 3) | (cfg->ind_tbl[idx] & 0x7));
+		idx++;
+	}
+
+	cpi_base = nic->cpi_base[cfg->vf_id];
+	if (pass1_silicon(nic->dev))
+		idx_addr = NIC_PF_CPI_0_2047_CFG;
+	else
+		idx_addr = NIC_PF_MPI_0_2047_CFG;
+	cpi_cfg = nic_reg_read(nic, idx_addr | (cpi_base << 3));
+	cpi_cfg &= ~(0xFUL << 20);
+	cpi_cfg |= (cfg->hash_bits << 20);
+	nic_reg_write(nic, idx_addr | (cpi_base << 3), cpi_cfg);
 }
 
 /*
@@ -895,6 +948,13 @@ nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		break;
 	case NIC_MBOX_MSG_CPI_CFG:
 		nic_config_cpi(nic, &mbx.cpi_cfg);
+		break;
+	case NIC_MBOX_MSG_RSS_SIZE:
+		nic_send_rss_size(nic, vf);
+		goto unlock;
+	case NIC_MBOX_MSG_RSS_CFG:
+	case NIC_MBOX_MSG_RSS_CFG_CONT: /* fall through */
+		nic_config_rss(nic, &mbx.rss_cfg);
 		break;
 	case NIC_MBOX_MSG_CFG_DONE:
 		/* Last message of VF config msg sequence */
