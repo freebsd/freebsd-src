@@ -227,6 +227,24 @@ idr_find(struct idr *idr, int id)
 	return (res);
 }
 
+void *
+idr_get_next(struct idr *idr, int *nextidp)
+{
+	void *res = NULL;
+	int id = *nextidp;
+
+	mtx_lock(&idr->lock);
+	for (; id <= idr_max(idr); id++) {
+		res = idr_find_locked(idr, id);
+		if (res == NULL)
+			continue;
+		*nextidp = id;
+		break;
+	}
+	mtx_unlock(&idr->lock);
+	return (res);
+}
+
 int
 idr_pre_get(struct idr *idr, gfp_t gfp_mask)
 {
@@ -487,6 +505,12 @@ idr_get_new_above(struct idr *idr, void *ptr, int starting_id, int *idp)
 	return (retval);
 }
 
+int
+ida_get_new_above(struct ida *ida, int starting_id, int *p_id)
+{
+	return (idr_get_new_above(&ida->idr, NULL, starting_id, p_id));
+}
+
 static int
 idr_alloc_locked(struct idr *idr, void *ptr, int start, int end)
 {
@@ -539,4 +563,115 @@ idr_alloc_cyclic(struct idr *idr, void *ptr, int start, int end, gfp_t gfp_mask)
 		idr->next_cyclic_id = retval + 1;
 	mtx_unlock(&idr->lock);
 	return (retval);
+}
+
+static int
+idr_for_each_layer(struct idr_layer *il, int layer,
+    int (*f)(int id, void *p, void *data), void *data)
+{
+	int i, err;
+
+	if (il == NULL)
+		return (0);
+	if (layer == 0) {
+		for (i = 0; i < IDR_SIZE; i++) {
+			if (il->ary[i] == NULL)
+				continue;
+			err = f(i, il->ary[i],  data);
+			if (err)
+				return (err);
+		}
+		return (0);
+	}
+	for (i = 0; i < IDR_SIZE; i++) {
+		if (il->ary[i] == NULL)
+			continue;
+		err = idr_for_each_layer(il->ary[i], layer - 1, f, data);
+		if (err)
+			return (err);
+	}
+	return (0);
+}
+
+int
+idr_for_each(struct idr *idp, int (*f)(int id, void *p, void *data), void *data)
+{
+	int err;
+
+	mtx_lock(&idp->lock);
+	err = idr_for_each_layer(idp->top, idp->layers - 1, f, data);
+	mtx_unlock(&idp->lock);
+	return (err);
+}
+
+int
+ida_pre_get(struct ida *ida, gfp_t flags)
+{
+	if (idr_pre_get(&ida->idr, flags) == 0)
+		return (0);
+
+	if (ida->free_bitmap == NULL) {
+		ida->free_bitmap =
+		    malloc(sizeof(struct ida_bitmap), M_IDR, flags);
+	}
+	return (ida->free_bitmap != NULL);
+}
+
+int
+ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
+    gfp_t flags)
+{
+	int ret, id;
+	unsigned int max;
+
+	MPASS((int)start >= 0);
+	MPASS((int)end >= 0);
+
+	if (end == 0)
+		max = 0x80000000;
+	else {
+		MPASS(end > start);
+		max = end - 1;
+	}
+again:
+	if (!ida_pre_get(ida, flags))
+		return (-ENOMEM);
+
+	if ((ret = ida_get_new_above(ida, start, &id)) == 0) {
+		if (id > max) {
+			ida_remove(ida, id);
+			ret = -ENOSPC;
+		} else {
+			ret = id;
+		}
+	}
+	if (__predict_false(ret == -EAGAIN))
+		goto again;
+
+	return (ret);
+}
+
+void
+ida_simple_remove(struct ida *ida, unsigned int id)
+{
+	idr_remove(&ida->idr, id);
+}
+
+void
+ida_remove(struct ida *ida, int id)
+{	
+	idr_remove(&ida->idr, id);
+}
+
+void
+ida_init(struct ida *ida)
+{
+	idr_init(&ida->idr);
+}
+
+void
+ida_destroy(struct ida *ida)
+{
+	idr_destroy(&ida->idr);
+	free(ida->free_bitmap, M_IDR);
 }
