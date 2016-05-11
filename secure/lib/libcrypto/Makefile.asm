@@ -62,7 +62,9 @@ CLEANFILES+=	sha256-x86_64.cmt sha256-x86_64.S x86_64cpuid.cmt x86_64cpuid.S
 	( cd `dirname ${.IMPSRC}`/.. ; perl ${.IMPSRC} ${.OBJDIR}/${.TARGET} )
 
 .cmt.S:
-	( echo '	# $$'FreeBSD'$$'; cat ${.IMPSRC} ) > ${.TARGET}
+	( echo '	# $$'FreeBSD'$$' ;\
+	echo '	# Do not modify. This file is auto-generated.' ;\
+	cat ${.IMPSRC} ) > ${.TARGET}
 
 sha256-x86_64.cmt: sha512-x86_64.pl
 	( cd `dirname ${.ALLSRC}`/.. ; perl ${.ALLSRC} ${.OBJDIR}/${.TARGET} )
@@ -136,6 +138,7 @@ CLEANFILES+=	${SRCS:M*.pl:S/.pl$/.S/}
 
 .pl.S:
 	( echo '	# $$'FreeBSD'$$' ;\
+	echo '	# Do not modify. This file is auto-generated.' ;\
 	echo '#ifdef PIC' ;\
 	perl ${PERLPATH} ${.IMPSRC} elf ${CFLAGS} -fpic -DPIC ;\
 	echo '#else' ;\
