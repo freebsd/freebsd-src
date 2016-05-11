@@ -631,11 +631,6 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 					&ret_flags,
 					&cred_lifetime,
 					&client->cl_creds);
-				if (gr->gr_major == GSS_S_COMPLETE
-				    || gr->gr_major == GSS_S_CONTINUE_NEEDED) {
-					client->cl_sname = sname;
-					break;
-				}
 				client->cl_sname = sname;
 				break;
 			}
