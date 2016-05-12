@@ -47,7 +47,7 @@ efx_mcdi_fc_license_get_key_stats(
 	__in		efx_nic_t *enp,
 	__out		efx_key_stats_t *eksp);
 
-static efx_lic_ops_t	__efx_lic_v1_ops = {
+static const efx_lic_ops_t	__efx_lic_v1_ops = {
 	efx_mcdi_fc_license_update_license,	/* elo_update_licenses */
 	efx_mcdi_fc_license_get_key_stats,	/* elo_get_key_stats */
 	NULL,					/* elo_app_state */
@@ -73,7 +73,7 @@ efx_mcdi_licensed_app_state(
 	__in		uint64_t app_id,
 	__out		boolean_t *licensedp);
 
-static efx_lic_ops_t	__efx_lic_v2_ops = {
+static const efx_lic_ops_t	__efx_lic_v2_ops = {
 	efx_mcdi_licensing_update_licenses,	/* elo_update_licenses */
 	efx_mcdi_licensing_get_key_stats,	/* elo_get_key_stats */
 	efx_mcdi_licensed_app_state,		/* elo_app_state */
@@ -108,7 +108,7 @@ efx_mcdi_licensing_v3_get_id(
 	__out_bcount_part_opt(buffer_size, *lengthp)
 			uint8_t *bufferp);
 
-static efx_lic_ops_t	__efx_lic_v3_ops = {
+static const efx_lic_ops_t	__efx_lic_v3_ops = {
 	efx_mcdi_licensing_v3_update_licenses,	/* elo_update_licenses */
 	efx_mcdi_licensing_v3_report_license,	/* elo_get_key_stats */
 	efx_mcdi_licensing_v3_app_state,	/* elo_app_state */
@@ -624,7 +624,7 @@ fail1:
 efx_lic_init(
 	__in			efx_nic_t *enp)
 {
-	efx_lic_ops_t *elop;
+	const efx_lic_ops_t *elop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -635,19 +635,19 @@ efx_lic_init(
 
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
-		elop = (efx_lic_ops_t *)&__efx_lic_v1_ops;
+		elop = &__efx_lic_v1_ops;
 		break;
 #endif	/* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		elop = (efx_lic_ops_t *)&__efx_lic_v2_ops;
+		elop = &__efx_lic_v2_ops;
 		break;
 #endif	/* EFSYS_OPT_HUNTINGTON */
 
 #if EFSYS_OPT_MEDFORD
 	case EFX_FAMILY_MEDFORD:
-		elop = (efx_lic_ops_t *)&__efx_lic_v3_ops;
+		elop = &__efx_lic_v3_ops;
 		break;
 #endif	/* EFSYS_OPT_MEDFORD */
 
@@ -672,7 +672,7 @@ fail1:
 efx_lic_fini(
 	__in			efx_nic_t *enp)
 {
-	efx_lic_ops_t *elop = enp->en_elop;
+	const efx_lic_ops_t *elop = enp->en_elop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
@@ -687,7 +687,7 @@ efx_lic_fini(
 efx_lic_update_licenses(
 	__in		efx_nic_t *enp)
 {
-	efx_lic_ops_t *elop = enp->en_elop;
+	const efx_lic_ops_t *elop = enp->en_elop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -709,7 +709,7 @@ efx_lic_get_key_stats(
 	__in		efx_nic_t *enp,
 	__out		efx_key_stats_t *eksp)
 {
-	efx_lic_ops_t *elop = enp->en_elop;
+	const efx_lic_ops_t *elop = enp->en_elop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -732,7 +732,7 @@ efx_lic_app_state(
 	__in		uint64_t app_id,
 	__out		boolean_t *licensedp)
 {
-	efx_lic_ops_t *elop = enp->en_elop;
+	const efx_lic_ops_t *elop = enp->en_elop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -764,7 +764,7 @@ efx_lic_get_id(
 	__out_opt	uint8_t *bufferp
 	)
 {
-	efx_lic_ops_t *elop = enp->en_elop;
+	const efx_lic_ops_t *elop = enp->en_elop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);

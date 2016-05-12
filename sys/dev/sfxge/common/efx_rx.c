@@ -129,7 +129,7 @@ falconsiena_rx_qdestroy(
 
 
 #if EFSYS_OPT_SIENA
-static efx_rx_ops_t __efx_rx_siena_ops = {
+static const efx_rx_ops_t __efx_rx_siena_ops = {
 	falconsiena_rx_init,			/* erxo_init */
 	falconsiena_rx_fini,			/* erxo_fini */
 #if EFSYS_OPT_RX_SCATTER
@@ -152,7 +152,7 @@ static efx_rx_ops_t __efx_rx_siena_ops = {
 #endif	/* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
-static efx_rx_ops_t __efx_rx_ef10_ops = {
+static const efx_rx_ops_t __efx_rx_ef10_ops = {
 	ef10_rx_init,				/* erxo_init */
 	ef10_rx_fini,				/* erxo_fini */
 #if EFSYS_OPT_RX_SCATTER
@@ -179,7 +179,7 @@ static efx_rx_ops_t __efx_rx_ef10_ops = {
 efx_rx_init(
 	__inout		efx_nic_t *enp)
 {
-	efx_rx_ops_t *erxop;
+	const efx_rx_ops_t *erxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -198,19 +198,19 @@ efx_rx_init(
 	switch (enp->en_family) {
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
-		erxop = (efx_rx_ops_t *)&__efx_rx_siena_ops;
+		erxop = &__efx_rx_siena_ops;
 		break;
 #endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		erxop = (efx_rx_ops_t *)&__efx_rx_ef10_ops;
+		erxop = &__efx_rx_ef10_ops;
 		break;
 #endif /* EFSYS_OPT_HUNTINGTON */
 
 #if EFSYS_OPT_MEDFORD
 	case EFX_FAMILY_MEDFORD:
-		erxop = (efx_rx_ops_t *)&__efx_rx_ef10_ops;
+		erxop = &__efx_rx_ef10_ops;
 		break;
 #endif /* EFSYS_OPT_MEDFORD */
 
@@ -245,7 +245,7 @@ fail1:
 efx_rx_fini(
 	__in		efx_nic_t *enp)
 {
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NIC);
@@ -264,7 +264,7 @@ efx_rx_scatter_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int buf_size)
 {
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -341,7 +341,7 @@ efx_rx_scale_mode_set(
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert)
 {
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -368,7 +368,7 @@ efx_rx_scale_key_set(
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n)
 {
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -393,7 +393,7 @@ efx_rx_scale_tbl_set(
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n)
 {
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -421,7 +421,7 @@ efx_rx_qpost(
 	__in		unsigned int added)
 {
 	efx_nic_t *enp = erp->er_enp;
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 
 	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
 
@@ -435,7 +435,7 @@ efx_rx_qpush(
 	__inout		unsigned int *pushedp)
 {
 	efx_nic_t *enp = erp->er_enp;
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 
 	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
 
@@ -447,7 +447,7 @@ efx_rx_qflush(
 	__in		efx_rxq_t *erp)
 {
 	efx_nic_t *enp = erp->er_enp;
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
@@ -468,7 +468,7 @@ efx_rx_qenable(
 	__in		efx_rxq_t *erp)
 {
 	efx_nic_t *enp = erp->er_enp;
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 
 	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
 
@@ -487,7 +487,7 @@ efx_rx_qcreate(
 	__in		efx_evq_t *eep,
 	__deref_out	efx_rxq_t **erpp)
 {
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 	efx_rxq_t *erp;
 	efx_rc_t rc;
 
@@ -532,7 +532,7 @@ efx_rx_qdestroy(
 	__in		efx_rxq_t *erp)
 {
 	efx_nic_t *enp = erp->er_enp;
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 
 	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
 
@@ -545,7 +545,7 @@ efx_psuedo_hdr_pkt_length_get(
 	__in		uint8_t *buffer,
 	__out		uint16_t *lengthp)
 {
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 
 	return (erxop->erxo_prefix_pktlen(enp, buffer, lengthp));
 }
@@ -557,7 +557,7 @@ efx_psuedo_hdr_hash_get(
 	__in		efx_rx_hash_alg_t func,
 	__in		uint8_t *buffer)
 {
-	efx_rx_ops_t *erxop = enp->en_erxop;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
 
 	EFSYS_ASSERT3U(enp->en_hash_support, ==, EFX_RX_HASH_AVAILABLE);
 	return (erxop->erxo_prefix_hash(enp, func, buffer));

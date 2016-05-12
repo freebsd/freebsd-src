@@ -314,7 +314,7 @@ ef10_mac_multicast_list_set(
 	__in				efx_nic_t *enp)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_mac_ops_t *emop = epp->ep_emop;
+	const efx_mac_ops_t *emop = epp->ep_emop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
@@ -390,7 +390,7 @@ ef10_mac_loopback_set(
 	__in		efx_loopback_type_t loopback_type)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_phy_ops_t *epop = epp->ep_epop;
+	const efx_phy_ops_t *epop = epp->ep_epop;
 	efx_loopback_type_t old_loopback_type;
 	efx_link_mode_t old_loopback_link_mode;
 	efx_rc_t rc;

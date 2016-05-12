@@ -1400,7 +1400,7 @@ fail1:
 ef10_nic_probe(
 	__in		efx_nic_t *enp)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
+	const efx_nic_ops_t *enop = enp->en_enop;
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_drv_cfg_t *edcp = &(enp->en_drv_cfg);
 	efx_rc_t rc;

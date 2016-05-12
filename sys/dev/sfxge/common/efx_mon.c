@@ -66,7 +66,7 @@ efx_mon_name(
 #endif	/* EFSYS_OPT_NAMES */
 
 #if EFSYS_OPT_MON_MCDI
-static efx_mon_ops_t	__efx_mon_mcdi_ops = {
+static const efx_mon_ops_t	__efx_mon_mcdi_ops = {
 	NULL,				/* emo_reset */
 	NULL,				/* emo_reconfigure */
 #if EFSYS_OPT_MON_STATS
@@ -82,7 +82,7 @@ efx_mon_init(
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_mon_t *emp = &(enp->en_mon);
-	efx_mon_ops_t *emop;
+	const efx_mon_ops_t *emop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -253,7 +253,7 @@ efx_mon_stats_update(
 	__inout_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values)
 {
 	efx_mon_t *emp = &(enp->en_mon);
-	efx_mon_ops_t *emop = emp->em_emop;
+	const efx_mon_ops_t *emop = emp->em_emop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_MON);
@@ -268,7 +268,7 @@ efx_mon_fini(
 	__in	efx_nic_t *enp)
 {
 	efx_mon_t *emp = &(enp->en_mon);
-	efx_mon_ops_t *emop = emp->em_emop;
+	const efx_mon_ops_t *emop = emp->em_emop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);

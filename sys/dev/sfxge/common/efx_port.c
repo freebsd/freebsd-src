@@ -39,7 +39,7 @@ efx_port_init(
 	__in		efx_nic_t *enp)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_phy_ops_t *epop = epp->ep_epop;
+	const efx_phy_ops_t *epop = epp->ep_epop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -104,7 +104,7 @@ efx_port_poll(
 	__out_opt	efx_link_mode_t	*link_modep)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_mac_ops_t *emop = epp->ep_emop;
+	const efx_mac_ops_t *emop = epp->ep_emop;
 	efx_link_mode_t ignore_link_mode;
 	efx_rc_t rc;
 
@@ -138,7 +138,7 @@ efx_port_loopback_set(
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	efx_mac_ops_t *emop = epp->ep_emop;
+	const efx_mac_ops_t *emop = epp->ep_emop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -234,7 +234,7 @@ efx_port_fini(
 	__in		efx_nic_t *enp)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_phy_ops_t *epop = epp->ep_epop;
+	const efx_phy_ops_t *epop = epp->ep_epop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);

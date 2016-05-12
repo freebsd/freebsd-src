@@ -301,8 +301,8 @@ typedef struct efx_port_s {
 #if EFSYS_OPT_BIST
 	efx_bist_type_t		ep_current_bist;
 #endif
-	efx_mac_ops_t		*ep_emop;
-	efx_phy_ops_t		*ep_epop;
+	const efx_mac_ops_t	*ep_emop;
+	const efx_phy_ops_t	*ep_epop;
 } efx_port_t;
 
 typedef struct efx_mon_ops_s {
@@ -315,8 +315,8 @@ typedef struct efx_mon_ops_s {
 } efx_mon_ops_t;
 
 typedef struct efx_mon_s {
-	efx_mon_type_t	em_type;
-	efx_mon_ops_t	*em_emop;
+	efx_mon_type_t		em_type;
+	const efx_mon_ops_t	*em_emop;
 } efx_mon_t;
 
 typedef struct efx_intr_ops_s {
@@ -333,10 +333,10 @@ typedef struct efx_intr_ops_s {
 } efx_intr_ops_t;
 
 typedef struct efx_intr_s {
-	efx_intr_ops_t	*ei_eiop;
-	efsys_mem_t	*ei_esmp;
-	efx_intr_type_t	ei_type;
-	unsigned int	ei_level;
+	const efx_intr_ops_t	*ei_eiop;
+	efsys_mem_t		*ei_esmp;
+	efx_intr_type_t		ei_type;
+	unsigned int		ei_level;
 } efx_intr_t;
 
 typedef struct efx_nic_ops_s {
@@ -449,7 +449,7 @@ typedef struct efx_mcdi_ops_s {
 } efx_mcdi_ops_t;
 
 typedef struct efx_mcdi_s {
-	efx_mcdi_ops_t			*em_emcop;
+	const efx_mcdi_ops_t		*em_emcop;
 	const efx_mcdi_transport_t	*em_emtp;
 	efx_mcdi_iface_t		em_emip;
 } efx_mcdi_t;
@@ -617,23 +617,23 @@ struct efx_nic_s {
 	uint32_t		en_ev_qcount;
 	uint32_t		en_rx_qcount;
 	uint32_t		en_tx_qcount;
-	efx_nic_ops_t		*en_enop;
-	efx_ev_ops_t		*en_eevop;
-	efx_tx_ops_t		*en_etxop;
-	efx_rx_ops_t		*en_erxop;
+	const efx_nic_ops_t	*en_enop;
+	const efx_ev_ops_t	*en_eevop;
+	const efx_tx_ops_t	*en_etxop;
+	const efx_rx_ops_t	*en_erxop;
 #if EFSYS_OPT_FILTER
 	efx_filter_t		en_filter;
-	efx_filter_ops_t	*en_efop;
+	const efx_filter_ops_t	*en_efop;
 #endif	/* EFSYS_OPT_FILTER */
 #if EFSYS_OPT_MCDI
 	efx_mcdi_t		en_mcdi;
 #endif	/* EFSYS_OPT_MCDI */
 #if EFSYS_OPT_NVRAM
 	efx_nvram_type_t	en_nvram_locked;
-	efx_nvram_ops_t		*en_envop;
+	const efx_nvram_ops_t	*en_envop;
 #endif	/* EFSYS_OPT_NVRAM */
 #if EFSYS_OPT_VPD
-	efx_vpd_ops_t		*en_evpdop;
+	const efx_vpd_ops_t	*en_evpdop;
 #endif	/* EFSYS_OPT_VPD */
 #if EFSYS_OPT_RX_SCALE
 	efx_rx_hash_support_t	en_hash_support;
@@ -642,7 +642,7 @@ struct efx_nic_s {
 #endif	/* EFSYS_OPT_RX_SCALE */
 	uint32_t		en_vport_id;
 #if EFSYS_OPT_LICENSING
-	efx_lic_ops_t		*en_elop;
+	const efx_lic_ops_t	*en_elop;
 #endif
 	union {
 #if EFSYS_OPT_SIENA

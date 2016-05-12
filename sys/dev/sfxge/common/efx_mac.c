@@ -43,7 +43,7 @@ falconsiena_mac_multicast_list_set(
 #endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_SIENA
-static efx_mac_ops_t	__efx_siena_mac_ops = {
+static const efx_mac_ops_t	__efx_siena_mac_ops = {
 	NULL,					/* emo_reset */
 	siena_mac_poll,				/* emo_poll */
 	siena_mac_up,				/* emo_up */
@@ -65,7 +65,7 @@ static efx_mac_ops_t	__efx_siena_mac_ops = {
 #endif	/* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
-static efx_mac_ops_t	__efx_ef10_mac_ops = {
+static const efx_mac_ops_t	__efx_ef10_mac_ops = {
 	NULL,					/* emo_reset */
 	ef10_mac_poll,				/* emo_poll */
 	ef10_mac_up,				/* emo_up */
@@ -94,7 +94,7 @@ efx_mac_pdu_set(
 	__in				size_t pdu)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_mac_ops_t *emop = epp->ep_emop;
+	const efx_mac_ops_t *emop = epp->ep_emop;
 	uint32_t old_pdu;
 	efx_rc_t rc;
 
@@ -138,7 +138,7 @@ efx_mac_addr_set(
 	__in				uint8_t *addr)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_mac_ops_t *emop = epp->ep_emop;
+	const efx_mac_ops_t *emop = epp->ep_emop;
 	uint8_t old_addr[6];
 	uint32_t oui;
 	efx_rc_t rc;
@@ -186,7 +186,7 @@ efx_mac_filter_set(
 	__in				boolean_t brdcst)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_mac_ops_t *emop = epp->ep_emop;
+	const efx_mac_ops_t *emop = epp->ep_emop;
 	boolean_t old_all_unicst;
 	boolean_t old_mulcst;
 	boolean_t old_all_mulcst;
@@ -228,7 +228,7 @@ efx_mac_drain(
 	__in				boolean_t enabled)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_mac_ops_t *emop = epp->ep_emop;
+	const efx_mac_ops_t *emop = epp->ep_emop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -267,7 +267,7 @@ efx_mac_up(
 	__out		boolean_t *mac_upp)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_mac_ops_t *emop = epp->ep_emop;
+	const efx_mac_ops_t *emop = epp->ep_emop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -291,8 +291,8 @@ efx_mac_fcntl_set(
 	__in				boolean_t autoneg)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_mac_ops_t *emop = epp->ep_emop;
-	efx_phy_ops_t *epop = epp->ep_epop;
+	const efx_mac_ops_t *emop = epp->ep_emop;
+	const efx_phy_ops_t *epop = epp->ep_epop;
 	unsigned int old_fcntl;
 	boolean_t old_autoneg;
 	unsigned int old_adv_cap;
@@ -391,7 +391,7 @@ efx_mac_multicast_list_set(
 	__in				int count)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_mac_ops_t *emop = epp->ep_emop;
+	const efx_mac_ops_t *emop = epp->ep_emop;
 	uint8_t	*old_mulcst_addr_list = NULL;
 	uint32_t old_mulcst_addr_count;
 	efx_rc_t rc;
@@ -467,7 +467,7 @@ efx_mac_filter_default_rxq_set(
 	__in		boolean_t using_rss)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_mac_ops_t *emop = epp->ep_emop;
+	const efx_mac_ops_t *emop = epp->ep_emop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -492,7 +492,7 @@ efx_mac_filter_default_rxq_clear(
 	__in		efx_nic_t *enp)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_mac_ops_t *emop = epp->ep_emop;
+	const efx_mac_ops_t *emop = epp->ep_emop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
@@ -612,7 +612,7 @@ efx_mac_stats_upload(
 	__in				efsys_mem_t *esmp)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_mac_ops_t *emop = epp->ep_emop;
+	const efx_mac_ops_t *emop = epp->ep_emop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -645,7 +645,7 @@ efx_mac_stats_periodic(
 	__in				boolean_t events)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_mac_ops_t *emop = epp->ep_emop;
+	const efx_mac_ops_t *emop = epp->ep_emop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -680,7 +680,7 @@ efx_mac_stats_update(
 	__inout_opt			uint32_t *generationp)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_mac_ops_t *emop = epp->ep_emop;
+	const efx_mac_ops_t *emop = epp->ep_emop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -702,7 +702,7 @@ efx_mac_select(
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_mac_type_t type = EFX_MAC_INVALID;
-	efx_mac_ops_t *emop;
+	const efx_mac_ops_t *emop;
 	int rc = EINVAL;
 
 	switch (enp->en_family) {
@@ -798,7 +798,7 @@ falconsiena_mac_multicast_list_set(
 	__in		efx_nic_t *enp)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_mac_ops_t *emop = epp->ep_emop;
+	const efx_mac_ops_t *emop = epp->ep_emop;
 	efx_oword_t old_hash[2];
 	efx_rc_t rc;
 

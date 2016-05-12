@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_SIENA
 
-static efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
+static const efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
 	siena_mcdi_init,		/* emco_init */
 	siena_mcdi_send_request,	/* emco_send_request */
 	siena_mcdi_poll_reboot,		/* emco_poll_reboot */
@@ -73,7 +73,7 @@ static efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
 
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
-static efx_mcdi_ops_t	__efx_mcdi_ef10_ops = {
+static const efx_mcdi_ops_t	__efx_mcdi_ef10_ops = {
 	ef10_mcdi_init,			/* emco_init */
 	ef10_mcdi_send_request,		/* emco_send_request */
 	ef10_mcdi_poll_reboot,		/* emco_poll_reboot */
@@ -92,7 +92,7 @@ efx_mcdi_init(
 	__in		efx_nic_t *enp,
 	__in		const efx_mcdi_transport_t *emtp)
 {
-	efx_mcdi_ops_t *emcop;
+	const efx_mcdi_ops_t *emcop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -101,19 +101,19 @@ efx_mcdi_init(
 	switch (enp->en_family) {
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
-		emcop = (efx_mcdi_ops_t *)&__efx_mcdi_siena_ops;
+		emcop = &__efx_mcdi_siena_ops;
 		break;
 #endif	/* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		emcop = (efx_mcdi_ops_t *)&__efx_mcdi_ef10_ops;
+		emcop = &__efx_mcdi_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_HUNTINGTON */
 
 #if EFSYS_OPT_MEDFORD
 	case EFX_FAMILY_MEDFORD:
-		emcop = (efx_mcdi_ops_t *)&__efx_mcdi_ef10_ops;
+		emcop = &__efx_mcdi_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_MEDFORD */
 
@@ -161,7 +161,7 @@ efx_mcdi_fini(
 	__in		efx_nic_t *enp)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, ==, EFX_MOD_MCDI);
@@ -197,7 +197,7 @@ efx_mcdi_send_request(
 	__in		void *sdup,
 	__in		size_t sdu_len)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 
 	emcop->emco_send_request(enp, hdrp, hdr_len, sdup, sdu_len);
 }
@@ -206,7 +206,7 @@ static			efx_rc_t
 efx_mcdi_poll_reboot(
 	__in		efx_nic_t *enp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
 	rc = emcop->emco_poll_reboot(enp);
@@ -217,7 +217,7 @@ static			boolean_t
 efx_mcdi_poll_response(
 	__in		efx_nic_t *enp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	boolean_t available;
 
 	available = emcop->emco_poll_response(enp);
@@ -231,7 +231,7 @@ efx_mcdi_read_response(
 	__in		size_t offset,
 	__in		size_t length)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 
 	emcop->emco_read_response(enp, bufferp, offset, length);
 }
@@ -1490,7 +1490,7 @@ efx_mcdi_firmware_update_supported(
 	__in			efx_nic_t *enp,
 	__out			boolean_t *supportedp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
 	if (emcop != NULL) {
@@ -1515,7 +1515,7 @@ efx_mcdi_macaddr_change_supported(
 	__in			efx_nic_t *enp,
 	__out			boolean_t *supportedp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
 	if (emcop != NULL) {
@@ -1540,7 +1540,7 @@ efx_mcdi_link_control_supported(
 	__in			efx_nic_t *enp,
 	__out			boolean_t *supportedp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
 	if (emcop != NULL) {
@@ -1565,7 +1565,7 @@ efx_mcdi_mac_spoofing_supported(
 	__in			efx_nic_t *enp,
 	__out			boolean_t *supportedp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	const efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
 	if (emcop != NULL) {
