@@ -1553,20 +1553,20 @@ hdaa_widget_parse(struct hdaa_widget *w)
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    buf, CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    w, sizeof(w), hdaa_sysctl_caps, "A", "Node capabilities");
+	    w, 0, hdaa_sysctl_caps, "A", "Node capabilities");
 	if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX) {
 		snprintf(buf, sizeof(buf), "nid%d_config", w->nid);
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 		    buf, CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-		    &w->wclass.pin.newconf, sizeof(&w->wclass.pin.newconf),
-		    hdaa_sysctl_config, "A", "Current pin configuration");
+		    &w->wclass.pin.newconf, 0, hdaa_sysctl_config, "A",
+		    "Current pin configuration");
 		snprintf(buf, sizeof(buf), "nid%d_original", w->nid);
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 		    buf, CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-		    &w->wclass.pin.original, sizeof(&w->wclass.pin.original),
-		    hdaa_sysctl_config, "A", "Original pin configuration");
+		    &w->wclass.pin.original, 0, hdaa_sysctl_config, "A",
+		    "Original pin configuration");
 	}
 	hdaa_lock(w->devinfo);
 }
