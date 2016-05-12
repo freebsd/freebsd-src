@@ -37,8 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <bootstrap.h>
 #include <isapnp.h>
 
-#define inb(x)		(archsw.arch_isainb((x)))
-#define outb(x,y)	(archsw.arch_isaoutb((x),(y)))
+#define	inb(x)		(archsw.arch_isainb((x)))
+#define	outb(x,y)	(archsw.arch_isaoutb((x),(y)))
 
 static void	isapnp_write(int d, int r);
 static void	isapnp_send_Initiation_LFSR(void);
@@ -49,7 +49,7 @@ static void	isapnp_enumerate(void);
 /* PnP read data port */
 int		isapnp_readport = 0;
 
-#define _PNP_ID_LEN	9
+#define	_PNP_ID_LEN	9
 
 struct pnphandler isapnphandler =
 {
@@ -129,20 +129,20 @@ isapnp_get_resource_info(u_int8_t *buffer, int len)
     u_char	temp;
 
     for (i = 0; i < len; i++) {
-        outb(_PNP_ADDRESS, STATUS);
-        for (j = 0; j < 100; j++) {
-            if ((inb(isapnp_readport)) & 0x1)
-                break;
-            delay(1);
-        }
-        if (j == 100) {
-            printf("PnP device failed to report resource data\n");
-            return(1);
-        }
-        outb(_PNP_ADDRESS, RESOURCE_DATA);
-        temp = inb(isapnp_readport);
-        if (buffer != NULL)
-            buffer[i] = temp;
+	outb(_PNP_ADDRESS, STATUS);
+	for (j = 0; j < 100; j++) {
+	    if ((inb(isapnp_readport)) & 0x1)
+		break;
+	    delay(1);
+	}
+	if (j == 100) {
+	    printf("PnP device failed to report resource data\n");
+	    return(1);
+	}
+	outb(_PNP_ADDRESS, RESOURCE_DATA);
+	temp = inb(isapnp_readport);
+	if (buffer != NULL)
+	    buffer[i] = temp;
     }
     return(0);
 }
@@ -166,27 +166,27 @@ isapnp_scan_resdata(struct pnpinfo *pi)
 
     limit = 1000;
     while ((limit-- > 0) && !isapnp_get_resource_info(&tag, 1)) {
-        if (PNP_RES_TYPE(tag) == 0) {
-            /* Small resource */
-            switch (PNP_SRES_NUM(tag)) {
+	if (PNP_RES_TYPE(tag) == 0) {
+	    /* Small resource */
+	    switch (PNP_SRES_NUM(tag)) {
 
-                case COMP_DEVICE_ID:
-                    /* Got a compatible device id resource */
-                    if (isapnp_get_resource_info(resinfo, PNP_SRES_LEN(tag)))
+		case COMP_DEVICE_ID:
+		    /* Got a compatible device id resource */
+		    if (isapnp_get_resource_info(resinfo, PNP_SRES_LEN(tag)))
 			return(1);
 		    pnp_addident(pi, pnp_eisaformat(resinfo));
 
-                case END_TAG:
+		case END_TAG:
 		    return(0);
-                    break;
+		    break;
 
-                default:
-                    /* Skip this resource */
-                    if (isapnp_get_resource_info(NULL, PNP_SRES_LEN(tag)))
+		default:
+		    /* Skip this resource */
+		    if (isapnp_get_resource_info(NULL, PNP_SRES_LEN(tag)))
 			return(1);
-                    break;
-            }
-        } else {
+		    break;
+	    }
+	} else {
 	    /* Large resource */
 	    if (isapnp_get_resource_info(resinfo, 2))
 		return(1);

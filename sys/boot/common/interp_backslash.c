@@ -21,7 +21,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include "bootstrap.h"
 
-#define DIGIT(x) (isdigit(x) ? (x) - '0' : islower(x) ? (x) + 10 - 'a' : (x) + 10 - 'A')
+#define	DIGIT(x) (isdigit(x) ? (x) - '0' : islower(x) ? (x) + 10 - 'a' : (x) + 10 - 'A')
 
 /*
  * backslash: Return malloc'd copy of str with all standard "backslash
@@ -146,20 +146,20 @@ backslash(char *str)
 		break;
 	    }
 	}
-        else {
-            if (*str == '\\') {
-                seenbs = 1;
-                str++;
-            }
+	else {
+	    if (*str == '\\') {
+		seenbs = 1;
+		str++;
+	    }
 	    else
 		new_str[i++] = *str++;
-        }
+	}
     }
 
     if (seenbs) {
-        /*
-         * The final character was a '\'. Put it in as a single backslash.
-         */
+	/*
+	 * The final character was a '\'. Put it in as a single backslash.
+	 */
 	new_str[i++] = '\\';
     }
     new_str[i] = '\0';
