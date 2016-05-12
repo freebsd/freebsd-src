@@ -213,6 +213,7 @@ ixlv_verify_api_ver(struct ixlv_sc *sc)
 	struct i40e_virtchnl_version_info *pf_vvi;
 	struct i40e_hw *hw = &sc->hw;
 	struct i40e_arq_event_info event;
+	device_t dev = sc->dev;
 	i40e_status err;
 	int retries = 0;
 
@@ -242,7 +243,7 @@ ixlv_verify_api_ver(struct ixlv_sc *sc)
 
 	if ((enum i40e_virtchnl_ops)le32toh(event.desc.cookie_high) !=
 	    I40E_VIRTCHNL_OP_VERSION) {
-		DDPRINTF(sc->dev, "Received unexpected op response: %d\n",
+		DDPRINTF(dev, "Received unexpected op response: %d\n",
 		    le32toh(event.desc.cookie_high));
 		err = EIO;
 		goto out_alloc;
@@ -251,10 +252,16 @@ ixlv_verify_api_ver(struct ixlv_sc *sc)
 	pf_vvi = (struct i40e_virtchnl_version_info *)event.msg_buf;
 	if ((pf_vvi->major > I40E_VIRTCHNL_VERSION_MAJOR) ||
 	    ((pf_vvi->major == I40E_VIRTCHNL_VERSION_MAJOR) &&
-	    (pf_vvi->minor > I40E_VIRTCHNL_VERSION_MINOR)))
+	    (pf_vvi->minor > I40E_VIRTCHNL_VERSION_MINOR))) {
+		device_printf(dev, "Critical PF/VF API version mismatch!\n");
 		err = EIO;
-	else
+	} else
 		sc->pf_version = pf_vvi->minor;
+	
+	/* Log PF/VF api versions */
+	device_printf(dev, "PF API %d.%d / VF API %d.%d\n",
+	    pf_vvi->major, pf_vvi->minor,
+	    I40E_VIRTCHNL_VERSION_MAJOR, I40E_VIRTCHNL_VERSION_MINOR);
 
 out_alloc:
 	free(event.msg_buf, M_DEVBUF);
@@ -275,16 +282,15 @@ ixlv_send_vf_config_msg(struct ixlv_sc *sc)
 	u32	caps;
 
 	caps = I40E_VIRTCHNL_VF_OFFLOAD_L2 |
-	    I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ |
 	    I40E_VIRTCHNL_VF_OFFLOAD_RSS_REG |
 	    I40E_VIRTCHNL_VF_OFFLOAD_VLAN;
 
-	if (sc->pf_version)
-		return ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_GET_VF_RESOURCES,
-				  (u8 *)&caps, sizeof(caps));
-	else
+	if (sc->pf_version == I40E_VIRTCHNL_VERSION_MINOR_NO_VF_CAPS)
 		return ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_GET_VF_RESOURCES,
 				  NULL, 0);
+	else
+		return ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_GET_VF_RESOURCES,
+				  (u8 *)&caps, sizeof(caps));
 }
 
 /*

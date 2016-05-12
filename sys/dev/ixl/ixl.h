@@ -88,6 +88,7 @@
 #include <sys/taskqueue.h>
 #include <sys/pcpu.h>
 #include <sys/smp.h>
+#include <sys/sbuf.h>
 #include <machine/smp.h>
 
 #ifdef PCI_IOV
@@ -100,8 +101,6 @@
 #include "i40e_prototype.h"
 
 #if defined(IXL_DEBUG) || defined(IXL_DEBUG_SYSCTL)
-#include <sys/sbuf.h>
-
 #define MAC_FORMAT "%02x:%02x:%02x:%02x:%02x:%02x"
 #define MAC_FORMAT_ARGS(mac_addr) \
 	(mac_addr)[0], (mac_addr)[1], (mac_addr)[2], (mac_addr)[3], \
@@ -336,6 +335,11 @@
 #define IXL_SET_NOPROTO(vsi, count)	(vsi)->noproto = (count)
 #endif
 
+/* Pre-10.2 media type compatibility */
+#if __FreeBSD_version < 1002000
+#define IFM_OTHER	IFM_UNKNOWN
+#endif
+
 /*
  *****************************************************************************
  * vendor_info_array
@@ -379,7 +383,6 @@ struct ixl_mac_filter {
 	s16	vlan;
 	u16	flags;
 };
-
 
 /*
  * The Transmit ring control struct
@@ -605,26 +608,6 @@ struct ixl_sysctl_info {
 };
 
 extern int ixl_atr_rate;
-
-/*
-** ixl_fw_version_str - format the FW and NVM version strings
-*/
-static inline char *
-ixl_fw_version_str(struct i40e_hw *hw)
-{
-	static char buf[32];
-
-	snprintf(buf, sizeof(buf),
-	    "f%d.%d a%d.%d n%02x.%02x e%08x",
-	    hw->aq.fw_maj_ver, hw->aq.fw_min_ver,
-	    hw->aq.api_maj_ver, hw->aq.api_min_ver,
-	    (hw->nvm.version & IXL_NVM_VERSION_HI_MASK) >>
-	    IXL_NVM_VERSION_HI_SHIFT,
-	    (hw->nvm.version & IXL_NVM_VERSION_LO_MASK) >>
-	    IXL_NVM_VERSION_LO_SHIFT,
-	    hw->nvm.eetrack);
-	return buf;
-}
 
 /*********************************************************************
  *  TXRX Function prototypes

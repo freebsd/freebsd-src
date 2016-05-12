@@ -54,7 +54,7 @@ enum i40e_status_code i40e_read_nvm_aq(struct i40e_hw *hw, u8 module_pointer,
  * once per NVM initialization, e.g. inside the i40e_init_shared_code().
  * Please notice that the NVM term is used here (& in all methods covered
  * in this file) as an equivalent of the FLASH part mapped into the SR.
- * We are accessing FLASH always thru the Shadow RAM.
+ * We are accessing FLASH always through the Shadow RAM.
  **/
 enum i40e_status_code i40e_init_nvm(struct i40e_hw *hw)
 {
@@ -373,7 +373,7 @@ enum i40e_status_code i40e_read_nvm_buffer_srctl(struct i40e_hw *hw, u16 offset,
 
 	DEBUGFUNC("i40e_read_nvm_buffer_srctl");
 
-	/* Loop thru the selected region */
+	/* Loop through the selected region */
 	for (word = 0; word < *words; word++) {
 		index = offset + word;
 		ret_code = i40e_read_nvm_word_srctl(hw, index, &data[word]);
