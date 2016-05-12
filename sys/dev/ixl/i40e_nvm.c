@@ -208,7 +208,7 @@ static enum i40e_status_code i40e_poll_sr_srctl_done_bit(struct i40e_hw *hw)
 }
 
 /**
- * i40e_read_nvm_word - Reads Shadow RAM
+ * i40e_read_nvm_word - Reads nvm word and acquire lock if necessary
  * @hw: pointer to the HW structure
  * @offset: offset of the Shadow RAM word to read (0x000000 - 0x001FFF)
  * @data: word read from the Shadow RAM
@@ -217,6 +217,24 @@ static enum i40e_status_code i40e_poll_sr_srctl_done_bit(struct i40e_hw *hw)
  **/
 enum i40e_status_code i40e_read_nvm_word(struct i40e_hw *hw, u16 offset,
 					 u16 *data)
+{
+	enum i40e_status_code ret_code = I40E_SUCCESS;
+
+	ret_code = i40e_read_nvm_word_srctl(hw, offset, data);
+	return ret_code;
+}
+
+/**
+ * __i40e_read_nvm_word - Reads nvm word, assumes caller does the locking
+ * @hw: pointer to the HW structure
+ * @offset: offset of the Shadow RAM word to read (0x000000 - 0x001FFF)
+ * @data: word read from the Shadow RAM
+ *
+ * Reads one 16 bit word from the Shadow RAM using the GLNVM_SRCTL register.
+ **/
+enum i40e_status_code __i40e_read_nvm_word(struct i40e_hw *hw,
+					   u16 offset,
+					   u16 *data)
 {
 	enum i40e_status_code ret_code = I40E_SUCCESS;
 
@@ -296,7 +314,28 @@ enum i40e_status_code i40e_read_nvm_word_aq(struct i40e_hw *hw, u16 offset,
 }
 
 /**
- * i40e_read_nvm_buffer - Reads Shadow RAM buffer
+ * __i40e_read_nvm_buffer - Reads nvm buffer, caller must acquire lock
+ * @hw: pointer to the HW structure
+ * @offset: offset of the Shadow RAM word to read (0x000000 - 0x001FFF).
+ * @words: (in) number of words to read; (out) number of words actually read
+ * @data: words read from the Shadow RAM
+ *
+ * Reads 16 bit words (data buffer) from the SR using the i40e_read_nvm_srrd()
+ * method. The buffer read is preceded by the NVM ownership take
+ * and followed by the release.
+ **/
+enum i40e_status_code __i40e_read_nvm_buffer(struct i40e_hw *hw,
+					     u16 offset,
+					     u16 *words, u16 *data)
+{
+	enum i40e_status_code ret_code = I40E_SUCCESS;
+
+	ret_code = i40e_read_nvm_buffer_srctl(hw, offset, words, data);
+	return ret_code;
+}
+
+/**
+ * i40e_read_nvm_buffer - Reads Shadow RAM buffer and acuire lock if necessary
  * @hw: pointer to the HW structure
  * @offset: offset of the Shadow RAM word to read (0x000000 - 0x001FFF).
  * @words: (in) number of words to read; (out) number of words actually read
@@ -506,7 +545,7 @@ enum i40e_status_code i40e_write_nvm_aq(struct i40e_hw *hw, u8 module_pointer,
 }
 
 /**
- * i40e_write_nvm_word - Writes Shadow RAM word
+ * __i40e_write_nvm_word - Writes Shadow RAM word
  * @hw: pointer to the HW structure
  * @offset: offset of the Shadow RAM word to write
  * @data: word to write to the Shadow RAM
@@ -516,8 +555,8 @@ enum i40e_status_code i40e_write_nvm_aq(struct i40e_hw *hw, u8 module_pointer,
  * reception) by caller. To commit SR to NVM update checksum function
  * should be called.
  **/
-enum i40e_status_code i40e_write_nvm_word(struct i40e_hw *hw, u32 offset,
-					  void *data)
+enum i40e_status_code __i40e_write_nvm_word(struct i40e_hw *hw, u32 offset,
+					    void *data)
 {
 	DEBUGFUNC("i40e_write_nvm_word");
 
@@ -528,7 +567,7 @@ enum i40e_status_code i40e_write_nvm_word(struct i40e_hw *hw, u32 offset,
 }
 
 /**
- * i40e_write_nvm_buffer - Writes Shadow RAM buffer
+ * __i40e_write_nvm_buffer - Writes Shadow RAM buffer
  * @hw: pointer to the HW structure
  * @module_pointer: module pointer location in words from the NVM beginning
  * @offset: offset of the Shadow RAM buffer to write
@@ -540,9 +579,9 @@ enum i40e_status_code i40e_write_nvm_word(struct i40e_hw *hw, u32 offset,
  * on ARQ completion event reception by caller. To commit SR to NVM update
  * checksum function should be called.
  **/
-enum i40e_status_code i40e_write_nvm_buffer(struct i40e_hw *hw,
-					    u8 module_pointer, u32 offset,
-					    u16 words, void *data)
+enum i40e_status_code __i40e_write_nvm_buffer(struct i40e_hw *hw,
+					      u8 module_pointer, u32 offset,
+					      u16 words, void *data)
 {
 	__le16 *le_word_ptr = (__le16 *)data;
 	u16 *word_ptr = (u16 *)data;
@@ -589,15 +628,17 @@ enum i40e_status_code i40e_calc_nvm_checksum(struct i40e_hw *hw, u16 *checksum)
 	data = (u16 *)vmem.va;
 
 	/* read pointer to VPD area */
-	ret_code = i40e_read_nvm_word(hw, I40E_SR_VPD_PTR, &vpd_module);
+	ret_code = __i40e_read_nvm_word(hw, I40E_SR_VPD_PTR,
+					&vpd_module);
 	if (ret_code != I40E_SUCCESS) {
 		ret_code = I40E_ERR_NVM_CHECKSUM;
 		goto i40e_calc_nvm_checksum_exit;
 	}
 
 	/* read pointer to PCIe Alt Auto-load module */
-	ret_code = i40e_read_nvm_word(hw, I40E_SR_PCIE_ALT_AUTO_LOAD_PTR,
-				      &pcie_alt_module);
+	ret_code = __i40e_read_nvm_word(hw,
+					I40E_SR_PCIE_ALT_AUTO_LOAD_PTR,
+					&pcie_alt_module);
 	if (ret_code != I40E_SUCCESS) {
 		ret_code = I40E_ERR_NVM_CHECKSUM;
 		goto i40e_calc_nvm_checksum_exit;
@@ -611,7 +652,7 @@ enum i40e_status_code i40e_calc_nvm_checksum(struct i40e_hw *hw, u16 *checksum)
 		if ((i % I40E_SR_SECTOR_SIZE_IN_WORDS) == 0) {
 			u16 words = I40E_SR_SECTOR_SIZE_IN_WORDS;
 
-			ret_code = i40e_read_nvm_buffer(hw, i, &words, data);
+			ret_code = __i40e_read_nvm_buffer(hw, i, &words, data);
 			if (ret_code != I40E_SUCCESS) {
 				ret_code = I40E_ERR_NVM_CHECKSUM;
 				goto i40e_calc_nvm_checksum_exit;
@@ -686,13 +727,18 @@ enum i40e_status_code i40e_validate_nvm_checksum(struct i40e_hw *hw,
 
 	DEBUGFUNC("i40e_validate_nvm_checksum");
 
-	ret_code = i40e_calc_nvm_checksum(hw, &checksum_local);
-	if (ret_code != I40E_SUCCESS)
+	if (hw->flags & I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE)
+		ret_code = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
+	if (!ret_code) {
+		ret_code = i40e_calc_nvm_checksum(hw, &checksum_local);
+		if (hw->flags & I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE)
+			i40e_release_nvm(hw);
+		if (ret_code != I40E_SUCCESS)
+			goto i40e_validate_nvm_checksum_exit;
+	} else {
 		goto i40e_validate_nvm_checksum_exit;
+	}
 
-	/* Do not use i40e_read_nvm_word() because we do not want to take
-	 * the synchronization semaphores twice here.
-	 */
 	i40e_read_nvm_word(hw, I40E_SR_SW_CHECKSUM_WORD, &checksum_sr);
 
 	/* Verify read checksum from EEPROM is the same as
@@ -788,10 +834,11 @@ enum i40e_status_code i40e_nvmupd_command(struct i40e_hw *hw,
 	/* early check for status command and debug msgs */
 	upd_cmd = i40e_nvmupd_validate_command(hw, cmd, perrno);
 
-	i40e_debug(hw, I40E_DEBUG_NVM, "%s state %d nvm_release_on_hold %d\n",
+	i40e_debug(hw, I40E_DEBUG_NVM, "%s state %d nvm_release_on_hold %d cmd 0x%08x config 0x%08x offset 0x%08x data_size 0x%08x\n",
 		   i40e_nvm_update_state_str[upd_cmd],
 		   hw->nvmupd_state,
-		   hw->aq.nvm_release_on_done);
+		   hw->aq.nvm_release_on_done,
+		   cmd->command, cmd->config, cmd->offset, cmd->data_size);
 
 	if (upd_cmd == I40E_NVMUPD_INVALID) {
 		*perrno = -EFAULT;
@@ -1059,6 +1106,7 @@ retry:
 		break;
 
 	case I40E_NVMUPD_CSUM_CON:
+		/* Assumes the caller has acquired the nvm */
 		status = i40e_update_nvm_checksum(hw);
 		if (status) {
 			*perrno = hw->aq.asq_last_status ?
@@ -1072,6 +1120,7 @@ retry:
 		break;
 
 	case I40E_NVMUPD_CSUM_LCB:
+		/* Assumes the caller has acquired the nvm */
 		status = i40e_update_nvm_checksum(hw);
 		if (status) {
 			*perrno = hw->aq.asq_last_status ?

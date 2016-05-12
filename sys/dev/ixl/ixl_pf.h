@@ -42,6 +42,8 @@
 #define	VF_FLAG_PROMISC_CAP		0x08
 #define	VF_FLAG_MAC_ANTI_SPOOF		0x10
 
+#define IXL_PF_STATE_EMPR_RESETTING	(1 << 0)
+
 struct ixl_vf {
 	struct ixl_vsi		vsi;
 	uint32_t		vf_flags;
@@ -72,6 +74,7 @@ struct ixl_pf {
 	struct callout		timer;
 	int			msix;
 	int			if_flags;
+	int			state;
 
 	struct mtx		pf_mtx;
 

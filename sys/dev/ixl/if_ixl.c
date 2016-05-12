@@ -48,7 +48,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixl_driver_version[] = "1.4.9-k";
+char ixl_driver_version[] = "1.4.12-k";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -154,10 +154,24 @@ static struct ixl_mac_filter *
 static void	ixl_add_mc_filter(struct ixl_vsi *, u8 *);
 static void	ixl_free_mac_filters(struct ixl_vsi *vsi);
 
+/* Sysctls*/
+static void	ixl_add_device_sysctls(struct ixl_pf *);
 
-/* Sysctl debug interface */
 static int	ixl_debug_info(SYSCTL_HANDLER_ARGS);
 static void	ixl_print_debug_info(struct ixl_pf *);
+
+static int	ixl_set_flowcntl(SYSCTL_HANDLER_ARGS);
+static int	ixl_set_advertise(SYSCTL_HANDLER_ARGS);
+static int	ixl_current_speed(SYSCTL_HANDLER_ARGS);
+static int	ixl_sysctl_show_fw(SYSCTL_HANDLER_ARGS);
+
+#ifdef IXL_DEBUG_SYSCTL
+static int 	ixl_sysctl_link_status(SYSCTL_HANDLER_ARGS);
+static int	ixl_sysctl_phy_abilities(SYSCTL_HANDLER_ARGS);
+static int	ixl_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS);
+static int	ixl_sysctl_hw_res_alloc(SYSCTL_HANDLER_ARGS);
+static int	ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS);
+#endif
 
 /* The MSI/X Interrupt handlers */
 static void	ixl_intr(void *);
@@ -167,12 +181,6 @@ static void	ixl_handle_mdd_event(struct ixl_pf *);
 
 /* Deferred interrupt tasklets */
 static void	ixl_do_adminq(void *, int);
-
-/* Sysctl handlers */
-static int	ixl_set_flowcntl(SYSCTL_HANDLER_ARGS);
-static int	ixl_set_advertise(SYSCTL_HANDLER_ARGS);
-static int	ixl_current_speed(SYSCTL_HANDLER_ARGS);
-static int	ixl_sysctl_show_fw(SYSCTL_HANDLER_ARGS);
 
 /* Statistics */
 static void     ixl_add_hw_stats(struct ixl_pf *);
@@ -192,14 +200,6 @@ static void	ixl_stat_update32(struct i40e_hw *, u32, bool,
 		    u64 *, u64 *);
 /* NVM update */
 static int	ixl_handle_nvmupd_cmd(struct ixl_pf *, struct ifdrv *);
-
-#ifdef IXL_DEBUG_SYSCTL
-static int 	ixl_sysctl_link_status(SYSCTL_HANDLER_ARGS);
-static int	ixl_sysctl_phy_abilities(SYSCTL_HANDLER_ARGS);
-static int	ixl_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS);
-static int	ixl_sysctl_hw_res_alloc(SYSCTL_HANDLER_ARGS);
-static int	ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS);
-#endif
 
 
 #ifdef PCI_IOV
@@ -440,90 +440,6 @@ ixl_attach(device_t dev)
 	/* Set up the timer callout */
 	callout_init_mtx(&pf->timer, &pf->pf_mtx, 0);
 
-	/* Set up sysctls */
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "fc", CTLTYPE_INT | CTLFLAG_RW,
-	    pf, 0, ixl_set_flowcntl, "I", "Flow Control");
-
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "advertise_speed", CTLTYPE_INT | CTLFLAG_RW,
-	    pf, 0, ixl_set_advertise, "I", "Advertised Speed");
-
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "current_speed", CTLTYPE_STRING | CTLFLAG_RD,
-	    pf, 0, ixl_current_speed, "A", "Current Port Speed");
-
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "fw_version", CTLTYPE_STRING | CTLFLAG_RD,
-	    pf, 0, ixl_sysctl_show_fw, "A", "Firmware version");
-
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "rx_itr", CTLFLAG_RW,
-	    &ixl_rx_itr, IXL_ITR_8K, "RX ITR");
-
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "dynamic_rx_itr", CTLFLAG_RW,
-	    &ixl_dynamic_rx_itr, 0, "Dynamic RX ITR");
-
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "tx_itr", CTLFLAG_RW,
-	    &ixl_tx_itr, IXL_ITR_4K, "TX ITR");
-
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "dynamic_tx_itr", CTLFLAG_RW,
-	    &ixl_dynamic_tx_itr, 0, "Dynamic TX ITR");
-
-#ifdef IXL_DEBUG_SYSCTL
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "debug", CTLTYPE_INT|CTLFLAG_RW, pf, 0,
-	    ixl_debug_info, "I", "Debug Information");
-
-	/* Debug shared-code message level */
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "debug_mask", CTLFLAG_RW,
-	    &pf->hw.debug_mask, 0, "Debug Message Level");
-
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "vc_debug_level", CTLFLAG_RW, &pf->vc_debug_lvl,
-	    0, "PF/VF Virtual Channel debug level");
-
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "link_status", CTLTYPE_STRING | CTLFLAG_RD,
-	    pf, 0, ixl_sysctl_link_status, "A", "Current Link Status");
-
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "phy_abilities", CTLTYPE_STRING | CTLFLAG_RD,
-	    pf, 0, ixl_sysctl_phy_abilities, "A", "PHY Abilities");
-
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "filter_list", CTLTYPE_STRING | CTLFLAG_RD,
-	    pf, 0, ixl_sysctl_sw_filter_list, "A", "SW Filter List");
-
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "hw_res_alloc", CTLTYPE_STRING | CTLFLAG_RD,
-	    pf, 0, ixl_sysctl_hw_res_alloc, "A", "HW Resource Allocation");
-
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "switch_config", CTLTYPE_STRING | CTLFLAG_RD,
-	    pf, 0, ixl_sysctl_switch_config, "A", "HW Switch Configuration");
-#endif
-
 	/* Save off the PCI information */
 	hw->vendor_id = pci_get_vendor(dev);
 	hw->device_id = pci_get_device(dev);
@@ -549,7 +465,7 @@ ixl_attach(device_t dev)
 	i40e_clear_hw(hw);
 	error = i40e_pf_reset(hw);
 	if (error) {
-		device_printf(dev, "PF reset failure %x\n", error);
+		device_printf(dev, "PF reset failure %d\n", error);
 		error = EIO;
 		goto err_out;
 	}
@@ -560,24 +476,35 @@ ixl_attach(device_t dev)
 	hw->aq.arq_buf_size = IXL_AQ_BUFSZ;
 	hw->aq.asq_buf_size = IXL_AQ_BUFSZ;
 
+	/* Initialize mac filter list for VSI */
+	SLIST_INIT(&vsi->ftl);
+
 	/* Initialize the shared code */
 	error = i40e_init_shared_code(hw);
 	if (error) {
-		device_printf(dev, "Unable to initialize the shared code\n");
+		device_printf(dev, "Unable to initialize shared code, error %d\n",
+		    error);
 		error = EIO;
 		goto err_out;
 	}
 
 	/* Set up the admin queue */
 	error = i40e_init_adminq(hw);
-	if (error) {
-		device_printf(dev, "The driver for the device stopped "
-		    "because the NVM image is newer than expected.\n"
-		    "You must install the most recent version of "
-		    " the network driver.\n");
+	if (error != 0 && error != I40E_ERR_FIRMWARE_API_VERSION) {
+		device_printf(dev, "Unable to initialize Admin Queue, error %d\n",
+		    error);
+		error = EIO;
 		goto err_out;
 	}
 	device_printf(dev, "%s\n", ixl_fw_version_str(hw));
+	if (error == I40E_ERR_FIRMWARE_API_VERSION) {
+		device_printf(dev, "The driver for the device stopped "
+		    "because the NVM image is newer than expected.\n"
+		    "You must install the most recent version of "
+		    "the network driver.\n");
+		error = EIO;
+		goto err_out;
+	}
 
         if (hw->aq.api_maj_ver == I40E_FW_API_VERSION_MAJOR &&
 	    hw->aq.api_min_ver > I40E_FW_API_VERSION_MINOR)
@@ -633,9 +560,6 @@ ixl_attach(device_t dev)
 		goto err_mac_hmc;
 	}
 
-	/* Initialize mac filter list for VSI */
-	SLIST_INIT(&vsi->ftl);
-
 	if (((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver < 33)) ||
 	    (hw->aq.fw_maj_ver < 4)) {
 		i40e_msec_delay(75);
@@ -680,7 +604,9 @@ ixl_attach(device_t dev)
 	/* Initialize taskqueues */
 	ixl_init_taskqueues(pf);
 
-	/* Initialize statistics */
+	/* Initialize statistics & add sysctls */
+	ixl_add_device_sysctls(pf);
+
 	ixl_pf_reset_stats(pf);
 	ixl_update_stats_counters(pf);
 	ixl_add_hw_stats(pf);
@@ -1558,7 +1484,8 @@ ixl_msix_adminq(void *arg)
 {
 	struct ixl_pf	*pf = arg;
 	struct i40e_hw	*hw = &pf->hw;
-	u32		reg, mask;
+	u32		reg, mask, rstat_reg;
+	bool		do_task = FALSE;
 
 	++pf->admin_irq;
 
@@ -1566,12 +1493,52 @@ ixl_msix_adminq(void *arg)
 	mask = rd32(hw, I40E_PFINT_ICR0_ENA);
 
 	/* Check on the cause */
-	if (reg & I40E_PFINT_ICR0_ADMINQ_MASK)
-		mask &= ~I40E_PFINT_ICR0_ENA_ADMINQ_MASK;
+	if (reg & I40E_PFINT_ICR0_ADMINQ_MASK) {
+		mask &= ~I40E_PFINT_ICR0_ADMINQ_MASK;
+		do_task = TRUE;
+	}
 
 	if (reg & I40E_PFINT_ICR0_MAL_DETECT_MASK) {
 		ixl_handle_mdd_event(pf);
-		mask &= ~I40E_PFINT_ICR0_ENA_MAL_DETECT_MASK;
+		mask &= ~I40E_PFINT_ICR0_MAL_DETECT_MASK;
+	}
+
+	if (reg & I40E_PFINT_ICR0_GRST_MASK) {
+		device_printf(pf->dev, "Reset Requested!\n");
+		rstat_reg = rd32(hw, I40E_GLGEN_RSTAT);
+		rstat_reg = (rstat_reg & I40E_GLGEN_RSTAT_RESET_TYPE_MASK)
+		    >> I40E_GLGEN_RSTAT_RESET_TYPE_SHIFT;
+		device_printf(pf->dev, "Reset type: ");
+		switch (rstat_reg) {
+		/* These others might be handled similarly to an EMPR reset */
+		case I40E_RESET_CORER:
+			printf("CORER\n");
+			break;
+		case I40E_RESET_GLOBR:
+			printf("GLOBR\n");
+			break;
+		case I40E_RESET_EMPR:
+			printf("EMPR\n");
+			atomic_set_int(&pf->state, IXL_PF_STATE_EMPR_RESETTING);
+			break;
+		default:
+			printf("?\n");
+			break;
+		}
+		// overload admin queue task to check reset progress?
+		do_task = TRUE;
+	}
+
+	if (reg & I40E_PFINT_ICR0_ECC_ERR_MASK) {
+		device_printf(pf->dev, "ECC Error detected!\n");
+	}
+
+	if (reg & I40E_PFINT_ICR0_HMC_ERR_MASK) {
+		device_printf(pf->dev, "HMC Error detected!\n");
+	}
+
+	if (reg & I40E_PFINT_ICR0_PCI_EXCEPTION_MASK) {
+		device_printf(pf->dev, "PCI Exception detected!\n");
 	}
 
 #ifdef PCI_IOV
@@ -1585,8 +1552,8 @@ ixl_msix_adminq(void *arg)
 	reg = reg | I40E_PFINT_DYN_CTL0_CLEARPBA_MASK;
 	wr32(hw, I40E_PFINT_DYN_CTL0, reg);
 
-	taskqueue_enqueue(pf->tq, &pf->adminq);
-	return;
+	if (do_task)
+		taskqueue_enqueue(pf->tq, &pf->adminq);
 }
 
 /*********************************************************************
@@ -2330,7 +2297,7 @@ ixl_init_msix(struct ixl_pf *pf)
        	if (!pf->msix_mem) {
 		/* May not be enabled */
 		device_printf(pf->dev,
-		    "Unable to map MSIX table \n");
+		    "Unable to map MSIX table\n");
 		goto msi;
 	}
 
@@ -2435,7 +2402,7 @@ ixl_configure_msix(struct ixl_pf *pf)
 
 	reg = I40E_PFINT_ICR0_ENA_ECC_ERR_MASK |
 	    I40E_PFINT_ICR0_ENA_GRST_MASK |
-	    I40E_PFINT_ICR0_HMC_ERR_MASK |
+	    I40E_PFINT_ICR0_ENA_HMC_ERR_MASK |
 	    I40E_PFINT_ICR0_ENA_ADMINQ_MASK |
 	    I40E_PFINT_ICR0_ENA_MAL_DETECT_MASK |
 	    I40E_PFINT_ICR0_ENA_VFLR_MASK |
@@ -2583,7 +2550,7 @@ ixl_allocate_pci_resources(struct ixl_pf *pf)
 	    &rid, RF_ACTIVE);
 
 	if (!(pf->pci_mem)) {
-		device_printf(dev,"Unable to allocate bus resource: memory\n");
+		device_printf(dev, "Unable to allocate bus resource: memory\n");
 		return (ENXIO);
 	}
 
@@ -3128,6 +3095,9 @@ ixl_free_vsi(struct ixl_vsi *vsi)
 	struct ixl_queue	*que = vsi->queues;
 
 	/* Free station queues */
+	if (!vsi->queues)
+		goto free_filters;
+
 	for (int i = 0; i < vsi->num_queues; i++, que++) {
 		struct tx_ring *txr = &que->txr;
 		struct rx_ring *rxr = &que->rxr;
@@ -3153,6 +3123,7 @@ ixl_free_vsi(struct ixl_vsi *vsi)
 	}
 	free(vsi->queues, M_DEVBUF);
 
+free_filters:
 	/* Free VSI filter list */
 	ixl_free_mac_filters(vsi);
 }
@@ -4538,9 +4509,34 @@ ixl_do_adminq(void *context, int pending)
 	struct i40e_arq_event_info	event;
 	i40e_status			ret;
 	device_t			dev = pf->dev;
-	u32				loop = 0;
+	u32				reg, loop = 0;
 	u16				opcode, result;
 
+	// XXX: Possibly inappropriate overload
+	if (pf->state & IXL_PF_STATE_EMPR_RESETTING) {
+		int count = 0;
+		// ERJ: Typically finishes within 3-4 seconds
+		while (count++ < 100) {
+			reg = rd32(hw, I40E_GLGEN_RSTAT);
+			reg = reg & I40E_GLGEN_RSTAT_DEVSTATE_MASK;
+			if (reg) {
+				i40e_msec_delay(100);
+			} else {
+				break;
+			}
+		}
+		device_printf(dev, "EMPR reset wait count: %d\n", count);
+
+		device_printf(dev, "Rebuilding HW structs...\n");
+		// XXX: I feel like this could cause a kernel panic some time in the future
+		ixl_stop(pf);
+		ixl_init(pf);
+
+		atomic_clear_int(&pf->state, IXL_PF_STATE_EMPR_RESETTING);
+		return;
+	}
+
+	// Actually do Admin Queue handling
 	event.buf_len = IXL_AQ_BUF_SZ;
 	event.msg_buf = malloc(event.buf_len,
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -4828,6 +4824,96 @@ ixl_stat_update32(struct i40e_hw *hw, u32 reg,
 		*stat = (u32)(new_data - *offset);
 	else
 		*stat = (u32)((new_data + ((u64)1 << 32)) - *offset);
+}
+
+static void
+ixl_add_device_sysctls(struct ixl_pf *pf)
+{
+	device_t dev = pf->dev;
+
+	/* Set up sysctls */
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "fc", CTLTYPE_INT | CTLFLAG_RW,
+	    pf, 0, ixl_set_flowcntl, "I", "Flow Control");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "advertise_speed", CTLTYPE_INT | CTLFLAG_RW,
+	    pf, 0, ixl_set_advertise, "I", "Advertised Speed");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "current_speed", CTLTYPE_STRING | CTLFLAG_RD,
+	    pf, 0, ixl_current_speed, "A", "Current Port Speed");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "fw_version", CTLTYPE_STRING | CTLFLAG_RD,
+	    pf, 0, ixl_sysctl_show_fw, "A", "Firmware version");
+
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "rx_itr", CTLFLAG_RW,
+	    &ixl_rx_itr, IXL_ITR_8K, "RX ITR");
+
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "dynamic_rx_itr", CTLFLAG_RW,
+	    &ixl_dynamic_rx_itr, 0, "Dynamic RX ITR");
+
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "tx_itr", CTLFLAG_RW,
+	    &ixl_tx_itr, IXL_ITR_4K, "TX ITR");
+
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "dynamic_tx_itr", CTLFLAG_RW,
+	    &ixl_dynamic_tx_itr, 0, "Dynamic TX ITR");
+
+#ifdef IXL_DEBUG_SYSCTL
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "debug", CTLTYPE_INT|CTLFLAG_RW, pf, 0,
+	    ixl_debug_info, "I", "Debug Information");
+
+	/* Debug shared-code message level */
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "debug_mask", CTLFLAG_RW,
+	    &pf->hw.debug_mask, 0, "Debug Message Level");
+
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "vc_debug_level", CTLFLAG_RW, &pf->vc_debug_lvl,
+	    0, "PF/VF Virtual Channel debug level");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "link_status", CTLTYPE_STRING | CTLFLAG_RD,
+	    pf, 0, ixl_sysctl_link_status, "A", "Current Link Status");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "phy_abilities", CTLTYPE_STRING | CTLFLAG_RD,
+	    pf, 0, ixl_sysctl_phy_abilities, "A", "PHY Abilities");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "filter_list", CTLTYPE_STRING | CTLFLAG_RD,
+	    pf, 0, ixl_sysctl_sw_filter_list, "A", "SW Filter List");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "hw_res_alloc", CTLTYPE_STRING | CTLFLAG_RD,
+	    pf, 0, ixl_sysctl_hw_res_alloc, "A", "HW Resource Allocation");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "switch_config", CTLTYPE_STRING | CTLFLAG_RD,
+	    pf, 0, ixl_sysctl_switch_config, "A", "HW Switch Configuration");
+#endif
 }
 
 /*
@@ -5185,12 +5271,32 @@ ixl_handle_nvmupd_cmd(struct ixl_pf *pf, struct ifdrv *ifd)
 
 	nvma = (struct i40e_nvm_access *)ifd->ifd_data;
 
-	status = i40e_nvmupd_command(hw, nvma, nvma->data, &perrno);
+	if (pf->state & IXL_PF_STATE_EMPR_RESETTING) {
+		int count = 0;
+		while (count++ < 100) {
+			i40e_msec_delay(100);
+			if (!(pf->state & IXL_PF_STATE_EMPR_RESETTING))
+				break;
+		}
+		// device_printf(dev, "ioctl EMPR reset wait count %d\n", count);
+	}
+
+	if (!(pf->state & IXL_PF_STATE_EMPR_RESETTING)) {
+		IXL_PF_LOCK(pf);
+		status = i40e_nvmupd_command(hw, nvma, nvma->data, &perrno);
+		IXL_PF_UNLOCK(pf);
+	} else {
+		perrno = -EBUSY;
+	}
+
 	if (status)
 		device_printf(dev, "i40e_nvmupd_command status %d, perrno %d\n",
 		    status, perrno);
 
-	/* Convert EPERM error code for tools */
+	/*
+	 * -EPERM is actually ERESTART, which the kernel interprets as it needing
+	 * to run this ioctl again. So use -EACCES for -EPERM instead.
+	 */
 	if (perrno == -EPERM)
 		return (-EACCES);
 	else
@@ -5315,6 +5421,41 @@ ixl_res_alloc_cmp(const void *a, const void *b)
 	return ((int)one->resource_type - (int)two->resource_type);
 }
 
+/*
+ * Longest string length: 25 
+ */
+static char *
+ixl_switch_res_type_string(u8 type)
+{
+	static char * ixl_switch_res_type_strings[0x14] = {
+		"VEB",
+		"VSI",
+		"Perfect Match MAC address",
+		"S-tag",
+		"(Reserved)",
+		"Multicast hash entry",
+		"Unicast hash entry",
+		"VLAN",
+		"VSI List entry",
+		"(Reserved)",
+		"VLAN Statistic Pool",
+		"Mirror Rule",
+		"Queue Set",
+		"Inner VLAN Forward filter",
+		"(Reserved)",
+		"Inner MAC",
+		"IP",
+		"GRE/VN1 Key",
+		"VN2 Key",
+		"Tunneling Port"
+	};
+
+	if (type < 0x14)
+		return ixl_switch_res_type_strings[type];
+	else
+		return "(Reserved)";
+}
+
 static int
 ixl_sysctl_hw_res_alloc(SYSCTL_HANDLER_ARGS)
 {
@@ -5354,12 +5495,20 @@ ixl_sysctl_hw_res_alloc(SYSCTL_HANDLER_ARGS)
 	sbuf_cat(buf, "\n");
 	sbuf_printf(buf, "# of entries: %d\n", num_entries);
 	sbuf_printf(buf,
+#if 0
 	    "Type | Guaranteed | Total | Used   | Un-allocated\n"
 	    "     | (this)     | (all) | (this) | (all)       \n");
+#endif
+	    "                     Type | Guaranteed | Total | Used   | Un-allocated\n"
+	    "                          | (this)     | (all) | (this) | (all)       \n");
 	for (int i = 0; i < num_entries; i++) {
 		sbuf_printf(buf,
+#if 0
 		    "%#4x | %10d   %5d   %6d   %12d",
 		    resp[i].resource_type,
+#endif
+		    "%25s | %10d   %5d   %6d   %12d",
+		    ixl_switch_res_type_string(resp[i].resource_type),
 		    resp[i].guaranteed,
 		    resp[i].total,
 		    resp[i].used,
@@ -5379,36 +5528,48 @@ ixl_sysctl_hw_res_alloc(SYSCTL_HANDLER_ARGS)
 /*
 ** Caller must init and delete sbuf; this function will clear and
 ** finish it for caller.
+**
+** XXX: Cannot use the SEID for this, since there is no longer a 
+** fixed mapping between SEID and element type.
 */
 static char *
-ixl_switch_element_string(struct sbuf *s, u16 seid, bool uplink)
+ixl_switch_element_string(struct sbuf *s,
+    struct i40e_aqc_switch_config_element_resp *element)
 {
 	sbuf_clear(s);
 
-	if (seid == 0 && uplink)
-		sbuf_cat(s, "Network");
-	else if (seid == 0)
-		sbuf_cat(s, "Host");
-	else if (seid == 1)
+	switch (element->element_type) {
+	case I40E_AQ_SW_ELEM_TYPE_MAC:
+		sbuf_printf(s, "MAC %3d", element->element_info);
+		break;
+	case I40E_AQ_SW_ELEM_TYPE_PF:
+		sbuf_printf(s, "PF  %3d", element->element_info);
+		break;
+	case I40E_AQ_SW_ELEM_TYPE_VF:
+		sbuf_printf(s, "VF  %3d", element->element_info);
+		break;
+	case I40E_AQ_SW_ELEM_TYPE_EMP:
 		sbuf_cat(s, "EMP");
-	else if (seid <= 5)
-		sbuf_printf(s, "MAC %d", seid - 2);
-	else if (seid <= 15)
-		sbuf_cat(s, "Reserved");
-	else if (seid <= 31)
-		sbuf_printf(s, "PF %d", seid - 16);
-	else if (seid <= 159)
-		sbuf_printf(s, "VF %d", seid - 32);
-	else if (seid <= 287)
-		sbuf_cat(s, "Reserved");
-	else if (seid <= 511)
-		sbuf_cat(s, "Other"); // for other structures
-	else if (seid <= 895)
-		sbuf_printf(s, "VSI %d", seid - 512);
-	else if (seid <= 1023)
-		sbuf_printf(s, "Reserved");
-	else
-		sbuf_cat(s, "Invalid");
+		break;
+	case I40E_AQ_SW_ELEM_TYPE_BMC:
+		sbuf_cat(s, "BMC");
+		break;
+	case I40E_AQ_SW_ELEM_TYPE_PV:
+		sbuf_cat(s, "PV");
+		break;
+	case I40E_AQ_SW_ELEM_TYPE_VEB:
+		sbuf_cat(s, "VEB");
+		break;
+	case I40E_AQ_SW_ELEM_TYPE_PA:
+		sbuf_cat(s, "PA");
+		break;
+	case I40E_AQ_SW_ELEM_TYPE_VSI:
+		sbuf_printf(s, "VSI %3d", element->element_info);
+		break;
+	default:
+		sbuf_cat(s, "?");
+		break;
+	}
 
 	sbuf_finish(s);
 	return sbuf_data(s);
@@ -5423,9 +5584,9 @@ ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS)
 	struct sbuf *buf;
 	struct sbuf *nmbuf;
 	int error = 0;
+	u16 next = 0;
 	u8 aq_buf[I40E_AQ_LARGE_BUF];
 
-	u16 next = 0;
 	struct i40e_aqc_get_switch_config_resp *sw_config;
 	sw_config = (struct i40e_aqc_get_switch_config_resp *)aq_buf;
 
@@ -5444,6 +5605,9 @@ ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS)
 		sbuf_delete(buf);
 		return error;
 	}
+	if (next)
+		device_printf(dev, "%s: TODO: get more config with SEID %d\n",
+		    __func__, next);
 
 	nmbuf = sbuf_new_auto();
 	if (!nmbuf) {
@@ -5454,7 +5618,8 @@ ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS)
 
 	sbuf_cat(buf, "\n");
 	// Assuming <= 255 elements in switch
-	sbuf_printf(buf, "# of elements: %d\n", sw_config->header.num_reported);
+	sbuf_printf(buf, "# of reported elements: %d\n", sw_config->header.num_reported);
+	sbuf_printf(buf, "total # of elements: %d\n", sw_config->header.num_total);
 	/* Exclude:
 	** Revision -- all elements are revision 1 for now
 	*/
@@ -5466,13 +5631,11 @@ ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS)
 		sbuf_printf(buf, "%4d", sw_config->element[i].seid);
 		sbuf_cat(buf, " ");
 		sbuf_printf(buf, "(%8s)", ixl_switch_element_string(nmbuf,
-		    sw_config->element[i].seid, false));
+		    &sw_config->element[i]));
 		sbuf_cat(buf, " | ");
-		sbuf_printf(buf, "%8s", ixl_switch_element_string(nmbuf,
-		    sw_config->element[i].uplink_seid, true));
+		sbuf_printf(buf, "%8d", sw_config->element[i].uplink_seid);
 		sbuf_cat(buf, "   ");
-		sbuf_printf(buf, "%8s", ixl_switch_element_string(nmbuf,
-		    sw_config->element[i].downlink_seid, false));
+		sbuf_printf(buf, "%8d", sw_config->element[i].downlink_seid);
 		sbuf_cat(buf, "   ");
 		sbuf_printf(buf, "%#8x", sw_config->element[i].connection_type);
 		if (i < sw_config->header.num_reported - 1)
