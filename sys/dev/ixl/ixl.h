@@ -205,7 +205,6 @@
 #define IXL_BAR			3
 #define IXL_ADM_LIMIT		2
 #define IXL_TSO_SIZE		65535
-#define IXL_TX_BUF_SZ		((u32) 1514)
 #define IXL_AQ_BUF_SZ		((u32) 4096)
 #define IXL_RX_HDR		128
 /* Controls the length of the Admin Queue */
