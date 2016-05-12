@@ -48,7 +48,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixlv_driver_version[] = "1.2.6";
+char ixlv_driver_version[] = "1.2.7-k";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -240,7 +240,9 @@ ixlv_probe(device_t dev)
 	u16	pci_subvendor_id, pci_subdevice_id;
 	char	device_name[256];
 
+#if 0
 	INIT_DEBUGOUT("ixlv_probe: begin");
+#endif
 
 	pci_vendor_id = pci_get_vendor(dev);
 	if (pci_vendor_id != I40E_INTEL_VENDOR_ID)
@@ -346,7 +348,6 @@ ixlv_attach(device_t dev)
 
 	INIT_DBG_DEV(dev, "PF API version verified");
 
-	/* TODO: Figure out why MDD events occur when this reset is removed. */
 	/* Need API version before sending reset message */
 	error = ixlv_reset(sc);
 	if (error) {
@@ -373,7 +374,6 @@ ixlv_attach(device_t dev)
 	INIT_DBG_DEV(dev, "Offload flags: %#010x",
 	    sc->vf_res->vf_offload_flags);
 
-	// TODO: Move this into ixlv_vf_config?
 	/* got VF config message back from PF, now we can parse it */
 	for (int i = 0; i < sc->vf_res->num_vsis; i++) {
 		if (sc->vf_res->vsi_res[i].vsi_type == I40E_VSI_SRIOV)
@@ -670,7 +670,7 @@ ixlv_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			error = EINVAL;
 			IOCTL_DBG_IF(ifp, "mtu too large");
 		} else {
-			IOCTL_DBG_IF2(ifp, "mtu: %lu -> %d", ifp->if_mtu, ifr->ifr_mtu);
+			IOCTL_DBG_IF2(ifp, "mtu: %u -> %d", ifp->if_mtu, ifr->ifr_mtu);
 			// ERJ: Interestingly enough, these types don't match
 			ifp->if_mtu = (u_long)ifr->ifr_mtu;
 			vsi->max_frame_size =
@@ -1002,7 +1002,8 @@ ixlv_setup_vc(struct ixlv_sc *sc)
 			continue;
 		}
 
-		INIT_DBG_DEV(dev, "Initialized Admin Queue, attempt %d", i+1);
+		INIT_DBG_DEV(dev, "Initialized Admin Queue; starting"
+		    " send_api_ver attempt %d", i+1);
 
 retry_send:
 		/* Send VF's API version */
@@ -1121,6 +1122,9 @@ retry_config:
 			retried++;
 			goto retry_config;
 		}
+		device_printf(dev,
+		    "%s: ixlv_get_vf_config() timed out waiting for a response\n",
+		    __func__);
 	}
 	if (error) {
 		device_printf(dev,
