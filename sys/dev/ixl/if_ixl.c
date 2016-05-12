@@ -48,7 +48,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixl_driver_version[] = "1.4.5-k";
+char ixl_driver_version[] = "1.4.6-k";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -113,6 +113,8 @@ static int	ixl_init_msix(struct ixl_pf *);
 static void	ixl_configure_msix(struct ixl_pf *);
 static void	ixl_configure_itr(struct ixl_pf *);
 static void	ixl_configure_legacy(struct ixl_pf *);
+static void	ixl_init_taskqueues(struct ixl_pf *);
+static void	ixl_free_taskqueues(struct ixl_pf *);
 static void	ixl_free_pci_resources(struct ixl_pf *);
 static void	ixl_local_timer(void *);
 static int	ixl_setup_interface(device_t, struct ixl_vsi *);
@@ -201,8 +203,8 @@ static int	ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS);
 #ifdef PCI_IOV
 static int	ixl_adminq_err_to_errno(enum i40e_admin_queue_err err);
 
-static int	ixl_init_iov(device_t dev, uint16_t num_vfs, const nvlist_t*);
-static void	ixl_uninit_iov(device_t dev);
+static int	ixl_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t*);
+static void	ixl_iov_uninit(device_t dev);
 static int	ixl_add_vf(device_t dev, uint16_t vfnum, const nvlist_t*);
 
 static void	ixl_handle_vf_msg(struct ixl_pf *,
@@ -224,9 +226,9 @@ static device_method_t ixl_methods[] = {
 	DEVMETHOD(device_detach, ixl_detach),
 	DEVMETHOD(device_shutdown, ixl_shutdown),
 #ifdef PCI_IOV
-	DEVMETHOD(pci_init_iov, ixl_init_iov),
-	DEVMETHOD(pci_uninit_iov, ixl_uninit_iov),
-	DEVMETHOD(pci_add_vf, ixl_add_vf),
+	DEVMETHOD(pci_iov_init, ixl_iov_init),
+	DEVMETHOD(pci_iov_uninit, ixl_iov_uninit),
+	DEVMETHOD(pci_iov_add_vf, ixl_add_vf),
 #endif
 	{0, 0}
 };
@@ -638,7 +640,7 @@ ixl_attach(device_t dev)
 	else
 		error = ixl_assign_vsi_legacy(pf);
 	if (error) 
-		goto err_late;
+		goto err_mac_hmc;
 
 	if (((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver < 33)) ||
 	    (hw->aq.fw_maj_ver < 4)) {
@@ -663,7 +665,7 @@ ixl_attach(device_t dev)
 	error = ixl_switch_config(pf);
 	if (error) {
 		device_printf(dev, "Initial switch config failed: %d\n", error);
-		goto err_mac_hmc;
+		goto err_late;
 	}
 
 	/* Limit phy interrupts to link and modules failure */
@@ -675,6 +677,9 @@ ixl_attach(device_t dev)
 	/* Get the bus configuration and set the shared code */
 	bus = ixl_get_bus_info(hw, dev);
 	i40e_set_pci_config_data(hw, bus);
+
+	/* Initialize taskqueues */
+	ixl_init_taskqueues(pf);
 
 	/* Initialize statistics */
 	ixl_pf_reset_stats(pf);
@@ -744,7 +749,6 @@ ixl_detach(device_t dev)
 	struct ixl_pf		*pf = device_get_softc(dev);
 	struct i40e_hw		*hw = &pf->hw;
 	struct ixl_vsi		*vsi = &pf->vsi;
-	struct ixl_queue	*que = vsi->queues;
 	i40e_status		status;
 #ifdef PCI_IOV
 	int			error;
@@ -773,13 +777,7 @@ ixl_detach(device_t dev)
 		IXL_PF_UNLOCK(pf);
 	}
 
-	for (int i = 0; i < vsi->num_queues; i++, que++) {
-		if (que->tq) {
-			taskqueue_drain(que->tq, &que->task);
-			taskqueue_drain(que->tq, &que->tx_task);
-			taskqueue_free(que->tq);
-		}
-	}
+	ixl_free_taskqueues(pf);
 
 	/* Shutdown LAN HMC */
 	status = i40e_shutdown_lan_hmc(hw);
@@ -1135,8 +1133,9 @@ ixl_init_locked(struct ixl_pf *pf)
 	/* Get the latest mac address... User might use a LAA */
 	bcopy(IF_LLADDR(vsi->ifp), tmpaddr,
 	      I40E_ETH_LENGTH_OF_ADDRESS);
-	if (!cmp_etheraddr(hw->mac.addr, tmpaddr) && 
-	    i40e_validate_mac_addr(tmpaddr)) {
+	if (!cmp_etheraddr(hw->mac.addr, tmpaddr) &&
+	    (i40e_validate_mac_addr(tmpaddr) == I40E_SUCCESS)) {
+		ixl_del_filter(vsi, hw->mac.addr, IXL_VLAN_ANY);
 		bcopy(tmpaddr, hw->mac.addr,
 		    I40E_ETH_LENGTH_OF_ADDRESS);
 		ret = i40e_aq_mac_address_write(hw,
@@ -1146,6 +1145,8 @@ ixl_init_locked(struct ixl_pf *pf)
 			device_printf(dev, "LLA address"
 			 "change failed!!\n");
 			return;
+		} else {
+			ixl_add_filter(vsi, hw->mac.addr, IXL_VLAN_ANY);
 		}
 	}
 
@@ -1981,6 +1982,58 @@ ixl_assign_vsi_legacy(struct ixl_pf *pf)
 	return (0);
 }
 
+static void
+ixl_init_taskqueues(struct ixl_pf *pf)
+{
+	struct ixl_vsi *vsi = &pf->vsi;
+	struct ixl_queue *que = vsi->queues;
+	device_t dev = pf->dev;
+
+	/* Tasklet for Admin Queue */
+	TASK_INIT(&pf->adminq, 0, ixl_do_adminq, pf);
+#ifdef PCI_IOV
+	/* VFLR Tasklet */
+	TASK_INIT(&pf->vflr_task, 0, ixl_handle_vflr, pf);
+#endif
+
+	/* Create and start PF taskqueue */
+	pf->tq = taskqueue_create_fast("ixl_adm", M_NOWAIT,
+	    taskqueue_thread_enqueue, &pf->tq);
+	taskqueue_start_threads(&pf->tq, 1, PI_NET, "%s adminq",
+	    device_get_nameunit(dev));
+
+	/* Create queue tasks and start queue taskqueues */
+	for (int i = 0; i < vsi->num_queues; i++, que++) {
+		TASK_INIT(&que->tx_task, 0, ixl_deferred_mq_start, que);
+		TASK_INIT(&que->task, 0, ixl_handle_que, que);
+		que->tq = taskqueue_create_fast("ixl_que", M_NOWAIT,
+		    taskqueue_thread_enqueue, &que->tq);
+#ifdef RSS
+		CPU_SETOF(cpu_id, &cpu_mask);
+		taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
+		    &cpu_mask, "%s (bucket %d)",
+		    device_get_nameunit(dev), cpu_id);
+#else
+		taskqueue_start_threads(&que->tq, 1, PI_NET,
+		    "%s (que %d)", device_get_nameunit(dev), que->me);
+#endif
+	}
+
+}
+
+static void
+ixl_free_taskqueues(struct ixl_pf *pf)
+{
+	struct ixl_vsi		*vsi = &pf->vsi;
+	struct ixl_queue	*que = vsi->queues;
+
+	if (pf->tq)
+		taskqueue_free(pf->tq);
+	for (int i = 0; i < vsi->num_queues; i++, que++) {
+		if (que->tq)
+			taskqueue_free(que->tq);
+	}
+}
 
 /*********************************************************************
  *
@@ -1999,13 +2052,13 @@ ixl_assign_vsi_msix(struct ixl_pf *pf)
 	cpuset_t cpu_mask;
 #endif
 
-	/* Admin Que is vector 0*/
+	/* Admin Queue interrupt vector is 0 */
 	rid = vector + 1;
 	pf->res = bus_alloc_resource_any(dev,
     	    SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE);
 	if (!pf->res) {
-		device_printf(dev,"Unable to allocate"
-    	    " bus resource: Adminq interrupt [%d]\n", rid);
+		device_printf(dev, "Unable to allocate"
+		    " bus resource: Adminq interrupt [rid=%d]\n", rid);
 		return (ENXIO);
 	}
 	/* Set the adminq vector and handler */
@@ -2019,17 +2072,6 @@ ixl_assign_vsi_msix(struct ixl_pf *pf)
 	}
 	bus_describe_intr(dev, pf->res, pf->tag, "aq");
 	pf->admvec = vector;
-	/* Tasklet for Admin Queue */
-	TASK_INIT(&pf->adminq, 0, ixl_do_adminq, pf);
-
-#ifdef PCI_IOV
-	TASK_INIT(&pf->vflr_task, 0, ixl_handle_vflr, pf);
-#endif
-
-	pf->tq = taskqueue_create_fast("ixl_adm", M_NOWAIT,
-	    taskqueue_thread_enqueue, &pf->tq);
-	taskqueue_start_threads(&pf->tq, 1, PI_NET, "%s adminq",
-	    device_get_nameunit(pf->dev));
 	++vector;
 
 	/* Now set up the stations */
@@ -2040,8 +2082,8 @@ ixl_assign_vsi_msix(struct ixl_pf *pf)
 		que->res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 		    RF_SHAREABLE | RF_ACTIVE);
 		if (que->res == NULL) {
-			device_printf(dev,"Unable to allocate"
-		    	    " bus resource: que interrupt [%d]\n", vector);
+			device_printf(dev, "Unable to allocate"
+		    	    " bus resource: que interrupt [rid=%d]\n", rid);
 			return (ENXIO);
 		}
 		/* Set the handler function */
@@ -2053,26 +2095,13 @@ ixl_assign_vsi_msix(struct ixl_pf *pf)
 			device_printf(dev, "Failed to register que handler");
 			return (error);
 		}
-		bus_describe_intr(dev, que->res, que->tag, "q%d", i);
+		bus_describe_intr(dev, que->res, que->tag, "que%d", i);
 		/* Bind the vector to a CPU */
 #ifdef RSS
 		cpu_id = rss_getcpu(i % rss_getnumbuckets());
 #endif
 		bus_bind_intr(dev, que->res, cpu_id);
 		que->msix = vector;
-		TASK_INIT(&que->tx_task, 0, ixl_deferred_mq_start, que);
-		TASK_INIT(&que->task, 0, ixl_handle_que, que);
-		que->tq = taskqueue_create_fast("ixl_que", M_NOWAIT,
-		    taskqueue_thread_enqueue, &que->tq);
-#ifdef RSS
-		CPU_SETOF(cpu_id, &cpu_mask);
-		taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
-		    &cpu_mask, "%s (bucket %d)",
-		    device_get_nameunit(dev), cpu_id);
-#else
-		taskqueue_start_threads(&que->tq, 1, PI_NET,
-		    "%s que", device_get_nameunit(dev));
-#endif
 	}
 
 	return (0);
@@ -2135,9 +2164,15 @@ ixl_init_msix(struct ixl_pf *pf)
 	/* Figure out a reasonable auto config value */
 	queues = (mp_ncpus > (available - 1)) ? (available - 1) : mp_ncpus;
 
-	/* Override with hardcoded value if sane */
+	/* Override with hardcoded value if it's less than autoconfig count */
 	if ((ixl_max_queues != 0) && (ixl_max_queues <= queues)) 
 		queues = ixl_max_queues;
+	else if ((ixl_max_queues != 0) && (ixl_max_queues > queues))
+		device_printf(dev, "ixl_max_queues > # of cpus, using "
+		    "autoconfig amount...\n");
+	/* Or limit maximum auto-configured queues to 8 */
+	else if ((ixl_max_queues == 0) && (queues > 8))
+		queues = 8;
 
 #ifdef  RSS
 	/* If we're doing RSS, clamp at the number of RSS buckets */
@@ -2545,7 +2580,7 @@ ixl_setup_interface(device_t dev, struct ixl_vsi *vsi)
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_baudrate = 4000000000;  // ??
+	ifp->if_baudrate = IF_Gbps(40);
 	ifp->if_init = ixl_init;
 	ifp->if_softc = vsi;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -5065,7 +5100,7 @@ ixl_sysctl_hw_res_alloc(SYSCTL_HANDLER_ARGS)
 	u8 num_entries;
 	struct i40e_aqc_switch_resource_alloc_element_resp resp[IXL_SW_RES_SIZE];
 
-	buf = sbuf_new_for_sysctl(NULL, NULL, 0, req);
+	buf = sbuf_new_for_sysctl(NULL, NULL, 128, req);
 	if (!buf) {
 		device_printf(dev, "Could not allocate sbuf for output.\n");
 		return (ENOMEM);
@@ -5107,15 +5142,9 @@ ixl_sysctl_hw_res_alloc(SYSCTL_HANDLER_ARGS)
 	}
 
 	error = sbuf_finish(buf);
-	if (error) {
-		device_printf(dev, "Error finishing sbuf: %d\n", error);
-		sbuf_delete(buf);
-		return error;
-	}
-
-	error = sysctl_handle_string(oidp, sbuf_data(buf), sbuf_len(buf), req);
 	if (error)
-		device_printf(dev, "sysctl error: %d\n", error);
+		device_printf(dev, "Error finishing sbuf: %d\n", error);
+
 	sbuf_delete(buf);
 	return error;
 }
@@ -5173,7 +5202,7 @@ ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS)
 	struct i40e_aqc_get_switch_config_resp *sw_config;
 	sw_config = (struct i40e_aqc_get_switch_config_resp *)aq_buf;
 
-	buf = sbuf_new_for_sysctl(NULL, NULL, 0, req);
+	buf = sbuf_new_for_sysctl(NULL, NULL, 128, req);
 	if (!buf) {
 		device_printf(dev, "Could not allocate sbuf for sysctl output.\n");
 		return (ENOMEM);
@@ -5192,6 +5221,7 @@ ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS)
 	nmbuf = sbuf_new_auto();
 	if (!nmbuf) {
 		device_printf(dev, "Could not allocate sbuf for name output.\n");
+		sbuf_delete(buf);
 		return (ENOMEM);
 	}
 
@@ -5224,15 +5254,9 @@ ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(nmbuf);
 
 	error = sbuf_finish(buf);
-	if (error) {
-		device_printf(dev, "Error finishing sbuf: %d\n", error);
-		sbuf_delete(buf);
-		return error;
-	}
-
-	error = sysctl_handle_string(oidp, sbuf_data(buf), sbuf_len(buf), req);
 	if (error)
-		device_printf(dev, "sysctl error: %d\n", error);
+		device_printf(dev, "Error finishing sbuf: %d\n", error);
+
 	sbuf_delete(buf);
 
 	return (error);
@@ -6538,7 +6562,7 @@ ixl_adminq_err_to_errno(enum i40e_admin_queue_err err)
 }
 
 static int
-ixl_init_iov(device_t dev, uint16_t num_vfs, const nvlist_t *params)
+ixl_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *params)
 {
 	struct ixl_pf *pf;
 	struct i40e_hw *hw;
@@ -6586,7 +6610,7 @@ fail:
 }
 
 static void
-ixl_uninit_iov(device_t dev)
+ixl_iov_uninit(device_t dev)
 {
 	struct ixl_pf *pf;
 	struct i40e_hw *hw;

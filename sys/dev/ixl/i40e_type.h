@@ -161,6 +161,10 @@ enum i40e_memcpy_type {
 	I40E_DMA_TO_NONDMA
 };
 
+
+#define I40E_FW_API_VERSION_MINOR_X710	0x0004
+
+
 /* These are structs for managing the hardware information and the operations.
  * The structures of function pointers are filled out at init time when we
  * know for sure exactly which hardware we're working with.  This gives us the
@@ -1183,7 +1187,8 @@ enum i40e_filter_program_desc_fd_status {
 };
 
 #define I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT	23
-#define I40E_TXD_FLTR_QW0_DEST_VSI_MASK	BIT_ULL(I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT)
+#define I40E_TXD_FLTR_QW0_DEST_VSI_MASK	(0x1FFUL << \
+					 I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT)
 
 #define I40E_TXD_FLTR_QW1_DTYPE_SHIFT	0
 #define I40E_TXD_FLTR_QW1_DTYPE_MASK	(0xFUL << I40E_TXD_FLTR_QW1_DTYPE_SHIFT)
