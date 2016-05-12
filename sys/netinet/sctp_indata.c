@@ -2655,16 +2655,18 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 			case SCTP_STREAM_RESET:
 			case SCTP_FORWARD_CUM_TSN:
 			case SCTP_ASCONF:
-				/*
-				 * Now, what do we do with KNOWN chunks that
-				 * are NOT in the right place?
-				 * 
-				 * For now, I do nothing but ignore them. We
-				 * may later want to add sysctl stuff to
-				 * switch out and do either an ABORT() or
-				 * possibly process them.
-				 */
-				if (SCTP_BASE_SYSCTL(sctp_strict_data_order)) {
+				{
+					/*
+					 * Now, what do we do with KNOWN
+					 * chunks that are NOT in the right
+					 * place?
+					 * 
+					 * For now, I do nothing but ignore
+					 * them. We may later want to add
+					 * sysctl stuff to switch out and do
+					 * either an ABORT() or possibly
+					 * process them.
+					 */
 					struct mbuf *op_err;
 					char msg[SCTP_DIAG_INFO_LEN];
 
@@ -2674,7 +2676,6 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 					sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
 					return (2);
 				}
-				break;
 			default:
 				/* unknown chunk type, use bit rules */
 				if (ch->chunk_type & 0x40) {
@@ -3748,6 +3749,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 	int win_probe_recovered = 0;
 	int j, done_once = 0;
 	int rto_ok = 1;
+	uint32_t send_s;
 
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_SACK_ARRIVALS_ENABLE) {
 		sctp_misc_ints(SCTP_SACK_LOG_EXPRESS, cumack,
@@ -3799,29 +3801,25 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 			(*stcb->asoc.cc_functions.sctp_cwnd_prepare_net_for_sack) (stcb, net);
 		}
 	}
-	if (SCTP_BASE_SYSCTL(sctp_strict_sacks)) {
-		uint32_t send_s;
+	if (!TAILQ_EMPTY(&asoc->sent_queue)) {
+		tp1 = TAILQ_LAST(&asoc->sent_queue,
+		    sctpchunk_listhead);
+		send_s = tp1->rec.data.TSN_seq + 1;
+	} else {
+		send_s = asoc->sending_seq;
+	}
+	if (SCTP_TSN_GE(cumack, send_s)) {
+		struct mbuf *op_err;
+		char msg[SCTP_DIAG_INFO_LEN];
 
-		if (!TAILQ_EMPTY(&asoc->sent_queue)) {
-			tp1 = TAILQ_LAST(&asoc->sent_queue,
-			    sctpchunk_listhead);
-			send_s = tp1->rec.data.TSN_seq + 1;
-		} else {
-			send_s = asoc->sending_seq;
-		}
-		if (SCTP_TSN_GE(cumack, send_s)) {
-			struct mbuf *op_err;
-			char msg[SCTP_DIAG_INFO_LEN];
-
-			*abort_now = 1;
-			/* XXX */
-			snprintf(msg, sizeof(msg), "Cum ack %8.8x greater or equal than TSN %8.8x",
-			    cumack, send_s);
-			op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
-			stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_21;
-			sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
-			return;
-		}
+		*abort_now = 1;
+		/* XXX */
+		snprintf(msg, sizeof(msg), "Cum ack %8.8x greater or equal than TSN %8.8x",
+		    cumack, send_s);
+		op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
+		stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_21;
+		sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
+		return;
 	}
 	asoc->this_sack_highest_gap = cumack;
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
@@ -4365,40 +4363,38 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 			sctp_log_fr(*dupdata, 0, 0, SCTP_FR_DUPED);
 		}
 	}
-	if (SCTP_BASE_SYSCTL(sctp_strict_sacks)) {
-		/* reality check */
-		if (!TAILQ_EMPTY(&asoc->sent_queue)) {
-			tp1 = TAILQ_LAST(&asoc->sent_queue,
-			    sctpchunk_listhead);
-			send_s = tp1->rec.data.TSN_seq + 1;
-		} else {
-			tp1 = NULL;
-			send_s = asoc->sending_seq;
-		}
-		if (SCTP_TSN_GE(cum_ack, send_s)) {
-			struct mbuf *op_err;
-			char msg[SCTP_DIAG_INFO_LEN];
+	/* reality check */
+	if (!TAILQ_EMPTY(&asoc->sent_queue)) {
+		tp1 = TAILQ_LAST(&asoc->sent_queue,
+		    sctpchunk_listhead);
+		send_s = tp1->rec.data.TSN_seq + 1;
+	} else {
+		tp1 = NULL;
+		send_s = asoc->sending_seq;
+	}
+	if (SCTP_TSN_GE(cum_ack, send_s)) {
+		struct mbuf *op_err;
+		char msg[SCTP_DIAG_INFO_LEN];
 
-			/*
-			 * no way, we have not even sent this TSN out yet.
-			 * Peer is hopelessly messed up with us.
-			 */
-			SCTP_PRINTF("NEW cum_ack:%x send_s:%x is smaller or equal\n",
-			    cum_ack, send_s);
-			if (tp1) {
-				SCTP_PRINTF("Got send_s from tsn:%x + 1 of tp1: %p\n",
-				    tp1->rec.data.TSN_seq, (void *)tp1);
-			}
-	hopeless_peer:
-			*abort_now = 1;
-			/* XXX */
-			snprintf(msg, sizeof(msg), "Cum ack %8.8x greater or equal than TSN %8.8x",
-			    cum_ack, send_s);
-			op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
-			stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_25;
-			sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
-			return;
+		/*
+		 * no way, we have not even sent this TSN out yet. Peer is
+		 * hopelessly messed up with us.
+		 */
+		SCTP_PRINTF("NEW cum_ack:%x send_s:%x is smaller or equal\n",
+		    cum_ack, send_s);
+		if (tp1) {
+			SCTP_PRINTF("Got send_s from tsn:%x + 1 of tp1: %p\n",
+			    tp1->rec.data.TSN_seq, (void *)tp1);
 		}
+hopeless_peer:
+		*abort_now = 1;
+		/* XXX */
+		snprintf(msg, sizeof(msg), "Cum ack %8.8x greater or equal than TSN %8.8x",
+		    cum_ack, send_s);
+		op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
+		stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_25;
+		sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
+		return;
 	}
 	/**********************/
 	/* 1) check the range */
@@ -4608,20 +4604,18 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 		    num_seg, num_nr_seg, &rto_ok)) {
 			wake_him++;
 		}
-		if (SCTP_BASE_SYSCTL(sctp_strict_sacks)) {
+		/*
+		 * validate the biggest_tsn_acked in the gap acks if strict
+		 * adherence is wanted.
+		 */
+		if (SCTP_TSN_GE(biggest_tsn_acked, send_s)) {
 			/*
-			 * validate the biggest_tsn_acked in the gap acks if
-			 * strict adherence is wanted.
+			 * peer is either confused or we are under attack.
+			 * We must abort.
 			 */
-			if (SCTP_TSN_GE(biggest_tsn_acked, send_s)) {
-				/*
-				 * peer is either confused or we are under
-				 * attack. We must abort.
-				 */
-				SCTP_PRINTF("Hopeless peer! biggest_tsn_acked:%x largest seq:%x\n",
-				    biggest_tsn_acked, send_s);
-				goto hopeless_peer;
-			}
+			SCTP_PRINTF("Hopeless peer! biggest_tsn_acked:%x largest seq:%x\n",
+			    biggest_tsn_acked, send_s);
+			goto hopeless_peer;
 		}
 	}
 	/*******************************************/
