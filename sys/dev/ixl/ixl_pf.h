@@ -122,16 +122,29 @@ struct ixl_pf {
      (((((((('E' << 4) + '1') << 4) + 'K') << 4) + 'G') << 4) | 5)
 
 #define IXL_DEFAULT_PHY_INT_MASK \
-     (I40E_AQ_EVENT_LINK_UPDOWN | I40E_AQ_EVENT_MODULE_QUAL_FAIL)
+     ((~(I40E_AQ_EVENT_LINK_UPDOWN | I40E_AQ_EVENT_MODULE_QUAL_FAIL \
+      | I40E_AQ_EVENT_MEDIA_NA)) & 0x3FF)
 
-#define IXL_SET_ADVERTISE_HELP		\
-"Control link advertise speed:\n"	\
-"\tFlags:\n"				\
-"\t\t0x1 - advertise 100 Mb\n"		\
-"\t\t0x2 - advertise 1G\n"		\
-"\t\t0x4 - advertise 10G\n"		\
-"\t\t0x8 - advertise 20G\n\n"		\
-"\tDoes not work on 40G devices."
+/* Sysctl help messages; displayed with "sysctl -d" */
+#define IXL_SYSCTL_HELP_SET_ADVERTISE	\
+"\nControl advertised link speed.\n"	\
+"Flags:\n"				\
+"\t0x1 - advertise 100M\n"		\
+"\t0x2 - advertise 1G\n"		\
+"\t0x4 - advertise 10G\n"		\
+"\t0x8 - advertise 20G\n\n"		\
+"Operation not supported on 40G devices."
+
+#define IXL_SYSCTL_HELP_FC				\
+"\nSet flow control mode using the values below.\n" 	\
+"\t0 - off\n" 						\
+"\t1 - rx pause\n" 					\
+"\t2 - tx pause\n"					\
+"\t3 - tx and rx pause"
+
+#define IXL_SYSCTL_HELP_LINK_STATUS					\
+"\nExecutes a \"Get Link Status\" command on the Admin Queue, and displays" \
+" the response."			\
 
 #define	I40E_VC_DEBUG(pf, level, ...) \
 	do { \
