@@ -993,6 +993,9 @@ enum i40e_status_code i40e_clean_arq_element(struct i40e_hw *hw,
 	u16 flags;
 	u16 ntu;
 
+	/* pre-clean the event info */
+	i40e_memset(&e->desc, 0, sizeof(e->desc), I40E_NONDMA_MEM);
+
 	/* take the lock before we start messing with the ring */
 	i40e_acquire_spinlock(&hw->aq.arq_spinlock);
 
@@ -1065,13 +1068,6 @@ enum i40e_status_code i40e_clean_arq_element(struct i40e_hw *hw,
 	hw->aq.arq.next_to_clean = ntc;
 	hw->aq.arq.next_to_use = ntu;
 
-clean_arq_element_out:
-	/* Set pending if needed, unlock and return */
-	if (pending != NULL)
-		*pending = (ntc > ntu ? hw->aq.arq.count : 0) + (ntu - ntc);
-clean_arq_element_err:
-	i40e_release_spinlock(&hw->aq.arq_spinlock);
-
 	if (i40e_is_nvm_update_op(&e->desc)) {
 		if (hw->aq.nvm_release_on_done) {
 			i40e_release_nvm(hw);
@@ -1091,6 +1087,13 @@ clean_arq_element_err:
 			break;
 		}
 	}
+
+clean_arq_element_out:
+	/* Set pending if needed, unlock and return */
+	if (pending != NULL)
+		*pending = (ntc > ntu ? hw->aq.arq.count : 0) + (ntu - ntc);
+clean_arq_element_err:
+	i40e_release_spinlock(&hw->aq.arq_spinlock);
 
 	return ret_code;
 }

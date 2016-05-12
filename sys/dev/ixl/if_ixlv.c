@@ -48,7 +48,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixlv_driver_version[] = "1.2.7-k";
+char ixlv_driver_version[] = "1.2.10-k";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -670,7 +670,7 @@ ixlv_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			error = EINVAL;
 			IOCTL_DBG_IF(ifp, "mtu too large");
 		} else {
-			IOCTL_DBG_IF2(ifp, "mtu: %u -> %d", ifp->if_mtu, ifr->ifr_mtu);
+			IOCTL_DBG_IF2(ifp, "mtu: %lu -> %d", (u_long)ifp->if_mtu, ifr->ifr_mtu);
 			// ERJ: Interestingly enough, these types don't match
 			ifp->if_mtu = (u_long)ifr->ifr_mtu;
 			vsi->max_frame_size =
@@ -941,12 +941,12 @@ ixlv_init(void *arg)
 
 	/* Wait for init_locked to finish */
 	while (!(vsi->ifp->if_drv_flags & IFF_DRV_RUNNING)
-	    && ++retries < 100) {
-		i40e_msec_delay(10);
+	    && ++retries < IXLV_AQ_MAX_ERR) {
+		i40e_msec_delay(25);
 	}
 	if (retries >= IXLV_AQ_MAX_ERR)
 		if_printf(vsi->ifp,
-		    "Init failed to complete in alloted time!\n");
+		    "Init failed to complete in allotted time!\n");
 }
 
 /*
@@ -2598,6 +2598,7 @@ ixlv_config_rss(struct ixlv_sc *sc)
 	wr32(hw, I40E_VFQF_HENA(0), (u32)hena);
 	wr32(hw, I40E_VFQF_HENA(1), (u32)(hena >> 32));
 
+	// TODO: Fix -- only 3,7,11,15 are filled out, instead of all 16 registers
 	/* Populate the LUT with max no. of queues in round robin fashion */
 	for (i = 0, j = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++, j++) {
                 if (j == vsi->num_queues)
