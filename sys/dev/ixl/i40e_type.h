@@ -162,7 +162,7 @@ enum i40e_memcpy_type {
 };
 
 
-#define I40E_FW_API_VERSION_MINOR_X710	0x0004
+#define I40E_FW_API_VERSION_MINOR_X710	0x0005
 
 
 /* These are structs for managing the hardware information and the operations.
