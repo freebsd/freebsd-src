@@ -71,7 +71,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	liblzma \
 	${_libmagic} \
 	libmemstat \
-	libstatcounters \
+	${_libstatcounters} \
 	libmd \
 	${_libmilter} \
 	${_libmp} \
@@ -282,6 +282,7 @@ _libvmmapi=	libvmmapi
 .if ${MACHINE_CPUARCH} == "mips"
 _libproc=	libproc
 _librtld_db=	librtld_db
+_libstatcounters=	libstatcounters
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
