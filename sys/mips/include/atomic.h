@@ -91,12 +91,12 @@ atomic_set_32(__volatile uint32_t *p, uint32_t v)
 
 #ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
-		"1:\tll	%0, %3\n\t"		/* load old value */
+		"1:\tll	%0, %1\n\t"		/* load old value */
 		"or	%0, %2, %0\n\t"		/* calculate new value */
 		"sc	%0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
-		: "=&r" (temp), "=m" (*p)
-		: "r" (v), "m" (*p)
+		: "=&r" (temp), "+m" (*p)
+		: "r" (v)
 		: "memory");
 #else
 	__asm __volatile (
@@ -121,12 +121,12 @@ atomic_clear_32(__volatile uint32_t *p, uint32_t v)
 
 #ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
-		"1:\tll	%0, %3\n\t"		/* load old value */
+		"1:\tll	%0, %1\n\t"		/* load old value */
 		"and	%0, %2, %0\n\t"		/* calculate new value */
 		"sc	%0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
-		: "=&r" (temp), "=m" (*p)
-		: "r" (v), "m" (*p)
+		: "=&r" (temp), "+m" (*p)
+		: "r" (v)
 		: "memory");
 #else
 	__asm __volatile (
@@ -149,12 +149,12 @@ atomic_add_32(__volatile uint32_t *p, uint32_t v)
 
 #ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
-		"1:\tll	%0, %3\n\t"		/* load old value */
+		"1:\tll	%0, %1\n\t"		/* load old value */
 		"addu	%0, %2, %0\n\t"		/* calculate new value */
 		"sc	%0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
-		: "=&r" (temp), "=m" (*p)
-		: "r" (v), "m" (*p)
+		: "=&r" (temp), "+m" (*p)
+		: "r" (v)
 		: "memory");
 #else
 	__asm __volatile (
@@ -177,12 +177,12 @@ atomic_subtract_32(__volatile uint32_t *p, uint32_t v)
 
 #ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
-		"1:\tll	%0, %3\n\t"		/* load old value */
+		"1:\tll	%0, %1\n\t"		/* load old value */
 		"subu	%0, %2\n\t"		/* calculate new value */
 		"sc	%0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
-		: "=&r" (temp), "=m" (*p)
-		: "r" (v), "m" (*p)
+		: "=&r" (temp), "+m" (*p)
+		: "r" (v)
 		: "memory");
 #else
 	__asm __volatile (
@@ -205,12 +205,12 @@ atomic_readandclear_32(__volatile uint32_t *addr)
 
 #ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
-		"1:\tll	 %0,%3\n\t"	/* load current value, asserting lock */
+		"1:\tll	 %0,%2\n\t"	/* load current value, asserting lock */
 		"li	 %1,0\n\t"		/* value to store */
 		"sc	 %1,%2\n\t"	/* attempt to store */
 		"beqz	 %1, 1b\n\t"		/* if the store failed, spin */
-		: "=&r"(result), "=&r"(temp), "=m" (*addr)
-		: "m" (*addr)
+		: "=&r"(result), "=&r"(temp), "+m" (*addr)
+		:
 		: "memory");
 #else
 	__asm __volatile (
@@ -235,12 +235,12 @@ atomic_readandset_32(__volatile uint32_t *addr, uint32_t value)
 
 #ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
-		"1:\tll	 %0,%3\n\t"	/* load current value, asserting lock */
-		"or      %1,$0,%4\n\t"
+		"1:\tll	 %0,%2\n\t"	/* load current value, asserting lock */
+		"or      %1,$0,%3\n\t"
 		"sc	 %1,%2\n\t"	/* attempt to store */
 		"beqz	 %1, 1b\n\t"		/* if the store failed, spin */
-		: "=&r"(result), "=&r"(temp), "=m" (*addr)
-		: "m" (*addr), "r" (value)
+		: "=&r"(result), "=&r"(temp), "+m" (*addr)
+		: "r" (value)
 		: "memory");
 #else
 	__asm __volatile (
@@ -267,12 +267,12 @@ atomic_set_64(__volatile uint64_t *p, uint64_t v)
 #ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\n\t"
-		"lld	%0, %3\n\t"		/* load old value */
+		"lld	%0, %1\n\t"		/* load old value */
 		"or	%0, %2, %0\n\t"		/* calculate new value */
 		"scd	%0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
-		: "=&r" (temp), "=m" (*p)
-		: "r" (v), "m" (*p)
+		: "=&r" (temp), "+m" (*p)
+		: "r" (v)
 		: "memory");
 #else
 	__asm __volatile (
@@ -298,12 +298,12 @@ atomic_clear_64(__volatile uint64_t *p, uint64_t v)
 #ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\n\t"
-		"lld	%0, %3\n\t"		/* load old value */
+		"lld	%0, %1\n\t"		/* load old value */
 		"and	%0, %2, %0\n\t"		/* calculate new value */
 		"scd	%0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
-		: "=&r" (temp), "=m" (*p)
-		: "r" (v), "m" (*p)
+		: "=&r" (temp), "+m" (*p)
+		: "r" (v)
 		: "memory");
 #else
 	__asm __volatile (
@@ -327,12 +327,12 @@ atomic_add_64(__volatile uint64_t *p, uint64_t v)
 #ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\n\t"
-		"lld	%0, %3\n\t"		/* load old value */
+		"lld	%0, %1\n\t"		/* load old value */
 		"daddu	%0, %2, %0\n\t"		/* calculate new value */
 		"scd	%0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
-		: "=&r" (temp), "=m" (*p)
-		: "r" (v), "m" (*p)
+		: "=&r" (temp), "+m" (*p)
+		: "r" (v)
 		: "memory");
 #else
 	__asm __volatile (
@@ -356,12 +356,12 @@ atomic_subtract_64(__volatile uint64_t *p, uint64_t v)
 #ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\n\t"
-		"lld	%0, %3\n\t"		/* load old value */
+		"lld	%0, %1\n\t"		/* load old value */
 		"dsubu	%0, %2\n\t"		/* calculate new value */
 		"scd	%0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
-		: "=&r" (temp), "=m" (*p)
-		: "r" (v), "m" (*p)
+		: "=&r" (temp), "+m" (*p)
+		: "r" (v)
 		: "memory");
 #else
 	__asm __volatile (
@@ -385,12 +385,12 @@ atomic_readandclear_64(__volatile uint64_t *addr)
 #ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\n\t"
-		"lld	 %0, %3\n\t"		/* load old value */
+		"lld	 %0, %2\n\t"		/* load old value */
 		"li	 %1, 0\n\t"		/* value to store */
 		"scd	 %1, %2\n\t"		/* attempt to store */
 		"beqz	 %1, 1b\n\t"		/* if the store failed, spin */
-		: "=&r"(result), "=&r"(temp), "=m" (*addr)
-		: "m" (*addr)
+		: "=&r"(result), "=&r"(temp), "+m" (*addr)
+		:
 		: "memory");
 #else
 	__asm __volatile (
@@ -416,12 +416,12 @@ atomic_readandset_64(__volatile uint64_t *addr, uint64_t value)
 #ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\n\t"
-		"lld	 %0,%3\n\t"		/* Load old value*/
-		"or      %1,$0,%4\n\t"
+		"lld	 %0,%2\n\t"		/* Load old value*/
+		"or      %1,$0,%3\n\t"
 		"scd	 %1,%2\n\t"		/* attempt to store */
 		"beqz	 %1, 1b\n\t"		/* if the store failed, spin */
-		: "=&r"(result), "=&r"(temp), "=m" (*addr)
-		: "m" (*addr), "r" (value)
+		: "=&r"(result), "=&r"(temp), "+m" (*addr)
+		: "r" (value)
 		: "memory");
 #else
 	__asm __volatile (
@@ -531,7 +531,7 @@ atomic_cmpset_32(__volatile uint32_t* p, uint32_t cmpval, uint32_t newval)
 
 #ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
-		"1:\tll	%0, %4\n\t"		/* load old value */
+		"1:\tll	%0, %1\n\t"		/* load old value */
 		"bne %0, %2, 2f\n\t"		/* compare */
 		"move %0, %3\n\t"		/* value to store */
 		"sc %0, %1\n\t"			/* attempt to store */
@@ -540,8 +540,8 @@ atomic_cmpset_32(__volatile uint32_t* p, uint32_t cmpval, uint32_t newval)
 		"2:\n\t"
 		"li	%0, 0\n\t"
 		"3:\n"
-		: "=&r" (ret), "=m" (*p)
-		: "r" (cmpval), "r" (newval), "m" (*p)
+		: "=&r" (ret), "+m" (*p)
+		: "r" (cmpval), "r" (newval)
 		: "memory");
 #else
 	__asm __volatile (
@@ -601,8 +601,8 @@ atomic_fetchadd_32(__volatile uint32_t *p, uint32_t v)
 		"addu %2, %3, %0\n\t"		/* calculate new value */
 		"sc %2, %1\n\t"			/* attempt to store */
 		"beqz %2, 1b\n\t"		/* spin if failed */
-		: "=&r" (value), "=m" (*p), "=&r" (temp)
-		: "r" (v), "m" (*p));
+		: "=&r" (value), "+m" (*p), "=&r" (temp)
+		: "r" (v));
 #else
 	__asm __volatile (
 		"1:\n\t"
@@ -631,7 +631,7 @@ atomic_cmpset_64(__volatile uint64_t* p, uint64_t cmpval, uint64_t newval)
 #ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\n\t"
-		"lld	%0, %4\n\t"		/* load old value */
+		"lld	%0, %1\n\t"		/* load old value */
 		"bne	%0, %2, 2f\n\t"		/* compare */
 		"move	%0, %3\n\t"		/* value to store */
 		"scd	%0, %1\n\t"		/* attempt to store */
@@ -640,8 +640,8 @@ atomic_cmpset_64(__volatile uint64_t* p, uint64_t cmpval, uint64_t newval)
 		"2:\n\t"
 		"li	%0, 0\n\t"
 		"3:\n"
-		: "=&r" (ret), "=m" (*p)
-		: "r" (cmpval), "r" (newval), "m" (*p)
+		: "=&r" (ret), "+m" (*p)
+		: "r" (cmpval), "r" (newval)
 		: "memory");
 #else
 	__asm __volatile (
@@ -702,8 +702,8 @@ atomic_fetchadd_64(__volatile uint64_t *p, uint64_t v)
 		"daddu	%2, %3, %0\n\t"		/* calculate new value */
 		"scd	%2, %1\n\t"		/* attempt to store */
 		"beqz	%2, 1b\n\t"		/* spin if failed */
-		: "=&r" (value), "=m" (*p), "=&r" (temp)
-		: "r" (v), "m" (*p));
+		: "=&r" (value), "+m" (*p), "=&r" (temp)
+		: "r" (v));
 #else
 	__asm __volatile (
 		"1:\n\t"
