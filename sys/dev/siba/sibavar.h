@@ -289,6 +289,22 @@ enum siba_sprom_vars {
 	SIBA_SPROMVAR_FEM_5GHZ_PDET_RANGE,
 	SIBA_SPROMVAR_FEM_5GHZ_TR_ISO,
 	SIBA_SPROMVAR_FEM_5GHZ_ANTSWLUT,
+	SIBA_SPROMVAR_TXPID_2G_0,
+	SIBA_SPROMVAR_TXPID_2G_1,
+	SIBA_SPROMVAR_TXPID_2G_2,
+	SIBA_SPROMVAR_TXPID_2G_3,
+	SIBA_SPROMVAR_TXPID_5GL_0,
+	SIBA_SPROMVAR_TXPID_5GL_1,
+	SIBA_SPROMVAR_TXPID_5GL_2,
+	SIBA_SPROMVAR_TXPID_5GL_3,
+	SIBA_SPROMVAR_TXPID_5G_0,
+	SIBA_SPROMVAR_TXPID_5G_1,
+	SIBA_SPROMVAR_TXPID_5G_2,
+	SIBA_SPROMVAR_TXPID_5G_3,
+	SIBA_SPROMVAR_TXPID_5GH_0,
+	SIBA_SPROMVAR_TXPID_5GH_1,
+	SIBA_SPROMVAR_TXPID_5GH_2,
+	SIBA_SPROMVAR_TXPID_5GH_3,
 };
 
 int		siba_read_sprom(device_t, device_t, int, uintptr_t *);
@@ -386,6 +402,23 @@ SIBA_SPROM_ACCESSOR(fem_5ghz_extpa_gain, FEM_5GHZ_EXTPAGAIN, uint8_t);
 SIBA_SPROM_ACCESSOR(fem_5ghz_pdet_range, FEM_5GHZ_PDET_RANGE, uint8_t);
 SIBA_SPROM_ACCESSOR(fem_5ghz_tr_iso, FEM_5GHZ_TR_ISO, uint8_t);
 SIBA_SPROM_ACCESSOR(fem_5ghz_antswlut, FEM_5GHZ_ANTSWLUT, uint8_t);
+/* TX power index */
+SIBA_SPROM_ACCESSOR(txpid_2g_0, TXPID_2G_0, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_2g_1, TXPID_2G_1, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_2g_2, TXPID_2G_2, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_2g_3, TXPID_2G_3, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5gl_0, TXPID_5GL_0, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5gl_1, TXPID_5GL_1, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5gl_2, TXPID_5GL_2, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5gl_3, TXPID_5GL_3, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5g_0, TXPID_5G_0, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5g_1, TXPID_5G_1, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5g_2, TXPID_5G_2, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5g_3, TXPID_5G_3, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5gh_0, TXPID_5GH_0, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5gh_1, TXPID_5GH_1, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5gh_2, TXPID_5GH_2, uint8_t);
+SIBA_SPROM_ACCESSOR(txpid_5gh_3, TXPID_5GH_3, uint8_t);
 
 #undef SIBA_SPROM_ACCESSOR
 
@@ -436,6 +469,10 @@ struct siba_sprom {
 	uint8_t			tri5gl;
 	uint8_t			tri5g;
 	uint8_t			tri5gh;
+	uint8_t			txpid2g[4];	/* 2GHz TX power index */
+	uint8_t			txpid5gl[4];	/* 4.9 - 5.1GHz TX power index */
+	uint8_t			txpid5g[4];	/* 5.1 - 5.5GHz TX power index */
+	uint8_t			txpid5gh[4];	/* 5.5 - 5.9GHz TX power index */
 	uint8_t			rssisav2g;
 	uint8_t			rssismc2g;
 	uint8_t			rssismf2g;

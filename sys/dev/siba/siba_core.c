@@ -1569,6 +1569,47 @@ siba_sprom_r123(struct siba_sprom *out, const uint16_t *in)
 }
 
 static void
+siba_sprom_r458(struct siba_sprom *out, const uint16_t *in)
+{
+
+	SIBA_SHIFTOUT(txpid2g[0], SIBA_SPROM4_TXPID2G01,
+	    SIBA_SPROM4_TXPID2G0);
+	SIBA_SHIFTOUT(txpid2g[1], SIBA_SPROM4_TXPID2G01,
+	    SIBA_SPROM4_TXPID2G1);
+	SIBA_SHIFTOUT(txpid2g[2], SIBA_SPROM4_TXPID2G23,
+	    SIBA_SPROM4_TXPID2G2);
+	SIBA_SHIFTOUT(txpid2g[3], SIBA_SPROM4_TXPID2G23,
+	    SIBA_SPROM4_TXPID2G3);
+
+	SIBA_SHIFTOUT(txpid5gl[0], SIBA_SPROM4_TXPID5GL01,
+	    SIBA_SPROM4_TXPID5GL0);
+	SIBA_SHIFTOUT(txpid5gl[1], SIBA_SPROM4_TXPID5GL01,
+	    SIBA_SPROM4_TXPID5GL1);
+	SIBA_SHIFTOUT(txpid5gl[2], SIBA_SPROM4_TXPID5GL23,
+	    SIBA_SPROM4_TXPID5GL2);
+	SIBA_SHIFTOUT(txpid5gl[3], SIBA_SPROM4_TXPID5GL23,
+	    SIBA_SPROM4_TXPID5GL3);
+
+	SIBA_SHIFTOUT(txpid5g[0], SIBA_SPROM4_TXPID5G01,
+	    SIBA_SPROM4_TXPID5G0);
+	SIBA_SHIFTOUT(txpid5g[1], SIBA_SPROM4_TXPID5G01,
+	    SIBA_SPROM4_TXPID5G1);
+	SIBA_SHIFTOUT(txpid5g[2], SIBA_SPROM4_TXPID5G23,
+	    SIBA_SPROM4_TXPID5G2);
+	SIBA_SHIFTOUT(txpid5g[3], SIBA_SPROM4_TXPID5G23,
+	    SIBA_SPROM4_TXPID5G3);
+
+	SIBA_SHIFTOUT(txpid5gh[0], SIBA_SPROM4_TXPID5GH01,
+	    SIBA_SPROM4_TXPID5GH0);
+	SIBA_SHIFTOUT(txpid5gh[1], SIBA_SPROM4_TXPID5GH01,
+	    SIBA_SPROM4_TXPID5GH1);
+	SIBA_SHIFTOUT(txpid5gh[2], SIBA_SPROM4_TXPID5GH23,
+	    SIBA_SPROM4_TXPID5GH2);
+	SIBA_SHIFTOUT(txpid5gh[3], SIBA_SPROM4_TXPID5GH23,
+	    SIBA_SPROM4_TXPID5GH3);
+}
+
+static void
 siba_sprom_r45(struct siba_sprom *out, const uint16_t *in)
 {
 	int i;
@@ -1659,6 +1700,8 @@ siba_sprom_r45(struct siba_sprom *out, const uint16_t *in)
 		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gh[2], o + SIBA_SPROM4_5GH_PA_2, ~0);
 		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gh[3], o + SIBA_SPROM4_5GH_PA_3, ~0);
 	}
+
+	siba_sprom_r458(out, in);
 }
 
 static void
@@ -1700,6 +1743,7 @@ siba_sprom_r8(struct siba_sprom *out, const uint16_t *in)
 	SIBA_SHIFTOUT(tri5gh, SIBA_SPROM8_TRI5GHL, SIBA_SPROM8_TRI5GH);
 	SIBA_SHIFTOUT(rxpo2g, SIBA_SPROM8_RXPO, SIBA_SPROM8_RXPO2G);
 	SIBA_SHIFTOUT(rxpo5g, SIBA_SPROM8_RXPO, SIBA_SPROM8_RXPO5G);
+
 	SIBA_SHIFTOUT(rssismf2g, SIBA_SPROM8_RSSIPARM2G, SIBA_SPROM8_RSSISMF2G);
 	SIBA_SHIFTOUT(rssismc2g, SIBA_SPROM8_RSSIPARM2G, SIBA_SPROM8_RSSISMC2G);
 	SIBA_SHIFTOUT(rssisav2g, SIBA_SPROM8_RSSIPARM2G, SIBA_SPROM8_RSSISAV2G);
@@ -1789,6 +1833,8 @@ siba_sprom_r8(struct siba_sprom *out, const uint16_t *in)
 		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gh[1], o + SIBA_SROM8_5GH_PA_1, ~0);
 		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gh[2], o + SIBA_SROM8_5GH_PA_2, ~0);
 	}
+
+	siba_sprom_r458(out, in);
 }
 
 static int8_t
@@ -2467,6 +2513,54 @@ siba_read_sprom(device_t dev, device_t child, int which, uintptr_t *result)
 		break;
 	case SIBA_SPROMVAR_FEM_5GHZ_ANTSWLUT:
 		*result = siba->siba_sprom.fem.ghz5.antswlut;
+		break;
+	case SIBA_SPROMVAR_TXPID_2G_0:
+		*result = siba->siba_sprom.txpid2g[0];
+		break;
+	case SIBA_SPROMVAR_TXPID_2G_1:
+		*result = siba->siba_sprom.txpid2g[1];
+		break;
+	case SIBA_SPROMVAR_TXPID_2G_2:
+		*result = siba->siba_sprom.txpid2g[2];
+		break;
+	case SIBA_SPROMVAR_TXPID_2G_3:
+		*result = siba->siba_sprom.txpid2g[3];
+		break;
+	case SIBA_SPROMVAR_TXPID_5GL_0:
+		*result = siba->siba_sprom.txpid5gl[0];
+		break;
+	case SIBA_SPROMVAR_TXPID_5GL_1:
+		*result = siba->siba_sprom.txpid5gl[1];
+		break;
+	case SIBA_SPROMVAR_TXPID_5GL_2:
+		*result = siba->siba_sprom.txpid5gl[2];
+		break;
+	case SIBA_SPROMVAR_TXPID_5GL_3:
+		*result = siba->siba_sprom.txpid5gl[3];
+		break;
+	case SIBA_SPROMVAR_TXPID_5G_0:
+		*result = siba->siba_sprom.txpid5g[0];
+		break;
+	case SIBA_SPROMVAR_TXPID_5G_1:
+		*result = siba->siba_sprom.txpid5g[1];
+		break;
+	case SIBA_SPROMVAR_TXPID_5G_2:
+		*result = siba->siba_sprom.txpid5g[2];
+		break;
+	case SIBA_SPROMVAR_TXPID_5G_3:
+		*result = siba->siba_sprom.txpid5g[3];
+		break;
+	case SIBA_SPROMVAR_TXPID_5GH_0:
+		*result = siba->siba_sprom.txpid5gh[0];
+		break;
+	case SIBA_SPROMVAR_TXPID_5GH_1:
+		*result = siba->siba_sprom.txpid5gh[1];
+		break;
+	case SIBA_SPROMVAR_TXPID_5GH_2:
+		*result = siba->siba_sprom.txpid5gh[2];
+		break;
+	case SIBA_SPROMVAR_TXPID_5GH_3:
+		*result = siba->siba_sprom.txpid5gh[3];
 		break;
 	default:
 		return (ENOENT);
