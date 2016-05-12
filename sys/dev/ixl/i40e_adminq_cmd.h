@@ -267,10 +267,6 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_add_udp_tunnel	= 0x0B00,
 	i40e_aqc_opc_del_udp_tunnel	= 0x0B01,
 
-	/* Proxy commands */
-	i40e_aqc_opc_set_proxy_config	= 0x0104,
-	i40e_aqc_opc_set_ns_proxy_table_entry	= 0x0105,
-
 	/* Async Events */
 	i40e_aqc_opc_event_lan_overflow		= 0x1001,
 
@@ -410,6 +406,7 @@ struct i40e_aqc_list_capabilities_element_resp {
 #define I40E_AQ_CAP_ID_OS2BMC_CAP	0x0004
 #define I40E_AQ_CAP_ID_FUNCTIONS_VALID	0x0005
 #define I40E_AQ_CAP_ID_ALTERNATE_RAM	0x0006
+#define I40E_AQ_CAP_ID_WOL_AND_PROXY	0x0008
 #define I40E_AQ_CAP_ID_SRIOV		0x0012
 #define I40E_AQ_CAP_ID_VF		0x0013
 #define I40E_AQ_CAP_ID_VMDQ		0x0014
@@ -430,6 +427,7 @@ struct i40e_aqc_list_capabilities_element_resp {
 #define I40E_AQ_CAP_ID_LED		0x0061
 #define I40E_AQ_CAP_ID_SDP		0x0062
 #define I40E_AQ_CAP_ID_MDIO		0x0063
+#define I40E_AQ_CAP_ID_WSR_PROT		0x0064
 #define I40E_AQ_CAP_ID_FLEX10		0x00F1
 #define I40E_AQ_CAP_ID_CEM		0x00F2
 

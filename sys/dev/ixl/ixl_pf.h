@@ -118,6 +118,9 @@ struct ixl_pf {
 #define I40E_NVM_ACCESS \
      (((((((('E' << 4) + '1') << 4) + 'K') << 4) + 'G') << 4) | 5)
 
+#define IXL_DEFAULT_PHY_INT_MASK \
+     (I40E_AQ_EVENT_LINK_UPDOWN | I40E_AQ_EVENT_MODULE_QUAL_FAIL)
+
 #define IXL_SET_ADVERTISE_HELP		\
 "Control link advertise speed:\n"	\
 "\tFlags:\n"				\

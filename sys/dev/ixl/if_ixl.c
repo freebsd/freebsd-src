@@ -48,7 +48,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixl_driver_version[] = "1.4.7-k";
+char ixl_driver_version[] = "1.4.9-k";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -63,7 +63,6 @@ char ixl_driver_version[] = "1.4.7-k";
 static ixl_vendor_info_t ixl_vendor_info_array[] =
 {
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_SFP_XL710, 0, 0, 0},
-	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_KX_A, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_KX_B, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_KX_C, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_QSFP_A, 0, 0, 0},
@@ -71,8 +70,6 @@ static ixl_vendor_info_t ixl_vendor_info_array[] =
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_QSFP_C, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_10G_BASE_T, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_10G_BASE_T4, 0, 0, 0},
-	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_20G_KR2, 0, 0, 0},
-	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_20G_KR2_A, 0, 0, 0},
 	/* required last entry */
 	{0, 0, 0, 0, 0}
 };
@@ -552,7 +549,7 @@ ixl_attach(device_t dev)
 	i40e_clear_hw(hw);
 	error = i40e_pf_reset(hw);
 	if (error) {
-		device_printf(dev,"PF reset failure %x\n", error);
+		device_printf(dev, "PF reset failure %x\n", error);
 		error = EIO;
 		goto err_out;
 	}
@@ -566,7 +563,7 @@ ixl_attach(device_t dev)
 	/* Initialize the shared code */
 	error = i40e_init_shared_code(hw);
 	if (error) {
-		device_printf(dev,"Unable to initialize the shared code\n");
+		device_printf(dev, "Unable to initialize the shared code\n");
 		error = EIO;
 		goto err_out;
 	}
@@ -668,8 +665,7 @@ ixl_attach(device_t dev)
 	}
 
 	/* Limit PHY interrupts to link, autoneg, and modules failure */
-	error = i40e_aq_set_phy_int_mask(hw,
-	    I40E_AQ_EVENT_LINK_UPDOWN | I40E_AQ_EVENT_MODULE_QUAL_FAIL,
+	error = i40e_aq_set_phy_int_mask(hw, IXL_DEFAULT_PHY_INT_MASK,
 	    NULL);
         if (error) {
 		device_printf(dev, "i40e_aq_set_phy_mask() failed: err %d,"
@@ -1184,15 +1180,14 @@ ixl_init_locked(struct ixl_pf *pf)
 #ifdef IXL_FDIR
 	filter.enable_fdir = TRUE;
 #endif
+	filter.hash_lut_size = I40E_HASH_LUT_SIZE_512;
 	if (i40e_set_filter_control(hw, &filter))
-		device_printf(dev, "set_filter_control() failed\n");
+		device_printf(dev, "i40e_set_filter_control() failed\n");
 
 	/* Set up RSS */
 	ixl_config_rss(vsi);
 
-	/*
-	** Prepare the VSI: rings, hmc contexts, etc...
-	*/
+	/* Prepare the VSI: rings, hmc contexts, etc... */
 	if (ixl_initialize_vsi(vsi)) {
 		device_printf(dev, "initialize vsi failed!!\n");
 		return;
@@ -1203,9 +1198,6 @@ ixl_init_locked(struct ixl_pf *pf)
 
 	/* Setup vlan's if needed */
 	ixl_setup_vlan_filters(vsi);
-
-	/* Start the local timer */
-	callout_reset(&pf->timer, hz, ixl_local_timer, pf);
 
 	/* Set up MSI/X routing and the ITR settings */
 	if (ixl_enable_msix) {
@@ -1236,11 +1228,142 @@ ixl_init_locked(struct ixl_pf *pf)
 	i40e_get_link_status(hw, &pf->link_up);
 	ixl_update_link_status(pf);
 
+	/* Start the local timer */
+	callout_reset(&pf->timer, hz, ixl_local_timer, pf);
+
 	/* Now inform the stack we're ready */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	return;
+}
+
+// XXX: super experimental stuff
+static int
+ixl_teardown_hw_structs(struct ixl_pf *pf)
+{
+	enum i40e_status_code status = 0;
+	struct i40e_hw *hw = &pf->hw;
+	device_t dev = pf->dev;
+
+	/* Shutdown LAN HMC */
+	if (hw->hmc.hmc_obj) {
+		status = i40e_shutdown_lan_hmc(hw);
+		if (status) {
+			device_printf(dev,
+			    "init: LAN HMC shutdown failure; status %d\n", status);
+			goto err_out;
+		}
+	}
+
+	// XXX: This gets called when we know the adminq is inactive;
+	// so we already know it's setup when we get here.
+
+	/* Shutdown admin queue */
+	status = i40e_shutdown_adminq(hw);
+	if (status)
+		device_printf(dev,
+		    "init: Admin Queue shutdown failure; status %d\n", status);
+
+err_out:
+	return (status);
+}
+
+static int
+ixl_reset(struct ixl_pf *pf)
+{
+	struct i40e_hw *hw = &pf->hw;
+	device_t dev = pf->dev;
+	int error = 0;
+
+	// XXX: clear_hw() actually writes to hw registers -- maybe this isn't necessary
+	i40e_clear_hw(hw);
+	error = i40e_pf_reset(hw);
+	if (error) {
+		device_printf(dev, "init: PF reset failure");
+		error = EIO;
+		goto err_out;
+	}
+
+	error = i40e_init_adminq(hw);
+	if (error) {
+		device_printf(dev, "init: Admin queue init failure; status code %d", error);
+		error = EIO;
+		goto err_out;
+	}
+
+	i40e_clear_pxe_mode(hw);
+
+	error = ixl_get_hw_capabilities(pf);
+	if (error) {
+		device_printf(dev, "init: Error retrieving HW capabilities; status code %d\n", error);
+		goto err_out;
+	}
+
+	error = i40e_init_lan_hmc(hw, hw->func_caps.num_tx_qp,
+	    hw->func_caps.num_rx_qp, 0, 0);
+	if (error) {
+		device_printf(dev, "init: LAN HMC init failed; status code %d\n", error);
+		error = EIO;
+		goto err_out;
+	}
+
+	error = i40e_configure_lan_hmc(hw, I40E_HMC_MODEL_DIRECT_ONLY);
+	if (error) {
+		device_printf(dev, "init: LAN HMC config failed; status code  %d\n", error);
+		error = EIO;
+		goto err_out;
+	}
+
+	// XXX: need to do switch config here?
+
+	error = i40e_aq_set_phy_int_mask(hw, IXL_DEFAULT_PHY_INT_MASK,
+	    NULL);
+        if (error) {
+		device_printf(dev, "init: i40e_aq_set_phy_mask() failed: err %d,"
+		    " aq_err %d\n", error, hw->aq.asq_last_status);
+		error = EIO;
+		goto err_out;
+	}
+
+	u8 set_fc_err_mask;
+	error = i40e_set_fc(hw, &set_fc_err_mask, true);
+	if (error) {
+		device_printf(dev, "init: setting link flow control failed; retcode %d,"
+		    " fc_err_mask 0x%02x\n", error, set_fc_err_mask);
+		goto err_out;
+	}
+
+	// XXX: (Rebuild VSIs?)
+
+	// Firmware delay workaround
+	if (((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver < 33)) ||
+	    (hw->aq.fw_maj_ver < 4)) {
+		i40e_msec_delay(75);
+		error = i40e_aq_set_link_restart_an(hw, TRUE, NULL);
+		if (error) {
+			device_printf(dev, "init: link restart failed, aq_err %d\n",
+			    hw->aq.asq_last_status);
+			goto err_out;
+		}
+	}
+
+	// [add_filter_to_drop_tx_flow_control_frames]
+	// - TODO: Implement
+
+	// i40e_send_version
+	// - TODO: Properly implement
+	struct i40e_driver_version dv;
+
+	dv.major_version = 1;
+	dv.minor_version = 1;
+	dv.build_version = 1;
+	dv.subbuild_version = 0;
+	// put in a driver version string that is less than 0x80 bytes long
+	bzero(&dv.driver_string, sizeof(dv.driver_string));
+	i40e_aq_send_driver_version(hw, &dv, NULL);
+
+err_out:
+	return (error);
 }
 
 static void
@@ -1248,6 +1371,19 @@ ixl_init(void *arg)
 {
 	struct ixl_pf *pf = arg;
 	int ret = 0;
+
+	/*
+	 * If the aq is dead here, it probably means something outside of the driver
+	 * did something to the adapter, like a PF reset.
+	 * So rebuild the driver's state here if that occurs.
+	 */
+	if (!i40e_check_asq_alive(&pf->hw)) {
+		device_printf(pf->dev, "asq is not alive; rebuilding...\n");
+		IXL_PF_LOCK(pf);
+		ixl_teardown_hw_structs(pf);
+		ixl_reset(pf);
+		IXL_PF_UNLOCK(pf);
+	}
 
 	/* Set up interrupt routing here */
 	if (pf->msix > 1)
@@ -1992,7 +2128,7 @@ ixl_assign_vsi_legacy(struct ixl_pf *pf)
 	pf->res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 	    &rid, RF_SHAREABLE | RF_ACTIVE);
 	if (pf->res == NULL) {
-		device_printf(dev,"Unable to allocate"
+		device_printf(dev, "Unable to allocate"
 		    " bus resource: vsi legacy/msi interrupt\n");
 		return (ENXIO);
 	}
@@ -2829,11 +2965,11 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 	ctxt.pf_num = hw->pf_id;
 	err = i40e_aq_get_vsi_params(hw, &ctxt, NULL);
 	if (err) {
-		device_printf(dev,"get vsi params failed %x!!\n", err);
+		device_printf(dev, "i40e_aq_get_vsi_params() failed, error %d\n", err);
 		return (err);
 	}
 #ifdef IXL_DEBUG
-	printf("get_vsi_params: seid: %d, uplinkseid: %d, vsi_number: %d, "
+	device_printf(dev, "get_vsi_params: seid: %d, uplinkseid: %d, vsi_number: %d, "
 	    "vsis_allocated: %d, vsis_unallocated: %d, flags: 0x%x, "
 	    "pfnum: %d, vfnum: %d, stat idx: %d, enabled: %d\n", ctxt.seid,
 	    ctxt.uplink_seid, ctxt.vsi_number,
@@ -2849,15 +2985,15 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 	ctxt.info.valid_sections = I40E_AQ_VSI_PROP_QUEUE_MAP_VALID;
 	ctxt.info.mapping_flags |= I40E_AQ_VSI_QUE_MAP_CONTIG;
 	ctxt.info.queue_mapping[0] = 0; 
-	ctxt.info.tc_mapping[0] = 0x0800; 
+	ctxt.info.tc_mapping[0] = 0x0c00;
 
 	/* Set VLAN receive stripping mode */
 	ctxt.info.valid_sections |= I40E_AQ_VSI_PROP_VLAN_VALID;
 	ctxt.info.port_vlan_flags = I40E_AQ_VSI_PVLAN_MODE_ALL;
 	if (vsi->ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
-	    ctxt.info.port_vlan_flags |= I40E_AQ_VSI_PVLAN_EMOD_STR_BOTH;
+		ctxt.info.port_vlan_flags |= I40E_AQ_VSI_PVLAN_EMOD_STR_BOTH;
 	else
-	    ctxt.info.port_vlan_flags |= I40E_AQ_VSI_PVLAN_EMOD_NOTHING;
+		ctxt.info.port_vlan_flags |= I40E_AQ_VSI_PVLAN_EMOD_NOTHING;
 
 	/* Keep copy of VSI info in VSI for statistic counters */
 	memcpy(&vsi->info, &ctxt.info, sizeof(ctxt.info));
@@ -2871,8 +3007,8 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 
 	err = i40e_aq_update_vsi_params(hw, &ctxt, NULL);
 	if (err) {
-		device_printf(dev,"update vsi params failed %x!!\n",
-		   hw->aq.asq_last_status);
+		device_printf(dev, "i40e_aq_update_vsi_params() failed, error %d, aq_error %d\n",
+		   err, hw->aq.asq_last_status);
 		return (err);
 	}
 
@@ -2883,7 +3019,6 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 		struct i40e_hmc_obj_rxq rctx;
 		u32			txctl;
 		u16			size;
-
 
 		/* Setup the HMC TX Context  */
 		size = que->num_desc * sizeof(struct i40e_tx_desc);
@@ -5051,8 +5186,15 @@ ixl_handle_nvmupd_cmd(struct ixl_pf *pf, struct ifdrv *ifd)
 	nvma = (struct i40e_nvm_access *)ifd->ifd_data;
 
 	status = i40e_nvmupd_command(hw, nvma, nvma->data, &perrno);
+	if (status)
+		device_printf(dev, "i40e_nvmupd_command status %d, perrno %d\n",
+		    status, perrno);
 
-	return (status) ? perrno : 0;
+	/* Convert EPERM error code for tools */
+	if (perrno == -EPERM)
+		return (-EACCES);
+	else
+		return (perrno);
 }
 
 #ifdef IXL_DEBUG_SYSCTL
