@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -170,7 +171,7 @@ ATF_TC_CLEANUP(kern_maxfiles__increase, tc)
 	char buf[80];
 
 	if ((n = readlink(VALUE, buf, sizeof(buf))) > 0) {
-		buf[n] = '\0';
+		buf[MIN((size_t)n, sizeof(buf) - 1)] = '\0';
 		if (sscanf(buf, "%d", &oldmaxfiles) == 1) {
 			oldlen = sizeof(oldmaxfiles);
 			(void) sysctlbyname("kern.maxfiles", NULL, 0,
