@@ -59,7 +59,7 @@
 int
 cm_recv(int fd, char *buf)
 {
-	int n;
+	ssize_t n;
 	struct ctrl_msg_hdr	*cm;
 	char *msg;
 	struct pollfd pfds[1];
@@ -98,7 +98,7 @@ cm_recv(int fd, char *buf)
 		}
 	}
 
-	if (n != sizeof(*cm)) {
+	if (n != (ssize_t)sizeof(*cm)) {
 		syslog(LOG_WARNING,
 		    "<%s> received a too small message.", __func__);
 		goto cm_recv_err;
@@ -123,11 +123,11 @@ cm_recv(int fd, char *buf)
 	    "<%s> ctrl msg received: type=%d", __func__,
 	    cm->cm_type);
 
-	if (cm->cm_len > sizeof(cm)) {
-		int msglen = cm->cm_len - sizeof(*cm);
+	if (cm->cm_len > sizeof(*cm)) {
+		size_t msglen = cm->cm_len - sizeof(*cm);
 
 		syslog(LOG_DEBUG,
-		    "<%s> ctrl msg has payload (len=%d)", __func__,
+		    "<%s> ctrl msg has payload (len=%zu)", __func__,
 		    msglen);
 
 		for (;;) {
@@ -153,7 +153,7 @@ cm_recv(int fd, char *buf)
 			}
 			break;
 		}
-		if (n != msglen) {
+		if (n != (ssize_t)msglen) {
 			syslog(LOG_WARNING,
 			    "<%s> payload size mismatch.", __func__);
 			goto cm_recv_err;
