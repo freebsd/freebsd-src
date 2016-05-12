@@ -158,6 +158,7 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
+	int error;
 
 	g_topology_assert();
 
@@ -175,11 +176,17 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd)
 		gp->orphan = vdev_geom_orphan;
 		gp->attrchanged = vdev_geom_attrchanged;
 		cp = g_new_consumer(gp);
-		if (g_attach(cp, pp) != 0) {
+		error = g_attach(cp, pp);
+		if (error != 0) {
+			ZFS_LOG(1, "%s(%d): g_attach failed: %d\n", __func__,
+			    __LINE__, error);
 			g_wither_geom(gp, ENXIO);
 			return (NULL);
 		}
-		if (g_access(cp, 1, 0, 1) != 0) {
+		error = g_access(cp, 1, 0, 1);
+		if (error != 0) {
+			ZFS_LOG(1, "%s(%d): g_access failed: %d\n", __func__,
+			       __LINE__, error);
 			g_wither_geom(gp, ENXIO);
 			return (NULL);
 		}
@@ -194,19 +201,29 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd)
 		}
 		if (cp == NULL) {
 			cp = g_new_consumer(gp);
-			if (g_attach(cp, pp) != 0) {
+			error = g_attach(cp, pp);
+			if (error != 0) {
+				ZFS_LOG(1, "%s(%d): g_attach failed: %d\n",
+				    __func__, __LINE__, error);
 				g_destroy_consumer(cp);
 				return (NULL);
 			}
-			if (g_access(cp, 1, 0, 1) != 0) {
+			error = g_access(cp, 1, 0, 1);
+			if (error != 0) {
+				ZFS_LOG(1, "%s(%d): g_access failed: %d\n",
+				    __func__, __LINE__, error);
 				g_detach(cp);
 				g_destroy_consumer(cp);
 				return (NULL);
 			}
 			ZFS_LOG(1, "Created consumer for %s.", pp->name);
 		} else {
-			if (g_access(cp, 1, 0, 1) != 0)
+			error = g_access(cp, 1, 0, 1);
+			if (error != 0) {
+				ZFS_LOG(1, "%s(%d): g_access failed: %d\n",
+				    __func__, __LINE__, error);
 				return (NULL);
+			}
 			ZFS_LOG(1, "Used existing consumer for %s.", pp->name);
 		}
 	}
@@ -622,7 +639,8 @@ vdev_geom_open_by_guids(vdev_t *vd)
 
 	g_topology_assert();
 
-	ZFS_LOG(1, "Searching by guid [%ju].", (uintmax_t)vd->vdev_guid);
+	ZFS_LOG(1, "Searching by guids [%ju:%ju].",
+		(uintmax_t)spa_guid(vd->vdev_spa), (uintmax_t)vd->vdev_guid);
 	cp = vdev_geom_attach_by_guids(vd);
 	if (cp != NULL) {
 		len = strlen(cp->provider->name) + strlen("/dev/") + 1;
