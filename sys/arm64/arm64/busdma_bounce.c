@@ -59,9 +59,9 @@ __FBSDID("$FreeBSD$");
 #define MAX_BPAGES 4096
 
 enum {
-	BUS_DMA_COULD_BOUNCE	= 0x01,
-	BUS_DMA_MIN_ALLOC_COMP	= 0x02,
-	BUS_DMA_KMEM_ALLOC	= 0x04,
+	BF_COULD_BOUNCE		= 0x01,
+	BF_MIN_ALLOC_COMP	= 0x02,
+	BF_KMEM_ALLOC		= 0x04,
 };
 
 struct bounce_zone;
@@ -172,14 +172,14 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->segments = NULL;
 
 	if (parent != NULL && ((newtag->common.filter != NULL) ||
-	    ((parent->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0)))
-		newtag->bounce_flags |= BUS_DMA_COULD_BOUNCE;
+	    ((parent->bounce_flags & BF_COULD_BOUNCE) != 0)))
+		newtag->bounce_flags |= BF_COULD_BOUNCE;
 
 	if (newtag->common.lowaddr < ptoa((vm_paddr_t)Maxmem) ||
 	    newtag->common.alignment > 1)
-		newtag->bounce_flags |= BUS_DMA_COULD_BOUNCE;
+		newtag->bounce_flags |= BF_COULD_BOUNCE;
 
-	if (((newtag->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0) &&
+	if (((newtag->bounce_flags & BF_COULD_BOUNCE) != 0) &&
 	    (flags & BUS_DMA_ALLOCNOW) != 0) {
 		struct bounce_zone *bz;
 
@@ -200,7 +200,7 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 				error = ENOMEM;
 		}
 		/* Performed initial allocation */
-		newtag->bounce_flags |= BUS_DMA_MIN_ALLOC_COMP;
+		newtag->bounce_flags |= BF_MIN_ALLOC_COMP;
 	} else
 		error = 0;
 
@@ -300,7 +300,7 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	 * exclusion region, a data alignment that is stricter than 1, and/or
 	 * an active address boundary.
 	 */
-	if (dmat->bounce_flags & BUS_DMA_COULD_BOUNCE) {
+	if (dmat->bounce_flags & BF_COULD_BOUNCE) {
 		/* Must bounce */
 		if (dmat->bounce_zone == NULL) {
 			if ((error = alloc_bounce_zone(dmat)) != 0) {
@@ -321,18 +321,18 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		else
 			maxpages = MIN(MAX_BPAGES, Maxmem -
 			    atop(dmat->common.lowaddr));
-		if ((dmat->bounce_flags & BUS_DMA_MIN_ALLOC_COMP) == 0 ||
+		if ((dmat->bounce_flags & BF_MIN_ALLOC_COMP) == 0 ||
 		    (bz->map_count > 0 && bz->total_bpages < maxpages)) {
 			pages = MAX(atop(dmat->common.maxsize), 1);
 			pages = MIN(maxpages - bz->total_bpages, pages);
 			pages = MAX(pages, 1);
 			if (alloc_bounce_pages(dmat, pages) < pages)
 				error = ENOMEM;
-			if ((dmat->bounce_flags & BUS_DMA_MIN_ALLOC_COMP)
+			if ((dmat->bounce_flags & BF_MIN_ALLOC_COMP)
 			    == 0) {
 				if (error == 0) {
 					dmat->bounce_flags |=
-					    BUS_DMA_MIN_ALLOC_COMP;
+					    BF_MIN_ALLOC_COMP;
 				}
 			} else
 				error = 0;
@@ -450,13 +450,13 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		*vaddr = (void *)kmem_alloc_attr(kernel_arena,
 		    dmat->common.maxsize, mflags, 0ul, dmat->common.lowaddr,
 		    attr);
-		dmat->bounce_flags |= BUS_DMA_KMEM_ALLOC;
+		dmat->bounce_flags |= BF_KMEM_ALLOC;
 	} else {
 		*vaddr = (void *)kmem_alloc_contig(kernel_arena,
 		    dmat->common.maxsize, mflags, 0ul, dmat->common.lowaddr,
 		    dmat->common.alignment != 0 ? dmat->common.alignment : 1ul,
 		    dmat->common.boundary, attr);
-		dmat->bounce_flags |= BUS_DMA_KMEM_ALLOC;
+		dmat->bounce_flags |= BF_KMEM_ALLOC;
 	}
 	if (*vaddr == NULL) {
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
@@ -482,12 +482,12 @@ bounce_bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 
 	/*
 	 * Check the map came from bounce_bus_dmamem_alloc, so the map
-	 * should be NULL and the BUS_DMA_KMEM_ALLOC flag cleared if malloc()
+	 * should be NULL and the BF_KMEM_ALLOC flag cleared if malloc()
 	 * was used and set if kmem_alloc_contig() was used.
 	 */
 	if ((map->flags & DMAMAP_FROM_DMAMEM) == 0)
 		panic("bus_dmamem_free: Invalid map freed\n");
-	if ((dmat->bounce_flags & BUS_DMA_KMEM_ALLOC) == 0)
+	if ((dmat->bounce_flags & BF_KMEM_ALLOC) == 0)
 		free(vaddr, M_DEVBUF);
 	else
 		kmem_free(kernel_arena, (vm_offset_t)vaddr,
@@ -651,7 +651,7 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 	if (segs == NULL)
 		segs = dmat->segments;
 
-	if ((dmat->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0) {
+	if ((dmat->bounce_flags & BF_COULD_BOUNCE) != 0) {
 		_bus_dmamap_count_phys(dmat, map, buf, buflen, flags);
 		if (map->pagesneeded != 0) {
 			error = _bus_dmamap_reserve_pages(dmat, map, flags);
@@ -663,7 +663,7 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 	while (buflen > 0) {
 		curaddr = buf;
 		sgsize = MIN(buflen, dmat->common.maxsegsz);
-		if (((dmat->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0) &&
+		if (((dmat->bounce_flags & BF_COULD_BOUNCE) != 0) &&
 		    map->pagesneeded != 0 &&
 		    bus_dma_run_filter(&dmat->common, curaddr)) {
 			sgsize = MIN(sgsize, PAGE_SIZE - (curaddr & PAGE_MASK));
@@ -701,7 +701,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	if (segs == NULL)
 		segs = dmat->segments;
 
-	if ((dmat->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0) {
+	if ((dmat->bounce_flags & BF_COULD_BOUNCE) != 0) {
 		_bus_dmamap_count_pages(dmat, map, pmap, buf, buflen, flags);
 		if (map->pagesneeded != 0) {
 			error = _bus_dmamap_reserve_pages(dmat, map, flags);
@@ -728,7 +728,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		 */
 		max_sgsize = MIN(buflen, dmat->common.maxsegsz);
 		sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
-		if (((dmat->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0) &&
+		if (((dmat->bounce_flags & BF_COULD_BOUNCE) != 0) &&
 		    map->pagesneeded != 0 &&
 		    bus_dma_run_filter(&dmat->common, curaddr)) {
 			sgsize = roundup2(sgsize, dmat->common.alignment);
