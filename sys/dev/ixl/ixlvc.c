@@ -70,7 +70,8 @@ static int ixl_vc_validate_vf_msg(struct ixlv_sc *sc, u32 v_opcode,
 		break;
 	case I40E_VIRTCHNL_OP_RESET_VF:
 	case I40E_VIRTCHNL_OP_GET_VF_RESOURCES:
-		valid_len = 0;
+		// TODO: valid length in api v1.0 is 0, v1.1 is 4
+		valid_len = 4;
 		break;
 	case I40E_VIRTCHNL_OP_CONFIG_TX_QUEUE:
 		valid_len = sizeof(struct i40e_virtchnl_txq_info);
@@ -224,29 +225,34 @@ ixlv_verify_api_ver(struct ixlv_sc *sc)
 		goto out;
 	}
 
-	do {
+	for (;;) {
 		if (++retries > IXLV_AQ_MAX_ERR)
 			goto out_alloc;
 
-		/* NOTE: initial delay is necessary */
+		/* Initial delay here is necessary */
 		i40e_msec_delay(100);
 		err = i40e_clean_arq_element(hw, &event, NULL);
-	} while (err == I40E_ERR_ADMIN_QUEUE_NO_WORK);
-	if (err)
-		goto out_alloc;
+		if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK)
+			continue;
+		else if (err) {
+			err = EIO;
+			goto out_alloc;
+		}
 
-	err = (i40e_status)le32toh(event.desc.cookie_low);
-	if (err) {
-		err = EIO;
-		goto out_alloc;
-	}
+		if ((enum i40e_virtchnl_ops)le32toh(event.desc.cookie_high) !=
+		    I40E_VIRTCHNL_OP_VERSION) {
+			DDPRINTF(dev, "Received unexpected op response: %d\n",
+			    le32toh(event.desc.cookie_high));
+		    	/* Don't stop looking for expected response */
+			continue;
+		}
 
-	if ((enum i40e_virtchnl_ops)le32toh(event.desc.cookie_high) !=
-	    I40E_VIRTCHNL_OP_VERSION) {
-		DDPRINTF(dev, "Received unexpected op response: %d\n",
-		    le32toh(event.desc.cookie_high));
-		err = EIO;
-		goto out_alloc;
+		err = (i40e_status)le32toh(event.desc.cookie_low);
+		if (err) {
+			err = EIO;
+			goto out_alloc;
+		} else
+			break;
 	}
 
 	pf_vvi = (struct i40e_virtchnl_version_info *)event.msg_buf;
@@ -266,7 +272,7 @@ ixlv_verify_api_ver(struct ixlv_sc *sc)
 out_alloc:
 	free(event.msg_buf, M_DEVBUF);
 out:
-	return err;
+	return (err);
 }
 
 /*
@@ -871,7 +877,9 @@ ixlv_vc_completion(struct ixlv_sc *sc,
 		case I40E_VIRTCHNL_EVENT_RESET_IMPENDING:
 			device_printf(dev, "PF initiated reset!\n");
 			sc->init_state = IXLV_RESET_PENDING;
-			ixlv_init(sc);
+			mtx_unlock(&sc->mtx);
+			ixlv_init(vsi);
+			mtx_lock(&sc->mtx);
 			break;
 		default:
 			device_printf(dev, "%s: Unknown event %d from AQ\n",
@@ -954,9 +962,11 @@ ixlv_vc_completion(struct ixlv_sc *sc,
 		    v_retval);
 		break;
 	default:
+#ifdef IXL_DEBUG
 		device_printf(dev,
 		    "%s: Received unexpected message %d from PF.\n",
 		    __func__, v_opcode);
+#endif
 		break;
 	}
 	return;

@@ -399,8 +399,8 @@ struct tx_ring {
 	u16			next_to_clean;
 	u16			atr_rate;
 	u16			atr_count;
-	u16			itr;
-	u16			latency;
+	u32			itr;
+	u32			latency;
 	struct ixl_tx_buf	*buffers;
 	volatile u16		avail;
 	u32			cmd;
@@ -432,10 +432,10 @@ struct rx_ring {
 	bool			lro_enabled;
 	bool			hdr_split;
 	bool			discard;
-        u16			next_refresh;
-        u16 			next_check;
-	u16			itr;
-	u16			latency;
+        u32			next_refresh;
+        u32 			next_check;
+	u32			itr;
+	u32			latency;
 	char			mtx_name[16];
 	struct ixl_rx_buf	*buffers;
 	u32			mbuf_sz;
@@ -451,7 +451,7 @@ struct rx_ring {
 	u64			split;
 	u64			rx_packets;
 	u64 			rx_bytes;
-	u64 			discarded;
+	u64 			desc_errs;
 	u64 			not_done;
 };
 
@@ -504,8 +504,8 @@ struct ixl_vsi {
 	u16			msix_base;	/* station base MSIX vector */
 	u16			first_queue;
 	u16			num_queues;
-	u16			rx_itr_setting;
-	u16			tx_itr_setting;
+	u32			rx_itr_setting;
+	u32			tx_itr_setting;
 	struct ixl_queue	*queues;	/* head of queues */
 	bool			link_active;
 	u16			seid;
