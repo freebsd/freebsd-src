@@ -48,7 +48,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixl_driver_version[] = "1.4.12-k";
+char ixl_driver_version[] = "1.4.13-k";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -1086,9 +1086,10 @@ ixl_init_locked(struct ixl_pf *pf)
 			 "change failed!!\n");
 			return;
 		} else {
-			ixl_add_filter(vsi, hw->mac.addr, IXL_VLAN_ANY);
 		}
 	}
+
+	ixl_add_filter(vsi, hw->mac.addr, IXL_VLAN_ANY);
 
 	/* Set the various hardware offload abilities */
 	ifp->if_hwassist = 0;
@@ -1138,14 +1139,6 @@ ixl_init_locked(struct ixl_pf *pf)
 
 	ixl_reconfigure_filters(vsi);
 
-	/* Set MTU in hardware*/
-	int aq_error = i40e_aq_set_mac_config(hw, vsi->max_frame_size,
-	    TRUE, 0, NULL);
-	if (aq_error)
-		device_printf(vsi->dev,
-			"aq_set_mac_config in init error, code %d\n",
-		    aq_error);
-
 	/* And now turn on interrupts */
 	ixl_enable_intr(vsi);
 
@@ -1163,7 +1156,6 @@ ixl_init_locked(struct ixl_pf *pf)
 	return;
 }
 
-// XXX: super experimental stuff
 static int
 ixl_teardown_hw_structs(struct ixl_pf *pf)
 {
@@ -1917,6 +1909,8 @@ ixl_del_multi(struct ixl_vsi *vsi)
  *
  *  This routine checks for link status,updates statistics,
  *  and runs the watchdog check.
+ *
+ *  Only runs when the driver is configured UP and RUNNING.
  *
  **********************************************************************/
 
@@ -4835,12 +4829,12 @@ ixl_add_device_sysctls(struct ixl_pf *pf)
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "fc", CTLTYPE_INT | CTLFLAG_RW,
-	    pf, 0, ixl_set_flowcntl, "I", "Flow Control");
+	    pf, 0, ixl_set_flowcntl, "I", IXL_SYSCTL_HELP_FC);
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "advertise_speed", CTLTYPE_INT | CTLFLAG_RW,
-	    pf, 0, ixl_set_advertise, "I", "Advertised Speed");
+	    pf, 0, ixl_set_advertise, "I", IXL_SYSCTL_HELP_SET_ADVERTISE);
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -4878,21 +4872,16 @@ ixl_add_device_sysctls(struct ixl_pf *pf)
 	    OID_AUTO, "debug", CTLTYPE_INT|CTLFLAG_RW, pf, 0,
 	    ixl_debug_info, "I", "Debug Information");
 
-	/* Debug shared-code message level */
+	/* Shared-code debug message level */
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "debug_mask", CTLFLAG_RW,
 	    &pf->hw.debug_mask, 0, "Debug Message Level");
 
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "vc_debug_level", CTLFLAG_RW, &pf->vc_debug_lvl,
-	    0, "PF/VF Virtual Channel debug level");
-
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "link_status", CTLTYPE_STRING | CTLFLAG_RD,
-	    pf, 0, ixl_sysctl_link_status, "A", "Current Link Status");
+	    pf, 0, ixl_sysctl_link_status, "A", IXL_SYSCTL_HELP_LINK_STATUS);
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -4913,6 +4902,13 @@ ixl_add_device_sysctls(struct ixl_pf *pf)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "switch_config", CTLTYPE_STRING | CTLFLAG_RD,
 	    pf, 0, ixl_sysctl_switch_config, "A", "HW Switch Configuration");
+
+#ifdef PCI_IOV
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "vc_debug_level", CTLFLAG_RW, &pf->vc_debug_lvl,
+	    0, "PF/VF Virtual Channel debug level");
+#endif
 #endif
 }
 
@@ -5325,10 +5321,13 @@ ixl_sysctl_link_status(SYSCTL_HANDLER_ARGS)
 	    "Speed    : %#04x\n" 
 	    "Link info: %#04x\n" 
 	    "AN info  : %#04x\n" 
-	    "Ext info : %#04x", 
+	    "Ext info : %#04x\n"
+	    "Max Frame: %d\n"
+	    "Pacing   : %#04x",
 	    link_status.phy_type, link_status.link_speed, 
 	    link_status.link_info, link_status.an_info,
-	    link_status.ext_info);
+	    link_status.ext_info, link_status.max_frame_size,
+	    link_status.pacing);
 
 	return (sysctl_handle_string(oidp, buf, strlen(buf), req));
 }
@@ -5683,6 +5682,7 @@ ixl_vf_alloc_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 	if (vf->vf_flags & VF_FLAG_MAC_ANTI_SPOOF)
 		vsi_ctx.info.sec_flags |= I40E_AQ_VSI_SEC_FLAG_ENABLE_MAC_CHK;
 
+	/* TODO: If a port VLAN is set, then this needs to be changed */
 	vsi_ctx.info.valid_sections |= htole16(I40E_AQ_VSI_PROP_VLAN_VALID);
 	vsi_ctx.info.port_vlan_flags = I40E_AQ_VSI_PVLAN_MODE_ALL |
 	    I40E_AQ_VSI_PVLAN_EMOD_NOTHING;

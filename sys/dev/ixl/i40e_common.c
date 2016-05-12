@@ -2564,6 +2564,7 @@ enum i40e_status_code i40e_aq_add_macvlan(struct i40e_hw *hw, u16 seid,
 		(struct i40e_aqc_macvlan *)&desc.params.raw;
 	enum i40e_status_code status;
 	u16 buf_size;
+	int i;
 
 	if (count == 0 || !mv_list || !hw)
 		return I40E_ERR_PARAM;
@@ -2577,12 +2578,16 @@ enum i40e_status_code i40e_aq_add_macvlan(struct i40e_hw *hw, u16 seid,
 	cmd->seid[1] = 0;
 	cmd->seid[2] = 0;
 
+	for (i = 0; i < count; i++)
+		if (I40E_IS_MULTICAST(mv_list[i].mac_addr))
+			mv_list[i].flags |= I40E_AQC_MACVLAN_ADD_USE_SHARED_MAC;
+
 	desc.flags |= CPU_TO_LE16((u16)(I40E_AQ_FLAG_BUF | I40E_AQ_FLAG_RD));
 	if (buf_size > I40E_AQ_LARGE_BUF)
 		desc.flags |= CPU_TO_LE16((u16)I40E_AQ_FLAG_LB);
 
 	status = i40e_asq_send_command(hw, &desc, mv_list, buf_size,
-				    cmd_details);
+				       cmd_details);
 
 	return status;
 }
