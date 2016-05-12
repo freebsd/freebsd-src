@@ -893,7 +893,7 @@ hostent_test_getnameinfo_eq(struct hostent *he, void *mdata)
 			printf("matched official hostname\n");
 #endif
 		} else {
-			for (i = 0; i < nitems(result->h_aliases); i++) {
+			for (i = 0; result->h_aliases[i] != NULL; i++) {
 				printf("[%d] resolved: %s\n", i,
 				    result->h_aliases[i]);
 				if (strcmp(result->h_aliases[i],
