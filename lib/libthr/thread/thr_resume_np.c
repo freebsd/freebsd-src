@@ -90,7 +90,7 @@ static void
 resume_common(struct pthread *thread)
 {
 	/* Clear the suspend flag: */
-	thread->flags &= ~THR_FLAGS_NEED_SUSPEND;
+	thread->flags &= ~(THR_FLAGS_NEED_SUSPEND | THR_FLAGS_SUSPENDED);
 	thread->cycle++;
 	_thr_umtx_wake(&thread->cycle, 1, 0);
 }
