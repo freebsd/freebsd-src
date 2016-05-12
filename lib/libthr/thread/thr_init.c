@@ -452,6 +452,7 @@ init_private(void)
 	size_t len;
 	int mib[2];
 	char *env, *env_bigstack, *env_splitstack;
+	vaddr_t usrstack_addr;
 
 	_thr_umutex_init(&_mutex_static_lock);
 	_thr_umutex_init(&_cond_static_lock);
@@ -476,9 +477,12 @@ init_private(void)
 		/* Find the stack top */
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_USRSTACK;
-		len = sizeof (_usrstack);
-		if (sysctl(mib, 2, &_usrstack, &len, NULL, 0) == -1)
+		/* The sysctl returns a vaddr_t and not a pointer so we can't
+		 * use _usrstack as the argument on CHERIABI */
+		len = sizeof (usrstack_addr);
+		if (sysctl(mib, 2, &usrstack_addr, &len, NULL, 0) == -1)
 			PANIC("Cannot get kern.usrstack from sysctl");
+		_usrstack = (char*)usrstack_addr;
 		env_bigstack = getenv("LIBPTHREAD_BIGSTACK_MAIN");
 		env_splitstack = getenv("LIBPTHREAD_SPLITSTACK_MAIN");
 		if (env_bigstack != NULL || env_splitstack == NULL) {
