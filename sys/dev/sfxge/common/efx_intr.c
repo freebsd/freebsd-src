@@ -89,7 +89,7 @@ falconsiena_intr_check_fatal(
 
 
 #if EFSYS_OPT_SIENA
-static efx_intr_ops_t	__efx_intr_siena_ops = {
+static const efx_intr_ops_t	__efx_intr_siena_ops = {
 	falconsiena_intr_init,			/* eio_init */
 	falconsiena_intr_enable,		/* eio_enable */
 	falconsiena_intr_disable,		/* eio_disable */
@@ -103,7 +103,7 @@ static efx_intr_ops_t	__efx_intr_siena_ops = {
 #endif	/* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
-static efx_intr_ops_t	__efx_intr_ef10_ops = {
+static const efx_intr_ops_t	__efx_intr_ef10_ops = {
 	ef10_intr_init,			/* eio_init */
 	ef10_intr_enable,		/* eio_enable */
 	ef10_intr_disable,		/* eio_disable */
@@ -123,7 +123,7 @@ efx_intr_init(
 	__in		efsys_mem_t *esmp)
 {
 	efx_intr_t *eip = &(enp->en_intr);
-	efx_intr_ops_t *eiop;
+	const efx_intr_ops_t *eiop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -143,19 +143,19 @@ efx_intr_init(
 	switch (enp->en_family) {
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
-		eiop = (efx_intr_ops_t *)&__efx_intr_siena_ops;
+		eiop = &__efx_intr_siena_ops;
 		break;
 #endif	/* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		eiop = (efx_intr_ops_t *)&__efx_intr_ef10_ops;
+		eiop = &__efx_intr_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_HUNTINGTON */
 
 #if EFSYS_OPT_MEDFORD
 	case EFX_FAMILY_MEDFORD:
-		eiop = (efx_intr_ops_t *)&__efx_intr_ef10_ops;
+		eiop = &__efx_intr_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_MEDFORD */
 
@@ -187,7 +187,7 @@ efx_intr_fini(
 	__in	efx_nic_t *enp)
 {
 	efx_intr_t *eip = &(enp->en_intr);
-	efx_intr_ops_t *eiop = eip->ei_eiop;
+	const efx_intr_ops_t *eiop = eip->ei_eiop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NIC);
@@ -203,7 +203,7 @@ efx_intr_enable(
 	__in		efx_nic_t *enp)
 {
 	efx_intr_t *eip = &(enp->en_intr);
-	efx_intr_ops_t *eiop = eip->ei_eiop;
+	const efx_intr_ops_t *eiop = eip->ei_eiop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_INTR);
@@ -216,7 +216,7 @@ efx_intr_disable(
 	__in		efx_nic_t *enp)
 {
 	efx_intr_t *eip = &(enp->en_intr);
-	efx_intr_ops_t *eiop = eip->ei_eiop;
+	const efx_intr_ops_t *eiop = eip->ei_eiop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_INTR);
@@ -229,7 +229,7 @@ efx_intr_disable_unlocked(
 	__in		efx_nic_t *enp)
 {
 	efx_intr_t *eip = &(enp->en_intr);
-	efx_intr_ops_t *eiop = eip->ei_eiop;
+	const efx_intr_ops_t *eiop = eip->ei_eiop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_INTR);
@@ -244,7 +244,7 @@ efx_intr_trigger(
 	__in		unsigned int level)
 {
 	efx_intr_t *eip = &(enp->en_intr);
-	efx_intr_ops_t *eiop = eip->ei_eiop;
+	const efx_intr_ops_t *eiop = eip->ei_eiop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_INTR);
@@ -259,7 +259,7 @@ efx_intr_status_line(
 	__out		uint32_t *qmaskp)
 {
 	efx_intr_t *eip = &(enp->en_intr);
-	efx_intr_ops_t *eiop = eip->ei_eiop;
+	const efx_intr_ops_t *eiop = eip->ei_eiop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_INTR);
@@ -274,7 +274,7 @@ efx_intr_status_message(
 	__out		boolean_t *fatalp)
 {
 	efx_intr_t *eip = &(enp->en_intr);
-	efx_intr_ops_t *eiop = eip->ei_eiop;
+	const efx_intr_ops_t *eiop = eip->ei_eiop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_INTR);
@@ -287,7 +287,7 @@ efx_intr_fatal(
 	__in	efx_nic_t *enp)
 {
 	efx_intr_t *eip = &(enp->en_intr);
-	efx_intr_ops_t *eiop = eip->ei_eiop;
+	const efx_intr_ops_t *eiop = eip->ei_eiop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_INTR);

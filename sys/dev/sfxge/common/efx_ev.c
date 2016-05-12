@@ -109,7 +109,7 @@ falconsiena_ev_qstats_update(
 #endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_SIENA
-static efx_ev_ops_t	__efx_ev_siena_ops = {
+static const efx_ev_ops_t	__efx_ev_siena_ops = {
 	falconsiena_ev_init,			/* eevo_init */
 	falconsiena_ev_fini,			/* eevo_fini */
 	falconsiena_ev_qcreate,			/* eevo_qcreate */
@@ -124,7 +124,7 @@ static efx_ev_ops_t	__efx_ev_siena_ops = {
 #endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
-static efx_ev_ops_t	__efx_ev_ef10_ops = {
+static const efx_ev_ops_t	__efx_ev_ef10_ops = {
 	ef10_ev_init,				/* eevo_init */
 	ef10_ev_fini,				/* eevo_fini */
 	ef10_ev_qcreate,			/* eevo_qcreate */
@@ -143,7 +143,7 @@ static efx_ev_ops_t	__efx_ev_ef10_ops = {
 efx_ev_init(
 	__in		efx_nic_t *enp)
 {
-	efx_ev_ops_t *eevop;
+	const efx_ev_ops_t *eevop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -157,19 +157,19 @@ efx_ev_init(
 	switch (enp->en_family) {
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
-		eevop = (efx_ev_ops_t *)&__efx_ev_siena_ops;
+		eevop = &__efx_ev_siena_ops;
 		break;
 #endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		eevop = (efx_ev_ops_t *)&__efx_ev_ef10_ops;
+		eevop = &__efx_ev_ef10_ops;
 		break;
 #endif /* EFSYS_OPT_HUNTINGTON */
 
 #if EFSYS_OPT_MEDFORD
 	case EFX_FAMILY_MEDFORD:
-		eevop = (efx_ev_ops_t *)&__efx_ev_ef10_ops;
+		eevop = &__efx_ev_ef10_ops;
 		break;
 #endif /* EFSYS_OPT_MEDFORD */
 
@@ -203,7 +203,7 @@ fail1:
 efx_ev_fini(
 	__in	efx_nic_t *enp)
 {
-	efx_ev_ops_t *eevop = enp->en_eevop;
+	const efx_ev_ops_t *eevop = enp->en_eevop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_INTR);
@@ -228,7 +228,7 @@ efx_ev_qcreate(
 	__in		uint32_t id,
 	__deref_out	efx_evq_t **eepp)
 {
-	efx_ev_ops_t *eevop = enp->en_eevop;
+	const efx_ev_ops_t *eevop = enp->en_eevop;
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_evq_t *eep;
 	efx_rc_t rc;
@@ -272,7 +272,7 @@ efx_ev_qdestroy(
 	__in	efx_evq_t *eep)
 {
 	efx_nic_t *enp = eep->ee_enp;
-	efx_ev_ops_t *eevop = enp->en_eevop;
+	const efx_ev_ops_t *eevop = enp->en_eevop;
 
 	EFSYS_ASSERT3U(eep->ee_magic, ==, EFX_EVQ_MAGIC);
 
@@ -291,7 +291,7 @@ efx_ev_qprime(
 	__in		unsigned int count)
 {
 	efx_nic_t *enp = eep->ee_enp;
-	efx_ev_ops_t *eevop = enp->en_eevop;
+	const efx_ev_ops_t *eevop = enp->en_eevop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(eep->ee_magic, ==, EFX_EVQ_MAGIC);
@@ -383,7 +383,7 @@ efx_ev_qpost(
 	__in	uint16_t data)
 {
 	efx_nic_t *enp = eep->ee_enp;
-	efx_ev_ops_t *eevop = enp->en_eevop;
+	const efx_ev_ops_t *eevop = enp->en_eevop;
 
 	EFSYS_ASSERT3U(eep->ee_magic, ==, EFX_EVQ_MAGIC);
 
@@ -399,7 +399,7 @@ efx_ev_qmoderate(
 	__in		unsigned int us)
 {
 	efx_nic_t *enp = eep->ee_enp;
-	efx_ev_ops_t *eevop = enp->en_eevop;
+	const efx_ev_ops_t *eevop = enp->en_eevop;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(eep->ee_magic, ==, EFX_EVQ_MAGIC);
@@ -421,7 +421,7 @@ efx_ev_qstats_update(
 	__inout_ecount(EV_NQSTATS)	efsys_stat_t *stat)
 
 {	efx_nic_t *enp = eep->ee_enp;
-	efx_ev_ops_t *eevop = enp->en_eevop;
+	const efx_ev_ops_t *eevop = enp->en_eevop;
 
 	EFSYS_ASSERT3U(eep->ee_magic, ==, EFX_EVQ_MAGIC);
 
