@@ -81,8 +81,7 @@ linux_kthread_create(int (*threadfn)(void *data), void *data)
 	    0, 0, fmt, ## __VA_ARGS__)) {				\
 		kfree(_task);						\
 		_task = NULL;						\
-	} else								\
-		task_struct_set(_task->task_thread, _task);		\
+	}								\
 	_task;								\
 })
 
