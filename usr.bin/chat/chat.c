@@ -1401,7 +1401,7 @@ vfmtmsg(char *buf, int buflen, const char *fmt, va_list args)
 		}
 	    }
 	}
-	str = 0;
+	str = NULL;
 	base = 0;
 	neg = 0;
 	++fmt;
