@@ -4906,6 +4906,28 @@ enum i40e_status_code i40e_aq_add_rem_control_packet_filter(struct i40e_hw *hw,
 }
 
 /**
+ * i40e_add_filter_to_drop_tx_flow_control_frames- filter to drop flow control
+ * @hw: pointer to the hw struct
+ * @seid: VSI seid to add ethertype filter from
+ **/
+#define I40E_FLOW_CONTROL_ETHTYPE 0x8808
+void i40e_add_filter_to_drop_tx_flow_control_frames(struct i40e_hw *hw,
+						    u16 seid)
+{
+	u16 flag = I40E_AQC_ADD_CONTROL_PACKET_FLAGS_IGNORE_MAC |
+		   I40E_AQC_ADD_CONTROL_PACKET_FLAGS_DROP |
+		   I40E_AQC_ADD_CONTROL_PACKET_FLAGS_TX;
+	u16 ethtype = I40E_FLOW_CONTROL_ETHTYPE;
+	enum i40e_status_code status;
+
+	status = i40e_aq_add_rem_control_packet_filter(hw, NULL, ethtype, flag,
+						       seid, 0, TRUE, NULL,
+						       NULL);
+	if (status)
+		DEBUGOUT("Ethtype Filter Add failed: Error pruning Tx flow control frames\n");
+}
+
+/**
  * i40e_aq_add_cloud_filters
  * @hw: pointer to the hardware structure
  * @seid: VSI seid to add cloud filters from
@@ -5044,8 +5066,6 @@ enum i40e_status_code i40e_aq_alternate_write_indirect(struct i40e_hw *hw,
 
 	cmd_resp->address = CPU_TO_LE32(addr);
 	cmd_resp->length = CPU_TO_LE32(dw_count);
-	cmd_resp->addr_high = CPU_TO_LE32(I40E_HI_DWORD((u64)buffer));
-	cmd_resp->addr_low = CPU_TO_LE32(I40E_LO_DWORD((u64)buffer));
 
 	status = i40e_asq_send_command(hw, &desc, buffer,
 				       I40E_LO_DWORD(4*dw_count), NULL);
@@ -5127,8 +5147,6 @@ enum i40e_status_code i40e_aq_alternate_read_indirect(struct i40e_hw *hw,
 
 	cmd_resp->address = CPU_TO_LE32(addr);
 	cmd_resp->length = CPU_TO_LE32(dw_count);
-	cmd_resp->addr_high = CPU_TO_LE32(I40E_HI_DWORD((u64)buffer));
-	cmd_resp->addr_low = CPU_TO_LE32(I40E_LO_DWORD((u64)buffer));
 
 	status = i40e_asq_send_command(hw, &desc, buffer,
 				       I40E_LO_DWORD(4*dw_count), NULL);

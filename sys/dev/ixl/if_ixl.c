@@ -48,7 +48,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixl_driver_version[] = "1.4.6-k";
+char ixl_driver_version[] = "1.4.7-k";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -99,6 +99,7 @@ static int      ixl_ioctl(struct ifnet *, u_long, caddr_t);
 static void	ixl_init(void *);
 static void	ixl_init_locked(struct ixl_pf *);
 static void     ixl_stop(struct ixl_pf *);
+static void	ixl_stop_locked(struct ixl_pf *);
 static void     ixl_media_status(struct ifnet *, struct ifmediareq *);
 static int      ixl_media_change(struct ifnet *);
 static void     ixl_update_link_status(struct ixl_pf *);
@@ -115,6 +116,7 @@ static void	ixl_configure_itr(struct ixl_pf *);
 static void	ixl_configure_legacy(struct ixl_pf *);
 static void	ixl_init_taskqueues(struct ixl_pf *);
 static void	ixl_free_taskqueues(struct ixl_pf *);
+static void	ixl_free_interrupt_resources(struct ixl_pf *);
 static void	ixl_free_pci_resources(struct ixl_pf *);
 static void	ixl_local_timer(void *);
 static int	ixl_setup_interface(device_t, struct ixl_vsi *);
@@ -191,6 +193,8 @@ static void	ixl_stat_update48(struct i40e_hw *, u32, u32, bool,
 		    u64 *, u64 *);
 static void	ixl_stat_update32(struct i40e_hw *, u32, bool,
 		    u64 *, u64 *);
+/* NVM update */
+static int	ixl_handle_nvmupd_cmd(struct ixl_pf *, struct ifdrv *);
 
 #ifdef IXL_DEBUG_SYSCTL
 static int 	ixl_sysctl_link_status(SYSCTL_HANDLER_ARGS);
@@ -199,6 +203,7 @@ static int	ixl_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_hw_res_alloc(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS);
 #endif
+
 
 #ifdef PCI_IOV
 static int	ixl_adminq_err_to_errno(enum i40e_admin_queue_err err);
@@ -634,28 +639,22 @@ ixl_attach(device_t dev)
 	/* Initialize mac filter list for VSI */
 	SLIST_INIT(&vsi->ftl);
 
-	/* Set up interrupt routing here */
-	if (pf->msix > 1)
-		error = ixl_assign_vsi_msix(pf);
-	else
-		error = ixl_assign_vsi_legacy(pf);
-	if (error) 
-		goto err_mac_hmc;
-
 	if (((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver < 33)) ||
 	    (hw->aq.fw_maj_ver < 4)) {
 		i40e_msec_delay(75);
 		error = i40e_aq_set_link_restart_an(hw, TRUE, NULL);
-		if (error)
+		if (error) {
 			device_printf(dev, "link restart failed, aq_err=%d\n",
 			    pf->hw.aq.asq_last_status);
+			goto err_late;
+		}
 	}
 
 	/* Determine link state */
-	i40e_aq_get_link_info(hw, TRUE, NULL, NULL);
+	hw->phy.get_link_info = TRUE;
 	i40e_get_link_status(hw, &pf->link_up);
 
-	/* Setup OS specific network interface */
+	/* Setup OS network interface / ifnet */
 	if (ixl_setup_interface(dev, vsi) != 0) {
 		device_printf(dev, "interface setup failed!\n");
 		error = EIO;
@@ -664,15 +663,19 @@ ixl_attach(device_t dev)
 
 	error = ixl_switch_config(pf);
 	if (error) {
-		device_printf(dev, "Initial switch config failed: %d\n", error);
+		device_printf(dev, "Initial ixl_switch_config() failed: %d\n", error);
 		goto err_late;
 	}
 
-	/* Limit phy interrupts to link and modules failure */
+	/* Limit PHY interrupts to link, autoneg, and modules failure */
 	error = i40e_aq_set_phy_int_mask(hw,
-	    I40E_AQ_EVENT_LINK_UPDOWN | I40E_AQ_EVENT_MODULE_QUAL_FAIL, NULL);
-        if (error)
-		device_printf(dev, "set phy mask failed: %d\n", error);
+	    I40E_AQ_EVENT_LINK_UPDOWN | I40E_AQ_EVENT_MODULE_QUAL_FAIL,
+	    NULL);
+        if (error) {
+		device_printf(dev, "i40e_aq_set_phy_mask() failed: err %d,"
+		    " aq_err %d\n", error, hw->aq.asq_last_status);
+		goto err_late;
+	}
 
 	/* Get the bus configuration and set the shared code */
 	bus = ixl_get_bus_info(hw, dev);
@@ -771,11 +774,8 @@ ixl_detach(device_t dev)
 #endif
 
 	ether_ifdetach(vsi->ifp);
-	if (vsi->ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		IXL_PF_LOCK(pf);
+	if (vsi->ifp->if_drv_flags & IFF_DRV_RUNNING)
 		ixl_stop(pf);
-		IXL_PF_UNLOCK(pf);
-	}
 
 	ixl_free_taskqueues(pf);
 
@@ -819,9 +819,7 @@ static int
 ixl_shutdown(device_t dev)
 {
 	struct ixl_pf *pf = device_get_softc(dev);
-	IXL_PF_LOCK(pf);
 	ixl_stop(pf);
-	IXL_PF_UNLOCK(pf);
 	return (0);
 }
 
@@ -970,7 +968,8 @@ ixl_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 {
 	struct ixl_vsi	*vsi = ifp->if_softc;
 	struct ixl_pf	*pf = vsi->back;
-	struct ifreq	*ifr = (struct ifreq *) data;
+	struct ifreq	*ifr = (struct ifreq *)data;
+	struct ifdrv	*ifd = (struct ifdrv *)data;
 #if defined(INET) || defined(INET6)
 	struct ifaddr *ifa = (struct ifaddr *)data;
 	bool		avoid_reset = FALSE;
@@ -1029,13 +1028,31 @@ ixl_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 				    (IFF_PROMISC | IFF_ALLMULTI)) {
 					ixl_set_promisc(vsi);
 				}
-			} else
-				ixl_init_locked(pf);
-		} else
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			} else {
+				IXL_PF_UNLOCK(pf);
+				ixl_init(pf);
+				IXL_PF_LOCK(pf);
+			}
+		} else {
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				IXL_PF_UNLOCK(pf);
 				ixl_stop(pf);
+				IXL_PF_LOCK(pf);
+			}
+		}
 		pf->if_flags = ifp->if_flags;
 		IXL_PF_UNLOCK(pf);
+		break;
+	case SIOCSDRVSPEC:
+	case SIOCGDRVSPEC:
+		IOCTL_DEBUGOUT("ioctl: SIOCxDRVSPEC (Get/Set Driver-specific "
+		    "Info)\n");
+
+		/* NVM update command */
+		if (ifd->ifd_cmd == I40E_NVM_ACCESS)
+			error = ixl_handle_nvmupd_cmd(pf, ifd);
+		else
+			error = EINVAL;
 		break;
 	case SIOCADDMULTI:
 		IOCTL_DEBUGOUT("ioctl: SIOCADDMULTI");
@@ -1128,7 +1145,8 @@ ixl_init_locked(struct ixl_pf *pf)
 
 	mtx_assert(&pf->pf_mtx, MA_OWNED);
 	INIT_DEBUGOUT("ixl_init: begin");
-	ixl_stop(pf);
+
+	ixl_stop_locked(pf);
 
 	/* Get the latest mac address... User might use a LAA */
 	bcopy(IF_LLADDR(vsi->ifp), tmpaddr,
@@ -1213,6 +1231,11 @@ ixl_init_locked(struct ixl_pf *pf)
 	/* And now turn on interrupts */
 	ixl_enable_intr(vsi);
 
+	/* Get link info */
+	hw->phy.get_link_info = TRUE;
+	i40e_get_link_status(hw, &pf->link_up);
+	ixl_update_link_status(pf);
+
 	/* Now inform the stack we're ready */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -1224,6 +1247,17 @@ static void
 ixl_init(void *arg)
 {
 	struct ixl_pf *pf = arg;
+	int ret = 0;
+
+	/* Set up interrupt routing here */
+	if (pf->msix > 1)
+		ret = ixl_assign_vsi_msix(pf);
+	else
+		ret = ixl_assign_vsi_legacy(pf);
+	if (ret) {
+		device_printf(pf->dev, "assign_vsi_msix/legacy error: %d\n", ret);
+		return;
+	}
 
 	IXL_PF_LOCK(pf);
 	ixl_init_locked(pf);
@@ -1861,7 +1895,7 @@ ixl_update_link_status(struct ixl_pf *pf)
 	struct ifnet		*ifp = vsi->ifp;
 	device_t		dev = pf->dev;
 
-	if (pf->link_up){ 
+	if (pf->link_up) {
 		if (vsi->link_active == FALSE) {
 			pf->fc = hw->fc.current_mode;
 			if (bootverbose) {
@@ -1888,13 +1922,23 @@ ixl_update_link_status(struct ixl_pf *pf)
 	} else { /* Link down */
 		if (vsi->link_active == TRUE) {
 			if (bootverbose)
-				device_printf(dev,"Link is Down\n");
+				device_printf(dev, "Link is Down\n");
 			if_link_state_change(ifp, LINK_STATE_DOWN);
 			vsi->link_active = FALSE;
 		}
 	}
 
 	return;
+}
+
+static void
+ixl_stop(struct ixl_pf *pf)
+{
+	IXL_PF_LOCK(pf);
+	ixl_stop_locked(pf);
+	IXL_PF_UNLOCK(pf);
+
+	ixl_free_interrupt_resources(pf);
 }
 
 /*********************************************************************
@@ -1905,14 +1949,18 @@ ixl_update_link_status(struct ixl_pf *pf)
  **********************************************************************/
 
 static void
-ixl_stop(struct ixl_pf *pf)
+ixl_stop_locked(struct ixl_pf *pf)
 {
 	struct ixl_vsi	*vsi = &pf->vsi;
 	struct ifnet	*ifp = vsi->ifp;
 
-	mtx_assert(&pf->pf_mtx, MA_OWNED);
-
 	INIT_DEBUGOUT("ixl_stop: begin\n");
+
+	IXL_PF_LOCK_ASSERT(pf);
+
+	/* Stop the local timer */
+	callout_stop(&pf->timer);
+
 	if (pf->num_vfs == 0)
 		ixl_disable_intr(vsi);
 	else
@@ -1921,9 +1969,6 @@ ixl_stop(struct ixl_pf *pf)
 
 	/* Tell the stack that the interface is no longer active */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-
-	/* Stop the local timer */
-	callout_stop(&pf->timer);
 
 	return;
 }
@@ -2228,17 +2273,17 @@ msi:
 	ixl_max_queues = 1;
 	ixl_enable_msix = 0;
        	if (vectors == 1 && pci_alloc_msi(dev, &vectors) == 0)
-               	device_printf(pf->dev,"Using an MSI interrupt\n");
+		device_printf(pf->dev, "Using an MSI interrupt\n");
 	else {
 		pf->msix = 0;
-               	device_printf(pf->dev,"Using a Legacy interrupt\n");
+		device_printf(pf->dev, "Using a Legacy interrupt\n");
 	}
 	return (vectors);
 }
 
 
 /*
- * Plumb MSI/X vectors
+ * Plumb MSIX vectors
  */
 static void
 ixl_configure_msix(struct ixl_pf *pf)
@@ -2261,8 +2306,14 @@ ixl_configure_msix(struct ixl_pf *pf)
 	    I40E_PFINT_ICR0_ENA_PCI_EXCEPTION_MASK;
 	wr32(hw, I40E_PFINT_ICR0_ENA, reg);
 
+	/*
+	 * 0x7FF is the end of the queue list.
+	 * This means we won't use MSI-X vector 0 for a queue interrupt
+	 * in MSIX mode.
+	 */
 	wr32(hw, I40E_PFINT_LNKLST0, 0x7FF);
-	wr32(hw, I40E_PFINT_ITR0(IXL_RX_ITR), 0x003E);
+	/* Value is in 2 usec units, so 0x3E is 62*2 = 124 usecs. */
+	wr32(hw, I40E_PFINT_ITR0(IXL_RX_ITR), 0x3E);
 
 	wr32(hw, I40E_PFINT_DYN_CTL0,
 	    I40E_PFINT_DYN_CTL0_SW_ITR_INDX_MASK |
@@ -2303,10 +2354,8 @@ ixl_configure_legacy(struct ixl_pf *pf)
 	struct i40e_hw	*hw = &pf->hw;
 	u32		reg;
 
-
 	wr32(hw, I40E_PFINT_ITR0(0), 0);
 	wr32(hw, I40E_PFINT_ITR0(1), 0);
-
 
 	/* Setup "other" causes */
 	reg = I40E_PFINT_ICR0_ENA_ECC_ERR_MASK
@@ -2422,14 +2471,12 @@ ixl_allocate_pci_resources(struct ixl_pf *pf)
 }
 
 static void
-ixl_free_pci_resources(struct ixl_pf * pf)
+ixl_free_interrupt_resources(struct ixl_pf *pf)
 {
 	struct ixl_vsi		*vsi = &pf->vsi;
 	struct ixl_queue	*que = vsi->queues;
 	device_t		dev = pf->dev;
-	int			rid, memrid;
-
-	memrid = PCIR_BAR(IXL_BAR);
+	int rid;
 
 	/* We may get here before stations are setup */
 	if ((!ixl_enable_msix) || (que == NULL))
@@ -2444,8 +2491,10 @@ ixl_free_pci_resources(struct ixl_pf * pf)
 			bus_teardown_intr(dev, que->res, que->tag);
 			que->tag = NULL;
 		}
-		if (que->res != NULL)
+		if (que->res != NULL) {
 			bus_release_resource(dev, SYS_RES_IRQ, rid, que->res);
+			que->res = NULL;
+		}
 	}
 
 early:
@@ -2459,11 +2508,24 @@ early:
 		bus_teardown_intr(dev, pf->res, pf->tag);
 		pf->tag = NULL;
 	}
-	if (pf->res != NULL)
+	if (pf->res != NULL) {
 		bus_release_resource(dev, SYS_RES_IRQ, rid, pf->res);
+		pf->res = NULL;
+	}
+}
+
+static void
+ixl_free_pci_resources(struct ixl_pf *pf)
+{
+	device_t		dev = pf->dev;
+	int			memrid;
+
+	ixl_free_interrupt_resources(pf);
 
 	if (pf->msix)
 		pci_release_msi(dev);
+
+	memrid = PCIR_BAR(IXL_BAR);
 
 	if (pf->msix_mem != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
@@ -2665,31 +2727,35 @@ ixl_setup_interface(device_t dev, struct ixl_vsi *vsi)
 }
 
 /*
-** Run when the Admin Queue gets a
-** link transition interrupt.
+** Run when the Admin Queue gets a link state change interrupt.
 */
 static void
 ixl_link_event(struct ixl_pf *pf, struct i40e_arq_event_info *e)
 {
 	struct i40e_hw	*hw = &pf->hw; 
+	device_t dev = pf->dev;
 	struct i40e_aqc_get_link_status *status =
 	    (struct i40e_aqc_get_link_status *)&e->desc.params.raw;
-	bool check;
 
+	/* Firmware workaround: may need to wait for link to actually come up... */
+	if (!pf->link_up && (status->link_info & I40E_AQ_SIGNAL_DETECT)) {
+		device_printf(dev, "%s: Waiting...\n", __func__);
+		i40e_msec_delay(4000);
+	}
+
+	/* Request link status from adapter */
 	hw->phy.get_link_info = TRUE;
-	i40e_get_link_status(hw, &check);
-	pf->link_up = check;
-#ifdef IXL_DEBUG
-	printf("Link is %s\n", check ? "up":"down");
-#endif
-	/* Report if Unqualified modules are found */
+	i40e_get_link_status(hw, &pf->link_up);
+
+	/* Print out message if an unqualified module is found */
 	if ((status->link_info & I40E_AQ_MEDIA_AVAILABLE) &&
 	    (!(status->an_info & I40E_AQ_QUALIFIED_MODULE)) &&
 	    (!(status->link_info & I40E_AQ_LINK_UP)))
-		device_printf(pf->dev, "Link failed because "
-		    "an unqualified module was detected\n");
+		device_printf(dev, "Link failed because "
+		    "an unqualified module was detected!\n");
 
-	return;
+	/* Update OS link info */
+	ixl_update_link_status(pf);
 }
 
 /*********************************************************************
@@ -3040,7 +3106,7 @@ ixl_setup_stations(struct ixl_pf *pf)
        		}
 		/* Allocate a buf ring */
 		txr->br = buf_ring_alloc(4096, M_DEVBUF,
-		    M_WAITOK, &txr->mtx);
+		    M_NOWAIT, &txr->mtx);
 		if (txr->br == NULL) {
 			device_printf(dev,
 			    "Critical Failure setting up TX buf ring\n");
@@ -4098,7 +4164,6 @@ ixl_enable_adminq(struct i40e_hw *hw)
 	    (IXL_ITR_NONE << I40E_PFINT_DYN_CTL0_ITR_INDX_SHIFT);
 	wr32(hw, I40E_PFINT_DYN_CTL0, reg);
 	ixl_flush(hw);
-	return;
 }
 
 static void
@@ -4108,8 +4173,7 @@ ixl_disable_adminq(struct i40e_hw *hw)
 
 	reg = IXL_ITR_NONE << I40E_PFINT_DYN_CTL0_ITR_INDX_SHIFT;
 	wr32(hw, I40E_PFINT_DYN_CTL0, reg);
-
-	return;
+	ixl_flush(hw);
 }
 
 static void
@@ -4130,8 +4194,6 @@ ixl_disable_queue(struct i40e_hw *hw, int id)
 
 	reg = IXL_ITR_NONE << I40E_PFINT_DYN_CTLN_ITR_INDX_SHIFT;
 	wr32(hw, I40E_PFINT_DYN_CTLN(id), reg);
-
-	return;
 }
 
 static void
@@ -4151,8 +4213,6 @@ ixl_disable_legacy(struct i40e_hw *hw)
 
 	reg = IXL_ITR_NONE << I40E_PFINT_DYN_CTL0_ITR_INDX_SHIFT;
 	wr32(hw, I40E_PFINT_DYN_CTL0, reg);
-
-	return;
 }
 
 static void
@@ -4340,17 +4400,18 @@ ixl_do_adminq(void *context, int pending)
 {
 	struct ixl_pf			*pf = context;
 	struct i40e_hw			*hw = &pf->hw;
-	struct ixl_vsi			*vsi = &pf->vsi;
 	struct i40e_arq_event_info	event;
 	i40e_status			ret;
-	u32				reg, loop = 0;
+	device_t			dev = pf->dev;
+	u32				loop = 0;
 	u16				opcode, result;
 
 	event.buf_len = IXL_AQ_BUF_SZ;
 	event.msg_buf = malloc(event.buf_len,
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!event.msg_buf) {
-		printf("Unable to allocate adminq memory\n");
+		device_printf(dev, "%s: Unable to allocate memory for Admin"
+		    " Queue event!\n", __func__);
 		return;
 	}
 
@@ -4361,10 +4422,12 @@ ixl_do_adminq(void *context, int pending)
 		if (ret)
 			break;
 		opcode = LE16_TO_CPU(event.desc.opcode);
+#ifdef IXL_DEBUG
+		device_printf(dev, "%s: Admin Queue event: %#06x\n", __func__, opcode);
+#endif
 		switch (opcode) {
 		case i40e_aqc_opc_get_link_status:
 			ixl_link_event(pf, &event);
-			ixl_update_link_status(pf);
 			break;
 		case i40e_aqc_opc_send_msg_to_pf:
 #ifdef PCI_IOV
@@ -4372,19 +4435,12 @@ ixl_do_adminq(void *context, int pending)
 #endif
 			break;
 		case i40e_aqc_opc_event_lan_overflow:
-			break;
 		default:
-#ifdef IXL_DEBUG
-			printf("AdminQ unknown event %x\n", opcode);
-#endif
 			break;
 		}
 
 	} while (result && (loop++ < IXL_ADM_LIMIT));
 
-	reg = rd32(hw, I40E_PFINT_ICR0_ENA);
-	reg |= I40E_PFINT_ICR0_ENA_ADMINQ_MASK;
-	wr32(hw, I40E_PFINT_ICR0_ENA, reg);
 	free(event.msg_buf, M_DEVBUF);
 
 	/*
@@ -4394,7 +4450,7 @@ ixl_do_adminq(void *context, int pending)
 	if (result > 0)
 		taskqueue_enqueue(pf->tq, &pf->adminq);
 	else
-		ixl_enable_intr(vsi);
+		ixl_enable_adminq(hw);
 
 	IXL_PF_UNLOCK(pf);
 }
@@ -4650,11 +4706,9 @@ static int
 ixl_set_flowcntl(SYSCTL_HANDLER_ARGS)
 {
 	/*
-	 * TODO: ensure flow control is disabled if
-	 * priority flow control is enabled
-	 *
 	 * TODO: ensure tx CRC by hardware should be enabled
 	 * if tx flow control is enabled.
+	 * ^ N/A for 40G ports
 	 */
 	struct ixl_pf *pf = (struct ixl_pf *)arg1;
 	struct i40e_hw *hw = &pf->hw;
@@ -4691,8 +4745,13 @@ ixl_set_flowcntl(SYSCTL_HANDLER_ARGS)
 		device_printf(dev,
 		    "%s: Error setting new fc mode %d; fc_err %#x\n",
 		    __func__, aq_error, fc_aq_err);
-		return (EAGAIN);
+		return (EIO);
 	}
+
+	/* Get new link state */
+	i40e_msec_delay(250);
+	hw->phy.get_link_info = TRUE;
+	i40e_get_link_status(hw, &pf->link_up);
 
 	return (0);
 }
@@ -4795,7 +4854,7 @@ ixl_set_advertised_speeds(struct ixl_pf *pf, int speeds)
 	** need to get a reinit on some devices
 	*/
 	IXL_PF_LOCK(pf);
-	ixl_stop(pf);
+	ixl_stop_locked(pf);
 	ixl_init_locked(pf);
 	IXL_PF_UNLOCK(pf);
 
@@ -4969,6 +5028,32 @@ ixl_sysctl_show_fw(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_string(oidp, buf, strlen(buf), req));
 }
 
+static int
+ixl_handle_nvmupd_cmd(struct ixl_pf *pf, struct ifdrv *ifd)
+{
+	struct i40e_hw *hw = &pf->hw;
+	struct i40e_nvm_access *nvma;
+	device_t dev = pf->dev;
+	enum i40e_status_code status = 0;
+	int perrno;
+
+	DEBUGFUNC("ixl_handle_nvmupd_cmd");
+
+	if (ifd->ifd_len < sizeof(struct i40e_nvm_access) ||
+	    ifd->ifd_data == NULL) {
+		device_printf(dev, "%s: incorrect ifdrv length or data pointer\n", __func__);
+		device_printf(dev, "%s: ifdrv length: %lu, sizeof(struct i40e_nvm_access): %lu\n", __func__,
+		    ifd->ifd_len, sizeof(struct i40e_nvm_access));
+		device_printf(dev, "%s: data pointer: %p\n", __func__, ifd->ifd_data);
+		return (EINVAL);
+	}
+
+	nvma = (struct i40e_nvm_access *)ifd->ifd_data;
+
+	status = i40e_nvmupd_command(hw, nvma, nvma->data, &perrno);
+
+	return (status) ? perrno : 0;
+}
 
 #ifdef IXL_DEBUG_SYSCTL
 static int
@@ -5262,7 +5347,6 @@ ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 #endif /* IXL_DEBUG_SYSCTL */
-
 
 #ifdef PCI_IOV
 static int

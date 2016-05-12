@@ -2158,6 +2158,14 @@ struct i40e_aqc_lldp_set_local_mib {
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_set_local_mib);
 
+struct i40e_aqc_lldp_set_local_mib_resp {
+#define SET_LOCAL_MIB_RESP_EVENT_TRIGGERED_MASK      0x01
+	u8  status;
+	u8  reserved[15];
+};
+
+I40E_CHECK_STRUCT_LEN(0x10, i40e_aqc_lldp_set_local_mib_resp);
+
 /*	Stop/Start LLDP Agent (direct 0x0A09)
  *	Used for stopping/starting specific LLDP agent. e.g. DCBx
  */
@@ -2371,4 +2379,4 @@ struct i40e_aqc_debug_modify_internals {
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_debug_modify_internals);
 
-#endif
+#endif /* _I40E_ADMINQ_CMD_H_ */
