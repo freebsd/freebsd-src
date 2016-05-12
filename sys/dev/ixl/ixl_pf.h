@@ -111,6 +111,13 @@ struct ixl_pf {
 	int			vc_debug_lvl;
 };
 
+/*
+ * Defines used for NVM update ioctls.
+ * This value is used in the Solaris tool, too.
+ */
+#define I40E_NVM_ACCESS \
+     (((((((('E' << 4) + '1') << 4) + 'K') << 4) + 'G') << 4) | 5)
+
 #define IXL_SET_ADVERTISE_HELP		\
 "Control link advertise speed:\n"	\
 "\tFlags:\n"				\
