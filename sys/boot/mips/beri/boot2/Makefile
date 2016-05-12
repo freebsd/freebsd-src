@@ -46,13 +46,15 @@ MAN=
 
 AFLAGS=		-G0
 
+CFLAGS.gcc+=	-Xassembler -G0
+
 CFLAGS=		-ffreestanding			\
 		-I${.CURDIR}			\
 		-I${.CURDIR}/../../../common	\
 		-I${.CURDIR}/../../../..	\
 		-D_KERNEL			\
 		-Wall				\
-		-G0 -Xassembler -G0		\
+		-G0				\
 		-fno-pic -mno-abicalls		\
 		-msoft-float			\
 		-g
@@ -86,4 +88,8 @@ jtagboot.md5: jtagboot
 
 CLEANFILES+=	flashboot.elf
 
-.include <bsd.prog.mk>
+.include <bsd.lib.mk>
+
+# XXX: clang integrated-as doesn't grok the use of dla in these files
+CFLAGS.relocate.S=       ${CLANG_NO_IAS}
+CFLAGS.start.S=       ${CLANG_NO_IAS}
