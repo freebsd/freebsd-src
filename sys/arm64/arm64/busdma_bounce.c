@@ -799,12 +799,6 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 	struct bounce_page *bpage;
 	vm_offset_t datavaddr, tempvaddr;
 
-	if ((bpage = STAILQ_FIRST(&map->bpages)) == NULL) {
-		/* Wait for any memory access to complete */
-		dsb(sy);
-		return;
-	}
-
 	/*
 	 * XXX ARM64TODO:
 	 * This bus_dma implementation requires IO-Coherent architecutre.
@@ -812,56 +806,63 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 	 * added to this function.
 	 */
 
-	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x op 0x%x "
-	    "performing bounce", __func__, dmat, dmat->common.flags, op);
-
-	if ((op & BUS_DMASYNC_PREWRITE) != 0) {
-		while (bpage != NULL) {
-			tempvaddr = 0;
-			datavaddr = bpage->datavaddr;
-			if (datavaddr == 0) {
-				tempvaddr =
-				    pmap_quick_enter_page(bpage->datapage);
-				datavaddr = tempvaddr | bpage->dataoffs;
-			}
-
-			bcopy((void *)datavaddr,
-			    (void *)bpage->vaddr, bpage->datacount);
-			if (tempvaddr != 0)
-				pmap_quick_remove_page(tempvaddr);
-			bpage = STAILQ_NEXT(bpage, links);
-		}
-		dmat->bounce_zone->total_bounced++;
-
-		/*
-		 * Wait for the bcopy to complete before any DMA operations.
-		 */
-		dsb(sy);
-	}
-
 	if ((op & BUS_DMASYNC_POSTREAD) != 0) {
 		/*
 		 * Wait for any DMA operations to complete before the bcopy.
 		 */
 		dsb(sy);
+	}
 
-		while (bpage != NULL) {
-			tempvaddr = 0;
-			datavaddr = bpage->datavaddr;
-			if (datavaddr == 0) {
-				tempvaddr =
-				    pmap_quick_enter_page(bpage->datapage);
-				datavaddr = tempvaddr | bpage->dataoffs;
+	if ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
+		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x op 0x%x "
+		    "performing bounce", __func__, dmat, dmat->common.flags,
+		    op);
+
+		if ((op & BUS_DMASYNC_PREWRITE) != 0) {
+			while (bpage != NULL) {
+				tempvaddr = 0;
+				datavaddr = bpage->datavaddr;
+				if (datavaddr == 0) {
+					tempvaddr = pmap_quick_enter_page(
+					    bpage->datapage);
+					datavaddr = tempvaddr | bpage->dataoffs;
+				}
+
+				bcopy((void *)datavaddr,
+				    (void *)bpage->vaddr, bpage->datacount);
+				if (tempvaddr != 0)
+					pmap_quick_remove_page(tempvaddr);
+				bpage = STAILQ_NEXT(bpage, links);
 			}
-
-			bcopy((void *)bpage->vaddr,
-			    (void *)datavaddr, bpage->datacount);
-
-			if (tempvaddr != 0)
-				pmap_quick_remove_page(tempvaddr);
-			bpage = STAILQ_NEXT(bpage, links);
+			dmat->bounce_zone->total_bounced++;
 		}
-		dmat->bounce_zone->total_bounced++;
+
+		if ((op & BUS_DMASYNC_POSTREAD) != 0) {
+			while (bpage != NULL) {
+				tempvaddr = 0;
+				datavaddr = bpage->datavaddr;
+				if (datavaddr == 0) {
+					tempvaddr = pmap_quick_enter_page(
+					    bpage->datapage);
+					datavaddr = tempvaddr | bpage->dataoffs;
+				}
+
+				bcopy((void *)bpage->vaddr,
+				    (void *)datavaddr, bpage->datacount);
+
+				if (tempvaddr != 0)
+					pmap_quick_remove_page(tempvaddr);
+				bpage = STAILQ_NEXT(bpage, links);
+			}
+			dmat->bounce_zone->total_bounced++;
+		}
+	}
+
+	if ((op & BUS_DMASYNC_PREWRITE) != 0) {
+		/*
+		 * Wait for the bcopy to complete before any DMA operations.
+		 */
+		dsb(sy);
 	}
 }
 
