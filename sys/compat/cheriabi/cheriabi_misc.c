@@ -1548,13 +1548,13 @@ cheriabi_set_auxargs(struct chericap *pos, struct image_params *imgp)
 
 	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
-	AUXARGS_ENTRY_CAP(pos, AT_PHDR, args->phdr, 0,
-	    args->phent * args->phnum, CHERI_CAP_USER_DATA_PERMS);
+	CTASSERT(CHERI_CAP_USER_CODE_BASE == 0);
+	AUXARGS_ENTRY_CAP(pos, AT_PHDR, CHERI_CAP_USER_DATA_BASE, args->phdr,
+	    CHERI_CAP_USER_DATA_LENGTH, CHERI_CAP_USER_DATA_PERMS);
 	AUXARGS_ENTRY(pos, AT_PHENT, args->phent);
 	AUXARGS_ENTRY(pos, AT_PHNUM, args->phnum);
 	AUXARGS_ENTRY(pos, AT_PAGESZ, args->pagesz);
 	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
-	CTASSERT(CHERI_CAP_USER_CODE_BASE == 0);
 	/*
 	 * XXX-BD: the should be bounded to the mapping, but for now
 	 * they aren't as struct image_params doesn't contain the
