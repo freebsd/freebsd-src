@@ -234,7 +234,6 @@ rm_ifinfo(struct ifinfo *ifi)
 		TAILQ_REMOVE(&ifilist, ifi, ifi_next);
 		syslog(LOG_DEBUG, "<%s>: ifinfo (idx=%d) removed.",
 		    __func__, ifi->ifi_ifindex);
-		free(ifi);
 	} else {
 		/* recreate an empty entry */
 		update_persist_ifinfo(&ifilist, ifi->ifi_ifname);
@@ -278,6 +277,8 @@ rm_ifinfo(struct ifinfo *ifi)
 	}
 
 	syslog(LOG_DEBUG, "<%s> leave (%s).", __func__, ifi->ifi_ifname);
+	if (!ifi->ifi_persist)
+		free(ifi);
 	return (0);
 }
 
