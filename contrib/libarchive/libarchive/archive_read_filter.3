@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2012
+.Dd August 14, 2014
 .Dt ARCHIVE_READ_FILTER 3
 .Os
 .Sh NAME
@@ -32,8 +32,11 @@
 .Nm archive_read_support_filter_bzip2 ,
 .Nm archive_read_support_filter_compress ,
 .Nm archive_read_support_filter_gzip ,
+.Nm archive_read_support_filter_lz4 ,
 .Nm archive_read_support_filter_lzma ,
 .Nm archive_read_support_filter_none ,
+.Nm archive_read_support_filter_rpm ,
+.Nm archive_read_support_filter_uu ,
 .Nm archive_read_support_filter_xz ,
 .Nm archive_read_support_filter_program ,
 .Nm archive_read_support_filter_program_signature
@@ -50,11 +53,23 @@ Streaming Archive Library (libarchive, -larchive)
 .Ft int
 .Fn archive_read_support_filter_compress "struct archive *"
 .Ft int
+.Fn archive_read_support_filter_grzip "struct archive *"
+.Ft int
 .Fn archive_read_support_filter_gzip "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_lrzip "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_lz4 "struct archive *"
 .Ft int
 .Fn archive_read_support_filter_lzma "struct archive *"
 .Ft int
+.Fn archive_read_support_filter_lzop "struct archive *"
+.Ft int
 .Fn archive_read_support_filter_none "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_rpm "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_uu "struct archive *"
 .Ft int
 .Fn archive_read_support_filter_xz "struct archive *"
 .Ft int
@@ -75,9 +90,15 @@ Streaming Archive Library (libarchive, -larchive)
 .It Xo
 .Fn archive_read_support_filter_bzip2 ,
 .Fn archive_read_support_filter_compress ,
+.Fn archive_read_support_filter_grzip ,
 .Fn archive_read_support_filter_gzip ,
+.Fn archive_read_support_filter_lrzip ,
+.Fn archive_read_support_filter_lz4 ,
 .Fn archive_read_support_filter_lzma ,
+.Fn archive_read_support_filter_lzop ,
 .Fn archive_read_support_filter_none ,
+.Fn archive_read_support_filter_rpm ,
+.Fn archive_read_support_filter_uu ,
 .Fn archive_read_support_filter_xz
 .Xc
 Enables auto-detection code and decompression support for the

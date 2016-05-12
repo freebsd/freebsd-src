@@ -57,12 +57,14 @@ struct bsdtar {
 	const char	 *gname; /* --gname */
 	int		  uid;  /* --uid */
 	const char	 *uname; /* --uname */
+	const char	 *passphrase; /* --passphrase */
 	char		  mode; /* Program mode: 'c', 't', 'r', 'u', 'x' */
 	char		  symlink_mode; /* H or L, per BSD conventions */
 	char		  option_absolute_paths; /* -P */
 	char		  option_chroot; /* --chroot */
 	char		  option_fast_read; /* --fast-read */
 	const char	 *option_options; /* --options */
+	char		  option_ignore_zeros; /* --ignore-zeros */
 	char		  option_interactive; /* -w */
 	char		  option_no_owner; /* -o */
 	char		  option_no_subdirs; /* -n */
@@ -109,6 +111,7 @@ struct bsdtar {
 	struct name_cache	*uname_cache;	/* for write.c */
 	struct siginfo_data	*siginfo;	/* for siginfo.c */
 	struct substitution	*substitution;	/* for subst.c */
+	char			*ppbuff;	/* for util.c */
 };
 
 /* Fake short equivalents for long options that otherwise lack them. */
@@ -116,6 +119,7 @@ enum {
 	OPTION_B64ENCODE = 1,
 	OPTION_CHECK_LINKS,
 	OPTION_CHROOT,
+	OPTION_CLEAR_NOCHANGE_FFLAGS,
 	OPTION_DISABLE_COPYFILE,
 	OPTION_EXCLUDE,
 	OPTION_FORMAT,
@@ -124,9 +128,11 @@ enum {
 	OPTION_GRZIP,
 	OPTION_HELP,
 	OPTION_HFS_COMPRESSION,
+	OPTION_IGNORE_ZEROS,
 	OPTION_INCLUDE,
 	OPTION_KEEP_NEWER_FILES,
 	OPTION_LRZIP,
+	OPTION_LZ4,
 	OPTION_LZIP,
 	OPTION_LZMA,
 	OPTION_LZOP,
@@ -138,6 +144,7 @@ enum {
 	OPTION_NOPRESERVE_HFS_COMPRESSION,
 	OPTION_NO_SAME_OWNER,
 	OPTION_NO_SAME_PERMISSIONS,
+	OPTION_NO_XATTR,
 	OPTION_NULL,
 	OPTION_NUMERIC_OWNER,
 	OPTION_OLDER_CTIME,
@@ -146,6 +153,7 @@ enum {
 	OPTION_OLDER_MTIME_THAN,
 	OPTION_ONE_FILE_SYSTEM,
 	OPTION_OPTIONS,
+	OPTION_PASSPHRASE,
 	OPTION_POSIX,
 	OPTION_SAME_OWNER,
 	OPTION_STRIP_COMPONENTS,
@@ -191,3 +199,7 @@ void		cset_set_format(struct creation_set *, const char *);
 int		cset_write_add_filters(struct creation_set *,
 		    struct archive *, const void **);
 
+const char * passphrase_callback(struct archive *, void *);
+void	     passphrase_free(char *);
+void	list_item_verbose(struct bsdtar *, FILE *,
+		    struct archive_entry *);

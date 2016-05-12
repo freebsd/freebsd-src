@@ -25,8 +25,8 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-char buff[1000000];
-char buff2[100000];
+static char buff[1000000];
+static char buff2[100000];
 
 DEFINE_TEST(test_read_truncated)
 {
