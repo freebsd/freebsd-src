@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/gpio/gpiokeys.h>
 
+#define	KBD_DRIVER_NAME	"gpiokeys"
+
 #define	GPIOKEYS_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	GPIOKEYS_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define	GPIOKEYS_LOCK_INIT(_sc) \
@@ -357,12 +359,12 @@ gpiokeys_detach_key(struct gpiokeys_softc *sc, struct gpiokey *key)
 	if (key->irq_res)
 		bus_release_resource(sc->sc_dev, SYS_RES_IRQ,
 		    key->irq_rid, key->irq_res);
-	if (key->pin)
-		gpio_pin_release(key->pin);
 	if (callout_pending(&key->repeat_callout))
 		callout_drain(&key->repeat_callout);
 	if (callout_pending(&key->debounce_callout))
 		callout_drain(&key->debounce_callout);
+	if (key->pin)
+		gpio_pin_release(key->pin);
 	GPIOKEY_UNLOCK(key);
 
 	GPIOKEY_LOCK_DESTROY(key);
@@ -397,7 +399,7 @@ gpiokeys_attach(device_t dev)
 
 	GPIOKEYS_LOCK_INIT(sc);
 	unit = device_get_unit(dev);
-	kbd_init_struct(kbd, "gpiokeys", KB_OTHER, unit, 0, 0, 0);
+	kbd_init_struct(kbd, KBD_DRIVER_NAME, KB_OTHER, unit, 0, 0, 0);
 
 	kbd->kb_data = (void *)sc;
 	sc->sc_mode = K_XLATE;
@@ -468,12 +470,21 @@ static int
 gpiokeys_detach(device_t dev)
 {
 	struct gpiokeys_softc *sc;
+	keyboard_t *kbd;
 	int i;
 
 	sc = device_get_softc(dev);
 
 	for (i = 0; i < sc->sc_total_keys; i++)
 		gpiokeys_detach_key(sc, &sc->sc_keys[i]);
+
+	kbd = kbd_get_keyboard(kbd_find_keyboard(KBD_DRIVER_NAME,
+	    device_get_unit(dev)));
+
+#ifdef KBD_INSTALL_CDEV
+	kbd_detach(kbd);
+#endif
+	kbd_unregister(kbd);
 
 	GPIOKEYS_LOCK_DESTROY(sc);
 	if (sc->sc_keys)
