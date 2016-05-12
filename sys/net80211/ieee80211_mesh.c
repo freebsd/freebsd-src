@@ -1526,7 +1526,6 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m,
 {
 #define	HAS_SEQ(type)	((type & 0x4) == 0)
 #define	MC01(mc)	((const struct ieee80211_meshcntl_ae01 *)mc)
-#define	MC10(mc)	((const struct ieee80211_meshcntl_ae10 *)mc)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = vap->iv_ifp;
@@ -1826,7 +1825,6 @@ out:
 	return type;
 #undef	HAS_SEQ
 #undef	MC01
-#undef	MC10
 }
 
 static void
@@ -1981,7 +1979,6 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 	case IEEE80211_FC0_SUBTYPE_PROBE_REQ:
 	{
 		uint8_t *ssid, *meshid, *rates, *xrates;
-		uint8_t *sfrm;
 
 		if (vap->iv_state != IEEE80211_S_RUN) {
 			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
@@ -2005,7 +2002,6 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		 *	[tlv] mesh id
 		 */
 		ssid = meshid = rates = xrates = NULL;
-		sfrm = frm;
 		while (efrm - frm > 1) {
 			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return);
 			switch (*frm) {
@@ -2116,10 +2112,10 @@ mesh_parse_meshpeering_action(struct ieee80211_node *ni,
 	struct ieee80211vap *vap = ni->ni_vap;
 	const struct ieee80211_meshpeer_ie *mpie;
 	uint16_t args[3];
-	const uint8_t *meshid, *meshconf, *meshpeer;
+	const uint8_t *meshid, *meshconf;
 	uint8_t sendclose = 0; /* 1 = MPM frame rejected, close will be sent */
 
-	meshid = meshconf = meshpeer = NULL;
+	meshid = meshconf = NULL;
 	while (efrm - frm > 1) {
 		IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return NULL);
 		switch (*frm) {
@@ -2130,7 +2126,6 @@ mesh_parse_meshpeering_action(struct ieee80211_node *ni,
 			meshconf = frm;
 			break;
 		case IEEE80211_ELEMID_MESHPEER:
-			meshpeer = frm;
 			mpie = (const struct ieee80211_meshpeer_ie *) frm;
 			memset(mp, 0, sizeof(*mp));
 			mp->peer_len = mpie->peer_len;
@@ -2660,7 +2655,6 @@ mesh_send_action(struct ieee80211_node *ni,
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_bpf_params params;
-	struct ieee80211_frame *wh;
 	int ret;
 
 	KASSERT(ni != NULL, ("null node"));
@@ -2681,7 +2675,6 @@ mesh_send_action(struct ieee80211_node *ni,
 	}
 
 	IEEE80211_TX_LOCK(ic);
-	wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_send_setup(ni, m,
 	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_ACTION,
 	     IEEE80211_NONQOS_TID, sa, da, sa);
