@@ -444,6 +444,12 @@ archive_write_client_close(struct archive_write_filter *f)
 	/* Clear the close handler myself not to be called again. */
 	f->close = NULL;
 	a->client_data = NULL;
+	/* Clear passphrase. */
+	if (a->passphrase != NULL) {
+		memset(a->passphrase, 0, strlen(a->passphrase));
+		free(a->passphrase);
+		a->passphrase = NULL;
+	}
 	return (ret);
 }
 
@@ -503,8 +509,9 @@ _archive_write_close(struct archive *_a)
 
 	archive_clear_error(&a->archive);
 
-	/* Finish the last entry. */
-	if (a->archive.state == ARCHIVE_STATE_DATA)
+	/* Finish the last entry if a finish callback is specified */
+	if (a->archive.state == ARCHIVE_STATE_DATA
+	    && a->format_finish_entry != NULL)
 		r = ((a->format_finish_entry)(a));
 
 	/* Finish off the archive. */
@@ -591,6 +598,11 @@ _archive_write_free(struct archive *_a)
 	/* Release various dynamic buffers. */
 	free((void *)(uintptr_t)(const void *)a->nulls);
 	archive_string_free(&a->archive.error_string);
+	if (a->passphrase != NULL) {
+		/* A passphrase should be cleaned. */
+		memset(a->passphrase, 0, strlen(a->passphrase));
+		free(a->passphrase);
+	}
 	a->archive.magic = 0;
 	__archive_clean(&a->archive);
 	free(a);
@@ -638,6 +650,9 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 
 	/* Format and write header. */
 	r2 = ((a->format_write_header)(a, entry));
+	if (r2 == ARCHIVE_FAILED) {
+		return (ARCHIVE_FAILED);
+	}
 	if (r2 == ARCHIVE_FATAL) {
 		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
@@ -658,7 +673,8 @@ _archive_write_finish_entry(struct archive *_a)
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 	    "archive_write_finish_entry");
-	if (a->archive.state & ARCHIVE_STATE_DATA)
+	if (a->archive.state & ARCHIVE_STATE_DATA
+	    && a->format_finish_entry != NULL)
 		ret = (a->format_finish_entry)(a);
 	a->archive.state = ARCHIVE_STATE_HEADER;
 	return (ret);
@@ -709,7 +725,7 @@ static const char *
 _archive_filter_name(struct archive *_a, int n)
 {
 	struct archive_write_filter *f = filter_lookup(_a, n);
-	return f == NULL ? NULL : f->name;
+	return f != NULL ? f->name : NULL;
 }
 
 static int64_t
