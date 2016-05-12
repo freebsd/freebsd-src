@@ -267,6 +267,10 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_add_udp_tunnel	= 0x0B00,
 	i40e_aqc_opc_del_udp_tunnel	= 0x0B01,
 
+	/* Proxy commands */
+	i40e_aqc_opc_set_proxy_config	= 0x0104,
+	i40e_aqc_opc_set_ns_proxy_table_entry	= 0x0105,
+
 	/* Async Events */
 	i40e_aqc_opc_event_lan_overflow		= 0x1001,
 

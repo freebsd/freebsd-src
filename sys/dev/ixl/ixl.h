@@ -93,6 +93,7 @@
 #ifdef PCI_IOV
 #include <sys/nv.h>
 #include <sys/iov_schema.h>
+#include <dev/pci/pci_iov.h>
 #endif
 
 #include "i40e_type.h"
@@ -313,6 +314,7 @@
 #define IXL_RX_UNLOCK(_sc)              mtx_unlock(&(_sc)->mtx)
 #define IXL_RX_LOCK_DESTROY(_sc)        mtx_destroy(&(_sc)->mtx)
 
+/* Pre-11 counter(9) compatibility */
 #if __FreeBSD_version >= 1100036
 #define IXL_SET_IPACKETS(vsi, count)	(vsi)->ipackets = (count)
 #define IXL_SET_IERRORS(vsi, count)	(vsi)->ierrors = (count)

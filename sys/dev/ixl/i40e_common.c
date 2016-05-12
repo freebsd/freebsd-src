@@ -339,16 +339,20 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 				   buf[i+4], buf[i+5], buf[i+6], buf[i+7],
 				   buf[i+8], buf[i+9], buf[i+10], buf[i+11],
 				   buf[i+12], buf[i+13], buf[i+14], buf[i+15]);
-		/* write whatever's left over without overrunning the buffer */
+		/* the most we could have left is 16 bytes, pad with zeros */
 		if (i < len) {
-			char d_buf[80];
-			int j = 0;
+			char d_buf[16];
+			int j;
 
 			memset(d_buf, 0, sizeof(d_buf));
-			j += sprintf(d_buf, "\t0x%04X ", i);
-			while (i < len)
-				j += sprintf(&d_buf[j], " %02X", buf[i++]);
-			i40e_debug(hw, mask, "%s\n", d_buf);
+			for (j = 0; i < len; j++, i++)
+				d_buf[j] = buf[i];
+			i40e_debug(hw, mask,
+				   "\t0x%04X  %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
+				   i, d_buf[0], d_buf[1], d_buf[2], d_buf[3],
+				   d_buf[4], d_buf[5], d_buf[6], d_buf[7],
+				   d_buf[8], d_buf[9], d_buf[10], d_buf[11],
+				   d_buf[12], d_buf[13], d_buf[14], d_buf[15]);
 		}
 	}
 }
