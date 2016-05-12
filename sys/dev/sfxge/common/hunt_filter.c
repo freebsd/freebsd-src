@@ -1044,36 +1044,36 @@ fail1:
 }
 
 static	__checkReturn	efx_rc_t
-ef10_filter_multicast_refresh(
+ef10_filter_insert_multicast_list(
 	__in				efx_nic_t *enp,
 	__in				boolean_t mulcst,
-	__in				boolean_t all_mulcst,
 	__in				boolean_t brdcst,
 	__in_ecount(6*count)		uint8_t const *addrs,
 	__in				uint32_t count,
-	__in				efx_filter_flag_t filter_flags)
+	__in				efx_filter_flag_t filter_flags,
+	__in				boolean_t rollback)
 {
 	ef10_filter_table_t *eftp = enp->en_filter.ef_ef10_filter_table;
 	efx_filter_spec_t spec;
 	uint8_t addr[6];
-	unsigned i;
+	uint32_t i;
+	uint32_t filter_index;
+	uint32_t filter_count;
 	efx_rc_t rc;
-
-	if (all_mulcst == B_TRUE)
-		goto use_mc_def;
 
 	if (mulcst == B_FALSE)
 		count = 0;
 
 	if (count + (brdcst ? 1 : 0) >
 	    EFX_ARRAY_SIZE(eftp->eft_mulcst_filter_indexes)) {
-		/* Too many MAC addresses; use unknown multicast filter */
-		goto use_mc_def;
+		/* Too many MAC addresses */
+		rc = EINVAL;
+		goto fail1;
 	}
 
 	/* Insert/renew multicast address list filters */
-	eftp->eft_mulcst_filter_count = count;
-	for (i = 0; i < eftp->eft_mulcst_filter_count; i++) {
+	filter_count = 0;
+	for (i = 0; i < count; i++) {
 		efx_filter_spec_init_rx(&spec,
 		    EFX_FILTER_PRI_AUTO,
 		    filter_flags,
@@ -1084,16 +1084,21 @@ ef10_filter_multicast_refresh(
 		    &addrs[i * EFX_MAC_ADDR_LEN]);
 
 		rc = ef10_filter_add_internal(enp, &spec, B_TRUE,
-		    &eftp->eft_mulcst_filter_indexes[i]);
-		if (rc != 0) {
-			/* Rollback, then use unknown multicast filter */
+					    &filter_index);
+
+		if (rc == 0) {
+			eftp->eft_mulcst_filter_indexes[filter_count] =
+				filter_index;
+			filter_count++;
+		} else if (rollback == B_TRUE) {
+			/* Only stop upon failure if told to rollback */
 			goto rollback;
 		}
+
 	}
 
 	if (brdcst == B_TRUE) {
 		/* Insert/renew broadcast address filter */
-		eftp->eft_mulcst_filter_count++;
 		efx_filter_spec_init_rx(&spec, EFX_FILTER_PRI_AUTO,
 		    filter_flags,
 		    eftp->eft_default_rxq);
@@ -1103,28 +1108,46 @@ ef10_filter_multicast_refresh(
 		    addr);
 
 		rc = ef10_filter_add_internal(enp, &spec, B_TRUE,
-		    &eftp->eft_mulcst_filter_indexes[
-			eftp->eft_mulcst_filter_count - 1]);
-		if (rc != 0) {
-			/* Rollback, then use unknown multicast filter */
+					    &filter_index);
+
+		if (rc == 0) {
+			eftp->eft_mulcst_filter_indexes[filter_count] =
+				filter_index;
+			filter_count++;
+		} else if (rollback == B_TRUE) {
+			/* Only stop upon failure if told to rollback */
 			goto rollback;
 		}
 	}
 
+	eftp->eft_mulcst_filter_count = filter_count;
+
 	return (0);
 
 rollback:
-	/*
-	 * Rollback by removing any filters we have inserted
-	 * before inserting the unknown multicast filter.
-	 */
+	/* Remove any filters we have inserted */
+	i = filter_count;
 	while (i--) {
 		(void) ef10_filter_delete_internal(enp,
 		    eftp->eft_mulcst_filter_indexes[i]);
 	}
 	eftp->eft_mulcst_filter_count = 0;
 
-use_mc_def:
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+static	__checkReturn	efx_rc_t
+ef10_filter_insert_all_multicast(
+	__in				efx_nic_t *enp,
+	__in				efx_filter_flag_t filter_flags)
+{
+	ef10_filter_table_t *eftp = enp->en_filter.ef_ef10_filter_table;
+	efx_filter_spec_t spec;
+	efx_rc_t rc;
+
 	/* Insert the unknown multicast filter */
 	efx_filter_spec_init_rx(&spec, EFX_FILTER_PRI_AUTO,
 	    filter_flags,
@@ -1148,7 +1171,6 @@ fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
-
 }
 
 
@@ -1208,8 +1230,8 @@ ef10_filter_reconfigure(
 	ef10_filter_table_t *table = enp->en_filter.ef_ef10_filter_table;
 	efx_filter_flag_t filter_flags;
 	unsigned i;
-	int all_unicst_rc = 0;
-	int all_mulcst_rc;
+	efx_rc_t all_unicst_rc = 0;
+	efx_rc_t all_mulcst_rc = 0;
 	efx_rc_t rc;
 
 	if (table->eft_default_rxq == NULL) {
@@ -1295,19 +1317,41 @@ ef10_filter_reconfigure(
 		goto fail2;
 
 	/* Insert or renew multicast filters */
-	if ((all_mulcst_rc = ef10_filter_multicast_refresh(enp, mulcst,
-				all_mulcst, brdcst,
-				addrs, count, filter_flags)) != 0) {
-		if (all_mulcst == B_FALSE) {
-			rc = all_mulcst_rc;
-			goto fail3;
+	if (all_mulcst == B_TRUE) {
+		/*
+		 * Insert the all multicast filter. If that fails, try to insert
+		 * all of our multicast filters (but without rollback on
+		 * failure).
+		 */
+		all_mulcst_rc = ef10_filter_insert_all_multicast(enp,
+							    filter_flags);
+		if (all_mulcst_rc != 0) {
+			rc = ef10_filter_insert_multicast_list(enp, B_TRUE,
+			    brdcst, addrs, count, filter_flags, B_FALSE);
+			if (rc != 0)
+				goto fail3;
 		}
-		/* Retry without all_mulcast flag */
-		rc = ef10_filter_multicast_refresh(enp, mulcst,
-						B_FALSE, brdcst,
-						addrs, count, filter_flags);
-		if (rc != 0)
-			goto fail4;
+	} else {
+		/*
+		 * Insert filters for multicast addresses.
+		 * If any insertion fails, then rollback and try to insert the
+		 * all multicast filter instead.
+		 * If that also fails, try to insert all of the multicast
+		 * filters (but without rollback on failure).
+		 */
+		rc = ef10_filter_insert_multicast_list(enp, mulcst, brdcst,
+			    addrs, count, filter_flags, B_TRUE);
+		if (rc != 0) {
+			rc = ef10_filter_insert_all_multicast(enp,
+							    filter_flags);
+			if (rc != 0) {
+				rc = ef10_filter_insert_multicast_list(enp,
+				    mulcst, brdcst,
+				    addrs, count, filter_flags, B_FALSE);
+				if (rc != 0)
+					goto fail4;
+			}
+		}
 	}
 
 	/* Remove old filters which were not renewed */
