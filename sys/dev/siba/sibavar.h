@@ -611,5 +611,10 @@ uint32_t	siba_gpio_get(device_t);
 void		siba_fix_imcfglobug(device_t);
 int		siba_sprom_get_core_power_info(device_t, int,
 		    struct siba_sprom_core_pwr_info *);
+void		siba_pmu_spuravoid_pllupdate(device_t, int);
+void		siba_cc_set32(device_t dev, uint32_t, uint32_t);
+void		siba_cc_mask32(device_t dev, uint32_t, uint32_t);
+uint32_t	siba_cc_read32(device_t dev, uint32_t);
+void		siba_cc_write32(device_t dev, uint32_t, uint32_t);
 
 #endif /* _SIBA_SIBAVAR_H_ */

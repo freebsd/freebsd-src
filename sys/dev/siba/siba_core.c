@@ -2720,3 +2720,124 @@ siba_sprom_get_core_power_info(device_t dev, int core,
 	return (0);
 }
 
+void
+siba_pmu_spuravoid_pllupdate(device_t dev, int spur_avoid)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+	struct siba_cc *scc;
+
+	scc = &siba->siba_cc;
+
+	if (scc->scc_dev == NULL) {
+		device_printf(dev, "%s: called; no pmu\n", __func__);
+		return;
+	}
+
+	switch (siba_get_chipid(dev)) {
+	case 0x4322:
+		siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL0, 0x11100070);
+		siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL1, 0x1014140a);
+		siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL5, 0x88888854);
+		if (spur_avoid == 1)
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL2, 0x05201828);
+		else
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL2, 0x05001828);
+		break;
+	case 43222:
+		if (spur_avoid == 1) {
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL0, 0x11500008);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL1, 0x0C000C06);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL2, 0x0F600a08);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL3, 0x00000000);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL4, 0x2001E920);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL5, 0x88888815);
+		} else {
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL0, 0x11100008);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL1, 0x0c000c06);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL2, 0x03000a08);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL3, 0x00000000);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL4, 0x200005c0);
+			siba_cc_pll_write(scc, SIBA_CC_PMU1_PLL5, 0x88888855);
+		}
+		break;
+	default:
+		device_printf(dev,
+		    "%s: unknown spur avoidance settings for chip 0x%04x\n",
+		    __func__,
+		    siba_get_chipid(dev));
+		return;
+	}
+
+	/* Both chips above use the same update */
+	SIBA_CC_SET32(scc, SIBA_CC_PMUCTL, SIBA_CC_PMUCTL_PLL_UPD);
+}
+
+void
+siba_cc_set32(device_t dev, uint32_t reg, uint32_t val)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+	struct siba_cc *scc;
+
+	scc = &siba->siba_cc;
+
+	if (scc->scc_dev == NULL) {
+		device_printf(dev, "%s: called; no pmu\n", __func__);
+		return;
+	}
+
+	SIBA_CC_SET32(scc, reg, val);
+}
+
+void
+siba_cc_mask32(device_t dev, uint32_t reg, uint32_t mask)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+	struct siba_cc *scc;
+
+	scc = &siba->siba_cc;
+
+	if (scc->scc_dev == NULL) {
+		device_printf(dev, "%s: called; no pmu\n", __func__);
+		return;
+	}
+
+	SIBA_CC_MASK32(scc, reg, mask);
+}
+
+uint32_t
+siba_cc_read32(device_t dev, uint32_t reg)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+	struct siba_cc *scc;
+
+	scc = &siba->siba_cc;
+
+	if (scc->scc_dev == NULL) {
+		device_printf(dev, "%s: called; no pmu\n", __func__);
+		return 0xffffffff;
+	}
+
+	return SIBA_CC_READ32(scc, reg);
+}
+
+void
+siba_cc_write32(device_t dev, uint32_t reg, uint32_t val)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+	struct siba_cc *scc;
+
+	scc = &siba->siba_cc;
+
+	if (scc->scc_dev == NULL) {
+		device_printf(dev, "%s: called; no pmu\n", __func__);
+		return;
+	}
+
+	SIBA_CC_WRITE32(scc, reg, val);
+}
+
