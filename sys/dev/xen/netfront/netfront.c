@@ -2016,7 +2016,7 @@ xn_query_features(struct netfront_info *np)
 	device_printf(np->xbdev, "backend features:");
 
 	if (xs_scanf(XST_NIL, xenbus_get_otherend_path(np->xbdev),
-		"feature-sg", NULL, "%d", &val) < 0)
+		"feature-sg", NULL, "%d", &val) != 0)
 		val = 0;
 
 	np->maxfrags = 1;
@@ -2026,7 +2026,7 @@ xn_query_features(struct netfront_info *np)
 	}
 
 	if (xs_scanf(XST_NIL, xenbus_get_otherend_path(np->xbdev),
-		"feature-gso-tcpv4", NULL, "%d", &val) < 0)
+		"feature-gso-tcpv4", NULL, "%d", &val) != 0)
 		val = 0;
 
 	np->xn_ifp->if_capabilities &= ~(IFCAP_TSO4|IFCAP_LRO);
