@@ -613,7 +613,7 @@ static void
 process_mandir(char *dir_name, char *section)
 {
 	if (fchdir(starting_dir) < 0)
-		warn("fchdir");
+		err(1, "fchdir");
 	if (already_visited(NULL, dir_name, section == NULL))
 		return;
 	check_writable(dir_name);
