@@ -42,11 +42,7 @@
  */
 
 #define I40E_FW_API_VERSION_MAJOR	0x0001
-#ifdef X722_SUPPORT
-#define I40E_FW_API_VERSION_MINOR	0x0003
-#else
 #define I40E_FW_API_VERSION_MINOR	0x0004
-#endif
 
 struct i40e_aq_desc {
 	__le16 flags;
@@ -270,12 +266,6 @@ enum i40e_admin_queue_opc {
 	/* Tunnel commands */
 	i40e_aqc_opc_add_udp_tunnel	= 0x0B00,
 	i40e_aqc_opc_del_udp_tunnel	= 0x0B01,
-#ifdef X722_SUPPORT
-	i40e_aqc_opc_set_rss_key	= 0x0B02,
-	i40e_aqc_opc_set_rss_lut	= 0x0B03,
-	i40e_aqc_opc_get_rss_key	= 0x0B04,
-	i40e_aqc_opc_get_rss_lut	= 0x0B05,
-#endif
 
 	/* Async Events */
 	i40e_aqc_opc_event_lan_overflow		= 0x1001,
@@ -840,16 +830,8 @@ struct i40e_aqc_vsi_properties_data {
 					 I40E_AQ_VSI_TC_QUE_NUMBER_SHIFT)
 	/* queueing option section */
 	u8	queueing_opt_flags;
-#ifdef X722_SUPPORT
-#define I40E_AQ_VSI_QUE_OPT_MULTICAST_UDP_ENA	0x04
-#define I40E_AQ_VSI_QUE_OPT_UNICAST_UDP_ENA	0x08
-#endif
 #define I40E_AQ_VSI_QUE_OPT_TCP_ENA	0x10
 #define I40E_AQ_VSI_QUE_OPT_FCOE_ENA	0x20
-#ifdef X722_SUPPORT
-#define I40E_AQ_VSI_QUE_OPT_RSS_LUT_PF	0x00
-#define I40E_AQ_VSI_QUE_OPT_RSS_LUT_VSI	0x40
-#endif
 	u8	queueing_opt_reserved[3];
 	/* scheduler section */
 	u8	up_enable_bits;
@@ -2155,7 +2137,13 @@ I40E_CHECK_STRUCT_LEN(0x20, i40e_aqc_get_cee_dcb_cfg_resp);
  */
 struct i40e_aqc_lldp_set_local_mib {
 #define SET_LOCAL_MIB_AC_TYPE_DCBX_SHIFT	0
-#define SET_LOCAL_MIB_AC_TYPE_DCBX_MASK		(1 << SET_LOCAL_MIB_AC_TYPE_DCBX_SHIFT)
+#define SET_LOCAL_MIB_AC_TYPE_DCBX_MASK	(1 << \
+					SET_LOCAL_MIB_AC_TYPE_DCBX_SHIFT)
+#define SET_LOCAL_MIB_AC_TYPE_LOCAL_MIB	0x0
+#define SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS_SHIFT	(1)
+#define SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS_MASK	(1 << \
+				SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS_SHIFT)
+#define SET_LOCAL_MIB_AC_TYPE_NON_WILLING_APPS		0x1
 	u8	type;
 	u8	reserved0;
 	__le16	length;
@@ -2221,48 +2209,6 @@ struct i40e_aqc_del_udp_tunnel_completion {
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_del_udp_tunnel_completion);
-#ifdef X722_SUPPORT
-
-struct i40e_aqc_get_set_rss_key {
-#define I40E_AQC_SET_RSS_KEY_VSI_VALID		(0x1 << 15)
-#define I40E_AQC_SET_RSS_KEY_VSI_ID_SHIFT	0
-#define I40E_AQC_SET_RSS_KEY_VSI_ID_MASK	(0x3FF << \
-					I40E_AQC_SET_RSS_KEY_VSI_ID_SHIFT)
-	__le16	vsi_id;
-	u8	reserved[6];
-	__le32	addr_high;
-	__le32	addr_low;
-};
-
-I40E_CHECK_CMD_LENGTH(i40e_aqc_get_set_rss_key);
-
-struct i40e_aqc_get_set_rss_key_data {
-	u8 standard_rss_key[0x28];
-	u8 extended_hash_key[0xc];
-};
-
-I40E_CHECK_STRUCT_LEN(0x34, i40e_aqc_get_set_rss_key_data);
-
-struct  i40e_aqc_get_set_rss_lut {
-#define I40E_AQC_SET_RSS_LUT_VSI_VALID		(0x1 << 15)
-#define I40E_AQC_SET_RSS_LUT_VSI_ID_SHIFT	0
-#define I40E_AQC_SET_RSS_LUT_VSI_ID_MASK	(0x3FF << \
-					I40E_AQC_SET_RSS_LUT_VSI_ID_SHIFT)
-	__le16	vsi_id;
-#define I40E_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT	0
-#define I40E_AQC_SET_RSS_LUT_TABLE_TYPE_MASK	(0x1 << \
-					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT)
-
-#define I40E_AQC_SET_RSS_LUT_TABLE_TYPE_VSI	0
-#define I40E_AQC_SET_RSS_LUT_TABLE_TYPE_PF	1
-	__le16	flags;
-	u8	reserved[4];
-	__le32	addr_high;
-	__le32	addr_low;
-};
-
-I40E_CHECK_CMD_LENGTH(i40e_aqc_get_set_rss_lut);
-#endif
 
 /* tunnel key structure 0x0B10 */
 

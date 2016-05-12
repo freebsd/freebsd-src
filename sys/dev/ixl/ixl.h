@@ -93,7 +93,6 @@
 #ifdef PCI_IOV
 #include <sys/nv.h>
 #include <sys/iov_schema.h>
-#include <dev/pci/pci_iov.h>
 #endif
 
 #include "i40e_type.h"
@@ -498,6 +497,7 @@ struct ixl_vsi {
 	struct device		*dev;
 	struct i40e_hw		*hw;
 	struct ifmedia		media;
+	enum i40e_vsi_type	type;
 	u64			que_mask;
 	int			id;
 	u16			vsi_num;
@@ -512,9 +512,11 @@ struct ixl_vsi {
 	u16			uplink_seid;
 	u16			downlink_seid;
 	u16			max_frame_size;
+	u16			rss_table_size;
+	u16			rss_size;
 
 	/* MAC/VLAN Filter list */
-	struct ixl_ftl_head ftl;
+	struct ixl_ftl_head	ftl;
 	u16			num_macs;
 
 	struct i40e_aqc_vsi_properties_data info;

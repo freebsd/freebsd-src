@@ -496,8 +496,12 @@ enum i40e_status_code i40e_shutdown_asq(struct i40e_hw *hw)
 {
 	enum i40e_status_code ret_code = I40E_SUCCESS;
 
-	if (hw->aq.asq.count == 0)
-		return I40E_ERR_NOT_READY;
+	i40e_acquire_spinlock(&hw->aq.asq_spinlock);
+
+	if (hw->aq.asq.count == 0) {
+		ret_code = I40E_ERR_NOT_READY;
+		goto shutdown_asq_out;
+	}
 
 	/* Stop firmware AdminQ processing */
 	wr32(hw, hw->aq.asq.head, 0);
@@ -506,16 +510,13 @@ enum i40e_status_code i40e_shutdown_asq(struct i40e_hw *hw)
 	wr32(hw, hw->aq.asq.bal, 0);
 	wr32(hw, hw->aq.asq.bah, 0);
 
-	/* make sure spinlock is available */
-	i40e_acquire_spinlock(&hw->aq.asq_spinlock);
-
 	hw->aq.asq.count = 0; /* to indicate uninitialized queue */
 
 	/* free ring buffers */
 	i40e_free_asq_bufs(hw);
 
+shutdown_asq_out:
 	i40e_release_spinlock(&hw->aq.asq_spinlock);
-
 	return ret_code;
 }
 
@@ -529,8 +530,12 @@ enum i40e_status_code i40e_shutdown_arq(struct i40e_hw *hw)
 {
 	enum i40e_status_code ret_code = I40E_SUCCESS;
 
-	if (hw->aq.arq.count == 0)
-		return I40E_ERR_NOT_READY;
+	i40e_acquire_spinlock(&hw->aq.arq_spinlock);
+
+	if (hw->aq.arq.count == 0) {
+		ret_code = I40E_ERR_NOT_READY;
+		goto shutdown_arq_out;
+	}
 
 	/* Stop firmware AdminQ processing */
 	wr32(hw, hw->aq.arq.head, 0);
@@ -539,16 +544,13 @@ enum i40e_status_code i40e_shutdown_arq(struct i40e_hw *hw)
 	wr32(hw, hw->aq.arq.bal, 0);
 	wr32(hw, hw->aq.arq.bah, 0);
 
-	/* make sure spinlock is available */
-	i40e_acquire_spinlock(&hw->aq.arq_spinlock);
-
 	hw->aq.arq.count = 0; /* to indicate uninitialized queue */
 
 	/* free ring buffers */
 	i40e_free_arq_bufs(hw);
 
+shutdown_arq_out:
 	i40e_release_spinlock(&hw->aq.arq_spinlock);
-
 	return ret_code;
 }
 
@@ -773,21 +775,23 @@ enum i40e_status_code i40e_asq_send_command(struct i40e_hw *hw,
 	u16  retval = 0;
 	u32  val = 0;
 
+	i40e_acquire_spinlock(&hw->aq.asq_spinlock);
+
 	hw->aq.asq_last_status = I40E_AQ_RC_OK;
+
+	if (hw->aq.asq.count == 0) {
+		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
+			   "AQTX: Admin queue not initialized.\n");
+		status = I40E_ERR_QUEUE_EMPTY;
+		goto asq_send_command_error;
+	}
 
 	val = rd32(hw, hw->aq.asq.head);
 	if (val >= hw->aq.num_asq_entries) {
 		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 			   "AQTX: head overrun at %d\n", val);
 		status = I40E_ERR_QUEUE_EMPTY;
-		goto asq_send_command_exit;
-	}
-
-	if (hw->aq.asq.count == 0) {
-		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
-			   "AQTX: Admin queue not initialized.\n");
-		status = I40E_ERR_QUEUE_EMPTY;
-		goto asq_send_command_exit;
+		goto asq_send_command_error;
 	}
 
 	details = I40E_ADMINQ_DETAILS(hw->aq.asq, hw->aq.asq.next_to_use);
@@ -816,8 +820,6 @@ enum i40e_status_code i40e_asq_send_command(struct i40e_hw *hw,
 	/* clear requested flags and then set additional flags if defined */
 	desc->flags &= ~CPU_TO_LE16(details->flags_dis);
 	desc->flags |= CPU_TO_LE16(details->flags_ena);
-
-	i40e_acquire_spinlock(&hw->aq.asq_spinlock);
 
 	if (buff_size > hw->aq.asq_buf_size) {
 		i40e_debug(hw,
@@ -948,7 +950,6 @@ enum i40e_status_code i40e_asq_send_command(struct i40e_hw *hw,
 
 asq_send_command_error:
 	i40e_release_spinlock(&hw->aq.asq_spinlock);
-asq_send_command_exit:
 	return status;
 }
 

@@ -67,19 +67,6 @@ enum i40e_status_code i40e_set_mac_type(struct i40e_hw *hw)
 		case I40E_DEV_ID_20G_KR2_A:
 			hw->mac.type = I40E_MAC_XL710;
 			break;
-#ifdef X722_SUPPORT
-		case I40E_DEV_ID_SFP_X722:
-		case I40E_DEV_ID_1G_BASE_T_X722:
-		case I40E_DEV_ID_10G_BASE_T_X722:
-			hw->mac.type = I40E_MAC_X722;
-			break;
-#endif
-#ifdef X722_SUPPORT
-		case I40E_DEV_ID_X722_VF:
-		case I40E_DEV_ID_X722_VF_HV:
-			hw->mac.type = I40E_MAC_X722_VF;
-			break;
-#endif
 		case I40E_DEV_ID_VF:
 		case I40E_DEV_ID_VF_HV:
 			hw->mac.type = I40E_MAC_VF;
@@ -102,7 +89,7 @@ enum i40e_status_code i40e_set_mac_type(struct i40e_hw *hw)
  * @hw: pointer to the HW structure
  * @aq_err: the AQ error code to convert
  **/
-char *i40e_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
+const char *i40e_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
 {
 	switch (aq_err) {
 	case I40E_AQ_RC_OK:
@@ -162,7 +149,7 @@ char *i40e_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err)
  * @hw: pointer to the HW structure
  * @stat_err: the status error code to convert
  **/
-char *i40e_stat_str(struct i40e_hw *hw, enum i40e_status_code stat_err)
+const char *i40e_stat_str(struct i40e_hw *hw, enum i40e_status_code stat_err)
 {
 	switch (stat_err) {
 	case I40E_SUCCESS:
@@ -409,171 +396,6 @@ enum i40e_status_code i40e_aq_queue_shutdown(struct i40e_hw *hw,
 
 	return status;
 }
-#ifdef X722_SUPPORT
-
-/**
- * i40e_aq_get_set_rss_lut
- * @hw: pointer to the hardware structure
- * @vsi_id: vsi fw index
- * @pf_lut: for PF table set TRUE, for VSI table set FALSE
- * @lut: pointer to the lut buffer provided by the caller
- * @lut_size: size of the lut buffer
- * @set: set TRUE to set the table, FALSE to get the table
- *
- * Internal function to get or set RSS look up table
- **/
-static enum i40e_status_code i40e_aq_get_set_rss_lut(struct i40e_hw *hw,
-						     u16 vsi_id, bool pf_lut,
-						     u8 *lut, u16 lut_size,
-						     bool set)
-{
-	enum i40e_status_code status;
-	struct i40e_aq_desc desc;
-	struct i40e_aqc_get_set_rss_lut *cmd_resp =
-		   (struct i40e_aqc_get_set_rss_lut *)&desc.params.raw;
-
-	if (set)
-		i40e_fill_default_direct_cmd_desc(&desc,
-						  i40e_aqc_opc_set_rss_lut);
-	else
-		i40e_fill_default_direct_cmd_desc(&desc,
-						  i40e_aqc_opc_get_rss_lut);
-
-	/* Indirect command */
-	desc.flags |= CPU_TO_LE16((u16)I40E_AQ_FLAG_BUF);
-	desc.flags |= CPU_TO_LE16((u16)I40E_AQ_FLAG_RD);
-
-	cmd_resp->vsi_id =
-			CPU_TO_LE16((u16)((vsi_id <<
-					  I40E_AQC_SET_RSS_LUT_VSI_ID_SHIFT) &
-					  I40E_AQC_SET_RSS_LUT_VSI_ID_MASK));
-	cmd_resp->vsi_id |= CPU_TO_LE16((u16)I40E_AQC_SET_RSS_LUT_VSI_VALID);
-
-	if (pf_lut)
-		cmd_resp->flags |= CPU_TO_LE16((u16)
-					((I40E_AQC_SET_RSS_LUT_TABLE_TYPE_PF <<
-					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT) &
-					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_MASK));
-	else
-		cmd_resp->flags |= CPU_TO_LE16((u16)
-					((I40E_AQC_SET_RSS_LUT_TABLE_TYPE_VSI <<
-					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT) &
-					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_MASK));
-
-	cmd_resp->addr_high = CPU_TO_LE32(I40E_HI_WORD((u64)lut));
-	cmd_resp->addr_low = CPU_TO_LE32(I40E_LO_DWORD((u64)lut));
-
-	status = i40e_asq_send_command(hw, &desc, lut, lut_size, NULL);
-
-	return status;
-}
-
-/**
- * i40e_aq_get_rss_lut
- * @hw: pointer to the hardware structure
- * @vsi_id: vsi fw index
- * @pf_lut: for PF table set TRUE, for VSI table set FALSE
- * @lut: pointer to the lut buffer provided by the caller
- * @lut_size: size of the lut buffer
- *
- * get the RSS lookup table, PF or VSI type
- **/
-enum i40e_status_code i40e_aq_get_rss_lut(struct i40e_hw *hw, u16 vsi_id,
-					  bool pf_lut, u8 *lut, u16 lut_size)
-{
-	return i40e_aq_get_set_rss_lut(hw, vsi_id, pf_lut, lut, lut_size,
-				       FALSE);
-}
-
-/**
- * i40e_aq_set_rss_lut
- * @hw: pointer to the hardware structure
- * @vsi_id: vsi fw index
- * @pf_lut: for PF table set TRUE, for VSI table set FALSE
- * @lut: pointer to the lut buffer provided by the caller
- * @lut_size: size of the lut buffer
- *
- * set the RSS lookup table, PF or VSI type
- **/
-enum i40e_status_code i40e_aq_set_rss_lut(struct i40e_hw *hw, u16 vsi_id,
-					  bool pf_lut, u8 *lut, u16 lut_size)
-{
-	return i40e_aq_get_set_rss_lut(hw, vsi_id, pf_lut, lut, lut_size, TRUE);
-}
-
-/**
- * i40e_aq_get_set_rss_key
- * @hw: pointer to the hw struct
- * @vsi_id: vsi fw index
- * @key: pointer to key info struct
- * @set: set TRUE to set the key, FALSE to get the key
- *
- * get the RSS key per VSI
- **/
-static enum i40e_status_code i40e_aq_get_set_rss_key(struct i40e_hw *hw,
-				      u16 vsi_id,
-				      struct i40e_aqc_get_set_rss_key_data *key,
-				      bool set)
-{
-	enum i40e_status_code status;
-	struct i40e_aq_desc desc;
-	struct i40e_aqc_get_set_rss_key *cmd_resp =
-			(struct i40e_aqc_get_set_rss_key *)&desc.params.raw;
-	u16 key_size = sizeof(struct i40e_aqc_get_set_rss_key_data);
-
-	if (set)
-		i40e_fill_default_direct_cmd_desc(&desc,
-						  i40e_aqc_opc_set_rss_key);
-	else
-		i40e_fill_default_direct_cmd_desc(&desc,
-						  i40e_aqc_opc_get_rss_key);
-
-	/* Indirect command */
-	desc.flags |= CPU_TO_LE16((u16)I40E_AQ_FLAG_BUF);
-	desc.flags |= CPU_TO_LE16((u16)I40E_AQ_FLAG_RD);
-
-	cmd_resp->vsi_id =
-			CPU_TO_LE16((u16)((vsi_id <<
-					  I40E_AQC_SET_RSS_KEY_VSI_ID_SHIFT) &
-					  I40E_AQC_SET_RSS_KEY_VSI_ID_MASK));
-	cmd_resp->vsi_id |= CPU_TO_LE16((u16)I40E_AQC_SET_RSS_KEY_VSI_VALID);
-	cmd_resp->addr_high = CPU_TO_LE32(I40E_HI_WORD((u64)key));
-	cmd_resp->addr_low = CPU_TO_LE32(I40E_LO_DWORD((u64)key));
-
-	status = i40e_asq_send_command(hw, &desc, key, key_size, NULL);
-
-	return status;
-}
-
-/**
- * i40e_aq_get_rss_key
- * @hw: pointer to the hw struct
- * @vsi_id: vsi fw index
- * @key: pointer to key info struct
- *
- **/
-enum i40e_status_code i40e_aq_get_rss_key(struct i40e_hw *hw,
-				      u16 vsi_id,
-				      struct i40e_aqc_get_set_rss_key_data *key)
-{
-	return i40e_aq_get_set_rss_key(hw, vsi_id, key, FALSE);
-}
-
-/**
- * i40e_aq_set_rss_key
- * @hw: pointer to the hw struct
- * @vsi_id: vsi fw index
- * @key: pointer to key info struct
- *
- * set the RSS key per VSI
- **/
-enum i40e_status_code i40e_aq_set_rss_key(struct i40e_hw *hw,
-				      u16 vsi_id,
-				      struct i40e_aqc_get_set_rss_key_data *key)
-{
-	return i40e_aq_get_set_rss_key(hw, vsi_id, key, TRUE);
-}
-#endif /* X722_SUPPORT */
 
 /* The i40e_ptype_lookup table is used to convert from the 8-bit ptype in the
  * hardware to a bit-field that can be used by SW to more easily determine the
@@ -988,9 +810,6 @@ enum i40e_status_code i40e_init_shared_code(struct i40e_hw *hw)
 
 	switch (hw->mac.type) {
 	case I40E_MAC_XL710:
-#ifdef X722_SUPPORT
-	case I40E_MAC_X722:
-#endif
 		break;
 	default:
 		return I40E_ERR_DEVICE_NOT_SUPPORTED;
@@ -1625,6 +1444,9 @@ enum i40e_status_code i40e_aq_get_phy_capabilities(struct i40e_hw *hw,
 
 	if (hw->aq.asq_last_status == I40E_AQ_RC_EIO)
 		status = I40E_ERR_UNKNOWN_PHY;
+
+	if (report_init)
+		hw->phy.phy_types = LE32_TO_CPU(abilities->phy_type);
 
 	return status;
 }
@@ -5218,7 +5040,7 @@ enum i40e_status_code i40e_aq_alternate_write_indirect(struct i40e_hw *hw,
 
 	cmd_resp->address = CPU_TO_LE32(addr);
 	cmd_resp->length = CPU_TO_LE32(dw_count);
-	cmd_resp->addr_high = CPU_TO_LE32(I40E_HI_WORD((u64)buffer));
+	cmd_resp->addr_high = CPU_TO_LE32(I40E_HI_DWORD((u64)buffer));
 	cmd_resp->addr_low = CPU_TO_LE32(I40E_LO_DWORD((u64)buffer));
 
 	status = i40e_asq_send_command(hw, &desc, buffer,

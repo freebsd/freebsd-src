@@ -218,10 +218,6 @@ static enum i40e_status_code i40e_poll_sr_srctl_done_bit(struct i40e_hw *hw)
 enum i40e_status_code i40e_read_nvm_word(struct i40e_hw *hw, u16 offset,
 					 u16 *data)
 {
-#ifdef X722_SUPPORT
-	if (hw->mac.type == I40E_MAC_X722)
-		return i40e_read_nvm_word_aq(hw, offset, data);
-#endif
 	return i40e_read_nvm_word_srctl(hw, offset, data);
 }
 
@@ -310,10 +306,6 @@ enum i40e_status_code i40e_read_nvm_word_aq(struct i40e_hw *hw, u16 offset,
 enum i40e_status_code i40e_read_nvm_buffer(struct i40e_hw *hw, u16 offset,
 					   u16 *words, u16 *data)
 {
-#ifdef X722_SUPPORT
-	if (hw->mac.type == I40E_MAC_X722)
-		return i40e_read_nvm_buffer_aq(hw, offset, words, data);
-#endif
 	return i40e_read_nvm_buffer_srctl(hw, offset, words, data);
 }
 
