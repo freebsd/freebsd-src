@@ -44,8 +44,8 @@
  **/
 static INLINE bool i40e_is_nvm_update_op(struct i40e_aq_desc *desc)
 {
-	return (desc->opcode == CPU_TO_LE16(i40e_aqc_opc_nvm_erase) ||
-		desc->opcode == CPU_TO_LE16(i40e_aqc_opc_nvm_update));
+	return (desc->opcode == CPU_TO_LE16(i40e_aqc_opc_nvm_erase)) ||
+		(desc->opcode == CPU_TO_LE16(i40e_aqc_opc_nvm_update));
 }
 
 /**
@@ -555,6 +555,24 @@ shutdown_arq_out:
 }
 
 /**
+ *  i40e_resume_aq - resume AQ processing from 0
+ *  @hw: pointer to the hardware structure
+ **/
+static void i40e_resume_aq(struct i40e_hw *hw)
+{
+	/* Registers are reset after PF reset */
+	hw->aq.asq.next_to_use = 0;
+	hw->aq.asq.next_to_clean = 0;
+
+	i40e_config_asq_regs(hw);
+
+	hw->aq.arq.next_to_use = 0;
+	hw->aq.arq.next_to_clean = 0;
+
+	i40e_config_arq_regs(hw);
+}
+
+/**
  *  i40e_init_adminq - main initialization routine for Admin Queue
  *  @hw: pointer to the hardware structure
  *
@@ -567,10 +585,11 @@ shutdown_arq_out:
  **/
 enum i40e_status_code i40e_init_adminq(struct i40e_hw *hw)
 {
-	enum i40e_status_code ret_code;
-	u16 eetrack_lo, eetrack_hi;
 	u16 cfg_ptr, oem_hi, oem_lo;
+	u16 eetrack_lo, eetrack_hi;
+	enum i40e_status_code ret_code;
 	int retry = 0;
+
 	/* verify input for valid configuration */
 	if ((hw->aq.num_arq_entries == 0) ||
 	    (hw->aq.num_asq_entries == 0) ||
@@ -579,8 +598,6 @@ enum i40e_status_code i40e_init_adminq(struct i40e_hw *hw)
 		ret_code = I40E_ERR_CONFIG;
 		goto init_adminq_exit;
 	}
-
-	/* initialize spin locks */
 	i40e_init_spinlock(&hw->aq.asq_spinlock);
 	i40e_init_spinlock(&hw->aq.arq_spinlock);
 
@@ -681,8 +698,6 @@ enum i40e_status_code i40e_shutdown_adminq(struct i40e_hw *hw)
 
 	i40e_shutdown_asq(hw);
 	i40e_shutdown_arq(hw);
-
-	/* destroy the spinlocks */
 	i40e_destroy_spinlock(&hw->aq.asq_spinlock);
 	i40e_destroy_spinlock(&hw->aq.arq_spinlock);
 
@@ -708,7 +723,6 @@ u16 i40e_clean_asq(struct i40e_hw *hw)
 
 	desc = I40E_ADMINQ_DESC(*asq, ntc);
 	details = I40E_ADMINQ_DETAILS(*asq, ntc);
-
 	while (rd32(hw, hw->aq.asq.head) != ntc) {
 		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
 			   "ntc %d head %d.\n", ntc, rd32(hw, hw->aq.asq.head));
@@ -899,7 +913,6 @@ enum i40e_status_code i40e_asq_send_command(struct i40e_hw *hw,
 			 */
 			if (i40e_asq_done(hw))
 				break;
-			/* ugh! delay while spin_lock */
 			i40e_msec_delay(1);
 			total_delay++;
 		} while (total_delay < hw->aq.asq_cmd_timeout);
@@ -1098,16 +1111,3 @@ clean_arq_element_err:
 	return ret_code;
 }
 
-void i40e_resume_aq(struct i40e_hw *hw)
-{
-	/* Registers are reset after PF reset */
-	hw->aq.asq.next_to_use = 0;
-	hw->aq.asq.next_to_clean = 0;
-
-	i40e_config_asq_regs(hw);
-
-	hw->aq.arq.next_to_use = 0;
-	hw->aq.arq.next_to_clean = 0;
-
-	i40e_config_arq_regs(hw);
-}

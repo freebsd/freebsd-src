@@ -154,6 +154,8 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_set_port_parameters	= 0x0203,
 	i40e_aqc_opc_get_switch_resource_alloc	= 0x0204,
 	i40e_aqc_opc_set_switch_config		= 0x0205,
+	i40e_aqc_opc_rx_ctl_reg_read		= 0x0206,
+	i40e_aqc_opc_rx_ctl_reg_write		= 0x0207,
 
 	i40e_aqc_opc_add_vsi			= 0x0210,
 	i40e_aqc_opc_update_vsi_parameters	= 0x0211,
@@ -700,6 +702,20 @@ struct i40e_aqc_set_switch_config {
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_set_switch_config);
 
+/* Read Receive control registers  (direct 0x0206)
+ * Write Receive control registers (direct 0x0207)
+ *     used for accessing Rx control registers that can be
+ *     slow and need special handling when under high Rx load
+ */
+struct i40e_aqc_rx_ctl_reg_read_write {
+	__le32 reserved1;
+	__le32 address;
+	__le32 reserved2;
+	__le32 value;
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_rx_ctl_reg_read_write);
+
 /* Add VSI (indirect 0x0210)
  *    this indirect command uses struct i40e_aqc_vsi_properties_data
  *    as the indirect buffer (128 bytes)
@@ -853,7 +869,7 @@ struct i40e_aqc_vsi_properties_data {
 	u8	up_enable_bits;
 	u8	sched_reserved;
 	/* outer up section */
-	__le32	outer_up_table; /* same structure and defines as ingress table */
+	__le32	outer_up_table; /* same structure and defines as ingress tbl */
 	u8	cmd_reserved[8];
 	/* last 32 bytes are written by FW */
 	__le16	qs_handle[8];
@@ -1493,7 +1509,8 @@ struct i40e_aqc_configure_switching_comp_ets_bw_limit_data {
 	u8	reserved1[28];
 };
 
-I40E_CHECK_STRUCT_LEN(0x40, i40e_aqc_configure_switching_comp_ets_bw_limit_data);
+I40E_CHECK_STRUCT_LEN(0x40,
+		      i40e_aqc_configure_switching_comp_ets_bw_limit_data);
 
 /* Configure Switching Component Bandwidth Allocation per Tc
  * (indirect 0x0417)
@@ -1888,7 +1905,7 @@ struct i40e_aqc_nvm_config_read {
 #define I40E_AQ_ANVM_READ_SINGLE_FEATURE		0
 #define I40E_AQ_ANVM_READ_MULTIPLE_FEATURES		1
 	__le16	element_count;
-	__le16	element_id;     /* Feature/field ID */
+	__le16	element_id;	/* Feature/field ID */
 	__le16	element_id_msw;	/* MSWord of field ID */
 	__le32	address_high;
 	__le32	address_low;
@@ -1909,9 +1926,10 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_nvm_config_write);
 
 /* Used for 0x0704 as well as for 0x0705 commands */
 #define I40E_AQ_ANVM_FEATURE_OR_IMMEDIATE_SHIFT		1
-#define I40E_AQ_ANVM_FEATURE_OR_IMMEDIATE_MASK		(1 << I40E_AQ_ANVM_FEATURE_OR_IMMEDIATE_SHIFT)
-#define I40E_AQ_ANVM_FEATURE				0
-#define I40E_AQ_ANVM_IMMEDIATE_FIELD			(1 << FEATURE_OR_IMMEDIATE_SHIFT)
+#define I40E_AQ_ANVM_FEATURE_OR_IMMEDIATE_MASK \
+				(1 << I40E_AQ_ANVM_FEATURE_OR_IMMEDIATE_SHIFT)
+#define I40E_AQ_ANVM_FEATURE		0
+#define I40E_AQ_ANVM_IMMEDIATE_FIELD	(1 << FEATURE_OR_IMMEDIATE_SHIFT)
 struct i40e_aqc_nvm_config_data_feature {
 	__le16 feature_id;
 #define I40E_AQ_ANVM_FEATURE_OPTION_OEM_ONLY		0x01
@@ -1935,7 +1953,7 @@ I40E_CHECK_STRUCT_LEN(0xc, i40e_aqc_nvm_config_data_immediate_field);
 /* OEM Post Update (indirect 0x0720)
  * no command data struct used
  */
- struct i40e_aqc_nvm_oem_post_update {
+struct i40e_aqc_nvm_oem_post_update {
 #define I40E_AQ_NVM_OEM_POST_UPDATE_EXTERNAL_DATA	0x01
 	u8 sel_data;
 	u8 reserved[7];
@@ -2225,7 +2243,8 @@ I40E_CHECK_STRUCT_LEN(0x10, i40e_aqc_lldp_set_local_mib_resp);
  */
 struct i40e_aqc_lldp_stop_start_specific_agent {
 #define I40E_AQC_START_SPECIFIC_AGENT_SHIFT	0
-#define I40E_AQC_START_SPECIFIC_AGENT_MASK	(1 << I40E_AQC_START_SPECIFIC_AGENT_SHIFT)
+#define I40E_AQC_START_SPECIFIC_AGENT_MASK \
+				(1 << I40E_AQC_START_SPECIFIC_AGENT_SHIFT)
 	u8	command;
 	u8	reserved[15];
 };
@@ -2247,7 +2266,7 @@ struct i40e_aqc_add_udp_tunnel {
 I40E_CHECK_CMD_LENGTH(i40e_aqc_add_udp_tunnel);
 
 struct i40e_aqc_add_udp_tunnel_completion {
-	__le16 udp_port;
+	__le16	udp_port;
 	u8	filter_entry_index;
 	u8	multiple_pfs;
 #define I40E_AQC_SINGLE_PF		0x0

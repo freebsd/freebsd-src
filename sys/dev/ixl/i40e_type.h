@@ -177,7 +177,6 @@ enum i40e_memcpy_type {
 	I40E_DMA_TO_NONDMA
 };
 
-
 #define I40E_FW_API_VERSION_MINOR_X710	0x0005
 
 

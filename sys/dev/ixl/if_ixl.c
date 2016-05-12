@@ -48,7 +48,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixl_driver_version[] = "1.4.24-k";
+char ixl_driver_version[] = "1.4.27-k";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -557,8 +557,10 @@ ixl_attach(device_t dev)
 		goto err_mac_hmc;
 	}
 
-	/* Disable LLDP from the firmware */
-	i40e_aq_stop_lldp(hw, TRUE, NULL);
+	/* Disable LLDP from the firmware for certain NVM versions */
+	if (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 3)) ||
+	    (pf->hw.aq.fw_maj_ver < 4))
+		i40e_aq_stop_lldp(hw, TRUE, NULL);
 
 	i40e_get_mac_addr(hw, hw->mac.addr);
 	error = i40e_validate_mac_addr(hw->mac.addr);
@@ -2582,7 +2584,8 @@ ixl_configure_queue_intr_msix(struct ixl_pf *pf)
 	u16		vector = 1;
 
 	for (int i = 0; i < vsi->num_queues; i++, vector++) {
-		wr32(hw, I40E_PFINT_DYN_CTLN(i), i);
+		wr32(hw, I40E_PFINT_DYN_CTLN(i), 0);
+		/* First queue type is RX / 0 */
 		wr32(hw, I40E_PFINT_LNKLSTN(i), i);
 
 		reg = I40E_QINT_RQCTL_CAUSE_ENA_MASK |
@@ -2595,11 +2598,8 @@ ixl_configure_queue_intr_msix(struct ixl_pf *pf)
 		reg = I40E_QINT_TQCTL_CAUSE_ENA_MASK |
 		(IXL_TX_ITR << I40E_QINT_TQCTL_ITR_INDX_SHIFT) |
 		(vector << I40E_QINT_TQCTL_MSIX_INDX_SHIFT) |
-		((i+1) << I40E_QINT_TQCTL_NEXTQ_INDX_SHIFT) |
+		(IXL_QUEUE_EOL << I40E_QINT_TQCTL_NEXTQ_INDX_SHIFT) |
 		(I40E_QUEUE_TYPE_RX << I40E_QINT_TQCTL_NEXTQ_TYPE_SHIFT);
-		if (i == (vsi->num_queues - 1))
-			reg |= (IXL_QUEUE_EOL
-			    << I40E_QINT_TQCTL_NEXTQ_INDX_SHIFT);
 		wr32(hw, I40E_QINT_TQCTL(i), reg);
 	}
 }
@@ -3882,7 +3882,7 @@ ixl_config_rss(struct ixl_vsi *vsi)
 
 	/* Fill out hash function seed */
 	for (i = 0; i < IXL_KEYSZ; i++)
-                wr32(hw, I40E_PFQF_HKEY(i), rss_seed[i]);
+                i40e_write_rx_ctl(hw, I40E_PFQF_HKEY(i), rss_seed[i]);
 
 	/* Enable PCTYPES for RSS: */
 #ifdef RSS
@@ -3915,11 +3915,11 @@ ixl_config_rss(struct ixl_vsi *vsi)
 		((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6) |
 		((u64)1 << I40E_FILTER_PCTYPE_L2_PAYLOAD);
 #endif
-	hena = (u64)rd32(hw, I40E_PFQF_HENA(0)) |
-	    ((u64)rd32(hw, I40E_PFQF_HENA(1)) << 32);
+	hena = (u64)i40e_read_rx_ctl(hw, I40E_PFQF_HENA(0)) |
+	    ((u64)i40e_read_rx_ctl(hw, I40E_PFQF_HENA(1)) << 32);
 	hena |= set_hena;
-	wr32(hw, I40E_PFQF_HENA(0), (u32)hena);
-	wr32(hw, I40E_PFQF_HENA(1), (u32)(hena >> 32));
+	i40e_write_rx_ctl(hw, I40E_PFQF_HENA(0), (u32)hena);
+	i40e_write_rx_ctl(hw, I40E_PFQF_HENA(1), (u32)(hena >> 32));
 
 	/* Populate the LUT with max no. of queues in round robin fashion */
 	for (i = j = 0; i < pf->hw.func_caps.rss_table_size; i++, j++) {
@@ -6116,10 +6116,10 @@ ixl_vf_map_vsi_queue(struct i40e_hw *hw, struct ixl_vf *vf, int qnum,
 	index = qnum / 2;
 	shift = (qnum % 2) * I40E_VSILAN_QTABLE_QINDEX_1_SHIFT;
 
-	qtable = rd32(hw, I40E_VSILAN_QTABLE(index, vf->vsi.vsi_num));
+	qtable = i40e_read_rx_ctl(hw, I40E_VSILAN_QTABLE(index, vf->vsi.vsi_num));
 	qtable &= ~(I40E_VSILAN_QTABLE_QINDEX_0_MASK << shift);
 	qtable |= val << shift;
-	wr32(hw, I40E_VSILAN_QTABLE(index, vf->vsi.vsi_num), qtable);
+	i40e_write_rx_ctl(hw, I40E_VSILAN_QTABLE(index, vf->vsi.vsi_num), qtable);
 }
 
 static void
@@ -6135,7 +6135,7 @@ ixl_vf_map_queues(struct ixl_pf *pf, struct ixl_vf *vf)
 	 * Contiguous mappings aren't actually supported by the hardware,
 	 * so we have to use non-contiguous mappings.
 	 */
-	wr32(hw, I40E_VSILAN_QBASE(vf->vsi.vsi_num),
+	i40e_write_rx_ctl(hw, I40E_VSILAN_QBASE(vf->vsi.vsi_num),
 	     I40E_VSILAN_QBASE_VSIQTABLE_ENA_MASK);
 
 	wr32(hw, I40E_VPLAN_MAPENA(vf->vf_num),
