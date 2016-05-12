@@ -174,6 +174,11 @@ typedef	__off_t		off_t;		/* file offset */
 #define	_OFF_T_DECLARED
 #endif
 
+#ifndef _OFF64_T_DECLARED
+typedef	__off64_t	off64_t;	/* file offset (alias) */
+#define	_OFF64_T_DECLARED
+#endif
+
 #ifndef _PID_T_DECLARED
 typedef	__pid_t		pid_t;		/* process id */
 #define	_PID_T_DECLARED

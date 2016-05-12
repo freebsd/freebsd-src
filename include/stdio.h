@@ -60,7 +60,7 @@ typedef	__ssize_t	ssize_t;
 
 #ifndef _OFF64_T_DECLARED
 #define	_OFF64_T_DECLARED
-typedef	__off_t		off64_t;
+typedef	__off64_t	off64_t;
 #endif
 
 #if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
