@@ -162,8 +162,10 @@
 /*
  * Ring Descriptors Valid Range: 32-4096 Default Value: 1024 This value is the
  * number of tx/rx descriptors allocated by the driver. Increasing this
- * value allows the driver to queue more operations. Each descriptor is 16
- * or 32 bytes (configurable in FVL)
+ * value allows the driver to queue more operations.
+ *
+ * Tx descriptors are always 16 bytes, but Rx descriptors can be 32 bytes.
+ * The driver currently always uses 32 byte Rx descriptors.
  */
 #define DEFAULT_RING	1024
 #define PERFORM_RING	2048
@@ -215,7 +217,7 @@
 #define IXL_TX_ITR		1
 #define IXL_ITR_NONE		3
 #define IXL_QUEUE_EOL		0x7FF
-#define IXL_MAX_FRAME		0x2600
+#define IXL_MAX_FRAME		9728
 #define IXL_MAX_TX_SEGS		8
 #define IXL_MAX_TSO_SEGS	66 
 #define IXL_SPARSE_CHAIN	6
