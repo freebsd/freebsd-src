@@ -281,6 +281,30 @@ gpiobus_map_pin(device_t bus, uint32_t pin)
 	return (0);
 }
 
+/* Release mapped pin */
+int
+gpiobus_release_pin(device_t bus, uint32_t pin)
+{
+	struct gpiobus_softc *sc;
+
+	sc = device_get_softc(bus);
+	/* Consistency check. */
+	if (pin >= sc->sc_npins) {
+		device_printf(bus,
+		    "gpiobus_map_pin: invalid pin %d, max=%d\n",
+		    pin, sc->sc_npins - 1);
+		return (-1);
+	}
+
+	if (!sc->sc_pins[pin].mapped) {
+		device_printf(bus, "gpiobus_map_pin: pin %d is not mapped\n", pin);
+		return (-1);
+	}
+	sc->sc_pins[pin].mapped = 0;
+
+	return (0);
+}
+
 static int
 gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 {
