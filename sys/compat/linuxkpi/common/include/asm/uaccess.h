@@ -36,7 +36,7 @@
 static inline long
 copy_to_user(void *to, const void *from, unsigned long n)
 {
-	if (copyout(from, to, n) != 0)
+	if (linux_copyout(from, to, n) != 0)
 		return n;
 	return 0;
 }
@@ -44,7 +44,7 @@ copy_to_user(void *to, const void *from, unsigned long n)
 static inline long
 copy_from_user(void *to, const void *from, unsigned long n)
 {
-	if (copyin(from, to, n) != 0)
+	if (linux_copyin(from, to, n) != 0)
 		return n;
 	return 0;
 }

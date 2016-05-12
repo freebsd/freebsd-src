@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/workqueue.h>
 #include <linux/rcupdate.h>
 #include <linux/interrupt.h>
+#include <linux/uaccess.h>
 
 #include <vm/vm_pager.h>
 
@@ -461,6 +462,66 @@ linux_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	return (0);
 }
 
+#define	LINUX_IOCTL_MIN_PTR 0x10000UL
+#define	LINUX_IOCTL_MAX_PTR (LINUX_IOCTL_MIN_PTR + IOCPARM_MAX)
+
+static inline int
+linux_remap_address(void **uaddr, size_t len)
+{
+	uintptr_t uaddr_val = (uintptr_t)(*uaddr);
+
+	if (unlikely(uaddr_val >= LINUX_IOCTL_MIN_PTR &&
+	    uaddr_val < LINUX_IOCTL_MAX_PTR)) {
+		struct task_struct *pts = current;
+		if (pts == NULL) {
+			*uaddr = NULL;
+			return (1);
+		}
+
+		/* compute data offset */
+		uaddr_val -= LINUX_IOCTL_MIN_PTR;
+
+		/* check that length is within bounds */
+		if ((len > IOCPARM_MAX) ||
+		    (uaddr_val + len) > pts->bsd_ioctl_len) {
+			*uaddr = NULL;
+			return (1);
+		}
+
+		/* re-add kernel buffer address */
+		uaddr_val += (uintptr_t)pts->bsd_ioctl_data;
+
+		/* update address location */
+		*uaddr = (void *)uaddr_val;
+		return (1);
+	}
+	return (0);
+}
+
+int
+linux_copyin(const void *uaddr, void *kaddr, size_t len)
+{
+	if (linux_remap_address(__DECONST(void **, &uaddr), len)) {
+		if (uaddr == NULL)
+			return (-EFAULT);
+		memcpy(kaddr, uaddr, len);
+		return (0);
+	}
+	return (-copyin(uaddr, kaddr, len));
+}
+
+int
+linux_copyout(const void *kaddr, void *uaddr, size_t len)
+{
+	if (linux_remap_address(&uaddr, len)) {
+		if (uaddr == NULL)
+			return (-EFAULT);
+		memcpy(uaddr, kaddr, len);
+		return (0);
+	}
+	return (-copyout(kaddr, uaddr, len));
+}
+
 static int
 linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
@@ -469,6 +530,7 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	struct linux_file *filp;
 	struct task_struct t;
 	struct file *file;
+	unsigned size;
 	int error;
 
 	file = td->td_fpop;
@@ -479,13 +541,22 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		return (error);
 	filp->f_flags = file->f_flag;
 	linux_set_current(td, &t);
-	/*
-	 * Linux does not have a generic ioctl copyin/copyout layer.  All
-	 * linux ioctls must be converted to void ioctls which pass a
-	 * pointer to the address of the data.  We want the actual user
-	 * address so we dereference here.
-	 */
-	data = *(void **)data;
+	size = IOCPARM_LEN(cmd);
+	/* refer to logic in sys_ioctl() */
+	if (size > 0) {
+		/*
+		 * Setup hint for linux_copyin() and linux_copyout().
+		 *
+		 * Background: Linux code expects a user-space address
+		 * while FreeBSD supplies a kernel-space address.
+		 */
+		t.bsd_ioctl_data = data;
+		t.bsd_ioctl_len = size;
+		data = (void *)LINUX_IOCTL_MIN_PTR;
+	} else {
+		/* fetch user-space pointer */
+		data = *(void **)data;
+	}
 	if (filp->f_op->unlocked_ioctl)
 		error = -filp->f_op->unlocked_ioctl(filp, cmd, (u_long)data);
 	else

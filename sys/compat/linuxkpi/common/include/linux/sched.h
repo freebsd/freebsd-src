@@ -66,6 +66,8 @@ struct task_struct {
 	int	should_stop;
 	pid_t	pid;
 	const char    *comm;
+	void	*bsd_ioctl_data;
+	unsigned	bsd_ioctl_len;
 };
 
 #define	current			task_struct_get(curthread)
