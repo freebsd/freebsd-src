@@ -46,11 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "debug.h"
 #include "rtld.h"
 
-#ifdef __mips_n64
 #define	GOT1_MASK	0x8000000000000000UL
-#else
-#define	GOT1_MASK	0x80000000UL
-#endif
 
 void
 init_pltgot(Obj_Entry *obj)
@@ -69,13 +65,12 @@ do_copy_relocations(Obj_Entry *dstobj)
 	return 0;
 }
 
-void _rtld_relocate_nonplt_self(Elf_Dyn *, Elf_Addr);
+void _rtld_relocate_nonplt_self(Elf_Dyn *, caddr_t);
 
 /*
  * It is possible for the compiler to emit relocations for unaligned data.
  * We handle this situation with these inlines.
  */
-#ifdef __mips_n64
 /*
  * ELF64 MIPS encodes the relocs uniquely.  The first 32-bits of info contain
  * the symbol index.  The top 32-bits contain three relocation types encoded
@@ -89,10 +84,6 @@ void _rtld_relocate_nonplt_self(Elf_Dyn *, Elf_Addr);
 #undef ELF_R_TYPE
 #define ELF_R_SYM(r_info)		((r_info) & 0xffffffff)
 #define ELF_R_TYPE(r_info)		bswap32((r_info) >> 32)
-#endif
-#else
-#define	ELF_R_NXTTYPE_64_P(r_type)	(0)
-#define	Elf_Sxword			Elf32_Sword
 #endif
 
 static __inline Elf_Sxword
@@ -140,7 +131,7 @@ store_ptr(void *where, Elf_Sxword val, size_t len)
 }
 
 void
-_rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
+_rtld_relocate_nonplt_self(Elf_Dyn *dynp, caddr_t relocbase)
 {
 	const Elf_Rel *rel = 0, *rellim;
 	Elf_Addr relsz = 0;
@@ -153,19 +144,16 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 	for (; dynp->d_tag != DT_NULL; dynp++) {
 		switch (dynp->d_tag) {
 		case DT_REL:
-			rel = (const Elf_Rel *)cheri_setoffset(cheri_getdefault(),
-			relocbase + dynp->d_un.d_ptr);
+			rel = (const Elf_Rel *)(relocbase + dynp->d_un.d_ptr);
 			break;
 		case DT_RELSZ:
 			relsz = dynp->d_un.d_val;
 			break;
 		case DT_SYMTAB:
-			symtab = (const Elf_Sym *)cheri_setoffset(cheri_getdefault(),
-			relocbase + dynp->d_un.d_ptr);
+			symtab = (const Elf_Sym *)(relocbase + dynp->d_un.d_ptr);
 			break;
 		case DT_PLTGOT:
-			got = (Elf_Addr *)cheri_setoffset(cheri_getdefault(),
-			relocbase + dynp->d_un.d_ptr);
+			got = (Elf_Addr *)(relocbase + dynp->d_un.d_ptr);
 			break;
 		case DT_MIPS_LOCAL_GOTNO:
 			local_gotno = dynp->d_un.d_val;
@@ -183,13 +171,13 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 	/* Relocate the local GOT entries */
 	got += i;
 	for (; i < local_gotno; i++) {
-		*got++ += relocbase;
+		*got++ += (uintptr_t)relocbase;
 	}
 
 	sym = symtab + gotsym;
 	/* Now do the global GOT entries */
 	for (i = gotsym; i < symtabno; i++) {
-		*got = sym->st_value + relocbase;
+		*got = sym->st_value + (uintptr_t)relocbase;
 		++sym;
 		++got;
 	}
@@ -198,8 +186,7 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 	for (; rel < rellim; rel++) {
 		Elf_Word r_symndx, r_type;
 
-		where = (void *)cheri_setoffset(cheri_getdefault(),
-		    relocbase + rel->r_offset);
+		where = (void *)(relocbase + rel->r_offset);
 
 		r_symndx = ELF_R_SYM(rel->r_info);
 		r_type = ELF_R_TYPE(rel->r_info);
@@ -219,8 +206,8 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 			assert(r_symndx < gotsym);
 			sym = symtab + r_symndx;
 			assert(ELF_ST_BIND(sym->st_info) == STB_LOCAL);
-			val += relocbase;
-			store_ptr(where, val, sizeof(Elf_Sword));
+			val += (uintptr_t)relocbase;
+			//store_ptr(where, val, sizeof(Elf_Sword));
 			dbg("REL32/L(%p) %p -> %p in <self>",
 			    where, (void *)old, (void *)val);
 			store_ptr(where, val, rlen);
@@ -639,12 +626,12 @@ allocate_initial_tls(Obj_Entry *objs)
 	sysarch(MIPS_SET_TLS, tls);
 }
 
-#ifdef __mips_n64
 void *
 _mips_get_tls(void)
 {
 	uint64_t _rv;
 
+	/* XXX-BD: need capability rdhwr */
 	__asm__ __volatile__ (
 	    ".set\tpush\n\t"
 	    ".set\tmips64r2\n\t"
@@ -662,32 +649,6 @@ _mips_get_tls(void)
 
 	return cheri_setoffset(cheri_getdefault(), _rv);
 }
-
-#else /* mips 32 */
-
-void *
-_mips_get_tls(void)
-{
-	uint32_t _rv;
-
-	__asm__ __volatile__ (
-	    ".set\tpush\n\t"
-	    ".set\tmips32r2\n\t"
-	    "rdhwr\t%0, $29\n\t"
-	    ".set\tpop"
-	    : "=v" (_rv));
-	/*
-	 * XXXSS See 'git show c6be4f4d2d1b71c04de5d3bbb6933ce2dbcdb317'
-	 *
-	 * Remove the offset since this really a request to get the TLS
-	 * pointer via sysarch() (in theory).  Of course, this may go away
-	 * once the TLS code is rewritten.
-	 */
-	_rv = _rv - TLS_TP_OFFSET - TLS_TCB_SIZE32;
-
-	return (void *)_rv;
-}
-#endif /* ! __mips_n64 */
 
 void *
 __tls_get_addr(tls_index* ti)

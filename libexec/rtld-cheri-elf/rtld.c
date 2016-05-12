@@ -35,6 +35,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/cheriabi.h>
 #include <sys/mount.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -76,7 +77,8 @@ static void digest_dynamic1(Obj_Entry *, int, const Elf_Dyn **,
 static void digest_dynamic2(Obj_Entry *, const Elf_Dyn *, const Elf_Dyn *,
     const Elf_Dyn *);
 static void digest_dynamic(Obj_Entry *, int);
-static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
+static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, caddr_t,
+    const char *);
 static Obj_Entry *dlcheck(void *);
 static Obj_Entry *dlopen_object(const char *name, int fd, Obj_Entry *refobj,
     int lo_flags, int mode, RtldLockState *lockstate);
@@ -275,6 +277,54 @@ char *ld_env_prefix = LD_;
     (dlp)->num_alloc = obj_count,				\
     (dlp)->num_used = 0)
 
+struct capreloc
+{
+	uint64_t capability_location;
+	uint64_t object;
+	uint64_t offset;
+	uint64_t size;
+	uint64_t permissions;
+};
+static const uint64_t function_reloc_flag = 1ULL<<63;
+static const uint64_t function_pointer_permissions =
+	~0 &
+	~__CHERI_CAP_PERMISSION_PERMIT_STORE_CAPABILITY__ &
+	~__CHERI_CAP_PERMISSION_PERMIT_STORE__;
+static const uint64_t global_pointer_permissions =
+	~0 & ~__CHERI_CAP_PERMISSION_PERMIT_EXECUTE__;
+
+__attribute__((weak))
+extern struct capreloc __start___cap_relocs;
+__attribute__((weak))
+extern struct capreloc __stop___cap_relocs;
+
+static void
+crt_init_globals(size_t relocbase)
+{
+	void *gdc = __builtin_memcap_global_data_get();
+	void *pcc = __builtin_memcap_program_counter_get();
+
+	gdc = __builtin_memcap_perms_and(gdc, global_pointer_permissions);
+	pcc = __builtin_memcap_perms_and(pcc, function_pointer_permissions);
+	for (struct capreloc *reloc = &__start___cap_relocs ;
+	     reloc < &__stop___cap_relocs ; reloc++)
+	{
+		_Bool isFunction = (reloc->permissions & function_reloc_flag) ==
+		    function_reloc_flag;
+		void **dest = __builtin_memcap_offset_set(gdc,
+		    reloc->capability_location | relocbase);
+		void *base = isFunction ? pcc : gdc;
+		void *src = __builtin_memcap_offset_set(base,
+		    reloc->object + relocbase);
+		if (!isFunction && (reloc->size != 0))
+		{
+			src = __builtin_memcap_bounds_set(src, reloc->size);
+		}
+		src = __builtin_memcap_offset_increment(src, reloc->offset);
+		*dest = src;
+	}
+}
+
 #define	UTRACE_DLOPEN_START		1
 #define	UTRACE_DLOPEN_STOP		2
 #define	UTRACE_DLCLOSE_START		3
@@ -359,7 +409,7 @@ _LD(const char *var)
  * The return value is the main program's entry point.
  */
 func_ptr_type
-_rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
+_rtld(struct cheriabi_execdata *ce, func_ptr_type *exit_proc, Obj_Entry **objp)
 {
     Elf_Auxinfo *aux_info[AT_COUNT];
     int i;
@@ -387,13 +437,10 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
      */
 
     /* Find the auxiliary vector on the stack. */
-    argc = *sp++;
-    argv = (char **) sp;
-    sp += argc + 1;	/* Skip over arguments and NULL terminator */
-    env = (char **) sp;
-    while (*sp++ != 0)	/* Skip over environment, and NULL terminator */
-	;
-    aux = (Elf_Auxinfo *) sp;
+    argc = ce->ce_argc;
+    argv = ce->ce_argv;
+    env = ce->ce_envp;
+    aux = (Elf_Auxinfo *)ce->ce_auxargs;
 
     /* Digest the auxiliary vector. */
     for (i = 0;  i < AT_COUNT;  i++)
@@ -506,7 +553,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     } else {				/* Main program already loaded. */
 	const Elf_Phdr *phdr;
 	int phnum;
-	caddr_t entry;
+	caddr_t entry, relocbase;
 
 	dbg("processing main program's program header");
 	assert(aux_info[AT_PHDR] != NULL);
@@ -517,8 +564,10 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	assert(aux_info[AT_PHENT]->a_un.a_val == sizeof(Elf_Phdr));
 	assert(aux_info[AT_ENTRY] != NULL);
 	entry = (caddr_t) aux_info[AT_ENTRY]->a_un.a_ptr;
-	if ((obj_main = digest_phdr(phdr, phnum, entry, argv0)) == NULL)
-	    rtld_die();
+	relocbase = (caddr_t) aux_info[AT_BASE]->a_un.a_ptr;
+	if ((obj_main = digest_phdr(phdr, phnum, entry, relocbase, argv0)) ==
+	    NULL)
+		rtld_die();
     }
 
     if (aux_info[AT_EXECPATH] != 0) {
@@ -1294,12 +1343,13 @@ digest_dynamic(Obj_Entry *obj, int early)
  * returns an Obj_Entry structure.
  */
 static Obj_Entry *
-digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
+digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, caddr_t relocabase,
+    const char *path)
 {
     Obj_Entry *obj;
     const Elf_Phdr *phlimit = phdr + phnum;
     const Elf_Phdr *ph;
-    Elf_Addr note_start, note_end;
+    caddr_t note_start, note_end;
     int nsegs = 0;
 
     obj = obj_new();
@@ -1357,7 +1407,7 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 	    break;
 
 	case PT_NOTE:
-	    note_start = (Elf_Addr)obj->relocbase + ph->p_vaddr;
+	    note_start = (caddr_t)obj->relocbase + ph->p_vaddr;
 	    note_end = note_start + ph->p_filesz;
 	    digest_notes(obj, note_start, note_end);
 	    break;
@@ -1373,14 +1423,13 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 }
 
 void
-digest_notes(Obj_Entry *obj, Elf_Addr note_start, Elf_Addr note_end)
+digest_notes(Obj_Entry *obj, caddr_t note_start, caddr_t note_end)
 {
 	const Elf_Note *note;
 	const char *note_name;
 	uintptr_t p;
 
-	for (note = cheri_setoffset( cheri_getdefault(), note_start);
-	    (Elf_Addr)note < note_end;
+	for (note = (const Elf_Note *)note_start; (caddr_t)note < note_end;
 	    note = (const Elf_Note *)((const char *)(note + 1) +
 	      roundup2(note->n_namesz, sizeof(Elf32_Addr)) +
 	      roundup2(note->n_descsz, sizeof(Elf32_Addr)))) {
@@ -1939,6 +1988,8 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
 
     /* Initialize the object list. */
     TAILQ_INIT(&obj_list);
+
+    crt_init_globals((size_t)0);
 
     /* Now that non-local variables can be accesses, copy out obj_rtld. */
     memcpy(&obj_rtld, &objtmp, sizeof(obj_rtld));

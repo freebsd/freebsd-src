@@ -88,8 +88,8 @@ map_object(int fd, const char *path, const struct stat *sb)
     Elf_Word stack_flags;
     Elf_Addr relro_page;
     size_t relro_size;
-    Elf_Addr note_start;
-    Elf_Addr note_end;
+    caddr_t note_start;
+    caddr_t note_end;
     char *note_map;
     size_t note_map_len;
 
@@ -164,10 +164,10 @@ map_object(int fd, const char *path, const struct stat *sb)
 		    _rtld_error("%s: error mapping PT_NOTE (%d)", path, errno);
 		    goto error;
 		}
-		note_start = (Elf_Addr)(note_map + phdr->p_offset -
+		note_start = (note_map + phdr->p_offset -
 		  trunc_page(phdr->p_offset));
 	    } else {
-		note_start = (Elf_Addr)(char *)hdr + phdr->p_offset;
+		note_start = (char *)hdr + phdr->p_offset;
 	    }
 	    note_end = note_start + phdr->p_filesz;
 	    break;

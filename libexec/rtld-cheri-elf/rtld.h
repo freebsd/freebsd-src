@@ -369,7 +369,7 @@ const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
   const Obj_Entry **, int, SymCache *, struct Struct_RtldLockState *);
 void init_pltgot(Obj_Entry *);
 void lockdflt_init(void);
-void digest_notes(Obj_Entry *, Elf_Addr, Elf_Addr);
+void digest_notes(Obj_Entry *, caddr_t, caddr_t);
 Obj_Entry *globallist_curr(const Obj_Entry *obj);
 Obj_Entry *globallist_next(const Obj_Entry *obj);
 void obj_free(Obj_Entry *);

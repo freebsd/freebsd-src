@@ -8,7 +8,6 @@
 MK_SSP=		no
 
 .PATH: ${.CURDIR}/../../lib/libmalloc_simple
-.PATH: ${.CURDIR}/../rtld-elf
 
 PROG?=		ld-cheri-elf.so.1
 SRCS=		rtld_start.S \
@@ -16,6 +15,7 @@ SRCS=		rtld_start.S \
 		heap.c malloc.c xmalloc.c debug.c libmap.c
 MAN=
 NEED_CHERI=	pure
+WANT_DUMP=yes
 MK_CHERI_SHARED=yes
 CSTD?=		gnu99
 CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD -ffreestanding
@@ -27,38 +27,17 @@ RTLD_ARCH=	${MACHINE_CPUARCH}
 .endif
 CFLAGS+=	-I${.CURDIR}/${RTLD_ARCH} -I${.CURDIR} \
 		-I${.CURDIR}/../rtld-elf/${RTLD_ARCH} -I${.CURDIR}/../rtld-elf
-.if ${MACHINE_ARCH} == "powerpc64"
-LDFLAGS+=	-nostdlib -e _rtld_start
-.else
 LDFLAGS+=	-nostdlib -e .rtld_start
-.endif
 WARNS?=		2
 INSTALLFLAGS=	-C -b
 PRECIOUSPROG=
 BINDIR=		/libexec
 #SYMLINKS=	${BINDIR}/${PROG} ${LIBEXECDIR}/${PROG}
 
-.if ${MACHINE_CPUARCH} == "sparc64"
-CFLAGS+=	-fPIC
-.else
 CFLAGS+=	-fpic
-.endif
 CFLAGS+=	-DPIC $(DEBUG)
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
-CFLAGS+=	-fvisibility=hidden
-.endif
 LDFLAGS+=	-shared -Wl,-Bsymbolic
 LIBADD=		c_pic
-
-.if ${MACHINE_CPUARCH} == "arm"
-# Some of the required math functions (div & mod) are implemented in
-# libcompiler_rt on ARM. The library also needs to be placed first to be
-# correctly linked. As some of the functions are used before we have
-# shared libraries.
-LIBADD+=	compiler_rt
-.endif
-
-
 
 .if ${MK_SYMVER} == "yes"
 VERSION_DEF=	${LIBCSRCDIR}/Versions.def
@@ -73,21 +52,11 @@ SYMBOL_MAPS+=	${.CURDIR}/${RTLD_ARCH}/Symbol.map
 .endif
 .endif
 
-.sinclude "${.CURDIR}/${RTLD_ARCH}/Makefile.inc"
+#.sinclude "${.CURDIR}/${RTLD_ARCH}/Makefile.inc"
 
-# Since moving rtld-elf to /libexec, we need to create a symlink.
-# Fixup the existing binary that's there so we can symlink over it.
-beforeinstall:
-.if exists(${DESTDIR}/usr/libexec/${PROG}) && ${MK_STAGING} == "no"
-	-chflags -h noschg ${DESTDIR}/usr/libexec/${PROG}
-.endif
-
-.PATH: ${.CURDIR}${RTLD_ARCH}
-.PATH: ${.CURDIR}/../rtld-elf/${RTLD_ARCH}
-
-.if ${MK_TESTS} != "no"
-#SUBDIR+=	tests
-.endif
+.PATH: ${.CURDIR}/${RTLD_ARCH}
 
 .include <bsd.prog.mk>
 .include <bsd.symver.mk>
+
+#CFLAGS:=	${CFLAGS} -O0
