@@ -305,6 +305,8 @@ enum siba_sprom_vars {
 	SIBA_SPROMVAR_TXPID_5GH_1,
 	SIBA_SPROMVAR_TXPID_5GH_2,
 	SIBA_SPROMVAR_TXPID_5GH_3,
+	SIBA_SPROMVAR_STBCPO,
+	SIBA_SPROMVAR_CDDPO,
 };
 
 int		siba_read_sprom(device_t, device_t, int, uintptr_t *);
@@ -419,6 +421,8 @@ SIBA_SPROM_ACCESSOR(txpid_5gh_0, TXPID_5GH_0, uint8_t);
 SIBA_SPROM_ACCESSOR(txpid_5gh_1, TXPID_5GH_1, uint8_t);
 SIBA_SPROM_ACCESSOR(txpid_5gh_2, TXPID_5GH_2, uint8_t);
 SIBA_SPROM_ACCESSOR(txpid_5gh_3, TXPID_5GH_3, uint8_t);
+SIBA_SPROM_ACCESSOR(stbcpo, STBCPO, uint16_t);
+SIBA_SPROM_ACCESSOR(cddpo, CDDPO, uint16_t);
 
 #undef SIBA_SPROM_ACCESSOR
 
@@ -512,6 +516,14 @@ struct siba_sprom {
 			uint8_t antswlut;
 		} ghz5;
 	} fem;
+
+	uint16_t mcs2gpo[8];
+	uint16_t mcs5gpo[8];
+	uint16_t mcs5glpo[8];
+	uint16_t mcs5ghpo[8];
+
+	uint16_t cddpo;
+	uint16_t stbcpo;
 };
 
 #define	SIBA_LDO_PAREF			0
@@ -648,6 +660,10 @@ uint32_t	siba_gpio_get(device_t);
 void		siba_fix_imcfglobug(device_t);
 int		siba_sprom_get_core_power_info(device_t, int,
 		    struct siba_sprom_core_pwr_info *);
+int		siba_sprom_get_mcs2gpo(device_t, uint16_t *);
+int		siba_sprom_get_mcs5glpo(device_t, uint16_t *);
+int		siba_sprom_get_mcs5gpo(device_t, uint16_t *);
+int		siba_sprom_get_mcs5ghpo(device_t, uint16_t *);
 void		siba_pmu_spuravoid_pllupdate(device_t, int);
 void		siba_cc_set32(device_t dev, uint32_t, uint32_t);
 void		siba_cc_mask32(device_t dev, uint32_t, uint32_t);

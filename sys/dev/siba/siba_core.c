@@ -1834,6 +1834,9 @@ siba_sprom_r8(struct siba_sprom *out, const uint16_t *in)
 		SIBA_SHIFTOUT(core_pwr_info[i].pa_5gh[2], o + SIBA_SROM8_5GH_PA_2, ~0);
 	}
 
+	SIBA_SHIFTOUT(cddpo, SIBA_SPROM8_CDDPO, ~0);
+	SIBA_SHIFTOUT(stbcpo, SIBA_SPROM8_STBCPO, ~0);
+
 	siba_sprom_r458(out, in);
 }
 
@@ -2562,6 +2565,12 @@ siba_read_sprom(device_t dev, device_t child, int which, uintptr_t *result)
 	case SIBA_SPROMVAR_TXPID_5GH_3:
 		*result = siba->siba_sprom.txpid5gh[3];
 		break;
+	case SIBA_SPROMVAR_STBCPO:
+		*result = siba->siba_sprom.stbcpo;
+		break;
+	case SIBA_SPROMVAR_CDDPO:
+		*result = siba->siba_sprom.cddpo;
+		break;
 	default:
 		return (ENOENT);
 	}
@@ -2811,6 +2820,46 @@ siba_sprom_get_core_power_info(device_t dev, int core,
 		return (EINVAL);
 	}
 	memcpy(c, &siba->siba_sprom.core_pwr_info[core], sizeof(*c));
+	return (0);
+}
+
+int
+siba_sprom_get_mcs2gpo(device_t dev, uint16_t *c)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+
+	memcpy(c, &siba->siba_sprom.mcs2gpo, sizeof(uint16_t) * 8);
+	return (0);
+}
+
+int
+siba_sprom_get_mcs5glpo(device_t dev, uint16_t *c)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+
+	memcpy(c, &siba->siba_sprom.mcs5glpo, sizeof(uint16_t) * 8);
+	return (0);
+}
+
+int
+siba_sprom_get_mcs5gpo(device_t dev, uint16_t *c)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+
+	memcpy(c, &siba->siba_sprom.mcs5gpo, sizeof(uint16_t) * 8);
+	return (0);
+}
+
+int
+siba_sprom_get_mcs5ghpo(device_t dev, uint16_t *c)
+{
+	struct siba_dev_softc *sd = device_get_ivars(dev);
+	struct siba_softc *siba = sd->sd_bus;
+
+	memcpy(c, &siba->siba_sprom.mcs5ghpo, sizeof(uint16_t) * 8);
 	return (0);
 }
 

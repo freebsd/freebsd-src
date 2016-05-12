@@ -520,6 +520,10 @@
 #define	SIBA_SPROM8_OFDM5GPO		0x1146
 #define	SIBA_SPROM8_OFDM5GLPO		0x114a
 #define	SIBA_SPROM8_OFDM5GHPO		0x114e
+#define	SIBA_SPROM8_CDDPO		0x0192
+#define	SIBA_SPROM8_STBCPO		0x0194
+#define	SIBA_SPROM8_BW40PO		0x0196
+#define	SIBA_SPROM8_BWDUPPO		0x0198
 
 /* There are 4 blocks with power info sharing the same layout */
 #define	SIBA_SROM8_PWR_INFO_CORE0	0x00C0
