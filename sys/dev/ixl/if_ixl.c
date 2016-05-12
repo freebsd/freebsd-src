@@ -48,7 +48,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixl_driver_version[] = "1.4.3";
+char ixl_driver_version[] = "1.4.5-k";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -63,6 +63,7 @@ char ixl_driver_version[] = "1.4.3";
 static ixl_vendor_info_t ixl_vendor_info_array[] =
 {
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_SFP_XL710, 0, 0, 0},
+	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_KX_A, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_KX_B, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_KX_C, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_QSFP_A, 0, 0, 0},
@@ -70,11 +71,8 @@ static ixl_vendor_info_t ixl_vendor_info_array[] =
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_QSFP_C, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_10G_BASE_T, 0, 0, 0},
 	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_10G_BASE_T4, 0, 0, 0},
-#ifdef X722_SUPPORT
-	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_SFP_X722, 0, 0, 0},
-	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_1G_BASE_T_X722, 0, 0, 0},
-	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_10G_BASE_T_X722, 0, 0, 0},
-#endif
+	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_20G_KR2, 0, 0, 0},
+	{I40E_INTEL_VENDOR_ID, I40E_DEV_ID_20G_KR2_A, 0, 0, 0},
 	/* required last entry */
 	{0, 0, 0, 0, 0}
 };
@@ -115,8 +113,6 @@ static int	ixl_init_msix(struct ixl_pf *);
 static void	ixl_configure_msix(struct ixl_pf *);
 static void	ixl_configure_itr(struct ixl_pf *);
 static void	ixl_configure_legacy(struct ixl_pf *);
-static void	ixl_init_taskqueues(struct ixl_pf *);
-static void	ixl_free_taskqueues(struct ixl_pf *);
 static void	ixl_free_pci_resources(struct ixl_pf *);
 static void	ixl_local_timer(void *);
 static int	ixl_setup_interface(device_t, struct ixl_vsi *);
@@ -159,10 +155,8 @@ static void	ixl_free_mac_filters(struct ixl_vsi *vsi);
 
 
 /* Sysctl debug interface */
-#ifdef IXL_DEBUG_SYSCTL
 static int	ixl_debug_info(SYSCTL_HANDLER_ARGS);
 static void	ixl_print_debug_info(struct ixl_pf *);
-#endif
 
 /* The MSI/X Interrupt handlers */
 static void	ixl_intr(void *);
@@ -207,8 +201,8 @@ static int	ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS);
 #ifdef PCI_IOV
 static int	ixl_adminq_err_to_errno(enum i40e_admin_queue_err err);
 
-static int	ixl_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t*);
-static void	ixl_iov_uninit(device_t dev);
+static int	ixl_init_iov(device_t dev, uint16_t num_vfs, const nvlist_t*);
+static void	ixl_uninit_iov(device_t dev);
 static int	ixl_add_vf(device_t dev, uint16_t vfnum, const nvlist_t*);
 
 static void	ixl_handle_vf_msg(struct ixl_pf *,
@@ -230,9 +224,9 @@ static device_method_t ixl_methods[] = {
 	DEVMETHOD(device_detach, ixl_detach),
 	DEVMETHOD(device_shutdown, ixl_shutdown),
 #ifdef PCI_IOV
-	DEVMETHOD(pci_iov_init, ixl_iov_init),
-	DEVMETHOD(pci_iov_uninit, ixl_iov_uninit),
-	DEVMETHOD(pci_iov_add_vf, ixl_add_vf),
+	DEVMETHOD(pci_init_iov, ixl_init_iov),
+	DEVMETHOD(pci_uninit_iov, ixl_uninit_iov),
+	DEVMETHOD(pci_add_vf, ixl_add_vf),
 #endif
 	{0, 0}
 };
@@ -644,7 +638,7 @@ ixl_attach(device_t dev)
 	else
 		error = ixl_assign_vsi_legacy(pf);
 	if (error) 
-		goto err_mac_hmc;
+		goto err_late;
 
 	if (((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver < 33)) ||
 	    (hw->aq.fw_maj_ver < 4)) {
@@ -669,21 +663,18 @@ ixl_attach(device_t dev)
 	error = ixl_switch_config(pf);
 	if (error) {
 		device_printf(dev, "Initial switch config failed: %d\n", error);
-		goto err_late;
+		goto err_mac_hmc;
 	}
 
 	/* Limit phy interrupts to link and modules failure */
-	error = i40e_aq_set_phy_int_mask(hw, ~(I40E_AQ_EVENT_LINK_UPDOWN |
-		I40E_AQ_EVENT_MODULE_QUAL_FAIL), NULL);
-	if (error)
+	error = i40e_aq_set_phy_int_mask(hw,
+	    I40E_AQ_EVENT_LINK_UPDOWN | I40E_AQ_EVENT_MODULE_QUAL_FAIL, NULL);
+        if (error)
 		device_printf(dev, "set phy mask failed: %d\n", error);
 
 	/* Get the bus configuration and set the shared code */
 	bus = ixl_get_bus_info(hw, dev);
 	i40e_set_pci_config_data(hw, bus);
-
-	/* Initialize taskqueues */
-	ixl_init_taskqueues(pf);
 
 	/* Initialize statistics */
 	ixl_pf_reset_stats(pf);
@@ -753,6 +744,7 @@ ixl_detach(device_t dev)
 	struct ixl_pf		*pf = device_get_softc(dev);
 	struct i40e_hw		*hw = &pf->hw;
 	struct ixl_vsi		*vsi = &pf->vsi;
+	struct ixl_queue	*que = vsi->queues;
 	i40e_status		status;
 #ifdef PCI_IOV
 	int			error;
@@ -781,7 +773,13 @@ ixl_detach(device_t dev)
 		IXL_PF_UNLOCK(pf);
 	}
 
-	ixl_free_taskqueues(pf);
+	for (int i = 0; i < vsi->num_queues; i++, que++) {
+		if (que->tq) {
+			taskqueue_drain(que->tq, &que->task);
+			taskqueue_drain(que->tq, &que->tx_task);
+			taskqueue_free(que->tq);
+		}
+	}
 
 	/* Shutdown LAN HMC */
 	status = i40e_shutdown_lan_hmc(hw);
@@ -1138,8 +1136,7 @@ ixl_init_locked(struct ixl_pf *pf)
 	bcopy(IF_LLADDR(vsi->ifp), tmpaddr,
 	      I40E_ETH_LENGTH_OF_ADDRESS);
 	if (!cmp_etheraddr(hw->mac.addr, tmpaddr) && 
-	    (i40e_validate_mac_addr(tmpaddr) == I40E_SUCCESS)) {
-		ixl_del_filter(vsi, hw->mac.addr, IXL_VLAN_ANY);
+	    i40e_validate_mac_addr(tmpaddr)) {
 		bcopy(tmpaddr, hw->mac.addr,
 		    I40E_ETH_LENGTH_OF_ADDRESS);
 		ret = i40e_aq_mac_address_write(hw,
@@ -1149,8 +1146,6 @@ ixl_init_locked(struct ixl_pf *pf)
 			device_printf(dev, "LLA address"
 			 "change failed!!\n");
 			return;
-		} else {
-			ixl_add_filter(vsi, hw->mac.addr, IXL_VLAN_ANY);
 		}
 	}
 
@@ -1170,7 +1165,6 @@ ixl_init_locked(struct ixl_pf *pf)
 #ifdef IXL_FDIR
 	filter.enable_fdir = TRUE;
 #endif
-	filter.hash_lut_size = I40E_HASH_LUT_SIZE_512;
 	if (i40e_set_filter_control(hw, &filter))
 		device_printf(dev, "set_filter_control() failed\n");
 
@@ -1455,7 +1449,8 @@ ixl_media_status(struct ifnet * ifp, struct ifmediareq * ifmr)
 	}
 
 	ifmr->ifm_status |= IFM_ACTIVE;
-	/* Hardware is always full-duplex */
+
+	/* Hardware always does full-duplex */
 	ifmr->ifm_active |= IFM_FDX;
 
 	switch (hw->phy.link_info.phy_type) {
@@ -1530,6 +1525,7 @@ ixl_media_status(struct ifnet * ifp, struct ifmediareq * ifmr)
 		case I40E_PHY_TYPE_10GBASE_KR:
 			ifmr->ifm_active |= IFM_10G_KR;
 			break;
+		/* Our single 20G media type */
 		case I40E_PHY_TYPE_20GBASE_KR2:
 			ifmr->ifm_active |= IFM_20G_KR2;
 			break;
@@ -1555,14 +1551,11 @@ ixl_media_status(struct ifnet * ifp, struct ifmediareq * ifmr)
 	return;
 }
 
-/*********************************************************************
- *
- *  Media Ioctl callback
- *
- *  This routine is called when the user changes speed/duplex using
- *  media/mediopt option with ifconfig.
- *
- **********************************************************************/
+/*
+ * NOTE: Fortville does not support forcing media speeds. Instead,
+ * use the set_advertise sysctl to set the speeds Fortville
+ * will advertise or be allowed to operate at.
+ */
 static int
 ixl_media_change(struct ifnet * ifp)
 {
@@ -1574,7 +1567,7 @@ ixl_media_change(struct ifnet * ifp)
 	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
 		return (EINVAL);
 
-	if_printf(ifp, "Media change is currently not supported.\n");
+	if_printf(ifp, "Media change is not supported.\n");
 
 	return (ENODEV);
 }
@@ -1988,62 +1981,6 @@ ixl_assign_vsi_legacy(struct ixl_pf *pf)
 	return (0);
 }
 
-static void
-ixl_init_taskqueues(struct ixl_pf *pf)
-{
-	struct ixl_vsi *vsi = &pf->vsi;
-	struct ixl_queue *que = vsi->queues;
-	device_t dev = pf->dev;
-#ifdef	RSS
-	int cpu_id;
-	cpuset_t cpu_mask;
-#endif
-
-	/* Tasklet for Admin Queue */
-	TASK_INIT(&pf->adminq, 0, ixl_do_adminq, pf);
-#ifdef PCI_IOV
-	/* VFLR Tasklet */
-	TASK_INIT(&pf->vflr_task, 0, ixl_handle_vflr, pf);
-#endif
-
-	/* Create and start PF taskqueue */
-	pf->tq = taskqueue_create_fast("ixl_adm", M_NOWAIT,
-	    taskqueue_thread_enqueue, &pf->tq);
-	taskqueue_start_threads(&pf->tq, 1, PI_NET, "%s adminq",
-	    device_get_nameunit(dev));
-
-	/* Create queue tasks and start queue taskqueues */
-	for (int i = 0; i < vsi->num_queues; i++, que++) {
-		TASK_INIT(&que->tx_task, 0, ixl_deferred_mq_start, que);
-		TASK_INIT(&que->task, 0, ixl_handle_que, que);
-		que->tq = taskqueue_create_fast("ixl_que", M_NOWAIT,
-		    taskqueue_thread_enqueue, &que->tq);
-#ifdef RSS
-		cpu_id = rss_getcpu(i % rss_getnumbuckets());
-		CPU_SETOF(cpu_id, &cpu_mask);
-		taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
-		    &cpu_mask, "%s (bucket %d)",
-		    device_get_nameunit(dev), cpu_id);
-#else
-		taskqueue_start_threads(&que->tq, 1, PI_NET,
-		    "%s (que %d)", device_get_nameunit(dev), que->me);
-#endif
-	}
-}
-
-static void
-ixl_free_taskqueues(struct ixl_pf *pf)
-{
-	struct ixl_vsi *vsi = &pf->vsi;
-	struct ixl_queue *que = vsi->queues;
-
-	if (pf->tq)
-		taskqueue_free(pf->tq);
-	for (int i = 0; i < vsi->num_queues; i++, que++) {
-		if (que->tq)
-			taskqueue_free(que->tq);
-	}
-}
 
 /*********************************************************************
  *
@@ -2058,6 +1995,9 @@ ixl_assign_vsi_msix(struct ixl_pf *pf)
 	struct 		ixl_queue *que = vsi->queues;
 	struct		tx_ring	 *txr;
 	int 		error, rid, vector = 0;
+#ifdef	RSS
+	cpuset_t cpu_mask;
+#endif
 
 	/* Admin Que is vector 0*/
 	rid = vector + 1;
@@ -2079,6 +2019,17 @@ ixl_assign_vsi_msix(struct ixl_pf *pf)
 	}
 	bus_describe_intr(dev, pf->res, pf->tag, "aq");
 	pf->admvec = vector;
+	/* Tasklet for Admin Queue */
+	TASK_INIT(&pf->adminq, 0, ixl_do_adminq, pf);
+
+#ifdef PCI_IOV
+	TASK_INIT(&pf->vflr_task, 0, ixl_handle_vflr, pf);
+#endif
+
+	pf->tq = taskqueue_create_fast("ixl_adm", M_NOWAIT,
+	    taskqueue_thread_enqueue, &pf->tq);
+	taskqueue_start_threads(&pf->tq, 1, PI_NET, "%s adminq",
+	    device_get_nameunit(pf->dev));
 	++vector;
 
 	/* Now set up the stations */
@@ -2109,6 +2060,19 @@ ixl_assign_vsi_msix(struct ixl_pf *pf)
 #endif
 		bus_bind_intr(dev, que->res, cpu_id);
 		que->msix = vector;
+		TASK_INIT(&que->tx_task, 0, ixl_deferred_mq_start, que);
+		TASK_INIT(&que->task, 0, ixl_handle_que, que);
+		que->tq = taskqueue_create_fast("ixl_que", M_NOWAIT,
+		    taskqueue_thread_enqueue, &que->tq);
+#ifdef RSS
+		CPU_SETOF(cpu_id, &cpu_mask);
+		taskqueue_start_threads_cpuset(&que->tq, 1, PI_NET,
+		    &cpu_mask, "%s (bucket %d)",
+		    device_get_nameunit(dev), cpu_id);
+#else
+		taskqueue_start_threads(&que->tq, 1, PI_NET,
+		    "%s que", device_get_nameunit(dev));
+#endif
 	}
 
 	return (0);
@@ -2171,15 +2135,9 @@ ixl_init_msix(struct ixl_pf *pf)
 	/* Figure out a reasonable auto config value */
 	queues = (mp_ncpus > (available - 1)) ? (available - 1) : mp_ncpus;
 
-	/* Override with hardcoded value if it's less than autoconfig count */
+	/* Override with hardcoded value if sane */
 	if ((ixl_max_queues != 0) && (ixl_max_queues <= queues)) 
 		queues = ixl_max_queues;
-	else if ((ixl_max_queues != 0) && (ixl_max_queues > queues))
-		device_printf(dev, "ixl_max_queues > # of cpus, using "
-		    "autoconfig amount...\n");
-	/* Or limit maximum auto-configured queues to 8 */
-	else if ((ixl_max_queues == 0) && (queues > 8))
-		queues = 8;
 
 #ifdef  RSS
 	/* If we're doing RSS, clamp at the number of RSS buckets */
@@ -2279,8 +2237,7 @@ ixl_configure_msix(struct ixl_pf *pf)
 
 	/* Next configure the queues */
 	for (int i = 0; i < vsi->num_queues; i++, vector++) {
-		wr32(hw, I40E_PFINT_DYN_CTLN(i), 0);
-		/* First queue type is RX / type 0 */
+		wr32(hw, I40E_PFINT_DYN_CTLN(i), i);
 		wr32(hw, I40E_PFINT_LNKLSTN(i), i);
 
 		reg = I40E_QINT_RQCTL_CAUSE_ENA_MASK |
@@ -2293,8 +2250,11 @@ ixl_configure_msix(struct ixl_pf *pf)
 		reg = I40E_QINT_TQCTL_CAUSE_ENA_MASK |
 		(IXL_TX_ITR << I40E_QINT_TQCTL_ITR_INDX_SHIFT) |
 		(vector << I40E_QINT_TQCTL_MSIX_INDX_SHIFT) |
-		(IXL_QUEUE_EOL << I40E_QINT_TQCTL_NEXTQ_INDX_SHIFT) |
+		((i+1) << I40E_QINT_TQCTL_NEXTQ_INDX_SHIFT) |
 		(I40E_QUEUE_TYPE_RX << I40E_QINT_TQCTL_NEXTQ_TYPE_SHIFT);
+		if (i == (vsi->num_queues - 1))
+			reg |= (IXL_QUEUE_EOL
+			    << I40E_QINT_TQCTL_NEXTQ_INDX_SHIFT);
 		wr32(hw, I40E_QINT_TQCTL(i), reg);
 	}
 }
@@ -2585,7 +2545,7 @@ ixl_setup_interface(device_t dev, struct ixl_vsi *vsi)
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_baudrate = IF_Gbps(40);
+	ifp->if_baudrate = 4000000000;  // ??
 	ifp->if_init = ixl_init;
 	ifp->if_softc = vsi;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -2787,17 +2747,8 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 	*/
 	ctxt.info.valid_sections = I40E_AQ_VSI_PROP_QUEUE_MAP_VALID;
 	ctxt.info.mapping_flags |= I40E_AQ_VSI_QUE_MAP_CONTIG;
-	/* In contig mode, que_mapping[0] is first queue index used by this VSI */
-	ctxt.info.queue_mapping[0] = 0;
-	/*
-	 * This VSI will only use traffic class 0; start traffic class 0's
-	 * queue allocation at queue 0, and assign it 64 (2^6) queues (though
-	 * the driver may not use all of them).
-	 */
-	ctxt.info.tc_mapping[0] = ((0 << I40E_AQ_VSI_TC_QUE_OFFSET_SHIFT)
-	    & I40E_AQ_VSI_TC_QUE_OFFSET_MASK) |
-	    ((6 << I40E_AQ_VSI_TC_QUE_NUMBER_SHIFT)
-	    & I40E_AQ_VSI_TC_QUE_NUMBER_MASK);
+	ctxt.info.queue_mapping[0] = 0; 
+	ctxt.info.tc_mapping[0] = 0x0800; 
 
 	/* Set VLAN receive stripping mode */
 	ctxt.info.valid_sections |= I40E_AQ_VSI_PROP_VLAN_VALID;
@@ -2913,6 +2864,7 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 			device_printf(dev, "Fail in init_rx_ring %d\n", i);
 			break;
 		}
+		wr32(vsi->hw, I40E_QRX_TAIL(que->me), 0);
 #ifdef DEV_NETMAP
 		/* preserve queue */
 		if (vsi->ifp->if_capenable & IFCAP_NETMAP) {
@@ -4412,7 +4364,6 @@ ixl_do_adminq(void *context, int pending)
 	IXL_PF_UNLOCK(pf);
 }
 
-#ifdef IXL_DEBUG_SYSCTL
 static int
 ixl_debug_info(SYSCTL_HANDLER_ARGS)
 {
@@ -4477,7 +4428,6 @@ ixl_print_debug_info(struct ixl_pf *pf)
 	reg = rd32(hw, I40E_GLPRT_MLFC(hw->port));
 	 printf("mac local fault = %x\n", reg);
 }
-#endif
 
 /**
  * Update VSI-specific ethernet statistics counters.
@@ -4857,6 +4807,7 @@ ixl_set_advertise(SYSCTL_HANDLER_ARGS)
 	/* Then check for validity based on adapter type */
 	switch (hw->device_id) {
 	case I40E_DEV_ID_10G_BASE_T:
+	case I40E_DEV_ID_10G_BASE_T4:
 		if (requested_ls & 0x8) {
 			device_printf(dev,
 			    "20Gbs speed not supported on this device.\n");
@@ -4864,6 +4815,7 @@ ixl_set_advertise(SYSCTL_HANDLER_ARGS)
 		}
 		break;
 	case I40E_DEV_ID_20G_KR2:
+	case I40E_DEV_ID_20G_KR2_A:
 		if (requested_ls & 0x1) {
 			device_printf(dev,
 			    "100Mbs speed not supported on this device.\n");
@@ -4901,7 +4853,6 @@ ixl_get_bus_info(struct i40e_hw *hw, device_t dev)
 {
         u16                     link;
         u32                     offset;
-                
                 
         /* Get the PCI Express Capabilities offset */
         pci_find_cap(dev, PCIY_EXPRESS, &offset);
@@ -5156,9 +5107,17 @@ ixl_sysctl_hw_res_alloc(SYSCTL_HANDLER_ARGS)
 	}
 
 	error = sbuf_finish(buf);
-	sbuf_delete(buf);
+	if (error) {
+		device_printf(dev, "Error finishing sbuf: %d\n", error);
+		sbuf_delete(buf);
+		return error;
+	}
 
-	return (error);
+	error = sysctl_handle_string(oidp, sbuf_data(buf), sbuf_len(buf), req);
+	if (error)
+		device_printf(dev, "sysctl error: %d\n", error);
+	sbuf_delete(buf);
+	return error;
 }
 
 /*
@@ -5265,6 +5224,15 @@ ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(nmbuf);
 
 	error = sbuf_finish(buf);
+	if (error) {
+		device_printf(dev, "Error finishing sbuf: %d\n", error);
+		sbuf_delete(buf);
+		return error;
+	}
+
+	error = sysctl_handle_string(oidp, sbuf_data(buf), sbuf_len(buf), req);
+	if (error)
+		device_printf(dev, "sysctl error: %d\n", error);
 	sbuf_delete(buf);
 
 	return (error);
@@ -6570,7 +6538,7 @@ ixl_adminq_err_to_errno(enum i40e_admin_queue_err err)
 }
 
 static int
-ixl_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *params)
+ixl_init_iov(device_t dev, uint16_t num_vfs, const nvlist_t *params)
 {
 	struct ixl_pf *pf;
 	struct i40e_hw *hw;
@@ -6618,7 +6586,7 @@ fail:
 }
 
 static void
-ixl_iov_uninit(device_t dev)
+ixl_uninit_iov(device_t dev)
 {
 	struct ixl_pf *pf;
 	struct i40e_hw *hw;
@@ -6643,11 +6611,7 @@ ixl_iov_uninit(device_t dev)
 		pf->veb_seid = 0;
 	}
 
-#if __FreeBSD_version > 1100022
 	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
-#else
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-#endif
 		ixl_disable_intr(vsi);
 
 	vfs = pf->vfs;
