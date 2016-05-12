@@ -155,7 +155,7 @@ myopen(struct archive *a, void *client_data)
     return (ARCHIVE_FATAL);
 }
 
-ssize_t
+la_ssize_t
 mywrite(struct archive *a, void *client_data, const void *buff, size_t n)
 {
   struct mydata *mydata = client_data;
@@ -186,8 +186,13 @@ write_archive(const char *outname, const char **filename)
 
   a = archive_write_new();
   mydata->name = outname;
-  archive_write_add_filter_gzip(a);
-  archive_write_set_format_ustar(a);
+  /* Set archive format and filter according to output file extension.
+   * If it fails, set default format. Platform depended function.
+   * See supported formats in archive_write_set_format_filter_by_ext.c */
+  if (archive_write_set_format_filter_by_ext(a, outname) != ARCHIVE_OK)  {
+    archive_write_add_filter_gzip(a);
+    archive_write_set_format_ustar(a);
+  }  
   archive_write_open(a, mydata, myopen, mywrite, myclose);
   while (*filename) {
     stat(*filename, &st);
@@ -197,7 +202,7 @@ write_archive(const char *outname, const char **filename)
     archive_write_header(a, entry);
     if ((fd = open(*filename, O_RDONLY)) != -1) {
       len = read(fd, buff, sizeof(buff));
-      while ( len > 0 ) {
+      while (len > 0) {
         archive_write_data(a, buff, len);
         len = read(fd, buff, sizeof(buff));
       }
@@ -213,7 +218,7 @@ int main(int argc, const char **argv)
 {
   const char *outname;
   argv++;
-  outname = argv++;
+  outname = *argv++;
   write_archive(outname, argv);
   return 0;
 }

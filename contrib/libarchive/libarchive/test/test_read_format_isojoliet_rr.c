@@ -83,6 +83,8 @@ DEFINE_TEST(test_read_format_isojoliet_rr)
 	assertEqualIntA(a, ARCHIVE_EOF,
 	    archive_read_data_block(a, &p, &size, &offset));
 	assertEqualInt((int)size, 0);
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* A directory. */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
@@ -94,6 +96,8 @@ DEFINE_TEST(test_read_format_isojoliet_rr)
 	assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
 	assertEqualInt(1, archive_entry_uid(ae));
 	assertEqualInt(2, archive_entry_gid(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* A regular file with two names ("hardlink" gets returned
 	 * first, so it's not marked as a hardlink). */
@@ -116,6 +120,8 @@ DEFINE_TEST(test_read_format_isojoliet_rr)
 	assertEqualInt(2, archive_entry_nlink(ae));
 	assertEqualInt(1, archive_entry_uid(ae));
 	assertEqualInt(2, archive_entry_gid(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Second name for the same regular file (this happens to be
 	 * returned second, so does get marked as a hardlink). */
@@ -132,6 +138,8 @@ DEFINE_TEST(test_read_format_isojoliet_rr)
 	assertEqualInt(2, archive_entry_nlink(ae));
 	assertEqualInt(1, archive_entry_uid(ae));
 	assertEqualInt(2, archive_entry_gid(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* A symlink to the regular file. */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
@@ -145,6 +153,8 @@ DEFINE_TEST(test_read_format_isojoliet_rr)
 	assertEqualInt(1, archive_entry_nlink(ae));
 	assertEqualInt(1, archive_entry_uid(ae));
 	assertEqualInt(2, archive_entry_gid(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* End of archive. */
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));

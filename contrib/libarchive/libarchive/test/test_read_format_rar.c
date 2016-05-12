@@ -53,6 +53,8 @@ DEFINE_TEST(test_read_format_rar_basic)
   assertEqualInt(33188, archive_entry_mode(ae));
   assertA(size == archive_read_data(a, buff, size));
   assertEqualMem(buff, test_txt, size);
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Second header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -64,6 +66,8 @@ DEFINE_TEST(test_read_format_rar_basic)
   assertEqualInt(41471, archive_entry_mode(ae));
   assertEqualString("test.txt", archive_entry_symlink(ae));
   assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Third header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -75,6 +79,8 @@ DEFINE_TEST(test_read_format_rar_basic)
   assertEqualInt(33188, archive_entry_mode(ae));
   assertA(size == archive_read_data(a, buff, size));
   assertEqualMem(buff, test_txt, size);
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Fourth header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -84,6 +90,8 @@ DEFINE_TEST(test_read_format_rar_basic)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Fifth header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -93,6 +101,8 @@ DEFINE_TEST(test_read_format_rar_basic)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
@@ -126,6 +136,8 @@ DEFINE_TEST(test_read_format_rar_subblock)
   assertEqualInt(33188, archive_entry_mode(ae));
   assertA(size == archive_read_data(a, buff, size));
   assertEqualMem(buff, test_txt, size);
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
@@ -159,6 +171,8 @@ DEFINE_TEST(test_read_format_rar_noeof)
   assertEqualInt(33188, archive_entry_mode(ae));
   assertA(size == archive_read_data(a, buff, size));
   assertEqualMem(buff, test_txt, size);
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
@@ -227,6 +241,8 @@ DEFINE_TEST(test_read_format_rar_unicode_UTF8)
   assertEqualInt(33188, archive_entry_mode(ae));
   assertEqualIntA(a, 5, archive_read_data(a, buff, 5));
   assertEqualMem(buff, test_txt, 5);
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Third header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -273,6 +289,8 @@ DEFINE_TEST(test_read_format_rar_unicode_UTF8)
   assertA((int)archive_entry_mtime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(41453, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
 
   /* Sixth header */
@@ -283,6 +301,8 @@ DEFINE_TEST(test_read_format_rar_unicode_UTF8)
   assertA((int)archive_entry_mtime(ae));
   assertEqualInt(16, archive_entry_size(ae));
   assertEqualInt(33204, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertEqualIntA(a, 16, archive_read_data(a, buff, sizeof(buff)));
 
   /* Test EOF */
@@ -328,6 +348,8 @@ DEFINE_TEST(test_read_format_rar_unicode_CP932)
   assertA((int)archive_entry_mtime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Second header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -338,6 +360,8 @@ DEFINE_TEST(test_read_format_rar_unicode_CP932)
   assertA((int)archive_entry_mtime(ae));
   assertEqualInt(5, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(5 == archive_read_data(a, buff, 5));
   assertEqualMem(buff, test_txt, 5);
 
@@ -349,6 +373,8 @@ DEFINE_TEST(test_read_format_rar_unicode_CP932)
   assertA((int)archive_entry_mtime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Fourth header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -356,6 +382,8 @@ DEFINE_TEST(test_read_format_rar_unicode_CP932)
   assertA((int)archive_entry_mtime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Fifth header, which has a symbolic-link name in multi-byte characters. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -368,6 +396,8 @@ DEFINE_TEST(test_read_format_rar_unicode_CP932)
   assertA((int)archive_entry_mtime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(41453, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
 
   /* Sixth header */
@@ -378,6 +408,8 @@ DEFINE_TEST(test_read_format_rar_unicode_CP932)
   assertA((int)archive_entry_mtime(ae));
   assertEqualInt(16, archive_entry_size(ae));
   assertEqualInt(33204, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertEqualIntA(a, 16, archive_read_data(a, buff, sizeof(buff)));
 
   /* Test EOF */
@@ -416,6 +448,8 @@ DEFINE_TEST(test_read_format_rar_compress_normal)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file1_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(file1_size == archive_read_data(a, file1_buff, file1_size));
   assertEqualMem(&file1_buff[file1_size - sizeof(file1_test_txt) + 1],
                  file1_test_txt, sizeof(file1_test_txt) - 1);
@@ -428,6 +462,8 @@ DEFINE_TEST(test_read_format_rar_compress_normal)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(41471, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertEqualString("LibarchiveAddingTest.html", archive_entry_symlink(ae));
   assertEqualIntA(a, 0, archive_read_data(a, file1_buff, 30));
 
@@ -439,6 +475,8 @@ DEFINE_TEST(test_read_format_rar_compress_normal)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file2_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(file2_size == archive_read_data(a, file2_buff, file2_size));
   assertEqualMem(&file2_buff[file2_size + 1 - sizeof(file2_test_txt)],
                  file2_test_txt, sizeof(file2_test_txt) - 1);
@@ -452,6 +490,8 @@ DEFINE_TEST(test_read_format_rar_compress_normal)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file1_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(file1_size == archive_read_data(a, file1_buff, file1_size));
   assertEqualMem(&file1_buff[file1_size - sizeof(file1_test_txt) + 1],
                  file1_test_txt, sizeof(file1_test_txt) - 1);
@@ -464,6 +504,8 @@ DEFINE_TEST(test_read_format_rar_compress_normal)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Sixth header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -473,6 +515,8 @@ DEFINE_TEST(test_read_format_rar_compress_normal)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
@@ -507,6 +551,8 @@ DEFINE_TEST(test_read_format_rar_multi_lzss_blocks)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   while (offset + (int)sizeof(buff) < size)
   {
     assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
@@ -551,6 +597,8 @@ DEFINE_TEST(test_read_format_rar_compress_best)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file1_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(file1_size == archive_read_data(a, file1_buff, file1_size));
   assertEqualMem(&file1_buff[file1_size - sizeof(file1_test_txt) + 1],
                  file1_test_txt, sizeof(file1_test_txt) - 1);
@@ -563,6 +611,8 @@ DEFINE_TEST(test_read_format_rar_compress_best)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(41471, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertEqualString("LibarchiveAddingTest.html", archive_entry_symlink(ae));
   assertEqualIntA(a, 0, archive_read_data(a, file1_buff, 30));
 
@@ -574,6 +624,8 @@ DEFINE_TEST(test_read_format_rar_compress_best)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file2_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(file2_size == archive_read_data(a, file2_buff, file2_size));
   assertEqualMem(&file2_buff[file2_size + 1 - sizeof(file2_test_txt)],
                  file2_test_txt, sizeof(file2_test_txt) - 1);
@@ -587,6 +639,8 @@ DEFINE_TEST(test_read_format_rar_compress_best)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file1_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(file1_size == archive_read_data(a, file1_buff, file1_size));
   assertEqualMem(&file1_buff[file1_size - sizeof(file1_test_txt) + 1],
                  file1_test_txt, sizeof(file1_test_txt) - 1);
@@ -599,6 +653,8 @@ DEFINE_TEST(test_read_format_rar_compress_best)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Sixth header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -608,6 +664,8 @@ DEFINE_TEST(test_read_format_rar_compress_best)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
@@ -643,6 +701,8 @@ DEFINE_TEST(test_read_format_rar_ppmd_lzss_conversion)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   while (offset + (int)sizeof(buff) < size)
   {
     assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
@@ -661,8 +721,8 @@ DEFINE_TEST(test_read_format_rar_ppmd_lzss_conversion)
 DEFINE_TEST(test_read_format_rar_binary)
 {
   const char reffile[] = "test_read_format_rar_binary_data.rar";
-  char file1_buff[1048576];
-  int file1_size = sizeof(file1_buff);
+  char *file1_buff = malloc(1048576);
+  int file1_size = 1048576;
   const char file1_test_txt[] = "\x37\xef\xb2\xbe\x33\xf6\xcc\xcb\xee\x2a\x10"
                                 "\x9d\x2e\x01\xe9\xf6\xf9\xe5\xe6\x67\x0c\x2b"
                                 "\xd8\x6b\xa0\x26\x9a\xf7\x93\x87\x42\xf1\x08"
@@ -692,6 +752,8 @@ DEFINE_TEST(test_read_format_rar_binary)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file1_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(file1_size == archive_read_data(a, file1_buff, file1_size));
   assertEqualMem(&file1_buff[file1_size - sizeof(file1_test_txt) + 1],
                  file1_test_txt, sizeof(file1_test_txt) - 1);
@@ -704,6 +766,8 @@ DEFINE_TEST(test_read_format_rar_binary)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file2_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(file2_size == archive_read_data(a, file2_buff, file2_size));
   assertEqualMem(&file2_buff[file2_size + 1 - sizeof(file2_test_txt)],
                  file2_test_txt, sizeof(file2_test_txt) - 1);
@@ -713,6 +777,8 @@ DEFINE_TEST(test_read_format_rar_binary)
   assertEqualInt(2, archive_file_count(a));
   assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+  free(file1_buff);
 }
 
 DEFINE_TEST(test_read_format_rar_windows)
@@ -738,6 +804,8 @@ DEFINE_TEST(test_read_format_rar_windows)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(16, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(size == archive_read_data(a, buff, size));
   assertEqualMem(buff, test_txt, size);
 
@@ -749,6 +817,8 @@ DEFINE_TEST(test_read_format_rar_windows)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(16, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(size == archive_read_data(a, buff, size));
   assertEqualMem(buff, test_txt, size);
 
@@ -760,6 +830,8 @@ DEFINE_TEST(test_read_format_rar_windows)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(sizeof(buff), archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
 
   /* Fourth header. */
@@ -770,6 +842,8 @@ DEFINE_TEST(test_read_format_rar_windows)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Fifth header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -779,6 +853,8 @@ DEFINE_TEST(test_read_format_rar_windows)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
@@ -828,6 +904,8 @@ DEFINE_TEST(test_read_format_rar_multivolume)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file1_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   while (offset + (int)sizeof(buff) < file1_size)
   {
     assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
@@ -845,6 +923,8 @@ DEFINE_TEST(test_read_format_rar_multivolume)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file2_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(file2_size == archive_read_data(a, file2_buff, file2_size));
   assertEqualMem(&file2_buff[file2_size - sizeof(file2_test_txt) + 1],
                  file2_test_txt, sizeof(file2_test_txt) - 1);
@@ -857,6 +937,8 @@ DEFINE_TEST(test_read_format_rar_multivolume)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(41471, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertEqualString("LibarchiveAddingTest.html", archive_entry_symlink(ae));
   assertEqualIntA(a, 0, archive_read_data(a, file2_buff, 30));
 
@@ -868,6 +950,8 @@ DEFINE_TEST(test_read_format_rar_multivolume)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file3_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(file3_size == archive_read_data(a, file3_buff, file3_size));
   assertEqualMem(&file3_buff[file3_size + 1 - sizeof(file3_test_txt)],
                  file3_test_txt, sizeof(file3_test_txt) - 1);
@@ -881,6 +965,8 @@ DEFINE_TEST(test_read_format_rar_multivolume)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file2_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(file2_size == archive_read_data(a, file2_buff, file2_size));
   assertEqualMem(&file2_buff[file2_size - sizeof(file2_test_txt) + 1],
                  file2_test_txt, sizeof(file2_test_txt) - 1);
@@ -893,6 +979,8 @@ DEFINE_TEST(test_read_format_rar_multivolume)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Seventh header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -902,6 +990,8 @@ DEFINE_TEST(test_read_format_rar_multivolume)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
@@ -941,6 +1031,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_skip)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file1_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Second header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -950,6 +1042,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_skip)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file2_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Third header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -959,6 +1053,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_skip)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(41471, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertEqualString("LibarchiveAddingTest.html", archive_entry_symlink(ae));
 
   /* Fourth header. */
@@ -969,6 +1065,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_skip)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file3_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Fifth header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -979,6 +1077,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_skip)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file2_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Sixth header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -988,6 +1088,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_skip)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Seventh header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -997,6 +1099,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_skip)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
@@ -1028,6 +1132,8 @@ DEFINE_TEST(test_read_format_rar_sfx)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(16, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(size == archive_read_data(a, buff, size));
   assertEqualMem(buff, test_txt, size);
 
@@ -1039,6 +1145,8 @@ DEFINE_TEST(test_read_format_rar_sfx)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(sizeof(buff), archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(sizeof(buff) == archive_read_data(a, buff, sizeof(buff)));
 
   /* Third header. */
@@ -1049,6 +1157,8 @@ DEFINE_TEST(test_read_format_rar_sfx)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(16, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(size == archive_read_data(a, buff, size));
   assertEqualMem(buff, test_txt, size);
 
@@ -1060,6 +1170,8 @@ DEFINE_TEST(test_read_format_rar_sfx)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Fifth header. */
   assertA(0 == archive_read_next_header(a, &ae));
@@ -1069,6 +1181,8 @@ DEFINE_TEST(test_read_format_rar_sfx)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
@@ -1109,6 +1223,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_stored_file)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertA(file_size == archive_read_data(a, file_buff, file_size));
   assertEqualMem(&file_buff[file_size - sizeof(file_test_txt) + 1],
                  file_test_txt, sizeof(file_test_txt) - 1);
@@ -1147,6 +1263,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_stored_file_skip)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Test EOF */
   assertA(1 == archive_read_next_header(a, &ae));
@@ -1193,6 +1311,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_data)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Seek to the end minus 64 bytes */
   assertA(file_size - (int)sizeof(buff) ==
@@ -1331,6 +1451,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_multiple_files)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Attempt to read past end of file */
   assertEqualInt(file_size, archive_seek_data(a, 0, SEEK_END));
@@ -1379,6 +1501,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_seek_multiple_files)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(file_size, archive_entry_size(ae));
   assertEqualInt(33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Attempt to read past end of file */
   assertEqualInt(file_size, archive_seek_data(a, 0, SEEK_END));
@@ -1523,6 +1647,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertA((int)archive_entry_atime(ae));
   assertEqualIntA(a, 20111, archive_entry_size(ae));
   assertEqualIntA(a, 33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
@@ -1786,6 +1912,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertA((int)archive_entry_atime(ae));
   assertEqualIntA(a, 20111, archive_entry_size(ae));
   assertEqualIntA(a, 33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
@@ -2169,6 +2297,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertA((int)archive_entry_atime(ae));
   assertEqualIntA(a, 20111, archive_entry_size(ae));
   assertEqualIntA(a, 33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
@@ -2432,6 +2562,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertA((int)archive_entry_atime(ae));
   assertEqualIntA(a, 20111, archive_entry_size(ae));
   assertEqualIntA(a, 33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
@@ -2815,6 +2947,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertA((int)archive_entry_atime(ae));
   assertEqualIntA(a, 20111, archive_entry_size(ae));
   assertEqualIntA(a, 33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
@@ -3078,6 +3212,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertA((int)archive_entry_atime(ae));
   assertEqualIntA(a, 20111, archive_entry_size(ae));
   assertEqualIntA(a, 33188, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   test_read_format_rar_multivolume_uncompressed_files_helper(a);
 
@@ -3462,6 +3598,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualInt(41471, archive_entry_mode(ae));
   assertEqualString("testsubdir/LibarchiveAddingTest.html",
     archive_entry_symlink(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
 
   /*
@@ -3476,6 +3614,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualInt(41471, archive_entry_mode(ae));
   assertEqualString("testsubdir/LibarchiveAddingTest2.html",
     archive_entry_symlink(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
 
   /*
@@ -3490,6 +3630,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualInt(41471, archive_entry_mode(ae));
   assertEqualString("testdir/LibarchiveAddingTest.html",
     archive_entry_symlink(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
 
   /*
@@ -3504,6 +3646,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualInt(41471, archive_entry_mode(ae));
   assertEqualString("testdir/LibarchiveAddingTest2.html",
     archive_entry_symlink(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
 
   /*
@@ -3518,6 +3662,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualInt(41471, archive_entry_mode(ae));
   assertEqualString("testdir/testsubdir/LibarchiveAddingTest.html",
     archive_entry_symlink(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
 
   /*
@@ -3532,6 +3678,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertEqualInt(41471, archive_entry_mode(ae));
   assertEqualString("testdir/testsubdir/LibarchiveAddingTest2.html",
     archive_entry_symlink(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
   assertEqualIntA(a, 0, archive_read_data(a, buff, sizeof(buff)));
 
   /*
@@ -3544,6 +3692,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /*
    * Fourteenth header.
@@ -3555,6 +3705,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /*
    * Fifteenth header.
@@ -3566,6 +3718,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /*
    * Sixteenth header.
@@ -3577,6 +3731,8 @@ DEFINE_TEST(test_read_format_rar_multivolume_uncompressed_files)
   assertA((int)archive_entry_atime(ae));
   assertEqualInt(0, archive_entry_size(ae));
   assertEqualInt(16877, archive_entry_mode(ae));
+  assertEqualInt(archive_entry_is_encrypted(ae), 0);
+  assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
   /* Test EOF */
   assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));

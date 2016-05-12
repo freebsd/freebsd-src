@@ -47,6 +47,7 @@ struct { int code; int (*setter)(struct archive *); } codes[] =
 	{ ARCHIVE_FORMAT_CPIO_SVR4_NOCRC,	archive_write_set_format_cpio_newc },
 	{ ARCHIVE_FORMAT_ISO9660,	archive_write_set_format_iso9660 },
 	{ ARCHIVE_FORMAT_MTREE,		archive_write_set_format_mtree },
+	{ ARCHIVE_FORMAT_RAW,		archive_write_set_format_raw },
 	{ ARCHIVE_FORMAT_SHAR,		archive_write_set_format_shar },
 	{ ARCHIVE_FORMAT_SHAR_BASE,	archive_write_set_format_shar },
 	{ ARCHIVE_FORMAT_SHAR_DUMP,	archive_write_set_format_shar_dump },
@@ -56,8 +57,9 @@ struct { int code; int (*setter)(struct archive *); } codes[] =
 	{ ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
 				archive_write_set_format_pax_restricted },
 	{ ARCHIVE_FORMAT_TAR_USTAR,	archive_write_set_format_ustar },
+	{ ARCHIVE_FORMAT_WARC,		archive_write_set_format_warc },
 	{ ARCHIVE_FORMAT_XAR,		archive_write_set_format_xar },
-	{ ARCHIVE_FORMAT_ZIP,	archive_write_set_format_zip },
+	{ ARCHIVE_FORMAT_ZIP,		archive_write_set_format_zip },
 	{ 0,		NULL }
 };
 

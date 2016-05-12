@@ -251,9 +251,11 @@ archive_read_disk_entry_from_file(struct archive *_a,
 #endif /* HAVE_READLINK || HAVE_READLINKAT */
 
 	r = setup_acls(a, entry, &fd);
-	r1 = setup_xattrs(a, entry, &fd);
-	if (r1 < r)
-		r = r1;
+	if (!a->suppress_xattr) {
+		r1 = setup_xattrs(a, entry, &fd);
+		if (r1 < r)
+			r = r1;
+	}
 	if (a->enable_copyfile) {
 		r1 = setup_mac_metadata(a, entry, &fd);
 		if (r1 < r)
@@ -399,7 +401,7 @@ setup_mac_metadata(struct archive_read_disk *a,
 #endif
 
 
-#if defined(HAVE_POSIX_ACL) && defined(ACL_TYPE_NFS4)
+#ifdef HAVE_POSIX_ACL
 static int translate_acl(struct archive_read_disk *a,
     struct archive_entry *entry, acl_t acl, int archive_entry_acl_type);
 
@@ -419,6 +421,7 @@ setup_acls(struct archive_read_disk *a,
 
 	archive_entry_acl_clear(entry);
 
+#ifdef ACL_TYPE_NFS4
 	/* Try NFS4 ACL first. */
 	if (*fd >= 0)
 		acl = acl_get_fd(*fd);
@@ -447,6 +450,7 @@ setup_acls(struct archive_read_disk *a,
 		acl_free(acl);
 		return (ARCHIVE_OK);
 	}
+#endif
 
 	/* Retrieve access ACL from file. */
 	if (*fd >= 0)
@@ -492,6 +496,7 @@ static struct {
         {ARCHIVE_ENTRY_ACL_EXECUTE, ACL_EXECUTE},
         {ARCHIVE_ENTRY_ACL_WRITE, ACL_WRITE},
         {ARCHIVE_ENTRY_ACL_READ, ACL_READ},
+#ifdef ACL_TYPE_NFS4
         {ARCHIVE_ENTRY_ACL_READ_DATA, ACL_READ_DATA},
         {ARCHIVE_ENTRY_ACL_LIST_DIRECTORY, ACL_LIST_DIRECTORY},
         {ARCHIVE_ENTRY_ACL_WRITE_DATA, ACL_WRITE_DATA},
@@ -508,8 +513,10 @@ static struct {
         {ARCHIVE_ENTRY_ACL_WRITE_ACL, ACL_WRITE_ACL},
         {ARCHIVE_ENTRY_ACL_WRITE_OWNER, ACL_WRITE_OWNER},
         {ARCHIVE_ENTRY_ACL_SYNCHRONIZE, ACL_SYNCHRONIZE}
+#endif
 };
 
+#ifdef ACL_TYPE_NFS4
 static struct {
         int archive_inherit;
         int platform_inherit;
@@ -519,20 +526,24 @@ static struct {
 	{ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT, ACL_ENTRY_NO_PROPAGATE_INHERIT},
 	{ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY, ACL_ENTRY_INHERIT_ONLY}
 };
-
+#endif
 static int
 translate_acl(struct archive_read_disk *a,
     struct archive_entry *entry, acl_t acl, int default_entry_acl_type)
 {
 	acl_tag_t	 acl_tag;
+#ifdef ACL_TYPE_NFS4
 	acl_entry_type_t acl_type;
 	acl_flagset_t	 acl_flagset;
+	int brand, r;
+#endif
 	acl_entry_t	 acl_entry;
 	acl_permset_t	 acl_permset;
-	int		 brand, i, r, entry_acl_type;
+	int		 i, entry_acl_type;
 	int		 s, ae_id, ae_tag, ae_perm;
 	const char	*ae_name;
 
+#ifdef ACL_TYPE_NFS4
 	// FreeBSD "brands" ACLs as POSIX.1e or NFSv4
 	// Make sure the "brand" on this ACL is consistent
 	// with the default_entry_acl_type bits provided.
@@ -559,6 +570,7 @@ translate_acl(struct archive_read_disk *a,
 		return ARCHIVE_FAILED;
 		break;
 	}
+#endif
 
 
 	s = acl_get_entry(acl, ACL_FIRST_ENTRY, &acl_entry);
@@ -591,9 +603,11 @@ translate_acl(struct archive_read_disk *a,
 		case ACL_OTHER:
 			ae_tag = ARCHIVE_ENTRY_ACL_OTHER;
 			break;
+#ifdef ACL_TYPE_NFS4
 		case ACL_EVERYONE:
 			ae_tag = ARCHIVE_ENTRY_ACL_EVERYONE;
 			break;
+#endif
 		default:
 			/* Skip types that libarchive can't support. */
 			s = acl_get_entry(acl, ACL_NEXT_ENTRY, &acl_entry);
@@ -604,6 +618,7 @@ translate_acl(struct archive_read_disk *a,
 		// XXX acl_get_entry_type_np on FreeBSD returns EINVAL for
 		// non-NFSv4 ACLs
 		entry_acl_type = default_entry_acl_type;
+#ifdef ACL_TYPE_NFS4
 		r = acl_get_entry_type_np(acl_entry, &acl_type);
 		if (r == 0) {
 			switch (acl_type) {
@@ -633,9 +648,10 @@ translate_acl(struct archive_read_disk *a,
 				ae_perm |= acl_inherit_map[i].archive_inherit;
 
                 }
+#endif
 
 		acl_get_permset(acl_entry, &acl_permset);
-                for (i = 0; i < (int)(sizeof(acl_perm_map) / sizeof(acl_perm_map[0])); ++i) {
+		for (i = 0; i < (int)(sizeof(acl_perm_map) / sizeof(acl_perm_map[0])); ++i) {
 			/*
 			 * acl_get_perm() is spelled differently on different
 			 * platforms; see above.
@@ -1029,7 +1045,7 @@ setup_sparse(struct archive_read_disk *a,
 	struct fiemap *fm;
 	struct fiemap_extent *fe;
 	int64_t size;
-	int count, do_fiemap;
+	int count, do_fiemap, iters;
 	int exit_sts = ARCHIVE_OK;
 
 	if (archive_entry_filetype(entry) != AE_IFREG
@@ -1066,7 +1082,7 @@ setup_sparse(struct archive_read_disk *a,
 	fm->fm_extent_count = count;
 	do_fiemap = 1;
 	size = archive_entry_size(entry);
-	for (;;) {
+	for (iters = 0; ; ++iters) {
 		int i, r;
 
 		r = ioctl(*fd, FS_IOC_FIEMAP, fm); 
@@ -1076,8 +1092,13 @@ setup_sparse(struct archive_read_disk *a,
 			 * version(<2.6.28) cannot perfom FS_IOC_FIEMAP. */
 			goto exit_setup_sparse;
 		}
-		if (fm->fm_mapped_extents == 0)
+		if (fm->fm_mapped_extents == 0) {
+			if (iters == 0) {
+				/* Fully sparse file; insert a zero-length "data" entry */
+				archive_entry_sparse_add_entry(entry, 0, 0);
+			}
 			break;
+		}
 		fe = fm->fm_extents;
 		for (i = 0; i < (int)fm->fm_mapped_extents; i++, fe++) {
 			if (!(fe->fe_flags & FIEMAP_EXTENT_UNWRITTEN)) {
@@ -1122,6 +1143,7 @@ setup_sparse(struct archive_read_disk *a,
 	off_t initial_off; /* FreeBSD/Solaris only, so off_t okay here */
 	off_t off_s, off_e; /* FreeBSD/Solaris only, so off_t okay here */
 	int exit_sts = ARCHIVE_OK;
+	int check_fully_sparse = 0;
 
 	if (archive_entry_filetype(entry) != AE_IFREG
 	    || archive_entry_size(entry) <= 0
@@ -1174,8 +1196,14 @@ setup_sparse(struct archive_read_disk *a,
 	while (off_s < size) {
 		off_s = lseek(*fd, off_s, SEEK_DATA);
 		if (off_s == (off_t)-1) {
-			if (errno == ENXIO)
-				break;/* no more hole */
+			if (errno == ENXIO) {
+				/* no more hole */
+				if (archive_entry_sparse_count(entry) == 0) {
+					/* Potentially a fully-sparse file. */
+					check_fully_sparse = 1;
+				}
+				break;
+			}
 			archive_set_error(&a->archive, errno,
 			    "lseek(SEEK_HOLE) failed");
 			exit_sts = ARCHIVE_FAILED;
@@ -1198,6 +1226,14 @@ setup_sparse(struct archive_read_disk *a,
 		archive_entry_sparse_add_entry(entry, off_s,
 			off_e - off_s);
 		off_s = off_e;
+	}
+
+	if (check_fully_sparse) {
+		if (lseek(*fd, 0, SEEK_HOLE) == 0 &&
+			lseek(*fd, 0, SEEK_END) == size) {
+			/* Fully sparse file; insert a zero-length "data" entry */
+			archive_entry_sparse_add_entry(entry, 0, 0);
+		}
 	}
 exit_setup_sparse:
 	lseek(*fd, initial_off, SEEK_SET);

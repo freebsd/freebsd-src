@@ -25,10 +25,10 @@
  */
 #include "test.h"
 
-/* Sanity test of internal crypto functionality */
+/* Sanity test of internal digest functionality */
 
 #define __LIBARCHIVE_BUILD 1
-#include "archive_crypto_private.h"
+#include "archive_digest_private.h"
 
 DEFINE_TEST(test_archive_md5)
 {

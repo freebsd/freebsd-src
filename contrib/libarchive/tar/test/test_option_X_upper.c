@@ -142,4 +142,18 @@ DEFINE_TEST(test_option_X_upper)
 	assertEmptyFile("test.out");
 	assertEmptyFile("test.err");
 	assertChdir("..");
+
+	/* Test 8: with empty exclusions file */
+	assertMakeDir("test8", 0755);
+	assertChdir("test8");
+	assertMakeFile("exclusions", 0644, "");
+	assertEqualInt(0,
+	    systemf("%s -xf ../archive.tar -X exclusions >test.out 2>test.err", testprog));
+	assertFileContents("file1", 5, "file1");
+	assertFileContents("file2", 5, "file2");
+	assertFileContents("file3a", 6, "file3a");
+	assertFileContents("file4a", 6, "file4a");
+	assertEmptyFile("test.out");
+	assertEmptyFile("test.err");
+	assertChdir("..");
 }

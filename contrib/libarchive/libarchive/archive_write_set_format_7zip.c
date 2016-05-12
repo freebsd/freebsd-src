@@ -1450,6 +1450,10 @@ _7z_free(struct archive_write *a)
 {
 	struct _7zip *zip = (struct _7zip *)a->format_data;
 
+	/* Close the temporary file. */
+	if (zip->temp_fd >= 0)
+		close(zip->temp_fd);
+
 	file_free_register(zip);
 	compression_end(&(a->archive), &(zip->stream));
 	free(zip->coder.props);

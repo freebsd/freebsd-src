@@ -1,3 +1,35 @@
+Apr 09, 2016: libarchive 3.1.901a released
+    Another test release in preparation for 3.2.0
+
+Feb 13, 2016: libarchive 3.1.900a released
+    This is a test release in preparation for 3.2.0
+
+Oct 21, 2015: Preliminary port to OSF
+
+Apr 11, 2015: libarchive's issue tracker is now hosted at GitHub.
+    https://github.com/libarchive/libarchive/issues
+
+Early 2015:  Many fixes to crash and overflow bugs thanks to Hanno Boeck
+
+Oct 13, 2014: Zip encryption and decryption support
+
+Aug 13, 2014: Add support for lz4 compression.
+
+Jun 10, 2014: Add warc format support
+
+May  3, 2014: Add experimental Zip streaming extension
+
+Apr  6, 2014: Add bsdcat command-line tool
+
+Jan 12, 2014: Add Zip64 support
+
+Dec  1, 2013: Rewrite Zip write logic
+
+Jul  1, 2013: Add ability to detect encrypted entries for many formats
+     (This does not add the ability to *decrypt* those entries, however)
+
+Feb 23, 2013: "raw" write support added
+
 Feb 09, 2013: libarchive 3.1.2 released
 
 Jan 28, 2013: libarchive's new website moved to http://www.libarchive.org.

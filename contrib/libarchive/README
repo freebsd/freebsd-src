@@ -5,7 +5,7 @@ Questions?  Issues?
      libarchive development, including documentation, and
      links to the libarchive mailing lists.
    * To report an issue, use the issue tracker at
-     http://code.google.com/p/libarchive/issues/list
+     https://github.com/libarchive/libarchive/issues
    * To submit an enhancement to libarchive, please submit
      a pull request via GitHub.
      https://github.com/libarchive/libarchive/pulls
@@ -13,9 +13,11 @@ Questions?  Issues?
 This distribution bundle includes the following components:
    * libarchive: a library for reading and writing streaming archives
    * tar: the 'bsdtar' program is a full-featured 'tar'
-          replacement built on libarchive
+          implementation built on libarchive
    * cpio: the 'bsdcpio' program is a different interface to
           essentially the same functionality
+   * cat: the 'bsdcat' program is a simple replacement tool for
+          zcat, bzcat, xzcat, and such
    * examples: Some small example programs that you may find useful.
    * examples/minitar: a compact sample demonstrating use of libarchive.
    * contrib:  Various items sent to me by third parties;
@@ -39,6 +41,7 @@ The following files in the top-level directory are used by the
 Guide to Documentation installed by this system:
  * bsdtar.1 explains the use of the bsdtar program
  * bsdcpio.1 explains the use of the bsdcpio program
+ * bsdcat.1 explains the use of the bsdcat program
  * libarchive.3 gives an overview of the library as a whole
  * archive_read.3, archive_write.3, archive_write_disk.3, and
    archive_read_disk.3 provide detailed calling sequences for the read
@@ -84,6 +87,8 @@ The library also detects and handles any of the following before evaluating the 
   * bzip2 compression
   * compress/LZW compression
   * lzma, lzip, and xz compression
+  * lz4 compression
+  * lzop compression
 
 The library can create archives in any of the following formats:
   * POSIX ustar
@@ -91,6 +96,7 @@ The library can create archives in any of the following formats:
   * "restricted" pax format, which will create ustar archives except for
     entries that require pax extensions (for long filenames, ACLs, etc).
   * Old GNU tar format
+  * Old V7 tar format
   * POSIX octet-oriented cpio
   * SVR4 "newc" cpio
   * shar archives
@@ -107,6 +113,8 @@ When creating archives, the result can be filtered with any of the following:
   * bzip2 compression
   * compress/LZW compression
   * lzma, lzip, and xz compression
+  * lz4 compression
+  * lzop compression
 
 Notes about the library architecture:
 
@@ -123,12 +131,12 @@ Notes about the library architecture:
 
  * I've attempted to minimize static link pollution.  If you don't
    explicitly invoke a particular feature (such as support for a
-   particular compression or format), it won't get pulled in.
-   In particular, if you don't explicitly enable a particular
-   compression or decompression support, you won't need to link
-   against the corresponding compression or decompression libraries.
-   This also reduces the size of statically-linked binaries in
-   environments where that matters.
+   particular compression or format), it won't get pulled in to
+   statically-linked programs.  In particular, if you don't explicitly
+   enable a particular compression or decompression support, you won't
+   need to link against the corresponding compression or decompression
+   libraries.  This also reduces the size of statically-linked
+   binaries in environments where that matters.
 
  * On read, the library accepts whatever blocks you hand it.
    Your read callback is free to pass the library a byte at a time

@@ -26,7 +26,7 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-char buff[1000000];
+static char buff[1000000];
 
 static void
 test_1(void)

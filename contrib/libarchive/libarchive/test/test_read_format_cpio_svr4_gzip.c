@@ -54,6 +54,8 @@ DEFINE_TEST(test_read_format_cpio_svr4_gzip)
 	    ARCHIVE_FILTER_GZIP);
 	assertEqualInt(archive_format(a),
 	    ARCHIVE_FORMAT_CPIO_SVR4_NOCRC);
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

@@ -26,7 +26,7 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-char buff2[64];
+static char buff2[64];
 DEFINE_TEST(test_write_format_iso9660)
 {
 	size_t buffsize = 1000000;

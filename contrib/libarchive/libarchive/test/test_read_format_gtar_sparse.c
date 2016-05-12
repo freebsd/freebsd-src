@@ -200,6 +200,8 @@ verify_archive_file(const char *name, struct archive_contents *ac)
 		}
 		failure("Name mismatch in archive %s", name);
 		assertEqualString(ac->filename, archive_entry_pathname(ae));
+		assertEqualInt(archive_entry_is_encrypted(ae), 0);
+		assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 		expect = *cts++;
 		while (0 == (err = archive_read_data_block(a,

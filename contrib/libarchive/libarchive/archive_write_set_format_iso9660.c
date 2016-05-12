@@ -197,7 +197,7 @@ struct isofile {
 	enum {
 		NO = 0,
 		BOOT_CATALOG,
-		BOOT_IMAGE,
+		BOOT_IMAGE
 	} boot;
 
 	/*
@@ -850,7 +850,7 @@ enum dir_rec_type {
 	DIR_REC_VD,		/* Stored in Volume Descriptor.	*/
 	DIR_REC_SELF,		/* Stored as Current Directory.	*/
 	DIR_REC_PARENT,		/* Stored as Parent Directory.	*/
-	DIR_REC_NORMAL,		/* Stored as Child.		*/
+	DIR_REC_NORMAL 		/* Stored as Child.		*/
 };
 
 /*
@@ -860,7 +860,7 @@ enum vdc {
 	VDC_STD,
 	VDC_LOWERCASE,
 	VDC_UCS2,
-	VDC_UCS2_DIRECT,
+	VDC_UCS2_DIRECT
 };
 
 /*
@@ -897,7 +897,7 @@ struct idr {
 
 enum char_type {
 	A_CHAR,
-	D_CHAR,
+	D_CHAR
 };
 
 
@@ -2719,6 +2719,16 @@ extra_get_record(struct isoent *isoent, int *space, int *off, int *loc)
 			rec->offset = 0;
 			/* Insert `rec` into the tail of isoent->extr_rec_list */
 			rec->next = NULL;
+			/*
+			 * Note: testing isoent->extr_rec_list.last == NULL
+			 * here is really unneeded since it has been already
+			 * initialized at isoent_new function but Clang Static
+			 * Analyzer claims that it is dereference of null
+			 * pointer.
+			 */
+			if (isoent->extr_rec_list.last == NULL)
+				isoent->extr_rec_list.last =
+					&(isoent->extr_rec_list.first);
 			*isoent->extr_rec_list.last = rec;
 			isoent->extr_rec_list.last = &(rec->next);
 		}
@@ -3994,7 +4004,7 @@ enum keytype {
 	KEY_FLG,
 	KEY_STR,
 	KEY_INT,
-	KEY_HEX,
+	KEY_HEX
 };
 static void
 set_option_info(struct archive_string *info, int *opt, const char *key,

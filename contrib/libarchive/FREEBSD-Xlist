@@ -1,11 +1,15 @@
 .git
 .gitattributes
 .gitignore
+.travis.yml
 CMakeLists.txt
+CONTRIBUTING.md
 CTestConfig.cmake
 INSTALL
 Makefile.am
 build
+cat/CMakeLists.txt
+cat/test/CMakeLists.txt
 configure.ac
 contrib
 cpio/CMakeLists.txt

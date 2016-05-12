@@ -83,7 +83,7 @@ static const char *	lookup_uname_helper(struct name_cache *, id_t uid);
  * a simple cache to accelerate such lookups---into the archive_read_disk
  * object.  This is in a separate file because getpwuid()/getgrgid()
  * can pull in a LOT of library code (including NIS/LDAP functions, which
- * pull in DNS resolveers, etc).  This can easily top 500kB, which makes
+ * pull in DNS resolvers, etc).  This can easily top 500kB, which makes
  * it inappropriate for some space-constrained applications.
  *
  * Applications that are size-sensitive may want to just use the

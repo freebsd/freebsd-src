@@ -193,6 +193,28 @@ Defaults to enabled, use
 .Cm !rockridge
 to disable.
 .El
+.It Format tar
+.Bl -tag -compact -width indent
+.It Cm compat-2x
+Libarchive 2.x incorrectly encoded Unicode filenames on
+some platforms.
+This option mimics the libarchive 2.x filename handling
+so that such archives can be read correctly.
+.It Cm hdrcharset
+The value is used as a character set name that will be
+used when translating filenames.
+.It Cm mac-ext
+Support Mac OS metadata extension that records data in special
+files beginning with a period and underscore.
+Defaults to enabled on Mac OS, disabled on other platforms.
+Use
+.Cm !mac-ext
+to disable.
+.It Cm read_concatenated_archives
+Ignore zeroed blocks in the archive, which occurs when multiple tar archives
+have been concatenated together.  Without this option, only the contents of
+the first concatenated archive would be read.
+.El
 .El
 .\"
 .Sh ERRORS

@@ -130,14 +130,14 @@ objects can be found in the overview manual page for
 The callback functions must match the following prototypes:
 .Bl -item -offset indent
 .It
-.Ft typedef ssize_t
+.Ft typedef la_ssize_t
 .Fo archive_read_callback
 .Fa "struct archive *"
 .Fa "void *client_data"
 .Fa "const void **buffer"
 .Fc
 .It
-.Ft typedef off_t
+.Ft typedef la_int64_t
 .Fo archive_skip_callback
 .Fa "struct archive *"
 .Fa "void *client_data"

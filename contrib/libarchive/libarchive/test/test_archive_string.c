@@ -342,3 +342,66 @@ DEFINE_TEST(test_archive_string)
 	test_archive_string_copy();
 	test_archive_string_sprintf();
 }
+
+static const char *strings[] =
+{
+  "dir/path",
+  "dir/path2",
+  "dir/path3",
+  "dir/path4",
+  "dir/path5",
+  "dir/path6",
+  "dir/path7",
+  "dir/path8",
+  "dir/path9",
+  "dir/subdir/path",
+  "dir/subdir/path2",
+  "dir/subdir/path3",
+  "dir/subdir/path4",
+  "dir/subdir/path5",
+  "dir/subdir/path6",
+  "dir/subdir/path7",
+  "dir/subdir/path8",
+  "dir/subdir/path9",
+  "dir2/path",
+  "dir2/path2",
+  "dir2/path3",
+  "dir2/path4",
+  "dir2/path5",
+  "dir2/path6",
+  "dir2/path7",
+  "dir2/path8",
+  "dir2/path9",
+  NULL
+};
+
+DEFINE_TEST(test_archive_string_sort)
+{
+  unsigned int i, j, size;
+  char **test_strings, *tmp;
+
+  srand((unsigned int)time(NULL));
+  size = sizeof(strings) / sizeof(char *);
+  assert((test_strings = (char **)calloc(1, sizeof(strings))) != NULL);
+  for (i = 0; i < (size - 1); i++)
+    assert((test_strings[i] = strdup(strings[i])) != NULL);
+
+  /* Shuffle the test strings */
+  for (i = 0; i < (size - 1); i++)
+  {
+    j = rand() % ((size - 1) - i);
+    j += i;
+    tmp = test_strings[i];
+    test_strings[i] = test_strings[j];
+    test_strings[j] = tmp;
+  }
+
+  /* Sort and test */
+  assertEqualInt(ARCHIVE_OK, archive_utility_string_sort(test_strings));
+  for (i = 0; i < (size - 1); i++)
+    assertEqualString(test_strings[i], strings[i]);
+
+  for (i = 0; i < (size - 1); i++)
+    free(test_strings[i]);
+  free(test_strings);
+}

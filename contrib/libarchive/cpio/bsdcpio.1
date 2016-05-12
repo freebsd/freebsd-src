@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 7, 2012
+.Dd September 16, 2014
 .Dt CPIO 1
 .Os
 .Sh NAME
@@ -32,17 +32,17 @@
 .Nd copy files to and from archives
 .Sh SYNOPSIS
 .Nm
-.Brq Fl i
+.Fl i
 .Op Ar options
 .Op Ar pattern ...
 .Op Ar < archive
 .Nm
-.Brq Fl o
+.Fl o
 .Op Ar options
 .Ar < name-list
 .Op Ar > archive
 .Nm
-.Brq Fl p
+.Fl p
 .Op Ar options
 .Ar dest-dir
 .Ar < name-list
@@ -156,7 +156,8 @@ See above for description.
 .It Fl Fl insecure
 (i and p mode only)
 Disable security checks during extraction or copying.
-This allows extraction via symbolic links and path names containing
+This allows extraction via symbolic links, absolute paths,
+and path names containing
 .Sq ..
 in the name.
 .It Fl J , Fl Fl xz
@@ -181,6 +182,11 @@ instead of copying.
 Compress the resulting archive with
 .Xr lrzip 1 .
 In input mode, this option is ignored.
+.It Fl Fl lz4
+(o mode only)
+Compress the archive with lz4-compatible compression before writing it.
+In input mode, this option is ignored; lz4 compression is recognized
+automatically on input.
 .It Fl Fl lzma
 (o mode only)
 Compress the file with lzma-compatible compression before writing it.
@@ -191,6 +197,15 @@ automatically on input.
 Compress the resulting archive with
 .Xr lzop 1 .
 In input mode, this option is ignored.
+.It Fl Fl passphrase Ar passphrase
+The
+.Pa passphrase
+is used to extract or create an encrypted archive.
+Currently, zip is only a format that
+.Nm
+can handle encrypted archives.
+You shouldn't use this option unless you realize how insecure
+use of this option is.
 .It Fl m , Fl Fl preserve-modification-time
 (i and p modes)
 Set file modification time on created files to match

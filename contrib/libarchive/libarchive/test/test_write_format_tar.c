@@ -25,8 +25,8 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-char buff[1000000];
-char buff2[64];
+static char buff[1000000];
+static char buff2[64];
 
 DEFINE_TEST(test_write_format_tar)
 {

@@ -243,7 +243,10 @@ file_close(struct archive *a, void *client_data)
 	struct write_file_data	*mine = (struct write_file_data *)client_data;
 
 	(void)a; /* UNUSED */
-	close(mine->fd);
+
+	if (mine->fd >= 0)
+		close(mine->fd);
+
 	archive_mstring_clean(&mine->filename);
 	free(mine);
 	return (ARCHIVE_OK);

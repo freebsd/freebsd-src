@@ -65,17 +65,13 @@ DEFINE_TEST(test_option_c)
 {
 	FILE *filelist;
 	int r;
-	int uid = -1;
-	int dev, ino, gid;
+	int uid = 1000;
+	int dev, ino, gid = 1000;
 	time_t t, now;
 	char *p, *e;
 	size_t s;
 
 	assertUmask(0);
-
-#if !defined(_WIN32)
-	uid = getuid();
-#endif
 
 	/*
 	 * Create an assortment of files.
@@ -101,7 +97,7 @@ DEFINE_TEST(test_option_c)
 
 	/* Use the cpio program to create an archive. */
 	fclose(filelist);
-	r = systemf("%s -oc <filelist >basic.out 2>basic.err", testprog);
+	r = systemf("%s -R 1000:1000 -oc <filelist >basic.out 2>basic.err", testprog);
 	/* Verify that nothing went to stderr. */
 	assertTextFileContents("1 block\n", "basic.err");
 

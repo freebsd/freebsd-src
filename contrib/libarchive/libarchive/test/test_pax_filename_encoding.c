@@ -335,8 +335,7 @@ test_pax_filename_encoding_3(void)
 /*
  * Verify that KOI8-R filenames are correctly translated to Unicode and UTF-8.
  */
-static void
-test_pax_filename_encoding_KOI8R(void)
+DEFINE_TEST(test_pax_filename_encoding_KOI8R)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -382,8 +381,7 @@ test_pax_filename_encoding_KOI8R(void)
 /*
  * Verify that CP1251 filenames are correctly translated to Unicode and UTF-8.
  */
-static void
-test_pax_filename_encoding_CP1251(void)
+DEFINE_TEST(test_pax_filename_encoding_CP1251)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -430,8 +428,7 @@ test_pax_filename_encoding_CP1251(void)
 /*
  * Verify that EUC-JP filenames are correctly translated to Unicode and UTF-8.
  */
-static void
-test_pax_filename_encoding_EUCJP(void)
+DEFINE_TEST(test_pax_filename_encoding_EUCJP)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -478,8 +475,7 @@ test_pax_filename_encoding_EUCJP(void)
 /*
  * Verify that CP932/SJIS filenames are correctly translated to Unicode and UTF-8.
  */
-static void
-test_pax_filename_encoding_CP932(void)
+DEFINE_TEST(test_pax_filename_encoding_CP932)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -528,8 +524,7 @@ test_pax_filename_encoding_CP932(void)
  * Verify that KOI8-R filenames are not translated to Unicode and UTF-8
  * when using hdrcharset=BINARY option.
  */
-static void
-test_pax_filename_encoding_KOI8R_BINARY(void)
+DEFINE_TEST(test_pax_filename_encoding_KOI8R_BINARY)
 {
   	struct archive *a;
   	struct archive_entry *entry;
@@ -568,8 +563,7 @@ test_pax_filename_encoding_KOI8R_BINARY(void)
  * Pax format writer only accepts both BINARY and UTF-8.
  * If other character-set name is specified, you will get ARCHIVE_FAILED.
  */
-static void
-test_pax_filename_encoding_KOI8R_CP1251(void)
+DEFINE_TEST(test_pax_filename_encoding_KOI8R_CP1251)
 {
   	struct archive *a;
 
@@ -592,10 +586,4 @@ DEFINE_TEST(test_pax_filename_encoding)
 	test_pax_filename_encoding_1();
 	test_pax_filename_encoding_2();
 	test_pax_filename_encoding_3();
-	test_pax_filename_encoding_KOI8R();
-	test_pax_filename_encoding_CP1251();
-	test_pax_filename_encoding_EUCJP();
-	test_pax_filename_encoding_CP932();
-	test_pax_filename_encoding_KOI8R_BINARY();
-	test_pax_filename_encoding_KOI8R_CP1251();
 }
