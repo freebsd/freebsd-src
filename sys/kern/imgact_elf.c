@@ -1014,6 +1014,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 */
 	addr = round_page((vm_offset_t)vmspace->vm_daddr + lim_max(td,
 	    RLIMIT_DATA));
+	/* Round up so signficant bits of rtld addresses aren't touched */
+	if (imgp->proc->p_sysent->sv_flags & SV_CHERI)
+		addr = roundup2(addr, 0x1000000);
 	PROC_UNLOCK(imgp->proc);
 
 	imgp->entry_addr = entry;
