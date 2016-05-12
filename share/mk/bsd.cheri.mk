@@ -39,12 +39,6 @@ CFLAGS+=	-Wno-error
 ALLOW_SHARED_TEXTREL=	yes
 .endif
 
-.if ${WANT_CHERI} == "pure" && defined(__BSD_PROG_MK)
-.if ${MK_LIBCHERI_JEMALLOC} == "no"
-LIBADD+=	c malloc_simple
-.endif
-.endif
-
 .if ${MK_CHERI128} == "yes"
 _CHERI_CC+=	-mllvm -cheri128
 # XXX: Needed as Clang rejects -mllvm -cheri128 when using $CC to link.

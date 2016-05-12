@@ -95,9 +95,7 @@ NOASM=
 .include "${LIBC_SRCTOP}/resolv/Makefile.inc"
 .include "${LIBC_SRCTOP}/stdio/Makefile.inc"
 .include "${LIBC_SRCTOP}/stdlib/Makefile.inc"
-.if !defined(LIBCHERI) || ${MK_LIBCHERI_JEMALLOC} == "yes"
 .include "${LIBC_SRCTOP}/stdlib/jemalloc/Makefile.inc"
-.endif
 .include "${LIBC_SRCTOP}/stdtime/Makefile.inc"
 .include "${LIBC_SRCTOP}/string/Makefile.inc"
 .include "${LIBC_SRCTOP}/sys/Makefile.inc"
