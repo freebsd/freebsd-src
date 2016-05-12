@@ -347,9 +347,9 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 		}
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 
-		if (error && bootverbose)
+		if (error)
 			printf("mountroot: unable to remount previous root "
-			    "under /.mount or /mnt (error %d).\n", error);
+			    "under /.mount or /mnt (error %d)\n", error);
 	}
 
 	/* Remount devfs under /dev */
@@ -373,9 +373,9 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 		} else
 			vput(vp);
 	}
-	if (error && bootverbose)
+	if (error)
 		printf("mountroot: unable to remount devfs under /dev "
-		    "(error %d).\n", error);
+		    "(error %d)\n", error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	if (mporoot == mpdevfs) {
@@ -383,7 +383,7 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 		/* Unlink the no longer needed /dev/dev -> / symlink */
 		error = kern_unlinkat(td, AT_FDCWD, "/dev/dev",
 		    UIO_SYSSPACE, 0);
-		if (error && bootverbose)
+		if (error)
 			printf("mountroot: unable to unlink /dev/dev "
 			    "(error %d)\n", error);
 	}
