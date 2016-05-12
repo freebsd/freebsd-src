@@ -138,6 +138,7 @@ int gpiobus_init_softc(device_t);
 int gpiobus_alloc_ivars(struct gpiobus_ivar *);
 void gpiobus_free_ivars(struct gpiobus_ivar *);
 int gpiobus_map_pin(device_t, uint32_t);
+int gpiobus_release_pin(device_t, uint32_t);
 
 extern driver_t gpiobus_driver;
 
