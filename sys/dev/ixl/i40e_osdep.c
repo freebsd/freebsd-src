@@ -155,7 +155,8 @@ i40e_release_spinlock(struct i40e_spinlock *lock)
 void
 i40e_destroy_spinlock(struct i40e_spinlock *lock)
 {
-	mtx_destroy(&lock->mutex);
+	if (mtx_initialized(&lock->mutex))
+		mtx_destroy(&lock->mutex);
 }
 
 /*

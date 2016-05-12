@@ -247,7 +247,6 @@ ixl_xmit(struct ixl_queue *que, struct mbuf **m_headp)
 	bus_dma_tag_t		tag;
 	bus_dma_segment_t	segs[IXL_MAX_TSO_SEGS];
 
-
 	cmd = off = 0;
 	m_head = *m_headp;
 
@@ -286,7 +285,7 @@ ixl_xmit(struct ixl_queue *que, struct mbuf **m_headp)
 	if (error == EFBIG) {
 		struct mbuf *m;
 
-		m = m_collapse(*m_headp, M_NOWAIT, maxsegs);
+		m = m_defrag(*m_headp, M_NOWAIT);
 		if (m == NULL) {
 			que->mbuf_defrag_failed++;
 			m_freem(*m_headp);
@@ -390,7 +389,6 @@ ixl_xmit(struct ixl_queue *que, struct mbuf **m_headp)
 	++txr->total_packets;
 	wr32(hw, txr->tail, i);
 
-	ixl_flush(hw);
 	/* Mark outstanding work */
 	if (que->busy == 0)
 		que->busy = 1;
@@ -631,7 +629,6 @@ ixl_tx_setup_offload(struct ixl_queue *que,
 	u8				ipproto = 0;
 	bool				tso = FALSE;
 
-
 	/* Set up the TSO context descriptor if required */
 	if (mp->m_pkthdr.csum_flags & CSUM_TSO) {
 		tso = ixl_tso_setup(que, mp);
@@ -769,6 +766,12 @@ ixl_tso_setup(struct ixl_queue *que, struct mbuf *mp)
 		th = (struct tcphdr *)((caddr_t)ip6 + ip_hlen);
 		th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
 		tcp_hlen = th->th_off << 2;
+		/*
+		 * The corresponding flag is set by the stack in the IPv4
+		 * TSO case, but not in IPv6 (at least in FreeBSD 10.2).
+		 * So, set it here because the rest of the flow requires it.
+		 */
+		mp->m_pkthdr.csum_flags |= CSUM_TCP_IPV6;
 		break;
 #endif
 #ifdef INET
@@ -1579,7 +1582,7 @@ ixl_rxeof(struct ixl_queue *que, int count)
 		** error results.
 		*/
                 if (eop && (error & (1 << I40E_RX_DESC_ERROR_RXE_SHIFT))) {
-			rxr->discarded++;
+			rxr->desc_errs++;
 			ixl_rx_discard(rxr, i);
 			goto next_desc;
 		}

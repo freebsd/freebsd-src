@@ -1103,7 +1103,11 @@ enum i40e_status_code i40e_pf_reset(struct i40e_hw *hw)
 	grst_del = (rd32(hw, I40E_GLGEN_RSTCTL) &
 			I40E_GLGEN_RSTCTL_GRSTDEL_MASK) >>
 			I40E_GLGEN_RSTCTL_GRSTDEL_SHIFT;
-	for (cnt = 0; cnt < grst_del + 10; cnt++) {
+
+	/* It can take upto 15 secs for GRST steady state */
+	grst_del = grst_del * 20; /* bump it to 16 secs max to be safe */
+
+	for (cnt = 0; cnt < grst_del; cnt++) {
 		reg = rd32(hw, I40E_GLGEN_RSTAT);
 		if (!(reg & I40E_GLGEN_RSTAT_DEVSTATE_MASK))
 			break;
@@ -2012,12 +2016,19 @@ enum i40e_status_code i40e_aq_set_vsi_unicast_promiscuous(struct i40e_hw *hw,
 	i40e_fill_default_direct_cmd_desc(&desc,
 					i40e_aqc_opc_set_vsi_promiscuous_modes);
 
-	if (set)
+	if (set) {
 		flags |= I40E_AQC_SET_VSI_PROMISC_UNICAST;
+		if (((hw->aq.api_maj_ver == 1) && (hw->aq.api_min_ver >= 5)) ||
+		     (hw->aq.api_maj_ver > 1))
+			flags |= I40E_AQC_SET_VSI_PROMISC_TX;
+	}
 
 	cmd->promiscuous_flags = CPU_TO_LE16(flags);
 
 	cmd->valid_flags = CPU_TO_LE16(I40E_AQC_SET_VSI_PROMISC_UNICAST);
+	if (((hw->aq.api_maj_ver >= 1) && (hw->aq.api_min_ver >= 5)) ||
+	     (hw->aq.api_maj_ver > 1))
+		cmd->valid_flags |= CPU_TO_LE16(I40E_AQC_SET_VSI_PROMISC_TX);
 
 	cmd->seid = CPU_TO_LE16(seid);
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
@@ -3367,41 +3378,73 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 		switch (id) {
 		case I40E_AQ_CAP_ID_SWITCH_MODE:
 			p->switch_mode = number;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: Switch mode = %d\n",
+				   p->switch_mode);
 			break;
 		case I40E_AQ_CAP_ID_MNG_MODE:
 			p->management_mode = number;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: Management Mode = %d\n",
+				   p->management_mode);
 			break;
 		case I40E_AQ_CAP_ID_NPAR_ACTIVE:
 			p->npar_enable = number;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: NPAR enable = %d\n",
+				   p->npar_enable);
 			break;
 		case I40E_AQ_CAP_ID_OS2BMC_CAP:
 			p->os2bmc = number;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: OS2BMC = %d\n", p->os2bmc);
 			break;
 		case I40E_AQ_CAP_ID_FUNCTIONS_VALID:
 			p->valid_functions = number;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: Valid Functions = %d\n",
+				   p->valid_functions);
 			break;
 		case I40E_AQ_CAP_ID_SRIOV:
 			if (number == 1)
 				p->sr_iov_1_1 = TRUE;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: SR-IOV = %d\n",
+				   p->sr_iov_1_1);
 			break;
 		case I40E_AQ_CAP_ID_VF:
 			p->num_vfs = number;
 			p->vf_base_id = logical_id;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: VF count = %d\n",
+				   p->num_vfs);
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: VF base_id = %d\n",
+				   p->vf_base_id);
 			break;
 		case I40E_AQ_CAP_ID_VMDQ:
 			if (number == 1)
 				p->vmdq = TRUE;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: VMDQ = %d\n", p->vmdq);
 			break;
 		case I40E_AQ_CAP_ID_8021QBG:
 			if (number == 1)
 				p->evb_802_1_qbg = TRUE;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: 802.1Qbg = %d\n", number);
 			break;
 		case I40E_AQ_CAP_ID_8021QBR:
 			if (number == 1)
 				p->evb_802_1_qbh = TRUE;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: 802.1Qbh = %d\n", number);
 			break;
 		case I40E_AQ_CAP_ID_VSI:
 			p->num_vsis = number;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: VSI count = %d\n",
+				   p->num_vsis);
 			break;
 		case I40E_AQ_CAP_ID_DCB:
 			if (number == 1) {
@@ -3409,33 +3452,68 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 				p->enabled_tcmap = logical_id;
 				p->maxtc = phys_id;
 			}
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: DCB = %d\n", p->dcb);
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: TC Mapping = %d\n",
+				   logical_id);
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: TC Max = %d\n", p->maxtc);
 			break;
 		case I40E_AQ_CAP_ID_FCOE:
 			if (number == 1)
 				p->fcoe = TRUE;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: FCOE = %d\n", p->fcoe);
 			break;
 		case I40E_AQ_CAP_ID_ISCSI:
 			if (number == 1)
 				p->iscsi = TRUE;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: iSCSI = %d\n", p->iscsi);
 			break;
 		case I40E_AQ_CAP_ID_RSS:
 			p->rss = TRUE;
 			p->rss_table_size = number;
 			p->rss_table_entry_width = logical_id;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: RSS = %d\n", p->rss);
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: RSS table size = %d\n",
+				   p->rss_table_size);
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: RSS table width = %d\n",
+				   p->rss_table_entry_width);
 			break;
 		case I40E_AQ_CAP_ID_RXQ:
 			p->num_rx_qp = number;
 			p->base_queue = phys_id;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: Rx QP = %d\n", number);
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: base_queue = %d\n",
+				   p->base_queue);
 			break;
 		case I40E_AQ_CAP_ID_TXQ:
 			p->num_tx_qp = number;
 			p->base_queue = phys_id;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: Tx QP = %d\n", number);
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: base_queue = %d\n",
+				   p->base_queue);
 			break;
 		case I40E_AQ_CAP_ID_MSIX:
 			p->num_msix_vectors = number;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: MSIX vector count = %d\n",
+				   p->num_msix_vectors_vf);
 			break;
 		case I40E_AQ_CAP_ID_VF_MSIX:
 			p->num_msix_vectors_vf = number;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: MSIX VF vector count = %d\n",
+				   p->num_msix_vectors_vf);
 			break;
 		case I40E_AQ_CAP_ID_FLEX10:
 			if (major_rev == 1) {
@@ -3452,41 +3530,72 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 			}
 			p->flex10_mode = logical_id;
 			p->flex10_status = phys_id;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: Flex10 mode = %d\n",
+				   p->flex10_mode);
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: Flex10 status = %d\n",
+				   p->flex10_status);
 			break;
 		case I40E_AQ_CAP_ID_CEM:
 			if (number == 1)
 				p->mgmt_cem = TRUE;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: CEM = %d\n", p->mgmt_cem);
 			break;
 		case I40E_AQ_CAP_ID_IWARP:
 			if (number == 1)
 				p->iwarp = TRUE;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: iWARP = %d\n", p->iwarp);
 			break;
 		case I40E_AQ_CAP_ID_LED:
 			if (phys_id < I40E_HW_CAP_MAX_GPIO)
 				p->led[phys_id] = TRUE;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: LED - PIN %d\n", phys_id);
 			break;
 		case I40E_AQ_CAP_ID_SDP:
 			if (phys_id < I40E_HW_CAP_MAX_GPIO)
 				p->sdp[phys_id] = TRUE;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: SDP - PIN %d\n", phys_id);
 			break;
 		case I40E_AQ_CAP_ID_MDIO:
 			if (number == 1) {
 				p->mdio_port_num = phys_id;
 				p->mdio_port_mode = logical_id;
 			}
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: MDIO port number = %d\n",
+				   p->mdio_port_num);
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: MDIO port mode = %d\n",
+				   p->mdio_port_mode);
 			break;
 		case I40E_AQ_CAP_ID_1588:
 			if (number == 1)
 				p->ieee_1588 = TRUE;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: IEEE 1588 = %d\n",
+				   p->ieee_1588);
 			break;
 		case I40E_AQ_CAP_ID_FLOW_DIRECTOR:
 			p->fd = TRUE;
 			p->fd_filters_guaranteed = number;
 			p->fd_filters_best_effort = logical_id;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: Flow Director = 1\n");
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: Guaranteed FD filters = %d\n",
+				   p->fd_filters_guaranteed);
 			break;
 		case I40E_AQ_CAP_ID_WSR_PROT:
 			p->wr_csr_prot = (u64)number;
 			p->wr_csr_prot |= (u64)logical_id << 32;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: wr_csr_prot = 0x%llX\n\n",
+				   (p->wr_csr_prot & 0xffff));
 			break;
 		default:
 			break;
