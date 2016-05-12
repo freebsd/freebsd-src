@@ -6641,38 +6641,32 @@ hdaa_attach(device_t dev)
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "config", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	    &devinfo->newquirks, sizeof(&devinfo->newquirks),
-	    hdaa_sysctl_quirks, "A", "Configuration options");
+	    &devinfo->newquirks, 0, hdaa_sysctl_quirks, "A",
+	    "Configuration options");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "gpi_state", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    devinfo, sizeof(devinfo),
-	    hdaa_sysctl_gpi_state, "A", "GPI state");
+	    devinfo, 0, hdaa_sysctl_gpi_state, "A", "GPI state");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "gpio_state", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    devinfo, sizeof(devinfo),
-	    hdaa_sysctl_gpio_state, "A", "GPIO state");
+	    devinfo, 0, hdaa_sysctl_gpio_state, "A", "GPIO state");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "gpio_config", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	    devinfo, sizeof(devinfo),
-	    hdaa_sysctl_gpio_config, "A", "GPIO configuration");
+	    devinfo, 0, hdaa_sysctl_gpio_config, "A", "GPIO configuration");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "gpo_state", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    devinfo, sizeof(devinfo),
-	    hdaa_sysctl_gpo_state, "A", "GPO state");
+	    devinfo, 0, hdaa_sysctl_gpo_state, "A", "GPO state");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "gpo_config", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-	    devinfo, sizeof(devinfo),
-	    hdaa_sysctl_gpo_config, "A", "GPO configuration");
+	    devinfo, 0, hdaa_sysctl_gpo_config, "A", "GPO configuration");
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "reconfig", CTLTYPE_INT | CTLFLAG_RW,
-	    dev, sizeof(dev),
-	    hdaa_sysctl_reconfig, "I", "Reprocess configuration");
+	    dev, 0, hdaa_sysctl_reconfig, "I", "Reprocess configuration");
 	bus_generic_attach(dev);
 	return (0);
 }
