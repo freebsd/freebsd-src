@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
 #if EFSYS_OPT_VPD || EFSYS_OPT_NVRAM
 
@@ -2330,4 +2330,4 @@ ef10_nvram_partn_rw_finish(
 
 #endif	/* EFSYS_OPT_NVRAM */
 
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
