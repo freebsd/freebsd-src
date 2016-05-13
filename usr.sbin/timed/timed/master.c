@@ -623,7 +623,7 @@ addmach(char *name, struct sockaddr_in *addr, struct netinfo *ntp)
 		}
 		ret->addr = *addr;
 		ret->ntp = ntp;
-		(void)strncpy(ret->name, name, sizeof(ret->name));
+		(void)strlcpy(ret->name, name, sizeof(ret->name));
 		ret->good = good_host_name(name);
 		ret->l_fwd = &self;
 		ret->l_bak = self.l_bak;
