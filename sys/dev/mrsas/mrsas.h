@@ -2646,6 +2646,8 @@ typedef struct _MRSAS_DRV_PCI_INFORMATION {
 struct mrsas_softc {
 	device_t mrsas_dev;
 	struct cdev *mrsas_cdev;
+	struct intr_config_hook mrsas_ich;
+	struct cdev *mrsas_linux_emulator_cdev;
 	uint16_t device_id;
 	struct resource *reg_res;
 	int	reg_res_id;
