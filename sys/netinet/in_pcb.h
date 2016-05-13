@@ -288,12 +288,16 @@ struct	xinpcb {
 	u_quad_t	xi_alignment_hack;
 };
 
+/*
+ * struct xinpgen is cast to struct xinpcb, thus struct xinpgen must have
+ * pointer alignment.  On CHERI size_t alignment is insufficent.
+ */
 struct	xinpgen {
 	size_t	xig_len;	/* length of this structure */
 	u_int	xig_count;	/* number of PCBs at this time */
 	inp_gen_t xig_gen;	/* generation count at this time */
 	so_gen_t xig_sogen;	/* socket generation count at this time */
-};
+} __aligned(sizeof(void *));
 #endif /* _SYS_SOCKETVAR_H_ */
 
 struct inpcbport {
