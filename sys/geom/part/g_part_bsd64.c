@@ -510,7 +510,8 @@ g_part_bsd64_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	dlp = (struct disklabel64 *)buf;
 	basetable->gpt_entries = le32toh(dlp->d_npartitions);
-	if (basetable->gpt_entries > MAXPARTITIONS64)
+	if (basetable->gpt_entries > MAXPARTITIONS64 ||
+	    basetable->gpt_entries < 1)
 		goto invalid_label;
 	v32 = le32toh(dlp->d_crc);
 	dlp->d_crc = 0;
@@ -563,8 +564,6 @@ g_part_bsd64_read(struct g_part_table *basetable, struct g_consumer *cp)
 		le_uuid_dec(&dlp->d_partitions[index].p_stor_uuid,
 		    &entry->stor_uuid);
 		entry->fstype = dlp->d_partitions[index].p_fstype;
-		if (index == RAW_PART)
-			baseentry->gpe_internal = 1;
 	}
 	bcopy(dlp->d_reserved0, table->d_reserved0,
 	    sizeof(table->d_reserved0));
