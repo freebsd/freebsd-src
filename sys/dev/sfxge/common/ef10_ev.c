@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "mcdi_mon.h"
 #endif
 
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
 #if EFSYS_OPT_QSTATS
 #define	EFX_EV_QSTAT_INCR(_eep, _stat)					\
@@ -985,4 +985,4 @@ ef10_ev_rxlabel_fini(
 	eersp->eers_rx_mask = 0;
 }
 
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
