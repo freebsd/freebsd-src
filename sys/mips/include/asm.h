@@ -148,6 +148,7 @@
 #define	LEAF(x)			\
 	.globl	_C_LABEL(x);	\
 	.ent	_C_LABEL(x);	\
+	.type	_C_LABEL(x),@function;	\
 _C_LABEL(x): ;			\
 	.frame sp, 0, ra;	\
 	MCOUNT
@@ -159,6 +160,7 @@ _C_LABEL(x): ;			\
 #define	LEAF_NOPROFILE(x)	\
 	.globl	_C_LABEL(x);	\
 	.ent	_C_LABEL(x);	\
+	.type	_C_LABEL(x),@function;	\
 _C_LABEL(x): ;			\
 	.frame	sp, 0, ra
 
@@ -169,6 +171,7 @@ _C_LABEL(x): ;			\
 #define	XLEAF(x)		\
 	.globl	_C_LABEL(x);	\
 	AENT (_C_LABEL(x));	\
+	.type	_C_LABEL(x),@function;	\
 _C_LABEL(x):
 
 /*
@@ -179,6 +182,7 @@ _C_LABEL(x):
 #define	NESTED(x, fsize, retpc)		\
 	.globl	_C_LABEL(x);		\
 	.ent	_C_LABEL(x);		\
+	.type	_C_LABEL(x),@function;	\
 _C_LABEL(x): ;				\
 	.frame	sp, fsize, retpc;	\
 	MCOUNT
@@ -190,6 +194,7 @@ _C_LABEL(x): ;				\
 #define	NESTED_NOPROFILE(x, fsize, retpc)	\
 	.globl	_C_LABEL(x);			\
 	.ent	_C_LABEL(x);			\
+	.type	_C_LABEL(x),@function;	\
 _C_LABEL(x): ;					\
 	.frame	sp, fsize, retpc
 
@@ -200,6 +205,7 @@ _C_LABEL(x): ;					\
 #define	XNESTED(x)		\
 	.globl	_C_LABEL(x);	\
 	AENT (_C_LABEL(x));	\
+	.type	_C_LABEL(x),@function;	\
 _C_LABEL(x):
 
 /*
