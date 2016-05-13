@@ -2565,7 +2565,6 @@ je_rallocm(void **ptr, size_t *rsize, size_t size, size_t extra, int flags)
 	} else {
 		void *p = je_rallocx(*ptr, size+extra, flags);
 		if (p != NULL) {
-			*ptr = p;
 #ifndef __CHERI_PURE_CAPABILITY__
 			*ptr = p;
 #else
