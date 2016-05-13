@@ -2435,6 +2435,12 @@ struct mrsas_irq_context {
 	uint32_t MSIxIndex;
 };
 
+enum MEGASAS_OCR_REASON {
+	FW_FAULT_OCR = 0,
+	SCSIIO_TIMEOUT_OCR = 1,
+	MFI_DCMD_TIMEOUT_OCR = 2,
+};
+
 /* Controller management info added to support Linux Emulator */
 #define	MAX_MGMT_ADAPTERS               1024
 
