@@ -47,7 +47,6 @@
 #include "bsnmptc.h"
 #include "bsnmptools.h"
 
-extern int _bsnmptools_debug;
 #define	DEBUG	if (_bsnmptools_debug) fprintf
 
 /* Allocate memory and initialize list. */
