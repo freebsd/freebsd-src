@@ -2034,7 +2034,7 @@ pci_emul_diow(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 		 */
 	}
 
-	if (baridx > 2) {
+	if (baridx > 2 || baridx < 0) {
 		printf("diow: unknown bar idx %d\n", baridx);
 	}
 }
@@ -2089,7 +2089,7 @@ pci_emul_dior(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 	}
 
 
-	if (baridx > 2) {
+	if (baridx > 2 || baridx < 0) {
 		printf("dior: unknown bar idx %d\n", baridx);
 		return (0);
 	}
