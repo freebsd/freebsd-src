@@ -746,7 +746,7 @@ ef10_tx_qdesc_dma_create(
 	__out	efx_desc_t *edp);
 
 extern	void
-hunt_tx_qdesc_tso_create(
+ef10_tx_qdesc_tso_create(
 	__in	efx_txq_t *etp,
 	__in	uint16_t ipv4_id,
 	__in	uint32_t tcp_seq,

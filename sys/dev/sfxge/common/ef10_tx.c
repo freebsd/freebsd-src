@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "efx_impl.h"
 
 
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
 #if EFSYS_OPT_QSTATS
 #define	EFX_TX_QSTAT_INCR(_etp, _stat)					\
@@ -569,7 +569,7 @@ ef10_tx_qdesc_dma_create(
 }
 
 	void
-hunt_tx_qdesc_tso_create(
+ef10_tx_qdesc_tso_create(
 	__in	efx_txq_t *etp,
 	__in	uint16_t ipv4_id,
 	__in	uint32_t tcp_seq,
@@ -707,4 +707,4 @@ ef10_tx_qstats_update(
 
 #endif /* EFSYS_OPT_QSTATS */
 
-#endif /* EFSYS_OPT_HUNTINGTON */
+#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
