@@ -798,7 +798,7 @@ parse_server(char *opt_arg)
 		return (-1);
 
 	if (snmp_client.trans > SNMP_TRANS_UDP && snmp_client.chost == NULL) {
-		if ((snmp_client.chost = malloc(strlen(SNMP_DEFAULT_LOCAL + 1)))
+		if ((snmp_client.chost = malloc(strlen(SNMP_DEFAULT_LOCAL) + 1))
 		    == NULL) {
 			syslog(LOG_ERR, "malloc() failed: %s", strerror(errno));
 			return (-1);
