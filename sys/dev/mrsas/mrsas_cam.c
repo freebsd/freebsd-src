@@ -872,7 +872,10 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 		cmd->request_desc->SCSIIO.RequestFlags =
 		    (MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
 		    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-		if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY)) {
+		if ((sc->device_id == MRSAS_INVADER) ||
+		    (sc->device_id == MRSAS_FURY) ||
+		    (sc->device_id == MRSAS_INTRUDER) ||
+		    (sc->device_id == MRSAS_INTRUDER_24)) {
 			if (io_request->RaidContext.regLockFlags == REGION_TYPE_UNUSED)
 				cmd->request_desc->SCSIIO.RequestFlags =
 				    (MRSAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
@@ -901,7 +904,10 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 		cmd->request_desc->SCSIIO.RequestFlags =
 		    (MRSAS_REQ_DESCRIPT_FLAGS_LD_IO <<
 		    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-		if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY)) {
+		if ((sc->device_id == MRSAS_INVADER) ||
+		    (sc->device_id == MRSAS_FURY) ||
+		    (sc->device_id == MRSAS_INTRUDER) ||
+		    (sc->device_id == MRSAS_INTRUDER_24)) {
 			if (io_request->RaidContext.regLockFlags == REGION_TYPE_UNUSED)
 				cmd->request_desc->SCSIIO.RequestFlags =
 				    (MRSAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
@@ -1177,7 +1183,10 @@ mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	io_request = cmd->io_request;
 	sgl_ptr = (pMpi25IeeeSgeChain64_t)&io_request->SGL;
 
-	if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY)) {
+	if ((sc->device_id == MRSAS_INVADER) ||
+	    (sc->device_id == MRSAS_FURY) ||
+	    (sc->device_id == MRSAS_INTRUDER) ||
+	    (sc->device_id == MRSAS_INTRUDER_24)) {
 		pMpi25IeeeSgeChain64_t sgl_ptr_end = sgl_ptr;
 
 		sgl_ptr_end += sc->max_sge_in_main_msg - 1;
@@ -1188,7 +1197,10 @@ mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			sgl_ptr->Address = segs[i].ds_addr;
 			sgl_ptr->Length = segs[i].ds_len;
 			sgl_ptr->Flags = 0;
-			if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY)) {
+			if ((sc->device_id == MRSAS_INVADER) ||
+			    (sc->device_id == MRSAS_FURY) ||
+			    (sc->device_id == MRSAS_INTRUDER) ||
+			    (sc->device_id == MRSAS_INTRUDER_24)) {
 				if (i == nseg - 1)
 					sgl_ptr->Flags = IEEE_SGE_FLAGS_END_OF_LIST;
 			}
@@ -1198,7 +1210,10 @@ mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			    (nseg > sc->max_sge_in_main_msg)) {
 				pMpi25IeeeSgeChain64_t sg_chain;
 
-				if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY)) {
+				if ((sc->device_id == MRSAS_INVADER) ||
+				    (sc->device_id == MRSAS_FURY) ||
+				    (sc->device_id == MRSAS_INTRUDER) ||
+				    (sc->device_id == MRSAS_INTRUDER_24)) {
 					if ((cmd->io_request->IoFlags & MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH)
 					    != MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH)
 						cmd->io_request->ChainOffset = sc->chain_offset_io_request;
@@ -1207,7 +1222,10 @@ mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 				} else
 					cmd->io_request->ChainOffset = sc->chain_offset_io_request;
 				sg_chain = sgl_ptr;
-				if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY))
+				if ((sc->device_id == MRSAS_INVADER) ||
+				    (sc->device_id == MRSAS_FURY) ||
+				    (sc->device_id == MRSAS_INTRUDER) ||
+				    (sc->device_id == MRSAS_INTRUDER_24))
 					sg_chain->Flags = IEEE_SGE_FLAGS_CHAIN_ELEMENT;
 				else
 					sg_chain->Flags = (IEEE_SGE_FLAGS_CHAIN_ELEMENT | MPI2_IEEE_SGE_FLAGS_IOCPLBNTA_ADDR);

@@ -186,6 +186,8 @@ MRSAS_CTLR_ID device_table[] = {
 	{0x1000, MRSAS_TBOLT, 0xffff, 0xffff, "AVAGO Thunderbolt SAS Controller"},
 	{0x1000, MRSAS_INVADER, 0xffff, 0xffff, "AVAGO Invader SAS Controller"},
 	{0x1000, MRSAS_FURY, 0xffff, 0xffff, "AVAGO Fury SAS Controller"},
+	{0x1000, MRSAS_INTRUDER, 0xffff, 0xffff, "AVAGO Intruder SAS Controller"},
+	{0x1000, MRSAS_INTRUDER_24, 0xffff, 0xffff, "AVAGO Intruder_24 SAS Controller"},
 	{0, 0, 0, 0, NULL}
 };
 
@@ -1628,7 +1630,9 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 		if (threshold_reply_count >= THRESHOLD_REPLY_COUNT) {
 			if (sc->msix_enable) {
 				if ((sc->device_id == MRSAS_INVADER) ||
-				    (sc->device_id == MRSAS_FURY))
+				    (sc->device_id == MRSAS_FURY) ||
+				    (sc->device_id == MRSAS_INTRUDER) ||
+				    (sc->device_id == MRSAS_INTRUDER_24))
 					mrsas_write_reg(sc, sc->msix_reg_offset[MSIxIndex / 8],
 					    ((MSIxIndex & 0x7) << 24) |
 					    sc->last_reply_idx[MSIxIndex]);
@@ -1650,7 +1654,9 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 	/* Clear response interrupt */
 	if (sc->msix_enable) {
 		if ((sc->device_id == MRSAS_INVADER) ||
-		    (sc->device_id == MRSAS_FURY)) {
+		    (sc->device_id == MRSAS_FURY) ||
+		    (sc->device_id == MRSAS_INTRUDER) ||
+		    (sc->device_id == MRSAS_INTRUDER_24)) {
 			mrsas_write_reg(sc, sc->msix_reg_offset[MSIxIndex / 8],
 			    ((MSIxIndex & 0x7) << 24) |
 			    sc->last_reply_idx[MSIxIndex]);
@@ -2449,7 +2455,9 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 
 	/* driver support Extended MSIX */
 	if ((sc->device_id == MRSAS_INVADER) ||
-	    (sc->device_id == MRSAS_FURY)) {
+	    (sc->device_id == MRSAS_FURY) ||
+	    (sc->device_id == MRSAS_INTRUDER) ||
+	    (sc->device_id == MRSAS_INTRUDER_24)) {
 		init_frame->driver_operations.
 		    mfi_capabilities.support_additional_msix = 1;
 	}
@@ -3483,7 +3491,10 @@ mrsas_build_mptmfi_passthru(struct mrsas_softc *sc, struct mrsas_mfi_cmd *mfi_cm
 
 	io_req = mpt_cmd->io_request;
 
-	if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY)) {
+	if ((sc->device_id == MRSAS_INVADER) ||
+	    (sc->device_id == MRSAS_FURY) ||
+	    (sc->device_id == MRSAS_INTRUDER) ||
+	    (sc->device_id == MRSAS_INTRUDER_24)) {
 		pMpi25IeeeSgeChain64_t sgl_ptr_end = (pMpi25IeeeSgeChain64_t)&io_req->SGL;
 
 		sgl_ptr_end += sc->max_sge_in_main_msg - 1;

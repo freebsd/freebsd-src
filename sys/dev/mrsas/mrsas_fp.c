@@ -749,7 +749,10 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
 	u_int32_t logArm, rowMod, armQ, arm;
 	u_int8_t do_invader = 0;
 
-	if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY))
+	if ((sc->device_id == MRSAS_INVADER) ||
+	    (sc->device_id == MRSAS_FURY) ||
+	    (sc->device_id == MRSAS_INTRUDER) ||
+	    (sc->device_id == MRSAS_INTRUDER_24))
 		do_invader = 1;
 
 	/* Get row and span from io_info for Uneven Span IO. */
@@ -960,7 +963,10 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 			regSize += stripSize;
 	}
 	pRAID_Context->timeoutValue = map->raidMap.fpPdIoTimeoutSec;
-	if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY))
+	if ((sc->device_id == MRSAS_INVADER) ||
+	    (sc->device_id == MRSAS_FURY) ||
+	    (sc->device_id == MRSAS_INTRUDER) ||
+	    (sc->device_id == MRSAS_INTRUDER_24))
 		pRAID_Context->regLockFlags = (isRead) ? raid->regTypeReqOnRead : raid->regTypeReqOnWrite;
 	else
 		pRAID_Context->regLockFlags = (isRead) ? REGION_TYPE_SHARED_READ : raid->regTypeReqOnWrite;
@@ -1451,7 +1457,10 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
 	u_int32_t rowMod, armQ, arm, logArm;
 	u_int8_t do_invader = 0;
 
-	if ((sc->device_id == MRSAS_INVADER) || (sc->device_id == MRSAS_FURY))
+	if ((sc->device_id == MRSAS_INVADER) ||
+	    (sc->device_id == MRSAS_FURY) ||
+	    (sc->device_id == MRSAS_INTRUDER) ||
+	    (sc->device_id == MRSAS_INTRUDER_24))
 		do_invader = 1;
 
 	row = mega_div64_32(stripRow, raid->rowDataSize);
