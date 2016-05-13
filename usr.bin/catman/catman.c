@@ -422,9 +422,11 @@ process_page(char *mandir, char *src, char *cat, enum Ziptype zipped)
 			fprintf(stderr, "%slink %s -> %s\n",
 			    verbose ? "\t" : "", cat, link_name);
 		}
-		if (!pretend)
-			if (link(link_name, cat) < 0 && errno != EEXIST)
+		if (!pretend) {
+			(void) unlink(cat);
+			if (link(link_name, cat) < 0)
 				warn("%s %s: link", link_name, cat);
+		}
 		return;
 	}
 	insert_hashtable(links, src_ino, src_dev, strdup(cat));
