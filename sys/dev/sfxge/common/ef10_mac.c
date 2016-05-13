@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "efx_impl.h"
 
 
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
 	__checkReturn	efx_rc_t
 ef10_mac_poll(
@@ -749,4 +749,4 @@ ef10_mac_stats_update(
 
 #endif	/* EFSYS_OPT_MAC_STATS */
 
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
