@@ -167,7 +167,7 @@ static const efx_tx_ops_t	__efx_tx_hunt_ops = {
 	ef10_tx_qpio_post,			/* etxo_qpio_post */
 	ef10_tx_qdesc_post,			/* etxo_qdesc_post */
 	ef10_tx_qdesc_dma_create,		/* etxo_qdesc_dma_create */
-	hunt_tx_qdesc_tso_create,		/* etxo_qdesc_tso_create */
+	ef10_tx_qdesc_tso_create,		/* etxo_qdesc_tso_create */
 	ef10_tx_qdesc_tso2_create,		/* etxo_qdesc_tso2_create */
 	ef10_tx_qdesc_vlantci_create,		/* etxo_qdesc_vlantci_create */
 #if EFSYS_OPT_QSTATS
