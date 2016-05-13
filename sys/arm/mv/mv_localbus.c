@@ -234,7 +234,7 @@ fdt_localbus_reg_decode(phandle_t node, struct localbus_softc *sc,
 	}
 	rv = 0;
 out:
-	free(reg, M_OFWPROP);
+	OF_prop_free(reg);
 	return (rv);
 }
 
