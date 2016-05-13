@@ -40,30 +40,30 @@ __FBSDID("$FreeBSD$");
 #if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
-falconsiena_filter_init(
+siena_filter_init(
 	__in		efx_nic_t *enp);
 
 static			void
-falconsiena_filter_fini(
+siena_filter_fini(
 	__in		efx_nic_t *enp);
 
 static	__checkReturn	efx_rc_t
-falconsiena_filter_restore(
+siena_filter_restore(
 	__in		efx_nic_t *enp);
 
 static	__checkReturn	efx_rc_t
-falconsiena_filter_add(
+siena_filter_add(
 	__in		efx_nic_t *enp,
 	__inout		efx_filter_spec_t *spec,
 	__in		boolean_t may_replace);
 
 static	__checkReturn	efx_rc_t
-falconsiena_filter_delete(
+siena_filter_delete(
 	__in		efx_nic_t *enp,
 	__inout		efx_filter_spec_t *spec);
 
 static	__checkReturn	efx_rc_t
-falconsiena_filter_supported_filters(
+siena_filter_supported_filters(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *list,
 	__out		size_t *length);
@@ -72,13 +72,13 @@ falconsiena_filter_supported_filters(
 
 #if EFSYS_OPT_SIENA
 static const efx_filter_ops_t	__efx_filter_siena_ops = {
-	falconsiena_filter_init,		/* efo_init */
-	falconsiena_filter_fini,		/* efo_fini */
-	falconsiena_filter_restore,		/* efo_restore */
-	falconsiena_filter_add,			/* efo_add */
-	falconsiena_filter_delete,		/* efo_delete */
-	falconsiena_filter_supported_filters,	/* efo_supported_filters */
-	NULL,					/* efo_reconfigure */
+	siena_filter_init,		/* efo_init */
+	siena_filter_fini,		/* efo_fini */
+	siena_filter_restore,		/* efo_restore */
+	siena_filter_add,		/* efo_add */
+	siena_filter_delete,		/* efo_delete */
+	siena_filter_supported_filters,	/* efo_supported_filters */
+	NULL,				/* efo_reconfigure */
 };
 #endif /* EFSYS_OPT_SIENA */
 
@@ -428,7 +428,7 @@ efx_filter_spec_set_mc_def(
 #define	FILTER_CTL_SRCH_MAX 200
 
 static	__checkReturn	efx_rc_t
-falconsiena_filter_spec_from_gen_spec(
+siena_filter_spec_from_gen_spec(
 	__out		falconsiena_filter_spec_t *fs_spec,
 	__in		efx_filter_spec_t *gen_spec)
 {
@@ -586,7 +586,7 @@ fail1:
  * key derived from the n-tuple.
  */
 static			uint16_t
-falconsiena_filter_tbl_hash(
+siena_filter_tbl_hash(
 	__in		uint32_t key)
 {
 	uint16_t tmp;
@@ -609,14 +609,14 @@ falconsiena_filter_tbl_hash(
  * increments from the first possible entry selected by the hash.
  */
 static			uint16_t
-falconsiena_filter_tbl_increment(
+siena_filter_tbl_increment(
 	__in		uint32_t key)
 {
 	return ((uint16_t)(key * 2 - 1));
 }
 
 static	__checkReturn	boolean_t
-falconsiena_filter_test_used(
+siena_filter_test_used(
 	__in		falconsiena_filter_tbl_t *fsftp,
 	__in		unsigned int index)
 {
@@ -625,7 +625,7 @@ falconsiena_filter_test_used(
 }
 
 static			void
-falconsiena_filter_set_used(
+siena_filter_set_used(
 	__in		falconsiena_filter_tbl_t *fsftp,
 	__in		unsigned int index)
 {
@@ -635,7 +635,7 @@ falconsiena_filter_set_used(
 }
 
 static			void
-falconsiena_filter_clear_used(
+siena_filter_clear_used(
 	__in		falconsiena_filter_tbl_t *fsftp,
 	__in		unsigned int index)
 {
@@ -648,7 +648,7 @@ falconsiena_filter_clear_used(
 
 
 static			falconsiena_filter_tbl_id_t
-falconsiena_filter_tbl_id(
+siena_filter_tbl_id(
 	__in		falconsiena_filter_type_t type)
 {
 	falconsiena_filter_tbl_id_t tbl_id;
@@ -661,7 +661,6 @@ falconsiena_filter_tbl_id(
 		tbl_id = EFX_FS_FILTER_TBL_RX_IP;
 		break;
 
-#if EFSYS_OPT_SIENA
 	case EFX_FS_FILTER_RX_MAC_FULL:
 	case EFX_FS_FILTER_RX_MAC_WILD:
 		tbl_id = EFX_FS_FILTER_TBL_RX_MAC;
@@ -678,7 +677,6 @@ falconsiena_filter_tbl_id(
 	case EFX_FS_FILTER_TX_MAC_WILD:
 		tbl_id = EFX_FS_FILTER_TBL_TX_MAC;
 		break;
-#endif	/* EFSYS_OPT_SIENA */
 
 	default:
 		EFSYS_ASSERT(B_FALSE);
@@ -689,7 +687,7 @@ falconsiena_filter_tbl_id(
 }
 
 static			void
-falconsiena_filter_reset_search_depth(
+siena_filter_reset_search_depth(
 	__inout		falconsiena_filter_t *fsfp,
 	__in		falconsiena_filter_tbl_id_t tbl_id)
 {
@@ -701,7 +699,6 @@ falconsiena_filter_reset_search_depth(
 		fsfp->fsf_depth[EFX_FS_FILTER_RX_UDP_WILD] = 0;
 		break;
 
-#if EFSYS_OPT_SIENA
 	case EFX_FS_FILTER_TBL_RX_MAC:
 		fsfp->fsf_depth[EFX_FS_FILTER_RX_MAC_FULL] = 0;
 		fsfp->fsf_depth[EFX_FS_FILTER_RX_MAC_WILD] = 0;
@@ -718,7 +715,6 @@ falconsiena_filter_reset_search_depth(
 		fsfp->fsf_depth[EFX_FS_FILTER_TX_MAC_FULL] = 0;
 		fsfp->fsf_depth[EFX_FS_FILTER_TX_MAC_WILD] = 0;
 		break;
-#endif	/* EFSYS_OPT_SIENA */
 
 	default:
 		EFSYS_ASSERT(B_FALSE);
@@ -727,7 +723,7 @@ falconsiena_filter_reset_search_depth(
 }
 
 static			void
-falconsiena_filter_push_rx_limits(
+siena_filter_push_rx_limits(
 	__in		efx_nic_t *enp)
 {
 	falconsiena_filter_t *fsfp = enp->en_filter.ef_falconsiena_filter;
@@ -748,7 +744,6 @@ falconsiena_filter_push_rx_limits(
 	    fsfp->fsf_depth[EFX_FS_FILTER_RX_UDP_WILD] +
 	    FILTER_CTL_SRCH_FUDGE_WILD);
 
-#if EFSYS_OPT_SIENA
 	if (fsfp->fsf_tbl[EFX_FS_FILTER_TBL_RX_MAC].fsft_size) {
 		EFX_SET_OWORD_FIELD(oword,
 		    FRF_CZ_ETHERNET_FULL_SEARCH_LIMIT,
@@ -759,13 +754,12 @@ falconsiena_filter_push_rx_limits(
 		    fsfp->fsf_depth[EFX_FS_FILTER_RX_MAC_WILD] +
 		    FILTER_CTL_SRCH_FUDGE_WILD);
 	}
-#endif /* EFSYS_OPT_SIENA */
 
 	EFX_BAR_WRITEO(enp, FR_AZ_RX_FILTER_CTL_REG, &oword);
 }
 
 static			void
-falconsiena_filter_push_tx_limits(
+siena_filter_push_tx_limits(
 	__in		efx_nic_t *enp)
 {
 	falconsiena_filter_t *fsfp = enp->en_filter.ef_falconsiena_filter;
@@ -808,7 +802,7 @@ falconsiena_filter_push_tx_limits(
 
 /* Build a filter entry and return its n-tuple key. */
 static	__checkReturn	uint32_t
-falconsiena_filter_build(
+siena_filter_build(
 	__out		efx_oword_t *filter,
 	__in		falconsiena_filter_spec_t *spec)
 {
@@ -817,7 +811,7 @@ falconsiena_filter_build(
 	uint8_t  type  = spec->fsfs_type;
 	uint32_t flags = spec->fsfs_flags;
 
-	switch (falconsiena_filter_tbl_id(type)) {
+	switch (siena_filter_tbl_id(type)) {
 	case EFX_FS_FILTER_TBL_RX_IP: {
 		boolean_t is_udp = (type == EFX_FS_FILTER_RX_UDP_FULL ||
 		    type == EFX_FS_FILTER_RX_UDP_WILD);
@@ -835,7 +829,6 @@ falconsiena_filter_build(
 		break;
 	}
 
-#if EFSYS_OPT_SIENA
 	case EFX_FS_FILTER_TBL_RX_MAC: {
 		boolean_t is_wild = (type == EFX_FS_FILTER_RX_MAC_WILD);
 		EFX_POPULATE_OWORD_7(*filter,
@@ -851,7 +844,6 @@ falconsiena_filter_build(
 		dword3 = is_wild;
 		break;
 	}
-#endif /* EFSYS_OPT_SIENA */
 
 	case EFX_FS_FILTER_TBL_TX_IP: {
 		boolean_t is_udp = (type == EFX_FS_FILTER_TX_UDP_FULL ||
@@ -866,7 +858,6 @@ falconsiena_filter_build(
 		break;
 	}
 
-#if EFSYS_OPT_SIENA
 	case EFX_FS_FILTER_TBL_TX_MAC: {
 		boolean_t is_wild = (type == EFX_FS_FILTER_TX_MAC_WILD);
 		EFX_POPULATE_OWORD_5(*filter,
@@ -878,7 +869,6 @@ falconsiena_filter_build(
 		dword3 = is_wild | spec->fsfs_dmaq_id << 1;
 		break;
 	}
-#endif /* EFSYS_OPT_SIENA */
 
 	default:
 		EFSYS_ASSERT(B_FALSE);
@@ -895,7 +885,7 @@ falconsiena_filter_build(
 }
 
 static	__checkReturn		efx_rc_t
-falconsiena_filter_push_entry(
+siena_filter_push_entry(
 	__inout			efx_nic_t *enp,
 	__in			falconsiena_filter_type_t type,
 	__in			int index,
@@ -912,7 +902,6 @@ falconsiena_filter_push_entry(
 		    eop, B_TRUE);
 		break;
 
-#if EFSYS_OPT_SIENA
 	case EFX_FS_FILTER_RX_MAC_FULL:
 	case EFX_FS_FILTER_RX_MAC_WILD:
 		EFX_BAR_TBL_WRITEO(enp, FR_CZ_RX_MAC_FILTER_TBL0, index,
@@ -932,7 +921,6 @@ falconsiena_filter_push_entry(
 		EFX_BAR_TBL_WRITEO(enp, FR_CZ_TX_MAC_FILTER_TBL0, index,
 		    eop, B_TRUE);
 		break;
-#endif	/* EFSYS_OPT_SIENA */
 
 	default:
 		EFSYS_ASSERT(B_FALSE);
@@ -947,13 +935,13 @@ fail1:
 
 
 static	__checkReturn	boolean_t
-falconsiena_filter_equal(
+siena_filter_equal(
 	__in		const falconsiena_filter_spec_t *left,
 	__in		const falconsiena_filter_spec_t *right)
 {
 	falconsiena_filter_tbl_id_t tbl_id;
 
-	tbl_id = falconsiena_filter_tbl_id(left->fsfs_type);
+	tbl_id = siena_filter_tbl_id(left->fsfs_type);
 
 
 	if (left->fsfs_type != right->fsfs_type)
@@ -972,7 +960,7 @@ falconsiena_filter_equal(
 }
 
 static	__checkReturn	efx_rc_t
-falconsiena_filter_search(
+siena_filter_search(
 	__in		falconsiena_filter_tbl_t *fsftp,
 	__in		falconsiena_filter_spec_t *spec,
 	__in		uint32_t key,
@@ -982,8 +970,8 @@ falconsiena_filter_search(
 {
 	unsigned hash, incr, filter_idx, depth;
 
-	hash = falconsiena_filter_tbl_hash(key);
-	incr = falconsiena_filter_tbl_increment(key);
+	hash = siena_filter_tbl_hash(key);
+	incr = siena_filter_tbl_increment(key);
 
 	filter_idx = hash & (fsftp->fsft_size - 1);
 	depth = 1;
@@ -993,8 +981,8 @@ falconsiena_filter_search(
 		 * Return success if entry is used and matches this spec
 		 * or entry is unused and we are trying to insert.
 		 */
-		if (falconsiena_filter_test_used(fsftp, filter_idx) ?
-		    falconsiena_filter_equal(spec,
+		if (siena_filter_test_used(fsftp, filter_idx) ?
+		    siena_filter_equal(spec,
 		    &fsftp->fsft_spec[filter_idx]) :
 		    for_insert) {
 			*filter_index = filter_idx;
@@ -1012,18 +1000,18 @@ falconsiena_filter_search(
 }
 
 static			void
-falconsiena_filter_clear_entry(
+siena_filter_clear_entry(
 	__in		efx_nic_t *enp,
 	__in		falconsiena_filter_tbl_t *fsftp,
 	__in		int index)
 {
 	efx_oword_t filter;
 
-	if (falconsiena_filter_test_used(fsftp, index)) {
-		falconsiena_filter_clear_used(fsftp, index);
+	if (siena_filter_test_used(fsftp, index)) {
+		siena_filter_clear_used(fsftp, index);
 
 		EFX_ZERO_OWORD(filter);
-		falconsiena_filter_push_entry(enp,
+		siena_filter_push_entry(enp,
 		    fsftp->fsft_spec[index].fsfs_type,
 		    index, &filter);
 
@@ -1033,7 +1021,7 @@ falconsiena_filter_clear_entry(
 }
 
 			void
-falconsiena_filter_tbl_clear(
+siena_filter_tbl_clear(
 	__in		efx_nic_t *enp,
 	__in		falconsiena_filter_tbl_id_t tbl_id)
 {
@@ -1045,17 +1033,17 @@ falconsiena_filter_tbl_clear(
 	EFSYS_LOCK(enp->en_eslp, state);
 
 	for (index = 0; index < fsftp->fsft_size; ++index) {
-		falconsiena_filter_clear_entry(enp, fsftp, index);
+		siena_filter_clear_entry(enp, fsftp, index);
 	}
 
 	if (fsftp->fsft_used == 0)
-		falconsiena_filter_reset_search_depth(fsfp, tbl_id);
+		siena_filter_reset_search_depth(fsfp, tbl_id);
 
 	EFSYS_UNLOCK(enp->en_eslp, state);
 }
 
 static	__checkReturn	efx_rc_t
-falconsiena_filter_init(
+siena_filter_init(
 	__in		efx_nic_t *enp)
 {
 	falconsiena_filter_t *fsfp;
@@ -1073,7 +1061,6 @@ falconsiena_filter_init(
 	enp->en_filter.ef_falconsiena_filter = fsfp;
 
 	switch (enp->en_family) {
-#if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
 		fsftp = &fsfp->fsf_tbl[EFX_FS_FILTER_TBL_RX_IP];
 		fsftp->fsft_size = FR_AZ_RX_FILTER_TBL0_ROWS;
@@ -1087,7 +1074,6 @@ falconsiena_filter_init(
 		fsftp = &fsfp->fsf_tbl[EFX_FS_FILTER_TBL_TX_MAC];
 		fsftp->fsft_size = FR_CZ_TX_MAC_FILTER_TBL0_ROWS;
 		break;
-#endif	/* EFSYS_OPT_SIENA */
 
 	default:
 		rc = ENOTSUP;
@@ -1133,7 +1119,7 @@ fail3:
 
 fail2:
 	EFSYS_PROBE(fail2);
-	falconsiena_filter_fini(enp);
+	siena_filter_fini(enp);
 
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
@@ -1141,7 +1127,7 @@ fail1:
 }
 
 static			void
-falconsiena_filter_fini(
+siena_filter_fini(
 	__in		efx_nic_t *enp)
 {
 	falconsiena_filter_t *fsfp = enp->en_filter.ef_falconsiena_filter;
@@ -1181,7 +1167,7 @@ falconsiena_filter_fini(
 
 /* Restore filter state after a reset */
 static	__checkReturn	efx_rc_t
-falconsiena_filter_restore(
+siena_filter_restore(
 	__in		efx_nic_t *enp)
 {
 	falconsiena_filter_t *fsfp = enp->en_filter.ef_falconsiena_filter;
@@ -1200,20 +1186,20 @@ falconsiena_filter_restore(
 		for (filter_idx = 0;
 			filter_idx < fsftp->fsft_size;
 			filter_idx++) {
-			if (!falconsiena_filter_test_used(fsftp, filter_idx))
+			if (!siena_filter_test_used(fsftp, filter_idx))
 				continue;
 
 			spec = &fsftp->fsft_spec[filter_idx];
-			if ((rc = falconsiena_filter_build(&filter, spec)) != 0)
+			if ((rc = siena_filter_build(&filter, spec)) != 0)
 				goto fail1;
-			if ((rc = falconsiena_filter_push_entry(enp,
+			if ((rc = siena_filter_push_entry(enp,
 				    spec->fsfs_type, filter_idx, &filter)) != 0)
 				goto fail2;
 		}
 	}
 
-	falconsiena_filter_push_rx_limits(enp);
-	falconsiena_filter_push_tx_limits(enp);
+	siena_filter_push_rx_limits(enp);
+	siena_filter_push_tx_limits(enp);
 
 	EFSYS_UNLOCK(enp->en_eslp, state);
 
@@ -1231,7 +1217,7 @@ fail1:
 }
 
 static	 __checkReturn	efx_rc_t
-falconsiena_filter_add(
+siena_filter_add(
 	__in		efx_nic_t *enp,
 	__inout		efx_filter_spec_t *spec,
 	__in		boolean_t may_replace)
@@ -1251,10 +1237,10 @@ falconsiena_filter_add(
 
 	EFSYS_ASSERT3P(spec, !=, NULL);
 
-	if ((rc = falconsiena_filter_spec_from_gen_spec(&fs_spec, spec)) != 0)
+	if ((rc = siena_filter_spec_from_gen_spec(&fs_spec, spec)) != 0)
 		goto fail1;
 
-	tbl_id = falconsiena_filter_tbl_id(fs_spec.fsfs_type);
+	tbl_id = siena_filter_tbl_id(fs_spec.fsfs_type);
 	fsftp = &fsfp->fsf_tbl[tbl_id];
 
 	if (fsftp->fsft_size == 0) {
@@ -1262,11 +1248,11 @@ falconsiena_filter_add(
 		goto fail2;
 	}
 
-	key = falconsiena_filter_build(&filter, &fs_spec);
+	key = siena_filter_build(&filter, &fs_spec);
 
 	EFSYS_LOCK(enp->en_eslp, state);
 
-	rc = falconsiena_filter_search(fsftp, &fs_spec, key, B_TRUE,
+	rc = siena_filter_search(fsftp, &fs_spec, key, B_TRUE,
 	    &filter_idx, &depth);
 	if (rc != 0)
 		goto fail3;
@@ -1274,25 +1260,25 @@ falconsiena_filter_add(
 	EFSYS_ASSERT3U(filter_idx, <, fsftp->fsft_size);
 	saved_fs_spec = &fsftp->fsft_spec[filter_idx];
 
-	if (falconsiena_filter_test_used(fsftp, filter_idx)) {
+	if (siena_filter_test_used(fsftp, filter_idx)) {
 		if (may_replace == B_FALSE) {
 			rc = EEXIST;
 			goto fail4;
 		}
 	}
-	falconsiena_filter_set_used(fsftp, filter_idx);
+	siena_filter_set_used(fsftp, filter_idx);
 	*saved_fs_spec = fs_spec;
 
 	if (fsfp->fsf_depth[fs_spec.fsfs_type] < depth) {
 		fsfp->fsf_depth[fs_spec.fsfs_type] = depth;
 		if (tbl_id == EFX_FS_FILTER_TBL_TX_IP ||
 		    tbl_id == EFX_FS_FILTER_TBL_TX_MAC)
-			falconsiena_filter_push_tx_limits(enp);
+			siena_filter_push_tx_limits(enp);
 		else
-			falconsiena_filter_push_rx_limits(enp);
+			siena_filter_push_rx_limits(enp);
 	}
 
-	falconsiena_filter_push_entry(enp, fs_spec.fsfs_type,
+	siena_filter_push_entry(enp, fs_spec.fsfs_type,
 	    filter_idx, &filter);
 
 	EFSYS_UNLOCK(enp->en_eslp, state);
@@ -1314,7 +1300,7 @@ fail1:
 }
 
 static	 __checkReturn	efx_rc_t
-falconsiena_filter_delete(
+siena_filter_delete(
 	__in		efx_nic_t *enp,
 	__inout		efx_filter_spec_t *spec)
 {
@@ -1331,24 +1317,24 @@ falconsiena_filter_delete(
 
 	EFSYS_ASSERT3P(spec, !=, NULL);
 
-	if ((rc = falconsiena_filter_spec_from_gen_spec(&fs_spec, spec)) != 0)
+	if ((rc = siena_filter_spec_from_gen_spec(&fs_spec, spec)) != 0)
 		goto fail1;
 
-	tbl_id = falconsiena_filter_tbl_id(fs_spec.fsfs_type);
+	tbl_id = siena_filter_tbl_id(fs_spec.fsfs_type);
 	fsftp = &fsfp->fsf_tbl[tbl_id];
 
-	key = falconsiena_filter_build(&filter, &fs_spec);
+	key = siena_filter_build(&filter, &fs_spec);
 
 	EFSYS_LOCK(enp->en_eslp, state);
 
-	rc = falconsiena_filter_search(fsftp, &fs_spec, key, B_FALSE,
+	rc = siena_filter_search(fsftp, &fs_spec, key, B_FALSE,
 	    &filter_idx, &depth);
 	if (rc != 0)
 		goto fail2;
 
-	falconsiena_filter_clear_entry(enp, fsftp, filter_idx);
+	siena_filter_clear_entry(enp, fsftp, filter_idx);
 	if (fsftp->fsft_used == 0)
-		falconsiena_filter_reset_search_depth(fsfp, tbl_id);
+		siena_filter_reset_search_depth(fsfp, tbl_id);
 
 	EFSYS_UNLOCK(enp->en_eslp, state);
 	return (0);
@@ -1365,7 +1351,7 @@ fail1:
 #define	MAX_SUPPORTED 4
 
 static	__checkReturn	efx_rc_t
-falconsiena_filter_supported_filters(
+siena_filter_supported_filters(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *list,
 	__out		size_t *length)

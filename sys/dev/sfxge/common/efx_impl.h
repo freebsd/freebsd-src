@@ -429,7 +429,7 @@ typedef struct efx_filter_s {
 } efx_filter_t;
 
 extern			void
-falconsiena_filter_tbl_clear(
+siena_filter_tbl_clear(
 	__in		efx_nic_t *enp,
 	__in		falconsiena_filter_tbl_id_t tbl);
 
