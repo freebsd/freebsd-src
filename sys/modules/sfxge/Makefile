@@ -30,11 +30,11 @@ SRCS+=	siena_sram.c siena_vpd.c
 SRCS+=	siena_flash.h siena_impl.h
 
 SRCS+=	ef10_ev.c ef10_filter.c ef10_intr.c ef10_mac.c ef10_mcdi.c ef10_nic.c
-SRCS+=	ef10_nvram.c ef10_phy.c
+SRCS+=	ef10_nvram.c ef10_phy.c ef10_rx.c
 SRCS+=	ef10_impl.h
 
 SRCS+=	hunt_nic.c
-SRCS+=	hunt_rx.c hunt_phy.c hunt_tx.c hunt_vpd.c
+SRCS+=	hunt_phy.c hunt_tx.c hunt_vpd.c
 SRCS+=	hunt_impl.h
 
 SRCS+=	medford_nic.c
