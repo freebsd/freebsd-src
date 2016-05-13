@@ -417,7 +417,7 @@ bhnd_nvram_map.h: ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.awk \
     ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
     ${SYSDIR}/dev/bhnd/nvram/nvram_map
 bhnd_nvram_map.h:
-	${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
+	sh ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
 	    ${SYSDIR}/dev/bhnd/nvram/nvram_map -h
 .endif
 
@@ -427,7 +427,7 @@ bhnd_nvram_map_data.h: ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.awk \
     ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
     ${SYSDIR}/dev/bhnd/nvram/nvram_map
 bhnd_nvram_map_data.h:
-	${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
+	sh ${SYSDIR}/dev/bhnd/tools/nvram_map_gen.sh \
 	    ${SYSDIR}/dev/bhnd/nvram/nvram_map -d
 .endif
 
