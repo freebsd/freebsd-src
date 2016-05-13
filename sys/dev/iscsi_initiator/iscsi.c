@@ -807,8 +807,6 @@ iscsi_stop(void)
      TAILQ_FOREACH_SAFE(sp, &isc->isc_sess, sp_link, sp_tmp) {
 	  //XXX: check for activity ...
 	  ism_stop(sp);
-	  if(sp->cam_sim != NULL)
-	       ic_destroy(sp);
      }
      mtx_destroy(&isc->isc_mtx);
      sx_destroy(&isc->unit_sx);
