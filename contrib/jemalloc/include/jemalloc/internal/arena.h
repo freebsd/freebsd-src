@@ -975,7 +975,7 @@ arena_ptr_small_binind_get(const void *ptr, size_t mapbits)
 		bin_info = &arena_bin_info[actual_binind];
 		rpages = arena_miscelm_to_rpages(miscelm);
 		assert(((vaddr_t)ptr - ((vaddr_t)rpages +
-		    (size_t)bin_info->reg0_offset)) % bin_info->reg_interval
+		    (vaddr_t)bin_info->reg0_offset)) % bin_info->reg_interval
 		    == 0);
 	}
 
