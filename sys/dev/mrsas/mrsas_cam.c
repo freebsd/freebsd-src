@@ -392,7 +392,7 @@ mrsas_scsiio_timeout(void *data)
 	callout_reset(&cmd->cm_callout, (600000 * hz) / 1000,
 	    mrsas_scsiio_timeout, cmd);
 #endif
-	sc->do_timedout_reset = 1;
+	sc->do_timedout_reset = SCSIIO_TIMEOUT_OCR;
 	if (sc->ocr_thread_active)
 		wakeup(&sc->ocr_chan);
 }

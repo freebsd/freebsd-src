@@ -246,7 +246,14 @@ mrsas_passthru(struct mrsas_softc *sc, void *arg, u_long ioctlCmd)
 	 * cmd to the SCSI mid-layer
 	 */
 	cmd->sync_cmd = 1;
-	mrsas_issue_blocked_cmd(sc, cmd);
+	ret = mrsas_issue_blocked_cmd(sc, cmd);
+	if (ret == ETIMEDOUT) {
+		mrsas_dprint(sc, MRSAS_OCR,
+		    "IOCTL command is timed out, initiating OCR\n");
+		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
+		ret = EAGAIN;
+		goto out;
+	}
 	cmd->sync_cmd = 0;
 
 	/*
