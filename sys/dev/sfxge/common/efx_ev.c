@@ -56,15 +56,15 @@ __FBSDID("$FreeBSD$");
 #if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
-falconsiena_ev_init(
+siena_ev_init(
 	__in		efx_nic_t *enp);
 
 static			void
-falconsiena_ev_fini(
+siena_ev_fini(
 	__in		efx_nic_t *enp);
 
 static	__checkReturn	efx_rc_t
-falconsiena_ev_qcreate(
+siena_ev_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		efsys_mem_t *esmp,
@@ -73,34 +73,34 @@ falconsiena_ev_qcreate(
 	__in		efx_evq_t *eep);
 
 static			void
-falconsiena_ev_qdestroy(
+siena_ev_qdestroy(
 	__in		efx_evq_t *eep);
 
 static	__checkReturn	efx_rc_t
-falconsiena_ev_qprime(
+siena_ev_qprime(
 	__in		efx_evq_t *eep,
 	__in		unsigned int count);
 
 static			void
-falconsiena_ev_qpoll(
+siena_ev_qpoll(
 	__in		efx_evq_t *eep,
 	__inout		unsigned int *countp,
 	__in		const efx_ev_callbacks_t *eecp,
 	__in_opt	void *arg);
 
 static			void
-falconsiena_ev_qpost(
+siena_ev_qpost(
 	__in	efx_evq_t *eep,
 	__in	uint16_t data);
 
 static	__checkReturn	efx_rc_t
-falconsiena_ev_qmoderate(
+siena_ev_qmoderate(
 	__in		efx_evq_t *eep,
 	__in		unsigned int us);
 
 #if EFSYS_OPT_QSTATS
 static			void
-falconsiena_ev_qstats_update(
+siena_ev_qstats_update(
 	__in				efx_evq_t *eep,
 	__inout_ecount(EV_NQSTATS)	efsys_stat_t *stat);
 
@@ -110,15 +110,15 @@ falconsiena_ev_qstats_update(
 
 #if EFSYS_OPT_SIENA
 static const efx_ev_ops_t	__efx_ev_siena_ops = {
-	falconsiena_ev_init,			/* eevo_init */
-	falconsiena_ev_fini,			/* eevo_fini */
-	falconsiena_ev_qcreate,			/* eevo_qcreate */
-	falconsiena_ev_qdestroy,		/* eevo_qdestroy */
-	falconsiena_ev_qprime,			/* eevo_qprime */
-	falconsiena_ev_qpost,			/* eevo_qpost */
-	falconsiena_ev_qmoderate,		/* eevo_qmoderate */
+	siena_ev_init,				/* eevo_init */
+	siena_ev_fini,				/* eevo_fini */
+	siena_ev_qcreate,			/* eevo_qcreate */
+	siena_ev_qdestroy,			/* eevo_qdestroy */
+	siena_ev_qprime,			/* eevo_qprime */
+	siena_ev_qpost,				/* eevo_qpost */
+	siena_ev_qmoderate,			/* eevo_qmoderate */
 #if EFSYS_OPT_QSTATS
-	falconsiena_ev_qstats_update,		/* eevo_qstats_update */
+	siena_ev_qstats_update,			/* eevo_qstats_update */
 #endif
 };
 #endif /* EFSYS_OPT_SIENA */
@@ -374,7 +374,7 @@ efx_ev_qpoll(
 	EFX_STATIC_ASSERT(ESE_DZ_EV_CODE_MCDI_EV ==
 	    FSE_AZ_EV_CODE_MCDI_EVRESPONSE);
 #endif
-	falconsiena_ev_qpoll(eep, countp, eecp, arg);
+	siena_ev_qpoll(eep, countp, eecp, arg);
 }
 
 			void
@@ -433,7 +433,7 @@ efx_ev_qstats_update(
 #if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
-falconsiena_ev_init(
+siena_ev_init(
 	__in		efx_nic_t *enp)
 {
 	efx_oword_t oword;
@@ -451,7 +451,7 @@ falconsiena_ev_init(
 }
 
 static  __checkReturn   boolean_t
-falconsiena_ev_rx_not_ok(
+siena_ev_rx_not_ok(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		uint32_t label,
@@ -541,7 +541,7 @@ falconsiena_ev_rx_not_ok(
 }
 
 static	__checkReturn	boolean_t
-falconsiena_ev_rx(
+siena_ev_rx(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -636,7 +636,7 @@ falconsiena_ev_rx(
 
 	/* Detect errors included in the FSF_AZ_RX_EV_PKT_OK indication */
 	if (!ok) {
-		ignore = falconsiena_ev_rx_not_ok(eep, eqp, label, id, &flags);
+		ignore = siena_ev_rx_not_ok(eep, eqp, label, id, &flags);
 		if (ignore) {
 			EFSYS_PROBE4(rx_complete, uint32_t, label, uint32_t, id,
 			    uint32_t, size, uint16_t, flags);
@@ -695,7 +695,7 @@ falconsiena_ev_rx(
 }
 
 static	__checkReturn	boolean_t
-falconsiena_ev_tx(
+siena_ev_tx(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -742,7 +742,7 @@ falconsiena_ev_tx(
 }
 
 static	__checkReturn	boolean_t
-falconsiena_ev_global(
+siena_ev_global(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -756,7 +756,7 @@ falconsiena_ev_global(
 }
 
 static	__checkReturn	boolean_t
-falconsiena_ev_driver(
+siena_ev_driver(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -885,7 +885,7 @@ falconsiena_ev_driver(
 }
 
 static	__checkReturn	boolean_t
-falconsiena_ev_drv_gen(
+siena_ev_drv_gen(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -913,7 +913,7 @@ falconsiena_ev_drv_gen(
 #if EFSYS_OPT_MCDI
 
 static	__checkReturn	boolean_t
-falconsiena_ev_mcdi(
+siena_ev_mcdi(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -1018,7 +1018,7 @@ out:
 #endif	/* EFSYS_OPT_MCDI */
 
 static	__checkReturn	efx_rc_t
-falconsiena_ev_qprime(
+siena_ev_qprime(
 	__in		efx_evq_t *eep,
 	__in		unsigned int count)
 {
@@ -1039,7 +1039,7 @@ falconsiena_ev_qprime(
 #define	EFX_EV_BATCH	8
 
 static			void
-falconsiena_ev_qpoll(
+siena_ev_qpoll(
 	__in		efx_evq_t *eep,
 	__inout		unsigned int *countp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -1172,7 +1172,7 @@ falconsiena_ev_qpoll(
 }
 
 static		void
-falconsiena_ev_qpost(
+siena_ev_qpost(
 	__in	efx_evq_t *eep,
 	__in	uint16_t data)
 {
@@ -1191,7 +1191,7 @@ falconsiena_ev_qpost(
 }
 
 static	__checkReturn	efx_rc_t
-falconsiena_ev_qmoderate(
+siena_ev_qmoderate(
 	__in		efx_evq_t *eep,
 	__in		unsigned int us)
 {
@@ -1240,7 +1240,7 @@ fail1:
 }
 
 static	__checkReturn	efx_rc_t
-falconsiena_ev_qcreate(
+siena_ev_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		efsys_mem_t *esmp,
@@ -1281,13 +1281,13 @@ falconsiena_ev_qcreate(
 	}
 
 	/* Set up the handler table */
-	eep->ee_rx	= falconsiena_ev_rx;
-	eep->ee_tx	= falconsiena_ev_tx;
-	eep->ee_driver	= falconsiena_ev_driver;
-	eep->ee_global	= falconsiena_ev_global;
-	eep->ee_drv_gen	= falconsiena_ev_drv_gen;
+	eep->ee_rx	= siena_ev_rx;
+	eep->ee_tx	= siena_ev_tx;
+	eep->ee_driver	= siena_ev_driver;
+	eep->ee_global	= siena_ev_global;
+	eep->ee_drv_gen	= siena_ev_drv_gen;
 #if EFSYS_OPT_MCDI
-	eep->ee_mcdi	= falconsiena_ev_mcdi;
+	eep->ee_mcdi	= siena_ev_mcdi;
 #endif	/* EFSYS_OPT_MCDI */
 
 	/* Set up the new event queue */
@@ -1378,7 +1378,7 @@ efx_ev_qstat_name(
 
 #if EFSYS_OPT_QSTATS
 static					void
-falconsiena_ev_qstats_update(
+siena_ev_qstats_update(
 	__in				efx_evq_t *eep,
 	__inout_ecount(EV_NQSTATS)	efsys_stat_t *stat)
 {
@@ -1394,7 +1394,7 @@ falconsiena_ev_qstats_update(
 #endif	/* EFSYS_OPT_QSTATS */
 
 static		void
-falconsiena_ev_qdestroy(
+siena_ev_qdestroy(
 	__in	efx_evq_t *eep)
 {
 	efx_nic_t *enp = eep->ee_enp;
@@ -1411,7 +1411,7 @@ falconsiena_ev_qdestroy(
 }
 
 static		void
-falconsiena_ev_fini(
+siena_ev_fini(
 	__in	efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
