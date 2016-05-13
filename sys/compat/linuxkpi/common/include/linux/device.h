@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -203,11 +203,15 @@ device_register(struct device *dev)
 	int unit;
 
 	bsddev = NULL;
+	unit = -1;
+
 	if (dev->devt) {
 		unit = MINOR(dev->devt);
 		bsddev = devclass_get_device(dev->class->bsdclass, unit);
-	} else
-		unit = -1;
+	} else if (dev->parent == NULL) {
+		bsddev = devclass_get_device(dev->class->bsdclass, 0);
+	}
+
 	if (bsddev == NULL)
 		bsddev = device_add_child(dev->parent->bsddev,
 		    dev->class->kobj.name, unit);
