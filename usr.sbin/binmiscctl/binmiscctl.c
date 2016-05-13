@@ -133,7 +133,7 @@ static char const *cmd_sysctl_name[] = {
 	IBE_SYSCTL_NAME_LIST
 };
 
-static void
+static void __dead2
 usage(const char *format, ...)
 {
 	va_list args;
