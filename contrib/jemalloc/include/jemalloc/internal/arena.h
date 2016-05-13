@@ -718,8 +718,13 @@ arena_miscelm_get_mutable(arena_chunk_t *chunk, size_t pageind)
 JEMALLOC_ALWAYS_INLINE const arena_chunk_map_misc_t *
 arena_miscelm_get_const(const arena_chunk_t *chunk, size_t pageind)
 {
+#if 1 /* Work around gcc bug. */
+	arena_chunk_t *mchunk = (arena_chunk_t *)chunk;
 
+	return (arena_miscelm_get_mutable(mchunk, pageind));
+#else
 	return (arena_miscelm_get_mutable((arena_chunk_t *)chunk, pageind));
+#endif
 }
 
 JEMALLOC_ALWAYS_INLINE size_t
@@ -778,8 +783,13 @@ arena_mapbitsp_get_mutable(arena_chunk_t *chunk, size_t pageind)
 JEMALLOC_ALWAYS_INLINE const size_t *
 arena_mapbitsp_get_const(const arena_chunk_t *chunk, size_t pageind)
 {
+#if 1 /* Work around gcc bug. */
+	arena_chunk_t *mchunk = (arena_chunk_t *)chunk;
 
+	return (arena_mapbitsp_get_mutable(mchunk, pageind));
+#else
 	return (arena_mapbitsp_get_mutable((arena_chunk_t *)chunk, pageind));
+#endif
 }
 
 JEMALLOC_ALWAYS_INLINE size_t
