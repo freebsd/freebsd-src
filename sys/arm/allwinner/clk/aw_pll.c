@@ -723,7 +723,7 @@ aw_pll_create(device_t dev, bus_addr_t paddr, struct clkdom *clkdom,
 
 	clknode_register(clkdom, clk);
 
-	free(__DECONST(char *, clkdef.parent_names), M_OFWPROP);
+	OF_prop_free(__DECONST(char *, clkdef.parent_names));
 
 	return (0);
 }
