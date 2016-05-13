@@ -416,7 +416,7 @@ main(int argc, char **argv)
 
 	argc--, argv++;
 	cmd = demux_cmd(argc, argv);
-	if (cmd == -1)
+	if (cmd < 0)
 		usage("Error: Unknown command \"%s\"", argv[0]);
 	argc--, argv++;
 
