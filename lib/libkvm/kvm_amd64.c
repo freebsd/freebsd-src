@@ -200,6 +200,7 @@ _kvm_initvtop(kvm_t *kd)
 	PML4 = _kvm_malloc(kd, PAGE_SIZE);
 	if (kvm_read(kd, pa, PML4, PAGE_SIZE) != PAGE_SIZE) {
 		_kvm_err(kd, kd->program, "cannot read KPML4phys");
+		free(PML4);
 		return (-1);
 	}
 	kd->vmst->PML4 = PML4;
