@@ -104,7 +104,7 @@ SYSCTL_INT(_hw_mca, OID_AUTO, intel6h_HSD131, CTLFLAG_RDTUN, &intel6h_HSD131, 0,
     "Administrative toggle for logging of spurious corrected errors");
 
 int workaround_erratum383;
-SYSCTL_INT(_hw_mca, OID_AUTO, erratum383, CTLFLAG_RD|CTLFLAG_RDTUN,
+SYSCTL_INT(_hw_mca, OID_AUTO, erratum383, CTLFLAG_RDTUN,
     &workaround_erratum383, 0,
     "Is the workaround for Erratum 383 on AMD Family 10h processors enabled?");
 
