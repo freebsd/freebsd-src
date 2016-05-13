@@ -398,7 +398,9 @@ probe_drive(struct dsk *dsk)
     struct gpt_ent *ent;
     unsigned part, entries_per_sec;
 #endif
+#ifdef LOADER_GELI_SUPPORT
     daddr_t slba, elba;
+#endif
     struct dos_partition *dp;
     char *sec;
     unsigned i;
