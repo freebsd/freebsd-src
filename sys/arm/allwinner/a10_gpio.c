@@ -536,8 +536,8 @@ aw_fdt_configure_pins(device_t dev, phandle_t cfgxref)
 	}
 
  out:
-	free(pinlist, M_OFWPROP);
-	free(pin_function, M_OFWPROP);
+	OF_prop_free(pinlist);
+	OF_prop_free(pin_function);
 	return (ret);
 }
 

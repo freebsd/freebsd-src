@@ -103,12 +103,12 @@ aw_oscclk_attach(device_t dev)
 	if (bootverbose)
 		clkdom_dump(clkdom);
 
-	free(__DECONST(char *, def.clkdef.name), M_OFWPROP);
+	OF_prop_free(__DECONST(char *, def.clkdef.name));
 
 	return (0);
 
 fail:
-	free(__DECONST(char *, def.clkdef.name), M_OFWPROP);
+	OF_prop_free(__DECONST(char *, def.clkdef.name));
 	return (error);
 }
 
