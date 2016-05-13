@@ -92,7 +92,8 @@ extern int racct_enable;
  * visible to the userland.  It gets fixed up when retrieving resource
  * usage or adding rules.
  */
-#define	RACCT_IS_IN_MILLIONS(X)	(racct_types[X] & RACCT_IN_MILLIONS)
+#define	RACCT_IS_IN_MILLIONS(X)	\
+    ((X) != RACCT_UNDEFINED && (racct_types[(X)] & RACCT_IN_MILLIONS) != 0)
 
 /*
  * Resource usage can drop, as opposed to only grow.  When the process
