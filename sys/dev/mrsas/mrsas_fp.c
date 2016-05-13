@@ -1315,12 +1315,6 @@ mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST * io_request, u_int8_t cdb_len,
 			cdb[3] = (u_int8_t)((start_blk >> 16) & 0xff);
 			cdb[2] = (u_int8_t)((start_blk >> 24) & 0xff);
 			break;
-		case 12:
-			cdb[5] = (u_int8_t)(start_blk & 0xff);
-			cdb[4] = (u_int8_t)((start_blk >> 8) & 0xff);
-			cdb[3] = (u_int8_t)((start_blk >> 16) & 0xff);
-			cdb[2] = (u_int8_t)((start_blk >> 24) & 0xff);
-			break;
 		case 16:
 			cdb[9] = (u_int8_t)(start_blk & 0xff);
 			cdb[8] = (u_int8_t)((start_blk >> 8) & 0xff);

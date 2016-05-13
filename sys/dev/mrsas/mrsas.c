@@ -84,7 +84,6 @@ static int mrsas_init_fw(struct mrsas_softc *sc);
 static int mrsas_setup_raidmap(struct mrsas_softc *sc);
 static void megasas_setup_jbod_map(struct mrsas_softc *sc);
 static int megasas_sync_pd_seq_num(struct mrsas_softc *sc, boolean_t pend);
-static int mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex);
 static int mrsas_clear_intr(struct mrsas_softc *sc);
 static int mrsas_get_ctrl_info(struct mrsas_softc *sc);
 static void mrsas_update_ext_vd_details(struct mrsas_softc *sc);
@@ -110,6 +109,7 @@ int	mrsas_issue_dcmd(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd);
 int	mrsas_issue_polled(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd);
 int	mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason);
 int	mrsas_wait_for_outstanding(struct mrsas_softc *sc, u_int8_t check_reason);
+int mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex);
 int
 mrsas_issue_blocked_cmd(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd);
@@ -827,6 +827,8 @@ mrsas_attach(device_t dev)
 	struct mrsas_softc *sc = device_get_softc(dev);
 	uint32_t cmd, bar, error;
 
+	memset(sc, 0, sizeof(struct mrsas_softc));
+
 	/* Look up our softc and initialize its fields. */
 	sc->mrsas_dev = dev;
 	sc->device_id = pci_get_device(dev);
@@ -1280,9 +1282,7 @@ mrsas_teardown_intr(struct mrsas_softc *sc)
 static int
 mrsas_suspend(device_t dev)
 {
-	struct mrsas_softc *sc;
-
-	sc = device_get_softc(dev);
+	/* This will be filled when the driver will have hibernation support */
 	return (0);
 }
 
@@ -1295,9 +1295,7 @@ mrsas_suspend(device_t dev)
 static int
 mrsas_resume(device_t dev)
 {
-	struct mrsas_softc *sc;
-
-	sc = device_get_softc(dev);
+	/* This will be filled when the driver will have hibernation support */
 	return (0);
 }
 
@@ -1533,7 +1531,7 @@ mrsas_isr(void *arg)
  * perform the appropriate action.  Before we return, we clear the response
  * interrupt.
  */
-static int
+int
 mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 {
 	Mpi2ReplyDescriptorsUnion_t *desc;
@@ -3020,7 +3018,6 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 				device_printf(sc->mrsas_dev, "Get LD lsit failed from OCR.\n"
 				    "Will get the latest LD LIST after OCR on event.\n");
 			}
-
 			mrsas_clear_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
 			mrsas_enable_intr(sc);
 			sc->adprecovery = MRSAS_HBA_OPERATIONAL;
