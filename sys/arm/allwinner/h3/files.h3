@@ -1,0 +1,4 @@
+# $FreeBSD$
+
+arm/allwinner/h3/h3_padconf.c		standard
+arm/allwinner/h3/h3_r_padconf.c		standard
