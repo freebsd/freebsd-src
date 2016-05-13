@@ -124,6 +124,7 @@ mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
 extern u_int8_t
 megasas_get_best_arm(PLD_LOAD_BALANCE_INFO lbInfo, u_int8_t arm,
     u_int64_t block, u_int32_t count);
+extern int mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex);
 
 
 /*
@@ -648,7 +649,10 @@ mrsas_get_mpt_cmd(struct mrsas_softc *sc)
 	if (!TAILQ_EMPTY(&sc->mrsas_mpt_cmd_list_head)) {
 		cmd = TAILQ_FIRST(&sc->mrsas_mpt_cmd_list_head);
 		TAILQ_REMOVE(&sc->mrsas_mpt_cmd_list_head, cmd, next);
+	} else {
+		goto out;
 	}
+
 	memset((uint8_t *)cmd->io_request, 0, MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE);
 	cmd->data = NULL;
 	cmd->length = 0;
@@ -656,8 +660,9 @@ mrsas_get_mpt_cmd(struct mrsas_softc *sc)
 	cmd->error_code = 0;
 	cmd->load_balance = 0;
 	cmd->ccb_ptr = NULL;
-	mtx_unlock(&sc->mpt_cmd_pool_lock);
 
+out:
+	mtx_unlock(&sc->mpt_cmd_pool_lock);
 	return cmd;
 }
 
@@ -1296,9 +1301,16 @@ mrsas_cmd_done(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd)
 static void
 mrsas_cam_poll(struct cam_sim *sim)
 {
+	int i;
 	struct mrsas_softc *sc = (struct mrsas_softc *)cam_sim_softc(sim);
 
-	mrsas_isr((void *)sc);
+	if (sc->msix_vectors != 0){
+		for (i=0; i<sc->msix_vectors; i++){
+			mrsas_complete_cmd(sc, i);
+		}
+	} else {
+		mrsas_complete_cmd(sc, 0);
+	}
 }
 
 /*
