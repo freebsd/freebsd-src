@@ -10,13 +10,13 @@ acpi_quirks.h			optional acpi				   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"acpi_quirks.h"
 bhnd_nvram_map.h		optional bhndbus | bhnd			   \
-	dependency	"$S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/tools/nvram_map_gen.awk $S/dev/bhnd/nvram/nvram_map" \
-	compile-with	"$S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/nvram/nvram_map -h" \
+	dependency	"sh $S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/tools/nvram_map_gen.awk $S/dev/bhnd/nvram/nvram_map" \
+	compile-with	"sh $S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/nvram/nvram_map -h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"bhnd_nvram_map.h"
 bhnd_nvram_map_data.h		optional bhndbus | bhnd			   \
-	dependency	"$S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/tools/nvram_map_gen.awk $S/dev/bhnd/nvram/nvram_map" \
-	compile-with	"$S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/nvram/nvram_map -d" \
+	dependency	"sh $S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/tools/nvram_map_gen.awk $S/dev/bhnd/nvram/nvram_map" \
+	compile-with	"sh $S/dev/bhnd/tools/nvram_map_gen.sh $S/dev/bhnd/nvram/nvram_map -d" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"bhnd_nvram_map_data.h"
 #
