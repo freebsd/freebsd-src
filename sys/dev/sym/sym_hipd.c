@@ -8906,7 +8906,7 @@ static int sym_cam_attach(hcb_p np)
 	/*
 	 *  Establish our async notification handler.
 	 */
-	if (xpt_register_async(AC_LOST_DEVICE, sym_async, sim, path) !=
+	if (xpt_register_async(AC_LOST_DEVICE, sym_async, np->sim, path) !=
 	    CAM_REQ_CMP)
 		goto fail;
 
