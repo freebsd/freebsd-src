@@ -755,7 +755,7 @@ void	_thr_stack_free(struct pthread_attr *) __hidden;
 void	_thr_free(struct pthread *, struct pthread *) __hidden;
 void	_thr_gc(struct pthread *) __hidden;
 void    _thread_cleanupspecific(void) __hidden;
-void	_thread_printf(int, const char *, ...) __hidden;
+void	_thread_printf(int, const char *, ...) __hidden __printflike(2, 3);
 void	_thr_spinlock_init(void) __hidden;
 void	_thr_cancel_enter(struct pthread *) __hidden;
 void	_thr_cancel_enter2(struct pthread *, int) __hidden;
