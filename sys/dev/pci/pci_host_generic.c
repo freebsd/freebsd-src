@@ -613,6 +613,7 @@ generic_pcie_activate_resource(device_t dev, device_t child, int type, int rid,
 		}
 		if (found) {
 			rman_set_start(r, rman_get_start(r) + phys_base);
+			rman_set_end(r, rman_get_end(r) + phys_base);
 			BUS_ACTIVATE_RESOURCE(device_get_parent(dev), child,
 						type, rid, r);
 		} else {
