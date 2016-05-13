@@ -332,7 +332,6 @@ dev/sfxge/common/efx_sram.c	optional	sfxge pci
 dev/sfxge/common/efx_tx.c	optional	sfxge pci
 dev/sfxge/common/efx_vpd.c	optional	sfxge pci
 dev/sfxge/common/efx_wol.c	optional	sfxge pci
-dev/sfxge/common/hunt_ev.c	optional	sfxge pci
 dev/sfxge/common/hunt_filter.c	optional	sfxge pci
 dev/sfxge/common/hunt_intr.c	optional	sfxge pci
 dev/sfxge/common/hunt_mac.c	optional	sfxge pci
