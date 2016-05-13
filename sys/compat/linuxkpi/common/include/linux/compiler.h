@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * Copyright (c) 2015 François Tigeot
  * All rights reserved.
  *
@@ -50,14 +50,17 @@
 #define __cond_lock(x,c)		(c)
 #define	__bitwise
 #define __devinitdata
+#define	__deprecated
 #define __init
 #define	__devinit
 #define	__devexit
 #define __exit
+#define	__rcu
 #define	__stringify(x)			#x
 #define	__attribute_const__		__attribute__((__const__))
 #undef __always_inline
 #define	__always_inline			inline
+#define	____cacheline_aligned		__aligned(CACHE_LINE_SIZE)
 
 #define	likely(x)			__builtin_expect(!!(x), 1)
 #define	unlikely(x)			__builtin_expect(!!(x), 0)
@@ -71,6 +74,9 @@
 #define	__printf(a,b)			__printflike(a,b)
 
 #define	barrier()			__asm__ __volatile__("": : :"memory")
+
+#define	___PASTE(a,b) a##b
+#define	__PASTE(a,b) ___PASTE(a,b)
 
 #define	ACCESS_ONCE(x)			(*(volatile __typeof(x) *)&(x))
   
@@ -87,5 +93,9 @@
 	barrier();			\
 	__var;				\
 })
-  
+
+#define	lockless_dereference(p) READ_ONCE(p)
+
+#define	_AT(T,X)	((T)(X))
+
 #endif	/* _LINUX_COMPILER_H_ */
