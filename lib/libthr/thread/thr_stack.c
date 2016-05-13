@@ -279,10 +279,10 @@ _thr_stack_alloc(struct pthread_attr *attr)
 		 * the adjacent thread stack.
 		 */
 		last_stack -= (stacksize + guardsize);
+#endif /* !defined(__CHERI_PURE_CAPABILITY__) */
 
 		/* Release the lock before mmap'ing it. */
 		THREAD_LIST_UNLOCK(curthread);
-#endif /* !defined(__CHERI_PURE_CAPABILITY__) */
 
 		/* Map the stack and guard page together, and split guard
 		   page from allocated space: */
