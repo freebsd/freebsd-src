@@ -106,6 +106,8 @@ NESTED_NOPROFILE(__cerror, CALLFRAME_SIZ, ra)
 
 	li		v0, -1
 	li		v1, -1
+	cfromptr	$c3, $c0, zero
+	csetoffset	$c3, $c3, v0
 
 	cjr		$c17
 #endif
