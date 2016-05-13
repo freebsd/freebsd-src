@@ -80,6 +80,8 @@ static int mrsas_setup_irq(struct mrsas_softc *sc);
 static int mrsas_alloc_mem(struct mrsas_softc *sc);
 static int mrsas_init_fw(struct mrsas_softc *sc);
 static int mrsas_setup_raidmap(struct mrsas_softc *sc);
+static void megasas_setup_jbod_map(struct mrsas_softc *sc);
+static int megasas_sync_pd_seq_num(struct mrsas_softc *sc, boolean_t pend);
 static int mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex);
 static int mrsas_clear_intr(struct mrsas_softc *sc);
 static int mrsas_get_ctrl_info(struct mrsas_softc *sc);
@@ -1076,7 +1078,14 @@ mrsas_free_mem(struct mrsas_softc *sc)
 		if (sc->ld_drv_map[i] != NULL)
 			free(sc->ld_drv_map[i], M_MRSAS);
 	}
-
+	for (i = 0; i < 2; i++) {
+		if (sc->jbodmap_phys_addr[i])
+			bus_dmamap_unload(sc->jbodmap_tag[i], sc->jbodmap_dmamap[i]);
+		if (sc->jbodmap_mem[i] != NULL)
+			bus_dmamem_free(sc->jbodmap_tag[i], sc->jbodmap_mem[i], sc->jbodmap_dmamap[i]);
+		if (sc->jbodmap_tag[i] != NULL)
+			bus_dma_tag_destroy(sc->jbodmap_tag[i]);
+	}
 	/*
 	 * Free version buffer memory
 	 */
@@ -1997,6 +2006,78 @@ ABORT:
 	return (1);
 }
 
+/**
+ * megasas_setup_jbod_map -	setup jbod map for FP seq_number.
+ * @sc:				Adapter soft state
+ *
+ * Return 0 on success.
+ */
+void
+megasas_setup_jbod_map(struct mrsas_softc *sc)
+{
+	int i;
+	uint32_t pd_seq_map_sz;
+
+	pd_seq_map_sz = sizeof(struct MR_PD_CFG_SEQ_NUM_SYNC) +
+	    (sizeof(struct MR_PD_CFG_SEQ) * (MAX_PHYSICAL_DEVICES - 1));
+
+	if (!sc->ctrl_info->adapterOperations3.useSeqNumJbodFP) {
+		sc->use_seqnum_jbod_fp = 0;
+		return;
+	}
+	if (sc->jbodmap_mem[0])
+		goto skip_alloc;
+
+	for (i = 0; i < 2; i++) {
+		if (bus_dma_tag_create(sc->mrsas_parent_tag,
+		    4, 0,
+		    BUS_SPACE_MAXADDR_32BIT,
+		    BUS_SPACE_MAXADDR,
+		    NULL, NULL,
+		    pd_seq_map_sz,
+		    1,
+		    pd_seq_map_sz,
+		    BUS_DMA_ALLOCNOW,
+		    NULL, NULL,
+		    &sc->jbodmap_tag[i])) {
+			device_printf(sc->mrsas_dev,
+			    "Cannot allocate jbod map tag.\n");
+			return;
+		}
+		if (bus_dmamem_alloc(sc->jbodmap_tag[i],
+		    (void **)&sc->jbodmap_mem[i],
+		    BUS_DMA_NOWAIT, &sc->jbodmap_dmamap[i])) {
+			device_printf(sc->mrsas_dev,
+			    "Cannot allocate jbod map memory.\n");
+			return;
+		}
+		bzero(sc->jbodmap_mem[i], pd_seq_map_sz);
+
+		if (bus_dmamap_load(sc->jbodmap_tag[i], sc->jbodmap_dmamap[i],
+		    sc->jbodmap_mem[i], pd_seq_map_sz,
+		    mrsas_addr_cb, &sc->jbodmap_phys_addr[i],
+		    BUS_DMA_NOWAIT)) {
+			device_printf(sc->mrsas_dev, "Cannot load jbod map memory.\n");
+			return;
+		}
+		if (!sc->jbodmap_mem[i]) {
+			device_printf(sc->mrsas_dev,
+			    "Cannot allocate memory for jbod map.\n");
+			sc->use_seqnum_jbod_fp = 0;
+			return;
+		}
+	}
+
+skip_alloc:
+	if (!megasas_sync_pd_seq_num(sc, false) &&
+	    !megasas_sync_pd_seq_num(sc, true))
+		sc->use_seqnum_jbod_fp = 1;
+	else
+		sc->use_seqnum_jbod_fp = 0;
+
+	device_printf(sc->mrsas_dev, "Jbod map is supported\n");
+}
+
 /*
  * mrsas_init_fw:	Initialize Firmware
  * input:			Adapter soft state
@@ -2096,18 +2177,28 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	if (sc->secure_jbod_support)
 		device_printf(sc->mrsas_dev, "FW supports SED \n");
 
+	if (sc->use_seqnum_jbod_fp)
+		device_printf(sc->mrsas_dev, "FW supports JBOD Map \n");
+
 	if (mrsas_setup_raidmap(sc) != SUCCESS) {
-		device_printf(sc->mrsas_dev, "Set up RAID map failed.\n");
-		return (1);
+		device_printf(sc->mrsas_dev, "Error: RAID map setup FAILED !!! "
+		    "There seems to be some problem in the controller\n"
+		    "Please contact to the SUPPORT TEAM if the problem persists\n");
 	}
+	megasas_setup_jbod_map(sc);
+
 	/* For pass-thru, get PD/LD list and controller info */
 	memset(sc->pd_list, 0,
 	    MRSAS_MAX_PD * sizeof(struct mrsas_pd_list));
-	mrsas_get_pd_list(sc);
-
+	if (mrsas_get_pd_list(sc) != SUCCESS) {
+		device_printf(sc->mrsas_dev, "Get PD list failed.\n");
+		return (1);
+	}
 	memset(sc->ld_ids, 0xff, MRSAS_MAX_LD_IDS);
-	mrsas_get_ld_list(sc);
-
+	if (mrsas_get_ld_list(sc) != SUCCESS) {
+		device_printf(sc->mrsas_dev, "Get LD lsit failed.\n");
+		return (1);
+	}
 	/*
 	 * Compute the max allowed sectors per IO: The controller info has
 	 * two limits on max sectors. Driver should use the minimum of these
@@ -2855,6 +2946,8 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 			if (!mrsas_get_map_info(sc))
 				mrsas_sync_map_info(sc);
 
+			megasas_setup_jbod_map(sc);
+
 			memset(sc->pd_list, 0,
 			    MRSAS_MAX_PD * sizeof(struct mrsas_pd_list));
 			if (mrsas_get_pd_list(sc) != SUCCESS) {
@@ -3085,6 +3178,9 @@ mrsas_get_ctrl_info(struct mrsas_softc *sc)
 
 	do_ocr = 0;
 	mrsas_update_ext_vd_details(sc);
+
+	sc->use_seqnum_jbod_fp =
+	    sc->ctrl_info->adapterOperations3.useSeqNumJbodFP;
 
 dcmd_timeout:
 	mrsas_free_ctlr_info_cmd(sc);
@@ -3480,6 +3576,28 @@ mrsas_complete_mptmfi_passthru(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd
 		    cmd->frame->dcmd.opcode == MR_DCMD_CTRL_EVENT_GET) {
 			sc->mrsas_aen_triggered = 0;
 		}
+		/* FW has an updated PD sequence */
+		if ((cmd->frame->dcmd.opcode ==
+		    MR_DCMD_SYSTEM_PD_MAP_GET_INFO) &&
+		    (cmd->frame->dcmd.mbox.b[0] == 1)) {
+
+			mtx_lock(&sc->raidmap_lock);
+			sc->jbod_seq_cmd = NULL;
+			mrsas_release_mfi_cmd(cmd);
+
+			if (cmd_status == MFI_STAT_OK) {
+				sc->pd_seq_map_id++;
+				/* Re-register a pd sync seq num cmd */
+				if (megasas_sync_pd_seq_num(sc, true))
+					sc->use_seqnum_jbod_fp = 0;
+			} else {
+				sc->use_seqnum_jbod_fp = 0;
+				device_printf(sc->mrsas_dev,
+				    "Jbod map sync failed, status=%x\n", cmd_status);
+			}
+			mtx_unlock(&sc->raidmap_lock);
+			break;
+		}
 		/* See if got an event notification */
 		if (cmd->frame->dcmd.opcode == MR_DCMD_CTRL_EVENT_WAIT)
 			mrsas_complete_aen(sc, cmd);
@@ -3542,9 +3660,10 @@ mrsas_shutdown_ctlr(struct mrsas_softc *sc, u_int32_t opcode)
 	}
 	if (sc->aen_cmd)
 		mrsas_issue_blocked_abort_cmd(sc, sc->aen_cmd);
-
 	if (sc->map_update_cmd)
 		mrsas_issue_blocked_abort_cmd(sc, sc->map_update_cmd);
+	if (sc->jbod_seq_cmd)
+		mrsas_issue_blocked_abort_cmd(sc, sc->jbod_seq_cmd);
 
 	dcmd = &cmd->frame->dcmd;
 	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
@@ -3604,6 +3723,85 @@ mrsas_flush_cache(struct mrsas_softc *sc)
 	mrsas_release_mfi_cmd(cmd);
 
 	return;
+}
+
+int
+megasas_sync_pd_seq_num(struct mrsas_softc *sc, boolean_t pend)
+{
+	int retcode = 0;
+	u_int8_t do_ocr = 1;
+	struct mrsas_mfi_cmd *cmd;
+	struct mrsas_dcmd_frame *dcmd;
+	uint32_t pd_seq_map_sz;
+	struct MR_PD_CFG_SEQ_NUM_SYNC *pd_sync;
+	bus_addr_t pd_seq_h;
+
+	pd_seq_map_sz = sizeof(struct MR_PD_CFG_SEQ_NUM_SYNC) +
+	    (sizeof(struct MR_PD_CFG_SEQ) *
+	    (MAX_PHYSICAL_DEVICES - 1));
+
+	cmd = mrsas_get_mfi_cmd(sc);
+	if (!cmd) {
+		device_printf(sc->mrsas_dev,
+		    "Cannot alloc for ld map info cmd.\n");
+		return 1;
+	}
+	dcmd = &cmd->frame->dcmd;
+
+	pd_sync = (void *)sc->jbodmap_mem[(sc->pd_seq_map_id & 1)];
+	pd_seq_h = sc->jbodmap_phys_addr[(sc->pd_seq_map_id & 1)];
+	if (!pd_sync) {
+		device_printf(sc->mrsas_dev,
+		    "Failed to alloc mem for jbod map info.\n");
+		mrsas_release_mfi_cmd(cmd);
+		return (ENOMEM);
+	}
+	memset(pd_sync, 0, pd_seq_map_sz);
+	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
+	dcmd->cmd = MFI_CMD_DCMD;
+	dcmd->cmd_status = 0xFF;
+	dcmd->sge_count = 1;
+	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
+	dcmd->data_xfer_len = (pd_seq_map_sz);
+	dcmd->opcode = (MR_DCMD_SYSTEM_PD_MAP_GET_INFO);
+	dcmd->sgl.sge32[0].phys_addr = (pd_seq_h);
+	dcmd->sgl.sge32[0].length = (pd_seq_map_sz);
+
+	if (pend) {
+		dcmd->mbox.b[0] = MRSAS_DCMD_MBOX_PEND_FLAG;
+		dcmd->flags = (MFI_FRAME_DIR_WRITE);
+		sc->jbod_seq_cmd = cmd;
+		if (mrsas_issue_dcmd(sc, cmd)) {
+			device_printf(sc->mrsas_dev,
+			    "Fail to send sync map info command.\n");
+			return 1;
+		} else
+			return 0;
+	} else
+		dcmd->flags = MFI_FRAME_DIR_READ;
+
+	retcode = mrsas_issue_polled(sc, cmd);
+	if (retcode == ETIMEDOUT)
+		goto dcmd_timeout;
+
+	if (pd_sync->count > MAX_PHYSICAL_DEVICES) {
+		device_printf(sc->mrsas_dev,
+		    "driver supports max %d JBOD, but FW reports %d\n",
+		    MAX_PHYSICAL_DEVICES, pd_sync->count);
+		retcode = -EINVAL;
+	}
+	if (!retcode)
+		sc->pd_seq_map_id++;
+	do_ocr = 0;
+
+dcmd_timeout:
+	if (do_ocr)
+		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
+	else
+		mrsas_release_mfi_cmd(cmd);
+
+	return (retcode);
 }
 
 /*
