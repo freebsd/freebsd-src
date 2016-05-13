@@ -294,8 +294,10 @@ i2c_write(char *dev, struct options i2c_opt, char *i2c_buf)
 			err_msg = "error: offset malloc";
 			goto err1;
 		}
-	} else
+	} else {
 		bufsize = 0;
+		buf = NULL;
+	}
 
 	switch(i2c_opt.mode) {
 	case I2C_MODE_STOP_START:
