@@ -124,7 +124,7 @@ quota_open(struct fstab *fs, int quotatype, int openflags)
 		return (NULL);
 	qf->fd = -1;
 	qf->quotatype = quotatype;
-	strncpy(qf->fsname, fs->fs_file, sizeof(qf->fsname));
+	strlcpy(qf->fsname, fs->fs_file, sizeof(qf->fsname));
 	if (stat(qf->fsname, &st) != 0)
 		goto error;
 	qf->dev = st.st_dev;
