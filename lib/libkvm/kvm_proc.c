@@ -642,6 +642,7 @@ kvm_argv(kvm_t *kd, const struct kinfo_proc *kp, int env, int nchr)
 	static char *buf, *p;
 	static char **bufp;
 	static int argc;
+	char **nbufp;
 
 	if (!ISALIVE(kd)) {
 		_kvm_err(kd, kd->program,
@@ -657,9 +658,15 @@ kvm_argv(kvm_t *kd, const struct kinfo_proc *kp, int env, int nchr)
 			_kvm_err(kd, kd->program, "cannot allocate memory");
 			return (0);
 		}
-		buflen = nchr;
 		argc = 32;
 		bufp = malloc(sizeof(char *) * argc);
+		if (bufp == NULL) {
+			free(buf);
+			buf = NULL;
+			_kvm_err(kd, kd->program, "cannot allocate memory");
+			return (NULL);
+		}
+		buflen = nchr;
 	} else if (nchr > buflen) {
 		p = realloc(buf, nchr);
 		if (p != NULL) {
@@ -693,8 +700,10 @@ kvm_argv(kvm_t *kd, const struct kinfo_proc *kp, int env, int nchr)
 		p += strlen(p) + 1;
 		if (i >= argc) {
 			argc += argc;
-			bufp = realloc(bufp,
-			    sizeof(char *) * argc);
+			nbufp = realloc(bufp, sizeof(char *) * argc);
+			if (nbufp == NULL)
+				return (NULL);
+			bufp = nbufp;
 		}
 	} while (p < buf + bufsz);
 	bufp[i++] = 0;
