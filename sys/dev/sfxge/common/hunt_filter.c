@@ -1121,6 +1121,7 @@ ef10_filter_insert_multicast_list(
 	}
 
 	eftp->eft_mulcst_filter_count = filter_count;
+	eftp->eft_using_all_mulcst = B_FALSE;
 
 	return (0);
 
@@ -1160,6 +1161,7 @@ ef10_filter_insert_all_multicast(
 		goto fail1;
 
 	eftp->eft_mulcst_filter_count = 1;
+	eftp->eft_using_all_mulcst = B_TRUE;
 
 	/*
 	 * FIXME: If brdcst == B_FALSE, add a filter to drop broadcast traffic.
@@ -1171,6 +1173,20 @@ fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
+}
+
+static			void
+ef10_filter_remove_old(
+	__in		efx_nic_t *enp)
+{
+	ef10_filter_table_t *table = enp->en_filter.ef_ef10_filter_table;
+	uint32_t i;
+
+	for (i = 0; i < EFX_ARRAY_SIZE(table->eft_entry); i++) {
+		if (ef10_filter_entry_is_auto_old(table, i)) {
+			(void) ef10_filter_delete_internal(enp, i);
+		}
+	}
 }
 
 
@@ -1227,6 +1243,7 @@ ef10_filter_reconfigure(
 	__in_ecount(6*count)		uint8_t const *addrs,
 	__in				uint32_t count)
 {
+	efx_nic_cfg_t *encp = &enp->en_nic_cfg;
 	ef10_filter_table_t *table = enp->en_filter.ef_ef10_filter_table;
 	efx_filter_flag_t filter_flags;
 	unsigned i;
@@ -1316,6 +1333,18 @@ ef10_filter_reconfigure(
 	if ((rc = hunt_filter_get_workarounds(enp)) != 0)
 		goto fail2;
 
+	if ((table->eft_using_all_mulcst != all_mulcst) &&
+	    (encp->enc_bug26807_workaround == B_TRUE)) {
+		/*
+		 * Multicast filter chaining is enabled, so traffic that matches
+		 * more than one multicast filter will be replicated and
+		 * delivered to multiple recipients.  To avoid this duplicate
+		 * delivery, remove old multicast filters before inserting new
+		 * multicast filters.
+		 */
+		ef10_filter_remove_old(enp);
+	}
+
 	/* Insert or renew multicast filters */
 	if (all_mulcst == B_TRUE) {
 		/*
@@ -1342,6 +1371,17 @@ ef10_filter_reconfigure(
 		rc = ef10_filter_insert_multicast_list(enp, mulcst, brdcst,
 			    addrs, count, filter_flags, B_TRUE);
 		if (rc != 0) {
+			if ((table->eft_using_all_mulcst == B_FALSE) &&
+			    (encp->enc_bug26807_workaround == B_TRUE)) {
+				/*
+				 * Multicast filter chaining is on, so remove
+				 * old filters before inserting the multicast
+				 * all filter to avoid duplicate delivery caused
+				 * by packets matching multiple filters.
+				 */
+				ef10_filter_remove_old(enp);
+			}
+
 			rc = ef10_filter_insert_all_multicast(enp,
 							    filter_flags);
 			if (rc != 0) {
@@ -1355,11 +1395,7 @@ ef10_filter_reconfigure(
 	}
 
 	/* Remove old filters which were not renewed */
-	for (i = 0; i < EFX_ARRAY_SIZE(table->eft_entry); i++) {
-		if (ef10_filter_entry_is_auto_old(table, i)) {
-			(void) ef10_filter_delete_internal(enp, i);
-		}
-	}
+	ef10_filter_remove_old(enp);
 
 	/* report if any optional flags were rejected */
 	if (((all_unicst != B_FALSE) && (all_unicst_rc != 0)) ||

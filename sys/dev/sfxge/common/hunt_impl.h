@@ -1046,6 +1046,7 @@ typedef struct ef10_filter_table_s {
 	uint32_t 		eft_mulcst_filter_indexes[
 	    EFX_EF10_FILTER_MULTICAST_FILTERS_MAX];
 	uint32_t 		eft_mulcst_filter_count;
+	boolean_t		eft_using_all_mulcst;
 } ef10_filter_table_t;
 
 	__checkReturn	efx_rc_t
