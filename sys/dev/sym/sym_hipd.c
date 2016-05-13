@@ -8894,6 +8894,7 @@ static int sym_cam_attach(hcb_p np)
 	if (xpt_bus_register(sim, np->device, 0) != CAM_SUCCESS)
 		goto fail;
 	np->sim = sim;
+	sim = NULL;
 
 	if (xpt_create_path(&path, NULL,
 			    cam_sim_path(np->sim), CAM_TARGET_WILDCARD,
