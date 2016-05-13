@@ -101,6 +101,15 @@ __FBSDID("$FreeBSD$");
 
 #define	A10_PLL2_POST_DIV		(0xf << 26)
 
+#define	A23_PLL1_FACTOR_N		(0x1f << 8)
+#define	A23_PLL1_FACTOR_N_SHIFT		8
+#define	A23_PLL1_FACTOR_K		(0x3 << 4)
+#define	A23_PLL1_FACTOR_K_SHIFT		4
+#define	A23_PLL1_FACTOR_M		(0x3 << 0)
+#define	A23_PLL1_FACTOR_M_SHIFT		0
+#define	A23_PLL1_FACTOR_P		(0x3 << 16)
+#define	A23_PLL1_FACTOR_P_SHIFT		16
+
 #define	A31_PLL1_LOCK			(1 << 28)
 #define	A31_PLL1_CPU_SIGMA_DELTA_EN	(1 << 24)
 #define	A31_PLL1_FACTOR_N		(0x1f << 8)
@@ -150,6 +159,7 @@ enum aw_pll_type {
 	AWPLL_A10_PLL3,
 	AWPLL_A10_PLL5,
 	AWPLL_A10_PLL6,
+	AWPLL_A23_PLL1,
 	AWPLL_A31_PLL1,
 	AWPLL_A31_PLL6,
 	AWPLL_A80_PLL4,
@@ -452,6 +462,25 @@ a10_pll6_set_freq(struct aw_pll_sc *sc, uint64_t fin, uint64_t *fout,
 }
 
 static int
+a23_pll1_recalc(struct aw_pll_sc *sc, uint64_t *freq)
+{
+	uint32_t val, m, n, k, p;
+
+	DEVICE_LOCK(sc);
+	PLL_READ(sc, &val);
+	DEVICE_UNLOCK(sc);
+
+	m = ((val & A23_PLL1_FACTOR_M) >> A23_PLL1_FACTOR_M_SHIFT) + 1;
+	k = ((val & A23_PLL1_FACTOR_K) >> A23_PLL1_FACTOR_K_SHIFT) + 1;
+	n = ((val & A23_PLL1_FACTOR_N) >> A23_PLL1_FACTOR_N_SHIFT) + 1;
+	p = ((val & A23_PLL1_FACTOR_P) >> A23_PLL1_FACTOR_P_SHIFT) + 1;
+
+	*freq = (*freq * n * k) / (m * p);
+
+	return (0);
+}
+
+static int
 a31_pll1_recalc(struct aw_pll_sc *sc, uint64_t *freq)
 {
 	uint32_t val, m, n, k;
@@ -562,6 +591,7 @@ static struct aw_pll_funcs aw_pll_func[] = {
 	PLL(AWPLL_A10_PLL3, a10_pll3_recalc, a10_pll3_set_freq, a10_pll3_init),
 	PLL(AWPLL_A10_PLL5, a10_pll5_recalc, NULL, NULL),
 	PLL(AWPLL_A10_PLL6, a10_pll6_recalc, a10_pll6_set_freq, a10_pll6_init),
+	PLL(AWPLL_A23_PLL1, a23_pll1_recalc, NULL, NULL),
 	PLL(AWPLL_A31_PLL1, a31_pll1_recalc, NULL, NULL),
 	PLL(AWPLL_A31_PLL6, a31_pll6_recalc, NULL, a31_pll6_init),
 	PLL(AWPLL_A80_PLL4, a80_pll4_recalc, NULL, NULL),
@@ -575,6 +605,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10-pll6-clk",	AWPLL_A10_PLL6 },
 	{ "allwinner,sun6i-a31-pll1-clk",	AWPLL_A31_PLL1 },
 	{ "allwinner,sun6i-a31-pll6-clk",	AWPLL_A31_PLL6 },
+	{ "allwinner,sun8i-a23-pll1-clk",	AWPLL_A23_PLL1 },
 	{ "allwinner,sun9i-a80-pll4-clk",	AWPLL_A80_PLL4 },
 	{ NULL, 0 }
 };
