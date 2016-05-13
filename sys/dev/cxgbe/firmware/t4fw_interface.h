@@ -135,7 +135,7 @@ enum fw_wr_opcodes {
 	FW_POFCOE_ULPTX_WR	= 0x43,
 	FW_ISCSI_TX_DATA_WR	= 0x45,
 	FW_PTP_TX_PKT_WR        = 0x46,
-	FW_SEC_LOOKASIDE_LPBK_WR= 0x63,
+	FW_SEC_LOOKASIDE_LPBK_WR= 0x6d,
 	FW_COiSCSI_TGT_WR	= 0x70,
 	FW_COiSCSI_TGT_CONN_WR	= 0x71,
 	FW_COiSCSI_TGT_XMIT_WR	= 0x72,
@@ -913,6 +913,7 @@ enum fw_flowc_mnem {
 	FW_FLOWC_MNEM_DCBPRIO		= 12,
 	FW_FLOWC_MNEM_SND_SCALE		= 13,
 	FW_FLOWC_MNEM_RCV_SCALE		= 14,
+	FW_FLOWC_MNEM_MAX		= 15,
 };
 
 struct fw_flowc_mnemval {
@@ -2547,6 +2548,12 @@ enum fw_chnet_addr_type {
 	FW_CHNET_ADDR_TYPE_IPV6,
 };
 
+enum fw_msg_wr_type {
+	FW_MSG_WR_TYPE_RPL = 0,
+	FW_MSG_WR_TYPE_ERR,
+	FW_MSG_WR_TYPE_PLD,
+};
+
 struct fw_coiscsi_tgt_wr {
 	__be32 op_compl;
 	__be32 flowid_len16;
@@ -2602,9 +2609,11 @@ struct fw_coiscsi_tgt_conn_wr {
 		__be32 hdigest_to_ddp_pgsz;
 		__be32 tgt_id;
 		__be16 max_r2t;
-		__be16 max_rcv_dsl;
+		__be16 r5;
 		__be32 max_burst;
-		__be32 nxt_statsn;
+		__be32 max_rdsl;
+		__be32 max_tdsl;
+		__be32 nxt_sn;
 		__be32 r6;
 	} conn_iscsi;
 };
@@ -2618,6 +2627,9 @@ struct fw_coiscsi_tgt_xmit_wr {
 	__be32 datasn;
 	__be32 t_xfer_len;
 	__be32 flags;
+	__be32 tag;
+	__be32 tidx;
+	__be32 r5[2];
 };
 
 #define S_FW_COiSCSI_TGT_XMIT_WR_DDGST		23
@@ -2642,6 +2654,30 @@ struct fw_coiscsi_tgt_xmit_wr {
 #define G_FW_COiSCSI_TGT_XMIT_WR_DDP(x)	\
     (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_DDP) & M_FW_COiSCSI_TGT_XMIT_WR_DDP)
 #define F_FW_COiSCSI_TGT_XMIT_WR_DDP	V_FW_COiSCSI_TGT_XMIT_WR_DDP(1U)
+
+#define S_FW_COiSCSI_TGT_XMIT_WR_ABORT		19
+#define M_FW_COiSCSI_TGT_XMIT_WR_ABORT		0x1
+#define V_FW_COiSCSI_TGT_XMIT_WR_ABORT(x)	\
+    ((x) << S_FW_COiSCSI_TGT_XMIT_WR_ABORT)
+#define G_FW_COiSCSI_TGT_XMIT_WR_ABORT(x)	\
+    (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_ABORT) & M_FW_COiSCSI_TGT_XMIT_WR_ABORT)
+#define F_FW_COiSCSI_TGT_XMIT_WR_ABORT	V_FW_COiSCSI_TGT_XMIT_WR_ABORT(1U)
+
+#define S_FW_COiSCSI_TGT_XMIT_WR_FINAL		18
+#define M_FW_COiSCSI_TGT_XMIT_WR_FINAL		0x1
+#define V_FW_COiSCSI_TGT_XMIT_WR_FINAL(x)	\
+    ((x) << S_FW_COiSCSI_TGT_XMIT_WR_FINAL)
+#define G_FW_COiSCSI_TGT_XMIT_WR_FINAL(x)	\
+    (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_FINAL) & M_FW_COiSCSI_TGT_XMIT_WR_FINAL)
+#define F_FW_COiSCSI_TGT_XMIT_WR_FINAL	V_FW_COiSCSI_TGT_XMIT_WR_FINAL(1U)
+
+#define S_FW_COiSCSI_TGT_XMIT_WR_PADLEN		16
+#define M_FW_COiSCSI_TGT_XMIT_WR_PADLEN		0x3
+#define V_FW_COiSCSI_TGT_XMIT_WR_PADLEN(x)	\
+    ((x) << S_FW_COiSCSI_TGT_XMIT_WR_PADLEN)
+#define G_FW_COiSCSI_TGT_XMIT_WR_PADLEN(x)	\
+    (((x) >> S_FW_COiSCSI_TGT_XMIT_WR_PADLEN) & \
+     M_FW_COiSCSI_TGT_XMIT_WR_PADLEN)
 
 #define S_FW_COiSCSI_TGT_XMIT_WR_IMMDLEN	0
 #define M_FW_COiSCSI_TGT_XMIT_WR_IMMDLEN	0xff
@@ -2678,13 +2714,13 @@ struct fw_isns_wr {
 };
 
 struct fw_isns_xmit_wr {
-	__be32	op_to_immdlen;
-	__be32	flowid_len16;
-	__be64	cookie;
-	__be16	iq_id;
-	__be16	r4;
-	__be32	xfer_len;
-	__be64	r5;
+	__be32 op_to_immdlen;
+	__be32 flowid_len16;
+	__be64 cookie;
+	__be16 iq_id;
+	__be16 r4;
+	__be32 xfer_len;
+	__be64 r5;
 };
 
 #define S_FW_ISNS_XMIT_WR_IMMDLEN	0
@@ -2692,7 +2728,6 @@ struct fw_isns_xmit_wr {
 #define V_FW_ISNS_XMIT_WR_IMMDLEN(x)	((x) << S_FW_ISNS_XMIT_WR_IMMDLEN)
 #define G_FW_ISNS_XMIT_WR_IMMDLEN(x)	\
     (((x) >> S_FW_ISNS_XMIT_WR_IMMDLEN) & M_FW_ISNS_XMIT_WR_IMMDLEN)
-
 
 /******************************************************************************
  *  F O F C O E   W O R K R E Q U E S T s
@@ -3535,8 +3570,8 @@ enum fw_cmd_opcodes {
 	FW_FCOE_SPARAMS_CMD            = 0x35,
 	FW_FCOE_STATS_CMD              = 0x37,
 	FW_FCOE_FCF_CMD                = 0x38,
-	FW_PTP_CMD                     = 0x39,
 	FW_DCB_IEEE_CMD		       = 0x3a,
+	FW_PTP_CMD                     = 0x3e,
 	FW_LASTC2E_CMD                 = 0x40,
 	FW_ERROR_CMD                   = 0x80,
 	FW_DEBUG_CMD                   = 0x81,
@@ -8742,12 +8777,12 @@ enum fw_hdr_chip {
 enum {
 	T4FW_VERSION_MAJOR	= 0x01,
 	T4FW_VERSION_MINOR	= 0x05,
-	T4FW_VERSION_MICRO	= 0x1c,
+	T4FW_VERSION_MICRO	= 0x25,
 	T4FW_VERSION_BUILD	= 0x00,
 
 	T5FW_VERSION_MAJOR	= 0x01,
 	T5FW_VERSION_MINOR	= 0x05,
-	T5FW_VERSION_MICRO	= 0x1c,
+	T5FW_VERSION_MICRO	= 0x25,
 	T5FW_VERSION_BUILD	= 0x00,
 };
 
