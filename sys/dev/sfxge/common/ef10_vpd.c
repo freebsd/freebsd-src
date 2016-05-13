@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_VPD
 
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
 #include "ef10_tlv_layout.h"
 
@@ -458,6 +458,6 @@ ef10_vpd_fini(
 	}
 }
 
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
 #endif	/* EFSYS_OPT_VPD */
