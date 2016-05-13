@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/sysctl.h>
 #include <sys/types.h>
+#include <sys/sysent.h>
 #include <sys/kthread.h>
 #include <sys/taskqueue.h>
 #include <sys/smp.h>
@@ -63,6 +64,7 @@ static d_write_t mrsas_write;
 static d_ioctl_t mrsas_ioctl;
 static d_poll_t mrsas_poll;
 
+static void mrsas_ich_startup(void *arg);
 static struct mrsas_mgmt_info mrsas_mgmt_info;
 static struct mrsas_ident *mrsas_find_ident(device_t);
 static int mrsas_setup_msix(struct mrsas_softc *sc);
@@ -822,7 +824,6 @@ mrsas_attach(device_t dev)
 {
 	struct mrsas_softc *sc = device_get_softc(dev);
 	uint32_t cmd, bar, error;
-	struct cdev *linux_dev;
 
 	/* Look up our softc and initialize its fields. */
 	sc->mrsas_dev = dev;
@@ -863,12 +864,6 @@ mrsas_attach(device_t dev)
 	mtx_init(&sc->mfi_cmd_pool_lock, "mrsas_mfi_cmd_pool_lock", NULL, MTX_DEF);
 	mtx_init(&sc->raidmap_lock, "mrsas_raidmap_lock", NULL, MTX_DEF);
 
-	/*
-	 * Intialize a counting Semaphore to take care no. of concurrent
-	 * IOCTLs
-	 */
-	sema_init(&sc->ioctl_count_sema, MRSAS_MAX_MFI_CMDS - 5, IOCTL_SEMA_DESCRIPTION);
-
 	/* Intialize linked list */
 	TAILQ_INIT(&sc->mrsas_mpt_cmd_list_head);
 	TAILQ_INIT(&sc->mrsas_mfi_cmd_list_head);
@@ -876,16 +871,6 @@ mrsas_attach(device_t dev)
 	mrsas_atomic_set(&sc->fw_outstanding, 0);
 
 	sc->io_cmds_highwater = 0;
-
-	/* Create a /dev entry for this device. */
-	sc->mrsas_cdev = make_dev(&mrsas_cdevsw, device_get_unit(dev), UID_ROOT,
-	    GID_OPERATOR, (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP), "mrsas%u",
-	    device_get_unit(dev));
-	if (device_get_unit(dev) == 0)
-		make_dev_alias_p(MAKEDEV_CHECKNAME, &linux_dev, sc->mrsas_cdev,
-		    "megaraid_sas_ioctl_node");
-	if (sc->mrsas_cdev)
-		sc->mrsas_cdev->si_drv1 = sc;
 
 	sc->adprecovery = MRSAS_HBA_OPERATIONAL;
 	sc->UnevenSpanSupport = 0;
@@ -896,7 +881,7 @@ mrsas_attach(device_t dev)
 	if (mrsas_init_fw(sc) != SUCCESS) {
 		goto attach_fail_fw;
 	}
-	/* Register SCSI mid-layer */
+	/* Register mrsas to CAM layer */
 	if ((mrsas_cam_attach(sc) != SUCCESS)) {
 		goto attach_fail_cam;
 	}
@@ -904,38 +889,28 @@ mrsas_attach(device_t dev)
 	if (mrsas_setup_irq(sc) != SUCCESS) {
 		goto attach_fail_irq;
 	}
-	/* Enable Interrupts */
-	mrsas_enable_intr(sc);
-
 	error = mrsas_kproc_create(mrsas_ocr_thread, sc,
 	    &sc->ocr_thread, 0, 0, "mrsas_ocr%d",
 	    device_get_unit(sc->mrsas_dev));
 	if (error) {
-		printf("Error %d starting rescan thread\n", error);
-		goto attach_fail_irq;
-	}
-	mrsas_setup_sysctl(sc);
-
-	/* Initiate AEN (Asynchronous Event Notification) */
-
-	if (mrsas_start_aen(sc)) {
-		printf("Error: start aen failed\n");
-		goto fail_start_aen;
+		device_printf(sc->mrsas_dev, "Error %d starting OCR thread\n", error);
+		goto attach_fail_ocr_thread;
 	}
 	/*
-	 * Add this controller to mrsas_mgmt_info structure so that it can be
-	 * exported to management applications
+	 * After FW initialization and OCR thread creation
+	 * we will defer the cdev creation, AEN setup on ICH callback
 	 */
-	if (device_get_unit(dev) == 0)
-		memset(&mrsas_mgmt_info, 0, sizeof(mrsas_mgmt_info));
+	sc->mrsas_ich.ich_func = mrsas_ich_startup;
+	sc->mrsas_ich.ich_arg = sc;
+	if (config_intrhook_establish(&sc->mrsas_ich) != 0) {
+		device_printf(sc->mrsas_dev, "Config hook is already established\n");
+	}
+	mrsas_setup_sysctl(sc);
+	return SUCCESS;
 
-	mrsas_mgmt_info.count++;
-	mrsas_mgmt_info.sc_ptr[mrsas_mgmt_info.max_index] = sc;
-	mrsas_mgmt_info.max_index++;
-
-	return (0);
-
-fail_start_aen:
+attach_fail_ocr_thread:
+	if (sc->ocr_thread_active)
+		wakeup(&sc->ocr_chan);
 attach_fail_irq:
 	mrsas_teardown_intr(sc);
 attach_fail_cam:
@@ -953,15 +928,69 @@ attach_fail_fw:
 	mtx_destroy(&sc->mpt_cmd_pool_lock);
 	mtx_destroy(&sc->mfi_cmd_pool_lock);
 	mtx_destroy(&sc->raidmap_lock);
-	/* Destroy the counting semaphore created for Ioctl */
-	sema_destroy(&sc->ioctl_count_sema);
 attach_fail:
-	destroy_dev(sc->mrsas_cdev);
 	if (sc->reg_res) {
 		bus_release_resource(sc->mrsas_dev, SYS_RES_MEMORY,
 		    sc->reg_res_id, sc->reg_res);
 	}
 	return (ENXIO);
+}
+
+/*
+ * Interrupt config hook
+ */
+static void
+mrsas_ich_startup(void *arg)
+{
+	struct mrsas_softc *sc = (struct mrsas_softc *)arg;
+
+	/*
+	 * Intialize a counting Semaphore to take care no. of concurrent IOCTLs
+	 */
+	sema_init(&sc->ioctl_count_sema,
+	    MRSAS_MAX_MFI_CMDS - 5,
+	    IOCTL_SEMA_DESCRIPTION);
+
+	/* Create a /dev entry for mrsas controller. */
+	sc->mrsas_cdev = make_dev(&mrsas_cdevsw, device_get_unit(sc->mrsas_dev), UID_ROOT,
+	    GID_OPERATOR, (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP), "mrsas%u",
+	    device_get_unit(sc->mrsas_dev));
+
+	if (device_get_unit(sc->mrsas_dev) == 0) {
+		make_dev_alias_p(MAKEDEV_CHECKNAME,
+		    &sc->mrsas_linux_emulator_cdev, sc->mrsas_cdev,
+		    "megaraid_sas_ioctl_node");
+	}
+	if (sc->mrsas_cdev)
+		sc->mrsas_cdev->si_drv1 = sc;
+
+	/*
+	 * Add this controller to mrsas_mgmt_info structure so that it can be
+	 * exported to management applications
+	 */
+	if (device_get_unit(sc->mrsas_dev) == 0)
+		memset(&mrsas_mgmt_info, 0, sizeof(mrsas_mgmt_info));
+
+	mrsas_mgmt_info.count++;
+	mrsas_mgmt_info.sc_ptr[mrsas_mgmt_info.max_index] = sc;
+	mrsas_mgmt_info.max_index++;
+
+	/* Enable Interrupts */
+	mrsas_enable_intr(sc);
+
+	/* Initiate AEN (Asynchronous Event Notification) */
+	if (mrsas_start_aen(sc)) {
+		device_printf(sc->mrsas_dev, "Error: AEN registration FAILED !!! "
+		    "Further events from the controller will not be communicated.\n"
+		    "Either there is some problem in the controller"
+		    "or the controller does not support AEN.\n"
+		    "Please contact to the SUPPORT TEAM if the problem persists\n");
+	}
+	if (sc->mrsas_ich.ich_arg != NULL) {
+		device_printf(sc->mrsas_dev, "Disestablish mrsas intr hook\n");
+		config_intrhook_disestablish(&sc->mrsas_ich);
+		sc->mrsas_ich.ich_arg = NULL;
+	}
 }
 
 /*
@@ -982,6 +1011,8 @@ mrsas_detach(device_t dev)
 	sc->remove_in_progress = 1;
 
 	/* Destroy the character device so no other IOCTL will be handled */
+	if ((device_get_unit(dev) == 0) && sc->mrsas_linux_emulator_cdev)
+		destroy_dev(sc->mrsas_linux_emulator_cdev);
 	destroy_dev(sc->mrsas_cdev);
 
 	/*
