@@ -5545,8 +5545,16 @@ found_one:
 		stcb->asoc.strmin[control->sinfo_stream].delivery_started = 1;
 	}
 	/* First lets get off the sinfo and sockaddr info */
-	if ((sinfo) && filling_sinfo) {
-		memcpy(sinfo, control, sizeof(struct sctp_nonpad_sndrcvinfo));
+	if ((sinfo != NULL) && (filling_sinfo != 0)) {
+		sinfo->sinfo_stream = control->sinfo_stream;
+		sinfo->sinfo_ssn = (uint16_t) control->sinfo_ssn;
+		sinfo->sinfo_flags = control->sinfo_flags;
+		sinfo->sinfo_ppid = control->sinfo_ppid;
+		sinfo->sinfo_context = control->sinfo_context;
+		sinfo->sinfo_timetolive = control->sinfo_timetolive;
+		sinfo->sinfo_tsn = control->sinfo_tsn;
+		sinfo->sinfo_cumtsn = control->sinfo_cumtsn;
+		sinfo->sinfo_assoc_id = control->sinfo_assoc_id;
 		nxt = TAILQ_NEXT(control, next);
 		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EXT_RCVINFO) ||
 		    sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVNXTINFO)) {
