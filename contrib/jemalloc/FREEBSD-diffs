@@ -1,5 +1,5 @@
 diff --git a/doc/jemalloc.xml.in b/doc/jemalloc.xml.in
-index bc5dbd1..ba182da 100644
+index c4a44e3..4626e9b 100644
 --- a/doc/jemalloc.xml.in
 +++ b/doc/jemalloc.xml.in
 @@ -53,11 +53,23 @@
@@ -27,7 +27,7 @@ index bc5dbd1..ba182da 100644
        <refsect2>
          <title>Standard API</title>
          <funcprototype>
-@@ -2905,4 +2917,18 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
+@@ -2961,4 +2973,18 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
      <para>The <function>posix_memalign<parameter/></function> function conforms
      to IEEE Std 1003.1-2001 (&ldquo;POSIX.1&rdquo;).</para>
    </refsect1>
@@ -47,7 +47,7 @@ index bc5dbd1..ba182da 100644
 +  </refsect1>
  </refentry>
 diff --git a/include/jemalloc/internal/jemalloc_internal.h.in b/include/jemalloc/internal/jemalloc_internal.h.in
-index 3f54391..d240256 100644
+index 51bf897..7de22ea 100644
 --- a/include/jemalloc/internal/jemalloc_internal.h.in
 +++ b/include/jemalloc/internal/jemalloc_internal.h.in
 @@ -8,6 +8,9 @@
@@ -90,10 +90,10 @@ index 2b8ca5d..42d97f2 100644
  #ifdef _WIN32
  #  include <windows.h>
 diff --git a/include/jemalloc/internal/mutex.h b/include/jemalloc/internal/mutex.h
-index f051f29..561378f 100644
+index 5221799..60ab041 100644
 --- a/include/jemalloc/internal/mutex.h
 +++ b/include/jemalloc/internal/mutex.h
-@@ -47,15 +47,13 @@ struct malloc_mutex_s {
+@@ -52,9 +52,6 @@ struct malloc_mutex_s {
  
  #ifdef JEMALLOC_LAZY_LOCK
  extern bool isthreaded;
@@ -102,19 +102,20 @@ index f051f29..561378f 100644
 -#  define isthreaded true
  #endif
  
- bool	malloc_mutex_init(malloc_mutex_t *mutex);
- void	malloc_mutex_prefork(malloc_mutex_t *mutex);
- void	malloc_mutex_postfork_parent(malloc_mutex_t *mutex);
- void	malloc_mutex_postfork_child(malloc_mutex_t *mutex);
+ bool	malloc_mutex_init(malloc_mutex_t *mutex, const char *name,
+@@ -62,6 +59,7 @@ bool	malloc_mutex_init(malloc_mutex_t *mutex, const char *name,
+ void	malloc_mutex_prefork(tsdn_t *tsdn, malloc_mutex_t *mutex);
+ void	malloc_mutex_postfork_parent(tsdn_t *tsdn, malloc_mutex_t *mutex);
+ void	malloc_mutex_postfork_child(tsdn_t *tsdn, malloc_mutex_t *mutex);
 +bool	malloc_mutex_first_thread(void);
- bool	mutex_boot(void);
+ bool	malloc_mutex_boot(void);
  
  #endif /* JEMALLOC_H_EXTERNS */
 diff --git a/include/jemalloc/internal/private_symbols.txt b/include/jemalloc/internal/private_symbols.txt
-index 5880996..6e94e03 100644
+index f2b6a55..69369c9 100644
 --- a/include/jemalloc/internal/private_symbols.txt
 +++ b/include/jemalloc/internal/private_symbols.txt
-@@ -296,7 +296,6 @@ iralloct_realign
+@@ -311,7 +311,6 @@ iralloct_realign
  isalloc
  isdalloct
  isqalloc
@@ -124,10 +125,10 @@ index 5880996..6e94e03 100644
  jemalloc_postfork_child
 diff --git a/include/jemalloc/jemalloc_FreeBSD.h b/include/jemalloc/jemalloc_FreeBSD.h
 new file mode 100644
-index 0000000..433dab5
+index 0000000..c58a8f3
 --- /dev/null
 +++ b/include/jemalloc/jemalloc_FreeBSD.h
-@@ -0,0 +1,160 @@
+@@ -0,0 +1,162 @@
 +/*
 + * Override settings that were generated in jemalloc_defs.h as necessary.
 + */
@@ -137,6 +138,8 @@ index 0000000..433dab5
 +#ifndef MALLOC_PRODUCTION
 +#define	JEMALLOC_DEBUG
 +#endif
++
++#undef JEMALLOC_DSS
 +
 +/*
 + * The following are architecture-dependent, so conditionally define them for
@@ -300,7 +303,7 @@ index f943891..47d032c 100755
 +#include "jemalloc_FreeBSD.h"
  EOF
 diff --git a/src/jemalloc.c b/src/jemalloc.c
-index 0735376..a34b85c 100644
+index 40eb2ea..666c49d 100644
 --- a/src/jemalloc.c
 +++ b/src/jemalloc.c
 @@ -4,6 +4,10 @@
@@ -314,7 +317,7 @@ index 0735376..a34b85c 100644
  /* Runtime configuration options. */
  const char	*je_malloc_conf JEMALLOC_ATTR(weak);
  bool	opt_abort =
-@@ -2611,6 +2615,107 @@ je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr)
+@@ -2673,6 +2677,107 @@ je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr)
   */
  /******************************************************************************/
  /*
@@ -341,7 +344,7 @@ index 0735376..a34b85c 100644
 +	if (p == NULL)
 +		return (ALLOCM_ERR_OOM);
 +	if (rsize != NULL)
-+		*rsize = isalloc(p, config_prof);
++		*rsize = isalloc(tsdn_fetch(), p, config_prof);
 +	*ptr = p;
 +	return (ALLOCM_SUCCESS);
 +}
@@ -370,7 +373,7 @@ index 0735376..a34b85c 100644
 +		} else
 +			ret = ALLOCM_ERR_OOM;
 +		if (rsize != NULL)
-+			*rsize = isalloc(*ptr, config_prof);
++			*rsize = isalloc(tsdn_fetch(), *ptr, config_prof);
 +	}
 +	return (ret);
 +}
@@ -422,8 +425,8 @@ index 0735376..a34b85c 100644
   * The following functions are used by threading libraries for protection of
   * malloc during fork().
   */
-@@ -2717,4 +2822,11 @@ jemalloc_postfork_child(void)
- 	ctl_postfork_child();
+@@ -2814,4 +2919,11 @@ jemalloc_postfork_child(void)
+ 	ctl_postfork_child(tsd_tsdn(tsd));
  }
  
 +void
@@ -435,7 +438,7 @@ index 0735376..a34b85c 100644
 +
  /******************************************************************************/
 diff --git a/src/mutex.c b/src/mutex.c
-index 2d47af9..934d5aa 100644
+index a1fac34..a24e420 100644
 --- a/src/mutex.c
 +++ b/src/mutex.c
 @@ -66,6 +66,17 @@ pthread_create(pthread_t *__restrict thread,
@@ -456,22 +459,22 @@ index 2d47af9..934d5aa 100644
  #endif
  
  bool
-@@ -137,7 +148,7 @@ malloc_mutex_postfork_child(malloc_mutex_t *mutex)
+@@ -140,7 +151,7 @@ malloc_mutex_postfork_child(tsdn_t *tsdn, malloc_mutex_t *mutex)
  }
  
  bool
--mutex_boot(void)
+-malloc_mutex_boot(void)
 +malloc_mutex_first_thread(void)
  {
  
  #ifdef JEMALLOC_MUTEX_INIT_CB
-@@ -151,3 +162,14 @@ mutex_boot(void)
+@@ -154,3 +165,14 @@ malloc_mutex_boot(void)
  #endif
  	return (false);
  }
 +
 +bool
-+mutex_boot(void)
++malloc_mutex_boot(void)
 +{
 +
 +#ifndef JEMALLOC_MUTEX_INIT_CB
@@ -481,10 +484,10 @@ index 2d47af9..934d5aa 100644
 +#endif
 +}
 diff --git a/src/util.c b/src/util.c
-index 02673c7..116e981 100644
+index a1c4a2a..04f9153 100644
 --- a/src/util.c
 +++ b/src/util.c
-@@ -66,6 +66,22 @@ wrtmessage(void *cbopaque, const char *s)
+@@ -67,6 +67,22 @@ wrtmessage(void *cbopaque, const char *s)
  
  JEMALLOC_EXPORT void	(*je_malloc_message)(void *, const char *s);
  
