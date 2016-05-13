@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,16 +38,33 @@
 #include <machine/atomic.h>
 #include <vm/vm.h>
 #include <vm/vm_page.h>
+#include <vm/pmap.h>
+
+typedef unsigned long pgprot_t;
 
 #define page	vm_page
 
-#define	virt_to_page(x)	PHYS_TO_VM_PAGE(vtophys((x)))
+#define	virt_to_page(x)		PHYS_TO_VM_PAGE(vtophys((x)))
+#define	page_to_pfn(pp)		(VM_PAGE_TO_PHYS((pp)) >> PAGE_SHIFT)
+#define	pfn_to_page(pfn)	(PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT))
+#define	nth_page(page,n)	pfn_to_page(page_to_pfn((page)) + (n))
 
 #define	clear_page(page)		memset((page), 0, PAGE_SIZE)
-#define	pgprot_noncached(prot)		VM_MEMATTR_UNCACHEABLE
-#define	pgprot_writecombine(prot)	VM_MEMATTR_WRITE_COMBINING
+#define	pgprot_noncached(prot)		((pgprot_t)VM_MEMATTR_UNCACHEABLE)
+#define	pgprot_writecombine(prot)	((pgprot_t)VM_MEMATTR_WRITE_COMBINING)
 
 #undef	PAGE_MASK
 #define	PAGE_MASK	(~(PAGE_SIZE-1))
+/*
+ * Modifying PAGE_MASK in the above way breaks trunc_page, round_page,
+ * and btoc macros. Therefore, redefine them in a way that makes sense
+ * so the LinuxKPI consumers don't get totally broken behavior.
+ */
+#undef	btoc
+#define	btoc(x)	(((vm_offset_t)(x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
+#undef	round_page
+#define	round_page(x)	((((uintptr_t)(x)) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
+#undef	trunc_page
+#define	trunc_page(x)	((uintptr_t)(x) & ~(PAGE_SIZE - 1))
 
 #endif	/* _LINUX_PAGE_H_ */
