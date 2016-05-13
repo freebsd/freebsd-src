@@ -28,6 +28,7 @@ void xputc(int c);
 void putchar(int c);
 int getc(int fn);
 int xgetc(int fn);
+int getchar(void);
 int keyhit(unsigned int secs);
 void getstr(char *cmdstr, size_t cmdstrsize);
 
