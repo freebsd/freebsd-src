@@ -86,4 +86,7 @@ int geli_decrypt(u_int algo, u_char *data, size_t datasize,
     const u_char *key, size_t keysize, const uint8_t* iv);
 int geli_passphrase(char *pw, int disk, int parttype, int part, struct dsk *dskp);
 
+int geliboot_crypt(u_int algo, int enc, u_char *data, size_t datasize,
+    const u_char *key, size_t keysize, u_char *iv);
+
 #endif /* _GELIBOOT_H_ */
