@@ -344,7 +344,7 @@ mrsas_action(struct cam_sim *sim, union ccb *ccb)
 			else
 				ccb->cpi.max_target = MRSAS_MAX_LD_IDS - 1;
 #if (__FreeBSD_version > 704000)
-			ccb->cpi.maxio = MRSAS_MAX_IO_SIZE;
+			ccb->cpi.maxio = sc->max_num_sge * MRSAS_PAGE_SIZE;
 #endif
 			ccb->ccb_h.status = CAM_REQ_CMP;
 			xpt_done(ccb);
@@ -462,7 +462,7 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 		ccb_h->status = CAM_REQ_INVALID;
 		goto done;
 	case CAM_DATA_VADDR:
-		if (csio->dxfer_len > MRSAS_MAX_IO_SIZE) {
+		if (csio->dxfer_len > (sc->max_num_sge * MRSAS_PAGE_SIZE)) {
 			mrsas_release_mpt_cmd(cmd);
 			ccb_h->status = CAM_REQ_TOO_BIG;
 			goto done;
@@ -472,6 +472,11 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 			cmd->data = csio->data_ptr;
 		break;
 	case CAM_DATA_BIO:
+		if (csio->dxfer_len > (sc->max_num_sge * MRSAS_PAGE_SIZE)) {
+			mrsas_release_mpt_cmd(cmd);
+			ccb_h->status = CAM_REQ_TOO_BIG;
+			goto done;
+		}
 		cmd->length = csio->dxfer_len;
 		if (cmd->length)
 			cmd->data = csio->data_ptr;
@@ -483,7 +488,7 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 #else
 	if (!(ccb_h->flags & CAM_DATA_PHYS)) {	/* Virtual data address */
 		if (!(ccb_h->flags & CAM_SCATTER_VALID)) {
-			if (csio->dxfer_len > MRSAS_MAX_IO_SIZE) {
+			if (csio->dxfer_len > (sc->max_num_sge * MRSAS_PAGE_SIZE)) {
 				mrsas_release_mpt_cmd(cmd);
 				ccb_h->status = CAM_REQ_TOO_BIG;
 				goto done;
@@ -730,12 +735,18 @@ mrsas_build_ldio_rw(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	io_request->DataLength = cmd->length;
 
 	if (mrsas_map_request(sc, cmd, ccb) == SUCCESS) {
-		if (cmd->sge_count > MRSAS_MAX_SGL) {
+		if (cmd->sge_count > sc->max_num_sge) {
 			device_printf(sc->mrsas_dev, "Error: sge_count (0x%x) exceeds"
 			    "max (0x%x) allowed\n", cmd->sge_count, sc->max_num_sge);
 			return (FAIL);
 		}
+		/*
+		 * numSGE store lower 8 bit of sge_count. numSGEExt store
+		 * higher 8 bit of sge_count
+		 */
 		io_request->RaidContext.numSGE = cmd->sge_count;
+		io_request->RaidContext.numSGEExt = (uint8_t)(cmd->sge_count >> 8);
+
 	} else {
 		device_printf(sc->mrsas_dev, "Data map/load failed.\n");
 		return (FAIL);
@@ -939,12 +950,17 @@ mrsas_build_ldio_nonrw(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	io_request->DataLength = cmd->length;
 
 	if (mrsas_map_request(sc, cmd, ccb) == SUCCESS) {
-		if (cmd->sge_count > MRSAS_MAX_SGL) {
+		if (cmd->sge_count > sc->max_num_sge) {
 			device_printf(sc->mrsas_dev, "Error: sge_count (0x%x) exceeds"
 			    "max (0x%x) allowed\n", cmd->sge_count, sc->max_num_sge);
 			return (1);
 		}
+		/*
+		 * numSGE store lower 8 bit of sge_count. numSGEExt store
+		 * higher 8 bit of sge_count
+		 */
 		io_request->RaidContext.numSGE = cmd->sge_count;
+		io_request->RaidContext.numSGEExt = (uint8_t)(cmd->sge_count >> 8);
 	} else {
 		device_printf(sc->mrsas_dev, "Data map/load failed.\n");
 		return (1);
@@ -1042,12 +1058,17 @@ mrsas_build_syspdio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	io_request->DataLength = cmd->length;
 
 	if (mrsas_map_request(sc, cmd, ccb) == SUCCESS) {
-		if (cmd->sge_count > MRSAS_MAX_SGL) {
+		if (cmd->sge_count > sc->max_num_sge) {
 			device_printf(sc->mrsas_dev, "Error: sge_count (0x%x) exceeds"
 			    "max (0x%x) allowed\n", cmd->sge_count, sc->max_num_sge);
 			return (1);
 		}
+		/*
+		 * numSGE store lower 8 bit of sge_count. numSGEExt store
+		 * higher 8 bit of sge_count
+		 */
 		io_request->RaidContext.numSGE = cmd->sge_count;
+		io_request->RaidContext.numSGEExt = (uint8_t)(cmd->sge_count >> 8);
 	} else {
 		device_printf(sc->mrsas_dev, "Data map/load failed.\n");
 		return (1);

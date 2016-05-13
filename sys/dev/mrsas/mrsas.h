@@ -166,7 +166,9 @@ typedef struct _RAID_CONTEXT {
 	u_int8_t numSGE;
 	u_int16_t configSeqNum;
 	u_int8_t spanArm;
-	u_int8_t resvd2[3];
+	u_int8_t priority;		/* 0x1D MR_PRIORITY_RANGE */
+	u_int8_t numSGEExt;		/* 0x1E 1M IO support */
+	u_int8_t resvd2;		/* 0x1F */
 }	RAID_CONTEXT;
 
 
@@ -1240,7 +1242,7 @@ enum MR_EVT_ARGS {
 /*
  * Thunderbolt (and later) Defines
  */
-#define	MRSAS_MAX_SZ_CHAIN_FRAME					1024
+#define	MEGASAS_CHAIN_FRAME_SZ_MIN					1024
 #define	MFI_FUSION_ENABLE_INTERRUPT_MASK			(0x00000009)
 #define	MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE		256
 #define	MRSAS_MPI2_FUNCTION_PASSTHRU_IO_REQUEST		0xF0
@@ -1318,9 +1320,12 @@ typedef enum _REGION_TYPE {
 #define	MRSAS_SCSI_MAX_CMDS				8
 #define	MRSAS_SCSI_MAX_CDB_LEN			16
 #define	MRSAS_SCSI_SENSE_BUFFERSIZE		96
-#define	MRSAS_MAX_SGL					70
-#define	MRSAS_MAX_IO_SIZE				(256 * 1024)
 #define	MRSAS_INTERNAL_CMDS				32
+
+#define	MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK	0x400000
+#define	MEGASAS_MAX_CHAIN_SIZE_MASK		0x3E0
+#define	MEGASAS_256K_IO					128
+#define	MEGASAS_1MB_IO					(MEGASAS_256K_IO * 4)
 
 /* Request types */
 #define	MRSAS_REQ_TYPE_INTERNAL_CMD		0x0
@@ -2023,7 +2028,9 @@ typedef union _MFI_CAPABILITIES {
 		u_int32_t support_ndrive_r1_lb:1;
 		u_int32_t support_core_affinity:1;
 		u_int32_t security_protocol_cmds_fw:1;
-		u_int32_t reserved:25;
+		u_int32_t support_ext_queue_depth:1;
+		u_int32_t support_ext_io_size:1;
+		u_int32_t reserved:23;
 	}	mfi_capabilities;
 	u_int32_t reg;
 }	MFI_CAPABILITIES;
@@ -2697,6 +2704,7 @@ struct mrsas_softc {
 	int	msix_enable;
 	uint32_t msix_reg_offset[16];
 	uint8_t	mask_interrupts;
+	uint16_t max_chain_frame_sz;
 	struct mrsas_mpt_cmd **mpt_cmd_list;
 	struct mrsas_mfi_cmd **mfi_cmd_list;
 	TAILQ_HEAD(, mrsas_mpt_cmd) mrsas_mpt_cmd_list_head;

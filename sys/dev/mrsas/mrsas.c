@@ -1703,9 +1703,9 @@ mrsas_alloc_mem(struct mrsas_softc *sc)
 	    BUS_SPACE_MAXADDR,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
-	    MRSAS_MAX_IO_SIZE,		/* maxsize */
-	    MRSAS_MAX_SGL,		/* nsegments */
-	    MRSAS_MAX_IO_SIZE,		/* maxsegsize */
+	    MAXPHYS,			/* maxsize */
+	    sc->max_num_sge,		/* nsegments */
+	    MAXPHYS,			/* maxsegsize */
 	    0,				/* flags */
 	    NULL, NULL,			/* lockfunc, lockarg */
 	    &sc->mrsas_parent_tag	/* tag */
@@ -1902,9 +1902,9 @@ mrsas_alloc_mem(struct mrsas_softc *sc)
 	    BUS_SPACE_MAXADDR,
 	    BUS_SPACE_MAXADDR,
 	    NULL, NULL,
-	    MRSAS_MAX_IO_SIZE,
-	    MRSAS_MAX_SGL,
-	    MRSAS_MAX_IO_SIZE,
+	    MAXPHYS,
+	    sc->max_num_sge,		/* nsegments */
+	    MAXPHYS,
 	    BUS_DMA_ALLOCNOW,
 	    busdma_lock_mutex,
 	    &sc->io_lock,
@@ -2248,7 +2248,7 @@ int
 mrsas_init_adapter(struct mrsas_softc *sc)
 {
 	uint32_t status;
-	u_int32_t max_cmd;
+	u_int32_t max_cmd, scratch_pad_2;
 	int ret;
 	int i = 0;
 
@@ -2267,12 +2267,32 @@ mrsas_init_adapter(struct mrsas_softc *sc)
 	sc->request_alloc_sz = sizeof(MRSAS_REQUEST_DESCRIPTOR_UNION) * max_cmd;
 	sc->reply_alloc_sz = sizeof(MPI2_REPLY_DESCRIPTORS_UNION) * (sc->reply_q_depth);
 	sc->io_frames_alloc_sz = MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE + (MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE * (max_cmd + 1));
-	sc->chain_frames_alloc_sz = 1024 * max_cmd;
+	scratch_pad_2 = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+	    outbound_scratch_pad_2));
+	/*
+	 * If scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK is set,
+	 * Firmware support extended IO chain frame which is 4 time more
+	 * than legacy Firmware. Legacy Firmware - Frame size is (8 * 128) =
+	 * 1K 1M IO Firmware  - Frame size is (8 * 128 * 4)  = 4K
+	 */
+	if (scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK)
+		sc->max_chain_frame_sz =
+		    ((scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_MASK) >> 5)
+		    * MEGASAS_1MB_IO;
+	else
+		sc->max_chain_frame_sz =
+		    ((scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_MASK) >> 5)
+		    * MEGASAS_256K_IO;
+
+	sc->chain_frames_alloc_sz = sc->max_chain_frame_sz * max_cmd;
 	sc->max_sge_in_main_msg = (MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE -
 	    offsetof(MRSAS_RAID_SCSI_IO_REQUEST, SGL)) / 16;
 
-	sc->max_sge_in_chain = MRSAS_MAX_SZ_CHAIN_FRAME / sizeof(MPI2_SGE_IO_UNION);
+	sc->max_sge_in_chain = sc->max_chain_frame_sz / sizeof(MPI2_SGE_IO_UNION);
 	sc->max_num_sge = sc->max_sge_in_main_msg + sc->max_sge_in_chain - 2;
+
+	mrsas_dprint(sc, MRSAS_INFO, "Avago Debug: MAX sge 0x%X MAX chain frame size 0x%X \n",
+	    sc->max_num_sge, sc->max_chain_frame_sz);
 
 	/* Used for pass thru MFI frame (DCMD) */
 	sc->chain_offset_mfi_pthru = offsetof(MRSAS_RAID_SCSI_IO_REQUEST, SGL) / 16;
@@ -2411,6 +2431,8 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 	init_frame->driver_operations.mfi_capabilities.support_ndrive_r1_lb = 1;
 	init_frame->driver_operations.mfi_capabilities.support_max_255lds = 1;
 	init_frame->driver_operations.mfi_capabilities.security_protocol_cmds_fw = 1;
+	if (sc->max_chain_frame_sz > MEGASAS_CHAIN_FRAME_SZ_MIN)
+		init_frame->driver_operations.mfi_capabilities.support_ext_io_size = 1;
 	phys_addr = (bus_addr_t)sc->ioc_init_phys_mem + 1024;
 	init_frame->queue_info_new_phys_addr_lo = phys_addr;
 	init_frame->data_xfer_len = sizeof(Mpi2IOCInitRequest_t);
@@ -2513,7 +2535,7 @@ mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
 	for (i = 0; i < max_cmd; i++) {
 		cmd = sc->mpt_cmd_list[i];
 		offset = MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE * i;
-		chain_offset = 1024 * i;
+		chain_offset = sc->max_chain_frame_sz * i;
 		sense_offset = MRSAS_SENSE_LEN * i;
 		memset(cmd, 0, sizeof(struct mrsas_mpt_cmd));
 		cmd->index = i + 1;
@@ -3447,7 +3469,7 @@ mrsas_build_mptmfi_passthru(struct mrsas_softc *sc, struct mrsas_mfi_cmd *mfi_cm
 	mpi25_ieee_chain->Flags = IEEE_SGE_FLAGS_CHAIN_ELEMENT |
 	    MPI2_IEEE_SGE_FLAGS_IOCPLBNTA_ADDR;
 
-	mpi25_ieee_chain->Length = MRSAS_MAX_SZ_CHAIN_FRAME;
+	mpi25_ieee_chain->Length = sc->max_chain_frame_sz;
 
 	return (0);
 }
