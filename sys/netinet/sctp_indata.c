@@ -559,7 +559,7 @@ protocol_error:
 		sctp_add_to_readq(stcb->sctp_ep, stcb,
 		    control,
 		    &stcb->sctp_socket->so_rcv, 1,
-		    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
+		    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_LOCKED);
 		TAILQ_FOREACH_SAFE(control, &strm->inqueue, next_instrm, at) {
 			/* all delivered */
 			nxt_todel = strm->last_sequence_delivered + 1;
@@ -592,7 +592,7 @@ protocol_error:
 				    control,
 				    &stcb->sctp_socket->so_rcv, 1,
 				    SCTP_READ_LOCK_NOT_HELD,
-				    SCTP_SO_NOT_LOCKED);
+				    SCTP_SO_LOCKED);
 				continue;
 			} else if (nxt_todel == control->sinfo_ssn) {
 				*need_reasm = 1;
