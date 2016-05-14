@@ -1879,6 +1879,8 @@ bwn_init(struct bwn_softc *sc)
 
 	BWN_ASSERT_LOCKED(sc);
 
+	DPRINTF(sc, BWN_DEBUG_RESET, "%s: called\n", __func__);
+
 	bzero(sc->sc_bssid, IEEE80211_ADDR_LEN);
 	sc->sc_flags |= BWN_FLAG_NEED_BEACON_TP;
 	sc->sc_filters = 0;
@@ -1913,6 +1915,8 @@ bwn_stop(struct bwn_softc *sc)
 	struct bwn_mac *mac = sc->sc_curmac;
 
 	BWN_ASSERT_LOCKED(sc);
+
+	DPRINTF(sc, BWN_DEBUG_RESET, "%s: called\n", __func__);
 
 	if (mac->mac_status >= BWN_MAC_STATUS_INITED) {
 		/* XXX FIXME opmode not based on VAP */
@@ -4576,7 +4580,8 @@ bwn_switch_band(struct bwn_softc *sc, struct ieee80211_channel *chan)
 	if (up_dev == sc->sc_curmac && sc->sc_curmac->mac_phy.gmode == gmode)
 		return (0);
 
-	device_printf(sc->sc_dev, "switching to %s-GHz band\n",
+	DPRINTF(sc, BWN_DEBUG_RF | BWN_DEBUG_PHY | BWN_DEBUG_RESET,
+	    "switching to %s-GHz band\n",
 	    IEEE80211_IS_CHAN_2GHZ(chan) ? "2" : "5");
 
 	down_dev = sc->sc_curmac;
@@ -4614,6 +4619,8 @@ static void
 bwn_rf_turnon(struct bwn_mac *mac)
 {
 
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET, "%s: called\n", __func__);
+
 	bwn_mac_suspend(mac);
 	mac->mac_phy.rf_onoff(mac, 1);
 	mac->mac_phy.rf_on = 1;
@@ -4623,6 +4630,8 @@ bwn_rf_turnon(struct bwn_mac *mac)
 static void
 bwn_rf_turnoff(struct bwn_mac *mac)
 {
+
+	DPRINTF(mac->mac_sc, BWN_DEBUG_RESET, "%s: called\n", __func__);
 
 	bwn_mac_suspend(mac);
 	mac->mac_phy.rf_onoff(mac, 0);
