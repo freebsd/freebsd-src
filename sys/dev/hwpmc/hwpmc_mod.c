@@ -334,7 +334,11 @@ static moduledata_t pmc_mod = {
 	&pmc_syscall_mod
 };
 
+#ifdef EARLY_AP_STARTUP
+DECLARE_MODULE(pmc, pmc_mod, SI_SUB_SYSCALLS, SI_ORDER_ANY);
+#else
 DECLARE_MODULE(pmc, pmc_mod, SI_SUB_SMP, SI_ORDER_ANY);
+#endif
 MODULE_VERSION(pmc, PMC_VERSION);
 
 #ifdef	HWPMC_DEBUG

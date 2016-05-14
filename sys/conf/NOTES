@@ -223,6 +223,12 @@ options 	SCHED_STATS
 # Mandatory:
 options 	SMP			# Symmetric MultiProcessor Kernel
 
+# EARLY_AP_STARTUP releases the Application Processors earlier in the
+# kernel startup process (before devices are probed) rather than at the
+# end.  This is a temporary option for use during the transition from
+# late to early AP startup.
+options		EARLY_AP_STARTUP
+
 # MAXCPU defines the maximum number of CPUs that can boot in the system.
 # A default value should be already present, for every architecture.
 options 	MAXCPU=32

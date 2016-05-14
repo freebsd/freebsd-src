@@ -519,6 +519,7 @@ vmbus_attach(device_t dev)
 		device_printf(dev, "VMBUS: attach dev: %p\n", dev);
 	vmbus_devp = dev;
 
+#ifndef EARLY_AP_STARTUP
 	/* 
 	 * If the system has already booted and thread
 	 * scheduling is possible indicated by the global
@@ -526,6 +527,7 @@ vmbus_attach(device_t dev)
 	 * initialization directly.
 	 */
 	if (!cold)
+#endif
 		vmbus_bus_init();
 
 	bus_generic_probe(dev);
@@ -538,6 +540,7 @@ vmbus_init(void)
 	if (vm_guest != VM_GUEST_HV)
 		return;
 
+#ifndef EARLY_AP_STARTUP
 	/* 
 	 * If the system has already booted and thread
 	 * scheduling is possible, as indicated by the
@@ -545,6 +548,7 @@ vmbus_init(void)
 	 * initialization directly.
 	 */
 	if (!cold) 
+#endif
 		vmbus_bus_init();
 }
 
@@ -611,6 +615,9 @@ vmbus_modevent(module_t mod, int what, void *arg)
 	switch (what) {
 
 	case MOD_LOAD:
+#ifdef EARLY_AP_STARTUP
+		vmbus_init();
+#endif
 		vmbus_mod_load();
 		break;
 	case MOD_UNLOAD:
@@ -649,6 +656,7 @@ DRIVER_MODULE(vmbus, acpi, vmbus_driver, vmbus_devclass, vmbus_modevent, 0);
 MODULE_DEPEND(vmbus, acpi, 1, 1, 1);
 MODULE_VERSION(vmbus, 1);
 
+#ifndef EARLY_AP_STARTUP
 /* We want to be started after SMP is initialized */
 SYSINIT(vmb_init, SI_SUB_SMP + 1, SI_ORDER_FIRST, vmbus_init, NULL);
-
+#endif
