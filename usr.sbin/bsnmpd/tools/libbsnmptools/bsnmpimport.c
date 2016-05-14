@@ -774,7 +774,7 @@ snmp_import_object(struct snmp_toolinfo *snmptoolctx)
 		return (-1);
 	}
 
-	strlcpy(string, nexttok, strlen(nexttok) + 1);
+	strlcpy(string, nexttok, nitems(string));
 	oid2str->string = string;
 	oid2str->strlen = strlen(nexttok);
 
