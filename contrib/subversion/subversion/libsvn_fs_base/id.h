@@ -53,9 +53,9 @@ svn_boolean_t svn_fs_base__id_eq(const svn_fs_id_t *a,
 svn_boolean_t svn_fs_base__id_check_related(const svn_fs_id_t *a,
                                             const svn_fs_id_t *b);
 
-/* Return 0 if A and B are equal, 1 if they are related, -1 otherwise. */
-int svn_fs_base__id_compare(const svn_fs_id_t *a,
-                            const svn_fs_id_t *b);
+/* Return the noderev relationship between A and B. */
+svn_fs_node_relation_t svn_fs_base__id_compare(const svn_fs_id_t *a,
+                                               const svn_fs_id_t *b);
 
 /* Create an ID based on NODE_ID, COPY_ID, and TXN_ID, allocated in
    POOL. */

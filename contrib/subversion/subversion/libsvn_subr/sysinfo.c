@@ -23,14 +23,6 @@
 
 
 
-#ifdef WIN32
-#define WIN32_LEAN_AND_MEAN
-#define PSAPI_VERSION 1
-#include <windows.h>
-#include <psapi.h>
-#include <Ws2tcpip.h>
-#endif
-
 #define APR_WANT_STRFUNC
 #include <apr_want.h>
 
@@ -53,6 +45,8 @@
 #include "svn_version.h"
 
 #include "private/svn_sqlite.h"
+#include "private/svn_subr_private.h"
+#include "private/svn_utf_private.h"
 
 #include "sysinfo.h"
 #include "svn_private_config.h"
@@ -63,6 +57,10 @@
 
 #ifdef SVN_HAVE_MACOS_PLIST
 #include <CoreFoundation/CoreFoundation.h>
+#include <AvailabilityMacros.h>
+# ifndef MAC_OS_X_VERSION_10_6
+#  define MAC_OS_X_VERSION_10_6  1060
+# endif
 #endif
 
 #ifdef SVN_HAVE_MACHO_ITERATE
@@ -129,7 +127,7 @@ const apr_array_header_t *
 svn_sysinfo__linked_libs(apr_pool_t *pool)
 {
   svn_version_ext_linked_lib_t *lib;
-  apr_array_header_t *array = apr_array_make(pool, 3, sizeof(*lib));
+  apr_array_header_t *array = apr_array_make(pool, 6, sizeof(*lib));
 
   lib = &APR_ARRAY_PUSH(array, svn_version_ext_linked_lib_t);
   lib->name = "APR";
@@ -146,6 +144,11 @@ svn_sysinfo__linked_libs(apr_pool_t *pool)
 #endif
 
   lib = &APR_ARRAY_PUSH(array, svn_version_ext_linked_lib_t);
+  lib->name = "Expat";
+  lib->compiled_version = apr_pstrdup(pool, svn_xml__compiled_version());
+  lib->runtime_version = apr_pstrdup(pool, svn_xml__runtime_version());
+
+  lib = &APR_ARRAY_PUSH(array, svn_version_ext_linked_lib_t);
   lib->name = "SQLite";
   lib->compiled_version = apr_pstrdup(pool, svn_sqlite__compiled_version());
 #ifdef SVN_SQLITE_INLINE
@@ -153,6 +156,16 @@ svn_sysinfo__linked_libs(apr_pool_t *pool)
 #else
   lib->runtime_version = apr_pstrdup(pool, svn_sqlite__runtime_version());
 #endif
+
+  lib = &APR_ARRAY_PUSH(array, svn_version_ext_linked_lib_t);
+  lib->name = "Utf8proc";
+  lib->compiled_version = apr_pstrdup(pool, svn_utf__utf8proc_compiled_version());
+  lib->runtime_version = apr_pstrdup(pool, svn_utf__utf8proc_runtime_version());
+
+  lib = &APR_ARRAY_PUSH(array, svn_version_ext_linked_lib_t);
+  lib->name = "ZLib";
+  lib->compiled_version = apr_pstrdup(pool, svn_zlib__compiled_version());
+  lib->runtime_version = apr_pstrdup(pool, svn_zlib__runtime_version());
 
   return array;
 }
@@ -278,7 +291,7 @@ release_name_from_uname(apr_pool_t *pool)
 
 #if __linux__
 /* Split a stringbuf into a key/value pair.
-   Return the key, leaving the striped value in the stringbuf. */
+   Return the key, leaving the stripped value in the stringbuf. */
 static const char *
 stringbuf_split_key(svn_stringbuf_t *buffer, char delim)
 {
@@ -414,6 +427,63 @@ lsb_release(apr_pool_t *pool)
   return NULL;
 }
 
+/* Read /etc/os-release, as documented here:
+ * http://www.freedesktop.org/software/systemd/man/os-release.html
+ */
+static const char *
+systemd_release(apr_pool_t *pool)
+{
+  svn_error_t *err;
+  svn_stream_t *stream;
+
+  /* Open the file. */
+  err = svn_stream_open_readonly(&stream, "/etc/os-release", pool, pool);
+  if (err && APR_STATUS_IS_ENOENT(err->apr_err))
+    {
+      svn_error_clear(err);
+      err = svn_stream_open_readonly(&stream, "/usr/lib/os-release", pool,
+                                     pool);
+    }
+  if (err)
+    {
+      svn_error_clear(err);
+      return NULL;
+    }
+
+  /* Look for the PRETTY_NAME line. */
+  while (TRUE)
+    {
+      svn_stringbuf_t *line;
+      svn_boolean_t eof;
+
+      err = svn_stream_readline(stream, &line, "\n", &eof, pool);
+      if (err)
+        {
+          svn_error_clear(err);
+          return NULL;
+        }
+
+      if (!strncmp(line->data, "PRETTY_NAME=", 12))
+        {
+          svn_stringbuf_t *release_name;
+
+          /* The value may or may not be enclosed by double quotes.  We don't
+           * attempt to strip them. */
+          release_name = svn_stringbuf_create(line->data + 12, pool);
+          svn_error_clear(svn_stream_close(stream));
+          svn_stringbuf_strip_whitespace(release_name);
+          return release_name->data;
+        }
+
+      if (eof)
+        break;
+    }
+
+  /* The file did not contain a PRETTY_NAME line. */
+  svn_error_clear(svn_stream_close(stream));
+  return NULL;
+}
+
 /* Read the whole contents of a file. */
 static svn_stringbuf_t *
 read_file_contents(const char *filename, apr_pool_t *pool)
@@ -518,7 +588,7 @@ debian_release(apr_pool_t *pool)
       return NULL;
 
   stringbuf_first_line_only(buffer);
-  return apr_pstrcat(pool, "Debian ", buffer->data, NULL);
+  return apr_pstrcat(pool, "Debian ", buffer->data, SVN_VA_NULL);
 }
 
 /* Try to find the Linux distribution name, or return info from uname. */
@@ -530,6 +600,10 @@ linux_release_name(apr_pool_t *pool)
   /* Try anything that has /usr/bin/lsb_release.
      Covers, for example, Debian, Ubuntu and SuSE.  */
   const char *release_name = lsb_release(pool);
+
+  /* Try the systemd way (covers Arch). */
+  if (!release_name)
+    release_name = systemd_release(pool);
 
   /* Try RHEL/Fedora/CentOS */
   if (!release_name)
@@ -558,22 +632,46 @@ linux_release_name(apr_pool_t *pool)
 typedef DWORD (WINAPI *FNGETNATIVESYSTEMINFO)(LPSYSTEM_INFO);
 typedef BOOL (WINAPI *FNENUMPROCESSMODULES) (HANDLE, HMODULE*, DWORD, LPDWORD);
 
-/* Get system and version info, and try to tell the difference
-   between the native system type and the runtime environment of the
-   current process. Populate results in SYSINFO, LOCAL_SYSINFO
-   (optional) and OSINFO. */
+svn_boolean_t
+svn_sysinfo___fill_windows_version(OSVERSIONINFOEXW *version_info)
+{
+  memset(version_info, 0, sizeof(*version_info));
+
+  version_info->dwOSVersionInfoSize = sizeof(*version_info);
+
+  /* Kill warnings with the Windows 8 and later platform SDK */
+#if _MSC_VER > 1600 && NTDDI_VERSION >= _0x06020000
+  /* Windows 8 deprecated the API to retrieve the Windows version to avoid
+     backwards compatibility problems... It might return a constant version
+     in future Windows versions... But let's kill the warning.
+
+     We can implementation this using a different function later. */
+#pragma warning(push)
+#pragma warning(disable: 4996)
+#endif
+
+  /* Prototype supports OSVERSIONINFO */
+  return GetVersionExW((LPVOID)version_info);
+#if _MSC_VER > 1600 && NTDDI_VERSION >= _0x06020000
+#pragma warning(pop)
+#pragma warning(disable: 4996)
+#endif
+}
+
+/* Get system info, and try to tell the difference between the native
+   system type and the runtime environment of the current process.
+   Populate results in SYSINFO and LOCAL_SYSINFO (optional). */
 static BOOL
 system_info(SYSTEM_INFO *sysinfo,
-            SYSTEM_INFO *local_sysinfo,
-            OSVERSIONINFOEXW *osinfo)
+            SYSTEM_INFO *local_sysinfo)
 {
   FNGETNATIVESYSTEMINFO GetNativeSystemInfo_ = (FNGETNATIVESYSTEMINFO)
     GetProcAddress(GetModuleHandleA("kernel32.dll"), "GetNativeSystemInfo");
 
-  ZeroMemory(sysinfo, sizeof *sysinfo);
+  memset(sysinfo, 0, sizeof *sysinfo);
   if (local_sysinfo)
     {
-      ZeroMemory(local_sysinfo, sizeof *local_sysinfo);
+      memset(local_sysinfo, 0, sizeof *local_sysinfo);
       GetSystemInfo(local_sysinfo);
       if (GetNativeSystemInfo_)
         GetNativeSystemInfo_(sysinfo);
@@ -582,11 +680,6 @@ system_info(SYSTEM_INFO *sysinfo,
     }
   else
     GetSystemInfo(sysinfo);
-
-  ZeroMemory(osinfo, sizeof *osinfo);
-  osinfo->dwOSVersionInfoSize = sizeof *osinfo;
-  if (!GetVersionExW((LPVOID)osinfo))
-    return FALSE;
 
   return TRUE;
 }
@@ -620,7 +713,8 @@ win32_canonical_host(apr_pool_t *pool)
   SYSTEM_INFO local_sysinfo;
   OSVERSIONINFOEXW osinfo;
 
-  if (system_info(&sysinfo, &local_sysinfo, &osinfo))
+  if (system_info(&sysinfo, &local_sysinfo)
+      && svn_sysinfo___fill_windows_version(&osinfo))
     {
       const char *arch = processor_name(&local_sysinfo);
       const char *machine = processor_name(&sysinfo);
@@ -684,7 +778,8 @@ win32_release_name(apr_pool_t *pool)
   OSVERSIONINFOEXW osinfo;
   HKEY hkcv;
 
-  if (!system_info(&sysinfo, NULL, &osinfo))
+  if (!system_info(&sysinfo, NULL)
+      || !svn_sysinfo___fill_windows_version(&osinfo))
     return NULL;
 
   if (!RegOpenKeyExW(HKEY_LOCAL_MACHINE,
@@ -888,71 +983,95 @@ win32_shared_libs(apr_pool_t *pool)
 
 
 #ifdef SVN_HAVE_MACOS_PLIST
+/* implements svn_write_fn_t to copy the data into a CFMutableDataRef that's
+ * in the baton. */
+static svn_error_t *
+write_to_cfmutabledata(void *baton, const char *data, apr_size_t *len)
+{
+  CFMutableDataRef *resource = (CFMutableDataRef *) baton;
+
+  CFDataAppendBytes(*resource, (UInt8 *)data, *len);
+
+  return SVN_NO_ERROR;
+}
+
 /* Load the SystemVersion.plist or ServerVersion.plist file into a
    property list. Set SERVER to TRUE if the file read was
    ServerVersion.plist. */
 static CFDictionaryRef
 system_version_plist(svn_boolean_t *server, apr_pool_t *pool)
 {
-  static const UInt8 server_version[] =
+  static const char server_version[] =
     "/System/Library/CoreServices/ServerVersion.plist";
-  static const UInt8 system_version[] =
+  static const char system_version[] =
     "/System/Library/CoreServices/SystemVersion.plist";
-
+  svn_stream_t *read_stream, *write_stream;
+  svn_error_t *err;
   CFPropertyListRef plist = NULL;
-  CFDataRef resource = NULL;
-  CFStringRef errstr = NULL;
-  CFURLRef url = NULL;
-  SInt32 errcode;
+  CFMutableDataRef resource = CFDataCreateMutable(kCFAllocatorDefault, 0);
 
-  url = CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault,
-                                                server_version,
-                                                sizeof(server_version) - 1,
-                                                FALSE);
-  if (!url)
+  /* failed getting the CFMutableDataRef, shouldn't happen */
+  if (!resource)
     return NULL;
 
-  if (!CFURLCreateDataAndPropertiesFromResource(kCFAllocatorDefault,
-                                                url, &resource,
-                                                NULL, NULL, &errcode))
+  /* Try to open the plist files to get the data */
+  err = svn_stream_open_readonly(&read_stream, server_version, pool, pool);
+  if (err)
     {
-      CFRelease(url);
-      url = CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault,
-                                                    system_version,
-                                                    sizeof(system_version) - 1,
-                                                    FALSE);
-      if (!url)
-        return NULL;
-
-      if (!CFURLCreateDataAndPropertiesFromResource(kCFAllocatorDefault,
-                                                    url, &resource,
-                                                    NULL, NULL, &errcode))
+      if (!APR_STATUS_IS_ENOENT(err->apr_err))
         {
-          CFRelease(url);
+          svn_error_clear(err);
+          CFRelease(resource);
           return NULL;
         }
       else
         {
-          CFRelease(url);
+          svn_error_clear(err);
+          err = svn_stream_open_readonly(&read_stream, system_version,
+                                         pool, pool);
+          if (err)
+            {
+              svn_error_clear(err);
+              CFRelease(resource);
+              return NULL;
+            }
+
           *server = FALSE;
         }
     }
   else
     {
-      CFRelease(url);
       *server = TRUE;
     }
 
-  /* ### CFPropertyListCreateFromXMLData is obsolete, but its
-         replacement CFPropertyListCreateWithData is only available
-         from Mac OS 1.6 onward. */
+  /* copy the data onto the CFMutableDataRef to allow us to provide it to
+   * the CoreFoundation functions that parse proprerty lists */
+  write_stream = svn_stream_create(&resource, pool);
+  svn_stream_set_write(write_stream, write_to_cfmutabledata);
+  err = svn_stream_copy3(read_stream, write_stream, NULL, NULL, pool);
+  if (err)
+    {
+      svn_error_clear(err);
+      return NULL;
+    }
+
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
+  /* This function is only available from Mac OS 10.6 onward. */
+  plist = CFPropertyListCreateWithData(kCFAllocatorDefault, resource,
+                                       kCFPropertyListImmutable,
+                                       NULL, NULL);
+#else  /* Mac OS 10.5 or earlier */
+  /* This function obsolete and deprecated since Mac OS 10.10. */
   plist = CFPropertyListCreateFromXMLData(kCFAllocatorDefault, resource,
                                           kCFPropertyListImmutable,
-                                          &errstr);
+                                          NULL);
+#endif /* MAC_OS_X_VERSION_10_6 */
+
   if (resource)
     CFRelease(resource);
-  if (errstr)
-    CFRelease(errstr);
+
+  if (!plist)
+    return NULL;
 
   if (CFDictionaryGetTypeID() != CFGetTypeID(plist))
     {
@@ -1013,16 +1132,17 @@ release_name_from_version(const char *osver)
   /* See http://en.wikipedia.org/wiki/History_of_OS_X#Release_timeline */
   switch(num)
     {
-    case 0: return "Cheetah";
-    case 1: return "Puma";
-    case 2: return "Jaguar";
-    case 3: return "Panther";
-    case 4: return "Tiger";
-    case 5: return "Leopard";
-    case 6: return "Snow Leopard";
-    case 7: return "Lion";
-    case 8: return "Mountain Lion";
-    case 9: return "Mavericks";
+    case  0: return "Cheetah";
+    case  1: return "Puma";
+    case  2: return "Jaguar";
+    case  3: return "Panther";
+    case  4: return "Tiger";
+    case  5: return "Leopard";
+    case  6: return "Snow Leopard";
+    case  7: return "Lion";
+    case  8: return "Mountain Lion";
+    case  9: return "Mavericks";
+    case 10: return "Yosemite";
     }
 
   return NULL;

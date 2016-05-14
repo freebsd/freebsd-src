@@ -76,6 +76,7 @@
 #include "svn_user.h"
 #include "svn_dirent_uri.h"
 
+#include "auth.h"
 #include "private/svn_auth_private.h"
 
 #include "svn_private_config.h"
@@ -102,12 +103,46 @@ escape_blanks(char *str)
   return str;
 }
 
+#define is_hex(c) (((c) >= '0' && (c) <= '9') || ((c) >= 'A' && (c) <= 'F'))
+#define hex_to_int(c) ((c) < '9' ? (c) - '0' : (c) - 'A' + 10)
+ 
+/* Modify STR in-place.  '%', CR and LF are always percent escaped,
+   other characters may be percent escaped, always using uppercase
+   hex, see https://www.gnupg.org/documentation/manuals/assuan.pdf */
+static char *
+unescape_assuan(char *str)
+{
+  char *s = str;
+
+  while (s[0])
+    {
+      if (s[0] == '%' && is_hex(s[1]) && is_hex(s[2]))
+        {
+          char *s2 = s;
+          char val = hex_to_int(s[1]) * 16 + hex_to_int(s[2]);
+
+          s2[0] = val;
+          ++s2;
+
+          while (s2[2])
+            {
+              s2[0] = s2[2];
+              ++s2;
+            }
+          s2[0] = '\0';
+        }
+      ++s;
+    }
+
+  return str;
+}
+
 /* Generate the string CACHE_ID_P based on the REALMSTRING allocated in
  * RESULT_POOL using SCRATCH_POOL for temporary allocations.  This is similar
  * to other password caching mechanisms. */
 static svn_error_t *
 get_cache_id(const char **cache_id_p, const char *realmstring,
-             apr_pool_t *scratch_pool, apr_pool_t *result_pool)
+             apr_pool_t *result_pool, apr_pool_t *scratch_pool)
 {
   const char *cache_id = NULL;
   svn_checksum_t *digest = NULL;
@@ -208,7 +243,7 @@ find_running_gpg_agent(int *new_sd, apr_pool_t *pool)
 
   /* This implements the method of finding the socket as described in
    * the gpg-agent man page under the --use-standard-socket option.
-   * The manage page misleadingly says the standard socket is 
+   * The manage page misleadingly says the standard socket is
    * "named 'S.gpg-agent' located in the home directory."  The standard
    * socket path is actually in the .gnupg directory in the home directory,
    * i.e. ~/.gnupg/S.gpg-agent */
@@ -218,7 +253,7 @@ find_running_gpg_agent(int *new_sd, apr_pool_t *pool)
       apr_array_header_t *socket_details;
 
       /* For reference GPG_AGENT_INFO consists of 3 : separated fields.
-       * The path to the socket, the pid of the gpg-agent process and 
+       * The path to the socket, the pid of the gpg-agent process and
        * finally the version of the protocol the agent talks. */
       socket_details = svn_cstring_split(gpg_agent_info, ":", TRUE,
                                          pool);
@@ -231,8 +266,9 @@ find_running_gpg_agent(int *new_sd, apr_pool_t *pool)
       if (!homedir)
         return SVN_NO_ERROR;
 
+      homedir = svn_dirent_canonicalize(homedir, pool);
       socket_name = svn_dirent_join_many(pool, homedir, ".gnupg",
-                                         "S.gpg-agent", NULL);
+                                         "S.gpg-agent", SVN_VA_NULL);
     }
 
   if (socket_name != NULL)
@@ -377,7 +413,7 @@ password_get_gpg_agent(svn_boolean_t *done,
                        apr_pool_t *pool)
 {
   int sd;
-  const char *p = NULL;
+  char *p = NULL;
   char *ep = NULL;
   char *buffer;
   const char *request = NULL;
@@ -450,7 +486,7 @@ password_get_gpg_agent(svn_boolean_t *done,
   if (ep != NULL)
     *ep = '\0';
 
-  *password = p;
+  *password = unescape_assuan(p);
 
   *done = TRUE;
   return SVN_NO_ERROR;
@@ -629,7 +665,7 @@ static const svn_auth_provider_t gpg_agent_simple_provider = {
 
 /* Public API */
 void
-svn_auth_get_gpg_agent_simple_provider(svn_auth_provider_object_t **provider,
+svn_auth__get_gpg_agent_simple_provider(svn_auth_provider_object_t **provider,
                                        apr_pool_t *pool)
 {
   svn_auth_provider_object_t *po = apr_pcalloc(pool, sizeof(*po));

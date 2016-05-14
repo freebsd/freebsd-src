@@ -30,25 +30,10 @@
 #include "private/svn_eol_private.h"
 #include "private/svn_dep_compat.h"
 
-/* Machine-word-sized masks used in svn_eol__find_eol_start.
- */
 char *
 svn_eol__find_eol_start(char *buf, apr_size_t len)
 {
-#if !SVN_UNALIGNED_ACCESS_IS_OK
-
-  /* On some systems, we need to make sure that buf is properly aligned
-   * for chunky data access. This overhead is still justified because
-   * only lines tend to be tens of chars long.
-   */
-  for (; (len > 0) && ((apr_uintptr_t)buf) & (sizeof(apr_uintptr_t)-1)
-       ; ++buf, --len)
-  {
-    if (*buf == '\n' || *buf == '\r')
-      return buf;
-  }
-
-#endif
+#if SVN_UNALIGNED_ACCESS_IS_OK
 
   /* Scan the input one machine word at a time. */
   for (; len > sizeof(apr_uintptr_t)
@@ -62,8 +47,8 @@ svn_eol__find_eol_start(char *buf, apr_size_t len)
     apr_uintptr_t r_test = chunk ^ SVN__R_MASK;
     apr_uintptr_t n_test = chunk ^ SVN__N_MASK;
 
-    /* A byte in SVN__R_TEST can by < 0x80, iff it has been \0 before
-     * (i.e. \r in *BUF). Dito for SVN__N_TEST. */
+    /* A byte in SVN__R_TEST can only be < 0x80, iff it has been \0 before
+     * (i.e. \r in *BUF). Ditto for SVN__N_TEST. */
     r_test |= (r_test & SVN__LOWER_7BITS_SET) + SVN__LOWER_7BITS_SET;
     n_test |= (n_test & SVN__LOWER_7BITS_SET) + SVN__LOWER_7BITS_SET;
 
@@ -72,6 +57,8 @@ svn_eol__find_eol_start(char *buf, apr_size_t len)
     if ((r_test & n_test & SVN__BIT_7_SET) != SVN__BIT_7_SET)
       break;
   }
+
+#endif
 
   /* The remaining odd bytes will be examined the naive way: */
   for (; len > 0; ++buf, --len)

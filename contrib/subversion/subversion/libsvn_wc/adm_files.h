@@ -112,30 +112,6 @@ svn_error_t *svn_wc__open_adm_stream(svn_stream_t **stream,
                                      apr_pool_t *scratch_pool);
 
 
-/* Open a writable stream to a temporary (normal or revert) text base,
-   associated with the versioned file LOCAL_ABSPATH in DB.  Set *STREAM to
-   the opened stream and *TEMP_BASE_ABSPATH to the path to the temporary
-   file.  The temporary file will have an arbitrary unique name, in contrast
-   to the deterministic name that svn_wc__text_base_deterministic_tmp_path()
-   returns.
-
-   Arrange that, on stream closure, *MD5_CHECKSUM and *SHA1_CHECKSUM will be
-   set to the MD-5 and SHA-1 checksums respectively of that file.
-   MD5_CHECKSUM and/or SHA1_CHECKSUM may be NULL if not wanted.
-
-   Allocate the new stream, path and checksums in RESULT_POOL.
- */
-svn_error_t *
-svn_wc__open_writable_base(svn_stream_t **stream,
-                           const char **temp_base_abspath,
-                           svn_checksum_t **md5_checksum,
-                           svn_checksum_t **sha1_checksum,
-                           svn_wc__db_t *db,
-                           const char *wri_abspath,
-                           apr_pool_t *result_pool,
-                           apr_pool_t *scratch_pool);
-
-
 /* Blow away the admistrative directory associated with DIR_ABSPATH.
    For single-db this doesn't perform actual work unless the wcroot is passed.
  */

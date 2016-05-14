@@ -32,6 +32,7 @@
 #include <apr_tables.h>
 
 #include "svn_types.h"
+#include "svn_string.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -74,6 +75,17 @@ svn_compat_log_revprops_in(apr_pool_t *pool);
  * svn:author, svn:date, and svn:log revprops from @a revprops.  If @a
  * revprops is NULL, all return values are NULL.  Any return value may be
  * NULL if the corresponding property is not set in @a revprops.
+ *
+ * @since New in 1.9.
+ */
+void
+svn_compat_log_revprops_out_string(const svn_string_t **author,
+                                   const svn_string_t **date,
+                                   const svn_string_t **message,
+                                   apr_hash_t *revprops);
+
+/** Simiar to svn_compat_log_revprops_out_string() but returns C-style strings
+ * instead of #svn_string_t.
  *
  * @since New in 1.5.
  */

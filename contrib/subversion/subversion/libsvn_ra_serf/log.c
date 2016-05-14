@@ -22,7 +22,8 @@
  */
 
 
-
+
+
 #include <apr_uri.h>
 #include <serf.h>
 
@@ -44,12 +45,13 @@
 #include "ra_serf.h"
 #include "../libsvn_ra/ra_loader.h"
 
-
+
+
 /*
  * This enum represents the current state of our XML parsing for a REPORT.
  */
-enum {
-  INITIAL = 0,
+enum log_state_e {
+  INITIAL = XML_STATE_INITIAL,
   REPORT,
   ITEM,
   VERSION,
@@ -145,7 +147,8 @@ static const svn_ra_serf__xml_transition_t log_ttable[] = {
   { 0 }
 };
 
-
+
+
 /* Store CDATA into REVPROPS, associated with PROPNAME. If ENCODING is not
    NULL, then it must base "base64" and CDATA will be decoded first.
 
@@ -207,12 +210,14 @@ collect_path(apr_hash_t *paths,
   copyfrom_rev = svn_hash_gets(attrs, "copyfrom-rev");
   if (copyfrom_path && copyfrom_rev)
     {
-      svn_revnum_t rev = SVN_STR_TO_REV(copyfrom_rev);
+      apr_int64_t rev;
 
-      if (SVN_IS_VALID_REVNUM(rev))
+      SVN_ERR(svn_cstring_atoi64(&rev, copyfrom_rev));
+
+      if (SVN_IS_VALID_REVNUM((svn_revnum_t)rev))
         {
           lcp->copyfrom_path = apr_pstrdup(result_pool, copyfrom_path);
-          lcp->copyfrom_rev = rev;
+          lcp->copyfrom_rev = (svn_revnum_t)rev;
         }
     }
 
@@ -296,7 +301,12 @@ log_closed(svn_ra_serf__xml_estate_t *xes,
 
       rev_str = svn_hash_gets(attrs, "revision");
       if (rev_str)
-        log_entry->revision = SVN_STR_TO_REV(rev_str);
+        {
+          apr_int64_t rev;
+
+          SVN_ERR(svn_cstring_atoi64(&rev, rev_str));
+          log_entry->revision = (svn_revnum_t)rev;
+        }
       else
         log_entry->revision = SVN_INVALID_REVNUM;
 
@@ -397,12 +407,13 @@ log_closed(svn_ra_serf__xml_estate_t *xes,
   return SVN_NO_ERROR;
 }
 
-
+/* Implements svn_ra_serf__request_body_delegate_t */
 static svn_error_t *
 create_log_body(serf_bucket_t **body_bkt,
                 void *baton,
                 serf_bucket_alloc_t *alloc,
-                apr_pool_t *pool)
+                apr_pool_t *pool /* request pool */,
+                apr_pool_t *scratch_pool)
 {
   serf_bucket_t *buckets;
   log_context_t *log_ctx = baton;
@@ -412,7 +423,7 @@ create_log_body(serf_bucket_t **body_bkt,
   svn_ra_serf__add_open_tag_buckets(buckets, alloc,
                                     "S:log-report",
                                     "xmlns:S", SVN_XML_NAMESPACE,
-                                    NULL);
+                                    SVN_VA_NULL);
 
   svn_ra_serf__add_tag_buckets(buckets,
                                "S:start-revision",
@@ -432,23 +443,22 @@ create_log_body(serf_bucket_t **body_bkt,
 
   if (log_ctx->changed_paths)
     {
-      svn_ra_serf__add_tag_buckets(buckets,
-                                   "S:discover-changed-paths", NULL,
-                                   alloc);
+      svn_ra_serf__add_empty_tag_buckets(buckets, alloc,
+                                         "S:discover-changed-paths",
+                                         SVN_VA_NULL);
     }
 
   if (log_ctx->strict_node_history)
     {
-      svn_ra_serf__add_tag_buckets(buckets,
-                                   "S:strict-node-history", NULL,
-                                   alloc);
+      svn_ra_serf__add_empty_tag_buckets(buckets, alloc,
+                                         "S:strict-node-history", SVN_VA_NULL);
     }
 
   if (log_ctx->include_merged_revisions)
     {
-      svn_ra_serf__add_tag_buckets(buckets,
-                                   "S:include-merged-revisions", NULL,
-                                   alloc);
+      svn_ra_serf__add_empty_tag_buckets(buckets, alloc,
+                                         "S:include-merged-revisions",
+                                         SVN_VA_NULL);
     }
 
   if (log_ctx->revprops)
@@ -463,16 +473,14 @@ create_log_body(serf_bucket_t **body_bkt,
         }
       if (log_ctx->revprops->nelts == 0)
         {
-          svn_ra_serf__add_tag_buckets(buckets,
-                                       "S:no-revprops", NULL,
-                                       alloc);
+          svn_ra_serf__add_empty_tag_buckets(buckets, alloc,
+                                             "S:no-revprops", SVN_VA_NULL);
         }
     }
   else
     {
-      svn_ra_serf__add_tag_buckets(buckets,
-                                   "S:all-revprops", NULL,
-                                   alloc);
+      svn_ra_serf__add_empty_tag_buckets(buckets, alloc,
+                                         "S:all-revprops", SVN_VA_NULL);
     }
 
   if (log_ctx->paths)
@@ -487,9 +495,8 @@ create_log_body(serf_bucket_t **body_bkt,
         }
     }
 
-  svn_ra_serf__add_tag_buckets(buckets,
-                               "S:encode-binary-props", NULL,
-                               alloc);
+  svn_ra_serf__add_empty_tag_buckets(buckets, alloc,
+                                     "S:encode-binary-props", SVN_VA_NULL);
 
   svn_ra_serf__add_close_tag_buckets(buckets, alloc,
                                      "S:log-report");
@@ -518,7 +525,6 @@ svn_ra_serf__get_log(svn_ra_session_t *ra_session,
   svn_ra_serf__xml_context_t *xmlctx;
   svn_boolean_t want_custom_revprops;
   svn_revnum_t peg_rev;
-  svn_error_t *err;
   const char *req_url;
 
   log_ctx = apr_pcalloc(pool, sizeof(*log_ctx));
@@ -574,7 +580,7 @@ svn_ra_serf__get_log(svn_ra_session_t *ra_session,
   peg_rev = (start == SVN_INVALID_REVNUM || start > end) ? start : end;
 
   SVN_ERR(svn_ra_serf__get_stable_url(&req_url, NULL /* latest_revnum */,
-                                      session, NULL /* conn */,
+                                      session,
                                       NULL /* url */, peg_rev,
                                       pool, pool));
 
@@ -582,23 +588,18 @@ svn_ra_serf__get_log(svn_ra_session_t *ra_session,
                                            log_opened, log_closed, NULL,
                                            log_ctx,
                                            pool);
-  handler = svn_ra_serf__create_expat_handler(xmlctx, pool);
+  handler = svn_ra_serf__create_expat_handler(session, xmlctx, NULL, pool);
 
   handler->method = "REPORT";
   handler->path = req_url;
   handler->body_delegate = create_log_body;
   handler->body_delegate_baton = log_ctx;
   handler->body_type = "text/xml";
-  handler->conn = session->conns[0];
-  handler->session = session;
 
-  err = svn_ra_serf__context_run_one(handler, pool);
+  SVN_ERR(svn_ra_serf__context_run_one(handler, pool));
 
-  SVN_ERR(svn_error_compose_create(
+  return svn_error_trace(
               svn_ra_serf__error_on_status(handler->sline,
                                            req_url,
-                                           handler->location),
-              err));
-
-  return SVN_NO_ERROR;
+                                           handler->location));
 }

@@ -139,11 +139,17 @@ svn_wc__get_actual_props(apr_hash_t **props,
                          apr_pool_t *result_pool,
                          apr_pool_t *scratch_pool);
 
+/* Creates a property reject file at *TMP_PREJFILE_ABSPATH, with
+   either the property conflict data from DB (when PROP_CONFLICT_DATA
+   is NULL) or the information in PROP_CONFLICT_DATA if it isn't.
+ */
 svn_error_t *
 svn_wc__create_prejfile(const char **tmp_prejfile_abspath,
                         svn_wc__db_t *db,
                         const char *local_abspath,
-                        const svn_skel_t *conflict_skel,
+                        const svn_skel_t *prop_conflict_data,
+                        svn_cancel_func_t cancel_func,
+                        void *cancel_baton,
                         apr_pool_t *result_pool,
                         apr_pool_t *scratch_pool);
 

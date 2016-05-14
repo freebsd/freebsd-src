@@ -91,13 +91,6 @@ svn_fs_access_add_lock_token2(svn_fs_access_t *access_ctx,
   return SVN_NO_ERROR;
 }
 
-svn_error_t *
-svn_fs_access_add_lock_token(svn_fs_access_t *access_ctx,
-                             const char *token)
-{
-  return svn_fs_access_add_lock_token2(access_ctx, (const char *) 1, token);
-}
-
 apr_hash_t *
 svn_fs__access_get_lock_tokens(svn_fs_access_t *access_ctx)
 {

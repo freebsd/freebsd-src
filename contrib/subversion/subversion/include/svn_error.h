@@ -105,7 +105,7 @@ svn_error_symbolic_name(apr_status_t statcode);
  * @note @a buf and @a bufsize are provided in the interface so that
  * this function is thread-safe and yet does no allocation.
  */
-const char *svn_err_best_message(svn_error_t *err,
+const char *svn_err_best_message(const svn_error_t *err,
                                  char *buf,
                                  apr_size_t bufsize);
 
@@ -173,6 +173,19 @@ svn_error_t *
 svn_error_quick_wrap(svn_error_t *child,
                      const char *new_msg);
 
+/** A quick n' easy way to create a wrapped exception with your own
+ * printf-style error message produced by passing @a fmt, using
+ * apr_psprintf(), before throwing it up the stack.  (It uses all of the
+ * @a child's fields.)
+ *
+ * @since New in 1.9.
+ */
+svn_error_t *
+svn_error_quick_wrapf(svn_error_t *child,
+                      const char *fmt,
+                      ...)
+       __attribute__((format(printf, 2, 3)));
+
 /** Compose two errors, returning the composition as a brand new error
  * and consuming the original errors.  Either or both of @a err1 and
  * @a err2 may be @c SVN_NO_ERROR.  If both are not @c SVN_NO_ERROR,
@@ -202,7 +215,8 @@ svn_error_compose(svn_error_t *chain,
 
 /** Return the root cause of @a err by finding the last error in its
  * chain (e.g. it or its children).  @a err may be @c SVN_NO_ERROR, in
- * which case @c SVN_NO_ERROR is returned.
+ * which case @c SVN_NO_ERROR is returned.  The returned error should
+ * @em not be cleared as it shares memory with @a err.
  *
  * @since New in 1.5.
  */
@@ -225,7 +239,7 @@ svn_error_find_cause(svn_error_t *err, apr_status_t apr_err);
  * @since New in 1.2.
  */
 svn_error_t *
-svn_error_dup(svn_error_t *err);
+svn_error_dup(const svn_error_t *err);
 
 /** Free the memory used by @a error, as well as all ancestors and
  * descendants of @a error.
@@ -255,6 +269,8 @@ svn_error__locate(const char *file,
   (svn_error__locate(__FILE__,__LINE__), (svn_error_wrap_apr))
 #define svn_error_quick_wrap \
   (svn_error__locate(__FILE__,__LINE__), (svn_error_quick_wrap))
+#define svn_error_quick_wrapf \
+  (svn_error__locate(__FILE__,__LINE__), (svn_error_quick_wrapf))
 #endif
 
 
@@ -267,6 +283,10 @@ svn_error__locate(const char *file,
  * If you're not sure what prefix to pass, just pass "svn: ".  That's
  * what code that used to call svn_handle_error() and now calls
  * svn_handle_error2() does.
+ *
+ * Note that this should only be used from commandline specific code, or
+ * code that knows that @a stream is really where the application wants
+ * to receive its errors on.
  *
  * @since New in 1.2.
  */
@@ -293,11 +313,13 @@ svn_handle_error(svn_error_t *error,
  *
  * @a error may not be @c NULL.
  *
+ * @note This does not clear @a error.
+ *
  * @since New in 1.2.
  */
 void
 svn_handle_warning2(FILE *stream,
-                    svn_error_t *error,
+                    const svn_error_t *error,
                     const char *prefix);
 
 /** Like svn_handle_warning2() but with @c prefix set to "svn: "
@@ -387,10 +409,17 @@ svn_error_t *svn_error_purge_tracing(svn_error_t *err);
   } while (0)
 
 
-/** A statement macro, similar to @c SVN_ERR, but returns an integer.
+/** A statement macro intended for the main() function of the 'svn' program.
  *
- * Evaluate @a expr. If it yields an error, handle that error and
- * return @c EXIT_FAILURE.
+ * Evaluate @a expr. If it yields an error, display the error on stdout
+ * and return @c EXIT_FAILURE.
+ *
+ * @note Not for use in the library, as it prints to stderr. This macro
+ * no longer suits the needs of the 'svn' program, and is not generally
+ * suitable for third-party use as it assumes the program name is 'svn'.
+ *
+ * @deprecated Provided for backward compatibility with the 1.8 API. Consider
+ * using svn_handle_error2() or svn_cmdline_handle_exit_error() instead.
  */
 #define SVN_INT_ERR(expr)                                        \
   do {                                                           \
@@ -417,17 +446,25 @@ svn_error_t *svn_error_purge_tracing(svn_error_t *err);
  * SVN_ERR_FS_OUT_OF_DATE and SVN_ERR_FS_NOT_FOUND are in here because it's a
  * non-fatal error that can be thrown when attempting to lock an item.
  *
+ * SVN_ERR_REPOS_HOOK_FAILURE refers to the pre-lock hook.
+ *
  * @since New in 1.2.
  */
 #define SVN_ERR_IS_LOCK_ERROR(err)                          \
   (err->apr_err == SVN_ERR_FS_PATH_ALREADY_LOCKED ||        \
    err->apr_err == SVN_ERR_FS_NOT_FOUND           ||        \
    err->apr_err == SVN_ERR_FS_OUT_OF_DATE         ||        \
-   err->apr_err == SVN_ERR_FS_BAD_LOCK_TOKEN)
+   err->apr_err == SVN_ERR_FS_BAD_LOCK_TOKEN      ||        \
+   err->apr_err == SVN_ERR_REPOS_HOOK_FAILURE     ||        \
+   err->apr_err == SVN_ERR_FS_NO_SUCH_REVISION    ||        \
+   err->apr_err == SVN_ERR_FS_OUT_OF_DATE         ||        \
+   err->apr_err == SVN_ERR_FS_NOT_FILE)
 
 /**
  * Return TRUE if @a err is an error specifically related to unlocking
  * a path in the repository, FALSE otherwise.
+ *
+ * SVN_ERR_REPOS_HOOK_FAILURE refers to the pre-unlock hook.
  *
  * @since New in 1.2.
  */
@@ -437,7 +474,8 @@ svn_error_t *svn_error_purge_tracing(svn_error_t *err);
    err->apr_err == SVN_ERR_FS_LOCK_OWNER_MISMATCH ||        \
    err->apr_err == SVN_ERR_FS_NO_SUCH_LOCK ||               \
    err->apr_err == SVN_ERR_RA_NOT_LOCKED ||                 \
-   err->apr_err == SVN_ERR_FS_LOCK_EXPIRED)
+   err->apr_err == SVN_ERR_FS_LOCK_EXPIRED ||               \
+   err->apr_err == SVN_ERR_REPOS_HOOK_FAILURE)
 
 /** Evaluates to @c TRUE iff @a apr_err (of type apr_status_t) is in the given
  * @a category, which should be one of the @c SVN_ERR_*_CATEGORY_START
@@ -625,6 +663,11 @@ typedef svn_error_t *(*svn_error_malfunction_handler_t)
  */
 svn_error_malfunction_handler_t
 svn_error_set_malfunction_handler(svn_error_malfunction_handler_t func);
+
+/** Return the malfunction handler that is currently in effect.
+ * @since New in 1.9. */
+svn_error_malfunction_handler_t
+svn_error_get_malfunction_handler(void);
 
 /** Handle a malfunction by returning an error object that describes it.
  *

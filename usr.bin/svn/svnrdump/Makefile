@@ -27,6 +27,7 @@ LDADD=	-L${LIBSVN_CLIENTDIR} -lsvn_client \
 	-L${LIBSVN_REPOSDIR} -lsvn_repos \
 	-L${LIBSVN_FSDIR} -lsvn_fs \
 	-L${LIBSVN_FS_FSDIR} -lsvn_fs_fs \
+	-L${LIBSVN_FS_XDIR} -lsvn_fs_x \
 	-L${LIBSVN_FS_UTILDIR} -lsvn_fs_util \
 	-L${LIBSVN_DELTADIR} -lsvn_delta \
 	-L${LIBSVN_DIFFDIR} -lsvn_diff \

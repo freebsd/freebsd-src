@@ -61,7 +61,7 @@ extern "C" {
  * Modify when new functionality is added or new interfaces are
  * defined, but all changes are backward compatible.
  */
-#define SVN_VER_MINOR      8
+#define SVN_VER_MINOR      9
 
 /**
  * Patch number.
@@ -70,7 +70,7 @@ extern "C" {
  *
  * @since New in 1.1.
  */
-#define SVN_VER_PATCH      14
+#define SVN_VER_PATCH      4
 
 
 /** @deprecated Provided for backward compatibility with the 1.0 API. */
@@ -82,7 +82,7 @@ extern "C" {
 
 /** Version tag: a string describing the version.
  *
- * This tag remains " (dev build)" in the repository so that we can
+ * This tag remains " (under development)" in the repository so that we can
  * always see from "svn --version" that the software has been built
  * from the repository rather than a "blessed" distribution.
  *
@@ -93,7 +93,7 @@ extern "C" {
  *
  * Always change this at the same time as SVN_VER_NUMTAG.
  */
-#define SVN_VER_TAG        " (r1692801)"
+#define SVN_VER_TAG        " (r1740329)"
 
 
 /** Number tag: a string describing the version.
@@ -114,12 +114,10 @@ extern "C" {
 /** Revision number: The repository revision number of this release.
  *
  * This constant is used to generate the build number part of the Windows
- * file version. Its value remains 0 in the repository.
- *
- * When rolling a tarball, we automatically replace it with what we
- * guess to be the correct revision number.
+ * file version. Its value remains 0 in the repository except in release
+ * tags where it is the revision from which the tag was created.
  */
-#define SVN_VER_REVISION   1692801
+#define SVN_VER_REVISION   1740329
 
 
 /* Version strings composed from the above definitions. */
@@ -177,10 +175,25 @@ struct svn_version_t
  * Generate the implementation of a version query function.
  *
  * @since New in 1.1.
+ * @since Since 1.9, embeds a string into the compiled object
+ *        file that can be queried with the 'what' utility.
  */
-#define SVN_VERSION_BODY \
-  SVN_VERSION_DEFINE(versioninfo);              \
-  return &versioninfo
+#define SVN_VERSION_BODY            \
+  static struct versioninfo_t       \
+    {                               \
+      const char *const str;        \
+      const svn_version_t num;      \
+    } const versioninfo =           \
+    {                               \
+      "@(#)" SVN_VERSION,           \
+      {                             \
+        SVN_VER_MAJOR,              \
+        SVN_VER_MINOR,              \
+        SVN_VER_PATCH,              \
+        SVN_VER_NUMTAG              \
+      }                             \
+    };                              \
+  return &versioninfo.num
 
 /**
  * Check library version compatibility. Return #TRUE if the client's
@@ -192,6 +205,8 @@ struct svn_version_t
  * unreleased library. A development client is always compatible with
  * a previous released library.
  *
+ * @note Implements the #svn_ver_check_list2.@a comparator interface.
+ *
  * @since New in 1.1.
  */
 svn_boolean_t
@@ -200,6 +215,8 @@ svn_ver_compatible(const svn_version_t *my_version,
 
 /**
  * Check if @a my_version and @a lib_version encode the same version number.
+ *
+ * @note Implements the #svn_ver_check_list2.@a comparator interface.
  *
  * @since New in 1.2.
  */
@@ -228,10 +245,31 @@ typedef struct svn_version_checklist_t
  * my_version is compatible with each entry in @a checklist. @a
  * checklist must end with an entry whose label is @c NULL.
  *
- * @see svn_ver_compatible()
+ * @a my_version is considered to be compatible with a version in @a checklist
+ * if @a comparator returns #TRUE when called with @a my_version as the first
+ * parammeter and the @a checklist version as the second parameter.
  *
- * @since New in 1.1.
+ * @see svn_ver_compatible(), svn_ver_equal()
+ *
+ * @note Subversion's own code invariably uses svn_ver_equal() as @a comparator,
+ * since the cmdline tools sometimes use non-public APIs (such as utility
+ * functions that haven't been promoted to svn_cmdline.h).  Third-party code
+ * SHOULD use svn_ver_compatible() as @a comparator.
+ *
+ * @since New in 1.9.
  */
+svn_error_t *
+svn_ver_check_list2(const svn_version_t *my_version,
+                    const svn_version_checklist_t *checklist,
+                    svn_boolean_t (*comparator)(const svn_version_t *,
+                                                const svn_version_t *));
+
+/** Similar to svn_ver_check_list2(), with @a comparator set to
+ * #svn_ver_compatible.
+ *
+ * @deprecated Provided for backward compatibility with 1.8 API.
+ */
+SVN_DEPRECATED
 svn_error_t *
 svn_ver_check_list(const svn_version_t *my_version,
                    const svn_version_checklist_t *checklist);
@@ -267,6 +305,11 @@ typedef struct svn_version_extended_t svn_version_extended_t;
  * is #TRUE, collect extra information that may be expensive to
  * retrieve (for example, the OS release name, list of shared
  * libraries, etc.).  Use @a pool for all allocations.
+ *
+ * @note This function may allocate significant auxiliary resources
+ * (memory and file descriptors) in @a pool.  It is recommended to
+ * copy the returned data to suitable longer-lived memory and clear
+ * @a pool after calling this function.
  *
  * @since New in 1.8.
  */

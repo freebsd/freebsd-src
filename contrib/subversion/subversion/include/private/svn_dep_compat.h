@@ -20,7 +20,7 @@
  * ====================================================================
  * @endcopyright
  *
- * @file svn_compat.h
+ * @file svn_dep_compat.h
  * @brief Compatibility macros and functions.
  * @since New in 1.5.0.
  */
@@ -35,70 +35,29 @@ extern "C" {
 #endif /* __cplusplus */
 
 /**
- * Check at compile time if the APR version is at least a certain
- * level.
- * @param major The major version component of the version checked
- * for (e.g., the "1" of "1.3.0").
- * @param minor The minor version component of the version checked
- * for (e.g., the "3" of "1.3.0").
- * @param patch The patch level component of the version checked
- * for (e.g., the "0" of "1.3.0").
+ * We assume that 'int' and 'unsigned' are at least 32 bits wide.
+ * This also implies that long (rev numbers) is 32 bits or wider.
  *
- * @since New in 1.5.
+ * @since New in 1.9.
  */
-#ifndef APR_VERSION_AT_LEAST /* Introduced in APR 1.3.0 */
-#define APR_VERSION_AT_LEAST(major,minor,patch)                  \
-(((major) < APR_MAJOR_VERSION)                                       \
- || ((major) == APR_MAJOR_VERSION && (minor) < APR_MINOR_VERSION)    \
- || ((major) == APR_MAJOR_VERSION && (minor) == APR_MINOR_VERSION && \
-     (patch) <= APR_PATCH_VERSION))
-#endif /* APR_VERSION_AT_LEAST */
+#if    defined(APR_HAVE_LIMITS_H) \
+    && !defined(SVN_ALLOW_SHORT_INTS) \
+    && (INT_MAX < 0x7FFFFFFFl)
+#error int is shorter than 32 bits and may break Subversion. Define SVN_ALLOW_SHORT_INTS to skip this check.
+#endif
 
 /**
- * If we don't have a recent enough APR, emulate the behavior of the
- * apr_array_clear() API.
+ * We assume that 'char' is 8 bits wide.  The critical interfaces are
+ * our repository formats and RA encodings.  E.g. a 32 bit wide char may
+ * mess up UTF8 parsing, how we interpret size values etc.
+ *
+ * @since New in 1.9.
  */
-#if !APR_VERSION_AT_LEAST(1,3,0)
-#define apr_array_clear(arr)         (arr)->nelts = 0
+#if    defined(CHAR_BIT) \
+    && !defined(SVN_ALLOW_NON_8_BIT_CHARS) \
+    && (CHAR_BIT != 8)
+#error char is not 8 bits and may break Subversion. Define SVN_ALLOW_NON_8_BIT_CHARS to skip this check.
 #endif
-
-#if !APR_VERSION_AT_LEAST(1,3,0)
-/* Equivalent to the apr_hash_clear() function in APR >= 1.3.0.  Used to
- * implement the 'apr_hash_clear' macro if the version of APR that
- * we build against does not provide the apr_hash_clear() function. */
-void svn_hash__clear(struct apr_hash_t *ht);
-
-/**
- * If we don't have a recent enough APR, emulate the behavior of the
- * apr_hash_clear() API.
- */
-#define apr_hash_clear(ht)           svn_hash__clear(ht)
-#endif
-
-#if !APR_VERSION_AT_LEAST(1,0,0)
-#define APR_UINT64_C(val) UINT64_C(val)
-#define APR_FPROT_OS_DEFAULT APR_OS_DEFAULT
-#define apr_hash_make_custom(pool,hash_func) apr_hash_make(pool)
-#endif
-
-#if !APR_VERSION_AT_LEAST(1,3,0)
-#define APR_UINT16_MAX  0xFFFFU
-#define APR_INT16_MAX   0x7FFF
-#define APR_INT16_MIN   (-APR_INT16_MAX-1)
-#define APR_UINT32_MAX 0xFFFFFFFFU
-#define APR_INT32_MAX  0x7FFFFFFF
-#define APR_INT32_MIN (-APR_INT32_MAX-1)
-#define APR_UINT64_MAX APR_UINT64_C(0xFFFFFFFFFFFFFFFF)
-#define APR_INT64_MAX   APR_INT64_C(0x7FFFFFFFFFFFFFFF)
-#define APR_INT64_MIN (-APR_INT64_MAX-1)
-#define APR_SIZE_MAX (~(apr_size_t)0)
-
-#if APR_SIZEOF_VOIDP == 8
-typedef apr_uint64_t apr_uintptr_t;
-#else
-typedef apr_uint32_t apr_uintptr_t;
-#endif
-#endif /* !APR_VERSION_AT_LEAST(1,3,0) */
 
 /**
  * Work around a platform dependency issue. apr_thread_rwlock_trywrlock()
@@ -113,6 +72,19 @@ typedef apr_uint32_t apr_uintptr_t;
     (APR_STATUS_IS_EBUSY(x) || (x) == APR_FROM_OS_ERROR(WAIT_TIMEOUT))
 #else
 #define SVN_LOCK_IS_BUSY(x) APR_STATUS_IS_EBUSY(x)
+#endif
+
+/**
+ * APR keeps a few interesting defines hidden away in its private
+ * headers apr_arch_file_io.h, so we redefined them here.
+ *
+ * @since New in 1.9
+ */
+#ifndef APR_FREADONLY
+#define APR_FREADONLY 0x10000000
+#endif
+#ifndef APR_OPENINFO
+#define APR_OPENINFO  0x00100000
 #endif
 
 #if !APR_VERSION_AT_LEAST(1,4,0)

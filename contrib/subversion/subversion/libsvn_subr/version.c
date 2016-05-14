@@ -75,10 +75,10 @@ svn_boolean_t svn_ver_equal(const svn_version_t *my_version,
 
 
 svn_error_t *
-svn_ver__check_list2(const svn_version_t *my_version,
-                     const svn_version_checklist_t *checklist,
-                     svn_boolean_t (*comparator)(const svn_version_t *,
-                                                 const svn_version_t *))
+svn_ver_check_list2(const svn_version_t *my_version,
+                    const svn_version_checklist_t *checklist,
+                    svn_boolean_t (*comparator)(const svn_version_t *,
+                                                const svn_version_t *))
 {
   svn_error_t *err = SVN_NO_ERROR;
   int i;
@@ -136,7 +136,7 @@ svn_version_extended(svn_boolean_t verbose,
   info->build_time = NULL;
   info->build_host = SVN_BUILD_HOST;
   info->copyright = apr_pstrdup
-    (pool, _("Copyright (C) 2015 The Apache Software Foundation.\n"
+    (pool, _("Copyright (C) 2016 The Apache Software Foundation.\n"
              "This software consists of contributions made by many people;\n"
              "see the NOTICE file for more information.\n"
              "Subversion is open source software, see "

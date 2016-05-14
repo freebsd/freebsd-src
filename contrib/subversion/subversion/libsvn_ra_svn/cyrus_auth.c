@@ -488,7 +488,7 @@ static svn_error_t *try_auth(svn_ra_svn__session_baton_t *sess,
                                               pmech - mechstring);
               const char *tail = pmech + strlen(mech);
 
-              mechstring = apr_pstrcat(pool, head, tail, (char *)NULL);
+              mechstring = apr_pstrcat(pool, head, tail, SVN_VA_NULL);
               again = TRUE;
             }
         }
@@ -704,11 +704,13 @@ static void sasl_timeout_cb(void *baton, apr_interval_time_t interval)
   svn_ra_svn__stream_timeout(sasl_baton->stream, interval);
 }
 
-/* Implements ra_svn_pending_fn_t. */
-static svn_boolean_t sasl_pending_cb(void *baton)
+/* Implements svn_stream_data_available_fn_t. */
+static svn_error_t *
+sasl_data_available_cb(void *baton, svn_boolean_t *data_available)
 {
   sasl_baton_t *sasl_baton = baton;
-  return svn_ra_svn__stream_pending(sasl_baton->stream);
+  return svn_error_trace(svn_ra_svn__stream_data_available(sasl_baton->stream,
+                                                         data_available));
 }
 
 svn_error_t *svn_ra_svn__enable_sasl_encryption(svn_ra_svn_conn_t *conn,
@@ -766,10 +768,19 @@ svn_error_t *svn_ra_svn__enable_sasl_encryption(svn_ra_svn_conn_t *conn,
           /* Wrap the existing stream. */
           sasl_baton->stream = conn->stream;
 
-          conn->stream = svn_ra_svn__stream_create(sasl_baton, sasl_read_cb,
-                                                   sasl_write_cb,
-                                                   sasl_timeout_cb,
-                                                   sasl_pending_cb, conn->pool);
+          {
+            svn_stream_t *sasl_in = svn_stream_create(sasl_baton, conn->pool);
+            svn_stream_t *sasl_out = svn_stream_create(sasl_baton, conn->pool);
+
+            svn_stream_set_read2(sasl_in, sasl_read_cb, NULL /* use default */);
+            svn_stream_set_data_available(sasl_in, sasl_data_available_cb);
+            svn_stream_set_write(sasl_out, sasl_write_cb);
+
+            conn->stream = svn_ra_svn__stream_create(sasl_in, sasl_out,
+                                                     sasl_baton,
+                                                     sasl_timeout_cb,
+                                                     conn->pool);
+          }
           /* Yay, we have a security layer! */
           conn->encrypted = TRUE;
         }
@@ -807,10 +818,10 @@ svn_error_t *svn_ra_svn__get_addresses(const char **local_addrport,
       /* Format the IP address and port number like this: a.b.c.d;port */
       *local_addrport = apr_pstrcat(pool, local_addr, ";",
                                     apr_itoa(pool, (int)local_sa->port),
-                                    (char *)NULL);
+                                    SVN_VA_NULL);
       *remote_addrport = apr_pstrcat(pool, remote_addr, ";",
                                      apr_itoa(pool, (int)remote_sa->port),
-                                     (char *)NULL);
+                                     SVN_VA_NULL);
     }
   return SVN_NO_ERROR;
 }
@@ -849,14 +860,14 @@ svn_ra_svn__do_cyrus_auth(svn_ra_svn__session_baton_t *sess,
           mechstring = apr_pstrcat(pool,
                                    mechstring,
                                    i == 0 ? "" : " ",
-                                   elt->u.word, (char *)NULL);
+                                   elt->u.word, SVN_VA_NULL);
         }
     }
 
   realmstring = apr_psprintf(pool, "%s %s", sess->realm_prefix, realm);
 
   /* Initialize the credential baton. */
-  cred_baton.auth_baton = sess->callbacks->auth_baton;
+  cred_baton.auth_baton = sess->auth_baton;
   cred_baton.realmstring = realmstring;
   cred_baton.pool = pool;
 
@@ -935,8 +946,8 @@ svn_ra_svn__do_cyrus_auth(svn_ra_svn__session_baton_t *sess,
                  the CRAM-MD5 or ANONYMOUS plugins, in which case we can simply use
                  the built-in implementation. In all other cases this call will be
                  useless, but hey, at least we'll get consistent error messages. */
-              return svn_ra_svn__do_internal_auth(sess, mechlist,
-                                                  realm, pool);
+              return svn_error_trace(svn_ra_svn__do_internal_auth(sess, mechlist,
+                                                                realm, pool));
             }
           return err;
         }

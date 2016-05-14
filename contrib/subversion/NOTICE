@@ -1,5 +1,5 @@
 Apache Subversion
-Copyright 2015 The Apache Software Foundation
+Copyright 2016 The Apache Software Foundation
 
 This product includes software developed by many people, and distributed
 under Contributor License Agreements to The Apache Software Foundation
@@ -21,3 +21,8 @@ Inc. MD5 Message-Digest Algorithm, including various
 modifications by Spyglass Inc., Carnegie Mellon University, and
 Bell Communications Research, Inc (Bellcore).
 
+This product includes software developed by Public Software Group e. V.
+under a permissive license, see LICENSE.
+
+This software contains code derived from TropicSSL under a BSD 3-Clause
+license, see LICENSE.

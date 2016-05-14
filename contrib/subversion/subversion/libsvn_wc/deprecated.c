@@ -127,7 +127,7 @@ gather_traversal_info(svn_wc_context_t *wc_ctx,
        hi;
        hi = apr_hash_next(hi))
     {
-      const char *node_abspath = svn__apr_hash_index_key(hi);
+      const char *node_abspath = apr_hash_this_key(hi);
       const char *relpath;
 
       relpath = svn_dirent_join(path,
@@ -137,11 +137,11 @@ gather_traversal_info(svn_wc_context_t *wc_ctx,
 
       if (gather_as_old)
         svn_hash_sets(traversal_info->externals_old, relpath,
-                      svn__apr_hash_index_val(hi));
+                      apr_hash_this_val(hi));
 
       if (gather_as_new)
         svn_hash_sets(traversal_info->externals_new, relpath,
-                      svn__apr_hash_index_val(hi));
+                      apr_hash_this_val(hi));
 
       svn_hash_sets(traversal_info->depths, relpath,
                     svn_hash_gets(ambient_depths, node_abspath));
@@ -652,6 +652,24 @@ svn_wc_get_pristine_contents(svn_stream_t **contents,
   return svn_error_trace(svn_wc_context_destroy(wc_ctx));
 }
 
+svn_error_t *
+svn_wc_queue_committed3(svn_wc_committed_queue_t *queue,
+                        svn_wc_context_t *wc_ctx,
+                        const char *local_abspath,
+                        svn_boolean_t recurse,
+                        const apr_array_header_t *wcprop_changes,
+                        svn_boolean_t remove_lock,
+                        svn_boolean_t remove_changelist,
+                        const svn_checksum_t *sha1_checksum,
+                        apr_pool_t *scratch_pool)
+{
+  return svn_error_trace(
+            svn_wc_queue_committed4(queue, wc_ctx, local_abspath,
+                                    recurse, TRUE /* is_committed */,
+                                    wcprop_changes, remove_lock,
+                                    remove_changelist, sha1_checksum,
+                                    scratch_pool));
+}
 
 svn_error_t *
 svn_wc_queue_committed2(svn_wc_committed_queue_t *queue,
@@ -668,7 +686,9 @@ svn_wc_queue_committed2(svn_wc_committed_queue_t *queue,
   const char *local_abspath;
   const svn_checksum_t *sha1_checksum = NULL;
 
-  SVN_ERR(svn_wc_context_create(&wc_ctx, NULL, scratch_pool, scratch_pool));
+  SVN_ERR(svn_wc__context_create_with_db(&wc_ctx, NULL,
+                                         svn_wc__adm_get_db(adm_access),
+                                         scratch_pool));
   SVN_ERR(svn_dirent_get_absolute(&local_abspath, path, scratch_pool));
 
   if (md5_checksum != NULL)
@@ -759,15 +779,11 @@ svn_wc_process_committed4(const char *path,
   const char *local_abspath;
   const svn_checksum_t *md5_checksum;
   const svn_checksum_t *sha1_checksum = NULL;
-  apr_time_t new_date;
-  apr_hash_t *wcprop_changes_hash;
+  svn_wc_context_t *wc_ctx;
+  svn_wc_committed_queue_t *queue;
 
   SVN_ERR(svn_dirent_get_absolute(&local_abspath, path, pool));
-
-  if (rev_date)
-    SVN_ERR(svn_time_from_cstring(&new_date, rev_date, pool));
-  else
-    new_date = 0;
+  SVN_ERR(svn_wc__context_create_with_db(&wc_ctx, NULL, db, pool));
 
   if (digest)
     md5_checksum = svn_checksum__from_digest_md5(digest, pool);
@@ -790,15 +806,20 @@ svn_wc_process_committed4(const char *path,
         SVN_ERR(err);
     }
 
-  wcprop_changes_hash = svn_wc__prop_array_to_hash(wcprop_changes, pool);
-  SVN_ERR(svn_wc__process_committed_internal(db, local_abspath, recurse, TRUE,
-                                             new_revnum, new_date, rev_author,
-                                             wcprop_changes_hash,
-                                             !remove_lock, !remove_changelist,
-                                             sha1_checksum, NULL, pool));
+  queue = svn_wc_committed_queue_create(pool);
+  SVN_ERR(svn_wc_queue_committed3(queue, wc_ctx, local_abspath, recurse,
+                                  wcprop_changes, remove_lock,
+                                  remove_changelist,
+                                  sha1_checksum /* or NULL if not modified
+                                                           or directory */,
+                                  pool));
 
-  /* Run the log file(s) we just created. */
-  return svn_error_trace(svn_wc__wq_run(db, local_abspath, NULL, NULL, pool));
+  SVN_ERR(svn_wc_process_committed_queue2(queue, wc_ctx,
+                                          new_revnum, rev_date, rev_author,
+                                          NULL, NULL /* cancel */,
+                                          pool));
+
+  return svn_error_trace(svn_wc_context_destroy(wc_ctx));
 }
 
 
@@ -925,6 +946,19 @@ svn_wc_delete(const char *path,
 }
 
 svn_error_t *
+svn_wc_add_from_disk2(svn_wc_context_t *wc_ctx,
+                     const char *local_abspath,
+                     const apr_hash_t *props,
+                     svn_wc_notify_func2_t notify_func,
+                     void *notify_baton,
+                     apr_pool_t *scratch_pool)
+{
+  SVN_ERR(svn_wc_add_from_disk3(wc_ctx, local_abspath, props, FALSE,
+                                 notify_func, notify_baton, scratch_pool));
+  return SVN_NO_ERROR;
+}
+
+svn_error_t *
 svn_wc_add_from_disk(svn_wc_context_t *wc_ctx,
                      const char *local_abspath,
                      svn_wc_notify_func2_t notify_func,
@@ -1023,6 +1057,30 @@ svn_wc_add(const char *path,
   return svn_wc_add2(path, parent_access, copyfrom_url, copyfrom_rev,
                      cancel_func, cancel_baton,
                      compat_call_notify_func, &nb, pool);
+}
+
+/*** From revert.c ***/
+svn_error_t *
+svn_wc_revert4(svn_wc_context_t *wc_ctx,
+               const char *local_abspath,
+               svn_depth_t depth,
+               svn_boolean_t use_commit_times,
+               const apr_array_header_t *changelist_filter,
+               svn_cancel_func_t cancel_func,
+               void *cancel_baton,
+               svn_wc_notify_func2_t notify_func,
+               void *notify_baton,
+               apr_pool_t *scratch_pool)
+{
+  return svn_error_trace(svn_wc_revert5(wc_ctx, local_abspath,
+                                        depth,
+                                        use_commit_times,
+                                        changelist_filter,
+                                        FALSE /* clear_changelists */,
+                                        FALSE /* metadata_only */,
+                                        cancel_func, cancel_baton,
+                                        notify_func, notify_baton,
+                                        scratch_pool));
 }
 
 svn_error_t *
@@ -1966,16 +2024,37 @@ svn_wc_get_diff_editor6(const svn_delta_editor_t **editor,
                         apr_pool_t *result_pool,
                         apr_pool_t *scratch_pool)
 {
+  const svn_diff_tree_processor_t *diff_processor;
+
+  /* --git implies --show-copies-as-adds */
+  if (use_git_diff_format)
+    show_copies_as_adds = TRUE;
+
+  /* --show-copies-as-adds implies --notice-ancestry */
+  if (show_copies_as_adds)
+    ignore_ancestry = FALSE;
+
+  SVN_ERR(svn_wc__wrap_diff_callbacks(&diff_processor,
+                                      callbacks, callback_baton, TRUE,
+                                      result_pool, scratch_pool));
+
+  if (reverse_order)
+    diff_processor = svn_diff__tree_processor_reverse_create(
+                              diff_processor, NULL, result_pool);
+
+  if (! show_copies_as_adds)
+    diff_processor = svn_diff__tree_processor_copy_as_changed_create(
+                              diff_processor, result_pool);
+
   return svn_error_trace(
     svn_wc__get_diff_editor(editor, edit_baton,
                             wc_ctx,
                             anchor_abspath, target,
                             depth,
-                            ignore_ancestry, show_copies_as_adds,
-                            use_git_diff_format, use_text_base,
+                            ignore_ancestry, use_text_base,
                             reverse_order, server_performs_filtering,
                             changelist_filter,
-                            callbacks, callback_baton,
+                            diff_processor,
                             cancel_func, cancel_baton,
                             result_pool, scratch_pool));
 }
@@ -2633,6 +2712,146 @@ svn_wc_props_modified_p(svn_boolean_t *modified_p,
 }
 
 
+svn_error_t *
+svn_wc__status2_from_3(svn_wc_status2_t **status,
+                       const svn_wc_status3_t *old_status,
+                       svn_wc_context_t *wc_ctx,
+                       const char *local_abspath,
+                       apr_pool_t *result_pool,
+                       apr_pool_t *scratch_pool)
+{
+  const svn_wc_entry_t *entry = NULL;
+
+  if (old_status == NULL)
+    {
+      *status = NULL;
+      return SVN_NO_ERROR;
+    }
+
+  *status = apr_pcalloc(result_pool, sizeof(**status));
+
+  if (old_status->versioned)
+    {
+      svn_error_t *err;
+      err= svn_wc__get_entry(&entry, wc_ctx->db, local_abspath, FALSE,
+                             svn_node_unknown, result_pool, scratch_pool);
+
+      if (err && err->apr_err == SVN_ERR_NODE_UNEXPECTED_KIND)
+        svn_error_clear(err);
+      else
+        SVN_ERR(err);
+    }
+
+  (*status)->entry = entry;
+  (*status)->copied = old_status->copied;
+  (*status)->repos_lock = svn_lock_dup(old_status->repos_lock, result_pool);
+
+  if (old_status->repos_relpath)
+    (*status)->url = svn_path_url_add_component2(old_status->repos_root_url,
+                                                 old_status->repos_relpath,
+                                                 result_pool);
+  (*status)->ood_last_cmt_rev = old_status->ood_changed_rev;
+  (*status)->ood_last_cmt_date = old_status->ood_changed_date;
+  (*status)->ood_kind = old_status->ood_kind;
+  (*status)->ood_last_cmt_author = old_status->ood_changed_author;
+
+  if (old_status->conflicted)
+    {
+      const svn_wc_conflict_description2_t *tree_conflict2;
+      SVN_ERR(svn_wc__get_tree_conflict(&tree_conflict2, wc_ctx, local_abspath,
+                                        scratch_pool, scratch_pool));
+      (*status)->tree_conflict = svn_wc__cd2_to_cd(tree_conflict2, result_pool);
+    }
+
+  (*status)->switched = old_status->switched;
+
+  (*status)->text_status = old_status->node_status;
+  (*status)->prop_status = old_status->prop_status;
+
+  (*status)->repos_text_status = old_status->repos_node_status;
+  (*status)->repos_prop_status = old_status->repos_prop_status;
+
+  /* Some values might be inherited from properties */
+  if (old_status->node_status == svn_wc_status_modified
+      || old_status->node_status == svn_wc_status_conflicted)
+    (*status)->text_status = old_status->text_status;
+
+  /* (Currently a no-op, but just make sure it is ok) */
+  if (old_status->repos_node_status == svn_wc_status_modified
+      || old_status->repos_node_status == svn_wc_status_conflicted)
+    (*status)->repos_text_status = old_status->repos_text_status;
+
+  if (old_status->node_status == svn_wc_status_added)
+    (*status)->prop_status = svn_wc_status_none; /* No separate info */
+
+  /* Find pristine_text_status value */
+  switch (old_status->text_status)
+    {
+      case svn_wc_status_none:
+      case svn_wc_status_normal:
+      case svn_wc_status_modified:
+        (*status)->pristine_text_status = old_status->text_status;
+        break;
+      case svn_wc_status_conflicted:
+      default:
+        /* ### Fetch compare data, or fall back to the documented
+               not retrieved behavior? */
+        (*status)->pristine_text_status = svn_wc_status_none;
+        break;
+    }
+
+  /* Find pristine_prop_status value */
+  switch (old_status->prop_status)
+    {
+      case svn_wc_status_none:
+      case svn_wc_status_normal:
+      case svn_wc_status_modified:
+        if (old_status->node_status != svn_wc_status_added
+            && old_status->node_status != svn_wc_status_deleted
+            && old_status->node_status != svn_wc_status_replaced)
+          {
+            (*status)->pristine_prop_status = old_status->prop_status;
+          }
+        else
+          (*status)->pristine_prop_status = svn_wc_status_none;
+        break;
+      case svn_wc_status_conflicted:
+      default:
+        /* ### Fetch compare data, or fall back to the documented
+               not retrieved behavior? */
+        (*status)->pristine_prop_status = svn_wc_status_none;
+        break;
+    }
+
+  if (old_status->versioned
+      && old_status->conflicted
+      && old_status->node_status != svn_wc_status_obstructed
+      && (old_status->kind == svn_node_file
+          || old_status->node_status != svn_wc_status_missing))
+    {
+      svn_boolean_t text_conflict_p, prop_conflict_p;
+
+      /* The entry says there was a conflict, but the user might have
+         marked it as resolved by deleting the artifact files, so check
+         for that. */
+      SVN_ERR(svn_wc__internal_conflicted_p(&text_conflict_p,
+                                            &prop_conflict_p,
+                                            NULL,
+                                            wc_ctx->db, local_abspath,
+                                            scratch_pool));
+
+      if (text_conflict_p)
+        (*status)->text_status = svn_wc_status_conflicted;
+
+      if (prop_conflict_p)
+        (*status)->prop_status = svn_wc_status_conflicted;
+    }
+
+  return SVN_NO_ERROR;
+}
+
+
+
 /*** From status.c ***/
 
 struct status4_wrapper_baton
@@ -2698,9 +2917,9 @@ svn_wc_get_status_editor5(const svn_delta_editor_t **editor,
                               wc_ctx,
                               anchor_abspath,
                               target_basename,
-                              depth,
-                              get_all, no_ignore,
-                              depth_as_sticky,
+                              depth, get_all,
+                              TRUE, /* check_working_copy */
+                              no_ignore, depth_as_sticky,
                               server_performs_filtering,
                               ignore_patterns,
                               status_func, status_baton,
@@ -4044,7 +4263,26 @@ svn_wc_relocate(const char *path,
 }
 
 
-/*** From log.c ***/
+/*** From log.c / cleanup.c ***/
+
+svn_error_t *
+svn_wc_cleanup3(svn_wc_context_t *wc_ctx,
+                const char *local_abspath,
+                svn_cancel_func_t cancel_func,
+                void *cancel_baton,
+                apr_pool_t *scratch_pool)
+{
+  return svn_error_trace(
+            svn_wc_cleanup4(wc_ctx,
+                            local_abspath,
+                            TRUE /* break_locks */,
+                            TRUE /* fix_recorded_timestamps */,
+                            TRUE /* clear_dav_cache */,
+                            TRUE /* clean_pristines */,
+                            cancel_func, cancel_baton,
+                            NULL, NULL /* notify */,
+                            scratch_pool));
+}
 
 svn_error_t *
 svn_wc_cleanup2(const char *path,
@@ -4570,13 +4808,11 @@ svn_wc_read_kind(svn_node_kind_t *kind,
                             TRUE /* show_deleted */,
                             show_hidden,
                             scratch_pool));
+}
 
-  /*if (db_kind == svn_node_dir)
-    *kind = svn_node_dir;
-  else if (db_kind == svn_node_file || db_kind == svn_node_symlink)
-    *kind = svn_node_file;
-  else
-    *kind = svn_node_none;*/
-
-  return SVN_NO_ERROR;
+svn_wc_conflict_description2_t *
+svn_wc__conflict_description2_dup(const svn_wc_conflict_description2_t *conflict,
+                                  apr_pool_t *pool)
+{
+  return svn_wc_conflict_description2_dup(conflict, pool);
 }
