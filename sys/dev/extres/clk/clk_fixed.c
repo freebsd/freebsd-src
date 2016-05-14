@@ -254,13 +254,13 @@ clk_fixed_attach(device_t dev)
 #ifdef CLK_DEBUG
 	clkdom_dump(sc->clkdom);
 #endif
-	free(__DECONST(char *, def.clkdef.name), M_OFWPROP);
-	free(def.clkdef.parent_names, M_OFWPROP);
+	OF_prop_free(__DECONST(char *, def.clkdef.name));
+	OF_prop_free(def.clkdef.parent_names);
 	return (bus_generic_attach(dev));
 
 fail:
-	free(__DECONST(char *, def.clkdef.name), M_OFWPROP);
-	free(def.clkdef.parent_names, M_OFWPROP);
+	OF_prop_free(__DECONST(char *, def.clkdef.name));
+	OF_prop_free(def.clkdef.parent_names);
 	return (rv);
 }
 
