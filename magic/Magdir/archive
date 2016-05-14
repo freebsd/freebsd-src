@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: archive,v 1.102 2016/01/11 20:59:24 christos Exp $
+# $File: archive,v 1.103 2016/05/05 17:07:40 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -890,6 +890,14 @@
 # Java Jar files
 >(26.s+30)	leshort	0xcafe		Java archive data (JAR)
 !:mime	application/java-archive
+
+# iOS App
+>(26.s+30)	leshort	!0xcafe
+>>26		string	!\x8\0\0\0mimetype
+>>>30		string	Payload/
+>>>>38		search/64       .app/   iOS App
+!:mime application/x-ios-app
+
 
 # Generic zip archives (Greg Roelofs, c/o zip-bugs@wkuvx1.wku.edu)
 #   Next line excludes specialized formats:
