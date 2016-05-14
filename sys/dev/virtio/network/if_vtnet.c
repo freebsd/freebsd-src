@@ -311,21 +311,22 @@ MODULE_DEPEND(vtnet, netmap, 1, 1, 1);
 static int
 vtnet_modevent(module_t mod, int type, void *unused)
 {
-	int error;
-
-	error = 0;
+	int error = 0;
+	static int loaded = 0;
 
 	switch (type) {
 	case MOD_LOAD:
-		vtnet_tx_header_zone = uma_zcreate("vtnet_tx_hdr",
-		    sizeof(struct vtnet_tx_header),
-		    NULL, NULL, NULL, NULL, 0, 0);
+		if (loaded++ == 0)
+			vtnet_tx_header_zone = uma_zcreate("vtnet_tx_hdr",
+				sizeof(struct vtnet_tx_header),
+				NULL, NULL, NULL, NULL, 0, 0);
 		break;
 	case MOD_QUIESCE:
-	case MOD_UNLOAD:
 		if (uma_zone_get_cur(vtnet_tx_header_zone) > 0)
 			error = EBUSY;
-		else if (type == MOD_UNLOAD) {
+		break;
+	case MOD_UNLOAD:
+		if (--loaded == 0) {
 			uma_zdestroy(vtnet_tx_header_zone);
 			vtnet_tx_header_zone = NULL;
 		}
