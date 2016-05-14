@@ -1149,8 +1149,27 @@ bwn_attach_core(struct bwn_mac *mac)
 	if (error)
 		goto fail;
 
-	have_a = (high & BWN_TGSHIGH_HAVE_5GHZ) ? 1 : 0;
-	have_bg = (high & BWN_TGSHIGH_HAVE_2GHZ) ? 1 : 0;
+	/* XXX need bhnd */
+	if (bwn_is_bus_siba(mac)) {
+		have_a = (high & BWN_TGSHIGH_HAVE_5GHZ) ? 1 : 0;
+		have_bg = (high & BWN_TGSHIGH_HAVE_2GHZ) ? 1 : 0;
+	} else {
+		device_printf(sc->sc_dev, "%s: not siba; bailing\n", __func__);
+		error = ENXIO;
+		goto fail;
+	}
+
+#if 0
+	device_printf(sc->sc_dev, "%s: high=0x%08x, have_a=%d, have_bg=%d,"
+	    " deviceid=0x%04x, siba_deviceid=0x%04x\n",
+	    __func__,
+	    high,
+	    have_a,
+	    have_bg,
+	    siba_get_pci_device(sc->sc_dev),
+	    siba_get_chipid(sc->sc_dev));
+#endif
+
 	if (siba_get_pci_device(sc->sc_dev) != 0x4312 &&
 	    siba_get_pci_device(sc->sc_dev) != 0x4319 &&
 	    siba_get_pci_device(sc->sc_dev) != 0x4324) {
@@ -1335,6 +1354,13 @@ bwn_phy_getinfo(struct bwn_mac *mac, int tgshigh)
 	phy->rf_rev = (tmp & 0xf0000000) >> 28;
 	phy->rf_ver = (tmp & 0x0ffff000) >> 12;
 	phy->rf_manuf = (tmp & 0x00000fff);
+
+	/*
+	 * For now, just always do full init (ie, what bwn has traditionally
+	 * done)
+	 */
+	phy->phy_do_full_init = 1;
+
 	if (phy->rf_manuf != 0x17f)	/* 0x17f is broadcom */
 		goto unsupradio;
 	if ((phy->type == BWN_PHYTYPE_A && (phy->rf_ver != 0x2060 ||
@@ -1415,6 +1441,11 @@ bwn_setup_channels(struct bwn_mac *mac, int have_bg, int have_a)
 
 	memset(ic->ic_channels, 0, sizeof(ic->ic_channels));
 	ic->ic_nchans = 0;
+
+	DPRINTF(sc, BWN_DEBUG_EEPROM, "%s: called; bg=%d, a=%d\n",
+	    __func__,
+	    have_bg,
+	    have_a);
 
 	if (have_bg)
 		bwn_addchannels(ic->ic_channels, IEEE80211_CHAN_MAX,
