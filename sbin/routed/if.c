@@ -955,6 +955,7 @@ ifinit(void)
 						  (intmax_t)now.tv_sec -
 						      ifp->int_data.ts);
 					ifdel(ifp);
+					ifp = NULL;
 				}
 				continue;
 			}
@@ -1151,7 +1152,7 @@ ifinit(void)
 	/* If we are multi-homed, optionally advertise a route to
 	 * our main address.
 	 */
-	if (advertise_mhome
+	if ((advertise_mhome && ifp)
 	    || (tot_interfaces > 1
 		&& mhome
 		&& (ifp = ifwithaddr(myaddr, 0, 0)) != NULL
