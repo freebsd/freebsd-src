@@ -388,6 +388,7 @@ static const struct bwn_channelinfo bwn_chantable_a = {
 	.nchannels = 37
 };
 
+#if 0
 static const struct bwn_channelinfo bwn_chantable_n = {
 	.channels = {
 		{ 5160,  32, 30 }, { 5170,  34, 30 }, { 5180,  36, 30 },
@@ -429,6 +430,7 @@ static const struct bwn_channelinfo bwn_chantable_n = {
 		{ 6130, 226, 30 }, { 6140, 228, 30 } },
 	.nchannels = 110
 };
+#endif
 
 #define	VENDOR_LED_ACT(vendor)				\
 {							\
@@ -1450,6 +1452,7 @@ bwn_setup_channels(struct bwn_mac *mac, int have_bg, int have_a)
 	if (have_bg)
 		bwn_addchannels(ic->ic_channels, IEEE80211_CHAN_MAX,
 		    &ic->ic_nchans, &bwn_chantable_bg, IEEE80211_CHAN_G);
+#if 0
 	if (mac->mac_phy.type == BWN_PHYTYPE_N) {
 		if (have_a)
 			bwn_addchannels(ic->ic_channels, IEEE80211_CHAN_MAX,
@@ -1461,6 +1464,11 @@ bwn_setup_channels(struct bwn_mac *mac, int have_bg, int have_a)
 			    &ic->ic_nchans, &bwn_chantable_a,
 			    IEEE80211_CHAN_A);
 	}
+#endif
+	if (have_a)
+		bwn_addchannels(ic->ic_channels, IEEE80211_CHAN_MAX,
+		    &ic->ic_nchans, &bwn_chantable_a,
+		    IEEE80211_CHAN_A);
 
 	mac->mac_phy.supports_2ghz = have_bg;
 	mac->mac_phy.supports_5ghz = have_a;
