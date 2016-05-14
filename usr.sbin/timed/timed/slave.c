@@ -78,7 +78,7 @@ slave(void)
 	struct utmpx utx;
 
 
-	old_slavenet = 0;
+	old_slavenet = NULL;
 	seq = 0;
 	refusetime = 0;
 	adjtime = 0;
@@ -352,7 +352,7 @@ loop:
 			tsp_time_sec = msg->tsp_time.tv_sec;
 			(void)strcpy(newdate, ctime(&tsp_time_sec));
 			htp = findhost(msg->tsp_name);
-			if (0 == htp) {
+			if (htp == NULL) {
 				syslog(LOG_WARNING,
 				       "DATEREQ from uncontrolled machine");
 				break;
@@ -544,7 +544,7 @@ loop:
 				if (msg->tsp_hopcnt-- < 1)
 				    break;
 				bytenetorder(msg);
-				for (ntp = nettab; ntp != 0; ntp = ntp->next) {
+				for (ntp = nettab; ntp != NULL; ntp = ntp->next) {
 				    if (ntp->status == MASTER
 					&& 0 > sendto(sock, (char *)msg,
 						      sizeof(struct tsp), 0,
