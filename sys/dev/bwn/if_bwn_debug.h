@@ -52,6 +52,9 @@ enum {
 	BWN_DEBUG_FW		= 0x00004000,	/* firmware */
 	BWN_DEBUG_WME		= 0x00008000,	/* WME */
 	BWN_DEBUG_RF		= 0x00010000,	/* RF */
+	BWN_DEBUG_XMIT_POWER	= 0x00020000,
+	BWN_DEBUG_PHY		= 0x00040000,
+	BWN_DEBUG_EEPROM	= 0x00080000,
 	BWN_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
 	BWN_DEBUG_ANY		= 0xffffffff
 };
@@ -64,5 +67,15 @@ enum {
 #else	/* BWN_DEBUG */
 #define DPRINTF(sc, m, fmt, ...) do { (void) sc; } while (0)
 #endif	/* BWN_DEBUG */
+
+#define	BWN_ERRPRINTF(sc, ...) do {		\
+		printf(__VA_ARGS__);		\
+} while (0)
+#define	BWN_DBGPRINTF(sc, ...) do {		\
+		printf(__VA_ARGS__);		\
+} while (0)
+#define	BWN_WARNPRINTF(sc, ...) do {		\
+		printf(__VA_ARGS__);		\
+} while (0)
 
 #endif	/* __IF_BWN_DEBUG_H__ */
