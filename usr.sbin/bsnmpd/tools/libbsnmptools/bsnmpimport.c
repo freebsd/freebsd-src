@@ -635,12 +635,11 @@ snmp_import_table(struct snmp_toolinfo *snmptoolctx, struct snmp_oid2str *obj)
 	enum tok tok;
 	struct snmp_index_entry *entry;
 
-	if ((entry = malloc(sizeof(struct snmp_index_entry))) == NULL) {
+	if ((entry = calloc(1, sizeof(struct snmp_index_entry))) == NULL) {
 		syslog(LOG_ERR, "malloc() failed: %s", strerror(errno));
 		return (-1);
 	}
 
-	memset(entry, 0, sizeof(struct snmp_index_entry));
 	STAILQ_INIT(&(entry->index_list));
 
 	for (i = 0, tok = gettoken(snmptoolctx); i < SNMP_INDEXES_MAX; i++) {
@@ -764,7 +763,7 @@ snmp_import_object(struct snmp_toolinfo *snmptoolctx)
 	if (snmp_import_head(snmptoolctx) < 0)
 		return (-1);
 
-	if ((oid2str = malloc(sizeof(struct snmp_oid2str))) == NULL) {
+	if ((oid2str = calloc(1, sizeof(struct snmp_oid2str))) == NULL) {
 		syslog(LOG_ERR, "malloc() failed: %s", strerror(errno));
 		return (-1);
 	}
@@ -775,7 +774,6 @@ snmp_import_object(struct snmp_toolinfo *snmptoolctx)
 		return (-1);
 	}
 
-	memset(oid2str, 0, sizeof(struct snmp_oid2str));
 	strlcpy(string, nexttok, strlen(nexttok) + 1);
 	oid2str->string = string;
 	oid2str->strlen = strlen(nexttok);
