@@ -646,7 +646,9 @@ bwn_attach_post(struct bwn_softc *sc)
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
 		| IEEE80211_C_WME		/* WME/WMM supported */
 		| IEEE80211_C_WPA		/* capable of WPA1+WPA2 */
+#if 0
 		| IEEE80211_C_BGSCAN		/* capable of bg scanning */
+#endif
 		| IEEE80211_C_TXPMGT		/* capable of txpow mgt */
 		;
 
