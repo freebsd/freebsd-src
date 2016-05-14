@@ -185,9 +185,8 @@
 /* Support printable names for statistics */
 #if EFSYS_OPT_NAMES
 # if !(EFSYS_OPT_LOOPBACK || EFSYS_OPT_MAC_STATS || EFSYS_OPT_MCDI || \
-	EFSYS_MON_STATS || EFSYS_OPT_PHY_PROPS || EFSYS_OPT_PHY_STATS || \
-	EFSYS_OPT_QSTATS)
-#  error "NAMES requires LOOPBACK or xxxSTATS or MCDI or PHY_PROPS"
+	EFSYS_MON_STATS || EFSYS_OPT_PHY_STATS || EFSYS_OPT_QSTATS)
+#  error "NAMES requires LOOPBACK or xxxSTATS or MCDI"
 # endif
 #endif /* EFSYS_OPT_NAMES */
 
@@ -237,15 +236,12 @@
 #endif
 
 #ifdef EFSYS_OPT_PHY_PM8358
-# error "EFSYS_OPT_PHY_PM8358 is obsolete and is not supported."
+# error "PHY_PM8358 is obsolete and is not supported."
 #endif
 
-/* Support PHY properties */
-#if EFSYS_OPT_PHY_PROPS
-# if !EFSYS_OPT_SIENA
-#  error "PHY_PROPS requires SIENA"
-# endif
-#endif /* EFSYS_OPT_PHY_PROPS */
+#ifdef EFSYS_OPT_PHY_PROPS
+# error "PHY_PROPS is obsolete and is not supported."
+#endif
 
 #ifdef EFSYS_OPT_PHY_QT2022C2
 # error "PHY_QT2022C2 is obsolete and is not supported."

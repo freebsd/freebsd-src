@@ -257,7 +257,6 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	EFSYS_OPT_MON_STATS 0
 
 #define	EFSYS_OPT_PHY_STATS 1
-#define	EFSYS_OPT_PHY_PROPS 0
 #define	EFSYS_OPT_BIST 1
 #define	EFSYS_OPT_PHY_LED_CONTROL 1
 #define	EFSYS_OPT_PHY_FLAGS 0
