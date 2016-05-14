@@ -479,7 +479,9 @@ g_eli_worker(void *arg)
 
 	wr = arg;
 	sc = wr->w_softc;
-#ifdef SMP
+#ifdef EARLY_AP_STARTUP
+	MPASS(!sc->sc_cpubind || smp_started);
+#elif defined(SMP)
 	/* Before sched_bind() to a CPU, wait for all CPUs to go on-line. */
 	if (sc->sc_cpubind) {
 		while (!smp_started)
