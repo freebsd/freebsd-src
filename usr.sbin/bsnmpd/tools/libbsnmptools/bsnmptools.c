@@ -264,7 +264,7 @@ add_filename(struct snmp_toolinfo *snmptoolctx, const char *filename,
 
 	if (cut != NULL)
 		asn_append_oid(&(entry->cut), cut);
-	strlcpy(fstring, filename, strlen(filename) + 1);
+	strlcpy(fstring, filename, sizeof(fstring));
 	entry->name = fstring;
 	entry->done = done;
 	SLIST_INSERT_HEAD(&snmptoolctx->filelist, entry, link);
