@@ -593,7 +593,7 @@ usb_get_ifc_mode(device_t dev, phandle_t node, char *name)
 		ret = USB_IFC_TYPE_ULPI;
 	else
 		device_printf(dev, "Unsupported phy type: %s\n", tmpstr);
-	free(tmpstr, M_OFWPROP);
+	OF_prop_free(tmpstr);
 	return (ret);
 }
 
@@ -617,7 +617,7 @@ usb_get_dr_mode(device_t dev, phandle_t node, char *name)
 		ret = USB_DR_MODE_OTG;
 	else
 		device_printf(dev, "Unknown dr mode: %s\n", tmpstr);
-	free(tmpstr, M_OFWPROP);
+	OF_prop_free(tmpstr);
 	return (ret);
 }
 
