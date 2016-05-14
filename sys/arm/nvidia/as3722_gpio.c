@@ -254,9 +254,9 @@ as3722_pinmux_process_node(struct as3722_softc *sc, phandle_t node)
 	} while (len < lpins);
 
 	if (pins != NULL)
-		free(pins, M_OFWPROP);
+		OF_prop_free(pins);
 	if (cfg.function != NULL)
-		free(cfg.function, M_OFWPROP);
+		OF_prop_free(cfg.function);
 
 	return (rv);
 }

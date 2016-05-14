@@ -164,7 +164,7 @@ tegra124_coretemp_ofw_parse(struct tegra124_coretemp_softc *sc)
 	}
 
 	sc->tsens_id = 0x100 + sc->cpu_id; //cells[0];
-	free(cells, M_OFWPROP);
+	OF_prop_free(cells);
 
 	sc->tsens_dev = OF_device_from_xref(xnode);
 	if (sc->tsens_dev == NULL) {

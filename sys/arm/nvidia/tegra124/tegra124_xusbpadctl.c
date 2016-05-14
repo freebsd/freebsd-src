@@ -274,9 +274,9 @@ xusbpadctl_process_node(struct xusbpadctl_softc *sc, phandle_t node)
 	} while (len < llanes);
 
 	if (lanes != NULL)
-		free(lanes, M_OFWPROP);
+		OF_prop_free(lanes);
 	if (cfg.function != NULL)
-		free(cfg.function, M_OFWPROP);
+		OF_prop_free(cfg.function);
 	return (rv);
 }
 
