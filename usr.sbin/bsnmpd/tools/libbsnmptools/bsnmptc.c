@@ -364,6 +364,7 @@ snmp_date2asn_oid(char *str, struct asn_oid *oid)
 	/* 'MM-' */
 	ptr = endptr + 1;
 	saved_errno = errno;
+	errno = 0;
 	v = strtoul(ptr, &endptr, 10);
 	if (errno != 0)
 		goto error;
@@ -377,6 +378,7 @@ snmp_date2asn_oid(char *str, struct asn_oid *oid)
 	/* 'DD,' */
 	ptr = endptr + 1;
 	saved_errno = errno;
+	errno = 0;
 	v = strtoul(ptr, &endptr, 10);
 	if (errno != 0)
 		goto error;
@@ -390,6 +392,7 @@ snmp_date2asn_oid(char *str, struct asn_oid *oid)
 	/* 'HH:' */
 	ptr = endptr + 1;
 	saved_errno = errno;
+	errno = 0;
 	v = strtoul(ptr, &endptr, 10);
 	if (errno != 0)
 		goto error;
@@ -403,6 +406,7 @@ snmp_date2asn_oid(char *str, struct asn_oid *oid)
 	/* 'MM:' */
 	ptr = endptr + 1;
 	saved_errno = errno;
+	errno = 0;
 	v = strtoul(ptr, &endptr, 10);
 	if (errno != 0)
 		goto error;
@@ -416,6 +420,7 @@ snmp_date2asn_oid(char *str, struct asn_oid *oid)
 	/* 'SS.' */
 	ptr = endptr + 1;
 	saved_errno = errno;
+	errno = 0;
 	v = strtoul(ptr, &endptr, 10);
 	if (errno != 0)
 		goto error;
@@ -429,6 +434,7 @@ snmp_date2asn_oid(char *str, struct asn_oid *oid)
 	/* 'M(mseconds),' */
 	ptr = endptr + 1;
 	saved_errno = errno;
+	errno = 0;
 	v = strtoul(ptr, &endptr, 10);
 	if (errno != 0)
 		goto error;
@@ -454,6 +460,7 @@ snmp_date2asn_oid(char *str, struct asn_oid *oid)
 	/* 'HH:' */
 	ptr = endptr + 1;
 	saved_errno = errno;
+	errno = 0;
 	v = strtoul(ptr, &endptr, 10);
 	if (errno != 0)
 		goto error;
@@ -467,6 +474,7 @@ snmp_date2asn_oid(char *str, struct asn_oid *oid)
 	/* 'MM' - last one - ignore endptr here. */
 	ptr = endptr + 1;
 	saved_errno = errno;
+	errno = 0;
 	v = strtoul(ptr, &endptr, 10);
 	if (errno != 0)
 		goto error;
@@ -725,6 +733,7 @@ snmp_ntp_ts2asn_oid(char *str, struct asn_oid *oid)
 
 	ptr = str;
 	saved_errno = errno;
+	errno = 0;
 	v = strtoul(ptr, &endptr, 10);
 	if (errno != 0 || (v / 1000) > 9) {
 		warnx("Integer value %s not supported", str);
@@ -749,6 +758,7 @@ snmp_ntp_ts2asn_oid(char *str, struct asn_oid *oid)
 
 	ptr = endptr + 1;
 	saved_errno = errno;
+	errno = 0;
 	v = strtoul(ptr, &endptr, 10);
 	if (errno != 0 || (v / 1000) > 9) {
 		warnx("Integer value %s not supported", str);
@@ -776,6 +786,7 @@ parse_ntp_ts(struct snmp_value *sv, char *val)
 	uint8_t	ntp_ts[SNMP_NTP_TS_OCTETS];
 
 	saved_errno = errno;
+	errno = 0;
 	v = strtoul(val, &endptr, 10);
 	if (errno != 0 || (v / 1000) > 9) {
 		errno = saved_errno;
@@ -797,6 +808,7 @@ parse_ntp_ts(struct snmp_value *sv, char *val)
 	val = endptr + 1;
 
 	saved_errno = errno;
+	errno = 0;
 	v = strtoul(val, &endptr, 10);
 	if (errno != 0 || (v / 1000) > 9) {
 		errno = saved_errno;
@@ -879,8 +891,8 @@ snmp_bridgeid2oct(char *str, struct asn_oid *oid)
 	ptr = str;
 	/* Read the priority. */
 	saved_errno = errno;
-	v = strtoul(ptr, &endptr, 10);
 	errno = 0;
+	v = strtoul(ptr, &endptr, 10);
 
 	if (v > SNMP_MAX_BRIDGE_PRIORITY || errno != 0 || *endptr != '.') {
 		errno = saved_errno;
@@ -897,6 +909,7 @@ snmp_bridgeid2oct(char *str, struct asn_oid *oid)
 	ptr = endptr + 1;
 	for (i = 0; i < 5; i++) {
 		saved_errno = errno;
+		errno = 0;
 		v = strtoul(ptr, &endptr, 16);
 		errno = saved_errno;
 		if (v > 0xff) {
@@ -914,6 +927,7 @@ snmp_bridgeid2oct(char *str, struct asn_oid *oid)
 
 	/* The last one - don't check the ending char here. */
 	saved_errno = errno;
+	errno = 0;
 	v = strtoul(ptr, &endptr, 16);
 	errno = saved_errno;
 	if (v > 0xff) {
@@ -938,7 +952,6 @@ parse_bridge_id(struct snmp_value *sv, char *string)
 	saved_errno = errno;
 	errno = 0;
 	v = strtoul(string, &endptr, 10);
-	errno = saved_errno;
 
 	if (v > SNMP_MAX_BRIDGE_PRIORITY || errno != 0 || *endptr != '.') {
 		errno = saved_errno;
@@ -1026,8 +1039,8 @@ snmp_bport_id2oct(char *str, struct asn_oid *oid)
 	ptr = str;
 	/* Read the priority. */
 	saved_errno = errno;
-	v = strtoul(ptr, &endptr, 10);
 	errno = 0;
+	v = strtoul(ptr, &endptr, 10);
 
 	if (v > SNMP_MAX_BPORT_PRIORITY || errno != 0 || *endptr != '.') {
 		errno = saved_errno;
@@ -1039,6 +1052,7 @@ snmp_bport_id2oct(char *str, struct asn_oid *oid)
 		return (NULL);
 
 	saved_errno = errno;
+	errno = 0;
 	v = strtoul(ptr, &endptr, 16);
 	errno = saved_errno;
 
@@ -1065,7 +1079,6 @@ parse_bport_id(struct snmp_value *value, char *string)
 	saved_errno = errno;
 	errno = 0;
 	v = strtoul(string, &endptr, 10);
-	errno = saved_errno;
 
 	if (v > SNMP_MAX_BPORT_PRIORITY || errno != 0 || *endptr != '.') {
 		errno = saved_errno;
