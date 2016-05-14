@@ -484,6 +484,7 @@ static const struct siba_devid bwn_devs[] = {
 	SIBA_DEV(BROADCOM, 80211, 9, "Revision 9"),
 	SIBA_DEV(BROADCOM, 80211, 10, "Revision 10"),
 	SIBA_DEV(BROADCOM, 80211, 11, "Revision 11"),
+	SIBA_DEV(BROADCOM, 80211, 12, "Revision 12"),
 	SIBA_DEV(BROADCOM, 80211, 13, "Revision 13"),
 	SIBA_DEV(BROADCOM, 80211, 15, "Revision 15"),
 	SIBA_DEV(BROADCOM, 80211, 16, "Revision 16")
