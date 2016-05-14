@@ -5888,7 +5888,7 @@ bwn_phy_txpower_check(struct bwn_mac *mac, uint32_t flags)
 	struct bwn_phy *phy = &mac->mac_phy;
 	struct ieee80211com *ic = &sc->sc_ic;
 	unsigned long now;
-	int result;
+	bwn_txpwr_result_t result;
 
 	BWN_GETTIME(now);
 
