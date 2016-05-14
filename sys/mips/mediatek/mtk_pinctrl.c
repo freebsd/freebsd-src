@@ -149,8 +149,8 @@ mtk_pinctrl_process_node(device_t dev, struct mtk_pin_group *table,
 	}
 
 out:
-	free(group_list, M_OFWPROP);
-	free(pin_function, M_OFWPROP);
+	OF_prop_free(group_list);
+	OF_prop_free(pin_function);
 	return (ret);
 }
 
