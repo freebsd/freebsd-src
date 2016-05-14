@@ -77,6 +77,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/bwn/if_bwn_debug.h>
 #include <dev/bwn/if_bwn_misc.h>
+#include <dev/bwn/if_bwn_util.h>
+#include <dev/bwn/if_bwn_phy_common.h>
 #include <dev/bwn/if_bwn_phy_g.h>
 #include <dev/bwn/if_bwn_phy_lp.h>
 
@@ -1142,8 +1144,7 @@ bwn_attach_core(struct bwn_mac *mac)
 	siba_powerup(sc->sc_dev, 0);
 
 	high = siba_read_4(sc->sc_dev, SIBA_TGSHIGH);
-	bwn_reset_core(mac,
-	    (high & BWN_TGSHIGH_HAVE_2GHZ) ? BWN_TGSLOW_SUPPORT_G : 0);
+	bwn_reset_core(mac, !!(high & BWN_TGSHIGH_HAVE_2GHZ));
 	error = bwn_phy_getinfo(mac, high);
 	if (error)
 		goto fail;
@@ -1223,7 +1224,7 @@ bwn_attach_core(struct bwn_mac *mac)
 		}
 	}
 
-	bwn_reset_core(mac, have_bg ? BWN_TGSLOW_SUPPORT_G : 0);
+	bwn_reset_core(mac, have_bg);
 
 	error = bwn_chiptest(mac);
 	if (error)
@@ -1251,17 +1252,32 @@ fail:
 	return (error);
 }
 
+/*
+ * Reset - SIBA.
+ *
+ * XXX TODO: implement BCMA version!
+ */
 void
-bwn_reset_core(struct bwn_mac *mac, uint32_t flags)
+bwn_reset_core(struct bwn_mac *mac, int g_mode)
 {
 	struct bwn_softc *sc = mac->mac_sc;
 	uint32_t low, ctl;
+	uint32_t flags = 0;
+
+	DPRINTF(sc, BWN_DEBUG_RESET, "%s: g_mode=%d\n", __func__, g_mode);
 
 	flags |= (BWN_TGSLOW_PHYCLOCK_ENABLE | BWN_TGSLOW_PHYRESET);
+	if (g_mode)
+		flags |= BWN_TGSLOW_SUPPORT_G;
+
+	/* XXX N-PHY only; and hard-code to 20MHz for now */
+	if (mac->mac_phy.type == BWN_PHYTYPE_N)
+		flags |= BWN_TGSLOW_PHY_BANDWIDTH_20MHZ;
 
 	siba_dev_up(sc->sc_dev, flags);
 	DELAY(2000);
 
+	/* Take PHY out of reset */
 	low = (siba_read_4(sc->sc_dev, SIBA_TGSLOW) | SIBA_TGSLOW_FGC) &
 	    ~BWN_TGSLOW_PHYRESET;
 	siba_write_4(sc->sc_dev, SIBA_TGSLOW, low);
@@ -1275,7 +1291,7 @@ bwn_reset_core(struct bwn_mac *mac, uint32_t flags)
 		mac->mac_phy.switch_analog(mac, 1);
 
 	ctl = BWN_READ_4(mac, BWN_MACCTL) & ~BWN_MACCTL_GMODE;
-	if (flags & BWN_TGSLOW_SUPPORT_G)
+	if (g_mode)
 		ctl |= BWN_MACCTL_GMODE;
 	BWN_WRITE_4(mac, BWN_MACCTL, ctl | BWN_MACCTL_IHR_ON);
 }
@@ -1289,7 +1305,7 @@ bwn_phy_getinfo(struct bwn_mac *mac, int tgshigh)
 
 	/* PHY */
 	tmp = BWN_READ_2(mac, BWN_PHYVER);
-	phy->gmode = (tgshigh & BWN_TGSHIGH_HAVE_2GHZ) ? 1 : 0;
+	phy->gmode = !! (tgshigh & BWN_TGSHIGH_HAVE_2GHZ);
 	phy->rf_on = 1;
 	phy->analog = (tmp & BWN_PHYVER_ANALOG) >> 12;
 	phy->type = (tmp & BWN_PHYVER_TYPE) >> 8;
@@ -1945,8 +1961,7 @@ bwn_core_init(struct bwn_mac *mac)
 
 	siba_powerup(sc->sc_dev, 0);
 	if (!siba_dev_isup(sc->sc_dev))
-		bwn_reset_core(mac,
-		    mac->mac_phy.gmode ? BWN_TGSLOW_SUPPORT_G : 0);
+		bwn_reset_core(mac, mac->mac_phy.gmode);
 
 	mac->mac_flags &= ~BWN_MAC_FLAG_DFQVALID;
 	mac->mac_flags |= BWN_MAC_FLAG_RADIO_ON;
@@ -2175,8 +2190,11 @@ bwn_chip_init(struct bwn_mac *mac)
 	BWN_WRITE_4(mac, BWN_DMA3_INTR_MASK, 0x0001dc00);
 	BWN_WRITE_4(mac, BWN_DMA4_INTR_MASK, 0x0000dc00);
 	BWN_WRITE_4(mac, BWN_DMA5_INTR_MASK, 0x0000dc00);
-	siba_write_4(sc->sc_dev, SIBA_TGSLOW,
-	    siba_read_4(sc->sc_dev, SIBA_TGSLOW) | 0x00100000);
+
+	bwn_mac_phy_clock_set(mac, true);
+
+	/* SIBA powerup */
+	/* XXX TODO: BCMA powerup */
 	BWN_WRITE_2(mac, BWN_POWERUP_DELAY, siba_get_cc_powerdelay(sc->sc_dev));
 	return (error);
 }
@@ -4495,6 +4513,11 @@ bwn_rf_turnoff(struct bwn_mac *mac)
 	bwn_mac_enable(mac);
 }
 
+/*
+ * SSB PHY reset.
+ *
+ * XXX TODO: BCMA PHY reset.
+ */
 static void
 bwn_phy_reset(struct bwn_mac *mac)
 {
@@ -4505,8 +4528,7 @@ bwn_phy_reset(struct bwn_mac *mac)
 	     BWN_TGSLOW_PHYRESET) | SIBA_TGSLOW_FGC);
 	DELAY(1000);
 	siba_write_4(sc->sc_dev, SIBA_TGSLOW,
-	    (siba_read_4(sc->sc_dev, SIBA_TGSLOW) & ~SIBA_TGSLOW_FGC) |
-	    BWN_TGSLOW_PHYRESET);
+	    (siba_read_4(sc->sc_dev, SIBA_TGSLOW) & ~SIBA_TGSLOW_FGC));
 	DELAY(1000);
 }
 
