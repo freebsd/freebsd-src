@@ -1025,7 +1025,7 @@ ef10_nvram_buffer_insert_item(
 		goto fail1;
 	}
 
-	rc = tlv_insert(&cursor, TLV_TAG_LICENSE, keyp, length);
+	rc = tlv_insert(&cursor, TLV_TAG_LICENSE, (uint8_t *)keyp, length);
 
 	if (rc != 0) {
 		goto fail2;
