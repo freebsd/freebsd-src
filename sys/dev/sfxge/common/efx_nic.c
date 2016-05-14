@@ -599,8 +599,6 @@ efx_nic_reset(
 	if ((rc = enop->eno_reset(enp)) != 0)
 		goto fail2;
 
-	enp->en_reset_flags |= EFX_RESET_MAC;
-
 	return (0);
 
 fail2:
