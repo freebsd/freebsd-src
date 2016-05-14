@@ -185,7 +185,7 @@ loop:
 			tsp_time_sec = msg->tsp_time.tv_sec;
 			(void)strcpy(newdate, ctime(&tsp_time_sec));
 			htp = findhost(msg->tsp_name);
-			if (htp == 0) {
+			if (htp == NULL) {
 				syslog(LOG_ERR,
 				       "attempted SET DATEREQ by uncontrolled %s to %s",
 				       msg->tsp_name, newdate);
@@ -477,7 +477,7 @@ spreadtime(void)
 		to.tsp_time.tv_usec = tmptv.tv_usec;
 		answer = acksend(&to, &htp->addr, htp->name,
 				 TSP_ACK, 0, htp->noanswer);
-		if (answer == 0) {
+		if (answer == NULL) {
 			/* We client does not respond, then we have
 			 * just wasted lots of time on it.
 			 */
@@ -566,7 +566,7 @@ addmach(char *name, struct sockaddr_in *addr, struct netinfo *ntp)
 	struct hosttbl *ret, *p, *b, *f;
 
 	ret = findhost(name);
-	if (ret == 0) {
+	if (ret == NULL) {
 		if (slvcount >= NHOSTS) {
 			if (trace) {
 				fprintf(fd, "no more slots in host table\n");
@@ -684,8 +684,8 @@ remmach(struct hosttbl *htp)
 	}
 
 	lasthfree->name[0] = '\0';
-	lasthfree->h_fwd = 0;
-	lasthfree->l_fwd = 0;
+	lasthfree->h_fwd = NULL;
+	lasthfree->l_fwd = NULL;
 	slvcount--;
 
 	return lprv;
@@ -828,7 +828,7 @@ traceoff(char *msg)
 	if (trace) {
 		fprintf(fd, msg, date());
 		(void)fclose(fd);
-		fd = 0;
+		fd = NULL;
 	}
 #ifdef GPROF
 	moncontrol(0);

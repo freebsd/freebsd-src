@@ -277,7 +277,7 @@ msite(int argc, char *argv[])
 	}
 
 	srvp = getservbyname("timed", "udp");
-	if (srvp == 0) {
+	if (srvp == NULL) {
 		warnx("timed/udp: unknown service");
 		return;
 	}
@@ -290,7 +290,7 @@ msite(int argc, char *argv[])
 	do {
 		tgtname = (i >= argc) ? myname : argv[i];
 		hp = gethostbyname(tgtname);
-		if (hp == 0) {
+		if (hp == NULL) {
 			warnx("%s: %s", tgtname, hstrerror(h_errno));
 			continue;
 		}
@@ -378,7 +378,7 @@ testing(int argc, char *argv[])
 	}
 
 	srvp = getservbyname("timed", "udp");
-	if (srvp == 0) {
+	if (srvp == NULL) {
 		warnx("timed/udp: unknown service");
 		return;
 	}
@@ -432,7 +432,7 @@ tracing(int argc, char *argv[])
 	}
 
 	srvp = getservbyname("timed", "udp");
-	if (srvp == 0) {
+	if (srvp == NULL) {
 		warnx("timed/udp: unknown service");
 		return;
 	}
