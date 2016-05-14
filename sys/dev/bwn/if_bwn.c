@@ -5985,6 +5985,77 @@ bwn_ieeerate2hwrate(struct bwn_softc *sc, int rate)
 	return (BWN_CCK_RATE_1MB);
 }
 
+static uint16_t
+bwn_set_txhdr_phyctl1(struct bwn_mac *mac, uint8_t bitrate)
+{
+	struct bwn_phy *phy = &mac->mac_phy;
+	uint16_t control = 0;
+	uint16_t bw;
+
+	/* XXX TODO: this is for LP phy, what about N-PHY, etc? */
+	bw = BWN_TXH_PHY1_BW_20;
+
+	if (BWN_ISCCKRATE(bitrate) && phy->type != BWN_PHYTYPE_LP) {
+		control = bw;
+	} else {
+		control = bw;
+		/* Figure out coding rate and modulation */
+		/* XXX TODO: table-ize, for MCS transmit */
+		/* Note: this is BWN_*_RATE values */
+		switch (bitrate) {
+		case BWN_CCK_RATE_1MB:
+			control |= 0;
+			break;
+		case BWN_CCK_RATE_2MB:
+			control |= 1;
+			break;
+		case BWN_CCK_RATE_5MB:
+			control |= 2;
+			break;
+		case BWN_CCK_RATE_11MB:
+			control |= 3;
+			break;
+		case BWN_OFDM_RATE_6MB:
+			control |= BWN_TXH_PHY1_CRATE_1_2;
+			control |= BWN_TXH_PHY1_MODUL_BPSK;
+			break;
+		case BWN_OFDM_RATE_9MB:
+			control |= BWN_TXH_PHY1_CRATE_3_4;
+			control |= BWN_TXH_PHY1_MODUL_BPSK;
+			break;
+		case BWN_OFDM_RATE_12MB:
+			control |= BWN_TXH_PHY1_CRATE_1_2;
+			control |= BWN_TXH_PHY1_MODUL_QPSK;
+			break;
+		case BWN_OFDM_RATE_18MB:
+			control |= BWN_TXH_PHY1_CRATE_3_4;
+			control |= BWN_TXH_PHY1_MODUL_QPSK;
+			break;
+		case BWN_OFDM_RATE_24MB:
+			control |= BWN_TXH_PHY1_CRATE_1_2;
+			control |= BWN_TXH_PHY1_MODUL_QAM16;
+			break;
+		case BWN_OFDM_RATE_36MB:
+			control |= BWN_TXH_PHY1_CRATE_3_4;
+			control |= BWN_TXH_PHY1_MODUL_QAM16;
+			break;
+		case BWN_OFDM_RATE_48MB:
+			control |= BWN_TXH_PHY1_CRATE_1_2;
+			control |= BWN_TXH_PHY1_MODUL_QAM64;
+			break;
+		case BWN_OFDM_RATE_54MB:
+			control |= BWN_TXH_PHY1_CRATE_3_4;
+			control |= BWN_TXH_PHY1_MODUL_QAM64;
+			break;
+		default:
+			break;
+		}
+		control |= BWN_TXH_PHY1_MODE_SISO;
+	}
+
+	return control;
+}
+
 static int
 bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
     struct mbuf *m, struct bwn_txhdr *txhdr, uint16_t cookie)
@@ -6004,6 +6075,7 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 	int protdur, rts_rate, rts_rate_fb, ismcast, isshort, rix, type;
 	uint16_t phyctl = 0;
 	uint8_t rate, rate_fb;
+	int fill_phy_ctl1 = 0;
 
 	wh = mtod(m, struct ieee80211_frame *);
 	memset(txhdr, 0, sizeof(*txhdr));
@@ -6011,6 +6083,10 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
+
+	if ((phy->type == BWN_PHYTYPE_N) || (phy->type == BWN_PHYTYPE_LP)
+	    || (phy->type == BWN_PHYTYPE_HT))
+		fill_phy_ctl1 = 1;
 
 	/*
 	 * Find TX rate
@@ -6165,6 +6241,16 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 		}
 		txhdr->eftypes |= (BWN_ISOFDMRATE(rts_rate_fb)) ?
 		    BWN_TX_EFT_RTS_FBOFDM : BWN_TX_EFT_RTS_FBCCK;
+
+		if (fill_phy_ctl1) {
+			txhdr->phyctl_1rts = htole16(bwn_set_txhdr_phyctl1(mac, rts_rate));
+			txhdr->phyctl_1rtsfb = htole16(bwn_set_txhdr_phyctl1(mac, rts_rate_fb));
+		}
+	}
+
+	if (fill_phy_ctl1) {
+		txhdr->phyctl_1 = htole16(bwn_set_txhdr_phyctl1(mac, rate));
+		txhdr->phyctl_1fb = htole16(bwn_set_txhdr_phyctl1(mac, rate_fb));
 	}
 
 	if (BWN_ISOLDFMT(mac))
