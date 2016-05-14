@@ -282,7 +282,7 @@ enum_pair_insert(struct enum_pairs *headp, int32_t enum_val, char *enum_str)
 	}
 
 	e_new->enum_val = enum_val;
-	strlcpy(e_new->enum_str, enum_str, strlen(enum_str) + 1);
+	strlcpy(e_new->enum_str, enum_str, nitems(e_new->enum_str));
 	STAILQ_INSERT_TAIL(headp, e_new, link);
 
 	return (1);
@@ -568,7 +568,7 @@ snmp_enumtc_init(char *name)
 		free(enum_tc);
 		return (NULL);
 	}
-	strlcpy(enum_tc->name, name, strlen(name) + 1);
+	strlcpy(enum_tc->name, name, nitems(enum_tc->name));
 
 	return (enum_tc);
 }
