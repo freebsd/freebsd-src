@@ -540,9 +540,6 @@ efx_mac_stats_update(
 
 typedef enum efx_mon_type_e {
 	EFX_MON_INVALID = 0,
-	EFX_MON_NULL,
-	EFX_MON_LM87,
-	EFX_MON_MAX6647,
 	EFX_MON_SFC90X0,
 	EFX_MON_SFC91X0,
 	EFX_MON_SFC92X0,
