@@ -778,11 +778,11 @@ parse_ntp_ts(struct snmp_value *sv, char *val)
 	saved_errno = errno;
 	v = strtoul(val, &endptr, 10);
 	if (errno != 0 || (v / 1000) > 9) {
-		saved_errno = errno;
+		errno = saved_errno;
 		warnx("Integer value %s not supported", val);
 		return (-1);
 	} else
-		saved_errno = errno;
+		errno = saved_errno;
 
 	if (*endptr != '.') {
 		warnx("Failed reading octet - %s", val);
@@ -799,11 +799,11 @@ parse_ntp_ts(struct snmp_value *sv, char *val)
 	saved_errno = errno;
 	v = strtoul(val, &endptr, 10);
 	if (errno != 0 || (v / 1000) > 9) {
-		saved_errno = errno;
+		errno = saved_errno;
 		warnx("Integer value %s not supported", val);
 		return (-1);
 	} else
-		saved_errno = errno;
+		errno = saved_errno;
 
 	for (i = 0, d = 1000; i < 4; i++) {
 		ntp_ts[i + 4] = v / d;
