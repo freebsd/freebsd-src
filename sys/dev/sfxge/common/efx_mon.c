@@ -67,7 +67,6 @@ efx_mon_name(
 
 #if EFSYS_OPT_MON_MCDI
 static const efx_mon_ops_t	__efx_mon_mcdi_ops = {
-	NULL,				/* emo_reconfigure */
 #if EFSYS_OPT_MON_STATS
 	mcdi_mon_stats_update		/* emo_stats_update */
 #endif	/* EFSYS_OPT_MON_STATS */
@@ -110,16 +109,9 @@ efx_mon_init(
 		goto fail2;
 	}
 
-	if (emop->emo_reconfigure != NULL) {
-		if ((rc = emop->emo_reconfigure(enp)) != 0)
-			goto fail3;
-	}
-
 	emp->em_emop = emop;
 	return (0);
 
-fail3:
-	EFSYS_PROBE(fail3);
 fail2:
 	EFSYS_PROBE(fail2);
 
