@@ -6072,6 +6072,9 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 	     rate == BWN_CCK_RATE_11MB))
 		phyctl |= BWN_TX_PHY_SHORTPRMBL;
 
+	if (! phy->gmode)
+		macctl |= BWN_TX_MAC_5GHZ;
+
 	/* XXX TX antenna selection */
 
 	switch (bwn_antenna_sanitize(mac, 0)) {
