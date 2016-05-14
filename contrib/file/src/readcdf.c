@@ -26,7 +26,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: readcdf.c,v 1.56 2016/03/03 22:20:03 christos Exp $")
+FILE_RCSID("@(#)$File: readcdf.c,v 1.57 2016/05/03 16:08:49 christos Exp $")
 #endif
 
 #include <assert.h>
@@ -373,7 +373,7 @@ cdf_file_catalog_info(struct magic_set *ms, const cdf_info_t *info,
 	    dir, "Catalog", scn)) == -1)
 		return i;
 #ifdef CDF_DEBUG
-	cdf_dump_catalog(&h, &scn);
+	cdf_dump_catalog(&h, scn);
 #endif
 	if ((i = cdf_file_catalog(ms, h, scn)) == -1)
 		return -1;

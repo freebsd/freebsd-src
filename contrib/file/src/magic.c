@@ -33,7 +33,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: magic.c,v 1.97 2016/03/31 17:51:12 christos Exp $")
+FILE_RCSID("@(#)$File: magic.c,v 1.99 2016/05/03 16:09:38 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -523,9 +523,11 @@ file_or_fd(struct magic_set *ms, const char *inname, int fd)
 	rv = 0;
 done:
 	free(buf);
-	if (pos != (off_t)-1)
-		(void)lseek(fd, pos, SEEK_SET);
-	close_and_restore(ms, inname, fd, &sb);
+	if (fd != -1) {
+		if (pos != (off_t)-1)
+			(void)lseek(fd, pos, SEEK_SET);
+		close_and_restore(ms, inname, fd, &sb);
+	}
 out:
 	return rv == 0 ? file_getbuffer(ms) : NULL;
 }

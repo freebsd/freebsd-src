@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: console,v 1.24 2016/03/23 15:29:20 christos Exp $
+# $File: console,v 1.25 2016/04/18 20:22:10 christos Exp $
 # Console game magic
 # Toby Deshane <hac@shoelace.digivill.net>
 
@@ -53,7 +53,7 @@
 # so most of the data isn't easily parseable.
 #
 0	string	UNIF
-4	lelong	<16	UNIF v%d format NES ROM image
+>4	lelong	<16	UNIF v%d format NES ROM image
 
 #------------------------------------------------------------------------------
 # gameboy: file(1) magic for the Nintendo (Color) Gameboy raw ROM format
