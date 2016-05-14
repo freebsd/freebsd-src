@@ -197,7 +197,8 @@ SUBDIR.${MK_BLUETOOTH}+=	bluetooth
 SUBDIR.${MK_BSD_CPIO}+=	cpio
 SUBDIR.${MK_CALENDAR}+=	calendar
 SUBDIR.${MK_CHERI}+=	capsize \
-			libpng_sb_test
+			libpng_sb_test \
+			qtrace
 SUBDIR.${MK_CLANG}+=	clang
 SUBDIR.${MK_EE}+=	ee
 SUBDIR.${MK_FILE}+=	file
