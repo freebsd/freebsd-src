@@ -3731,21 +3731,84 @@ bwn_fw_gets(struct bwn_mac *mac, enum bwn_fwtype type)
 	int error;
 
 	/* microcode */
-	if (rev >= 5 && rev <= 10)
-		filename = "ucode5";
-	else if (rev >= 11 && rev <= 12)
-		filename = "ucode11";
-	else if (rev == 13)
-		filename = "ucode13";
-	else if (rev == 14)
-		filename = "ucode14";
-	else if (rev >= 15)
+	filename = NULL;
+	switch (rev) {
+	case 42:
+		if (mac->mac_phy.type == BWN_PHYTYPE_AC)
+			filename = "ucode42";
+		break;
+	case 40:
+		if (mac->mac_phy.type == BWN_PHYTYPE_AC)
+			filename = "ucode40";
+		break;
+	case 33:
+		if (mac->mac_phy.type == BWN_PHYTYPE_LCN40)
+			filename = "ucode33_lcn40";
+		break;
+	case 30:
+		if (mac->mac_phy.type == BWN_PHYTYPE_N)
+			filename = "ucode30_mimo";
+		break;
+	case 29:
+		if (mac->mac_phy.type == BWN_PHYTYPE_HT)
+			filename = "ucode29_mimo";
+		break;
+	case 26:
+		if (mac->mac_phy.type == BWN_PHYTYPE_HT)
+			filename = "ucode26_mimo";
+		break;
+	case 28:
+	case 25:
+		if (mac->mac_phy.type == BWN_PHYTYPE_N)
+			filename = "ucode25_mimo";
+		else if (mac->mac_phy.type == BWN_PHYTYPE_LCN)
+			filename = "ucode25_lcn";
+		break;
+	case 24:
+		if (mac->mac_phy.type == BWN_PHYTYPE_LCN)
+			filename = "ucode24_lcn";
+		break;
+	case 23:
+		if (mac->mac_phy.type == BWN_PHYTYPE_N)
+			filename = "ucode16_mimo";
+		break;
+	case 16:
+	case 17:
+	case 18:
+	case 19:
+		if (mac->mac_phy.type == BWN_PHYTYPE_N)
+			filename = "ucode16_mimo";
+		else if (mac->mac_phy.type == BWN_PHYTYPE_LP)
+			filename = "ucode16_lp";
+		break;
+	case 15:
 		filename = "ucode15";
-	else {
+		break;
+	case 14:
+		filename = "ucode14";
+		break;
+	case 13:
+		filename = "ucode13";
+		break;
+	case 12:
+	case 11:
+		filename = "ucode11";
+		break;
+	case 10:
+	case 9:
+	case 8:
+	case 7:
+	case 6:
+	case 5:
+		filename = "ucode5";
+		break;
+	default:
 		device_printf(sc->sc_dev, "no ucode for rev %d\n", rev);
 		bwn_release_firmware(mac);
 		return (EOPNOTSUPP);
 	}
+
+	device_printf(sc->sc_dev, "ucode fw: %s\n", filename);
 	error = bwn_fw_get(mac, type, filename, &fw->ucode);
 	if (error) {
 		bwn_release_firmware(mac);
@@ -3797,7 +3860,17 @@ bwn_fw_gets(struct bwn_mac *mac, enum bwn_fwtype type)
 			goto fail1;
 		break;
 	case BWN_PHYTYPE_N:
-		if (rev >= 11 && rev <= 12)
+		if (rev == 30)
+			filename = "n16initvals30";
+		else if (rev == 28 || rev == 25)
+			filename = "n0initvals25";
+		else if (rev == 24)
+			filename = "n0initvals24";
+		else if (rev == 23)
+			filename = "n0initvals16";
+		else if (rev >= 16 && rev <= 18)
+			filename = "n0initvals16";
+		else if (rev >= 11 && rev <= 12)
 			filename = "n0initvals11";
 		else
 			goto fail1;
@@ -3843,12 +3916,24 @@ bwn_fw_gets(struct bwn_mac *mac, enum bwn_fwtype type)
 			goto fail1;
 		break;
 	case BWN_PHYTYPE_N:
-		if (rev >= 11 && rev <= 12)
+		if (rev == 30)
+			filename = "n16bsinitvals30";
+		else if (rev == 28 || rev == 25)
+			filename = "n0bsinitvals25";
+		else if (rev == 24)
+			filename = "n0bsinitvals24";
+		else if (rev == 23)
+			filename = "n0bsinitvals16";
+		else if (rev >= 16 && rev <= 18)
+			filename = "n0bsinitvals16";
+		else if (rev >= 11 && rev <= 12)
 			filename = "n0bsinitvals11";
 		else
 			goto fail1;
 		break;
 	default:
+		device_printf(sc->sc_dev, "unknown phy (%d)\n",
+		    mac->mac_phy.type);
 		goto fail1;
 	}
 	error = bwn_fw_get(mac, type, filename, &fw->initvals_band);
@@ -3858,7 +3943,8 @@ bwn_fw_gets(struct bwn_mac *mac, enum bwn_fwtype type)
 	}
 	return (0);
 fail1:
-	device_printf(sc->sc_dev, "no INITVALS for rev %d\n", rev);
+	device_printf(sc->sc_dev, "no INITVALS for rev %d, phy.type %d\n",
+	    rev, mac->mac_phy.type);
 	bwn_release_firmware(mac);
 	return (EOPNOTSUPP);
 }
