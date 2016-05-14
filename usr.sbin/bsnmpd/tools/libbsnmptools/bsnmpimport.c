@@ -140,9 +140,9 @@ struct input {
 	LIST_ENTRY(input) link;
 };
 
-LIST_HEAD(, input) inputs = LIST_HEAD_INITIALIZER(inputs);
-struct input *input = NULL;
-int32_t pbchar = -1;
+static LIST_HEAD(, input) inputs = LIST_HEAD_INITIALIZER(inputs);
+static struct input *input = NULL;
+static int32_t pbchar = -1;
 
 #define	MAX_PATHS	100
 
@@ -301,18 +301,18 @@ static const struct {
 	{ NULL, 0, 0 }
 };
 
-struct {
+static struct {
 	/* Current OID type, regarding table membership. */
 	enum snmp_tbl_entry	tbl_type;
 	/* A pointer to a structure in table list to add to its members. */
 	struct snmp_index_entry	*table_idx;
 } table_data;
 
-struct asn_oid current_oid;
-char nexttok[MAXSTR];
-u_long val;		/* integer values */
-int32_t	all_cond;	/* all conditions are true */
-int32_t saved_token = -1;
+static struct asn_oid current_oid;
+static char nexttok[MAXSTR];
+static u_long val;		/* integer values */
+static int32_t	all_cond;	/* all conditions are true */
+static int32_t saved_token = -1;
 
 /* Prepare the global data before parsing a new file. */
 static void
