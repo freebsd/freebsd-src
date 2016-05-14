@@ -444,9 +444,9 @@ parse_flist(struct snmp_toolinfo *snmptoolctx, char *value, char *path,
 static int32_t
 parse_ascii(char *ascii, uint8_t *binstr, size_t binlen)
 {
-	int32_t alen, count, saved_errno, i;
-	uint32_t val;
 	char dptr[3];
+	int32_t alen, count, i, saved_errno;
+	uint32_t val;
 
 	/* Filter 0x at the beginning */
 	if ((alen = strlen(ascii)) > 2 && ascii[0] == '0' && ascii[1] == 'x')
