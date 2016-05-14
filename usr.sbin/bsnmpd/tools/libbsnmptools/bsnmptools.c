@@ -445,7 +445,8 @@ static int32_t
 parse_ascii(char *ascii, uint8_t *binstr, size_t binlen)
 {
 	char dptr[3];
-	int32_t alen, count, i, saved_errno;
+	size_t count;
+	int32_t alen, i, saved_errno;
 	uint32_t val;
 
 	/* Filter 0x at the beginning */
