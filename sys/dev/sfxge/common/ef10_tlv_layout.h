@@ -54,8 +54,10 @@
  * where:
  *
  *   -  L is a location, indicating where this tag is expected to be found:
- *      0 for static configuration, or 1 for dynamic configuration.   Other
- *      values are reserved.
+ *        0: static configuration
+ *        1: dynamic configuration
+ *        2: firmware internal use
+ *        3: license partition
  *
  *   -  TTT is a type, which is just a unique value.  The same type value
  *      might appear in both locations, indicating a relationship between
@@ -774,7 +776,7 @@ struct tlv_pcie_link_settings {
   uint16_t width; /* Number of lanes */
 };
 
-#define TLV_TAG_LICENSE (0x20800000)
+#define TLV_TAG_LICENSE (0x30800000)
 
 typedef struct tlv_license {
   uint32_t  tag;
