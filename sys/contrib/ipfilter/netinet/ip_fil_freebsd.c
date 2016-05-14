@@ -742,7 +742,7 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	*/
 	if (M_WRITABLE(m) == 0) {
 		m0 = m_dup(m, M_DONTWAIT);
-		if (m0 != 0) {
+		if (m0 != NULL) {
 			FREE_MB_T(m);
 			m = m0;
 			*mpp = m;
@@ -893,7 +893,7 @@ ipf_fastroute(m0, mpp, fin, fdp)
 #else
 		MGET(m, M_DONTWAIT, MT_HEADER);
 #endif
-		if (m == 0) {
+		if (m == NULL) {
 			m = m0;
 			error = ENOBUFS;
 			goto bad;
