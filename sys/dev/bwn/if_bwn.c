@@ -7090,7 +7090,8 @@ bwn_rfswitch(void *arg)
 	KASSERT(mac->mac_status >= BWN_MAC_STATUS_STARTED,
 	    ("%s: invalid MAC status %d", __func__, mac->mac_status));
 
-	if (mac->mac_phy.rev >= 3 || mac->mac_phy.type == BWN_PHYTYPE_LP) {
+	if (mac->mac_phy.rev >= 3 || mac->mac_phy.type == BWN_PHYTYPE_LP
+	    || mac->mac_phy.type == BWN_PHYTYPE_N) {
 		if (!(BWN_READ_4(mac, BWN_RF_HWENABLED_HI)
 			& BWN_RF_HWENABLED_HI_MASK))
 			cur = 1;
@@ -7102,6 +7103,9 @@ bwn_rfswitch(void *arg)
 
 	if (mac->mac_flags & BWN_MAC_FLAG_RADIO_ON)
 		prev = 1;
+
+	DPRINTF(sc, BWN_DEBUG_RESET, "%s: called; cur=%d, prev=%d\n",
+	    __func__, cur, prev);
 
 	if (cur != prev) {
 		if (cur)
