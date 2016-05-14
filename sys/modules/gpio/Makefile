@@ -25,6 +25,6 @@
 # SUCH DAMAGE.
 #
 
-SUBDIR = gpiobus gpioiic gpioled gpiokeys
+SUBDIR = gpiobus gpioiic gpioled
 
 .include <bsd.subdir.mk>
