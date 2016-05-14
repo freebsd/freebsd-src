@@ -165,7 +165,8 @@ loop:
 			 * XXX check to see it is from ourself
 			 */
 			tsp_time_sec = msg->tsp_time.tv_sec;
-			(void)strcpy(newdate, ctime(&tsp_time_sec));
+			(void)strlcpy(newdate, ctime(&tsp_time_sec),
+			    sizeof(newdate));
 			if (!good_host_name(msg->tsp_name)) {
 				syslog(LOG_NOTICE,
 				       "attempted date change by %s to %s",
@@ -183,7 +184,8 @@ loop:
 			if (!fromnet || fromnet->status != MASTER)
 				break;
 			tsp_time_sec = msg->tsp_time.tv_sec;
-			(void)strcpy(newdate, ctime(&tsp_time_sec));
+			(void)strlcpy(newdate, ctime(&tsp_time_sec),
+			    sizeof(newdate));
 			htp = findhost(msg->tsp_name);
 			if (htp == NULL) {
 				syslog(LOG_ERR,
@@ -350,7 +352,7 @@ mchgdate(struct tsp *msg)
 
 	xmit(TSP_DATEACK, msg->tsp_seq, &from);
 
-	(void)strcpy(olddate, date());
+	(void)strlcpy(olddate, date(), sizeof(olddate));
 
 	/* adjust time for residence on the queue */
 	(void)gettimeofday(&otime, NULL);
