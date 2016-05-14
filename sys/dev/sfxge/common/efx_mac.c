@@ -44,7 +44,6 @@ siena_mac_multicast_list_set(
 
 #if EFSYS_OPT_SIENA
 static const efx_mac_ops_t	__efx_siena_mac_ops = {
-	NULL,					/* emo_reset */
 	siena_mac_poll,				/* emo_poll */
 	siena_mac_up,				/* emo_up */
 	siena_mac_reconfigure,			/* emo_addr_set */
@@ -66,7 +65,6 @@ static const efx_mac_ops_t	__efx_siena_mac_ops = {
 
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 static const efx_mac_ops_t	__efx_ef10_mac_ops = {
-	NULL,					/* emo_reset */
 	ef10_mac_poll,				/* emo_poll */
 	ef10_mac_up,				/* emo_up */
 	ef10_mac_addr_set,			/* emo_addr_set */
@@ -240,21 +238,11 @@ efx_mac_drain(
 
 	epp->ep_mac_drain = enabled;
 
-	if (enabled && emop->emo_reset != NULL) {
-		if ((rc = emop->emo_reset(enp)) != 0)
-			goto fail1;
-
-		EFSYS_ASSERT(enp->en_reset_flags & EFX_RESET_MAC);
-		enp->en_reset_flags &= ~EFX_RESET_PHY;
-	}
-
 	if ((rc = emop->emo_reconfigure(enp)) != 0)
-		goto fail2;
+		goto fail1;
 
 	return (0);
 
-fail2:
-	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
@@ -739,18 +727,8 @@ efx_mac_select(
 	epp->ep_emop = emop;
 	epp->ep_mac_type = type;
 
-	if (emop->emo_reset != NULL) {
-		if ((rc = emop->emo_reset(enp)) != 0)
-			goto fail2;
-
-		EFSYS_ASSERT(enp->en_reset_flags & EFX_RESET_MAC);
-		enp->en_reset_flags &= ~EFX_RESET_MAC;
-	}
-
 	return (0);
 
-fail2:
-	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
