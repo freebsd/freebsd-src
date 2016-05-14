@@ -1,5 +1,6 @@
 #
-# ALLWINNER -- Custom configuration for the Allwinner A20 and A31 ARM SoC
+# ALLWINNER -- Custom configuration for the Allwinner A20, A31, A31S, A83T,
+# and H3 ARM SoCs.
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
