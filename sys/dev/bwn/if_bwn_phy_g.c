@@ -626,7 +626,7 @@ bwn_phy_g_im(struct bwn_mac *mac, int mode)
 	return (0);
 }
 
-int
+bwn_txpwr_result_t
 bwn_phy_g_recalc_txpwr(struct bwn_mac *mac, int ignore_tssi)
 {
 	struct bwn_phy *phy = &mac->mac_phy;
