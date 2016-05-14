@@ -683,15 +683,6 @@ efx_mon_fini(
 
 /* PHY */
 
-#define	PMA_PMD_MMD	1
-#define	PCS_MMD		3
-#define	PHY_XS_MMD	4
-#define	DTE_XS_MMD	5
-#define	AN_MMD		7
-#define	CL22EXT_MMD	29
-
-#define	MAXMMD		((1 << 5) - 1)
-
 extern	__checkReturn	efx_rc_t
 efx_phy_verify(
 	__in		efx_nic_t *enp);
