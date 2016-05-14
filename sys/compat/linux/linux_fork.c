@@ -157,7 +157,7 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 		ff |= RFSIGSHARE;
 	/*
 	 * XXX: In Linux, sharing of fs info (chroot/cwd/umask)
-	 * and open files is independant.  In FreeBSD, its in one
+	 * and open files is independent.  In FreeBSD, its in one
 	 * structure but in reality it does not cause any problems
 	 * because both of these flags are usually set together.
 	 */
