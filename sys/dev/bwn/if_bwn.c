@@ -5097,6 +5097,21 @@ bwn_intr_txeof(struct bwn_mac *mac)
 		stat.ampdu = (tmp & 0x0020) ? 1 : 0;
 		stat.ack = (tmp & 0x0002) ? 1 : 0;
 
+		DPRINTF(mac->mac_sc, BWN_DEBUG_XMIT,
+		    "%s: cookie=%d, seq=%d, phystat=0x%02x, framecnt=%d, "
+		    "rtscnt=%d, sreason=%d, pm=%d, im=%d, ampdu=%d, ack=%d\n",
+		    __func__,
+		    stat.cookie,
+		    stat.seq,
+		    stat.phy_stat,
+		    stat.framecnt,
+		    stat.rtscnt,
+		    stat.sreason,
+		    stat.pm,
+		    stat.im,
+		    stat.ampdu,
+		    stat.ack);
+
 		bwn_handle_txeof(mac, &stat);
 	}
 }
@@ -5733,8 +5748,19 @@ bwn_dma_handle_txeof(struct bwn_mac *mac,
 			KASSERT(meta->mt_m != NULL,
 			    ("%s:%d: fail", __func__, __LINE__));
 
-			/* Just count full frame retries for now */
-			retrycnt = status->framecnt - 1;
+			/*
+			 * If we don't get an ACK, then we should log the
+			 * full framecnt.  That may be 0 if it's a PHY
+			 * failure, so ensure that gets logged as some
+			 * retry attempt.
+			 */
+			if (status->ack) {
+				retrycnt = status->framecnt - 1;
+			} else {
+				retrycnt = status->framecnt;
+				if (retrycnt == 0)
+					retrycnt = 1;
+			}
 			ieee80211_ratectl_tx_complete(meta->mt_ni->ni_vap, meta->mt_ni,
 			    status->ack ?
 			      IEEE80211_RATECTL_TX_SUCCESS :
@@ -5784,8 +5810,19 @@ bwn_pio_handle_txeof(struct bwn_mac *mac,
 		 * be done before releasing the node reference.
 		 */
 
-		/* Just count full frame retries for now */
-		retrycnt = status->framecnt - 1;
+		/*
+		 * If we don't get an ACK, then we should log the
+		 * full framecnt.  That may be 0 if it's a PHY
+		 * failure, so ensure that gets logged as some
+		 * retry attempt.
+		 */
+		if (status->ack) {
+			retrycnt = status->framecnt - 1;
+		} else {
+			retrycnt = status->framecnt;
+			if (retrycnt == 0)
+				retrycnt = 1;
+		}
 		ieee80211_ratectl_tx_complete(tp->tp_ni->ni_vap, tp->tp_ni,
 		    status->ack ?
 		      IEEE80211_RATECTL_TX_SUCCESS :
