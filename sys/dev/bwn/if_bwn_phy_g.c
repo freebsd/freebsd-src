@@ -418,7 +418,7 @@ genbbatt:
 		bwn_reset_core(mac, 0);
 		bwn_phy_g_init_sub(mac);
 		phy->gmode = 1;
-		bwn_reset_core(mac, BWN_TGSLOW_SUPPORT_G);
+		bwn_reset_core(mac, 1);
 	}
 	return (0);
 }
