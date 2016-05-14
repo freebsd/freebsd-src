@@ -256,13 +256,11 @@ add_filename(struct snmp_toolinfo *snmptoolctx, const char *filename,
 		return (-1);
 	}
 
-	if ((entry = malloc(sizeof(struct fname))) == NULL) {
+	if ((entry = calloc(1, sizeof(struct fname))) == NULL) {
 		warnx("malloc() failed - %s", strerror(errno));
 		free(fstring);
 		return (-1);
 	}
-
-	memset(entry, 0, sizeof(struct fname));
 
 	if (cut != NULL)
 		asn_append_oid(&(entry->cut), cut);
@@ -1366,12 +1364,11 @@ snmp_object_add(struct snmp_toolinfo *snmptoolctx, snmp_verify_inoid_f func,
 		return (-1);
 	}
 
-	if ((obj = malloc(sizeof(struct snmp_object))) == NULL) {
+	if ((obj = calloc(1, sizeof(struct snmp_object))) == NULL) {
 		syslog(LOG_ERR, "malloc() failed: %s", strerror(errno));
 		return (-1);
 	}
 
-	memset(obj, 0, sizeof(struct snmp_object));
 	if (func(snmptoolctx, obj, string) < 0) {
 		warnx("Invalid OID - %s", string);
 		free(obj);
