@@ -711,7 +711,7 @@ supply(struct sockaddr_in *dst,
 
 	switch (type) {
 	case OUT_MULTICAST:
-		if (ifp->int_if_flags & IFF_MULTICAST)
+		if (ifp != NULL && ifp->int_if_flags & IFF_MULTICAST)
 			v2buf.type = OUT_MULTICAST;
 		else
 			v2buf.type = NO_OUT_MULTICAST;
@@ -757,7 +757,7 @@ supply(struct sockaddr_in *dst,
 	/*  Fake a default route if asked and if there is not already
 	 * a better, real default route.
 	 */
-	if (supplier && (def_metric = ifp->int_d_metric) != 0) {
+	if (supplier && ifp && (def_metric = ifp->int_d_metric) != 0) {
 		if ((rt = rtget(RIP_DEFAULT, 0)) == NULL 
 		    || rt->rt_metric+ws.metric >= def_metric) {
 			ws.state |= WS_ST_DEFAULT;
