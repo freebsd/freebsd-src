@@ -132,12 +132,12 @@ hwreset_get_by_ofw_idx(device_t consumer_dev, int idx, hwreset_t *rst)
 	/* Tranlate provider to device */
 	rstdev = OF_device_from_xref(xnode);
 	if (rstdev == NULL) {
-		free(cells, M_OFWPROP);
+		OF_prop_free(cells);
 		return (ENODEV);
 	}
 	/* Map reset to number */
 	rv = HWRESET_MAP(rstdev, xnode, ncells, cells, &id);
-	free(cells, M_OFWPROP);
+	OF_prop_free(cells);
 	if (rv != 0)
 		return (rv);
 
