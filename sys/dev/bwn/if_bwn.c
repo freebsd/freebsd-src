@@ -5726,6 +5726,13 @@ bwn_rxeof(struct bwn_mac *mac, struct mbuf *m, const void *_rxhdr)
 		    !! (phystat0 & BWN_RX_PHYST0_GAINCTL),
 		    !! (phystat3 & BWN_RX_PHYST3_TRSTATE));
 		break;
+	case BWN_PHYTYPE_N:
+		/* Broadcom has code for min/avg, but always used max */
+		if (rxhdr->phy.n.power0 == 16 || rxhdr->phy.n.power0 == 32)
+			rssi = max(rxhdr->phy.n.power1, rxhdr->ps2.n.power2);
+		else
+			rssi = max(rxhdr->phy.n.power0, rxhdr->phy.n.power1);
+		break;
 	default:
 		/* XXX TODO: implement rssi for other PHYs */
 		break;
