@@ -35,6 +35,7 @@
 #include "svn_props.h"
 
 #include "private/svn_fspath.h"
+#include "private/svn_sorts_private.h"
 #include "ra_loader.h"
 #include "svn_private_config.h"
 
@@ -315,6 +316,7 @@ svn_ra__locations_from_log(svn_ra_session_t *session,
   svn_revnum_t youngest_requested, oldest_requested, youngest, oldest;
   svn_node_kind_t kind;
   const char *fs_path;
+  apr_array_header_t *sorted_location_revisions;
 
   /* Fetch the absolute FS path associated with PATH. */
   SVN_ERR(get_fs_path(&fs_path, session, path, pool));
@@ -336,11 +338,11 @@ svn_ra__locations_from_log(svn_ra_session_t *session,
   /* Figure out the youngest and oldest revs (amongst the set of
      requested revisions + the peg revision) so we can avoid
      unnecessary log parsing. */
-  qsort(location_revisions->elts, location_revisions->nelts,
-        location_revisions->elt_size, compare_revisions);
-  oldest_requested = APR_ARRAY_IDX(location_revisions, 0, svn_revnum_t);
-  youngest_requested = APR_ARRAY_IDX(location_revisions,
-                                     location_revisions->nelts - 1,
+  sorted_location_revisions = apr_array_copy(pool, location_revisions);
+  svn_sort__array(sorted_location_revisions, compare_revisions);
+  oldest_requested = APR_ARRAY_IDX(sorted_location_revisions, 0, svn_revnum_t);
+  youngest_requested = APR_ARRAY_IDX(sorted_location_revisions,
+                                     sorted_location_revisions->nelts - 1,
                                      svn_revnum_t);
   youngest = peg_revision;
   youngest = (oldest_requested > youngest) ? oldest_requested : youngest;
@@ -352,7 +354,7 @@ svn_ra__locations_from_log(svn_ra_session_t *session,
   /* Populate most of our log receiver baton structure. */
   lrb.kind = kind;
   lrb.last_path = fs_path;
-  lrb.location_revisions = apr_array_copy(pool, location_revisions);
+  lrb.location_revisions = apr_array_copy(pool, sorted_location_revisions);
   lrb.peg_revision = peg_revision;
   lrb.peg_path = NULL;
   lrb.locations = locations;
@@ -378,9 +380,9 @@ svn_ra__locations_from_log(svn_ra_session_t *session,
   if (lrb.last_path)
     {
       int i;
-      for (i = 0; i < location_revisions->nelts; i++)
+      for (i = 0; i < sorted_location_revisions->nelts; i++)
         {
-          svn_revnum_t rev = APR_ARRAY_IDX(location_revisions, i,
+          svn_revnum_t rev = APR_ARRAY_IDX(sorted_location_revisions, i,
                                            svn_revnum_t);
           if (! apr_hash_get(locations, &rev, sizeof(rev)))
             apr_hash_set(locations, apr_pmemdup(pool, &rev, sizeof(rev)),
@@ -920,9 +922,9 @@ svn_ra__get_inherited_props_walk(svn_ra_session_t *session,
            hi;
            hi = apr_hash_next(hi))
         {
-          const char *name = svn__apr_hash_index_key(hi);
-          apr_ssize_t klen = svn__apr_hash_index_klen(hi);
-          svn_string_t *value = svn__apr_hash_index_val(hi);
+          const char *name = apr_hash_this_key(hi);
+          apr_ssize_t klen = apr_hash_this_key_len(hi);
+          svn_string_t *value = apr_hash_this_val(hi);
 
           if (svn_property_kind2(name) == svn_prop_regular_kind)
             {
@@ -940,7 +942,7 @@ svn_ra__get_inherited_props_walk(svn_ra_session_t *session,
                                                          parent_url,
                                                          result_pool);
           new_iprop->prop_hash = final_hash;
-          svn_sort__array_insert(&new_iprop, *inherited_props, 0);
+          svn_sort__array_insert(*inherited_props, &new_iprop, 0);
         }
     }
 

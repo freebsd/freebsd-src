@@ -33,11 +33,22 @@
 extern "C" {
 #endif
 
+/* The kind values used on NODES */
 static const svn_token_map_t kind_map[] = {
   { "file", svn_node_file }, /* MAP_FILE */
   { "dir", svn_node_dir }, /* MAP_DIR */
   { "symlink", svn_node_symlink }, /* MAP_SYMLINK */
   { "unknown", svn_node_unknown }, /* MAP_UNKNOWN */
+  { NULL }
+};
+
+/* Like kind_map, but also supports 'none' */
+static const svn_token_map_t kind_map_none[] = {
+  { "none", svn_node_none },
+  { "file", svn_node_file },
+  { "dir", svn_node_dir },
+  { "symlink", svn_node_symlink },
+  { "unknown", svn_node_unknown },
   { NULL }
 };
 

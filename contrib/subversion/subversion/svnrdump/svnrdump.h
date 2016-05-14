@@ -89,6 +89,7 @@ svn_rdump__load_dumpstream(svn_stream_t *stream,
                            svn_ra_session_t *session,
                            svn_ra_session_t *aux_session,
                            svn_boolean_t quiet,
+                           apr_hash_t *skip_revprops,
                            svn_cancel_func_t cancel_func,
                            void *cancel_baton,
                            apr_pool_t *pool);

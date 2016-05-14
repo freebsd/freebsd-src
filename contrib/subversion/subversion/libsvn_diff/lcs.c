@@ -345,7 +345,7 @@ svn_diff__lcs(svn_diff__position_t *position_list1, /* pointer to tail (ring) */
         {
           svn_diff__snake(fp + k, token_counts, &lcs_freelist, pool);
         }
-	  /* for k > 0, deletions are free */
+      /* for k > 0, deletions are free */
       for (k = (d > 0 ? d : 0) + p; k >= 0; k--)
         {
           svn_diff__snake(fp + k, token_counts, &lcs_freelist, pool);

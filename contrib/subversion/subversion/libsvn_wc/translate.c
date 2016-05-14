@@ -30,6 +30,7 @@
 #include <apr_file_io.h>
 #include <apr_strings.h>
 
+#include "svn_private_config.h"
 #include "svn_types.h"
 #include "svn_string.h"
 #include "svn_dirent_uri.h"
@@ -45,24 +46,8 @@
 #include "translate.h"
 #include "props.h"
 
-#include "svn_private_config.h"
 #include "private/svn_wc_private.h"
 
-
-
-/* */
-static svn_error_t *
-read_handler_unsupported(void *baton, char *buffer, apr_size_t *len)
-{
-  SVN_ERR_MALFUNCTION();
-}
-
-/* */
-static svn_error_t *
-write_handler_unsupported(void *baton, const char *buffer, apr_size_t *len)
-{
-  SVN_ERR_MALFUNCTION();
-}
 
 svn_error_t *
 svn_wc__internal_translated_stream(svn_stream_t **stream,
@@ -133,16 +118,18 @@ svn_wc__internal_translated_stream(svn_stream_t **stream,
                                                 FALSE /* expand */,
                                                 result_pool);
 
-          /* Enforce our contract. TO_NF streams are readonly */
-          svn_stream_set_write(*stream, write_handler_unsupported);
+          /* streams enforce our contract that TO_NF streams are read-only
+           * by returning SVN_ERR_STREAM_NOT_SUPPORTED when trying to
+           * write to them. */
         }
       else
         {
           *stream = svn_subst_stream_translated(*stream, eol, TRUE,
                                                 keywords, TRUE, result_pool);
 
-          /* Enforce our contract. FROM_NF streams are write-only */
-          svn_stream_set_read(*stream, read_handler_unsupported);
+          /* streams enforce our contract that FROM_NF streams are write-only
+           * by returning SVN_ERR_STREAM_NOT_SUPPORTED when trying to
+           * read them. */
         }
     }
 
@@ -329,12 +316,15 @@ svn_wc__expand_keywords(apr_hash_t **keywords,
                                    db, local_abspath,
                                    scratch_pool, scratch_pool));
 
-      if (repos_relpath)
-        url = svn_path_url_add_component2(repos_root_url, repos_relpath,
-                                          scratch_pool);
-      else
-         SVN_ERR(svn_wc__db_read_url(&url, db, local_abspath, scratch_pool,
-                                     scratch_pool));
+      /* Handle special statuses (e.g. added) */
+      if (!repos_relpath)
+         SVN_ERR(svn_wc__db_read_repos_info(NULL, &repos_relpath,
+                                            &repos_root_url, NULL,
+                                            db, local_abspath,
+                                            scratch_pool, scratch_pool));
+
+      url = svn_path_url_add_component2(repos_root_url, repos_relpath,
+                                        scratch_pool);
     }
   else
     {

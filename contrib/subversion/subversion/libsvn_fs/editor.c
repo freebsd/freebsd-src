@@ -62,9 +62,7 @@ struct edit_baton {
   svn_fs_root_t *root;
 };
 
-#define FSPATH(relpath, pool) apr_pstrcat(pool, "/", relpath, NULL)
-#define UNUSED(x) ((void)(x))
-
+#define FSPATH(relpath, pool) apr_pstrcat(pool, "/", relpath, SVN_VA_NULL)
 
 static svn_error_t *
 get_root(svn_fs_root_t **root,
@@ -94,8 +92,8 @@ add_new_props(svn_fs_root_t *root,
   for (hi = apr_hash_first(scratch_pool, props); hi;
        hi = apr_hash_next(hi))
     {
-      const char *name = svn__apr_hash_index_key(hi);
-      const svn_string_t *value = svn__apr_hash_index_val(hi);
+      const char *name = apr_hash_this_key(hi);
+      const svn_string_t *value = apr_hash_this_val(hi);
 
       svn_pool_clear(iterpool);
 
@@ -177,7 +175,7 @@ can_modify(svn_fs_root_t *txn_root,
   SVN_ERR(svn_fs_node_created_rev(&created_rev, txn_root, fspath,
                                   scratch_pool));
 
-  /* Uncommitted nodes (eg. a descendent of a copy/move/rotate destination)
+  /* Uncommitted nodes (eg. a descendant of a copy/move destination)
      have no (committed) revision number. Let the caller go ahead and
      modify these nodes.
 
@@ -195,7 +193,7 @@ can_modify(svn_fs_root_t *txn_root,
      have supplied a valid revision number [that they expect to change].
      The checks further below will determine the out-of-dateness of the
      specified revision.  */
-  /* ### ugh. descendents of copy/move/rotate destinations carry along
+  /* ### ugh. descendants of copy/move destinations carry along
      ### their original immutable state and (thus) a valid CREATED_REV.
      ### but they are logically uncommitted, so the caller will pass
      ### SVN_INVALID_REVNUM. (technically, the caller could provide
@@ -203,9 +201,9 @@ can_modify(svn_fs_root_t *txn_root,
      ### API).
      ###
      ### for now, we will assume the caller knows what they are doing
-     ### and an invalid revision implies such a descendent. in the
+     ### and an invalid revision implies such a descendant. in the
      ### future, we could examine the ancestor chain looking for a
-     ### copy/move/rotate-here node and allow the modification (and the
+     ### copy/move-here node and allow the modification (and the
      ### converse: if no such ancestor, the caller must specify the
      ### correct/intended revision to modify).
   */
@@ -240,23 +238,18 @@ can_modify(svn_fs_root_t *txn_root,
          of those new revisions.
          In either case, the node may not have changed in those new
          revisions; use the node's ID to determine this case.  */
-      const svn_fs_id_t *txn_noderev_id;
       svn_fs_root_t *rev_root;
-      const svn_fs_id_t *new_noderev_id;
-
-      /* The ID of the node that we would be modifying in the txn  */
-      SVN_ERR(svn_fs_node_id(&txn_noderev_id, txn_root, fspath,
-                             scratch_pool));
+      svn_fs_node_relation_t relation;
 
       /* Get the ID from the future/new revision.  */
       SVN_ERR(svn_fs_revision_root(&rev_root, svn_fs_root_fs(txn_root),
                                    revision, scratch_pool));
-      SVN_ERR(svn_fs_node_id(&new_noderev_id, rev_root, fspath,
-                             scratch_pool));
+      SVN_ERR(svn_fs_node_relation(&relation, txn_root, fspath, rev_root,
+                                   fspath, scratch_pool));
       svn_fs_close_root(rev_root);
 
       /* Has the target node changed in the future?  */
-      if (svn_fs_compare_ids(txn_noderev_id, new_noderev_id) != 0)
+      if (relation != svn_fs_node_unchanged)
         {
           /* Restarting the commit will base the txn on the future/new
              revision, allowing the modification at REVISION.  */
@@ -299,7 +292,7 @@ can_create(svn_fs_root_t *txn_root,
      ### test the ancestor to determine if it has been *-here in this
      ### txn, or just a simple modification.  */
 
-  /* Are any of the parents copied/moved/rotated-here?  */
+  /* Are any of the parents copied/moved-here?  */
   for (cur_fspath = fspath;
        strlen(cur_fspath) > 1;  /* not the root  */
        cur_fspath = svn_fspath__dirname(cur_fspath, scratch_pool))
@@ -488,9 +481,9 @@ static svn_error_t *
 alter_file_cb(void *baton,
               const char *relpath,
               svn_revnum_t revision,
-              apr_hash_t *props,
               const svn_checksum_t *checksum,
               svn_stream_t *contents,
+              apr_hash_t *props,
               apr_pool_t *scratch_pool)
 {
   struct edit_baton *eb = baton;
@@ -521,13 +514,14 @@ static svn_error_t *
 alter_symlink_cb(void *baton,
                  const char *relpath,
                  svn_revnum_t revision,
-                 apr_hash_t *props,
                  const char *target,
+                 apr_hash_t *props,
                  apr_pool_t *scratch_pool)
 {
   struct edit_baton *eb = baton;
 
-  UNUSED(eb); SVN__NOT_IMPLEMENTED();
+  SVN_UNUSED(eb);
+  SVN__NOT_IMPLEMENTED();
 }
 
 
@@ -633,19 +627,6 @@ move_cb(void *baton,
 }
 
 
-/* This implements svn_editor_cb_rotate_t */
-static svn_error_t *
-rotate_cb(void *baton,
-          const apr_array_header_t *relpaths,
-          const apr_array_header_t *revisions,
-          apr_pool_t *scratch_pool)
-{
-  struct edit_baton *eb = baton;
-
-  UNUSED(eb); SVN__NOT_IMPLEMENTED();
-}
-
-
 /* This implements svn_editor_cb_complete_t */
 static svn_error_t *
 complete_cb(void *baton,
@@ -714,7 +695,6 @@ make_editor(svn_editor_t **editor,
     delete_cb,
     copy_cb,
     move_cb,
-    rotate_cb,
     complete_cb,
     abort_cb
   };
@@ -804,9 +784,9 @@ svn_fs__editor_commit(svn_revnum_t *revision,
 
   if (!err)
     err = svn_fs_commit_txn(&inner_conflict_path,
-                            revision,
-                            eb->txn,
-                            scratch_pool);
+                             revision,
+                             eb->txn,
+                             scratch_pool);
   if (SVN_IS_VALID_REVNUM(*revision))
     {
       if (err)
@@ -829,7 +809,7 @@ svn_fs__editor_commit(svn_revnum_t *revision,
           /* Copy this into the correct pool (see note above).  */
           *conflict_path = apr_pstrdup(result_pool, inner_conflict_path);
 
-          /* Return sucess. The caller should inspect CONFLICT_PATH to
+          /* Return success. The caller should inspect CONFLICT_PATH to
              determine this particular case.  */
           svn_error_clear(err);
           err = SVN_NO_ERROR;

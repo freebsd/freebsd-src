@@ -40,11 +40,11 @@
 #include "svn_hash.h"
 
 #include <assert.h>
-#include <stdlib.h>  /* for qsort() */
 
 #include "svn_private_config.h"
 #include "private/svn_wc_private.h"
 #include "private/svn_client_private.h"
+#include "private/svn_sorts_private.h"
 
 /*** Uncomment this to turn on commit driver debugging. ***/
 /*
@@ -62,10 +62,12 @@ fixup_commit_error(const char *local_abspath,
                    apr_pool_t *scratch_pool)
 {
   if (err->apr_err == SVN_ERR_FS_NOT_FOUND
+      || err->apr_err == SVN_ERR_FS_CONFLICT
       || err->apr_err == SVN_ERR_FS_ALREADY_EXISTS
       || err->apr_err == SVN_ERR_FS_TXN_OUT_OF_DATE
       || err->apr_err == SVN_ERR_RA_DAV_PATH_NOT_FOUND
       || err->apr_err == SVN_ERR_RA_DAV_ALREADY_EXISTS
+      || err->apr_err == SVN_ERR_RA_DAV_PRECONDITION_FAILED
       || svn_error_find_cause(err, SVN_ERR_RA_OUT_OF_DATE))
     {
       if (ctx->notify_func2)
@@ -102,6 +104,7 @@ fixup_commit_error(const char *local_abspath,
     }
   else if (svn_error_find_cause(err, SVN_ERR_FS_NO_LOCK_TOKEN)
            || err->apr_err == SVN_ERR_FS_LOCK_OWNER_MISMATCH
+           || err->apr_err == SVN_ERR_FS_BAD_LOCK_TOKEN
            || err->apr_err == SVN_ERR_RA_NOT_LOCKED)
     {
       if (ctx->notify_func2)
@@ -464,10 +467,12 @@ harvest_not_present_for_copy(svn_wc_context_t *wc_ctx,
   apr_pool_t *iterpool = svn_pool_create(scratch_pool);
   int i;
 
+  SVN_ERR_ASSERT(commit_relpath != NULL);
+
   /* A function to retrieve not present children would be nice to have */
-  SVN_ERR(svn_wc__node_get_children_of_working_node(
-                                    &children, wc_ctx, local_abspath, TRUE,
-                                    scratch_pool, iterpool));
+  SVN_ERR(svn_wc__node_get_not_present_children(&children, wc_ctx,
+                                                local_abspath,
+                                                scratch_pool, iterpool));
 
   for (i = 0; i < children->nelts; i++)
     {
@@ -483,13 +488,10 @@ harvest_not_present_for_copy(svn_wc_context_t *wc_ctx,
                                           this_abspath, FALSE, scratch_pool));
 
       if (!not_present)
-        continue;
+        continue; /* Node is replaced */
 
-      if (commit_relpath == NULL)
-        this_commit_relpath = NULL;
-      else
-        this_commit_relpath = svn_relpath_join(commit_relpath, name,
-                                              iterpool);
+      this_commit_relpath = svn_relpath_join(commit_relpath, name,
+                                             iterpool);
 
       /* We should check if we should really add a delete operation */
       if (check_url_func)
@@ -502,7 +504,7 @@ harvest_not_present_for_copy(svn_wc_context_t *wc_ctx,
           /* Determine from what parent we would be the deleted child */
           SVN_ERR(svn_wc__node_get_origin(
                               NULL, &parent_rev, &parent_repos_relpath,
-                              &parent_repos_root_url, NULL, NULL,
+                              &parent_repos_root_url, NULL, NULL, NULL,
                               wc_ctx,
                               svn_dirent_dirname(this_abspath,
                                                   scratch_pool),
@@ -768,13 +770,14 @@ harvest_status_callback(void *status_baton,
            && !(state_flags & SVN_CLIENT_COMMIT_ITEM_DELETE))
     {
       svn_revnum_t dir_rev = SVN_INVALID_REVNUM;
+      const char *dir_repos_relpath = NULL;
 
-      if (!copy_mode_root && !status->switched && !is_added)
-        SVN_ERR(svn_wc__node_get_base(NULL, &dir_rev, NULL, NULL, NULL, NULL,
+      if (!copy_mode_root && !is_added)
+        SVN_ERR(svn_wc__node_get_base(NULL, &dir_rev, &dir_repos_relpath, NULL,
+                                      NULL, NULL,
                                       wc_ctx, svn_dirent_dirname(local_abspath,
                                                                  scratch_pool),
                                       FALSE /* ignore_enoent */,
-                                      FALSE /* show_hidden */,
                                       scratch_pool, scratch_pool));
 
       if (copy_mode_root || status->switched || node_rev != dir_rev)
@@ -793,6 +796,25 @@ harvest_status_callback(void *status_baton,
               /* Copy BASE location, to represent a mixed-rev or switch copy */
               cf_rev = status->revision;
               cf_relpath = status->repos_relpath;
+            }
+
+          if (!copy_mode_root && !is_added && baton->check_url_func
+              && dir_repos_relpath)
+            {
+              svn_node_kind_t me_kind;
+              /* Maybe we need to issue an delete (mixed rev/switched) */
+
+              SVN_ERR(baton->check_url_func(
+                            baton->check_url_baton, &me_kind,
+                            svn_path_url_add_component2(repos_root_url,
+                                        svn_relpath_join(dir_repos_relpath,
+                                            svn_dirent_basename(local_abspath,
+                                                                NULL),
+                                            scratch_pool),
+                                        scratch_pool),
+                                        dir_rev, scratch_pool));
+              if (me_kind != svn_node_none)
+                state_flags |= SVN_CLIENT_COMMIT_ITEM_DELETE;
             }
         }
     }
@@ -919,7 +941,7 @@ harvest_status_callback(void *status_baton,
            * directory. In either case, we require the op-root of the parent
            * to be part of the commit. See issue #4059. */
           SVN_ERR(svn_wc__node_get_origin(&parent_is_copy, NULL, NULL, NULL,
-                                          NULL, &copy_root_abspath,
+                                          NULL, NULL, &copy_root_abspath,
                                           wc_ctx, parent_abspath,
                                           FALSE, scratch_pool, scratch_pool));
 
@@ -1233,13 +1255,13 @@ svn_client__harvest_committables(svn_client__committables_t **committables,
   /* Make sure that every path in danglers is part of the commit. */
   for (hi = apr_hash_first(scratch_pool, danglers); hi; hi = apr_hash_next(hi))
     {
-      const char *dangling_parent = svn__apr_hash_index_key(hi);
+      const char *dangling_parent = apr_hash_this_key(hi);
 
       svn_pool_clear(iterpool);
 
       if (! look_up_committable(*committables, dangling_parent, iterpool))
         {
-          const char *dangling_child = svn__apr_hash_index_val(hi);
+          const char *dangling_child = apr_hash_this_val(hi);
 
           if (ctx->notify_func2 != NULL)
             {
@@ -1357,7 +1379,10 @@ svn_client__get_copy_committables(svn_client__committables_t **committables,
 }
 
 
-int svn_client__sort_commit_item_urls(const void *a, const void *b)
+/* A svn_sort__array()/qsort()-compatible sort routine for sorting
+   an array of svn_client_commit_item_t *'s by their URL member. */
+static int
+sort_commit_item_urls(const void *a, const void *b)
 {
   const svn_client_commit_item3_t *item1
     = *((const svn_client_commit_item3_t * const *) a);
@@ -1381,8 +1406,7 @@ svn_client__condense_commit_items(const char **base_url,
   SVN_ERR_ASSERT(ci && ci->nelts);
 
   /* Sort our commit items by their URLs. */
-  qsort(ci->elts, ci->nelts,
-        ci->elt_size, svn_client__sort_commit_item_urls);
+  svn_sort__array(ci, sort_commit_item_urls);
 
   /* Loop through the URLs, finding the longest usable ancestor common
      to all of them, and making sure there are no duplicate URLs.  */
@@ -1470,6 +1494,7 @@ struct file_mod_t
 {
   const svn_client_commit_item3_t *item;
   void *file_baton;
+  apr_pool_t *file_pool;
 };
 
 
@@ -1534,6 +1559,9 @@ do_item_commit(void **dir_baton,
     file_pool = apr_hash_pool_get(file_mods);
   else
     file_pool = pool;
+
+  /* Subpools are cheap, but memory isn't */
+  file_pool = svn_pool_create(file_pool);
 
   /* Call the cancellation function. */
   if (ctx->cancel_func)
@@ -1618,11 +1646,12 @@ do_item_commit(void **dir_baton,
       else
         notify = NULL;
 
+
       if (notify)
         {
           notify->kind = item->kind;
           notify->path_prefix = icb->notify_path_prefix;
-          (*ctx->notify_func2)(ctx->notify_baton2, notify, pool);
+          ctx->notify_func2(ctx->notify_baton2, notify, pool);
         }
     }
 
@@ -1783,6 +1812,7 @@ do_item_commit(void **dir_baton,
       /* Add this file mod to the FILE_MODS hash. */
       mod->item = item;
       mod->file_baton = file_baton;
+      mod->file_pool = file_pool;
       svn_hash_sets(file_mods, item->session_relpath, mod);
     }
   else if (file_baton)
@@ -1790,7 +1820,7 @@ do_item_commit(void **dir_baton,
       /* Close any outstanding file batons that didn't get caught by
          the "has local mods" conditional above. */
       err = editor->close_file(file_baton, NULL, file_pool);
-
+      svn_pool_destroy(file_pool);
       if (err)
         goto fixup_error;
     }
@@ -1858,7 +1888,7 @@ svn_client__do_commit(const char *base_url,
        hi;
        hi = apr_hash_next(hi))
     {
-      struct file_mod_t *mod = svn__apr_hash_index_val(hi);
+      struct file_mod_t *mod = apr_hash_this_val(hi);
       const svn_client_commit_item3_t *item = mod->item;
       const svn_checksum_t *new_text_base_md5_checksum;
       const svn_checksum_t *new_text_base_sha1_checksum;
@@ -1905,6 +1935,17 @@ svn_client__do_commit(const char *base_url,
 
       if (sha1_checksums)
         svn_hash_sets(*sha1_checksums, item->path, new_text_base_sha1_checksum);
+
+      svn_pool_destroy(mod->file_pool);
+    }
+
+  if (ctx->notify_func2)
+    {
+      svn_wc_notify_t *notify;
+      notify = svn_wc_create_notify_url(base_url,
+                                        svn_wc_notify_commit_finalizing,
+                                        iterpool);
+      ctx->notify_func2(ctx->notify_baton2, notify, iterpool);
     }
 
   svn_pool_destroy(iterpool);

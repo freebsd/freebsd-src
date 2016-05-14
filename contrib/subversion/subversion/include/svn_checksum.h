@@ -48,7 +48,17 @@ typedef enum svn_checksum_kind_t
   svn_checksum_md5,
 
   /** The checksum is (or should be set to) a SHA1 checksum. */
-  svn_checksum_sha1
+  svn_checksum_sha1,
+
+  /** The checksum is (or should be set to) a FNV-1a 32 bit checksum,
+   * in big endian byte order.
+   * @since New in 1.9. */
+  svn_checksum_fnv1a_32,
+
+  /** The checksum is (or should be set to) a modified FNV-1a 32 bit,
+   * in big endian byte order.
+   * @since New in 1.9. */
+  svn_checksum_fnv1a_32x4
 } svn_checksum_kind_t;
 
 /**

@@ -1211,7 +1211,7 @@ open_anchor(svn_wc_adm_access_t **anchor_access,
           if (disjoint)
             {
               /* Switched or disjoint, so drop P_ACCESS. Don't close any
-                 descendents, or we might blast the child.  */
+                 descendants, or we might blast the child.  */
               err = close_single(p_access, FALSE /* preserve_lock */, pool);
               if (err)
                 {
@@ -1308,13 +1308,13 @@ do_close(svn_wc_adm_access_t *adm_access,
       /* Gather all the opened access batons from the DB.  */
       opened = svn_wc__db_temp_get_all_access(adm_access->db, scratch_pool);
 
-      /* Close any that are descendents of this baton.  */
+      /* Close any that are descendants of this baton.  */
       for (hi = apr_hash_first(scratch_pool, opened);
            hi;
            hi = apr_hash_next(hi))
         {
-          const char *abspath = svn__apr_hash_index_key(hi);
-          svn_wc_adm_access_t *child = svn__apr_hash_index_val(hi);
+          const char *abspath = apr_hash_this_key(hi);
+          svn_wc_adm_access_t *child = apr_hash_this_val(hi);
           const char *path = child->path;
 
           if (IS_MISSING(child))
@@ -1630,7 +1630,7 @@ svn_wc__acquire_write_lock_for_resolve(const char **lock_root_abspath,
                                                 scratch_pool, scratch_pool));
 
       /* It's possible for the required lock path to be an ancestor
-         of, a descendent of, or equal to, the obtained lock path. If
+         of, a descendant of, or equal to, the obtained lock path. If
          it's an ancestor we have to try again, otherwise the obtained
          lock will do. */
       child = svn_dirent_skip_ancestor(required_abspath, obtained_abspath);
@@ -1643,7 +1643,7 @@ svn_wc__acquire_write_lock_for_resolve(const char **lock_root_abspath,
         }
       else
         {
-          /* required should be a descendent of, or equal to, obtained */
+          /* required should be a descendant of, or equal to, obtained */
           SVN_ERR_ASSERT(!strcmp(required_abspath, obtained_abspath)
                          || svn_dirent_skip_ancestor(obtained_abspath,
                                                      required_abspath));

@@ -382,6 +382,11 @@ svn_repos__authz_read(svn_authz_t **authz_p,
                       svn_boolean_t accept_urls,
                       apr_pool_t *pool);
 
+/* Walk the configuration in AUTHZ looking for any errors. */
+svn_error_t *
+svn_repos__authz_validate(svn_authz_t *authz,
+                          apr_pool_t *pool);
+
 
 /*** Utility Functions ***/
 

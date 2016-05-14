@@ -249,6 +249,7 @@ svn_txdelta_compose_windows(const svn_txdelta_window_t *window_A,
  *
  * @since New in 1.4
  *
+ * @since Since 1.9, @a tbuf may be NULL if @a *tlen is 0.
  */
 void
 svn_txdelta_apply_instructions(svn_txdelta_window_t *window,
@@ -545,10 +546,26 @@ svn_txdelta_to_svndiff(svn_stream_t *output,
 
 /** Return a writable generic stream which will parse svndiff-format
  * data into a text delta, invoking @a handler with @a handler_baton
- * whenever a new window is ready.  If @a error_on_early_close is @c
- * TRUE, attempting to close this stream before it has handled the entire
- * svndiff data set will result in #SVN_ERR_SVNDIFF_UNEXPECTED_END,
- * else this error condition will be ignored.
+ * whenever a new window is ready.
+ *
+ * When the caller closes this stream, this will signal completion to
+ * the window handler by invoking @a handler once more, passing zero for
+ * the @c window argument.
+ *
+ * If @a error_on_early_close is @c TRUE, then attempt to avoid
+ * signaling completion to the window handler if the delta was
+ * incomplete. Specifically, attempting to close the stream will be
+ * successful only if the data written to the stream consisted of one or
+ * more complete windows of svndiff data and no extra bytes. Otherwise,
+ * closing the stream will not signal completion to the window handler,
+ * and will return a #SVN_ERR_SVNDIFF_UNEXPECTED_END error. Note that if
+ * no data at all was written, the delta is considered incomplete.
+ *
+ * If @a error_on_early_close is @c FALSE, closing the stream will
+ * signal completion to the window handler, regardless of how much data
+ * was written, and discard any pending incomplete data.
+ *
+ * Allocate the stream in @a pool.
  */
 svn_stream_t *
 svn_txdelta_parse_svndiff(svn_txdelta_window_handler_t handler,

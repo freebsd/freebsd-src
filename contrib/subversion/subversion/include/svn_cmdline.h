@@ -320,8 +320,28 @@ svn_cmdline_auth_plaintext_passphrase_prompt(svn_boolean_t *may_save_plaintext,
  * by the command line client.
  *
  * @a non_interactive, @a username, @a password, @a config_dir,
- * @a no_auth_cache, and @a trust_server_cert are the values of the
- * command line options of the corresponding names.
+ * and @a no_auth_cache are the values of the command line options
+ * of the corresponding names.
+ *
+ * If @a non_interactive is @c TRUE, then the following parameters
+ * control whether an invalid SSL certificate will be accepted
+ * regardless of a specific verification failure:
+ *
+ * @a trust_server_cert_unknown_ca: If @c TRUE, accept certificates
+ * from unknown certificate authorities.
+ *
+ * @a trust_server_cert_cn_mismatch: If @c TRUE, accept certificates
+ * even if the Common Name attribute of the certificate differs from
+ * the hostname of the server.
+ *
+ * @a trust_server_cert_expired: If @c TRUE, accept certificates even
+ * if they are expired.
+ *
+ * @a trust_server_cert_not_yet_valid: If @c TRUE, accept certificates
+ * from the future.
+ *
+ * @a trust_server_cert_other_failure: If @c TRUE, accept certificates
+ * even if any other verification failure than the above occured.
  *
  * @a cfg is the @c SVN_CONFIG_CATEGORY_CONFIG configuration, and
  * @a cancel_func and @a cancel_baton control the cancellation of the
@@ -329,6 +349,29 @@ svn_cmdline_auth_plaintext_passphrase_prompt(svn_boolean_t *may_save_plaintext,
  *
  * Use @a pool for all allocations.
  *
+ * @since New in 1.9.
+ */
+svn_error_t *
+svn_cmdline_create_auth_baton2(svn_auth_baton_t **ab,
+                               svn_boolean_t non_interactive,
+                               const char *username,
+                               const char *password,
+                               const char *config_dir,
+                               svn_boolean_t no_auth_cache,
+                               svn_boolean_t trust_server_cert_unknown_ca,
+                               svn_boolean_t trust_server_cert_cn_mismatch,
+                               svn_boolean_t trust_server_cert_expired,
+                               svn_boolean_t trust_server_cert_not_yet_valid,
+                               svn_boolean_t trust_server_cert_other_failure,
+                               svn_config_t *cfg,
+                               svn_cancel_func_t cancel_func,
+                               void *cancel_baton,
+                               apr_pool_t *pool);
+
+/* Like svn_cmdline_create_auth_baton2, but with only one trust_server_cert
+ * option which corresponds to trust_server_cert_unknown_ca.
+ *
+ * @deprecated Provided for backward compatibility with the 1.8 API.
  * @since New in 1.6.
  */
 svn_error_t *

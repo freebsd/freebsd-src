@@ -114,7 +114,7 @@ char *
 svn_path_join(const char *base, const char *component, apr_pool_t *pool);
 
 /** Join multiple components onto a @a base path, allocated in @a pool. The
- * components are terminated by a @c NULL.
+ * components are terminated by a @c SVN_VA_NULL.
  *
  * If any component is the empty string, it will be ignored.
  *
@@ -131,7 +131,9 @@ svn_path_join(const char *base, const char *component, apr_pool_t *pool);
  */
 SVN_DEPRECATED
 char *
-svn_path_join_many(apr_pool_t *pool, const char *base, ...);
+svn_path_join_many(apr_pool_t *pool,
+                   const char *base,
+                   ...) SVN_NEEDS_SENTINEL_NULL;
 
 
 /** Get the basename of the specified canonicalized @a path.  The
@@ -716,10 +718,10 @@ svn_path_resolve_repos_relative_url(const char **absolute_url,
                                     const char *repos_root_url,
                                     apr_pool_t *pool);
 
-/* Return a copy of @a path, allocated from @a pool, for which control
- * characters have been escaped using the form \NNN (where NNN is the
+/** Return a copy of @a path, allocated from @a pool, for which control
+ * characters have been escaped using the form "\NNN" (where NNN is the
  * octal representation of the byte's ordinal value).
- * 
+ *
  * @since New in 1.8. */
 const char *
 svn_path_illegal_path_escape(const char *path, apr_pool_t *pool);

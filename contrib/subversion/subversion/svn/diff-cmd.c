@@ -37,6 +37,7 @@
 #include "svn_types.h"
 #include "svn_cmdline.h"
 #include "svn_xml.h"
+#include "svn_hash.h"
 #include "cl.h"
 
 #include "svn_private_config.h"
@@ -81,6 +82,7 @@ kind_to_word(svn_client_diff_summarize_kind_t kind)
 struct summarize_baton_t
 {
   const char *anchor;
+  svn_boolean_t ignore_properties;
 };
 
 /* Print summary information about a given change as XML, implements the
@@ -97,6 +99,11 @@ summarize_xml(const svn_client_diff_summarize_t *summary,
    * baton, and appending the target's relative path. */
   const char *path = b->anchor;
   svn_stringbuf_t *sb = svn_stringbuf_create_empty(pool);
+  const char *prop_change;
+
+  if (b->ignore_properties &&
+      summary->summarize_kind == svn_client_diff_summarize_kind_normal)
+    return SVN_NO_ERROR;
 
   /* Tack on the target path, so we can differentiate between different parts
    * of the output when we're given multiple targets. */
@@ -113,11 +120,15 @@ summarize_xml(const svn_client_diff_summarize_t *summary,
       path = svn_dirent_local_style(path, pool);
     }
 
+  prop_change = summary->prop_changed ? "modified" : "none";
+  if (b->ignore_properties)
+    prop_change = "none";
+
   svn_xml_make_open_tag(&sb, pool, svn_xml_protect_pcdata, "path",
                         "kind", svn_cl__node_kind_str_xml(summary->node_kind),
                         "item", kind_to_word(summary->summarize_kind),
-                        "props", summary->prop_changed ? "modified" : "none",
-                        NULL);
+                        "props",  prop_change,
+                        SVN_VA_NULL);
 
   svn_xml_escape_cdata_cstring(&sb, path, pool);
   svn_xml_make_close_tag(&sb, pool, "path");
@@ -134,6 +145,11 @@ summarize_regular(const svn_client_diff_summarize_t *summary,
 {
   struct summarize_baton_t *b = baton;
   const char *path = b->anchor;
+  char prop_change;
+
+  if (b->ignore_properties &&
+      summary->summarize_kind == svn_client_diff_summarize_kind_normal)
+    return SVN_NO_ERROR;
 
   /* Tack on the target path, so we can differentiate between different parts
    * of the output when we're given multiple targets. */
@@ -154,11 +170,13 @@ summarize_regular(const svn_client_diff_summarize_t *summary,
    *       thus the blank spaces where information that is not relevant to
    *       a diff summary would go. */
 
-  SVN_ERR(svn_cmdline_printf(pool,
-                             "%c%c      %s\n",
+  prop_change = summary->prop_changed ? 'M' : ' ';
+  if (b->ignore_properties)
+    prop_change = ' ';
+
+  SVN_ERR(svn_cmdline_printf(pool, "%c%c      %s\n",
                              kind_to_char(summary->summarize_kind),
-                             summary->prop_changed ? 'M' : ' ',
-                             path));
+                             prop_change, path));
 
   return svn_cmdline_fflush(stdout);
 }
@@ -179,6 +197,7 @@ svn_cl__diff(apr_getopt_t *os,
   const char *old_target, *new_target;
   apr_pool_t *iterpool;
   svn_boolean_t pegged_diff = FALSE;
+  svn_boolean_t ignore_content_type;
   svn_boolean_t show_copies_as_adds =
     opt_state->diff.patch_compatible || opt_state->diff.show_copies_as_adds;
   svn_boolean_t ignore_properties =
@@ -211,7 +230,7 @@ svn_cl__diff(apr_getopt_t *os,
       SVN_ERR(svn_cl__xml_print_header("diff", pool));
 
       sb = svn_stringbuf_create_empty(pool);
-      svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "paths", NULL);
+      svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "paths", SVN_VA_NULL);
       SVN_ERR(svn_cl__error_checked_fputs(sb->data, stdout));
     }
 
@@ -337,6 +356,25 @@ svn_cl__diff(apr_getopt_t *os,
 
     }
 
+  /* Should we ignore the content-type when deciding what to diff? */
+  if (opt_state->force)
+    {
+      ignore_content_type = TRUE;
+    }
+  else if (ctx->config)
+    {
+      SVN_ERR(svn_config_get_bool(svn_hash_gets(ctx->config,
+                                                SVN_CONFIG_CATEGORY_CONFIG),
+                                  &ignore_content_type,
+                                  SVN_CONFIG_SECTION_MISCELLANY,
+                                  SVN_CONFIG_OPTION_DIFF_IGNORE_CONTENT_TYPE,
+                                  FALSE));
+    }
+  else
+    {
+      ignore_content_type = FALSE;
+    }
+
   svn_opt_push_implicit_dot_target(targets, pool);
 
   iterpool = svn_pool_create(pool);
@@ -374,6 +412,7 @@ svn_cl__diff(apr_getopt_t *os,
           if (opt_state->diff.summarize)
             {
               summarize_baton.anchor = target1;
+              summarize_baton.ignore_properties = ignore_properties;
 
               SVN_ERR(svn_client_diff_summarize2(
                                 target1,
@@ -399,7 +438,7 @@ svn_cl__diff(apr_getopt_t *os,
                      opt_state->diff.no_diff_added,
                      opt_state->diff.no_diff_deleted,
                      show_copies_as_adds,
-                     opt_state->force,
+                     ignore_content_type,
                      ignore_properties,
                      opt_state->diff.properties_only,
                      opt_state->diff.use_git_diff_format,
@@ -426,6 +465,7 @@ svn_cl__diff(apr_getopt_t *os,
           if (opt_state->diff.summarize)
             {
               summarize_baton.anchor = truepath;
+              summarize_baton.ignore_properties = ignore_properties;
               SVN_ERR(svn_client_diff_summarize_peg2(
                                 truepath,
                                 &peg_revision,
@@ -450,7 +490,7 @@ svn_cl__diff(apr_getopt_t *os,
                      opt_state->diff.no_diff_added,
                      opt_state->diff.no_diff_deleted,
                      show_copies_as_adds,
-                     opt_state->force,
+                     ignore_content_type,
                      ignore_properties,
                      opt_state->diff.properties_only,
                      opt_state->diff.use_git_diff_format,

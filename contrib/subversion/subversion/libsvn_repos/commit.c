@@ -73,7 +73,7 @@ struct edit_baton
   svn_repos_t *repos;
 
   /* URL to the root of the open repository. */
-  const char *repos_url;
+  const char *repos_url_decoded;
 
   /* The name of the repository (here for convenience). */
   const char *repos_name;
@@ -201,6 +201,7 @@ invoke_commit_cb(svn_commit_callback2_t commit_cb,
   commit_info->date = date ? date->data : NULL;
   commit_info->author = author ? author->data : NULL;
   commit_info->post_commit_err = post_commit_errstr;
+  /* commit_info->repos_root is not set by the repos layer, only by RA layers */
 
   return svn_error_trace(commit_cb(commit_info, commit_baton, scratch_pool));
 }
@@ -262,7 +263,9 @@ make_dir_baton(struct edit_baton *edit_baton,
 /* This function is the shared guts of add_file() and add_directory(),
    which see for the meanings of the parameters.  The only extra
    parameter here is IS_DIR, which is TRUE when adding a directory,
-   and FALSE when adding a file.  */
+   and FALSE when adding a file.
+
+   COPY_PATH must be a full URL, not a relative path. */
 static svn_error_t *
 add_file_or_directory(const char *path,
                       void *parent_baton,
@@ -317,8 +320,8 @@ add_file_or_directory(const char *path,
       /* For now, require that the url come from the same repository
          that this commit is operating on. */
       copy_path = svn_path_uri_decode(copy_path, subpool);
-      repos_url_len = strlen(eb->repos_url);
-      if (strncmp(copy_path, eb->repos_url, repos_url_len) != 0)
+      repos_url_len = strlen(eb->repos_url_decoded);
+      if (strncmp(copy_path, eb->repos_url_decoded, repos_url_len) != 0)
         return svn_error_createf
           (SVN_ERR_FS_GENERAL, NULL,
            _("Source url '%s' is from different repository"), copy_path);
@@ -393,6 +396,11 @@ open_root(void *edit_baton,
      HEAD.  However, we will keep it in our dir baton for out of
      dateness checks.  */
   SVN_ERR(svn_fs_youngest_rev(&youngest, eb->fs, eb->pool));
+
+  if (base_revision > youngest)
+    return svn_error_createf(SVN_ERR_FS_NO_SUCH_REVISION, NULL,
+                             _("No such revision %ld (HEAD is %ld)"),
+                             base_revision, youngest);
 
   /* Unless we've been instructed to use a specific transaction, we'll
      make our own. */
@@ -939,7 +947,7 @@ svn_repos_get_commit_editor5(const svn_delta_editor_t **editor,
                              void **edit_baton,
                              svn_repos_t *repos,
                              svn_fs_txn_t *txn,
-                             const char *repos_url,
+                             const char *repos_url_decoded,
                              const char *base_path,
                              apr_hash_t *revprop_table,
                              svn_commit_callback2_t commit_callback,
@@ -953,6 +961,7 @@ svn_repos_get_commit_editor5(const svn_delta_editor_t **editor,
   struct edit_baton *eb;
   svn_delta_shim_callbacks_t *shim_callbacks =
                                     svn_delta_shim_callbacks_default(pool);
+  const char *repos_url = svn_path_uri_encode(repos_url_decoded, pool);
 
   /* Do a global authz access lookup.  Users with no write access
      whatsoever to the repository don't get a commit editor. */
@@ -994,7 +1003,7 @@ svn_repos_get_commit_editor5(const svn_delta_editor_t **editor,
   eb->authz_baton = authz_baton;
   eb->base_path = svn_fspath__canonicalize(base_path, subpool);
   eb->repos = repos;
-  eb->repos_url = repos_url;
+  eb->repos_url_decoded = repos_url_decoded;
   eb->repos_name = svn_dirent_basename(svn_repos_path(repos, subpool),
                                        subpool);
   eb->fs = svn_repos_fs(repos);
@@ -1010,7 +1019,7 @@ svn_repos_get_commit_editor5(const svn_delta_editor_t **editor,
   shim_callbacks->fetch_baton = eb;
 
   SVN_ERR(svn_editor__insert_shims(editor, edit_baton, *editor, *edit_baton,
-                                   eb->repos_url, eb->base_path,
+                                   repos_url, eb->base_path,
                                    shim_callbacks, pool, pool));
 
   return SVN_NO_ERROR;
@@ -1031,7 +1040,7 @@ ev2_check_authz(const struct ev2_baton *eb,
     return SVN_NO_ERROR;
 
   if (relpath)
-    fspath = apr_pstrcat(scratch_pool, "/", relpath, NULL);
+    fspath = apr_pstrcat(scratch_pool, "/", relpath, SVN_VA_NULL);
   else
     fspath = NULL;
 
@@ -1138,15 +1147,15 @@ static svn_error_t *
 alter_file_cb(void *baton,
               const char *relpath,
               svn_revnum_t revision,
-              apr_hash_t *props,
               const svn_checksum_t *checksum,
               svn_stream_t *contents,
+              apr_hash_t *props,
               apr_pool_t *scratch_pool)
 {
   struct ev2_baton *eb = baton;
 
-  SVN_ERR(svn_editor_alter_file(eb->inner, relpath, revision, props,
-                                checksum, contents));
+  SVN_ERR(svn_editor_alter_file(eb->inner, relpath, revision,
+                                checksum, contents, props));
   return SVN_NO_ERROR;
 }
 
@@ -1156,14 +1165,14 @@ static svn_error_t *
 alter_symlink_cb(void *baton,
                  const char *relpath,
                  svn_revnum_t revision,
-                 apr_hash_t *props,
                  const char *target,
+                 apr_hash_t *props,
                  apr_pool_t *scratch_pool)
 {
   struct ev2_baton *eb = baton;
 
-  SVN_ERR(svn_editor_alter_symlink(eb->inner, relpath, revision, props,
-                                   target));
+  SVN_ERR(svn_editor_alter_symlink(eb->inner, relpath, revision,
+                                   target, props));
   return SVN_NO_ERROR;
 }
 
@@ -1212,20 +1221,6 @@ move_cb(void *baton,
 
   SVN_ERR(svn_editor_move(eb->inner, src_relpath, src_revision, dst_relpath,
                           replaces_rev));
-  return SVN_NO_ERROR;
-}
-
-
-/* This implements svn_editor_cb_rotate_t */
-static svn_error_t *
-rotate_cb(void *baton,
-          const apr_array_header_t *relpaths,
-          const apr_array_header_t *revisions,
-          apr_pool_t *scratch_pool)
-{
-  struct ev2_baton *eb = baton;
-
-  SVN_ERR(svn_editor_rotate(eb->inner, relpaths, revisions));
   return SVN_NO_ERROR;
 }
 
@@ -1351,7 +1346,6 @@ svn_repos__get_commit_ev2(svn_editor_t **editor,
     delete_cb,
     copy_cb,
     move_cb,
-    rotate_cb,
     complete_cb,
     abort_cb
   };

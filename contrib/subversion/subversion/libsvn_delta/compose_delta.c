@@ -648,14 +648,17 @@ copy_source_ops(apr_size_t offset, apr_size_t limit,
     {
       const svn_txdelta_op_t *const op = &window->ops[op_ndx];
       const apr_size_t *const off = &ndx->offs[op_ndx];
-      apr_size_t fix_offset;
-      apr_size_t fix_limit;
+      const apr_size_t fix_offset = (offset > off[0] ? offset - off[0] : 0);
+      const apr_size_t fix_limit = (off[0] >= limit ? 0
+                                    : (off[1] > limit ? off[1] - limit : 0));
 
+      /* Ideally, we'd do this check before assigning fix_offset and
+         fix_limit; but then we couldn't make them const whilst still
+         adhering to C90 rules. Instead, we're going to assume that a
+         smart optimizing compiler will reorder this check before the
+         local variable initialization. */
       if (off[0] >= limit)
           break;
-
-      fix_offset = (offset > off[0] ? offset - off[0] : 0);
-      fix_limit = (off[1] > limit ? off[1] - limit : 0);
 
       /* It would be extremely weird if the fixed-up op had zero length. */
       assert(fix_offset + fix_limit < op->length);
@@ -701,23 +704,22 @@ copy_source_ops(apr_size_t offset, apr_size_t limit,
               apr_size_t tgt_off = target_offset;
               assert(ptn_length > ptn_overlap);
 
-              /* ### FIXME: ptn_overlap is unsigned, so the if() condition
-                 below is always true!  Either it should be '> 0', or the
-                 code block should be unconditional.  See also r842362. */
-              if (ptn_overlap >= 0)
-                {
-                  /* Issue second subrange in the pattern. */
-                  const apr_size_t length =
-                    MIN(op->length - fix_off - fix_limit,
-                        ptn_length - ptn_overlap);
-                  copy_source_ops(op->offset + ptn_overlap,
-                                  op->offset + ptn_overlap + length,
-                                  tgt_off,
-                                  op_ndx,
-                                  build_baton, window, ndx, pool);
-                  fix_off += length;
-                  tgt_off += length;
-                }
+              /* Unconditionally issue the second subrange of the
+                 pattern. This is always correct, since the outer
+                 condition already verifies that there is an overlap
+                 in the target copy. */
+              {
+                const apr_size_t length =
+                  MIN(op->length - fix_off - fix_limit,
+                      ptn_length - ptn_overlap);
+                copy_source_ops(op->offset + ptn_overlap,
+                                op->offset + ptn_overlap + length,
+                                tgt_off,
+                                op_ndx,
+                                build_baton, window, ndx, pool);
+                fix_off += length;
+                tgt_off += length;
+              }
 
               assert(fix_off + fix_limit <= op->length);
               if (ptn_overlap > 0

@@ -37,7 +37,7 @@ extern "C" {
  * Returns if @a err is a "tracing" error.
  */
 svn_boolean_t
-svn_error__is_tracing_link(svn_error_t *err);
+svn_error__is_tracing_link(const svn_error_t *err);
 
 /**
  * Converts a zlib error to an svn_error_t. zerr is the error code,

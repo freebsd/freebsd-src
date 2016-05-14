@@ -258,24 +258,7 @@ static const char machine [9][14] = {
 static const char *
 first_non_fsm_start_char(const char *data, apr_size_t max_len)
 {
-#if !SVN_UNALIGNED_ACCESS_IS_OK
-
-  /* On some systems, we need to make sure that buf is properly aligned
-   * for chunky data access.
-   */
-  if ((apr_uintptr_t)data & (sizeof(apr_uintptr_t)-1))
-    {
-      apr_size_t len = (~(apr_uintptr_t)data) & (sizeof(apr_uintptr_t)-1);
-      if (len > max_len)
-        len = max_len;
-      max_len -= len;
-
-      for (; len > 0; ++data, --len)
-        if (*data < 0 || *data >= 0x80)
-          return data;
-    }
-
-#endif
+#if SVN_UNALIGNED_ACCESS_IS_OK
 
   /* Scan the input one machine word at a time. */
   for (; max_len > sizeof(apr_uintptr_t)
@@ -283,55 +266,11 @@ first_non_fsm_start_char(const char *data, apr_size_t max_len)
     if (*(const apr_uintptr_t *)data & SVN__BIT_7_SET)
       break;
 
-  /* The remaining odd bytes will be examined the naive way: */
-  for (; max_len > 0; ++data, --max_len)
-    if (*data < 0 || *data >= 0x80)
-      break;
-
-  return data;
-}
-
-/* Scan the C string in *DATA for chars that are not in the octet
- * category 0 (FSM_START).  Return the position of either the such
- * char or of the terminating NUL.
- */
-static const char *
-first_non_fsm_start_char_cstring(const char *data)
-{
-  /* We need to make sure that BUF is properly aligned for chunky data
-   * access because we don't know the string's length. Unaligned chunk
-   * read access beyond the NUL terminator could therefore result in a
-   * segfault.
-   */
-  for (; (apr_uintptr_t)data & (sizeof(apr_uintptr_t)-1); ++data)
-    if (*data <= 0 || *data >= 0x80)
-      return data;
-
-  /* Scan the input one machine word at a time. */
-#ifndef SVN_UTF_NO_UNINITIALISED_ACCESS
-  /* This may read allocated but initialised bytes beyond the
-     terminating null.  Any such bytes are always readable and this
-     code operates correctly whatever the uninitialised values happen
-     to be.  However memory checking tools such as valgrind and GCC
-     4.8's address santitizer will object so this bit of code can be
-     disabled at compile time. */
-  for (; ; data += sizeof(apr_uintptr_t))
-    {
-      /* Check for non-ASCII chars: */
-      apr_uintptr_t chunk = *(const apr_uintptr_t *)data;
-      if (chunk & SVN__BIT_7_SET)
-        break;
-
-      /* This is the well-known strlen test: */
-      chunk |= (chunk & SVN__LOWER_7BITS_SET) + SVN__LOWER_7BITS_SET;
-      if ((chunk & SVN__BIT_7_SET) != SVN__BIT_7_SET)
-        break;
-    }
 #endif
 
   /* The remaining odd bytes will be examined the naive way: */
-  for (; ; ++data)
-    if (*data <= 0 || *data >= 0x80)
+  for (; max_len > 0; ++data, --max_len)
+    if ((unsigned char)*data >= 0x80)
       break;
 
   return data;
@@ -359,20 +298,10 @@ svn_utf__last_valid(const char *data, apr_size_t len)
 svn_boolean_t
 svn_utf__cstring_is_valid(const char *data)
 {
-  int state = FSM_START;
-
   if (!data)
     return FALSE;
 
-  data = first_non_fsm_start_char_cstring(data);
-
-  while (*data)
-    {
-      unsigned char octet = *data++;
-      int category = octet_category[octet];
-      state = machine[state][category];
-    }
-  return state == FSM_START;
+  return svn_utf__is_valid(data, strlen(data));
 }
 
 svn_boolean_t
