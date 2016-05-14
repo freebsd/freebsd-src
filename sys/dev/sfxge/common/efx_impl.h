@@ -208,10 +208,6 @@ typedef struct efx_phy_ops_s {
 	efx_rc_t	(*epo_reset)(efx_nic_t *);
 	efx_rc_t	(*epo_reconfigure)(efx_nic_t *);
 	efx_rc_t	(*epo_verify)(efx_nic_t *);
-	efx_rc_t	(*epo_uplink_check)(efx_nic_t *,
-					    boolean_t *); /* optional */
-	efx_rc_t	(*epo_downlink_check)(efx_nic_t *, efx_link_mode_t *,
-					      unsigned int *, uint32_t *);
 	efx_rc_t	(*epo_oui_get)(efx_nic_t *, uint32_t *);
 #if EFSYS_OPT_PHY_STATS
 	efx_rc_t	(*epo_stats_update)(efx_nic_t *, efsys_mem_t *,

@@ -41,8 +41,6 @@ static const efx_phy_ops_t	__efx_phy_siena_ops = {
 	NULL,				/* epo_reset */
 	siena_phy_reconfigure,		/* epo_reconfigure */
 	siena_phy_verify,		/* epo_verify */
-	NULL,				/* epo_uplink_check */
-	NULL,				/* epo_downlink_check */
 	siena_phy_oui_get,		/* epo_oui_get */
 #if EFSYS_OPT_PHY_STATS
 	siena_phy_stats_update,		/* epo_stats_update */
@@ -62,8 +60,6 @@ static const efx_phy_ops_t	__efx_phy_ef10_ops = {
 	NULL,				/* epo_reset */
 	ef10_phy_reconfigure,		/* epo_reconfigure */
 	ef10_phy_verify,		/* epo_verify */
-	NULL,				/* epo_uplink_check */
-	NULL,				/* epo_downlink_check */
 	ef10_phy_oui_get,		/* epo_oui_get */
 #if EFSYS_OPT_PHY_STATS
 	ef10_phy_stats_update,		/* epo_stats_update */
