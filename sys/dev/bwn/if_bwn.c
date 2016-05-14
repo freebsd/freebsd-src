@@ -6381,10 +6381,15 @@ static void
 bwn_set_slot_time(struct bwn_mac *mac, uint16_t time)
 {
 
+	/* XXX should exit if 5GHz band .. */
 	if (mac->mac_phy.type != BWN_PHYTYPE_G)
 		return;
+
 	BWN_WRITE_2(mac, 0x684, 510 + time);
+	/* Disabled in Linux b43, can adversely effect performance */
+#if 0
 	bwn_shm_write_2(mac, BWN_SHARED, 0x0010, time);
+#endif
 }
 
 static struct bwn_dma_ring *
