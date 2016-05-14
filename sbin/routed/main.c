@@ -826,8 +826,8 @@ intvl_random(struct timeval *tp,	/* put value here */
 {
 	tp->tv_sec = (time_t)(hi == lo
 			      ? lo
-			      : (lo + random() % ((hi - lo))));
-	tp->tv_usec = random() % 1000000;
+			      : (lo + arc4random() % ((hi - lo))));
+	tp->tv_usec = arc4random() % 1000000;
 }
 
 
