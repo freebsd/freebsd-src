@@ -500,7 +500,7 @@ snmptool_walk(struct snmp_toolinfo *snmptoolctx)
 			outputs += rc;
 			snmp_pdu_free(&resp);
 
-			if (rc < resp.nbindings)
+			if ((u_int)rc < resp.nbindings)
 				break;
 
 			snmpwalk_nextpdu_create(op,
