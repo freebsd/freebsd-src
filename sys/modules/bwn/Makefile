@@ -4,7 +4,13 @@
 
 KMOD=	if_bwn
 SRCS=	if_bwn.c if_bwnreg.h if_bwnvar.h
+SRCS+=	if_bwn_util.c
+
+# PHY
+SRCS+=	if_bwn_phy_common.c
 SRCS+=	if_bwn_phy_g.c if_bwn_phy_lp.c
+
+# Other
 SRCS+=	device_if.h bus_if.h pci_if.h
 
 .include <bsd.kmod.mk>
