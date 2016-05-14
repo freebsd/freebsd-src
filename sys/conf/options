@@ -620,6 +620,7 @@ DEBUG_MEMGUARD		opt_vm.h
 DEBUG_REDZONE		opt_vm.h
 
 # Standard SMP options
+EARLY_AP_STARTUP	opt_global.h
 SMP			opt_global.h
 
 # Size of the kernel message buffer
