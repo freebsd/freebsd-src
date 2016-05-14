@@ -254,9 +254,10 @@ loop:
 			 * the following line is necessary due to syslog
 			 * calling ctime() which clobbers the static buffer
 			 */
-			(void)strcpy(olddate, date());
+			(void)strlcpy(olddate, date(), sizeof(olddate));
 			tsp_time_sec = msg->tsp_time.tv_sec;
-			(void)strcpy(newdate, ctime(&tsp_time_sec));
+			(void)strlcpy(newdate, ctime(&tsp_time_sec),
+			    sizeof(newdate));
 
 			if (!good_host_name(msg->tsp_name)) {
 				syslog(LOG_NOTICE,
@@ -342,7 +343,8 @@ loop:
 
 		case TSP_SETDATE:
 			tsp_time_sec = msg->tsp_time.tv_sec;
-			(void)strcpy(newdate, ctime(&tsp_time_sec));
+			(void)strlcpy(newdate, ctime(&tsp_time_sec),
+			    sizeof(newdate));
 			schgdate(msg, newdate);
 			break;
 
@@ -350,7 +352,8 @@ loop:
 			if (fromnet->status != MASTER)
 				break;
 			tsp_time_sec = msg->tsp_time.tv_sec;
-			(void)strcpy(newdate, ctime(&tsp_time_sec));
+			(void)strlcpy(newdate, ctime(&tsp_time_sec),
+			    sizeof(newdate));
 			htp = findhost(msg->tsp_name);
 			if (htp == NULL) {
 				syslog(LOG_WARNING,

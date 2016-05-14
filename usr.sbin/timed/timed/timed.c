@@ -196,7 +196,7 @@ main(int argc, char *argv[])
 	if (goodgroup != NULL || goodhosts != NULL)
 		Mflag = 1;
 
-	if (gethostname(hostname, sizeof(hostname) - 1) < 0)
+	if (gethostname(hostname, sizeof(hostname)) < 0)
 		err(1, "gethostname");
 	self.l_bak = &self;
 	self.l_fwd = &self;
@@ -455,7 +455,7 @@ suppress(struct sockaddr_in *addr, char *name, struct netinfo *net)
 	if (trace)
 		fprintf(fd, "suppress: %s\n", name);
 	tgt = *addr;
-	(void)strcpy(tname, name);
+	(void)strlcpy(tname, name, sizeof(tname));
 
 	while (0 != readmsg(TSP_ANY, ANYADDR, &wait, net)) {
 		if (trace)
